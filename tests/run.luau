@@ -2141,11 +2141,11 @@ test("M4: fast travel rules, the flight arc, the bank and respawn choices", func
 end)
 
 test("M4: profile version 2 adds beacons and safehouses; a v1 save keeps its last safehouse", function()
-	check(ProfileSchema.VERSION == 2, "version 2")
+	check(ProfileSchema.VERSION >= 2, "version 2 or later")
 	local v1 = { version = 1, characters = { { level = 12, lastSafehouse = 5 } } }
 	local p = ProfileSchema.load(v1)
 	local c = p.characters[1]
-	check(p.version == 2 and c.beacons == 0, "beacons start undiscovered")
+	check(p.version == ProfileSchema.VERSION and c.beacons == 0, "beacons start undiscovered")
 	check(Travel.has(c.safehouses, 5) and c.lastSafehouse == 5, "the last safehouse counts as visited")
 	local bad = ProfileSchema.load({
 		version = 2,
@@ -2998,6 +2998,314 @@ test("M6: a new account sees a boss within 8 minutes; heroes and villains share 
 end)
 
 ---------------------------------------------------------------------------
+-- M7: opening, Act 1, missions, side quests
+---------------------------------------------------------------------------
+
+test("M7: Act 1 has 6 missions in order with level gates; replays pay once", function()
+	local StoryPlan = require("../src/shared/StoryPlan")
+	local S = Config.Story
+	check(#S.missions == 6 and S.missions[1].opening, "6 missions, the first is the opening")
+	local story = ProfileSchema.newCharacter().story
+	check(StoryPlan.state(Config, story, 1, 2) == "locked", "mission 2 waits for the opening")
+	check(not StoryPlan.canEnter(Config, story, 40, 1), "mission 1 is not entered from the board")
+	check(StoryPlan.clear(story, 1) and not StoryPlan.clear(story, 1), "a first clear counts once")
+	check(StoryPlan.state(Config, story, 2, 2) == "level", "mission 2 needs level 3")
+	check(StoryPlan.canEnter(Config, story, 3, 2), "level 3 opens mission 2")
+	check(StoryPlan.state(Config, story, 40, 3) == "locked", "mission 3 waits for mission 2")
+	for n = 2, 6 do
+		StoryPlan.clear(story, n)
+	end
+	check(StoryPlan.nextMission(Config, story) == nil, "Act 1 done")
+	check(StoryPlan.canEnter(Config, story, 40, 4), "cleared missions can be replayed")
+	check(StoryPlan.actSkillPoints(Config) == 8, "Act 1 grants 8 Skill Points in all")
+	for n = 2, 6 do
+		local m = S.missions[n]
+		check(m.layout ~= nil and #m.hero > 0 and #m.villain == #m.hero, m.id .. ": both routes, same length")
+	end
+end)
+
+test("M7: choices pick once, pay once, and change one step of a mission", function()
+	local StoryPlan = require("../src/shared/StoryPlan")
+	local story = ProfileSchema.newCharacter().story
+	local before = StoryPlan.steps(Config, 2, "hero", story.choices)
+	check(#before == 2, "the branch waits for its choice")
+	check(StoryPlan.pendingBranch(Config, 2, "hero", 3) == 1, "step 3 is choice 1's branch")
+	local ok, fx = StoryPlan.pick(Config, story, 1, 1, "hero")
+	check(ok and fx.skillPoints == 2 and fx.rep[1] == "city" and fx.gadget == "Decoy", "Save the Train")
+	check(not StoryPlan.pick(Config, story, 1, 2, "hero"), "a choice is picked only once")
+	local after = StoryPlan.steps(Config, 2, "hero", story.choices)
+	check(#after == 3 and after[3].train, "the train branch goes in")
+	local villain = ProfileSchema.newCharacter("villain").story
+	local _, vfx = StoryPlan.pick(Config, villain, 1, 2, "villain")
+	check(vfx.rep[1] == "syndicate" and vfx.credits == 600, "a villain's own-side rep is the Syndicate")
+	check(StoryPlan.labels(Config, 1, "villain")[2] == "Chase the Rival", "villain button labels")
+	-- Trust Her: the mission 5 gauntlet loses 2 turrets; Test Her: an ambush step in mission 4
+	local trust = ProfileSchema.newCharacter().story
+	StoryPlan.pick(Config, trust, 2, 1, "hero")
+	local m5 = StoryPlan.steps(Config, 5, "hero", trust.choices)
+	check(m5[2].turrets == 2, "a shortcut through the gauntlet")
+	check(#StoryPlan.steps(Config, 4, "hero", trust.choices) == 3, "trust: no ambush")
+	local test2 = ProfileSchema.newCharacter().story
+	StoryPlan.pick(Config, test2, 2, 2, "hero")
+	check(#StoryPlan.steps(Config, 4, "hero", test2.choices) == 4, "test: an ambush")
+	check(StoryPlan.steps(Config, 5, "hero", test2.choices)[2].turrets == 4, "no shortcut")
+	local spare = ProfileSchema.newCharacter().story
+	StoryPlan.pick(Config, spare, 3, 1, "hero")
+	check(StoryPlan.bit(spare.perks, 1), "Spare the Core unlocks Null Echo")
+end)
+
+test("M7: 8 side quest arcs of 3 steps; steps advance to done; the journal pins one step", function()
+	local StoryPlan = require("../src/shared/StoryPlan")
+	local S = Config.Story
+	check(#S.quests == 8, "8 arcs")
+	for _, q in S.quests do
+		check(#q.steps == 3 and #q.lines == 3 and q.reward ~= nil, q.id .. ": 3 steps, 3 lines, a reward")
+		for _, st in q.steps do
+			check(StoryPlan.need(st) >= 1, q.id .. " " .. st.kind .. " needs something")
+		end
+	end
+	local story = ProfileSchema.newCharacter().story
+	check(StoryPlan.startQuest(story, 2) and not StoryPlan.startQuest(story, 2), "start once")
+	story.pinned = 2
+	check(StoryPlan.pinnedText(Config, story, "hero") == S.quests[2].steps[1].text, "pinned quest step")
+	check(
+		StoryPlan.advanceQuest(story, 2) == "next" and StoryPlan.advanceQuest(story, 2) == "next",
+		"steps 2, 3"
+	)
+	check(StoryPlan.advanceQuest(story, 2) == "done" and story.quests[2] == 4, "then done")
+	check(StoryPlan.advanceQuest(story, 2) == nil, "a done arc stays done")
+	story.pinned = 0
+	check(StoryPlan.pinnedText(Config, story, "villain") == "Mission 1: Shardfall", "else the next mission")
+	check(StoryPlan.npcName(Config, 4, "villain") == "The Velvet Paw", "villains train with the Velvet Paw")
+	check(
+		GearMath.questStyle(Config, "MayorsSash") ~= nil and GearMath.questStyle(Config, "DockCoat") ~= nil,
+		"quest styles"
+	)
+	check(StoryPlan.repRank(Config, 0) == 0 and StoryPlan.repRank(Config, 650) == 3, "rep ranks")
+	check(StoryPlan.repRank(Config, 99999) == 5, "rank 5 is the top")
+end)
+
+test("M7: save version 3: returning heroes skip the opening; story numbers are repaired", function()
+	check(ProfileSchema.VERSION == 3, "version 3")
+	local old =
+		ProfileSchema.load({ version = 2, characters = { { level = 7, xp = 10 }, { level = 1, xp = 0 } } })
+	check(old.characters[1].story.opening == 1 and old.characters[1].story.missions == 1, "a played hero")
+	check(old.characters[2].story.opening == 0, "a fresh hero still gets the opening")
+	local bad = ProfileSchema.load({
+		version = 3,
+		characters = { { story = { missions = 999, quests = { 9, -1 }, choices = { 5 }, pinned = 40 } } },
+	})
+	local st = bad.characters[1].story
+	check(st.missions == 63 and st.quests[1] == 4 and st.quests[2] == 0 and st.quests[8] == 0, "clamped")
+	check(st.choices[1] == 2 and st.choices[3] == 0 and st.pinned == 8, "choices and pin clamped")
+	check(
+		#bad.frames == ProfileSchema.SMALL_WORDS and #bad.props == ProfileSchema.SMALL_WORDS,
+		"new unlock words"
+	)
+end)
+
+test("M7: the opening's drones: the first never fires and falls in 2 hits; the second hits weakly", function()
+	local sim = EnemySim.new(Config, {
+		random = function()
+			return 0.5
+		end,
+	})
+	local a = EnemySim.spawn(sim, "SparkDrone", 0, 20, 0, 1) :: any
+	local b = EnemySim.spawn(sim, "SparkDrone", 10, 20, 0, 1) :: any
+	a.dmgMult, a.hitLife = 0, 2
+	b.dmgMult, b.hitLife = Config.Story.opening.secondDamage, 4
+	local killed = EnemySim.damage(sim, a.id, 1, 1)
+	check(not killed and a.health > 0, "1 hit: still up")
+	killed = EnemySim.damage(sim, a.id, 1, 1)
+	check(killed, "2 hits: down")
+	for _ = 1, 3 do
+		check(not (EnemySim.damage(sim, b.id, 1, 1)), "the second takes 4")
+	end
+	check((EnemySim.damage(sim, b.id, 1, 1)), "4 hits: down")
+	-- a harmless drone near a hero for 20 s fires nothing
+	local c = EnemySim.spawn(sim, "SparkDrone", 0, 20, 0, 1) :: any
+	c.dmgMult, c.hitLife = 0, 2
+	EnemySim.drainEvents(sim)
+	local shots = 0
+	for i = 1, 200 do
+		EnemySim.step(sim, i * 0.1, { { id = 1, x = 0, y = 18, z = 12, alive = true } })
+		for _, ev in EnemySim.drainEvents(sim) do
+			if ev.k == "shot" or ev.k == "hit" then
+				shots += 1
+			end
+		end
+	end
+	check(shots == 0, "the first drone never attacks back")
+end)
+
+test(
+	"M7: the opening route is real for every seed: roofs within one Leap, a tram, the shard, a pad, the Docks",
+	function()
+		local OpeningPlan = require("../src/shared/OpeningPlan")
+		local O = Config.Story.opening
+		local gy = Config.City.ground.y
+		for _, seed in { 202647, 11, 777, 31337 } do
+			local w = if seed == 202647 then world else WorldMap.build(Config, seed)
+			for k = 1, 5 do
+				local r = OpeningPlan.route(Config, w, Rng.new(seed + k))
+				check(r ~= nil, "a route for seed " .. seed)
+				if r then
+					local h = r.start[2] - gy
+					check(h >= O.startRoof.minH and h <= O.startRoof.maxH + 2, "start roof height " .. h)
+					local px, pz = OpeningPlan.plaza(w)
+					check(
+						math.sqrt((r.start[1] - px) ^ 2 + (r.start[3] - pz) ^ 2) <= O.startRoof.near,
+						"near the plaza"
+					)
+					local gap = math.sqrt((r.leap[1] - r.start[1]) ^ 2 + (r.leap[3] - r.start[3]) ^ 2)
+					check(
+						gap >= O.leapRoof.minGap and gap <= Config.Move.leap.range,
+						"the next roof is one Leap away"
+					)
+					check(r.leap[2] <= r.start[2] + 12, "not higher than a Leap climbs")
+					check(
+						HeightMap.at(w.heights, r.tram[1], r.tram[3]) <= gy + 1.5,
+						"the tram is on the street"
+					)
+					check(
+						HeightMap.at(w.heights, r.shard[1], r.shard[3]) <= gy + 1.5,
+						"the shard is on open ground"
+					)
+					local pg = math.sqrt((r.pad[1] - r.shard[1]) ^ 2 + (r.pad[3] - r.shard[3]) ^ 2)
+					check(pg >= O.rescueGap[1] and pg <= O.rescueGap[2], "the rescue pad gap")
+					local eg = math.sqrt((r.escape[1] - r.shard[1]) ^ 2 + (r.escape[3] - r.shard[3]) ^ 2)
+					check(eg >= O.escape[1] and eg <= O.escape[2], "the escape run")
+					check(r.beacon > 0 and w.beacons[r.beacon] ~= nil, "a first beacon")
+					check(
+						OpeningPlan.at(Config, r.leap, r.leap[1] + 5, r.leap[2], r.leap[3]),
+						"standing on the roof counts"
+					)
+					check(
+						not OpeningPlan.at(Config, r.leap, r.leap[1], r.leap[2] - 30, r.leap[3]),
+						"the street below does not"
+					)
+				end
+			end
+		end
+	end
+)
+
+test("M7: 7 sealed pockets at y 3,000; every layout has its points", function()
+	local PocketLayout = require("../src/shared/PocketLayout")
+	local S = Config.Story
+	local seen = {}
+	for i = 1, S.pockets.count do
+		local x, y, z = PocketLayout.centre(Config, i)
+		check(
+			y == 3000 and math.abs(x) < Config.City.mapSize / 2 and math.abs(z) < Config.City.mapSize / 2,
+			"pocket " .. i .. " in the map"
+		)
+		check(PocketLayout.at(Config, x + 150, y + 10, z - 150) == i, "points inside pocket " .. i)
+		for j = 1, i - 1 do
+			local ox, _, oz = PocketLayout.centre(Config, j)
+			check(
+				math.abs(ox - x) >= S.pockets.size or math.abs(oz - z) >= S.pockets.size,
+				"pockets do not overlap"
+			)
+		end
+	end
+	check(PocketLayout.at(Config, 0, 50, 0) == nil, "the city is not a pocket")
+	local need = {
+		station = { points = { "spawn", "trainStart" }, lists = { stations = 3, crates = 3, path = 3 } },
+		tower = { points = { "spawn", "top", "mast", "boss" }, lists = {} },
+		rooftops = { points = { "spawn", "contact" }, lists = { path = 8 } },
+		dungeon = { points = { "spawn", "gauntletEnd", "boss" }, lists = { rooms = 3, turrets = 4 } },
+		arena = { points = { "spawn", "boss" }, lists = { pillars = 6 } },
+	}
+	for n = 2, 6 do
+		local m = S.missions[n]
+		local l = PocketLayout.build(Config, n, m.layout)
+		seen[m.layout] = true
+		local want = need[m.layout]
+		for _, p in want.points do
+			check(l.points[p] ~= nil, m.layout .. " has " .. p)
+		end
+		for list, count in want.lists do
+			check(
+				l.lists[list] ~= nil and #l.lists[list] >= count,
+				m.layout .. " has " .. count .. " " .. list
+			)
+		end
+		check(#l.boxes < 400, m.layout .. " stays under 400 parts (" .. #l.boxes .. ")")
+		local sp = l.points.spawn
+		check(PocketLayout.at(Config, sp[1], sp[2], sp[3]) == n, m.layout .. " spawn is inside its pocket")
+	end
+	check(seen.station and seen.tower and seen.rooftops and seen.dungeon and seen.arena, "5 layouts")
+	-- robots stand on the pocket's own boxes: the tower top, a roof, the floor, never the dungeon ceiling
+	local tower = PocketLayout.build(Config, 3, "tower")
+	local top = tower.points.top
+	near(PocketLayout.heightAt(tower, top[1], top[3]), top[2] - 1, 1.5, "the tower deck")
+	near(PocketLayout.heightAt(tower, tower.cx + 150, tower.cz + 150), tower.floorY, 0.01, "the pocket floor")
+	local dungeon = PocketLayout.build(Config, 5, "dungeon")
+	local room = dungeon.lists.rooms[2]
+	near(PocketLayout.heightAt(dungeon, room[1], room[3]), dungeon.floorY, 0.01, "not the ceiling")
+	check(
+		PocketLayout.heightAt(dungeon, dungeon.cx, dungeon.cz + 60) > dungeon.floorY + 20,
+		"the dungeon walls block"
+	)
+end)
+
+test(
+	"M7: the War-Frame: cannons, a phase 2 shield broken by 3 back hits, drones, pillars block the laser",
+	function()
+		check(BossMath.warframeHp(Config, 20) == 36000, "36,000 HP at level 20")
+		check(BossMath.warframeHp(Config, 10) < 36000, "scaled by the party's level")
+		local sim = BossSim.new(Config, "NullWarFrame", 0, 0, 0, 36000, 20, 0, Rng.new(5))
+		BossSim.step(sim, 6, {})
+		check(#sim.objectives == 2, "2 shoulder cannons")
+		BossSim.damage(sim, "body", 36000 * 0.35)
+		local ev = BossSim.drain(sim)
+		local summon, shield = false, false
+		for _, e in ev do
+			summon = summon or (e.k == "summon" and e.n == 6)
+			shield = shield or (e.k == "shield" and e.left == 3)
+		end
+		check(sim.phase == 2 and summon and shield, "phase 2 calls 6 drones and raises the shield")
+		local hp = sim.hp
+		BossSim.damage(sim, "body", 5000)
+		check(sim.hp == hp, "the shield stops body damage")
+		for _ = 1, 3 do
+			BossSim.damage(sim, "back", 10)
+		end
+		check(sim.shield == 0, "3 back hits break it")
+		BossSim.damage(sim, "body", 1000)
+		check(sim.hp < hp, "damage gets through again")
+		-- the charged laser: a pillar between the boss and a hero blocks it
+		sim.cover = { { 0, -40, 7 } }
+		BossSim.damage(sim, "body", sim.hp - 36000 * 0.2)
+		check(sim.phase == 3, "phase 3")
+		-- the laser aims at the nearest hero: behind the pillar it never lands, in the open it does
+		local heroes = bossHeroes({ { 0, 0, -80 } })
+		local t = 6
+		local function laserHits(): (number, number)
+			local fired, hit = 0, 0
+			for _ = 1, 400 do
+				t += 0.1
+				BossSim.step(sim, t, heroes)
+				for _, e in BossSim.drain(sim) do
+					if e.k == "strike" and e.a == "ChargeLaser" then
+						fired += 1
+						hit += #e.hits
+					end
+				end
+			end
+			return fired, hit
+		end
+		local f1, h1 = laserHits()
+		check(f1 > 0 and h1 == 0, "the hero behind the pillar is safe from the laser")
+		sim.cover = {}
+		local f2, h2 = laserHits()
+		check(f2 > 0 and h2 > 0, "the hero in the open is hit")
+		check(sim.state == "fight", "it never retreats")
+	end
+)
+
+---------------------------------------------------------------------------
 -- Place layout (only when a built place is passed)
 ---------------------------------------------------------------------------
 
@@ -3054,6 +3362,9 @@ if placePath then
 				"BossMath",
 				"BossSim",
 				"IncidentSpots",
+				"StoryPlan",
+				"PocketLayout",
+				"OpeningPlan",
 			}
 		do
 			check(shared ~= nil and shared:FindFirstChild(name) ~= nil, "Shared." .. name)
@@ -3087,6 +3398,10 @@ if placePath then
 				"EventService",
 				"BossService",
 				"ClockService",
+				"StoryService",
+				"OpeningService",
+				"MissionService",
+				"QuestService",
 			}
 		do
 			local folder = server and server:FindFirstChild("Services")
@@ -3123,6 +3438,10 @@ if placePath then
 				{ "Fx", "WorldFx" },
 				{ "Ui", "WorldHud" },
 				{ "Ui", "ContractBoard" },
+				{ "Controllers", "StoryClient" },
+				{ "Fx", "StoryFx" },
+				{ "Ui", "StoryHud" },
+				{ "Ui", "Journal" },
 			}
 		do
 			local folder = client and client:FindFirstChild(path[1])

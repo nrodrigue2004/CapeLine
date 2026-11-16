@@ -27,6 +27,12 @@ local ContractService = require(script.Parent.ContractService)
 local EventService = require(script.Parent.EventService)
 local BossService = require(script.Parent.BossService)
 local ClockService = require(script.Parent.ClockService)
+local StoryService = require(script.Parent.StoryService)
+local OpeningService = require(script.Parent.OpeningService)
+local MissionService = require(script.Parent.MissionService)
+local QuestService = require(script.Parent.QuestService)
+local ProfileSchema = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("ProfileSchema"))
+local OpeningPlan = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("OpeningPlan"))
 
 local DevService = {}
 
@@ -162,6 +168,51 @@ local commands: { [string]: (player: Player, hero: any, value: number) -> () } =
 	end,
 	side = function(_, hero, villain)
 		hero.side = if villain ~= 0 then "villain" else "hero"
+	end,
+	-- M7: the story
+	opening = function(player, _, stepNum)
+		-- 0 replays the opening from the start; 1 to 9 jumps to that step of a running one
+		if stepNum == 0 or not OpeningService.running(player) then
+			OpeningService.start(player, true)
+		end
+		local name = OpeningPlan.STEPS[stepNum]
+		if name then
+			OpeningService.jump(player, name)
+		end
+	end,
+	mission = function(player, _, num)
+		local ok, why = MissionService.enter(player, num)
+		print("[Dev] mission", num, ok, why)
+	end,
+	finishstep = function(player)
+		MissionService.skipStep(player)
+		QuestService.skipStep(player)
+	end,
+	leavemission = function(player)
+		MissionService.leave(player)
+	end,
+	quest = function(player, _, num)
+		QuestService.start(player, num)
+	end,
+	actdone = function(player, hero)
+		-- every Act 1 mission cleared (choices stay as they are)
+		local story = StoryService.story(player)
+		if story then
+			story.opening = 1
+			story.missions = 2 ^ #Config.Story.missions - 1
+			if hero.level < 8 then
+				HeroService.setLevel(hero, 8)
+			end
+			StoryService.changed(player)
+		end
+	end,
+	resetstory = function(player)
+		local c = StoryService.char(player)
+		if c then
+			c.story = ProfileSchema.newCharacter().story
+			c.rep = { 0, 0, 0 }
+			StoryService.changed(player)
+		end
 	end,
 	style = function(_, hero, anime)
 		HeroService.setFxStyle(hero, if anime ~= 0 then "Anime" else "Comic")

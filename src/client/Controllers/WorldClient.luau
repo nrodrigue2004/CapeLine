@@ -150,12 +150,14 @@ end
 -- Lighting: ClockTime from the cycle, a cool ambient at night so the city stays readable
 local nightAmbient = Color3.fromRGB(70, 80, 120)
 local dayAmbient = Lighting.OutdoorAmbient
+-- A story scene can hold the sky at one time (the opening's dusk); nil follows the world clock
+WorldClient.clockOverride = nil :: number?
 local function lightStep()
-	if WorldClient.clockStart == 0 then
+	if WorldClient.clockStart == 0 and not WorldClient.clockOverride then
 		return
 	end
 	local cfg = Config.World.clock
-	local want = WorldClock.clockTime(cfg, WorldClient.clockT())
+	local want = WorldClient.clockOverride or WorldClock.clockTime(cfg, WorldClient.clockT())
 	local cur = Lighting.ClockTime
 	local d = (want - cur + 12) % 24 - 12
 	-- ease toward the target (a Dev clock jump glides over a couple of seconds)

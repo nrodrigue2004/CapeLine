@@ -2,7 +2,9 @@
 -- in a live game. Buttons: 30 load bots, clear bots, 5 drones, clear drones, spawner, god, class, level,
 -- Comic/Anime style, robots, levels, skill points, Awakening, loot by source, Renown, Credits, Dust, find all
 -- beacons, wreck here, repair city, flip cars, save, wipe, and (M6) incident by template, clear incidents,
--- event by type, boss now, boss to 1 HP, finish contract, clock phase, hero or villain side. The stats line shows the server frame, script time per service, enemies, bots, send
+-- event by type, boss now, boss to 1 HP, finish contract, clock phase, hero or villain side, and (M7) replay
+-- the opening, jump to an opening step, enter a mission, finish the step, leave, start a side quest, clear
+-- Act 1 and reset the story. The stats line shows the server frame, script time per service, enemies, bots, send
 -- rate and memory, plus the client fps and preset.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -23,7 +25,7 @@ function DevPanel.init()
 	end
 	local gui = Kit.screen("DevPanel", 20)
 	local panel = Kit.frame({
-		Size = UDim2.fromOffset(300, 600),
+		Size = UDim2.fromOffset(300, 700),
 		AnchorPoint = Vector2.new(1, 0),
 		Position = UDim2.new(1, -16, 0, 60),
 		BackgroundColor3 = Kit.color.night,
@@ -47,7 +49,7 @@ function DevPanel.init()
 	grid.SortOrder = Enum.SortOrder.LayoutOrder
 	local holder = Instance.new("Frame")
 	holder.BackgroundTransparency = 1
-	holder.Size = UDim2.new(1, -16, 0, 460)
+	holder.Size = UDim2.new(1, -16, 0, 565)
 	holder.Position = UDim2.fromOffset(8, 8)
 	grid.Parent = holder
 	holder.Parent = panel
@@ -185,11 +187,47 @@ function DevPanel.init()
 		b.Text = if villain then "Side: villain" else "Side: hero"
 		Net.send("DevCommand", "side", if villain then 1 else 0)
 	end)
+	-- M7: the story
+	add("Opening", function()
+		Net.send("DevCommand", "opening", 0)
+	end)
+	local openStep = 1
+	add("Open step: leap", function(b)
+		openStep = openStep % 9 + 1
+		local names = { "leap", "glide", "catch", "blast", "choice", "save", "grab", "suitup", "flight" }
+		b.Text = "Open step: " .. names[openStep]
+		Net.send("DevCommand", "opening", openStep)
+	end)
+	local missionIdx = 2
+	add("Mission 2", function(b)
+		Net.send("DevCommand", "mission", missionIdx)
+		missionIdx = missionIdx % 6 + 1
+		missionIdx = math.max(2, missionIdx)
+		b.Text = "Mission " .. missionIdx
+	end)
+	add("Finish step", function()
+		Net.send("DevCommand", "finishstep")
+	end)
+	add("Leave mission", function()
+		Net.send("DevCommand", "leavemission")
+	end)
+	local questIdx = 1
+	add("Quest: " .. Config.Story.quests[1].id, function(b)
+		Net.send("DevCommand", "quest", questIdx)
+		questIdx = questIdx % #Config.Story.quests + 1
+		b.Text = "Quest: " .. Config.Story.quests[questIdx].id
+	end)
+	add("Act 1 done", function()
+		Net.send("DevCommand", "actdone")
+	end)
+	add("Reset story", function()
+		Net.send("DevCommand", "resetstory")
+	end)
 
 	local stats = Kit.label({
 		Text = "waiting for server stats",
 		Size = UDim2.new(1, -16, 0, 100),
-		Position = UDim2.fromOffset(8, 474),
+		Position = UDim2.fromOffset(8, 578),
 		TextXAlignment = Enum.TextXAlignment.Left,
 		TextYAlignment = Enum.TextYAlignment.Top,
 		TextColor3 = Kit.color.paper,

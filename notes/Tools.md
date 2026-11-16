@@ -40,3 +40,9 @@ record the source here. Status: Using / Recommended (milestone) / Paid (ask nate
 - Roblox ProximityPrompt (built in): Used for rescues and the Contract Board, so the server checks range without extra remotes.
 - Quest and objective frameworks on GitHub (e.g. generic Roblox quest modules): Skipped, licence not reviewed since not used. Incidents are short, seeded and pure-data tested (IncidentPlan); a framework would add instances and remotes the 2 Hz batched updates avoid.
 - Boss fight frameworks (DevForum boss AI kits): Skipped for the same reason; BossSim is pure data so Lune can simulate whole fights.
+
+## Story (M7)
+- Roblox ProximityPrompt (built in): Used for NPC Talk and the opening citizen, so the server checks range without extra remotes.
+- Dialogue and quest kits on GitHub and the DevForum (dialogue trees, quest log modules): Skipped, licences not reviewed since not used. Lines are fixed data in Config.Story (no free text) and StoryPlan is pure and tested in Lune.
+- Moon Animator 2 and the built-in Animation Editor (Studio plugins): Recommended for nate when the cinematic and the War-Frame get real animation (M11 juice pass); nothing to install now. Moon Animator is a paid plugin, so it needs nate's OK.
+- Text-to-speech or AI voice services for the mentor lines: Not used; listed on the Launch Checklist (licence for commercial use, no real actor likeness).

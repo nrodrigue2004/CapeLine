@@ -97,6 +97,9 @@ local function respawnCFrame(id: number): CFrame?
 	return CFrame.lookAt(Vector3.new(p.x, p.y, p.z), Vector3.new(p.x, p.y, p.z + 20))
 end
 
+-- A story scene (the opening, a mission pocket) can say where its hero comes back: return a CFrame or nil
+SafehouseService.spawnOverride = nil :: ((any) -> CFrame?)?
+
 local function placeCharacter(hero: any, cf: CFrame)
 	local player = hero.player
 	local model = player and player.Character
@@ -111,9 +114,21 @@ local function placeCharacter(hero: any, cf: CFrame)
 	end
 end
 
+-- Move a hero's character (streams the spot in first and resets the speed check)
+function SafehouseService.place(hero: any, cf: CFrame)
+	placeCharacter(hero, cf)
+end
+
 local function onSpawned(hero: any)
 	local player = hero.player
 	if not player then
+		return
+	end
+	local override = SafehouseService.spawnOverride and SafehouseService.spawnOverride(hero)
+	if override then
+		deathSpot[hero.id] = nil
+		joined[player] = true
+		task.spawn(placeCharacter, hero, override)
 		return
 	end
 	local c = char(player)

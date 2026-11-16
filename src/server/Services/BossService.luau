@@ -72,6 +72,15 @@ local fight: Fight? = nil
 local arenas: { [string]: Vector3 } = {}
 local rng = Rng.new(Rng.hash(os.time(), 53))
 
+-- Boss packets go to everyone in the city; heroes in a mission pocket get their own boss (MissionService)
+local function toWorld(name: string, data: any)
+	for _, player in Players:GetPlayers() do
+		if not player:GetAttribute("Mission") then
+			Net.fire(name, player, data)
+		end
+	end
+end
+
 local function nextBoss(): string
 	return B.order[turn % #B.order + 1]
 end
@@ -118,47 +127,63 @@ end
 -- Starting and ending a fight
 ---------------------------------------------------------------------------
 
-local function syncTargets(f: Fight)
+-- Keep a BossSim's body parts, weak points and objectives registered as combat targets. onHit(heroId,
+-- bossDealt, objectiveDealt, broke) for every hit. The world boss and the War-Frame mission both use it.
+function BossService.linkTargets(
+	sim: BossSim.Sim,
+	targets: { [string]: number },
+	onHit: (number?, number, number, any) -> ()
+)
 	local live = {}
-	for _, t in BossSim.targets(f.sim) do
+	for _, t in BossSim.targets(sim) do
 		live[t.key] = true
-		local id = f.targets[t.key]
+		local id = targets[t.key]
 		local reg = id and EnemyService.target(id)
 		if reg then
 			reg.x, reg.y, reg.z = t.x, t.y, t.z
 		elseif not id then
 			local key = t.key
-			f.targets[key] = EnemyService.addTarget({
+			targets[key] = EnemyService.addTarget({
 				x = t.x,
 				y = t.y,
 				z = t.z,
 				r = t.r,
 				hit = function(amount: number, heroId: number?)
-					local bossDealt, objDealt, broke = BossSim.damage(f.sim, key, amount)
-					if heroId then
-						local l = ledgerOf(f, heroId)
-						l.damage += bossDealt
-						l.objectives += objDealt + (if broke then B.contribution.objectiveBreak else 0)
-						f.fighters[heroId] = true
-					end
+					local bossDealt, objDealt, broke = BossSim.damage(sim, key, amount)
+					onHit(heroId, bossDealt, objDealt, broke)
 					return bossDealt + objDealt, broke ~= nil
 				end,
 			})
 		end
 	end
-	for key, id in f.targets do
+	for key, id in targets do
 		if not live[key] then
 			EnemyService.removeTarget(id)
-			f.targets[key] = nil
+			targets[key] = nil
 		end
 	end
 end
 
-local function clearTargets(f: Fight)
-	for _, id in f.targets do
+function BossService.unlinkTargets(targets: { [string]: number })
+	for _, id in targets do
 		EnemyService.removeTarget(id)
 	end
-	table.clear(f.targets)
+	table.clear(targets)
+end
+
+local function syncTargets(f: Fight)
+	BossService.linkTargets(f.sim, f.targets, function(heroId, bossDealt, objDealt, broke)
+		if heroId then
+			local l = ledgerOf(f, heroId)
+			l.damage += bossDealt
+			l.objectives += objDealt + (if broke then B.contribution.objectiveBreak else 0)
+			f.fighters[heroId] = true
+		end
+	end)
+end
+
+local function clearTargets(f: Fight)
+	BossService.unlinkTargets(f.targets)
 end
 
 local function begin()
@@ -193,7 +218,7 @@ local function begin()
 	IncidentService.prep = false
 	prepCleared = 0
 	CitizenService.danger(at.X, at.Z, f.sim.cfg.arenaRadius + 60, SCHED.lifespan + SCHED.landing)
-	Net.fireAll("BossAttack", { k = "land", num = f.sim.cfg.num, x = at.X, y = at.Y, z = at.Z })
+	toWorld("BossAttack", { k = "land", num = f.sim.cfg.num, x = at.X, y = at.Y, z = at.Z })
 end
 
 local function nameOf(heroId: number): string
@@ -324,7 +349,7 @@ local function handleEvents(f: Fight)
 		elseif ev.k == "retreat" then
 			finish(f, false)
 		end
-		Net.fireAll("BossAttack", wireEvent(f, ev))
+		toWorld("BossAttack", wireEvent(f, ev))
 	end
 end
 
@@ -502,7 +527,7 @@ function BossService.init()
 			sendAcc = 0
 			local left = startAt - now
 			if phase ~= "waiting" or left <= SCHED.banner + 1 or IncidentService.prep then
-				Net.fireAll("BossState", statePacket(now))
+				toWorld("BossState", statePacket(now))
 			end
 		end
 		if contribAcc >= 1 / B.contribution.sendRate then

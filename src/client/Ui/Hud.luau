@@ -339,6 +339,26 @@ local function buildCluster()
 		Kit.color.paper
 	)
 	map.Size = UDim2.fromOffset(s + 10, s - 10)
+	-- the Journal (story, side quests, reputation, story perks)
+	local journal = actionButton(
+		gui,
+		"Journal",
+		"JOURNAL",
+		s,
+		UDim2.new(1, -U.safe - s * 3.5 - 186, 0, U.safe + s / 2),
+		Kit.color.paper
+	)
+	journal.Size = UDim2.fromOffset(s + 40, s - 10)
+	-- the opening's Catch verb (only shown while a story step asks for it)
+	local catch = actionButton(
+		cluster,
+		"Catch",
+		"CATCH",
+		big,
+		UDim2.new(1, -big * 1.5 - 30, 1, -big * 2 - 40),
+		Kit.color.gold
+	)
+	catch.Visible = false
 	walletText = Kit.label({
 		Text = "",
 		AnchorPoint = Vector2.new(1, 0),
@@ -454,6 +474,57 @@ local function applyDevice(device: string)
 	crosshair.Visible = device ~= "mouse"
 end
 
+-- Story focus (the opening's first 3 minutes): only these verb buttons show and pulse, nothing else on the
+-- HUD (spec: "The only words on screen are verb buttons"). nil shows the full HUD again.
+local focus: { [string]: boolean }? = nil
+local focusPulse = 0
+function Hud.setFocus(actions: { string }?)
+	if actions then
+		local f = {}
+		for _, a in actions do
+			f[a] = true
+		end
+		focus = f
+	else
+		focus = nil
+		for action, entry in buttons do
+			entry.button.Visible = action ~= "Catch" -- Catch shows only when a story step asks for it
+		end
+	end
+	for _, child in gui:GetChildren() do
+		if child:IsA("GuiObject") and child.Name ~= "Cluster" and not buttons[child.Name] then
+			child.Visible = focus == nil
+		end
+	end
+	if not focus then
+		refreshInfo()
+		applyDevice(InputController.device)
+	end
+end
+
+function Hud.focused(): boolean
+	return focus ~= nil
+end
+
+local function applyFocus()
+	local f = focus
+	if not f then
+		return
+	end
+	local now = os.clock()
+	local beat = now - focusPulse > 0.9
+	if beat then
+		focusPulse = now
+	end
+	for action, entry in buttons do
+		local on = f[action] == true
+		entry.button.Visible = on
+		if on and beat then
+			Kit.pulse(entry.button, 0.25)
+		end
+	end
+end
+
 function Hud.init()
 	gui = Kit.screen("Hud", 1)
 	local stamFill = buildTopLeft()
@@ -556,6 +627,7 @@ function Hud.init()
 			then "UP"
 			elseif mode == "air" or mode == "glide" then "GLIDE"
 			else "LEAP"
+		applyFocus()
 	end)
 end
 

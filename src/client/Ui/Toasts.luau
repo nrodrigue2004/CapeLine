@@ -23,6 +23,25 @@ local gui: ScreenGui
 local stack: Frame
 local MAX = 4
 
+local REP_NAMES = { league = "LEAGUE", syndicate = "SYNDICATE", city = "CITY" }
+local UNLOCK_NAMES: { [string]: string } = {
+	MayorsSash = "Mayor's Sash style",
+	DockCoat = "Dock Coat style",
+	PhotoFrame = "Photo frame",
+	CafeSign = "Cafe sign for your HQ",
+	Salute = "Salute emote",
+	NullEcho = "Null Echo, your drone buddy",
+}
+local MISSION_REASONS: { [string]: string } = {
+	level = "Reach the mission's level first",
+	locked = "Finish the mission before it first",
+	combat = "Leave combat first",
+	busy = "Finish what you are doing first",
+	full = "Every mission pocket is in use: try again in a minute",
+	loading = "Still loading",
+	mission = "That mission cannot be started here",
+}
+
 local function push(text: string, color: Color3, big: boolean?, life: number?)
 	local kids = {}
 	for _, c in stack:GetChildren() do
@@ -165,6 +184,42 @@ function Toasts.show(data: { [string]: any })
 			true,
 			4.5
 		)
+	-- M7: the story
+	elseif id == "catch" then
+		push(string.format("+%d RENOWN", data.renown or 0), Kit.color.gold, true, 3)
+	elseif id == "skillPoint" then
+		push(
+			string.format("+%d SKILL POINT%s (POWERS)", data.n or 1, if (data.n or 1) > 1 then "S" else ""),
+			Kit.color.gold
+		)
+	elseif id == "repRank" then
+		push(
+			string.format("%s REPUTATION RANK %d", REP_NAMES[data.track] or "", data.rank or 1),
+			Kit.color.gold,
+			true,
+			4.5
+		)
+	elseif id == "unlock" then
+		local name = UNLOCK_NAMES[data.name or ""] or data.name or ""
+		push(string.format("UNLOCKED: %s", string.upper(name)), Kit.color.gold, true, 4.5)
+	elseif id == "choiceKept" then
+		push("Your first choice stands on a replay", Kit.color.paper)
+	elseif id == "missionRefused" then
+		push(MISSION_REASONS[data.reason or ""] or "You cannot start that mission now", Kit.color.paper)
+	elseif id == "questStep" then
+		local q = Config.Story.quests[data.num or 0]
+		if q then
+			push(string.format("%s: step %d of 3", q.npc, math.min(3, data.step or 1)), Kit.color.paper)
+		end
+	elseif id == "questDone" then
+		local q = Config.Story.quests[data.num or 0]
+		if q then
+			push(string.format("QUEST DONE: %s", string.upper(q.npc)), Kit.color.gold, true, 4.5)
+		end
+	elseif id == "raceReset" then
+		push("Out of time! Back to the first ring", Kit.color.paper)
+	elseif id == "wrongSide" then
+		push("Talk to the mentor of your own side", Kit.color.paper)
 	elseif id == "saveDown" then
 		push(
 			"Saving is down right now: this session's progress will not be kept",

@@ -9,7 +9,7 @@
 
 local ProfileSchema = {}
 
-ProfileSchema.VERSION = 2
+ProfileSchema.VERSION = 3
 ProfileSchema.SLOTS = 8
 ProfileSchema.STYLE_WORDS = 16 -- 512 bits
 ProfileSchema.SMALL_WORDS = 4 -- 128 bits for emotes, titles, Rogues File pages, seen flags
@@ -87,7 +87,21 @@ function ProfileSchema.newCharacter(side: string?, classId: string?): { [string]
 		rep = { 0, 0, 0 },
 		hq = { level = 1 },
 		legacy = 0,
-		story = { act = 1, flags = words(ProfileSchema.SMALL_WORDS), choices = { 0, 0, 0 } },
+		-- story (M7): opening 1 once the playable disaster is done; missions: first clears (bit n - 1);
+		-- choices: option picked per Act 1 choice (0 = not yet); quests: per side quest arc, 0 not started,
+		-- 1 to 3 the current step, 4 done; pinned: 0 the story, 1 to 8 a side quest; menu: Maribel's pick;
+		-- perks: story perks (bit 1 Null Echo)
+		story = {
+			act = 1,
+			flags = words(ProfileSchema.SMALL_WORDS),
+			choices = { 0, 0, 0 },
+			opening = 0,
+			missions = 0,
+			quests = { 0, 0, 0, 0, 0, 0, 0, 0 },
+			pinned = 0,
+			menu = 0,
+			perks = 0,
+		},
 		contracts = {},
 		lastSafehouse = 0, -- 0 = none yet: the home safehouse (Config.World.safehouse.homeSafehouse)
 		beacons = 0, -- fast-travel beacons discovered, a 12-bit mask (bit id - 1)
@@ -106,6 +120,8 @@ function ProfileSchema.default(): { [string]: any }
 		emotes = words(ProfileSchema.SMALL_WORDS),
 		titles = words(ProfileSchema.SMALL_WORDS),
 		rogues = words(ProfileSchema.SMALL_WORDS),
+		frames = words(ProfileSchema.SMALL_WORDS), -- Photo Mode frames (M7 quest rewards, M11)
+		props = words(ProfileSchema.SMALL_WORDS), -- HQ props (M7 quest rewards, M9)
 		currency = { credits = 0, banked = 0, dust = 0 },
 		pity = { epic = 0, legendary = 0 },
 		characters = { ProfileSchema.newCharacter() },
@@ -132,6 +148,21 @@ local MIGRATIONS: { [number]: (any) -> () } = {
 					c.beacons = 0
 					local last = tonumber(c.lastSafehouse) or 0
 					c.safehouses = if last >= 1 and last <= 16 then 2 ^ (last - 1) else 0
+				end
+			end
+		end
+	end,
+	[3] = function(p)
+		-- M7: a hero who already played (level 2+ or any Renown) has done the opening and mission 1, so a
+		-- returning player never replays the disaster (repair() adds the new story fields)
+		if type(p.characters) == "table" then
+			for _, c in p.characters do
+				if type(c) == "table" and ((tonumber(c.level) or 1) >= 2 or (tonumber(c.xp) or 0) > 0) then
+					if type(c.story) ~= "table" then
+						c.story = {}
+					end
+					c.story.opening = 1
+					c.story.missions = 1
 				end
 			end
 		end
@@ -225,6 +256,19 @@ local function repair(p: any): any
 				c.lastSafehouse = num(c.lastSafehouse, 0, 16, 0)
 				c.beacons = num(c.beacons, 0, 4095, 0)
 				c.safehouses = num(c.safehouses, 0, 65535, 0)
+				local st = c.story
+				st.act = num(st.act, 1, 3, 1)
+				st.opening = num(st.opening, 0, 1, 0)
+				st.missions = num(st.missions, 0, 63, 0)
+				st.pinned = num(st.pinned, 0, 8, 0)
+				st.menu = num(st.menu, 0, 3, 0)
+				st.perks = num(st.perks, 0, 255, 0)
+				for i = 1, 3 do
+					st.choices[i] = num(st.choices[i], 0, 2, 0)
+				end
+				for i = 1, 8 do
+					st.quests[i] = num(st.quests[i], 0, 4, 0)
+				end
 				if c.fxStyle ~= "Comic" and c.fxStyle ~= "Anime" then
 					c.fxStyle = "Comic"
 				end

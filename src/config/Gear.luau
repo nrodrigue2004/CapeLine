@@ -204,6 +204,15 @@ return {
 			{ n = 2, name = "Star Plate", shape = "plate", tier = "Common", color = { 50, 110, 200 } },
 			{ n = 3, name = "Bolt Harness", shape = "harness", tier = "Uncommon", color = { 255, 200, 60 } },
 			{ n = 4, name = "Core Plate", shape = "core", tier = "Rare", color = { 120, 220, 255 } },
+			-- side quest rewards (M7): never rolled by loot (tier "Story")
+			{
+				n = 20,
+				name = "Dock Coat",
+				shape = "vest",
+				tier = "Story",
+				quest = "DockCoat",
+				color = { 60, 140, 140 },
+			},
 		},
 		hands = {
 			{ n = 1, name = "Wrist Wraps", shape = "wraps", tier = "Common", color = { 200, 200, 210 } },
@@ -254,6 +263,14 @@ return {
 			{ n = 1, name = "Utility Belt", shape = "belt", tier = "Common", color = { 210, 170, 60 } },
 			{ n = 2, name = "Star Buckle", shape = "buckle", tier = "Common", color = { 230, 230, 240 } },
 			{ n = 3, name = "Power Sash", shape = "sash", tier = "Uncommon", color = { 170, 90, 240 } },
+			{
+				n = 20,
+				name = "Mayor's Sash",
+				shape = "sash",
+				tier = "Story",
+				quest = "MayorsSash",
+				color = { 230, 190, 70 },
+			},
 		},
 		gadget = {},
 	},

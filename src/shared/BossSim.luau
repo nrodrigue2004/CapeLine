@@ -42,6 +42,7 @@ export type Pending = {
 	coeff: number,
 	struct: boolean,
 	nova: number,
+	cover: boolean,
 }
 export type Sim = {
 	Config: any,
@@ -67,6 +68,8 @@ export type Sim = {
 	rng: any,
 	events: { any },
 	lastStep: number,
+	shield: number, -- hits left on a phase shield (War-Frame), 0 = none
+	cover: { { number } }, -- pillars that block covered lines: { x, z, r }
 }
 
 local function objectHp(Config: any, hits: number, level: number): number
@@ -112,7 +115,12 @@ function BossSim.new(
 		rng = rng,
 		events = {},
 		lastStep = now,
+		shield = 0,
+		cover = {},
 	}
+	if cfg.lifespan then
+		sim.endsAt = now + sched.landing + cfg.lifespan
+	end
 	local o = cfg.objectives
 	for i, row in o.list do
 		local ox, oy, oz
@@ -213,6 +221,14 @@ function BossSim.damage(sim: Sim, key: string, amount: number): (number, number,
 		end
 		return 0, dealt, nil
 	end
+	if sim.shield > 0 then
+		-- the phase shield: nothing gets through; each hit on its key point knocks one hit off it
+		if key == sim.cfg.shield.key then
+			sim.shield -= 1
+			table.insert(sim.events, { k = "shield", left = sim.shield })
+		end
+		return 0, 0, nil
+	end
 	local dmg = amount * (if weakKey(sim, key) then sim.Config.Boss.weakMult else 1)
 	local dealt = math.min(sim.hp, dmg)
 	sim.hp -= dealt
@@ -220,6 +236,14 @@ function BossSim.damage(sim: Sim, key: string, amount: number): (number, number,
 	if phase > sim.phase then -- phases only go forward, even if the generators heal it back
 		sim.phase = phase
 		table.insert(sim.events, { k = "phase", phase = phase })
+		local sh, su = sim.cfg.shield, sim.cfg.summon
+		if sh and sh.phase == phase and sim.hp > 0 then
+			sim.shield = sh.hits
+			table.insert(sim.events, { k = "shield", left = sim.shield })
+		end
+		if su and su.phase == phase then
+			table.insert(sim.events, { k = "summon", kind = su.kind, n = su.n })
+		end
 	end
 	if sim.hp <= 0 then
 		sim.state = "dead"
@@ -297,6 +321,7 @@ local function pending(sim: Sim, atk: any, now: number, src: string): Pending
 		coeff = atk.coeff,
 		struct = atk.struct == true,
 		nova = atk.nova or 0,
+		cover = atk.cover == true,
 	}
 end
 
@@ -346,6 +371,26 @@ local function startAttack(sim: Sim, now: number, heroes: { Hero })
 	sim.nextAttack = now + atk.warn + sim.cfg.gap[sim.phase]
 end
 
+-- Is a pillar between the boss and this hero? (a circle crossing the segment, before the hero)
+local function covered(sim: Sim, p: Pending, h: Hero): boolean
+	local ax, az = p.x, p.z
+	local bx, bz = h.x - ax, h.z - az
+	local len2 = bx * bx + bz * bz
+	if len2 < 1 then
+		return false
+	end
+	for _, c in sim.cover do
+		local t = math.clamp(((c[1] - ax) * bx + (c[2] - az) * bz) / len2, 0, 1)
+		if t < 1 then
+			local px, pz = ax + bx * t, az + bz * t
+			if (c[1] - px) ^ 2 + (c[2] - pz) ^ 2 <= c[3] * c[3] then
+				return true
+			end
+		end
+	end
+	return false
+end
+
 local function hitTest(sim: Sim, p: Pending, h: Hero): boolean
 	local dx, dz = h.x - p.x, h.z - p.z
 	local up = h.y - p.y
@@ -381,7 +426,12 @@ local function hitTest(sim: Sim, p: Pending, h: Hero): boolean
 		for _, dir in p.points do
 			local along = dx * dir[1] + dz * dir[2]
 			local side = math.abs(dx * dir[2] - dz * dir[1])
-			if along >= 0 and along <= p.length and side <= p.width / 2 then
+			if
+				along >= 0
+				and along <= p.length
+				and side <= p.width / 2
+				and not (p.cover and covered(sim, p, h))
+			then
 				return true
 			end
 		end

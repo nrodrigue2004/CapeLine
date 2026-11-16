@@ -41,6 +41,8 @@ local KEYS: { [Enum.KeyCode]: string } = {
 	[Enum.KeyCode.I] = "Gear",
 	[Enum.KeyCode.Z] = "Gadget",
 	[Enum.KeyCode.M] = "Map",
+	[Enum.KeyCode.J] = "Journal",
+	[Enum.KeyCode.C] = "Catch",
 	-- gamepad
 	[Enum.KeyCode.ButtonA] = "Leap",
 	[Enum.KeyCode.ButtonY] = "Fly",
@@ -76,6 +78,8 @@ InputController.hints = {
 	Gear = "I",
 	Gadget = "Z",
 	Map = "M",
+	Journal = "J",
+	Catch = "C",
 }
 
 function InputController.isDown(action: string): boolean

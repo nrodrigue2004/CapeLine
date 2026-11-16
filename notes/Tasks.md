@@ -12,7 +12,7 @@ phones or Studio go on the Studio test list below.
 | M4 | World generator, 30-player gate | Hub districts, seeded outskirts (2 zone types), weekly seed, streaming, presets, landmarks, safehouses, beacons, age questionnaire | Same seed gives the same hash on two servers; 30+ fps flying across the map on a phone; 30 bots hold the server frame | Code-complete 2026-11-16 (age questionnaire is nate's, on the Launch Checklist) |
 | M5 | Destruction v1 | Chunker, 220 hub buildings with 3 states, debris, craters, vehicle flips, repair drones, citizens | 10 players wreck a block for 10 minutes with no server spike and 30+ fps on a phone; everything repairs | Code-complete 2026-11-16 |
 | M6 | Incidents, contracts, events, boss | Incident spawner with 10 templates, 6 contract types, 6 random events, world boss with 2 bosses, contribution rewards | First boss within 8 minutes; boss rewards by tier; no idle wait over 5 s | Code-complete 2026-11-16 |
-| M7 | Opening, Act 1, missions | Cinematic, playable disaster, choice, 6 missions in sky pockets, 3 choices, 8 side quests, journal | 5 new testers finish the opening and suit up with no help; both routes reach the finale | |
+| M7 | Opening, Act 1, missions | Cinematic, playable disaster, choice, 6 missions in sky pockets, 3 choices, 8 side quests, journal | 5 new testers finish the opening and suit up with no help; both routes reach the finale | Code-complete 2026-11-16 |
 | M8 | PvP, death, anti-exploit | Flag, Crater, Downed and Defeated, Fame and Infamy, rules table, strikes | The 30-minute exploit test finds nothing; PvP rules checklist passes | |
 | M9 | Creator, HQ, shop, passes | Creator with the 116 spec pieces plus the anime pieces and the Comic/Anime pick, 2 HQs, Gizmo's shop, Robux shop, passes, slots, Legacy | A tester makes a hero in under 3 minutes; test purchases grant once; looks show to others | |
 | M10 | UI and phone pass | All screens, settings, accessibility, presets, map, squad | Every screen has loading, empty and error states; device matrix passes | |
@@ -40,7 +40,8 @@ phones or Studio go on the Studio test list below.
 - Load bot bodies (LoadBots, Studio only).
 - Landing crack: dark disc instead of a crack decal (MoveFx).
 - Flight, leap and glide poses: the default avatar tilted along the travel direction; no custom animations yet (MoveController).
-- Loading screen: title on a gradient (LoadingScreen). The cinematic comes in M7.
+- Loading screen: title on a gradient (LoadingScreen).
+- Story (M7): the cinematic is 4 flat comic panels (StoryHud); the opening's tram car, shard, trapped citizen and beams are plain parts (StoryFx); mission pockets are greybox boxes (PocketLayout); the War-Frame is a part-built mech (WorldFx); quest NPCs are blocky figures with a name tag and a marker (QuestService); the Null Echo buddy is a ball with an eye; the Journal, Suit Up, choice card, trackers and result card use the Kit placeholder look. PLACEHOLDER ART.
 - HUD: Kit placeholder look (M10 restyles).
 
 ## Studio test list (needs nate's PC)
@@ -144,6 +145,23 @@ Hub buildings: 220 (all of Downtown, 6 Docks warehouses, 122 Old Town houses). D
 9. Join late: a second player who joins after buildings fell sees the same Damaged and Collapsed buildings and rubble at once (no collapse replays) and any drone already working.
 10. Streaming: fly away from wrecked buildings and come back: they still look wrecked, with no leftover floating chunks.
 11. Gate: 10 players (or you plus 9 bots and a friend) wreck one block for 10 minutes: the Dev panel's server frame stays under 16 ms and the "buildings", "citizens" and "wrecked" counters behave; a mid-range phone on the low preset holds 30+ fps during collapses. After the drones finish, everything is back.
+
+### M7 Opening, Act 1, missions
+DEV panel (M7 rows): Opening (replays it), Open step (jumps the running opening to a step), Mission (cycles 2 to 6 and enters it), Finish step (the current mission or quest step), Leave mission, Quest (cycles the 8 arcs and talks to that NPC), Act 1 done, Reset story. DEV > Wipe profile then rejoin gives a fresh character.
+1. Fresh profile: the cinematic plays (comet, rooftops, the shadow over the moon, the street); SKIP shows after 2 s. Underneath you stand on a roof at dusk with only a pulsing LEAP button and a gold diamond over the next roof. No other text or numbers on screen.
+2. Leap across; in the air the button reads GLIDE; the diamond moves to the tram car hanging off its rail below. Glide down to it: a big CATCH button pulses (C on PC). Catch: the car settles, 3 citizens run off, +50 RENOWN pops.
+3. ZAP pulses and 2 Spark Drones come: the first falls to 2 hits and never shoots; the second takes 4 and hits lightly. The no-tutorial test: 5 first-timers stop the first drone within 30 s with no help (fail if 1 of 5 needs help).
+4. A shard and a trapped citizen glow nearby; go to them: SAVE HER and GRAB IT appear. Save: carry her (hold B) to the green beam pad on a roof. Grab: drones chase you to the purple beam toward the Docks. Both reach Suit Up within about 3 minutes.
+5. Suit Up: pick a class and Hero or Villain (preset by your choice), SUIT UP: level 3, +1 Skill Point, FLY appears, the full HUD returns and a marker leads to the nearest beacon (SKIP works). The side shows on the HUD and incidents start.
+6. Rejoin mid-opening: it starts again from the roof. Get defeated during it: you come back on the roof or at the tram.
+7. Journal (J or JOURNAL): STORY lists 6 missions (Shardfall cleared, Hold the Line READY at level 3, the rest LOCKED or LEVEL n), START enters; QUESTS shows the 8 NPCs and where they are; REP shows 3 bars; PERKS is empty until Spare the Core.
+8. Mission 2 hero (Hold the Line): fade into a sealed glass pocket; stand in each of 3 rings 10 s while waves come; the train-or-thief choice; Save the Train (hit the yellow train 30 times) or Chase the Thief (beat the Sneak Bot hopping the roofs). The result card shows Credits, Renown, gear and +2 Skill Points; you fade back to where you started. Villain (DEV > Side): break 3 shard crates (14 hits each) guarded by 2 sentries.
+9. Mission 3 Signal Tower: fly to the top, beat the Null Sentinel (much tougher) and its drones, hold the mast ring 6 s. +600 Renown on the first clear.
+10. Mission 4 The Informant: reach the contact roof, Trust Her or Test Her (Test adds a 4-bot ambush), chase the Sneak Bot round the roofs. Mission 5 Under the Docks: clear room 1, run the sentry gauntlet (2 sentries if you trusted her, else 4), beat the vault guard, then Spare the Core (Null Echo buddy follows you; others see it) or Overload It (+800 Credits, +600 Renown).
+11. Mission 6 The War-Frame (level 8): it drops in; break the 2 shoulder cannons; at 66% 6 drones arrive and a purple bubble shields it until 3 hits on the glowing back core; at 33% fire lines and a charged laser: hide behind a pillar and it misses. Get wiped: you respawn in the pocket and it keeps its HP. Defeat: it falls apart; Rare plus Epic gear, +1 Skill Point. With Overload, the pillars crackle.
+12. Replay a cleared mission: the choice step says your first choice stands; only the mission's base Credits and Renown pay.
+13. Side quests: talk to each NPC (hold B): a speech bubble, the tracker on the left of the top and a marker; finish all 3 steps of the Mayor (records, the speech ring, the motorcade that only rolls while you are near), Pip (helmet, clear 3 real incidents, carry Pip to the pad), Maribel (rebuild ring, defend, pick a menu), Old Beacon (4 rings in 45 s, 5 drones, land on a high roof; villains talk to the Velvet Paw next to him), Tamsin, Quill, Iron Dee and Skye. Rewards: Mayor's Sash and Dock Coat styles in GEAR, the Salute emote, the cafe sign and photo frame unlock toasts, a Skill Point, a Rare piece, the Decoy gadget.
+14. Gate: 7 players in 7 missions at once; an 8th gets "every mission pocket is in use". The server frame holds and nobody in a pocket gets incidents or boss banners.
 
 ### M6 Incidents, contracts, events, boss
 DEV panel (M6 row): Inc (cycles the 10 templates, spawns that one next to you), Clear incidents, Ev (cycles the 6 events), Boss now (lands in 3 s), Boss to 1 HP, Finish contract, Clock (day, dusk, night, dawn), Side (hero or villain for this session).

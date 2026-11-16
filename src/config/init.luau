@@ -29,6 +29,7 @@ local NAMES = {
 	"Contracts",
 	"Events",
 	"Boss",
+	"Story",
 }
 
 local Config: { [string]: any } = {}

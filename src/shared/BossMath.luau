@@ -20,6 +20,12 @@ function BossMath.maxHp(Config: any, heroesNear: number, medianLevel: number, pr
 	return math.floor(scaled * (1 - weaken) + 0.5)
 end
 
+-- The War-Frame (mission 6): 36,000 HP at level 20, scaled by the party's median level like any robot
+function BossMath.warframeHp(Config: any, partyLevel: number): number
+	local w = Config.Story.warframe
+	return math.floor(w.hp * levelScale(Config, partyLevel) / levelScale(Config, w.atLevel) + 0.5)
+end
+
 -- Phase 1 above 66%, 2 above 33%, then 3
 function BossMath.phase(Config: any, hpShare: number): number
 	local p = Config.Boss.phases

@@ -208,6 +208,19 @@ function GearMath.bossStyle(config: any, bossId: string, shiny: boolean): number
 	return nil
 end
 
+-- The style a side quest gives (Gear styles with quest = name), or nil
+function GearMath.questStyle(config: any, name: string): number?
+	local g = G(config)
+	for slotIdx, slot in g.slotOrder do
+		for _, row in g.styles[slot] do
+			if row.quest == name then
+				return GearMath.styleId(slotIdx, row.n)
+			end
+		end
+	end
+	return nil
+end
+
 -- Roll one piece. opts: { id, gadget = true (force the gadget slot), slot = name }
 function GearMath.roll(config: any, rng: RngLike, tier: string, ilvl: number, opts: { [string]: any }?): Piece
 	local g = G(config)

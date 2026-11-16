@@ -91,6 +91,20 @@ function EnemyService.spawnAt(
 	return e.id
 end
 
+-- Story robots: a health multiplier (mission bosses), a damage multiplier (0 never attacks back) and a
+-- set number of hits to defeat (the opening's drones: 2 and 4)
+function EnemyService.tune(id: number, opts: { hpMult: number?, dmgMult: number?, hits: number? })
+	local e = sim.byId[id]
+	if e and e.alive then
+		if opts.hpMult then
+			e.maxHealth *= opts.hpMult
+			e.health = e.maxHealth
+		end
+		e.dmgMult = opts.dmgMult
+		e.hitLife = opts.hits
+	end
+end
+
 function EnemyService.remove(id: number)
 	EnemySim.remove(sim, id)
 end
@@ -155,7 +169,9 @@ function EnemyService.place(id: number, pos: Vector3)
 	local e = sim.byId[id]
 	if e and e.alive then
 		e.x, e.z = pos.X, pos.Z
-		e.y = if e.ai == "flyer" then pos.Y + 3 else sim.heightAt(pos.X, pos.Z) + EnemySim.halfHeight(e.cfg)
+		e.y = if e.ai == "flyer"
+			then pos.Y + 3
+			else sim.heightAt(pos.X, pos.Z, pos.Y) + EnemySim.halfHeight(e.cfg)
 		e.liftBase = nil
 	end
 end
@@ -290,11 +306,24 @@ local function sendDeltas()
 	end
 end
 
+-- Mission pockets (y 3,000) answer their own heights (MissionService sets this)
+local pocketHeight: ((number, number, number) -> number?)? = nil
+local POCKET_Y = Config.Story.pockets.y - 100
+function EnemyService.setPocketHeight(fn: (number, number, number) -> number?)
+	pocketHeight = fn
+end
+
 -- heightAt(x, z): the roof or ground height anywhere (CityBuilder.heightAt: the world and its wrecks)
 function EnemyService.init(heightAt: (number, number) -> number)
 	local rng = Random.new()
 	sim = EnemySim.new(Config, {
-		heightAt = function(x, z)
+		heightAt = function(x, z, y)
+			if y and y >= POCKET_Y and pocketHeight then
+				local h = pocketHeight(x, z, y)
+				if h then
+					return h
+				end
+			end
 			return heightAt(x, z)
 		end,
 		random = function()
@@ -322,7 +351,20 @@ function EnemyService.init(heightAt: (number, number) -> number)
 		if acc >= interval then
 			acc = 0
 			if EnemyService.populate then
-				EnemySim.populate(sim, heroes, os.clock())
+				-- the city's ambient robots never spawn around heroes in a story scene (the opening, a pocket)
+				local city = heroes
+				for _, h in heroes do
+					if h.scene or h.y >= POCKET_Y then
+						city = {}
+						for _, h2 in heroes do
+							if not h2.scene and h2.y < POCKET_Y then
+								table.insert(city, h2)
+							end
+						end
+						break
+					end
+				end
+				EnemySim.populate(sim, city, os.clock())
 			end
 			events = handleEvents()
 		end

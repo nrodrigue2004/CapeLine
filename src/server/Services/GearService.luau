@@ -79,6 +79,31 @@ function GearService.grant(player: Player, source: string, zoneLevel: number): {
 end
 
 -- Run one gear request under the profile's lock; fn returns ok, reason, extra
+-- One piece of a set tier (story rewards: the Rare Decoy gadget from Save the Train and Iron Dee, the
+-- 10% Epic crate from Test Her). opts.gadget names the gadget.
+function GearService.grantPiece(
+	player: Player,
+	tier: string,
+	zoneLevel: number,
+	opts: { gadget: string? }?
+): any?
+	local profile = DataService.get(player)
+	if not profile then
+		return nil
+	end
+	local o = opts or {}
+	local ilvl = GearMath.itemLevel(Config, rng, zoneLevel)
+	local piece = GearMath.roll(Config, rng, tier, ilvl, { gadget = o.gadget ~= nil })
+	if o.gadget then
+		piece.gadget = table.find(G.gadgetOrder, o.gadget) or piece.gadget
+	end
+	local kind, stored, dust = Inventory.add(Config, profile, piece)
+	Net.fire("LootDrop", player, { piece = stored, kind = kind, dust = dust })
+	DataService.changed(player)
+	DataService.saveSoon(player)
+	return stored
+end
+
 local function run(player: Player, fn: (any, any) -> (boolean, string?, any?))
 	if busy[player] then
 		return

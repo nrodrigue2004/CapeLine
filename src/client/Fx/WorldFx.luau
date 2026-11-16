@@ -147,6 +147,61 @@ local function rustjaw(m: Model): { BasePart }
 	return cannons
 end
 
+-- The Null War-Frame (mission 6): a tall humanoid war machine with 2 shoulder cannons, a glowing back
+-- core (the phase 2 shield's weak point) and knee joints. PLACEHOLDER ART: parts until the mesh pass.
+local function warframe(m: Model): { BasePart }
+	local plate = Color3.fromRGB(48, 50, 62)
+	local trim = Color3.fromRGB(150, 60, 200)
+	for _, s in { -1, 1 } do
+		part(m, Vector3.new(9, 4, 14), CFrame.new(s * 9, 2, -1), STEEL, Enum.Material.Metal) -- feet
+		part(m, Vector3.new(7, 12, 7), CFrame.new(s * 9, 9, 0), plate, Enum.Material.Metal) -- shins
+		part(m, Vector3.new(4, 4, 4), CFrame.new(s * 9, 14, -4), trim, Enum.Material.Neon, Enum.PartType.Ball)
+		part(m, Vector3.new(8, 12, 8), CFrame.new(s * 9, 21, 0), STEEL, Enum.Material.Metal) -- thighs
+		-- arms
+		part(
+			m,
+			Vector3.new(7, 22, 7),
+			CFrame.new(s * 21, 36, 0) * CFrame.Angles(0, 0, math.rad(s * 6)),
+			plate,
+			Enum.Material.Metal
+		)
+		part(m, Vector3.new(9, 9, 9), CFrame.new(s * 23, 23, -1), STEEL, Enum.Material.Metal) -- fists
+	end
+	part(m, Vector3.new(22, 10, 14), CFrame.new(0, 29, 0), plate, Enum.Material.Metal) -- hips
+	part(m, Vector3.new(30, 20, 18), CFrame.new(0, 42, 0), STEEL, Enum.Material.Metal) -- chest
+	part(m, Vector3.new(10, 6, 2), CFrame.new(0, 44, -9.2), trim, Enum.Material.Neon) -- chest light
+	part(m, Vector3.new(11, 9, 11), CFrame.new(0, 56, -3), plate, Enum.Material.Metal) -- head
+	part(m, Vector3.new(8, 2, 1), CFrame.new(0, 57, -8.6), Color3.fromRGB(255, 80, 80), Enum.Material.Neon) -- visor
+	local back = part(m, Vector3.new(6, 6, 3), CFrame.new(0, 40, 10.5), trim, Enum.Material.Neon)
+	back.Name = "BackCore"
+	local cannons = {}
+	for _, row in B.bosses.NullWarFrame.objectives.list do
+		local at = row.at
+		local base =
+			part(m, Vector3.new(8, 6, 8), CFrame.new(at[1], at[2] - 2, at[3]), STEEL, Enum.Material.Metal)
+		base.Name = "Cannon"
+		part(
+			m,
+			Vector3.new(2.8, 12, 2.8),
+			CFrame.new(at[1], at[2] + 1, at[3] - 5) * CFrame.Angles(math.rad(70), 0, 0),
+			Color3.fromRGB(60, 60, 66),
+			Enum.Material.Metal,
+			Enum.PartType.Cylinder
+		)
+		local glow = part(
+			m,
+			Vector3.new(2.6, 2.6, 2.6),
+			CFrame.new(at[1], at[2] + 3, at[3]),
+			WARN,
+			Enum.Material.Neon,
+			Enum.PartType.Ball
+		)
+		glow.Name = "ObjectiveGlow"
+		table.insert(cannons, glow)
+	end
+	return cannons
+end
+
 local function maw(m: Model)
 	local body = Color3.fromRGB(70, 64, 90)
 	part(m, Vector3.new(40, 26, 56), CFrame.new(0, 26, 8), body, Enum.Material.Metal)
@@ -219,6 +274,8 @@ local function build(id: string, s: { [string]: any }): Shown
 	local objectives = {}
 	if id == "RustjawPrime" then
 		objectives = rustjaw(m)
+	elseif id == "NullWarFrame" then
+		objectives = warframe(m)
 	else
 		maw(m)
 		objectives = generators(s.x, s.y, s.z)
@@ -236,7 +293,7 @@ local function build(id: string, s: { [string]: any }): Shown
 		ty = s.y,
 		tz = s.z,
 		tyaw = s.yaw or 0,
-		lift = if id == "RustjawPrime" then 260 else -B.bosses[id].height,
+		lift = if id == "RustjawPrime" then 260 elseif id == "NullWarFrame" then 120 else -B.bosses[id].height,
 		state = s.state,
 	}
 end
@@ -278,6 +335,24 @@ local function onState()
 	local sh = shown :: Shown
 	sh.tx, sh.ty, sh.tz, sh.tyaw = s.x, s.y, s.z, s.yaw or 0
 	sh.state = s.state
+	-- the War-Frame's phase 2 shield: a bubble until 3 hits on the back core break it
+	local bubble = sh.model:FindFirstChild("Shield") :: BasePart?
+	if (s.shield or 0) > 0 and not bubble then
+		local def = B.bosses[s.id]
+		local ball = part(
+			sh.model,
+			Vector3.one * def.height * 1.2,
+			sh.model:GetPivot() * CFrame.new(0, def.height * 0.55, 0),
+			Color3.fromRGB(170, 110, 255),
+			Enum.Material.ForceField,
+			Enum.PartType.Ball
+		)
+		ball.Name = "Shield"
+		ball.Transparency = 0.3
+	elseif (s.shield or 0) <= 0 and bubble then
+		CombatFx.burst(bubble.Position, State.hero.fxStyle)
+		bubble:Destroy()
+	end
 	for i, glow in sh.objectives do
 		local up = (s.objectives or {})[i]
 		if up ~= nil and up <= 0 and glow.Material == Enum.Material.Neon then

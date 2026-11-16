@@ -67,6 +67,7 @@ export type Hero = {
 	traveling: boolean, -- on a fast-travel flight: untargetable (BeaconService)
 	safehouse: number?, -- the safehouse the hero stands in (SafehouseService)
 	secondWindAt: number, -- Second Wind ready again (os.clock)
+	scene: string?, -- "opening" or "mission": in a story scene (no incidents, contracts or world events)
 }
 
 local heroes: { [number]: Hero } = {}
@@ -626,6 +627,7 @@ function HeroService.simHeroes(): { any }
 				alive = hero.alive and not hero.traveling,
 				lx = lx,
 				lz = lz,
+				scene = hero.scene, -- the opening or a mission: no ambient robots spawn around them
 			})
 		end
 	end

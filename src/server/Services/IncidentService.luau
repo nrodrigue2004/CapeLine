@@ -664,7 +664,13 @@ local function tick(dt: number)
 	-- keep 2 incidents near every player's hero
 	for player, pos in positions do
 		local hero = HeroService.get(player)
-		if hero and hero.loaded and not hero.traveling and not EventPlan.inPocket(Config.Events, pos.Y) then
+		if
+			hero
+			and hero.loaded
+			and not hero.traveling
+			and not hero.scene
+			and not EventPlan.inPocket(Config.Events, pos.Y)
+		then
 			local hm = meta[hero.id] or { next = now + 2, last = nil }
 			meta[hero.id] = hm
 			if now >= hm.next and ownedBy(hero.id) < S.perHero and count() < S.maxActive then

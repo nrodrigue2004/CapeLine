@@ -206,6 +206,7 @@ function SiteKit.citizen(
 		pads: { any }?,
 		anySafehouse: boolean?,
 		cat: boolean?,
+		who: ((any) -> boolean)?, -- only these heroes may pick them up (a story scene's own citizen)
 	}
 ): Citizen
 	local m, body = citizenModel(pos, opts.cat)
@@ -235,6 +236,9 @@ function SiteKit.citizen(
 		local hero = HeroService.get(player)
 		local hrp = hero and HeroService.rootPart(hero)
 		if not hero or not hrp or not hero.alive or c.state ~= "stuck" or carried[hero.id] then
+			return
+		end
+		if opts.who and not opts.who(hero) then
 			return
 		end
 		if (hrp.Position - body.Position).Magnitude > IC.rescueRange + 4 then
@@ -431,7 +435,8 @@ function SiteKit.object(
 			if h.hp <= 0 then
 				return 0, true
 			end
-			local dealt = math.min(h.hp, amount)
+			-- perHit: a story object that takes a set number of hits (the shard crates, the runaway train)
+			local dealt = math.min(h.hp, if h.perHit then 1 else amount)
 			h.hp -= dealt
 			if onHit then
 				onHit(heroId, dealt)

@@ -63,7 +63,7 @@ local function color(key: string): Color3
 	return c
 end
 
-local function makePart(b: any): BasePart
+local function makePart(b: any): BasePart -- also CityBuilder.part (mission pockets)
 	local p: BasePart
 	if b.shape == "wedge" then
 		p = Instance.new("WedgePart")
@@ -227,6 +227,8 @@ local function buildOutskirts(world: any, folder: Folder)
 	)
 	CityBuilder.Ready:Fire()
 end
+
+CityBuilder.part = makePart
 
 function CityBuilder.seed(): number
 	local override = Config.Dev.worldSeed

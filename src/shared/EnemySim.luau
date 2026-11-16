@@ -77,6 +77,8 @@ export type Enemy = {
 	lastX: number,
 	lastZ: number,
 	scripted: boolean?,
+	dmgMult: number?, -- the opening's drones: 0 never attacks back, 0.35 a weak one
+	hitLife: number?, -- the opening's drones: any hit takes this share of its health (2 hits, 4 hits)
 	tag: number?, -- the incident, contract site or event that spawned it
 }
 
@@ -106,7 +108,7 @@ export type Sim = {
 	cursor: number,
 	now: number,
 	lastStep: number,
-	heightAt: (x: number, z: number) -> number,
+	heightAt: (x: number, z: number, y: number?) -> number, -- y: the asker's height (mission pockets)
 	heroMeta: { [number]: { nextSpawn: number } },
 	rngNext: () -> number,
 	ticksLastStep: number,
@@ -196,7 +198,7 @@ function EnemySim.spawn(sim: Sim, kind: string, x: number, y: number, z: number,
 	local ai = cfg.ai or "flyer"
 	local yy = y
 	if ai ~= "flyer" then
-		yy = sim.heightAt(x, z) + halfHeight(cfg)
+		yy = sim.heightAt(x, z, y) + halfHeight(cfg)
 	end
 	local now = sim.now
 	local e: Enemy = {
@@ -313,6 +315,9 @@ function EnemySim.damage(
 	if e.ai == "sneak" and e.cloakUntil > sim.now then
 		e.cloakUntil = sim.now -- a hit reveals it
 	end
+	if e.hitLife and dealt > 0 and dealt ~= math.huge then
+		dealt = e.maxHealth / e.hitLife -- a story robot that takes a set number of hits
+	end
 	e.health -= dealt
 	if attacker and not e.target then
 		e.target = attacker -- getting hit draws aggro
@@ -375,9 +380,9 @@ function EnemySim.push(sim: Sim, id: number, dx: number, dy: number, dz: number)
 		e.x += dx
 		e.z += dz
 		if e.ai == "flyer" then
-			e.y = math.max(sim.heightAt(e.x, e.z) + 3, e.y + dy)
+			e.y = math.max(sim.heightAt(e.x, e.z, e.y) + 3, e.y + dy)
 		else
-			e.y = sim.heightAt(e.x, e.z) + halfHeight(e.cfg)
+			e.y = sim.heightAt(e.x, e.z, e.y) + halfHeight(e.cfg)
 		end
 	end
 end
@@ -402,14 +407,14 @@ function EnemySim.knock(sim: Sim, id: number, dx: number, dz: number, distance: 
 	while moved < distance do
 		local step = math.min(2, distance - moved)
 		local nx, nz = e.x + dx * step, e.z + dz * step
-		if sim.heightAt(nx, nz) > floorY + 3 then
+		if sim.heightAt(nx, nz, e.y) > floorY + 3 then
 			return true
 		end
 		e.x, e.z = nx, nz
 		moved += step
 	end
 	if e.ai ~= "flyer" then
-		e.y = sim.heightAt(e.x, e.z) + halfHeight(e.cfg)
+		e.y = sim.heightAt(e.x, e.z, e.y) + halfHeight(e.cfg)
 	end
 	return false
 end
@@ -447,7 +452,7 @@ local function moveToward(sim: Sim, e: Enemy, tx: number, ty: number, tz: number
 	e.x += e.vx * dt
 	e.y += e.vy * dt
 	e.z += e.vz * dt
-	local floor = sim.heightAt(e.x, e.z) + 4
+	local floor = sim.heightAt(e.x, e.z, e.y) + 4
 	if e.y < floor then
 		e.y = floor
 		e.vy = math.max(0, e.vy)
@@ -474,12 +479,12 @@ local function walk(sim: Sim, e: Enemy, tx: number, tz: number, speed: number, d
 		local a = base + math.rad(turn)
 		local ux, uz = math.cos(a), math.sin(a)
 		local probe = math.max(step, 3)
-		local h = sim.heightAt(e.x + ux * probe, e.z + uz * probe)
+		local h = sim.heightAt(e.x + ux * probe, e.z + uz * probe, e.y)
 		if h <= floorY + 2.5 then
 			e.x += ux * step
 			e.z += uz * step
 			e.vx, e.vz = ux * speed, uz * speed
-			e.y = sim.heightAt(e.x, e.z) + halfHeight(e.cfg)
+			e.y = sim.heightAt(e.x, e.z, e.y) + halfHeight(e.cfg)
 			e.yaw = yawTo(ux, uz)
 			return step
 		end
@@ -505,7 +510,7 @@ local function separate(sim: Sim, e: Enemy)
 				if flyer then
 					e.x, e.z = nx, nz
 					e.y += dy / d * push
-				elseif sim.heightAt(nx, nz) <= e.y - halfHeight(e.cfg) + 2.5 then
+				elseif sim.heightAt(nx, nz, e.y) <= e.y - halfHeight(e.cfg) + 2.5 then
 					e.x, e.z = nx, nz
 				end
 			end
@@ -525,6 +530,9 @@ local function shoot(
 	range: number,
 	coeff: number?
 )
+	if e.dmgMult == 0 then
+		return -- a harmless robot (the opening's first drone) never fires
+	end
 	local dx, dy, dz = tx - e.x, ty - e.y, tz - e.z
 	local d = math.sqrt(dx * dx + dy * dy + dz * dz)
 	if d < 1e-3 then
@@ -537,7 +545,7 @@ local function shoot(
 		dx, dz = dx * math.cos(a) - dz * math.sin(a), dx * math.sin(a) + dz * math.cos(a)
 		dy += (sim.rngNext() - 0.5) * 0.4
 	end
-	local damage = Formulas.enemyDamage(sim.config, e.kind, e.level) * (coeff or 1)
+	local damage = Formulas.enemyDamage(sim.config, e.kind, e.level) * (coeff or 1) * (e.dmgMult or 1)
 	local muzzle = 1.2
 	local shot: Shot = {
 		x = e.x + dx * muzzle,
@@ -565,7 +573,12 @@ local function shoot(
 end
 
 local function melee(sim: Sim, e: Enemy, h: Hero, coeff: number)
-	local damage = (sim.config.Enemies.scale.dmgBase + sim.config.Enemies.scale.dmgPerLevel * e.level) * coeff
+	if e.dmgMult == 0 then
+		return
+	end
+	local damage = (sim.config.Enemies.scale.dmgBase + sim.config.Enemies.scale.dmgPerLevel * e.level)
+		* coeff
+		* (e.dmgMult or 1)
 	table.insert(sim.events, { k = "hit", hero = h.id, damage = damage, e = e.id, melee = true })
 end
 
@@ -639,7 +652,7 @@ local function wander(sim: Sim, e: Enemy, speed: number, dt: number, radius: num
 		e.wpZ = e.homeZ + math.sin(ang) * r
 		if e.ai == "flyer" then
 			local hover = e.cfg.hover.min + sim.rngNext() * (e.cfg.hover.max - e.cfg.hover.min)
-			e.wpY = sim.heightAt(e.wpX, e.wpZ) + hover
+			e.wpY = sim.heightAt(e.wpX, e.wpZ, e.y) + hover
 		end
 		e.wpUntil = now + 3 + sim.rngNext() * 2
 	end
@@ -686,7 +699,7 @@ local function thinkFlyer(sim: Sim, e: Enemy, target: Hero?, speed: number, canM
 		return
 	end
 	local d = dist3(e.x, e.y, e.z, target.x, target.y, target.z)
-	local floor = sim.heightAt(target.x, target.z)
+	local floor = sim.heightAt(target.x, target.z, target.y)
 	if d > cfg.attackRange then
 		e.state = EnemySim.CHASE
 		if canMove then
@@ -1029,7 +1042,9 @@ local function think(sim: Sim, e: Enemy, heroes: { Hero }, dt: number)
 		e.vx, e.vy, e.vz = 0, 0, 0
 		return
 	elseif e.liftBase then
-		e.y = if e.ai == "flyer" then e.liftBase :: number else sim.heightAt(e.x, e.z) + halfHeight(e.cfg)
+		e.y = if e.ai == "flyer"
+			then e.liftBase :: number
+			else sim.heightAt(e.x, e.z, e.y) + halfHeight(e.cfg)
 		e.liftBase = nil
 	end
 
@@ -1044,9 +1059,9 @@ local function think(sim: Sim, e: Enemy, heroes: { Hero }, dt: number)
 			if e.ai == "flyer" then
 				e.x, e.z = nx, nz
 				e.y += (py - e.y) / d * s
-			elseif sim.heightAt(nx, nz) <= e.y - halfHeight(e.cfg) + 2.5 then
+			elseif sim.heightAt(nx, nz, e.y) <= e.y - halfHeight(e.cfg) + 2.5 then
 				e.x, e.z = nx, nz
-				e.y = sim.heightAt(nx, nz) + halfHeight(e.cfg)
+				e.y = sim.heightAt(nx, nz, e.y) + halfHeight(e.cfg)
 			end
 		end
 		e.windupUntil = 0
@@ -1110,7 +1125,7 @@ local function stepShots(sim: Sim, heroes: { Hero }, dt: number)
 				end
 			end
 		end
-		if not done and s.y < sim.heightAt(s.x, s.z) then
+		if not done and s.y < sim.heightAt(s.x, s.z, s.y) then
 			done = true -- hit a building or the street
 		end
 		if done then

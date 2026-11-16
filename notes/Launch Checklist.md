@@ -8,8 +8,9 @@
 - [ ] Review the loot odds shown in GEAR > LOOT INFO against the live config before launch (players see them).
 - [ ] Review every emblem, costume and anime piece against a list of famous hero and anime symbols and looks (spec: IP).
 - [ ] Replace all PLACEHOLDER ART listed in Tasks.md.
-- [ ] Sound ids and music (M11), checked for licenses (now including destruction: crumble, collapse rumble, glass, car flip, drone hum, citizen gasps; and M6: boss siren, boss landing, stomps, lasers, incident clear jingle, event fanfare, camera snap).
+- [ ] Sound ids and music (M11), checked for licenses (now including destruction: crumble, collapse rumble, glass, car flip, drone hum, citizen gasps; and M6: boss siren, boss landing, stomps, lasers, incident clear jingle, event fanfare, camera snap; and M7: the cinematic music sting, the mentor voice lines for Old Beacon and the Velvet Paw, tram creak and cheers, the choice whoosh, mission fade, War-Frame shield break and laser charge, NPC talk blips).
 - [ ] Robux products and passes created on the dashboard, ids in config (M9). Prices are nate's call.
 - [ ] Thumbnails, icon, description (M12).
 - [ ] Private server price.
 - [ ] Re-check Roblox rules (PvP, free-form creation, rewarded video ads) before launch.
+- [ ] Voice lines for the two mentors (M7 opening) are recorded or generated with a licence that allows commercial use; no real actor likeness.

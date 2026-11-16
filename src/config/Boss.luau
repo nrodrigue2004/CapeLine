@@ -182,5 +182,76 @@ return {
 				},
 			},
 		},
+		-- Mission 6 (Story): Null's War-Frame. Not in `order`, so the world scheduler never picks it. 3 phases:
+		-- rockets and a ground sweep while its 2 shoulder cannons stand; at 66% it calls 6 Spark Drones and
+		-- raises a shield that only 3 hits on the back weak point break; at 33% a floor-fire sweep and a
+		-- charged laser that the arena's pillars block. It never retreats (a wipe just retries).
+		NullWarFrame = {
+			num = 3,
+			name = "Null War-Frame",
+			mission = true,
+			arenaRadius = 180,
+			height = 60,
+			speed = 0,
+			turn = 70,
+			gap = { 3.2, 2.8, 2.4 },
+			lifespan = 1e6,
+			targets = {
+				{ id = "body", at = { 0, 34, 0 }, r = 16 },
+				{ id = "head", at = { 0, 54, -4 }, r = 9 },
+				{ id = "back", at = { 0, 40, 14 }, r = 5, weak = true },
+				{ id = "knee", at = { 0, 14, -8 }, r = 5, weak = true },
+			},
+			objectives = {
+				kind = "cannon",
+				hits = 24,
+				list = { { at = { -16, 50, 2 } }, { at = { 16, 50, 2 } } },
+				fire = { every = 4.5, r = 9, warn = 1.4, coeff = 1.0 },
+			},
+			shield = { phase = 2, hits = 3, key = "back" },
+			summon = { phase = 2, kind = "SparkDrone", n = 6 },
+			attacks = {
+				{
+					id = "Rockets",
+					shape = "circles",
+					r = 10,
+					count = 4,
+					warn = 1.5,
+					coeff = 1.2,
+					phases = { 1, 2 },
+				},
+				{
+					id = "GroundSweep",
+					shape = "cone",
+					r = 70,
+					arc = 160,
+					warn = 1.3,
+					coeff = 1.5,
+					phases = { 1, 2 },
+				},
+				{ id = "Stomp", shape = "ring", r = 40, warn = 1.5, coeff = 1.8, phases = { 2, 3 } },
+				{
+					id = "FloorFire",
+					shape = "cone",
+					r = 120,
+					arc = 220,
+					warn = 1.8,
+					coeff = 1.6,
+					phases = { 3 },
+				},
+				{
+					id = "ChargeLaser",
+					shape = "lines",
+					width = 14,
+					length = 230,
+					count = 1,
+					warn = 2.6,
+					coeff = 3.0,
+					cover = true, -- the arena's pillars block it
+					phases = { 3 },
+					hazard = true,
+				},
+			},
+		},
 	},
 }

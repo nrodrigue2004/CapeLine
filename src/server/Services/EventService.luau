@@ -96,7 +96,7 @@ local function anchor(): Vector3?
 	local list = {}
 	for _, h in HeroService.all() do
 		local p = h.player and h.alive and HeroService.position(h)
-		if p and not EventPlan.inPocket(EC, p.Y) and not h.traveling then
+		if p and not EventPlan.inPocket(EC, p.Y) and not h.traveling and not h.scene then
 			table.insert(list, p)
 		end
 	end

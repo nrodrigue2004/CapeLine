@@ -1,7 +1,8 @@
 -- Capeline server boot (spec: Server lifecycle and Services). Order matters: the city first (the drone AI
 -- reads its heights), then remotes, heroes, movement checks, enemies, combat, abilities, economy, gear and
 -- perks, safehouses and beacons, destruction (buildings, vehicles, citizens), world activity (sites,
--- incidents, contracts, events, the world boss, the clock), then saves (a loaded profile fires into all of those), and the Studio-only tools.
+-- incidents, contracts, events, the world boss, the clock), the story (choices and rewards, the opening,
+-- mission pockets, side quests), then saves (a loaded profile fires into all of those), and the Studio-only tools.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -32,6 +33,10 @@ local ContractService = require(Services.ContractService)
 local EventService = require(Services.EventService)
 local BossService = require(Services.BossService)
 local ClockService = require(Services.ClockService)
+local StoryService = require(Services.StoryService)
+local OpeningService = require(Services.OpeningService)
+local MissionService = require(Services.MissionService)
+local QuestService = require(Services.QuestService)
 local LoadBots = require(Services.LoadBots)
 local DevService = require(Services.DevService)
 
@@ -59,6 +64,10 @@ ContractService.init()
 EventService.init()
 BossService.init()
 ClockService.init()
+StoryService.init()
+OpeningService.init()
+MissionService.init()
+QuestService.init()
 DataService.init() -- last of the game services: profile loads fire into the handlers above
 LoadBots.init()
 DevService.init()
