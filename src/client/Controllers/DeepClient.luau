@@ -162,8 +162,20 @@ local function onState(s: any)
 end
 
 local function setLook(under: boolean, depth: number)
+	-- the sky's Atmosphere overrides Lighting fog, so underwater thickens and tints the Atmosphere instead
+	local air = Lighting:FindFirstChildOfClass("Atmosphere")
+	local target: Instance = air or Lighting
 	if under and not tint then
-		saved = { FogStart = Lighting.FogStart, FogEnd = Lighting.FogEnd, FogColor = Lighting.FogColor }
+		saved = if air
+			then {
+				Density = air.Density,
+				Offset = air.Offset,
+				Color = air.Color,
+				Decay = air.Decay,
+				Haze = air.Haze,
+				Glare = air.Glare,
+			}
+			else { FogStart = Lighting.FogStart, FogEnd = Lighting.FogEnd, FogColor = Lighting.FogColor }
 		local c = Instance.new("ColorCorrectionEffect")
 		c.Name = "DeepTint"
 		c.Parent = Lighting
@@ -175,14 +187,23 @@ local function setLook(under: boolean, depth: number)
 		tint.TintColor = Color3.new(1, 1, 1):Lerp(col, 0.55)
 		tint.Brightness = -0.05 - 0.25 * k
 		tint.Saturation = -0.1
-		Lighting.FogColor = col
-		Lighting.FogStart = L.fogStart
-		Lighting.FogEnd = L.fogEnd * (1 - 0.4 * k)
+		if air then
+			air.Density = L.haze[1] + (L.haze[2] - L.haze[1]) * k
+			air.Offset = 0
+			air.Color = col
+			air.Decay = col:Lerp(Color3.new(0, 0, 0), 0.5)
+			air.Haze = 0
+			air.Glare = 0
+		else
+			Lighting.FogColor = col
+			Lighting.FogStart = L.fogStart
+			Lighting.FogEnd = L.fogEnd * (1 - 0.4 * k)
+		end
 	elseif not under and tint then
 		tint:Destroy()
 		tint = nil
 		for k, v in saved do
-			(Lighting :: any)[k] = v
+			(target :: any)[k] = v
 		end
 	end
 end

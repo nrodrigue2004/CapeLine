@@ -23,7 +23,7 @@ phones or Studio go on the Studio test list below.
 - City: Downtown greybox boxes, window bands and rooftop props (CityBuilder). PLACEHOLDER ART.
 - World (M4): the Docks, Old Town, hub filler blocks, all 32 outskirts tile variants (houses, shops, parks, farms, coast), the 3 landmarks, safehouses, beacons, the sand and the ocean are simple parts (Districts, WorldGen, WorldMap). Balls stand in for leaves, domes and dunes. PLACEHOLDER ART until the M5 kit.
 - Map screen: flat coloured squares for zones, districts and landmarks; no tile detail (MapScreen). Fast-travel flight is a camera sweep with the hero left standing (TravelClient). PLACEHOLDER ART until M10.
-- Robot bodies: all 6 humanoid robots are built from blocks and cylinders with a code-driven walk, aim and windup pose (EnemyRenderer). PLACEHOLDER ART until meshes and animations.
+- Robot bodies: all 9 humanoid robots are built from blocks and cylinders with a code-driven walk, aim and windup pose (EnemyRenderer). PLACEHOLDER ART until nate imports the Blender meshes (art/export/Robots.fbx, steps under "Blender robot meshes"); the animations stay code-driven.
 - Ability visuals for all 40 powers: neon parts, beams and rings (CombatFx, AuraFx). PLACEHOLDER ART until particle textures and the icon set.
 - Snow Wall pieces, the Ice Slide ramp and the thrown crate in Lift and Throw: plain parts (CombatService). PLACEHOLDER ART.
 - Ability buttons show short names, not icons (Hud, LoadoutScreen). PLACEHOLDER ART.
@@ -178,6 +178,19 @@ DEV panel: spawn robots with the "3x" button (it cycles through the 6 kinds) and
 5. Two players see the same robot lose the same pieces at the same time. A robot that walks into view already hurt shows its damage without a burst of chips.
 6. Cloaked Sneak Bots still fade fully (broken pieces stay hidden), the cold tint, stun ring and shields still show, and the hit flash only lights the pieces still there.
 7. Performance: 60 robots on screen on PC (High), 20 on a phone (Low): frame rate steady (Dev panel).
+
+### Blender robot meshes (2026-11-16)
+The robots can use real meshes made in Blender (art/blender/robots.py builds them; art/export/Robots.fbx is the file). Until they are imported the robots stay plain parts, so nothing breaks.
+Import (nate, once; redo whenever Robots.fbx changes):
+1. Studio: Home > Import 3D, pick `art/export/Robots.fbx` (from project files: capeline/Robots.fbx). In the importer turn OFF "Import as a single mesh" and leave rig settings off. Import.
+2. A model with 38 MeshParts appears (Spine, Ribs, ChestL, FaceL, Hair, ShLowerL and so on). Rename the model `Robots`.
+3. In ReplicatedStorage add a Folder named `Art` and drag `Robots` into it. Optional: select all the MeshParts and set CollisionFidelity to Box (smaller and faster; the robots never collide).
+4. Publish the meshes with the place (they upload with it). Rojo leaves ReplicatedStorage.Art alone.
+Checks:
+5. DEV panel "3x": robots now have rounded muscular suits, gloves with fists, boots, a face with a nose and ears, spiky hair, a belt that hugs the waist. The pieces line up (no gaps at the chest centre or face centre, the hair sits on the head).
+6. They face the way they walk. If every robot walks backwards or sideways, tell Claude: the export gets turned (`--flip`) in one step.
+7. The shell still breaks off piece by piece showing the metal skeleton (steps 2 to 4 of the android list above), and colours still differ per robot.
+8. Performance: a full robot is about 27,000 triangles; Roblox lowers detail with distance by itself. 60 robots on PC (High) and 20 on a phone (Low) hold the frame rate (Dev panel). If not, Claude thins the meshes further.
 
 ### 17 paths, mobility and underwater (2026-11-16)
 Pick a path at the creator, then use the DEV panel to level up (15+ to borrow). Everything new is plain parts (PLACEHOLDER ART).

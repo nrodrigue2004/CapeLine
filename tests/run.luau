@@ -5387,6 +5387,66 @@ test("Destruction: basic hits add up to break a piece; repair clears them", func
 	check(D.slotStruct.skill >= D.structure.chunkCost, "a skill is worth a piece")
 end)
 
+test("Art: robot mesh fits are sane and match the renderer's pieces", function()
+	local fit = Config.ArtFit.fit
+	-- the pieces EnemyRenderer builds that a Blender mesh can stand in for
+	local pieces = {}
+	for _, n in
+		{
+			"Spine",
+			"Ribs",
+			"Core",
+			"Pelvis",
+			"Skull",
+			"Jaw",
+			"Eyes",
+			"Upper",
+			"Lower",
+			"Thigh",
+			"Shin",
+			"Elbow",
+			"Knee",
+			"ChestL",
+			"ChestR",
+			"Belly",
+			"Belt",
+			"Emblem",
+			"FaceL",
+			"FaceR",
+			"Hair",
+			"EyeL",
+			"EyeR",
+			"ShUpper",
+			"ShLowerL",
+			"ShLowerR",
+			"ShThigh",
+			"ShShin",
+			"Cape",
+			"Jet",
+			"Cannon",
+			"Muzzle",
+			"Base",
+			"Guard",
+			"Tank",
+			"Collar",
+			"Mask",
+			"Bag",
+		}
+	do
+		pieces[n] = true
+	end
+	for name, f in fit do
+		check(pieces[name] == true, "fit " .. name .. " is a renderer piece")
+		check(#f == 3, "fit " .. name .. " has x, up and depth")
+		for _, v in f do
+			check(v > 0.3 and v < 8, "fit " .. name .. " is a sensible size")
+		end
+	end
+	check(fit.ChestL[1] == 1 and fit.FaceL[1] == 1, "the halves meet in the middle")
+	local h = Config.ArtFit.hair
+	check(#h == 2 and h[1] > 0 and h[1] < 0.8 and math.abs(h[2]) < 0.2, "the hair sits on top of the head")
+end)
+
 print(string.format("\n%d passed, %d failed", passed, failed))
 if failed > 0 then
 	process.exit(1)

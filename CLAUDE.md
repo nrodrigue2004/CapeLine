@@ -15,6 +15,7 @@ Read this first. Keep it short. Quality comes first; efficiency never means lowe
   - `rojo sourcemap default.project.json -o sourcemap.json` then `luau-lsp analyze --sourcemap=sourcemap.json --definitions=$HOME/tools/globalTypes.d.luau --platform=roblox src` (type check; read new errors in changed files, ignore optional-value noise)
 
 ## Memory: read these, keep them current
+- `art/`: Blender art. `art/blender/*.py` build meshes with `$HOME/tools/bpyenv/bin/python art/blender/robots.py [--preview]` (writes `art/export/Robots.fbx`, `src/config/ArtFit.luau` and `art/preview/robots.png`); nate imports the FBX in Studio into ReplicatedStorage.Art (Tasks.md "Blender robot meshes").
 - `notes/Current Progress.md`: done / in progress / next. Under 20 lines. Read it at the start of every session.
 - `notes/Tasks.md`: milestones in order with their "done when" checks, plus the Studio test list (what needs nate's PC).
 - `notes/Decisions.md`: every design or technical decision, one line each with the date. Check it before changing direction.

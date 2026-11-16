@@ -9,7 +9,9 @@
 -- raised slam on a windup, a tumble when knocked up, a wobble when stunned, and see-through while cloaked.
 -- Status flags from the server tint and mark the body: ice blue when slowed or rooted, a spinning ring when
 -- stunned, a bubble or a guard plate when shielded.
--- PLACEHOLDER ART: the robots are built from plain parts; meshes and real animations come with the art pass.
+-- Art: when the Blender robot meshes are in ReplicatedStorage.Art.Robots (art/blender/robots.py, imported in
+-- Studio), each piece is a clone of its mesh sized by Config.ArtFit; a piece with no mesh stays a plain part.
+-- PLACEHOLDER ART until nate imports the meshes; real animations come with the art pass.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -96,6 +98,39 @@ local TIES: { [string]: { string } } = {
 	Belt = { "Belly" },
 }
 
+-- The Blender meshes, found once. A piece takes the mesh named after it, else its unsided name (UpperL uses
+-- Upper; ChestL, FaceL, EyeL and ShLowerL have their own); Tank2 is a second Tank.
+local ArtFit = Config.ArtFit
+local artFolder = ReplicatedStorage:FindFirstChild("Art")
+local robotArt = artFolder and artFolder:FindFirstChild("Robots")
+local ALIAS: { [string]: string } = { Tank2 = "Tank" }
+local meshCache: { [string]: MeshPart | false } = {}
+
+local function meshFor(name: string): MeshPart?
+	if not robotArt then
+		return nil
+	end
+	local cached = meshCache[name]
+	if cached ~= nil then
+		return cached or nil
+	end
+	local key = ALIAS[name] or name
+	local found = robotArt:FindFirstChild(key, true)
+	local base = string.match(key, "^(.-)[LR]$")
+	if not (found and found:IsA("MeshPart")) and base then
+		found = robotArt:FindFirstChild(base, true)
+	end
+	local mesh = if found and found:IsA("MeshPart") then found else nil
+	meshCache[name] = mesh or false
+	return mesh
+end
+
+-- Where meshed pieces sit differently from the plain parts: the hair stands on the head, the chest mark sits on
+-- the rounder chest, the cape hangs clear of the back
+local HAIR = if meshFor("Hair") then ArtFit.hair else { 0.5, 0.03 }
+local EMBLEM_OUT = if meshFor("ChestL") then 0.58 else 0.5
+local CAPE_BACK = if meshFor("Cape") then 0.2 else 0.08
+
 local function newPart(
 	model: Model,
 	name: string,
@@ -103,15 +138,24 @@ local function newPart(
 	color: Color3,
 	material: Enum.Material,
 	shape: Enum.PartType?
-): Part
-	local p = Instance.new("Part")
+): BasePart
+	local mesh = meshFor(name)
+	local p: BasePart
+	if mesh then
+		local fit = ArtFit.fit[mesh.Name]
+		p = mesh:Clone()
+		p.Size = if fit then size * Vector3.new(fit[1], fit[2], fit[3]) else size
+	else
+		local part = Instance.new("Part")
+		part.Size = size
+		if shape then
+			part.Shape = shape
+		end
+		p = part
+	end
 	p.Name = name
-	p.Size = size
 	p.Color = color
 	p.Material = material
-	if shape then
-		p.Shape = shape
-	end
 	p.Anchored = true
 	p.CanCollide = false
 	p.CanQuery = false
@@ -654,11 +698,13 @@ local function pose(
 	put("Belt", torsoC * CFrame.new(0, -d.torsoH * 0.44, 0))
 	put(
 		"Emblem",
-		torsoC * CFrame.new(0, d.torsoH * 0.24, -d.torsoD * 0.5 - 0.04) * CFrame.Angles(0, 0, math.rad(45))
+		torsoC
+			* CFrame.new(0, d.torsoH * 0.24, -d.torsoD * EMBLEM_OUT - 0.04)
+			* CFrame.Angles(0, 0, math.rad(45))
 	)
 	put("FaceL", neck * CFrame.new(-d.head * 0.25, 0, 0))
 	put("FaceR", neck * CFrame.new(d.head * 0.25, 0, 0))
-	put("Hair", neck * CFrame.new(0, d.head * 0.5, d.head * 0.03))
+	put("Hair", neck * CFrame.new(0, d.head * HAIR[1], d.head * HAIR[2]))
 	put("EyeL", neck * CFrame.new(-d.head * 0.2, d.head * 0.08, -d.head * 0.5 - 0.03))
 	put("EyeR", neck * CFrame.new(d.head * 0.2, d.head * 0.08, -d.head * 0.5 - 0.03))
 	put("Mask", neck * CFrame.new(0, d.head * 0.08, 0))
@@ -672,7 +718,7 @@ local function pose(
 	put(
 		"Cape",
 		torsoC
-			* CFrame.new(0, d.torsoH * 0.48, d.torsoD * 0.5 + 0.08)
+			* CFrame.new(0, d.torsoH * 0.48, d.torsoD * 0.5 + CAPE_BACK)
 			* CFrame.Angles(capeA, 0, 0)
 			* CFrame.new(0, -d.torsoH * 0.85, 0)
 	)

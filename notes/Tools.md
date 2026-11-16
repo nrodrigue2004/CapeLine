@@ -14,7 +14,7 @@ record the source here. Status: Using / Recommended (milestone) / Paid (ask nate
 ## Art, VFX and animation
 - Roblox Animation Editor (built in, free): Recommended for hero cast poses and the 6 robot rigs (walk, aim, slam, stab). The M2 robots are posed in code until then.
 - Moon Animator 2: Paid (ask nate). Faster animation work; not needed for launch.
-- Blender (GPL, free) plus the Blender MCP (github.com/ahujasid/blender-mcp, MIT): Recommended for M5 and M9: capes, hair, coats and building chunks as low-poly meshes Claude can help model.
+- Blender 5.0.1 as the `bpy` Python module (GPL; what we make with it is ours): Using since 2026-11-16. Installed in Claude's workspace with uv (`uv venv --python 3.11 ~/tools/bpyenv`, `uv pip install bpy`; download.blender.org is blocked there, PyPI works). Scripts in art/blender build, export and preview the meshes. The Blender MCP (github.com/ahujasid/blender-mcp, MIT) is Skipped: it drives a Blender window on a PC, and scripted builds are repeatable without one.
 - Kenney assets (CC0, kenney.nl): Recommended for UI shapes and placeholder textures (M10).
 - game-icons.net (CC BY 3.0, attribution in the game description): Recommended for the 120 ability, slot and tier icons (M2 to M9), recoloured to one style.
 - Creator Store free models and VFX: Recommended only after a license and script check (free models can hide scripts); restyle to the palette.

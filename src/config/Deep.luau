@@ -74,7 +74,8 @@ return {
 	look = {
 		tint = { 70, 150, 200 },
 		deepTint = { 20, 60, 110 }, -- at the trench floor
-		fogStart = 10,
+		haze = { 0.62, 0.85 }, -- Atmosphere density just under the surface and at the trench floor (the sky has one)
+		fogStart = 10, -- Lighting fog, only for a place with no Atmosphere
 		fogEnd = 160,
 		bubbles = 0.08, -- seconds between bubbles from a moving hero
 	},
