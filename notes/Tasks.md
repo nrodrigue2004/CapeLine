@@ -157,7 +157,7 @@ Hub buildings: 220 (all of Downtown, 6 Docks warehouses, 122 Old Town houses). D
 11. Gate: 10 players (or you plus 9 bots and a friend) wreck one block for 10 minutes: the Dev panel's server frame stays under 16 ms and the "buildings", "citizens" and "wrecked" counters behave; a mid-range phone on the low preset holds 30+ fps during collapses. After the drones finish, everything is back.
 
 ### Red Faction destruction (2026-11-16)
-DEV panel: the building hit button (or any super) on a hub building. Pieces are plain boxes in the building's colour (PLACEHOLDER ART).
+DEV panel: stand next to a hub building and press Wreck here (a super-sized hit at your feet), or use supers. Repair city puts everything back. Pieces are plain boxes in the building's colour (PLACEHOLDER ART).
 1. First hit on a building: it turns into pillars, wall panels and floors; a hole opens where you hit and 2 to 6 pieces fly out, tumble and fade in about 5 s. You can see the floors inside and fly in through the hole.
 2. Hit high on a tall building around one storey (all sides): that storey shakes and drops with everything above it in a dust cloud; the floors below stay standing. Robots walk on the new lower roof.
 3. Hit around the ground floor: the whole building comes down storey by storey and leaves the rubble heap.
