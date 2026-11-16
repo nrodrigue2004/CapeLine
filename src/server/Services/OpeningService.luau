@@ -32,6 +32,7 @@ local EconomyService = require(script.Parent.EconomyService)
 local SafehouseService = require(script.Parent.SafehouseService)
 local SiteKit = require(script.Parent.SiteKit)
 local StoryService = require(script.Parent.StoryService)
+local Analytics = require(script.Parent.Analytics)
 
 local OpeningService = {}
 
@@ -137,8 +138,32 @@ local function clearDrones(r: Run)
 	table.clear(r.drones)
 end
 
+-- M12: the step just finished, for the Opening funnel (spec: Analytics and KPIs)
+local FUNNEL = {
+	glide = "first_leap",
+	blast = "first_catch",
+	choice = "first_blast",
+	save = "choice_made",
+	grab = "choice_made",
+	suitup = "creator_open",
+}
+
+local function track(r: Run, step: string)
+	local done = FUNNEL[step]
+	if not done then
+		return
+	end
+	if done == "choice_made" then
+		Analytics.event(r.player, "choice_made", Analytics.since(r.player), { "shardfall", step })
+	elseif done ~= "creator_open" then
+		Analytics.event(r.player, done, Analytics.since(r.player))
+	end
+	Analytics.step(r.player, "Opening", done)
+end
+
 local function setStep(r: Run, step: string)
 	r.step = step
+	track(r, step)
 	if step == "blast" then
 		spawnDrones(r, 2, v3(r.route.drones), {
 			{ hits = O.drones.first, dmg = 0 },

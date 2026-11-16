@@ -18,6 +18,7 @@ local HeroService = require(script.Parent.HeroService)
 local EconomyService = require(script.Parent.EconomyService)
 local DataService = require(script.Parent.DataService)
 local SafehouseService = require(script.Parent.SafehouseService)
+local Analytics = require(script.Parent.Analytics)
 
 local AbilityService = {}
 
@@ -46,6 +47,8 @@ function AbilityService.rank(hero: any, id: string): (boolean, string?)
 	hero.ranks[id] = (hero.ranks[id] or 0) + 1
 	if hero.player then
 		DataService.saveSoon(hero.player)
+		Analytics.event(hero.player, "skill_rank", 1, { id, hero.ranks[id] })
+		Analytics.step(hero.player, "Combat", "skill_rank")
 	end
 	return true, nil
 end
@@ -198,6 +201,9 @@ function AbilityService.init()
 				end
 			end
 			local ok, reason = AbilityService.setLoadout(hero, index, set, skills, num(sup))
+			if ok then
+				Analytics.step(player, "Combat", "loadout_swap")
+			end
 			notice(hero, ok, reason)
 			HeroService.sendState(hero)
 		end

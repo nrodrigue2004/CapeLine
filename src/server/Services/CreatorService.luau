@@ -35,6 +35,7 @@ local StoryService = require(script.Parent.StoryService)
 local OpeningService = require(script.Parent.OpeningService)
 local BossService = require(script.Parent.BossService)
 local FlagService = require(script.Parent.FlagService)
+local Analytics = require(script.Parent.Analytics)
 
 local CreatorService = {}
 CreatorService.Saved = Signal.new() -- (player) a creator save landed (HqService refreshes the mannequins)
@@ -173,6 +174,8 @@ local function onCreate(
 		c.startSet = setId
 		hero.startSet = setId
 		c.created = 1
+		Analytics.event(player, "creator_done", Analytics.since(player), { classId, side, setId })
+		Analytics.step(player, "Opening", "creator_done")
 		OpeningService.suitUp(player, classId, side)
 		local active = hero.loadouts[hero.loadoutIndex]
 		if active and active.set ~= setId then

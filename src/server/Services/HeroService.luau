@@ -23,6 +23,8 @@ local Status = require(Shared:WaitForChild("Status"))
 local Awakening = require(Shared:WaitForChild("Awakening"))
 local AbilityRules = require(Shared:WaitForChild("AbilityRules"))
 
+local Analytics = require(script.Parent.Analytics)
+
 local HeroService = {}
 
 export type Hero = {
@@ -579,6 +581,9 @@ end
 function HeroService.applyGear(hero: Hero, totals: any)
 	hero.stats = totals.stats
 	hero.gearScore = totals.gearScore
+	if hero.player and next(totals.setDamage or {}) and not next(hero.setDamage or {}) then
+		Analytics.step(hero.player, "Combat", "set_bonus_active") -- a 2-piece set bonus just switched on
+	end
 	hero.setDamage = totals.setDamage
 	hero.gearMods = totals.abilityMods
 	hero.perks = totals.perks

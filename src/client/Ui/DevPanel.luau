@@ -18,6 +18,7 @@ local ShopRules = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild(
 local Kit = require(script.Parent.Kit)
 local State = require(script.Parent.Parent.State)
 local QualityController = require(script.Parent.Parent.Controllers.QualityController)
+local Telemetry = require(script.Parent.Parent.Controllers.Telemetry)
 local SettingsClient = require(script.Parent.Parent.Controllers.SettingsClient)
 
 local DevPanel = {}
@@ -303,7 +304,7 @@ function DevPanel.init()
 		end
 		table.sort(parts)
 		stats.Text = string.format(
-			"server frame %.1f ms (worst %.1f)\nscripts ms avg/worst: %s\nenemies %s  ai %s  bots %s  players %d\nsend %.0f kbps  mem %.0f MB\nclient %.0f fps  preset %s\nidle waits >5 s: server %s",
+			"server frame %.1f ms (worst %.1f)\nscripts ms avg/worst: %s\nenemies %s  ai %s  bots %s  players %d\nsend %.0f kbps  mem %.0f MB\nclient %.0f fps  preset %s\nidle waits >5 s: server %s\nanalytics events %s  perf sample %s (%d/%d fps)",
 			r.frameMs,
 			r.frameWorstMs,
 			table.concat(parts, ", "),
@@ -315,7 +316,11 @@ function DevPanel.init()
 			r.memoryMb,
 			QualityController.fps,
 			QualityController.name,
-			tostring(r.extra["idle>5s"])
+			tostring(r.extra["idle>5s"]),
+			tostring(r.extra.analytics),
+			if Telemetry.sampled then "on" else "off",
+			Telemetry.lastMedian,
+			Telemetry.lastP5
 		)
 	end)
 end

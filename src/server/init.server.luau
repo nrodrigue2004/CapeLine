@@ -3,7 +3,7 @@
 -- perks, safehouses and beacons, destruction (buildings, vehicles, citizens), world activity (sites,
 -- incidents, contracts, events, the world boss, the clock), the story (choices and rewards, the opening,
 -- mission pockets, side quests), PvP and safety (the flag, Fame, strikes and reports, Downed and defeats),
--- the creator, HQ and shops (M9), then saves (a loaded profile fires into all of those), and the Studio-only tools.
+-- the creator, HQ and shops (M9), settings and squads (M10), analytics (M12), then saves (a loaded profile fires into all of those), and the Studio-only tools.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -48,6 +48,8 @@ local ShopService = require(Services.ShopService)
 local PurchaseService = require(Services.PurchaseService)
 local SettingsService = require(Services.SettingsService)
 local SquadService = require(Services.SquadService)
+local Analytics = require(Services.Analytics)
+local AnalyticsHooks = require(Services.AnalyticsHooks)
 local LoadBots = require(Services.LoadBots)
 local DevService = require(Services.DevService)
 
@@ -89,6 +91,8 @@ ShopService.init()
 PurchaseService.init()
 SettingsService.init()
 SquadService.init()
+Analytics.init()
+AnalyticsHooks.init()
 DataService.init() -- last of the game services: profile loads fire into the handlers above
 LoadBots.init()
 DevService.init()

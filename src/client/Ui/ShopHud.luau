@@ -21,6 +21,7 @@ local Kit = require(script.Parent.Kit)
 local Preview = require(script.Parent.Preview)
 local State = require(script.Parent.Parent.State)
 local InputController = require(script.Parent.Parent.Controllers.InputController)
+local Telemetry = require(script.Parent.Parent.Controllers.Telemetry)
 
 local ShopHud = {}
 
@@ -110,6 +111,7 @@ local function lookWith(pieces: { CreatorRules.Piece }): LookCodec.Look
 end
 
 local function showPreview(key: string)
+	Telemetry.note("item")
 	local row, kind = ShopRules.item(Config, key)
 	if kind == "pack" then
 		preview.set(lookWith(CreatorRules.packPieces(Config, row.pack)))
@@ -358,6 +360,9 @@ end
 
 function ShopHud.open(which: string?)
 	tab = which or tab
+	if not gui.Enabled then
+		Telemetry.note("shop")
+	end
 	gui.Enabled = true
 	status.Text = "Looks only: nothing here changes your stats"
 	preview.set(LookCodec.read(State.profile.look) or CreatorRules.defaultLook(Config))

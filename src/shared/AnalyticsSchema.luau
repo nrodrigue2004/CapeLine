@@ -1,0 +1,100 @@
+--!strict
+-- AnalyticsSchema: every analytics event and funnel step the spec lists (spec: Analytics and KPIs), as
+-- data, so the server can refuse anything else and Lune can test the list. Event names are lowercase with
+-- underscores; fields are short codes and numbers only: never names, chat or free text.
+-- * EVENTS[name] = the meaning of CustomField01 to 03 (at most 3, Roblox's limit).
+-- * FUNNELS[name] = the steps in order. "Opening" is the onboarding funnel (once per account).
+-- * check(name, fields) cleans one event: false for an unknown name or too many fields; text fields are
+--   cut to 32 characters with anything but letters, digits, "_", "-", "." and ":" removed.
+
+local AnalyticsSchema = {}
+
+AnalyticsSchema.EVENTS = {
+	session_start = { "platform", "new_or_returning", "side" }, -- value: level
+	first_leap = {}, -- value: seconds since join
+	first_catch = {},
+	first_blast = {},
+	choice_made = { "choice", "option" },
+	choice_pick = { "choice", "option" },
+	creator_done = { "class", "side", "set" }, -- value: seconds in the creator
+	incident_done = { "template", "medal", "participants" }, -- value: seconds
+	contract_done = { "type", "daily_bonus" }, -- value: seconds
+	skill_cast = { "ability", "slot" }, -- sampled (Config.Analytics.castSample); slot, as hits land later
+	skill_rank = { "ability", "rank" },
+	level_up = { "level", "playtime_min" }, -- value: seconds in session
+	gear_drop = { "tier", "source", "ilvl" },
+	gear_upgrade = { "tier", "level", "dust" },
+	boss_join = { "boss", "level", "participants" },
+	boss_done = { "boss", "tier", "result" }, -- value: contribution
+	flag_on = { "location", "level" },
+	flag_off = { "location", "level" },
+	pvp_hit = { "attacker_level", "target_level", "zone" },
+	pvp_win = { "attacker_level", "target_level", "paid" },
+	defeat = { "cause", "level" },
+	downed = { "result" }, -- value: seconds
+	fast_travel = { "beacon", "skipped" },
+	mission_start = { "mission", "party" },
+	mission_done = { "mission", "party" }, -- value: seconds
+	report_player = { "reason" },
+	anti_exploit_flag = { "kind", "strikes" },
+	purchase = { "item", "kind" }, -- value: Robux
+	perf_sample = { "device", "preset", "fps_p5" }, -- value: median fps (sampled 10%)
+	leave = { "state" }, -- value: seconds in session
+	-- M10 and M11 extras the KPIs need (squads, photos, friend boost, settings)
+	squad_join = { "size" },
+	photo = { "backdrop" },
+	setting_change = { "key", "value" },
+	idle_wait = { "reason" }, -- value: seconds (the M11 gate)
+}
+
+AnalyticsSchema.FUNNELS = {
+	Opening = {
+		"session_start",
+		"first_leap",
+		"first_catch",
+		"first_blast",
+		"choice_made",
+		"creator_open",
+		"creator_done",
+		"first_incident",
+		"level_3",
+		"first_boss_join",
+		"first_boss_done",
+		"d1_return",
+	},
+	Combat = { "skill_cast", "skill_rank", "loadout_swap", "gear_equip", "gear_upgrade", "set_bonus_active" },
+	PvP = { "flag_on", "first_pvp_hit", "pvp_win", "pvp_loss", "flag_off" },
+	Story = { "mission_start", "choice_pick", "mission_done", "act_done" },
+	Purchase = { "shop_open", "shop_view_item", "shop_buy_prompt", "shop_buy_ok" },
+}
+
+-- The step number of a funnel step (nil if unknown)
+function AnalyticsSchema.stepOf(funnel: string, step: string): number?
+	local list = AnalyticsSchema.FUNNELS[funnel]
+	return list and table.find(list, step)
+end
+
+function AnalyticsSchema.cleanText(v: any): string
+	local s = tostring(v)
+	s = string.gsub(s, "[^%w_%-%.:]", "")
+	return string.sub(s, 1, 32)
+end
+
+-- Clean one event: ok, the fields as text (CustomField01 to 03 in order)
+function AnalyticsSchema.check(name: string, fields: { any }?): (boolean, { string })
+	local spec = AnalyticsSchema.EVENTS[name]
+	local list = fields or {}
+	if not spec or #list > 3 or #list > math.max(#spec, 0) then
+		return false, {}
+	end
+	if not string.match(name, "^[a-z0-9_]+$") then
+		return false, {}
+	end
+	local out = {}
+	for i, v in list do
+		out[i] = AnalyticsSchema.cleanText(v)
+	end
+	return true, out
+end
+
+return AnalyticsSchema

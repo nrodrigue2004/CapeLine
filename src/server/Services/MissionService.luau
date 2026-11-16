@@ -44,6 +44,7 @@ local BeaconService = require(script.Parent.BeaconService)
 local BossService = require(script.Parent.BossService)
 local SiteKit = require(script.Parent.SiteKit)
 local StoryService = require(script.Parent.StoryService)
+local Analytics = require(script.Parent.Analytics)
 
 local MissionService = {}
 
@@ -749,6 +750,16 @@ function finishRun(run: Run, ok: boolean)
 	if ok then
 		for _, player in members do
 			if player.Parent then
+				Analytics.event(
+					player,
+					"mission_done",
+					math.floor(os.clock() - run.startedAt),
+					{ run.num, #members }
+				)
+				Analytics.step(player, "Story", "mission_done")
+				if run.num == #S.missions then
+					Analytics.step(player, "Story", "act_done")
+				end
 				Net.fire("MissionResult", player, pay(run, player))
 				Net.fire("MissionState", player, statePacket(run))
 			end
@@ -927,6 +938,11 @@ function MissionService.init()
 	EnemyService.setPocketHeight(pocketHeight)
 	Net.on("MissionEnter", function(player, num)
 		local ok, why = MissionService.enter(player, num)
+		local run = runs[player]
+		if ok and run then
+			Analytics.event(player, "mission_start", 1, { run.num, #run.members })
+			Analytics.step(player, "Story", "mission_start")
+		end
 		if not ok then
 			Net.fire("Toast", player, { id = "missionRefused", reason = why })
 		end

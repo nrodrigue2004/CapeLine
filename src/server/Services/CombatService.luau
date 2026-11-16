@@ -40,6 +40,7 @@ local PerfMonitor = require(script.Parent.PerfMonitor)
 local BuildingService = require(script.Parent.BuildingService)
 local VehicleService = require(script.Parent.VehicleService)
 local FlagService = require(script.Parent.FlagService)
+local Analytics = require(script.Parent.Analytics)
 
 local CombatService = {}
 
@@ -968,6 +969,10 @@ function CombatService.use(
 	hero.channel = nil -- any new use ends a channel
 	hero.lastCast = now
 	FlagService.attacked(hero) -- attacking ends spawn protection
+	if hero.player and math.random() < Config.Analytics.castSample then
+		Analytics.event(hero.player, "skill_cast", 1, { row.id, slot })
+		Analytics.step(hero.player, "Combat", "skill_cast")
+	end
 	local origin = root + CHEST
 	if eff.cast and eff.cast > 0 then
 		-- windup: others see it coming; the hit lands from where the hero is when it finishes

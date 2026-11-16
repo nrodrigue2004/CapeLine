@@ -10,6 +10,8 @@ local Stats = game:GetService("Stats")
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Net = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Net"))
 
+local Analytics = require(script.Parent.Analytics)
+
 local PerfMonitor = {}
 
 local totals: { [string]: number } = {}
@@ -63,15 +65,20 @@ end
 -- M11 gate (spec: "No idle wait over 5 seconds in a 30-minute session"): each device reports its waits
 -- of over 5 s with nothing to do (IdleWatch); the Output lists every one and the Dev panel the count
 local REASONS = { "no incident near", "dead or respawning", "loading", "other" }
+local IDLE_CODES = { "no_incident", "respawning", "loading", "other" } -- analytics field codes
 local idleWaits, idleLongest = 0, 0
 PerfMonitor.watch("idle>5s", function()
 	return string.format("%d (longest %.1f s)", idleWaits, idleLongest)
+end)
+PerfMonitor.watch("analytics", function()
+	return Analytics.count -- M12: analytics events sent by this server
 end)
 
 function PerfMonitor.init()
 	Net.on("IdleReport", function(player, seconds: number, why: number)
 		idleWaits += 1
 		idleLongest = math.max(idleLongest, seconds)
+		Analytics.event(player, "idle_wait", seconds, { IDLE_CODES[why] or "other" })
 		print(
 			string.format(
 				"[Capeline] idle wait %.1f s for %s (%s)",

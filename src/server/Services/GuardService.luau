@@ -19,11 +19,13 @@ local GuardRules = require(Shared:WaitForChild("GuardRules"))
 
 local DataService = require(script.Parent.DataService)
 local MoveGuard = require(script.Parent.MoveGuard)
+local Analytics = require(script.Parent.Analytics)
 
 local GuardService = {}
 
 local strikes: { [Player]: GuardRules.Strikes } = {}
 local reports = GuardRules.newReports()
+local flagged: { [Player]: { [string]: boolean } } = {} -- analytics: kinds already logged this session
 local store: DataStore? = nil
 GuardService.queue = {} :: { any } -- this server's review rows (also written to the store)
 
@@ -81,7 +83,16 @@ function GuardService.strike(player: Player, kind: string)
 	if player.Parent ~= Players then
 		return
 	end
-	if GuardRules.strike(Config, strikesOf(player), kind, os.clock()) then
+	local book = strikesOf(player)
+	local kicked = GuardRules.strike(Config, book, kind, os.clock())
+	local seen = flagged[player] or {}
+	flagged[player] = seen
+	if not seen[kind] or kicked then
+		-- one event per player per kind of trouble (a speed hack would send one a frame)
+		seen[kind] = true
+		Analytics.event(player, "anti_exploit_flag", 1, { kind, if kicked then "kick" else "strike" })
+	end
+	if kicked then
 		task.spawn(kick, player, kind) -- the save before the kick yields; never inside a caller's frame loop
 	end
 end
@@ -92,6 +103,9 @@ local function onReport(player: Player, userId: number, reason: number)
 		return
 	end
 	local ok, flagged = GuardRules.report(Config, reports, player.UserId, userId, os.clock())
+	if ok then
+		Analytics.event(player, "report_player", 1, { Config.Pvp.report.reasons[reason] or "other" })
+	end
 	Net.fire("Toast", player, { id = if ok then "reported" else "reportedAlready" })
 	if flagged then
 		GuardService.review(userId, "reports", { reason = Config.Pvp.report.reasons[reason] })
@@ -108,6 +122,7 @@ function GuardService.init()
 	Net.on("ReportPlayer", onReport)
 	Players.PlayerRemoving:Connect(function(player)
 		strikes[player] = nil
+		flagged[player] = nil
 	end)
 end
 

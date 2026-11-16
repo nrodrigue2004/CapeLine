@@ -48,7 +48,8 @@ local Bits = ProfileSchema.Bits
 
 local BossService = {}
 -- (player, bossId, tier, defeated) after a hero's boss reward is paid (M9: creator unlocks, the starter offer)
-BossService.Rewarded = Signal.new()
+BossService.Rewarded = Signal.new() -- (player, bossId, tier, defeated, contribution)
+BossService.Joined = Signal.new() -- (hero, bossId, heroes in the fight) a hero's first contribution to a fight
 
 local B = Config.Boss
 local SCHED = B.schedule
@@ -112,6 +113,14 @@ local function ledgerOf(f: Fight, heroId: number): { damage: number, support: nu
 	if not l then
 		l = { damage = 0, support = 0, objectives = 0 }
 		f.ledger[heroId] = l
+		local hero = HeroService.byId(heroId)
+		if hero and hero.player then
+			local n = 0
+			for _ in f.ledger do
+				n += 1
+			end
+			BossService.Joined:Fire(hero, f.id, n)
+		end
 	end
 	return l
 end
@@ -300,7 +309,9 @@ local function rewardHero(
 		shiny = shiny,
 		mvps = mvps,
 	})
-	BossService.Rewarded:Fire(player, f.id, tier, defeated)
+	local l = f.ledger[heroId]
+	local score = if l then math.floor(l.damage + l.support + l.objectives) else 0
+	BossService.Rewarded:Fire(player, f.id, tier, defeated, score)
 end
 
 local function finish(f: Fight, defeated: boolean)

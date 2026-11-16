@@ -28,6 +28,7 @@ local SafehouseService = require(script.Parent.SafehouseService)
 
 local FlagService = {}
 FlagService.Changed = Signal.new() -- (hero, flagged) the hero's PvP state changed
+FlagService.pvpHook = nil :: ((any, any) -> ())? -- AnalyticsHooks: called on every PvP hit (attacker, target)
 
 local P = Config.Pvp
 local POCKET_Y = Config.Story.pockets.y - 100
@@ -125,6 +126,9 @@ function FlagService.notePvp(a: any, b: any)
 	PvpRules.notePvp(FlagService.flag(a), now)
 	PvpRules.notePvp(FlagService.flag(b), now)
 	lastBy[b.id] = { id = a.id, t = now }
+	if FlagService.pvpHook then
+		FlagService.pvpHook(a, b)
+	end
 end
 
 -- Who last dealt PvP damage to this hero within `window` seconds (combat logging), or nil

@@ -26,6 +26,7 @@ local HeroService = require(script.Parent.HeroService)
 local EnemyService = require(script.Parent.EnemyService)
 local MoveGuard = require(script.Parent.MoveGuard)
 local LookService = require(script.Parent.LookService)
+local Analytics = require(script.Parent.Analytics)
 
 local GearService = {}
 -- (player, profile) an Epic or Legendary piece dropped: CreatorService may unlock a "drop" creator piece (M9)
@@ -79,6 +80,7 @@ function GearService.grant(player: Player, source: string, zoneLevel: number): {
 			GearMath.roll(Config, rng, tier, ilvl, { gadget = rng:next() < Config.Loot.gadgetChance })
 		local kind, stored, dust = Inventory.add(Config, profile, piece)
 		Net.fire("LootDrop", player, { piece = stored, kind = kind, dust = dust })
+		Analytics.event(player, "gear_drop", 1, { tier, source, ilvl })
 		table.insert(out, stored)
 		if (tier == "Epic" or tier == "Legendary") and GearService.onRareDrop then
 			GearService.onRareDrop(player, profile)
@@ -112,6 +114,7 @@ function GearService.grantPiece(
 	end
 	local kind, stored, dust = Inventory.add(Config, profile, piece)
 	Net.fire("LootDrop", player, { piece = stored, kind = kind, dust = dust })
+	Analytics.event(player, "gear_drop", 1, { tier, "story", ilvl })
 	DataService.changed(player)
 	DataService.saveSoon(player)
 	return stored
@@ -246,12 +249,21 @@ function GearService.init()
 
 	Net.on("GearEquip", function(player, id: number, slot: number)
 		run(player, function(profile, char)
-			return Inventory.equip(Config, profile, char, id, slot)
+			local ok, reason = Inventory.equip(Config, profile, char, id, slot)
+			if ok and id ~= 0 then
+				Analytics.step(player, "Combat", "gear_equip")
+			end
+			return ok, reason
 		end)
 	end)
 	Net.on("GearUpgrade", function(player, id: number)
 		run(player, function(profile)
 			local ok, reason, cost = Inventory.upgrade(Config, profile, id)
+			local piece = ok and Inventory.find(profile, id)
+			if piece then
+				Analytics.event(player, "gear_upgrade", 1, { piece.tier, piece.up, cost })
+				Analytics.step(player, "Combat", "gear_upgrade")
+			end
 			return ok, reason, { cost = cost }
 		end)
 	end)

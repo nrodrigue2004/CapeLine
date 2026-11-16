@@ -26,6 +26,7 @@ local HeroService = require(script.Parent.HeroService)
 local SafehouseService = require(script.Parent.SafehouseService)
 local BossService = require(script.Parent.BossService)
 local CreatorService = require(script.Parent.CreatorService)
+local Analytics = require(script.Parent.Analytics)
 
 local PurchaseService = {}
 
@@ -33,6 +34,11 @@ local KEYS = ShopRules.keys(Config)
 local testSeq = 0
 
 local function landed(player: Player, got: { [string]: any }?)
+	if got and got.key then
+		local row = ShopRules.item(Config, got.key)
+		Analytics.event(player, "purchase", if row then row.robux or 0 else 0, { got.key, got.kind or "-" })
+		Analytics.step(player, "Purchase", "shop_buy_ok")
+	end
 	CreatorService.showName(player)
 	DataService.changed(player)
 	Net.fire("ShopResult", player, {
@@ -143,6 +149,7 @@ local function buy(player: Player, index: number)
 	if not row then
 		return
 	end
+	Analytics.step(player, "Purchase", "shop_buy_prompt")
 	if row.id == 0 then
 		if RunService:IsStudio() then
 			-- Studio test purchase: the same grant path with a test receipt id

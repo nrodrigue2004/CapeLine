@@ -37,6 +37,7 @@ local NAMES = {
 	"Settings",
 	"Squad",
 	"Audio",
+	"Analytics",
 }
 
 local Config: { [string]: any } = {}

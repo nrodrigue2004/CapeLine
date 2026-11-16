@@ -4368,6 +4368,149 @@ test("M11: wait fillers: friend boost, offline drones cap, respawn, incident ref
 end)
 
 ---------------------------------------------------------------------------
+-- M12: analytics (events, funnels, the onboarding save)
+---------------------------------------------------------------------------
+
+local AnalyticsSchema = require("../src/shared/AnalyticsSchema")
+
+local function serverSources(): { [string]: string }
+	local fs = require("@lune/fs")
+	local out = {}
+	for _, name in fs.readDir("src/server/Services") do
+		out[name] = fs.readFile("src/server/Services/" .. name)
+	end
+	return out
+end
+
+-- Is this funnel step stepped by the server? A literal step(…, "Funnel", "step") call, or a file that names
+-- the funnel and has the step as a quoted name (a table or an if-expression picks it)
+local function stepped(src: { [string]: string }, funnel: string, step: string): boolean
+	for _, text in src do
+		if string.find(text, '"' .. funnel .. '", "' .. step .. '"', 1, true) then
+			return true
+		end
+		if
+			string.find(text, "Analytics.step(", 1, true)
+			and string.find(text, '"' .. funnel .. '"', 1, true)
+			and string.find(text, '"' .. step .. '"', 1, true)
+		then
+			return true
+		end
+	end
+	return false
+end
+
+test("M12: every spec event and funnel step is in the schema, and each one is logged somewhere", function()
+	local spec = {
+		"session_start",
+		"first_leap",
+		"first_catch",
+		"first_blast",
+		"choice_made",
+		"choice_pick",
+		"creator_done",
+		"incident_done",
+		"contract_done",
+		"skill_cast",
+		"skill_rank",
+		"level_up",
+		"gear_drop",
+		"gear_upgrade",
+		"boss_join",
+		"boss_done",
+		"flag_on",
+		"flag_off",
+		"pvp_hit",
+		"pvp_win",
+		"defeat",
+		"downed",
+		"fast_travel",
+		"mission_start",
+		"mission_done",
+		"report_player",
+		"anti_exploit_flag",
+		"purchase",
+		"perf_sample",
+		"leave",
+	}
+	local E = AnalyticsSchema.EVENTS
+	for _, name in spec do
+		check(E[name] ~= nil, "schema has " .. name)
+	end
+	local src = serverSources()
+	local all = table.concat(
+		(function()
+			local t = {}
+			for _, s in src do
+				table.insert(t, s)
+			end
+			return t
+		end)(),
+		"\n"
+	)
+	for name, fields in E do
+		check(#fields <= 3, name .. " has at most 3 custom fields (Roblox's limit)")
+		check(string.match(name, "^[a-z0-9_]+$") ~= nil, name .. " is lowercase")
+		local logged = string.find(all, '"' .. name .. '"', 1, true) ~= nil
+		check(logged, "the server logs " .. name)
+	end
+	local F = AnalyticsSchema.FUNNELS
+	check(
+		#F.Opening == 12 and F.Opening[1] == "session_start" and F.Opening[12] == "d1_return",
+		"Opening: 12 steps"
+	)
+	for _, f in { "Combat", "PvP", "Story", "Purchase" } do
+		check(F[f] ~= nil and #F[f] >= 4, f .. " funnel")
+		for i, step in F[f] do
+			check(AnalyticsSchema.stepOf(f, step) == i, f .. " step " .. step)
+			-- every step is reached: a server call, or a device note (shop_open, shop_view_item)
+			local reached = stepped(src, f, step)
+			check(reached, f .. "." .. step .. " is stepped")
+		end
+	end
+	for _, step in F.Opening do
+		local reached = stepped(src, "Opening", step)
+		check(reached, "Opening." .. step .. " is stepped")
+	end
+	check(AnalyticsSchema.stepOf("Opening", "nope") == nil, "unknown step is nil")
+end)
+
+test("M12: events are checked: unknown names refused, fields cut to short safe codes", function()
+	local ok, f = AnalyticsSchema.check("level_up", { 12, 30 })
+	check(ok and f[1] == "12" and f[2] == "30", "numbers become text")
+	check(not (AnalyticsSchema.check("made_up", {})), "unknown event refused")
+	check(not (AnalyticsSchema.check("level_up", { 1, 2, 3 })), "more fields than the event has refused")
+	local _, g = AnalyticsSchema.check("choice_pick", { "a b<script>", string.rep("x", 50) })
+	check(g[1] == "abscript", "spaces and symbols removed")
+	check(#g[2] == 32, "cut to 32 characters")
+	ok = AnalyticsSchema.check("leave", nil)
+	check(ok, "no fields is fine")
+	local A = Config.Analytics
+	check(A.castSample > 0 and A.castSample <= 0.05, "skill casts are sampled")
+	check(A.perfSample == 0.1 and A.perfEvery == 60, "perf: 10% of devices, every 60 s (spec)")
+	local r = Remotes.Telemetry
+	check(r ~= nil and r.dir == "C2S" and r.rate ~= nil, "Telemetry remote is rate limited")
+end)
+
+test("M12: save v6 keeps the onboarding step and first-seen day; repair clamps them", function()
+	check(ProfileSchema.VERSION >= 6, "version 6 or later")
+	local p = ProfileSchema.default()
+	check(p.analytics.onboard == 0 and p.analytics.firstSeen == 0 and p.analytics.d1 == 0, "fresh analytics")
+	local bad = ProfileSchema.default()
+	bad.analytics = { onboard = 99, firstSeen = -5, d1 = 7 }
+	local fixed = ProfileSchema.load(bad)
+	check(
+		fixed.analytics.onboard <= 32 and fixed.analytics.firstSeen >= 0 and fixed.analytics.d1 <= 1,
+		"clamped"
+	)
+	local old = ProfileSchema.default()
+	old.analytics = nil
+	old.version = 5
+	local m = ProfileSchema.load(old)
+	check(m.version == ProfileSchema.VERSION and m.analytics.onboard == 0, "a v5 save gains analytics")
+end)
+
+---------------------------------------------------------------------------
 -- Place layout (only when a built place is passed)
 ---------------------------------------------------------------------------
 
@@ -4485,6 +4628,8 @@ if placePath then
 				"PurchaseService",
 				"SettingsService",
 				"SquadService",
+				"Analytics",
+				"AnalyticsHooks",
 			}
 		do
 			local folder = server and server:FindFirstChild("Services")
@@ -4547,6 +4692,7 @@ if placePath then
 				{ "Fx", "Juice" },
 				{ "Fx", "JuiceFx" },
 				{ "Ui", "PhotoMode" },
+				{ "Controllers", "Telemetry" },
 			}
 		do
 			local folder = client and client:FindFirstChild(path[1])

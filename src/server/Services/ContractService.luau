@@ -36,6 +36,7 @@ local DataService = require(script.Parent.DataService)
 local SafehouseService = require(script.Parent.SafehouseService)
 local IncidentService = require(script.Parent.IncidentService)
 local SiteKit = require(script.Parent.SiteKit)
+local Analytics = require(script.Parent.Analytics)
 
 local ContractService = {}
 
@@ -204,6 +205,10 @@ local function complete(player: Player, r: Run)
 		)
 		credits, renown = math.floor(credits * m + 0.5), math.floor(renown * m + 0.5)
 		profile.daily.contractsDone = done + 1
+		Analytics.event(player, "contract_done", 1, {
+			r.saved.type,
+			if done < Config.Economy.bonus.firstContracts then "1" else "0",
+		})
 		profile.stats.contracts += 1 -- the trophy wall (M9)
 		EconomyService.addCredits(player, credits)
 		EconomyService.addRenown(player, renown)

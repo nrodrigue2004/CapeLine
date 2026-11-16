@@ -21,13 +21,14 @@ local CityBuilder = require(script.Parent.CityBuilder)
 local HeroService = require(script.Parent.HeroService)
 local MoveGuard = require(script.Parent.MoveGuard)
 local DataService = require(script.Parent.DataService)
+local Analytics = require(script.Parent.Analytics)
 
 local BeaconService = {}
 
 local W = Config.World
 local B = W.beacon
 
-type Trip = { beacon: number, arriveAt: number, dest: CFrame, done: boolean }
+type Trip = { beacon: number, arriveAt: number, dest: CFrame, done: boolean, skipped: boolean? }
 local trips: { [Player]: Trip } = {}
 local readyAt: { [Player]: number } = {}
 
@@ -46,6 +47,7 @@ local function arrive(player: Player, trip: Trip)
 	end
 	trip.done = true
 	trips[player] = nil
+	Analytics.event(player, "fast_travel", 1, { trip.beacon, if trip.skipped then "1" else "0" })
 	local hero = HeroService.get(player)
 	local model = player.Character
 	if hero then
@@ -137,6 +139,7 @@ function BeaconService.init()
 	Net.on("MoveTravelSkip", function(player)
 		local trip = trips[player]
 		if trip then
+			trip.skipped = true
 			arrive(player, trip)
 		end
 	end)

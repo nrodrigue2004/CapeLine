@@ -171,6 +171,13 @@ local Remotes: { [string]: RemoteDef } = {
 	},
 	HqCollect = { dir = "C2S", schema = {}, rate = 1, burst = 2 }, -- M11: bank the offline drones' haul
 	IdleReport = { dir = "C2S", schema = { n(0, 600), n(1, 4) }, rate = 0.5, burst = 3 }, -- M11 wait gate
+	-- M12: what only the device knows for analytics: kind (1 perf, 2 shop open, 3 item view, 4 photo, 5 hello), value, a, b
+	Telemetry = {
+		dir = "C2S",
+		schema = { n(1, 5), n(0, 1000000), n(0, 1000), n(0, 1000) },
+		rate = 1,
+		burst = 6,
+	},
 	DronesReady = { dir = "S2C" }, -- { credits, minutes }: the COLLECT card
 	HqBossSim = { dir = "C2S", schema = {}, rate = 0.2, burst = 2 }, -- start the 60 s boss sim (HQ level 3)
 	HqDps = { dir = "S2C" }, -- { dps, total, sim = { left, hp, max } }: the training room meter, 2 Hz

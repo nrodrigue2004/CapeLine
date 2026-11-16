@@ -26,6 +26,7 @@ local FlagService = require(script.Parent.FlagService)
 local IncidentService = require(script.Parent.IncidentService)
 local DeathService = require(script.Parent.DeathService)
 local MissionService = require(script.Parent.MissionService)
+local Analytics = require(script.Parent.Analytics)
 
 local SquadService = {}
 
@@ -187,6 +188,7 @@ local function answer(player: Player, yes: number)
 		end
 	end
 	toast(player, "squadJoin")
+	Analytics.event(player, "squad_join", 1, { #SquadRules.members(st, player.UserId) })
 end
 
 function SquadService.allies(a: Player, b: Player): boolean

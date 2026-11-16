@@ -11,6 +11,7 @@ local Net = require(Shared:WaitForChild("Net"))
 local SettingsRules = require(Shared:WaitForChild("SettingsRules"))
 
 local DataService = require(script.Parent.DataService)
+local Analytics = require(script.Parent.Analytics)
 
 local SettingsService = {}
 
@@ -27,6 +28,12 @@ function SettingsService.init()
 		local profile = DataService.get(player)
 		if profile and SettingsRules.set(Config, profile.settings, index, value) then
 			DataService.saveSoon(player)
+			Analytics.event(
+				player,
+				"setting_change",
+				1,
+				{ (Config.Settings.keys[index] or {}).id or index, value }
+			)
 		end
 	end)
 	Net.on("SettingsMute", function(player, userId: number, on: number)

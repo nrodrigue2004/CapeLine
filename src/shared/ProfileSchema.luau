@@ -9,7 +9,7 @@
 
 local ProfileSchema = {}
 
-ProfileSchema.VERSION = 5
+ProfileSchema.VERSION = 6
 ProfileSchema.SLOTS = 8
 ProfileSchema.STYLE_WORDS = 16 -- 512 bits
 ProfileSchema.SMALL_WORDS = 4 -- 128 bits for emotes, titles, Rogues File pages, seen flags
@@ -143,6 +143,9 @@ function ProfileSchema.default(): { [string]: any }
 		shop = { starterSeen = 0 }, -- the starter pack offer was shown (once)
 		settings = {}, -- M10: { [key id] = number } (SettingsRules.clean fills and fixes it on load)
 		mutes = {}, -- M10: muted user ids (the mute list), at most Config.Settings.maxMutes
+		-- M12 analytics: the furthest Opening funnel step logged (the onboarding funnel counts once per
+		-- account), the first join (os.time) and whether the day-1 return was logged
+		analytics = { onboard = 0, firstSeen = 0, d1 = 0 },
 		daily = { day = 0, contractsDone = 0 },
 		seen = words(ProfileSchema.SMALL_WORDS),
 		stats = {
@@ -199,6 +202,9 @@ local MIGRATIONS: { [number]: (any) -> () } = {
 	[5] = function(_p)
 		-- M10: settings become numbers per key and the mute list is saved; SettingsRules.clean turns an old
 		-- settings table (textSize as a 1 to 1.6 scale, booleans) into the new one on load
+	end,
+	[6] = function(_p)
+		-- M12: analytics (onboarding step, first join, day-1 return); repair() fills it
 	end,
 }
 ProfileSchema.MIGRATIONS = MIGRATIONS
@@ -443,6 +449,12 @@ local function repair(p: any): any
 		p.purchases.receipts = keep
 	end
 	p.mutes = cleanNumbers(p.mutes, 50, 1, 2 ^ 53)
+	local an = if type(p.analytics) == "table" then p.analytics else {}
+	p.analytics = {
+		onboard = num(an.onboard, 0, 32, 0),
+		firstSeen = num(an.firstSeen, 0, 2 ^ 40, 0),
+		d1 = num(an.d1, 0, 1, 0),
+	}
 	p.version = ProfileSchema.VERSION
 	return p
 end

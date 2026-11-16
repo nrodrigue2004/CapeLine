@@ -27,6 +27,7 @@ local InputController = require(script.Parent.Parent.Controllers.InputController
 local StoryClient = require(script.Parent.Parent.Controllers.StoryClient)
 local EmoteFx = require(script.Parent.Parent.Fx.EmoteFx)
 local Juice = require(script.Parent.Parent.Fx.Juice)
+local Telemetry = require(script.Parent.Parent.Controllers.Telemetry)
 
 local PhotoMode = {}
 
@@ -229,6 +230,7 @@ end
 
 local function snap()
 	Juice.fire("photo")
+	Telemetry.note("photo", lookAt)
 	if not PhotoMode.reduce then
 		flash.BackgroundTransparency = 0.1
 		flash.Visible = true
