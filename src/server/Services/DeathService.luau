@@ -420,6 +420,23 @@ end
 
 function DeathService.init()
 	HeroService.downHandler = onZero
+	-- Dawnburst (Light): every Downed ally within the radius stands up (allowed allies only)
+	local CombatService = require(script.Parent.CombatService) :: any
+	CombatService.reviveHook = function(helper: any, pos: Vector3, radius: number)
+		for id in table.clone(downs) do
+			local hero = HeroService.byId(id)
+			local p = hero and HeroService.position(hero)
+			if
+				hero
+				and p
+				and hero ~= helper
+				and (p - pos).Magnitude <= radius
+				and FlagService.canSupport(helper, hero)
+			then
+				revive(hero, helper)
+			end
+		end
+	end
 	Net.on("ReviveStart", onRevive)
 	Net.on("DownGiveUp", onGiveUp)
 	Net.on("RespawnChoose", function(player, id: number)

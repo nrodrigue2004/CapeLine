@@ -77,7 +77,7 @@ function AbilityService.respec(hero: any): (boolean, string?)
 	if hero.player and not SafehouseService.near(hero) then
 		return false, "safehouse"
 	end
-	local refund = AbilityRules.creditsSpent(Config, hero.ranks)
+	local refund = AbilityRules.creditsSpent(Config, hero.ranks, hero.startSet)
 	-- back to the main path's free starters; borrowed skills are unlearned too
 	local ranks, loadout = AbilityRules.starter(Config, hero.startSet or A.defaultLoadout.set)
 	EconomyService.refund(hero, refund)

@@ -7,7 +7,7 @@
 
 local AbilityRules = {}
 
-local SCALED = { "coeff", "endCoeff", "touchCoeff", "fieldCoeff" }
+local SCALED = { "coeff", "endCoeff", "touchCoeff", "fieldCoeff", "delayCoeff", "hfCoeff", "trail" }
 
 local function applyMod(eff: { [string]: any }, mod: any)
 	if mod.add then
@@ -103,13 +103,13 @@ function AbilityRules.pointsEarned(config: any, level: number, bonus: number?): 
 	return level * config.Abilities.pointsPerLevel + (bonus or 0)
 end
 
-function AbilityRules.pointsSpent(config: any, ranks: { [string]: number }): number
+function AbilityRules.pointsSpent(config: any, ranks: { [string]: number }, startSet: string?): number
 	local total = 0
 	for id, r in ranks do
 		local row = config.Abilities.list[id]
 		if row and row.slot ~= "basic" then
 			for k = 1, r do
-				if not AbilityRules.isStarter(config, id) or k > 1 then
+				if not AbilityRules.isStarter(config, id, startSet) or k > 1 then
 					total += (AbilityRules.rankCost(config, id, k))
 				end
 			end
@@ -119,13 +119,13 @@ function AbilityRules.pointsSpent(config: any, ranks: { [string]: number }): num
 end
 
 -- Credits paid for these ranks (refunded by a respec, so trying builds costs nothing)
-function AbilityRules.creditsSpent(config: any, ranks: { [string]: number }): number
+function AbilityRules.creditsSpent(config: any, ranks: { [string]: number }, startSet: string?): number
 	local total = 0
 	for id, r in ranks do
 		local row = config.Abilities.list[id]
 		if row and row.slot ~= "basic" then
 			for k = 1, r do
-				if not AbilityRules.isStarter(config, id) or k > 1 then
+				if not AbilityRules.isStarter(config, id, startSet) or k > 1 then
 					total += select(2, AbilityRules.rankCost(config, id, k))
 				end
 			end
@@ -134,9 +134,13 @@ function AbilityRules.creditsSpent(config: any, ranks: { [string]: number }): nu
 	return total
 end
 
--- The two skills every set starts with are learned for free (spec: 2 skill slots at level 1)
-function AbilityRules.isStarter(config: any, id: string): boolean
+-- The two skills every path starts with are learned for free (spec: 2 skill slots at level 1). With a main
+-- path given, only that path's starters are free: a borrowed path's starters cost points like any skill.
+function AbilityRules.isStarter(config: any, id: string, startSet: string?): boolean
 	local row = config.Abilities.list[id]
+	if row and startSet and row.set ~= startSet then
+		return false
+	end
 	local starter = row and config.Abilities.starter[row.set]
 	return starter ~= nil and table.find(starter, id) ~= nil
 end
@@ -278,14 +282,14 @@ function AbilityRules.canRank(
 		return false, "max rank", 0, 0
 	end
 	local pts, credits = AbilityRules.rankCost(config, id, cur + 1)
-	if cur == 0 and AbilityRules.isStarter(config, id) then
+	if cur == 0 and AbilityRules.isStarter(config, id, main) then
 		pts, credits = 0, 0 -- a set's two starter skills are free to learn
 	end
 	if freeCredits then
 		credits = 0
 	end
 	local left = AbilityRules.pointsEarned(config, hero.level, hero.bonusPoints)
-		- AbilityRules.pointsSpent(config, hero.ranks)
+		- AbilityRules.pointsSpent(config, hero.ranks, main)
 	if pts > left then
 		return false, "points", pts, credits
 	end
@@ -393,18 +397,25 @@ end
 -- state: per hero table. afterUse returns the cooldown to start now; blocked says a lapsed window still owes
 -- its cooldown.
 AbilityRules.RECAST_WINDOW = 3
-export type RecastState = { [string]: { untilT: number, full: number } }
+export type RecastState = { [string]: { untilT: number, full: number, left: number? } }
 
+-- `recasts` (Sky Step's air steps) allows more than one recast in the window; each recast restarts it
 function AbilityRules.afterUse(state: RecastState, id: string, eff: any, now: number, fullCd: number): number
-	if not eff.recast then
+	if not eff.recast and not eff.recasts then
 		return fullCd
 	end
 	local w = state[id]
 	if w and now <= w.untilT then
-		state[id] = nil -- the recast: now the full cooldown
-		return fullCd
+		local left = (w.left or 1) - 1
+		if left <= 0 then
+			state[id] = nil -- the last recast: now the full cooldown
+			return fullCd
+		end
+		w.left = left
+		w.untilT = now + AbilityRules.RECAST_WINDOW
+		return 0.35
 	end
-	state[id] = { untilT = now + AbilityRules.RECAST_WINDOW, full = fullCd }
+	state[id] = { untilT = now + AbilityRules.RECAST_WINDOW, full = fullCd, left = eff.recasts or 1 }
 	return 0.35
 end
 

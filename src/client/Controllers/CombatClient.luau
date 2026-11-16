@@ -467,9 +467,36 @@ local function onResult(list: { any })
 					if row.shape == "field" and r.f == 1 then
 						data.follow = casterPos(r.a, r.c or r.o)
 					end
+					if row.shape == "ride" then
+						data.caster = casterPos(r.a, r.o)
+					end
 					if data then
 						data.a = r.a
 						CombatFx.cast(row, style, data)
+					end
+					-- Override: the area that follows the robot fighting for you
+					if row.hfDur and r.x and r.c then
+						local tid = r.x
+						local c0 = r.c
+						CombatFx.field(
+							c0,
+							r.r or row.hfRadius or 10,
+							r.dur or row.hfDur,
+							style,
+							color,
+							false,
+							function()
+								return EnemyRenderer.position(tid)
+							end,
+							false
+						)
+					end
+					-- decoys (Tide Mirror, Holo Decoy, Spirit Swap): a copy the robots chase
+					if row.decoy and r.c and row.shape ~= "place" then
+						local c1 = r.c
+						CombatFx.summon("holo", function()
+							return c1
+						end, r.dur or row.decoy, style, color)
 					end
 					if row.shape == "leap" and r.e then
 						CombatFx.dash(r.o, r.e, style, color) -- others see the leap's streak

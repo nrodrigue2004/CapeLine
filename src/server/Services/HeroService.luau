@@ -36,6 +36,7 @@ export type Hero = {
 	side: string, -- "hero" (League) or "villain" (Syndicate)
 	classId: string, -- the archetype (Elemental, Rogue, Powerhouse, Mystic)
 	mobility: string, -- flight, speed, leap, acrobat, swing (Config.Move.mobility)
+	formToken: number?,
 	setId: string,
 	fxStyle: string, -- "Comic" or "Anime": how this hero's powers look to everyone
 	startSet: string?, -- the creator's starting set (Volt or Blade), open from level 1 (M9)
@@ -108,6 +109,7 @@ HeroService.Spawned = Signal.new() -- (hero) a player's character spawned or res
 HeroService.Defeated = Signal.new() -- (hero, source)
 HeroService.Removed = Signal.new() -- (hero)
 HeroService.Parried = Signal.new() -- (hero, source) a hit was turned aside by Parry Stance
+HeroService.Reflected = Signal.new() -- (hero, enemyId, amount) Thorns sends part of a robot's hit back
 HeroService.Awakened = Signal.new() -- (hero)
 HeroService.SecondWind = Signal.new() -- (hero) the Second Wind perk saved this hero
 HeroService.Leveled = Signal.new() -- (hero, gained)
@@ -274,7 +276,7 @@ end
 
 function HeroService.pointsLeft(hero: Hero): number
 	return AbilityRules.pointsEarned(Config, hero.level, hero.bonusPoints)
-		- AbilityRules.pointsSpent(Config, hero.ranks)
+		- AbilityRules.pointsSpent(Config, hero.ranks, hero.startSet)
 end
 
 function HeroService.get(player: Player): Hero?
@@ -360,6 +362,10 @@ local AURA = {
 	parry = 32,
 	resist = 64,
 	zeroG = 128,
+	ride = 256, -- a travel power (Rock Ride, Wave Surf, Hoverboard...): value = its speed cap
+	hidden = 512, -- Smoke Bomb, Shadow Step: robots lose the hero
+	ironhide = 1024, -- Iron Hide: damage taken turns into shield
+	form = 2048, -- a transformation (Grow, Mech Suit, Titan Form, Siege Mode): value = scale
 }
 HeroService.AURA = AURA
 
@@ -514,7 +520,16 @@ function HeroService.mitigate(hero: Hero, amount: number, now: number): number
 		taken *= 1 - class.passive.mitigation
 	end
 	taken *= 1 - Status.value(hero.status, "mitigation", now, 0)
-	taken *= 1 - Status.value(hero.status, "resist", now, 0)
+	taken *= 1 - math.min(1, Status.value(hero.status, "resist", now, 0))
+	local iron = Status.value(hero.status, "ironhide", now, 0)
+	if iron > 0 and taken > 0 then
+		-- Iron Hide: part of every hit comes back as shield (capped at half the hero's health)
+		local cur = Status.value(hero.status, "shield", now, 0)
+		local add = math.min(taken * iron, hero.maxHealth * 0.5 - cur)
+		if add > 0 then
+			Status.apply(hero.status, "shield", 4, now, { value = cur + add })
+		end
+	end
 	local pos = HeroService.position(hero)
 	if pos then
 		local anchor = Config.Classes.Mystic.passive
@@ -551,6 +566,10 @@ function HeroService.damage(hero: Hero, amount: number, source: any?)
 	end
 	if hero.god or amount <= 0 then
 		return 0
+	end
+	local reflect = Status.value(hero.status, "reflect", now, 0)
+	if reflect > 0 and source and source.enemy then
+		HeroService.Reflected:Fire(hero, source.enemy, amount * reflect)
 	end
 	Awakening.hurt(Config, hero.meter, amount / math.max(1, hero.maxHealth), now)
 	hero.meterDirty = true
@@ -652,7 +671,7 @@ function HeroService.applyProfile(hero: Hero, char: any, currency: any)
 	hero.mods = table.clone(char.mods)
 	hero.bonusPoints = char.bonusPoints
 	if
-		AbilityRules.pointsSpent(Config, hero.ranks)
+		AbilityRules.pointsSpent(Config, hero.ranks, hero.startSet)
 		> AbilityRules.pointsEarned(Config, hero.level, hero.bonusPoints)
 	then
 		-- more points spent than earned (a tuning change): free respec
@@ -738,7 +757,38 @@ function HeroService.remove(hero: Hero)
 	HeroService.Removed:Fire(hero)
 end
 
--- Decoys (the Decoy gadget): fake heroes robots chase for a few seconds. Ids are negative.
+-- A transformation (nate 2026-11-16 paths): the character scales (Grow, Titan Form, Shrink Dodge) and others
+-- see the form (Form attribute: giant, titan, mech, siege, aura, tiny). Back to normal after `duration`.
+function HeroService.setForm(hero: Hero, form: string, scale: number, duration: number)
+	local player = hero.player
+	local char = player and player.Character
+	hero.formToken = (hero.formToken or 0) + 1
+	local token = hero.formToken
+	if char and scale ~= 1 then
+		pcall(function()
+			char:ScaleTo(scale)
+		end)
+	end
+	if player then
+		player:SetAttribute("Form", form)
+	end
+	task.delay(duration, function()
+		if hero.formToken ~= token then
+			return
+		end
+		local c = hero.player and hero.player.Character
+		if c and c == char and scale ~= 1 then
+			pcall(function()
+				c:ScaleTo(1)
+			end)
+		end
+		if hero.player then
+			hero.player:SetAttribute("Form", nil)
+		end
+	end)
+end
+
+-- Decoys (the Decoy gadget, Holo Decoy, Tide Mirror, Spirit Swap): fake heroes robots chase for a few seconds. Ids are negative.
 local decoys: { { id: number, pos: Vector3, untilT: number } } = {}
 local nextDecoy = 0
 function HeroService.addDecoy(pos: Vector3, duration: number): number
@@ -768,7 +818,10 @@ function HeroService.simHeroes(): { any }
 				x = pos.X,
 				y = pos.Y,
 				z = pos.Z,
-				alive = hero.alive and not hero.traveling,
+				-- a hidden hero (Smoke Bomb, Shadow Step) is lost by every robot until it shows again
+				alive = hero.alive
+					and not hero.traveling
+					and not Status.has(hero.status, "hidden", os.clock()),
 				lx = lx,
 				lz = lz,
 				scene = hero.scene, -- the opening or a mission: no ambient robots spawn around them

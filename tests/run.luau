@@ -75,8 +75,8 @@ local M = Config.Move
 -- Config and basics
 ---------------------------------------------------------------------------
 
-test("config: every module loads; 40 abilities with unique network ids", function()
-	check(#Config.Abilities.order == 40, "40 abilities")
+test("config: every module loads; 136 abilities (17 paths) with unique network ids", function()
+	check(#Config.Abilities.order == 136, "136 abilities")
 	local perSet = {}
 	for num, id in Config.Abilities.order do
 		local a = Config.Abilities.list[id]
@@ -117,11 +117,16 @@ test("formulas: power, health, damage, caps", function()
 		"Bruiser health at level 1"
 	)
 	check(
-		Formulas.health(Config, 1, 0, "Elemental") == math.floor(425 * 0.9 + 0.5),
-		"Blaster health at level 1"
+		Formulas.health(Config, 1, 0, "Elemental") == math.floor(425 * 0.95 + 0.5),
+		"Elemental health at level 1"
 	)
-	near(Formulas.damage(Config, 36, 0.6, "Elemental"), 36 * 0.6 * 1.15, 1e-6, "Zap Bolt damage")
-	near(Formulas.damage(Config, 100, 1, "Rogue", true, 0.4), 100 * 1.5 * 0.6, 1e-6, "crit and mitigation")
+	near(Formulas.damage(Config, 36, 0.6, "Elemental"), 36 * 0.6 * 1.1, 1e-6, "Zap Bolt damage")
+	near(
+		Formulas.damage(Config, 100, 1, "Rogue", true, 0.4),
+		100 * 1.15 * 1.5 * 0.6,
+		1e-6,
+		"crit and mitigation"
+	)
 	near(Formulas.cooldownReduction(Config, 1e9), 0.40, 1e-6, "cooldown reduction caps at 40%")
 	near(Formulas.critChance(Config, 600), 0.5, 1e-6, "crit chance 600 Precision = 50% (cap)")
 	near(Formulas.ccMultiplier(Config, 1e9), 0.5, 1e-6, "CC floor 0.5")
@@ -612,34 +617,60 @@ local SHAPES = {
 	buff = true,
 	wall = true,
 	ramp = true,
+	ride = true,
+	launch = true,
+	place = true,
 }
 
-test("M2: 5 sets x 8 abilities; every skill and super has 2 mods and a capstone; shapes are known", function()
-	check(#AB.sets == 5 and AB.sets[5] == "Blade", "five sets, Blade last")
-	for _, id in AB.order do
-		local a = AB.list[id]
-		check(SHAPES[a.shape] == true, id .. " shape " .. tostring(a.shape))
-		if a.slot ~= "basic" then
-			check(a.mods ~= nil and #a.mods == 2, id .. " has 2 mods")
-			check(a.cap ~= nil, id .. " has a capstone")
-		end
-	end
-	local per = {}
-	for _, id in AB.order do
-		local a = AB.list[id]
-		per[a.set] = per[a.set] or { basic = 0, skill = 0, super = 0 }
-		per[a.set][a.slot] += 1
-	end
-	for _, set in AB.sets do
+test(
+	"M2: 17 paths x 8 abilities; every skill and super has 2 mods and a capstone; shapes are known",
+	function()
 		check(
-			per[set].basic == 1 and per[set].skill == 6 and per[set].super == 1,
-			set .. ": 1 basic, 6 skills, 1 super"
+			#AB.sets == 17 and AB.sets[1] == "Volt" and AB.sets[17] == "Light",
+			"17 paths, Storm first, Light last"
 		)
-		check(AB.starter[set] ~= nil and #AB.starter[set] == 2, set .. " has 2 starter skills")
-		check(AB.setUnlockLevel[set] ~= nil and AB.setColor[set] ~= nil, set .. " unlock level and colour")
+		for _, id in AB.order do
+			local a = AB.list[id]
+			check(SHAPES[a.shape] == true, id .. " shape " .. tostring(a.shape))
+			if a.slot ~= "basic" then
+				check(a.mods ~= nil and #a.mods == 2, id .. " has 2 mods")
+				check(a.cap ~= nil, id .. " has a capstone")
+			end
+		end
+		local per = {}
+		for _, id in AB.order do
+			local a = AB.list[id]
+			per[a.set] = per[a.set] or { basic = 0, skill = 0, super = 0 }
+			per[a.set][a.slot] += 1
+		end
+		for _, set in AB.sets do
+			check(
+				per[set].basic == 1 and per[set].skill == 6 and per[set].super == 1,
+				set .. ": 1 basic, 6 skills, 1 super"
+			)
+			check(AB.starter[set] ~= nil and #AB.starter[set] == 2, set .. " has 2 starter skills")
+			check(AB.setName[set] ~= nil and AB.setColor[set] ~= nil, set .. " name and colour")
+			local travel = 0
+			for _, id in AB.order do
+				local a = AB.list[id]
+				if a.set == set and a.travel then
+					travel += 1
+					check(a.slot == "skill", id .. " travel power is a skill")
+				end
+			end
+			check(travel == 1, set .. " has exactly one travel power")
+			for _, id in AB.starter[set] do
+				check(
+					AB.list[id] and AB.list[id].set == set and AB.list[id].slot == "skill",
+					id .. " starter of " .. set
+				)
+			end
+			local arch = AbilityRules.archetypeOf(Config, set)
+			check(arch ~= nil, set .. " belongs to an archetype")
+		end
+		check(#AB.combos.pairs == 10, "10 team-up combos")
 	end
-	check(#AB.combos.pairs == 10, "10 team-up combos")
-end)
+)
 
 test("M2: ranks: +10% coeff at 2, mod at 3, -8% cooldown at 4, capstone at 5; supers rank 3", function()
 	local base = AB.list.ChainLightning
@@ -695,9 +726,25 @@ test(
 		local ok3, reason3 = AbilityRules.canRank(Config, hero, "IceShard", true)
 		check(not ok3 and reason3 == "no ranks", "basics have no ranks")
 		local ok4, reason4 = AbilityRules.canRank(Config, hero, "FreezeBeam", true)
-		check(not ok4 and reason4 == "set locked", "Frost is locked at level 1")
-		local ok5, reason5 = AbilityRules.canRank(Config, { level = 6, ranks = ranks }, "FreezeBeam", true)
-		check(ok5 and reason5 == nil, "a starter of a newly unlocked set is free to learn")
+		check(not ok4 and reason4 == "set locked", "another path is locked before level 15")
+		local ok5, reason5, pts5 =
+			AbilityRules.canRank(Config, { level = 15, ranks = ranks, startSet = "Volt" }, "FreezeBeam", true)
+		check(
+			ok5 and reason5 == nil and pts5 == 1,
+			"a borrowed path's starter costs a point (only the main path's are free)"
+		)
+		local okA, reasonA = AbilityRules.canRank(Config, { level = 40, ranks = ranks }, "FlashStep", true)
+		check(not okA and reasonA == "set locked", "a path from another archetype is never open")
+		local okB, reasonB = AbilityRules.canRank(Config, { level = 40, ranks = ranks }, "BlizzardDome", true)
+		check(not okB and reasonB == "main path only", "the super is the main path's")
+		local five = table.clone(ranks)
+		for _, id in { "FreezeBeam", "FrostNova", "FlameJets", "FireWhip", "RockRide" } do
+			five[id] = 1
+		end
+		local okC, reasonC = AbilityRules.canRank(Config, { level = 40, ranks = five }, "MudWave", true)
+		check(not okC and reasonC == "borrow limit", "at most 5 borrowed skills")
+		local okD = AbilityRules.canRank(Config, { level = 40, ranks = five }, "FrostNova", true)
+		check(okD, "a borrowed skill already learned can still rank up")
 		local ok6, reason6 =
 			AbilityRules.canRank(Config, { level = 30, ranks = ranks, credits = 0 }, "StaticField", false)
 		check(not ok6 and reason6 == "credits", "ranks cost Credits when the wallet is on")
@@ -727,9 +774,9 @@ test("M2: loadout rules: budget 52, slots by level, learned only, unlocked sets,
 	local _, r1 = v(1, "Volt", { "ChainLightning", "DashStrike", "StaticField" })
 	check(r1 == "too many skills", "slot 3 opens at level 5")
 	check((v(5, "Volt", { "ChainLightning", "DashStrike", "StaticField" })), "level 5 has 3 slots")
-	local _, r2 = v(40, "Volt", { "Shatter", "Haymaker", "Crush", "ThousandCuts" })
-	check(r2 == "over budget", "four 14-point skills (56) are over 52")
-	check((v(40, "Volt", { "Shatter", "Haymaker", "Crush", "GroundSpark" })), "14+14+14+8 = 50 fits")
+	local _, r2 = v(40, "Volt", { "Shatter", "Flashpoint", "PhoenixDive", "FrostNova" })
+	check(r2 == "over budget", "14+13+13+13 (53) is over 52")
+	check((v(40, "Volt", { "Shatter", "Flashpoint", "PhoenixDive", "GroundSpark" })), "14+13+13+8 = 48 fits")
 	local _, r3 = v(40, "Volt", { "ChainLightning", "ChainLightning" })
 	check(r3 == "duplicate", "no duplicates")
 	local _, r4 = v(40, "Volt", { "ThunderDrop" })
@@ -737,10 +784,13 @@ test("M2: loadout rules: budget 52, slots by level, learned only, unlocked sets,
 	local _, r5 = v(19, "Volt", { "ChainLightning" }, "ThunderDrop")
 	check(r5 == "super locked", "supers open at 20")
 	check((v(20, "Volt", { "ChainLightning" }, "ThunderDrop")), "super at 20")
-	local _, r6 = v(10, "Volt", { "FreezeBeam" })
-	check(r6 == nil, "Frost unlocked at 6 can be mixed in at 10")
-	local _, r7 = v(10, "Volt", { "FlashStep" })
-	check(r7 == "set locked", "Blade opens at 18")
+	local _, r6 = v(14, "Volt", { "FreezeBeam" })
+	check(r6 == "set locked", "a borrowed Elemental skill waits for level 15")
+	check((v(15, "Volt", { "FreezeBeam" })), "from 15 a Storm hero can slot a Frost skill")
+	local _, r7 = v(40, "Volt", { "FlashStep" })
+	check(r7 == "set locked", "a Swordsman skill never goes on a Storm hero")
+	local _, r7b = v(40, "Frost", { "FreezeBeam" })
+	check(r7b == "not the main path", "the loadout's path is the hero's main path")
 	ranks.StaticField = 0
 	local _, r8 = v(5, "Volt", { "StaticField" })
 	check(r8 == "not learned", "not learned")
@@ -1004,6 +1054,69 @@ test("M2: cast plans: bolt, chain, dash, cone, arc, nova, line, splash and bonus
 	near(m[1], eff5.coeff * (1 + eff5.bonus), 1e-9, "Shatter hits a slowed target harder")
 	check(m[2] ~= nil and m[2] < m[1], "Splinters splash the one next to it")
 end)
+
+test(
+	"Paths: ride, launch and place plans; Trick Shot curves; field buffs; recasts and borrowed starters",
+	function()
+		local E = function(id: string, rank: number?, mod: number?)
+			return AbilityRules.effective(Config, id, rank or 1, mod)
+		end
+		local cands = { cand(1, 0, 2, -5), cand(2, 0, 2, -30), cand(3, 60, 2, 0) }
+		local ride = CastPlan.build(E("RockRide"), 0, 2, 0, 0, 0, -1, 0, cands, flatWorld) :: any
+		check(ride.ride == true, "Rock Ride rides")
+		check(
+			ids(ride)[1] ~= nil and ids(ride)[2] == nil,
+			"its start burst hits only what is next to the hero"
+		)
+		local surf = CastPlan.build(E("WaveSurf"), 0, 2, 0, 0, 0, -1, 0, cands, flatWorld) :: any
+		check(surf.ride == true and #surf.hits == 0, "Wave Surf has no start burst")
+		local pillar = CastPlan.build(E("StonePillar"), 0, 2, 0, 0, 0, -1, 0, cands, flatWorld) :: any
+		check(
+			pillar.moveHero and pillar.ey == 2 + 55 and pillar.ex == 0 and pillar.ez == 0,
+			"Stone Pillar goes straight up"
+		)
+		check(ids(pillar)[1] ~= nil, "and tosses the robot beside it")
+		local stride = CastPlan.build(E("GiantStride"), 0, 2, 0, 1, 0, 0, 0, cands, flatWorld) :: any
+		near(stride.ex, 40, 1e-6, "Giant Stride stops at the wall (70 forward, wall at 40)")
+		local holo = CastPlan.build(E("HoloDecoy"), 0, 2, 0, 0, 0, -1, 0, cands, flatWorld) :: any
+		check(
+			holo.cx == 0 and holo.cz == -30 and holo.cy == 1 and #holo.hits == 0,
+			"Holo Decoy is set down 30 ahead"
+		)
+		-- Trick Shot ignores the wall between the hero and robot 3; a plain bolt does not
+		local blocked = CastPlan.build(E("FlareShot"), 20, 2, 0, 1, 0, 0, 3, { cands[3] }, flatWorld) :: any
+		check(#blocked.hits == 0, "a plain bolt is blocked by the wall")
+		local trick = CastPlan.build(E("TrickShot"), 20, 2, 0, 1, 0, 0, 3, { cands[3] }, flatWorld) :: any
+		check(#trick.hits == 1, "Trick Shot curves around it")
+		local mech = CastPlan.build(E("MechSuit"), 0, 2, 0, 0, 0, -1, 0, cands, flatWorld) :: any
+		check(
+			mech.field and mech.field.follow and mech.buff,
+			"Mech Suit is a following field that also buffs"
+		)
+		local ring = CastPlan.build(E("EmberRing"), 0, 2, 0, 0, 0, -1, 0, cands, flatWorld) :: any
+		check(ring.field and not ring.buff, "a plain field does not buff")
+		-- recasts: Sky Step has 4 steps before the cooldown
+		local st = {}
+		local sky = E("SkyStep")
+		local got = {}
+		for i = 1, 4 do
+			table.insert(got, AbilityRules.afterUse(st, "SkyStep", sky, i * 0.5, 7))
+		end
+		check(
+			got[1] == 0.35 and got[2] == 0.35 and got[3] == 0.35 and got[4] == 7,
+			"Sky Step: 3 quick steps, then 7 s"
+		)
+		-- rank 2 scales the delayed burst, the hit field and the ride trail too
+		near(E("Flashpoint", 2).delayCoeff, AB.list.Flashpoint.delayCoeff * 1.1, 1e-9, "delayed burst scales")
+		near(E("Override", 2).hfCoeff, AB.list.Override.hfCoeff * 1.1, 1e-9, "Override's area scales")
+		near(E("FlameJets", 2).trail, AB.list.FlameJets.trail * 1.1, 1e-9, "the ride trail scales")
+		check(AbilityRules.isStarter(Config, "FreezeBeam"), "Freeze Beam is Frost's starter")
+		check(not AbilityRules.isStarter(Config, "FreezeBeam", "Volt"), "but not free for a Storm hero")
+		local ranks = { ChainLightning = 1, DashStrike = 1, FreezeBeam = 1 }
+		check(AbilityRules.pointsSpent(Config, ranks, "Volt") == 1, "a borrowed starter counts a point")
+		check(AbilityRules.pointsSpent(Config, ranks, "Frost") == 2, "on a Frost hero the Storm skills cost")
+	end
+)
 
 test("M2: cast plans: channel, field, leap, throw, buff, wall, ramp", function()
 	local E = function(id: string, rank: number?, mod: number?)
@@ -4134,7 +4247,7 @@ test("M9: save version 4: creator, shop and HQ fields are added and repaired", f
 	old.characters[1].hq = { level = 1 }
 	old.characters[1].look = nil
 	old.characters[1].looks = { { 1, 2, 3 }, "x", { 1, 2, 3, 4, 5, 6, 7, 8 }, {}, {}, {} }
-	old.characters[1].startSet = "Titan"
+	old.characters[1].startSet = "Nonsense"
 	old.characters[1].titleId = 999
 	local p = ProfileSchema.load(serde.decode("json", serde.encode("json", old)))
 	check(p.version == ProfileSchema.VERSION and ProfileSchema.VERSION >= 4, "version 4 or later")

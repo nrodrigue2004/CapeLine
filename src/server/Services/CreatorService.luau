@@ -221,7 +221,7 @@ function CreatorService.setPath(
 	setId: string,
 	counts: boolean
 )
-	local refund = AbilityRules.creditsSpent(Config, hero.ranks)
+	local refund = AbilityRules.creditsSpent(Config, hero.ranks, hero.startSet)
 	if refund > 0 then
 		EconomyService.refund(hero, refund)
 	end

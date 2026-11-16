@@ -43,6 +43,8 @@ local FlagService = require(script.Parent.FlagService)
 local Analytics = require(script.Parent.Analytics)
 
 local CombatService = {}
+-- DeathService sets this: Dawnburst stands up every Downed ally within the radius
+CombatService.reviveHook = nil :: ((any, Vector3, number) -> ())?
 
 CombatService.Killed = Signal.new() -- (hero, enemy) a hero's hit finished a machine
 
@@ -83,6 +85,8 @@ local world: CastPlan.World = {
 local pending: { any } = {}
 local timers: { { at: number, fn: () -> () } } = {}
 local fields: { any } = {}
+local shareLinked: (hero: any, id: number, dealt: number) -> ()
+local supportMult: (hero: any) -> number
 local combos = Awakening.comboBook()
 local clashes = ClashRules.book()
 local partsFolder: Folder
@@ -146,6 +150,11 @@ local function rollDamage(
 	local precision = if pvp then hero.stats.Precision * Config.Pvp.minorScale else hero.stats.Precision
 	local chance = Formulas.critChance(Config, precision)
 	if chance > 0 and math.random() < chance then
+		crit = true
+	end
+	if (hero.critHits or 0) > 0 and os.clock() < (hero.critUntil or 0) then
+		-- Deadeye Mark: the next few hits are critical
+		hero.critHits -= 1
 		crit = true
 	end
 	if hero.perks.LuckyStrike and not pvp then -- off in PvP (the Legendary perk table)
@@ -357,6 +366,27 @@ local function pvpHit(
 end
 
 -- Apply one hit. Returns true when it killed.
+-- Soul Chains (Spirit): robots chained together share a part of every hit any of them takes
+local links: { [number]: { ids: { number }, untilT: number, share: number, hero: any } } = {}
+local sharing = false
+shareLinked = function(hero: any, id: number, dealt: number)
+	local g = links[id]
+	if sharing or not g or dealt <= 0 or dealt == math.huge then
+		return
+	end
+	if os.clock() > g.untilT then
+		links[id] = nil
+		return
+	end
+	sharing = true
+	for _, other in g.ids do
+		if other ~= id and EnemyService.alive(other) then
+			EnemyService.damage(other, dealt * g.share, hero.id, nil)
+		end
+	end
+	sharing = false
+end
+
 local function applyHit(
 	hero: any,
 	eff: any,
@@ -382,6 +412,7 @@ local function applyHit(
 	if not e then
 		return false
 	end
+	shareLinked(hero, cand.id, dealt or 0)
 	table.insert(r.h, {
 		cand.id,
 		math.floor(dealt + 0.5),
@@ -478,6 +509,11 @@ function CombatService.burst(hero: any, center: Vector3, radius: number, coeff: 
 	if quiet and #r.h == 0 then
 		table.remove(pending, table.find(pending, r) :: number)
 	end
+end
+
+-- A Mystic's heals and shields on allies are stronger (Classes.Mystic.supportBonus)
+supportMult = function(hero: any): number
+	return 1 + (Config.Classes[hero.classId].supportBonus or 0)
 end
 
 -- Heroes a support effect from `giver` reaches: in range, and allowed (FlagService.canSupport)
@@ -639,6 +675,33 @@ local function applyBuff(hero: any, eff: any, r: any)
 	end
 	r.dur = eff.duration
 	r.x = #targets
+	-- second buffs (Spirit Focus, Grow, Siege Mode...), forms, Deadeye, parry riposte
+	if eff.extra then
+		for _, h in targets do
+			for _, x in eff.extra do
+				HeroService.buff(h, x[1], x[2], eff.duration)
+			end
+		end
+	end
+	if eff.zeroG then
+		HeroService.buff(hero, "zeroG", 1, eff.duration) -- Weightless: gravity lets go, the hero can fly
+	end
+	if eff.reflect then
+		HeroService.buff(hero, "reflect", eff.reflect, eff.duration) -- Thorns
+	end
+	if eff.form then
+		HeroService.setForm(hero, eff.form, eff.scale or 1, eff.duration)
+	end
+	if eff.critHits then
+		hero.critHits = eff.critHits
+		hero.critUntil = os.clock() + eff.duration
+	end
+	if eff.buff == "parry" then
+		hero.parryId = eff.id
+	end
+	if eff.revive and CombatService.reviveHook then
+		CombatService.reviveHook(hero, pos, eff.radius or 20)
+	end
 	if eff.taunt then
 		-- Brace: machines within the taunt radius attack this hero
 		for _, c in CastPlan.area(pos.X, pos.Y, pos.Z, eff.taunt, EnemyService.candidates(), nil) do
@@ -725,6 +788,37 @@ local function echo(hero: any, eff: any, num: number, seq: number, origin: Vecto
 			applyHit(hero, eff, r, c, eff.coeff * eff.echo, true, origin, nil)
 		end
 	end)
+end
+
+-- Travel powers (nate 2026-11-16): the hero rides for `duration` at up to `speed` (the owner's MoveController
+-- drives the ride, MoveGuard allows the speed); others see the Ride attribute. A `trail` coeff hurts what the
+-- ride passes.
+local function startRide(hero: any, eff: any, num: number, r: any)
+	local dur = eff.duration or 4
+	HeroService.buff(hero, "ride", eff.speed or 80, dur)
+	local player = hero.player
+	if player then
+		player:SetAttribute("Ride", eff.ride or "surf")
+		local token = os.clock()
+		hero.rideToken = token
+		after(dur, function()
+			if hero.rideToken == token and hero.player then
+				hero.player:SetAttribute("Ride", nil)
+			end
+		end)
+	end
+	if (eff.trail or 0) > 0 then
+		local pos = HeroService.position(hero)
+		if pos then
+			addField(hero, eff, num, pos, true, dur, {
+				coeff = eff.trail,
+				radius = eff.trailRadius or 8,
+				tick = eff.tick or 0.5,
+				status = eff.trailStatus or false,
+			})
+		end
+	end
+	r.dur = dur
 end
 
 local function resolve(
@@ -918,8 +1012,143 @@ local function resolve(
 	elseif eff.echo then
 		echo(hero, eff, num, seq, origin, dir, plan)
 	end
+	if plan.ride then
+		startRide(hero, eff, num, r)
+	end
+	if plan.shape == "launch" and plan.ex then
+		MoveGuard.grant(hero, (Vector3.new(plan.ex, plan.ey, plan.ez) - origin).Magnitude + 30)
+		r.dur = eff.time or 0.5
+	end
+	if eff.through and plan.ex then
+		-- Unstoppable: the buildings along the path take the hit too
+		local to = Vector3.new(plan.ex, plan.ey, plan.ez)
+		for k = 1, 3 do
+			structural(eff, origin:Lerp(to, k / 3), 10, 2)
+		end
+	end
+	local first = plan.hits[1] and plan.hits[1].c
+	if eff.delay and first then
+		-- Flashpoint, Night Mark: the marked robot bursts `delay` s later, hitting what stands around it
+		local id = first.id
+		after(eff.delay, function()
+			local c = candOf(id)
+			if not c or not hero.alive then
+				return
+			end
+			local at = Vector3.new(c.x, c.y, c.z)
+			local radius = eff.delayRadius or 10
+			local r2 = record(hero, num, seq, K.END, at, dir)
+			r2.c, r2.r = at, radius
+			local burstEff =
+				{ set = eff.set, status = eff.delayStatus, statusDur = eff.delayStatusDur, slow = eff.slow }
+			gainFor(hero, eff, hitArea(hero, burstEff, r2, at, radius, eff.delayCoeff or 1))
+		end)
+	end
+	if eff.hfDur and first then
+		-- Override, Soul Chains: an area that ticks around the robot that was hit and follows it; the robot
+		-- itself is left out (it is the one fighting for you)
+		local at = Vector3.new(first.x, first.y, first.z)
+		local radius = eff.hfRadius or 10
+		addField(hero, eff, num, at, false, eff.hfDur, {
+			coeff = eff.hfCoeff or 0,
+			radius = radius,
+			tick = eff.hfTick or 0.5,
+			status = eff.hfStatus or false,
+			followId = first.id,
+			exclude = first.id,
+		})
+		r.c, r.r, r.dur, r.x = at, radius, eff.hfDur, first.id
+	end
+	if eff.link and #plan.hits > 1 then
+		local ids = {}
+		for _, h in plan.hits do
+			if h.c.id < PVP_BASE then
+				table.insert(ids, h.c.id)
+			end
+		end
+		local g = { ids = ids, untilT = os.clock() + eff.link, share = eff.share or 0.4, hero = hero }
+		for _, id in ids do
+			links[id] = g
+		end
+		r.dur = eff.link
+	end
+	if eff.decoy then
+		-- Holo Decoy, Tide Mirror, Spirit Swap: a fake hero the robots around chase
+		local at = if plan.cx
+			then Vector3.new(plan.cx, plan.cy, plan.cz)
+			elseif eff.decoyAt == "origin" then origin
+			elseif plan.ex then Vector3.new(plan.ex, plan.ey, plan.ez)
+			else origin + dir * 10
+		local id = HeroService.addDecoy(at, eff.decoy)
+		for _, c in CastPlan.area(at.X, at.Y, at.Z, eff.decoyRadius or 40, EnemyService.candidates(), nil) do
+			EnemyService.applyStatus(c.id, "taunt", eff.decoy, { src = id })
+		end
+		r.c, r.dur = at, eff.decoy
+	end
+	if eff.dropCoeff then
+		-- Grenade Roll, Holo Decoy's blast, Spirit Swap: a burst `dropDelay` s later where the cast landed
+		-- (or where the hero stood)
+		local at = if plan.cx then Vector3.new(plan.cx, plan.cy, plan.cz) else origin
+		local radius = eff.dropRadius or 10
+		after(eff.dropDelay or 1, function()
+			if not hero.alive then
+				return
+			end
+			local r2 = record(hero, num, seq, K.END, at, dir)
+			r2.c, r2.r = at, radius
+			gainFor(hero, eff, hitArea(hero, { set = eff.set }, r2, at, radius, eff.dropCoeff))
+			structural(eff, at, radius, 2)
+		end)
+	end
+	if eff.followUp and first then
+		-- Sky Cut: a second strike on the same robots while they are still in the air
+		local ids = {}
+		for _, h in plan.hits do
+			table.insert(ids, h.c.id)
+		end
+		after(0.45, function()
+			if not hero.alive then
+				return
+			end
+			local r2 = record(hero, num, seq, K.END, origin, dir)
+			local n = 0
+			for _, id in ids do
+				local c = candOf(id)
+				if c and applyHit(hero, eff, r2, c, eff.coeff * eff.followUp, true, origin, nil, true) then
+					n += 1
+				end
+			end
+			gainFor(hero, eff, n)
+		end)
+	end
+	if eff.endCoeff and first and not plan.field and not eff.channel then
+		-- Drop (Float), Pop (Bubble Prison): the held robots take a hit when the hold ends
+		local ids = {}
+		for _, h in plan.hits do
+			table.insert(ids, h.c.id)
+		end
+		after(eff.statusDur or 1, function()
+			if not hero.alive then
+				return
+			end
+			local r2 = record(hero, num, seq, K.END, origin, dir)
+			for _, id in ids do
+				local c = candOf(id)
+				if c then
+					applyHit(hero, eff, r2, c, eff.endCoeff, true, origin, nil, true)
+				end
+			end
+		end)
+	end
+	if eff.revive and not plan.buff and CombatService.reviveHook then
+		CombatService.reviveHook(hero, origin, eff.radius or 20) -- Dawnburst
+	end
 	if eff.selfShield then
 		HeroService.buff(hero, "shield", math.floor(hero.maxHealth * eff.selfShield + 0.5), 4)
+	end
+	if eff.selfBuff then
+		-- a travel or attack that also buffs the hero (Smoke Bomb hides, Shrink Dodge, Shadow Step)
+		HeroService.buff(hero, eff.selfBuff, eff.selfValue or 1, eff.selfDur or 2)
 	end
 	if eff.slot == "super" then
 		comboCheck(hero, eff, origin, num, seq)
@@ -1001,7 +1230,7 @@ end
 
 -- Parry Stance: a blocked hit ripostes at the attacker
 local function riposte(hero: any, source: any)
-	local row = A.list.ParryStance
+	local row = A.list[hero.parryId or "ParryStance"] or A.list.ParryStance
 	local eff = HeroService.effective(hero, row.id)
 	local pos = HeroService.position(hero)
 	local c = if source.enemy
@@ -1094,6 +1323,14 @@ local function stepFields(now: number)
 				f.pos = p
 			end
 		end
+		if f.followId then
+			local c = candOf(f.followId)
+			if c then
+				f.pos = Vector3.new(c.x, c.y, c.z)
+			else
+				f.untilT = now -- the robot is gone: the field ends with it
+			end
+		end
 		local eff = f.eff
 		if now >= f.nextTick then
 			f.nextTick = now + f.tick
@@ -1108,8 +1345,49 @@ local function stepFields(now: number)
 			if fieldEff.status == "pull" then
 				fieldEff.statusDur = f.tick + 0.1
 			end
-			for _, c in CastPlan.area(f.pos.X, f.pos.Y, f.pos.Z, f.radius, cands(hero), nil) do
+			local inside = if f.coeff > 0 or fieldEff.status
+				then CastPlan.area(f.pos.X, f.pos.Y, f.pos.Z, f.radius, cands(hero), nil)
+				else {}
+			if f.exclude then
+				for k = #inside, 1, -1 do
+					if inside[k].id == f.exclude then
+						table.remove(inside, k)
+					end
+				end
+			end
+			if eff.single and #inside > 1 then
+				-- a summon (turret, guardian, drone, clones) strikes the nearest robot each tick
+				local best, bestD = inside[1], math.huge
+				for _, c in inside do
+					local d = (Vector3.new(c.x, c.y, c.z) - f.pos).Magnitude
+					if d < bestD then
+						best, bestD = c, d
+					end
+				end
+				inside = { best }
+			end
+			for _, c in inside do
 				applyHit(hero, fieldEff, r, c, f.coeff, true, f.pos, nil)
+			end
+			if eff.allyHeal then
+				-- Healing Rain, Ward Totem, Fix-It Drone: heroes inside heal a part of their health each tick
+				for _, h in heroesNear(f.pos, f.radius, hero) do
+					local amount = h.maxHealth * eff.allyHeal * (if h ~= hero then supportMult(hero) else 1)
+					HeroService.heal(h, amount)
+					if h ~= hero then
+						HeroService.Supported:Fire(hero, amount)
+					end
+				end
+			end
+			if eff.tickStruct then
+				-- Siege Mode: every tick hits the buildings in the area
+				structural({ structDmg = eff.tickStruct }, f.pos, f.radius, 1)
+			end
+			if eff.allyBuff then
+				-- Sandstorm hides heroes inside, Sanctuary makes them untouchable
+				for _, h in heroesNear(f.pos, f.radius, hero) do
+					HeroService.buff(h, eff.allyBuff, eff.allyBuffValue or 1, f.tick + 0.3)
+				end
 			end
 			if eff.allyResist then
 				-- Blizzard Dome: allies inside resist 15%
@@ -1215,6 +1493,12 @@ function CombatService.init()
 		end
 	end)
 	HeroService.Parried:Connect(riposte)
+	HeroService.Reflected:Connect(function(hero: any, enemyId: number, amount: number)
+		local pos = HeroService.position(hero)
+		if pos and EnemyService.alive(enemyId) then
+			EnemyService.damage(enemyId, amount, hero.id, pos)
+		end
+	end)
 	HeroService.Defeated:Connect(function(hero)
 		hero.channel = nil
 	end)

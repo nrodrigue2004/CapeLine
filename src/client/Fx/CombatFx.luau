@@ -548,6 +548,264 @@ function CombatFx.field(
 	end)
 end
 
+-- A small model that follows a position each frame for `duration`, then fades. `pieces` are
+-- { size, offset CFrame, colour, shape?, transparency?, material? } around the anchor.
+local function rig(
+	pieces: { any },
+	at: () -> Vector3?,
+	duration: number,
+	spin: number?,
+	bob: number?
+): { Part }
+	local parts = {}
+	for _, pc in pieces do
+		local p = part(pc[1], CFrame.new(), pc[3], pc[4])
+		p.Transparency = pc[5] or 0
+		if pc[6] then
+			p.Material = pc[6]
+		end
+		table.insert(parts, p)
+	end
+	local start = os.clock()
+	local last = at() or Vector3.zero
+	local conn
+	conn = RunService.RenderStepped:Connect(function()
+		local t = os.clock() - start
+		if t >= duration then
+			conn:Disconnect()
+			for _, p in parts do
+				fade(p, 0.3)
+			end
+			return
+		end
+		last = at() or last
+		local base = CFrame.new(last + Vector3.new(0, if bob then math.sin(t * 3) * bob else 0, 0))
+			* CFrame.Angles(0, if spin then t * spin else 0, 0)
+		for i, p in parts do
+			p.CFrame = base * pieces[i][2]
+		end
+	end)
+	return parts
+end
+
+-- Summons (Turret Drop, Fix-It Drone, Shadow Clones, Ward Totem, the Ascended Guardian, Shock Mines, Holo
+-- Decoy and the water and spirit copies): simple part-built stand-ins. PLACEHOLDER ART until the VFX pass.
+function CombatFx.summon(
+	kind: string,
+	at: () -> Vector3?,
+	duration: number,
+	style: string,
+	color: Color3,
+	radius: number?
+)
+	local dark = Color3.fromRGB(45, 48, 60)
+	local glass = if style == "Anime" then 0.55 else 0.4
+	local pieces: { any }
+	local spin, bob = nil, nil
+	if kind == "turret" then
+		pieces = {
+			{
+				Vector3.new(1, 4, 4),
+				CFrame.new(0, -2.5, 0) * CFrame.Angles(0, 0, math.rad(90)),
+				dark,
+				Enum.PartType.Cylinder,
+				0,
+				Enum.Material.Metal,
+			},
+			{ Vector3.new(2.4, 1.6, 2.4), CFrame.new(0, -1.2, 0), dark, nil, 0, Enum.Material.Metal },
+			{ Vector3.new(0.5, 0.5, 2.6), CFrame.new(0, -1, -1.8), color },
+		}
+		spin = 1.5
+	elseif kind == "drone" then
+		pieces = {
+			{
+				Vector3.one * 1.6,
+				CFrame.new(3, 4, 0),
+				Color3.new(1, 1, 1),
+				Enum.PartType.Ball,
+				0,
+				Enum.Material.SmoothPlastic,
+			},
+			{
+				Vector3.new(0.2, 3.2, 3.2),
+				CFrame.new(3, 4, 0) * CFrame.Angles(0, 0, math.rad(90)),
+				color,
+				Enum.PartType.Cylinder,
+				0.3,
+			},
+		}
+		spin, bob = 2, 0.6
+	elseif kind == "clones" then
+		pieces = {}
+		for _, x in { -4, 4 } do
+			table.insert(pieces, { Vector3.new(2, 2.6, 1), CFrame.new(x, -0.6, 2), color, nil, glass })
+			table.insert(
+				pieces,
+				{ Vector3.one * 1.3, CFrame.new(x, 1.4, 2), color, Enum.PartType.Ball, glass }
+			)
+			table.insert(pieces, { Vector3.new(0.8, 2.2, 0.8), CFrame.new(x, -3, 2), color, nil, glass })
+		end
+	elseif kind == "totem" then
+		pieces = {
+			{
+				Vector3.new(1.2, 7, 1.2),
+				CFrame.new(0, 1, 0),
+				Color3.fromRGB(120, 90, 60),
+				nil,
+				0,
+				Enum.Material.Wood,
+			},
+			{ Vector3.one * 2, CFrame.new(0, 5.2, 0), color, Enum.PartType.Ball, 0.1 },
+		}
+		bob = 0.2
+	elseif kind == "guardian" then
+		pieces = {
+			{ Vector3.new(6, 7, 3), CFrame.new(0, 7, 4), color, nil, glass },
+			{ Vector3.one * 3.4, CFrame.new(0, 12.2, 4), color, Enum.PartType.Ball, glass },
+			{ Vector3.new(2, 6, 2), CFrame.new(-4.5, 7, 4), color, nil, glass },
+			{ Vector3.new(2, 6, 2), CFrame.new(4.5, 7, 4), color, nil, glass },
+		}
+		bob = 0.5
+	elseif kind == "mines" then
+		pieces = {}
+		local r = (radius or 12) * 0.6
+		for i = 1, 6 do
+			local a = i / 6 * math.pi * 2
+			table.insert(pieces, {
+				Vector3.new(0.4, 1.4, 1.4),
+				CFrame.new(math.cos(a) * r, -0.6, math.sin(a) * r) * CFrame.Angles(0, 0, math.rad(90)),
+				color,
+				Enum.PartType.Cylinder,
+			})
+		end
+	else -- holo: a see-through copy of a hero
+		pieces = {
+			{ Vector3.new(2, 2.6, 1), CFrame.new(0, 0, 0), color, nil, 0.5 },
+			{ Vector3.one * 1.3, CFrame.new(0, 2, 0), color, Enum.PartType.Ball, 0.5 },
+			{ Vector3.new(0.8, 2.4, 0.8), CFrame.new(-0.5, -2.5, 0), color, nil, 0.5 },
+			{ Vector3.new(0.8, 2.4, 0.8), CFrame.new(0.5, -2.5, 0), color, nil, 0.5 },
+		}
+	end
+	rig(pieces, at, duration, spin, bob)
+	local p0 = at()
+	if p0 then
+		CombatFx.buffPop(p0, style, color)
+	end
+end
+
+-- Travel powers: what the hero rides on, under their feet while the ride lasts (Rock Ride's slab, Wave
+-- Surf's wave, the Hoverboard, Psi Platform's debris, Spirit Ride's beast, Light Rail's rail, Flame Jets'
+-- jets). PLACEHOLDER ART until the VFX pass.
+function CombatFx.ride(set: string, at: () -> Vector3?, duration: number, style: string, color: Color3)
+	local feet = CFrame.new(0, -3.4, 0)
+	local pieces: { any }
+	if set == "Earth" then
+		pieces =
+			{ { Vector3.new(6, 1.2, 8), feet, Color3.fromRGB(120, 105, 90), nil, 0, Enum.Material.Slate } }
+	elseif set == "Tide" then
+		pieces = {
+			{ Vector3.new(7, 1.6, 9), feet, color, nil, 0.35, Enum.Material.Glass },
+			{ Vector3.new(7, 3, 1.5), feet * CFrame.new(0, 1, 4.5), Color3.new(1, 1, 1), nil, 0.4 },
+		}
+	elseif set == "Gadgeteer" then
+		pieces = {
+			{ Vector3.new(2.6, 0.4, 7), feet, Color3.fromRGB(40, 44, 55), nil, 0, Enum.Material.Metal },
+			{ Vector3.new(2.8, 0.15, 7.2), feet * CFrame.new(0, -0.3, 0), color },
+		}
+	elseif set == "Mind" then
+		pieces = {
+			{ Vector3.new(6, 1.4, 6), feet, Color3.fromRGB(110, 110, 115), nil, 0, Enum.Material.Concrete },
+			{ Vector3.new(6.4, 0.2, 6.4), feet * CFrame.new(0, -0.8, 0), color, nil, 0.3 },
+		}
+	elseif set == "Spirit" then
+		pieces = {
+			{ Vector3.new(4, 3.5, 9), feet * CFrame.new(0, -1.2, 0), color, nil, 0.45 },
+			{ Vector3.one * 3, feet * CFrame.new(0, 0, -5.5), color, Enum.PartType.Ball, 0.45 },
+		}
+	elseif set == "Fire" then
+		pieces = {
+			{ Vector3.new(1, 3, 1), feet * CFrame.new(-0.6, -1, 0), color, nil, 0.2 },
+			{ Vector3.new(1, 3, 1), feet * CFrame.new(0.6, -1, 0), color, nil, 0.2 },
+		}
+	else -- Light Rail and anything else: a bright rail under the feet
+		pieces = { { Vector3.new(1, 0.4, 14), feet * CFrame.new(0, 0, -3), color, nil, 0.1 } }
+	end
+	-- turn the rig with the hero: rebuild the frame from the hero's heading each frame
+	local start = os.clock()
+	local parts = {}
+	for _, pc in pieces do
+		local p = part(pc[1], CFrame.new(), pc[3], pc[4])
+		p.Transparency = pc[5] or 0
+		if pc[6] then
+			p.Material = pc[6]
+		end
+		table.insert(parts, p)
+	end
+	local last: Vector3? = at()
+	local heading = CFrame.new()
+	local conn
+	conn = RunService.RenderStepped:Connect(function()
+		local t = os.clock() - start
+		local now = at()
+		if t >= duration or not now then
+			conn:Disconnect()
+			for _, p in parts do
+				fade(p, 0.3)
+			end
+			return
+		end
+		if last and (now - last).Magnitude > 0.05 then
+			local d = now - last
+			local flat = Vector3.new(d.X, 0, d.Z)
+			if flat.Magnitude > 0.05 then
+				heading = CFrame.lookAt(Vector3.zero, flat.Unit)
+			end
+		end
+		last = now
+		local base = CFrame.new(now) * heading
+		for i, p in parts do
+			p.CFrame = base * pieces[i][2]
+		end
+		if set == "Fire" or set == "Light" then
+			if math.random() < 0.5 then
+				local spark =
+					part(Vector3.one * 0.6, CFrame.new(now - Vector3.new(0, 4, 0)), color, Enum.PartType.Ball)
+				fade(spark, 0.3, { Size = Vector3.one * 0.1, Position = now - Vector3.new(0, 7, 0) })
+			end
+		end
+	end)
+	if last then
+		speedLines(last, 1, if style == "Anime" then WHITE else color)
+	end
+end
+
+-- Launches (Sky Step, Recoil Jump, Stone Pillar, Giant Stride): a burst where the hero left the ground
+function CombatFx.launch(row: any, from: Vector3, style: string, color: Color3)
+	ring(
+		from - Vector3.new(0, 2.5, 0),
+		(row.radius or 6),
+		if style == "Anime" then WHITE else color,
+		0.35,
+		0.3
+	)
+	speedLines(from, 0.9, color, 6)
+	if row.set == "Earth" then
+		-- Stone Pillar: a column shoots up under the hero, then sinks
+		local h = row.up or 40
+		local base = from - Vector3.new(0, 3, 0)
+		local p = part(Vector3.new(5, 1, 5), CFrame.new(base), Color3.fromRGB(120, 105, 90))
+		p.Material = Enum.Material.Slate
+		TweenService:Create(p, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {
+			Size = Vector3.new(5, h * 0.6, 5),
+			CFrame = CFrame.new(base + Vector3.new(0, h * 0.3, 0)),
+		}):Play()
+		fade(p, 0.6, nil, 1.2)
+	elseif row.set == "Martial" then
+		-- Sky Step: a ring of light underfoot in the air
+		ring(from - Vector3.new(0, 3, 0), 4, WHITE, 0.3, 0.15)
+	end
+end
+
 -- A held beam from the hero to a target (Freeze Beam). from()/to() return positions or nil to stop.
 function CombatFx.beamHold(
 	from: () -> Vector3?,
@@ -914,6 +1172,32 @@ function CombatFx.cast(row: any, style: string, data: CastData)
 		end
 		if big then
 			CombatFx.nova(data.e or o, width, style, color, true)
+		end
+	elseif shape == "ride" then
+		CombatFx.ride(row.set, data.caster or function()
+			return o
+		end, data.dur or row.duration or 4, style, color)
+		if data.c and (row.coeff or 0) > 0 then
+			CombatFx.nova(data.c, data.r or row.radius or 8, style, color, false)
+		end
+	elseif shape == "launch" then
+		CombatFx.launch(row, o, style, color)
+	elseif shape == "place" then
+		if data.c and row.summon then
+			local c = data.c
+			CombatFx.summon(row.summon, function()
+				return c + Vector3.new(0, 3, 0)
+			end, data.dur or row.decoy or 5, style, color)
+		end
+	elseif shape == "field" and row.summon == "mech" then
+		CombatFx.nova(o, 10, style, color, true) -- the mech is the hero's own form (the Form attribute)
+	elseif shape == "field" and row.summon then
+		local c = data.c or o
+		CombatFx.summon(row.summon, data.follow or function()
+			return c + Vector3.new(0, 3, 0)
+		end, data.dur or row.duration, style, color, data.r or row.radius)
+		if row.summon == "mines" then
+			CombatFx.field(c, data.r or row.radius, data.dur or row.duration, style, color, false, nil, false)
 		end
 	elseif shape == "field" then
 		CombatFx.field(

@@ -12,6 +12,7 @@ local RunService = game:GetService("RunService")
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Net = require(Shared:WaitForChild("Net"))
+local Status = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Status"))
 local MoveMath = require(Shared:WaitForChild("MoveMath"))
 local MoveCheck = require(Shared:WaitForChild("MoveCheck"))
 local PosHistory = require(Shared:WaitForChild("PosHistory"))
@@ -184,6 +185,11 @@ function MoveGuard.init()
 						MoveCheck.reset(t.check, pos.X, pos.Y, pos.Z, now)
 					else
 						local cap = MoveMath.speedCap(Config.Move, hero.styles, t.boosting)
+						-- travel powers: a ride's own speed; Weightless lets anyone fly for its time
+						cap = math.max(cap, Status.value(hero.status, "ride", now, 0))
+						if Status.has(hero.status, "zeroG", now) then
+							cap = math.max(cap, Config.Move.caps.flight)
+						end
 						local ok, strike = MoveCheck.sample(
 							t.check,
 							pos.X,

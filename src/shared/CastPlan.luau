@@ -38,6 +38,7 @@ export type Plan = {
 	channel: { ids: { number }, ticks: number, tick: number }?,
 	field: { x: number, y: number, z: number, follow: boolean }?,
 	buff: boolean?,
+	ride: boolean?,
 	pieces: { { number } }?, -- wall pieces or the ramp: { x, y, z, yawDegrees }
 	twin: { number }?, -- a second line's end for Twin Spark and Cross Wave
 }
@@ -120,7 +121,7 @@ function CastPlan.build(
 			hint,
 			slack,
 			cands,
-			world.los
+			if eff.curve then nil else world.los -- Trick Shot curves around cover
 		)
 		if first then
 			addHits(plan, eff, { first }, eff.coeff, true, seen)
@@ -164,8 +165,8 @@ function CastPlan.build(
 			plan.ex, plan.ey, plan.ez = last.x, last.y, last.z
 		end
 	elseif shape == "dash" then
-		-- full range in the open; 3 studs short of a building
-		local hit = world.rayDist(ox, oy, oz, dx, dy, dz, range)
+		-- full range in the open; 3 studs short of a building (Unstoppable goes through: `through`)
+		local hit = if eff.through then range else world.rayDist(ox, oy, oz, dx, dy, dz, range)
 		local d = if hit < range then math.max(0, hit - 3) else range
 		plan.ex, plan.ey, plan.ez = ox + dx * d, oy + dy * d, oz + dz * d
 		plan.moveHero = true
@@ -307,8 +308,59 @@ function CastPlan.build(
 		end
 		plan.field = { x = fx, y = fy, z = fz, follow = eff.at == "self" }
 		plan.cx, plan.cy, plan.cz, plan.radius = fx, fy, fz, eff.radius
+		-- a field that also buffs the hero (Mech Suit, Siege Mode, Ascended Guardian)
+		plan.buff = eff.buff ~= nil
 	elseif shape == "buff" then
 		plan.buff = true
+	elseif shape == "ride" then
+		-- a travel power: the hero rides for `duration` (MoveController) at up to `speed`; a start burst
+		-- hits around the hero when the row has a radius
+		plan.ride = true
+		if eff.radius and (eff.coeff or 0) > 0 then
+			plan.cx, plan.cy, plan.cz, plan.radius = ox, oy, oz, eff.radius
+			addHits(
+				plan,
+				eff,
+				HitQuery.sphere(ox, oy, oz, eff.radius, cands, world.los),
+				eff.coeff,
+				true,
+				seen
+			)
+		end
+	elseif shape == "place" then
+		-- a point on the ground along the aim (Holo Decoy): something is set down there
+		local d = world.rayDist(ox, oy, oz, dx, dy, dz, range)
+		local px, pz = ox + dx * d, oz + dz * d
+		local py = world.groundY(px, oy + dy * d + 2, pz) + 1
+		plan.cx, plan.cy, plan.cz, plan.radius = px, py, pz, eff.radius or 0
+		if (eff.radius or 0) > 0 and (eff.coeff or 0) > 0 then
+			addHits(
+				plan,
+				eff,
+				HitQuery.sphere(px, py, pz, eff.radius, cands, world.los),
+				eff.coeff,
+				true,
+				seen
+			)
+		end
+	elseif shape == "launch" then
+		-- the hero springs up `up` studs and `forward` along the flat aim (Sky Step, Recoil Jump, Stone
+		-- Pillar); what stands where it left is hit (radius)
+		local fx, fz = flat(dx, dz)
+		local fwd = math.min(eff.forward or 0, world.rayDist(ox, oy, oz, fx, 0, fz, eff.forward or 0))
+		plan.ex, plan.ey, plan.ez = ox + fx * fwd, oy + (eff.up or 30), oz + fz * fwd
+		plan.moveHero = true
+		if eff.radius then
+			plan.cx, plan.cy, plan.cz, plan.radius = ox, oy, oz, eff.radius
+			addHits(
+				plan,
+				eff,
+				HitQuery.sphere(ox, oy, oz, eff.radius, cands, world.los),
+				eff.coeff,
+				true,
+				seen
+			)
+		end
 	elseif shape == "wall" then
 		local fx, fz = flat(dx, dz)
 		local px, pz = -fz, fx

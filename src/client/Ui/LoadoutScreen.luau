@@ -205,6 +205,7 @@ local function card(id: string, order: number): Frame
 	local tag = if row.slot == "basic"
 		then "BASIC"
 		elseif row.slot == "super" then "SUPER"
+		elseif row.travel then string.format("TRAVEL  %d PTS", row.pts)
 		else string.format("%d PTS", row.pts)
 	local sub = Kit.label({
 		Text = tag .. "   " .. (if row.slot == "basic" then "" else pips(rank, AbilityRules.maxRank(row))),
