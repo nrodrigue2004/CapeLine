@@ -30,10 +30,10 @@ local Remotes: { [string]: RemoteDef } = {
 	Awaken = { dir = "C2S", schema = {}, rate = 1, burst = 2 }, -- spend a full Awakening meter
 
 	-- Abilities (spec: Hero.Loadout, Skills.Rank, Skills.Mod, Skills.Respec). Ability numbers, 0 = empty.
-	-- HeroLoadout: loadout index (1-2), primary set (1-5), skills 1-4, super
+	-- HeroLoadout: loadout index (1-2), the main path (1-17, Abilities.sets), skills 1-4, super
 	HeroLoadout = {
 		dir = "C2S",
-		schema = { n(1, 2), n(1, 5), n(0, 64), n(0, 64), n(0, 64), n(0, 64), n(0, 64) },
+		schema = { n(1, 2), n(1, 17), n(0, 64), n(0, 64), n(0, 64), n(0, 64), n(0, 64) },
 		rate = 2,
 		burst = 3,
 	},
@@ -147,10 +147,11 @@ local Remotes: { [string]: RemoteDef } = {
 
 	-- Creator, HQ, shops and passes (M9; spec: Hero.Create {side, classId, setId, look, colors, titleId,
 	-- nounId} 1/10s, Hero.Select {slot} 1/5s). The look (pieces and colours) is one 32-byte LookCodec buffer.
-	-- HeroCreate: look, side (1 hero, 2 villain), class index, starting set (1 Volt, 2 Blade), title, noun
+	-- HeroCreate: look, side (1 hero, 2 villain), archetype (1-4), path in the archetype (1-5), title, noun,
+	-- mobility (1-5, Move.mobilityOrder)
 	HeroCreate = {
 		dir = "C2S",
-		schema = { { t = "buffer", len = { 32 } }, n(1, 2), n(1, 4), n(1, 2), n(1, 12), n(1, 16) },
+		schema = { { t = "buffer", len = { 32 } }, n(1, 2), n(1, 4), n(1, 5), n(1, 12), n(1, 16), n(1, 5) },
 		rate = 0.1,
 		burst = 2,
 	},

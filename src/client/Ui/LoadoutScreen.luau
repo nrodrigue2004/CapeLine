@@ -33,6 +33,8 @@ local loadoutTabs: { TextButton } = {}
 local respecButton: TextButton
 
 local viewSet = "Volt"
+local tabsFrame: Frame? = nil
+local buildTabs: () -> ()
 local draft = { set = "Volt", skills = {} :: { string }, super = nil :: string? }
 local draftIndex = 1
 local selectedSlot = 1 -- 1..4 skills, 5 super
@@ -40,7 +42,10 @@ local selectedSlot = 1 -- 1..4 skills, 5 super
 local REASONS = {
 	["over budget"] = "Over the 52-point budget",
 	["not learned"] = "Learn it first",
-	["set locked"] = "That set is still locked",
+	["set locked"] = "Other paths of your archetype open at level 15",
+	["borrow limit"] = "You can learn up to 5 skills from other paths",
+	["main path only"] = "Basics and supers come from your main path",
+	["not the main path"] = "Your loadout uses your main path",
 	["super locked"] = "Supers open at level 20",
 	["too many skills"] = "No free slot yet",
 	combat = "Not while fighting (wait 5 s)",
@@ -222,9 +227,9 @@ local function card(id: string, order: number): Frame
 		maxText = 12,
 	})
 	desc.Parent = f
-	if not unlocked then
+	if not unlocked or (row.set ~= h.startSet and row.slot ~= "skill") then
 		local lock = Kit.label({
-			Text = string.format("LOCKED: LEVEL %d", A.setUnlockLevel[row.set]),
+			Text = if unlocked then "MAIN PATH ONLY" else string.format("LOCKED: LEVEL %d", A.borrowLevel),
 			Size = UDim2.new(1, -12, 0, 22),
 			Position = UDim2.new(0, 6, 1, -28),
 			maxText = 16,
@@ -304,17 +309,46 @@ local function slotText(id: string?, lockedAt: number?): string
 	return string.upper(A.list[id].name)
 end
 
+-- one tab per path of the hero's archetype (rebuilt when the archetype changes)
+local tabsClass: string? = nil
+buildTabs = function()
+	local classId = State.hero.classId
+	if not tabsFrame or tabsClass == classId then
+		return
+	end
+	tabsClass = classId
+	for _, b in tabButtons do
+		b:Destroy()
+	end
+	table.clear(tabButtons)
+	for _, set in AbilityRules.paths(Config, classId) do
+		local b = Kit.button(
+			{ Text = string.upper(A.setName[set] or set), Size = UDim2.new(0.2, -6, 1, 0), maxText = 18 },
+			function()
+				viewSet = set
+				refresh()
+			end
+		)
+		b.Parent = tabsFrame
+		tabButtons[set] = b
+	end
+end
+
 refresh = function()
 	if not panel or not panel.Visible then
 		return
 	end
 	local h = State.hero
 	header.Text = string.format("POWERS   LV %d   SKILL POINTS %d", h.level, h.points or 0)
+	buildTabs()
+	local borrowed = AbilityRules.borrowed(Config, h.ranks, h.startSet)
 	for set, b in tabButtons do
 		local open = AbilityRules.setUnlocked(Config, h.level, set, h.startSet)
-		b.Text = if open
-			then string.upper(set)
-			else string.format("%s LV%d", string.upper(set), A.setUnlockLevel[set])
+		local name = string.upper(A.setName[set] or set)
+		b.Text = if set == h.startSet
+			then name .. " (MAIN)"
+			elseif open then string.format("%s  %d/%d", name, borrowed, A.borrowMax)
+			else string.format("%s LV%d", name, A.borrowLevel)
 		b.BackgroundColor3 = if set == viewSet then rgb(A.setColor[set]) else Color3.fromRGB(210, 210, 215)
 	end
 	for i, b in loadoutTabs do
@@ -323,7 +357,12 @@ refresh = function()
 		b.BackgroundColor3 = if i == draftIndex then Kit.color.gold else Color3.fromRGB(210, 210, 215)
 	end
 	local used = AbilityRules.loadoutPoints(Config, draft.skills)
-	budget.Text = string.format("BUDGET %d / %d   PRIMARY %s", used, A.loadoutCap, string.upper(draft.set))
+	budget.Text = string.format(
+		"BUDGET %d / %d   MAIN PATH %s",
+		used,
+		A.loadoutCap,
+		string.upper(A.setName[draft.set] or draft.set)
+	)
 	budget.TextColor3 = if used > A.loadoutCap then Color3.fromRGB(255, 120, 100) else Kit.color.paper
 	local slots = AbilityRules.skillSlots(Config, h.level)
 	for i, b in slotButtons do
@@ -427,17 +466,7 @@ function LoadoutScreen.init()
 	tl.Padding = UDim.new(0, 6)
 	tl.Parent = tabs
 	tabs.Parent = panel
-	for _, set in A.sets do
-		local b = Kit.button(
-			{ Text = string.upper(set), Size = UDim2.new(0.2, -6, 1, 0), maxText = 18 },
-			function()
-				viewSet = set
-				refresh()
-			end
-		)
-		b.Parent = tabs
-		tabButtons[set] = b
-	end
+	tabsFrame = tabs
 	-- the cards
 	grid = Instance.new("ScrollingFrame")
 	grid.BackgroundTransparency = 1
@@ -542,6 +571,7 @@ function LoadoutScreen.init()
 		draft.set = viewSet -- the primary set gives the basic attack and the look
 		refresh()
 	end)
+	primary.Visible = false -- the main path is set in the creator (one free change before level 10)
 	primary.Parent = bottom
 	respecButton = Kit.button({
 		pending = true,

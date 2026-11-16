@@ -15,6 +15,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
+local AbilityRules = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("AbilityRules"))
 local Net = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Net"))
 
 local HeroService = require(script.Parent.HeroService)
@@ -90,10 +91,31 @@ local commands: { [string]: (player: Player, hero: any, value: number) -> () } =
 	god = function(_, hero, on)
 		hero.god = on ~= 0
 	end,
+	-- a path by its index in Abilities.sets: its archetype, its starter kit on both loadouts (no refund)
 	class = function(_, hero, index)
-		local id = Config.Classes.order[index]
-		if id then
-			HeroService.setClass(hero, id)
+		local set = Config.Abilities.sets[index]
+		if not set or not AbilityRules.pathReady(Config, set) then
+			return
+		end
+		local ranks, loadout = AbilityRules.starter(Config, set)
+		for id, r in hero.ranks do
+			local row = Config.Abilities.list[id]
+			if row and row.set == set then
+				ranks[id] = math.max(ranks[id] or 0, r)
+			end
+		end
+		hero.ranks, hero.mods = ranks, {}
+		hero.loadouts = { loadout, table.clone(loadout) }
+		hero.loadouts[2].skills = table.clone(loadout.skills)
+		hero.loadoutIndex = 1
+		hero.loadout = hero.loadouts[1]
+		hero.setId, hero.startSet = set, set
+		HeroService.setClass(hero, AbilityRules.archetypeOf(Config, set) or Config.Classes.default)
+	end,
+	mobility = function(_, hero, index)
+		local m = Config.Move.mobilityOrder[index]
+		if m then
+			HeroService.setMobility(hero, m)
 		end
 	end,
 	level = function(player, hero, level)

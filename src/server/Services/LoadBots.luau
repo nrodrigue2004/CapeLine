@@ -111,10 +111,18 @@ function LoadBots.spawn(n: number)
 			seq = 0,
 		}
 		bot.hero = HeroService.addBot(nextId, model.Name, bot)
-		-- bots spread over the five sets so the load test exercises every kind of ability
-		local set = Config.Abilities.sets[(nextId % #Config.Abilities.sets) + 1]
+		-- bots spread over every path so the load test exercises every kind of ability
+		local ready = {}
+		for _, s in Config.Abilities.sets do
+			if AbilityRules.pathReady(Config, s) then
+				table.insert(ready, s)
+			end
+		end
+		local set = ready[(nextId % #ready) + 1]
 		local ranks, loadout = AbilityRules.starter(Config, set)
 		bot.hero.ranks, bot.hero.loadout, bot.hero.setId = ranks, loadout, set
+		bot.hero.startSet = set
+		bot.hero.classId = AbilityRules.archetypeOf(Config, set) or Config.Classes.default
 		model.Parent = folder
 		table.insert(bots, bot)
 	end

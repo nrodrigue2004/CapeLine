@@ -86,8 +86,8 @@ function CombatClient.cooldownLeft(id: string): number
 end
 
 local function rangeOf(eff: any): number
-	if eff.slot == "basic" and eff.shape == "bolt" and State.hero.classId == "Blaster" then
-		return math.max(eff.range, Config.Classes.Blaster.basicRange)
+	if eff.slot == "basic" and eff.shape == "bolt" and State.hero.classId == "Elemental" then
+		return math.max(eff.range, Config.Classes.Elemental.basicRange)
 	end
 	return eff.range or 10
 end

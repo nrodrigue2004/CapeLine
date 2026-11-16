@@ -34,7 +34,8 @@ export type Hero = {
 	name: string,
 	level: number,
 	side: string, -- "hero" (League) or "villain" (Syndicate)
-	classId: string,
+	classId: string, -- the archetype (Elemental, Rogue, Powerhouse, Mystic)
+	mobility: string, -- flight, speed, leap, acrobat, swing (Config.Move.mobility)
 	setId: string,
 	fxStyle: string, -- "Comic" or "Anime": how this hero's powers look to everyone
 	startSet: string?, -- the creator's starting set (Volt or Blade), open from level 1 (M9)
@@ -112,10 +113,11 @@ HeroService.SecondWind = Signal.new() -- (hero) the Second Wind perk saved this 
 HeroService.Leveled = Signal.new() -- (hero, gained)
 HeroService.Supported = Signal.new() -- (hero, points) this hero healed or shielded an ally (boss support)
 
-local function stylesFor(level: number): { [string]: boolean }
-	local s = {}
-	for style, unlock in Config.Move.styleUnlockLevel do
-		s[style] = level >= unlock or (Config.Dev.unlockAllStyles and style == "flight")
+-- The hero's movement style: its one mobility (nate 2026-11-16); Studio can open flight for every hero
+local function stylesFor(mobility: string): { [string]: boolean }
+	local s = { [mobility] = true }
+	if Config.Dev.unlockAllStyles then
+		s.flight = true
 	end
 	return s
 end
@@ -135,7 +137,8 @@ local function newHero(id: number, name: string, player: Player?, bot: any?): He
 		classId = classId,
 		setId = "Volt",
 		fxStyle = "Comic",
-		styles = stylesFor(level),
+		mobility = "flight",
+		styles = stylesFor("flight"),
 		loadout = loadout,
 		loadouts = { loadout, table.clone(loadout) },
 		loadoutIndex = 1,
@@ -314,6 +317,7 @@ function HeroService.sendState(hero: Hero)
 	end
 	player:SetAttribute("Level", hero.level)
 	player:SetAttribute("Class", hero.classId)
+	player:SetAttribute("Mobility", hero.mobility)
 	player:SetAttribute("PowerSet", hero.setId)
 	player:SetAttribute("FxStyle", hero.fxStyle)
 	player:SetAttribute("Side", hero.side)
@@ -324,6 +328,7 @@ function HeroService.sendState(hero: Hero)
 		setId = hero.setId,
 		fxStyle = hero.fxStyle,
 		startSet = hero.startSet,
+		mobility = hero.mobility,
 		power = HeroService.power(hero),
 		maxHealth = hero.maxHealth,
 		styles = hero.styles,
@@ -460,13 +465,24 @@ function HeroService.refresh(hero: Hero)
 	local frac = if hero.maxHealth > 0 then hero.health / hero.maxHealth else 1
 	hero.maxHealth = Formulas.health(Config, hero.level, hero.stats.Vitality, hero.classId)
 	hero.health = math.max(1, math.floor(hero.maxHealth * frac + 0.5))
-	hero.styles = stylesFor(hero.level)
+	hero.styles = stylesFor(hero.mobility or "flight")
 	local hum = humanoidOf(hero)
 	if hum then
 		hum.MaxHealth = hero.maxHealth
 		hum.Health = hero.health
 	end
 	HeroService.sendState(hero)
+end
+
+function HeroService.setMobility(hero: Hero, mobility: string)
+	if Config.Move.mobility[mobility] then
+		hero.mobility = mobility
+		hero.styles = stylesFor(mobility)
+		if hero.player then
+			hero.player:SetAttribute("Mobility", mobility)
+		end
+		HeroService.sendState(hero)
+	end
 end
 
 function HeroService.setClass(hero: Hero, classId: string)
@@ -501,9 +517,9 @@ function HeroService.mitigate(hero: Hero, amount: number, now: number): number
 	taken *= 1 - Status.value(hero.status, "resist", now, 0)
 	local pos = HeroService.position(hero)
 	if pos then
-		local anchor = Config.Classes.Controller.passive
+		local anchor = Config.Classes.Mystic.passive
 		for _, other in heroes do
-			if other ~= hero and other.alive and other.classId == "Controller" then
+			if other ~= hero and other.alive and other.classId == "Mystic" then
 				local op = HeroService.position(other)
 				if op and (op - pos).Magnitude <= anchor.radius then
 					taken *= 1 - anchor.mitigation
@@ -612,10 +628,27 @@ function HeroService.applyProfile(hero: Hero, char: any, currency: any)
 	hero.level = char.level
 	hero.xp = char.xp
 	hero.side = if char.side == "villain" then "villain" else "hero"
-	hero.classId = if Config.Classes[char.classId] then char.classId else Config.Classes.default
 	hero.fxStyle = char.fxStyle
-	hero.startSet = if char.startSet == "Blade" then "Blade" else "Volt"
+	-- the main path decides the archetype; a path without its abilities yet falls back to Storm
+	local path = if AbilityRules.pathReady(Config, char.startSet) then char.startSet else "Volt"
+	hero.startSet = path
+	hero.classId = AbilityRules.archetypeOf(Config, path) or Config.Classes.default
+	hero.mobility = if Config.Move.mobility[char.mobility] then char.mobility else "flight"
+	hero.styles = stylesFor(hero.mobility)
 	hero.ranks = table.clone(char.ranks)
+	-- skills from outside the archetype (saves from before the archetypes) are dropped; their points return
+	local kept = 0
+	for id in table.clone(hero.ranks) do
+		local row = Config.Abilities.list[id]
+		local open = row and AbilityRules.archetypeOf(Config, row.set) == hero.classId
+		if open and row.set ~= path then
+			kept += 1
+			open = row.slot == "skill" and kept <= Config.Abilities.borrowMax
+		end
+		if not open then
+			hero.ranks[id] = nil
+		end
+	end
 	hero.mods = table.clone(char.mods)
 	hero.bonusPoints = char.bonusPoints
 	if
@@ -655,6 +688,8 @@ function HeroService.writeBack(hero: Hero, char: any)
 	char.level = hero.level
 	char.xp = hero.xp
 	char.classId = hero.classId
+	char.startSet = hero.startSet
+	char.mobility = hero.mobility
 	char.fxStyle = hero.fxStyle
 	char.ranks = table.clone(hero.ranks)
 	char.mods = table.clone(hero.mods)

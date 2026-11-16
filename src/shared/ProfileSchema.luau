@@ -9,12 +9,46 @@
 
 local ProfileSchema = {}
 
-ProfileSchema.VERSION = 6
+ProfileSchema.VERSION = 7
 ProfileSchema.SLOTS = 8
 ProfileSchema.STYLE_WORDS = 16 -- 512 bits
 ProfileSchema.SMALL_WORDS = 4 -- 128 bits for emotes, titles, Rogues File pages, seen flags
 ProfileSchema.PIECE_WORDS = 8 -- 256 bits: creator pieces unlocked (M9)
 ProfileSchema.LOOK_WORDS = 8 -- a 32-byte look record (LookCodec)
+
+-- The archetypes, the 17 paths (Config.Classes, Config.Abilities.sets) and the mobilities (Config.Move.mobility)
+ProfileSchema.ARCHETYPES = { "Elemental", "Rogue", "Powerhouse", "Mystic" }
+ProfileSchema.PATHS = {
+	"Volt",
+	"Frost",
+	"Fire",
+	"Earth",
+	"Tide",
+	"Blade",
+	"Gunslinger",
+	"Gadgeteer",
+	"Shadow",
+	"Titan",
+	"Martial",
+	"Juggernaut",
+	"Colossus",
+	"Pulse",
+	"Mind",
+	"Spirit",
+	"Light",
+}
+-- each path's archetype, in PATHS order (5, 4, 4, 4)
+local PATH_ARCH = {}
+for i, path in ProfileSchema.PATHS do
+	PATH_ARCH[path] = if i <= 5
+		then "Elemental"
+		elseif i <= 9 then "Rogue"
+		elseif i <= 13 then "Powerhouse"
+		else "Mystic"
+end
+ProfileSchema.PATH_ARCH = PATH_ARCH
+ProfileSchema.MOBILITIES = { "flight", "speed", "leap", "acrobat", "swing" }
+local RENAMED = { Bruiser = "Powerhouse", Blaster = "Elemental", Speedster = "Rogue", Controller = "Mystic" }
 
 local function words(n: number): { number }
 	local t = table.create(n, 0)
@@ -71,7 +105,7 @@ end
 function ProfileSchema.newCharacter(side: string?, classId: string?): { [string]: any }
 	return {
 		side = side or "hero",
-		classId = classId or "Blaster",
+		classId = classId or "Elemental",
 		level = 1,
 		xp = 0,
 		bonusPoints = 0, -- story Skill Points from Act 1 choices (M7)
@@ -90,7 +124,9 @@ function ProfileSchema.newCharacter(side: string?, classId: string?): { [string]
 		titleId = 0,
 		nounId = 0,
 		created = 0,
-		startSet = "Volt",
+		startSet = "Volt", -- the main path (nate 2026-11-16: archetype, path, mobility)
+		mobility = "flight", -- swapped free at any safehouse
+		pathChanged = 0, -- 1 once the free archetype or path change (before level 10) is used
 		tint = 0, -- an owned effect colour (Config.Shop.tints), 0 = the set's own
 		landing = 0, -- an owned landing pose (emote bit 20 to 31), 0 = none
 		fame = 0,
@@ -205,6 +241,25 @@ local MIGRATIONS: { [number]: (any) -> () } = {
 	end,
 	[6] = function(_p)
 		-- M12: analytics (onboarding step, first join, day-1 return); repair() fills it
+	end,
+	[7] = function(p)
+		-- archetypes (nate 2026-11-16): the 4 classes become archetypes; a Speedster keeps its speed as the
+		-- Super-speed mobility, everyone else starts with Flight (repair() fills mobility and pathChanged)
+		local function rename(t: any)
+			if type(t) == "table" and type(t.classId) == "string" and RENAMED[t.classId] then
+				if t.classId == "Speedster" and t.mobility == nil then
+					t.mobility = "speed"
+				end
+				t.classId = RENAMED[t.classId]
+			end
+		end
+		for _, list in { p.characters, p.legends } do
+			if type(list) == "table" then
+				for _, c in list do
+					rename(c)
+				end
+			end
+		end
 	end,
 }
 ProfileSchema.MIGRATIONS = MIGRATIONS
@@ -339,9 +394,15 @@ local function repair(p: any): any
 				c.tint = num(c.tint, 0, 31, 0)
 				c.landing = num(c.landing, 0, 31, 0)
 				c.fame = num(c.fame, 0, 2 ^ 31, 0)
-				if c.startSet ~= "Volt" and c.startSet ~= "Blade" then
+				if not table.find(ProfileSchema.PATHS, c.startSet) then
 					c.startSet = "Volt"
 				end
+				-- the path decides the archetype (a pre-archetype Bruiser who started on Volt is an Elemental now)
+				c.classId = PATH_ARCH[c.startSet]
+				if not table.find(ProfileSchema.MOBILITIES, c.mobility) then
+					c.mobility = "flight"
+				end
+				c.pathChanged = num(c.pathChanged, 0, 1, 0)
 				c.hq.level = num(c.hq.level, 1, 6, 1)
 				c.hq.droneAt = num(c.hq.droneAt, 0, 2 ^ 40, 0)
 				c.hq.trophies = cleanNumbers(c.hq.trophies, 12, 1, 64)
@@ -432,7 +493,7 @@ local function repair(p: any): any
 				look = cleanNumbers(l.look, ProfileSchema.LOOK_WORDS, 0, 2 ^ 32 - 1, true),
 				titleId = num(l.titleId, 0, 64, 0),
 				nounId = num(l.nounId, 0, 64, 0),
-				classId = if type(l.classId) == "string" then string.sub(l.classId, 1, 24) else "Blaster",
+				classId = if type(l.classId) == "string" then string.sub(l.classId, 1, 24) else "Elemental",
 				side = if l.side == "villain" then "villain" else "hero",
 				level = num(l.level, 1, 40, 40),
 				rank = num(l.rank, 1, 255, 1),
@@ -540,6 +601,8 @@ function ProfileSchema.clientView(profile: any, walletOnly: boolean?): { [string
 		nounId = c.nounId,
 		created = c.created,
 		startSet = c.startSet,
+		mobility = c.mobility,
+		pathChanged = c.pathChanged,
 		tint = c.tint,
 		landing = c.landing,
 		legacy = c.legacy,

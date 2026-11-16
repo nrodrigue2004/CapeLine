@@ -20,6 +20,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Net = require(Shared:WaitForChild("Net"))
 local Rng = require(Shared:WaitForChild("Rng"))
 local LookCodec = require(Shared:WaitForChild("LookCodec"))
+local AbilityRules = require(Shared:WaitForChild("AbilityRules"))
 local CreatorRules = require(Shared:WaitForChild("CreatorRules"))
 
 local Kit = require(script.Parent.Kit)
@@ -39,7 +40,8 @@ local REASONS = {
 	piece = "That piece does not exist",
 	color = "Pick colours from the palette",
 	name = "Pick another name pair",
-	pick = "Pick a class",
+	pick = "Pick an archetype, a path and a mobility",
+	path = "Your archetype and path are set (one free change before level 10)",
 	look = "Something went wrong: try again",
 	scene = "Finish what you are doing first",
 	combat = "Not during a fight",
@@ -59,11 +61,12 @@ local preview: Preview.Handle
 local mode = "edit"
 local look: LookCodec.Look = CreatorRules.defaultLook(Config)
 local titleId, nounId, classIdx, sideIdx, setIdx = 0, 0, 0, 1, 1
+local mobIdx = 1 -- Move.mobilityOrder
+local pathOpen = true -- the archetype and path may change in this creator
 local tab = "suit"
 local colorSlot = 1 -- 1 primary, 2 secondary, 3 accent, 4 hair, 5 skin
 local pending = false
 local saveSent = 0
-local inHq = false -- opened at the HQ (class changes are allowed there)
 local rng = Rng.new(os.time() % 100000 + 3)
 
 local function profileView(): any
@@ -176,7 +179,7 @@ local function canFinish(): (boolean, string?)
 		return false, REASONS.name
 	end
 	if classIdx == 0 then
-		return false, "Pick a class"
+		return false, "Pick an archetype"
 	end
 	return true, nil
 end
@@ -287,40 +290,57 @@ local function drawHero()
 			end
 		)
 	end
-	local classOk = mode ~= "edit" or inHq
+	-- archetype, then a path inside it (nate 2026-11-16), then a mobility (changes any time here)
 	for i, id in Config.Classes.order do
 		order += 1
 		tile(
 			order,
-			string.upper(id),
+			string.upper(Config.Classes[id].name),
 			Config.Classes[id].role,
 			classIdx == i,
-			not classOk and classIdx ~= i,
+			not pathOpen and classIdx ~= i,
 			function()
-				if classOk then
+				if pathOpen then
+					if classIdx ~= i then
+						setIdx = 1
+					end
 					classIdx = i
 					refresh()
 				else
-					status.Text = "Change class at your HQ"
+					status.Text = REASONS.path
 				end
 			end
 		)
 	end
-	for i, set in C.startSets do
-		order += 1
-		tile(
-			order,
-			string.upper(set),
-			if creating then "starting powers" else "your start",
-			setIdx == i,
-			not creating,
-			function()
-				if creating then
-					setIdx = i
-					refresh()
+	local classId = Config.Classes.order[classIdx]
+	if classId then
+		for i, set in AbilityRules.paths(Config, classId) do
+			order += 1
+			local row = Config.Abilities.list[AbilityRules.superOf(Config, set) or ""]
+			tile(
+				order,
+				string.upper(Config.Abilities.setName[set] or set),
+				if row then "super: " .. row.name else "path",
+				setIdx == i,
+				not pathOpen and setIdx ~= i,
+				function()
+					if pathOpen then
+						setIdx = i
+						refresh()
+					else
+						status.Text = REASONS.path
+					end
 				end
-			end
-		)
+			)
+		end
+	end
+	for i, id in Config.Move.mobilityOrder do
+		order += 1
+		local m = Config.Move.mobility[id]
+		tile(order, string.upper(m.name), m.text, mobIdx == i, false, function()
+			mobIdx = i
+			refresh()
+		end)
 	end
 	for i, style in { "COMIC", "ANIME" } do
 		order += 1
@@ -374,7 +394,7 @@ local function finish()
 	end
 	pending = true
 	status.Text = "Saving..."
-	Net.send("HeroCreate", LookCodec.encode(look), sideIdx, classIdx, setIdx, titleId, nounId)
+	Net.send("HeroCreate", LookCodec.encode(look), sideIdx, classIdx, setIdx, titleId, nounId, mobIdx)
 	refresh()
 	-- no answer: let them try again (spec: every remote call has an error state)
 	local sentAt = os.clock()
@@ -400,8 +420,9 @@ local function randomize()
 	local l, t, n = CreatorRules.randomize(Config, { pieces = words }, rng)
 	look = l
 	titleId, nounId = t, n
-	if mode ~= "edit" or inHq then
+	if pathOpen then
 		classIdx = rng:int(1, #Config.Classes.order)
+		setIdx = rng:int(1, math.max(1, #AbilityRules.paths(Config, Config.Classes.order[classIdx])))
 	end
 	refresh()
 end
@@ -531,8 +552,11 @@ function CreatorScreen.open(opts: { [string]: any })
 	classIdx = if mode == "create"
 		then 0
 		else (opts.classIdx or table.find(Config.Classes.order, State.hero.classId) or 1)
-	setIdx = table.find(C.startSets, p.startSet or "Volt") or 1
-	inHq = opts.hq == true
+	local cls = Config.Classes.order[classIdx]
+	setIdx = if cls then table.find(AbilityRules.paths(Config, cls), p.startSet or "Volt") or 1 else 1
+	mobIdx = table.find(Config.Move.mobilityOrder, State.hero.mobility or "flight") or 1
+	pathOpen = if opts.pathOpen == nil then mode ~= "edit" else opts.pathOpen == true
+
 	tab = "suit"
 	cancelButton.Visible = mode == "edit"
 	gui.Enabled = true

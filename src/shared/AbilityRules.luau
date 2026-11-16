@@ -141,10 +141,57 @@ function AbilityRules.isStarter(config: any, id: string): boolean
 	return starter ~= nil and table.find(starter, id) ~= nil
 end
 
--- A set is open by level, or from level 1 when it is the hero's starting set (the creator's Volt or Blade)
+-- The archetype a path belongs to (Classes.paths)
+function AbilityRules.archetypeOf(config: any, set: string): string?
+	for _, id in config.Classes.order do
+		if table.find(config.Classes[id].paths, set) then
+			return id
+		end
+	end
+	return nil
+end
+
+-- A path is playable once it has its abilities (a basic and a super)
+function AbilityRules.pathReady(config: any, set: string): boolean
+	return AbilityRules.basicOf(config, set) ~= nil and AbilityRules.superOf(config, set) ~= nil
+end
+
+-- The paths a hero may pick in one archetype (creator)
+function AbilityRules.paths(config: any, classId: string): { string }
+	local out = {}
+	local class = config.Classes[classId]
+	for _, set in (if class then class.paths else {}) do
+		if AbilityRules.pathReady(config, set) then
+			table.insert(out, set)
+		end
+	end
+	return out
+end
+
+-- Mostly one path (nate, 2026-11-16): the hero's main path is open from level 1; another path of the same
+-- archetype opens for borrowing at Abilities.borrowLevel.
 function AbilityRules.setUnlocked(config: any, level: number, set: string, startSet: string?): boolean
-	local need = config.Abilities.setUnlockLevel[set]
-	return need ~= nil and (level >= need or set == startSet)
+	local main = startSet or config.Abilities.defaultLoadout.set
+	if set == main then
+		return true
+	end
+	local arch = AbilityRules.archetypeOf(config, set)
+	return arch ~= nil
+		and arch == AbilityRules.archetypeOf(config, main)
+		and level >= config.Abilities.borrowLevel
+end
+
+-- Skills learned from other paths (the borrow limit counts these)
+function AbilityRules.borrowed(config: any, ranks: { [string]: number }, startSet: string?): number
+	local main = startSet or config.Abilities.defaultLoadout.set
+	local n = 0
+	for id, rank in ranks do
+		local row = config.Abilities.list[id]
+		if row and rank > 0 and row.set ~= main then
+			n += 1
+		end
+	end
+	return n
 end
 
 function AbilityRules.skillSlots(config: any, level: number): number
@@ -212,6 +259,17 @@ function AbilityRules.canRank(
 	if not AbilityRules.setUnlocked(config, hero.level, row.set, hero.startSet) then
 		return false, "set locked", 0, 0
 	end
+	local main = hero.startSet or config.Abilities.defaultLoadout.set
+	if row.set ~= main and row.slot ~= "skill" then
+		return false, "main path only", 0, 0
+	end
+	if
+		row.set ~= main
+		and (hero.ranks[id] or 0) == 0
+		and AbilityRules.borrowed(config, hero.ranks, hero.startSet) >= config.Abilities.borrowMax
+	then
+		return false, "borrow limit", 0, 0
+	end
 	if row.slot == "super" and not AbilityRules.superUnlocked(config, hero.level) then
 		return false, "super locked", 0, 0
 	end
@@ -242,8 +300,9 @@ export type Loadout = { set: string, basic: string?, skills: { string }, super: 
 -- Server check for Hero.Loadout (spec: points cap 52, unlocked). Returns ok, reason.
 function AbilityRules.validate(config: any, hero: HeroView, loadout: Loadout): (boolean, string?)
 	local A = config.Abilities
-	if not AbilityRules.setUnlocked(config, hero.level, loadout.set, hero.startSet) then
-		return false, "set locked"
+	local main = hero.startSet or A.defaultLoadout.set
+	if loadout.set ~= main then
+		return false, "not the main path"
 	end
 	if loadout.basic and loadout.basic ~= AbilityRules.basicOf(config, loadout.set) then
 		return false, "basic not of the set"
@@ -279,8 +338,8 @@ function AbilityRules.validate(config: any, hero: HeroView, loadout: Loadout): (
 		if not AbilityRules.superUnlocked(config, hero.level) then
 			return false, "super locked"
 		end
-		if not AbilityRules.setUnlocked(config, hero.level, row.set, hero.startSet) then
-			return false, "set locked"
+		if row.set ~= main then
+			return false, "main path only"
 		end
 		if (hero.ranks[loadout.super] or 0) < 1 then
 			return false, "not learned"

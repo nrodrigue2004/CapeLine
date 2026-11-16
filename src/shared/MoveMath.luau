@@ -219,16 +219,92 @@ function MoveMath.speedCap(cfg: any, styles: { [string]: boolean }, boosting: bo
 	if styles.flight then
 		cap = math.max(cap, if boosting then cfg.caps.flight else cfg.caps.cruise)
 	end
-	if styles.superSpeed then
-		cap = math.max(cap, cfg.caps.superSpeed)
-	end
-	if styles.superLeap then
-		cap = math.max(cap, cfg.caps.superLeap)
-	end
-	if styles.grapple then
-		cap = math.max(cap, cfg.caps.grapple)
+	for style, on in styles do
+		local m = cfg.mobility[style]
+		if on and m then
+			if m.cap then
+				cap = math.max(cap, m.cap)
+			end
+			if style == "leap" then
+				cap = math.max(cap, MoveMath.superLeapSpeed(cfg))
+			end
+			cap = math.max(cap, m.swim or 0)
+		end
 	end
 	return cap
+end
+
+-- The Leaping mobility's full leap (bigger than everyone's)
+function MoveMath.superLeapLaunch(
+	cfg: any,
+	dirX: number,
+	dirZ: number,
+	charge01: number
+): (number, number, number)
+	local m = cfg.mobility.leap
+	return MoveMath.leapLaunch({
+		leap = { apex = m.apex, range = m.range, minCharge = cfg.leap.minCharge },
+		airGravity = cfg.airGravity,
+	}, dirX, dirZ, charge01)
+end
+
+function MoveMath.superLeapSpeed(cfg: any): number
+	local vx, vy, vz = MoveMath.superLeapLaunch(cfg, 1, 0, 1)
+	return len3(vx, vy, vz)
+end
+
+-- Super-speed: the sprint speed after dt of holding Boost (accelerates to the top speed)
+function MoveMath.sprintStep(cfg: any, speed: number, holding: boolean, dt: number): number
+	local m = cfg.mobility.speed
+	if holding then
+		return math.min(m.sprint, math.max(speed, cfg.run.speed) + m.accel * dt)
+	end
+	return math.max(cfg.run.speed, speed - m.accel * 1.5 * dt)
+end
+
+-- Swing: one step of a pendulum on a rope from (ax, ay, az) of length len. Gravity pulls, the rope keeps the
+-- hero on the sphere (the outward part of the velocity is removed), `push` adds speed along the swing, the
+-- speed is capped. Returns the new position and velocity.
+function MoveMath.swingStep(
+	cfg: any,
+	px: number,
+	py: number,
+	pz: number,
+	vx: number,
+	vy: number,
+	vz: number,
+	ax: number,
+	ay: number,
+	az: number,
+	len: number,
+	pushX: number,
+	pushZ: number,
+	dt: number
+): (number, number, number, number, number, number)
+	local m = cfg.mobility.swing
+	vy -= cfg.airGravity * dt
+	vx += pushX * m.pump * dt
+	vz += pushZ * m.pump * dt
+	-- next position, then pulled back onto the rope's sphere
+	local nx, ny, nz = px + vx * dt, py + vy * dt, pz + vz * dt
+	local dx, dy, dz = nx - ax, ny - ay, nz - az
+	local d = len3(dx, dy, dz)
+	if d > len and d > 1e-4 then
+		local k = len / d
+		nx, ny, nz = ax + dx * k, ay + dy * k, az + dz * k
+		-- remove the outward speed
+		local ux, uy, uz = dx / d, dy / d, dz / d
+		local out = vx * ux + vy * uy + vz * uz
+		if out > 0 then
+			vx, vy, vz = vx - ux * out, vy - uy * out, vz - uz * out
+		end
+	end
+	local sp = len3(vx, vy, vz)
+	if sp > m.maxSpeed then
+		local k = m.maxSpeed / sp
+		vx, vy, vz = vx * k, vy * k, vz * k
+	end
+	return nx, ny, nz, vx, vy, vz
 end
 
 MoveMath.len3 = len3

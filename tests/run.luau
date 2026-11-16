@@ -113,20 +113,15 @@ test("formulas: power, health, damage, caps", function()
 	check(Formulas.power(Config, 1) == 36, "Power(1) = 36")
 	check(Formulas.power(Config, 40, 170) == 440, "Power(40) with Might 170 = 440")
 	check(
-		Formulas.health(Config, 1, 0, "Bruiser") == math.floor(425 * 1.35 + 0.5),
+		Formulas.health(Config, 1, 0, "Powerhouse") == math.floor(425 * 1.35 + 0.5),
 		"Bruiser health at level 1"
 	)
 	check(
-		Formulas.health(Config, 1, 0, "Blaster") == math.floor(425 * 0.9 + 0.5),
+		Formulas.health(Config, 1, 0, "Elemental") == math.floor(425 * 0.9 + 0.5),
 		"Blaster health at level 1"
 	)
-	near(Formulas.damage(Config, 36, 0.6, "Blaster"), 36 * 0.6 * 1.15, 1e-6, "Zap Bolt damage")
-	near(
-		Formulas.damage(Config, 100, 1, "Speedster", true, 0.4),
-		100 * 1.5 * 0.6,
-		1e-6,
-		"crit and mitigation"
-	)
+	near(Formulas.damage(Config, 36, 0.6, "Elemental"), 36 * 0.6 * 1.15, 1e-6, "Zap Bolt damage")
+	near(Formulas.damage(Config, 100, 1, "Rogue", true, 0.4), 100 * 1.5 * 0.6, 1e-6, "crit and mitigation")
 	near(Formulas.cooldownReduction(Config, 1e9), 0.40, 1e-6, "cooldown reduction caps at 40%")
 	near(Formulas.critChance(Config, 600), 0.5, 1e-6, "crit chance 600 Precision = 50% (cap)")
 	near(Formulas.ccMultiplier(Config, 1e9), 0.5, 1e-6, "CC floor 0.5")
@@ -489,7 +484,7 @@ test("M1: damage kills a drone with a die event; Zap Bolt needs 5 hits at level 
 	local sim = droneWorld(heroes)
 	local e = EnemySim.spawn(sim, "SparkDrone", 1500, 50, 1500, 1) :: any
 	local dmg =
-		Formulas.damage(Config, Formulas.power(Config, 1), Config.Abilities.list.ZapBolt.coeff, "Blaster")
+		Formulas.damage(Config, Formulas.power(Config, 1), Config.Abilities.list.ZapBolt.coeff, "Elemental")
 	local hits = 0
 	local killed = false
 	while not killed and hits < 20 do
@@ -792,31 +787,31 @@ end)
 
 test("M2: cooldowns: attack speed, Awakening, recasts and combo strings", function()
 	local zap = AbilityRules.effective(Config, "ZapBolt", 1)
-	near(AbilityRules.cooldown(Config, Formulas, zap, { classId = "Blaster" }), 0.5, 1e-9, "basic 0.5 s")
+	near(AbilityRules.cooldown(Config, Formulas, zap, { classId = "Elemental" }), 0.5, 1e-9, "basic 0.5 s")
 	near(
-		AbilityRules.cooldown(Config, Formulas, zap, { classId = "Blaster", attackSpeed = 0.25 }),
+		AbilityRules.cooldown(Config, Formulas, zap, { classId = "Elemental", attackSpeed = 0.25 }),
 		0.4,
 		1e-9,
 		"Overcharge +25% attack speed"
 	)
 	local chain = AbilityRules.effective(Config, "ChainLightning", 1)
-	local base = AbilityRules.cooldown(Config, Formulas, chain, { classId = "Blaster" })
+	local base = AbilityRules.cooldown(Config, Formulas, chain, { classId = "Elemental" })
 	near(base, 6, 1e-9, "Chain 6 s")
 	near(
-		AbilityRules.cooldown(Config, Formulas, chain, { classId = "Blaster", awakened = true }),
+		AbilityRules.cooldown(Config, Formulas, chain, { classId = "Elemental", awakened = true }),
 		6 / 1.35,
 		1e-9,
 		"awakened skills 35% faster"
 	)
 	near(
-		AbilityRules.cooldown(Config, Formulas, chain, { classId = "Speedster" }),
+		AbilityRules.cooldown(Config, Formulas, chain, { classId = "Rogue" }),
 		6 * 0.95,
 		1e-9,
 		"Speedster -5%"
 	)
 	local td = AbilityRules.effective(Config, "ThunderDrop", 1)
 	near(
-		AbilityRules.cooldown(Config, Formulas, td, { classId = "Blaster", awakened = true }),
+		AbilityRules.cooldown(Config, Formulas, td, { classId = "Elemental", awakened = true }),
 		45,
 		1e-9,
 		"awakened super half cooldown"
@@ -1386,7 +1381,7 @@ test("M2: balance: classes keep their roles; a level 10 Burglar Bot falls in 2 t
 		local function dps(classId: string): number
 			return Formulas.damage(Config, power, avg, classId) / a.cd
 		end
-		check(dps("Blaster") > dps("Bruiser"), set .. ": a Bruiser never out-damages a Blaster")
+		check(dps("Elemental") > dps("Powerhouse"), set .. ": a Bruiser never out-damages a Blaster")
 		for _, cls in Config.Classes.order do
 			local t = hp / dps(cls)
 			-- Push Wave is a cone that hits a crowd, so it is the slowest on one target
@@ -1395,10 +1390,10 @@ test("M2: balance: classes keep their roles; a level 10 Burglar Bot falls in 2 t
 		end
 	end
 	check(
-		Formulas.health(Config, 10, 0, "Bruiser") > Formulas.health(Config, 10, 0, "Blaster"),
+		Formulas.health(Config, 10, 0, "Powerhouse") > Formulas.health(Config, 10, 0, "Elemental"),
 		"a Blaster never out-tanks a Bruiser"
 	)
-	local zapT = hp / (Formulas.damage(Config, power, AB.list.ZapBolt.coeff, "Blaster") / 0.5)
+	local zapT = hp / (Formulas.damage(Config, power, AB.list.ZapBolt.coeff, "Elemental") / 0.5)
 	check(zapT >= 2 and zapT <= 3, string.format("Blaster Zap: %.2f s (spec 2 to 3)", zapT))
 	-- total coefficient of one use (channels and fields add up their ticks)
 	local function total(a: any): number
@@ -1765,7 +1760,7 @@ test("M3: profile: defaults, migrations, repair of bad data, size under 60 KB", 
 		Inventory.add(Config, full, piece)
 	end
 	for _ = 2, 4 do
-		table.insert(full.characters, ProfileSchema.newCharacter("villain", "Bruiser"))
+		table.insert(full.characters, ProfileSchema.newCharacter("villain", "Powerhouse"))
 	end
 	for _, c in full.characters do
 		for _, id in Config.Abilities.order do
@@ -3489,11 +3484,11 @@ test("M8: stat compression: best gear is about 10% stronger; supers 60%; perks o
 	near(PvpRules.power(Config, 30, base * 5), base * 1.1, 0.01, "huge gear: +10% at most")
 	near(PvpRules.power(Config, 30, base * 0.5), base * 1.05, 0.01, "half the baseline in gear: +5%")
 	near(PvpRules.power(Config, 55, 0), PvpRules.power(Config, 40, 0), 0.01, "level capped at 40")
-	local hp0 = PvpRules.health(Config, 30, 0, "Bruiser")
-	near(PvpRules.health(Config, 30, 4000, "Bruiser"), hp0 * 1.1, 0.01, "health compresses too")
+	local hp0 = PvpRules.health(Config, 30, 0, "Powerhouse")
+	near(PvpRules.health(Config, 30, 4000, "Powerhouse"), hp0 * 1.1, 0.01, "health compresses too")
 	-- a geared target dies in as many hits as its compressed health takes
-	local maxHealth = Formulas.health(Config, 30, 400, "Blaster")
-	local pvpHealth = PvpRules.health(Config, 30, 400, "Blaster")
+	local maxHealth = Formulas.health(Config, 30, 400, "Elemental")
+	local pvpHealth = PvpRules.health(Config, 30, 400, "Elemental")
 	local d = PvpRules.damage(
 		Config,
 		100,
@@ -3611,7 +3606,7 @@ test(
 test("M8: Downed, revive and Fame: ranks at 0 to 13,000, sources and the Warden revive", function()
 	local PvpRules = require("../src/shared/PvpRules")
 	check(
-		PvpRules.reviveTime(Config, "Controller") == 1.5 and PvpRules.reviveTime(Config, "Bruiser") == 3,
+		PvpRules.reviveTime(Config, "Mystic") == 1.5 and PvpRules.reviveTime(Config, "Powerhouse") == 3,
 		"revive times"
 	)
 	check(PvpRules.fameRank(Config, 0) == 1 and PvpRules.fameRank(Config, 99) == 1, "rank 1")
@@ -3861,8 +3856,8 @@ test(
 			local valid = CreatorRules.validate(Config, profile, l)
 			check(valid and CreatorRules.nameOk(Config, t, n), "Randomize gives a valid look and name")
 		end
-		check(CreatorRules.pickOk(Config, "Speedster", "Blade", "villain"), "Blade can be a starting set")
-		check(not CreatorRules.pickOk(Config, "Speedster", "Titan", "hero"), "Titan still opens by level")
+		check(CreatorRules.pickOk(Config, "Rogue", "Blade", "villain"), "Blade can be a starting set")
+		check(not CreatorRules.pickOk(Config, "Rogue", "Titan", "hero"), "Titan still opens by level")
 		check(not CreatorRules.pickOk(Config, "Wizard", "Volt", "hero"), "classes from the list only")
 		check(CreatorRules.maxSlots(profile) == 2, "2 free slots")
 		profile.purchases.slots = bit32.lshift(1, 3)
@@ -3888,7 +3883,7 @@ test(
 		check(not got["Duster Coat"], "not level 20 yet")
 		check(#CreatorRules.earned(Config, profile) == 0, "granted pieces are not earned again")
 		-- a second character's progress counts for the account
-		local villain = ProfileSchema.newCharacter("villain", "Bruiser")
+		local villain = ProfileSchema.newCharacter("villain", "Powerhouse")
 		villain.rep[2] = 1000 -- Syndicate rank 4
 		villain.fame = 999999
 		villain.story.missions = 0x3F

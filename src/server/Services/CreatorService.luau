@@ -131,7 +131,8 @@ local function onCreate(
 	classIdx: number,
 	setIdx: number,
 	titleId: number,
-	nounId: number
+	nounId: number,
+	mobilityIdx: number?
 )
 	local profile, c = charOf(player)
 	local hero = HeroService.get(player)
@@ -158,9 +159,11 @@ local function onCreate(
 		return
 	end
 	local classId = Config.Classes.order[classIdx]
-	local setId = Config.Creator.startSets[setIdx]
+	local class = classId and Config.Classes[classId]
+	local setId = class and class.paths[setIdx]
+	local mobility = Config.Move.mobilityOrder[mobilityIdx or 1] or "flight"
 	local side = if sideIdx == 2 then "villain" else "hero"
-	if not CreatorRules.pickOk(Config, classId, setId, side) then
+	if not CreatorRules.pickOk(Config, classId, setId, side, mobility) then
 		result(player, false, "pick")
 		return
 	end
@@ -169,33 +172,33 @@ local function onCreate(
 	c.titleId, c.nounId = titleId, nounId
 	c.fxStyle = if look.anime then "Anime" else "Comic"
 	HeroService.setFxStyle(hero, c.fxStyle)
+	-- the mobility: picked in the creator, swapped free whenever the creator opens (safehouse or HQ)
+	if c.mobility ~= mobility then
+		c.mobility = mobility
+		HeroService.setMobility(hero, mobility)
+	end
+	local pathMoved = classId ~= hero.classId or setId ~= hero.startSet
 	if mode == "create" then
-		-- a new hero: the starting set opens from level 1 and its starter skills are learned
-		c.startSet = setId
-		hero.startSet = setId
+		-- a new hero: its archetype and main path, open from level 1 with the path's starters learned
 		c.created = 1
 		Analytics.event(player, "creator_done", Analytics.since(player), { classId, side, setId })
 		Analytics.step(player, "Opening", "creator_done")
 		OpeningService.suitUp(player, classId, side)
-		local active = hero.loadouts[hero.loadoutIndex]
-		if active and active.set ~= setId then
-			local ranks, loadout = AbilityRules.starter(Config, setId)
-			for id, r in ranks do
-				hero.ranks[id] = math.max(hero.ranks[id] or 0, r)
-			end
-			hero.loadouts = { loadout, table.clone(loadout) }
-			hero.loadouts[2].skills = table.clone(loadout.skills)
-			hero.loadoutIndex = 1
-			hero.loadout = hero.loadouts[1]
-			hero.setId = setId
-			HeroService.refresh(hero)
+		if pathMoved then
+			CreatorService.setPath(player, hero, c, classId, setId, false)
 		end
 	else
 		c.created = 1
-		-- the class changes only at HQ (spec: Respec and class change at HQ); first-time heroes may pick it
-		if classId ~= hero.classId and (mode == "first" or CreatorService.inHq(hero)) then
-			HeroService.setClass(hero, classId)
-			c.classId = classId
+		-- a hero made before the creator picks freely once; otherwise one free change before level 10
+		if pathMoved then
+			if mode == "first" then
+				CreatorService.setPath(player, hero, c, classId, setId, false)
+			elseif CreatorRules.pathChangeOk(Config, hero.level, c.pathChanged) then
+				CreatorService.setPath(player, hero, c, classId, setId, true)
+			else
+				result(player, false, "path")
+				return
+			end
 		end
 	end
 	GearService.refresh(player) -- the look on the body
@@ -206,6 +209,39 @@ local function onCreate(
 	result(player, true, nil)
 	Net.fire("Toast", player, { id = "heroSaved", name = CreatorRules.heroName(Config, titleId, nounId) })
 	CreatorService.Saved:Fire(player)
+end
+
+-- Move a hero to another archetype and path: back to the path's starter skills (credits spent on ranks come
+-- back, like a respec), both loadouts on the new path. `counts` uses up the one free change.
+function CreatorService.setPath(
+	player: Player,
+	hero: any,
+	c: any,
+	classId: string,
+	setId: string,
+	counts: boolean
+)
+	local refund = AbilityRules.creditsSpent(Config, hero.ranks)
+	if refund > 0 then
+		EconomyService.refund(hero, refund)
+	end
+	local ranks, loadout = AbilityRules.starter(Config, setId)
+	hero.ranks = ranks
+	hero.mods = {}
+	hero.loadouts = { loadout, table.clone(loadout) }
+	hero.loadouts[2].skills = table.clone(loadout.skills)
+	hero.loadoutIndex = 1
+	hero.loadout = hero.loadouts[1]
+	hero.setId = setId
+	hero.startSet = setId
+	HeroService.setClass(hero, classId)
+	c.classId = classId
+	c.startSet = setId
+	if counts then
+		c.pathChanged = 1
+	end
+	HeroService.refresh(hero)
+	Analytics.event(player, "path_change", hero.level, { classId, setId, if counts then "free" else "first" })
 end
 
 -- Open the creator on the client in a mode (the opening's Suit Up uses OpeningState; this is for the others)
@@ -219,6 +255,8 @@ function CreatorService.open(player: Player, mode: string)
 		side = c.side,
 		classIdx = table.find(Config.Classes.order, c.classId) or 1,
 		hq = mode == "edit" and CreatorService.inHq(HeroService.get(player)),
+		-- the archetype and path may change in this creator (a new or first-time hero, or the free change)
+		pathOpen = mode ~= "edit" or CreatorRules.pathChangeOk(Config, c.level, c.pathChanged),
 	})
 end
 

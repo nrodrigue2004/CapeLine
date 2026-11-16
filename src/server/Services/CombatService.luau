@@ -134,8 +134,14 @@ end
 
 -- Damage for one hit: Power x coeff x class x crit, then passives and Awakening
 -- eff: the ability (its power set gets the Epic 2-piece bonus). Crits come from Precision (gear),
--- Lucky Strike (every 8th hit) and the Blaster's Overcharge.
-local function rollDamage(hero: any, coeff: number, eff: any?, pvp: boolean?): (number, boolean)
+-- Lucky Strike (every 8th hit), the Elemental's Attunement and the Rogue's Opening.
+local function rollDamage(
+	hero: any,
+	coeff: number,
+	eff: any?,
+	pvp: boolean?,
+	targetId: number?
+): (number, boolean)
 	local crit = false
 	local precision = if pvp then hero.stats.Precision * Config.Pvp.minorScale else hero.stats.Precision
 	local chance = Formulas.critChance(Config, precision)
@@ -150,17 +156,21 @@ local function rollDamage(hero: any, coeff: number, eff: any?, pvp: boolean?): (
 	end
 	local dmg = Formulas.damage(Config, HeroService.power(hero), coeff, hero.classId, crit, 0)
 	local passive = Config.Classes[hero.classId].passive
-	if passive.id == "Overcharge" then
-		-- Blaster: every 5th hit deals +30%
+	if passive.id == "Attunement" then
+		-- Elemental: every 5th hit deals +30%
 		hero.hitCount += 1
 		if hero.hitCount % passive.everyNth == 0 then
 			dmg *= 1 + passive.bonus
 			crit = true -- drawn as a crit so the pop reads
 		end
-	elseif passive.id == "Momentum" then
-		-- Speedster: +1% per 10 studs/s of speed, up to +10%
-		local speed = MoveGuard.speed(hero)
-		dmg *= 1 + math.min(passive.max, math.floor(speed / 10) * passive.perTenSpeed)
+	elseif passive.id == "Opening" and not crit and not pvp and targetId then
+		-- Rogue: a robot that is not fighting this hero (or a hit from stealth) takes a critical hit
+		local e = EnemyService.get(targetId)
+		local hidden = Status.has(hero.status, "hidden", os.clock())
+		if e and (e.target ~= hero.id or hidden) then
+			dmg *= 1 + Config.Stats.precision.critBonus
+			crit = true
+		end
 	end
 	if eff and eff.set and hero.setDamage[eff.set] then
 		-- Epic set, 2 pieces (half in PvP)
@@ -366,7 +376,7 @@ local function applyHit(
 	end
 	local dmg, crit = 0, false
 	if coeff > 0 then
-		dmg, crit = rollDamage(hero, coeff, eff)
+		dmg, crit = rollDamage(hero, coeff, eff, false, cand.id)
 	end
 	local killed, e, dealt, flag = EnemyService.damage(cand.id, dmg, hero.id, from)
 	if not e then
@@ -728,8 +738,8 @@ local function resolve(
 ): boolean
 	local now = os.clock()
 	local rangeBonus = 0
-	if eff.slot == "basic" and eff.shape == "bolt" and hero.classId == "Blaster" then
-		rangeBonus = math.max(0, Config.Classes.Blaster.basicRange - eff.range)
+	if eff.slot == "basic" and eff.shape == "bolt" and hero.classId == "Elemental" then
+		rangeBonus = math.max(0, Config.Classes.Elemental.basicRange - eff.range)
 	end
 	local comboStep = 1
 	if eff.hits then

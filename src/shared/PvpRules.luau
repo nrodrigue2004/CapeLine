@@ -381,7 +381,7 @@ end
 
 function PvpRules.reviveTime(config: any, classId: string): number
 	local d = P(config).downed
-	return if classId == "Controller" then d.reviveWarden else d.reviveTime
+	return if classId == "Mystic" then d.reviveWarden else d.reviveTime
 end
 
 ---------------------------------------------------------------------------

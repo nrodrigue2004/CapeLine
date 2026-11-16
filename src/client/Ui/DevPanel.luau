@@ -12,6 +12,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
+local AbilityRules = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("AbilityRules"))
 local Net = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Net"))
 local ShopRules = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("ShopRules"))
 
@@ -58,8 +59,7 @@ function DevPanel.init()
 	grid.Parent = holder
 	holder.Parent = panel
 
-	local spawner, god, classIdx, anime =
-		false, false, table.find(Config.Classes.order, Config.Classes.default) or 1, false
+	local spawner, god, anime = false, false, false
 	local function add(text: string, fn: (TextButton) -> ())
 		local b: TextButton
 		b = Kit.button({ Text = text, maxText = 18 }, function()
@@ -90,10 +90,24 @@ function DevPanel.init()
 		b.Text = if god then "God ON" else "God OFF"
 		Net.send("DevCommand", "god", if god then 1 else 0)
 	end)
-	add("Class: " .. Config.Classes.order[classIdx], function(b)
-		classIdx = classIdx % #Config.Classes.order + 1
-		b.Text = "Class: " .. Config.Classes.order[classIdx]
-		Net.send("DevCommand", "class", classIdx)
+	-- every path in turn (its archetype comes with it), and every mobility
+	local paths = {}
+	for _, set in Config.Abilities.sets do
+		if AbilityRules.pathReady(Config, set) then
+			table.insert(paths, set)
+		end
+	end
+	local pathIdx = table.find(paths, State.hero.startSet or "Volt") or 1
+	add("Path: " .. (Config.Abilities.setName[paths[pathIdx]] or "?"), function(b)
+		pathIdx = pathIdx % #paths + 1
+		b.Text = "Path: " .. Config.Abilities.setName[paths[pathIdx]]
+		Net.send("DevCommand", "class", table.find(Config.Abilities.sets, paths[pathIdx]) or 1)
+	end)
+	local mobIdx = 1
+	add("Move: " .. Config.Move.mobility[Config.Move.mobilityOrder[1]].name, function(b)
+		mobIdx = mobIdx % #Config.Move.mobilityOrder + 1
+		b.Text = "Move: " .. Config.Move.mobility[Config.Move.mobilityOrder[mobIdx]].name
+		Net.send("DevCommand", "mobility", mobIdx)
 	end)
 	add("Level +5", function()
 		Net.send("DevCommand", "level", math.min(Config.Stats.levelCap, State.hero.level + 5))

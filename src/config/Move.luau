@@ -47,9 +47,6 @@ return {
 		glide = 60,
 		flight = 125,
 		cruise = 60, -- flight without boost
-		superSpeed = 100,
-		superLeap = 115, -- placeholder until M2 adds the style
-		grapple = 70,
 	},
 	tolerance = 1.15,
 	-- Touch flight (spec: Touch flight)
@@ -59,6 +56,70 @@ return {
 		markerFlySpeed = 75,
 		markerClearance = 30,
 	},
-	-- Which styles are unlocked at which level (spec: Levels). M1 slice unlocks Flight for everyone via Dev.
-	styleUnlockLevel = { flight = 3, superSpeed = 8, superLeap = 12, grapple = 16 },
+	-- Mobility (nate 2026-11-16): every hero picks one at creation, from level 1, swapped free in the creator
+	-- at any safehouse or HQ. Everyone keeps the run, the leap above and the glide; the pick adds its own way
+	-- of getting around. Each is tuned so crossing the 1,600-stud hub takes about 25 to 30 s. `cap` is the
+	-- server's speed cap (MoveMath.speedCap); `swim` the underwater speed. Level upgrades in `up`. (tune)
+	mobilityOrder = { "flight", "speed", "leap", "acrobat", "swing" },
+	mobility = {
+		flight = {
+			name = "Flight",
+			text = "Fly anywhere: cruise, boost, hover and dive",
+			swim = 50,
+			up = { boostLevel = 10, boost = 125 }, -- level 10: faster boost
+		},
+		speed = {
+			name = "Super-speed",
+			text = "Run at 100 studs/s, up walls and across water",
+			sprint = 100, -- top speed (hold Boost)
+			accel = 70, -- studs/s^2 to top speed
+			turnRate = 220, -- degrees per second at speed
+			wallRun = 60, -- studs/s up a wall while sprinting into it
+			wallDrain = 12, -- stamina per second on a wall
+			waterRun = 45, -- the speed needed to run across water
+			slide = 1.0, -- seconds of slide (Down while sprinting): shots pass over
+			cap = 100,
+			swim = 60,
+			up = { trailLevel = 12 }, -- level 12: the speed trail hurts robots
+		},
+		leap = {
+			name = "Leaping",
+			text = "Huge charged leaps, wall bounces and a ground pound",
+			apex = 90,
+			range = 200,
+			charge = 0.4,
+			cooldown = 0.8,
+			bounce = { up = 60, out = 45, max = 3, reach = 5 }, -- Leap near a wall in the air
+			pound = { speed = 160, radius = 12, coeff = 0.8, cooldown = 3, minFall = 25 }, -- Down in the air
+			swim = 36,
+			up = { poundLevel = 10, poundRadius = 18 },
+		},
+		acrobat = {
+			name = "Acrobat",
+			text = "Double jump, climb any wall, wall run and glide",
+			jump = 55, -- each air jump's upward speed
+			jumpForward = 35,
+			jumps = 1, -- extra jumps in the air (2 from level 10)
+			climb = 26, -- studs/s up a wall (hold forward into it)
+			wallRun = 45, -- studs/s along a wall
+			wallRunTime = 1.6,
+			glideForward = 70, -- a faster glide than everyone's
+			run = 24,
+			cap = 75,
+			swim = 45,
+			up = { jumpsLevel = 10 },
+		},
+		swing = {
+			name = "Swing",
+			text = "Swing on lines from the buildings and zip to rooftops",
+			range = 170, -- a line reaches this far
+			maxSpeed = 95,
+			pump = 22, -- studs/s^2 of push along the swing
+			zip = 120, -- a zip to a ledge (tap Fly on the ground)
+			cap = 120,
+			swim = 45,
+			up = { rangeLevel = 10, range = 220 },
+		},
+	},
+	swim = { base = 24, surface = 2 }, -- everyone swims; surface: studs below the waterline the hero floats at
 }

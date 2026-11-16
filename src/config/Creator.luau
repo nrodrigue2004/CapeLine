@@ -354,6 +354,4 @@ return {
 	},
 	-- Hero creator rules (spec: Done needs a title, a noun and a class; saves via Hero.Create)
 	createRate = 10, -- seconds between saves
-	-- The creator's starting power set: Volt or Blade (nate's anime pick); the rest open by level
-	startSets = { "Volt", "Blade" },
 }

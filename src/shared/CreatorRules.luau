@@ -296,13 +296,32 @@ function CreatorRules.randomize(Config: any, profile: any, rng: any): (Look, num
 	return look, t, w
 end
 
--- Hero.Create's other picks: the class and a starting set (Volt or Blade)
-function CreatorRules.pickOk(Config: any, classId: string?, setId: string?, side: string?): boolean
-	return classId ~= nil
-		and table.find(Config.Classes.order, classId) ~= nil
-		and setId ~= nil
-		and table.find(Config.Creator.startSets, setId) ~= nil
+-- Hero.Create's other picks: the archetype, one of its paths (with its abilities built) and a mobility
+function CreatorRules.pickOk(
+	Config: any,
+	classId: string?,
+	setId: string?,
+	side: string?,
+	mobility: string?
+): boolean
+	local class = classId and Config.Classes[classId]
+	if not class or not setId or not table.find(class.paths, setId) then
+		return false
+	end
+	local ready = false
+	for _, row in Config.Abilities.list do
+		if row.set == setId and row.slot == "super" then
+			ready = true
+		end
+	end
+	return ready
 		and (side == "hero" or side == "villain")
+		and (mobility == nil or Config.Move.mobility[mobility] ~= nil)
+end
+
+-- May this hero change its archetype or path now? Once, before Abilities.pathChangeBefore (nate 2026-11-16)
+function CreatorRules.pathChangeOk(Config: any, level: number, pathChanged: number): boolean
+	return pathChanged == 0 and level < Config.Abilities.pathChangeBefore
 end
 
 -- Which gear styles show over a look: styles (one per gear slot, Inventory.shownStyles), shown (the

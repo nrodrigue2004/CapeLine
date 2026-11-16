@@ -17,6 +17,7 @@ AnalyticsSchema.EVENTS = {
 	choice_made = { "choice", "option" },
 	choice_pick = { "choice", "option" },
 	creator_done = { "class", "side", "set" }, -- value: seconds in the creator
+	path_change = { "class", "set", "kind" }, -- value: level; kind: free (the one change) or first
 	incident_done = { "template", "medal", "participants" }, -- value: seconds
 	contract_done = { "type", "daily_bonus" }, -- value: seconds
 	skill_cast = { "ability", "slot" }, -- sampled (Config.Analytics.castSample); slot, as hits land later
