@@ -9,6 +9,14 @@
 -- * pack/unpack: 2 bits a building (0 Intact, 1 Damaged, 2 Collapsed); diffs batch the changes since the last
 --   send.
 
+-- * blast / punch (Red Faction-style, nate 2026-11-16): a hit knocks pieces out of the building's Structure
+--   grid and whatever loses its support falls. Damaged = any piece gone; Collapsed = the ground storey gave
+--   way. Structure HP follows the share of weight lost. The pieces gone are sent as diffs and in the
+--   snapshot (one bit a piece), so every device shows the same holes. hit() and force() are the older
+--   HP-only path, kept for callers without a position.
+
+local Structure = if script then require(script.Parent.Structure) else (require :: any)("./Structure")
+
 local BuildingState = {}
 
 BuildingState.INTACT = 0
@@ -29,6 +37,10 @@ export type Book = {
 	dirty: { [number]: boolean },
 	drones: { Drone },
 	busy: { [number]: boolean }, -- building ids a drone is on
+	boxes: { [number]: any }, -- id -> { x, z, sx, sz, base, top } (for the Structure grid)
+	grids: { [number]: Structure.Grid }, -- built on the first blast
+	gone: { [number]: { [number]: boolean } }, -- id -> piece indexes knocked out or fallen
+	removed: { number }, -- flat { id, piece, cause } since the last send (cause 1 knocked out, 2 fell)
 }
 
 -- buildings: { id, hp, district } (WorldMap.buildings)
@@ -45,6 +57,10 @@ function BuildingState.new(cfg: any, buildings: { any }): Book
 		dirty = {},
 		drones = {},
 		busy = {},
+		boxes = {},
+		grids = {},
+		gone = {},
+		removed = {},
 	}
 	local districts: { [string]: boolean } = {}
 	for _, b in buildings do
@@ -54,6 +70,7 @@ function BuildingState.new(cfg: any, buildings: { any }): Book
 		book.lastHit[b.id] = -math.huge
 		book.district[b.id] = b.district
 		book.warned[b.id] = false
+		book.boxes[b.id] = b
 		districts[b.district] = true
 	end
 	local names = {}
@@ -154,7 +171,121 @@ end
 function BuildingState.repair(book: Book, id: number)
 	book.hp[id] = book.maxHp[id]
 	book.warned[id] = false
+	book.gone[id] = nil
 	set(book, id, 0)
+end
+
+-- The building's Structure grid (built once)
+function BuildingState.grid(cfg: any, book: Book, id: number): Structure.Grid?
+	local g = book.grids[id]
+	if not g and book.boxes[id] and book.boxes[id].sx then
+		g = Structure.build(cfg, book.boxes[id])
+		book.grids[id] = g
+	end
+	return g
+end
+
+export type Blast = {
+	state: number,
+	changed: boolean,
+	cut: boolean, -- a full collapse was held back by the cap (the ground storey stays up for now)
+	warn: boolean,
+	hit: { number }, -- pieces knocked out
+	fell: { number }, -- pieces that lost their support
+	failed: number?, -- the lowest storey that gave way
+}
+
+-- A hit at (x, y, z): pieces knocked out, then whatever lost its support falls (see Structure)
+function BuildingState.blast(
+	cfg: any,
+	book: Book,
+	id: number,
+	x: number,
+	y: number,
+	z: number,
+	radius: number,
+	dmg: number,
+	now: number
+): Blast
+	local state = book.state[id]
+	local out: Blast =
+		{ state = state or 0, changed = false, cut = false, warn = false, hit = {}, fell = {}, failed = nil }
+	local grid = BuildingState.grid(cfg, book, id)
+	if state == nil or state == 2 or dmg <= 0 or not grid then
+		return out
+	end
+	book.lastHit[id] = now
+	local gone = book.gone[id] or {}
+	book.gone[id] = gone
+	out.hit = Structure.blast(cfg, grid, gone, x, y, z, radius, dmg)
+	if #out.hit == 0 then
+		return out
+	end
+	local capped = recentCollapses(cfg, book, now) >= cfg.maxCollapses
+	out.fell, out.failed = Structure.settle(cfg, grid, gone, capped)
+	out.cut = capped and not Structure.stands(cfg, grid, gone, 1)
+	local lost = Structure.lost(grid, gone)
+	book.hp[id] = math.max(1, math.floor(book.maxHp[id] * (1 - lost)))
+	if (lost >= cfg.structure.warnLost or out.failed) and not book.warned[id] then
+		book.warned[id] = true
+		out.warn = true
+	end
+	local newState = 1
+	if out.failed == 1 then
+		newState = 2
+		book.hp[id] = 0
+		table.insert(book.collapses, now)
+	else
+		for _, i in out.hit do
+			table.insert(book.removed, id)
+			table.insert(book.removed, i)
+			table.insert(book.removed, 1)
+		end
+		for _, i in out.fell do
+			table.insert(book.removed, id)
+			table.insert(book.removed, i)
+			table.insert(book.removed, 2)
+		end
+	end
+	out.changed = newState ~= state
+	out.state = newState
+	set(book, id, newState)
+	return out
+end
+
+-- A robot thrown through a wall at (x, y, z): the nearest wall panels break
+function BuildingState.punch(
+	cfg: any,
+	book: Book,
+	id: number,
+	x: number,
+	y: number,
+	z: number,
+	now: number
+): Blast
+	local S = cfg.structure
+	return BuildingState.blast(cfg, book, id, x, y, z, cfg.clash.wallRange, S.clashPanels * S.chunkCost, now)
+end
+
+-- The pieces gone from every Damaged building: { { id, bits }, ... } (the snapshot)
+function BuildingState.packGone(cfg: any, book: Book): { { any } }
+	local out = {}
+	for id, gone in book.gone do
+		if book.state[id] == 1 then
+			local grid = BuildingState.grid(cfg, book, id)
+			if grid then
+				table.insert(out, { id, Structure.pack(#grid.pieces, gone) })
+			end
+		end
+	end
+	return out
+end
+
+-- The pieces removed since the last call: { id, piece, cause, ... }
+function BuildingState.takeRemoved(book: Book): { number }
+	local list = book.removed
+	book.removed = {}
+	return list
 end
 
 -- Run the drones: finish jobs that are done, then give idle drones the quietest eligible building in their

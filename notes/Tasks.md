@@ -156,6 +156,16 @@ Hub buildings: 220 (all of Downtown, 6 Docks warehouses, 122 Old Town houses). D
 10. Streaming: fly away from wrecked buildings and come back: they still look wrecked, with no leftover floating chunks.
 11. Gate: 10 players (or you plus 9 bots and a friend) wreck one block for 10 minutes: the Dev panel's server frame stays under 16 ms and the "buildings", "citizens" and "wrecked" counters behave; a mid-range phone on the low preset holds 30+ fps during collapses. After the drones finish, everything is back.
 
+### Red Faction destruction (2026-11-16)
+DEV panel: the building hit button (or any super) on a hub building. Pieces are plain boxes in the building's colour (PLACEHOLDER ART).
+1. First hit on a building: it turns into pillars, wall panels and floors; a hole opens where you hit and 2 to 6 pieces fly out, tumble and fade in about 5 s. You can see the floors inside and fly in through the hole.
+2. Hit high on a tall building around one storey (all sides): that storey shakes and drops with everything above it in a dust cloud; the floors below stay standing. Robots walk on the new lower roof.
+3. Hit around the ground floor: the whole building comes down storey by storey and leaves the rubble heap.
+4. A heavy hit that throws a robot into a wall breaks 1 or 2 panels where it goes through.
+5. A second player joining after the damage sees the same holes; a phone (Low preset) shows fewer flying pieces but the same holes.
+6. Repair drones put the whole building back after 3 minutes of quiet.
+7. Performance: 10 players wrecking a block for 10 minutes: server frame steady, phones 30+ fps (Dev panel).
+
 ### M12 Test and launch prep
 The playtest week itself is in notes/Playtest Kit.md (42 checks). These prove the M12 code in Studio first. In Studio every analytics event prints as `[Analytics] name value fields` in the Output.
 1. Join: the Output shows `[Analytics] session_start 1 pc new hero` (or returning) within 20 s; a brand-new save also logs the Opening step (no print for steps; check the Dev panel's analytics count goes up).

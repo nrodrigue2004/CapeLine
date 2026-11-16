@@ -4518,6 +4518,186 @@ test("M12: save v6 keeps the onboarding step and first-seen day; repair clamps t
 end)
 
 ---------------------------------------------------------------------------
+-- Red Faction-style destruction (nate 2026-11-16): Structure pieces, supports and holes
+---------------------------------------------------------------------------
+
+local Structure = require("../src/shared/Structure")
+
+test("RF: every building is pillars, wall panels and slabs inside its box, at most 256 pieces", function()
+	for _, b in world.buildings do
+		local g = Structure.build(DS, b)
+		check(#g.pieces >= 13 and #g.pieces <= 256, "piece count for " .. b.id .. ": " .. #g.pieces)
+		local kinds = {}
+		for _, p in g.pieces do
+			kinds[p.kind] = (kinds[p.kind] or 0) + 1
+			check(
+				math.abs(p.cx - b.x) <= b.sx / 2 - p.sx / 2 + 1e-6
+					and math.abs(p.cz - b.z) <= b.sz / 2 - p.sz / 2 + 1e-6,
+				"inside the footprint"
+			)
+			check(p.cy - p.sy / 2 >= b.base - 1e-6 and p.cy + p.sy / 2 <= b.top + 1e-6, "inside the height")
+		end
+		check(kinds.pillar == 4 * g.storeys, "4 pillars a storey")
+		check((kinds.wall or 0) >= 4 * g.storeys and (kinds.slab or 0) >= g.storeys, "walls and slabs")
+		for st = 1, g.storeys do
+			check(Structure.stands(DS, g, {}, st), "an intact storey stands")
+		end
+		local again = Structure.build(DS, b)
+		check(
+			#again.pieces == #g.pieces and again.pieces[5].cx == g.pieces[5].cx,
+			"every device builds the same"
+		)
+	end
+end)
+
+test("RF: a hit knocks out the nearest pieces for its damage; holes are real (nothing else moves)", function()
+	local b = world.buildings[1]
+	local g = Structure.build(DS, b)
+	local gone = {}
+	local hit = Structure.blast(DS, g, gone, b.x, b.base + 4, b.z - b.sz / 2 - 1, 12, DS.superStruct)
+	check(#hit >= 2 and #hit <= DS.structure.maxPerHit, "a super knocks out a few pieces (" .. #hit .. ")")
+	for _, i in hit do
+		check(g.pieces[i].storey <= 2, "near where it landed")
+	end
+	local small = Structure.blast(DS, g, {}, b.x, b.base + 4, b.z - b.sz / 2 - 1, 12, 100)
+	check(#small == 1, "a small hit still knocks out one piece")
+	local none = Structure.blast(DS, g, {}, b.x + 500, b.base, b.z, 12, 99999)
+	check(#none == 0, "a hit far away does nothing")
+	local fell, failed = Structure.settle(DS, g, gone)
+	check(failed == nil, "one hole does not bring the building down")
+	check(#fell == 0 or #fell < #hit * 3, "a few loose bits at most")
+end)
+
+test(
+	"RF: knock out a storey's supports and it and everything above fall; the ground storey is a collapse",
+	function()
+		-- a tall building
+		local b
+		for _, x in world.buildings do
+			if not b or x.top - x.base > b.top - b.base then
+				b = x
+			end
+		end
+		local g = Structure.build(DS, b)
+		check(g.storeys >= 3, "a tall building has several storeys")
+		local mid = math.ceil(g.storeys / 2)
+		local gone = {}
+		for _, i in g.bearing[mid] do
+			gone[i] = true
+			if not Structure.stands(DS, g, gone, mid) then
+				break
+			end
+		end
+		local fell, failed = Structure.settle(DS, g, gone)
+		check(failed == mid, "storey " .. mid .. " gave way")
+		local below, above = 0, 0
+		for i, p in g.pieces do
+			if p.storey >= mid then
+				check(gone[i] == true, "everything from that storey up is gone")
+				above += 1
+			elseif not gone[i] then
+				below += 1
+			end
+		end
+		check(#fell > 0 and below > 0, "the floors below still stand")
+		check(Structure.standingTop(g, gone) <= b.base + (mid - 1) * g.storeyH + 1e-6, "the height drops")
+		local gone2 = {}
+		for _, i in g.bearing[1] do
+			gone2[i] = true
+		end
+		local _, f2 = Structure.settle(DS, g, gone2)
+		check(f2 == 1, "the ground storey failing is a full collapse")
+		local gone3 = {}
+		for _, i in g.bearing[1] do
+			gone3[i] = true
+		end
+		local _, f3 = Structure.settle(DS, g, gone3, true)
+		check(f3 ~= 1, "the collapse cap holds the ground storey up")
+		-- a panel left hanging with nothing under or beside it drops
+		local gone4 = {}
+		local key = function(...)
+			return table.concat({ ... }, ":")
+		end
+		local w = g.at[key("w", 1, 1, 2)]
+		for _, k in { key("w", 1, 1, 1), key("p", 1, 2), key("w", 1, 2, 2) } do
+			if g.at[k] then
+				gone4[g.at[k]] = true
+			end
+		end
+		if g.panels[1] == 1 then
+			gone4[g.at[key("p", 2, 2)]] = true
+		end
+		local fell4 = Structure.settle(DS, g, gone4)
+		check(table.find(fell4, w) ~= nil, "a hanging panel falls")
+		local bits = Structure.pack(#g.pieces, gone)
+		local back = Structure.unpack(bits, #g.pieces)
+		local same = true
+		for i = 1, #g.pieces do
+			if (back[i] == true) ~= (gone[i] == true) then
+				same = false
+			end
+		end
+		check(same and buffer.len(bits) <= 32, "one bit a piece, 32 bytes at most")
+	end
+)
+
+test(
+	"RF: BuildingState: blasts set Damaged, list the pieces for devices, collapse at the ground; repair heals",
+	function()
+		local list = {}
+		for i = 1, 4 do
+			local b = table.clone(world.buildings[i])
+			b.district = "A"
+			table.insert(list, b)
+		end
+		local book = BuildingState.new(DS, list)
+		local b = list[1]
+		local r =
+			BuildingState.blast(DS, book, b.id, b.x, b.base + 4, b.z - b.sz / 2 - 1, 12, DS.superStruct, 0)
+		check(r.state == BuildingState.DAMAGED and r.changed and #r.hit > 0, "the first hit makes it Damaged")
+		check(book.hp[b.id] < book.maxHp[b.id], "structure HP follows the weight lost")
+		local removed = BuildingState.takeRemoved(book)
+		check(#removed == (#r.hit + #r.fell) * 3, "every removed piece is listed for the devices")
+		check(#BuildingState.takeRemoved(book) == 0, "listed once")
+		local snap = BuildingState.packGone(DS, book)
+		check(
+			#snap == 1 and snap[1][1] == b.id and type(snap[1][2]) == "buffer",
+			"the snapshot carries its holes"
+		)
+		-- blast around the ground floor until it gives
+		local k = 0
+		repeat
+			k += 1
+			local a = k * 2.4
+			r = BuildingState.blast(
+				DS,
+				book,
+				b.id,
+				b.x + math.cos(a) * (b.sx / 2 + 1),
+				b.base + 4,
+				b.z + math.sin(a) * (b.sz / 2 + 1),
+				14,
+				DS.superStruct,
+				k
+			)
+		until r.state == BuildingState.COLLAPSED or k > 40
+		check(
+			r.state == BuildingState.COLLAPSED and k <= 12,
+			"supers around the base bring it down (" .. k .. ")"
+		)
+		check(#BuildingState.packGone(DS, book) == 0, "a collapsed building needs no holes in the snapshot")
+		BuildingState.repair(book, b.id)
+		check(book.state[b.id] == 0 and book.gone[b.id] == nil, "repair puts every piece back")
+		local p = list[2]
+		local pr = BuildingState.punch(DS, book, p.id, p.x, p.base + 3, p.z - p.sz / 2, 100)
+		check(
+			pr.state == BuildingState.DAMAGED and #pr.hit >= 1 and #pr.hit <= DS.structure.clashPanels,
+			"a robot thrown through breaks a panel or two"
+		)
+	end
+)
+
+---------------------------------------------------------------------------
 -- Place layout (only when a built place is passed)
 ---------------------------------------------------------------------------
 

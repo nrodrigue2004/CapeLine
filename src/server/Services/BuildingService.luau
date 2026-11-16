@@ -11,6 +11,12 @@
 --   players for craters and facade cracks (outskirts: cracks only, never collapses).
 -- * Repair drones: 3 per district, each fixing the building that has been quiet longest (Damaged 180 s,
 --   Collapsed 240 s), 20 s each.
+-- * Red Faction-style (nate 2026-11-16): a hit knocks pieces out of the building where it lands (Shared.
+--   Structure: pillars, wall panels, floor slabs) and whatever loses its support falls; knock out a storey's
+--   supports and it and everything above come down, the ground storey and the whole building goes. Each
+--   piece is one bit: the server sends the pieces removed (2 Hz) and every Damaged building's bits in the
+--   snapshot, and devices draw the holes and the falling pieces. A Damaged building stops blocking the
+--   server's line of sight (shots go through its holes); a storey that fell lowers its height for robots.
 -- * Remotes: BuildingSnapshot (the packed 2-bit states, on request at join), BuildingDiff (2 Hz batches of
 --   changes and drone jobs), BuildingImpact.
 
@@ -21,6 +27,7 @@ local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Net = require(Shared:WaitForChild("Net"))
 local BuildingState = require(Shared:WaitForChild("BuildingState"))
+local Structure = require(Shared:WaitForChild("Structure"))
 local Signal = require(Shared:WaitForChild("Util"):WaitForChild("Signal"))
 
 local CityBuilder = require(script.Parent.CityBuilder)
@@ -40,7 +47,8 @@ local droneJobs: { { number } } = {} -- drone id, building id, seconds left: sen
 local clashes: { [number]: { number } } = {} -- hero id -> clash times
 local impactTimes: { number } = {}
 
-local function setWrecked(id: number, wrecked: boolean)
+-- wrecked: no collision or queries (Collapsed); open: queries off only (Damaged: shots pass its holes)
+local function setWrecked(id: number, wrecked: boolean, open: boolean?)
 	local model = CityBuilder.buildingModels[id]
 	if not model then
 		return
@@ -56,9 +64,12 @@ local function setWrecked(id: number, wrecked: boolean)
 	end
 	for _, f in flags[id] do
 		f.part.CanCollide = if wrecked then false else f.collide
-		f.part.CanQuery = if wrecked then false else f.query
+		f.part.CanQuery = if wrecked or open then false else f.query
 	end
 	CityBuilder.collapsed[id] = if wrecked then records[id] else nil
+	if not wrecked and not open then
+		CityBuilder.tops[id] = nil
+	end
 end
 
 -- Does a blast at center with radius touch building b?
@@ -90,6 +101,32 @@ local function impact(center: Vector3, radius: number, kind: number)
 	end
 end
 
+-- What a blast did to building id: citizens run, a fallen storey lowers its height, a collapse wrecks it
+local function settle(id: number, r: BuildingState.Blast)
+	local b = records[id]
+	local flee = math.max(b.sx, b.sz) / 2 + D.citizens.fleeRadius
+	if r.warn then
+		BuildingService.Danger:Fire(b.x, b.z, flee, 10)
+	end
+	if r.state == BuildingState.COLLAPSED and r.changed then
+		setWrecked(id, true)
+		BuildingService.Danger:Fire(b.x, b.z, flee, D.collapseTime + 4)
+		BuildingService.Collapsed:Fire(b)
+	elseif r.state == BuildingState.DAMAGED then
+		if r.changed then
+			setWrecked(id, false, true)
+		end
+		if r.failed then
+			local grid = BuildingState.grid(D, BuildingService.book, id)
+			local gone = BuildingService.book.gone[id]
+			if grid and gone then
+				CityBuilder.tops[id] = { box = b, top = Structure.standingTop(grid, gone) }
+			end
+			BuildingService.Danger:Fire(b.x, b.z, flee, D.collapseTime)
+		end
+	end
+end
+
 -- A structural hit. kind: 1 a slam or landing (crater), 2 a blast (cracks only). Returns buildings hit.
 function BuildingService.hit(center: Vector3, radius: number, dmg: number, kind: number?): number
 	local book = BuildingService.book
@@ -102,20 +139,7 @@ function BuildingService.hit(center: Vector3, radius: number, dmg: number, kind:
 	for id, b in records do
 		if touches(b, center, radius) then
 			n += 1
-			local state, changed, _, warn = BuildingState.hit(D, book, id, dmg, now)
-			if warn then
-				BuildingService.Danger:Fire(b.x, b.z, math.max(b.sx, b.sz) / 2 + D.citizens.fleeRadius, 10)
-			end
-			if changed and state == BuildingState.COLLAPSED then
-				setWrecked(id, true)
-				BuildingService.Danger:Fire(
-					b.x,
-					b.z,
-					math.max(b.sx, b.sz) / 2 + D.citizens.fleeRadius,
-					D.collapseTime + 4
-				)
-				BuildingService.Collapsed:Fire(b)
-			end
+			settle(id, BuildingState.blast(D, book, id, center.X, center.Y, center.Z, radius, dmg, now))
 		end
 	end
 	impact(center, radius, kind or 2)
@@ -164,8 +188,11 @@ function BuildingService.clash(hero: any, at: Vector3, from: Vector3): Vector3?
 		return nil
 	end
 	table.insert(list, now)
-	BuildingState.force(D, book, best, now)
+	-- the panels where the robot goes through break (the wall face nearest the robot, at its height)
 	local b = records[best]
+	local px = math.clamp(at.X, b.x - b.sx / 2, b.x + b.sx / 2)
+	local pz = math.clamp(at.Z, b.z - b.sz / 2, b.z + b.sz / 2)
+	settle(best, BuildingState.punch(D, book, best, px, math.max(at.Y, b.base + 2), pz, now))
 	return Vector3.new(b.x - at.X, 0, b.z - at.Z).Unit
 end
 
@@ -187,10 +214,11 @@ end
 local function flush()
 	local book = BuildingService.book
 	local diffs = BuildingState.takeDiffs(book)
-	if #diffs == 0 and #droneJobs == 0 then
+	local removed = BuildingState.takeRemoved(book)
+	if #diffs == 0 and #droneJobs == 0 and #removed == 0 then
 		return
 	end
-	Net.fireAll("BuildingDiff", { d = diffs, dr = droneJobs })
+	Net.fireAll("BuildingDiff", { d = diffs, dr = droneJobs, c = removed })
 	droneJobs = {}
 end
 
@@ -209,7 +237,11 @@ function BuildingService.init()
 				table.insert(jobs, { d.id, d.target, math.max(0, d.doneAt - now) })
 			end
 		end
-		Net.fire("BuildingSnapshot", player, { s = BuildingState.pack(book), n = book.n, dr = jobs })
+		Net.fire(
+			"BuildingSnapshot",
+			player,
+			{ s = BuildingState.pack(book), n = book.n, dr = jobs, g = BuildingState.packGone(D, book) }
+		)
 	end)
 	PerfMonitor.watch("wrecked", function()
 		local n = 0

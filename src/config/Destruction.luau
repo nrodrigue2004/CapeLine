@@ -24,6 +24,26 @@ return {
 	-- the Chunker: each building splits into 10 to 40 chunks (rows of floors, 1 or 2 across each way)
 	chunks = { min = 10, max = 40, floor = 12, fallMin = 4, fallMax = 8, wideAt = 30 },
 	rubble = { min = 6, max = 10, height = 12 },
+	-- Red Faction-style structure (nate 2026-11-16, Shared.Structure): storeys of corner pillars, wall panels
+	-- and floor slabs. Hits knock pieces out; a storey whose pillars and walls carry under `support` of
+	-- their weight gives way and everything above comes down; a ground-floor failure is a full collapse.
+	structure = {
+		storey = 12, -- studs a storey (towers get fewer, taller storeys past maxStoreys)
+		maxStoreys = 10,
+		panel = 12, -- wall panel width; 1 to maxPanels a face
+		maxPanels = 4,
+		wall = 2, -- wall thickness
+		pillar = 3, -- corner pillar width
+		slab = 1.2, -- floor slab thickness
+		slabSplitAt = 36, -- slabs split 2 x 2 on buildings this wide both ways
+		support = 0.35, -- a storey stands while its pillars and walls keep 35% of their weight
+		chunkCost = 600, -- structure damage per piece knocked out (a super's 3,000 takes about 5)
+		pillarCost = 2, -- pillars weigh and cost double
+		maxPerHit = 10, -- pieces one hit can knock out
+		clashPanels = 2, -- a robot thrown through a wall breaks this many panels
+		warnLost = 0.3, -- citizens nearby run once 30% of the weight is gone or a storey falls
+		debrisLife = 5, -- seconds a loose piece tumbles on the device before it fades
+	},
 	-- clash moments
 	clash = { wallRange = 20, perPlayer = 3, window = 10, knock = 26 },
 	crater = { radius = 6, life = 30 },

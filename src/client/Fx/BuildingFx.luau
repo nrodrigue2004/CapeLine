@@ -3,10 +3,14 @@
 -- * Building states come from BuildingSnapshot (asked for once the listeners are up) and 2 Hz BuildingDiff
 --   batches. Each wreckable building is a model named Building_<id> under Workspace.City; it can stream in
 --   and out, so its look is applied whenever it arrives.
--- * Damaged: the real body hides (LocalTransparencyModifier) and the Chunker's chunks stand in its place
---   with 4 to 8 upper chunks missing. Live, those chunks fall and tumble away.
--- * Collapsed: a 6 s collapse (a shake, then the chunks drop floor by floor into a dust cloud) leaves the
---   rubble heap. Joining late shows the heap at once.
+-- * Damaged (Red Faction-style, nate 2026-11-16): the real body hides and stops colliding on this device,
+--   and the building's Structure pieces (corner pillars, wall panels, floor slabs: Shared.Structure) stand in
+--   its place with every knocked-out piece missing, so the holes are real: you can see and fly inside.
+--   Pieces knocked out live fly off as loose physics debris (the device's debris budget, then they fade);
+--   pieces that lose their support (a storey giving way and everything above it) drop in a shaking
+--   pancake fall into dust. The server sends which pieces went (BuildingDiff c, snapshot g).
+-- * Collapsed: a 6 s collapse (a shake, then what is left of the building drops storey by storey into a
+--   dust cloud) leaves the rubble heap. Joining late shows the heap at once.
 -- * Repair drones fly to their building and hover over it while they work; the building pops back whole.
 -- * BuildingImpact: a crater where a slam or landing hits the ground, facade cracks where a blast hits a wall
 --   (outskirts houses and the Foundry crack too but never fall). Craters and cracks share the device
@@ -26,6 +30,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Net = require(Shared:WaitForChild("Net"))
 local Chunker = require(Shared:WaitForChild("Chunker"))
 local BuildingState = require(Shared:WaitForChild("BuildingState"))
+local Structure = require(Shared:WaitForChild("Structure"))
 
 local QualityController = require(script.Parent.Parent.Controllers.QualityController)
 local CameraController = require(script.Parent.Parent.Controllers.CameraController)
@@ -41,13 +46,14 @@ local DRONE_COLOR = Color3.fromRGB(255, 196, 64)
 local DRONE_LIGHT = Color3.fromRGB(120, 230, 255)
 
 type Rec = { id: number, x: number, z: number, sx: number, sz: number, base: number, top: number }
-type Drawn = { state: number, model: Model }
+type Drawn = { state: number, model: Model, parts: { [number]: BasePart }? }
 type Fall = {
 	id: number,
 	t0: number,
 	parts: { { part: BasePart, from: CFrame, delay: number, drop: number, tilt: Vector3 } },
 	dust: BasePart?,
 	done: boolean,
+	own: Model?, -- a storey giving way: the falling pieces live here and go when the fall ends
 }
 
 local records: { [number]: Rec } = {}
@@ -58,6 +64,9 @@ local falls: { Fall } = {}
 local marks: { BasePart | Model } = {}
 local drones: { [number]: { model: Model, conn: RBXScriptConnection? } } = {}
 local liveDust = 0
+local grids: { [number]: Structure.Grid } = {}
+local gone: { [number]: { [number]: boolean } } = {} -- building id -> pieces knocked out or fallen
+local bodyFlags: { [BasePart]: { collide: boolean, query: boolean } } = {}
 local folder: Folder
 local synced = false
 
@@ -96,6 +105,7 @@ local function bodyLook(model: Model?): (Color3, Enum.Material)
 	return Color3.fromRGB(170, 160, 150), Enum.Material.Concrete
 end
 
+-- Hide the real body on this device; hidden, it also stops colliding here so the holes are real
 local function setHidden(model: Model?, hidden: boolean)
 	if not model then
 		return
@@ -103,8 +113,28 @@ local function setHidden(model: Model?, hidden: boolean)
 	for _, p in model:GetDescendants() do
 		if p:IsA("BasePart") then
 			p.LocalTransparencyModifier = if hidden then 1 else 0
+			if hidden then
+				if not bodyFlags[p] then
+					bodyFlags[p] = { collide = p.CanCollide, query = p.CanQuery }
+				end
+				p.CanCollide = false
+				p.CanQuery = false
+			elseif bodyFlags[p] then
+				p.CanCollide = bodyFlags[p].collide
+				p.CanQuery = bodyFlags[p].query
+				bodyFlags[p] = nil
+			end
 		end
 	end
+end
+
+local function gridOf(rec: Rec): Structure.Grid
+	local g = grids[rec.id]
+	if not g then
+		g = Structure.build(D, rec)
+		grids[rec.id] = g
+	end
+	return g
 end
 
 local function clearDrawn(id: number)
@@ -114,7 +144,7 @@ local function clearDrawn(id: number)
 		drawn[id] = nil
 	end
 	for _, f in falls do
-		if f.id == id then
+		if f.id == id and not f.own then
 			f.done = true
 		end
 	end
@@ -126,27 +156,28 @@ local function shade(color: Color3, i: number): Color3
 	return color:Lerp(Color3.new(0, 0, 0), 0.04 + k * 0.1)
 end
 
-local function drawChunks(rec: Rec, skip: { [number]: boolean }): (Model, { Chunker.Chunk }, { BasePart })
+-- The building as Structure pieces, without the ones in skip. Returns the model and its parts by piece.
+local function drawStructure(rec: Rec, skip: { [number]: boolean }): (Model, { [number]: BasePart })
 	local color, material = bodyLook(models[rec.id])
 	local m = Instance.new("Model")
 	m.Name = "Wreck_" .. rec.id
-	local chunks = Chunker.split(D, rec)
-	local parts: { BasePart } = {}
-	for i, c in chunks do
+	local parts: { [number]: BasePart } = {}
+	for i, c in gridOf(rec).pieces do
 		if not skip[i] then
 			local p = newPart(
-				Vector3.new(c.sx - 0.1, c.sy - 0.1, c.sz - 0.1),
+				Vector3.new(c.sx - 0.05, c.sy - 0.05, c.sz - 0.05),
 				CFrame.new(c.cx, c.cy, c.cz),
-				shade(color, i),
+				if c.kind == "pillar" then color:Lerp(Color3.new(0, 0, 0), 0.18) else shade(color, i),
 				material
 			)
 			p.CanCollide = true
-			p.CastShadow = true
+			p.CanQuery = true
+			p.CastShadow = c.kind ~= "slab"
 			p.Parent = m
 			parts[i] = p
 		end
 	end
-	return m, chunks, parts
+	return m, parts
 end
 
 local function drawRubble(rec: Rec): Model
@@ -166,39 +197,28 @@ local function drawRubble(rec: Rec): Model
 	return m
 end
 
--- Loose chunks tumbling off a building (live Damaged), within the debris budget
-local function shed(rec: Rec, chunks: { Chunker.Chunk }, which: { [number]: boolean })
-	local color, material = bodyLook(models[rec.id])
-	local list = {}
-	for i in which do
-		table.insert(list, i)
+-- A piece knocked out: it flies off as loose physics debris (within the debris budget, else it just goes)
+local function knockOut(rec: Rec, part: BasePart, from: Vector3?)
+	if DebrisBudget.lease(1, D.structure.debrisLife) == 0 then
+		part:Destroy()
+		return
 	end
-	local n = DebrisBudget.lease(#list, 4)
-	for k = 1, n do
-		local c = chunks[list[k]]
-		local p = newPart(
-			Vector3.new(c.sx, c.sy, c.sz) * 0.9,
-			CFrame.new(c.cx, c.cy, c.cz),
-			shade(color, k),
-			material
-		)
-		p.Anchored = false
-		p.CanCollide = true
-		local out = Vector3.new(c.cx - rec.x, 0, c.cz - rec.z)
-		out = if out.Magnitude > 0.1 then out.Unit else Vector3.new(1, 0, 0)
-		p.AssemblyLinearVelocity = out * (10 + math.random() * 10) + Vector3.new(0, 6, 0)
-		p.AssemblyAngularVelocity = Vector3.new(math.random() - 0.5, math.random() - 0.5, math.random() - 0.5)
-			* 4
-		p.Parent = folder
-		task.delay(3, function()
-			if p.Parent then
-				TweenService:Create(p, TweenInfo.new(1), { Transparency = 1 }):Play()
-			end
-		end)
-		task.delay(4, function()
-			p:Destroy()
-		end)
-	end
+	part.Anchored = false
+	part.CanQuery = false
+	local out = part.Position - (from or Vector3.new(rec.x, part.Position.Y, rec.z))
+	out = if out.Magnitude > 0.1 then out.Unit else Vector3.new(1, 0, 0)
+	part.AssemblyLinearVelocity = out * (18 + math.random() * 16) + Vector3.new(0, 10 + math.random() * 8, 0)
+	part.AssemblyAngularVelocity = Vector3.new(math.random() - 0.5, math.random() - 0.5, math.random() - 0.5)
+		* 6
+	part.Parent = folder
+	task.delay(D.structure.debrisLife - 1, function()
+		if part.Parent then
+			TweenService:Create(part, TweenInfo.new(1), { Transparency = 1 }):Play()
+		end
+	end)
+	task.delay(D.structure.debrisLife, function()
+		part:Destroy()
+	end)
 end
 
 local function dustCloud(rec: Rec, seconds: number): BasePart?
@@ -247,8 +267,37 @@ local function nearMe(x: number, z: number, r: number): boolean
 	return root ~= nil and (Vector3.new(x, root.Position.Y, z) - root.Position).Magnitude < r
 end
 
--- Draw a building's look for its state. live: the change just happened (animate it)
-local function apply(id: number, live: boolean)
+-- A pancake fall: the pieces shake, then drop storey by storey (lowest first) into dust. own: the model
+-- holding pieces that broke off a standing building (a storey that gave way); nil for a full collapse.
+local function pancake(rec: Rec, list: { { part: BasePart, piece: Structure.Piece } }, own: Model?)
+	local grid = gridOf(rec)
+	local fall: Fall = { id = rec.id, t0 = os.clock(), parts = {}, dust = nil, done = false, own = own }
+	local fallTime = D.collapseTime - 1.2
+	local lowest = math.huge
+	for _, e in list do
+		lowest = math.min(lowest, e.piece.storey)
+	end
+	local floor = rec.base
+	for _, e in list do
+		e.part.CanCollide = false
+		e.part.CanQuery = false
+		local c = e.piece
+		table.insert(fall.parts, {
+			part = e.part,
+			from = e.part.CFrame,
+			delay = (if own then 0.3 else 0.8)
+				+ (c.storey - lowest) / math.max(grid.storeys, 1) * fallTime * 0.35,
+			drop = c.cy - floor + c.sy * 0.5,
+			tilt = Vector3.new(math.random() - 0.5, 0, math.random() - 0.5) * 0.9,
+		})
+	end
+	fall.dust = dustCloud(rec, if own then 2.5 else D.collapseTime)
+	table.insert(falls, fall)
+end
+
+-- Draw a building's look for its state. live: the change just happened (animate it). fresh: pieces that
+-- just went (piece -> 1 knocked out, 2 fell), drawn first so they can fly or drop away.
+local function apply(id: number, live: boolean, fresh: { [number]: number }?)
 	local rec = records[id]
 	local model = models[id]
 	if not rec then
@@ -256,16 +305,17 @@ local function apply(id: number, live: boolean)
 	end
 	local s = state[id] or 0
 	local d = drawn[id]
-	if d and d.state == s then
-		setHidden(model, s ~= BuildingState.INTACT)
-		return
-	end
 	if not model then
 		clearDrawn(id) -- streamed out: drawn again when it comes back
 		return
 	end
-	clearDrawn(id)
+	if d and d.state == s and s ~= BuildingState.DAMAGED then
+		setHidden(model, s ~= BuildingState.INTACT)
+		return
+	end
 	if s == BuildingState.INTACT then
+		clearDrawn(id)
+		gone[id] = nil
 		setHidden(model, false)
 		if live then
 			local pop = newPart(
@@ -286,50 +336,83 @@ local function apply(id: number, live: boolean)
 		return
 	end
 	setHidden(model, true)
+	local g = gone[id] or {}
+	gone[id] = g
 	if s == BuildingState.DAMAGED then
-		local chunks = Chunker.split(D, rec)
-		local gone = Chunker.fallen(D, chunks, id)
-		local m = drawChunks(rec, gone)
-		m.Parent = folder
-		drawn[id] = { state = s, model = m }
-		if live then
-			shed(rec, chunks, gone)
-			dustCloud(rec, 1.5)
-			if nearMe(rec.x, rec.z, 150) then
-				CameraController.shake(0.25, 0.4)
+		-- draw (or keep) the standing pieces, with the fresh ones still in place so they can go live
+		if not (d and d.state == s and d.parts) then
+			clearDrawn(id)
+			local skip = table.clone(g)
+			for i in fresh or {} do
+				skip[i] = nil
 			end
+			local m, parts = drawStructure(rec, skip)
+			m.Parent = folder
+			d = { state = s, model = m, parts = parts }
+			drawn[id] = d
+		end
+		local parts = (d :: Drawn).parts :: { [number]: BasePart }
+		local grid = gridOf(rec)
+		local dropping: { { part: BasePart, piece: Structure.Piece } } = {}
+		local own: Model? = nil
+		local knocked = 0
+		for i, cause in fresh or {} do
+			local part = parts[i]
+			parts[i] = nil
+			if part then
+				if not live then
+					part:Destroy()
+				elseif cause == 1 then
+					knockOut(rec, part)
+					knocked += 1
+				else
+					if not own then
+						own = Instance.new("Model")
+						own.Name = "Falling_" .. id;
+						(own :: Model).Parent = folder
+					end
+					part.Parent = own
+					table.insert(dropping, { part = part, piece = grid.pieces[i] })
+				end
+			end
+		end
+		if live and #dropping > 0 then
+			pancake(rec, dropping, own)
+			Juice.fire("collapse", Vector3.new(rec.x, rec.base, rec.z), { mine = nearMe(rec.x, rec.z, 80) })
+			if nearMe(rec.x, rec.z, 250) then
+				CameraController.shake(1.6, 0.5)
+			end
+		elseif live and knocked > 0 and nearMe(rec.x, rec.z, 120) then
+			CameraController.shake(0.15, 0.25)
 		end
 		return
 	end
 	-- Collapsed
 	if not live then
+		clearDrawn(id)
 		local m = drawRubble(rec)
 		m.Parent = folder
 		drawn[id] = { state = s, model = m }
 		return
 	end
-	local m, chunks, parts = drawChunks(rec, {})
-	m.Parent = folder
-	drawn[id] = { state = s, model = m }
-	local rows = 0
-	for _, c in chunks do
-		rows = math.max(rows, c.row)
+	-- what is left of the building comes down (a full set of pieces if it was never drawn broken)
+	local m, parts
+	if d and d.parts then
+		m, parts = d.model, d.parts
+		d.state = s
+	else
+		clearDrawn(id)
+		m, parts = drawStructure(rec, g)
+		m.Parent = folder
+		drawn[id] = { state = s, model = m, parts = parts }
 	end
-	local fall: Fall = { id = id, t0 = os.clock(), parts = {}, dust = nil, done = false }
-	local fallTime = D.collapseTime - 1.2
+	local grid = gridOf(rec)
+	local list = {}
 	for i, p in parts do
-		local c = chunks[i]
-		table.insert(fall.parts, {
-			part = p,
-			from = p.CFrame,
-			-- the ground floor gives first, the floors above pancake onto it
-			delay = 0.8 + (c.row - 1) / math.max(rows, 1) * fallTime * 0.35,
-			drop = c.cy - rec.base + c.sy * 0.5,
-			tilt = Vector3.new(math.random() - 0.5, 0, math.random() - 0.5) * 0.9,
-		})
+		table.insert(list, { part = p, piece = grid.pieces[i] })
 	end
-	fall.dust = dustCloud(rec, D.collapseTime)
-	table.insert(falls, fall)
+	pancake(rec, list, nil)
+	gone[id] = nil
 	Juice.fire("collapse", Vector3.new(rec.x, rec.base, rec.z), { mine = nearMe(rec.x, rec.z, 80) })
 	if nearMe(rec.x, rec.z, 250) then
 		CameraController.shake(D.collapseTime * 0.5, 0.6)
@@ -342,6 +425,7 @@ local function stepFalls()
 	for i = #falls, 1, -1 do
 		local f = falls[i]
 		local t = now - f.t0
+		local length = if f.own then 3 else D.collapseTime
 		if not f.done then
 			for _, c in f.parts do
 				if t < c.delay then
@@ -357,9 +441,11 @@ local function stepFalls()
 				end
 			end
 		end
-		if f.done or t >= D.collapseTime then
+		if f.done or t >= length then
 			table.remove(falls, i)
-			if not f.done then
+			if f.own then
+				f.own:Destroy()
+			elseif not f.done then
 				local d = drawn[f.id]
 				if d and d.state == BuildingState.COLLAPSED then
 					d.model:Destroy()
@@ -653,6 +739,17 @@ function BuildingFx.init()
 		for id, s in list do
 			state[id] = s
 		end
+		-- the pieces gone from each Damaged building
+		for _, row in data.g or {} do
+			local id, bits = row[1], row[2]
+			local rec = records[id]
+			if rec and type(bits) == "buffer" then
+				gone[id] = Structure.unpack(bits, #gridOf(rec).pieces)
+			end
+		end
+		for id in models do
+			clearDrawn(id) -- drawn again below from the snapshot
+		end
 		synced = true
 		for id in models do
 			apply(id, false)
@@ -665,14 +762,34 @@ function BuildingFx.init()
 		if type(data) ~= "table" then
 			return
 		end
+		-- pieces first (so a building turning Damaged is drawn with its holes), then states
+		local fresh: { [number]: { [number]: number } } = {}
+		local c = data.c or {}
+		for i = 1, #c - 2, 3 do
+			local id, piece, cause = c[i], c[i + 1], c[i + 2]
+			if records[id] and type(piece) == "number" then
+				local g = gone[id] or {}
+				gone[id] = g
+				g[piece] = true
+				fresh[id] = fresh[id] or {}
+				fresh[id][piece] = cause
+			end
+		end
+		local touched: { [number]: boolean } = {}
 		local d = data.d or {}
 		for i = 1, #d - 1, 2 do
 			local id, s = d[i], d[i + 1]
 			if state[id] ~= s then
 				state[id] = s
-				if synced then
-					apply(id, true)
-				end
+				touched[id] = true
+			end
+		end
+		for id in fresh do
+			touched[id] = true
+		end
+		if synced then
+			for id in touched do
+				apply(id, true, fresh[id])
 			end
 		end
 		for _, job in data.dr or {} do

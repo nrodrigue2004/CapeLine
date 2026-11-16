@@ -30,6 +30,7 @@ CityBuilder.Ready = Signal.new()
 CityBuilder.builtParts = 0
 CityBuilder.buildingModels = {} :: { [number]: Model } -- wreckable building id -> its model
 CityBuilder.collapsed = {} :: { [number]: any } -- collapsed building id -> its record (heights drop to rubble)
+CityBuilder.tops = {} :: { [number]: { box: any, top: number } } -- building id -> what still stands after storeys fell
 
 local MATERIAL = {
 	ground = Enum.Material.Grass,
@@ -306,6 +307,12 @@ function CityBuilder.heightAt(x: number, z: number): number
 	for _, b in CityBuilder.collapsed do
 		if math.abs(x - b.x) <= b.sx / 2 and math.abs(z - b.z) <= b.sz / 2 then
 			return b.base + math.min(Config.Destruction.rubble.height, (b.top - b.base) * 0.3) * 0.6
+		end
+	end
+	for _, t in CityBuilder.tops do
+		local b = t.box
+		if math.abs(x - b.x) <= b.sx / 2 and math.abs(z - b.z) <= b.sz / 2 then
+			return t.top
 		end
 	end
 	return WorldMap.heightAt(CityBuilder.world, x, z)
