@@ -220,6 +220,15 @@ nate's plan: https://claude.ai/artifact/VeuJPWz6kKE6gGsUBmqQC9. Use a fresh hero
 9. Body sizes and doors: as a Titan and as a Small hero, walk through a safehouse shelter, a doorway and under a low ledge: both fit the same places a Medium hero does (one standard collider), and nobody falls through the floor or sinks into it.
 10. Old heroes: a hero made before this update keeps its look (no missing pieces), has Bare Fists on 2 and Male Medium Average.
 
+### Everyone on R15 (2026-11-16)
+The Output at boot says build r15-everyone (2026-11-16). Works before and after the Hero.fbx import.
+1. Robots: every robot is the blocky R15 body (same shape as a hero, wider for Brutes and Sentinels, slimmer for drones and Sneak Bots). In the Explorer, Workspace.Enemies has models with HumanoidRootPart, the 15 R15 parts and Motor6Ds named Root, Waist, Neck, LeftShoulder and so on.
+2. They walk with arms swinging, elbows bending forward and knees back; Sneak Bots crouch; drones fly with knees back; a windup raises both arms; a knock-up tumbles; a stun wobbles with the yellow ring spinning over the head.
+3. Hit one: arms, legs, hands and feet break off first (chips and sparks) showing metal bones, then the torso (ribs, spine, the glowing core), the head last (skull, jaw, eyes). The hair, eyes and mask go with the head. Nothing floats in the air or pokes through.
+4. Capes hang from the shoulders and sway; sea robots' helmets and tanks, the Sentinel's cannon and base, the guard plate and the bubble sit where they should.
+5. Citizens: every citizen is the blocky R15 body with the classic face, a shirt, pants, shoes and hair; they walk, idle and run with arms up when fleeing.
+6. Performance: in a busy street (30+ robots and the citizens), the Dev panel's frame times for EnemyRenderer and CitizenRenderer stay under about 2 ms on the desktop.
+
 ### 17 paths, mobility and underwater (2026-11-16)
 Pick a path at the creator, then use the DEV panel to level up (15+ to borrow). Everything new is plain parts (PLACEHOLDER ART).
 1. Creator: 4 archetypes with their paths (17 in all); each path's starters show and a path change works once before level 10. At 15+ a hero can learn up to 5 skills from other paths in the same archetype; the basic and super stay the main path's.

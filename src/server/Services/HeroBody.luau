@@ -11,6 +11,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local StarterPlayer = game:GetService("StarterPlayer")
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
+local NpcRig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("NpcRig"))
 
 local HeroBody = {}
 
@@ -24,23 +25,9 @@ local function v3(t: { number }): Vector3
 	return Vector3.new(t[1], t[2], t[3])
 end
 
--- The imported meshes, by part name, or nil while any of the 15 is missing
-function HeroBody.meshes(): { [string]: MeshPart }?
-	local art = ReplicatedStorage:FindFirstChild("Art")
-	local folder = art and art:FindFirstChild("Hero")
-	if not folder then
-		return nil
-	end
-	local out = {}
-	for name in RIG.parts do
-		local found = folder:FindFirstChild(name, true)
-		if not (found and found:IsA("MeshPart")) then
-			return nil
-		end
-		out[name] = found
-	end
-	return out
-end
+-- The imported meshes, by part name, or nil while any of the 15 is missing (shared with NpcRig, which puts
+-- robots and citizens on the same body)
+HeroBody.meshes = NpcRig.meshes
 
 local function attach(part: BasePart, list: { [string]: { number } })
 	for name, at in list do

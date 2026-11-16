@@ -1,17 +1,22 @@
 -- EnemyRenderer: draws the server's enemies from Enemy.Delta (10 Hz). Positions are buffered and drawn
--- 100 ms in the past, interpolated between snapshots, so 10 Hz looks smooth. Bodies are pooled and moved
--- with one BulkMoveTo a frame; only the nearest `enemiesDrawn` (device preset) are shown.
--- Every enemy is a superhuman android (nate, 2026-11-16: "more humanoid, Terminator style"): a synthetic shell
--- (uniform, cartoon skin and hair, chest mark, a cape on elites) over a metal endoskeleton (spine, ribs, a
--- glowing core, skull, glowing eyes, bones and joints). The shell breaks off in panels with chips and sparks
--- as health drops (Shared.RobotDamage: limbs, then chest and belly, the face last), the same on every device.
--- The rig is animated in code: walk cycles from speed, aiming arms while attacking, a
--- raised slam on a windup, a tumble when knocked up, a wobble when stunned, and see-through while cloaked.
--- Status flags from the server tint and mark the body: ice blue when slowed or rooted, a spinning ring when
--- stunned, a bubble or a guard plate when shielded.
--- Art: the Blender robot meshes are in ReplicatedStorage.Art.Robots (art/blender/robots.py, uploaded by nate,
--- art/models/Robots.rbxm mapped by Rojo): each piece is a clone of its mesh sized by Config.ArtFit; a piece with
--- no mesh stays a plain part. The animations are still posed in code (PLACEHOLDER until real animations).
+-- 100 ms in the past, interpolated between snapshots, so 10 Hz looks smooth. Bodies are pooled and their
+-- roots moved with one BulkMoveTo a frame; only the nearest `enemiesDrawn` (device preset) are shown.
+-- Every enemy is a superhuman android (nate, 2026-11-16: "more humanoid, Terminator style") on the same
+-- blocky R15 rig as the heroes (nate, 2026-11-16: "literally everyone should be r15. enemies too"; NpcRig):
+-- the 15 R15 parts are its synthetic shell (uniform, cartoon skin, gloves and boots), with hair, a chest mark,
+-- glowing eyes and a cape on elites, and inside them a metal endoskeleton fixed to the same parts (spine,
+-- ribs, a glowing core, skull, jaw and eyes, bones, elbows and knees). The shell breaks off part by part with
+-- chips and sparks as health drops (Shared.RobotDamage: limbs, hands and feet, then the torso, the head
+-- last), the same on every device. Each robot's build (slim, normal, heavy) takes the creator's Small, Medium
+-- or Large proportions (BodyShape), scaled to its height.
+-- The rig is posed in code on its R15 joints: walk cycles from speed, aiming arms while attacking, a raised
+-- slam on a windup, a tumble when knocked up, a wobble when stunned, and see-through while cloaked. Far
+-- robots pose every few frames. Status flags from the server tint and mark the body: ice blue when slowed or
+-- rooted, a spinning ring when stunned, a bubble or a guard plate when shielded.
+-- Art: the R15 parts use the hero meshes (ReplicatedStorage.Art.Hero) once imported; the endoskeleton and the
+-- extras use the Blender robot meshes in ReplicatedStorage.Art.Robots (art/blender/robots.py, uploaded by
+-- nate, art/models/Robots.rbxm mapped by Rojo), each a clone sized by Config.ArtFit; a piece with no mesh
+-- stays a plain part. The animations are still posed in code (PLACEHOLDER until real R15 animations).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -26,6 +31,9 @@ local EnemyBuffer = require(Shared:WaitForChild("EnemyBuffer"))
 local Status = require(Shared:WaitForChild("Status"))
 local Rng = require(Shared:WaitForChild("Rng"))
 local RobotDamage = require(Shared:WaitForChild("RobotDamage"))
+local RigMath = require(Shared:WaitForChild("RigMath"))
+local NpcRig = require(Shared:WaitForChild("NpcRig"))
+local BodyShape = require(Shared:WaitForChild("BodyShape"))
 
 local QualityController = require(script.Parent.QualityController)
 local DebrisBudget = require(script.Parent.Parent.Fx.DebrisBudget)
@@ -37,6 +45,7 @@ local BITS = Status.BITS
 local ATTACK = 3
 local snapshots: { { t: number, rows: { [number]: any } } } = {}
 local lastSeq = 0
+local frame = 0
 
 local byType: { [number]: any } = {}
 for _, kind in Config.Enemies.order do
@@ -46,6 +55,8 @@ end
 
 type Body = {
 	model: Model,
+	rig: NpcRig.Rig,
+	layout: RigMath.Layout,
 	parts: { BasePart },
 	names: { string },
 	baseColors: { Color3 },
@@ -56,7 +67,6 @@ type Body = {
 	fill: Frame,
 	typeId: number,
 	cfg: any,
-	dims: any,
 	metal: Color3,
 	shell: { RobotDamage.Piece },
 	sparks: ParticleEmitter,
@@ -83,25 +93,20 @@ local function rgb(t: { number }): Color3
 	return Color3.fromRGB(t[1], t[2], t[3])
 end
 
--- Body proportions by build, scaled to the robot's height: human proportions with a superhero's shoulders
-local BUILDS = {
-	slim = { torsoW = 0.28, torsoD = 0.17, limb = 0.1, head = 0.15 },
-	normal = { torsoW = 0.32, torsoD = 0.2, limb = 0.115, head = 0.15 },
-	heavy = { torsoW = 0.42, torsoD = 0.27, limb = 0.155, head = 0.13 },
-}
-
 local LOOK = Config.Enemies.look
--- shell pieces that hide with another piece (eyes with their half of the face, the chest mark with the chest)
+-- shell pieces that go with another piece (the eyes, mask and hair with the head, the chest mark with the
+-- upper torso, the belt with the lower torso)
 local TIES: { [string]: { string } } = {
-	EyeL = { "FaceL" },
-	EyeR = { "FaceR" },
-	Mask = { "FaceR" },
-	Emblem = { "ChestL", "ChestR" },
-	Belt = { "Belly" },
+	EyeL = { "Head" },
+	EyeR = { "Head" },
+	Mask = { "Head" },
+	Hair = { "Head" },
+	Emblem = { "UpperTorso" },
+	Belt = { "LowerTorso" },
 }
 
--- The Blender meshes, found once. A piece takes the mesh named after it, else its unsided name (UpperL uses
--- Upper; ChestL, FaceL, EyeL and ShLowerL have their own); Tank2 is a second Tank.
+-- The Blender robot meshes, found once. A piece takes the mesh named after it, else its unsided name (UpperL
+-- uses Upper); Tank2 is a second Tank.
 local ArtFit = Config.ArtFit
 local artFolder = ReplicatedStorage:FindFirstChild("Art")
 local robotArt = artFolder and artFolder:FindFirstChild("Robots")
@@ -127,27 +132,24 @@ local function meshFor(name: string): MeshPart?
 	return mesh
 end
 
--- Where meshed pieces sit differently from the plain parts: the hair stands on the head, the chest mark sits on
--- the rounder chest, the cape hangs clear of the back
+-- Where meshed pieces sit differently from the plain parts: the hair stands on the head, the cape hangs clear
+-- of the back
 local HAIR = if meshFor("Hair") then ArtFit.hair else { 0.5, 0.03 }
-local EMBLEM_OUT = if meshFor("ChestL") then 0.58 else 0.5
 local CAPE_BACK = if meshFor("Cape") then 0.2 else 0.08
 
+-- the big pieces cast shadows (the shadow setting per preset turns them off on low); small parts never do
 local SHADOWS = {
-	ChestL = true,
-	ChestR = true,
-	Belly = true,
-	FaceL = true,
-	FaceR = true,
-	ShThighL = true,
-	ShThighR = true,
-	ShShinL = true,
-	ShShinR = true,
+	UpperTorso = true,
+	LowerTorso = true,
+	Head = true,
+	LeftUpperLeg = true,
+	RightUpperLeg = true,
+	LeftLowerLeg = true,
+	RightLowerLeg = true,
 	Cape = true,
 }
 
 local function newPart(
-	model: Model,
 	name: string,
 	size: Vector3,
 	color: Color3,
@@ -171,146 +173,304 @@ local function newPart(
 	p.Name = name
 	p.Color = color
 	p.Material = material
-	p.Anchored = true
-	p.CanCollide = false
-	p.CanQuery = false
-	p.CanTouch = false
-	-- the big meshed pieces cast shadows (the shadow setting per preset turns them off on low); small parts never do
-	p.CastShadow = mesh ~= nil and SHADOWS[name] == true
-	p.Parent = model
+	p.CastShadow = SHADOWS[name] == true
 	return p
 end
 
--- One robot: a metal endoskeleton (spine, ribs, glowing core, skull and eyes, bones, joints) and over it the
--- superhuman shell (uniform, skin, hair, chest mark, cape on elites) that breaks off with damage.
+-- Each robot kind's rig: the creator build for its body build, scaled so the body is its height
+local layouts: { [number]: RigMath.Layout } = {}
+local function layoutFor(typeId: number, body: any): RigMath.Layout
+	local cached = layouts[typeId]
+	if cached then
+		return cached
+	end
+	local factors =
+		BodyShape.factors(Config, { gender = 1, build = LOOK.builds[body.build] or 2, height = 3 })
+	local base = RigMath.layout(Config.HeroRig, factors, 1)
+	local layout = RigMath.layout(Config.HeroRig, factors, body.height / base.height)
+	layouts[typeId] = layout
+	return layout
+end
+
+local SIDES = { { "Left", "L", -1 }, { "Right", "R", 1 } }
+
+-- One robot: the R15 rig as the superhuman shell (uniform, skin, gloves, boots, hair, chest mark, cape on
+-- elites) that breaks off with damage, and inside it the metal endoskeleton (spine, ribs, glowing core,
+-- skull and eyes, bones, joints).
 local function makeRobot(typeId: number): Body
 	local cfg = byType[typeId] or Config.Enemies.SparkDrone
 	local body = cfg.body
-	local b = BUILDS[body.build] or BUILDS.normal
 	local h = body.height
 	local metal = rgb(LOOK.endo):Lerp(rgb(body.metal), 0.35)
 	local dark = rgb(body.metal):Lerp(Color3.new(0, 0, 0), 0.45)
 	local eye = rgb(body.eye)
 	local suit = rgb(body.suit or body.metal)
 	local trim = rgb(body.trim or body.eye)
-	local model = Instance.new("Model")
-	model.Name = cfg.name
-	local dims = {
-		h = h,
-		torsoH = h * 0.3,
-		torsoW = h * b.torsoW,
-		torsoD = h * b.torsoD,
-		head = h * b.head,
-		limb = h * b.limb,
-		arm = h * 0.19, -- each of the upper and lower arm
-		leg = h * 0.235, -- each of the thigh and shin
-	}
-	local parts, names, colors, trans, byName, index = {}, {}, {}, {}, {}, {}
+	local skin = rgb(LOOK.skins[1])
+	local layout = layoutFor(typeId, body)
+	local M, N = Enum.Material.Metal, Enum.Material.Neon
+	local SKIN = Enum.Material.SmoothPlastic
+	-- the shell: suit on the torso, upper arms and thighs, trim for gloves and boots (skin and hair colours
+	-- are picked per robot in assign)
+	local colors: { [string]: Color3 } = { Head = skin, UpperTorso = suit, LowerTorso = suit }
+	for _, side in SIDES do
+		local s = side[1]
+		colors[s .. "UpperArm"] = suit
+		colors[s .. "LowerArm"] = trim
+		colors[s .. "Hand"] = trim
+		colors[s .. "UpperLeg"] = suit
+		colors[s .. "LowerLeg"] = trim
+		colors[s .. "Foot"] = trim
+	end
+	local rig = NpcRig.build(layout, cfg.name, colors, SKIN)
+	local model = rig.model
+	local parts, names, cols, trans, byName, index = {}, {}, {}, {}, {}, {}
+	local function register(name: string, p: BasePart)
+		table.insert(parts, p)
+		table.insert(names, name)
+		table.insert(cols, p.Color)
+		table.insert(trans, p.Transparency)
+		byName[name] = p
+		index[name] = #parts
+	end
+	for _, pname in BodyShape.PARTS do
+		local p = rig.parts[pname]
+		p.CastShadow = SHADOWS[pname] == true
+		register(pname, p)
+	end
 	local function add(
 		name: string,
+		parent: string,
+		c0: CFrame,
 		size: Vector3,
 		color: Color3,
 		material: Enum.Material,
 		shape: Enum.PartType?,
-		transparency: number?
-	)
-		local p = newPart(model, name, size, color, material, shape)
+		transparency: number?,
+		joint: string?,
+		c1: CFrame?
+	): BasePart
+		local p = newPart(name, size, color, material, shape)
 		p.Transparency = transparency or 0
-		table.insert(parts, p)
-		table.insert(names, name)
-		table.insert(colors, color)
-		table.insert(trans, p.Transparency)
-		byName[name] = p
-		index[name] = #parts
+		NpcRig.fix(rig, parent, p, c0, joint, c1)
+		register(name, p)
 		return p
 	end
-	local d = dims
-	local M, N = Enum.Material.Metal, Enum.Material.Neon
-	local SKIN = Enum.Material.SmoothPlastic
+	local function size(part: string): Vector3
+		return rig.parts[part].Size
+	end
+	local UT, LT, HD = size("UpperTorso"), size("LowerTorso"), size("Head")
+	local I = CFrame.identity
 	-- the endoskeleton (always there; seen as the shell breaks)
-	add("Spine", Vector3.new(d.limb * 0.5, d.torsoH * 0.9, d.limb * 0.5), metal, M)
 	add(
 		"Ribs",
-		Vector3.new(d.torsoW * 0.78, d.torsoH * 0.72, d.torsoD * 0.6),
+		"UpperTorso",
+		CFrame.new(0, UT.Y * 0.05, 0),
+		UT * Vector3.new(0.72, 0.78, 0.6),
 		dark,
 		Enum.Material.DiamondPlate
 	)
-	add("Core", Vector3.new(d.torsoW * 0.3, d.torsoW * 0.3, 0.12), eye, N)
-	add("Pelvis", Vector3.new(d.torsoW * 0.8, d.torsoH * 0.28, d.torsoD * 0.9), suit:Lerp(dark, 0.3), SKIN)
-	add("Skull", Vector3.one * d.head * 0.78, metal, M)
-	add("Jaw", Vector3.new(d.head * 0.5, d.head * 0.18, d.head * 0.5), dark, M)
-	add("Eyes", Vector3.new(d.head * 0.6, d.head * 0.12, 0.08), eye, N)
-	for _, side in { "L", "R" } do
-		add("Upper" .. side, Vector3.new(d.limb * 0.5, d.arm * 0.94, d.limb * 0.5), metal, M)
-		add("Lower" .. side, Vector3.new(d.limb * 0.45, d.arm * 0.94, d.limb * 0.45), metal, M)
-		add("Thigh" .. side, Vector3.new(d.limb * 0.55, d.leg * 0.94, d.limb * 0.55), metal, M)
-		add("Shin" .. side, Vector3.new(d.limb * 0.5, d.leg * 0.94, d.limb * 0.5), metal, M)
-		add("Elbow" .. side, Vector3.one * d.limb * 0.7, dark, M, Enum.PartType.Ball)
-		add("Knee" .. side, Vector3.one * d.limb * 0.75, dark, M, Enum.PartType.Ball)
+	add(
+		"Spine",
+		"UpperTorso",
+		CFrame.new(0, -UT.Y * 0.05, UT.Z * 0.32),
+		Vector3.new(UT.Z * 0.22, UT.Y * 0.95, UT.Z * 0.22),
+		metal,
+		M
+	)
+	add(
+		"Core",
+		"UpperTorso",
+		CFrame.new(0, UT.Y * 0.1, -UT.Z * 0.3 - 0.04),
+		Vector3.new(UT.X * 0.26, UT.X * 0.26, 0.12),
+		eye,
+		N
+	)
+	add("Pelvis", "LowerTorso", I, LT * Vector3.new(0.8, 0.85, 0.8), dark, M)
+	add("Skull", "Head", I, HD * 0.78, metal, M)
+	add(
+		"Jaw",
+		"Head",
+		CFrame.new(0, -HD.Y * 0.3, -HD.Z * 0.1),
+		HD * Vector3.new(0.5, 0.16, 0.5),
+		dark,
+		M,
+		nil,
+		nil,
+		"Jaw"
+	)
+	add(
+		"Eyes",
+		"Head",
+		CFrame.new(0, HD.Y * 0.06, -HD.Z * 0.39 - 0.02),
+		Vector3.new(HD.X * 0.55, HD.Y * 0.1, 0.06),
+		eye,
+		N
+	)
+	for _, side in SIDES do
+		local s, sl = side[1], side[2]
+		local ua, la, hand = size(s .. "UpperArm"), size(s .. "LowerArm"), size(s .. "Hand")
+		local ul, ll, foot = size(s .. "UpperLeg"), size(s .. "LowerLeg"), size(s .. "Foot")
+		add("Upper" .. sl, s .. "UpperArm", I, ua * Vector3.new(0.45, 0.94, 0.45), metal, M)
+		add("Lower" .. sl, s .. "LowerArm", I, la * Vector3.new(0.42, 0.94, 0.42), metal, M)
+		add(
+			"Elbow" .. sl,
+			s .. "LowerArm",
+			CFrame.new(0, la.Y * 0.5, 0),
+			Vector3.one * la.X * 0.6,
+			dark,
+			M,
+			Enum.PartType.Ball
+		)
+		add("Hand" .. sl, s .. "Hand", I, hand * 0.7, metal, M)
+		add("Thigh" .. sl, s .. "UpperLeg", I, ul * Vector3.new(0.5, 0.94, 0.5), metal, M)
+		add("Shin" .. sl, s .. "LowerLeg", I, ll * Vector3.new(0.45, 0.94, 0.45), metal, M)
+		add(
+			"Knee" .. sl,
+			s .. "LowerLeg",
+			CFrame.new(0, ll.Y * 0.5, 0),
+			Vector3.one * ll.X * 0.65,
+			dark,
+			M,
+			Enum.PartType.Ball
+		)
+		add("Foot" .. sl, s .. "Foot", I, foot * 0.7, metal, M)
 	end
-	-- the shell: uniform, cartoon skin and hair (skin and hair colours are picked per robot in assign)
-	local skin = rgb(LOOK.skins[1])
-	add("ChestL", Vector3.new(d.torsoW * 0.5, d.torsoH * 0.6, d.torsoD), suit, SKIN)
-	add("ChestR", Vector3.new(d.torsoW * 0.5, d.torsoH * 0.6, d.torsoD), suit, SKIN)
-	add("Belly", Vector3.new(d.torsoW * 0.9, d.torsoH * 0.4, d.torsoD * 0.95), suit, SKIN)
-	add("Belt", Vector3.new(d.torsoW * 0.94, d.torsoH * 0.1, d.torsoD * 1.02), trim, SKIN)
-	add("Emblem", Vector3.new(d.torsoW * 0.26, d.torsoW * 0.26, 0.08), trim, SKIN)
-	add("FaceL", Vector3.new(d.head * 0.5, d.head * 1.1, d.head), skin, SKIN)
-	add("FaceR", Vector3.new(d.head * 0.5, d.head * 1.1, d.head), skin, SKIN)
-	add("Hair", Vector3.new(d.head * 1.06, d.head * 0.3, d.head * 1.06), rgb(LOOK.hair[1]), SKIN)
+	-- the shell's extras
+	add("Belt", "LowerTorso", CFrame.new(0, LT.Y * 0.3, 0), LT * Vector3.new(1.03, 0.45, 1.03), trim, SKIN)
+	add(
+		"Emblem",
+		"UpperTorso",
+		CFrame.new(0, UT.Y * 0.18, -UT.Z * 0.5 - 0.03) * CFrame.Angles(0, 0, math.rad(45)),
+		Vector3.new(UT.X * 0.24, UT.X * 0.24, 0.06),
+		trim,
+		SKIN
+	)
+	add(
+		"Hair",
+		"Head",
+		CFrame.new(0, HD.Y * HAIR[1], HD.Z * HAIR[2]),
+		HD * Vector3.new(1.06, 0.3, 1.06),
+		rgb(LOOK.hair[1]),
+		SKIN
+	)
 	local glow = eye:Lerp(Color3.new(1, 1, 1), 0.35)
-	add("EyeL", Vector3.new(d.head * 0.26, d.head * 0.1, 0.06), glow, N)
-	add("EyeR", Vector3.new(d.head * 0.26, d.head * 0.1, 0.06), glow, N)
-	for _, side in { "L", "R" } do
-		add("ShUpper" .. side, Vector3.new(d.limb, d.arm, d.limb), suit, SKIN)
-		add("ShLower" .. side, Vector3.new(d.limb * 0.92, d.arm, d.limb * 0.92), trim, SKIN) -- gloves
-		add("ShThigh" .. side, Vector3.new(d.limb * 1.1, d.leg, d.limb * 1.1), suit, SKIN)
-		add("ShShin" .. side, Vector3.new(d.limb, d.leg, d.limb * 1.15), trim, SKIN) -- boots
+	for _, side in SIDES do
+		add(
+			"Eye" .. side[2],
+			"Head",
+			CFrame.new(side[3] * HD.X * 0.2, HD.Y * 0.06, -HD.Z * 0.5 - 0.02),
+			Vector3.new(HD.X * 0.22, HD.Y * 0.09, 0.05),
+			glow,
+			N
+		)
 	end
 	if body.cape then
-		add("Cape", Vector3.new(d.torsoW * 0.95, d.torsoH * 1.7, 0.12), rgb(body.cape), Enum.Material.Fabric)
+		local capeH = (UT.Y + LT.Y) * 1.25
+		add(
+			"Cape",
+			"UpperTorso",
+			CFrame.new(0, UT.Y * 0.5, UT.Z * 0.5 + CAPE_BACK),
+			Vector3.new(UT.X * 0.95, capeH, 0.12),
+			rgb(body.cape),
+			Enum.Material.Fabric,
+			nil,
+			nil,
+			"Cape",
+			CFrame.new(0, capeH * 0.5, 0)
+		)
 	end
 	if body.jets then
 		local jet = if body.jetColor then rgb(body.jetColor) else Color3.fromRGB(255, 170, 70)
-		add("JetL", Vector3.new(d.limb * 0.8, d.limb * 1.6, d.limb * 0.8), jet, N)
-		add("JetR", Vector3.new(d.limb * 0.8, d.limb * 1.6, d.limb * 0.8), jet, N)
+		for _, side in SIDES do
+			local foot = size(side[1] .. "Foot")
+			local jh = size(side[1] .. "LowerLeg").X * 0.9
+			add(
+				"Jet" .. side[2],
+				side[1] .. "Foot",
+				CFrame.new(0, -foot.Y * 0.5 - jh * 0.5, 0),
+				Vector3.new(foot.X * 0.6, jh, foot.Z * 0.6),
+				jet,
+				N
+			)
+		end
 	end
 	-- sea robots: a glass diving helmet and an air tank (PLACEHOLDER ART)
 	if body.helmet then
 		add(
 			"Helmet",
-			Vector3.one * d.head * 1.45,
+			"Head",
+			I,
+			Vector3.one * HD.Y * 1.45,
 			Color3.fromRGB(190, 230, 255),
 			Enum.Material.Glass,
 			Enum.PartType.Ball,
 			0.55
 		)
-		add("Collar", Vector3.new(d.head * 1.3, d.head * 0.2, d.head * 1.3), trim, M)
+		add("Collar", "Head", CFrame.new(0, -HD.Y * 0.55, 0), HD * Vector3.new(1.25, 0.18, 1.25), trim, M)
 	end
 	if body.tank then
-		add("Tank", Vector3.new(d.torsoW * 0.32, d.torsoH * 0.85, d.torsoW * 0.32), trim:Lerp(dark, 0.3), M)
-		add("Tank2", Vector3.new(d.torsoW * 0.32, d.torsoH * 0.85, d.torsoW * 0.32), trim:Lerp(dark, 0.3), M)
+		local tw = UT.X * 0.16
+		for k, name in { "Tank", "Tank2" } do
+			add(
+				name,
+				"UpperTorso",
+				CFrame.new((if k == 1 then -1 else 1) * UT.X * 0.2, 0, UT.Z * 0.5 + tw * 0.5),
+				Vector3.new(tw, UT.Y * 0.85, tw),
+				trim:Lerp(dark, 0.3),
+				M
+			)
+		end
 	end
 	if body.mask then
 		add(
 			"Mask",
-			Vector3.new(d.head * 1.05, d.head * 0.35, d.head * 1.05),
+			"Head",
+			CFrame.new(0, HD.Y * 0.08, 0),
+			HD * Vector3.new(1.05, 0.32, 1.05),
 			Color3.fromRGB(25, 25, 30),
-			Enum.Material.SmoothPlastic
+			SKIN
 		)
 		add(
 			"Bag",
-			Vector3.new(d.torsoW * 0.7, d.torsoH * 0.7, d.torsoD * 0.8),
+			"UpperTorso",
+			CFrame.new(0, 0, UT.Z * 0.85),
+			UT * Vector3.new(0.6, 0.75, 0.7),
 			Color3.fromRGB(120, 90, 50),
 			Enum.Material.Fabric
 		)
 	end
 	if body.planted then
-		add("Cannon", Vector3.new(d.limb * 1.6, d.limb * 1.6, d.arm * 1.8), dark, M)
-		add("Muzzle", Vector3.new(d.limb * 1.0, d.limb * 1.0, 0.3), eye, N)
-		add("Base", Vector3.new(d.torsoW * 1.6, 0.6, d.torsoW * 1.6), dark, Enum.Material.DiamondPlate)
+		local la = size("RightLowerArm")
+		local down = CFrame.Angles(math.rad(-90), 0, 0)
+		add(
+			"Cannon",
+			"RightLowerArm",
+			CFrame.new(0, -la.Y * 0.4, 0) * down,
+			Vector3.new(la.X * 1.5, la.X * 1.5, la.Y * 1.8),
+			dark,
+			M
+		)
+		add(
+			"Muzzle",
+			"RightLowerArm",
+			CFrame.new(0, -la.Y * 1.3, 0) * down,
+			Vector3.new(la.X * 0.9, la.X * 0.9, 0.3),
+			eye,
+			N
+		)
+		add(
+			"Base",
+			"HumanoidRootPart",
+			CFrame.new(0, -layout.ground + 0.3, 0),
+			Vector3.new(UT.X * 1.6, 0.6, UT.X * 1.6),
+			dark,
+			Enum.Material.DiamondPlate
+		)
 		add(
 			"Bubble",
+			"UpperTorso",
+			I,
 			Vector3.one * h * 1.2,
 			Color3.fromRGB(120, 220, 255),
 			Enum.Material.ForceField,
@@ -319,9 +479,12 @@ local function makeRobot(typeId: number): Body
 		)
 	end
 	if body.shield then
+		local la = size("LeftLowerArm")
 		add(
 			"Guard",
-			Vector3.new(d.torsoW * 1.1, d.torsoH * 1.5, 0.35),
+			"LeftLowerArm",
+			CFrame.new(0, -la.Y * 0.2, -la.Z) * CFrame.Angles(math.rad(90), 0, 0),
+			Vector3.new(UT.X * 1.1, UT.Y * 1.4, 0.35),
 			Color3.fromRGB(200, 210, 230),
 			N,
 			nil,
@@ -330,11 +493,15 @@ local function makeRobot(typeId: number): Body
 	end
 	add(
 		"Stun",
-		Vector3.new(0.15, d.head * 1.6, d.head * 1.6),
+		"Head",
+		CFrame.new(0, HD.Y * 0.9, 0),
+		Vector3.new(0.15, HD.Y * 1.6, HD.Y * 1.6),
 		Color3.fromRGB(255, 230, 90),
 		N,
 		Enum.PartType.Cylinder,
-		1
+		1,
+		"Stun",
+		CFrame.Angles(0, 0, math.rad(-90))
 	)
 	-- the exposed core sparks when the robot is nearly beaten
 	local sparks = Instance.new("ParticleEmitter")
@@ -360,12 +527,13 @@ local function makeRobot(typeId: number): Body
 		return x.name < y.name
 	end)
 
+	local head = rig.parts.Head
 	local bar = Instance.new("BillboardGui")
-	bar.Size = UDim2.fromScale(math.max(3, d.torsoW * 2), 0.35)
-	bar.StudsOffset = Vector3.new(0, d.head + 0.8, 0)
+	bar.Size = UDim2.fromScale(math.max(3, UT.X * 1.6), 0.35)
+	bar.StudsOffset = Vector3.new(0, HD.Y + 0.6, 0)
 	bar.AlwaysOnTop = true
 	bar.Enabled = false
-	bar.Adornee = byName.Skull
+	bar.Adornee = head
 	local back = Instance.new("Frame")
 	back.Size = UDim2.fromScale(1, 1)
 	back.BackgroundColor3 = Color3.fromRGB(20, 20, 28)
@@ -376,12 +544,14 @@ local function makeRobot(typeId: number): Body
 	fill.BackgroundColor3 = if cfg.elite then Color3.fromRGB(255, 210, 60) else Color3.fromRGB(255, 120, 70)
 	fill.BorderSizePixel = 0
 	fill.Parent = back
-	bar.Parent = byName.Skull
+	bar.Parent = head
 	return {
 		model = model,
+		rig = rig,
+		layout = layout,
 		parts = parts,
 		names = names,
-		baseColors = colors,
+		baseColors = cols,
 		baseTransparency = trans,
 		byName = byName,
 		index = index,
@@ -389,7 +559,6 @@ local function makeRobot(typeId: number): Body
 		fill = fill,
 		typeId = typeId,
 		cfg = cfg,
-		dims = dims,
 		metal = metal,
 		shell = shell,
 		sparks = sparks,
@@ -418,13 +587,14 @@ local function assign(body: Body, id: number)
 	local h = Rng.hash(id, 3301)
 	local skin = rgb(LOOK.skins[h % #LOOK.skins + 1])
 	local hair = rgb(LOOK.hair[(h // 7) % #LOOK.hair + 1])
-	for name, color in { FaceL = skin, FaceR = skin, Hair = hair } do
+	for name, color in { Head = skin, Hair = hair } do
 		local i = body.index[name]
 		if i then
 			body.baseColors[i] = color
 			body.parts[i].Color = color
 		end
 	end
+	NpcRig.rest(body.rig)
 	body.lastFlags = -1
 end
 
@@ -652,16 +822,19 @@ local function lerpAngle(a: number, b: number, t: number): number
 	return a + d * t
 end
 
--- Pose every part of one robot; appends to the BulkMoveTo lists
+-- Pose one robot: its root goes on the BulkMoveTo lists; its R15 joints turn when `joints` is true (near
+-- robots every frame, far ones every few frames)
 local function pose(
 	body: Body,
 	id: number,
 	now: number,
 	dt: number,
-	partList: { BasePart },
-	cframes: { CFrame }
+	roots: { BasePart },
+	cframes: { CFrame },
+	joints: boolean
 )
-	local d = body.dims
+	local L = body.layout
+	local rig = body.rig
 	local cfg = body.cfg
 	local flags = body.flags
 	local flyer = cfg.ai == "flyer"
@@ -670,8 +843,9 @@ local function pose(
 	local windup = bit32.band(flags, BITS.windup) ~= 0
 	local attacking = body.state == ATTACK
 	local swinging = now < body.swingUntil
-	-- e.y is the body centre for ground robots and the hover point for flyers
-	local hipY = if flyer then 0 else -d.h * 0.5 + d.leg * 2
+	local speed = body.speed
+	body.phase += dt * math.clamp(speed, 0, 30) * 0.45
+	-- e.y is the body centre for ground robots (the soles half its height below) and the hips for flyers
 	local root = CFrame.new(body.pos) * CFrame.Angles(0, body.yaw, 0)
 	if flyer then
 		root *= CFrame.new(0, math.sin(now * 3 + id) * 0.35, 0) * CFrame.Angles(math.rad(-12), 0, 0)
@@ -681,94 +855,45 @@ local function pose(
 	elseif stunned then
 		root *= CFrame.Angles(0, 0, math.rad(math.sin(now * 14) * 10))
 	end
-	local speed = body.speed
-	body.phase += dt * math.clamp(speed, 0, 30) * 0.45
+	local up = if flyer then L.hip else L.ground - L.height * 0.5
+	table.insert(roots, rig.root)
+	table.insert(cframes, root * CFrame.new(0, up, 0))
+	if not joints then
+		return
+	end
 	local swingA = if flyer or lifted then 0 else math.clamp(speed / 20, 0, 1) * math.rad(40)
 	local s = math.sin(body.phase)
-	local hips = root * CFrame.new(0, hipY, 0)
-	local torsoC = hips * CFrame.new(0, d.torsoH * 0.5 + d.torsoH * 0.14, 0)
-	if cfg.ai == "sneak" and not attacking then
-		torsoC *= CFrame.Angles(math.rad(-18), 0, 0) -- crouched creep
-	end
-	local function put(name: string, cf: CFrame)
-		local p = body.byName[name]
-		if p then
-			table.insert(partList, p)
-			table.insert(cframes, cf)
-		end
-	end
-	put("Pelvis", hips)
-	-- the endoskeleton
-	put("Spine", torsoC * CFrame.new(0, 0, d.torsoD * 0.12))
-	put("Ribs", torsoC * CFrame.new(0, d.torsoH * 0.1, 0))
-	put("Core", torsoC * CFrame.new(0, d.torsoH * 0.12, -d.torsoD * 0.3 - 0.06))
-	local neck = torsoC * CFrame.new(0, d.torsoH * 0.5 + d.head * 0.58, 0)
-	put("Skull", neck * CFrame.new(0, d.head * 0.05, 0))
-	local jawDrop = if attacking or windup then d.head * 0.06 else 0
-	put("Jaw", neck * CFrame.new(0, -d.head * 0.36 - jawDrop, -d.head * 0.1))
-	put("Eyes", neck * CFrame.new(0, d.head * 0.08, -d.head * 0.39 - 0.02))
-	-- the shell
-	put("ChestL", torsoC * CFrame.new(-d.torsoW * 0.25, d.torsoH * 0.2, 0))
-	put("ChestR", torsoC * CFrame.new(d.torsoW * 0.25, d.torsoH * 0.2, 0))
-	put("Belly", torsoC * CFrame.new(0, -d.torsoH * 0.3, 0))
-	put("Belt", torsoC * CFrame.new(0, -d.torsoH * 0.44, 0))
-	put(
-		"Emblem",
-		torsoC
-			* CFrame.new(0, d.torsoH * 0.24, -d.torsoD * EMBLEM_OUT - 0.04)
-			* CFrame.Angles(0, 0, math.rad(45))
+	NpcRig.turn(
+		rig,
+		"Waist",
+		if cfg.ai == "sneak" and not attacking then CFrame.Angles(math.rad(-18), 0, 0) else CFrame.identity -- crouched creep
 	)
-	put("FaceL", neck * CFrame.new(-d.head * 0.25, 0, 0))
-	put("FaceR", neck * CFrame.new(d.head * 0.25, 0, 0))
-	put("Hair", neck * CFrame.new(0, d.head * HAIR[1], d.head * HAIR[2]))
-	put("EyeL", neck * CFrame.new(-d.head * 0.2, d.head * 0.08, -d.head * 0.5 - 0.03))
-	put("EyeR", neck * CFrame.new(d.head * 0.2, d.head * 0.08, -d.head * 0.5 - 0.03))
-	put("Mask", neck * CFrame.new(0, d.head * 0.08, 0))
-	put("Bag", torsoC * CFrame.new(0, 0, d.torsoD * 0.5 + d.torsoD * 0.35))
-	put("Helmet", neck * CFrame.new(0, d.head * 0.05, 0))
-	put("Collar", neck * CFrame.new(0, -d.head * 0.62, 0))
-	put("Tank", torsoC * CFrame.new(-d.torsoW * 0.2, 0, d.torsoD * 0.5 + d.torsoW * 0.18))
-	put("Tank2", torsoC * CFrame.new(d.torsoW * 0.2, 0, d.torsoD * 0.5 + d.torsoW * 0.18))
-	-- the cape hangs from the shoulders and sways with speed
-	local capeA = math.rad(8 + math.clamp(body.speed, 0, 20) * 1.6 + math.sin(now * 2.2 + id) * 3)
-	put(
+	NpcRig.turn(rig, "Jaw", CFrame.new(0, if attacking or windup then -L.parts.Head.size[2] * 0.06 else 0, 0))
+	-- the cape sways with speed
+	NpcRig.turn(
+		rig,
 		"Cape",
-		torsoC
-			* CFrame.new(0, d.torsoH * 0.48, d.torsoD * 0.5 + CAPE_BACK)
-			* CFrame.Angles(capeA, 0, 0)
-			* CFrame.new(0, -d.torsoH * 0.85, 0)
+		CFrame.Angles(math.rad(8 + math.clamp(speed, 0, 20) * 1.6 + math.sin(now * 2.2 + id) * 3), 0, 0)
 	)
-	put("Stun", neck * CFrame.new(0, d.head * 0.9, 0) * CFrame.Angles(0, now * 6, math.rad(90)))
-	-- arms: shoulder pivots; aiming forward when attacking, raised overhead on a windup
-	for k, side in { "L", "R" } do
-		local sign = if k == 1 then -1 else 1
-		local shoulder = torsoC * CFrame.new(sign * (d.torsoW * 0.5 + d.limb * 0.55), d.torsoH * 0.38, 0)
-		local upperA, elbowA = -s * sign * swingA * 0.8, math.rad(-15)
+	if stunned then
+		NpcRig.turn(rig, "Stun", CFrame.Angles(0, now * 6, 0))
+	end
+	for _, side in SIDES do
+		local name, sign = side[1], side[3]
+		-- arms: aiming forward when attacking, raised overhead on a windup; elbows bend forward
+		local upperA, elbowA = -s * sign * swingA * 0.8, math.rad(15)
 		if windup then
-			upperA, elbowA = math.rad(160), math.rad(-20)
+			upperA, elbowA = math.rad(160), math.rad(20)
 		elseif swinging then
-			upperA, elbowA = math.rad(if k == 2 then -95 else 30), 0
-		elseif attacking and (flyer or cfg.ai == "thief" or cfg.ai == "sentry") and k == 2 then
+			upperA, elbowA = math.rad(if sign > 0 then -95 else 30), 0
+		elseif attacking and (flyer or cfg.ai == "thief" or cfg.ai == "sentry") and sign > 0 then
 			upperA, elbowA = math.rad(90), 0 -- gun arm up
 		elseif flyer then
-			upperA, elbowA = math.rad(-20), math.rad(-25)
+			upperA, elbowA = math.rad(-20), math.rad(25)
 		end
-		local upper = shoulder * CFrame.Angles(upperA, 0, 0) * CFrame.new(0, -d.arm * 0.5, 0)
-		local elbow = upper * CFrame.new(0, -d.arm * 0.5, 0) * CFrame.Angles(elbowA, 0, 0)
-		local lower = elbow * CFrame.new(0, -d.arm * 0.5, 0)
-		put("Upper" .. side, upper)
-		put("ShUpper" .. side, upper)
-		put("Elbow" .. side, elbow)
-		put("Lower" .. side, lower)
-		put("ShLower" .. side, lower)
-		if side == "R" then
-			put("Cannon", lower * CFrame.new(0, -d.arm * 0.4, 0) * CFrame.Angles(math.rad(-90), 0, 0))
-			put("Muzzle", lower * CFrame.new(0, -d.arm * 1.3, 0) * CFrame.Angles(math.rad(-90), 0, 0))
-		else
-			put("Guard", lower * CFrame.new(0, -d.arm * 0.2, -d.limb) * CFrame.Angles(math.rad(90), 0, 0))
-		end
-		-- legs: hip pivots
-		local hip = hips * CFrame.new(sign * d.torsoW * 0.25, -d.torsoH * 0.1, 0)
+		NpcRig.turn(rig, name .. "Shoulder", CFrame.Angles(upperA, 0, 0))
+		NpcRig.turn(rig, name .. "Elbow", CFrame.Angles(elbowA, 0, 0))
+		-- legs: knees bend back
 		local thighA = s * sign * swingA
 		local kneeA = math.max(0, -math.cos(body.phase) * sign) * swingA
 		if flyer then
@@ -776,21 +901,9 @@ local function pose(
 		elseif cfg.ai == "sentry" then
 			thighA, kneeA = math.rad(-20 * sign), math.rad(20)
 		end
-		local thigh = hip * CFrame.Angles(thighA, 0, 0) * CFrame.new(0, -d.leg * 0.5, 0)
-		local knee = thigh * CFrame.new(0, -d.leg * 0.5, 0) * CFrame.Angles(kneeA, 0, 0)
-		local shin = knee * CFrame.new(0, -d.leg * 0.5, 0)
-		put("Thigh" .. side, thigh)
-		put("ShThigh" .. side, thigh)
-		put("Knee" .. side, knee)
-		put("Shin" .. side, shin)
-		put("ShShin" .. side, shin)
-		put(
-			"Jet" .. side,
-			shin * CFrame.new(0, -d.leg * 0.5 - d.limb * 0.6 + math.sin(now * 30 + k) * 0.05, 0)
-		)
+		NpcRig.turn(rig, name .. "Hip", CFrame.Angles(thighA, 0, 0))
+		NpcRig.turn(rig, name .. "Knee", CFrame.Angles(-kneeA, 0, 0))
 	end
-	put("Base", root * CFrame.new(0, -d.h * 0.5 + 0.3, 0))
-	put("Bubble", torsoC)
 end
 
 local lastRender = os.clock()
@@ -798,6 +911,7 @@ local function render()
 	local now = os.clock()
 	local dt = math.min(0.1, now - lastRender)
 	lastRender = now
+	frame += 1
 	local n = #snapshots
 	if n == 0 then
 		return
@@ -837,7 +951,7 @@ local function render()
 		end
 	end
 
-	local partList, cframes = {}, {}
+	local roots, cframes = {}, {}
 	for id in keep do
 		local rb = b.rows[id] or newest[id]
 		local ra = a.rows[id] or rb
@@ -865,12 +979,13 @@ local function render()
 			body.flashUntil = 0
 			body.lastFlags = -1
 		end
-		updateShell(body, (pos - cam).Magnitude < LOOK.chipRange)
+		local dist = (pos - cam).Magnitude
+		updateShell(body, dist < LOOK.chipRange)
 		applyFlags(body)
-		pose(body, id, now, dt, partList, cframes)
+		pose(body, id, now, dt, roots, cframes, dist < LOOK.poseNear or (frame + id) % LOOK.poseEvery == 0)
 	end
-	if #partList > 0 then
-		Workspace:BulkMoveTo(partList, cframes, Enum.BulkMoveMode.FireCFrameChanged)
+	if #roots > 0 then
+		Workspace:BulkMoveTo(roots, cframes, Enum.BulkMoveMode.FireCFrameChanged)
 	end
 end
 

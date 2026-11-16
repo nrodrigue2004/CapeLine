@@ -274,24 +274,31 @@ return {
 		spread = 1.5, -- seeded noise on the tiers below, so robots break differently
 		sparksBelow = 0.35, -- the exposed core sparks under 35% health
 		chipRange = 160, -- chips and sparks fly only for robots this close to the camera
+		poseNear = 120, -- robots this close to the camera pose every frame; farther ones every poseEvery frames
+		poseEvery = 3,
 		endo = { 168, 172, 182 }, -- endoskeleton chrome, tinted toward each robot's metal
-		-- break tiers: lower goes earlier
+		-- every robot is on the blocky R15 rig (nate, 2026-11-16: "literally everyone should be r15"): its
+		-- build uses the creator's body build with this index (Config.Creator.body.builds) for its proportions
+		builds = { slim = 1, normal = 2, heavy = 3 },
+		-- break tiers, by R15 part (the shell) plus the hair and cape: lower goes earlier
 		tiers = {
-			ShUpperL = 1,
-			ShUpperR = 1,
-			ShLowerL = 1,
-			ShLowerR = 1,
-			ShThighL = 1,
-			ShThighR = 1,
-			ShShinL = 1,
-			ShShinR = 1,
-			Belly = 1.5,
+			LeftUpperArm = 1,
+			RightUpperArm = 1,
+			LeftLowerArm = 1,
+			RightLowerArm = 1,
+			LeftUpperLeg = 1,
+			RightUpperLeg = 1,
+			LeftLowerLeg = 1,
+			RightLowerLeg = 1,
+			LeftHand = 1.3,
+			RightHand = 1.3,
+			LeftFoot = 1.3,
+			RightFoot = 1.3,
+			LowerTorso = 1.5,
 			Cape = 1.5,
-			ChestL = 2,
-			ChestR = 2,
+			UpperTorso = 2,
 			Hair = 3,
-			FaceL = 3,
-			FaceR = 3.5,
+			Head = 3.5,
 		},
 		-- cartoon synthetic skin tones and hair colours, picked per robot from its id
 		skins = {

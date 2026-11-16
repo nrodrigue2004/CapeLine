@@ -1201,6 +1201,38 @@ test("M2: robots: every kind spawns as the right brain; ground robots stand on t
 	end
 end)
 
+test("Everyone on R15: robots and citizens use the heroes' rig, joints and attachments", function()
+	local RigMath = require("../src/shared/RigMath")
+	local BodyShape = require("../src/shared/BodyShape")
+	local hero = RigMath.layout(Config.HeroRig, nil, 1)
+	check(#hero.joints == 15, "the 15 R15 Motor6Ds")
+	local seen = {}
+	for _, j in hero.joints do
+		seen[j.part1] = true
+	end
+	for _, part in BodyShape.PARTS do
+		check(seen[part] == true and hero.parts[part] ~= nil, part .. " is jointed")
+	end
+	near(hero.ground, Config.HeroRig.root.centre[2], 1e-6, "the standard root stands where the hero's does")
+	near(hero.hip, Config.HeroRig.root.centre[2] - 2, 1e-6, "the hips under the root")
+	for name, def in Config.HeroRig.parts do
+		for k = 1, 3 do
+			local rest = hero.centres[name][k] + Config.HeroRig.root.centre[k]
+			near(rest, def.centre[k], 1e-3, name .. " rests where the hero body has it")
+		end
+	end
+	local L = Config.Enemies.look
+	for _, kind in Config.Enemies.order do
+		local body = Config.Enemies[kind].body
+		check(L.builds[body.build] ~= nil, kind .. " build has a creator build")
+		local f = BodyShape.factors(Config, { gender = 1, build = L.builds[body.build], height = 3 })
+		local base = RigMath.layout(Config.HeroRig, f, 1)
+		local lay = RigMath.layout(Config.HeroRig, f, body.height / base.height)
+		near(lay.height, body.height, 1e-6, kind .. " is drawn its height")
+		check(lay.ground > 0 and lay.ground < lay.height, kind .. " root sits inside the body")
+	end
+end)
+
 test("Robots: the shell breaks off with damage, the same way on every device", function()
 	local RobotDamage = require("../src/shared/RobotDamage")
 	local L = Config.Enemies.look
@@ -1222,14 +1254,18 @@ test("Robots: the shell breaks off with damage, the same way on every device", f
 		end
 	end
 	check(differ, "robots break in different orders")
-	-- the face goes late: FaceR (tier 3.5) never before a limb (tier 1) with spread 1.5
+	-- the head goes late: the Head (tier 3.5) never before a limb (tier 1) with spread 1.5
 	for id = 1, 200 do
 		local o = RobotDamage.order(id, pieces, L.spread)
 		local at = {}
 		for i, n in o do
 			at[n] = i
 		end
-		check(at.FaceR > at.ShUpperL and at.FaceR > at.ShShinR, "the face goes after the limbs")
+		check(at.Head > at.LeftUpperArm and at.Head > at.RightLowerLeg, "the head goes after the limbs")
+	end
+	-- the shell is the R15 body: every one of its 15 parts can break, plus the hair and cape
+	for _, part in require("../src/shared/BodyShape").PARTS do
+		check(L.tiers[part] ~= nil, part .. " is a shell piece")
 	end
 	local n = #pieces
 	check(RobotDamage.count(1, n, L.stripBy) == 0, "full health: shell whole")

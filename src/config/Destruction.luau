@@ -84,6 +84,10 @@ return {
 			{ { 186, 110, 220 }, { 60, 70, 80 }, { 92, 62, 44 } },
 			{ { 245, 245, 240 }, { 30, 90, 140 }, { 224, 172, 130 } },
 		},
+		-- hair colours, picked per citizen from its id (every citizen is on the blocky R15 rig, like heroes)
+		hair = { { 30, 26, 24 }, { 70, 46, 30 }, { 160, 120, 60 }, { 225, 225, 230 }, { 120, 40, 40 } },
+		poseNear = 100, -- citizens this close to the camera pose every frame; farther ones every poseEvery frames
+		poseEvery = 3,
 		drawDelay = 0.3, -- clients draw citizens this far in the past (packets come 4 times a second)
 	},
 }

@@ -1,9 +1,13 @@
 -- CitizenRenderer: draws the server's citizens from Citizen.Delta (4 Hz, unreliable; CitizenBuffer). Packets
--- are buffered by arrival time and drawn 0.3 s in the past, interpolated, so 4 Hz walks smoothly. Bodies are
--- pooled blocky cartoon people (legs, torso, arms, head) in 6 colour sets, posed in code: a walk swing, a
--- standing idle, and a run with arms up when fleeing. Citizens are never hurt or shown hurt (spec:
--- Destruction); a hidden citizen (safe in a shelter) is simply not sent.
--- PLACEHOLDER ART: plain parts until the art pass.
+-- are buffered by arrival time and drawn 0.3 s in the past, interpolated, so 4 Hz walks smoothly. Every
+-- citizen is on the same blocky R15 rig as the heroes (nate, 2026-11-16: "literally everyone should be r15";
+-- NpcRig): pooled by its 6 colour sets (shirt on the torso and sleeves, skin on the forearms, hands and head
+-- with the classic face, pants and darker shoes), with blocky hair picked from its id, posed on its R15
+-- joints in code: a walk swing, a standing idle, and a run with arms up when fleeing. Far citizens pose every
+-- few frames. Citizens are never hurt or shown hurt (spec: Destruction); a hidden citizen (safe in a shelter)
+-- is simply not sent.
+-- PLACEHOLDER ART: plain blocks until the hero meshes are imported (then the hero meshes), and posed in code
+-- until real R15 animations.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -15,16 +19,21 @@ local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Net = require(Shared:WaitForChild("Net"))
 local CitizenBuffer = require(Shared:WaitForChild("CitizenBuffer"))
+local Rng = require(Shared:WaitForChild("Rng"))
+local RigMath = require(Shared:WaitForChild("RigMath"))
+local NpcRig = require(Shared:WaitForChild("NpcRig"))
 
 local CitizenRenderer = {}
 
 local C = Config.Destruction.citizens
 local FLEE, PAUSE = 2, 1
-local PARTS = { "LegL", "LegR", "Torso", "ArmL", "ArmR", "Head" }
+local SIDES = { { "Left", -1 }, { "Right", 1 } }
+local layout = RigMath.layout(Config.HeroRig, nil, 1)
 
 type Body = {
 	model: Model,
-	parts: { BasePart },
+	rig: NpcRig.Rig,
+	hair: BasePart,
 	color: number,
 	pos: Vector3,
 	yaw: number,
@@ -38,6 +47,7 @@ local lastSeq = 0
 local live: { [number]: Body } = {}
 local pool: { [number]: { Body } } = {}
 local folder: Folder
+local frame = 0
 
 local function rgb(t: { number }): Color3
 	return Color3.fromRGB(t[1], t[2], t[3])
@@ -46,38 +56,35 @@ end
 local function newBody(color: number): Body
 	local set = C.colors[color] or C.colors[1]
 	local shirt, pants, skin = rgb(set[1]), rgb(set[2]), rgb(set[3])
-	local m = Instance.new("Model")
-	m.Name = "Citizen"
-	local sizes = {
-		LegL = Vector3.new(0.7, 1.9, 0.7),
-		LegR = Vector3.new(0.7, 1.9, 0.7),
-		Torso = Vector3.new(1.7, 1.9, 0.9),
-		ArmL = Vector3.new(0.55, 1.7, 0.55),
-		ArmR = Vector3.new(0.55, 1.7, 0.55),
-		Head = Vector3.new(1.1, 1.1, 1.1),
-	}
-	local colors = { LegL = pants, LegR = pants, Torso = shirt, ArmL = shirt, ArmR = shirt, Head = skin }
-	local parts = {}
-	for _, name in PARTS do
-		local p = Instance.new("Part")
-		p.Name = name
-		p.Anchored = true
-		p.CanCollide = false
-		p.CanQuery = false
-		p.CanTouch = false
-		p.CastShadow = false
-		p.Material = Enum.Material.SmoothPlastic
-		p.TopSurface = Enum.SurfaceType.Smooth
-		p.BottomSurface = Enum.SurfaceType.Smooth
-		p.Size = sizes[name]
-		p.Color = colors[name]
-		p.Parent = m
-		table.insert(parts, p)
+	local shoes = pants:Lerp(Color3.new(0, 0, 0), 0.5)
+	local colors: { [string]: Color3 } = { Head = skin, UpperTorso = shirt, LowerTorso = pants }
+	for _, side in SIDES do
+		local s = side[1]
+		colors[s .. "UpperArm"] = shirt
+		colors[s .. "LowerArm"] = skin
+		colors[s .. "Hand"] = skin
+		colors[s .. "UpperLeg"] = pants
+		colors[s .. "LowerLeg"] = pants
+		colors[s .. "Foot"] = shoes
 	end
-	m.Parent = folder
+	local rig = NpcRig.build(layout, "Citizen", colors)
+	local head = rig.parts.Head
+	local face = Instance.new("Decal")
+	face.Name = "face"
+	face.Texture = "rbxasset://textures/face.png" -- Roblox's built-in default face, like the heroes
+	face.Face = Enum.NormalId.Front
+	face.Parent = head
+	local hair = Instance.new("Part")
+	hair.Name = "Hair"
+	hair.Size = head.Size * Vector3.new(1.06, 0.3, 1.06)
+	hair.Material = Enum.Material.SmoothPlastic
+	hair.CastShadow = false
+	NpcRig.fix(rig, "Head", hair, CFrame.new(0, head.Size.Y * 0.45, head.Size.Z * 0.04))
+	rig.model.Parent = folder
 	return {
-		model = m,
-		parts = parts,
+		model = rig.model,
+		rig = rig,
+		hair = hair,
 		color = color,
 		pos = Vector3.zero,
 		yaw = 0,
@@ -108,34 +115,32 @@ local function lerpAngle(a: number, b: number, t: number): number
 	return a + d * t
 end
 
--- Pose one citizen; pos is the feet
-local function pose(body: Body, dt: number, partList: { BasePart }, cframes: { CFrame })
+-- Pose one citizen (pos is the feet): the root goes on the BulkMoveTo lists, the R15 joints turn when
+-- `joints` is true
+local function pose(body: Body, dt: number, roots: { BasePart }, cframes: { CFrame }, joints: boolean)
 	local moving = body.speed > 0.8
 	local fleeing = body.state == FLEE
 	body.phase += dt * (if fleeing then 14 else 8) * (if moving then 1 else 0)
-	local swing = if moving then math.sin(body.phase) * (if fleeing then 0.9 else 0.55) else 0
 	local bob = if moving then math.abs(math.sin(body.phase)) * 0.15 else 0
-	local root = CFrame.new(body.pos + Vector3.new(0, bob, 0)) * CFrame.Angles(0, body.yaw, 0)
-	local lean = if fleeing then CFrame.Angles(math.rad(-12), 0, 0) else CFrame.identity
-	local hip = root * CFrame.new(0, 1.9, 0)
-	local torso = hip * lean * CFrame.new(0, 0.95, 0)
-	local legL = hip * CFrame.new(-0.4, 0, 0) * CFrame.Angles(swing, 0, 0) * CFrame.new(0, -0.95, 0)
-	local legR = hip * CFrame.new(0.4, 0, 0) * CFrame.Angles(-swing, 0, 0) * CFrame.new(0, -0.95, 0)
+	table.insert(roots, body.rig.root)
+	table.insert(
+		cframes,
+		CFrame.new(body.pos + Vector3.new(0, layout.ground + bob, 0)) * CFrame.Angles(0, body.yaw, 0)
+	)
+	if not joints then
+		return
+	end
+	local rig = body.rig
+	local swing = if moving then math.sin(body.phase) * (if fleeing then 0.9 else 0.55) else 0
+	NpcRig.turn(rig, "Waist", if fleeing then CFrame.Angles(math.rad(-12), 0, 0) else CFrame.identity)
 	local armUp = if fleeing then math.rad(-150) else 0
 	local idle = if body.state == PAUSE then math.sin(os.clock() * 1.5) * 0.05 else 0
-	local armL = torso
-		* CFrame.new(-1.15, 0.8, 0)
-		* CFrame.Angles(armUp - swing * 0.8 + idle, 0, 0)
-		* CFrame.new(0, -0.8, 0)
-	local armR = torso
-		* CFrame.new(1.15, 0.8, 0)
-		* CFrame.Angles(armUp + swing * 0.8 - idle, 0, 0)
-		* CFrame.new(0, -0.8, 0)
-	local head = torso * CFrame.new(0, 1.55, 0)
-	local cfs = { legL, legR, torso, armL, armR, head }
-	for i, p in body.parts do
-		table.insert(partList, p)
-		table.insert(cframes, cfs[i])
+	for _, side in SIDES do
+		local name, sign = side[1], side[2]
+		NpcRig.turn(rig, name .. "Hip", CFrame.Angles(swing * sign, 0, 0))
+		NpcRig.turn(rig, name .. "Knee", CFrame.Angles(-math.max(0, swing * sign) * 0.6, 0, 0))
+		NpcRig.turn(rig, name .. "Shoulder", CFrame.Angles(armUp - swing * sign * 0.8 - idle * sign, 0, 0))
+		NpcRig.turn(rig, name .. "Elbow", CFrame.Angles(if moving then math.rad(20) else math.rad(5), 0, 0))
 	end
 end
 
@@ -165,7 +170,9 @@ local function render()
 			live[id] = nil
 		end
 	end
-	local partList, cframes = {}, {}
+	local roots, cframes = {}, {}
+	local cam = Workspace.CurrentCamera.CFrame.Position
+	frame += 1
 	for id, rb in newest do
 		local ra = a.rows[id] or b.rows[id] or rb
 		local rbb = b.rows[id] or rb
@@ -173,6 +180,8 @@ local function render()
 		local body = live[id]
 		if not body then
 			body = acquire(rb.color)
+			body.hair.Color = rgb(C.hair[Rng.hash(id, 4409) % #C.hair + 1])
+			NpcRig.rest(body.rig)
 			live[id] = body
 			body.pos = pos
 			body.yaw = rb.yaw
@@ -182,10 +191,11 @@ local function render()
 		body.pos = pos
 		body.yaw = lerpAngle(body.yaw, rbb.yaw, math.min(1, dt * 10))
 		body.state = rb.state
-		pose(body, dt, partList, cframes)
+		local near = (pos - cam).Magnitude < C.poseNear
+		pose(body, dt, roots, cframes, near or (frame + id) % C.poseEvery == 0)
 	end
-	if #partList > 0 then
-		Workspace:BulkMoveTo(partList, cframes, Enum.BulkMoveMode.FireCFrameChanged)
+	if #roots > 0 then
+		Workspace:BulkMoveTo(roots, cframes, Enum.BulkMoveMode.FireCFrameChanged)
 	end
 end
 
