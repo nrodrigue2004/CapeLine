@@ -167,6 +167,7 @@ DEV panel: stand next to a hub building and press Wreck here (a super-sized hit 
 5. A second player joining after the damage sees the same holes; a phone (Low preset) shows fewer flying pieces but the same holes.
 6. Repair drones put the whole building back after 3 minutes of quiet.
 7. Performance: 10 players wrecking a block for 10 minutes: server frame steady, phones 30+ fps (Dev panel).
+8. A level 1 hero with only basic attacks and starter skills: every third basic hit on a wall knocks a piece out, every skill hit breaks at least one piece.
 
 ### Superhuman android robots (2026-11-16)
 DEV panel: spawn robots with the "3x" button (it cycles through the 6 kinds) and hit them a little at a time. The shell and endoskeleton are plain parts (PLACEHOLDER ART until the art pass).

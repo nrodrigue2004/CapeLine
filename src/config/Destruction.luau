@@ -9,6 +9,10 @@ return {
 	damagedAt = 0.4, -- 40% of structure HP lost: Damaged
 	warnAt = 0.75, -- 75% lost: citizens nearby run for shelter (they are gone before any collapse)
 	superStruct = 3000, -- supers with no structDmg of their own
+	-- every other damaging ability breaks buildings too (nate 2026-11-16: "nothing is destructible"): a basic
+	-- hit adds up (3 knock a piece out), a skill knocks out at least one piece. Basics only reach 5 studs.
+	slotStruct = { basic = 200, skill = 700 },
+	basicStructRadius = 5,
 	bossStruct = 2000, -- boss attacks (M6)
 	maxCollapses = 3, -- collapses at once per server; a fourth is cut to Damaged
 	collapseTime = 6, -- the collapse animation on the client; "at once" means started within this window

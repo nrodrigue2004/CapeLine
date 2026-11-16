@@ -6,7 +6,7 @@
 -- batches to players within 150 studs. Clients never send damage, targets' positions or results.
 -- Also here: class passives (Overcharge, Momentum, the Bruiser taunt), Awakening's damage and super boost,
 -- the meter gains, recasts, combo strings, echoes, cast windups, Parry Stance ripostes and team-up combos.
--- M5: abilities with structDmg (and every super) hit buildings and flip vehicles where they land; a heavy hit
+-- M5: abilities with structDmg (every super, and by slot every other damaging ability) hit buildings and flip vehicles where they land; a heavy hit
 -- (coeff 2.5+) flips nearby vehicles and knocks a robot through a wall it is near (the wall turns Damaged).
 -- M8: a flagged attacker's candidates include the flagged heroes it may hit (FlagService.targetsFor). Every
 -- hit on a hero re-checks both flags when it lands, uses compressed stats (supers 60%, Lucky Strike off,
@@ -296,11 +296,28 @@ end
 -- landing (crater), 2: a blast (cracks).
 local STRUCT_SHAPES =
 	{ bolt = true, chain = true, dash = true, cone = true, arc = true, nova = true, line = true }
+-- An ability's structure damage: its own structDmg, else a default by slot for anything that deals damage
+local function structOf(eff: any): number
+	if eff.structDmg then
+		return eff.structDmg
+	elseif eff.slot == "super" then
+		return DS.superStruct
+	elseif (eff.coeff or 0) > 0 and not eff.allyHeal then
+		return DS.slotStruct[eff.slot] or 0
+	end
+	return 0
+end
+
 local function structural(eff: any, center: Vector3, radius: number, kind: number)
-	local dmg = eff.structDmg or (if eff.slot == "super" then DS.superStruct else 0)
+	local dmg = structOf(eff)
+	if not eff.structDmg and eff.slot == "basic" then
+		radius = math.min(radius, DS.basicStructRadius)
+	end
 	if dmg > 0 then
 		BuildingService.hit(center, radius, dmg, kind)
-		VehicleService.hit(center, radius)
+		if dmg >= DS.structure.chunkCost then
+			VehicleService.hit(center, radius)
+		end
 	end
 end
 
@@ -899,7 +916,7 @@ local function resolve(
 	end
 	gainFor(hero, eff, #plan.hits)
 	-- structure damage where it lands (leaps and throws land later, below)
-	if STRUCT_SHAPES[plan.shape] and (eff.structDmg or eff.slot == "super") then
+	if STRUCT_SHAPES[plan.shape] and structOf(eff) > 0 then
 		local at = if plan.cx
 			then Vector3.new(plan.cx, plan.cy, plan.cz)
 			elseif plan.ex then Vector3.new(plan.ex, plan.ey, plan.ez)

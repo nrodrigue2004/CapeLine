@@ -5364,6 +5364,29 @@ test("Underwater: Leviathan Engine boss, its drop and the save slot", function()
 	)
 end)
 
+test("Destruction: basic hits add up to break a piece; repair clears them", function()
+	local D = Config.Destruction
+	local world = WorldMap.build(Config, 202647)
+	local book = BuildingState.new(D, world.buildings)
+	local b = world.buildings[1]
+	local x, y, z = b.x + b.sx / 2, b.base + 4, b.z
+	local hits = math.ceil(D.structure.chunkCost / D.slotStruct.basic)
+	for k = 1, hits - 1 do
+		local r = BuildingState.blast(D, book, b.id, x, y, z, 5, D.slotStruct.basic, k)
+		check(#r.hit == 0, "basic hit " .. k .. " only chips")
+	end
+	local r = BuildingState.blast(D, book, b.id, x, y, z, 5, D.slotStruct.basic, hits)
+	check(#r.hit == 1 and book.state[b.id] == 1, "hit " .. hits .. " knocks a piece out")
+	check(
+		#BuildingState.blast(D, book, b.id, x, y + 12, z, 12, D.slotStruct.skill, 20).hit >= 1,
+		"a skill breaks a piece at once"
+	)
+	BuildingState.blast(D, book, b.id, x, y, z, 5, D.slotStruct.basic, 21)
+	BuildingState.repair(book, b.id)
+	check(book.chip[b.id] == nil and book.state[b.id] == 0, "repair clears the chips")
+	check(D.slotStruct.skill >= D.structure.chunkCost, "a skill is worth a piece")
+end)
+
 print(string.format("\n%d passed, %d failed", passed, failed))
 if failed > 0 then
 	process.exit(1)

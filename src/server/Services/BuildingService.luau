@@ -142,9 +142,11 @@ function BuildingService.hit(center: Vector3, radius: number, dmg: number, kind:
 			settle(id, BuildingState.blast(D, book, id, center.X, center.Y, center.Z, radius, dmg, now))
 		end
 	end
-	impact(center, radius, kind or 2)
-	-- citizens near any big hit run too, wreckable building or not
-	BuildingService.Danger:Fire(center.X, center.Z, radius + 20, 4)
+	if dmg >= D.structure.chunkCost then -- basic hits chip quietly (no crater, cracks or running citizens)
+		impact(center, radius, kind or 2)
+		-- citizens near any big hit run too, wreckable building or not
+		BuildingService.Danger:Fire(center.X, center.Z, radius + 20, 4)
+	end
 	PerfMonitor.add("buildings", (os.clock() - t0) * 1000)
 	return n
 end

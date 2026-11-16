@@ -41,6 +41,7 @@ export type Book = {
 	grids: { [number]: Structure.Grid }, -- built on the first blast
 	gone: { [number]: { [number]: boolean } }, -- id -> piece indexes knocked out or fallen
 	removed: { number }, -- flat { id, piece, cause } since the last send (cause 1 knocked out, 2 fell)
+	chip: { [number]: number }, -- id -> small hits' structure damage still under one piece's cost
 }
 
 -- buildings: { id, hp, district } (WorldMap.buildings)
@@ -61,6 +62,7 @@ function BuildingState.new(cfg: any, buildings: { any }): Book
 		grids = {},
 		gone = {},
 		removed = {},
+		chip = {},
 	}
 	local districts: { [string]: boolean } = {}
 	for _, b in buildings do
@@ -172,6 +174,7 @@ function BuildingState.repair(book: Book, id: number)
 	book.hp[id] = book.maxHp[id]
 	book.warned[id] = false
 	book.gone[id] = nil
+	book.chip[id] = nil
 	set(book, id, 0)
 end
 
@@ -215,6 +218,16 @@ function BuildingState.blast(
 		return out
 	end
 	book.lastHit[id] = now
+	-- small hits (basic attacks) add up: a piece breaks once they reach one piece's cost
+	if dmg < cfg.structure.chunkCost then
+		local chip = (book.chip[id] or 0) + dmg
+		if chip < cfg.structure.chunkCost then
+			book.chip[id] = chip
+			return out
+		end
+		book.chip[id] = nil
+		dmg = chip
+	end
 	local gone = book.gone[id] or {}
 	book.gone[id] = gone
 	out.hit = Structure.blast(cfg, grid, gone, x, y, z, radius, dmg)
