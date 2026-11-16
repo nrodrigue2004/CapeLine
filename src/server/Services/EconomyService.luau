@@ -19,7 +19,11 @@ local ProfileSchema = require(Shared:WaitForChild("ProfileSchema"))
 local DataService = require(script.Parent.DataService)
 local HeroService = require(script.Parent.HeroService)
 
+local Signal = require(Shared:WaitForChild("Util"):WaitForChild("Signal"))
+
 local EconomyService = {}
+-- (player, action) an earn action paid: incident, rescue, contract, mission, boss tiers (FameService, M8)
+EconomyService.Earned = Signal.new()
 
 local friendsOf: { [Player]: { [Player]: boolean } } = {}
 
@@ -51,6 +55,7 @@ function EconomyService.bonus(player: Player, opts: { [string]: any }?): Progres
 		faction = 0, -- faction rank (M7)
 		firstContract = o.firstContract,
 		doublePass = profile ~= nil and profile.purchases.passes.double == true,
+		renownMult = if player:GetAttribute("InCrater") then Config.Pvp.crater.renownMult else nil,
 	}
 end
 
@@ -105,6 +110,19 @@ function EconomyService.spend(hero: any, cost: number): boolean
 	return true
 end
 
+-- Take on-hand (unbanked) Credits: a PvP defeat (M8). Returns what was taken. Banked Credits never move.
+function EconomyService.takeOnHand(profile: any, player: Player?, amount: number): number
+	local take = math.clamp(math.floor(amount), 0, profile.currency.credits)
+	if take > 0 then
+		profile.currency.credits -= take
+		if player then
+			syncCredits(player, profile)
+			DataService.changed(player, true)
+		end
+	end
+	return take
+end
+
 -- Give Credits back into the bank (a respec refunds what ranks cost)
 function EconomyService.refund(hero: any, amount: number)
 	if not hero.player or amount <= 0 then
@@ -129,6 +147,7 @@ function EconomyService.reward(
 	EconomyService.addCredits(player, credits)
 	EconomyService.addRenown(player, renown)
 	Net.fire("Toast", player, { id = "reward", credits = credits, renown = renown, action = action })
+	EconomyService.Earned:Fire(player, action)
 	return credits, renown
 end
 

@@ -6,6 +6,8 @@
 -- Predicted on the spot: bolts, chains, dashes, cones, slashes and punches, novas (and the Thunder Drop
 -- dive), lines, buffs, the Meteor Leap arc and windup glows. Fields, beams, throws, walls, ramps, landings,
 -- echoes and combos are drawn when the server's result arrives (one 10 Hz batch later).
+-- M8: when you are flagged, other flagged players can be auto-aimed (their PvpId is the hint); you cannot
+-- cast while stunned, lifted or Downed; Focus counts at its PvP quarter while flagged (as on the server).
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -24,6 +26,7 @@ local InputController = require(script.Parent.InputController)
 local MoveController = require(script.Parent.MoveController)
 local CameraController = require(script.Parent.CameraController)
 local EnemyRenderer = require(script.Parent.EnemyRenderer)
+local PvpClient = require(script.Parent.PvpClient)
 local State = require(script.Parent.Parent.State)
 local CombatFx = require(script.Parent.Parent.Fx.CombatFx)
 
@@ -90,7 +93,7 @@ local function aim(range: number, origin: Vector3): (Vector3, number, Vector3?)
 	local slack = if touchAim then Config.Move.touch.autoAimAngle else 6
 	local maxDist = if touchAim then math.min(math.max(range, 12), Config.Move.touch.autoAimRange) else range
 	local bestId, bestAng, bestPos = 0, slack, nil
-	for id, pos in EnemyRenderer.each() do
+	local function consider(id: number, pos: Vector3)
 		local toEnemy = pos - ray.Origin
 		local fromHero = (pos - origin).Magnitude
 		if fromHero <= maxDist + 3 and toEnemy.Magnitude > 1 then
@@ -99,6 +102,12 @@ local function aim(range: number, origin: Vector3): (Vector3, number, Vector3?)
 				bestId, bestAng, bestPos = id, ang, pos
 			end
 		end
+	end
+	for id, pos in EnemyRenderer.each() do
+		consider(id, pos)
+	end
+	for _, t in PvpClient.targets() do
+		consider(t.id, t.pos)
 	end
 	if bestPos then
 		return bestPos, bestId, bestPos
@@ -166,6 +175,16 @@ function CombatClient.fire(id: string): boolean
 	if not row or not root or not hum or hum.Health <= 0 then
 		return false
 	end
+	local cc = State.status.cc
+	local now0 = os.clock()
+	for _, kind in { "stun", "knockup", "float" } do
+		if cc[kind] and now0 < cc[kind].untilT then
+			return false
+		end
+	end
+	if PvpClient.downed() then
+		return false
+	end
 	local slot = slotOf(id)
 	if not slot then
 		return false
@@ -192,7 +211,8 @@ function CombatClient.fire(id: string): boolean
 	dir = dir.Unit
 	local full = AbilityRules.cooldown(Config, Formulas, eff, {
 		classId = State.hero.classId,
-		focus = State.hero.stats and State.hero.stats.Focus or 0,
+		focus = (State.hero.stats and State.hero.stats.Focus or 0)
+			* (if PvpClient.flagged() then Config.Pvp.minorScale else 1),
 		attackSpeed = State.buff("attackSpeed"),
 		awakened = awake,
 	})
@@ -225,7 +245,7 @@ function CombatClient.fire(id: string): boolean
 				if not c or c.id ~= id then
 					return nil
 				end
-				return EnemyRenderer.position(tid)
+				return EnemyRenderer.position(tid) or PvpClient.position(tid)
 			end, eff.channel * (eff.tick or 0.25), style, color)
 		end
 	elseif shape == "chain" then

@@ -31,6 +31,11 @@ local StoryService = require(script.Parent.StoryService)
 local OpeningService = require(script.Parent.OpeningService)
 local MissionService = require(script.Parent.MissionService)
 local QuestService = require(script.Parent.QuestService)
+local FlagService = require(script.Parent.FlagService)
+local DeathService = require(script.Parent.DeathService)
+local FameService = require(script.Parent.FameService)
+local CityBuilder = require(script.Parent.CityBuilder)
+local SafehouseService = require(script.Parent.SafehouseService)
 local ProfileSchema = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("ProfileSchema"))
 local OpeningPlan = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("OpeningPlan"))
 
@@ -212,6 +217,34 @@ local commands: { [string]: (player: Player, hero: any, value: number) -> () } =
 			c.story = ProfileSchema.newCharacter().story
 			c.rep = { 0, 0, 0 }
 			StoryService.changed(player)
+		end
+	end,
+	-- M8: PvP and death
+	downme = function(_, hero)
+		DeathService.downNow(hero)
+	end,
+	pvp = function(_, hero, on)
+		-- the flag regardless of the 5 s and 60 s rules (Studio only); level 10 first if needed
+		if hero.level < Config.Pvp.minLevel then
+			HeroService.setLevel(hero, Config.Pvp.minLevel)
+		end
+		local f = FlagService.flag(hero)
+		f.on = on ~= 0
+		f.setAt = -1e9
+		f.pvpAt = -1e9
+		FlagService.send(hero, true)
+	end,
+	crater = function(_, hero)
+		for _, lm in CityBuilder.world.landmarks do
+			if lm.id == Config.Pvp.crater.id then
+				local x, z = lm.centre.x - lm.size / 2 - 30, lm.centre.z
+				SafehouseService.place(hero, CFrame.new(x, CityBuilder.heightAt(x, z) + 4, z))
+			end
+		end
+	end,
+	fame = function(player, _, n)
+		for _ = 1, math.max(1, n) do
+			FameService.add(player, "mission")
 		end
 	end,
 	style = function(_, hero, anime)

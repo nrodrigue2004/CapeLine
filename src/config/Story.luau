@@ -473,7 +473,22 @@ return {
 		},
 	},
 	-- Unlock bits for quest rewards that are not gear (profile.emotes, profile.frames, profile.props)
-	unlocks = { emotes = { Salute = 1 }, frames = { PhotoFrame = 1 }, props = { CafeSign = 1 } },
+	-- Bit numbers for unlocks that rewards name (story here, Fame ranks in Config.Pvp). Titles and poses are
+	-- M9's wheels; the bits are reserved now so saves never move.
+	unlocks = {
+		emotes = { Salute = 1, Bow = 2, SuperLanding = 20 }, -- landing poses share the emote bits from 20
+		frames = { PhotoFrame = 1, FameFrame = 2 },
+		props = { CafeSign = 1 },
+		-- titles; plate trims share the title bits from 100
+		titles = {
+			Rookie = 1,
+			["Local Name"] = 2,
+			Headliner = 3,
+			["Big Deal"] = 4,
+			["Living Legend"] = 5,
+			GoldTrim = 100,
+		},
+	},
 	questRange = 12, -- talk range to an NPC (the Talk prompt)
 	questGap = 3, -- seconds after a step before the next is built
 }

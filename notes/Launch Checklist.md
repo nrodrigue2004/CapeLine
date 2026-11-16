@@ -13,4 +13,7 @@
 - [ ] Thumbnails, icon, description (M12).
 - [ ] Private server price.
 - [ ] Re-check Roblox rules (PvP, free-form creation, rewarded video ads) before launch.
+- [ ] M8 sounds: Downed heartbeat, revive chime, PvP flag horn, overload spark crackle, Crater warning alarm, ping blips (licences checked).
+- [ ] M8 moderation: read the review queue (DataStore CapelineReview_v1: kicks, reports, PvP trades) by hand now and then; there is no automatic ban. Confirm the in-game Report (preset reasons) plus Roblox's own Report Abuse meet the current Roblox community rules, and that quick-mute through TextChatService is still allowed.
+- [ ] M8 re-check the PvP rules against Roblox's current policy (opt-in PvP, no forced PvP below level 10, the Moderate rating) before launch.
 - [ ] Voice lines for the two mentors (M7 opening) are recorded or generated with a licence that allows commercial use; no real actor likeness.

@@ -3306,6 +3306,312 @@ test(
 )
 
 ---------------------------------------------------------------------------
+-- M8: PvP, death, anti-exploit
+---------------------------------------------------------------------------
+
+test(
+	"M8: the flag: level 10, 5 s between switches, 60 s after PvP damage, never off in the Crater",
+	function()
+		local PvpRules = require("../src/shared/PvpRules")
+		local f = PvpRules.newFlag()
+		check(not PvpRules.flagged(Config, f, 30), "off by default")
+		check(
+			select(2, PvpRules.canSet(Config, f, true, { level = 9, safe = false, now = 100 })) == "level",
+			"level 9 has no flag"
+		)
+		check(
+			select(2, PvpRules.canSet(Config, f, true, { level = 12, safe = true, now = 100 })) == "safe",
+			"not in a safe area"
+		)
+		check(PvpRules.canSet(Config, f, true, { level = 12, safe = false, now = 100 }), "on at once")
+		PvpRules.set(f, true, 100)
+		check(PvpRules.flagged(Config, f, 12), "flagged")
+		check(
+			select(2, PvpRules.canSet(Config, f, false, { level = 12, safe = false, now = 103 })) == "rate",
+			"5 s rule"
+		)
+		PvpRules.notePvp(f, 104)
+		check(
+			select(2, PvpRules.canSet(Config, f, false, { level = 12, safe = false, now = 160 })) == "combat",
+			"60 s after PvP damage"
+		)
+		near(PvpRules.offIn(Config, f, 160), 4, 0.01, "4 s left")
+		check(
+			PvpRules.canSet(Config, f, false, { level = 12, safe = false, now = 164.5 }),
+			"off after 60 quiet seconds"
+		)
+		-- the Crater: a 5 s warning, then forced; never off inside; level 9 is never forced
+		f.pvpAt = -1e9
+		check(PvpRules.craterStep(Config, f, true, 12, 200) == "warn", "warning ring")
+		check(PvpRules.craterStep(Config, f, true, 12, 203) == nil, "still warning at 3 s")
+		check(PvpRules.craterStep(Config, f, true, 12, 205.1) == "in", "forced after 5 s")
+		check(
+			select(2, PvpRules.canSet(Config, f, false, { level = 12, safe = false, now = 300 })) == "crater",
+			"never off in the Crater"
+		)
+		PvpRules.set(f, false, 0) -- even with the switch off ...
+		check(PvpRules.flagged(Config, f, 12), "... the Crater keeps PvP on")
+		check(
+			PvpRules.craterStep(Config, f, false, 12, 301) == "out" and not PvpRules.flagged(Config, f, 12),
+			"leaving ends it"
+		)
+		local low = PvpRules.newFlag()
+		PvpRules.craterStep(Config, low, true, 9, 0)
+		PvpRules.craterStep(Config, low, true, 9, 30)
+		check(low.crater == "warn" and not PvpRules.flagged(Config, low, 9), "level 9 is never forced in")
+		local centre = { x = 1000, z = -1000 }
+		check(
+			PvpRules.inCrater(centre, 400, 1190, -810) and not PvpRules.inCrater(centre, 400, 1210, -1000),
+			"400 x 400"
+		)
+	end
+)
+
+test("M8: hits read both flags at the moment of the hit; safe areas, protection and allies block", function()
+	local PvpRules = require("../src/shared/PvpRules")
+	local function side(id: number, on: boolean): any
+		local f = PvpRules.newFlag()
+		f.on = on
+		return { id = id, flag = f, level = 20, alive = true, safe = false }
+	end
+	local a, b, c = side(1, true), side(2, true), side(3, false)
+	check(PvpRules.canHit(Config, a, b, false, 10), "two flagged players fight")
+	check(not PvpRules.canHit(Config, a, c, false, 10), "never an unflagged player")
+	check(not PvpRules.canHit(Config, c, a, false, 10), "an unflagged player cannot hit a flagged one")
+	check(not PvpRules.canHit(Config, a, b, true, 10), "allies skip each other")
+	b.safe = true
+	check(
+		not PvpRules.canHit(Config, a, b, false, 10) and not PvpRules.canHit(Config, b, a, false, 10),
+		"safe both ways"
+	)
+	b.safe = false
+	PvpRules.protect(Config, b.flag, 10)
+	check(not PvpRules.canHit(Config, a, b, false, 12), "5 s spawn protection")
+	check(PvpRules.canHit(Config, a, b, false, 15.1), "over after 5 s")
+	PvpRules.endProtect(b.flag)
+	PvpRules.protect(Config, b.flag, 16)
+	check(not PvpRules.protected(b.flag, 17), "protection cannot be reused in one life")
+	PvpRules.newLife(b.flag)
+	PvpRules.protect(Config, b.flag, 30)
+	check(PvpRules.protected(b.flag, 31), "a new life protects again")
+	-- the flag is read at hit time: switching off mid-air stops the hit
+	a.flag.on = false
+	check(not PvpRules.canHit(Config, a, side(4, true), false, 40), "a flag that went off stops hits")
+	-- support: an unflagged healer cannot help a flagged player in PvP combat
+	local healer, fighter = side(5, false), side(6, true)
+	check(PvpRules.canSupport(Config, healer, fighter, false, 50), "out of PvP combat: fine")
+	PvpRules.notePvp(fighter.flag, 49)
+	check(not PvpRules.canSupport(Config, healer, fighter, false, 50), "no invincible healers")
+	check(
+		not PvpRules.canSupport(Config, side(7, true), fighter, false, 50),
+		"a flagged stranger cannot either"
+	)
+	check(PvpRules.canSupport(Config, side(8, true), fighter, true, 50), "a flagged ally can")
+	check(PvpRules.canSupport(Config, healer, fighter, false, 65), "15 s later it is fine again")
+end)
+
+test("M8: stat compression: best gear is about 10% stronger; supers 60%; perks off or half", function()
+	local PvpRules = require("../src/shared/PvpRules")
+	local base = Config.Stats.power.base + Config.Stats.power.perLevel * 30
+	near(PvpRules.power(Config, 30, 0), base, 0.01, "no gear: the baseline")
+	near(PvpRules.power(Config, 30, base * 5), base * 1.1, 0.01, "huge gear: +10% at most")
+	near(PvpRules.power(Config, 30, base * 0.5), base * 1.05, 0.01, "half the baseline in gear: +5%")
+	near(PvpRules.power(Config, 55, 0), PvpRules.power(Config, 40, 0), 0.01, "level capped at 40")
+	local hp0 = PvpRules.health(Config, 30, 0, "Bruiser")
+	near(PvpRules.health(Config, 30, 4000, "Bruiser"), hp0 * 1.1, 0.01, "health compresses too")
+	-- a geared target dies in as many hits as its compressed health takes
+	local maxHealth = Formulas.health(Config, 30, 400, "Blaster")
+	local pvpHealth = PvpRules.health(Config, 30, 400, "Blaster")
+	local d = PvpRules.damage(
+		Config,
+		100,
+		{ power = 300, pvpPower = 300, maxHealth = maxHealth, pvpHealth = pvpHealth }
+	)
+	near(maxHealth / d, pvpHealth / 100, 0.01, "hits to defeat match the compressed pool")
+	local s = PvpRules.damage(
+		Config,
+		100,
+		{ power = 300, pvpPower = 300, maxHealth = 1, pvpHealth = 1, super = true }
+	)
+	near(s, 60, 0.01, "supers deal 60%")
+	check(
+		PvpRules.perk(Config, "LuckyStrike") == 0 and PvpRules.perk(Config, "SecondWind") == 0.5,
+		"perk table"
+	)
+	near(PvpRules.minor(Config, 400), 100, 0.01, "Focus, Precision, Resolve at a quarter")
+	-- stuns and roots: halved on repeats within 8 s, then 3 s immune (Status, pvp = true)
+	local Status = require("../src/shared/Status")
+	local book = Status.new()
+	local d1 = Status.apply(book, "stun", 2, 0, { pvp = true })
+	check(d1 == 2, "first stun in full")
+	check(Status.apply(book, "stun", 2, 3, { pvp = true }) == 0, "immune for 3 s after it ends")
+	local d2 = Status.apply(book, "stun", 2, 5.5, { pvp = true })
+	near(d2, 1, 0.01, "a repeat within 8 s is halved")
+	check(Status.apply(book, "slow", 2, 6, { pvp = true }) > 0, "slows have no diminishing returns")
+end)
+
+test(
+	"M8: PvP defeat: 5% of on-hand Credits above 500 (max 300); rewards 40 + 2 x level and 15 Fame",
+	function()
+		local PvpRules = require("../src/shared/PvpRules")
+		check(PvpRules.loss(Config, 400) == 0, "the first 500 are safe")
+		check(PvpRules.loss(Config, 2500) == 100, "5% above 500")
+		check(PvpRules.loss(Config, 100000) == 300, "at most 300")
+		local credits, fame = PvpRules.reward(Config, 20, 1)
+		check(credits == 80 and fame == 15, "40 + 2 x 20 Credits, 15 Fame")
+		local hc, hf = PvpRules.reward(Config, 20, 0.5)
+		check(hc == 40 and hf == 7, "half")
+	end
+)
+
+test(
+	"M8: anti-farming: 2 paid wins per target in 30 min, level gap, same side, boss, 3-and-3 trades",
+	function()
+		local PvpRules = require("../src/shared/PvpRules")
+		local L = PvpRules.newLedger()
+		local even = { winnerLevel = 20, loserLevel = 20, sameSide = false, inBoss = false }
+		check(PvpRules.win(Config, L, 1, 2, 0, even) == 1, "first win pays")
+		check(PvpRules.win(Config, L, 1, 2, 60, even) == 1, "second win pays")
+		local f3, why = PvpRules.win(Config, L, 1, 2, 120, even)
+		check(f3 == 0 and why == "repeat", "third win in 30 min pays nothing")
+		check(PvpRules.win(Config, L, 1, 2, 120 + 1801, even) == 1, "pays again after 30 min")
+		check(
+			PvpRules.win(
+				Config,
+				L,
+				1,
+				3,
+				10,
+				{ winnerLevel = 30, loserLevel = 20, sameSide = false, inBoss = false }
+			) == 0,
+			"10 levels down pays nothing"
+		)
+		check(
+			PvpRules.win(
+				Config,
+				L,
+				1,
+				4,
+				10,
+				{ winnerLevel = 30, loserLevel = 21, sameSide = false, inBoss = false }
+			) == 1,
+			"9 levels down pays"
+		)
+		check(
+			PvpRules.win(
+				Config,
+				L,
+				1,
+				5,
+				10,
+				{ winnerLevel = 20, loserLevel = 20, sameSide = true, inBoss = false }
+			) == 0.5,
+			"same side half"
+		)
+		check(
+			PvpRules.win(
+				Config,
+				L,
+				1,
+				6,
+				10,
+				{ winnerLevel = 20, loserLevel = 20, sameSide = false, inBoss = true }
+			) == 0.5,
+			"boss fight half"
+		)
+		-- alt farming: A and B trade 3 wins each inside an hour
+		local T = PvpRules.newLedger()
+		local t = 0
+		local paid = 0
+		for _ = 1, 3 do
+			t += 300
+			paid += PvpRules.win(Config, T, 10, 11, t, even)
+			t += 300
+			paid += PvpRules.win(Config, T, 11, 10, t, even)
+		end
+		check(#T.review == 1, "the pair is logged for review once")
+		check(PvpRules.win(Config, T, 10, 11, t + 2000, even) == 0, "zero both ways ...")
+		check(PvpRules.win(Config, T, 11, 10, t + 2001, even) == 0, "... for the hour")
+		check(#T.review == 1, "still one review row")
+	end
+)
+
+test("M8: Downed, revive and Fame: ranks at 0 to 13,000, sources and the Warden revive", function()
+	local PvpRules = require("../src/shared/PvpRules")
+	check(
+		PvpRules.reviveTime(Config, "Controller") == 1.5 and PvpRules.reviveTime(Config, "Bruiser") == 3,
+		"revive times"
+	)
+	check(PvpRules.fameRank(Config, 0) == 1 and PvpRules.fameRank(Config, 99) == 1, "rank 1")
+	check(PvpRules.fameRank(Config, 100) == 2 and PvpRules.fameRank(Config, 12999) == 9, "ranks")
+	check(PvpRules.fameRank(Config, 13000) == 10 and PvpRules.nextRank(Config, 13000) == nil, "top rank")
+	check(PvpRules.nextRank(Config, 150) == 300, "next at 300")
+	check(
+		PvpRules.fameFor(Config, "rescue", "hero") == 2 and PvpRules.fameFor(Config, "rescue", "villain") == 3,
+		"rescues"
+	)
+	check(
+		PvpRules.fameFor(Config, "bossMvp", "hero") == 50 and PvpRules.fameFor(Config, "pvp", "villain") == 15,
+		"boss and PvP"
+	)
+	check(PvpRules.fameFor(Config, "nothing", "hero") == 0, "unknown pays nothing")
+	local GearMath = require("../src/shared/GearMath")
+	for i, row in Config.Pvp.fame.ranks do
+		local r = row.reward
+		if r.style then
+			check(GearMath.questStyle(Config, r.style) ~= nil, "rank " .. i .. " style exists")
+		end
+		for _, kind in { "emote", "frame", "title", "trim" } do
+			local name = r[kind]
+			if name then
+				local words = if kind == "trim" then "titles" else kind .. "s"
+				check(Config.Story.unlocks[words][name] ~= nil, "rank " .. i .. " " .. kind .. " has a bit")
+			end
+		end
+	end
+end)
+
+test("M8: strikes kick at 3 in 10 min (never ban); reports flag at 3 accounts in 10 min", function()
+	local GuardRules = require("../src/shared/GuardRules")
+	local s = GuardRules.newStrikes()
+	check(not GuardRules.strike(Config, s, "speed", 0), "1 strike")
+	check(not GuardRules.strike(Config, s, "speed", 100), "2 strikes")
+	check(GuardRules.strike(Config, s, "speed", 200), "3 in 10 minutes kick")
+	local s2 = GuardRules.newStrikes()
+	GuardRules.strike(Config, s2, "speed", 0)
+	GuardRules.strike(Config, s2, "speed", 300)
+	check(not GuardRules.strike(Config, s2, "speed", 700), "spread over more than 10 minutes: no kick")
+	-- dropped remotes: honest lag never strikes; a flood does
+	local s3 = GuardRules.newStrikes()
+	local struck = false
+	for i = 1, 9 do
+		struck = struck or GuardRules.netDrop(Config, s3, i * 70)
+	end
+	check(not struck and #s3.times == 0, "a drop a minute never strikes")
+	for i = 1, 30 do
+		GuardRules.netDrop(Config, s3, 1000 + i * 0.1)
+	end
+	check(#s3.times == 3, "a flood counts strikes")
+	check(
+		not GuardRules.needsReview(Config, 1) and GuardRules.needsReview(Config, 2),
+		"repeated kicks go to review"
+	)
+	local R = GuardRules.newReports()
+	check(not GuardRules.report(Config, R, 1, 1, 0), "never yourself")
+	local ok1, f1 = GuardRules.report(Config, R, 1, 9, 0)
+	check(ok1 and not f1, "one report")
+	check(not GuardRules.report(Config, R, 1, 9, 60), "one per reporter per target per 10 min")
+	GuardRules.report(Config, R, 2, 9, 100)
+	local ok3, f3 = GuardRules.report(Config, R, 3, 9, 200)
+	check(ok3 and f3, "3 accounts in 10 minutes flag for review")
+	local R2 = GuardRules.newReports()
+	GuardRules.report(Config, R2, 1, 9, 0)
+	GuardRules.report(Config, R2, 2, 9, 400)
+	local _, late = GuardRules.report(Config, R2, 3, 9, 700)
+	check(not late, "spread past 10 minutes: not flagged")
+end)
+
+---------------------------------------------------------------------------
 -- Place layout (only when a built place is passed)
 ---------------------------------------------------------------------------
 
@@ -3365,6 +3671,8 @@ if placePath then
 				"StoryPlan",
 				"PocketLayout",
 				"OpeningPlan",
+				"PvpRules",
+				"GuardRules",
 			}
 		do
 			check(shared ~= nil and shared:FindFirstChild(name) ~= nil, "Shared." .. name)
@@ -3402,6 +3710,10 @@ if placePath then
 				"OpeningService",
 				"MissionService",
 				"QuestService",
+				"FlagService",
+				"FameService",
+				"GuardService",
+				"DeathService",
 			}
 		do
 			local folder = server and server:FindFirstChild("Services")
@@ -3442,6 +3754,10 @@ if placePath then
 				{ "Fx", "StoryFx" },
 				{ "Ui", "StoryHud" },
 				{ "Ui", "Journal" },
+				{ "Controllers", "PvpClient" },
+				{ "Fx", "PvpFx" },
+				{ "Ui", "PvpHud" },
+				{ "Ui", "Plates" },
 			}
 		do
 			local folder = client and client:FindFirstChild(path[1])

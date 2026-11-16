@@ -13,7 +13,7 @@ phones or Studio go on the Studio test list below.
 | M5 | Destruction v1 | Chunker, 220 hub buildings with 3 states, debris, craters, vehicle flips, repair drones, citizens | 10 players wreck a block for 10 minutes with no server spike and 30+ fps on a phone; everything repairs | Code-complete 2026-11-16 |
 | M6 | Incidents, contracts, events, boss | Incident spawner with 10 templates, 6 contract types, 6 random events, world boss with 2 bosses, contribution rewards | First boss within 8 minutes; boss rewards by tier; no idle wait over 5 s | Code-complete 2026-11-16 |
 | M7 | Opening, Act 1, missions | Cinematic, playable disaster, choice, 6 missions in sky pockets, 3 choices, 8 side quests, journal | 5 new testers finish the opening and suit up with no help; both routes reach the finale | Code-complete 2026-11-16 |
-| M8 | PvP, death, anti-exploit | Flag, Crater, Downed and Defeated, Fame and Infamy, rules table, strikes | The 30-minute exploit test finds nothing; PvP rules checklist passes | |
+| M8 | PvP, death, anti-exploit | Flag, Crater, Downed and Defeated, Fame and Infamy, rules table, strikes | The 30-minute exploit test finds nothing; PvP rules checklist passes | Code-complete 2026-11-16 |
 | M9 | Creator, HQ, shop, passes | Creator with the 116 spec pieces plus the anime pieces and the Comic/Anime pick, 2 HQs, Gizmo's shop, Robux shop, passes, slots, Legacy | A tester makes a hero in under 3 minutes; test purchases grant once; looks show to others | |
 | M10 | UI and phone pass | All screens, settings, accessibility, presets, map, squad | Every screen has loading, empty and error states; device matrix passes | |
 | M11 | Juice, audio, wait fillers | Juice table, sounds, music, offline drones, downed polish, friend boost, Photo Mode | No idle wait over 5 s in a 30-minute session with 8 testers; every action has a sound and visual | |
@@ -42,6 +42,7 @@ phones or Studio go on the Studio test list below.
 - Flight, leap and glide poses: the default avatar tilted along the travel direction; no custom animations yet (MoveController).
 - Loading screen: title on a gradient (LoadingScreen).
 - Story (M7): the cinematic is 4 flat comic panels (StoryHud); the opening's tram car, shard, trapped citizen and beams are plain parts (StoryFx); mission pockets are greybox boxes (PocketLayout); the War-Frame is a part-built mech (WorldFx); quest NPCs are blocky figures with a name tag and a marker (QuestService); the Null Echo buddy is a ball with an eye; the Journal, Suit Up, choice card, trackers and result card use the Kit placeholder look. PLACEHOLDER ART.
+- PvP and death (M8): flag rings and the Downed ring are flat neon discs, the PvP defeat is a CombatFx spark burst, Help/Here/Danger pings are text markers (PvpFx); name plates, the plate menu, the PVP button, the Crater bar, the Downed and Defeated screens and the PvP card use the Kit placeholder look (Plates, PvpHud). The Downed hero has no kneel or crawl animation yet (the humanoid just walks slowly). PLACEHOLDER ART.
 - HUD: Kit placeholder look (M10 restyles).
 
 ## Studio test list (needs nate's PC)
@@ -145,6 +146,24 @@ Hub buildings: 220 (all of Downtown, 6 Docks warehouses, 122 Old Town houses). D
 9. Join late: a second player who joins after buildings fell sees the same Damaged and Collapsed buildings and rubble at once (no collapse replays) and any drone already working.
 10. Streaming: fly away from wrecked buildings and come back: they still look wrecked, with no leftover floating chunks.
 11. Gate: 10 players (or you plus 9 bots and a friend) wreck one block for 10 minutes: the Dev panel's server frame stays under 16 ms and the "buildings", "citizens" and "wrecked" counters behave; a mid-range phone on the low preset holds 30+ fps during collapses. After the drones finish, everything is back.
+
+### M8 PvP, death, anti-exploit
+Use Test > Clients and Servers with 2 (or 3) players. DEV panel (M8 rows): Force PvP on (level 10 and the flag, skipping the 5 s and 60 s rules), Down me, Go to the Crater, +200 Fame.
+1. Below level 10 there is no PVP button. At 10 (DEV > Level +5 twice) it shows under the wallet. Press it at a safehouse: "Step out of the safe area". Outside: PVP ON in your side colour, a blue (League) or red (Syndicate) ring grows under you and others see it and a PVP tag on your plate.
+2. Toggle spam: tap PVP fast: it only changes once per 5 s and nothing kicks you. Hit a flagged player, then try to turn off: "Can switch off in Ns" counts from 60 and restarts on each PvP hit.
+3. Unflagged safety: a flagged player's bolts, chains, novas, fields, beams, echoes and supers never hurt an unflagged player standing in them (no numbers, no health loss), and an unflagged player cannot hurt a flagged one. A flag switched off while a field is on the ground stops its hits.
+4. Two flagged players fight: numbers show, supers hit for less, stuns and roots stop the other's movement and buttons (a second stun within 8 s is half as long, then 3 s of immunity), slows slow, knockbacks and pulls throw the other player a short way, and nobody gets pulled back by the speed check for it.
+5. Safe areas: inside a safehouse's radius, at HQ or in a mission pocket no PvP damage lands either way.
+6. PvP defeat: the loser bursts into sparks with no Downed screen, OVERLOADED and a 5 s count, then respawns with SHIELDED for 5 s (hits do nothing until they attack). The card: winner "+N Credits +15 Fame"; loser "-N unbanked Credits. Gear is never lost." (or "Nothing lost" with 500 or fewer on hand).
+7. Farming: beat the same player 3 times inside 30 minutes: the third card says no pay. Two players trading 3 wins each inside an hour: both see no pay, and the Output shows two "[GuardService] review: ... trade" lines. Same side pays half.
+8. Combat logging: hit a flagged player, then have them leave within 15 s: their body stays standing for 10 s and the attacker gets the win card.
+9. Support: an unflagged player's heal or shield (e.g. Controller buffs) skips a flagged ally who is in a PvP fight; it works again 15 s after their last PvP hit.
+10. Downed (PvE): DEV > Down me (or let robots win): grey pulsing edge, DOWNED 10 count, GIVE UP, HELP; you crawl slowly and cannot cast or fly; robots stop shooting you. A second player gets a REVIVE button within 8 studs; staying close 3 s (1.5 s as Controller) brings you back with about a third of your health and gives them +40 Renown. Casting or walking away stops it. GIVE UP respawns 2 s later. Waiting 10 s: DEFEATED, the safehouse picker (NEAREST plus visited ones) and a respawn 5 s later at the pick. HELP shows a "HELP!" marker on the other player's screen.
+11. The Comet Crater (DEV > Go to the Crater, then walk in): red bar "PVP ZONE IN 5" with LEAVE (puts you just outside); stay: PVP ZONE, your flag is forced on, the PVP button cannot turn it off, Renown from incidents and boss tiers inside pays +50%. A level 9 sees the bar but never gets flagged.
+12. Plates: every other player has a plate with name, FAME n (INFAMY for villains), PVP and DOWNED tags; tap it: REPORT (4 reasons; a second report on the same player within 10 minutes says "already"), MUTE hides their chat for you. Three accounts reporting one player within 10 minutes prints a review line.
+13. Fame: DEV > +200 Fame: rank up toasts (FAME RANK 2, 3), the Spotlight Visor style shows in GEAR at rank 3.
+14. Strikes: speed hack test (DEV teleport tools or a CFrame jump far away): pulled back each time; 3 big jumps inside 10 minutes would kick on a live server (Studio prints "would kick"). Remote fuzzing (wrong types, NaN, floods) only drops calls and, if flooding, counts strikes. No ban anywhere.
+15. Gate: a 30-minute exploit test with 2 to 3 players (toggle spam, combat logging, alt farming, speed hacks, remote fuzzing, duplication via fast equip and salvage) finds nothing that pays, hurts an unflagged player or duplicates gear.
 
 ### M7 Opening, Act 1, missions
 DEV panel (M7 rows): Opening (replays it), Open step (jumps the running opening to a step), Mission (cycles 2 to 6 and enters it), Finish step (the current mission or quest step), Leave mission, Quest (cycles the 8 arcs and talks to that NPC), Act 1 done, Reset story. DEV > Wipe profile then rejoin gives a fresh character.

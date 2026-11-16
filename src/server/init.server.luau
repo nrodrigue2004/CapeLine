@@ -2,7 +2,8 @@
 -- reads its heights), then remotes, heroes, movement checks, enemies, combat, abilities, economy, gear and
 -- perks, safehouses and beacons, destruction (buildings, vehicles, citizens), world activity (sites,
 -- incidents, contracts, events, the world boss, the clock), the story (choices and rewards, the opening,
--- mission pockets, side quests), then saves (a loaded profile fires into all of those), and the Studio-only tools.
+-- mission pockets, side quests), PvP and safety (the flag, Fame, strikes and reports, Downed and defeats),
+-- then saves (a loaded profile fires into all of those), and the Studio-only tools.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -37,6 +38,10 @@ local StoryService = require(Services.StoryService)
 local OpeningService = require(Services.OpeningService)
 local MissionService = require(Services.MissionService)
 local QuestService = require(Services.QuestService)
+local FlagService = require(Services.FlagService)
+local FameService = require(Services.FameService)
+local GuardService = require(Services.GuardService)
+local DeathService = require(Services.DeathService)
 local LoadBots = require(Services.LoadBots)
 local DevService = require(Services.DevService)
 
@@ -68,6 +73,10 @@ StoryService.init()
 OpeningService.init()
 MissionService.init()
 QuestService.init()
+FlagService.init()
+FameService.init()
+GuardService.init()
+DeathService.init()
 DataService.init() -- last of the game services: profile loads fire into the handlers above
 LoadBots.init()
 DevService.init()

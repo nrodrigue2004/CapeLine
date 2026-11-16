@@ -180,6 +180,15 @@ return {
 			{ n = 4, name = "Fin Helm", shape = "fin", tier = "Uncommon", color = { 200, 60, 60 } },
 			{ n = 5, name = "Horned Helm", shape = "horns", tier = "Rare", color = { 240, 200, 70 } },
 			{ n = 6, name = "Halo Crown", shape = "halo", tier = "Rare", color = { 255, 240, 160 } },
+			-- Fame and Infamy rank rewards (M8): never rolled by loot (tier "Fame")
+			{
+				n = 21,
+				name = "Spotlight Visor",
+				shape = "visor",
+				tier = "Fame",
+				quest = "FameRank3",
+				color = { 255, 220, 120 },
+			},
 			-- world boss drops (M6): never rolled by loot (tier "Boss"); 1 in 20 is the shiny one
 			{
 				n = 30,
@@ -219,6 +228,14 @@ return {
 			{ n = 2, name = "Knuckle Guards", shape = "gauntlet", tier = "Common", color = { 70, 70, 80 } },
 			{ n = 3, name = "Spike Gauntlets", shape = "spikes", tier = "Uncommon", color = { 180, 60, 60 } },
 			{ n = 4, name = "Coil Gauntlets", shape = "coil", tier = "Rare", color = { 120, 210, 255 } },
+			{
+				n = 21,
+				name = "Legend Gauntlets",
+				shape = "gauntlet",
+				tier = "Fame",
+				quest = "FameRank9",
+				color = { 250, 200, 60 },
+			},
 		},
 		legs = {
 			{ n = 1, name = "Shin Guards", shape = "shins", tier = "Common", color = { 70, 80, 100 } },
@@ -239,6 +256,14 @@ return {
 		back = {
 			{ n = 1, name = "Short Cape", shape = "cape", tier = "Common", color = { 200, 40, 50 } },
 			{ n = 2, name = "Long Cape", shape = "longcape", tier = "Uncommon", color = { 40, 60, 160 } },
+			{
+				n = 21,
+				name = "Headliner Cape",
+				shape = "longcape",
+				tier = "Fame",
+				quest = "FameRank6",
+				color = { 230, 180, 50 },
+			},
 			{ n = 3, name = "Jet Pack", shape = "jetpack", tier = "Uncommon", color = { 90, 90, 100 } },
 			{ n = 4, name = "Light Wings", shape = "lightwings", tier = "Rare", color = { 255, 230, 140 } },
 			{

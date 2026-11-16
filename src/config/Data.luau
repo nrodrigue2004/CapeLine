@@ -17,4 +17,5 @@ return {
 	freeCharacters = 2,
 	maxCharacters = 4,
 	receiptsKept = 50,
+	reviewStore = "CapelineReview_v1", -- M8: the manual review queue (kicks, reports, PvP trades); never bans
 }

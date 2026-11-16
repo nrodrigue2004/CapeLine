@@ -54,6 +54,9 @@ local function trackFor(hero: any, pos: Vector3, now: number): Track
 end
 
 -- A legal jump (respawn, fast travel, mission pocket): accept the new spot
+-- GuardService sets this: (player, kind) counts a strike (M8)
+MoveGuard.strikeHook = nil :: ((Player, string) -> ())?
+
 function MoveGuard.reset(hero: any)
 	local pos = HeroService.position(hero)
 	if pos then
@@ -168,7 +171,7 @@ function MoveGuard.init()
 			checkAcc = 0
 			for _, hero in HeroService.all() do
 				local pos = HeroService.position(hero)
-				if pos and hero.player and hero.alive then
+				if pos and hero.player and (hero.alive or hero.downed) then -- a Downed crawl is checked too
 					local t = trackFor(hero, pos, now)
 					-- server stamina mirror
 					local free = t.freeUntil ~= nil and now < (t.freeUntil :: number)
@@ -194,10 +197,15 @@ function MoveGuard.init()
 						if not ok then
 							correct(hero, t)
 							if strike then
-								local kick = MoveCheck.addStrike(t.check, now, Config.Safety)
 								warn(string.format("[MoveGuard] strike for %s (%d)", hero.name, hero.id))
-								if kick and not RunService:IsStudio() then
-									(hero.player :: Player):Kick("Connection problem. Please rejoin.")
+								if MoveGuard.strikeHook then
+									-- GuardService (M8) counts every kind of strike together
+									MoveGuard.strikeHook(hero.player :: Player, "speed")
+								else
+									local kick = MoveCheck.addStrike(t.check, now, Config.Safety)
+									if kick and not RunService:IsStudio() then
+										(hero.player :: Player):Kick("Connection problem. Please rejoin.")
+									end
 								end
 							end
 						end

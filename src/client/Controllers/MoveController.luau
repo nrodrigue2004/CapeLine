@@ -10,6 +10,9 @@
 --           or an arc to a landing spot (Meteor Leap)
 -- In the air modes the Humanoid is set to PlatformStand and a LinearVelocity plus AlignOrientation drive
 -- the body; on landing the Humanoid takes over again.
+-- M8: PvP crowd control on you (State.status.cc): stuns and roots stop movement and the leap and flight
+-- buttons, slows cut speed, and a Downed hero (the Downed attribute) can only crawl. HeroKnock (a PvP
+-- knockback, pull or knockup) plays as a short arc the server already allowed.
 -- PLACEHOLDER ANIMATION: the flying pose is the body tilted along the travel direction; real leap, glide and
 -- fly animations come with the animation pass (Tasks.md).
 
@@ -58,11 +61,33 @@ rayParams.FilterType = Enum.RaycastFilterType.Exclude
 
 local arc: { from: Vector3, to: Vector3, start: number, time: number, height: number }? = nil
 
--- Run speed with Speedster's +10% and the Weightless buff
+local function ccLeft(kind: string): boolean
+	local c = State.status.cc[kind]
+	return c ~= nil and os.clock() < c.untilT
+end
+
+-- Downed, stunned or rooted: no moving under your own power (crawling aside), no leap, no flight
+local function held(): boolean
+	return ccLeft("stun") or ccLeft("root")
+end
+local function downed(): boolean
+	return player:GetAttribute("Downed") == true
+end
+MoveController.held = held
+
+-- Run speed with Speedster's +10%, the Weightless buff, and PvP slows, stuns and roots
 local function runSpeed(): number
+	if downed() then
+		return Config.Pvp.downed.crawlSpeed
+	end
+	if held() then
+		return 0
+	end
 	local class = Config.Classes[State.hero.classId]
 	local bonus = if class and class.moveSpeed then class.moveSpeed else 0
-	return M.run.speed * (1 + bonus) * (1 + State.buff("speed"))
+	local slow = State.status.cc.slow
+	local slowMult = if slow and os.clock() < slow.untilT then slow.value else 1
+	return M.run.speed * (1 + bonus) * (1 + State.buff("speed")) * slowMult
 end
 MoveController.runSpeed = runSpeed
 
@@ -263,6 +288,15 @@ local function step(dt: number)
 
 	local flat, full = wishDirs()
 	local fallSpeed = -vel.Y
+	if held() or downed() then
+		-- no control: a flight or glide drops into a fall
+		flat, full = Vector3.zero, Vector3.zero
+		if mode == "fly" or mode == "glide" then
+			setBoost(false)
+			setMode("air")
+			mode = "air"
+		end
+	end
 	if mode == "air" then
 		vel = Vector3.new(MoveMath.airStep(M, vel.X, vel.Y, vel.Z, dt))
 		-- light air control so a leap can be nudged
@@ -336,7 +370,7 @@ local function step(dt: number)
 end
 
 local function onPressed(action: string)
-	if not hum or hum.Health <= 0 then
+	if not hum or hum.Health <= 0 or held() or downed() then
 		return
 	end
 	local mode = MoveController.mode
@@ -421,6 +455,20 @@ function MoveController.init()
 			if MoveController.mode == "dash" then
 				setMode(dashReturn)
 			end
+		end
+	end)
+	Net.listen("HeroKnock", function(k)
+		local r = root
+		if not r or downed() then
+			return
+		end
+		local move = Vector3.new(k.x, k.y, k.z)
+		local flat = Vector3.new(move.X, 0, move.Z)
+		MoveController.arcTo(r.Position + flat, k.time or 0.35, math.max(2, move.Y))
+	end)
+	player:GetAttributeChangedSignal("Downed"):Connect(function()
+		if hum and MoveController.mode == "ground" then
+			hum.WalkSpeed = runSpeed()
 		end
 	end)
 	RunService.PreSimulation:Connect(step)

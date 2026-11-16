@@ -31,6 +31,7 @@ SafehouseService.Board = Signal.new() -- (player, safehouseId) the Contract Boar
 local W = Config.World
 local S = W.safehouse
 local deathSpot: { [number]: Vector3 } = {} -- hero id -> where they were defeated
+local chosen: { [number]: number } = {} -- hero id -> the safehouse picked on the Defeated screen (M8)
 local joined: { [Player]: boolean } = {} -- first spawn handled
 
 local function char(player: Player): any?
@@ -137,8 +138,12 @@ local function onSpawned(hero: any)
 	end
 	local died = deathSpot[hero.id]
 	deathSpot[hero.id] = nil
+	local pick = chosen[hero.id]
+	chosen[hero.id] = nil
 	local id = 0
-	if died then
+	if died and pick and Travel.has(c.safehouses, pick) then
+		id = pick
+	elseif died then
 		id = Travel.respawnAt(
 			CityBuilder.world.safehouses,
 			c.safehouses,
@@ -155,6 +160,35 @@ local function onSpawned(hero: any)
 	if cf then
 		task.spawn(placeCharacter, hero, cf)
 	end
+end
+
+-- The Defeated screen's pick (Respawn.Choose): a visited safehouse, or 0 for the nearest. Once only.
+function SafehouseService.chooseRespawn(hero: any, id: number): boolean
+	local c = hero.player and char(hero.player)
+	if not c or (id ~= 0 and not Travel.has(c.safehouses, id)) then
+		return false
+	end
+	if id ~= 0 then
+		chosen[hero.id] = id
+	else
+		chosen[hero.id] = nil
+	end
+	return true
+end
+
+-- Visited safehouses for the respawn picker
+function SafehouseService.visited(hero: any): { number }
+	local c = hero.player and char(hero.player)
+	local out = {}
+	if c then
+		for id in CityBuilder.world.safehouses do
+			if Travel.has(c.safehouses, id) then
+				table.insert(out, id)
+			end
+		end
+	end
+	table.sort(out)
+	return out
 end
 
 local function bank(player: Player)

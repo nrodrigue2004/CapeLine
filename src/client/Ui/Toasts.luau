@@ -32,6 +32,14 @@ local UNLOCK_NAMES: { [string]: string } = {
 	Salute = "Salute emote",
 	NullEcho = "Null Echo, your drone buddy",
 }
+local PVP_REASONS: { [string]: string } = {
+	level = "PvP opens at level 10",
+	rate = "Wait a moment before switching again",
+	safe = "Step out of the safe area to switch PvP on",
+	combat = "PvP can switch off 60 s after the last PvP hit",
+	crater = "Leave the Comet Crater to switch PvP off",
+}
+
 local MISSION_REASONS: { [string]: string } = {
 	level = "Reach the mission's level first",
 	locked = "Finish the mission before it first",
@@ -220,6 +228,40 @@ function Toasts.show(data: { [string]: any })
 		push("Out of time! Back to the first ring", Kit.color.paper)
 	elseif id == "wrongSide" then
 		push("Talk to the mentor of your own side", Kit.color.paper)
+	elseif id == "pvpOn" then
+		push("PVP ON: other flagged players can fight you", Color3.fromRGB(255, 120, 110), true)
+	elseif id == "pvpOff" then
+		push("PvP off", Kit.color.paper)
+	elseif id == "pvpRefused" then
+		local text = PVP_REASONS[data.reason or ""]
+		if text then
+			push(text, Kit.color.paper)
+		end
+	elseif id == "craterIn" then
+		push("COMET CRATER: PVP ZONE, +50% RENOWN", Color3.fromRGB(255, 120, 110), true)
+	elseif id == "revived" then
+		push(
+			string.format("You revived %s  +%d Renown", data.name or "", data.renown or 0),
+			Kit.color.gold,
+			true
+		)
+	elseif id == "revivedBy" then
+		push(string.format("%s got you back up!", data.name or "Someone"), Kit.color.gold)
+	elseif id == "reviveBlocked" then
+		push("They are in a PvP fight: only a flagged ally can help", Kit.color.paper)
+	elseif id == "respawnPick" then
+		push("Respawn point picked", Kit.color.paper)
+	elseif id == "fameRank" then
+		push(
+			string.format("%s RANK %d!", if data.side == "villain" then "INFAMY" else "FAME", data.rank or 1),
+			Kit.color.gold,
+			true,
+			4.5
+		)
+	elseif id == "reported" then
+		push("Thanks. Our team will look at it.", Kit.color.paper)
+	elseif id == "reportedAlready" then
+		push("You already reported them recently", Kit.color.paper)
 	elseif id == "saveDown" then
 		push(
 			"Saving is down right now: this session's progress will not be kept",

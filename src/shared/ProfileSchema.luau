@@ -131,6 +131,7 @@ function ProfileSchema.default(): { [string]: any }
 		daily = { day = 0, contractsDone = 0 },
 		seen = words(ProfileSchema.SMALL_WORDS),
 		stats = { playSeconds = 0, bossesJoined = 0, rescues = 0, wins = 0, kills = 0, drops = 0 },
+		guard = { kicks = 0, reviewed = 0 }, -- M8: safety kicks on this account (review queue after 2); never a ban
 	}
 end
 

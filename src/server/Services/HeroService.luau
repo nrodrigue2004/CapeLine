@@ -4,6 +4,10 @@
 -- (buffs and the meter, on change) and player attributes (what other players draw). Saves arrive in M3, so
 -- every hero starts at level 1 for now.
 -- Every hit on a hero goes through HeroService.damage: parry, class and buff mitigation, Anchor, shields.
+-- M8: a player's PvE defeat goes to DeathService first (HeroService.downHandler: the Downed state); PvP
+-- hits carry source.pvp. Crowd control on heroes (PvP stuns, roots, slows) lives in hero.status too and
+-- rides HeroStatus to the owner, whose movement obeys it. Each hero has a PvP slot: its combat id is
+-- HeroService.PVP_BASE + slot (CombatService targets flagged heroes by it).
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -68,10 +72,33 @@ export type Hero = {
 	safehouse: number?, -- the safehouse the hero stands in (SafehouseService)
 	secondWindAt: number, -- Second Wind ready again (os.clock)
 	scene: string?, -- "opening" or "mission": in a story scene (no incidents, contracts or world events)
+	downed: boolean?, -- M8: Downed (PvE health hit 0): crawling, waiting for a revive
+	pvpSlot: number, -- M8: combat id PVP_BASE + slot when flagged heroes are targets
 }
 
 local heroes: { [number]: Hero } = {}
 local byPlayer: { [Player]: Hero } = {}
+local bySlot: { [number]: Hero } = {}
+
+HeroService.PVP_BASE = 65000 -- hero combat ids: above every robot (EnemySim) and target (50,000+) id
+HeroService.MAX_SLOTS = 500
+
+local function freeSlot(): number
+	for i = 1, HeroService.MAX_SLOTS do
+		if not bySlot[i] then
+			return i
+		end
+	end
+	return 0
+end
+
+-- The hero behind a combat id (PVP_BASE + slot), or nil
+function HeroService.bySlot(combatId: number): Hero?
+	return bySlot[combatId - HeroService.PVP_BASE]
+end
+
+-- DeathService: called when a player's health hits 0 from a PvE hit; returns true when it took over (Downed)
+HeroService.downHandler = nil :: ((Hero, any?) -> boolean)?
 
 HeroService.Spawned = Signal.new() -- (hero) a player's character spawned or respawned
 HeroService.Defeated = Signal.new() -- (hero, source)
@@ -139,7 +166,17 @@ local function newHero(id: number, name: string, player: Player?, bot: any?): He
 		traveling = false,
 		safehouse = nil,
 		secondWindAt = 0,
+		downed = nil,
+		pvpSlot = 0,
 	}
+end
+
+local function takeSlot(hero: Hero)
+	local slot = freeSlot()
+	hero.pvpSlot = slot
+	if slot > 0 then
+		bySlot[slot] = hero
+	end
 end
 
 -- Might from Shared Spark: 10% of the Might of each ally within 20 studs who wears it
@@ -175,7 +212,48 @@ end
 -- Run speed multiplier: Speedster +10%, Weightless +30%
 function HeroService.speedMult(hero: Hero): number
 	local class = Config.Classes[hero.classId]
-	return (1 + (class.moveSpeed or 0)) * (1 + Status.value(hero.status, "speed", os.clock(), 0))
+	local now = os.clock()
+	if Status.has(hero.status, "stun", now) or Status.has(hero.status, "root", now) then
+		return 0
+	end
+	local slow = Status.get(hero.status, "slow", now)
+	return (1 + (class.moveSpeed or 0))
+		* (1 + Status.value(hero.status, "speed", now, 0))
+		* (if slow then slow.value else 1)
+end
+
+-- Crowd control on a hero (PvP): Resolve shortens it (at its PvP quarter), stuns and roots have
+-- diminishing returns. Returns the seconds applied.
+function HeroService.cc(hero: Hero, kind: string, duration: number, value: number?, resist: number?): number
+	if not hero.alive then
+		return 0
+	end
+	local now = os.clock()
+	local applied =
+		Status.apply(hero.status, kind, duration, now, { value = value, resist = resist, pvp = true })
+	if applied > 0 then
+		if kind == "stun" then
+			hero.channel = nil
+		end
+		HeroService.applyWalkSpeed(hero)
+		task.delay(applied + 0.05, function()
+			if heroes[hero.id] == hero then
+				HeroService.applyWalkSpeed(hero)
+				HeroService.sendStatus(hero)
+			end
+		end)
+		HeroService.sendStatus(hero)
+	end
+	return applied
+end
+
+-- Stunned, lifted or Downed: no casting
+function HeroService.disabled(hero: Hero): boolean
+	local now = os.clock()
+	return hero.downed == true
+		or Status.has(hero.status, "stun", now)
+		or Status.has(hero.status, "knockup", now)
+		or Status.has(hero.status, "float", now)
 end
 
 function HeroService.awakened(hero: Hero): boolean
@@ -288,6 +366,13 @@ function HeroService.sendStatus(hero: Hero)
 			aura += bit
 		end
 	end
+	local cc = {}
+	for _, kind in { "stun", "root", "slow", "knockup", "float" } do
+		local e = Status.get(hero.status, kind, now)
+		if e then
+			cc[kind] = { left = e.untilT - now, value = e.value }
+		end
+	end
 	local awake = Awakening.active(hero.meter, now)
 	local player = hero.player
 	if player then
@@ -297,6 +382,7 @@ function HeroService.sendStatus(hero: Hero)
 			meter = hero.meter.value,
 			awakeLeft = if awake then hero.meter.untilT - now else 0,
 			buffs = buffs,
+			cc = cc,
 		})
 	end
 end
@@ -332,8 +418,14 @@ end
 function HeroService.applyWalkSpeed(hero: Hero)
 	local hum = humanoidOf(hero)
 	if hum then
-		hum.WalkSpeed = Config.Move.run.speed * HeroService.speedMult(hero)
+		hum.WalkSpeed = if hero.downed
+			then Config.Pvp.downed.crawlSpeed
+			else Config.Move.run.speed * HeroService.speedMult(hero)
 	end
+end
+
+function HeroService.humanoid(hero: Hero): Humanoid?
+	return humanoidOf(hero)
 end
 
 -- Add Awakening meter. kind: basicHit, skillHit, superHit, kill
@@ -426,7 +518,7 @@ function HeroService.damage(hero: Hero, amount: number, source: any?)
 	end
 	local now = os.clock()
 	hero.lastDamaged = now
-	if Status.has(hero.status, "parry", now) and source and source.enemy then
+	if Status.has(hero.status, "parry", now) and source and (source.enemy or source.pvp) then
 		Status.remove(hero.status, "parry")
 		HeroService.Parried:Fire(hero, source)
 		HeroService.sendStatus(hero)
@@ -444,22 +536,27 @@ function HeroService.damage(hero: Hero, amount: number, source: any?)
 	hero.meterDirty = true
 	hero.health = math.max(0, hero.health - amount)
 	local hum = humanoidOf(hero)
-	if hum then
+	if hum and hero.health > 0 then
 		hum.Health = hero.health
 	end
 	if hero.health <= 0 and hero.perks.SecondWind and now >= hero.secondWindAt then
 		-- Second Wind: back up once every 5 minutes with 30% health
+		-- in PvP the perk works at half (spec: Legendary perks in PvP)
 		local perk = Config.Gear.perks.SecondWind
+		local share = perk.health * (if source and source.pvp then 0.5 else 1)
 		hero.secondWindAt = now + perk.every
-		hero.health = math.max(1, math.floor(hero.maxHealth * perk.health + 0.5))
+		hero.health = math.max(1, math.floor(hero.maxHealth * share + 0.5))
 		if hum then
 			hum.Health = hero.health
 		end
 		HeroService.SecondWind:Fire(hero)
 		return amount
 	end
+	if hero.health <= 0 and HeroService.downHandler and HeroService.downHandler(hero, source) then
+		return amount -- Downed (PvE) or a PvP defeat: DeathService has it (and the humanoid)
+	end
 	if hero.health <= 0 then
-		-- M1: straight to Defeated and the Roblox respawn (5 s). The Downed state arrives in M8.
+		-- bots, and players when DeathService is not running: straight to Defeated and the Roblox respawn
 		hero.alive = false
 		HeroService.Defeated:Fire(hero, source)
 		if hero.bot then
@@ -583,11 +680,15 @@ end
 function HeroService.addBot(id: number, name: string, bot: any): Hero
 	local hero = newHero(id, name, nil, bot)
 	heroes[id] = hero
+	takeSlot(hero)
 	return hero
 end
 
 function HeroService.remove(hero: Hero)
 	heroes[hero.id] = nil
+	if hero.pvpSlot > 0 and bySlot[hero.pvpSlot] == hero then
+		bySlot[hero.pvpSlot] = nil
+	end
 	if hero.player then
 		byPlayer[hero.player] = nil
 	end
@@ -654,6 +755,7 @@ local function onCharacter(player: Player, char: Model)
 	local hum = char:WaitForChild("Humanoid") :: Humanoid
 	hero.health = hero.maxHealth
 	hero.alive = true
+	hero.downed = nil
 	hero.lastDamaged = 0
 	hero.channel = nil
 	Cooldowns.clear(hero.cooldowns)
@@ -682,6 +784,7 @@ function HeroService.init()
 		local hero = newHero(player.UserId, player.DisplayName, player, nil)
 		heroes[hero.id] = hero
 		byPlayer[player] = hero
+		takeSlot(hero)
 		player.CharacterAdded:Connect(function(char)
 			onCharacter(player, char)
 		end)

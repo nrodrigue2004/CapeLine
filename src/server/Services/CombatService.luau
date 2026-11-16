@@ -8,6 +8,11 @@
 -- the meter gains, recasts, combo strings, echoes, cast windups, Parry Stance ripostes and team-up combos.
 -- M5: abilities with structDmg (and every super) hit buildings and flip vehicles where they land; a heavy hit
 -- (coeff 2.5+) flips nearby vehicles and knocks a robot through a wall it is near (the wall turns Damaged).
+-- M8: a flagged attacker's candidates include the flagged heroes it may hit (FlagService.targetsFor). Every
+-- hit on a hero re-checks both flags when it lands, uses compressed stats (supers 60%, Lucky Strike off,
+-- set bonuses half), and crowd control on players has diminishing returns; knockbacks, pulls and knockups
+-- reach the target's own client as an impulse (HeroKnock). Heals, shields and buffs skip flagged fighters
+-- an unflagged helper may not support. Stunned, lifted or Downed heroes cannot cast.
 
 local Debris = game:GetService("Debris")
 local Players = game:GetService("Players")
@@ -33,6 +38,7 @@ local EnemyService = require(script.Parent.EnemyService)
 local PerfMonitor = require(script.Parent.PerfMonitor)
 local BuildingService = require(script.Parent.BuildingService)
 local VehicleService = require(script.Parent.VehicleService)
+local FlagService = require(script.Parent.FlagService)
 
 local CombatService = {}
 
@@ -78,6 +84,32 @@ local fields: { any } = {}
 local combos = Awakening.comboBook()
 local partsFolder: Folder
 
+local PVP_BASE = HeroService.PVP_BASE
+
+-- What this hero's abilities can hit: robots and targets, plus flagged heroes when it may fight them
+local function cands(hero: any): { any }
+	local list = EnemyService.candidates()
+	for _, c in FlagService.targetsFor(hero) do
+		table.insert(list, c)
+	end
+	return list
+end
+
+-- A candidate for one combat id (channels and ripostes keep ids, not positions)
+local function candOf(id: number): any?
+	if id > PVP_BASE then
+		local h = HeroService.bySlot(id)
+		local pos = h and h.alive and HeroService.position(h)
+		return pos and { id = id, x = pos.X, y = pos.Y, z = pos.Z, r = 2.5, hero = h }
+	end
+	local e = EnemyService.get(id)
+	if e and e.alive then
+		return { id = id, x = e.x, y = e.y, z = e.z, r = 2 }
+	end
+	local t = EnemyService.target(id)
+	return t and { id = id, x = t.x, y = t.y, z = t.z, r = t.r }
+end
+
 local function after(delay: number, fn: () -> ())
 	table.insert(timers, { at = os.clock() + delay, fn = fn })
 end
@@ -100,13 +132,14 @@ end
 -- Damage for one hit: Power x coeff x class x crit, then passives and Awakening
 -- eff: the ability (its power set gets the Epic 2-piece bonus). Crits come from Precision (gear),
 -- Lucky Strike (every 8th hit) and the Blaster's Overcharge.
-local function rollDamage(hero: any, coeff: number, eff: any?): (number, boolean)
+local function rollDamage(hero: any, coeff: number, eff: any?, pvp: boolean?): (number, boolean)
 	local crit = false
-	local chance = Formulas.critChance(Config, hero.stats.Precision)
+	local precision = if pvp then hero.stats.Precision * Config.Pvp.minorScale else hero.stats.Precision
+	local chance = Formulas.critChance(Config, precision)
 	if chance > 0 and math.random() < chance then
 		crit = true
 	end
-	if hero.perks.LuckyStrike then
+	if hero.perks.LuckyStrike and not pvp then -- off in PvP (the Legendary perk table)
 		hero.luckyCount += 1
 		if hero.luckyCount % Config.Gear.perks.LuckyStrike.every == 0 then
 			crit = true
@@ -127,7 +160,8 @@ local function rollDamage(hero: any, coeff: number, eff: any?): (number, boolean
 		dmg *= 1 + math.min(passive.max, math.floor(speed / 10) * passive.perTenSpeed)
 	end
 	if eff and eff.set and hero.setDamage[eff.set] then
-		dmg *= 1 + hero.setDamage[eff.set] -- Epic set, 2 pieces
+		-- Epic set, 2 pieces (half in PvP)
+		dmg *= 1 + hero.setDamage[eff.set] * (if pvp then Config.Pvp.setMult else 1)
 	end
 	dmg *= Awakening.damageMult(Config, hero.meter, os.clock())
 	return dmg, crit
@@ -149,6 +183,48 @@ local function ccMult(hero: any): number
 	return 1 + (class.ccBonus or 0)
 end
 
+-- Crowd control on a player hit in PvP. Stuns and roots have diminishing returns (Status, pvp); Resolve
+-- shortens it at its PvP quarter. Moves (knockback, pull, knockup) go to the target's own client as an
+-- impulse, and MoveGuard allows the distance.
+local KNOCK_KINDS = { knockback = true, pull = true, knockup = true }
+local function pvpStatus(
+	hero: any,
+	eff: any,
+	kind: string,
+	dur: number,
+	target: any,
+	at: Vector3,
+	from: Vector3,
+	knockDir: Vector3?
+)
+	local K8 = Config.Pvp.knock
+	local resist = 1 - Formulas.ccMultiplier(Config, target.stats.Resolve * Config.Pvp.minorScale)
+	if KNOCK_KINDS[kind] then
+		local move: Vector3
+		local time = 0.35
+		if kind == "knockback" then
+			move = (knockDir or flatDir(at - from)) * math.min(eff.knock or 8, K8.maxDistance)
+		elseif kind == "pull" then
+			local d = from - at
+			local len = math.clamp(d.Magnitude - 4, 0, K8.maxDistance)
+			move = if d.Magnitude > 0.1 then d.Unit * len else Vector3.zero
+			time = math.max(0.3, dur)
+		else
+			move = Vector3.new(0, K8.upSpeed * 0.3, 0)
+			HeroService.cc(target, "knockup", math.min(dur, 1), nil, resist)
+		end
+		if target.player and move.Magnitude > 0.5 then
+			MoveGuard.grant(target, move.Magnitude + 10)
+			Net.fire("HeroKnock", target.player, { x = move.X, y = move.Y, z = move.Z, time = time })
+		end
+	elseif kind == "slow" then
+		HeroService.cc(target, "slow", dur * ccMult(hero), eff.slow or 0.6, resist)
+	elseif kind == "stun" or kind == "root" or kind == "float" then
+		HeroService.cc(target, kind, dur * ccMult(hero), nil, resist)
+	end
+	-- taunt and blind have no meaning on a player
+end
+
 -- One status on one enemy from an ability (`from` is where it came from: the hero or a field's centre)
 local function applyStatus(
 	hero: any,
@@ -160,6 +236,13 @@ local function applyStatus(
 	from: Vector3,
 	knockDir: Vector3?
 )
+	if id > PVP_BASE then
+		local target = HeroService.bySlot(id)
+		if target and FlagService.canHit(hero, target) then
+			pvpStatus(hero, eff, kind, dur, target, at, from, knockDir)
+		end
+		return
+	end
 	if kind == "knockback" then
 		local dir = knockDir or flatDir(at - from)
 		local wall = EnemyService.knock(id, dir, eff.knock or 8)
@@ -198,6 +281,68 @@ local function structural(eff: any, center: Vector3, radius: number, kind: numbe
 	end
 end
 
+-- One hit on a flagged hero: both flags are read again now, then compressed damage and PvP crowd control
+local function pvpHit(
+	hero: any,
+	eff: any,
+	r: any,
+	cand: any,
+	coeff: number,
+	primary: boolean,
+	from: Vector3,
+	knockDir: Vector3?,
+	noStatus: boolean?
+): boolean
+	local target = cand.hero
+	if eff.perk or not FlagService.canHit(hero, target) then
+		return false -- perk bursts (Quakeheel, Echo Trail) are off in PvP
+	end
+	local dmg, crit = 0, false
+	if coeff > 0 then
+		dmg, crit = rollDamage(hero, coeff, eff, true)
+		dmg = FlagService.damage(hero, target, dmg, eff.slot == "super")
+	end
+	FlagService.notePvp(hero, target)
+	local dealt = if dmg > 0 then HeroService.damage(target, dmg, { pvp = hero, at = from }) else 0
+	local killed = not target.alive
+	local pos = HeroService.position(target) or Vector3.new(cand.x, cand.y, cand.z)
+	table.insert(r.h, {
+		cand.id,
+		math.floor(dealt + 0.5),
+		if crit then 1 else 0,
+		if killed then 1 else 0,
+		pos.X,
+		pos.Y,
+		pos.Z,
+		0,
+	})
+	if killed then
+		if hero.perks.CoolingKill and hero.loadout.super then
+			-- Cooling Kill works at half in PvP
+			local sup = hero.loadout.super
+			local left = Cooldowns.left(hero.cooldowns, sup, os.clock())
+			if left > 0 then
+				local cut = (hero.cooldowns.length[sup] or left) * Config.Gear.perks.CoolingKill.refund * 0.5
+				Cooldowns.reduce(hero.cooldowns, sup, cut)
+				if hero.player then
+					Net.fire("CooldownCut", hero.player, A.list[sup].num, cut)
+				end
+			end
+		end
+		return true
+	end
+	if noStatus then
+		return false
+	end
+	if eff.status and (primary or not eff.firstOnly) then
+		pvpStatus(hero, eff, eff.status, eff.statusDur or 1, target, pos, from, knockDir)
+	end
+	if eff.status2 then
+		pvpStatus(hero, eff, eff.status2, eff.status2Dur or 1, target, pos, from, knockDir)
+	end
+	return false
+end
+
 -- Apply one hit. Returns true when it killed.
 local function applyHit(
 	hero: any,
@@ -212,6 +357,9 @@ local function applyHit(
 ): boolean
 	if coeff <= 0 and not eff.status then
 		return false
+	end
+	if cand.hero then
+		return pvpHit(hero, eff, r, cand, coeff, primary, from, knockDir, noStatus)
 	end
 	local dmg, crit = 0, false
 	if coeff > 0 then
@@ -289,7 +437,7 @@ local function hitArea(
 	coeff: number,
 	noStatus: boolean?
 ): number
-	local list = CastPlan.area(center.X, center.Y, center.Z, radius, EnemyService.candidates(), los)
+	local list = CastPlan.area(center.X, center.Y, center.Z, radius, cands(hero), los)
 	for _, c in list do
 		applyHit(hero, eff, r, c, coeff, true, center, nil, noStatus)
 	end
@@ -300,7 +448,7 @@ end
 -- quiet: no result record (the trail ticks too often to draw each one)
 function CombatService.burst(hero: any, center: Vector3, radius: number, coeff: number, quiet: boolean?)
 	local basic = A.list[hero.loadout.basic or "ZapBolt"]
-	local eff = { set = basic.set }
+	local eff = { set = basic.set, perk = true }
 	local r = record(hero, basic.num, 0, K.END, center, Vector3.new(0, -1, 0))
 	r.c, r.r = center, radius
 	hitArea(hero, eff, r, center, radius, coeff, true)
@@ -309,11 +457,12 @@ function CombatService.burst(hero: any, center: Vector3, radius: number, coeff: 
 	end
 end
 
-local function heroesNear(pos: Vector3, radius: number): { any }
+-- Heroes a support effect from `giver` reaches: in range, and allowed (FlagService.canSupport)
+local function heroesNear(pos: Vector3, radius: number, giver: any): { any }
 	local out = {}
 	for _, h in HeroService.all() do
 		local p = h.alive and HeroService.position(h)
-		if p and (p - pos).Magnitude <= radius then
+		if p and (p - pos).Magnitude <= radius and FlagService.canSupport(giver, h) then
 			table.insert(out, h)
 		end
 	end
@@ -436,7 +585,7 @@ local function applyBuff(hero: any, eff: any, r: any)
 	end
 	local targets = { hero }
 	if eff.allies then
-		for _, h in heroesNear(pos, eff.radius or 20) do
+		for _, h in heroesNear(pos, eff.radius or 20, hero) do
 			if h ~= hero then
 				table.insert(targets, h)
 			end
@@ -539,16 +688,15 @@ local function echo(hero: any, eff: any, num: number, seq: number, origin: Vecto
 			return
 		end
 		local r = record(hero, num, seq, K.ECHO, origin, dir)
-		local cands = EnemyService.candidates()
 		local list
 		if plan.cx then
 			local c = Vector3.new(plan.cx, plan.cy, plan.cz)
 			r.c, r.r = c, plan.radius
-			list = CastPlan.area(c.X, c.Y, c.Z, plan.radius, cands, los)
+			list = CastPlan.area(c.X, c.Y, c.Z, plan.radius, cands(hero), los)
 		else
 			local e = Vector3.new(plan.ex or origin.X, plan.ey or origin.Y, plan.ez or origin.Z)
 			r.e = e
-			list = HitQuery.capsule(origin.X, origin.Y, origin.Z, e.X, e.Y, e.Z, eff.width or 6, cands)
+			list = HitQuery.capsule(origin.X, origin.Y, origin.Z, e.X, e.Y, e.Z, eff.width or 6, cands(hero))
 		end
 		for _, c in list do
 			applyHit(hero, eff, r, c, eff.coeff * eff.echo, true, origin, nil)
@@ -575,24 +723,13 @@ local function resolve(
 		comboStep = AbilityRules.comboStep(hero.combo.at, hero.combo.step, now, #eff.hits)
 		hero.combo.at, hero.combo.step = now, comboStep
 	end
-	local plan = CastPlan.build(
-		eff,
-		origin.X,
-		origin.Y,
-		origin.Z,
-		dir.X,
-		dir.Y,
-		dir.Z,
-		hint,
-		EnemyService.candidates(),
-		world,
-		{
+	local plan =
+		CastPlan.build(eff, origin.X, origin.Y, origin.Z, dir.X, dir.Y, dir.Z, hint, cands(hero), world, {
 			comboStep = comboStep,
 			rangeBonus = rangeBonus,
 			aimSlack = C.aimSlack,
 			reach = C.reachSlack,
-		}
-	)
+		})
 	if not plan then
 		return false
 	end
@@ -637,7 +774,7 @@ local function resolve(
 	-- Epic set 4-piece changes on novas: Rimeguard ally shields, Ironclad shockwave field
 	if plan.shape == "nova" then
 		if eff.allyShield then
-			for _, h in heroesNear(from, eff.radius or 14) do
+			for _, h in heroesNear(from, eff.radius or 14, hero) do
 				if h ~= hero then
 					local pts = math.floor(h.maxHealth * eff.allyShield + 0.5)
 					HeroService.buff(h, "shield", pts, 4)
@@ -665,7 +802,7 @@ local function resolve(
 		local ticks = math.floor(eff.statusDur or 3)
 		for t = 1, ticks do
 			after(t, function()
-				for _, h in heroesNear(at, eff.allyRadius or 12) do
+				for _, h in heroesNear(at, eff.allyRadius or 12, hero) do
 					HeroService.heal(h, h.maxHealth * eff.allyHeal)
 					if h ~= hero then
 						HeroService.Supported:Fire(hero, h.maxHealth * eff.allyHeal)
@@ -738,6 +875,9 @@ local function resolve(
 		end)
 	elseif plan.shape == "throw" and plan.cx then
 		local land = Vector3.new(plan.cx, plan.cy, plan.cz)
+		if plan.thrown and plan.thrown > PVP_BASE then
+			plan.thrown = nil -- players are never carried by a throw
+		end
 		r.x = plan.thrown or 0
 		r.dur = plan.delay
 		if plan.thrown then
@@ -774,7 +914,7 @@ function CombatService.use(
 	latency: number
 ): boolean
 	local row = A.byNum[num]
-	if not row or not hero.alive then
+	if not row or not hero.alive or HeroService.disabled(hero) then
 		return false
 	end
 	local slot = slotOf(hero, row.id)
@@ -808,13 +948,14 @@ function CombatService.use(
 	end
 	local full = AbilityRules.cooldown(Config, Formulas, eff, {
 		classId = hero.classId,
-		focus = hero.stats.Focus,
+		focus = hero.stats.Focus * (if FlagService.flagged(hero) then Config.Pvp.minorScale else 1),
 		attackSpeed = Status.value(hero.status, "attackSpeed", now, 0),
 		awakened = awake,
 	})
 	Cooldowns.start(hero.cooldowns, row.id, now, AbilityRules.afterUse(hero.recast, row.id, eff, now, full))
 	hero.channel = nil -- any new use ends a channel
 	hero.lastCast = now
+	FlagService.attacked(hero) -- attacking ends spawn protection
 	local origin = root + CHEST
 	if eff.cast and eff.cast > 0 then
 		-- windup: others see it coming; the hit lands from where the hero is when it finishes
@@ -836,15 +977,18 @@ local function riposte(hero: any, source: any)
 	local row = A.list.ParryStance
 	local eff = HeroService.effective(hero, row.id)
 	local pos = HeroService.position(hero)
-	local e = source.enemy and EnemyService.get(source.enemy)
-	if not pos or not e then
+	local c = if source.enemy
+		then candOf(source.enemy)
+		elseif source.pvp and source.pvp.pvpSlot > 0 then candOf(PVP_BASE + source.pvp.pvpSlot)
+		else nil
+	if not pos or not c then
 		return
 	end
-	local target = Vector3.new(e.x, e.y, e.z)
+	local target = Vector3.new(c.x, c.y, c.z)
 	local r = record(hero, row.num, 0, K.RIPOSTE, pos + CHEST, (target - pos).Unit)
 	r.e = target
 	if (target - pos).Magnitude <= 45 then
-		applyHit(hero, eff, r, { id = e.id, x = e.x, y = e.y, z = e.z, r = 2 }, eff.coeff, true, pos)
+		applyHit(hero, eff, r, c, eff.coeff, true, pos)
 	end
 	if eff.refund then
 		Cooldowns.reduce(hero.cooldowns, row.id, eff.cd * eff.refund)
@@ -873,18 +1017,10 @@ local function stepChannels(now: number)
 			local r = record(hero, ch.num, ch.seq, K.TICK, origin, Vector3.new(0, 0, -1))
 			local live = {}
 			for _, id in ch.ids do
-				local e = EnemyService.get(id)
-				if e and e.alive and (Vector3.new(e.x, e.y, e.z) - origin).Magnitude <= reach then
+				local c = candOf(id)
+				if c and (Vector3.new(c.x, c.y, c.z) - origin).Magnitude <= reach then
 					table.insert(live, id)
-					applyHit(
-						hero,
-						eff,
-						r,
-						{ id = id, x = e.x, y = e.y, z = e.z, r = 2 },
-						eff.coeff,
-						true,
-						origin
-					)
+					applyHit(hero, eff, r, c, eff.coeff, true, origin)
 				end
 			end
 			if ch.ticksLeft % 4 == 0 then
@@ -898,9 +1034,8 @@ local function stepChannels(now: number)
 				if #live > 0 and (eff.endStatus or eff.endCoeff) then
 					local r2 = record(hero, ch.num, ch.seq, K.END, origin, Vector3.new(0, 0, -1))
 					for _, id in live do
-						local e = EnemyService.get(id)
-						if e then
-							local c = { id = id, x = e.x, y = e.y, z = e.z, r = 2 }
+						local c = candOf(id)
+						if c then
 							applyHit(hero, eff, r2, c, eff.endCoeff or 0, true, origin, nil, true)
 							if eff.endStatus then
 								applyStatus(
@@ -909,7 +1044,7 @@ local function stepChannels(now: number)
 									eff.endStatus,
 									eff.endStatusDur or 1,
 									id,
-									Vector3.new(e.x, e.y, e.z),
+									Vector3.new(c.x, c.y, c.z),
 									origin
 								)
 							end
@@ -946,12 +1081,12 @@ local function stepFields(now: number)
 			if fieldEff.status == "pull" then
 				fieldEff.statusDur = f.tick + 0.1
 			end
-			for _, c in CastPlan.area(f.pos.X, f.pos.Y, f.pos.Z, f.radius, EnemyService.candidates(), nil) do
+			for _, c in CastPlan.area(f.pos.X, f.pos.Y, f.pos.Z, f.radius, cands(hero), nil) do
 				applyHit(hero, fieldEff, r, c, f.coeff, true, f.pos, nil)
 			end
 			if eff.allyResist then
 				-- Blizzard Dome: allies inside resist 15%
-				for _, h in heroesNear(f.pos, f.radius) do
+				for _, h in heroesNear(f.pos, f.radius, hero) do
 					HeroService.buff(h, "resist", eff.allyResist, f.tick + 0.3)
 				end
 			end
@@ -961,7 +1096,7 @@ local function stepFields(now: number)
 			if eff.endCoeff or eff.endStatus then
 				local r = record(hero, f.num, 0, K.END, f.pos, Vector3.new(0, 1, 0))
 				r.c, r.r = f.pos, f.radius
-				for _, c in CastPlan.area(f.pos.X, f.pos.Y, f.pos.Z, f.radius, EnemyService.candidates(), nil) do
+				for _, c in CastPlan.area(f.pos.X, f.pos.Y, f.pos.Z, f.radius, cands(hero), nil) do
 					applyHit(hero, eff, r, c, eff.endCoeff or 0, true, f.pos, nil, true)
 					if eff.endStatus then
 						applyStatus(

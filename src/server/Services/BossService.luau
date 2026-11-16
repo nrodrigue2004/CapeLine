@@ -249,6 +249,7 @@ local function rewardHero(
 		renown = if defeated then math.floor(renown * r.share + 0.5) else 0
 		EconomyService.addCredits(player, credits)
 		EconomyService.addRenown(player, renown)
+		EconomyService.Earned:Fire(player, r.earn) -- Fame or Infamy for the tier (M8)
 	end
 	local drops = 0
 	for _, src in r.drops do
@@ -449,6 +450,12 @@ end
 
 function BossService.status(): string
 	return phase
+end
+
+-- Is this hero inside a live world boss fight? (PvP rewards there are halved, M8)
+function BossService.inFight(hero: any): boolean
+	local f = fight
+	return f ~= nil and inArena(f, hero)
 end
 
 function BossService.init()

@@ -207,6 +207,7 @@ local function complete(player: Player, r: Run)
 		EconomyService.addCredits(player, credits)
 		EconomyService.addRenown(player, renown)
 		GearService.grant(player, "contract", r.saved.level)
+		EconomyService.Earned:Fire(player, "contract")
 		Net.fire("Toast", player, {
 			id = "contract",
 			name = CC.types[r.saved.type].name,

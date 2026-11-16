@@ -46,3 +46,9 @@ record the source here. Status: Using / Recommended (milestone) / Paid (ask nate
 - Dialogue and quest kits on GitHub and the DevForum (dialogue trees, quest log modules): Skipped, licences not reviewed since not used. Lines are fixed data in Config.Story (no free text) and StoryPlan is pure and tested in Lune.
 - Moon Animator 2 and the built-in Animation Editor (Studio plugins): Recommended for nate when the cinematic and the War-Frame get real animation (M11 juice pass); nothing to install now. Moon Animator is a paid plugin, so it needs nate's OK.
 - Text-to-speech or AI voice services for the mentor lines: Not used; listed on the Launch Checklist (licence for commercial use, no real actor likeness).
+
+## PvP and safety (M8)
+- Roblox TextChatService ShouldDeliverCallback (built in): Used for quick-mute on this device only.
+- Roblox DataStoreService (built in): Used for the manual review queue (kicks, reports, trades).
+- Server-authoritative movement frameworks on GitHub (e.g. Chickynoid, MIT): Skipped. They replace the whole character controller with server-simulated movement; Capeline's client-owned flight plus MoveGuard's speed budget already pull cheaters back, and swapping the controller would mean redoing M1's tested movement feel.
+- Anti-exploit kits from the DevForum (remote spy blockers, client-side detectors): Skipped, licences not reviewed since not used. Client-side detection can be deleted by an exploiter; everything that matters (flag, hits, rewards, cooldowns) is already decided on the server.

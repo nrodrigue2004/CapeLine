@@ -52,8 +52,13 @@ State.profile = {
 } :: { [string]: any }
 State.ProfileChanged = Signal.new()
 State.Toast = Signal.new() -- (data) level up, reward, loot, save notices
--- Buffs and the Awakening meter (HeroStatus); times are local clock seconds
-State.status = { meter = 0, awakeUntil = 0, buffs = {} :: { [string]: { untilT: number, value: number } } }
+-- Buffs, crowd control and the Awakening meter (HeroStatus); times are local clock seconds
+State.status = {
+	meter = 0,
+	awakeUntil = 0,
+	buffs = {} :: { [string]: { untilT: number, value: number } },
+	cc = {} :: { [string]: { untilT: number, value: number } }, -- M8: PvP stuns, roots, slows, lifts on you
+}
 State.Changed = Signal.new()
 State.StatusChanged = Signal.new()
 State.Notice = Signal.new() -- (ok, reason) after a loadout, rank, mod or respec request
@@ -92,6 +97,11 @@ function State.init()
 			buffs[kind] = { untilT = now + b.left, value = b.value }
 		end
 		State.status.buffs = buffs
+		local cc = {}
+		for kind, b in data.cc or {} do
+			cc[kind] = { untilT = now + b.left, value = b.value }
+		end
+		State.status.cc = cc
 		State.StatusChanged:Fire()
 	end)
 	Net.listen("AbilityNotice", function(data)

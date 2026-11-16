@@ -129,6 +129,22 @@ local Remotes: { [string]: RemoteDef } = {
 	MissionResult = { dir = "S2C" }, -- { num, first, credits, renown, drops, skillPoints, rep, epic }
 	QuestTalk = { dir = "S2C" }, -- { num, line, npc }: the NPC's speech bubble (fixed lines, no free text)
 	QuestState = { dir = "S2C" }, -- { num, step, have, need, left, target, area }: the pinned quest, 2 Hz
+
+	-- PvP, death and safety (M8; spec: Flag.Set {on} 1/5s, Flag.State, Revive.Start {targetUserId} 2/s,
+	-- Down.GiveUp 1/s, Respawn.Choose {safehouseId}, Ping.Place {kind, position} 2/s, Report.Player
+	-- {userId, reasonId} 1/10s). Everyone's flag rides on player attributes (Pvp, PvpSide) for the rings.
+	FlagSet = { dir = "C2S", schema = { n(0, 1) }, rate = 0.2, burst = 2 }, -- 1 on, 0 off
+	FlagState = { dir = "S2C" }, -- { on, flagged, crater, warnLeft, offIn, protectLeft, reason }: to the owner
+	CraterLeave = { dir = "C2S", schema = {}, rate = 0.5, burst = 2 }, -- the Leave button during the warning
+	ReviveStart = { dir = "C2S", schema = { n(1, 2 ^ 52) }, rate = 2, burst = 3 }, -- the Downed hero's user id
+	DownGiveUp = { dir = "C2S", schema = {}, rate = 1, burst = 2 },
+	DownState = { dir = "S2C" }, -- { downed, left, revive (0..1), by, respawnIn, pvp }: to the owner
+	RespawnChoose = { dir = "C2S", schema = { n(0, 16) }, rate = 1, burst = 3 }, -- a visited safehouse, 0 nearest
+	PingPlace = { dir = "C2S", schema = { n(1, 3), V3 }, rate = 2, burst = 3 }, -- 1 Help, 2 Here, 3 Danger
+	PingShow = { dir = "S2C" }, -- { kind, x, y, z, from, life, downed }: a marker on allies' screens
+	ReportPlayer = { dir = "C2S", schema = { n(1, 2 ^ 52), n(1, 4) }, rate = 0.1, burst = 2 }, -- user id, reason
+	PvpResult = { dir = "S2C" }, -- { won, other, credits, fame, cut }: the win or defeat card
+	HeroKnock = { dir = "S2C" }, -- { x, y, z, time }: a PvP knockback, pull or knockup on your own hero
 }
 
 return Remotes

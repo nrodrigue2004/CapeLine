@@ -223,6 +223,22 @@ function DevPanel.init()
 	add("Reset story", function()
 		Net.send("DevCommand", "resetstory")
 	end)
+	-- M8: PvP and death
+	local pvpOn = false
+	add("Force PvP on", function(b)
+		pvpOn = not pvpOn
+		Net.send("DevCommand", "pvp", if pvpOn then 1 else 0)
+		b.Text = if pvpOn then "Force PvP off" else "Force PvP on"
+	end)
+	add("Down me", function()
+		Net.send("DevCommand", "downme")
+	end)
+	add("Go to the Crater", function()
+		Net.send("DevCommand", "crater")
+	end)
+	add("+200 Fame", function()
+		Net.send("DevCommand", "fame", 5)
+	end)
 
 	local stats = Kit.label({
 		Text = "waiting for server stats",

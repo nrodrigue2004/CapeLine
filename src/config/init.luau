@@ -30,6 +30,7 @@ local NAMES = {
 	"Events",
 	"Boss",
 	"Story",
+	"Pvp",
 }
 
 local Config: { [string]: any } = {}
