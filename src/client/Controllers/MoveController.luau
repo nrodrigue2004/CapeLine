@@ -6,7 +6,8 @@
 --   air     a Leap arc (or falling) under the floaty airGravity
 --   glide   hold Leap after the apex: fall 12 studs/s, drift forward at 50
 --   fly     Flight style: cruise 60, Boost 110 on stamina, auto-level hover
---   dash    a short server-approved burst (Dash Strike)
+--   dash    a short server-approved burst (Dash Strike, Flash Step, Shoulder Charge, the Thunder Drop dive)
+--           or an arc to a landing spot (Meteor Leap)
 -- In the air modes the Humanoid is set to PlatformStand and a LinearVelocity plus AlignOrientation drive
 -- the body; on landing the Humanoid takes over again.
 -- PLACEHOLDER ANIMATION: the flying pose is the body tilted along the travel direction; real leap, glide and
@@ -54,6 +55,16 @@ local lastYaw = 0
 local roll = 0
 local rayParams = RaycastParams.new()
 rayParams.FilterType = Enum.RaycastFilterType.Exclude
+
+local arc: { from: Vector3, to: Vector3, start: number, time: number, height: number }? = nil
+
+-- Run speed with Speedster's +10% and the Weightless buff
+local function runSpeed(): number
+	local class = Config.Classes[State.hero.classId]
+	local bonus = if class and class.moveSpeed then class.moveSpeed else 0
+	return M.run.speed * (1 + bonus) * (1 + State.buff("speed"))
+end
+MoveController.runSpeed = runSpeed
 
 local function setMode(mode: string)
 	local old = MoveController.mode
@@ -104,7 +115,7 @@ local function toGround(fallSpeed: number)
 	ao.Enabled = false
 	hum.PlatformStand = false
 	hum.AutoRotate = true
-	hum.WalkSpeed = M.run.speed
+	hum.WalkSpeed = runSpeed()
 	-- stand up straight, keeping the heading
 	local look = root.CFrame.LookVector
 	local flat = Vector3.new(look.X, 0, look.Z)
@@ -167,6 +178,22 @@ function MoveController.dash(dir: Vector3, distance: number, time: number)
 		enterAir(Vector3.zero)
 	end
 	vel = dir.Unit * (distance / time)
+	dashUntil = os.clock() + time
+	arc = nil
+	setMode("dash")
+end
+
+-- Meteor Leap: a high arc to a landing spot in `time` seconds (the server granted the travel)
+function MoveController.arcTo(target: Vector3, time: number, height: number)
+	if not root then
+		return
+	end
+	local mode = MoveController.mode
+	if mode == "ground" or mode == "charge" then
+		enterAir(Vector3.zero)
+	end
+	dashReturn = "air"
+	arc = { from = root.Position, to = target, start = os.clock(), time = time, height = height }
 	dashUntil = os.clock() + time
 	setMode("dash")
 end
@@ -267,9 +294,21 @@ local function step(dt: number)
 			}, dt)
 		vel = Vector3.new(vx, vy, vz)
 		setBoost(boosting)
-		MoveController.stamina = MoveMath.staminaStep(M, MoveController.stamina, false, boosting, dt)
+		local free = State.buff("zeroG") > 0 -- Weightless capstone: boosting is free
+		MoveController.stamina =
+			MoveMath.staminaStep(M, MoveController.stamina, false, boosting and not free, dt)
 	elseif mode == "dash" then
+		local a = arc
+		if a then
+			local t = math.clamp((now - a.start) / a.time, 0, 1)
+			local t2 = math.clamp(t + dt / a.time, 0, 1)
+			local function at(u: number): Vector3
+				return a.from:Lerp(a.to, u) + Vector3.new(0, a.height * 4 * u * (1 - u), 0)
+			end
+			vel = (at(t2) - at(t)) / math.max(dt, 1e-3)
+		end
 		if now >= dashUntil then
+			arc = nil
 			vel *= 0.25
 			setMode(dashReturn)
 			mode = dashReturn
@@ -304,7 +343,7 @@ local function onPressed(action: string)
 	if action == "Leap" then
 		if mode == "ground" and MoveController.leapReady() >= 1 then
 			chargeStart = os.clock()
-			hum.WalkSpeed = 6
+			hum.WalkSpeed = 6 -- the crouch
 			setMode("charge")
 		end
 	elseif action == "Fly" then
@@ -313,7 +352,7 @@ local function onPressed(action: string)
 			setMode("air")
 		elseif State.hero.styles and State.hero.styles.flight and mode ~= "dash" then
 			if mode == "ground" or mode == "charge" then
-				hum.WalkSpeed = M.run.speed
+				hum.WalkSpeed = runSpeed()
 				enterAir(Vector3.new(0, 30, 0)) -- take-off hop
 			else
 				airSince = os.clock()
@@ -369,6 +408,11 @@ function MoveController.init()
 	player.CharacterAdded:Connect(bind)
 	InputController.Pressed:Connect(onPressed)
 	InputController.Released:Connect(onReleased)
+	State.StatusChanged:Connect(function()
+		if hum and MoveController.mode == "ground" then
+			hum.WalkSpeed = runSpeed()
+		end
+	end)
 	Net.listen("MoveCorrect", function(pos: Vector3)
 		if root then
 			root.CFrame = CFrame.new(pos) * root.CFrame.Rotation

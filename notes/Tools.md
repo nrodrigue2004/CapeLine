@@ -12,7 +12,7 @@ record the source here. Status: Using / Recommended (milestone) / Paid (ask nate
 - Jest-Lua / TestEZ: Skipped; Lune tests cover the pure modules without Studio.
 
 ## Art, VFX and animation
-- Roblox Animation Editor (built in, free): Recommended for M2 and M9 poses (leap, glide, fly, cast, Awakening).
+- Roblox Animation Editor (built in, free): Recommended for hero cast poses and the 6 robot rigs (walk, aim, slam, stab). The M2 robots are posed in code until then.
 - Moon Animator 2: Paid (ask nate). Faster animation work; not needed for launch.
 - Blender (GPL, free) plus the Blender MCP (github.com/ahujasid/blender-mcp, MIT): Recommended for M5 and M9: capes, hair, coats and building chunks as low-poly meshes Claude can help model.
 - Kenney assets (CC0, kenney.nl): Recommended for UI shapes and placeholder textures (M10).

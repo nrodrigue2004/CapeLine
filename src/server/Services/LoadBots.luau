@@ -10,6 +10,8 @@ local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
 
+local AbilityRules = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("AbilityRules"))
+local Cooldowns = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Cooldowns"))
 local HeroService = require(script.Parent.HeroService)
 local CombatService = require(script.Parent.CombatService)
 local EnemyService = require(script.Parent.EnemyService)
@@ -108,6 +110,10 @@ function LoadBots.spawn(n: number)
 			seq = 0,
 		}
 		bot.hero = HeroService.addBot(nextId, model.Name, bot)
+		-- bots spread over the five sets so the load test exercises every kind of ability
+		local set = Config.Abilities.sets[(nextId % #Config.Abilities.sets) + 1]
+		local ranks, loadout = AbilityRules.starter(Config, set)
+		bot.hero.ranks, bot.hero.loadout, bot.hero.setId = ranks, loadout, set
 		model.Parent = folder
 		table.insert(bots, bot)
 	end
@@ -161,7 +167,15 @@ local function step(dt: number)
 					local aim = (
 						Vector3.new(target.x, target.y, target.z) - (bot.position + Vector3.new(0, 1.5, 0))
 					)
-					local num = if bot.seq % 12 == 0 then Config.Abilities.list.ChainLightning.num else 1
+					local l = hero.loadout
+					local pick = l.basic
+					for _, id in l.skills do
+						if Cooldowns.ready(hero.cooldowns, id, now, 0) then
+							pick = id
+							break
+						end
+					end
+					local num = Config.Abilities.list[pick].num
 					CombatService.use(hero, num, aim, target.id, bot.seq, rng:NextNumber(0.03, 0.12))
 				end
 			end

@@ -3,7 +3,7 @@
 -- checks every client argument against `schema` and rate-limits each player with a token bucket (`rate` per
 -- second, `burst` max). Server-to-client remotes have no schema. Handlers still check state, cooldowns,
 -- range and line of sight themselves (the spec's "Server validation" column).
--- Milestone 1 declares only what M1 uses; later milestones add their rows here.
+-- Each milestone adds its rows here.
 
 export type RemoteDef = {
 	dir: string, -- "C2S" or "S2C"
@@ -25,6 +25,23 @@ local Remotes: { [string]: RemoteDef } = {
 	CombatUse = { dir = "C2S", schema = { n(1, 64), V3, n(0, 65535), n(0, 2 ^ 31) }, rate = 12, burst = 12 },
 	CombatResult = { dir = "S2C" }, -- batched hits, 10 Hz, to players within 150 studs
 	CombatEvents = { dir = "S2C" }, -- enemy shots, deaths and hero hits for the effects, 10 Hz batches
+
+	CombatCancel = { dir = "C2S", schema = { n(0, 2 ^ 31) }, rate = 4, burst = 4 }, -- stop a channel (seq)
+	Awaken = { dir = "C2S", schema = {}, rate = 1, burst = 2 }, -- spend a full Awakening meter
+
+	-- Abilities (spec: Hero.Loadout, Skills.Rank, Skills.Mod, Skills.Respec). Ability numbers, 0 = empty.
+	-- HeroLoadout: loadout index (1-2), primary set (1-5), skills 1-4, super
+	HeroLoadout = {
+		dir = "C2S",
+		schema = { n(1, 2), n(1, 5), n(0, 64), n(0, 64), n(0, 64), n(0, 64), n(0, 64) },
+		rate = 2,
+		burst = 3,
+	},
+	SkillsRank = { dir = "C2S", schema = { n(1, 64) }, rate = 4, burst = 4 },
+	SkillsMod = { dir = "C2S", schema = { n(1, 64), n(1, 2) }, rate = 2, burst = 4 },
+	SkillsRespec = { dir = "C2S", schema = {}, rate = 1, burst = 1 },
+	HeroStatus = { dir = "S2C" }, -- { meter, awakeLeft, buffs = { kind = { left, value } } }
+	AbilityNotice = { dir = "S2C" }, -- { ok, reason } after a rank, mod, loadout or respec request
 
 	-- Movement (spec: Move.Boost, Move.Correct)
 	MoveBoost = { dir = "C2S", schema = { { t = "boolean" } }, rate = 4, burst = 4 },

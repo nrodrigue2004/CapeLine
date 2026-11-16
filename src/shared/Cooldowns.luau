@@ -4,10 +4,10 @@
 
 local Cooldowns = {}
 
-export type Book = { readyAt: { [string]: number } }
+export type Book = { readyAt: { [string]: number }, length: { [string]: number } }
 
 function Cooldowns.new(): Book
-	return { readyAt = {} }
+	return { readyAt = {}, length = {} }
 end
 
 function Cooldowns.ready(book: Book, id: string, now: number, leeway: number): boolean
@@ -17,19 +17,36 @@ end
 
 function Cooldowns.start(book: Book, id: string, now: number, seconds: number)
 	book.readyAt[id] = now + seconds
+	book.length[id] = seconds
 end
 
--- 0 when ready, 1 right after use (for the sweep)
-function Cooldowns.fraction(book: Book, id: string, now: number, seconds: number): number
+-- Seconds left (0 when ready)
+function Cooldowns.left(book: Book, id: string, now: number): number
 	local at = book.readyAt[id]
-	if not at or seconds <= 0 then
+	return if at then math.max(0, at - now) else 0
+end
+
+-- Take seconds off a running cooldown (refunds)
+function Cooldowns.reduce(book: Book, id: string, seconds: number)
+	local at = book.readyAt[id]
+	if at then
+		book.readyAt[id] = at - seconds
+	end
+end
+
+-- 0 when ready, 1 right after use (for the sweep). `seconds` defaults to the length it was started with.
+function Cooldowns.fraction(book: Book, id: string, now: number, seconds: number?): number
+	local at = book.readyAt[id]
+	local len = seconds or book.length[id]
+	if not at or not len or len <= 0 then
 		return 0
 	end
-	return math.clamp((at - now) / seconds, 0, 1)
+	return math.clamp((at - now) / len, 0, 1)
 end
 
 function Cooldowns.clear(book: Book)
 	table.clear(book.readyAt)
+	table.clear(book.length)
 end
 
 return Cooldowns

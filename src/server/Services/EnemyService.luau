@@ -1,7 +1,7 @@
 -- EnemyService: runs EnemySim on the server (spec: Enemies; caps 90 per server, 6 per hero, 40 AI updates
 -- per frame) and replicates it: Enemy.Delta positions at 10 Hz (unreliable, only nearby enemies per player)
 -- and CombatEvents for shots, hero hits and deaths (10 Hz batches, only to players near them).
--- M1 keeps 3 Spark Drones near every hero; the incident spawner replaces that in M6.
+-- Until the incident spawner (M6) a mix of the 6 humanoid robots is kept near every hero.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -29,13 +29,46 @@ local EVENT_RANGE = 220
 
 -- Event kinds on the wire (arrays keep the payload small)
 EnemyService.SHOT, EnemyService.HERO_HIT, EnemyService.DIE = 1, 2, 3
+EnemyService.WARN, EnemyService.SLAM, EnemyService.SWING, EnemyService.BLOCKED = 4, 5, 6, 7
 
 function EnemyService.candidates(): { any }
 	return EnemySim.candidates(sim)
 end
 
-function EnemyService.damage(id: number, amount: number, attackerId: number?): (boolean, any)
-	return EnemySim.damage(sim, id, amount, attackerId)
+-- Returns killed, the enemy, damage dealt, and the hit flag (EnemySim.HIT, BLOCKED, BROKE)
+function EnemyService.damage(
+	id: number,
+	amount: number,
+	attackerId: number?,
+	from: Vector3?
+): (boolean, any, number, number)
+	return EnemySim.damage(sim, id, amount, attackerId, from and from.X, from and from.Z)
+end
+
+function EnemyService.applyStatus(id: number, kind: string, duration: number, opts: any?): number
+	return EnemySim.applyStatus(sim, id, kind, duration, opts)
+end
+
+function EnemyService.knock(id: number, dir: Vector3, distance: number): boolean
+	return EnemySim.knock(sim, id, dir.X, dir.Z, distance)
+end
+
+function EnemyService.addBlocker(pos: Vector3, radius: number, untilT: number)
+	EnemySim.addBlocker(sim, pos.X, pos.Y, pos.Z, radius, untilT)
+end
+
+function EnemyService.now(): number
+	return sim.now
+end
+
+-- Move an enemy to a spot (Lift and Throw landing)
+function EnemyService.place(id: number, pos: Vector3)
+	local e = sim.byId[id]
+	if e and e.alive then
+		e.x, e.z = pos.X, pos.Z
+		e.y = if e.ai == "flyer" then pos.Y + 3 else sim.heightAt(pos.X, pos.Z) + EnemySim.halfHeight(e.cfg)
+		e.liftBase = nil
+	end
 end
 
 function EnemyService.get(id: number): any
@@ -50,13 +83,14 @@ function EnemyService.count(): number
 	return EnemySim.count(sim)
 end
 
--- Dev: spawn n drones in a ring around a point
-function EnemyService.spawnAround(pos: Vector3, n: number)
+-- Dev: spawn n robots of a kind in a ring around a point
+function EnemyService.spawnAround(pos: Vector3, n: number, kind: string?)
+	local k = kind or "SparkDrone"
 	for i = 1, n do
 		local ang = i / n * math.pi * 2
-		local x, z = pos.X + math.cos(ang) * 50, pos.Z + math.sin(ang) * 50
+		local x, z = pos.X + math.cos(ang) * 40, pos.Z + math.sin(ang) * 40
 		local y = math.max(pos.Y + 15, sim.heightAt(x, z) + 15)
-		EnemySim.spawn(sim, "SparkDrone", x, y, z, 1)
+		EnemySim.spawn(sim, k, x, y, z, 1)
 	end
 end
 
@@ -123,9 +157,9 @@ local function handleEvents()
 		elseif ev.k == "hit" then
 			local hero = HeroService.byId(ev.hero)
 			if hero then
-				HeroService.damage(hero, ev.damage, { enemy = ev.e })
+				local taken = HeroService.damage(hero, ev.damage, { enemy = ev.e, melee = ev.melee })
 				local pos = HeroService.position(hero)
-				local dmg = math.floor(ev.damage + 0.5)
+				local dmg = math.floor(taken + 0.5)
 				if pos then
 					table.insert(out, { EnemyService.HERO_HIT, ev.hero, pos.X, pos.Y, pos.Z, dmg })
 				end
@@ -137,6 +171,20 @@ local function handleEvents()
 				{ EnemyService.DIE, ev.e, ev.x, ev.y, ev.z, cfg and cfg.typeId or 1, ev.by or 0 }
 			)
 			EnemyService.Killed:Fire(ev.kind, ev.by, Vector3.new(ev.x, ev.y, ev.z))
+		elseif ev.k == "warn" then
+			table.insert(
+				out,
+				{ EnemyService.WARN, ev.e, ev.x, ev.y, ev.z, ev.r, ev.t, ev.arc or 360, ev.yaw or 0 }
+			)
+		elseif ev.k == "slam" then
+			table.insert(out, { EnemyService.SLAM, ev.e, ev.x, ev.y, ev.z, ev.r })
+		elseif ev.k == "swing" then
+			local e = sim.byId[ev.e]
+			if e then
+				table.insert(out, { EnemyService.SWING, ev.e, e.x, e.y, e.z, if ev.back then 1 else 0 })
+			end
+		elseif ev.k == "blocked" then
+			table.insert(out, { EnemyService.BLOCKED, 0, ev.x, ev.y, ev.z })
 		end
 	end
 	return out

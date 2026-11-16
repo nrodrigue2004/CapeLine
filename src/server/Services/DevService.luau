@@ -1,6 +1,7 @@
 -- DevService: Studio test commands from the Dev panel. Every command is refused outside Studio, so live
--- servers never run them. Commands: bots n, clearbots, drones n, cleardrones, spawner 0/1, god 0/1,
--- class 1-4, level n, heal, style 0/1 (Comic/Anime).
+-- servers never run them. Commands: bots n, clearbots, drones n, robot 1-6 (3 of that kind), cleardrones,
+-- spawner 0/1, god 0/1, class 1-4, level n, heal, style 0/1 (Comic/Anime), points n (bonus Skill Points),
+-- meter (fill Awakening), respec (no cooldown).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -26,6 +27,25 @@ local commands: { [string]: (player: Player, hero: any, value: number) -> () } =
 		if pos then
 			EnemyService.spawnAround(pos, math.clamp(n, 1, 30))
 		end
+	end,
+	robot = function(_, hero, index)
+		local kind = Config.Enemies.order[index]
+		local pos = HeroService.position(hero)
+		if kind and pos then
+			EnemyService.spawnAround(pos, 3, kind)
+		end
+	end,
+	points = function(_, hero, n)
+		hero.bonusPoints += n
+		HeroService.sendState(hero)
+	end,
+	meter = function(_, hero)
+		hero.meter.value = Config.Abilities.awakening.max
+		HeroService.sendStatus(hero)
+	end,
+	respec = function(_, hero)
+		hero.respecAt = 0
+		HeroService.sendState(hero)
 	end,
 	cleardrones = function()
 		EnemyService.clear()

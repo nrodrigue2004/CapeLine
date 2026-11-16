@@ -183,4 +183,71 @@ function HitQuery.capsule(
 	return out
 end
 
+-- Every candidate inside a cone (degrees, full width) and range, nearest first, at most maxTargets
+function HitQuery.coneAll(
+	ox: number,
+	oy: number,
+	oz: number,
+	aimX: number,
+	aimY: number,
+	aimZ: number,
+	range: number,
+	coneDeg: number,
+	candidates: { Candidate },
+	los: LosFn?,
+	maxTargets: number?
+): { Candidate }
+	local dx, dy, dz = norm(aimX, aimY, aimZ)
+	local found = {}
+	for _, c in candidates do
+		local ang, dist = angleTo(ox, oy, oz, dx, dy, dz, c)
+		-- a body touching the hero always counts (melee at point blank)
+		local inside = dist <= c.r + 1.5 or (dist <= range + c.r and ang <= coneDeg / 2)
+		if inside and (not los or los(ox, oy, oz, c.x, c.y, c.z)) then
+			table.insert(found, { c = c, d = dist })
+		end
+	end
+	table.sort(found, function(a, b)
+		return a.d < b.d
+	end)
+	local out = {}
+	for i, f in found do
+		if maxTargets and i > maxTargets then
+			break
+		end
+		table.insert(out, f.c)
+	end
+	return out
+end
+
+-- Every candidate within `radius` of a point (novas, fields), nearest first
+function HitQuery.sphere(
+	x: number,
+	y: number,
+	z: number,
+	radius: number,
+	candidates: { Candidate },
+	los: LosFn?,
+	maxTargets: number?
+): { Candidate }
+	local found = {}
+	for _, c in candidates do
+		local _, _, _, dist = norm(c.x - x, c.y - y, c.z - z)
+		if dist <= radius + c.r and (not los or los(x, y, z, c.x, c.y, c.z)) then
+			table.insert(found, { c = c, d = dist })
+		end
+	end
+	table.sort(found, function(a, b)
+		return a.d < b.d
+	end)
+	local out = {}
+	for i, f in found do
+		if maxTargets and i > maxTargets then
+			break
+		end
+		table.insert(out, f.c)
+	end
+	return out
+end
+
 return HitQuery

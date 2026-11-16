@@ -1,7 +1,9 @@
 -- HeroService: one Hero record per player, and per load-test bot (spec: Stats, Classes, Loadout rules).
--- The hero's level, class, power set, movement styles, loadout, cooldowns and health live here on the
--- server; the client gets a copy through HeroState and player attributes. Saves arrive in M3, so every
--- hero starts at level 1 for now.
+-- The hero's level, class, power set, movement styles, ranks, loadout, cooldowns, buffs, Awakening meter and
+-- health live here on the server; the client gets a copy through HeroState (rare changes), HeroStatus
+-- (buffs and the meter, on change) and player attributes (what other players draw). Saves arrive in M3, so
+-- every hero starts at level 1 for now.
+-- Every hit on a hero goes through HeroService.damage: parry, class and buff mitigation, Anchor, shields.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -13,6 +15,9 @@ local Net = require(Shared:WaitForChild("Net"))
 local Formulas = require(Shared:WaitForChild("Formulas"))
 local Cooldowns = require(Shared:WaitForChild("Cooldowns"))
 local Signal = require(Shared:WaitForChild("Util"):WaitForChild("Signal"))
+local Status = require(Shared:WaitForChild("Status"))
+local Awakening = require(Shared:WaitForChild("Awakening"))
+local AbilityRules = require(Shared:WaitForChild("AbilityRules"))
 
 local HeroService = {}
 
@@ -26,14 +31,28 @@ export type Hero = {
 	setId: string,
 	fxStyle: string, -- "Comic" or "Anime": how this hero's powers look to everyone
 	styles: { [string]: boolean },
-	loadout: { basic: string, skills: { string } },
+	loadout: AbilityRules.Loadout,
+	loadouts: { AbilityRules.Loadout }, -- 2 slots; the second opens at level 15
+	loadoutIndex: number,
+	ranks: { [string]: number },
+	mods: { [string]: number },
+	bonusPoints: number, -- story Skill Points (Act 1 choices, M7)
+	credits: number, -- M3 brings the real wallet
+	respecAt: number,
 	cooldowns: Cooldowns.Book,
+	recast: AbilityRules.RecastState,
+	status: Status.Book, -- buffs on the hero
+	meter: Awakening.Meter,
+	combo: { at: number, step: number }, -- Punch Combo and Blade Slash strings
+	channel: any?, -- Freeze Beam or Thousand Cuts running
+	lastCast: number,
 	health: number,
 	maxHealth: number,
 	alive: boolean,
 	lastDamaged: number,
 	hitCount: number, -- Blaster Overcharge: every 5th hit
 	god: boolean,
+	meterDirty: boolean?,
 }
 
 local heroes: { [number]: Hero } = {}
@@ -42,6 +61,8 @@ local byPlayer: { [Player]: Hero } = {}
 HeroService.Spawned = Signal.new() -- (hero) a player's character spawned or respawned
 HeroService.Defeated = Signal.new() -- (hero, source)
 HeroService.Removed = Signal.new() -- (hero)
+HeroService.Parried = Signal.new() -- (hero, source) a hit was turned aside by Parry Stance
+HeroService.Awakened = Signal.new() -- (hero)
 
 local function stylesFor(level: number): { [string]: boolean }
 	local s = {}
@@ -55,6 +76,7 @@ local function newHero(id: number, name: string, player: Player?, bot: any?): He
 	local level = 1
 	local classId = Config.Classes.default
 	local maxHealth = Formulas.health(Config, level, 0, classId)
+	local ranks, loadout = AbilityRules.starter(Config, "Volt")
 	return {
 		id = id,
 		player = player,
@@ -65,11 +87,21 @@ local function newHero(id: number, name: string, player: Player?, bot: any?): He
 		setId = "Volt",
 		fxStyle = "Comic",
 		styles = stylesFor(level),
-		loadout = {
-			basic = Config.Abilities.defaultLoadout.basic,
-			skills = table.clone(Config.Abilities.defaultLoadout.skills),
-		},
+		loadout = loadout,
+		loadouts = { loadout, table.clone(loadout) },
+		loadoutIndex = 1,
+		ranks = ranks,
+		mods = {},
+		bonusPoints = 0,
+		credits = 0,
+		respecAt = 0,
 		cooldowns = Cooldowns.new(),
+		recast = {},
+		status = Status.new(),
+		meter = Awakening.new(),
+		combo = { at = 0, step = 0 },
+		channel = nil,
+		lastCast = 0,
 		health = maxHealth,
 		maxHealth = maxHealth,
 		alive = true,
@@ -79,8 +111,31 @@ local function newHero(id: number, name: string, player: Player?, bot: any?): He
 	}
 end
 
+-- Power with buffs (Rally Roar +10%)
 function HeroService.power(hero: Hero): number
-	return Formulas.power(Config, hero.level, 0)
+	local base = Formulas.power(Config, hero.level, 0)
+	return base * (1 + Status.value(hero.status, "power", os.clock(), 0))
+end
+
+-- Run speed multiplier: Speedster +10%, Weightless +30%
+function HeroService.speedMult(hero: Hero): number
+	local class = Config.Classes[hero.classId]
+	return (1 + (class.moveSpeed or 0)) * (1 + Status.value(hero.status, "speed", os.clock(), 0))
+end
+
+function HeroService.awakened(hero: Hero): boolean
+	return Awakening.active(hero.meter, os.clock())
+end
+
+function HeroService.inCombat(hero: Hero): boolean
+	local now = os.clock()
+	return now - hero.lastDamaged < Config.Combat.outOfCombat
+		or now - hero.lastCast < Config.Combat.outOfCombat
+end
+
+function HeroService.pointsLeft(hero: Hero): number
+	return AbilityRules.pointsEarned(Config, hero.level, hero.bonusPoints)
+		- AbilityRules.pointsSpent(Config, hero.ranks)
 end
 
 function HeroService.get(player: Player): Hero?
@@ -134,7 +189,111 @@ function HeroService.sendState(hero: Hero)
 		maxHealth = hero.maxHealth,
 		styles = hero.styles,
 		loadout = hero.loadout,
+		loadouts = hero.loadouts,
+		loadoutIndex = hero.loadoutIndex,
+		ranks = hero.ranks,
+		mods = hero.mods,
+		points = HeroService.pointsLeft(hero),
+		bonusPoints = hero.bonusPoints,
+		credits = hero.credits,
+		respecIn = math.max(0, hero.respecAt - os.clock()),
 	})
+end
+
+-- Buff bits for the Aura attribute (other players draw these on the hero)
+local AURA = {
+	shield = 1,
+	mitigation = 2,
+	attackSpeed = 4,
+	power = 8,
+	speed = 16,
+	parry = 32,
+	resist = 64,
+	zeroG = 128,
+}
+HeroService.AURA = AURA
+
+-- Buffs, shield and the Awakening meter: to the owner (HeroStatus) and as attributes for everyone
+function HeroService.sendStatus(hero: Hero)
+	local now = os.clock()
+	local buffs = {}
+	local aura = 0
+	for kind, bit in AURA do
+		local e = Status.get(hero.status, kind, now)
+		if e then
+			buffs[kind] = { left = e.untilT - now, value = e.value }
+			aura += bit
+		end
+	end
+	local awake = Awakening.active(hero.meter, now)
+	local player = hero.player
+	if player then
+		player:SetAttribute("Aura", aura)
+		player:SetAttribute("Awakened", awake)
+		Net.fire("HeroStatus", player, {
+			meter = hero.meter.value,
+			awakeLeft = if awake then hero.meter.untilT - now else 0,
+			buffs = buffs,
+		})
+	end
+end
+
+-- A buff on the hero. kind: shield (value = points), mitigation, attackSpeed, power, speed, parry, resist.
+function HeroService.buff(hero: Hero, kind: string, value: number, duration: number)
+	Status.apply(hero.status, kind, duration, os.clock(), { value = value })
+	if kind == "speed" then
+		HeroService.applyWalkSpeed(hero)
+		task.delay(duration + 0.05, function()
+			HeroService.applyWalkSpeed(hero)
+		end)
+	end
+	HeroService.sendStatus(hero)
+	task.delay(duration + 0.05, function()
+		if heroes[hero.id] == hero then
+			HeroService.sendStatus(hero)
+		end
+	end)
+end
+
+function HeroService.heal(hero: Hero, amount: number)
+	if not hero.alive then
+		return
+	end
+	hero.health = math.min(hero.maxHealth, hero.health + amount)
+	local hum = humanoidOf(hero)
+	if hum then
+		hum.Health = hero.health
+	end
+end
+
+function HeroService.applyWalkSpeed(hero: Hero)
+	local hum = humanoidOf(hero)
+	if hum then
+		hum.WalkSpeed = Config.Move.run.speed * HeroService.speedMult(hero)
+	end
+end
+
+-- Add Awakening meter. kind: basicHit, skillHit, superHit, kill
+function HeroService.gainMeter(hero: Hero, kind: string, count: number)
+	local before = hero.meter.value
+	Awakening.gain(Config, hero.meter, kind, count, os.clock())
+	if hero.meter.value ~= before then
+		hero.meterDirty = true
+	end
+end
+
+function HeroService.awaken(hero: Hero): boolean
+	if not hero.alive or not Awakening.start(Config, hero.meter, os.clock()) then
+		return false
+	end
+	HeroService.Awakened:Fire(hero)
+	HeroService.sendStatus(hero)
+	task.delay(Config.Abilities.awakening.duration + 0.05, function()
+		if heroes[hero.id] == hero then
+			HeroService.sendStatus(hero)
+		end
+	end)
+	return true
 end
 
 -- Recompute health and styles after a level, class or gear change
@@ -170,15 +329,55 @@ function HeroService.setFxStyle(hero: Hero, style: string)
 	end
 end
 
--- All damage to heroes goes through here (enemy shots now, PvP from M8)
+-- Damage taken after mitigation: Bruiser Stand Firm, Brace, Blizzard Dome resist, a Controller's Anchor
+-- aura (allies within 25 studs take 8% less), then the shield.
+function HeroService.mitigate(hero: Hero, amount: number, now: number): number
+	local taken = amount
+	local class = Config.Classes[hero.classId]
+	if class.passive.id == "StandFirm" then
+		taken *= 1 - class.passive.mitigation
+	end
+	taken *= 1 - Status.value(hero.status, "mitigation", now, 0)
+	taken *= 1 - Status.value(hero.status, "resist", now, 0)
+	local pos = HeroService.position(hero)
+	if pos then
+		local anchor = Config.Classes.Controller.passive
+		for _, other in heroes do
+			if other ~= hero and other.alive and other.classId == "Controller" then
+				local op = HeroService.position(other)
+				if op and (op - pos).Magnitude <= anchor.radius then
+					taken *= 1 - anchor.mitigation
+					break
+				end
+			end
+		end
+	end
+	return Status.absorb(hero.status, taken, now)
+end
+
+-- All damage to heroes goes through here (enemy shots and slams now, PvP from M8)
 function HeroService.damage(hero: Hero, amount: number, source: any?)
 	if not hero.alive or amount <= 0 then
-		return
+		return 0
 	end
-	hero.lastDamaged = os.clock()
-	if hero.god then
-		return
+	local now = os.clock()
+	hero.lastDamaged = now
+	if Status.has(hero.status, "parry", now) and source and source.enemy then
+		Status.remove(hero.status, "parry")
+		HeroService.Parried:Fire(hero, source)
+		HeroService.sendStatus(hero)
+		return 0
 	end
+	local hadShield = Status.has(hero.status, "shield", now)
+	amount = HeroService.mitigate(hero, amount, now)
+	if hadShield then
+		hero.meterDirty = true -- the shield bar changed
+	end
+	if hero.god or amount <= 0 then
+		return 0
+	end
+	Awakening.hurt(Config, hero.meter, amount / math.max(1, hero.maxHealth), now)
+	hero.meterDirty = true
 	hero.health = math.max(0, hero.health - amount)
 	local hum = humanoidOf(hero)
 	if hum then
@@ -199,6 +398,7 @@ function HeroService.damage(hero: Hero, amount: number, source: any?)
 			hum.Health = 0
 		end
 	end
+	return amount
 end
 
 function HeroService.addBot(id: number, name: string, bot: any): Hero
@@ -222,7 +422,19 @@ function HeroService.simHeroes(): { any }
 	for _, hero in heroes do
 		local pos = HeroService.position(hero)
 		if pos then
-			table.insert(simList, { id = hero.id, x = pos.X, y = pos.Y, z = pos.Z, alive = hero.alive })
+			local lx, lz = 0, -1
+			local root = if hero.bot then nil else HeroService.rootPart(hero)
+			if root then
+				local look = root.CFrame.LookVector
+				local l = math.sqrt(look.X * look.X + look.Z * look.Z)
+				if l > 0.05 then
+					lx, lz = look.X / l, look.Z / l
+				end
+			end
+			table.insert(
+				simList,
+				{ id = hero.id, x = pos.X, y = pos.Y, z = pos.Z, alive = hero.alive, lx = lx, lz = lz }
+			)
 		end
 	end
 	return simList
@@ -237,10 +449,13 @@ local function onCharacter(player: Player, char: Model)
 	hero.health = hero.maxHealth
 	hero.alive = true
 	hero.lastDamaged = 0
+	hero.channel = nil
 	Cooldowns.clear(hero.cooldowns)
+	table.clear(hero.recast)
+	hero.status = Status.new()
 	hum.MaxHealth = hero.maxHealth
 	hum.Health = hero.maxHealth
-	hum.WalkSpeed = Config.Move.run.speed
+	hum.WalkSpeed = Config.Move.run.speed * HeroService.speedMult(hero)
 	hum.UseJumpPower = true
 	hum.JumpPower = 0 -- Leap replaces the jump; this also hides the default touch jump button
 	hum.BreakJointsOnDeath = false
@@ -278,13 +493,17 @@ function HeroService.init()
 			HeroService.remove(hero)
 		end
 	end)
-	-- Out-of-combat regen (Decisions.md, 2026-11-16)
+	-- Out-of-combat regen (Decisions.md, 2026-11-16) and the meter push (4 Hz at most)
 	task.spawn(function()
 		local step = 0.25
 		while true do
 			task.wait(step)
 			local now = os.clock()
 			for _, hero in heroes do
+				if hero.meterDirty then
+					hero.meterDirty = false
+					HeroService.sendStatus(hero)
+				end
 				if
 					hero.alive
 					and hero.health < hero.maxHealth

@@ -1,6 +1,7 @@
--- Hud: the main HUD for M1 (spec: Screens and UI > Main HUD): health bar, stamina ring, the basic and two
--- skill buttons with cooldown sweeps, the movement buttons (Leap, Fly, Boost, Down), a crosshair that pops on
--- a confirmed hit, and the level, class and power set. Phone first: 56 px buttons, a 16 px safe area, and the
+-- Hud: the main HUD (spec: Screens and UI > Main HUD): health bar with the shield on top, stamina ring, the
+-- basic, 4 skill buttons and the super with cooldown sweeps (coloured by power set), the Awakening meter and
+-- its button, active buffs, the movement buttons (Leap, Fly, Boost, Down), a crosshair that pops on a
+-- confirmed hit, the level, class and power set, and a POWERS button for the loadout screen. Phone first: 56 px buttons, a 16 px safe area, and the
 -- bottom 80 px on the right left clear for the flight pad. Buttons carry only verbs (spec: first 30 seconds).
 -- On PC and gamepad the same buttons show their key; they are drawn smaller.
 -- PLACEHOLDER look until the UI pass (M10): the Renown bar, radar, world clock and boss countdown arrive with
@@ -32,6 +33,21 @@ local staminaDots: { Frame } = {}
 local infoText: TextLabel
 local crosshair: Frame
 local buttons: { [string]: { button: TextButton, sweep: Frame?, hint: TextLabel } } = {}
+local shieldFill: Frame
+local meterFill: Frame
+local meterText: TextLabel
+local buffRow: Frame
+local SLOT_ACTIONS = { "Skill1", "Skill2", "Skill3", "Skill4" }
+local ShortName: { [string]: string } = {}
+for id, row in A do
+	-- the verb on the button: the ability's first word, or its second for "Ice", "Arc" and the like
+	local words = string.split(row.name, " ")
+	local w = words[1]
+	if #words > 1 and #w <= 3 then
+		w = words[2]
+	end
+	ShortName[id] = string.upper(w)
+end
 
 -- A hold button feeding an input action. Touch and mouse both press it.
 local function actionButton(
@@ -108,7 +124,7 @@ end
 local function buildTopLeft()
 	local card = Kit.frame({
 		Name = "Status",
-		Size = UDim2.fromOffset(250, 66),
+		Size = UDim2.fromOffset(250, 84),
 		Position = UDim2.fromOffset(U.safe, U.safe),
 		BackgroundColor3 = Kit.color.night,
 		BackgroundTransparency = 0.25,
@@ -130,6 +146,14 @@ local function buildTopLeft()
 	back.Parent = card
 	healthFill = Kit.frame({ Size = UDim2.fromScale(1, 1), BackgroundColor3 = rgb(U.colors.health) })
 	healthFill.Parent = back
+	shieldFill = Kit.frame({
+		Name = "Shield",
+		Size = UDim2.fromScale(0, 0.4),
+		Position = UDim2.fromScale(0, 0),
+		BackgroundColor3 = Color3.fromRGB(170, 225, 255),
+		ZIndex = 2,
+	})
+	shieldFill.Parent = back
 	healthText = Kit.label({
 		Text = "",
 		Size = UDim2.fromScale(1, 1),
@@ -150,7 +174,37 @@ local function buildTopLeft()
 	local fill =
 		Kit.frame({ Name = "Fill", Size = UDim2.fromScale(1, 1), BackgroundColor3 = rgb(U.colors.stamina) })
 	fill.Parent = stam
+	-- the Awakening meter
+	local meter = Kit.frame({
+		Name = "Awakening",
+		Size = UDim2.new(1, -16, 0, 14),
+		Position = UDim2.fromOffset(8, 64),
+		BackgroundColor3 = Color3.fromRGB(40, 36, 30),
+	})
+	meter.Parent = card
+	meterFill = Kit.frame({ Size = UDim2.fromScale(0, 1), BackgroundColor3 = Color3.fromRGB(255, 220, 90) })
+	meterFill.Parent = meter
+	meterText = Kit.label({
+		Text = "AWAKENING",
+		Size = UDim2.fromScale(1, 1),
+		TextColor3 = Kit.color.paper,
+		TextStrokeTransparency = 0.3,
+		Font = Kit.bodyFont,
+		ZIndex = 3,
+		maxText = 11,
+	})
+	meterText.Parent = meter
 	card.Parent = gui
+	buffRow = Instance.new("Frame")
+	buffRow.Name = "Buffs"
+	buffRow.BackgroundTransparency = 1
+	buffRow.Size = UDim2.fromOffset(250, 22)
+	buffRow.Position = UDim2.fromOffset(U.safe, U.safe + 90)
+	local layout = Instance.new("UIListLayout")
+	layout.FillDirection = Enum.FillDirection.Horizontal
+	layout.Padding = UDim.new(0, 4)
+	layout.Parent = buffRow
+	buffRow.Parent = gui
 	return fill
 end
 
@@ -200,31 +254,103 @@ local function buildCluster()
 	cluster.Parent = gui
 	local big = U.touchTarget + 24
 	local s = U.touchTarget
+	cluster.Size = UDim2.fromOffset(320, 320)
 	local volt = rgb(U.colors.volt)
 	local gold = Kit.color.gold
+	-- powers around the big basic button; movement in a column to their left
 	actionButton(cluster, "Basic", "ZAP", big, UDim2.new(1, -big / 2 - 4, 1, -big / 2 - 4), volt)
-	actionButton(cluster, "Skill1", "CHAIN", s, UDim2.new(1, -big - s / 2 - 20, 1, -s / 2 - 4), volt)
-	actionButton(cluster, "Skill2", "DASH", s, UDim2.new(1, -big / 2 - 4, 1, -big - s / 2 - 22), volt)
-	actionButton(cluster, "Leap", "LEAP", s, UDim2.new(1, -big - s * 1.5 - 40, 1, -s / 2 - 4), gold)
-	actionButton(cluster, "Fly", "FLY", s, UDim2.new(1, -big - s * 1.5 - 40, 1, -s * 1.5 - 22), gold)
+	actionButton(cluster, "Skill1", "", s, UDim2.new(1, -big - s / 2 - 20, 1, -s / 2 - 4), volt)
+	actionButton(cluster, "Skill2", "", s, UDim2.new(1, -big / 2 - 4, 1, -big - s / 2 - 22), volt)
+	actionButton(cluster, "Skill3", "", s, UDim2.new(1, -big - s / 2 - 14, 1, -big - s / 2 - 12), volt)
+	actionButton(cluster, "Skill4", "", s, UDim2.new(1, -big / 2 - 4, 1, -big - s * 1.5 - 40), volt)
+	actionButton(
+		cluster,
+		"Super",
+		"SUPER",
+		s + 8,
+		UDim2.new(1, -big - s / 2 - 14, 1, -big - s * 1.5 - 34),
+		gold
+	)
+	actionButton(
+		cluster,
+		"Awaken",
+		"AWAKEN",
+		s,
+		UDim2.new(1, -big - s * 1.5 - 48, 1, -big - s * 1.5 - 34),
+		Color3.fromRGB(255, 220, 90)
+	)
+	actionButton(cluster, "Leap", "LEAP", s, UDim2.new(1, -big - s * 1.5 - 48, 1, -s / 2 - 4), gold)
+	actionButton(cluster, "Fly", "FLY", s, UDim2.new(1, -big - s * 1.5 - 48, 1, -s * 1.5 - 22), gold)
 	local boost =
-		actionButton(cluster, "Boost", "BOOST", s, UDim2.new(1, -big - s / 2 - 20, 1, -s * 1.5 - 22), gold)
-	actionButton(cluster, "Down", "DOWN", s - 8, UDim2.new(1, -big - s * 2.5 - 52, 1, -s / 2 - 4), gold)
+		actionButton(cluster, "Boost", "BOOST", s, UDim2.new(1, -big - s * 2.5 - 64, 1, -s * 1.5 - 22), gold)
+	actionButton(cluster, "Down", "DOWN", s - 8, UDim2.new(1, -big - s * 2.5 - 64, 1, -s / 2 - 4), gold)
 	buildStaminaRing(boost)
+	-- the loadout screen
+	local powers = actionButton(
+		gui,
+		"Loadout",
+		"POWERS",
+		s,
+		UDim2.new(1, -U.safe - s / 2 - 70, 0, U.safe + s / 2),
+		Kit.color.paper
+	)
+	powers.Size = UDim2.fromOffset(s + 30, s - 10)
 end
 
 local function refreshInfo()
 	local h = State.hero
 	infoText.Text = string.format("LV %d  %s  %s", h.level, string.upper(h.classId), string.upper(h.setId))
-	local skills = h.loadout.skills
-	for i, action in { "Skill1", "Skill2" } do
-		local id = skills[i]
+	local l = h.loadout
+	local skills = l.skills or {}
+	local function paint(action: string, id: string?)
 		local entry = buttons[action]
-		if entry then
-			entry.button.Visible = id ~= nil
-			if id and A[id] then
-				entry.button.Text = string.upper(string.split(A[id].name, " ")[1])
+		if not entry then
+			return
+		end
+		entry.button.Visible = id ~= nil
+		if id and A[id] then
+			entry.button.Text = ShortName[id]
+			local c = Config.Abilities.setColor[A[id].set]
+			if c and action ~= "Super" then
+				entry.button.BackgroundColor3 = rgb(c)
 			end
+		end
+	end
+	paint("Basic", l.basic)
+	for i, action in SLOT_ACTIONS do
+		paint(action, skills[i])
+	end
+	paint("Super", l.super)
+end
+
+local BUFF_NAMES = {
+	shield = "SHIELD",
+	mitigation = "BRACE",
+	attackSpeed = "FAST",
+	power = "MIGHT",
+	speed = "SPEED",
+	parry = "PARRY",
+	resist = "RESIST",
+}
+local function refreshBuffs()
+	for _, c in buffRow:GetChildren() do
+		if c:IsA("TextLabel") then
+			c:Destroy()
+		end
+	end
+	for kind, label in BUFF_NAMES do
+		if State.buff(kind) > 0 then
+			local t = Kit.label({
+				Text = label,
+				Size = UDim2.fromOffset(56, 20),
+				BackgroundTransparency = 0.2,
+				BackgroundColor3 = Kit.color.night,
+				TextColor3 = Kit.color.gold,
+				Font = Kit.bodyFont,
+				maxText = 12,
+			})
+			Kit.round(t, 6)
+			t.Parent = buffRow
 		end
 	end
 end
@@ -247,6 +373,8 @@ function Hud.init()
 	refreshInfo()
 	applyDevice(InputController.device)
 	State.Changed:Connect(refreshInfo)
+	State.StatusChanged:Connect(refreshBuffs)
+	local lastFull = false
 	InputController.DeviceChanged:Connect(applyDevice)
 	CombatClient.HitConfirm:Connect(function(crit)
 		local scale = crosshair:FindFirstChildOfClass("UIScale") :: UIScale
@@ -270,10 +398,41 @@ function Hud.init()
 		for i, d in staminaDots do
 			d.BackgroundTransparency = if i <= lit then 0 else 0.8
 		end
+		-- shield on the health bar
+		local shield = State.buff("shield")
+		local maxH = math.max(1, State.hero.maxHealth or 1)
+		shieldFill.Size = UDim2.fromScale(math.clamp(shield / maxH, 0, 1), 0.4)
+		-- Awakening meter and button
+		local st = State.status
+		local awake = State.awakened()
+		local maxM = Config.Abilities.awakening.max
+		if awake then
+			local left = st.awakeUntil - os.clock()
+			meterFill.Size = UDim2.fromScale(math.clamp(left / Config.Abilities.awakening.duration, 0, 1), 1)
+			meterText.Text = string.format("AWAKENED %d", math.ceil(left))
+		else
+			meterFill.Size = UDim2.fromScale(math.clamp(st.meter / maxM, 0, 1), 1)
+			meterText.Text = if st.meter >= maxM then "AWAKENING READY" else "AWAKENING"
+		end
+		local full = st.meter >= maxM and not awake
+		buttons.Awaken.button.Visible = full
+		if full and not lastFull then
+			Kit.pulse(buttons.Awaken.button, 0.3)
+		end
+		lastFull = full
 		-- cooldown sweeps
 		local h = State.hero
+		local l = h.loadout
+		local skills = l.skills or {}
 		for action, id in
-			{ Basic = h.loadout.basic, Skill1 = h.loadout.skills[1], Skill2 = h.loadout.skills[2] }
+			{
+				Basic = l.basic,
+				Skill1 = skills[1],
+				Skill2 = skills[2],
+				Skill3 = skills[3],
+				Skill4 = skills[4],
+				Super = l.super,
+			}
 		do
 			local entry = buttons[action]
 			if entry and entry.sweep and id then

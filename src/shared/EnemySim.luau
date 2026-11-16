@@ -2,21 +2,35 @@
 -- EnemySim: machine enemies as plain data (spec: Enemies). The server runs it at World.Tick 10 Hz with at
 -- most 40 AI updates per frame (the rest wait their turn) and replicates positions with EnemyBuffer; Lune
 -- runs it headless in the tests. No Roblox instances in here.
+-- Every enemy is a humanoid robot (nate, 2026-11-16); `ai` in Config.Enemies picks its brain:
+--   flyer  (Spark Trooper) hovers, chases and strafes while firing 3-shot bursts
+--   thief  (Burglar Bot) runs from heroes between loot spots; cornered, it turns and fires a laser
+--   sneak  (Sneak Bot) cloaks for 4 s, circles behind the hero and backstabs
+--   brute  (Brute Bot) walks in, plants, shows a 0.8 s warning ring, then slams
+--   sentry (Sentry) planted; turns 90 degrees/s, fires when lined up; its shield flickers every 6 s
+--   guard  (Null Sentinel) blocks hits from the front; a flank hit breaks the guard and stuns it
+-- Status effects from heroes (Status): stun, root, slow, knockup, float, pull, blind, taunt.
 -- States on the wire: 1 Patrol, 2 Chase, 3 Attack, 4 Flee, 5 Dead.
 -- Enemies are machines only and never hurt citizens (spec: Choices baked in).
 
 local Formulas = if script then require(script.Parent.Formulas) else (require :: any)("./Formulas")
+local Status = if script then require(script.Parent.Status) else (require :: any)("./Status")
 
 local EnemySim = {}
 
 EnemySim.PATROL, EnemySim.CHASE, EnemySim.ATTACK, EnemySim.FLEE, EnemySim.DEAD = 1, 2, 3, 4, 5
 
-export type Hero = { id: number, x: number, y: number, z: number, alive: boolean }
+-- Hit flags returned by damage (sent to clients so a blocked hit reads)
+EnemySim.HIT, EnemySim.BLOCKED, EnemySim.BROKE = 0, 1, 2
+
+-- lx, lz: the hero's facing (for backstabs). Optional for old callers.
+export type Hero = { id: number, x: number, y: number, z: number, alive: boolean, lx: number?, lz: number? }
 
 export type Enemy = {
 	id: number,
 	kind: string,
 	cfg: any,
+	ai: string,
 	typeId: number,
 	level: number,
 	x: number,
@@ -25,6 +39,7 @@ export type Enemy = {
 	vx: number,
 	vy: number,
 	vz: number,
+	yaw: number,
 	homeX: number,
 	homeY: number,
 	homeZ: number,
@@ -47,6 +62,20 @@ export type Enemy = {
 	orbitFlip: number,
 	alive: boolean,
 	lastHeroNear: number,
+	status: Status.Book,
+	liftBase: number?,
+	flags: number,
+	-- robot timers
+	windupUntil: number, -- brute slam or guard sweep coming
+	nextMelee: number,
+	cloakUntil: number,
+	nextCloak: number,
+	shieldUntil: number,
+	nextShield: number,
+	guardBrokenUntil: number,
+	corneredUntil: number,
+	lastX: number,
+	lastZ: number,
 }
 
 export type Shot = {
@@ -62,11 +91,14 @@ export type Shot = {
 	radius: number,
 }
 
+export type Blocker = { x: number, y: number, z: number, r: number, untilT: number }
+
 export type Sim = {
 	config: any,
 	enemies: { Enemy },
 	byId: { [number]: Enemy },
 	shots: { Shot },
+	blockers: { Blocker },
 	events: { any },
 	nextId: number,
 	cursor: number,
@@ -83,6 +115,24 @@ local function dist3(ax: number, ay: number, az: number, bx: number, by: number,
 	return math.sqrt(dx * dx + dy * dy + dz * dz)
 end
 
+local function dist2(ax: number, az: number, bx: number, bz: number): number
+	local dx, dz = ax - bx, az - bz
+	return math.sqrt(dx * dx + dz * dz)
+end
+
+local function wrapAngle(a: number): number
+	return (a + math.pi) % (2 * math.pi) - math.pi
+end
+
+-- yaw 0 faces -Z (Roblox's forward); yaw grows toward -X
+local function yawTo(dx: number, dz: number): number
+	return math.atan2(-dx, -dz)
+end
+
+local function yawDir(yaw: number): (number, number)
+	return -math.sin(yaw), -math.cos(yaw)
+end
+
 -- opts.heightAt(x, z): roof or ground height there (the city), opts.random(): 0..1 (seeded in tests)
 function EnemySim.new(config: any, opts: { [string]: any }?): Sim
 	local o = opts or {}
@@ -96,6 +146,7 @@ function EnemySim.new(config: any, opts: { [string]: any }?): Sim
 		enemies = {},
 		byId = {},
 		shots = {},
+		blockers = {},
 		events = {},
 		nextId = 1,
 		cursor = 1,
@@ -126,6 +177,12 @@ function EnemySim.count(sim: Sim): number
 	return #sim.enemies
 end
 
+-- Half the body height: ground robots keep their centre this far above the floor
+local function halfHeight(cfg: any): number
+	return if cfg.body then cfg.body.height * 0.5 else 2.5
+end
+EnemySim.halfHeight = halfHeight
+
 function EnemySim.spawn(sim: Sim, kind: string, x: number, y: number, z: number, level: number?): Enemy?
 	local cfg = sim.config.Enemies[kind]
 	assert(cfg, "unknown enemy " .. kind)
@@ -134,40 +191,61 @@ function EnemySim.spawn(sim: Sim, kind: string, x: number, y: number, z: number,
 	end
 	local lvl = level or 1
 	local hp = Formulas.enemyHealth(sim.config, kind, lvl)
+	local ai = cfg.ai or "flyer"
+	local yy = y
+	if ai ~= "flyer" then
+		yy = sim.heightAt(x, z) + halfHeight(cfg)
+	end
+	local now = sim.now
 	local e: Enemy = {
 		id = allocId(sim),
 		kind = kind,
 		cfg = cfg,
+		ai = ai,
 		typeId = cfg.typeId,
 		level = lvl,
 		x = x,
-		y = y,
+		y = yy,
 		z = z,
 		vx = 0,
 		vy = 0,
 		vz = 0,
+		yaw = sim.rngNext() * math.pi * 2,
 		homeX = x,
-		homeY = y,
+		homeY = yy,
 		homeZ = z,
 		wpX = x,
-		wpY = y,
+		wpY = yy,
 		wpZ = z,
 		wpUntil = 0,
 		health = hp,
 		maxHealth = hp,
 		state = EnemySim.PATROL,
 		target = nil,
-		nextTick = sim.now,
-		lastTick = sim.now,
+		nextTick = now,
+		lastTick = now,
 		burstLeft = 0,
 		nextShot = 0,
-		nextBurst = sim.now + 1 + sim.rngNext(),
+		nextBurst = now + 1 + sim.rngNext(),
 		fleeUntil = 0,
 		fled = false,
 		orbitDir = if sim.rngNext() < 0.5 then 1 else -1,
-		orbitFlip = sim.now + 3,
+		orbitFlip = now + 3,
 		alive = true,
-		lastHeroNear = sim.now,
+		lastHeroNear = now,
+		status = Status.new(),
+		liftBase = nil,
+		flags = 0,
+		windupUntil = 0,
+		nextMelee = now + 1,
+		cloakUntil = 0,
+		nextCloak = now,
+		shieldUntil = 0,
+		nextShield = now + (if cfg.shield then cfg.shield.every * sim.rngNext() else 0),
+		guardBrokenUntil = 0,
+		corneredUntil = 0,
+		lastX = x,
+		lastZ = z,
 	}
 	table.insert(sim.enemies, e)
 	sim.byId[e.id] = e
@@ -184,13 +262,56 @@ local function removeAt(sim: Sim, index: number)
 	end
 end
 
--- Damage from the Combat service. Returns killed, the enemy (nil if unknown or dead already).
-function EnemySim.damage(sim: Sim, id: number, amount: number, attacker: number?): (boolean, Enemy?)
+local function shieldUp(sim: Sim, e: Enemy): boolean
+	return e.cfg.shield ~= nil and sim.now < e.shieldUntil
+end
+
+local function guardUp(sim: Sim, e: Enemy): boolean
+	return e.cfg.guard ~= nil and sim.now >= e.guardBrokenUntil
+end
+
+-- Damage from the Combat service. fromX/fromZ: where the hit came from (the Sentinel's guard checks it).
+-- Returns killed, the enemy (nil if unknown or dead already), the damage dealt, and a flag (HIT, BLOCKED,
+-- BROKE).
+function EnemySim.damage(
+	sim: Sim,
+	id: number,
+	amount: number,
+	attacker: number?,
+	fromX: number?,
+	fromZ: number?
+): (boolean, Enemy?, number, number)
 	local e = sim.byId[id]
 	if not e or not e.alive then
-		return false, nil
+		return false, nil, 0, EnemySim.HIT
 	end
-	e.health -= amount
+	local cfg = e.cfg
+	local flag = EnemySim.HIT
+	local dealt = amount * (1 - (cfg.mitigation or 0))
+	if amount == math.huge then
+		dealt = math.huge
+	elseif shieldUp(sim, e) then
+		dealt = 0
+		flag = EnemySim.BLOCKED
+	elseif guardUp(sim, e) and fromX and fromZ then
+		local fx, fz = yawDir(e.yaw)
+		local tx, tz = fromX - e.x, fromZ - e.z
+		local l = math.sqrt(tx * tx + tz * tz)
+		local front = l < 0.5 or (fx * tx + fz * tz) / l >= math.cos(math.rad(cfg.guard.front / 2))
+		if front then
+			dealt *= 1 - cfg.guard.block
+			flag = EnemySim.BLOCKED
+		else
+			e.guardBrokenUntil = sim.now + cfg.guard.breakTime
+			Status.apply(e.status, "stun", cfg.guard.breakStun, sim.now)
+			e.windupUntil = 0
+			flag = EnemySim.BROKE
+		end
+	end
+	if e.ai == "sneak" and e.cloakUntil > sim.now then
+		e.cloakUntil = sim.now -- a hit reveals it
+	end
+	e.health -= dealt
 	if attacker and not e.target then
 		e.target = attacker -- getting hit draws aggro
 	end
@@ -208,19 +329,92 @@ function EnemySim.damage(sim: Sim, id: number, amount: number, attacker: number?
 				break
 			end
 		end
-		return true, e
+		return true, e, dealt, flag
 	end
-	return false, e
+	return false, e, dealt, flag
 end
 
--- Shift an enemy (Dash Strike knock, later knockback arcs)
+-- A status effect from a hero ability. Returns the duration applied (0 if immune or resisted).
+function EnemySim.applyStatus(
+	sim: Sim,
+	id: number,
+	kind: string,
+	duration: number,
+	opts: Status.ApplyOpts?
+): number
+	local e = sim.byId[id]
+	if not e or not e.alive then
+		return 0
+	end
+	local o: Status.ApplyOpts = if opts then table.clone(opts) else {}
+	o.resist = e.cfg.ccResist
+	o.immune = e.cfg.immune
+	local wasLifted = Status.lifted(e.status, sim.now)
+	local dur = Status.apply(e.status, kind, duration, sim.now, o)
+	if dur > 0 then
+		if (kind == "knockup" or kind == "float") and not wasLifted then
+			e.liftBase = e.y
+		end
+		if kind == "stun" or kind == "knockup" or kind == "float" then
+			e.windupUntil = 0 -- crowd control interrupts a slam or sweep
+			e.burstLeft = 0
+		end
+	end
+	return dur
+end
+
+-- Shift an enemy now (small nudges)
 function EnemySim.push(sim: Sim, id: number, dx: number, dy: number, dz: number)
 	local e = sim.byId[id]
 	if e and e.alive then
+		if e.cfg.immune and table.find(e.cfg.immune, "knockback") then
+			return
+		end
 		e.x += dx
-		e.y = math.max(sim.heightAt(e.x, e.z) + 3, e.y + dy)
 		e.z += dz
+		if e.ai == "flyer" then
+			e.y = math.max(sim.heightAt(e.x, e.z) + 3, e.y + dy)
+		else
+			e.y = sim.heightAt(e.x, e.z) + halfHeight(e.cfg)
+		end
 	end
+end
+
+-- Knockback along (dx, dz) for `distance` studs; stops at a building. Returns true when it hit a wall
+-- (Shoulder Charge's Wall Breaker stuns then).
+function EnemySim.knock(sim: Sim, id: number, dx: number, dz: number, distance: number): boolean
+	local e = sim.byId[id]
+	if not e or not e.alive or distance <= 0 then
+		return false
+	end
+	if e.cfg.immune and table.find(e.cfg.immune, "knockback") then
+		return false
+	end
+	local l = math.sqrt(dx * dx + dz * dz)
+	if l < 1e-4 then
+		return false
+	end
+	dx, dz = dx / l, dz / l
+	local moved = 0
+	local floorY = e.y - (if e.ai == "flyer" then 2 else halfHeight(e.cfg))
+	while moved < distance do
+		local step = math.min(2, distance - moved)
+		local nx, nz = e.x + dx * step, e.z + dz * step
+		if sim.heightAt(nx, nz) > floorY + 3 then
+			return true
+		end
+		e.x, e.z = nx, nz
+		moved += step
+	end
+	if e.ai ~= "flyer" then
+		e.y = sim.heightAt(e.x, e.z) + halfHeight(e.cfg)
+	end
+	return false
+end
+
+-- Snow Wall pieces stop enemy shots
+function EnemySim.addBlocker(sim: Sim, x: number, y: number, z: number, r: number, untilT: number)
+	table.insert(sim.blockers, { x = x, y = y, z = z, r = r, untilT = untilT })
 end
 
 local function findHero(heroes: { Hero }, id: number?): Hero?
@@ -256,43 +450,104 @@ local function moveToward(sim: Sim, e: Enemy, tx: number, ty: number, tz: number
 		e.y = floor
 		e.vy = math.max(0, e.vy)
 	end
+	if e.vx * e.vx + e.vz * e.vz > 4 then
+		e.yaw = yawTo(e.vx, e.vz)
+	end
+end
+
+-- Ground robots walk the streets: they step around buildings (try the wanted heading, then 45, 90 and 135
+-- degrees either side) and never climb. Returns the distance actually moved.
+local TURNS = { 0, 45, -45, 90, -90, 135, -135 }
+local function walk(sim: Sim, e: Enemy, tx: number, tz: number, speed: number, dt: number): number
+	local dx, dz = tx - e.x, tz - e.z
+	local d = math.sqrt(dx * dx + dz * dz)
+	if d < 0.5 or speed <= 0 then
+		e.vx, e.vz = 0, 0
+		return 0
+	end
+	local step = math.min(speed * dt, d)
+	local floorY = e.y - halfHeight(e.cfg)
+	local base = math.atan2(dz, dx)
+	for _, turn in TURNS do
+		local a = base + math.rad(turn)
+		local ux, uz = math.cos(a), math.sin(a)
+		local probe = math.max(step, 3)
+		local h = sim.heightAt(e.x + ux * probe, e.z + uz * probe)
+		if h <= floorY + 2.5 then
+			e.x += ux * step
+			e.z += uz * step
+			e.vx, e.vz = ux * speed, uz * speed
+			e.y = sim.heightAt(e.x, e.z) + halfHeight(e.cfg)
+			e.yaw = yawTo(ux, uz)
+			return step
+		end
+	end
+	e.vx, e.vz = 0, 0
+	return 0
 end
 
 local function separate(sim: Sim, e: Enemy)
+	local flyer = e.ai == "flyer"
+	if e.ai == "sentry" then
+		return
+	end
 	for _, o in sim.enemies do
 		if o ~= e and o.alive then
-			local dx, dy, dz = e.x - o.x, e.y - o.y, e.z - o.z
+			local dx, dy, dz = e.x - o.x, if flyer then e.y - o.y else 0, e.z - o.z
 			local d2 = dx * dx + dy * dy + dz * dz
-			if d2 < 36 and d2 > 1e-4 then
+			local min = (e.cfg.radius or 2.5) + (o.cfg.radius or 2.5)
+			if d2 < min * min and d2 > 1e-4 then
 				local d = math.sqrt(d2)
-				local push = (6 - d) * 0.5
-				e.x += dx / d * push
-				e.y += dy / d * push
-				e.z += dz / d * push
+				local push = (min - d) * 0.5
+				local nx, nz = e.x + dx / d * push, e.z + dz / d * push
+				if flyer then
+					e.x, e.z = nx, nz
+					e.y += dy / d * push
+				elseif sim.heightAt(nx, nz) <= e.y - halfHeight(e.cfg) + 2.5 then
+					e.x, e.z = nx, nz
+				end
 			end
 		end
 	end
 end
 
-local function fire(sim: Sim, e: Enemy, h: Hero)
-	local cfg = e.cfg
-	local dx, dy, dz = h.x - e.x, (h.y + 1.5) - e.y, h.z - e.z
+-- Fire a shot from the enemy toward a point (or along a direction for the sentry)
+local function shoot(
+	sim: Sim,
+	e: Enemy,
+	tx: number,
+	ty: number,
+	tz: number,
+	speed: number,
+	radius: number,
+	range: number,
+	coeff: number?
+)
+	local dx, dy, dz = tx - e.x, ty - e.y, tz - e.z
 	local d = math.sqrt(dx * dx + dy * dy + dz * dz)
 	if d < 1e-3 then
 		return
 	end
-	local s = cfg.shotSpeed
+	dx, dy, dz = dx / d, dy / d, dz / d
+	if Status.has(e.status, "blind", sim.now) then
+		-- blinded: shots go up to 25 degrees wide
+		local a = (sim.rngNext() - 0.5) * math.rad(50)
+		dx, dz = dx * math.cos(a) - dz * math.sin(a), dx * math.sin(a) + dz * math.cos(a)
+		dy += (sim.rngNext() - 0.5) * 0.4
+	end
+	local damage = Formulas.enemyDamage(sim.config, e.kind, e.level) * (coeff or 1)
+	local muzzle = 1.2
 	local shot: Shot = {
-		x = e.x,
-		y = e.y,
-		z = e.z,
-		vx = dx / d * s,
-		vy = dy / d * s,
-		vz = dz / d * s,
-		life = cfg.attackRange * 1.6 / s,
-		damage = Formulas.enemyDamage(sim.config, e.kind, e.level),
+		x = e.x + dx * muzzle,
+		y = e.y + 0.8,
+		z = e.z + dz * muzzle,
+		vx = dx * speed,
+		vy = dy * speed,
+		vz = dz * speed,
+		life = range * 1.6 / speed,
+		damage = damage,
 		enemyId = e.id,
-		radius = cfg.shotRadius,
+		radius = radius,
 	}
 	table.insert(sim.shots, shot)
 	table.insert(sim.events, {
@@ -305,6 +560,11 @@ local function fire(sim: Sim, e: Enemy, h: Hero)
 		vy = shot.vy,
 		vz = shot.vz,
 	})
+end
+
+local function melee(sim: Sim, e: Enemy, h: Hero, coeff: number)
+	local damage = (sim.config.Enemies.scale.dmgBase + sim.config.Enemies.scale.dmgPerLevel * e.level) * coeff
+	table.insert(sim.events, { k = "hit", hero = h.id, damage = damage, e = e.id, melee = true })
 end
 
 local function attackersOf(sim: Sim, heroId: number, except: Enemy): number
@@ -322,12 +582,28 @@ local function attackersOf(sim: Sim, heroId: number, except: Enemy): number
 	return n
 end
 
-local function think(sim: Sim, e: Enemy, heroes: { Hero }, dt: number)
+local function nearestHeroDist(e: Enemy, heroes: { Hero }): number
+	local best = math.huge
+	for _, h in heroes do
+		if h.alive then
+			best = math.min(best, dist3(e.x, e.y, e.z, h.x, h.y, h.z))
+		end
+	end
+	return best
+end
+
+-- Keep, drop or pick a target. Taunts force one; blind stops new picks.
+local function upkeepTarget(sim: Sim, e: Enemy, heroes: { Hero }): Hero?
 	local cfg = e.cfg
 	local now = sim.now
-	local caps = sim.config.Enemies.caps
-
-	-- target upkeep
+	local taunt = Status.get(e.status, "taunt", now)
+	if taunt and taunt.src then
+		local h = findHero(heroes, taunt.src)
+		if h and h.alive then
+			e.target = h.id
+			return h
+		end
+	end
 	local target = findHero(heroes, e.target)
 	if
 		target and (not target.alive or dist3(e.x, e.y, e.z, target.x, target.y, target.z) > cfg.aggro * 1.6)
@@ -335,7 +611,8 @@ local function think(sim: Sim, e: Enemy, heroes: { Hero }, dt: number)
 		target = nil
 		e.target = nil
 	end
-	if not target then
+	if not target and not Status.has(e.status, "blind", now) then
+		local caps = sim.config.Enemies.caps
 		local best, bestD = nil, cfg.aggro
 		for _, h in heroes do
 			if h.alive then
@@ -348,81 +625,463 @@ local function think(sim: Sim, e: Enemy, heroes: { Hero }, dt: number)
 		target = best
 		e.target = if best then best.id else nil
 	end
+	return target
+end
 
-	local nearestHero = math.huge
-	for _, h in heroes do
-		if h.alive then
-			nearestHero = math.min(nearestHero, dist3(e.x, e.y, e.z, h.x, h.y, h.z))
+local function wander(sim: Sim, e: Enemy, speed: number, dt: number, radius: number)
+	local now = sim.now
+	if now >= e.wpUntil then
+		local ang = sim.rngNext() * math.pi * 2
+		local r = 10 + sim.rngNext() * radius
+		e.wpX = e.homeX + math.cos(ang) * r
+		e.wpZ = e.homeZ + math.sin(ang) * r
+		if e.ai == "flyer" then
+			local hover = e.cfg.hover.min + sim.rngNext() * (e.cfg.hover.max - e.cfg.hover.min)
+			e.wpY = sim.heightAt(e.wpX, e.wpZ) + hover
 		end
+		e.wpUntil = now + 3 + sim.rngNext() * 2
 	end
-	if nearestHero < 500 then
-		e.lastHeroNear = now
+	if e.ai == "flyer" then
+		moveToward(sim, e, e.wpX, e.wpY, e.wpZ, speed, dt)
+	elseif walk(sim, e, e.wpX, e.wpZ, speed, dt) == 0 then
+		e.wpUntil = now -- blocked: pick another spot
 	end
+end
 
-	-- flee once when badly hurt
+local function turnToward(e: Enemy, tx: number, tz: number, rateDeg: number, dt: number): number
+	local want = yawTo(tx - e.x, tz - e.z)
+	local diff = wrapAngle(want - e.yaw)
+	local maxStep = math.rad(rateDeg) * dt
+	e.yaw = wrapAngle(e.yaw + math.clamp(diff, -maxStep, maxStep))
+	return math.deg(math.abs(wrapAngle(want - e.yaw)))
+end
+
+---------------------------------------------------------------------------
+-- Brains
+---------------------------------------------------------------------------
+
+local function thinkFlyer(sim: Sim, e: Enemy, target: Hero?, speed: number, canMove: boolean, dt: number)
+	local cfg = e.cfg
+	local now = sim.now
 	if not e.fled and e.health / e.maxHealth < cfg.fleeBelow and target then
 		e.fled = true
 		e.fleeUntil = now + cfg.fleeTime
 	end
-
 	if e.fleeUntil > now and target then
 		e.state = EnemySim.FLEE
-		local dx, dz = e.x - target.x, e.z - target.z
-		local d = math.max(1, math.sqrt(dx * dx + dz * dz))
-		moveToward(sim, e, e.x + dx / d * 30, target.y + 20, e.z + dz / d * 30, cfg.speed, dt)
+		if canMove then
+			local dx, dz = e.x - target.x, e.z - target.z
+			local d = math.max(1, math.sqrt(dx * dx + dz * dz))
+			moveToward(sim, e, e.x + dx / d * 30, target.y + 20, e.z + dz / d * 30, speed, dt)
+		end
 		return
 	end
-
 	if not target then
 		e.state = EnemySim.PATROL
-		if now >= e.wpUntil then
-			local ang = sim.rngNext() * math.pi * 2
-			local r = 10 + sim.rngNext() * 30
-			e.wpX = e.homeX + math.cos(ang) * r
-			e.wpZ = e.homeZ + math.sin(ang) * r
-			local hover = cfg.hover.min + sim.rngNext() * (cfg.hover.max - cfg.hover.min)
-			e.wpY = sim.heightAt(e.wpX, e.wpZ) + hover
-			e.wpUntil = now + 3 + sim.rngNext() * 2
+		if canMove then
+			wander(sim, e, speed * 0.4, dt, 30)
 		end
-		moveToward(sim, e, e.wpX, e.wpY, e.wpZ, cfg.speed * 0.4, dt)
 		return
 	end
-
 	local d = dist3(e.x, e.y, e.z, target.x, target.y, target.z)
 	local floor = sim.heightAt(target.x, target.z)
 	if d > cfg.attackRange then
 		e.state = EnemySim.CHASE
-		moveToward(sim, e, target.x, math.max(target.y + 8, floor + 8), target.z, cfg.speed, dt)
+		if canMove then
+			moveToward(sim, e, target.x, math.max(target.y + 8, floor + 8), target.z, speed, dt)
+		end
 		return
 	end
-
 	-- attack: strafe around the hero at orbit distance and fire bursts
 	e.state = EnemySim.ATTACK
 	if now >= e.orbitFlip then
 		e.orbitDir = -e.orbitDir
 		e.orbitFlip = now + 2.5 + sim.rngNext() * 2
 	end
-	local ox, oz = e.x - target.x, e.z - target.z
-	local ol = math.max(1, math.sqrt(ox * ox + oz * oz))
-	local want = math.clamp(ol, cfg.orbit.min, cfg.orbit.max)
-	local tangX, tangZ = -oz / ol * e.orbitDir, ox / ol * e.orbitDir
-	local px = target.x + ox / ol * want + tangX * 12
-	local pz = target.z + oz / ol * want + tangZ * 12
-	moveToward(sim, e, px, math.max(target.y + 6, floor + 6), pz, cfg.speed, dt)
-
+	if canMove then
+		local ox, oz = e.x - target.x, e.z - target.z
+		local ol = math.max(1, math.sqrt(ox * ox + oz * oz))
+		local want = math.clamp(ol, cfg.orbit.min, cfg.orbit.max)
+		local tangX, tangZ = -oz / ol * e.orbitDir, ox / ol * e.orbitDir
+		local px = target.x + ox / ol * want + tangX * 12
+		local pz = target.z + oz / ol * want + tangZ * 12
+		moveToward(sim, e, px, math.max(target.y + 6, floor + 6), pz, speed, dt)
+	end
+	e.yaw = yawTo(target.x - e.x, target.z - e.z)
 	if e.burstLeft <= 0 and now >= e.nextBurst then
 		e.burstLeft = cfg.burst.shots
 		e.nextShot = now
 		e.nextBurst = now + cfg.burst.every
 	end
 	if e.burstLeft > 0 and now >= e.nextShot then
-		fire(sim, e, target)
+		shoot(sim, e, target.x, target.y + 1.5, target.z, cfg.shotSpeed, cfg.shotRadius, cfg.attackRange)
 		e.burstLeft -= 1
 		e.nextShot = now + cfg.burst.gap
 	end
 end
 
+local function thinkThief(sim: Sim, e: Enemy, target: Hero?, speed: number, canMove: boolean, dt: number)
+	local cfg = e.cfg
+	local now = sim.now
+	if not target then
+		e.state = EnemySim.PATROL
+		if canMove then
+			wander(sim, e, speed * 0.45, dt, cfg.loot) -- trots between loot spots
+		end
+		return
+	end
+	local d = dist2(e.x, e.z, target.x, target.z)
+	local cornered = d <= cfg.cornered or now < e.corneredUntil
+	if not cornered then
+		e.state = EnemySim.FLEE
+		if canMove then
+			local dx, dz = e.x - target.x, e.z - target.z
+			local l = math.max(1, math.sqrt(dx * dx + dz * dz))
+			local moved = walk(sim, e, e.x + dx / l * 20, e.z + dz / l * 20, speed, dt)
+			if moved < speed * dt * 0.3 then
+				e.corneredUntil = now + 2.5 -- boxed in: turn and fight
+			end
+		end
+		return
+	end
+	e.state = EnemySim.ATTACK
+	e.yaw = yawTo(target.x - e.x, target.z - e.z)
+	if d <= cfg.attackRange + 4 and now >= e.nextShot then
+		shoot(
+			sim,
+			e,
+			target.x,
+			target.y + 1.5,
+			target.z,
+			cfg.fire.shotSpeed,
+			cfg.fire.shotRadius,
+			cfg.attackRange
+		)
+		e.nextShot = now + cfg.fire.every
+	elseif d > cfg.attackRange and canMove then
+		walk(sim, e, target.x, target.z, speed * 0.6, dt)
+	end
+end
+
+local function behind(h: Hero, e: Enemy, maxAngle: number): boolean
+	if not h.lx or not h.lz then
+		return false
+	end
+	local tx, tz = e.x - h.x, e.z - h.z
+	local l = math.sqrt(tx * tx + tz * tz)
+	if l < 0.1 then
+		return true
+	end
+	local dot = ((h.lx :: number) * tx + (h.lz :: number) * tz) / l
+	return dot <= -math.cos(math.rad(maxAngle))
+end
+
+local function thinkSneak(sim: Sim, e: Enemy, target: Hero?, speed: number, canMove: boolean, dt: number)
+	local cfg = e.cfg
+	local now = sim.now
+	if not target then
+		e.state = EnemySim.PATROL
+		if canMove then
+			wander(sim, e, speed * 0.35, dt, 30)
+		end
+		return
+	end
+	if now >= e.nextCloak then
+		e.cloakUntil = now + cfg.cloak.time
+		e.nextCloak = now + cfg.cloak.every
+	end
+	local cloaked = now < e.cloakUntil
+	-- circle to the hero's back while cloaked, then go straight in
+	local gx, gz = target.x, target.z
+	local d = dist2(e.x, e.z, target.x, target.z)
+	if cloaked and target.lx and target.lz and not behind(target, e, cfg.stab.behindAngle) then
+		local fx, fz = target.lx :: number, target.lz :: number
+		local sx, sz = -fz, fx
+		if (e.x - target.x) * sx + (e.z - target.z) * sz < 0 then
+			sx, sz = -sx, -sz -- keep to the side it is already on
+		end
+		-- wide around the flank, then in at the hero's back quarter
+		local side = if d < 14 then 7 else 12
+		gx, gz = target.x + sx * side - fx * 3, target.z + sz * side - fz * 3
+		e.state = EnemySim.CHASE
+		if canMove then
+			walk(sim, e, gx, gz, speed, dt)
+		end
+		return
+	end
+	if d > cfg.attackRange then
+		e.state = EnemySim.CHASE
+		if canMove then
+			walk(sim, e, gx, gz, speed, dt)
+		end
+		return
+	end
+	e.state = EnemySim.ATTACK
+	e.yaw = yawTo(target.x - e.x, target.z - e.z)
+	if now >= e.nextMelee and math.abs(target.y - e.y) < 8 then
+		local back = behind(target, e, cfg.stab.behindAngle)
+		melee(sim, e, target, if back then cfg.stab.backCoeff else cfg.stab.frontCoeff)
+		table.insert(sim.events, { k = "swing", e = e.id, back = back })
+		e.nextMelee = now + cfg.stab.cooldown
+		e.cloakUntil = now -- striking reveals it
+	end
+end
+
+local function thinkBrute(
+	sim: Sim,
+	e: Enemy,
+	target: Hero?,
+	speed: number,
+	canMove: boolean,
+	dt: number,
+	heroes: { Hero }
+)
+	local cfg = e.cfg
+	local now = sim.now
+	-- a slam on the way finishes even if the target left
+	if e.windupUntil > 0 then
+		if now >= e.windupUntil then
+			e.windupUntil = 0
+			local reach = cfg.slam.radius + sim.config.Enemies.melee.reach
+			for _, h in heroes do
+				if h.alive and dist2(e.x, e.z, h.x, h.z) <= reach and math.abs(h.y - e.y) <= 7 then
+					melee(sim, e, h, cfg.coeff)
+				end
+			end
+			table.insert(
+				sim.events,
+				{ k = "slam", e = e.id, x = e.x, y = e.y - halfHeight(cfg), z = e.z, r = cfg.slam.radius }
+			)
+			e.nextMelee = now + cfg.slam.every
+		end
+		e.state = EnemySim.ATTACK
+		return
+	end
+	if not target then
+		e.state = EnemySim.PATROL
+		if canMove then
+			wander(sim, e, speed * 0.5, dt, 25)
+		end
+		return
+	end
+	local d = dist2(e.x, e.z, target.x, target.z)
+	if d > cfg.attackRange or math.abs(target.y - e.y) > 10 then
+		e.state = EnemySim.CHASE
+		if canMove then
+			walk(sim, e, target.x, target.z, speed, dt)
+		end
+		return
+	end
+	e.state = EnemySim.ATTACK
+	e.yaw = yawTo(target.x - e.x, target.z - e.z)
+	if now >= e.nextMelee then
+		e.windupUntil = now + cfg.slam.windup
+		table.insert(sim.events, {
+			k = "warn",
+			e = e.id,
+			x = e.x,
+			y = e.y - halfHeight(cfg),
+			z = e.z,
+			r = cfg.slam.radius,
+			t = cfg.slam.windup,
+		})
+	end
+end
+
+local function thinkSentry(sim: Sim, e: Enemy, target: Hero?, dt: number)
+	local cfg = e.cfg
+	local now = sim.now
+	if now >= e.nextShield then
+		e.shieldUntil = now + cfg.shield.time
+		e.nextShield = now + cfg.shield.every
+	end
+	if not target then
+		e.state = EnemySim.PATROL
+		e.yaw = wrapAngle(e.yaw + math.rad(20) * dt) -- slow scan
+		return
+	end
+	e.state = EnemySim.ATTACK
+	local off = turnToward(e, target.x, target.z, cfg.turnRate, dt)
+	local d = dist3(e.x, e.y, e.z, target.x, target.y, target.z)
+	if off <= cfg.aimCone and d <= cfg.attackRange and now >= e.nextShot then
+		-- fires along its facing (pitched at the target), so circling fast beats it
+		local fx, fz = yawDir(e.yaw)
+		local flatD = dist2(e.x, e.z, target.x, target.z)
+		shoot(
+			sim,
+			e,
+			e.x + fx * flatD,
+			target.y + 1.5,
+			e.z + fz * flatD,
+			cfg.fire.shotSpeed,
+			cfg.fire.shotRadius,
+			cfg.attackRange
+		)
+		e.nextShot = now + cfg.fire.every
+	end
+end
+
+local function thinkGuard(
+	sim: Sim,
+	e: Enemy,
+	target: Hero?,
+	speed: number,
+	canMove: boolean,
+	dt: number,
+	heroes: { Hero }
+)
+	local cfg = e.cfg
+	local now = sim.now
+	if e.windupUntil > 0 then
+		if now >= e.windupUntil then
+			e.windupUntil = 0
+			local reach = cfg.sweep.radius + sim.config.Enemies.melee.reach
+			local fx, fz = yawDir(e.yaw)
+			local half = math.cos(math.rad(cfg.sweep.arc / 2))
+			for _, h in heroes do
+				local dx, dz = h.x - e.x, h.z - e.z
+				local l = math.sqrt(dx * dx + dz * dz)
+				if
+					h.alive
+					and l <= reach
+					and math.abs(h.y - e.y) <= 7
+					and (l < 1 or (fx * dx + fz * dz) / l >= half)
+				then
+					melee(sim, e, h, cfg.coeff)
+				end
+			end
+			table.insert(sim.events, { k = "swing", e = e.id })
+			e.nextMelee = now + cfg.sweep.every
+		end
+		e.state = EnemySim.ATTACK
+		return
+	end
+	if not target then
+		e.state = EnemySim.PATROL
+		if canMove then
+			wander(sim, e, speed * 0.4, dt, 20)
+		end
+		return
+	end
+	-- always turns to face the target: heroes must work around the guard
+	turnToward(e, target.x, target.z, cfg.turnRate, dt)
+	local keepYaw = e.yaw
+	local d = dist2(e.x, e.z, target.x, target.z)
+	if d > cfg.attackRange then
+		e.state = EnemySim.CHASE
+		if canMove then
+			walk(sim, e, target.x, target.z, speed, dt)
+			e.yaw = keepYaw
+		end
+		return
+	end
+	e.state = EnemySim.ATTACK
+	if now >= e.nextMelee and math.abs(target.y - e.y) <= 8 then
+		e.windupUntil = now + cfg.sweep.windup
+		table.insert(sim.events, {
+			k = "warn",
+			e = e.id,
+			x = e.x,
+			y = e.y - halfHeight(cfg),
+			z = e.z,
+			r = cfg.sweep.radius,
+			t = cfg.sweep.windup,
+			arc = cfg.sweep.arc,
+			yaw = e.yaw,
+		})
+	end
+end
+
+local function updateFlags(sim: Sim, e: Enemy)
+	local now = sim.now
+	local f = Status.flags(e.status, now)
+	local B = Status.BITS
+	if e.cloakUntil > now then
+		f += B.cloak
+	end
+	if e.windupUntil > now then
+		f += B.windup
+	end
+	if shieldUp(sim, e) or guardUp(sim, e) then
+		f += B.shield
+	end
+	if e.cfg.guard and not guardUp(sim, e) then
+		f += B.guardBroken
+	end
+	e.flags = f
+end
+
+local function think(sim: Sim, e: Enemy, heroes: { Hero }, dt: number)
+	local now = sim.now
+	local st = e.status
+	local kn = sim.config.Abilities.status
+	Status.clean(st, now)
+
+	if nearestHeroDist(e, heroes) < 500 then
+		e.lastHeroNear = now
+	end
+
+	-- lifted: knockup arcs, float holds (no moving or acting)
+	if Status.lifted(st, now) then
+		e.y = (e.liftBase or e.y) + Status.liftHeight(st, now, kn.knockupHeight, kn.floatHeight)
+		e.vx, e.vy, e.vz = 0, 0, 0
+		return
+	elseif e.liftBase then
+		e.y = if e.ai == "flyer" then e.liftBase :: number else sim.heightAt(e.x, e.z) + halfHeight(e.cfg)
+		e.liftBase = nil
+	end
+
+	-- pulled toward a point (Pull, Gravity Well, Singularity)
+	local pull = Status.get(st, "pull", now)
+	if pull and pull.x then
+		local px, py, pz = pull.x :: number, pull.y :: number, pull.z :: number
+		local d = dist3(e.x, e.y, e.z, px, py, pz)
+		if d > 4 then
+			local s = math.min((pull.speed or kn.pullSpeed) * dt, d - 4)
+			local nx, nz = e.x + (px - e.x) / d * s, e.z + (pz - e.z) / d * s
+			if e.ai == "flyer" then
+				e.x, e.z = nx, nz
+				e.y += (py - e.y) / d * s
+			elseif sim.heightAt(nx, nz) <= e.y - halfHeight(e.cfg) + 2.5 then
+				e.x, e.z = nx, nz
+				e.y = sim.heightAt(nx, nz) + halfHeight(e.cfg)
+			end
+		end
+		e.windupUntil = 0
+		return
+	end
+
+	if Status.has(st, "stun", now) then
+		e.vx, e.vy, e.vz = 0, 0, 0
+		return
+	end
+
+	local canMove = Status.canMove(st, now)
+	local speed = (e.cfg.speed or 0) * Status.speedMult(st, now)
+	local target = upkeepTarget(sim, e, heroes)
+	local ai = e.ai
+	if ai == "flyer" then
+		thinkFlyer(sim, e, target, speed, canMove, dt)
+	elseif ai == "thief" then
+		thinkThief(sim, e, target, speed, canMove, dt)
+	elseif ai == "sneak" then
+		thinkSneak(sim, e, target, speed, canMove, dt)
+	elseif ai == "brute" then
+		thinkBrute(sim, e, target, speed, canMove, dt, heroes)
+	elseif ai == "sentry" then
+		thinkSentry(sim, e, target, dt)
+	elseif ai == "guard" then
+		thinkGuard(sim, e, target, speed, canMove, dt, heroes)
+	end
+end
+
 local function stepShots(sim: Sim, heroes: { Hero }, dt: number)
+	local now = sim.now
+	for i = #sim.blockers, 1, -1 do
+		if sim.blockers[i].untilT <= now then
+			table.remove(sim.blockers, i)
+		end
+	end
 	local i = 1
 	while i <= #sim.shots do
 		local s = sim.shots[i]
@@ -431,6 +1090,15 @@ local function stepShots(sim: Sim, heroes: { Hero }, dt: number)
 		s.z += s.vz * dt
 		s.life -= dt
 		local done = s.life <= 0
+		if not done then
+			for _, b in sim.blockers do
+				if dist3(s.x, s.y, s.z, b.x, b.y, b.z) <= b.r + s.radius * 0.5 then
+					table.insert(sim.events, { k = "blocked", x = s.x, y = s.y, z = s.z })
+					done = true
+					break
+				end
+			end
+		end
 		if not done then
 			for _, h in heroes do
 				if h.alive and dist3(s.x, s.y, s.z, h.x, h.y + 1.5, h.z) <= s.radius then
@@ -475,29 +1143,65 @@ function EnemySim.step(sim: Sim, now: number, heroes: { Hero }, maxTicks: number
 			e.nextTick = now + interval
 			think(sim, e, heroes, edt)
 			separate(sim, e)
+			updateFlags(sim, e)
 			ticks += 1
 		end
 	end
 	sim.ticksLastStep = ticks
 end
 
--- Alive enemies as hit-query candidates
+-- Alive enemies as hit-query candidates (flags let Shatter see a slowed target)
 function EnemySim.candidates(sim: Sim): { any }
 	local out = table.create(#sim.enemies)
 	for _, e in sim.enemies do
 		if e.alive then
-			table.insert(out, { id = e.id, x = e.x, y = e.y, z = e.z, r = e.cfg.radius or 2.5 })
+			table.insert(
+				out,
+				{ id = e.id, x = e.x, y = e.y, z = e.z, r = e.cfg.radius or 2.5, flags = e.flags }
+			)
 		end
 	end
 	return out
 end
 
--- M1 stand-in for the incident spawner (M6): keep `count` drones within `radius` of every hero, spawning
--- them out of sight at `minDistance` or more, and clear drones nobody has been near for 30 s.
+-- A spawn spot for a robot near (x, z): flyers anywhere, ground robots only on the street
+local function spotFor(sim: Sim, cfg: any, x: number, z: number): (number?, number?, number?)
+	if cfg.ai == "flyer" then
+		local y = sim.heightAt(x, z) + cfg.hover.min + sim.rngNext() * (cfg.hover.max - cfg.hover.min)
+		return x, y, z
+	end
+	for _ = 1, 6 do
+		local h = sim.heightAt(x, z)
+		if h <= 1 then
+			return x, h + halfHeight(cfg), z
+		end
+		x += (sim.rngNext() - 0.5) * 40
+		z += (sim.rngNext() - 0.5) * 40
+	end
+	return nil, nil, nil
+end
+
+local function pickKind(sim: Sim): string
+	local mix = sim.config.Enemies.mix
+	local total = 0
+	for _, kind in sim.config.Enemies.order do
+		total += mix[kind] or 0
+	end
+	local r = sim.rngNext() * total
+	for _, kind in sim.config.Enemies.order do
+		r -= mix[kind] or 0
+		if r <= 0 then
+			return kind
+		end
+	end
+	return "SparkDrone"
+end
+
+-- Stand-in for the incident spawner (M6): keep `count` robots within `radius` of every hero, spawning them
+-- out of sight at `minDistance` or more from the mix, and clear robots nobody has been near for 30 s.
+-- kind forces one type (Dev and tests).
 function EnemySim.populate(sim: Sim, heroes: { Hero }, now: number, kind: string?)
 	local cfg = sim.config.Enemies.nearHero
-	local enemyKind = kind or "SparkDrone"
-	local ecfg = sim.config.Enemies[enemyKind]
 	for _, h in heroes do
 		if h.alive then
 			local meta = sim.heroMeta[h.id]
@@ -512,14 +1216,15 @@ function EnemySim.populate(sim: Sim, heroes: { Hero }, now: number, kind: string
 				end
 			end
 			if near < cfg.count and now >= meta.nextSpawn then
+				local enemyKind = kind or pickKind(sim)
+				local ecfg = sim.config.Enemies[enemyKind]
 				local ang = sim.rngNext() * math.pi * 2
 				local r = cfg.minDistance + sim.rngNext() * (cfg.radius - cfg.minDistance)
-				local x, z = h.x + math.cos(ang) * r, h.z + math.sin(ang) * r
-				local y = sim.heightAt(x, z)
-					+ ecfg.hover.min
-					+ sim.rngNext() * (ecfg.hover.max - ecfg.hover.min)
-				if EnemySim.spawn(sim, enemyKind, x, y, z, 1) then
+				local x, y, z = spotFor(sim, ecfg, h.x + math.cos(ang) * r, h.z + math.sin(ang) * r)
+				if x and y and z and EnemySim.spawn(sim, enemyKind, x, y, z, 1) then
 					meta.nextSpawn = now + cfg.respawn / cfg.count
+				else
+					meta.nextSpawn = now + 0.5
 				end
 			end
 		end

@@ -21,7 +21,7 @@ function DevPanel.init()
 	end
 	local gui = Kit.screen("DevPanel", 20)
 	local panel = Kit.frame({
-		Size = UDim2.fromOffset(300, 330),
+		Size = UDim2.fromOffset(300, 470),
 		AnchorPoint = Vector2.new(1, 0),
 		Position = UDim2.new(1, -16, 0, 60),
 		BackgroundColor3 = Kit.color.night,
@@ -45,7 +45,7 @@ function DevPanel.init()
 	grid.SortOrder = Enum.SortOrder.LayoutOrder
 	local holder = Instance.new("Frame")
 	holder.BackgroundTransparency = 1
-	holder.Size = UDim2.new(1, -16, 0, 210)
+	holder.Size = UDim2.new(1, -16, 0, 350)
 	holder.Position = UDim2.fromOffset(8, 8)
 	grid.Parent = holder
 	holder.Parent = panel
@@ -98,11 +98,26 @@ function DevPanel.init()
 	add("Heal", function()
 		Net.send("DevCommand", "heal")
 	end)
+	local robotIdx = 1
+	add("3x " .. Config.Enemies[Config.Enemies.order[1]].name, function(b)
+		Net.send("DevCommand", "robot", robotIdx)
+		robotIdx = robotIdx % #Config.Enemies.order + 1
+		b.Text = "3x " .. Config.Enemies[Config.Enemies.order[robotIdx]].name
+	end)
+	add("Level 40", function()
+		Net.send("DevCommand", "level", Config.Stats.levelCap)
+	end)
+	add("+10 Skill Pts", function()
+		Net.send("DevCommand", "points", 10)
+	end)
+	add("Fill Awakening", function()
+		Net.send("DevCommand", "meter")
+	end)
 
 	local stats = Kit.label({
 		Text = "waiting for server stats",
 		Size = UDim2.new(1, -16, 0, 100),
-		Position = UDim2.fromOffset(8, 222),
+		Position = UDim2.fromOffset(8, 362),
 		TextXAlignment = Enum.TextXAlignment.Left,
 		TextYAlignment = Enum.TextYAlignment.Top,
 		TextColor3 = Kit.color.paper,

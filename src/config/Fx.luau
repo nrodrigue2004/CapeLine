@@ -14,4 +14,16 @@ return {
 	voltColor = { 120, 210, 255 },
 	enemyShotColor = { 255, 110, 80 },
 	critColor = { 255, 210, 60 },
+	-- Comic style: a sound word on skill and super hits, by set (all original words)
+	words = {
+		Volt = { "ZAP!", "KRAK!", "BZZT!" },
+		Frost = { "CRACK!", "FWOOSH!", "KSSH!" },
+		Titan = { "POW!", "WHAM!", "KABOOM!" },
+		Pulse = { "WHUMM!", "VWOOM!", "THOOM!" },
+		Blade = { "SHING!", "SLASH!", "KSHHK!" },
+	},
+	warnColor = { 255, 60, 50 }, -- enemy attack telegraphs
+	awakenColor = { 255, 235, 120 },
+	slashSegments = 9, -- pieces in an arc slash
+	fieldPulse = 0.5, -- seconds between field pulses
 }

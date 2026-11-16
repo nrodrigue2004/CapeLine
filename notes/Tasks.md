@@ -7,7 +7,7 @@ phones or Studio go on the Studio test list below.
 | # | Milestone | Scope | Done when (spec) | State |
 |---|---|---|---|---|
 | M1 | Move and fight slice | Leap, Glide, Flight with touch, PC and gamepad controls; Volt basic + 2 skills; clash hit feel; Spark Drone; greybox Downtown; 30-bot load test; Comic and Anime effect styles | 5 first-timers stop the first machine in 30 s with no help; 4 of 5 say flight and hits feel good on a phone; 30+ fps on a mid-range phone | Code-complete 2026-11-16 |
-| M2 | Classes, abilities, enemies | 4 classes with passives, 5 sets (Volt, Frost, Titan, Pulse, Blade) with 40 abilities in both styles, the super slot, Awakening, ranks, mods, power budget, 6 enemies, data tables | Every class solos a contract and has a clear role in a 4-player test; no loadout exceeds the budget | Next |
+| M2 | Classes, abilities, enemies | 4 classes with passives, 5 sets (Volt, Frost, Titan, Pulse, Blade) with 40 abilities in both styles, the super slot, Awakening, ranks, mods, power budget, 6 enemies, data tables | Every class solos a contract and has a clear role in a 4-player test; no loadout exceeds the budget | Code-complete 2026-11-16 |
 | M3 | Gear, loot, saves | 5 tiers, 8 slots, stats, drops and pity, salvage, upgrade, style collection, profile and migrations, levels and Renown | Drops match the table; a tester wears any look over any gear; rejoin restores everything | |
 | M4 | World generator, 30-player gate | Hub districts, seeded outskirts (2 zone types), weekly seed, streaming, presets, landmarks, safehouses, beacons, age questionnaire | Same seed gives the same hash on two servers; 30+ fps flying across the map on a phone; 30 bots hold the server frame | |
 | M5 | Destruction v1 | Chunker, 220 hub buildings with 3 states, debris, craters, vehicle flips, repair drones, citizens | 10 players wreck a block for 10 minutes with no server spike and 30+ fps on a phone; everything repairs | |
@@ -21,7 +21,11 @@ phones or Studio go on the Studio test list below.
 
 ## Placeholder art and animation (replace before launch)
 - City: Downtown greybox boxes, window bands and rooftop props (CityBuilder). PLACEHOLDER ART.
-- Spark Drone body: sphere, ring, eye, fins (EnemyRenderer). PLACEHOLDER ART.
+- Robot bodies: all 6 humanoid robots are built from blocks and cylinders with a code-driven walk, aim and windup pose (EnemyRenderer). PLACEHOLDER ART until meshes and animations.
+- Ability visuals for all 40 powers: neon parts, beams and rings (CombatFx, AuraFx). PLACEHOLDER ART until particle textures and the icon set.
+- Snow Wall pieces, the Ice Slide ramp and the thrown crate in Lift and Throw: plain parts (CombatService). PLACEHOLDER ART.
+- Ability buttons show short names, not icons (Hud, LoadoutScreen). PLACEHOLDER ART.
+- Cast poses: no arm or body animation on the hero when casting yet.
 - Load bot bodies (LoadBots, Studio only).
 - Landing crack: dark disc instead of a crack decal (MoveFx).
 - Flight, leap and glide poses: the default avatar tilted along the travel direction; no custom animations yet (MoveController).
@@ -54,3 +58,27 @@ Start: `rojo serve`, connect the Rojo plugin, press Play (or Test > Clients and 
 20. 30-player load: DEV > 30 bots. Bots fly around Downtown and fire at drones. The DEV stats line should show server frame about 16.7 ms (60 fps), scripts well under 8 ms total (enemies under 2.5, combat under 1.5, replication under 1.5), enemies near 90 at most, send kbps reasonable. Play for 5 minutes. Then Clear bots.
 21. Client fps: the DEV line shows fps and the preset (low on phones). Target 30+ fps on a mid-range phone at low.
 22. The M1 "done when" checks: 5 first-timers stop the first machine in 30 s with no help; 4 of 5 say flight and hits feel good on a phone; 30+ fps on a mid-range phone.
+
+### M2 Classes, abilities, enemies
+DEV panel now has: 3x robot (cycles all 6), Level 40, +10 Skill Pts, Fill Awakening. Skill ranks are free of Credits in Studio (Config.Dev.freeRankCredits) until M3.
+1. HUD: four skill buttons (Q, E, R, T), a SUPER button (G) from level 20, a POWERS button (L), and the Awakening meter under health. No errors in Output.
+2. POWERS screen: tabs for Volt, Frost, Titan, Pulse, Blade (locked until 1, 6, 10, 14, 18). LEARN, RANK UP and EQUIP work; the budget reads x / 52 and refuses an over-budget loadout with a clear notice. At rank 3 (rank 2 for supers) two mod buttons appear. SET PRIMARY changes the basic attack and the colours. Loadout 2 opens at level 15. RESPEC refunds everything (10 minute wait, not in combat).
+3. Mixing: equip a Frost skill on a Volt primary; it works and keeps its own Frost look.
+4. Every ability in both styles (DEV > Level 40, +10 Skill Pts a few times, then try each set). For each: it fires where you aim, the number and look match its kind (bolt, chain, dash, cone, arc, nova, line, leap, throw, field, buff, wall, ramp), the cooldown sweep matches, and robots react (stun ring, ice tint, float, pull, knock-up, knock-back into walls).
+5. Channels: Freeze Beam and Thousand Cuts keep going while you hold still; pressing again cancels. Gravity Well, Static Field, Blizzard Dome, Blade Storm and Singularity show their area and tick.
+6. Recast: with Dash Strike at rank 5 (Double Back) you can dash again within 3 s.
+7. Punch Combo and Blade Slash: three-hit strings, the third hit bigger; a pause resets the string.
+8. Awakening: DEV > Fill Awakening, then V (or the AWAKEN button). Gold aura and sparks for 15 s, bigger hits, faster cooldowns, and a bigger super.
+9. Team-up combo (2 players): two different sets' supers within 3 s and 30 studs show a combo banner (e.g. Frost + Volt = Storm) and extra damage.
+10. Classes: DEV > Class cycles Blaster, Bruiser, Speedster, Controller. Bruiser takes less damage and taunts what it hits; Speedster runs faster with shorter cooldowns; Controller's Anchor shrugs off damage near allies; Blaster crits every 5th hit.
+11. Robots are humanoid machines (sparks and bolts on defeat, no blood). DEV > 3x robot for each:
+    - Spark Trooper: jet-boot flyer, strafes and fires 3-shot bursts.
+    - Burglar Bot: runs from you with a loot bag, turns and fires when cornered.
+    - Sneak Bot: fades out, circles behind you, and backstabs hard (front stabs are weak). Turn to face it.
+    - Brute Bot: a red ring warns 0.8 s before its slam; step out to dodge; a stun cancels it.
+    - Sentry: planted gun that turns slowly; circle it fast; a blue bubble blocks hits for 1.5 s every 6 s.
+    - Null Sentinel: blocks hits from the front (BLOCK numbers); hit it from the side to break the guard (BREAK!).
+12. Snow Wall blocks robot shots.
+13. Parry (Brace at rank 3 or the parry mod): a hit during the window ripostes.
+14. 30-bot load test again with mixed sets (bots now use all 5 sets): server frame and send rate stay inside the M1 numbers.
+15. The M2 "done when" checks: every class solos a contract and has a clear role in a 4-player test (contracts come in M6; until then, clear a street of mixed robots per class); no loadout exceeds the budget (also covered by tests).

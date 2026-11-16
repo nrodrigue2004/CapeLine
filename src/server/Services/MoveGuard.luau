@@ -28,6 +28,7 @@ type Track = {
 	stamina: number,
 	graceUntil: number,
 	corrections: number,
+	freeUntil: number?,
 }
 
 local tracks: { [number]: Track } = {}
@@ -81,6 +82,30 @@ function MoveGuard.rewound(hero: any, latency: number): Vector3?
 		end
 	end
 	return HeroService.position(hero)
+end
+
+-- Studs per second over the last 0.2 s (Speedster Momentum)
+function MoveGuard.speed(hero: any): number
+	local t = tracks[hero.id]
+	if not t then
+		return 0
+	end
+	local now = os.clock()
+	local x1, y1, z1 = PosHistory.at(t.history, now)
+	local x0, y0, z0 = PosHistory.at(t.history, now - 0.2)
+	if not x1 or not x0 then
+		return 0
+	end
+	local dx, dy, dz = x1 - x0, (y1 :: number) - (y0 :: number), (z1 :: number) - (z0 :: number)
+	return math.sqrt(dx * dx + dy * dy + dz * dz) / 0.2
+end
+
+-- Zero G (Weightless capstone): boosting costs no stamina for a while
+function MoveGuard.freeStamina(hero: any, untilT: number)
+	local t = tracks[hero.id]
+	if t then
+		t.freeUntil = untilT
+	end
 end
 
 function MoveGuard.stamina(hero: any): number
@@ -146,7 +171,9 @@ function MoveGuard.init()
 				if pos and hero.player and hero.alive then
 					local t = trackFor(hero, pos, now)
 					-- server stamina mirror
-					t.stamina = MoveMath.staminaStep(Config.Move, t.stamina, true, t.boosting, step)
+					local free = t.freeUntil ~= nil and now < (t.freeUntil :: number)
+					t.stamina =
+						MoveMath.staminaStep(Config.Move, t.stamina, true, t.boosting and not free, step)
 					if t.stamina <= 0 then
 						t.boosting = false
 					end
