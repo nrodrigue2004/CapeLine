@@ -1089,6 +1089,61 @@ test("M2: robots: every kind spawns as the right brain; ground robots stand on t
 	end
 end)
 
+test("Robots: the shell breaks off with damage, the same way on every device", function()
+	local RobotDamage = require("../src/shared/RobotDamage")
+	local L = Config.Enemies.look
+	local pieces = {}
+	for name, tier in L.tiers do
+		table.insert(pieces, { name = name, tier = tier })
+	end
+	table.sort(pieces, function(a, b)
+		return a.name < b.name
+	end)
+	local a = RobotDamage.order(42, pieces, L.spread)
+	local b = RobotDamage.order(42, pieces, L.spread)
+	check(#a == #pieces, "every piece is in the order")
+	check(table.concat(a, ",") == table.concat(b, ","), "the same id breaks the same way")
+	local differ = false
+	for id = 1, 20 do
+		if table.concat(RobotDamage.order(id, pieces, L.spread), ",") ~= table.concat(a, ",") then
+			differ = true
+		end
+	end
+	check(differ, "robots break in different orders")
+	-- the face goes late: FaceR (tier 3.5) never before a limb (tier 1) with spread 1.5
+	for id = 1, 200 do
+		local o = RobotDamage.order(id, pieces, L.spread)
+		local at = {}
+		for i, n in o do
+			at[n] = i
+		end
+		check(at.FaceR > at.ShUpperL and at.FaceR > at.ShShinR, "the face goes after the limbs")
+	end
+	local n = #pieces
+	check(RobotDamage.count(1, n, L.stripBy) == 0, "full health: shell whole")
+	check(RobotDamage.count(0.97, n, L.stripBy) == 0, "a scratch breaks nothing")
+	check(RobotDamage.count(0.9, n, L.stripBy) >= 1, "a few hits show the first metal")
+	check(RobotDamage.count(1 - L.stripBy, n, L.stripBy) == n, "nearly beaten: all endoskeleton")
+	check(RobotDamage.count(0, n, L.stripBy) == n, "defeated: all gone")
+	local last = 0
+	for h = 100, 0, -1 do
+		local c = RobotDamage.count(h / 100, n, L.stripBy)
+		check(c >= last, "never grows back as health falls")
+		last = c
+	end
+	local br = RobotDamage.broken(a, 0.5, L.stripBy)
+	local k = 0
+	for _ in br do
+		k += 1
+	end
+	check(k == RobotDamage.count(0.5, n, L.stripBy), "broken set matches the count")
+	for _, kind in Config.Enemies.order do
+		local body = Config.Enemies[kind].body
+		check(body.suit ~= nil and body.trim ~= nil, kind .. " wears a uniform")
+	end
+	check(#L.skins >= 4 and #L.hair >= 3, "skin and hair variety")
+end)
+
 test("M2: Burglar Bot runs, then turns and fires when cornered", function()
 	local sim = robotSim()
 	local e = EnemySim.spawn(sim, "BurglarBot", 0, 0, 0, 1) :: any

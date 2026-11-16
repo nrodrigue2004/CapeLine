@@ -10,7 +10,8 @@
 --   radius    body radius for hits; height for the body drawing
 --   mitigation damage taken is cut by this; ccResist shortens stuns, roots, slows; immune lists statuses it
 --             ignores (a planted sentry cannot be knocked, pulled or floated)
---   body      the drawing: build (slim, normal, heavy), height, metal and eye colors (EnemyRenderer)
+--   body      the drawing: build (slim, normal, heavy), height, metal (the endoskeleton) and eye colors, and
+--             the superhuman shell over it: suit and trim colours, cape (EnemyRenderer, Enemies.look)
 return {
 	order = { "SparkDrone", "BurglarBot", "SneakBot", "BruteBot", "Turret", "NullSentinel" },
 	scale = { hpPerLevel = 0.1, dmgBase = 20, dmgPerLevel = 4 },
@@ -32,7 +33,15 @@ return {
 		fleeBelow = 0.2, -- health fraction: backs off for a moment
 		fleeTime = 1.5,
 		radius = 2.5,
-		body = { build = "slim", height = 5, metal = { 120, 130, 145 }, eye = { 255, 120, 60 }, jets = true },
+		body = {
+			build = "slim",
+			height = 5,
+			metal = { 120, 130, 145 },
+			eye = { 255, 120, 60 },
+			suit = { 40, 70, 140 },
+			trim = { 255, 170, 60 },
+			jets = true,
+		},
 	},
 	BurglarBot = {
 		typeId = 2,
@@ -48,7 +57,15 @@ return {
 		fleeBelow = 0,
 		radius = 2.5,
 		loot = 40, -- runs between loot spots this far from home
-		body = { build = "normal", height = 5.5, metal = { 70, 70, 85 }, eye = { 255, 220, 80 }, mask = true },
+		body = {
+			build = "normal",
+			height = 5.5,
+			metal = { 70, 70, 85 },
+			eye = { 255, 220, 80 },
+			suit = { 62, 62, 72 },
+			trim = { 30, 30, 36 },
+			mask = true,
+		},
 	},
 	SneakBot = {
 		typeId = 3,
@@ -63,7 +80,14 @@ return {
 		coeff = 1.0,
 		fleeBelow = 0,
 		radius = 2.2,
-		body = { build = "slim", height = 5.5, metal = { 50, 45, 70 }, eye = { 190, 90, 255 } },
+		body = {
+			build = "slim",
+			height = 5.5,
+			metal = { 50, 45, 70 },
+			eye = { 190, 90, 255 },
+			suit = { 45, 35, 70 },
+			trim = { 170, 90, 255 },
+		},
 	},
 	BruteBot = {
 		typeId = 4,
@@ -79,7 +103,14 @@ return {
 		ccResist = 0.3,
 		fleeBelow = 0,
 		radius = 4,
-		body = { build = "heavy", height = 8, metal = { 150, 95, 60 }, eye = { 255, 70, 50 } },
+		body = {
+			build = "heavy",
+			height = 8,
+			metal = { 150, 95, 60 },
+			eye = { 255, 70, 50 },
+			suit = { 150, 45, 45 },
+			trim = { 240, 200, 80 },
+		},
 	},
 	Turret = {
 		typeId = 5,
@@ -102,6 +133,8 @@ return {
 			height = 6.5,
 			metal = { 95, 110, 120 },
 			eye = { 80, 220, 255 },
+			suit = { 60, 90, 112 },
+			trim = { 80, 220, 255 },
 			planted = true,
 		},
 	},
@@ -126,8 +159,53 @@ return {
 			height = 7.5,
 			metal = { 35, 35, 45 },
 			eye = { 255, 255, 255 },
+			suit = { 30, 30, 42 },
+			trim = { 235, 235, 245 },
+			cape = { 92, 40, 140 },
 			shield = true,
 		},
+	},
+	-- The look every robot shares (nate, 2026-11-16: "more humanoid, Terminator style ... look like a
+	-- superhuman race but robotic internals that show as they take more damage"). Each robot is an original
+	-- superhuman android soldier: a synthetic shell (uniform, cartoon skin, hair, chest mark) over a metal
+	-- endoskeleton. The shell breaks off in clean panels with sparks as health drops (Shared.RobotDamage), in
+	-- an order seeded by the robot's id so every device agrees: limbs first, then the belly and chest (the
+	-- glowing core shows), the face last (a metal skull and glowing eyes). Machines only: under the shell is
+	-- only metal, wires and light. PLACEHOLDER ART until the art pass (meshes, textures).
+	look = {
+		stripBy = 0.85, -- the whole shell is gone once 85% of health is lost
+		spread = 1.5, -- seeded noise on the tiers below, so robots break differently
+		sparksBelow = 0.35, -- the exposed core sparks under 35% health
+		chipRange = 160, -- chips and sparks fly only for robots this close to the camera
+		endo = { 168, 172, 182 }, -- endoskeleton chrome, tinted toward each robot's metal
+		-- break tiers: lower goes earlier
+		tiers = {
+			ShUpperL = 1,
+			ShUpperR = 1,
+			ShLowerL = 1,
+			ShLowerR = 1,
+			ShThighL = 1,
+			ShThighR = 1,
+			ShShinL = 1,
+			ShShinR = 1,
+			Belly = 1.5,
+			Cape = 1.5,
+			ChestL = 2,
+			ChestR = 2,
+			Hair = 3,
+			FaceL = 3,
+			FaceR = 3.5,
+		},
+		-- cartoon synthetic skin tones and hair colours, picked per robot from its id
+		skins = {
+			{ 255, 214, 170 },
+			{ 240, 190, 150 },
+			{ 224, 172, 130 },
+			{ 198, 140, 96 },
+			{ 141, 95, 64 },
+			{ 92, 62, 44 },
+		},
+		hair = { { 30, 26, 24 }, { 70, 46, 30 }, { 160, 120, 60 }, { 225, 225, 230 }, { 120, 40, 40 } },
 	},
 	caps = {
 		perServer = 90,

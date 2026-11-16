@@ -166,6 +166,16 @@ DEV panel: stand next to a hub building and press Wreck here (a super-sized hit 
 6. Repair drones put the whole building back after 3 minutes of quiet.
 7. Performance: 10 players wrecking a block for 10 minutes: server frame steady, phones 30+ fps (Dev panel).
 
+### Superhuman android robots (2026-11-16)
+DEV panel: spawn robots with the "3x" button (it cycles through the 6 kinds) and hit them a little at a time. The shell and endoskeleton are plain parts (PLACEHOLDER ART until the art pass).
+1. Each kind looks like a superhuman soldier at full health: uniform in its colours, gloves and boots, a chest mark and belt, cartoon skin and hair (different robots get different skin and hair), softly glowing eyes. The Null Sentinel wears a violet cape that sways as it moves. No metal shows through anywhere (no flicker on the shoulders, face or chest).
+2. A few hits: a limb piece breaks off with 2 or 3 chips and a spark, and the metal bone and joint show underneath.
+3. About half health: the belly or chest is open; you see the ribs and the glowing core.
+4. Low health: the face breaks off half at a time, showing the metal skull and the glowing eyes behind it; the core sparks under 35% health. At 15% health it is all endoskeleton.
+5. Two players see the same robot lose the same pieces at the same time. A robot that walks into view already hurt shows its damage without a burst of chips.
+6. Cloaked Sneak Bots still fade fully (broken pieces stay hidden), the cold tint, stun ring and shields still show, and the hit flash only lights the pieces still there.
+7. Performance: 60 robots on screen on PC (High), 20 on a phone (Low): frame rate steady (Dev panel).
+
 ### M12 Test and launch prep
 The playtest week itself is in notes/Playtest Kit.md (42 checks). These prove the M12 code in Studio first. In Studio every analytics event prints as `[Analytics] name value fields` in the Output.
 1. Join: the Output shows `[Analytics] session_start 1 pc new hero` (or returning) within 20 s; a brand-new save also logs the Opening step (no print for steps; check the Dev panel's analytics count goes up).
