@@ -23,6 +23,7 @@ local CastPlan = require(Shared:WaitForChild("CastPlan"))
 local AbilityRules = require(Shared:WaitForChild("AbilityRules"))
 local Awakening = require(Shared:WaitForChild("Awakening"))
 local Status = require(Shared:WaitForChild("Status"))
+local Signal = require(Shared:WaitForChild("Util"):WaitForChild("Signal"))
 
 local HeroService = require(script.Parent.HeroService)
 local MoveGuard = require(script.Parent.MoveGuard)
@@ -30,6 +31,8 @@ local EnemyService = require(script.Parent.EnemyService)
 local PerfMonitor = require(script.Parent.PerfMonitor)
 
 local CombatService = {}
+
+CombatService.Killed = Signal.new() -- (hero, enemy) a hero's hit finished a machine
 
 local A = Config.Abilities
 local C = Config.Combat
@@ -90,11 +93,19 @@ local function slotOf(hero: any, id: string): string?
 end
 
 -- Damage for one hit: Power x coeff x class x crit, then passives and Awakening
-local function rollDamage(hero: any, coeff: number): (number, boolean)
-	local crit = false -- Precision comes from gear (M3); 0 Precision is 0% crit
-	local chance = Formulas.critChance(Config, 0)
+-- eff: the ability (its power set gets the Epic 2-piece bonus). Crits come from Precision (gear),
+-- Lucky Strike (every 8th hit) and the Blaster's Overcharge.
+local function rollDamage(hero: any, coeff: number, eff: any?): (number, boolean)
+	local crit = false
+	local chance = Formulas.critChance(Config, hero.stats.Precision)
 	if chance > 0 and math.random() < chance then
 		crit = true
+	end
+	if hero.perks.LuckyStrike then
+		hero.luckyCount += 1
+		if hero.luckyCount % Config.Gear.perks.LuckyStrike.every == 0 then
+			crit = true
+		end
 	end
 	local dmg = Formulas.damage(Config, HeroService.power(hero), coeff, hero.classId, crit, 0)
 	local passive = Config.Classes[hero.classId].passive
@@ -109,6 +120,9 @@ local function rollDamage(hero: any, coeff: number): (number, boolean)
 		-- Speedster: +1% per 10 studs/s of speed, up to +10%
 		local speed = MoveGuard.speed(hero)
 		dmg *= 1 + math.min(passive.max, math.floor(speed / 10) * passive.perTenSpeed)
+	end
+	if eff and eff.set and hero.setDamage[eff.set] then
+		dmg *= 1 + hero.setDamage[eff.set] -- Epic set, 2 pieces
 	end
 	dmg *= Awakening.damageMult(Config, hero.meter, os.clock())
 	return dmg, crit
@@ -184,7 +198,7 @@ local function applyHit(
 	end
 	local dmg, crit = 0, false
 	if coeff > 0 then
-		dmg, crit = rollDamage(hero, coeff)
+		dmg, crit = rollDamage(hero, coeff, eff)
 	end
 	local killed, e, dealt, flag = EnemyService.damage(cand.id, dmg, hero.id, from)
 	if not e then
@@ -202,6 +216,22 @@ local function applyHit(
 	})
 	if killed then
 		HeroService.gainMeter(hero, "kill", 1)
+		CombatService.Killed:Fire(hero, e)
+		if hero.perks.CoolingKill then
+			-- Cooling Kill: a kill refunds 20% of the super's cooldown
+			local sup = hero.loadout.super
+			if sup then
+				local left = Cooldowns.left(hero.cooldowns, sup, os.clock())
+				if left > 0 then
+					local full = hero.cooldowns.length[sup] or left
+					local cut = full * Config.Gear.perks.CoolingKill.refund
+					Cooldowns.reduce(hero.cooldowns, sup, cut)
+					if hero.player then
+						Net.fire("CooldownCut", hero.player, A.list[sup].num, cut)
+					end
+				end
+			end
+		end
 		return true
 	end
 	if noStatus then
@@ -235,6 +265,19 @@ local function hitArea(
 		applyHit(hero, eff, r, c, coeff, true, center, nil, noStatus)
 	end
 	return #list
+end
+
+-- A perk burst around a point (Quakeheel, Echo Trail), drawn like an area hit of the hero's basic.
+-- quiet: no result record (the trail ticks too often to draw each one)
+function CombatService.burst(hero: any, center: Vector3, radius: number, coeff: number, quiet: boolean?)
+	local basic = A.list[hero.loadout.basic or "ZapBolt"]
+	local eff = { set = basic.set }
+	local r = record(hero, basic.num, 0, K.END, center, Vector3.new(0, -1, 0))
+	r.c, r.r = center, radius
+	hitArea(hero, eff, r, center, radius, coeff, true)
+	if quiet and #r.h == 0 then
+		table.remove(pending, table.find(pending, r) :: number)
+	end
 end
 
 local function heroesNear(pos: Vector3, radius: number): { any }
@@ -549,6 +592,41 @@ local function resolve(
 		applyHit(hero, eff, r, h.c, h.coeff, h.primary, from, knockDir)
 	end
 	gainFor(hero, eff, #plan.hits)
+	-- Epic set 4-piece changes on novas: Rimeguard ally shields, Ironclad shockwave field
+	if plan.shape == "nova" then
+		if eff.allyShield then
+			for _, h in heroesNear(from, eff.radius or 14) do
+				if h ~= hero then
+					HeroService.buff(h, "shield", math.floor(h.maxHealth * eff.allyShield + 0.5), 4)
+				end
+			end
+		end
+		if eff.fieldCoeff then
+			addField(
+				hero,
+				eff,
+				num,
+				from,
+				false,
+				eff.fieldDur or 3,
+				{ coeff = eff.fieldCoeff, tick = 0.5, status = false }
+			)
+			r.dur = eff.fieldDur or 3
+		end
+	end
+	-- Orbitwear 4-piece: Float heals allies near the lifted target 3% a second
+	if eff.allyHeal and plan.hits[1] then
+		local c = plan.hits[1].c
+		local at = Vector3.new(c.x, c.y, c.z)
+		local ticks = math.floor(eff.statusDur or 3)
+		for t = 1, ticks do
+			after(t, function()
+				for _, h in heroesNear(at, eff.allyRadius or 12) do
+					HeroService.heal(h, h.maxHealth * eff.allyHeal)
+				end
+			end)
+		end
+	end
 
 	if plan.channel and #plan.channel.ids > 0 then
 		hero.channel = {
@@ -669,7 +747,7 @@ function CombatService.use(
 	if not root then
 		return false
 	end
-	local eff = AbilityRules.effective(Config, row.id, hero.ranks[row.id] or 1, hero.mods[row.id])
+	local eff = HeroService.effective(hero, row.id)
 	local awake = HeroService.awakened(hero)
 	if slot == "super" and awake then
 		local aw = A.awakening
@@ -681,7 +759,7 @@ function CombatService.use(
 	end
 	local full = AbilityRules.cooldown(Config, Formulas, eff, {
 		classId = hero.classId,
-		focus = 0,
+		focus = hero.stats.Focus,
 		attackSpeed = Status.value(hero.status, "attackSpeed", now, 0),
 		awakened = awake,
 	})
@@ -707,7 +785,7 @@ end
 -- Parry Stance: a blocked hit ripostes at the attacker
 local function riposte(hero: any, source: any)
 	local row = A.list.ParryStance
-	local eff = AbilityRules.effective(Config, row.id, hero.ranks[row.id] or 1, hero.mods[row.id])
+	local eff = HeroService.effective(hero, row.id)
 	local pos = HeroService.position(hero)
 	local e = source.enemy and EnemyService.get(source.enemy)
 	if not pos or not e then
@@ -721,6 +799,9 @@ local function riposte(hero: any, source: any)
 	end
 	if eff.refund then
 		Cooldowns.reduce(hero.cooldowns, row.id, eff.cd * eff.refund)
+	end
+	if eff.riposteHeal then
+		HeroService.heal(hero, hero.maxHealth * eff.riposteHeal) -- Edgewalker 4-piece
 	end
 end
 

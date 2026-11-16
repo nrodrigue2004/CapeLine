@@ -192,7 +192,7 @@ function CombatClient.fire(id: string): boolean
 	dir = dir.Unit
 	local full = AbilityRules.cooldown(Config, Formulas, eff, {
 		classId = State.hero.classId,
-		focus = 0,
+		focus = State.hero.stats and State.hero.stats.Focus or 0,
 		attackSpeed = State.buff("attackSpeed"),
 		awakened = awake,
 	})
@@ -526,6 +526,12 @@ function CombatClient.init()
 		Cooldowns.clear(book)
 		table.clear(recast)
 		channel = nil
+	end)
+	Net.listen("CooldownCut", function(n: number, seconds: number)
+		local row = Config.Abilities.byNum[n]
+		if row then
+			Cooldowns.reduce(book, row.id, seconds) -- Cooling Kill
+		end
 	end)
 	State.Changed:Connect(function()
 		-- a respec or a new loadout resets local cooldowns the server also cleared

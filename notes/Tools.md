@@ -6,7 +6,7 @@ record the source here. Status: Using / Recommended (milestone) / Paid (ask nate
 ## Code and pipeline
 - Rojo 7.4.4, Selene, StyLua, Lune (MPL-2.0 / MIT): Using. Build, lint, format, headless tests.
 - Roblox Studio MCP (built into Studio Assistant): Using when nate's Studio is open. Lets a session run Play tests and read Output; the best way to prove client code. See the roblox-dev-setup memory.
-- ProfileStore by loleris (MIT, github.com/MadStudioRoblox/ProfileStore): Recommended for M3 saves (session locking, safe migrations). Mossbell Stand wrote its own session-locked store; reuse whichever is proven in Studio first.
+- ProfileStore by loleris (MIT, github.com/MadStudioRoblox/ProfileStore): Skipped for M3. The spec says to reuse the Ragdoll Rides saving package (session lock, migrations), which is ported into DataService with the same lock rules. Revisit only if the Studio save tests (M3 items 15 to 17) show a problem.
 - Blink (MIT, github.com/1Axen/Blink), an IDL that compiles compact buffer remotes: Recommended to evaluate at M4 if the 20 KB/s per player budget is tight at 30 players. Our own EnemyBuffer already packs the hot path.
 - luau-lsp (MIT): Recommended for type checking; its download was blocked by the cloud safety check on 11-15, retry from nate's PC.
 - Jest-Lua / TestEZ: Skipped; Lune tests cover the pure modules without Studio.

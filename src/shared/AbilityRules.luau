@@ -39,7 +39,14 @@ function AbilityRules.maxRank(row: any): number
 end
 
 -- The numbers an ability has at a rank with a mod pick (1 or 2). Returns a new table.
-function AbilityRules.effective(config: any, id: string, rank: number?, modPick: number?): { [string]: any }
+-- extra: mods from gear (Epic set 4-piece bonuses), applied after ranks, mods and the capstone
+function AbilityRules.effective(
+	config: any,
+	id: string,
+	rank: number?,
+	modPick: number?,
+	extra: { any }?
+): { [string]: any }
 	local A = config.Abilities
 	local row = A.list[id]
 	assert(row, "unknown ability " .. tostring(id))
@@ -47,6 +54,14 @@ function AbilityRules.effective(config: any, id: string, rank: number?, modPick:
 	local r = rank or 1
 	eff.rank = r
 	if row.slot == "basic" then
+		return eff
+	end
+	local function finish()
+		if extra then
+			for _, mod in extra do
+				applyMod(eff, mod)
+			end
+		end
 		return eff
 	end
 	local isSuper = row.slot == "super"
@@ -71,7 +86,7 @@ function AbilityRules.effective(config: any, id: string, rank: number?, modPick:
 		applyMod(eff, row.cap)
 		eff.capstone = true
 	end
-	return eff
+	return finish()
 end
 
 -- Cost to go from toRank - 1 to toRank: skill points, Credits
@@ -96,6 +111,22 @@ function AbilityRules.pointsSpent(config: any, ranks: { [string]: number }): num
 			for k = 1, r do
 				if not AbilityRules.isStarter(config, id) or k > 1 then
 					total += (AbilityRules.rankCost(config, id, k))
+				end
+			end
+		end
+	end
+	return total
+end
+
+-- Credits paid for these ranks (refunded by a respec, so trying builds costs nothing)
+function AbilityRules.creditsSpent(config: any, ranks: { [string]: number }): number
+	local total = 0
+	for id, r in ranks do
+		local row = config.Abilities.list[id]
+		if row and row.slot ~= "basic" then
+			for k = 1, r do
+				if not AbilityRules.isStarter(config, id) or k > 1 then
+					total += select(2, AbilityRules.rankCost(config, id, k))
 				end
 			end
 		end

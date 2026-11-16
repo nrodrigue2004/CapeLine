@@ -741,7 +741,7 @@ return {
 	rankPoints = { 1, 1, 2, 2, 3 },
 	rankCredits = { 100, 250, 600, 1400, 3200 },
 	superRankPoints = { 2, 3, 4 },
-	superRankCredits = { 600, 1400, 3200 },
+	superRankCredits = { 300, 900, 2400 }, -- spec: Sinks
 	rankCoeff = 0.10, -- rank 2: +10% coeff
 	rankCooldown = 0.08, -- rank 4: -8% cooldown
 	pointsPerLevel = 1,

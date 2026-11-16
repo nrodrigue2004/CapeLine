@@ -53,6 +53,17 @@ export type Hero = {
 	hitCount: number, -- Blaster Overcharge: every 5th hit
 	god: boolean,
 	meterDirty: boolean?,
+	-- M3: saved progress and gear
+	xp: number,
+	loaded: boolean, -- the profile has been applied (until then nothing is written back)
+	stats: { [string]: number }, -- Might, Vitality, Focus, Precision, Resolve from gear
+	gearScore: number,
+	setDamage: { [string]: number }, -- power set -> 2-piece damage bonus
+	gearMods: { [string]: { any } }, -- ability id -> 4-piece set changes
+	perks: { [string]: boolean },
+	gadget: string?,
+	luckyCount: number, -- Lucky Strike: every 8th hit
+	secondWindAt: number, -- Second Wind ready again (os.clock)
 }
 
 local heroes: { [number]: Hero } = {}
@@ -63,6 +74,8 @@ HeroService.Defeated = Signal.new() -- (hero, source)
 HeroService.Removed = Signal.new() -- (hero)
 HeroService.Parried = Signal.new() -- (hero, source) a hit was turned aside by Parry Stance
 HeroService.Awakened = Signal.new() -- (hero)
+HeroService.SecondWind = Signal.new() -- (hero) the Second Wind perk saved this hero
+HeroService.Leveled = Signal.new() -- (hero, gained)
 
 local function stylesFor(level: number): { [string]: boolean }
 	local s = {}
@@ -108,13 +121,47 @@ local function newHero(id: number, name: string, player: Player?, bot: any?): He
 		lastDamaged = 0,
 		hitCount = 0,
 		god = false,
+		xp = 0,
+		loaded = false,
+		stats = { Might = 0, Vitality = 0, Focus = 0, Precision = 0, Resolve = 0 },
+		gearScore = 0,
+		setDamage = {},
+		gearMods = {},
+		perks = {},
+		gadget = nil,
+		luckyCount = 0,
+		secondWindAt = 0,
 	}
 end
 
--- Power with buffs (Rally Roar +10%)
+-- Might from Shared Spark: 10% of the Might of each ally within 20 studs who wears it
+local function sharedMight(hero: Hero): number
+	local perk = Config.Gear.perks.SharedSpark
+	local pos = HeroService.position(hero)
+	if not pos then
+		return 0
+	end
+	local extra = 0
+	for _, other in heroes do
+		if other ~= hero and other.perks.SharedSpark and other.alive then
+			local p = HeroService.position(other)
+			if p and (p - pos).Magnitude <= perk.radius then
+				extra += other.stats.Might * perk.share
+			end
+		end
+	end
+	return extra
+end
+
+-- Power with gear Might, Shared Spark and buffs (Rally Roar +10%)
 function HeroService.power(hero: Hero): number
-	local base = Formulas.power(Config, hero.level, 0)
+	local base = Formulas.power(Config, hero.level, hero.stats.Might + sharedMight(hero))
 	return base * (1 + Status.value(hero.status, "power", os.clock(), 0))
+end
+
+-- An ability's numbers for this hero: ranks, mod pick and gear set changes
+function HeroService.effective(hero: Hero, id: string): { [string]: any }
+	return AbilityRules.effective(Config, id, hero.ranks[id] or 1, hero.mods[id], hero.gearMods[id])
 end
 
 -- Run speed multiplier: Speedster +10%, Weightless +30%
@@ -197,6 +244,12 @@ function HeroService.sendState(hero: Hero)
 		bonusPoints = hero.bonusPoints,
 		credits = hero.credits,
 		respecIn = math.max(0, hero.respecAt - os.clock()),
+		xp = hero.xp,
+		stats = hero.stats,
+		gearScore = hero.gearScore,
+		gearMods = hero.gearMods,
+		perks = hero.perks,
+		gadget = hero.gadget,
 	})
 end
 
@@ -299,7 +352,7 @@ end
 -- Recompute health and styles after a level, class or gear change
 function HeroService.refresh(hero: Hero)
 	local frac = if hero.maxHealth > 0 then hero.health / hero.maxHealth else 1
-	hero.maxHealth = Formulas.health(Config, hero.level, 0, hero.classId)
+	hero.maxHealth = Formulas.health(Config, hero.level, hero.stats.Vitality, hero.classId)
 	hero.health = math.max(1, math.floor(hero.maxHealth * frac + 0.5))
 	hero.styles = stylesFor(hero.level)
 	local hum = humanoidOf(hero)
@@ -319,6 +372,7 @@ end
 
 function HeroService.setLevel(hero: Hero, level: number)
 	hero.level = math.clamp(math.floor(level), 1, Config.Stats.levelCap)
+	hero.xp = 0
 	HeroService.refresh(hero)
 end
 
@@ -383,6 +437,17 @@ function HeroService.damage(hero: Hero, amount: number, source: any?)
 	if hum then
 		hum.Health = hero.health
 	end
+	if hero.health <= 0 and hero.perks.SecondWind and now >= hero.secondWindAt then
+		-- Second Wind: back up once every 5 minutes with 30% health
+		local perk = Config.Gear.perks.SecondWind
+		hero.secondWindAt = now + perk.every
+		hero.health = math.max(1, math.floor(hero.maxHealth * perk.health + 0.5))
+		if hum then
+			hum.Health = hero.health
+		end
+		HeroService.SecondWind:Fire(hero)
+		return amount
+	end
 	if hero.health <= 0 then
 		-- M1: straight to Defeated and the Roblox respawn (5 s). The Downed state arrives in M8.
 		hero.alive = false
@@ -401,6 +466,109 @@ function HeroService.damage(hero: Hero, amount: number, source: any?)
 	return amount
 end
 
+-- Gear totals from GearService (stats, gear score, sets, perks, gadget)
+function HeroService.applyGear(hero: Hero, totals: any)
+	hero.stats = totals.stats
+	hero.gearScore = totals.gearScore
+	hero.setDamage = totals.setDamage
+	hero.gearMods = totals.abilityMods
+	hero.perks = totals.perks
+	hero.gadget = totals.gadget
+	HeroService.refresh(hero)
+end
+
+local function validLoadout(hero: Hero, l: any): AbilityRules.Loadout?
+	if type(l) ~= "table" or type(l.set) ~= "string" or not Config.Abilities.setColor[l.set] then
+		return nil
+	end
+	local loadout = {
+		set = l.set,
+		basic = AbilityRules.basicOf(Config, l.set),
+		skills = if type(l.skills) == "table" then l.skills else {},
+		super = l.super,
+	}
+	if AbilityRules.validate(Config, hero, loadout) then
+		return loadout
+	end
+	return nil
+end
+
+-- Copy a saved character onto the live hero (on join). Anything invalid falls back to the starter kit.
+function HeroService.applyProfile(hero: Hero, char: any, currency: any)
+	hero.level = char.level
+	hero.xp = char.xp
+	hero.classId = if Config.Classes[char.classId] then char.classId else Config.Classes.default
+	hero.fxStyle = char.fxStyle
+	hero.ranks = table.clone(char.ranks)
+	hero.mods = table.clone(char.mods)
+	hero.bonusPoints = char.bonusPoints
+	if
+		AbilityRules.pointsSpent(Config, hero.ranks)
+		> AbilityRules.pointsEarned(Config, hero.level, hero.bonusPoints)
+	then
+		-- more points spent than earned (a tuning change): free respec
+		hero.ranks = AbilityRules.starter(Config, "Volt")
+		hero.mods = {}
+	end
+	local l1 = validLoadout(hero, char.loadouts[1])
+	local starterRanks, starterLoadout = AbilityRules.starter(Config, "Volt")
+	for id, r in starterRanks do
+		hero.ranks[id] = math.max(hero.ranks[id] or 0, r)
+	end
+	l1 = l1 or starterLoadout
+	local l2 = validLoadout(hero, char.loadouts[2]) or table.clone(l1)
+	hero.loadouts = { l1, l2 }
+	hero.loadoutIndex = if char.loadoutIndex == 2
+			and hero.level >= Config.Abilities.secondLoadoutLevel
+		then 2
+		else 1
+	hero.loadout = hero.loadouts[hero.loadoutIndex]
+	hero.setId = hero.loadout.set
+	hero.respecAt = os.clock() + math.max(0, char.respecAt - os.time())
+	hero.credits = currency.credits + currency.banked
+	hero.loaded = true
+	HeroService.refresh(hero)
+	HeroService.applyWalkSpeed(hero)
+end
+
+-- Write the live hero back into its saved character (before every save)
+function HeroService.writeBack(hero: Hero, char: any)
+	if not hero.loaded then
+		return
+	end
+	char.level = hero.level
+	char.xp = hero.xp
+	char.classId = hero.classId
+	char.fxStyle = hero.fxStyle
+	char.ranks = table.clone(hero.ranks)
+	char.mods = table.clone(hero.mods)
+	char.bonusPoints = hero.bonusPoints
+	local saved = {}
+	for i, l in hero.loadouts do
+		saved[i] = { set = l.set, basic = l.basic, skills = table.clone(l.skills), super = l.super }
+	end
+	char.loadouts = saved
+	char.loadoutIndex = hero.loadoutIndex
+	char.respecAt = os.time() + math.max(0, math.ceil(hero.respecAt - os.clock()))
+end
+
+-- Renown in; level ups out (EconomyService calls this). Returns levels gained.
+function HeroService.setProgress(hero: Hero, level: number, xp: number): number
+	local gained = level - hero.level
+	hero.xp = xp
+	if gained ~= 0 then
+		hero.level = level
+		HeroService.refresh(hero)
+		if gained > 0 then
+			hero.health = hero.maxHealth -- a level up refills health
+			HeroService.Leveled:Fire(hero, gained)
+		end
+	else
+		HeroService.sendState(hero)
+	end
+	return gained
+end
+
 function HeroService.addBot(id: number, name: string, bot: any): Hero
 	local hero = newHero(id, name, nil, bot)
 	heroes[id] = hero
@@ -413,6 +581,15 @@ function HeroService.remove(hero: Hero)
 		byPlayer[hero.player] = nil
 	end
 	HeroService.Removed:Fire(hero)
+end
+
+-- Decoys (the Decoy gadget): fake heroes robots chase for a few seconds. Ids are negative.
+local decoys: { { id: number, pos: Vector3, untilT: number } } = {}
+local nextDecoy = 0
+function HeroService.addDecoy(pos: Vector3, duration: number): number
+	nextDecoy -= 1
+	table.insert(decoys, { id = nextDecoy, pos = pos, untilT = os.clock() + duration })
+	return nextDecoy
 end
 
 -- The list EnemySim reads every tick
@@ -434,6 +611,18 @@ function HeroService.simHeroes(): { any }
 			table.insert(
 				simList,
 				{ id = hero.id, x = pos.X, y = pos.Y, z = pos.Z, alive = hero.alive, lx = lx, lz = lz }
+			)
+		end
+	end
+	local now = os.clock()
+	for i = #decoys, 1, -1 do
+		local d = decoys[i]
+		if now >= d.untilT then
+			table.remove(decoys, i)
+		else
+			table.insert(
+				simList,
+				{ id = d.id, x = d.pos.X, y = d.pos.Y, z = d.pos.Z, alive = true, lx = 0, lz = -1 }
 			)
 		end
 	end
@@ -521,7 +710,7 @@ function HeroService.init()
 			end
 		end
 	end)
-	if RunService:IsStudio() then
+	if RunService:IsStudio() and Config.Dev.unlockAllStyles then
 		print("[HeroService] Studio: Flight unlocked for every hero (Config.Dev.unlockAllStyles)")
 	end
 end

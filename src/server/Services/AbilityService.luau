@@ -2,7 +2,8 @@
 -- check"; Remote events Hero.Loadout, Skills.Rank, Skills.Mod, Skills.Respec). Every request is checked
 -- here against AbilityRules; the client's loadout screen only asks.
 -- Loadouts change anywhere out of combat until safehouses exist (M4); respec is free with a 10-minute
--- cooldown (spec). Credits for ranks are waived until the wallet exists (Config.Dev.freeRankCredits, M3).
+-- cooldown (spec) and refunds the Credits ranks cost into the bank (Decisions.md), so builds are free to try.
+-- Ranks cost Skill Points and Credits (spec: Sinks); Config.Dev.freeRankCredits waives Credits in Studio.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -13,6 +14,8 @@ local AbilityRules = require(Shared:WaitForChild("AbilityRules"))
 local Cooldowns = require(Shared:WaitForChild("Cooldowns"))
 
 local HeroService = require(script.Parent.HeroService)
+local EconomyService = require(script.Parent.EconomyService)
+local DataService = require(script.Parent.DataService)
 
 local AbilityService = {}
 
@@ -26,16 +29,22 @@ end
 
 -- The ranked numbers of an ability for this hero
 function AbilityService.effective(hero: any, id: string): { [string]: any }
-	return AbilityRules.effective(Config, id, hero.ranks[id] or 1, hero.mods[id])
+	return HeroService.effective(hero, id)
 end
 
 function AbilityService.rank(hero: any, id: string): (boolean, string?)
-	local ok, reason, _, credits = AbilityRules.canRank(Config, hero, id, Config.Dev.freeRankCredits)
+	local free = Config.Dev.freeRankCredits and game:GetService("RunService"):IsStudio()
+	local ok, reason, _, credits = AbilityRules.canRank(Config, hero, id, free)
 	if not ok then
 		return false, reason
 	end
-	hero.credits -= credits
+	if not EconomyService.spend(hero, credits) then
+		return false, "credits"
+	end
 	hero.ranks[id] = (hero.ranks[id] or 0) + 1
+	if hero.player then
+		DataService.saveSoon(hero.player)
+	end
 	return true, nil
 end
 
@@ -60,7 +69,17 @@ function AbilityService.respec(hero: any): (boolean, string?)
 	if HeroService.inCombat(hero) then
 		return false, "combat"
 	end
+	local refund = AbilityRules.creditsSpent(Config, hero.ranks)
 	local ranks, loadout = AbilityRules.starter(Config, hero.setId)
+	-- keep every set's free starters learned
+	for _, set in A.sets do
+		if AbilityRules.setUnlocked(Config, hero.level, set) then
+			for id, r in (AbilityRules.starter(Config, set)) do
+				ranks[id] = math.max(ranks[id] or 0, r)
+			end
+		end
+	end
+	EconomyService.refund(hero, refund)
 	hero.ranks = ranks
 	hero.mods = {}
 	hero.loadout = loadout
@@ -104,6 +123,9 @@ function AbilityService.setLoadout(
 	hero.loadoutIndex = index
 	hero.loadout = loadout
 	hero.setId = set
+	if hero.player then
+		DataService.saveSoon(hero.player)
+	end
 	return true, nil
 end
 

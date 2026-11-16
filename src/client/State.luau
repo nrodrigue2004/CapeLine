@@ -28,7 +28,26 @@ State.hero = {
 	bonusPoints = 0,
 	credits = 0,
 	respecIn = 0,
+	xp = 0,
+	stats = { Might = 0, Vitality = 0, Focus = 0, Precision = 0, Resolve = 0 },
+	gearScore = 0,
+	gearMods = {},
+	perks = {},
+	gadget = nil,
 }
+-- The saved profile as the server shows it (ProfileSync): stash, styles, wallet, pity, worn gear
+State.profile = {
+	stash = {},
+	styles = {},
+	currency = { credits = 0, banked = 0, dust = 0 },
+	pity = { epic = 0, legendary = 0 },
+	equipment = table.create(8, 0),
+	shown = table.create(8, 0),
+	level = 1,
+	xp = 0,
+} :: { [string]: any }
+State.ProfileChanged = Signal.new()
+State.Toast = Signal.new() -- (data) level up, reward, loot, save notices
 -- Buffs and the Awakening meter (HeroStatus); times are local clock seconds
 State.status = { meter = 0, awakeUntil = 0, buffs = {} :: { [string]: { untilT: number, value: number } } }
 State.Changed = Signal.new()
@@ -37,7 +56,8 @@ State.Notice = Signal.new() -- (ok, reason) after a loadout, rank, mod or respec
 
 -- Ranked numbers of an ability for this hero
 function State.effective(id: string): { [string]: any }
-	return AbilityRules.effective(Config, id, State.hero.ranks[id] or 1, State.hero.mods[id])
+	local gear = State.hero.gearMods and State.hero.gearMods[id]
+	return AbilityRules.effective(Config, id, State.hero.ranks[id] or 1, State.hero.mods[id], gear)
 end
 
 function State.buff(kind: string): number
@@ -72,6 +92,18 @@ function State.init()
 	end)
 	Net.listen("AbilityNotice", function(data)
 		State.Notice:Fire(data.ok, data.reason)
+	end)
+	Net.listen("ProfileSync", function(view)
+		for k, v in view do
+			State.profile[k] = v -- a wallet-only sync carries just the wallet
+		end
+		State.ProfileChanged:Fire()
+	end)
+	Net.listen("Toast", function(data)
+		State.Toast:Fire(data)
+	end)
+	Net.listen("LootDrop", function(data)
+		State.Toast:Fire({ id = "loot", piece = data.piece, kind = data.kind, dust = data.dust })
 	end)
 end
 

@@ -1,11 +1,12 @@
 -- Hud: the main HUD (spec: Screens and UI > Main HUD): health bar with the shield on top, stamina ring, the
 -- basic, 4 skill buttons and the super with cooldown sweeps (coloured by power set), the Awakening meter and
 -- its button, active buffs, the movement buttons (Leap, Fly, Boost, Down), a crosshair that pops on a
--- confirmed hit, the level, class and power set, and a POWERS button for the loadout screen. Phone first: 56 px buttons, a 16 px safe area, and the
+-- confirmed hit, the level, class, power set and gear score, the Renown bar with the next unlock, the
+-- wallet, a GADGET button when one is worn, and POWERS and GEAR buttons for those screens. Phone first: 56 px buttons, a 16 px safe area, and the
 -- bottom 80 px on the right left clear for the flight pad. Buttons carry only verbs (spec: first 30 seconds).
 -- On PC and gamepad the same buttons show their key; they are drawn smaller.
--- PLACEHOLDER look until the UI pass (M10): the Renown bar, radar, world clock and boss countdown arrive with
--- their systems (M3, M4, M6).
+-- PLACEHOLDER look until the UI pass (M10): the radar, world clock and boss countdown arrive with their
+-- systems (M4, M6).
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -13,12 +14,14 @@ local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
+local Progress = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Progress"))
 
 local Kit = require(script.Parent.Kit)
 local State = require(script.Parent.Parent.State)
 local InputController = require(script.Parent.Parent.Controllers.InputController)
 local MoveController = require(script.Parent.Parent.Controllers.MoveController)
 local CombatClient = require(script.Parent.Parent.Controllers.CombatClient)
+local GadgetClient = require(script.Parent.Parent.Controllers.GadgetClient)
 
 local Hud = {}
 
@@ -37,6 +40,9 @@ local shieldFill: Frame
 local meterFill: Frame
 local meterText: TextLabel
 local buffRow: Frame
+local renownFill: Frame
+local renownText: TextLabel
+local walletText: TextLabel
 local SLOT_ACTIONS = { "Skill1", "Skill2", "Skill3", "Skill4" }
 local ShortName: { [string]: string } = {}
 for id, row in A do
@@ -124,7 +130,7 @@ end
 local function buildTopLeft()
 	local card = Kit.frame({
 		Name = "Status",
-		Size = UDim2.fromOffset(250, 84),
+		Size = UDim2.fromOffset(250, 104),
 		Position = UDim2.fromOffset(U.safe, U.safe),
 		BackgroundColor3 = Kit.color.night,
 		BackgroundTransparency = 0.25,
@@ -194,12 +200,32 @@ local function buildTopLeft()
 		maxText = 11,
 	})
 	meterText.Parent = meter
+	-- the Renown bar: progress to the next level and what it unlocks
+	local renown = Kit.frame({
+		Name = "Renown",
+		Size = UDim2.new(1, -16, 0, 16),
+		Position = UDim2.fromOffset(8, 82),
+		BackgroundColor3 = Color3.fromRGB(30, 34, 50),
+	})
+	renown.Parent = card
+	renownFill = Kit.frame({ Size = UDim2.fromScale(0, 1), BackgroundColor3 = Color3.fromRGB(150, 120, 255) })
+	renownFill.Parent = renown
+	renownText = Kit.label({
+		Text = "",
+		Size = UDim2.fromScale(1, 1),
+		TextColor3 = Kit.color.paper,
+		TextStrokeTransparency = 0.3,
+		Font = Kit.bodyFont,
+		ZIndex = 3,
+		maxText = 11,
+	})
+	renownText.Parent = renown
 	card.Parent = gui
 	buffRow = Instance.new("Frame")
 	buffRow.Name = "Buffs"
 	buffRow.BackgroundTransparency = 1
 	buffRow.Size = UDim2.fromOffset(250, 22)
-	buffRow.Position = UDim2.fromOffset(U.safe, U.safe + 90)
+	buffRow.Position = UDim2.fromOffset(U.safe, U.safe + 110)
 	local layout = Instance.new("UIListLayout")
 	layout.FillDirection = Enum.FillDirection.Horizontal
 	layout.Padding = UDim.new(0, 4)
@@ -295,11 +321,65 @@ local function buildCluster()
 		Kit.color.paper
 	)
 	powers.Size = UDim2.fromOffset(s + 30, s - 10)
+	local gear = actionButton(
+		gui,
+		"Gear",
+		"GEAR",
+		s,
+		UDim2.new(1, -U.safe - s * 1.5 - 116, 0, U.safe + s / 2),
+		Kit.color.paper
+	)
+	gear.Size = UDim2.fromOffset(s + 20, s - 10)
+	walletText = Kit.label({
+		Text = "",
+		AnchorPoint = Vector2.new(1, 0),
+		Size = UDim2.fromOffset(260, 18),
+		Position = UDim2.new(1, -U.safe - 70, 0, U.safe + s + 4),
+		TextXAlignment = Enum.TextXAlignment.Right,
+		TextColor3 = Kit.color.paper,
+		TextStrokeTransparency = 0.3,
+		Font = Kit.bodyFont,
+		maxText = 13,
+	})
+	walletText.Parent = gui
+	-- the gadget slot's active (shown when one is worn)
+	actionButton(
+		cluster,
+		"Gadget",
+		"GADGET",
+		s - 8,
+		UDim2.new(1, -big - s * 2.5 - 64, 1, -big - s * 1.5 - 34),
+		Color3.fromRGB(170, 200, 255)
+	)
 end
 
 local function refreshInfo()
 	local h = State.hero
-	infoText.Text = string.format("LV %d  %s  %s", h.level, string.upper(h.classId), string.upper(h.setId))
+	infoText.Text = string.format(
+		"LV %d  %s  %s  GS %d",
+		h.level,
+		string.upper(h.classId),
+		string.upper(h.setId),
+		h.gearScore or 0
+	)
+	-- Renown to the next level and what it unlocks
+	if h.level >= Config.Stats.levelCap then
+		renownFill.Size = UDim2.fromScale(1, 1)
+		renownText.Text = "MAX LEVEL"
+	else
+		local need = Progress.xpToNext(Config, h.level)
+		renownFill.Size = UDim2.fromScale(math.clamp((h.xp or 0) / need, 0, 1), 1)
+		local at, what = Progress.nextUnlock(h.level)
+		renownText.Text = string.format("RENOWN %d / %d", h.xp or 0, need)
+			.. (if at and what then string.format("  NEXT LV %d: %s", at, what) else "")
+	end
+	local gadget = buttons.Gadget
+	if gadget then
+		gadget.button.Visible = h.gadget ~= nil
+		if h.gadget then
+			gadget.button.Text = string.upper(string.split(Config.Gear.gadgets[h.gadget].name, " ")[1])
+		end
+	end
 	local l = h.loadout
 	local skills = l.skills or {}
 	local function paint(action: string, id: string?)
@@ -374,6 +454,13 @@ function Hud.init()
 	applyDevice(InputController.device)
 	State.Changed:Connect(refreshInfo)
 	State.StatusChanged:Connect(refreshBuffs)
+	local function refreshWallet()
+		local c = State.profile.currency or { credits = 0, banked = 0, dust = 0 }
+		walletText.Text =
+			string.format("CREDITS %s   DUST %s", Kit.comma(c.credits + c.banked), Kit.comma(c.dust))
+	end
+	State.ProfileChanged:Connect(refreshWallet)
+	refreshWallet()
 	local lastFull = false
 	InputController.DeviceChanged:Connect(applyDevice)
 	CombatClient.HitConfirm:Connect(function(crit)
@@ -439,6 +526,11 @@ function Hud.init()
 				local f = CombatClient.cooldownFraction(id)
 				entry.sweep.Size = UDim2.new(1, 12, f, if f > 0 then 20 * f else 0)
 			end
+		end
+		local gadget = buttons.Gadget
+		if gadget and gadget.sweep then
+			local f = GadgetClient.fraction()
+			gadget.sweep.Size = UDim2.new(1, 12, f, if f > 0 then 20 * f else 0)
 		end
 		local leap = buttons.Leap
 		if leap and leap.sweep then

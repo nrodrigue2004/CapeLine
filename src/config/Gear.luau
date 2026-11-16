@@ -1,0 +1,228 @@
+-- Gear (spec: Stats, gear, loot and upgrades; Data model > Piece record). Gear is earned by play only and
+-- never sold for Robux. Stats come from gear; looks come from styles, so any style shows over any gear.
+-- Every number is a starting value to tune.
+return {
+	-- the five stats, in wire and save order (bonus stats are saved as an index into this list)
+	stats = { "Might", "Vitality", "Focus", "Precision", "Resolve" },
+
+	-- Tiers in save order. Mythic is Phase 2 (season world bosses only) and never drops at launch.
+	tierOrder = { "Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic" },
+	tiers = {
+		Common = { color = { 170, 170, 175 }, mult = 1.00, bonus = 0, dust = 6 },
+		Uncommon = { color = { 90, 200, 100 }, mult = 1.15, bonus = 1, dust = 10 },
+		Rare = { color = { 70, 140, 255 }, mult = 1.30, bonus = 2, dust = 18 },
+		Epic = { color = { 170, 90, 240 }, mult = 1.50, bonus = 2, dust = 36, set = true },
+		Legendary = { color = { 255, 190, 40 }, mult = 1.75, bonus = 2, dust = 80, perk = true },
+		Mythic = { color = { 240, 60, 60 }, mult = 2.00, bonus = 3, dust = 160, perk = true, phase2 = true },
+	},
+	-- the lowest hero level each tier can drop for (spec: Levels: Epic at 20, Legendary at 30)
+	tierLevel = { Epic = 20, Legendary = 30, Mythic = 99 },
+
+	-- The 8 slots in save order and their main stat. The gadget has no stats; it holds one active gadget.
+	slotOrder = { "head", "chest", "hands", "legs", "feet", "back", "belt", "gadget" },
+	slots = {
+		head = { name = "Head", main = "Precision" },
+		chest = { name = "Chest", main = "Vitality" },
+		hands = { name = "Hands", main = "Might" },
+		legs = { name = "Legs", main = "Resolve" },
+		feet = { name = "Feet", main = "Focus" },
+		back = { name = "Back", main = "Vitality" },
+		belt = { name = "Belt", main = "Might" },
+		gadget = { name = "Gadget", main = nil },
+	},
+
+	-- Piece budget = round(ilvl x perIlvl x tier mult); the main stat takes mainShare, bonus stats split
+	-- the rest. A Common piece (no bonus stats) puts its whole budget in the main stat (Decisions.md).
+	budget = { perIlvl = 1.5, mainShare = 0.70 },
+	ilvlSpread = 2, -- item level = zone level at drop +- 2
+	ilvlMax = 42,
+	equipSlack = 5, -- a hero can wear gear up to item level = hero level + 5
+
+	-- Upgrade +1 to +10: +4% budget per step; step n costs round(12 x n^1.5 x tier mult) Lumen Dust.
+	-- No failure chance and no downgrade.
+	upgrade = { max = 10, perStep = 0.04, base = 12, power = 1.5 },
+	-- Salvage: tier dust x (1 + ilvl / 40). Styles stay unlocked.
+	salvage = { perIlvl = 40, maxPerRequest = 20 },
+	-- Retune: 800 Credits x tier mult rerolls one bonus stat (not the main stat); locked after 3.
+	retune = { credits = 800, max = 3 },
+
+	stashCap = 150,
+
+	-- Epic sets: 4 pieces each (head, chest, hands, feet). 2 pieces: +8% damage with that set's powers.
+	-- 4 pieces: an ability change, applied like a mod (AbilityService reads `ability`).
+	setOrder = { "Stormcaller", "Rimeguard", "Ironclad", "Orbitwear", "Edgewalker" },
+	setSlots = { "head", "chest", "hands", "feet" },
+	sets = {
+		Stormcaller = {
+			power = "Volt",
+			two = { damage = 0.08 },
+			four = { ability = "ChainLightning", add = { targets = 2 }, text = "Chain Lightning hits 2 more" },
+		},
+		Rimeguard = {
+			power = "Frost",
+			two = { damage = 0.08 },
+			four = {
+				ability = "FrostNova",
+				set = { allyShield = 0.10 },
+				text = "Frost Nova shields allies in range for 10% health",
+			},
+		},
+		Ironclad = {
+			power = "Titan",
+			two = { damage = 0.08 },
+			four = {
+				ability = "GroundSlam",
+				set = { fieldCoeff = 0.3, fieldDur = 3 },
+				text = "Ground Slam leaves a 3 s shockwave",
+			},
+		},
+		Orbitwear = {
+			power = "Pulse",
+			two = { damage = 0.08 },
+			four = {
+				ability = "Float",
+				set = { allyHeal = 0.03, allyRadius = 12 },
+				text = "Float heals allies near the lifted target 3% a second",
+			},
+		},
+		-- Edgewalker is new with the Blade set (nate's anime additions, Decisions.md)
+		Edgewalker = {
+			power = "Blade",
+			two = { damage = 0.08 },
+			four = {
+				ability = "ParryStance",
+				set = { riposteHeal = 0.05 },
+				text = "Parry Stance ripostes heal you for 5% health",
+			},
+		},
+	},
+
+	-- Legendary perks. pvp: how the perk works with the PvP flag on (M8): "off" or "half".
+	perkOrder = {
+		"Quakeheel",
+		"CoolingKill",
+		"SecondWind",
+		"MagnetPalm",
+		"EchoTrail",
+		"LuckyStrike",
+		"SteadyBeam",
+		"SharedSpark",
+	},
+	perks = {
+		Quakeheel = {
+			name = "Quakeheel",
+			text = "Landings from 30 studs or higher send a shockwave",
+			fall = 30,
+			coeff = 1.0,
+			radius = 10,
+			pvp = "off",
+		},
+		CoolingKill = {
+			name = "Cooling Kill",
+			text = "A kill refunds 20% of your super's cooldown",
+			refund = 0.20,
+			pvp = "half",
+		},
+		SecondWind = {
+			name = "Second Wind",
+			text = "Once every 5 minutes, get back up with 30% health",
+			every = 300,
+			health = 0.30,
+			pvp = "half",
+		},
+		MagnetPalm = {
+			name = "Magnet Palm",
+			text = "Citizen rescue range doubled; rescue speed +25%",
+			range = 2,
+			speed = 0.25,
+			pvp = "off",
+		},
+		EchoTrail = {
+			name = "Echo Trail",
+			text = "Your flight trail damages machines lightly",
+			coeffPerSecond = 0.1,
+			radius = 6,
+			pvp = "off",
+		},
+		LuckyStrike = { name = "Lucky Strike", text = "Every 8th hit is a crit", every = 8, pvp = "off" },
+		SteadyBeam = {
+			name = "Steady Beam",
+			text = "Channeled powers cannot be interrupted",
+			pvp = "half",
+		},
+		SharedSpark = {
+			name = "Shared Spark",
+			text = "Allies within 20 studs gain 10% of your Might",
+			share = 0.10,
+			radius = 20,
+			pvp = "off",
+		},
+	},
+
+	-- Gadgets (the gadget slot): one active each, used with the GADGET button.
+	gadgetOrder = { "GrapplingHook", "SmokeBomb", "ShieldDrone", "Decoy" },
+	gadgets = {
+		GrapplingHook = { name = "Grappling Hook", cd = 30, range = 90, time = 0.7, height = 6 },
+		SmokeBomb = { name = "Smoke Bomb", cd = 40, radius = 18, blind = 3 },
+		ShieldDrone = { name = "Shield Drone", cd = 45, shield = 0.15, duration = 8 },
+		Decoy = { name = "Decoy", cd = 60, radius = 30, duration = 5 },
+	},
+
+	-- Gear styles: every looted piece unlocks its style forever (a bit in profile.styles, ids 1 to 511).
+	-- id = slot index x 64 + n. Each style is a part-built look (PLACEHOLDER ART until meshes):
+	-- shape picks the builder in LookService, color is the style's own trim colour.
+	-- tier: the lowest tier that can roll it. Set and Legendary styles come only with those pieces.
+	styles = {
+		head = {
+			{ n = 1, name = "Rookie Visor", shape = "visor", tier = "Common", color = { 60, 70, 90 } },
+			{ n = 2, name = "Patrol Cap", shape = "cap", tier = "Common", color = { 40, 90, 160 } },
+			{ n = 3, name = "Street Mask", shape = "mask", tier = "Common", color = { 30, 30, 36 } },
+			{ n = 4, name = "Fin Helm", shape = "fin", tier = "Uncommon", color = { 200, 60, 60 } },
+			{ n = 5, name = "Horned Helm", shape = "horns", tier = "Rare", color = { 240, 200, 70 } },
+			{ n = 6, name = "Halo Crown", shape = "halo", tier = "Rare", color = { 255, 240, 160 } },
+		},
+		chest = {
+			{ n = 1, name = "Padded Vest", shape = "vest", tier = "Common", color = { 80, 90, 110 } },
+			{ n = 2, name = "Star Plate", shape = "plate", tier = "Common", color = { 50, 110, 200 } },
+			{ n = 3, name = "Bolt Harness", shape = "harness", tier = "Uncommon", color = { 255, 200, 60 } },
+			{ n = 4, name = "Core Plate", shape = "core", tier = "Rare", color = { 120, 220, 255 } },
+		},
+		hands = {
+			{ n = 1, name = "Wrist Wraps", shape = "wraps", tier = "Common", color = { 200, 200, 210 } },
+			{ n = 2, name = "Knuckle Guards", shape = "gauntlet", tier = "Common", color = { 70, 70, 80 } },
+			{ n = 3, name = "Spike Gauntlets", shape = "spikes", tier = "Uncommon", color = { 180, 60, 60 } },
+			{ n = 4, name = "Coil Gauntlets", shape = "coil", tier = "Rare", color = { 120, 210, 255 } },
+		},
+		legs = {
+			{ n = 1, name = "Shin Guards", shape = "shins", tier = "Common", color = { 70, 80, 100 } },
+			{ n = 2, name = "Stripe Leggings", shape = "stripes", tier = "Common", color = { 230, 70, 70 } },
+			{
+				n = 3,
+				name = "Plated Greaves",
+				shape = "greaves",
+				tier = "Uncommon",
+				color = { 150, 150, 165 },
+			},
+		},
+		feet = {
+			{ n = 1, name = "Street Boots", shape = "boots", tier = "Common", color = { 40, 40, 48 } },
+			{ n = 2, name = "Jet Heels", shape = "jets", tier = "Uncommon", color = { 255, 140, 40 } },
+			{ n = 3, name = "Winged Boots", shape = "wings", tier = "Rare", color = { 240, 240, 250 } },
+		},
+		back = {
+			{ n = 1, name = "Short Cape", shape = "cape", tier = "Common", color = { 200, 40, 50 } },
+			{ n = 2, name = "Long Cape", shape = "longcape", tier = "Uncommon", color = { 40, 60, 160 } },
+			{ n = 3, name = "Jet Pack", shape = "jetpack", tier = "Uncommon", color = { 90, 90, 100 } },
+			{ n = 4, name = "Light Wings", shape = "lightwings", tier = "Rare", color = { 255, 230, 140 } },
+		},
+		belt = {
+			{ n = 1, name = "Utility Belt", shape = "belt", tier = "Common", color = { 210, 170, 60 } },
+			{ n = 2, name = "Star Buckle", shape = "buckle", tier = "Common", color = { 230, 230, 240 } },
+			{ n = 3, name = "Power Sash", shape = "sash", tier = "Uncommon", color = { 170, 90, 240 } },
+		},
+		gadget = {},
+	},
+	-- Set styles (head, chest, hands, feet share one look per set) and Legendary styles (one per slot)
+	setStyleBase = 40, -- n = 40 + set index
+	legendaryStyleN = 50, -- n = 50: a gold-trimmed version of the slot's top shape
+}

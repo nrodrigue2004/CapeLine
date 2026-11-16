@@ -6,12 +6,12 @@
 local NetSchema = {}
 
 export type ArgSpec = {
-	t: string, -- "string" | "number" | "integer" | "boolean" | "buffer" | "Vector3" | "CFrame" | "any"
+	t: string, -- "string" | "number" | "integer" | "boolean" | "buffer" | "Vector3" | "CFrame" | "intList" | "any"
 	optional: boolean?,
 	min: number?,
 	max: number?, -- numbers: max value; strings: max length
 	len: { number }?, -- buffers: allowed exact lengths
-	maxLen: number?, -- buffers: max length
+	maxLen: number?, -- buffers: max length; intList: max items
 	oneOf: { string }?, -- strings: allowed values
 }
 
@@ -76,6 +76,28 @@ local function checkArg(spec: ArgSpec, value: any): (boolean, string?)
 		end
 		if spec.maxLen and length > spec.maxLen then
 			return false, "buffer too long"
+		end
+		return true
+	elseif t == "intList" then
+		-- an array of integers: { t = "intList", maxLen, min, max }
+		if type(value) ~= "table" then
+			return false, "not a table"
+		end
+		local n = 0
+		for k, v in value do
+			n += 1
+			if type(k) ~= "number" or k ~= n then
+				return false, "not an array"
+			end
+			if not isFiniteNumber(v) or v % 1 ~= 0 then
+				return false, "not an integer"
+			end
+			if (spec.min and v < spec.min) or (spec.max and v > spec.max) then
+				return false, "out of range"
+			end
+		end
+		if n == 0 or (spec.maxLen and n > spec.maxLen) then
+			return false, "bad length"
 		end
 		return true
 	elseif t == "Vector3" then

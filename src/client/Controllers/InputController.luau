@@ -1,7 +1,8 @@
 -- InputController: one set of actions for keyboard and mouse, gamepad and touch (spec: Touch flight,
 -- Accessibility: controller support). Touch buttons are drawn by the Hud and feed the same actions.
 -- Actions: Leap (hold in the air to glide; climbs while flying), Fly (toggle), Boost (hold), Down (hold),
--- Basic (hold to keep firing), Skill1 to Skill4, Super, Awaken, Loadout (opens the loadout screen).
+-- Basic (hold to keep firing), Skill1 to Skill4, Super, Awaken, Loadout (opens the loadout screen), Gear (the
+-- gear screen), Gadget (the gadget slot's active).
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
@@ -37,6 +38,8 @@ local KEYS: { [Enum.KeyCode]: string } = {
 	[Enum.KeyCode.Five] = "Super",
 	[Enum.KeyCode.V] = "Awaken",
 	[Enum.KeyCode.L] = "Loadout",
+	[Enum.KeyCode.I] = "Gear",
+	[Enum.KeyCode.Z] = "Gadget",
 	-- gamepad
 	[Enum.KeyCode.ButtonA] = "Leap",
 	[Enum.KeyCode.ButtonY] = "Fly",
@@ -51,6 +54,8 @@ local KEYS: { [Enum.KeyCode]: string } = {
 	[Enum.KeyCode.DPadUp] = "Super",
 	[Enum.KeyCode.DPadRight] = "Awaken",
 	[Enum.KeyCode.DPadDown] = "Loadout",
+	[Enum.KeyCode.ButtonSelect] = "Gear",
+	[Enum.KeyCode.ButtonR3] = "Gadget",
 }
 
 -- Key hints shown on the HUD buttons for keyboard players
@@ -67,6 +72,8 @@ InputController.hints = {
 	Super = "G",
 	Awaken = "V",
 	Loadout = "L",
+	Gear = "I",
+	Gadget = "Z",
 }
 
 function InputController.isDown(action: string): boolean

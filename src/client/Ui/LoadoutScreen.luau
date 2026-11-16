@@ -232,8 +232,11 @@ local function card(id: string, order: number): Frame
 		return f
 	end
 	if row.slot ~= "basic" then
-		local ok, reason, pts = AbilityRules.canRank(Config, h, id, Config.Dev.freeRankCredits)
-		local label = if rank == 0 then string.format("LEARN %d", pts) else string.format("RANK UP %d", pts)
+		local ok, reason, pts, cr = AbilityRules.canRank(Config, h, id, Config.Dev.freeRankCredits)
+		local cost = if cr > 0
+			then string.format("%d PT %s CR", pts, Kit.comma(cr))
+			else string.format("%d PT", pts)
+		local label = if rank == 0 then "LEARN " .. cost else "RANK UP " .. cost
 		if reason == "max rank" then
 			label = "MAX"
 		end

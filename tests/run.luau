@@ -4,6 +4,7 @@
 -- ONLY=M1 lune run tests/run.luau  runs just the tests whose name contains "M1"
 
 local process = require("@lune/process")
+local serde = require("@lune/serde")
 
 local Config = require("../src/config")
 local Rng = require("../src/shared/Rng")
@@ -1354,6 +1355,435 @@ test("M2: balance: classes keep their roles; a level 10 Burglar Bot falls in 2 t
 end)
 
 ---------------------------------------------------------------------------
+-- M3: gear, loot, saves, levels, Renown, Credits
+---------------------------------------------------------------------------
+
+local GearMath = require("../src/shared/GearMath")
+local LootTable = require("../src/shared/LootTable")
+local Progress = require("../src/shared/Progress")
+local ProfileSchema = require("../src/shared/ProfileSchema")
+local Inventory = require("../src/shared/Inventory")
+local GC = Config.Gear
+
+test("M3: piece budget, main stat share, upgrades and costs match the spec", function()
+	check(GearMath.baseBudget(Config, "hands", "Common", 40) == 60, "Common ilvl 40 = 60")
+	check(GearMath.baseBudget(Config, "hands", "Legendary", 40) == 105, "Legendary ilvl 40 = 105")
+	check(GearMath.baseBudget(Config, "gadget", "Epic", 40) == 0, "gadgets have no stats")
+	local rng = Rng.new(7)
+	local c = GearMath.roll(Config, rng, "Common", 20, { slot = "hands" })
+	check(#c.bonus == 0 and c.main == 30, "Common: main stat only, the whole budget")
+	local r = GearMath.roll(Config, rng, "Rare", 40, { slot = "head" })
+	check(#r.bonus == 2 and r.main == 55, "Rare: main 70% of 78 = 55, plus 2 bonus stats")
+	check(r.bonus[1][2] + r.bonus[2][2] == 78 - 55, "bonus stats split the rest exactly")
+	check(r.bonus[1][1] ~= r.bonus[2][1], "two different bonus stats")
+	local mainIdx = table.find(GC.stats, "Precision")
+	check(r.bonus[1][1] ~= mainIdx and r.bonus[2][1] ~= mainIdx, "bonus never repeats the main stat")
+	check(GearMath.stats(Config, r).Precision == 55, "head main stat is Precision")
+	local common = GearMath.roll(Config, rng, "Common", 10, { slot = "belt" })
+	common.up = 4
+	check(GearMath.upgradeCost(Config, common) == 134, "+5 on a Common costs 134")
+	common.up = 9
+	-- round(12 x 10^1.5) = 379; the spec's text says 380 (Decisions.md: the formula wins)
+	check(GearMath.upgradeCost(Config, common) == 379, "+10 on a Common costs 379")
+	common.up = 10
+	check(GearMath.upgradeCost(Config, common) == nil, "no step past +10")
+	local s = GearMath.roll(Config, rng, "Common", 40, { slot = "feet" })
+	s.up = 10
+	check(GearMath.budget(Config, s) == 84, "+10 is +40% budget")
+	check(GearMath.stats(Config, s).Focus == 84, "and +40% stats")
+	local legend = GearMath.roll(Config, rng, "Legendary", 40, { slot = "chest" })
+	check(GearMath.salvageValue(Config, legend) == 160, "Legendary ilvl 40 salvages for 80 x 2 = 160 Dust")
+	check(GearMath.retuneCost(Config, legend) == 1400, "retune 800 x 1.75")
+	check(legend.perk > 0 and legend.set == 0, "Legendary has a perk, no set")
+	local epic = GearMath.roll(Config, rng, "Epic", 30, { slot = "hands" })
+	check(epic.set > 0 and epic.perk == 0, "Epic hands belong to a set")
+	local epicBack = GearMath.roll(Config, rng, "Epic", 30, { slot = "back" })
+	check(epicBack.set == 0, "sets are head, chest, hands and feet only")
+	local gadget = GearMath.roll(Config, rng, "Rare", 30, { gadget = true })
+	check(
+		gadget.gadget > 0 and gadget.main == 0 and #gadget.bonus == 0,
+		"a gadget piece holds a gadget, no stats"
+	)
+	-- a full level 40 Legendary kit is about 840 points with a few upgrades (spec), Might ~ +63% Power
+	local kit = {}
+	for _, slot in { "head", "chest", "hands", "legs", "feet", "back", "belt" } do
+		local p = GearMath.roll(Config, Rng.new(#kit + 1), "Legendary", 42, { slot = slot })
+		p.up = 4
+		table.insert(kit, p)
+	end
+	local t = GearMath.totals(Config, kit)
+	check(
+		t.gearScore > 780 and t.gearScore < 920,
+		string.format("full Legendary at 42 +4 = %d gear score", t.gearScore)
+	)
+	check(t.stats.Might >= 150, string.format("Might %d from hands and belt", t.stats.Might))
+end)
+
+test("M3: item level, wear level, retune rules", function()
+	local rng = Rng.new(3)
+	local lo, hi = 99, 0
+	for _ = 1, 500 do
+		local il = GearMath.itemLevel(Config, rng, 20)
+		lo, hi = math.min(lo, il), math.max(hi, il)
+	end
+	check(lo == 18 and hi == 22, "ilvl = zone level +- 2")
+	check(GearMath.itemLevel(Config, Rng.new(1), 1) >= 1, "never below 1")
+	local p = GearMath.roll(Config, rng, "Rare", 25, { slot = "legs" })
+	check(
+		GearMath.canWear(Config, 20, p) and not GearMath.canWear(Config, 19, p),
+		"wear up to hero level + 5"
+	)
+	local before = p.bonus[1][1]
+	local value = p.bonus[1][2]
+	for _ = 1, 3 do
+		check(GearMath.retune(Config, rng, p, 1), "retune works")
+		check(
+			p.bonus[1][1] ~= p.bonus[2][1] and p.bonus[1][1] ~= table.find(GC.stats, "Resolve"),
+			"still distinct"
+		)
+		check(p.bonus[1][2] == value, "the value stays")
+	end
+	check(not GearMath.retune(Config, rng, p, 1), "locked after 3 retunes")
+	check(before ~= nil, "had a bonus")
+end)
+
+test("M3: sets and perks: 2-piece damage, 4-piece ability change, perks listed", function()
+	local rng = Rng.new(11)
+	local worn = {}
+	for _, slot in GC.setSlots do
+		local p = GearMath.roll(Config, rng, "Epic", 30, { slot = slot })
+		p.set = 1 -- Stormcaller
+		table.insert(worn, p)
+	end
+	local two = GearMath.totals(Config, { worn[1], worn[2] })
+	check(two.setDamage.Volt == 0.08 and two.abilityMods.ChainLightning == nil, "2 pieces: Volt +8%")
+	local four = GearMath.totals(Config, worn)
+	check(four.abilityMods.ChainLightning ~= nil, "4 pieces change Chain Lightning")
+	local eff = AbilityRules.effective(Config, "ChainLightning", 1, nil, four.abilityMods.ChainLightning)
+	check(eff.targets == 5, "Chain Lightning hits 2 more")
+	local leg = GearMath.roll(Config, rng, "Legendary", 30, { slot = "back" })
+	leg.perk = table.find(GC.perkOrder, "LuckyStrike") :: number
+	local t = GearMath.totals(Config, { leg })
+	check(t.perks.LuckyStrike == true, "perk listed")
+	for _, name in GC.setOrder do
+		local row = GC.sets[name]
+		check(Config.Abilities.list[row.four.ability] ~= nil, name .. " 4-piece names a real ability")
+		check(
+			Config.Abilities.list[row.four.ability].set == row.power,
+			name .. " 4-piece is its own set's power"
+		)
+	end
+	check(#GC.perkOrder == 8 and #GC.gadgetOrder == 4, "8 perks, 4 gadgets")
+end)
+
+test("M3: styles: ids are unique, every piece gets one of its slot, collection list", function()
+	local seen = {}
+	for _, id in GearMath.allStyles(Config) do
+		check(not seen[id], "unique style " .. id)
+		seen[id] = true
+		check(id > 0 and id < 512, "fits the 512-bit set")
+		check(GearMath.styleRow(Config, id) ~= nil, "style row " .. id)
+	end
+	local rng = Rng.new(5)
+	for i = 1, 300 do
+		local tier = GC.tierOrder[1 + i % 5]
+		local p = GearMath.roll(Config, rng, tier, 30)
+		if p.style > 0 then
+			check((GearMath.styleParts(p.style)) == p.slot, "style matches the slot")
+			check(seen[p.style] == true, "a known style")
+		end
+	end
+end)
+
+local function oddsCheck(source: string, n: number)
+	local rng = Rng.new(Rng.hash(#source, 99))
+	local counts, pieces, dropped = {}, 0, 0
+	for _ = 1, n do
+		local tiers = LootTable.roll(Config, rng, source, { level = 40, noPity = true })
+		if #tiers > 0 then
+			dropped += 1
+		end
+		for _, t in tiers do
+			counts[t] = (counts[t] or 0) + 1
+			pieces += 1
+		end
+	end
+	return counts, pieces, dropped
+end
+
+test("M3: every drop source matches its table over 10,000 rolls (within 1%)", function()
+	for _, source in Config.Loot.order do
+		local src = Config.Loot.sources[source]
+		local counts, pieces, dropped = oddsCheck(source, 10000)
+		if src.chance then
+			near(dropped / 10000, src.chance, 0.01, source .. " drop chance")
+		end
+		if src.odds then
+			local total = 0
+			for _, w in src.odds do
+				total += w
+			end
+			for tier, w in src.odds do
+				local want = w / total
+				local got = (counts[tier] or 0) / pieces
+				near(
+					got,
+					want,
+					0.01,
+					string.format("%s %s %.1f%% (table %.1f%%)", source, tier, got * 100, want * 100)
+				)
+			end
+		end
+		if src.mvp then
+			near((counts.Legendary or 0) / pieces, src.legendary, 0.01, "MVP Legendary 8%")
+			check((counts.Epic or 0) + (counts.Legendary or 0) == pieces, "MVP always Epic or better")
+		end
+		if src.fixed then
+			check(pieces == 10000 * #src.fixed, source .. " fixed pieces")
+		end
+	end
+end)
+
+test("M3: pity: the 5th boss with no Epic gives one; the 15th MVP roll gives a Legendary", function()
+	-- a generator that never rolls high: every boss piece would be Rare and no MVP Legendary
+	local low = {
+		next = function()
+			return 0.0
+		end,
+		int = function(_, lo, _)
+			return lo
+		end,
+	}
+	local pity = { epic = 0, legendary = 0 }
+	for i = 1, 4 do
+		local t = LootTable.roll(Config, low, "bossParticipant", { level = 40, pity = pity })
+		check(t[1] == "Rare", "boss " .. i .. ": Rare")
+	end
+	check(pity.epic == 4, "4 misses counted")
+	local t5 = LootTable.roll(Config, low, "bossParticipant", { level = 40, pity = pity })
+	check(t5[1] == "Epic" and pity.epic == 0, "the 5th is Epic and resets")
+	-- and one that never hits the 8% Legendary roll
+	local high = {
+		next = function()
+			return 0.99
+		end,
+		int = function(_, _, hi)
+			return hi
+		end,
+	}
+	for i = 1, 14 do
+		local t = LootTable.roll(Config, high, "bossMvp", { level = 40, pity = pity })
+		check(t[1] == "Epic", "MVP " .. i .. ": Epic")
+	end
+	local t15 = LootTable.roll(Config, high, "bossMvp", { level = 40, pity = pity })
+	check(t15[1] == "Legendary" and pity.legendary == 0, "the 15th MVP roll is Legendary")
+end)
+
+test("M3: level gates: Epic from 20, Legendary from 30; fixed story rewards skip the gate", function()
+	check(
+		LootTable.gate(Config, "Epic", 19) == "Rare" and LootTable.gate(Config, "Epic", 20) == "Epic",
+		"Epic gate"
+	)
+	check(LootTable.gate(Config, "Legendary", 25) == "Epic", "Legendary falls to Epic")
+	check(LootTable.gate(Config, "Legendary", 10) == "Rare", "and to Rare below 20")
+	local t = LootTable.roll(Config, Rng.new(1), "storyFinale", { level = 12 })
+	check(t[1] == "Rare" and t[2] == "Epic", "the Act 1 finale Epic is not gated")
+	local mvp = LootTable.roll(Config, Rng.new(1), "bossMvp", { level = 15 })
+	check(mvp[1] == "Rare", "a level 15 MVP gets a Rare")
+	check(
+		#LootTable.infoRows(Config) == #Config.Loot.order + 2,
+		"Loot Info lists every source plus pity and gates"
+	)
+end)
+
+test("M3: levels: xpToNext, cumulative 68,400 to 40, level ups and the cap", function()
+	check(Progress.xpToNext(Config, 1) == 100 and Progress.xpToNext(Config, 2) == 112, "100, 112")
+	local total = Progress.totalTo(Config, 40)
+	near(total, 68400, 68400 * 0.01, string.format("level 40 takes %d Renown", total))
+	local lv, xp, gained = Progress.addRenown(Config, 1, 0, 250)
+	check(lv == 3 and xp == 38 and gained == 2, "250 Renown: level 3 with 38 over")
+	local cap, capXp = Progress.addRenown(Config, 39, 0, 1e7)
+	check(cap == 40 and capXp == 0, "stops at 40")
+	check(select(1, Progress.nextUnlock(1)) == 3, "next unlock after 1 is Flight at 3")
+	check(Progress.nextUnlock(40) == nil, "nothing after 40")
+end)
+
+test("M3: earnings: zone level formulas, bonuses multiply, the stack caps at x4", function()
+	local c, r = Progress.earn(Config, "incident", 10)
+	check(c == 35 and r == 45, "incident at zone 10: 35 Credits, 45 Renown")
+	local c2, r2 = Progress.earn(Config, "incident", 10, { friends = 5 })
+	check(c2 == 46 and r2 == 59, "friend boost caps at +30%")
+	near(
+		Progress.multiplier(
+			Config,
+			{ friends = 3, legacy = 5, faction = 5, firstContract = true, doublePass = true }
+		),
+		4,
+		1e-9,
+		"x4 cap"
+	)
+	near(Progress.multiplier(Config, { legacy = 2, faction = 1 }), 1.2 * 1.02, 1e-9, "bonuses multiply")
+	local cur = { credits = 50, banked = 100, dust = 0 }
+	check(Progress.spend(cur, 120) and cur.credits == 0 and cur.banked == 30, "on hand first, then banked")
+	check(not Progress.spend(cur, 31) and cur.banked == 30, "short: nothing taken")
+	-- a fully ranked 5-skill build costs about 35,000 Credits (spec)
+	local skill, super = 0, 0
+	for _, v in Config.Abilities.rankCredits do
+		skill += v
+	end
+	for _, v in Config.Abilities.superRankCredits do
+		super += v
+	end
+	check(skill == 5550 and super == 3600, "5,550 per skill, 3,600 per super")
+	near(skill * 5 + super, 35000, 4000, "a ranked 5-skill build plus super is about 35,000")
+end)
+
+test("M3: profile: defaults, migrations, repair of bad data, size under 60 KB", function()
+	local p = ProfileSchema.default()
+	check(p.version == ProfileSchema.VERSION and #p.characters == 1, "default has one character")
+	local loaded = ProfileSchema.load(nil)
+	check(loaded.version == ProfileSchema.VERSION, "nil loads a fresh profile")
+	local old = { stash = { { id = 4, slot = 3, tier = 2, ilvl = 10, main = 9, bonus = { { 2, 3 } } } } }
+	local m = ProfileSchema.load(old)
+	check(m.version == ProfileSchema.VERSION, "a version 0 save migrates")
+	check(
+		#m.stash == 1 and m.stash[1].up == 0 and m.nextPieceId == 5,
+		"pieces repaired, next id past the max"
+	)
+	check(#m.characters == 1 and m.characters[1].level == 1, "missing characters get a fresh one")
+	local bad = {
+		version = 1,
+		currency = { credits = "lots", banked = -5, dust = 0 / 0 },
+		characters = {
+			{ level = 99, ranks = { ZapBolt = 9, [5] = 1 }, equipment = { 77, 0, 0 }, fxStyle = "x" },
+			"junk",
+		},
+		stash = { { id = 1, slot = 1 }, { id = 1, slot = 1 }, "junk", { id = -3 } },
+		active = 7,
+	}
+	local r = ProfileSchema.load(bad)
+	check(
+		r.currency.credits == 0 and r.currency.banked == 0 and r.currency.dust == 0,
+		"bad wallet values fixed"
+	)
+	check(r.characters[1].level == 40 and r.characters[1].ranks.ZapBolt == 5, "clamped")
+	check(r.characters[1].ranks[5] == nil, "junk rank keys dropped")
+	check(
+		r.characters[1].equipment[1] == 0 and #r.characters[1].equipment == 8,
+		"a missing worn piece is cleared"
+	)
+	check(r.characters[1].fxStyle == "Comic", "style fixed")
+	check(#r.stash == 1, "duplicates and junk pieces dropped")
+	check(#r.characters == 1 and r.active == 1, "junk characters dropped, active fixed")
+	-- full profile: 150 pieces, 4 characters, every style
+	local full = ProfileSchema.default()
+	local rng = Rng.new(2)
+	for _ = 1, 150 do
+		local piece = GearMath.roll(Config, rng, "Legendary", 40)
+		Inventory.add(Config, full, piece)
+	end
+	for _ = 2, 4 do
+		table.insert(full.characters, ProfileSchema.newCharacter("villain", "Bruiser"))
+	end
+	for _, c in full.characters do
+		for _, id in Config.Abilities.order do
+			c.ranks[id] = 5
+			c.mods[id] = 2
+		end
+	end
+	for i = 1, 511 do
+		ProfileSchema.Bits.set(full.styles, i)
+	end
+	local json = serde.encode("json", full)
+	check(#json < Config.Data.targetBytes, string.format("a full profile is %d bytes (target 60 KB)", #json))
+	local back = ProfileSchema.load(serde.decode("json", json))
+	check(#back.stash == 150 and #back.characters == 4, "survives a JSON round trip")
+	check(#ProfileSchema.Bits.list(back.styles) == 511, "every style bit kept")
+	local view = ProfileSchema.clientView(full)
+	check(#view.stash == 150 and #view.styles == 511 and view.currency ~= nil, "full client view")
+	local small = ProfileSchema.clientView(full, true)
+	check(
+		small.stash == nil and small.currency ~= nil and small.level ~= nil,
+		"wallet-only view skips the stash"
+	)
+	check(#serde.encode("json", small) < 200, "a wallet sync is tiny")
+end)
+
+test(
+	"M3: inventory: drops unlock styles, equip rules, salvage of worn gear is refused, upgrade, retune",
+	function()
+		local p = ProfileSchema.default()
+		local c = p.characters[1]
+		c.level = 20
+		local rng = Rng.new(9)
+		local kind, piece =
+			Inventory.add(Config, p, GearMath.roll(Config, rng, "Rare", 22, { slot = "hands" }))
+		check(kind == "stashed" and piece.id == 1, "stashed with id 1")
+		check(Inventory.hasStyle(p, piece.style), "its style unlocked")
+		local ok, why = Inventory.equip(Config, p, c, piece.id, 1)
+		check(not ok and why == "wrong slot", "hands piece in the head slot is refused")
+		check((Inventory.equip(Config, p, c, piece.id, 3)), "worn")
+		local high =
+			select(2, Inventory.add(Config, p, GearMath.roll(Config, rng, "Rare", 30, { slot = "head" })))
+		local ok2, why2 = Inventory.equip(Config, p, c, high.id, 1)
+		check(not ok2 and why2 == "level", "ilvl 30 needs level 25")
+		local okS, whyS = Inventory.salvage(Config, p, { piece.id })
+		check(not okS and whyS == "worn", "salvaging a worn piece is refused")
+		local style = piece.style
+		check((Inventory.equip(Config, p, c, 0, 3)), "unequip")
+		local okS2, _, dust = Inventory.salvage(Config, p, { piece.id })
+		check(
+			okS2 and dust == GearMath.salvageValue(Config, piece) and p.currency.dust == dust,
+			"salvaged for Dust"
+		)
+		check(Inventory.hasStyle(p, style), "the style stays unlocked")
+		check(not (Inventory.salvage(Config, p, { 999 })), "unknown piece refused")
+		-- another character cannot wear what this one wears
+		table.insert(p.characters, ProfileSchema.newCharacter())
+		local c2 = p.characters[2]
+		c2.level = 40
+		local belt =
+			select(2, Inventory.add(Config, p, GearMath.roll(Config, rng, "Common", 10, { slot = "belt" })))
+		check((Inventory.equip(Config, p, c, belt.id, 7)), "belt on hero 1")
+		local okO, whyO = Inventory.equip(Config, p, c2, belt.id, 7)
+		check(not okO and whyO == "worn by another hero", "one piece, one hero")
+		-- upgrade
+		p.currency.dust = 0
+		local okU, whyU = Inventory.upgrade(Config, p, belt.id)
+		check(not okU and whyU == "dust", "needs Dust (" .. tostring(whyU) .. ")")
+		p.currency.dust = 1000
+		check(
+			(Inventory.upgrade(Config, p, belt.id)) and belt.up == 1 and p.currency.dust == 988,
+			"+1 costs 12"
+		)
+		-- retune
+		local okR, whyR = Inventory.retune(Config, rng, p, high.id, 1)
+		check(not okR and whyR == "credits", "retune needs Credits")
+		p.currency.credits = 5000
+		check(
+			(Inventory.retune(Config, rng, p, high.id, 1)) and p.currency.credits == 5000 - 1040,
+			"retune 800 x 1.3"
+		)
+		-- styles over gear
+		local okSt, whySt = Inventory.showStyle(Config, p, c, 7, 9999 % 512)
+		check(not okSt and (whySt == "locked" or whySt == "wrong slot"), "a locked style is refused")
+		local headStyle = GearMath.styleId(1, 1)
+		ProfileSchema.Bits.set(p.styles, headStyle)
+		check(not (Inventory.showStyle(Config, p, c, 7, headStyle)), "a head style cannot go on the belt")
+		check((Inventory.showStyle(Config, p, c, 1, headStyle)), "any unlocked head style over any head gear")
+		local shown = Inventory.shownStyles(p, c)
+		check(shown[1] == headStyle and shown[7] == belt.style, "shown: chosen style, else the worn piece's")
+		-- a full stash turns new drops into Dust
+		for _ = #p.stash + 1, Config.Gear.stashCap do
+			Inventory.add(Config, p, GearMath.roll(Config, rng, "Common", 5))
+		end
+		local before = p.currency.dust
+		local kind2 = Inventory.add(Config, p, GearMath.roll(Config, rng, "Epic", 30, { slot = "feet" }))
+		check(kind2 == "salvaged" and p.currency.dust > before and #p.stash == 150, "stash full: salvaged")
+	end
+)
+
+---------------------------------------------------------------------------
 -- Place layout (only when a built place is passed)
 ---------------------------------------------------------------------------
 
@@ -1385,6 +1815,11 @@ if placePath then
 				"AbilityRules",
 				"CastPlan",
 				"Awakening",
+				"GearMath",
+				"LootTable",
+				"Progress",
+				"ProfileSchema",
+				"Inventory",
 			}
 		do
 			check(shared ~= nil and shared:FindFirstChild(name) ~= nil, "Shared." .. name)
@@ -1402,6 +1837,11 @@ if placePath then
 				"DevService",
 				"PerfMonitor",
 				"AbilityService",
+				"DataService",
+				"EconomyService",
+				"GearService",
+				"LookService",
+				"PerkService",
 			}
 		do
 			local folder = server and server:FindFirstChild("Services")
@@ -1422,6 +1862,9 @@ if placePath then
 				{ "Fx", "MoveFx" },
 				{ "Fx", "AuraFx" },
 				{ "Ui", "LoadoutScreen" },
+				{ "Ui", "GearScreen" },
+				{ "Ui", "Toasts" },
+				{ "Controllers", "GadgetClient" },
 				{ "Ui", "Kit" },
 				{ "Ui", "Hud" },
 				{ "Ui", "DevPanel" },

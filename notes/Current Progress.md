@@ -2,8 +2,9 @@
 
 - Done: M1 Move and fight slice code-complete (2026-11-16): leap, glide, flight (touch, PC, gamepad), Volt basic + Chain Lightning + Dash Strike, Spark Drone AI, greybox Downtown, 30-bot load test, Comic and Anime effect styles. 220 tests pass, lint clean, place builds.
 - Done: M2 Classes, abilities, enemies code-complete (2026-11-16): 4 class passives, 40 abilities in 5 sets with ranks, mods, capstones and the 52-point budget, POWERS screen, Awakening, 10 team-up combos, 6 humanoid robots with their own AI. 593 tests pass.
-- Not yet run in Studio: everything client-side. Studio list in Tasks.md (M1 1 to 22, M2 1 to 15).
-- Next: M3 (gear tiers and slots, drops and pity, salvage and upgrade, style collection, saves with migrations, levels and Renown, Credits). Turn off Dev.freeRankCredits once Credits save.
+- Done: M3 Gear, loot, saves code-complete (2026-11-16): 5 tiers and 8 slots, stats into Power, Health, cooldowns and crits, 5 Epic sets, 8 Legendary perks, 4 gadgets, drops with pity and level gates, salvage, upgrade, retune, 36 gear styles shown over any gear, session-locked saves with migrations (Ragdoll Rides package), levels and Renown, Credits and Dust, GEAR screen, Renown bar, toasts. Dev.unlockAllStyles and freeRankCredits are off. 1,536 tests pass.
+- Not yet run in Studio: everything client-side. Studio list in Tasks.md (M1 1 to 22, M2 1 to 15, M3 1 to 19).
+- Next: M4 (hub districts, seeded outskirts with 2 zone types, weekly seed, streaming, presets, landmarks, safehouses, beacons, age questionnaire; 30 bots hold the server frame).
 - Repo: local only (/home/user/capeline, branch main). Backup after every milestone: /mnt/project-files/capeline/ (capeline.bundle, Capeline.rbxl, notes). Restore: `git clone capeline.bundle capeline`.
 - Tools: rojo, lune, selene, stylua binaries in ~/tools (download from GitHub releases; see roblox-dev-setup memory).
 - Auto-resume: a check fires every 90 minutes (send_later) and reschedules itself.

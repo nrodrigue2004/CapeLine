@@ -23,3 +23,14 @@ One line each, newest at the bottom. Spec = "Capeline build spec".
 - 2026-11-16: 4 more team-up combos for the Blade set (Storm Edge, Ice Bloom, Sky Breaker, Void Cut), 10 in all.
 - 2026-11-16: melee basics (Punch Combo, Blade Slash) swing every 0.5 s like the ranged basics; their combo strings average about 1.4x a ranged basic's damage for the risk of being close. A level 10 Burglar Bot falls in about 2.1 to 2.3 s to any basic (spec test: 2 to 3 s).
 - 2026-11-16: Enemy.Delta grew to 12 bytes per enemy (status flags and facing for the robot bodies); 60 enemies still fit in under 900 bytes.
+- 2026-11-16: M3 gear. A Common piece (no bonus stats) puts its whole budget in the main stat; the spec's 70% main share applies when there are bonus stats to take the rest.
+- 2026-11-16: upgrade step cost follows the spec formula round(12 x n^1.5 x tier mult): +10 on a Common is 379 (the spec text says 380).
+- 2026-11-16: supers rank for 300, 900 and 2,400 Credits (spec Sinks table), not the skill prices.
+- 2026-11-16: pity counts the boss in hand: the 5th boss in a row with no Epic is an Epic, the 15th MVP roll in a row with no Legendary is a Legendary (spec test wording). Fixed story rewards (the Act 1 finale Epic) skip the level 20 Epic gate; every other Epic or Legendary above the hero's gate drops one tier lower.
+- 2026-11-16: the 5th power set (Blade) gets a 5th Epic set, Edgewalker: 2 pieces Blade damage +8%, 4 pieces Parry Stance ripostes heal 5%. Ironclad's shockwave is 0.3 coeff per 0.5 s for 3 s; Orbitwear's Float heal reaches allies within 12 studs of the lifted target (Float lifts machines).
+- 2026-11-16: a respec refunds the Credits its ranks cost into the bank, so trying builds stays free (spec: respec is free).
+- 2026-11-16: gadget actives (Grappling Hook 30 s, Smoke Bomb 40 s, Shield Drone 45 s, Decoy 60 s) ship in M3 with the gadget slot; about 6% of drops are gadgets.
+- 2026-11-16: server close waits up to 25 s for saves (Roblox allows 30); the spec's 4 s deadline would only drop slow saves. Saves also go 8 s after a level up, drop, gear change, rank or loadout change (one write per burst).
+- 2026-11-16: a full stash (150) turns a new drop into Lumen Dust; its style still unlocks.
+- 2026-11-16: Profile.Sync sends the full view after gear changes and a small wallet-only view after rewards and spending.
+- 2026-11-16: until incidents and bosses exist (M6), nothing in play drops gear or pays Renown; the Dev panel rolls any source and adds Renown, Credits and Dust.

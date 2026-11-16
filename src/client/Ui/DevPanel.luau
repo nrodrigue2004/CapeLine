@@ -1,6 +1,7 @@
 -- DevPanel: Studio-only test buttons and the server frame report (spec: Performance budgets). Never built
 -- in a live game. Buttons: 30 load bots, clear bots, 5 drones, clear drones, spawner, god, class, level,
--- Comic/Anime style. The stats line shows the server frame, script time per service, enemies, bots, send
+-- Comic/Anime style, robots, levels, skill points, Awakening, loot by source, Renown, Credits, Dust, save,
+-- wipe. The stats line shows the server frame, script time per service, enemies, bots, send
 -- rate and memory, plus the client fps and preset.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -21,7 +22,7 @@ function DevPanel.init()
 	end
 	local gui = Kit.screen("DevPanel", 20)
 	local panel = Kit.frame({
-		Size = UDim2.fromOffset(300, 470),
+		Size = UDim2.fromOffset(300, 590),
 		AnchorPoint = Vector2.new(1, 0),
 		Position = UDim2.new(1, -16, 0, 60),
 		BackgroundColor3 = Kit.color.night,
@@ -45,7 +46,7 @@ function DevPanel.init()
 	grid.SortOrder = Enum.SortOrder.LayoutOrder
 	local holder = Instance.new("Frame")
 	holder.BackgroundTransparency = 1
-	holder.Size = UDim2.new(1, -16, 0, 350)
+	holder.Size = UDim2.new(1, -16, 0, 470)
 	holder.Position = UDim2.fromOffset(8, 8)
 	grid.Parent = holder
 	holder.Parent = panel
@@ -113,11 +114,32 @@ function DevPanel.init()
 	add("Fill Awakening", function()
 		Net.send("DevCommand", "meter")
 	end)
+	local lootIdx = 1
+	add("Loot: " .. Config.Loot.order[1], function(b)
+		Net.send("DevCommand", "loot", lootIdx)
+		lootIdx = lootIdx % #Config.Loot.order + 1
+		b.Text = "Loot: " .. Config.Loot.order[lootIdx]
+	end)
+	add("+500 Renown", function()
+		Net.send("DevCommand", "renown", 500)
+	end)
+	add("+1000 Credits", function()
+		Net.send("DevCommand", "credits", 1000)
+	end)
+	add("+500 Dust", function()
+		Net.send("DevCommand", "dust", 500)
+	end)
+	add("Save now", function()
+		Net.send("DevCommand", "save")
+	end)
+	add("Wipe profile", function()
+		Net.send("DevCommand", "wipe")
+	end)
 
 	local stats = Kit.label({
 		Text = "waiting for server stats",
 		Size = UDim2.new(1, -16, 0, 100),
-		Position = UDim2.fromOffset(8, 362),
+		Position = UDim2.fromOffset(8, 482),
 		TextXAlignment = Enum.TextXAlignment.Left,
 		TextYAlignment = Enum.TextYAlignment.Top,
 		TextColor3 = Kit.color.paper,

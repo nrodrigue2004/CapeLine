@@ -61,6 +61,26 @@ local Remotes: { [string]: RemoteDef } = {
 		burst = 6,
 	},
 	DevStats = { dir = "S2C" },
+
+	-- Saves, gear and economy (spec: Profile.Sync, Gear.Equip, Gear.Upgrade, Gear.Salvage, Gear.Retune,
+	-- Style.Apply, Toast). Piece ids are numbers; the server checks ownership, level and the wallet.
+	ProfileSync = { dir = "S2C" }, -- ProfileSchema.clientView
+	Toast = { dir = "S2C" }, -- { id = "levelUp" | "reward" | "saveDown" | "secondWind" | "gear", ... }
+	LootDrop = { dir = "S2C" }, -- { piece, kind = "stashed" | "salvaged", dust }
+	CooldownCut = { dir = "S2C" }, -- ability num, seconds (Cooling Kill)
+	GearEquip = { dir = "C2S", schema = { n(0, 2 ^ 31), n(1, 8) }, rate = 4, burst = 6 }, -- piece id (0 = take off), slot
+	GearUpgrade = { dir = "C2S", schema = { n(1, 2 ^ 31) }, rate = 4, burst = 6 },
+	-- up to 20 piece ids; GearService checks each
+	GearSalvage = {
+		dir = "C2S",
+		schema = { { t = "intList", maxLen = 20, min = 1, max = 2 ^ 31 } },
+		rate = 1,
+		burst = 2,
+	},
+	GearRetune = { dir = "C2S", schema = { n(1, 2 ^ 31), n(1, 3) }, rate = 1, burst = 2 },
+	StyleApply = { dir = "C2S", schema = { n(1, 8), n(0, 511) }, rate = 4, burst = 6 }, -- slot, style (0 = the gear's own)
+	GadgetUse = { dir = "C2S", schema = { V3 }, rate = 2, burst = 2 }, -- aim direction
+	GadgetResult = { dir = "S2C" }, -- { kind, target, cd }
 }
 
 return Remotes

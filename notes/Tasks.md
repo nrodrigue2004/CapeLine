@@ -8,7 +8,7 @@ phones or Studio go on the Studio test list below.
 |---|---|---|---|---|
 | M1 | Move and fight slice | Leap, Glide, Flight with touch, PC and gamepad controls; Volt basic + 2 skills; clash hit feel; Spark Drone; greybox Downtown; 30-bot load test; Comic and Anime effect styles | 5 first-timers stop the first machine in 30 s with no help; 4 of 5 say flight and hits feel good on a phone; 30+ fps on a mid-range phone | Code-complete 2026-11-16 |
 | M2 | Classes, abilities, enemies | 4 classes with passives, 5 sets (Volt, Frost, Titan, Pulse, Blade) with 40 abilities in both styles, the super slot, Awakening, ranks, mods, power budget, 6 enemies, data tables | Every class solos a contract and has a clear role in a 4-player test; no loadout exceeds the budget | Code-complete 2026-11-16 |
-| M3 | Gear, loot, saves | 5 tiers, 8 slots, stats, drops and pity, salvage, upgrade, style collection, profile and migrations, levels and Renown | Drops match the table; a tester wears any look over any gear; rejoin restores everything | |
+| M3 | Gear, loot, saves | 5 tiers, 8 slots, stats, drops and pity, salvage, upgrade, style collection, profile and migrations, levels and Renown | Drops match the table; a tester wears any look over any gear; rejoin restores everything | Code-complete 2026-11-16 |
 | M4 | World generator, 30-player gate | Hub districts, seeded outskirts (2 zone types), weekly seed, streaming, presets, landmarks, safehouses, beacons, age questionnaire | Same seed gives the same hash on two servers; 30+ fps flying across the map on a phone; 30 bots hold the server frame | |
 | M5 | Destruction v1 | Chunker, 220 hub buildings with 3 states, debris, craters, vehicle flips, repair drones, citizens | 10 players wreck a block for 10 minutes with no server spike and 30+ fps on a phone; everything repairs | |
 | M6 | Incidents, contracts, events, boss | Incident spawner with 10 templates, 6 contract types, 6 random events, world boss with 2 bosses, contribution rewards | First boss within 8 minutes; boss rewards by tier; no idle wait over 5 s | |
@@ -26,6 +26,9 @@ phones or Studio go on the Studio test list below.
 - Snow Wall pieces, the Ice Slide ramp and the thrown crate in Lift and Throw: plain parts (CombatService). PLACEHOLDER ART.
 - Ability buttons show short names, not icons (Hud, LoadoutScreen). PLACEHOLDER ART.
 - Cast poses: no arm or body animation on the hero when casting yet.
+- Gear looks: all 31 gear styles (plus 5 set looks and the gilded Legendary look per slot) are blocks, balls, wedges and cylinders welded to the body (LookService). PLACEHOLDER ART until the M9 accessory meshes.
+- Gear, loot and toast screens: Kit placeholder look, text-only piece cards, no item icons (GearScreen, Toasts). PLACEHOLDER ART.
+- Gadget effects: smoke, decoy and shield drone are a plain disc or pop (GadgetClient); the decoy has no body. PLACEHOLDER ART.
 - Load bot bodies (LoadBots, Studio only).
 - Landing crack: dark disc instead of a crack decal (MoveFx).
 - Flight, leap and glide poses: the default avatar tilted along the travel direction; no custom animations yet (MoveController).
@@ -82,3 +85,25 @@ DEV panel now has: 3x robot (cycles all 6), Level 40, +10 Skill Pts, Fill Awaken
 13. Parry (Brace at rank 3 or the parry mod): a hit during the window ripostes.
 14. 30-bot load test again with mixed sets (bots now use all 5 sets): server frame and send rate stay inside the M1 numbers.
 15. The M2 "done when" checks: every class solos a contract and has a clear role in a 4-player test (contracts come in M6; until then, clear a street of mixed robots per class); no loadout exceeds the budget (also covered by tests).
+
+### M3 Gear, loot, saves
+Saves need a published place with Game Settings > Security > "Enable Studio Access to API Services" on. Without it (or in an unpublished place) profiles live in memory for the session and Output says so. Flight now opens at level 3 (DEV > Level +5 skips ahead). Ranks now cost Credits (DEV > +1000 Credits).
+1. Join: the HUD shows GS 0, a purple Renown bar ("RENOWN 0 / 100  NEXT LV 3: Flight"), CREDITS 0 and DUST 0 under POWERS, and a GEAR button. No errors in Output.
+2. DEV > +500 Renown: the bar fills, a LEVEL banner pops with what unlocked and "+1 Skill Point". At level 3 the FLY button appears.
+3. DEV > Loot: cycles the 8 drop sources (incident, contract, event, story, storyFinale, bossParticipant, bossContributor, bossMvp). Each press rolls that source at your level: a toast in the tier colour (Epic and Legendary pop bigger). An incident only drops 12% of the time. Below level 20 boss Epics come out Rare; MVP Legendaries need level 30.
+4. GEAR (I, or Select): STASH lists pieces best first, filtered by slot. Pick one: the card shows item level, budget, stats, set or perk text. EQUIP it: GS and the hero card change, health rises with Vitality, and the gear look appears on your hero (blocks and colours, PLACEHOLDER). Other players see it too (2-player test).
+5. A piece above your level + 5 refuses with "Your level is too low". A hands piece only goes in Hands.
+6. UPGRADE (DEV > +500 Dust first): +1 costs 12 on a Common; the name shows +1 and stats rise 4% a step; +10 stops.
+7. RETUNE a bonus stat (DEV > +1000 Credits): the stat changes, the value stays, locked after 3.
+8. SALVAGE: refused while worn ("Take it off before salvaging"); otherwise Dust goes up. SALVAGE UNWORN COMMONS clears up to 20 at once. The style stays unlocked in STYLES.
+9. STYLES: pick a slot tab; unlocked styles light up, locked ones say "Loot a piece with this style". Show any unlocked style over any gear in that slot; SHOW MY GEAR'S OWN LOOK goes back. (Done-when check: a tester wears any look over any gear.)
+10. LOOT INFO lists every source's odds, the pity rules and your own pity counters.
+11. Sets: wear 2 Epic pieces of one set (Stormcaller etc.): that power set hits 8% harder. 4 pieces: the ability change (Chain Lightning hits 5, Frost Nova shields allies, Ground Slam leaves a shockwave, Float heals allies near the target, Parry ripostes heal).
+12. Perks (DEV > Level 40, then Loot: bossMvp until a Legendary): Quakeheel shockwave on a 30+ stud landing; Cooling Kill takes 20% off the super's cooldown sweep on a kill; Second Wind saves you once per 5 minutes (God OFF); Echo Trail hurts robots you fly fast past; Lucky Strike crits every 8th hit; Shared Spark raises a nearby ally's Power (2 players).
+13. Gadgets: loot until a gadget drops (about 1 in 16), equip it in Gadget; a GADGET button (Z, R3) appears with its cooldown sweep. Grappling Hook pulls you to what the camera points at within 90 studs (never snaps back); Smoke Bomb makes nearby robots lose you; Shield Drone gives a shield bar; Decoy pulls robots off you for 5 s.
+14. POWERS: RANK UP shows points and Credits; with no Credits it says "Not enough Credits". RESPEC refunds the Credits (they show as banked in GEAR).
+15. Rejoin (published place with API access): level, Renown, Credits, Dust, stash, worn gear, styles shown, ranks, mods, loadouts, Comic/Anime choice and the respec timer all come back. (Done-when check.)
+16. Two servers: join a second server with the same account while the first is still open; the second waits and then asks you to rejoin, never loading a stale copy. (Spec: a second server cannot open the same profile.)
+17. Crash test: play 3 minutes, note the Renown, then stop the server from Studio without leaving (or kill the test server). Rejoin: at most 120 s of progress is lost. (Spec check.)
+18. DEV > Wipe profile starts over at level 1 with nothing; DEV > Save now prints true.
+19. The M3 "done when" checks: drops match the table (tests check 10,000 rolls per source); a tester wears any look over any gear (item 9); rejoin restores everything (item 15).

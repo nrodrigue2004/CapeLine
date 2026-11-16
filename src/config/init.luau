@@ -19,6 +19,10 @@ local NAMES = {
 	"Ui",
 	"Dev",
 	"Places",
+	"Gear",
+	"Loot",
+	"Economy",
+	"Data",
 }
 
 local Config: { [string]: any } = {}

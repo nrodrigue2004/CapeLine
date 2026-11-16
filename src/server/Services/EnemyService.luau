@@ -49,6 +49,14 @@ function EnemyService.applyStatus(id: number, kind: string, duration: number, op
 	return EnemySim.applyStatus(sim, id, kind, duration, opts)
 end
 
+-- Lose track of a hero (Smoke Bomb): the machine drops it as a target
+function EnemyService.forget(id: number, heroId: number)
+	local e = sim and sim.byId[id]
+	if e and e.target == heroId then
+		e.target = nil
+	end
+end
+
 function EnemyService.knock(id: number, dir: Vector3, distance: number): boolean
 	return EnemySim.knock(sim, id, dir.X, dir.Z, distance)
 end
