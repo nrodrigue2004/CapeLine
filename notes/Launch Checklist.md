@@ -18,7 +18,12 @@
 - [ ] M10 Roblox's current accessibility and photosensitivity guidance: Reduce flashing is in Settings; confirm nothing flashes faster than 3 times a second with it on.
 - [ ] M11 sound ids: put a licence-checked Creator Store id in `asset` for each of the 32 rows in Config.Audio.sounds (the built-in fallbacks are placeholders), the 4 music tracks in Config.Audio.music (patrol day, patrol night, boss, victory sting) and the 24 voice clips in Config.Shop.voiceSounds; then run the M11 Studio list again.
 - [ ] M11 the 8-tester, 30-minute session: no "[Capeline] idle wait" line over 5 s in the Output.
-- [ ] Thumbnails, icon, description (M12).
+- [ ] M12 icon (3 variants), 3 thumbnails, concept art and the description from notes/Store Page.md; pick the image tool and check its licence allows commercial use.
+- [ ] M12 the playtest week (notes/Playtest Kit.md): 20 testers, private place, no crash report in one week; write each session in notes/Build Log.md.
+- [ ] M12 Creator Dashboard: confirm the custom events and the 5 funnels show (Onboarding, Combat, PvP, Story, Purchase) a day after the first testers.
+- [ ] M12 verify Roblox's current AnalyticsService limits (custom event names, events per server per minute, custom field values) against Config.Analytics.budget and the 34 event names in Shared.AnalyticsSchema.
+- [ ] M12 balance call: the economy numbers the M9 sim could not all meet (Decisions 2026-11-16 M12 balance); keep or change before the quiet launch.
+- [ ] M12 soft launch (notes/Soft Launch Plan.md): quiet public launch first, no ad spend without a budget nate approves; the kill-or-scale decision at 8 weeks live.
 - [ ] Private server price.
 - [ ] Re-check Roblox rules (PvP, free-form creation, rewarded video ads) before launch.
 - [ ] M8 sounds: Downed heartbeat, revive chime, PvP flag horn, overload spark crackle, Crater warning alarm, ping blips (licences checked).

@@ -17,7 +17,7 @@ phones or Studio go on the Studio test list below.
 | M9 | Creator, HQ, shop, passes | Creator with the 116 spec pieces plus the anime pieces and the Comic/Anime pick, 2 HQs, Gizmo's shop, Robux shop, passes, slots, Legacy | A tester makes a hero in under 3 minutes; test purchases grant once; looks show to others | Code-complete 2026-11-16 (economy sim gate met for the median level; see Decisions) |
 | M10 | UI and phone pass | All screens, settings, accessibility, presets, map, squad | Every screen has loading, empty and error states; device matrix passes | Code-complete 2026-11-16 (device matrix on the Studio list) |
 | M11 | Juice, audio, wait fillers | Juice table, sounds, music, offline drones, downed polish, friend boost, Photo Mode | No idle wait over 5 s in a 30-minute session with 8 testers; every action has a sound and visual | Code-complete 2026-11-16 (the 8-tester gate and real sound ids are on the Studio list and Launch Checklist) |
-| M12 | Test and launch prep | Playtests, balance, thumbnails, icon, analytics, soft launch plan | 20 testers play with no crash reports in one session week; analytics visible | |
+| M12 | Test and launch prep | Playtests, balance, thumbnails, icon, analytics, soft launch plan | 20 testers play with no crash reports in one session week; analytics visible | Code-complete 2026-11-16 (analytics wired; the playtest week, art and launch need nate: Playtest Kit, Store Page, Soft Launch Plan) |
 
 ## Placeholder art and animation (replace before launch)
 - City: Downtown greybox boxes, window bands and rooftop props (CityBuilder). PLACEHOLDER ART.
@@ -52,6 +52,7 @@ phones or Studio go on the Studio test list below.
 - M11 sounds: every juice sound is one of Roblox's built-in client sounds (rbxasset://sounds: swoosh, jump land, falling, get up, ping, button, click) pitched per action; music loops and voice clips are silent (asset 0) (Config.Audio, Config.Shop.voiceSounds). PLACEHOLDER SOUND until nate picks licence-checked Creator Store ids.
 - M11 juice visuals: coin burst, medal and NEW stamps, the level badge, tier beams, fireworks, confetti, the shield ring and dazed stars are neon parts and Kit frames (JuiceFx); Photo Mode backdrops are Kit frames and colour grades (PhotoMode); the photo poses are joint angles (EmoteFx). PLACEHOLDER ART until the art pass.
 - M10 screens: Settings, the squad list, panel and invite card, the radar (Kit shapes and glyphs: circle, diamond, triangle, square, star), the ping wheel, the settings gear and the main menu are Kit placeholder looks (SettingsMenu, SquadHud, Radar, Shapes, Hud, MainMenu). PLACEHOLDER ART until the art pass. The squad emblem is a text glyph.
+- Store page (M12): no icon, thumbnails or concept art yet; briefs in notes/Store Page.md (generated and hand-cleaned, nate approves each).
 
 ## Studio test list (needs nate's PC)
 Start: `rojo serve`, connect the Rojo plugin, press Play (or Test > Clients and Servers with 2 players). The DEV button (top right, Studio only) has the test tools.
@@ -154,6 +155,21 @@ Hub buildings: 220 (all of Downtown, 6 Docks warehouses, 122 Old Town houses). D
 9. Join late: a second player who joins after buildings fell sees the same Damaged and Collapsed buildings and rubble at once (no collapse replays) and any drone already working.
 10. Streaming: fly away from wrecked buildings and come back: they still look wrecked, with no leftover floating chunks.
 11. Gate: 10 players (or you plus 9 bots and a friend) wreck one block for 10 minutes: the Dev panel's server frame stays under 16 ms and the "buildings", "citizens" and "wrecked" counters behave; a mid-range phone on the low preset holds 30+ fps during collapses. After the drones finish, everything is back.
+
+### M12 Test and launch prep
+The playtest week itself is in notes/Playtest Kit.md (42 checks). These prove the M12 code in Studio first. In Studio every analytics event prints as `[Analytics] name value fields` in the Output.
+1. Join: the Output shows `[Analytics] session_start 1 pc new hero` (or returning) within 20 s; a brand-new save also logs the Opening step (no print for steps; check the Dev panel's analytics count goes up).
+2. Opening: play it through: first_leap, first_catch, first_blast, choice_made (shardfall save or grab) print in order; creator_done prints with class, side and set when you press DONE.
+3. Combat: cast skills for a minute: about 1 in 5 casts prints skill_cast. Rank a skill (skill_rank), save a loadout at a safehouse, equip and upgrade a gear piece (gear_upgrade with tier, level, dust); every robot drop prints gear_drop.
+4. World: clear an incident (incident_done with the template, medal and helpers), finish a contract (contract_done), fast travel and skip the flight (fast_travel ... 1), join the boss (boss_join) and finish it (boss_done with tier and win or fail).
+5. PvP (2 players, level 10+): flag on and off (flag_on, flag_off with city or crater), hit each other (pvp_hit once per session), win (pvp_win); go Downed and get revived (downed N revived) or give up (downed N gave_up, then defeat pve).
+6. Story and squads: enter a mission (mission_start), finish it (mission_done with seconds); answer a choice (choice_pick); join a squad (squad_join); change a setting (setting_change preset 2); take a photo (photo comic).
+7. Shop: open the shop, tap a few cards, press BUY on a Studio test item: purchase prints with the item and Robux.
+8. Leave: stop the test: `leave N idle` (or boss, pvp, downed, mission).
+9. Dev panel: "analytics events N sent, 0 over budget", "perf sample on (median/p5 fps)" after a minute in Studio, "server script errors 0".
+10. Rejoin the next day on the same save with Studio API access: no second session_start "new"; after 24 to 48 hours the d1_return step logs once.
+11. Creator Dashboard (published private place, a day after testers): Analytics shows the custom events and the Onboarding, Combat, PvP, Story and Purchase funnels (the M12 "analytics visible" gate).
+12. The playtest week: 20 testers, no crash report (Playtest Kit), results in notes/Build Log.md.
 
 ### M11 Juice, audio and wait fillers
 Sounds are built-in placeholders (listen for each one, not for quality). Dev panel stats now show "idle waits >5 s". Use Test > Clients and Servers with 2 players for the clash and voice checks.

@@ -4486,7 +4486,14 @@ test("M12: events are checked: unknown names refused, fields cut to short safe c
 	ok = AnalyticsSchema.check("leave", nil)
 	check(ok, "no fields is fine")
 	local A = Config.Analytics
-	check(A.castSample > 0 and A.castSample <= 0.05, "skill casts are sampled")
+	check(A.castSample > 0 and A.castSample <= 0.2, "skill casts are sampled at 20% or less (spec)")
+	check(
+		A.budget.base > 0 and A.budget.lowShare < 1,
+		"a per-minute budget with busy events giving way first"
+	)
+	for name in A.lowPriority do
+		check(AnalyticsSchema.EVENTS[name] ~= nil, "low-priority event exists: " .. name)
+	end
 	check(A.perfSample == 0.1 and A.perfEvery == 60, "perf: 10% of devices, every 60 s (spec)")
 	local r = Remotes.Telemetry
 	check(r ~= nil and r.dir == "C2S" and r.rate ~= nil, "Telemetry remote is rate limited")

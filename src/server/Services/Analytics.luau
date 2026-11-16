@@ -25,6 +25,8 @@ local Analytics = {}
 
 Analytics.logToOutput = RunService:IsStudio() -- Studio playtests print each event to the Output
 Analytics.count = 0 -- events sent this server (Dev panel)
+Analytics.dropped = 0 -- events skipped by the per-minute budget (Dev panel)
+local minuteAt, minuteCount = 0, 0
 
 local service: AnalyticsService? = nil
 local sessions: { [Player]: { [string]: string } } = {}
@@ -53,6 +55,18 @@ function Analytics.event(player: Player, name: string, value: number?, fields: {
 	if player.Parent ~= Players then
 		return
 	end
+	-- the per-minute budget: busy events give way first, so the funnels and rare events always get through
+	local now = os.clock()
+	if now - minuteAt >= 60 then
+		minuteAt, minuteCount = now, 0
+	end
+	local cap = Config.Analytics.budget.base + Config.Analytics.budget.perPlayer * #Players:GetPlayers()
+	local low = Config.Analytics.lowPriority[name]
+	if minuteCount >= cap or (low and minuteCount >= cap * Config.Analytics.budget.lowShare) then
+		Analytics.dropped += 1
+		return
+	end
+	minuteCount += 1
 	local ok, clean = AnalyticsSchema.check(name, fields)
 	if not ok then
 		if RunService:IsStudio() then

@@ -304,7 +304,7 @@ function DevPanel.init()
 		end
 		table.sort(parts)
 		stats.Text = string.format(
-			"server frame %.1f ms (worst %.1f)\nscripts ms avg/worst: %s\nenemies %s  ai %s  bots %s  players %d\nsend %.0f kbps  mem %.0f MB\nclient %.0f fps  preset %s\nidle waits >5 s: server %s\nanalytics events %s  perf sample %s (%d/%d fps)",
+			"server frame %.1f ms (worst %.1f)\nscripts ms avg/worst: %s\nenemies %s  ai %s  bots %s  players %d\nsend %.0f kbps  mem %.0f MB\nclient %.0f fps  preset %s\nidle waits >5 s: server %s\nanalytics events %s  perf sample %s (%d/%d fps)\nserver script errors %s",
 			r.frameMs,
 			r.frameWorstMs,
 			table.concat(parts, ", "),
@@ -320,7 +320,8 @@ function DevPanel.init()
 			tostring(r.extra.analytics),
 			if Telemetry.sampled then "on" else "off",
 			Telemetry.lastMedian,
-			Telemetry.lastP5
+			Telemetry.lastP5,
+			tostring(r.extra.errors)
 		)
 	end)
 end

@@ -70,11 +70,20 @@ local idleWaits, idleLongest = 0, 0
 PerfMonitor.watch("idle>5s", function()
 	return string.format("%d (longest %.1f s)", idleWaits, idleLongest)
 end)
+-- M12 soak: server script errors this session (the playtest gate is no crash reports in a week); the
+-- Creator Dashboard's Error report has the client side
+local scriptErrors = 0
+PerfMonitor.watch("errors", function()
+	return scriptErrors
+end)
 PerfMonitor.watch("analytics", function()
-	return Analytics.count -- M12: analytics events sent by this server
+	return string.format("%d sent, %d over budget", Analytics.count, Analytics.dropped) -- M12
 end)
 
 function PerfMonitor.init()
+	game:GetService("ScriptContext").Error:Connect(function()
+		scriptErrors += 1
+	end)
 	Net.on("IdleReport", function(player, seconds: number, why: number)
 		idleWaits += 1
 		idleLongest = math.max(idleLongest, seconds)

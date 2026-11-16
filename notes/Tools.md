@@ -76,3 +76,10 @@ record the source here. Status: Using / Recommended (milestone) / Paid (ask nate
 - Free SFX sites (Kenney.nl CC0 audio packs, freesound.org CC0 only, Sonniss GDC bundles royalty-free): Recommended if the Creator Store lacks a sound; upload needs nate's account (audio upload counts against Roblox's monthly limits).
 - Generated voice lines (any TTS or AI voice tool): Possible for the 4 voice packs (24 clips); needs nate's OK and a licence check for commercial use. Not used yet.
 - Particle and juice libraries on GitHub (ForeverHD's Zone and similar; Roblox "Spring" modules, MIT): Skipped. JuiceFx is a few tweens; a library adds weight without new feel.
+
+## M12 Test and launch prep
+- Roblox AnalyticsService (built in: LogCustomEvent, LogFunnelStepEvent, LogOnboardingFunnelStepEvent): Used. Free, shows in the Creator Dashboard, hashes user ids; no outside analytics service is needed (same as Ragdoll Rides). Pattern ported from Ragdoll Rides.
+- Third-party analytics (GameAnalytics Roblox SDK, MIT; PlayFab): Skipped for launch. The Dashboard covers the spec's funnels and KPIs; GameAnalytics adds cohorts and A/B tests and could come later, but it sends player data to an outside service, which needs nate's OK and a privacy review.
+- Roblox experience icon and thumbnail A/B testing (Creator Dashboard, built in): Recommended for the 3 icon variants once art exists (verify it is available for the experience).
+- Image generation for the icon, thumbnails and concept art (any tool nate picks): Needed; check the tool's licence allows commercial use and note it here. Not used yet.
+- Playtest tools (Roblox private servers, Studio Team Test, the Creator Dashboard Error report): Used by the Playtest Kit; all built in and free.
