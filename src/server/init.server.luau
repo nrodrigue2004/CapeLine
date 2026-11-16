@@ -68,55 +68,69 @@ local DevService = require(Services.DevService)
 
 print(string.format("[Capeline] boot, balance %d, build %s", Config.Version.balance, Config.Version.build))
 local t0 = os.clock()
-CityBuilder.build()
--- Characters load only once the hub and its spawn pads exist (the place starts with CharacterAutoLoads off),
--- so nobody spawns over an empty world and falls
+-- Each step runs on its own: one failing service is reported (in Studio, on screen) and the rest still
+-- start, so a single bug never leaves an empty world
+local function boot(name: string, fn: (...any) -> ...any, ...: any)
+	local ok, err = xpcall(fn, debug.traceback, ...)
+	if not ok then
+		local text = string.format("[Capeline] %s failed to start: %s", name, tostring(err))
+		warn(text)
+		local log = ReplicatedStorage:FindFirstChild("ServerErrors") :: StringValue?
+		if log then
+			log.Value = string.sub(log.Value .. text .. "\n", -3000)
+		end
+	end
+end
+
+boot("CityBuilder", CityBuilder.build)
+Net.initServer()
+boot("PerfMonitor", PerfMonitor.init)
+boot("HeroService", HeroService.init)
+boot("MoveGuard", MoveGuard.init)
+boot("EnemyService", EnemyService.init, CityBuilder.heightAt)
+boot("CombatService", CombatService.init)
+boot("AbilityService", AbilityService.init)
+boot("EconomyService", EconomyService.init)
+boot("GearService", GearService.init)
+boot("PerkService", PerkService.init)
+boot("SafehouseService", SafehouseService.init)
+boot("BeaconService", BeaconService.init)
+boot("BuildingService", BuildingService.init)
+boot("VehicleService", VehicleService.init)
+boot("CitizenService", CitizenService.init)
+boot("SiteKit", SiteKit.init)
+boot("IncidentService", IncidentService.init)
+boot("ContractService", ContractService.init)
+boot("EventService", EventService.init)
+boot("BossService", BossService.init)
+boot("ClockService", ClockService.init)
+boot("StoryService", StoryService.init)
+boot("OpeningService", OpeningService.init)
+boot("MissionService", MissionService.init)
+boot("QuestService", QuestService.init)
+boot("FlagService", FlagService.init)
+boot("FameService", FameService.init)
+boot("GuardService", GuardService.init)
+boot("DeathService", DeathService.init)
+boot("CreatorService", CreatorService.init)
+boot("HqService", HqService.init)
+boot("ShopService", ShopService.init)
+boot("PurchaseService", PurchaseService.init)
+boot("SettingsService", SettingsService.init)
+boot("SquadService", SquadService.init)
+boot("Analytics", Analytics.init)
+boot("AnalyticsHooks", AnalyticsHooks.init)
+boot("DataService", DataService.init) -- last of the game services: profile loads fire into the handlers above
+boot("LoadBots", LoadBots.init)
+boot("DevService", DevService.init)
+-- Characters load only once the world and every service are up (the place starts with CharacterAutoLoads
+-- off), so nobody spawns over an empty world and falls
 Players.CharacterAutoLoads = true
 for _, player in Players:GetPlayers() do
 	if not player.Character then
 		task.spawn(pcall, player.LoadCharacter, player)
 	end
 end
-Net.initServer()
-PerfMonitor.init()
-HeroService.init()
-MoveGuard.init()
-EnemyService.init(CityBuilder.heightAt)
-CombatService.init()
-AbilityService.init()
-EconomyService.init()
-GearService.init()
-PerkService.init()
-SafehouseService.init()
-BeaconService.init()
-BuildingService.init()
-VehicleService.init()
-CitizenService.init()
-SiteKit.init()
-IncidentService.init()
-ContractService.init()
-EventService.init()
-BossService.init()
-ClockService.init()
-StoryService.init()
-OpeningService.init()
-MissionService.init()
-QuestService.init()
-FlagService.init()
-FameService.init()
-GuardService.init()
-DeathService.init()
-CreatorService.init()
-HqService.init()
-ShopService.init()
-PurchaseService.init()
-SettingsService.init()
-SquadService.init()
-Analytics.init()
-AnalyticsHooks.init()
-DataService.init() -- last of the game services: profile loads fire into the handlers above
-LoadBots.init()
-DevService.init()
 print(
 	string.format(
 		"[Capeline] hub ready in %.2f s (%d parts; the outskirts build in the background)",

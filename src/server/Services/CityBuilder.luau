@@ -149,7 +149,11 @@ local function buildHub(world: any, folder: Folder)
 				m = Instance.new("Model")
 				m.Name = "Block_" .. key
 				m.ModelStreamingMode = Enum.ModelStreamingMode.Atomic
-				m.LevelOfDetail = Enum.ModelLevelOfDetail.StreamingMesh -- the skyline stays visible far away
+				-- the skyline stays visible far away; some Studio builds refuse this write from a script, and a
+				-- refusal must never stop the city from building
+				pcall(function()
+					m.LevelOfDetail = Enum.ModelLevelOfDetail.StreamingMesh
+				end)
 				m.Parent = hub
 				chunks[key] = m
 			end
