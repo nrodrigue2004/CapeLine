@@ -4873,6 +4873,21 @@ if placePath then
 		local game = roblox.deserializePlace(fs.readFile(placePath))
 		local rs = game:GetService("ReplicatedStorage")
 		check(rs:FindFirstChild("Config") ~= nil, "ReplicatedStorage.Config")
+		-- the Blender robot meshes (art/models/Robots.rbxm), uploaded and mapped in by Rojo
+		local art = rs:FindFirstChild("Art")
+		local robots = art and art:FindFirstChild("Robots")
+		check(robots ~= nil, "ReplicatedStorage.Art.Robots")
+		if robots then
+			local Fit = Config.ArtFit
+			for name in Fit.fit do
+				local m = robots:FindFirstChild(name, true)
+				check(m ~= nil and m:IsA("MeshPart"), "Art mesh " .. name)
+				check(
+					m ~= nil and string.match(m.MeshId, "^rbxassetid://%d+$") ~= nil,
+					"Art mesh " .. name .. " is uploaded"
+				)
+			end
+		end
 		local shared = rs:FindFirstChild("Shared")
 		for _, name in
 			{

@@ -8,7 +8,11 @@
     },
     "ReplicatedStorage": {
       "Config": { "$path": "src/config" },
-      "Shared": { "$path": "src/shared" }
+      "Shared": { "$path": "src/shared" },
+      "Art": {
+        "$className": "Folder",
+        "Robots": { "$path": "art/models/Robots.rbxm" }
+      }
     },
     "ServerScriptService": {
       "Server": { "$path": "src/server" }

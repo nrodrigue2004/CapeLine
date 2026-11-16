@@ -23,7 +23,7 @@ phones or Studio go on the Studio test list below.
 - City: Downtown greybox boxes, window bands and rooftop props (CityBuilder). PLACEHOLDER ART.
 - World (M4): the Docks, Old Town, hub filler blocks, all 32 outskirts tile variants (houses, shops, parks, farms, coast), the 3 landmarks, safehouses, beacons, the sand and the ocean are simple parts (Districts, WorldGen, WorldMap). Balls stand in for leaves, domes and dunes. PLACEHOLDER ART until the M5 kit.
 - Map screen: flat coloured squares for zones, districts and landmarks; no tile detail (MapScreen). Fast-travel flight is a camera sweep with the hero left standing (TravelClient). PLACEHOLDER ART until M10.
-- Robot bodies: all 9 humanoid robots are built from blocks and cylinders with a code-driven walk, aim and windup pose (EnemyRenderer). PLACEHOLDER ART until nate imports the Blender meshes (art/export/Robots.fbx, steps under "Blender robot meshes"); the animations stay code-driven.
+- Robot bodies: Blender meshes since 2026-11-16 (art/models/Robots.rbxm); the walk, aim and windup poses are still code-driven. PLACEHOLDER animation until real animations.
 - Ability visuals for all 40 powers: neon parts, beams and rings (CombatFx, AuraFx). PLACEHOLDER ART until particle textures and the icon set.
 - Snow Wall pieces, the Ice Slide ramp and the thrown crate in Lift and Throw: plain parts (CombatService). PLACEHOLDER ART.
 - Ability buttons show short names, not icons (Hud, LoadoutScreen). PLACEHOLDER ART.
@@ -181,7 +181,8 @@ DEV panel: spawn robots with the "3x" button (it cycles through the 6 kinds) and
 
 ### Blender robot meshes (2026-11-16)
 The robots can use real meshes made in Blender (art/blender/robots.py builds them; art/export/Robots.fbx is the file). Until they are imported the robots stay plain parts, so nothing breaks.
-Import (nate, once; redo whenever Robots.fbx changes):
+DONE 2026-11-16: Claude imported them on nate's PC (uploaded to his account) and pulled the model into the repo (art/models/Robots.rbxm, mapped to ReplicatedStorage.Art by Rojo), so every build has the meshes. Redo steps 1 to 3 only when Robots.fbx changes, then Claude pulls the new model in.
+Import (when Robots.fbx changes):
 1. Studio: Home > Import 3D, pick `art/export/Robots.fbx` (from project files: capeline/Robots.fbx). In the importer turn OFF "Import as a single mesh" and leave rig settings off. Import.
 2. A model with 38 MeshParts appears (Spine, Ribs, ChestL, FaceL, Hair, ShLowerL and so on). Rename the model `Robots`.
 3. In ReplicatedStorage add a Folder named `Art` and drag `Robots` into it. Optional: select all the MeshParts and set CollisionFidelity to Box (smaller and faster; the robots never collide).

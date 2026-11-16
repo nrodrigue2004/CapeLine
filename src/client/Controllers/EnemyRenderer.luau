@@ -9,9 +9,9 @@
 -- raised slam on a windup, a tumble when knocked up, a wobble when stunned, and see-through while cloaked.
 -- Status flags from the server tint and mark the body: ice blue when slowed or rooted, a spinning ring when
 -- stunned, a bubble or a guard plate when shielded.
--- Art: when the Blender robot meshes are in ReplicatedStorage.Art.Robots (art/blender/robots.py, imported in
--- Studio), each piece is a clone of its mesh sized by Config.ArtFit; a piece with no mesh stays a plain part.
--- PLACEHOLDER ART until nate imports the meshes; real animations come with the art pass.
+-- Art: the Blender robot meshes are in ReplicatedStorage.Art.Robots (art/blender/robots.py, uploaded by nate,
+-- art/models/Robots.rbxm mapped by Rojo): each piece is a clone of its mesh sized by Config.ArtFit; a piece with
+-- no mesh stays a plain part. The animations are still posed in code (PLACEHOLDER until real animations).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
