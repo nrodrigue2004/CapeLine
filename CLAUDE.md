@@ -19,6 +19,7 @@ Read this first. Keep it short. Quality comes first; efficiency never means lowe
 - `notes/Tasks.md`: milestones in order with their "done when" checks, plus the Studio test list (what needs nate's PC).
 - `notes/Decisions.md`: every design or technical decision, one line each with the date. Check it before changing direction.
 - `notes/Working Agreement.md`: how nate wants the work done.
+- `notes/Team Workflow.md`: how nate and his partner work at the same time (GitHub, Rojo, Team Create rules).
 - `notes/Launch Checklist.md`: what nate does before going public (ids, sounds, art, rules).
 - `notes/Tools.md`: third-party libraries, plugins and MCPs reviewed for this game, with licenses.
 - Launch notes (M12): `notes/Playtest Kit.md` (the playtest week and the 42 spec checks), `notes/Store Page.md` (icon, thumbnails, description), `notes/Soft Launch Plan.md` (KPIs, weekly routine, kill-or-scale), `notes/Build Log.md` (one line per playtest).
