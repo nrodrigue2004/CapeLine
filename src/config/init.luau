@@ -31,6 +31,9 @@ local NAMES = {
 	"Boss",
 	"Story",
 	"Pvp",
+	"Creator",
+	"Shop",
+	"Hq",
 }
 
 local Config: { [string]: any } = {}

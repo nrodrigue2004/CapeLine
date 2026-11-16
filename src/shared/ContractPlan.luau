@@ -112,9 +112,10 @@ function ContractPlan.pay(
 	local e = Config.Economy.earn.contract
 	local b = Config.Economy.bonus
 	local mult = if doneToday < b.firstContracts then b.firstContractMult else 1
-	local credits = (t.credits[1] + t.credits[2] * level) * mult
+	local scale = Config.Economy.scale
+	local credits = (t.credits[1] + t.credits[2] * level) * mult * scale.credits
 	local rr = t.renown or e.renown
-	local renown = (rr[1] + rr[2] * level) * mult
+	local renown = (rr[1] + rr[2] * level) * mult * scale.renown
 	return math.floor(credits + 0.5), math.floor(renown + 0.5), mult
 end
 

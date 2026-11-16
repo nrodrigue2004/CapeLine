@@ -9,10 +9,12 @@
 
 local ProfileSchema = {}
 
-ProfileSchema.VERSION = 3
+ProfileSchema.VERSION = 4
 ProfileSchema.SLOTS = 8
 ProfileSchema.STYLE_WORDS = 16 -- 512 bits
 ProfileSchema.SMALL_WORDS = 4 -- 128 bits for emotes, titles, Rogues File pages, seen flags
+ProfileSchema.PIECE_WORDS = 8 -- 256 bits: creator pieces unlocked (M9)
+ProfileSchema.LOOK_WORDS = 8 -- a 32-byte look record (LookCodec)
 
 local function words(n: number): { number }
 	local t = table.create(n, 0)
@@ -80,12 +82,20 @@ function ProfileSchema.newCharacter(side: string?, classId: string?): { [string]
 		fxStyle = "Comic",
 		equipment = words(ProfileSchema.SLOTS), -- piece ids, 0 = empty
 		shown = words(ProfileSchema.SLOTS), -- style shown over the slot, 0 = the worn piece's own
-		looks = {}, -- creator looks (M9)
+		-- the creator (M9): look is a 32-byte LookCodec record (all 0 = the default look); looks are the saved
+		-- looks on the HQ mannequins (up to 4); titleId and nounId name the hero ("Storm Falcon"); created is 1
+		-- once the creator's Done was pressed; startSet is the creator's starting set (Volt or Blade)
+		look = words(ProfileSchema.LOOK_WORDS),
+		looks = {},
 		titleId = 0,
 		nounId = 0,
+		created = 0,
+		startSet = "Volt",
+		tint = 0, -- an owned effect colour (Config.Shop.tints), 0 = the set's own
+		landing = 0, -- an owned landing pose (emote bit 20 to 31), 0 = none
 		fame = 0,
 		rep = { 0, 0, 0 },
-		hq = { level = 1 },
+		hq = { level = 1, trophies = {}, droneAt = 0 }, -- droneAt: os.time() of the last leave (offline drones)
 		legacy = 0,
 		-- story (M7): opening 1 once the playable disaster is done; missions: first clears (bit n - 1);
 		-- choices: option picked per Act 1 choice (0 = not yet); quests: per side quest arc, 0 not started,
@@ -126,11 +136,24 @@ function ProfileSchema.default(): { [string]: any }
 		pity = { epic = 0, legendary = 0 },
 		characters = { ProfileSchema.newCharacter() },
 		active = 1,
-		purchases = { passes = {}, receipts = {} },
+		purchases = { passes = {}, receipts = {}, slots = 0, tints = 0 }, -- slots, tints: a bit per slot or tint
+		pieces = words(ProfileSchema.PIECE_WORDS), -- creator pieces unlocked (CreatorRules ids)
+		legends = {}, -- the Hall of Legends: retired heroes' statues (HqRules.retire)
+		bosses = { 0, 0 }, -- best world boss reward tier per boss (Config.Boss.order): 1 joined, 2, 3 MVP
+		shop = { starterSeen = 0 }, -- the starter pack offer was shown (once)
 		settings = { preset = 0, textSize = 1, leftHanded = false, reduceFlashing = false },
 		daily = { day = 0, contractsDone = 0 },
 		seen = words(ProfileSchema.SMALL_WORDS),
-		stats = { playSeconds = 0, bossesJoined = 0, rescues = 0, wins = 0, kills = 0, drops = 0 },
+		stats = {
+			playSeconds = 0,
+			bossesJoined = 0,
+			rescues = 0,
+			wins = 0,
+			kills = 0,
+			drops = 0,
+			contracts = 0,
+			mvps = 0,
+		},
 		guard = { kicks = 0, reviewed = 0 }, -- M8: safety kicks on this account (review queue after 2); never a ban
 	}
 end
@@ -168,6 +191,10 @@ local MIGRATIONS: { [number]: (any) -> () } = {
 			end
 		end
 	end,
+	[4] = function(_p)
+		-- M9: the creator, HQ, shop and Legacy fields start empty (repair() adds them); a hero made before the
+		-- creator keeps created = 0, so the creator opens once on its next join to pick a name and look
+	end,
 }
 ProfileSchema.MIGRATIONS = MIGRATIONS
 
@@ -204,6 +231,27 @@ local function fill(target: any, template: any)
 			target[k] = v
 		end
 	end
+end
+
+-- A list of whole numbers in [lo, hi], at most n long (pad: exactly n, missing ones 0)
+local function cleanNumbers(list: any, n: number, lo: number, hi: number, pad: boolean?): { number }
+	local out = {}
+	if type(list) == "table" then
+		for i = 1, n do
+			local v = list[i]
+			if type(v) == "number" and v == v and v >= lo and v <= hi then
+				table.insert(out, math.floor(v))
+			elseif pad then
+				table.insert(out, 0)
+			end
+		end
+	end
+	if pad then
+		for i = #out + 1, n do
+			out[i] = 0
+		end
+	end
+	return out
 end
 
 local function cleanPiece(p: any, maxId: number): any?
@@ -273,6 +321,26 @@ local function repair(p: any): any
 				if c.fxStyle ~= "Comic" and c.fxStyle ~= "Anime" then
 					c.fxStyle = "Comic"
 				end
+				c.titleId = num(c.titleId, 0, 64, 0)
+				c.nounId = num(c.nounId, 0, 64, 0)
+				c.created = num(c.created, 0, 1, 0)
+				c.legacy = num(c.legacy, 0, 255, 0)
+				c.tint = num(c.tint, 0, 31, 0)
+				c.landing = num(c.landing, 0, 31, 0)
+				c.fame = num(c.fame, 0, 2 ^ 31, 0)
+				if c.startSet ~= "Volt" and c.startSet ~= "Blade" then
+					c.startSet = "Volt"
+				end
+				c.hq.level = num(c.hq.level, 1, 6, 1)
+				c.hq.droneAt = num(c.hq.droneAt, 0, 2 ^ 40, 0)
+				c.hq.trophies = cleanNumbers(c.hq.trophies, 12, 1, 64)
+				local looks = {}
+				for _, l in c.looks do
+					if type(l) == "table" and #looks < 4 then
+						table.insert(looks, cleanNumbers(l, ProfileSchema.LOOK_WORDS, 0, 2 ^ 32 - 1, true))
+					end
+				end
+				c.looks = looks
 				for id, r in c.ranks do
 					if type(id) ~= "string" or type(r) ~= "number" then
 						c.ranks[id] = nil
@@ -326,6 +394,42 @@ local function repair(p: any): any
 	p.currency.dust = num(p.currency.dust, 0, 2 ^ 40, 0)
 	p.pity.epic = num(p.pity.epic, 0, 1000, 0)
 	p.pity.legendary = num(p.pity.legendary, 0, 1000, 0)
+	p.purchases.slots = num(p.purchases.slots, 0, 31, 0)
+	p.purchases.tints = num(p.purchases.tints, 0, 2 ^ 31, 0)
+	for i = 1, 2 do
+		p.bosses[i] = num(p.bosses[i], 0, 3, 0)
+	end
+	p.shop.starterSeen = num(p.shop.starterSeen, 0, 1, 0)
+	p.stats.contracts = num(p.stats.contracts, 0, 2 ^ 31, 0)
+	p.stats.mvps = num(p.stats.mvps, 0, 2 ^ 31, 0)
+	local receipts = {}
+	for _, r in p.purchases.receipts do
+		if type(r) == "string" and #r <= 64 then
+			table.insert(receipts, r)
+		end
+	end
+	p.purchases.receipts = receipts
+	for k, v in p.purchases.passes do
+		if type(k) ~= "string" or v ~= true then
+			p.purchases.passes[k] = nil
+		end
+	end
+	local legends = {}
+	for _, l in p.legends do
+		if type(l) == "table" and #legends < 20 then
+			table.insert(legends, {
+				look = cleanNumbers(l.look, ProfileSchema.LOOK_WORDS, 0, 2 ^ 32 - 1, true),
+				titleId = num(l.titleId, 0, 64, 0),
+				nounId = num(l.nounId, 0, 64, 0),
+				classId = if type(l.classId) == "string" then string.sub(l.classId, 1, 24) else "Blaster",
+				side = if l.side == "villain" then "villain" else "hero",
+				level = num(l.level, 1, 40, 40),
+				rank = num(l.rank, 1, 255, 1),
+				at = num(l.at, 0, 2 ^ 40, 0),
+			})
+		end
+	end
+	p.legends = legends
 	if #p.purchases.receipts > 50 then
 		local keep = {}
 		for i = #p.purchases.receipts - 49, #p.purchases.receipts do
@@ -365,6 +469,24 @@ function ProfileSchema.rollDay(profile: any, now: number)
 	end
 end
 
+-- Every character in short (the slot picker): side, class, level, name ids, Legacy rank
+function ProfileSchema.roster(profile: any): { any }
+	local out = {}
+	for i, c in profile.characters do
+		out[i] = {
+			side = c.side,
+			classId = c.classId,
+			level = c.level,
+			titleId = c.titleId,
+			nounId = c.nounId,
+			legacy = c.legacy,
+			created = c.created,
+			look = c.look,
+		}
+	end
+	return out
+end
+
 -- The owner's client view (Profile.Sync): stash, styles, wallet, pity and the active character's gear.
 -- walletOnly: just the wallet and level (most syncs: rewards and spending), merged into the last full view.
 function ProfileSchema.clientView(profile: any, walletOnly: boolean?): { [string]: any }
@@ -386,6 +508,27 @@ function ProfileSchema.clientView(profile: any, walletOnly: boolean?): { [string
 		lastSafehouse = c.lastSafehouse,
 		active = profile.active,
 		characters = #profile.characters,
+		-- M9: the creator, HQ and shops
+		pieces = Bits.list(profile.pieces),
+		emotes = Bits.list(profile.emotes),
+		titles = Bits.list(profile.titles),
+		props = Bits.list(profile.props),
+		tints = profile.purchases.tints,
+		slots = profile.purchases.slots,
+		passes = profile.purchases.passes,
+		look = c.look,
+		looks = c.looks,
+		titleId = c.titleId,
+		nounId = c.nounId,
+		created = c.created,
+		startSet = c.startSet,
+		tint = c.tint,
+		landing = c.landing,
+		legacy = c.legacy,
+		hq = { level = c.hq.level, trophies = c.hq.trophies },
+		legends = profile.legends,
+		roster = ProfileSchema.roster(profile),
+		stats = profile.stats,
 	}
 end
 

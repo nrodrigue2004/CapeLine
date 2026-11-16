@@ -1626,10 +1626,20 @@ test("M3: levels: xpToNext, cumulative 68,400 to 40, level ups and the cap", fun
 end)
 
 test("M3: earnings: zone level formulas, bonuses multiply, the stack caps at x4", function()
+	local sc = Config.Economy.scale -- the M9 balance knobs over the spec formulas
+	local function round(x: number): number
+		return math.floor(x + 0.5)
+	end
 	local c, r = Progress.earn(Config, "incident", 10)
-	check(c == 35 and r == 45, "incident at zone 10: 35 Credits, 45 Renown")
+	check(
+		c == round(35 * sc.credits) and r == round(45 * sc.renown),
+		"incident at zone 10: 35 Credits, 45 Renown"
+	)
 	local c2, r2 = Progress.earn(Config, "incident", 10, { friends = 5 })
-	check(c2 == 46 and r2 == 59, "friend boost caps at +30%")
+	check(
+		c2 == round(35 * 1.3 * sc.credits) and r2 == round(45 * 1.3 * sc.renown),
+		"friend boost caps at +30%"
+	)
 	near(
 		Progress.multiplier(
 			Config,
@@ -2666,12 +2676,19 @@ test("M6: contract boards offer 3 for your side, the same until they change; max
 end)
 
 test("M6: contract pay follows the table, the first 5 each day pay double", function()
+	local sc = Config.Economy.scale -- the M9 balance knobs over the spec formulas
+	local function round(x: number): number
+		return math.floor(x + 0.5)
+	end
 	local cr, rn, m = ContractPlan.pay(Config, "DroneSweep", 10, 0)
-	check(cr == (40 + 40) * 2 and rn == (60 + 50) * 2 and m == 2, "Drone sweep L10, first of the day: x2")
+	check(
+		cr == round((40 + 40) * 2 * sc.credits) and rn == round((60 + 50) * 2 * sc.renown) and m == 2,
+		"Drone sweep L10, first of the day: x2"
+	)
 	cr, rn, m = ContractPlan.pay(Config, "DroneSweep", 10, 5)
-	check(cr == 80 and rn == 110 and m == 1, "the 6th pays the base")
+	check(cr == round(80 * sc.credits) and rn == round(110 * sc.renown) and m == 1, "the 6th pays the base")
 	local _, rn2 = ContractPlan.pay(Config, "Escort", 10, 9)
-	check(rn2 == 60 + 5 * 10, "types without their own Renown use the contract row")
+	check(rn2 == round((60 + 5 * 10) * sc.renown), "types without their own Renown use the contract row")
 	local fixed = ContractPlan.repair(
 		CC,
 		{ { type = "Escort", got = 9999, level = 99 }, { type = "Escort" }, { type = "Nope" }, 5 }
@@ -3086,7 +3103,7 @@ test("M7: 8 side quest arcs of 3 steps; steps advance to done; the journal pins 
 end)
 
 test("M7: save version 3: returning heroes skip the opening; story numbers are repaired", function()
-	check(ProfileSchema.VERSION == 3, "version 3")
+	check(ProfileSchema.VERSION >= 3, "version 3 or later")
 	local old =
 		ProfileSchema.load({ version = 2, characters = { { level = 7, xp = 10 }, { level = 1, xp = 0 } } })
 	check(old.characters[1].story.opening == 1 and old.characters[1].story.missions == 1, "a played hero")
@@ -3609,6 +3626,493 @@ test("M8: strikes kick at 3 in 10 min (never ban); reports flag at 3 accounts in
 	GuardRules.report(Config, R2, 2, 9, 400)
 	local _, late = GuardRules.report(Config, R2, 3, 9, 700)
 	check(not late, "spread past 10 minutes: not flagged")
+end)
+
+---------------------------------------------------------------------------
+-- M9: creator, HQ, shop, passes, Legacy
+---------------------------------------------------------------------------
+
+local function isAnime(tab: string, kit: string): boolean
+	return tab == "hair"
+		or tab == "eyes"
+		or string.sub(kit, 1, 5) == "coat:"
+		or string.sub(kit, 1, 6) == "scarf:"
+		or string.sub(kit, 1, 5) == "wraps"
+end
+
+test(
+	"M9: the creator has the 116 spec pieces (30 free, 52 loot, 34 Robux), 28 anime pieces, real sources",
+	function()
+		local CreatorRules = require("../src/shared/CreatorRules")
+		local C = Config.Creator
+		local want = {
+			suit = { 5, 5, 4 },
+			back = { 3, 5, 4 },
+			head = { 5, 6, 5 },
+			hands = { 3, 3, 2 },
+			feet = { 3, 3, 2 },
+			emblem = { 8, 20, 12 },
+			aura = { 0, 4, 2 },
+			trail = { 2, 4, 2 },
+			voice = { 1, 2, 1 },
+		}
+		local spec, anime = { 0, 0, 0 }, { 0, 0, 0 }
+		local names = {}
+		local idx = CreatorRules.index(Config)
+		for _, tab in C.tabs do
+			local got = { 0, 0, 0 }
+			for _, p in idx.byTab[tab.id] do
+				check(not names[p.name], "piece names are unique: " .. p.name)
+				names[p.name] = true
+				local k = p.source.kind
+				local col = if k == "free" then 1 elseif k == "pack" then 3 elseif k == "starter" then 0 else 2
+				if col > 0 then
+					local into = if isAnime(tab.id, p.kit) then anime else spec
+					into[col] += 1
+					if not isAnime(tab.id, p.kit) then
+						got[col] += 1
+					end
+				end
+				-- every source names something real
+				if k == "rep" then
+					check(
+						table.find(Config.Story.rep.order, p.source.a) ~= nil and (p.source.n or 0) <= 5,
+						p.name
+					)
+				elseif k == "boss" then
+					check(table.find(Config.Boss.order, p.source.a) ~= nil and (p.source.n or 0) <= 3, p.name)
+				elseif k == "mission" then
+					check(Config.Story.missions[p.source.n or 0] ~= nil, p.name .. " mission")
+				elseif k == "quest" then
+					check(Config.Story.quests[p.source.n or 0] ~= nil, p.name .. " quest")
+				elseif k == "fame" then
+					check((p.source.n or 0) <= #Config.Pvp.fame.ranks, p.name .. " fame")
+				elseif k == "lvl" then
+					check((p.source.n or 0) <= 40, p.name)
+				elseif k == "legacy" then
+					check((p.source.n or 0) <= Config.Hq.legacy.maxRanks, p.name)
+				elseif k == "pack" then
+					check(Config.Shop.packs[p.source.n or 0] ~= nil, p.name .. " pack")
+				else
+					check(k == "free" or k == "drop" or k == "starter", p.name .. " source " .. k)
+				end
+				if tab.id == "emblem" then
+					check(C.shapes[string.split(p.kit, ":")[1]] ~= nil, p.name .. " shape")
+				end
+			end
+			local w = want[tab.id]
+			if w then
+				check(
+					got[1] == w[1] and got[2] == w[2] and got[3] == w[3],
+					tab.id .. " free/loot/Robux per the spec"
+				)
+			end
+		end
+		check(
+			spec[1] == 30 and spec[2] == 52 and spec[3] == 34,
+			"116 spec pieces: 30 free, 52 loot, 34 Robux"
+		)
+		check(anime[1] == 7 and anime[2] == 13 and anime[3] == 8, "28 anime pieces: 7 free, 13 loot, 8 Robux")
+		check(#idx.list == 146 and #idx.list <= 32 * 8, "146 pieces fit the 256-bit unlock set")
+		check(#CreatorRules.packPieces(Config, nil) == 2, "the starter pack: a suit finish and a cape")
+		local packTotal = 0
+		for i = 1, 5 do
+			local n = #CreatorRules.packPieces(Config, i)
+			check(n >= 6 and n <= 7, "pack " .. i .. " has about 7 pieces")
+			packTotal += n
+		end
+		check(
+			packTotal == 34 and #CreatorRules.packPieces(Config, 6) == 8,
+			"34 pieces in 5 packs; the anime pack has 8"
+		)
+		check(#C.palette == 24 and #C.skins == 8, "24 colours and 8 skin tones")
+		check(#C.titles == 12 and #C.nouns == 16, "12 titles and 16 nouns")
+		for _, name in C.blockedNames do
+			local parts = string.split(name, " ")
+			check(
+				table.find(C.titles, parts[1]) ~= nil and table.find(C.nouns, parts[2]) ~= nil,
+				"blocked names are wheel pairs: " .. name
+			)
+		end
+	end
+)
+
+test("M9: a look is a 32-byte record, 8 words in the save; an empty record is no look", function()
+	local LookCodec = require("../src/shared/LookCodec")
+	local look = {
+		pieces = { suit = 3, back = 14, head = 0, emblem = 40, hair = 9, eyes = 6 },
+		colors = { 1, 12, 24 },
+		hair = 13,
+		skin = 8,
+		anime = true,
+	}
+	local b = LookCodec.encode(look)
+	check(buffer.len(b) == 32, "32 bytes")
+	local words = LookCodec.toWords(b)
+	check(#words == 8, "8 words")
+	local back = LookCodec.read(words) :: any
+	check(
+		back ~= nil and back.anime == true and back.pieces.back == 14 and back.pieces.emblem == 40,
+		"round trip"
+	)
+	check(
+		back.colors[3] == 24 and back.hair == 13 and back.skin == 8 and back.pieces.head == 0,
+		"colours and skin"
+	)
+	check(LookCodec.read({ 0, 0, 0, 0, 0, 0, 0, 0 }) == nil, "all zero = no look yet")
+	check(LookCodec.read({ "x", -1, 1e20 } :: any) == nil, "junk words read as no look")
+	check(LookCodec.decode(buffer.create(31)) == nil, "wrong size")
+	local bad = LookCodec.read(
+		LookCodec.write({ pieces = {}, colors = { 0, 99, 2.5 }, hair = 0, skin = 9, anime = false })
+	)
+	check(
+		bad ~= nil and bad.colors[1] == 1 and bad.colors[2] == 1 and bad.skin == 1,
+		"out of range bytes clamp"
+	)
+end)
+
+test(
+	"M9: creator rules: owned pieces only, palette colours, the name filter, Randomize is always valid",
+	function()
+		local CreatorRules = require("../src/shared/CreatorRules")
+		local ProfileSchema = require("../src/shared/ProfileSchema")
+		local profile = ProfileSchema.default()
+		local look = CreatorRules.defaultLook(Config)
+		check((CreatorRules.validate(Config, profile, look)), "the default look is all free pieces")
+		local locked = CreatorRules.index(Config).byName["Night Patrol Suit"]
+		look.pieces.suit = locked.index
+		local ok, why = CreatorRules.validate(Config, profile, look)
+		check(not ok and why == "locked", "a Robux piece needs its pack")
+		CreatorRules.grant(profile, locked)
+		check((CreatorRules.validate(Config, profile, look)), "after the pack it is open")
+		look.pieces.suit = 99
+		check(select(2, CreatorRules.validate(Config, profile, look)) == "piece", "no piece 99")
+		look.pieces.suit = 1
+		look.colors = { 1, 2, 25 }
+		check(
+			select(2, CreatorRules.validate(Config, profile, look)) == "color",
+			"colour 25 is off the palette"
+		)
+		check(CreatorRules.nameOk(Config, 3, 1), "Storm Falcon is fine")
+		check(CreatorRules.heroName(Config, 3, 1) == "Storm Falcon", "the name reads Title Noun")
+		check(not CreatorRules.nameOk(Config, 1, 1), "Captain Falcon is blocked")
+		check(
+			not CreatorRules.nameOk(Config, 0, 1) and not CreatorRules.nameOk(Config, 1, 17),
+			"both wheels needed"
+		)
+		local rng = Rng.new(9)
+		for _ = 1, 300 do
+			local l, t, n = CreatorRules.randomize(Config, profile, rng)
+			local valid = CreatorRules.validate(Config, profile, l)
+			check(valid and CreatorRules.nameOk(Config, t, n), "Randomize gives a valid look and name")
+		end
+		check(CreatorRules.pickOk(Config, "Speedster", "Blade", "villain"), "Blade can be a starting set")
+		check(not CreatorRules.pickOk(Config, "Speedster", "Titan", "hero"), "Titan still opens by level")
+		check(not CreatorRules.pickOk(Config, "Wizard", "Volt", "hero"), "classes from the list only")
+		check(CreatorRules.maxSlots(profile) == 2, "2 free slots")
+		profile.purchases.slots = bit32.lshift(1, 3)
+		check(CreatorRules.maxSlots(profile) == 3, "slot 3 bought")
+	end
+)
+
+test(
+	"M9: play unlocks are account-wide and land once: levels, rep, Fame, bosses, missions, quests, Legacy",
+	function()
+		local CreatorRules = require("../src/shared/CreatorRules")
+		local ProfileSchema = require("../src/shared/ProfileSchema")
+		local profile = ProfileSchema.default()
+		check(#CreatorRules.earned(Config, profile) == 0, "a new account has earned nothing")
+		local c = profile.characters[1]
+		c.level = 15
+		local got = {}
+		for _, p in CreatorRules.earned(Config, profile) do
+			got[p.name] = true
+			CreatorRules.grant(profile, p)
+		end
+		check(got["Star Badge"] and got["Long Cape"] and got["Plated Suit"], "levels 5, 10 and 15")
+		check(not got["Duster Coat"], "not level 20 yet")
+		check(#CreatorRules.earned(Config, profile) == 0, "granted pieces are not earned again")
+		-- a second character's progress counts for the account
+		local villain = ProfileSchema.newCharacter("villain", "Bruiser")
+		villain.rep[2] = 1000 -- Syndicate rank 4
+		villain.fame = 999999
+		villain.story.missions = 0x3F
+		villain.story.quests[4] = 4
+		villain.legacy = 2
+		table.insert(profile.characters, villain)
+		profile.bosses[1] = 3
+		local names = {}
+		for _, p in CreatorRules.earned(Config, profile) do
+			names[p.name] = true
+		end
+		check(
+			names["Rib Frame"] and names["Horned Helm"] and not names["Peak Crest"],
+			"Syndicate ranks 1 to 4, not 5"
+		)
+		check(names["Frame Helm"] and names["Orb Badge"] and names["Wind Scarf"], "mission and quest pieces")
+		check(names["Spark Crest"] and names["Showboat"], "Fame ranks")
+		check(
+			names["Jet Boots"] and names["Reactor Core"] and names["Comet Trail"],
+			"Rustjaw Prime tiers 1 to 3"
+		)
+		check(not names["Moon Crest"], "the Lumen Maw not yet")
+		check(names["Star Crest"] and names["Royal Mantle"] and not names["Spirit Flame"], "Legacy 1 and 2")
+		-- drops roll only locked drop pieces
+		local rng = Rng.new(4)
+		local seen = {}
+		for _ = 1, 4000 do
+			local p = CreatorRules.dropPick(Config, profile, rng)
+			if p then
+				check(p.source.kind == "drop", "drop pieces only")
+				seen[p.id] = true
+				CreatorRules.grant(profile, p)
+			end
+		end
+		local left = 0
+		for _, p in CreatorRules.index(Config).list do
+			if p.source.kind == "drop" and not ProfileSchema.Bits.get(profile.pieces, p.id) then
+				left += 1
+			end
+		end
+		check(left == 0, "every drop piece turns up in time")
+		check(CreatorRules.dropPick(Config, profile, rng) == nil, "nothing left to drop")
+	end
+)
+
+test(
+	"M9: purchases grant the right item once; a replayed receipt grants nothing; nothing changes a stat",
+	function()
+		local ShopRules = require("../src/shared/ShopRules")
+		local ProfileSchema = require("../src/shared/ProfileSchema")
+		local serdeLocal = serde
+		local profile = ProfileSchema.default()
+		profile.currency.credits = 1234
+		local function frozen(p: any): string
+			return serdeLocal.encode("json", {
+				p.currency,
+				p.stash,
+				p.styles,
+				p.pity,
+				p.characters[1].ranks,
+				p.characters[1].level,
+				p.characters[1].xp,
+				p.characters[1].equipment,
+			})
+		end
+		local before = frozen(profile)
+		for key, row in Config.Shop.products do
+			check(row.robux >= 25 and row.robux <= 399, key .. " priced 25 to 399")
+			local ok, got = ShopRules.grant(Config, profile, key, "r-" .. key)
+			check(ok and got ~= nil, key .. " grants")
+			check(ShopRules.owned(Config, profile, key), key .. " is owned after")
+			local again = ShopRules.grant(Config, profile, key, "r-" .. key)
+			check(not again, key .. ": the same receipt grants nothing")
+		end
+		check(frozen(profile) == before, "no product touches Credits, gear, styles, pity, ranks or level")
+		check(#profile.purchases.receipts <= 50, "receipts stay at 50")
+		local p2 = ProfileSchema.default()
+		check(select(2, ShopRules.available(Config, p2, "slot4")) == "slot3", "slot 4 needs slot 3")
+		ShopRules.grant(Config, p2, "pack2", "a")
+		check(
+			select(2, ShopRules.available(Config, p2, "pack2")) == "owned",
+			"an owned pack is not sold again"
+		)
+		check(ShopRules.grant(Config, p2, "pack3", "b"), "a new receipt for another pack grants")
+		check(
+			not ShopRules.grant(Config, p2, "pack4", "a"),
+			"a reused receipt id never grants, even for another item"
+		)
+		check(
+			ShopRules.grantPass(p2, "double") and not ShopRules.grantPass(p2, "double"),
+			"a pass lands once"
+		)
+		check(ShopRules.byProductId(Config, 0) == nil, "id 0 (not made yet) never matches a receipt")
+		for _, tab in Config.Shop.tabs do
+			for _, key in tab.items do
+				check(ShopRules.item(Config, key) ~= nil, tab.id .. " lists " .. key)
+			end
+		end
+		-- the 2x pass is the only number: earned Credits and Renown, not Dust, gear, Fame or PvP
+		check(Config.Economy.bonus.doublePass == 2, "x2 pass")
+		local c1, r1 = Progress.earn(Config, "incident", 10, {})
+		local c2, r2 = Progress.earn(Config, "incident", 10, { doublePass = true })
+		check(c2 == 2 * c1 or math.abs(c2 - 2 * c1) <= 1, "x2 Credits")
+		check(r2 == 2 * r1 or math.abs(r2 - 2 * r1) <= 1, "x2 Renown")
+		check(
+			ShopRules.starterDue(Config, ProfileSchema.default()) == false,
+			"no starter offer before the first boss"
+		)
+		local p3 = ProfileSchema.default()
+		p3.stats.bossesJoined = 1
+		check(ShopRules.starterDue(Config, p3), "offered after the first world boss")
+		p3.shop.starterSeen = 1
+		check(not ShopRules.starterDue(Config, p3), "shown once")
+	end
+)
+
+test("M9: the Robux shop opens only in HQ, safehouses and the menu, never mid-fight", function()
+	local ShopRules = require("../src/shared/ShopRules")
+	check((ShopRules.canOpen(Config, "hq", -100, 0)), "HQ")
+	check((ShopRules.canOpen(Config, "safehouse", -100, 0)), "safehouse")
+	check((ShopRules.canOpen(Config, "menu", -100, 0)), "menu")
+	check(select(2, ShopRules.canOpen(Config, "city", -100, 0)) == "where", "not out in the city")
+	check(select(2, ShopRules.canOpen(Config, "menu", 95, 100)) == "combat", "not within 10 s of a fight")
+end)
+
+test("M9: Gizmo's shop: 40 base styles for 500 to 3,000 Credits; loot never rolls the shop styles", function()
+	local ShopRules = require("../src/shared/ShopRules")
+	local ProfileSchema = require("../src/shared/ProfileSchema")
+	local GearMath = require("../src/shared/GearMath")
+	local list = ShopRules.gizmo(Config)
+	check(#list == 40, "40 base styles")
+	local shop = {}
+	for _, e in list do
+		check(e.price >= 500 and e.price <= 3000, "500 to 3,000")
+		if e.row.tier == "Shop" then
+			shop[e.id] = true
+		end
+	end
+	local profile = ProfileSchema.default()
+	profile.currency.credits = 700
+	profile.currency.banked = 1000
+	local id = list[1].id
+	local ok, _, price = ShopRules.gizmoBuy(Config, profile, id)
+	check(ok and price == list[1].price, "bought")
+	check(ProfileSchema.Bits.get(profile.styles, id), "the style is unlocked")
+	check(select(2, ShopRules.gizmoBuy(Config, profile, id)) == "owned", "not twice")
+	check(profile.currency.credits + profile.currency.banked == 1700 - (price :: number), "Credits only")
+	local rich = ShopRules.gizmo(Config)[40]
+	check(select(2, ShopRules.gizmoBuy(Config, profile, rich.id)) == "credits", "needs the Credits")
+	local rng = Rng.new(3)
+	for _ = 1, 3000 do
+		local piece = GearMath.roll(Config, rng, "Rare", 20, {})
+		check(not shop[piece.style], "loot never rolls a shop style")
+	end
+end)
+
+test("M9: HQ: solo cells, upgrade costs, what each level opens, offline drones cap at 8 hours", function()
+	local HqRules = require("../src/shared/HqRules")
+	local seen = {}
+	for slot = 1, 500 do
+		local x, y, z = HqRules.cell(Config, slot)
+		local key = x .. "," .. z
+		check(not seen[key], "one cell per hero slot")
+		seen[key] = true
+		check(HqRules.cellAt(Config, x + 20, y + 3, z - 20) == slot, "a point in the cell finds its slot")
+		check(y > Config.Story.pockets.y + 1000, "far above the mission pockets")
+	end
+	check(HqRules.cellAt(Config, 0, 40, 0) == nil, "the city is not an HQ")
+	local total = 0
+	for lv = 1, 5 do
+		total += HqRules.upgradeCost(Config, lv) :: number
+	end
+	check(
+		total == 2000 + 5000 + 12000 + 25000 + 50000 and HqRules.upgradeCost(Config, 6) == nil,
+		"levels 2 to 6"
+	)
+	check(HqRules.mannequins(Config, 1) == 1 and HqRules.mannequins(Config, 2) == 4, "1 look, 4 at level 2")
+	check(HqRules.dummies(Config, 2) == 1 and HqRules.dummies(Config, 3) == 4, "4 dummies at level 3")
+	check(not HqRules.bossSim(Config, 2) and HqRules.bossSim(Config, 3), "boss sim at level 3")
+	check(
+		HqRules.trophySlots(Config, 3) == 3 and HqRules.trophySlots(Config, 4) == 12,
+		"12 trophies at level 4"
+	)
+	check(HqRules.drones(Config, 4, 3600) == 0, "drones off below level 5")
+	check(HqRules.drones(Config, 5, 3600) == 120, "2 a minute at level 5")
+	check(HqRules.drones(Config, 6, 3600) == 600, "10 a minute at the last level")
+	check(HqRules.drones(Config, 6, 86400) == 10 * 60 * 8, "8 hours at most")
+	local ProfileSchema = require("../src/shared/ProfileSchema")
+	local profile = ProfileSchema.default()
+	check(not HqRules.trophies(Config, profile).firstBoss, "no trophies yet")
+	profile.stats.bossesJoined = 1
+	profile.characters[1].level = 20
+	local picks = HqRules.pickTrophies(Config, profile, 1, { 1, 5, 1, 2, 6 })
+	check(#picks == 2 and picks[1] == 1 and picks[2] == 5, "only earned trophies, no repeats")
+	check(#HqRules.cityProps(Config, 3) == 3, "City rank 3 opens 3 HQ props")
+end)
+
+test(
+	"M9: Legacy at level 40: a statue, back to level 1, keeps unlocks and reputation, +10% Renown a rank",
+	function()
+		local HqRules = require("../src/shared/HqRules")
+		local ProfileSchema = require("../src/shared/ProfileSchema")
+		local profile = ProfileSchema.default()
+		local c = profile.characters[1]
+		c.level = 39
+		check(select(2, HqRules.canRetire(Config, c)) == "level", "not before 40")
+		c.level = 40
+		c.rep = { 900, 0, 300 }
+		c.titleId, c.nounId = 3, 1
+		c.fame = 5000
+		c.startSet = "Blade"
+		c.story.opening = 1
+		c.equipment[1] = 0
+		ProfileSchema.Bits.set(profile.styles, 70)
+		local statue = HqRules.retire(Config, profile, 1, 1000)
+		check(statue ~= nil and statue.rank == 1 and statue.level == 40, "a statue in the Hall of Legends")
+		local n = profile.characters[1]
+		check(n.level == 1 and n.xp == 0 and n.legacy == 1, "the slot restarts at level 1, Legacy rank 1")
+		check(
+			n.rep[1] == 900 and n.fame == 5000 and n.titleId == 3 and n.story.opening == 1,
+			"keeps rep, Fame, name, story"
+		)
+		check(n.loadouts[1].set == "Blade" and n.ranks.FlashStep == 1, "starts again on its own set")
+		check(
+			ProfileSchema.Bits.get(profile.styles, 70) and #profile.legends == 1,
+			"unlocks are account-wide"
+		)
+		check(
+			HqRules.legacyBonus(Config, 1) == 0.10 and HqRules.legacyBonus(Config, 9) == 0.50,
+			"+10% each, max 50%"
+		)
+		check(Config.Gear.equipSlack == 5, "old gear is wearable again at item level minus 5")
+		for _ = 1, 30 do
+			profile.characters[1].level = 40
+			HqRules.retire(Config, profile, 1, 2000)
+		end
+		check(#profile.legends == Config.Hq.legacy.statues, "the hall keeps the last 20 statues")
+	end
+)
+
+test("M9: save version 4: creator, shop and HQ fields are added and repaired", function()
+	local ProfileSchema = require("../src/shared/ProfileSchema")
+	local old = ProfileSchema.default()
+	old.version = 3
+	old.pieces = nil
+	old.legends = nil
+	old.purchases = { passes = { double = true, junk = 5 }, receipts = { "a", 7, "b" } }
+	old.characters[1].hq = { level = 1 }
+	old.characters[1].look = nil
+	old.characters[1].looks = { { 1, 2, 3 }, "x", { 1, 2, 3, 4, 5, 6, 7, 8 }, {}, {}, {} }
+	old.characters[1].startSet = "Titan"
+	old.characters[1].titleId = 999
+	local p = ProfileSchema.load(serde.decode("json", serde.encode("json", old)))
+	check(p.version == ProfileSchema.VERSION and ProfileSchema.VERSION == 4, "version 4")
+	check(#p.pieces == 8 and #p.legends == 0, "pieces and legends added")
+	check(p.purchases.passes.double == true and p.purchases.passes.junk == nil, "passes kept, junk dropped")
+	check(#p.purchases.receipts == 2, "receipts are strings")
+	local c = p.characters[1]
+	check(#c.look == 8 and c.hq.droneAt == 0 and #c.hq.trophies == 0, "look and HQ fields added")
+	check(#c.looks == 4 and #c.looks[1] == 8, "at most 4 saved looks of 8 words")
+	check(c.startSet == "Volt" and c.titleId == 64, "bad picks repaired")
+	check(c.created == 0, "an older hero meets the creator once")
+	local view = ProfileSchema.clientView(p)
+	check(view.roster and #view.roster == 1 and view.hq.level == 1, "the client sees its roster and HQ")
+end)
+
+test("M9: 1,000 heroes over 10 hours reach level 20 to 28 and spend within 15% of the Sinks table", function()
+	local EconomySim = require("../src/shared/EconomySim")
+	local r = EconomySim.run(Config, 1000, 10, 2026)
+	check(r.p10 >= 20 and r.p90 <= 28, string.format("levels %d to %d (median %d)", r.p10, r.p90, r.median))
+	local build = EconomySim.buildCost(Config)
+	check(math.abs(build - 35000) <= 35000 * 0.15, "a fully ranked 5-skill build is about 35,000 Credits")
+	check(
+		r.buildHours >= 12 * 0.85 and r.buildHours <= 15 * 1.15,
+		string.format("earned in about 12 to 15 hours (%.1f)", r.buildHours)
+	)
+	local A = Config.Abilities
+	check(A.rankCredits[5] == 3200 and A.superRankCredits[3] == 2400, "rank prices from the Sinks table")
+	check(r.spent.ranks > 0 and r.spent.hq > 0 and r.spent.styles > 0, "heroes spend on ranks, HQ and styles")
 end)
 
 ---------------------------------------------------------------------------

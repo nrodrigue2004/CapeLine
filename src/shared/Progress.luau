@@ -70,8 +70,12 @@ function Progress.earn(config: any, action: string, zoneLevel: number, bonus: Bo
 	local row = config.Economy.earn[action]
 	assert(row, "unknown earn action " .. tostring(action))
 	local m = Progress.multiplier(config, bonus)
-	local credits = (row.credits[1] + row.credits[2] * zoneLevel) * m
-	local renown = (row.renown[1] + row.renown[2] * zoneLevel) * m * ((bonus and bonus.renownMult) or 1)
+	local scale = config.Economy.scale
+	local credits = (row.credits[1] + row.credits[2] * zoneLevel) * m * scale.credits
+	local renown = (row.renown[1] + row.renown[2] * zoneLevel)
+		* m
+		* scale.renown
+		* ((bonus and bonus.renownMult) or 1)
 	return math.floor(credits + 0.5), math.floor(renown + 0.5)
 end
 

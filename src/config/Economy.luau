@@ -27,6 +27,22 @@ return {
 		doublePass = 2, -- the 2x pass: earned Credits and Renown only (M9)
 		cap = 4,
 	},
+	-- Balance knobs over the earn formulas above (M9 economy sim): every Credit and Renown reward is
+	-- multiplied by these, contracts and bosses included
+	scale = { credits = 1.4, renown = 0.35 },
+	-- The 1,000-hero sim's play model (EconomySim): what a typical hero does in 30 minutes (a model to
+	-- check the numbers against, not a rule), a 2 hour session per day, skill factor, friends, 2x pass share
+	sim = {
+		per30 = { incident = 6, rescue = 4, contract = 1.5, boss = 0.6 },
+		bossTiers = { 0.6, 0.3, 0.1 }, -- joined, contributor, MVP
+		contractKinds = { "DroneSweep", "RescueRun", "ShardRecovery", "Escort" },
+		skill = { 0.7, 1.3 },
+		friends = { 0, 2 },
+		passShare = 0.04,
+		sessionHours = 2,
+		reserve = 1.25, -- keeps this much of a price in hand before buying HQ levels or styles
+		stylePrice = 1200, -- a mid Gizmo style
+	},
 	-- Sinks
 	hqLevels = { 2000, 5000, 12000, 25000, 50000 }, -- HQ levels 2 to 6 (M9)
 	start = { credits = 0, banked = 0, dust = 0 },

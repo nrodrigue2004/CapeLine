@@ -174,6 +174,23 @@ return {
 	-- tier: the lowest tier that can roll it. Set and Legendary styles come only with those pieces.
 	styles = {
 		head = {
+			-- Gizmo's shop at HQ (M9): bought with Credits only, never rolled by loot (tier "Shop")
+			{
+				n = 10,
+				name = "Gizmo Visor",
+				shape = "visor",
+				tier = "Shop",
+				price = 1500,
+				color = { 40, 200, 190 },
+			},
+			{
+				n = 11,
+				name = "Gizmo Crown",
+				shape = "halo",
+				tier = "Shop",
+				price = 3000,
+				color = { 255, 140, 200 },
+			},
 			{ n = 1, name = "Rookie Visor", shape = "visor", tier = "Common", color = { 60, 70, 90 } },
 			{ n = 2, name = "Patrol Cap", shape = "cap", tier = "Common", color = { 40, 90, 160 } },
 			{ n = 3, name = "Street Mask", shape = "mask", tier = "Common", color = { 30, 30, 36 } },
@@ -209,6 +226,23 @@ return {
 			},
 		},
 		chest = {
+			-- Gizmo's shop at HQ (M9): bought with Credits only, never rolled by loot (tier "Shop")
+			{
+				n = 10,
+				name = "Gizmo Plate",
+				shape = "plate",
+				tier = "Shop",
+				price = 1500,
+				color = { 60, 200, 120 },
+			},
+			{
+				n = 11,
+				name = "Gizmo Core",
+				shape = "core",
+				tier = "Shop",
+				price = 3000,
+				color = { 255, 120, 40 },
+			},
 			{ n = 1, name = "Padded Vest", shape = "vest", tier = "Common", color = { 80, 90, 110 } },
 			{ n = 2, name = "Star Plate", shape = "plate", tier = "Common", color = { 50, 110, 200 } },
 			{ n = 3, name = "Bolt Harness", shape = "harness", tier = "Uncommon", color = { 255, 200, 60 } },
@@ -224,6 +258,23 @@ return {
 			},
 		},
 		hands = {
+			-- Gizmo's shop at HQ (M9): bought with Credits only, never rolled by loot (tier "Shop")
+			{
+				n = 10,
+				name = "Gizmo Wraps",
+				shape = "wraps",
+				tier = "Shop",
+				price = 1500,
+				color = { 240, 110, 190 },
+			},
+			{
+				n = 11,
+				name = "Gizmo Coils",
+				shape = "coil",
+				tier = "Shop",
+				price = 2500,
+				color = { 120, 230, 255 },
+			},
 			{ n = 1, name = "Wrist Wraps", shape = "wraps", tier = "Common", color = { 200, 200, 210 } },
 			{ n = 2, name = "Knuckle Guards", shape = "gauntlet", tier = "Common", color = { 70, 70, 80 } },
 			{ n = 3, name = "Spike Gauntlets", shape = "spikes", tier = "Uncommon", color = { 180, 60, 60 } },
@@ -238,6 +289,23 @@ return {
 			},
 		},
 		legs = {
+			-- Gizmo's shop at HQ (M9): bought with Credits only, never rolled by loot (tier "Shop")
+			{
+				n = 10,
+				name = "Gizmo Shins",
+				shape = "shins",
+				tier = "Shop",
+				price = 1500,
+				color = { 255, 210, 60 },
+			},
+			{
+				n = 11,
+				name = "Gizmo Greaves",
+				shape = "greaves",
+				tier = "Shop",
+				price = 2000,
+				color = { 120, 80, 220 },
+			},
 			{ n = 1, name = "Shin Guards", shape = "shins", tier = "Common", color = { 70, 80, 100 } },
 			{ n = 2, name = "Stripe Leggings", shape = "stripes", tier = "Common", color = { 230, 70, 70 } },
 			{
@@ -249,11 +317,45 @@ return {
 			},
 		},
 		feet = {
+			-- Gizmo's shop at HQ (M9): bought with Credits only, never rolled by loot (tier "Shop")
+			{
+				n = 10,
+				name = "Gizmo Boots",
+				shape = "boots",
+				tier = "Shop",
+				price = 1500,
+				color = { 40, 190, 170 },
+			},
+			{
+				n = 11,
+				name = "Gizmo Jets",
+				shape = "jets",
+				tier = "Shop",
+				price = 2500,
+				color = { 255, 90, 40 },
+			},
 			{ n = 1, name = "Street Boots", shape = "boots", tier = "Common", color = { 40, 40, 48 } },
 			{ n = 2, name = "Jet Heels", shape = "jets", tier = "Uncommon", color = { 255, 140, 40 } },
 			{ n = 3, name = "Winged Boots", shape = "wings", tier = "Rare", color = { 240, 240, 250 } },
 		},
 		back = {
+			-- Gizmo's shop at HQ (M9): bought with Credits only, never rolled by loot (tier "Shop")
+			{
+				n = 10,
+				name = "Gizmo Cape",
+				shape = "cape",
+				tier = "Shop",
+				price = 1500,
+				color = { 190, 110, 240 },
+			},
+			{
+				n = 11,
+				name = "Gizmo Wings",
+				shape = "lightwings",
+				tier = "Shop",
+				price = 3000,
+				color = { 255, 240, 160 },
+			},
 			{ n = 1, name = "Short Cape", shape = "cape", tier = "Common", color = { 200, 40, 50 } },
 			{ n = 2, name = "Long Cape", shape = "longcape", tier = "Uncommon", color = { 40, 60, 160 } },
 			{
@@ -285,6 +387,15 @@ return {
 			},
 		},
 		belt = {
+			-- Gizmo's shop at HQ (M9): bought with Credits only, never rolled by loot (tier "Shop")
+			{
+				n = 10,
+				name = "Gizmo Buckle",
+				shape = "buckle",
+				tier = "Shop",
+				price = 1500,
+				color = { 255, 200, 60 },
+			},
 			{ n = 1, name = "Utility Belt", shape = "belt", tier = "Common", color = { 210, 170, 60 } },
 			{ n = 2, name = "Star Buckle", shape = "buckle", tier = "Common", color = { 230, 230, 240 } },
 			{ n = 3, name = "Power Sash", shape = "sash", tier = "Uncommon", color = { 170, 90, 240 } },
