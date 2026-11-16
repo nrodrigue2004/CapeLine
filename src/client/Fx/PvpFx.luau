@@ -1,6 +1,7 @@
 -- PvpFx: what PvP and death look like in the world, drawn on this device (spec: The PvP flag "Visible";
 -- Defeat and death; the juice table rows Downed, Revive, PvP flag on).
--- * Rings: a flagged player stands in a ring, blue for the League and red for the Syndicate; it grows in
+-- * Rings: a flagged player stands in a ring, blue and round for the League, red and square for the
+--   Syndicate (colorblind-safe); it grows in
 --   when the flag turns on and is faint while spawn protection lasts.
 -- * Downed: a grey pulse ring under the kneeling hero.
 -- * PvP defeat: the hero overloads into sparks (the Overload attribute ticks up on the server).
@@ -20,14 +21,14 @@ local CombatFx = require(script.Parent.CombatFx)
 local PvpFx = {}
 
 local folder: Folder
-local rings: { [Player]: { part: Part, on: boolean } } = {}
+local rings: { [Player]: { part: Part, on: boolean, square: boolean? } } = {}
 local downRings: { [Player]: Part } = {}
 local overloads: { [Player]: number } = {}
 
 local PING = {
 	{ text = "HELP!", color = Color3.fromRGB(255, 220, 90) },
 	{ text = "HERE", color = Color3.fromRGB(120, 220, 255) },
-	{ text = "DANGER", color = Color3.fromRGB(255, 90, 80) },
+	{ text = "▲ DANGER", color = Color3.fromRGB(255, 90, 80) }, -- the triangle: colorblind-safe danger
 }
 
 local function ring(color: Color3, size: number): Part
@@ -56,25 +57,37 @@ local function step(now: number)
 		local root = rootOf(p)
 		local want = p:GetAttribute("Pvp") == true and root ~= nil
 		local r = rings[p]
+		-- colorblind-safe: League rings are round, Syndicate rings are square (spec: Accessibility)
+		local square = p:GetAttribute("PvpSide") == "villain"
+		if r and (r :: any).square ~= square then
+			r.part:Destroy()
+			rings[p] = nil
+			r = nil
+		end
 		if want and root then
 			if not r then
 				local part = ring(PvpClient.ringColor(p:GetAttribute("PvpSide")), 1)
-				r = { part = part, on = true }
+				local goal = Vector3.new(0.2, 7, 7)
+				if square then
+					part.Shape = Enum.PartType.Block
+					part.Size = Vector3.new(1, 0.2, 1)
+					goal = Vector3.new(6.2, 0.2, 6.2)
+				end
+				r = { part = part, on = true, square = square } :: any
 				rings[p] = r
 				-- the ring grows in (the "PvP flag on" beat)
-				TweenService
-					:Create(
-						part,
-						TweenInfo.new(0.35, Enum.EasingStyle.Back),
-						{ Size = Vector3.new(0.2, 7, 7) }
-					)
-					:Play()
+				TweenService:Create(part, TweenInfo.new(0.35, Enum.EasingStyle.Back), { Size = goal }):Play()
 			end
 			local ring0 = (r :: any).part :: Part
 			ring0.Color = PvpClient.ringColor(p:GetAttribute("PvpSide"))
 			ring0.Transparency = if p:GetAttribute("Protected") then 0.8 else 0.4
-			ring0.CFrame = CFrame.new(root.Position - Vector3.new(0, 2.9, 0))
-				* CFrame.Angles(0, 0, math.rad(90))
+			ring0.CFrame = if square
+				then CFrame.new(root.Position - Vector3.new(0, 2.9, 0)) * CFrame.Angles(0, math.rad(45), 0)
+				else CFrame.new(root.Position - Vector3.new(0, 2.9, 0)) * CFrame.Angles(
+					0,
+					0,
+					math.rad(90)
+				)
 		elseif r then
 			r.part:Destroy()
 			rings[p] = nil
@@ -160,7 +173,7 @@ local function showPing(ping: any)
 	who.TextScaled = true
 	who.TextColor3 = Color3.new(1, 1, 1)
 	who.TextStrokeTransparency = 0.3
-	who.Text = ping.name or ""
+	who.Text = (if ping.squad then "SQUAD  " else "") .. (ping.name or "")
 	who.Parent = bb
 	Debris:AddItem(anchor, ping.life or 8)
 end

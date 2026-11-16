@@ -10,6 +10,7 @@ local Players = game:GetService("Players")
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
 
 local MoveController = require(script.Parent.MoveController)
+local InputController = require(script.Parent.InputController)
 
 local CameraController = {}
 CameraController.reduceMotion = false
@@ -47,6 +48,23 @@ function CameraController.init()
 		if fallSpeed >= ls.minFall then
 			CameraController.shake(ls.time, ls.amount * math.clamp(fallSpeed / 60, 0.5, 2))
 		end
+	end)
+	-- one-hand flight's auto-turn: the stick's sideways push swings the camera (and so the flight path)
+	-- around the hero before the default camera runs
+	RunService:BindToRenderStep("CapelineAutoTurn", Enum.RenderPriority.Camera.Value - 1, function(dt)
+		local rate = InputController.turnRate()
+		if math.abs(rate) < 0.08 then
+			return
+		end
+		local cam = Workspace.CurrentCamera
+		local char = player.Character
+		local root = char and char:FindFirstChild("HumanoidRootPart") :: BasePart?
+		if not root then
+			return
+		end
+		local pivot = root.Position
+		local yaw = -rate * 2.2 * dt -- about 125 degrees a second at full push
+		cam.CFrame = CFrame.new(pivot) * CFrame.Angles(0, yaw, 0) * CFrame.new(-pivot) * cam.CFrame
 	end)
 	RunService:BindToRenderStep("CapelineCamera", Enum.RenderPriority.Camera.Value + 1, function(dt)
 		local cam = Workspace.CurrentCamera

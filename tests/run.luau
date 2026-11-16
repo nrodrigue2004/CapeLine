@@ -4087,7 +4087,7 @@ test("M9: save version 4: creator, shop and HQ fields are added and repaired", f
 	old.characters[1].startSet = "Titan"
 	old.characters[1].titleId = 999
 	local p = ProfileSchema.load(serde.decode("json", serde.encode("json", old)))
-	check(p.version == ProfileSchema.VERSION and ProfileSchema.VERSION == 4, "version 4")
+	check(p.version == ProfileSchema.VERSION and ProfileSchema.VERSION >= 4, "version 4 or later")
 	check(#p.pieces == 8 and #p.legends == 0, "pieces and legends added")
 	check(p.purchases.passes.double == true and p.purchases.passes.junk == nil, "passes kept, junk dropped")
 	check(#p.purchases.receipts == 2, "receipts are strings")
@@ -4113,6 +4113,131 @@ test("M9: 1,000 heroes over 10 hours reach level 20 to 28 and spend within 15% o
 	local A = Config.Abilities
 	check(A.rankCredits[5] == 3200 and A.superRankCredits[3] == 2400, "rank prices from the Sinks table")
 	check(r.spent.ranks > 0 and r.spent.hq > 0 and r.spent.styles > 0, "heroes spend on ranks, HQ and styles")
+end)
+
+---------------------------------------------------------------------------
+-- M10: settings, accessibility and squads
+---------------------------------------------------------------------------
+
+test(
+	"M10: settings: every key has a default in range; values snap and clamp; bad values are refused",
+	function()
+		local SettingsRules = require("../src/shared/SettingsRules")
+		local S = Config.Settings
+		local ids = {}
+		for _, k in S.keys do
+			check(not ids[k.id], "unique id " .. k.id)
+			ids[k.id] = true
+			check(SettingsRules.value(k, k.default) == k.default, "default is valid: " .. k.id)
+		end
+		for _, id in { "preset", "textSize", "leftHanded", "reduceFlashing" } do
+			check(ids[id], "the save keeps " .. id .. " (spec: Settings save)")
+		end
+		local d = SettingsRules.defaults(Config)
+		check(d.textSize == 100 and d.preset == 0, "text 100% and the Auto preset by default")
+		local idx
+		for i, k in S.keys do
+			if k.id == "textSize" then
+				idx = i
+			end
+		end
+		local s = SettingsRules.defaults(Config)
+		check(SettingsRules.set(Config, s, idx, 133) and s.textSize == 130, "text size snaps to 10% steps")
+		check(SettingsRules.set(Config, s, idx, 500) and s.textSize == 160, "text size tops out at 160%")
+		check(SettingsRules.set(Config, s, idx, 10) and s.textSize == 100, "text size never below 100%")
+		check(not SettingsRules.set(Config, s, 99, 1), "an unknown key is refused")
+		check(not SettingsRules.set(Config, s, idx, 0 / 0), "NaN is refused")
+		local c = SettingsRules.clean(Config, { textSize = 1.4, leftHanded = true, preset = 9, junk = 4 })
+		check(c.textSize == 140, "an old scale (1.4) reads as 140%")
+		check(c.leftHanded == 1 and c.preset == 3 and c.junk == nil, "booleans to 0/1, clamped, junk dropped")
+		check(SettingsRules.clean(Config, "x").textSize == 100, "a broken save gets the defaults")
+	end
+)
+
+test("M10: mutes: added once, removed, capped with the oldest dropped", function()
+	local SettingsRules = require("../src/shared/SettingsRules")
+	local list = {}
+	SettingsRules.mute(Config, list, 5, true)
+	SettingsRules.mute(Config, list, 5, true)
+	check(#list == 1, "muted once")
+	SettingsRules.mute(Config, list, 5, false)
+	check(#list == 0, "unmuted")
+	SettingsRules.mute(Config, list, -3, true)
+	SettingsRules.mute(Config, list, 2.5, true)
+	check(#list == 0, "bad ids are ignored")
+	for i = 1, Config.Settings.maxMutes + 5 do
+		SettingsRules.mute(Config, list, i, true)
+	end
+	check(#list == Config.Settings.maxMutes and list[1] == 6, "capped; the oldest drop off")
+end)
+
+test("M10: squads: invite, accept, up to 4, allies, leave and kick", function()
+	local SquadRules = require("../src/shared/SquadRules")
+	local Q = Config.Squad
+	check(Q.max == 4, "squads of up to 4 (spec)")
+	local st = SquadRules.new()
+	local ok, why = SquadRules.invite(Config, st, 1, 1, 0)
+	check(not ok and why == "self", "no inviting yourself")
+	check(SquadRules.invite(Config, st, 1, 2, 0), "1 invites 2")
+	ok, why = SquadRules.invite(Config, st, 1, 2, 1)
+	check(not ok and why == "pending", "one invite at a time")
+	ok, why = SquadRules.invite(Config, st, 3, 2, 1)
+	check(not ok and why == "busy", "someone else's invite is waiting")
+	ok, why = SquadRules.accept(Config, st, 2, Q.inviteLife + 1)
+	check(not ok and why == "expired", "invites expire")
+	check(SquadRules.invite(Config, st, 1, 2, 100), "invite again")
+	local okA, _, squadId = SquadRules.accept(Config, st, 2, 101)
+	check(okA and squadId ~= nil, "accepted: the squad is made")
+	check(SquadRules.leader(st, 2) == 1, "the inviter leads")
+	check(SquadRules.allies(st, 1, 2) and not SquadRules.allies(st, 1, 3), "squadmates are allies")
+	check(not SquadRules.allies(st, 1, 1), "you are not your own ally")
+	for u = 3, 4 do
+		check(SquadRules.invite(Config, st, 2, u, 102), "any member invites")
+		check((SquadRules.accept(Config, st, u, 103)), "joins")
+	end
+	ok, why = SquadRules.invite(Config, st, 1, 5, 104)
+	check(not ok and why == "full", "a squad of 4 is full")
+	ok, why = SquadRules.invite(Config, st, 5, 4, 104)
+	check(not ok and why == "taken", "someone in a squad can't be invited")
+	check(not SquadRules.kick(st, 2, 3), "only the leader kicks")
+	check(SquadRules.kick(st, 1, 4) and st.of[4] == nil, "the leader kicks")
+	SquadRules.leave(st, 1)
+	check(SquadRules.leader(st, 2) == 2, "the next member leads")
+	SquadRules.leave(st, 3)
+	check(st.of[2] == nil and next(st.squads) == nil, "a squad of one is gone")
+	check(#SquadRules.members(st, 2) == 1, "solo again")
+	SquadRules.invite(Config, st, 7, 8, 0)
+	SquadRules.leave(st, 7)
+	check(SquadRules.pending(Config, st, 8, 1) == nil, "leaving drops the invites you sent")
+end)
+
+test("M10: party missions scale by the median level", function()
+	local SquadRules = require("../src/shared/SquadRules")
+	check(SquadRules.median({}) == 1, "nobody: level 1")
+	check(SquadRules.median({ 30 }) == 30, "solo")
+	check(SquadRules.median({ 5, 40, 12 }) == 12, "odd count")
+	check(SquadRules.median({ 10, 20, 31, 2 }) == 15, "even count rounds the middle pair")
+end)
+
+test("M10: save version 5 keeps settings and mutes, repaired", function()
+	local ProfileSchema = require("../src/shared/ProfileSchema")
+	local old = ProfileSchema.default()
+	old.version = 4
+	old.settings = nil
+	old.mutes = { 3, "x", -1, 9 }
+	local p = ProfileSchema.load(serde.decode("json", serde.encode("json", old)))
+	check(p.version == ProfileSchema.VERSION and ProfileSchema.VERSION >= 5, "version 5 or later")
+	check(type(p.settings) == "table", "settings added")
+	check(#p.mutes == 2 and p.mutes[1] == 3 and p.mutes[2] == 9, "only real user ids are kept")
+	local view = ProfileSchema.clientView(p)
+	check(view.settings ~= nil and view.mutes ~= nil, "the client sees settings and mutes")
+end)
+
+test("M10: colorblind markers: every marker kind has its own shape", function()
+	local src = require("@lune/fs").readFile("src/client/Ui/Radar.luau")
+	for _, shape in { '"circle"', '"diamond"', '"triangle"', '"square"', '"star"' } do
+		check(string.find(src, shape, 1, true) ~= nil, "the radar uses " .. shape)
+	end
 end)
 
 ---------------------------------------------------------------------------
@@ -4183,6 +4308,8 @@ if placePath then
 				"HqRules",
 				"EconomySim",
 				"LookKit",
+				"SettingsRules",
+				"SquadRules",
 			}
 		do
 			check(shared ~= nil and shared:FindFirstChild(name) ~= nil, "Shared." .. name)
@@ -4228,6 +4355,8 @@ if placePath then
 				"HqService",
 				"ShopService",
 				"PurchaseService",
+				"SettingsService",
+				"SquadService",
 			}
 		do
 			local folder = server and server:FindFirstChild("Services")
@@ -4278,6 +4407,13 @@ if placePath then
 				{ "Ui", "HqHud" },
 				{ "Controllers", "HqClient" },
 				{ "Fx", "EmoteFx" },
+				{ "Controllers", "SettingsClient" },
+				{ "Controllers", "SquadClient" },
+				{ "Ui", "SettingsMenu" },
+				{ "Ui", "SquadHud" },
+				{ "Ui", "Radar" },
+				{ "Ui", "Shapes" },
+				{ "Ui", "MainMenu" },
 			}
 		do
 			local folder = client and client:FindFirstChild(path[1])

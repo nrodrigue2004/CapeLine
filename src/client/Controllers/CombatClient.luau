@@ -106,7 +106,8 @@ end
 -- Pick the aim point and the target hint for an ability
 local function aim(range: number, origin: Vector3): (Vector3, number, Vector3?)
 	local ray = InputController.aimRay()
-	local touchAim = InputController.device ~= "mouse"
+	local touchAim = InputController.device == "gamepad"
+		or (InputController.device == "touch" and InputController.autoAim)
 	local slack = if touchAim then Config.Move.touch.autoAimAngle else 6
 	local maxDist = if touchAim then math.min(math.max(range, 12), Config.Move.touch.autoAimRange) else range
 	local bestId, bestAng, bestPos = 0, slack, nil

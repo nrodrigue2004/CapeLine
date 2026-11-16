@@ -242,6 +242,7 @@ local function card(id: string, order: number): Frame
 			label = "MAX"
 		end
 		local rb = Kit.button({
+			pending = true,
 			Text = label,
 			Size = UDim2.new(0.5, -9, 0, 30),
 			Position = UDim2.new(0, 6, 1, -36),
@@ -275,6 +276,7 @@ local function card(id: string, order: number): Frame
 			for k, mod in row.mods do
 				local picked = h.mods[id] == k
 				local mb = Kit.button({
+					pending = true,
 					Text = mod.name,
 					Size = UDim2.new(0.5, -9, 0, 24),
 					Position = UDim2.new((k - 1) * 0.5, if k == 1 then 6 else 3, 1, -66),
@@ -542,6 +544,7 @@ function LoadoutScreen.init()
 	end)
 	primary.Parent = bottom
 	respecButton = Kit.button({
+		pending = true,
 		Text = "RESPEC",
 		Size = UDim2.fromOffset(150, 40),
 		Position = UDim2.new(1, -312, 1, -42),

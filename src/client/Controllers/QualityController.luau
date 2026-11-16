@@ -1,6 +1,6 @@
 -- QualityController: picks the device preset (spec: Streaming and device presets): phones start on low,
 -- tablets and PCs on medium, then a 5 s frame-time test after spawning moves one step down (under 40 fps)
--- or up to high (over 58 fps on a non-touch device). Settings can override it from M10. Client only.
+-- or up to high (over 58 fps on a non-touch device). Settings can fix a preset (QualityController.choose). Client only.
 
 local Lighting = game:GetService("Lighting")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -28,9 +28,25 @@ function QualityController.set(name: string)
 	QualityController.Changed:Fire(name)
 end
 
+-- Settings: 0 Auto (the device pick and frame test), else a fixed preset that the frame test leaves alone
+QualityController.fixed = false
+local autoName = "medium"
+function QualityController.choose(index: number)
+	if index <= 0 then
+		QualityController.fixed = false
+		QualityController.set(autoName)
+	elseif P.order[index] then
+		QualityController.fixed = true
+		QualityController.set(P.order[index])
+	end
+end
+
 function QualityController.init()
 	local phone = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
-	QualityController.set(if phone then "low" else "medium")
+	autoName = if phone then "low" else "medium"
+	if not QualityController.fixed then
+		QualityController.set(autoName)
+	end
 	-- running fps for the Dev panel
 	local frames, acc = 0, 0
 	RunService.RenderStepped:Connect(function(dt)
@@ -49,11 +65,14 @@ function QualityController.init()
 		task.wait(P.frameTest.seconds)
 		conn:Disconnect()
 		local fps = n / (os.clock() - t0)
-		local idx = table.find(P.order, QualityController.name) :: number
+		local idx = table.find(P.order, autoName) :: number
 		if fps < P.frameTest.lowBelow and idx > 1 then
-			QualityController.set(P.order[idx - 1])
+			autoName = P.order[idx - 1]
 		elseif fps > P.frameTest.highAbove and not phone and idx < #P.order then
-			QualityController.set(P.order[idx + 1])
+			autoName = P.order[idx + 1]
+		end
+		if not QualityController.fixed then
+			QualityController.set(autoName)
 		end
 	end)
 end

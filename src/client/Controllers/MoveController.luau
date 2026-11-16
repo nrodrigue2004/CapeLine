@@ -287,6 +287,21 @@ local function step(dt: number)
 	end
 
 	local flat, full = wishDirs()
+	-- M10 tap-to-fly: steer toward a map marker until the stick moves or you arrive
+	local target = MoveController.autoTarget
+	if target then
+		local toward = Vector3.new(target.X, math.max(target.Y + 40, pos.Y), target.Z) - pos
+		local flatDist = Vector3.new(toward.X, 0, toward.Z).Magnitude
+		if mode ~= "fly" or InputController.moveVector().Magnitude > 0.2 or flatDist < 40 then
+			MoveController.autoTarget = nil
+			if flatDist < 40 then
+				MoveController.Arrived:Fire(target)
+			end
+		elseif toward.Magnitude > 1 then
+			full = toward.Unit
+			flat = Vector3.new(toward.X, 0, toward.Z).Unit
+		end
+	end
 	local fallSpeed = -vel.Y
 	if held() or downed() then
 		-- no control: a flight or glide drops into a fall
@@ -394,6 +409,21 @@ local function onPressed(action: string)
 			setMode("fly")
 		end
 	end
+end
+
+-- Tap-to-fly (spec: Map "Tap a marker to auto-fly"): take off and fly toward a spot; any stick push or
+-- landing ends it. Needs flight; false otherwise.
+MoveController.autoTarget = nil :: Vector3?
+MoveController.Arrived = Signal.new() -- (target)
+function MoveController.flyTo(target: Vector3): boolean
+	if not (State.hero.styles and State.hero.styles.flight) or not hum or hum.Health <= 0 then
+		return false
+	end
+	MoveController.autoTarget = target
+	if MoveController.mode ~= "fly" then
+		onPressed("Fly")
+	end
+	return MoveController.mode == "fly"
 end
 
 local function onReleased(action: string)

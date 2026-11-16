@@ -46,6 +46,16 @@ local M9_REASONS: { [string]: string } = {
 	slot3 = "Buy slot 3 first",
 	owned = "You already own that",
 }
+local SQUAD_REASONS: { [string]: string } = {
+	self = "That's you!",
+	taken = "They are already in a squad",
+	full = "The squad is full (4)",
+	pending = "Invite already sent",
+	busy = "They have another invite open",
+	expired = "That invite ran out",
+	gone = "They left the server",
+	mission = "Not during a mission",
+}
 local PVP_REASONS: { [string]: string } = {
 	level = "PvP opens at level 10",
 	rate = "Wait a moment before switching again",
@@ -103,6 +113,11 @@ end
 
 function Toasts.show(data: { [string]: any })
 	local id = data.id
+	if id == "note" then
+		-- a plain line from a screen on this device (loading and error notes)
+		push(tostring(data.text or ""), Kit.color.paper)
+		return
+	end
 	if id == "levelUp" then
 		local unlock = Progress.UNLOCKS[data.level]
 		push(string.format("LEVEL %d!", data.level), Kit.color.gold, true, 4.5)
@@ -322,6 +337,21 @@ function Toasts.show(data: { [string]: any })
 		end
 	elseif id == "styleBought" then
 		push("NEW STYLE! Equip it in GEAR > Show Style", Kit.color.gold, true, 4)
+	elseif id == "squadRefused" then
+		push(SQUAD_REASONS[data.reason or ""] or "Squad: try again", Kit.color.paper)
+	elseif id == "squadInvited" then
+		push(string.format("Squad invite sent to %s", data.name or ""), Kit.color.paper)
+	elseif id == "squadJoin" then
+		push("YOU JOINED THE SQUAD", Kit.color.gold, true, 4)
+		push("Shared incident rewards, no friendly hits, squad pings", Kit.color.paper, false, 4)
+	elseif id == "squadJoined" then
+		push(string.format("%s joined the squad", data.name or ""), Kit.color.gold)
+	elseif id == "squadLeft" then
+		push(string.format("%s left the squad", data.name or ""), Kit.color.paper)
+	elseif id == "squadGone" then
+		push("Your squad split up", Kit.color.paper)
+	elseif id == "squadKicked" then
+		push("You were removed from the squad", Kit.color.paper)
 	elseif id == "bought" then
 		push(string.format("THANKS! %s IS YOURS", string.upper(data.name or "")), Kit.color.gold, true, 4.5)
 	elseif id == "bossSim" then

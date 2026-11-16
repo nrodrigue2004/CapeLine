@@ -62,6 +62,7 @@ local titleId, nounId, classIdx, sideIdx, setIdx = 0, 0, 0, 1, 1
 local tab = "suit"
 local colorSlot = 1 -- 1 primary, 2 secondary, 3 accent, 4 hair, 5 skin
 local pending = false
+local saveSent = 0
 local inHq = false -- opened at the HQ (class changes are allowed there)
 local rng = Rng.new(os.time() % 100000 + 3)
 
@@ -375,6 +376,16 @@ local function finish()
 	status.Text = "Saving..."
 	Net.send("HeroCreate", LookCodec.encode(look), sideIdx, classIdx, setIdx, titleId, nounId)
 	refresh()
+	-- no answer: let them try again (spec: every remote call has an error state)
+	local sentAt = os.clock()
+	saveSent = sentAt
+	task.delay(8, function()
+		if pending and saveSent == sentAt and gui.Enabled then
+			pending = false
+			refresh()
+			status.Text = "Could not save. Try again"
+		end
+	end)
 end
 
 local function randomize()

@@ -15,7 +15,7 @@ phones or Studio go on the Studio test list below.
 | M7 | Opening, Act 1, missions | Cinematic, playable disaster, choice, 6 missions in sky pockets, 3 choices, 8 side quests, journal | 5 new testers finish the opening and suit up with no help; both routes reach the finale | Code-complete 2026-11-16 |
 | M8 | PvP, death, anti-exploit | Flag, Crater, Downed and Defeated, Fame and Infamy, rules table, strikes | The 30-minute exploit test finds nothing; PvP rules checklist passes | Code-complete 2026-11-16 |
 | M9 | Creator, HQ, shop, passes | Creator with the 116 spec pieces plus the anime pieces and the Comic/Anime pick, 2 HQs, Gizmo's shop, Robux shop, passes, slots, Legacy | A tester makes a hero in under 3 minutes; test purchases grant once; looks show to others | Code-complete 2026-11-16 (economy sim gate met for the median level; see Decisions) |
-| M10 | UI and phone pass | All screens, settings, accessibility, presets, map, squad | Every screen has loading, empty and error states; device matrix passes | |
+| M10 | UI and phone pass | All screens, settings, accessibility, presets, map, squad | Every screen has loading, empty and error states; device matrix passes | Code-complete 2026-11-16 (device matrix on the Studio list) |
 | M11 | Juice, audio, wait fillers | Juice table, sounds, music, offline drones, downed polish, friend boost, Photo Mode | No idle wait over 5 s in a 30-minute session with 8 testers; every action has a sound and visual | |
 | M12 | Test and launch prep | Playtests, balance, thumbnails, icon, analytics, soft launch plan | 20 testers play with no crash reports in one session week; analytics visible | |
 
@@ -49,6 +49,7 @@ phones or Studio go on the Studio test list below.
 - HQ rooms (M9): Beacon Tower and The Foundry are box rooms with neon pads and signs, part-built dummies and boss sim robot, marble copies of the hero for statues, box trophies and props (HqClient). PLACEHOLDER ART.
 - Creator, Robux shop, HQ panels (M9): Kit placeholder look, text tiles, no piece icons; the preview is a ViewportFrame copy of the hero (CreatorScreen, ShopHud, HqHud, Preview). PLACEHOLDER ART until M10.
 - HUD: Kit placeholder look (M10 restyles).
+- M10 screens: Settings, the squad list, panel and invite card, the radar (Kit shapes and glyphs: circle, diamond, triangle, square, star), the ping wheel, the settings gear and the main menu are Kit placeholder looks (SettingsMenu, SquadHud, Radar, Shapes, Hud, MainMenu). PLACEHOLDER ART until the art pass. The squad emblem is a text glyph.
 
 ## Studio test list (needs nate's PC)
 Start: `rojo serve`, connect the Rojo plugin, press Play (or Test > Clients and Servers with 2 players). The DEV button (top right, Studio only) has the test tools.
@@ -151,6 +152,25 @@ Hub buildings: 220 (all of Downtown, 6 Docks warehouses, 122 Old Town houses). D
 9. Join late: a second player who joins after buildings fell sees the same Damaged and Collapsed buildings and rubble at once (no collapse replays) and any drone already working.
 10. Streaming: fly away from wrecked buildings and come back: they still look wrecked, with no leftover floating chunks.
 11. Gate: 10 players (or you plus 9 bots and a friend) wreck one block for 10 minutes: the Dev panel's server frame stays under 16 ms and the "buildings", "citizens" and "wrecked" counters behave; a mid-range phone on the low preset holds 30+ fps during collapses. After the drones finish, everything is back.
+
+### M10 UI and phone pass
+DEV panel (M10 rows): Reset settings, Text 160% / 100%. Use Test > Clients and Servers with 2 to 4 players for squads, and Studio's device emulator for phones.
+1. Settings: the gear button (top left, next to the wallet) opens SETTINGS. Each row changes at once: Graphics (Auto shows the picked preset), Text size 100 to 160% in 10s (every screen's text grows, nothing overflows its box at 160%), Left-handed, Reduce flashing, One-hand flight, Tap to fly, Aim assist, Music, Effects, Damage numbers. Rejoin: every value is kept.
+2. Left-handed (phone emulator): the action buttons move to the bottom left and the move stick works on the right half of the screen; turning it off puts both back.
+3. One-hand flight: the stick only flies forward and its left-right turns the camera; the action buttons stay on the right.
+4. Reduce flashing: hits, crits, supers and the Awakening burst flash much less and the camera barely shakes. Damage numbers off: no numbers on hits.
+5. Mutes: mute a player from their plate, open SETTINGS: they are under MUTED PLAYERS with UNMUTE; rejoin: still muted. With nobody muted the list says so.
+6. Radar (top left under the status card): turns with the camera; incidents are circles, events stars, the boss a diamond, danger pings triangles, squadmates squares in their colour; far ones sit on the rim; tap it for the map. Under it: DAY or NIGHT and the hour, and the boss countdown. It is hidden during the opening.
+7. Ping wheel: PING > HELP, HERE (where you aim) or DANGER: others see the ping; DANGER is a red triangle on everyone's radar for a few seconds.
+8. Map: incidents, events and the boss have their shapes; with Tap to fly on, tap one (or a beacon outside fast travel): your hero flies there on its own and stops when you touch the stick or land.
+9. Squads: tap a plate > INVITE TO SQUAD (or SQUAD > INVITE). The other player gets a card with JOIN and NO and a 30 s bar. JOIN: both see the squad list under the radar in slot colours, the emblem glyph and SQUAD tag on plates. A 5th player can't join ("full"). The leader can KICK; LEAVE works; a squad of one is gone ("Your squad broke up").
+10. Squad play: squadmates can't hurt each other even with PvP on; clear an incident with a mate within 250 studs: both are paid; a squad ping shows for mates anywhere on the map with SQUAD on it; mates show as squares on the map and radar even when far.
+11. Party missions: the leader enters a mission with 1 to 3 mates within 120 studs: everyone comes in, robots and the War-Frame are scaled to the party's median level, each member is paid at the end, and only the leader's story moves. A member's LEAVE takes only them out; the leader's ends the run for all.
+12. Pending buttons: tap a button that asks the server (ACCEPT on a contract, EQUIP, UPGRADE, a station row, INVITE): it shows "..." until the answer, a double tap does nothing, and with no answer in 5 s it says TRY AGAIN.
+13. Loading, empty and error states: Journal before the save loads says "Loading your journal..."; the Contract Board with no offers says so; the map opened before the world is built says it is still loading; the creator's DONE with no answer in 8 s says "Could not save. Try again".
+14. Main menu: a returning hero joins to CAPELINE with PLAY, SHOP and SETTINGS over the city; PLAY closes it at once. A brand-new player never sees it (the opening starts). Make a second hero (slot 2): the menu offers CREATE FIRST (straight to Suit Up, no cinematic) or PLAY THE OPENING (the cinematic and the run).
+15. Controller: every screen above works with a gamepad (Settings rows, squad card, radar buttons, main menu).
+16. Device matrix (the M10 gate): a low-end phone, a mid-range phone, a tablet, a PC and a controller each finish the opening, a contract and a boss with no blocked button, unreadable text or overlapping HUD.
 
 ### M9 Creator, HQ, shop, passes
 DEV panel (M9 rows): Creator (opens it in "first" mode), Enter HQ, HQ level (cycles 1 to 6), Away 8 h (pays the offline drones), All pieces, Buy (grants the shown shop item with a fixed test receipt, then steps to the next), Level 40.

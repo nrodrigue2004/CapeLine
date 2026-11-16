@@ -90,6 +90,9 @@ local function shape(parent: Instance, color: Color3, pos: UDim2, size: UDim2, r
 end
 
 local function playCinematic()
+	if gui:FindFirstChild("Cinematic") then
+		return
+	end
 	local layer = Kit.frame({
 		Name = "Cinematic",
 		Size = UDim2.fromScale(1, 1),
@@ -481,7 +484,8 @@ local function refreshOpening()
 		CreatorScreen.closeMode("create")
 	end
 	skipFlight.Visible = step == "flight"
-	if step == "leap" and lastStep == "" then
+	-- a returning account picks first on the main menu (Create First skips the cinematic)
+	if step == "leap" and lastStep == "" and not StoryClient.opening.createFirst then
 		playCinematic()
 	end
 	lastStep = step or ""
@@ -546,6 +550,11 @@ local function frame()
 	if bubble.Visible and now > bubbleUntil then
 		bubble.Visible = false
 	end
+end
+
+-- The main menu's PLAY THE OPENING
+function StoryHud.playCinematic()
+	playCinematic()
 end
 
 function StoryHud.init()

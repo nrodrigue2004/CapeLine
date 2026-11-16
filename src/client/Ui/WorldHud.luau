@@ -17,6 +17,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local IncidentPlan = require(Shared:WaitForChild("IncidentPlan"))
 
 local Kit = require(script.Parent.Kit)
+local Shapes = require(script.Parent.Shapes)
 local State = require(script.Parent.Parent.State)
 local WorldClient = require(script.Parent.Parent.Controllers.WorldClient)
 
@@ -203,7 +204,14 @@ end
 -- Markers in the world
 ---------------------------------------------------------------------------
 
-local function marker(key: string, pos: Vector3, text: string, color: Color3, maxDist: number): BillboardGui
+local function marker(
+	key: string,
+	pos: Vector3,
+	text: string,
+	color: Color3,
+	maxDist: number,
+	shape: string?
+): BillboardGui
 	local b = markers[key]
 	if not b then
 		local anchor = Instance.new("Part")
@@ -254,7 +262,10 @@ local function marker(key: string, pos: Vector3, text: string, color: Color3, ma
 	local textLabel = b:FindFirstChild("Text") :: TextLabel
 	textLabel.Text = text
 	local icon = b:FindFirstChild("Icon") :: TextLabel
-	icon.BackgroundColor3 = color
+	Shapes.apply(icon, shape or "circle", color) -- M10: colorblind-safe shapes
+	if shape == "diamond" or shape == "circle" or not shape then
+		icon.Text = "!"
+	end
 	return b
 end
 
@@ -282,7 +293,7 @@ local function refreshMarkers()
 			keep[key] = true
 			local def = Config.Events.events[ev.id]
 			local at = Vector3.new(ev.x, Config.City.ground.y + 2, ev.z)
-			local b = marker(key, at, string.upper(def.name), Kit.color.gold, 3000)
+			local b = marker(key, at, string.upper(def.name), Kit.color.gold, 3000, "star")
 			b.StudsOffsetWorldSpace = Vector3.new(0, 30, 0)
 		end
 	end
@@ -295,7 +306,8 @@ local function refreshMarkers()
 			Vector3.new(s.x, s.y, s.z),
 			string.upper(def.name),
 			Color3.fromRGB(255, 90, 60),
-			5000
+			5000,
+			"diamond"
 		)
 		b.StudsOffsetWorldSpace = Vector3.new(0, def.height + 12, 0)
 	end

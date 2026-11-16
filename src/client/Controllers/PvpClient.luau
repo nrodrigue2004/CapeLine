@@ -89,8 +89,11 @@ function PvpClient.report(userId: number, reason: number)
 	Net.send("ReportPlayer", userId, reason)
 end
 
-function PvpClient.mute(userId: number, on: boolean)
+function PvpClient.mute(userId: number, on: boolean, fromSave: boolean?)
 	PvpClient.muted[userId] = on or nil
+	if not fromSave then
+		Net.send("SettingsMute", userId, if on then 1 else 0) -- M10: the mute list is saved
+	end
 	PvpClient.MutesChanged:Fire()
 end
 

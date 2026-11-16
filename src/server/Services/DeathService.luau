@@ -85,11 +85,16 @@ local function sendDown(hero: any, extra: { [string]: any }?)
 end
 
 -- A marker on the screens of nearby players (Help, Here, Danger)
+-- M10 squads set this: (hero) -> the squadmates' players (squad pings reach them at any range)
+DeathService.squadOf = nil :: ((any) -> { Player })?
+
 local function ping(hero: any, kind: number, pos: Vector3, downed: boolean?)
+	local mates = if DeathService.squadOf then DeathService.squadOf(hero) else {}
 	for _, p in Players:GetPlayers() do
 		local other = HeroService.get(p)
 		local op = other and HeroService.position(other)
-		if other and other ~= hero and op and (op - pos).Magnitude <= D.pingRange then
+		local mate = table.find(mates, p) ~= nil
+		if other and other ~= hero and op and (mate or (op - pos).Magnitude <= D.pingRange) then
 			Net.fire("PingShow", p, {
 				kind = kind,
 				x = pos.X,
@@ -99,6 +104,7 @@ local function ping(hero: any, kind: number, pos: Vector3, downed: boolean?)
 				name = hero.name,
 				life = D.pingLife,
 				downed = downed or nil,
+				squad = mate or nil,
 			})
 		end
 	end

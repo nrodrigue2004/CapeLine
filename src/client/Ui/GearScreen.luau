@@ -137,10 +137,13 @@ end
 ---------------------------------------------------------------------------
 
 local function cardButton(text: string, color: Color3, fn: () -> ())
-	local b = Kit.button(
-		{ Text = text, Size = UDim2.new(0.5, -4, 0, 40), BackgroundColor3 = color, maxText = 15 },
-		fn
-	)
+	local b = Kit.button({
+		Text = text,
+		Size = UDim2.new(0.5, -4, 0, 40),
+		BackgroundColor3 = color,
+		maxText = 15,
+		pending = true,
+	}, fn)
 	b.Parent = cardButtons
 end
 
@@ -288,6 +291,7 @@ local function refreshStyles()
 	end
 	local shown = State.profile.shown[styleSlot] or 0
 	local own = Kit.button({
+		pending = true,
 		Text = "SHOW MY GEAR'S OWN LOOK",
 		BackgroundColor3 = if shown == 0 then Color3.fromRGB(120, 230, 140) else Kit.color.paper,
 		LayoutOrder = 0,
@@ -303,6 +307,7 @@ local function refreshStyles()
 			local row = GearMath.styleRow(Config, id)
 			local have = owned[id] == true
 			local b = Kit.button({
+				pending = true,
 				Text = (if row then row.name else "?") .. (if have then "" else "  (locked)"),
 				BackgroundColor3 = if shown == id
 					then Color3.fromRGB(120, 230, 140)
@@ -501,6 +506,7 @@ function GearScreen.init()
 	stashList =
 		listFrame(stash, UDim2.new(0.22, 0, 0, 0), UDim2.new(0.42, -6, 1, -48), UDim2.new(0.5, -6, 0, 56))
 	local junk = Kit.button({
+		pending = true,
 		Text = "SALVAGE UNWORN COMMONS",
 		Size = UDim2.new(0.42, -6, 0, 40),
 		Position = UDim2.new(0.22, 0, 1, -42),

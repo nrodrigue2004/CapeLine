@@ -60,11 +60,12 @@ local function clearBody()
 end
 
 local order = 0
-local function row(text: string, onClick: (() -> ())?, color: Color3?, height: number?): TextButton
+local function row(text: string, onClick: (() -> ())?, color: Color3?, waits: boolean?): TextButton
 	order += 1
 	local b = Kit.button({
 		Text = text,
-		Size = UDim2.new(1, -8, 0, height or T),
+		pending = waits == true,
+		Size = UDim2.new(1, -8, 0, T),
 		LayoutOrder = order,
 		BackgroundColor3 = color or Kit.color.paper,
 		maxText = 20,
@@ -119,7 +120,7 @@ local function drawHeroes()
 		elseif slot <= max then
 			row("+ NEW HERO (slot " .. slot .. ")", function()
 				Net.send("HeroSelect", slot)
-			end, Kit.color.gold)
+			end, Kit.color.gold, true)
 		else
 			row("SLOT " .. slot .. ": BUY IN THE SHOP", function()
 				HqHud.close()
@@ -209,11 +210,11 @@ local function drawMannequins()
 		if open then
 			row(string.format("MANNEQUIN %d: SAVE MY LOOK", n), function()
 				Net.send("LookSave", n)
-			end)
+			end, nil, true)
 			if saved then
 				row(string.format("MANNEQUIN %d: WEAR", n), function()
 					Net.send("LookWear", n)
-				end, Kit.color.gold)
+				end, Kit.color.gold, true)
 			end
 		else
 			note(string.format("Mannequin %d opens at HQ level 2", n))
@@ -230,7 +231,7 @@ local function drawTraining()
 	if s.bossSim then
 		row(string.format("BOSS SIM: %s HP in %d s", Kit.comma(H.bossSim.hp), H.bossSim.time), function()
 			Net.send("HqBossSim")
-		end, Kit.color.gold)
+		end, Kit.color.gold, true)
 		note("Step out of the red rings")
 	else
 		note(string.format("The boss sim opens at HQ level %d", H.levels.bossSim))
@@ -261,7 +262,7 @@ local function drawTrophies()
 	if #earned > 0 then
 		row("SAVE THE WALL", function()
 			Net.send("HqTrophies", picks)
-		end, Kit.color.gold)
+		end, Kit.color.gold, true)
 	end
 end
 

@@ -2,8 +2,11 @@
 -- safehouses, incidents, boss, Comet Crater, party; tap a marker to auto-fly; fast travel to beacons").
 -- M4 shows the zones, districts, landmarks, both HQs, the 16 safehouses (bright once visited), the 12
 -- beacons (gold once discovered, a tap flies there) and you. M6 adds the incidents near you (blue League,
--- red Syndicate), running events (gold) and the world boss (big red). The party joins in M10. Opens with M or the MAP button.
--- PLACEHOLDER ART: flat coloured frames until the UI pass (M10).
+-- red Syndicate), running events (gold) and the world boss (big red). M10: your squad (squares in their
+-- slot colours), colorblind-safe shapes (circle incident, star event, diamond boss), and a tap on an
+-- incident, event or the boss auto-flies you there (Settings: tap to fly; needs flight). Opens with M, the
+-- MAP button or a tap on the radar.
+-- PLACEHOLDER ART: flat coloured frames until the art pass.
 
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
@@ -18,6 +21,9 @@ local Kit = require(script.Parent.Kit)
 local State = require(script.Parent.Parent.State)
 local InputController = require(script.Parent.Parent.Controllers.InputController)
 local WorldClient = require(script.Parent.Parent.Controllers.WorldClient)
+local MoveController = require(script.Parent.Parent.Controllers.MoveController)
+local SquadClient = require(script.Parent.Parent.Controllers.SquadClient)
+local SettingsClient = require(script.Parent.Parent.Controllers.SettingsClient)
 
 local MapScreen = {}
 
@@ -110,7 +116,15 @@ local function draw()
 			if isHome then 14 else 10,
 			if visited then rgb(C.palette.respawn) else Kit.color.muted
 		)
-		d.Rotation = 45
+		-- a rounded square with an S (diamonds are the boss's shape)
+		local corner = d:FindFirstChildOfClass("UICorner")
+		if corner then
+			corner.CornerRadius = UDim.new(0, 3)
+		end
+		d.Text = "S"
+		d.TextScaled = true
+		d.Font = Kit.font
+		d.TextColor3 = Kit.color.ink
 		markers["s" .. s.id] = d
 	end
 	for _, b in info.beacons do
@@ -213,6 +227,22 @@ end
 
 -- Incidents, events and the boss: redrawn every second while the map is open
 local worldMarks: { GuiObject } = {}
+-- Tap-to-fly on a world marker
+local function flyable(d: TextButton, at: Vector3, name: string)
+	d.Activated:Connect(function()
+		if not SettingsClient.on("tapToFly") then
+			MapScreen.say(name)
+			return
+		end
+		if MoveController.flyTo(at) then
+			MapScreen.say("Flying to " .. name .. ": move to take over")
+			task.delay(0.6, MapScreen.close)
+		else
+			MapScreen.say("Unlock flight to fly there")
+		end
+	end)
+end
+
 local function drawWorld()
 	for _, m in worldMarks do
 		m:Destroy()
@@ -220,30 +250,81 @@ local function drawWorld()
 	table.clear(worldMarks)
 	for _, inc in WorldClient.incidents do
 		if inc.state == WorldClient.ACTIVE then
+			-- circles: incidents (colorblind-safe)
 			local d = dot(
 				"Incident",
 				inc.pos.X,
 				inc.pos.Z,
-				10,
+				14,
 				if inc.side == "villain" then Kit.color.syndicate else Kit.color.league
 			)
+			flyable(d, inc.pos, "the incident")
 			table.insert(worldMarks, d)
 		end
 	end
 	for _, ev in WorldClient.events do
 		if ev.state == 0 then
-			local d = dot("Event", ev.x, ev.z, 18, Kit.color.gold)
-			d.Rotation = 45
+			-- stars: events
+			local d = dot("Event", ev.x, ev.z, 22, Kit.color.gold)
+			d.BackgroundTransparency = 1
+			d.Text = "★"
+			d.TextScaled = true
+			d.TextColor3 = Kit.color.gold
+			d.TextStrokeTransparency = 0
+			flyable(d, Vector3.new(ev.x, Config.City.ground.y, ev.z), "the event")
 			table.insert(worldMarks, d)
+		end
+	end
+	for _, m in SquadClient.state.members or {} do
+		if m.userId ~= Players.LocalPlayer.UserId then
+			local p = Players:GetPlayerByUserId(m.userId)
+			local char = p and p.Character
+			local root = char and char:FindFirstChild("HumanoidRootPart") :: BasePart?
+			local far = SquadClient.positions[m.userId]
+			local x, z = nil :: number?, nil :: number?
+			if root then
+				x, z = root.Position.X, root.Position.Z
+			elseif far then
+				x, z = far.X, far.Y
+			end
+			if x and z then
+				-- squares: squadmates in their slot colour
+				local col = Config.Squad.colors[m.slot or 1] or Config.Squad.colors[1]
+				local d = dot("Squad", x, z, 14, Color3.fromRGB(col[1], col[2], col[3]))
+				local corner = d:FindFirstChildOfClass("UICorner")
+				if corner then
+					corner.CornerRadius = UDim.new(0, 2)
+				end
+				local l = Kit.label({
+					Text = m.name,
+					AnchorPoint = Vector2.new(0.5, 0),
+					Size = UDim2.fromOffset(110, 14),
+					Position = UDim2.new(0.5, 0, 1, 2),
+					TextColor3 = Color3.fromRGB(col[1], col[2], col[3]),
+					TextStrokeTransparency = 0.3,
+					Font = Kit.bodyFont,
+					maxText = 11,
+				})
+				l.Parent = d
+				table.insert(worldMarks, d)
+			end
 		end
 	end
 	local b = WorldClient.boss
 	if b.state == 1 or b.state == 2 or b.state == 3 then
+		-- a diamond: the world boss
 		local d = dot("Boss", b.x, b.z, 26, Color3.fromRGB(235, 60, 50))
+		d.Rotation = 45
+		local corner = d:FindFirstChildOfClass("UICorner")
+		if corner then
+			corner.CornerRadius = UDim.new(0, 3)
+		end
+		flyable(d, Vector3.new(b.x, b.y or Config.City.ground.y, b.z), "the world boss")
 		local l = Kit.label({
 			Text = "BOSS",
 			Size = UDim2.fromScale(1, 1),
 			TextColor3 = Kit.color.paper,
+			Rotation = -45,
 			maxText = 12,
 		})
 		l.Parent = d
@@ -253,6 +334,8 @@ end
 
 function MapScreen.open()
 	if not info and not loadInfo() then
+		-- the world is still being built (spec: every screen has an error state)
+		State.Toast:Fire({ id = "note", text = "The map is still loading. Try again in a moment." })
 		return
 	end
 	if not you then

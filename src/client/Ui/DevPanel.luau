@@ -18,6 +18,7 @@ local ShopRules = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild(
 local Kit = require(script.Parent.Kit)
 local State = require(script.Parent.Parent.State)
 local QualityController = require(script.Parent.Parent.Controllers.QualityController)
+local SettingsClient = require(script.Parent.Parent.Controllers.SettingsClient)
 
 local DevPanel = {}
 
@@ -270,6 +271,15 @@ function DevPanel.init()
 	end)
 	add("Level 40", function()
 		Net.send("DevCommand", "legacy")
+	end)
+	-- M10: settings and accessibility
+	add("Reset settings", function()
+		for _, k in Config.Settings.keys do
+			SettingsClient.set(k.id, k.default)
+		end
+	end)
+	add("Text 160% / 100%", function()
+		SettingsClient.set("textSize", if SettingsClient.get("textSize") >= 160 then 100 else 160)
 	end)
 
 	local stats = Kit.label({

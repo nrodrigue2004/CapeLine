@@ -34,6 +34,8 @@ local NAMES = {
 	"Creator",
 	"Shop",
 	"Hq",
+	"Settings",
+	"Squad",
 }
 
 local Config: { [string]: any } = {}

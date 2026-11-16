@@ -22,6 +22,7 @@ local Rng = require(Shared:WaitForChild("Rng"))
 local OpeningPlan = require(Shared:WaitForChild("OpeningPlan"))
 local StoryPlan = require(Shared:WaitForChild("StoryPlan"))
 local Progress = require(Shared:WaitForChild("Progress"))
+local ProfileSchema = require(Shared:WaitForChild("ProfileSchema"))
 
 local CityBuilder = require(script.Parent.CityBuilder)
 local DataService = require(script.Parent.DataService)
@@ -76,10 +77,28 @@ local function target(r: Run): { number }?
 	return nil
 end
 
+-- A returning player (another hero on the account already did the opening) may Create First: skip the
+-- cinematic and the disaster and go straight to Suit Up (spec: Main menu "Create First skips the cinematic
+-- for returning players")
+function OpeningService.returning(player: Player): boolean
+	local profile = DataService.get(player)
+	if not profile or type(profile.characters) ~= "table" then
+		return false
+	end
+	local mine = ProfileSchema.active(profile)
+	for _, c in profile.characters do
+		if c ~= mine and type(c) == "table" and type(c.story) == "table" and c.story.opening == 1 then
+			return true
+		end
+	end
+	return false
+end
+
 local function send(r: Run)
 	local route = r.route
 	Net.fire("OpeningState", r.player, {
 		step = CODE[r.step] or 0,
+		createFirst = if CODE[r.step] <= CODE.glide and OpeningService.returning(r.player) then true else nil,
 		target = target(r),
 		side = r.side,
 		left = math.max(0, math.ceil(r.startedAt + O.timeout - os.clock())),
@@ -335,6 +354,9 @@ local function onAct(player: Player, act: number)
 		end
 	elseif act == 2 and r.step == "flight" then
 		OpeningService.finish(player)
+	elseif act == 3 and CODE[r.step] <= CODE.glide and OpeningService.returning(player) then
+		-- Create First: straight to Suit Up
+		setStep(r, "suitup")
 	end
 end
 

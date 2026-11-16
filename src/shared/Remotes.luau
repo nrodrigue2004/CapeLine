@@ -121,7 +121,7 @@ local Remotes: { [string]: RemoteDef } = {
 	ChoicePrompt = { dir = "S2C" }, -- { id, labels }: the two (or three) big verb buttons
 	ChoicePick = { dir = "C2S", schema = { n(0, 4), n(1, 3) }, rate = 1, burst = 2 }, -- choice id, option
 	OpeningState = { dir = "S2C" }, -- { step, target = { x, y, z }, side, left }: the playable disaster
-	OpeningAct = { dir = "C2S", schema = { n(1, 2) }, rate = 2, burst = 3 }, -- 1 Catch, 2 skip the flight
+	OpeningAct = { dir = "C2S", schema = { n(1, 3) }, rate = 2, burst = 3 }, -- 1 Catch, 2 skip the flight, 3 Create First
 	MissionEnter = { dir = "C2S", schema = { n(2, 6), n(0, 1000000, true) }, rate = 0.2, burst = 2 },
 	MissionLeave = { dir = "C2S", schema = {}, rate = 0.5, burst = 2 },
 	MissionState = { dir = "S2C" }, -- { num, step, steps, kind, have, need, left, points, target }, 2 Hz
@@ -180,6 +180,16 @@ local Remotes: { [string]: RemoteDef } = {
 	TintSet = { dir = "C2S", schema = { n(0, 10) }, rate = 1, burst = 3 }, -- an owned effect colour, 0 none
 	LandingSet = { dir = "C2S", schema = { n(0, 31) }, rate = 1, burst = 3 }, -- an owned landing pose, 0 none
 	EmotePlay = { dir = "C2S", schema = { n(1, 31) }, rate = 1, burst = 2 }, -- an owned emote or landing pose
+	-- M10: settings (spec: Settings.Set {key, value} 2/s) and the saved mute list
+	SettingsSet = { dir = "C2S", schema = { n(1, 16), n(0, 1000) }, rate = 2, burst = 6 },
+	SettingsMute = { dir = "C2S", schema = { n(1, 2 ^ 52), n(0, 1) }, rate = 2, burst = 4 }, -- user id, on
+	-- M10: squads (spec: Squad.Invite, Squad.Accept, Squad.Leave {userId or squadId} 1/s, Squad.State)
+	SquadInvite = { dir = "C2S", schema = { n(1, 2 ^ 52) }, rate = 1, burst = 3 }, -- user id
+	SquadAnswer = { dir = "C2S", schema = { n(0, 1) }, rate = 1, burst = 2 }, -- 1 accept, 0 decline
+	SquadLeave = { dir = "C2S", schema = {}, rate = 1, burst = 2 },
+	SquadKick = { dir = "C2S", schema = { n(1, 2 ^ 52) }, rate = 1, burst = 2 }, -- leader only
+	SquadState = { dir = "S2C" }, -- { members = { { userId, name, level, classId, side, slot } }, leader }
+	SquadInvited = { dir = "S2C" }, -- { from, name, size, life }: an invite card
 }
 
 return Remotes

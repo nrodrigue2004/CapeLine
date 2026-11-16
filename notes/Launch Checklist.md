@@ -13,6 +13,9 @@
 - [ ] M9 review every creator piece, emblem glyph, name pair and the 13 Gizmo styles against famous hero and anime looks; extend Config.Creator.blockedNames if a Title + Noun pair matches a known character.
 - [ ] M9 voice pack sounds (4 packs x 6 clips) with a licence for commercial use.
 - [ ] M9 re-check Roblox's paid random item and DevEx rules: packs are fixed (no random items), nothing sold changes stats.
+- [ ] M10 device matrix: low-end phone, mid-range phone, tablet, PC and a controller each finish the opening, a contract and a boss (Studio list M10 16), and the text at 160% fits every screen.
+- [ ] M10 check the radar, map and PvP rings with Studio's colorblind simulation (shapes must read without colour).
+- [ ] M10 Roblox's current accessibility and photosensitivity guidance: Reduce flashing is in Settings; confirm nothing flashes faster than 3 times a second with it on.
 - [ ] Thumbnails, icon, description (M12).
 - [ ] Private server price.
 - [ ] Re-check Roblox rules (PvP, free-form creation, rewarded video ads) before launch.

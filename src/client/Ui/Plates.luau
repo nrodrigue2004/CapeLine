@@ -14,6 +14,7 @@ local Config = require(ReplicatedStorage:WaitForChild("Config"))
 
 local Kit = require(script.Parent.Kit)
 local PvpClient = require(script.Parent.Parent.Controllers.PvpClient)
+local SquadClient = require(script.Parent.Parent.Controllers.SquadClient)
 
 local Plates = {}
 
@@ -24,6 +25,7 @@ local gui: ScreenGui
 local menu: Frame
 local menuTitle: TextLabel
 local muteButton: TextButton
+local squadButton: TextButton
 local reasonRow: Frame
 local menuFor: Player? = nil
 local plates: { [Player]: { bb: BillboardGui, name: TextLabel, who: TextLabel, tag: TextLabel } } = {}
@@ -38,6 +40,12 @@ local function openMenu(p: Player)
 	menuFor = p
 	menuTitle.Text = string.upper(p.DisplayName)
 	muteButton.Text = if PvpClient.muted[p.UserId] then "UNMUTE" else "MUTE"
+	local mate = SquadClient.isMate(p)
+	squadButton.Text = if mate
+		then "IN YOUR SQUAD"
+		elseif p:GetAttribute("Squad") then "IN A SQUAD"
+		else "INVITE TO SQUAD"
+	squadButton.AutoButtonColor = not mate and p:GetAttribute("Squad") == nil
 	reasonRow.Visible = false
 	menu.Visible = true
 	Kit.bounce(menu)
@@ -63,6 +71,14 @@ local function refresh(p: Player)
 	end
 	if PvpClient.muted[p.UserId] then
 		table.insert(bits, "MUTED")
+	end
+	-- M10: squadmates carry the squad emblem in their slot colour
+	if SquadClient.isMate(p) then
+		local e = SquadClient.state.emblem
+		table.insert(bits, 1, (if e then e.glyph .. " " else "") .. "SQUAD")
+		local slot = SquadClient.slotOf(p)
+		local c = Config.Squad.colors[slot or 1] or Config.Squad.colors[1]
+		pl.tag.TextColor3 = Color3.fromRGB(c[1], c[2], c[3])
 	end
 	pl.tag.Text = table.concat(bits, "  ")
 	local hero = p:GetAttribute("HeroName")
@@ -152,7 +168,9 @@ local function watch(p: Player)
 	if p.Character then
 		task.spawn(attach, p, p.Character)
 	end
-	for _, attr in { "Pvp", "PvpSide", "Downed", "Fame", "FameRank", "Side", "HeroName", "Legacy" } do
+	for _, attr in
+		{ "Pvp", "PvpSide", "Downed", "Fame", "FameRank", "Side", "HeroName", "Legacy", "Squad", "SquadSlot" }
+	do
 		p:GetAttributeChangedSignal(attr):Connect(function()
 			refresh(p)
 		end)
@@ -163,7 +181,7 @@ local function build()
 	gui = Kit.screen("Plates", 7)
 	menu = Kit.frame({
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Size = UDim2.fromOffset(340, 150),
+		Size = UDim2.fromOffset(340, 150 + U.touchTarget + 8),
 		Position = UDim2.fromScale(0.5, 0.45),
 		BackgroundColor3 = Kit.color.night,
 		Visible = false,
@@ -209,6 +227,19 @@ local function build()
 		end
 	end)
 	muteButton.Parent = menu
+	squadButton = Kit.button({
+		Text = "INVITE TO SQUAD",
+		Size = UDim2.fromOffset(316, U.touchTarget),
+		Position = UDim2.fromOffset(12, 64 + U.touchTarget),
+		BackgroundColor3 = Kit.color.gold,
+	}, function()
+		local p = menuFor
+		if p and not SquadClient.isMate(p) and p:GetAttribute("Squad") == nil then
+			SquadClient.invite(p.UserId)
+			closeMenu()
+		end
+	end)
+	squadButton.Parent = menu
 	-- the preset reasons (no typed text)
 	reasonRow = Kit.frame({
 		AnchorPoint = Vector2.new(0.5, 0),
@@ -243,6 +274,11 @@ end
 
 function Plates.init()
 	build()
+	SquadClient.Changed:Connect(function()
+		for p in plates do
+			refresh(p)
+		end
+	end)
 	for _, p in Players:GetPlayers() do
 		watch(p)
 	end

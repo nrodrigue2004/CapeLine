@@ -60,3 +60,11 @@ record the source here. Status: Using / Recommended (milestone) / Paid (ask nate
 - Character customisation kits on GitHub and the DevForum (avatar editors, outfit systems): Skipped, licences not reviewed since not used. Looks must pack into one 32-byte record for saves and replication, which LookCodec does in a few lines.
 - Blender (free, GPL; the output is yours) and Roblox's Avatar Auto-Setup: Recommended for the M10 or M11 art pass to replace the box pieces with meshes; needs nate's PC.
 - Robux price testing in the Creator Dashboard: Recommended after launch (the starter pack price A/B).
+
+## UI, accessibility and squads (M10)
+- Roblox UITextSizeConstraint (built in): Used. Kit.setTextScale raises every label's MaxTextSize for the 100 to 160% text size.
+- Roblox ControlModule and the default touch thumbstick (built in): Kept for right-handed touch; replaced by our own stick for left-handed and one-hand modes because the default one can't be moved.
+- Roblox gamepad UI selection (built in): Used as is; Kit buttons are selectable, so the new screens need no extra code. Studio test M10 15 checks it.
+- Roblox Party and Experience Invite APIs (SocialService:PromptGameInvite): Recommended for M12 (inviting friends into the server grows reach); squads themselves stay per server.
+- UI libraries on GitHub (Fusion, MIT; React-Lua, MIT; Iris, MIT): Skipped. Every screen already uses Kit; moving now would mean restyling working systems (CLAUDE.md rule 1). Fusion is worth a look for the next game.
+- Colorblind simulators (Studio's built-in Accessibility color simulation, Coblis web tool, free): Recommended for nate's M10 Studio pass on the radar and map.

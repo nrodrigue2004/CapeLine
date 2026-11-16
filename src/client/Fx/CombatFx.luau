@@ -23,6 +23,7 @@ local DebrisBudget = require(script.Parent.DebrisBudget)
 
 local CombatFx = {}
 CombatFx.reduceFlashing = false
+CombatFx.showNumbers = true -- Settings: damage numbers (crit and BLOCK/BREAK words still show)
 
 local F = Config.Fx
 local A = Config.Abilities
@@ -717,6 +718,9 @@ function CombatFx.number(
 	mine: boolean,
 	flag: number?
 )
+	if not CombatFx.showNumbers and not flag then
+		return
+	end
 	local size = (if crit then F.numbers.critScale else 1) * (if mine then 1 else 0.7)
 	local text = tostring(amount)
 	local color = if crit then CRIT else WHITE

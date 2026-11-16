@@ -259,6 +259,8 @@ local function draw()
 		b.BackgroundColor3 = if id == tab then Kit.color.gold else Kit.color.paper
 	end
 	if not j then
+		-- the journal comes with the save; it is on its way (spec: every screen has a loading state)
+		Kit.stateNote(body, "loading", "Loading your journal...")
 		return
 	end
 	if tab == "story" then

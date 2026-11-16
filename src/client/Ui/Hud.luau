@@ -15,6 +15,7 @@ local TweenService = game:GetService("TweenService")
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Progress = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Progress"))
+local Signal = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Util"):WaitForChild("Signal"))
 
 local Kit = require(script.Parent.Kit)
 local State = require(script.Parent.Parent.State)
@@ -43,6 +44,11 @@ local buffRow: Frame
 local renownFill: Frame
 local renownText: TextLabel
 local walletText: TextLabel
+local cluster: Frame
+local stickRing: Frame
+local stickKnob: Frame
+local mirrored = false
+local original: { [GuiObject]: UDim2 } = {}
 local SLOT_ACTIONS = { "Skill1", "Skill2", "Skill3", "Skill4" }
 local ShortName: { [string]: string } = {}
 for id, row in A do
@@ -271,7 +277,7 @@ local function buildStaminaRing(around: GuiObject)
 end
 
 local function buildCluster()
-	local cluster = Instance.new("Frame")
+	cluster = Instance.new("Frame")
 	cluster.Name = "Cluster"
 	cluster.BackgroundTransparency = 1
 	cluster.AnchorPoint = Vector2.new(1, 1)
@@ -349,6 +355,17 @@ local function buildCluster()
 		Kit.color.paper
 	)
 	journal.Size = UDim2.fromOffset(s + 40, s - 10)
+	-- M10: Settings (a gear glyph; also on the main menu)
+	local settings = Kit.button({
+		Name = "SettingsButton",
+		Text = "⚙",
+		Size = UDim2.fromOffset(s - 10, s - 10),
+		Position = UDim2.fromOffset(U.safe + 258, U.safe),
+		BackgroundColor3 = Kit.color.paper,
+	}, function()
+		Hud.OpenSettings:Fire()
+	end)
+	settings.Parent = gui
 	-- M9: the Robux shop (looks only) and the emote picker
 	local shop = actionButton(
 		gui,
@@ -544,11 +561,61 @@ local function applyFocus()
 	end
 end
 
+Hud.OpenSettings = Signal.new() -- the gear button (SettingsMenu listens)
+
+-- Left-handed layout (spec: "left-handed mirror"): the action cluster moves to the bottom left, every
+-- button mirrored inside it, so the right thumb gets the move stick (InputController.setStick)
+function Hud.setLeftHanded(on: boolean)
+	if on == mirrored or not cluster then
+		return
+	end
+	mirrored = on
+	cluster.AnchorPoint = if on then Vector2.new(0, 1) else Vector2.new(1, 1)
+	cluster.Position = if on then UDim2.new(0, U.safe, 1, -96) else UDim2.new(1, -U.safe, 1, -96)
+	for _, c in cluster:GetChildren() do
+		if c:IsA("GuiObject") then
+			if not original[c] then
+				original[c] = c.Position
+			end
+			local p = original[c]
+			c.Position = if on then UDim2.new(1 - p.X.Scale, -p.X.Offset, p.Y.Scale, p.Y.Offset) else p
+		end
+	end
+end
+
+-- The right-side move stick's ring (left-handed and one-hand modes)
+local function drawStick()
+	local origin, vec = InputController.stickState()
+	stickRing.Visible = origin ~= nil
+	if origin then
+		stickRing.Position = UDim2.fromOffset(origin.X, origin.Y)
+		stickKnob.Position = UDim2.new(0.5 + vec.X * 0.5, 0, 0.5 + vec.Y * 0.5, 0)
+	end
+end
+
 function Hud.init()
 	gui = Kit.screen("Hud", 1)
 	local stamFill = buildTopLeft()
 	buildCrosshair()
 	buildCluster()
+	stickRing = Kit.frame({
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Size = UDim2.fromOffset(140, 140),
+		BackgroundColor3 = Kit.color.paper,
+		BackgroundTransparency = 0.75,
+		Visible = false,
+	})
+	Kit.round(stickRing, 70)
+	stickRing.Parent = gui
+	stickKnob = Kit.frame({
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Size = UDim2.fromOffset(56, 56),
+		BackgroundColor3 = Kit.color.gold,
+		BackgroundTransparency = 0.2,
+	})
+	Kit.round(stickKnob, 28)
+	stickKnob.Parent = stickRing
+	RunService.RenderStepped:Connect(drawStick)
 	refreshInfo()
 	applyDevice(InputController.device)
 	State.Changed:Connect(refreshInfo)

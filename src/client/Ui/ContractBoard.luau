@@ -88,6 +88,7 @@ local function card(
 	end
 	if button and onClick then
 		local b = Kit.button({
+			pending = true,
 			Text = button,
 			AnchorPoint = Vector2.new(1, 0.5),
 			Position = UDim2.new(1, -10, 0.5, 0),
@@ -104,6 +105,17 @@ local function render(board: { [string]: any })
 	local first = Config.Economy.bonus.firstContracts
 	local done = board.done or 0
 	heading("OFFERS", 1)
+	if #(board.offers or {}) == 0 then
+		local l = Kit.label({
+			Text = "No offers right now: new ones post soon",
+			Size = UDim2.new(1, 0, 0, 18),
+			TextColor3 = Kit.color.muted,
+			Font = Kit.bodyFont,
+			LayoutOrder = 2,
+			maxText = 14,
+		})
+		l.Parent = body
+	end
 	for i, o in board.offers or {} do
 		local id = WorldClient.contractByNum[o[1]]
 		local def = id and CC.types[id]

@@ -181,6 +181,7 @@ local function card(order: number, key: string)
 	end
 	local b = Kit.button({
 		Text = text,
+		pending = click ~= nil,
 		AnchorPoint = Vector2.new(0.5, 1),
 		Size = UDim2.new(1, -16, 0, T - 8),
 		Position = UDim2.new(0.5, 0, 1, -6),

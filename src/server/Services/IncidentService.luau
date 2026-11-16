@@ -44,6 +44,8 @@ IncidentService.Cleared = Signal.new() -- (incident) an incident was cleared (Ra
 IncidentService.Rescued = Signal.new() -- (hero) a citizen reached safety (the boss counts it as support)
 IncidentService.prep = false -- a world boss is counting down: Raid prep incidents
 IncidentService.clockStart = 0 -- the world clock's cycle start (ClockService sets it)
+-- M10 squads set this: (helpers, position) adds squadmates near a cleared incident to its helpers
+IncidentService.share = nil :: (({ [number]: boolean }, Vector3) -> ())?
 
 export type Live = {
 	id: number,
@@ -449,6 +451,9 @@ local function finish(inc: Live, ok: boolean, now: number)
 	inc.ended = now
 	if ok then
 		inc.medal = IncidentPlan.medal(IC, inc.plan, now)
+		if IncidentService.share then
+			IncidentService.share(inc.helpers, inc.pos)
+		end
 		for heroId in inc.helpers do
 			local hero = HeroService.byId(heroId)
 			if hero and hero.player then

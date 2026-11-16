@@ -9,7 +9,7 @@
 
 local ProfileSchema = {}
 
-ProfileSchema.VERSION = 4
+ProfileSchema.VERSION = 5
 ProfileSchema.SLOTS = 8
 ProfileSchema.STYLE_WORDS = 16 -- 512 bits
 ProfileSchema.SMALL_WORDS = 4 -- 128 bits for emotes, titles, Rogues File pages, seen flags
@@ -141,7 +141,8 @@ function ProfileSchema.default(): { [string]: any }
 		legends = {}, -- the Hall of Legends: retired heroes' statues (HqRules.retire)
 		bosses = { 0, 0 }, -- best world boss reward tier per boss (Config.Boss.order): 1 joined, 2, 3 MVP
 		shop = { starterSeen = 0 }, -- the starter pack offer was shown (once)
-		settings = { preset = 0, textSize = 1, leftHanded = false, reduceFlashing = false },
+		settings = {}, -- M10: { [key id] = number } (SettingsRules.clean fills and fixes it on load)
+		mutes = {}, -- M10: muted user ids (the mute list), at most Config.Settings.maxMutes
 		daily = { day = 0, contractsDone = 0 },
 		seen = words(ProfileSchema.SMALL_WORDS),
 		stats = {
@@ -194,6 +195,10 @@ local MIGRATIONS: { [number]: (any) -> () } = {
 	[4] = function(_p)
 		-- M9: the creator, HQ, shop and Legacy fields start empty (repair() adds them); a hero made before the
 		-- creator keeps created = 0, so the creator opens once on its next join to pick a name and look
+	end,
+	[5] = function(_p)
+		-- M10: settings become numbers per key and the mute list is saved; SettingsRules.clean turns an old
+		-- settings table (textSize as a 1 to 1.6 scale, booleans) into the new one on load
 	end,
 }
 ProfileSchema.MIGRATIONS = MIGRATIONS
@@ -437,6 +442,7 @@ local function repair(p: any): any
 		end
 		p.purchases.receipts = keep
 	end
+	p.mutes = cleanNumbers(p.mutes, 50, 1, 2 ^ 53)
 	p.version = ProfileSchema.VERSION
 	return p
 end
@@ -529,6 +535,8 @@ function ProfileSchema.clientView(profile: any, walletOnly: boolean?): { [string
 		legends = profile.legends,
 		roster = ProfileSchema.roster(profile),
 		stats = profile.stats,
+		settings = profile.settings, -- M10
+		mutes = profile.mutes,
 	}
 end
 
