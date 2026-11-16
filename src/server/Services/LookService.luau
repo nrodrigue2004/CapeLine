@@ -5,14 +5,56 @@
 -- on join, on respawn and after every gear or style change. M9: the creator look (LookKit) is built first and
 -- covers the head, chest, hands, feet and back gear styles unless a style was picked there.
 
+-- Body sizes (hero creator plan: builds and heights are looks only): a shaped body's head and torso go in
+-- the HeroShell collision group, which collides with nothing, and the standard-size HumanoidRootPart becomes
+-- the collider, so a Titan fits through every door a Medium hero does. A standard body is left exactly as
+-- it was (its own head and torso collide, as before).
+
+local PhysicsService = game:GetService("PhysicsService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local GearMath = require(Shared:WaitForChild("GearMath"))
 local LookKit = require(Shared:WaitForChild("LookKit"))
+local BodyShape = require(Shared:WaitForChild("BodyShape"))
 
 local LookService = {}
+
+local SHELL = "HeroShell"
+local SOLID = { "Head", "UpperTorso", "LowerTorso" }
+local shellReady = false
+local function registerShell(): boolean
+	if not shellReady then
+		shellReady = pcall(function()
+			if not PhysicsService:IsCollisionGroupRegistered(SHELL) then
+				PhysicsService:RegisterCollisionGroup(SHELL)
+			end
+			for _, g in PhysicsService:GetRegisteredCollisionGroups() do
+				PhysicsService:CollisionGroupSetCollidable(SHELL, g.name, false)
+			end
+		end)
+	end
+	return shellReady
+end
+
+-- One standard collider for every body: see the note at the top
+function LookService.collider(char: Model, look: any)
+	local shaped = not BodyShape.standard(look)
+	if shaped and not registerShell() then
+		return
+	end
+	for _, name in SOLID do
+		local p = char:FindFirstChild(name)
+		if p and p:IsA("BasePart") then
+			p.CollisionGroup = if shaped then SHELL else "Default"
+		end
+	end
+	local root = char:FindFirstChild("HumanoidRootPart")
+	if root and root:IsA("BasePart") then
+		root.CanCollide = shaped
+	end
+end
 
 local G = Config.Gear
 local GOLD = Color3.fromRGB(255, 200, 60)
@@ -363,14 +405,17 @@ end
 
 -- Show the hero's creator look (M9) and these gear styles (one id per slot, 0 = nothing) on the player's
 -- character. The avatar's own accessories and clothes come off first (a standard rig).
-function LookService.apply(player: Player, styles: { number }, look: any?)
+-- weapon: the carried weapon's look, shown in the hand only while held (key 2)
+function LookService.apply(player: Player, styles: { number }, look: any?, weapon: any?, held: boolean?)
 	local char = player.Character
 	if not char then
 		return
 	end
 	if look then
 		LookKit.strip(char)
-		LookKit.build(char, look)
+		LookKit.build(char, look, weapon)
+		LookKit.showWeapon(char, held == true)
+		LookService.collider(char, look)
 	end
 	local old = char:FindFirstChild("GearLook")
 	if old then

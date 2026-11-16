@@ -22,6 +22,7 @@ local Net = require(Shared:WaitForChild("Net"))
 local Formulas = require(Shared:WaitForChild("Formulas"))
 local Cooldowns = require(Shared:WaitForChild("Cooldowns"))
 local AbilityRules = require(Shared:WaitForChild("AbilityRules"))
+local WeaponRules = require(Shared:WaitForChild("WeaponRules"))
 local Signal = require(Shared:WaitForChild("Util"):WaitForChild("Signal"))
 
 local InputController = require(script.Parent.InputController)
@@ -88,7 +89,12 @@ function CombatClient.cooldownLeft(id: string): number
 end
 
 local function rangeOf(eff: any): number
-	if eff.slot == "basic" and eff.shape == "bolt" and State.hero.classId == "Elemental" then
+	if
+		eff.slot == "basic"
+		and eff.shape == "bolt"
+		and State.hero.classId == "Elemental"
+		and not eff.weapon
+	then
 		return math.max(eff.range, Config.Classes.Elemental.basicRange)
 	end
 	return eff.range or 10
@@ -180,16 +186,23 @@ local function hitPause(time: number)
 	end)
 end
 
+-- The slot in what is held now (the power's loadout, or the weapon's moves while key 2 holds it)
 local function slotOf(id: string): string?
-	local l = State.hero.loadout
-	if l.basic == id then
-		return "basic"
-	elseif table.find(l.skills, id) then
-		return "skill"
-	elseif l.super == id then
-		return "super"
+	return WeaponRules.slotIn(State.kit(), id)
+end
+
+-- Hold the power (1) or the weapon (2). The swap shows at once here; the server flips its own copy too.
+function CombatClient.hold(which: number)
+	local held = if which == 2 then "weapon" else "power"
+	if State.hero.held == held then
+		return
 	end
-	return nil
+	State.hero.held = held
+	combo.at, combo.step = 0, 0
+	channel = nil
+	Net.send("WeaponHold", which)
+	Juice.fire("ui", nil, { mine = true })
+	State.Changed:Fire()
 end
 
 local function myChest(): Vector3?
@@ -301,7 +314,7 @@ function CombatClient.fire(id: string): boolean
 			style,
 			color,
 			step,
-			eff.set == "Blade",
+			(eff.set == "Blade" or eff.sword == true),
 			id == "RisingBlade"
 		)
 		if eff.channel then
@@ -333,7 +346,15 @@ function CombatClient.fire(id: string): boolean
 			ld = if f.Magnitude > 1e-3 then f.Unit else Vector3.new(0, 0, -1)
 		end
 		local d = rayDist(origin, ld, eff.range)
-		CombatFx.line(origin, origin + ld * d, eff.width or 5, style, color, eff.ground, eff.set == "Blade")
+		CombatFx.line(
+			origin,
+			origin + ld * d,
+			eff.width or 5,
+			style,
+			color,
+			eff.ground,
+			(eff.set == "Blade" or eff.sword == true)
+		)
 		if slot == "super" then
 			CameraController.shake(0.2, 0.5)
 		end
@@ -533,7 +554,15 @@ local function onResult(list: { any })
 				if r.c then
 					CombatFx.nova(r.c, r.r or 10, style, color, false)
 				elseif r.e then
-					CombatFx.line(r.o, r.e, row.width or 6, style, color, row.ground, row.set == "Blade")
+					CombatFx.line(
+						r.o,
+						r.e,
+						row.width or 6,
+						style,
+						color,
+						row.ground,
+						(row.set == "Blade" or row.sword == true)
+					)
 				end
 			elseif kind == K.CLASH then
 				-- the collision freeze: both attackers stop for 0.3 s, a shockwave, a camera push
@@ -623,33 +652,61 @@ function CombatClient.init()
 	Net.listen("CombatResult", onResult)
 	Net.listen("CombatEvents", onEvents)
 	InputController.Pressed:Connect(function(action)
-		local l = State.hero.loadout
-		local skills = l.skills or {}
+		local kit = State.kit()
 		if action == "Basic" then
-			CombatClient.fire(l.basic)
+			if kit.basic then
+				CombatClient.fire(kit.basic)
+			end
 		elseif action == "Super" then
-			if l.super then
-				CombatClient.fire(l.super)
+			if kit.super then
+				CombatClient.fire(kit.super)
 			end
 		elseif action == "Awaken" then
 			Net.send("Awaken")
+		elseif action == "HoldPower" then
+			CombatClient.hold(1)
+		elseif action == "HoldWeapon" then
+			CombatClient.hold(2)
+		elseif action == "Swap" then
+			CombatClient.hold(if State.hero.held == "weapon" then 1 else 2)
 		else
 			local n = string.match(action, "^Skill(%d)$")
-			local id = n and skills[tonumber(n) :: number]
-			if id then
-				CombatClient.fire(id)
+			local i = n and tonumber(n) :: number
+			local id = i and kit.skills[i]
+			if i and id then
+				if kit.locked[i] then
+					local key = Config.Weapons.keys[i]
+					State.Toast:Fire({
+						id = "note",
+						text = string.format("Mastery %d opens %s", Config.Weapons.mastery.skills[key], key),
+					})
+				else
+					CombatClient.fire(id)
+				end
 			end
 		end
 	end)
 	RunService.Heartbeat:Connect(FrameProf.wrap("CombatClient", function()
 		if InputController.isDown("Basic") then
-			CombatClient.fire(State.hero.loadout.basic) -- hold to keep firing at the basic's rate
+			local basic = State.kit().basic
+			if basic then
+				CombatClient.fire(basic) -- hold to keep firing at the basic's rate
+			end
 		end
 	end))
 	player.CharacterAdded:Connect(function()
 		Cooldowns.clear(book)
 		table.clear(recast)
 		channel = nil
+	end)
+	Net.listen("WeaponMastery", function(data)
+		local w = WeaponRules.get(Config, data.id)
+		local name = string.upper(if w then w.name else "Weapon")
+		State.Toast:Fire({ id = "note", text = string.format("%s MASTERY %d", name, data.level) })
+		for _, key in data.opened or {} do
+			State.Toast:Fire({ id = "note", text = name .. ": " .. key .. " UNLOCKED" })
+			Juice.fire("skillRank", nil, { mine = true })
+		end
 	end)
 	Net.listen("CooldownCut", function(n: number, seconds: number)
 		local row = Config.Abilities.byNum[n]

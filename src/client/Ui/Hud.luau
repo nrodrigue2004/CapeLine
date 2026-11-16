@@ -17,6 +17,7 @@ local TweenService = game:GetService("TweenService")
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Progress = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Progress"))
+local WeaponRules = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("WeaponRules"))
 local Signal = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Util"):WaitForChild("Signal"))
 
 local Kit = require(script.Parent.Kit)
@@ -313,6 +314,15 @@ local function buildCluster()
 		UDim2.new(1, -big - s * 1.5 - 48, 1, -big - s * 1.5 - 34),
 		Color3.fromRGB(255, 220, 90)
 	)
+	-- power or weapon (hero creator plan: keys 1 and 2 on PC, the left stick click on gamepads)
+	actionButton(
+		cluster,
+		"Swap",
+		"WEAPON",
+		s - 8,
+		UDim2.new(1, -big - s * 2.5 - 64, 1, -big - s * 1.5 - 34),
+		Kit.color.paper
+	)
 	actionButton(cluster, "Leap", "LEAP", s, UDim2.new(1, -big - s * 1.5 - 48, 1, -s / 2 - 4), gold)
 	actionButton(cluster, "Fly", "FLY", s, UDim2.new(1, -big - s * 1.5 - 48, 1, -s * 1.5 - 22), gold)
 	local boost =
@@ -447,27 +457,37 @@ local function refreshInfo()
 			gadget.button.Text = string.upper(string.split(Config.Gear.gadgets[h.gadget].name, " ")[1])
 		end
 	end
-	local l = h.loadout
-	local skills = l.skills or {}
-	local function paint(action: string, id: string?)
+	-- what is held (key 1 the power, key 2 the weapon) decides what M1 and the four skills cast
+	local kit = State.kit()
+	local weaponColor = rgb(Config.Fx.weaponColor)
+	local function paint(action: string, id: string?, locked: boolean?)
 		local entry = buttons[action]
 		if not entry then
 			return
 		end
 		entry.button.Visible = id ~= nil
 		if id and A[id] then
-			entry.button.Text = ShortName[id]
+			entry.button.Text = if locked then "LOCKED" else ShortName[id]
 			local c = Config.Abilities.setColor[A[id].set]
-			if c and action ~= "Super" then
-				entry.button.BackgroundColor3 = rgb(c)
+			if action ~= "Super" then
+				local col = if c then rgb(c) else weaponColor
+				entry.button.BackgroundColor3 = if locked then Kit.color.muted else col
 			end
 		end
 	end
-	paint("Basic", l.basic)
+	paint("Basic", kit.basic)
 	for i, action in SLOT_ACTIONS do
-		paint(action, skills[i])
+		paint(action, kit.skills[i], kit.locked[i])
 	end
-	paint("Super", l.super)
+	paint("Super", kit.super)
+	local swap = buttons.Swap
+	if swap then
+		local w = WeaponRules.get(Config, h.weapon or 0)
+		swap.button.Text = if kit.weapon
+			then "POWER"
+			else string.upper(string.split(if w then w.name else "WEAPON", " ")[1])
+		swap.button.Visible = WeaponRules.skillId(Config, h.weapon or 0, "M1") ~= nil
+	end
 end
 
 local BUFF_NAMES = {
@@ -676,17 +696,16 @@ function Hud.init()
 		end
 		lastFull = full
 		-- cooldown sweeps
-		local h = State.hero
-		local l = h.loadout
-		local skills = l.skills or {}
+		local kit = State.kit()
+		local skills = kit.skills
 		for action, id in
 			{
-				Basic = l.basic,
+				Basic = kit.basic,
 				Skill1 = skills[1],
 				Skill2 = skills[2],
 				Skill3 = skills[3],
 				Skill4 = skills[4],
-				Super = l.super,
+				Super = kit.super,
 			}
 		do
 			local entry = buttons[action]

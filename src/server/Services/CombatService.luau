@@ -31,6 +31,7 @@ local HitQuery = require(Shared:WaitForChild("HitQuery"))
 local CastPlan = require(Shared:WaitForChild("CastPlan"))
 local DeepLayout = require(Shared:WaitForChild("DeepLayout"))
 local AbilityRules = require(Shared:WaitForChild("AbilityRules"))
+local WeaponRules = require(Shared:WaitForChild("WeaponRules"))
 local Awakening = require(Shared:WaitForChild("Awakening"))
 local ClashRules = require(Shared:WaitForChild("ClashRules"))
 local Status = require(Shared:WaitForChild("Status"))
@@ -50,6 +51,7 @@ local CombatService = {}
 CombatService.reviveHook = nil :: ((any, Vector3, number) -> ())?
 
 CombatService.Killed = Signal.new() -- (hero, enemy) a hero's hit finished a machine
+CombatService.WeaponHits = Signal.new() -- (hero, weaponId, hits) a weapon move landed hits (Mastery)
 
 local A = Config.Abilities
 local C = Config.Combat
@@ -125,18 +127,10 @@ local function after(delay: number, fn: () -> ())
 end
 CombatService.after = after
 
+-- The slot of an ability in what the hero holds now: the power's loadout, or the weapon's moves (key 2)
 local function slotOf(hero: any, id: string): string?
-	local l = hero.loadout
-	if l.basic == id then
-		return "basic"
-	end
-	if table.find(l.skills, id) then
-		return "skill"
-	end
-	if l.super == id then
-		return "super"
-	end
-	return nil
+	local kit = WeaponRules.kit(Config, hero.loadout, hero.held, hero.weapon, hero.weaponMastery)
+	return WeaponRules.slotIn(kit, id)
 end
 
 -- Damage for one hit: Power x coeff x class x crit, then passives and Awakening
@@ -762,6 +756,9 @@ local function gainFor(hero: any, eff: any, count: number)
 	if count <= 0 then
 		return
 	end
+	if eff.weapon then
+		CombatService.WeaponHits:Fire(hero, eff.weapon, count) -- Mastery (WeaponService)
+	end
 	local kind = if eff.slot == "basic"
 		then "basicHit"
 		elseif eff.slot == "super" then "superHit"
@@ -866,7 +863,7 @@ local function resolve(
 ): boolean
 	local now = os.clock()
 	local rangeBonus = 0
-	if eff.slot == "basic" and eff.shape == "bolt" and hero.classId == "Elemental" then
+	if eff.slot == "basic" and eff.shape == "bolt" and hero.classId == "Elemental" and not eff.weapon then
 		rangeBonus = math.max(0, Config.Classes.Elemental.basicRange - eff.range)
 	end
 	local comboStep = 1

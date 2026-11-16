@@ -239,6 +239,10 @@ local function addPrompt(part: BasePart, kind: string, id: number)
 		prompt.ActionText = "Contract Board"
 		prompt.ObjectText = "Safehouse"
 		prompt.HoldDuration = 0
+	elseif kind == "weapons" then
+		prompt.ActionText = "Weapon Rack"
+		prompt.ObjectText = "Safehouse"
+		prompt.HoldDuration = 0
 	else
 		prompt.ActionText = "Respawn here"
 		prompt.ObjectText = "Safehouse"
@@ -258,7 +262,7 @@ local function addPrompt(part: BasePart, kind: string, id: number)
 		elseif kind == "contracts" then
 			SafehouseService.Board:Fire(player, id)
 		end
-		-- "loadout" is opened by the client (it hears the same prompt)
+		-- "loadout" and "weapons" are opened by the client (it hears the same prompt)
 	end)
 	prompt.Parent = part
 end
@@ -288,7 +292,13 @@ function SafehouseService.init()
 	for _, part in (city :: Folder):GetDescendants() do
 		if part:IsA("BasePart") then
 			local tag = part:GetAttribute("Tag")
-			if tag == "bank" or tag == "loadout" or tag == "respawn" or tag == "contracts" then
+			if
+				tag == "bank"
+				or tag == "loadout"
+				or tag == "respawn"
+				or tag == "contracts"
+				or tag == "weapons"
+			then
 				addPrompt(part, tag, part:GetAttribute("Ref") :: number)
 			end
 		end

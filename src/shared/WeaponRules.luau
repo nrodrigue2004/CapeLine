@@ -40,6 +40,7 @@ export type WeaponLook = {
 	glowLevel: number,
 	emblem: boolean,
 	trail: number,
+	mastered: boolean?, -- drawn with the Mastered glow (set by the server from Mastery, never sent)
 }
 
 local cache: { [any]: { Weapon } } = {}
@@ -259,6 +260,48 @@ function WeaponRules.addMastery(Config: any, profile: any, id: number, points: n
 		end
 	end
 	return after, opened
+end
+
+-- The ability id of a weapon's move ("M1", "Z", "X", "C", "V"), or nil when the weapon has no moves yet
+function WeaponRules.skillId(Config: any, weaponId: number, key: string): string?
+	local id = "W" .. weaponId .. key
+	return if Config.Abilities.list[id] then id else nil
+end
+
+export type Kit = { basic: string?, skills: { string }, super: string?, locked: { boolean }, weapon: boolean }
+
+-- What M1 and the four skill buttons cast right now (plan: key 1 holds the power, key 2 the weapon; the
+-- skill keys act on the held one). The super stays the power's. A weapon with no moves yet, or a hero
+-- holding the power, gets the loadout. locked[i]: that weapon skill still needs Mastery.
+function WeaponRules.kit(Config: any, loadout: any, held: string?, weaponId: number?, mastery: number?): Kit
+	local l = loadout or {}
+	if held == "weapon" and weaponId then
+		local basic = WeaponRules.skillId(Config, weaponId, "M1")
+		if basic then
+			local skills, locked = {}, {}
+			for i, key in Config.Weapons.keys do
+				skills[i] = WeaponRules.skillId(Config, weaponId, key) :: string
+				locked[i] = not WeaponRules.skillOpen(Config, mastery or 0, key)
+			end
+			return { basic = basic, skills = skills, super = l.super, locked = locked, weapon = true }
+		end
+	end
+	return { basic = l.basic, skills = l.skills or {}, super = l.super, locked = {}, weapon = false }
+end
+
+-- Which slot an ability is in this kit ("basic", "skill", "super"), or nil (not in it, or still locked)
+function WeaponRules.slotIn(kit: Kit, id: string): string?
+	if kit.basic == id then
+		return "basic"
+	end
+	local i = table.find(kit.skills, id)
+	if i then
+		return if kit.locked[i] then nil else "skill"
+	end
+	if kit.super == id then
+		return "super"
+	end
+	return nil
 end
 
 -- The carried weapon of a character (0 or a weapon not owned falls back to the default, Bare Fists)

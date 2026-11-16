@@ -22,12 +22,19 @@ local V3 = { t = "Vector3" }
 local Remotes: { [string]: RemoteDef } = {
 	-- Combat (spec: Hit resolution). abilityNum, aimDir, targetHint (enemy id or 0), seq, the hero's own
 	-- position as the client saw it (used only to pick the rewind time, never trusted for range)
-	CombatUse = { dir = "C2S", schema = { n(1, 255), V3, n(0, 65535), n(0, 2 ^ 31) }, rate = 12, burst = 12 },
+	CombatUse = { dir = "C2S", schema = { n(1, 1023), V3, n(0, 65535), n(0, 2 ^ 31) }, rate = 12, burst = 12 },
 	CombatResult = { dir = "S2C" }, -- batched hits, 10 Hz, to players within 150 studs
 	CombatEvents = { dir = "S2C" }, -- enemy shots, deaths and hero hits for the effects, 10 Hz batches
 
 	CombatCancel = { dir = "C2S", schema = { n(0, 2 ^ 31) }, rate = 4, burst = 4 }, -- stop a channel (seq)
 	Awaken = { dir = "C2S", schema = {}, rate = 1, burst = 2 }, -- spend a full Awakening meter
+	-- Weapons (hero creator plan): hold the power (1) or the weapon (2); buy one at a safehouse Weapon Rack
+	-- for Credits, or carry one you own (both at a safehouse); WeaponResult answers the Rack
+	WeaponHold = { dir = "C2S", schema = { n(1, 2) }, rate = 6, burst = 6 },
+	WeaponBuy = { dir = "C2S", schema = { n(1, 64) }, rate = 1, burst = 3 },
+	WeaponCarry = { dir = "C2S", schema = { n(1, 64) }, rate = 2, burst = 4 },
+	WeaponResult = { dir = "S2C" }, -- { ok, reason, id, kind = "buy" or "carry" }
+	WeaponMastery = { dir = "S2C" }, -- { id, level, opened = { "X", ... } } when a weapon's Mastery level goes up
 
 	-- Abilities (spec: Hero.Loadout, Skills.Rank, Skills.Mod, Skills.Respec). Ability numbers, 0 = empty.
 	-- HeroLoadout: loadout index (1-2), the main path (1-17, Abilities.sets), skills 1-4, super

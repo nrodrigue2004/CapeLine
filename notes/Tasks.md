@@ -55,6 +55,7 @@ phones or Studio go on the Studio test list below.
 - 17 paths (2026-11-16): the 96 new abilities use the existing neon parts, beams and rings; summons (turret, drone, clones, totem, guardian, mines, holo decoy) and rides (jets, rock, board, platform, rail) are a few parts each; size forms just scale the hero (CombatFx, CombatClient). Swing lines are a thin part (MoveController). PLACEHOLDER ART.
 - Underwater (2026-11-16): the basin walls, the Sunken Line tunnel, station and train cars, reef, kelp, wrecks, caches and the sunken factory are plain parts; the seabed and rock walls are Terrain sand and rock (DeepLayout, CityBuilder); commuters are blocky figures in a glass bubble, cache markers are labels (DeepClient); Diver helmets and tanks are parts (EnemyRenderer); torpedoes are a box with ball bubbles (CombatFx); the Leviathan Engine is a part-built serpent sub (WorldFx). PLACEHOLDER ART.
 - Store page (M12): no icon, thumbnails or concept art yet; briefs in notes/Store Page.md (generated and hand-cleaned, nate approves each).
+- Hero creator first slice (2026-11-16): the 121 new pieces (beards, faces, makeup, hats, ears, shoulders, neck, arms, wrists, belts, legs, back bling, 10 hair styles) are blocks, wedges, balls and cylinders welded to the body (PieceKits); all 36 weapons are part-built (WeaponKit); body builds and heights scale the blocky rig until the 8 Blender body sets; weapon moves reuse the power visuals in a steel colour with no swing animation. PLACEHOLDER ART.
 
 ## Studio test list (needs nate's PC)
 Start: `rojo serve`, connect the Rojo plugin, press Play (or Test > Clients and Servers with 2 players). The DEV button (top right, Studio only) has the test tools.
@@ -205,6 +206,19 @@ Checks (Play):
 6. Creator looks (suits, capes, masks, hair, gloves, boots, emblems, auras, trails) sit on the right parts; skin tone colours the head and hands.
 7. Abilities, hits, PvP and the Downed state work as before (the root part is the standard 2 x 2 x 1).
 8. If the body is missing or the Output shows a HeroBody error: tell Claude (the fallback is the avatar body).
+
+### Hero creator and weapons, first slice (2026-11-16)
+nate's plan: https://claude.ai/artifact/VeuJPWz6kKE6gGsUBmqQC9. Use a fresh hero (DEV: delete hero) for 1 to 6, then an old one for 7.
+1. Creator (Suit Up or MainMenu Create First): tabs BODY, SIDE, MOBILITY, POWERS, WEAPON, APPEARANCE, PLAY along the top; BACK, RANDOMIZE and NEXT along the bottom; the hero turns in the middle. Hover any row: the hero and the card on the right show it; leave: it goes back.
+2. BODY: Male and Female (narrower waist), Small, Medium, Large and Titan (a Titan is huge and bulky, head a bit smaller), 5 heights. Feet stay on the floor at every size; arms and legs join the body with no gaps.
+3. WEAPON: 7 families; pick a family, then a weapon (Coming soon ones say so and block DONE); the camera moves to the weapon; STYLE, FINISH and GLOW cyclers, MAIN/TRIM/GLOW colours with AUTO, EMBLEM on and off all change the weapon on the hero. Pick the Sword.
+4. APPEARANCE: every area (Body, Head, Torso, Arms, Waist and legs, Back, Extras) lists its slots; each slot's pieces show on the hero (head slots move the camera to the face, cape and back bling to the back); a slot's MAIN/TRIM/GLOW colour and MATERIAL override just that piece; the 30 skins include Stone, Metal, Ice, Energy, Shadow and Crystal. A helmet hides the hair, the knight helm the face too.
+5. PLAY: pick a Title and Noun; the card sums up the hero; DONE saves and you spawn with that body and look. Phone layout (Device emulator, a phone): the list is a drawer along the bottom and everything fits.
+6. In the city: press 2: the sword appears in the hand and the skill buttons turn into the sword's (M1 a 4-hit combo, Z Dash Cut; X, C, V say LOCKED); press 1: the sword goes away and your power is back. Z X C V and Q E R T both cast. Super (G) is always the power's. Gadget is now 3, Awaken Y. Gamepad: left stick click swaps; phone: the WEAPON/POWER button.
+7. Mastery: hit robots with the sword; at Mastery 25 a toast says X UNLOCKED and X casts (DEV: give Credits and fight a while, or set mastery). Other players see your weapon only while you hold it.
+8. Weapon Rack: the grey fifth terminal at a safehouse (hold B): every weapon by family; BUY one for Credits (Credits go down, it says it's yours), CARRY it (the hand shows it on 2), CUSTOMIZE opens the creator on the weapon step. Exotic ones show their Robux price; the Boomerang bought in the shop (test purchase) can be carried.
+9. Body sizes and doors: as a Titan and as a Small hero, walk through a safehouse shelter, a doorway and under a low ledge: both fit the same places a Medium hero does (one standard collider), and nobody falls through the floor or sinks into it.
+10. Old heroes: a hero made before this update keeps its look (no missing pieces), has Bare Fists on 2 and Male Medium Average.
 
 ### 17 paths, mobility and underwater (2026-11-16)
 Pick a path at the creator, then use the DEV panel to level up (15+ to borrow). Everything new is plain parts (PLACEHOLDER ART).

@@ -8,6 +8,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Net = require(Shared:WaitForChild("Net"))
 local Signal = require(Shared:WaitForChild("Util"):WaitForChild("Signal"))
 local AbilityRules = require(Shared:WaitForChild("AbilityRules"))
+local WeaponRules = require(Shared:WaitForChild("WeaponRules"))
 
 local State = {}
 
@@ -36,6 +37,9 @@ State.hero = {
 	gearMods = {},
 	perks = {},
 	gadget = nil,
+	held = "power", -- key 1 holds the power, key 2 the weapon
+	weapon = Config.Weapons.defaultWeapon,
+	weaponMastery = 0,
 }
 -- The saved profile as the server shows it (ProfileSync): stash, styles, wallet, pity, worn gear
 State.profile = {
@@ -76,6 +80,12 @@ function State.buff(kind: string): number
 		return b.value
 	end
 	return 0
+end
+
+-- What M1 and the four skill buttons cast now: the power's loadout, or the held weapon's moves
+function State.kit(): WeaponRules.Kit
+	local h = State.hero
+	return WeaponRules.kit(Config, h.loadout, h.held, h.weapon, h.weaponMastery)
 end
 
 function State.awakened(): boolean

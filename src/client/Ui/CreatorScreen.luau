@@ -1237,7 +1237,7 @@ local function build()
 	end
 end
 
--- opts: { mode, side, classIdx, pathOpen }
+-- opts: { mode, side, classIdx, pathOpen, step (a STEPS id) }
 function CreatorScreen.open(opts: { [string]: any })
 	mode = opts.mode or "edit"
 	pending = false
@@ -1256,8 +1256,13 @@ function CreatorScreen.open(opts: { [string]: any })
 	local carried = if (p.weapon or 0) ~= 0 then p.weapon else W.defaultWeapon
 	weaponLook = WeaponRules.lookOf(profileView(), carried)
 	family = (WeaponRules.get(Config, carried) or WeaponRules.get(Config, W.defaultWeapon)).family
-	-- a new hero starts at the body; an edit opens on the looks
+	-- a new hero starts at the body; an edit opens on the looks (or the step asked for: the Weapon Rack)
 	step = if mode == "edit" then 6 else 1
+	for i, st in STEPS do
+		if st.id == opts.step then
+			step = i
+		end
+	end
 	slot = "suit"
 	colorTarget, weaponTarget = 1, 1
 	cancelButton.Visible = mode == "edit"

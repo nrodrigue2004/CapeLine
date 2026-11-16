@@ -2,7 +2,8 @@
 -- Accessibility: controller support). Touch buttons are drawn by the Hud and feed the same actions.
 -- Actions: Leap (hold in the air to glide; climbs while flying), Fly (toggle), Boost (hold), Down (hold),
 -- Basic (hold to keep firing), Skill1 to Skill4, Super, Awaken, Loadout (opens the loadout screen), Gear (the
--- gear screen), Gadget (the gadget slot's active), Map (the map and fast travel).
+-- gear screen), Gadget (the gadget slot's active), Map (the map and fast travel), HoldPower, HoldWeapon and
+-- Swap (what M1 and the skills cast: the power or the carried weapon).
 -- M10 (spec: Accessibility "left-handed layout ... one-hand flight mode (right thumb only with auto-turn)"):
 -- on touch, the left-handed layout and one-hand flight swap Roblox's left thumbstick for this module's own
 -- stick on the right side (the HUD buttons move left for left-handed). In one-hand mode the stick's sideways
@@ -35,31 +36,34 @@ local KEYS: { [Enum.KeyCode]: string } = {
 	[Enum.KeyCode.F] = "Fly",
 	[Enum.KeyCode.LeftShift] = "Boost",
 	[Enum.KeyCode.LeftControl] = "Down",
-	[Enum.KeyCode.C] = "Down",
+	-- hero creator plan (nate, 2026-11-16): 1 holds the power, 2 the weapon; Z X C V (and Q E R T) cast the
+	-- held one's four skills
+	[Enum.KeyCode.One] = "HoldPower",
+	[Enum.KeyCode.Two] = "HoldWeapon",
+	[Enum.KeyCode.Z] = "Skill1",
+	[Enum.KeyCode.X] = "Skill2",
+	[Enum.KeyCode.C] = "Skill3",
+	[Enum.KeyCode.V] = "Skill4",
 	[Enum.KeyCode.Q] = "Skill1",
-	[Enum.KeyCode.One] = "Skill1",
 	[Enum.KeyCode.E] = "Skill2",
-	[Enum.KeyCode.Two] = "Skill2",
 	[Enum.KeyCode.R] = "Skill3",
-	[Enum.KeyCode.Three] = "Skill3",
 	[Enum.KeyCode.T] = "Skill4",
-	[Enum.KeyCode.Four] = "Skill4",
 	[Enum.KeyCode.G] = "Super",
 	[Enum.KeyCode.Five] = "Super",
-	[Enum.KeyCode.V] = "Awaken",
+	[Enum.KeyCode.Y] = "Awaken",
 	[Enum.KeyCode.L] = "Loadout",
 	[Enum.KeyCode.I] = "Gear",
-	[Enum.KeyCode.Z] = "Gadget",
+	[Enum.KeyCode.Three] = "Gadget",
 	[Enum.KeyCode.M] = "Map",
 	[Enum.KeyCode.J] = "Journal",
-	[Enum.KeyCode.C] = "Catch",
+	[Enum.KeyCode.B] = "Catch", -- the interact key (only the opening's catch step listens)
 	[Enum.KeyCode.P] = "Shop",
 	[Enum.KeyCode.H] = "Emote",
 	-- gamepad
 	[Enum.KeyCode.ButtonA] = "Leap",
 	[Enum.KeyCode.ButtonY] = "Fly",
 	[Enum.KeyCode.ButtonL2] = "Boost",
-	[Enum.KeyCode.ButtonL3] = "Boost",
+	[Enum.KeyCode.ButtonL3] = "Swap", -- power or weapon
 	[Enum.KeyCode.ButtonB] = "Down",
 	[Enum.KeyCode.ButtonR2] = "Basic",
 	[Enum.KeyCode.ButtonX] = "Skill1",
@@ -80,18 +84,21 @@ InputController.hints = {
 	Boost = "Shift",
 	Down = "Ctrl",
 	Basic = "Click",
-	Skill1 = "Q",
-	Skill2 = "E",
-	Skill3 = "R",
-	Skill4 = "T",
+	Skill1 = "Z",
+	Skill2 = "X",
+	Skill3 = "C",
+	Skill4 = "V",
 	Super = "G",
-	Awaken = "V",
+	Awaken = "Y",
+	HoldPower = "1",
+	HoldWeapon = "2",
+	Swap = "1 / 2",
 	Loadout = "L",
 	Gear = "I",
-	Gadget = "Z",
+	Gadget = "3",
 	Map = "M",
 	Journal = "J",
-	Catch = "C",
+	Catch = "B",
 	Shop = "P",
 	Emote = "H",
 }

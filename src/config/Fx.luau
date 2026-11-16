@@ -12,11 +12,13 @@ return {
 	shot = { width = 0.4 },
 	trail = { boostLife = 0.4 },
 	voltColor = { 120, 210, 255 },
+	weaponColor = { 240, 236, 225 }, -- weapon moves: a bright steel streak
 	enemyShotColor = { 255, 110, 80 },
 	critColor = { 255, 210, 60 },
 	-- Comic style: a sound word on skill and super hits, by set (all original words)
 	words = {
 		Volt = { "ZAP!", "KRAK!", "BZZT!" },
+		Weapon = { "WHAM!", "CLANG!", "KA-CHUNK!" }, -- weapon moves (Config.Weapons.skills)
 		Frost = { "CRACK!", "FWOOSH!", "KSSH!" },
 		Titan = { "POW!", "WHAM!", "KABOOM!" },
 		Pulse = { "WHUMM!", "VWOOM!", "THOOM!" },

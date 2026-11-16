@@ -44,6 +44,7 @@ local SET_COLOR: { [string]: Color3 } = {}
 for set, c in A.setColor do
 	SET_COLOR[set] = rgb(c)
 end
+SET_COLOR.Weapon = rgb(F.weaponColor)
 
 -- A power set's colour, or the caster's effect tint (a Robux look: Config.Shop.tints, the FxTint attribute)
 local TINTS: { Color3 } = {}
@@ -1203,7 +1204,7 @@ function CombatFx.cast(row: any, style: string, data: CastData)
 	elseif shape == "cone" then
 		CombatFx.cone(o, d, row.range, row.cone or 40, style, color)
 	elseif shape == "arc" then
-		local sword = row.set == "Blade"
+		local sword = (row.set == "Blade" or row.sword == true)
 		CombatFx.arc(o, d, row.range, row.cone or 90, style, color, data.step, sword, row.id == "RisingBlade")
 		if row.channel then
 			-- a flurry: more slashes over the channel
@@ -1218,9 +1219,25 @@ function CombatFx.cast(row: any, style: string, data: CastData)
 		CombatFx.nova(data.c or o, data.r or row.radius, style, color, big)
 	elseif shape == "line" then
 		local width = row.width or 5
-		CombatFx.line(o, data.e or (o + d * row.range), width, style, color, row.ground, row.set == "Blade")
+		CombatFx.line(
+			o,
+			data.e or (o + d * row.range),
+			width,
+			style,
+			color,
+			row.ground,
+			(row.set == "Blade" or row.sword == true)
+		)
 		if data.t then
-			CombatFx.line(o, data.t, width, style, color, row.ground, row.set == "Blade")
+			CombatFx.line(
+				o,
+				data.t,
+				width,
+				style,
+				color,
+				row.ground,
+				(row.set == "Blade" or row.sword == true)
+			)
 		end
 		if big then
 			CombatFx.nova(data.e or o, width, style, color, true)

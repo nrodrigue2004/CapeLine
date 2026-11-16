@@ -113,6 +113,7 @@ return {
 		loadout = { 110, 190, 255 },
 		respawn = { 120, 230, 150 },
 		contracts = { 255, 140, 60 },
+		weapons = { 200, 205, 215 }, -- the Weapon Rack (hero creator plan)
 		beaconLight = { 255, 240, 170 },
 		line = { 240, 210, 90 },
 	},

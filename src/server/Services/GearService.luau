@@ -19,6 +19,7 @@ local LootTable = require(Shared:WaitForChild("LootTable"))
 local Inventory = require(Shared:WaitForChild("Inventory"))
 local ProfileSchema = require(Shared:WaitForChild("ProfileSchema"))
 local CreatorRules = require(Shared:WaitForChild("CreatorRules"))
+local WeaponRules = require(Shared:WaitForChild("WeaponRules"))
 local Cooldowns = require(Shared:WaitForChild("Cooldowns"))
 
 local DataService = require(script.Parent.DataService)
@@ -54,6 +55,9 @@ function GearService.refresh(player: Player)
 	local char = ProfileSchema.active(profile)
 	local totals = GearMath.totals(Config, Inventory.worn(profile, char))
 	HeroService.applyGear(hero, totals)
+	-- the carried weapon and its Mastery (hero creator plan; WeaponService runs the slot in play)
+	hero.weapon = WeaponRules.carried(Config, profile, char)
+	hero.weaponMastery = WeaponRules.state(profile, hero.weapon).mastery
 	GearService.showLook(player, profile, char)
 	DataService.changed(player)
 end
@@ -62,7 +66,12 @@ end
 function GearService.showLook(player: Player, profile: any, char: any)
 	local look = CreatorRules.lookOf(Config, char)
 	local styles = CreatorRules.visibleStyles(Config, look, Inventory.shownStyles(profile, char), char.shown)
-	LookService.apply(player, styles, look)
+	local hero = HeroService.get(player)
+	local weaponId = WeaponRules.carried(Config, profile, char)
+	local weapon = WeaponRules.lookOf(profile, weaponId)
+	weapon.mastered = WeaponRules.masteryLevel(Config, WeaponRules.state(profile, weaponId).mastery)
+		>= Config.Weapons.mastery.masteredGlow
+	LookService.apply(player, styles, look, weapon, hero ~= nil and hero.held == "weapon")
 end
 
 -- Roll and store the drops for one source. Returns the pieces (already in the stash or salvaged).

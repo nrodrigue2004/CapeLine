@@ -5921,6 +5921,93 @@ test(
 	end
 )
 
+test("Creator plan: 7 playable weapons have an M1 and Z X C V, held with key 2, opened by Mastery", function()
+	local WeaponRules = require("../src/shared/WeaponRules")
+	local A, W = Config.Abilities, Config.Weapons
+	check(#A.order == 136, "weapon moves stay out of the power order and loadouts")
+	local SHAPES =
+		{ arc = true, bolt = true, chain = true, dash = true, cone = true, nova = true, line = true }
+	SHAPES.buff, SHAPES.field = true, true
+	local nums, rows = {}, 0
+	for _, id in W.playable do
+		for k, key in { "M1", "Z", "X", "C", "V" } do
+			local aid = WeaponRules.skillId(Config, id, key)
+			local row = aid and A.list[aid]
+			check(row ~= nil, "weapon " .. id .. " has " .. key)
+			if row then
+				rows += 1
+				check(A.byNum[row.num] == row, aid .. " is in byNum")
+				check(
+					row.num > 136 and row.num <= 1023 and not nums[row.num],
+					aid .. " num unique, fits CombatUse"
+				)
+				nums[row.num] = true
+				check(row.set == "Weapon" and row.weapon == id, aid .. " is a weapon move")
+				check(row.slot == (if k == 1 then "basic" else "skill"), aid .. " slot")
+				check(
+					SHAPES[row.shape] == true and row.coeff ~= nil and row.cd ~= nil,
+					aid .. " shape and numbers"
+				)
+				check(row.coeff <= 3.5, aid .. " is no stronger than a power skill")
+				local eff = AbilityRules.effective(Config, aid, 1)
+				check(eff.coeff == row.coeff, aid .. " never ranks up")
+				if k == 1 and row.shape == "arc" then
+					check(#row.hits == 4, aid .. " is a 4-hit combo")
+				end
+				if row.shape ~= "buff" and row.shape ~= "field" then
+					local cands = { cand(1, 0, 2, -6), cand(2, 3, 2, -8) }
+					local plan =
+						CastPlan.build(eff, 0, 2, 0, 0, 0, -1, 1, cands, flatWorld, { comboStep = 2 })
+					check(plan ~= nil, aid .. " builds a cast plan")
+				end
+			end
+		end
+	end
+	check(rows == 7 * 5, "35 weapon moves")
+	for wid in W.skills do
+		check(WeaponRules.playable(Config, wid), "only playable weapons have moves")
+	end
+	-- the held kit
+	local loadout = { set = "Volt", basic = "ZapBolt", skills = { "ChainLightning" }, super = "ThunderDrop" }
+	local p = WeaponRules.kit(Config, loadout, "power", 5, 0)
+	check(p.basic == "ZapBolt" and p.skills[1] == "ChainLightning" and not p.weapon, "key 1: the power")
+	local k0 = WeaponRules.kit(Config, loadout, "weapon", 5, 0)
+	check(
+		k0.weapon and k0.basic == "W5M1" and k0.skills[1] == "W5Z" and k0.skills[4] == "W5V",
+		"key 2: the sword"
+	)
+	check(k0.super == "ThunderDrop", "the super stays the power's")
+	check(not k0.locked[1] and k0.locked[2] and k0.locked[3] and k0.locked[4], "only Z is open at Mastery 0")
+	check(
+		WeaponRules.slotIn(k0, "W5Z") == "skill" and WeaponRules.slotIn(k0, "W5X") == nil,
+		"locked X can't cast"
+	)
+	check(WeaponRules.slotIn(k0, "ChainLightning") == nil, "power skills wait while the weapon is held")
+	check(WeaponRules.slotIn(k0, "W5M1") == "basic", "M1 is the sword combo")
+	local per = W.mastery.perLevel
+	local k25 = WeaponRules.kit(Config, loadout, "weapon", 5, 25 * per)
+	check(not k25.locked[2] and k25.locked[3], "Mastery 25 opens X")
+	local k150 = WeaponRules.kit(Config, loadout, "weapon", 5, 150 * per)
+	check(not k150.locked[3] and not k150.locked[4], "Mastery 150 opens C and V")
+	local soon = WeaponRules.kit(Config, loadout, "weapon", 6, 0)
+	check(not soon.weapon and soon.basic == "ZapBolt", "a weapon with no moves yet falls back to the power")
+	-- the slot in play
+	for _, name in { "WeaponHold", "WeaponBuy", "WeaponCarry" } do
+		check(
+			Remotes[name] and Remotes[name].dir == "C2S" and Remotes[name].rate ~= nil,
+			name .. " is rate-limited"
+		)
+	end
+	check(Remotes.CombatUse.schema[1].max >= 300 + 64 * 5 + 4, "CombatUse takes every weapon num")
+	for _, sh in world.safehouses do
+		check(sh.terminals.weapons ~= nil, sh.name .. " has a Weapon Rack")
+		local t = sh.terminals.weapons
+		local pad = Config.World.safehouse.pad / 2
+		check(math.abs(t.x - sh.x) <= pad and math.abs(t.z - sh.z) <= pad, sh.name .. " Rack sits on the pad")
+	end
+	check(Config.City.palette.weapons ~= nil, "the Rack has its colour")
+end)
+
 print(string.format("\n%d passed, %d failed", passed, failed))
 if failed > 0 then
 	process.exit(1)

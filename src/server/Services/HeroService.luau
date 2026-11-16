@@ -54,6 +54,9 @@ export type Hero = {
 	status: Status.Book, -- buffs on the hero
 	meter: Awakening.Meter,
 	combo: { at: number, step: number }, -- Punch Combo and Blade Slash strings
+	held: string, -- "power" or "weapon"
+	weapon: number, -- the carried weapon (Config.Weapons)
+	weaponMastery: number, -- its Mastery points
 	channel: any?, -- Freeze Beam or Thousand Cuts running
 	lastCast: number,
 	health: number,
@@ -154,6 +157,9 @@ local function newHero(id: number, name: string, player: Player?, bot: any?): He
 		status = Status.new(),
 		meter = Awakening.new(),
 		combo = { at = 0, step = 0 },
+		held = "power", -- "power" or "weapon" (key 1 or 2; WeaponService)
+		weapon = Config.Weapons.defaultWeapon, -- the carried weapon (WeaponService loads it from the save)
+		weaponMastery = 0, -- the carried weapon's Mastery points
 		channel = nil,
 		lastCast = 0,
 		health = maxHealth,
@@ -349,6 +355,9 @@ function HeroService.sendState(hero: Hero)
 		gearMods = hero.gearMods,
 		perks = hero.perks,
 		gadget = hero.gadget,
+		held = hero.held,
+		weapon = hero.weapon,
+		weaponMastery = hero.weaponMastery,
 	})
 end
 
