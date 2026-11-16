@@ -796,6 +796,7 @@ end
 local function startRide(hero: any, eff: any, num: number, r: any)
 	local dur = eff.duration or 4
 	HeroService.buff(hero, "ride", eff.speed or 80, dur)
+	MoveGuard.grant(hero, (eff.speed or 80) * 0.4) -- the owner started riding before this arrived
 	local player = hero.player
 	if player then
 		player:SetAttribute("Ride", eff.ride or "surf")
@@ -1422,6 +1423,30 @@ local function stepFields(now: number)
 	end
 end
 
+-- Super-speed from level 12: running flat out leaves a trail that hurts the robots it passes
+local trailAt = 0
+local function stepTrails(now: number)
+	if now < trailAt then
+		return
+	end
+	trailAt = now + 0.5
+	local m = Config.Move.mobility.speed
+	for _, hero in HeroService.all() do
+		if
+			hero.alive
+			and hero.player
+			and hero.mobility == "speed"
+			and hero.level >= m.up.trailLevel
+			and MoveGuard.speed(hero) >= m.up.trailSpeed
+		then
+			local pos = HeroService.position(hero)
+			if pos then
+				CombatService.burst(hero, pos, m.up.trailRadius, m.up.trailCoeff, true)
+			end
+		end
+	end
+end
+
 local function stepTimers(now: number)
 	local i = 1
 	while i <= #timers do
@@ -1486,6 +1511,29 @@ function CombatService.init()
 		CombatService.use(hero, num, aim, hint, seq, player:GetNetworkPing())
 		PerfMonitor.add("combat", (os.clock() - t0) * 1000)
 	end)
+	-- Leaping (nate 2026-11-16): the ground pound lands as a burst; the server checks the mobility, the
+	-- cooldown and that the hero really fell (MoveGuard.dropped)
+	local poundAt: { [number]: number } = {}
+	Net.on("MovePound", function(player)
+		local hero = HeroService.get(player)
+		local m = Config.Move.mobility.leap
+		if not hero or not hero.alive or hero.mobility ~= "leap" then
+			return
+		end
+		local now = os.clock()
+		if now < (poundAt[hero.id] or 0) then
+			return
+		end
+		if MoveGuard.dropped(hero, 1.5) < m.pound.minFall then
+			return
+		end
+		local pos = HeroService.position(hero)
+		if pos then
+			poundAt[hero.id] = now + m.pound.cooldown
+			local radius = if hero.level >= m.up.poundLevel then m.up.poundRadius else m.pound.radius
+			CombatService.burst(hero, pos - Vector3.new(0, 2, 0), radius, m.pound.coeff)
+		end
+	end)
 	Net.on("CombatCancel", function(player, seq: number)
 		local hero = HeroService.get(player)
 		if hero and hero.channel and hero.channel.seq == seq then
@@ -1511,6 +1559,7 @@ function CombatService.init()
 		stepTimers(t0)
 		stepChannels(t0)
 		stepFields(t0)
+		stepTrails(t0)
 		PerfMonitor.add("combat", (os.clock() - t0) * 1000)
 		acc += dt
 		if acc >= 1 / C.resultRate then

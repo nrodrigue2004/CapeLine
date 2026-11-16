@@ -104,6 +104,28 @@ function MoveGuard.speed(hero: any): number
 	return math.sqrt(dx * dx + dy * dy + dz * dz) / 0.2
 end
 
+-- How far the hero has dropped from the highest point of the last `window` seconds (the ground pound needs
+-- a real fall, so a client cannot pound on flat ground)
+function MoveGuard.dropped(hero: any, window: number): number
+	local t = tracks[hero.id]
+	if not t then
+		return 0
+	end
+	local now = os.clock()
+	local _, y1 = PosHistory.at(t.history, now)
+	if not y1 then
+		return 0
+	end
+	local top = y1 :: number
+	for k = 1, 10 do
+		local _, y = PosHistory.at(t.history, now - window * k / 10)
+		if y and (y :: number) > top then
+			top = y :: number
+		end
+	end
+	return top - (y1 :: number)
+end
+
 -- Zero G (Weightless capstone): boosting costs no stamina for a while
 function MoveGuard.freeStamina(hero: any, untilT: number)
 	local t = tracks[hero.id]

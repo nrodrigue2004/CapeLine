@@ -5063,6 +5063,78 @@ if placePath then
 	end)
 end
 
+test("Mobility: five picks; caps cover every move; sprint, super leap and swing maths", function()
+	check(#M.mobilityOrder == 5, "five mobilities")
+	for _, id in M.mobilityOrder do
+		local m = M.mobility[id]
+		check(
+			m ~= nil and m.name ~= nil and m.text ~= nil and m.swim ~= nil and m.up ~= nil,
+			id .. " is complete"
+		)
+		local cap = MoveMath.speedCap(M, { [id] = true }, true)
+		check(cap >= m.swim, id .. ": the cap covers swimming")
+	end
+	local sp = M.mobility.speed
+	check(MoveMath.speedCap(M, { speed = true }, false) >= sp.sprint, "Super-speed cap covers the sprint")
+	local s, t = M.run.speed, 0
+	while s < sp.sprint and t < 5 do
+		s = MoveMath.sprintStep(M, s, true, 1 / 60)
+		t += 1 / 60
+	end
+	check(s == sp.sprint and t > 0.8 and t < 1.6, string.format("full sprint in %.2f s", t))
+	check(MoveMath.sprintStep(M, 100, false, 10) == M.run.speed, "letting go drops back to a run")
+	check(sp.waterRun < sp.sprint and sp.wallRun <= sp.cap, "water and wall runs are inside the sprint")
+	-- Leaping: the super leap clears a 6-storey building and the pound is inside the cap
+	local lp = M.mobility.leap
+	local vx, vy, vz = MoveMath.superLeapLaunch(M, 1, 0, 1)
+	near(vy * vy / (2 * M.airGravity), lp.apex, 0.5, "super leap apex")
+	check(vx > 0 and vz == 0, "forward along the aim")
+	local leapCap = MoveMath.speedCap(M, { leap = true }, false)
+	check(
+		leapCap >= MoveMath.superLeapSpeed(M) and leapCap >= lp.pound.speed,
+		"leap cap covers the leap and pound"
+	)
+	check(lp.pound.speed <= M.fall.terminal, "the pound is no faster than the legal fall")
+	-- Acrobat: jumps, wall runs and the glide stay under the cap
+	local ac = M.mobility.acrobat
+	local acCap = MoveMath.speedCap(M, { acrobat = true }, false)
+	check(
+		math.sqrt(ac.jump ^ 2 + (ac.jumpForward + ac.glideForward * 0.5) ^ 2) <= acCap * M.tolerance,
+		"a double jump at glide speed is legal"
+	)
+	check(
+		ac.wallRun <= acCap and ac.glideForward <= acCap and ac.climb <= acCap,
+		"wall run, glide and climb are legal"
+	)
+	-- Swing: the rope keeps its length, the speed caps, and zips are legal
+	local sw = M.mobility.swing
+	local px, py, pz, qx, qy, qz = 0, 0, 30, 0, 0, 0
+	for _ = 1, 600 do
+		px, py, pz, qx, qy, qz = MoveMath.swingStep(M, px, py, pz, qx, qy, qz, 0, 40, 0, 50, 0, 1, 1 / 60)
+	end
+	local d = math.sqrt(px * px + (py - 40) ^ 2 + pz * pz)
+	check(d <= 50.01, string.format("the rope holds (%.2f of 50)", d))
+	check(math.sqrt(qx * qx + qy * qy + qz * qz) <= sw.maxSpeed + 1e-6, "swing speed caps")
+	local swCap = MoveMath.speedCap(M, { swing = true }, false)
+	check(swCap >= sw.maxSpeed and swCap >= sw.zip, "swing cap covers swings and zips")
+	-- Flight's level 10 boost stays inside the flight cap
+	check(M.mobility.flight.up.boost <= M.caps.flight, "faster boost is still legal")
+	-- every ride speed in the travel powers is a server-allowed ride buff (MoveGuard reads it)
+	for _, id in AB.order do
+		local a = AB.list[id]
+		if a.shape == "ride" then
+			check(
+				a.speed ~= nil
+					and a.duration ~= nil
+					and (a.ride == "air" or a.ride == "surf" or a.ride == "rail"),
+				id .. " ride kind and speed"
+			)
+			local fast = AbilityRules.effective(Config, id, 5, 2)
+			check(fast.speed <= 140, id .. " ride stays under 140 even with Fast mods")
+		end
+	end
+end)
+
 print(string.format("\n%d passed, %d failed", passed, failed))
 if failed > 0 then
 	process.exit(1)

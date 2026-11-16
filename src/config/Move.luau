@@ -66,7 +66,7 @@ return {
 			name = "Flight",
 			text = "Fly anywhere: cruise, boost, hover and dive",
 			swim = 50,
-			up = { boostLevel = 10, boost = 125 }, -- level 10: faster boost
+			up = { boostLevel = 10, boost = 120 }, -- level 10: faster boost (inside the 125 flight cap)
 		},
 		speed = {
 			name = "Super-speed",
@@ -80,7 +80,7 @@ return {
 			slide = 1.0, -- seconds of slide (Down while sprinting): shots pass over
 			cap = 100,
 			swim = 60,
-			up = { trailLevel = 12 }, -- level 12: the speed trail hurts robots
+			up = { trailLevel = 12, trailSpeed = 70, trailRadius = 7, trailCoeff = 0.25 }, -- level 12: the trail hurts robots
 		},
 		leap = {
 			name = "Leaping",

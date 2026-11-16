@@ -46,6 +46,7 @@ local Remotes: { [string]: RemoteDef } = {
 	-- Movement (spec: Move.Boost, Move.Correct)
 	MoveBoost = { dir = "C2S", schema = { { t = "boolean" } }, rate = 4, burst = 4 },
 	MoveCorrect = { dir = "S2C" }, -- position: sent when a speed or position check fails
+	MovePound = { dir = "C2S", schema = {}, rate = 1, burst = 2 }, -- Leaping: the ground pound landed
 
 	-- Enemies (not in the spec's list; see EnemyBuffer and Decisions.md)
 	EnemyDelta = { dir = "S2C", unreliable = true },

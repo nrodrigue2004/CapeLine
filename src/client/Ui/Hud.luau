@@ -703,16 +703,15 @@ function Hud.init()
 			local f = 1 - MoveController.leapReady()
 			leap.sweep.Size = UDim2.new(1, 12, f, if f > 0 then 20 * f else 0)
 		end
-		local mode = MoveController.mode
-		local flying = mode == "fly"
-		buttons.Fly.button.Visible = h.styles ~= nil and h.styles.flight == true
-		buttons.Fly.button.Text = if flying then "LAND" else "FLY"
-		buttons.Boost.button.Visible = flying
-		buttons.Down.button.Visible = flying
-		buttons.Leap.button.Text = if flying
-			then "UP"
-			elseif mode == "air" or mode == "glide" then "GLIDE"
-			else "LEAP"
+		-- the movement buttons follow the hero's mobility and what they are doing (MoveController.labels)
+		local labels = MoveController.labels()
+		buttons.Fly.button.Visible = labels.fly ~= nil
+		buttons.Fly.button.Text = labels.fly or "FLY"
+		buttons.Boost.button.Visible = labels.boost ~= nil
+		buttons.Boost.button.Text = labels.boost or "BOOST"
+		buttons.Down.button.Visible = labels.down ~= nil
+		buttons.Down.button.Text = labels.down or "DOWN"
+		buttons.Leap.button.Text = labels.leap
 		applyFocus()
 	end)
 end

@@ -350,6 +350,19 @@ function CombatClient.fire(id: string): boolean
 		MoveController.arcTo(land, eff.time or 1.1, math.max(20, d * 0.35))
 	elseif shape == "buff" then
 		CombatFx.buffPop(origin, style, color)
+		if eff.zeroG then
+			MoveController.wantTakeOff = now + 1.5 -- Weightless: lift off once the server's zeroG buff lands
+		end
+	elseif shape == "ride" then
+		MoveController.ride(eff.ride or "surf", eff.speed or 80, eff.duration or 4)
+	elseif shape == "launch" then
+		-- the same spot CastPlan gives the server: up, and forward along the flat aim until a wall
+		local f = Vector3.new(dir.X, 0, dir.Z)
+		f = if f.Magnitude > 1e-3 then f.Unit else Vector3.new(0, 0, -1)
+		local fwd = math.min(eff.forward or 0, rayDist(origin, f, eff.forward or 0))
+		local up = eff.up or 30
+		local target = root.Position + f * math.max(0, fwd - 2) + Vector3.new(0, up, 0)
+		MoveController.launchTo(target, eff.time or 0.5, math.max(4, up * 0.25))
 	end
 	Juice.fire(castSound(slot), origin, { mine = true })
 	Net.send("CombatUse", eff.num, dir, hint, seq)
