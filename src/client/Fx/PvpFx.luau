@@ -11,6 +11,8 @@
 local Debris = game:GetService("Debris")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local FrameProf =
+	require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("FrameProf"))
 local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
@@ -200,9 +202,9 @@ function PvpFx.init()
 		overloads[p] = nil
 	end)
 	PvpClient.Ping:Connect(showPing)
-	RunService.RenderStepped:Connect(function()
+	RunService.RenderStepped:Connect(FrameProf.wrap("PvpFx", function()
 		step(os.clock())
-	end)
+	end))
 end
 
 return PvpFx

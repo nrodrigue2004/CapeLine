@@ -16,6 +16,8 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local FrameProf =
+	require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("FrameProf"))
 local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
@@ -573,7 +575,7 @@ end
 
 function SiteKit.init()
 	local acc = 0
-	RunService.Heartbeat:Connect(function(dt)
+	RunService.Heartbeat:Connect(FrameProf.wrap("SiteKit", function(dt)
 		acc += dt
 		if acc < 0.2 then
 			return
@@ -581,7 +583,7 @@ function SiteKit.init()
 		acc = 0
 		carryStep()
 		pickupStep()
-	end)
+	end))
 	Players.PlayerRemoving:Connect(function(player)
 		local hero = HeroService.get(player)
 		local c = hero and carried[hero.id]

@@ -18,6 +18,8 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local FrameProf =
+	require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("FrameProf"))
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Shared = ReplicatedStorage:WaitForChild("Shared")
@@ -529,7 +531,7 @@ function BossService.init()
 		return if f then STATE[f.sim.state] or 0 else 0
 	end)
 	local acc, sendAcc, contribAcc = 0, 0, 0
-	RunService.Heartbeat:Connect(function(dt)
+	RunService.Heartbeat:Connect(FrameProf.wrap("BossService", function(dt)
 		acc += dt
 		sendAcc += dt
 		contribAcc += dt
@@ -578,7 +580,7 @@ function BossService.init()
 			end
 		end
 		PerfMonitor.add("boss", (os.clock() - t0) * 1000)
-	end)
+	end))
 end
 
 return BossService

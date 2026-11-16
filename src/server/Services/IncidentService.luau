@@ -13,6 +13,8 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local FrameProf =
+	require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("FrameProf"))
 local TweenService = game:GetService("TweenService")
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
@@ -766,7 +768,7 @@ function IncidentService.init()
 	end)
 	PerfMonitor.watch("incidents", count)
 	local acc = 0
-	RunService.Heartbeat:Connect(function(dt)
+	RunService.Heartbeat:Connect(FrameProf.wrap("IncidentService", function(dt)
 		acc += dt
 		sendClock += dt
 		if acc >= 0.2 then
@@ -777,7 +779,7 @@ function IncidentService.init()
 			sendClock = 0
 			send()
 		end
-	end)
+	end))
 end
 
 return IncidentService

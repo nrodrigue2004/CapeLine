@@ -7,6 +7,8 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local FrameProf =
+	require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("FrameProf"))
 local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
@@ -359,7 +361,7 @@ function EnemyService.init(heightAt: (number, number) -> number)
 
 	local acc = 0
 	local interval = 1 / Config.Enemies.tickRate
-	RunService.Heartbeat:Connect(function(dt)
+	RunService.Heartbeat:Connect(FrameProf.wrap("EnemyService", function(dt)
 		local t0 = os.clock()
 		local heroes = HeroService.simHeroes()
 		EnemySim.step(sim, os.clock(), heroes, Config.Enemies.caps.aiTicksPerFrame)
@@ -392,7 +394,7 @@ function EnemyService.init(heightAt: (number, number) -> number)
 			sendDeltas()
 			PerfMonitor.add("replication", (os.clock() - t1) * 1000)
 		end
-	end)
+	end))
 end
 
 return EnemyService

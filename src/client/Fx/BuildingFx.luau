@@ -21,6 +21,8 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local FrameProf =
+	require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("FrameProf"))
 local TweenService = game:GetService("TweenService")
 local HttpService = game:GetService("HttpService")
 local Workspace = game:GetService("Workspace")
@@ -649,7 +651,7 @@ local function droneJob(droneId: number, bid: number, seconds: number)
 			table.insert(offsets, root:ToObjectSpace(p.CFrame))
 		end
 	end
-	job.conn = RunService.RenderStepped:Connect(function()
+	job.conn = RunService.RenderStepped:Connect(FrameProf.wrap("BuildingFx", function()
 		local t = os.clock() - t0
 		local pos: Vector3
 		if t < 2 then
@@ -681,7 +683,7 @@ local function droneJob(droneId: number, bid: number, seconds: number)
 				drones[droneId] = nil
 			end
 		end
-	end)
+	end))
 end
 
 local function register(model: Instance)
@@ -797,7 +799,7 @@ function BuildingFx.init()
 		end
 	end)
 	Net.listen("BuildingImpact", impact)
-	RunService.Heartbeat:Connect(stepFalls)
+	RunService.Heartbeat:Connect(FrameProf.wrap("BuildingFx", stepFalls))
 	task.spawn(function()
 		while not loadRecords() do
 			task.wait(0.5)

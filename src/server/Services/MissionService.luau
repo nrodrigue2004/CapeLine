@@ -21,6 +21,8 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local FrameProf =
+	require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("FrameProf"))
 local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
@@ -982,7 +984,7 @@ function MissionService.init()
 		end
 	end)
 	local acc, sendAcc = 0, 0
-	RunService.Heartbeat:Connect(function(dt)
+	RunService.Heartbeat:Connect(FrameProf.wrap("MissionService", function(dt)
 		acc += dt
 		sendAcc += dt
 		if acc < 0.1 then
@@ -1005,7 +1007,7 @@ function MissionService.init()
 				end
 			end
 		end
-	end)
+	end))
 end
 
 return MissionService

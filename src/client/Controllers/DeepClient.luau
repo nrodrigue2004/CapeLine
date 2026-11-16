@@ -11,6 +11,8 @@ local Lighting = game:GetService("Lighting")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local FrameProf =
+	require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("FrameProf"))
 local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
@@ -298,7 +300,7 @@ function DeepClient.init()
 	folder.Parent = Workspace
 	buildMarkers()
 	Net.listen("DeepState", onState)
-	RunService.RenderStepped:Connect(step)
+	RunService.RenderStepped:Connect(FrameProf.wrap("DeepClient", step))
 end
 
 return DeepClient

@@ -13,6 +13,8 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local FrameProf =
+	require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("FrameProf"))
 local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
@@ -649,7 +651,7 @@ function QuestService.init()
 		waiting[player] = nil
 	end)
 	local acc, sendAcc, refreshAcc = 0, 0, 0
-	RunService.Heartbeat:Connect(function(dt)
+	RunService.Heartbeat:Connect(FrameProf.wrap("QuestService", function(dt)
 		acc += dt
 		sendAcc += dt
 		refreshAcc += dt
@@ -676,7 +678,7 @@ function QuestService.init()
 				sendState(player, site)
 			end
 		end
-	end)
+	end))
 end
 
 return QuestService

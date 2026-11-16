@@ -8,6 +8,8 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local FrameProf =
+	require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("FrameProf"))
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Shared = ReplicatedStorage:WaitForChild("Shared")
@@ -174,7 +176,7 @@ function MoveGuard.init()
 	local histAcc, checkAcc = 0, 0
 	local histStep = 1 / Config.Combat.historyRate
 	local checkStep = 1 / Config.Safety.sampleRate
-	RunService.Heartbeat:Connect(function(dt)
+	RunService.Heartbeat:Connect(FrameProf.wrap("MoveGuard", function(dt)
 		local t0 = os.clock()
 		histAcc += dt
 		checkAcc += dt
@@ -242,7 +244,7 @@ function MoveGuard.init()
 			end
 		end
 		PerfMonitor.add("move", (os.clock() - t0) * 1000)
-	end)
+	end))
 	Players.PlayerRemoving:Connect(function(player)
 		tracks[player.UserId] = nil
 	end)

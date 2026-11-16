@@ -16,6 +16,7 @@ local MoveCheck = require("../src/shared/MoveCheck")
 local PosHistory = require("../src/shared/PosHistory")
 local HitQuery = require("../src/shared/HitQuery")
 local Cooldowns = require("../src/shared/Cooldowns")
+local FrameProf = require("../src/shared/FrameProf")
 local EnemySim = require("../src/shared/EnemySim")
 local EnemyBuffer = require("../src/shared/EnemyBuffer")
 local CityLayout = require("../src/shared/CityLayout")
@@ -5400,6 +5401,33 @@ test("Destruction: basic hits add up to break a piece; repair clears them", func
 	BuildingState.repair(book, b.id)
 	check(book.chip[b.id] == nil and book.state[b.id] == 0, "repair clears the chips")
 	check(D.slotStruct.skill >= D.structure.chunkCost, "a skill is worth a piece")
+end)
+
+test("Perf: FrameProf times wrapped loops, passes values through, sorts busiest first", function()
+	FrameProf.rows() -- clear
+	local light = FrameProf.wrap("Light", function(a: number, b: number)
+		return a + b, "ok"
+	end)
+	local heavy = FrameProf.wrap("Heavy", function()
+		local x = 0
+		for i = 1, 200000 do
+			x += i
+		end
+		return x
+	end)
+	for _ = 1, 4 do
+		FrameProf.tick()
+		local sum, tag = light(2, 3)
+		check(sum == 5 and tag == "ok", "wrap returns every value")
+		check(heavy() > 0, "wrap returns the value")
+	end
+	local rows, frames = FrameProf.rows()
+	check(frames == 4, "4 frames counted")
+	check(#rows == 2 and rows[1].name == "Heavy", "busiest system first")
+	check(rows[1].calls == 4 and rows[1].worst >= rows[1].avg, "calls and worst kept")
+	local again = FrameProf.rows()
+	check(#again == 0, "rows clears the window")
+	check(string.find(FrameProf.report(), "[FrameProf]", 1, true) ~= nil, "report has a header")
 end)
 
 test("Art: robot mesh fits are sane and match the renderer's pieces", function()

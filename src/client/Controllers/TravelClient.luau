@@ -9,6 +9,8 @@ local Players = game:GetService("Players")
 local ProximityPromptService = game:GetService("ProximityPromptService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local FrameProf =
+	require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("FrameProf"))
 local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
@@ -57,28 +59,32 @@ local function start(data: any)
 	skip.Visible = true
 	local cam = Workspace.CurrentCamera
 	cam.CameraType = Enum.CameraType.Scriptable
-	RunService:BindToRenderStep("CapelineTravel", Enum.RenderPriority.Camera.Value + 2, function()
-		local t0 = trip
-		if not t0 then
-			return
-		end
-		local f = math.clamp((os.clock() - t0.start) / t0.time, 0, 1)
-		-- ease in and out so the flight reads as a swoop
-		local e = f * f * (3 - 2 * f)
-		local a, b = t0.from, t0.to
-		local x, y, z = Travel.flightPath(a.X, a.Y, a.Z, b.X, b.Y, b.Z, e)
-		local nx, ny, nz = Travel.flightPath(a.X, a.Y, a.Z, b.X, b.Y, b.Z, math.min(1, e + 0.05))
-		local here = Vector3.new(x, y + 12, z)
-		local ahead = Vector3.new(nx, ny, nz)
-		if (ahead - here).Magnitude < 1 then
-			ahead = b
-		end
-		cam.CFrame = CFrame.lookAt(here, ahead)
-		if f >= 1 then
-			-- wait at the end until the server says we have landed (FastTravelDone)
-			cam.CFrame = CFrame.lookAt(b + Vector3.new(0, 18, 26), b)
-		end
-	end)
+	RunService:BindToRenderStep(
+		"CapelineTravel",
+		Enum.RenderPriority.Camera.Value + 2,
+		FrameProf.wrap("TravelClient", function()
+			local t0 = trip
+			if not t0 then
+				return
+			end
+			local f = math.clamp((os.clock() - t0.start) / t0.time, 0, 1)
+			-- ease in and out so the flight reads as a swoop
+			local e = f * f * (3 - 2 * f)
+			local a, b = t0.from, t0.to
+			local x, y, z = Travel.flightPath(a.X, a.Y, a.Z, b.X, b.Y, b.Z, e)
+			local nx, ny, nz = Travel.flightPath(a.X, a.Y, a.Z, b.X, b.Y, b.Z, math.min(1, e + 0.05))
+			local here = Vector3.new(x, y + 12, z)
+			local ahead = Vector3.new(nx, ny, nz)
+			if (ahead - here).Magnitude < 1 then
+				ahead = b
+			end
+			cam.CFrame = CFrame.lookAt(here, ahead)
+			if f >= 1 then
+				-- wait at the end until the server says we have landed (FastTravelDone)
+				cam.CFrame = CFrame.lookAt(b + Vector3.new(0, 18, 26), b)
+			end
+		end)
+	)
 end
 
 function TravelClient.init()

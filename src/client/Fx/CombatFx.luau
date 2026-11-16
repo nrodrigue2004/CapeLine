@@ -13,6 +13,8 @@ local Debris = game:GetService("Debris")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local FrameProf =
+	require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("FrameProf"))
 local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
@@ -503,7 +505,7 @@ function CombatFx.field(
 	local start = os.clock()
 	local nextPulse = start
 	local conn
-	conn = RunService.RenderStepped:Connect(function()
+	conn = RunService.RenderStepped:Connect(FrameProf.wrap("CombatFx", function()
 		local now = os.clock()
 		local t = now - start
 		if t >= duration then
@@ -546,7 +548,7 @@ function CombatFx.field(
 				end
 			end
 		end
-	end)
+	end))
 end
 
 -- A small model that follows a position each frame for `duration`, then fades. `pieces` are
@@ -570,7 +572,7 @@ local function rig(
 	local start = os.clock()
 	local last = at() or Vector3.zero
 	local conn
-	conn = RunService.RenderStepped:Connect(function()
+	conn = RunService.RenderStepped:Connect(FrameProf.wrap("CombatFx", function()
 		local t = os.clock() - start
 		if t >= duration then
 			conn:Disconnect()
@@ -585,7 +587,7 @@ local function rig(
 		for i, p in parts do
 			p.CFrame = base * pieces[i][2]
 		end
-	end)
+	end))
 	return parts
 end
 
@@ -745,7 +747,7 @@ function CombatFx.ride(set: string, at: () -> Vector3?, duration: number, style:
 	local last: Vector3? = at()
 	local heading = CFrame.new()
 	local conn
-	conn = RunService.RenderStepped:Connect(function()
+	conn = RunService.RenderStepped:Connect(FrameProf.wrap("CombatFx", function()
 		local t = os.clock() - start
 		local now = at()
 		if t >= duration or not now then
@@ -774,7 +776,7 @@ function CombatFx.ride(set: string, at: () -> Vector3?, duration: number, style:
 				fade(spark, 0.3, { Size = Vector3.one * 0.1, Position = now - Vector3.new(0, 7, 0) })
 			end
 		end
-	end)
+	end))
 	if last then
 		speedLines(last, 1, if style == "Anime" then WHITE else color)
 	end
@@ -820,7 +822,7 @@ function CombatFx.beamHold(
 	glow.Transparency = if style == "Anime" then 0.6 else 0.25
 	local start = os.clock()
 	local conn
-	conn = RunService.RenderStepped:Connect(function()
+	conn = RunService.RenderStepped:Connect(FrameProf.wrap("CombatFx", function()
 		local a, b = from(), to()
 		if not a or not b or os.clock() - start > duration then
 			conn:Disconnect()
@@ -837,7 +839,7 @@ function CombatFx.beamHold(
 		core.CFrame = cf
 		glow.Size = Vector3.new(w * 4 * wobble, w * 4 * wobble, len)
 		glow.CFrame = cf
-	end)
+	end))
 end
 
 -- A gathering glow on the caster during a windup (Haymaker, Crush, Heaven Splitter)
@@ -846,7 +848,7 @@ function CombatFx.windup(at: () -> Vector3?, duration: number, style: string, co
 	orb.Transparency = 0.2
 	local start = os.clock()
 	local conn
-	conn = RunService.RenderStepped:Connect(function()
+	conn = RunService.RenderStepped:Connect(FrameProf.wrap("CombatFx", function()
 		local t = os.clock() - start
 		local p = at()
 		if not p or t >= duration then
@@ -861,7 +863,7 @@ function CombatFx.windup(at: () -> Vector3?, duration: number, style: string, co
 			local dir = Vector3.new(math.random() - 0.5, math.random() - 0.5, math.random() - 0.5).Unit
 			beam(p + dir * 5, p, 0.1, WHITE, 0.1)
 		end
-	end)
+	end))
 end
 
 -- A thrown lump on an arc (Lift and Throw). PLACEHOLDER ART: a crate block when nothing was lifted.
@@ -879,7 +881,7 @@ function CombatFx.throwArc(
 	p.Transparency = if crate then 0 else 0.6
 	local start = os.clock()
 	local conn
-	conn = RunService.RenderStepped:Connect(function()
+	conn = RunService.RenderStepped:Connect(FrameProf.wrap("CombatFx", function()
 		local t = math.clamp((os.clock() - start) / time, 0, 1)
 		local pos = from:Lerp(to, t) + Vector3.new(0, 14 * 4 * t * (1 - t), 0)
 		p.CFrame = CFrame.new(pos) * CFrame.Angles(t * 6, t * 4, 0)
@@ -889,7 +891,7 @@ function CombatFx.throwArc(
 		elseif style == "Anime" and math.random() < 0.5 then
 			beam(pos, pos - (to - from).Unit * 4, 0.15, WHITE, 0.15)
 		end
-	end)
+	end))
 end
 
 -- A quick shine on a hero who got a buff
@@ -1036,7 +1038,7 @@ function CombatFx.torpedo(pos: Vector3, vel: Vector3, home: number, turn: number
 	local target = Players:GetPlayerByUserId(home)
 	local t, trail = 0, 0
 	local conn: RBXScriptConnection
-	conn = RunService.Heartbeat:Connect(function(dt)
+	conn = RunService.Heartbeat:Connect(FrameProf.wrap("CombatFx", function(dt)
 		t += dt
 		local char = target and target.Character
 		local root = char and char:FindFirstChild("HumanoidRootPart") :: BasePart?
@@ -1068,7 +1070,7 @@ function CombatFx.torpedo(pos: Vector3, vel: Vector3, home: number, turn: number
 			conn:Disconnect()
 			body:Destroy()
 		end
-	end)
+	end))
 end
 
 -- An enemy attack is coming: a red ground marker that fills over `time` (Brute slam, Sentinel sweep)

@@ -10,6 +10,8 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local FrameProf =
+	require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("FrameProf"))
 local TweenService = game:GetService("TweenService")
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
@@ -573,7 +575,7 @@ function WorldHud.init()
 		end
 	end)
 	local acc = 0
-	RunService.Heartbeat:Connect(function(dt)
+	RunService.Heartbeat:Connect(FrameProf.wrap("WorldHud", function(dt)
 		acc += dt
 		if acc < 0.25 then
 			return
@@ -582,7 +584,7 @@ function WorldHud.init()
 		refreshTracker()
 		refreshMarkers()
 		refreshBoss()
-	end)
+	end))
 	-- the banner throbs while it counts down
 	task.spawn(function()
 		while true do

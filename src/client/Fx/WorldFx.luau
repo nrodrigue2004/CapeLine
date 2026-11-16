@@ -15,6 +15,8 @@ local Lighting = game:GetService("Lighting")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local FrameProf =
+	require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("FrameProf"))
 local TweenService = game:GetService("TweenService")
 local Debris = game:GetService("Debris")
 local Workspace = game:GetService("Workspace")
@@ -733,7 +735,7 @@ function WorldFx.init()
 	end)
 	WorldClient.BossAttack:Connect(onAttack)
 	local acc = 0
-	RunService.RenderStepped:Connect(function(dt)
+	RunService.RenderStepped:Connect(FrameProf.wrap("WorldFx", function(dt)
 		frame(dt)
 		pullStep(dt)
 		acc += dt
@@ -741,7 +743,7 @@ function WorldFx.init()
 			acc = 0
 			eventStep()
 		end
-	end)
+	end))
 end
 
 return WorldFx

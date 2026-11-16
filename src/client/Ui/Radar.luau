@@ -11,6 +11,8 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local FrameProf =
+	require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("FrameProf"))
 local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
@@ -314,13 +316,13 @@ function Radar.init()
 		end
 	end)
 	local acc = 0
-	RunService.RenderStepped:Connect(function(dt)
+	RunService.RenderStepped:Connect(FrameProf.wrap("Radar", function(dt)
 		acc += dt
 		if acc >= 0.1 then
 			acc = 0
 			draw()
 		end
-	end)
+	end))
 end
 
 return Radar

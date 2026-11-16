@@ -11,6 +11,8 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local FrameProf =
+	require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("FrameProf"))
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Shared = ReplicatedStorage:WaitForChild("Shared")
@@ -276,7 +278,7 @@ function SquadService.init()
 	end)
 	-- positions for the map every 2 s
 	local acc = 0
-	RunService.Heartbeat:Connect(function(dt)
+	RunService.Heartbeat:Connect(FrameProf.wrap("SquadService", function(dt)
 		acc += dt
 		if acc < 2 then
 			return
@@ -285,7 +287,7 @@ function SquadService.init()
 		for id in st.squads do
 			send(id, true)
 		end
-	end)
+	end))
 end
 
 -- Dev and tests: the rules state

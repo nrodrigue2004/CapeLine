@@ -7,6 +7,8 @@
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local FrameProf =
+	require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("FrameProf"))
 
 local CombatFx = require(script.Parent.CombatFx)
 
@@ -125,7 +127,7 @@ end
 
 function AuraFx.init()
 	local acc = 0
-	RunService.Heartbeat:Connect(function(dt)
+	RunService.Heartbeat:Connect(FrameProf.wrap("AuraFx", function(dt)
 		acc += dt
 		if acc < 0.1 then
 			return
@@ -140,7 +142,7 @@ function AuraFx.init()
 				rigs[p] = nil
 			end
 		end
-	end)
+	end))
 	-- the awakening burst for everyone nearby
 	local function watch(p: Player)
 		p:GetAttributeChangedSignal("Awakened"):Connect(function()

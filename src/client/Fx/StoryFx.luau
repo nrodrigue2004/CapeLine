@@ -9,6 +9,8 @@
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local FrameProf =
+	require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("FrameProf"))
 local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
@@ -288,11 +290,11 @@ function StoryFx.init()
 			buddies[p] = nil
 		end
 	end)
-	RunService.RenderStepped:Connect(function()
+	RunService.RenderStepped:Connect(FrameProf.wrap("StoryFx", function()
 		local now = os.clock()
 		buddyStep(now)
 		arenaStep(now)
-	end)
+	end))
 end
 
 return StoryFx

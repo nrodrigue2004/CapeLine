@@ -8,6 +8,8 @@
 local GuiService = game:GetService("GuiService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local FrameProf =
+	require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("FrameProf"))
 local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
 
@@ -78,7 +80,7 @@ function Telemetry.init()
 	end
 	local frames: { number } = {}
 	local started = os.clock()
-	RunService.Heartbeat:Connect(function(dt)
+	RunService.Heartbeat:Connect(FrameProf.wrap("Telemetry", function(dt)
 		table.insert(frames, dt)
 		if os.clock() - started < A.perfEvery then
 			return
@@ -91,7 +93,7 @@ function Telemetry.init()
 			then (table.find(Config.Presets.order, QualityController.name) or 0)
 			else 0
 		Net.send("Telemetry", KIND.perf, p5 * 1000 + median, Telemetry.device(), preset)
-	end)
+	end))
 end
 
 return Telemetry

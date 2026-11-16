@@ -11,6 +11,8 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local FrameProf =
+	require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("FrameProf"))
 local TweenService = game:GetService("TweenService")
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
@@ -615,7 +617,7 @@ function Hud.init()
 	})
 	Kit.round(stickKnob, 28)
 	stickKnob.Parent = stickRing
-	RunService.RenderStepped:Connect(drawStick)
+	RunService.RenderStepped:Connect(FrameProf.wrap("Hud", drawStick))
 	refreshInfo()
 	applyDevice(InputController.device)
 	State.Changed:Connect(refreshInfo)
@@ -636,7 +638,7 @@ function Hud.init()
 	end)
 	local low = rgb(U.colors.healthLow)
 	local ok = rgb(U.colors.health)
-	RunService.RenderStepped:Connect(function()
+	RunService.RenderStepped:Connect(FrameProf.wrap("Hud", function()
 		local char = player.Character
 		local hum = char and char:FindFirstChildOfClass("Humanoid")
 		if hum then
@@ -713,7 +715,7 @@ function Hud.init()
 		buttons.Down.button.Text = labels.down or "DOWN"
 		buttons.Leap.button.Text = labels.leap
 		applyFocus()
-	end)
+	end))
 end
 
 return Hud

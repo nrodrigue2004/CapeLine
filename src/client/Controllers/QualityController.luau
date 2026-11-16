@@ -5,6 +5,8 @@
 local Lighting = game:GetService("Lighting")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local FrameProf =
+	require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("FrameProf"))
 local UserInputService = game:GetService("UserInputService")
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
@@ -49,19 +51,19 @@ function QualityController.init()
 	end
 	-- running fps for the Dev panel
 	local frames, acc = 0, 0
-	RunService.RenderStepped:Connect(function(dt)
+	RunService.RenderStepped:Connect(FrameProf.wrap("QualityController", function(dt)
 		frames += 1
 		acc += dt
 		if acc >= 1 then
 			QualityController.fps = frames / acc
 			frames, acc = 0, 0
 		end
-	end)
+	end))
 	task.delay(4, function()
 		local t0, n = os.clock(), 0
-		local conn = RunService.RenderStepped:Connect(function()
+		local conn = RunService.RenderStepped:Connect(FrameProf.wrap("QualityController", function()
 			n += 1
-		end)
+		end))
 		task.wait(P.frameTest.seconds)
 		conn:Disconnect()
 		local fps = n / (os.clock() - t0)

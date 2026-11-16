@@ -9,6 +9,8 @@ local Debris = game:GetService("Debris")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local FrameProf =
+	require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("FrameProf"))
 local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
@@ -354,12 +356,12 @@ function JuiceFx.respawn()
 	shell.Material = Enum.Material.ForceField
 	shell.Transparency = 0.2
 	local alive = true
-	local conn = RunService.RenderStepped:Connect(function()
+	local conn = RunService.RenderStepped:Connect(FrameProf.wrap("JuiceFx", function()
 		local r = myRoot()
 		if alive and r then
 			shell.CFrame = r.CFrame
 		end
-	end)
+	end))
 	task.delay(Config.Pvp.spawnProtect, function()
 		alive = false
 		conn:Disconnect()
@@ -417,7 +419,7 @@ function JuiceFx.init()
 	gui = Kit.screen("Juice", 15)
 	-- dazed stars follow the local stun
 	local acc = 0
-	RunService.Heartbeat:Connect(function(dt)
+	RunService.Heartbeat:Connect(FrameProf.wrap("JuiceFx", function(dt)
 		acc += dt
 		if acc < 0.2 then
 			return
@@ -426,7 +428,7 @@ function JuiceFx.init()
 		local cc = State.status and State.status.cc
 		local stun = cc and cc.stun
 		JuiceFx.dazed(stun ~= nil and os.clock() < stun.untilT)
-	end)
+	end))
 end
 
 return JuiceFx

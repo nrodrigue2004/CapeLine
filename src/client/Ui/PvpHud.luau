@@ -14,6 +14,8 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local FrameProf =
+	require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("FrameProf"))
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Shared = ReplicatedStorage:WaitForChild("Shared")
@@ -499,7 +501,7 @@ function PvpHud.init()
 		end
 	end)
 	PvpClient.Result:Connect(showResult)
-	RunService.RenderStepped:Connect(frame)
+	RunService.RenderStepped:Connect(FrameProf.wrap("PvpHud", frame))
 end
 
 return PvpHud

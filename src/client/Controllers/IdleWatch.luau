@@ -8,6 +8,8 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local FrameProf =
+	require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("FrameProf"))
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Net = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Net"))
@@ -85,7 +87,7 @@ end
 
 function IdleWatch.init()
 	local acc = 0
-	RunService.Heartbeat:Connect(function(dt)
+	RunService.Heartbeat:Connect(FrameProf.wrap("IdleWatch", function(dt)
 		acc += dt
 		if acc < 1 then
 			return
@@ -99,7 +101,7 @@ function IdleWatch.init()
 			idleSince = now - 1
 			reason = why
 		end
-	end)
+	end))
 end
 
 return IdleWatch

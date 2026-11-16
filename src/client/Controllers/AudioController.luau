@@ -14,6 +14,8 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local FrameProf =
+	require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("FrameProf"))
 local SoundService = game:GetService("SoundService")
 local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
@@ -321,13 +323,13 @@ function AudioController.init()
 		end
 	end)
 	local acc = 0
-	RunService.Heartbeat:Connect(function(dt)
+	RunService.Heartbeat:Connect(FrameProf.wrap("AudioController", function(dt)
 		acc += dt
 		if acc >= 0.5 then
 			acc = 0
 			musicTick()
 		end
-	end)
+	end))
 end
 
 return AudioController

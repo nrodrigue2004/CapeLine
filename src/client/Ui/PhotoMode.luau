@@ -15,6 +15,8 @@ local Lighting = game:GetService("Lighting")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local FrameProf =
+	require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("FrameProf"))
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
@@ -197,27 +199,31 @@ function PhotoMode.open()
 	yaw = math.atan2(-look.X, -look.Z) + math.pi
 	pitch, dist = 0.15, 12
 	cam.CameraType = Enum.CameraType.Scriptable
-	RunService:BindToRenderStep("CapelinePhoto", Enum.RenderPriority.Camera.Value + 3, function(dt)
-		local rr = root()
-		if not rr then
-			close()
-			return
-		end
-		-- the gamepad's right stick turns; the triggers zoom
-		for _, st in UserInputService:GetGamepadState(Enum.UserInputType.Gamepad1) do
-			if st.KeyCode == Enum.KeyCode.Thumbstick2 and st.Position.Magnitude > 0.15 then
-				yaw -= st.Position.X * dt * 2.4
-				pitch = math.clamp(pitch + st.Position.Y * dt * 1.6, -0.6, 1.2)
-			elseif st.KeyCode == Enum.KeyCode.ButtonR2 and st.Position.Z > 0.1 then
-				dist = math.clamp(dist - dt * 14 * st.Position.Z, 4, 40)
-			elseif st.KeyCode == Enum.KeyCode.ButtonL2 and st.Position.Z > 0.1 then
-				dist = math.clamp(dist + dt * 14 * st.Position.Z, 4, 40)
+	RunService:BindToRenderStep(
+		"CapelinePhoto",
+		Enum.RenderPriority.Camera.Value + 3,
+		FrameProf.wrap("PhotoMode", function(dt)
+			local rr = root()
+			if not rr then
+				close()
+				return
 			end
-		end
-		local focus = rr.Position + Vector3.new(0, 1.5, 0)
-		local offset = CFrame.Angles(0, yaw, 0) * CFrame.Angles(-pitch, 0, 0) * Vector3.new(0, 0, dist)
-		cam.CFrame = CFrame.lookAt(focus + offset, focus)
-	end)
+			-- the gamepad's right stick turns; the triggers zoom
+			for _, st in UserInputService:GetGamepadState(Enum.UserInputType.Gamepad1) do
+				if st.KeyCode == Enum.KeyCode.Thumbstick2 and st.Position.Magnitude > 0.15 then
+					yaw -= st.Position.X * dt * 2.4
+					pitch = math.clamp(pitch + st.Position.Y * dt * 1.6, -0.6, 1.2)
+				elseif st.KeyCode == Enum.KeyCode.ButtonR2 and st.Position.Z > 0.1 then
+					dist = math.clamp(dist - dt * 14 * st.Position.Z, 4, 40)
+				elseif st.KeyCode == Enum.KeyCode.ButtonL2 and st.Position.Z > 0.1 then
+					dist = math.clamp(dist + dt * 14 * st.Position.Z, 4, 40)
+				end
+			end
+			local focus = rr.Position + Vector3.new(0, 1.5, 0)
+			local offset = CFrame.Angles(0, yaw, 0) * CFrame.Angles(-pitch, 0, 0) * Vector3.new(0, 0, dist)
+			cam.CFrame = CFrame.lookAt(focus + offset, focus)
+		end)
+	)
 	ContextActionService:BindAction("CapelinePhotoZoom", function(_, state, input)
 		if state == Enum.UserInputState.Change and input.UserInputType == Enum.UserInputType.MouseWheel then
 			dist = math.clamp(dist - input.Position.Z * 1.5, 4, 40)
@@ -390,9 +396,9 @@ function PhotoMode.init()
 		end
 	end)
 	-- hidden during the opening; a death closes it
-	RunService.Heartbeat:Connect(function()
+	RunService.Heartbeat:Connect(FrameProf.wrap("PhotoMode", function()
 		openButton.Visible = not open and not StoryClient.inOpening()
-	end)
+	end))
 	player.CharacterRemoving:Connect(close)
 end
 

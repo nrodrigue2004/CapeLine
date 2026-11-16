@@ -15,6 +15,8 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local FrameProf =
+	require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("FrameProf"))
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Shared = ReplicatedStorage:WaitForChild("Shared")
@@ -310,13 +312,13 @@ function FlagService.init()
 		player:SetAttribute("Pvp", nil)
 	end)
 	local acc = 0
-	RunService.Heartbeat:Connect(function(dt)
+	RunService.Heartbeat:Connect(FrameProf.wrap("FlagService", function(dt)
 		acc += dt
 		if acc >= 0.25 then
 			acc = 0
 			tick()
 		end
-	end)
+	end))
 end
 
 return FlagService

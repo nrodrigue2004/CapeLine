@@ -6,6 +6,8 @@ local Debris = game:GetService("Debris")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local FrameProf =
+	require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("FrameProf"))
 local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
@@ -165,7 +167,7 @@ function MoveFx.init()
 
 	local phase = 0
 	local lastMode, wasBoosting = "", false
-	RunService.RenderStepped:Connect(function(dt)
+	RunService.RenderStepped:Connect(FrameProf.wrap("MoveFx", function(dt)
 		local mode = MoveController.mode
 		local speed = MoveController.velocity.Magnitude
 		local anime = State.hero.fxStyle == "Anime"
@@ -188,7 +190,7 @@ function MoveFx.init()
 			local target = if show then 0.55 + 0.35 * math.abs(math.sin(phase + i * 1.7)) else 1
 			f.BackgroundTransparency += (target - f.BackgroundTransparency) * math.min(1, dt * 10)
 		end
-	end)
+	end))
 end
 
 return MoveFx

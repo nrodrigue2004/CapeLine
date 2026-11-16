@@ -15,6 +15,8 @@ local Debris = game:GetService("Debris")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local FrameProf =
+	require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("FrameProf"))
 local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
@@ -462,13 +464,13 @@ function DeathService.init()
 		downs[hero.id] = nil
 	end)
 	local acc = 0
-	RunService.Heartbeat:Connect(function(dt)
+	RunService.Heartbeat:Connect(FrameProf.wrap("DeathService", function(dt)
 		acc += dt
 		if acc >= 0.1 then
 			acc = 0
 			step()
 		end
-	end)
+	end))
 end
 
 return DeathService

@@ -15,6 +15,8 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local FrameProf =
+	require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("FrameProf"))
 local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
@@ -877,7 +879,7 @@ function EnemyRenderer.init()
 	folder.Name = "Enemies"
 	folder.Parent = Workspace
 	Net.listen("EnemyDelta", onDelta)
-	RunService.RenderStepped:Connect(render)
+	RunService.RenderStepped:Connect(FrameProf.wrap("EnemyRenderer", render))
 end
 
 return EnemyRenderer

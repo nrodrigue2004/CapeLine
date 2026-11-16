@@ -6,6 +6,8 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local FrameProf =
+	require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("FrameProf"))
 local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
@@ -206,7 +208,7 @@ end
 
 function LoadBots.init()
 	local acc = 0
-	RunService.Heartbeat:Connect(function(dt)
+	RunService.Heartbeat:Connect(FrameProf.wrap("LoadBots", function(dt)
 		if #bots == 0 then
 			return
 		end
@@ -218,7 +220,7 @@ function LoadBots.init()
 		step(acc)
 		acc = 0
 		PerfMonitor.add("bots", (os.clock() - t0) * 1000)
-	end)
+	end))
 	PerfMonitor.watch("bots", LoadBots.count)
 end
 

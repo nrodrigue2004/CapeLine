@@ -12,6 +12,8 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local FrameProf =
+	require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("FrameProf"))
 local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
@@ -639,11 +641,11 @@ function CombatClient.init()
 			end
 		end
 	end)
-	RunService.Heartbeat:Connect(function()
+	RunService.Heartbeat:Connect(FrameProf.wrap("CombatClient", function()
 		if InputController.isDown("Basic") then
 			CombatClient.fire(State.hero.loadout.basic) -- hold to keep firing at the basic's rate
 		end
-	end)
+	end))
 	player.CharacterAdded:Connect(function()
 		Cooldowns.clear(book)
 		table.clear(recast)

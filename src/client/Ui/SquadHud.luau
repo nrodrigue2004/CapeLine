@@ -9,6 +9,8 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local FrameProf =
+	require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("FrameProf"))
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
 
@@ -332,7 +334,7 @@ function SquadHud.init()
 	Players.PlayerRemoving:Connect(function()
 		task.defer(drawPanel)
 	end)
-	RunService.Heartbeat:Connect(function()
+	RunService.Heartbeat:Connect(FrameProf.wrap("SquadHud", function()
 		if card.Visible then
 			local left = cardUntil - os.clock()
 			if left <= 0 then
@@ -341,7 +343,7 @@ function SquadHud.init()
 				cardBar.Size = UDim2.new((1 * left / cardLife), -20, 0, 4)
 			end
 		end
-	end)
+	end))
 	drawList()
 end
 

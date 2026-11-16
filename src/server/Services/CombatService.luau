@@ -18,6 +18,8 @@ local Debris = game:GetService("Debris")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local FrameProf =
+	require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("FrameProf"))
 local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
@@ -1618,7 +1620,7 @@ function CombatService.init()
 		return #fields
 	end)
 	local acc = 0
-	RunService.Heartbeat:Connect(function(dt)
+	RunService.Heartbeat:Connect(FrameProf.wrap("CombatService", function(dt)
 		local t0 = os.clock()
 		stepTimers(t0)
 		stepChannels(t0)
@@ -1632,7 +1634,7 @@ function CombatService.init()
 			flush()
 			PerfMonitor.add("replication", (os.clock() - t1) * 1000)
 		end
-	end)
+	end))
 end
 
 return CombatService

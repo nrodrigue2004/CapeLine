@@ -4,6 +4,8 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local FrameProf =
+	require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("FrameProf"))
 local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
@@ -111,7 +113,7 @@ function VehicleFx.init()
 			puff(VehiclePose.home(v).Position + Vector3.new(0, 2, 0), Color3.fromRGB(200, 240, 255), 4, 0.4)
 		end
 	end)
-	RunService.Heartbeat:Connect(step)
+	RunService.Heartbeat:Connect(FrameProf.wrap("VehicleFx", step))
 end
 
 return VehicleFx

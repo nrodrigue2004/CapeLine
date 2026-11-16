@@ -13,6 +13,8 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local FrameProf =
+	require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("FrameProf"))
 local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
@@ -688,7 +690,7 @@ function StoryHud.init()
 			StoryClient.catch()
 		end
 	end)
-	RunService.RenderStepped:Connect(frame)
+	RunService.RenderStepped:Connect(FrameProf.wrap("StoryHud", frame))
 end
 
 return StoryHud

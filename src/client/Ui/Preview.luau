@@ -5,6 +5,8 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local FrameProf =
+	require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("FrameProf"))
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local LookKit = require(Shared:WaitForChild("LookKit"))
@@ -77,12 +79,12 @@ function Preview.new(parent: Instance, size: UDim2, position: UDim2): Handle
 	vp.CurrentCamera = cam
 	local model: Model? = nil
 	local yaw = 0
-	local conn = RunService.RenderStepped:Connect(function(dt)
+	local conn = RunService.RenderStepped:Connect(FrameProf.wrap("Preview", function(dt)
 		if model and vp.Visible and model.PrimaryPart then
 			yaw += dt * 0.6
 			model:PivotTo(CFrame.Angles(0, yaw, 0))
 		end
-	end)
+	end))
 	local handle: Handle
 	handle = {
 		frame = vp,
