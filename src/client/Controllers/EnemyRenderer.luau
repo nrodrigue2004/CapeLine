@@ -131,6 +131,19 @@ local HAIR = if meshFor("Hair") then ArtFit.hair else { 0.5, 0.03 }
 local EMBLEM_OUT = if meshFor("ChestL") then 0.58 else 0.5
 local CAPE_BACK = if meshFor("Cape") then 0.2 else 0.08
 
+local SHADOWS = {
+	ChestL = true,
+	ChestR = true,
+	Belly = true,
+	FaceL = true,
+	FaceR = true,
+	ShThighL = true,
+	ShThighR = true,
+	ShShinL = true,
+	ShShinR = true,
+	Cape = true,
+}
+
 local function newPart(
 	model: Model,
 	name: string,
@@ -160,7 +173,8 @@ local function newPart(
 	p.CanCollide = false
 	p.CanQuery = false
 	p.CanTouch = false
-	p.CastShadow = false
+	-- the big meshed pieces cast shadows (the shadow setting per preset turns them off on low); small parts never do
+	p.CastShadow = mesh ~= nil and SHADOWS[name] == true
 	p.Parent = model
 	return p
 end
