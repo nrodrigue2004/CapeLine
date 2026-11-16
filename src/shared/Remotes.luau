@@ -151,12 +151,21 @@ local Remotes: { [string]: RemoteDef } = {
 	HeroKnock = { dir = "S2C" }, -- { x, y, z, time }: a PvP knockback, pull or knockup on your own hero
 
 	-- Creator, HQ, shops and passes (M9; spec: Hero.Create {side, classId, setId, look, colors, titleId,
-	-- nounId} 1/10s, Hero.Select {slot} 1/5s). The look (pieces and colours) is one 32-byte LookCodec buffer.
+	-- nounId} 1/10s, Hero.Select {slot} 1/5s). The look is one 128-byte LookCodec buffer.
 	-- HeroCreate: look, side (1 hero, 2 villain), archetype (1-4), path in the archetype (1-5), title, noun,
-	-- mobility (1-5, Move.mobilityOrder)
+	-- mobility (1-5, Move.mobilityOrder), weapon (a 12-byte WeaponRules look: id, style, finish, colours, ...)
 	HeroCreate = {
 		dir = "C2S",
-		schema = { { t = "buffer", len = { 32 } }, n(1, 2), n(1, 4), n(1, 5), n(1, 12), n(1, 16), n(1, 5) },
+		schema = {
+			{ t = "buffer", len = { 128 } },
+			n(1, 2),
+			n(1, 4),
+			n(1, 5),
+			n(1, 12),
+			n(1, 16),
+			n(1, 5),
+			{ t = "buffer", len = { 12 }, optional = true },
+		},
 		rate = 0.1,
 		burst = 2,
 	},

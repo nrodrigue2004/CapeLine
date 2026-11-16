@@ -98,6 +98,8 @@ function ShopRules.owned(Config: any, profile: any, key: string): boolean
 		return bit32.btest(profile.purchases.tints, bit32.lshift(1, row.tint))
 	elseif kind == "emote" then
 		return Bits.get(profile.emotes, row.emote)
+	elseif kind == "weapon" then
+		return Bits.get(profile.weaponsOwned, row.weapon)
 	end
 	return false
 end
@@ -163,6 +165,9 @@ function ShopRules.grant(
 	elseif kind == "emote" then
 		Bits.set(profile.emotes, row.emote)
 		got.emote = row.emote
+	elseif kind == "weapon" then
+		Bits.set(profile.weaponsOwned, row.weapon)
+		got.weapon = row.weapon
 	end
 	remember(profile, receiptId)
 	return true, got

@@ -18,6 +18,7 @@ return {
 		pack4 = { id = 0, robux = 299, kind = "pack", pack = 4 },
 		pack5 = { id = 0, robux = 399, kind = "pack", pack = 5 },
 		pack6 = { id = 0, robux = 249, kind = "pack", pack = 6 },
+		pack7 = { id = 0, robux = 299, kind = "pack", pack = 7 }, -- the 2026-11-16 creator plan's new slots
 		starter = { id = 0, robux = 79, kind = "starter" }, -- A/B: 49, 79, 99
 		slot3 = { id = 0, robux = 149, kind = "slot", slot = 3 },
 		slot4 = { id = 0, robux = 249, kind = "slot", slot = 4 },
@@ -43,6 +44,12 @@ return {
 		pose22 = { id = 0, robux = 49, kind = "emote", emote = 22 },
 		pose23 = { id = 0, robux = 75, kind = "emote", emote = 23 },
 		pose24 = { id = 0, robux = 99, kind = "emote", emote = 24 },
+		-- the 5 Exotic weapons (nate 2026-11-16: "exotic should be robux"): equal-strength sidegrades, owned for life
+		weaponWhip = { id = 0, robux = 199, kind = "weapon", weapon = 32 },
+		weaponFan = { id = 0, robux = 249, kind = "weapon", weapon = 33 },
+		weaponYoyo = { id = 0, robux = 249, kind = "weapon", weapon = 34 },
+		weaponDart = { id = 0, robux = 249, kind = "weapon", weapon = 35 },
+		weaponBoomerang = { id = 0, robux = 149, kind = "weapon", weapon = 36 },
 	},
 	-- Game passes (owned for life; checked on join and after a purchase)
 	passes = {
@@ -51,7 +58,16 @@ return {
 	},
 	-- Robux shop tabs (spec: Packs, Effects, Emotes, Passes, Slots) and what each lists, in order
 	tabs = {
-		{ id = "packs", name = "Packs", items = { "pack1", "pack2", "pack3", "pack4", "pack5", "pack6" } },
+		{
+			id = "packs",
+			name = "Packs",
+			items = { "pack7", "pack1", "pack2", "pack3", "pack4", "pack5", "pack6" },
+		},
+		{
+			id = "weapons",
+			name = "Weapons",
+			items = { "weaponBoomerang", "weaponWhip", "weaponFan", "weaponYoyo", "weaponDart" },
+		},
 		{
 			id = "effects",
 			name = "Effects",
@@ -99,6 +115,7 @@ return {
 		{ name = "Neon Rogue", color = { 240, 110, 190 } },
 		{ name = "Solar Crown", color = { 255, 210, 60 } },
 		{ name = "Spirit Blade", color = { 255, 70, 90 } },
+		{ name = "Street Legend", color = { 255, 140, 40 } },
 	},
 	-- Starter pack: shown once after the first world boss, easy to dismiss: a cape, a suit finish and an
 	-- emote (the Creator's "starter" pieces and emote bit 11)

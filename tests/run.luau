@@ -3833,7 +3833,7 @@ test(
 				names[p.name] = true
 				local k = p.source.kind
 				local col = if k == "free" then 1 elseif k == "pack" then 3 elseif k == "starter" then 0 else 2
-				if col > 0 then
+				if col > 0 and p.id <= 146 then -- the M9 spec counts (the creator plan's pieces come after)
 					local into = if isAnime(tab.id, p.kit) then anime else spec
 					into[col] += 1
 					if not isAnime(tab.id, p.kit) then
@@ -3880,7 +3880,17 @@ test(
 			"116 spec pieces: 30 free, 52 loot, 34 Robux"
 		)
 		check(anime[1] == 7 and anime[2] == 13 and anime[3] == 8, "28 anime pieces: 7 free, 13 loot, 8 Robux")
-		check(#idx.list == 146 and #idx.list <= 32 * 8, "146 pieces fit the 256-bit unlock set")
+		local legacy, maxId, ids = 0, 0, {}
+		for _, p in idx.list do
+			check(not ids[p.id], "piece ids are unique: " .. p.name)
+			ids[p.id] = true
+			maxId = math.max(maxId, p.id)
+			if p.id <= 146 then
+				legacy += 1
+			end
+		end
+		check(legacy == 146, "the 146 M9 pieces keep ids 1 to 146")
+		check(maxId < 32 * ProfileSchema.PIECE_WORDS, "every id fits the unlock set")
 		check(#CreatorRules.packPieces(Config, nil) == 2, "the starter pack: a suit finish and a cape")
 		local packTotal = 0
 		for i = 1, 5 do
@@ -3892,7 +3902,7 @@ test(
 			packTotal == 34 and #CreatorRules.packPieces(Config, 6) == 8,
 			"34 pieces in 5 packs; the anime pack has 8"
 		)
-		check(#C.palette == 24 and #C.skins == 8, "24 colours and 8 skin tones")
+		check(#C.palette == 48 and #C.skins == 30, "48 colours and 30 skins (24 natural, 6 fantasy)")
 		check(#C.titles == 12 and #C.nouns == 16, "12 titles and 16 nouns")
 		for _, name in C.blockedNames do
 			local parts = string.split(name, " ")
@@ -3904,39 +3914,110 @@ test(
 	end
 )
 
-test("M9: a look is a 32-byte record, 8 words in the save; an empty record is no look", function()
-	local LookCodec = require("../src/shared/LookCodec")
-	local look = {
-		pieces = { suit = 3, back = 14, head = 0, emblem = 40, hair = 9, eyes = 6 },
-		colors = { 1, 12, 24 },
-		hair = 13,
-		skin = 8,
-		anime = true,
-	}
-	local b = LookCodec.encode(look)
-	check(buffer.len(b) == 32, "32 bytes")
-	local words = LookCodec.toWords(b)
-	check(#words == 8, "8 words")
-	local back = LookCodec.read(words) :: any
-	check(
-		back ~= nil and back.anime == true and back.pieces.back == 14 and back.pieces.emblem == 40,
-		"round trip"
-	)
-	check(
-		back.colors[3] == 24 and back.hair == 13 and back.skin == 8 and back.pieces.head == 0,
-		"colours and skin"
-	)
-	check(LookCodec.read({ 0, 0, 0, 0, 0, 0, 0, 0 }) == nil, "all zero = no look yet")
-	check(LookCodec.read({ "x", -1, 1e20 } :: any) == nil, "junk words read as no look")
-	check(LookCodec.decode(buffer.create(31)) == nil, "wrong size")
-	local bad = LookCodec.read(
-		LookCodec.write({ pieces = {}, colors = { 0, 99, 2.5 }, hair = 0, skin = 9, anime = false })
-	)
-	check(
-		bad ~= nil and bad.colors[1] == 1 and bad.colors[2] == 1 and bad.skin == 1,
-		"out of range bytes clamp"
-	)
-end)
+test(
+	"M9: a look is a 128-byte record (v2), 32 words in the save; v1 records still read; empty is no look",
+	function()
+		local LookCodec = require("../src/shared/LookCodec")
+		local look = {
+			pieces = {
+				suit = 3,
+				back = 14,
+				head = 0,
+				emblem = 40,
+				hair = 9,
+				eyes = 6,
+				hat = 12,
+				backpack = 7,
+				legs = 3,
+			},
+			colors = { 1, 12, 48 },
+			hair = 13,
+			skin = 30,
+			anime = true,
+			gender = 2,
+			build = 4,
+			height = 5,
+			eyeColor = 46,
+			tints = { hat = { 4, 0, 46 }, legs = { 0, 22, 0 } },
+			mats = { hat = 3, legs = 2, backpack = 5 },
+		}
+		local b = LookCodec.encode(look :: any)
+		check(buffer.len(b) == 128, "128 bytes")
+		local words = LookCodec.toWords(b)
+		check(#words == 32, "32 words")
+		local back = LookCodec.read(words) :: any
+		check(
+			back ~= nil and back.anime == true and back.pieces.back == 14 and back.pieces.emblem == 40,
+			"round trip"
+		)
+		check(
+			back.colors[3] == 48 and back.hair == 13 and back.skin == 30 and back.pieces.head == 0,
+			"colours and skin"
+		)
+		check(
+			back.gender == 2 and back.build == 4 and back.height == 5 and back.eyeColor == 46,
+			"body and eyes"
+		)
+		check(back.pieces.hat == 12 and back.pieces.backpack == 7 and back.pieces.legs == 3, "the new slots")
+		check(
+			back.tints.hat[1] == 4 and back.tints.hat[3] == 46 and back.tints.legs[2] == 22,
+			"per-slot colours"
+		)
+		check(
+			back.tints.suit == nil and back.mats.hat == 3 and back.mats.legs == 2 and back.mats.backpack == 5,
+			"materials"
+		)
+		check(
+			#LookCodec.SLOTS == 23 and LookCodec.SLOTS[11] == "eyes",
+			"23 slots; the first 11 keep v1's order"
+		)
+		-- a version 1 record (8 words) still reads: Male, Medium, standard height, no per-slot colours
+		local v1 = buffer.create(32)
+		buffer.writeu8(v1, 0, 1)
+		buffer.writeu8(v1, 1, 1)
+		buffer.writeu8(v1, 2, 5) -- suit
+		buffer.writeu8(v1, 3, 2) -- back
+		buffer.writeu8(v1, 12, 4) -- eyes
+		buffer.writeu8(v1, 13, 10)
+		buffer.writeu8(v1, 16, 22)
+		buffer.writeu8(v1, 17, 3)
+		local old = LookCodec.read(LookCodec.toWords(v1)) :: any
+		check(old ~= nil and #LookCodec.toWords(v1) == 8, "8-word v1 record")
+		check(
+			old.pieces.suit == 5 and old.pieces.back == 2 and old.pieces.eyes == 4 and old.anime,
+			"v1 pieces"
+		)
+		check(old.colors[1] == 10 and old.hair == 22 and old.skin == 3, "v1 colours")
+		check(
+			old.gender == 1 and old.build == 2 and old.height == 3 and next(old.tints) == nil,
+			"v1 body defaults"
+		)
+		check((old.pieces.hat or 0) == 0, "v1 has none of the new slots")
+		local padded = table.clone(LookCodec.toWords(v1))
+		for i = 9, 32 do
+			padded[i] = 0
+		end
+		check((LookCodec.read(padded) :: any).pieces.suit == 5, "a v1 look padded to 32 words still reads")
+		check(LookCodec.read(table.create(32, 0)) == nil, "all zero = no look yet")
+		check(LookCodec.read({ "x", -1, 1e20 } :: any) == nil, "junk words read as no look")
+		check(LookCodec.decode(buffer.create(31)) == nil, "wrong size")
+		local bad = LookCodec.read(LookCodec.write({
+			pieces = {},
+			colors = { 0, 99, 2.5 },
+			hair = 0,
+			skin = 9,
+			anime = false,
+			gender = 7,
+			build = 0,
+			height = 9,
+		} :: any)) :: any
+		check(
+			bad ~= nil and bad.colors[1] == 1 and bad.colors[3] == 1 and bad.skin == 9,
+			"out of range bytes fall back (the palette check is CreatorRules.validate's)"
+		)
+		check(bad.gender == 1 and bad.build == 2 and bad.height == 3, "bad body bytes fall back")
+	end
+)
 
 test(
 	"M9: creator rules: owned pieces only, palette colours, the name filter, Randomize is always valid",
@@ -3955,10 +4036,10 @@ test(
 		look.pieces.suit = 99
 		check(select(2, CreatorRules.validate(Config, profile, look)) == "piece", "no piece 99")
 		look.pieces.suit = 1
-		look.colors = { 1, 2, 25 }
+		look.colors = { 1, 2, 49 }
 		check(
 			select(2, CreatorRules.validate(Config, profile, look)) == "color",
-			"colour 25 is off the palette"
+			"colour 49 is off the palette"
 		)
 		check(CreatorRules.nameOk(Config, 3, 1), "Storm Falcon is fine")
 		check(CreatorRules.heroName(Config, 3, 1) == "Storm Falcon", "the name reads Title Noun")
@@ -4255,12 +4336,18 @@ test("M9: save version 4: creator, shop and HQ fields are added and repaired", f
 	old.characters[1].titleId = 999
 	local p = ProfileSchema.load(serde.decode("json", serde.encode("json", old)))
 	check(p.version == ProfileSchema.VERSION and ProfileSchema.VERSION >= 4, "version 4 or later")
-	check(#p.pieces == 8 and #p.legends == 0, "pieces and legends added")
+	check(#p.pieces == ProfileSchema.PIECE_WORDS and #p.legends == 0, "pieces and legends added")
 	check(p.purchases.passes.double == true and p.purchases.passes.junk == nil, "passes kept, junk dropped")
 	check(#p.purchases.receipts == 2, "receipts are strings")
 	local c = p.characters[1]
-	check(#c.look == 8 and c.hq.droneAt == 0 and #c.hq.trophies == 0, "look and HQ fields added")
-	check(#c.looks == 4 and #c.looks[1] == 8, "at most 4 saved looks of 8 words")
+	check(
+		#c.look == ProfileSchema.LOOK_WORDS and c.hq.droneAt == 0 and #c.hq.trophies == 0,
+		"look and HQ fields added"
+	)
+	check(
+		#c.looks == 4 and #c.looks[1] == ProfileSchema.LOOK_WORDS,
+		"at most 4 saved looks, padded to the look size"
+	)
 	check(c.startSet == "Volt" and c.titleId == 64, "bad picks repaired")
 	check(c.created == 0, "an older hero meets the creator once")
 	local view = ProfileSchema.clientView(p)
@@ -5597,6 +5684,144 @@ test("Art: robot mesh fits are sane and match the renderer's pieces", function()
 	check(fit.ChestL[1] == 1 and fit.FaceL[1] == 1, "the halves meet in the middle")
 	local h = Config.ArtFit.hair
 	check(#h == 2 and h[1] > 0 and h[1] < 0.8 and math.abs(h[2]) < 0.2, "the hair sits on top of the head")
+end)
+
+test("Creator plan: 36 weapons in 7 families, Exotic ones sold for Robux, the rest on the Rack", function()
+	local WeaponRules = require("../src/shared/WeaponRules")
+	local W = Config.Weapons
+	local list = WeaponRules.list(Config)
+	check(#list == 36, "36 weapons")
+	local perFamily, names = {}, {}
+	for id, w in list do
+		check(w.id == id, "ids match their place")
+		check(not names[w.name], "unique name " .. w.name)
+		names[w.name] = true
+		perFamily[w.family] = (perFamily[w.family] or 0) + 1
+		check(w.complexity >= 1 and w.complexity <= #W.complexity, w.name .. " complexity")
+		check(W.styles[w.family] ~= nil and #W.styles[w.family] == 4, w.name .. " has 4 styles")
+		if w.family == "exotic" then
+			local row = w.robux and Config.Shop.products[w.robux]
+			check(row ~= nil and row.kind == "weapon" and row.weapon == id, w.name .. " is a Robux product")
+			check(w.price == nil, w.name .. " is not on the Rack")
+		else
+			check(w.price ~= nil and w.price >= 0 and w.robux == nil, w.name .. " is on the Rack")
+		end
+	end
+	local want = { fists = 4, one = 6, two = 6, dual = 5, shield = 3, ranged = 7, exotic = 5 }
+	for _, f in W.families do
+		check(perFamily[f.id] == want[f.id], f.name .. " count")
+	end
+	check(#W.playable == 7, "the first slice: one playable weapon per family")
+	local seen = {}
+	for _, id in W.playable do
+		seen[list[id].family] = true
+	end
+	for _, f in W.families do
+		check(seen[f.id], f.name .. " has a playable weapon")
+	end
+	check(list[W.defaultWeapon].price == 0, "the default weapon is always owned")
+end)
+
+test("Creator plan: weapon ownership, free pick, the Rack, mastery skills and the weapon look", function()
+	local WeaponRules = require("../src/shared/WeaponRules")
+	local ProfileSchema = require("../src/shared/ProfileSchema")
+	local ShopRules = require("../src/shared/ShopRules")
+	local p = ProfileSchema.default()
+	check(WeaponRules.owned(Config, p, 1), "Bare Fists are always owned")
+	check(not WeaponRules.owned(Config, p, 5), "the Sword is not owned yet")
+	check(WeaponRules.freePickOk(Config, 5), "the creator may give the Sword free")
+	check(not WeaponRules.freePickOk(Config, 36), "never a Robux weapon free")
+	check(not WeaponRules.freePickOk(Config, 6), "only playable weapons in the first slice")
+	local ok, why = WeaponRules.buyOk(Config, p, 5, 100)
+	check(not ok and why == "credits", "too few Credits")
+	ok = WeaponRules.buyOk(Config, p, 5, 5000)
+	check(ok, "the Rack sells the Sword")
+	check(
+		select(2, WeaponRules.buyOk(Config, p, 32, 99999)) == "robux",
+		"the Rack never sells Exotic weapons"
+	)
+	check(WeaponRules.grant(p, 5) and not WeaponRules.grant(p, 5), "grant once")
+	check(select(2, WeaponRules.buyOk(Config, p, 5, 99999)) == "owned", "owned weapons are not sold twice")
+	-- the Robux shop gives an Exotic weapon once per receipt
+	check(not ShopRules.owned(Config, p, "weaponBoomerang"), "Boomerang not owned")
+	local granted, got = ShopRules.grant(Config, p, "weaponBoomerang", "r1")
+	check(granted and got and got.weapon == 36, "the Boomerang is granted")
+	check(ShopRules.owned(Config, p, "weaponBoomerang") and WeaponRules.owned(Config, p, 36), "owned now")
+	check(not (ShopRules.grant(Config, p, "weaponBoomerang", "r1")), "a receipt grants once")
+	-- mastery: Z at once, X at 25, C at 75, V at 150, max 300
+	local M = Config.Weapons.mastery
+	check(WeaponRules.skillOpen(Config, 0, "Z") and not WeaponRules.skillOpen(Config, 0, "X"), "Z at once")
+	local lvl, opened = WeaponRules.addMastery(Config, p, 5, 25 * M.perLevel)
+	check(lvl == 25 and #opened == 1 and opened[1] == "X", "X opens at 25")
+	lvl, opened = WeaponRules.addMastery(Config, p, 5, 10 ^ 9)
+	check(lvl == M.max and #opened == 2, "C and V open together on a big jump; capped at max")
+	check(WeaponRules.state(p, 5).mastery == M.max * M.perLevel, "points cap at max")
+	-- the weapon look: 12 bytes, range checks, saved per weapon
+	local look = {
+		id = 5,
+		style = 3,
+		finish = 6,
+		main = 48,
+		trim = 0,
+		glow = 46,
+		glowLevel = 3,
+		emblem = true,
+		trail = 2,
+	}
+	local back = WeaponRules.decodeLook(WeaponRules.encodeLook(look)) :: any
+	check(back and back.style == 3 and back.main == 48 and back.emblem and back.trail == 2, "look round trip")
+	check(WeaponRules.lookOk(Config, back), "a valid look")
+	local bad = table.clone(back)
+	bad.style = 5
+	check(select(2, WeaponRules.lookOk(Config, bad)) == "style", "4 styles only")
+	bad = table.clone(back)
+	bad.main = 49
+	check(select(2, WeaponRules.lookOk(Config, bad)) == "color", "colours on the palette")
+	WeaponRules.setLook(p, back)
+	local saved = WeaponRules.lookOf(p, 5)
+	check(
+		saved.finish == 6 and saved.glow == 46 and WeaponRules.state(p, 5).mastery > 0,
+		"look saved, mastery kept"
+	)
+	-- the carried weapon falls back to Bare Fists when not owned
+	local c = p.characters[1]
+	c.weapon = 6
+	check(WeaponRules.carried(Config, p, c) == 1, "an unowned weapon falls back")
+	c.weapon = 5
+	check(WeaponRules.carried(Config, p, c) == 5, "an owned weapon is carried")
+end)
+
+test("Creator plan: save v9 pads looks and pieces, keeps weapons, repairs junk", function()
+	local ProfileSchema = require("../src/shared/ProfileSchema")
+	local LookCodec = require("../src/shared/LookCodec")
+	local old = ProfileSchema.default()
+	old.version = 8
+	old.pieces = { 1, 2, 3, 4, 5, 6, 7, 8 }
+	old.weaponsOwned = nil
+	old.weapons = { ["5"] = { 100, 2, 3 }, junk = { 1 }, ["99"] = { 1 } }
+	local v1 = buffer.create(32)
+	buffer.writeu8(v1, 0, 1)
+	buffer.writeu8(v1, 2, 4)
+	old.characters[1].look = LookCodec.toWords(v1)
+	old.characters[1].weapon = "x"
+	local p = ProfileSchema.load(serde.decode("json", serde.encode("json", old)))
+	check(p.version == 9, "version 9")
+	check(
+		#p.pieces == 32 and p.pieces[8] == 8 and p.pieces[9] == 0,
+		"the unlock set pads to 32 words, keeping bits"
+	)
+	check(#p.weaponsOwned == 2, "weapons owned added")
+	check(
+		p.weapons["5"] ~= nil and p.weapons["5"][1] == 100 and #p.weapons["5"] == 9,
+		"a weapon's numbers kept"
+	)
+	check(p.weapons.junk == nil and p.weapons["99"] == nil, "junk weapons dropped")
+	local c = p.characters[1]
+	check(c.weapon == 0, "a bad carried weapon becomes none")
+	check(
+		#c.look == 32 and (LookCodec.read(c.look) :: any).pieces.suit == 4,
+		"an old look pads and still reads"
+	)
 end)
 
 print(string.format("\n%d passed, %d failed", passed, failed))

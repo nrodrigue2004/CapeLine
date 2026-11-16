@@ -41,6 +41,7 @@ local NAMES = {
 	"Deep",
 	"ArtFit",
 	"HeroRig",
+	"Weapons",
 }
 
 local Config: { [string]: any } = {}

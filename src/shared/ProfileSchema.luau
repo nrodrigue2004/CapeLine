@@ -9,13 +9,17 @@
 
 local ProfileSchema = {}
 
-ProfileSchema.VERSION = 8
+ProfileSchema.VERSION = 9
 ProfileSchema.BOSSES = 3 -- #Config.Boss.order (a test checks they match)
 ProfileSchema.SLOTS = 8
 ProfileSchema.STYLE_WORDS = 16 -- 512 bits
 ProfileSchema.SMALL_WORDS = 4 -- 128 bits for emotes, titles, Rogues File pages, seen flags
-ProfileSchema.PIECE_WORDS = 8 -- 256 bits: creator pieces unlocked (M9)
-ProfileSchema.LOOK_WORDS = 8 -- a 32-byte look record (LookCodec)
+ProfileSchema.PIECE_WORDS = 32 -- 1,024 bits: creator pieces unlocked (M9; 32 since the 2026-11-16 creator plan)
+ProfileSchema.LOOK_WORDS = 32 -- a 128-byte look record (LookCodec v2; an 8-word v1 record pads with 0 and still reads)
+ProfileSchema.WEAPON_WORDS = 2 -- 64 bits: weapons owned (Config.Weapons ids)
+-- a weapon's saved state: mastery points, style, finish, main, trim and glow colour, glow strength, emblem, trail
+ProfileSchema.WEAPON_FIELDS =
+	{ "mastery", "style", "finish", "main", "trim", "glow", "glowLevel", "emblem", "trail" }
 
 -- The archetypes, the 17 paths (Config.Classes, Config.Abilities.sets) and the mobilities (Config.Move.mobility)
 ProfileSchema.ARCHETYPES = { "Elemental", "Rogue", "Powerhouse", "Mystic" }
@@ -127,6 +131,7 @@ function ProfileSchema.newCharacter(side: string?, classId: string?): { [string]
 		created = 0,
 		startSet = "Volt", -- the main path (nate 2026-11-16: archetype, path, mobility)
 		mobility = "flight", -- swapped free at any safehouse
+		weapon = 0, -- the carried weapon (Config.Weapons id), 0 = Bare Fists
 		pathChanged = 0, -- 1 once the free archetype or path change (before level 10) is used
 		tint = 0, -- an owned effect colour (Config.Shop.tints), 0 = the set's own
 		landing = 0, -- an owned landing pose (emote bit 20 to 31), 0 = none
@@ -175,6 +180,10 @@ function ProfileSchema.default(): { [string]: any }
 		active = 1,
 		purchases = { passes = {}, receipts = {}, slots = 0, tints = 0 }, -- slots, tints: a bit per slot or tint
 		pieces = words(ProfileSchema.PIECE_WORDS), -- creator pieces unlocked (CreatorRules ids)
+		-- weapons (2026-11-16 creator plan): owned for the account (Rack, creator pick or Robux for the Exotic
+		-- ones); weapons[id as text] = the WEAPON_FIELDS numbers (mastery and the weapon's look)
+		weaponsOwned = words(ProfileSchema.WEAPON_WORDS),
+		weapons = {},
 		legends = {}, -- the Hall of Legends: retired heroes' statues (HqRules.retire)
 		bosses = { 0, 0, 0 }, -- best world boss reward tier per boss (Config.Boss.order): 1 joined, 2, 3 MVP
 		shop = { starterSeen = 0 }, -- the starter pack offer was shown (once)
@@ -267,6 +276,10 @@ local MIGRATIONS: { [number]: (any) -> () } = {
 	end,
 	[8] = function(_p)
 		-- the studio-wide funnels (FunnelKit): repair() fills the funnel numbers
+	end,
+	[9] = function(_p)
+		-- the hero creator plan (2026-11-16): looks grow to 32 words (old 8-word looks still read), the piece
+		-- bitset to 32 words, weapons owned and each weapon's mastery and look; repair() pads and fills them
 	end,
 }
 ProfileSchema.MIGRATIONS = MIGRATIONS
@@ -410,6 +423,7 @@ local function repair(p: any): any
 					c.mobility = "flight"
 				end
 				c.pathChanged = num(c.pathChanged, 0, 1, 0)
+				c.weapon = num(c.weapon, 0, 64, 0)
 				c.hq.level = num(c.hq.level, 1, 6, 1)
 				c.hq.droneAt = num(c.hq.droneAt, 0, 2 ^ 40, 0)
 				c.hq.trophies = cleanNumbers(c.hq.trophies, 12, 1, 64)
@@ -493,6 +507,16 @@ local function repair(p: any): any
 			p.purchases.passes[k] = nil
 		end
 	end
+	-- weapons: keys are weapon ids as text ("1" to "64"), each the WEAPON_FIELDS numbers
+	local weapons = {}
+	for k, v in p.weapons do
+		local id = tonumber(k)
+		if id and id % 1 == 0 and id >= 1 and id <= 64 and type(v) == "table" then
+			local nums = cleanNumbers(v, #ProfileSchema.WEAPON_FIELDS, 0, 2 ^ 24, true)
+			weapons[tostring(id)] = nums
+		end
+	end
+	p.weapons = weapons
 	local legends = {}
 	for _, l in p.legends do
 		if type(l) == "table" and #legends < 20 then
@@ -606,6 +630,9 @@ function ProfileSchema.clientView(profile: any, walletOnly: boolean?): { [string
 		characters = #profile.characters,
 		-- M9: the creator, HQ and shops
 		pieces = Bits.list(profile.pieces),
+		weaponsOwned = Bits.list(profile.weaponsOwned),
+		weapons = profile.weapons,
+		weapon = c.weapon,
 		emotes = Bits.list(profile.emotes),
 		titles = Bits.list(profile.titles),
 		props = Bits.list(profile.props),

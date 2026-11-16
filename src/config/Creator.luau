@@ -221,6 +221,22 @@ return {
 				{ "Sky Spikes", "sky", "pack:6" },
 				{ "Flowing Mane", "flow", "pack:6" },
 			},
+			-- 2026-11-16 creator plan: more styles; extra pieces carry their own id base (id = base + n)
+			extra = {
+				base = 820,
+				pieces = {
+					{ "Afro", "afro", "free" },
+					{ "Space Buns", "buns", "free" },
+					{ "Mohawk", "mohawk", "free" },
+					{ "Undercut", "undercut", "free" },
+					{ "Long Straight", "long", "lvl:3" },
+					{ "Bob Cut", "bob", "lvl:6" },
+					{ "Locs", "locs", "lvl:10" },
+					{ "High Ponytail", "pony", "drop" },
+					{ "Curly Top", "curly", "mission:2" },
+					{ "Side Shave", "sideshave", "pack:7" },
+				},
+			},
 		},
 		{
 			id = "eyes",
@@ -233,6 +249,206 @@ return {
 				{ "Ember Glow", "ember", "drop" },
 				{ "Spirit Glow", "spirit", "pack:6" },
 				{ "Prism Glow", "prism", "pack:6" },
+			},
+		},
+		-- 2026-11-16 hero creator plan (nate): 12 new slots. These tabs carry a fixed id base, so the piece ids
+		-- (the unlock bitset) stay put when a tab grows: piece i of a tab with base B has id B + i.
+		-- PLACEHOLDER ART: LookKit builds them from simple parts until the Blender piece sets replace them.
+		{
+			id = "beard",
+			name = "Facial hair",
+			base = 300,
+			pieces = {
+				{ "Stubble", "stubble", "free" },
+				{ "Goatee", "goatee", "free" },
+				{ "Full Beard", "full", "free" },
+				{ "Chin Strap", "strap", "lvl:5" },
+				{ "Mutton Chops", "chops", "lvl:12" },
+				{ "Handlebar", "handlebar", "drop" },
+				{ "Braided Beard", "braid", "rep:league:2" },
+				{ "Long Beard", "long", "pack:7" },
+			},
+		},
+		{
+			id = "face",
+			name = "Face",
+			base = 340,
+			-- brows, eyes and mouth together; a glowing Eyes piece draws over the eyes
+			pieces = {
+				{ "Classic Smile", "smile", "free" },
+				{ "Calm", "calm", "free" },
+				{ "Grin", "grin", "free" },
+				{ "Smirk", "smirk", "free" },
+				{ "Focused", "focused", "lvl:3" },
+				{ "Frown", "frown", "lvl:8" },
+				{ "Shout", "shout", "lvl:18" },
+				{ "Snarl", "snarl", "rep:syndicate:2" },
+				{ "Fangs", "fangs", "drop" },
+				{ "Scarred", "scar", "pack:7" },
+			},
+		},
+		{
+			id = "makeup",
+			name = "Makeup",
+			base = 380,
+			pieces = {
+				{ "Eyeliner", "liner", "free" },
+				{ "Lipstick", "lips", "free" },
+				{ "Blush", "blush", "free" },
+				{ "Freckles", "freckles", "lvl:4" },
+				{ "War Paint", "war", "lvl:14" },
+				{ "Cheek Lines", "lines", "drop" },
+				{ "Tear Streaks", "tears", "rep:syndicate:3" },
+				{ "Half Paint", "half", "pack:7" },
+			},
+		},
+		{
+			id = "hat",
+			name = "Headwear",
+			base = 420,
+			pieces = {
+				{ "Ball Cap", "cap", "free" },
+				{ "Beanie", "beanie", "free" },
+				{ "Headband", "headband", "free" },
+				{ "Shades", "shades", "free" },
+				{ "Flight Goggles", "goggles", "lvl:6" },
+				{ "Energy Visor", "visor", "lvl:10" },
+				{ "Headphones", "phones", "lvl:16" },
+				{ "Wide Brim", "brim", "mission:3" },
+				{ "Top Hat", "tophat", "quest:3" },
+				{ "Street Hood", "streethood", "drop" },
+				{ "Iron Crown", "crown", "rep:league:4" },
+				{ "Ram Horns", "horns", "rep:syndicate:4" },
+				{ "Halo", "halo", "boss:LumenMaw:3" },
+				{ "Plume Helm", "kabuto", "pack:7" },
+				{ "Knight Helm", "knight", "pack:7" },
+			},
+		},
+		{
+			id = "ears",
+			name = "Ears",
+			base = 480,
+			pieces = {
+				{ "Studs", "studs", "free" },
+				{ "Hoops", "hoops", "free" },
+				{ "Comms Earpiece", "comms", "lvl:7" },
+				{ "Dangles", "dangles", "drop" },
+				{ "Ear Cuffs", "cuffs", "lvl:20" },
+				{ "Wing Earrings", "wings", "pack:7" },
+			},
+		},
+		{
+			id = "shoulders",
+			name = "Shoulders",
+			base = 500,
+			pieces = {
+				{ "Shoulder Pads", "pads", "free" },
+				{ "Studded Pads", "studded", "free" },
+				{ "Epaulettes", "epaulettes", "free" },
+				{ "Fur Trim", "fur", "lvl:9" },
+				{ "Spiked Pads", "spikes", "lvl:15" },
+				{ "Single Pauldron", "single", "drop" },
+				{ "Layered Plates", "layered", "mission:6" },
+				{ "Great Pauldrons", "pauldrons", "boss:RustjawPrime:2" },
+				{ "Energy Coils", "coils", "pack:7" },
+				{ "Crystal Shards", "crystal", "fame:6" },
+			},
+		},
+		{
+			id = "neck",
+			name = "Neck",
+			base = 540,
+			pieces = {
+				{ "Chain", "chain", "free" },
+				{ "Pendant", "pendant", "free" },
+				{ "Choker", "choker", "free" },
+				{ "Dog Tags", "tags", "lvl:11" },
+				{ "Bead Necklace", "beads", "drop" },
+				{ "High Collar", "collar", "quest:5" },
+				{ "Glow Amulet", "amulet", "rep:league:3" },
+				{ "Gold Torc", "torc", "pack:7" },
+			},
+		},
+		{
+			id = "arms",
+			name = "Arms",
+			base = 580,
+			pieces = {
+				{ "Bracers", "bracers", "free" },
+				{ "Sleeves", "sleeves", "free" },
+				{ "Arm Wraps", "wraps", "free" },
+				{ "Arm Bands", "bands", "lvl:6" },
+				{ "Tattoo Lines", "tattoo", "lvl:13" },
+				{ "Forearm Spikes", "spikes", "drop" },
+				{ "Arm Plates", "armor", "mission:2" },
+				{ "Power Rings", "coils", "pack:7" },
+			},
+		},
+		{
+			id = "wrist",
+			name = "Rings and bracelets",
+			base = 620,
+			pieces = {
+				{ "Ring", "ring", "free" },
+				{ "Bracelet", "bracelet", "free" },
+				{ "Two Rings", "rings", "lvl:5" },
+				{ "Metal Cuffs", "cuffs", "lvl:17" },
+				{ "Wrist Beads", "beads", "drop" },
+				{ "Power Bands", "power", "fame:4" },
+			},
+		},
+		{
+			id = "belt",
+			name = "Belt",
+			base = 660,
+			pieces = {
+				{ "Plain Belt", "plain", "free" },
+				{ "Utility Belt", "utility", "free" },
+				{ "Sash", "sash", "free" },
+				{ "Rope Belt", "rope", "lvl:8" },
+				{ "Chain Belt", "chain", "drop" },
+				{ "Thigh Holsters", "holsters", "lvl:19" },
+				{ "Tech Belt", "tech", "quest:6" },
+				{ "Champion Belt", "champion", "fame:10" },
+			},
+		},
+		{
+			id = "legs",
+			name = "Legs",
+			base = 700,
+			-- legs colour the upper and lower legs over the suit; skirts and hakama add parts
+			pieces = {
+				{ "Pants", "pants", "free" },
+				{ "Shorts", "shorts", "free" },
+				{ "Joggers", "joggers", "free" },
+				{ "Track Pants", "track", "free" },
+				{ "Cargo Pants", "cargo", "lvl:4" },
+				{ "Knee Pads", "kneepads", "lvl:9" },
+				{ "Ripped Jeans", "ripped", "drop" },
+				{ "Battle Skirt", "skirt", "lvl:22" },
+				{ "Hakama", "hakama", "quest:4" },
+				{ "Shin Greaves", "greaves", "mission:4" },
+				{ "Leg Wraps", "legwraps", "rep:league:2" },
+				{ "Armored Legs", "armored", "pack:7" },
+			},
+		},
+		{
+			id = "backpack",
+			name = "Back bling",
+			base = 760,
+			pieces = {
+				{ "Backpack", "backpack", "free" },
+				{ "Sword Sheath", "sheath", "free" },
+				{ "Quiver", "quiver", "free" },
+				{ "Air Tanks", "tanks", "lvl:7" },
+				{ "Jetpack", "jetpack", "lvl:12" },
+				{ "Back Shield", "shield", "drop" },
+				{ "Drone Pod", "drone", "mission:5" },
+				{ "Feather Wings", "wings", "boss:LumenMaw:2" },
+				{ "Bat Wings", "bat", "rep:syndicate:5" },
+				{ "Halo Ring", "ring", "legacy:3" },
+				{ "Energy Wings", "energy", "pack:7" },
+				{ "Gear Rack", "rack", "boss:RustjawPrime:3" },
 			},
 		},
 	},
@@ -252,7 +468,8 @@ return {
 		flower = "✿",
 	},
 
-	-- 24 fixed colours (primary, secondary, accent and hair all pick from these)
+	-- 48 fixed colours (primary, secondary, accent, hair, eyes and every slot's own colours pick from these);
+	-- 24 at M9, 24 more with the 2026-11-16 creator plan (never reorder: looks save the index)
 	palette = {
 		{ 235, 60, 60 }, -- 1 red
 		{ 160, 30, 45 }, -- 2 crimson
@@ -278,8 +495,33 @@ return {
 		{ 24, 24, 28 }, -- 22 black
 		{ 200, 240, 255 }, -- 23 ice
 		{ 255, 90, 40 }, -- 24 ember
+		{ 255, 180, 180 }, -- 25 rose
+		{ 255, 220, 140 }, -- 26 peach
+		{ 180, 120, 40 }, -- 27 bronze
+		{ 230, 190, 60 }, -- 28 mustard
+		{ 90, 110, 40 }, -- 29 olive
+		{ 30, 90, 50 }, -- 30 forest
+		{ 170, 255, 200 }, -- 31 mint
+		{ 20, 110, 120 }, -- 32 deep teal
+		{ 60, 160, 230 }, -- 33 azure
+		{ 70, 60, 160 }, -- 34 indigo
+		{ 70, 20, 110 }, -- 35 deep purple
+		{ 255, 60, 140 }, -- 36 hot pink
+		{ 200, 30, 90 }, -- 37 magenta
+		{ 110, 20, 25 }, -- 38 maroon
+		{ 80, 50, 30 }, -- 39 chocolate
+		{ 240, 225, 200 }, -- 40 bone
+		{ 210, 200, 180 }, -- 41 sand
+		{ 140, 140, 120 }, -- 42 khaki grey
+		{ 85, 95, 110 }, -- 43 slate
+		{ 40, 44, 60 }, -- 44 midnight
+		{ 120, 255, 80 }, -- 45 toxic green
+		{ 80, 255, 255 }, -- 46 cyan glow
+		{ 255, 240, 80 }, -- 47 electric yellow
+		{ 190, 90, 255 }, -- 48 ultraviolet
 	},
-	-- skin tones for the head and hands (the standard rig's body colours)
+	-- skin tones for the head and hands (the standard rig's body colours): 8 at M9, then (2026-11-16 creator
+	-- plan) 16 more natural tones and 6 fantasy skins with their own material (never reorder)
 	skins = {
 		{ 255, 224, 196 },
 		{ 241, 194, 160 },
@@ -289,6 +531,64 @@ return {
 		{ 120, 78, 52 },
 		{ 86, 56, 38 },
 		{ 60, 40, 28 },
+		{ 255, 236, 220 },
+		{ 250, 214, 186 },
+		{ 236, 200, 160 },
+		{ 230, 186, 140 },
+		{ 214, 170, 120 },
+		{ 210, 160, 130 },
+		{ 190, 130, 90 },
+		{ 176, 120, 80 },
+		{ 150, 100, 60 },
+		{ 140, 90, 64 },
+		{ 110, 70, 46 },
+		{ 100, 66, 50 },
+		{ 92, 60, 40 },
+		{ 74, 48, 34 },
+		{ 52, 34, 26 },
+		{ 44, 30, 24 },
+		{ 150, 140, 130 },
+		{ 170, 175, 185 },
+		{ 190, 235, 255 },
+		{ 255, 170, 60 },
+		{ 50, 45, 70 },
+		{ 200, 150, 255 },
+	},
+	-- the fantasy skins' material and name (by skin index)
+	fantasySkins = {
+		[25] = { mat = "Slate", name = "Stone" },
+		[26] = { mat = "Metal", name = "Metal" },
+		[27] = { mat = "Ice", name = "Ice" },
+		[28] = { mat = "Neon", name = "Energy" },
+		[29] = { mat = "SmoothPlastic", name = "Shadow" },
+		[30] = { mat = "Glass", name = "Crystal" },
+	},
+	-- per-slot materials a player can pick (LookCodec mats; 0 = the piece's own)
+	materials = { "Fabric", "Leather", "Metal", "SmoothPlastic", "Neon" },
+	materialNames = { "Cloth", "Leather", "Metal", "Gloss", "Energy" },
+
+	-- Body (2026-11-16 creator plan): looks only, never a stat; every hero shares one collider and hit capsule.
+	-- builds scale the blocky R15 rig (width, depth, limb thickness, head, height) until the 8 Blender body
+	-- sets replace the scaling with their own shapes
+	body = {
+		genders = { "Male", "Female" },
+		builds = {
+			{ name = "Small", width = 0.85, depth = 0.9, limbs = 0.85, hands = 1.0, head = 1.0, tall = 0.95 },
+			{ name = "Medium", width = 1.0, depth = 1.0, limbs = 1.0, hands = 1.0, head = 1.0, tall = 1.0 },
+			{
+				name = "Large",
+				width = 1.25,
+				depth = 1.15,
+				limbs = 1.2,
+				hands = 1.15,
+				head = 1.0,
+				tall = 1.05,
+			},
+			{ name = "Titan", width = 1.6, depth = 1.4, limbs = 1.5, hands = 1.4, head = 0.9, tall = 1.15 },
+		},
+		heights = { 0.9, 0.95, 1.0, 1.05, 1.1 },
+		-- Female: the upper torso tapers to a narrower waist (blocky, no other change)
+		femaleWaist = 0.85,
 	},
 
 	-- Hero names: a Title and a Noun from wheels; nothing typed. A hero shows as "Storm Falcon" with the
@@ -351,6 +651,9 @@ return {
 		colors = { 10, 1, 4 },
 		hair = 22,
 		skin = 3,
+		gender = 1,
+		build = 2,
+		height = 3,
 	},
 	-- Hero creator rules (spec: Done needs a title, a noun and a class; saves via Hero.Create)
 	createRate = 10, -- seconds between saves

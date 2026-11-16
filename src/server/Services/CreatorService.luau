@@ -21,6 +21,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Net = require(Shared:WaitForChild("Net"))
 local Rng = require(Shared:WaitForChild("Rng"))
 local LookCodec = require(Shared:WaitForChild("LookCodec"))
+local WeaponRules = require(Shared:WaitForChild("WeaponRules"))
 local CreatorRules = require(Shared:WaitForChild("CreatorRules"))
 local ProfileSchema = require(Shared:WaitForChild("ProfileSchema"))
 local AbilityRules = require(Shared:WaitForChild("AbilityRules"))
@@ -132,7 +133,8 @@ local function onCreate(
 	setIdx: number,
 	titleId: number,
 	nounId: number,
-	mobilityIdx: number?
+	mobilityIdx: number?,
+	weaponBuf: buffer?
 )
 	local profile, c = charOf(player)
 	local hero = HeroService.get(player)
@@ -166,6 +168,32 @@ local function onCreate(
 	if not CreatorRules.pickOk(Config, classId, setId, side, mobility) then
 		result(player, false, "pick")
 		return
+	end
+	-- the weapon (2026-11-16 creator plan): a new hero (or one made before weapons) takes any Rack weapon
+	-- free; otherwise only an owned weapon. Its look must be in range.
+	local weaponLook = if weaponBuf then WeaponRules.decodeLook(weaponBuf) else nil
+	local freeWeapon = false
+	if weaponLook then
+		local okLook, whyLook = WeaponRules.lookOk(Config, weaponLook)
+		if not okLook then
+			result(player, false, whyLook)
+			return
+		end
+		if not WeaponRules.owned(Config, profile, weaponLook.id) then
+			if (mode == "create" or mode == "first") and WeaponRules.freePickOk(Config, weaponLook.id) then
+				freeWeapon = true
+			else
+				result(player, false, "weapon")
+				return
+			end
+		end
+	end
+	if weaponLook then
+		if freeWeapon then
+			WeaponRules.grant(profile, weaponLook.id)
+		end
+		WeaponRules.setLook(profile, weaponLook)
+		c.weapon = weaponLook.id
 	end
 	-- the look, the name and the effect style
 	c.look = LookCodec.toWords(buf)

@@ -1,8 +1,9 @@
 --!strict
 -- CreatorRules: the hero creator's rules (spec: Hero creator; Character slots; Faction reputation "a style
 -- unlock"). Pure, so Lune tests it.
--- * Pieces have one account-wide id each (1 to 146, tab by tab in Config.Creator order); profile.pieces is
---   the bitset of unlocked ones. Free pieces are always open.
+-- * Pieces have one account-wide id each; profile.pieces is the bitset of unlocked ones. Free pieces are
+--   always open. The M9 pieces are 1 to 146, tab by tab in Config.Creator order; tabs added later carry a
+--   fixed base (piece i is base + i) and older tabs grow through tab.extra (its own base), so no id moves.
 -- * validate(look): every piece exists and is unlocked, every colour is on the palette.
 -- * nameOk(title, noun): both picked from the wheels, and the pair is not on the blocked list.
 -- * earned(profile): the play-unlocked pieces this account has now earned (levels, reputation, Fame,
@@ -27,6 +28,12 @@ export type Look = {
 	hair: number,
 	skin: number,
 	anime: boolean,
+	gender: number,
+	build: number,
+	height: number,
+	eyeColor: number,
+	tints: { [string]: { number } },
+	mats: { [string]: number },
 }
 
 export type Source = { kind: string, a: string?, n: number? }
@@ -68,21 +75,39 @@ function CreatorRules.index(Config: any): Index
 		return hit
 	end
 	local idx: Index = { list = {}, byTab = {}, byName = {} }
+	local nextLegacy = 1
+	local function add(t: number, tab: any, row: any, id: number)
+		local list = idx.byTab[tab.id]
+		local p: Piece = {
+			id = id,
+			tab = tab.id,
+			tabIndex = t,
+			index = #list + 1,
+			name = row[1],
+			kit = row[2],
+			source = CreatorRules.parse(row[3]),
+		}
+		table.insert(idx.list, p)
+		table.insert(list, p)
+		idx.byName[p.name] = p
+	end
 	for t, tab in Config.Creator.tabs do
 		idx.byTab[tab.id] = {}
 		for i, row in tab.pieces do
-			local p: Piece = {
-				id = #idx.list + 1,
-				tab = tab.id,
-				tabIndex = t,
-				index = i,
-				name = row[1],
-				kit = row[2],
-				source = CreatorRules.parse(row[3]),
-			}
-			table.insert(idx.list, p)
-			idx.byTab[tab.id][i] = p
-			idx.byName[p.name] = p
+			if tab.base then
+				add(t, tab, row, tab.base + i)
+			else
+				add(t, tab, row, nextLegacy)
+				nextLegacy += 1
+			end
+		end
+	end
+	-- older tabs' extra pieces come after every tab's own pieces (ids from their own base)
+	for t, tab in Config.Creator.tabs do
+		if tab.extra then
+			for i, row in tab.extra.pieces do
+				add(t, tab, row, tab.extra.base + i)
+			end
 		end
 	end
 	cache[Config] = idx
@@ -133,6 +158,12 @@ function CreatorRules.defaultLook(Config: any): Look
 		hair = d.hair,
 		skin = d.skin,
 		anime = false,
+		gender = d.gender,
+		build = d.build,
+		height = d.height,
+		eyeColor = 0,
+		tints = {},
+		mats = {},
 	}
 end
 
@@ -162,6 +193,29 @@ function CreatorRules.validate(Config: any, profile: any, look: Look): (boolean,
 	end
 	if not C.palette[look.hair] or not C.skins[look.skin] then
 		return false, "color"
+	end
+	if look.eyeColor ~= 0 and not C.palette[look.eyeColor] then
+		return false, "color"
+	end
+	for slot, t in look.tints or {} do
+		if not table.find(LookCodec.SLOTS, slot) then
+			return false, "slot"
+		end
+		for i = 1, 3 do
+			local c = t[i] or 0
+			if c ~= 0 and not C.palette[c] then
+				return false, "color"
+			end
+		end
+	end
+	for slot, m in look.mats or {} do
+		if not table.find(LookCodec.SLOTS, slot) or (m ~= 0 and not C.materials[m]) then
+			return false, "material"
+		end
+	end
+	local B = C.body
+	if not B.genders[look.gender] or not B.builds[look.build] or not B.heights[look.height] then
+		return false, "body"
 	end
 	return true, nil
 end
@@ -271,7 +325,27 @@ end
 function CreatorRules.randomize(Config: any, profile: any, rng: any): (Look, number, number)
 	local C = Config.Creator
 	local look = CreatorRules.defaultLook(Config)
-	local optional = { back = 0.8, aura = 0.4, hair = 0.7, eyes = 0.3, head = 0.85, hands = 0.85, feet = 0.9 }
+	-- the chance a slot gets a piece at all (slots not listed always get one)
+	local optional = {
+		back = 0.8,
+		aura = 0.4,
+		hair = 0.7,
+		eyes = 0.3,
+		head = 0.85,
+		hands = 0.85,
+		feet = 0.9,
+		beard = 0.25,
+		makeup = 0.2,
+		hat = 0.3,
+		ears = 0.3,
+		shoulders = 0.4,
+		neck = 0.35,
+		arms = 0.35,
+		wrist = 0.3,
+		belt = 0.6,
+		legs = 0.5,
+		backpack = 0.25,
+	}
 	for _, slot in LookCodec.SLOTS do
 		local pool = CreatorRules.ownedIn(Config, profile, slot)
 		local keep = optional[slot]
@@ -286,6 +360,12 @@ function CreatorRules.randomize(Config: any, profile: any, rng: any): (Look, num
 	look.hair = rng:int(1, n)
 	look.skin = rng:int(1, #C.skins)
 	look.anime = rng:chance(0.5)
+	look.gender = rng:int(1, #C.body.genders)
+	look.build = rng:int(1, #C.body.builds)
+	look.height = rng:int(1, #C.body.heights)
+	if look.pieces.eyes ~= 0 then
+		look.eyeColor = rng:int(1, n)
+	end
 	local t, w = 1, 1
 	for _ = 1, 40 do
 		t, w = rng:int(1, #C.titles), rng:int(1, #C.nouns)
