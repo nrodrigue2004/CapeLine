@@ -5,7 +5,7 @@
 -- * The opening: the HUD shows only the step's verb button (Hud.setFocus), a marker shows where to go, and
 --   other screens stay hidden; the sky holds at dusk (StoryClient). No words except verb buttons.
 -- * The choice card: two (or three) big verb buttons.
--- * Suit Up: pick a class and Hero or Villain (preset by the choice), then SUIT UP. The full creator is M9.
+-- * Suit Up: the hero creator (CreatorScreen, M9) opens with the side the choice picked.
 -- * Missions: a fade on each trip, the objective tracker with a LEAVE button, and the result card.
 -- * Side quests: the NPC's speech bubble and the pinned step's tracker, with its marker or search circle.
 -- PLACEHOLDER ART: the cinematic panels are flat shapes until the art pass.
@@ -21,6 +21,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local StoryPlan = require(Shared:WaitForChild("StoryPlan"))
 
 local Kit = require(script.Parent.Kit)
+local CreatorScreen = require(script.Parent.CreatorScreen)
 local Hud = require(script.Parent.Hud)
 local State = require(script.Parent.Parent.State)
 local StoryClient = require(script.Parent.Parent.Controllers.StoryClient)
@@ -35,7 +36,6 @@ local player = Players.LocalPlayer
 local gui: ScreenGui
 local fade: Frame
 local choiceCard: Frame
-local suitPanel: Frame
 local tracker: Frame
 local trackTitle: TextLabel
 local trackText: TextLabel
@@ -303,7 +303,7 @@ local function setMarker(t: { number }?, showDistance: boolean)
 end
 
 ---------------------------------------------------------------------------
--- Choice card, Suit Up, trackers, result, bubble
+-- Choice card, trackers, result, bubble
 ---------------------------------------------------------------------------
 
 local function refreshChoice()
@@ -334,95 +334,6 @@ local function refreshChoice()
 		end
 		b.Parent = choiceCard
 		Kit.pulse(b, 0.2)
-	end
-end
-
-local suitClass = 2
-local suitSide = 1
-local function buildSuitUp()
-	suitPanel = Kit.frame({
-		Name = "SuitUp",
-		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.fromScale(0.5, 0.5),
-		Size = UDim2.new(0.92, 0, 0, 330),
-		BackgroundColor3 = Kit.color.night,
-		Visible = false,
-		ZIndex = 20,
-	})
-	local limit = Instance.new("UISizeConstraint")
-	limit.MaxSize = Vector2.new(640, 330)
-	limit.Parent = suitPanel
-	suitPanel.Parent = gui
-	local title = Kit.label({
-		Text = "SUIT UP",
-		Size = UDim2.new(1, 0, 0, 40),
-		Position = UDim2.fromOffset(0, 8),
-		TextColor3 = Kit.color.gold,
-		maxText = 40,
-	})
-	title.Parent = suitPanel
-	local classRow = Instance.new("Frame")
-	classRow.BackgroundTransparency = 1
-	classRow.Position = UDim2.fromOffset(12, 56)
-	classRow.Size = UDim2.new(1, -24, 0, 120)
-	classRow.Parent = suitPanel
-	local list = Instance.new("UIListLayout")
-	list.FillDirection = Enum.FillDirection.Horizontal
-	list.Padding = UDim.new(0, 8)
-	list.Parent = classRow
-	local classButtons = {}
-	local sideButtons = {}
-	local function paint()
-		for i, b in classButtons do
-			b.BackgroundColor3 = if i == suitClass then Kit.color.gold else Kit.color.paper
-		end
-		for i, b in sideButtons do
-			local on = i == suitSide
-			local col = if i == 1 then rgb(U.colors.league) else rgb(U.colors.syndicate)
-			b.BackgroundColor3 = if on then col else Kit.color.muted
-		end
-	end
-	for i, id in Config.Classes.order do
-		local b = Kit.button({
-			Text = string.upper(id) .. "\n" .. Config.Classes[id].role,
-			Size = UDim2.new(0.25, -6, 1, 0),
-			LayoutOrder = i,
-			maxText = 20,
-		}, function()
-			suitClass = i
-			paint()
-		end)
-		b.Parent = classRow
-		classButtons[i] = b
-	end
-	for i, label in { "HERO", "VILLAIN" } do
-		local b = Kit.button({
-			Text = label,
-			Size = UDim2.new(0.5, -18, 0, U.touchTarget),
-			Position = UDim2.new((i - 1) * 0.5, 12, 0, 190),
-			TextColor3 = Kit.color.paper,
-		}, function()
-			suitSide = i
-			paint()
-		end)
-		b.Parent = suitPanel
-		sideButtons[i] = b
-	end
-	local go = Kit.button({
-		Text = "SUIT UP",
-		AnchorPoint = Vector2.new(0.5, 1),
-		Position = UDim2.new(0.5, 0, 1, -14),
-		Size = UDim2.new(0.6, 0, 0, U.touchTarget),
-		maxText = 32,
-	}, function()
-		StoryClient.suitUp(suitClass, suitSide)
-		suitPanel.Visible = false
-	end)
-	go.Parent = suitPanel
-	StoryHud.paintSuit = function()
-		suitSide = if State.hero.side == "villain" then 2 else 1
-		suitClass = table.find(Config.Classes.order, State.hero.classId) or 2
-		paint()
 	end
 end
 
@@ -563,11 +474,11 @@ local function refreshOpening()
 	elseif Hud.focused() then
 		Hud.setFocus(nil)
 	end
+	-- Suit Up is the hero creator (M9): the side the choice picked comes in preset
 	if step == "suitup" and lastStep ~= "suitup" then
-		StoryHud.paintSuit()
-		suitPanel.Visible = true
-	elseif step ~= "suitup" then
-		suitPanel.Visible = false
+		CreatorScreen.open({ mode = "create", side = StoryClient.opening.side or State.hero.side })
+	elseif step ~= "suitup" and lastStep == "suitup" then
+		CreatorScreen.closeMode("create")
 	end
 	skipFlight.Visible = step == "flight"
 	if step == "leap" and lastStep == "" then
@@ -667,7 +578,6 @@ function StoryHud.init()
 	row.SortOrder = Enum.SortOrder.LayoutOrder
 	row.Parent = choiceCard
 	choiceCard.Parent = gui
-	buildSuitUp()
 	tracker, trackTitle, trackText, trackFill = buildTracker("Mission", 64)
 	leaveButton = Kit.button({
 		Text = "LEAVE",
@@ -765,7 +675,5 @@ function StoryHud.init()
 	end)
 	RunService.RenderStepped:Connect(frame)
 end
-
-StoryHud.paintSuit = function() end
 
 return StoryHud

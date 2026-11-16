@@ -15,6 +15,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Net = require(Shared:WaitForChild("Net"))
 local Progress = require(Shared:WaitForChild("Progress"))
 local ProfileSchema = require(Shared:WaitForChild("ProfileSchema"))
+local StoryPlan = require(Shared:WaitForChild("StoryPlan"))
 
 local DataService = require(script.Parent.DataService)
 local HeroService = require(script.Parent.HeroService)
@@ -44,6 +45,12 @@ local function syncCredits(player: Player, profile: any)
 	end
 end
 
+-- The hero's own side's reputation rank (League for heroes, Syndicate for villains)
+local function factionRank(char: any): number
+	local track = if char.side == "villain" then "syndicate" else "league"
+	return StoryPlan.repRank(Config, char.rep[StoryPlan.repIndex(Config, track)] or 0)
+end
+
 -- The bonus stack for this player right now
 function EconomyService.bonus(player: Player, opts: { [string]: any }?): Progress.Bonus
 	local profile = DataService.get(player)
@@ -52,7 +59,7 @@ function EconomyService.bonus(player: Player, opts: { [string]: any }?): Progres
 	return {
 		friends = friendCount(player),
 		legacy = if char then char.legacy else 0,
-		faction = 0, -- faction rank (M7)
+		faction = if char then factionRank(char) else 0, -- own side's reputation rank, +2% each (M9)
 		firstContract = o.firstContract,
 		doublePass = profile ~= nil and profile.purchases.passes.double == true,
 		renownMult = if player:GetAttribute("InCrater") then Config.Pvp.crater.renownMult else nil,

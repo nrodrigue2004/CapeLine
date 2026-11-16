@@ -4,7 +4,8 @@
 -- beacons, wreck here, repair city, flip cars, save, wipe, and (M6) incident by template, clear incidents,
 -- event by type, boss now, boss to 1 HP, finish contract, clock phase, hero or villain side, and (M7) replay
 -- the opening, jump to an opening step, enter a mission, finish the step, leave, start a side quest, clear
--- Act 1 and reset the story. The stats line shows the server frame, script time per service, enemies, bots, send
+-- Act 1 and reset the story, and (M9) the creator, enter HQ, HQ level, 8 h away, all pieces, a test buy
+-- (twice grants once) and level 40. The stats line shows the server frame, script time per service, enemies, bots, send
 -- rate and memory, plus the client fps and preset.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -12,6 +13,7 @@ local RunService = game:GetService("RunService")
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Net = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Net"))
+local ShopRules = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("ShopRules"))
 
 local Kit = require(script.Parent.Kit)
 local State = require(script.Parent.Parent.State)
@@ -25,7 +27,7 @@ function DevPanel.init()
 	end
 	local gui = Kit.screen("DevPanel", 20)
 	local panel = Kit.frame({
-		Size = UDim2.fromOffset(300, 700),
+		Size = UDim2.fromOffset(300, 780),
 		AnchorPoint = Vector2.new(1, 0),
 		Position = UDim2.new(1, -16, 0, 60),
 		BackgroundColor3 = Kit.color.night,
@@ -49,7 +51,7 @@ function DevPanel.init()
 	grid.SortOrder = Enum.SortOrder.LayoutOrder
 	local holder = Instance.new("Frame")
 	holder.BackgroundTransparency = 1
-	holder.Size = UDim2.new(1, -16, 0, 565)
+	holder.Size = UDim2.new(1, -16, 0, 645)
 	holder.Position = UDim2.fromOffset(8, 8)
 	grid.Parent = holder
 	holder.Parent = panel
@@ -239,11 +241,41 @@ function DevPanel.init()
 	add("+200 Fame", function()
 		Net.send("DevCommand", "fame", 5)
 	end)
+	-- M9: the creator, HQ, shops and Legacy
+	add("Creator", function()
+		Net.send("DevCommand", "creator")
+	end)
+	add("Enter HQ", function()
+		Net.send("DevCommand", "hq")
+	end)
+	local hqLevel = 1
+	add("HQ level 1", function(b)
+		hqLevel = hqLevel % 6 + 1
+		b.Text = "HQ level " .. hqLevel
+		Net.send("DevCommand", "hqlevel", hqLevel)
+	end)
+	add("Away 8 h", function()
+		Net.send("DevCommand", "away", 8)
+	end)
+	add("All pieces", function()
+		Net.send("DevCommand", "pieces")
+	end)
+	local keys = ShopRules.keys(Config)
+	local buyIdx = 1
+	add("Buy " .. keys[1], function(b)
+		-- tap: grant the shown item with a fixed test receipt (a second tap grants nothing), then step on
+		Net.send("DevCommand", "buy", buyIdx)
+		buyIdx = buyIdx % #keys + 1
+		b.Text = "Buy " .. keys[buyIdx]
+	end)
+	add("Level 40", function()
+		Net.send("DevCommand", "legacy")
+	end)
 
 	local stats = Kit.label({
 		Text = "waiting for server stats",
 		Size = UDim2.new(1, -16, 0, 100),
-		Position = UDim2.fromOffset(8, 578),
+		Position = UDim2.fromOffset(8, 658),
 		TextXAlignment = Enum.TextXAlignment.Left,
 		TextYAlignment = Enum.TextYAlignment.Top,
 		TextColor3 = Kit.color.paper,

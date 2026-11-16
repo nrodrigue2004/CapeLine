@@ -52,3 +52,11 @@ record the source here. Status: Using / Recommended (milestone) / Paid (ask nate
 - Roblox DataStoreService (built in): Used for the manual review queue (kicks, reports, trades).
 - Server-authoritative movement frameworks on GitHub (e.g. Chickynoid, MIT): Skipped. They replace the whole character controller with server-simulated movement; Capeline's client-owned flight plus MoveGuard's speed budget already pull cheaters back, and swapping the controller would mean redoing M1's tested movement feel.
 - Anti-exploit kits from the DevForum (remote spy blockers, client-side detectors): Skipped, licences not reviewed since not used. Client-side detection can be deleted by an exploiter; everything that matters (flag, hits, rewards, cooldowns) is already decided on the server.
+
+## Creator, HQ and shops (M9)
+- Roblox MarketplaceService ProcessReceipt and PromptGamePassPurchase (built in): Used, with the receipt flow ported from Ragdoll Rides (grant once per purchase id, PurchaseGranted only after a save).
+- Roblox ViewportFrame + WorldModel (built in): Used for the creator and shop preview on a copy of your own hero.
+- Roblox HumanoidDescription and the avatar catalog (built in): Skipped. Catalog accessories are other creators' items (IP and cost) and would not match the piece-based, original look.
+- Character customisation kits on GitHub and the DevForum (avatar editors, outfit systems): Skipped, licences not reviewed since not used. Looks must pack into one 32-byte record for saves and replication, which LookCodec does in a few lines.
+- Blender (free, GPL; the output is yours) and Roblox's Avatar Auto-Setup: Recommended for the M10 or M11 art pass to replace the box pieces with meshes; needs nate's PC.
+- Robux price testing in the Creator Dashboard: Recommended after launch (the starter pack price A/B).

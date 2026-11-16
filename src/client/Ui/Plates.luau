@@ -2,7 +2,9 @@
 -- plate ... Quick-mute on every plate"; Fame ranks). The plate shows the display name, the Fame or Infamy
 -- rank, a PVP tag in the side colour when flagged and DOWNED when Downed. Tapping the plate opens a small
 -- menu: REPORT (preset reasons only, no typed text) and MUTE or UNMUTE (hides their chat on this device).
--- The default Roblox name over the head is hidden so only one plate shows. Titles join in M9.
+-- The default Roblox name over the head is hidden so only one plate shows. M9: the hero name (Title + Noun)
+-- is big, the Roblox display name sits small under it (so reports always name the player), with a star
+-- per Legacy rank.
 -- PLACEHOLDER look until the UI pass (M10).
 
 local Players = game:GetService("Players")
@@ -24,7 +26,7 @@ local menuTitle: TextLabel
 local muteButton: TextButton
 local reasonRow: Frame
 local menuFor: Player? = nil
-local plates: { [Player]: { bb: BillboardGui, name: TextLabel, tag: TextLabel } } = {}
+local plates: { [Player]: { bb: BillboardGui, name: TextLabel, who: TextLabel, tag: TextLabel } } = {}
 
 local function closeMenu()
 	menu.Visible = false
@@ -63,6 +65,18 @@ local function refresh(p: Player)
 		table.insert(bits, "MUTED")
 	end
 	pl.tag.Text = table.concat(bits, "  ")
+	local hero = p:GetAttribute("HeroName")
+	local legacy = p:GetAttribute("Legacy")
+	local stars = if typeof(legacy) == "number" and legacy > 0
+		then "  " .. string.rep("★", math.min(legacy, 5))
+		else ""
+	if typeof(hero) == "string" and hero ~= "" then
+		pl.name.Text = string.upper(hero)
+		pl.who.Text = "@" .. p.DisplayName .. stars
+	else
+		pl.name.Text = p.DisplayName
+		pl.who.Text = stars
+	end
 	pl.name.TextColor3 = if rank >= #Config.Pvp.fame.ranks then Kit.color.gold else Kit.color.paper -- gold trim
 end
 
@@ -82,7 +96,7 @@ local function attach(p: Player, char: Model)
 	local bb = Instance.new("BillboardGui")
 	bb.Name = "Plate_" .. p.UserId
 	bb.Adornee = head
-	bb.Size = UDim2.fromOffset(180, 46)
+	bb.Size = UDim2.fromOffset(190, 62)
 	bb.StudsOffset = Vector3.new(0, 2.6, 0)
 	bb.MaxDistance = 140
 	bb.Active = true
@@ -104,17 +118,27 @@ local function attach(p: Player, char: Model)
 		maxText = 22,
 	})
 	name.Parent = bb
+	local who = Kit.label({
+		Text = "",
+		Size = UDim2.new(1, 0, 0, 16),
+		Position = UDim2.fromOffset(0, 26),
+		TextColor3 = Kit.color.paper,
+		TextStrokeTransparency = 0.3,
+		Font = Kit.bodyFont,
+		maxText = 11,
+	})
+	who.Parent = bb
 	local tag = Kit.label({
 		Text = "",
 		Size = UDim2.new(1, 0, 0, 18),
-		Position = UDim2.fromOffset(0, 26),
+		Position = UDim2.fromOffset(0, 43),
 		TextColor3 = Kit.color.paper,
 		TextStrokeTransparency = 0.3,
 		Font = Kit.bodyFont,
 		maxText = 12,
 	})
 	tag.Parent = bb
-	plates[p] = { bb = bb, name = name, tag = tag }
+	plates[p] = { bb = bb, name = name, who = who, tag = tag }
 	refresh(p)
 end
 
@@ -128,7 +152,7 @@ local function watch(p: Player)
 	if p.Character then
 		task.spawn(attach, p, p.Character)
 	end
-	for _, attr in { "Pvp", "PvpSide", "Downed", "Fame", "FameRank", "Side" } do
+	for _, attr in { "Pvp", "PvpSide", "Downed", "Fame", "FameRank", "Side", "HeroName", "Legacy" } do
 		p:GetAttributeChangedSignal(attr):Connect(function()
 			refresh(p)
 		end)

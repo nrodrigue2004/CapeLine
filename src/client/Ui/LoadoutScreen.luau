@@ -182,7 +182,7 @@ local function card(id: string, order: number): Frame
 	local row = A.list[id]
 	local rank = h.ranks[id] or 0
 	local eff = AbilityRules.effective(Config, id, math.max(rank, 1), h.mods[id])
-	local unlocked = AbilityRules.setUnlocked(Config, h.level, row.set)
+	local unlocked = AbilityRules.setUnlocked(Config, h.level, row.set, h.startSet)
 	local f = Kit.frame({
 		Name = id,
 		LayoutOrder = order,
@@ -309,7 +309,7 @@ refresh = function()
 	local h = State.hero
 	header.Text = string.format("POWERS   LV %d   SKILL POINTS %d", h.level, h.points or 0)
 	for set, b in tabButtons do
-		local open = AbilityRules.setUnlocked(Config, h.level, set)
+		local open = AbilityRules.setUnlocked(Config, h.level, set, h.startSet)
 		b.Text = if open
 			then string.upper(set)
 			else string.format("%s LV%d", string.upper(set), A.setUnlockLevel[set])
@@ -533,7 +533,7 @@ function LoadoutScreen.init()
 		BackgroundColor3 = Kit.color.paper,
 		maxText = 16,
 	}, function()
-		if not AbilityRules.setUnlocked(Config, State.hero.level, viewSet) then
+		if not AbilityRules.setUnlocked(Config, State.hero.level, viewSet, State.hero.startSet) then
 			notice(REASONS["set locked"])
 			return
 		end

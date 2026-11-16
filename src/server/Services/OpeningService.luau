@@ -6,7 +6,7 @@
 --   blast: two Spark Drones; the first takes 2 hits and never fires, the second takes 4 and hits weakly
 --   choice: a shard lands by a trapped citizen: Save Her (hero) or Grab It (villain) sets the side
 --   save: carry her to a rooftop pad / grab: take the shard and outrun 3 drones to the Docks marker
---   suitup: the Suit Up screen (class and side; the full creator is M9); then level 3, Flight, +1 Skill Point
+--   suitup: the hero creator (M9, CreatorService) opens; Done saves the hero; then level 3, Flight, +1 Skill Point
 --   flight: a guided flight marker to the first beacon (skippable)
 -- Words on screen are only verb buttons: the client shows markers and pulses one button per step. A stuck
 -- opening goes straight to Suit Up after 4 minutes. The hero is in a scene: no incidents or events find it.
@@ -152,22 +152,32 @@ local function setStep(r: Run, step: string)
 	send(r)
 end
 
--- Suit Up: the class and side, then level 3, Flight, the Skill Point and mission 1's first clear
-local function suitUp(r: Run, classIdx: number, sideIdx: number)
-	local player, hero = r.player, r.hero
+-- Is this player on the Suit Up step (the creator's "create" mode)? Returns the side the choice picked.
+function OpeningService.atSuitUp(player: Player): string?
+	local r = runs[player]
+	return if r and r.step == "suitup" then r.side else nil
+end
+
+-- Suit Up done (CreatorService saved the hero): the class and side, then level 3, Flight, the Skill Point
+-- and mission 1's first clear
+function OpeningService.suitUp(player: Player, classId: string, side: string)
+	local r = runs[player]
+	if not r then
+		return
+	end
+	local hero = r.hero
 	local story = StoryService.story(player)
 	if not story or r.step ~= "suitup" then
 		return
 	end
-	local classId = Config.Classes.order[classIdx]
-	if classId then
+	if Config.Classes[classId] then
 		HeroService.setClass(hero, classId)
 		local c = StoryService.char(player)
 		if c then
 			c.classId = classId
 		end
 	end
-	StoryService.setSide(player, if sideIdx == 2 then "villain" else "hero")
+	StoryService.setSide(player, if side == "villain" then "villain" else "hero")
 	r.side = StoryService.side(player)
 	story.opening = 1
 	if StoryPlan.clear(story, 1) then
@@ -338,12 +348,6 @@ end
 
 function OpeningService.init()
 	Net.on("OpeningAct", onAct)
-	Net.on("SuitUp", function(player, classIdx, sideIdx)
-		local r = runs[player]
-		if r then
-			suitUp(r, classIdx, sideIdx)
-		end
-	end)
 	DataService.Loaded:Connect(function(player)
 		task.delay(1, maybeStart, player)
 	end)

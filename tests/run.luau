@@ -4177,6 +4177,12 @@ if placePath then
 				"OpeningPlan",
 				"PvpRules",
 				"GuardRules",
+				"LookCodec",
+				"CreatorRules",
+				"ShopRules",
+				"HqRules",
+				"EconomySim",
+				"LookKit",
 			}
 		do
 			check(shared ~= nil and shared:FindFirstChild(name) ~= nil, "Shared." .. name)
@@ -4218,6 +4224,10 @@ if placePath then
 				"FameService",
 				"GuardService",
 				"DeathService",
+				"CreatorService",
+				"HqService",
+				"ShopService",
+				"PurchaseService",
 			}
 		do
 			local folder = server and server:FindFirstChild("Services")
@@ -4262,6 +4272,12 @@ if placePath then
 				{ "Fx", "PvpFx" },
 				{ "Ui", "PvpHud" },
 				{ "Ui", "Plates" },
+				{ "Ui", "Preview" },
+				{ "Ui", "CreatorScreen" },
+				{ "Ui", "ShopHud" },
+				{ "Ui", "HqHud" },
+				{ "Controllers", "HqClient" },
+				{ "Fx", "EmoteFx" },
 			}
 		do
 			local folder = client and client:FindFirstChild(path[1])

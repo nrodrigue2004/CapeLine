@@ -2,13 +2,15 @@
 -- any gear). Built on the server so every player sees it. Each style is a few small welded parts on the
 -- body (PLACEHOLDER ART: blocks, balls, wedges and cylinders until the M9 accessory meshes). The parts are
 -- massless and never collide, touch or block raycasts. Works on R15 and R6 bodies. GearService calls apply()
--- on join, on respawn and after every gear or style change.
+-- on join, on respawn and after every gear or style change. M9: the creator look (LookKit) is built first and
+-- covers the head, chest, hands, feet and back gear styles unless a style was picked there.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local GearMath = require(Shared:WaitForChild("GearMath"))
+local LookKit = require(Shared:WaitForChild("LookKit"))
 
 local LookService = {}
 
@@ -359,11 +361,16 @@ local function build(char: Model, folder: Folder, slot: string, row: any)
 	end
 end
 
--- Show these styles (one id per slot, 0 = nothing) on the player's character
-function LookService.apply(player: Player, styles: { number })
+-- Show the hero's creator look (M9) and these gear styles (one id per slot, 0 = nothing) on the player's
+-- character. The avatar's own accessories and clothes come off first (a standard rig).
+function LookService.apply(player: Player, styles: { number }, look: any?)
 	local char = player.Character
 	if not char then
 		return
+	end
+	if look then
+		LookKit.strip(char)
+		LookKit.build(char, look)
 	end
 	local old = char:FindFirstChild("GearLook")
 	if old then

@@ -58,7 +58,7 @@ rayParams.FilterType = Enum.RaycastFilterType.Exclude
 
 local function skipList(): { Instance }
 	local skip = {}
-	for _, name in { "Fx", "Enemies", "MoveFx", "LoadBots", "AbilityParts" } do
+	for _, name in { "Fx", "Enemies", "MoveFx", "LoadBots", "AbilityParts", "HqDecor" } do
 		local inst = Workspace:FindFirstChild(name)
 		if inst then
 			table.insert(skip, inst)
@@ -86,6 +86,23 @@ local function rangeOf(eff: any): number
 	return eff.range or 10
 end
 
+-- Extra aim targets that are not robots or players (the HQ's training dummies): fn returns { {id, pos} }
+local targetSources: { () -> { { id: number, pos: Vector3 } } } = {}
+function CombatClient.addTargetSource(fn: () -> { { id: number, pos: Vector3 } })
+	table.insert(targetSources, fn)
+end
+
+local function sourcePosition(id: number): Vector3?
+	for _, source in targetSources do
+		for _, t in source() do
+			if t.id == id then
+				return t.pos
+			end
+		end
+	end
+	return nil
+end
+
 -- Pick the aim point and the target hint for an ability
 local function aim(range: number, origin: Vector3): (Vector3, number, Vector3?)
 	local ray = InputController.aimRay()
@@ -108,6 +125,11 @@ local function aim(range: number, origin: Vector3): (Vector3, number, Vector3?)
 	end
 	for _, t in PvpClient.targets() do
 		consider(t.id, t.pos)
+	end
+	for _, source in targetSources do
+		for _, t in source() do
+			consider(t.id, t.pos)
+		end
 	end
 	if bestPos then
 		return bestPos, bestId, bestPos
@@ -220,7 +242,7 @@ function CombatClient.fire(id: string): boolean
 	seq += 1
 	channel = nil
 	local style = State.hero.fxStyle
-	local color = CombatFx.colorOf(eff.set)
+	local color = CombatFx.colorOf(eff.set, player.UserId)
 	if slot == "super" and awake then
 		color = color:Lerp(Color3.fromRGB(255, 235, 120), 0.35)
 	end
@@ -245,7 +267,7 @@ function CombatClient.fire(id: string): boolean
 				if not c or c.id ~= id then
 					return nil
 				end
-				return EnemyRenderer.position(tid) or PvpClient.position(tid)
+				return EnemyRenderer.position(tid) or PvpClient.position(tid) or sourcePosition(tid)
 			end, eff.channel * (eff.tick or 0.25), style, color)
 		end
 	elseif shape == "chain" then
@@ -275,7 +297,7 @@ function CombatClient.fire(id: string): boolean
 		)
 		if eff.channel then
 			channel = { seq = seq, id = id, untilT = now + eff.channel * (eff.tick or 0.15) }
-			CombatFx.cast(eff, style, { o = origin, d = dir, step = step })
+			CombatFx.cast(eff, style, { o = origin, d = dir, step = step, a = player.UserId })
 		end
 		if step == 3 and style ~= "Anime" then
 			CombatFx.word(origin + dir * eff.range, eff.set, color, false)
@@ -346,7 +368,7 @@ end
 
 local function drawHits(r: any, row: any, style: string, mine: boolean)
 	local hits = r.h or {}
-	local color = CombatFx.colorOf(row and row.set)
+	local color = CombatFx.colorOf(row and row.set, r.a)
 	local anyCrit = false
 	local wordDone = false
 	for _, h in hits do
@@ -385,7 +407,7 @@ local function onResult(list: { any })
 		local row = A.byNum[r.n]
 		local style = styleOf(r.a)
 		if row then
-			local color = CombatFx.colorOf(row.set)
+			local color = CombatFx.colorOf(row.set, r.a)
 			local kind = r.k
 			if kind == K.CAST then
 				local predicted = mine
@@ -429,6 +451,7 @@ local function onResult(list: { any })
 						data.follow = casterPos(r.a, r.c or r.o)
 					end
 					if data then
+						data.a = r.a
 						CombatFx.cast(row, style, data)
 					end
 					if row.shape == "leap" and r.e then
@@ -439,7 +462,7 @@ local function onResult(list: { any })
 				CombatFx.windup(casterPos(r.a, r.o), r.dur or 1, style, color)
 			elseif kind == K.LAND or kind == K.END then
 				if r.c then
-					CombatFx.area(row, style, r.c, r.r or 10, mine)
+					CombatFx.area(row, style, r.c, r.r or 10, mine, r.a)
 					if mine and row.slot == "super" then
 						CameraController.shake(0.3, 0.8)
 					end

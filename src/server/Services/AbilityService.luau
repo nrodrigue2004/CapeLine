@@ -78,7 +78,7 @@ function AbilityService.respec(hero: any): (boolean, string?)
 	local ranks, loadout = AbilityRules.starter(Config, hero.setId)
 	-- keep every set's free starters learned
 	for _, set in A.sets do
-		if AbilityRules.setUnlocked(Config, hero.level, set) then
+		if AbilityRules.setUnlocked(Config, hero.level, set, hero.startSet) then
 			for id, r in (AbilityRules.starter(Config, set)) do
 				ranks[id] = math.max(ranks[id] or 0, r)
 			end
@@ -114,7 +114,7 @@ function AbilityService.setLoadout(
 		return false, why
 	end
 	-- a set's basic and two starter skills are learned free the first time it is unlocked and picked
-	if AbilityRules.setUnlocked(Config, hero.level, set) then
+	if AbilityRules.setUnlocked(Config, hero.level, set, hero.startSet) then
 		for _, id in A.starter[set] do
 			hero.ranks[id] = math.max(hero.ranks[id] or 0, 1)
 		end

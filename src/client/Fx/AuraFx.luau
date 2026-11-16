@@ -154,7 +154,7 @@ function AuraFx.init()
 				CombatFx.awaken(
 					root.Position,
 					style,
-					CombatFx.colorOf(p:GetAttribute("PowerSet")),
+					CombatFx.colorOf(p:GetAttribute("PowerSet"), p.UserId),
 					p == Players.LocalPlayer
 				)
 			end

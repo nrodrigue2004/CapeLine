@@ -291,6 +291,10 @@ local function settle(
 		EconomyService.addCredits(winner.player, credits + moved)
 		if fame > 0 then
 			FameService.add(winner.player, "pvp", factor)
+			local wp = DataService.get(winner.player)
+			if wp then
+				wp.stats.wins += 1 -- a PvP win that paid (the trophy wall, M9)
+			end
 		end
 		Net.fire("PvpResult", winner.player, {
 			won = true,

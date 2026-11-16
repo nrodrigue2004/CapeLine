@@ -32,6 +32,20 @@ local UNLOCK_NAMES: { [string]: string } = {
 	Salute = "Salute emote",
 	NullEcho = "Null Echo, your drone buddy",
 }
+local M9_REASONS: { [string]: string } = {
+	combat = "Not during a fight",
+	scene = "Finish what you are doing first",
+	busy = "Finish what you are doing first",
+	side = "That is the other side's base",
+	safehouse = "Switch heroes at your HQ or a safehouse",
+	slot = "Buy that hero slot in the shop first",
+	locked = "Buy that hero slot in the shop first",
+	hq = "Buy styles from Gizmo at your HQ",
+	where = "Open the shop at your HQ, a safehouse or the menu",
+	soon = "Coming soon",
+	slot3 = "Buy slot 3 first",
+	owned = "You already own that",
+}
 local PVP_REASONS: { [string]: string } = {
 	level = "PvP opens at level 10",
 	rate = "Wait a moment before switching again",
@@ -262,6 +276,74 @@ function Toasts.show(data: { [string]: any })
 		push("Thanks. Our team will look at it.", Kit.color.paper)
 	elseif id == "reportedAlready" then
 		push("You already reported them recently", Kit.color.paper)
+	elseif id == "piece" then
+		push(string.format("NEW LOOK PIECE: %s", string.upper(data.name or "")), Kit.color.gold, true, 4)
+	elseif id == "heroSaved" then
+		push(string.format("%s IS READY", string.upper(data.name or "YOUR HERO")), Kit.color.gold, true, 4)
+	elseif id == "slotRefused" then
+		push(M9_REASONS[data.reason or ""] or "You cannot switch heroes right now", Kit.color.paper)
+	elseif id == "slotSwitched" then
+		push(string.format("Switched to hero slot %d", data.slot or 1), Kit.color.gold)
+	elseif id == "hqRefused" then
+		push(M9_REASONS[data.reason or ""] or "You cannot go in right now", Kit.color.paper)
+	elseif id == "hqMax" then
+		push("Your HQ is at its top level", Kit.color.paper)
+	elseif id == "hqCredits" then
+		push(string.format("The next HQ level costs %s Credits", Kit.comma(data.cost or 0)), Kit.color.paper)
+	elseif id == "hqLevel" then
+		push(string.format("HQ LEVEL %d!", data.level or 1), Kit.color.gold, true, 4.5)
+	elseif id == "mannequinLocked" then
+		push("Upgrade your HQ to use that mannequin", Kit.color.paper)
+	elseif id == "lookSaved" then
+		push(string.format("Look saved on mannequin %d", data.n or 1), Kit.color.gold)
+	elseif id == "lookBad" then
+		push("That look has pieces you no longer have", Kit.color.paper)
+	elseif id == "lookWorn" then
+		push(string.format("Wearing mannequin %d's look", data.n or 1), Kit.color.gold)
+	elseif id == "hqLocked" then
+		push(string.format("Opens at HQ level %d", data.level or 1), Kit.color.paper)
+	elseif id == "retireLevel" then
+		push("Retiring opens at level 40", Kit.color.paper)
+	elseif id == "legacy" then
+		push(string.format("LEGACY RANK %d!", data.rank or 1), Kit.color.gold, true, 5)
+		push("Your statue stands in the Hall of Legends", Kit.color.paper, false, 5)
+	elseif id == "drones" then
+		push(
+			string.format("Your drones brought back %s Credits", Kit.comma(data.credits or 0)),
+			Kit.color.gold,
+			true,
+			4.5
+		)
+	elseif id == "shopRefused" then
+		if data.reason == "credits" then
+			push(string.format("You need %s Credits", Kit.comma(data.cost or 0)), Kit.color.paper)
+		else
+			push(M9_REASONS[data.reason or ""] or "You cannot buy that right now", Kit.color.paper)
+		end
+	elseif id == "styleBought" then
+		push("NEW STYLE! Equip it in GEAR > Show Style", Kit.color.gold, true, 4)
+	elseif id == "bought" then
+		push(string.format("THANKS! %s IS YOURS", string.upper(data.name or "")), Kit.color.gold, true, 4.5)
+	elseif id == "bossSim" then
+		if data.killed then
+			push(string.format("BOSS SIM DOWN in %d s!", math.floor(data.time or 0)), Kit.color.gold, true, 5)
+		else
+			push(
+				string.format("Time! You dealt %s damage", Kit.comma(data.dealt or 0)),
+				Kit.color.paper,
+				true,
+				5
+			)
+		end
+	elseif id == "devBuy" then
+		push(
+			string.format(
+				"Dev buy %s: %s",
+				data.key or "?",
+				if data.ok then "granted" else "nothing (replay)"
+			),
+			Kit.color.paper
+		)
 	elseif id == "saveDown" then
 		push(
 			"Saving is down right now: this session's progress will not be kept",

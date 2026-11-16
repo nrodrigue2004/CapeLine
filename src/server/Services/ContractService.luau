@@ -204,6 +204,7 @@ local function complete(player: Player, r: Run)
 		)
 		credits, renown = math.floor(credits * m + 0.5), math.floor(renown * m + 0.5)
 		profile.daily.contractsDone = done + 1
+		profile.stats.contracts += 1 -- the trophy wall (M9)
 		EconomyService.addCredits(player, credits)
 		EconomyService.addRenown(player, renown)
 		GearService.grant(player, "contract", r.saved.level)
@@ -367,7 +368,8 @@ local function accept(player: Player, index: number)
 	local hero = HeroService.get(player)
 	local pos = hero and HeroService.position(hero)
 	local at = boardAt[player]
-	if not hero or not pos or not at or (pos - at).Magnitude > 40 then
+	-- at the board, or at the HQ command table (M9: the offers are the last safehouse's)
+	if not hero or not pos or not at or ((pos - at).Magnitude > 40 and hero.scene ~= "hq") then
 		Net.fire("Toast", player, { id = "contractRefused", reason = "board" })
 		return
 	end

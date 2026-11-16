@@ -14,7 +14,7 @@ phones or Studio go on the Studio test list below.
 | M6 | Incidents, contracts, events, boss | Incident spawner with 10 templates, 6 contract types, 6 random events, world boss with 2 bosses, contribution rewards | First boss within 8 minutes; boss rewards by tier; no idle wait over 5 s | Code-complete 2026-11-16 |
 | M7 | Opening, Act 1, missions | Cinematic, playable disaster, choice, 6 missions in sky pockets, 3 choices, 8 side quests, journal | 5 new testers finish the opening and suit up with no help; both routes reach the finale | Code-complete 2026-11-16 |
 | M8 | PvP, death, anti-exploit | Flag, Crater, Downed and Defeated, Fame and Infamy, rules table, strikes | The 30-minute exploit test finds nothing; PvP rules checklist passes | Code-complete 2026-11-16 |
-| M9 | Creator, HQ, shop, passes | Creator with the 116 spec pieces plus the anime pieces and the Comic/Anime pick, 2 HQs, Gizmo's shop, Robux shop, passes, slots, Legacy | A tester makes a hero in under 3 minutes; test purchases grant once; looks show to others | |
+| M9 | Creator, HQ, shop, passes | Creator with the 116 spec pieces plus the anime pieces and the Comic/Anime pick, 2 HQs, Gizmo's shop, Robux shop, passes, slots, Legacy | A tester makes a hero in under 3 minutes; test purchases grant once; looks show to others | Code-complete 2026-11-16 (economy sim gate met for the median level; see Decisions) |
 | M10 | UI and phone pass | All screens, settings, accessibility, presets, map, squad | Every screen has loading, empty and error states; device matrix passes | |
 | M11 | Juice, audio, wait fillers | Juice table, sounds, music, offline drones, downed polish, friend boost, Photo Mode | No idle wait over 5 s in a 30-minute session with 8 testers; every action has a sound and visual | |
 | M12 | Test and launch prep | Playtests, balance, thumbnails, icon, analytics, soft launch plan | 20 testers play with no crash reports in one session week; analytics visible | |
@@ -43,6 +43,11 @@ phones or Studio go on the Studio test list below.
 - Loading screen: title on a gradient (LoadingScreen).
 - Story (M7): the cinematic is 4 flat comic panels (StoryHud); the opening's tram car, shard, trapped citizen and beams are plain parts (StoryFx); mission pockets are greybox boxes (PocketLayout); the War-Frame is a part-built mech (WorldFx); quest NPCs are blocky figures with a name tag and a marker (QuestService); the Null Echo buddy is a ball with an eye; the Journal, Suit Up, choice card, trackers and result card use the Kit placeholder look. PLACEHOLDER ART.
 - PvP and death (M8): flag rings and the Downed ring are flat neon discs, the PvP defeat is a CombatFx spark burst, Help/Here/Danger pings are text markers (PvpFx); name plates, the plate menu, the PVP button, the Crater bar, the Downed and Defeated screens and the PvP card use the Kit placeholder look (Plates, PvpHud). The Downed hero has no kneel or crawl animation yet (the humanoid just walks slowly). PLACEHOLDER ART.
+- Creator pieces (M9): all 146 suits, capes, coats, scarves, masks, gloves, wraps, boots, hair, eyes, auras and trails are blocks, wedges, balls and neon parts welded to the body; emblems are a glyph on a SurfaceGui; auras are the engine's default particle (LookKit). PLACEHOLDER ART until accessory meshes.
+- Voice packs (M9): the 4 voice choices have sound ids 0 (Config.Shop.voiceSounds). PLACEHOLDER until free-licensed clips (M11).
+- Emotes and landing poses (M9): joint angles tweened on the rig (EmoteFx). PLACEHOLDER ART until real animations (M11).
+- HQ rooms (M9): Beacon Tower and The Foundry are box rooms with neon pads and signs, part-built dummies and boss sim robot, marble copies of the hero for statues, box trophies and props (HqClient). PLACEHOLDER ART.
+- Creator, Robux shop, HQ panels (M9): Kit placeholder look, text tiles, no piece icons; the preview is a ViewportFrame copy of the hero (CreatorScreen, ShopHud, HqHud, Preview). PLACEHOLDER ART until M10.
 - HUD: Kit placeholder look (M10 restyles).
 
 ## Studio test list (needs nate's PC)
@@ -146,6 +151,27 @@ Hub buildings: 220 (all of Downtown, 6 Docks warehouses, 122 Old Town houses). D
 9. Join late: a second player who joins after buildings fell sees the same Damaged and Collapsed buildings and rubble at once (no collapse replays) and any drone already working.
 10. Streaming: fly away from wrecked buildings and come back: they still look wrecked, with no leftover floating chunks.
 11. Gate: 10 players (or you plus 9 bots and a friend) wreck one block for 10 minutes: the Dev panel's server frame stays under 16 ms and the "buildings", "citizens" and "wrecked" counters behave; a mid-range phone on the low preset holds 30+ fps during collapses. After the drones finish, everything is back.
+
+### M9 Creator, HQ, shop, passes
+DEV panel (M9 rows): Creator (opens it in "first" mode), Enter HQ, HQ level (cycles 1 to 6), Away 8 h (pays the offline drones), All pieces, Buy (grants the shown shop item with a fixed test receipt, then steps to the next), Level 40.
+1. Fresh profile (DEV > Wipe, rejoin): at Suit Up the creator opens (WHO ARE YOU?) with a turning hero. Every tab (Suits to Eyes) changes the preview at once; locked pieces are grey with how to get them (Level 15, a boss tier, a pack). Hair and Eyes tabs exist; COMIC or ANIME and VOLT or BLADE sit under HERO.
+2. DONE stays grey until a Title, a Noun and a class are picked; a blocked pair (e.g. Captain + Falcon) shows "taken". RANDOMIZE fills everything from owned pieces. Time it: a new tester makes a hero in under 3 minutes.
+3. After DONE: "<NAME> IS READY", the opening carries on, and a second player sees the same look and the hero name on the plate with the Roblox name small under it.
+4. Pick BLADE as the start: the POWERS screen shows Blade abilities at level 1. Pick ANIME: effects use the Anime style.
+5. A hero made before M9 (created 0): a few seconds after joining the creator opens once in "first" mode (no Hero/Villain switch, class can change).
+6. Gear styles: wear gear with a Show Style picked: that style shows over the creator piece; with no Show Style the creator piece shows.
+7. HQ: walk to the beacon (hero) or the foundry door (villain): B "Enter". You stand in Beacon Tower (blue) or The Foundry (red) with 6 station pads and an exit. Villains cannot use the hero door ("That is the other side's base").
+8. Stations: Command Table opens the Contract Board, the Journal and HEROES; Gizmo lists 40 styles with prices (buying takes Credits, says NEW STYLE, shows OWNED after); UPGRADE HQ takes Credits and says HQ LEVEL n; Mannequins save and wear looks (2 to 4 locked until level 2); Training shows DPS and TOTAL when you hit a dummy, with aim assist on touch; the Exit puts you back where you came in.
+9. Boss sim (DEV > HQ level 3): BOSS SIM starts a big robot, a top bar with HP and seconds, red rings every 6 s that hurt for 10% if you stay in and never down you; at the end a toast with the time or the damage dealt.
+10. Trophy Wall: earned trophies list (DEV > Boss now and finish one for First World Boss); pick up to 3 (12 at level 4), SAVE THE WALL, plaques appear.
+11. Offline drones: DEV > HQ level 5, Away 8 h: "Your drones brought back N Credits" (about 960 at level 5).
+12. Legacy: DEV > Level 40, Hall of Legends > RETIRE > YES: LEGACY RANK 1, a marble statue of the old hero in the hall, the hero is level 1 with the same look, name and side and a star on the plate.
+13. Robux shop (P or SHOP, at HQ or out of a fight): 5 tabs; a pack card previews its pieces on your hero; tapping R$ in Studio grants the item at once ("THANKS! ... IS YOURS") and the card says OWNED; DEV > Buy the same item twice: the second says "nothing (replay)". Slot 4 says LOCKED until slot 3.
+14. Effects tint: buy one, EQUIP: your power effects change colour for every player; Prism cycles colours. Landing pose: EQUIP, then fall from a roof: the pose plays and others see it.
+15. Emotes: H opens the picker with owned emotes (Salute after Fame rank 2); the pose shows on other screens. Spam does nothing beyond one per 1.5 s.
+16. Starter pack: the first world boss reward is followed 6 s later by FIRST BOSS DOWN! with GET IT and NO THANKS; it never shows again.
+17. Hero slots: buy slot 3, Command Table > HEROES > + NEW HERO: the creator opens for the new hero; switching back to slot 1 restores that hero's level, gear and story.
+18. Shop refused: casting at a robot then pressing SHOP from the city within 10 s says "The shop opens 10 s after a fight".
 
 ### M8 PvP, death, anti-exploit
 Use Test > Clients and Servers with 2 (or 3) players. DEV panel (M8 rows): Force PvP on (level 10 and the flag, skipping the 5 s and 60 s rules), Down me, Go to the Crater, +200 Fame.

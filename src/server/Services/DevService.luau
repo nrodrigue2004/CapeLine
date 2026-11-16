@@ -7,6 +7,9 @@
 -- incident 1-10 (that template next to the hero), clearincidents, event 1-6, boss (land the next world
 -- boss in 3 s), bosskill (the boss to 1 HP), contract (finish the first accepted contract), clock 0-3
 -- (day, dusk, night, dawn), side 0/1 (hero or villain, for this session only).
+-- M9: creator (open the creator to remake this hero), hq (enter your HQ), hqlevel n, away n (offline drones
+-- for n hours away), pieces (unlock every creator piece), buy n (test-purchase shop item n with a fixed
+-- receipt id: the second time grants nothing), legacy (level 40 and retire at HQ next).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -36,6 +39,11 @@ local DeathService = require(script.Parent.DeathService)
 local FameService = require(script.Parent.FameService)
 local CityBuilder = require(script.Parent.CityBuilder)
 local SafehouseService = require(script.Parent.SafehouseService)
+local CreatorService = require(script.Parent.CreatorService)
+local HqService = require(script.Parent.HqService)
+local PurchaseService = require(script.Parent.PurchaseService)
+local ShopRules = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("ShopRules"))
+local CreatorRules = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("CreatorRules"))
 local ProfileSchema = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("ProfileSchema"))
 local OpeningPlan = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("OpeningPlan"))
 
@@ -249,6 +257,50 @@ local commands: { [string]: (player: Player, hero: any, value: number) -> () } =
 	end,
 	style = function(_, hero, anime)
 		HeroService.setFxStyle(hero, if anime ~= 0 then "Anime" else "Comic")
+	end,
+	-- M9
+	creator = function(player)
+		local profile = DataService.get(player)
+		if profile then
+			ProfileSchema.active(profile).created = 0
+			CreatorService.open(player, "first")
+		end
+	end,
+	hq = function(player, hero)
+		HqService.enter(player, hero.side)
+	end,
+	hqlevel = function(player, _, n)
+		local profile = DataService.get(player)
+		if profile then
+			ProfileSchema.active(profile).hq.level = math.clamp(n, 1, 6)
+			DataService.changed(player)
+		end
+	end,
+	away = function(player, _, hours)
+		local profile = DataService.get(player)
+		if profile then
+			ProfileSchema.active(profile).hq.droneAt = os.time() - math.max(1, hours) * 3600
+			HqService.payDrones(player, profile)
+		end
+	end,
+	pieces = function(player)
+		local profile = DataService.get(player)
+		if profile then
+			for _, p in CreatorRules.index(Config).list do
+				CreatorRules.grant(profile, p)
+			end
+			DataService.changed(player)
+		end
+	end,
+	buy = function(player, _, n)
+		local key = ShopRules.keys(Config)[n]
+		if key then
+			local ok = PurchaseService.replay(player, key, "dev-" .. key)
+			Net.fire("Toast", player, { id = "devBuy", key = key, ok = ok })
+		end
+	end,
+	legacy = function(_, hero)
+		HeroService.setLevel(hero, 40)
 	end,
 }
 

@@ -66,6 +66,9 @@ local function atHq(pos: Vector3): boolean
 end
 
 function SafehouseService.near(hero: any): boolean
+	if hero.scene == "hq" then
+		return true -- inside the Hero HQ (M9)
+	end
 	local pos = HeroService.position(hero)
 	if not pos then
 		return false

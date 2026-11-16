@@ -35,6 +35,18 @@ function ShopRules.item(Config: any, key: string): (any?, string?)
 	return nil, nil
 end
 
+-- Every item in shop order (the ShopBuy remote sends an index into this list)
+function ShopRules.keys(Config: any): { string }
+	local out = {}
+	for _, tab in Config.Shop.tabs do
+		for _, key in tab.items do
+			table.insert(out, key)
+		end
+	end
+	table.insert(out, "starter")
+	return out
+end
+
 -- The product key for a Roblox product id (ProcessReceipt), or nil. Id 0 never matches.
 function ShopRules.byProductId(Config: any, productId: number): string?
 	if productId == 0 then

@@ -9,7 +9,10 @@
 - [ ] Review every emblem, costume and anime piece against a list of famous hero and anime symbols and looks (spec: IP).
 - [ ] Replace all PLACEHOLDER ART listed in Tasks.md.
 - [ ] Sound ids and music (M11), checked for licenses (now including destruction: crumble, collapse rumble, glass, car flip, drone hum, citizen gasps; and M6: boss siren, boss landing, stomps, lasers, incident clear jingle, event fanfare, camera snap; and M7: the cinematic music sting, the mentor voice lines for Old Beacon and the Velvet Paw, tram creak and cheers, the choice whoosh, mission fade, War-Frame shield break and laser charge, NPC talk blips).
-- [ ] Robux products and passes created on the dashboard, ids in config (M9). Prices are nate's call.
+- [ ] Robux products and passes created on the dashboard, ids in config (M9): 6 packs, the starter pack, slots 3 and 4, 10 tints, 8 emotes, 4 landing poses (Config.Shop.products) and the Quick Swap and 2x passes (Config.Shop.passes). Prices are nate's call; the starter pack is set up for an A/B test at 49, 79 or 99.
+- [ ] M9 review every creator piece, emblem glyph, name pair and the 13 Gizmo styles against famous hero and anime looks; extend Config.Creator.blockedNames if a Title + Noun pair matches a known character.
+- [ ] M9 voice pack sounds (4 packs x 6 clips) with a licence for commercial use.
+- [ ] M9 re-check Roblox's paid random item and DevEx rules: packs are fixed (no random items), nothing sold changes stats.
 - [ ] Thumbnails, icon, description (M12).
 - [ ] Private server price.
 - [ ] Re-check Roblox rules (PvP, free-form creation, rewarded video ads) before launch.

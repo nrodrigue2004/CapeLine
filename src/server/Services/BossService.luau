@@ -22,6 +22,7 @@ local RunService = game:GetService("RunService")
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Net = require(Shared:WaitForChild("Net"))
+local Signal = require(Shared:WaitForChild("Util"):WaitForChild("Signal"))
 local Rng = require(Shared:WaitForChild("Rng"))
 local BossMath = require(Shared:WaitForChild("BossMath"))
 local BossSim = require(Shared:WaitForChild("BossSim"))
@@ -46,6 +47,8 @@ local PerfMonitor = require(script.Parent.PerfMonitor)
 local Bits = ProfileSchema.Bits
 
 local BossService = {}
+-- (player, bossId, tier, defeated) after a hero's boss reward is paid (M9: creator unlocks, the starter offer)
+BossService.Rewarded = Signal.new()
 
 local B = Config.Boss
 local SCHED = B.schedule
@@ -269,6 +272,20 @@ local function rewardHero(
 		Bits.set(profile.rogues, f.sim.cfg.rogues)
 	end
 	profile.stats.bossesJoined += 1
+	-- M9: the best reward tier per boss (creator pieces) and MVP count (the trophy wall)
+	local bi = table.find(B.order, f.id)
+	local tierN = if not defeated
+			or tier == "floor"
+			or tier == "participant"
+		then 1
+		elseif tier == "contributor" then 2
+		else 3
+	if bi then
+		profile.bosses[bi] = math.max(profile.bosses[bi] or 0, tierN)
+	end
+	if defeated and tier == "mvp" then
+		profile.stats.mvps += 1
+	end
 	DataService.changed(player)
 	DataService.saveSoon(player)
 	Net.fire("BossResult", player, {
@@ -283,6 +300,7 @@ local function rewardHero(
 		shiny = shiny,
 		mvps = mvps,
 	})
+	BossService.Rewarded:Fire(player, f.id, tier, defeated)
 end
 
 local function finish(f: Fight, defeated: boolean)

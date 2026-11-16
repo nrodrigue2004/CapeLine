@@ -73,10 +73,6 @@ function StoryClient.skipFlight()
 	Net.send("OpeningAct", 2)
 end
 
-function StoryClient.suitUp(classIdx: number, sideIdx: number)
-	Net.send("SuitUp", classIdx, sideIdx)
-end
-
 function StoryClient.enter(num: number)
 	Net.send("MissionEnter", num)
 end

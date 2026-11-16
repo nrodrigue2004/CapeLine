@@ -35,6 +35,7 @@ export type Hero = {
 	classId: string,
 	setId: string,
 	fxStyle: string, -- "Comic" or "Anime": how this hero's powers look to everyone
+	startSet: string?, -- the creator's starting set (Volt or Blade), open from level 1 (M9)
 	styles: { [string]: boolean },
 	loadout: AbilityRules.Loadout,
 	loadouts: { AbilityRules.Loadout }, -- 2 slots; the second opens at level 15
@@ -320,6 +321,7 @@ function HeroService.sendState(hero: Hero)
 		classId = hero.classId,
 		setId = hero.setId,
 		fxStyle = hero.fxStyle,
+		startSet = hero.startSet,
 		power = HeroService.power(hero),
 		maxHealth = hero.maxHealth,
 		styles = hero.styles,
@@ -607,6 +609,7 @@ function HeroService.applyProfile(hero: Hero, char: any, currency: any)
 	hero.side = if char.side == "villain" then "villain" else "hero"
 	hero.classId = if Config.Classes[char.classId] then char.classId else Config.Classes.default
 	hero.fxStyle = char.fxStyle
+	hero.startSet = if char.startSet == "Blade" then "Blade" else "Volt"
 	hero.ranks = table.clone(char.ranks)
 	hero.mods = table.clone(char.mods)
 	hero.bonusPoints = char.bonusPoints
@@ -615,11 +618,11 @@ function HeroService.applyProfile(hero: Hero, char: any, currency: any)
 		> AbilityRules.pointsEarned(Config, hero.level, hero.bonusPoints)
 	then
 		-- more points spent than earned (a tuning change): free respec
-		hero.ranks = AbilityRules.starter(Config, "Volt")
+		hero.ranks = AbilityRules.starter(Config, hero.startSet or "Volt")
 		hero.mods = {}
 	end
 	local l1 = validLoadout(hero, char.loadouts[1])
-	local starterRanks, starterLoadout = AbilityRules.starter(Config, "Volt")
+	local starterRanks, starterLoadout = AbilityRules.starter(Config, hero.startSet or "Volt")
 	for id, r in starterRanks do
 		hero.ranks[id] = math.max(hero.ranks[id] or 0, r)
 	end

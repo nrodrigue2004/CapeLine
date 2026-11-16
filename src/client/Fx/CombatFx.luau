@@ -41,7 +41,23 @@ for set, c in A.setColor do
 	SET_COLOR[set] = rgb(c)
 end
 
-function CombatFx.colorOf(set: string?): Color3
+-- A power set's colour, or the caster's effect tint (a Robux look: Config.Shop.tints, the FxTint attribute)
+local TINTS: { Color3 } = {}
+for i, t in Config.Shop.tints do
+	TINTS[i] = rgb(t.glow or t.color)
+end
+function CombatFx.colorOf(set: string?, userId: number?): Color3
+	if userId then
+		local p = Players:GetPlayerByUserId(userId)
+		local tint = p and p:GetAttribute("FxTint")
+		if typeof(tint) == "number" and TINTS[tint] then
+			local row = Config.Shop.tints[tint]
+			if row.rainbow then
+				return Color3.fromHSV((os.clock() * 0.4) % 1, 0.75, 1)
+			end
+			return TINTS[tint]
+		end
+	end
 	return SET_COLOR[set or "Volt"] or rgb(F.voltColor)
 end
 
@@ -844,11 +860,12 @@ export type CastData = {
 	follow: (() -> Vector3?)?,
 	target: (() -> Vector3?)?, -- channel target
 	caster: (() -> Vector3?)?,
+	a: number?, -- the caster's user id (their effect tint)
 	thrown: boolean?,
 }
 
 function CombatFx.cast(row: any, style: string, data: CastData)
-	local color = CombatFx.colorOf(row.set)
+	local color = CombatFx.colorOf(row.set, data.a)
 	local shape = row.shape
 	local o, d = data.o, data.d
 	local big = row.slot == "super"
@@ -917,8 +934,15 @@ function CombatFx.cast(row: any, style: string, data: CastData)
 end
 
 -- The landing or the end of a use (leap and throw landings, echoes, field and channel ends)
-function CombatFx.area(row: any, style: string, center: Vector3, radius: number, mine: boolean)
-	local color = CombatFx.colorOf(row.set)
+function CombatFx.area(
+	row: any,
+	style: string,
+	center: Vector3,
+	radius: number,
+	mine: boolean,
+	userId: number?
+)
+	local color = CombatFx.colorOf(row.set, userId)
 	CombatFx.nova(center, radius, style, color, row.slot == "super" and mine)
 	if style ~= "Anime" then
 		CombatFx.word(center, row.set, color, row.slot == "super")

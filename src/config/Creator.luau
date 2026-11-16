@@ -340,6 +340,9 @@ return {
 		"Thunder Bolt",
 	},
 
+	-- Gear styles and creator pieces: a creator piece takes over the gear slot it covers; a style picked in
+	-- the Style Collection (Show Style) still shows over it. Legs and belt always show gear.
+	covers = { head = "head", chest = "suit", hands = "hands", feet = "feet", back = "back" },
 	looks = 4, -- saved looks (the 4 mannequins at HQ; HQ level 1 shows 1, level 2 all 4)
 	dropChance = 0.15, -- an Epic or Legendary drop also unlocks a random locked "drop" piece
 	-- A new hero before the creator: these free pieces (tab index -> piece index), colours and skin

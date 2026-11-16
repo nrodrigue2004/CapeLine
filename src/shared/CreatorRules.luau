@@ -20,6 +20,15 @@ local Bits = ProfileSchema.Bits
 
 local CreatorRules = {}
 
+-- the LookCodec record (repeated here: the pure-module require pattern drops cross-module types)
+export type Look = {
+	pieces: { [string]: number },
+	colors: { number },
+	hair: number,
+	skin: number,
+	anime: boolean,
+}
+
 export type Source = { kind: string, a: string?, n: number? }
 export type Piece = {
 	id: number,
@@ -116,7 +125,7 @@ function CreatorRules.packPieces(Config: any, pack: number?): { Piece }
 end
 
 -- The default look (a new hero before the creator, or a save with no look)
-function CreatorRules.defaultLook(Config: any): LookCodec.Look
+function CreatorRules.defaultLook(Config: any): Look
 	local d = Config.Creator.default
 	return {
 		pieces = table.clone(d.pieces),
@@ -128,11 +137,11 @@ function CreatorRules.defaultLook(Config: any): LookCodec.Look
 end
 
 -- A character's look (its saved words, or the default)
-function CreatorRules.lookOf(Config: any, char: any): LookCodec.Look
+function CreatorRules.lookOf(Config: any, char: any): Look
 	return LookCodec.read(char and char.look) or CreatorRules.defaultLook(Config)
 end
 
-function CreatorRules.validate(Config: any, profile: any, look: LookCodec.Look): (boolean, string?)
+function CreatorRules.validate(Config: any, profile: any, look: Look): (boolean, string?)
 	local C = Config.Creator
 	for _, slot in LookCodec.SLOTS do
 		local i = look.pieces[slot] or 0
@@ -259,7 +268,7 @@ function CreatorRules.ownedIn(Config: any, profile: any, tab: string): { Piece }
 end
 
 -- Randomize: a look from owned pieces (cape, hair, eyes, aura may be left off) and a valid name
-function CreatorRules.randomize(Config: any, profile: any, rng: any): (LookCodec.Look, number, number)
+function CreatorRules.randomize(Config: any, profile: any, rng: any): (Look, number, number)
 	local C = Config.Creator
 	local look = CreatorRules.defaultLook(Config)
 	local optional = { back = 0.8, aura = 0.4, hair = 0.7, eyes = 0.3, head = 0.85, hands = 0.85, feet = 0.9 }
@@ -294,6 +303,24 @@ function CreatorRules.pickOk(Config: any, classId: string?, setId: string?, side
 		and setId ~= nil
 		and table.find(Config.Creator.startSets, setId) ~= nil
 		and (side == "hero" or side == "villain")
+end
+
+-- Which gear styles show over a look: styles (one per gear slot, Inventory.shownStyles), shown (the
+-- character's Show Style picks). A creator piece covers its gear slot unless a style was picked there.
+function CreatorRules.visibleStyles(
+	Config: any,
+	look: Look,
+	styles: { number },
+	shown: { number }
+): { number }
+	local out = table.clone(styles)
+	for slotIdx, slot in Config.Gear.slotOrder do
+		local tab = Config.Creator.covers[slot]
+		if tab and (look.pieces[tab] or 0) ~= 0 and (shown[slotIdx] or 0) == 0 then
+			out[slotIdx] = 0
+		end
+	end
+	return out
 end
 
 -- Character slots: 2 free; slots 3 and 4 are bought (profile.purchases.slots, a bit per slot)

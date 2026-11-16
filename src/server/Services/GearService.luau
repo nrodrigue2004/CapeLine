@@ -18,6 +18,7 @@ local GearMath = require(Shared:WaitForChild("GearMath"))
 local LootTable = require(Shared:WaitForChild("LootTable"))
 local Inventory = require(Shared:WaitForChild("Inventory"))
 local ProfileSchema = require(Shared:WaitForChild("ProfileSchema"))
+local CreatorRules = require(Shared:WaitForChild("CreatorRules"))
 local Cooldowns = require(Shared:WaitForChild("Cooldowns"))
 
 local DataService = require(script.Parent.DataService)
@@ -27,6 +28,8 @@ local MoveGuard = require(script.Parent.MoveGuard)
 local LookService = require(script.Parent.LookService)
 
 local GearService = {}
+-- (player, profile) an Epic or Legendary piece dropped: CreatorService may unlock a "drop" creator piece (M9)
+GearService.onRareDrop = nil :: ((Player, any) -> ())?
 
 local G = Config.Gear
 local busy: { [Player]: boolean } = {}
@@ -50,8 +53,15 @@ function GearService.refresh(player: Player)
 	local char = ProfileSchema.active(profile)
 	local totals = GearMath.totals(Config, Inventory.worn(profile, char))
 	HeroService.applyGear(hero, totals)
-	LookService.apply(player, Inventory.shownStyles(profile, char))
+	GearService.showLook(player, profile, char)
 	DataService.changed(player)
+end
+
+-- The creator look plus the gear styles it does not cover (M9)
+function GearService.showLook(player: Player, profile: any, char: any)
+	local look = CreatorRules.lookOf(Config, char)
+	local styles = CreatorRules.visibleStyles(Config, look, Inventory.shownStyles(profile, char), char.shown)
+	LookService.apply(player, styles, look)
 end
 
 -- Roll and store the drops for one source. Returns the pieces (already in the stash or salvaged).
@@ -70,6 +80,9 @@ function GearService.grant(player: Player, source: string, zoneLevel: number): {
 		local kind, stored, dust = Inventory.add(Config, profile, piece)
 		Net.fire("LootDrop", player, { piece = stored, kind = kind, dust = dust })
 		table.insert(out, stored)
+		if (tier == "Epic" or tier == "Legendary") and GearService.onRareDrop then
+			GearService.onRareDrop(player, profile)
+		end
 	end
 	if #out > 0 then
 		DataService.changed(player)
@@ -213,7 +226,7 @@ function GearService.init()
 	HeroService.Spawned:Connect(function(hero)
 		if hero.player and DataService.get(hero.player) then
 			local profile = DataService.get(hero.player) :: any
-			LookService.apply(hero.player, Inventory.shownStyles(profile, ProfileSchema.active(profile)))
+			GearService.showLook(hero.player, profile, ProfileSchema.active(profile))
 		end
 	end)
 	HeroService.Leveled:Connect(function(hero)

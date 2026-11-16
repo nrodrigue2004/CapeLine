@@ -141,9 +141,10 @@ function AbilityRules.isStarter(config: any, id: string): boolean
 	return starter ~= nil and table.find(starter, id) ~= nil
 end
 
-function AbilityRules.setUnlocked(config: any, level: number, set: string): boolean
+-- A set is open by level, or from level 1 when it is the hero's starting set (the creator's Volt or Blade)
+function AbilityRules.setUnlocked(config: any, level: number, set: string, startSet: string?): boolean
 	local need = config.Abilities.setUnlockLevel[set]
-	return need ~= nil and level >= need
+	return need ~= nil and (level >= need or set == startSet)
 end
 
 function AbilityRules.skillSlots(config: any, level: number): number
@@ -191,6 +192,7 @@ end
 
 export type HeroView = {
 	level: number,
+	startSet: string?,
 	ranks: { [string]: number },
 	bonusPoints: number?,
 	credits: number?,
@@ -207,7 +209,7 @@ function AbilityRules.canRank(
 	if not row or row.slot == "basic" then
 		return false, "no ranks", 0, 0
 	end
-	if not AbilityRules.setUnlocked(config, hero.level, row.set) then
+	if not AbilityRules.setUnlocked(config, hero.level, row.set, hero.startSet) then
 		return false, "set locked", 0, 0
 	end
 	if row.slot == "super" and not AbilityRules.superUnlocked(config, hero.level) then
@@ -240,7 +242,7 @@ export type Loadout = { set: string, basic: string?, skills: { string }, super: 
 -- Server check for Hero.Loadout (spec: points cap 52, unlocked). Returns ok, reason.
 function AbilityRules.validate(config: any, hero: HeroView, loadout: Loadout): (boolean, string?)
 	local A = config.Abilities
-	if not AbilityRules.setUnlocked(config, hero.level, loadout.set) then
+	if not AbilityRules.setUnlocked(config, hero.level, loadout.set, hero.startSet) then
 		return false, "set locked"
 	end
 	if loadout.basic and loadout.basic ~= AbilityRules.basicOf(config, loadout.set) then
@@ -259,7 +261,7 @@ function AbilityRules.validate(config: any, hero: HeroView, loadout: Loadout): (
 			return false, "duplicate"
 		end
 		seen[id] = true
-		if not AbilityRules.setUnlocked(config, hero.level, row.set) then
+		if not AbilityRules.setUnlocked(config, hero.level, row.set, hero.startSet) then
 			return false, "set locked"
 		end
 		if (hero.ranks[id] or 0) < 1 then
@@ -277,7 +279,7 @@ function AbilityRules.validate(config: any, hero: HeroView, loadout: Loadout): (
 		if not AbilityRules.superUnlocked(config, hero.level) then
 			return false, "super locked"
 		end
-		if not AbilityRules.setUnlocked(config, hero.level, row.set) then
+		if not AbilityRules.setUnlocked(config, hero.level, row.set, hero.startSet) then
 			return false, "set locked"
 		end
 		if (hero.ranks[loadout.super] or 0) < 1 then
