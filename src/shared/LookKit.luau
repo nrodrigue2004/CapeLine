@@ -15,6 +15,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local CreatorRules = require(Shared:WaitForChild("CreatorRules"))
 local BodyShape = require(Shared:WaitForChild("BodyShape"))
 local PieceKits = require(Shared:WaitForChild("PieceKits"))
+local WeaponKit = require(Shared:WaitForChild("WeaponKit"))
 
 local LookKit = {}
 
@@ -1126,7 +1127,8 @@ end
 -- The body is shaped first (build, height, gender), so every piece is sized for it.
 local NEW_SLOTS =
 	{ "beard", "face", "makeup", "hat", "ears", "shoulders", "neck", "arms", "wrist", "belt", "backpack" }
-function LookKit.build(char: Model, look: any): Folder
+-- weapon (optional): a WeaponRules weapon look, built in a "Weapon" folder inside the look
+function LookKit.build(char: Model, look: any, weapon: any?): Folder
 	LookKit.clear(char)
 	LookKit.shapeBody(char, look)
 	local folder = Instance.new("Folder")
@@ -1205,8 +1207,33 @@ function LookKit.build(char: Model, look: any): Folder
 	if trailKit then
 		trail(char, folder, trailKit, colors)
 	end
+	if weapon and weapon.id and weapon.id > 0 then
+		local wf = Instance.new("Folder")
+		wf.Name = "Weapon"
+		wf.Parent = folder
+		WeaponKit.build(char, wf, weapon, colors, make)
+	end
 	folder.Parent = char
 	return folder
+end
+
+-- Show or hide the carried weapon (held with key 2; put away while the power is held)
+function LookKit.showWeapon(char: Model, on: boolean)
+	local folder = char:FindFirstChild("HeroLook")
+	local wf = folder and folder:FindFirstChild("Weapon")
+	if not wf then
+		return
+	end
+	for _, p in wf:GetChildren() do
+		if p:IsA("BasePart") then
+			local base = p:GetAttribute("Alpha")
+			if type(base) ~= "number" then
+				base = p.Transparency
+				p:SetAttribute("Alpha", base)
+			end
+			p.Transparency = if on then base :: number else 1
+		end
+	end
 end
 
 return LookKit

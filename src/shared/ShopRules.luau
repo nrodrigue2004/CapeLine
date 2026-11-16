@@ -116,6 +116,10 @@ function ShopRules.available(Config: any, profile: any, key: string): (boolean, 
 	if kind == "slot" and row.slot == 4 and not ShopRules.owned(Config, profile, "slot3") then
 		return false, "slot3"
 	end
+	-- a weapon is only sold once it is playable (the creator plan builds the 36 in steps)
+	if kind == "weapon" and not table.find(Config.Weapons.playable, row.weapon) then
+		return false, "soon"
+	end
 	return true, nil
 end
 
