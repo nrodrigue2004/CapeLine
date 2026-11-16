@@ -23,11 +23,13 @@ export type Box = {
 	tag: string?, -- what a server service looks for (a terminal kind, a beacon, a landmark zone)
 	ref: number?, -- the id that tag belongs to (a safehouse or beacon id)
 	ghost: boolean?, -- no collision (light beams, signs above heads)
+	grp: string?, -- the building this part belongs to (its body, bands, roof and rooftop props)
+	bid: number?, -- the destructible building id (WorldMap), when that building can be wrecked
 }
 
 export type Layout = {
 	boxes: { Box },
-	buildings: { { x: number, z: number, sx: number, sz: number, h: number } },
+	buildings: { { x: number, z: number, sx: number, sz: number, h: number, grp: string?, base: number? } },
 	spawns: { { x: number, y: number, z: number } },
 	droneSpots: { { x: number, y: number, z: number } },
 	beacon: { x: number, z: number, h: number },
@@ -162,6 +164,7 @@ function CityLayout.downtown(cityCfg: any, worldCfg: any?): Layout
 							safehouseSpots[reservedId] = { x = lcx, z = lcz }
 							continue
 						end
+						local first = #boxes + 1
 						box(boxes, "building", lcx, gy + 0.9 + height / 2, lcz, sx, height, sz, color)
 						-- window bands, one wrap-around part every 12 studs (PLACEHOLDER ART)
 						local y = 10
@@ -192,7 +195,19 @@ function CityLayout.downtown(cityCfg: any, worldCfg: any?): Layout
 						if hasAntenna then
 							box(boxes, "prop", lcx - sx / 4, top + 10, lcz - sz / 4, 1, 20, 1, "steel")
 						end
-						table.insert(buildings, { x = lcx, z = lcz, sx = sx, sz = sz, h = height + 0.9 })
+						local grp = "D" .. (#buildings + 1)
+						for k = first, #boxes do
+							boxes[k].grp = grp
+						end
+						table.insert(buildings, {
+							x = lcx,
+							z = lcz,
+							sx = sx,
+							sz = sz,
+							h = height + 0.9,
+							grp = grp,
+							base = gy + 0.9,
+						})
 						table.insert(droneSpots, { x = lcx, y = top + 18, z = lcz })
 					end
 				end

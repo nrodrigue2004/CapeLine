@@ -24,6 +24,11 @@ local WorldMap = require("../src/shared/WorldMap")
 local Travel = require("../src/shared/Travel")
 local BoxKit = require("../src/shared/BoxKit")
 local HeightMap = require("../src/shared/HeightMap")
+local Chunker = require("../src/shared/Chunker")
+local BuildingState = require("../src/shared/BuildingState")
+local Vehicles = require("../src/shared/Vehicles")
+local CitizenSim = require("../src/shared/CitizenSim")
+local CitizenBuffer = require("../src/shared/CitizenBuffer")
 
 local passed, failed = 0, 0
 local current = ""
@@ -2146,6 +2151,336 @@ test("M4: profile version 2 adds beacons and safehouses; a v1 save keeps its las
 end)
 
 ---------------------------------------------------------------------------
+-- M5: destruction v1 (buildings, chunks, repair, vehicles, citizens)
+---------------------------------------------------------------------------
+
+local DS = Config.Destruction
+
+test("M5: 220 wreckable hub buildings, ids 1 to 220, HP by size class", function()
+	local list = world.buildings
+	check(#list == DS.hubBuildings, "220 buildings (got " .. #list .. ")")
+	local per: { [string]: number } = {}
+	for i, b in list do
+		check(b.id == i, "ids run 1 to 220")
+		local h = b.top - b.base
+		local want = if h <= DS.smallMax then "small" elseif h <= DS.mediumMax then "medium" else "tower"
+		check(b.size == want and b.hp == DS.hp[want], "building " .. i .. " has the HP of its size")
+		check(b.sx > 0 and b.sz > 0 and h > 0, "building " .. i .. " has a body")
+		per[b.district] = (per[b.district] or 0) + 1
+	end
+	check((per.Downtown or 0) > 0 and (per.Docks or 0) > 0 and (per.OldTown or 0) > 0, "all three districts")
+	local again = WorldMap.build(Config, 202650)
+	check(
+		#again.buildings == #list and again.buildings[200].x == list[200].x,
+		"the hub list never changes by seed"
+	)
+	local tagged: { [number]: boolean } = {}
+	for _, b in world.hubBoxes do
+		if b.bid then
+			tagged[b.bid] = true
+		end
+	end
+	for i = 1, #list do
+		check(tagged[i] == true, "building " .. i .. " has parts tagged with its id")
+	end
+end)
+
+test("M5: the Chunker splits every building into 10 to 40 chunks that fill it exactly", function()
+	for _, b in world.buildings do
+		local chunks = Chunker.split(DS, b)
+		check(
+			#chunks >= DS.chunks.min and #chunks <= DS.chunks.max,
+			"chunk count for " .. b.id .. ": " .. #chunks
+		)
+		local vol = 0
+		for _, c in chunks do
+			vol += c.sx * c.sy * c.sz
+			check(
+				math.abs(c.cx - b.x) <= b.sx / 2 + 1e-6 and math.abs(c.cz - b.z) <= b.sz / 2 + 1e-6,
+				"inside the footprint"
+			)
+			check(c.cy - c.sy / 2 >= b.base - 1e-6 and c.cy + c.sy / 2 <= b.top + 1e-6, "inside the height")
+		end
+		near(vol, b.sx * b.sz * (b.top - b.base), 1e-3 * vol, "chunks fill building " .. b.id)
+		local gone = Chunker.fallen(DS, chunks, b.id)
+		local n, rows = 0, 0
+		for _, c in chunks do
+			rows = math.max(rows, c.row)
+		end
+		for i in gone do
+			n += 1
+			check(chunks[i].row > rows / 2, "only upper chunks fall")
+		end
+		check(
+			n >= math.min(DS.chunks.fallMin, #chunks - 1) and n <= DS.chunks.fallMax,
+			"4 to 8 chunks fall (" .. n .. ")"
+		)
+		local again = Chunker.fallen(DS, chunks, b.id)
+		for i in gone do
+			check(again[i] == true, "every device drops the same chunks")
+		end
+		local rubble = Chunker.rubble(DS, b, b.id)
+		check(#rubble >= DS.rubble.min and #rubble <= DS.rubble.max, "6 to 10 rubble pieces")
+		for _, r in rubble do
+			check(r.cy + r.sy / 2 <= b.base + DS.rubble.height, "the heap is low")
+			check(
+				math.abs(r.cx - b.x) <= b.sx / 2 and math.abs(r.cz - b.z) <= b.sz / 2,
+				"the heap stays on the lot"
+			)
+		end
+	end
+end)
+
+local function testBook(n: number)
+	local list = {}
+	for i = 1, n do
+		table.insert(list, { id = i, hp = 10000, district = if i % 2 == 0 then "B" else "A" })
+	end
+	return BuildingState.new(DS, list)
+end
+
+test("M5: Damaged at 40% lost, warning at 75%, Collapsed at 100%; a 4th collapse is cut", function()
+	local book = testBook(8)
+	local s, changed, cut, warn = BuildingState.hit(DS, book, 1, 3999, 0)
+	check(s == 0 and not changed and not warn, "39.99% lost stays Intact")
+	s, changed = BuildingState.hit(DS, book, 1, 1, 0)
+	check(s == BuildingState.DAMAGED and changed, "40% lost is Damaged")
+	s, changed, cut, warn = BuildingState.hit(DS, book, 1, 3500, 0)
+	check(s == 1 and warn and not changed, "75% lost warns the citizens once")
+	_, _, _, warn = BuildingState.hit(DS, book, 1, 100, 0)
+	check(not warn, "the warning fires once")
+	s, changed = BuildingState.hit(DS, book, 1, 5000, 1)
+	check(s == BuildingState.COLLAPSED and changed, "100% lost collapses")
+	s = BuildingState.hit(DS, book, 2, 99999, 2)
+	check(s == 2, "second collapse")
+	s = BuildingState.hit(DS, book, 3, 99999, 3)
+	check(s == 2, "third collapse")
+	s, changed, cut = BuildingState.hit(DS, book, 4, 99999, 4)
+	check(
+		s == BuildingState.DAMAGED and cut and book.hp[4] == 1,
+		"a 4th collapse inside 6 s is cut to Damaged at 1 HP"
+	)
+	s = BuildingState.hit(DS, book, 4, 1, 1 + DS.collapseTime + 0.01)
+	check(s == 2, "once the first collapse is over, the cut building can fall")
+	s, changed = BuildingState.hit(DS, book, 1, 5000, 9)
+	check(s == 2 and not changed, "a collapsed building takes no more hits")
+	check(
+		BuildingState.force(DS, book, 5, 10) and book.state[5] == 1,
+		"a knockback through a wall makes it Damaged"
+	)
+	check(not BuildingState.force(DS, book, 5, 11), "forcing it again changes nothing")
+	local diffs = BuildingState.takeDiffs(book)
+	check(
+		#diffs == 10 and #BuildingState.takeDiffs(book) == 0,
+		"five changed buildings in one diff, then none"
+	)
+end)
+
+test(
+	"M5: repair drones fix quiet buildings: Damaged after 180 s, Collapsed after 240 s, 20 s each",
+	function()
+		local book = testBook(4)
+		check(#book.drones == 2 * DS.repair.dronesPerDistrict, "3 drones in each district")
+		BuildingState.hit(DS, book, 1, 5000, 0) -- Damaged
+		BuildingState.hit(DS, book, 3, 99999, 0) -- Collapsed (also district A)
+		local _, started = BuildingState.stepDrones(DS, book, 179)
+		check(#started == 0, "nothing before 180 quiet seconds")
+		_, started = BuildingState.stepDrones(DS, book, 180)
+		check(#started == 1 and started[1].target == 1, "a drone takes the Damaged building at 180 s")
+		local repaired = BuildingState.stepDrones(DS, book, 199)
+		check(#repaired == 0, "the job takes 20 s")
+		repaired = BuildingState.stepDrones(DS, book, 200)
+		check(
+			#repaired == 1 and repaired[1] == 1 and book.state[1] == 0 and book.hp[1] == 10000,
+			"repaired whole"
+		)
+		_, started = BuildingState.stepDrones(DS, book, 239)
+		check(#started == 0, "the collapsed one waits 240 s")
+		_, started = BuildingState.stepDrones(DS, book, 240)
+		check(#started == 1 and started[1].target == 3, "then a drone starts on it")
+		BuildingState.hit(DS, book, 3, 1, 250) -- no effect on a collapsed building, but a Damaged one:
+		BuildingState.hit(DS, book, 2, 5000, 0)
+		BuildingState.stepDrones(DS, book, 180)
+		BuildingState.hit(DS, book, 2, 10, 190) -- hit again during its job
+		repaired = BuildingState.stepDrones(DS, book, 200)
+		check(
+			table.find(repaired, 2) == nil and book.state[2] == 1,
+			"a building hit during the job stays broken"
+		)
+	end
+)
+
+test("M5: 2 bits a building: the hub's 220 states pack into 55 bytes and back", function()
+	local list = {}
+	for i = 1, 220 do
+		table.insert(list, { id = i, hp = 6000, district = "A" })
+	end
+	local book = BuildingState.new(DS, list)
+	local rng = Rng.new(5)
+	for i = 1, 220 do
+		book.state[i] = rng:int(0, 2)
+	end
+	local b = BuildingState.pack(book)
+	check(buffer.len(b) == 55, "55 bytes")
+	local back = BuildingState.unpack(b, 220)
+	for i = 1, 220 do
+		check(back[i] == book.state[i], "state " .. i .. " survives")
+	end
+end)
+
+test("M5: 40 vehicles on the streets, never inside a building, 6 flips a district at most", function()
+	local list = Vehicles.place(Config)
+	check(#list == DS.vehicles.count, "40 vehicles (got " .. #list .. ")")
+	local trams, kinds = 0, {}
+	for i, v in list do
+		check(v.id == i, "ids run 1 to 40")
+		kinds[v.kind] = true
+		if v.kind == "tram" then
+			trams += 1
+		end
+		for _, b in world.buildings do
+			local hx = (if v.ry == 90 then v.sz else v.sx) / 2
+			local hz = (if v.ry == 90 then v.sx else v.sz) / 2
+			local overlap = math.abs(v.x - b.x) < hx + b.sx / 2 and math.abs(v.z - b.z) < hz + b.sz / 2
+			check(not overlap, string.format("vehicle %d (%s) clear of building %d", v.id, v.kind, b.id))
+		end
+		for j = i + 1, #list do
+			local o = list[j]
+			check(math.abs(v.x - o.x) > 2 or math.abs(v.z - o.z) > 2, "vehicles do not stack")
+		end
+	end
+	check(trams == DS.vehicles.trams and kinds.car and kinds.truck, "cars, 8 trams and trucks")
+	check(
+		DS.vehicles.perDistrict == 6 and DS.vehicles.flipTime == 1 and DS.vehicles.resetAfter == 30,
+		"flip rules"
+	)
+	local v = list[1]
+	local x0, y0, z0, r0 = Vehicles.flipPose(DS, v, 0, 1, 0)
+	check(x0 == 0 and y0 == 0 and z0 == 0 and r0 == 0, "the arc starts at home")
+	local x1, y1, _, r1 = Vehicles.flipPose(DS, v, 1, 1, 0)
+	near(x1, DS.vehicles.flipTravel, 1e-6, "it lands pushed away from the hit")
+	near(y1, 0, 1e-6, "it lands on the ground")
+	near(r1, math.pi, 1e-6, "on its roof")
+	local _, yMid = Vehicles.flipPose(DS, v, 0.5, 1, 0)
+	check(yMid > DS.vehicles.flipHeight * 0.9, "it arcs up on the way")
+end)
+
+local function citizenSim(seed: number)
+	local shelters = {}
+	for _, s in world.safehouses do
+		if s.district == "Downtown" or s.district == "OldTown" then
+			table.insert(shelters, { x = s.x, z = s.z })
+		end
+	end
+	return CitizenSim.new(Config, shelters, seed)
+end
+
+test(
+	"M5: 60 citizens walk the sidewalks, flee danger to a shelter outside it, hide, then come back",
+	function()
+		local sim = citizenSim(11)
+		check(#sim.shelters >= 5, "Downtown and Old Town shelters (" .. #sim.shelters .. ")")
+		CitizenSim.populate(sim, 500)
+		check(#sim.citizens == DS.citizens.max, "capped at 60")
+		for _, n in sim.nodes do
+			check(#n.links >= 2, "every sidewalk corner joins at least two others")
+		end
+		local t = 0
+		for _ = 1, 50 do
+			t += 0.1
+			CitizenSim.step(sim, 0.1, t)
+		end
+		local c = sim.citizens[1]
+		local dx, dz = c.x, c.z
+		CitizenSim.danger(sim, dx, dz, DS.citizens.fleeRadius, 10)
+		local fled = {}
+		for _, o in sim.citizens do
+			if o.state == CitizenSim.FLEE then
+				table.insert(fled, o)
+				check(o.goal ~= nil, "a fleeing citizen has somewhere to go")
+				local g = o.goal :: any
+				check(
+					(g.x - dx) ^ 2 + (g.z - dz) ^ 2 >= DS.citizens.fleeRadius ^ 2,
+					"the shelter is outside the danger"
+				)
+			end
+		end
+		check(#fled >= 1 and c.state == CitizenSim.FLEE, "the citizen at the danger runs")
+		for _ = 1, 900 do
+			t += 0.1
+			CitizenSim.step(sim, 0.1, t)
+			local all = true
+			for _, o in fled do
+				if o.state ~= CitizenSim.HIDDEN then
+					all = false
+				end
+			end
+			if all then
+				break
+			end
+		end
+		for _, o in fled do
+			check(o.state == CitizenSim.HIDDEN, "every runner made it inside")
+		end
+		check(CitizenSim.visible(sim) == 60 - #fled, "hidden citizens are not drawn")
+		for _ = 1, 420 do
+			t += 0.1
+			CitizenSim.step(sim, 0.1, t)
+		end
+		check(CitizenSim.visible(sim) == 60, "after 20 to 40 s they come back out")
+		for _, o in sim.citizens do
+			check(o.health == nil and o.hp == nil, "citizens have no health: nothing can hurt them")
+		end
+	end
+)
+
+test("M5: Citizen.Delta packs the citizens near a player, 9 bytes each, and decodes the same", function()
+	local sim = citizenSim(12)
+	CitizenSim.populate(sim)
+	local px, pz = sim.citizens[1].x, sim.citizens[1].z
+	sim.citizens[2].state = CitizenSim.HIDDEN
+	sim.citizens[3].fx, sim.citizens[3].fz = 1, 0
+	local b = CitizenBuffer.encodeFor(77, sim.citizens, px, pz, DS.citizens.relevance)
+	local seq, rows = CitizenBuffer.decode(b)
+	check(seq == 77, "sequence")
+	local want = 0
+	for _, c in sim.citizens do
+		if c.state ~= CitizenSim.HIDDEN and (c.x - px) ^ 2 + (c.z - pz) ^ 2 <= DS.citizens.relevance ^ 2 then
+			want += 1
+		end
+	end
+	check(#rows == want and buffer.len(b) == 6 + 9 * want, "only visible citizens in range")
+	for _, r in rows do
+		check(r.id ~= 2, "hidden citizens are left out")
+		local c = sim.citizens[r.id]
+		near(r.x, c.x, 0.051, "x")
+		near(r.z, c.z, 0.051, "z")
+		check(r.state == c.state and r.color == c.color, "state and colour set")
+		if r.id == 3 then
+			near(r.yaw, 3 * math.pi / 2, 2 * math.pi / 256, "facing +x is Roblox yaw 270 degrees")
+		end
+	end
+end)
+
+test("M5: destruction remotes exist with the right direction; citizens are unreliable", function()
+	check(
+		Remotes.BuildingSync.dir == "C2S" and Remotes.BuildingSync.rate ~= nil,
+		"BuildingSync is rate-limited"
+	)
+	for _, name in { "BuildingSnapshot", "BuildingDiff", "BuildingImpact", "VehicleFlip", "VehicleReset" } do
+		check(Remotes[name] ~= nil and Remotes[name].dir == "S2C", name)
+	end
+	check(Remotes.CitizenDelta.unreliable == true, "CitizenDelta unreliable")
+	local abilities = 0
+	for _, row in Config.Abilities.list do
+		if row.structDmg then
+			abilities += 1
+		end
+	end
+	check(abilities >= 4, "slams and heavy abilities carry structDmg")
+end)
+
+---------------------------------------------------------------------------
 -- Place layout (only when a built place is passed)
 ---------------------------------------------------------------------------
 
@@ -2188,6 +2523,12 @@ if placePath then
 				"HeightMap",
 				"WorldMap",
 				"Travel",
+				"Chunker",
+				"BuildingState",
+				"Vehicles",
+				"VehiclePose",
+				"CitizenSim",
+				"CitizenBuffer",
 			}
 		do
 			check(shared ~= nil and shared:FindFirstChild(name) ~= nil, "Shared." .. name)
@@ -2212,6 +2553,9 @@ if placePath then
 				"PerkService",
 				"SafehouseService",
 				"BeaconService",
+				"BuildingService",
+				"VehicleService",
+				"CitizenService",
 			}
 		do
 			local folder = server and server:FindFirstChild("Services")
@@ -2240,6 +2584,10 @@ if placePath then
 				{ "Ui", "DevPanel" },
 				{ "Ui", "MapScreen" },
 				{ "Controllers", "TravelClient" },
+				{ "Controllers", "CitizenRenderer" },
+				{ "Fx", "BuildingFx" },
+				{ "Fx", "VehicleFx" },
+				{ "Fx", "DebrisBudget" },
 			}
 		do
 			local folder = client and client:FindFirstChild(path[1])

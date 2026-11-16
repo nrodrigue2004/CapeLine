@@ -14,13 +14,25 @@ local Districts = {}
 
 type Box = BoxKit.Box
 
+export type Building = { grp: string, x: number, z: number, sx: number, sz: number, h: number, base: number }
+
 export type District = {
 	boxes: { Box },
+	buildings: { Building }, -- the wreckable ones (the Foundry and the Clock Tower are not)
 	spots: { [string]: { x: number, y: number, z: number } }, -- named high points (crane, clock, foundry)
 	parts: number,
 }
 
 local box = BoxKit.box
+
+-- Tag the boxes from `first` on as one building and list it
+local function group(boxes: { Box }, buildings: { Building }, prefix: string, first: number, b: any)
+	local grp = prefix .. (#buildings + 1)
+	for k = first, #boxes do
+		boxes[k].grp = grp
+	end
+	table.insert(buildings, { grp = grp, x = b.x, z = b.z, sx = b.sx, sz = b.sz, h = b.h, base = b.base })
+end
 
 local CONTAINER_COLORS = { "containerA", "containerB", "containerC", "containerD" }
 local OLD_BODY = { "brick", "sand", "white", "concrete", "brick" }
@@ -31,6 +43,7 @@ function Districts.docks(cityCfg: any, clear: { BoxKit.Circle }): District
 	local c = cityCfg.docks
 	local rng = Rng.new(c.seed)
 	local boxes: { Box } = {}
+	local buildings: { Building } = {}
 	local spots = {}
 	local gy = cityCfg.ground.y
 	local w, h = d.maxX - d.minX, d.maxZ - d.minZ
@@ -61,6 +74,7 @@ function Districts.docks(cityCfg: any, clear: { BoxKit.Circle }): District
 			local height = math.floor(rng:range(c.warehouseHeight.min, c.warehouseHeight.max) / 2) * 2
 			local color = if rng:chance(0.5) then "steel" else "brick"
 			if not BoxKit.hitsAny(clear, cx, cz, cw, cd) then
+				local first = #boxes + 1
 				box(boxes, "building", cx, top + height / 2, cz, cw, height, cd, color)
 				box(boxes, "ledge", cx, top + height + 1, cz, cw + 1, 2, cd + 1, "roof")
 				box(
@@ -74,6 +88,13 @@ function Districts.docks(cityCfg: any, clear: { BoxKit.Circle }): District
 					0.4,
 					"slate",
 					{ ghost = true }
+				)
+				group(
+					boxes,
+					buildings,
+					"W",
+					first,
+					{ x = cx, z = cz, sx = cw, sz = cd, h = height, base = top }
 				)
 			end
 		end
@@ -163,7 +184,7 @@ function Districts.docks(cityCfg: any, clear: { BoxKit.Circle }): District
 	spots.foundry = { x = fx, y = top + f.height + 3, z = fz }
 	spots.foundryDoor = { x = fx, y = top + 3, z = f.minZ - 8 }
 
-	return { boxes = boxes, spots = spots, parts = #boxes }
+	return { boxes = boxes, buildings = buildings, spots = spots, parts = #boxes }
 end
 
 function Districts.oldTown(cityCfg: any, clear: { BoxKit.Circle }): District
@@ -171,6 +192,7 @@ function Districts.oldTown(cityCfg: any, clear: { BoxKit.Circle }): District
 	local t = cityCfg.oldTown
 	local rng = Rng.new(t.seed)
 	local boxes: { Box } = {}
+	local buildings: { Building } = {}
 	local spots = {}
 	local gy = cityCfg.ground.y
 	local w, h = d.maxX - d.minX, d.maxZ - d.minZ
@@ -250,6 +272,7 @@ function Districts.oldTown(cityCfg: any, clear: { BoxKit.Circle }): District
 						continue
 					end
 					local top = gy + 0.8
+					local first = #boxes + 1
 					box(boxes, "building", cx, top + height / 2, cz, sx, height, sz, body)
 					-- one window band per floor above the shop front (PLACEHOLDER ART)
 					local y = 12
@@ -262,11 +285,18 @@ function Districts.oldTown(cityCfg: any, clear: { BoxKit.Circle }): District
 					else
 						box(boxes, "ledge", cx, top + height + 1, cz, sx + 1, 2, sz + 1, "roof")
 					end
+					group(
+						boxes,
+						buildings,
+						"O",
+						first,
+						{ x = cx, z = cz, sx = sx, sz = sz, h = height, base = top }
+					)
 				end
 			end
 		end
 	end
-	return { boxes = boxes, spots = spots, parts = #boxes }
+	return { boxes = boxes, buildings = buildings, spots = spots, parts = #boxes }
 end
 
 return Districts

@@ -24,6 +24,7 @@ local NAMES = {
 	"Economy",
 	"Data",
 	"World",
+	"Destruction",
 }
 
 local Config: { [string]: any } = {}

@@ -1,6 +1,6 @@
 -- Capeline server boot (spec: Server lifecycle and Services). Order matters: the city first (the drone AI
 -- reads its heights), then remotes, heroes, movement checks, enemies, combat, abilities, economy, gear and
--- perks, safehouses and beacons, then saves (a loaded profile fires into all of those), and the Studio-only tools.
+-- perks, safehouses and beacons, destruction (buildings, vehicles, citizens), then saves (a loaded profile fires into all of those), and the Studio-only tools.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -22,6 +22,9 @@ local GearService = require(Services.GearService)
 local PerkService = require(Services.PerkService)
 local SafehouseService = require(Services.SafehouseService)
 local BeaconService = require(Services.BeaconService)
+local BuildingService = require(Services.BuildingService)
+local VehicleService = require(Services.VehicleService)
+local CitizenService = require(Services.CitizenService)
 local LoadBots = require(Services.LoadBots)
 local DevService = require(Services.DevService)
 
@@ -32,7 +35,7 @@ Net.initServer()
 PerfMonitor.init()
 HeroService.init()
 MoveGuard.init()
-EnemyService.init(CityBuilder.world)
+EnemyService.init(CityBuilder.heightAt)
 CombatService.init()
 AbilityService.init()
 EconomyService.init()
@@ -40,6 +43,9 @@ GearService.init()
 PerkService.init()
 SafehouseService.init()
 BeaconService.init()
+BuildingService.init()
+VehicleService.init()
+CitizenService.init()
 DataService.init() -- last of the game services: profile loads fire into the handlers above
 LoadBots.init()
 DevService.init()

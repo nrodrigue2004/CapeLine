@@ -10,7 +10,7 @@ phones or Studio go on the Studio test list below.
 | M2 | Classes, abilities, enemies | 4 classes with passives, 5 sets (Volt, Frost, Titan, Pulse, Blade) with 40 abilities in both styles, the super slot, Awakening, ranks, mods, power budget, 6 enemies, data tables | Every class solos a contract and has a clear role in a 4-player test; no loadout exceeds the budget | Code-complete 2026-11-16 |
 | M3 | Gear, loot, saves | 5 tiers, 8 slots, stats, drops and pity, salvage, upgrade, style collection, profile and migrations, levels and Renown | Drops match the table; a tester wears any look over any gear; rejoin restores everything | Code-complete 2026-11-16 |
 | M4 | World generator, 30-player gate | Hub districts, seeded outskirts (2 zone types), weekly seed, streaming, presets, landmarks, safehouses, beacons, age questionnaire | Same seed gives the same hash on two servers; 30+ fps flying across the map on a phone; 30 bots hold the server frame | Code-complete 2026-11-16 (age questionnaire is nate's, on the Launch Checklist) |
-| M5 | Destruction v1 | Chunker, 220 hub buildings with 3 states, debris, craters, vehicle flips, repair drones, citizens | 10 players wreck a block for 10 minutes with no server spike and 30+ fps on a phone; everything repairs | |
+| M5 | Destruction v1 | Chunker, 220 hub buildings with 3 states, debris, craters, vehicle flips, repair drones, citizens | 10 players wreck a block for 10 minutes with no server spike and 30+ fps on a phone; everything repairs | Code-complete 2026-11-16 |
 | M6 | Incidents, contracts, events, boss | Incident spawner with 10 templates, 6 contract types, 6 random events, world boss with 2 bosses, contribution rewards | First boss within 8 minutes; boss rewards by tier; no idle wait over 5 s | |
 | M7 | Opening, Act 1, missions | Cinematic, playable disaster, choice, 6 missions in sky pockets, 3 choices, 8 side quests, journal | 5 new testers finish the opening and suit up with no help; both routes reach the finale | |
 | M8 | PvP, death, anti-exploit | Flag, Crater, Downed and Defeated, Fame and Infamy, rules table, strikes | The 30-minute exploit test finds nothing; PvP rules checklist passes | |
@@ -31,6 +31,9 @@ phones or Studio go on the Studio test list below.
 - Gear looks: all 31 gear styles (plus 5 set looks and the gilded Legendary look per slot) are blocks, balls, wedges and cylinders welded to the body (LookService). PLACEHOLDER ART until the M9 accessory meshes.
 - Gear, loot and toast screens: Kit placeholder look, text-only piece cards, no item icons (GearScreen, Toasts). PLACEHOLDER ART.
 - Gadget effects: smoke, decoy and shield drone are a plain disc or pop (GadgetClient); the decoy has no body. PLACEHOLDER ART.
+- Destruction (M5): building chunks and rubble are plain boxes in the body's colour; craters are a dark disc with a rock rim; facade cracks are thin dark bars; dust uses the engine's built-in smoke texture; repair drones are a box with four rotor discs and a neon beam (BuildingFx). PLACEHOLDER ART until the destruction kit and decals.
+- Vehicles (M5): the 40 cars, trucks and trams are boxes with cylinder wheels (VehicleService); the flip has a dust ball and sparks (VehicleFx). PLACEHOLDER ART.
+- Citizens (M5): blocky cartoon people in 6 colour sets with a code walk, idle and flee pose (CitizenRenderer). PLACEHOLDER ART.
 - Load bot bodies (LoadBots, Studio only).
 - Landing crack: dark disc instead of a crack decal (MoveFx).
 - Flight, leap and glide poses: the default avatar tilted along the travel direction; no custom animations yet (MoveController).
@@ -124,3 +127,17 @@ The weekly seed is ISO year x 100 + ISO week (UTC). Config.Dev.worldSeed (Studio
 10. Beacons: fly to one (tall light beam); touching it toasts "BEACON FOUND". MAP (M, or the MAP button) shows zones, districts, landmarks, both HQs, safehouses (green once visited) and beacons (gold once found) and your dot. Tap a gold beacon: a 3 s camera flight with SKIP, then you stand on that roof. In combat it says "Not while fighting"; within 20 s "Fast travel ready in N s". DEV > Find all beacons unlocks all 12.
 11. Robots still walk on roofs and the ground across the whole map (the heightmap covers the outskirts), and drones keep to sensible heights over the hills and the quarry.
 12. Age questionnaire (nate): run it on this build and record the answer in Decisions.md (Launch Checklist).
+
+### M5 Destruction v1
+Hub buildings: 220 (all of Downtown, 6 Docks warehouses, 122 Old Town houses). Dev panel: Wreck here (3,000 structure damage in 30 studs), Repair city (every building and vehicle back), Flip cars.
+1. Play: no errors. Fly into Downtown; DEV > Wreck here next to a building a few times: at 40% it turns Damaged (4 to 8 upper chunks tumble off, a dust puff, a small shake), at 100% it collapses over 6 s (a shudder, floors drop, a dust cloud), leaving a low rubble heap you can stand on.
+2. A collapsed building no longer blocks you or shots; robots walk over its rubble, not its old roof.
+3. Supers (3,000 structure damage each) and the abilities with structDmg (Thunder Drop, Lift and Throw, Ground Slam, Haymaker) damage buildings where they land; a nova leaves a crater on the ground and cracks on nearby walls; a blast leaves wall cracks. Craters and cracks fade after 30 s and never pile past the preset count.
+4. Collapse cap: wreck 4 buildings within 6 s: the 4th stops at Damaged and falls on the next hit after the others finish.
+5. Knockback: a heavy hit (Titan heavy or any 2.5x hit) on a robot next to a wall throws it at the wall and the wall turns Damaged (at most 3 per player per 10 s). Check the robot does not end up stuck inside the building (it should land on the roof or beside it).
+6. Vehicles: 40 in the hub (20 Downtown cars, 8 trams on two east-west lines, 10 Old Town cars, 2 Docks trucks). A heavy hit near one flips it in a 1 s arc onto its roof with dust and sparks; at most 6 flipped per district; each goes back after 30 s. Other players see the same flip. Vehicles never sit inside a building or across a sidewalk.
+7. Citizens: up to 60 walk the Downtown and Old Town sidewalks (pause at corners). Wreck a building near them: everyone close runs (arms up) before it falls, to a safehouse or Beacon Tower, and disappears inside; 20 to 40 s later they walk again. Nothing hurts them.
+8. Repair: 3 minutes after the last hit a Damaged building gets a yellow drone that flies in and beams it for 20 s, then the building pops back whole (4 minutes for a collapsed one). A building hit during the job stays broken.
+9. Join late: a second player who joins after buildings fell sees the same Damaged and Collapsed buildings and rubble at once (no collapse replays) and any drone already working.
+10. Streaming: fly away from wrecked buildings and come back: they still look wrecked, with no leftover floating chunks.
+11. Gate: 10 players (or you plus 9 bots and a friend) wreck one block for 10 minutes: the Dev panel's server frame stays under 16 ms and the "buildings", "citizens" and "wrecked" counters behave; a mid-range phone on the low preset holds 30+ fps during collapses. After the drones finish, everything is back.

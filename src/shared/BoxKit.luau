@@ -22,6 +22,8 @@ export type Box = {
 	tag: string?,
 	ref: number?,
 	ghost: boolean?,
+	grp: string?, -- the building this part belongs to
+	bid: number?, -- its destructible building id
 }
 
 export type Opts = { shape: string?, ry: number?, tag: string?, ref: number?, ghost: boolean? }

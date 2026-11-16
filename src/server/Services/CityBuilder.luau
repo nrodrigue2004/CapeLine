@@ -28,6 +28,8 @@ CityBuilder.folder = nil :: Folder?
 CityBuilder.ready = false -- true once every outskirts tile is built
 CityBuilder.Ready = Signal.new()
 CityBuilder.builtParts = 0
+CityBuilder.buildingModels = {} :: { [number]: Model } -- wreckable building id -> its model
+CityBuilder.collapsed = {} :: { [number]: any } -- collapsed building id -> its record (heights drop to rubble)
 
 local MATERIAL = {
 	ground = Enum.Material.Grass,
@@ -138,6 +140,8 @@ local function buildHub(world: any, folder: Folder)
 		local parent: Instance
 		if BIG[b.kind] or b.sx > 400 or b.sz > 400 then
 			parent = base
+		elseif b.bid and CityBuilder.buildingModels[b.bid] then
+			parent = CityBuilder.buildingModels[b.bid]
 		else
 			local key = chunkKey(b.cx, b.cz)
 			local m = chunks[key]
@@ -150,6 +154,15 @@ local function buildHub(world: any, folder: Folder)
 				chunks[key] = m
 			end
 			parent = m
+			if b.bid then
+				-- a wreckable building: its own model inside the chunk (BuildingService and the client find it)
+				local bm = Instance.new("Model")
+				bm.Name = "Building_" .. b.bid
+				bm:SetAttribute("BuildingId", b.bid)
+				bm.Parent = m
+				CityBuilder.buildingModels[b.bid] = bm
+				parent = bm
+			end
 		end
 		makePart(b).Parent = parent
 	end
@@ -256,7 +269,8 @@ function CityBuilder.build()
 	task.spawn(buildOutskirts, world, folder)
 end
 
--- What the client's map needs (ReplicatedStorage.WorldInfo, JSON): safehouses, beacons, landmarks, HQs
+-- What the client needs (ReplicatedStorage.WorldInfo, JSON): safehouses, beacons, landmarks, HQs and the
+-- wreckable buildings
 function CityBuilder.publishInfo(world: any)
 	local info = { seed = world.seed, hash = world.hash, safehouses = {}, beacons = {}, landmarks = {} }
 	for id, s in world.safehouses do
@@ -267,6 +281,11 @@ function CityBuilder.publishInfo(world: any)
 	end
 	for _, lm in world.landmarks do
 		table.insert(info.landmarks, { id = lm.id, x = lm.centre.x, z = lm.centre.z, size = lm.size })
+	end
+	-- the wreckable buildings, for the client's chunks, rubble and drones (BuildingFx)
+	info.buildings = {}
+	for _, b in world.buildings do
+		table.insert(info.buildings, { b.id, b.x, b.z, b.sx, b.sz, b.base, b.top })
 	end
 	local bt = world.downtown.beacon
 	info.hq = {
@@ -279,7 +298,13 @@ function CityBuilder.publishInfo(world: any)
 	value.Parent = ReplicatedStorage
 end
 
+-- Roof or ground height anywhere; a collapsed building counts as its rubble heap
 function CityBuilder.heightAt(x: number, z: number): number
+	for _, b in CityBuilder.collapsed do
+		if math.abs(x - b.x) <= b.sx / 2 and math.abs(z - b.z) <= b.sz / 2 then
+			return b.base + math.min(Config.Destruction.rubble.height, (b.top - b.base) * 0.3) * 0.6
+		end
+	end
 	return WorldMap.heightAt(CityBuilder.world, x, z)
 end
 

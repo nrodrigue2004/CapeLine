@@ -87,6 +87,16 @@ local Remotes: { [string]: RemoteDef } = {
 	MoveTravelSkip = { dir = "C2S", schema = {}, rate = 1, burst = 2 },
 	FastTravel = { dir = "S2C" }, -- { ok, id, from, to, time } or { ok = false, reason, wait }
 	FastTravelDone = { dir = "S2C" }, -- beacon id: the hero has landed
+
+	-- Destruction (M5; spec: Building.Diff 2 Hz batched, Building.Snapshot on join). The client asks for the
+	-- snapshot once its effects are ready, so it never misses the first diffs.
+	BuildingSync = { dir = "C2S", schema = {}, rate = 0.2, burst = 2 },
+	BuildingSnapshot = { dir = "S2C" }, -- { s = packed 2-bit states, n, dr = drone jobs }
+	BuildingDiff = { dir = "S2C" }, -- { d = { id, state, ... }, dr = { { drone, building, seconds } } }
+	BuildingImpact = { dir = "S2C" }, -- center, radius, kind (1 crater, 2 cracks)
+	VehicleFlip = { dir = "S2C" }, -- vehicle id, push x, push z
+	VehicleReset = { dir = "S2C" }, -- vehicle id
+	CitizenDelta = { dir = "S2C", unreliable = true }, -- CitizenBuffer packet, 4 Hz
 }
 
 return Remotes

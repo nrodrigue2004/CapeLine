@@ -24,6 +24,10 @@ record the source here. Status: Using / Recommended (milestone) / Paid (ask nate
 - Roblox streaming built-ins (StreamingMesh level of detail, Atomic models, RequestStreamAroundAsync): Used. No third-party city generator fits a seeded, hashable tile array, so WorldGen is our own code.
 - Roblox SHA libraries on GitHub (e.g. pure-Luau hashing modules, MIT): Skipped; the M4 hash only has to match between servers, so a 20-line FNV-1a does the job without a dependency.
 
+## Destruction (M5)
+- Voxel and fracture destruction modules from the DevForum and GitHub (e.g. VoxBreaker-style part splitting): Skipped, licence not reviewed since not used. They split parts at run time on the server and replicate every piece, which a 30-player server cannot afford; the spec wants state-only replication, so the Chunker is our own seeded code.
+- Roblox built-in particle texture rbxasset://textures/particles/smoke_main.dds: Used for collapse dust (ships with the engine, no download). Replace with a generated texture at the art pass.
+
 ## Audio
 - Creator Store audio (Roblox-licensed for use on Roblox): Recommended for the 110 effects and 3 music loops (M11).
 - Freesound (check each clip: CC0 preferred, CC BY needs credit): Recommended as a backup source.

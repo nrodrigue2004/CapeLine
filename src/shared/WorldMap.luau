@@ -10,6 +10,7 @@ local Districts = if script then require(script.Parent.Districts) else (require 
 local WorldGen = if script then require(script.Parent.WorldGen) else (require :: any)("./WorldGen")
 local HeightMap = if script then require(script.Parent.HeightMap) else (require :: any)("./HeightMap")
 local BoxKit = if script then require(script.Parent.BoxKit) else (require :: any)("./BoxKit")
+local Rng = if script then require(script.Parent.Rng) else (require :: any)("./Rng")
 
 local WorldMap = {}
 
@@ -30,6 +31,21 @@ export type Safehouse = {
 
 export type Beacon = { id: number, name: string, x: number, y: number, z: number }
 
+-- A wreckable hub building (spec: Destruction, 220 in the hub)
+export type Building = {
+	id: number,
+	grp: string,
+	district: string,
+	x: number,
+	z: number,
+	sx: number,
+	sz: number,
+	base: number, -- the bottom of its body
+	top: number, -- the top of its body (roofs and props stand above)
+	size: string, -- small, medium or tower
+	hp: number,
+}
+
 export type World = {
 	seed: number,
 	tiles: buffer,
@@ -41,6 +57,7 @@ export type World = {
 	landmarks: { WorldGen.Landmark },
 	safehouses: { [number]: Safehouse },
 	beacons: { [number]: Beacon },
+	buildings: { Building }, -- by id
 	spawns: { Point },
 	spots: { [string]: Point },
 	heights: HeightMap.HeightMap,
@@ -167,6 +184,19 @@ function WorldMap.build(Config: any, seed: number): World
 	local docks = Districts.docks(city, clear)
 	local oldTown = Districts.oldTown(city, clear)
 
+	local buildings = WorldMap.pickBuildings(Config, downtown, docks, oldTown)
+	local byGrp: { [string]: number } = {}
+	for _, b in buildings do
+		byGrp[b.grp] = b.id
+	end
+	for _, list in { downtown.boxes, docks.boxes, oldTown.boxes } do
+		for _, b in list do
+			if b.grp then
+				b.bid = byGrp[b.grp]
+			end
+		end
+	end
+
 	local hubBoxes: { Box } = {}
 	append(hubBoxes, downtown.boxes)
 	append(hubBoxes, docks.boxes)
@@ -261,6 +291,7 @@ function WorldMap.build(Config: any, seed: number): World
 		landmarks = landmarks,
 		safehouses = safehouses,
 		beacons = beacons,
+		buildings = buildings,
 		spawns = downtown.spawns,
 		spots = spots,
 		heights = heights,
@@ -272,6 +303,52 @@ function WorldMap.build(Config: any, seed: number): World
 			total = hubParts + #baseBoxes + outskirtsParts + landmarkParts,
 		},
 	}
+end
+
+-- The wreckable buildings: all of Downtown, the Docks warehouses, then Old Town houses picked by a fixed
+-- hash until Config.Destruction.hubBuildings is reached. Ids are 1..n in that order, the same every week.
+function WorldMap.pickBuildings(Config: any, downtown: any, docks: any, oldTown: any): { Building }
+	local D = Config.Destruction
+	local list: { Building } = {}
+	local function add(b: any, district: string, base: number, top: number)
+		local h = top - base
+		local size = if h <= D.smallMax then "small" elseif h <= D.mediumMax then "medium" else "tower"
+		table.insert(list, {
+			id = #list + 1,
+			grp = b.grp,
+			district = district,
+			x = b.x,
+			z = b.z,
+			sx = b.sx,
+			sz = b.sz,
+			base = base,
+			top = top,
+			size = size,
+			hp = D.hp[size],
+		})
+	end
+	local gy = Config.City.ground.y
+	for _, b in downtown.buildings do
+		if b.grp then
+			add(b, "Downtown", b.base or gy, gy + b.h)
+		end
+	end
+	for _, b in docks.buildings do
+		add(b, "Docks", b.base, b.base + b.h)
+	end
+	local old = table.clone(oldTown.buildings)
+	local seed = Config.City.oldTown.seed
+	table.sort(old, function(a, b)
+		return Rng.hash(seed, math.floor(a.x), math.floor(a.z))
+			< Rng.hash(seed, math.floor(b.x), math.floor(b.z))
+	end)
+	for _, b in old do
+		if #list >= D.hubBuildings then
+			break
+		end
+		add(b, "OldTown", b.base, b.base + b.h)
+	end
+	return list
 end
 
 function WorldMap.heightAt(world: World, x: number, z: number): number

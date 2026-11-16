@@ -1,7 +1,7 @@
 -- DevPanel: Studio-only test buttons and the server frame report (spec: Performance budgets). Never built
 -- in a live game. Buttons: 30 load bots, clear bots, 5 drones, clear drones, spawner, god, class, level,
--- Comic/Anime style, robots, levels, skill points, Awakening, loot by source, Renown, Credits, Dust, save,
--- wipe. The stats line shows the server frame, script time per service, enemies, bots, send
+-- Comic/Anime style, robots, levels, skill points, Awakening, loot by source, Renown, Credits, Dust, find all
+-- beacons, wreck here, repair city, flip cars, save, wipe. The stats line shows the server frame, script time per service, enemies, bots, send
 -- rate and memory, plus the client fps and preset.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -22,7 +22,7 @@ function DevPanel.init()
 	end
 	local gui = Kit.screen("DevPanel", 20)
 	local panel = Kit.frame({
-		Size = UDim2.fromOffset(300, 590),
+		Size = UDim2.fromOffset(300, 640),
 		AnchorPoint = Vector2.new(1, 0),
 		Position = UDim2.new(1, -16, 0, 60),
 		BackgroundColor3 = Kit.color.night,
@@ -46,7 +46,7 @@ function DevPanel.init()
 	grid.SortOrder = Enum.SortOrder.LayoutOrder
 	local holder = Instance.new("Frame")
 	holder.BackgroundTransparency = 1
-	holder.Size = UDim2.new(1, -16, 0, 470)
+	holder.Size = UDim2.new(1, -16, 0, 520)
 	holder.Position = UDim2.fromOffset(8, 8)
 	grid.Parent = holder
 	holder.Parent = panel
@@ -132,6 +132,15 @@ function DevPanel.init()
 	add("Find all beacons", function()
 		Net.send("DevCommand", "map")
 	end)
+	add("Wreck here", function()
+		Net.send("DevCommand", "wreck", 3000)
+	end)
+	add("Repair city", function()
+		Net.send("DevCommand", "repair")
+	end)
+	add("Flip cars", function()
+		Net.send("DevCommand", "flip")
+	end)
 	add("Save now", function()
 		Net.send("DevCommand", "save")
 	end)
@@ -142,7 +151,7 @@ function DevPanel.init()
 	local stats = Kit.label({
 		Text = "waiting for server stats",
 		Size = UDim2.new(1, -16, 0, 100),
-		Position = UDim2.fromOffset(8, 482),
+		Position = UDim2.fromOffset(8, 532),
 		TextXAlignment = Enum.TextXAlignment.Left,
 		TextYAlignment = Enum.TextYAlignment.Top,
 		TextColor3 = Kit.color.paper,

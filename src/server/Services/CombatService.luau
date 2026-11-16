@@ -6,6 +6,8 @@
 -- batches to players within 150 studs. Clients never send damage, targets' positions or results.
 -- Also here: class passives (Overcharge, Momentum, the Bruiser taunt), Awakening's damage and super boost,
 -- the meter gains, recasts, combo strings, echoes, cast windups, Parry Stance ripostes and team-up combos.
+-- M5: abilities with structDmg (and every super) hit buildings and flip vehicles where they land; a heavy hit
+-- (coeff 2.5+) flips nearby vehicles and knocks a robot through a wall it is near (the wall turns Damaged).
 
 local Debris = game:GetService("Debris")
 local Players = game:GetService("Players")
@@ -29,6 +31,8 @@ local HeroService = require(script.Parent.HeroService)
 local MoveGuard = require(script.Parent.MoveGuard)
 local EnemyService = require(script.Parent.EnemyService)
 local PerfMonitor = require(script.Parent.PerfMonitor)
+local BuildingService = require(script.Parent.BuildingService)
+local VehicleService = require(script.Parent.VehicleService)
 
 local CombatService = {}
 
@@ -36,6 +40,7 @@ CombatService.Killed = Signal.new() -- (hero, enemy) a hero's hit finished a mac
 
 local A = Config.Abilities
 local C = Config.Combat
+local DS = Config.Destruction
 local CHEST = Vector3.new(0, 1.5, 0)
 
 -- Result kinds on the wire (r.k)
@@ -181,6 +186,18 @@ local function applyStatus(
 	end
 end
 
+-- Structure damage where an ability lands (spec: Destruction "Ability field structDmg"). kind 1: a slam or
+-- landing (crater), 2: a blast (cracks).
+local STRUCT_SHAPES =
+	{ bolt = true, chain = true, dash = true, cone = true, arc = true, nova = true, line = true }
+local function structural(eff: any, center: Vector3, radius: number, kind: number)
+	local dmg = eff.structDmg or (if eff.slot == "super" then DS.superStruct else 0)
+	if dmg > 0 then
+		BuildingService.hit(center, radius, dmg, kind)
+		VehicleService.hit(center, radius)
+	end
+end
+
 -- Apply one hit. Returns true when it killed.
 local function applyHit(
 	hero: any,
@@ -214,6 +231,11 @@ local function applyHit(
 		e.z,
 		flag,
 	})
+	local heavy = coeff >= C.heavyCoeff
+	if heavy then
+		-- Vehicle flip (spec: Clash moments): any heavy hit flips cars and trams next to the target
+		VehicleService.hit(Vector3.new(e.x, e.y, e.z), DS.vehicles.hitRadius)
+	end
 	if killed then
 		HeroService.gainMeter(hero, "kill", 1)
 		CombatService.Killed:Fire(hero, e)
@@ -238,6 +260,13 @@ local function applyHit(
 		return false
 	end
 	local at = Vector3.new(e.x, e.y, e.z)
+	if heavy and primary then
+		-- Knockback arc (spec: Clash moments): a heavy hit near a wall throws the robot through it
+		local through = BuildingService.clash(hero, at, from)
+		if through then
+			EnemyService.knock(cand.id, through, DS.clash.knock)
+		end
+	end
 	if eff.status and (primary or not eff.firstOnly) then
 		applyStatus(hero, eff, eff.status, eff.statusDur or 1, cand.id, at, from, knockDir)
 	end
@@ -592,6 +621,14 @@ local function resolve(
 		applyHit(hero, eff, r, h.c, h.coeff, h.primary, from, knockDir)
 	end
 	gainFor(hero, eff, #plan.hits)
+	-- structure damage where it lands (leaps and throws land later, below)
+	if STRUCT_SHAPES[plan.shape] and (eff.structDmg or eff.slot == "super") then
+		local at = if plan.cx
+			then Vector3.new(plan.cx, plan.cy, plan.cz)
+			elseif plan.ex then Vector3.new(plan.ex, plan.ey, plan.ez)
+			else origin + dir * math.min(eff.range or 20, 60)
+		structural(eff, at, plan.radius or eff.radius or 12, if plan.shape == "nova" then 1 else 2)
+	end
 	-- Epic set 4-piece changes on novas: Rimeguard ally shields, Ironclad shockwave field
 	if plan.shape == "nova" then
 		if eff.allyShield then
@@ -672,6 +709,7 @@ local function resolve(
 			local r2 = record(hero, num, seq, K.LAND, origin, dir)
 			r2.c, r2.r = land, plan.radius
 			gainFor(hero, eff, hitArea(hero, eff, r2, land, plan.radius, eff.coeff))
+			structural(eff, land, plan.radius or 12, 1)
 			if eff.fieldCoeff then
 				addField(
 					hero,
@@ -702,6 +740,7 @@ local function resolve(
 			local r2 = record(hero, num, seq, K.LAND, origin, dir)
 			r2.c, r2.r = land, plan.radius
 			gainFor(hero, eff, hitArea(hero, eff, r2, land, plan.radius, eff.coeff))
+			structural(eff, land, plan.radius or 8, 1)
 		end)
 	elseif eff.echo then
 		echo(hero, eff, num, seq, origin, dir, plan)

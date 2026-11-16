@@ -2,7 +2,8 @@
 -- servers never run them. Commands: bots n, clearbots, drones n, robot 1-6 (3 of that kind), cleardrones,
 -- spawner 0/1, god 0/1, class 1-4, level n, heal, style 0/1 (Comic/Anime), points n (bonus Skill Points),
 -- meter (fill Awakening), respec (no cooldown), loot 1-8 (roll a drop source at the hero's level), renown n,
--- credits n, dust n, save (save now), map (every beacon and safehouse found), wipe (start over as a new player).
+-- credits n, dust n, save (save now), map (every beacon and safehouse found), wipe (start over as a new player), wreck n (structure damage
+-- around the hero, default 3000), repair (every building back), flip (every vehicle near the hero).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -16,6 +17,8 @@ local LoadBots = require(script.Parent.LoadBots)
 local DataService = require(script.Parent.DataService)
 local EconomyService = require(script.Parent.EconomyService)
 local GearService = require(script.Parent.GearService)
+local BuildingService = require(script.Parent.BuildingService)
+local VehicleService = require(script.Parent.VehicleService)
 
 local DevService = {}
 
@@ -108,6 +111,22 @@ local commands: { [string]: (player: Player, hero: any, value: number) -> () } =
 	heal = function(_, hero)
 		hero.health = hero.maxHealth
 		HeroService.refresh(hero)
+	end,
+	wreck = function(_, hero, n)
+		local pos = HeroService.position(hero)
+		if pos then
+			BuildingService.hit(pos, 30, if n > 0 then n else Config.Destruction.superStruct, 1)
+		end
+	end,
+	repair = function()
+		BuildingService.repairAll()
+		VehicleService.resetAll()
+	end,
+	flip = function(_, hero)
+		local pos = HeroService.position(hero)
+		if pos then
+			VehicleService.hit(pos, 60)
+		end
 	end,
 	style = function(_, hero, anime)
 		HeroService.setFxStyle(hero, if anime ~= 0 then "Anime" else "Comic")

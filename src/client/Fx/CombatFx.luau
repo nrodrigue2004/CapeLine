@@ -19,6 +19,7 @@ local Workspace = game:GetService("Workspace")
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
 
 local QualityController = require(script.Parent.Parent.Controllers.QualityController)
+local DebrisBudget = require(script.Parent.DebrisBudget)
 
 local CombatFx = {}
 CombatFx.reduceFlashing = false
@@ -789,11 +790,9 @@ function CombatFx.blocked(pos: Vector3)
 end
 
 -- Enemy defeated: bolts and plates fly, sparks fade in 2 s (spec juice row; machines only, no gore).
--- Respects the device debris budget.
-local liveDebris = 0
+-- Shares the device debris budget (DebrisBudget).
 function CombatFx.burst(pos: Vector3, style: string, metal: Color3?)
-	local budget = QualityController.preset.debris
-	local n = math.min(F.enemyDeath.parts, budget - liveDebris)
+	local n = DebrisBudget.lease(F.enemyDeath.parts, F.enemyDeath.life)
 	for _ = 1, n do
 		local size =
 			Vector3.new(0.4 + math.random() * 0.6, 0.3 + math.random() * 0.5, 0.4 + math.random() * 0.6)
@@ -806,10 +805,6 @@ function CombatFx.burst(pos: Vector3, style: string, metal: Color3?)
 			math.random() - 0.5
 		) * 50
 		p.AssemblyAngularVelocity = Vector3.new(math.random(), math.random(), math.random()) * 10
-		liveDebris += 1
-		task.delay(F.enemyDeath.life, function()
-			liveDebris -= 1
-		end)
 		fade(p, F.enemyDeath.life)
 	end
 	local pop = part(
