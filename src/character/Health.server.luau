@@ -1,0 +1,1 @@
+-- Replaces Roblox's default Health regen script. HeroService owns health and regen (Config.Stats.regen).

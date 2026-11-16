@@ -1,0 +1,63 @@
+{
+  "name": "Capeline",
+  "servePort": 34874,
+  "tree": {
+    "$className": "DataModel",
+    "ReplicatedFirst": {
+      "LoadingScreen": { "$path": "src/first/LoadingScreen.client.luau" }
+    },
+    "ReplicatedStorage": {
+      "Config": { "$path": "src/config" },
+      "Shared": { "$path": "src/shared" }
+    },
+    "ServerScriptService": {
+      "Server": { "$path": "src/server" }
+    },
+    "StarterPlayer": {
+      "$properties": {
+        "EnableMouseLockOption": false,
+        "CameraMaxZoomDistance": 60
+      },
+      "StarterPlayerScripts": {
+        "Client": { "$path": "src/client" }
+      },
+      "StarterCharacterScripts": {
+        "Health": { "$path": "src/character/Health.server.luau" }
+      }
+    },
+    "Workspace": {
+      "$properties": {
+        "StreamingEnabled": true,
+        "StreamingTargetRadius": 600,
+        "StreamingMinRadius": 256
+      }
+    },
+    "Lighting": {
+      "$properties": {
+        "ClockTime": 16.8,
+        "Brightness": 2.4,
+        "GlobalShadows": true,
+        "Technology": "ShadowMap",
+        "OutdoorAmbient": [0.52, 0.5, 0.56],
+        "Ambient": [0.2, 0.2, 0.26],
+        "EnvironmentDiffuseScale": 0.6,
+        "EnvironmentSpecularScale": 0.6
+      },
+      "Atmosphere": {
+        "$className": "Atmosphere",
+        "$properties": {
+          "Density": 0.3,
+          "Offset": 0.15,
+          "Color": [0.92, 0.78, 0.66],
+          "Decay": [0.55, 0.5, 0.7],
+          "Glare": 0.2,
+          "Haze": 1.2
+        }
+      },
+      "Bloom": {
+        "$className": "BloomEffect",
+        "$properties": { "Intensity": 0.35, "Size": 20, "Threshold": 1.6 }
+      }
+    }
+  }
+}
