@@ -11,7 +11,8 @@
       "Shared": { "$path": "src/shared" },
       "Art": {
         "$className": "Folder",
-        "Robots": { "$path": "art/models/Robots.rbxm" }
+        "Robots": { "$path": "art/models/Robots.rbxm" },
+        "Hero": { "$path": "art/models/Hero.rbxm" }
       }
     },
     "ServerScriptService": {

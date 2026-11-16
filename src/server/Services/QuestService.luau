@@ -24,6 +24,8 @@ local Rng = require(Shared:WaitForChild("Rng"))
 local StoryPlan = require(Shared:WaitForChild("StoryPlan"))
 local IncidentSpots = require(Shared:WaitForChild("IncidentSpots"))
 local OpeningPlan = require(Shared:WaitForChild("OpeningPlan"))
+local RigMath = require(Shared:WaitForChild("RigMath"))
+local NpcRig = require(Shared:WaitForChild("NpcRig"))
 
 local CityBuilder = require(script.Parent.CityBuilder)
 local HeroService = require(script.Parent.HeroService)
@@ -91,22 +93,26 @@ local function anchor(a: any): (number, number)
 	return x + a.dx, z + a.dz
 end
 
+-- A quest giver: a person on the heroes' blocky R15 rig (nate, 2026-11-16: "literally everyone should be
+-- r15"), dressed in the quest's colour; the root is the body the prompt sits on
+local npcLayout = RigMath.layout(Config.HeroRig, nil, 1)
 local function npcModel(name: string, color: { number }, pos: Vector3): (Model, BasePart)
-	local m = SiteKit.model("Npc" .. name)
 	local c = Color3.fromRGB(color[1], color[2], color[3])
-	local skin = Color3.fromRGB(235, 200, 160)
-	local body = SiteKit.part(m, Vector3.new(2, 2.6, 1.2), CFrame.new(pos + Vector3.new(0, 3.3, 0)), c)
-	body.Name = "Body"
-	SiteKit.part(m, Vector3.new(1.4, 1.4, 1.4), CFrame.new(pos + Vector3.new(0, 5.4, 0)), skin)
-	for k = -1, 1, 2 do
-		SiteKit.part(
-			m,
-			Vector3.new(0.8, 2, 0.8),
-			CFrame.new(pos + Vector3.new(k * 0.5, 1, 0)),
-			Color3.fromRGB(50, 50, 60)
-		)
-		SiteKit.part(m, Vector3.new(0.6, 2.2, 0.6), CFrame.new(pos + Vector3.new(k * 1.3, 3.3, 0)), c)
-	end
+	local rig = NpcRig.person(
+		npcLayout,
+		"Npc" .. name,
+		c,
+		Color3.fromRGB(50, 50, 60),
+		Color3.fromRGB(235, 200, 160),
+		Color3.fromRGB(70, 46, 30)
+	)
+	local m = rig.model
+	local holder = SiteKit.model("Npc" .. name) -- where SiteKit keeps site models
+	m.Parent = holder.Parent
+	holder:Destroy()
+	NpcRig.place(rig, CFrame.new(pos))
+	local body = rig.root
+	local head = rig.parts.Head
 	-- a quest marker over the head
 	local mark = SiteKit.part(
 		m,
@@ -116,6 +122,7 @@ local function npcModel(name: string, color: { number }, pos: Vector3): (Model, 
 		Enum.Material.Neon
 	)
 	mark.Name = "Marker"
+	mark.CFrame = head.CFrame * CFrame.new(0, 2.6, 0)
 	local tag = Instance.new("BillboardGui")
 	tag.Size = UDim2.fromOffset(160, 26)
 	tag.StudsOffset = Vector3.new(0, 4.4, 0)
@@ -130,8 +137,7 @@ local function npcModel(name: string, color: { number }, pos: Vector3): (Model, 
 	label.TextStrokeTransparency = 0.4
 	label.Text = name -- a fixed NPC name from Config.Story
 	label.Parent = tag
-	tag.Parent = body
-	m.PrimaryPart = body
+	tag.Parent = head
 	return m, body
 end
 
@@ -291,13 +297,17 @@ local function build(hero: any, num: number, idx: number): Site
 		site.target = at -- not sent: the hero only sees the search circle
 		local prop = SiteKit.prop(if st.witness then "Witness" else "LostCrate", function(m)
 			if st.witness then
-				SiteKit.part(m, Vector3.new(2, 2.6, 1.2), CFrame.new(0, 3.3, 0), Color3.fromRGB(200, 160, 90))
-				SiteKit.part(
-					m,
-					Vector3.new(1.4, 1.4, 1.4),
-					CFrame.new(0, 5.4, 0),
-					Color3.fromRGB(235, 200, 160)
+				-- a witness: a person on the R15 rig, like everyone else
+				local rig = NpcRig.person(
+					npcLayout,
+					"Witness",
+					Color3.fromRGB(200, 160, 90),
+					Color3.fromRGB(60, 64, 80),
+					Color3.fromRGB(235, 200, 160),
+					Color3.fromRGB(30, 26, 24)
 				)
+				NpcRig.place(rig, CFrame.new())
+				rig.model.Parent = m
 			else
 				SiteKit.part(m, Vector3.new(4, 3, 4), CFrame.new(0, 1.5, 0), Color3.fromRGB(150, 110, 60))
 			end

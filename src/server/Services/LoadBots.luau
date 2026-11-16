@@ -2,7 +2,7 @@
 -- frame"). Studio only, started from the Dev panel. Each bot is a full Hero on the server: drones target it,
 -- it flies across the whole map (hub and outskirts, the M4 gate) at cruise speed and fires Zap Bolt and Chain Lightning through the same
 -- CombatService path players use, and its body replicates to every client like a player's would.
--- PLACEHOLDER ART: the bot body is a few plain parts.
+-- PLACEHOLDER ART: the bot body is the R15 person rig in plain colours (NpcRig).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -14,6 +14,8 @@ local Config = require(ReplicatedStorage:WaitForChild("Config"))
 
 local AbilityRules = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("AbilityRules"))
 local Cooldowns = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Cooldowns"))
+local RigMath = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("RigMath"))
+local NpcRig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("NpcRig"))
 local HeroService = require(script.Parent.HeroService)
 local CombatService = require(script.Parent.CombatService)
 local EnemyService = require(script.Parent.EnemyService)
@@ -48,40 +50,34 @@ local function randomWaypoint(): Vector3
 	return Vector3.new(x, y, z)
 end
 
+-- Each bot is a hero on the heroes' blocky R15 rig (nate, 2026-11-16: "literally everyone should be r15") in
+-- its own suit colour with a cape; only the root moves, the rig follows it
+local botLayout = RigMath.layout(Config.HeroRig, nil, 1)
 local function makeBody(index: number): (Model, { BasePart }, { CFrame })
-	local model = Instance.new("Model")
-	model.Name = "LoadBot" .. index
 	local hue = (index * 0.137) % 1
 	local suit = Color3.fromHSV(hue, 0.7, 0.9)
-	local specs = {
-		{ "Torso", Vector3.new(2, 2, 1), CFrame.new(0, 0, 0), suit },
-		{ "Head", Vector3.new(1.2, 1.2, 1.2), CFrame.new(0, 1.7, 0), Color3.fromRGB(240, 200, 170) },
-		{ "Legs", Vector3.new(2, 2, 1), CFrame.new(0, -2, 0), suit:Lerp(Color3.new(0, 0, 0), 0.4) },
-		{
-			"Cape",
-			Vector3.new(1.8, 2.8, 0.2),
-			CFrame.new(0, -0.3, 0.65),
-			Color3.fromHSV((hue + 0.5) % 1, 0.8, 0.8),
-		},
-	}
-	local parts, offsets = {}, {}
-	for _, s in specs do
-		local p = Instance.new("Part")
-		p.Name = s[1]
-		p.Size = s[2]
-		p.Color = s[4]
-		p.Anchored = true
-		p.CanCollide = false
-		p.CanQuery = false
-		p.CanTouch = false
-		p.CastShadow = false
-		p.Material = Enum.Material.SmoothPlastic
-		p.Parent = model
-		table.insert(parts, p)
-		table.insert(offsets, s[3])
+	local rig = NpcRig.person(
+		botLayout,
+		"LoadBot" .. index,
+		suit,
+		suit:Lerp(Color3.new(0, 0, 0), 0.4),
+		Color3.fromRGB(240, 200, 170),
+		Color3.fromRGB(40, 32, 28)
+	)
+	local ut = rig.parts.UpperTorso
+	local cape = Instance.new("Part")
+	cape.Name = "Cape"
+	cape.Size = Vector3.new(ut.Size.X * 0.9, 2.8, 0.2)
+	cape.Color = Color3.fromHSV((hue + 0.5) % 1, 0.8, 0.8)
+	cape.Material = Enum.Material.SmoothPlastic
+	cape.CastShadow = false
+	NpcRig.fix(rig, "UpperTorso", cape, CFrame.new(0, ut.Size.Y * 0.5 - 1.4, ut.Size.Z * 0.5 + 0.12))
+	for _, p in rig.model:GetDescendants() do
+		if p:IsA("BasePart") then
+			p.CastShadow = false
+		end
 	end
-	model.PrimaryPart = parts[1]
-	return model, parts, offsets
+	return rig.model, { rig.root }, { CFrame.identity }
 end
 
 function LoadBots.count(): number

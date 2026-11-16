@@ -20,6 +20,9 @@ local Net = require(Shared:WaitForChild("Net"))
 local Signal = require(Shared:WaitForChild("Util"):WaitForChild("Signal"))
 local LookCodec = require(Shared:WaitForChild("LookCodec"))
 local LookKit = require(Shared:WaitForChild("LookKit"))
+local RigMath = require(Shared:WaitForChild("RigMath"))
+local NpcRig = require(Shared:WaitForChild("NpcRig"))
+local BodyShape = require(Shared:WaitForChild("BodyShape"))
 
 local CombatClient = require(script.Parent.CombatClient)
 local Preview = require(script.Parent.Parent.Ui.Preview)
@@ -174,7 +177,9 @@ local function stationPad(f: Folder, name: string, colors: { main: Color3, trim:
 	end)
 end
 
--- PLACEHOLDER ART: a training dummy robot (a post, a barrel body, a round head, a red target)
+-- PLACEHOLDER ART: a training dummy robot on a plate: a bare metal robot on the heroes' blocky R15 rig (nate,
+-- 2026-11-16: "literally everyone should be r15. enemies too"), glowing eye visor and a red target on the chest;
+-- the big one has the creator's Large build at 2.6 times the size
 local function dummy(f: Folder, pos: Vector3, big: boolean?)
 	local s = if big then 2.6 else 1
 	local base = pos - Vector3.new(0, 3 * s, 0)
@@ -185,43 +190,39 @@ local function dummy(f: Folder, pos: Vector3, big: boolean?)
 		CFrame.new(base + Vector3.new(0, 0.3, 0)),
 		Color3.fromRGB(60, 64, 76)
 	)
-	part(f, Vector3.new(0.8 * s, 2 * s, 0.8 * s), CFrame.new(base + Vector3.new(0, 1.3 * s, 0)), metal)
-	local body =
-		part(f, Vector3.new(2.6 * s, 2.6 * s, 1.8 * s), CFrame.new(base + Vector3.new(0, 3.4 * s, 0)), metal)
-	body.Material = Enum.Material.Metal
-	body.CanQuery = true
-	local head =
-		part(f, Vector3.new(1.6 * s, 1.6 * s, 1.6 * s), CFrame.new(base + Vector3.new(0, 5.6 * s, 0)), metal)
-	head.Shape = Enum.PartType.Ball
-	head.CanQuery = true
-	local eye = part(
-		f,
-		Vector3.new(1.0 * s, 0.25 * s, 0.2),
-		CFrame.new(base + Vector3.new(0, 5.7 * s, -0.8 * s)),
-		Color3.fromRGB(120, 220, 255),
-		Enum.Material.Neon
-	)
-	eye.Name = "Eye"
-	local target = part(
-		f,
-		Vector3.new(0.2, 1.6 * s, 1.6 * s),
-		CFrame.new(base + Vector3.new(0, 3.4 * s, -0.95 * s)) * CFrame.Angles(0, math.pi / 2, 0),
-		Color3.fromRGB(230, 70, 60),
-		Enum.Material.Neon
-	)
-	target.Shape = Enum.PartType.Cylinder
-	if big then
-		for _, side in { -1, 1 } do
-			part(
-				f,
-				Vector3.new(1.2 * s, 3 * s, 1.2 * s),
-				CFrame.new(base + Vector3.new(side * 2 * s, 3.2 * s, 0)),
-				Color3.fromRGB(90, 94, 110),
-				Enum.Material.Metal
-			)
-		end
-		eye.Color = Color3.fromRGB(255, 120, 60)
+	local factors = if big then BodyShape.factors(Config, { gender = 1, build = 3, height = 3 }) else nil
+	local layout = RigMath.layout(Config.HeroRig, factors, s)
+	local colors: { [string]: Color3 } = {}
+	for _, name in BodyShape.PARTS do
+		colors[name] = if big and string.find(name, "Arm") then Color3.fromRGB(90, 94, 110) else metal
 	end
+	local rig = NpcRig.build(layout, "Dummy", colors, Enum.Material.Metal)
+	rig.model.Parent = f
+	NpcRig.place(rig, CFrame.new(base + Vector3.new(0, 0.6, 0)))
+	for _, name in { "Head", "UpperTorso", "LowerTorso" } do
+		rig.parts[name].CanQuery = true
+	end
+	local head, chest = rig.parts.Head, rig.parts.UpperTorso
+	local eye = Instance.new("Part")
+	eye.Name = "Eye"
+	eye.Size = Vector3.new(head.Size.X * 0.7, head.Size.Y * 0.18, 0.2)
+	eye.Color = if big then Color3.fromRGB(255, 120, 60) else Color3.fromRGB(120, 220, 255)
+	eye.Material = Enum.Material.Neon
+	eye.CastShadow = false
+	NpcRig.fix(rig, "Head", eye, CFrame.new(0, head.Size.Y * 0.08, -head.Size.Z * 0.5))
+	local target = Instance.new("Part")
+	target.Name = "Target"
+	target.Shape = Enum.PartType.Cylinder
+	target.Size = Vector3.new(0.2, chest.Size.Y * 0.8, chest.Size.Y * 0.8)
+	target.Color = Color3.fromRGB(230, 70, 60)
+	target.Material = Enum.Material.Neon
+	target.CastShadow = false
+	NpcRig.fix(
+		rig,
+		"UpperTorso",
+		target,
+		CFrame.new(0, 0, -chest.Size.Z * 0.5 - 0.05) * CFrame.Angles(0, math.pi / 2, 0)
+	)
 end
 
 local function statue(f: Folder, entry: { [string]: any }, at: CFrame)

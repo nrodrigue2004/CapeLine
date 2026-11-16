@@ -55,36 +55,12 @@ end
 
 local function newBody(color: number): Body
 	local set = C.colors[color] or C.colors[1]
-	local shirt, pants, skin = rgb(set[1]), rgb(set[2]), rgb(set[3])
-	local shoes = pants:Lerp(Color3.new(0, 0, 0), 0.5)
-	local colors: { [string]: Color3 } = { Head = skin, UpperTorso = shirt, LowerTorso = pants }
-	for _, side in SIDES do
-		local s = side[1]
-		colors[s .. "UpperArm"] = shirt
-		colors[s .. "LowerArm"] = skin
-		colors[s .. "Hand"] = skin
-		colors[s .. "UpperLeg"] = pants
-		colors[s .. "LowerLeg"] = pants
-		colors[s .. "Foot"] = shoes
-	end
-	local rig = NpcRig.build(layout, "Citizen", colors)
-	local head = rig.parts.Head
-	local face = Instance.new("Decal")
-	face.Name = "face"
-	face.Texture = "rbxasset://textures/face.png" -- Roblox's built-in default face, like the heroes
-	face.Face = Enum.NormalId.Front
-	face.Parent = head
-	local hair = Instance.new("Part")
-	hair.Name = "Hair"
-	hair.Size = head.Size * Vector3.new(1.06, 0.3, 1.06)
-	hair.Material = Enum.Material.SmoothPlastic
-	hair.CastShadow = false
-	NpcRig.fix(rig, "Head", hair, CFrame.new(0, head.Size.Y * 0.45, head.Size.Z * 0.04))
+	local rig = NpcRig.person(layout, "Citizen", rgb(set[1]), rgb(set[2]), rgb(set[3]), rgb(C.hair[1]))
 	rig.model.Parent = folder
 	return {
 		model = rig.model,
 		rig = rig,
-		hair = hair,
+		hair = rig.model:FindFirstChild("Hair") :: BasePart,
 		color = color,
 		pos = Vector3.zero,
 		yaw = 0,

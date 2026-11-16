@@ -11,7 +11,8 @@
 --   target.
 -- * pickup: a shard to touch.
 -- Everything a site builds lives under Workspace.Sites and is removed with clear().
--- PLACEHOLDER ART: citizens, the cat, pads, rings, shards and objects are plain parts.
+-- PLACEHOLDER ART: the cat, pads, rings, shards and objects are plain parts; stranded citizens are R15 people
+-- (NpcRig.person) with the hero meshes once imported.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -21,6 +22,8 @@ local FrameProf =
 local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
+local RigMath = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("RigMath"))
+local NpcRig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("NpcRig"))
 
 local HeroService = require(script.Parent.HeroService)
 local EnemyService = require(script.Parent.EnemyService)
@@ -154,6 +157,8 @@ local pads: { any } = {}
 SiteKit.safehouses = {} :: { { x: number, z: number } } -- set by the server (SafehouseService.list)
 
 local SHIRTS = Config.Destruction.citizens.colors
+local HAIR = Config.Destruction.citizens.hair
+local personLayout = RigMath.layout(Config.HeroRig, nil, 1)
 
 local function citizenModel(pos: Vector3, cat: boolean?): (Model, BasePart)
 	local m = SiteKit.model(if cat then "Cat" else "StrandedCitizen")
@@ -186,14 +191,18 @@ local function citizenModel(pos: Vector3, cat: boolean?): (Model, BasePart)
 			Color3.fromRGB(220, 130, 50)
 		)
 	else
+		-- a person on the heroes' blocky R15 rig (nate, 2026-11-16: "literally everyone should be r15"), both
+		-- arms up, waving for help; the root is the body that is carried
 		local set = SHIRTS[math.random(1, #SHIRTS)]
-		body = part(m, Vector3.new(1.7, 1.9, 0.9), CFrame.new(pos + Vector3.new(0, 2.9, 0)), rgb(set[1]))
-		part(m, Vector3.new(1.5, 1.9, 0.8), CFrame.new(pos + Vector3.new(0, 0.95, 0)), rgb(set[2]))
-		part(m, Vector3.new(1.1, 1.1, 1.1), CFrame.new(pos + Vector3.new(0, 4.4, 0)), rgb(set[3]))
-		-- arms up, waving for help
-		for _, s in { -1.15, 1.15 } do
-			part(m, Vector3.new(0.55, 1.7, 0.55), CFrame.new(pos + Vector3.new(s, 4.4, 0)), rgb(set[1]))
-		end
+		local hair = HAIR[math.random(1, #HAIR)]
+		local rig = NpcRig.person(personLayout, m.Name, rgb(set[1]), rgb(set[2]), rgb(set[3]), rgb(hair))
+		rig.model.Parent = m.Parent
+		m:Destroy()
+		m = rig.model
+		NpcRig.place(rig, CFrame.new(pos) * CFrame.Angles(0, math.random() * math.pi * 2, 0))
+		NpcRig.bend(rig, "LeftShoulder", CFrame.Angles(math.rad(165), 0, math.rad(-12)))
+		NpcRig.bend(rig, "RightShoulder", CFrame.Angles(math.rad(165), 0, math.rad(12)))
+		body = rig.root
 	end
 	m.PrimaryPart = body
 	return m, body

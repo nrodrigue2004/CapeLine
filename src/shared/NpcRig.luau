@@ -164,6 +164,62 @@ function NpcRig.fix(
 	return m
 end
 
+-- A plain person on the rig (citizens, quest givers, the stranded at incidents): the shirt on the torso and
+-- upper arms, skin on the forearms, hands and head with Roblox's classic face, pants, darker shoes and blocky
+-- hair (Hair, fixed to the head; nil hair leaves it off)
+function NpcRig.person(
+	layout: RigMath.Layout,
+	name: string,
+	shirt: Color3,
+	pants: Color3,
+	skin: Color3,
+	hair: Color3?
+): Rig
+	local shoes = pants:Lerp(Color3.new(0, 0, 0), 0.5)
+	local colors: { [string]: Color3 } = { Head = skin, UpperTorso = shirt, LowerTorso = pants }
+	for _, s in { "Left", "Right" } do
+		colors[s .. "UpperArm"] = shirt
+		colors[s .. "LowerArm"] = skin
+		colors[s .. "Hand"] = skin
+		colors[s .. "UpperLeg"] = pants
+		colors[s .. "LowerLeg"] = pants
+		colors[s .. "Foot"] = shoes
+	end
+	local rig = NpcRig.build(layout, name, colors)
+	local head = rig.parts.Head
+	local face = Instance.new("Decal")
+	face.Name = "face"
+	face.Texture = "rbxasset://textures/face.png" -- Roblox's built-in default face, like the heroes
+	face.Face = Enum.NormalId.Front
+	face.Parent = head
+	if hair then
+		local h = Instance.new("Part")
+		h.Name = "Hair"
+		h.Size = head.Size * Vector3.new(1.06, 0.3, 1.06)
+		h.Color = hair
+		h.Material = Enum.Material.SmoothPlastic
+		h.TopSurface = Enum.SurfaceType.Smooth
+		h.BottomSurface = Enum.SurfaceType.Smooth
+		h.CastShadow = false
+		NpcRig.fix(rig, "Head", h, CFrame.new(0, head.Size.Y * 0.45, head.Size.Z * 0.04))
+	end
+	return rig
+end
+
+-- Stand the rig with its soles on `feet` (a position and facing)
+function NpcRig.place(rig: Rig, feet: CFrame)
+	rig.model:PivotTo(feet * CFrame.new(0, rig.layout.ground, 0))
+end
+
+-- A held pose for a still figure, set on the joint's C0 so the server's pose reaches every player (Transform
+-- stays on the device that sets it)
+function NpcRig.bend(rig: Rig, joint: string, cf: CFrame)
+	local m = rig.motors[joint]
+	if m then
+		m.C0 = CFrame.new(m.C0.Position) * cf
+	end
+end
+
 -- Set one joint's pose (its Transform), skipped when it has not changed since the last frame
 function NpcRig.turn(rig: Rig, joint: string, cf: CFrame)
 	local last = rig.last[joint]

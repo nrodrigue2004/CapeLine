@@ -226,7 +226,8 @@ The Output at boot says build r15-everyone (2026-11-16). Works before and after 
 2. They walk with arms swinging, elbows bending forward and knees back; Sneak Bots crouch; drones fly with knees back; a windup raises both arms; a knock-up tumbles; a stun wobbles with the yellow ring spinning over the head.
 3. Hit one: arms, legs, hands and feet break off first (chips and sparks) showing metal bones, then the torso (ribs, spine, the glowing core), the head last (skull, jaw, eyes). The hair, eyes and mask go with the head. Nothing floats in the air or pokes through.
 4. Capes hang from the shoulders and sway; sea robots' helmets and tanks, the Sentinel's cannon and base, the guard plate and the bubble sit where they should.
-5. Citizens: every citizen is the blocky R15 body with the classic face, a shirt, pants, shoes and hair; they walk, idle and run with arms up when fleeing.
+5. Citizens: every citizen is the blocky R15 body with the classic face, a shirt, pants, shoes and hair; they walk, idle and run with arms up when fleeing. Quest givers, witnesses, stranded citizens (arms up) and the HQ training dummies are R15 too.
+   Checked by Claude in Studio on 2026-11-16 (Capeline-r15c.rbxl): your hero is the R15 hero body (no skeleton avatar), robots, citizens and quest givers are R15 rigs with the hero meshes, a beaten robot shows its metal skeleton, 0 errors. Still to check by eye: steps 2 to 4 and 6.
 6. Performance: in a busy street (30+ robots and the citizens), the Dev panel's frame times for EnemyRenderer and CitizenRenderer stay under about 2 ms on the desktop.
 
 ### 17 paths, mobility and underwater (2026-11-16)
