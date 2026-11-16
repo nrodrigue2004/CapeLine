@@ -36,6 +36,7 @@ local ContractPlan = require("../src/shared/ContractPlan")
 local EventPlan = require("../src/shared/EventPlan")
 local BossMath = require("../src/shared/BossMath")
 local BossSim = require("../src/shared/BossSim")
+local DeepLayout = require("../src/shared/DeepLayout")
 
 local passed, failed = 0, 0
 local current = ""
@@ -93,7 +94,7 @@ test("config: every module loads; 136 abilities (17 paths) with unique network i
 	local ids = {}
 	for _, kind in Config.Enemies.order do
 		local t = Config.Enemies[kind].typeId
-		check(t >= 1 and t <= 7 and not ids[t], kind .. " typeId unique in 1..7")
+		check(t >= 1 and t <= 31 and not ids[t], kind .. " typeId unique in 1..31")
 		ids[t] = true
 	end
 end)
@@ -5133,6 +5134,234 @@ test("Mobility: five picks; caps cover every move; sprint, super leap and swing 
 			check(fast.speed <= 140, id .. " ride stays under 140 even with Fast mods")
 		end
 	end
+end)
+
+test("Underwater: areas, floors, water checks and the world cut around them", function()
+	local D = Config.Deep
+	local wy = Config.World.coast.waterY
+	local b = Config.City.docks.basin
+	local L = D.sunkenLine
+	local half = Config.City.mapSize / 2
+	local function at(x, y, z)
+		return DeepLayout.area(Config, x, z, y),
+			DeepLayout.floorAt(Config, x, z, y),
+			DeepLayout.underwater(Config, x, y, z)
+	end
+	local a, f, u = at((b.minX + b.maxX) / 2, -10, (b.minZ + b.maxZ) / 2)
+	check(a == "basin" and f == D.basin.floor and u, "the harbour basin is water down to its floor")
+	a, f, u = at(300, L.floor + 4, L.z)
+	check(a == "line" and f == L.floor and u, "the Sunken Line tunnel")
+	a, f = at((L.station.minX + L.station.maxX) / 2, L.floor + 8, L.z - L.station.width / 2 + 5)
+	check(a == "line" and f == L.floor + L.station.platform, "the station platform")
+	a, _, u = at(300, 5, L.z)
+	check(a == nil and not u, "the street over the tunnel is land")
+	a, f, u = at(0, -20, half + 300)
+	check(a == "shelf" and f and f < -20 and u, "the Coral Shelf off the south beach")
+	a, f, u = at(0, -100, 3300)
+	check(a == "trench" and f == D.trench.floor and u, "the Trench")
+	a, _, u = at(half + 100, -5, 0)
+	check(a == "sea" and u, "the rest of the ring is open sea")
+	check(not DeepLayout.underwater(Config, 0, -5, 0), "under the hub is not water")
+	check(not DeepLayout.underwater(Config, 0, wy + 1, half + 300), "above the surface is not underwater")
+	check(DeepLayout.floorAt(Config, half + 10, half + 0) ~= nil, "floor near the beach")
+	local shore = DeepLayout.floorAt(Config, 0, half + 10) :: number
+	local outer = DeepLayout.floorAt(Config, 0, half + D.ring.width - 10) :: number
+	check(shore > outer and wy - shore >= D.ring.shore - 0.01, "the ring gets deeper away from the beach")
+
+	local lay = DeepLayout.build(Config)
+	local again = DeepLayout.build(Config)
+	check(
+		#lay.boxes == #again.boxes and lay.boxes[40].cx == again.boxes[40].cx,
+		"the layout is the same every build"
+	)
+	check(#lay.caches == D.caches.count, "every cache placed")
+	check(#lay.rescues == #L.cars + 1, "a commuter in every car and on the platform")
+	for _, c in lay.caches do
+		check(DeepLayout.underwater(Config, c.x, c.y, c.z), "cache " .. c.id .. " is underwater")
+	end
+	for _, r in lay.rescues do
+		check(DeepLayout.underwater(Config, r.x, r.y, r.z), "commuter " .. r.id .. " is underwater")
+	end
+	local water = 0
+	for _, t in lay.terrain do
+		check(t.sx > 0 and t.sy > 0 and t.sz > 0, "terrain fills have size")
+		if t.material == "water" then
+			water += 1
+		end
+		for _, c in DeepLayout.chunks(t, D.fillChunk) do
+			check(
+				c.sx <= D.fillChunk + 0.01 and c.sy <= D.fillChunk + 0.01 and c.sz <= D.fillChunk + 0.01,
+				"chunk size"
+			)
+		end
+	end
+	check(water >= 4 * D.ring.bands + 3, "water in the ring, the basin, the line and the trench")
+	check(#lay.boxes < 1500, "the underwater parts stay in budget (" .. #lay.boxes .. ")")
+	for _, bx in lay.boxes do
+		check(Config.City.palette[bx.color] ~= nil, "palette has " .. bx.color)
+	end
+	-- the ground and the quay leave the basin open; no sea parts over the ring or the trench
+	local world = WorldMap.build(Config, 202647)
+	local cx, cz = (b.minX + b.maxX) / 2, (b.minZ + b.maxZ) / 2
+	local function covers(bx, x, z)
+		return math.abs(x - bx.cx) < bx.sx / 2 and math.abs(z - bx.cz) < bx.sz / 2
+	end
+	for _, bx in world.baseBoxes do
+		check(
+			not ((bx.kind == "ground" or bx.kind == "sea") and covers(bx, cx, cz)),
+			"nothing over the basin"
+		)
+		check(not (bx.kind == "sea" and covers(bx, 0, half + 300)), "no sea part over the shelf")
+		check(not (bx.kind == "sea" and covers(bx, 0, 3300)), "no sea part over the trench")
+		check(bx.sx <= 2048 and bx.sz <= 2048, "base parts fit Roblox's size limit")
+	end
+	for _, bx in world.hubBoxes do
+		check(
+			not ((bx.kind == "plaza" or bx.kind == "water") and covers(bx, cx, cz)),
+			"the quay is cut around the basin"
+		)
+	end
+	check(
+		#BoxKit.around(0, 0, 10, 10, { x0 = 3, z0 = 3, x1 = 6, z1 = 6 }) == 4,
+		"a hole in the middle: 4 pieces"
+	)
+	check(#BoxKit.around(0, 0, 10, 10, { x0 = 20, z0 = 20, x1 = 30, z1 = 30 }) == 1, "no overlap: whole")
+	check(DeepLayout.zoneLevel(Config, 0, -100, 3300, 1) == D.zoneFloor.trench, "the trench has a zone floor")
+end)
+
+test("Underwater: sea robots stay in the water, land robots stay out, torpedoes turn", function()
+	local wy = Config.World.coast.waterY
+	local half = Config.City.mapSize / 2
+	local seed = 99
+	local sim = EnemySim.new(Config, {
+		heightAt = function(x, z, y)
+			if y and y < wy - 0.5 then
+				local f = DeepLayout.floorAt(Config, x, z, y)
+				if f then
+					return f
+				end
+			end
+			return if DeepLayout.area(Config, x, z) then wy else 0
+		end,
+		water = function(x, y, z)
+			return DeepLayout.underwater(Config, x, y, z)
+		end,
+		random = function()
+			seed = (seed * 1103515245 + 12345) % 2147483648
+			return seed / 2147483648
+		end,
+	})
+	for _, kind in { "Diver", "Anchor", "TorpedoSentry" } do
+		local cfg = Config.Enemies[kind]
+		check(
+			cfg.sea == true and cfg.body ~= nil and (Config.Enemies.mix[kind] or 0) == 0,
+			kind .. " is a sea robot"
+		)
+		check((Config.Deep.mix[kind] or 0) > 0, kind .. " spawns underwater")
+	end
+	-- a swimming hero meets only sea robots
+	local swimmer = { id = 1, x = 0, y = -20, z = half + 300, alive = true }
+	for t = 1, 60 do
+		EnemySim.populate(sim, { swimmer }, t)
+		EnemySim.step(sim, t, { swimmer })
+	end
+	local n = 0
+	for _, e in sim.enemies do
+		n += 1
+		check(e.cfg.sea == true, "only sea robots near a swimmer (" .. e.kind .. ")")
+		check(DeepLayout.underwater(Config, e.x, e.y, e.z), e.kind .. " is in the water")
+		check(e.y <= wy - 3 + 0.01, e.kind .. " stays under the surface")
+	end
+	check(n >= 3, "sea robots spawned (" .. n .. ")")
+	for t = 61, 120, 0.1 do
+		EnemySim.step(sim, t, { swimmer })
+	end
+	for _, e in sim.enemies do
+		check(DeepLayout.underwater(Config, e.x, e.y, e.z), e.kind .. " still in the water after chasing")
+	end
+	-- a land brute at the beach never walks into the sea after a hero who swims off
+	local land = EnemySim.new(Config, {
+		heightAt = function(x, z, y)
+			if y and y < wy - 0.5 then
+				local f = DeepLayout.floorAt(Config, x, z, y)
+				if f then
+					return f
+				end
+			end
+			return if DeepLayout.area(Config, x, z) then wy else 0
+		end,
+		water = function(x, y, z)
+			return DeepLayout.underwater(Config, x, y, z)
+		end,
+	})
+	local brute = EnemySim.spawn(land, "BruteBot", 0, 4, half - 10, 1) :: any
+	local bait = { id = 2, x = 0, y = -12, z = half + 40, alive = true }
+	for t = 0, 20, 0.1 do
+		EnemySim.step(land, t, { bait })
+	end
+	check(not DeepLayout.underwater(Config, brute.x, wy - 2, brute.z), "the land brute stays on the beach")
+	-- torpedoes turn after their hero at the set rate
+	local shot = { x = 0, y = 0, z = 0, vx = 40, vy = 0, vz = 0, home = 5, turn = math.rad(60) }
+	local target = { id = 5, x = 0, y = -1.5, z = 100, alive = true }
+	EnemySim.steer(shot, { target }, 0.5)
+	local ang = math.deg(math.atan2(shot.vz, shot.vx))
+	check(math.abs(ang - 30) < 0.5, "turned 30 degrees in half a second (" .. ang .. ")")
+	check(math.abs(math.sqrt(shot.vx ^ 2 + shot.vz ^ 2) - 40) < 1e-6, "same speed")
+	-- the wire carries the new type ids
+	local e = {
+		id = 7,
+		x = 1,
+		y = -20,
+		z = 3,
+		yaw = 0,
+		health = 1,
+		maxHealth = 1,
+		state = 2,
+		typeId = 9,
+		flags = 0,
+		alive = true,
+	}
+	local _, _, rows = EnemyBuffer.decode(EnemyBuffer.encodeFor(1, 0, { e }, 0, 0, 0, 100, 10))
+	check(rows[1].typeId == 9 and rows[1].state == 2, "type id 9 and the state survive the packet")
+end)
+
+test("Underwater: Leviathan Engine boss, its drop and the save slot", function()
+	local B = Config.Boss
+	check(table.find(B.order, "LeviathanEngine") ~= nil, "in the world boss rotation")
+	check(#B.order == ProfileSchema.BOSSES, "the save has a slot per boss")
+	local cfg = B.bosses.LeviathanEngine
+	local nums = {}
+	for id, b in B.bosses do
+		check(not nums[b.num], id .. " has its own number")
+		nums[b.num] = true
+	end
+	local weak = 0
+	for _, t in cfg.targets do
+		if t.weak then
+			weak += 1
+		end
+	end
+	check(weak >= 2 and #cfg.objectives.list == 2, "weak points and two torpedo bays")
+	for _, a in cfg.attacks do
+		check(table.find({ "ring", "cone", "circles", "lines", "pull" }, a.shape) ~= nil, a.id .. " shape")
+	end
+	check(GearMath.bossStyle(Config, "LeviathanEngine", false) ~= nil, "it drops a style")
+	check(GearMath.bossStyle(Config, "LeviathanEngine", true) ~= nil, "and a shiny one")
+	local sim =
+		BossSim.new(Config, "LeviathanEngine", 0, Config.World.coast.waterY, 3260, 100000, 20, 0, Rng.new(4))
+	check(sim ~= nil, "the fight builds")
+	local old = ProfileSchema.default()
+	old.bosses = { 2, 1 }
+	local p = ProfileSchema.load(old)
+	check(p.bosses[1] == 2 and p.bosses[2] == 1 and p.bosses[3] == 0, "an older save gets the new slot")
+	check(
+		Config.Loot.sources.deepCache ~= nil and table.find(Config.Loot.order, "deepCache") ~= nil,
+		"cache loot"
+	)
+	check(
+		Config.Economy.earn.deepCache ~= nil and Config.Economy.earn.deepRescue ~= nil,
+		"cache and rescue pay"
+	)
 end)
 
 print(string.format("\n%d passed, %d failed", passed, failed))

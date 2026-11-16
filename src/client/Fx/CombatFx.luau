@@ -17,6 +17,7 @@ local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
+local EnemySim = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("EnemySim"))
 
 local QualityController = require(script.Parent.Parent.Controllers.QualityController)
 local DebrisBudget = require(script.Parent.DebrisBudget)
@@ -1019,6 +1020,55 @@ function CombatFx.enemyShot(pos: Vector3, vel: Vector3)
 		CFrame = CFrame.lookAt(pos + vel * life, pos + vel * (life + 1)),
 	}):Play()
 	Debris:AddItem(p, life)
+end
+
+-- A Torpedo Sentry's torpedo: slow, with a bubble trail, turning after its hero the way the server's does
+-- (EnemySim.steer), so what you see is what hits you
+function CombatFx.torpedo(pos: Vector3, vel: Vector3, home: number, turn: number)
+	local speed = vel.Magnitude
+	if speed < 1 then
+		return
+	end
+	local body = part(Vector3.new(1.4, 1.4, 4), CFrame.lookAt(pos, pos + vel), ENEMY)
+	local life = math.min(4, 130 / speed)
+	local shot =
+		{ x = pos.X, y = pos.Y, z = pos.Z, vx = vel.X, vy = vel.Y, vz = vel.Z, home = home, turn = turn }
+	local target = Players:GetPlayerByUserId(home)
+	local t, trail = 0, 0
+	local conn: RBXScriptConnection
+	conn = RunService.Heartbeat:Connect(function(dt)
+		t += dt
+		local char = target and target.Character
+		local root = char and char:FindFirstChild("HumanoidRootPart") :: BasePart?
+		if root then
+			local p = root.Position
+			EnemySim.steer(shot, { { id = home, x = p.X, y = p.Y - 1.5, z = p.Z } }, dt)
+		end
+		shot.x += shot.vx * dt
+		shot.y += shot.vy * dt
+		shot.z += shot.vz * dt
+		local at = Vector3.new(shot.x, shot.y, shot.z)
+		body.CFrame = CFrame.lookAt(at, at + Vector3.new(shot.vx, shot.vy, shot.vz))
+		trail += dt
+		if trail >= 0.08 then
+			trail = 0
+			local b = part(
+				Vector3.new(0.6, 0.6, 0.6),
+				CFrame.new(at),
+				Color3.new(0.85, 0.95, 1),
+				Enum.PartType.Ball
+			)
+			b.Transparency = 0.4
+			TweenService
+				:Create(b, TweenInfo.new(0.6), { Transparency = 1, Position = at + Vector3.new(0, 2, 0) })
+				:Play()
+			Debris:AddItem(b, 0.6)
+		end
+		if t >= life or not body.Parent then
+			conn:Disconnect()
+			body:Destroy()
+		end
+	end)
 end
 
 -- An enemy attack is coming: a red ground marker that fills over `time` (Brute slam, Sentinel sweep)

@@ -19,6 +19,7 @@ local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local WorldMap = require(Shared:WaitForChild("WorldMap"))
 local WorldGen = require(Shared:WaitForChild("WorldGen"))
+local DeepLayout = require(Shared:WaitForChild("DeepLayout"))
 local Signal = require(Shared:WaitForChild("Util"):WaitForChild("Signal"))
 
 local CityBuilder = {}
@@ -30,6 +31,7 @@ CityBuilder.Ready = Signal.new()
 CityBuilder.builtParts = 0
 CityBuilder.buildingModels = {} :: { [number]: Model } -- wreckable building id -> its model
 CityBuilder.collapsed = {} :: { [number]: any } -- collapsed building id -> its record (heights drop to rubble)
+CityBuilder.deep = nil :: any -- DeepLayout.build: the underwater areas, caches, rescues and the Trench arena
 CityBuilder.tops = {} :: { [number]: { box: any, top: number } } -- building id -> what still stands after storeys fell
 
 local MATERIAL = {
@@ -232,6 +234,60 @@ end
 
 CityBuilder.part = makePart
 
+local TERRAIN = { water = Enum.Material.Water, sand = Enum.Material.Sand, rock = Enum.Material.Rock }
+
+-- The underwater areas (Config.Deep): Terrain water, seabed and rock walls in chunks (a few a frame), then the
+-- tunnel, reef, wrecks, caches and the sunken factory as parts in 140-stud chunk models
+local function buildDeep(folder: Folder)
+	local t0 = os.clock()
+	local deep = CityBuilder.deep
+	local look = Config.Deep.look
+	local terrain = Workspace.Terrain
+	terrain.WaterColor = Color3.fromRGB(look.tint[1], look.tint[2], look.tint[3])
+	terrain.WaterTransparency = 0.6
+	terrain.WaterReflectance = 0.25
+	terrain.WaterWaveSize = 0.08
+	local n = 0
+	for _, f in deep.terrain do
+		for _, c in DeepLayout.chunks(f, Config.Deep.fillChunk) do
+			terrain:FillBlock(
+				CFrame.new(c.cx, c.cy, c.cz),
+				Vector3.new(c.sx, c.sy, c.sz),
+				TERRAIN[c.material]
+			)
+			n += 1
+			if n % 6 == 0 then
+				task.wait()
+			end
+		end
+	end
+	local deepFolder = Instance.new("Folder")
+	deepFolder.Name = "Deep"
+	local chunks: { [string]: Model } = {}
+	for _, b in deep.boxes do
+		local key = chunkKey(b.cx, b.cz)
+		local m = chunks[key]
+		if not m then
+			m = Instance.new("Model")
+			m.Name = "Deep_" .. key
+			m.ModelStreamingMode = Enum.ModelStreamingMode.Atomic
+			m.Parent = deepFolder
+			chunks[key] = m
+		end
+		makePart(b).Parent = m
+	end
+	deepFolder.Parent = folder
+	CityBuilder.builtParts += #deep.boxes
+	print(
+		string.format(
+			"[CityBuilder] underwater: %d fills, %d parts in %.2f s",
+			n,
+			#deep.boxes,
+			os.clock() - t0
+		)
+	)
+end
+
 function CityBuilder.seed(): number
 	local override = Config.Dev.worldSeed
 	if RunService:IsStudio() and type(override) == "number" and override > 0 then
@@ -270,6 +326,8 @@ function CityBuilder.build()
 	clouds.Parent = Workspace.Terrain
 	folder.Parent = Workspace
 	CityBuilder.folder = folder
+	CityBuilder.deep = DeepLayout.build(Config)
+	task.spawn(buildDeep, folder)
 	task.spawn(buildOutskirts, world, folder)
 end
 

@@ -1,7 +1,7 @@
 -- Enemies, machines only (spec: Enemies), drawn as humanoid robots (nate, 2026-11-16: "robots that look
 -- like humans"): metal android bodies with glowing eyes. Defeats are sparks, bolts and parts, never blood.
 -- Health and damage scale with the zone level: HP x (1 + 0.1 x (zone level - 1)); enemy damage =
--- (20 + 4 x level) x coeff. typeId goes on the wire (3 bits). (tune)
+-- (20 + 4 x level) x coeff. typeId goes on the wire (5 bits). (tune)
 -- Fields every enemy has:
 --   ai        "flyer" (hovers and strafes), "thief" (runs, laser when cornered), "sneak" (cloak, backstab),
 --             "brute" (slow slam with a warning ring), "sentry" (planted, turns, shield flicker),
@@ -13,7 +13,17 @@
 --   body      the drawing: build (slim, normal, heavy), height, metal (the endoskeleton) and eye colors, and
 --             the superhuman shell over it: suit and trim colours, cape (EnemyRenderer, Enemies.look)
 return {
-	order = { "SparkDrone", "BurglarBot", "SneakBot", "BruteBot", "Turret", "NullSentinel" },
+	order = {
+		"SparkDrone",
+		"BurglarBot",
+		"SneakBot",
+		"BruteBot",
+		"Turret",
+		"NullSentinel",
+		"Diver",
+		"Anchor",
+		"TorpedoSentry",
+	},
 	scale = { hpPerLevel = 0.1, dmgBase = 20, dmgPerLevel = 4 },
 	SparkDrone = {
 		typeId = 1,
@@ -163,6 +173,93 @@ return {
 			trim = { 235, 235, 245 },
 			cape = { 92, 40, 140 },
 			shield = true,
+		},
+	},
+	-- Sea robots (nate 2026-11-16: underwater at launch). `sea` robots live only underwater (EnemySim keeps
+	-- them in the water; Config.Deep.mix spawns them near a swimming hero) and land robots never enter it.
+	Diver = {
+		typeId = 7,
+		name = "Diver", -- a frogman android with a jet pack and a glass helmet
+		ai = "flyer",
+		sea = true,
+		hp = 130,
+		flies = true,
+		speed = 24,
+		hover = { min = 4, max = 14 }, -- above the seabed
+		aggro = 70,
+		attackRange = 40,
+		orbit = { min = 16, max = 28 },
+		burst = { shots = 2, gap = 0.3, every = 2.2 },
+		coeff = 0.55,
+		shotSpeed = 70, -- a harpoon dart, slower in water
+		shotRadius = 3,
+		fleeBelow = 0.2,
+		fleeTime = 1.5,
+		radius = 2.5,
+		body = {
+			build = "slim",
+			height = 5.5,
+			metal = { 90, 130, 150 },
+			eye = { 120, 255, 230 },
+			suit = { 30, 80, 100 },
+			trim = { 255, 200, 60 },
+			jets = true,
+			jetColor = { 120, 220, 255 },
+			helmet = true,
+			tank = true,
+		},
+	},
+	Anchor = {
+		typeId = 8,
+		name = "Anchor", -- a heavy diving-suit android that walks the seabed and slams
+		ai = "brute",
+		sea = true,
+		hp = 700,
+		speed = 10,
+		aggro = 70,
+		attackRange = 9,
+		slam = { radius = 10, windup = 0.9, every = 4 },
+		coeff = 2.0,
+		mitigation = 0.25,
+		ccResist = 0.4,
+		fleeBelow = 0,
+		radius = 4,
+		body = {
+			build = "heavy",
+			height = 8.5,
+			metal = { 110, 100, 80 },
+			eye = { 255, 160, 60 },
+			suit = { 90, 80, 60 },
+			trim = { 200, 150, 60 },
+			helmet = true,
+		},
+	},
+	TorpedoSentry = {
+		typeId = 9,
+		name = "Torpedo Sentry", -- planted on the seabed; fires slow torpedoes that turn after you
+		ai = "sentry",
+		sea = true,
+		hp = 450,
+		speed = 0,
+		aggro = 80,
+		attackRange = 80,
+		turnRate = 70,
+		aimCone = 20,
+		fire = { every = 2.2, shotSpeed = 40, shotRadius = 4, home = 60, coeff = 1.4 }, -- home: degrees/s it turns
+		shield = { every = 7, time = 1.5 },
+		coeff = 0.6,
+		immune = { "knockback", "knockup", "pull", "float" },
+		fleeBelow = 0,
+		radius = 3,
+		body = {
+			build = "heavy",
+			height = 6.5,
+			metal = { 80, 100, 110 },
+			eye = { 255, 90, 90 },
+			suit = { 40, 70, 80 },
+			trim = { 255, 90, 90 },
+			planted = true,
+			tank = true,
 		},
 	},
 	-- The look every robot shares (nate, 2026-11-16: "more humanoid, Terminator style ... look like a

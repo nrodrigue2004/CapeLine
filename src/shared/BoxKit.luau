@@ -54,6 +54,29 @@ function BoxKit.box(
 	return b
 end
 
+export type Rect = { x0: number, z0: number, x1: number, z1: number }
+
+-- A rectangle with a rectangular hole cut out of it, as up to 4 rectangles (south, north, west, east).
+-- No overlap with the hole gives the rectangle back whole.
+function BoxKit.around(x0: number, z0: number, x1: number, z1: number, hole: Rect): { Rect }
+	local hx0, hz0 = math.max(x0, hole.x0), math.max(z0, hole.z0)
+	local hx1, hz1 = math.min(x1, hole.x1), math.min(z1, hole.z1)
+	if hx1 <= hx0 or hz1 <= hz0 then
+		return { { x0 = x0, z0 = z0, x1 = x1, z1 = z1 } }
+	end
+	local out: { Rect } = {}
+	local function add(a: number, b: number, c: number, d: number)
+		if c > a and d > b then
+			table.insert(out, { x0 = a, z0 = b, x1 = c, z1 = d })
+		end
+	end
+	add(x0, z0, x1, hz0)
+	add(x0, hz1, x1, z1)
+	add(x0, hz0, hx0, hz1)
+	add(hx1, hz0, x1, hz1)
+	return out
+end
+
 -- Does an axis-aligned footprint (centre, size) touch any of the circles?
 function BoxKit.hitsAny(circles: { Circle }, cx: number, cz: number, sx: number, sz: number): boolean
 	for _, c in circles do

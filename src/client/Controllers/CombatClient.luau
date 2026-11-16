@@ -572,7 +572,16 @@ local function onEvents(list: { any })
 	for _, ev in list do
 		local kind = ev[1]
 		if kind == SHOT then
-			CombatFx.enemyShot(Vector3.new(ev[3], ev[4], ev[5]), Vector3.new(ev[6], ev[7], ev[8]))
+			if ev[9] then
+				CombatFx.torpedo(
+					Vector3.new(ev[3], ev[4], ev[5]),
+					Vector3.new(ev[6], ev[7], ev[8]),
+					ev[9],
+					ev[10]
+				)
+			else
+				CombatFx.enemyShot(Vector3.new(ev[3], ev[4], ev[5]), Vector3.new(ev[6], ev[7], ev[8]))
+			end
 		elseif kind == HERO_HIT then
 			if ev[2] == player.UserId then
 				if ev[6] and ev[6] > 0 then

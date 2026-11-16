@@ -1,6 +1,8 @@
 -- World boss (spec: Schedulers > World boss; Opening and story > World boss; Boss.State, Boss.Contribution,
 -- Boss.Result). Two launch bosses alternate: Rustjaw Prime lands in Downtown, the Lumen Maw rises from the
--- Old Quarry. Both are machines (a scrap robot and a shard-powered machine beast). (tune)
+-- Old Quarry. Both are machines (a scrap robot and a shard-powered machine beast). The third, the Leviathan
+-- Engine (underwater at launch, nate 2026-11-16), surfaces over the Trench: a serpent-shaped Null war
+-- submarine. Heroes fight it from the water, from Frost ice rafts and from the air. (tune)
 -- * Schedule: 20 to 30 minutes after the last one ended; a server with a player who has never seen a boss
 --   clamps the wait to 6 minutes. A banner and siren at T minus 60 s. Raid prep incidents run in the last
 --   5 minutes of the wait and each clear takes 3% off the boss's HP (at most 15%).
@@ -13,7 +15,7 @@
 -- * 8 minutes, then it retreats: no rewards except a 25% Credits consolation for Participants and up.
 -- Attack shapes: ring (around the boss), cone (in front), circles (at heroes), lines (at heroes), pull.
 return {
-	order = { "RustjawPrime", "LumenMaw" },
+	order = { "RustjawPrime", "LumenMaw", "LeviathanEngine" },
 	schedule = {
 		every = { 1200, 1800 },
 		firstClamp = 360, -- spec: a new account's first boss within 6 minutes of them joining
@@ -177,6 +179,72 @@ return {
 					nova = 35,
 					warn = 2.0,
 					coeff = 2.2,
+					phases = { 3 },
+					hazard = true,
+				},
+			},
+		},
+		LeviathanEngine = {
+			num = 4,
+			name = "Leviathan Engine",
+			rogues = 3,
+			arena = "trench", -- Config.Deep.trench.arena, at the water's surface
+			arenaRadius = 240,
+			height = 60,
+			speed = 0, -- holds over the Trench and turns its head
+			turn = 45,
+			gap = { 3.6, 3.0, 2.5 },
+			-- the head and neck rise out of the water; the hull and reactor sit just under the surface
+			targets = {
+				{ id = "head", at = { 0, 46, -34 }, r = 14 },
+				{ id = "neck", at = { 0, 26, -18 }, r = 11 },
+				{ id = "hull", at = { 0, 6, 14 }, r = 20 },
+				{ id = "eyeL", at = { -8, 50, -46 }, r = 4, weak = true },
+				{ id = "eyeR", at = { 8, 50, -46 }, r = 4, weak = true },
+				{ id = "reactor", at = { 0, 14, 2 }, r = 5, weak = true },
+			},
+			-- objectives: two torpedo bays on its back that fire on the crowd until broken
+			objectives = {
+				kind = "cannon",
+				hits = 36,
+				list = { { at = { -14, 16, 12 } }, { at = { 14, 16, 12 } } },
+				fire = { every = 5, r = 10, warn = 1.5, coeff = 1.1 },
+			},
+			attacks = {
+				{
+					id = "TailSweep",
+					shape = "cone",
+					r = 80,
+					arc = 200,
+					warn = 1.4,
+					coeff = 1.7,
+					phases = { 1, 2, 3 },
+				},
+				{
+					id = "TorpedoVolley",
+					shape = "circles",
+					r = 11,
+					count = 6,
+					warn = 1.8,
+					coeff = 1.4,
+					phases = { 1, 2, 3 },
+				},
+				{
+					id = "Whirlpool",
+					shape = "pull",
+					r = 130,
+					nova = 35,
+					warn = 2.0,
+					coeff = 2.0,
+					phases = { 2 },
+					hazard = true,
+				},
+				{
+					id = "Surge",
+					shape = "ring",
+					r = 70,
+					warn = 1.6,
+					coeff = 2.0,
 					phases = { 3 },
 					hazard = true,
 				},

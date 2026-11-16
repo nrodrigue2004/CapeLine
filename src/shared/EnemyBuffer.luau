@@ -3,7 +3,7 @@
 -- line; this is it (Decisions.md, 2026-11-16). Each player gets only the enemies within Net.enemyRelevance.
 -- Header 10 bytes: u32 sequence, f32 server time, u16 count. Then 12 bytes per enemy: id u16, x/y/z as
 -- signed 16-bit in 0.1 stud steps (covers -3,276 to 3,276, so the whole map and the mission pockets at
--- y = 3,000), health fraction u8, packed u8 = state (3 bits) + typeId (3 bits), flags u8 (Status.BITS:
+-- y = 3,000), health fraction u8, packed u8 = state (3 bits) + typeId (5 bits), flags u8 (Status.BITS:
 -- stun, root, slow, lifted, cloak, windup, shield, guard broken), yaw u8 (256 steps, for the robot bodies).
 -- The whole relevant list goes every packet, so a lost packet costs nothing.
 
@@ -62,7 +62,7 @@ function EnemyBuffer.encodeFor(
 			offset + 8,
 			math.floor(math.clamp(e.health / math.max(1, e.maxHealth), 0, 1) * 255 + 0.5)
 		)
-		buffer.writeu8(b, offset + 9, (e.state % 8) + (e.typeId % 8) * 8)
+		buffer.writeu8(b, offset + 9, (e.state % 8) + (e.typeId % 32) * 8)
 		buffer.writeu8(b, offset + 10, (e.flags or 0) % 256)
 		buffer.writeu8(b, offset + 11, math.floor(((e.yaw or 0) % (2 * math.pi)) / (2 * math.pi) * 256) % 256)
 		offset += PER
@@ -102,7 +102,7 @@ function EnemyBuffer.decode(b: buffer): (number, number, { Row })
 			z = buffer.readi16(b, offset + 6) / 10,
 			health = buffer.readu8(b, offset + 8) / 255,
 			state = packed % 8,
-			typeId = (packed // 8) % 8,
+			typeId = (packed // 8) % 32,
 			flags = buffer.readu8(b, offset + 10),
 			yaw = buffer.readu8(b, offset + 11) / 256 * 2 * math.pi,
 		})

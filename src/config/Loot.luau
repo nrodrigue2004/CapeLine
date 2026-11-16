@@ -11,6 +11,7 @@ return {
 		"bossParticipant",
 		"bossContributor",
 		"bossMvp",
+		"deepCache",
 	},
 	sources = {
 		incident = {
@@ -49,6 +50,13 @@ return {
 			legendary = 0.08,
 			boss = true,
 			mvp = true,
+		},
+		-- a sunken cargo cache underwater (Config.Deep): sometimes a piece
+		deepCache = {
+			name = "Sunken cache",
+			chance = 0.35,
+			pieces = 1,
+			odds = { Common = 45, Uncommon = 42, Rare = 12, Epic = 1 },
 		},
 	},
 	-- Pity (counters saved per profile): the 5th boss participation in a row with no Epic gives an Epic;

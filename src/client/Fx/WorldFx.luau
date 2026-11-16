@@ -236,6 +236,90 @@ local function maw(m: Model)
 	end
 end
 
+-- The Leviathan Engine (underwater at launch): a serpent-shaped Null war submarine. A segmented hull runs
+-- back under the surface, the neck and armoured head rise out of the water facing -z, two eyes and a
+-- reactor glow (weak points), and two torpedo bays on its back are the objectives. Feet (y 0) are the
+-- water's surface. PLACEHOLDER ART: parts until the mesh pass.
+local function leviathan(m: Model): { BasePart }
+	local cfg = B.bosses.LeviathanEngine
+	local hull = Color3.fromRGB(38, 62, 78)
+	local plate = Color3.fromRGB(70, 96, 110)
+	local glow = Color3.fromRGB(90, 230, 255)
+	-- the hull: segments trailing back and down under the water, with dorsal fins
+	for k = 0, 6 do
+		local size = 26 - k * 2.4
+		local cf = CFrame.new(0, 4 - k * 3.5, 10 + k * 20) * CFrame.Angles(math.rad(-8), 0, 0)
+		part(
+			m,
+			Vector3.new(size, size * 0.8, 22),
+			cf,
+			if k % 2 == 0 then hull else plate,
+			Enum.Material.Metal
+		)
+		part(
+			m,
+			Vector3.new(2, size * 0.5, 10),
+			cf * CFrame.new(0, size * 0.55, 0),
+			STEEL,
+			Enum.Material.Metal
+		)
+	end
+	-- the neck: three rising segments, then the head with a jaw, eyes and a glowing throat
+	for k = 0, 2 do
+		part(
+			m,
+			Vector3.new(16 - k, 14, 16 - k),
+			CFrame.new(0, 12 + k * 11, -6 - k * 9) * CFrame.Angles(math.rad(-35), 0, 0),
+			if k % 2 == 0 then plate else hull,
+			Enum.Material.Metal
+		)
+	end
+	part(m, Vector3.new(22, 16, 30), CFrame.new(0, 46, -36), hull, Enum.Material.Metal)
+	part(m, Vector3.new(20, 5, 24), CFrame.new(0, 36, -40), STEEL, Enum.Material.Metal) -- the jaw
+	part(m, Vector3.new(14, 4, 1), CFrame.new(0, 41, -51.6), glow, Enum.Material.Neon) -- the throat
+	for _, t in cfg.targets do
+		if t.weak then
+			part(
+				m,
+				Vector3.one * (t.r + 1),
+				CFrame.new(t.at[1], t.at[2], t.at[3]),
+				glow,
+				Enum.Material.Neon,
+				Enum.PartType.Ball
+			)
+		end
+	end
+	-- side fins
+	for _, s in { -1, 1 } do
+		part(
+			m,
+			Vector3.new(26, 2, 12),
+			CFrame.new(s * 22, 2, 6) * CFrame.Angles(0, math.rad(s * 25), math.rad(s * -12)),
+			plate,
+			Enum.Material.Metal
+		)
+	end
+	-- torpedo bays (the objectives)
+	local bays = {}
+	for _, row in cfg.objectives.list do
+		local at = row.at
+		local base =
+			part(m, Vector3.new(9, 6, 12), CFrame.new(at[1], at[2] - 2, at[3]), STEEL, Enum.Material.Metal)
+		base.Name = "Cannon"
+		local light = part(
+			m,
+			Vector3.new(3, 3, 3),
+			CFrame.new(at[1], at[2] + 2, at[3]),
+			WARN,
+			Enum.Material.Neon,
+			Enum.PartType.Ball
+		)
+		light.Name = "ObjectiveGlow"
+		table.insert(bays, light)
+	end
+	return bays
+end
+
 local function generators(cx: number, cy: number, cz: number): { BasePart }
 	local out = {}
 	local cfg = B.bosses.LumenMaw
@@ -277,6 +361,8 @@ local function build(id: string, s: { [string]: any }): Shown
 		objectives = rustjaw(m)
 	elseif id == "NullWarFrame" then
 		objectives = warframe(m)
+	elseif id == "LeviathanEngine" then
+		objectives = leviathan(m)
 	else
 		maw(m)
 		objectives = generators(s.x, s.y, s.z)

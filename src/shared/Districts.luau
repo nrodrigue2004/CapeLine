@@ -46,21 +46,24 @@ function Districts.docks(cityCfg: any, clear: { BoxKit.Circle }): District
 	local buildings: { Building } = {}
 	local spots = {}
 	local gy = cityCfg.ground.y
-	local w, h = d.maxX - d.minX, d.maxZ - d.minZ
-	-- the quay: one concrete slab, and the basin water on top of it
-	box(boxes, "plaza", (d.minX + d.maxX) / 2, gy + 0.3, (d.minZ + d.maxZ) / 2, w, 0.6, h, "concrete")
+	-- the quay: a concrete slab around the harbour basin (the basin is Terrain water dug down to its floor:
+	-- Config.Deep, DeepLayout)
 	local b = c.basin
-	box(
-		boxes,
-		"water",
-		(b.minX + b.maxX) / 2,
-		gy + 0.65,
-		(b.minZ + b.maxZ) / 2,
-		b.maxX - b.minX,
-		0.2,
-		b.maxZ - b.minZ,
-		"water"
-	)
+	for _, r in
+		BoxKit.around(d.minX, d.minZ, d.maxX, d.maxZ, { x0 = b.minX, z0 = b.minZ, x1 = b.maxX, z1 = b.maxZ })
+	do
+		box(
+			boxes,
+			"plaza",
+			(r.x0 + r.x1) / 2,
+			gy + 0.3,
+			(r.z0 + r.z1) / 2,
+			r.x1 - r.x0,
+			0.6,
+			r.z1 - r.z0,
+			"concrete"
+		)
+	end
 	local top = gy + 0.6
 
 	-- warehouses in a grid: body, flat roof and a big door (3 parts each)

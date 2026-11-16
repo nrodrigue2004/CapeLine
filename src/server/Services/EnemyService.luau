@@ -14,6 +14,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Net = require(Shared:WaitForChild("Net"))
 local EnemySim = require(Shared:WaitForChild("EnemySim"))
 local EnemyBuffer = require(Shared:WaitForChild("EnemyBuffer"))
+local DeepLayout = require(Shared:WaitForChild("DeepLayout"))
 local Signal = require(Shared:WaitForChild("Util"):WaitForChild("Signal"))
 
 local HeroService = require(script.Parent.HeroService)
@@ -258,7 +259,12 @@ local function handleEvents()
 	local out = {}
 	for _, ev in EnemySim.drainEvents(sim) do
 		if ev.k == "shot" then
-			table.insert(out, { EnemyService.SHOT, ev.e, ev.x, ev.y, ev.z, ev.vx, ev.vy, ev.vz })
+			local row = { EnemyService.SHOT, ev.e, ev.x, ev.y, ev.z, ev.vx, ev.vy, ev.vz }
+			if ev.home then -- a torpedo: the hero it turns after and its turn rate
+				table.insert(row, ev.home)
+				table.insert(row, ev.turn)
+			end
+			table.insert(out, row)
 		elseif ev.k == "hit" then
 			local hero = HeroService.byId(ev.hero)
 			if hero then
@@ -309,6 +315,7 @@ end
 -- Mission pockets (y 3,000) answer their own heights (MissionService sets this)
 local pocketHeight: ((number, number, number) -> number?)? = nil
 local POCKET_Y = Config.Story.pockets.y - 100
+local WATER_Y = Config.World.coast.waterY
 function EnemyService.setPocketHeight(fn: (number, number, number) -> number?)
 	pocketHeight = fn
 end
@@ -324,7 +331,17 @@ function EnemyService.init(heightAt: (number, number) -> number)
 					return h
 				end
 			end
+			-- under the surface: the seabed, the basin, the Sunken Line or the Trench floor (Config.Deep)
+			if y and y < WATER_Y - 0.5 then
+				local f = DeepLayout.floorAt(Config, x, z, y)
+				if f then
+					return f
+				end
+			end
 			return heightAt(x, z)
+		end,
+		water = function(x, y, z)
+			return DeepLayout.underwater(Config, x, y, z)
 		end,
 		random = function()
 			return rng:NextNumber()

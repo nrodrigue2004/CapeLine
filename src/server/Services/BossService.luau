@@ -93,7 +93,8 @@ local function arenaOf(bossId: string): Vector3
 	return arenas[bossId] or arenas.RustjawPrime
 end
 
--- Where each boss fights: Rustjaw Prime on the street in front of the plaza, the Maw in the Old Quarry pit
+-- Where each boss fights: Rustjaw Prime on the street in front of the plaza, the Maw in the Old Quarry pit,
+-- the Leviathan Engine at the surface over the Trench
 local function findArenas()
 	local world = CityBuilder.world
 	local bt = world.downtown.beacon
@@ -106,6 +107,9 @@ local function findArenas()
 			arenas.LumenMaw = Vector3.new(cx, WorldMap.heightAt(world, cx, cz), cz)
 		end
 	end
+	-- the Leviathan Engine surfaces over the Trench (Config.Deep)
+	local ta = Config.Deep.trench.arena
+	arenas.LeviathanEngine = Vector3.new(ta.x, Config.World.coast.waterY, ta.z)
 end
 
 local function ledgerOf(f: Fight, heroId: number): { damage: number, support: number, objectives: number }

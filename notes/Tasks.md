@@ -52,6 +52,8 @@ phones or Studio go on the Studio test list below.
 - M11 sounds: every juice sound is one of Roblox's built-in client sounds (rbxasset://sounds: swoosh, jump land, falling, get up, ping, button, click) pitched per action; music loops and voice clips are silent (asset 0) (Config.Audio, Config.Shop.voiceSounds). PLACEHOLDER SOUND until nate picks licence-checked Creator Store ids.
 - M11 juice visuals: coin burst, medal and NEW stamps, the level badge, tier beams, fireworks, confetti, the shield ring and dazed stars are neon parts and Kit frames (JuiceFx); Photo Mode backdrops are Kit frames and colour grades (PhotoMode); the photo poses are joint angles (EmoteFx). PLACEHOLDER ART until the art pass.
 - M10 screens: Settings, the squad list, panel and invite card, the radar (Kit shapes and glyphs: circle, diamond, triangle, square, star), the ping wheel, the settings gear and the main menu are Kit placeholder looks (SettingsMenu, SquadHud, Radar, Shapes, Hud, MainMenu). PLACEHOLDER ART until the art pass. The squad emblem is a text glyph.
+- 17 paths (2026-11-16): the 96 new abilities use the existing neon parts, beams and rings; summons (turret, drone, clones, totem, guardian, mines, holo decoy) and rides (jets, rock, board, platform, rail) are a few parts each; size forms just scale the hero (CombatFx, CombatClient). Swing lines are a thin part (MoveController). PLACEHOLDER ART.
+- Underwater (2026-11-16): the basin walls, the Sunken Line tunnel, station and train cars, reef, kelp, wrecks, caches and the sunken factory are plain parts; the seabed and rock walls are Terrain sand and rock (DeepLayout, CityBuilder); commuters are blocky figures in a glass bubble, cache markers are labels (DeepClient); Diver helmets and tanks are parts (EnemyRenderer); torpedoes are a box with ball bubbles (CombatFx); the Leviathan Engine is a part-built serpent sub (WorldFx). PLACEHOLDER ART.
 - Store page (M12): no icon, thumbnails or concept art yet; briefs in notes/Store Page.md (generated and hand-cleaned, nate approves each).
 
 ## Studio test list (needs nate's PC)
@@ -175,6 +177,21 @@ DEV panel: spawn robots with the "3x" button (it cycles through the 6 kinds) and
 5. Two players see the same robot lose the same pieces at the same time. A robot that walks into view already hurt shows its damage without a burst of chips.
 6. Cloaked Sneak Bots still fade fully (broken pieces stay hidden), the cold tint, stun ring and shields still show, and the hit flash only lights the pieces still there.
 7. Performance: 60 robots on screen on PC (High), 20 on a phone (Low): frame rate steady (Dev panel).
+
+### 17 paths, mobility and underwater (2026-11-16)
+Pick a path at the creator, then use the DEV panel to level up (15+ to borrow). Everything new is plain parts (PLACEHOLDER ART).
+1. Creator: 4 archetypes with their paths (17 in all); each path's starters show and a path change works once before level 10. At 15+ a hero can learn up to 5 skills from other paths in the same archetype; the basic and super stay the main path's.
+2. Each path's TRAVEL power (marked in Loadout) moves you: Flame Jets, Rock Ride, Psi Platform, Spirit Ride (ride in the air), Wave Surf and Hoverboard (surf the ground and water), Light Rail, Recoil Jump, Sky Step and Giant Stride (launches), Shadow Step and Unstoppable (dashes). No speed-check pull-backs while riding.
+3. Mobility (swap free at a safehouse): Super-speed sprint, wall run, water run and slide; Leaping super leap, wall bounce and ground pound (a real fall only); Acrobat double jump, climb, wall run and glide; Swing lines from buildings and zips; Flight as before. The HUD buttons change with the pick. Phone and gamepad too.
+4. Summons and decoys: Turret Drop, Fix-It Drone, Shadow Clones, Ward Totem, Ascended Guardian, Holo Decoy and Tide Mirror draw and act; Mech Suit, Grow, Titan Form and Shrink Dodge change the hero's size.
+5. Water: jump into the sea off any beach or into the harbour basin at the Docks: you swim (Terrain water), the screen tints blue and darkens deeper down, bubbles trail. No air meter.
+6. The Sunken Line: from the basin floor swim west through the tunnel mouth to the flooded station and 3 train cars; each has a commuter in an air bubble. Swim close to pick one up (they follow you), swim up to the green pad on the quay: Credits and Renown. They come back after 4 minutes.
+7. Coral Shelf (south of the south beach): reef, kelp, 3 shipwrecks, 7 sunken caches. Swim into one: Credits, Renown, sometimes gear; the marker shows a refill timer (15 minutes per hero).
+8. The Trench (past the shelf, very deep): the sunken Null factory with chimneys and a glowing gate, 3 more caches.
+9. Underwater robots: Divers (jet packs, helmets), Anchors (heavy seabed slammers) and Torpedo Sentries (slow torpedoes that turn after you) appear only while you swim; land robots stay out of the water and Spark Troopers skim the surface.
+10. Element reactions in water: Storm chains jump farther, Fire blinds and pushes, Frost skills leave an ice raft at the surface you can stand on, Earth skills hide you for 2 s, Tide is stronger with shorter cooldowns.
+11. Leviathan Engine: DEV boss controls start the third world boss; it rises over the Trench, sweeps its tail, fires torpedo volleys, pulls with a whirlpool and sends a surge ring. Break the 2 torpedo bays; eyes and reactor take double damage. MVP gets Leviathan Coils.
+12. Performance: the world builds (the Output says how many underwater fills and parts and the seconds); phones hold 30+ fps swimming the shelf.
 
 ### M12 Test and launch prep
 The playtest week itself is in notes/Playtest Kit.md (42 checks). These prove the M12 code in Studio first. In Studio every analytics event prints as `[Analytics] name value fields` in the Output.

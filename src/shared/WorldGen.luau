@@ -798,26 +798,28 @@ local function strip(
 	end
 end
 
-function WorldGen.base(cityCfg: any, w: any, tiles: buffer): { Box }
+-- `deep` (Config.Deep, optional): cut the harbour basin out of the ground and leave the swimmable ring and
+-- the Trench (Terrain water, DeepLayout) free of sea parts
+function WorldGen.base(cityCfg: any, w: any, tiles: buffer, deep: any?): { Box }
 	local list: { Box } = {}
 	local half = cityCfg.mapSize / 2
 	local gy = cityCfg.ground.y
 	local th = cityCfg.ground.thickness
+	local bs = cityCfg.docks.basin
+	local basinHole: BoxKit.Rect? = if deep
+		then { x0 = bs.minX, z0 = bs.minZ, x1 = bs.maxX, z1 = bs.maxZ }
+		else nil
 	-- ground: 3 x 3 squares of 1,600 studs (the middle one is the hub)
 	local third = cityCfg.mapSize / 3
 	for i = 0, 2 do
 		for j = 0, 2 do
-			box(
-				list,
-				"ground",
-				-half + third * (i + 0.5),
-				gy - th / 2,
-				-half + third * (j + 0.5),
-				third,
-				th,
-				third,
-				"grass"
-			)
+			local x0, z0 = -half + third * i, -half + third * j
+			local rects = if basinHole
+				then BoxKit.around(x0, z0, x0 + third, z0 + third, basinHole)
+				else { { x0 = x0, z0 = z0, x1 = x0 + third, z1 = z0 + third } }
+			for _, r in rects do
+				strip(list, "ground", r.x0, r.z0, r.x1, r.z1, gy - th / 2, th, "grass")
+			end
 		end
 	end
 	-- coast sand over the last 2 tile rings
@@ -827,13 +829,22 @@ function WorldGen.base(cityCfg: any, w: any, tiles: buffer): { Box }
 	strip(list, "sand", -half, half - s, half, half, gy + 0.15, 0.3, "sand")
 	strip(list, "sand", -half, -half + s, -half + s, half - s, gy + 0.15, 0.3, "sand")
 	strip(list, "sand", half - s, -half + s, half, half - s, gy + 0.15, 0.3, "sand")
-	-- the ocean past the edge
+	-- the ocean past the edge (past the swimmable ring when there is one)
 	local o = c.oceanWidth
 	local wy = c.waterY - 1
-	strip(list, "sea", -half - o, -half - o, half + o, -half, wy, 2, "sea")
-	strip(list, "sea", -half - o, half, half + o, half + o, wy, 2, "sea")
-	strip(list, "sea", -half - o, -half, -half, half, wy, 2, "sea")
-	strip(list, "sea", half, -half, half + o, half, wy, 2, "sea")
+	local e = half + (if deep then deep.ring.width else 0)
+	local far = half + o
+	local south: { BoxKit.Rect } = { { x0 = -far, z0 = e, x1 = far, z1 = far } }
+	if deep then
+		local t = deep.trench
+		south = BoxKit.around(-far, e, far, far, { x0 = t.minX, z0 = t.minZ, x1 = t.maxX, z1 = t.maxZ })
+	end
+	for _, r in south do
+		strip(list, "sea", r.x0, r.z0, r.x1, r.z1, wy, 2, "sea")
+	end
+	strip(list, "sea", -far, -far, far, -e, wy, 2, "sea")
+	strip(list, "sea", -far, -e, -e, e, wy, 2, "sea")
+	strip(list, "sea", e, -e, far, e, wy, 2, "sea")
 	-- road strips: one per straight run of road tiles
 	local n = w.tiles
 	local size = cityCfg.tile

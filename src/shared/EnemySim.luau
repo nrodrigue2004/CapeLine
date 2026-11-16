@@ -12,6 +12,8 @@
 -- Status effects from heroes (Status): stun, root, slow, knockup, float, pull, blind, taunt.
 -- States on the wire: 1 Patrol, 2 Chase, 3 Attack, 4 Flee, 5 Dead.
 -- Enemies are machines only and never hurt citizens (spec: Choices baked in).
+-- Underwater (Config.Deep): `sea` robots (Diver, Anchor, Torpedo Sentry) spawn near a swimming hero from
+-- Deep.mix and stay in the water; land robots never walk into it. opts.water(x, y, z) says what is water.
 
 local Formulas = if script then require(script.Parent.Formulas) else (require :: any)("./Formulas")
 local Status = if script then require(script.Parent.Status) else (require :: any)("./Status")
@@ -93,6 +95,8 @@ export type Shot = {
 	damage: number,
 	enemyId: number,
 	radius: number,
+	home: number?, -- a torpedo: the hero it turns after
+	turn: number?, -- radians per second it can turn
 }
 
 export type Blocker = { x: number, y: number, z: number, r: number, untilT: number }
@@ -109,6 +113,8 @@ export type Sim = {
 	now: number,
 	lastStep: number,
 	heightAt: (x: number, z: number, y: number?) -> number, -- y: the asker's height (mission pockets)
+	water: (x: number, y: number, z: number) -> boolean, -- underwater play space (Shared.DeepLayout)
+	waterTop: number, -- sea robots keep below this
 	heroMeta: { [number]: { nextSpawn: number } },
 	rngNext: () -> number,
 	ticksLastStep: number,
@@ -159,6 +165,10 @@ function EnemySim.new(config: any, opts: { [string]: any }?): Sim
 		heightAt = o.heightAt or function()
 			return 0
 		end,
+		water = o.water or function()
+			return false
+		end,
+		waterTop = (if config.World then config.World.coast.waterY else 0) - 3,
 		heroMeta = {},
 		rngNext = o.random or lcg,
 		ticksLastStep = 0,
@@ -528,7 +538,9 @@ local function shoot(
 	speed: number,
 	radius: number,
 	range: number,
-	coeff: number?
+	coeff: number?,
+	home: number?,
+	turn: number?
 )
 	if e.dmgMult == 0 then
 		return -- a harmless robot (the opening's first drone) never fires
@@ -558,6 +570,8 @@ local function shoot(
 		damage = damage,
 		enemyId = e.id,
 		radius = radius,
+		home = home,
+		turn = turn,
 	}
 	table.insert(sim.shots, shot)
 	table.insert(sim.events, {
@@ -569,6 +583,8 @@ local function shoot(
 		vx = shot.vx,
 		vy = shot.vy,
 		vz = shot.vz,
+		home = home,
+		turn = turn,
 	})
 end
 
@@ -922,6 +938,7 @@ local function thinkSentry(sim: Sim, e: Enemy, target: Hero?, dt: number)
 		-- fires along its facing (pitched at the target), so circling fast beats it
 		local fx, fz = yawDir(e.yaw)
 		local flatD = dist2(e.x, e.z, target.x, target.z)
+		local home = cfg.fire.home -- a torpedo sentry's shots turn after the hero
 		shoot(
 			sim,
 			e,
@@ -930,7 +947,10 @@ local function thinkSentry(sim: Sim, e: Enemy, target: Hero?, dt: number)
 			e.z + fz * flatD,
 			cfg.fire.shotSpeed,
 			cfg.fire.shotRadius,
-			cfg.attackRange
+			cfg.attackRange,
+			cfg.fire.coeff,
+			if home then target.id else nil,
+			if home then math.rad(home) else nil
 		)
 		e.nextShot = now + cfg.fire.every
 	end
@@ -1026,6 +1046,24 @@ local function updateFlags(sim: Sim, e: Enemy)
 	e.flags = f
 end
 
+-- Sea robots stay in the water (a Diver keeps under the surface); land robots that walk never step into it
+local function keepMedium(sim: Sim, e: Enemy, px: number, py: number, pz: number, wasWet: boolean?)
+	if e.cfg.sea then
+		if e.ai == "flyer" then
+			e.y = math.min(e.y, sim.waterTop)
+		end
+		if wasWet and not sim.water(e.x, e.y, e.z) then
+			e.x, e.y, e.z = px, py, pz
+		end
+	elseif e.ai == "flyer" then
+		if sim.water(e.x, e.y, e.z) then
+			e.y = sim.waterTop + 8 -- a land flyer skims the surface over a swimming hero
+		end
+	elseif sim.water(e.x, sim.waterTop + 1, e.z) and not sim.water(px, sim.waterTop + 1, pz) then
+		e.x, e.y, e.z = px, py, pz
+	end
+end
+
 local function think(sim: Sim, e: Enemy, heroes: { Hero }, dt: number)
 	local now = sim.now
 	local st = e.status
@@ -1092,6 +1130,49 @@ local function think(sim: Sim, e: Enemy, heroes: { Hero }, dt: number)
 	end
 end
 
+-- A torpedo turns its velocity toward its hero, at most `turn` radians a second (same speed). Shared with
+-- the client's drawing so the two agree.
+function EnemySim.steer(s: any, heroes: { any }, dt: number)
+	local h: any = nil
+	for _, x in heroes do
+		if x.id == s.home then
+			h = x
+			break
+		end
+	end
+	if not h or h.alive == false then
+		return
+	end
+	local speed = math.sqrt(s.vx * s.vx + s.vy * s.vy + s.vz * s.vz)
+	if speed < 1e-3 then
+		return
+	end
+	local dx, dy, dz = h.x - s.x, h.y + 1.5 - s.y, h.z - s.z
+	local d = math.sqrt(dx * dx + dy * dy + dz * dz)
+	if d < 1e-3 then
+		return
+	end
+	local ux, uy, uz = s.vx / speed, s.vy / speed, s.vz / speed
+	local tx, ty, tz = dx / d, dy / d, dz / d
+	local dot = math.clamp(ux * tx + uy * ty + uz * tz, -1, 1)
+	local angle = math.acos(dot)
+	local maxTurn = s.turn * dt
+	if angle <= maxTurn then
+		s.vx, s.vy, s.vz = tx * speed, ty * speed, tz * speed
+		return
+	end
+	-- turn by maxTurn in the plane of (u, t): u cos a + w sin a, w the unit part of t across u
+	local wx, wy, wz = tx - ux * dot, ty - uy * dot, tz - uz * dot
+	local wl = math.sqrt(wx * wx + wy * wy + wz * wz)
+	if wl < 1e-6 then
+		return -- straight behind: no plane to turn in this step
+	end
+	local c, sn = math.cos(maxTurn), math.sin(maxTurn) / wl
+	local nx, ny, nz = ux * c + wx * sn, uy * c + wy * sn, uz * c + wz * sn
+	local nl = math.sqrt(nx * nx + ny * ny + nz * nz)
+	s.vx, s.vy, s.vz = nx / nl * speed, ny / nl * speed, nz / nl * speed
+end
+
 local function stepShots(sim: Sim, heroes: { Hero }, dt: number)
 	local now = sim.now
 	for i = #sim.blockers, 1, -1 do
@@ -1102,6 +1183,9 @@ local function stepShots(sim: Sim, heroes: { Hero }, dt: number)
 	local i = 1
 	while i <= #sim.shots do
 		local s = sim.shots[i]
+		if s.home and s.turn then
+			EnemySim.steer(s, heroes, dt)
+		end
 		s.x += s.vx * dt
 		s.y += s.vy * dt
 		s.z += s.vz * dt
@@ -1159,8 +1243,11 @@ function EnemySim.step(sim: Sim, now: number, heroes: { Hero }, maxTicks: number
 			e.lastTick = now
 			e.nextTick = now + interval
 			if not e.scripted then -- a scripted robot (an incident runner) is moved by its incident
+				local px, py, pz = e.x, e.y, e.z
+				local wasWet = e.cfg.sea and sim.water(px, py, pz)
 				think(sim, e, heroes, edt)
 				separate(sim, e)
+				keepMedium(sim, e, px, py, pz, wasWet)
 			end
 			updateFlags(sim, e)
 			ticks += 1
@@ -1183,15 +1270,34 @@ function EnemySim.candidates(sim: Sim): { any }
 	return out
 end
 
--- A spawn spot for a robot near (x, z): flyers anywhere, ground robots only on the street
-local function spotFor(sim: Sim, cfg: any, x: number, z: number): (number?, number?, number?)
+-- A spawn spot for a robot near (x, z): flyers anywhere, ground robots only on the street (never in the
+-- water); sea robots only in the water, at the depth of the hero they come for (`y`)
+local function spotFor(sim: Sim, cfg: any, x: number, z: number, y: number?): (number?, number?, number?)
+	if cfg.sea then
+		local ask = math.min(y or sim.waterTop, sim.waterTop)
+		for _ = 1, 6 do
+			local floor = sim.heightAt(x, z, ask)
+			local yy = if cfg.ai == "flyer"
+				then math.min(
+					floor + cfg.hover.min + sim.rngNext() * (cfg.hover.max - cfg.hover.min),
+					sim.waterTop
+				)
+				else floor + halfHeight(cfg)
+			if sim.water(x, yy, z) then
+				return x, yy, z
+			end
+			x += (sim.rngNext() - 0.5) * 60
+			z += (sim.rngNext() - 0.5) * 60
+		end
+		return nil, nil, nil
+	end
 	if cfg.ai == "flyer" then
-		local y = sim.heightAt(x, z) + cfg.hover.min + sim.rngNext() * (cfg.hover.max - cfg.hover.min)
-		return x, y, z
+		local yy = sim.heightAt(x, z) + cfg.hover.min + sim.rngNext() * (cfg.hover.max - cfg.hover.min)
+		return x, yy, z
 	end
 	for _ = 1, 6 do
 		local h = sim.heightAt(x, z)
-		if h <= 1 then
+		if h <= 1 and not sim.water(x, sim.waterTop + 1, z) then
 			return x, h + halfHeight(cfg), z
 		end
 		x += (sim.rngNext() - 0.5) * 40
@@ -1200,8 +1306,7 @@ local function spotFor(sim: Sim, cfg: any, x: number, z: number): (number?, numb
 	return nil, nil, nil
 end
 
-local function pickKind(sim: Sim): string
-	local mix = sim.config.Enemies.mix
+local function pickKind(sim: Sim, mix: { [string]: number }): string
 	local total = 0
 	for _, kind in sim.config.Enemies.order do
 		total += mix[kind] or 0
@@ -1209,7 +1314,7 @@ local function pickKind(sim: Sim): string
 	local r = sim.rngNext() * total
 	for _, kind in sim.config.Enemies.order do
 		r -= mix[kind] or 0
-		if r <= 0 then
+		if r <= 0 and (mix[kind] or 0) > 0 then
 			return kind
 		end
 	end
@@ -1235,11 +1340,14 @@ function EnemySim.populate(sim: Sim, heroes: { Hero }, now: number, kind: string
 				end
 			end
 			if near < cfg.count and now >= meta.nextSpawn then
-				local enemyKind = kind or pickKind(sim)
+				-- a swimming hero meets sea robots (Config.Deep.mix)
+				local wet = sim.config.Deep ~= nil and sim.water(h.x, h.y, h.z)
+				local mix = if wet then sim.config.Deep.mix else sim.config.Enemies.mix
+				local enemyKind = kind or pickKind(sim, mix)
 				local ecfg = sim.config.Enemies[enemyKind]
 				local ang = sim.rngNext() * math.pi * 2
 				local r = cfg.minDistance + sim.rngNext() * (cfg.radius - cfg.minDistance)
-				local x, y, z = spotFor(sim, ecfg, h.x + math.cos(ang) * r, h.z + math.sin(ang) * r)
+				local x, y, z = spotFor(sim, ecfg, h.x + math.cos(ang) * r, h.z + math.sin(ang) * r, h.y)
 				if x and y and z and EnemySim.spawn(sim, enemyKind, x, y, z, 1) then
 					meta.nextSpawn = now + cfg.respawn / cfg.count
 				else

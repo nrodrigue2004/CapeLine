@@ -287,6 +287,24 @@ return {
 				quest = "FameRank9",
 				color = { 250, 200, 60 },
 			},
+			-- the Leviathan Engine's drop (underwater, nate 2026-11-16): never rolled by loot (tier "Boss")
+			{
+				n = 30,
+				name = "Leviathan Coils",
+				shape = "coil",
+				tier = "Boss",
+				boss = "LeviathanEngine",
+				color = { 40, 160, 200 },
+			},
+			{
+				n = 31,
+				name = "Shiny Leviathan Coils",
+				shape = "coil",
+				tier = "Boss",
+				boss = "LeviathanEngine",
+				shiny = true,
+				color = { 150, 255, 230 },
+			},
 		},
 		legs = {
 			-- Gizmo's shop at HQ (M9): bought with Credits only, never rolled by loot (tier "Shop")

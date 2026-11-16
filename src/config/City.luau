@@ -61,6 +61,21 @@ return {
 	-- Muted building colours so saturated hero colours pop (spec: Style guide)
 	palette = {
 		concrete = { 158, 156, 150 },
+		-- The Deep (underwater): reef, wrecks, the Sunken Line and the sunken factory
+		coralA = { 255, 120, 120 },
+		coralB = { 255, 180, 90 },
+		coralC = { 190, 120, 230 },
+		coralD = { 90, 210, 190 },
+		kelp = { 60, 120, 70 },
+		wreck = { 96, 70, 52 },
+		rust = { 140, 80, 50 },
+		seabed = { 170, 160, 130 },
+		tunnel = { 88, 92, 98 },
+		trainCar = { 170, 175, 185 },
+		trainStripe = { 220, 70, 60 },
+		cargo = { 230, 180, 60 },
+		nullMetal = { 50, 52, 64 },
+		nullGlow = { 120, 90, 255 },
 		brick = { 140, 98, 82 },
 		slate = { 92, 100, 112 },
 		sand = { 196, 180, 150 },

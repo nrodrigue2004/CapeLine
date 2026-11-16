@@ -211,8 +211,25 @@ local function makeRobot(typeId: number): Body
 		add("Cape", Vector3.new(d.torsoW * 0.95, d.torsoH * 1.7, 0.12), rgb(body.cape), Enum.Material.Fabric)
 	end
 	if body.jets then
-		add("JetL", Vector3.new(d.limb * 0.8, d.limb * 1.6, d.limb * 0.8), Color3.fromRGB(255, 170, 70), N)
-		add("JetR", Vector3.new(d.limb * 0.8, d.limb * 1.6, d.limb * 0.8), Color3.fromRGB(255, 170, 70), N)
+		local jet = if body.jetColor then rgb(body.jetColor) else Color3.fromRGB(255, 170, 70)
+		add("JetL", Vector3.new(d.limb * 0.8, d.limb * 1.6, d.limb * 0.8), jet, N)
+		add("JetR", Vector3.new(d.limb * 0.8, d.limb * 1.6, d.limb * 0.8), jet, N)
+	end
+	-- sea robots: a glass diving helmet and an air tank (PLACEHOLDER ART)
+	if body.helmet then
+		add(
+			"Helmet",
+			Vector3.one * d.head * 1.45,
+			Color3.fromRGB(190, 230, 255),
+			Enum.Material.Glass,
+			Enum.PartType.Ball,
+			0.55
+		)
+		add("Collar", Vector3.new(d.head * 1.3, d.head * 0.2, d.head * 1.3), trim, M)
+	end
+	if body.tank then
+		add("Tank", Vector3.new(d.torsoW * 0.32, d.torsoH * 0.85, d.torsoW * 0.32), trim:Lerp(dark, 0.3), M)
+		add("Tank2", Vector3.new(d.torsoW * 0.32, d.torsoH * 0.85, d.torsoW * 0.32), trim:Lerp(dark, 0.3), M)
 	end
 	if body.mask then
 		add(
@@ -646,6 +663,10 @@ local function pose(
 	put("EyeR", neck * CFrame.new(d.head * 0.2, d.head * 0.08, -d.head * 0.5 - 0.03))
 	put("Mask", neck * CFrame.new(0, d.head * 0.08, 0))
 	put("Bag", torsoC * CFrame.new(0, 0, d.torsoD * 0.5 + d.torsoD * 0.35))
+	put("Helmet", neck * CFrame.new(0, d.head * 0.05, 0))
+	put("Collar", neck * CFrame.new(0, -d.head * 0.62, 0))
+	put("Tank", torsoC * CFrame.new(-d.torsoW * 0.2, 0, d.torsoD * 0.5 + d.torsoW * 0.18))
+	put("Tank2", torsoC * CFrame.new(d.torsoW * 0.2, 0, d.torsoD * 0.5 + d.torsoW * 0.18))
 	-- the cape hangs from the shoulders and sways with speed
 	local capeA = math.rad(8 + math.clamp(body.speed, 0, 20) * 1.6 + math.sin(now * 2.2 + id) * 3)
 	put(

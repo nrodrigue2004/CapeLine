@@ -13,6 +13,8 @@ return {
 		bossParticipant = { credits = { 150, 0 }, renown = { 400, 15 } },
 		bossContributor = { credits = { 250, 0 }, renown = { 600, 20 } },
 		bossMvp = { credits = { 400, 0 }, renown = { 900, 25 } },
+		deepCache = { credits = { 60, 4 }, renown = { 20, 1 } }, -- a sunken cargo cache (Config.Deep)
+		deepRescue = { credits = { 30, 1.5 }, renown = { 45, 3 } }, -- a commuter swum out of the Sunken Line
 	},
 	-- Bonuses multiply, then round; the whole stack is capped at x4
 	bonus = {

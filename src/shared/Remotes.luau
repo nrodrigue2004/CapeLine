@@ -114,6 +114,10 @@ local Remotes: { [string]: RemoteDef } = {
 	BossContribution = { dir = "S2C" }, -- { score, tier, rank, heroes }, 1 Hz to each fighter
 	BossResult = { dir = "S2C" }, -- { defeated, tier, rank, credits, renown, drops, style, mvp }
 	WorldClock = { dir = "S2C" }, -- { start, cycle }: the client works out the time of day
+	-- Underwater (Config.Deep): caches open and commuters are picked up by swimming close (the server's own
+	-- position check), so there is no C2S remote. { opened = { [cache id] = seconds left }, rescues = { [id]
+	-- = true when waiting }, carriers = { [hero id] = rescue id } }
+	DeepState = { dir = "S2C" },
 
 	-- Story (M7; spec: Mission.Enter {missionId, partyId} 1/5s, Mission.Leave, Mission.State 2/s, Choice.Pick
 	-- 1/s). NPC talk uses ProximityPrompts (the server's own check), so it has no remote.

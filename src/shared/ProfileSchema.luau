@@ -10,6 +10,7 @@
 local ProfileSchema = {}
 
 ProfileSchema.VERSION = 7
+ProfileSchema.BOSSES = 3 -- #Config.Boss.order (a test checks they match)
 ProfileSchema.SLOTS = 8
 ProfileSchema.STYLE_WORDS = 16 -- 512 bits
 ProfileSchema.SMALL_WORDS = 4 -- 128 bits for emotes, titles, Rogues File pages, seen flags
@@ -175,7 +176,7 @@ function ProfileSchema.default(): { [string]: any }
 		purchases = { passes = {}, receipts = {}, slots = 0, tints = 0 }, -- slots, tints: a bit per slot or tint
 		pieces = words(ProfileSchema.PIECE_WORDS), -- creator pieces unlocked (CreatorRules ids)
 		legends = {}, -- the Hall of Legends: retired heroes' statues (HqRules.retire)
-		bosses = { 0, 0 }, -- best world boss reward tier per boss (Config.Boss.order): 1 joined, 2, 3 MVP
+		bosses = { 0, 0, 0 }, -- best world boss reward tier per boss (Config.Boss.order): 1 joined, 2, 3 MVP
 		shop = { starterSeen = 0 }, -- the starter pack offer was shown (once)
 		settings = {}, -- M10: { [key id] = number } (SettingsRules.clean fills and fixes it on load)
 		mutes = {}, -- M10: muted user ids (the mute list), at most Config.Settings.maxMutes
@@ -468,7 +469,7 @@ local function repair(p: any): any
 	p.pity.legendary = num(p.pity.legendary, 0, 1000, 0)
 	p.purchases.slots = num(p.purchases.slots, 0, 31, 0)
 	p.purchases.tints = num(p.purchases.tints, 0, 2 ^ 31, 0)
-	for i = 1, 2 do
+	for i = 1, ProfileSchema.BOSSES do -- an older save gets 0 for a boss added since (the Leviathan Engine)
 		p.bosses[i] = num(p.bosses[i], 0, 3, 0)
 	end
 	p.shop.starterSeen = num(p.shop.starterSeen, 0, 1, 0)

@@ -27,6 +27,7 @@ local Formulas = require(Shared:WaitForChild("Formulas"))
 local Cooldowns = require(Shared:WaitForChild("Cooldowns"))
 local HitQuery = require(Shared:WaitForChild("HitQuery"))
 local CastPlan = require(Shared:WaitForChild("CastPlan"))
+local DeepLayout = require(Shared:WaitForChild("DeepLayout"))
 local AbilityRules = require(Shared:WaitForChild("AbilityRules"))
 local Awakening = require(Shared:WaitForChild("Awakening"))
 local ClashRules = require(Shared:WaitForChild("ClashRules"))
@@ -582,6 +583,19 @@ local function icePart(size: Vector3, cf: CFrame, life: number, collide: boolean
 	return p
 end
 
+-- Frost in the water: a floating ice raft at the surface over where the cast lands (one per hero at a time)
+local raftUntil: { [number]: number } = {}
+local function iceRaft(hero: any, at: Vector3)
+	local now = os.clock()
+	local f = Config.Deep.reactions.frostPlatform
+	if (raftUntil[hero.id] or 0) > now then
+		return
+	end
+	raftUntil[hero.id] = now + f.life
+	local y = Config.World.coast.waterY + 0.4
+	icePart(Vector3.new(f.size, 1.2, f.size), CFrame.new(at.X, y, at.Z), f.life, true)
+end
+
 local function makeWall(hero: any, eff: any, num: number, pieces: { { number } })
 	local now = os.clock()
 	for _, pc in pieces do
@@ -875,6 +889,9 @@ local function resolve(
 		end
 	end
 
+	if eff.iceRaft then
+		iceRaft(hero, if plan.cx then Vector3.new(plan.cx, plan.cy, plan.cz) else origin)
+	end
 	local knockDir = if plan.shape == "dash" then flatDir(dir) else nil
 	local from = if plan.shape == "nova" and plan.cx then Vector3.new(plan.cx, plan.cy, plan.cz) else origin
 	for _, h in plan.hits do
@@ -1157,6 +1174,33 @@ local function resolve(
 	return true
 end
 
+-- Elements react in the water (Config.Deep.reactions; the approved class doc): Storm chains jump farther,
+-- Fire bursts into blinding steam that pushes, Frost freezes an ice raft at the surface, Earth stirs a silt
+-- cloud that hides the hero, and Tide is stronger and faster. `eff` is this use's own copy.
+local function wetReaction(hero: any, eff: any)
+	local rx = Config.Deep.reactions
+	local set = eff.set
+	eff.wet = true
+	if set == "Volt" then
+		eff.jump = (eff.jump or 18) * rx.stormJump
+	elseif set == "Fire" then
+		if not eff.status then
+			eff.status, eff.statusDur = "blind", rx.fireBlind
+		end
+		if not eff.status2 then
+			eff.status2, eff.status2Dur = "knockback", 1
+			eff.knock = math.max(eff.knock or 0, rx.fireKnock)
+		end
+	elseif set == "Frost" then
+		eff.iceRaft = eff.slot ~= "basic"
+	elseif set == "Earth" and eff.slot ~= "basic" then
+		HeroService.buff(hero, "hidden", 1, rx.earthHide)
+	elseif set == "Tide" then
+		eff.coeff *= rx.tideDamage
+		eff.cd *= rx.tideCooldown
+	end
+end
+
 -- Shared by players (CombatUse) and load bots. Returns true when the use was accepted.
 function CombatService.use(
 	hero: any,
@@ -1198,6 +1242,9 @@ function CombatService.use(
 			eff.radius *= 1.15
 		end
 		eff.awakenedSuper = true
+	end
+	if DeepLayout.underwater(Config, root.X, root.Y, root.Z) then
+		wetReaction(hero, eff)
 	end
 	local full = AbilityRules.cooldown(Config, Formulas, eff, {
 		classId = hero.classId,

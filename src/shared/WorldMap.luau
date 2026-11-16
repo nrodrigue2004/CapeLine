@@ -224,7 +224,7 @@ function WorldMap.build(Config: any, seed: number): World
 		landmarks[i] = lm
 		landmarkParts += #lm.boxes
 	end
-	local baseBoxes = WorldGen.base(city, w, tiles)
+	local baseBoxes = WorldGen.base(city, w, tiles, Config.Deep)
 
 	-- safehouses and beacons
 	local safehouses: { [number]: Safehouse } = {}
