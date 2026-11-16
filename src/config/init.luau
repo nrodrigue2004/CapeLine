@@ -40,6 +40,7 @@ local NAMES = {
 	"Analytics",
 	"Deep",
 	"ArtFit",
+	"HeroRig",
 }
 
 local Config: { [string]: any } = {}

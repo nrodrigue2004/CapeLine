@@ -193,6 +193,19 @@ Checks:
 7. The shell still breaks off piece by piece showing the metal skeleton (steps 2 to 4 of the android list above), and colours still differ per robot.
 8. Performance: a full robot is about 27,000 triangles; Roblox lowers detail with distance by itself. 60 robots on PC (High) and 20 on a phone (Low) hold the frame rate (Dev panel). If not, Claude thins the meshes further.
 
+### Hero body on the R15 rig (2026-11-16)
+nate: every humanoid follows the standard R15 body. art/blender/hero.py builds the hero base body (15 parts named exactly as R15, about 10,400 triangles), exports art/export/Hero.fbx and writes Config.HeroRig (sizes, centres, every rig and accessory attachment). HeroBody (server) builds StarterPlayer.StarterCharacter from it at boot. Until the meshes are imported heroes keep the player's own avatar, so nothing breaks. Claude asks nate before doing the import on his PC.
+Import (once, and again only when Hero.fbx changes):
+1. Studio: Home > Import 3D, pick `Hero.fbx` (project files: capeline/Hero.fbx). Turn OFF "Import as a single mesh", rig settings off. Import.
+2. A model with 15 MeshParts appears (Head, UpperTorso, LeftUpperArm and so on). Rename it `Hero` and drag it into ReplicatedStorage > Art (next to Robots).
+3. Claude pulls it into the repo (art/models/Hero.rbxm, mapped by Rojo) like the robots.
+Checks (Play):
+4. The Output says "[HeroBody] every hero uses the R15 hero body". Your hero is the smooth suited body (not your avatar), feet on the ground, facing the way it walks.
+5. Walk, run, jump, fall, climb and swim play Roblox's R15 animations; emotes (EmoteFx) bend the right joints.
+6. Creator looks (suits, capes, masks, hair, gloves, boots, emblems, auras, trails) sit on the right parts; skin tone colours the head and hands.
+7. Abilities, hits, PvP and the Downed state work as before (the root part is the standard 2 x 2 x 1).
+8. If the body is missing or the Output shows a HeroBody error: tell Claude (the fallback is the avatar body).
+
 ### 17 paths, mobility and underwater (2026-11-16)
 Pick a path at the creator, then use the DEV panel to level up (15+ to borrow). Everything new is plain parts (PLACEHOLDER ART).
 1. Creator: 4 archetypes with their paths (17 in all); each path's starters show and a path change works once before level 10. At 15+ a hero can learn up to 5 skills from other paths in the same archetype; the basic and super stay the main path's.

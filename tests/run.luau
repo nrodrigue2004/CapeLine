@@ -5403,6 +5403,90 @@ test("Destruction: basic hits add up to break a piece; repair clears them", func
 	check(D.slotStruct.skill >= D.structure.chunkCost, "a skill is worth a piece")
 end)
 
+test("Art: the hero body is a standard R15 rig whose joints meet", function()
+	local rig = Config.HeroRig
+	local names = { "Head", "UpperTorso", "LowerTorso" }
+	for _, side in { "Left", "Right" } do
+		for _, part in { "UpperArm", "LowerArm", "Hand", "UpperLeg", "LowerLeg", "Foot" } do
+			table.insert(names, side .. part)
+		end
+	end
+	local count = 0
+	for _ in rig.parts do
+		count += 1
+	end
+	check(count == 15, "exactly the 15 R15 parts, got " .. count)
+	-- every rig joint: the two parts that share it put it at the same point in the world
+	local joints: { [string]: { { number } } } = {}
+	local function addJoints(def)
+		for name, at in def.attachments do
+			if string.sub(name, -13) == "RigAttachment" then
+				joints[name] = joints[name] or {}
+				table.insert(
+					joints[name],
+					{ def.centre[1] + at[1], def.centre[2] + at[2], def.centre[3] + at[3] }
+				)
+			end
+		end
+	end
+	addJoints(rig.root)
+	for _, name in names do
+		local def = rig.parts[name]
+		check(def ~= nil, "part " .. name)
+		if def then
+			check(def.size[1] > 0.05 and def.size[2] > 0.05 and def.size[3] > 0.05, name .. " has a size")
+			addJoints(def)
+		end
+	end
+	local expected = {
+		"Root",
+		"Waist",
+		"Neck",
+		"LeftShoulder",
+		"RightShoulder",
+		"LeftElbow",
+		"RightElbow",
+		"LeftWrist",
+		"RightWrist",
+		"LeftHip",
+		"RightHip",
+		"LeftKnee",
+		"RightKnee",
+		"LeftAnkle",
+		"RightAnkle",
+	}
+	for _, j in expected do
+		local pts = joints[j .. "RigAttachment"]
+		check(pts ~= nil and #pts == 2, j .. " joins exactly two parts")
+		if pts and #pts == 2 then
+			local a, b = pts[1], pts[2]
+			local d = math.abs(a[1] - b[1]) + math.abs(a[2] - b[2]) + math.abs(a[3] - b[3])
+			check(d < 0.01, j .. " meets in the world (off by " .. d .. ")")
+		end
+	end
+	-- standing on the ground: the feet reach y = 0 and the root part sits hipHeight above it
+	local lowest = math.huge
+	for _, def in rig.parts do
+		lowest = math.min(lowest, def.centre[2] - def.size[2] / 2)
+	end
+	check(math.abs(lowest) < 0.02, "feet on the ground")
+	check(
+		math.abs(rig.root.centre[2] - rig.root.size[2] / 2 - rig.hipHeight) < 0.01,
+		"hip height matches the root part"
+	)
+	-- left is -x like Roblox's own rig, and the face looks down -z
+	check(rig.parts.LeftUpperArm.centre[1] < 0 and rig.parts.RightUpperArm.centre[1] > 0, "left on -x")
+	check(rig.parts.Head.attachments.FaceFrontAttachment[3] < 0, "the face looks down -z")
+	for _, side in { "Left", "Right" } do
+		check(rig.parts[side .. "Hand"].attachments[side .. "GripAttachment"] ~= nil, side .. " grip")
+		check(rig.parts[side .. "Foot"].attachments[side .. "FootAttachment"] ~= nil, side .. " foot point")
+	end
+	check(
+		rig.triangles > 4000 and rig.triangles <= 12000,
+		"hero within its triangle budget: " .. rig.triangles
+	)
+end)
+
 test("Perf: FrameProf times wrapped loops, passes values through, sorts busiest first", function()
 	FrameProf.rows() -- clear
 	local light = FrameProf.wrap("Light", function(a: number, b: number)
