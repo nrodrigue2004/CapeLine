@@ -100,13 +100,14 @@ function WeaponRules.buyOk(Config: any, profile: any, id: number, credits: numbe
 	if WeaponRules.owned(Config, profile, id) then
 		return false, "owned", 0
 	end
-	if not w.price then
+	local price = w.price
+	if not price then
 		return false, "robux", 0
 	end
-	if credits < w.price then
-		return false, "credits", w.price
+	if credits < price then
+		return false, "credits", price
 	end
-	return true, nil, w.price
+	return true, nil, price
 end
 
 function WeaponRules.grant(profile: any, id: number): boolean

@@ -5824,6 +5824,103 @@ test("Creator plan: save v9 pads looks and pieces, keeps weapons, repairs junk",
 	)
 end)
 
+test(
+	"Creator plan: every new piece has a kit, body builds scale sensibly, Randomize uses the new slots",
+	function()
+		local fs = require("@lune/fs")
+		local luau = require("@lune/luau")
+		local roblox = require("@lune/roblox")
+		local CreatorRules = require("../src/shared/CreatorRules")
+		local BodyShape = require("../src/shared/BodyShape")
+		local ProfileSchema = require("../src/shared/ProfileSchema")
+		local Rng = require("../src/shared/Rng")
+		local kits = luau.load(fs.readFile("src/shared/PieceKits.luau"), {
+			debugName = "PieceKits",
+			environment = { Vector3 = roblox.Vector3, CFrame = roblox.CFrame, Enum = roblox.Enum },
+		})()
+		local idx = CreatorRules.index(Config)
+		local count = 0
+		for _, p in idx.list do
+			if p.id > 146 then
+				count += 1
+				local set = kits[p.tab]
+				check(
+					set ~= nil and set[p.kit] ~= nil,
+					p.name .. " has a kit (" .. p.tab .. "." .. p.kit .. ")"
+				)
+				check(p.index <= 255, p.name .. " fits a look byte")
+			end
+		end
+		check(count == 121, "121 new pieces in the first slice (111 in 12 new slots, 10 hair)")
+		local roles = {
+			head = true,
+			torso = true,
+			waist = true,
+			luarm = true,
+			ruarm = true,
+			llarm = true,
+			rlarm = true,
+			lhand = true,
+			rhand = true,
+			lthigh = true,
+			rthigh = true,
+			lshin = true,
+			rshin = true,
+		}
+		for slot, set in kits do
+			if type(set) == "table" and slot ~= "hatHidesHair" and slot ~= "hatHidesFace" then
+				for kit, specs in set do
+					local list = if slot == "legs" then specs.parts else specs
+					for _, s in list do
+						check(roles[s.at] == true, slot .. "." .. kit .. " sits on a body part")
+						check(
+							s.size.X > 0 and s.size.Y > 0 and s.size.Z > 0 and s.size.Magnitude < 4,
+							slot .. "." .. kit .. " size"
+						)
+					end
+				end
+			end
+		end
+		-- the creator's slots are LookCodec's slots
+		local LookCodec = require("../src/shared/LookCodec")
+		for _, tab in Config.Creator.tabs do
+			check(table.find(LookCodec.SLOTS, tab.id) ~= nil, tab.id .. " is a look slot")
+		end
+		-- body: Medium is the standard rig, Titan is wide and tall, the head never stretches, legs fit the waist
+		local std = BodyShape.factors(Config, { build = 2, height = 3, gender = 1 })
+		for name, f in std do
+			check(f[1] == 1 and f[2] == 1 and f[3] == 1, name .. " is standard on a Medium body")
+		end
+		local titan, tall = BodyShape.factors(Config, { build = 4, height = 5, gender = 1 })
+		check(
+			titan.UpperTorso[1] == 1.6 and titan.LeftHand[1] == 1.4 and tall > 1.25,
+			"Titan: wide torso, big fists, tall"
+		)
+		check(titan.Head[1] == titan.Head[2], "the head scales evenly")
+		local small = BodyShape.factors(Config, { build = 1, height = 1, gender = 2 })
+		check(small.LowerTorso[1] < small.UpperTorso[1], "Female: the waist is narrower")
+		check(small.LeftUpperLeg[1] <= small.LowerTorso[1], "legs fit under the waist")
+		-- Randomize gives a valid look with new slots and a body
+		local profile = ProfileSchema.default()
+		local rng = Rng.new(7)
+		local used = {}
+		for _ = 1, 60 do
+			local look = CreatorRules.randomize(Config, profile, rng)
+			check((CreatorRules.validate(Config, profile, look)), "Randomize is valid")
+			for slot, i in look.pieces do
+				if i ~= 0 then
+					used[slot] = true
+				end
+			end
+			used["build" .. look.build] = true
+		end
+		check(
+			used.hat and used.legs and used.face and used.build4,
+			"Randomize reaches the new slots and builds"
+		)
+	end
+)
+
 print(string.format("\n%d passed, %d failed", passed, failed))
 if failed > 0 then
 	process.exit(1)

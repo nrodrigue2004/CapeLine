@@ -197,7 +197,8 @@ function CreatorRules.validate(Config: any, profile: any, look: Look): (boolean,
 	if look.eyeColor ~= 0 and not C.palette[look.eyeColor] then
 		return false, "color"
 	end
-	for slot, t in look.tints or {} do
+	local tints: { [string]: { number } } = look.tints or {}
+	for slot, t in tints do
 		if not table.find(LookCodec.SLOTS, slot) then
 			return false, "slot"
 		end
@@ -208,7 +209,8 @@ function CreatorRules.validate(Config: any, profile: any, look: Look): (boolean,
 			end
 		end
 	end
-	for slot, m in look.mats or {} do
+	local mats: { [string]: number } = look.mats or {}
+	for slot, m in mats do
 		if not table.find(LookCodec.SLOTS, slot) or (m ~= 0 and not C.materials[m]) then
 			return false, "material"
 		end

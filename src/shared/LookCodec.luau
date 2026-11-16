@@ -89,8 +89,8 @@ function LookCodec.encode(look: Look): buffer
 	for i = 1, 3 do
 		buffer.writeu8(b, 7 + i, byte(look.colors[i], 1, 255, 1))
 	end
-	local tints = look.tints or {}
-	local mats = look.mats or {}
+	local tints: { [string]: Tint } = look.tints or {}
+	local mats: { [string]: number } = look.mats or {}
 	for i, slot in LookCodec.SLOTS do
 		buffer.writeu8(b, PIECES_AT + i - 1, byte(look.pieces[slot], 0, 255, 0))
 		local t = tints[slot]
@@ -209,7 +209,8 @@ end
 
 function LookCodec.copy(look: Look): Look
 	local tints = {}
-	for k, t in look.tints or {} do
+	local src: { [string]: Tint } = look.tints or {}
+	for k, t in src do
 		tints[k] = table.clone(t)
 	end
 	return {
