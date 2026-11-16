@@ -81,7 +81,7 @@ local function finish(now: number)
 	if len > LIMIT then
 		IdleWatch.count += 1
 		IdleWatch.longest = math.max(IdleWatch.longest, len)
-		Net.send("IdleReport", math.min(600, math.floor(len * 10 + 0.5) / 10), reason)
+		Net.send("IdleReport", math.min(600, math.floor(len + 0.5)), reason) -- whole seconds (the schema takes integers)
 	end
 end
 

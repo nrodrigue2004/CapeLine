@@ -2,8 +2,8 @@
 -- FrameProf: per-system script time for every per-frame loop, on the server and on each device.
 -- FrameProf.wrap(name, fn) returns fn timed under that name; the label also shows in the MicroProfiler
 -- (Ctrl+F6). FrameProf.report() lists the busiest systems, average and worst ms per frame since the last
--- report. From the Studio command bar while playing:
---   print(require(game.ReplicatedStorage.Shared.FrameProf).report())
+-- report. The command bar has its own copy of every module, so to read it while playing, run this on the
+-- Server command bar (it reaches every device):  workspace:SetAttribute("FrameProf", true)
 
 local FrameProf = {}
 
@@ -31,8 +31,18 @@ local hasGame, runService = pcall(function()
 	return (game :: any):GetService("RunService")
 end)
 if hasGame and runService then
+	local workspace = (game :: any):GetService("Workspace")
+	local nextLog = os.clock() + 10
 	runService.Heartbeat:Connect(function()
 		frames += 1
+		-- Studio: set the Workspace attribute FrameProf to true (from the Server command bar, so it
+		-- reaches every device) to print a report every 10 s on the server and each device
+		if os.clock() >= nextLog then
+			nextLog = os.clock() + 10
+			if workspace:GetAttribute("FrameProf") == true then
+				print(FrameProf.report())
+			end
+		end
 	end)
 end
 
