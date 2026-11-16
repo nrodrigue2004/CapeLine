@@ -7,6 +7,18 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+
+-- Studio only: copy every server error to ReplicatedStorage.ServerErrors, so the loading screen can show it
+-- on screen (no digging through the Output window). Connected first, before any require can fail.
+if RunService:IsStudio() then
+	local log = Instance.new("StringValue")
+	log.Name = "ServerErrors"
+	log.Parent = ReplicatedStorage
+	game:GetService("ScriptContext").Error:Connect(function(message, trace)
+		log.Value = string.sub(log.Value .. message .. "\n" .. trace .. "\n", -3000)
+	end)
+end
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Shared = ReplicatedStorage:WaitForChild("Shared")

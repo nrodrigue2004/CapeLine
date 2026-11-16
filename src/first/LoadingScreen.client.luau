@@ -60,6 +60,40 @@ end
 while not player.Character and os.clock() - start < 12 do
 	task.wait(0.1)
 end
+-- Studio only: if the server hit an error, show it in a red box (tap to close) instead of an empty sky
+local errors = game:GetService("RunService"):IsStudio()
+	and game:GetService("ReplicatedStorage"):FindFirstChild("ServerErrors")
+local function showErrors()
+	if not errors or (errors :: StringValue).Value == "" then
+		return
+	end
+	local eg = player.PlayerGui:FindFirstChild("ServerErrorsGui") or Instance.new("ScreenGui")
+	eg.Name = "ServerErrorsGui"
+	eg.ResetOnSpawn = false
+	eg.DisplayOrder = 200
+	local box = eg:FindFirstChild("Box") :: TextButton? or Instance.new("TextButton")
+	box.Name = "Box"
+	box.AutoButtonColor = false
+	box.Position = UDim2.new(0, 16, 0, 60)
+	box.Size = UDim2.new(1, -32, 0, 260)
+	box.BackgroundColor3 = Color3.fromRGB(90, 10, 16)
+	box.TextColor3 = Color3.new(1, 1, 1)
+	box.TextXAlignment = Enum.TextXAlignment.Left
+	box.TextYAlignment = Enum.TextYAlignment.Top
+	box.TextWrapped = true
+	box.Font = Enum.Font.Code
+	box.TextSize = 14
+	box.Text = "SERVER ERROR (Studio only, tap to close)\n" .. (errors :: StringValue).Value
+	box.Activated:Connect(function()
+		eg:Destroy()
+	end)
+	box.Parent = eg
+	eg.Parent = player.PlayerGui
+end
+if errors then
+	(errors :: StringValue).Changed:Connect(showErrors)
+	showErrors()
+end
 TweenService:Create(bg, TweenInfo.new(0.4), { BackgroundTransparency = 1 }):Play()
 TweenService:Create(title, TweenInfo.new(0.4), { TextTransparency = 1, TextStrokeTransparency = 1 }):Play()
 spark.Visible = false
