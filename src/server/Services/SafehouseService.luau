@@ -110,7 +110,7 @@ local function placeCharacter(hero: any, cf: CFrame)
 	if not model then
 		return
 	end
-	pcall(player.RequestStreamAroundAsync, player, cf.Position, 2)
+	pcall(player.RequestStreamAroundAsync, player, cf.Position, 5)
 	local root = model:WaitForChild("HumanoidRootPart", 5)
 	if root and model.Parent then
 		model:PivotTo(cf)

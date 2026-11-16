@@ -4700,6 +4700,7 @@ if placePath then
 				{ "Fx", "JuiceFx" },
 				{ "Ui", "PhotoMode" },
 				{ "Controllers", "Telemetry" },
+				{ "Controllers", "GroundGuard" },
 			}
 		do
 			local folder = client and client:FindFirstChild(path[1])
@@ -4707,6 +4708,10 @@ if placePath then
 		end
 		local first = game:GetService("ReplicatedFirst"):FindFirstChild("LoadingScreen")
 		check(first ~= nil and first.ClassName == "LocalScript", "ReplicatedFirst.LoadingScreen")
+		check(
+			game:GetService("Players").CharacterAutoLoads == false,
+			"characters wait for the city (CharacterAutoLoads off until the hub is built)"
+		)
 		check(game:GetService("Workspace").StreamingEnabled == true, "StreamingEnabled on")
 		check(
 			game:GetService("Workspace").StreamOutBehavior == roblox.Enum.StreamOutBehavior.Opportunistic,

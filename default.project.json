@@ -13,6 +13,11 @@
     "ServerScriptService": {
       "Server": { "$path": "src/server" }
     },
+    "Players": {
+      "$properties": {
+        "CharacterAutoLoads": false
+      }
+    },
     "StarterPlayer": {
       "$properties": {
         "EnableMouseLockOption": false,

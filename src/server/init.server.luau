@@ -5,6 +5,7 @@
 -- mission pockets, side quests), PvP and safety (the flag, Fame, strikes and reports, Downed and defeats),
 -- the creator, HQ and shops (M9), settings and squads (M10), analytics (M12), then saves (a loaded profile fires into all of those), and the Studio-only tools.
 
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
@@ -56,6 +57,14 @@ local DevService = require(Services.DevService)
 print(string.format("[Capeline] boot, balance %d, build %s", Config.Version.balance, Config.Version.build))
 local t0 = os.clock()
 CityBuilder.build()
+-- Characters load only once the hub and its spawn pads exist (the place starts with CharacterAutoLoads off),
+-- so nobody spawns over an empty world and falls
+Players.CharacterAutoLoads = true
+for _, player in Players:GetPlayers() do
+	if not player.Character then
+		task.spawn(pcall, player.LoadCharacter, player)
+	end
+end
 Net.initServer()
 PerfMonitor.init()
 HeroService.init()
