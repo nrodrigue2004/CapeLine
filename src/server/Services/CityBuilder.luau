@@ -149,11 +149,8 @@ local function buildHub(world: any, folder: Folder)
 				m = Instance.new("Model")
 				m.Name = "Block_" .. key
 				m.ModelStreamingMode = Enum.ModelStreamingMode.Atomic
-				-- the skyline stays visible far away; some Studio builds refuse this write from a script, and a
-				-- refusal must never stop the city from building
-				pcall(function()
-					m.LevelOfDetail = Enum.ModelLevelOfDetail.StreamingMesh
-				end)
+				-- (Model.LevelOfDetail would keep the skyline visible far away, but scripts can't set it: it
+				-- needs plugin capability, and the write stopped the whole city from building in Studio)
 				m.Parent = hub
 				chunks[key] = m
 			end
