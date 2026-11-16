@@ -226,7 +226,7 @@ function SquadHud.init()
 	list = Instance.new("Frame")
 	list.Name = "SquadList"
 	list.BackgroundTransparency = 1
-	list.Position = UDim2.fromOffset(Config.Ui.safe, Config.Ui.safe + 310)
+	list.Position = UDim2.fromOffset(Config.Ui.safe, Config.Ui.safe + 345)
 	list.Size = UDim2.fromOffset(200, 100)
 	list.Visible = false
 	local ll = Instance.new("UIListLayout")

@@ -466,7 +466,29 @@ local function props(player: Player)
 	end
 end
 
--- Offline drones: pay the minutes away since the last leave (banked), once
+-- Offline drones (spec: Wait table "Away | HQ drones earn Credits offline, capped at 8 hours, collected
+-- with one tap"): the minutes away since the last leave make a haul; a COLLECT card banks it. A haul
+-- nobody tapped is banked anyway when the player leaves, so it is never lost.
+local hauls: { [Player]: number } = {}
+
+local function collect(player: Player, given: any?)
+	local credits = hauls[player]
+	local profile = given or DataService.get(player)
+	if not credits or not profile then
+		return
+	end
+	hauls[player] = nil
+	profile.currency.banked += credits
+	local hero = HeroService.get(player)
+	if hero then
+		hero.credits = profile.currency.credits + profile.currency.banked
+	end
+	DataService.changed(player, true)
+	if player.Parent then
+		Net.fire("Toast", player, { id = "drones", credits = credits })
+	end
+end
+
 local function drones(player: Player, profile: any)
 	local c = ProfileSchema.active(profile)
 	local at = c.hq.droneAt
@@ -476,13 +498,12 @@ local function drones(player: Player, profile: any)
 	end
 	local credits = HqRules.drones(Config, c.hq.level, os.time() - at)
 	if credits > 0 then
-		profile.currency.banked += credits
-		local hero = HeroService.get(player)
-		if hero then
-			hero.credits = profile.currency.credits + profile.currency.banked
-		end
-		DataService.changed(player, true)
-		Net.fire("Toast", player, { id = "drones", credits = credits })
+		hauls[player] = (hauls[player] or 0) + credits
+		Net.fire(
+			"DronesReady",
+			player,
+			{ credits = hauls[player], minutes = math.floor((os.time() - at) / 60) }
+		)
 	end
 end
 
@@ -550,8 +571,12 @@ function HqService.init()
 		drones(player, profile)
 		props(player)
 	end)
-	DataService.Leaving:Connect(function(_, profile)
+	DataService.Leaving:Connect(function(player, profile)
+		collect(player, profile) -- an untapped haul is banked, never lost
 		ProfileSchema.active(profile).hq.droneAt = os.time()
+	end)
+	Net.on("HqCollect", function(player)
+		collect(player)
 	end)
 	StoryService.Changed:Connect(props)
 	CreatorService.Saved:Connect(function(player)

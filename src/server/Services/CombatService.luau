@@ -29,6 +29,7 @@ local HitQuery = require(Shared:WaitForChild("HitQuery"))
 local CastPlan = require(Shared:WaitForChild("CastPlan"))
 local AbilityRules = require(Shared:WaitForChild("AbilityRules"))
 local Awakening = require(Shared:WaitForChild("Awakening"))
+local ClashRules = require(Shared:WaitForChild("ClashRules"))
 local Status = require(Shared:WaitForChild("Status"))
 local Signal = require(Shared:WaitForChild("Util"):WaitForChild("Signal"))
 
@@ -50,7 +51,7 @@ local DS = Config.Destruction
 local CHEST = Vector3.new(0, 1.5, 0)
 
 -- Result kinds on the wire (r.k)
-local K = { CAST = 1, WINDUP = 2, TICK = 3, LAND = 4, ECHO = 5, END = 6, COMBO = 7, RIPOSTE = 8 }
+local K = { CAST = 1, WINDUP = 2, TICK = 3, LAND = 4, ECHO = 5, END = 6, COMBO = 7, RIPOSTE = 8, CLASH = 9 }
 CombatService.KIND = K
 
 local losParams = RaycastParams.new()
@@ -82,6 +83,7 @@ local pending: { any } = {}
 local timers: { { at: number, fn: () -> () } } = {}
 local fields: { any } = {}
 local combos = Awakening.comboBook()
+local clashes = ClashRules.book()
 local partsFolder: Folder
 
 local PVP_BASE = HeroService.PVP_BASE
@@ -380,6 +382,16 @@ local function applyHit(
 		flag,
 	})
 	local heavy = coeff >= C.heavyCoeff
+	if heavy and primary then
+		-- Collision freeze (spec: Clash moments): another hero's heavy hit lands here at the same moment
+		local other =
+			ClashRules.note(C.clash, clashes, { hero = hero.id, x = e.x, y = e.y, z = e.z, t = os.clock() })
+		if other then
+			local mid = (Vector3.new(e.x, e.y, e.z) + Vector3.new(other.x, other.y, other.z)) / 2
+			local c = record(hero, r.n, r.s, K.CLASH, mid, Vector3.new(0, 1, 0))
+			c.c, c.r, c.p = mid, C.clash.radius, other.hero
+		end
+	end
 	if heavy then
 		-- Vehicle flip (spec: Clash moments): any heavy hit flips cars and trams next to the target
 		VehicleService.hit(Vector3.new(e.x, e.y, e.z), DS.vehicles.hitRadius)

@@ -60,7 +60,27 @@ local function report()
 	return out
 end
 
+-- M11 gate (spec: "No idle wait over 5 seconds in a 30-minute session"): each device reports its waits
+-- of over 5 s with nothing to do (IdleWatch); the Output lists every one and the Dev panel the count
+local REASONS = { "no incident near", "dead or respawning", "loading", "other" }
+local idleWaits, idleLongest = 0, 0
+PerfMonitor.watch("idle>5s", function()
+	return string.format("%d (longest %.1f s)", idleWaits, idleLongest)
+end)
+
 function PerfMonitor.init()
+	Net.on("IdleReport", function(player, seconds: number, why: number)
+		idleWaits += 1
+		idleLongest = math.max(idleLongest, seconds)
+		print(
+			string.format(
+				"[Capeline] idle wait %.1f s for %s (%s)",
+				seconds,
+				player.Name,
+				REASONS[why] or "?"
+			)
+		)
+	end)
 	RunService.Heartbeat:Connect(function(dt)
 		frames += 1
 		frameTotal += dt * 1000

@@ -14,6 +14,7 @@ local Vehicles = require(Shared:WaitForChild("Vehicles"))
 local VehiclePose = require(Shared:WaitForChild("VehiclePose"))
 
 local DebrisBudget = require(script.Parent.DebrisBudget)
+local Juice = require(script.Parent.Juice)
 
 local VehicleFx = {}
 
@@ -100,6 +101,7 @@ function VehicleFx.init()
 	Net.listen("VehicleFlip", function(id: number, dx: number, dz: number)
 		if list[id] and type(dx) == "number" and type(dz) == "number" then
 			arcs[id] = { t0 = os.clock(), dx = dx, dz = dz }
+			Juice.fire("vehicleFlip", VehiclePose.home(list[id]).Position, { mine = false })
 		end
 	end)
 	Net.listen("VehicleReset", function(id: number)

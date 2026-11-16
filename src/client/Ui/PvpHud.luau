@@ -22,6 +22,8 @@ local PvpRules = require(Shared:WaitForChild("PvpRules"))
 local Kit = require(script.Parent.Kit)
 local State = require(script.Parent.Parent.State)
 local PvpClient = require(script.Parent.Parent.Controllers.PvpClient)
+local Juice = require(script.Parent.Parent.Fx.Juice)
+local LoadoutScreen = require(script.Parent.LoadoutScreen)
 local StoryClient = require(script.Parent.Parent.Controllers.StoryClient)
 
 local PvpHud = {}
@@ -51,6 +53,8 @@ local resultText: TextLabel
 
 local reviving: { userId: number, startT: number, doneT: number }? = nil
 local nearDowned: Player? = nil
+local loadoutButton: TextButton
+local loadoutAfter = false -- CHOOSE LOADOUT tapped: the POWERS screen opens when you are back
 
 local CUT_TEXT = {
 	["repeat"] = "You beat them twice already: no pay for 30 minutes",
@@ -216,6 +220,26 @@ local function build()
 	layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 	layout.Padding = UDim.new(0, 8)
 	layout.Parent = pickRow
+	-- spec: Wait table "Defeated | Respawn 5 s at a safehouse with a Choose Loadout button on screen"
+	loadoutButton = Kit.button({
+		Text = "CHOOSE LOADOUT",
+		AnchorPoint = Vector2.new(0.5, 0),
+		Size = UDim2.fromOffset(240, s - 8),
+		Position = UDim2.new(0.5, 0, 0.22, 116 + 2 * s),
+		Visible = false,
+		maxText = 20,
+	}, function()
+		loadoutAfter = true
+		loadoutButton.Text = "OPENS WHEN YOU ARE BACK"
+	end)
+	loadoutButton.Parent = downLayer
+	player.CharacterAdded:Connect(function()
+		loadoutButton.Text = "CHOOSE LOADOUT"
+		if loadoutAfter then
+			loadoutAfter = false
+			task.delay(0.6, LoadoutScreen.open)
+		end
+	end)
 	pickRow.Parent = downLayer
 
 	-- REVIVE next to a Downed player
@@ -342,10 +366,17 @@ local function showResult(r: any)
 	end)
 end
 
+local wasDowned = false
 local function refreshDown()
 	local d = PvpClient.down
 	local now = os.clock()
 	local since = now - PvpClient.downAt
+	-- the muffled heartbeat while Downed (juice row Downed)
+	if d.downed and not wasDowned then
+		Juice.fire("downed", nil, { mine = true })
+	end
+	wasDowned = d.downed == true
+	Juice.hold("downed", wasDowned)
 	if d.downed then
 		downLayer.Visible = true
 		local left = math.max(0, (d.left or 0) - since)
@@ -371,8 +402,12 @@ local function refreshDown()
 		giveUpButton.Visible = false
 		helpButton.Visible = false
 		pickRow.Visible = (d.respawnIn or 0) > 0
+		loadoutButton.Visible = true
 	else
 		downLayer.Visible = false
+	end
+	if not d.defeated then
+		loadoutButton.Visible = false
 	end
 end
 

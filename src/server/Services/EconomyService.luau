@@ -158,17 +158,35 @@ function EconomyService.reward(
 	return credits, renown
 end
 
+-- The friend boost on screen (M11): the FriendBoost attribute is the Renown bonus in percent
+local function showBoost(player: Player)
+	local b = Config.Economy.bonus
+	local pct = math.floor(math.min(friendCount(player) * b.friendEach, b.friendMax) * 100 + 0.5)
+	player:SetAttribute("FriendBoost", if pct > 0 then pct else nil)
+end
+
 local function checkFriends(player: Player)
 	friendsOf[player] = friendsOf[player] or {}
 	for _, other in Players:GetPlayers() do
 		if other ~= player then
 			local ok, isFriend = pcall(player.IsFriendsWith, player, other.UserId)
-			if ok and isFriend then
+			if ok and isFriend and player.Parent and other.Parent then
 				friendsOf[player][other] = true
 				friendsOf[other] = friendsOf[other] or {}
 				friendsOf[other][player] = true
+				showBoost(other)
+				Net.fire("Toast", other, {
+					id = "friendHere",
+					name = player.DisplayName,
+					pct = other:GetAttribute("FriendBoost") or 0,
+				})
 			end
 		end
+	end
+	showBoost(player)
+	local mine = player:GetAttribute("FriendBoost")
+	if mine then
+		Net.fire("Toast", player, { id = "friendHere", pct = mine })
 	end
 end
 
@@ -185,8 +203,11 @@ function EconomyService.init()
 	end
 	Players.PlayerRemoving:Connect(function(player)
 		friendsOf[player] = nil
-		for _, set in friendsOf do
-			set[player] = nil
+		for other, set in friendsOf do
+			if set[player] then
+				set[player] = nil
+				showBoost(other)
+			end
 		end
 	end)
 	DataService.Loaded:Connect(syncCredits)

@@ -400,9 +400,10 @@ local function showResult(r: { [string]: any })
 	local lines = {
 		{ string.format("%s CLEAR!", string.upper(missionName(r.num or 0, side))), Kit.color.gold, 34 },
 		{
-			string.format("+%s CREDITS   +%s RENOWN", Kit.comma(r.credits or 0), Kit.comma(r.renown or 0)),
+			Kit.payLine(r.credits or 0, r.renown or 0, 1),
 			Kit.color.paper,
 			20,
+			true, -- counts up
 		},
 	}
 	if r.first then
@@ -430,6 +431,11 @@ local function showResult(r: { [string]: any })
 			maxText = line[3],
 		})
 		l.Parent = resultCard
+		if line[4] then
+			Kit.countUp(l, 1.5, function(k)
+				return Kit.payLine(r.credits or 0, r.renown or 0, k)
+			end)
+		end
 	end
 	resultCard.Visible = true
 	Kit.pulse(resultCard, 0.2)

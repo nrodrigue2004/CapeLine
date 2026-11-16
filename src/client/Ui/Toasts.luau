@@ -3,6 +3,7 @@
 -- and purple drops get a burst); rewards show +Credits and +Renown; Second Wind and a save outage get a
 -- line each; beacons, safehouses and the bank get one too; so do incidents, contracts, photos and events. At most 4 show at once; older ones slide out. PLACEHOLDER look until M10 and M11.
 
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
@@ -12,6 +13,7 @@ local Progress = require(Shared:WaitForChild("Progress"))
 local GearMath = require(Shared:WaitForChild("GearMath"))
 
 local Kit = require(script.Parent.Kit)
+local Juice = require(script.Parent.Parent.Fx.Juice)
 local State = require(script.Parent.Parent.State)
 local GearScreen = require(script.Parent.GearScreen)
 local ContractBoard = require(script.Parent.ContractBoard)
@@ -111,8 +113,51 @@ local function push(text: string, color: Color3, big: boolean?, life: number?)
 	end)
 end
 
+-- The juice action a toast stands for (spec: juice rows with a sound and a visual)
+local function juice(data: { [string]: any })
+	local id = data.id
+	if id == "levelUp" then
+		Juice.fire("levelUp", nil, { level = data.level })
+	elseif id == "reward" and data.action == "rescue" then
+		local char = Players.LocalPlayer.Character
+		local root = char and char:FindFirstChild("HumanoidRootPart") :: BasePart?
+		Juice.fire("rescue", root and root.Position, { renown = data.renown })
+	elseif id == "loot" and data.piece and data.kind ~= "salvaged" then
+		Juice.fire("gearDrop", nil, { tier = GearMath.tierName(Config, data.piece) })
+	elseif id == "incident" then
+		Juice.fire("incidentClear", nil, { medal = data.medal })
+	elseif id == "contract" then
+		Juice.fire("contractDone", nil, { name = data.name })
+	elseif id == "revived" or id == "revivedBy" then
+		local char = Players.LocalPlayer.Character
+		local root = char and char:FindFirstChild("HumanoidRootPart") :: BasePart?
+		Juice.fire("revive", root and root.Position)
+	elseif id == "bought" or id == "styleBought" then
+		Juice.fire("purchase", nil, { name = data.name })
+	elseif id == "pvpOn" then
+		Juice.fire("pvpFlag")
+	end
+end
+
 function Toasts.show(data: { [string]: any })
 	local id = data.id
+	juice(data)
+	if id == "friendHere" then
+		-- the friend boost (spec: Social table "+10% Renown per friend in the server, max +30%")
+		if data.name then
+			push(
+				string.format("%s is here! FRIEND BOOST +%d%% Renown", data.name, data.pct or 0),
+				Kit.color.gold,
+				true
+			)
+		else
+			push(
+				string.format("FRIEND BOOST +%d%% Renown: friends in this server", data.pct or 0),
+				Kit.color.gold
+			)
+		end
+		return
+	end
 	if id == "note" then
 		-- a plain line from a screen on this device (loading and error notes)
 		push(tostring(data.text or ""), Kit.color.paper)

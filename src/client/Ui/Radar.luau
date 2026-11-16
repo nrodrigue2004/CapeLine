@@ -37,6 +37,7 @@ local disc: TextButton
 local dots: { TextLabel } = {}
 local clockText: TextLabel
 local bossText: TextLabel
+local boostText: TextLabel
 local wheel: Frame
 local dangers: { { pos: Vector3, untilT: number } } = {}
 
@@ -159,6 +160,8 @@ local function draw()
 		math.floor(hours),
 		math.floor((hours % 1) * 60)
 	)
+	local boost = me:GetAttribute("FriendBoost")
+	boostText.Text = if typeof(boost) == "number" then string.format("FRIEND BOOST +%d%%", boost) else ""
 	local s = WorldClient.boss
 	local left = (s.at or 0) - (os.clock() - (s.received or os.clock()))
 	if s.state == 1 then
@@ -273,6 +276,17 @@ function Radar.init()
 		maxText = 13,
 	})
 	bossText.Parent = gui
+	boostText = Kit.label({
+		Text = "",
+		Size = UDim2.fromOffset(SIZE + 40, 18),
+		Position = UDim2.fromOffset(U.safe, U.safe + 150 + SIZE + 38),
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextColor3 = Kit.color.gold,
+		TextStrokeTransparency = 0.3,
+		Font = Kit.bodyFont,
+		maxText = 13,
+	})
+	boostText.Parent = gui
 	local ping = Kit.button({
 		Text = "PING",
 		Size = UDim2.fromOffset(64, 36),

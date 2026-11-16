@@ -14,6 +14,7 @@ local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local MoveController = require(script.Parent.Parent.Controllers.MoveController)
 local QualityController = require(script.Parent.Parent.Controllers.QualityController)
 local State = require(script.Parent.Parent.State)
+local Juice = require(script.Parent.Juice)
 
 local MoveFx = {}
 
@@ -142,6 +143,7 @@ function MoveFx.init()
 	player.CharacterAdded:Connect(attachTrail)
 
 	MoveController.Leaped:Connect(function(pos)
+		Juice.fire("leap", pos)
 		local g = groundBelow(pos)
 		if g then
 			ring(g + Vector3.new(0, 0.2, 0), Color3.fromRGB(200, 196, 186), 12)
@@ -149,6 +151,9 @@ function MoveFx.init()
 	end)
 	MoveController.Landed:Connect(function(pos, fallSpeed)
 		local g = groundBelow(pos + Vector3.new(0, 1, 0))
+		if fallSpeed >= 30 then
+			Juice.fire("land", pos, { mine = true })
+		end
 		if not g then
 			return
 		end
@@ -159,10 +164,20 @@ function MoveFx.init()
 	end)
 
 	local phase = 0
+	local lastMode, wasBoosting = "", false
 	RunService.RenderStepped:Connect(function(dt)
 		local mode = MoveController.mode
 		local speed = MoveController.velocity.Magnitude
 		local anime = State.hero.fxStyle == "Anime"
+		-- sounds: a soft air on glide, a burst on boost, wind that rises with flight speed
+		if mode == "glide" and lastMode ~= "glide" then
+			Juice.fire("glide")
+		end
+		if MoveController.boosting and not wasBoosting then
+			Juice.fire("boost", nil, { mine = true })
+		end
+		lastMode, wasBoosting = mode, MoveController.boosting
+		Juice.hold("flyCruise", mode == "fly" or mode == "glide", math.clamp(speed / 220, 0.05, 0.5))
 		if trail then
 			trail.Enabled = MoveController.boosting or mode == "glide" or mode == "dash"
 			trail.Lifetime = if mode == "glide" then 0.2 else F.trail.boostLife

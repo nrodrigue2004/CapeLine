@@ -25,6 +25,7 @@ local WorldClient = require(script.Parent.Parent.Controllers.WorldClient)
 local CameraController = require(script.Parent.Parent.Controllers.CameraController)
 local CombatFx = require(script.Parent.CombatFx)
 local State = require(script.Parent.Parent.State)
+local Juice = require(script.Parent.Juice)
 
 local WorldFx = {}
 
@@ -493,9 +494,11 @@ local function bigMoment(ev: { [string]: any })
 		local top = s.model:GetPivot().Position + Vector3.new(0, B.bosses[s.id].height * 0.7, 0)
 		CombatFx.nova(top, 40, style, WARN, true)
 		CombatFx.banner(string.format("PHASE %d!", ev.phase), WARN, style)
+		Juice.fire("bossPhase", top, { mine = near(top, 500) })
 	elseif ev.k == "dead" and s then
 		-- it falls apart: plates and bolts everywhere, then it sinks
 		local pivot = s.model:GetPivot()
+		Juice.fire("bossDefeated", pivot.Position)
 		for i = 1, 6 do
 			task.delay(i * 0.25, function()
 				local h = B.bosses[s.id].height

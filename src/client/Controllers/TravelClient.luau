@@ -17,6 +17,7 @@ local Net = require(Shared:WaitForChild("Net"))
 local Travel = require(Shared:WaitForChild("Travel"))
 
 local Kit = require(script.Parent.Parent.Ui.Kit)
+local Juice = require(script.Parent.Parent.Fx.Juice)
 local MapScreen = require(script.Parent.Parent.Ui.MapScreen)
 local LoadoutScreen = require(script.Parent.Parent.Ui.LoadoutScreen)
 
@@ -52,6 +53,7 @@ local function start(data: any)
 	MapScreen.close()
 	trip = { from = data.from, to = data.to, time = data.time, start = os.clock() }
 	TravelClient.flying = true
+	Juice.fire("fastTravel")
 	skip.Visible = true
 	local cam = Workspace.CurrentCamera
 	cam.CameraType = Enum.CameraType.Scriptable

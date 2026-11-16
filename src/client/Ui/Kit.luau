@@ -229,6 +229,41 @@ function Kit.pulse(inst: GuiObject, amount: number?)
 end
 
 -- 12345 -> "12,345"
+-- Count a reward line up (spec: Wait table "Reward screens | Counts up in 5 s, skippable with one tap").
+-- render(k) draws the line at k from 0 to 1 (eased). Returns finish(): jump to the end; true if it was
+-- still counting (so a tap that finishes the count does not also close the card).
+function Kit.countUp(label: TextLabel, seconds: number, render: (number) -> string): () -> boolean
+	local t0 = os.clock()
+	local done = false
+	label.Text = render(0)
+	task.spawn(function()
+		while not done and label.Parent do
+			local k = math.min(1, (os.clock() - t0) / seconds)
+			label.Text = render(1 - (1 - k) * (1 - k))
+			if k >= 1 then
+				done = true
+				break
+			end
+			task.wait()
+		end
+	end)
+	return function(): boolean
+		local was = not done
+		done = true
+		label.Text = render(1)
+		return was
+	end
+end
+
+-- "+1,234 CREDITS   +567 RENOWN" counted to k
+function Kit.payLine(credits: number, renown: number, k: number): string
+	return string.format(
+		"+%s CREDITS   +%s RENOWN",
+		Kit.comma(math.floor(credits * k + 0.5)),
+		Kit.comma(math.floor(renown * k + 0.5))
+	)
+end
+
 function Kit.comma(n: number): string
 	local s = tostring(math.floor(n))
 	local out = s

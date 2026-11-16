@@ -4241,6 +4241,133 @@ test("M10: colorblind markers: every marker kind has its own shape", function()
 end)
 
 ---------------------------------------------------------------------------
+-- M11: juice, audio and wait fillers
+---------------------------------------------------------------------------
+
+local function clientSources(): { [string]: string }
+	local fs = require("@lune/fs")
+	local out = {}
+	local function walk(dir: string)
+		for _, name in fs.readDir(dir) do
+			local path = dir .. "/" .. name
+			if fs.isDir(path) then
+				walk(path)
+			elseif string.sub(name, -5) == ".luau" then
+				out[path] = fs.readFile(path)
+			end
+		end
+	end
+	walk("src/client")
+	return out
+end
+
+test("M11: the juice table has all 31 actions, each with a sound and a visual, and each is fired", function()
+	local Au = Config.Audio
+	check(#Au.juice == 31, "31 juice actions (spec juice table)")
+	local src = clientSources()
+	local seen = {}
+	for _, row in Au.juice do
+		check(not seen[row.id], "unique juice id " .. row.id)
+		seen[row.id] = true
+		local snd = Au.sounds[row.id]
+		check(snd ~= nil and (snd.asset > 0 or snd.fallback ~= nil), "a sound for " .. row.id)
+		local fired = false
+		for _, text in src do
+			local direct = string.find(text, 'Juice%.fire%(%s*"' .. row.id .. '"')
+				or string.find(text, 'Juice%.hold%(%s*"' .. row.id .. '"')
+			-- casts pick their sound by slot: castSound returns "basic", "super" or "cast"
+			local bySlot = string.find(text, "Juice.fire(castSound(", 1, true)
+				and (
+					string.find(text, 'then "' .. row.id .. '"', 1, true)
+					or string.find(text, 'else "' .. row.id .. '"', 1, true)
+				)
+			if direct or bySlot then
+				fired = true
+				break
+			end
+		end
+		check(fired, "the client fires " .. row.id)
+		local found = false
+		for path, _ in src do
+			if string.find(path, "/" .. row.visual .. ".luau", 1, true) then
+				found = true
+			end
+		end
+		check(found, row.id .. " draws in " .. row.visual)
+	end
+	local jfx = src["src/client/Fx/JuiceFx.luau"]
+	for _, row in Au.juice do
+		if row.visual == "JuiceFx" then
+			check(
+				string.find(jfx, "function JuiceFx." .. row.id .. "(", 1, true) ~= nil,
+				"JuiceFx." .. row.id
+			)
+		end
+	end
+	check(Au.sounds.ui ~= nil, "buttons click")
+end)
+
+test("M11: music: three loops, ducked 40% for the siren and voices; 6 voice lines per pack", function()
+	local Mu = Config.Audio.music
+	check(Mu.patrolDay and Mu.patrolNight and Mu.boss and Mu.victory, "patrol day and night, boss, victory")
+	check(Mu.victory.sting == true, "victory is a sting")
+	check(math.abs(Mu.duck - 0.6) < 1e-9, "ducks 40%")
+	check(Config.Audio.sounds.bossWarning.duck == true, "the boss siren ducks the music")
+	check(#Config.Audio.voice.lines == 6, "6 lines")
+	for pack, ids in Config.Shop.voiceSounds do
+		check(#ids == 6, "6 clips in " .. pack)
+	end
+	for _, tab in Config.Creator.tabs do
+		if tab.id == "voice" then
+			for _, piece in tab.pieces do
+				check(Config.Shop.voiceSounds[piece[2]] ~= nil, "voice pack " .. piece[2] .. " has clip ids")
+			end
+		end
+	end
+end)
+
+test("M11: collision freeze: two heroes' heavy hits together, once per pair per 5 s", function()
+	local ClashRules = require("../src/shared/ClashRules")
+	local cfg = Config.Combat.clash
+	check(cfg.freeze == 0.3 and cfg.radius == 14 and cfg.window == 0.15, "spec numbers")
+	check(math.abs(cfg.push - 0.08) < 1e-9 and cfg.pairCooldown == 5, "camera push 8%, 5 s per pair")
+	local book = ClashRules.book()
+	check(ClashRules.note(cfg, book, { hero = 1, x = 0, y = 0, z = 0, t = 0 }) == nil, "the first hit waits")
+	check(
+		ClashRules.note(cfg, book, { hero = 1, x = 1, y = 0, z = 0, t = 0.05 }) == nil,
+		"the same hero never clashes"
+	)
+	local other = ClashRules.note(cfg, book, { hero = 2, x = 5, y = 0, z = 0, t = 0.1 })
+	check(other ~= nil and other.hero == 1, "two heroes within 0.15 s clash")
+	ClashRules.note(cfg, book, { hero = 1, x = 0, y = 0, z = 0, t = 1 })
+	check(
+		ClashRules.note(cfg, book, { hero = 2, x = 0, y = 0, z = 0, t = 1.05 }) == nil,
+		"the same pair waits 5 s"
+	)
+	ClashRules.note(cfg, book, { hero = 1, x = 0, y = 0, z = 0, t = 6 })
+	check(ClashRules.note(cfg, book, { hero = 2, x = 0, y = 0, z = 0, t = 6.1 }) ~= nil, "again after 5 s")
+	ClashRules.note(cfg, book, { hero = 3, x = 0, y = 0, z = 0, t = 20 })
+	check(ClashRules.note(cfg, book, { hero = 4, x = 0, y = 0, z = 0, t = 20.3 }) == nil, "too late (0.3 s)")
+	ClashRules.note(cfg, book, { hero = 5, x = 0, y = 0, z = 0, t = 30 })
+	check(ClashRules.note(cfg, book, { hero = 6, x = 80, y = 0, z = 0, t = 30.05 }) == nil, "too far apart")
+end)
+
+test("M11: wait fillers: friend boost, offline drones cap, respawn, incident refill", function()
+	local b = Config.Economy.bonus
+	check(
+		math.abs(b.friendEach - 0.1) < 1e-9 and math.abs(b.friendMax - 0.3) < 1e-9,
+		"+10% per friend, max +30%"
+	)
+	check(Config.Incidents.spawner.refill[2] <= 10, "a new incident within 10 s")
+	check(Config.Incidents.spawner.radius == 300, "within 300 studs")
+	check(Config.Pvp.spawnProtect == 5, "the 5 s shield ring after a respawn")
+	local HqRules = require("../src/shared/HqRules")
+	local eight = HqRules.drones(Config, 6, 8 * 3600)
+	check(HqRules.drones(Config, 6, 20 * 3600) == eight, "drones stop at 8 hours")
+	check(HqRules.drones(Config, 4, 3600) == 0, "drones start at HQ level 5")
+end)
+
+---------------------------------------------------------------------------
 -- Place layout (only when a built place is passed)
 ---------------------------------------------------------------------------
 
@@ -4310,6 +4437,7 @@ if placePath then
 				"LookKit",
 				"SettingsRules",
 				"SquadRules",
+				"ClashRules",
 			}
 		do
 			check(shared ~= nil and shared:FindFirstChild(name) ~= nil, "Shared." .. name)
@@ -4414,6 +4542,11 @@ if placePath then
 				{ "Ui", "Radar" },
 				{ "Ui", "Shapes" },
 				{ "Ui", "MainMenu" },
+				{ "Controllers", "AudioController" },
+				{ "Controllers", "IdleWatch" },
+				{ "Fx", "Juice" },
+				{ "Fx", "JuiceFx" },
+				{ "Ui", "PhotoMode" },
 			}
 		do
 			local folder = client and client:FindFirstChild(path[1])

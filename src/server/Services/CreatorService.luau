@@ -62,6 +62,10 @@ function CreatorService.showName(player: Player)
 	player:SetAttribute("Legacy", c.legacy)
 	player:SetAttribute("FxTint", if c.tint > 0 then c.tint else nil)
 	player:SetAttribute("Landing", if c.landing > 0 then c.landing else nil)
+	-- M11: the voice pack every device plays this hero's lines from (Config.Shop.voiceSounds)
+	local look = LookCodec.read(c.look)
+	local v = look and CreatorRules.piece(Config, "voice", look.pieces.voice or 0)
+	player:SetAttribute("Voice", if v then v.kit else nil)
 end
 
 local function result(player: Player, ok: boolean, reason: string?)

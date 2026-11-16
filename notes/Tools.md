@@ -68,3 +68,11 @@ record the source here. Status: Using / Recommended (milestone) / Paid (ask nate
 - Roblox Party and Experience Invite APIs (SocialService:PromptGameInvite): Recommended for M12 (inviting friends into the server grows reach); squads themselves stay per server.
 - UI libraries on GitHub (Fusion, MIT; React-Lua, MIT; Iris, MIT): Skipped. Every screen already uses Kit; moving now would mean restyling working systems (CLAUDE.md rule 1). Fusion is worth a look for the next game.
 - Colorblind simulators (Studio's built-in Accessibility color simulation, Coblis web tool, free): Recommended for nate's M10 Studio pass on the radar and map.
+
+## Juice and audio (M11)
+- Roblox built-in client sounds (rbxasset://sounds, shipped with every Roblox client): Used as the placeholder for every juice sound until licensed ids are picked. Free to use in experiences; they are generic and too few, so they are not the final mix.
+- Roblox Creator Store audio (free, Roblox-licensed for use in experiences): Recommended for the 110 effects and 3 music loops; nate picks and checks each id (Launch Checklist). Roblox's own uploads and "Roblox"-owned tracks are the safest licences.
+- Roblox SoundGroup, ColorCorrectionEffect, HapticService (built in): Used for the mix groups and ducking, Photo Mode grades and vibration.
+- Free SFX sites (Kenney.nl CC0 audio packs, freesound.org CC0 only, Sonniss GDC bundles royalty-free): Recommended if the Creator Store lacks a sound; upload needs nate's account (audio upload counts against Roblox's monthly limits).
+- Generated voice lines (any TTS or AI voice tool): Possible for the 4 voice packs (24 clips); needs nate's OK and a licence check for commercial use. Not used yet.
+- Particle and juice libraries on GitHub (ForeverHD's Zone and similar; Roblox "Spring" modules, MIT): Skipped. JuiceFx is a few tweens; a library adds weight without new feel.

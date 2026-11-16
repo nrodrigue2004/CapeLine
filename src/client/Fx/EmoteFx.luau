@@ -90,7 +90,26 @@ local POSES: { [number]: Pose } = {
 		RightKnee = { -20, 0, 0 },
 		Neck = { 10, 0, 0 },
 	}, -- Float Down
+	-- Photo Mode's own poses (free, only on your screen while you take a photo; M11)
+	[101] = {
+		RightShoulder = { 80, 0, 20 },
+		LeftShoulder = { 80, 0, -20 },
+		RightElbow = { 90, 0, 0 },
+		LeftElbow = { 90, 0, 0 },
+		RightKnee = { -15, 0, 0 },
+	}, -- Ready Stance (fists up)
+	[102] = { RightShoulder = { 120, 0, 40 }, RightElbow = { 100, 0, 0 }, Neck = { 10, 15, 0 } }, -- Look Out
+	[103] = {
+		RightShoulder = { 0, 0, 170 },
+		LeftShoulder = { 0, 0, -20 },
+		LeftHip = { -25, 0, 0 },
+		LeftKnee = { -50, 0, 0 },
+	}, -- Take Off (one fist to the sky)
+	[104] = { RightShoulder = { 100, 0, 30 }, RightElbow = { 130, 0, 0 }, Neck = { -10, -10, 0 } }, -- Thinking
 }
+
+EmoteFx.PHOTO_POSES = { 101, 102, 103, 104 }
+EmoteFx.POSE_NAMES = { [101] = "Ready", [102] = "Look Out", [103] = "Take Off", [104] = "Thinking" }
 
 local playing: { [Model]: { seq: number, base: { [Motor6D]: CFrame } } } = {}
 local picker: Frame
@@ -105,7 +124,7 @@ local function motors(char: Model): { [string]: Motor6D }
 	return out
 end
 
-local function play(char: Model, id: number)
+local function play(char: Model, id: number, hold: number?)
 	local pose = POSES[id]
 	if not pose then
 		return
@@ -126,7 +145,7 @@ local function play(char: Model, id: number)
 			else base[m]
 		TweenService:Create(m, info, { C0 = goal }):Play()
 	end
-	task.delay(S.emoteTime, function()
+	task.delay(hold or S.emoteTime, function()
 		local now = playing[char]
 		if not now or now.seq ~= seq then
 			return
@@ -163,6 +182,18 @@ local function owned(): { number }
 	end
 	table.sort(out)
 	return out
+end
+
+-- Photo Mode: your owned emotes (others see them) and the free photo poses (only on your screen)
+function EmoteFx.ownedEmotes(): { number }
+	return owned()
+end
+
+function EmoteFx.poseLocal(id: number, hold: number?)
+	local char = Players.LocalPlayer.Character
+	if char then
+		play(char, id, hold)
+	end
 end
 
 local function drawPicker()

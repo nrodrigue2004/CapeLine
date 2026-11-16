@@ -29,6 +29,7 @@ local BuildingState = require(Shared:WaitForChild("BuildingState"))
 
 local QualityController = require(script.Parent.Parent.Controllers.QualityController)
 local CameraController = require(script.Parent.Parent.Controllers.CameraController)
+local Juice = require(script.Parent.Juice)
 local DebrisBudget = require(script.Parent.DebrisBudget)
 
 local BuildingFx = {}
@@ -329,6 +330,7 @@ local function apply(id: number, live: boolean)
 	end
 	fall.dust = dustCloud(rec, D.collapseTime)
 	table.insert(falls, fall)
+	Juice.fire("collapse", Vector3.new(rec.x, rec.base, rec.z), { mine = nearMe(rec.x, rec.z, 80) })
 	if nearMe(rec.x, rec.z, 250) then
 		CameraController.shake(D.collapseTime * 0.5, 0.6)
 	end
@@ -408,6 +410,7 @@ local function surface(pos: Vector3, normal: Vector3): CFrame
 end
 
 local function crater(center: Vector3, radius: number)
+	Juice.fire("crater", center, { mine = false })
 	local hit =
 		Workspace:Raycast(center + Vector3.new(0, 4, 0), Vector3.new(0, -(radius + 24), 0), rayParams())
 	if not hit then

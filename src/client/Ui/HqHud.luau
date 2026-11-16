@@ -415,8 +415,54 @@ local function build()
 	simText.Parent = simBar
 end
 
+-- The offline drones' COLLECT card (spec: Wait table "Away ... collected with one tap")
+local dronesCard: Frame? = nil
+local function showDrones(d: { [string]: any })
+	if dronesCard then
+		dronesCard:Destroy()
+	end
+	local card = Kit.frame({
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0, 120),
+		Size = UDim2.fromOffset(360, 150),
+		BackgroundColor3 = Kit.color.night,
+	})
+	Kit.stroke(card, Kit.color.gold, 3)
+	local hours = math.floor((d.minutes or 0) / 60)
+	local l = Kit.label({
+		Text = string.format(
+			"YOUR DRONES ARE BACK\n%s Credits from %s away",
+			Kit.comma(d.credits or 0),
+			if hours >= 1 then hours .. " h" else (d.minutes or 0) .. " min"
+		),
+		Size = UDim2.new(1, -20, 0, 70),
+		Position = UDim2.fromOffset(10, 8),
+		TextColor3 = Kit.color.gold,
+		TextWrapped = true,
+		maxText = 22,
+	})
+	l.Parent = card
+	local b = Kit.button({
+		Text = "COLLECT",
+		AnchorPoint = Vector2.new(0.5, 1),
+		Position = UDim2.new(0.5, 0, 1, -10),
+		Size = UDim2.fromOffset(200, T),
+	}, function()
+		Net.send("HqCollect")
+		card:Destroy()
+		if dronesCard == card then
+			dronesCard = nil
+		end
+	end)
+	b.Parent = card
+	card.Parent = gui
+	Kit.pulse(card, 0.2)
+	dronesCard = card
+end
+
 function HqHud.init()
 	build()
+	Net.listen("DronesReady", showDrones)
 	HqClient.Station:Connect(function(name)
 		if name then
 			HqHud.open(name)

@@ -100,9 +100,15 @@ function InputController.isDown(action: string): boolean
 	return down[action] == true
 end
 
+-- Photo Mode holds the hero still: no moving and no actions until it closes
+InputController.frozen = false
+
 -- Touch buttons and anything else call this
 function InputController.set(action: string, isDown: boolean)
 	if (down[action] == true) == isDown then
+		return
+	end
+	if isDown and InputController.frozen then
 		return
 	end
 	down[action] = isDown or nil
@@ -123,6 +129,9 @@ end
 -- Camera-relative move vector from the default control scripts (keyboard, thumbstick, gamepad)
 local controls: any = nil
 function InputController.moveVector(): Vector3
+	if InputController.frozen then
+		return Vector3.zero
+	end
 	if not controls then
 		local ok, module = pcall(function()
 			return require(
@@ -183,6 +192,26 @@ function InputController.setStick(mode: string)
 		end)
 	end
 	InputController.StickChanged:Fire(mode)
+end
+
+-- Hold the hero still (Photo Mode) or let go; the default controls follow the stick mode again after
+function InputController.freeze(on: boolean)
+	InputController.frozen = on
+	InputController.moveVector() -- loads the control module
+	if on then
+		for action in down do
+			InputController.set(action, false)
+		end
+	end
+	if controls then
+		pcall(function()
+			if on then
+				controls:Disable()
+			elseif InputController.stickMode == "default" or InputController.device ~= "touch" then
+				controls:Enable()
+			end
+		end)
+	end
 end
 
 -- Where the stick is (for the HUD's ring): origin and push, or nil when not held

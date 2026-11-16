@@ -303,7 +303,7 @@ function DevPanel.init()
 		end
 		table.sort(parts)
 		stats.Text = string.format(
-			"server frame %.1f ms (worst %.1f)\nscripts ms avg/worst: %s\nenemies %s  ai %s  bots %s  players %d\nsend %.0f kbps  mem %.0f MB\nclient %.0f fps  preset %s",
+			"server frame %.1f ms (worst %.1f)\nscripts ms avg/worst: %s\nenemies %s  ai %s  bots %s  players %d\nsend %.0f kbps  mem %.0f MB\nclient %.0f fps  preset %s\nidle waits >5 s: server %s",
 			r.frameMs,
 			r.frameWorstMs,
 			table.concat(parts, ", "),
@@ -314,7 +314,8 @@ function DevPanel.init()
 			r.sendKbps,
 			r.memoryMb,
 			QualityController.fps,
-			QualityController.name
+			QualityController.name,
+			tostring(r.extra["idle>5s"])
 		)
 	end)
 end

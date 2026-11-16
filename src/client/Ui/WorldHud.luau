@@ -408,9 +408,10 @@ local function showResult(r: { [string]: any })
 			22,
 		},
 		{
-			string.format("+%s CREDITS   +%s RENOWN", Kit.comma(r.credits or 0), Kit.comma(r.renown or 0)),
+			Kit.payLine(r.credits or 0, r.renown or 0, 1),
 			Kit.color.gold,
 			20,
+			true, -- counts up
 		},
 	}
 	if (r.drops or 0) > 0 then
@@ -433,6 +434,7 @@ local function showResult(r: { [string]: any })
 		table.insert(lines, { "It got away: a small Credits consolation only", Kit.color.muted, 15 })
 	end
 	local y = 14
+	local finish: (() -> boolean)? = nil
 	for _, row in lines do
 		local l = Kit.label({
 			Text = row[1],
@@ -442,6 +444,11 @@ local function showResult(r: { [string]: any })
 			maxText = row[3],
 		})
 		l.Parent = card
+		if row[4] then
+			finish = Kit.countUp(l, 1.5, function(k)
+				return Kit.payLine(r.credits or 0, r.renown or 0, k)
+			end)
+		end
 		y += row[3] + 12
 	end
 	local tap = Instance.new("TextButton")
@@ -449,7 +456,12 @@ local function showResult(r: { [string]: any })
 	tap.Text = ""
 	tap.Size = UDim2.fromScale(1, 1)
 	tap.Parent = card
-	tap.Activated:Connect(closeResult)
+	tap.Activated:Connect(function()
+		-- the first tap finishes the count, the next closes the card
+		if not (finish and finish()) then
+			closeResult()
+		end
+	end)
 	card.Parent = gui
 	Kit.pulse(card, 0.2)
 	resultCard = card

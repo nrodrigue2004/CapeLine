@@ -19,4 +19,7 @@ return {
 	maxFields = 40, -- fields alive on the server at once
 	wallLife = 5,
 	parryRiposteRadius = 12,
+	-- Collision freeze (spec: Clash moments): two heroes' heavy hits land this close within `window`
+	-- seconds: both freeze, a shockwave rings out, the camera pushes. One per pair per 5 s.
+	clash = { window = 0.15, reach = 20, freeze = 0.3, radius = 14, push = 0.08, pairCooldown = 5 },
 }

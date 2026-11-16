@@ -29,6 +29,12 @@ local EnemyRenderer = require(script.Parent.EnemyRenderer)
 local PvpClient = require(script.Parent.PvpClient)
 local State = require(script.Parent.Parent.State)
 local CombatFx = require(script.Parent.Parent.Fx.CombatFx)
+local Juice = require(script.Parent.Parent.Fx.Juice)
+
+-- The juice sound for a cast by its slot (basic, super, or any skill)
+local function castSound(slot: string?): string
+	return if slot == "basic" then "basic" elseif slot == "super" then "super" else "cast"
+end
 
 local A = Config.Abilities
 local C = Config.Combat
@@ -46,7 +52,7 @@ local channel: { seq: number, id: string, untilT: number }? = nil
 local CHEST = Vector3.new(0, 1.5, 0)
 
 -- Result kinds (CombatService.KIND)
-local K = { CAST = 1, WINDUP = 2, TICK = 3, LAND = 4, ECHO = 5, END = 6, COMBO = 7, RIPOSTE = 8 }
+local K = { CAST = 1, WINDUP = 2, TICK = 3, LAND = 4, ECHO = 5, END = 6, COMBO = 7, RIPOSTE = 8, CLASH = 9 }
 -- CombatEvents kinds (EnemyService)
 local SHOT, HERO_HIT, DIE, WARN, SLAM, SWING, BLOCKED = 1, 2, 3, 4, 5, 6, 7
 
@@ -345,6 +351,7 @@ function CombatClient.fire(id: string): boolean
 	elseif shape == "buff" then
 		CombatFx.buffPop(origin, style, color)
 	end
+	Juice.fire(castSound(slot), origin, { mine = true })
 	Net.send("CombatUse", eff.num, dir, hint, seq)
 	CombatClient.Cast:Fire(id)
 	return true
@@ -392,6 +399,12 @@ local function drawHits(r: any, row: any, style: string, mine: boolean)
 			CombatFx.word(pos, row.set, color, row.slot == "super")
 		end
 	end
+	if mine and anyCrit and #hits > 0 then
+		Juice.fire(
+			"crit",
+			EnemyRenderer.position(hits[1][1]) or Vector3.new(hits[1][5], hits[1][6], hits[1][7])
+		)
+	end
 	if mine and #hits > 0 then
 		local heavy = row and (row.coeff or 0) >= C.heavyCoeff
 		hitPause(if anyCrit or heavy then C.critPause else C.hitPause)
@@ -410,6 +423,9 @@ local function onResult(list: { any })
 		if row then
 			local color = CombatFx.colorOf(row.set, r.a)
 			local kind = r.k
+			if kind == K.CAST and not mine then
+				Juice.fire(castSound(row.slot), r.o, { mine = false, userId = r.a })
+			end
 			if kind == K.CAST then
 				local predicted = mine
 					and PREDICTED[row.shape]
@@ -477,9 +493,21 @@ local function onResult(list: { any })
 				elseif r.e then
 					CombatFx.line(r.o, r.e, row.width or 6, style, color, row.ground, row.set == "Blade")
 				end
+			elseif kind == K.CLASH then
+				-- the collision freeze: both attackers stop for 0.3 s, a shockwave, a camera push
+				if r.c then
+					local inIt = mine or r.p == player.UserId
+					CombatFx.nova(r.c, r.r or C.clash.radius, style, Color3.new(1, 1, 1), true)
+					Juice.fire("clash", r.c, { mine = inIt })
+					if inIt then
+						hitPause(C.clash.freeze)
+						CameraController.punch(C.clash.push)
+					end
+				end
 			elseif kind == K.COMBO then
 				local pair = A.combos.pairs[r.x or 0]
 				if pair and r.c then
+					Juice.fire("combo", r.c, { mine = mine or r.p == player.UserId })
 					CombatFx.combo(
 						r.c,
 						r.r or pair.radius,
@@ -520,6 +548,7 @@ local function onEvents(list: { any })
 		elseif kind == DIE then
 			local pos, metal = EnemyRenderer.kill(ev[2])
 			CombatFx.burst(pos or Vector3.new(ev[3], ev[4], ev[5]), styleOf(ev[7]), metal)
+			Juice.fire("defeat", pos or Vector3.new(ev[3], ev[4], ev[5]), { mine = false })
 			if ev[7] == player.UserId then
 				CameraController.shake(0.08, 0.15)
 			end

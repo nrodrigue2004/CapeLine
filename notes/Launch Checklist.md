@@ -16,6 +16,8 @@
 - [ ] M10 device matrix: low-end phone, mid-range phone, tablet, PC and a controller each finish the opening, a contract and a boss (Studio list M10 16), and the text at 160% fits every screen.
 - [ ] M10 check the radar, map and PvP rings with Studio's colorblind simulation (shapes must read without colour).
 - [ ] M10 Roblox's current accessibility and photosensitivity guidance: Reduce flashing is in Settings; confirm nothing flashes faster than 3 times a second with it on.
+- [ ] M11 sound ids: put a licence-checked Creator Store id in `asset` for each of the 32 rows in Config.Audio.sounds (the built-in fallbacks are placeholders), the 4 music tracks in Config.Audio.music (patrol day, patrol night, boss, victory sting) and the 24 voice clips in Config.Shop.voiceSounds; then run the M11 Studio list again.
+- [ ] M11 the 8-tester, 30-minute session: no "[Capeline] idle wait" line over 5 s in the Output.
 - [ ] Thumbnails, icon, description (M12).
 - [ ] Private server price.
 - [ ] Re-check Roblox rules (PvP, free-form creation, rewarded video ads) before launch.

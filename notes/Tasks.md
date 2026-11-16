@@ -16,7 +16,7 @@ phones or Studio go on the Studio test list below.
 | M8 | PvP, death, anti-exploit | Flag, Crater, Downed and Defeated, Fame and Infamy, rules table, strikes | The 30-minute exploit test finds nothing; PvP rules checklist passes | Code-complete 2026-11-16 |
 | M9 | Creator, HQ, shop, passes | Creator with the 116 spec pieces plus the anime pieces and the Comic/Anime pick, 2 HQs, Gizmo's shop, Robux shop, passes, slots, Legacy | A tester makes a hero in under 3 minutes; test purchases grant once; looks show to others | Code-complete 2026-11-16 (economy sim gate met for the median level; see Decisions) |
 | M10 | UI and phone pass | All screens, settings, accessibility, presets, map, squad | Every screen has loading, empty and error states; device matrix passes | Code-complete 2026-11-16 (device matrix on the Studio list) |
-| M11 | Juice, audio, wait fillers | Juice table, sounds, music, offline drones, downed polish, friend boost, Photo Mode | No idle wait over 5 s in a 30-minute session with 8 testers; every action has a sound and visual | |
+| M11 | Juice, audio, wait fillers | Juice table, sounds, music, offline drones, downed polish, friend boost, Photo Mode | No idle wait over 5 s in a 30-minute session with 8 testers; every action has a sound and visual | Code-complete 2026-11-16 (the 8-tester gate and real sound ids are on the Studio list and Launch Checklist) |
 | M12 | Test and launch prep | Playtests, balance, thumbnails, icon, analytics, soft launch plan | 20 testers play with no crash reports in one session week; analytics visible | |
 
 ## Placeholder art and animation (replace before launch)
@@ -49,6 +49,8 @@ phones or Studio go on the Studio test list below.
 - HQ rooms (M9): Beacon Tower and The Foundry are box rooms with neon pads and signs, part-built dummies and boss sim robot, marble copies of the hero for statues, box trophies and props (HqClient). PLACEHOLDER ART.
 - Creator, Robux shop, HQ panels (M9): Kit placeholder look, text tiles, no piece icons; the preview is a ViewportFrame copy of the hero (CreatorScreen, ShopHud, HqHud, Preview). PLACEHOLDER ART until M10.
 - HUD: Kit placeholder look (M10 restyles).
+- M11 sounds: every juice sound is one of Roblox's built-in client sounds (rbxasset://sounds: swoosh, jump land, falling, get up, ping, button, click) pitched per action; music loops and voice clips are silent (asset 0) (Config.Audio, Config.Shop.voiceSounds). PLACEHOLDER SOUND until nate picks licence-checked Creator Store ids.
+- M11 juice visuals: coin burst, medal and NEW stamps, the level badge, tier beams, fireworks, confetti, the shield ring and dazed stars are neon parts and Kit frames (JuiceFx); Photo Mode backdrops are Kit frames and colour grades (PhotoMode); the photo poses are joint angles (EmoteFx). PLACEHOLDER ART until the art pass.
 - M10 screens: Settings, the squad list, panel and invite card, the radar (Kit shapes and glyphs: circle, diamond, triangle, square, star), the ping wheel, the settings gear and the main menu are Kit placeholder looks (SettingsMenu, SquadHud, Radar, Shapes, Hud, MainMenu). PLACEHOLDER ART until the art pass. The squad emblem is a text glyph.
 
 ## Studio test list (needs nate's PC)
@@ -152,6 +154,22 @@ Hub buildings: 220 (all of Downtown, 6 Docks warehouses, 122 Old Town houses). D
 9. Join late: a second player who joins after buildings fell sees the same Damaged and Collapsed buildings and rubble at once (no collapse replays) and any drone already working.
 10. Streaming: fly away from wrecked buildings and come back: they still look wrecked, with no leftover floating chunks.
 11. Gate: 10 players (or you plus 9 bots and a friend) wreck one block for 10 minutes: the Dev panel's server frame stays under 16 ms and the "buildings", "citizens" and "wrecked" counters behave; a mid-range phone on the low preset holds 30+ fps during collapses. After the drones finish, everything is back.
+
+### M11 Juice, audio and wait fillers
+Sounds are built-in placeholders (listen for each one, not for quality). Dev panel stats now show "idle waits >5 s". Use Test > Clients and Servers with 2 players for the clash and voice checks.
+1. Movement: Leap (whoosh, dust ring), a big landing (thud, crack, a buzz on phone or gamepad), Glide (soft air), flight (a wind that grows with speed and stops when you land), Boost (a burst).
+2. Combat: basic attacks ping, skills whoosh, supers boom; a crit adds a high ping; a defeated robot pops, sparks and throws 6 gold coins. Other players' casts are heard near them only.
+3. Collision freeze: two players hit the same robot with heavy attacks (Titan Seismic Slam, Blade Moonsplit, supers) at the same moment: both freeze for a moment, a white shockwave rings out, the camera pushes in. It does not happen again for that pair for 5 s.
+4. World: a building collapse rumbles (a buzz when within 80 studs), a crater crunches, a car flip whoomps; the boss countdown sounds a siren (music ducks), each boss phase roars, a boss defeat sets off fireworks over it and confetti on screen (no confetti with Reduce flashing on).
+5. Rewards: a rescue shows a green ring and "+N RENOWN"; an incident clear slams a GOLD, SILVER or BRONZE stamp; a contract slams DONE!; a level up spins the level badge and lights NEXT AT n: the unlock; a gear drop shows a beam in the tier colour (Legendary and Mythic chime twice); a purchase slams NEW!; a skill rank or loadout save clicks.
+6. Death: Downed plays a slow heartbeat loop that stops when revived or respawned; a revive shows gold rings; a respawn shows a blue shield bubble for 5 s; on the Defeated screen CHOOSE LOADOUT opens POWERS right after you are back.
+7. Dazed: a PvP stun on you shows spinning stars over your head until it ends.
+8. Photo Mode: PHOTO (top left) or K: every other screen hides, the hero holds still, drag or the right stick orbits, scroll, pinch or the triggers zoom. POSE steps through Ready, Look Out, Take Off, Thinking and your owned emotes (a second player sees only the emotes). LOOK steps through NONE, COMIC (frame and name caption), SPEED (lines), SUNSET, NOIR, NEON. HIDE UI hides the bar until you tap. SNAP clicks and flashes (no flash with Reduce flashing). EXIT, K or B puts everything back. Nothing is saved.
+9. Friend boost: join with a Roblox friend: both see "<name> is here! FRIEND BOOST +10% Renown" and FRIEND BOOST +10% under the radar; kill rewards show the bigger Renown. It goes away when the friend leaves.
+10. Offline drones: DEV > HQ level 5, Away 8 h, rejoin: a YOUR DRONES ARE BACK card with the Credits and COLLECT; tapping banks them ("Your drones brought back ..."). Leave without tapping and rejoin: the Credits were banked anyway.
+11. Reward cards: a boss result and a mission result count the Credits and Renown up in 1.5 s; the first tap finishes the count, the next tap closes the boss card.
+12. Settings: Music and Effects volumes change the sounds at once; Effects 0 silences every effect and voice line.
+13. The M11 gate: 8 testers play 30 minutes; the Output shows no "[Capeline] idle wait" line longer than 5 s (each line says why: no incident near, dead or respawning), and every action above had a sound and a visual.
 
 ### M10 UI and phone pass
 DEV panel (M10 rows): Reset settings, Text 160% / 100%. Use Test > Clients and Servers with 2 to 4 players for squads, and Studio's device emulator for phones.
