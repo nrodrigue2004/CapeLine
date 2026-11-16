@@ -1,8 +1,8 @@
 -- MapScreen: the city map and fast travel (spec: Screens and UI > Map "Hub and outskirts, beacons,
 -- safehouses, incidents, boss, Comet Crater, party; tap a marker to auto-fly; fast travel to beacons").
 -- M4 shows the zones, districts, landmarks, both HQs, the 16 safehouses (bright once visited), the 12
--- beacons (gold once discovered, a tap flies there) and you. Incidents, the boss and the party join in M6
--- and M10. Opens with M or the MAP button.
+-- beacons (gold once discovered, a tap flies there) and you. M6 adds the incidents near you (blue League,
+-- red Syndicate), running events (gold) and the world boss (big red). The party joins in M10. Opens with M or the MAP button.
 -- PLACEHOLDER ART: flat coloured frames until the UI pass (M10).
 
 local Players = game:GetService("Players")
@@ -17,6 +17,7 @@ local Travel = require(Shared:WaitForChild("Travel"))
 local Kit = require(script.Parent.Kit)
 local State = require(script.Parent.Parent.State)
 local InputController = require(script.Parent.Parent.Controllers.InputController)
+local WorldClient = require(script.Parent.Parent.Controllers.WorldClient)
 
 local MapScreen = {}
 
@@ -210,6 +211,46 @@ local function loadInfo(): boolean
 	return false
 end
 
+-- Incidents, events and the boss: redrawn every second while the map is open
+local worldMarks: { GuiObject } = {}
+local function drawWorld()
+	for _, m in worldMarks do
+		m:Destroy()
+	end
+	table.clear(worldMarks)
+	for _, inc in WorldClient.incidents do
+		if inc.state == WorldClient.ACTIVE then
+			local d = dot(
+				"Incident",
+				inc.pos.X,
+				inc.pos.Z,
+				10,
+				if inc.side == "villain" then Kit.color.syndicate else Kit.color.league
+			)
+			table.insert(worldMarks, d)
+		end
+	end
+	for _, ev in WorldClient.events do
+		if ev.state == 0 then
+			local d = dot("Event", ev.x, ev.z, 18, Kit.color.gold)
+			d.Rotation = 45
+			table.insert(worldMarks, d)
+		end
+	end
+	local b = WorldClient.boss
+	if b.state == 1 or b.state == 2 or b.state == 3 then
+		local d = dot("Boss", b.x, b.z, 26, Color3.fromRGB(235, 60, 50))
+		local l = Kit.label({
+			Text = "BOSS",
+			Size = UDim2.fromScale(1, 1),
+			TextColor3 = Kit.color.paper,
+			maxText = 12,
+		})
+		l.Parent = d
+		table.insert(worldMarks, d)
+	end
+end
+
 function MapScreen.open()
 	if not info and not loadInfo() then
 		return
@@ -219,8 +260,14 @@ function MapScreen.open()
 	end
 	panel.Visible = true
 	draw()
+	drawWorld()
 	task.spawn(function()
+		local tick = 0
 		while panel.Visible do
+			tick += 1
+			if tick % 5 == 0 then
+				drawWorld()
+			end
 			local char = Players.LocalPlayer.Character
 			local root = char and char:FindFirstChild("HumanoidRootPart") :: BasePart?
 			if root then

@@ -1,7 +1,8 @@
 -- EnemyService: runs EnemySim on the server (spec: Enemies; caps 90 per server, 6 per hero, 40 AI updates
 -- per frame) and replicates it: Enemy.Delta positions at 10 Hz (unreliable, only nearby enemies per player)
 -- and CombatEvents for shots, hero hits and deaths (10 Hz batches, only to players near them).
--- Until the incident spawner (M6) a mix of the 6 humanoid robots is kept near every hero.
+-- Robots come from incidents, contracts, events and the boss (M6); the M1 stand-in spawner stays for
+-- Studio load tests. Non-robot hit targets (props, the boss) are registered here too.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -19,8 +20,25 @@ local HeroService = require(script.Parent.HeroService)
 local PerfMonitor = require(script.Parent.PerfMonitor)
 
 local EnemyService = {}
-EnemyService.Killed = Signal.new() -- (enemyKind, attackerHeroId, position)
-EnemyService.populate = true -- DevService can pause the M1 spawner
+EnemyService.Killed = Signal.new() -- (enemyKind, attackerHeroId, position, enemyId)
+EnemyService.Hit = Signal.new() -- (id, heroId, dealt, isTarget) any hit on a robot or a registered target
+-- The M1 stand-in spawner is off since M6: incidents, contracts, events and the boss bring the robots.
+-- DevService can turn it back on for load tests.
+EnemyService.populate = false
+
+-- Hit targets that are not robots (incident props, the world boss's body, weak points and objectives).
+-- Combat sees them as candidates; damage goes to their hit function. Ids start at TARGET_BASE.
+export type Target = {
+	x: number,
+	y: number,
+	z: number,
+	r: number,
+	hit: (amount: number, heroId: number?, from: Vector3?) -> (number, boolean), -- dealt, finished
+}
+local TARGET_BASE = 50000
+EnemyService.TARGET_BASE = TARGET_BASE
+local targets: { [number]: Target } = {}
+local nextTarget = TARGET_BASE
 
 local sim: EnemySim.Sim
 local seq = 0
@@ -31,7 +49,55 @@ EnemyService.SHOT, EnemyService.HERO_HIT, EnemyService.DIE = 1, 2, 3
 EnemyService.WARN, EnemyService.SLAM, EnemyService.SWING, EnemyService.BLOCKED = 4, 5, 6, 7
 
 function EnemyService.candidates(): { any }
-	return EnemySim.candidates(sim)
+	local list = EnemySim.candidates(sim)
+	for id, t in targets do
+		table.insert(list, { id = id, x = t.x, y = t.y, z = t.z, r = t.r, flags = 0 })
+	end
+	return list
+end
+
+function EnemyService.addTarget(t: Target): number
+	nextTarget += 1
+	if nextTarget > 65000 then
+		nextTarget = TARGET_BASE + 1
+	end
+	targets[nextTarget] = t
+	return nextTarget
+end
+
+function EnemyService.removeTarget(id: number)
+	targets[id] = nil
+end
+
+function EnemyService.target(id: number): Target?
+	return targets[id]
+end
+
+-- A robot for an incident, contract or event: returns its id. tag marks whose it is; scripted ones are
+-- moved by their owner (EnemyService.place) instead of thinking for themselves.
+function EnemyService.spawnAt(
+	kind: string,
+	pos: Vector3,
+	level: number,
+	tag: number?,
+	scripted: boolean?
+): number?
+	local e = EnemySim.spawn(sim, kind, pos.X, pos.Y, pos.Z, level)
+	if not e then
+		return nil
+	end
+	e.tag = tag
+	e.scripted = scripted
+	return e.id
+end
+
+function EnemyService.remove(id: number)
+	EnemySim.remove(sim, id)
+end
+
+function EnemyService.alive(id: number): boolean
+	local e = sim.byId[id]
+	return e ~= nil and e.alive
 end
 
 -- Returns killed, the enemy, damage dealt, and the hit flag (EnemySim.HIT, BLOCKED, BROKE)
@@ -41,7 +107,23 @@ function EnemyService.damage(
 	attackerId: number?,
 	from: Vector3?
 ): (boolean, any, number, number)
-	return EnemySim.damage(sim, id, amount, attackerId, from and from.X, from and from.Z)
+	local t = targets[id]
+	if t then
+		local dealt, finished = t.hit(amount, attackerId, from)
+		if dealt > 0 then
+			EnemyService.Hit:Fire(id, attackerId, dealt, true)
+		end
+		if finished then
+			targets[id] = nil
+		end
+		return finished, { x = t.x, y = t.y, z = t.z, kind = "Target", target = true }, dealt, EnemySim.HIT
+	end
+	local killed, e, dealt, flag =
+		EnemySim.damage(sim, id, amount, attackerId, from and from.X, from and from.Z)
+	if e and dealt > 0 and attackerId then
+		EnemyService.Hit:Fire(id, attackerId, dealt, false)
+	end
+	return killed, e, dealt, flag
 end
 
 function EnemyService.applyStatus(id: number, kind: string, duration: number, opts: any?): number
@@ -177,7 +259,7 @@ local function handleEvents()
 				out,
 				{ EnemyService.DIE, ev.e, ev.x, ev.y, ev.z, cfg and cfg.typeId or 1, ev.by or 0 }
 			)
-			EnemyService.Killed:Fire(ev.kind, ev.by, Vector3.new(ev.x, ev.y, ev.z))
+			EnemyService.Killed:Fire(ev.kind, ev.by, Vector3.new(ev.x, ev.y, ev.z), ev.e)
 		elseif ev.k == "warn" then
 			table.insert(
 				out,

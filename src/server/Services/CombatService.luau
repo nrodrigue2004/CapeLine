@@ -455,6 +455,11 @@ local function applyBuff(hero: any, eff: any, r: any)
 		if eff.heal then
 			HeroService.heal(h, h.maxHealth * eff.heal)
 		end
+		if h ~= hero then
+			-- support for the world boss ledger: shield points and healing given to allies
+			local given = (if eff.buff == "shield" then value else 0) + h.maxHealth * (eff.heal or 0)
+			HeroService.Supported:Fire(hero, if given > 0 then given else h.maxHealth * 0.05)
+		end
 		if eff.staminaFree then
 			MoveGuard.freeStamina(h, os.clock() + eff.duration)
 			HeroService.buff(h, "zeroG", 1, eff.duration)
@@ -634,7 +639,9 @@ local function resolve(
 		if eff.allyShield then
 			for _, h in heroesNear(from, eff.radius or 14) do
 				if h ~= hero then
-					HeroService.buff(h, "shield", math.floor(h.maxHealth * eff.allyShield + 0.5), 4)
+					local pts = math.floor(h.maxHealth * eff.allyShield + 0.5)
+					HeroService.buff(h, "shield", pts, 4)
+					HeroService.Supported:Fire(hero, pts)
 				end
 			end
 		end
@@ -660,6 +667,9 @@ local function resolve(
 			after(t, function()
 				for _, h in heroesNear(at, eff.allyRadius or 12) do
 					HeroService.heal(h, h.maxHealth * eff.allyHeal)
+					if h ~= hero then
+						HeroService.Supported:Fire(hero, h.maxHealth * eff.allyHeal)
+					end
 				end
 			end)
 		end

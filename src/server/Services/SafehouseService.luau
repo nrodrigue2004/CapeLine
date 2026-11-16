@@ -18,6 +18,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Net = require(Shared:WaitForChild("Net"))
 local Travel = require(Shared:WaitForChild("Travel"))
 local ProfileSchema = require(Shared:WaitForChild("ProfileSchema"))
+local Signal = require(Shared:WaitForChild("Util"):WaitForChild("Signal"))
 
 local CityBuilder = require(script.Parent.CityBuilder)
 local HeroService = require(script.Parent.HeroService)
@@ -25,6 +26,7 @@ local MoveGuard = require(script.Parent.MoveGuard)
 local DataService = require(script.Parent.DataService)
 
 local SafehouseService = {}
+SafehouseService.Board = Signal.new() -- (player, safehouseId) the Contract Board terminal was used
 
 local W = Config.World
 local S = W.safehouse
@@ -181,6 +183,10 @@ local function addPrompt(part: BasePart, kind: string, id: number)
 		prompt.ActionText = "Loadout"
 		prompt.ObjectText = "Safehouse"
 		prompt.HoldDuration = 0
+	elseif kind == "contracts" then
+		prompt.ActionText = "Contract Board"
+		prompt.ObjectText = "Safehouse"
+		prompt.HoldDuration = 0
 	else
 		prompt.ActionText = "Respawn here"
 		prompt.ObjectText = "Safehouse"
@@ -197,6 +203,8 @@ local function addPrompt(part: BasePart, kind: string, id: number)
 			bank(player)
 		elseif kind == "respawn" then
 			setRespawn(player, id)
+		elseif kind == "contracts" then
+			SafehouseService.Board:Fire(player, id)
 		end
 		-- "loadout" is opened by the client (it hears the same prompt)
 	end)
@@ -228,7 +236,7 @@ function SafehouseService.init()
 	for _, part in (city :: Folder):GetDescendants() do
 		if part:IsA("BasePart") then
 			local tag = part:GetAttribute("Tag")
-			if tag == "bank" or tag == "loadout" or tag == "respawn" then
+			if tag == "bank" or tag == "loadout" or tag == "respawn" or tag == "contracts" then
 				addPrompt(part, tag, part:GetAttribute("Ref") :: number)
 			end
 		end

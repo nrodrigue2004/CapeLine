@@ -1,7 +1,8 @@
 -- DevPanel: Studio-only test buttons and the server frame report (spec: Performance budgets). Never built
 -- in a live game. Buttons: 30 load bots, clear bots, 5 drones, clear drones, spawner, god, class, level,
 -- Comic/Anime style, robots, levels, skill points, Awakening, loot by source, Renown, Credits, Dust, find all
--- beacons, wreck here, repair city, flip cars, save, wipe. The stats line shows the server frame, script time per service, enemies, bots, send
+-- beacons, wreck here, repair city, flip cars, save, wipe, and (M6) incident by template, clear incidents,
+-- event by type, boss now, boss to 1 HP, finish contract, clock phase, hero or villain side. The stats line shows the server frame, script time per service, enemies, bots, send
 -- rate and memory, plus the client fps and preset.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -22,7 +23,7 @@ function DevPanel.init()
 	end
 	local gui = Kit.screen("DevPanel", 20)
 	local panel = Kit.frame({
-		Size = UDim2.fromOffset(300, 640),
+		Size = UDim2.fromOffset(300, 600),
 		AnchorPoint = Vector2.new(1, 0),
 		Position = UDim2.new(1, -16, 0, 60),
 		BackgroundColor3 = Kit.color.night,
@@ -41,18 +42,18 @@ function DevPanel.init()
 	toggle.Parent = gui
 
 	local grid = Instance.new("UIGridLayout")
-	grid.CellSize = UDim2.fromOffset(136, 34)
-	grid.CellPadding = UDim2.fromOffset(8, 6)
+	grid.CellSize = UDim2.fromOffset(90, 30)
+	grid.CellPadding = UDim2.fromOffset(5, 5)
 	grid.SortOrder = Enum.SortOrder.LayoutOrder
 	local holder = Instance.new("Frame")
 	holder.BackgroundTransparency = 1
-	holder.Size = UDim2.new(1, -16, 0, 520)
+	holder.Size = UDim2.new(1, -16, 0, 460)
 	holder.Position = UDim2.fromOffset(8, 8)
 	grid.Parent = holder
 	holder.Parent = panel
 
 	local spawner, god, classIdx, anime =
-		true, false, table.find(Config.Classes.order, Config.Classes.default) or 1, false
+		false, false, table.find(Config.Classes.order, Config.Classes.default) or 1, false
 	local function add(text: string, fn: (TextButton) -> ())
 		local b: TextButton
 		b = Kit.button({ Text = text, maxText = 18 }, function()
@@ -73,7 +74,7 @@ function DevPanel.init()
 	add("Clear drones", function()
 		Net.send("DevCommand", "cleardrones")
 	end)
-	add("Spawner ON", function(b)
+	add("Spawner OFF", function(b)
 		spawner = not spawner
 		b.Text = if spawner then "Spawner ON" else "Spawner OFF"
 		Net.send("DevCommand", "spawner", if spawner then 1 else 0)
@@ -147,11 +148,48 @@ function DevPanel.init()
 	add("Wipe profile", function()
 		Net.send("DevCommand", "wipe")
 	end)
+	-- M6: world activity
+	local incIdx = 1
+	add("Inc: " .. Config.Incidents.order[1], function(b)
+		Net.send("DevCommand", "incident", incIdx)
+		incIdx = incIdx % #Config.Incidents.order + 1
+		b.Text = "Inc: " .. Config.Incidents.order[incIdx]
+	end)
+	add("Clear incidents", function()
+		Net.send("DevCommand", "clearincidents")
+	end)
+	local evIdx = 1
+	add("Ev: " .. Config.Events.order[1], function(b)
+		Net.send("DevCommand", "event", evIdx)
+		evIdx = evIdx % #Config.Events.order + 1
+		b.Text = "Ev: " .. Config.Events.order[evIdx]
+	end)
+	add("Boss now", function()
+		Net.send("DevCommand", "boss")
+	end)
+	add("Boss to 1 HP", function()
+		Net.send("DevCommand", "bosskill")
+	end)
+	add("Finish contract", function()
+		Net.send("DevCommand", "contract")
+	end)
+	local clockIdx = 0
+	add("Clock: dusk", function(b)
+		clockIdx = (clockIdx + 1) % 4
+		Net.send("DevCommand", "clock", clockIdx)
+		b.Text = "Clock: " .. ({ "day", "dusk", "night", "dawn" })[(clockIdx + 1) % 4 + 1]
+	end)
+	local villain = false
+	add("Side: hero", function(b)
+		villain = not villain
+		b.Text = if villain then "Side: villain" else "Side: hero"
+		Net.send("DevCommand", "side", if villain then 1 else 0)
+	end)
 
 	local stats = Kit.label({
 		Text = "waiting for server stats",
 		Size = UDim2.new(1, -16, 0, 100),
-		Position = UDim2.fromOffset(8, 532),
+		Position = UDim2.fromOffset(8, 474),
 		TextXAlignment = Enum.TextXAlignment.Left,
 		TextYAlignment = Enum.TextYAlignment.Top,
 		TextColor3 = Kit.color.paper,

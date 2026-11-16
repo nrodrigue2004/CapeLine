@@ -3,7 +3,10 @@
 -- spawner 0/1, god 0/1, class 1-4, level n, heal, style 0/1 (Comic/Anime), points n (bonus Skill Points),
 -- meter (fill Awakening), respec (no cooldown), loot 1-8 (roll a drop source at the hero's level), renown n,
 -- credits n, dust n, save (save now), map (every beacon and safehouse found), wipe (start over as a new player), wreck n (structure damage
--- around the hero, default 3000), repair (every building back), flip (every vehicle near the hero).
+-- around the hero, default 3000), repair (every building back), flip (every vehicle near the hero),
+-- incident 1-10 (that template next to the hero), clearincidents, event 1-6, boss (land the next world
+-- boss in 3 s), bosskill (the boss to 1 HP), contract (finish the first accepted contract), clock 0-3
+-- (day, dusk, night, dawn), side 0/1 (hero or villain, for this session only).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -19,6 +22,11 @@ local EconomyService = require(script.Parent.EconomyService)
 local GearService = require(script.Parent.GearService)
 local BuildingService = require(script.Parent.BuildingService)
 local VehicleService = require(script.Parent.VehicleService)
+local IncidentService = require(script.Parent.IncidentService)
+local ContractService = require(script.Parent.ContractService)
+local EventService = require(script.Parent.EventService)
+local BossService = require(script.Parent.BossService)
+local ClockService = require(script.Parent.ClockService)
 
 local DevService = {}
 
@@ -127,6 +135,33 @@ local commands: { [string]: (player: Player, hero: any, value: number) -> () } =
 		if pos then
 			VehicleService.hit(pos, 60)
 		end
+	end,
+	incident = function(_, hero, n)
+		local tid = Config.Incidents.order[n]
+		if tid then
+			print("[Dev] incident", tid, IncidentService.force(hero, tid))
+		end
+	end,
+	clearincidents = function()
+		IncidentService.clearAll()
+	end,
+	event = function(_, _, n)
+		print("[Dev] event", n, EventService.force(n))
+	end,
+	boss = function()
+		BossService.startNow()
+	end,
+	bosskill = function()
+		BossService.weaken()
+	end,
+	contract = function(player)
+		ContractService.finishFirst(player)
+	end,
+	clock = function(_, _, n)
+		ClockService.jump(n)
+	end,
+	side = function(_, hero, villain)
+		hero.side = if villain ~= 0 then "villain" else "hero"
 	end,
 	style = function(_, hero, anime)
 		HeroService.setFxStyle(hero, if anime ~= 0 then "Anime" else "Comic")

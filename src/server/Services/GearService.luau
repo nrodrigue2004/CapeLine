@@ -71,9 +71,6 @@ function GearService.grant(player: Player, source: string, zoneLevel: number): {
 		Net.fire("LootDrop", player, { piece = stored, kind = kind, dust = dust })
 		table.insert(out, stored)
 	end
-	if Config.Loot.sources[source].boss then
-		profile.stats.bossesJoined += 1
-	end
 	if #out > 0 then
 		DataService.changed(player)
 		DataService.saveSoon(player)

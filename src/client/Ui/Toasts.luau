@@ -1,7 +1,7 @@
 -- Toasts: short pop-ups in the top middle of the screen (spec: Remote events > Toast; Juice table: level up,
 -- loot). Level up is a big gold banner with what just unlocked; a drop is a card in its tier colour (gold
 -- and purple drops get a burst); rewards show +Credits and +Renown; Second Wind and a save outage get a
--- line each; beacons, safehouses and the bank get one too. At most 4 show at once; older ones slide out. PLACEHOLDER look until M10 and M11.
+-- line each; beacons, safehouses and the bank get one too; so do incidents, contracts, photos and events. At most 4 show at once; older ones slide out. PLACEHOLDER look until M10 and M11.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
@@ -14,6 +14,7 @@ local GearMath = require(Shared:WaitForChild("GearMath"))
 local Kit = require(script.Parent.Kit)
 local State = require(script.Parent.Parent.State)
 local GearScreen = require(script.Parent.GearScreen)
+local ContractBoard = require(script.Parent.ContractBoard)
 
 local Toasts = {}
 
@@ -122,6 +123,48 @@ function Toasts.show(data: { [string]: any })
 		else
 			push("Nothing on hand to bank", Kit.color.paper)
 		end
+	elseif id == "incident" then
+		local medal = string.upper(data.medal or "")
+		push(
+			string.format("%s CLEARED!  %s", string.upper(data.name or "Incident"), medal),
+			Kit.color.gold,
+			true,
+			3.5
+		)
+	elseif id == "contract" then
+		push(
+			string.format(
+				"CONTRACT DONE: %s  +%s CREDITS  +%s RENOWN%s",
+				string.upper(data.name or ""),
+				Kit.comma(data.credits or 0),
+				Kit.comma(data.renown or 0),
+				if data.double then "  (x2)" else ""
+			),
+			Color3.fromRGB(255, 150, 70),
+			true,
+			4.5
+		)
+	elseif id == "contractRefused" then
+		push(ContractBoard.REASONS[data.reason or ""] or "You cannot take that contract", Kit.color.paper)
+	elseif id == "photo" then
+		push("SNAP! Sneak Bot photographed", Kit.color.volt)
+	elseif id == "event" then
+		push(string.format("EVENT: %s!", string.upper(data.name or "")), Kit.color.gold, true, 5)
+		if data.text then
+			push(data.text, Kit.color.paper, false, 5)
+		end
+	elseif id == "eventDone" then
+		push(
+			string.format(
+				"%s DONE!  +%s CREDITS  +%s RENOWN",
+				string.upper(data.name or "Event"),
+				Kit.comma(data.credits or 0),
+				Kit.comma(data.renown or 0)
+			),
+			Kit.color.gold,
+			true,
+			4.5
+		)
 	elseif id == "saveDown" then
 		push(
 			"Saving is down right now: this session's progress will not be kept",

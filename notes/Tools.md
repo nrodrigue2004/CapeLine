@@ -8,7 +8,7 @@ record the source here. Status: Using / Recommended (milestone) / Paid (ask nate
 - Roblox Studio MCP (built into Studio Assistant): Using when nate's Studio is open. Lets a session run Play tests and read Output; the best way to prove client code. See the roblox-dev-setup memory.
 - ProfileStore by loleris (MIT, github.com/MadStudioRoblox/ProfileStore): Skipped for M3. The spec says to reuse the Ragdoll Rides saving package (session lock, migrations), which is ported into DataService with the same lock rules. Revisit only if the Studio save tests (M3 items 15 to 17) show a problem.
 - Blink (MIT, github.com/1Axen/Blink), an IDL that compiles compact buffer remotes: Recommended to evaluate at M4 if the 20 KB/s per player budget is tight at 30 players. Our own EnemyBuffer already packs the hot path.
-- luau-lsp (MIT): Recommended for type checking; its download was blocked by the cloud safety check on 11-15, retry from nate's PC.
+- luau-lsp 1.32.0 (MIT, github.com/JohnnyMorganz/luau-lsp): Using since M6 (the download works now). `rojo sourcemap default.project.json -o sourcemap.json`, then `luau-lsp analyze --sourcemap=sourcemap.json --definitions=<1.32.0 globalTypes.d.luau> --platform=roblox src`. Nonstrict optional-value warnings are noise; new errors in changed files get read.
 - Jest-Lua / TestEZ: Skipped; Lune tests cover the pure modules without Studio.
 
 ## Art, VFX and animation
@@ -35,3 +35,8 @@ record the source here. Status: Using / Recommended (milestone) / Paid (ask nate
 ## Analytics and monetization
 - Roblox AnalyticsService custom events and funnels (built in): Recommended for M12, as in Ragdoll Rides and Mossbell Stand.
 - Roblox Creator Dashboard price testing for passes: Recommended after launch.
+
+## World activity (M6)
+- Roblox ProximityPrompt (built in): Used for rescues and the Contract Board, so the server checks range without extra remotes.
+- Quest and objective frameworks on GitHub (e.g. generic Roblox quest modules): Skipped, licence not reviewed since not used. Incidents are short, seeded and pure-data tested (IncidentPlan); a framework would add instances and remotes the 2 Hz batched updates avoid.
+- Boss fight frameworks (DevForum boss AI kits): Skipped for the same reason; BossSim is pure data so Lune can simulate whole fights.

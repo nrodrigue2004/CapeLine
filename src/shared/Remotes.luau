@@ -97,6 +97,22 @@ local Remotes: { [string]: RemoteDef } = {
 	VehicleFlip = { dir = "S2C" }, -- vehicle id, push x, push z
 	VehicleReset = { dir = "S2C" }, -- vehicle id
 	CitizenDelta = { dir = "S2C", unreliable = true }, -- CitizenBuffer packet, 4 Hz
+
+	-- World activity (M6; spec: Incident.Spawn/Update, Contract.Accept/Abandon/Update, Boss.State/
+	-- Contribution/Result, Event.State, World.Clock). Rescues and the board open use ProximityPrompts (the
+	-- server's own check), so Rescue.Pick and Rescue.Drop have no remotes (Decisions.md).
+	IncidentSpawn = { dir = "S2C" }, -- { id, num, x, y, z, side, level, left, own, steps, kind }: one incident
+	IncidentUpdate = { dir = "S2C" }, -- array of { id, frac, step, have, need, left, state, medal }, 2 Hz
+	ContractBoard = { dir = "S2C" }, -- { offers, active, done, level }: the board screen
+	ContractAccept = { dir = "C2S", schema = { n(1, 3) }, rate = 2, burst = 3 }, -- offer index
+	ContractAbandon = { dir = "C2S", schema = { n(1, 3) }, rate = 2, burst = 3 }, -- active index
+	ContractUpdate = { dir = "S2C" }, -- { list = { num, got, goal, dist, dx, dz } }, 2 Hz
+	EventState = { dir = "S2C" }, -- { list = { num, x, z, left, have, need, state } }
+	BossState = { dir = "S2C" }, -- { state, num, x, y, z, yaw, hp, max, phase, at, objectives }, 2 Hz
+	BossAttack = { dir = "S2C" }, -- { kind, shape, x, z, yaw, r, warn }: telegraphs and strikes
+	BossContribution = { dir = "S2C" }, -- { score, tier, rank, heroes }, 1 Hz to each fighter
+	BossResult = { dir = "S2C" }, -- { defeated, tier, rank, credits, renown, drops, style, mvp }
+	WorldClock = { dir = "S2C" }, -- { start, cycle }: the client works out the time of day
 }
 
 return Remotes

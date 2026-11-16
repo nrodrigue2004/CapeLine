@@ -88,4 +88,29 @@ return {
 		arriveAbove = 6,
 	},
 	heightCell = 10, -- the heightmap cell for the drone AI and bots (studs)
+	-- World clock (spec: Day and night): one server clock, 24 minutes a cycle (16 day, 3 dusk, 4 night,
+	-- 1 dawn), sent on join and every 60 s. Night: villain-side incidents and contracts 30% more often.
+	clock = {
+		cycle = 1440,
+		day = 960,
+		dusk = 180,
+		night = 240,
+		dawn = 60,
+		sendEvery = 60,
+		nightVillain = 1.3,
+	},
+	-- Zone level (M6, see Decisions): what an incident, contract or event pays and how strong its robots are.
+	-- It is the level of the hero it spawned for, raised to the area's floor, so the outskirts and the
+	-- landmarks are tougher and a level 40 helping a level 5 earns level 5 rewards.
+	zoneFloor = {
+		hub = 1,
+		hubFill = 1,
+		suburbs = 5,
+		farmland = 12,
+		coast = 20,
+		CometCrater = 10,
+		RadioHill = 1,
+		OldQuarry = 20,
+	},
+	maxLevel = 40,
 }

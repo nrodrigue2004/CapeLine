@@ -76,6 +76,8 @@ export type Enemy = {
 	corneredUntil: number,
 	lastX: number,
 	lastZ: number,
+	scripted: boolean?,
+	tag: number?, -- the incident, contract site or event that spawned it
 }
 
 export type Shot = {
@@ -1141,8 +1143,10 @@ function EnemySim.step(sim: Sim, now: number, heroes: { Hero }, maxTicks: number
 			local edt = math.clamp(now - e.lastTick, 0, 0.3)
 			e.lastTick = now
 			e.nextTick = now + interval
-			think(sim, e, heroes, edt)
-			separate(sim, e)
+			if not e.scripted then -- a scripted robot (an incident runner) is moved by its incident
+				think(sim, e, heroes, edt)
+				separate(sim, e)
+			end
 			updateFlags(sim, e)
 			ticks += 1
 		end
@@ -1231,11 +1235,23 @@ function EnemySim.populate(sim: Sim, heroes: { Hero }, now: number, kind: string
 	end
 	for i = #sim.enemies, 1, -1 do
 		local e = sim.enemies[i]
-		if now - e.lastHeroNear > 30 then
+		if e.tag == nil and now - e.lastHeroNear > 30 then -- tagged robots belong to an incident
 			table.insert(sim.events, { k = "despawn", e = e.id })
 			removeAt(sim, i)
 		end
 	end
+end
+
+-- Take an enemy away without a defeat (its incident ended)
+function EnemySim.remove(sim: Sim, id: number): boolean
+	for i, e in sim.enemies do
+		if e.id == id then
+			table.insert(sim.events, { k = "despawn", e = e.id })
+			removeAt(sim, i)
+			return true
+		end
+	end
+	return false
 end
 
 function EnemySim.forgetHero(sim: Sim, heroId: number)

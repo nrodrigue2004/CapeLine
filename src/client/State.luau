@@ -13,6 +13,7 @@ local State = {}
 
 State.hero = {
 	level = 1,
+	side = "hero",
 	classId = Config.Classes.default,
 	setId = "Volt",
 	fxStyle = "Comic",

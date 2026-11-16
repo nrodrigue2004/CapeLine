@@ -184,7 +184,8 @@ local function pickStyle(
 	local tierIdx = table.find(g.tierOrder, tier) :: number
 	local pool = {}
 	for _, row in g.styles[slot] do
-		if (table.find(g.tierOrder, row.tier) :: number) <= tierIdx then
+		local rowTier = table.find(g.tierOrder, row.tier) -- nil for boss drops: never rolled
+		if rowTier and rowTier <= tierIdx then
 			table.insert(pool, row.n)
 		end
 	end
@@ -192,6 +193,19 @@ local function pickStyle(
 		return 0
 	end
 	return GearMath.styleId(slotIdx, pool[rng:int(1, #pool)])
+end
+
+-- The style id a world boss drops (shiny or not), or nil
+function GearMath.bossStyle(config: any, bossId: string, shiny: boolean): number?
+	local g = G(config)
+	for slotIdx, slot in g.slotOrder do
+		for _, row in g.styles[slot] do
+			if row.boss == bossId and (row.shiny == true) == shiny then
+				return GearMath.styleId(slotIdx, row.n)
+			end
+		end
+	end
+	return nil
 end
 
 -- Roll one piece. opts: { id, gadget = true (force the gadget slot), slot = name }

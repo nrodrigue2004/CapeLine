@@ -27,6 +27,7 @@ export type Hero = {
 	bot: any?,
 	name: string,
 	level: number,
+	side: string, -- "hero" (League) or "villain" (Syndicate)
 	classId: string,
 	setId: string,
 	fxStyle: string, -- "Comic" or "Anime": how this hero's powers look to everyone
@@ -78,6 +79,7 @@ HeroService.Parried = Signal.new() -- (hero, source) a hit was turned aside by P
 HeroService.Awakened = Signal.new() -- (hero)
 HeroService.SecondWind = Signal.new() -- (hero) the Second Wind perk saved this hero
 HeroService.Leveled = Signal.new() -- (hero, gained)
+HeroService.Supported = Signal.new() -- (hero, points) this hero healed or shielded an ally (boss support)
 
 local function stylesFor(level: number): { [string]: boolean }
 	local s = {}
@@ -98,6 +100,7 @@ local function newHero(id: number, name: string, player: Player?, bot: any?): He
 		bot = bot,
 		name = name,
 		level = level,
+		side = "hero",
 		classId = classId,
 		setId = "Volt",
 		fxStyle = "Comic",
@@ -231,8 +234,10 @@ function HeroService.sendState(hero: Hero)
 	player:SetAttribute("Class", hero.classId)
 	player:SetAttribute("PowerSet", hero.setId)
 	player:SetAttribute("FxStyle", hero.fxStyle)
+	player:SetAttribute("Side", hero.side)
 	Net.fire("HeroState", player, {
 		level = hero.level,
+		side = hero.side,
 		classId = hero.classId,
 		setId = hero.setId,
 		fxStyle = hero.fxStyle,
@@ -501,6 +506,7 @@ end
 function HeroService.applyProfile(hero: Hero, char: any, currency: any)
 	hero.level = char.level
 	hero.xp = char.xp
+	hero.side = if char.side == "villain" then "villain" else "hero"
 	hero.classId = if Config.Classes[char.classId] then char.classId else Config.Classes.default
 	hero.fxStyle = char.fxStyle
 	hero.ranks = table.clone(char.ranks)

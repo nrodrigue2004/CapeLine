@@ -68,7 +68,8 @@ local function append(into: { Box }, from: { Box })
 	table.move(from, 1, #from, #into + 1, into)
 end
 
--- A safehouse: a pad, a shelter with a roof and a sign, and the bank, loadout and respawn terminals
+-- A safehouse: a pad, a shelter with a roof and a sign, and the bank, loadout, respawn and contract board
+-- terminals (the board from M6)
 local function buildSafehouse(list: { Box }, w: any, s: any, x: number, z: number, gy: number): Safehouse
 	local c = w.safehouse
 	local pad = c.pad
@@ -79,7 +80,7 @@ local function buildSafehouse(list: { Box }, w: any, s: any, x: number, z: numbe
 	BoxKit.box(list, "ledge", x, top + 12.75, shelterZ + 3, 28, 1.5, 18, "safe")
 	BoxKit.box(list, "glow", x, top + 10, shelterZ + 5.2, 14, 2, 0.4, "beaconGlow", { ghost = true })
 	local terminals = {}
-	for i, kind in { "bank", "loadout", "respawn" } do
+	for i, kind in { "bank", "loadout", "respawn", "contracts" } do
 		local tx = x + (i - 2) * 8
 		local tz = shelterZ + 8
 		BoxKit.box(list, "terminal", tx, top + 2.5, tz, 3, 5, 2, kind, { tag = kind, ref = s.id })

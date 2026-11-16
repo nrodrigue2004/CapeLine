@@ -180,6 +180,24 @@ return {
 			{ n = 4, name = "Fin Helm", shape = "fin", tier = "Uncommon", color = { 200, 60, 60 } },
 			{ n = 5, name = "Horned Helm", shape = "horns", tier = "Rare", color = { 240, 200, 70 } },
 			{ n = 6, name = "Halo Crown", shape = "halo", tier = "Rare", color = { 255, 240, 160 } },
+			-- world boss drops (M6): never rolled by loot (tier "Boss"); 1 in 20 is the shiny one
+			{
+				n = 30,
+				name = "Scrapjaw Visor",
+				shape = "visor",
+				tier = "Boss",
+				boss = "RustjawPrime",
+				color = { 150, 96, 60 },
+			},
+			{
+				n = 31,
+				name = "Shiny Scrapjaw Visor",
+				shape = "visor",
+				tier = "Boss",
+				boss = "RustjawPrime",
+				shiny = true,
+				color = { 255, 214, 90 },
+			},
 		},
 		chest = {
 			{ n = 1, name = "Padded Vest", shape = "vest", tier = "Common", color = { 80, 90, 110 } },
@@ -214,6 +232,23 @@ return {
 			{ n = 2, name = "Long Cape", shape = "longcape", tier = "Uncommon", color = { 40, 60, 160 } },
 			{ n = 3, name = "Jet Pack", shape = "jetpack", tier = "Uncommon", color = { 90, 90, 100 } },
 			{ n = 4, name = "Light Wings", shape = "lightwings", tier = "Rare", color = { 255, 230, 140 } },
+			{
+				n = 30,
+				name = "Maw Shard Fins",
+				shape = "lightwings",
+				tier = "Boss",
+				boss = "LumenMaw",
+				color = { 150, 120, 255 },
+			},
+			{
+				n = 31,
+				name = "Shiny Maw Shard Fins",
+				shape = "lightwings",
+				tier = "Boss",
+				boss = "LumenMaw",
+				shiny = true,
+				color = { 255, 250, 210 },
+			},
 		},
 		belt = {
 			{ n = 1, name = "Utility Belt", shape = "belt", tier = "Common", color = { 210, 170, 60 } },

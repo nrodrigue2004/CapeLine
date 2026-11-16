@@ -29,6 +29,13 @@ local BuildingState = require("../src/shared/BuildingState")
 local Vehicles = require("../src/shared/Vehicles")
 local CitizenSim = require("../src/shared/CitizenSim")
 local CitizenBuffer = require("../src/shared/CitizenBuffer")
+local ZoneLevel = require("../src/shared/ZoneLevel")
+local WorldClock = require("../src/shared/WorldClock")
+local IncidentPlan = require("../src/shared/IncidentPlan")
+local ContractPlan = require("../src/shared/ContractPlan")
+local EventPlan = require("../src/shared/EventPlan")
+local BossMath = require("../src/shared/BossMath")
+local BossSim = require("../src/shared/BossSim")
 
 local passed, failed = 0, 0
 local current = ""
@@ -2481,6 +2488,516 @@ test("M5: destruction remotes exist with the right direction; citizens are unrel
 end)
 
 ---------------------------------------------------------------------------
+-- M6: incidents, contracts, events, world boss
+---------------------------------------------------------------------------
+
+test("M6: zone level is the hero's level raised to the area floor, capped at 40", function()
+	check(ZoneLevel.area(Config, 0, 0, world.tiles) == "hub", "the plaza is hub")
+	check(ZoneLevel.at(Config, 0, 0, 3, world.tiles) == 3, "hub: the hero's own level")
+	local sx = -Config.City.mapSize / 2 + (Config.World.hubFirst - 3) * Config.City.tile + 50
+	check(ZoneLevel.area(Config, sx, 0, world.tiles) == "suburbs", "3 tiles out is suburbs")
+	check(ZoneLevel.at(Config, sx, 0, 1, world.tiles) == 5, "the suburbs floor is 5")
+	check(ZoneLevel.at(Config, sx, 0, 30, world.tiles) == 30, "a higher hero keeps their level")
+	local cr = Config.World.landmarks[1]
+	local cx = -Config.City.mapSize / 2 + (cr.tx + 2) * Config.City.tile
+	local cz = -Config.City.mapSize / 2 + (cr.tz + 2) * Config.City.tile
+	check(ZoneLevel.area(Config, cx, cz, world.tiles) == "CometCrater", "the crater is its own area")
+	check(ZoneLevel.at(Config, cx, cz, 2, world.tiles) == 10, "crater floor 10")
+	check(ZoneLevel.at(Config, 0, 0, 99) == 40, "capped at 40")
+	check(ZoneLevel.area(Config, 2300, 2300) == "coast", "the map corner is coast without tiles too")
+	check(
+		ZoneLevel.median({ 4, 20, 9 }) == 9 and ZoneLevel.median({ 2, 4 }) == 3 and ZoneLevel.median({}) == 1,
+		"median"
+	)
+end)
+
+test("M6: the world clock runs 24 minutes: 16 day, 3 dusk, 4 night, 1 dawn", function()
+	local c = Config.World.clock
+	check(c.day + c.dusk + c.night + c.dawn == c.cycle and c.cycle == 1440, "24 minutes")
+	check((WorldClock.phase(c, 0)) == "day" and (WorldClock.phase(c, 959)) == "day", "day first")
+	check((WorldClock.phase(c, 960)) == "dusk" and (WorldClock.phase(c, 1140)) == "night", "dusk then night")
+	check(
+		(WorldClock.phase(c, 1380)) == "dawn" and (WorldClock.phase(c, 1440)) == "day",
+		"dawn, then day again"
+	)
+	near(WorldClock.clockTime(c, 0), 7, 1e-6, "day starts at 7:00")
+	near(WorldClock.clockTime(c, 960), 17, 1e-6, "dusk at 17:00")
+	near(WorldClock.clockTime(c, 1140 + 120), 0, 1e-6, "midnight halfway through the night")
+	check(WorldClock.isNight(c, 1200) and not WorldClock.isNight(c, 1000), "night only in the night part")
+	check(WorldClock.lampsOn(c, 1000) and not WorldClock.lampsOn(c, 100), "lamps from dusk")
+end)
+
+local IC = Config.Incidents
+local ALL_WHERE = { street = true, tower = true, tram = true, sign = true, roof = true, crane = true }
+
+test("M6: 10 incident templates; each side gets its own and the shared ones", function()
+	check(#IC.order == 10, "10 templates")
+	local nums = {}
+	for _, tid in IC.order do
+		local t = IC.templates[tid]
+		check(t ~= nil and not nums[t.num] and t.num >= 1 and t.num <= 10, tid .. " has a unique number")
+		nums[t.num] = true
+		check(t.time >= 30 and t.time <= 120, tid .. " takes 30 s to 2 min")
+		check(#t.steps >= 1, tid .. " has steps")
+		if t.side == "both" then
+			check(t.villainName ~= nil, tid .. " has a villain banner")
+		end
+	end
+	local hero = IncidentPlan.choices(IC, "hero", ALL_WHERE, false)
+	local villain = IncidentPlan.choices(IC, "villain", ALL_WHERE, false)
+	check(
+		#hero == 6 and table.find(hero, "RobotHeist") and not table.find(hero, "VaultBreach"),
+		"hero: 6 without a boss"
+	)
+	check(
+		#villain == 8 and table.find(villain, "ShardCrate") and not table.find(villain, "RobotHeist"),
+		"villain: 8"
+	)
+	check(not table.find(hero, "RaidPrep"), "Raid prep only while a boss counts down")
+	local bare = IncidentPlan.choices(IC, "hero", { street = true }, false)
+	check(
+		table.find(bare, "TowerFire") == nil and table.find(bare, "RobotHeist") ~= nil,
+		"templates need their spot"
+	)
+	local rng = Rng.new(3)
+	check(
+		IncidentPlan.pick(IC, rng, "hero", ALL_WHERE, nil, false, true) == "RaidPrep",
+		"a countdown prefers Raid prep"
+	)
+	for _ = 1, 200 do
+		local a = IncidentPlan.pick(IC, rng, "hero", ALL_WHERE, "TowerFire", false, false)
+		check(a ~= "TowerFire", "never the same template twice in a row")
+	end
+	local day, night = 0, 0
+	for _ = 1, 4000 do
+		if
+			IC.templates[IncidentPlan.pick(IC, rng, "villain", ALL_WHERE, nil, false, false) :: string].side
+			== "villain"
+		then
+			day += 1
+		end
+		if
+			IC.templates[IncidentPlan.pick(IC, rng, "villain", ALL_WHERE, nil, true, false) :: string].side
+			== "villain"
+		then
+			night += 1
+		end
+	end
+	check(night > day * 1.06, string.format("villain incidents more often at night (%d vs %d)", night, day))
+end)
+
+test("M6: an incident rolls its robots, advances step by step, and earns a medal by time", function()
+	local rng = Rng.new(9)
+	local inc = IncidentPlan.new(IC, rng, "VaultBreach", 12, 100)
+	check(
+		#inc.steps == 2 and inc.level == 12 and inc.deadline == 100 + IC.templates.VaultBreach.time,
+		"two steps, a deadline"
+	)
+	local need = inc.steps[1].need
+	check(need >= 3 and need <= 5, "1 to 2 turrets and 2 to 3 burglars")
+	check(IncidentPlan.advance(inc, "hold", 1) == nil, "progress only counts on the current step")
+	for _ = 1, need - 1 do
+		check(IncidentPlan.advance(inc, "defeat", 1) == nil, "not yet")
+	end
+	near(IncidentPlan.fraction(inc), (need - 1) / need / 2, 1e-6, "halfway through step 1")
+	check(IncidentPlan.advance(inc, "defeat", 1) == "step", "step 1 done")
+	check(
+		IncidentPlan.advance(inc, "hold", 3) == nil and IncidentPlan.advance(inc, "hold", 3) == "done",
+		"6 s of holding"
+	)
+	check(inc.done and IncidentPlan.fraction(inc) == 1, "done")
+	check(IncidentPlan.medal(IC, inc, 100 + 50) == "gold", "under half the limit: gold")
+	check(IncidentPlan.medal(IC, inc, 100 + 80) == "silver", "under 80%: silver")
+	check(IncidentPlan.medal(IC, inc, 100 + 105) == "bronze", "late: bronze")
+	local late = IncidentPlan.new(IC, rng, "FallingSign", 1, 0)
+	check(IncidentPlan.expired(late, 40) and not IncidentPlan.expired(late, 39), "the sign falls at 40 s")
+	check(IncidentPlan.holdRate(IC, 0) == 0 and IncidentPlan.holdRate(IC, 1) == 1, "one hero holds at 1x")
+	check(IncidentPlan.holdRate(IC, 2) == 1.5 and IncidentPlan.holdRate(IC, 5) == 2, "more heroes, up to 2x")
+	check(IncidentPlan.objectHp(Config, 10, 10) == 900, "10 hits of Power 90")
+	local name, text = IncidentPlan.title(IC, "TowerFire", "villain")
+	check(name == "Smoke cover" and text ~= IC.templates.TowerFire.text, "villains see their banner")
+	for _, tid in IC.order do
+		local t = IncidentPlan.new(IC, rng, tid, 5, 0)
+		for _, st in t.steps do
+			check(st.need >= 1, tid .. " steps need something")
+		end
+	end
+end)
+
+local CC = Config.Contracts
+
+test("M6: contract boards offer 3 for your side, the same until they change; max 3 accepted", function()
+	check(#CC.order == 6, "6 contract types")
+	for w = 1, 60 do
+		local h = ContractPlan.offers(CC, 7, "hero", w, 10)
+		local v = ContractPlan.offers(CC, 7, "villain", w, 10)
+		check(#h == 3 and #v == 3, "3 offers")
+		local seen = {}
+		for _, o in h do
+			check(o.type ~= "VaultJob" and not seen[o.type], "heroes never see the Vault job; no repeats")
+			seen[o.type] = true
+		end
+		for _, o in v do
+			check(o.type ~= "Stakeout", "villains never see the Stakeout")
+		end
+	end
+	local a, b = ContractPlan.offers(CC, 7, "hero", 5, 10), ContractPlan.offers(CC, 7, "hero", 5, 10)
+	check(a[1].type == b[1].type and a[3].seed == b[3].seed, "the same window shows the same offers")
+	local offer = a[1]
+	check(not ContractPlan.canAccept(CC, 3, "hero", {}, offer), "the board opens at level 4")
+	check(ContractPlan.canAccept(CC, 4, "hero", {}, offer), "level 4 can accept")
+	local full = {
+		{ type = "A", seed = 1, level = 1, got = 0 },
+		{ type = "B", seed = 1, level = 1, got = 0 },
+		{ type = "C", seed = 1, level = 1, got = 0 },
+	}
+	local ok, why = ContractPlan.canAccept(CC, 10, "hero", full, offer)
+	check(not ok and why == "full", "at most 3")
+	ok, why =
+		ContractPlan.canAccept(CC, 10, "hero", { { type = offer.type, seed = 1, level = 1, got = 0 } }, offer)
+	check(not ok and why == "same", "one of each type at a time")
+	ok, why = ContractPlan.canAccept(CC, 10, "hero", {}, { type = "VaultJob", seed = 1, level = 1, got = 0 })
+	check(not ok and why == "side", "a hero cannot take the Vault job")
+	local c = { type = "RescueRun", seed = 1, level = 1, got = 0 }
+	check(
+		not ContractPlan.progress(CC, c, 4) and ContractPlan.progress(CC, c, 9) and c.got == 5,
+		"5 rescues, clamped"
+	)
+end)
+
+test("M6: contract pay follows the table, the first 5 each day pay double", function()
+	local cr, rn, m = ContractPlan.pay(Config, "DroneSweep", 10, 0)
+	check(cr == (40 + 40) * 2 and rn == (60 + 50) * 2 and m == 2, "Drone sweep L10, first of the day: x2")
+	cr, rn, m = ContractPlan.pay(Config, "DroneSweep", 10, 5)
+	check(cr == 80 and rn == 110 and m == 1, "the 6th pays the base")
+	local _, rn2 = ContractPlan.pay(Config, "Escort", 10, 9)
+	check(rn2 == 60 + 5 * 10, "types without their own Renown use the contract row")
+	local fixed = ContractPlan.repair(
+		CC,
+		{ { type = "Escort", got = 9999, level = 99 }, { type = "Escort" }, { type = "Nope" }, 5 }
+	)
+	check(#fixed == 1 and fixed[1].got == 600 and fixed[1].level == 40, "repair clamps and drops junk")
+	check(#ContractPlan.repair(CC, "bad") == 0, "repair of junk is empty")
+end)
+
+test("M6: random events every 4 to 6 minutes, max 2, never the same twice in a row, all 6 turn up", function()
+	local EV = Config.Events
+	check(#EV.order == 6, "6 events")
+	local st = EventPlan.new(EV, 0)
+	local rng = Rng.new(21)
+	local last, starts, seen, lastStart = nil, 0, {}, nil
+	for t = 0, 7200, 1 do
+		local id = EventPlan.due(EV, st, t, rng)
+		check(EventPlan.activeCount(st) <= 2, "never more than 2 at once")
+		if id then
+			check(id ~= last, "never the same type twice in a row")
+			if lastStart then
+				check(t - lastStart >= 240 - 1e-6 and t - lastStart <= 360 + 1, "4 to 6 minutes apart")
+			else
+				check(t == EV.scheduler.firstAfter, "the first comes 90 s after boot")
+			end
+			last, lastStart = id, t
+			starts += 1
+			seen[id] = true
+		end
+	end
+	local kinds = 0
+	for _ in seen do
+		kinds += 1
+	end
+	check(starts >= 19 and kinds == 6, string.format("about one every 5 minutes (%d), all 6 kinds", starts))
+	check(EventPlan.inPocket(EV, 3000) and not EventPlan.inPocket(EV, 100), "no events in mission pockets")
+end)
+
+test("M6: boss HP scales with heroes and the median level, minus Raid prep (at most 15%)", function()
+	check(BossMath.maxHp(Config, 1, 20, 0) == 64000, "one hero at level 20")
+	check(BossMath.maxHp(Config, 10, 20, 0) == 100000, "ten heroes")
+	near(BossMath.maxHp(Config, 10, 30, 0), 100000 * 3.9 / 2.9, 1, "level 30 scales like robots")
+	check(BossMath.maxHp(Config, 10, 20, 2) == 94000, "2 prep clears: -6%")
+	check(BossMath.maxHp(Config, 10, 20, 9) == 85000, "capped at -15%")
+	check(
+		BossMath.phase(Config, 0.9) == 1
+			and BossMath.phase(Config, 0.5) == 2
+			and BossMath.phase(Config, 0.2) == 3,
+		"phases"
+	)
+	check(BossMath.clampForNewPlayer(Config, 5000, 100) == 460, "a new player clamps the wait to 6 minutes")
+	check(BossMath.clampForNewPlayer(Config, 200, 100) == 200, "never later than it was")
+	local rng = Rng.new(4)
+	for _ = 1, 50 do
+		local d = BossMath.nextDelay(Config, rng)
+		check(d >= 1200 and d <= 1800, "20 to 30 minutes")
+	end
+end)
+
+test(
+	"M6: contribution tiers: MVP top 3, Contributor top 50%, healers count, late joiners get the floor",
+	function()
+		local ledger = {}
+		for id = 1, 10 do
+			ledger[id] = { damage = 10000 + id * 1000, support = 0, objectives = 0 }
+		end
+		ledger[11] = { damage = 0, support = 5000, objectives = 0 } -- only heals and revives
+		ledger[12] = { damage = 300, support = 0, objectives = 0 } -- joined at the very end
+		ledger[13] = { damage = 4000, support = 0, objectives = 2000 } -- broke the cannons
+		local scores = BossMath.scores(Config, ledger)
+		local tiers, ranked = BossMath.tiers(Config, scores)
+		check(#ranked == 13, "13 took part")
+		check(tiers[11] == "mvp" or tiers[11] == "contributor", "the healer reaches Contributor or better")
+		check(tiers[13] == "mvp", "objectives count")
+		check(tiers[12] == "floor", "the late joiner gets the floor")
+		local mvps, contributors = 0, 0
+		for _, t in tiers do
+			if t == "mvp" then
+				mvps += 1
+			elseif t == "contributor" then
+				contributors += 1
+			end
+		end
+		check(mvps == 3 and mvps + contributors == 7, "3 MVPs, top 50% (7 of 13) Contributor or better")
+		local floor = BossMath.reward(Config, "floor", true)
+		check(floor.share == 0.25 and #floor.drops == 0, "the floor is 25% of the Participant pay, no gear")
+		local mvp = BossMath.reward(Config, "mvp", true)
+		check(
+			mvp.share == 1 and #mvp.drops == 2 and mvp.drops[2] == "bossMvp" and mvp.style and mvp.page,
+			"MVP rewards"
+		)
+		local retreat = BossMath.reward(Config, "contributor", false)
+		check(
+			retreat.share == 0.25 and #retreat.drops == 0 and not retreat.page,
+			"a retreat pays 25% of the Credits only"
+		)
+		local got, shiny = 0, 0
+		local styleRng = Rng.new(1)
+		for _ = 1, 4000 do
+			local s, sh = BossMath.styleRoll(Config, "mvp", styleRng)
+			if s then
+				got += 1
+			end
+			if sh then
+				shiny += 1
+			end
+		end
+		check(got == 4000, "MVPs always get the boss look")
+		check(shiny > 100 and shiny < 320, "1 in 20 is shiny (" .. shiny .. ")")
+		check(
+			GearMath.bossStyle(Config, "RustjawPrime", false)
+				~= GearMath.bossStyle(Config, "RustjawPrime", true),
+			"two looks a boss"
+		)
+		check(GearMath.bossStyle(Config, "LumenMaw", true) ~= nil, "the Maw's shiny exists")
+		local rngR = Rng.new(5)
+		for _ = 1, 500 do
+			local piece = GearMath.roll(Config, rngR, "Rare", 20, { slot = "head" })
+			local row = GearMath.styleRow(Config, piece.style)
+			check(row == nil or row.tier ~= "Boss", "loot never rolls a boss look")
+		end
+	end
+)
+
+local function bossHeroes(list)
+	local out = {}
+	for i, p in list do
+		table.insert(out, { id = i, x = p[1], y = p[2], z = p[3], alive = true })
+	end
+	return out
+end
+
+test(
+	"M6: Rustjaw lands, takes hits (weak points x2), changes phase, shells and stomps, dies or retreats",
+	function()
+		local rng = Rng.new(8)
+		local sim = BossSim.new(Config, "RustjawPrime", 0, 0, 0, 64000, 20, 0, rng)
+		check(#BossSim.targets(sim) == 0, "nothing to hit while it lands")
+		BossSim.step(sim, 6, {})
+		check(sim.state == "fight", "fighting after the landing")
+		local t = BossSim.targets(sim)
+		check(#t == 9, "7 body targets and 2 cannons")
+		check(select(1, BossSim.damage(sim, "body", 1000)) == 1000, "body hit")
+		check(select(1, BossSim.damage(sim, "core", 1000)) == 2000, "the core takes double")
+		BossSim.damage(sim, "head", 64000 * 0.34 - 3000 - 10)
+		check(sim.phase == 1, "still phase 1 above 66%")
+		BossSim.damage(sim, "head", 100)
+		check(sim.phase == 2, "phase 2 under 66%")
+		local _, objDealt, broke = BossSim.damage(sim, "obj1", 1e9)
+		check(objDealt > 0 and broke == 1 and not sim.objectives[1].alive, "a cannon breaks")
+		BossSim.drain(sim)
+		-- a hero standing at its feet gets stomped within a few attacks; one flying 30 up dodges stomps
+		local heroes = bossHeroes({ { 10, 0, 0 }, { 0, 30, 10 } })
+		local hitGround, hitAir, warned = 0, 0, 0
+		for step = 1, 400 do
+			BossSim.step(sim, 6 + step * 0.1, heroes)
+			for _, ev in BossSim.drain(sim) do
+				if ev.k == "warn" then
+					warned += 1
+				elseif ev.k == "strike" and ev.a == "Stomp" then
+					for _, h in ev.hits do
+						if h[1] == 1 then
+							hitGround += 1
+							near(h[2], (20 + 4 * 20) * 2.0, 1e-6, "stomp damage = (20 + 4L) x 2.0")
+						else
+							hitAir += 1
+						end
+					end
+					check(ev.struct == 45, "stomps hit buildings")
+				end
+			end
+		end
+		check(warned > 5 and hitGround > 0 and hitAir == 0, "attacks are warned; stomps hit the ground only")
+		BossSim.damage(sim, "head", 1e9)
+		check(sim.state == "dead" and sim.hp == 0, "it falls at 0 HP")
+		local sim2 = BossSim.new(Config, "RustjawPrime", 0, 0, 0, 64000, 20, 0, rng)
+		BossSim.step(sim2, 6, {})
+		BossSim.step(sim2, 5 + Config.Boss.schedule.lifespan + 1, {})
+		check(sim2.state == "retreat", "after 8 minutes it retreats")
+	end
+)
+
+test("M6: the Lumen Maw's generators heal it while they stand; it stays in its pit", function()
+	local sim = BossSim.new(Config, "LumenMaw", 100, 10, 200, 50000, 20, 0, Rng.new(2))
+	BossSim.step(sim, 6, {})
+	check(#sim.objectives == 3, "3 generators")
+	BossSim.damage(sim, "body", 20000)
+	local hp0 = sim.hp
+	local heroes = bossHeroes({ { 160, 10, 200 } })
+	for i = 1, 100 do
+		BossSim.step(sim, 6 + i * 0.1, heroes)
+	end
+	near(sim.hp - hp0, 50000 * 0.004 * 3 * 10, 200, "3 generators heal 1.2% a second")
+	check(sim.x == 100 and sim.z == 200, "it does not walk")
+	for i = 1, 3 do
+		BossSim.damage(sim, "obj" .. i, 1e9)
+	end
+	local hp1 = sim.hp
+	for i = 101, 150 do
+		BossSim.step(sim, 6 + i * 0.1, heroes)
+	end
+	check(sim.hp == hp1, "no healing once they are broken")
+	check(sim.phase == 2, "phase stays at 2 even after healing")
+end)
+
+test("M6: incident, contract and event spots are real places in the world", function()
+	local IncidentSpots = require("../src/shared/IncidentSpots")
+	local rng = Rng.new(11)
+	local function open(x: number, z: number): boolean
+		return WorldMap.heightAt(world, x, z) <= 1.5
+	end
+	local bt = world.downtown.beacon
+	-- streets: open ground, inside the distance band, from all over the map
+	local streets = 0
+	for i = 1, 120 do
+		local x, z = rng:range(-1400, 1400), rng:range(-1400, 1400)
+		local s = IncidentSpots.find(Config, world, "street", x, z, 60, 300, rng)
+		if s then
+			streets += 1
+			local d = math.sqrt((s.x - x) ^ 2 + (s.z - z) ^ 2)
+			check(open(s.x, s.z) and d >= 60 - 1e-6 and d <= 300 + 1e-6, "street spot " .. i)
+		end
+	end
+	check(streets >= 100, string.format("streets found almost everywhere (%d / 120)", streets))
+	-- towers near the plaza: tall buildings with balconies just outside a face
+	local tower = IncidentSpots.find(Config, world, "tower", bt.x, bt.z, 40, 400, rng)
+	check(tower ~= nil, "a tower near the plaza")
+	if tower then
+		local b = world.buildings[tower.building :: number]
+		check(b.top - b.base >= 60, "the tower is tall")
+		for _, p in tower.points :: any do
+			local out = math.abs(p[1] - b.x) > b.sx / 2 or math.abs(p[3] - b.z) > b.sz / 2
+			check(out and p[2] > b.base and p[2] < b.top, "a balcony on the outside of its face")
+		end
+	end
+	local sign = IncidentSpots.find(Config, world, "sign", bt.x, bt.z, 40, 400, rng)
+	check(sign ~= nil, "a billboard near the plaza")
+	if sign then
+		local b = world.buildings[sign.building :: number]
+		check(b.district == "Downtown" or b.district == "OldTown", "billboards are in town")
+	end
+	-- roof chases hop between nearby roofs; out in the fields they run the streets
+	local roof = IncidentSpots.find(Config, world, "roof", bt.x, bt.z, 40, 300, rng, { hops = 6 })
+	check(roof ~= nil and #(roof.points :: any) >= 3, "a roof chase near the plaza")
+	if roof then
+		local pts = roof.points :: any
+		for i = 2, #pts do
+			local d = math.sqrt((pts[i][1] - pts[i - 1][1]) ^ 2 + (pts[i][3] - pts[i - 1][3]) ^ 2)
+			check(d <= 70, "each hop is under 70 studs")
+		end
+	end
+	local farStart = IncidentSpots.find(Config, world, "street", 0, 1800, 0, 200, rng) :: any
+	local path = IncidentSpots.streetPath(Config, world, farStart.x, farStart.z, 12, 45, rng)
+	for i, p in path do
+		check(open(p[1], p[3]), "street path point " .. i .. " is open ground")
+	end
+	-- the escort truck's route from a street near a safehouse
+	for id = 1, 4 do
+		local sh = world.safehouses[id]
+		local s = IncidentSpots.find(Config, world, "street", sh.x, sh.z, 150, 450, rng)
+		if s then
+			local route = IncidentSpots.streetPath(Config, world, s.x, s.z, 16, 45, rng)
+			check(#route >= 4, "safehouse " .. id .. " escort route has legs (" .. #route .. ")")
+			for i = 2, #route do
+				local mx, mz = (route[i][1] + route[i - 1][1]) / 2, (route[i][3] + route[i - 1][3]) / 2
+				check(open(mx, mz), "route legs stay off buildings")
+			end
+		end
+	end
+	-- the tram runs along a Downtown tram line toward the end of it
+	local d = Config.City.districts.Downtown
+	local tram =
+		IncidentSpots.find(Config, world, "tram", (d.minX + d.maxX) / 2, 0, 0, 2000, rng, { run = 300 })
+	check(tram ~= nil, "a tram line downtown")
+	if tram then
+		local dir = tram.dir :: any
+		local ex = tram.x + dir[1] * dir[3]
+		check(ex >= d.minX and ex <= d.maxX, "the tram's run ends inside Downtown")
+		check(
+			open(tram.x, tram.z) and open(ex, tram.z) and open((tram.x + ex) / 2, tram.z),
+			"the line is open street"
+		)
+	end
+	-- the cat's crane is at the Docks
+	local crane =
+		IncidentSpots.find(Config, world, "crane", world.spots.crane.x, world.spots.crane.z, 0, 50, rng)
+	check(crane ~= nil and crane.y > 20, "the cat sits up a Docks crane")
+	local kinds = IncidentSpots.kinds(Config, world, bt.x, bt.z, 300)
+	check(
+		kinds.tower and kinds.sign and kinds.street and kinds.roof,
+		"the plaza has towers, signs and streets"
+	)
+	-- the world boss arenas
+	local found = false
+	for _, lm in world.landmarks do
+		if lm.id == Config.Boss.bosses.LumenMaw.arena then
+			found = true
+		end
+	end
+	check(found, "the Lumen Maw's Old Quarry is on the map")
+	local ax, _, az = IncidentSpots.groundNear(Config, world, bt.x, bt.z + 84, 50, rng)
+	check(open(ax, az), "Rustjaw Prime lands on open street by the plaza")
+end)
+
+test("M6: a new account sees a boss within 8 minutes; heroes and villains share one bar", function()
+	-- a fresh server waits 10 minutes, but a never-fought player joining at 60 s pulls it to 6 minutes later
+	local startAt = Config.Boss.schedule.firstAfterBoot
+	local joined = 60
+	startAt = BossMath.clampForNewPlayer(Config, startAt, joined)
+	check(startAt - joined <= 8 * 60, "within 8 minutes of joining")
+	-- a hero (id 1) and a villain (id 2) hit the same boss: both land in one ledger and one HP pool
+	local sim = BossSim.new(Config, "RustjawPrime", 0, 0, 0, 64000, 20, 0, Rng.new(3))
+	BossSim.step(sim, 6, {})
+	local dealt1 = BossSim.damage(sim, "body", 1000)
+	local dealt2 = BossSim.damage(sim, "body", 1000)
+	check(sim.hp == 62000 and dealt1 == 1000 and dealt2 == 1000, "one shared bar")
+	local tiers = BossMath.tiers(
+		Config,
+		BossMath.scores(Config, {
+			[1] = { damage = 1000, support = 0, objectives = 0 },
+			[2] = { damage = 1000, support = 0, objectives = 0 },
+		})
+	)
+	check(tiers[1] ~= nil and tiers[2] ~= nil, "both sides earn a tier")
+end)
+
+---------------------------------------------------------------------------
 -- Place layout (only when a built place is passed)
 ---------------------------------------------------------------------------
 
@@ -2529,6 +3046,14 @@ if placePath then
 				"VehiclePose",
 				"CitizenSim",
 				"CitizenBuffer",
+				"ZoneLevel",
+				"WorldClock",
+				"IncidentPlan",
+				"ContractPlan",
+				"EventPlan",
+				"BossMath",
+				"BossSim",
+				"IncidentSpots",
 			}
 		do
 			check(shared ~= nil and shared:FindFirstChild(name) ~= nil, "Shared." .. name)
@@ -2556,6 +3081,12 @@ if placePath then
 				"BuildingService",
 				"VehicleService",
 				"CitizenService",
+				"SiteKit",
+				"IncidentService",
+				"ContractService",
+				"EventService",
+				"BossService",
+				"ClockService",
 			}
 		do
 			local folder = server and server:FindFirstChild("Services")
@@ -2588,6 +3119,10 @@ if placePath then
 				{ "Fx", "BuildingFx" },
 				{ "Fx", "VehicleFx" },
 				{ "Fx", "DebrisBudget" },
+				{ "Controllers", "WorldClient" },
+				{ "Fx", "WorldFx" },
+				{ "Ui", "WorldHud" },
+				{ "Ui", "ContractBoard" },
 			}
 		do
 			local folder = client and client:FindFirstChild(path[1])
