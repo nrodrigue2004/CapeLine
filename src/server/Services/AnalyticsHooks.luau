@@ -3,8 +3,16 @@
 -- return, level ups, defeats, Downed, the PvP flag and PvP results, story choices, incidents and the
 -- world boss. Moments with no signal call Analytics directly from their service (the opening's steps,
 -- the creator, contracts, missions, skills, gear, shop, guard, beacons, squads, settings, waits).
+-- It also runs the studio-wide FunnelKit (Shared.FunnelKit with Capeline's ladder in Shared.FunnelDef): the
+-- Progress funnel (the furthest stage), the Returns funnel (sessions 1, 2, 3, 5, 10, 20) and session_start,
+-- stage_reached, session_end and first_session_end with the stage, the activity at quit and the reason.
 
 local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local FunnelKit = require(Shared:WaitForChild("FunnelKit"))
+local FunnelDef = require(Shared:WaitForChild("FunnelDef"))
 
 local Analytics = require(script.Parent.Analytics)
 local DataService = require(script.Parent.DataService)
@@ -20,6 +28,12 @@ local AnalyticsHooks = {}
 local DAY = 86400
 local downedAt: { [number]: number } = {} -- hero id -> os.clock when Downed
 local pvpHit: { [Player]: boolean } = {} -- first PvP hit logged this session
+local idledAt: { [Player]: number } = {} -- os.clock of the last Player.Idled (Roblox: 2 minutes idle)
+
+local IDLE_WINDOW = 150 -- a quit this soon after Player.Idled counts as "idle"
+local CHECK_EVERY = 5 -- seconds between funnel stage checks
+
+AnalyticsHooks.funnels = FunnelKit.new(FunnelDef, Analytics.funnelSink, os.time)
 
 local function sideOf(player: Player): string
 	local hero = HeroService.get(player)
@@ -35,6 +49,8 @@ local function joined(player: Player, profile: any)
 		a.firstSeen = now
 	end
 	Analytics.session(player, if new then "new" else "returning", sideOf)
+	profile.funnel = FunnelKit.fill(profile.funnel)
+	AnalyticsHooks.funnels:join(player, profile.funnel, profile)
 	Analytics.step(player, "Opening", "session_start")
 	local age = now - a.firstSeen
 	if a.d1 == 0 and age >= DAY and age < 2 * DAY then
@@ -43,22 +59,38 @@ local function joined(player: Player, profile: any)
 	end
 end
 
-local function leaving(player: Player)
+-- What the hero is doing now (the funnels' activity: session_end says what a player quit during)
+local function activityOf(player: Player): string
 	local hero = HeroService.get(player)
-	local state = "idle"
-	if hero then
-		if hero.downed then
-			state = "downed"
-		elseif hero.scene then
-			state = hero.scene
-		elseif BossService.inFight(hero) then
-			state = "boss"
-		elseif FlagService.inPvpCombat(hero) then
-			state = "pvp"
-		end
+	if not hero then
+		return "Loading"
+	elseif hero.downed then
+		return "Downed"
+	elseif hero.scene then
+		return "Scene " .. tostring(hero.scene)
+	elseif BossService.inFight(hero) then
+		return "Boss"
+	elseif FlagService.inPvpCombat(hero) then
+		return "PvP"
 	end
-	Analytics.event(player, "leave", Analytics.since(player), { state })
+	return "City"
+end
+
+local QUIT = {
+	[Enum.PlayerExitReason.CreatorKick.Name] = "kicked",
+	[Enum.PlayerExitReason.PlatformKick.Name] = "kicked_roblox",
+}
+
+local function leaving(player: Player, _profile: any, reason: Enum.PlayerExitReason?)
+	local funnels = AnalyticsHooks.funnels
+	funnels:activity(player, activityOf(player))
+	local why = if reason then QUIT[reason.Name] else nil
+	if not why and idledAt[player] and os.clock() - idledAt[player] <= IDLE_WINDOW then
+		why = "idle"
+	end
+	funnels:leave(player, why or "left")
 	pvpHit[player] = nil
+	idledAt[player] = nil
 end
 
 -- Called by FlagService on every PvP hit: logs the attacker's first one each session
@@ -76,6 +108,31 @@ end
 function AnalyticsHooks.init()
 	DataService.Loaded:Connect(joined)
 	DataService.Leaving:Connect(leaving)
+	-- the funnels: stage checks and the current activity every few seconds, idle quits, server shutdown
+	local function watchIdle(player: Player)
+		player.Idled:Connect(function()
+			idledAt[player] = os.clock()
+		end)
+	end
+	Players.PlayerAdded:Connect(watchIdle)
+	for _, p in Players:GetPlayers() do
+		watchIdle(p)
+	end
+	task.spawn(function()
+		while true do
+			task.wait(CHECK_EVERY)
+			for _, p in Players:GetPlayers() do
+				local profile = DataService.get(p)
+				if profile and AnalyticsHooks.funnels:isTracking(p) then
+					AnalyticsHooks.funnels:check(p, profile)
+					AnalyticsHooks.funnels:activity(p, activityOf(p))
+				end
+			end
+		end
+	end)
+	game:BindToClose(function()
+		AnalyticsHooks.funnels:shutdown()
+	end)
 	FlagService.pvpHook = AnalyticsHooks.pvpHit
 
 	HeroService.Leveled:Connect(function(hero)

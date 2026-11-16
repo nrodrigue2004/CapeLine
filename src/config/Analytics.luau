@@ -10,5 +10,5 @@ return {
 	lowPriority = { skill_cast = true, perf_sample = true, gear_drop = true, pvp_hit = true },
 	perfSample = 0.1, -- perf_sample: 10% of devices report
 	perfEvery = 60, -- seconds between a sampled device's perf reports
-	helloWait = 20, -- session_start waits this long for the device's hello (platform), then logs "unknown"
+	helloWait = 20, -- session_device waits this long for the device's hello (platform), then logs "unknown"
 }

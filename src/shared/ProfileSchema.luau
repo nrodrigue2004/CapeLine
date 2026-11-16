@@ -9,7 +9,7 @@
 
 local ProfileSchema = {}
 
-ProfileSchema.VERSION = 7
+ProfileSchema.VERSION = 8
 ProfileSchema.BOSSES = 3 -- #Config.Boss.order (a test checks they match)
 ProfileSchema.SLOTS = 8
 ProfileSchema.STYLE_WORDS = 16 -- 512 bits
@@ -183,6 +183,9 @@ function ProfileSchema.default(): { [string]: any }
 		-- M12 analytics: the furthest Opening funnel step logged (the onboarding funnel counts once per
 		-- account), the first join (os.time) and whether the day-1 return was logged
 		analytics = { onboard = 0, firstSeen = 0, d1 = 0 },
+		-- the studio-wide FunnelKit's numbers (FunnelKit.blank(): sessions, furthest stage, times, play time);
+		-- server only, never in the client view
+		funnel = { sessions = 0, stage = 0, firstAt = 0, lastAt = 0, sessionAt = 0, hopAt = 0, played = 0 },
 		daily = { day = 0, contractsDone = 0 },
 		seen = words(ProfileSchema.SMALL_WORDS),
 		stats = {
@@ -261,6 +264,9 @@ local MIGRATIONS: { [number]: (any) -> () } = {
 				end
 			end
 		end
+	end,
+	[8] = function(_p)
+		-- the studio-wide funnels (FunnelKit): repair() fills the funnel numbers
 	end,
 }
 ProfileSchema.MIGRATIONS = MIGRATIONS
@@ -516,6 +522,16 @@ local function repair(p: any): any
 		onboard = num(an.onboard, 0, 32, 0),
 		firstSeen = num(an.firstSeen, 0, 2 ^ 40, 0),
 		d1 = num(an.d1, 0, 1, 0),
+	}
+	local fu = if type(p.funnel) == "table" then p.funnel else {}
+	p.funnel = {
+		sessions = num(fu.sessions, 0, 2 ^ 31, 0),
+		stage = num(fu.stage, 0, 255, 0),
+		firstAt = num(fu.firstAt, 0, 2 ^ 40, 0),
+		lastAt = num(fu.lastAt, 0, 2 ^ 40, 0),
+		sessionAt = num(fu.sessionAt, 0, 2 ^ 40, 0),
+		hopAt = num(fu.hopAt, 0, 2 ^ 40, 0),
+		played = num(fu.played, 0, 2 ^ 40, 0),
 	}
 	p.version = ProfileSchema.VERSION
 	return p

@@ -28,7 +28,7 @@ local Signal = require(Shared:WaitForChild("Util"):WaitForChild("Signal"))
 local DataService = {}
 
 DataService.Loaded = Signal.new() -- (player, profile)
-DataService.Leaving = Signal.new() -- (player, profile): before the last save
+DataService.Leaving = Signal.new() -- (player, profile, exitReason?): before the last save
 
 type Session = {
 	profile: { [string]: any },
@@ -340,10 +340,10 @@ local function onPlayerAdded(player: Player)
 	sendView(player)
 end
 
-local function onPlayerRemoving(player: Player)
+local function onPlayerRemoving(player: Player, reason: Enum.PlayerExitReason?)
 	local session = sessions[player]
 	if session then
-		local ok, err = pcall(DataService.Leaving.Fire, DataService.Leaving, player, session.profile)
+		local ok, err = pcall(DataService.Leaving.Fire, DataService.Leaving, player, session.profile, reason)
 		if not ok then
 			warn("[DataService] leaving handler: " .. tostring(err))
 		end

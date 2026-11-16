@@ -10,7 +10,12 @@
 local AnalyticsSchema = {}
 
 AnalyticsSchema.EVENTS = {
-	session_start = { "platform", "new_or_returning", "side" }, -- value: level
+	-- the studio-wide FunnelKit's 4 events (the same names and fields in every game; Analytics sends them)
+	session_start = { "stage", "new_or_returning", "days_away" }, -- value: session number
+	stage_reached = { "stage", "session" }, -- value: minutes played
+	session_end = { "stage", "activity", "reason_length" }, -- value: session seconds
+	first_session_end = { "stage", "activity", "reason_length" }, -- value: session seconds
+	session_device = { "platform", "new_or_returning", "side" }, -- value: level (was session_start)
 	first_leap = {}, -- value: seconds since join
 	first_catch = {},
 	first_blast = {},
@@ -40,7 +45,6 @@ AnalyticsSchema.EVENTS = {
 	anti_exploit_flag = { "kind", "strikes" },
 	purchase = { "item", "kind" }, -- value: Robux
 	perf_sample = { "device", "preset", "fps_p5" }, -- value: median fps (sampled 10%)
-	leave = { "state" }, -- value: seconds in session
 	-- M10 and M11 extras the KPIs need (squads, photos, friend boost, settings)
 	squad_join = { "size" },
 	photo = { "backdrop" },

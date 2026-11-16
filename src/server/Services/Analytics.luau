@@ -7,7 +7,10 @@
 --   once per account, in order (the furthest step is kept in the save). The others start a new funnel
 --   session at their first step.
 -- * Facts only the device knows (its platform, perf samples, the shop and item views, photos) arrive on
---   Telemetry; session_start waits up to 20 s for the device's hello.
+--   Telemetry; session_device waits up to 20 s for the device's hello.
+-- * funnelSink: where the studio-wide FunnelKit sends (AnalyticsHooks runs it): the Progress and Returns
+--   funnels and session_start, stage_reached, session_end and first_session_end. These always get a slot in
+--   the per-minute budget, and print as [Funnel] lines in Studio (events only send from published games).
 -- Only DataService is required here, so any service can call Analytics (AnalyticsHooks wires the signals).
 
 local HttpService = game:GetService("HttpService")
@@ -125,6 +128,48 @@ function Analytics.step(player: Player, funnel: string, stepName: string)
 	end
 end
 
+-- The studio-wide FunnelKit's events (AnalyticsSchema has them, the same in every game)
+Analytics.FUNNEL_EVENTS = { "session_start", "stage_reached", "session_end", "first_session_end" }
+
+Analytics.funnelSink = {
+	funnel = function(player: Player, funnel: string, sessionId: string, step: number, stepName: string)
+		if player.Parent ~= Players then
+			return
+		end
+		if Analytics.logToOutput then
+			print(string.format("[Funnel] %s step %d %s", funnel, step, stepName))
+		end
+		local s = analytics()
+		if s then
+			pcall(function()
+				(s :: AnalyticsService):LogFunnelStepEvent(player, funnel, sessionId, step, stepName)
+			end)
+		end
+	end,
+	custom = function(player: Player, name: string, value: number, fields: { string })
+		if player.Parent ~= Players or not table.find(Analytics.FUNNEL_EVENTS, name) then
+			return
+		end
+		minuteCount += 1 -- top priority: counts against the budget but is never dropped
+		Analytics.count += 1
+		local custom: { [string]: string } = {}
+		for i, v in fields do
+			if KEYS[i] then
+				custom[KEYS[i]] = v
+			end
+		end
+		if Analytics.logToOutput then
+			print(string.format("[Funnel] %s %s %s", name, tostring(value), table.concat(fields, " | ")))
+		end
+		local s = analytics()
+		if s then
+			pcall(function()
+				(s :: any):LogCustomEvent(player, name, value, custom)
+			end)
+		end
+	end,
+}
+
 -- Seconds since this player joined
 function Analytics.since(player: Player): number
 	return math.floor(os.clock() - (joinedAt[player] or os.clock()))
@@ -145,10 +190,10 @@ local function startNow(player: Player)
 		local c = profile.characters[profile.active]
 		level = if c then c.level or 1 else 1
 	end
-	Analytics.event(player, "session_start", level, { devices[player] or "unknown", s.kind, hero })
+	Analytics.event(player, "session_device", level, { devices[player] or "unknown", s.kind, hero })
 end
 
--- session_start waits for the device's hello (the platform only the device knows), at most 20 s
+-- session_device waits for the device's hello (the platform only the device knows), at most 20 s
 function Analytics.session(player: Player, kind: string, side: (Player) -> string)
 	starting[player] = { kind = kind, side = side }
 	if devices[player] then

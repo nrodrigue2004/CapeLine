@@ -17,6 +17,8 @@ local PosHistory = require("../src/shared/PosHistory")
 local HitQuery = require("../src/shared/HitQuery")
 local Cooldowns = require("../src/shared/Cooldowns")
 local FrameProf = require("../src/shared/FrameProf")
+local FunnelKit = require("../src/shared/FunnelKit")
+local FunnelDef = require("../src/shared/FunnelDef")
 local EnemySim = require("../src/shared/EnemySim")
 local EnemyBuffer = require("../src/shared/EnemyBuffer")
 local CityLayout = require("../src/shared/CityLayout")
@@ -4596,7 +4598,7 @@ test("M12: every spec event and funnel step is in the schema, and each one is lo
 		"anti_exploit_flag",
 		"purchase",
 		"perf_sample",
-		"leave",
+		"session_end", -- the studio-wide FunnelKit's session_end replaced the spec's "leave"
 	}
 	local E = AnalyticsSchema.EVENTS
 	for _, name in spec do
@@ -4648,7 +4650,7 @@ test("M12: events are checked: unknown names refused, fields cut to short safe c
 	local _, g = AnalyticsSchema.check("choice_pick", { "a b<script>", string.rep("x", 50) })
 	check(g[1] == "abscript", "spaces and symbols removed")
 	check(#g[2] == 32, "cut to 32 characters")
-	ok = AnalyticsSchema.check("leave", nil)
+	ok = AnalyticsSchema.check("first_leap", nil)
 	check(ok, "no fields is fine")
 	local A = Config.Analytics
 	check(A.castSample > 0 and A.castSample <= 0.2, "skill casts are sampled at 20% or less (spec)")
@@ -5482,9 +5484,32 @@ test("Art: the hero body is a standard R15 rig whose joints meet", function()
 		check(rig.parts[side .. "Foot"].attachments[side .. "FootAttachment"] ~= nil, side .. " foot point")
 	end
 	check(
-		rig.triangles > 4000 and rig.triangles <= 12000,
+		rig.triangles > 1000 and rig.triangles <= 12000,
 		"hero within its triangle budget: " .. rig.triangles
 	)
+end)
+
+-- The studio-wide funnels (shared test file, the same in every game) against Capeline's ladder and save
+require("./funnelkit_test")(test, check, FunnelKit, FunnelDef, ProfileSchema.default())
+
+test("Analytics: the funnels' save is in the profile, repaired on load and kept off the client", function()
+	local p = ProfileSchema.default()
+	for key, value in FunnelKit.blank() :: any do
+		check(p.funnel[key] == value, "default funnel." .. key)
+	end
+	local bad = ProfileSchema.default()
+	bad.funnel = { sessions = -3, stage = "x", played = 12 }
+	local fixed = ProfileSchema.load(bad)
+	check(fixed.funnel.sessions == 0 and fixed.funnel.stage == 0 and fixed.funnel.played == 12, "repaired")
+	local old = ProfileSchema.default()
+	old.funnel = nil
+	old.version = 7
+	check(ProfileSchema.load(old).funnel.sessions == 0, "a v7 save gains the funnel numbers")
+	check(ProfileSchema.clientView(p).funnel == nil, "never sent to the client")
+	for _, name in { "session_start", "stage_reached", "session_end", "first_session_end", "session_device" } do
+		check(AnalyticsSchema.EVENTS[name] ~= nil, "schema has " .. name)
+	end
+	check(AnalyticsSchema.EVENTS.leave == nil, "leave is replaced by session_end")
 end)
 
 test("Perf: FrameProf times wrapped loops, passes values through, sorts busiest first", function()

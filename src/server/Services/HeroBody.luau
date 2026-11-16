@@ -1,5 +1,6 @@
 -- HeroBody: every hero on the same base body, on the standard Roblox R15 rig (nate, 2026-11-16: "All humanoid
--- models should follow that basic r15 roblox model"). The 15 meshes come from art/blender/hero.py (imported
+-- models should follow that basic r15 roblox model" ... "i want the blocky version"): the classic blocky Roblox
+-- body on the R15 rig. The 15 meshes come from art/blender/hero.py (imported
 -- into ReplicatedStorage.Art.Hero); Config.HeroRig has each part's size, centre and attachments. At boot this
 -- builds StarterPlayer.StarterCharacter from them: a HumanoidRootPart, the 15 MeshParts, every R15 rig and
 -- accessory attachment, a Humanoid (R15) and the Motor6Ds from Humanoid:BuildRigFromAttachments, so Roblox's
