@@ -19,6 +19,11 @@ local Cooldowns = require("../src/shared/Cooldowns")
 local EnemySim = require("../src/shared/EnemySim")
 local EnemyBuffer = require("../src/shared/EnemyBuffer")
 local CityLayout = require("../src/shared/CityLayout")
+local WorldGen = require("../src/shared/WorldGen")
+local WorldMap = require("../src/shared/WorldMap")
+local Travel = require("../src/shared/Travel")
+local BoxKit = require("../src/shared/BoxKit")
+local HeightMap = require("../src/shared/HeightMap")
 
 local passed, failed = 0, 0
 local current = ""
@@ -1784,6 +1789,363 @@ test(
 )
 
 ---------------------------------------------------------------------------
+-- M4: world generator, weekly seed, safehouses, beacons
+---------------------------------------------------------------------------
+
+local W = Config.World
+local function utc(y: number, mo: number, d: number, h: number?): number
+	return WorldGen.daysFromCivil(y, mo, d) * 86400 + (h or 0) * 3600
+end
+
+test("M4: the weekly seed is ISO year x 100 + ISO week and turns over Monday 00:00 UTC", function()
+	local function week(t: number): string
+		local y, w = WorldGen.isoWeek(t)
+		return string.format("%d-W%02d", y, w)
+	end
+	check(WorldGen.daysFromCivil(1970, 1, 1) == 0, "the epoch is day 0")
+	local y, m, d = WorldGen.civilFromDays(WorldGen.daysFromCivil(2028, 2, 29))
+	check(y == 2028 and m == 2 and d == 29, "a leap day round trips")
+	check(week(utc(2026, 11, 16, 12)) == "2026-W47", "2026-11-16 is 2026-W47")
+	check(week(utc(2021, 1, 1)) == "2020-W53", "2021-01-01 belongs to 2020-W53")
+	check(week(utc(2024, 12, 30)) == "2025-W01", "2024-12-30 belongs to 2025-W01")
+	check(week(utc(2026, 1, 1)) == "2026-W01", "2026-01-01 is 2026-W01")
+	check(week(utc(2027, 1, 3, 23)) == "2026-W53", "2027-01-03 is 2026-W53 (a 53-week year)")
+	check(WorldGen.weekSeed(utc(2026, 11, 16)) == 202647, "seed 202647")
+	check(
+		WorldGen.weekSeed(utc(2026, 11, 22, 23) + 3599) == 202647
+			and WorldGen.weekSeed(utc(2026, 11, 23)) == 202648,
+		"Sunday 23:59:59 keeps the week; Monday 00:00 UTC moves it on"
+	)
+	-- every day for 3 years: the week moves by one exactly on Mondays
+	local last = WorldGen.weekSeed(utc(2026, 1, 5))
+	local ok = true
+	for day = 1, 365 * 3 do
+		local t = utc(2026, 1, 5) + day * 86400
+		local seed = WorldGen.weekSeed(t)
+		local monday = (math.floor(t / 86400) + 3) % 7 == 0
+		if monday == (seed == last) then
+			ok = false
+		end
+		last = seed
+	end
+	check(ok, "the seed changes on every Monday and on no other day")
+end)
+
+local world = WorldMap.build(Config, 202647)
+
+test("M4: same seed, same tile hash on two servers; other seeds differ; the hub never changes", function()
+	local again = WorldMap.build(Config, 202647)
+	check(buffer.len(world.tiles) == W.tiles * W.tiles * 2 and buffer.len(world.tiles) == 4608, "4,608 bytes")
+	check(again.hash == world.hash and #world.hash == 8, "same seed, same hash: " .. world.hash)
+	check(again.parts.total == world.parts.total, "same seed, same part count")
+	local other = WorldMap.build(Config, 202648)
+	check(other.hash ~= world.hash, "the next week's seed gives a different map")
+	local sameHub, outskirtsDiffer = true, 0
+	for tz = 0, W.tiles - 1 do
+		for tx = 0, W.tiles - 1 do
+			local a = buffer.readu16(world.tiles, (tz * W.tiles + tx) * 2)
+			local b = buffer.readu16(other.tiles, (tz * W.tiles + tx) * 2)
+			if WorldGen.ring(W, tx, tz) == 0 then
+				sameHub = sameHub and a == b
+			elseif a ~= b then
+				outskirtsDiffer += 1
+			end
+		end
+	end
+	check(sameHub, "hub tiles are the same every week")
+	check(outskirtsDiffer > 1000, string.format("most outskirts tiles change (%d)", outskirtsDiffer))
+	local hubSame = #again.hubBoxes == #other.hubBoxes
+	check(hubSame, "the hub has the same parts every week")
+	-- a one-bit change in the array changes the hash
+	local copy = buffer.create(buffer.len(world.tiles))
+	buffer.copy(copy, 0, world.tiles)
+	buffer.writeu8(copy, 1000, bit32.bxor(buffer.readu8(copy, 1000), 1))
+	check(WorldGen.hash(copy) ~= world.hash, "one bit changes the hash")
+end)
+
+test("M4: zones: hub 16 to 31, suburbs then farmland, a 2-tile coast, 3 landmarks on fixed tiles", function()
+	local Z = W.zones
+	local counts = {}
+	local outside = 0
+	local ringsOk, roadsOk = true, true
+	for tz = 0, W.tiles - 1 do
+		for tx = 0, W.tiles - 1 do
+			local t = WorldGen.get(W, world.tiles, tx, tz)
+			counts[t.zone] = (counts[t.zone] or 0) + 1
+			local ring = WorldGen.ring(W, tx, tz)
+			if ring > 0 then
+				outside += 1
+			end
+			if ring == 0 and t.zone ~= Z.hub and t.zone ~= Z.hubFill then
+				ringsOk = false
+			end
+			if ring >= 15 and t.zone ~= Z.coast then
+				ringsOk = false
+			end
+			if ring >= 1 and ring <= 6 and t.zone ~= Z.suburbs and t.zone ~= Z.landmark then
+				ringsOk = false
+			end
+			if ring >= 9 and ring <= 14 and t.zone ~= Z.farmland and t.zone ~= Z.landmark then
+				ringsOk = false
+			end
+			if (t.zone == Z.suburbs or t.zone == Z.farmland) and t.variant ~= W.special then
+				if (tx % 6 == 0) ~= t.hwyNS or (tx % 3 == 0) ~= t.roadNS or (tz % 3 == 0) ~= t.roadEW then
+					roadsOk = false
+				end
+			elseif t.roadNS or t.roadEW then
+				roadsOk = false
+			end
+		end
+	end
+	check(outside == 2048, "2,048 non-hub tiles")
+	check(ringsOk, "zones follow the rings (the suburb edge may wobble one tile)")
+	check(roadsOk, "highways every 6 tiles, local roads every 3, none on the coast or hub")
+	check(counts[Z.landmark] == 48, "3 landmarks of 4 x 4 tiles")
+	check(
+		(counts[Z.suburbs] or 0) > 400 and (counts[Z.farmland] or 0) > 700,
+		"suburbs and farmland both fill"
+	)
+	for i, lm in W.landmarks do
+		local t = WorldGen.get(W, world.tiles, lm.tx + 1, lm.tz + 2)
+		check(t.zone == Z.landmark and t.variant == i, lm.id .. " sits on its tiles")
+	end
+	check(#world.landmarks == 3, "3 landmarks built")
+end)
+
+test("M4: parts: 25 or fewer per outskirts tile on average, every part legal, budgets met", function()
+	local outskirtsParts, outskirtsTiles = 0, 0
+	for _, plan in world.tilePlans do
+		if WorldGen.ring(W, plan.tx, plan.tz) > 0 then
+			outskirtsParts += #plan.boxes
+		end
+	end
+	outskirtsParts += world.parts.landmarks
+	outskirtsTiles = 2048
+	local avg = outskirtsParts / outskirtsTiles
+	check(avg <= W.partsPerTile, string.format("%.1f parts per outskirts tile (max %d)", avg, W.partsPerTile))
+	check(
+		outskirtsParts + world.parts.base <= 51000,
+		string.format("outskirts %d parts within 51,000", outskirtsParts)
+	)
+	check(world.parts.hub <= 55000, string.format("hub %d parts within 55,000", world.parts.hub))
+	local legal = true
+	local function scan(list: { any })
+		for _, b in list do
+			for _, v in { b.sx, b.sy, b.sz } do
+				if not (v > 0 and v <= 2048) then
+					legal = false
+				end
+			end
+			if not Config.City.palette[b.color] then
+				legal = false
+			end
+		end
+	end
+	scan(world.hubBoxes)
+	scan(world.baseBoxes)
+	for _, plan in world.tilePlans do
+		scan(plan.boxes)
+	end
+	for _, lm in world.landmarks do
+		scan(lm.boxes)
+	end
+	check(legal, "every part is between 0 and 2,048 studs on each axis with a palette colour")
+	-- every lot kind and variant exists and builds
+	for zone, list in WorldGen.VARIANTS do
+		check(#list == (W.variants[zone] or 0), zone .. " has its variant count")
+		for _, kinds in list do
+			for _, kind in kinds do
+				check(WorldGen.LOT_KINDS[kind] ~= nil, "lot kind " .. kind)
+			end
+		end
+	end
+	local t0 = os.clock()
+	WorldMap.build(Config, 202650)
+	local took = os.clock() - t0
+	check(took < 2, string.format("the whole world as data in %.2f s", took))
+end)
+
+test("M4: heights: roofs, the Beacon Tower, the outskirts, the sea past the edge", function()
+	local bt = world.downtown.beacon
+	check(WorldMap.heightAt(world, bt.x, bt.z) >= Config.City.downtown.beacon.height, "Beacon Tower")
+	check(WorldMap.heightAt(world, 9999, 0) == W.coast.waterY, "past the edge is the sea")
+	check(WorldMap.heightAt(world, -2399, -2399) < 2, "the coast corner is low")
+	local roofs = 0
+	for tz = 0, 47 do
+		for tx = 0, 47 do
+			if WorldGen.ring(W, tx, tz) >= 1 then
+				local x0, z0 = WorldGen.tileOrigin(Config.City, tx, tz)
+				for k = 1, 9 do
+					if WorldMap.heightAt(world, x0 + k * 10, z0 + k * 10) > 8 then
+						roofs += 1
+						break
+					end
+				end
+			end
+		end
+	end
+	check(roofs > 500, string.format("buildings stand in the outskirts (%d tiles)", roofs))
+	local crater = world.landmarks[1]
+	check(
+		WorldMap.heightAt(world, crater.spot.x, crater.spot.z) >= W.crater.rimHeight - 1,
+		"the crater rim is high"
+	)
+	local tallest = 0
+	for _, b in world.hubBoxes do
+		tallest = math.max(tallest, b.cy + b.sy / 2)
+	end
+	check(
+		tallest < Config.Move.ceiling.soft,
+		string.format("everything is under the flight ceiling (%d)", tallest)
+	)
+end)
+
+test("M4: 16 safehouses with 3 terminals and 3 respawn points, nothing built on their pads", function()
+	local hub, out = 0, 0
+	for _, s in world.safehouses do
+		if s.district == "Outskirts" then
+			out += 1
+		else
+			hub += 1
+		end
+		check(s.terminals.bank and s.terminals.loadout and s.terminals.respawn ~= nil, s.name .. " terminals")
+		check(#s.respawn == 3, s.name .. " respawn points")
+		local half = Config.City.mapSize / 2
+		check(math.abs(s.x) < half and math.abs(s.z) < half, s.name .. " is on the map")
+	end
+	check(hub == 12 and out == 4, "12 in the hub and 4 in the outskirts")
+	-- no building, roof or prop touches a pad
+	local blocked = {}
+	local function scan(list: { any })
+		for _, b in list do
+			if (b.kind == "building" or b.kind == "roof" or b.kind == "ledge") and b.tag == nil then
+				local fx, fz = BoxKit.footprint(b)
+				for _, s in world.safehouses do
+					local pad = W.safehouse.pad / 2
+					if math.abs(b.cx - s.x) < fx / 2 + pad and math.abs(b.cz - s.z) < fz / 2 + pad then
+						-- the safehouse's own shelter sits on its pad
+						if not (math.abs(b.cx - s.x) < 15 and math.abs(b.cz - (s.z - pad + 10)) < 10) then
+							blocked[s.name] = true
+						end
+					end
+				end
+			end
+		end
+	end
+	scan(world.hubBoxes)
+	for _, plan in world.tilePlans do
+		scan(plan.boxes)
+	end
+	local names = {}
+	for name in blocked do
+		table.insert(names, name)
+	end
+	check(#names == 0, "pads are clear: " .. table.concat(names, ", "))
+	-- the Downtown lots kept for safehouses leave every other Downtown building where it was
+	local plain = CityLayout.downtown(Config.City)
+	check(#plain.buildings == #world.downtown.buildings + 4, "4 Downtown lots became safehouses")
+	local same = 0
+	local spots = {}
+	for _, b in world.downtown.buildings do
+		spots[string.format("%.1f,%.1f,%.1f", b.x, b.z, b.h)] = true
+	end
+	for _, b in plain.buildings do
+		if spots[string.format("%.1f,%.1f,%.1f", b.x, b.z, b.h)] then
+			same += 1
+		end
+	end
+	check(same == #world.downtown.buildings, "the rest of Downtown is unchanged")
+end)
+
+test("M4: 12 beacons on their roofs and landmarks, under the ceiling, reachable", function()
+	-- heights of everything but the beacons themselves
+	local bare = HeightMap.new(Config.City.mapSize, W.heightCell, W.coast.waterY)
+	local function stampAll(list: { any })
+		for _, b in list do
+			if b.tag ~= "beacon" and b.tag ~= "beaconPost" and b.tag ~= "beam" then
+				HeightMap.stamp(bare, b)
+			end
+		end
+	end
+	stampAll(world.hubBoxes)
+	for _, plan in world.tilePlans do
+		stampAll(plan.boxes)
+	end
+	for _, lm in world.landmarks do
+		stampAll(lm.boxes)
+	end
+	local n = 0
+	for id, b in world.beacons do
+		n += 1
+		check(b.y > 0 and b.y < Config.Move.ceiling.soft, b.name .. " height")
+		local h = HeightMap.at(bare, b.x, b.z)
+		check(math.abs(h - b.y) < 3, string.format("%s stands on top (%.0f vs %.0f)", b.name, b.y, h))
+		check(W.beacons[id].name == b.name, b.name .. " id")
+	end
+	check(n == 12, "12 beacons")
+	check(world.beacons[1].y > Config.City.downtown.beacon.height, "Beacon Tower's beacon is on its top")
+	check(world.beacons[5].y >= W.crater.rimHeight, "the Crater beacon is on the rim")
+end)
+
+test("M4: fast travel rules, the flight arc, the bank and respawn choices", function()
+	local mask = Travel.add(Travel.add(0, 3), 12)
+	check(Travel.has(mask, 3) and Travel.has(mask, 12) and not Travel.has(mask, 4), "bit masks")
+	check(Travel.count(mask) == 2 and Travel.add(mask, 3) == mask, "count and idempotent add")
+	local base = { beacons = mask, inCombat = false, traveling = false, readyAt = 0, now = 100 }
+	check((Travel.canTravel(W, base, 3)), "a discovered beacon out of combat")
+	local function why(over: { [string]: any }, id: number): string?
+		local s = table.clone(base)
+		for k, v in over do
+			s[k] = v
+		end
+		local _, reason = Travel.canTravel(W, s, id)
+		return reason
+	end
+	check(why({}, 4) == "undiscovered", "undiscovered")
+	check(why({}, 13) == "no beacon", "no such beacon")
+	check(why({ inCombat = true }, 3) == "combat", "not in combat")
+	check(why({ readyAt = 110 }, 3) == "cooldown", "20 s cooldown")
+	check(why({ traveling = true }, 3) == "traveling", "one trip at a time")
+	local x0, y0, z0 = Travel.flightPath(0, 10, 0, 1000, 50, 0, 0)
+	local x1, y1, z1 = Travel.flightPath(0, 10, 0, 1000, 50, 0, 1)
+	local _, ym = Travel.flightPath(0, 10, 0, 1000, 50, 0, 0.5)
+	check(
+		x0 == 0 and y0 == 10 and z0 == 0 and x1 == 1000 and math.abs(y1 - 50) < 1e-6 and z1 == 0,
+		"starts and ends right"
+	)
+	check(ym > 50 + 40, "the flight climbs above both ends")
+	local cur = { credits = 740, banked = 100, dust = 3 }
+	check(Travel.deposit(cur) == 740 and cur.credits == 0 and cur.banked == 840, "deposit banks all on-hand")
+	check(Travel.deposit(cur) == 0, "nothing on hand banks nothing")
+	local houses = world.safehouses
+	check(Travel.respawnAt(houses, 0, 0, 1) == 1, "a new hero's home is safehouse 1")
+	check(Travel.respawnAt(houses, 0, 7, 1) == 7, "a returning hero joins at the last chosen safehouse")
+	local far = houses[16]
+	check(
+		Travel.respawnAt(houses, Travel.add(0, 16), 0, 1, far.x + 5, far.z) == 16,
+		"a defeat respawns at the nearest visited safehouse"
+	)
+	check(Travel.respawnAt(houses, 0, 0, 1, far.x + 5, far.z) == 1, "unvisited safehouses are not used")
+end)
+
+test("M4: profile version 2 adds beacons and safehouses; a v1 save keeps its last safehouse", function()
+	check(ProfileSchema.VERSION == 2, "version 2")
+	local v1 = { version = 1, characters = { { level = 12, lastSafehouse = 5 } } }
+	local p = ProfileSchema.load(v1)
+	local c = p.characters[1]
+	check(p.version == 2 and c.beacons == 0, "beacons start undiscovered")
+	check(Travel.has(c.safehouses, 5) and c.lastSafehouse == 5, "the last safehouse counts as visited")
+	local bad = ProfileSchema.load({
+		version = 2,
+		characters = { { beacons = -4, safehouses = 2 ^ 40, lastSafehouse = 99 } },
+	})
+	local b = bad.characters[1]
+	check(b.beacons == 0 and b.safehouses == 65535 and b.lastSafehouse == 16, "bad masks are clamped")
+	local view = ProfileSchema.clientView(p)
+	check(view.beacons == 0 and view.lastSafehouse == 5, "the client sees beacons and safehouses")
+end)
+
+---------------------------------------------------------------------------
 -- Place layout (only when a built place is passed)
 ---------------------------------------------------------------------------
 
@@ -1820,6 +2182,12 @@ if placePath then
 				"Progress",
 				"ProfileSchema",
 				"Inventory",
+				"BoxKit",
+				"Districts",
+				"WorldGen",
+				"HeightMap",
+				"WorldMap",
+				"Travel",
 			}
 		do
 			check(shared ~= nil and shared:FindFirstChild(name) ~= nil, "Shared." .. name)
@@ -1842,6 +2210,8 @@ if placePath then
 				"GearService",
 				"LookService",
 				"PerkService",
+				"SafehouseService",
+				"BeaconService",
 			}
 		do
 			local folder = server and server:FindFirstChild("Services")
@@ -1868,6 +2238,8 @@ if placePath then
 				{ "Ui", "Kit" },
 				{ "Ui", "Hud" },
 				{ "Ui", "DevPanel" },
+				{ "Ui", "MapScreen" },
+				{ "Controllers", "TravelClient" },
 			}
 		do
 			local folder = client and client:FindFirstChild(path[1])
@@ -1876,6 +2248,10 @@ if placePath then
 		local first = game:GetService("ReplicatedFirst"):FindFirstChild("LoadingScreen")
 		check(first ~= nil and first.ClassName == "LocalScript", "ReplicatedFirst.LoadingScreen")
 		check(game:GetService("Workspace").StreamingEnabled == true, "StreamingEnabled on")
+		check(
+			game:GetService("Workspace").StreamOutBehavior == roblox.Enum.StreamOutBehavior.Opportunistic,
+			"parts stream out when far away (Opportunistic)"
+		)
 	end)
 end
 

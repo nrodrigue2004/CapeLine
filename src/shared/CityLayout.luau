@@ -1,5 +1,6 @@
 --!strict
--- CityLayout: the Downtown greybox as plain boxes (spec: Map layout; M1 "greybox Downtown"). Pure and
+-- CityLayout: the Downtown greybox as plain boxes (spec: Map layout; M1 "greybox Downtown"; WorldMap adds the
+-- rest of the map in M4 and has the whole-map heightAt). Pure and
 -- seeded, so the server builds the same city every time, the Lune tests can check part counts and heights,
 -- and the drone AI can ask how tall the city is anywhere (heightAt) without raycasts.
 -- PLACEHOLDER ART: grey boxes, window bands and rooftop props until the kit pass (M5).
@@ -17,7 +18,11 @@ export type Box = {
 	sy: number,
 	sz: number,
 	color: string, -- a Config.City.palette key
-	shape: string?, -- "cylinder" for water towers
+	shape: string?, -- "cylinder" (axis along y), "wedge" (see BoxKit), "ball"
+	ry: number?, -- turn around y in degrees (multiples of 90 keep the box axis-aligned)
+	tag: string?, -- what a server service looks for (a terminal kind, a beacon, a landmark zone)
+	ref: number?, -- the id that tag belongs to (a safehouse or beacon id)
+	ghost: boolean?, -- no collision (light beams, signs above heads)
 }
 
 export type Layout = {
@@ -26,6 +31,7 @@ export type Layout = {
 	spawns: { { x: number, y: number, z: number } },
 	droneSpots: { { x: number, y: number, z: number } },
 	beacon: { x: number, z: number, h: number },
+	safehouseSpots: { [number]: { x: number, z: number } }, -- reserved lots (Config.World.safehouses)
 	grid: { cell: number, minX: number, minZ: number, n: number, tops: { number } },
 	parts: number,
 }
@@ -50,8 +56,19 @@ end
 
 local BODY_COLORS = { "concrete", "brick", "slate", "sand", "steel", "glass" }
 
-function CityLayout.downtown(cityCfg: any): Layout
+-- worldCfg (optional): Config.World, whose Downtown safehouses take a reserved lot each. The random draws
+-- for a reserved lot still happen, so the rest of Downtown stays the same with or without them.
+function CityLayout.downtown(cityCfg: any, worldCfg: any?): Layout
 	local d = cityCfg.districts.Downtown
+	local reserved: { [string]: number } = {}
+	local safehouseSpots = {}
+	if worldCfg then
+		for _, s in worldCfg.safehouses do
+			if s.lot then
+				reserved[table.concat(s.lot, ",")] = s.id
+			end
+		end
+	end
 	local t = cityCfg.downtown
 	local rng = Rng.new(t.seed)
 	local boxes: { Box } = {}
@@ -59,28 +76,6 @@ function CityLayout.downtown(cityCfg: any): Layout
 	local spawns = {}
 	local droneSpots = {}
 	local gy = cityCfg.ground.y
-
-	-- hub ground (grass) and the sea around it
-	local hub = cityCfg.hub
-	local hubSize = hub.max - hub.min
-	box(
-		boxes,
-		"ground",
-		0,
-		gy - cityCfg.ground.thickness / 2,
-		0,
-		hubSize,
-		cityCfg.ground.thickness,
-		hubSize,
-		"grass"
-	)
-	for ix = -1, 1 do
-		for iz = -1, 1 do
-			if ix ~= 0 or iz ~= 0 then
-				box(boxes, "water", ix * hubSize, gy - 6, iz * hubSize, hubSize, 4, hubSize, "water")
-			end
-		end
-	end
 
 	-- Downtown asphalt base
 	local w, h = d.maxX - d.minX, d.maxZ - d.minZ
@@ -159,6 +154,14 @@ function CityLayout.downtown(cityCfg: any): Layout
 						local sx = lot - rng:range(0, 6)
 						local sz = lot - rng:range(0, 6)
 						local color = BODY_COLORS[rng:int(1, #BODY_COLORS)]
+						local reservedId = reserved[string.format("%d,%d,%d,%d", bx, bz, lx, lz)]
+						local hasLedge = rng:chance(t.rooftop.ledgeChance)
+						local hasTank = rng:chance(t.rooftop.waterTowerChance)
+						local hasAntenna = rng:chance(t.rooftop.antennaChance)
+						if reservedId then
+							safehouseSpots[reservedId] = { x = lcx, z = lcz }
+							continue
+						end
 						box(boxes, "building", lcx, gy + 0.9 + height / 2, lcz, sx, height, sz, color)
 						-- window bands, one wrap-around part every 12 studs (PLACEHOLDER ART)
 						local y = 10
@@ -168,11 +171,11 @@ function CityLayout.downtown(cityCfg: any): Layout
 						end
 						local top = gy + 0.9 + height
 						-- rooftop: a ledge you can land on and a few props
-						if rng:chance(t.rooftop.ledgeChance) then
+						if hasLedge then
 							box(boxes, "ledge", lcx, top + 1, lcz - sz / 2 + 0.75, sx, 2, 1.5, "roof")
 							box(boxes, "ledge", lcx, top + 1, lcz + sz / 2 - 0.75, sx, 2, 1.5, "roof")
 						end
-						if rng:chance(t.rooftop.waterTowerChance) then
+						if hasTank then
 							box(
 								boxes,
 								"prop",
@@ -186,7 +189,7 @@ function CityLayout.downtown(cityCfg: any): Layout
 								"cylinder"
 							)
 						end
-						if rng:chance(t.rooftop.antennaChance) then
+						if hasAntenna then
 							box(boxes, "prop", lcx - sx / 4, top + 10, lcz - sz / 4, 1, 20, 1, "steel")
 						end
 						table.insert(buildings, { x = lcx, z = lcz, sx = sx, sz = sz, h = height + 0.9 })
@@ -198,6 +201,8 @@ function CityLayout.downtown(cityCfg: any): Layout
 	end
 
 	-- height grid for the drone AI and shot checks (max top per 10-stud cell over the hub)
+	local hub = cityCfg.hub
+	local hubSize = hub.max - hub.min
 	local cell = 10
 	local n = math.ceil(hubSize / cell)
 	local tops = table.create(n * n, gy)
@@ -227,6 +232,7 @@ function CityLayout.downtown(cityCfg: any): Layout
 		spawns = spawns,
 		droneSpots = droneSpots,
 		beacon = beacon,
+		safehouseSpots = safehouseSpots,
 		grid = { cell = cell, minX = hub.min, minZ = hub.min, n = n, tops = tops },
 		parts = parts,
 	}

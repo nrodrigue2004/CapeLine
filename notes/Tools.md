@@ -20,6 +20,10 @@ record the source here. Status: Using / Recommended (milestone) / Paid (ask nate
 - Creator Store free models and VFX: Recommended only after a license and script check (free models can hide scripts); restyle to the palette.
 - AI 3D generators (Meshy, Tripo): Paid tiers (ask nate). Possible for props and hair at M9.
 
+## World (M4)
+- Roblox streaming built-ins (StreamingMesh level of detail, Atomic models, RequestStreamAroundAsync): Used. No third-party city generator fits a seeded, hashable tile array, so WorldGen is our own code.
+- Roblox SHA libraries on GitHub (e.g. pure-Luau hashing modules, MIT): Skipped; the M4 hash only has to match between servers, so a 20-line FNV-1a does the job without a dependency.
+
 ## Audio
 - Creator Store audio (Roblox-licensed for use on Roblox): Recommended for the 110 effects and 3 music loops (M11).
 - Freesound (check each clip: CC0 preferred, CC BY needs credit): Recommended as a backup source.

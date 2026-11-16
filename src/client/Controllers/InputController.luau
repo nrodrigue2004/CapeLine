@@ -2,7 +2,7 @@
 -- Accessibility: controller support). Touch buttons are drawn by the Hud and feed the same actions.
 -- Actions: Leap (hold in the air to glide; climbs while flying), Fly (toggle), Boost (hold), Down (hold),
 -- Basic (hold to keep firing), Skill1 to Skill4, Super, Awaken, Loadout (opens the loadout screen), Gear (the
--- gear screen), Gadget (the gadget slot's active).
+-- gear screen), Gadget (the gadget slot's active), Map (the map and fast travel).
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
@@ -40,6 +40,7 @@ local KEYS: { [Enum.KeyCode]: string } = {
 	[Enum.KeyCode.L] = "Loadout",
 	[Enum.KeyCode.I] = "Gear",
 	[Enum.KeyCode.Z] = "Gadget",
+	[Enum.KeyCode.M] = "Map",
 	-- gamepad
 	[Enum.KeyCode.ButtonA] = "Leap",
 	[Enum.KeyCode.ButtonY] = "Fly",
@@ -74,6 +75,7 @@ InputController.hints = {
 	Loadout = "L",
 	Gear = "I",
 	Gadget = "Z",
+	Map = "M",
 }
 
 function InputController.isDown(action: string): boolean

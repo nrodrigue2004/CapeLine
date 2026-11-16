@@ -2,7 +2,7 @@
 -- basic, 4 skill buttons and the super with cooldown sweeps (coloured by power set), the Awakening meter and
 -- its button, active buffs, the movement buttons (Leap, Fly, Boost, Down), a crosshair that pops on a
 -- confirmed hit, the level, class, power set and gear score, the Renown bar with the next unlock, the
--- wallet, a GADGET button when one is worn, and POWERS and GEAR buttons for those screens. Phone first: 56 px buttons, a 16 px safe area, and the
+-- wallet, a GADGET button when one is worn, and POWERS, GEAR and MAP buttons for those screens. Phone first: 56 px buttons, a 16 px safe area, and the
 -- bottom 80 px on the right left clear for the flight pad. Buttons carry only verbs (spec: first 30 seconds).
 -- On PC and gamepad the same buttons show their key; they are drawn smaller.
 -- PLACEHOLDER look until the UI pass (M10): the radar, world clock and boss countdown arrive with their
@@ -330,6 +330,15 @@ local function buildCluster()
 		Kit.color.paper
 	)
 	gear.Size = UDim2.fromOffset(s + 20, s - 10)
+	local map = actionButton(
+		gui,
+		"Map",
+		"MAP",
+		s,
+		UDim2.new(1, -U.safe - s * 2.5 - 152, 0, U.safe + s / 2),
+		Kit.color.paper
+	)
+	map.Size = UDim2.fromOffset(s + 10, s - 10)
 	walletText = Kit.label({
 		Text = "",
 		AnchorPoint = Vector2.new(1, 0),

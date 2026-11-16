@@ -1,0 +1,1064 @@
+--!strict
+-- WorldGen: the weekly seed and the seeded outskirts (spec: Procedural outskirts; Server lifecycle step 3).
+-- * weekSeed(t) = ISO year x 100 + ISO week, from the UTC date, so every server agrees all week.
+-- * tiles(seed): the 48 x 48 tile array, 2 bytes a tile (4,608 bytes), packed as
+--   zone (3 bits) | variant (5) | rotation (2) | local road N-S (1) | E-W (1) | highway N-S (1) | E-W (1).
+--   Pass order as in the spec: terrain and coast (zone rings), highways every 6 tiles, local roads every 3,
+--   zone fill (variant and rotation), then props (tilePlan). Hub tiles never depend on the seed.
+-- * hash(tiles): FNV-1a over the 4,608 bytes; two servers with the same seed must log the same hash.
+-- * tilePlan: the boxes one tile creates (25 or fewer on average). Suburb, farm and hub-filler tiles split
+--   into 4 lots around their roads; the variant says what stands on each lot and the rotation turns that
+--   pattern a quarter turn at a time. Coast tiles are beaches, piers, lighthouses and dunes.
+-- * base: the ground, the coast sand, the ocean past the map edge and the long road strips.
+-- * landmark: Comet Crater, Radio Hill and the Old Quarry, hand-placed on fixed tiles.
+-- PLACEHOLDER ART: simple parts until the kit pass (M5).
+
+local Rng = if script then require(script.Parent.Rng) else (require :: any)("./Rng")
+local BoxKit = if script then require(script.Parent.BoxKit) else (require :: any)("./BoxKit")
+
+local WorldGen = {}
+
+type Box = BoxKit.Box
+local box = BoxKit.box
+
+-----------------------------------------------------------------------------------------------------------
+-- Dates: the ISO week from a Unix time (UTC)
+-----------------------------------------------------------------------------------------------------------
+
+-- Days since 1970-01-01 for a civil date (Howard Hinnant's algorithm, proleptic Gregorian)
+function WorldGen.daysFromCivil(y: number, m: number, d: number): number
+	y -= if m <= 2 then 1 else 0
+	local era = math.floor(y / 400)
+	local yoe = y - era * 400
+	local mp = if m > 2 then m - 3 else m + 9
+	local doy = math.floor((153 * mp + 2) / 5) + d - 1
+	local doe = yoe * 365 + math.floor(yoe / 4) - math.floor(yoe / 100) + doy
+	return era * 146097 + doe - 719468
+end
+
+function WorldGen.civilFromDays(days: number): (number, number, number)
+	local z = days + 719468
+	local era = math.floor(z / 146097)
+	local doe = z - era * 146097
+	local yoe =
+		math.floor((doe - math.floor(doe / 1460) + math.floor(doe / 36524) - math.floor(doe / 146096)) / 365)
+	local y = yoe + era * 400
+	local doy = doe - (365 * yoe + math.floor(yoe / 4) - math.floor(yoe / 100))
+	local mp = math.floor((5 * doy + 2) / 153)
+	local d = doy - math.floor((153 * mp + 2) / 5) + 1
+	local m = if mp < 10 then mp + 3 else mp - 9
+	if m <= 2 then
+		y += 1
+	end
+	return y, m, d
+end
+
+-- ISO 8601 year and week for a Unix time. Weeks start on Monday 00:00 UTC.
+function WorldGen.isoWeek(t: number): (number, number)
+	local days = math.floor(t / 86400)
+	local weekday = (days + 3) % 7 + 1 -- 1970-01-01 was a Thursday; Monday = 1
+	local thursday = days - weekday + 4
+	local y = WorldGen.civilFromDays(thursday)
+	local jan1 = WorldGen.daysFromCivil(y, 1, 1)
+	return y, math.floor((thursday - jan1) / 7) + 1
+end
+
+function WorldGen.weekSeed(t: number): number
+	local y, w = WorldGen.isoWeek(t)
+	return y * 100 + w
+end
+
+-----------------------------------------------------------------------------------------------------------
+-- The tile array
+-----------------------------------------------------------------------------------------------------------
+
+local ROAD_NS, ROAD_EW, HWY_NS, HWY_EW = 1024, 2048, 4096, 8192
+
+export type Tile = {
+	zone: number,
+	variant: number,
+	rot: number,
+	roadNS: boolean,
+	roadEW: boolean,
+	hwyNS: boolean,
+	hwyEW: boolean,
+}
+
+function WorldGen.encode(zone: number, variant: number, rot: number, flags: number): number
+	return zone + variant * 8 + rot * 256 + flags
+end
+
+function WorldGen.decode(v: number): Tile
+	return {
+		zone = v % 8,
+		variant = math.floor(v / 8) % 32,
+		rot = math.floor(v / 256) % 4,
+		roadNS = bit32.btest(v, ROAD_NS),
+		roadEW = bit32.btest(v, ROAD_EW),
+		hwyNS = bit32.btest(v, HWY_NS),
+		hwyEW = bit32.btest(v, HWY_EW),
+	}
+end
+
+-- How many tiles out from the hub edge (0 inside the hub, 16 at the map edge)
+function WorldGen.ring(w: any, tx: number, tz: number): number
+	local dx = if tx < w.hubFirst then w.hubFirst - tx elseif tx > w.hubLast then tx - w.hubLast else 0
+	local dz = if tz < w.hubFirst then w.hubFirst - tz elseif tz > w.hubLast then tz - w.hubLast else 0
+	return math.max(dx, dz)
+end
+
+-- The min corner of a tile in studs
+function WorldGen.tileOrigin(cityCfg: any, tx: number, tz: number): (number, number)
+	local half = cityCfg.mapSize / 2
+	return -half + tx * cityCfg.tile, -half + tz * cityCfg.tile
+end
+
+function WorldGen.tileOf(cityCfg: any, x: number, z: number): (number, number)
+	local half = cityCfg.mapSize / 2
+	return math.floor((x + half) / cityCfg.tile), math.floor((z + half) / cityCfg.tile)
+end
+
+function WorldGen.landmarkAt(w: any, tx: number, tz: number): (number?, boolean)
+	for i, lm in w.landmarks do
+		if tx >= lm.tx and tx < lm.tx + lm.size and tz >= lm.tz and tz < lm.tz + lm.size then
+			return i, tx == lm.tx and tz == lm.tz
+		end
+	end
+	return nil, false
+end
+
+local function specialAt(w: any, tx: number, tz: number): boolean
+	for _, s in w.safehouses do
+		if s.tile and s.tile[1] == tx and s.tile[2] == tz then
+			return true
+		end
+	end
+	for _, b in w.beacons do
+		if b.tile and b.tile[1] == tx and b.tile[2] == tz then
+			return true
+		end
+	end
+	return false
+end
+
+local function touchesDistrict(cityCfg: any, tx: number, tz: number): boolean
+	local x0, z0 = WorldGen.tileOrigin(cityCfg, tx, tz)
+	local x1, z1 = x0 + cityCfg.tile, z0 + cityCfg.tile
+	for _, d in cityCfg.districts do
+		if x0 < d.maxX and x1 > d.minX and z0 < d.maxZ and z1 > d.minZ then
+			return true
+		end
+	end
+	return false
+end
+
+-- The whole map as a packed tile array for this seed
+function WorldGen.tiles(cityCfg: any, w: any, seed: number): buffer
+	local n = w.tiles
+	local tiles = buffer.create(n * n * 2)
+	local Z = w.zones
+	local roads = w.roads
+	for tz = 0, n - 1 do
+		for tx = 0, n - 1 do
+			local ring = WorldGen.ring(w, tx, tz)
+			local zone, variant, rot, flags = 0, 0, 0, 0
+			local lm = WorldGen.landmarkAt(w, tx, tz)
+			if ring == 0 then
+				-- the hub is fixed: districts, or a filler tile from the hub's own seed
+				if not touchesDistrict(cityCfg, tx, tz) then
+					local h = Rng.hash(cityCfg.hubFill.seed, tx, tz)
+					zone = Z.hubFill
+					variant = h % w.variants.hubFill
+					rot = math.floor(h / 256) % 4
+				end
+			elseif lm then
+				zone, variant = Z.landmark, lm
+			else
+				-- terrain: the suburb edge wobbles by a tile in 4 x 4 blocks so the rings are not square
+				local wobble = Rng.hash(seed, math.floor(tx / 4), math.floor(tz / 4), 1) % 3 - 1
+				if ring > w.rings.farmlandTo then
+					zone = Z.coast
+				elseif ring <= w.rings.suburbsTo + wobble then
+					zone = Z.suburbs
+				else
+					zone = Z.farmland
+				end
+				local rng = Rng.new(Rng.hash(seed, tx, tz, 2))
+				if specialAt(w, tx, tz) then
+					variant = w.special
+				elseif zone == Z.coast then
+					variant = rng:int(0, w.variants.coast - 1)
+				elseif zone == Z.suburbs then
+					variant = rng:int(0, w.variants.suburbs - 1)
+				else
+					variant = rng:int(0, w.variants.farmland - 1)
+				end
+				rot = rng:int(0, 3)
+				if zone ~= Z.coast and variant ~= w.special then
+					if tx % roads.localEvery == 0 then
+						flags += ROAD_NS
+					end
+					if tz % roads.localEvery == 0 then
+						flags += ROAD_EW
+					end
+					if tx % roads.highwayEvery == 0 then
+						flags += HWY_NS
+					end
+					if tz % roads.highwayEvery == 0 then
+						flags += HWY_EW
+					end
+				end
+			end
+			buffer.writeu16(tiles, (tz * n + tx) * 2, WorldGen.encode(zone, variant, rot, flags))
+		end
+	end
+	return tiles
+end
+
+function WorldGen.get(w: any, tiles: buffer, tx: number, tz: number): Tile
+	return WorldGen.decode(buffer.readu16(tiles, (tz * w.tiles + tx) * 2))
+end
+
+-- FNV-1a (32-bit) of the tile bytes, as 8 hex digits
+function WorldGen.hash(tiles: buffer): string
+	local h = 0x811C9DC5
+	for i = 0, buffer.len(tiles) - 1 do
+		h = bit32.bxor(h, buffer.readu8(tiles, i))
+		local lo = bit32.band(h, 0xFFFF) * 16777619
+		local hi = bit32.rshift(h, 16) * 16777619
+		h = (lo + (hi % 65536) * 65536) % 4294967296
+	end
+	return string.format("%08x", h)
+end
+
+-----------------------------------------------------------------------------------------------------------
+-- Lots: what stands on one quarter of a tile
+-----------------------------------------------------------------------------------------------------------
+
+local HOUSE_BODY = { "white", "sand", "brick", "concrete", "white" }
+local HOUSE_ROOF = { "roofRed", "roofBlue", "roof", "roofRed" }
+
+type LotFn = (list: { Box }, rng: Rng.Rng, x0: number, z0: number, x1: number, z1: number, gy: number) -> ()
+
+local LOTS: { [string]: LotFn } = {}
+
+local function centre(x0: number, z0: number, x1: number, z1: number): (number, number, number, number)
+	return (x0 + x1) / 2, (z0 + z1) / 2, x1 - x0, z1 - z0
+end
+
+LOTS.house = function(list, rng, x0, z0, x1, z1, gy)
+	local cx, cz, w, d = centre(x0, z0, x1, z1)
+	local sx = math.min(w - 8, rng:range(18, 26))
+	local sz = math.min(d - 8, rng:range(16, 22))
+	local h = rng:range(10, 14)
+	BoxKit.house(
+		list,
+		cx,
+		gy,
+		cz,
+		sx,
+		sz,
+		h,
+		HOUSE_BODY[rng:int(1, #HOUSE_BODY)],
+		HOUSE_ROOF[rng:int(1, #HOUSE_ROOF)]
+	)
+	if rng:chance(0.5) then
+		BoxKit.tree(list, x0 + 4, gy, z1 - 4, rng:range(8, 12))
+	end
+end
+
+LOTS.bighouse = function(list, rng, x0, z0, x1, z1, gy)
+	local cx, cz, w, d = centre(x0, z0, x1, z1)
+	local sx = math.max(18, math.min(w - 6, rng:range(28, 36)))
+	local sz = math.max(16, math.min(d - 8, rng:range(22, 28)))
+	local h = rng:range(18, 22)
+	BoxKit.house(
+		list,
+		cx,
+		gy,
+		cz,
+		sx,
+		sz,
+		h,
+		HOUSE_BODY[rng:int(1, #HOUSE_BODY)],
+		HOUSE_ROOF[rng:int(1, #HOUSE_ROOF)]
+	)
+	BoxKit.fence(list, x0 + 1, z1 - 1, x1 - 1, z1 - 1, gy)
+end
+
+LOTS.shop = function(list, rng, x0, z0, x1, z1, gy)
+	local cx, cz, w, d = centre(x0, z0, x1, z1)
+	local sx, sz = math.min(w - 4, rng:range(26, 34)), math.min(d - 6, rng:range(20, 26))
+	local h = rng:range(12, 16)
+	local color = HOUSE_BODY[rng:int(1, #HOUSE_BODY)]
+	box(list, "building", cx, gy + h / 2, cz, sx, h, sz, color)
+	box(list, "prop", cx, gy + 9, cz + sz / 2 + 2, sx * 0.9, 0.6, 4, HOUSE_ROOF[rng:int(1, #HOUSE_ROOF)])
+	box(list, "band", cx, gy + 4, cz + sz / 2 + 0.2, sx * 0.8, 5, 0.4, "window")
+end
+
+LOTS.park = function(list, rng, x0, z0, x1, z1, gy)
+	local cx, cz, w, d = centre(x0, z0, x1, z1)
+	for _ = 1, rng:int(2, 3) do
+		BoxKit.tree(list, rng:range(x0 + 6, x1 - 6), gy, rng:range(z0 + 6, z1 - 6), rng:range(9, 14))
+	end
+	box(list, "prop", cx, gy + 1, cz, math.min(w - 10, 8), 2, 2, "wood")
+	local _ = d
+end
+
+LOTS.pool = function(list, rng, x0, z0, x1, z1, gy)
+	local cx, cz, w, d = centre(x0, z0, x1, z1)
+	box(list, "water", cx, gy + 0.3, cz, w * 0.55, 0.6, d * 0.45, "water")
+	BoxKit.fence(list, x0 + 1, z0 + 1, x1 - 1, z0 + 1, gy)
+	BoxKit.fence(list, x0 + 1, z0 + 1, x0 + 1, z1 - 1, gy)
+	BoxKit.tree(list, x1 - 5, gy, z1 - 5, rng:range(8, 12))
+end
+
+LOTS.yard = function(list, rng, x0, z0, x1, z1, gy)
+	BoxKit.fence(list, x0 + 1, z1 - 1, x1 - 1, z1 - 1, gy)
+	BoxKit.fence(list, x1 - 1, z0 + 1, x1 - 1, z1 - 1, gy)
+	BoxKit.tree(list, rng:range(x0 + 8, x1 - 8), gy, rng:range(z0 + 8, z1 - 8), rng:range(9, 13))
+end
+
+local function field(
+	list: { Box },
+	rng: Rng.Rng,
+	x0: number,
+	z0: number,
+	x1: number,
+	z1: number,
+	gy: number,
+	crop: string
+)
+	local cx, cz, w, d = centre(x0, z0, x1, z1)
+	box(list, "field", cx, gy + 0.2, cz, w, 0.4, d, "soil")
+	local alongX = rng:chance(0.5)
+	for k = 1, 3 do
+		local f = (k - 0.5) / 3
+		if alongX then
+			box(list, "crop", cx, gy + 1.2, z0 + d * f, w - 4, 2, d / 3 - 4, crop, { ghost = true })
+		else
+			box(list, "crop", x0 + w * f, gy + 1.2, cz, w / 3 - 4, 2, d - 4, crop, { ghost = true })
+		end
+	end
+end
+
+LOTS.field = function(list, rng, x0, z0, x1, z1, gy)
+	field(list, rng, x0, z0, x1, z1, gy, "crop")
+end
+
+LOTS.fieldGreen = function(list, rng, x0, z0, x1, z1, gy)
+	field(list, rng, x0, z0, x1, z1, gy, "cropGreen")
+end
+
+LOTS.barn = function(list, rng, x0, z0, x1, z1, gy)
+	local cx, cz, w, d = centre(x0, z0, x1, z1)
+	BoxKit.house(
+		list,
+		cx,
+		gy,
+		cz,
+		math.min(w - 6, rng:range(24, 32)),
+		math.min(d - 6, rng:range(18, 24)),
+		rng:range(14, 18),
+		"roofRed",
+		"roof"
+	)
+end
+
+LOTS.silo = function(list, rng, x0, z0, x1, z1, gy)
+	local cx, cz = centre(x0, z0, x1, z1)
+	for k = -1, 1, 2 do
+		local h = rng:range(26, 36)
+		local x = cx + k * 7
+		box(list, "prop", x, gy + h / 2, cz, 11, h, 11, "steel", { shape = "cylinder" })
+		box(list, "prop", x, gy + h, cz, 11, 8, 11, "white", { shape = "ball" })
+	end
+end
+
+LOTS.orchard = function(list, rng, x0, z0, x1, z1, gy)
+	local _, _, w, d = centre(x0, z0, x1, z1)
+	for i = 1, 2 do
+		for j = 1, 2 do
+			BoxKit.tree(list, x0 + w * (i - 0.5) / 2, gy, z0 + d * (j - 0.5) / 2, rng:range(8, 11))
+		end
+	end
+end
+
+LOTS.pasture = function(list, rng, x0, z0, x1, z1, gy)
+	BoxKit.fence(list, x0 + 1, z0 + 1, x1 - 1, z0 + 1, gy)
+	BoxKit.fence(list, x0 + 1, z1 - 1, x1 - 1, z1 - 1, gy)
+	BoxKit.fence(list, x0 + 1, z0 + 1, x0 + 1, z1 - 1, gy)
+	BoxKit.fence(list, x1 - 1, z0 + 1, x1 - 1, z1 - 1, gy)
+	for _ = 1, 2 do
+		box(
+			list,
+			"prop",
+			rng:range(x0 + 8, x1 - 8),
+			gy + 2.5,
+			rng:range(z0 + 8, z1 - 8),
+			5,
+			5,
+			5,
+			"hay",
+			{ shape = "cylinder" }
+		)
+	end
+end
+
+LOTS.pond = function(list, rng, x0, z0, x1, z1, gy)
+	local cx, cz, w, d = centre(x0, z0, x1, z1)
+	local r = math.min(w, d) * 0.7
+	box(list, "water", cx, gy + 0.3, cz, r, 0.6, r, "water", { shape = "cylinder" })
+	box(list, "prop", cx + r / 2, gy + 1.5, cz - r / 3, 5, 4, 5, "rock", { shape = "ball" })
+	box(list, "prop", cx - r / 2, gy + 1.2, cz + r / 4, 4, 3, 4, "rock", { shape = "ball" })
+	local _ = rng
+end
+
+LOTS.tractor = function(list, rng, x0, z0, x1, z1, gy)
+	field(list, rng, x0, z0, x1, z1, gy, "crop")
+	local cx, cz = centre(x0, z0, x1, z1)
+	box(list, "prop", cx, gy + 3, cz, 6, 4, 9, "roofRed")
+	box(list, "prop", cx, gy + 6.5, cz + 1.5, 5, 3, 4, "glass")
+end
+
+LOTS.windmillSmall = function(list, rng, x0, z0, x1, z1, gy)
+	local cx, cz = centre(x0, z0, x1, z1)
+	local h = rng:range(24, 30)
+	box(list, "prop", cx, gy + h / 2, cz, 3, h, 3, "steel", { shape = "cylinder" })
+	box(list, "prop", cx, gy + h, cz - 2, 1, 22, 1, "white", { ghost = true })
+	box(list, "prop", cx, gy + h, cz - 2, 22, 1, 1, "white", { ghost = true })
+end
+
+-- hub filler lots (taller, on a sidewalk pad)
+LOTS.apt = function(list, rng, x0, z0, x1, z1, gy)
+	local cx, cz, w, d = centre(x0, z0, x1, z1)
+	local sx, sz = w - rng:range(4, 8), d - rng:range(4, 8)
+	local h = math.floor(rng:range(28, 40) / 2) * 2
+	box(list, "building", cx, gy + h / 2, cz, sx, h, sz, HOUSE_BODY[rng:int(1, #HOUSE_BODY)])
+	box(list, "band", cx, gy + h * 0.4, cz, sx + 0.4, 3, sz + 0.4, "window")
+	box(list, "band", cx, gy + h * 0.75, cz, sx + 0.4, 3, sz + 0.4, "window")
+	box(list, "ledge", cx, gy + h + 1, cz, sx + 1, 2, sz + 1, "roof")
+end
+
+LOTS.parking = function(list, rng, x0, z0, x1, z1, gy)
+	local cx, cz, w, d = centre(x0, z0, x1, z1)
+	box(list, "road", cx, gy + 0.15, cz, w - 2, 0.3, d - 2, "road")
+	local colors = { "containerA", "containerB", "containerC", "white" }
+	for k = 1, 3 do
+		box(list, "prop", x0 + w * (k - 0.5) / 3, gy + 2.3, cz, 5, 4, 9, colors[rng:int(1, #colors)])
+	end
+end
+
+LOTS.court = function(list, rng, x0, z0, x1, z1, gy)
+	local cx, cz, w, d = centre(x0, z0, x1, z1)
+	box(
+		list,
+		"field",
+		cx,
+		gy + 0.2,
+		cz,
+		w - 4,
+		0.4,
+		d - 4,
+		if rng:chance(0.5) then "roofBlue" else "containerD"
+	)
+	box(list, "prop", cx, gy + 5, z0 + 4, 1, 10, 1, "white")
+	box(list, "prop", cx, gy + 5, z1 - 4, 1, 10, 1, "white")
+end
+
+-- Each variant names its 4 lots in clockwise order from the north-west; rotation shifts that order
+local VARIANTS = {
+	suburbs = {
+		{ "house", "house", "house", "house" },
+		{ "house", "bighouse", "house", "yard" },
+		{ "shop", "shop", "house", "park" },
+		{ "park", "park", "park", "park" },
+		{ "bighouse", "pool", "house", "house" },
+		{ "house", "yard", "house", "yard" },
+		{ "shop", "house", "shop", "house" },
+		{ "bighouse", "bighouse", "park", "house" },
+		{ "house", "pool", "yard", "bighouse" },
+		{ "shop", "shop", "shop", "park" },
+		{ "house", "house", "park", "pool" },
+		{ "bighouse", "house", "yard", "shop" },
+	},
+	farmland = {
+		{ "field", "field", "field", "field" },
+		{ "field", "fieldGreen", "field", "fieldGreen" },
+		{ "barn", "field", "field", "silo" },
+		{ "orchard", "orchard", "field", "fieldGreen" },
+		{ "pasture", "pasture", "barn", "field" },
+		{ "pond", "fieldGreen", "orchard", "field" },
+		{ "field", "tractor", "field", "field" },
+		{ "silo", "barn", "pasture", "fieldGreen" },
+		{ "fieldGreen", "fieldGreen", "fieldGreen", "pond" },
+		{ "windmillSmall", "field", "field", "field" },
+	},
+	hubFill = {
+		{ "park", "park", "park", "park" },
+		{ "shop", "shop", "shop", "shop" },
+		{ "apt", "apt", "park", "apt" },
+		{ "parking", "parking", "shop", "park" },
+		{ "court", "court", "park", "shop" },
+		{ "shop", "apt", "shop", "apt" },
+	},
+}
+WorldGen.VARIANTS = VARIANTS
+WorldGen.LOT_KINDS = LOTS
+
+-- The 4 lot rectangles of a tile, clockwise from the north-west, kept clear of its roads
+local function lotRects(
+	w: any,
+	x0: number,
+	z0: number,
+	size: number,
+	t: Tile?,
+	margin: number
+): { { number } }
+	local roads = w.roads
+	local function spans(hasRoad: boolean, highway: boolean, base: number): { { number } }
+		local mid = base + size / 2
+		local gap = if hasRoad then (if highway then roads.highwayWidth else roads.localWidth) / 2 + 3 else 3
+		return { { base + margin, mid - gap }, { mid + gap, base + size - margin } }
+	end
+	local xs = spans(t ~= nil and t.roadNS, t ~= nil and t.hwyNS, x0)
+	local zs = spans(t ~= nil and t.roadEW, t ~= nil and t.hwyEW, z0)
+	-- NW, NE, SE, SW
+	return {
+		{ xs[1][1], zs[1][1], xs[1][2], zs[1][2] },
+		{ xs[2][1], zs[1][1], xs[2][2], zs[1][2] },
+		{ xs[2][1], zs[2][1], xs[2][2], zs[2][2] },
+		{ xs[1][1], zs[2][1], xs[1][2], zs[2][2] },
+	}
+end
+
+local function lots(
+	list: { Box },
+	rng: Rng.Rng,
+	rects: { { number } },
+	kinds: { string },
+	rot: number,
+	gy: number,
+	clear: { BoxKit.Circle }
+)
+	for i = 1, 4 do
+		local r = rects[i]
+		local kind = kinds[(i - 1 + rot) % 4 + 1]
+		local sub = Rng.new(rng:nextInt32())
+		local cx, cz = (r[1] + r[3]) / 2, (r[2] + r[4]) / 2
+		if not BoxKit.hitsAny(clear, cx, cz, r[3] - r[1], r[4] - r[2]) then
+			LOTS[kind](list, sub, r[1], r[2], r[3], r[4], gy)
+		end
+	end
+end
+
+-----------------------------------------------------------------------------------------------------------
+-- Coast tiles
+-----------------------------------------------------------------------------------------------------------
+
+local function outward(w: any, tx: number, tz: number): (number, number)
+	local last = w.tiles - 1
+	if tx <= 1 then
+		return -1, 0
+	elseif tx >= last - 1 then
+		return 1, 0
+	elseif tz <= 1 then
+		return 0, -1
+	end
+	return 0, 1
+end
+
+local function coastTile(
+	list: { Box },
+	w: any,
+	rng: Rng.Rng,
+	t: Tile,
+	tx: number,
+	tz: number,
+	x0: number,
+	z0: number,
+	size: number,
+	gy: number
+)
+	local cx, cz = x0 + size / 2, z0 + size / 2
+	local ox, oz = outward(w, tx, tz)
+	local edge = tx == 0 or tz == 0 or tx == w.tiles - 1 or tz == w.tiles - 1
+	local sand = gy + 0.3
+	if t.variant == 0 then
+		-- beach: umbrellas and towels
+		local cols = { "containerA", "containerB", "containerC", "white" }
+		for _ = 1, 3 do
+			local x, z = rng:range(x0 + 10, x0 + size - 10), rng:range(z0 + 10, z0 + size - 10)
+			box(list, "prop", x, sand + 4, z, 0.6, 8, 0.6, "white", { ghost = true })
+			box(list, "prop", x, sand + 8, z, 9, 1, 9, cols[rng:int(1, #cols)], { shape = "cylinder" })
+		end
+		for _ = 1, 2 do
+			box(
+				list,
+				"prop",
+				rng:range(x0 + 10, x0 + size - 10),
+				sand + 0.1,
+				rng:range(z0 + 10, z0 + size - 10),
+				3,
+				0.2,
+				6,
+				cols[rng:int(1, #cols)],
+				{ ghost = true }
+			)
+		end
+	elseif t.variant == 1 then
+		-- a pier out over the water on the edge tiles, a boardwalk inland
+		if edge then
+			local len = 140
+			local px, pz = cx + ox * (size / 2 + len / 2 - 30), cz + oz * (size / 2 + len / 2 - 30)
+			local sx = if ox ~= 0 then len else 12
+			local sz = if oz ~= 0 then len else 12
+			box(list, "prop", px, gy + 2, pz, sx, 1, sz, "wood")
+			for k = -1, 1, 2 do
+				box(list, "prop", px + ox * k * len * 0.3, gy - 2, pz + oz * k * len * 0.3, 2, 8, 2, "wood")
+			end
+			box(list, "building", px + ox * len * 0.4, gy + 6, pz + oz * len * 0.4, 10, 8, 10, "white")
+		else
+			box(
+				list,
+				"prop",
+				cx,
+				sand + 0.5,
+				cz,
+				if ox ~= 0 then 8 else size - 10,
+				1,
+				if oz ~= 0 then 8 else size - 10,
+				"wood"
+			)
+			box(list, "building", cx + oz * 20, sand + 5, cz + ox * 20, 10, 10, 8, "containerC")
+		end
+	elseif t.variant == 2 then
+		-- lighthouse with red bands and a lamp
+		local h = 60
+		local x, z = cx - ox * 15, cz - oz * 15
+		box(list, "prop", x, sand + 3, z, 26, 6, 26, "rock", { shape = "cylinder" })
+		box(list, "building", x, sand + 6 + h / 2, z, 12, h, 12, "white", { shape = "cylinder" })
+		box(list, "band", x, sand + 6 + h * 0.35, z, 12.6, 6, 12.6, "roofRed", { shape = "cylinder" })
+		box(list, "band", x, sand + 6 + h * 0.7, z, 12.6, 6, 12.6, "roofRed", { shape = "cylinder" })
+		box(list, "glow", x, sand + 6 + h + 3, z, 8, 6, 8, "beaconLight", { shape = "cylinder" })
+	else
+		-- dunes and driftwood
+		for _ = 1, 4 do
+			local s = rng:range(10, 18)
+			box(
+				list,
+				"prop",
+				rng:range(x0 + 12, x0 + size - 12),
+				sand,
+				rng:range(z0 + 12, z0 + size - 12),
+				s * 1.6,
+				s * 0.6,
+				s,
+				"sand",
+				{ shape = "ball" }
+			)
+		end
+		for _ = 1, 2 do
+			box(
+				list,
+				"prop",
+				rng:range(x0 + 10, x0 + size - 10),
+				sand + 0.6,
+				rng:range(z0 + 10, z0 + size - 10),
+				10,
+				1.2,
+				1.2,
+				"wood"
+			)
+		end
+	end
+end
+
+-----------------------------------------------------------------------------------------------------------
+-- Tile plans
+-----------------------------------------------------------------------------------------------------------
+
+WorldGen.windmill = { height = 48, blade = 52 }
+
+-- The boxes for one tile. Hub district tiles and the non-corner landmark tiles return nothing (the districts
+-- and landmarks are built whole). clear: safehouse pads.
+function WorldGen.tilePlan(
+	cityCfg: any,
+	w: any,
+	tiles: buffer,
+	seed: number,
+	tx: number,
+	tz: number,
+	clear: { BoxKit.Circle }
+): { Box }
+	local list: { Box } = {}
+	local t = WorldGen.get(w, tiles, tx, tz)
+	local Z = w.zones
+	local size = cityCfg.tile
+	local x0, z0 = WorldGen.tileOrigin(cityCfg, tx, tz)
+	local gy = cityCfg.ground.y
+	if t.zone == Z.hub or t.zone == Z.landmark then
+		return list
+	end
+	if t.zone == Z.hubFill then
+		local rng = Rng.new(Rng.hash(cityCfg.hubFill.seed, tx, tz, 3))
+		local kinds = VARIANTS.hubFill[t.variant + 1]
+		local street = cityCfg.hubFill.street
+		local park = kinds[1] == "park" and kinds[2] == "park"
+		box(list, "road", x0 + size / 2, gy + 0.1, z0 + size / 2, size, 0.2, size, "road")
+		box(
+			list,
+			"sidewalk",
+			x0 + size / 2,
+			gy + 0.45,
+			z0 + size / 2,
+			size - street * 2,
+			0.7,
+			size - street * 2,
+			if park then "grass" else "sidewalk"
+		)
+		lots(list, rng, lotRects(w, x0, z0, size, nil, street + 2), kinds, t.rot, gy + 0.8, clear)
+		return list
+	end
+	local rng = Rng.new(Rng.hash(seed, tx, tz, 3))
+	if t.zone == Z.coast then
+		coastTile(list, w, rng, t, tx, tz, x0, z0, size, gy)
+		return list
+	end
+	if t.variant == w.special then
+		-- a hand-placed tile: the windmill beacon on a farm, or trees around an outskirts safehouse
+		local cx, cz = x0 + size / 2, z0 + size / 2
+		if t.zone == Z.farmland then
+			local m = WorldGen.windmill
+			box(
+				list,
+				"building",
+				cx,
+				gy + m.height / 2,
+				cz,
+				16,
+				m.height,
+				16,
+				"white",
+				{ shape = "cylinder" }
+			)
+			box(list, "roof", cx, gy + m.height + 2, cz, 18, 10, 18, "roofRed", { shape = "ball" })
+			box(list, "prop", cx, gy + m.height - 6, cz - 10, 2, m.blade, 1, "wood")
+			box(list, "prop", cx, gy + m.height - 6, cz - 10, m.blade, 2, 1, "wood")
+			local rects = lotRects(w, x0, z0, size, nil, 3)
+			for i = 1, 4 do
+				if i % 2 == 1 then
+					local r = rects[i]
+					field(list, rng, r[1], r[2], r[3], r[4], gy, "crop")
+				end
+			end
+		else
+			for _, c in { { 1, 1 }, { 1, -1 }, { -1, 1 }, { -1, -1 } } do
+				BoxKit.tree(list, cx + c[1] * 38, gy, cz + c[2] * 38, rng:range(9, 13))
+			end
+		end
+		return list
+	end
+	local kinds = if t.zone == Z.suburbs
+		then VARIANTS.suburbs[t.variant + 1]
+		else VARIANTS.farmland[t.variant + 1]
+	lots(list, rng, lotRects(w, x0, z0, size, t, 3), kinds, t.rot, gy, clear)
+	return list
+end
+
+-----------------------------------------------------------------------------------------------------------
+-- Base: ground, sand, ocean and the road strips
+-----------------------------------------------------------------------------------------------------------
+
+-- A long strip split into pieces of at most 2,048 studs (the Roblox part size limit)
+local function strip(
+	list: { Box },
+	kind: string,
+	x0: number,
+	z0: number,
+	x1: number,
+	z1: number,
+	y: number,
+	sy: number,
+	color: string,
+	opts: BoxKit.Opts?
+)
+	local lx, lz = x1 - x0, z1 - z0
+	local pieces = math.max(1, math.ceil(math.max(lx, lz) / 2000))
+	for k = 1, pieces do
+		if lx >= lz then
+			local a = x0 + lx * (k - 1) / pieces
+			local b = x0 + lx * k / pieces
+			box(list, kind, (a + b) / 2, y, (z0 + z1) / 2, b - a, sy, lz, color, opts)
+		else
+			local a = z0 + lz * (k - 1) / pieces
+			local b = z0 + lz * k / pieces
+			box(list, kind, (x0 + x1) / 2, y, (a + b) / 2, lx, sy, b - a, color, opts)
+		end
+	end
+end
+
+function WorldGen.base(cityCfg: any, w: any, tiles: buffer): { Box }
+	local list: { Box } = {}
+	local half = cityCfg.mapSize / 2
+	local gy = cityCfg.ground.y
+	local th = cityCfg.ground.thickness
+	-- ground: 3 x 3 squares of 1,600 studs (the middle one is the hub)
+	local third = cityCfg.mapSize / 3
+	for i = 0, 2 do
+		for j = 0, 2 do
+			box(
+				list,
+				"ground",
+				-half + third * (i + 0.5),
+				gy - th / 2,
+				-half + third * (j + 0.5),
+				third,
+				th,
+				third,
+				"grass"
+			)
+		end
+	end
+	-- coast sand over the last 2 tile rings
+	local c = w.coast
+	local s = c.sandWidth
+	strip(list, "sand", -half, -half, half, -half + s, gy + 0.15, 0.3, "sand")
+	strip(list, "sand", -half, half - s, half, half, gy + 0.15, 0.3, "sand")
+	strip(list, "sand", -half, -half + s, -half + s, half - s, gy + 0.15, 0.3, "sand")
+	strip(list, "sand", half - s, -half + s, half, half - s, gy + 0.15, 0.3, "sand")
+	-- the ocean past the edge
+	local o = c.oceanWidth
+	local wy = c.waterY - 1
+	strip(list, "sea", -half - o, -half - o, half + o, -half, wy, 2, "sea")
+	strip(list, "sea", -half - o, half, half + o, half + o, wy, 2, "sea")
+	strip(list, "sea", -half - o, -half, -half, half, wy, 2, "sea")
+	strip(list, "sea", half, -half, half + o, half, wy, 2, "sea")
+	-- road strips: one per straight run of road tiles
+	local n = w.tiles
+	local size = cityCfg.tile
+	local roads = w.roads
+	local function runs(alongZ: boolean)
+		for a = 0, n - 1 do
+			local start: number? = nil
+			local highway = false
+			for b = 0, n do
+				local has = false
+				if b < n then
+					local t = if alongZ then WorldGen.get(w, tiles, a, b) else WorldGen.get(w, tiles, b, a)
+					has = if alongZ then t.roadNS else t.roadEW
+					if has then
+						highway = if alongZ then t.hwyNS else t.hwyEW
+					end
+				end
+				if has and start == nil then
+					start = b
+				elseif not has and start ~= nil then
+					local width = if highway then roads.highwayWidth else roads.localWidth
+					local mid = -half + (a + 0.5) * size
+					local from, to = -half + start * size, -half + b * size
+					local y = gy + (if alongZ then 0.1 else 0.13)
+					if alongZ then
+						strip(list, "road", mid - width / 2, from, mid + width / 2, to, y, 0.2, "road")
+						if highway then
+							strip(
+								list,
+								"band",
+								mid - roads.lineWidth / 2,
+								from,
+								mid + roads.lineWidth / 2,
+								to,
+								y + 0.12,
+								0.05,
+								"line",
+								{ ghost = true }
+							)
+						end
+					else
+						strip(list, "road", from, mid - width / 2, to, mid + width / 2, y, 0.2, "road")
+						if highway then
+							strip(
+								list,
+								"band",
+								from,
+								mid - roads.lineWidth / 2,
+								to,
+								mid + roads.lineWidth / 2,
+								y + 0.12,
+								0.05,
+								"line",
+								{ ghost = true }
+							)
+						end
+					end
+					start = nil
+				end
+			end
+		end
+	end
+	runs(true)
+	runs(false)
+	return list
+end
+
+-----------------------------------------------------------------------------------------------------------
+-- Landmarks
+-----------------------------------------------------------------------------------------------------------
+
+export type Landmark = {
+	id: string,
+	boxes: { Box },
+	spot: { x: number, y: number, z: number }, -- the beacon's place
+	centre: { x: number, z: number },
+	size: number,
+}
+
+function WorldGen.landmark(cityCfg: any, w: any, index: number): Landmark
+	local lm = w.landmarks[index]
+	local x0, z0 = WorldGen.tileOrigin(cityCfg, lm.tx, lm.tz)
+	local size = lm.size * cityCfg.tile
+	local cx, cz = x0 + size / 2, z0 + size / 2
+	local gy = cityCfg.ground.y
+	local list: { Box } = {}
+	local spot = { x = cx, y = gy, z = cz }
+	if lm.id == "CometCrater" then
+		local c = w.crater
+		local r = size / 2 - c.rimWidth
+		box(list, "field", cx, gy + 0.3, cz, r * 2, 0.6, r * 2, "crater", { shape = "cylinder" })
+		local segs = 16
+		local seg = 2 * math.pi * r / segs + 4
+		for k = 0, segs - 1 do
+			local a = k / segs * 2 * math.pi
+			box(
+				list,
+				"rock",
+				cx + math.cos(a) * r,
+				gy + c.rimHeight / 2,
+				cz + math.sin(a) * r,
+				c.rimWidth,
+				c.rimHeight,
+				seg,
+				"rock",
+				{ ry = -math.deg(a) }
+			)
+		end
+		box(list, "glow", cx, gy + c.glowHeight / 2 + 4, cz, 30, 30, 30, "comet", { shape = "ball" })
+		for k = 0, 2 do
+			local a = k / 3 * 2 * math.pi
+			box(list, "glow", cx + math.cos(a) * 30, gy + 10, cz + math.sin(a) * 30, 6, 20, 6, "comet")
+		end
+		spot = { x = cx, y = gy + c.rimHeight + 0.5, z = cz - r }
+	elseif lm.id == "RadioHill" then
+		local h = w.radioHill
+		local top = gy
+		for k = 1, h.steps do
+			local s = size - (k - 1) * (size / (h.steps + 1))
+			box(
+				list,
+				"rock",
+				cx,
+				top + h.stepHeight / 2,
+				cz,
+				s,
+				h.stepHeight,
+				s,
+				if k % 2 == 0 then "grass" else "rock"
+			)
+			top += h.stepHeight
+		end
+		box(list, "prop", cx, top + h.mastHeight / 2, cz, 3, h.mastHeight, 3, "steel", { shape = "cylinder" })
+		box(list, "glow", cx, top + h.mastHeight + 1, cz, 4, 2, 4, "foundryGlow")
+		-- the glide course: square hoops floating down the west side (M6 times it)
+		for k = 1, h.rings do
+			local x = cx - 30 - k * 28
+			local y = top + 40 - k * 14
+			local hs = 12
+			box(
+				list,
+				"glow",
+				x,
+				y + hs,
+				cz,
+				1,
+				1,
+				hs * 2,
+				"beaconGlow",
+				{ ghost = true, tag = "glideRing", ref = k }
+			)
+			box(list, "glow", x, y - hs, cz, 1, 1, hs * 2, "beaconGlow", { ghost = true })
+			box(list, "glow", x, y, cz - hs, 1, hs * 2, 1, "beaconGlow", { ghost = true })
+			box(list, "glow", x, y, cz + hs, 1, hs * 2, 1, "beaconGlow", { ghost = true })
+		end
+		spot = { x = cx + 14, y = top + 0.5, z = cz }
+	else
+		local q = w.quarry
+		local t = 30
+		box(list, "field", cx, gy + 0.3, cz, size - 2 * t, 0.6, size - 2 * t, "rock")
+		-- walls on 3 sides and a north wall with a gate in the middle
+		box(list, "rock", cx, gy + q.wallHeight / 2, z0 + size - t / 2, size, q.wallHeight, t, "rock")
+		box(list, "rock", x0 + t / 2, gy + q.wallHeight / 2, cz, t, q.wallHeight, size - 2 * t, "rock")
+		box(list, "rock", x0 + size - t / 2, gy + q.wallHeight / 2, cz, t, q.wallHeight, size - 2 * t, "rock")
+		local gate = 80
+		local side = (size - gate) / 2
+		box(list, "rock", x0 + side / 2, gy + q.wallHeight / 2, z0 + t / 2, side, q.wallHeight, t, "rock")
+		box(
+			list,
+			"rock",
+			x0 + size - side / 2,
+			gy + q.wallHeight / 2,
+			z0 + t / 2,
+			side,
+			q.wallHeight,
+			t,
+			"rock"
+		)
+		-- terraces stepping down inside the south, west and east walls
+		for k = 1, q.terraces do
+			local hgt = q.wallHeight * (1 - k / (q.terraces + 1))
+			local inset = t + (k - 0.5) * q.terraceWidth
+			local len = size - 2 * inset
+			box(list, "rock", cx, gy + hgt / 2, z0 + size - inset, len, hgt, q.terraceWidth, "sand")
+			box(
+				list,
+				"rock",
+				x0 + inset,
+				gy + hgt / 2,
+				cz + q.terraceWidth / 2,
+				q.terraceWidth,
+				hgt,
+				len - q.terraceWidth,
+				"sand"
+			)
+			box(
+				list,
+				"rock",
+				x0 + size - inset,
+				gy + hgt / 2,
+				cz + q.terraceWidth / 2,
+				q.terraceWidth,
+				hgt,
+				len - q.terraceWidth,
+				"sand"
+			)
+		end
+		for k = 1, 5 do
+			local a = k * 1.3
+			box(
+				list,
+				"rock",
+				cx + math.cos(a) * 60,
+				gy + 5,
+				cz + math.sin(a) * 50,
+				14,
+				10,
+				12,
+				"rock",
+				{ shape = "ball" }
+			)
+		end
+		spot = { x = cx, y = gy + q.wallHeight + 0.5, z = z0 + size - t / 2 }
+	end
+	return { id = lm.id, boxes = list, spot = spot, centre = { x = cx, z = cz }, size = size }
+end
+
+return WorldGen

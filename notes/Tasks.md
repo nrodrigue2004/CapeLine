@@ -9,7 +9,7 @@ phones or Studio go on the Studio test list below.
 | M1 | Move and fight slice | Leap, Glide, Flight with touch, PC and gamepad controls; Volt basic + 2 skills; clash hit feel; Spark Drone; greybox Downtown; 30-bot load test; Comic and Anime effect styles | 5 first-timers stop the first machine in 30 s with no help; 4 of 5 say flight and hits feel good on a phone; 30+ fps on a mid-range phone | Code-complete 2026-11-16 |
 | M2 | Classes, abilities, enemies | 4 classes with passives, 5 sets (Volt, Frost, Titan, Pulse, Blade) with 40 abilities in both styles, the super slot, Awakening, ranks, mods, power budget, 6 enemies, data tables | Every class solos a contract and has a clear role in a 4-player test; no loadout exceeds the budget | Code-complete 2026-11-16 |
 | M3 | Gear, loot, saves | 5 tiers, 8 slots, stats, drops and pity, salvage, upgrade, style collection, profile and migrations, levels and Renown | Drops match the table; a tester wears any look over any gear; rejoin restores everything | Code-complete 2026-11-16 |
-| M4 | World generator, 30-player gate | Hub districts, seeded outskirts (2 zone types), weekly seed, streaming, presets, landmarks, safehouses, beacons, age questionnaire | Same seed gives the same hash on two servers; 30+ fps flying across the map on a phone; 30 bots hold the server frame | |
+| M4 | World generator, 30-player gate | Hub districts, seeded outskirts (2 zone types), weekly seed, streaming, presets, landmarks, safehouses, beacons, age questionnaire | Same seed gives the same hash on two servers; 30+ fps flying across the map on a phone; 30 bots hold the server frame | Code-complete 2026-11-16 (age questionnaire is nate's, on the Launch Checklist) |
 | M5 | Destruction v1 | Chunker, 220 hub buildings with 3 states, debris, craters, vehicle flips, repair drones, citizens | 10 players wreck a block for 10 minutes with no server spike and 30+ fps on a phone; everything repairs | |
 | M6 | Incidents, contracts, events, boss | Incident spawner with 10 templates, 6 contract types, 6 random events, world boss with 2 bosses, contribution rewards | First boss within 8 minutes; boss rewards by tier; no idle wait over 5 s | |
 | M7 | Opening, Act 1, missions | Cinematic, playable disaster, choice, 6 missions in sky pockets, 3 choices, 8 side quests, journal | 5 new testers finish the opening and suit up with no help; both routes reach the finale | |
@@ -21,6 +21,8 @@ phones or Studio go on the Studio test list below.
 
 ## Placeholder art and animation (replace before launch)
 - City: Downtown greybox boxes, window bands and rooftop props (CityBuilder). PLACEHOLDER ART.
+- World (M4): the Docks, Old Town, hub filler blocks, all 32 outskirts tile variants (houses, shops, parks, farms, coast), the 3 landmarks, safehouses, beacons, the sand and the ocean are simple parts (Districts, WorldGen, WorldMap). Balls stand in for leaves, domes and dunes. PLACEHOLDER ART until the M5 kit.
+- Map screen: flat coloured squares for zones, districts and landmarks; no tile detail (MapScreen). Fast-travel flight is a camera sweep with the hero left standing (TravelClient). PLACEHOLDER ART until M10.
 - Robot bodies: all 6 humanoid robots are built from blocks and cylinders with a code-driven walk, aim and windup pose (EnemyRenderer). PLACEHOLDER ART until meshes and animations.
 - Ability visuals for all 40 powers: neon parts, beams and rings (CombatFx, AuraFx). PLACEHOLDER ART until particle textures and the icon set.
 - Snow Wall pieces, the Ice Slide ramp and the thrown crate in Lift and Throw: plain parts (CombatService). PLACEHOLDER ART.
@@ -107,3 +109,18 @@ Saves need a published place with Game Settings > Security > "Enable Studio Acce
 17. Crash test: play 3 minutes, note the Renown, then stop the server from Studio without leaving (or kill the test server). Rejoin: at most 120 s of progress is lost. (Spec check.)
 18. DEV > Wipe profile starts over at level 1 with nothing; DEV > Save now prints true.
 19. The M3 "done when" checks: drops match the table (tests check 10,000 rolls per source); a tester wears any look over any gear (item 9); rejoin restores everything (item 15).
+
+### M4 World generator, 30-player gate
+The weekly seed is ISO year x 100 + ISO week (UTC). Config.Dev.worldSeed (Studio only) forces a seed; 0 uses the week's.
+1. Play: Output shows "[CityBuilder] seed 2026xx tile hash xxxxxxxx", then "hub ready in N s", then "outskirts built in N s" under 20 s. No errors.
+2. Gate: two servers with the same seed log the same hash. Start a server, note the hash, stop, start again (or set Dev.worldSeed = 202647 on both runs): same hash. Then set 202648: a different hash, the same hub.
+3. Fly from the plaza across the whole map: Downtown, the Docks (warehouses, container stacks, 3 cranes over the basin, the dark Foundry with red glow and chimneys), Old Town (small houses, pitched roofs, Clock Square and the Clock Tower), filler blocks and parks, suburbs, farms, the coast (beaches, piers, lighthouses, dunes), the ocean. Pitched roofs must slope up to a ridge, not down into a V (check the WedgePart direction).
+4. Landmarks: Comet Crater northeast (dark floor, rim, glowing comet), Radio Hill west (stepped hill, mast, glide hoops), Old Quarry south (walls, a gate on the north side, terraces).
+5. Gate: on a mid-range phone at the low preset, flying at boost across the map holds 30+ fps (Shift+F5 or the Dev panel). Note memory (F9 > Memory): under 1.5 GB.
+6. Gate: DEV > 30 bots: they now fly across the whole map. The Dev panel's server frame stays under 16 ms (scripts under 8 ms) for 5 minutes, including while the outskirts are still building.
+7. Streaming: far towers show as a low-detail skyline; flying fast never drops you into empty space; landing on a far roof works.
+8. Safehouses (16, the map shows them): walking onto one toasts "Safehouse found". Bank (hold B 3 s): on-hand Credits move to banked (GEAR shows it). Respawn here: toast. Loadout: opens POWERS. Away from safehouses and HQ, changing a loadout or respec says "Change loadouts and respec at a safehouse or HQ"; rank-ups still work. Check the B key and gamepad X do not also fire a skill.
+9. Respawns (DEV God off, let robots win): you come back at the nearest safehouse you have visited, else Plaza West. Rejoin (published place): you join at the safehouse you chose. A wiped profile lands on the plaza.
+10. Beacons: fly to one (tall light beam); touching it toasts "BEACON FOUND". MAP (M, or the MAP button) shows zones, districts, landmarks, both HQs, safehouses (green once visited) and beacons (gold once found) and your dot. Tap a gold beacon: a 3 s camera flight with SKIP, then you stand on that roof. In combat it says "Not while fighting"; within 20 s "Fast travel ready in N s". DEV > Find all beacons unlocks all 12.
+11. Robots still walk on roofs and the ground across the whole map (the heightmap covers the outskirts), and drones keep to sensible heights over the hills and the quarry.
+12. Age questionnaire (nate): run it on this build and record the answer in Decisions.md (Launch Checklist).

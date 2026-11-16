@@ -45,6 +45,9 @@ State.profile = {
 	shown = table.create(8, 0),
 	level = 1,
 	xp = 0,
+	beacons = 0, -- discovered fast-travel beacons (mask)
+	safehouses = 0, -- visited safehouses (mask)
+	lastSafehouse = 0,
 } :: { [string]: any }
 State.ProfileChanged = Signal.new()
 State.Toast = Signal.new() -- (data) level up, reward, loot, save notices

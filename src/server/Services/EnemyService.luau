@@ -13,7 +13,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Net = require(Shared:WaitForChild("Net"))
 local EnemySim = require(Shared:WaitForChild("EnemySim"))
 local EnemyBuffer = require(Shared:WaitForChild("EnemyBuffer"))
-local CityLayout = require(Shared:WaitForChild("CityLayout"))
+local WorldMap = require(Shared:WaitForChild("WorldMap"))
 local Signal = require(Shared:WaitForChild("Util"):WaitForChild("Signal"))
 
 local HeroService = require(script.Parent.HeroService)
@@ -209,11 +209,11 @@ local function sendDeltas()
 	end
 end
 
-function EnemyService.init(layout: any)
+function EnemyService.init(world: any)
 	local rng = Random.new()
 	sim = EnemySim.new(Config, {
 		heightAt = function(x, z)
-			return CityLayout.heightAt(layout, x, z)
+			return WorldMap.heightAt(world, x, z)
 		end,
 		random = function()
 			return rng:NextNumber()

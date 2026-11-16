@@ -1,7 +1,8 @@
 -- AbilityService: ranks, mods, respec and loadouts (spec: Services > Abilities "Cooldowns, ranks, mods, budget
 -- check"; Remote events Hero.Loadout, Skills.Rank, Skills.Mod, Skills.Respec). Every request is checked
 -- here against AbilityRules; the client's loadout screen only asks.
--- Loadouts change anywhere out of combat until safehouses exist (M4); respec is free with a 10-minute
+-- Loadouts change at a safehouse or HQ out of combat (anywhere with the Quick Swap pass; M4); respec is free
+-- at a safehouse or HQ with a 10-minute
 -- cooldown (spec) and refunds the Credits ranks cost into the bank (Decisions.md), so builds are free to try.
 -- Ranks cost Skill Points and Credits (spec: Sinks); Config.Dev.freeRankCredits waives Credits in Studio.
 
@@ -16,6 +17,7 @@ local Cooldowns = require(Shared:WaitForChild("Cooldowns"))
 local HeroService = require(script.Parent.HeroService)
 local EconomyService = require(script.Parent.EconomyService)
 local DataService = require(script.Parent.DataService)
+local SafehouseService = require(script.Parent.SafehouseService)
 
 local AbilityService = {}
 
@@ -69,6 +71,9 @@ function AbilityService.respec(hero: any): (boolean, string?)
 	if HeroService.inCombat(hero) then
 		return false, "combat"
 	end
+	if hero.player and not SafehouseService.near(hero) then
+		return false, "safehouse"
+	end
 	local refund = AbilityRules.creditsSpent(Config, hero.ranks)
 	local ranks, loadout = AbilityRules.starter(Config, hero.setId)
 	-- keep every set's free starters learned
@@ -103,6 +108,10 @@ function AbilityService.setLoadout(
 	end
 	if HeroService.inCombat(hero) then
 		return false, "combat"
+	end
+	local here, why = SafehouseService.canSwap(hero)
+	if not here then
+		return false, why
 	end
 	-- a set's basic and two starter skills are learned free the first time it is unlocked and picked
 	if AbilityRules.setUnlocked(Config, hero.level, set) then

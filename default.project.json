@@ -29,7 +29,8 @@
       "$properties": {
         "StreamingEnabled": true,
         "StreamingTargetRadius": 600,
-        "StreamingMinRadius": 256
+        "StreamingMinRadius": 256,
+        "StreamOutBehavior": "Opportunistic"
       }
     },
     "Lighting": {

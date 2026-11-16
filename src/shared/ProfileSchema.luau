@@ -9,7 +9,7 @@
 
 local ProfileSchema = {}
 
-ProfileSchema.VERSION = 1
+ProfileSchema.VERSION = 2
 ProfileSchema.SLOTS = 8
 ProfileSchema.STYLE_WORDS = 16 -- 512 bits
 ProfileSchema.SMALL_WORDS = 4 -- 128 bits for emotes, titles, Rogues File pages, seen flags
@@ -89,7 +89,9 @@ function ProfileSchema.newCharacter(side: string?, classId: string?): { [string]
 		legacy = 0,
 		story = { act = 1, flags = words(ProfileSchema.SMALL_WORDS), choices = { 0, 0, 0 } },
 		contracts = {},
-		lastSafehouse = 0,
+		lastSafehouse = 0, -- 0 = none yet: the home safehouse (Config.World.safehouse.homeSafehouse)
+		beacons = 0, -- fast-travel beacons discovered, a 12-bit mask (bit id - 1)
+		safehouses = 0, -- safehouses visited, a 16-bit mask (respawn choices)
 		respecAt = 0, -- os.time() when respec is free again
 		secondWindAt = 0,
 	}
@@ -120,6 +122,19 @@ end
 local MIGRATIONS: { [number]: (any) -> () } = {
 	[1] = function(_p)
 		-- the first saved version: nothing to convert; repair() fills every field
+	end,
+	[2] = function(p)
+		-- M4: beacons and safehouses discovered start empty (repair() adds the fields); a hero who already
+		-- had a last safehouse keeps it as visited
+		if type(p.characters) == "table" then
+			for _, c in p.characters do
+				if type(c) == "table" then
+					c.beacons = 0
+					local last = tonumber(c.lastSafehouse) or 0
+					c.safehouses = if last >= 1 and last <= 16 then 2 ^ (last - 1) else 0
+				end
+			end
+		end
 	end,
 }
 ProfileSchema.MIGRATIONS = MIGRATIONS
@@ -207,6 +222,9 @@ local function repair(p: any): any
 				c.level = num(c.level, 1, 40, 1)
 				c.xp = num(c.xp, 0, 2 ^ 31, 0)
 				c.loadoutIndex = num(c.loadoutIndex, 1, 2, 1)
+				c.lastSafehouse = num(c.lastSafehouse, 0, 16, 0)
+				c.beacons = num(c.beacons, 0, 4095, 0)
+				c.safehouses = num(c.safehouses, 0, 65535, 0)
 				if c.fxStyle ~= "Comic" and c.fxStyle ~= "Anime" then
 					c.fxStyle = "Comic"
 				end
@@ -318,6 +336,9 @@ function ProfileSchema.clientView(profile: any, walletOnly: boolean?): { [string
 		shown = c.shown,
 		level = c.level,
 		xp = c.xp,
+		beacons = c.beacons,
+		safehouses = c.safehouses,
+		lastSafehouse = c.lastSafehouse,
 		active = profile.active,
 		characters = #profile.characters,
 	}

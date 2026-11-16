@@ -50,6 +50,7 @@ local REASONS = {
 	["max rank"] = "Already max rank",
 	["second loadout locked"] = "Loadout 2 opens at level 15",
 	rank = "Reach rank 3 first",
+	safehouse = "Change loadouts and respec at a safehouse or HQ",
 }
 
 local function rgb(t: { number }): Color3

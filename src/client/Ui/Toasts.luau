@@ -1,7 +1,7 @@
 -- Toasts: short pop-ups in the top middle of the screen (spec: Remote events > Toast; Juice table: level up,
 -- loot). Level up is a big gold banner with what just unlocked; a drop is a card in its tier colour (gold
 -- and purple drops get a burst); rewards show +Credits and +Renown; Second Wind and a save outage get a
--- line each. At most 4 show at once; older ones slide out. PLACEHOLDER look until M10 and M11.
+-- line each; beacons, safehouses and the bank get one too. At most 4 show at once; older ones slide out. PLACEHOLDER look until M10 and M11.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
@@ -97,6 +97,31 @@ function Toasts.show(data: { [string]: any })
 		end
 	elseif id == "secondWind" then
 		push("SECOND WIND!", Color3.fromRGB(255, 200, 60), true)
+	elseif id == "beacon" then
+		push(string.format("BEACON FOUND: %s", string.upper(data.name or "")), Kit.color.gold, true, 4)
+		push(
+			string.format(
+				"Fast travel unlocked (%d / %d). Open the MAP to fly there.",
+				data.found or 0,
+				data.total or 12
+			),
+			Kit.color.paper,
+			false,
+			4.5
+		)
+	elseif id == "safehouse" then
+		push(string.format("Safehouse found: %s", data.name or ""), Color3.fromRGB(120, 230, 150))
+	elseif id == "respawnSet" then
+		push(
+			string.format("You will respawn at %s", data.name or "this safehouse"),
+			Color3.fromRGB(120, 230, 150)
+		)
+	elseif id == "banked" then
+		if (data.credits or 0) > 0 then
+			push(string.format("Banked %s Credits: safe from PvP", Kit.comma(data.credits)), Kit.color.gold)
+		else
+			push("Nothing on hand to bank", Kit.color.paper)
+		end
 	elseif id == "saveDown" then
 		push(
 			"Saving is down right now: this session's progress will not be kept",

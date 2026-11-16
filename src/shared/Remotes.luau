@@ -81,6 +81,12 @@ local Remotes: { [string]: RemoteDef } = {
 	StyleApply = { dir = "C2S", schema = { n(1, 8), n(0, 511) }, rate = 4, burst = 6 }, -- slot, style (0 = the gear's own)
 	GadgetUse = { dir = "C2S", schema = { V3 }, rate = 2, burst = 2 }, -- aim direction
 	GadgetResult = { dir = "S2C" }, -- { kind, target, cd }
+
+	-- World (M4; spec: Move.FastTravel at 1 per 20 s; the skip is the "skippable" part of the 3 s flight)
+	MoveFastTravel = { dir = "C2S", schema = { n(1, 12) }, rate = 0.5, burst = 2 },
+	MoveTravelSkip = { dir = "C2S", schema = {}, rate = 1, burst = 2 },
+	FastTravel = { dir = "S2C" }, -- { ok, id, from, to, time } or { ok = false, reason, wait }
+	FastTravelDone = { dir = "S2C" }, -- beacon id: the hero has landed
 }
 
 return Remotes

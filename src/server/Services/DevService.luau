@@ -2,7 +2,7 @@
 -- servers never run them. Commands: bots n, clearbots, drones n, robot 1-6 (3 of that kind), cleardrones,
 -- spawner 0/1, god 0/1, class 1-4, level n, heal, style 0/1 (Comic/Anime), points n (bonus Skill Points),
 -- meter (fill Awakening), respec (no cooldown), loot 1-8 (roll a drop source at the hero's level), renown n,
--- credits n, dust n, save (save now), wipe (start over as a new player).
+-- credits n, dust n, save (save now), map (every beacon and safehouse found), wipe (start over as a new player).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -87,6 +87,16 @@ local commands: { [string]: (player: Player, hero: any, value: number) -> () } =
 	end,
 	save = function(player)
 		print("[Dev] save:", DataService.save(player, false))
+	end,
+	map = function(player)
+		-- discover every beacon and visit every safehouse (fast travel testing)
+		local profile = DataService.get(player)
+		if profile then
+			local c = profile.characters[profile.active]
+			c.beacons = 2 ^ #Config.World.beacons - 1
+			c.safehouses = 2 ^ #Config.World.safehouses - 1
+			DataService.changed(player)
+		end
 	end,
 	wipe = function(player, hero)
 		local profile = DataService.resetProfile(player)

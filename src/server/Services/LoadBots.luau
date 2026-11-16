@@ -1,6 +1,6 @@
 -- LoadBots: the 30-player load test (spec: M1 "30-player test place", M4 gate "30 bots hold the server
 -- frame"). Studio only, started from the Dev panel. Each bot is a full Hero on the server: drones target it,
--- it flies around Downtown at cruise speed and fires Zap Bolt and Chain Lightning through the same
+-- it flies across the whole map (hub and outskirts, the M4 gate) at cruise speed and fires Zap Bolt and Chain Lightning through the same
 -- CombatService path players use, and its body replicates to every client like a player's would.
 -- PLACEHOLDER ART: the bot body is a few plain parts.
 
@@ -38,9 +38,10 @@ local nextId = 2000000000
 local rng = Random.new()
 
 local function randomWaypoint(): Vector3
-	local d = Config.City.districts.Downtown
-	local x = rng:NextNumber(d.minX, d.maxX)
-	local z = rng:NextNumber(d.minZ, d.maxZ)
+	-- half the bots' legs stay over the hub, half cross the outskirts, so streaming is tested everywhere
+	local half = if rng:NextNumber() < 0.5 then Config.City.hub.max else Config.City.mapSize / 2 - 100
+	local x = rng:NextNumber(-half, half)
+	local z = rng:NextNumber(-half, half)
 	local y = CityBuilder.heightAt(x, z) + rng:NextNumber(15, 90)
 	return Vector3.new(x, y, z)
 end

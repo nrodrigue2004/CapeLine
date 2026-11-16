@@ -63,6 +63,8 @@ export type Hero = {
 	perks: { [string]: boolean },
 	gadget: string?,
 	luckyCount: number, -- Lucky Strike: every 8th hit
+	traveling: boolean, -- on a fast-travel flight: untargetable (BeaconService)
+	safehouse: number?, -- the safehouse the hero stands in (SafehouseService)
 	secondWindAt: number, -- Second Wind ready again (os.clock)
 }
 
@@ -130,6 +132,8 @@ local function newHero(id: number, name: string, player: Player?, bot: any?): He
 		perks = {},
 		gadget = nil,
 		luckyCount = 0,
+		traveling = false,
+		safehouse = nil,
 		secondWindAt = 0,
 	}
 end
@@ -411,7 +415,7 @@ end
 
 -- All damage to heroes goes through here (enemy shots and slams now, PvP from M8)
 function HeroService.damage(hero: Hero, amount: number, source: any?)
-	if not hero.alive or amount <= 0 then
+	if not hero.alive or amount <= 0 or hero.traveling then
 		return 0
 	end
 	local now = os.clock()
@@ -608,10 +612,15 @@ function HeroService.simHeroes(): { any }
 					lx, lz = look.X / l, look.Z / l
 				end
 			end
-			table.insert(
-				simList,
-				{ id = hero.id, x = pos.X, y = pos.Y, z = pos.Z, alive = hero.alive, lx = lx, lz = lz }
-			)
+			table.insert(simList, {
+				id = hero.id,
+				x = pos.X,
+				y = pos.Y,
+				z = pos.Z,
+				alive = hero.alive and not hero.traveling,
+				lx = lx,
+				lz = lz,
+			})
 		end
 	end
 	local now = os.clock()

@@ -5,5 +5,8 @@ return {
 	-- Off since M3 (the wallet exists): ranks cost Credits. DEV > +1000 Credits in Studio.
 	freeRankCredits = false,
 	loadBots = { max = 30, flySpeed = 55, fireEvery = 0.6 }, -- the 30-player load test (spec M1 and M4)
-	stats = { every = 1 }, -- server frame stats to the Dev panel, seconds
+	stats = { every = 1 },
+	-- Studio only: build this world seed instead of the weekly one (0 = the weekly seed). Two Studio servers
+	-- with the same number must log the same tile hash (the M4 gate).
+	worldSeed = 0, -- server frame stats to the Dev panel, seconds
 }
