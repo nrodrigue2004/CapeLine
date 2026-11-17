@@ -26,10 +26,12 @@ phones or Studio go on the Studio test list below.
 | H1 | Block, breaker, interrupt, perfect block, robot blocks and tells | GuardMath tests: each side of the triangle, Guard drain and refill, perfect block window, PvP compression | Code-complete 2026-11-17 |
 | H2 | Charge-up powers: 24 skills (1 or 2 a path) charge 1x to 2.2x damage and up to 1.5x size over 1.2 s; full is a breaker; slowed to 60% while charging; interrupts cancel | ChargeRules tests: 24 rows, every archetype, scaling, full breaks a block, other skills keep the modest charge, interrupt refund | Code-complete 2026-11-17 |
 | H3 | Pick up and throw: light, medium, heavy things; cars for Powerhouse or Awakened; Titan's Lift and Throw lifts any weight | ThrowMath tests: weights, who lifts what, arcs and landing hits, no citizens or heroes, PvP flag rule, timers, prop spots | Code-complete 2026-11-17 |
+| H4 | Sidekicking in missions only (top level, raise to it minus 1 in pockets, pay at own level, +20%/+10% Renown) and task forces (2 at launch, the board, Looking, rejoin within 3 min, leader hand-off) | SidekickRules and TaskForcePlan tests: mission level, raise and never lowered, gear item levels, Renown bonuses, legs from existing steps, who may start or join, quick join, rejoin, hand-off, weekly double Renown; missions-only source checks | Code-complete 2026-11-17 |
 
 Waiting on others:
 - H1: the Sneak Bot's lunge wind-up (spec: "Sneak Bots charge a lunge") needs a short wind-up before its stab in EnemySim's sneak brain, which the enemy thread is reworking; interrupts already cancel any robot wind-up, so it works once the sneak sets `windupUntil`. The War-Frame's timed block waits for the same reason (BossSim and the mission's War-Frame); add `WarFrame` to Config.Guard.robotBlocks once it has a facing and a block window.
 - H3: downed robots as medium throwables (spec) need a robot body that stays after a defeat; EnemyService and EnemyRenderer belong to the enemy thread. Add a `downedBot` kind to Config.Throw.kinds and register the wreck with ThrowService once a defeated robot leaves a wreck. The analytics funnel steps (first block, first throw) come with the H7 counters.
+- H4 (lore thread): the task forces' comic panels between legs (Config.TaskForce legs[].panel ids, shown as a title card by TaskForceHud), their step text and final names are PLACEHOLDER CONTENT; the runs are generic robot pockets on the existing layouts. The mentor ally NPC in a task force's last fight comes with H6. Nemesis Showdowns raise sidekicks too once H5 runs them in a pocket.
 
 ## Placeholder art and animation (replace before launch)
 - City: Downtown greybox boxes, window bands and rooftop props (CityBuilder). PLACEHOLDER ART.
@@ -63,6 +65,7 @@ Waiting on others:
 - HUD: Kit placeholder look (M10 restyles).
 - Block (H1): the hero's shield is a flat neon disc held out in front, a robot's block is a blue ForceField ball, the shatter and perfect flashes are neon balls, and the comic words are Bangers text (GuardFx); no block pose yet (HeroAnimator keeps the walk). PLACEHOLDER ART.
 - Throwables (H3): benches, bins, mailboxes, signs, rubble, lamp posts, dumpsters, vending machines and slabs are single plain parts (ThrowService, Config.Throw.kinds); the lift is a tween of the weld, with no carry or throw pose (HeroAnimator keeps the walk); dust and chips are plain parts (ThrowFx); the prompt is a Bangers billboard. PLACEHOLDER ART.
+- Task forces (H4): the board is a Kit list (TaskForceHud) and the panel between legs is a title card; the SIDEKICK badge is a star in the name plate tag (Plates); the TASK FORCE button sits under Settings. PLACEHOLDER ART.
 - M11 sounds: every juice sound is one of Roblox's built-in client sounds (rbxasset://sounds: swoosh, jump land, falling, get up, ping, button, click) pitched per action; music loops and voice clips are silent (asset 0) (Config.Audio, Config.Shop.voiceSounds). PLACEHOLDER SOUND until nate picks licence-checked Creator Store ids.
 - M11 juice visuals: coin burst, medal and NEW stamps, the level badge, tier beams, fireworks, confetti, the shield ring and dazed stars are neon parts and Kit frames (JuiceFx); Photo Mode backdrops are Kit frames and colour grades (PhotoMode); the photo poses are joint angles (EmoteFx). PLACEHOLDER ART until the art pass.
 - M10 screens: Settings, the squad list, panel and invite card, the radar (Kit shapes and glyphs: circle, diamond, triangle, square, star), the ping wheel, the settings gear and the main menu are Kit placeholder looks (SettingsMenu, SquadHud, Radar, Shapes, Hud, MainMenu). PLACEHOLDER ART until the art pass. The squad emblem is a text glyph.
@@ -324,6 +327,17 @@ The Output at boot says build mmo-h3 throw (2026-11-17).
 6. Thrown props stay where they landed (you can pick them up again); about 60 s after landing, once nobody is within 120 studs, they are back home with a small shine.
 7. Titan: Lift and Throw with no robot in reach (20 studs) throws the nearest thing of any weight, with a bigger landing ring.
 8. PvP: a thrown thing hurts a player only while you are flagged against each other; citizens and heroes never show GRAB.
+
+### H4 Sidekicking and task forces (2026-11-17)
+The Output at boot says build mmo-h4 task forces (2026-11-17).
+1. Sidekick: a level 5 and a level 30 in one squad start an Act 1 mission (the level 30 leads or not): robots are level 30 with more health for 2 players; the level 5 shows a ★ SIDEKICK tag on their name plate, has about level 29 health and damage, and their gear stats count at item level 29 (GEAR screen totals inside the pocket). Their abilities and ranks are their own.
+2. Pay: at the result card the level 5 gets level 5 Credits and Renown plus 20%; the level 30 gets level 30 pay plus 10% (the mentor bonus). Gear drops come at each player's own level.
+3. Leaving: the level 5 leaves the mission (or it ends): the SIDEKICK tag goes and health and damage are back to level 5 at once, in the city. Nothing outside a pocket (incidents, contracts, events, the world boss, PvP) ever raises anyone.
+4. Board: at a safehouse, the Contract Board terminal has a second prompt, Task Force Board (K; L3 on a controller); the TASK FORCE button under Settings and the K key open it too. Below level 12 or before Act 1 is done, OPEN SQUAD does not show.
+5. A level 12+ hero opens a squad for their side's task force; a second player (level 10 or more, same side, Act 1 done) presses LOOKING and lands in it (or JOINs from the list); FRIENDS locks it to the leader's friends. START takes everyone in the squad into the run, wherever they stand.
+6. A run: 4 legs (villain) or 5 (hero) in a row, each paid like a mission at your level, with a title card between legs (MISSION 2 OF 5) and a new pocket; the last leg pays a guaranteed Epic piece at your level and, on the first clear this week, double Renown (a second clear the same week does not).
+7. Leaving: a member leaves mid-run: REJOIN shows on their board for 3 minutes and puts them back at the pocket spawn; after 3 minutes it is gone. The leader leaves: the next member leads and the run goes on; it ends only when everyone has left.
+8. Solo is possible but hard (robots scale to party size); a full squad of 4 is best.
 
 ### Hold to aim and charge (2026-11-17)
 The Output at boot says build aim-charge (2026-11-17).

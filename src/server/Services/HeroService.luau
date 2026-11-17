@@ -17,6 +17,7 @@ local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Net = require(Shared:WaitForChild("Net"))
 local Formulas = require(Shared:WaitForChild("Formulas"))
+local SidekickRules = require(Shared:WaitForChild("SidekickRules"))
 local Cooldowns = require(Shared:WaitForChild("Cooldowns"))
 local Signal = require(Shared:WaitForChild("Util"):WaitForChild("Signal"))
 local Status = require(Shared:WaitForChild("Status"))
@@ -77,6 +78,7 @@ export type Hero = {
 	gadget: string?,
 	luckyCount: number, -- Lucky Strike: every 8th hit
 	traveling: boolean, -- on a fast-travel flight: untargetable (BeaconService)
+	raise: number?, -- H4: a sidekick's level inside a mission pocket (MissionService.setRaise)
 	carry: any?, -- H3: what the hero holds overhead (ThrowService)
 	safehouse: number?, -- the safehouse the hero stands in (SafehouseService)
 	secondWindAt: number, -- Second Wind ready again (os.clock)
@@ -218,8 +220,13 @@ local function sharedMight(hero: Hero): number
 end
 
 -- Power with gear Might, Shared Spark and buffs (Rally Roar +10%)
+-- H4: the level stats use: a sidekick's raise inside a mission pocket, else the real level
+function HeroService.statLevel(hero: Hero): number
+	return SidekickRules.level(hero.level, hero.raise, hero.scene == "mission")
+end
+
 function HeroService.power(hero: Hero): number
-	local base = Formulas.power(Config, hero.level, hero.stats.Might + sharedMight(hero))
+	local base = Formulas.power(Config, HeroService.statLevel(hero), hero.stats.Might + sharedMight(hero))
 	return base * (1 + Status.value(hero.status, "power", os.clock(), 0))
 end
 
@@ -488,7 +495,7 @@ end
 -- Recompute health and styles after a level, class or gear change
 function HeroService.refresh(hero: Hero)
 	local frac = if hero.maxHealth > 0 then hero.health / hero.maxHealth else 1
-	hero.maxHealth = Formulas.health(Config, hero.level, hero.stats.Vitality, hero.classId)
+	hero.maxHealth = Formulas.health(Config, HeroService.statLevel(hero), hero.stats.Vitality, hero.classId)
 	hero.health = math.max(1, math.floor(hero.maxHealth * frac + 0.5))
 	hero.styles = stylesFor(hero.mobility or "flight")
 	local hum = humanoidOf(hero)

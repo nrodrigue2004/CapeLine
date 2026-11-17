@@ -47,6 +47,8 @@ local NAMES = {
 	"Weapons",
 	"Guard", -- H1: block, breaker, interrupt (Hero MMO features)
 	"Throw", -- H3: pick up and throw (Hero MMO features)
+	"Sidekick", -- H4: sidekicking, missions only
+	"TaskForce", -- H4: task forces
 }
 
 local Config: { [string]: any } = {}

@@ -161,6 +161,11 @@ function ProfileSchema.newCharacter(side: string?, classId: string?): { [string]
 		safehouses = 0, -- safehouses visited, a 16-bit mask (respawn choices)
 		respecAt = 0, -- os.time() when respec is free again
 		secondWindAt = 0,
+		-- Hero MMO features (H4 on): tfWeek = the week number (TaskForcePlan.week) of each task force's last
+		-- clear, for the weekly double Renown
+		mmo = {
+			tfWeek = { 0, 0, 0, 0 },
+		},
 	}
 end
 
@@ -428,6 +433,7 @@ local function repair(p: any): any
 				c.hq.level = num(c.hq.level, 1, 6, 1)
 				c.hq.droneAt = num(c.hq.droneAt, 0, 2 ^ 40, 0)
 				c.hq.trophies = cleanNumbers(c.hq.trophies, 12, 1, 64)
+				c.mmo.tfWeek = cleanNumbers(c.mmo.tfWeek, 4, 0, 2 ^ 20, true)
 				local looks = {}
 				for _, l in c.looks do
 					if type(l) == "table" and #looks < 4 then

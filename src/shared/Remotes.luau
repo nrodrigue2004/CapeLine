@@ -249,6 +249,14 @@ local Remotes: { [string]: RemoteDef } = {
 	ThrowState = { dir = "S2C" },
 	ThrowFly = { dir = "S2C" },
 	ThrowBack = { dir = "S2C" },
+	-- H4: task forces (spec: TaskForce.List / TaskForce.Join / TaskForce.Look 1/s). TaskForceList: ask for
+	-- the board; TaskForceJoin: action (1 open a squad for task force `arg`, 2 join squad `arg`, 3 leave your
+	-- squad, 4 start, 5 lock to friends, 6 rejoin the run you left) and arg; TaskForceLook: Looking on.
+	-- TaskForceBoard to you: { lobbies = { { id, tf, n, leader, locked, can } }, starts, mine, rejoin }
+	TaskForceList = { dir = "C2S", schema = {}, rate = 1, burst = 3 },
+	TaskForceJoin = { dir = "C2S", schema = { n(1, 6), n(0, 65535) }, rate = 1, burst = 3 },
+	TaskForceLook = { dir = "C2S", schema = { { t = "boolean" } }, rate = 1, burst = 3 },
+	TaskForceBoard = { dir = "S2C" },
 }
 
 return Remotes

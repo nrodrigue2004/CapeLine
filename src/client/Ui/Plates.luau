@@ -69,6 +69,10 @@ local function refresh(p: Player)
 	if p:GetAttribute("Downed") then
 		table.insert(bits, "DOWNED")
 	end
+	-- H4: a sidekick inside a mission pocket (raised to the mission level minus 1)
+	if p:GetAttribute("Sidekick") then
+		table.insert(bits, 1, "★ " .. Config.Sidekick.badge)
+	end
 	if PvpClient.muted[p.UserId] then
 		table.insert(bits, "MUTED")
 	end
@@ -169,7 +173,19 @@ local function watch(p: Player)
 		task.spawn(attach, p, p.Character)
 	end
 	for _, attr in
-		{ "Pvp", "PvpSide", "Downed", "Fame", "FameRank", "Side", "HeroName", "Legacy", "Squad", "SquadSlot" }
+		{
+			"Pvp",
+			"PvpSide",
+			"Downed",
+			"Fame",
+			"FameRank",
+			"Side",
+			"HeroName",
+			"Legacy",
+			"Squad",
+			"SquadSlot",
+			"Sidekick",
+		}
 	do
 		p:GetAttributeChangedSignal(attr):Connect(function()
 			refresh(p)

@@ -56,6 +56,7 @@ local KEYS: { [Enum.KeyCode]: string } = {
 	[Enum.KeyCode.Three] = "Gadget",
 	[Enum.KeyCode.M] = "Map",
 	[Enum.KeyCode.J] = "Journal",
+	[Enum.KeyCode.K] = "TaskForce", -- H4: the Task Force board
 	[Enum.KeyCode.B] = "Catch", -- the interact key (only the opening's catch step listens)
 	[Enum.KeyCode.P] = "Shop",
 	[Enum.KeyCode.H] = "Emote",

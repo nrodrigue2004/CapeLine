@@ -15,6 +15,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Net = require(Shared:WaitForChild("Net"))
 local Rng = require(Shared:WaitForChild("Rng"))
 local GearMath = require(Shared:WaitForChild("GearMath"))
+local SidekickRules = require(Shared:WaitForChild("SidekickRules"))
 local LootTable = require(Shared:WaitForChild("LootTable"))
 local Inventory = require(Shared:WaitForChild("Inventory"))
 local ProfileSchema = require(Shared:WaitForChild("ProfileSchema"))
@@ -54,7 +55,11 @@ function GearService.refresh(player: Player)
 		return
 	end
 	local char = ProfileSchema.active(profile)
-	local totals = GearMath.totals(Config, Inventory.worn(profile, char))
+	local worn = Inventory.worn(profile, char)
+	if hero.raise and hero.scene == "mission" then
+		worn = SidekickRules.raiseGear(worn, hero.raise) -- H4: a sidekick's gear counts at the raised level
+	end
+	local totals = GearMath.totals(Config, worn)
 	HeroService.applyGear(hero, totals)
 	-- the carried weapon and its Mastery (hero creator plan; WeaponService runs the slot in play)
 	hero.weapon = WeaponRules.carried(Config, profile, char)

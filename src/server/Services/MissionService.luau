@@ -4,8 +4,12 @@
 --   hero fades in at its spawn and comes back to where they left when it ends. M10: squadmates near the
 --   leader come too (party of 4 or less, MissionService.partyOf); the leader's story picks the steps and
 --   the choices, every member is paid, and first-clear rewards go to members on that mission in their own
---   story. The party's median level sets the robots and the War-Frame. A member can leave on their own;
---   the leader leaving ends the run for everyone.
+--   story. H4 sidekicking: the party's highest level is the mission level (robots and the War-Frame, with
+--   more health per player); members more than 1 level below count as mission level minus 1 inside the
+--   pocket (Shared.SidekickRules) and are paid at their own level. A member can leave on their own; the
+--   leader leaving ends the run for everyone (in a task force the next member leads instead).
+-- * H4 task forces (Shared.TaskForcePlan, TaskForceService): a chain of legs, each a pocket mission built
+--   from the same step kinds, a comic panel between legs; a member who leaves can rejoin within 3 minutes.
 -- * One script for both routes: StoryPlan.steps gives the side's steps with the chosen branch in place.
 --   Step kinds: hold (stand in rings while waves come), break (crates or the runaway train, a set number
 --   of hits), chase (a Sneak Bot hops a path), reach (a point, past turrets), boss (a Null Sentinel with
@@ -33,7 +37,9 @@ local StoryPlan = require(Shared:WaitForChild("StoryPlan"))
 local PocketLayout = require(Shared:WaitForChild("PocketLayout"))
 local BossSim = require(Shared:WaitForChild("BossSim"))
 local BossMath = require(Shared:WaitForChild("BossMath"))
-local SquadRules = require(Shared:WaitForChild("SquadRules"))
+local SidekickRules = require(Shared:WaitForChild("SidekickRules"))
+local TaskForcePlan = require(Shared:WaitForChild("TaskForcePlan"))
+local Signal = require(Shared:WaitForChild("Util"):WaitForChild("Signal"))
 
 local CityBuilder = require(script.Parent.CityBuilder)
 local DataService = require(script.Parent.DataService)
@@ -90,6 +96,12 @@ type Run = {
 	asked: boolean,
 	done: boolean,
 	endAt: number,
+	levels: { [Player]: number }, -- H4: each member's own level (pay, the Renown bonus)
+	partyHp: number, -- H4: robots' and bosses' health for the party size
+	tf: number?, -- H4: the task force index (nil for an Act 1 mission)
+	leg: number?,
+	legAt: number?,
+	away: { [number]: number }?, -- H4: user id -> when they left (rejoin within Config.TaskForce.rejoin)
 }
 
 local busy: { [number]: Run } = {} -- pocket index -> its run
@@ -167,8 +179,9 @@ local function spawn(
 	local id = EnemyService.spawnAt(kind, pos, run.level, TAG - run.pocket, opts and opts.scripted)
 	if id then
 		run.enemies[id] = true
-		if opts and opts.hpMult then
-			EnemyService.tune(id, { hpMult = opts.hpMult })
+		local hpMult = (opts and opts.hpMult or 1) * run.partyHp -- H4: more health per player
+		if hpMult ~= 1 then
+			EnemyService.tune(id, { hpMult = hpMult })
 		end
 	end
 	return id
@@ -222,6 +235,10 @@ end
 
 -- M10 squads set this: (leader) -> squadmates who may come along (near, free, out of combat)
 MissionService.partyOf = nil :: ((Player) -> { Player })?
+-- H4: (player, num, { mentor, sidekick, taskForce }) a member was paid for a clear (badges count them, H7)
+MissionService.Cleared = Signal.new()
+-- H4: TaskForceService sets this: the final pay of a task force (Epic roll, weekly double Renown)
+MissionService.payTaskForce = nil :: ((any, Player, { [string]: any }, number) -> { [string]: any })?
 
 local function cleanStep(run: Run)
 	SiteKit.clear(run.things)
@@ -243,6 +260,10 @@ local function advance(run: Run)
 	cleanStep(run)
 	run.idx += 1
 	if run.idx > #run.steps then
+		if run.tf and run.leg and run.leg < run.m.legs and MissionService.nextLeg then
+			MissionService.nextLeg(run) -- H4: the task force's next leg
+			return
+		end
 		finishRun(run, true)
 		return
 	end
@@ -275,7 +296,7 @@ local function warframeArena(run: Run)
 	local l = run.layout
 	local b = l.points.boss
 	local level = run.level
-	local hp = BossMath.warframeHp(Config, level)
+	local hp = BossMath.warframeHp(Config, level) * run.partyHp
 	local sim = BossSim.new(Config, "NullWarFrame", b[1], b[2], b[3], hp, level, os.clock(), rng)
 	sim.cover = {}
 	for _, p in l.lists.pillars do
@@ -599,7 +620,7 @@ local function tick(run: Run, dt: number, now: number)
 			advance(run)
 		end
 	end
-	if now - run.startedAt > run.m.minutes * 60 * 2 + 300 then
+	if now - (run.legAt or run.startedAt) > (run.m.minutes or 10) * 60 * 2 + 300 then
 		finishRun(run, false) -- an abandoned run frees its pocket
 	end
 end
@@ -624,6 +645,10 @@ local function statePacket(run: Run): { [string]: any }
 		held = run.held,
 		arena = story and story.choices[3] == 2 or false,
 		done = run.done,
+		-- H4: a task force run (its index, the leg, how many) and your raise
+		tf = run.tf,
+		leg = run.leg,
+		legs = run.tf and run.m.legs or nil,
 	}
 end
 
@@ -681,6 +706,7 @@ local function releaseMember(run: Run, player: Player)
 	run.heroes[player] = nil
 	if hero then
 		hero.scene = nil
+		MissionService.setRaise(hero, nil) -- H4: the raise never leaves the pocket
 	end
 	player:SetAttribute("Mission", nil)
 	if player.Parent then
@@ -706,8 +732,25 @@ local function pay(run: Run, player: Player): { [string]: any }
 	if not story then
 		return out
 	end
-	local credits, renown = EconomyService.reward(player, "mission", run.level)
+	-- H4: paid at your own level; a sidekick +20% Renown, the top member +10% as a mentor
+	local own = run.levels[player] or run.level
+	local credits, renown = EconomyService.reward(player, "mission", own)
 	out.credits, out.renown = credits, renown
+	local levels = {}
+	for _, l in run.levels do
+		table.insert(levels, l)
+	end
+	local mult, mentor, sidekick = SidekickRules.renown(Config.Sidekick, own, levels)
+	if mult > 1 and renown > 0 then
+		local extra = math.floor(renown * (mult - 1) + 0.5)
+		EconomyService.addRenown(player, extra)
+		out.renown += extra
+	end
+	out.sidekick, out.mentor = sidekick or nil, mentor or nil
+	MissionService.Cleared:Fire(player, run.num, { mentor = mentor, sidekick = sidekick, taskForce = run.tf })
+	if run.tf then
+		return MissionService.payTaskForce and MissionService.payTaskForce(run, player, out, own) or out
+	end
 	-- first-clear rewards only for a member on this mission in their own story (a helper replaying it, or
 	-- ahead of it, gets the clear pay above)
 	local canClear = player == run.player
@@ -720,7 +763,7 @@ local function pay(run: Run, player: Player): { [string]: any }
 			out.renown += m.renown
 		end
 		if m.loot then
-			out.drops = #GearService.grant(player, m.loot, run.level)
+			out.drops = #GearService.grant(player, m.loot, own)
 		end
 		if m.skillPoints then
 			StoryService.addSkillPoints(player, m.skillPoints)
@@ -732,7 +775,7 @@ local function pay(run: Run, player: Player): { [string]: any }
 		-- Test Her: a 10% Epic crate at the end of The Informant
 		local test = S.choices[2].options[2]
 		if run.num == S.choices[2].mission and story.choices[2] == 2 and rng:chance(test.epicChance) then
-			GearService.grantPiece(player, "Epic", run.level)
+			GearService.grantPiece(player, "Epic", own)
 			out.epic = true
 		end
 		StoryService.changed(player)
@@ -800,6 +843,236 @@ local function memberLeave(run: Run, player: Player)
 	end
 end
 
+-- H4: a sidekick's raise (Shared.SidekickRules): stats, health and gear item levels count at `raise` while
+-- the hero is in a pocket; nil ends it. The SIDEKICK badge reads the Sidekick attribute.
+function MissionService.setRaise(hero: any, raise: number?)
+	if hero.raise == raise then
+		return
+	end
+	hero.raise = raise
+	local player = hero.player
+	if player then
+		player:SetAttribute("Sidekick", raise)
+		if player.Parent then
+			GearService.refresh(player) -- rebuilds the gear stats and calls HeroService.refresh
+		end
+	else
+		HeroService.refresh(hero)
+	end
+end
+
+-- Mission level and raises for the party, then everyone into the pocket
+local function begin(
+	player: Player,
+	members: { Player },
+	heroes: { [Player]: any },
+	entries: { [Player]: CFrame },
+	pocket: number,
+	m: any,
+	steps: { any },
+	num: number,
+	tf: number?
+): Run
+	local layout, model = buildPocket(pocket, m.layout)
+	local hs = StoryService.side(player)
+	local levels: { [Player]: number } = {}
+	local list = {}
+	for _, p in members do
+		levels[p] = heroes[p].level
+		table.insert(list, heroes[p].level)
+	end
+	local level = SidekickRules.missionLevel(list, m.minLevel)
+	local root0 = HeroService.rootPart(heroes[player])
+	local run: Run = {
+		num = num,
+		m = m,
+		player = player,
+		hero = heroes[player],
+		members = members,
+		heroes = heroes,
+		entries = entries,
+		side = hs,
+		pocket = pocket,
+		layout = layout,
+		model = model,
+		steps = steps,
+		idx = 1,
+		have = 0,
+		need = 1,
+		level = level,
+		entry = entries[player] or (root0 and root0.CFrame) or CFrame.new(),
+		startedAt = os.clock(),
+		stepAt = os.clock(),
+		things = {},
+		enemies = {},
+		held = {},
+		points = {},
+		waveAt = 0,
+		wave = 0,
+		bossId = nil,
+		chase = nil,
+		train = nil,
+		wf = nil,
+		asked = false,
+		done = false,
+		endAt = 0,
+		levels = levels,
+		partyHp = SidekickRules.partyHp(Config.Sidekick, #members),
+		tf = tf,
+		leg = if tf then 1 else nil,
+		legAt = os.clock(),
+		away = if tf then {} else nil,
+	}
+	busy[pocket] = run
+	for i, p in members do
+		runs[p] = run
+		heroes[p].scene = "mission"
+		p:SetAttribute("Mission", num)
+		Net.fire("BossState", p, { state = BossService.STATE.idle, at = 0 })
+		local raise = SidekickRules.raised(Config.Sidekick, heroes[p].level, level)
+		MissionService.setRaise(heroes[p], if raise > heroes[p].level then raise else nil)
+		local spot = CFrame.new(v3(layout.points.spawn, 3) + Vector3.new((i - 1) * 4 - 6, 0, 0))
+		travel(
+			run,
+			p,
+			spot,
+			if p == player
+				then function()
+					if runs[player] == run then
+						startStep(run)
+						fireAll(run, "MissionState", statePacket(run))
+					end
+				end
+				else nil
+		)
+	end
+	return run
+end
+
+-- H4: the next leg of a task force: pay the leg, show the comic panel, build the next pocket, move everyone
+function MissionService.nextLeg(run: Run)
+	for _, p in run.members do
+		if p.Parent then
+			Net.fire("MissionResult", p, pay(run, p))
+		end
+	end
+	local nextLeg = TaskForcePlan.leg(Config.TaskForce, run.tf :: number, (run.leg :: number) + 1)
+	if not nextLeg then
+		finishRun(run, true)
+		return
+	end
+	run.leg = nextLeg.leg
+	-- PLACEHOLDER CONTENT: lore thread to fill (the panel id names the comic panel between legs)
+	local packet = statePacket(run)
+	packet.panel = nextLeg.panel
+	fireAll(run, "MissionState", packet)
+	task.delay(Config.TaskForce.panelTime, function()
+		if run.done or busy[run.pocket] ~= run then
+			return
+		end
+		run.model:Destroy()
+		run.layout, run.model = buildPocket(run.pocket, nextLeg.layout)
+		run.m = nextLeg
+		run.steps = nextLeg.steps
+		run.idx = 1
+		run.legAt = os.clock()
+		for i, p in run.members do
+			local spot = CFrame.new(v3(run.layout.points.spawn, 3) + Vector3.new((i - 1) * 4 - 6, 0, 0))
+			travel(
+				run,
+				p,
+				spot,
+				if i == 1
+					then function()
+						if not run.done then
+							startStep(run)
+							fireAll(run, "MissionState", statePacket(run))
+						end
+					end
+					else nil
+			)
+		end
+	end)
+end
+
+-- H4: start a task force for a squad (TaskForceService checks who may come); the leader first
+function MissionService.enterTaskForce(players: { Player }, tf: number): (boolean, string?)
+	local leg = TaskForcePlan.leg(Config.TaskForce, tf, 1)
+	local leader = players[1]
+	if not leg or not leader then
+		return false, "none"
+	end
+	local pocket = freePocket()
+	if not pocket then
+		return false, "full"
+	end
+	local members, heroes, entries = {}, {}, {}
+	for _, p in players do
+		local h = HeroService.get(p)
+		local r = h and HeroService.rootPart(h)
+		if h and r and h.loaded and not runs[p] and not h.scene and h.alive and not h.traveling then
+			if #members < Config.TaskForce.maxPlayers then
+				table.insert(members, p)
+				heroes[p] = h
+				entries[p] = r.CFrame + Vector3.new(0, 2, 0)
+			end
+		end
+	end
+	if members[1] ~= leader then
+		return false, "busy"
+	end
+	begin(leader, members, heroes, entries, pocket, leg, leg.steps, leg.num, tf)
+	return true, nil
+end
+
+-- H4: back into a task force you left less than 3 minutes ago (same server)
+function MissionService.rejoin(player: Player): boolean
+	local hero = HeroService.get(player)
+	local root = hero and HeroService.rootPart(hero)
+	if not hero or not root or runs[player] or hero.scene or not hero.alive then
+		return false
+	end
+	for _, run in busy do
+		local left = run.away and run.away[player.UserId]
+		if not run.done and run.tf and TaskForcePlan.canRejoin(Config.TaskForce, left, os.clock()) then
+			(run.away :: { [number]: number })[player.UserId] = nil
+			table.insert(run.members, player)
+			run.heroes[player] = hero
+			run.entries[player] = root.CFrame + Vector3.new(0, 2, 0)
+			run.levels[player] = run.levels[player] or hero.level
+			runs[player] = run
+			hero.scene = "mission"
+			player:SetAttribute("Mission", run.num)
+			local raise = SidekickRules.raised(Config.Sidekick, hero.level, run.level)
+			MissionService.setRaise(hero, if raise > hero.level then raise else nil)
+			travel(run, player, CFrame.new(v3(run.layout.points.spawn, 3)), function()
+				Net.fire("MissionState", player, statePacket(run))
+			end)
+			return true
+		end
+	end
+	return false
+end
+
+-- H4: is there a task force run this player left less than 3 minutes ago?
+function MissionService.canRejoin(player: Player): boolean
+	if runs[player] then
+		return false
+	end
+	for _, run in busy do
+		local left = run.away and run.away[player.UserId]
+		if not run.done and run.tf and TaskForcePlan.canRejoin(Config.TaskForce, left, os.clock()) then
+			return true
+		end
+	end
+	return false
+end
+
+-- H4: who is in which run (TaskForceService shows squads in a run; badges count clears)
+function MissionService.runOf(player: Player): any?
+	return runs[player]
+end
+
 function MissionService.enter(player: Player, num: number): (boolean, string?)
 	local hero = HeroService.get(player)
 	local story = StoryService.story(player)
@@ -832,7 +1105,6 @@ function MissionService.enter(player: Player, num: number): (boolean, string?)
 	local members = { player }
 	local heroes = { [player] = hero }
 	local entries = { [player] = root0.CFrame + Vector3.new(0, 2, 0) }
-	local levels = { hero.level }
 	for _, mate in (if MissionService.partyOf then MissionService.partyOf(player) else {}) do
 		local h = HeroService.get(mate)
 		local r = h and HeroService.rootPart(h)
@@ -840,77 +1112,55 @@ function MissionService.enter(player: Player, num: number): (boolean, string?)
 			table.insert(members, mate)
 			heroes[mate] = h
 			entries[mate] = r.CFrame + Vector3.new(0, 2, 0)
-			table.insert(levels, h.level)
 		end
 	end
-	local layout, model = buildPocket(pocket, m.layout)
-	local hs = StoryService.side(player)
-	local run: Run = {
-		num = num,
-		m = m,
-		player = player,
-		hero = hero,
-		members = members,
-		heroes = heroes,
-		entries = entries,
-		side = hs,
-		pocket = pocket,
-		layout = layout,
-		model = model,
-		steps = StoryPlan.steps(Config, num, hs, story.choices),
-		idx = 1,
-		have = 0,
-		need = 1,
-		level = math.max(SquadRules.median(levels), m.minLevel),
-		entry = root0.CFrame + Vector3.new(0, 2, 0),
-		startedAt = os.clock(),
-		stepAt = os.clock(),
-		things = {},
-		enemies = {},
-		held = {},
-		points = {},
-		waveAt = 0,
-		wave = 0,
-		bossId = nil,
-		chase = nil,
-		train = nil,
-		wf = nil,
-		asked = false,
-		done = false,
-		endAt = 0,
-	}
-	busy[pocket] = run
-	for i, p in members do
-		runs[p] = run
-		heroes[p].scene = "mission"
-		p:SetAttribute("Mission", num)
-		Net.fire("BossState", p, { state = BossService.STATE.idle, at = 0 })
-		local spot = CFrame.new(v3(layout.points.spawn, 3) + Vector3.new((i - 1) * 4 - 6, 0, 0))
-		travel(
-			run,
-			p,
-			spot,
-			if p == player
-				then function()
-					if runs[player] == run then
-						startStep(run)
-						fireAll(run, "MissionState", statePacket(run))
-					end
-				end
-				else nil
-		)
-	end
+	begin(
+		player,
+		members,
+		heroes,
+		entries,
+		pocket,
+		m,
+		StoryPlan.steps(Config, num, StoryService.side(player), story.choices),
+		num
+	)
 	return true, nil
 end
 
 function MissionService.leave(player: Player)
 	local run = runs[player]
 	if run and not run.done then
-		if player == run.player then
+		if run.tf then
+			MissionService.leaveTaskForce(run, player)
+		elseif player == run.player then
 			finishRun(run, false)
 		else
 			memberLeave(run, player)
 		end
+	end
+end
+
+-- H4: a task force member leaves (on purpose or dropped): they keep their place for 3 minutes, the next
+-- member leads if it was the leader, and the run only ends when everyone is gone
+function MissionService.leaveTaskForce(run: Run, player: Player)
+	run.away = run.away or {};
+	(run.away :: { [number]: number })[player.UserId] = os.clock()
+	if player == run.player then
+		local nextOne = TaskForcePlan.nextLeader(run.members, player)
+		if nextOne then
+			run.player = nextOne
+			run.hero = run.heroes[nextOne]
+		end
+	end
+	if #run.members <= 1 then
+		releaseMember(run, player)
+		finishRun(run, false)
+		return
+	end
+	if player.Parent then
+		memberLeave(run, player)
+	else
+		releaseMember(run, player)
 	end
 end
 
@@ -974,7 +1224,9 @@ function MissionService.init()
 	end
 	Players.PlayerRemoving:Connect(function(player)
 		local run = runs[player]
-		if run then
+		if run and run.tf and not run.done then
+			MissionService.leaveTaskForce(run, player)
+		elseif run then
 			if player == run.player then
 				releaseMember(run, player)
 				finishRun(run, false) -- the others go home

@@ -511,4 +511,182 @@ return function(T: any)
 		check(string.find(block, "hero.carry) then", 1, true) ~= nil, "no block with your hands full")
 	end)
 
+	---------------------------------------------------------------------------
+	-- H4: sidekicking (missions only) and task forces
+	---------------------------------------------------------------------------
+	local SidekickRules = require("../src/shared/SidekickRules")
+	local TaskForcePlan = require("../src/shared/TaskForcePlan")
+	local SK, TF = Config.Sidekick, Config.TaskForce
+
+	test(
+		"H4: mission level is the top member's; sidekicks are raised to it minus 1, never lowered",
+		function()
+			check(SidekickRules.missionLevel({ 5, 30, 12 }) == 30, "the highest member")
+			check(SidekickRules.missionLevel({ 3, 4 }, 6) == 6, "never below the mission's floor")
+			check(SidekickRules.raised(SK, 5, 30) == 29, "a level 5 counts as 29 with a level 30")
+			check(SidekickRules.raised(SK, 29, 30) == 29, "1 below: not a sidekick")
+			check(SidekickRules.raised(SK, 30, 30) == 30, "the top member is unchanged")
+			check(SidekickRules.raised(SK, 28, 30) == 29, "2 below is raised")
+			check(
+				not SidekickRules.isSidekick(SK, 29, 30) and SidekickRules.isSidekick(SK, 28, 30),
+				"the gap is 1"
+			)
+			check(SidekickRules.raised(SK, 35, 30) == 35, "never lowered")
+			check(SidekickRules.level(5, 29, true) == 29, "the raise counts in the pocket")
+			check(SidekickRules.level(5, 29, false) == 5, "and never outside it")
+			check(SidekickRules.level(5, nil, true) == 5, "no raise, no change")
+			local worn = {
+				{ id = 1, ilvl = 5, main = 10, bonus = { { 2, 4 } } },
+				{ id = 2, ilvl = 31, main = 60, bonus = {} },
+			}
+			local up = SidekickRules.raiseGear(worn, 29)
+			check(
+				up[1].ilvl == 29 and up[1].main == 58 and up[1].bonus[1][2] == 23,
+				"a level 5 piece counts at 29"
+			)
+			check(up[2] == worn[2], "a piece above the raise is unchanged")
+			check(worn[1].ilvl == 5 and worn[1].main == 10, "the saved piece never changes")
+			check(SidekickRules.raiseGear(worn, nil) == worn, "no raise: the same list")
+			local F = require("../src/shared/Formulas")
+			check(F.health(Config, 29, 0, "Mystic") > F.health(Config, 5, 0, "Mystic") * 2, "raised health")
+		end
+	)
+
+	test("H4: pay at your own level, +20% Renown as a sidekick, +10% as a mentor", function()
+		local m, mentor, side = SidekickRules.renown(SK, 5, { 5, 30 })
+		near(m, 1.2, 1e-9, "a sidekick: +20% Renown")
+		check(side and not mentor, "counts as a sidekick clear")
+		m, mentor = SidekickRules.renown(SK, 30, { 5, 30 })
+		near(m, 1.1, 1e-9, "the top member: +10% with a sidekick 5+ levels lower")
+		check(mentor, "counts toward the Mentor badges")
+		m, mentor = SidekickRules.renown(SK, 30, { 27, 30 })
+		near(m, 1, 1e-9, "3 levels lower is no mentor bonus")
+		check(not mentor, "and no mentor clear")
+		check(SidekickRules.partyHp(SK, 1) == 1, "solo: as now")
+		check(SidekickRules.partyHp(SK, 4) > SidekickRules.partyHp(SK, 2), "more health per player")
+		check(SidekickRules.partyHp(SK, 9) == SK.partyHp[#SK.partyHp], "capped at 4")
+		local ms = source("src/server/Services/MissionService.luau")
+		check(
+			string.find(ms, 'EconomyService.reward(player, "mission", own)', 1, true) ~= nil,
+			"pay at your own level"
+		)
+		check(string.find(ms, "GearService.grant(player, m.loot, own)", 1, true) ~= nil, "and gear drops")
+		check(
+			string.find(ms, "SidekickRules.missionLevel(list, m.minLevel)", 1, true) ~= nil,
+			"the top member's level"
+		)
+		check(string.find(ms, "SquadRules.median", 1, true) == nil, "the median is gone from missions")
+		check(string.find(ms, "MissionService.setRaise(hero, nil)", 1, true) ~= nil, "leaving ends the raise")
+		local hero = source("src/server/Services/HeroService.luau")
+		check(
+			string.find(hero, 'hero.scene == "mission"', 1, true) ~= nil,
+			"stats read the raise only in a pocket"
+		)
+		for _, f in { "IncidentService", "ContractService", "EventService", "BossService", "FlagService" } do
+			local src = source("src/server/Services/" .. f .. ".luau")
+			check(string.find(src, "setRaise", 1, true) == nil, f .. " never raises anyone (missions only)")
+		end
+	end)
+
+	test("H4: task forces: 2 at launch, legs from existing steps, who may start or join", function()
+		check(#TF.list == 2 and TF.floor == 12 and TF.maxPlayers == 4 and TF.rejoin == 180, "spec numbers")
+		local sides = {}
+		local kinds = {
+			hold = true,
+			["break"] = true,
+			chase = true,
+			reach = true,
+			defeat = true,
+			boss = true,
+			warframe = true,
+		}
+		local layouts = { station = true, tower = true, rooftops = true, dungeon = true, arena = true }
+		for i, t in TF.list do
+			sides[t.side] = true
+			check(#t.legs >= 4 and #t.legs <= 5, t.id .. ": 4 or 5 missions")
+			for li, l in t.legs do
+				check(layouts[l.layout] == true, t.id .. " leg " .. li .. " on an existing pocket layout")
+				for _, st in l.steps do
+					check(kinds[st.kind] == true, t.id .. " uses existing step kinds (" .. st.kind .. ")")
+				end
+				local leg = TaskForcePlan.leg(TF, i, li)
+				check(leg ~= nil and leg.num == TF.numBase + i, "a mission-shaped leg")
+				check(
+					leg ~= nil and leg.legs == #t.legs and leg.leg == li and leg.minLevel == TF.floor,
+					"its place"
+				)
+			end
+			check(TaskForcePlan.leg(TF, i, #t.legs + 1) == nil, "no leg past the end")
+		end
+		check(sides.hero and sides.villain, "one per side")
+		check(TF.numBase > #Config.Story.missions, "task force runs never clash with Act 1 mission numbers")
+		check(TaskForcePlan.canStart(TF, 1, 12, "hero", true), "level 12 after Act 1 starts one")
+		check(not TaskForcePlan.canStart(TF, 1, 11, "hero", true), "not at 11")
+		check(not TaskForcePlan.canStart(TF, 1, 20, "hero", false), "not before Act 1 is done")
+		check(not TaskForcePlan.canStart(TF, 1, 20, "villain", true), "not the other side's")
+		local l = { id = 1, tf = 1, side = "hero", members = { 1 }, locked = false, running = false }
+		check(
+			TaskForcePlan.canJoin(TF, l, 10, "hero", true),
+			"Looking takes you within 2 levels of the floor"
+		)
+		check(not TaskForcePlan.canJoin(TF, l, 9, "hero", true), "but not 3 below")
+		check(not TaskForcePlan.canJoin(TF, l, 20, "villain", true), "never the other side")
+	end)
+
+	test("H4: quick join, rejoin within 3 minutes, leader hand-off, weekly double Renown", function()
+		local function friendOf(uid: number)
+			return uid == 7
+		end
+		local lobbies = {
+			{ id = 1, tf = 1, side = "hero", members = { 1 }, locked = false, running = false },
+			{ id = 2, tf = 1, side = "hero", members = { 2, 3, 4 }, locked = false, running = false },
+			{ id = 3, tf = 1, side = "hero", members = { 5, 6, 8 }, locked = true, running = false },
+			{ id = 4, tf = 2, side = "villain", members = { 9, 10, 11 }, locked = false, running = false },
+			{ id = 5, tf = 1, side = "hero", members = { 7, 12 }, locked = true, running = false },
+			{ id = 6, tf = 1, side = "hero", members = { 13, 14, 15 }, locked = false, running = true },
+		}
+		local best = TaskForcePlan.match(TF, lobbies, 14, "hero", true, friendOf)
+		check(
+			best ~= nil and best.id == 2,
+			"the fullest open squad of your side (locked and running skipped)"
+		)
+		table.insert(lobbies[2].members, 16)
+		best = TaskForcePlan.match(TF, lobbies, 14, "hero", true, friendOf)
+		check(best ~= nil and best.id == 5, "a full squad is skipped; a friend's locked squad is open to you")
+		check(TaskForcePlan.match(TF, lobbies, 14, "hero", false, friendOf) == nil, "nothing before Act 1")
+		check(
+			TaskForcePlan.canRejoin(TF, 100, 279) and not TaskForcePlan.canRejoin(TF, 100, 281),
+			"3 minutes"
+		)
+		check(not TaskForcePlan.canRejoin(TF, nil, 5), "only if you were in it")
+		check(TaskForcePlan.nextLeader({ "a", "b", "c" }, "a") == "b", "the next member leads")
+		check(TaskForcePlan.nextLeader({ "a" }, "a") == nil, "nobody left: the run ends")
+		local w = TaskForcePlan.week(1700000000)
+		check(TaskForcePlan.week(1700000000 + 7 * 86400) == w + 1, "a week apart")
+		-- 2024-01-01 00:00 UTC was a Monday: the week turns over there
+		check(
+			TaskForcePlan.week(1704067200) == TaskForcePlan.week(1704067200 - 1) + 1,
+			"weeks start on Monday"
+		)
+		check(TaskForcePlan.weeklyMult(TF, w - 1, w) == 2, "double Renown on the first clear each week")
+		check(TaskForcePlan.weeklyMult(TF, w, w) == 1, "once a week")
+		local P = require("../src/shared/ProfileSchema")
+		check(#P.newCharacter().mmo.tfWeek == 4, "the week of each task force's last clear is saved")
+		local loaded = P.load({ version = P.VERSION, characters = { { level = 3 } } })
+		check(loaded.characters[1].mmo and #loaded.characters[1].mmo.tfWeek == 4, "old saves get it")
+		local R = require("../src/shared/Remotes")
+		check(
+			R.TaskForceList.rate == 1 and R.TaskForceJoin.rate == 1 and R.TaskForceLook.rate == 1,
+			"1 a second"
+		)
+		local ms = source("src/server/Services/MissionService.luau")
+		check(
+			string.find(ms, "TaskForcePlan.nextLeader(run.members, player)", 1, true) ~= nil,
+			"leader hand-off"
+		)
+		check(
+			string.find(ms, "PLACEHOLDER CONTENT: lore thread to fill", 1, true) ~= nil,
+			"leg panels wait on lore"
+		)
+	end)
 end
