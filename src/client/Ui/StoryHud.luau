@@ -600,12 +600,13 @@ function StoryHud.init()
 		Text = "LEAVE",
 		AnchorPoint = Vector2.new(1, 0),
 		Position = UDim2.new(1, -6, 0, 4),
-		Size = UDim2.fromOffset(70, 26),
+		Size = UDim2.fromOffset(84, 40), -- phone pass: a 40 px tap target (the text rows stop short of it)
 		BackgroundColor3 = Kit.color.paper,
 		maxText = 16,
 	}, StoryClient.leave)
 	leaveButton.Parent = tracker
-	trackTitle.Size = UDim2.new(1, -90, 0, 22)
+	trackTitle.Size = UDim2.new(1, -106, 0, 22)
+	trackText.Size = UDim2.new(1, -106, 0, 18)
 	questPanel, questTitle, questText, questFill = buildTracker("Quest", 136)
 	resultCard = Kit.frame({
 		Name = "Result",

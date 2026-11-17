@@ -5,7 +5,8 @@
 -- with the classic face, pants and darker shoes), with blocky hair picked from its id, posed on its R15
 -- joints in code: a walk swing, a standing idle, and a run with arms up when fleeing. Far citizens pose every
 -- few frames. Citizens are never hurt or shown hurt (spec: Destruction); a hidden citizen (safe in a shelter)
--- is simply not sent.
+-- is simply not sent. The device preset (QualityController) sets how many are drawn (the nearest) and how
+-- often far ones pose (phone pass: low draws 30 of the 60, so half the bodies and clothes Textures).
 -- PLACEHOLDER ART: plain blocks until the hero meshes are imported (then the hero meshes), and posed in code
 -- until real R15 animations.
 
@@ -24,6 +25,9 @@ local RigMath = require(Shared:WaitForChild("RigMath"))
 local BodyShape = require(Shared:WaitForChild("BodyShape"))
 local NpcRig = require(Shared:WaitForChild("NpcRig"))
 local ClothesMap = require(Shared:WaitForChild("ClothesMap"))
+local QualityRules = require(Shared:WaitForChild("QualityRules"))
+
+local QualityController = require(script.Parent.QualityController)
 
 local CitizenRenderer = {}
 
@@ -229,17 +233,19 @@ local function render()
 	end
 	local alpha = if b.t > a.t then math.clamp((renderT - a.t) / (b.t - a.t), 0, 1) else 1
 	local newest = snapshots[n].rows
+	local cam = Workspace.CurrentCamera.CFrame.Position
+	local Q = QualityController.preset
+	local drawn = QualityRules.nearest(newest, cam.X, cam.Z, Q.citizensDrawn or C.max, live)
 	for id, body in live do
-		local row = newest[id]
+		local row = drawn[id]
 		if not row or row.color ~= body.color then
 			release(body)
 			live[id] = nil
 		end
 	end
 	local roots, cframes = {}, {}
-	local cam = Workspace.CurrentCamera.CFrame.Position
 	frame += 1
-	for id, rb in newest do
+	for id, rb in drawn do
 		local ra = a.rows[id] or b.rows[id] or rb
 		local rbb = b.rows[id] or rb
 		local pos = Vector3.new(ra.x, ra.y, ra.z):Lerp(Vector3.new(rbb.x, rbb.y, rbb.z), alpha)
@@ -258,8 +264,8 @@ local function render()
 		body.pos = pos
 		body.yaw = lerpAngle(body.yaw, rbb.yaw, math.min(1, dt * 10))
 		body.state = rb.state
-		local near = (pos - cam).Magnitude < C.poseNear
-		pose(body, dt, roots, cframes, near or (frame + id) % C.poseEvery == 0)
+		local near = (pos - cam).Magnitude < (Q.citizenPoseNear or C.poseNear)
+		pose(body, dt, roots, cframes, near or (frame + id) % (Q.citizenPoseEvery or C.poseEvery) == 0)
 	end
 	if #roots > 0 then
 		Workspace:BulkMoveTo(roots, cframes, Enum.BulkMoveMode.FireCFrameChanged)

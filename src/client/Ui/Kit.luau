@@ -48,6 +48,310 @@ function Kit.flash(): number
 end
 Kit.flashLevel = 1
 
+---------------------------------------------------------------------------
+-- Screen size (overhaul plan step 8, the phone pass; Shared.TouchLayout has the rules)
+---------------------------------------------------------------------------
+local Workspace = game:GetService("Workspace")
+local TouchLayout = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("TouchLayout"))
+
+Kit.LayoutChanged = Signal.new() -- the screen's size or the Button size setting changed: lay out again
+Kit.buttonScale = 1 -- Settings: Button size (touch action buttons), 0.8 to 1.3
+
+local probe: ScreenGui? = nil
+local lastArea = Vector2.zero
+local function areaChanged()
+	local a = Kit.area()
+	if a ~= lastArea then
+		lastArea = a
+		Kit.LayoutChanged:Fire()
+	end
+end
+
+-- The size of a Kit screen's safe area (inside the notch, the home bar and Roblox's top bar)
+function Kit.area(): Vector2
+	if not probe then
+		local g = Instance.new("ScreenGui")
+		g.Name = "KitArea"
+		g.ResetOnSpawn = false
+		g.IgnoreGuiInset = false
+		g.ScreenInsets = Enum.ScreenInsets.CoreUISafeInsets
+		g.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
+		probe = g
+		g:GetPropertyChangedSignal("AbsoluteSize"):Connect(areaChanged)
+		local cam = Workspace.CurrentCamera
+		if cam then
+			cam:GetPropertyChangedSignal("ViewportSize"):Connect(areaChanged)
+		end
+	end
+	local a = (probe :: ScreenGui).AbsoluteSize
+	if a.X < 1 or a.Y < 1 then
+		local cam = Workspace.CurrentCamera
+		return if cam then cam.ViewportSize else Vector2.new(1280, 720)
+	end
+	return a
+end
+
+-- A phone-sized screen: the compact HUD and fitted panels
+function Kit.compact(): boolean
+	local a = Kit.area()
+	return TouchLayout.compact(Config, a.X, a.Y)
+end
+
+function Kit.setButtonScale(scale: number)
+	if scale ~= Kit.buttonScale then
+		Kit.buttonScale = scale
+		Kit.LayoutChanged:Fire()
+	end
+end
+
+-- The HUD's layout options (set by the Hud: device, left-handed, Button size) and the boxes they give, so
+-- every HUD module (Radar, WorldHud, SquadHud) places its part from the same plan
+Kit.hudOpts = { touch = true, leftHanded = false, user = 1, present = {} } :: { [string]: any }
+function Kit.setHudOpts(o: { [string]: any })
+	local changed = false
+	for k, v in o do
+		if Kit.hudOpts[k] ~= v then
+			Kit.hudOpts[k] = v
+			changed = true
+		end
+	end
+	if changed then
+		Kit.LayoutChanged:Fire()
+	end
+end
+function Kit.hudOptions(): { [string]: any }
+	local o = table.clone(Kit.hudOpts)
+	o.user = Kit.buttonScale
+	return o
+end
+function Kit.hudBoxes(): TouchLayout.HudBoxes
+	local a = Kit.area()
+	return TouchLayout.hud(Config, a.X, a.Y, Kit.hudOptions() :: any)
+end
+
+-- Size a centred panel to the screen: it fills the safe area (less a margin) up to maxW x maxH, and below
+-- minW x minH it keeps that design size and draws smaller with a UIScale (never under
+-- Config.Ui.phone.minPanelScale; a list inside it scrolls). Follows rotation and resizes.
+function Kit.fit(panel: GuiObject, minW: number, minH: number, maxW: number, maxH: number)
+	local P = Config.Ui.phone
+	local scale = panel:FindFirstChild("Fit") :: UIScale?
+	if not scale then
+		local s = Instance.new("UIScale")
+		s.Name = "Fit"
+		s.Parent = panel
+		scale = s
+	end
+	for _, c in panel:GetChildren() do
+		if c:IsA("UISizeConstraint") then
+			c:Destroy() -- the fit sets the size itself
+		end
+	end
+	local function apply()
+		local a = Kit.area()
+		local w, h = a.X - 2 * P.panelMargin, a.Y - 2 * P.panelMargin
+		local k = TouchLayout.panelScale(Config, a.X, a.Y, minW, minH)
+		panel.AnchorPoint = Vector2.new(0.5, 0.5)
+		panel.Position = UDim2.fromScale(0.5, 0.5)
+		panel.Size = UDim2.fromOffset(
+			math.floor(math.clamp(w / k, minW, maxW)),
+			math.floor(math.clamp(h / k, minH, maxH))
+		);
+		(scale :: UIScale).Scale = k
+		panel:SetAttribute("FitScale", k)
+	end
+	apply()
+	Kit.LayoutChanged:Connect(apply)
+end
+
+---------------------------------------------------------------------------
+-- The top row of screen buttons (POWERS, GEAR, MAP, SHOP, PING ...) from every module, laid out by
+-- TouchLayout.dock; what does not fit on a phone goes in the MORE drawer. Each owner still shows and hides
+-- its own button; the row closes up around hidden ones.
+---------------------------------------------------------------------------
+type DockEntry = { id: string, order: number, button: GuiButton, slot: Frame }
+local dockGui: ScreenGui? = nil
+local dockEntries: { DockEntry } = {}
+local dockDrawer: ScrollingFrame? = nil
+local dockMore: TextButton? = nil
+local dockOpen = false
+local dockSpan = { lo = 274, hi = -1, fromLo = false }
+local dockQueued = false
+Kit.DockLaid = Signal.new() -- after the row is laid out (the plan, for whoever needs the row's height)
+
+local layoutDock: () -> ()
+
+local function queueDock()
+	if dockQueued then
+		return
+	end
+	dockQueued = true
+	task.defer(function()
+		dockQueued = false
+		layoutDock()
+	end)
+end
+
+local function dockScreen(): ScreenGui
+	if dockGui then
+		return dockGui
+	end
+	local g = Kit.screen("Dock", 1)
+	dockGui = g
+	local drawer = Instance.new("ScrollingFrame")
+	drawer.Name = "Drawer"
+	drawer.BackgroundColor3 = Kit.color.night
+	drawer.BackgroundTransparency = 0.15
+	drawer.BorderSizePixel = 0
+	drawer.ScrollBarThickness = 4
+	drawer.ScrollingDirection = Enum.ScrollingDirection.Y
+	drawer.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	drawer.CanvasSize = UDim2.new()
+	drawer.Visible = false
+	Kit.round(drawer)
+	local list = Instance.new("UIListLayout")
+	list.Padding = UDim.new(0, 6)
+	list.SortOrder = Enum.SortOrder.LayoutOrder
+	list.Parent = drawer
+	local pad = Instance.new("UIPadding")
+	for _, side in { "PaddingTop", "PaddingBottom", "PaddingLeft", "PaddingRight" } do
+		(pad :: any)[side] = UDim.new(0, 6)
+	end
+	pad.Parent = drawer
+	drawer.Parent = g
+	dockDrawer = drawer
+	local more = Kit.button({
+		Name = "More",
+		Text = "MORE",
+		BackgroundColor3 = Kit.color.paper,
+		Visible = false,
+		maxText = 20,
+	}, function()
+		Kit.dockDrawer(not dockOpen)
+	end)
+	more.Parent = g
+	dockMore = more
+	Kit.LayoutChanged:Connect(queueDock)
+	return g
+end
+
+function layoutDock()
+	local g = dockScreen()
+	local a = Kit.area()
+	local hi = if dockSpan.hi < 0 then a.X - Config.Ui.safe else dockSpan.hi
+	local items = {}
+	local byId: { [string]: DockEntry } = {}
+	for _, e in dockEntries do
+		if e.button.Parent == e.slot and e.button.Visible then
+			table.insert(items, { id = e.id, text = e.button.Text, order = e.order })
+			byId[e.id] = e
+		else
+			e.slot.Visible = false
+		end
+	end
+	local plan = TouchLayout.dock(Config, items, dockSpan.lo, hi, a.X, a.Y, dockSpan.fromLo)
+	for id, box in plan.row do
+		local e = byId[id]
+		e.slot.Parent = g
+		e.slot.Position = UDim2.fromOffset(box.x, box.y)
+		e.slot.Size = UDim2.fromOffset(box.w, box.h)
+		e.slot.Visible = true
+	end
+	local drawer = dockDrawer :: ScrollingFrame
+	for i, id in plan.drawer do
+		local e = byId[id]
+		e.slot.Parent = drawer
+		e.slot.LayoutOrder = i
+		e.slot.Size = UDim2.new(1, 0, 0, plan.height)
+		e.slot.Visible = true
+	end
+	local more = dockMore :: TextButton
+	more.Visible = plan.more ~= nil
+	if plan.more then
+		local m = plan.more
+		more.Position = UDim2.fromOffset(m.x, m.y)
+		more.Size = UDim2.fromOffset(m.w, m.h)
+		local dw = Config.Ui.phone.drawerW
+		local x = if dockSpan.fromLo then m.x else m.x + m.w - dw
+		local y = m.y + m.h + 6
+		local rows = #plan.drawer
+		local want = rows * (plan.height + 6) + 6
+		drawer.Position = UDim2.fromOffset(x, y)
+		drawer.Size = UDim2.fromOffset(dw, math.min(want, a.Y - y - Config.Ui.safe))
+	else
+		dockOpen = false
+	end
+	drawer.Visible = dockOpen and plan.more ~= nil
+	Kit.DockLaid:Fire(plan)
+end
+
+-- Put a screen button in the top row. order: lower is more important (nearer the right edge, last to
+-- go in the drawer).
+function Kit.dock(button: GuiButton, id: string, order: number)
+	dockScreen()
+	local slot = Instance.new("Frame")
+	slot.Name = id
+	slot.BackgroundTransparency = 1
+	slot.Visible = false
+	button.AnchorPoint = Vector2.zero
+	button.Position = UDim2.new()
+	button.Size = UDim2.fromScale(1, 1)
+	button.Parent = slot
+	slot.Parent = dockGui
+	table.insert(dockEntries, { id = id, order = order, button = button, slot = slot })
+	button:GetPropertyChangedSignal("Visible"):Connect(queueDock)
+	if button:IsA("TextButton") then
+		button:GetPropertyChangedSignal("Text"):Connect(queueDock)
+	end
+	button.Activated:Connect(function()
+		if dockOpen and slot.Parent == dockDrawer then
+			Kit.dockDrawer(false) -- a pick from the drawer closes it
+		end
+	end)
+	queueDock()
+end
+
+-- Where the row may go (the HUD sets it from TouchLayout.hud): x from lo to hi, filled from hi (or lo)
+function Kit.dockSpan(lo: number, hi: number, fromLo: boolean)
+	dockSpan.lo, dockSpan.hi, dockSpan.fromLo = lo, hi, fromLo
+	queueDock()
+end
+
+function Kit.dockDrawer(open: boolean)
+	dockOpen = open
+	if dockDrawer then
+		dockDrawer.Visible = open and dockMore ~= nil and dockMore.Visible
+	end
+end
+
+-- The whole row (the opening shows only its verb buttons)
+function Kit.dockShown(on: boolean)
+	dockScreen().Enabled = on
+	if not on then
+		Kit.dockDrawer(false)
+	end
+end
+
+-- Gamepad: open the drawer and select the row's first button (the D-pad then moves between them)
+function Kit.dockSelect(): GuiButton?
+	layoutDock()
+	local first: GuiButton? = nil
+	local best = math.huge
+	for _, e in dockEntries do
+		if e.slot.Visible and e.slot.Parent == dockGui and e.order < best then
+			first, best = e.button, e.order
+		end
+	end
+	if dockMore and dockMore.Visible then
+		Kit.dockDrawer(true)
+	end
+	return first
+end
+
+-- Lay the row out now (tests, and after the HUD builds)
+function Kit.layoutDock()
+	layoutDock()
+end
+
 function Kit.screen(name: string, order: number?): ScreenGui
 	local gui = Instance.new("ScreenGui")
 	gui.Name = name
@@ -210,21 +514,27 @@ function Kit.stateNote(parent: Instance, kind: string, text: string, retry: (() 
 	return f
 end
 
-function Kit.bounce(inst: GuiObject)
+-- The object's UIScale and the size it rests at (a fitted panel rests at its fit, Kit.fit)
+local function restScale(inst: GuiObject): (UIScale, number)
 	local scale = inst:FindFirstChildOfClass("UIScale") or Instance.new("UIScale")
 	scale.Parent = inst
-	scale.Scale = 0.9
+	local fit = inst:GetAttribute("FitScale")
+	return scale, if type(fit) == "number" then fit else 1
+end
+
+function Kit.bounce(inst: GuiObject)
+	local scale, rest = restScale(inst)
+	scale.Scale = 0.9 * rest
 	TweenService
-		:Create(scale, TweenInfo.new(0.18, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 })
+		:Create(scale, TweenInfo.new(0.18, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = rest })
 		:Play()
 end
 
 function Kit.pulse(inst: GuiObject, amount: number?)
-	local scale = inst:FindFirstChildOfClass("UIScale") or Instance.new("UIScale")
-	scale.Parent = inst
-	scale.Scale = 1 + (amount or 0.12)
+	local scale, rest = restScale(inst)
+	scale.Scale = (1 + (amount or 0.12)) * rest
 	TweenService
-		:Create(scale, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Scale = 1 })
+		:Create(scale, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Scale = rest })
 		:Play()
 end
 

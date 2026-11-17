@@ -15,7 +15,6 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Shared = ReplicatedStorage:WaitForChild("Shared")
@@ -1082,13 +1081,32 @@ local function randomize()
 	refresh()
 end
 
--- Phones: the list becomes a drawer along the bottom, the hero and card share the top
+-- Layout (phone pass): landscape phones keep the three columns (choices, hero, card) and slim the chrome
+-- (no title, 40 px step tabs, 44 px bottom buttons); only a narrow (portrait) screen gets the bottom drawer.
+local titleLabel: TextLabel
+local randButton: TextButton
 local function layout()
-	local vp = (Workspace.CurrentCamera :: Camera).ViewportSize
-	local phone = vp.X < 820
-	local top = 50 + T + 12
-	local bottom = T + 40
-	if phone then
+	local area = Kit.area()
+	local tight = Kit.compact()
+	local narrow = area.X < 560
+	local tab = if tight then 40 else T
+	local bar = if tight then 44 else T
+	local below = if tight then 8 else 20 -- the bottom bar's gap to the screen edge
+	titleLabel.Visible = not tight
+	stepRow.Position = UDim2.fromOffset(10, if tight then 6 else 50)
+	stepRow.Size = UDim2.new(1, -20, 0, tab)
+	local top = (if tight then 6 else 50) + tab + (if tight then 8 else 12)
+	local bottom = bar + below + (if tight then 24 else 20)
+	status.Position = UDim2.new(0.5, 0, 1, -bar - below - 2)
+	local bw, rw = if tight then 110 else 140, if tight then 140 else 170
+	for i, b in { backButton, cancelButton, randButton, nextButton } do
+		b.Size = UDim2.fromOffset(if i <= 2 then bw else rw, bar)
+	end
+	backButton.Position = UDim2.new(0, 10, 1, -below)
+	cancelButton.Position = UDim2.new(0, 20 + bw, 1, -below)
+	randButton.Position = UDim2.new(0.5, if tight then 50 else 0, 1, -below)
+	nextButton.Position = UDim2.new(1, -16, 1, -below)
+	if narrow then
 		list.Size = UDim2.new(1, -20, 0.34, -bottom)
 		list.Position = UDim2.new(0, 10, 0.66, 0)
 		preview.frame.Size = UDim2.new(0.45, -10, 0.66, -top - 40)
@@ -1098,18 +1116,19 @@ local function layout()
 		nameLabel.Position = UDim2.new(0, 10, 0.66, -8)
 		nameLabel.Size = UDim2.new(0.45, -10, 0, 30)
 	else
+		local nameH = if tight then 28 else 34
 		list.Size = UDim2.new(0.26, -10, 1, -top - bottom)
 		list.Position = UDim2.fromOffset(10, top)
-		preview.frame.Size = UDim2.new(0.36, -10, 1, -top - bottom - 40)
+		preview.frame.Size = UDim2.new(0.36, -10, 1, -top - bottom - nameH - 6)
 		preview.frame.Position = UDim2.new(0.26, 5, 0, top)
 		detail.Size = UDim2.new(0.38, -15, 1, -top - bottom)
 		detail.Position = UDim2.new(0.62, 5, 0, top)
-		nameLabel.Position = UDim2.new(0.26, 5, 1, -bottom - 4)
-		nameLabel.Size = UDim2.new(0.36, -10, 0, 34)
+		nameLabel.Position = UDim2.new(0.26, 5, 1, -bottom - nameH)
+		nameLabel.Size = UDim2.new(0.36, -10, 0, nameH)
 	end
 	local g = grid:FindFirstChildOfClass("UIGridLayout")
 	if g then
-		g.CellSize = UDim2.fromOffset(if phone then 96 else 118, T + 12)
+		g.CellSize = UDim2.fromOffset(if narrow or tight then 96 else 118, (if tight then 44 else T) + 12)
 	end
 end
 
@@ -1122,7 +1141,7 @@ local function build()
 		round = false,
 	})
 	panel.Parent = gui
-	local title = Kit.label({
+	titleLabel = Kit.label({
 		Text = "WHO ARE YOU?",
 		Size = UDim2.new(0, 260, 0, 40),
 		Position = UDim2.fromOffset(10, 6),
@@ -1130,7 +1149,7 @@ local function build()
 		TextXAlignment = Enum.TextXAlignment.Left,
 		maxText = 34,
 	})
-	title.Parent = panel
+	titleLabel.Parent = panel
 	-- the step tabs (BODY > SIDE > ... > PLAY)
 	stepRow = Instance.new("Frame")
 	stepRow.BackgroundTransparency = 1
@@ -1274,14 +1293,14 @@ local function build()
 		CreatorScreen.close()
 	end)
 	cancelButton.Parent = panel
-	local rand = Kit.button({
+	randButton = Kit.button({
 		Text = "RANDOMIZE",
 		AnchorPoint = Vector2.new(0.5, 1),
 		Size = UDim2.fromOffset(170, T),
 		Position = UDim2.new(0.5, 0, 1, -20),
 		BackgroundColor3 = Kit.color.paper,
 	}, randomize)
-	rand.Parent = panel
+	randButton.Parent = panel
 	nextButton = Kit.button({
 		Text = "NEXT",
 		AnchorPoint = Vector2.new(1, 1),
@@ -1297,10 +1316,7 @@ local function build()
 	end)
 	nextButton.Parent = panel
 	layout()
-	local cam = Workspace.CurrentCamera
-	if cam then
-		cam:GetPropertyChangedSignal("ViewportSize"):Connect(layout)
-	end
+	Kit.LayoutChanged:Connect(layout)
 end
 
 -- opts: { mode, side, classIdx, pathOpen, step (a STEPS id) }

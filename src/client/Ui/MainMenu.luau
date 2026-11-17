@@ -107,6 +107,7 @@ function MainMenu.init()
 	})
 	Kit.stroke(panel, Kit.color.gold, 3)
 	panel.Parent = gui
+	Kit.fit(panel, 380, 150 + 3 * (T + 18), 380, 150 + 3 * (T + 18)) -- phone pass: scales down on a short screen
 	local title = Kit.label({
 		Text = "CAPELINE",
 		Size = UDim2.new(1, -20, 0, 70),

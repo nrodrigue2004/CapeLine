@@ -278,6 +278,16 @@ Checks (DEV panel "3x" until a Spark Trooper comes up):
 7b. Turning: the eyes stay human while it patrols. The first time it winds up an attack or a piece breaks, the whites go dark and the irises glow (red during each windup) and stay that way.
 8. Performance: about 5,000 triangles a robot; 60 on PC (High) and 20 on a phone (Low) hold the frame rate.
 
+### Phone pass (2026-11-17)
+The Output at boot says build phone-pass (2026-11-17). Use Test > Device (the Device Emulator) and pick each of: iPhone SE (667 x 375), iPhone 14 Pro (notch), a 20:9 Android (Galaxy S-series or Pixel), iPad, then back to the PC view. Landscape for the phones. Press Play on each. `lune run tests/run.luau build/Capeline.rbxl` already checks every screen headless at these sizes (tests/uisim.luau); this list is what only a real screen and a real thumb can show.
+1. HUD on each phone: the action buttons sit bottom right in rings (Basic biggest, Z X C V around it, the super outside, Leap, Fly, Boost with its stamina dots, Down, Gadget, Swap and Awaken at the edges), nothing under Roblox's top bar or the notch, nothing in the lower-left move stick area. The radar is small top left, the status card beside it, the tracker under it. The top row (POWERS, GEAR, MAP, SHOP ...) fits on one line and the rest is in MORE; MORE opens a scrolling drawer and a pick closes it.
+2. Thumbs: walk with the left thumb while pressing every button with the right; nothing is hard to hit or hit by mistake. Hold a skill button and drag: the camera turns to aim, lift to cast. Hold a damaging skill: its ring thickens as it charges and turns white at full. A cooldown shows its seconds on the button.
+3. Settings > Button size: 80% to 130% grows and shrinks the cluster and it never leaves the screen (on a phone 100% is already the biggest that fits). Left-handed: the cluster moves bottom left, the corner group top right, our own stick on the right, all still clear of each other.
+4. Open every screen on the iPhone SE: POWERS, GEAR, MAP, SHOP, JOURNAL, SETTINGS, SQUAD, the Weapon Rack, PHOTO, the contract board, the HQ stations, the creator (Create or Edit Hero) and the main menu. Each fits the screen (scaled down a little at most), long lists scroll, the close button is reachable, no text under about 10 px.
+5. iPad: the radar sits beside the status card (the move stick owns the lower left) and the cluster is full size. PC: the same layout a little smaller, the key letter on top of each button.
+6. Controller (Xbox in the emulator or a pad on the PC): Select opens the top row and selects its first button (MORE too); X also catches in the opening; every action still has its button.
+7. Quality: on a phone the Dev panel shows the low preset (no shadows, bloom or sun rays, 30 citizens drawn, fewer particles); a PC starts on medium. On Auto, a game that stays under 26 fps for 20 s (for example the 30-bot load test, LoadBots) steps down one preset and never back up; a fixed preset in Settings stays put.
+
 ### Hold to aim and charge (2026-11-17)
 The Output at boot says build aim-charge (2026-11-17).
 1. Tap Z, X, C or V: the skill goes off on release, as quick as before. The basic (click) still fires on press and on hold.

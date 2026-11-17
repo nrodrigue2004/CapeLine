@@ -102,6 +102,11 @@ local function build()
 		maxText = 12,
 	})
 	flagNote.Parent = gui
+	-- phone pass: the switch joins the top row; its note sits under the row's middle
+	Kit.dock(flagButton, "Pvp", 6)
+	flagNote.AnchorPoint = Vector2.new(0.5, 0)
+	flagNote.Position = UDim2.new(0.5, 0, 0, U.safe + s + 2)
+	flagNote.TextXAlignment = Enum.TextXAlignment.Center
 	protectBadge = Kit.label({
 		Text = "SHIELDED",
 		AnchorPoint = Vector2.new(0.5, 0),

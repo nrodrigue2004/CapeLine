@@ -147,11 +147,11 @@ local function card(order: number, key: string)
 	n.Parent = f
 	local d = Kit.label({
 		Text = desc,
-		Size = UDim2.new(1, -12, 0, 40),
+		Size = UDim2.new(1, -12, 0, 60),
 		Position = UDim2.fromOffset(6, 30),
 		Font = Kit.bodyFont,
 		TextWrapped = true,
-		maxText = 12,
+		maxText = 13,
 	})
 	d.Parent = f
 	local equipped = (kind == "tint" and State.profile.tint == row.tint)
@@ -238,6 +238,7 @@ local function build()
 	})
 	Kit.stroke(panel, Kit.color.gold, 3)
 	panel.Parent = gui
+	Kit.fit(panel, 600, 286, 1100, 760) -- phone pass: scales down to fit a phone's safe area
 	local title = Kit.label({
 		Text = "SHOP",
 		Size = UDim2.new(0.5, 0, 0, 38),
@@ -271,7 +272,7 @@ local function build()
 	status.Parent = panel
 	tabRow = Instance.new("Frame")
 	tabRow.BackgroundTransparency = 1
-	tabRow.Position = UDim2.new(0.32, 0, 0, 52)
+	tabRow.Position = UDim2.new(0.32, 0, 0, 58) -- phone pass: clear of CLOSE
 	tabRow.Size = UDim2.new(0.68, -12, 0, T - 6)
 	tabRow.Parent = panel
 	local tl = Instance.new("UIListLayout")
@@ -294,8 +295,8 @@ local function build()
 	end
 	grid = Instance.new("ScrollingFrame")
 	grid.BackgroundTransparency = 1
-	grid.Position = UDim2.new(0.32, 0, 0, 52 + T + 4)
-	grid.Size = UDim2.new(0.68, -12, 1, -(60 + T))
+	grid.Position = UDim2.new(0.32, 0, 0, 58 + T)
+	grid.Size = UDim2.new(0.68, -12, 1, -(66 + T))
 	grid.AutomaticCanvasSize = Enum.AutomaticSize.Y
 	grid.CanvasSize = UDim2.new()
 	grid.ScrollBarThickness = 6

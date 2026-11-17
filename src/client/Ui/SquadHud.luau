@@ -235,6 +235,14 @@ function SquadHud.init()
 	ll.SortOrder = Enum.SortOrder.LayoutOrder
 	ll.Parent = list
 	list.Parent = gui
+	-- phone pass: the list's place comes from the HUD plan (under the radar; clear of a left-handed cluster)
+	local function place()
+		local b = Kit.hudBoxes().squad
+		list.Position = UDim2.fromOffset(b.x, b.y)
+		list.Size = UDim2.fromOffset(b.w, b.h)
+	end
+	place()
+	Kit.LayoutChanged:Connect(place)
 
 	panel = Kit.frame({
 		AnchorPoint = Vector2.new(0.5, 0.5),

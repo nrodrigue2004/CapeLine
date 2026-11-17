@@ -79,11 +79,14 @@ local function note(text: string)
 	local l = Kit.label({
 		Text = text,
 		Size = UDim2.new(1, -8, 0, 22),
+		AutomaticSize = Enum.AutomaticSize.Y, -- phone pass: long notes wrap instead of shrinking
 		LayoutOrder = order,
 		TextColor3 = Kit.color.paper,
 		Font = Kit.bodyFont,
 		TextXAlignment = Enum.TextXAlignment.Left,
-		maxText = 15,
+		TextWrapped = true,
+		TextScaled = false,
+		TextSize = 14,
 	})
 	l.Parent = body
 end
