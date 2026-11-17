@@ -678,6 +678,35 @@ local KITS: { [string]: { [string]: { Spec } } } = {
 		),
 	},
 }
+
+-- 2026-11-17 fix: the first Gloves and Boots kits were sized for slimmer hands, feet and lower limbs than the
+-- blocky rig's (Config.HeroRig: hands and feet 1 x 0.3 x 1, forearms and shins 1 wide), so they sat hidden
+-- inside the body. Widen each one about its body part's centre so it wraps the outside, design unchanged.
+local FIT: { [string]: Vector3 } = {
+	lhand = V(1.93, 0.7, 1.93),
+	rhand = V(1.93, 0.7, 1.93),
+	llarm = V(1.77, 1, 1.77),
+	rlarm = V(1.77, 1, 1.77),
+	lfoot = V(1.6, 0.8, 1.1),
+	rfoot = V(1.6, 0.8, 1.1),
+	lshin = V(1.7, 1, 1.7),
+	rshin = V(1.7, 1, 1.7),
+}
+for _, tab in { "hands", "feet" } do
+	for kit, specs in KITS[tab] do
+		local out = {}
+		for i, s in specs do
+			local f = FIT[s.at]
+			local c = table.clone(s)
+			if f then
+				c.size = s.size * f
+				c.cf = CF(s.cf.Position * f) * s.cf.Rotation
+			end
+			out[i] = c
+		end
+		KITS[tab][kit] = out
+	end
+end
 LookKit.KITS = KITS
 
 -- Full helmets and hoods hide the hair (no clipping)

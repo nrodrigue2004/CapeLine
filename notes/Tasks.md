@@ -220,6 +220,14 @@ nate's plan: https://claude.ai/artifact/VeuJPWz6kKE6gGsUBmqQC9. Use a fresh hero
 9. Body sizes and doors: as a Titan and as a Small hero, walk through a safehouse shelter, a doorway and under a low ledge: both fit the same places a Medium hero does (one standard collider), and nobody falls through the floor or sinks into it.
 10. Old heroes: a hero made before this update keeps its look (no missing pieces), has Bare Fists on 2 and Male Medium Average.
 
+### Creator pieces to 503 (2026-11-17)
+The Output at boot says build creator-503 (2026-11-17). Open the creator (Create First or the HQ mirror). DEV: the Dev panel's "pieces" command unlocks every piece.
+1. Every tab shows its new pieces, scrolls smoothly, and each piece shows on the preview the moment you pick it: 20 more hair styles, beards, 15 faces, makeup, ears, eye shapes (sharp, round, slit, visor and so on), 20 more emblems, 10 headwear, 14 masks, 30 tops, shoulders, neck pieces, arms, 8 gloves, wrist pieces, belts, 18 legs, 14 boots, back bling and 3 capes.
+2. Spot check that pieces sit on the body, not floating or buried: the Ninja Wrap, Do-rag, Bucket Hat and Aviator Cap hide the hair; the Space Suit, Puffer Jacket, Mystic Robe and Kimono look right on a Small and a Titan body; Roller Skates and Flippers sit at the feet; the Hooded Cape and Star Cape hang like the old capes.
+3. The old gloves and boots (Gloves, Long Cuffs, Spiked, Gauntlets, Claws, Wraps, Boots, Tall Boots, Sneakers, Winged, Jet, Armored) were sized for slimmer hands and sat hidden inside the body; they are now widened to wrap the hands, forearms, feet and shins. Check each one shows and none look oversized.
+4. Locked pieces say how to earn them (level, quest, mission, rep, Fame, Legacy or drop), and Randomize uses the new pieces.
+5. Save, rejoin: the look comes back the same (pieces past id 860 included).
+
 ### All 36 weapons playable (2026-11-17)
 The Output at boot says build all-weapons (2026-11-17). DEV: give Credits, buy weapons at the Weapon Rack (or set mastery to 150 to open X, C and V).
 1. Weapon Rack and creator: no weapon says "Coming soon"; every Rack weapon can be bought and carried, and the creator's free pick offers all 31 Rack weapons.

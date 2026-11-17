@@ -1566,6 +1566,452 @@ neck.ruff = {
 	),
 }
 
+-- arms: 7 more
+armsKit.elbowpads =
+	forearms(S("llarm", V(0.7, 0.3, 0.14), CF(0, 0.32, 0.53), "dark", { mat = Enum.Material.Rubber }))
+armsKit.rolled = cat(
+	arms(S("luarm", V(1.06, 0.87, 1.06), CF(0, 0, 0), "white", FABRIC)),
+	forearms(S("llarm", V(1.1, 0.2, 1.1), CF(0, 0.32, 0), "white", FABRIC))
+)
+armsKit.chains = cat(
+	forearms(S("llarm", V(1.06, 0.08, 1.06), CF(0, 0.1, 0) * rz(12), "white", METAL)),
+	forearms(S("llarm", V(1.06, 0.08, 1.06), CF(0, -0.15, 0) * rz(-12), "white", METAL))
+)
+armsKit.fins = forearms(S("llarm", V(0.1, 0.7, 0.5), CF(-0.55, 0, 0.2) * rx(15), "a", { shape = "Wedge" }))
+armsKit.runes = cat(
+	arms(S("luarm", V(1.04, 0.1, 1.04), CF(0, 0.1, 0), "a", GLOW)),
+	arms(S("luarm", V(0.03, 0.3, 0.3), CF(-0.52, -0.15, 0) * rx(45), "a", GLOW))
+)
+armsKit.scales = cat(
+	forearms(S("llarm", V(1.08, 0.2, 1.08), CF(0, 0.2, 0) * rz(8), "p", METAL)),
+	forearms(S("llarm", V(1.08, 0.2, 1.08), CF(0, 0, 0) * rz(8), "s", METAL)),
+	forearms(S("llarm", V(1.08, 0.2, 1.08), CF(0, -0.2, 0) * rz(8), "p", METAL))
+)
+armsKit.longsleeve = cat(
+	arms(S("luarm", V(1.05, 0.87, 1.05), CF(0, 0, 0), "s", FABRIC)),
+	forearms(S("llarm", V(1.05, 0.87, 1.05), CF(0, 0, 0), "s", FABRIC))
+)
+
+-- gloves: the Gloves slot's 2026-11-17 extras. The hands are 1 x 0.3 x 1 (the wrist is y = 0.15).
+local function hands(spec: Spec): { Spec }
+	return both(spec, "lhand", "rhand")
+end
+local GLOVE = V(1.06, 0.34, 1.06)
+local handsKit = {
+	boxing = cat(
+		hands(S("lhand", V(1.3, 0.6, 1.3), CF(0, -0.12, -0.05), "p", { shape = "Ball" })),
+		forearms(S("llarm", V(1.08, 0.2, 1.08), CF(0, WB + 0.04, 0), "white"))
+	),
+	knuckle = cat(
+		hands(S("lhand", GLOVE, CF(0, 0, 0), "dark", { mat = Enum.Material.Leather })),
+		hands(S("lhand", V(0.9, 0.14, 0.14), CF(0, -0.05, -0.55), "s", METAL))
+	),
+	mittens = cat(
+		hands(S("lhand", V(1.1, 0.4, 1.1), CF(0, -0.02, 0), "p", FABRIC)),
+		forearms(S("llarm", V(1.12, 0.14, 1.12), CF(0, WB, 0), "white", FABRIC))
+	),
+	work = cat(
+		hands(S("lhand", GLOVE, CF(0, 0, 0), "s", { mat = Enum.Material.Leather })),
+		forearms(S("llarm", V(1.14, 0.3, 1.14), CF(0, WB + 0.08, 0), "s", { mat = Enum.Material.Leather }))
+	),
+	tech = cat(
+		hands(S("lhand", GLOVE, CF(0, 0, 0), "dark")),
+		hands(S("lhand", V(0.04, 0.06, 0.9), CF(-0.54, 0, 0), "a", GLOW)),
+		hands(S("lhand", V(0.3, 0.06, 0.04), CF(0, 0, -0.54), "a", GLOW))
+	),
+	crystal = cat(
+		hands(S("lhand", GLOVE, CF(0, 0, 0), "s")),
+		hands(
+			S("lhand", V(0.2, 0.4, 0.2), CF(-0.3, 0.05, -0.45) * rz(30), "a", { mat = Enum.Material.Glass })
+		),
+		hands(
+			S(
+				"lhand",
+				V(0.16, 0.32, 0.16),
+				CF(0.2, 0.05, -0.48) * rz(-20),
+				"a",
+				{ mat = Enum.Material.Glass }
+			)
+		)
+	),
+	talons = cat(
+		hands(S("lhand", GLOVE, CF(0, 0, 0), "dark")),
+		hands(S("lhand", V(0.08, 0.35, 0.08), CF(-0.3, -0.3, -0.45), "white", { shape = "Wedge" })),
+		hands(S("lhand", V(0.08, 0.35, 0.08), CF(0, -0.3, -0.45), "white", { shape = "Wedge" })),
+		hands(S("lhand", V(0.08, 0.35, 0.08), CF(0.3, -0.3, -0.45), "white", { shape = "Wedge" }))
+	),
+	flame = cat(
+		hands(S("lhand", GLOVE, CF(0, 0, 0), "dark")),
+		hands(
+			S(
+				"lhand",
+				V(0.5, 0.6, 0.5),
+				CF(0, -0.3, 0),
+				"glowRed",
+				{ neon = true, alpha = 0.35, shape = "Ball" }
+			)
+		)
+	),
+}
+
+-- shoes: the Boots slot's 2026-11-17 extras. The feet are 1 x 0.3 x 1 (the toe is z = -0.5).
+local function feet(spec: Spec): { Spec }
+	return both(spec, "lfoot", "rfoot")
+end
+local SHOE = V(1.06, 0.34, 1.1)
+local feetKit = {
+	sandals = cat(
+		feet(S("lfoot", V(1.04, 0.08, 1.1), CF(0, -0.15, -0.03), "s", { mat = Enum.Material.Leather })),
+		feet(S("lfoot", V(1.04, 0.06, 0.12), CF(0, 0.05, -0.3), "s", { mat = Enum.Material.Leather }))
+	),
+	hightops = cat(
+		feet(S("lfoot", SHOE, CF(0, 0, -0.04), "white")),
+		feet(S("lfoot", V(1.08, 0.08, 1.12), CF(0, -0.14, -0.04), "dark")),
+		shins(S("lshin", V(1.06, 0.35, 1.06), CF(0, -0.26, 0), "white"))
+	),
+	geta = cat(
+		feet(S("lfoot", V(1.0, 0.1, 1.1), CF(0, -0.18, -0.03), "s", { mat = Enum.Material.Wood })),
+		feet(S("lfoot", V(0.9, 0.2, 0.15), CF(0, -0.32, -0.3), "s", { mat = Enum.Material.Wood })),
+		feet(S("lfoot", V(0.9, 0.2, 0.15), CF(0, -0.32, 0.3), "s", { mat = Enum.Material.Wood }))
+	),
+	tabi = cat(
+		feet(S("lfoot", SHOE, CF(0, 0, -0.04), "dark", FABRIC)),
+		feet(S("lfoot", V(0.04, 0.3, 0.3), CF(0.15, 0, -0.45), "s", FABRIC)),
+		shins(S("lshin", V(1.06, 0.3, 1.06), CF(0, -0.28, 0), "dark", FABRIC))
+	),
+	combat = cat(
+		feet(S("lfoot", V(1.08, 0.38, 1.14), CF(0, 0, -0.04), "dark", { mat = Enum.Material.Leather })),
+		shins(S("lshin", V(1.08, 0.5, 1.08), CF(0, -0.2, 0), "dark", { mat = Enum.Material.Leather })),
+		shins(S("lshin", V(1.1, 0.06, 1.1), CF(0, -0.1, 0), "s"))
+	),
+	moon = cat(
+		feet(S("lfoot", V(1.2, 0.45, 1.2), CF(0, 0.02, -0.04), "white")),
+		shins(S("lshin", V(1.2, 0.5, 1.2), CF(0, -0.2, 0), "white")),
+		shins(S("lshin", V(1.22, 0.08, 1.22), CF(0, 0.05, 0), "a"))
+	),
+	skates = cat(
+		feet(S("lfoot", SHOE, CF(0, 0, -0.04), "p")),
+		feet(S("lfoot", V(0.2, 0.2, 0.2), CF(-0.25, -0.25, -0.35) * ROT_Y, "dark", { shape = "Cylinder" })),
+		feet(S("lfoot", V(0.2, 0.2, 0.2), CF(-0.25, -0.25, 0.3) * ROT_Y, "dark", { shape = "Cylinder" })),
+		feet(S("lfoot", V(0.2, 0.2, 0.2), CF(0.25, -0.25, -0.35) * ROT_Y, "dark", { shape = "Cylinder" })),
+		feet(S("lfoot", V(0.2, 0.2, 0.2), CF(0.25, -0.25, 0.3) * ROT_Y, "dark", { shape = "Cylinder" }))
+	),
+	flippers = cat(
+		feet(S("lfoot", SHOE, CF(0, 0, -0.04), "dark", { mat = Enum.Material.Rubber })),
+		feet(S("lfoot", V(1.1, 0.06, 1.3), CF(0, -0.15, -1.1), "a", { mat = Enum.Material.Rubber }))
+	),
+	hover = cat(
+		feet(S("lfoot", SHOE, CF(0, 0, -0.04), "s", METAL)),
+		feet(
+			S(
+				"lfoot",
+				V(0.06, 0.9, 0.9),
+				CF(0, -0.22, 0) * FLAT,
+				"a",
+				{ shape = "Cylinder", neon = true, alpha = 0.2 }
+			)
+		)
+	),
+	spikes = cat(
+		feet(S("lfoot", SHOE, CF(0, 0, -0.04), "dark")),
+		shins(S("lshin", V(0.12, 0.3, 0.12), CF(0, -0.1, -0.56) * rx(-30), "white", { shape = "Wedge" })),
+		shins(S("lshin", V(0.12, 0.3, 0.12), CF(-0.56, -0.1, 0) * rz(30), "white", { shape = "Wedge" }))
+	),
+	fur = cat(
+		feet(S("lfoot", SHOE, CF(0, 0, -0.04), "s", { mat = Enum.Material.Leather })),
+		shins(S("lshin", V(1.2, 0.4, 1.2), CF(0, -0.22, 0), "white", FABRIC))
+	),
+	slippers = cat(
+		feet(S("lfoot", V(1.08, 0.36, 1.12), CF(0, 0, -0.04), "p", FABRIC)),
+		feet(
+			S(
+				"lfoot",
+				V(0.3, 0.3, 0.3),
+				CF(0, 0.15, -0.4),
+				"white",
+				{ shape = "Ball", mat = Enum.Material.Fabric }
+			)
+		)
+	),
+	loafers = cat(
+		feet(S("lfoot", SHOE, CF(0, 0, -0.04), "dark", { mat = Enum.Material.Leather })),
+		feet(S("lfoot", V(0.5, 0.06, 0.08), CF(0, 0.12, -0.35), "gold", GOLD))
+	),
+	ice = cat(
+		feet(S("lfoot", SHOE, CF(0, 0, -0.04), "ice", { mat = Enum.Material.Glass })),
+		shins(S("lshin", V(1.1, 0.5, 1.1), CF(0, -0.2, 0), "ice", { mat = Enum.Material.Glass, alpha = 0.2 }))
+	),
+}
+
+-- rings and bracelets: 6 more
+wrist.watch = cat(
+	S("llarm", V(1.08, 0.12, 1.08), CF(0, WB + 0.02, 0), "dark"),
+	S("llarm", V(0.3, 0.16, 0.06), CF(0, WB + 0.02, -0.56), "a", GLOW)
+)
+wrist.bangles = cat(
+	S("rlarm", V(1.12, 0.08, 1.12), CF(0, WB, 0), "gold", GOLD),
+	S("rlarm", V(1.12, 0.08, 1.12), CF(0, WB + 0.14, 0), "gold", GOLD),
+	S("rlarm", V(1.12, 0.08, 1.12), CF(0, WB + 0.28, 0), "s", METAL)
+)
+wrist.sweatband = forearms(S("llarm", V(1.1, 0.22, 1.1), CF(0, WB + 0.06, 0), "white", FABRIC))
+wrist.links = forearms(S("llarm", V(1.1, 0.1, 1.1), CF(0, WB, 0) * rz(8), "white", METAL))
+wrist.studs = cat(
+	S("rlarm", V(1.1, 0.18, 1.1), CF(0, WB + 0.04, 0), "dark", { mat = Enum.Material.Leather }),
+	S("rlarm", V(0.1, 0.1, 0.1), CF(0, WB + 0.04, -0.58), "white", { shape = "Ball" }),
+	S("rlarm", V(0.1, 0.1, 0.1), CF(-0.58, WB + 0.04, 0), "white", { shape = "Ball" })
+)
+wrist.gemring = cat(
+	S("lhand", V(0.26, 0.1, 0.26), CF(-0.2, -0.04, -0.42), "gold", GOLD),
+	S("lhand", V(0.14, 0.14, 0.14), CF(-0.2, -0.04, -0.56), "a", { mat = Enum.Material.Glass })
+)
+
+-- belts: 7 more
+belt.studded = cat(
+	S("waist", V(2.06, 0.2, 1.06), CF(0, 0.05, 0), "dark", { mat = Enum.Material.Leather }),
+	S("waist", V(0.08, 0.08, 0.04), CF(-0.6, 0.05, BZ - 0.01), "white", { shape = "Ball" }),
+	S("waist", V(0.08, 0.08, 0.04), CF(-0.3, 0.05, BZ - 0.01), "white", { shape = "Ball" }),
+	S("waist", V(0.08, 0.08, 0.04), CF(0.3, 0.05, BZ - 0.01), "white", { shape = "Ball" }),
+	S("waist", V(0.08, 0.08, 0.04), CF(0.6, 0.05, BZ - 0.01), "white", { shape = "Ball" })
+)
+belt.bigbuckle = cat(
+	S("waist", V(2.06, 0.18, 1.06), CF(0, 0.05, 0), "s", { mat = Enum.Material.Leather }),
+	S("waist", V(0.55, 0.36, 0.08), CF(0, 0.05, BZ - 0.03), "gold", GOLD)
+)
+belt.fanny = cat(
+	S("waist", V(2.06, 0.1, 1.06), CF(0, 0.08, 0), "dark"),
+	S("waist", V(0.8, 0.36, 0.3), CF(0.3, 0, BZ - 0.12), "p", FABRIC)
+)
+belt.toolbelt = cat(
+	S("waist", V(2.06, 0.2, 1.06), CF(0, 0.05, 0), "s", { mat = Enum.Material.Leather }),
+	S("waist", V(0.08, 0.5, 0.08), CF(-0.75, -0.2, BZ - 0.06), "white", METAL),
+	S("waist", V(0.3, 0.12, 0.12), CF(-0.75, 0.05, BZ - 0.06), "dark"),
+	S("waist", V(0.35, 0.4, 0.2), CF(0.7, -0.05, BZ - 0.06), "s", { mat = Enum.Material.Leather })
+)
+belt.obi = cat(
+	S("waist", V(2.1, 0.36, 1.1), CF(0, 0.05, 0), "p", FABRIC),
+	S("waist", V(0.6, 0.4, 0.2), CF(0, 0.05, -BZ + 0.08), "s", FABRIC)
+)
+belt.capsules = cat(
+	S("waist", V(2.06, 0.18, 1.06), CF(0, 0.05, 0), "dark"),
+	S("waist", V(0.16, 0.26, 0.16), CF(-0.6, 0.05, BZ - 0.06), "a", { neon = true }),
+	S("waist", V(0.16, 0.26, 0.16), CF(-0.35, 0.05, BZ - 0.06), "a", { neon = true }),
+	S("waist", V(0.16, 0.26, 0.16), CF(0.35, 0.05, BZ - 0.06), "a", { neon = true }),
+	S("waist", V(0.16, 0.26, 0.16), CF(0.6, 0.05, BZ - 0.06), "a", { neon = true })
+)
+belt.cord = cat(
+	S("waist", V(2.06, 0.1, 1.06), CF(0, 0.05, 0), "gold", FABRIC),
+	both(S("waist", V(0.08, 0.5, 0.08), CF(-0.3, -0.25, BZ - 0.04), "gold", FABRIC)),
+	both(
+		S(
+			"waist",
+			V(0.14, 0.14, 0.14),
+			CF(-0.3, -0.52, BZ - 0.04),
+			"gold",
+			{ shape = "Ball", mat = Enum.Material.Fabric }
+		)
+	)
+)
+
+-- legs: 18 more
+legs.jeans = {
+	paint = { "s", "s" },
+	parts = cat(
+		thighs(S("lthigh", V(0.04, 0.87, 0.06), CF(-0.51, 0, 0), "gold")),
+		shins(S("lshin", V(0.04, 0.87, 0.06), CF(-0.51, 0, 0), "gold"))
+	),
+}
+legs.cuffed = { paint = { "s", "s" }, parts = shins(S("lshin", V(1.1, 0.2, 1.1), CF(0, -0.33, 0), "s")) }
+legs.capri = { paint = { "s", "skin" }, parts = shins(S("lshin", V(1.04, 0.35, 1.04), CF(0, 0.26, 0), "s")) }
+legs.flared =
+	{ paint = { "s", "s" }, parts = shins(S("lshin", V(1.3, 0.4, 1.3), CF(0, -0.24, 0), "s", FABRIC)) }
+legs.pleated = {
+	paint = { "skin", "skin" },
+	parts = {
+		S("waist", V(2.15, 0.7, 1.2), CF(0, -0.4, 0), "p", FABRIC),
+		S("waist", V(2.18, 0.08, 1.22), CF(0, -0.7, 0), "white", FABRIC),
+	},
+}
+legs.leggings = {
+	paint = { "dark", "dark" },
+	parts = cat(
+		thighs(S("lthigh", V(0.04, 0.87, 0.12), CF(-0.51, 0, 0), "a", GLOW)),
+		shins(S("lshin", V(0.04, 0.87, 0.12), CF(-0.51, 0, 0), "a", GLOW))
+	),
+}
+legs.camo = {
+	paint = { "s", "s" },
+	parts = cat(
+		S("lthigh", V(0.5, 0.3, 0.03), CF(0.1, 0.1, -0.505), "dark", { alpha = 0.3 }),
+		S("rthigh", V(0.4, 0.35, 0.03), CF(-0.15, -0.2, -0.505), "dark", { alpha = 0.3 }),
+		S("lshin", V(0.35, 0.3, 0.03), CF(-0.1, 0.1, -0.505), "dark", { alpha = 0.3 }),
+		S("rshin", V(0.5, 0.25, 0.03), CF(0.05, -0.15, -0.505), "dark", { alpha = 0.3 })
+	),
+}
+legs.ski = {
+	paint = { "p", "p" },
+	parts = cat(
+		thighs(S("lthigh", V(1.14, 0.87, 1.14), CF(0, 0, 0), "p", FABRIC)),
+		shins(S("lshin", V(1.14, 0.87, 1.14), CF(0, 0, 0), "p", FABRIC)),
+		thighs(S("lthigh", V(1.16, 0.08, 1.16), CF(0, 0.3, 0), "white"))
+	),
+}
+legs.harem = {
+	paint = { "p", "p" },
+	parts = cat(
+		thighs(S("lthigh", V(1.3, 0.95, 1.3), CF(-0.08, -0.05, 0), "p", FABRIC)),
+		shins(S("lshin", V(1.25, 0.6, 1.25), CF(-0.05, 0.12, 0), "p", FABRIC)),
+		shins(S("lshin", V(1.06, 0.14, 1.06), CF(0, -0.36, 0), "s", FABRIC))
+	),
+}
+legs.chaps = {
+	paint = { "s", "s" },
+	parts = cat(
+		thighs(S("lthigh", V(0.2, 0.87, 1.08), CF(-0.5, 0, 0), "dark", { mat = Enum.Material.Leather })),
+		shins(S("lshin", V(0.2, 0.87, 1.08), CF(-0.5, 0, 0), "dark", { mat = Enum.Material.Leather }))
+	),
+}
+legs.shinguards = {
+	paint = { "s", "s" },
+	parts = shins(S("lshin", V(0.8, 0.7, 0.14), CF(0, 0, -0.55), "white", { mat = Enum.Material.Rubber })),
+}
+legs.checkered = {
+	paint = { "white", "white" },
+	parts = cat(
+		thighs(S("lthigh", V(0.5, 0.42, 0.03), CF(-0.25, 0.21, -0.505), "dark")),
+		thighs(S("lthigh", V(0.5, 0.42, 0.03), CF(0.25, -0.21, -0.505), "dark")),
+		shins(S("lshin", V(0.5, 0.42, 0.03), CF(-0.25, 0.21, -0.505), "dark")),
+		shins(S("lshin", V(0.5, 0.42, 0.03), CF(0.25, -0.21, -0.505), "dark"))
+	),
+}
+legs.bandaged = {
+	paint = { "s", "s" },
+	parts = cat(
+		S("lthigh", V(1.06, 0.16, 1.06), CF(0, 0.1, 0) * rz(10), "white", FABRIC),
+		S("rshin", V(1.06, 0.16, 1.06), CF(0, 0.15, 0) * rz(-10), "white", FABRIC),
+		S("rshin", V(1.06, 0.16, 1.06), CF(0, -0.1, 0) * rz(8), "white", FABRIC)
+	),
+}
+legs.glowlines = {
+	paint = { "dark", "dark" },
+	parts = cat(
+		thighs(S("lthigh", V(0.06, 0.87, 0.04), CF(0, 0, -0.51), "a", GLOW)),
+		shins(S("lshin", V(0.06, 0.87, 0.04), CF(0, 0, -0.51), "a", GLOW)),
+		shins(S("lshin", V(1.04, 0.06, 1.04), CF(0, 0.35, 0), "a", GLOW))
+	),
+}
+legs.scaled = {
+	paint = { "dark", "dark" },
+	parts = cat(
+		thighs(S("lthigh", V(1.08, 0.2, 1.08), CF(0, 0.2, 0) * rx(8), "p", METAL)),
+		thighs(S("lthigh", V(1.08, 0.2, 1.08), CF(0, -0.1, 0) * rx(8), "s", METAL)),
+		shins(S("lshin", V(1.08, 0.2, 1.08), CF(0, 0.1, 0) * rx(8), "p", METAL))
+	),
+}
+legs.sarong = {
+	paint = { "s", "s" },
+	parts = {
+		S("waist", V(2.2, 1.4, 1.2), CF(0, -0.75, 0) * rz(4), "p", FABRIC),
+		S(
+			"waist",
+			V(0.3, 0.3, 0.12),
+			CF(0.75, -0.05, BZ - 0.06),
+			"p",
+			{ shape = "Ball", mat = Enum.Material.Fabric }
+		),
+	},
+}
+legs.sweats = {
+	paint = { "s", "s" },
+	parts = cat(
+		thighs(S("lthigh", V(1.12, 0.9, 1.12), CF(0, -0.02, 0), "s", FABRIC)),
+		shins(S("lshin", V(1.06, 0.16, 1.06), CF(0, -0.35, 0), "s", FABRIC)),
+		both(S("waist", V(0.05, 0.3, 0.04), CF(-0.1, -0.1, BZ - 0.02), "white"))
+	),
+}
+legs.moto = {
+	paint = { "dark", "dark" },
+	parts = cat(
+		shins(S("lshin", V(0.85, 0.5, 0.16), CF(0, 0.15, -0.55), "s", METAL)),
+		thighs(S("lthigh", V(0.06, 0.87, 0.3), CF(-0.52, 0, 0), "a"))
+	),
+}
+
+-- back bling: 10 more
+backpack.satchel = cat(
+	S("torso", V(0.9, 0.7, 0.3), CF(0.3, -0.45, KZ + 0.15), "s", { mat = Enum.Material.Leather }),
+	S("torso", V(0.12, 2.4, 0.06), CF(0, 0, TZ - 0.02) * rz(-35), "s", { mat = Enum.Material.Leather })
+)
+backpack.case = cat(
+	S("torso", V(0.7, 2.2, 0.3), CF(0, 0, KZ + 0.15) * rz(-15), "dark"),
+	S("torso", V(1.0, 0.9, 0.3), CF(0.3, -0.9, KZ + 0.15) * rz(-15), "dark")
+)
+backpack.banner = cat(
+	S("torso", V(0.08, 2.4, 0.08), CF(0.4, 0.8, KZ + 0.1), "dark", METAL),
+	S("torso", V(0.9, 0.8, 0.04), CF(0.0, 1.5, KZ + 0.1), "p", FABRIC)
+)
+backpack.scroll = cat(
+	S("torso", V(1.8, 0.35, 0.35), CF(0, 0.2, KZ + 0.2) * rz(30), "white", { shape = "Cylinder" }),
+	both(S("torso", V(0.1, 0.42, 0.42), CF(-0.78, 0.65, KZ + 0.2) * rz(30), "s", { shape = "Cylinder" }))
+)
+backpack.cogs = cat(
+	S(
+		"torso",
+		V(0.12, 1.2, 1.2),
+		CF(-0.35, 0.3, KZ + 0.15) * ROT_Y,
+		"gold",
+		{ shape = "Cylinder", mat = Enum.Material.Metal }
+	),
+	S(
+		"torso",
+		V(0.12, 0.8, 0.8),
+		CF(0.45, -0.2, KZ + 0.15) * ROT_Y,
+		"s",
+		{ shape = "Cylinder", mat = Enum.Material.Metal }
+	)
+)
+backpack.butterfly = cat(
+	both(S("torso", V(0.06, 0.9, 0.9), CF(-0.55, 0.45, KZ + 0.15) * rz(-30), "a", { alpha = 0.3 })),
+	both(S("torso", V(0.06, 0.6, 0.6), CF(-0.45, -0.3, KZ + 0.15) * rz(20), "s", { alpha = 0.3 }))
+)
+backpack.fins = cat(
+	S("torso", V(0.1, 1.0, 0.7), CF(0, 0.3, KZ + 0.3) * ROT_Y, "a", { shape = "Wedge" }),
+	both(S("torso", V(0.1, 0.6, 0.45), CF(-0.5, -0.2, KZ + 0.2) * rz(-30), "a", { shape = "Wedge" }))
+)
+backpack.antenna = cat(
+	S("torso", V(0.9, 0.9, 0.35), CF(0, 0, KZ + 0.18), "s", METAL),
+	S("torso", V(0.06, 1.6, 0.06), CF(0.35, 1.1, KZ + 0.25), "dark", METAL),
+	S("torso", V(0.14, 0.14, 0.14), CF(0.35, 1.9, KZ + 0.25), "a", { shape = "Ball", neon = true })
+)
+backpack.umbrella = cat(
+	S("torso", V(0.3, 2.2, 0.3), CF(-0.2, 0.1, KZ + 0.15) * rz(15), "p", FABRIC),
+	S("torso", V(0.06, 0.5, 0.06), CF(-0.5, 1.3, KZ + 0.15) * rz(15), "dark")
+)
+backpack.orbs = cat(
+	S("torso", V(0.35, 0.35, 0.35), CF(-0.8, 1.2, KZ + 0.4), "a", { shape = "Ball", neon = true }),
+	S("torso", V(0.3, 0.3, 0.3), CF(0.9, 1.0, KZ + 0.4), "a", { shape = "Ball", neon = true }),
+	S("torso", V(0.25, 0.25, 0.25), CF(0, 1.6, KZ + 0.4), "s", { shape = "Ball", neon = true })
+)
+
+-- capes: the Capes slot's 2026-11-17 extras ("cape:style", like LookKit's capes)
+local back = {
+	["cape:hood"] = cat(
+		S("torso", V(1.9, 2.8, 0.08), CF(0, -0.9, 0.62), "p"),
+		S("torso", V(1.3, 0.9, 0.5), CF(0, 0.9, 0.62) * rx(-10), "p", FABRIC)
+	),
+	["cape:feather"] = cat(
+		S("torso", V(1.9, 2.4, 0.08), CF(0, -0.7, 0.62), "p", FABRIC),
+		both(S("torso", V(0.08, 0.8, 0.5), CF(-0.6, -2.1, 0.62) * ROT_Y * rx(180), "s", { shape = "Wedge" })),
+		S("torso", V(0.08, 0.8, 0.5), CF(0, -2.2, 0.62) * ROT_Y * rx(180), "s", { shape = "Wedge" })
+	),
+	["cape:star"] = cat(
+		S("torso", V(1.9, 3.0, 0.08), CF(0, -1.0, 0.62), "dark"),
+		S("torso", V(0.12, 0.12, 0.04), CF(-0.5, -0.5, 0.68), "white", { shape = "Ball", neon = true }),
+		S("torso", V(0.1, 0.1, 0.04), CF(0.4, -1.1, 0.68), "white", { shape = "Ball", neon = true }),
+		S("torso", V(0.14, 0.14, 0.04), CF(-0.2, -1.8, 0.68), "a", { shape = "Ball", neon = true }),
+		S("torso", V(0.1, 0.1, 0.04), CF(0.6, -2.2, 0.68), "white", { shape = "Ball", neon = true })
+	),
+}
+
 return {
 	beard = beard,
 	face = face,
@@ -1585,5 +2031,8 @@ return {
 	head = head,
 	suit = suit,
 	suitPaint = suitPaint,
+	hands = handsKit,
+	feet = feetKit,
+	back = back,
 	maskHidesHair = maskHidesHair,
 }
