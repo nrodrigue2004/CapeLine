@@ -354,6 +354,11 @@ function BUILD.subway(l: Layout, Config: any)
 	end
 end
 
+-- Is this a pocket layout name? (lore step 10: side quest pocket steps are checked against it)
+function PocketLayout.known(layout: any): boolean
+	return type(layout) == "string" and BUILD[layout] ~= nil
+end
+
 function PocketLayout.build(Config: any, index: number, layout: string): Layout
 	local cx, cy, cz = PocketLayout.centre(Config, index)
 	local l: Layout =

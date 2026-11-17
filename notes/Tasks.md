@@ -44,6 +44,7 @@ Waiting on others:
 - H8 (lore thread): the episodes' panel lines and step texts are drafts (PLACEHOLDER CONTENT in Config.Episodes); the launch episodes use the existing task forces and missions as their 4th step, so a new mission or task force leg each week waits on the lore thread's content. Config.Pass.startWeek (2970 = Monday 2026-11-30) is a guess: set it to the launch Monday.
 
 ## Placeholder art and animation (replace before launch)
+- Lore step 10 side quests: givers are blocky figures with a name tag, a prompt and a "!" marker (SideQuestService); the map's giver dots are plain dots (MapScreen); the Framework sample chain (Config.SideQuests.chains Sample, Dev only) is PLACEHOLDER TEXT with a TEST GIVER and THE TEST VILLAIN. PLACEHOLDER ART until the art pass and step 11's real chains.
 - Lore step 7 cinematic layer: the comic-panel page (CinemaHud: each panel's picture is frames: sky, ground, skyline blocks, simple figures, a burst, the crater), the boss name card, the corner TV and the big news screens and the plaza screen's frame (NewsService, NewsHud) are plain parts, frames and text; the name card titles (Config.Cinema.nameCard.titles) wait for the bosses' lore. PLACEHOLDER ART until the art pass.
 - Vigil HQ (nate's lore plan Q2): the Safehouse hideout (concrete walls, pillars, pipes, cable trays, work lamps, monitors, the city map wall, the stair; Shared.HqRules.hideout, also on mission 2's tunnels) and the plaza stairwell head with its service door (HqService) are plain parts in the city palette. PLACEHOLDER ART.
 - Lore step 6 guides: the portraits (Lodestar, Patch, Crane, the insider, Radiant, Bulwark, the copy) are drawn from UI frames in GuideHud, and each speaker's blip is a built-in clip (Config.Audio sounds radio, guideLodestar, guideCrane, guideInsider, guideFake). PLACEHOLDER ART and PLACEHOLDER SOUND until the art pass and real voice lines.
@@ -71,7 +72,7 @@ Waiting on others:
 - Landing crack: dark disc instead of a crack decal (MoveFx).
 - Flight, leap and glide: the body tilts along the travel direction (MoveController) and HeroAnimator poses the limbs (see Hero animations above).
 - Loading screen: title on a gradient (LoadingScreen).
-- Story (M7): the cinematic is 4 flat comic panels (StoryHud); the opening's tram car, shard, trapped citizen and beams are plain parts (StoryFx); mission pockets are greybox boxes (PocketLayout); the War-Frame is a part-built mech (WorldFx); quest NPCs are blocky figures with a name tag and a marker (QuestService); the Null Echo buddy is a ball with an eye; the Journal, Suit Up, choice card, trackers and result card use the Kit placeholder look. PLACEHOLDER ART.
+- Story (M7): the cinematic is 4 flat comic panels (StoryHud); the opening's tram car, shard, trapped citizen and beams are plain parts (StoryFx); mission pockets are greybox boxes (PocketLayout); the War-Frame is a part-built mech (WorldFx); the Null Echo buddy is a ball with an eye; the Journal, Suit Up, choice card, trackers and result card use the Kit placeholder look. PLACEHOLDER ART.
 - PvP and death (M8): flag rings and the Downed ring are flat neon discs, the PvP defeat is a CombatFx spark burst, Help/Here/Danger pings are text markers (PvpFx); name plates, the plate menu, the PVP button, the Crater bar, the Downed and Defeated screens and the PvP card use the Kit placeholder look (Plates, PvpHud). The Downed hero kneels when still and slumps while crawling (HeroAnimator). PLACEHOLDER ART.
 - Creator pieces (M9): all 146 suits, capes, coats, scarves, masks, gloves, wraps, boots, hair, eyes, auras and trails are blocks, wedges, balls and neon parts welded to the body; emblems are a glyph on a SurfaceGui; auras are the engine's default particle (LookKit). PLACEHOLDER ART until accessory meshes.
 - Voice packs (M9): the 4 voice choices have sound ids 0 (Config.Shop.voiceSounds). PLACEHOLDER until free-licensed clips (M11).
@@ -124,6 +125,18 @@ What nate does:
    (`bash art/store/make.sh twist`).
 
 ## Studio test list (needs nate's PC)
+
+### Lore step 10: side quest framework (2026-11-17)
+Start: `rojo serve`, Play. The Dev panel has the SQ buttons. Set Config.Dev.sideQuestSample = true for steps 2 to 9.
+1. An old save with side quests (Mayor finished, Pip on step 2): on load the "Old side quests retired" toast; the Gold Sash and Salute stay; 200 Credits for Pip's finished step, once (rejoin: no second payout). The Journal pin falls back to the next mission.
+2. The TEST GIVER stands in the plaza with a "!" over it and a "!" dot on the map. Hold the prompt: its lines play through the guide box with its portrait and blip; ACCEPT on the Journal side quest page starts the chain and the tracker shows "Framework sample 1/5".
+3. Walk each step as the Vigil and again as the Syndicate: step 2 is a fight for heroes and a delivery for villains; step 3 an incident or a chase. The tracker text and the map dot follow the step.
+4. Step 4: the pocket ring takes you to the arena pocket; defeat the wave and the Captain; you come back to the city and the step pays.
+5. Step 5: walk to the finale marker; THE TEST VILLAIN name card shows once; the boss has more health; when it falls the chain finishes with the toast, the pay and the Bow emote.
+6. Journal HOLD mid-chain: the tracker clears; RESUME picks up the same step.
+7. Co-op: two players in a squad (one Vigil, one Syndicate) on step 2: each sees their own goal; the step completes for each on their own goal, and the shared steps wait for both ("Your part is done. Help the others finish theirs").
+8. Dev panel: give sample chain, start step N, restart, finish step, finish chain, forget sample and each "SQ kind: X" (16 kinds) set up a goal that can be finished.
+9. Set sideQuestSample = false: no TEST GIVER and no dots; the Journal side quest page shows "New side quest chains are on their way".
 
 ### Lore step 7: cinematic layer (2026-11-17, nate's lore K1 to K3)
 Start: `rojo serve`, Play. The Dev panel (DEV, top right; it scrolls now) has a button for each piece.

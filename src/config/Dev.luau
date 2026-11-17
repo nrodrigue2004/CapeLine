@@ -9,4 +9,7 @@ return {
 	-- Studio only: build this world seed instead of the weekly one (0 = the weekly seed). Two Studio servers
 	-- with the same number must log the same tile hash (the M4 gate).
 	worldSeed = 0, -- server frame stats to the Dev panel, seconds
+	-- lore step 10: offer the side quest framework's sample chain (Config.SideQuests dev chains) at its
+	-- giver and in the Journal, in Studio only (the Dev panel gives it either way). Off for every build.
+	sideQuestSample = false,
 }

@@ -139,8 +139,8 @@ local Remotes: { [string]: RemoteDef } = {
 
 	-- Story (M7; spec: Mission.Enter {missionId, partyId} 1/5s, Mission.Leave, Mission.State 2/s, Choice.Pick
 	-- 1/s). NPC talk uses ProximityPrompts (the server's own check), so it has no remote.
-	StoryState = { dir = "S2C" }, -- the Journal: { side, missions, choices, quests, pinned, perks, rep, states }
-	StoryPin = { dir = "C2S", schema = { n(0, 8) }, rate = 2, burst = 3 }, -- 0 the story, 1 to 8 a side quest
+	StoryState = { dir = "S2C" }, -- the Journal: { side, missions, choices, pinned, perks, rep, states, sq }
+	StoryPin = { dir = "C2S", schema = { n(0, 127) }, rate = 2, burst = 3 }, -- 0 the story, else a chain in progress
 	ChoicePrompt = { dir = "S2C" }, -- { id, labels }: the two (or three) big verb buttons
 	ChoicePick = { dir = "C2S", schema = { n(0, 4), n(1, 3) }, rate = 1, burst = 2 }, -- choice id, option
 	OpeningState = { dir = "S2C" }, -- { step, t, target, side, left, the scene's points }: the Ceremony prologue
@@ -156,8 +156,12 @@ local Remotes: { [string]: RemoteDef } = {
 	SceneSeen = { dir = "C2S", schema = { n(0, 127) }, rate = 0.5, burst = 3 },
 	SceneSkip = { dir = "C2S", schema = {}, rate = 1, burst = 2 },
 	NewsFact = { dir = "S2C" }, -- { list = { { k, t, n, a } } }: NewsPlan facts (fixed templates, safe names)
-	QuestTalk = { dir = "S2C" }, -- { num, line, npc }: the NPC's speech bubble (fixed lines, no free text)
-	QuestState = { dir = "S2C" }, -- { num, step, have, need, left, target, area }: the pinned quest, 2 Hz
+	-- lore step 10 (side quest chains; givers use ProximityPrompts, the server's own range check):
+	-- SideQuestAct { act, chain bit }: 1 accept or resume (the Journal), 2 abandon (on hold at its step)
+	SideQuestAct = { dir = "C2S", schema = { n(1, 2), n(1, 127) }, rate = 1, burst = 3 },
+	-- the tracked chain's step, 2 Hz: { bit, step, steps, have, need, wait, left, target, area, scene, card }
+	SideQuestState = { dir = "S2C" },
+	SideQuestTalk = { dir = "S2C" }, -- { bit, kind, step }: fixed giver and step lines through GuideHud
 
 	-- PvP, death and safety (M8; spec: Flag.Set {on} 1/5s, Flag.State, Revive.Start {targetUserId} 2/s,
 	-- Down.GiveUp 1/s, Respawn.Choose {safehouseId}, Ping.Place {kind, position} 2/s, Report.Player

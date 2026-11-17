@@ -1,11 +1,12 @@
 -- StoryClient: the client's view of the story (spec: Opening; Act 1; Side quests; Story.State, Mission.State
 -- 2 Hz, Choice.Pick). Screens and effects read these tables and listen to Changed; nothing is trusted.
--- * journal: the latest StoryState (missions, choices, quests, pin, perks, reputation, mission states)
+-- * journal: the latest StoryState (missions, choices, pin, perks, reputation, mission states, side quest rows)
 -- * opening: the Ceremony prologue's beat, its clock and the scene's points (lore step 3); while it runs the HUD
 --   shows only the beat's verb buttons and the sky holds at a bright afternoon
 -- * choice: the open choice prompt (its id and verb labels)
 -- * mission: the latest MissionState; result: the last MissionResult
--- * quest: the pinned side quest's step (QuestState) and the last NPC line (QuestTalk)
+-- * quest: the tracked side quest chain's step (SideQuestState, lore step 10); Talk: a giver's or a step's
+--   fixed lines (SideQuestTalk)
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -21,7 +22,7 @@ local StoryClient = {}
 
 StoryClient.Changed = Signal.new() -- (what) "journal", "opening", "choice", "mission", "quest"
 StoryClient.Result = Signal.new() -- (result) a mission's result card
-StoryClient.Talk = Signal.new() -- (num, line, side) an NPC speaks
+StoryClient.Talk = Signal.new() -- ({ bit, kind, step, giver }) a side quest giver or step speaks
 StoryClient.Fade = Signal.new() -- () a mission trip: fade out and back in
 StoryClient.Broadcast = Signal.new() -- (id) an act's ending broadcast (lore step 5)
 
@@ -121,6 +122,11 @@ function StoryClient.pin(num: number)
 	Net.send("StoryPin", num)
 end
 
+-- lore step 10: 1 accept or resume a side quest chain (by its bit), 2 abandon it (on hold at its step)
+function StoryClient.sideQuest(act: number, bit: number)
+	Net.send("SideQuestAct", act, bit)
+end
+
 function StoryClient.init()
 	Net.listen("StoryState", function(s)
 		StoryClient.journal = s
@@ -155,13 +161,15 @@ function StoryClient.init()
 			StoryClient.Broadcast:Fire(b.id)
 		end
 	end)
-	Net.listen("QuestState", function(q)
+	Net.listen("SideQuestState", function(q)
 		q.received = os.clock()
-		StoryClient.quest = if (q.num or 0) > 0 then q else nil
+		StoryClient.quest = if (q.bit or 0) > 0 or q.test then q else nil
 		StoryClient.Changed:Fire("quest")
 	end)
-	Net.listen("QuestTalk", function(t)
-		StoryClient.Talk:Fire(t.num, t.line, t.side)
+	Net.listen("SideQuestTalk", function(t)
+		if type(t) == "table" then
+			StoryClient.Talk:Fire(t)
+		end
 	end)
 end
 

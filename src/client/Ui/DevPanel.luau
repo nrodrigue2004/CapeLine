@@ -3,7 +3,7 @@
 -- Comic/Anime style, robots, levels, skill points, Awakening, loot by source, Renown, Credits, Dust, find all
 -- beacons, wreck here, repair city, flip cars, save, wipe, and (M6) incident by template, clear incidents,
 -- event by type, boss now, boss to 1 HP, finish contract, clock phase, hero or villain side, and (M7) the
--- Ceremony prologue as the Vigil or the Syndicate and a jump to each of its beats (lore step 3), each Act 1 mission as each side and a jump to each of its stages (lore step 5), finish the step, leave, start a side quest, clear
+-- Ceremony prologue as the Vigil or the Syndicate and a jump to each of its beats (lore step 3), each Act 1 mission as each side and a jump to each of its stages (lore step 5), finish the step, leave, the side quest framework (lore step 10: give the sample chain, start, restart and finish steps, finish the chain, forget it, try each step kind alone), clear
 -- Act 1 and reset the story, a sample line per guide and Lodestar beside you (lore step 6), and (M9) the creator, enter HQ, HQ level, 8 h away, all pieces, a test buy
 -- (twice grants once) and the level cap, and (2026-11-17) the next incident, event or contract to try (the
 -- "Inc:", "Ev:" and "Con:" buttons start the one named, "next" picks another), and a Heroic switch for them.
@@ -342,11 +342,34 @@ function DevPanel.init()
 	add("Spawn Lodestar", function()
 		GuideClient.spawnLodestar()
 	end)
-	local questIdx = 1
-	add("Quest: " .. Config.Story.quests[1].id, function(b)
-		Net.send("DevCommand", "quest", questIdx)
-		questIdx = questIdx % #Config.Story.quests + 1
-		b.Text = "Quest: " .. Config.Story.quests[questIdx].id
+	-- lore step 10: the side quest framework (the sample chain, steps, and every step kind alone)
+	add("SQ: give sample chain", function()
+		Net.send("DevCommand", "sidequest", 1)
+	end)
+	local sqStep = 1
+	add("SQ: start step 1", function(b)
+		Net.send("DevCommand", "sidequest", 100 + sqStep)
+		sqStep = sqStep % Config.SideQuests.maxSteps + 1
+		b.Text = "SQ: start step " .. sqStep
+	end)
+	add("SQ: restart step", function()
+		Net.send("DevCommand", "sidequest", 2)
+	end)
+	add("SQ: finish step", function()
+		Net.send("DevCommand", "sidequest", 3)
+	end)
+	add("SQ: finish chain", function()
+		Net.send("DevCommand", "sidequest", 4)
+	end)
+	add("SQ: forget sample", function()
+		Net.send("DevCommand", "sidequest", 5)
+	end)
+	local kinds = Config.SideQuests.devKinds
+	local kindIdx = 1
+	add("SQ kind: " .. kinds[1].kind, function(b)
+		Net.send("DevCommand", "sidequest", 200 + kindIdx)
+		kindIdx = kindIdx % #kinds + 1
+		b.Text = "SQ kind: " .. kinds[kindIdx].kind
 	end)
 	add("Act 1 done", function()
 		Net.send("DevCommand", "actdone")

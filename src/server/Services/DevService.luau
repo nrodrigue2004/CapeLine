@@ -45,7 +45,7 @@ local StoryService = require(script.Parent.StoryService)
 local OpeningService = require(script.Parent.OpeningService)
 local MissionService = require(script.Parent.MissionService)
 local NemesisService = require(script.Parent.NemesisService)
-local QuestService = require(script.Parent.QuestService)
+local SideQuestService = require(script.Parent.SideQuestService)
 local FlagService = require(script.Parent.FlagService)
 local DeathService = require(script.Parent.DeathService)
 local FameService = require(script.Parent.FameService)
@@ -294,13 +294,15 @@ local commands: { [string]: (player: Player, hero: any, value: number) -> () } =
 	end,
 	finishstep = function(player)
 		MissionService.skipStep(player)
-		QuestService.skipStep(player)
+		SideQuestService.skipStep(player)
 	end,
 	leavemission = function(player)
 		MissionService.leave(player)
 	end,
-	quest = function(player, _, num)
-		QuestService.start(player, num)
+	-- lore step 10: the side quest framework (1 give the sample chain, 2 restart the step, 3 finish the step,
+	-- 4 finish the chain, 5 forget the sample, 100 + k jump to step k, 200 + i try kind i alone)
+	sidequest = function(player, _, what)
+		SideQuestService.dev(player, what)
 	end,
 	actdone = function(player, hero)
 		-- every Act 1 mission cleared (choices stay as they are)
@@ -318,6 +320,7 @@ local commands: { [string]: (player: Player, hero: any, value: number) -> () } =
 		local c = StoryService.char(player)
 		if c then
 			c.story = ProfileSchema.newCharacter().story
+			c.sq = ProfileSchema.newCharacter().sq -- lore step 10: side quest chains too
 			c.rep = { 0, 0, 0 }
 			StoryService.changed(player)
 		end

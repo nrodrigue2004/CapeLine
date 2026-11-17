@@ -137,7 +137,7 @@ function GearService.grant(player: Player, source: string, zoneLevel: number): {
 end
 
 -- Run one gear request under the profile's lock; fn returns ok, reason, extra
--- One piece of a set tier (story rewards: the Rare Decoy gadget from Save the Train and Iron Dee, the
+-- One piece of a set tier (story rewards: the Rare Decoy gadget from Save the Train, the
 -- 10% Epic crate from Test Her). opts.gadget names the gadget.
 function GearService.grantPiece(
 	player: Player,

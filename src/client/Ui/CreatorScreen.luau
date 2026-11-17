@@ -199,9 +199,9 @@ local function sourceText(p: CreatorRules.Piece): string
 	elseif k == "mission" then
 		local m = Config.Story.missions[s.n or 0]
 		return "Mission: " .. (if m then m.name else "?")
-	elseif k == "quest" then
-		local q = Config.Story.quests[s.n or 0]
-		return "Side quest: " .. (if q then q.npc else "?")
+	elseif k == "chains" then
+		local n = s.n or 1
+		return if n == 1 then "Finish a side quest chain" else string.format("Finish %d side quest chains", n)
 	elseif k == "legacy" then
 		return "Legacy rank " .. (s.n or 0)
 	elseif k == "drop" then

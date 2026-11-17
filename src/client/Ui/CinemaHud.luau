@@ -383,9 +383,13 @@ local function buildCard()
 	card.Parent = gui
 end
 
--- Show a boss's name card (3 s): the card slams in big and settles; the slash bar sweeps across
-function CinemaHud.nameCard(bossId: string)
+-- Show a boss's name card (3 s): the card slams in big and settles; the slash bar sweeps across. A side quest
+-- finale (lore step 10) passes its mini villain's fixed name and title from Config.SideQuests instead.
+function CinemaHud.nameCard(bossId: string, ownName: string?, ownTitle: string?)
 	local name, title = CinemaPlan.nameCard(Config, bossId)
+	if ownName then
+		name, title = ownName, ownTitle or ""
+	end
 	cardName.Text = name
 	cardTitle.Text = title
 	card.Visible = true

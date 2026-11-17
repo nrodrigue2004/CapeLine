@@ -17,7 +17,7 @@ local ProfileSchema = {}
 -- 40 cap is already in range, so raising the cap needs no migration.
 ProfileSchema.LEVEL_CAP = Config.Stats.levelCap
 
-ProfileSchema.VERSION = 10
+ProfileSchema.VERSION = 11
 ProfileSchema.BOSSES = 3 -- #Config.Boss.order (a test checks they match)
 ProfileSchema.SLOTS = 8
 ProfileSchema.STYLE_WORDS = 16 -- 512 bits
@@ -152,20 +152,22 @@ function ProfileSchema.newCharacter(side: string?, classId: string?): { [string]
 		hq = { level = 1, trophies = {}, droneAt = 0 }, -- droneAt: os.time() of the last leave (offline drones)
 		legacy = 0,
 		-- story (M7): opening 1 once the playable disaster is done; missions: first clears (bit n - 1);
-		-- choices: option picked per Act 1 choice (0 = not yet); quests: per side quest arc, 0 not started,
-		-- 1 to 3 the current step, 4 done; pinned: 0 the story, 1 to 8 a side quest; menu: Maribel's pick;
-		-- perks: story perks (bit 1 the Echo Drone; key NullEcho)
+		-- choices: option picked per Act 1 choice (0 = not yet); pinned: 0 the story, else the side quest chain
+		-- tracked (its Config.SideQuests bit); perks: story perks (bit 1 the Echo Drone; key NullEcho)
 		story = {
 			act = 1,
 			flags = words(ProfileSchema.SMALL_WORDS),
 			choices = { 0, 0, 0 },
 			opening = 0,
 			missions = 0,
-			quests = { 0, 0, 0, 0, 0, 0, 0, 0 },
 			pinned = 0,
-			menu = 0,
 			perks = 0,
 		},
+		-- side quests (lore step 10, Shared.SideQuestPlan): at[chain id] = the current step of a chain in
+		-- progress; done = chains finished (bit = the chain's Config.SideQuests bit); retired = the 8 arcs before
+		-- step 10 this hero finished (bit n - 1); owed = Credits for finished steps of arcs left in progress,
+		-- paid once with the retired arcs' unlocks (settled = 1 after)
+		sq = { at = {}, done = words(ProfileSchema.SMALL_WORDS), retired = 0, owed = 0, settled = 1 },
 		contracts = {},
 		lastSafehouse = 0, -- 0 = none yet: the home safehouse (Config.World.safehouse.homeSafehouse)
 		beacons = 0, -- fast-travel beacons discovered, a 12-bit mask (bit id - 1)
@@ -355,6 +357,34 @@ local MIGRATIONS: { [number]: (any) -> () } = {
 			end
 		end
 	end,
+	[11] = function(p)
+		-- nate's lore, build plan step 10: the 8 side quest arcs are retired for the side quest chains. A
+		-- finished arc becomes a retired bit (its unlocks are kept and set once by SideQuestPlan.settle); an
+		-- arc in progress leaves Credits for its finished steps; the old quest list, pin and menu pick go.
+		local R = Config.SideQuests.retired
+		if type(p.characters) == "table" then
+			for _, c in p.characters do
+				if type(c) == "table" then
+					local st = if type(c.story) == "table" then c.story else {}
+					local retired, owed = 0, 0
+					if type(st.quests) == "table" then
+						for arc = 1, R.arcs do
+							local s = tonumber(st.quests[arc]) or 0
+							if s >= 4 then
+								retired += 2 ^ (arc - 1)
+							elseif s >= 2 then
+								owed += (math.floor(s) - 1) * R.stepCredits
+							end
+						end
+					end
+					st.quests = nil
+					st.menu = nil
+					st.pinned = 0
+					c.sq = { at = {}, retired = retired, owed = owed, settled = 0 }
+				end
+			end
+		end
+	end,
 }
 ProfileSchema.MIGRATIONS = MIGRATIONS
 
@@ -469,14 +499,40 @@ local function repair(p: any): any
 				st.act = num(st.act, 1, 3, 1)
 				st.opening = num(st.opening, 0, 1, 0)
 				st.missions = num(st.missions, 0, 63, 0)
-				st.pinned = num(st.pinned, 0, 8, 0)
-				st.menu = num(st.menu, 0, 3, 0)
 				st.perks = num(st.perks, 0, 255, 0)
 				for i = 1, 3 do
 					st.choices[i] = num(st.choices[i], 0, 2, 0)
 				end
-				for i = 1, 8 do
-					st.quests[i] = num(st.quests[i], 0, 4, 0)
+				st.quests, st.menu = nil, nil -- the retired arcs (lore step 10)
+				-- side quests: only known chains in progress at a real step; the pin only on one of them
+				local sq = c.sq
+				sq.retired = num(sq.retired, 0, 2 ^ Config.SideQuests.retired.arcs - 1, 0)
+				sq.owed = num(sq.owed, 0, 1e7, 0)
+				sq.settled = num(sq.settled, 0, 1, 1)
+				local at = {}
+				for _, chain in Config.SideQuests.chains do
+					local s = sq.at[chain.id]
+					if
+						type(s) == "number"
+						and s >= 1
+						and s <= #chain.steps
+						and not Bits.get(sq.done, chain.bit)
+					then
+						at[chain.id] = math.floor(s)
+					end
+				end
+				sq.at = at
+				st.pinned = num(st.pinned, 0, ProfileSchema.SMALL_WORDS * 32 - 1, 0)
+				if st.pinned > 0 then
+					local tracked = false
+					for _, chain in Config.SideQuests.chains do
+						if chain.bit == st.pinned and at[chain.id] then
+							tracked = true
+						end
+					end
+					if not tracked then
+						st.pinned = 0
+					end
 				end
 				if c.fxStyle ~= "Comic" and c.fxStyle ~= "Anime" then
 					c.fxStyle = "Comic"

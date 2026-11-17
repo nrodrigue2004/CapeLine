@@ -66,7 +66,7 @@ local CollectService = require(Services.CollectService)
 local ContestService = require(Services.ContestService)
 local PassService = require(Services.PassService)
 local TravelStyleService = require(Services.TravelStyleService)
-local QuestService = require(Services.QuestService)
+local SideQuestService = require(Services.SideQuestService)
 local FlagService = require(Services.FlagService)
 local FameService = require(Services.FameService)
 local GuardService = require(Services.GuardService)
@@ -140,7 +140,7 @@ boot("CollectService", CollectService.init) -- H7: collections
 boot("ContestService", ContestService.init) -- H7: costume contests
 boot("PassService", PassService.init) -- H8: the Hero Pass and the weekly episode
 boot("TravelStyleService", TravelStyleService.init) -- H8: travel power styles
-boot("QuestService", QuestService.init)
+boot("SideQuestService", SideQuestService.init)
 boot("FlagService", FlagService.init)
 boot("FameService", FameService.init)
 boot("GuardService", GuardService.init)
