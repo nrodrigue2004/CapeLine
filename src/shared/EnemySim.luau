@@ -1434,7 +1434,6 @@ local function thinkBomber(sim: Sim, e: Enemy, target: Hero?, speed: number, can
 			sim.events,
 			{ k = "lob", e = e.id, x = e.x, y = e.y + 1, z = e.z, tx = tx, ty = ty, tz = tz, t = g.flight }
 		)
-		table.insert(sim.events, { k = "warn", e = e.id, x = tx, y = ty, z = tz, r = g.radius, t = g.flight })
 		table.insert(sim.events, { k = "swing", e = e.id })
 		e.nextSpecial = now + g.every
 	end

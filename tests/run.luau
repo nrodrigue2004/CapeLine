@@ -1767,19 +1767,17 @@ test("New robot types: Bomber's grenade lands on the ring, then the ground burns
 	bm.nextSpecial = 0
 	local cfg = Config.Enemies.Bomber
 	local hero = { id = 1, x = -60, y = 3, z = -30, alive = true }
-	local lob, warn, boom, zone
+	local lob, boom, zone
 	local hits = 0
 	run(sim, { hero }, 0, 0.2, function(ev)
 		if ev.k == "lob" then
 			lob = ev
-		elseif ev.k == "warn" then
-			warn = ev
 		end
 	end)
-	check(lob ~= nil and warn ~= nil, "a lob and a ring")
-	near(warn.t, cfg.grenade.flight, 1e-6, "the ring shows for the flight")
+	check(lob ~= nil, "a lob (the client draws the landing ring from it)")
+	near(lob.t, cfg.grenade.flight, 1e-6, "the ring shows for the flight")
 	check(
-		math.sqrt((warn.x - hero.x) ^ 2 + (warn.z - hero.z) ^ 2) <= cfg.grenade.spread * 1.5,
+		math.sqrt((lob.tx - hero.x) ^ 2 + (lob.tz - hero.z) ^ 2) <= cfg.grenade.spread * 1.5,
 		"aimed at the hero's spot"
 	)
 	run(sim, { hero }, 0.2, 2.5, function(ev)
