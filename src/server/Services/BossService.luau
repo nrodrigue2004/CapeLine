@@ -52,6 +52,9 @@ local BossService = {}
 -- (player, bossId, tier, defeated) after a hero's boss reward is paid (M9: creator unlocks, the starter offer)
 BossService.Rewarded = Signal.new() -- (player, bossId, tier, defeated, contribution)
 BossService.Joined = Signal.new() -- (hero, bossId, heroes in the fight) a hero's first contribution to a fight
+-- lore step 7 (the news): a boss landed in the city; a fight ended (defeated or not, the top hero's id)
+BossService.Arrived = Signal.new() -- (bossId)
+BossService.Ended = Signal.new() -- (bossId, defeated, topHeroId?)
 
 local B = Config.Boss
 local SCHED = B.schedule
@@ -67,6 +70,7 @@ type Fight = {
 	level: number,
 	fighters: { [number]: boolean }, -- heroes sent Boss.Contribution
 	over: boolean,
+	lastBy: number?, -- lore step 7: the hero whose hit landed last (a phase's or the fight's finisher)
 }
 
 local phase = "waiting" -- waiting, fight, result
@@ -192,6 +196,7 @@ end
 local function syncTargets(f: Fight)
 	BossService.linkTargets(f.sim, f.targets, function(heroId, bossDealt, objDealt, broke)
 		if heroId then
+			f.lastBy = heroId
 			local l = ledgerOf(f, heroId)
 			l.damage += bossDealt
 			l.objectives += objDealt + (if broke then B.contribution.objectiveBreak else 0)
@@ -237,6 +242,7 @@ local function begin()
 	prepCleared = 0
 	CitizenService.danger(at.X, at.Z, f.sim.cfg.arenaRadius + 60, SCHED.lifespan + SCHED.landing)
 	toWorld("BossAttack", { k = "land", num = f.sim.cfg.num, x = at.X, y = at.Y, z = at.Z })
+	BossService.Arrived:Fire(bossId)
 end
 
 local function nameOf(heroId: number): string
@@ -337,6 +343,7 @@ local function finish(f: Fight, defeated: boolean)
 	end
 	phase = "result"
 	resultUntil = os.clock() + SCHED.resultTime
+	BossService.Ended:Fire(f.id, defeated, ranked[1])
 end
 
 ---------------------------------------------------------------------------
@@ -359,6 +366,9 @@ local function wireEvent(f: Fight, ev: any): any
 	local out = table.clone(ev)
 	out.hits = nil
 	out.num = f.sim.cfg.num
+	if ev.k == "phase" or ev.k == "dead" then
+		out.by = f.lastBy -- lore step 7: the finishing hero (slow-mo finisher on their screen, shorter nearby)
+	end
 	return out
 end
 

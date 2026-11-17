@@ -50,6 +50,15 @@ return {
 		},
 		-- lore step 6: Patch's open-world radio lines (story lines in missions and the prologue always play)
 		{ id = "guideRadio", name = "Guide radio", kind = "toggle", default = 1 },
+		-- lore step 7: the dynamic camera in fights and finishers (Config.Cinema.camera): Full, Reduced
+		-- (half), Off; Reduce flashing still removes flashes and shakes on its own
+		{
+			id = "cameraMotion",
+			name = "Camera motion",
+			kind = "choice",
+			options = { "Full", "Reduced", "Off" },
+			default = 0,
+		},
 	},
 	maxMutes = 50, -- muted players kept on the save (user ids)
 	sendDelay = 0.6, -- seconds the device waits after the last change before sending (a slider drag sends once)

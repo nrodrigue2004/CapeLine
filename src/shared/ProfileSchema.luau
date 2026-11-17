@@ -794,6 +794,8 @@ function ProfileSchema.clientView(profile: any, walletOnly: boolean?): { [string
 		travel = c.mmo.travel,
 		passSeason = profile.pass.season,
 		passPaid = profile.pass.paid,
+		-- lore step 7: the scenes seen on this save (CinemaPlan bits: a seen scene may be skipped)
+		seen = Bits.list(profile.seen),
 	}
 end
 

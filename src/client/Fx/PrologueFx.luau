@@ -8,7 +8,8 @@
 -- * the rooftop leap in slow motion with the hero's own path look (CombatFx), Skylance's telegraphed spears
 --   in the chase (they never hit), the suit snapping on piece by piece, the tunnel's falling slabs (the rubble
 --   they leave is solid on this device: Leap over it), Lodestar's landing, and the billboard
--- * the camera beats: a scripted camera on the CUT beats (OpeningPlan.CUT), the follow camera elsewhere
+-- * the camera beats: the CUT beats' shots (OpeningPlan.CUT) play through the one cutscene player
+--   (CinemaClient, lore step 7: letterbox, SKIP once seen); the follow camera elsewhere
 -- Reduce flashing: no flashes or shakes here either (CombatFx and CameraController already obey it).
 -- PLACEHOLDER ART: the stage, the crowd, Crane, the billboard and the slabs are parts until the art pass.
 
@@ -29,6 +30,7 @@ local NpcRig = require(Shared:WaitForChild("NpcRig"))
 local RigMath = require(Shared:WaitForChild("RigMath"))
 local BodyShape = require(Shared:WaitForChild("BodyShape"))
 local LookKit = require(Shared:WaitForChild("LookKit"))
+local CinemaPlan = require(Shared:WaitForChild("CinemaPlan"))
 
 local State = require(script.Parent.Parent.State)
 local StoryClient = require(script.Parent.Parent.Controllers.StoryClient)
@@ -38,6 +40,7 @@ local EnemyRenderer = require(script.Parent.Parent.Controllers.EnemyRenderer)
 local QualityController = require(script.Parent.Parent.Controllers.QualityController)
 local AudioController = require(script.Parent.Parent.Controllers.AudioController)
 local CombatFx = require(script.Parent.CombatFx)
+local CinemaClient = require(script.Parent.Parent.Controllers.CinemaClient)
 
 local PrologueFx = {}
 
@@ -59,7 +62,6 @@ local debris: Part? = nil
 local board: Part? = nil
 local slabs: { [number]: Part } = {}
 local lastStep: string? = nil
-local cameraOn = false
 local leapDone = false
 local sparkShown = false
 local spearAt = 0
@@ -443,10 +445,32 @@ end
 -- The camera beats
 ---------------------------------------------------------------------------
 
-type Shot = { t0: number, t1: number, a: CFrame, b: CFrame }
+-- (lore step 7) each shot is a CinemaPlan dolly: the camera from a's spot to b's, its look from a's
+-- point to b's (the same shots as before, now played by CinemaClient)
+type Shot = { t0: number, t1: number, a: { Vector3 }, b: { Vector3 } }
 
-local function look(from: Vector3, at: Vector3): CFrame
-	return CFrame.lookAt(from, at)
+local function look(from: Vector3, at: Vector3): { Vector3 }
+	return { from, at }
+end
+
+local function P(v: Vector3): { number }
+	return { v.X, v.Y, v.Z }
+end
+
+local function toPlan(list: { Shot }): { CinemaPlan.Shot }
+	local out = {}
+	for _, s in list do
+		table.insert(out, {
+			kind = "dolly",
+			t0 = s.t0,
+			t1 = s.t1,
+			from = P(s.a[1]),
+			at = P(s.a[2]),
+			to = P(s.b[1]),
+			at2 = P(s.b[2]),
+		})
+	end
+	return out
 end
 
 local function shots(step: string, o: { [string]: any }): { Shot }
@@ -526,47 +550,33 @@ local function shots(step: string, o: { [string]: any }): { Shot }
 	return list
 end
 
-local function setCamera(on: boolean)
-	local cam = Workspace.CurrentCamera
-	if not cam then
+-- The CUT beat's scene for the cutscene player: the server times it (the beat's clock, held at 0 on the main
+-- menu's hold), SKIP follows OpeningPlan.canSkip (a replay, or this save has seen the beat: lore step 7)
+local function playBeat(step: string, o: { [string]: any })
+	local list = toPlan(shots(step, o))
+	if #list == 0 then
+		CinemaClient.stop("prologue")
 		return
 	end
-	if on and not cameraOn then
-		cam.CameraType = Enum.CameraType.Scriptable
-	elseif not on and cameraOn then
-		cam.CameraType = Enum.CameraType.Custom
-		local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
-		if hum then
-			cam.CameraSubject = hum
-		end
-	end
-	-- the hero holds still for the camera beats (anchored on this device only; the server still moves it)
-	local r = root()
-	if r and (on or cameraOn) then
-		r.Anchored = on
-	end
-	cameraOn = on
-end
-
-local function ease(x: number): number
-	return x * x * (3 - 2 * x)
-end
-
-local current: { Shot } = {}
-local function runCamera(t: number)
-	local cam = Workspace.CurrentCamera
-	if not cam or #current == 0 then
-		return
-	end
-	local shot = current[#current]
-	for _, s in current do
-		if t >= s.t0 and t < s.t1 then
-			shot = s
-			break
-		end
-	end
-	local k = ease(math.clamp((t - shot.t0) / math.max(0.01, shot.t1 - shot.t0), 0, 1))
-	cam.CFrame = shot.a:Lerp(shot.b, k)
+	CinemaClient.play({
+		owner = "prologue",
+		key = step,
+		bit = CinemaPlan.bit(Config, step),
+		shots = list,
+		seconds = OpeningPlan.limit(Config, step),
+		beat = true,
+		clock = function(): number
+			return if StoryClient.opening.hold then 0 else StoryClient.beatTime()
+		end,
+		bars = function(): boolean
+			return not StoryClient.opening.hold
+		end,
+		canSkip = function(): boolean
+			local op = StoryClient.opening
+			return not op.hold and OpeningPlan.canSkip(step, op.replay == true or op.seen == true)
+		end,
+		skip = StoryClient.skipBeat,
+	})
 end
 
 ---------------------------------------------------------------------------
@@ -1008,8 +1018,7 @@ local function onState()
 	local o = StoryClient.opening
 	local step = StoryClient.openingStep()
 	if not step then
-		setCamera(false)
-		current = {}
+		CinemaClient.stop("prologue")
 		if slowmo then
 			slowmo:Destroy()
 			slowmo = nil
@@ -1067,11 +1076,9 @@ local function onState()
 			buildBoard(o)
 		end
 		if OpeningPlan.CUT[step] then
-			current = shots(step, o)
-			setCamera(#current > 0)
+			playBeat(step, o)
 		else
-			current = {}
-			setCamera(false)
+			CinemaClient.stop("prologue")
 		end
 		lastStep = step
 	end
@@ -1088,9 +1095,6 @@ local function frame(dt: number)
 	local o = StoryClient.opening
 	local t = StoryClient.beatTime()
 	local now = os.clock()
-	if cameraOn then
-		runCamera(if o.hold then 0 else t)
-	end
 	if step == "ceremony" then
 		for _, n in crowd do
 			poseCheer(n, now)

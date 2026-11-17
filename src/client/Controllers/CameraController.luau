@@ -1,6 +1,11 @@
 -- CameraController: keeps the default Roblox follow camera (players already know it, on every device) and
 -- adds the juice: FOV widens 6% on a leap and stretches at boost, short shakes on landing, hits and supers
 -- (spec: juice table). Shake and FOV punches are off in reduce-flashing mode.
+-- The dynamic camera (nate's lore, build plan step 7, K3; Config.Cinema.camera): a slight lean into dashes, a
+-- gentle push in on heavy hits and finishers, a small orbit round the hero on supers. On by default; Settings
+-- "Camera motion" scales it (CinemaPlan.motion: Full, Reduced halves, Off removes, shakes and punches too);
+-- Reduce flashing still removes flashes and shakes. No new tables per frame: the motion scales live in one
+-- table refreshed only when a setting changes.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -10,21 +15,46 @@ local Workspace = game:GetService("Workspace")
 local Players = game:GetService("Players")
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
+local CinemaPlan = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("CinemaPlan"))
 
 local MoveController = require(script.Parent.MoveController)
 local InputController = require(script.Parent.InputController)
 
 local CameraController = {}
-CameraController.reduceMotion = false
+CameraController.reduceMotion = false -- Settings: Reduce flashing (no shakes, punches or hit-pause)
+CameraController.motionOption = 0 -- Settings: Camera motion (0 Full, 1 Reduced, 2 Off)
+CameraController.motion = CinemaPlan.motion(Config, 0, false) -- the scales in use (CinemaPlan.Motion)
 
 local F = Config.Fx.fov
+local CC = Config.Cinema.camera
 local shakeTime, shakeLeft, shakeAmount = 0, 0, 0
 local fovKick = 0
+local pushKick = 0
+local lean, leanWant, leanUntil = 0, 0, 0
+local orbitTotal, orbitLeft = 0, 0
+
+-- Settings changed: Camera motion's option and Reduce flashing (the scales are kept in one table)
+function CameraController.setMotion(option: number?, reduceFlashing: boolean?)
+	if option ~= nil then
+		CameraController.motionOption = option
+	end
+	if reduceFlashing ~= nil then
+		CameraController.reduceMotion = reduceFlashing
+	end
+	CinemaPlan.motion(
+		Config,
+		CameraController.motionOption,
+		CameraController.reduceMotion,
+		CameraController.motion
+	)
+end
 
 function CameraController.shake(time: number, amount: number)
-	if CameraController.reduceMotion then
+	local scale = CameraController.motion.shake
+	if CameraController.reduceMotion or scale <= 0 then
 		return
 	end
+	amount *= scale
 	if amount >= shakeAmount * (shakeLeft / math.max(shakeTime, 1e-3)) then
 		shakeTime, shakeLeft, shakeAmount = time, time, amount
 	end
@@ -33,8 +63,38 @@ end
 -- A quick FOV push (camera push 8% on clash moments; small on supers)
 function CameraController.punch(amount: number)
 	if not CameraController.reduceMotion then
-		fovKick = math.max(fovKick, amount)
+		fovKick = math.max(fovKick, amount * CameraController.motion.push)
 	end
+end
+
+-- A gentle push in (the FOV narrows a little, then eases back): heavy hits and finishers. scaled: the amount
+-- already carries the Camera motion scale (a finisher's plan)
+function CameraController.push(amount: number?, scaled: boolean?)
+	local a = (amount or CC.push.heavy) * (if scaled then 1 else CameraController.motion.push)
+	if a > pushKick then
+		pushKick = a
+	end
+end
+
+-- A slight lean (roll) into a dash: dir is the dash's way in the world
+function CameraController.lean(dir: Vector3)
+	local cam = Workspace.CurrentCamera
+	local m = CameraController.motion.lean
+	if not cam or m <= 0 then
+		return
+	end
+	leanWant = -dir:Dot(cam.CFrame.RightVector) * CC.lean.max * m
+	leanUntil = os.clock() + 0.25
+end
+
+-- A small orbit round the hero on a super (the swing keeps going the way it started; the player still steers)
+function CameraController.orbit(sign: number?)
+	local m = CameraController.motion.orbit
+	if m <= 0 or orbitLeft > 0 then
+		return
+	end
+	orbitTotal = CC.orbit.super * m * (if (sign or 1) < 0 then -1 else 1)
+	orbitLeft = CC.orbit.time
 end
 
 function CameraController.init()
@@ -58,17 +118,28 @@ function CameraController.init()
 		Enum.RenderPriority.Camera.Value - 1,
 		FrameProf.wrap("CameraController", function(dt)
 			local rate = InputController.turnRate()
-			if math.abs(rate) < 0.08 then
+			local yaw = 0
+			if math.abs(rate) >= 0.08 then
+				yaw = -rate * 2.2 * dt -- about 125 degrees a second at full push
+			end
+			-- a super's small orbit: an eased swing of orbitTotal over CC.orbit.time
+			if orbitLeft > 0 then
+				local T = CC.orbit.time
+				local k0 = 1 - orbitLeft / T
+				orbitLeft = math.max(0, orbitLeft - dt)
+				local k1 = 1 - orbitLeft / T
+				yaw += orbitTotal * (CinemaPlan.ease(k1) - CinemaPlan.ease(k0))
+			end
+			if yaw == 0 then
 				return
 			end
 			local cam = Workspace.CurrentCamera
 			local char = player.Character
 			local root = char and char:FindFirstChild("HumanoidRootPart") :: BasePart?
-			if not root then
+			if not root or cam.CameraType == Enum.CameraType.Scriptable then
 				return
 			end
 			local pivot = root.Position
-			local yaw = -rate * 2.2 * dt -- about 125 degrees a second at full push
 			cam.CFrame = CFrame.new(pivot) * CFrame.Angles(0, yaw, 0) * CFrame.new(-pivot) * cam.CFrame
 		end)
 	)
@@ -89,8 +160,16 @@ function CameraController.init()
 			end
 			leapGlow = math.max(0, leapGlow - dt)
 			fovKick = math.max(0, fovKick - dt * 0.6)
-			local want = target * (1 + fovKick)
+			pushKick = math.max(0, pushKick - dt * (CC.push.heavy / CC.push.time))
+			local want = target * (1 + fovKick - pushKick)
 			cam.FieldOfView += (want - cam.FieldOfView) * math.min(1, dt * F.blend)
+			-- the dash lean: rolls in fast, settles back slower (not while a cutscene owns the camera)
+			local wantLean = if os.clock() < leanUntil then leanWant else 0
+			local rate = if math.abs(wantLean) > math.abs(lean) then CC.lean.rise else CC.lean.fall
+			lean += (wantLean - lean) * math.min(1, dt * rate)
+			if math.abs(lean) > 1e-4 and cam.CameraType ~= Enum.CameraType.Scriptable then
+				cam.CFrame *= CFrame.Angles(0, 0, lean)
+			end
 			if shakeLeft > 0 then
 				shakeLeft -= dt
 				local k = shakeAmount * math.max(0, shakeLeft / shakeTime)

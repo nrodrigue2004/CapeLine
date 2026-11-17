@@ -54,6 +54,7 @@ local SafehouseService = require(script.Parent.SafehouseService)
 local CreatorService = require(script.Parent.CreatorService)
 local HqService = require(script.Parent.HqService)
 local PurchaseService = require(script.Parent.PurchaseService)
+local NewsService = require(script.Parent.NewsService) -- lore step 7
 local ShopRules = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("ShopRules"))
 local CreatorRules = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("CreatorRules"))
 local ProfileSchema = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("ProfileSchema"))
@@ -401,6 +402,11 @@ local commands: { [string]: (player: Player, hero: any, value: number) -> () } =
 	end,
 	nemesis = function(player, _, what)
 		NemesisService.dev(player, what)
+	end,
+	-- lore step 7: a sample news fact as you (1 boss flash, 2 boss down, 3 fake unmasked, 4 streak, 5 heist,
+	-- 6 Act 1 mission)
+	news = function(player, _, what)
+		NewsService.dev(player, what)
 	end,
 }
 

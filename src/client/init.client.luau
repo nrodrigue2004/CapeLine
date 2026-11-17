@@ -86,6 +86,10 @@ local MainMenu = require(Ui.MainMenu)
 local PhotoMode = require(Ui.PhotoMode)
 local Kit = require(Ui.Kit)
 local DevPanel = require(Ui.DevPanel)
+local CinemaClient = require(Controllers.CinemaClient) -- lore step 7: the one cutscene player
+local CinemaHud = require(Ui.CinemaHud) -- lore step 7: letterbox, SKIP, comic pages, name cards, finisher screen
+local NewsHud = require(Ui.NewsHud) -- lore step 7: the big screens and the corner TV
+local FinisherFx = require(Fx.FinisherFx) -- lore step 7: slow-mo finishers
 
 State.init()
 QualityController.init()
@@ -94,6 +98,7 @@ InputController.init()
 MoveController.init()
 GroundGuard.init() -- holds the hero still until the ground under a spawn or a server move has streamed in
 CameraController.init()
+CinemaClient.init()
 EnemyRenderer.init()
 CitizenRenderer.init()
 WorldClient.init()
@@ -143,7 +148,10 @@ WorldHud.init()
 CreatorScreen.init()
 WeaponRack.init()
 GuideHud.init()
+CinemaHud.init()
 StoryHud.init()
+NewsHud.init()
+FinisherFx.init()
 GuideClient.init()
 Journal.init()
 PvpHud.init()
@@ -166,6 +174,32 @@ IdleWatch.busyCheck = function()
 		or CreatorScreen.isOpen()
 end
 IdleWatch.init()
+-- lore step 7: a device-started scene only plays in a quiet moment (no fight would leave the hero defenceless)
+CinemaClient.context = function()
+	local player = game:GetService("Players").LocalPlayer
+	local char = player.Character
+	local root = char and char:FindFirstChild("HumanoidRootPart") :: BasePart?
+	local pos = root and root.Position
+	local nearest = math.huge
+	if pos then
+		for _, p in EnemyRenderer.each() do
+			nearest = math.min(nearest, (p - pos).Magnitude)
+		end
+	end
+	local b = WorldClient.boss
+	local def = b and b.id and require(ReplicatedStorage:WaitForChild("Config")).Boss.bosses[b.id]
+	local inBoss = def ~= nil
+		and pos ~= nil
+		and b.state == 3
+		and (Vector3.new(b.x, pos.Y, b.z) - pos).Magnitude <= (def.arenaRadius or 200) + 100
+	return {
+		hitAgo = os.clock() - CinemaClient.lastHit,
+		enemy = nearest,
+		downed = player:GetAttribute("Downed") == true,
+		pvp = player:GetAttribute("Pvp") == true,
+		boss = inBoss,
+	}
+end
 Telemetry.init()
 DevPanel.init()
 

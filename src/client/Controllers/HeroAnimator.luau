@@ -165,6 +165,12 @@ function HeroAnimator.byUserId(id: number?): Player?
 	return if id then Players:GetPlayerByUserId(id) else nil
 end
 
+-- The slow-mo finisher (lore step 7, FinisherFx): every hero's clips run at this speed on this device only
+-- (the server is never slowed). The mode clips' clock lags behind by `modeLag`; action clips start later.
+HeroAnimator.timeScale = 1
+local modeLag = 0
+local lastUpdate = 0
+
 local function step(r: Rig, p: Player, now: number)
 	local speed = r.root.AssemblyLinearVelocity.Magnitude
 	local want = HeroAnim.modeClip(modeOf(p), speed, p:GetAttribute("Downed") == true, r.modeTo)
@@ -175,8 +181,9 @@ local function step(r: Rig, p: Player, now: number)
 	if wTo >= 1 then
 		r.modeFrom = nil
 	end
-	local from = if r.modeFrom then HeroAnim.sample(r.modeFrom, now) else nil
-	local to = if r.modeTo then HeroAnim.sample(r.modeTo, now) else nil
+	local clipNow = now - modeLag
+	local from = if r.modeFrom then HeroAnim.sample(r.modeFrom, clipNow) else nil
+	local to = if r.modeTo then HeroAnim.sample(r.modeTo, clipNow) else nil
 	local act, wAct = nil, 0
 	local a = r.action
 	if a then
@@ -229,6 +236,19 @@ end
 
 local function update()
 	local now = os.clock()
+	local dt = math.min(0.1, now - lastUpdate)
+	lastUpdate = now
+	local slow = HeroAnimator.timeScale
+	if slow < 1 then
+		local held = dt * (1 - slow)
+		modeLag += held
+		for _, r in rigs do
+			local a = r.action
+			if a and not a.holdUntil then
+				a.start += held -- the action clip's clock runs at the slow speed
+			end
+		end
+	end
 	local cam = Workspace.CurrentCamera
 	local eye = cam and cam.CFrame.Position or Vector3.zero
 	for _, p in Players:GetPlayers() do

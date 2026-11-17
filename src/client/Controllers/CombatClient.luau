@@ -30,6 +30,7 @@ local Signal = require(Shared:WaitForChild("Util"):WaitForChild("Signal"))
 local InputController = require(script.Parent.InputController)
 local MoveController = require(script.Parent.MoveController)
 local CameraController = require(script.Parent.CameraController)
+local CinemaClient = require(script.Parent.CinemaClient) -- lore step 7: a hit ends a device-started scene
 local AudioController = require(script.Parent.AudioController)
 local EnemyRenderer = require(script.Parent.EnemyRenderer)
 local PvpClient = require(script.Parent.PvpClient)
@@ -52,6 +53,9 @@ local player = Players.LocalPlayer
 local CombatClient = {}
 CombatClient.HitConfirm = Signal.new() -- (crit)
 CombatClient.Cast = Signal.new() -- (abilityId)
+-- lore step 7: a blow that may be a finisher: ("die", typeId, pos, byUserId, enemyId) or ("unmask", 0, pos,
+-- byUserId, enemyId); FinisherFx decides (elites and fakes only)
+CombatClient.Finish = Signal.new()
 -- H1: BlockClient sets this (no casting while Block is held)
 CombatClient.blocked = nil :: (() -> boolean)?
 
@@ -301,6 +305,9 @@ function CombatClient.fire(id: string, charge: number?): boolean
 	if slot == "super" and awake then
 		color = color:Lerp(Color3.fromRGB(255, 235, 120), 0.35)
 	end
+	if slot == "super" then
+		CameraController.orbit(if seq % 2 == 0 then 1 else -1) -- lore step 7: a small orbit on supers
+	end
 	local shape = eff.shape
 	local step = 1
 	if eff.hits then
@@ -343,6 +350,7 @@ function CombatClient.fire(id: string, charge: number?): boolean
 		CombatFx.dash(origin, origin + dir * d, style, color, eff.set)
 		MoveController.dash(dir, d, eff.time or 0.18)
 		CameraController.punch(0.05)
+		CameraController.lean(dir) -- lore step 7: the camera leans into the dash
 	elseif shape == "cone" then
 		CombatFx.cone(origin, dir, eff.range, eff.cone or 40, style, color, eff.set)
 	elseif shape == "arc" then
@@ -531,6 +539,9 @@ local function drawHits(r: any, row: any, style: string, mine: boolean)
 		-- the camera punch: a small FOV kick on crits and heavy hits, smaller on the rest (never on ticks)
 		if r.k ~= K.TICK then
 			CameraController.punch(if anyCrit or heavy then C.punchHeavy else C.punchHit)
+			if anyCrit or heavy then
+				CameraController.push() -- lore step 7: a gentle push in on heavy hits
+			end
 			Juice.path(
 				row and row.set,
 				"hit",
@@ -757,6 +768,7 @@ local function onEvents(list: { any })
 			end
 			if ev[2] == player.UserId then
 				if ev[6] and ev[6] > 0 then
+					CinemaClient.hurt()
 					CombatFx.hurt()
 					CameraController.shake(0.12, 0.25)
 				else
@@ -768,6 +780,7 @@ local function onEvents(list: { any })
 			end
 		elseif kind == DIE then
 			local pos, metal = EnemyRenderer.kill(ev[2])
+			CombatClient.Finish:Fire("die", ev[6], pos or Vector3.new(ev[3], ev[4], ev[5]), ev[7], ev[2])
 			CombatFx.burst(pos or Vector3.new(ev[3], ev[4], ev[5]), styleOf(ev[7]), metal)
 			Juice.fire("defeat", pos or Vector3.new(ev[3], ev[4], ev[5]), { mine = false })
 			if ev[7] == player.UserId then
@@ -863,6 +876,7 @@ local function onEvents(list: { any })
 			-- {16, e, x,y,z}: a famous fake's face cracks to show metal: sound, flash, and a short hit-stop
 			-- and camera punch when it is near you
 			local at = EnemyRenderer.position(ev[2]) or Vector3.new(ev[3], ev[4], ev[5])
+			CombatClient.Finish:Fire("unmask", 0, at, ev[6], ev[2])
 			local close = near(at, Config.Fx.fakes.unmaskNear)
 			Juice.fire("unmask", at + Vector3.new(0, 2, 0), { mine = close, near = close })
 			if close then

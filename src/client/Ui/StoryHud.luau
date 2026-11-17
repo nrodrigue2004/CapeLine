@@ -1,8 +1,9 @@
 -- StoryHud: the story on screen (spec: The opening; First 30 seconds; Suit up; Act 1; Side quests).
--- * The Ceremony prologue (lore step 3): letterbox bars on the camera beats, the subtitles (Crane on the stage,
+-- * The Ceremony prologue (lore step 3): the camera beats' letterbox and SKIP are the cutscene player's
+--   (CinemaClient and CinemaHud since lore step 7: one way for every camera beat), the subtitles (Crane on the stage,
 --   Patch on the radio, Lodestar; fixed lines from Config.Story.opening.lines by side, shown by the guide line
 --   queue, Ui.GuideHud, since lore step 6), SPARK DETECTED, the
---   SKIP button (camera beats, replays only), the CAPELINE title card, and a quick fade on each cut. The HUD
+--   the CAPELINE title card, and a quick fade on each cut. The HUD
 --   shows only the beat's verb buttons (Hud.setFocus); a marker shows where to go; other screens stay hidden.
 --   The world side (stage, crowd, camera, effects) is PrologueFx.
 -- * The choice card: two (or three) big verb buttons.
@@ -34,6 +35,7 @@ local GuideHud = require(script.Parent.GuideHud)
 local State = require(script.Parent.Parent.State)
 local StoryClient = require(script.Parent.Parent.Controllers.StoryClient)
 local InputController = require(script.Parent.Parent.Controllers.InputController)
+local CinemaClient = require(script.Parent.Parent.Controllers.CinemaClient)
 
 local StoryHud = {}
 
@@ -55,8 +57,6 @@ local questPanel: Frame
 local questTitle: TextLabel
 local questText: TextLabel
 local questFill: Frame
-local skipBeat: TextButton
-local bars: { Frame } = {}
 local detected: TextLabel
 local titleCard: Frame
 local markerPart: Part
@@ -75,20 +75,6 @@ end
 ---------------------------------------------------------------------------
 
 local function buildPrologue()
-	for i = 1, 2 do
-		local bar = Kit.frame({
-			Name = if i == 1 then "LetterTop" else "LetterBottom",
-			AnchorPoint = Vector2.new(0, if i == 1 then 0 else 1),
-			Position = UDim2.fromScale(0, if i == 1 then 0 else 1),
-			Size = UDim2.fromScale(1, 0.1),
-			BackgroundColor3 = Color3.new(0, 0, 0),
-			round = false,
-			Visible = false,
-			ZIndex = 30,
-		})
-		bar.Parent = gui
-		table.insert(bars, bar)
-	end
 	detected = Kit.label({
 		Name = "Detected",
 		Text = S.opening.detected,
@@ -595,12 +581,7 @@ local function refreshOpening()
 	elseif Hud.focused() then
 		Hud.setFocus(nil)
 	end
-	local o = StoryClient.opening
-	local cutBeat = step ~= nil and OpeningPlan.CUT[step] == true
-	for _, b in bars do
-		b.Visible = cutBeat and not o.hold
-	end
-	skipBeat.Visible = step ~= nil and not o.hold and OpeningPlan.canSkip(step, o.replay == true)
+	-- (the letterbox and SKIP are the cutscene player's: PrologueFx plays the CUT beats through CinemaClient)
 	-- a quick fade from black on each cut to a new place
 	if step and step ~= lastStep and (step == "leap" or step == "tunnel" or step == "title") then
 		cut()
@@ -642,9 +623,7 @@ local function frame()
 	-- a mission's camera beat (lore step 5): letterbox and subtitles, no tracker
 	local scene, sceneT = StoryClient.missionScene()
 	if not step then
-		for _, b in bars do
-			b.Visible = scene ~= nil
-		end
+		-- (the letterbox is the cutscene player's: StoryFx plays the beat through CinemaClient)
 		-- the action buttons step aside for the beat (phones too), and come back after it
 		if (scene ~= nil) ~= sceneFocus then
 			sceneFocus = scene ~= nil
@@ -685,17 +664,25 @@ local function frame()
 	end
 	-- the prologue's words: subtitles, SPARK DETECTED, the title card
 	local t = if o.hold then 0 else StoryClient.beatTime()
-	if scene and not step then
-		sceneText(scene, StoryClient.mission.side or "hero", sceneT)
-	else
-		prologueText(if o.hold then nil else step, t)
+	-- (a device-started scene feeds its own lines: CinemaHud)
+	if not CinemaClient.ownLines() then
+		if scene and not step then
+			sceneText(scene, StoryClient.mission.side or "hero", sceneT)
+		else
+			prologueText(if o.hold then nil else step, t)
+		end
 	end
 	broadcastFrame(now)
 	-- the guide line box: under the letterbox on a camera beat; open-world lines wait while the prologue, a
 	-- mission or the broadcast is on; the box steps away from the full-screen broadcast
 	local cinematic = (step ~= nil and OpeningPlan.CUT[step] == true and not o.hold)
 		or (scene ~= nil and not step)
-	GuideHud.setScene(cinematic, step ~= nil or StoryClient.inMission() or newsOn ~= nil, newsOn ~= nil)
+		or CinemaClient.letterboxed()
+	GuideHud.setScene(
+		cinematic,
+		step ~= nil or StoryClient.inMission() or newsOn ~= nil or CinemaClient.playing(),
+		newsOn ~= nil
+	)
 	detected.Visible = step == "scan" and t >= S.opening.beats.scan * 0.42
 	local showTitle = step == "title" and t >= S.opening.beats.title * 0.55
 	if showTitle and not titleCard.Visible then
@@ -806,17 +793,6 @@ function StoryHud.init()
 	bline.Parent = bubble
 	buildPrologue()
 	buildBroadcast()
-	skipBeat = Kit.button({
-		Name = "Skip",
-		Text = "SKIP",
-		AnchorPoint = Vector2.new(1, 1),
-		Position = UDim2.new(1, -U.safe, 1, -U.safe),
-		Size = UDim2.fromOffset(U.touchTarget * 2, U.touchTarget),
-		BackgroundColor3 = Kit.color.paper,
-		Visible = false,
-		ZIndex = 50,
-	}, StoryClient.skipBeat)
-	skipBeat.Parent = gui
 	buildMarker()
 	StoryClient.Changed:Connect(function(what)
 		if what == "opening" then

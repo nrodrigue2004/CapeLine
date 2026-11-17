@@ -10498,9 +10498,9 @@ test("Lore 3: Lodestar's look, the street outfit, the funnel and the Dev panel",
 		string.find(readFile("src/server/Services/DevService.luau"), "prologue = function", 1, true) ~= nil,
 		"DevService"
 	)
-	local hud = clientSources()["src/client/Ui/StoryHud.luau"]
-	check(string.find(hud, "OpeningPlan.canSkip", 1, true) ~= nil, "the SKIP button follows canSkip")
 	local fx = clientSources()["src/client/Fx/PrologueFx.luau"]
+	-- (lore step 7: SKIP is the cutscene player's; the prologue's beat scene asks canSkip)
+	check(string.find(fx, "OpeningPlan.canSkip", 1, true) ~= nil, "the SKIP button follows canSkip")
 	check(
 		string.find(fx, "CombatFx.reduceFlashing", 1, true) ~= nil,
 		"reduce flashing softens the slow motion"
@@ -11231,7 +11231,8 @@ do
 				key and key.name == "Guide radio" and key.kind == "toggle" and key.default == 1,
 				"Guide radio, on by default"
 			)
-			check(idx == #Config.Settings.keys and idx <= 16, "the newest key, inside Settings.Set's range")
+			-- (keys only ever append: lore step 7's Camera motion came after it, so its index stays 12)
+			check(idx == 12 and #Config.Settings.keys <= 16, "its own key, inside Settings.Set's range")
 			check(SettingsRules.defaults(Config).guideRadio == 1, "the save's default")
 			local cli = clientSources()["src/client/Controllers/GuideClient.luau"]
 			check(
@@ -11749,6 +11750,559 @@ test(
 		)
 	end
 )
+
+---------------------------------------------------------------------------
+-- Lore step 7: the cinematic layer (Config.Cinema, Shared.CinemaPlan, Shared.NewsPlan; CinemaClient,
+-- CinemaHud, NewsHud, FinisherFx; CinemaService, NewsService)
+---------------------------------------------------------------------------
+
+do
+	local CinemaPlan = require("../src/shared/CinemaPlan")
+	local NewsPlan = require("../src/shared/NewsPlan")
+	local CreatorRules = require("../src/shared/CreatorRules")
+	local Ci = Config.Cinema
+	local OPB = Config.Story.opening.beats
+
+	test("Lore 7: every scene is well formed, 5 to 20 s, with a bit of its own in the save", function()
+		local bits = {}
+		for id, sc in Ci.scenes do
+			check(
+				type(sc.bit) == "number" and sc.bit >= 0 and sc.bit < Ci.missionBits.base,
+				id .. ": a named bit"
+			)
+			check(not bits[sc.bit], id .. ": its bit is its own")
+			bits[sc.bit] = true
+			local secs = if sc.beat then OPB[sc.beat] else CinemaPlan.length(sc)
+			local ok, why = CinemaPlan.check(Config, sc, secs)
+			check(ok, id .. ": " .. tostring(why))
+			if sc.beat then
+				check(OpeningPlan.CUT[sc.beat] == true, id .. ": a prologue camera beat")
+			end
+			if sc.long then
+				check(id == "ceremony" and secs <= 30, "only the Ceremony keeps nate's longer beat")
+			end
+			if sc.comic then
+				local pg = Ci.comic.pages[sc.comic]
+				check(pg ~= nil and #pg.panels >= 3 and #pg.panels <= 5, id .. ": a page of 3 to 5 panels")
+				for i, pn in pg.panels do
+					check(
+						pn.at < secs and type(pn.caption) == "string" and #pn.caption > 0,
+						id .. " panel " .. i
+					)
+				end
+			end
+		end
+		for step in OpeningPlan.CUT do
+			check(
+				Ci.scenes[step] ~= nil and Ci.scenes[step].beat == step,
+				step .. ": every CUT beat is a scene"
+			)
+		end
+		-- every mission camera beat: its own bit above the named ones, under 128, and 5 to 20 s
+		local mb = {}
+		local n = 0
+		for num, m in Config.Story.missions do
+			for _, list in { m.hero or {}, m.villain or {} } do
+				for stage, st in list do
+					if st.kind == "scene" then
+						local bit = CinemaPlan.missionBit(Config, num, stage)
+						check(
+							bit ~= nil and bit >= Ci.missionBits.base and bit < 128,
+							"mission " .. num .. " stage " .. stage
+						)
+						check(not bits[bit :: number], "a mission bit never reuses a named one")
+						mb[bit :: number] = true
+						n += 1
+						local ok, why = CinemaPlan.check(Config, { seconds = st.seconds })
+						check(ok, "mission " .. num .. " stage " .. stage .. ": " .. tostring(why))
+					end
+				end
+			end
+		end
+		check(n >= 10, "the Act 1 camera beats are counted (" .. n .. ")")
+		check(
+			CinemaPlan.missionBit(Config, 1, 1) == 16 and CinemaPlan.missionBit(Config, 2, 1) == 24,
+			"stable bits"
+		)
+		check(
+			CinemaPlan.missionBit(Config, 14, 1) == nil and CinemaPlan.missionBit(Config, 2, 9) == nil,
+			"range"
+		)
+		local maxBit =
+			CinemaPlan.missionBit(Config, Ci.missionBits.missions, Ci.missionBits.perMission) :: number
+		check(maxBit < ProfileSchema.SMALL_WORDS * 32, "every bit fits the save's seen set")
+		-- a bad scene is caught
+		check(not CinemaPlan.check(Config, { seconds = 3 }), "too short")
+		check(not CinemaPlan.check(Config, { seconds = 25 }), "too long")
+		check(not CinemaPlan.check(Config, {
+			seconds = 8,
+			shots = { { kind = "cut", t0 = 0, t1 = 4, from = { 0, 0, 0 }, at = { 1, 0, 0 } } },
+		}), "shots must fill the scene")
+		check(not CinemaPlan.check(Config, {
+			seconds = 8,
+			shots = { { kind = "spin", t0 = 0, t1 = 8, from = { 0, 0, 0 }, at = { 1, 0, 0 } } },
+		}), "unknown shot kind")
+	end)
+
+	test("Lore 7: shots: cut, dolly, orbit and look sample into one buffer; at() picks the shot", function()
+		local out = table.create(6, 0)
+		local dolly = {
+			kind = "dolly",
+			t0 = 0,
+			t1 = 4,
+			from = { 0, 0, 0 },
+			to = { 10, 0, 0 },
+			at = { 0, 0, -5 },
+			at2 = { 0, 10, -5 },
+		}
+		local r = CinemaPlan.sample(dolly :: any, 0.5, out)
+		check(r == out, "the same buffer comes back (no new table)")
+		near(out[1], 5, 1e-6, "dolly halfway")
+		near(out[5], 5, 1e-6, "its look pans halfway")
+		CinemaPlan.sample(
+			{ kind = "cut", t0 = 0, t1 = 1, from = { 1, 2, 3 }, at = { 4, 5, 6 }, to = { 9, 9, 9 } } :: any,
+			0.7,
+			out
+		)
+		check(out[1] == 1 and out[4] == 4, "a cut stays put")
+		CinemaPlan.sample(
+			{ kind = "look", t0 = 0, t1 = 1, from = { 1, 2, 3 }, at = { 0, 0, 0 }, at2 = { 10, 0, 0 } } :: any,
+			1,
+			out
+		)
+		check(out[1] == 1 and out[4] == 10, "a look pans from one spot")
+		CinemaPlan.sample(
+			{
+				kind = "orbit",
+				t0 = 0,
+				t1 = 1,
+				center = { 0, 0, 0 },
+				radius = 10,
+				height = 4,
+				yaw0 = 0,
+				yaw1 = math.pi / 2,
+				lift = 2,
+			} :: any,
+			1,
+			out
+		)
+		near(out[1], 10, 1e-6, "orbit a quarter round")
+		near(out[2], 4, 1e-6, "at its height")
+		near(out[5], 2, 1e-6, "looking at the centre's lift")
+		local shots = {
+			{ kind = "cut", t0 = 0, t1 = 2, from = { 0, 0, 0 }, at = { 0, 0, 1 } },
+			{ kind = "dolly", t0 = 2, t1 = 6, from = { 0, 0, 0 }, to = { 4, 0, 0 }, at = { 0, 0, 1 } },
+		}
+		local s, k = CinemaPlan.at(shots :: any, 4)
+		check(s == shots[2] and math.abs(k - 0.5) < 1e-6, "the second shot halfway (eased)")
+		local last, k2 = CinemaPlan.at(shots :: any, 99)
+		check(last == shots[2] and k2 == 1, "after the end: the last frame holds")
+		local moved = CinemaPlan.around(shots :: any, 100, 0, 0)
+		check(moved[2].to[1] == 104 and shots[2].to[1] == 4, "around() offsets a copy")
+		-- the prologue's beats and the missions' play through the one player (no camera code left in them)
+		local src = clientSources()
+		for _, path in { "src/client/Fx/PrologueFx.luau", "src/client/Fx/StoryFx.luau" } do
+			check(
+				string.find(src[path], "CinemaClient.play(", 1, true) ~= nil,
+				path .. ": plays through CinemaClient"
+			)
+			check(not string.find(src[path], "CameraType", 1, true), path .. ": no camera of its own")
+		end
+		local cc = src["src/client/Controllers/CinemaClient.luau"]
+		check(
+			string.find(cc, "CinemaPlan.sample(shot, k, buf)", 1, true) ~= nil,
+			"the player samples into its buffer"
+		)
+		local stepAt = string.find(cc, "local function step()", 1, true) :: number
+		local stepEnd = string.find(cc, "function CinemaClient.init()", 1, true) :: number
+		local body = string.sub(cc, stepAt, stepEnd)
+		check(not string.find(body, "{", 1, true), "no new tables in the camera step")
+		check(
+			not string.find(src["src/client/Ui/StoryHud.luau"], "LetterTop", 1, true),
+			"one letterbox (CinemaHud's)"
+		)
+		check(
+			string.find(src["src/client/Ui/CinemaHud.luau"], "LetterTop", 1, true) ~= nil,
+			"CinemaHud draws it"
+		)
+	end)
+
+	test("Lore 7: SKIP only once the save has seen the scene; device scenes only in safe moments", function()
+		check(not CinemaPlan.canSkip(Config, {}, 0, 5), "never the first time")
+		check(not CinemaPlan.canSkip(Config, { 0 }, 0, 0.1), "not in the scene's first moment")
+		check(CinemaPlan.canSkip(Config, { 0 }, 0, Ci.skipDelay), "seen: skippable")
+		check(CinemaPlan.canSkip(Config, { [3] = true }, 3, 2), "a lookup works too")
+		check(CinemaPlan.clientBit(Config, Ci.scenes.cityWatch.bit), "a device scene's bit")
+		check(
+			not CinemaPlan.clientBit(Config, Ci.scenes.ceremony.bit),
+			"a device never marks a prologue beat"
+		)
+		check(not CinemaPlan.clientBit(Config, 16), "nor a mission beat")
+		-- the save: seen survives a load and reaches the device
+		local p = ProfileSchema.default()
+		ProfileSchema.Bits.set(p.seen, 2, true)
+		ProfileSchema.Bits.set(p.seen, 30, true)
+		local loaded = ProfileSchema.load(p)
+		local view = ProfileSchema.clientView(loaded)
+		check(
+			table.find(view.seen, 2) ~= nil and table.find(view.seen, 30) ~= nil,
+			"the client view lists seen bits"
+		)
+		check(CinemaPlan.seen(view.seen, 30) and not CinemaPlan.seen(view.seen, 31), "seen() reads it")
+		-- safe moments
+		check(
+			CinemaPlan.safe(Config, { beat = true, hitAgo = 0, enemy = 1 }),
+			"a server beat is safe by design"
+		)
+		check(CinemaPlan.safe(Config, { hitAgo = 60, enemy = 500 }), "a quiet street")
+		check(not CinemaPlan.safe(Config, { hitAgo = 1, enemy = 500 }), "just hit")
+		check(not CinemaPlan.safe(Config, { hitAgo = 60, enemy = 20 }), "a robot close by")
+		check(not CinemaPlan.safe(Config, { hitAgo = 60, enemy = 500, downed = true }), "downed")
+		check(not CinemaPlan.safe(Config, { hitAgo = 60, enemy = 500, pvp = true }), "flagged for PvP")
+		check(not CinemaPlan.safe(Config, { hitAgo = 60, enemy = 500, boss = true }), "in a boss fight")
+		local cc = clientSources()["src/client/Controllers/CinemaClient.luau"]
+		check(string.find(cc, "function CinemaClient.hurt()", 1, true) ~= nil, "a hit ends a device scene")
+		check(
+			string.find(
+				clientSources()["src/client/Controllers/CombatClient.luau"],
+				"CinemaClient.hurt()",
+				1,
+				true
+			) ~= nil,
+			"CombatClient tells it"
+		)
+		-- the server marks and checks the seen set
+		local os_ = readFile("src/server/Services/OpeningService.luau")
+		check(
+			string.find(os_, "CinemaService.markScene(r.player, r.step)", 1, true) ~= nil,
+			"prologue beats marked"
+		)
+		check(
+			string.find(os_, "OpeningPlan.canSkip(r.step, CinemaService.seenScene(player, r.step))", 1, true)
+				~= nil,
+			"skip once seen"
+		)
+		local ms = readFile("src/server/Services/MissionService.luau")
+		check(string.find(ms, "CinemaService.mark(h.player, bit)", 1, true) ~= nil, "mission beats marked")
+		check(
+			string.find(ms, "sceneSeen(run, track)", 1, true) ~= nil,
+			"a mission skip needs every hero to have seen it"
+		)
+		check(string.find(ms, 'Net.on("SceneSkip", MissionService.skipScene)', 1, true) ~= nil, "SceneSkip")
+		local cs = readFile("src/server/Services/CinemaService.luau")
+		check(
+			string.find(cs, "CinemaPlan.clientBit(Config, bit)", 1, true) ~= nil,
+			"SceneSeen takes device bits only"
+		)
+		local R = require("../src/shared/Remotes")
+		check(R.SceneSeen and R.SceneSeen.dir == "C2S" and R.SceneSkip and R.NewsFact, "the remotes")
+	end)
+
+	test("Lore 7: Camera motion Full / Reduced / Off and Reduce flashing are respected", function()
+		local keys = {}
+		for i, k in Config.Settings.keys do
+			keys[k.id] = i
+		end
+		local idx = keys.cameraMotion
+		check(idx == #Config.Settings.keys, "the new key goes last (its index is the Settings.Set number)")
+		local k = Config.Settings.keys[idx]
+		check(k.kind == "choice" and #k.options == 3 and k.default == 0, "Full by default")
+		local SettingsRules = require("../src/shared/SettingsRules")
+		check(SettingsRules.clean(Config, {}).cameraMotion == 0, "old saves get Full")
+		local full = CinemaPlan.motion(Config, 0, false)
+		local half = CinemaPlan.motion(Config, 1, false)
+		local off = CinemaPlan.motion(Config, 2, false)
+		check(full.lean == 1 and full.push == 1 and full.orbit == 1 and full.shake == 1, "Full")
+		check(
+			half.lean == 0.5 and half.push == 0.5 and half.orbit == 0.5 and half.shake == 0.5,
+			"Reduced halves"
+		)
+		check(off.lean == 0 and off.push == 0 and off.orbit == 0 and off.shake == 0, "Off removes")
+		local rf = CinemaPlan.motion(Config, 0, true)
+		check(
+			rf.shake == 0 and rf.flash == 0 and rf.lean == 1,
+			"Reduce flashing removes shakes and flashes only"
+		)
+		local buf = CinemaPlan.motion(Config, 0, false)
+		check(
+			CinemaPlan.motion(Config, 2, false, buf) == buf and buf.push == 0,
+			"refreshed in place (no new table)"
+		)
+		-- the finishers by style, role and settings
+		for _, style in { "Comic", "Anime" } do
+			for _, opt in { 0, 1, 2 } do
+				for _, flashOff in { false, true } do
+					local me = CinemaPlan.finisher(Config, style, "killer", opt, flashOff)
+					local them = CinemaPlan.finisher(Config, style, "near", opt, flashOff)
+					local tag = style .. " opt " .. opt .. (if flashOff then " RF" else "")
+					check(me.slow < 1 and me.slow > 0, tag .. ": a time slow")
+					check(them.seconds < me.seconds and them.slow > me.slow, tag .. ": nearby is shorter")
+					check(
+						me.push == Ci.camera.push.finisher * Ci.camera.scale[opt + 1],
+						tag .. ": the push follows Camera motion"
+					)
+					if flashOff then
+						check(
+							me.hitStop == 0 and me.freeze == 0 and me.flash == 0,
+							tag .. ": no hit stop, freeze or flash"
+						)
+					end
+					if style == "Comic" then
+						check(me.word and me.lines == 0 and me.freeze == 0, tag .. ": impact word, no lines")
+						check(flashOff or me.hitStop > 0, tag .. ": a hit stop")
+					else
+						check(not me.word and me.lines > 0 and them.lines < me.lines, tag .. ": speed lines")
+						check(flashOff or me.freeze > 0, tag .. ": a freeze frame")
+					end
+				end
+			end
+		end
+		check(CinemaPlan.role(Config, true, 9999) == "killer", "the finisher sees it anywhere")
+		check(CinemaPlan.role(Config, false, Ci.finisher.near - 1) == "near", "nearby")
+		check(CinemaPlan.role(Config, false, Ci.finisher.near + 1) == nil, "far away: nothing")
+		check(
+			CinemaPlan.word(Config, "bossDead", 7) == CinemaPlan.word(Config, "bossDead", 7),
+			"the same word on every screen"
+		)
+		-- wiring: the camera obeys both settings; the server is never slowed
+		local src = clientSources()
+		local cam = src["src/client/Controllers/CameraController.luau"]
+		check(
+			string.find(cam, "CameraController.motion.shake", 1, true) ~= nil,
+			"shakes scale with Camera motion"
+		)
+		check(string.find(cam, "function CameraController.lean(", 1, true) ~= nil, "lean")
+		check(string.find(cam, "function CameraController.push(", 1, true) ~= nil, "push")
+		check(string.find(cam, "function CameraController.orbit(", 1, true) ~= nil, "orbit")
+		local setc = src["src/client/Controllers/SettingsClient.luau"]
+		check(string.find(setc, "CameraController.setMotion(v)", 1, true) ~= nil, "Camera motion applies")
+		check(
+			string.find(setc, "CameraController.setMotion(nil, on)", 1, true) ~= nil,
+			"Reduce flashing applies"
+		)
+		local cb = src["src/client/Controllers/CombatClient.luau"]
+		check(string.find(cb, "CameraController.lean(dir)", 1, true) ~= nil, "dashes lean")
+		check(string.find(cb, "CameraController.push()", 1, true) ~= nil, "heavy hits push")
+		check(string.find(cb, "CameraController.orbit(", 1, true) ~= nil, "supers orbit")
+		check(
+			string.find(cb, "not CameraController.reduceMotion", 1, true) ~= nil,
+			"the hit freeze still obeys RF"
+		)
+		local fin = src["src/client/Fx/FinisherFx.luau"]
+		check(string.find(fin, "HeroAnimator.timeScale = plan.slow", 1, true) ~= nil, "animation slows")
+		check(string.find(fin, "FxLib.setTimeScale(plan.slow)", 1, true) ~= nil, "effects slow")
+		check(
+			string.find(fin, "CameraController.reduceMotion", 1, true) ~= nil,
+			"reduce flashing reaches the plan"
+		)
+		for _, path in { "src/server/Services/BossService.luau", "src/server/Services/MissionService.luau" } do
+			local sv = readFile(path)
+			check(not string.find(sv, "timeScale", 1, true), path .. ": the server is never slowed")
+			check(string.find(sv, "out.by = ", 1, true) ~= nil, path .. ": the finisher's hero goes out")
+		end
+	end)
+
+	test("Lore 7: the news: fixed templates, safe names, feed, reel, streaks and the big screens", function()
+		local t, n = 1, 1
+		local name = CreatorRules.heroName(Config, t, n) :: string
+		check(type(name) == "string", "a safe name")
+		local samples = {
+			boss = Config.Boss.bosses.RustjawPrime.num,
+			bossDown = Config.Boss.bosses.LumenMaw.num,
+			bossAway = Config.Boss.bosses.RustjawPrime.num,
+			unmask = Config.Enemies.Bulwark.typeId,
+			streak = 5,
+			heist = 0,
+			heistVillain = 0,
+			act1 = 3,
+		}
+		for kind, a in samples do
+			local line = NewsPlan.text(Config, { k = NewsPlan.CODE[kind], t = t, n = n, a = a }, name)
+			check(line ~= nil and not string.find(line :: string, "%", 1, true), kind .. ": a full line")
+			if NewsPlan.named(kind) then
+				check(
+					string.find(line :: string, string.upper(name), 1, true) ~= nil,
+					kind .. ": names the hero"
+				)
+			end
+		end
+		check(
+			NewsPlan.text(Config, { k = NewsPlan.CODE.bossDown, a = 99 }, name) == nil,
+			"an unknown boss: nothing"
+		)
+		check(
+			NewsPlan.text(Config, { k = NewsPlan.CODE.streak, a = 1.5 }, name) == nil,
+			"a bad count: nothing"
+		)
+		check(NewsPlan.text(Config, { k = 99 }, name) == nil, "an unknown kind: nothing")
+		check(
+			string.find(
+				NewsPlan.text(Config, { k = NewsPlan.CODE.heist, a = 0 }, nil) :: string,
+				"A HERO",
+				1,
+				true
+			) ~= nil,
+			"no name: A HERO"
+		)
+		check(
+			NewsPlan.flash(Config, { k = NewsPlan.CODE.boss })
+				and not NewsPlan.flash(Config, { k = NewsPlan.CODE.heist }),
+			"flashes"
+		)
+		-- the feed: newest first, capped, repeats dropped
+		local feed = NewsPlan.feed()
+		check(NewsPlan.push(Config, feed, { k = NewsPlan.CODE.heist, t = 1, n = 1, a = 0 }, 0), "first")
+		check(
+			not NewsPlan.push(Config, feed, { k = NewsPlan.CODE.heist, t = 1, n = 1, a = 0 }, 10),
+			"a repeat"
+		)
+		check(
+			NewsPlan.push(
+				Config,
+				feed,
+				{ k = NewsPlan.CODE.heist, t = 1, n = 1, a = 0 },
+				Ci.news.repeatGap + 1
+			),
+			"news again later"
+		)
+		for i = 1, 20 do
+			NewsPlan.push(Config, feed, { k = NewsPlan.CODE.streak, t = i, n = 1, a = 3 }, 200 + i)
+		end
+		check(#feed == Ci.news.feed and feed[1].t == 20, "capped, newest first")
+		-- the reel: a fresh flash breaks in, then Crane and the ticker take turns
+		local f2 = NewsPlan.feed()
+		NewsPlan.push(Config, f2, { k = NewsPlan.CODE.boss, a = 1 }, 1000)
+		check(NewsPlan.reel(Config, f2, 1001) == "breaking", "BREAKING while fresh")
+		local saw = {}
+		for tt = 1000 + Ci.news.breaking + 1, 1100 do
+			saw[NewsPlan.reel(Config, f2, tt)] = true
+		end
+		check(saw.crane and saw.ticker and not saw.breaking, "then Crane's segment and the ticker")
+		local tick = NewsPlan.ticker(Config, f2, function()
+			return nil
+		end)
+		check(string.find(tick, "RUSTJAW", 1, true) ~= nil, "the ticker reads the feed")
+		check(NewsPlan.ticker(Config, {}, function()
+			return nil
+		end) == Ci.news.channel, "an empty feed shows the channel")
+		-- streaks
+		local st = {}
+		local got = {}
+		for i = 1, 6 do
+			table.insert(got, NewsPlan.streak(Config, st, 7, i * 10) or 0)
+		end
+		check(got[3] == 3 and got[5] == 5 and got[4] == 0, "3 and 5 in a row are news")
+		check(NewsPlan.streak(Config, st, 7, 10000) == nil and st[7].n == 1, "a long gap starts again")
+		-- the big screens for a real world
+		local screens = NewsPlan.screens(Config, world)
+		local kinds = {}
+		for _, s in screens do
+			kinds[s.kind] = (kinds[s.kind] or 0) + 1
+			check(s.w > 0 and s.h > 0 and math.abs(s.nx) + math.abs(s.nz) == 1, "a screen faces one way")
+		end
+		check(
+			kinds.plaza == 1 and (kinds.downtown or 0) >= 1 and kinds.uptown == 1,
+			"plaza, Downtown and Uptown screens"
+		)
+		-- no free text: the server sends ids only and the device builds every line
+		local ns = readFile("src/server/Services/NewsService.luau")
+		check(
+			string.find(ns, "return { k = f.k, t = f.t, n = f.n, a = f.a, g =", 1, true) ~= nil,
+			"facts are ids"
+		)
+		check(
+			string.find(ns, "CreatorRules.nameOk(Config, t, n)", 1, true) ~= nil,
+			"blocked names never go out"
+		)
+		check(
+			not string.find(ns, "DisplayName", 1, true) and not string.find(ns, ".Name,", 1, true),
+			"no account names"
+		)
+		local nh = clientSources()["src/client/Ui/NewsHud.luau"]
+		check(
+			string.find(nh, "CreatorRules.heroName(Config", 1, true) ~= nil,
+			"the device rebuilds the safe name"
+		)
+		check(not string.find(nh, "TextBox", 1, true), "no text box")
+		local bs = readFile("src/server/Services/BossService.luau")
+		check(string.find(bs, "BossService.Arrived:Fire(bossId)", 1, true) ~= nil, "a boss landing is news")
+		check(
+			string.find(nh, 'Toasts.show({ id = "newsFlash"', 1, true) ~= nil,
+			"the boss flash is a toast too"
+		)
+		check(string.find(nh, "CinemaHud.nameCard(id)", 1, true) ~= nil, "arriving heroes get the name card")
+		for id in Config.Boss.bosses do
+			local nm, title = CinemaPlan.nameCard(Config, id)
+			check(#nm > 0 and #title > 0, id .. ": a name card")
+		end
+		check(CinemaPlan.nameCardDue(Config, 3, 100, 200, false), "due on arrival")
+		check(not CinemaPlan.nameCardDue(Config, 3, 100, 200, true), "once a fight")
+		check(not CinemaPlan.nameCardDue(Config, 0, 1, 200, false), "not when no fight")
+		check(not CinemaPlan.nameCardDue(Config, 3, 200 + Ci.nameCard.reach + 1, 200, false), "not far away")
+	end)
+
+	test("Lore 7: each piece has a Dev panel button; pooled GUI; placeholder art labelled; boot", function()
+		local src = clientSources()
+		local dev = src["src/client/Ui/DevPanel.luau"]
+		for _, needle in
+			{
+				'CinemaClient.playScene("cityWatch")',
+				'CinemaClient.playScene("lastStand")',
+				'"DevCommand", "news"',
+				"NewsHud.crane()",
+				"NewsHud.nameCard(",
+				'"bossDead",\n\t\t\t\tr.Position',
+				'FinisherFx.play("bossPhase"',
+				'SettingsClient.set("cameraMotion"',
+			}
+		do
+			check(string.find(dev, needle, 1, true) ~= nil, "Dev: " .. needle)
+		end
+		check(
+			string.find(
+				readFile("src/server/Services/DevService.luau"),
+				"NewsService.dev(player, what)",
+				1,
+				true
+			) ~= nil,
+			"DevService"
+		)
+		local hud = src["src/client/Ui/CinemaHud.luau"]
+		check(string.find(hud, "built[id]", 1, true) ~= nil, "comic panels are built once and kept")
+		check(
+			string.find(hud, "for i = 1, C.finisher.anime.lines do", 1, true) ~= nil,
+			"speed lines pooled at boot"
+		)
+		for _, path in
+			{
+				"src/client/Ui/CinemaHud.luau",
+				"src/client/Ui/NewsHud.luau",
+				"src/server/Services/NewsService.luau",
+			}
+		do
+			local text = src[path] or readFile(path)
+			check(string.find(text, "PLACEHOLDER ART", 1, true) ~= nil, path .. ": placeholder art labelled")
+		end
+		check(
+			string.find(readFile("src/config/Cinema.luau"), "PLACEHOLDER", 1, true) ~= nil,
+			"placeholder titles labelled"
+		)
+		local boot = src["src/client/init.client.luau"]
+		for _, m in { "CinemaClient.init()", "CinemaHud.init()", "NewsHud.init()", "FinisherFx.init()" } do
+			check(string.find(boot, m, 1, true) ~= nil, "boot: " .. m)
+		end
+		local sboot = readFile("src/server/init.server.luau")
+		check(
+			string.find(sboot, 'boot("CinemaService"', 1, true) ~= nil
+				and string.find(sboot, 'boot("NewsService"', 1, true) ~= nil,
+			"server boot"
+		)
+		check(
+			string.find(src["src/client/Ui/StoryHud.luau"], "CinemaClient.letterboxed()", 1, true) ~= nil,
+			"the guide box goes under the letterbox"
+		)
+	end)
+end
 
 print(string.format("\n%d passed, %d failed", passed, failed))
 if failed > 0 then

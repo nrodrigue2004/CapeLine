@@ -6,7 +6,8 @@
 -- * A mission's camera beats (lore step 5): the camera leaves the hero for the beat's focus (a fake, the mast,
 --   the safehouse door) and pushes in slowly; the hero holds still on this device; Lodestar stands where the
 --   beat says; each radio line starts with a blip (the subtitles are StoryHud's). No flashes or shakes, so
---   Reduce flashing has nothing to remove. The full cutscene player is build plan step 7.
+--   Reduce flashing has nothing to remove. The shot plays through the one cutscene player (CinemaClient,
+--   lore step 7: letterbox, SKIP once every hero on the stage has seen it).
 -- PLACEHOLDER ART: parts until the art pass.
 
 local Players = game:GetService("Players")
@@ -16,9 +17,14 @@ local FrameProf =
 local Workspace = game:GetService("Workspace")
 
 local NpcRig = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("NpcRig"))
+local Config = require(game:GetService("ReplicatedStorage"):WaitForChild("Config"))
+local Net = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Net"))
+local CinemaPlan =
+	require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("CinemaPlan"))
 
 local State = require(script.Parent.Parent.State)
 local StoryClient = require(script.Parent.Parent.Controllers.StoryClient)
+local CinemaClient = require(script.Parent.Parent.Controllers.CinemaClient)
 local CombatFx = require(script.Parent.CombatFx)
 local PrologueFx = require(script.Parent.PrologueFx)
 
@@ -125,32 +131,12 @@ end
 ---------------------------------------------------------------------------
 
 local player = Players.LocalPlayer
-local sceneCam = false
-local shot: { step: any, from: Vector3, at: Vector3 }? = nil
+local sceneKey: any = nil
 local lodestar: any = nil
 
 local function heroRoot(): BasePart?
 	local c = player.Character
 	return c and c:FindFirstChild("HumanoidRootPart") :: BasePart?
-end
-
-local function endScene()
-	if sceneCam then
-		local cam = Workspace.CurrentCamera
-		if cam then
-			cam.CameraType = Enum.CameraType.Custom
-			local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
-			if hum then
-				cam.CameraSubject = hum
-			end
-		end
-		local r = heroRoot()
-		if r then
-			r.Anchored = false
-		end
-		sceneCam = false
-	end
-	shot = nil
 end
 
 local function lodestarStep(at: { number }?, face: Vector3?)
@@ -169,40 +155,67 @@ local function lodestarStep(at: { number }?, face: Vector3?)
 	NpcRig.place(lodestar, CFrame.new(pos) * CFrame.Angles(0, math.atan2(-d.X, -d.Z), 0))
 end
 
+-- The beat's shot (lore step 7: played by the one cutscene player, CinemaClient): from beside and above the
+-- hero, looking at the focus (or the hero, with no focus), with a slow push in over the beat
+local function playScene(st: any, r: BasePart)
+	local m = StoryClient.mission
+	local f = m.focus
+	local at = if f then Vector3.new(f[1], f[2] + 5, f[3]) else r.Position + Vector3.new(0, 3, 0)
+	local flat = Vector3.new(r.Position.X - at.X, 0, r.Position.Z - at.Z)
+	local back = if flat.Magnitude > 1 then flat.Unit else Vector3.new(0, 0, 1)
+	local dist = math.clamp(flat.Magnitude * 0.6 + 26, 30, 70)
+	local side = back:Cross(Vector3.new(0, 1, 0)) * 10
+	local from = at + back * dist + side + Vector3.new(0, 14, 0)
+	local to = from:Lerp(at, 0.22)
+	local seconds = math.max(1, st.seconds)
+	CinemaClient.play({
+		owner = "mission",
+		key = st,
+		bit = CinemaPlan.missionBit(Config, m.num or 0, m.step or 0),
+		shots = {
+			{
+				kind = "dolly",
+				t0 = 0,
+				t1 = seconds,
+				from = { from.X, from.Y, from.Z },
+				to = { to.X, to.Y, to.Z },
+				at = { at.X, at.Y, at.Z },
+				at2 = { at.X, at.Y, at.Z },
+			},
+		},
+		seconds = seconds,
+		beat = true,
+		clock = function(): number
+			local _, t = StoryClient.missionScene()
+			return t
+		end,
+		canSkip = function(): boolean
+			local _, t = StoryClient.missionScene()
+			return StoryClient.mission.seen == true and t >= Config.Cinema.skipDelay
+		end,
+		skip = function()
+			Net.send("SceneSkip")
+		end,
+	})
+end
+
 local function sceneStep()
-	local st, t = StoryClient.missionScene()
+	local st = StoryClient.missionScene()
 	local m = StoryClient.mission
 	local r = heroRoot()
 	if not st or not r then
-		endScene()
+		if sceneKey ~= nil then
+			CinemaClient.stop("mission")
+			sceneKey = nil
+		end
 		lodestarStep(if StoryClient.inMission() and st then m.lodestar else nil, nil)
 		return
 	end
 	lodestarStep(m.lodestar, r.Position)
-	local cam = Workspace.CurrentCamera
-	if not cam then
-		return
+	if sceneKey ~= st then
+		sceneKey = st
+		playScene(st, r)
 	end
-	if not shot or shot.step ~= st then
-		-- the shot: from beside and above the hero, looking at the focus (or the hero, with no focus)
-		local f = m.focus
-		local at = if f then Vector3.new(f[1], f[2] + 5, f[3]) else r.Position + Vector3.new(0, 3, 0)
-		local flat = Vector3.new(r.Position.X - at.X, 0, r.Position.Z - at.Z)
-		local back = if flat.Magnitude > 1 then flat.Unit else Vector3.new(0, 0, 1)
-		local dist = math.clamp(flat.Magnitude * 0.6 + 26, 30, 70)
-		local side = back:Cross(Vector3.new(0, 1, 0)) * 10
-		shot = { step = st, from = at + back * dist + side + Vector3.new(0, 14, 0), at = at }
-	end
-	local sh = shot :: { step: any, from: Vector3, at: Vector3 }
-	if not sceneCam then
-		cam.CameraType = Enum.CameraType.Scriptable
-		r.Anchored = true -- the hero holds still for the beat on this device (the server still moves it)
-		sceneCam = true
-	end
-	local k = math.clamp(t / math.max(1, st.seconds), 0, 1)
-	local e = k * k * (3 - 2 * k)
-	local from = sh.from:Lerp(sh.at, 0.22 * e) -- a slow push in
-	cam.CFrame = CFrame.lookAt(from, sh.at)
 	-- (lore step 6: each line's blip is the guide line queue's, Ui.GuideHud)
 end
 

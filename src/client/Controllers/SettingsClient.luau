@@ -1,6 +1,6 @@
 -- SettingsClient: the device side of Settings (spec: Accessibility; Settings.Set). Holds the values from
 -- the save, applies each one at once (graphics preset, text size, left-handed stick and HUD, reduce
--- flashing, one-hand flight, tap-to-fly, touch aim assist, damage numbers, volumes, touch button size) and sends a change to
+-- flashing, one-hand flight, tap-to-fly, touch aim assist, damage numbers, volumes, touch button size, camera motion) and sends a change to
 -- the save after a short pause so a slider drag sends once. The saved mute list fills PvpClient's mutes.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -70,7 +70,7 @@ local function apply(id: string)
 		local on = v == 1
 		CombatFx.reduceFlashing = on
 		FxLib.reduceFlashing = on
-		CameraController.reduceMotion = on
+		CameraController.setMotion(nil, on) -- (sets CameraController.reduceMotion)
 		Kit.flashLevel = if on then 0.35 else 1
 	elseif id == "leftHanded" or id == "oneHand" then
 		InputController.setStick(stickMode())
@@ -82,6 +82,8 @@ local function apply(id: string)
 		group("Music").Volume = v / 10
 	elseif id == "sfx" then
 		group("Effects").Volume = v / 10
+	elseif id == "cameraMotion" then
+		CameraController.setMotion(v) -- lore step 7: Full, Reduced (half) or Off (Config.Cinema.camera)
 	elseif id == "buttonSize" then
 		Kit.setButtonScale(v / 100) -- the touch cluster's size (TouchLayout keeps it on screen)
 	end

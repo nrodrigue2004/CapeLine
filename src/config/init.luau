@@ -59,6 +59,7 @@ local NAMES = {
 	"TravelStyles", -- H8: travel power styles
 	"Episodes", -- H8: the weekly episodes
 	"Pass", -- H8: the Hero Pass
+	"Cinema", -- lore step 7: cutscenes, news, comic pages, finishers, the dynamic camera
 }
 
 local Config: { [string]: any } = {}

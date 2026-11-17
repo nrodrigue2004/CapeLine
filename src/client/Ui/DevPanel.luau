@@ -29,6 +29,10 @@ local EnemyRenderer = require(script.Parent.Parent.Controllers.EnemyRenderer)
 local StoryClient = require(script.Parent.Parent.Controllers.StoryClient)
 local GuideClient = require(script.Parent.Parent.Controllers.GuideClient)
 local GuideHud = require(script.Parent.GuideHud)
+local NewsHud = require(script.Parent.NewsHud)
+local CinemaClient = require(script.Parent.Parent.Controllers.CinemaClient)
+local FinisherFx = require(script.Parent.Parent.Fx.FinisherFx)
+local Players = game:GetService("Players")
 
 local DevPanel = {}
 
@@ -60,9 +64,14 @@ function DevPanel.init()
 	grid.CellSize = UDim2.fromOffset(90, 30)
 	grid.CellPadding = UDim2.fromOffset(5, 5)
 	grid.SortOrder = Enum.SortOrder.LayoutOrder
-	local holder = Instance.new("Frame")
+	-- (lore step 7: a scrolling list now that the buttons outgrow the panel)
+	local holder = Instance.new("ScrollingFrame")
 	holder.BackgroundTransparency = 1
-	holder.Size = UDim2.new(1, -16, 0, 750)
+	holder.BorderSizePixel = 0
+	holder.ScrollBarThickness = 6
+	holder.CanvasSize = UDim2.new()
+	holder.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	holder.Size = UDim2.new(1, -8, 0, 750)
 	holder.Position = UDim2.fromOffset(8, 8)
 	grid.Parent = holder
 	holder.Parent = panel
@@ -412,6 +421,57 @@ function DevPanel.init()
 	end)
 	add("Text 160% / 100%", function()
 		SettingsClient.set("textSize", if SettingsClient.get("textSize") >= 160 then 100 else 160)
+	end)
+	-- lore step 7: the cinematic layer (each piece has a button)
+	add("Scene: city", function(b)
+		local ok, why = CinemaClient.playScene("cityWatch")
+		b.Text = if ok then "Scene: city" else "Scene waits: " .. tostring(why)
+	end)
+	add("Comic: last stand", function(b)
+		local ok, why = CinemaClient.playScene("lastStand")
+		b.Text = if ok then "Comic: last stand" else "Comic waits: " .. tostring(why)
+	end)
+	local newsKinds = { "boss", "boss down", "unmask", "streak", "heist", "act 1" }
+	local newsIdx = 1
+	add("News: boss", function(b)
+		Net.send("DevCommand", "news", newsIdx)
+		newsIdx = newsIdx % #newsKinds + 1
+		b.Text = "News: " .. newsKinds[newsIdx]
+	end)
+	add("Crane on TV", function()
+		NewsHud.crane()
+	end)
+	local cardIdx = 1
+	local cardIds = table.clone(Config.Boss.order)
+	table.insert(cardIds, "NullWarFrame")
+	add("Name card", function()
+		NewsHud.nameCard(cardIds[cardIdx])
+		cardIdx = cardIdx % #cardIds + 1
+	end)
+	add("Finisher (mine)", function()
+		local c = Players.LocalPlayer.Character
+		local r = c and c:FindFirstChild("HumanoidRootPart") :: BasePart?
+		if r then
+			FinisherFx.play(
+				"bossDead",
+				r.Position + r.CFrame.LookVector * 12,
+				Players.LocalPlayer.UserId,
+				os.clock()
+			)
+		end
+	end)
+	add("Finisher (nearby)", function()
+		local c = Players.LocalPlayer.Character
+		local r = c and c:FindFirstChild("HumanoidRootPart") :: BasePart?
+		if r then
+			FinisherFx.play("bossPhase", r.Position + r.CFrame.LookVector * 30, 0, os.clock())
+		end
+	end)
+	local motionNames = Config.Cinema.camera.options
+	add("Camera: " .. motionNames[SettingsClient.get("cameraMotion") + 1], function(b)
+		local v = (SettingsClient.get("cameraMotion") + 1) % #motionNames
+		SettingsClient.set("cameraMotion", v)
+		b.Text = "Camera: " .. motionNames[v + 1]
 	end)
 
 	local stats = Kit.label({

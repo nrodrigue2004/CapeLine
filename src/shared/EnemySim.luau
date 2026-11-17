@@ -549,7 +549,11 @@ function EnemySim.damage(
 		and FakeRules.cracked(sim.config, e.health / e.maxHealth)
 	then
 		e.unmasked = true -- the hero face cracks to show metal
-		table.insert(sim.events, { k = "unmask", e = e.id, x = e.x, y = e.y, z = e.z })
+		-- (by: who cracked it, for the news and the slow-mo finisher, lore step 7)
+		table.insert(
+			sim.events,
+			{ k = "unmask", e = e.id, x = e.x, y = e.y, z = e.z, by = attacker, kind = e.kind }
+		)
 	end
 	if e.health <= 0 then
 		e.health = 0

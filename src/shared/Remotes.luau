@@ -151,6 +151,11 @@ local Remotes: { [string]: RemoteDef } = {
 	MissionState = { dir = "S2C" }, -- { num, step, steps, side, kind, text, have, need, t, points, target, focus }, 2 Hz
 	MissionResult = { dir = "S2C" }, -- { num, first, credits, renown, drops, skillPoints, rep, ending }
 	StoryBroadcast = { dir = "S2C" }, -- { id }: an act's ending broadcast (lore step 5: after Live, back in the city)
+	-- lore step 7 (the cinematic layer): a device-started scene was seen (its Config.Cinema bit); skip a
+	-- mission's camera beat (only when every hero on that stage has seen it); the news (facts and flashes)
+	SceneSeen = { dir = "C2S", schema = { n(0, 127) }, rate = 0.5, burst = 3 },
+	SceneSkip = { dir = "C2S", schema = {}, rate = 1, burst = 2 },
+	NewsFact = { dir = "S2C" }, -- { list = { { k, t, n, a } } }: NewsPlan facts (fixed templates, safe names)
 	QuestTalk = { dir = "S2C" }, -- { num, line, npc }: the NPC's speech bubble (fixed lines, no free text)
 	QuestState = { dir = "S2C" }, -- { num, step, have, need, left, target, area }: the pinned quest, 2 Hz
 

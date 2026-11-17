@@ -44,6 +44,7 @@ Waiting on others:
 - H8 (lore thread): the episodes' panel lines and step texts are drafts (PLACEHOLDER CONTENT in Config.Episodes); the launch episodes use the existing task forces and missions as their 4th step, so a new mission or task force leg each week waits on the lore thread's content. Config.Pass.startWeek (2970 = Monday 2026-11-30) is a guess: set it to the launch Monday.
 
 ## Placeholder art and animation (replace before launch)
+- Lore step 7 cinematic layer: the comic-panel page (CinemaHud: each panel's picture is frames: sky, ground, skyline blocks, simple figures, a burst, the crater), the boss name card, the corner TV and the big news screens and the plaza screen's frame (NewsService, NewsHud) are plain parts, frames and text; the name card titles (Config.Cinema.nameCard.titles) wait for the bosses' lore. PLACEHOLDER ART until the art pass.
 - Vigil HQ (nate's lore plan Q2): the Safehouse hideout (concrete walls, pillars, pipes, cable trays, work lamps, monitors, the city map wall, the stair; Shared.HqRules.hideout, also on mission 2's tunnels) and the plaza stairwell head with its service door (HqService) are plain parts in the city palette. PLACEHOLDER ART.
 - Lore step 6 guides: the portraits (Lodestar, Patch, Crane, the insider, Radiant, Bulwark, the copy) are drawn from UI frames in GuideHud, and each speaker's blip is a built-in clip (Config.Audio sounds radio, guideLodestar, guideCrane, guideInsider, guideFake). PLACEHOLDER ART and PLACEHOLDER SOUND until the art pass and real voice lines.
 - H8: travel styles are engine Trails and ParticleEmitters with default textures; the PASS panel, intro panels and XP cards are Kit frames; the Opening Night costume set reuses existing kits (Tuxedo, Feather Cape, Fox Mask, Loafers) and needs its own pieces in the art pass; the 4 pass HQ props are 3-stud blocks; pass emotes and the landing pose are joint angles. PLACEHOLDER ART until the effects, UI and Blender passes.
@@ -123,6 +124,20 @@ What nate does:
    (`bash art/store/make.sh twist`).
 
 ## Studio test list (needs nate's PC)
+
+### Lore step 7: cinematic layer (2026-11-17, nate's lore K1 to K3)
+Start: `rojo serve`, Play. The Dev panel (DEV, top right; it scrolls now) has a button for each piece.
+1. Prologue (Dev: prologue as the Vigil): the ceremony, scan, rescue and title camera beats play the same shots as before, with the letterbox sliding in and out. First time on a save: no SKIP. Play it again (Dev: prologue): SKIP shows bottom right after a moment on each beat you have seen, and skips it.
+2. Act 1 (Dev: mission 2 as each side): each camera beat (the safehouse door, Lodestar) plays the same slow push-in with the letterbox; on a replay SKIP shows and skips (with a squadmate, only once both of you have seen it).
+3. Dev "Scene: city": in a quiet spot the camera orbits you, rises and looks out over the city with two Patch lines under the letterbox; it ends by itself (12 s). Tap it again: SKIP now shows. Next to a robot or right after a hit the button reads "Scene waits: enemy/hit" and it plays once things are quiet (within 30 s); a hit during it ends it at once.
+4. Dev "Comic: last stand": a full-screen comic page, "THE OLD HEROES' LAST STAND", 4 panels sliding in with ink borders, captions and KRAK!/BOOM! words (PLACEHOLDER ART). SKIP the second time.
+5. News: tap Dev "News: boss" six times (boss, boss down, unmask, streak, heist, act 1): the boss and the unmask flash BREAKING NEWS on the corner TV (top centre, under the boss bar), the boss also as a red toast; the rest show on the TV's ticker. Every line reads your hero name (title + noun), never your account name. With nothing new, Crane's segment airs on the TV every 3 minutes (Dev "Crane on TV" now).
+6. Big screens: on the plaza (a screen on a frame north of the Hall), on the three Downtown towers nearest the plaza and the Crane billboard on Uptown's landmark: BREAKING NEWS while fresh, then Crane's lines and the ticker in turn; the ticker scrolls near you. Collapse a screen's tower: the screen goes dark until the drones repair it.
+7. Boss entrance: Dev boss now. Every player gets the BREAKING toast and the TV; fly to the arena: a 3 s name card (name, title, the red slash slam) shows once as you arrive. Dev "Name card" cycles all four (Bulwark's battle form too); in Live the battle form's card shows as it lands.
+8. Finishers: Dev "Finisher (mine)" and "(nearby)" in Comic and in Anime style (Dev style switch). Comic: a big impact word and a short hit stop; Anime: a pale freeze frame and speed lines; both slow every hero's animation and the effects for under a second, the camera pushes in; nearby is shorter. Then for real: the killing blow and each phase's end on a world boss, the battle form in Live, an elite robot, a fake's face cracking. nate: judge the feel (length, slow amount, words: Config.Cinema.finisher).
+9. Dynamic camera (Settings > Camera motion, or Dev "Camera:"): Full: a slight lean into dashes, a gentle push on crits and heavy hits, a small orbit on supers. Reduced: the same at half. Off: none of it, and no shakes. nate: turn it up and down in a fight and judge each level.
+10. Reduce flashing on (with Camera motion Full): no shakes, no hit-pause, no finisher hit stop, freeze or white frame; the impact word, the speed lines and the lean/push/orbit still show.
+11. Phone (Device emulator): the letterbox, SKIP, the corner TV and the name card fit the screen and leave the stick and buttons free; frame time steady during a finisher.
 
 ### Vigil HQ under the plaza (2026-11-17, nate's lore plan Q1/Q2)
 The Vigil's HQ is The Safehouse, the hideout under the plaza; the Beacon Tower is Crane's Hero Hall. Start: `rojo serve`, Play.

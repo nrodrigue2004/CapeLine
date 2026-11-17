@@ -57,6 +57,7 @@ local function seq(a: number, b: number): NumberSequence
 	return NumberSequence.new({ NumberSequenceKeypoint.new(0, a), NumberSequenceKeypoint.new(1, b) })
 end
 
+local timeScale = 1 -- the slow-mo finisher's effect speed (lore step 7; FxLib.setTimeScale)
 local MAX_EMITTERS = 300 -- a rainbow tint makes many colours: past this, reuse the kind's first emitter
 local count = 0
 local firstOf: { [string]: string } = {}
@@ -114,6 +115,7 @@ local function emitterFor(kind: string, color: Color3, size: number?): (Attachme
 		pe.EmissionDirection = Enum.NormalId.Top
 	end
 	pe.ZOffset = if kind == "glow" or kind == "core" then 1 else 0
+	pe.TimeScale = timeScale
 	pe.Parent = att
 	emitters[key] = { att = att, pe = pe }
 	count += 1
@@ -134,6 +136,15 @@ local function take(n: number): number
 		budgetPreset = name
 	end
 	return FxPlan.take(budget :: FxPlan.Budget, n, now)
+end
+
+-- The slow-mo finisher (lore step 7, FinisherFx): every pooled emitter's particles move at this speed (set
+-- once at the start and once at the end, never per frame)
+function FxLib.setTimeScale(scale: number)
+	timeScale = math.clamp(scale, 0.05, 1)
+	for _, e in emitters do
+		e.pe.TimeScale = timeScale
+	end
 end
 
 -- emit count particles of one kind at a point (dir: which way directional kinds fly; size: a ring's radius)

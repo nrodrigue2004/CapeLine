@@ -30,6 +30,7 @@ local PerfMonitor = require(script.Parent.PerfMonitor)
 local EnemyService = {}
 EnemyService.Killed = Signal.new() -- (enemyKind, attackerHeroId, position, enemyId)
 EnemyService.Hit = Signal.new() -- (id, heroId, dealt, isTarget) any hit on a robot or a registered target
+EnemyService.Unmasked = Signal.new() -- (enemyKind, heroId?) a famous fake's face cracked (lore step 7: the news)
 -- The M1 stand-in spawner is off since M6: incidents, contracts, events and the boss bring the robots.
 -- DevService can turn it back on for load tests.
 EnemyService.populate = false
@@ -423,7 +424,9 @@ local function handleEvents()
 		elseif ev.k == "dash" then
 			table.insert(out, { EnemyService.DASH, ev.e, ev.x, ev.y, ev.z, ev.tx, ev.ty, ev.tz })
 		elseif ev.k == "unmask" then
-			table.insert(out, { EnemyService.UNMASK, ev.e, ev.x, ev.y, ev.z })
+			-- (6th: who cracked it, for the slow-mo finisher; lore step 7)
+			table.insert(out, { EnemyService.UNMASK, ev.e, ev.x, ev.y, ev.z, ev.by or 0 })
+			EnemyService.Unmasked:Fire(ev.kind, ev.by)
 		end
 	end
 	return out

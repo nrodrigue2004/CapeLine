@@ -63,6 +63,8 @@ local BossService = require(script.Parent.BossService)
 local SiteKit = require(script.Parent.SiteKit)
 local StoryService = require(script.Parent.StoryService)
 local Analytics = require(script.Parent.Analytics)
+local CinemaService = require(script.Parent.CinemaService)
+local CinemaPlan = require(Shared:WaitForChild("CinemaPlan"))
 
 local MissionService = {}
 
@@ -92,7 +94,7 @@ type Track = {
 	twinOf: { [Player]: number },
 	chase: { id: number, path: { { number } }, at: number, leg: number, speed: number }?,
 	train: { h: any, from: Vector3, dir: Vector3, length: number, t: number }?,
-	wf: { sim: any, targets: { [string]: number }, over: boolean }?,
+	wf: { sim: any, targets: { [string]: number }, over: boolean, lastBy: number? }?,
 	asked: boolean,
 	done: boolean,
 	endAt: number,
@@ -610,7 +612,9 @@ local function tickWarframe(run: Run, track: Track, now: number)
 		end
 	end
 	BossSim.step(sim, now, heroes)
-	BossService.linkTargets(sim, wf.targets, function() end)
+	BossService.linkTargets(sim, wf.targets, function(heroId)
+		wf.lastBy = heroId or wf.lastBy -- lore step 7: who landed the blow that ends a phase (the finisher)
+	end)
 	for _, ev in BossSim.drain(sim) do
 		if ev.k == "strike" then
 			for _, hit in ev.hits do
@@ -628,6 +632,9 @@ local function tickWarframe(run: Run, track: Track, now: number)
 		local out = table.clone(ev)
 		out.hits = nil
 		out.num = sim.cfg.num
+		if ev.k == "phase" or ev.k == "dead" then
+			out.by = wf.lastBy -- the finishing hero's id (slow-mo finisher on their screen, shorter nearby)
+		end
 		fireAll(run, "BossAttack", out)
 	end
 end
@@ -710,6 +717,15 @@ local function tickTrack(run: Run, track: Track, dt: number, now: number)
 		fakeStep(track, st)
 	elseif k == "scene" then
 		track.have = now - track.stepAt
+		if track.have >= track.need then
+			-- lore step 7: each hero on this stage has now seen its camera beat (SKIP from the next time)
+			local bit = if run.m.custom then nil else CinemaPlan.missionBit(Config, run.num, run.stage)
+			for _, h in heroesOf(run, track.key) do
+				if h.player then
+					CinemaService.mark(h.player, bit)
+				end
+			end
+		end
 	elseif k == "reach" then
 		local t = run.layout.points[st.at]
 		for _, h in heroesOf(run, track.key) do
@@ -826,6 +842,20 @@ local function arenaOn(story: any, side: string): boolean
 	return false
 end
 
+-- Lore step 7: has every hero on this stage seen its camera beat before (on their own saves)?
+local function sceneSeen(run: Run, track: Track): boolean
+	local bit = if run.m.custom then nil else CinemaPlan.missionBit(Config, run.num, run.stage)
+	if bit == nil then
+		return false
+	end
+	for _, h in heroesOf(run, track.key) do
+		if not h.player or not CinemaService.seen(h.player, bit) then
+			return false
+		end
+	end
+	return true
+end
+
 local function statePacket(run: Run, player: Player): { [string]: any }
 	local side = run.sides[player] or "hero"
 	local track = trackFor(run, player)
@@ -860,6 +890,7 @@ local function statePacket(run: Run, player: Player): { [string]: any }
 	if st.kind == "scene" then
 		out.focus = if st.focus == "fake" then keptPos(run) else run.layout.points[st.focus or "spawn"]
 		out.lodestar = if st.lodestar then run.layout.points[st.lodestar] else nil
+		out.seen = sceneSeen(run, track) or nil -- lore step 7: SKIP shows when every hero here saw it
 	end
 	return out
 end
@@ -1415,6 +1446,17 @@ function MissionService.leave(player: Player)
 	end
 end
 
+-- SKIP on a mission's camera beat (lore step 7): only when every hero on that stage has seen it before
+function MissionService.skipScene(player: Player)
+	local run = runs[player]
+	local track = run and not run.done and trackFor(run, player)
+	local st = track and track.st
+	if run and track and st and st.kind == "scene" and not track.done and sceneSeen(run, track) then
+		track.stepAt = os.clock() - track.need
+		track.have = track.need
+	end
+end
+
 -- Dev: finish the current stage for every side (an open choice takes its first option)
 function MissionService.skipStep(player: Player)
 	local run = runs[player]
@@ -1482,6 +1524,7 @@ function MissionService.init()
 		end
 	end)
 	Net.on("MissionLeave", MissionService.leave)
+	Net.on("SceneSkip", MissionService.skipScene)
 	EnemyService.Killed:Connect(function(_, _, _, enemyId)
 		for _, run in busy do
 			run.kept[enemyId] = nil

@@ -352,6 +352,11 @@ function Toasts.show(data: { [string]: any })
 				5
 			)
 		end
+	elseif id == "newsFlash" then
+		-- lore step 7: a server-wide news flash (NewsHud builds the line from NewsPlan's fixed templates)
+		if type(data.text) == "string" then
+			push(data.text, Color3.fromRGB(255, 90, 90), true, 5)
+		end
 	elseif id == "choiceKept" then
 		push("Your first choice stands on a replay", Kit.color.paper)
 	elseif id == "missionRefused" then

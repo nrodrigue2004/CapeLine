@@ -17,8 +17,8 @@
 --   title: the Crane Industries billboard and the CAPELINE title card; the rewards land at its start and the
 --     hero is back in the plaza, in the normal game. OpeningService.Finished is the hook for mission 2.
 -- Safety: a beat that does not finish moves on by itself (Config.Story.opening.stuck) and the whole prologue
--- finishes itself after Config.Story.opening.timeout. Camera beats are skippable only on a replay or for a
--- returning account. The hero is in a scene: no incidents, events or ambient robots find it.
+-- finishes itself after Config.Story.opening.timeout. Camera beats are skippable on a replay, for a
+-- returning account, or once this save has seen that beat (lore step 7, CinemaService's seen set). The hero is in a scene: no incidents, events or ambient robots find it.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -47,6 +47,7 @@ local GearService = require(script.Parent.GearService)
 local SafehouseService = require(script.Parent.SafehouseService)
 local StoryService = require(script.Parent.StoryService)
 local Analytics = require(script.Parent.Analytics)
+local CinemaService = require(script.Parent.CinemaService)
 
 local OpeningService = {}
 
@@ -165,6 +166,8 @@ local function send(r: Run)
 		t = if r.hold then 0 else now - r.stepAt,
 		hold = r.hold or nil,
 		replay = r.replay or nil,
+		-- lore step 7: this camera beat was seen on this save before (SKIP shows from the second time)
+		seen = (OpeningPlan.CUT[r.step] and CinemaService.seenScene(r.player, r.step)) or nil,
 		createFirst = if r.hold then true else nil,
 		target = target(r),
 		side = r.side,
@@ -367,6 +370,9 @@ local function enter(r: Run, step: string)
 end
 
 setStep = function(r: Run, step: string)
+	if OpeningPlan.CUT[r.step] and not r.hold then
+		CinemaService.markScene(r.player, r.step) -- lore step 7: a camera beat seen once may be skipped later
+	end
 	r.step = step
 	r.stepAt = os.clock()
 	enter(r, step)
@@ -379,6 +385,9 @@ function OpeningService.finish(player: Player)
 	local r = runs[player]
 	if not r then
 		return
+	end
+	if OpeningPlan.CUT[r.step] and not r.hold then
+		CinemaService.markScene(player, r.step)
 	end
 	clearEnemies(r)
 	freeLane(r)
@@ -605,7 +614,14 @@ local function onAct(player: Player, act: number)
 		if pos and (v3(r.route.kid) - pos).Magnitude <= O.spark.reach + 12 then
 			fire(r)
 		end
-	elseif act == 2 and not r.hold and OpeningPlan.canSkip(r.step, r.replay) then
+	elseif
+		act == 2
+		and not r.hold
+		and (
+			OpeningPlan.canSkip(r.step, r.replay)
+			or OpeningPlan.canSkip(r.step, CinemaService.seenScene(player, r.step)) -- lore step 7: seen before
+		)
+	then
 		local nxt = OpeningPlan.next(r.step)
 		if nxt then
 			setStep(r, nxt)

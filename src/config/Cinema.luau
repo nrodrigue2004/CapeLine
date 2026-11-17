@@ -1,0 +1,190 @@
+-- Cinema (nate's lore, build plan step 7: the cinematic layer; "bright world, serious story, anime fights").
+-- Pure data; Shared.CinemaPlan and Shared.NewsPlan hold the rules, the client plays them.
+-- * scenes: every cutscene the player plays (camera shots, letterbox, subtitles through the guide line box).
+--   `bit` is the scene's place in the save's seen set (profile.seen, ProfileSchema.SMALL_WORDS bits): a
+--   scene may be skipped once that bit is set. Bits 0 to 15 are the named scenes; missions use
+--   missionBits (base + (mission - 1) * perMission + (stage - 1)). Never reuse or move a bit.
+--   `beat`: a prologue camera beat (OpeningPlan.CUT; its length is Config.Story.opening.beats). `client`: the
+--   device starts it (it then sends SceneSeen). Scenes run 5 to 20 s (`length`); the Ceremony beat keeps
+--   nate's 30 s (4 shots of 4.5 to 9 s) and says so with `long`.
+-- * safe: a device-started scene only plays when no fight would leave the hero defenceless.
+-- * camera: the dynamic camera in fights (Settings "Camera motion": Full, Reduced halves, Off removes).
+-- * finisher: slow-mo finishers on bosses and elites (Comic: impact word + hit stop; Anime: freeze frame +
+--   speed lines), the finisher's own and a shorter one for players nearby. The server is never slowed.
+-- * nameCard: a world boss's (or a fake's battle form's) 3 s name card for players who arrive at the fight.
+--   Titles are PLACEHOLDER until the bosses' lore is decided.
+-- * news: in-city news broadcasts (big screens, the HUD's corner TV, BREAKING NEWS and the ticker). Fixed
+--   templates only; a hero's name comes from the safe name system (CreatorRules.heroName ids), never text.
+-- * comic: comic-panel flashback pages (PLACEHOLDER ART: panels drawn from frames until the art pass).
+return {
+	length = { min = 5, max = 20 }, -- seconds a scene may run
+	skipDelay = 0.8, -- the SKIP button shows this long after a seen scene starts (no accidental taps)
+	letterbox = { size = 0.1, tween = 0.35 }, -- bar height (share of the screen) and slide time
+
+	scenes = {
+		ceremony = { bit = 0, beat = "ceremony", long = true }, -- nate's prologue beat: 4 shots
+		scan = { bit = 1, beat = "scan" },
+		rescue = { bit = 2, beat = "rescue" },
+		title = { bit = 3, beat = "title" },
+		-- the Dev panel's sample in-engine scene: a slow orbit round the hero, a push up and a look out at
+		-- the city, with two of Patch's lines (any safe moment)
+		cityWatch = {
+			bit = 4,
+			client = true,
+			seconds = 12,
+			shots = {
+				{ kind = "orbit", t0 = 0, t1 = 5, radius = 18, height = 6, yaw0 = 0.2, yaw1 = 1.6, lift = 3 },
+				{
+					kind = "dolly",
+					t0 = 5,
+					t1 = 9,
+					from = { 0, 8, 22 },
+					to = { 0, 40, 40 },
+					at = { 0, 3, 0 },
+					at2 = { 0, 20, -60 },
+				},
+				{ kind = "cut", t0 = 9, t1 = 12, from = { -30, 60, 30 }, at = { 60, 50, -160 } },
+			},
+			lines = {
+				{
+					at = 0.4,
+					who = "patch",
+					text = "Big city, bright lights. And every screen is watching you.",
+				},
+				{ at = 6.2, who = "patch", text = "Somewhere up there, Crane is smiling for the cameras." },
+			},
+		},
+		-- the comic-panel flashback sample (Dev panel only): "The old heroes' last stand"
+		lastStand = { bit = 5, client = true, seconds = 16, comic = "lastStand" },
+	},
+	missionBits = { base = 16, perMission = 8, missions = 13 }, -- bits 16 to 119
+
+	safe = {
+		quietSeconds = 6, -- no hit taken for this long
+		enemyRange = 90, -- no robot drawn this close
+		waitSeconds = 30, -- a scene that cannot play yet waits this long for a quiet moment, then drops
+	},
+
+	camera = {
+		options = { "Full", "Reduced", "Off" }, -- Settings "Camera motion" (choice index 0, 1, 2)
+		scale = { 1, 0.5, 0 }, -- by option: Reduced halves, Off removes
+		lean = { max = 0.06, rise = 9, fall = 4 }, -- radians of roll into a dash; blend in and out per second
+		push = { heavy = 0.05, finisher = 0.1, time = 0.28 }, -- FOV narrowed by this share (a gentle push in)
+		orbit = { super = 0.32, time = 0.9 }, -- radians a super swings the camera round the hero
+	},
+
+	finisher = {
+		near = 120, -- studs: players this close see the shorter version
+		gap = 1.5, -- seconds between finishers on one screen
+		killer = { slow = 0.25, seconds = 0.9 }, -- the finisher's own: time scale and how long it holds
+		nearby = { slow = 0.5, seconds = 0.45 },
+		comic = { hitStop = 0.14, wordSeconds = 1.1 },
+		anime = { freeze = 0.2, lines = 24, lineSeconds = 0.75 },
+		-- the impact words (original sound words, Comic style); picked by the event's seed
+		words = { "KRA-KOOM!", "FINISHED!", "SHATTER!", "KA-BLAM!", "DOWN YOU GO!", "LIGHTS OUT!" },
+		phaseWords = { "BREAK!", "CRACK!", "WHAM!" }, -- a phase's end (not the last blow)
+	},
+
+	nameCard = {
+		seconds = 3,
+		reach = 150, -- studs past the arena's edge that count as arriving at the fight
+		check = 0.5, -- seconds between checks
+		-- PLACEHOLDER titles until the bosses' lore is decided (names come from Config.Boss)
+		titles = {
+			RustjawPrime = "THE SCRAPYARD TITAN",
+			LumenMaw = "THE LIGHT EATER",
+			LeviathanEngine = "TERROR OF THE DEEP",
+			NullWarFrame = "THE SHIELD UNMASKED",
+		},
+	},
+
+	news = {
+		feed = 8, -- facts kept for the ticker
+		repeatGap = 90, -- the same kind for the same hero is news once in this many seconds
+		breaking = 12, -- seconds a fresh flash stays on BREAKING NEWS
+		reel = { crane = 9, ticker = 14 }, -- the screens' rotation: Crane's segment, then the ticker
+		tickerSpeed = 0.06, -- share of the ticker's width a second
+		streak = { gap = 300, at = { 3, 5, 10, 20 } }, -- incident clears in a row (each within gap seconds)
+		channel = "BHN 24 / BRIGHTHARBOR NEWS",
+		-- Crane on TV (fixed lines, his segment rotates through them)
+		crane = {
+			"Silas Crane: A registered hero is a safe hero. Register your powers today.",
+			"Silas Crane: Crane Industries keeps Brightharbor bright. Every street, every night.",
+			"Silas Crane: Rogue Sparks put your family at risk. Report them. We will do the rest.",
+			"Silas Crane: The heroes on my stage are the best this city has. Trust them.",
+		},
+		-- the templates: %s is the hero name (CreatorRules.heroName) and %t the thing (a boss, a fake, a
+		-- mission, a number); no other text ever goes in
+		templates = {
+			boss = "BREAKING: %t SPOTTED IN THE CITY. HEROES AND VILLAINS ON THE WAY",
+			bossDown = "%s BRINGS DOWN %t",
+			bossAway = "%t ESCAPES. CITY CLEANS UP",
+			unmask = "%s CRACKS %t'S FACE. IT'S A ROBOT FAKE",
+			streak = "%s CLEARS %t INCIDENTS IN A ROW",
+			heist = "%s STOPS A ROBOT HEIST",
+			heistVillain = "%s PULLS OFF A ROBOT HEIST",
+			act1 = '%s FINISHES "%t"',
+		},
+		flash = { boss = true, unmask = true }, -- these also flash on every HUD (toast + corner TV)
+		-- the corner TV: a flash plays this long; any other new fact shows on its ticker for `fact` s; with nothing
+		-- new, Crane's segment airs every `craneEvery` s for `crane` s (never in the prologue, a mission or a scene)
+		tv = { seconds = 7, fact = 5, crane = 8, craneEvery = 180, scroll = 10 },
+		-- the big screens: where they hang (NewsPlan.screens picks the buildings from the world)
+		screens = {
+			downtown = 3, -- the Downtown towers nearest the plaza that get a screen
+			minTop = 60, -- a screen building's roof is at least this high above the street
+			size = { 36, 20 }, -- studs
+			plaza = { size = { 28, 16 }, height = 22, back = 70 }, -- the plaza's own screen on its frame
+			uptown = { size = { 70, 40 } }, -- the Crane billboard on Uptown's landmark
+		},
+	},
+
+	comic = {
+		pages = {
+			-- "The old heroes' last stand" (the Crater lore: a Crane lab blew up in the battle where the old
+			-- heroes fell). A neutral sample; Crane's own backstory pages wait for nate (Act 2).
+			lastStand = {
+				title = "THE OLD HEROES' LAST STAND",
+				panels = {
+					{
+						rect = { 0.03, 0.12, 0.45, 0.4 },
+						sky = { 255, 196, 120 },
+						ground = { 70, 60, 80 },
+						scene = "city",
+						caption = "Years ago, the Crater was a busy city block.",
+						at = 0,
+					},
+					{
+						rect = { 0.52, 0.12, 0.45, 0.4 },
+						sky = { 120, 60, 70 },
+						ground = { 40, 34, 50 },
+						scene = "stand",
+						caption = "The old heroes made their last stand there against the machines.",
+						word = "KRAK!",
+						at = 3,
+					},
+					{
+						rect = { 0.03, 0.56, 0.3, 0.38 },
+						sky = { 255, 240, 200 },
+						ground = { 90, 80, 90 },
+						scene = "blast",
+						caption = "Mid-battle, a Crane Industries lab went up in a flash.",
+						word = "BOOM!",
+						at = 6.5,
+					},
+					{
+						rect = { 0.36, 0.56, 0.61, 0.38 },
+						sky = { 70, 80, 110 },
+						ground = { 30, 30, 40 },
+						scene = "crater",
+						caption = "When the dust settled, the old heroes were gone. Only the Crater was left.",
+						at = 10,
+					},
+				},
+			},
+		},
+		panelIn = 0.4, -- seconds a panel takes to slide in
+		ink = { 20, 18, 26 }, -- the ink borders
+		paper = { 250, 244, 228 },
+	},
+}
