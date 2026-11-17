@@ -2,10 +2,8 @@
 -- The remade Spark Trooper (ReplicatedStorage.Art.Trooper): its 15 R15 shell meshes fill their parts' boxes;
 -- the extras sit against an R15 part, as fractions of that part's size (x, up, depth; offset of centres).
 return {
-	triangles = 6564,
+	triangles = 4996,
 	extras = {
-		PadL = { parent = "LeftUpperArm", offset = { -0.060, 0.532, -0.000 }, size = { 1.280, 0.771, 1.200 } },
-		PadR = { parent = "RightUpperArm", offset = { 0.060, 0.532, -0.000 }, size = { 1.280, 0.771, 1.200 } },
-		Pack = { parent = "UpperTorso", offset = { 0.000, 0.042, 0.725 }, size = { 0.620, 0.691, 0.450 } },
+		Hair = { parent = "Head", offset = { 0.000, 0.313, 0.058 }, size = { 1.133, 0.793, 1.167 } },
 	},
 }

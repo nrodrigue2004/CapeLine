@@ -6426,7 +6426,7 @@ test("Hold to aim and charge: what charges, how much, and the server's cap", fun
 	check(last ~= nil and last.optional == true and last.max == 100, "CombatUse takes an optional charge")
 end)
 
-test("Remade robot (Spark Trooper): its shell set and extras", function()
+test("Remade robot (Spark Trooper): its superhero shell set and hair", function()
 	local T = Config.TrooperArt
 	local RigMath = require("../src/shared/RigMath")
 	check(T.triangles > 0 and T.triangles <= 8000, "the whole robot is under the 8,000 triangle budget")
@@ -6443,9 +6443,11 @@ test("Remade robot (Spark Trooper): its shell set and extras", function()
 			check(math.abs(x.offset[k]) < 1.5, name .. " stays near its part")
 		end
 	end
-	check(n == 3, "two shoulder pads and the back pack")
-	check(T.extras.PadL.offset[1] == -T.extras.PadR.offset[1], "the pads mirror")
-	check(T.extras.Pack.offset[3] > 0.3, "the pack is on the back (+Z in Roblox)")
+	-- the superhero look (nate, 2026-11-17): a face under swept hair, no helmet, pads or pack
+	check(n == 1 and T.extras.Hair ~= nil, "the only extra is the hair")
+	check(T.extras.Hair.parent == "Head", "the hair sits on the head")
+	check(T.extras.Hair.offset[2] > 0, "the hair is on top of the head")
+	check(T.extras.Hair.size[1] >= 1 and T.extras.Hair.size[1] < 1.3, "the hair is just wider than the head")
 	check(Config.Enemies.SparkDrone.body.art == "Trooper", "the Spark Trooper uses the remade set")
 end)
 

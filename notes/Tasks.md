@@ -237,17 +237,17 @@ Checks (walk out of the plaza to the east):
 10. Performance: about 120 more parts on the block; the Dev panel frame time is unchanged.
 
 ### Remade Spark Trooper (2026-11-17)
-The first robot to the new look (overhaul plan step 3): armour on the blocky R15 body, one baked texture set (art/blender/trooper.py; preview art/preview/trooper.png). Until it is imported the Spark Trooper keeps today's look, so nothing breaks.
+The first robot to the new look (overhaul plan step 3), redone as a superhero on nate's note (2026-11-17, "not humanoid enough"): a face with skin, glowing eyes and swept hair, a fitted blue suit with a white and orange diamond emblem, orange gloves and boots, a belt and side stripes, all on the blocky R15 body with one baked texture set (art/blender/trooper.py; preview art/preview/trooper.png). Until it is imported the Spark Trooper keeps today's look, so nothing breaks. The build line in the Output says hero-trooper (2026-11-17).
 Import (Claude can do it on your PC when you say so, like the robot meshes):
 1. Studio: Home > Import 3D, pick `art/export/Trooper.fbx` (project files: capeline/art/trooper/Trooper.fbx). Turn OFF "Import as a single mesh". The textures are inside the file; the importer should give each part a SurfaceAppearance.
-2. A model with 18 MeshParts appears (Head, UpperTorso ... RightFoot, PadL, PadR, Pack). Rename it `Trooper` and drag it into ReplicatedStorage.Art.
+2. A model with 16 MeshParts appears (Head, UpperTorso ... RightFoot, Hair). Rename it `Trooper` and drag it into ReplicatedStorage.Art.
 3. If the parts come in white with no textures: import the four PNGs next to it (Trooper_Color, _Normal, _Roughness, _Metalness), set them on one SurfaceAppearance and copy it into every part.
 4. Claude then pulls the model into the repo (art/models/Trooper.rbxm, mapped by Rojo) so every build has it.
 Checks (DEV panel "3x" until a Spark Trooper comes up):
-5. It wears the armour: white plates with orange trim over the blue suit, a helmet with a glowing visor slit, a glowing chest lamp, shoulder pads and a back thruster. Nothing floats or sits inside the body; it faces the way it flies.
-6. Hits: the white flash still shows on the blue suit; the ice tint shows when slowed.
-7. Damage: the armour still breaks off part by part (the pads with the upper arms, the pack and lamp with the chest), showing the metal skeleton.
-8. Performance: about 6,600 triangles a robot; 60 on PC (High) and 20 on a phone (Low) hold the frame rate.
+5. It reads as a person in a hero suit: a face (skin, brows, nose, mouth) with two glowing eyes under the brows, swept hair in one of the hair colours, the diamond emblem on the chest, the belt with its round buckle, orange gloves and boots. Skin and hair differ from robot to robot. Nothing floats or sits inside the body; it faces the way it flies.
+6. Hits: the white flash still shows on the suit, skin and gloves; the ice tint shows when slowed.
+7. Damage: skin and suit still break off part by part (the hair with the head), showing the metal skeleton only where broken.
+8. Performance: about 5,000 triangles a robot; 60 on PC (High) and 20 on a phone (Low) hold the frame rate.
 
 ### Hold to aim and charge (2026-11-17)
 The Output at boot says build aim-charge (2026-11-17).

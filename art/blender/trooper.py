@@ -1,13 +1,15 @@
 # trooper.py: the remade Spark Trooper (overhaul plan step 3, "one remade robot"), the first robot made to the
-# new look standard: the blocky R15 body in armour, with one baked texture set instead of flat colours.
+# new look standard: a superhero on the blocky R15 body (nate, 2026-11-17: robots must read as people first:
+# face, hair, a fitted suit with an emblem, gloves, boots and a belt; the metal shows only as it breaks), with
+# one baked texture set instead of flat colours.
 # * 15 shell meshes named exactly as the R15 parts (Head, UpperTorso, ... RightFoot), each filling its part's
 #   box exactly (the game sizes a mesh to its part, so the joints stay where they are for every build), plus
-#   three extras that stick out (PadL, PadR: shoulder pads; Pack: the back thruster), placed by
+#   the hair as an extra (Hair), placed by
 #   src/config/TrooperArt.luau (generated here) against their R15 part.
 # * One 512 px texture set for all of them (art/export/trooper/): a colour map, a normal map, roughness and
 #   metalness. The colour map's alpha is 0 on the suit, so the game's part colour shows through there
-#   (SurfaceAppearance AlphaMode Overlay): one mesh set can be any robot's colours. Armour plates, the orange
-#   trim, the metal and the visor are painted in, with baked ambient occlusion and edge wear.
+#   (SurfaceAppearance AlphaMode Overlay): skin, hair, suit, gloves and boots take the robot's colours. The
+#   emblem, the stripes, the belt, brows and mouth are painted in, with baked ambient occlusion and edge wear.
 # * Under ~8,000 triangles for the whole robot (the plan's robot budget).
 # Output: art/export/Trooper.fbx (textures embedded; import with Studio's 3D Importer), the four PNGs,
 # src/config/TrooperArt.luau and art/preview/trooper.png.
@@ -137,65 +139,97 @@ def core(block, inset=0.04, bev=0.07):
     return bx("Suit", x0 + inset, x1 - inset, y0 + inset, y1 - inset, z0 + inset * 0.5, z1 - inset * 0.5, bev, 2)
 
 
-# ---------------------------------------------------------------- the helmet
+# ---------------------------------------------------------------- the head: a person's face (nate, 2026-11-17:
+# "not humanoid enough ... make it look like a superhero"). The skin is the game's colour (see-through), the
+# brows, the mouth and a thin android seam at the temples are painted; the glowing eyes are the game's parts.
 def head():
     rings = []
-    for z, r in ((4.02, 0.34), (4.05, 0.46), (4.1, 0.53), (4.18, 0.56), (4.3, 0.57), (4.95, 0.57), (5.06, 0.55),
-                 (5.13, 0.5), (5.18, 0.42), (5.2, 0.3)):
+    for z, r in ((4.02, 0.36), (4.04, 0.46), (4.08, 0.53), (4.15, 0.58), (4.25, 0.6), (4.97, 0.6), (5.07, 0.58),
+                 (5.14, 0.53), (5.18, 0.46), (5.2, 0.36)):
         rings.append((z, r, r, 0, 0))
-    shell = piece("Armor", kit.loft("helm", rings, segs=24, power=2.7))
-    subs = [shell]
-    # the visor band and its brow, the jaw guard, ear pucks (one with an antenna) and a crest
-    subs.append(bx("Visor", -0.47, 0.47, 0.42, 0.6, 4.47, 4.76, 0.04))
-    subs.append(bx("Trim", -0.52, 0.52, 0.4, 0.6, 4.76, 4.84, 0.025))
-    subs.append(bx("Metal", -0.4, 0.4, 0.38, 0.6, 4.08, 4.38, 0.06, taper=(1.15, 1.0)))
-    for x in (-0.25, -0.12, 0.0, 0.12, 0.25):
-        subs.append(bx("Visor", x - 0.035, x + 0.035, 0.57, 0.61, 4.14, 4.3, 0.01, 1))
+    skin = piece("Suit", kit.loft("skin", rings, segs=28, power=2.25))
+    subs = [skin]
     for s in (-1, 1):
-        subs.append(cy("Metal", 0.17, 0.17, 0.08, (s * 0.58, 0, 4.58), "X", 16))
-        subs.append(cy("Trim", 0.1, 0.1, 0.05, (s * 0.62, 0, 4.58), "X", 12))
-    subs.append(cy("Metal", 0.025, 0.018, 0.5, (-0.6, -0.05, 4.9), "Z", 6))
-    subs.append(bx("Trim", -0.07, 0.07, -0.42, 0.46, 5.12, 5.22, 0.025))
+        # brows (a heroic, slightly angled line), the temple seam
+        brow = bx("Visor", s * 0.36 - 0.13, s * 0.36 + 0.13, 0.55, 0.62, 4.74, 4.8, 0.012)
+        kit.deform(brow, lambda v, s=s: Vector((v.x, v.y, v.z + (0.03 if v.x * s < 0.36 else -0.01))))
+        subs.append(brow)
+        subs.append(bx("Metal", s * 0.6 - 0.012, s * 0.6 + 0.012, -0.12, 0.2, 4.5, 4.9, 0.0))
+    subs.append(bx("Suit", -0.07, 0.07, 0.55, 0.64, 4.45, 4.66, 0.03))  # the nose
+    subs.append(bx("Visor", -0.16, 0.16, 0.57, 0.61, 4.3, 4.335, 0.01))  # the mouth
+    subs.append(bx("Suit", -0.2, 0.2, 0.5, 0.6, 4.08, 4.22, 0.05))  # the chin
     finish("Head", subs, BLOCKS["Head"])
 
 
-# ---------------------------------------------------------------- torso
+def hair():
+    # swept-back hero hair (an extra on the head; its colour is the game's, picked per robot)
+    rings = []
+    for z, r, cy in ((4.66, 0.63, 0.0), (4.85, 0.65, -0.02), (5.05, 0.64, -0.04), (5.2, 0.58, -0.06),
+                     (5.3, 0.46, -0.08), (5.36, 0.3, -0.1)):
+        rings.append((z, r, r, 0, cy))
+    cap = kit.loft("cap", rings, segs=24, power=2.4)
+    # open the face: push the front ring up above the brow
+    for v in cap.data.vertices:
+        if v.co.y > 0.25 and v.co.z < 5.0:
+            v.co.z = 5.0 + (v.co.z - 4.66) * 0.3
+    subs = [piece("Suit", cap)]
+    # a front quiff and three swept spikes over the back
+    q = bx("Suit", -0.34, 0.2, 0.2, 0.62, 5.1, 5.42, 0.06)
+    kit.deform(q, lambda v: Vector((v.x, v.y, v.z + 0.12 * max(0.0, v.y - 0.3))))
+    subs.append(q)
+    for k, (x, rot) in enumerate(((-0.32, -0.2), (0.0, 0.0), (0.32, 0.2))):
+        sp = kit.cyl("sp%d" % k, 0.17, 0.02, 0.5, at=(x, -0.52, 5.12), segs=8, axis="Y")
+        kit.deform(sp, lambda v, x=x: Vector((v.x + (v.x - x) * 0.3, v.y, v.z + 0.15 * (-0.52 - v.y))))
+        subs.append(piece("Suit", sp))
+    for s in (-1, 1):  # sideburn blocks
+        subs.append(bx("Suit", s * 0.63 - 0.05, s * 0.63 + 0.05, -0.2, 0.15, 4.5, 4.9, 0.03))
+    finish("Hair", subs)
+
+
+# ---------------------------------------------------------------- torso: a fitted hero suit with an emblem
 def upper_torso():
     b = BLOCKS["UpperTorso"]
     subs = [core(b)]
-    # the chest plate (narrower at the bottom), its glowing core's metal ring, a collar
-    subs.append(bx("Armor", -0.9, 0.9, 0.28, 0.5, 3.08, 3.94, 0.06, taper=(1.0, 1.0)))
-    subs.append(bx("Armor", -0.62, 0.62, 0.28, 0.48, 2.9, 3.1, 0.05))
-    subs.append(cy("Metal", 0.2, 0.2, 0.06, (0, 0.47, 3.45), "Y", 20))
-    subs.append(cy("Visor", 0.13, 0.13, 0.04, (0, 0.49, 3.45), "Y", 20))
+    # chest panels (a faint pec line), the emblem: a bold diamond with a spark chevron in it
     for s in (-1, 1):
-        subs.append(bx("Trim", s * 0.7 - 0.04, s * 0.7 + 0.04, 0.46, 0.5, 3.2, 3.82, 0.015))
-    subs.append(bx("Metal", -0.62, 0.62, -0.32, 0.32, 3.9, 4.0, 0.03))
-    # ab plates, two rows of two
-    for z0, z1 in ((2.48, 2.66), (2.7, 2.86)):
-        for s in (-1, 1):
-            x0, x1 = (0.05, 0.5) if s > 0 else (-0.5, -0.05)
-            subs.append(bx("Armor", x0, x1, 0.38, 0.48, z0, z1, 0.03))
-    # the back plate with vent slats, side panels
-    subs.append(bx("Armor", -0.82, 0.82, -0.47, -0.3, 2.95, 3.9, 0.05))
-    for k in range(3):
-        z = 3.2 + k * 0.16
-        subs.append(bx("Metal", -0.42, 0.42, -0.5, -0.44, z, z + 0.08, 0.015))
+        x0, x1 = (0.02, 0.92) if s > 0 else (-0.92, -0.02)
+        subs.append(bx("Suit", x0, x1, 0.42, 0.5, 3.3, 3.94, 0.07, 2))
+    # (a white diamond rim, an orange diamond inside it and a dark spark bolt across, standing proud of the pecs)
+    def diamond(region, hw, hh, y0, y1, zc=3.54):
+        # a square turned 45 degrees in the chest's plane, then stretched to hw wide, hh tall
+        a = hh / math.sqrt(2)
+        d = bx(region, -a, a, y0, y1, zc - a, zc + a, 0.02)
+        c = math.sqrt(0.5)
+        kit.deform(d, lambda v: Vector(((v.x - (v.z - zc)) * c * hw / hh, v.y, (v.x + (v.z - zc)) * c + zc)))
+        return d
+    subs.append(diamond("Armor", 0.5, 0.42, 0.46, 0.56))
+    subs.append(diamond("Trim", 0.38, 0.32, 0.5, 0.59))
+    # the spark: a zig-zag bolt of two slanted strokes and a jog between them
+    top = bx("Visor", -0.04, 0.04, 0.56, 0.62, 3.53, 3.8, 0.0)
+    kit.deform(top, lambda v: Vector((v.x - 0.02 + (v.z - 3.53) * 0.6, v.y, v.z)))
+    low = bx("Visor", -0.04, 0.04, 0.56, 0.62, 3.28, 3.57, 0.0)
+    kit.deform(low, lambda v: Vector((v.x - 0.1 + (v.z - 3.28) * 0.6, v.y, v.z)))
+    subs += [top, low, bx("Visor", -0.06, 0.1, 0.56, 0.62, 3.53, 3.58, 0.0)]
+    # side stripes and a collar
     for s in (-1, 1):
-        subs.append(bx("Metal", s * 1.0 - 0.06, s * 1.0 + 0.06, -0.26, 0.26, 2.62, 3.75, 0.03))
+        subs.append(bx("Trim", s * 1.0 - 0.04, s * 1.0 + 0.04, -0.3, 0.3, 2.45, 3.95, 0.015))
+    subs.append(bx("Trim", -0.52, 0.52, -0.3, 0.3, 3.92, 4.0, 0.03))
+    # ab seams (two rows) and the back's shoulder-blade panels
+    for z in (2.62, 2.9):
+        subs.append(bx("Suit", -0.5, 0.5, 0.44, 0.49, z, z + 0.2, 0.05))
+    for s in (-1, 1):
+        x0, x1 = (0.08, 0.82) if s > 0 else (-0.82, -0.08)
+        subs.append(bx("Suit", x0, x1, -0.5, -0.44, 3.2, 3.85, 0.06))
     finish("UpperTorso", subs, b)
 
 
 def lower_torso():
     b = BLOCKS["LowerTorso"]
     subs = [core(b, 0.04, 0.05)]
-    subs.append(bx("Metal", -1.0, 1.0, -0.5, 0.5, 2.22, 2.38, 0.03))
-    subs.append(bx("Trim", -0.22, 0.22, 0.44, 0.52, 2.18, 2.4, 0.03))
-    subs.append(bx("Armor", -0.3, 0.3, 0.36, 0.5, 2.0, 2.2, 0.04, taper=(1.25, 1.0)))
+    subs.append(bx("Trim", -1.0, 1.0, -0.5, 0.5, 2.24, 2.38, 0.03))  # the belt
+    subs.append(cy("Armor", 0.15, 0.15, 0.06, (0, 0.5, 2.31), "Y", 18))  # the buckle
     for s in (-1, 1):
-        x0, x1 = (0.52, 0.88) if s > 0 else (-0.88, -0.52)
-        subs.append(bx("Armor", x0, x1, 0.32, 0.5, 2.04, 2.3, 0.035))
-        subs.append(bx("Armor", x0, x1, -0.5, -0.32, 2.04, 2.3, 0.035))
+        subs.append(bx("Metal", s * 0.62 - 0.12, s * 0.62 + 0.12, 0.42, 0.52, 2.22, 2.36, 0.02))  # belt pouches
     finish("LowerTorso", subs, b)
 
 
@@ -204,53 +238,29 @@ def upper_arm():
     b = BLOCKS["LeftUpperArm"]
     x0, x1, y0, y1, z0, z1 = b
     subs = [core(b)]
-    subs.append(bx("Armor", x0, x1, y0, y1, 3.5, 3.86, 0.06))
-    subs.append(bx("Trim", x0 + 0.02, x1 - 0.02, y0 + 0.02, y1 - 0.02, 3.42, 3.5, 0.02))
-    subs.append(bx("Metal", x0 + 0.08, x1 - 0.08, y0 + 0.08, y1 - 0.08, 3.86, 4.0, 0.03))
+    subs.append(bx("Trim", x0, x0 + 0.05, -0.3, 0.3, 3.2, 3.98, 0.015))  # the outer stripe runs on
+    subs.append(bx("Suit", x0 + 0.06, x1 - 0.06, 0.42, 0.5, 3.28, 3.5, 0.04))  # a shoulder seam panel
     finish("LeftUpperArm", subs, b)
 
 
 def lower_arm():
     b = BLOCKS["LeftLowerArm"]
     x0, x1, y0, y1, z0, z1 = b
-    subs = [core(b)]
-    # the gauntlet: a plate a little wider at the elbow, an outer trim stripe, vents and a metal elbow cap
-    subs.append(bx("Armor", x0, x1, y0, y1, 2.38, 3.02, 0.06, taper=(1.0, 1.0)))
-    subs.append(bx("Trim", x0 - 0.01, x0 + 0.04, -0.18, 0.18, 2.48, 2.92, 0.012))
-    for k in range(3):
-        z = 2.55 + k * 0.12
-        subs.append(bx("Metal", x0 + 0.25, x1 - 0.25, 0.46, 0.51, z, z + 0.06, 0.012))
-    subs.append(bx("Metal", x0 + 0.06, x1 - 0.06, y0 + 0.06, y1 - 0.06, 3.02, 3.15, 0.03))
-    subs.append(bx("Trim", x0 + 0.02, x1 - 0.02, y0 + 0.02, y1 - 0.02, 2.3, 2.38, 0.02))
+    # a classic hero glove: flared cuff at the top, fitted below (its colour is the game's trim)
+    subs = [core(b, 0.08)]
+    cuff = bx("Suit", x0, x1, y0, y1, 2.82, 3.06, 0.05, 2, taper=(1.0, 1.0))
+    kit.deform(cuff, lambda v: Vector(((v.x + 1.5) * (1.0 if v.z > 2.95 else 0.88) - 1.5, v.y * (1.0 if v.z > 2.95 else 0.88), v.z)))
+    subs.append(cuff)
+    subs.append(bx("Armor", x0 - 0.0, x0 + 0.04, -0.12, 0.12, 2.86, 3.02, 0.01))  # a cuff badge
     finish("LeftLowerArm", subs, b)
 
 
 def hand():
     b = BLOCKS["LeftHand"]
     x0, x1, y0, y1, z0, z1 = b
-    subs = [core(b, 0.03, 0.05)]
-    subs.append(bx("Armor", x0 + 0.08, x1 - 0.08, 0.3, 0.5, 2.12, 2.3, 0.04))
-    for k in range(4):
-        x = x0 + 0.2 + k * 0.2
-        subs.append(bx("Metal", x - 0.07, x + 0.07, 0.42, 0.52, 2.0, 2.1, 0.02))
+    subs = [core(b, 0.03, 0.06)]
+    subs.append(bx("Suit", x0 + 0.1, x1 - 0.1, 0.4, 0.5, 2.0, 2.16, 0.05))  # a padded knuckle band
     finish("LeftHand", subs, b)
-
-
-def pad():
-    # the shoulder pad: a domed plate over the shoulder with a trim edge (an extra piece)
-    ob = bx("Armor", -2.14, -0.92, -0.6, 0.6, 3.82, 4.22, 0.12, 2)
-
-    def dome(v):
-        t = (v.x + 1.53) / 0.61  # -1 inner .. 1 outer
-        v.z += 0.1 * (1 - min(1.0, abs(t) ** 2)) if v.z > 4.0 else 0
-        if v.z < 3.95 and v.x < -1.9:
-            v.z -= 0.08
-        return v
-
-    kit.deform(ob, dome)
-    edge = bx("Trim", -2.2, -2.08, -0.55, 0.55, 3.7, 4.0, 0.02)
-    rivet = cy("Metal", 0.06, 0.06, 0.05, (-1.6, 0.0, 4.33), "Z", 10)
-    finish("PadL", [ob, edge, rivet])
 
 
 # ---------------------------------------------------------------- legs (left; the right is a mirror)
@@ -258,61 +268,48 @@ def upper_leg():
     b = BLOCKS["LeftUpperLeg"]
     x0, x1, y0, y1, z0, z1 = b
     subs = [core(b)]
-    subs.append(bx("Armor", x0 + 0.08, x1 - 0.08, 0.28, 0.5, 1.28, 1.94, 0.06, taper=(1.1, 1.0)))
-    subs.append(bx("Metal", x0 - 0.0, x0 + 0.1, -0.3, 0.2, 1.35, 1.75, 0.03))
-    subs.append(bx("Trim", x0 + 0.1, x1 - 0.1, 0.46, 0.51, 1.52, 1.6, 0.015))
+    subs.append(bx("Trim", x0, x0 + 0.05, -0.3, 0.3, 1.2, 1.98, 0.015))  # the outer stripe
+    subs.append(bx("Suit", x0 + 0.1, x1 - 0.1, 0.42, 0.5, 1.25, 1.62, 0.05))  # the thigh panel
     finish("LeftUpperLeg", subs, b)
 
 
 def lower_leg():
     b = BLOCKS["LeftLowerLeg"]
     x0, x1, y0, y1, z0, z1 = b
-    subs = [core(b)]
-    subs.append(bx("Armor", x0, x1, -0.32, 0.5, 0.34, 0.98, 0.06, taper=(1.0, 1.0)))
-    subs.append(bx("Trim", x0 + 0.2, x1 - 0.2, 0.32, 0.52, 0.96, 1.15, 0.07, 2))
-    subs.append(bx("Metal", x0 + 0.3, x1 - 0.3, y0, -0.36, 0.5, 0.78, 0.03))
+    # the boot: a flared top (a classic hero boot), a knee crease, a seam down the front
+    subs = [core(b, 0.07)]
+    top = bx("Suit", x0, x1, y0, y1, 0.86, 1.12, 0.05, 2)
+    kit.deform(top, lambda v: Vector(((v.x + 0.5) * (1.0 if v.z > 1.0 else 0.9) - 0.5, v.y * (1.0 if v.z > 1.0 else 0.9) + (0.04 if v.y > 0 and v.z > 1.0 else 0), v.z)))
+    subs.append(top)
+    subs.append(bx("Armor", x0 + 0.3, x1 - 0.3, 0.44, 0.52, 0.9, 1.08, 0.02))  # the boot badge
     finish("LeftLowerLeg", subs, b)
 
 
 def foot():
     b = BLOCKS["LeftFoot"]
     x0, x1, y0, y1, z0, z1 = b
-    subs = []
-    subs.append(bx("Metal", x0, x1, y0, y1, 0.0, 0.09, 0.03))
-    subs.append(bx("Armor", x0 + 0.02, x1 - 0.02, y0 + 0.02, y1 - 0.02, 0.08, 0.3, 0.05))
-    subs.append(bx("Trim", x0 + 0.08, x1 - 0.08, 0.3, 0.5, 0.06, 0.24, 0.04))
-    # the jet nozzle ring under the heel (the game's neon jet sits below it)
-    subs.append(cy("Metal", 0.2, 0.24, 0.05, ((x0 + x1) / 2, -0.15, 0.025), "Z", 14))
+    subs = [bx("Visor", x0, x1, y0, y1, 0.0, 0.08, 0.03)]  # the sole
+    subs.append(bx("Suit", x0 + 0.02, x1 - 0.02, y0 + 0.02, y1 - 0.02, 0.07, 0.3, 0.07, 2))
+    subs.append(bx("Suit", x0 + 0.1, x1 - 0.1, 0.25, 0.5, 0.06, 0.2, 0.06))  # the toe cap
+    subs.append(cy("Metal", 0.18, 0.22, 0.05, ((x0 + x1) / 2, -0.15, 0.025), "Z", 14))  # the jet ring
     finish("LeftFoot", subs, b)
 
 
-def pack():
-    # the back thruster (an extra on the upper torso): a box with a cover plate, a trim stripe and two nozzles
-    subs = [bx("Metal", -0.62, 0.62, -0.88, -0.5, 2.95, 3.82, 0.07)]
-    subs.append(bx("Armor", -0.5, 0.5, -0.94, -0.82, 3.05, 3.72, 0.05))
-    subs.append(bx("Trim", -0.5, 0.5, -0.95, -0.9, 3.48, 3.56, 0.012))
-    for s in (-1, 1):
-        subs.append(cy("Metal", 0.13, 0.19, 0.22, (s * 0.34, -0.69, 2.84), "Z", 14))
-        subs.append(cy("Visor", 0.1, 0.1, 0.03, (s * 0.34, -0.69, 2.73), "Z", 12))
-    finish("Pack", subs)
-
-
 head()
+hair()
 upper_torso()
 lower_torso()
 upper_arm()
 lower_arm()
 hand()
-pad()
 upper_leg()
 lower_leg()
 foot()
-pack()
 
 # the right side: mirrors of the left
 for name in list(pieces):
-    if name.startswith("Left") or name == "PadL":
-        right = "Right" + name[4:] if name.startswith("Left") else "PadR"
+    if name.startswith("Left"):
+        right = "Right" + name[4:]
         ob = kit.mirror_x(pieces[name], right)
         ob.data.name = right
         pieces[right] = ob
@@ -324,7 +321,7 @@ for name in list(BLOCKS):
 
 PARTS = ["Head", "UpperTorso", "LowerTorso"] + [s + p for s in ("Left", "Right") for p in
                                                   ("UpperArm", "LowerArm", "Hand", "UpperLeg", "LowerLeg", "Foot")]
-EXTRAS = {"PadL": "LeftUpperArm", "PadR": "RightUpperArm", "Pack": "UpperTorso"}
+EXTRAS = {"Hair": "Head"}
 for name in PARTS + list(EXTRAS):
     assert name in pieces, name
 
@@ -614,7 +611,7 @@ if "--preview" in sys.argv:
         if k.startswith("Left"):
             v = J[k]
             J["Right" + k[4:]] = Vector((-v.x, v.y, v.z))
-    PARENT = {"UpperTorso": ("LowerTorso", "Waist"), "Head": ("UpperTorso", "Neck"), "Pack": ("UpperTorso", None)}
+    PARENT = {"UpperTorso": ("LowerTorso", "Waist"), "Head": ("UpperTorso", "Neck"), "Hair": ("Head", None)}
     for s in ("Left", "Right"):
         PARENT[s + "UpperArm"] = ("UpperTorso", s + "Shoulder")
         PARENT[s + "LowerArm"] = (s + "UpperArm", s + "Elbow")
@@ -622,8 +619,10 @@ if "--preview" in sys.argv:
         PARENT[s + "UpperLeg"] = ("LowerTorso", s + "Hip")
         PARENT[s + "LowerLeg"] = (s + "UpperLeg", s + "Knee")
         PARENT[s + "Foot"] = (s + "LowerLeg", s + "Ankle")
-    PARENT["PadL"] = ("LeftUpperArm", None)
-    PARENT["PadR"] = ("RightUpperArm", None)
+
+    def lin(c):
+        c = c / 255
+        return c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
 
     def game_mat(suit_rgb):
         m = out_mat.copy()
@@ -632,7 +631,7 @@ if "--preview" in sys.argv:
         img = [n for n in t.nodes if n.type == "TEX_IMAGE" and n.image == color_img][0]
         mix = t.nodes.new("ShaderNodeMix")
         mix.data_type = "RGBA"
-        mix.inputs["A"].default_value = (*(c / 255 for c in suit_rgb), 1)
+        mix.inputs["A"].default_value = (*(lin(c) for c in suit_rgb), 1)  # Part.Color is sRGB
         t.links.new(img.outputs["Alpha"], mix.inputs["Factor"])
         t.links.new(img.outputs["Color"], mix.inputs["B"])
         t.links.new(mix.outputs["Result"], pr.inputs["Base Color"])
@@ -641,7 +640,20 @@ if "--preview" in sys.argv:
         pr.inputs["Alpha"].default_value = 1
         return m
 
-    def pose_copy(at, bends, mat, yaw=0.0, hide=(), endo=None):
+    def colours(suit, trim, skin, hair_rgb):
+        """Each part's game colour (EnemyRenderer: suit on the torso, upper arms and thighs; trim for gloves
+        and boots; the skin and hair picked per robot)."""
+        out = {"Head": skin, "Hair": hair_rgb, "UpperTorso": suit, "LowerTorso": suit}
+        for sd in ("Left", "Right"):
+            out[sd + "UpperArm"] = suit
+            out[sd + "UpperLeg"] = suit
+            for pn in ("LowerArm", "Hand", "LowerLeg", "Foot"):
+                out[sd + pn] = trim
+        return {k: game_mat(v) for k, v in out.items()}
+
+    eye_mat = kit.material("eye", (255, 167, 124), emit=3.0)  # Spark Trooper eye, lerped to white as in game
+
+    def pose_copy(at, bends, mats, yaw=0.0, hide=(), endo=None):
         world = {}
 
         def matrix(n):
@@ -675,21 +687,29 @@ if "--preview" in sys.argv:
             bpy.context.scene.collection.objects.link(cp)
             cp.matrix_world = Y @ matrix(n)
             cp.data.materials.clear()
-            cp.data.materials.append(mat)
+            cp.data.materials.append(mats[n])
             cp.hide_render = False
+            if n == "Head":
+                for sd in (-1, 1):
+                    e = kit.box("eye", 0.27, 0.05, 0.1, at=(sd * 0.24, 0.61, 4.66))
+                    e.data.materials.append(eye_mat)
+                    e.matrix_world = Y @ matrix(n)
 
     for ob in pieces.values():
         ob.hide_render = True
     kit.studio(res=(1800, 1000), samples=64)
-    blue = game_mat((40, 70, 140))
+    # the Spark Trooper's colours (Config.Enemies: suit 40,70,140, trim 255,170,60), two of the skins and hairs
+    a = colours((40, 70, 140), (255, 170, 60), (240, 190, 150), (70, 46, 30))
+    b2 = colours((40, 70, 140), (255, 170, 60), (141, 95, 64), (30, 26, 24))
+    c = colours((40, 70, 140), (255, 170, 60), (224, 172, 130), (160, 120, 60))
     chrome = kit.material("endo", (150, 155, 168), metal=1.0, rough=0.3)
     fly = {"LeftShoulder": ("X", -25), "RightShoulder": ("X", 70), "RightElbow": ("X", 15),
            "LeftHip": ("X", 15), "LeftKnee": ("X", -35), "RightHip": ("X", -10), "RightKnee": ("X", -15)}
-    pose_copy((7.6, 0, 0), {}, blue)
-    pose_copy((2.6, 0, 0.6), fly, blue, yaw=35)
-    pose_copy((-2.6, 0, 0), {}, blue, yaw=180)
-    pose_copy((-7.6, 0, 0), {"Neck": ("Z", -12)}, blue, yaw=-20,
-              hide=("LeftUpperArm", "LeftLowerArm", "LeftHand", "PadL", "RightLowerLeg", "RightFoot"), endo=chrome)
+    pose_copy((7.6, 0, 0), {}, a)
+    pose_copy((2.6, 0, 0.6), fly, b2, yaw=35)
+    pose_copy((-2.6, 0, 0), {}, c, yaw=180)
+    pose_copy((-7.6, 0, 0), {"Neck": ("Z", -12)}, a, yaw=-20,
+              hide=("LeftUpperArm", "LeftLowerArm", "LeftHand", "RightLowerLeg", "RightFoot"), endo=chrome)
     floor = kit.cyl("floor", 16, 16, 0.2, at=(0, 0, -0.1), segs=48)
     floor.data.materials.append(kit.material("floor", (60, 64, 72), rough=0.8))
     kit.camera((0, 25.0, 5.4), (0, 0, 2.6), lens=42)
