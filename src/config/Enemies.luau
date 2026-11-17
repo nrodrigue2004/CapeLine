@@ -433,7 +433,7 @@ return {
 		attackRange = 3.5,
 		lunge = { range = 14, speed = 70, time = 0.3, every = 3 },
 		bite = { every = 0.8 },
-		coeff = 0.22,
+		coeff = 0.16, -- a pack of 6 all nipping is about one Sentry
 		attackWeight = 0.34, -- three Swarmers count as one robot for the 6-on-one-hero cap
 		fleeBelow = 0,
 		radius = 1.3,
@@ -460,7 +460,7 @@ return {
 		disguise = { reveal = 12, stalk = 5, walk = 6 },
 		ambush = { delay = 0.35, coeff = 1.8 }, -- the first strike after it shows itself
 		stab = { cooldown = 1.2 },
-		coeff = 1,
+		coeff = 0.7,
 		fleeBelow = 0,
 		radius = 2.2,
 		body = {
@@ -530,7 +530,7 @@ return {
 			coeff = 0.5,
 		},
 		punch = { every = 1.4 },
-		coeff = 1.1,
+		coeff = 0.9,
 		mitigation = 0.1,
 		ccResist = 0.3,
 		fleeBelow = 0,
