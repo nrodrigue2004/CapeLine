@@ -280,6 +280,36 @@ function NpcRig.dress(rig: Rig, image: string, sign: number?): { [string]: { Tex
 	return out
 end
 
+-- Classic clothes from a separate Shirt and Pants image (585 x 559 each, like real Roblox clothing): the upper
+-- torso and arms show the shirt, the lower torso and legs the pants. Returns the Textures by part (swap their
+-- Texture and Color3 to re-dress a pooled rig: ClothesMap.half says which image a part shows).
+function NpcRig.dressPair(rig: Rig, shirt: string, pants: string, sign: number?): { [string]: { Texture } }
+	local out: { [string]: { Texture } } = {}
+	for pname, p in rig.parts do
+		local list = {}
+		local image = if ClothesMap.half(pname) == 0 then shirt else pants
+		for _, face in ClothesMap.FACES do
+			local r = ClothesMap.rect(pname, face, true)
+			if r then
+				local fw, fh = ClothesMap.faceSize({ p.Size.X, p.Size.Y, p.Size.Z }, face)
+				local su, sv, ou, ov = ClothesMap.texture(r, fw, fh, sign, ClothesMap.TEMPLATE_W)
+				local t = Instance.new("Texture")
+				t.Name = "Clothes"
+				t.Texture = image
+				t.Face = (Enum.NormalId :: any)[face]
+				t.StudsPerTileU = su
+				t.StudsPerTileV = sv
+				t.OffsetStudsU = ou
+				t.OffsetStudsV = ov
+				t.Parent = p
+				table.insert(list, t)
+			end
+		end
+		out[pname] = list
+	end
+	return out
+end
+
 -- A face decal on the head (a Roblox face; swap its Texture to change the face)
 function NpcRig.face(rig: Rig, image: string): Decal
 	local d = Instance.new("Decal")

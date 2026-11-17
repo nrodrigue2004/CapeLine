@@ -84,6 +84,35 @@ return {
 			{ { 186, 110, 220 }, { 60, 70, 80 }, { 92, 62, 44 } },
 			{ { 245, 245, 240 }, { 30, 90, 140 }, { 224, 172, 130 } },
 		},
+		-- Roblox look (2026-11-17): once the heroes' classic Shirt and Pants are uploaded (Config.Creator.clothes),
+		-- every citizen wears one shirt and one pants picked from its id, tinted from these colours, with one of
+		-- the shared faces (Config.NpcLooks.faces), so the city's people look like Roblox players, each different
+		clothesTints = {
+			shirts = {
+				{ 236, 84, 72 },
+				{ 70, 150, 230 },
+				{ 250, 200, 60 },
+				{ 96, 190, 120 },
+				{ 186, 110, 220 },
+				{ 245, 245, 240 },
+				{ 40, 44, 52 },
+				{ 240, 140, 60 },
+				{ 90, 200, 210 },
+				{ 230, 120, 170 },
+				{ 120, 130, 140 },
+				{ 150, 60, 60 },
+			},
+			pants = {
+				{ 52, 62, 92 },
+				{ 70, 64, 60 },
+				{ 40, 44, 52 },
+				{ 110, 86, 64 },
+				{ 60, 70, 80 },
+				{ 30, 90, 140 },
+				{ 200, 190, 160 },
+				{ 90, 100, 70 },
+			},
+		},
 		-- hair colours, picked per citizen from its id (every citizen is on the blocky R15 rig, like heroes)
 		hair = { { 30, 26, 24 }, { 70, 46, 30 }, { 160, 120, 60 }, { 225, 225, 230 }, { 120, 40, 40 } },
 		-- body sets (gender, build), picked per citizen from its id: men and women, slim to big, no Titans

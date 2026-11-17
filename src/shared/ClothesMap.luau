@@ -12,6 +12,7 @@ local ClothesMap = {}
 ClothesMap.W = 1170 -- the shirt (x 0 to 584) and the pants (x 585 to 1169)
 ClothesMap.H = 559
 ClothesMap.PANTS_X = 585
+ClothesMap.TEMPLATE_W = 585 -- one classic Shirt or Pants image
 
 export type Rect = { number } -- x, y, w, h in template pixels
 
@@ -78,8 +79,9 @@ function ClothesMap.half(part: string): number
 		else 0
 end
 
--- The template rectangle one face of one R15 part shows, or nil for a face the body hides (a joint's inside)
-function ClothesMap.rect(part: string, face: string): Rect?
+-- The template rectangle one face of one R15 part shows, or nil for a face the body hides (a joint's inside).
+-- `single`: the part's own image is just its Shirt or its Pants (585 wide, NpcRig.dressPair), so no half offset.
+function ClothesMap.rect(part: string, face: string, single: boolean?): Rect?
 	local s = short(part)
 	local rows = ClothesMap.ROWS[s]
 	if not rows then
@@ -89,7 +91,7 @@ function ClothesMap.rect(part: string, face: string): Rect?
 		then TORSO
 		elseif part:sub(1, 5) == "Right" then RIGHT
 		else LEFT
-	local x = ClothesMap.half(part)
+	local x = if single then 0 else ClothesMap.half(part)
 	local slot: Rect
 	if face == "Top" then
 		if not TOPS[s] then
@@ -122,14 +124,16 @@ end
 -- A Texture's settings that show exactly `rect` of the template across a face fw by fh studs: the whole image
 -- is one tile, scaled so the rectangle fills the face, and shifted so the rectangle starts at the face's corner.
 -- `sign` flips the offset direction (Config.NpcLooks.offsetSign, in case Studio shows the image the other way).
+-- `width`: the image's width (ClothesMap.W for the side-by-side image, TEMPLATE_W for a lone Shirt or Pants).
 function ClothesMap.texture(
 	rect: Rect,
 	fw: number,
 	fh: number,
-	sign: number?
+	sign: number?,
+	width: number?
 ): (number, number, number, number)
 	local s = sign or 1
-	local su = fw * ClothesMap.W / rect[3]
+	local su = fw * (width or ClothesMap.W) / rect[3]
 	local sv = fh * ClothesMap.H / rect[4]
 	local ou = -s * rect[1] * fw / rect[3]
 	local ov = -s * rect[2] * fh / rect[4]

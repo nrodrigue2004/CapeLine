@@ -23,6 +23,7 @@ local Rng = require(Shared:WaitForChild("Rng"))
 local RigMath = require(Shared:WaitForChild("RigMath"))
 local BodyShape = require(Shared:WaitForChild("BodyShape"))
 local NpcRig = require(Shared:WaitForChild("NpcRig"))
+local ClothesMap = require(Shared:WaitForChild("ClothesMap"))
 
 local CitizenRenderer = {}
 
@@ -45,10 +46,36 @@ local function layoutOf(i: number): RigMath.Layout
 	return l
 end
 
+-- The Roblox look (once the heroes' clothes are uploaded): the uploaded shirts, pants and faces citizens pick
+-- from by their id
+local function uploaded(map: { [string]: number }): { string }
+	local out = {}
+	for _, id in map do
+		if id ~= 0 then
+			table.insert(out, "rbxassetid://" .. id)
+		end
+	end
+	table.sort(out) -- the same order on every device, so a citizen looks the same to everyone
+	return out
+end
+local SHIRTS = uploaded(Config.Creator.clothes.shirts)
+local PANTS = uploaded(Config.Creator.clothes.pants)
+local FACES: { string } = {}
+for _, fname in Config.NpcLooks.faceOrder do
+	local f = Config.NpcLooks.faces[fname]
+	if f and f.human ~= 0 then
+		table.insert(FACES, "rbxassetid://" .. f.human)
+	end
+end
+local ROBLOX = Config.Creator.clothes.on and #SHIRTS > 0 and #PANTS > 0
+local TINTS = C.clothesTints
+
 type Body = {
 	model: Model,
 	rig: NpcRig.Rig,
 	hair: BasePart,
+	clothes: { [string]: { Texture } }?, -- the Roblox look's Textures by part
+	face: Decal?,
 	color: number,
 	key: number,
 	pos: Vector3,
@@ -86,10 +113,20 @@ local function newBody(color: number, bodyIndex: number): Body
 		BodyShape.setKey(Config, bodyLook(bodyIndex))
 	)
 	rig.model.Parent = folder
+	local clothes: { [string]: { Texture } }? = nil
+	if ROBLOX then
+		-- skin under the clothes (short sleeves, shorts and the hands show it); assign picks the outfit
+		for _, p in rig.parts do
+			p.Color = rgb(set[3])
+		end
+		clothes = NpcRig.dressPair(rig, SHIRTS[1], PANTS[1], Config.NpcLooks.offsetSign)
+	end
 	return {
 		model = rig.model,
 		rig = rig,
 		hair = rig.model:FindFirstChild("Hair") :: BasePart,
+		clothes = clothes,
+		face = rig.parts.Head:FindFirstChild("face") :: Decal?,
 		color = color,
 		key = keyOf(color, bodyIndex),
 		pos = Vector3.zero,
@@ -114,6 +151,29 @@ local function release(body: Body)
 	body.model.Parent = nil
 	pool[body.key] = pool[body.key] or {}
 	table.insert(pool[body.key], body)
+end
+
+-- The Roblox look: this citizen's shirt, pants, their colours and its face, all from its id
+local function dress(body: Body, id: number)
+	local clothes = body.clothes
+	if not clothes then
+		return
+	end
+	local h = Rng.hash(id, 6007)
+	local shirt = SHIRTS[h % #SHIRTS + 1]
+	local pants = PANTS[(h // 13) % #PANTS + 1]
+	local top = rgb(TINTS.shirts[(h // 211) % #TINTS.shirts + 1])
+	local bottom = rgb(TINTS.pants[(h // 4099) % #TINTS.pants + 1])
+	for pname, list in clothes do
+		local upper = ClothesMap.half(pname) == 0
+		for _, t in list do
+			t.Texture = if upper then shirt else pants
+			t.Color3 = if upper then top else bottom
+		end
+	end
+	if body.face and #FACES > 0 then
+		body.face.Texture = FACES[(h // 77777) % #FACES + 1]
+	end
 end
 
 local function lerpAngle(a: number, b: number, t: number): number
@@ -187,6 +247,7 @@ local function render()
 		if not body then
 			body = acquire(rb.color, Rng.hash(id, 5113) % #C.bodies + 1)
 			body.hair.Color = rgb(C.hair[Rng.hash(id, 4409) % #C.hair + 1])
+			dress(body, id)
 			NpcRig.rest(body.rig)
 			live[id] = body
 			body.pos = pos

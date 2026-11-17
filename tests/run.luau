@@ -6630,6 +6630,13 @@ test("Roblox look: classic clothes map onto the R15 body, robots' recipes and Ro
 		ClothesMap.rect("RightHand", "Bottom") ~= nil and ClothesMap.rect("RightUpperArm", "Bottom") == nil,
 		"only the hand shows the bottom"
 	)
+	-- a lone Shirt or Pants image (citizens, NpcRig.dressPair): no half offset, the 585 px width
+	local single = ClothesMap.rect("LeftLowerLeg", "Front", true) :: { number }
+	check(single[1] == 308 and ClothesMap.TEMPLATE_W == 585, "a lone Pants image reads its own legs")
+	local su1 = ClothesMap.texture(single, 1, 1, 1, ClothesMap.TEMPLATE_W)
+	check(math.abs(su1 - 585 / 64) < 1e-9, "a lone image tiles at its own width")
+	local tint = Config.Destruction.citizens.clothesTints
+	check(#tint.shirts >= 8 and #tint.pants >= 6, "citizens' clothes colours")
 	-- every robot recipe names a real robot and only Roblox hairs from the list
 	local NL = Config.NpcLooks
 	check(
