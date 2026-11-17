@@ -69,7 +69,7 @@ return {
 	beacons = {
 		{ id = 1, name = "Beacon Tower", at = "plaza" },
 		{ id = 2, name = "Downtown East", at = "roof", x = -150, z = 150 },
-		{ id = 3, name = "Harbor Crane", at = "crane" },
+		{ id = 3, name = "Harbor Gantry", at = "crane" },
 		{ id = 4, name = "Clock Tower", at = "clock" },
 		{ id = 5, name = "The Crater", at = "CometCrater" },
 		{ id = 6, name = "Radio Hill", at = "RadioHill" },
