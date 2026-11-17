@@ -10926,6 +10926,48 @@ do
 	)
 end
 
+test("Weighty hits: flash, sound, sparks, knockback, shake and freeze on every hit you land", function()
+	local W = Config.Combat.weight
+	check(Config.Fx.hitFlash >= 0.1, "the robot turns white for at least 0.1 s")
+	check(
+		Config.Combat.hitPause >= 0.05 and Config.Combat.critPause > Config.Combat.hitPause,
+		"a real hit-stop, bigger on crits"
+	)
+	check(W.knock > 0 and W.knockHeavy > W.knock, "knockback, more on heavy hits")
+	check(
+		W.shake[2] > 0 and W.shakeHeavy[2] > W.shake[2] and W.shakeHeavy[1] >= W.shake[1],
+		"shake, more on heavy hits"
+	)
+	check(
+		W.flinchHeavy > W.flinchStuds and W.flinch > 0 and W.sparks > 0 and W.thudGap > 0,
+		"recoil and sparks"
+	)
+	local I = Config.Audio.impact
+	check(I and I.hit and I.heavy and I.clank and I.hit.fallback ~= nil, "the impact thud has sounds")
+	-- the server shove moves a robot by the configured distance on open ground
+	local sim = robotSim()
+	local e = EnemySim.spawn(sim, "BurglarBot", -40, 0, 0, 1) :: any
+	local x0 = e.x
+	EnemySim.knock(sim, e.id, -1, 0, W.knock)
+	check(math.abs((x0 - e.x) - W.knock) < 1e-6, "a normal hit shoves it")
+	-- wiring
+	local svc = readFile("src/server/Services/CombatService.luau")
+	check(
+		string.find(svc, "W.knockHeavy else W.knock", 1, true) ~= nil
+			and string.find(svc, "r.k ~= K.TICK", 1, true) ~= nil,
+		"the server shoves on hits, not ticks"
+	)
+	local cc = clientSources()["src/client/Controllers/CombatClient.luau"]
+	check(string.find(cc, "EnemyRenderer.impact(", 1, true) ~= nil, "the robot freezes and recoils")
+	check(string.find(cc, "CombatFx.hitSparks(", 1, true) ~= nil, "sparks spray out")
+	check(string.find(cc, "IMPACT.heavy else IMPACT.hit", 1, true) ~= nil, "the thud plays")
+	check(string.find(cc, "W.shakeHeavy else W.shake", 1, true) ~= nil, "the camera shakes")
+	check(
+		string.find(cc, "not CameraController.reduceMotion", 1, true) ~= nil,
+		"reduce flashing turns off the freeze"
+	)
+end)
+
 print(string.format("\n%d passed, %d failed", passed, failed))
 if failed > 0 then
 	process.exit(1)

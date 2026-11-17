@@ -30,6 +30,7 @@ local Signal = require(Shared:WaitForChild("Util"):WaitForChild("Signal"))
 local InputController = require(script.Parent.InputController)
 local MoveController = require(script.Parent.MoveController)
 local CameraController = require(script.Parent.CameraController)
+local AudioController = require(script.Parent.AudioController)
 local EnemyRenderer = require(script.Parent.EnemyRenderer)
 local PvpClient = require(script.Parent.PvpClient)
 local HeroAnimator = require(script.Parent.HeroAnimator)
@@ -458,18 +459,34 @@ local function casterPos(userId: number, fallback: Vector3): () -> Vector3?
 	end
 end
 
+local IMPACT = Config.Audio.impact
+local lastThud = 0
+
 local function drawHits(r: any, row: any, style: string, mine: boolean)
 	local hits = r.h or {}
 	local color = CombatFx.colorOf(row and row.set, r.a)
 	local anyCrit = false
 	local wordDone = false
+	local tick = r.k == K.TICK
+	local heavyRow = row ~= nil and (row.coeff or 0) >= C.heavyCoeff
 	for _, h in hits do
 		local pos = EnemyRenderer.position(h[1]) or Vector3.new(h[5], h[6], h[7])
 		local crit = h[3] == 1
 		anyCrit = anyCrit or crit
 		EnemyRenderer.flash(h[1])
-		if r.k ~= K.TICK or crit then
+		if not tick or crit then
 			CombatFx.impact(pos, crit, style, mine, color, row and row.set)
+		end
+		-- weighty hits (Config.Combat.weight): the robot freezes with you, then recoils; sparks spray out
+		if not tick and h[4] ~= 1 then
+			local big = crit or heavyRow
+			local from = r.o or (Workspace.CurrentCamera and Workspace.CurrentCamera.CFrame.Position) or pos
+			local dir = pos - from
+			local freeze = if mine and not CameraController.reduceMotion
+				then (if big then C.critPause else C.hitPause)
+				else 0
+			EnemyRenderer.impact(h[1], dir, big, freeze)
+			CombatFx.hitSparks(pos, if dir.Magnitude > 1e-3 then dir.Unit else Vector3.yAxis, color, big)
 		end
 		CombatFx.number(pos + Vector3.new(0, 2, 0), h[2], crit, style, mine, h[8])
 		if
@@ -490,10 +507,21 @@ local function drawHits(r: any, row: any, style: string, mine: boolean)
 		)
 	end
 	if mine and #hits > 0 then
-		local heavy = row and (row.coeff or 0) >= C.heavyCoeff
+		local heavy = heavyRow
 		hitPause(if anyCrit or heavy then C.critPause else C.hitPause)
-		if heavy and r.k ~= K.TICK then
-			CameraController.shake(0.15, 0.45)
+		if not tick then
+			-- weighty hits: every hit you land shakes the camera and thuds; heavy and crit hits harder
+			local W = C.weight
+			local sh = if anyCrit or heavy then W.shakeHeavy else W.shake
+			CameraController.shake(sh[1], sh[2])
+			local now = os.clock()
+			if now - lastThud >= W.thudGap then
+				lastThud = now
+				local at = EnemyRenderer.position(hits[1][1])
+					or Vector3.new(hits[1][5], hits[1][6], hits[1][7])
+				AudioController.playSpec(if anyCrit or heavy then IMPACT.heavy else IMPACT.hit, at)
+				AudioController.playSpec(IMPACT.clank, at)
+			end
 		end
 		-- the camera punch: a small FOV kick on crits and heavy hits, smaller on the rest (never on ticks)
 		if r.k ~= K.TICK then

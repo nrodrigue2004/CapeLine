@@ -53,6 +53,13 @@ return {
 	},
 
 	-- one sound per juice action (3D ones play at the action's spot, heard within `range` studs)
+	-- the impact layer under every hit you land (Config.Combat.weight): a body thud and a metal clank, lower and
+	-- louder on heavy and crit hits. PLACEHOLDER SOUND until nate picks Creator Store ids.
+	impact = {
+		hit = s("action_jump_land.mp3", 0.55, 0.8, { range = 90, vary = 0.08 }),
+		heavy = s("action_jump_land.mp3", 0.85, 0.55, { range = 140, vary = 0.06 }),
+		clank = s("clickfast.wav", 0.3, 0.75, { range = 80, vary = 0.12 }),
+	},
 	sounds = {
 		leap = s("swoosh.wav", 0.6, 0.85, { range = 120 }),
 		land = s("action_jump_land.mp3", 0.8, 0.7, { range = 140 }),

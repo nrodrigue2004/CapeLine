@@ -86,6 +86,15 @@ What nate does:
 
 ## Studio test list (needs nate's PC)
 
+### Weighty hits (2026-11-17, build playtest-hits)
+nate: "Make hits weighty" (flash, white, sound, particles, knockback, shake and freeze). Numbers in Config.Combat.weight (tune there).
+1. Punch a Grunt with your basic: it flashes white, it and you hold still for a blink, then it jolts back a step and rocks; sparks spray out the far side; a thud and a clank; the camera shakes a little.
+2. A heavy skill or a crit: all of it bigger (longer freeze, bigger jolt and shove, more sparks with a ring, a lower thud, a bigger shake).
+3. A channel or a damage field (ticks): numbers and flashes only, no shake, freeze or shove, so it doesn't jitter.
+4. A big crowd fight (10+ robots): it still feels clean, not a constant buzz; frame time in the Dev panel close to before (phone emulator, Low).
+5. Settings > Reduce flashing on: no shake and no freeze; flash, sparks, sound and shove stay.
+6. Feel check: if a hit still feels light or now feels too sticky, say which (freeze, shove, shake or sound) and Claude tunes that one number.
+
 ### Uploaded art (2026-11-17, build playtest-art)
 nate uploaded all 191 images (art/upload); their image ids are in NpcLooks, Creator and Fx, and the 22 city textures are MaterialVariants in MaterialService (src/materials). Open build/Capeline.rbxl (project files capeline/Capeline-playtest-art-2026-11-17.rbxl), press Play:
 1. Output shows "playtest-art (2026-11-17)" at boot and no "Failed to load" image warnings (a few right after upload can mean Roblox is still checking the images; wait 10 minutes and retry).

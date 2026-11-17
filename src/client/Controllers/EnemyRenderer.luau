@@ -122,6 +122,13 @@ type Body = {
 	flashUntil: number,
 	lastFlags: number,
 	swingUntil: number,
+	-- weighty hits (Config.Combat.weight): held in place for the hit-stop, then a recoil away from the hit
+	freezeUntil: number,
+	freezePos: Vector3?,
+	flinchAt: number,
+	flinchDir: Vector3,
+	flinchStuds: number,
+	flinchTilt: number,
 	look: string?,
 	glow: Color3,
 	turned: boolean,
@@ -1194,6 +1201,12 @@ local function makeRobot(typeId: number, ident: { [string]: any }?): Body
 		flashUntil = 0,
 		lastFlags = -1,
 		swingUntil = 0,
+		freezeUntil = 0,
+		freezePos = nil,
+		flinchAt = -1,
+		flinchDir = Vector3.new(0, 0, -1),
+		flinchStuds = 0,
+		flinchTilt = 0,
 		look = look,
 		glow = glow,
 		turned = false,
@@ -1682,12 +1695,32 @@ function EnemyRenderer.flash(id: number)
 				local tex = body.clothes and body.clothes[body.names[i]]
 				if tex then
 					for _, x in tex do
-						x.Transparency = 0.6 -- the white flash shows through the clothes
+						x.Transparency = 0.85 -- the white flash shows through the clothes (weighty hits: nearly pure white)
 					end
 				end
 			end
 		end
 	end
+end
+
+-- Weighty hits (Config.Combat.weight): robot `id` holds still for `freeze` seconds (your hit-stop; 0 for
+-- other players' hits), then recoils along `dir` (from the hit into the robot), more when `heavy`
+function EnemyRenderer.impact(id: number, dir: Vector3, heavy: boolean, freeze: number)
+	local body = live[id]
+	if not body or disguised(body) then
+		return
+	end
+	local W = Config.Combat.weight
+	local now = os.clock()
+	local flat = Vector3.new(dir.X, 0, dir.Z)
+	if freeze > 0 then
+		body.freezeUntil = now + freeze
+		body.freezePos = body.pos
+	end
+	body.flinchAt = now + freeze
+	body.flinchDir = if flat.Magnitude > 1e-3 then flat.Unit else Vector3.new(0, 0, -1)
+	body.flinchStuds = if heavy then W.flinchHeavy else W.flinchStuds
+	body.flinchTilt = if heavy then W.flinchTilt * 2 else W.flinchTilt
 end
 
 -- A melee swing pose (Sneak stab, Sentinel sweep) for 0.3 s
@@ -1843,6 +1876,20 @@ local function pose(
 	elseif lean > 0 then
 		root *= CFrame.Angles(math.rad(-16 * lean), 0, 0)
 	end
+	-- a hit's recoil (EnemyRenderer.impact): a jolt away from the hit that springs back, rocking the top back
+	local W = Config.Combat.weight
+	local ft = (now - body.flinchAt) / W.flinch
+	if ft >= 0 and ft < 1 then
+		local k = math.sin(ft * math.pi) * (1 - ft * 0.5)
+		local d = body.flinchDir
+		local axis = Vector3.yAxis:Cross(d)
+		root = CFrame.new(root.Position + d * body.flinchStuds * k)
+			* CFrame.fromAxisAngle(
+				if axis.Magnitude > 1e-3 then axis.Unit else Vector3.xAxis,
+				math.rad(body.flinchTilt * k)
+			)
+			* root.Rotation
+	end
 	if lifted then
 		root *= CFrame.Angles(math.rad((now * 540) % 360), 0, math.rad(25)) -- tumble
 	elseif stunned then
@@ -1995,6 +2042,11 @@ local function render()
 			body.pos = pos
 			body.yaw = rb.yaw
 		end
+		local bodyDt = dt
+		if now < body.freezeUntil and body.freezePos then
+			pos = body.freezePos -- the hit-stop: it holds still with you (limbs too), then catches up
+			bodyDt = 0
+		end
 		local moved = Vector3.new(pos.X - body.pos.X, 0, pos.Z - body.pos.Z)
 		body.speed = body.speed + (moved.Magnitude / math.max(dt, 1e-3) - body.speed) * math.min(1, dt * 8)
 		body.pos = pos
@@ -2016,7 +2068,15 @@ local function render()
 		if body.medLight and bit32.band(body.extra, EXTRA.mend) ~= 0 and dist < LOOK.poseNear then
 			pulse(body, now)
 		end
-		pose(body, id, now, dt, roots, cframes, dist < LOOK.poseNear or (frame + id) % LOOK.poseEvery == 0)
+		pose(
+			body,
+			id,
+			now,
+			bodyDt,
+			roots,
+			cframes,
+			dist < LOOK.poseNear or (frame + id) % LOOK.poseEvery == 0
+		)
 	end
 	if #roots > 0 then
 		Workspace:BulkMoveTo(roots, cframes, Enum.BulkMoveMode.FireCFrameChanged)

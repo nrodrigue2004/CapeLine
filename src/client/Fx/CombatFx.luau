@@ -2533,6 +2533,38 @@ function CombatFx.impact(
 	end
 end
 
+-- Weighty hits (Config.Combat.weight): sparks spray out of the hit along `dir` (from the hit into the robot),
+-- hot white cores fading to the hit colour; heavy hits throw twice as many, further. Comes out of the device
+-- debris budget, so a crowd fight on a phone stays cheap. PLACEHOLDER ART: part-built.
+function CombatFx.hitSparks(pos: Vector3, dir: Vector3, color: Color3?, heavy: boolean)
+	local W = Config.Combat.weight
+	local n = DebrisBudget.lease(if heavy then W.sparks * 2 else W.sparks, W.sparkLife)
+	local d = if dir.Magnitude > 1e-3 then dir.Unit else UP
+	local c = color or WHITE
+	local reach = if heavy then 9 else 5.5
+	for _ = 1, n do
+		local v = (d + randomUnit() * 0.75 + UP * 0.25).Unit
+		local len = 0.6 + math.random() * (if heavy then 1.6 else 1)
+		local p = part(Vector3.new(0.14, 0.14, len), CFrame.lookAt(pos, pos + v), WHITE)
+		local to = pos + v * reach * (0.5 + math.random() * 0.6) - UP * math.random() * 1.5
+		TweenService
+			:Create(
+				p,
+				TweenInfo.new(W.sparkLife, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+				{ Color = c }
+			)
+			:Play()
+		fade(
+			p,
+			W.sparkLife,
+			{ CFrame = CFrame.lookAt(to, to + v), Size = Vector3.new(0.06, 0.06, len * 0.4) }
+		)
+	end
+	if heavy then
+		ring(pos, 4.5, c, 0.2, 0.5)
+	end
+end
+
 -- Damage numbers: rise and fade; crits are gold and 1.5x. flag 1 = blocked (shield or guard), 2 = guard broke
 function CombatFx.number(
 	pos: Vector3,

@@ -6,7 +6,7 @@ return {
 	bolt = { width = 0.35, life = 0.12 },
 	chain = { width = 0.5, life = 0.25, segments = 6, jitter = 1.6 },
 	dash = { trailLife = 0.3 },
-	hitFlash = 0.08,
+	hitFlash = 0.1, -- the robot turns white this long on a hit (was 0.08; weighty hits)
 	numbers = { rise = 3, life = 0.8, critScale = 1.5 },
 	enemyDeath = { parts = 6, life = 2 },
 	shot = { width = 0.4 },

@@ -9,8 +9,26 @@ return {
 	resultRate = 10, -- batches per second
 	aimSlack = 15, -- degrees: the server accepts a target hint this far off the aim line
 	reachSlack = 6, -- studs added to every range check for lag
-	hitPause = 0.03,
-	critPause = 0.05,
+	hitPause = 0.06, -- hit-stop on your hits (was 0.03; nate 2026-11-17: "make hits weighty")
+	critPause = 0.11, -- crits and heavy hits (was 0.05)
+	-- Weighty hits (nate, 2026-11-17: flash, turn the enemy white, sound, particles, knockback, shake and
+	-- freeze). Every non-tick hit you land: the robot flashes white (Config.Fx.hitFlash), freezes in place for
+	-- the hit-stop with you, then flinches away from the hit while the server knocks it back a little; a thud
+	-- plays (Config.Audio.impact), sparks spray out of the hit and the camera shakes. Heavy (coeff >=
+	-- heavyCoeff) and crit hits do all of it bigger. Reduce flashing turns off the shake and freeze.
+	weight = {
+		knock = 1.5, -- studs the server pushes a robot on a normal hit (not ticks; robots immune to knockback skip it)
+		knockHeavy = 4, -- heavy or crit hits
+		flinch = 0.18, -- seconds the drawn robot recoils after the freeze
+		flinchStuds = 1, -- how far the drawn body jolts back (and springs back) on a normal hit
+		flinchHeavy = 2,
+		flinchTilt = 14, -- degrees it rocks back (doubled on heavy hits)
+		shake = { 0.07, 0.22 }, -- camera shake {time, amount} on a normal hit
+		shakeHeavy = { 0.16, 0.55 },
+		sparks = 6, -- sparks sprayed out of the hit (heavy: x2), from the device's debris budget
+		sparkLife = 0.35,
+		thudGap = 0.05, -- at most one thud this often (multi-hits stay clean)
+	},
 	punchHit = 0.012, -- camera FOV kick on your hits (CameraController.punch; clash uses its own)
 	punchHeavy = 0.03,
 	-- Hold to aim and charge (overhaul plan step 3; Shared.ChargeRules). A skill or super key shows its aim

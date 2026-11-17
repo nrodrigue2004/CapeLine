@@ -477,6 +477,16 @@ local function applyHit(
 		return false
 	end
 	local at = Vector3.new(e.x, e.y, e.z)
+	-- Weighty hits (Config.Combat.weight): a small shove away from the hit; bigger on heavy and crit hits.
+	-- Not on ticks (channels and fields), and not when the skill's own knockback status moves it anyway.
+	if primary and r.k ~= K.TICK and eff.status ~= "knockback" and eff.status2 ~= "knockback" then
+		local W = C.weight
+		EnemyService.knock(
+			cand.id,
+			knockDir or flatDir(at - from),
+			if heavy or crit then W.knockHeavy else W.knock
+		)
+	end
 	if heavy and primary then
 		-- Knockback arc (spec: Clash moments): a heavy hit near a wall throws the robot through it
 		local through = BuildingService.clash(hero, at, from)
