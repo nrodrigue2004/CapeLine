@@ -3,7 +3,6 @@
 -- (tune)
 return {
 	minLevel = 10, -- the flag button appears and the Crater can force PvP from this level
-	levelCap = 40, -- PvP uses the level capped here
 
 	flag = {
 		setEvery = 5, -- the client can ask at most once per 5 s

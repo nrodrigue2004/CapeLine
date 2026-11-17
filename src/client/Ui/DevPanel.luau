@@ -5,7 +5,7 @@
 -- event by type, boss now, boss to 1 HP, finish contract, clock phase, hero or villain side, and (M7) replay
 -- the opening, jump to an opening step, enter a mission, finish the step, leave, start a side quest, clear
 -- Act 1 and reset the story, and (M9) the creator, enter HQ, HQ level, 8 h away, all pieces, a test buy
--- (twice grants once) and level 40. The stats line shows the server frame, script time per service, enemies, bots, send
+-- (twice grants once) and the level cap. The stats line shows the server frame, script time per service, enemies, bots, send
 -- rate and memory, plus the client fps and preset.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -137,7 +137,7 @@ function DevPanel.init()
 		styleIdx = styleIdx % #STYLES + 1
 		b.Text = LABEL[EnemyRenderer.setStyle(STYLES[styleIdx])]
 	end)
-	add("Level 40", function()
+	add("Level " .. Config.Stats.levelCap, function()
 		Net.send("DevCommand", "level", Config.Stats.levelCap)
 	end)
 	add("+10 Skill Pts", function()
@@ -295,7 +295,7 @@ function DevPanel.init()
 		buyIdx = buyIdx % #keys + 1
 		b.Text = "Buy " .. keys[buyIdx]
 	end)
-	add("Level 40", function()
+	add("Level " .. Config.Stats.levelCap, function()
 		Net.send("DevCommand", "legacy")
 	end)
 	-- M10: settings and accessibility

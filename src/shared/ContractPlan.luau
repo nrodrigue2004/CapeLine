@@ -119,8 +119,8 @@ function ContractPlan.pay(
 	return math.floor(credits + 0.5), math.floor(renown + 0.5), mult
 end
 
--- Keep a saved list sane (repair after load)
-function ContractPlan.repair(cfg: any, list: any): { Saved }
+-- Keep a saved list sane (repair after load); maxLevel is the level cap (Config.Stats.levelCap)
+function ContractPlan.repair(cfg: any, list: any, maxLevel: number): { Saved }
 	local out: { Saved } = {}
 	if type(list) ~= "table" then
 		return out
@@ -133,7 +133,7 @@ function ContractPlan.repair(cfg: any, list: any): { Saved }
 			table.insert(out, {
 				type = c.type,
 				seed = if type(c.seed) == "number" then math.floor(c.seed) % 2147483647 else 1,
-				level = if type(c.level) == "number" then math.clamp(math.floor(c.level), 1, 40) else 1,
+				level = if type(c.level) == "number" then math.clamp(math.floor(c.level), 1, maxLevel) else 1,
 				got = if type(c.got) == "number" then math.clamp(math.floor(c.got), 0, goal) else 0,
 				ox = if type(c.ox) == "number" and math.abs(c.ox) < 5000 then c.ox else nil,
 				oz = if type(c.oz) == "number" and math.abs(c.oz) < 5000 then c.oz else nil,

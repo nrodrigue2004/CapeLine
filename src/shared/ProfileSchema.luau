@@ -7,7 +7,15 @@
 -- Every save change bumps VERSION and adds a function to MIGRATIONS[newVersion].
 -- Arrays never hold nil (DataStores store JSON): empty equipment and style slots are 0.
 
+local Config = if script
+	then require(script.Parent.Parent:WaitForChild("Config"))
+	else (require :: any)("../config")
+
 local ProfileSchema = {}
+
+-- The level cap a saved level is repaired to (Config.Stats.levelCap, 50 since 2026-11-17). A save from the
+-- 40 cap is already in range, so raising the cap needs no migration.
+ProfileSchema.LEVEL_CAP = Config.Stats.levelCap
 
 ProfileSchema.VERSION = 9
 ProfileSchema.BOSSES = 3 -- #Config.Boss.order (a test checks they match)
@@ -386,7 +394,7 @@ local function repair(p: any): any
 		for _, c in chars do
 			if type(c) == "table" and #cleanChars < 4 then
 				fill(c, ProfileSchema.newCharacter())
-				c.level = num(c.level, 1, 40, 1)
+				c.level = num(c.level, 1, ProfileSchema.LEVEL_CAP, 1)
 				c.xp = num(c.xp, 0, 2 ^ 31, 0)
 				c.loadoutIndex = num(c.loadoutIndex, 1, 2, 1)
 				c.lastSafehouse = num(c.lastSafehouse, 0, 16, 0)
@@ -527,7 +535,7 @@ local function repair(p: any): any
 				nounId = num(l.nounId, 0, 64, 0),
 				classId = if type(l.classId) == "string" then string.sub(l.classId, 1, 24) else "Elemental",
 				side = if l.side == "villain" then "villain" else "hero",
-				level = num(l.level, 1, 40, 40),
+				level = num(l.level, 1, ProfileSchema.LEVEL_CAP, ProfileSchema.LEVEL_CAP),
 				rank = num(l.rank, 1, 255, 1),
 				at = num(l.at, 0, 2 ^ 40, 0),
 			})

@@ -1869,16 +1869,19 @@ test("M3: level gates: Epic from 20, Legendary from 30; fixed story rewards skip
 	)
 end)
 
-test("M3: levels: xpToNext, cumulative 68,400 to 40, level ups and the cap", function()
+test("M3: levels: xpToNext, cumulative 68,400 to 40, level ups and the cap (Stats.levelCap)", function()
 	check(Progress.xpToNext(Config, 1) == 100 and Progress.xpToNext(Config, 2) == 112, "100, 112")
 	local total = Progress.totalTo(Config, 40)
 	near(total, 68400, 68400 * 0.01, string.format("level 40 takes %d Renown", total))
 	local lv, xp, gained = Progress.addRenown(Config, 1, 0, 250)
 	check(lv == 3 and xp == 38 and gained == 2, "250 Renown: level 3 with 38 over")
-	local cap, capXp = Progress.addRenown(Config, 39, 0, 1e7)
-	check(cap == 40 and capXp == 0, "stops at 40")
-	check(select(1, Progress.nextUnlock(1)) == 3, "next unlock after 1 is Flight at 3")
-	check(Progress.nextUnlock(40) == nil, "nothing after 40")
+	local CAP = Config.Stats.levelCap
+	local cap, capXp = Progress.addRenown(Config, CAP - 1, 0, 1e7)
+	check(cap == CAP and capXp == 0, "stops at the cap")
+	check(select(1, Progress.nextUnlock(Config, 1)) == 3, "next unlock after 1 is Flight at 3")
+	local at, what = Progress.nextUnlock(Config, 40)
+	check(at == CAP and what == Progress.CAP_UNLOCK, "after 40 the next unlock is the cap and Legacy")
+	check(Progress.nextUnlock(Config, CAP) == nil, "nothing after the cap")
 end)
 
 test("M3: earnings: zone level formulas, bonuses multiply, the stack caps at x4", function()
@@ -1949,7 +1952,7 @@ test("M3: profile: defaults, migrations, repair of bad data, size under 60 KB", 
 		r.currency.credits == 0 and r.currency.banked == 0 and r.currency.dust == 0,
 		"bad wallet values fixed"
 	)
-	check(r.characters[1].level == 40 and r.characters[1].ranks.ZapBolt == 5, "clamped")
+	check(r.characters[1].level == Config.Stats.levelCap and r.characters[1].ranks.ZapBolt == 5, "clamped")
 	check(r.characters[1].ranks[5] == nil, "junk rank keys dropped")
 	check(
 		r.characters[1].equipment[1] == 0 and #r.characters[1].equipment == 8,
@@ -2757,7 +2760,7 @@ end)
 -- M6: incidents, contracts, events, world boss
 ---------------------------------------------------------------------------
 
-test("M6: zone level is the hero's level raised to the area floor, capped at 40", function()
+test("M6: zone level is the hero's level raised to the area floor, capped at the level cap", function()
 	check(ZoneLevel.area(Config, 0, 0, world.tiles) == "hub", "the plaza is hub")
 	check(ZoneLevel.at(Config, 0, 0, 3, world.tiles) == 3, "hub: the hero's own level")
 	local sx = -Config.City.mapSize / 2 + (Config.World.hubFirst - 3) * Config.City.tile + 50
@@ -2769,7 +2772,7 @@ test("M6: zone level is the hero's level raised to the area floor, capped at 40"
 	local cz = -Config.City.mapSize / 2 + (cr.tz + 2) * Config.City.tile
 	check(ZoneLevel.area(Config, cx, cz, world.tiles) == "CometCrater", "the crater is its own area")
 	check(ZoneLevel.at(Config, cx, cz, 2, world.tiles) == 10, "crater floor 10")
-	check(ZoneLevel.at(Config, 0, 0, 99) == 40, "capped at 40")
+	check(ZoneLevel.at(Config, 0, 0, 99) == Config.Stats.levelCap, "capped at the level cap")
 	check(ZoneLevel.area(Config, 2300, 2300) == "coast", "the map corner is coast without tiles too")
 	check(
 		ZoneLevel.median({ 4, 20, 9 }) == 9 and ZoneLevel.median({ 2, 4 }) == 3 and ZoneLevel.median({}) == 1,
@@ -2947,10 +2950,14 @@ test("M6: contract pay follows the table, the first 5 each day pay double", func
 	check(rn2 == round((60 + 5 * 10) * sc.renown), "types without their own Renown use the contract row")
 	local fixed = ContractPlan.repair(
 		CC,
-		{ { type = "Escort", got = 9999, level = 99 }, { type = "Escort" }, { type = "Nope" }, 5 }
+		{ { type = "Escort", got = 9999, level = 99 }, { type = "Escort" }, { type = "Nope" }, 5 },
+		Config.Stats.levelCap
 	)
-	check(#fixed == 1 and fixed[1].got == 600 and fixed[1].level == 40, "repair clamps and drops junk")
-	check(#ContractPlan.repair(CC, "bad") == 0, "repair of junk is empty")
+	check(
+		#fixed == 1 and fixed[1].got == 600 and fixed[1].level == Config.Stats.levelCap,
+		"repair clamps and drops junk"
+	)
+	check(#ContractPlan.repair(CC, "bad", Config.Stats.levelCap) == 0, "repair of junk is empty")
 end)
 
 test("M6: random events every 4 to 6 minutes, max 2, never the same twice in a row, all 6 turn up", function()
@@ -3689,7 +3696,8 @@ test("M8: stat compression: best gear is about 10% stronger; supers 60%; perks o
 	near(PvpRules.power(Config, 30, 0), base, 0.01, "no gear: the baseline")
 	near(PvpRules.power(Config, 30, base * 5), base * 1.1, 0.01, "huge gear: +10% at most")
 	near(PvpRules.power(Config, 30, base * 0.5), base * 1.05, 0.01, "half the baseline in gear: +5%")
-	near(PvpRules.power(Config, 55, 0), PvpRules.power(Config, 40, 0), 0.01, "level capped at 40")
+	local CAP = Config.Stats.levelCap
+	near(PvpRules.power(Config, CAP + 15, 0), PvpRules.power(Config, CAP, 0), 0.01, "level capped at the cap")
 	local hp0 = PvpRules.health(Config, 30, 0, "Powerhouse")
 	near(PvpRules.health(Config, 30, 4000, "Powerhouse"), hp0 * 1.1, 0.01, "health compresses too")
 	-- a geared target dies in as many hits as its compressed health takes
@@ -4369,15 +4377,18 @@ test("M9: HQ: solo cells, upgrade costs, what each level opens, offline drones c
 end)
 
 test(
-	"M9: Legacy at level 40: a statue, back to level 1, keeps unlocks and reputation, +10% Renown a rank",
+	"M9: Legacy at the level cap: a statue, back to level 1, keeps unlocks and reputation, +10% Renown a rank",
 	function()
 		local HqRules = require("../src/shared/HqRules")
 		local ProfileSchema = require("../src/shared/ProfileSchema")
 		local profile = ProfileSchema.default()
 		local c = profile.characters[1]
-		c.level = 39
-		check(select(2, HqRules.canRetire(Config, c)) == "level", "not before 40")
+		local CAP = Config.Stats.levelCap
+		c.level = CAP - 1
+		check(select(2, HqRules.canRetire(Config, c)) == "level", "not before the cap")
 		c.level = 40
+		check(select(2, HqRules.canRetire(Config, c)) == "level", "not at the old cap of 40 either")
+		c.level = CAP
 		c.rep = { 900, 0, 300 }
 		c.titleId, c.nounId = 3, 1
 		c.fame = 5000
@@ -4386,7 +4397,7 @@ test(
 		c.equipment[1] = 0
 		ProfileSchema.Bits.set(profile.styles, 70)
 		local statue = HqRules.retire(Config, profile, 1, 1000)
-		check(statue ~= nil and statue.rank == 1 and statue.level == 40, "a statue in the Hall of Legends")
+		check(statue ~= nil and statue.rank == 1 and statue.level == CAP, "a statue in the Hall of Legends")
 		local n = profile.characters[1]
 		check(n.level == 1 and n.xp == 0 and n.legacy == 1, "the slot restarts at level 1, Legacy rank 1")
 		check(
@@ -4404,7 +4415,7 @@ test(
 		)
 		check(Config.Gear.equipSlack == 5, "old gear is wearable again at item level minus 5")
 		for _ = 1, 30 do
-			profile.characters[1].level = 40
+			profile.characters[1].level = CAP
 			HqRules.retire(Config, profile, 1, 2000)
 		end
 		check(#profile.legends == Config.Hq.legacy.statues, "the hall keeps the last 20 statues")
@@ -4456,6 +4467,153 @@ test("M9: 1,000 heroes over 10 hours reach level 20 to 28 and spend within 15% o
 	local A = Config.Abilities
 	check(A.rankCredits[5] == 3200 and A.superRankCredits[3] == 2400, "rank prices from the Sinks table")
 	check(r.spent.ranks > 0 and r.spent.hq > 0 and r.spent.styles > 0, "heroes spend on ranks, HQ and styles")
+end)
+
+test("Level cap 50: Renown, stats, zones, gear, bosses, PvP, Legacy and saves all work to the cap", function()
+	local PvpRules = require("../src/shared/PvpRules")
+	local HqRules = require("../src/shared/HqRules")
+	local CAP = Config.Stats.levelCap
+	check(CAP == 50, "the level cap is 50 (nate, 2026-11-17)")
+	check(ProfileSchema.LEVEL_CAP == CAP, "the save repairs levels to the same cap")
+	-- Renown: every step to the cap is positive and bigger than the one before; 1 to 40 is unchanged
+	local prev = 0
+	for L = 1, CAP - 1 do
+		local need = Progress.xpToNext(Config, L)
+		check(
+			need > 0 and need > prev,
+			string.format("level %d to %d takes more than the step before", L, L + 1)
+		)
+		prev = need
+	end
+	near(Progress.totalTo(Config, 40), 68400, 684, "levels 1 to 40 keep the old curve")
+	local band = Progress.totalTo(Config, CAP) - Progress.totalTo(Config, 40)
+	check(band > 0, string.format("40 to the cap takes %d more Renown", band))
+	local lv, xp, gained = Progress.addRenown(Config, 1, 0, Progress.totalTo(Config, CAP) + 5000)
+	check(lv == CAP and xp == 0 and gained == CAP - 1, "enough Renown reaches the cap and no further")
+	local lv2, xp2, gained2 = Progress.addRenown(Config, CAP, 0, 1e7)
+	check(lv2 == CAP and xp2 == 0 and gained2 == 0, "the cap holds")
+	local lv3 = Progress.addRenown(Config, 40, 0, Progress.xpToNext(Config, 40))
+	check(lv3 == 41, "a level 40 hero now goes on to 41")
+	check(
+		select(2, Progress.nextUnlock(Config, CAP - 1)) == Progress.CAP_UNLOCK
+			and Progress.unlockAt(Config, CAP) == Progress.CAP_UNLOCK,
+		"the cap's unlock line is at the cap"
+	)
+	-- stats keep growing to the cap
+	for L = 41, CAP do
+		check(Formulas.power(Config, L) > Formulas.power(Config, L - 1), "Power grows at level " .. L)
+		check(
+			Formulas.health(Config, L, 0, "Elemental") > Formulas.health(Config, L - 1, 0, "Elemental"),
+			"Health grows at level " .. L
+		)
+	end
+	-- zones: a hero from 41 to the cap meets their own level everywhere, the hardest water has a floor too
+	for L = 41, CAP do
+		check(ZoneLevel.at(Config, 0, 0, L, world.tiles) == L, "the hub runs at level " .. L)
+		check(DeepLayout.zoneLevel(Config, 0, -100, 3300, L) == L, "the Trench runs at level " .. L)
+	end
+	check(ZoneLevel.at(Config, 0, 0, CAP + 9, world.tiles) == CAP, "zone levels stop at the cap")
+	local D = Config.Deep
+	check(
+		DeepLayout.zoneLevel(Config, 0, D.trench.floor + 4, 3300, 1) == D.zoneFloor.trenchDeep
+			and DeepLayout.zoneLevel(Config, 0, D.trench.deepBelow + 10, 3300, 1) == D.zoneFloor.trench,
+		"the Trench's depths are the hardest floor"
+	)
+	check(D.zoneFloor.trenchDeep > D.zoneFloor.trench and D.zoneFloor.trenchDeep < CAP, "and below the cap")
+	-- gear: item levels for the 41 to 50 band, wearable, stronger, every tier open
+	local rng = Rng.new(50)
+	local lo, hi = 99, 0
+	for _ = 1, 500 do
+		local il = GearMath.itemLevel(Config, rng, CAP)
+		lo, hi = math.min(lo, il), math.max(hi, il)
+	end
+	local spread = Config.Gear.ilvlSpread
+	check(GearMath.ilvlMax(Config) == CAP + spread, "item levels top out at the cap + the spread")
+	check(
+		lo == CAP - spread and hi == CAP + spread,
+		string.format("a level cap zone drops ilvl %d to %d", lo, hi)
+	)
+	for L = 41, CAP do
+		local piece = GearMath.roll(Config, rng, "Legendary", L, { slot = "hands" })
+		check(
+			piece.ilvl == L and GearMath.canWear(Config, L, piece),
+			"a Legendary at ilvl " .. L .. " is wearable"
+		)
+		check(
+			GearMath.baseBudget(Config, "hands", "Legendary", L)
+				> GearMath.baseBudget(Config, "hands", "Legendary", L - 1),
+			"gear budget grows at ilvl " .. L
+		)
+		check(LootTable.gate(Config, "Legendary", L) == "Legendary", "Legendary drops at level " .. L)
+	end
+	check(
+		GearMath.canWear(Config, CAP, GearMath.roll(Config, rng, "Epic", CAP + spread, { slot = "head" })),
+		"the cap wears the top item level"
+	)
+	-- robots and world bosses scale on past 40
+	check(
+		Formulas.enemyHealth(Config, "BurglarBot", CAP) > Formulas.enemyHealth(Config, "BurglarBot", 40),
+		"robots at the cap are tougher than at 40"
+	)
+	check(BossMath.maxHp(Config, 10, CAP, 0) > BossMath.maxHp(Config, 10, 40, 0), "so are world bosses")
+	-- PvP compression uses the cap; Legacy opens at the cap
+	check(
+		PvpRules.level(Config, 45) == 45 and PvpRules.level(Config, CAP + 5) == CAP,
+		"PvP levels to the cap"
+	)
+	local profile = ProfileSchema.default()
+	profile.characters[1].level = 40
+	check(not HqRules.canRetire(Config, profile.characters[1]), "no Legacy at 40")
+	profile.characters[1].level = CAP
+	check(HqRules.canRetire(Config, profile.characters[1]), "Legacy at the cap")
+	-- saves: a level 45 hero survives a save and load, a level 40 hero from the old cap loads as it was,
+	-- nonsense repairs to the cap
+	local old = ProfileSchema.default()
+	old.characters[1].level = 40
+	old.characters[2] = ProfileSchema.newCharacter()
+	old.characters[2].level = 45
+	old.characters[2].xp = 1234
+	old.characters[3] = ProfileSchema.newCharacter()
+	old.characters[3].level = 99
+	old.legends = { { look = {}, level = 40, rank = 1 } }
+	local p = ProfileSchema.load(serde.decode("json", serde.encode("json", old)))
+	check(p.characters[1].level == 40, "an old level 40 hero keeps level 40")
+	check(p.characters[2].level == 45 and p.characters[2].xp == 1234, "level 45 and its Renown are kept")
+	check(p.characters[3].level == CAP, "a broken level repairs to the cap")
+	check(p.legends[1].level == 40, "an old level 40 statue keeps its level")
+	local fixed = ContractPlan.repair(Config.Contracts, { { type = "Escort", level = 47 } }, CAP)
+	check(fixed[1].level == 47, "a saved level 47 contract keeps its level")
+	-- analytics: the Progress funnel has a stage at the cap, after level 40 and before the first Legacy
+	local at40, atCap, atLegacy
+	for i, st in FunnelDef.stages do
+		if st.name == "Level 40" then
+			at40 = i
+		elseif st.name == "Level " .. CAP then
+			atCap = i
+		elseif st.name == "First legacy" then
+			atLegacy = i
+		end
+	end
+	check(at40 and atCap and atLegacy and at40 < atCap and atCap < atLegacy, "the funnel has the cap stage")
+end)
+
+test("Level cap 50: pacing sim: 1 to 40 keeps its hours, 41 to 50 adds about 35 to 55 hours", function()
+	local EconomySim = require("../src/shared/EconomySim")
+	local CAP = Config.Stats.levelCap
+	local r = EconomySim.run(Config, 1000, 130, 2026)
+	local to40, toCap = r.hoursTo[40], r.hoursTo[CAP]
+	check(
+		to40 >= 40 and to40 <= 55,
+		string.format("median hours to 40: %.1f (about 46 before the cap moved)", to40)
+	)
+	check(toCap < math.huge, "most heroes reach the cap in 130 hours")
+	check(
+		toCap - to40 >= 35 and toCap - to40 <= 55,
+		string.format("41 to %d adds %.1f hours (%.1f to the cap)", CAP, toCap - to40, toCap)
+	)
+	for L = 41, CAP do
+		check(r.hoursTo[L] > r.hoursTo[L - 1], string.format("level %d comes after level %d", L, L - 1))
+	end
 end)
 
 ---------------------------------------------------------------------------

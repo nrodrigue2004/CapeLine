@@ -212,7 +212,7 @@ local Remotes: { [string]: RemoteDef } = {
 	DronesReady = { dir = "S2C" }, -- { credits, minutes }: the COLLECT card
 	HqBossSim = { dir = "C2S", schema = {}, rate = 0.2, burst = 2 }, -- start the 60 s boss sim (HQ level 3)
 	HqDps = { dir = "S2C" }, -- { dps, total, sim = { left, hp, max } }: the training room meter, 2 Hz
-	HqRetire = { dir = "C2S", schema = {}, rate = 0.1, burst = 1 }, -- Legacy at level 40 (Hall of Legends)
+	HqRetire = { dir = "C2S", schema = {}, rate = 0.1, burst = 1 }, -- Legacy at the level cap (Hall of Legends)
 	GizmoBuy = { dir = "C2S", schema = { n(1, 511) }, rate = 2, burst = 3 }, -- a base style id, Credits only
 	ShopBuy = { dir = "C2S", schema = { n(1, 64) }, rate = 1, burst = 3 }, -- an item (ShopRules.keys order)
 	ShopResult = { dir = "S2C" }, -- { ok, key, kind, pieces, reason }: after a purchase lands (or not)

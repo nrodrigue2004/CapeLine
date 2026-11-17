@@ -139,7 +139,10 @@ end
 function DeepLayout.zoneLevel(Config: any, x: number, y: number, z: number, heroLevel: number): number
 	local area = DeepLayout.area(Config, x, z, y) or "sea"
 	local floor = Config.Deep.zoneFloor[area] or 1
-	return math.clamp(math.max(math.floor(heroLevel), floor), 1, Config.World.maxLevel)
+	if area == "trench" and y < Config.Deep.trench.deepBelow then
+		floor = Config.Deep.zoneFloor.trenchDeep -- the Trench's depths, the hardest water in the game
+	end
+	return math.clamp(math.max(math.floor(heroLevel), floor), 1, Config.Stats.levelCap)
 end
 
 DeepLayout.NAMES = {
