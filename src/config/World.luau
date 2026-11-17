@@ -101,7 +101,7 @@ return {
 	},
 	-- Zone level (M6, see Decisions): what an incident, contract or event pays and how strong its robots are.
 	-- It is the level of the hero it spawned for, raised to the area's floor, so the outskirts and the
-	-- landmarks are tougher and a level 40 helping a level 5 earns level 5 rewards.
+	-- landmarks are tougher and a level 50 helping a level 5 earns level 5 rewards. Capped at Stats.levelCap.
 	zoneFloor = {
 		hub = 1,
 		hubFill = 1,
@@ -112,5 +112,4 @@ return {
 		RadioHill = 1,
 		OldQuarry = 20,
 	},
-	maxLevel = 40,
 }

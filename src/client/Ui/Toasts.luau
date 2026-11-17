@@ -164,7 +164,7 @@ function Toasts.show(data: { [string]: any })
 		return
 	end
 	if id == "levelUp" then
-		local unlock = Progress.UNLOCKS[data.level]
+		local unlock = Progress.unlockAt(Config, data.level)
 		push(string.format("LEVEL %d!", data.level), Kit.color.gold, true, 4.5)
 		if unlock then
 			push("Unlocked: " .. unlock, Kit.color.paper, false, 5)
@@ -363,7 +363,7 @@ function Toasts.show(data: { [string]: any })
 	elseif id == "hqLocked" then
 		push(string.format("Opens at HQ level %d", data.level or 1), Kit.color.paper)
 	elseif id == "retireLevel" then
-		push("Retiring opens at level 40", Kit.color.paper)
+		push(string.format("Retiring opens at level %d", Config.Stats.levelCap), Kit.color.paper)
 	elseif id == "legacy" then
 		push(string.format("LEGACY RANK %d!", data.rank or 1), Kit.color.gold, true, 5)
 		push("Your statue stands in the Hall of Legends", Kit.color.paper, false, 5)

@@ -5,6 +5,10 @@
 -- The first-session steps stay in the Opening onboarding funnel (AnalyticsSchema.FUNNELS.Opening).
 -- Once live, only ADD stages at the end: the dashboard keys steps by number.
 
+local Config = if script
+	then require(script.Parent.Parent:WaitForChild("Config"))
+	else (require :: any)("../config")
+
 local FunnelDef = {}
 
 local function best(profile: any, read: (any) -> number): number
@@ -70,6 +74,8 @@ FunnelDef.stages = {
 	},
 	{ name = "Level 30", reached = level(30) },
 	{ name = "Level 40", reached = level(40) },
+	-- the level cap (50 since 2026-11-17, before any launch, so inserting it here renumbers nothing live)
+	{ name = "Level " .. Config.Stats.levelCap, reached = level(Config.Stats.levelCap) },
 	{
 		name = "First legacy",
 		reached = function(p)

@@ -207,7 +207,7 @@ function PvpRules.compress(config: any, baseline: number, total: number): number
 end
 
 function PvpRules.level(config: any, level: number): number
-	return math.min(level, P(config).levelCap)
+	return math.min(level, config.Stats.levelCap)
 end
 
 -- Power in PvP: the level baseline (30 + 6 x L) against Power with gear Might

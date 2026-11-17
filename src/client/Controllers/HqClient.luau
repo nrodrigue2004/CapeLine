@@ -262,7 +262,7 @@ local function statue(f: Folder, entry: { [string]: any }, at: CFrame)
 	sign(
 		plate,
 		string.upper(entry.name or "Legend"),
-		string.format("Level %d   Legacy %d", entry.level or 40, entry.rank or 1),
+		string.format("Level %d   Legacy %d", entry.level or Config.Stats.levelCap, entry.rank or 1),
 		1.4
 	)
 end

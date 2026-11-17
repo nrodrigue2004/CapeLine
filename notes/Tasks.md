@@ -73,6 +73,15 @@ Needs the server AI for the nine new robots (each one spawns in the ambient mix 
 8. Interceptor: swept jet wings on the back with glowing tips; its net shot is a spinning square net, bigger than a pellet.
 9. Grappler: the right forearm is a big hook launcher with a claw; the hook flies out on a cable from the launcher, grabs a hero and stays on them while the robot reels (a flying hero is pulled down toward it), and the claw is gone from the arm while it is out; a miss sticks in a wall for a moment or reels back.
 10. Low preset with several Bombers and Medics fighting: the frame stays smooth (FrameProf) and nothing errors in the Output.
+### Level cap 50 (2026-11-17)
+nate's call: the cap goes from 40 to 50 (Config.Stats.levelCap is the one number; Decisions.md). Code and tests are done (1,000-hero sim: median 46.5 h to 40, 91.5 h to 50).
+1. DEV > Level +5 from 40: the badge and toast say LEVEL 41 to 45, the Renown bar shows RENOWN x / about 7,600 to 8,900 and "NEXT LV 50: Level cap, Legacy"; at level 40 the toast says "Unlocked: Level 40 trophy".
+2. DEV > Level 50: the bar says MAX LEVEL; more Renown adds nothing.
+3. At 45 in the hub and the outskirts, incidents, contracts and robots run at level 45 (the tracker and the plates); gear drops show ilvl 43 to 47 (up to 52 at the cap) and can be worn.
+4. Swim to the Trench floor at level 1 to 30: robots and caches there run at level 35 (the depths below y -160); higher up in the Trench, 25.
+5. HQ > Hall of Legends at level 40 to 49: "Retiring opens at level 50"; at 50 RETIRE works and the statue plate says Level 50.
+6. PvP at 50 against 45: hits land as before (compression uses the cap).
+7. Rejoin with a level 40 hero saved before the change: still level 40 with 0 Renown, and now earns on to 41.
 
 ### M1 Move and fight slice
 1. Spawn: you land on the plaza by the Beacon Tower; the HUD shows LV 1 BLASTER VOLT, health, stamina, and buttons ZAP, CHAIN, DASH, LEAP, FLY. No errors in Output.
@@ -99,11 +108,11 @@ Needs the server AI for the nine new robots (each one spawns in the ambient mix 
 22. The M1 "done when" checks: 5 first-timers stop the first machine in 30 s with no help; 4 of 5 say flight and hits feel good on a phone; 30+ fps on a mid-range phone.
 
 ### M2 Classes, abilities, enemies
-DEV panel now has: 3x robot (cycles all 6), Level 40, +10 Skill Pts, Fill Awakening. Skill ranks are free of Credits in Studio (Config.Dev.freeRankCredits) until M3.
+DEV panel now has: 3x robot (cycles all 6), Level 50 (the cap, Config.Stats.levelCap), +10 Skill Pts, Fill Awakening. Skill ranks are free of Credits in Studio (Config.Dev.freeRankCredits) until M3.
 1. HUD: four skill buttons (Q, E, R, T), a SUPER button (G) from level 20, a POWERS button (L), and the Awakening meter under health. No errors in Output.
 2. POWERS screen: tabs for Volt, Frost, Titan, Pulse, Blade (locked until 1, 6, 10, 14, 18). LEARN, RANK UP and EQUIP work; the budget reads x / 52 and refuses an over-budget loadout with a clear notice. At rank 3 (rank 2 for supers) two mod buttons appear. SET PRIMARY changes the basic attack and the colours. Loadout 2 opens at level 15. RESPEC refunds everything (10 minute wait, not in combat).
 3. Mixing: equip a Frost skill on a Volt primary; it works and keeps its own Frost look.
-4. Every ability in both styles (DEV > Level 40, +10 Skill Pts a few times, then try each set). For each: it fires where you aim, the number and look match its kind (bolt, chain, dash, cone, arc, nova, line, leap, throw, field, buff, wall, ramp), the cooldown sweep matches, and robots react (stun ring, ice tint, float, pull, knock-up, knock-back into walls).
+4. Every ability in both styles (DEV > Level 50, +10 Skill Pts a few times, then try each set). For each: it fires where you aim, the number and look match its kind (bolt, chain, dash, cone, arc, nova, line, leap, throw, field, buff, wall, ramp), the cooldown sweep matches, and robots react (stun ring, ice tint, float, pull, knock-up, knock-back into walls).
 5. Channels: Freeze Beam and Thousand Cuts keep going while you hold still; pressing again cancels. Gravity Well, Static Field, Blizzard Dome, Blade Storm and Singularity show their area and tick.
 6. Recast: with Dash Strike at rank 5 (Double Back) you can dash again within 3 s.
 7. Punch Combo and Blade Slash: three-hit strings, the third hit bigger; a pause resets the string.
@@ -135,7 +144,7 @@ Saves need a published place with Game Settings > Security > "Enable Studio Acce
 9. STYLES: pick a slot tab; unlocked styles light up, locked ones say "Loot a piece with this style". Show any unlocked style over any gear in that slot; SHOW MY GEAR'S OWN LOOK goes back. (Done-when check: a tester wears any look over any gear.)
 10. LOOT INFO lists every source's odds, the pity rules and your own pity counters.
 11. Sets: wear 2 Epic pieces of one set (Stormcaller etc.): that power set hits 8% harder. 4 pieces: the ability change (Chain Lightning hits 5, Frost Nova shields allies, Ground Slam leaves a shockwave, Float heals allies near the target, Parry ripostes heal).
-12. Perks (DEV > Level 40, then Loot: bossMvp until a Legendary): Quakeheel shockwave on a 30+ stud landing; Cooling Kill takes 20% off the super's cooldown sweep on a kill; Second Wind saves you once per 5 minutes (God OFF); Echo Trail hurts robots you fly fast past; Lucky Strike crits every 8th hit; Shared Spark raises a nearby ally's Power (2 players).
+12. Perks (DEV > Level 50, then Loot: bossMvp until a Legendary): Quakeheel shockwave on a 30+ stud landing; Cooling Kill takes 20% off the super's cooldown sweep on a kill; Second Wind saves you once per 5 minutes (God OFF); Echo Trail hurts robots you fly fast past; Lucky Strike crits every 8th hit; Shared Spark raises a nearby ally's Power (2 players).
 13. Gadgets: loot until a gadget drops (about 1 in 16), equip it in Gadget; a GADGET button (Z, R3) appears with its cooldown sweep. Grappling Hook pulls you to what the camera points at within 90 studs (never snaps back); Smoke Bomb makes nearby robots lose you; Shield Drone gives a shield bar; Decoy pulls robots off you for 5 s.
 14. POWERS: RANK UP shows points and Credits; with no Credits it says "Not enough Credits". RESPEC refunds the Credits (they show as banked in GEAR).
 15. Rejoin (published place with API access): level, Renown, Credits, Dust, stash, worn gear, styles shown, ranks, mods, loadouts, Comic/Anime choice and the respec timer all come back. (Done-when check.)
@@ -428,7 +437,7 @@ DEV panel (M10 rows): Reset settings, Text 160% / 100%. Use Test > Clients and S
 16. Device matrix (the M10 gate): a low-end phone, a mid-range phone, a tablet, a PC and a controller each finish the opening, a contract and a boss with no blocked button, unreadable text or overlapping HUD.
 
 ### M9 Creator, HQ, shop, passes
-DEV panel (M9 rows): Creator (opens it in "first" mode), Enter HQ, HQ level (cycles 1 to 6), Away 8 h (pays the offline drones), All pieces, Buy (grants the shown shop item with a fixed test receipt, then steps to the next), Level 40.
+DEV panel (M9 rows): Creator (opens it in "first" mode), Enter HQ, HQ level (cycles 1 to 6), Away 8 h (pays the offline drones), All pieces, Buy (grants the shown shop item with a fixed test receipt, then steps to the next), Level 50 (the cap; Legacy needs it).
 1. Fresh profile (DEV > Wipe, rejoin): at Suit Up the creator opens (WHO ARE YOU?) with a turning hero. Every tab (Suits to Eyes) changes the preview at once; locked pieces are grey with how to get them (Level 15, a boss tier, a pack). Hair and Eyes tabs exist; COMIC or ANIME and VOLT or BLADE sit under HERO.
 2. DONE stays grey until a Title, a Noun and a class are picked; a blocked pair (e.g. Captain + Falcon) shows "taken". RANDOMIZE fills everything from owned pieces. Time it: a new tester makes a hero in under 3 minutes.
 3. After DONE: "<NAME> IS READY", the opening carries on, and a second player sees the same look and the hero name on the plate with the Roblox name small under it.
@@ -440,7 +449,7 @@ DEV panel (M9 rows): Creator (opens it in "first" mode), Enter HQ, HQ level (cyc
 9. Boss sim (DEV > HQ level 3): BOSS SIM starts a big robot, a top bar with HP and seconds, red rings every 6 s that hurt for 10% if you stay in and never down you; at the end a toast with the time or the damage dealt.
 10. Trophy Wall: earned trophies list (DEV > Boss now and finish one for First World Boss); pick up to 3 (12 at level 4), SAVE THE WALL, plaques appear.
 11. Offline drones: DEV > HQ level 5, Away 8 h: "Your drones brought back N Credits" (about 960 at level 5).
-12. Legacy: DEV > Level 40, Hall of Legends > RETIRE > YES: LEGACY RANK 1, a marble statue of the old hero in the hall, the hero is level 1 with the same look, name and side and a star on the plate.
+12. Legacy: DEV > Level 50 (the cap), Hall of Legends > RETIRE > YES: LEGACY RANK 1, a marble statue of the old hero in the hall, the hero is level 1 with the same look, name and side and a star on the plate.
 13. Robux shop (P or SHOP, at HQ or out of a fight): 5 tabs; a pack card previews its pieces on your hero; tapping R$ in Studio grants the item at once ("THANKS! ... IS YOURS") and the card says OWNED; DEV > Buy the same item twice: the second says "nothing (replay)". Slot 4 says LOCKED until slot 3.
 14. Effects tint: buy one, EQUIP: your power effects change colour for every player; Prism cycles colours. Landing pose: EQUIP, then fall from a roof: the pose plays and others see it.
 15. Emotes: H opens the picker with owned emotes (Salute after Fame rank 2); the pose shows on other screens. Spam does nothing beyond one per 1.5 s.

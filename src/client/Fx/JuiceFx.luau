@@ -253,9 +253,10 @@ function JuiceFx.levelUp(_at: Vector3?, data: { [string]: any }?)
 	end
 	-- the next unlock: a dark silhouette that lights up
 	local nextAt, unlock = nil, nil
-	for L = lvl + 1, lvl + 20 do
-		if Progress.UNLOCKS[L] then
-			nextAt, unlock = L, Progress.UNLOCKS[L]
+	for L = lvl + 1, math.min(lvl + 20, Config.Stats.levelCap) do
+		local text = Progress.unlockAt(Config, L)
+		if text then
+			nextAt, unlock = L, text
 			break
 		end
 	end

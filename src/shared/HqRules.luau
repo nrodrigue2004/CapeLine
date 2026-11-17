@@ -5,8 +5,8 @@
 -- * upgradeCost(level), and what each level opens (mannequins, dummies, boss sim, trophies, drones).
 -- * drones(level, awaySeconds): offline Credits, 8 hours at most.
 -- * trophies(profile): the trophies this account has earned (shown on the wall, 3 or 12 picked).
--- * canRetire / retire: Legacy at level 40. The hero becomes a statue; the slot restarts at level 1 and keeps
---   every unlock (account-wide already), reputation, Fame, story, beacons and its HQ; gear goes back to the
+-- * canRetire / retire: Legacy at the level cap (Config.Stats.levelCap, 50). The hero becomes a statue;
+--   the slot restarts at level 1 and keeps every unlock (account-wide already), reputation, Fame, story, beacons and its HQ; gear goes back to the
 --   stash (wearable again at item level minus 5, the existing equip slack).
 
 local ProfileSchema = if script
@@ -169,7 +169,7 @@ end
 
 -- Legacy
 function HqRules.canRetire(Config: any, char: any): (boolean, string?)
-	if (char.level or 1) < Config.Hq.legacy.level then
+	if (char.level or 1) < Config.Stats.levelCap then
 		return false, "level"
 	end
 	return true, nil

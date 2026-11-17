@@ -4,7 +4,7 @@
 -- * GIZMO'S BENCH: 40 base styles for Credits (never stats), GEAR (upgrade with Lumen Dust) and UPGRADE HQ.
 -- * MANNEQUINS: save the look you wear, wear a saved one, or EDIT LOOK (the creator, class changes too).
 -- * TRAINING ROOM: the damage-per-second meter, POWERS, and the 60 s boss sim (HQ level 3) with its timer.
--- * TROPHY WALL: pick which earned trophies show. HALL OF LEGENDS: Retire at level 40, with a confirm.
+-- * TROPHY WALL: pick which earned trophies show. HALL OF LEGENDS: Retire at the level cap, with a confirm.
 -- PLACEHOLDER look until the UI pass (M10).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -298,7 +298,7 @@ local function drawLegends()
 			draw()
 		end, Kit.color.gold)
 	else
-		note(string.format("Retiring opens at level %d", H.legacy.level))
+		note(string.format("Retiring opens at level %d", Config.Stats.levelCap))
 	end
 end
 

@@ -585,7 +585,7 @@ function ContractService.init()
 		local c = ProfileSchema.active(profile)
 		ProfileSchema.rollDay(profile, os.time())
 		local list = {}
-		for _, saved in ContractPlan.repair(CC, c.contracts) do
+		for _, saved in ContractPlan.repair(CC, c.contracts, Config.Stats.levelCap) do
 			local r = newRun(saved)
 			table.insert(list, r)
 		end

@@ -9,7 +9,7 @@
 -- (day, dusk, night, dawn), side 0/1 (hero or villain, for this session only).
 -- M9: creator (open the creator to remake this hero), hq (enter your HQ), hqlevel n, away n (offline drones
 -- for n hours away), pieces (unlock every creator piece), buy n (test-purchase shop item n with a fixed
--- receipt id: the second time grants nothing), legacy (level 40 and retire at HQ next).
+-- receipt id: the second time grants nothing), legacy (the level cap and retire at HQ next).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -324,7 +324,7 @@ local commands: { [string]: (player: Player, hero: any, value: number) -> () } =
 		end
 	end,
 	legacy = function(_, hero)
-		HeroService.setLevel(hero, 40)
+		HeroService.setLevel(hero, Config.Stats.levelCap)
 	end,
 }
 

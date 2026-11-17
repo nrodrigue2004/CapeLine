@@ -511,7 +511,7 @@ local function refreshInfo()
 	else
 		local need = Progress.xpToNext(Config, h.level)
 		renownFill.Size = UDim2.fromScale(math.clamp((h.xp or 0) / need, 0, 1), 1)
-		local at, what = Progress.nextUnlock(h.level)
+		local at, what = Progress.nextUnlock(Config, h.level)
 		renownText.Text = string.format("RENOWN %d / %d", h.xp or 0, need)
 			.. (if at and what then string.format("  NEXT LV %d: %s", at, what) else "")
 	end
