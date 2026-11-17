@@ -31,3 +31,12 @@
 - [ ] M8 moderation: read the review queue (DataStore CapelineReview_v1: kicks, reports, PvP trades) by hand now and then; there is no automatic ban. Confirm the in-game Report (preset reasons) plus Roblox's own Report Abuse meet the current Roblox community rules, and that quick-mute through TextChatService is still allowed.
 - [ ] M8 re-check the PvP rules against Roblox's current policy (opt-in PvP, no forced PvP below level 10, the Moderate rating) before launch.
 - [ ] Voice lines for the two mentors (M7 opening) are recorded or generated with a licence that allows commercial use; no real actor likeness.
+
+## Marketing: paid ads (nate's rule, 2026-11-17)
+Every paid push follows the shared playbook in project files `marketing/Paid Ads Playbook.md`. No Robux spent without nate's OK on that campaign.
+- [ ] Only after the quiet launch: organic Day-1 return at least 15% and no known crash in the opening.
+- [ ] Make 2 to 3 ad thumbnails (16:9) as well as the icon; submit them 3 days before the start (moderation takes up to 48 hours).
+- [ ] Split the budget over 5 to 7 days as a daily budget (example: 10,000 Robux = about 1,400 to 2,000 a day). Objective Plays, audience All Players, no extra targeting at first.
+- [ ] Day 1: CTR per thumbnail in Ads Manager (aim for 2.5% or more). Day 2: turn off the weakest thumbnail, and read day 1's FunnelKit data.
+- [ ] Pause the campaign if more than 35% of first sessions end in under 1 minute (`first_session_end`, length "under 1m"), or under half of new players reach Opening done (Progress funnel; also the Opening funnel). Fix that step, then run ads again.
+- [ ] Log each campaign in the playbook's campaign log.

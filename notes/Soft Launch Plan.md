@@ -41,3 +41,6 @@ How Capeline goes from the playtest week to public, what we watch, and when we s
 
 ## Event budget note
 Custom events are capped per server per minute (Config.Analytics.budget: 120 + 20 per player, Roblox's throttle as we understand it; verify the live limit before launch). Skill casts log at 20% (the spec's "reduced to 20% for combat events"), and busy events (casts, perf samples, gear drops, PvP hits) stop at half the budget so funnels and rare events always get through. The Dev panel shows events sent and skipped.
+
+## Paid ads (nate's rule, 2026-11-17)
+Step 3's ad test and every later paid push follow the shared playbook in project files `marketing/Paid Ads Playbook.md`: a daily budget over 5 to 7 days, broad targeting first, 2 to 3 thumbnails compared by CTR (aim for 2.5%), stats read on days 1 and 2, and a pause when FunnelKit shows players leaving within a minute or under half reaching Opening done. Fix that step before ads run again.
