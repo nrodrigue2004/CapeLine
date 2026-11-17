@@ -21,6 +21,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Net = require(Shared:WaitForChild("Net"))
 local GuardMath = require(Shared:WaitForChild("GuardMath"))
 local Cooldowns = require(Shared:WaitForChild("Cooldowns"))
+local ChargeRules = require(Shared:WaitForChild("ChargeRules"))
 local Awakening = require(Shared:WaitForChild("Awakening"))
 local Status = require(Shared:WaitForChild("Status"))
 local Signal = require(Shared:WaitForChild("Util"):WaitForChild("Signal"))
@@ -192,19 +193,30 @@ end
 -- Interrupts
 ---------------------------------------------------------------------------
 
--- Is the hero winding up a heavy or charging a skill now?
+-- A charge-up power (H2) being charged: past the tap threshold and not yet released or timed out. Aiming
+-- an ordinary skill is not a charge an interrupt can cut.
+local function charging(num: number, at: number, now: number): boolean
+	local row = A.byNum[num]
+	local ch = Config.Combat.charge
+	return row ~= nil and ChargeRules.power(row) and now - at > ch.start and now - at <= ch.maxHold
+end
+
+-- Is the hero winding up a heavy or charging a charge-up power now?
 local function winding(hero: any, now: number): boolean
 	local w = hero.windup
 	if w and not w.cancelled and now < w.untilT then
 		return true
 	end
-	for _, at in hero.chargeAt or {} do
-		if now - at <= Config.Combat.charge.maxHold then
+	for num, at in hero.chargeAt or {} do
+		if charging(num, at, now) then
 			return true
 		end
 	end
 	return false
 end
+
+-- BlockService.chargeCut(hero): set by CombatService so a cut charge drops its glow and slow
+BlockService.chargeCut = nil :: ((any) -> ())?
 
 -- Cancel a hero's heavy wind-up or charge: it costs half its cooldown. Returns true when one was cut.
 function BlockService.interruptHero(hero: any, info: any): boolean
@@ -225,17 +237,16 @@ function BlockService.interruptHero(hero: any, info: any): boolean
 		end
 	end
 	for num, at in hero.chargeAt or {} do
-		if now - at <= Config.Combat.charge.maxHold then
+		if charging(num, at, now) then
 			local row = A.byNum[num]
-			if row then
-				cutNum = num
-				cd = GuardMath.refund(G, HeroService.effective(hero, row.id).cd or row.cd or 0)
-				Cooldowns.start(hero.cooldowns, row.id, now, cd)
-			end
+			cutNum = num
+			cd = GuardMath.refund(G, HeroService.effective(hero, row.id).cd or row.cd or 0)
+			Cooldowns.start(hero.cooldowns, row.id, now, cd)
+			hero.chargeAt[num] = nil
 		end
 	end
-	if hero.chargeAt then
-		table.clear(hero.chargeAt)
+	if BlockService.chargeCut then
+		BlockService.chargeCut(hero)
 	end
 	if not cutNum then
 		return false

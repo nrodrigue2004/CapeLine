@@ -346,7 +346,7 @@ local function pvpHit(
 	local guardInfo = {
 		damage = dmg,
 		coeff = coeff,
-		charged = eff.charged,
+		charged = eff.chargedBig,
 		grab = eff.grab,
 		breaker = eff.breaker,
 		status = eff.status,
@@ -450,7 +450,7 @@ local function applyHit(
 	-- H1: a robot's timed block (or the Sentinel's guard) against breakers, and interrupts on its wind-up
 	local gmult, gflag, gblocked = BlockService.robotHit(hero, cand.id, {
 		coeff = coeff,
-		charged = eff.charged,
+		charged = eff.chargedBig,
 		grab = eff.grab,
 		breaker = eff.breaker,
 		status = eff.status,
@@ -1297,9 +1297,10 @@ function CombatService.use(
 	local pressed = hero.chargeAt and hero.chargeAt[num]
 	if hero.chargeAt then
 		hero.chargeAt[num] = nil
+		CombatService.chargeEnded(hero)
 	end
 	if ChargeRules.chargeable(row) then
-		ChargeRules.apply(C, eff, ChargeRules.allowed(C, charge, pressed, now, latency))
+		ChargeRules.apply(C, eff, ChargeRules.allowed(C, charge, pressed, now, latency, row))
 	end
 	local awake = HeroService.awakened(hero)
 	if slot == "super" and awake then
@@ -1619,6 +1620,26 @@ local function flush()
 	end
 end
 
+-- H2: is the hero charging one of the charge-up powers now?
+function CombatService.chargingPower(hero: any): boolean
+	local now = os.clock()
+	for num, at in hero.chargeAt or {} do
+		local row = A.byNum[num]
+		if row and ChargeRules.power(row) and now - at <= C.charge.maxHold then
+			return true
+		end
+	end
+	return false
+end
+
+-- A charge ended (cast, interrupted or timed out): the glow and the slow go
+function CombatService.chargeEnded(hero: any)
+	if hero.player and hero.player:GetAttribute("Charging") and not CombatService.chargingPower(hero) then
+		hero.player:SetAttribute("Charging", nil)
+	end
+	HeroService.applyWalkSpeed(hero)
+end
+
 function CombatService.fieldCount(): number
 	return #fields
 end
@@ -1647,9 +1668,26 @@ function CombatService.init()
 		local row = A.byNum[num]
 		if hero and row and ChargeRules.chargeable(row) and slotOf(hero, row.id) then
 			hero.chargeAt = hero.chargeAt or {}
-			hero.chargeAt[num] = os.clock()
+			local at = os.clock()
+			hero.chargeAt[num] = at
+			if ChargeRules.power(row) and not BlockService.blocking(hero) then
+				-- H2: a charge-up power: the glow others see (the Charging attribute) and the 60% slow
+				player:SetAttribute("Charging", num)
+				HeroService.applyWalkSpeed(hero)
+				task.delay(C.charge.maxHold + 0.5, function()
+					if hero.chargeAt and hero.chargeAt[num] == at then
+						hero.chargeAt[num] = nil
+						CombatService.chargeEnded(hero)
+					end
+				end)
+			end
 		end
 	end)
+	BlockService.chargeCut = CombatService.chargeEnded
+	-- H2: charging a charge-up power slows the hero (HeroService.speedMult)
+	HeroService.speedHooks.charge = function(hero: any): number
+		return if CombatService.chargingPower(hero) then C.charge.powerSlow else 1
+	end
 	-- Leaping (nate 2026-11-16): the ground pound lands as a burst; the server checks the mobility, the
 	-- cooldown and that the hero really fell (MoveGuard.dropped)
 	local poundAt: { [number]: number } = {}

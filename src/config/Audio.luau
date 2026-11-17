@@ -55,6 +55,7 @@ return {
 		{ id = "perfectBlock", visual = "GuardFx" }, -- bright ting; gold flash; PERFECT! and a camera punch
 		{ id = "shatter", visual = "GuardFx" }, -- glass crunch; orange shards; SHATTER! and a 0.12 s shake
 		{ id = "interrupt", visual = "GuardFx" }, -- snip; green flash; CUT OFF!
+		{ id = "chargeFull", visual = "ChargeFx" }, -- rising ping; white flash on the glowing hero (H2)
 	},
 	-- the spec's own juice table is the first 31 rows above; the rest came with the Hero MMO features
 	juiceSpec = 31,
@@ -96,6 +97,7 @@ return {
 		perfectBlock = s("electronicpingshort.wav", 0.8, 2.4, { range = 120 }),
 		shatter = s("action_jump_land.mp3", 0.9, 1.25, { range = 160 }),
 		interrupt = s("clickfast.wav", 0.8, 0.8, { range = 120 }),
+		chargeFull = s("electronicpingshort.wav", 0.7, 2.7, { range = 110 }),
 		ui = s("button.wav", 0.35, 1), -- every button tap
 	},
 

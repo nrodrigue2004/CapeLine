@@ -24,6 +24,7 @@ phones or Studio go on the Studio test list below.
 | # | Milestone | Done when (tests) | State |
 |---|---|---|---|
 | H1 | Block, breaker, interrupt, perfect block, robot blocks and tells | GuardMath tests: each side of the triangle, Guard drain and refill, perfect block window, PvP compression | Code-complete 2026-11-17 |
+| H2 | Charge-up powers: 24 skills (1 or 2 a path) charge 1x to 2.2x damage and up to 1.5x size over 1.2 s; full is a breaker; slowed to 60% while charging; interrupts cancel | ChargeRules tests: 24 rows, every archetype, scaling, full breaks a block, other skills keep the modest charge, interrupt refund | Code-complete 2026-11-17 |
 
 Waiting on others:
 - H1: the Sneak Bot's lunge wind-up (spec: "Sneak Bots charge a lunge") needs a short wind-up before its stab in EnemySim's sneak brain, which the enemy thread is reworking; interrupts already cancel any robot wind-up, so it works once the sneak sets `windupUntil`. The War-Frame's timed block waits for the same reason (BossSim and the mission's War-Frame); add `WarFrame` to Config.Guard.robotBlocks once it has a facing and a block window.
@@ -300,6 +301,15 @@ The Output at boot says build mmo-h1 block (2026-11-17).
 8. PvP (two flagged players): blocks, perfect blocks, shatters and interrupts work the same with the compressed damage; a blocked hit pushes nobody. Inside a safehouse the block will not start; in HQ it works on the training dummies.
 9. Parry Stance and the Martial Arts parry still riposte, and now also pop PERFECT!.
 10. Controller: Skill 3 is on d-pad left and Skill 4 on d-pad down now (LB is Block); POWERS opens from its HUD button.
+
+### H2 Charge-up powers (2026-11-17)
+The Output at boot says build mmo-h2 charge (2026-11-17).
+1. Volt: hold Chain Lightning: the skill button fills with a gold ring over about 1.2 s and turns white with a ping when full; your hero walks at 60% while holding and glows in your energy colour, brighter as it fills. Release: the bolt hits for up to 2.2x and reaches 1.5x as far. A tap still fires at once as before.
+2. A full charge breaks a Brute Bot's blue block (SHATTER!, BREAK! number) and a flagged player's block; half a charge does not.
+3. Get hit by a Spark Trooper shot (or a flagged player's light hit) while charging: CUT OFF!, the ring drops, nothing fires and the skill shows half its cooldown. A skill with the blue ring (e.g. Volt's Arc Flash) is not cut and charges only a little, as before.
+4. Others: a second player sees your glow and hears the full-charge ping near you.
+5. One per archetype at least: try Ground Slam (Titan, the ring grows), Trick Shot (Gunslinger), Repulse (Pulse) and Telekinesis (Mind, the throw charges).
+6. Holding Block cancels a charge; you cannot start one while blocking.
 
 ### Hold to aim and charge (2026-11-17)
 The Output at boot says build aim-charge (2026-11-17).

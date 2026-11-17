@@ -774,6 +774,39 @@ function Hud.init()
 				then Color3.fromRGB(255, 140, 60)
 				else Color3.fromRGB(150, 205, 255)
 		end
+		-- H2: the charge ring fills on the held skill's button (charge-up powers fill gold, others blue)
+		local heldId, level, charges = CombatClient.holdState()
+		for _, action in SLOT_ACTIONS do
+			local entry = buttons[action]
+			if entry then
+				local fill = entry.button:FindFirstChild("ChargeFill") :: Frame?
+				local on = heldId ~= nil and charges and skills[table.find(SLOT_ACTIONS, action) or 0] == heldId
+				if on and not fill then
+					local f = Instance.new("Frame")
+					f.Name = "ChargeFill"
+					f.BorderSizePixel = 0
+					f.AnchorPoint = Vector2.new(0, 1)
+					f.Position = UDim2.new(0, -6, 1, 10)
+					f.BackgroundTransparency = 0.35
+					f.ZIndex = 3
+					f.Parent = entry.button
+					Kit.round(f, entry.button.Size.X.Offset // 2)
+					fill = f
+				end
+				if fill then
+					fill.Visible = on == true and level > 0
+					if on then
+						local row = heldId and A[heldId]
+						local power = row ~= nil and row.charge ~= nil
+						fill.Size = UDim2.new(1, 12, level, if level > 0 then 20 * level else 0)
+						fill.BackgroundColor3 = if level >= 1
+							then Color3.fromRGB(255, 255, 255)
+							elseif power then Color3.fromRGB(255, 210, 80)
+							else Color3.fromRGB(140, 200, 255)
+					end
+				end
+			end
+		end
 		local blockBtn = buttons.Block
 		if blockBtn then
 			blockBtn.button.BackgroundColor3 = if BlockClient.blocking()

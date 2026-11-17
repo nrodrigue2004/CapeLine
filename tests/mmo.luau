@@ -201,6 +201,117 @@ return function(T: any)
 		)
 	end)
 
+	---------------------------------------------------------------------------
+	-- H2: charge-up powers
+	---------------------------------------------------------------------------
+	local ChargeRules = require("../src/shared/ChargeRules")
+
+	test("H2: about 24 charge-up powers, 1 or 2 a path, every archetype has them", function()
+		local A = Config.Abilities
+		local perSet, n = {}, 0
+		for _, row in A.list do
+			if row.charge then
+				n += 1
+				perSet[row.set] = (perSet[row.set] or 0) + 1
+				check(ChargeRules.power(row), row.id .. " charges as a power")
+				check(
+					row.slot == "skill" and not row.channel and (row.coeff or 0) > 0,
+					row.id .. " is a damaging skill"
+				)
+				local ch = row.charge
+				check(ch.max == 1.2 and ch.mult == 2.2 and ch.grow == 1.5, row.id .. " uses the spec numbers")
+			end
+		end
+		check(n >= 22 and n <= 26, string.format("about 24 (%d)", n))
+		for _, set in A.sets do
+			local k = perSet[set] or 0
+			check(k >= 1 and k <= 2, set .. " has 1 or 2 charge powers")
+		end
+		for _, cls in Config.Classes.order do
+			local any = false
+			for _, path in Config.Classes[cls].paths do
+				any = any or (perSet[path] or 0) > 0
+			end
+			check(any, cls .. " has a charge power")
+		end
+		-- the spec's examples
+		for _, id in { "ChainLightning", "GroundSlam", "TrickShot", "Repulse" } do
+			check(A.list[id].charge ~= nil, id .. " charges (a spec example)")
+		end
+		check(Config.Combat.charge.powerSlow == 0.6, "charging slows you to 60%")
+	end)
+
+	test("H2: charge scaling, full is a breaker, the other skills keep the modest charge", function()
+		local CC = Config.Combat
+		local row = Config.Abilities.list.ChainLightning
+		check(ChargeRules.level(CC, 0.2, row) == 0, "a tap does not charge")
+		check(ChargeRules.level(CC, 1.2, row) == 1, "full at 1.2 s")
+		near(ChargeRules.level(CC, (CC.charge.start + 1.2) / 2, row), 0.5, 1e-6, "half way is half")
+		local tap = ChargeRules.apply(CC, table.clone(row), 0)
+		check(tap.coeff == row.coeff and not tap.breaker, "a tap fires as now")
+		local half = ChargeRules.apply(CC, table.clone(row), 0.5)
+		near(half.coeff, row.coeff * 1.6, 1e-6, "half a charge: 1.6x")
+		check(
+			not half.breaker and not GuardMath.isBreaker(G, { coeff = 1, charged = half.chargedBig }),
+			"half is no breaker"
+		)
+		local full = ChargeRules.apply(CC, table.clone(row), 1)
+		near(full.coeff, row.coeff * 2.2, 1e-6, "full: 2.2x damage")
+		near(full.range, row.range * 1.5, 1e-6, "the shape grows 1.5x")
+		near(full.cone, math.min(170, row.cone * 1.5), 1e-6, "a cone grows too, never past 170")
+		check(full.breaker == true and full.chargedBig == 1, "a full charge is a breaker")
+		check(
+			GuardMath.isBreaker(G, { coeff = full.coeff, charged = full.chargedBig, breaker = full.breaker }),
+			"and breaks a block"
+		)
+		local nova = Config.Abilities.list.GroundSlam
+		local big = ChargeRules.apply(CC, table.clone(nova), 1)
+		near(big.radius, nova.radius * 1.5, 1e-6, "a nova grows")
+		-- a skill without a charge row keeps the 2026-11-17 modest charge and is never a breaker
+		local plain
+		for _, id in Config.Abilities.order do
+			local r = Config.Abilities.list[id]
+			if not plain and r.charge == nil and ChargeRules.chargeable(r) and (r.coeff or 0) > 0 then
+				plain = r
+			end
+		end
+		check(plain ~= nil and not ChargeRules.power(plain), "other aimed skills only charge a little")
+		local m = ChargeRules.apply(CC, table.clone(plain), 1)
+		near(m.coeff, plain.coeff * (1 + CC.charge.damage), 1e-6, "+20% at full")
+		check(not m.breaker and m.chargedBig == nil, "never a breaker")
+		-- Telekinesis throws: a charge row makes a throw chargeable
+		check(ChargeRules.power(Config.Abilities.list.Telekinesis), "Telekinesis charges its throw")
+		-- the server's cap uses the row's own time
+		check(ChargeRules.allowed(CC, 100, 10, 10 + 1.2, 0, row) == 1, "a real 1.2 s hold is full")
+		check(ChargeRules.allowed(CC, 100, 10, 10.3, 0, row) < 0.25, "a claim beyond the timed hold is cut")
+	end)
+
+	test("H2: an interrupt cancels a charge and costs half its cooldown", function()
+		local row = Config.Abilities.list.Crush
+		check(GuardMath.interrupts(G, { coeff = 0.5 }, true), "a light hit cancels a charge in progress")
+		check(GuardMath.interrupts(G, { coeff = 2, status = "knockback" }, true), "a knock cancels it")
+		check(not GuardMath.interrupts(G, { coeff = 2 }, true), "a heavy does not (it is blocked or traded)")
+		near(GuardMath.refund(G, row.cd), row.cd / 2, 1e-9, "the power goes on half its cooldown")
+		local block = source("src/server/Services/BlockService.luau")
+		check(
+			string.find(block, "ChargeRules.power(row)", 1, true) ~= nil,
+			"only charge-up powers are cut, not aiming"
+		)
+		local combat = source("src/server/Services/CombatService.luau")
+		check(string.find(combat, 'SetAttribute("Charging", num)', 1, true) ~= nil, "others see the glow")
+		check(
+			string.find(combat, "HeroService.speedHooks.charge", 1, true) ~= nil,
+			"the server slows a charging hero"
+		)
+		local client = source("src/client/Controllers/CombatClient.luau")
+		check(
+			string.find(client, 'setScale("charge", C.charge.powerSlow)', 1, true) ~= nil,
+			"and so does the client"
+		)
+		local hud = source("src/client/Ui/Hud.luau")
+		check(string.find(hud, "ChargeFill", 1, true) ~= nil, "the ring fills on the button")
+	end)
+
 	test("H1: wiring: remotes, Block on every input, juice rows, and the server hooks", function()
 		local Remotes = require("../src/shared/Remotes")
 		check(Remotes.CombatBlock.dir == "C2S" and Remotes.CombatBlock.rate == 10, "Combat.Block 10/s")
@@ -232,4 +343,5 @@ return function(T: any)
 			"robot hits meet the block"
 		)
 	end)
+
 end

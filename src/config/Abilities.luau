@@ -22,6 +22,11 @@
 
 local A = {}
 
+-- H2 charge-up powers (spec: Hero MMO features > Charge-up powers): 1 or 2 per path, its big hitter, so every
+-- archetype has some. Hold up to 1.2 s: 1x to 2.2x damage, the shape up to 1.5x, and a full charge breaks a
+-- block (Shared.ChargeRules, Shared.GuardMath). Tuned in the playtest.
+local CHARGE = { max = 1.2, mult = 2.2, grow = 1.5 }
+
 local function add(num: number, id: string, row: { [string]: any })
 	row.num = num
 	row.id = id
@@ -43,6 +48,7 @@ add(1, "ZapBolt", {
 	pts = 0,
 })
 add(2, "ChainLightning", {
+	charge = CHARGE, -- H2 charge-up power
 	set = "Volt",
 	slot = "skill",
 	name = "Chain Lightning",
@@ -132,6 +138,7 @@ add(6, "Overcharge", {
 	cap = { name = "Shared Charge", set = { allies = true, radius = 20 } },
 })
 add(7, "GroundSpark", {
+	charge = CHARGE, -- H2 charge-up power
 	set = "Volt",
 	slot = "skill",
 	name = "Ground Spark",
@@ -218,6 +225,7 @@ add(11, "IceSlide", {
 	cap = { name = "Chill Trail", set = { slowTouch = true } },
 })
 add(12, "FrostNova", {
+	charge = CHARGE, -- H2 charge-up power
 	set = "Frost",
 	slot = "skill",
 	name = "Frost Nova",
@@ -266,6 +274,7 @@ add(14, "GlacierArmor", {
 	cap = { name = "Shatter Shell", set = { burst = 1.0, radius = 12 } },
 })
 add(15, "Shatter", {
+	charge = CHARGE, -- H2 charge-up power
 	set = "Frost",
 	slot = "skill",
 	name = "Shatter",
@@ -330,6 +339,7 @@ add(18, "LiftAndThrow", {
 	cap = { name = "Double Toss", set = { recast = true } },
 })
 add(19, "GroundSlam", {
+	charge = CHARGE, -- H2 charge-up power
 	set = "Titan",
 	slot = "skill",
 	name = "Ground Slam",
@@ -386,6 +396,7 @@ add(21, "Brace", {
 	cap = { name = "Thorns", set = { reflect = 0.3 } },
 })
 add(22, "Haymaker", {
+	charge = CHARGE, -- H2 charge-up power
 	set = "Titan",
 	slot = "skill",
 	name = "Haymaker",
@@ -512,6 +523,7 @@ add(28, "GravityWell", {
 	cap = { name = "Collapse", set = { endCoeff = 1.5 } },
 })
 add(29, "Repulse", {
+	charge = CHARGE, -- H2 charge-up power
 	set = "Pulse",
 	slot = "skill",
 	name = "Repulse",
@@ -547,6 +559,7 @@ add(30, "Weightless", {
 	cap = { name = "Zero G", set = { staminaFree = true } },
 })
 add(31, "Crush", {
+	charge = CHARGE, -- H2 charge-up power
 	set = "Pulse",
 	slot = "skill",
 	name = "Crush",
@@ -617,6 +630,7 @@ add(34, "FlashStep", {
 	cap = { name = "Twin Step", set = { recast = true } },
 })
 add(35, "CrescentWave", {
+	charge = CHARGE, -- H2 charge-up power
 	set = "Blade",
 	slot = "skill",
 	name = "Crescent Wave",
@@ -630,6 +644,7 @@ add(35, "CrescentWave", {
 	cap = { name = "Cross Wave", set = { twin = true } },
 })
 add(36, "RisingBlade", {
+	charge = CHARGE, -- H2 charge-up power
 	set = "Blade",
 	slot = "skill",
 	name = "Rising Blade",
@@ -766,6 +781,7 @@ add(42, "FlameJets", {
 	cap = { name = "Afterburner", set = { trail = 0.5, trailRadius = 9 } },
 })
 add(43, "FireWhip", {
+	charge = CHARGE, -- H2 charge-up power
 	set = "Fire",
 	slot = "skill",
 	name = "Fire Whip",
@@ -933,6 +949,7 @@ add(52, "Quicksand", {
 	cap = { name = "Swallow", set = { endCoeff = 1.5 } },
 })
 add(53, "MudWave", {
+	charge = CHARGE, -- H2 charge-up power
 	set = "Earth",
 	slot = "skill",
 	name = "Mud Wave",
@@ -1086,6 +1103,7 @@ add(60, "Riptide", {
 	cap = { name = "Maelstrom", set = { endCoeff = 1.5 } },
 })
 add(61, "Geyser", {
+	charge = CHARGE, -- H2 charge-up power
 	set = "Tide",
 	slot = "skill",
 	name = "Geyser",
@@ -1194,6 +1212,7 @@ add(66, "RecoilJump", {
 	cap = { name = "Triple Jump", set = { recasts = 2 } },
 })
 add(67, "Ricochet", {
+	charge = CHARGE, -- H2 charge-up power
 	set = "Gunslinger",
 	slot = "skill",
 	name = "Ricochet",
@@ -1209,6 +1228,7 @@ add(67, "Ricochet", {
 	cap = { name = "Stunning Bounce", set = { status = "stun", statusDur = 0.5 } },
 })
 add(68, "TrickShot", {
+	charge = CHARGE, -- H2 charge-up power
 	set = "Gunslinger",
 	slot = "skill",
 	name = "Trick Shot",
@@ -1349,6 +1369,7 @@ add(75, "TurretDrop", {
 	cap = { name = "Slowing Rounds", set = { status = "slow", slow = 0.7, statusDur = 0.6 } },
 })
 add(76, "GrappleYank", {
+	charge = CHARGE, -- H2 charge-up power
 	set = "Gadgeteer",
 	slot = "skill",
 	name = "Grapple Yank",
@@ -1517,6 +1538,7 @@ add(84, "ShadowClones", {
 	cap = { name = "Clone Burst", set = { endCoeff = 1.5 } },
 })
 add(85, "ChainSickle", {
+	charge = CHARGE, -- H2 charge-up power
 	set = "Shadow",
 	slot = "skill",
 	name = "Chain Sickle",
@@ -1616,6 +1638,7 @@ add(90, "SkyStep", {
 	cap = { name = "Step Kick", set = { coeff = 0.8, radius = 8 } },
 })
 add(91, "KiBlast", {
+	charge = CHARGE, -- H2 charge-up power
 	set = "Martial",
 	slot = "skill",
 	name = "Ki Blast",
@@ -1669,6 +1692,7 @@ add(93, "CounterPalm", {
 	cap = { name = "Flowing Palm", set = { refund = 0.5 } },
 })
 add(94, "DragonRise", {
+	charge = CHARGE, -- H2 charge-up power
 	set = "Martial",
 	slot = "skill",
 	name = "Dragon Rise",
@@ -1791,6 +1815,7 @@ add(100, "GirderSwing", {
 	cap = { name = "Home Run", set = { status = "knockup", statusDur = 1.2 } },
 })
 add(101, "ShockwaveStomp", {
+	charge = CHARGE, -- H2 charge-up power
 	set = "Juggernaut",
 	slot = "skill",
 	name = "Shockwave Stomp",
@@ -1950,6 +1975,7 @@ add(109, "ThunderClap", {
 	cap = { name = "Sonic Clap", set = { status2 = "blind", status2Dur = 2 } },
 })
 add(110, "BoulderFist", {
+	charge = CHARGE, -- H2 charge-up power
 	set = "Colossus",
 	slot = "skill",
 	name = "Boulder Fist",
@@ -2040,6 +2066,7 @@ add(114, "PsiPlatform", {
 	cap = { name = "Debris Ring", set = { trail = 0.3, trailRadius = 8, tick = 0.5 } },
 })
 add(115, "Telekinesis", {
+	charge = CHARGE, -- H2 charge-up power
 	set = "Mind",
 	slot = "skill",
 	name = "Telekinesis",
@@ -2205,6 +2232,7 @@ add(123, "GuardianRush", {
 	cap = { name = "Final Blow", set = { endCoeff = 1.2 } },
 })
 add(124, "SoulChains", {
+	charge = CHARGE, -- H2 charge-up power
 	set = "Spirit",
 	slot = "skill",
 	name = "Soul Chains",
@@ -2335,6 +2363,7 @@ add(130, "LightRail", {
 	cap = { name = "Burning Rail", set = { trail = 0.3, trailRadius = 6, tick = 0.5 } },
 })
 add(131, "PrismBeam", {
+	charge = CHARGE, -- H2 charge-up power
 	set = "Light",
 	slot = "skill",
 	name = "Prism Beam",

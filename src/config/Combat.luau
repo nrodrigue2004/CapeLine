@@ -17,7 +17,18 @@ return {
 	-- while held and casts on release. Damaging skills (not channels, buffs, summons, dashes or supers) also
 	-- charge: from `start` to `full` seconds held, up to +damage and +size. The server times the hold itself
 	-- (CombatCharge at the press), so a client can claim no more than it held.
-	charge = { start = 0.25, full = 1.2, damage = 0.2, size = 0.15, maxHold = 4, leeway = 0.15 },
+	charge = {
+		start = 0.25,
+		full = 1.2,
+		damage = 0.2,
+		size = 0.15,
+		maxHold = 4,
+		leeway = 0.15,
+		powerSlow = 0.6,
+	},
+	-- H2 charge-up powers (spec: Hero MMO features): rows in Config.Abilities with charge = { max, mult, grow }
+	-- charge further (1x to 2.2x, up to 1.5x size, a full charge breaks a block) and slow the hero to
+	-- powerSlow while charging; an interrupt cancels them (Config.Guard.interrupt)
 	numbers = { stackTime = 0.35 }, -- Client: damage numbers on one target merge for this long
 	outOfCombat = 5, -- seconds since the last hit or cast: loadouts can change (until safehouses in M4)
 	echoDelay = 0.5, -- Aftershock, Shockwave and other echo capstones land this long after

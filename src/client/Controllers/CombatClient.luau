@@ -692,10 +692,11 @@ releaseHold = function()
 	local h = holding
 	holding = nil
 	AimPreview.hide()
+	MoveController.setScale("charge", nil)
 	if not h then
 		return
 	end
-	local level = if h.charge then ChargeRules.level(C, os.clock() - h.t0) else 0
+	local level = if h.charge then ChargeRules.level(C, os.clock() - h.t0, A.list[h.id]) else 0
 	CombatClient.fire(h.id, level)
 end
 
@@ -720,6 +721,9 @@ startHold = function(action: string, id: string)
 	if charge then
 		Net.send("CombatCharge", row.num)
 	end
+	if ChargeRules.power(row) then
+		MoveController.setScale("charge", C.charge.powerSlow) -- H2: charging a charge-up power slows you
+	end
 end
 
 updateHold = function()
@@ -737,7 +741,7 @@ updateHold = function()
 	if not root or held < 0.12 then
 		return
 	end
-	local level = if h.charge then ChargeRules.level(C, held) else 0
+	local level = if h.charge then ChargeRules.level(C, held, A.list[h.id]) else 0
 	local eff = ChargeRules.apply(C, State.effective(h.id), level)
 	local origin = root.Position + CHEST
 	local point = aim(rangeOf(eff), origin)
@@ -750,7 +754,11 @@ updateHold = function()
 	if level >= 1 and not h.full then
 		h.full = true
 		FxLib.gather(origin, eff.set, color) -- fully charged
-		Juice.fire("skillRank", origin, { mine = true })
+		if ChargeRules.power(A.list[h.id]) then
+			Juice.fire("chargeFull", origin, { mine = true }) -- H2: the ping and flash; it breaks blocks now
+		else
+			Juice.fire("skillRank", origin, { mine = true })
+		end
 	end
 end
 
@@ -764,6 +772,7 @@ function CombatClient.cancelHold(num: number, cd: number)
 	if h and h.id == row.id then
 		holding = nil
 		AimPreview.hide()
+		MoveController.setScale("charge", nil)
 	end
 	Cooldowns.start(book, row.id, os.clock(), cd)
 end
@@ -774,7 +783,7 @@ function CombatClient.holdState(): (string?, number, boolean)
 	if not h then
 		return nil, 0, false
 	end
-	return h.id, if h.charge then ChargeRules.level(C, os.clock() - h.t0) else 0, h.charge
+	return h.id, if h.charge then ChargeRules.level(C, os.clock() - h.t0, A.list[h.id]) else 0, h.charge
 end
 
 function CombatClient.init()
@@ -833,6 +842,7 @@ function CombatClient.init()
 	player.CharacterAdded:Connect(function()
 		holding = nil
 		AimPreview.hide()
+		MoveController.setScale("charge", nil)
 		Cooldowns.clear(book)
 		table.clear(recast)
 		channel = nil
