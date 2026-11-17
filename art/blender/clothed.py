@@ -3,6 +3,8 @@
 # UV-mapped onto Roblox's classic clothing template exactly as Roblox maps a Shirt and Pants, the face decal on the
 # head and the hair accessory. Uses the textures art/clothes/<robot>.py draws into art/export/clothes.
 # Run: python art/blender/clothed.py [Trooper]   (with the `bpy` module) -> art/preview/clothed_<robot>.png
+#      python art/blender/clothed.py uniforms Grunt   -> art/preview/uniforms_grunt.png (every robot kind in that
+#      version of its uniform, art/clothes/uniforms.py)
 import math
 import os
 import sys
@@ -12,7 +14,9 @@ import kit  # noqa: E402
 import bpy  # noqa: E402
 from mathutils import Matrix, Vector  # noqa: E402
 
-ROBOT = next((a for a in sys.argv[1:] if not a.startswith("-")), "Trooper")
+ARGS = [a for a in sys.argv[1:] if not a.startswith("-")]
+ROBOT = ARGS[0] if ARGS else "Trooper"
+VERSION = ARGS[1] if len(ARGS) > 1 else "Grunt"
 CLOTHES = os.path.join(kit.ROOT, "export", "clothes")
 W, H = 585, 559
 
@@ -76,13 +80,10 @@ def rect(part, face):
 
 def image(name):
     path = os.path.join(CLOTHES, name + ".png")
-    img = bpy.data.images.load(path)
+    img = bpy.data.images.load(path, check_existing=True)
     img.alpha_mode = "STRAIGHT"
     return img
 
-
-shirt_img = image(ROBOT + "_Shirt")
-pants_img = image(ROBOT + "_Pants")
 FACES_DIR = os.path.join(CLOTHES, "faces")
 
 
@@ -207,14 +208,18 @@ def face_plane(turned, name):
     return ob
 
 
-def figure(at, yaw, skin, hair_rgb, turned=False, arm_up=False, face="Hero"):
+def figure(at, yaw, skin, hair_rgb, turned=False, arm_up=False, face="Hero", outfit=None):
+    """outfit: the clothes image's name (under art/export/clothes), shirt and pants as <outfit>_Shirt/_Pants"""
+    outfit = outfit or ROBOT
+    shirt_img, pants_img = image(outfit + "_Shirt"), image(outfit + "_Pants")
     Y = Matrix.Translation(Vector(at)) @ Matrix.Rotation(math.radians(yaw), 4, "Z")
     obs = []
     for name in BLOCKS:
         ob = part_box(name)
         short = name.replace("Left", "").replace("Right", "")
-        layers = [pants_img, shirt_img] if "Torso" in name else (
-            [shirt_img] if short in ("UpperArm", "LowerArm", "Hand") else [pants_img])
+        # as the game's robots wear them (Shared.ClothesMap): the upper torso and arms show the shirt, the lower
+        # torso and legs the pants
+        layers = [shirt_img] if short in ("UpperTorso", "UpperArm", "LowerArm", "Hand") else [pants_img]
         ob.data.materials.append(clothed_mat(name, skin, layers))
         if arm_up and name in ("RightUpperArm", "RightLowerArm", "RightHand"):
             pivot = Vector((1.0, 0, 3.76))
@@ -234,12 +239,30 @@ def figure(at, yaw, skin, hair_rgb, turned=False, arm_up=False, face="Hero"):
         ob.matrix_world = Y @ ob.matrix_world
 
 
-kit.studio(res=(1800, 1000), samples=64)
-figure((7.6, 0, 0), 0, (240, 190, 150), (70, 46, 30), face="Hero")
-figure((2.6, 0, 0), 20, (141, 95, 64), (30, 26, 24), arm_up=True, face="Stern")
-figure((-2.6, 0, 0), 0, (224, 172, 130), (160, 120, 60), face="Sharp")
-figure((-7.6, 0, 0), -15, (198, 140, 96), (70, 46, 30), turned=True, face="Scarred")
-floor = kit.cyl("floor", 16, 16, 0.2, at=(0, 0, -0.1), segs=48)
-floor.data.materials.append(kit.material("floor", (60, 64, 72), rough=0.8))
-kit.camera((0, 25.0, 5.4), (0, 0, 2.6), lens=42)
-kit.render(os.path.join(kit.ROOT, "preview", "clothed_%s.png" % ROBOT.lower()))
+if ROBOT == "uniforms":
+    # every robot kind in one version of its uniform, with mixed skins, faces and hair (art/clothes/uniforms.py)
+    kinds = ["SparkDrone", "BurglarBot", "SneakBot", "BruteBot", "Turret", "NullSentinel", "Diver", "Anchor",
+             "TorpedoSentry"]
+    skins = [(240, 190, 150), (141, 95, 64), (224, 172, 130), (198, 140, 96), (92, 62, 44), (250, 210, 180),
+             (170, 120, 84), (120, 80, 56), (232, 180, 140)]
+    hairs = [(70, 46, 30), (30, 26, 24), (160, 120, 60), (20, 20, 22), (120, 50, 30), (200, 170, 110),
+             (60, 40, 28), (40, 34, 30), (150, 140, 170)]
+    faces = ["Hero", "Stern", "Sharp", "Scarred", "Rookie", "Cold"]
+    kit.studio(res=(2600, 760), samples=48)
+    for i, k in enumerate(kinds):
+        figure(((4 - i) * 4.4, 0, 0), (i % 3 - 1) * 12, skins[i], hairs[i], turned=(i == 3),
+               face=faces[i % len(faces)], outfit="uniforms/%s_%s" % (k, VERSION))
+    floor = kit.cyl("floor", 24, 24, 0.2, at=(0, 0, -0.1), segs=48)
+    floor.data.materials.append(kit.material("floor", (60, 64, 72), rough=0.8))
+    kit.camera((0, 44.0, 4.2), (0, 0, 2.3), lens=37)
+    kit.render(os.path.join(kit.ROOT, "preview", "uniforms_%s.png" % VERSION.lower()))
+else:
+    kit.studio(res=(1800, 1000), samples=64)
+    figure((7.6, 0, 0), 0, (240, 190, 150), (70, 46, 30), face="Hero")
+    figure((2.6, 0, 0), 20, (141, 95, 64), (30, 26, 24), arm_up=True, face="Stern")
+    figure((-2.6, 0, 0), 0, (224, 172, 130), (160, 120, 60), face="Sharp")
+    figure((-7.6, 0, 0), -15, (198, 140, 96), (70, 46, 30), turned=True, face="Scarred")
+    floor = kit.cyl("floor", 16, 16, 0.2, at=(0, 0, -0.1), segs=48)
+    floor.data.materials.append(kit.material("floor", (60, 64, 72), rough=0.8))
+    kit.camera((0, 25.0, 5.4), (0, 0, 2.6), lens=42)
+    kit.render(os.path.join(kit.ROOT, "preview", "clothed_%s.png" % ROBOT.lower()))

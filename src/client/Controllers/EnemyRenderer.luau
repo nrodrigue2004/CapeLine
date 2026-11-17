@@ -109,7 +109,28 @@ type Body = {
 	faceDecal: Decal?,
 	faces: { string }?,
 	hairs: { string },
+	-- the uniform images this kind can wear (each version repeated by its odds) and the one shown now
+	outfits: { string },
+	outfit: string?,
 }
+
+-- A kind's uploaded uniform images, each version repeated by its odds (Config.NpcLooks.versionOdds), so a
+-- robot's id picks Grunts most often and Elites rarely; empty until any version is uploaded
+local function outfitsOf(recipe: any): { string }
+	local list: { string } = {}
+	if not recipe then
+		return list
+	end
+	for _, v in NL.versions do
+		local id = recipe.clothes[v]
+		if id and id ~= 0 then
+			for _ = 1, NL.versionOdds[v] or 1 do
+				table.insert(list, "rbxassetid://" .. id)
+			end
+		end
+	end
+	return list
+end
 
 local live: { [number]: Body } = {}
 local pool: { [number]: { Body } } = {}
@@ -271,7 +292,8 @@ local function makeRobot(typeId: number): Body
 	-- the Blender superhero shell set (overhaul plan step 3: a face, a fitted suit with a chest emblem, gloves,
 	-- boots and a belt baked in) once imported; else the plain look
 	local recipe = NL.robots[kindByType[typeId] or ""]
-	local hasRoblox = recipe ~= nil and recipe.clothes ~= 0 and #upFaces > 0
+	local outfits = outfitsOf(recipe)
+	local hasRoblox = #outfits > 0 and #upFaces > 0
 	local hasShell = body.art ~= nil and NpcRig.meshes(set, body.art) ~= nil
 	local mode = if style == "roblox"
 		then (if hasRoblox then "roblox" else "plain")
@@ -474,7 +496,7 @@ local function makeRobot(typeId: number): Body
 	local clothes: { [string]: { Texture } }? = nil
 	local faceDecal: Decal? = nil
 	if mode == "roblox" and recipe then
-		clothes = NpcRig.dress(rig, "rbxassetid://" .. recipe.clothes, NL.offsetSign)
+		clothes = NpcRig.dress(rig, outfits[1], NL.offsetSign) -- assign picks this robot's uniform version
 		faceDecal = NpcRig.face(rig, upFaces[1][1]) -- assign picks this robot's face
 	end
 	local eyeSides: { any } = if mode == "roblox" then {} else SIDES
@@ -708,6 +730,8 @@ local function makeRobot(typeId: number): Body
 		faceDecal = faceDecal,
 		faces = nil,
 		hairs = hairs,
+		outfits = outfits,
+		outfit = if mode == "roblox" then outfits[1] else nil,
 	}
 end
 
@@ -730,6 +754,16 @@ local function assign(body: Body, id: number)
 		-- one of the shared faces and one of its Roblox hairs, picked by the id like the skin
 		if #upFaces > 0 then
 			body.faces = upFaces[(h // 2401) % #upFaces + 1]
+		end
+		-- the uniform's version (Grunt, Veteran or Elite at Config.NpcLooks.versionOdds)
+		local outfit = if #body.outfits > 0 then body.outfits[(h // 16807) % #body.outfits + 1] else nil
+		if outfit and outfit ~= body.outfit and body.clothes then
+			body.outfit = outfit
+			for _, list in body.clothes do
+				for _, tex in list do
+					tex.Texture = outfit
+				end
+			end
 		end
 		local pick = if #body.hairs > 0 then body.hairs[(h // 343) % #body.hairs + 1] else nil
 		for _, slot in body.hairs do

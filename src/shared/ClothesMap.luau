@@ -1,14 +1,17 @@
 --!strict
 -- ClothesMap: Roblox's classic clothing template (the 585 x 559 Shirt and Pants layout) mapped onto the
 -- blocky R15 body, so an NPC rig without a Humanoid can wear real Roblox-style clothes (nate, 2026-11-17: "i want
--- the characters to feel like roblox"). One clothes image (the shirt drawn over the pants on the same template)
--- is shown on each part's faces with a Texture whose tile size and offset pick out that face's rectangle, the
--- way Roblox wraps a Shirt and Pants round an R15 body. Pure (no Instances): NpcRig.dress makes the Textures.
+-- the characters to feel like roblox"). One clothes image, the Shirt and the Pants side by side (1170 x 559: the
+-- shirt's template on the left, the pants' on the right, because a shirt's sleeves and the pants' legs use the
+-- same slots), is shown on each part's faces with a Texture whose tile size and offset pick out that face's
+-- rectangle, the way Roblox wraps a Shirt and Pants round an R15 body: the upper torso and arms read the shirt,
+-- the lower torso and legs the pants. Pure (no Instances): NpcRig.dress makes the Textures.
 
 local ClothesMap = {}
 
-ClothesMap.W = 585
+ClothesMap.W = 1170 -- the shirt (x 0 to 584) and the pants (x 585 to 1169)
 ClothesMap.H = 559
+ClothesMap.PANTS_X = 585
 
 export type Rect = { number } -- x, y, w, h in template pixels
 
@@ -64,6 +67,17 @@ local function short(part: string): string
 	return (part:gsub("^Left", ""):gsub("^Right", ""))
 end
 
+-- Which half of the clothes image a part reads: 0 for the shirt (upper torso, arms), PANTS_X for the pants
+function ClothesMap.half(part: string): number
+	local s = short(part)
+	return if s == "LowerTorso"
+			or s == "UpperLeg"
+			or s == "LowerLeg"
+			or s == "Foot"
+		then ClothesMap.PANTS_X
+		else 0
+end
+
 -- The template rectangle one face of one R15 part shows, or nil for a face the body hides (a joint's inside)
 function ClothesMap.rect(part: string, face: string): Rect?
 	local s = short(part)
@@ -75,13 +89,23 @@ function ClothesMap.rect(part: string, face: string): Rect?
 		then TORSO
 		elseif part:sub(1, 5) == "Right" then RIGHT
 		else LEFT
+	local x = ClothesMap.half(part)
+	local slot: Rect
 	if face == "Top" then
-		return if TOPS[s] then slots.Top else nil
+		if not TOPS[s] then
+			return nil
+		end
+		slot = slots.Top
+		return { slot[1] + x, slot[2], slot[3], slot[4] }
 	elseif face == "Bottom" then
-		return if BOTTOMS[s] then slots.Bottom else nil
+		if not BOTTOMS[s] then
+			return nil
+		end
+		slot = slots.Bottom
+		return { slot[1] + x, slot[2], slot[3], slot[4] }
 	end
 	local r = (slots :: { [string]: Rect })[face]
-	return { r[1], r[2] + rows[1], r[3], rows[2] - rows[1] }
+	return { r[1] + x, r[2] + rows[1], r[3], rows[2] - rows[1] }
 end
 
 -- A face's size in studs on a part of `size` (Vector3 as x, y, z): Front and Back show x by y, the sides z by

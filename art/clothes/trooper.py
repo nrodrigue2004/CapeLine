@@ -150,8 +150,11 @@ def pants():
 
 if __name__ == "__main__":
     top, bottom = shirt(), pants()
-    both = bottom.copy()
-    both.alpha_composite(top)  # Roblox draws the shirt over the pants
+    # the game's robots wear the Shirt and the Pants side by side in one image (1170 x 559, Shared.ClothesMap):
+    # a Shirt's sleeves and the Pants' legs use the same template slots, so they cannot share one layer
+    both = Image.new("RGBA", (W * 2, H), (0, 0, 0, 0))
+    both.paste(top, (0, 0))
+    both.paste(bottom, (W, 0))
     for name, im in (("Trooper_Clothes", both), ("Trooper_Shirt", top), ("Trooper_Pants", bottom)):
         path = os.path.join(OUT, name + ".png")
         im.save(path)

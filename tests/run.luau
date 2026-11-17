@@ -6490,6 +6490,15 @@ test("Roblox look: classic clothes map onto the R15 body, robots' recipes and Ro
 	-- the torso's two parts split the torso strip with no gap or overlap; the limbs split theirs
 	local ut, lt = ClothesMap.rect("UpperTorso", "Front"), ClothesMap.rect("LowerTorso", "Front")
 	check(ut and lt and ut[2] + ut[4] == lt[2] and lt[2] + lt[4] == 74 + 128, "torso split")
+	check(
+		ut and lt and ut[1] == 231 and lt[1] == 231 + ClothesMap.PANTS_X,
+		"upper torso from the shirt, lower from the pants"
+	)
+	local ul, ua2 = ClothesMap.rect("LeftUpperLeg", "Front"), ClothesMap.rect("LeftUpperArm", "Front")
+	check(
+		ul and ua2 and ul[1] == ua2[1] + ClothesMap.PANTS_X and ul[2] == ua2[2],
+		"legs read the pants' copy of the limb slots"
+	)
 	local ua, la, ha =
 		ClothesMap.rect("RightUpperArm", "Front"),
 		ClothesMap.rect("RightLowerArm", "Front"),
@@ -6521,9 +6530,17 @@ test("Roblox look: classic clothes map onto the R15 body, robots' recipes and Ro
 		local f = NL.faces[fname]
 		check(f ~= nil and type(f.human) == "number" and type(f.turned) == "number", fname .. " face ids")
 	end
+	-- every robot kind has its three uniform versions, so no kind is left in the plain look
+	check(#NL.versions == 3, "three uniform versions")
+	for _, kind in Config.Enemies.order do
+		check(NL.robots[kind] ~= nil, kind .. " has a Roblox-look uniform")
+	end
 	for kind, r in NL.robots do
 		check(Config.Enemies[kind] ~= nil and Config.Enemies[kind].typeId ~= nil, kind .. " is a robot")
-		check(type(r.clothes) == "number", kind .. " clothes id")
+		for _, v in NL.versions do
+			check(type(r.clothes[v]) == "number", kind .. " " .. v .. " clothes id")
+			check((NL.versionOdds[v] or 0) >= 1, v .. " has odds")
+		end
 		check(#r.hair >= 1, kind .. " has hair")
 		for _, h in r.hair do
 			check(type(NL.hairs[h]) == "number" and NL.hairs[h] > 0, kind .. " hair " .. h .. " is listed")
