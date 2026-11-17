@@ -1055,20 +1055,6 @@ end
 -- Enemies
 ---------------------------------------------------------------------------
 
--- A robot's shot: a glowing pellet you can see coming (and dodge)
-function CombatFx.enemyShot(pos: Vector3, vel: Vector3)
-	local speed = vel.Magnitude
-	if speed < 1 then
-		return
-	end
-	local p = part(Vector3.new(F.shot.width, F.shot.width, 2.2), CFrame.lookAt(pos, pos + vel), ENEMY)
-	local life = math.min(1.6, 80 / speed)
-	TweenService:Create(p, TweenInfo.new(life, Enum.EasingStyle.Linear), {
-		CFrame = CFrame.lookAt(pos + vel * life, pos + vel * (life + 1)),
-	}):Play()
-	Debris:AddItem(p, life)
-end
-
 -- A Torpedo Sentry's torpedo: slow, with a bubble trail, turning after its hero the way the server's does
 -- (EnemySim.steer), so what you see is what hits you
 function CombatFx.torpedo(pos: Vector3, vel: Vector3, home: number, turn: number)
@@ -1163,6 +1149,533 @@ end
 function CombatFx.blocked(pos: Vector3)
 	local p = part(Vector3.one * 1.2, CFrame.new(pos), Color3.fromRGB(200, 235, 255), Enum.PartType.Ball)
 	fade(p, 0.15, { Size = Vector3.one * 3 })
+end
+
+---------------------------------------------------------------------------
+-- The newer robots (Config.Enemies typeIds 10 to 18; numbers in Config.Fx.robots). PLACEHOLDER ART.
+---------------------------------------------------------------------------
+
+local R = F.robots
+local groundParams = RaycastParams.new()
+groundParams.FilterType = Enum.RaycastFilterType.Exclude
+
+-- What effects never land on: the effects, the robots, the load-test bots and every hero
+local function skipList(): { Instance }
+	local skip: { Instance } = { folder }
+	for _, name in { "Enemies", "LoadBots", "MoveFx", "AbilityParts" } do
+		local inst = Workspace:FindFirstChild(name)
+		if inst then
+			table.insert(skip, inst)
+		end
+	end
+	for _, p in Players:GetPlayers() do
+		if p.Character then
+			table.insert(skip, p.Character)
+		end
+	end
+	return skip
+end
+
+-- The ground under a point (within `down` studs), else the point itself
+local function groundBelow(pos: Vector3, down: number?): Vector3
+	groundParams.FilterDescendantsInstances = skipList()
+	local hit =
+		Workspace:Raycast(pos + Vector3.new(0, 2, 0), Vector3.new(0, -(down or 12) - 2, 0), groundParams)
+	return if hit then hit.Position else pos
+end
+
+-- A Sniper's round (shot style 1): a bright, long white-hot tracer with a red glow and a muzzle flash
+local function tracer(pos: Vector3, vel: Vector3, speed: number)
+	local tr = R.tracer
+	local cf = CFrame.lookAt(pos, pos + vel)
+	local core = part(Vector3.new(tr.width, tr.width, tr.length), cf, rgb(tr.color))
+	local glow = part(Vector3.new(tr.width * 3, tr.width * 3, tr.length * 1.1), cf, rgb(tr.glow))
+	glow.Transparency = 0.55
+	local flash = part(Vector3.one * 1.2, CFrame.new(pos), rgb(tr.color), Enum.PartType.Ball)
+	fade(flash, 0.12, { Size = Vector3.one * 3 })
+	FxLib.emit("spark", rgb(tr.glow), pos, 4, vel)
+	local life = math.min(1, 150 / speed)
+	local goal = { CFrame = CFrame.lookAt(pos + vel * life, pos + vel * (life + 1)) }
+	for _, p in { core, glow } do
+		TweenService:Create(p, TweenInfo.new(life, Enum.EasingStyle.Linear), goal):Play()
+		Debris:AddItem(p, life)
+	end
+end
+
+-- An Interceptor's net (shot style 2): a square net that opens and spins as it flies
+local function net(pos: Vector3, vel: Vector3, speed: number)
+	local n = R.net
+	local half = n.size * 0.5
+	local color = rgb(n.color)
+	-- the frame and a cross, as (offset, size) pairs in the net's own frame
+	local bars = {
+		{ Vector3.new(0, half, 0), Vector3.new(n.size, 0.15, 0.15) },
+		{ Vector3.new(0, -half, 0), Vector3.new(n.size, 0.15, 0.15) },
+		{ Vector3.new(half, 0, 0), Vector3.new(0.15, n.size, 0.15) },
+		{ Vector3.new(-half, 0, 0), Vector3.new(0.15, n.size, 0.15) },
+		{ Vector3.zero, Vector3.new(n.size, 0.1, 0.1) },
+		{ Vector3.zero, Vector3.new(0.1, n.size, 0.1) },
+	}
+	local parts = {}
+	for _, b in bars do
+		local p = part(b[2], CFrame.new(pos), color)
+		p.Transparency = 0.15
+		table.insert(parts, p)
+	end
+	local life = math.min(1.6, 100 / speed)
+	local t = 0
+	local conn: RBXScriptConnection
+	conn = RunService.RenderStepped:Connect(FrameProf.wrap("CombatFx", function(dt)
+		t += dt
+		if t >= life then
+			conn:Disconnect()
+			for _, p in parts do
+				p:Destroy()
+			end
+			return
+		end
+		local open = math.clamp(t / 0.15, 0.3, 1)
+		local at = pos + vel * t
+		local cf = CFrame.lookAt(at, at + vel) * CFrame.Angles(0, 0, t * n.spin)
+		for i, p in parts do
+			p.CFrame = cf * CFrame.new(bars[i][1] * open)
+		end
+	end))
+end
+
+-- A robot's shot: a glowing pellet you can see coming (and dodge). style: 1 a Sniper round, 2 a net
+function CombatFx.enemyShot(pos: Vector3, vel: Vector3, style: number?)
+	local speed = vel.Magnitude
+	if speed < 1 then
+		return
+	end
+	if style == 1 then
+		tracer(pos, vel, speed)
+		return
+	elseif style == 2 then
+		net(pos, vel, speed)
+		return
+	end
+	local p = part(Vector3.new(F.shot.width, F.shot.width, 2.2), CFrame.lookAt(pos, pos + vel), ENEMY)
+	local life = math.min(1.6, 80 / speed)
+	TweenService:Create(p, TweenInfo.new(life, Enum.EasingStyle.Linear), {
+		CFrame = CFrame.lookAt(pos + vel * life, pos + vel * (life + 1)),
+	}):Play()
+	Debris:AddItem(p, life)
+end
+
+-- A Grappler's hook (shot style 3): a claw on a cable from the robot's launcher (`from` follows it; nil
+-- when the robot is gone). It flies until it catches a hero (then holds on while `out()` says the hook is
+-- still out, the robot's `hooked` bit), sticks where it hits the world, or runs out; then it reels back in.
+function CombatFx.hook(from: () -> Vector3?, pos: Vector3, vel: Vector3, out: () -> boolean)
+	local speed = vel.Magnitude
+	if speed < 1 then
+		return
+	end
+	local hk = R.hook
+	local clawColor = rgb(hk.claw)
+	local cable = part(Vector3.new(hk.cable, hk.cable, 1), CFrame.new(pos), rgb(hk.color))
+	cable.Material = Enum.Material.Metal
+	local claw = part(Vector3.new(0.9, 0.9, 0.6), CFrame.new(pos), clawColor)
+	claw.Material = Enum.Material.Metal
+	local prongs = {}
+	for _, k in { -1, 1 } do
+		local p = part(Vector3.new(0.22, 0.3, 1), CFrame.new(pos), clawColor)
+		p.Material = Enum.Material.Metal
+		table.insert(prongs, { p = p, side = k })
+	end
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	params.FilterDescendantsInstances = skipList()
+	local life = math.min(1.5, 60 / speed)
+	local grappler = Config.Enemies.Grappler
+	local reach = (if grappler and grappler.hook then grappler.hook.shotRadius else 3.5) + 1.5
+	local phase, t, tip = "fly", 0, pos
+	local held: BasePart? = nil
+	local reelFrom, reelT, stuckT = pos, 0, 0
+	local conn: RBXScriptConnection
+	local function finish()
+		conn:Disconnect()
+		fade(cable, 0.1)
+		fade(claw, 0.1)
+		for _, pr in prongs do
+			fade(pr.p, 0.1)
+		end
+	end
+	conn = RunService.RenderStepped:Connect(FrameProf.wrap("CombatFx", function(dt)
+		local a = from()
+		if not a then
+			finish()
+			return
+		end
+		t += dt
+		if phase == "fly" then
+			local nextTip = tip + vel * dt
+			for _, p in Players:GetPlayers() do
+				local char = p.Character
+				local root = char and char:FindFirstChild("HumanoidRootPart") :: BasePart?
+				if root and (root.Position - nextTip).Magnitude < reach then
+					held = root
+					phase = "held"
+					t = 0
+					break
+				end
+			end
+			if phase == "fly" then
+				local hit = Workspace:Raycast(tip, nextTip - tip, params)
+				if hit then
+					tip, phase, stuckT = hit.Position, "stuck", 0.15
+				elseif t >= life then
+					tip, phase = nextTip, "reel"
+					reelFrom, reelT = tip, 0
+				else
+					tip = nextTip
+				end
+			end
+		elseif phase == "held" then
+			local root = held
+			if root and root.Parent and t < hk.hold and (t < 0.3 or out()) then
+				tip = root.Position
+			else
+				phase, reelFrom, reelT = "reel", tip, 0
+			end
+		elseif phase == "stuck" then
+			stuckT -= dt
+			if stuckT <= 0 then
+				phase, reelFrom, reelT = "reel", tip, 0
+			end
+		else
+			reelT += dt / hk.reel
+			tip = reelFrom:Lerp(a, math.min(1, reelT))
+			if reelT >= 1 then
+				finish()
+				return
+			end
+		end
+		local d = tip - a
+		local len = math.max(0.2, d.Magnitude)
+		local dir = if d.Magnitude > 1e-3 then d.Unit else vel.Unit
+		cable.Size = Vector3.new(hk.cable, hk.cable, len)
+		cable.CFrame = CFrame.lookAt(a + d / 2, tip)
+		local cf = CFrame.lookAt(tip, tip + dir)
+		claw.CFrame = cf
+		local spread = if phase == "fly" then 30 else 10 -- the prongs close on what they catch
+		for _, pr in prongs do
+			pr.p.CFrame = cf
+				* CFrame.new(pr.side * 0.35, 0, -0.5)
+				* CFrame.Angles(0, pr.side * math.rad(-spread), 0)
+		end
+	end))
+end
+
+-- A Sniper's aim: a red laser from its rifle tip (`from`, nil when the robot is gone) to its hero (`to`) for
+-- `time` s. For the last `lock` s it stops following, thickens and blinks: the aim is locked, dodge now.
+function CombatFx.aimLaser(from: () -> Vector3?, to: () -> Vector3?, time: number, lock: number)
+	local am = R.aim
+	local color = rgb(am.color)
+	local beamPart = part(Vector3.new(am.width, am.width, 1), CFrame.new(), color)
+	beamPart.Transparency = 0.2
+	local dot = part(Vector3.one * am.dot, CFrame.new(), color, Enum.PartType.Ball)
+	local t = 0
+	local last: Vector3? = nil
+	local locked: Vector3? = nil
+	local conn: RBXScriptConnection
+	conn = RunService.RenderStepped:Connect(FrameProf.wrap("CombatFx", function(dt)
+		t += dt
+		local a = from()
+		if not a or t >= time then
+			conn:Disconnect()
+			beamPart:Destroy()
+			dot:Destroy()
+			return
+		end
+		local lockOn = t >= time - lock
+		local b: Vector3?
+		if lockOn then
+			locked = locked or last or to()
+			b = locked
+		else
+			b = to() or last
+			last = b
+		end
+		if not b then
+			beamPart.Transparency, dot.Transparency = 1, 1
+			return
+		end
+		local at = b :: Vector3
+		local d = at - a
+		local len = math.max(0.2, d.Magnitude)
+		local w = if lockOn then am.lockWidth else am.width
+		beamPart.Size = Vector3.new(w, w, len)
+		beamPart.CFrame = CFrame.lookAt(a + d / 2, at)
+		dot.CFrame = CFrame.new(at)
+		dot.Size = Vector3.one * (if lockOn then am.dot * 1.6 else am.dot)
+		local on = not lockOn or CombatFx.reduceFlashing or math.floor(t * am.blink) % 2 == 0
+		beamPart.Transparency = if on then (if lockOn then 0 else 0.2) else 0.85
+		dot.Transparency = if on then 0 else 0.7
+	end))
+end
+
+-- You are the one a Sniper aims at: a red edge pulses round the screen, then blinks hard once it locks
+-- (steady with reduce flashing on)
+local aimEdges: { Frame } = {}
+local aimToken = 0
+function CombatFx.targeted(time: number, lock: number)
+	aimToken += 1
+	local token = aimToken
+	local t = 0
+	local conn: RBXScriptConnection
+	conn = RunService.RenderStepped:Connect(FrameProf.wrap("CombatFx", function(dt)
+		t += dt
+		local done = t >= time or token ~= aimToken
+		local strength = 0
+		if not done then
+			if t >= time - lock then
+				strength = if CombatFx.reduceFlashing or math.floor(t * R.aim.blink) % 2 == 0
+					then 0.55
+					else 0.15
+			else
+				strength = 0.2 + 0.12 * math.sin(t * 8)
+			end
+		end
+		if token == aimToken then
+			for _, f in aimEdges do
+				f.BackgroundTransparency = 1 - strength
+			end
+		end
+		if done then
+			conn:Disconnect()
+		end
+	end))
+end
+
+-- A Captain's rally: a gold shock ring of the rally's radius and a "RALLY!" pop
+function CombatFx.rally(center: Vector3, radius: number)
+	local color = rgb(R.rally.color)
+	local floor = groundBelow(center, 8) + Vector3.new(0, 0.3, 0)
+	ring(floor, radius, color, R.rally.life, 0.6)
+	ring(floor, radius * 0.5, WHITE, R.rally.life * 0.6, 0.3)
+	FxLib.shock(floor, radius, color)
+	FxLib.emit("glow", color, center, 1)
+	floatText(
+		center + Vector3.new(0, 4, 0),
+		"RALLY!",
+		color,
+		Color3.fromRGB(70, 40, 0),
+		Enum.Font.Bangers,
+		1.6,
+		0.9,
+		3,
+		(math.random() - 0.5) * 10
+	)
+end
+
+-- A Bomber's grenade: a small spinning ball on a ballistic arc from `from` to `to` in `flight` s, its light
+-- blinking faster as it falls, and a red ring where it will land (the grenade's blast radius)
+function CombatFx.lob(from: Vector3, to: Vector3, flight: number)
+	local lb = R.lob
+	local ball = part(Vector3.one * lb.size, CFrame.new(from), Color3.fromRGB(70, 85, 45), Enum.PartType.Ball)
+	ball.Material = Enum.Material.Metal
+	local blink = part(Vector3.one * lb.size * 0.4, CFrame.new(from), WARN, Enum.PartType.Ball)
+	local bomber = Config.Enemies.Bomber
+	local radius = if bomber and bomber.grenade then bomber.grenade.radius else 6
+	local landing = groundBelow(to, 10) + Vector3.new(0, 0.15, 0)
+	local mark = part(
+		Vector3.new(0.12, radius * 2, radius * 2),
+		CFrame.new(landing) * CFrame.Angles(0, 0, math.rad(90)),
+		WARN,
+		Enum.PartType.Cylinder
+	)
+	mark.Material = Enum.Material.SmoothPlastic
+	mark.Transparency = 0.6
+	local lift = lb.gravity * flight * flight * 0.5
+	local t, ph, puff = 0, 0, 0
+	local conn: RBXScriptConnection
+	conn = RunService.RenderStepped:Connect(FrameProf.wrap("CombatFx", function(dt)
+		t += dt
+		local k = math.clamp(t / math.max(flight, 0.05), 0, 1)
+		local at = from:Lerp(to, k) + Vector3.new(0, lift * k * (1 - k), 0)
+		local spin = CFrame.new(at) * CFrame.Angles(t * 12, t * 7, 0)
+		ball.CFrame = spin
+		blink.CFrame = spin * CFrame.new(0, lb.size * 0.45, 0)
+		ph += dt * (lb.blink[1] + (lb.blink[2] - lb.blink[1]) * k)
+		blink.Transparency = if ph % 1 < 0.5 then 0 else 0.9
+		mark.Transparency = 0.45 + 0.25 * math.sin(t * 14)
+		puff += dt
+		if puff >= 0.08 then
+			puff = 0
+			FxLib.emit("smoke", Color3.fromRGB(120, 120, 120), at, 1)
+		end
+		if k >= 1 then
+			conn:Disconnect()
+			ball:Destroy()
+			blink:Destroy()
+			fade(mark, 0.15)
+		end
+	end))
+end
+
+-- Where a grenade burst: a burning patch on the ground (an orange disc with flames and embers) for `time` s
+function CombatFx.zone(center: Vector3, radius: number, time: number)
+	local zn = R.zone
+	local color, core = rgb(zn.color), rgb(zn.core)
+	local floor = groundBelow(center, 10) + Vector3.new(0, 0.12, 0)
+	local rot = CFrame.new(floor) * CFrame.Angles(0, 0, math.rad(90))
+	local disc = part(Vector3.new(0.1, radius * 2, radius * 2), rot, color, Enum.PartType.Cylinder)
+	disc.Transparency = 0.45
+	local inner = part(Vector3.new(0.12, radius * 1.3, radius * 1.3), rot, core, Enum.PartType.Cylinder)
+	inner.Transparency = 0.55
+	local each = if QualityController.name == "low" then 1 else 2
+	local t, tick = 0, 0
+	local conn: RBXScriptConnection
+	conn = RunService.Heartbeat:Connect(FrameProf.wrap("CombatFx", function(dt)
+		t += dt
+		if t >= time then
+			conn:Disconnect()
+			fade(disc, 0.4)
+			fade(inner, 0.3)
+			return
+		end
+		inner.Transparency = 0.45 + 0.2 * math.sin(t * 11) * math.sin(t * 7.3)
+		tick += dt
+		if tick >= zn.every then
+			tick = 0
+			local a = math.random() * math.pi * 2
+			local r = math.sqrt(math.random()) * radius * 0.85
+			local at = floor + Vector3.new(math.cos(a) * r, 0.4, math.sin(a) * r)
+			FxLib.emit("flame", color, at, each)
+			FxLib.emit("ember", core, at, each)
+			if math.random() < 0.25 then
+				FxLib.emit("smoke", Color3.fromRGB(60, 55, 50), at + Vector3.new(0, 1.5, 0), 1)
+			end
+		end
+	end))
+end
+
+-- A Medic Unit's repair beam: green, from the Medic (`from`) to its patient (`to`), both ends following, with
+-- small repair packets running along it for `time` s
+function CombatFx.mend(from: () -> Vector3?, to: () -> Vector3?, time: number)
+	local md = R.mend
+	local color = rgb(md.color)
+	local core = part(Vector3.new(md.width, md.width, 1), CFrame.new(), WHITE:Lerp(color, 0.5))
+	local glow = part(Vector3.new(md.width * 4, md.width * 4, 1), CFrame.new(), color)
+	glow.Transparency = 0.6
+	local packets: { { p: Part, t0: number } } = {}
+	local t, nextPacket = 0, 0
+	local conn: RBXScriptConnection
+	conn = RunService.RenderStepped:Connect(FrameProf.wrap("CombatFx", function(dt)
+		t += dt
+		local a, b = from(), to()
+		if not a or not b or t >= time then
+			conn:Disconnect()
+			fade(core, 0.15)
+			fade(glow, 0.2)
+			for _, pk in packets do
+				pk.p:Destroy()
+			end
+			return
+		end
+		local d = b - a
+		local len = math.max(0.2, d.Magnitude)
+		local cf = CFrame.lookAt(a + d / 2, b)
+		local wobble = 1 + math.sin(t * 20) * 0.15
+		core.Size = Vector3.new(md.width, md.width, len)
+		core.CFrame = cf
+		glow.Size = Vector3.new(md.width * 4 * wobble, md.width * 4 * wobble, len)
+		glow.CFrame = cf
+		if t >= nextPacket then
+			nextPacket = t + md.packet
+			table.insert(
+				packets,
+				{ p = part(Vector3.one * 0.6, CFrame.new(a), color, Enum.PartType.Ball), t0 = t }
+			)
+		end
+		for i = #packets, 1, -1 do
+			local pk = packets[i]
+			local k = (t - pk.t0) / 0.4
+			if k >= 1 then
+				pk.p:Destroy()
+				table.remove(packets, i)
+				FxLib.emit("wisp", color, b, 2)
+			else
+				pk.p.CFrame = CFrame.new(a:Lerp(b, k))
+			end
+		end
+	end))
+end
+
+-- A Mimic shows itself: a burst of cyan and magenta squares that jump about its body, and a flash
+function CombatFx.reveal(pos: Vector3)
+	local rv = R.reveal
+	local n = DebrisBudget.lease(rv.squares, rv.life)
+	local squares = {}
+	for k = 1, n do
+		local c = rv.colors[(k % #rv.colors) + 1]
+		table.insert(squares, part(Vector3.new(0.8, 0.8, 0.05), CFrame.new(pos), rgb(c)))
+	end
+	local flash = part(Vector3.one * 2, CFrame.new(pos), WHITE, Enum.PartType.Ball)
+	fade(flash, 0.15, { Size = Vector3.one * 6 })
+	FxLib.emit("crackle", rgb(rv.colors[1]), pos, 2)
+	local t, step = 0, 0
+	local conn: RBXScriptConnection
+	conn = RunService.RenderStepped:Connect(FrameProf.wrap("CombatFx", function(dt)
+		t += dt
+		if t >= rv.life then
+			conn:Disconnect()
+			for _, p in squares do
+				p:Destroy()
+			end
+			return
+		end
+		step -= dt
+		if step > 0 then
+			return
+		end
+		step = 0.05 -- the squares jump, they do not glide
+		local cam = Workspace.CurrentCamera
+		local eye = if cam then cam.CFrame.Position else pos + Vector3.new(0, 0, 10)
+		for _, p in squares do
+			local at = pos
+				+ Vector3.new((math.random() - 0.5) * 3, (math.random() - 0.5) * 5, (math.random() - 0.5) * 3)
+			local s = 0.4 + math.random() * 1.2
+			p.Size = Vector3.new(s, s * (0.3 + math.random()), 0.05)
+			p.CFrame = CFrame.lookAt(at, eye)
+			p.Transparency = math.random() * 0.4 + t / rv.life * 0.5
+		end
+	end))
+end
+
+-- A grenade blast: a fireball of `radius`, flames and smoke, a shock ring and rubble bits (the debris budget)
+function CombatFx.boom(center: Vector3, radius: number)
+	local bm = R.boom
+	local color = rgb(bm.color)
+	local floor = groundBelow(center, 10) + Vector3.new(0, 0.3, 0)
+	FxLib.burst(center, radius, "Fire", color, true)
+	FxLib.dust(floor, radius)
+	local ball = part(Vector3.one * 2, CFrame.new(center), color, Enum.PartType.Ball)
+	ball.Transparency = 0.15
+	fade(ball, 0.35, { Size = Vector3.one * radius * 1.6, Color = Color3.fromRGB(90, 40, 20) })
+	local flash = part(Vector3.one * 2, CFrame.new(center), Color3.fromRGB(255, 240, 180), Enum.PartType.Ball)
+	fade(flash, 0.15, { Size = Vector3.one * radius })
+	ring(floor, radius * 1.1, color, 0.4, 0.6)
+	ring(floor, radius * 1.4, Color3.fromRGB(110, 100, 90), 0.55, 0.9)
+	local n = DebrisBudget.lease(bm.chunks, 1.2)
+	for _ = 1, n do
+		local p = part(
+			Vector3.new(0.4 + math.random() * 0.5, 0.3 + math.random() * 0.4, 0.4 + math.random() * 0.5),
+			CFrame.new(floor + Vector3.new(0, 0.5, 0)),
+			Color3.fromRGB(60, 55, 50)
+		)
+		p.Material = Enum.Material.Slate
+		p.Anchored = false
+		p.AssemblyLinearVelocity = Vector3.new(
+			math.random() - 0.5,
+			math.random() * 0.7 + 0.5,
+			math.random() - 0.5
+		) * 45
+		p.AssemblyAngularVelocity = Vector3.new(math.random(), math.random(), math.random()) * 10
+		fade(p, 1.2)
+	end
 end
 
 -- Enemy defeated: bolts and plates fly, sparks fade in 2 s (spec juice row; machines only, no gore).
@@ -1406,6 +1919,26 @@ function CombatFx.init()
 	grad.Parent = hurt
 	hurt.Parent = gui
 	hurtFrame = hurt
+	-- the Sniper warning: a red edge on all four sides (two frames, side and top-and-bottom)
+	for _, rotation in { 0, 90 } do
+		local edge = Instance.new("Frame")
+		edge.Name = "AimEdge"
+		edge.Size = UDim2.fromScale(1, 1)
+		edge.BackgroundColor3 = Color3.fromRGB(255, 30, 30)
+		edge.BackgroundTransparency = 1
+		edge.BorderSizePixel = 0
+		local eg = Instance.new("UIGradient")
+		eg.Rotation = rotation
+		eg.Transparency = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 0),
+			NumberSequenceKeypoint.new(0.12, 1),
+			NumberSequenceKeypoint.new(0.88, 1),
+			NumberSequenceKeypoint.new(1, 0),
+		})
+		eg.Parent = edge
+		edge.Parent = gui
+		table.insert(aimEdges, edge)
+	end
 	local b = Instance.new("TextLabel")
 	b.AnchorPoint = Vector2.new(0.5, 0.5)
 	b.Position = UDim2.fromScale(0.5, 0.3)

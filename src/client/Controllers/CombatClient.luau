@@ -24,6 +24,7 @@ local Cooldowns = require(Shared:WaitForChild("Cooldowns"))
 local AbilityRules = require(Shared:WaitForChild("AbilityRules"))
 local ChargeRules = require(Shared:WaitForChild("ChargeRules"))
 local WeaponRules = require(Shared:WaitForChild("WeaponRules"))
+local EnemySim = require(Shared:WaitForChild("EnemySim"))
 local Signal = require(Shared:WaitForChild("Util"):WaitForChild("Signal"))
 
 local InputController = require(script.Parent.InputController)
@@ -65,6 +66,9 @@ local CHEST = Vector3.new(0, 1.5, 0)
 local K = { CAST = 1, WINDUP = 2, TICK = 3, LAND = 4, ECHO = 5, END = 6, COMBO = 7, RIPOSTE = 8, CLASH = 9 }
 -- CombatEvents kinds (EnemyService)
 local SHOT, HERO_HIT, DIE, WARN, SLAM, SWING, BLOCKED = 1, 2, 3, 4, 5, 6, 7
+-- the nine newer robot types (EnemyService.AIM ... BOOM; the robots' own flags are EnemySim.EXTRA)
+local AIM, RALLY, LOB, ZONE, MEND, REVEAL, BOOM = 8, 9, 10, 11, 12, 13, 14
+local HOOKED = EnemySim.EXTRA.hooked
 
 local PREDICTED =
 	{ bolt = true, chain = true, dash = true, cone = true, arc = true, nova = true, line = true, buff = true }
@@ -628,19 +632,47 @@ local function onResult(list: { any })
 	end
 end
 
+-- A robot's piece now (its rifle tip, its hand), else its body plus `up`; nil once it is gone
+local function robotAt(e: number, piece: string, up: Vector3): () -> Vector3?
+	return function()
+		local p = EnemyRenderer.point(e, piece)
+		if p then
+			return p
+		end
+		local pos = EnemyRenderer.position(e)
+		return pos and pos + up
+	end
+end
+
+-- A hero's chest by user id (players only: load-test bots have no Player, so they get nil)
+local function heroChest(userId: number): () -> Vector3?
+	return function()
+		local p = Players:GetPlayerByUserId(userId)
+		local char = p and p.Character
+		local root = char and char:FindFirstChild("HumanoidRootPart") :: BasePart?
+		return root and root.Position + CHEST
+	end
+end
+
+local function near(pos: Vector3, range: number): boolean
+	local p = myChest()
+	return p ~= nil and (p - pos).Magnitude < range
+end
+
 local function onEvents(list: { any })
 	for _, ev in list do
 		local kind = ev[1]
 		if kind == SHOT then
-			if ev[9] then
-				CombatFx.torpedo(
-					Vector3.new(ev[3], ev[4], ev[5]),
-					Vector3.new(ev[6], ev[7], ev[8]),
-					ev[9],
-					ev[10]
-				)
+			local pos, vel = Vector3.new(ev[3], ev[4], ev[5]), Vector3.new(ev[6], ev[7], ev[8])
+			if ev[9] and ev[9] ~= 0 then
+				CombatFx.torpedo(pos, vel, ev[9], ev[10])
+			elseif ev[11] == 3 then
+				local e = ev[2]
+				CombatFx.hook(robotAt(e, "Claw", Vector3.new(0, 1, 0)), pos, vel, function()
+					return bit32.band(EnemyRenderer.extra(e), HOOKED) ~= 0
+				end)
 			else
-				CombatFx.enemyShot(Vector3.new(ev[3], ev[4], ev[5]), Vector3.new(ev[6], ev[7], ev[8]))
+				CombatFx.enemyShot(pos, vel, ev[11])
 			end
 		elseif kind == HERO_HIT then
 			if ev[6] and ev[6] > 0 then
@@ -676,6 +708,44 @@ local function onEvents(list: { any })
 			EnemyRenderer.swing(ev[2])
 		elseif kind == BLOCKED then
 			CombatFx.blocked(Vector3.new(ev[3], ev[4], ev[5]))
+		elseif kind == AIM then
+			-- {8, e, x,y,z, heroUserId, time, lock}: a Sniper's laser on a hero (bots have no body to aim at)
+			local to = heroChest(ev[6])
+			if to() then
+				CombatFx.aimLaser(robotAt(ev[2], "RifleTip", Vector3.new(0, 1.5, 0)), to, ev[7], ev[8])
+			end
+			if ev[6] == player.UserId then
+				CombatFx.targeted(ev[7], ev[8])
+				task.delay(math.max(0, ev[7] - ev[8]), function()
+					Juice.fire("aimLock", nil, { mine = true })
+				end)
+			end
+		elseif kind == RALLY then
+			local at = EnemyRenderer.position(ev[2]) or Vector3.new(ev[3], ev[4], ev[5])
+			CombatFx.rally(at, ev[6])
+			Juice.fire("rally", at, { mine = false })
+		elseif kind == LOB then
+			EnemyRenderer.swing(ev[2]) -- the throw
+			CombatFx.lob(Vector3.new(ev[3], ev[4], ev[5]), Vector3.new(ev[6], ev[7], ev[8]), ev[9])
+		elseif kind == ZONE then
+			CombatFx.zone(Vector3.new(ev[3], ev[4], ev[5]), ev[6], ev[7])
+		elseif kind == MEND then
+			-- {12, e, x,y,z, patientId, time}: both ends follow their robots
+			local patient = ev[6]
+			CombatFx.mend(robotAt(ev[2], "RightHand", Vector3.new(0, 1, 0)), function()
+				return EnemyRenderer.position(patient)
+			end, ev[7])
+		elseif kind == REVEAL then
+			local at = EnemyRenderer.position(ev[2]) or Vector3.new(ev[3], ev[4], ev[5])
+			CombatFx.reveal(at)
+			Juice.fire("reveal", at, { mine = false })
+		elseif kind == BOOM then
+			local at = Vector3.new(ev[3], ev[4], ev[5])
+			CombatFx.boom(at, ev[6])
+			Juice.fire("grenadeBoom", at, { mine = false })
+			if near(at, Config.Fx.robots.boom.shake) then
+				CameraController.shake(0.2, 0.45)
+			end
 		end
 	end
 end

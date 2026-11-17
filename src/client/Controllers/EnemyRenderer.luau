@@ -13,6 +13,13 @@
 -- slam on a windup, a tumble when knocked up, a wobble when stunned, and see-through while cloaked. Far
 -- robots pose every few frames. Status flags from the server tint and mark the body: ice blue when slowed or
 -- rooted, a spinning ring when stunned, a bubble or a guard plate when shielded.
+-- The nine newer kinds (Config.Enemies typeIds 10 to 18) add their own gear from their `body` flags: a riot
+-- shield (knocked away with chips while the guard is broken), an officer's cap, a long rifle and a glowing
+-- visor, a grenade bandolier and satchel, a medic's backpack (a green plus and a light that pulses while it
+-- repairs), a small fast build that crouches and lunges, a Mimic's street clothes, swept jet wings, and a
+-- hook launcher arm whose claw is gone while it flies. The second flags byte (EnemyBuffer `extra`,
+-- EnemySim.EXTRA) drives the rest: a rallied robot glows gold with a chevron over its head, and a disguised
+-- Mimic is drawn as a plain citizen (no robot gear, no health bar, left out of auto-aim) until it shows itself.
 -- Art: the R15 parts use the hero meshes (ReplicatedStorage.Art.Hero) once imported; the endoskeleton and the
 -- extras use the Blender robot meshes in ReplicatedStorage.Art.Robots (art/blender/robots.py, uploaded by
 -- nate, art/models/Robots.rbxm mapped by Rojo), each a clone sized by Config.ArtFit; a piece with no mesh
@@ -34,6 +41,8 @@ local RobotDamage = require(Shared:WaitForChild("RobotDamage"))
 local RigMath = require(Shared:WaitForChild("RigMath"))
 local NpcRig = require(Shared:WaitForChild("NpcRig"))
 local BodyShape = require(Shared:WaitForChild("BodyShape"))
+local ClothesMap = require(Shared:WaitForChild("ClothesMap"))
+local EnemySim = require(Shared:WaitForChild("EnemySim"))
 
 local QualityController = require(script.Parent.QualityController)
 local DebrisBudget = require(script.Parent.Parent.Fx.DebrisBudget)
@@ -42,6 +51,9 @@ local EnemyRenderer = {}
 
 local DELAY = 0.1
 local BITS = Status.BITS
+local EXTRA = EnemySim.EXTRA
+local GOLD = Color3.fromRGB(255, 205, 70) -- a Captain's rally
+local CLASSIC_FACE = "rbxasset://textures/face.png" -- Roblox's built-in face, the one plain citizens wear
 local ATTACK = 3
 local snapshots: { { t: number, rows: { [number]: any } } } = {}
 local lastSeq = 0
@@ -112,7 +124,37 @@ type Body = {
 	-- the uniform images this kind can wear (each version repeated by its odds) and the one shown now
 	outfits: { string },
 	outfit: string?,
+	-- the newer kinds: the second flags byte (EnemySim.EXTRA) and last frame's flags (for the edges, -1 = new)
+	extra: number,
+	prevFlags: number,
+	riotUp: boolean,
+	rally: BillboardGui,
+	medLight: BasePart?,
+	light: PointLight?,
+	-- a Mimic's disguise: its street colours by part, the street clothes and their tints, and a citizen's face
+	citizen: boolean,
+	street: { [string]: Color3 },
+	streetClothes: { [string]: { Texture } }?,
+	streetTint: { Color3 },
+	streetFace: Decal?,
 }
+
+-- The citizens' uploaded street clothes and faces (as CitizenRenderer picks them), so a disguised Mimic wears
+-- what the citizens around it wear; empty until nate uploads them
+local function uploadedIds(map: { [string]: number }): { string }
+	local out = {}
+	for _, id in map do
+		if id ~= 0 then
+			table.insert(out, "rbxassetid://" .. id)
+		end
+	end
+	table.sort(out)
+	return out
+end
+local STREET_SHIRTS = uploadedIds(Config.Creator.clothes.shirts)
+local STREET_PANTS = uploadedIds(Config.Creator.clothes.pants)
+local STREET = Config.Creator.clothes.on and #STREET_SHIRTS > 0 and #STREET_PANTS > 0
+local STREET_TINTS = Config.Destruction.citizens.clothesTints
 
 -- A kind's uploaded uniform images, each version repeated by its odds (Config.NpcLooks.versionOdds), so a
 -- robot's id picks Grunts most often and Elites rarely; empty until any version is uploaded
@@ -638,6 +680,215 @@ local function makeRobot(typeId: number): Body
 			0.25
 		)
 	end
+	-- The newer kinds' gear (PLACEHOLDER ART: plain parts until Blender meshes are made for them)
+	if body.riot then
+		-- a riot shield on the left forearm: held out in front (the forearm points forward in the guard pose,
+		-- so the plate stands across the body), with a window near the top and a trim stripe
+		local la, hand = size("LeftLowerArm"), size("LeftHand")
+		local sh = h * 0.5
+		local plate = CFrame.new(UT.X * 0.3, -(la.Y * 0.5 + hand.Y + 0.25), sh * 0.3)
+			* CFrame.Angles(math.rad(-90), 0, 0)
+		add("Riot", "LeftLowerArm", plate, Vector3.new(UT.X * 1.25, sh, 0.25), suit:Lerp(dark, 0.4), M)
+		add(
+			"RiotWin",
+			"LeftLowerArm",
+			plate * CFrame.new(0, sh * 0.3, -0.14),
+			Vector3.new(UT.X * 0.9, sh * 0.16, 0.06),
+			Color3.fromRGB(170, 210, 235),
+			Enum.Material.Glass,
+			nil,
+			0.3
+		)
+		add(
+			"RiotBar",
+			"LeftLowerArm",
+			plate * CFrame.new(0, -sh * 0.15, -0.14),
+			Vector3.new(UT.X * 1.1, sh * 0.08, 0.05),
+			trim,
+			SKIN
+		)
+	end
+	if body.cap then
+		-- a peaked officer's cap: the round crown over the hair, a dark peak and a gold badge
+		add(
+			"Cap",
+			"Head",
+			CFrame.new(0, HD.Y * 0.55, 0) * CFrame.Angles(0, 0, math.rad(90)),
+			Vector3.new(HD.Y * 0.32, HD.X * 1.15, HD.X * 1.15),
+			suit:Lerp(dark, 0.3),
+			Enum.Material.Fabric,
+			Enum.PartType.Cylinder
+		)
+		add(
+			"CapPeak",
+			"Head",
+			CFrame.new(0, HD.Y * 0.42, -HD.Z * 0.62) * CFrame.Angles(math.rad(-12), 0, 0),
+			Vector3.new(HD.X * 0.85, 0.08, HD.Z * 0.45),
+			Color3.fromRGB(25, 25, 30),
+			SKIN
+		)
+		add(
+			"CapBadge",
+			"Head",
+			CFrame.new(0, HD.Y * 0.56, -HD.X * 0.58),
+			Vector3.new(HD.X * 0.22, HD.Y * 0.16, 0.06),
+			trim,
+			M
+		)
+	end
+	if body.rifle then
+		-- a long rifle in the right hand (the left hand holds the barrel in the aim and carry poses): stock
+		-- behind the hand, a scope on top, a red tip the aim laser starts from
+		local len, w = h * 0.55, HD.X * 0.14
+		local grip = CFrame.new(0, -len * 0.25, 0) * CFrame.Angles(math.rad(90), 0, 0)
+		add("Rifle", "RightHand", grip, Vector3.new(w, w * 1.3, len), dark, M)
+		add(
+			"Scope",
+			"RightHand",
+			grip * CFrame.new(0, -w * 1.1, -len * 0.05),
+			Vector3.new(w * 0.8, w * 0.8, len * 0.3),
+			metal,
+			M
+		)
+		add(
+			"RifleTip",
+			"RightHand",
+			grip * CFrame.new(0, 0, len * 0.5 + 0.05),
+			Vector3.new(w * 0.7, w * 0.7, 0.12),
+			eye,
+			N
+		)
+	end
+	if body.visor then
+		add(
+			"Visor",
+			"Head",
+			CFrame.new(0, HD.Y * 0.06, -HD.Z * 0.5 - 0.04),
+			Vector3.new(HD.X * 0.92, HD.Y * 0.16, 0.08),
+			eye,
+			N
+		)
+	end
+	if body.bandolier then
+		-- a strap across the chest with three grenades on it, and a satchel on the right hip
+		local strapLen = math.sqrt(UT.X * UT.X + UT.Y * UT.Y)
+		local strap = CFrame.new(0, 0, -UT.Z * 0.5 - 0.05) * CFrame.Angles(0, 0, math.rad(40))
+		add(
+			"Strap",
+			"UpperTorso",
+			strap,
+			Vector3.new(UT.X * 0.2, strapLen, 0.1),
+			Color3.fromRGB(70, 55, 35),
+			Enum.Material.Fabric
+		)
+		for k = 1, 3 do
+			add(
+				"Grenade" .. k,
+				"UpperTorso",
+				strap * CFrame.new(0, (k - 2) * strapLen * 0.28, -0.12),
+				Vector3.one * UT.X * 0.17,
+				Color3.fromRGB(70, 85, 45),
+				M,
+				Enum.PartType.Ball
+			)
+		end
+		add(
+			"Satchel",
+			"LowerTorso",
+			CFrame.new(LT.X * 0.55, -LT.Y * 0.1, LT.Z * 0.1),
+			Vector3.new(LT.X * 0.25, LT.Y * 0.9, LT.Z * 0.7),
+			Color3.fromRGB(110, 85, 50),
+			Enum.Material.Fabric
+		)
+	end
+	local medLight: BasePart? = nil
+	local light: PointLight? = nil
+	if body.medpack then
+		-- a backpack with a green plus (never a red cross) and a green light on top that pulses while it mends
+		local depth = UT.Z * 0.55
+		local back = UT.Z * 0.5 + depth * 0.5
+		local green = Color3.fromRGB(70, 230, 120)
+		add(
+			"Medpack",
+			"UpperTorso",
+			CFrame.new(0, 0, back),
+			Vector3.new(UT.X * 0.75, UT.Y * 0.85, depth),
+			suit,
+			SKIN
+		)
+		local plus = CFrame.new(0, 0, back + depth * 0.5 + 0.02)
+		add("PlusH", "UpperTorso", plus, Vector3.new(UT.X * 0.4, UT.X * 0.12, 0.05), green, N)
+		add("PlusV", "UpperTorso", plus, Vector3.new(UT.X * 0.12, UT.X * 0.4, 0.05), green, N)
+		medLight = add(
+			"MedLight",
+			"UpperTorso",
+			CFrame.new(0, UT.Y * 0.425 + UT.X * 0.06, back),
+			Vector3.new(UT.X * 0.14, UT.X * 0.12, UT.X * 0.14),
+			green,
+			N
+		)
+		local pl = Instance.new("PointLight")
+		pl.Color = green
+		pl.Range = 8
+		pl.Brightness = 0
+		pl.Enabled = false
+		pl.Parent = medLight
+		light = pl
+	end
+	if body.wings then
+		-- swept jet wings on the back, tips glowing in the jet colour
+		local span, chord = UT.X * 1.0, UT.Y * 0.5
+		local tip = if body.jetColor then rgb(body.jetColor) else eye
+		for _, side in SIDES do
+			local sign = side[3]
+			local sweep = math.rad(25)
+			local wing = CFrame.new(
+				sign * (UT.X * 0.4 + span * 0.45 * math.cos(sweep)),
+				UT.Y * 0.2,
+				UT.Z * 0.55 + span * 0.45 * math.sin(sweep)
+			) * CFrame.Angles(0, -sign * sweep, sign * math.rad(8))
+			add("Wing" .. side[2], "UpperTorso", wing, Vector3.new(span, 0.12, chord), metal, M)
+			add(
+				"WingTip" .. side[2],
+				"UpperTorso",
+				wing * CFrame.new(sign * span * 0.5, 0, 0),
+				Vector3.new(0.15, 0.14, chord * 0.8),
+				tip,
+				N
+			)
+		end
+	end
+	if body.hookArm then
+		-- the right forearm is a hook launcher with a claw (the claw is gone while it flies on its cable)
+		local la = size("RightLowerArm")
+		local down = CFrame.Angles(math.rad(-90), 0, 0)
+		add(
+			"Launcher",
+			"RightLowerArm",
+			CFrame.new(0, -la.Y * 0.3, 0) * down,
+			Vector3.new(la.X * 1.9, la.X * 1.9, la.Y * 1.6),
+			dark,
+			M
+		)
+		add(
+			"Claw",
+			"RightLowerArm",
+			CFrame.new(0, -la.Y * 1.15, 0),
+			Vector3.new(la.X * 1.2, la.X * 0.6, la.X * 1.2),
+			trim,
+			M
+		)
+		for k, sign in { -1, 1 } do
+			add(
+				if k == 1 then "ClawA" else "ClawB",
+				"RightLowerArm",
+				CFrame.new(sign * la.X * 0.45, -la.Y * 1.35, 0) * CFrame.Angles(0, 0, sign * math.rad(20)),
+				Vector3.new(la.X * 0.25, la.X * 0.9, la.X * 0.4),
+				metal,
+				M
+			)
+		end
+	end
 	add(
 		"Stun",
 		"Head",
@@ -692,6 +943,46 @@ local function makeRobot(typeId: number): Body
 	fill.BorderSizePixel = 0
 	fill.Parent = back
 	bar.Parent = head
+	-- the rally chevron over the head (a billboard, so it reads from every side)
+	local rally = Instance.new("BillboardGui")
+	rally.Name = "Rally"
+	rally.Size = UDim2.fromScale(math.max(1, HD.X * 0.9), math.max(0.6, HD.X * 0.55))
+	rally.StudsOffset = Vector3.new(0, HD.Y + 1.2, 0)
+	rally.AlwaysOnTop = true
+	rally.LightInfluence = 0
+	rally.MaxDistance = 200
+	rally.Enabled = false
+	rally.Adornee = head
+	for _, k in { -1, 1 } do
+		local bar2 = Instance.new("Frame")
+		bar2.AnchorPoint = Vector2.new(0.5, 0.5)
+		bar2.Position = UDim2.fromScale(0.5 + k * 0.18, 0.5)
+		bar2.Size = UDim2.fromScale(0.5, 0.22)
+		bar2.Rotation = k * 35
+		bar2.BackgroundColor3 = GOLD
+		bar2.BorderSizePixel = 0
+		local stroke = Instance.new("UIStroke")
+		stroke.Color = Color3.fromRGB(90, 60, 10)
+		stroke.Thickness = 1.5
+		stroke.Parent = bar2
+		bar2.Parent = rally
+	end
+	rally.Parent = head
+	-- a Mimic's disguise: the citizens' uploaded street clothes when there are any (assign picks them), and a
+	-- citizen's face over the robot's eyes in the plain look
+	local streetClothes: { [string]: { Texture } }? = nil
+	local streetFace: Decal? = nil
+	if body.citizen then
+		if STREET then
+			streetClothes = NpcRig.dressPair(rig, STREET_SHIRTS[1], STREET_PANTS[1], NL.offsetSign)
+		end
+		if not faceDecal then
+			local d = NpcRig.face(rig, CLASSIC_FACE)
+			d.Name = "street"
+			d.Transparency = 1
+			streetFace = d
+		end
+	end
 	return {
 		model = model,
 		rig = rig,
@@ -732,7 +1023,70 @@ local function makeRobot(typeId: number): Body
 		hairs = hairs,
 		outfits = outfits,
 		outfit = if mode == "roblox" then outfits[1] else nil,
+		extra = 0,
+		prevFlags = -1,
+		riotUp = false,
+		rally = rally,
+		medLight = medLight,
+		light = light,
+		citizen = body.citizen == true,
+		street = {},
+		streetClothes = streetClothes,
+		streetTint = { Color3.new(1, 1, 1), Color3.new(1, 1, 1) },
+		streetFace = streetFace,
 	}
+end
+
+-- A colour near `c`, picked by `h` (a Mimic's street clothes: its kind's suit and trim, varied per robot)
+local function vary(c: Color3, h: number): Color3
+	local hue, sat, val = c:ToHSV()
+	hue = (hue + ((h % 21) - 10) / 100) % 1
+	sat = math.clamp(sat * (0.75 + ((h // 21) % 11) / 20), 0, 1)
+	val = math.clamp(val * (0.8 + ((h // 231) % 9) / 20), 0.08, 1)
+	return Color3.fromHSV(hue, sat, val)
+end
+
+-- A Mimic's disguise for one robot id: a citizen's colours on the 15 body parts (a shirt on the torso and
+-- upper arms, skin on the forearms, hands and head, trousers and darker shoes), or the citizens' own uploaded
+-- shirt and pants tinted like theirs (CitizenRenderer.dress) with skin under them, and a citizen's face
+local function disguiseFor(body: Body, id: number, skin: Color3)
+	local h = Rng.hash(id, 6011)
+	local shirt = vary(rgb(body.cfg.body.suit or body.cfg.body.metal), h)
+	local pants = vary(rgb(body.cfg.body.trim or body.cfg.body.metal), h // 2401)
+	local street: { [string]: Color3 } = { Head = skin, UpperTorso = shirt, LowerTorso = pants }
+	for _, side in SIDES do
+		local s = side[1]
+		street[s .. "UpperArm"] = shirt
+		street[s .. "LowerArm"] = skin
+		street[s .. "Hand"] = skin
+		street[s .. "UpperLeg"] = pants
+		street[s .. "LowerLeg"] = pants
+		street[s .. "Foot"] = pants:Lerp(Color3.new(0, 0, 0), 0.5)
+	end
+	local clothes = body.streetClothes
+	if clothes then
+		for pname in street do
+			street[pname] = skin
+		end
+		local top = STREET_SHIRTS[h % #STREET_SHIRTS + 1]
+		local bottom = STREET_PANTS[(h // 13) % #STREET_PANTS + 1]
+		body.streetTint = {
+			rgb(STREET_TINTS.shirts[(h // 211) % #STREET_TINTS.shirts + 1]),
+			rgb(STREET_TINTS.pants[(h // 4099) % #STREET_TINTS.pants + 1]),
+		}
+		for pname, list in clothes do
+			local upper = ClothesMap.half(pname) == 0
+			for _, t in list do
+				t.Texture = if upper then top else bottom
+			end
+		end
+	end
+	body.street = street
+	if body.streetFace then
+		body.streetFace.Texture = if STREET and #upFaces > 0
+			then upFaces[(h // 77777) % #upFaces + 1][1]
+			else CLASSIC_FACE
+	end
 end
 
 -- Give a pooled body to one robot id: its break order, skin and hair (the same on every device)
@@ -778,8 +1132,14 @@ local function assign(body: Body, id: number)
 			body.parts[i].Color = color
 		end
 	end
+	if body.citizen then
+		disguiseFor(body, id, skin)
+	end
 	NpcRig.rest(body.rig)
 	body.lastFlags = -1
+	body.prevFlags = -1
+	body.extra = 0
+	body.riotUp = false
 end
 
 local function acquire(typeId: number): Body
@@ -796,7 +1156,11 @@ end
 local function release(body: Body)
 	body.model.Parent = nil
 	body.bar.Enabled = false
+	body.rally.Enabled = false
 	body.sparks.Enabled = false
+	if body.light then
+		body.light.Enabled = false
+	end
 	pool[body.typeId] = pool[body.typeId] or {}
 	table.insert(pool[body.typeId], body)
 end
@@ -813,7 +1177,22 @@ local NEON_KEEP = {
 	Guard = true,
 	Stun = true,
 	Bubble = true,
+	RifleTip = true,
+	Visor = true,
+	PlusH = true,
+	PlusV = true,
+	MedLight = true,
+	WingTipL = true,
+	WingTipR = true,
 }
+
+-- what a disguised Mimic shows: the person (body, hair, eyes); every robot piece is hidden
+local PERSON: { [string]: boolean } = { Hair = true, Hair1 = true, Hair2 = true, Hair3 = true }
+for _, pname in BodyShape.PARTS do
+	PERSON[pname] = true
+end
+local RIOT = { Riot = true, RiotWin = true, RiotBar = true }
+local CLAW = { Claw = true, ClawA = true, ClawB = true }
 
 local function gone(body: Body, name: string): boolean
 	if body.broken[name] then
@@ -830,58 +1209,95 @@ local function gone(body: Body, name: string): boolean
 	return false
 end
 
--- Colours and transparency change only when the flags or the broken shell change (cheap)
+-- Colours and transparency change only when the flags, the extra byte or the broken shell change (cheap)
 local function applyFlags(body: Body)
 	local f = body.flags
-	if body.flashUntil > 0 or f == body.lastFlags then
+	local x = body.extra
+	local key = f + x * 256
+	if body.flashUntil > 0 or key == body.lastFlags then
 		return -- unchanged, or the white hit flash is showing
 	end
-	body.lastFlags = f
+	body.lastFlags = key
 	local cold = bit32.band(f, BITS.slow + BITS.root) ~= 0
 	local cloak = bit32.band(f, BITS.cloak) ~= 0
 	local shield = bit32.band(f, BITS.shield) ~= 0
 	local stun = bit32.band(f, BITS.stun) ~= 0
 	local windup = bit32.band(f, BITS.windup) ~= 0
-	-- the robot turns (and stays turned) the first time it winds up an attack or its shell starts to break
-	body.turned = body.turned or windup or body.brokenN > 0
-	local turned = body.turned
+	local disguised = body.citizen and bit32.band(x, EXTRA.disguise) ~= 0
+	local rally = bit32.band(x, EXTRA.rally) ~= 0
+	local hooked = bit32.band(x, EXTRA.hooked) ~= 0
+	local mending = bit32.band(x, EXTRA.mend) ~= 0
+	body.riotUp = shield and bit32.band(f, BITS.guardBroken) == 0
+	-- the robot turns (and stays turned) the first time it winds up an attack or its shell starts to break; a
+	-- Mimic stays human-eyed while disguised and is turned from the moment it shows itself
+	if not disguised then
+		body.turned = body.turned or windup or body.brokenN > 0 or body.citizen
+	end
+	local turned = body.turned and not disguised
+	local glow = if rally then GOLD else body.glow
 	for i, p in body.parts do
 		local name = body.names[i]
 		local color = body.baseColors[i]
 		local t = body.baseTransparency[i]
-		if cold and not NEON_KEEP[name] then
-			color = color:Lerp(ICE, 0.6)
-		end
-		if name == "IrisL" or name == "IrisR" then
-			if turned then
-				color = if windup then Color3.fromRGB(255, 40, 40) else body.glow
+		if disguised then
+			-- a plain citizen: street colours on the body and hair, a citizen's face decal (the robot's eyes are
+			-- hidden under it), no robot gear
+			if PERSON[name] then
+				color = body.street[name] or color
+			else
+				t = 1
 			end
-			p.Material = if turned then Enum.Material.Neon else Enum.Material.SmoothPlastic
-		elseif name == "EyeL" or name == "EyeR" then
-			if turned then
-				color = rgb(LOOK.turnedSclera)
+			p.Color = color
+			p.Transparency = t
+		else
+			if cold and not NEON_KEEP[name] then
+				color = color:Lerp(ICE, 0.6)
 			end
-		elseif windup and name == "Eyes" then
-			color = Color3.fromRGB(255, 40, 40)
+			if name == "IrisL" or name == "IrisR" then
+				if turned then
+					color = if windup then Color3.fromRGB(255, 40, 40) else glow
+				end
+				p.Material = if turned then Enum.Material.Neon else Enum.Material.SmoothPlastic
+			elseif name == "EyeL" or name == "EyeR" then
+				if turned then
+					color = rgb(LOOK.turnedSclera)
+				end
+			elseif windup and (name == "Eyes" or name == "Visor") then
+				color = Color3.fromRGB(255, 40, 40)
+			elseif rally and (name == "Eyes" or name == "Core" or name == "Visor") then
+				color = GOLD
+			end
+			if name == "Stun" then
+				t = if stun then 0.2 else 1
+			elseif name == "Bubble" then
+				t = if shield then 0.55 else 1
+			elseif name == "Guard" then
+				t = if shield then 0.25 else 1
+			elseif
+				(RIOT[name] and not body.riotUp) -- knocked aside while the guard is broken
+				or (CLAW[name] and hooked) -- the claw is out on its cable
+				or gone(body, name)
+			then
+				t = 1
+			elseif cloak then
+				t = if name == "Eyes" or name == "IrisL" or name == "IrisR" then 0.6 else 0.92
+			end
+			p.Color = color
+			p.Transparency = t
 		end
-		if name == "Stun" then
-			t = if stun then 0.2 else 1
-		elseif name == "Bubble" then
-			t = if shield then 0.55 else 1
-		elseif name == "Guard" then
-			t = if shield then 0.25 else 1
-		elseif gone(body, name) then
-			t = 1
-		elseif cloak then
-			t = if name == "Eyes" or name == "IrisL" or name == "IrisR" then 0.6 else 0.92
-		end
-		p.Color = color
-		p.Transparency = t
 		local tex = body.clothes and body.clothes[name]
 		if tex then
-			for _, x in tex do
-				x.Transparency = t
-				x.Color3 = if cold then ICE else Color3.new(1, 1, 1)
+			for _, c in tex do
+				c.Transparency = if disguised then 1 else t
+				c.Color3 = if cold then ICE else Color3.new(1, 1, 1)
+			end
+		end
+		local street = body.streetClothes and body.streetClothes[name]
+		if street then
+			local tint = body.streetTint[if ClothesMap.half(name) == 0 then 1 else 2]
+			for _, c in street do
+				c.Transparency = if disguised then t else 1
+				c.Color3 = tint
 			end
 		end
 		if name == "Head" and body.faceDecal and body.faces then
@@ -891,7 +1307,15 @@ local function applyFlags(body: Body)
 			d.Color3 = if windup then Color3.fromRGB(255, 110, 110) else Color3.new(1, 1, 1)
 		end
 	end
-	body.bar.Enabled = body.health < 0.999 and not cloak
+	if body.streetFace then
+		body.streetFace.Transparency = if disguised then 0 else 1
+	end
+	if body.light then
+		-- the light's glow on the ground is skipped on the Low preset (the neon light still pulses)
+		body.light.Enabled = mending and not cloak and QualityController.name ~= "low"
+	end
+	body.rally.Enabled = rally and not disguised and not cloak
+	body.bar.Enabled = body.health < 0.999 and not cloak and not disguised
 end
 
 -- A shell piece breaks off: two or three chips of it fly and sparks pop (local, inside the debris budget)
@@ -930,6 +1354,37 @@ local function chip(body: Body, name: string)
 	end
 end
 
+-- What changes on one frame's flags: the riot shield knocked away with a burst of chips the moment the
+-- guard breaks (only near the camera, like the shell chips)
+local function edges(body: Body, near: boolean)
+	local was = body.prevFlags
+	local f = body.flags
+	body.prevFlags = f
+	if was < 0 then
+		return -- new this frame
+	end
+	local broke = bit32.band(f, BITS.guardBroken) ~= 0 and bit32.band(was, BITS.guardBroken) == 0
+	if broke and near and body.byName.Riot then
+		chip(body, "Riot")
+		chip(body, "RiotBar")
+	end
+end
+
+-- A Medic Unit's backpack light pulses while it repairs
+local GREEN_DIM = Color3.fromRGB(30, 110, 60)
+local function pulse(body: Body, now: number)
+	local p, pl = body.medLight, body.light
+	if not p or body.flashUntil > 0 or bit32.band(body.flags, BITS.cloak) ~= 0 then
+		return
+	end
+	local k = 0.5 + 0.5 * math.sin(now * 9)
+	local i = body.index.MedLight
+	p.Color = GREEN_DIM:Lerp(body.baseColors[i], k)
+	if pl and pl.Enabled then
+		pl.Brightness = 0.5 + k * 2
+	end
+end
+
 -- Break or restore shell pieces to match the robot's health
 local function updateShell(body: Body, near: boolean)
 	local spark = body.health < LOOK.sparksBelow and bit32.band(body.flags, BITS.cloak) == 0
@@ -953,9 +1408,13 @@ local function updateShell(body: Body, near: boolean)
 	body.lastFlags = -1
 end
 
+local function disguised(body: Body): boolean
+	return body.citizen and bit32.band(body.extra, EXTRA.disguise) ~= 0
+end
+
 function EnemyRenderer.flash(id: number)
 	local body = live[id]
-	if body then
+	if body and not disguised(body) then
 		body.flashUntil = os.clock() + Config.Fx.hitFlash
 		for i, p in body.parts do
 			if body.baseTransparency[i] < 1 and not gone(body, body.names[i]) then
@@ -1017,11 +1476,19 @@ function EnemyRenderer.position(id: number): Vector3?
 	return body and body.pos
 end
 
--- Drawn enemies for aiming and the target hint; cloaked Sneak Bots are left out of auto-aim
+-- Where one of a drawn robot's pieces is now (the rifle tip, the hook launcher's claw, a hand), or nil
+function EnemyRenderer.point(id: number, piece: string): Vector3?
+	local body = live[id]
+	local p = body and body.byName[piece]
+	return p and p.Position
+end
+
+-- Drawn enemies for aiming and the target hint; cloaked Sneak Bots and disguised Mimics are left out of
+-- auto-aim
 function EnemyRenderer.each(): { [number]: Vector3 }
 	local out = {}
 	for id, body in live do
-		if bit32.band(body.flags, BITS.cloak) == 0 then
+		if bit32.band(body.flags, BITS.cloak) == 0 and not disguised(body) then
 			out[id] = body.pos
 		end
 	end
@@ -1031,6 +1498,12 @@ end
 function EnemyRenderer.flags(id: number): number
 	local body = live[id]
 	return if body then body.flags else 0
+end
+
+-- The second flags byte (EnemySim.EXTRA) of a drawn robot, 0 when it is not drawn
+function EnemyRenderer.extra(id: number): number
+	local body = live[id]
+	return if body then body.extra else 0
 end
 
 local function onDelta(b: buffer)
@@ -1076,11 +1549,22 @@ local function pose(
 	local attacking = body.state == ATTACK
 	local swinging = now < body.swingUntil
 	local speed = body.speed
-	body.phase += dt * math.clamp(speed, 0, 30) * 0.45
+	local look = cfg.body
+	local extra = body.extra
+	local small = look.small == true
+	local lunging = small and bit32.band(extra, EXTRA.lunge) ~= 0
+	-- a Swarmer's short legs patter faster, and it runs crouched, leaning into it
+	body.phase += dt * math.clamp(speed, 0, 30) * (if small then 0.75 else 0.45)
+	local lean = if small then math.clamp(speed / 25, 0, 1) else 0
 	-- e.y is the body centre for ground robots (the soles half its height below) and the hips for flyers
 	local root = CFrame.new(body.pos) * CFrame.Angles(0, body.yaw, 0)
 	if flyer then
 		root *= CFrame.new(0, math.sin(now * 3 + id) * 0.35, 0) * CFrame.Angles(math.rad(-12), 0, 0)
+	end
+	if lunging then
+		root *= CFrame.Angles(math.rad(-55), 0, 0) -- a Swarmer's lunge: flat out, reaching
+	elseif lean > 0 then
+		root *= CFrame.Angles(math.rad(-16 * lean), 0, 0)
 	end
 	if lifted then
 		root *= CFrame.Angles(math.rad((now * 540) % 360), 0, math.rad(25)) -- tumble
@@ -1093,13 +1577,19 @@ local function pose(
 	if not joints then
 		return
 	end
-	local swingA = if flyer or lifted then 0 else math.clamp(speed / 20, 0, 1) * math.rad(40)
+	local swingA = if flyer or lifted
+		then 0
+		else math.clamp(speed / 20, 0, 1) * math.rad(if small then 55 else 40)
 	local s = math.sin(body.phase)
-	NpcRig.turn(
-		rig,
-		"Waist",
-		if cfg.ai == "sneak" and not attacking then CFrame.Angles(math.rad(-18), 0, 0) else CFrame.identity -- crouched creep
-	)
+	local waist = CFrame.identity
+	if cfg.ai == "sneak" and not attacking then
+		waist = CFrame.Angles(math.rad(-18), 0, 0) -- crouched creep
+	elseif small and not lunging then
+		waist = CFrame.Angles(math.rad(-10 - 14 * lean), 0, 0) -- a Swarmer's crouched scuttle
+	elseif look.riot and body.riotUp then
+		waist = CFrame.Angles(math.rad(-8), 0, 0) -- braced behind the shield
+	end
+	NpcRig.turn(rig, "Waist", waist)
 	NpcRig.turn(rig, "Jaw", CFrame.new(0, if attacking or windup then -L.parts.Head.size[2] * 0.06 else 0, 0))
 	-- the cape sways with speed
 	NpcRig.turn(
@@ -1110,20 +1600,46 @@ local function pose(
 	if stunned then
 		NpcRig.turn(rig, "Stun", CFrame.Angles(0, now * 6, 0))
 	end
+	local aiming = look.rifle and (attacking or bit32.band(extra, EXTRA.aim) ~= 0)
+	local mending = look.medpack and bit32.band(extra, EXTRA.mend) ~= 0
+	local launching = look.hookArm and (attacking or bit32.band(extra, EXTRA.hooked) ~= 0)
 	for _, side in SIDES do
 		local name, sign = side[1], side[3]
-		-- arms: aiming forward when attacking, raised overhead on a windup; elbows bend forward
-		local upperA, elbowA = -s * sign * swingA * 0.8, math.rad(15)
-		if windup then
+		-- arms: aiming forward when attacking, raised overhead on a windup; elbows bend forward. yawA swings a
+		-- forward arm in toward the middle (both hands on a rifle)
+		local upperA, elbowA, yawA = -s * sign * swingA * 0.8, math.rad(15), 0
+		if look.riot and body.riotUp and sign < 0 then
+			upperA, elbowA = math.rad(75), math.rad(15) -- the shield arm held out in front
+		elseif look.rifle and not lifted then
+			-- the rifle in both hands: shouldered and level while it aims, held low across the body otherwise
+			if aiming then
+				upperA, elbowA = math.rad(if sign > 0 then 90 else 85), math.rad(if sign > 0 then 0 else 15)
+			else
+				upperA, elbowA = math.rad(if sign > 0 then 25 else 35), math.rad(if sign > 0 then 65 else 60)
+			end
+			yawA = if sign < 0 then math.rad(-30) else math.rad(8)
+		elseif lunging then
+			upperA, elbowA = math.rad(150), math.rad(10) -- reaching out ahead
+		elseif windup then
 			upperA, elbowA = math.rad(160), math.rad(20)
 		elseif swinging then
 			upperA, elbowA = math.rad(if sign > 0 then -95 else 30), 0
+		elseif sign > 0 and (launching or mending) then
+			upperA, elbowA = math.rad(if mending then 80 else 90), 0 -- the hook launcher aimed, or the repair hand out
 		elseif attacking and (flyer or cfg.ai == "thief" or cfg.ai == "sentry") and sign > 0 then
 			upperA, elbowA = math.rad(90), 0 -- gun arm up
 		elseif flyer then
 			upperA, elbowA = math.rad(-20), math.rad(25)
+		elseif small then
+			upperA, elbowA = math.rad(-35) - s * sign * swingA * 0.5, math.rad(40) -- arms swept back as it runs
 		end
-		NpcRig.turn(rig, name .. "Shoulder", CFrame.Angles(upperA, 0, 0))
+		NpcRig.turn(
+			rig,
+			name .. "Shoulder",
+			if yawA ~= 0
+				then CFrame.Angles(0, yawA, 0) * CFrame.Angles(upperA, 0, 0)
+				else CFrame.Angles(upperA, 0, 0)
+		)
 		NpcRig.turn(rig, name .. "Elbow", CFrame.Angles(elbowA, 0, 0))
 		-- legs: knees bend back
 		local thighA = s * sign * swingA
@@ -1132,6 +1648,10 @@ local function pose(
 			thighA, kneeA = math.rad(-10), math.rad(35)
 		elseif cfg.ai == "sentry" then
 			thighA, kneeA = math.rad(-20 * sign), math.rad(20)
+		elseif lunging then
+			thighA, kneeA = math.rad(-35 + 10 * sign), math.rad(15) -- legs stretched out behind
+		elseif small then
+			thighA, kneeA = thighA + math.rad(20), kneeA + math.rad(25) -- crouched
 		end
 		NpcRig.turn(rig, name .. "Hip", CFrame.Angles(thighA, 0, 0))
 		NpcRig.turn(rig, name .. "Knee", CFrame.Angles(-kneeA, 0, 0))
@@ -1206,6 +1726,7 @@ local function render()
 		body.health = rb.health
 		body.state = rb.state
 		body.flags = rb.flags
+		body.extra = rb.extra or 0
 		body.fill.Size = UDim2.fromScale(rb.health, 1)
 		if body.flashUntil > 0 and now >= body.flashUntil then
 			body.flashUntil = 0
@@ -1214,6 +1735,10 @@ local function render()
 		local dist = (pos - cam).Magnitude
 		updateShell(body, dist < LOOK.chipRange)
 		applyFlags(body)
+		edges(body, dist < LOOK.chipRange)
+		if body.medLight and bit32.band(body.extra, EXTRA.mend) ~= 0 and dist < LOOK.poseNear then
+			pulse(body, now)
+		end
 		pose(body, id, now, dt, roots, cframes, dist < LOOK.poseNear or (frame + id) % LOOK.poseEvery == 0)
 	end
 	if #roots > 0 then

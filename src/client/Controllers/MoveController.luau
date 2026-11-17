@@ -1055,7 +1055,12 @@ function MoveController.init()
 		end
 		local move = Vector3.new(k.x, k.y, k.z)
 		local flat = Vector3.new(move.X, 0, move.Z)
-		MoveController.arcTo(r.Position + flat, k.time or 0.35, math.max(2, move.Y))
+		-- drop (optional, usually negative): a Grappler's hook pulls a flying hero down toward it
+		MoveController.arcTo(
+			r.Position + flat + Vector3.new(0, k.drop or 0, 0),
+			k.time or 0.35,
+			math.max(2, move.Y)
+		)
 	end)
 	player:GetAttributeChangedSignal("Downed"):Connect(function()
 		if hum and MoveController.mode == "ground" then
