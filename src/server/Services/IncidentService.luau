@@ -9,6 +9,11 @@
 --   runner gets away); nobody near it for 45 s, or its hero flew 600 studs off: it quietly goes.
 -- * Raid prep incidents run while a world boss counts down; each clear weakens the boss (Cleared signal).
 -- * Players within 450 studs get Incident.Spawn once and Incident.Update at 2 Hz until it ends.
+-- * 2026-11-17 (more activities): 24 templates and six new step kinds (nest, leader, find, convoy, barrage,
+--   tug; Config.Incidents). Templates whose robot types are off or not unlocked at the level are skipped
+--   (IncidentPlan.available). From level 40 an incident may roll Heroic (Shared.HeroicRules): robots 5
+--   levels up, one more in each squad, x1.5 pay and a higher gear roll. A step's big moments send a "beat"
+--   toast (a line plus an existing juice action) to the heroes nearby.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -27,6 +32,8 @@ local IncidentSpots = require(Shared:WaitForChild("IncidentSpots"))
 local ZoneLevel = require(Shared:WaitForChild("ZoneLevel"))
 local WorldClock = require(Shared:WaitForChild("WorldClock"))
 local EventPlan = require(Shared:WaitForChild("EventPlan"))
+local HeroicRules = require(Shared:WaitForChild("HeroicRules"))
+local Progress = require(Shared:WaitForChild("Progress"))
 
 local CityBuilder = require(script.Parent.CityBuilder)
 local HeroService = require(script.Parent.HeroService)
@@ -69,6 +76,15 @@ export type Live = {
 	ended: number?,
 	medal: string?,
 	builtStep: number,
+	-- 2026-11-17 step kinds
+	targets: { [number]: boolean }, -- the robots that count for the current step
+	stepThings: { any }, -- what the current step built that goes when it ends (crowds, huddles, rings)
+	stepPos: Vector3?, -- where the current step stands (a hold in front of a building)
+	focus: Vector3?, -- where the next rescue waits (the towed car)
+	leaderId: number?,
+	convoy: { ids: { number }, path: { Vector3 }, length: number, travelled: number }?,
+	tug: { car: Model, rope: BasePart, path: { Vector3 }, length: number, moved: number }?,
+	barrage: { huddles: { Vector3 }, nextAt: number, shell: { at: Vector3, lands: number, ring: Model }? }?,
 }
 
 local live: { [number]: Live } = {}
@@ -218,35 +234,321 @@ local function propAt(inc: Live, kind: string)
 	table.insert(inc.things, m)
 end
 
+local function valveModel(m: Model)
+	-- PLACEHOLDER ART: a burst pipe and its valve wheel with a column of spray
+	SiteKit.part(
+		m,
+		Vector3.new(3, 3, 3),
+		CFrame.new(0, 1.5, 0),
+		Color3.fromRGB(90, 96, 104),
+		Enum.Material.Metal
+	)
+	SiteKit.part(
+		m,
+		Vector3.new(0.6, 4, 4),
+		CFrame.new(0, 4, 0) * CFrame.Angles(0, 0, math.rad(90)),
+		Color3.fromRGB(220, 60, 50),
+		Enum.Material.Metal,
+		Enum.PartType.Cylinder
+	)
+	local spray = SiteKit.part(
+		m,
+		Vector3.new(2.4, 16, 2.4),
+		CFrame.new(1.5, 9, 0),
+		Color3.fromRGB(120, 190, 255),
+		Enum.Material.Glass,
+		Enum.PartType.Block
+	)
+	spray.Name = "Spray"
+	spray.Transparency = 0.45
+end
+
+local OBJECT_MODELS: { [string]: (Model) -> () } = {
+	Tram = tramModel,
+	Relay = relayModel,
+	Valve = valveModel,
+}
+
+-- PLACEHOLDER ART: what a hold step stands under (a scaffold frame, a swinging crate, a pile of crates)
+local function holdProp(inc: Live, kind: string, at: Vector3)
+	local m = SiteKit.model(kind)
+	if kind == "Scaffold" then
+		for _, o in { { -5, -5 }, { 5, -5 }, { -5, 5 }, { 5, 5 } } do
+			SiteKit.part(
+				m,
+				Vector3.new(0.6, 22, 0.6),
+				CFrame.new(at + Vector3.new(o[1], 11, o[2])) * CFrame.Angles(math.rad(o[1] * 0.8), 0, 0),
+				Color3.fromRGB(200, 170, 70),
+				Enum.Material.Metal
+			)
+		end
+		for h = 1, 3 do
+			SiteKit.part(
+				m,
+				Vector3.new(11, 0.5, 11),
+				CFrame.new(at + Vector3.new(0, h * 7, 0)) * CFrame.Angles(math.rad(6 * h), 0, 0),
+				Color3.fromRGB(150, 120, 80),
+				Enum.Material.WoodPlanks
+			)
+		end
+	elseif kind == "Load" then
+		SiteKit.part(
+			m,
+			Vector3.new(0.3, 30, 0.3),
+			CFrame.new(at + Vector3.new(0, 34, 0)),
+			Color3.fromRGB(40, 40, 46),
+			Enum.Material.Metal
+		)
+		SiteKit.part(
+			m,
+			Vector3.new(7, 5, 7),
+			CFrame.new(at + Vector3.new(0, 16, 0)) * CFrame.Angles(math.rad(12), 0, math.rad(8)),
+			Color3.fromRGB(70, 120, 180),
+			Enum.Material.Metal
+		)
+	elseif kind == "Crates" then
+		for i = 0, 3 do
+			SiteKit.part(
+				m,
+				Vector3.new(4, 4, 4),
+				CFrame.new(at + Vector3.new(-6 + i * 4.2, 2, 6)),
+				Color3.fromRGB(150, 110, 60),
+				Enum.Material.WoodPlanks
+			)
+		end
+	end
+	table.insert(inc.things, m)
+end
+
+local function carModel(m: Model)
+	SiteKit.part(
+		m,
+		Vector3.new(6, 3, 11),
+		CFrame.new(0, 2, 0),
+		Color3.fromRGB(200, 70, 60),
+		Enum.Material.Metal
+	)
+	SiteKit.part(
+		m,
+		Vector3.new(5.6, 2.2, 6),
+		CFrame.new(0, 4.4, 0.5),
+		Color3.fromRGB(150, 200, 230),
+		Enum.Material.Glass
+	)
+end
+
+-- A step's big moment: a toast line and its juice action for the heroes near it (Config.Incidents.beats)
+local function beat(key: string, at: Vector3)
+	if not IC.beats[key] then
+		return
+	end
+	for _, h in SiteKit.heroesIn(at, IC.beatRadius) do
+		if h.player then
+			Net.fire("Toast", h.player, { id = "beat", beat = key, x = at.X, y = at.Y, z = at.Z })
+		end
+	end
+end
+
+local function robotLevel(inc: Live): number
+	return HeroicRules.robotLevel(Config, inc.plan.level, inc.plan.heroic)
+end
+
+-- Spawn a squad for the incident; target: these count for the current step
+local function squad(inc: Live, rows: { any }, at: Vector3, ring: number, target: boolean): { number }
+	local ids = SiteKit.squad(rows, at, robotLevel(inc), inc.id, ring)
+	for _, id in ids do
+		inc.enemies[id] = true
+		byEnemy[id] = inc.id
+		if target then
+			inc.targets[id] = true
+		end
+		table.insert(inc.things, id)
+	end
+	return ids
+end
+
+-- A street route of Vector3 points from (x, z): legs of `leg` studs over open ground
+local function route(x: number, z: number, legs: number, leg: number): ({ Vector3 }, number)
+	local pts = IncidentSpots.streetPath(Config, CityBuilder.world, x, z, legs, leg, rng)
+	local path, length = {}, 0
+	for i, p in pts do
+		table.insert(path, Vector3.new(p[1], Config.City.ground.y + 0.5, p[3]))
+		if i > 1 then
+			length += (path[i] - path[i - 1]).Magnitude
+		end
+	end
+	return path, length
+end
+
+-- The point `d` studs along a path, and the yaw facing along it
+local function along(path: { Vector3 }, d: number): (Vector3, number)
+	local left = math.max(0, d)
+	for i = 1, #path - 1 do
+		local a, b = path[i], path[i + 1]
+		local seg = (b - a).Magnitude
+		if left <= seg then
+			return a:Lerp(b, left / math.max(seg, 1e-3)), math.atan2(-(b.X - a.X), -(b.Z - a.Z))
+		end
+		left -= seg
+	end
+	return path[#path], 0
+end
+
+local function endStep(inc: Live)
+	if inc.tug then
+		-- the driver waits by the car where it stopped
+		inc.focus = inc.tug.car:GetPivot().Position
+		inc.tug.rope.Transparency = 1 -- the cable snaps
+		inc.tug = nil
+	end
+	if inc.stepPos and next(inc.stepThings) then
+		CitizenService.danger(inc.stepPos.X, inc.stepPos.Z, 30, 4) -- the crowd runs off
+	end
+	SiteKit.clear(inc.stepThings)
+	table.clear(inc.targets)
+	inc.convoy = nil
+	inc.barrage = nil
+end
+
 local function startStep(inc: Live)
 	local step = IncidentPlan.current(inc.plan)
 	if not step then
 		return
+	end
+	if inc.builtStep > 0 then
+		endStep(inc)
 	end
 	inc.stepStarted = os.clock()
 	inc.builtStep = inc.plan.step
 	local level = inc.plan.level
 	local row = step.def
 	local tid = inc.plan.tid
-	if step.kind == "defeat" then
-		local ids =
-			SiteKit.squad(step.spawn :: any, inc.pos, level, inc.id, if tid == "ShardCrate" then 10 else 16)
-		for _, id in ids do
-			inc.enemies[id] = true
-			byEnemy[id] = inc.id
-			table.insert(inc.things, id)
+	local sx, sy, sz = IncidentSpots.stepAt(Config, CityBuilder.world, inc.spot, row.at, rng)
+	local here = Vector3.new(sx, sy, sz)
+	inc.stepPos = here
+	if step.kind == "defeat" or step.kind == "nest" then
+		local ring = if tid == "ShardCrate" then 10 else 16
+		if step.kind == "nest" then
+			-- up on the roof: the ring fits inside it
+			local b = inc.spot.building and CityBuilder.world.buildings[inc.spot.building]
+			ring = if b then math.clamp(math.min(b.sx, b.sz) / 2 - 6, 4, 12) else 8
 		end
-		-- fewer spawned than needed (the server cap): count only what exists
-		step.need = math.min(step.need, math.max(1, #ids))
+		local ids = squad(inc, step.spawn :: any, here, ring, true)
+		-- the server cap may spawn fewer, a Swarmer brings its pack: every robot there counts
+		step.need = math.max(1, #ids)
 		if tid == "VaultBreach" then
 			propAt(inc, "Vault")
 		elseif tid == "ShardCrate" then
 			propAt(inc, "Crate")
 		end
+	elseif step.kind == "leader" then
+		local lead = squad(inc, { { kind = step.leader :: string, n = 1 } }, here, 6, true)
+		local escort = squad(inc, step.spawn :: any, here, 16, false)
+		if #lead > 0 then
+			inc.leaderId = lead[1]
+			-- a Captain's own company is part of the warband, not the goal
+			for i = 2, #lead do
+				inc.targets[lead[i]] = nil
+			end
+		else
+			-- no leader could spawn (the server cap): the warband itself is the goal
+			for _, id in escort do
+				inc.targets[id] = true
+			end
+			step.need = math.max(1, #escort)
+		end
+	elseif step.kind == "find" then
+		-- the crowd: citizens standing about, the Mimic among them looking just like one
+		for i = 1, row.crowd or 5 do
+			local a = i / (row.crowd or 5) * math.pi * 2 + rng:range(-0.3, 0.3)
+			local r = rng:range(4, 11)
+			local at = Vector3.new(here.X + math.cos(a) * r, here.Y, here.Z + math.sin(a) * r)
+			table.insert(inc.stepThings, SiteKit.bystander(at))
+		end
+		local ids = squad(inc, step.spawn :: any, here, 7, true)
+		step.need = math.max(1, #ids)
+	elseif step.kind == "convoy" then
+		local path, length = route(here.X, here.Z, row.legs or 6, IC.convoyLeg)
+		local spec = (step.spawn :: any)[1]
+		local ids = {}
+		for i = 1, spec.n do
+			local at = along(path, -(i - 1) * IC.convoyGap)
+			local id = EnemyService.spawnAt(spec.kind, at, robotLevel(inc), inc.id, true)
+			if id then
+				inc.enemies[id] = true
+				inc.targets[id] = true
+				byEnemy[id] = inc.id
+				table.insert(inc.things, id)
+				table.insert(ids, id)
+			end
+		end
+		step.need = math.max(1, #ids)
+		if #ids == 0 or length < 40 then
+			inc.plan.failed = true
+			return
+		end
+		-- the squad it is heading for waits at the end of the route (the next step's robots)
+		inc.convoy = { ids = ids, path = path, length = length, travelled = 0 }
+		local goal = SiteKit.ring(path[#path], 8, Color3.fromRGB(120, 255, 170))
+		table.insert(inc.stepThings, goal)
+		inc.spot.x, inc.spot.z = path[#path].X, path[#path].Z
+	elseif step.kind == "barrage" then
+		local huddles = {}
+		for i = 1, row.huddles or 3 do
+			local a = i / (row.huddles or 3) * math.pi * 2
+			local hx, hy, hz = IncidentSpots.groundNear(
+				Config,
+				CityBuilder.world,
+				here.X + math.cos(a) * 16,
+				here.Z + math.sin(a) * 16,
+				8,
+				rng
+			)
+			local at = Vector3.new(hx, hy, hz)
+			table.insert(huddles, at)
+			for k = 1, 2 do
+				table.insert(inc.stepThings, SiteKit.bystander(at + Vector3.new(k * 2 - 3, 0, 0)))
+			end
+		end
+		squad(inc, step.spawn :: any, here, 42, true)
+		if next(inc.targets) == nil then
+			IncidentPlan.endBarrage(inc.plan) -- no Bombers could come: nothing to shield from
+			return
+		end
+		inc.barrage = { huddles = huddles, nextAt = os.clock() + 2, shell = nil }
+		CitizenService.danger(here.X, here.Z, 50, IC.templates[tid].time)
+	elseif step.kind == "tug" then
+		local path, length = route(here.X, here.Z, 4, row.dist / 3)
+		local car = SiteKit.prop("TowedCar", carModel)
+		SiteKit.place(car, path[1])
+		table.insert(inc.things, car) -- the car stays for the driver's rescue
+		local rope = SiteKit.part(
+			car,
+			Vector3.new(0.3, 0.3, 1),
+			CFrame.new(path[1]),
+			Color3.fromRGB(60, 60, 66),
+			Enum.Material.Metal
+		)
+		rope.Name = "Cable"
+		local ahead = along(path, 14)
+		local ids = squad(inc, step.spawn :: any, ahead, 3, true)
+		step.need = math.max(1, #ids)
+		if #ids == 0 or length < 30 then
+			inc.plan.failed = true
+			return
+		end
+		inc.tug = { car = car, rope = rope, path = path, length = math.min(length, row.dist), moved = 0 }
 	elseif step.kind == "rescue" then
 		local spot = inc.spot
 		local points = spot.points or { { inc.pos.X, inc.pos.Y, inc.pos.Z } }
-		local px, py, pz = IncidentSpots.groundNear(Config, CityBuilder.world, spot.x, spot.z, 50, rng)
+		if inc.focus and not (spot.kind == "tower") then
+			points = { { inc.focus.X, inc.focus.Y, inc.focus.Z } }
+		end
+		local cx, cz = spot.x, spot.z
+		if inc.focus then
+			cx, cz = inc.focus.X, inc.focus.Z
+		end
+		local px, py, pz = IncidentSpots.groundNear(Config, CityBuilder.world, cx, cz, 50, rng)
 		if spot.kind == "tower" then
 			local b = CityBuilder.world.buildings[spot.building :: number]
 			px, py, pz =
@@ -258,7 +560,9 @@ local function startStep(inc: Live)
 			local pt = points[(i - 1) % #points + 1]
 			local at = Vector3.new(pt[1], pt[2], pt[3])
 			if spot.kind == "tower" then
-				fireProps(inc, at + Vector3.new(0, 4, 0))
+				if tid == "TowerFire" then
+					fireProps(inc, at + Vector3.new(0, 4, 0))
+				end
 				-- a ledge to stand on
 				local ledge = SiteKit.model("Balcony")
 				SiteKit.part(
@@ -293,8 +597,11 @@ local function startStep(inc: Live)
 		CitizenService.danger(inc.pos.X, inc.pos.Z, 60, IC.templates[tid].time)
 	elseif step.kind == "hold" then
 		local radius = row.radius or 10
-		inc.ring = SiteKit.ring(inc.pos, radius)
-		table.insert(inc.things, inc.ring)
+		inc.ring = SiteKit.ring(here, radius)
+		table.insert(inc.things, inc.ring :: Model)
+		if row.prop then
+			holdProp(inc, row.prop, here)
+		end
 		if tid == "FallingSign" then
 			local top = (inc.spot.points :: any)[1]
 			local dir = inc.spot.dir :: any
@@ -321,9 +628,9 @@ local function startStep(inc: Live)
 			CitizenService.danger(inc.pos.X, inc.pos.Z, 30, IC.templates[tid].time)
 		end
 	elseif step.kind == "object" then
-		local hp = IncidentPlan.objectHp(Config, row.hits, level)
+		local hp = IncidentPlan.objectHp(Config, row.hits, robotLevel(inc))
 		local isTram = tid == "RunawayTram"
-		local pos = if isTram then Vector3.new(inc.spot.x, inc.spot.y, inc.spot.z) else inc.pos
+		local pos = if isTram then Vector3.new(inc.spot.x, inc.spot.y, inc.spot.z) else here
 		local yaw = if isTram then math.rad(90) else 0
 		inc.object = SiteKit.object(
 			row.label or "Object",
@@ -331,7 +638,7 @@ local function startStep(inc: Live)
 			if isTram then 5 else 8,
 			if isTram then 9 else 5,
 			hp,
-			if isTram then tramModel else relayModel,
+			OBJECT_MODELS[row.label or ""] or relayModel,
 			function(heroId)
 				if heroId then
 					inc.helpers[heroId] = true
@@ -349,9 +656,11 @@ local function startStep(inc: Live)
 	elseif step.kind == "runner" then
 		local path = inc.spot.points :: any
 		local p0 = path[1]
-		local id = EnemyService.spawnAt(row.enemy, Vector3.new(p0[1], p0[2], p0[3]), level, inc.id, true)
+		local id =
+			EnemyService.spawnAt(row.enemy, Vector3.new(p0[1], p0[2], p0[3]), robotLevel(inc), inc.id, true)
 		if id then
 			inc.enemies[id] = true
+			inc.targets[id] = true
 			byEnemy[id] = inc.id
 			table.insert(inc.things, id)
 			inc.runner = { id = id, idx = 1, t = 0 }
@@ -365,43 +674,21 @@ end
 -- Life of an incident
 ---------------------------------------------------------------------------
 
-local function spawnFor(hero: any, pos: Vector3): boolean
-	local hm = meta[hero.id] or { next = 0, last = nil }
-	meta[hero.id] = hm
-	local world = CityBuilder.world
-	local valid = IncidentSpots.kinds(Config, world, pos.X, pos.Z, S.radius)
-	local tid = IncidentPlan.pick(
-		IC,
-		rng,
-		hero.side,
-		valid,
-		hm.last,
-		night(),
-		IncidentService.prep,
-		Config.World.clock.nightVillain
-	)
-	if not tid then
-		return false
-	end
-	local t = IC.templates[tid]
-	local spot = IncidentSpots.find(Config, world, t.where, pos.X, pos.Z, S.minDistance, S.radius, rng, {
+local function findSpot(t: any, pos: Vector3, minD: number, maxD: number): IncidentSpots.Spot?
+	return IncidentSpots.find(Config, CityBuilder.world, t.where, pos.X, pos.Z, minD, maxD, rng, {
 		hops = t.steps[1].hops,
 		run = (t.steps[1].moving or 7) * t.time * 0.95,
 	})
-	if not spot then
-		return false
-	end
-	local at = Vector3.new(spot.x, spot.y, spot.z)
-	if tooClose(at.X, at.Z) then
-		return false
-	end
-	local level = ZoneLevel.at(Config, at.X, at.Z, hero.level, world.tiles)
+end
+
+local function newLive(hero: any, tid: string, spot: IncidentSpots.Spot, level: number, heroic: boolean): Live
 	nextId += 1
-	local inc: Live = {
+	local at = Vector3.new(spot.x, spot.y, spot.z)
+	return {
 		id = nextId,
 		owner = hero.id,
 		side = hero.side,
-		plan = IncidentPlan.new(IC, rng, tid, level, os.clock()),
+		plan = IncidentPlan.new(IC, rng, tid, level, os.clock(), { config = Config, heroic = heroic }),
 		pos = at,
 		spot = spot,
 		things = {},
@@ -411,10 +698,53 @@ local function spawnFor(hero: any, pos: Vector3): boolean
 		lastNear = os.clock(),
 		stepStarted = os.clock(),
 		builtStep = 0,
+		targets = {},
+		stepThings = {},
 	}
+end
+
+local function spawnFor(hero: any, pos: Vector3): boolean
+	local hm = meta[hero.id] or { next = 0, last = nil }
+	meta[hero.id] = hm
+	local world = CityBuilder.world
+	local valid = IncidentSpots.kinds(Config, world, pos.X, pos.Z, S.radius)
+	local here = ZoneLevel.at(Config, pos.X, pos.Z, hero.level, world.tiles)
+	local tid = IncidentPlan.pick(
+		IC,
+		rng,
+		hero.side,
+		valid,
+		hm.last,
+		night(),
+		IncidentService.prep,
+		Config.World.clock.nightVillain,
+		Config,
+		here
+	)
+	if not tid then
+		return false
+	end
+	local t = IC.templates[tid]
+	local spot = findSpot(t, pos, S.minDistance, S.radius)
+	if not spot then
+		return false
+	end
+	if tooClose(spot.x, spot.z) then
+		return false
+	end
+	local level = ZoneLevel.at(Config, spot.x, spot.z, hero.level, world.tiles)
+	-- the site's own level must still have its robots (a zone edge between two floors)
+	if not IncidentPlan.available(IC, Config, tid, level) then
+		return false
+	end
+	local heroic = IncidentPlan.canHeroic(IC, tid) and HeroicRules.roll(Config, "incident", hero.level, rng)
+	local inc = newLive(hero, tid, spot, level, heroic)
 	live[inc.id] = inc
 	hm.last = tid
 	startStep(inc)
+	if heroic then
+		beat("heroic", inc.pos)
+	end
 	return true
 end
 
@@ -446,7 +776,18 @@ local function spawnPacket(inc: Live, player: Player, now: number): { [string]: 
 		own = if hero and hero.id == inc.owner then 1 else 0,
 		steps = #inc.plan.steps,
 		kind = inc.spot.kind,
+		heroic = if inc.plan.heroic then 1 else 0,
 	}
+end
+
+-- The clear's Credits and Renown: the Economy "incident" row with the usual bonuses, then Heroic x1.5
+local function payClear(player: Player, inc: Live)
+	local credits, renown = Progress.earn(Config, "incident", inc.plan.level, EconomyService.bonus(player))
+	credits, renown = HeroicRules.pay(Config, credits, renown, inc.plan.heroic)
+	EconomyService.addCredits(player, credits)
+	EconomyService.addRenown(player, renown)
+	Net.fire("Toast", player, { id = "reward", credits = credits, renown = renown, action = "incident" })
+	EconomyService.Earned:Fire(player, "incident")
 end
 
 local function finish(inc: Live, ok: boolean, now: number)
@@ -459,10 +800,18 @@ local function finish(inc: Live, ok: boolean, now: number)
 		for heroId in inc.helpers do
 			local hero = HeroService.byId(heroId)
 			if hero and hero.player then
-				EconomyService.reward(hero.player, "incident", inc.plan.level)
-				GearService.grant(hero.player, "incident", inc.plan.level)
+				payClear(hero.player, inc)
+				GearService.grant(
+					hero.player,
+					"incident",
+					HeroicRules.gearLevel(Config, inc.plan.level, inc.plan.heroic)
+				)
 				local name = IncidentPlan.title(IC, inc.plan.tid, hero.side)
-				Net.fire("Toast", hero.player, { id = "incident", name = name, medal = inc.medal })
+				Net.fire(
+					"Toast",
+					hero.player,
+					{ id = "incident", name = name, medal = inc.medal, heroic = inc.plan.heroic or nil }
+				)
 			end
 		end
 		IncidentService.Cleared:Fire(inc)
@@ -491,9 +840,89 @@ local function finish(inc: Live, ok: boolean, now: number)
 	if owner then
 		owner.next = now + rng:range(S.refill[1], S.refill[2])
 	end
+	local things, stepThings = inc.things, inc.stepThings
 	task.delay(if ok then 2 else 3, function()
-		SiteKit.clear(inc.things)
+		SiteKit.clear(stepThings)
+		SiteKit.clear(things)
 	end)
+end
+
+-- Convoy robots drive their route; one reaching the end with the others is a fail
+local function stepConvoy(inc: Live, dt: number)
+	local c = inc.convoy :: any
+	local lead = c.ids[1] and EnemyService.get(c.ids[1])
+	local at = if lead then Vector3.new(lead.x, lead.y, lead.z) else c.path[1]
+	local spotted = #SiteKit.heroesIn(at, 120) > 0
+	local step = IncidentPlan.current(inc.plan) :: any
+	c.travelled += step.def.speed * (if spotted then 1 else IC.convoyWait) * dt
+	for i, id in c.ids do
+		if EnemyService.alive(id) then
+			local d = c.travelled - (i - 1) * IC.convoyGap
+			if d >= c.length then
+				inc.plan.failed = true -- a Medic Unit got through
+				return
+			end
+			EnemyService.place(id, (along(c.path, d)))
+		end
+	end
+end
+
+-- The car follows the Grappler's haul while it lives
+local function stepTug(inc: Live, dt: number)
+	local t = inc.tug :: any
+	local step = IncidentPlan.current(inc.plan) :: any
+	t.moved += step.def.speed * dt
+	local pos, yaw = along(t.path, t.moved)
+	SiteKit.place(t.car, pos, yaw)
+	-- the cable from the car to the nearest Grappler
+	local best: Vector3? = nil
+	for id in inc.targets do
+		local e = EnemyService.get(id)
+		if e and e.alive then
+			best = Vector3.new(e.x, e.y, e.z)
+			break
+		end
+	end
+	if best then
+		local from = pos + Vector3.new(0, 2.5, 0)
+		local len = (best - from).Magnitude
+		t.rope.Size = Vector3.new(0.3, 0.3, math.max(1, len))
+		t.rope.CFrame = CFrame.lookAt(from:Lerp(best, 0.5), best)
+	end
+	if t.moved >= t.length then
+		inc.plan.failed = true -- the car is gone
+	end
+end
+
+-- Shells fall on the huddles in turn: a red ring first, then the landing
+local function stepBarrage(inc: Live, now: number)
+	local b = inc.barrage :: any
+	local row = (IncidentPlan.current(inc.plan) :: any).def
+	if b.shell then
+		if now >= b.shell.lands then
+			local at = b.shell.at
+			b.shell.ring:Destroy()
+			b.shell = nil
+			local guards = SiteKit.heroesIn(at, row.cover + 3)
+			for _, h in guards do
+				inc.helpers[h.id] = true
+			end
+			local blocked = #guards > 0
+			local r = IncidentPlan.shell(inc.plan, blocked)
+			if blocked then
+				beat(if r == "done" or r == "step" then "barrageOver" else "shellBlocked", at)
+			else
+				beat("shellMissed", at)
+				CitizenService.danger(at.X, at.Z, 30, 6)
+			end
+			b.nextAt = now + row.every
+		end
+	elseif now >= b.nextAt then
+		local at = b.huddles[rng:int(1, #b.huddles)]
+		local ring = SiteKit.ring(at, row.cover, Color3.fromRGB(255, 70, 60))
+		table.insert(inc.stepThings, ring)
+		b.shell = { at = at, lands = now + row.warn, ring = ring }
+	end
 end
 
 local function stepIncident(inc: Live, now: number, dt: number)
@@ -517,10 +946,14 @@ local function stepIncident(inc: Live, now: number, dt: number)
 	-- the next step began since the last tick: build it
 	if inc.builtStep ~= plan.step then
 		startStep(inc)
+		step = IncidentPlan.current(plan)
+		if not step or plan.failed or plan.done then
+			return
+		end
 	end
 	if step.kind == "hold" then
 		local radius = step.def.radius or 10
-		local inRing = SiteKit.heroesIn(inc.pos, radius + 3)
+		local inRing = SiteKit.heroesIn(inc.stepPos or inc.pos, radius + 3)
 		for _, h in inRing do
 			inc.helpers[h.id] = true
 		end
@@ -536,6 +969,12 @@ local function stepIncident(inc: Live, now: number, dt: number)
 		if (nextPos - start).Magnitude >= dir[3] then
 			plan.failed = true
 		end
+	elseif step.kind == "convoy" and inc.convoy then
+		stepConvoy(inc, dt)
+	elseif step.kind == "tug" and inc.tug then
+		stepTug(inc, dt)
+	elseif step.kind == "barrage" and inc.barrage then
+		stepBarrage(inc, now)
 	elseif step.kind == "runner" and inc.runner then
 		local r = inc.runner
 		local path = inc.spot.points :: any
@@ -565,23 +1004,48 @@ local function stepIncident(inc: Live, now: number, dt: number)
 	end
 end
 
--- Robots beaten: count them for their incident
-local function onKilled(_kind: string, by: number?, _pos: Vector3, enemyId: number?)
+-- Robots beaten: count the ones that are the current step's goal
+local function onKilled(_kind: string, by: number?, pos: Vector3, enemyId: number?)
 	local incId = enemyId and byEnemy[enemyId]
 	local inc = incId and live[incId]
 	if not inc then
 		return
 	end
-	byEnemy[enemyId :: number] = nil
-	inc.enemies[enemyId :: number] = nil
+	local id = enemyId :: number
+	byEnemy[id] = nil
+	inc.enemies[id] = nil
 	if by then
 		inc.helpers[by] = true
 	end
 	local step = IncidentPlan.current(inc.plan)
-	if step and step.kind == "runner" then
-		IncidentPlan.advance(inc.plan, "runner", 1)
+	if not step or not inc.targets[id] then
+		return
+	end
+	inc.targets[id] = nil
+	local k = step.kind
+	if k == "leader" then
+		if inc.leaderId == nil or id == inc.leaderId then
+			if IncidentPlan.advance(inc.plan, "leader", 1) and inc.leaderId then
+				beat("leaderDown", pos)
+			end
+		end
+	elseif k == "barrage" then
+		-- every Bomber down: the shelling stops
+		if next(inc.targets) == nil and IncidentPlan.endBarrage(inc.plan) then
+			beat("barrageOver", pos)
+		end
 	else
-		IncidentPlan.advance(inc.plan, "defeat", 1)
+		local r = IncidentPlan.advance(inc.plan, k, 1)
+		if k == "find" then
+			beat("found", pos)
+			CitizenService.danger(pos.X, pos.Z, 40, 5)
+		elseif r and k == "nest" then
+			beat("nestCleared", pos)
+		elseif r and k == "convoy" then
+			beat("convoyStopped", pos)
+		elseif r and k == "tug" then
+			beat("towStopped", pos)
+		end
 	end
 end
 
@@ -598,8 +1062,9 @@ function IncidentService.list(): { [number]: Live }
 	return live
 end
 
--- Studio: start a template next to a hero
-function IncidentService.force(hero: any, tid: string): boolean
+-- Studio: start a template next to a hero (at least at the level its robots unlock, so every template can
+-- be tried; heroic forces the Heroic tier)
+function IncidentService.force(hero: any, tid: string, heroic: boolean?): boolean
 	local pos = HeroService.position(hero)
 	if not pos or not IC.templates[tid] then
 		return false
@@ -607,45 +1072,20 @@ function IncidentService.force(hero: any, tid: string): boolean
 	local hm = meta[hero.id] or { next = 0, last = nil }
 	meta[hero.id] = hm
 	local t = IC.templates[tid]
-	local spot = IncidentSpots.find(
-		Config,
-		CityBuilder.world,
-		t.where,
-		pos.X,
-		pos.Z,
-		30,
-		300,
-		rng,
-		{ hops = t.steps[1].hops, run = (t.steps[1].moving or 7) * t.time * 0.95 }
-	)
+	local spot = findSpot(t, pos, 30, 300)
 	if not spot then
 		return false
 	end
-	nextId += 1
-	local at = Vector3.new(spot.x, spot.y, spot.z)
-	local inc: Live = {
-		id = nextId,
-		owner = hero.id,
-		side = hero.side,
-		plan = IncidentPlan.new(
-			IC,
-			rng,
-			tid,
-			ZoneLevel.at(Config, at.X, at.Z, hero.level, CityBuilder.world.tiles),
-			os.clock()
-		),
-		pos = at,
-		spot = spot,
-		things = {},
-		enemies = {},
-		helpers = {},
-		known = {},
-		lastNear = os.clock(),
-		stepStarted = os.clock(),
-		builtStep = 0,
-	}
+	local level = math.max(
+		ZoneLevel.at(Config, spot.x, spot.z, hero.level, CityBuilder.world.tiles),
+		IncidentPlan.levelFor(IC, Config, tid)
+	)
+	local inc = newLive(hero, tid, spot, level, heroic == true)
 	live[inc.id] = inc
 	startStep(inc)
+	if inc.plan.heroic then
+		beat("heroic", inc.pos)
+	end
 	return true
 end
 

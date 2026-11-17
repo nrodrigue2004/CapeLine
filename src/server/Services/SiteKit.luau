@@ -216,6 +216,14 @@ local function citizenModel(pos: Vector3, cat: boolean?): (Model, BasePart)
 	return m, body
 end
 
+-- A citizen who only stands there (a crowd at an incident, a huddle under a barrage): no prompt, nothing to
+-- carry (they wave like the stranded ones and run off when the step ends). Cleared with clear().
+function SiteKit.bystander(pos: Vector3): Model
+	local m = citizenModel(pos, false)
+	m.Name = "Bystander"
+	return m
+end
+
 -- A stranded citizen at pos. onSafe(hero, pad) when carried into a pad (or a safehouse when anySafehouse).
 function SiteKit.citizen(
 	pos: Vector3,

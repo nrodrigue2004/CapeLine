@@ -4,9 +4,11 @@
 -- meter (fill Awakening), respec (no cooldown), loot 1-8 (roll a drop source at the hero's level), renown n,
 -- credits n, dust n, save (save now), map (every beacon and safehouse found), wipe (start over as a new player: the opening then the creator), wreck n (structure damage
 -- around the hero, default 3000), repair (every building back), flip (every vehicle near the hero),
--- incident 1-10 (that template next to the hero), clearincidents, event 1-6, boss (land the next world
+-- incident 1-24 (that template next to the hero), clearincidents, event 1-12, boss (land the next world
 -- boss in 3 s), bosskill (the boss to 1 HP), contract (finish the first accepted contract), clock 0-3
 -- (day, dusk, night, dawn), side 0/1 (hero or villain, for this session only).
+-- 2026-11-17: heroic 0/1 (the incidents, events and contracts the Dev panel starts are Heroic), contractstart
+-- 1-12 (take that contract type here, no board).
 -- M9: creator (open the creator to remake this hero), hq (enter your HQ), hqlevel n, away n (offline drones
 -- for n hours away), pieces (unlock every creator piece), buy n (test-purchase shop item n with a fixed
 -- receipt id: the second time grants nothing), legacy (the level cap and retire at HQ next).
@@ -49,6 +51,8 @@ local ProfileSchema = require(ReplicatedStorage:WaitForChild("Shared"):WaitForCh
 local OpeningPlan = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("OpeningPlan"))
 
 local DevService = {}
+
+local forceHeroic = false -- the Dev panel's Heroic switch for what it starts
 
 local commands: { [string]: (player: Player, hero: any, value: number) -> () } = {
 	bots = function(_, _, n)
@@ -182,14 +186,20 @@ local commands: { [string]: (player: Player, hero: any, value: number) -> () } =
 	incident = function(_, hero, n)
 		local tid = Config.Incidents.order[n]
 		if tid then
-			print("[Dev] incident", tid, IncidentService.force(hero, tid))
+			print("[Dev] incident", tid, IncidentService.force(hero, tid, forceHeroic))
 		end
 	end,
 	clearincidents = function()
 		IncidentService.clearAll()
 	end,
 	event = function(_, _, n)
-		print("[Dev] event", n, EventService.force(n))
+		print("[Dev] event", n, EventService.force(n, forceHeroic))
+	end,
+	heroic = function(_, _, on)
+		forceHeroic = on ~= 0
+	end,
+	contractstart = function(player, _, n)
+		print("[Dev] contract", Config.Contracts.order[n], ContractService.forceStart(player, n, forceHeroic))
 	end,
 	boss = function()
 		BossService.startNow()

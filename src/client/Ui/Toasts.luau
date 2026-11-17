@@ -126,9 +126,15 @@ local function juice(data: { [string]: any })
 		Juice.fire("gearDrop", nil, { tier = GearMath.tierName(Config, data.piece) })
 	elseif id == "incident" then
 		Juice.fire("incidentClear", nil, { medal = data.medal })
+	elseif id == "beat" then
+		local b = Config.Incidents.beats[data.beat or ""]
+		if b then
+			local at = if data.x then Vector3.new(data.x, data.y, data.z) else nil
+			Juice.fire(b.juice, at, { mine = false })
+		end
 	elseif id == "contract" then
 		Juice.fire("contractDone", nil, { name = data.name })
-	elseif id == "revived" or id == "revivedBy" then
+	elseif id == "revived" or id == "revivedBy" or id == "defused" or id == "photoRecon" then
 		local char = Players.LocalPlayer.Character
 		local root = char and char:FindFirstChild("HumanoidRootPart") :: BasePart?
 		Juice.fire("revive", root and root.Position)
@@ -227,7 +233,12 @@ function Toasts.show(data: { [string]: any })
 	elseif id == "incident" then
 		local medal = string.upper(data.medal or "")
 		push(
-			string.format("%s CLEARED!  %s", string.upper(data.name or "Incident"), medal),
+			string.format(
+				"%s%s CLEARED!  %s",
+				if data.heroic then Config.Heroic.tag .. " " else "",
+				string.upper(data.name or "Incident"),
+				medal
+			),
 			Kit.color.gold,
 			true,
 			3.5
@@ -249,8 +260,50 @@ function Toasts.show(data: { [string]: any })
 		push(ContractBoard.REASONS[data.reason or ""] or "You cannot take that contract", Kit.color.paper)
 	elseif id == "photo" then
 		push("SNAP! Sneak Bot photographed", Kit.color.volt)
+	-- 2026-11-17: the new activities' moments (fixed lines)
+	elseif id == "beat" then
+		local b = Config.Incidents.beats[data.beat or ""]
+		if b then
+			local heroicBeat = data.beat == "heroic"
+			push(
+				b.text,
+				if heroicBeat
+					then Color3.fromRGB(
+						Config.Heroic.color[1],
+						Config.Heroic.color[2],
+						Config.Heroic.color[3]
+					)
+					else Kit.color.gold,
+				heroicBeat or string.upper(b.text) == b.text,
+				3
+			)
+		end
+	elseif id == "photoRecon" then
+		push("SNAP! Lookout photographed", Kit.color.volt)
+	elseif id == "courier" then
+		push(string.format("PARCEL! %d s to make every drop", data.left or 0), Kit.color.gold, true, 3)
+	elseif id == "courierLate" then
+		push("Too slow: the parcel is back on its roof", Kit.color.paper)
+	elseif id == "fuse" then
+		push(
+			string.format("A charge is armed: %d s on the fuse", data.left or 0),
+			Color3.fromRGB(255, 120, 90)
+		)
+	elseif id == "defused" then
+		push("CHARGE DEFUSED!", Kit.color.gold, true, 3)
+	elseif id == "fizzled" then
+		push("The charge popped: the robots planted another one", Kit.color.paper)
 	elseif id == "event" then
-		push(string.format("EVENT: %s!", string.upper(data.name or "")), Kit.color.gold, true, 5)
+		push(
+			string.format(
+				"%sEVENT: %s!",
+				if data.heroic then Config.Heroic.tag .. " " else "",
+				string.upper(data.name or "")
+			),
+			Kit.color.gold,
+			true,
+			5
+		)
 		if data.text then
 			push(data.text, Kit.color.paper, false, 5)
 		end

@@ -17,6 +17,31 @@ local WorldClient = require(script.Parent.Parent.Controllers.WorldClient)
 local ContractBoard = {}
 
 local CC = Config.Contracts
+local ContractPlan = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("ContractPlan"))
+local ready = ContractPlan.readyFor(Config)
+local HC = Config.Heroic
+local HEROIC_COLOR = Color3.fromRGB(HC.color[1], HC.color[2], HC.color[3])
+
+local function enemyName(kind: string): string
+	local e = Config.Enemies[kind]
+	return e and e.name or kind
+end
+
+-- A contract's title and line from a board row (num, level, heroic, pick): fixed text with fixed names in
+local function describe(id: string, level: number, heroic: boolean, pick: number?): (string, string)
+	local name, text = ContractPlan.title(
+		CC,
+		{ type = id, seed = 0, level = level, got = 0, pick = if pick and pick > 0 then pick else nil },
+		State.hero.side,
+		enemyName,
+		ready
+	)
+	name = string.upper(name)
+	if heroic then
+		name = HC.tag .. " " .. name
+	end
+	return name, text
+end
 local T = Config.Ui.touchTarget
 local gui: ScreenGui
 local panel: Frame
@@ -127,12 +152,18 @@ local function render(board: { [string]: any })
 				o[2]
 			)
 			local taken = o[5] == 1
+			local heroic = o[6] == 1
+			local title, text = describe(id :: string, o[2], heroic, o[7])
+			local lines = { text, pay }
+			if heroic then
+				table.insert(lines, string.format("%s: tougher robots, x%.1f pay", HC.tag, HC.rewardMult))
+			end
 			card(
 				1 + i,
-				string.upper(def.name),
-				{ def.text, pay },
+				title,
+				lines,
 				if taken then nil else "ACCEPT",
-				nil,
+				if heroic then HEROIC_COLOR else nil,
 				if taken
 					then nil
 					else function()
@@ -157,10 +188,11 @@ local function render(board: { [string]: any })
 		local id = WorldClient.contractByNum[a[1]]
 		local def = id and CC.types[id]
 		if def then
+			local title, text = describe(id :: string, a[4], a[5] == 1, a[6])
 			card(
 				10 + i,
-				string.upper(def.name),
-				{ def.text, string.format("Progress %d / %d", a[2], a[3]) },
+				title,
+				{ text, string.format("Progress %d / %d", a[2], a[3]) },
 				"ABANDON",
 				Kit.color.muted,
 				function()

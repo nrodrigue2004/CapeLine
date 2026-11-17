@@ -133,6 +133,29 @@ local function tramLines(Config: any): ({ number }, any, number)
 	return { d.minZ + pitch * 2, d.minZ + pitch * 4 }, d, pitch
 end
 
+-- A building whose roof can hold a nest: 30 to 150 studs tall (a climb, not a skyscraper) and at least 24
+-- studs across so a squad fits
+function IncidentSpots.nestOk(b: any): boolean
+	local h = b.top - b.base
+	return h >= 30 and h <= 150 and b.sx >= 24 and b.sz >= 24
+end
+
+-- Where a step stands at a spot: "roof" its top (a nest), "front" open ground beside its building (the
+-- scaffold brace), anything else the spot itself. Returns x, y, z.
+function IncidentSpots.stepAt(
+	Config: any,
+	world: any,
+	spot: Spot,
+	at: string?,
+	rng: any
+): (number, number, number)
+	local b = spot.building and world.buildings[spot.building]
+	if at == "front" and b then
+		return IncidentSpots.groundNear(Config, world, b.x + b.sx / 2 + 14, b.z, 40, rng)
+	end
+	return spot.x, spot.y, spot.z
+end
+
 function IncidentSpots.find(
 	Config: any,
 	world: any,
@@ -230,6 +253,28 @@ function IncidentSpots.find(
 			z = lz,
 			dir = { if east then 1 else -1, 0, run },
 		}
+	elseif kind == "nest" then
+		-- a flat roof robots can stand on: a mid-rise with room up top (2026-11-17: sniper nests, swarms)
+		local list = buildingsNear(world, x, z, minD, maxD, IncidentSpots.nestOk)
+		if #list == 0 then
+			return nil
+		end
+		local b = list[rng:int(1, #list)]
+		local y = b.top + 1
+		local ix, iz = b.sx / 2 - 4, b.sz / 2 - 4
+		return {
+			kind = kind,
+			x = b.x,
+			y = y,
+			z = b.z,
+			building = b.id,
+			points = {
+				{ b.x - ix, y, b.z - iz },
+				{ b.x + ix, y, b.z - iz },
+				{ b.x + ix, y, b.z + iz },
+				{ b.x - ix, y, b.z + iz },
+			},
+		}
 	elseif kind == "crane" then
 		local c = world.spots.crane
 		if not c or dist(c.x, c.z, x, z) > maxD then
@@ -308,6 +353,9 @@ function IncidentSpots.kinds(
 				out.sign = true
 			end
 			out.roof = true
+			if IncidentSpots.nestOk(b) then
+				out.nest = true
+			end
 		end
 	end
 	out.roof = true -- a street chase works anywhere

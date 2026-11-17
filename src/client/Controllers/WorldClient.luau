@@ -1,9 +1,9 @@
 -- WorldClient: the client's view of the city's activity (spec: Incident.Spawn/Update, Contract.Update,
 -- Event.State, Boss.State/Contribution/Result, World.Clock). Screens and effects read these tables and
 -- listen to Changed; nothing here is trusted by the server.
--- * incidents: id -> the spawn packet plus its latest update (deadline in local clock seconds)
--- * contracts: the hero's accepted contracts { num, got, goal, dist, dx, dz }
--- * events: num -> { num, x, z, ends, have, need, state }
+-- * incidents: id -> the spawn packet plus its latest update (deadline in local clock seconds), heroic
+-- * contracts: the hero's accepted contracts { num, got, goal, dist, dx, dz, heroic, pick, clock }
+-- * events: num -> { num, x, z, ends, have, need, state, heroic }
 -- * boss: the latest Boss.State, plus `mine` (Boss.Contribution)
 -- * The day and night: Lighting follows WorldClock from the server's cycle start (Workspace attribute
 --   ClockStart, refreshed by World.Clock), eased so a jump never snaps.
@@ -98,6 +98,7 @@ local function onSpawn(p: { [string]: any })
 		need = 1,
 		state = WorldClient.ACTIVE,
 		medal = 0,
+		heroic = p.heroic == 1,
 	}
 	WorldClient.Changed:Fire("incidents")
 end
@@ -140,6 +141,7 @@ local function onEvents(data: { [string]: any })
 		ev.x, ev.z = r[2], r[3]
 		ev.ends = now + r[4]
 		ev.have, ev.need, ev.state = r[5], r[6], r[7]
+		ev.heroic = r[8] == 1
 	end
 	for num in WorldClient.events do
 		if not seen[num] then

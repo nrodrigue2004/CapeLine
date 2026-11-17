@@ -4,17 +4,43 @@
 -- tracks progress, the medal and the hold speed, so Lune tests every rule.
 -- * pick: a template the hero's side can play at a spot kind that exists near them; villain-side templates
 --   are 30% likelier at night; never the same template twice in a row for a hero when there is a choice;
---   Raid prep only while a boss counts down (and then it is preferred).
--- * new: an incident with its steps rolled (robot counts) and a deadline.
+--   Raid prep only while a boss counts down (and then it is preferred). Given Config and the zone level, a
+--   template whose `requires` robot types are switched off or not unlocked yet is skipped.
+-- * new: an incident with its steps rolled (robot counts) and a deadline. A row's robot type that is off
+--   or not unlocked at the level uses the row's fallback (or is dropped). Heroic (Shared.HeroicRules) adds a
+--   robot to each squad step and some time.
 -- * advance: progress on the current step; returns "step" when a step finishes, "done" after the last.
+-- * shell / endBarrage: the barrage step's blocks and misses.
+
+local HeroicRules = if script then require(script.Parent.HeroicRules) else (require :: any)("./HeroicRules")
+local EnemyVariety = if script
+	then require(script.Parent.EnemyVariety)
+	else (require :: any)("./EnemyVariety")
 
 local IncidentPlan = {}
 
+-- Every step kind the server knows how to build (tests check each template uses only these)
+IncidentPlan.KINDS = {
+	"defeat",
+	"rescue",
+	"hold",
+	"object",
+	"runner",
+	"nest",
+	"leader",
+	"find",
+	"convoy",
+	"barrage",
+	"tug",
+}
+
 export type Step = {
 	kind: string,
-	need: number, -- robots to beat, citizens to carry, seconds to hold, 1 object, 1 runner
+	need: number, -- robots to beat, citizens to carry, seconds to hold, 1 object, 1 runner, shells to block
 	have: number,
-	spawn: { { kind: string, n: number } }?, -- defeat: what to spawn
+	spawn: { { kind: string, n: number } }?, -- squad steps: what to spawn
+	leader: string?, -- leader: the robot type that must fall
+	missed: number?, -- barrage: shells that landed
 	def: any, -- the template's step row
 }
 
@@ -22,6 +48,7 @@ export type Incident = {
 	tid: string,
 	num: number,
 	level: number,
+	heroic: boolean,
 	step: number,
 	steps: { Step },
 	started: number,
@@ -30,15 +57,93 @@ export type Incident = {
 	failed: boolean,
 }
 
+-- The level a robot type unlocks at in open-world fights (Config.Enemies.variety.swaps); 1 for the first
+-- robots, which every level has
+function IncidentPlan.unlockLevel(Config: any, kind: string): number
+	local v = Config.Enemies.variety
+	for _, sw in (v and v.swaps) or {} do
+		if sw.kind == kind then
+			return sw.level
+		end
+	end
+	return 1
+end
+
+-- May a fight at this level have this robot type? (switched on, and unlocked)
+function IncidentPlan.kindReady(Config: any, kind: string, level: number): boolean
+	return EnemyVariety.enabled(Config, kind) and level >= IncidentPlan.unlockLevel(Config, kind)
+end
+
+-- Can this template run at this level? Its `requires` types are on and unlocked, and its minLevel is met.
+function IncidentPlan.available(cfg: any, Config: any, tid: string, level: number): boolean
+	local t = cfg.templates[tid]
+	if not t then
+		return false
+	end
+	if t.minLevel and level < t.minLevel then
+		return false
+	end
+	for _, kind in t.requires or {} do
+		if not IncidentPlan.kindReady(Config, kind, level) then
+			return false
+		end
+	end
+	return true
+end
+
+-- The level a template needs (its requires' unlock levels and minLevel)
+function IncidentPlan.levelFor(cfg: any, Config: any, tid: string): number
+	local t = cfg.templates[tid]
+	local lvl = t.minLevel or 1
+	for _, kind in t.requires or {} do
+		lvl = math.max(lvl, IncidentPlan.unlockLevel(Config, kind))
+	end
+	return lvl
+end
+
+-- One { kind, min, max, fallback... } row at a level: itself, its fallback, or nil (dropped). Without
+-- Config, as written.
+function IncidentPlan.resolveRow(Config: any?, row: any, level: number): { any }?
+	if not Config or IncidentPlan.kindReady(Config, row[1], level) then
+		return row
+	end
+	-- the fallback: { kind, min, max, fallbackKind, fallbackMin, fallbackMax }
+	local fb = row[4]
+	if fb and IncidentPlan.kindReady(Config, fb, level) then
+		return { fb, row[5] or row[2], row[6] or row[3] }
+	end
+	return nil
+end
+
+-- A robot type for a one-robot slot (the convoy, the leader): itself, the fallback, or nil
+function IncidentPlan.resolveKind(Config: any?, kind: string, fallback: string?, level: number): string?
+	if not Config or IncidentPlan.kindReady(Config, kind, level) then
+		return kind
+	end
+	if fallback and IncidentPlan.kindReady(Config, fallback, level) then
+		return fallback
+	end
+	return nil
+end
+
 -- Templates this hero could get. valid: where-kinds that exist near the hero ({ street = true, ... }).
-function IncidentPlan.choices(cfg: any, side: string, valid: { [string]: boolean }, prep: boolean): { string }
+-- With Config and level, templates whose robots are off or not unlocked yet are left out.
+function IncidentPlan.choices(
+	cfg: any,
+	side: string,
+	valid: { [string]: boolean },
+	prep: boolean,
+	Config: any?,
+	level: number?
+): { string }
 	local out = {}
 	for _, tid in cfg.order do
 		local t = cfg.templates[tid]
 		local sideOk = t.side == "both" or t.side == side
 		local whereOk = t.where == "any" or valid[t.where] == true
 		local prepOk = (t.prep == true) == false or prep
-		if sideOk and whereOk and prepOk then
+		local readyOk = not Config or IncidentPlan.available(cfg, Config, tid, level or 1)
+		if sideOk and whereOk and prepOk and readyOk then
 			table.insert(out, tid)
 		end
 	end
@@ -54,9 +159,11 @@ function IncidentPlan.pick(
 	last: string?,
 	night: boolean,
 	prep: boolean,
-	nightBoost: number?
+	nightBoost: number?,
+	Config: any?,
+	level: number?
 ): string?
-	local list = IncidentPlan.choices(cfg, side, valid, prep)
+	local list = IncidentPlan.choices(cfg, side, valid, prep, Config, level)
 	if prep then
 		for _, tid in list do
 			if cfg.templates[tid].prep and tid ~= last then
@@ -93,37 +200,107 @@ function IncidentPlan.pick(
 	return list[#list]
 end
 
-function IncidentPlan.new(cfg: any, rng: any, tid: string, level: number, now: number): Incident
+-- Is this a step whose goal is robots (Config.Incidents.kinds[kind].squad)?
+function IncidentPlan.isSquad(cfg: any, kind: string): boolean
+	local k = cfg.kinds and cfg.kinds[kind]
+	return k ~= nil and k.squad == true
+end
+
+-- Can this template roll Heroic? Only when something in it gets tougher: a squad or an object
+function IncidentPlan.canHeroic(cfg: any, tid: string): boolean
+	for _, row in cfg.templates[tid].steps do
+		if IncidentPlan.isSquad(cfg, row.kind) or row.kind == "object" then
+			return true
+		end
+	end
+	return false
+end
+
+local function rollRows(Config: any?, rng: any, rows: { any }, level: number): { { kind: string, n: number } }
+	local out = {}
+	for _, e in rows do
+		local r = IncidentPlan.resolveRow(Config, e, level)
+		if r then
+			local n = rng:int(r[2], r[3])
+			if n > 0 then
+				table.insert(out, { kind = r[1], n = n })
+			end
+		end
+	end
+	return out
+end
+
+local function total(rows: { { kind: string, n: number } }): number
+	local n = 0
+	for _, r in rows do
+		n += r.n
+	end
+	return n
+end
+
+-- opts: Config (robot switches, unlock levels and Heroic need it) and heroic
+function IncidentPlan.new(
+	cfg: any,
+	rng: any,
+	tid: string,
+	level: number,
+	now: number,
+	opts: { config: any?, heroic: boolean? }?
+): Incident
 	local t = cfg.templates[tid]
 	assert(t, "unknown incident " .. tid)
+	local Config = opts and opts.config
+	local heroic = (opts and opts.heroic) == true and Config ~= nil
 	local steps: { Step } = {}
 	for _, row in t.steps do
 		local step: Step = { kind = row.kind, need = 1, have = 0, spawn = nil, def = row }
-		if row.kind == "defeat" then
-			local spawn = {}
-			local total = 0
-			for _, e in row.enemies do
-				local n = rng:int(e[2], e[3])
-				table.insert(spawn, { kind = e[1], n = n })
-				total += n
+		local k = row.kind
+		if k == "defeat" or k == "nest" or k == "find" or k == "tug" then
+			local spawn = rollRows(Config, rng, row.enemies, level)
+			if heroic then
+				spawn = HeroicRules.squad(Config, spawn, true)
 			end
 			step.spawn = spawn
-			step.need = total
-		elseif row.kind == "rescue" then
+			step.need = math.max(1, total(spawn))
+		elseif k == "leader" then
+			step.leader = IncidentPlan.resolveKind(Config, row.leader, row.fallback, level) or "BruteBot"
+			local escort = rollRows(Config, rng, row.enemies, level)
+			if heroic then
+				escort = HeroicRules.squad(Config, escort, true)
+			end
+			step.spawn = escort
+			step.need = 1
+		elseif k == "convoy" then
+			local kind = IncidentPlan.resolveKind(Config, row.enemy, row.fallback or "SparkDrone", level)
+				or "SparkDrone"
+			local n = row.n + (if heroic then Config.Heroic.extraUnits else 0)
+			step.spawn = { { kind = kind, n = n } }
+			step.need = n
+		elseif k == "barrage" then
+			local spawn = rollRows(Config, rng, row.enemies, level)
+			if heroic then
+				spawn = HeroicRules.squad(Config, spawn, true)
+			end
+			step.spawn = spawn
+			step.need = row.blocks
+			step.missed = 0
+		elseif k == "rescue" then
 			step.need = row.count
-		elseif row.kind == "hold" then
+		elseif k == "hold" then
 			step.need = row.seconds
 		end
 		table.insert(steps, step)
 	end
+	local limit = if heroic then HeroicRules.time(Config, t.time, true) else t.time
 	return {
 		tid = tid,
 		num = t.num,
 		level = level,
+		heroic = heroic,
 		step = 1,
 		steps = steps,
 		started = now,
-		deadline = now + t.time,
+		deadline = now + limit,
 		done = false,
 		failed = false,
 	}
@@ -149,6 +326,33 @@ function IncidentPlan.advance(inc: Incident, kind: string, amount: number): stri
 		return "done"
 	end
 	return "step"
+end
+
+-- A barrage shell landed: blocked (a hero stood in its ring) counts toward the goal; a miss counts toward
+-- the misses, and one more than the step allows fails the incident. Returns "step", "done", "failed" or nil.
+function IncidentPlan.shell(inc: Incident, blocked: boolean): string?
+	local s = inc.steps[inc.step]
+	if inc.done or inc.failed or not s or s.kind ~= "barrage" then
+		return nil
+	end
+	if blocked then
+		return IncidentPlan.advance(inc, "barrage", 1)
+	end
+	s.missed = (s.missed or 0) + 1
+	if (s.missed :: number) > (s.def.misses or 0) then
+		inc.failed = true
+		return "failed"
+	end
+	return nil
+end
+
+-- Every Bomber is down: the barrage is over (the rest of the goal counts as blocked)
+function IncidentPlan.endBarrage(inc: Incident): string?
+	local s = inc.steps[inc.step]
+	if not s or s.kind ~= "barrage" then
+		return nil
+	end
+	return IncidentPlan.advance(inc, "barrage", s.need - s.have)
 end
 
 -- Out of time?
@@ -200,6 +404,19 @@ function IncidentPlan.title(cfg: any, tid: string, side: string): (string, strin
 		return t.villainName or t.name, t.villainText or t.text
 	end
 	return t.name, t.text
+end
+
+-- The tracker's line for step `i` of a template (fixed text: the step's own, else its kind's)
+function IncidentPlan.stepText(cfg: any, tid: string, i: number, side: string): string
+	local t = cfg.templates[tid]
+	local row = t and t.steps[i]
+	if not row then
+		return ""
+	end
+	if side == "villain" and row.villainText then
+		return row.villainText
+	end
+	return row.text or (cfg.kinds and cfg.kinds[row.kind] and cfg.kinds[row.kind].text) or ""
 end
 
 return IncidentPlan
