@@ -99,7 +99,11 @@ local function makePart(b: any): BasePart -- also CityBuilder.part (mission pock
 	end
 	p.Anchored = true
 	p.CanTouch = false
-	p.CastShadow = b.kind == "building" or b.kind == "beacon" or b.kind == "rock" or b.kind == "roof"
+	p.CastShadow = b.kind == "building"
+		or b.kind == "beacon"
+		or b.kind == "rock"
+		or b.kind == "roof"
+		or b.kind == "tier"
 	p.TopSurface = Enum.SurfaceType.Smooth
 	p.BottomSurface = Enum.SurfaceType.Smooth
 	p.Material = MATERIAL[b.kind] or Enum.Material.SmoothPlastic
@@ -151,6 +155,9 @@ local function makePart(b: any): BasePart -- also CityBuilder.part (mission pock
 	if b.tag then
 		p:SetAttribute("Tag", b.tag)
 		p:SetAttribute("Ref", b.ref or 0)
+	end
+	if b.crown then
+		p:SetAttribute("Crown", true) -- a skyscraper's top: BuildingFx keeps it up while the shaft's top storey stands
 	end
 	return p
 end

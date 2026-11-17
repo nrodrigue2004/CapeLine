@@ -235,5 +235,6 @@ s.view_settings.view_transform = "AgX"
 s.view_settings.exposure = -0.55
 
 for view, (frm, to, lens) in DATA["cams"].items():
-    kit.camera(rb(*frm), rb(*to), lens=lens)
+    cam = kit.camera(rb(*frm), rb(*to), lens=lens)
+    cam.data.clip_end = 20000  # a whole skyline from the air (the default 100 cut the towers' feet off)
     kit.render(os.path.join(kit.ROOT, "preview", "%s_%s.png" % (NAME, view)))

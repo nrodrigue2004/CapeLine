@@ -43,10 +43,12 @@ return {
 		sidewalk = 5,
 		lotsPerSide = 2, -- each block holds 2 x 2 lots
 		lotGap = 6,
-		height = { min = 40, max = 190, towerChance = 0.18, towerMin = 200, towerMax = 280 },
+		-- towers are real skyscrapers (nate 2026-11-17: "We need taller buildings, skyscrapers"); each gets a
+		-- silhouette from Config.City.skyline (setbacks, a spire, a lit crown, a mast or a flat roof)
+		height = { min = 40, max = 190, towerChance = 0.18, towerMin = 400, towerMax = 600 },
 		rooftop = { ledgeChance = 0.5, waterTowerChance = 0.25, antennaChance = 0.3 },
 		plaza = { size = 140 }, -- the open square around the Beacon Tower, where new heroes land
-		beacon = { height = 320, width = 46 }, -- Beacon Tower HQ (League side), the Downtown landmark
+		beacon = { height = 640, width = 46 }, -- Beacon Tower HQ (League side), the Downtown landmark, the tallest there
 		seed = 20261116, -- fixed: the hub is handcrafted in the spec, so it never changes with the weekly seed
 		core = CORE, -- the first 700 x 700: its blocks keep their draws, so its buildings never move
 		grow = GROW,
@@ -68,10 +70,13 @@ return {
 		sidewalk = 5,
 		lotsPerSide = 2,
 		lotGap = 6,
-		height = { min = 48, max = 170, towerChance = 0.24, towerMin = 190, towerMax = 260 },
+		height = { min = 48, max = 170, towerChance = 0.24, towerMin = 380, towerMax = 560 },
 		rooftop = { ledgeChance = 0.4, gardenChance = 0.35, antennaChance = 0.25 },
 		colors = { "upCoral", "upTeal", "upAmber", "upViolet", "upCream", "upSky" },
 		park = { 3, 2 }, -- one block is a green with a fountain (block x, z from the north-west corner, 1..4)
+		-- the landmark skyscraper (PLACEHOLDER NAME), the city's tallest: a square shaft, two setbacks, a lit
+		-- lantern and a spire to `height`, alone on its block with a plaza round it
+		landmark = { block = { 2, 3 }, size = 64, height = 820 },
 		fountain = { radius = 14, height = 2.4, jet = 10 },
 	},
 	-- The city kit (overhaul plan step 3: the first Downtown block; step 5: the whole city). Building fronts,
@@ -410,7 +415,16 @@ return {
 	},
 	-- Hub filler tiles between the districts (parks, low-rise blocks), fixed seed
 	hubFill = { seed = 20261119, street = 8, height = { min = 14, max = 40 } },
-	ceilingCloudY = 500,
+	ceilingCloudY = 880, -- the cloud layer, above the tallest spire (Config.Move ceiling)
+	-- skyscraper silhouettes (2026-11-17): a tower's shape is picked by a hash of its spot (never a draw, so no
+	-- building moves). The shaft is the wreckable box (Shared.Structure); the parts above it are its crown,
+	-- shown while the shaft's top storey stands. Window bands every 12 studs low down, every 36 higher up
+	-- (PLACEHOLDER ART, gone once the kit fronts are in), so a 600-stud tower stays cheap on a phone.
+	skyline = {
+		styles = { "flat", "setback", "spire", "crown", "mast", "setback", "spire", "crown" },
+		bandsLow = 144, -- bands every 12 studs up to here
+		bandStep = 36, -- then every 36
+	},
 	-- Muted building colours so saturated hero colours pop (spec: Style guide)
 	palette = {
 		concrete = { 158, 156, 150 },

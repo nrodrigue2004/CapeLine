@@ -7585,6 +7585,179 @@ test(
 	end
 )
 
+test(
+	"Skyscrapers: towers of 400 to 600, an 820 landmark, under the ceiling, destructible, within budget",
+	function()
+		local Structure = require("../src/shared/Structure")
+		local C = Config.City
+		local D = Config.Destruction
+		local M = Config.Move
+		local gy = C.ground.y
+		local wd = world
+		local t, u = C.downtown, C.uptown
+		-- heights: towers 400 to 600 (Uptown 380 to 560) to the top of their crowns, varied silhouettes
+		local towers = { Downtown = 0, Uptown = 0 }
+		local styles = {}
+		local corePeak = 0
+		local core = t.core
+		for _, b in wd.buildings do
+			local peak = b.peak or b.top
+			local h = peak - b.base
+			if b.district == "Downtown" or b.district == "Uptown" then
+				local cfg = if b.district == "Downtown" then t.height else u.height
+				if h >= cfg.towerMin - 1 and b.crown ~= "landmark" then
+					towers[b.district] += 1
+					check(
+						h <= cfg.towerMax + 1,
+						string.format("a %s tower at most %d (%.0f)", b.district, cfg.towerMax, h)
+					)
+				end
+				if b.crown then
+					styles[b.crown] = true
+				end
+				if
+					b.district == "Downtown"
+					and b.x > core.minX
+					and b.x < core.maxX
+					and b.z > core.minZ
+					and b.z < core.maxZ
+				then
+					corePeak = math.max(corePeak, peak)
+				end
+			end
+		end
+		check(
+			towers.Downtown >= 15 and towers.Uptown >= 8,
+			string.format("a skyline: %d Downtown and %d Uptown towers", towers.Downtown, towers.Uptown)
+		)
+		local n = 0
+		for _ in styles do
+			n += 1
+		end
+		check(n >= 5, string.format("%d tower silhouettes (setback, spire, crown, mast, landmark)", n))
+		local bt = wd.downtown.beacon
+		check(
+			gy + 1 + bt.h > corePeak,
+			string.format("the Beacon Tower (%d) is the first Downtown's tallest (%.0f)", bt.h, corePeak)
+		)
+		local lm = wd.uptown.landmark
+		local tallest = 0
+		for _, b in wd.hubBoxes do
+			tallest = math.max(tallest, b.cy + b.sy / 2)
+		end
+		check(
+			math.abs(lm.peak - (gy + 0.9 + u.landmark.height)) < 1 and u.landmark.height >= 780,
+			"the landmark is about 800 studs"
+		)
+		check(
+			math.abs(tallest - lm.peak) < 1,
+			string.format("the landmark is the tallest thing in the city (%.0f)", tallest)
+		)
+		-- ceiling clearance: every roof and spire under the soft ceiling with room to fly over, the clouds above
+		check(
+			tallest + 60 <= M.ceiling.soft,
+			string.format(
+				"60 studs of sky over the tallest spire (%.0f, ceiling %d)",
+				tallest,
+				M.ceiling.soft
+			)
+		)
+		check(
+			C.ceilingCloudY > tallest and C.ceilingCloudY < M.ceiling.soft and M.ceiling.soft < M.ceiling.hard,
+			"clouds over the spires, under the ceiling"
+		)
+		for _, plan in wd.tilePlans do
+			for _, b in plan.boxes do
+				tallest = math.max(tallest, b.cy + b.sy / 2)
+			end
+		end
+		check(tallest + 60 <= M.ceiling.soft, "the outskirts too")
+		-- destructible: the shaft is the wreck box; every building's pieces fit the 256-bit pack, chunks and rubble
+		-- stay in their caps, and the crown sits on its own shaft
+		local maxPieces, maxStoreyH = 0, 0
+		for _, b in wd.buildings do
+			local g = Structure.build(D, b)
+			maxPieces = math.max(maxPieces, #g.pieces)
+			maxStoreyH = math.max(maxStoreyH, g.storeyH)
+			check(
+				#g.pieces <= 256 and g.storeys <= D.structure.maxStoreys,
+				"building " .. b.id .. " fits the piece pack"
+			)
+			local chunks = Chunker.split(D, b)
+			check(
+				#chunks >= D.chunks.min and #chunks <= D.chunks.max,
+				"building " .. b.id .. " chunks in 10 to 40"
+			)
+			local rubble = Chunker.rubble(D, b, b.id)
+			check(#rubble >= D.rubble.min and #rubble <= D.rubble.max, "building " .. b.id .. " rubble heap")
+		end
+		local byGrp = {}
+		for _, b in wd.buildings do
+			byGrp[b.grp] = b
+		end
+		local crownParts, bad = 0, 0
+		local perBuilding = {}
+		for _, bx in wd.hubBoxes do
+			if bx.grp then
+				perBuilding[bx.grp] = (perBuilding[bx.grp] or 0) + 1
+			end
+			if bx.crown then
+				crownParts += 1
+				local b = byGrp[bx.grp]
+				if
+					not b
+					or not b.crown
+					or bx.cy - bx.sy / 2 < b.top - 1.5
+					or math.abs(bx.cx - b.x) > b.sx / 2 + 1
+					or math.abs(bx.cz - b.z) > b.sz / 2 + 1
+				then
+					bad += 1
+				end
+			end
+		end
+		check(
+			crownParts > 0 and bad == 0,
+			string.format("%d crown parts, each on top of its own tower's shaft", crownParts)
+		)
+		for _, b in wd.buildings do
+			if b.crown then
+				check(b.peak ~= nil and b.peak > b.top, "a crowned tower's peak is over its shaft")
+			end
+		end
+		-- part budget: no building over 32 parts (window bands thin out high up), the districts in their budgets
+		local most = 0
+		for _, k in perBuilding do
+			most = math.max(most, k)
+		end
+		check(most <= 32, string.format("at most 32 parts a building (%d)", most))
+		check(
+			wd.downtown.parts <= C.partBudget.downtown and wd.uptown.parts <= C.partBudget.uptown,
+			"district part budgets"
+		)
+		-- beacons never on a crown; heights see the crowns
+		for _, b in wd.beacons do
+			for _, w in wd.buildings do
+				if w.crown and math.abs(b.x - w.x) < w.sx / 2 and math.abs(b.z - w.z) < w.sz / 2 then
+					check(false, b.name .. " is not on a skyscraper's crown")
+				end
+			end
+		end
+		check(WorldMap.heightAt(wd, lm.x, lm.z) >= lm.peak - 12, "the heightmap sees the landmark's spire")
+		print(
+			string.format(
+				"  skyline: %d Downtown and %d Uptown towers, Beacon %d, landmark %.0f, %d crown parts, max %d pieces, storeys up to %.0f studs",
+				towers.Downtown,
+				towers.Uptown,
+				bt.h,
+				lm.peak,
+				crownParts,
+				maxPieces,
+				maxStoreyH
+			)
+		)
+	end
+)
+
 print(string.format("\n%d passed, %d failed", passed, failed))
 if failed > 0 then
 	process.exit(1)

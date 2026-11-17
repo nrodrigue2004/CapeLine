@@ -258,13 +258,22 @@ nate: "let's put one more downtown and make downtown bigger" (nate picked ~1.5x 
 Textures (with the 19 of "City kit: the whole city"):
 1. Material Manager: 3 more variants, `KitRibbon` (SmoothPlastic, 12), `KitPrism` (Glass, 12) and `KitTerrazzo` (Pavement, 8), each with its `_Color`, `_Normal` and `_Roughness` PNGs (Prism also `_Metalness`).
 Checks:
-2. From the plaza, fly north and west: one more row and column of blocks, the same kind of buildings, lamps and props as the rest of Downtown; the plaza, the 4 Downtown safehouses, the trams and every old building are where they were.
+2. From the plaza, fly north and west: one more row and column of blocks, the same kind of buildings, lamps and props as the rest of Downtown; the plaza, the 4 Downtown safehouses, the trams and every old building are where they were (the towers are taller: see "Skyscrapers").
 3. The two open squares (north row, second block from the west; west column, fourth block from the north): paved, kerbed, lamps and trees round the edge, benches facing in, nothing built. Walk across both.
-4. Fly north past North Park: Uptown, 16 blocks: coral, teal, amber, violet, cream and sky-blue buildings (plain colours and window bands until the textures are in; then ribbon windows and diamond glass in those colours), roof gardens, flower tubs and a green with a fountain (land on its rim; the jet is walk-through). The roads around it meet its streets; no outskirts houses or roads inside it.
+4. Fly north past North Park: Uptown, 16 blocks: coral, teal, amber, violet, cream and sky-blue buildings (plain colours and window bands until the textures are in; then ribbon windows and diamond glass in those colours), roof gardens, flower tubs, a green with a fountain (land on its rim; the jet is walk-through) and the landmark skyscraper. The roads around it meet its streets; no outskirts houses or roads inside it.
 5. The map screen shows UPTOWN; incidents, contracts and events can happen there (a tower or sign incident in Uptown), and its rewards are at least level 5 (the suburbs' floor).
 6. Smash an Uptown building and a building in a new Downtown row: both break, fall and get repaired like the rest (3 repair drones for Uptown).
 7. Fast travel to Northgate and fly to Uptown; respawning still uses the 16 safehouses.
 8. Performance: the Dev panel's part count and frame time in Uptown and in the new Downtown rows on a phone (Device emulator, Low) and on the PC; streaming should keep a phone's load like the rest of Downtown.
+
+### Skyscrapers (2026-11-17)
+nate: "We need taller buildings, skyscrapers". Towers are 400 to 600 studs with their own silhouettes (setbacks, a spire, a lit crown between corner fins, a mast, or flat), the Beacon Tower 640 (the first Downtown's tallest) and Uptown's landmark skyscraper 820 (PLACEHOLDER NAME: setbacks, a lit lantern and a spire). The flight ceiling is now 920 soft / 960 hard, the clouds at 880. Previews: art/preview/DowntownWide_air.png, Uptown_air.png, Uptown_street.png, Uptown_green.png.
+Checks:
+1. From the plaza: a real skyline, no two neighbouring towers alike; the Beacon Tower stands out as the tallest in old Downtown. Fly to Uptown: the landmark towers over everything, its lantern glows at night.
+2. Fly straight up anywhere: the ceiling pushes back above 920 and stops you by 960, with room over the landmark's spire.
+3. Smash a tower's shaft: holes and falling pieces as before; the crown (setbacks, spire, fins, mast) stays up until the top storey falls, then goes with it; a collapse leaves rubble and no floating crown. A repair brings the crown back.
+4. Beacons, safehouses, incidents (roof chases never start on a crown; tower rescues on the shaft's faces), the opening and missions work as before; fast travel to "Downtown East" lands on a flat roof with no water tower or mast beside the pad.
+5. Performance: on a phone (Low), the frame time and part count looking at the skyline from the plaza and from Uptown; towers far away stream out (StreamingTargetRadius 600): tell Claude if the skyline popping in looks bad, and it can keep the tall shafts loaded.
 
 ### Heroes: a Roblox character in our own clothes (2026-11-17)
 nate's call: every hero is the classic blocky Roblox character and keeps nothing from the player's avatar ("They wear our clothes, our gear, our accessories"). Our classic Shirt and Pants (art/clothes/heroes.py: 18 shirts, 12 pants, previews art/preview/hero_clothes.png and hero_clothes_2.png), tinted by the hero's colours, our 6 faces and our hair, with suits and gear on top. No gender, build or height. The Output says build city-clothes (2026-11-17).
