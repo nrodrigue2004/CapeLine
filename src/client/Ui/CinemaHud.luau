@@ -383,11 +383,17 @@ local function buildCard()
 	card.Parent = gui
 end
 
--- Show a boss's name card (3 s): the card slams in big and settles; the slash bar sweeps across
+-- Show a boss's name card (3 s): the card slams in big and settles; the slash bar sweeps across in the boss's look
+-- colour (Config.BossArt theme: welding orange, the Maw's light, the Deep Machine's aqua; red for the battle form)
 function CinemaHud.nameCard(bossId: string)
 	local name, title = CinemaPlan.nameCard(Config, bossId)
 	cardName.Text = name
 	cardTitle.Text = title
+	local art = Config.BossArt[bossId]
+	local theme = art and art.theme
+	cardSlash.BackgroundColor3 = if theme
+		then Color3.fromRGB(theme[1], theme[2], theme[3])
+		else Color3.fromRGB(235, 70, 70)
 	card.Visible = true
 	cardScale.Scale = 1.5
 	TweenService:Create(cardScale, TweenInfo.new(0.22, Enum.EasingStyle.Back), { Scale = 1 }):Play()

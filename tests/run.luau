@@ -12304,6 +12304,173 @@ do
 	end)
 end
 
+---------------------------------------------------------------------------
+-- Lore step 8: the world bosses' looks (nate's lore, 2026-11-17)
+---------------------------------------------------------------------------
+
+test(
+	"Lore 8: the world bosses' new looks: part-built looks in budget, titles, colours, no old looks",
+	function()
+		local A = Config.BossArt
+		local B = Config.Boss
+		local NewsPlan = require("../src/shared/NewsPlan")
+		local CinemaPlan = require("../src/shared/CinemaPlan")
+		-- nate's lore (2026-11-17): the three world bosses keep their names and fights and get new looks
+		local LOOKS = {
+			RustjawPrime = { name = "Rustjaw Prime", title = "THE JUNKYARD TITAN", fx = "sparks", parts = 23 },
+			LumenMaw = { name = "Lumen Maw", title = "THE LIGHT EATER", fx = "light", parts = 19 },
+			LeviathanEngine = {
+				name = "Leviathan Engine",
+				title = "THE DEEP MACHINE",
+				fx = "tide",
+				parts = 29,
+			},
+		}
+		local ROLES = { body = true, glow = true, weak = true }
+		for id, want in LOOKS do
+			local def, art = B.bosses[id], A[id]
+			check(def.name == want.name, id .. " keeps its name")
+			check(table.find(B.order, id) ~= nil, id .. " is still a world boss")
+			check(type(art.look) == "string" and #art.look > 0, id .. " has its lore look")
+			check(#art.theme == 3 and #art.debris == 3, id .. " has its look's colours")
+			check(
+				art.fx and art.fx.kind == want.fx and art.fx.every > 0 and #art.fx.at > 0,
+				id .. " has its look's effect"
+			)
+			for _, at in art.fx.at do
+				check(
+					math.abs(at[1]) <= def.arenaRadius and at[2] >= -def.height,
+					id .. " effect point on the boss"
+				)
+			end
+			-- the name card and the BREAKING flash: "RUSTJAW PRIME, THE JUNKYARD TITAN"
+			local nm, title = CinemaPlan.nameCard(Config, id)
+			check(
+				nm == string.upper(want.name) and title == want.title,
+				id .. ": the name card reads " .. want.title
+			)
+			check(#title <= 26, id .. ": the title fits the card")
+			local line = NewsPlan.text(Config, { k = NewsPlan.CODE.boss, a = def.num }, nil) :: string
+			check(
+				string.find(line, string.upper(want.name) .. ", " .. want.title, 1, true) ~= nil,
+				id .. ": the BREAKING flash names it with its title"
+			)
+			-- the part-built look (until the meshes are imported): the old part budget, real roles, inside the arena
+			local per = #def.objectives.list
+			local n = #art.parts + #art.objectiveParts * per
+			check(A.partBudget[id] == want.parts, id .. ": the part budget is the old count")
+			check(
+				n <= A.partBudget[id],
+				id .. ": the part-built look is within " .. A.partBudget[id] .. " parts"
+			)
+			local weak = {}
+			for _, row in art.parts do
+				check(ROLES[row.role] == true, id .. " part role " .. tostring(row.role))
+				check(
+					row.shape == "Block" or row.shape == "Ball" or row.shape == "Cylinder",
+					id .. " part shape"
+				)
+				for k = 1, 3 do
+					check(row.size[k] > 0 and row.size[k] <= def.arenaRadius, id .. " part size")
+					check(math.abs(row.at[k]) <= def.arenaRadius, id .. " part inside the arena")
+				end
+				check(row.at[2] > -def.height, id .. " part not far underground")
+				if row.role == "body" then
+					check(#row.color == 3 and row.mat ~= nil, id .. " body part colour and material")
+				elseif row.role == "weak" then
+					table.insert(weak, row.at)
+				end
+			end
+			-- each weak point has a gold part inside its hit sphere, and no gold part is a fake
+			local real = 0
+			for _, t in def.targets do
+				if t.weak then
+					real += 1
+					local found = false
+					for _, at in weak do
+						local d =
+							math.sqrt((at[1] - t.at[1]) ^ 2 + (at[2] - t.at[2]) ^ 2 + (at[3] - t.at[3]) ^ 2)
+						found = found or d <= t.r
+					end
+					check(found, id .. " " .. t.id .. ": a gold part inside its hit sphere")
+				end
+			end
+			check(#weak == real, id .. ": one gold part a weak point")
+			local bodies, lamps = 0, 0
+			local up = if def.objectives.list[1].ring then 8 else 0
+			for _, row in art.objectiveParts do
+				if row.role == "objective" then
+					bodies += 1
+				elseif row.role == "objectiveGlow" then
+					lamps += 1
+					local o = row.at
+					check(
+						math.sqrt(o[1] ^ 2 + (o[2] - up) ^ 2 + o[3] ^ 2) <= 5,
+						id .. ": the objective lamp in its hit sphere"
+					)
+				end
+			end
+			check(bodies >= 1 and lamps == 1, id .. ": an objective body and one lamp")
+			-- the phase hooks are the same: accents per phase, plates that break off at 66% and 33%
+			check(#art.glow == 3, id .. " accent colours for 3 phases")
+		end
+		-- the battle form keeps its look and its plain parts (its own pass)
+		check(
+			A.NullWarFrame.parts == nil and A.NullWarFrame.look == nil,
+			"the battle form's look is unchanged"
+		)
+		-- the fights are unchanged: the same hit spheres, objectives and attacks
+		check(
+			B.bosses.LumenMaw.targets[3].id == "crystalA" and B.bosses.LumenMaw.targets[3].r == 5,
+			"the Maw's targets"
+		)
+		check(B.bosses.LeviathanEngine.targets[6].id == "reactor", "the Leviathan's reactor")
+		check(
+			#B.bosses.RustjawPrime.attacks == 4 and B.bosses.RustjawPrime.attacks[3].id == "ScrapRain",
+			"Rustjaw's attacks"
+		)
+		-- no old look names or placeholder looks left
+		local files = {
+			"src/config/Cinema.luau",
+			"src/config/Boss.luau",
+			"src/config/BossArt.luau",
+			"src/client/Fx/WorldFx.luau",
+			"art/blender/bosses.py",
+		}
+		for _, path in files do
+			local text = string.lower(readFile(path))
+			for _, old in
+				{
+					"scrapyard titan",
+					"terror of the deep",
+					"scrap robot",
+					"crystal-powered",
+					"war submarine",
+					"generic neutral machines",
+					"placeholder look: boss lore pending",
+					"titles are placeholder until the bosses' lore",
+				}
+			do
+				check(string.find(text, old, 1, true) == nil, path .. ": no old look '" .. old .. "'")
+			end
+		end
+		-- the game draws the part-built looks and the looks' effects
+		local wf = readFile("src/client/Fx/WorldFx.luau")
+		for _, needle in { "partBoss(m, id, s)", "lookFx(sh)", "MawDim", "fit.theme", "PLACEHOLDER ART" } do
+			check(string.find(wf, needle, 1, true) ~= nil, "WorldFx: " .. needle)
+		end
+		check(
+			string.find(
+				readFile("src/client/Ui/CinemaHud.luau"),
+				"cardSlash.BackgroundColor3 = if theme",
+				1,
+				true
+			) ~= nil,
+			"the name card's slash takes the look's colour"
+		)
+	end
+)
+
 print(string.format("\n%d passed, %d failed", passed, failed))
 if failed > 0 then
 	process.exit(1)

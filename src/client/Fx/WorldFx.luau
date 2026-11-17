@@ -1,9 +1,12 @@
 -- WorldFx: the world boss on screen and the events' looks (spec: World boss; Random events; Juice: boss
 -- landing, phase change, defeat). The server's BossSim is the truth; this draws it.
--- * The boss model follows Boss.State (eased between the 2 Hz updates): Rustjaw Prime, a 110-stud scrap
---   robot with glowing core and knee weak points and two shoulder cannons; the Lumen Maw, a crystal-powered
---   machine beast with three crystals on its back and crystal generators around its pit. Broken objectives
---   go dark. Machines only: defeats are sparks, bolts and plates, never anything else.
+-- * The boss model follows Boss.State (eased between the 2 Hz updates). The world bosses wear nate's lore looks
+--   (2026-11-17, build plan step 8; art/blender/bosses.py, Config.BossArt): Rustjaw Prime, the Junkyard Titan (a
+--   110-stud giant of wrecked cars with tyre knees, headlight eyes, a bumper jaw and a crane arm; welding sparks fly
+--   from its seams), the Lumen Maw, the Light Eater (a sleek night creature whose maw pulls streams of light in and
+--   dims the area round it), and the Leviathan Engine, the Deep Machine (an ancient brass-and-stone sea machine with
+--   a tide-turbine heart; sea mist drifts off it). Broken objectives go dark. Never gory: machines shed sparks,
+--   bolts and plates, the Maw bursts into light.
 -- * Telegraphs from Boss.Attack: red ground markers that fill over the warning (ring, cone, circles, lines,
 --   the gravity pull's wide ring); the strike flashes, shakes the camera near it, and the pull drags this
 --   hero toward the Maw while it warns.
@@ -13,10 +16,10 @@
 --   holds every mesh of a boss, it is drawn from them: a textured hull, armour plates that break off at phases 2
 --   and 3, Neon accents in the phase colour, weak points in one pulsing gold, and the objectives' bodies with their
 --   red lamps. Hit boxes stay Config.Boss's targets either way.
--- PLACEHOLDER LOOK: boss lore pending. The world and event bosses stand apart from the main story (nate,
--- 2026-11-17), so the remade meshes are generic neutral machines (no faction emblems, no text, no story looks).
--- PLACEHOLDER ART: until those meshes are imported every boss is the plain parts below, unchanged (Tasks.md
--- "Remade bosses").
+-- PLACEHOLDER ART: until those meshes are imported each world boss is drawn from its part-built look in
+-- Config.BossArt (parts: the same silhouette in at most the old part count; accents still take the phase colour
+-- and the weak points pulse gold). Bulwark's battle form (NullWarFrame) keeps its plain parts below (Tasks.md
+-- "Lore step 8: world bosses").
 
 local Lighting = game:GetService("Lighting")
 local Players = game:GetService("Players")
@@ -33,6 +36,7 @@ local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local WorldClient = require(script.Parent.Parent.Controllers.WorldClient)
 local CameraController = require(script.Parent.Parent.Controllers.CameraController)
 local CombatFx = require(script.Parent.CombatFx)
+local FxLib = require(script.Parent.FxLib)
 local State = require(script.Parent.Parent.State)
 local Juice = require(script.Parent.Juice)
 
@@ -43,7 +47,8 @@ local folder: Folder
 local WARN = Color3.fromRGB(255, 70, 60)
 local SCRAP = Color3.fromRGB(150, 110, 80)
 local STEEL = Color3.fromRGB(90, 96, 108)
-local LUMEN = Color3.fromRGB(150, 120, 255)
+local ART = Config.BossArt
+local LUMEN = Color3.fromRGB(ART.LumenMaw.theme[1], ART.LumenMaw.theme[2], ART.LumenMaw.theme[3]) -- the Maw's light
 
 type Shown = {
 	id: string,
@@ -59,9 +64,10 @@ type Shown = {
 	tyaw: number,
 	lift: number, -- landing / rising / leaving offset
 	state: number,
-	art: boolean, -- drawn from the remade meshes (Config.BossArt)
+	art: boolean, -- drawn from Config.BossArt (the remade meshes, or a world boss's part-built look)
 	phase: number, -- the phase its look shows (art only; 0 before the first state)
 	weak: { BasePart }, -- the pulsing weak-point lamps (art only)
+	nextFx: number, -- when its look's own effect (sparks, light, mist) next plays
 }
 local shown: Shown? = nil
 
@@ -93,72 +99,6 @@ end
 ---------------------------------------------------------------------------
 -- The boss models (built around the origin: feet at y 0, facing -z)
 ---------------------------------------------------------------------------
-
-local function rustjaw(m: Model): { BasePart }
-	-- legs and feet
-	for _, s in { -1, 1 } do
-		part(m, Vector3.new(16, 8, 24), CFrame.new(s * 14, 4, -2), STEEL, Enum.Material.Metal)
-		part(m, Vector3.new(10, 40, 10), CFrame.new(s * 14, 26, 0), SCRAP, Enum.Material.CorrodedMetal)
-		part(
-			m,
-			Vector3.new(4, 4, 4),
-			CFrame.new(s * 14, 30, -6),
-			WARN,
-			Enum.Material.Neon,
-			Enum.PartType.Ball
-		)
-	end
-	-- torso, core, head and jaw
-	part(m, Vector3.new(44, 40, 30), CFrame.new(0, 66, 0), SCRAP, Enum.Material.CorrodedMetal)
-	part(m, Vector3.new(30, 10, 26), CFrame.new(0, 48, 0), STEEL, Enum.Material.Metal)
-	part(m, Vector3.new(8, 8, 2), CFrame.new(0, 72, -15.5), Color3.fromRGB(255, 170, 60), Enum.Material.Neon)
-	part(m, Vector3.new(22, 16, 20), CFrame.new(0, 96, -4), STEEL, Enum.Material.Metal)
-	part(m, Vector3.new(20, 5, 18), CFrame.new(0, 86, -7), SCRAP, Enum.Material.CorrodedMetal)
-	for _, s in { -1, 1 } do
-		part(
-			m,
-			Vector3.new(5, 3, 1),
-			CFrame.new(s * 5, 99, -14.6),
-			Color3.fromRGB(255, 220, 90),
-			Enum.Material.Neon
-		)
-		-- arms
-		part(
-			m,
-			Vector3.new(10, 34, 10),
-			CFrame.new(s * 28, 62, -2) * CFrame.Angles(0, 0, math.rad(s * 8)),
-			SCRAP
-		)
-		part(m, Vector3.new(14, 12, 14), CFrame.new(s * 31, 42, -4), STEEL, Enum.Material.Metal)
-	end
-	-- shoulder cannons (the objectives)
-	local cannons = {}
-	for _, row in B.bosses.RustjawPrime.objectives.list do
-		local at = row.at
-		local base =
-			part(m, Vector3.new(10, 8, 10), CFrame.new(at[1], at[2] - 2, at[3]), STEEL, Enum.Material.Metal)
-		part(
-			m,
-			Vector3.new(3.4, 16, 3.4),
-			CFrame.new(at[1], at[2] + 2, at[3] - 6) * CFrame.Angles(math.rad(70), 0, 0),
-			Color3.fromRGB(60, 60, 66),
-			Enum.Material.Metal,
-			Enum.PartType.Cylinder
-		)
-		local glow = part(
-			m,
-			Vector3.new(3, 3, 3),
-			CFrame.new(at[1], at[2] + 4, at[3]),
-			WARN,
-			Enum.Material.Neon,
-			Enum.PartType.Ball
-		)
-		glow.Name = "ObjectiveGlow"
-		table.insert(cannons, glow)
-		base.Name = "Cannon"
-	end
-	return cannons
-end
 
 -- The War-Frame (mission 6): a tall humanoid war machine with 2 shoulder cannons, a glowing back
 -- core (the phase 2 shield's weak point) and knee joints. PLACEHOLDER ART: parts until the mesh pass.
@@ -215,158 +155,11 @@ local function warframe(m: Model): { BasePart }
 	return cannons
 end
 
-local function maw(m: Model)
-	local body = Color3.fromRGB(70, 64, 90)
-	part(m, Vector3.new(40, 26, 56), CFrame.new(0, 26, 8), body, Enum.Material.Metal)
-	part(m, Vector3.new(30, 22, 26), CFrame.new(0, 38, -28), body, Enum.Material.Metal)
-	-- the jaw: two plates with a glowing throat
-	part(m, Vector3.new(28, 4, 22), CFrame.new(0, 26, -36), STEEL, Enum.Material.Metal)
-	part(m, Vector3.new(14, 6, 2), CFrame.new(0, 32, -41), LUMEN, Enum.Material.Neon)
-	for _, s in { -1, 1 } do
-		part(
-			m,
-			Vector3.new(4, 3, 1),
-			CFrame.new(s * 8, 44, -41.2),
-			Color3.fromRGB(220, 200, 255),
-			Enum.Material.Neon
-		)
-		for k = 0, 1 do
-			part(m, Vector3.new(8, 20, 8), CFrame.new(s * 18, 10, -12 + k * 34), STEEL, Enum.Material.Metal)
-		end
-	end
-	-- back crystals (weak points)
-	for _, t in B.bosses.LumenMaw.targets do
-		if t.weak then
-			part(
-				m,
-				Vector3.new(5, 14, 5),
-				CFrame.new(t.at[1], t.at[2], t.at[3]) * CFrame.Angles(0, math.rad(45), math.rad(12)),
-				LUMEN,
-				Enum.Material.Neon
-			)
-		end
-	end
-end
-
--- The Leviathan Engine (underwater at launch): a serpent-shaped war submarine. A segmented hull runs
--- back under the surface, the neck and armoured head rise out of the water facing -z, two eyes and a
--- reactor glow (weak points), and two torpedo bays on its back are the objectives. Feet (y 0) are the
--- water's surface. PLACEHOLDER ART: parts until the mesh pass.
-local function leviathan(m: Model): { BasePart }
-	local cfg = B.bosses.LeviathanEngine
-	local hull = Color3.fromRGB(38, 62, 78)
-	local plate = Color3.fromRGB(70, 96, 110)
-	local glow = Color3.fromRGB(90, 230, 255)
-	-- the hull: segments trailing back and down under the water, with dorsal fins
-	for k = 0, 6 do
-		local size = 26 - k * 2.4
-		local cf = CFrame.new(0, 4 - k * 3.5, 10 + k * 20) * CFrame.Angles(math.rad(-8), 0, 0)
-		part(
-			m,
-			Vector3.new(size, size * 0.8, 22),
-			cf,
-			if k % 2 == 0 then hull else plate,
-			Enum.Material.Metal
-		)
-		part(
-			m,
-			Vector3.new(2, size * 0.5, 10),
-			cf * CFrame.new(0, size * 0.55, 0),
-			STEEL,
-			Enum.Material.Metal
-		)
-	end
-	-- the neck: three rising segments, then the head with a jaw, eyes and a glowing throat
-	for k = 0, 2 do
-		part(
-			m,
-			Vector3.new(16 - k, 14, 16 - k),
-			CFrame.new(0, 12 + k * 11, -6 - k * 9) * CFrame.Angles(math.rad(-35), 0, 0),
-			if k % 2 == 0 then plate else hull,
-			Enum.Material.Metal
-		)
-	end
-	part(m, Vector3.new(22, 16, 30), CFrame.new(0, 46, -36), hull, Enum.Material.Metal)
-	part(m, Vector3.new(20, 5, 24), CFrame.new(0, 36, -40), STEEL, Enum.Material.Metal) -- the jaw
-	part(m, Vector3.new(14, 4, 1), CFrame.new(0, 41, -51.6), glow, Enum.Material.Neon) -- the throat
-	for _, t in cfg.targets do
-		if t.weak then
-			part(
-				m,
-				Vector3.one * (t.r + 1),
-				CFrame.new(t.at[1], t.at[2], t.at[3]),
-				glow,
-				Enum.Material.Neon,
-				Enum.PartType.Ball
-			)
-		end
-	end
-	-- side fins
-	for _, s in { -1, 1 } do
-		part(
-			m,
-			Vector3.new(26, 2, 12),
-			CFrame.new(s * 22, 2, 6) * CFrame.Angles(0, math.rad(s * 25), math.rad(s * -12)),
-			plate,
-			Enum.Material.Metal
-		)
-	end
-	-- torpedo bays (the objectives)
-	local bays = {}
-	for _, row in cfg.objectives.list do
-		local at = row.at
-		local base =
-			part(m, Vector3.new(9, 6, 12), CFrame.new(at[1], at[2] - 2, at[3]), STEEL, Enum.Material.Metal)
-		base.Name = "Cannon"
-		local light = part(
-			m,
-			Vector3.new(3, 3, 3),
-			CFrame.new(at[1], at[2] + 2, at[3]),
-			WARN,
-			Enum.Material.Neon,
-			Enum.PartType.Ball
-		)
-		light.Name = "ObjectiveGlow"
-		table.insert(bays, light)
-	end
-	return bays
-end
-
-local function generators(cx: number, cy: number, cz: number): { BasePart }
-	local out = {}
-	local cfg = B.bosses.LumenMaw
-	for _, row in cfg.objectives.list do
-		local a = math.rad(row.ring)
-		local r = cfg.arenaRadius * 0.75
-		local at = Vector3.new(cx + math.cos(a) * r, cy, cz + math.sin(a) * r)
-		local base = part(
-			folder,
-			Vector3.new(10, 14, 10),
-			CFrame.new(at + Vector3.new(0, 7, 0)),
-			STEEL,
-			Enum.Material.Metal
-		)
-		base:SetAttribute("Boss", true)
-		local core = part(
-			folder,
-			Vector3.new(5, 5, 5),
-			CFrame.new(at + Vector3.new(0, 16, 0)),
-			LUMEN,
-			Enum.Material.Neon,
-			Enum.PartType.Ball
-		)
-		core.Name = "ObjectiveGlow"
-		table.insert(out, core)
-	end
-	return out
-end
-
 ---------------------------------------------------------------------------
--- The remade bosses (art/blender/bosses.py): meshes from ReplicatedStorage.Art.Bosses placed from Config.BossArt.
--- PLACEHOLDER LOOK: boss lore pending (generic neutral machines until each boss's story is decided)
+-- The remade bosses (art/blender/bosses.py): meshes from ReplicatedStorage.Art.Bosses placed from Config.BossArt,
+-- or until they are imported, a world boss's part-built look from the same table
 ---------------------------------------------------------------------------
 
-local ART = Config.BossArt
 local LIT = { glow = true, weak = true, objectiveGlow = true }
 
 local function rgb(t: { number }): Color3
@@ -425,6 +218,22 @@ local function meshPiece(
 	return p
 end
 
+-- An objective's place (shoulder cannons and vent hatches on the body; the Maw's generators round its pit in the
+-- world) and the parent its pieces go in
+local function objectiveAt(
+	def: { [string]: any },
+	row: { [string]: any },
+	s: { [string]: any },
+	m: Model
+): (CFrame, Instance)
+	if row.at then
+		return CFrame.new(row.at[1], row.at[2], row.at[3]), m
+	end
+	local a = math.rad(row.ring)
+	local r = def.arenaRadius * 0.75
+	return CFrame.new(s.x + math.cos(a) * r, s.y, s.z + math.sin(a) * r), folder
+end
+
 -- The whole boss from its meshes (around the origin, like the parts), and its objectives in list order: shoulder
 -- cannons and torpedo bays on the body, the Maw's generators standing round its pit in the world
 local function meshBoss(
@@ -440,15 +249,7 @@ local function meshBoss(
 	end
 	local glows = {}
 	for _, row in def.objectives.list do
-		local at, parent: Instance = CFrame.new(), m
-		if row.at then
-			at = CFrame.new(row.at[1], row.at[2], row.at[3])
-		else
-			local a = math.rad(row.ring)
-			local r = def.arenaRadius * 0.75
-			at = CFrame.new(s.x + math.cos(a) * r, s.y, s.z + math.sin(a) * r)
-			parent = folder
-		end
+		local at, parent = objectiveAt(def, row, s, m)
 		for name, prow in fit.objective do
 			local p = meshPiece(meshes[name], name, prow, at, parent)
 			if prow.role == "objectiveGlow" then
@@ -461,6 +262,73 @@ local function meshBoss(
 		end
 	end
 	return glows
+end
+
+local SHAPES = { Ball = Enum.PartType.Ball, Cylinder = Enum.PartType.Cylinder, Block = Enum.PartType.Block }
+local MATS = {
+	SmoothPlastic = Enum.Material.SmoothPlastic,
+	Metal = Enum.Material.Metal,
+	Slate = Enum.Material.Slate,
+	CorrodedMetal = Enum.Material.CorrodedMetal,
+}
+
+-- One part of a part-built look (lit roles are Neon: glow in the phase colour, weak gold, objective lamps red)
+local function lookPart(fit: { [string]: any }, row: { [string]: any }, at: CFrame, parent: Instance): Part
+	local r = row.rot or { 0, 0, 0 }
+	local cf = at
+		* CFrame.new(row.at[1], row.at[2], row.at[3])
+		* CFrame.Angles(math.rad(r[1]), math.rad(r[2]), math.rad(r[3]))
+	local role = row.role
+	local color = if role == "weak"
+		then rgb(ART.weakColor[1])
+		elseif role == "glow" then rgb(fit.glow[1])
+		elseif role == "objectiveGlow" then rgb(ART.objectiveColor)
+		else rgb(row.color)
+	local p = part(
+		parent,
+		Vector3.new(row.size[1], row.size[2], row.size[3]),
+		cf,
+		color,
+		if LIT[role] then Enum.Material.Neon else MATS[row.mat] or Enum.Material.SmoothPlastic,
+		SHAPES[row.shape]
+	)
+	p.CastShadow = not LIT[role]
+	p:SetAttribute("Role", role)
+	return p
+end
+
+-- A world boss's part-built look (PLACEHOLDER ART until the meshes are imported) and its objectives in list order
+local function partBoss(m: Model, id: string, s: { [string]: any }): { BasePart }
+	local fit = ART[id]
+	local def = B.bosses[id]
+	for _, row in fit.parts do
+		lookPart(fit, row, CFrame.new(), m)
+	end
+	local glows = {}
+	for _, orow in def.objectives.list do
+		local at, parent = objectiveAt(def, orow, s, m)
+		for _, row in fit.objectiveParts do
+			local p = lookPart(fit, row, at, parent)
+			if row.role == "objectiveGlow" then
+				p.Name = "ObjectiveGlow"
+				table.insert(glows, p)
+			elseif parent == folder then
+				p:SetAttribute("Boss", true)
+			end
+		end
+	end
+	return glows
+end
+
+-- Bits flying off the boss (plates at a phase, the defeat): a machine's sparks and plates; the Maw bursts into light
+local function shatter(sh: Shown, pos: Vector3)
+	local fit = ART[sh.id]
+	local debris = if fit and fit.debris then rgb(fit.debris) else SCRAP
+	if fit and fit.fx and fit.fx.kind == "light" then
+		FxLib.burst(pos, 8, nil, debris, true)
+	else
+		CombatFx.burst(pos, State.hero.fxStyle, debris)
+	end
 end
 
 -- The look of a phase (art only): accents take the phase colour, and the plates for this phase break off (they
@@ -479,7 +347,7 @@ local function showPhase(sh: Shown, phase: number)
 			p.Color = glow
 		elseif (role == "shed2" and phase >= 2) or (role == "shed3" and phase >= 3) then
 			if animate then
-				CombatFx.burst(p.Position, State.hero.fxStyle, SCRAP)
+				shatter(sh, p.Position)
 				p.Parent = folder
 				local spin = CFrame.Angles(math.rad(math.random(-40, 40)), 0, math.rad(math.random(-40, 40)))
 				TweenService:Create(p, TweenInfo.new(1.6, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
@@ -504,22 +372,18 @@ local function build(id: string, s: { [string]: any }): Shown
 	local objectives = {}
 	local meshes = bossMeshes(id)
 	local weak = {}
+	local parts = not meshes and ART[id] ~= nil and ART[id].parts ~= nil
 	if meshes then
 		objectives = meshBoss(m, id, meshes, s)
-		for _, p in m:GetChildren() do
-			if p:GetAttribute("Role") == "weak" then
-				table.insert(weak, p :: BasePart)
-			end
-		end
-	elseif id == "RustjawPrime" then
-		objectives = rustjaw(m)
-	elseif id == "NullWarFrame" then
-		objectives = warframe(m)
-	elseif id == "LeviathanEngine" then
-		objectives = leviathan(m)
+	elseif parts then
+		objectives = partBoss(m, id, s)
 	else
-		maw(m)
-		objectives = generators(s.x, s.y, s.z)
+		objectives = warframe(m)
+	end
+	for _, p in m:GetChildren() do
+		if p:GetAttribute("Role") == "weak" then
+			table.insert(weak, p :: BasePart)
+		end
 	end
 	m.Parent = folder
 	return {
@@ -536,9 +400,10 @@ local function build(id: string, s: { [string]: any }): Shown
 		tyaw = s.yaw or 0,
 		lift = if id == "RustjawPrime" then 260 elseif id == "NullWarFrame" then 120 else -B.bosses[id].height,
 		state = s.state,
-		art = meshes ~= nil,
+		art = meshes ~= nil or parts,
 		phase = 0,
 		weak = weak,
+		nextFx = 0,
 	}
 end
 
@@ -610,9 +475,105 @@ local function onState()
 	end
 end
 
+---------------------------------------------------------------------------
+-- Each world boss's look in motion (Config.BossArt fx): Rustjaw's welding sparks, the Maw's light pulled into its
+-- maw while the area round it dims, the Leviathan's sea mist. Cheap: pooled particles and a few pooled streaks.
+---------------------------------------------------------------------------
+
+local streaks: { Part } = {}
+local nextStreak = 1
+local mawDim: ColorCorrectionEffect? = nil
+
+local function heroPos(): Vector3?
+	local char = Players.LocalPlayer.Character
+	local root = char and char:FindFirstChild("HumanoidRootPart") :: BasePart?
+	return root and root.Position
+end
+
+-- one streak of light flying from a ring round the maw into it (8 pooled thin Neon parts)
+local function lightStreak(mouth: CFrame, reach: number, color: Color3)
+	if #streaks < 8 then
+		local p = part(folder, Vector3.new(0.5, 0.5, 7), CFrame.new(), color, Enum.Material.Neon)
+		p.Name = "MawLight"
+		p.Transparency = 1
+		table.insert(streaks, p)
+	end
+	local p = streaks[nextStreak]
+	nextStreak = nextStreak % 8 + 1
+	if not p then
+		return
+	end
+	local a = math.random() * math.pi * 2
+	local from = mouth
+		* Vector3.new(math.cos(a) * reach, math.sin(a) * reach * 0.6, -reach * (0.6 + math.random() * 0.6))
+	local to = mouth.Position
+	p.Color = color
+	p.Transparency = 0.15
+	p.Size = Vector3.new(0.5, 0.5, 7)
+	p.CFrame = CFrame.lookAt(from, to)
+	TweenService:Create(p, TweenInfo.new(0.55, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+		CFrame = CFrame.lookAt(to, to + (to - from).Unit),
+		Size = Vector3.new(0.2, 0.2, 2),
+		Transparency = 1,
+	}):Play()
+end
+
+local function lookFx(sh: Shown)
+	local fit = ART[sh.id]
+	local fx = fit and fit.fx
+	local dimWant = 0
+	if fx and (sh.state == 2 or sh.state == 3) then
+		local pivot = sh.model:GetPivot()
+		local now = os.clock()
+		if now >= sh.nextFx then
+			sh.nextFx = now + fx.every
+			local glow = rgb(fit.glow[math.clamp(sh.phase, 1, #fit.glow)])
+			local at = fx.at[math.random(1, #fx.at)]
+			local pos = pivot * Vector3.new(at[1], at[2], at[3])
+			if fx.kind == "sparks" then
+				FxLib.emit("spark", rgb(fit.theme), pos, 5, pivot:VectorToWorldSpace(Vector3.new(0, 0.6, -1)))
+			elseif fx.kind == "tide" then
+				FxLib.emit("smoke", Color3.fromRGB(210, 240, 245), pos, 1, Vector3.new(0, 1, 0))
+			elseif fx.kind == "light" then
+				lightStreak(pivot * CFrame.new(at[1], at[2], at[3]), fx.reach, glow)
+			end
+		end
+		if fx.dim then
+			-- the Light Eater darkens the area round it for whoever stands near (eased in and out)
+			local hp = heroPos()
+			local def = B.bosses[sh.id]
+			if hp then
+				local d = (hp - pivot.Position).Magnitude
+				dimWant = -fx.dim * math.clamp(1 - (d - def.arenaRadius) / 150, 0, 1)
+			end
+		end
+	end
+	if dimWant < 0 and not mawDim then
+		local c = Instance.new("ColorCorrectionEffect")
+		c.Name = "MawDim"
+		c.Parent = Lighting
+		mawDim = c
+	end
+	local c = mawDim
+	if c then
+		c.Brightness += (dimWant - c.Brightness) * 0.05
+		c.Saturation = c.Brightness * 1.4
+		c.TintColor = Color3.new(1, 1, 1)
+			:Lerp(Color3.fromRGB(170, 180, 255), math.clamp(-c.Brightness * 3, 0, 1))
+		if dimWant == 0 and math.abs(c.Brightness) < 0.005 then
+			c:Destroy()
+			mawDim = nil
+		end
+	end
+end
+
 local function frame(dt: number)
 	local sh = shown
 	if not sh then
+		if mawDim then
+			mawDim:Destroy()
+			mawDim = nil
+		end
 		return
 	end
 	local k = math.min(1, dt * 3)
@@ -636,6 +597,9 @@ local function frame(dt: number)
 		for _, p in sh.weak do
 			p.Color = c
 		end
+	end
+	if sh.art then
+		lookFx(sh)
 	end
 end
 
@@ -740,13 +704,21 @@ local function bigMoment(ev: { [string]: any })
 		task.delay(B.schedule.landing * 0.8, function()
 			local at = Vector3.new(ev.x, ev.y, ev.z)
 			CombatFx.slam(at, 60)
+			-- the entrance in its look's colour (welding orange, the Maw's light, the Deep Machine's aqua)
+			local id = WorldClient.bossByNum[ev.num or 0] or (shown and shown.id)
+			local fit = id and ART[id]
+			if fit and fit.theme then
+				CombatFx.nova(at + Vector3.new(0, 4, 0), 70, style, rgb(fit.theme), true)
+			end
 			if near(at, 500) then
 				CameraController.shake(1.2, 1.6)
 			end
 		end)
 	elseif ev.k == "phase" and s then
 		local top = s.model:GetPivot().Position + Vector3.new(0, B.bosses[s.id].height * 0.7, 0)
-		CombatFx.nova(top, 40, style, WARN, true)
+		local fit = ART[s.id]
+		local glow = if fit and fit.look then rgb(fit.glow[math.clamp(ev.phase or 2, 1, #fit.glow)]) else WARN
+		CombatFx.nova(top, 40, style, glow, true)
 		CombatFx.banner(string.format("PHASE %d!", ev.phase), WARN, style)
 		Juice.fire("bossPhase", top, { mine = near(top, 500) })
 	elseif ev.k == "dead" and s then
@@ -756,11 +728,10 @@ local function bigMoment(ev: { [string]: any })
 		for i = 1, 6 do
 			task.delay(i * 0.25, function()
 				local h = B.bosses[s.id].height
-				CombatFx.burst(
+				shatter(
+					s,
 					pivot.Position
-						+ Vector3.new(math.random(-20, 20), math.random(10, h), math.random(-20, 20)),
-					style,
-					SCRAP
+						+ Vector3.new(math.random(-20, 20), math.random(10, h), math.random(-20, 20))
 				)
 			end)
 		end

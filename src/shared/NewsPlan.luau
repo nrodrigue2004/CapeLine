@@ -24,12 +24,17 @@ end
 
 export type Fact = { k: number, t: number?, n: number?, a: number?, at: number? }
 
--- The thing a fact is about, from config only (a boss, a fake, a mission's name, a count)
+-- The thing a fact is about, from config only (a boss, a fake, a mission's name, a count). A world boss's
+-- arrival names it with its title (the name card's: "RUSTJAW PRIME, THE JUNKYARD TITAN")
 local function thing(Config: any, kind: string, a: number?): string?
 	local n = a or 0
 	if kind == "boss" or kind == "bossDown" or kind == "bossAway" then
-		for _, b in Config.Boss.bosses do
+		for id, b in Config.Boss.bosses do
 			if b.num == n then
+				local title = Config.Cinema.nameCard.titles[id]
+				if kind == "boss" and not b.mission and title then
+					return string.upper(b.name) .. ", " .. title
+				end
 				return string.upper(b.name)
 			end
 		end

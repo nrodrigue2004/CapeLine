@@ -1,8 +1,11 @@
 -- World boss (spec: Schedulers > World boss; Opening and story > World boss; Boss.State, Boss.Contribution,
 -- Boss.Result). Two launch bosses alternate: Rustjaw Prime lands in Downtown, the Lumen Maw rises from the
--- Old Quarry. Both are machines (a scrap robot and a crystal-powered machine beast). The third, the Leviathan
--- Engine (underwater at launch, nate 2026-11-16), surfaces over the Trench: a serpent-shaped war
--- submarine. Heroes fight it from the water, from Frost ice rafts and from the air. (tune)
+-- Old Quarry. The third, the Leviathan Engine (underwater at launch, nate 2026-11-16), surfaces over the Trench;
+-- heroes fight it from the water, from Frost ice rafts and from the air. (tune)
+-- Looks (nate's lore, 2026-11-17, build plan step 8; standalone from the main story, names and fights unchanged):
+-- Rustjaw Prime, the Junkyard Titan (a giant a mad scrapper built from wrecked cars); Lumen Maw, the Light Eater
+-- (a light-eating night creature); Leviathan Engine, the Deep Machine (an ancient brass-and-stone sea machine).
+-- The looks are Config.BossArt's (art/blender/bosses.py); the titles are Config.Cinema.nameCard's.
 -- * Schedule: 20 to 30 minutes after the last one ended; a server with a player who has never seen a boss
 --   clamps the wait to 6 minutes. A banner and siren at T minus 60 s. Raid prep incidents run in the last
 --   5 minutes of the wait and each clear takes 3% off the boss's HP (at most 15%).
@@ -69,7 +72,7 @@ return {
 				{ id = "kneeL", at = { -14, 30, -8 }, r = 5, weak = true },
 				{ id = "kneeR", at = { 14, 30, -8 }, r = 5, weak = true },
 			},
-			-- objectives: shoulder cannons that shell the crowd until broken
+			-- objectives: shoulder junk launchers that shell the crowd until broken
 			objectives = {
 				kind = "cannon",
 				hits = 40, -- HP in hits of Power at the zone level
@@ -135,7 +138,8 @@ return {
 				{ id = "crystalB", at = { 0, 62, 16 }, r = 5, weak = true },
 				{ id = "crystalC", at = { 12, 58, 8 }, r = 5, weak = true },
 			},
-			-- objectives: crystal generators around the pit that heal it while they stand
+			-- objectives: the stolen lights (generators) around the pit that feed it while they stand; the three
+			-- weak points (ids crystalA..C) are the light sacs on its back
 			objectives = {
 				kind = "generator",
 				hits = 30,
@@ -203,7 +207,8 @@ return {
 				{ id = "eyeR", at = { 8, 50, -46 }, r = 4, weak = true },
 				{ id = "reactor", at = { 0, 14, 2 }, r = 5, weak = true },
 			},
-			-- objectives: two torpedo bays on its back that fire on the crowd until broken
+			-- objectives: two vent hatches on its back that fire on the crowd until broken; the reactor is its
+			-- tide-turbine heart
 			objectives = {
 				kind = "cannon",
 				hits = 36,

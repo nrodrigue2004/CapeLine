@@ -1,13 +1,16 @@
 # bosses.py: the remade world bosses (overhaul plan step 4, the bosses part), the same pipeline as the remade
 # Spark Trooper (trooper.py): meshes plus one baked PBR texture set per boss, exported as FBX, with a generated
 # fit table the game places them from.
-# PLACEHOLDER LOOK: boss lore pending (nate, 2026-11-17: world and event bosses stand apart from the main story
-# and their lore is not decided). So these are generic, big, readable cartoon comic-book machines (original
-# designs, machines only) in a neutral grey and steel scheme with industrial hazard stripes: no faction emblems,
-# no text, no story looks. The shapes only follow each fight: a tall walker with shoulder cannons
-# (RustjawPrime), a four-legged beast in a pit with three crystals and generators (LumenMaw), a serpent-shaped
-# sea machine with two bays on its back (LeviathanEngine), and a mech with a back reactor and shoulder cannons
-# (NullWarFrame, the mission 6 fight). The ids are Config.Boss's, not names for the looks.
+# The looks (nate's lore, 2026-11-17, build plan step 8): the three world bosses stand apart from the main story and
+# keep their names and fights, with new looks: Rustjaw Prime, the Junkyard Titan (a giant a mad scrapper bolted
+# together from wrecked cars: car bodies, tyres, a bumper jaw, headlight eyes, exhaust stacks, a crane arm, weld
+# seams that spark); Lumen Maw, the Light Eater (a sleek night creature with bioluminescent stripes and a huge maw
+# that pulls light in); Leviathan Engine, the Deep Machine (an ancient barnacled brass-and-stone sea machine with
+# gears, portholes and a tide-turbine heart). Bright cartoon, comic heroic, never gory: machines shed sparks and
+# plates, the Maw bursts into light. Original designs only. Bulwark's battle form (NullWarFrame, a mission fight)
+# keeps the neutral mech look (grey and steel, hazard stripes) until its own pass. The ids are Config.Boss's.
+# PLACEHOLDER ART until nate imports the FBX (Tasks.md "Lore step 8: world bosses"); until then the game draws each
+# world boss from the part-built look written here too (BossArt parts, previews boss_<Boss>_parts.png).
 # * Each boss is a few meshes by role (src/config/BossArt.luau, generated here):
 #     hull           the textured body (never moves; the game pivots the whole model)
 #     shed2 / shed3  textured armour plates that break off at phase 2 (66%) and phase 3 (33%)
@@ -23,8 +26,10 @@
 # * Budget (phone-friendly): at most 16,000 triangles a boss and 10,000 a mesh (Roblox allows 20,000); only one
 #   boss is ever on screen.
 # Output: art/export/Bosses.fbx (every boss, meshes named "<Boss>_<Piece>"; textures embedded), the PNGs,
-# src/config/BossArt.luau and, with --preview, art/preview/bosses.png plus art/preview/boss_<Boss>.png.
-# Run: python art/blender/bosses.py [--preview] [--only <Boss>]   (with the `bpy` module, Blender 5.0)
+# src/config/BossArt.luau and, with --preview, art/preview/bosses.png plus art/preview/boss_<Boss>.png (and the
+# part-built looks, boss_<Boss>_parts.png).
+# Run: python art/blender/bosses.py [--preview] [--only <Boss>] [--quick]   (with the `bpy` module, Blender 5.0;
+# --quick: shapes and previews only, flat colours, no bake, no export)
 import math
 import os
 import sys
@@ -222,6 +227,12 @@ class Boss:
         self.roles = dict(ROLE)
         self.roles[objective[0]] = "objective"
         self.roles[objective[1]] = "objectiveGlow"
+        self.look = None  # the look in a few words (nate's lore); None keeps the boss's older look
+        self.theme = None  # the look's colour: the entrance effects and the name card's slash
+        self.debris = None  # the colour of the bits that fly off (plates, the defeat)
+        self.fx = None  # the look's own effect round it: {kind, every, at = [(x, up, z)], ...} in Roblox axes
+        self.parts = None  # the part-built look until the meshes are imported (fallback rows, Roblox axes)
+        self.objective_parts = None  # and its objective, set at each Config.Boss objective
 
     def add(self, name, *objs):
         for o in objs:
@@ -263,144 +274,247 @@ def rb(v):
     return Vector((v[0], -v[2], v[1]))
 
 
-# ================================================================ RustjawPrime: a tall walker (110 studs)
+# ---------------------------------------------------------------- nate's lore (2026-11-17, build plan step 8): new
+# looks for the three world bosses. Shared bits: a tyre, a crushed car slab, a barnacle cluster, a gear wheel, and a
+# fallback part row (the part-built look the game shows until the meshes are imported, in Roblox axes)
+
+
+def tyre(at, axis, major, minor, hub=True, segs=16):
+    """A cartoon tyre (Dark) with a chrome hub (Metal) on the given axis."""
+    out = [ring("Dark", major, minor, at, axis, segs, 5)]
+    if hub:
+        out.append(cy("Metal", major * 0.62, major * 0.62, minor * 1.1, at, axis, 10))
+    return out
+
+
+def car(region, x0, x1, y0, y1, z0, z1, windows=True, lean=0.0, front=True):
+    """A crushed car body: a bevelled slab with dark window strips down both long sides (and a grille band on the
+    front when front), leaned lean degrees about y."""
+    out = [bx(region, x0, x1, y0, y1, z0, z1, 1.0, 2)]
+    if windows:
+        h = z1 - z0
+        for s in (-1, 1):
+            x = x1 if s > 0 else x0
+            out.append(bx("Dark", x - 0.4, x + 0.4, y0 + (y1 - y0) * 0.2, y1 - (y1 - y0) * 0.2, z0 + h * 0.55,
+                          z0 + h * 0.85, 0.2))
+    if front:
+        out.append(bx("Metal", x0 + 1.2, x1 - 1.2, y1 - 0.2, y1 + 0.8, z0 + 0.8, z0 + (z1 - z0) * 0.35, 0.3))
+    if lean:
+        c = ((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2)
+        for o in out:
+            turn(o, lean, "Y", c)
+    return out
+
+
+def barnacles(pts, r=1.1):
+    """Little barnacle cones (pale) clustered on stone."""
+    out = []
+    for k, p in enumerate(pts):
+        rr = r * (0.7 + 0.3 * ((k * 37) % 5) / 4)
+        out.append(cy("Hazard", rr, rr * 0.45, rr * 1.1, (p[0], p[1], p[2] + rr * 0.4), "Z", 6))
+    return out
+
+
+def gear(at, r, depth, axis="X", teeth=10, region="Paint"):
+    """A gear wheel: a disc with square teeth round the rim and a dark axle (built round z, then turned)."""
+    out = [cy(region, r, r, depth, (0, 0, 0), "Z", max(teeth, 10))]
+    for k in range(teeth):
+        t = bx(region, r - 0.2, r + 1.4, -0.9, 0.9, -depth / 2, depth / 2, 0)
+        turn(t, 360 * k / teeth, "Z")
+        out.append(t)
+    out.append(cy("Dark", r * 0.3, r * 0.3, depth + 0.6, (0, 0, 0), "Z", 8))
+    for o in out:
+        if axis == "X":
+            turn(o, 90, "Y")
+        elif axis == "Y":
+            turn(o, 90, "X")
+        move(o, at)
+    return out
+
+
+def P(role, shape, size, at, rot=(0, 0, 0), color=(200, 200, 200), mat="SmoothPlastic"):
+    """One fallback part (Roblox axes: x, up, z with -z the front; rot is CFrame.Angles in degrees)."""
+    return {"role": role, "shape": shape, "size": size, "at": at, "rot": rot, "color": color, "mat": mat}
+
+
+# ================================================================ RustjawPrime: the Junkyard Titan (110 studs)
+# A titan a mad scrapper bolted together from wrecked cars: crushed car bodies for legs, chest and arms, tyres for
+# knees, shoulders and neck, a chrome bumper jaw, headlight eyes, exhaust-pipe smokestacks, a scrapyard crane arm
+# with a claw, glowing weld seams that spit sparks. Bright patchwork car paints over rust.
+RUST = (196, 98, 48)
+TEAL = (62, 168, 178)
+CREAM = (238, 218, 168)
+CHERRY = (214, 64, 52)
+CHROME = (196, 202, 212)
+TYRE = (40, 38, 44)
+CRANE = (250, 196, 40)
+
+
 def rustjaw():
     b = Boss("RustjawPrime", {
-        "Paint": ((158, 152, 142), 0.6, 0.0),    # warm grey plate
-        "Paint2": ((88, 94, 102), 0.56, 0.0),    # slate panels
-        "Metal": ((150, 154, 160), 0.38, 1.0),
-        "Dark": ((44, 40, 44), 0.7, 0.2),
-        "Hazard": ((250, 200, 40), 0.5, 0.0),
-        "Accent": ((118, 126, 136), 0.6, 0.0),   # a mismatched patch plate
-    }, PHASES, ("Cannon", "CannonGlow"))
+        "Paint": (TEAL, 0.45, 0.1),       # teal car paint
+        "Paint2": (CREAM, 0.45, 0.05),    # cream car paint
+        "Metal": (CHROME, 0.28, 1.0),     # chrome bumpers, hubs, pipes
+        "Dark": (TYRE, 0.75, 0.0),        # tyres, windows, joints
+        "Hazard": (CRANE, 0.5, 0.0),      # crane yellow and hazard stripes
+        "Accent": (CHERRY, 0.45, 0.05),   # cherry-red car paint
+    }, [(200, 236, 255), (255, 140, 40), (255, 52, 48)], ("Cannon", "CannonGlow"))
+    b.look = "the Junkyard Titan: a giant bolted together from wrecked cars"
+    b.theme = (255, 170, 60)  # welding orange: the entrance and name card
+    b.debris = RUST
     H = "Hull"
     for s in (-1, 1):
         x = s * 14
-        side = []
-        # boots: a heavy tapered boot, a steel toe cap with three claws, a dark sole
-        side.append(bx("Paint2", x - 9, x + 9, -10, 14, 1.2, 10, 1.4, 2, taper=(0.82, 0.78)))
-        side.append(bx("Dark", x - 9.4, x + 9.4, -10.4, 15, 0, 1.6, 0.4))
-        side.append(bx("Metal", x - 8, x + 8, 9, 19, 0.8, 6.5, 1.4, 2, taper=(0.9, 0.7)))
-        for k in (-1, 0, 1):
-            side.append(spike("Dark", (x + k * 5, 18, 2.5), (x + k * 5.6, 23, 1.4), 1.6, 6))
-        side.append(hazard(x - 7.5, x + 7.5, 3.0, 8.0, 14.2, 4, facing=1))
-        # shins (wider at the top), a back piston, the knee hinge
-        side.append(bx("Paint", x - 6.2, x + 6.2, -6, 6, 9, 27, 1.2, 2, taper=(1.22, 1.15)))
-        side.append(cy("Metal", 1.3, 1.3, 16, (x + s * 2, -8, 18), "Z", 8))
-        side.append(cy("Dark", 2.0, 2.0, 3, (x + s * 2, -8, 9.5), "Z", 8))
-        side.append(cy("Dark", 6.2, 6.2, 14.5, (x, 0, 30), "X", 16))
-        side.append(ring("Metal", 4.6, 1.0, (x, 7.0, 30), "Y", 18, 6))
-        # thighs and the hip ball
-        side.append(bx("Paint", x - 7, x + 7, -7, 7, 32, 47, 1.4, 2, taper=(1.15, 1.08)))
-        side.append(bx("Dark", x - 7.4, x + 7.4, -3, 3, 36, 43, 0.4))  # a thigh seam band
-        side.append(ball("Dark", 6.5, (x * 0.93, 0, 48), segs=14, rings=8))
-        b.add(H, side)
-        b.lamp("knee" + ("L" if s < 0 else "R"), (x, 8.2, 30), 3.6)
-        # Plates2: shin guards (they come off at 66%)
-        b.add("Plates2", bx("Paint2", x - 5.6, x + 5.6, 5.4, 8.4, 11, 25, 0.8, 2, taper=(1.15, 1.0)))
-        b.add("Plates2", rivets("Metal", [(x + k * 3.6, 8.6, 23) for k in (-1, 1)] + [(x + k * 3.6, 8.6, 13) for k in (-1, 1)], 0.6))
-    # a mismatched patch plate on the left thigh
-    b.add(H, bx("Accent", -19.5, -9, 6.6, 7.8, 38, 45, 0.3))
-    b.add(H, rivets("Metal", [(-18.5, 8.0, 44), (-10, 8.0, 44), (-18.5, 8.0, 39), (-10, 8.0, 39)], 0.5))
-    # pelvis, belt and the hazard band across the hips
-    b.add(H, bx("Metal", -18, 18, -11, 11, 44, 54, 1.6, 2))
-    b.add(H, hazard(-14, 14, 46, 51, 11.2, 7, facing=1))
-    # the barrel chest
-    b.add(H, loft("Paint", [(52, 19, 13.5, 0, 0), (58, 22, 15, 0, 0), (70, 24, 16, 0, 0), (82, 25.5, 16.5, 0, 0),
-                            (88, 23.5, 15.5, 0, 0), (91, 19, 13, 0, 0)], segs=28, power=3.4))
-    # the chest core (a weak point) in a riveted hatch
-    b.add(H, cy("Dark", 8.6, 8.6, 3.2, (0, 15.6, 72), "Y", 20))
-    b.add(H, ring("Metal", 7.4, 1.4, (0, 17.4, 72), "Y", 22, 6))
-    b.add(H, rivets("Metal", [(math.cos(a) * 7.4, 18.6, 72 + math.sin(a) * 7.4) for a in
-                              [k * math.pi / 4 + math.pi / 8 for k in range(8)]], 0.55))
-    b.lamp("core", (0, 18.6, 72), 5.2, (1, 0.62, 1))
-    # side vents (glow) on the ribs
+        paint = "Paint" if s < 0 else "Accent"
+        # feet: a crushed car each, its nose forward, two tyres on the outside and a chrome bumper toe
+        b.add(H, car(paint, x - 9, x + 9, -11, 15, 0.6, 9.6, windows=True))
+        b.add(H, bx("Metal", x - 9.6, x + 9.6, 15, 17.6, 0.4, 4.0, 0.8, 2))
+        for y in (-5, 8):
+            b.add(H, tyre((x + s * 9.4, y, 4.6), "X", 3.4, 1.5))
+        # shins: a car stood on its nose, a door each side (Plates2), and a back piston
+        b.add(H, car("Paint2" if s < 0 else "Paint", x - 6.4, x + 6.4, -6.2, 6.2, 9, 27, windows=True, front=False))
+        b.add(H, cy("Metal", 1.3, 1.3, 16, (x + s * 2, -8, 18), "Z", 8))
+        b.add(H, cy("Dark", 2.0, 2.0, 3, (x + s * 2, -8, 9.5), "Z", 8))
+        # the knee: a big tyre facing forward on a dark axle; the hub glows gold (a weak point)
+        b.add(H, cy("Dark", 5.4, 5.4, 14.5, (x, 0, 30), "X", 14))
+        b.add(H, ring("Dark", 5.4, 2.1, (x, 5.6, 30), "Y", 16, 5))
+        b.add(H, ring("Metal", 3.6, 0.6, (x, 7.2, 30), "Y", 14, 4))
+        b.lamp("knee" + ("L" if s < 0 else "R"), (x, 8.0, 30), 3.2)
+        # thighs: crushed car slabs, slightly askew, a tyre for the hip
+        b.add(H, car("Accent" if s < 0 else "Paint2", x - 7, x + 7, -7, 7, 33, 46, windows=True, lean=s * 4, front=False))
+        b.add(H, ring("Dark", 5.4, 2.4, (x * 0.95, 0, 48), "X", 14, 5))
+        b.add(H, cy("Metal", 3.4, 3.4, 5, (x * 0.95, 0, 48), "X", 10))
+        # Plates2: car doors bolted over the shins (they come off at 66%)
+        b.add("Plates2", bx("Accent" if s < 0 else "Paint2", x - 5.8, x + 5.8, 6.0, 8.0, 11, 25, 0.6, 2))
+        b.add("Plates2", bx("Dark", x - 4.6, x + 4.6, 7.9, 8.5, 19.5, 24, 0.2))  # the door's window
+        b.add("Plates2", bx("Metal", x + s * 2.4, x + s * 4.6, 8.0, 8.8, 17, 18, 0.2))  # the handle
+    # the pelvis: an engine block on an axle, a chrome bumper belt with hazard stripes
+    b.add(H, bx("Metal", -17, 17, -10, 10, 44, 54, 1.4, 2))
+    b.add(H, cy("Dark", 2.6, 2.6, 38, (0, 0, 48), "X", 10))
+    b.add(H, hazard(-14, 14, 46, 50.6, 10.2, 7, facing=1))
+    # the chest: three crushed cars stacked into a heroic wedge (teal, cherry, cream), leaning a little each way
+    b.add(H, bx("Paint", -21, 21, -12, 13, 52, 64, 1.6, 2, taper=(1.08, 1.0)))
+    b.add(H, car("Accent", -23.5, 23.5, -13.5, 14, 63, 76, windows=True, lean=-3))
+    b.add(H, car("Paint2", -25.5, 25.5, -14, 14.5, 75.5, 89, windows=True, lean=2.5))
+    # glowing weld seams between the cars (phase glow; the sparks fly from them)
+    for z, lean in ((63.4, -3), (75.6, 2.5)):
+        seam = tube("Lamp", [(-23, 14.6, z), (-8, 15.4, z + 0.3), (8, 15.4, z - 0.3), (23, 14.6, z)], [0.55] * 4, 6)
+        turn(seam, lean, "Y", (0, 0, z))
+        b.add("Glow", seam)
+    # the core: an engine heart behind a chrome radiator grille in the middle car (a weak point)
+    b.add(H, bx("Metal", -10, 10, 13.5, 16.2, 62.5, 81.5, 0.8, 2))
+    b.add(H, bx("Dark", -8.4, 8.4, 15.8, 16.8, 64, 80, 0.2))
+    for k in range(6):
+        xk = -7 + k * 2.8
+        if abs(xk) > 4.5:
+            b.add(H, bx("Metal", xk - 0.45, xk + 0.45, 16.4, 17.4, 64.4, 79.6, 0.15))
+    b.add(H, ring("Metal", 6.6, 1.2, (0, 17.4, 72), "Y", 20, 5))
+    b.lamp("core", (0, 18.6, 72), 5.0, (1, 0.62, 1))
+    # tail lights on the chest's flanks (phase glow)
     for s in (-1, 1):
-        for k in range(3):
-            b.add("Glow", bx("Lamp", s * 24.4 - 0.5, s * 24.4 + 0.5, -6 + k * 5, -3 + k * 5, 64, 66, 0))
-            b.add(H, bx("Dark", s * 24.0 - 0.6, s * 24.0 + 0.6, -6.6 + k * 5, -2.4 + k * 5, 63.2, 66.8, 0.2))
-    # belly plates (Plates2) and chest plates (Plates3): dark slate armour over the grey
+        for k in range(2):
+            b.add("Glow", bx("Lamp", s * 25.8 - 0.4, s * 25.8 + 0.4, 6 + k * 4, 9 + k * 4, 81, 83.5, 0))
+    # Plates2: hood panels over the belly; Plates3: car doors over the chest (rising to the shoulders)
     for row in range(2):
-        z0 = 54.5 + row * 5.4
-        b.add("Plates2", bx("Paint2", -13, 13, 12.6 - row * 0.3, 16.6 - row * 0.3, z0, z0 + 4.8, 0.8, 2, taper=(0.94, 1)))
-        b.add("Plates2", rivets("Metal", [(-11, 16.9, z0 + 2.4), (11, 16.9, z0 + 2.4)], 0.55))
+        z0 = 53.5 + row * 4.8
+        b.add("Plates2", bx("Paint", -12, 12, 13.2 - row * 0.3, 15.8 - row * 0.3, z0, z0 + 4.2, 0.7, 2))
     for s in (-1, 1):
-        pec = bx("Paint2", min(s * 2.2, s * 20.2), max(s * 2.2, s * 20.2), 12.5, 17.5, 77, 89, 1.0, 2)
-        shear(pec, lambda v: Vector((v.x, v.y, v.z + (abs(v.x) - 2.2) * 0.14)))  # rising to the shoulders
+        pec = bx("Paint" if s < 0 else "Accent", min(s * 11, s * 24), max(s * 11, s * 24), 14.2, 17.0, 77, 88, 0.8, 2)
+        shear(pec, lambda v: Vector((v.x, v.y, v.z + (abs(v.x) - 11) * 0.12)))
         b.add("Plates3", pec)
-        b.add("Plates3", rivets("Metal", [(s * 5, 17.8, 80), (s * 16, 17.8, 81.5), (s * 10.5, 17.8, 87.5)], 0.55))
-    # the back: a boiler pack and two smokestacks with glowing rims
-    b.add(H, bx("Paint2", -15, 15, -21, -12, 58, 86, 1.6, 2))
-    b.add(H, hazard(-10, 10, 62, 67, -21.2, 5, facing=-1))
+        b.add("Plates3", bx("Dark", min(s * 13, s * 22), max(s * 13, s * 22), 16.8, 17.5, 83.6, 87.4, 0.2))
+        b.add("Plates3", rivets("Metal", [(s * 12.5, 17.4, 79), (s * 23, 17.4, 80.5)], 0.6))
+    # the back: an engine block pack with four exhaust pipes curling up into smokestacks (glowing rims)
+    b.add(H, bx("Metal", -15, 15, -22, -12, 58, 84, 1.6, 2))
+    b.add(H, hazard(-10, 10, 62, 66.5, -22.2, 5, facing=-1))
     for s in (-1, 1):
-        b.add(H, cy("Metal", 2.9, 2.4, 34, (s * 9, -17.5, 92), "Z", 12))
-        b.add(H, ring("Dark", 2.9, 0.7, (s * 9, -17.5, 84), "Z", 12, 5))
-        b.add(H, ring("Dark", 2.7, 0.7, (s * 9, -17.5, 100), "Z", 12, 5))
-        b.add("Glow", ring("Lamp", 2.6, 0.55, (s * 9, -17.5, 109.2), "Z", 12, 5))
-    # neck collar and the head
-    b.add(H, bx("Dark", -13, 13, -8, 9, 87, 94, 1.0))
-    # the skull: a dome with a dark visor recess, an angry brow and glowing eyes
-    b.add(H, loft("Paint", [(93, 11, 9.5, 0, 2), (100, 12.2, 10.4, 0, 2.2), (106, 11.4, 9.8, 0, 1.8), (110, 8.4, 7.4, 0, 1.2),
-                            (111.6, 4.4, 4, 0, 1)], segs=24, power=3.0))
-    b.add(H, bx("Dark", -9.6, 9.6, 9.6, 12.8, 96.6, 103.2, 0.6))
-    brow = bx("Paint2", -12.6, 12.6, 7.5, 14.6, 102.6, 106.8, 1.0, 2)
-    shear(brow, lambda v: Vector((v.x, v.y, v.z + (abs(v.x) / 12.6) * 2.8 - 1.6)))  # an angry V brow
+        for k, (dx, top) in enumerate(((5.5, 106), (11.5, 100))):
+            xp = s * dx
+            b.add(H, tube("Metal", [(xp, -16, 74), (xp, -21, 80), (xp * 1.05, -21.5, 90), (xp * 1.1, -20, top)],
+                          [1.9, 1.9, 2.0, 2.3], 10))
+            b.add(H, ring("Dark", 2.2, 0.55, (xp * 1.08, -20.6, 92), "Z", 10, 4))
+            b.add("Glow", ring("Lamp", 2.2, 0.5, (xp * 1.1, -20, top + 0.2), "Z", 10, 4))
+    # the neck: two tyres stacked flat
+    for z in (89.5, 92.5):
+        b.add(H, ring("Dark", 7.6, 2.0, (0, 1, z), "Z", 16, 5))
+    # the head: a car's front end: the hood with a windscreen, angry hood edges, two round headlight eyes in chrome
+    # rings, side mirrors for ears and a radio aerial with a blinker
+    b.add(H, bx("Paint", -12, 12, -7, 12.5, 93, 106, 1.6, 2, taper=(0.9, 0.82)))
+    b.add(H, bx("Dark", -9.5, 9.5, -6, 2, 104.6, 108.8, 0.8, 2, taper=(0.84, 0.7)))  # the windscreen cab
+    brow = bx("Paint2", -12.8, 12.8, 9.0, 14.2, 102.8, 105.8, 0.8, 2)
+    shear(brow, lambda v: Vector((v.x, v.y, v.z + (abs(v.x) / 12.8) * 2.6 - 1.6)))  # an angry V of hood edge
     b.add(H, brow)
     for s in (-1, 1):
-        eye = bx("Lamp", min(s * 2.4, s * 8.6), max(s * 2.4, s * 8.6), 12.4, 13.4, 98.2, 100.8, 0)
-        shear(eye, lambda v: Vector((v.x, v.y, v.z + (abs(v.x) - 2.4) * 0.3)))
-        b.add("Glow", eye)
-        b.add(H, cy("Metal", 2.8, 2.8, 3.2, (s * 12.4, 2, 101), "X", 12))  # ear pistons
-        b.add(H, cy("Dark", 1.4, 1.4, 1.0, (s * 14.4, 2, 101), "X", 8))
-    # an underbite jaw: wide and jutting, hazard stripes, steel teeth and two tusks
-    b.add(H, bx("Paint", -14, 14, -3, 19.5, 84, 95.4, 1.8, 2, taper=(1.0, 0.96)))
-    b.add(H, hazard(-11.5, 11.5, 85.6, 91.4, 19.6, 6, facing=1))
+        b.add(H, ring("Metal", 3.4, 0.8, (s * 6.2, 12.9, 99.6), "Y", 16, 5))
+        b.add("Glow", cy("Lamp", 2.8, 2.8, 0.8, (s * 6.2, 13.2, 99.6), "Y", 14))
+        b.add(H, beam("Metal", (s * 11.6, 2, 101), (s * 15.4, 3, 103.5), 0.8, 0.8, 0.2, 1))  # mirror stalks
+        b.add(H, bx("Paint2", min(s * 14.4, s * 17.6), max(s * 14.4, s * 17.6), 1.4, 4.4, 102.2, 105.4, 0.6, 1))
+    # the bumper jaw: a big chrome underbite with grille-bar teeth and a blank plate (no text), two exhaust tusks
+    b.add(H, bx("Metal", -15, 15, -2, 20.5, 84.5, 93.6, 1.8, 2, taper=(1.0, 0.95)))
+    b.add(H, bx("Paint2", -4.4, 4.4, 20.4, 21.2, 86.2, 89.6, 0.3))
+    b.add(H, hazard(-13, -6, 86, 90.4, 20.6, 3, facing=1))
+    b.add(H, hazard(6, 13, 86, 90.4, 20.6, 3, facing=1))
     for k in range(5):
-        x = -8 + k * 4
-        b.add(H, spike("Metal", (x, 16.6, 94.6), (x, 16.9, 98.6), 1.5, 4))
+        xk = -8 + k * 4
+        b.add(H, spike("Paint2", (xk, 17.2, 93.2), (xk, 17.5, 97.4), 1.4, 4))
     for s in (-1, 1):
-        b.add(H, spike("Metal", (s * 12, 16.2, 94.6), (s * 13, 16.8, 101.6), 2.1, 5))
-        b.add(H, cy("Dark", 2.8, 2.8, 2.0, (s * 14.2, 2, 90.5), "X", 12))  # jaw hinges
-    # an antenna with a blinker on the back of the skull
-    b.add(H, tube("Metal", [(6, -4, 108), (7.5, -6, 115), (8.4, -7.4, 119)], [0.7, 0.55, 0.45], 6))
-    b.add("Glow", ball("Lamp", 1.3, (8.5, -7.6, 119.6)))
-    # shoulders: dark joints under big riveted dome pauldrons with a hazard rim (the cannons sit on top)
+        b.add(H, spike("Metal", (s * 12.4, 16.4, 93.2), (s * 13.6, 17.2, 100.4), 1.9, 6))
+        b.add(H, cy("Dark", 2.6, 2.6, 2.0, (s * 15.2, 2, 90), "X", 12))  # jaw hinges
+    b.add(H, tube("Metal", [(7, -4, 106), (8.2, -6, 114), (9, -7.6, 119)], [0.6, 0.5, 0.4], 6))
+    b.add("Glow", ball("Lamp", 1.3, (9.1, -7.8, 119.6)))
+    # shoulders: a tyre pauldron each (tilted out) on a dark joint; the cannons sit on top
     for s in (-1, 1):
-        x = s * 27
-        b.add(H, ball("Dark", 8, (x, 0, 82), segs=14, rings=8))
-        b.add(H, loft("Paint", [(77, 12.6, 11.6, x, 0), (83, 13.2, 12.2, x, 0), (87.4, 11.2, 10.2, x, 0),
-                                (89.6, 7.4, 7, x, 0)], segs=22, power=2.6))
-        b.add(H, loft("Hazard", [(76.4, 12.9, 11.9, x, 0), (78.4, 12.9, 11.9, x, 0)], segs=22, power=2.6))
-        b.add(H, rivets("Metal", [(x + s * 8, 9.2, 84.5), (x, 12.3, 84.5), (x - s * 8, 9.2, 84.5)], 0.7))
-    # arms: hanging heavy (a gorilla stance): upper arm, elbow, a thick forearm with a hazard cuff
-    for s in (-1, 1):
-        x = s * 29
-        b.add(H, beam("Paint", (x, 0, 80), (x + s * 3, -1, 58), 10, 10, 1.2, 2, 0.9))
-        b.add(H, ball("Dark", 6.2, (x + s * 3, -1, 58)))
-        b.add(H, beam("Paint", (x + s * 3, -1, 58), (x + s * 4, 1, 40), 11, 11, 1.4, 2, 1.25))
-        b.add(H, hazard(x + s * 4 - 6.6, x + s * 4 + 6.6, 41.5, 45, 7.6, 4, facing=1))
-        b.add("Plates3", beam("Paint2", (x + s * 3.2 + s * 5.4, -1, 56), (x + s * 4.2 + s * 6.4, 1, 44), 2, 9, 0.5, 1))
-    # the left fist: a wrecking-ball fist with knuckle spikes
-    b.add(H, bx("Metal", -42, -24, -8, 10, 24, 40, 2.2, 2))
+        xs = s * 27
+        b.add(H, ball("Dark", 7.6, (xs, 0, 82), segs=14, rings=8))
+        t = tyre((0, 0, 0), "Z", 9.0, 3.4)
+        for o in t:
+            turn(o, s * -18, "Y")
+            move(o, (xs, 0, 85.5))
+        b.add(H, t)
+    # the left arm: a car-slab upper arm, a tyre elbow, a crushed-car forearm and a wrecking fist of a car block
+    # with exhaust-tip knuckles
+    b.add(H, beam("Accent", (-29, 0, 80), (-32, -1, 59), 10, 10, 1.2, 2, 0.9))
+    b.add(H, tyre((-32, -1, 58), "X", 5.0, 2.2, hub=False))
+    b.add(H, ball("Dark", 4.6, (-32, -1, 58)))
+    b.add(H, beam("Paint", (-32, -1, 58), (-33, 1, 41), 11, 11, 1.4, 2, 1.2))
+    b.add(H, hazard(-39.6, -26.4, 42, 45.4, 7.4, 4, facing=1))
+    b.add("Plates3", beam("Paint2", (-37.6, -1, 56), (-39.2, 1, 44), 2, 9, 0.5, 1))
+    b.add(H, car("Paint2", -42, -24, -8, 10, 24, 40, windows=True, front=False))
     for k in range(4):
         z = 26.5 + k * 3.8
-        b.add(H, spike("Dark", (-33, 9.6, z + 0.8), (-33, 14.4, z + 0.8), 1.4, 6))
-    b.add(H, bx("Paint2", -42.6, -23.4, -2, 4, 30, 34, 0.5))  # a strap
-    # the right hand: a three-fingered claw
-    b.add(H, bx("Metal", 25, 41, -6, 8, 32, 40, 1.8, 2))
-    for k, (dx, dy) in enumerate(((-5, 5), (0, 6), (5, 5))):
-        x0 = 33 + dx
-        b.add(H, tube("Dark", [(x0, dy - 1, 33), (x0 + dx * 0.15, dy + 3, 28), (x0 + dx * 0.25, dy + 3.5, 23),
-                               (x0 + dx * 0.3, dy + 1, 19.5)], [1.9, 1.6, 1.2, 0.2], 8))
-    b.add(H, tube("Dark", [(25.5, 2, 34), (23, 5, 29), (23.5, 6, 25)], [1.8, 1.4, 0.2], 8))  # the thumb
-    # the shoulder cannon (one, placed by the game on each shoulder; anchor at the origin)
+        b.add(H, cy("Metal", 1.3, 1.5, 5, (-33, 12, z + 0.8), "Y", 8))
+    # the right arm: a scrapyard crane arm: a yellow lattice boom with a hydraulic ram, a cab plate (Plates3) and a
+    # three-fingered grab claw on a chrome hub
+    sh_, el, wr = Vector((29, 0, 80)), Vector((33, -2, 60)), Vector((34, 2, 41))
+    for dx in (-3.2, 3.2):
+        b.add(H, beam("Hazard", sh_ + Vector((dx, 0, 0)), el + Vector((dx, 0, 0)), 1.6, 3.4, 0.3, 1))
+        b.add(H, beam("Hazard", el + Vector((dx, 0, 0)), wr + Vector((dx * 0.8, 0, 0)), 1.6, 3.4, 0.3, 1))
+    for k in range(4):
+        f0, f1 = k / 4, (k + 1) / 4
+        a = sh_.lerp(el, f0) + Vector((-3.2, 0, 0))
+        c = sh_.lerp(el, f1) + Vector((3.2, 0, 0))
+        b.add(H, beam("Hazard", a, c, 0.8, 1.2, 0.0, 1))
+        a2 = el.lerp(wr, f0) + Vector((2.6, 0, 0))
+        c2 = el.lerp(wr, f1) + Vector((-2.6, 0, 0))
+        b.add(H, beam("Hazard", a2, c2, 0.8, 1.2, 0.0, 1))
+    b.add(H, cy("Dark", 4.2, 4.2, 9, (33, -2, 60), "X", 14))  # the elbow pivot
+    b.add(H, beam("Metal", (31, 5, 74), (34, 6, 49), 1.6, 1.6, 0.3, 1))  # the hydraulic ram
+    b.add(H, beam("Dark", (31, 5, 76), (32.5, 5.5, 62), 2.6, 2.6, 0.4, 1))
+    b.add("Plates3", bx("Hazard", 26.5, 37.5, -5.5, 5.5, 64, 72, 0.6, 2))  # the crane cab plate
+    b.add("Plates3", bx("Dark", 27.5, 36.5, 5.3, 5.9, 66.5, 70.5, 0.2))
+    b.add(H, cy("Metal", 5.0, 5.0, 4.6, (34, 1.5, 38.6), "Z", 14))
+    for k, (dx, dy) in enumerate(((-5, 3.5), (0, 6), (5, 3.5))):
+        x0 = 34 + dx * 0.7
+        b.add(H, tube("Dark", [(x0, 1.5 + dy * 0.5, 36.6), (x0 + dx * 0.4, 1.5 + dy, 32), (x0 + dx * 0.45, 2 + dy, 26.5),
+                               (x0 + dx * 0.2, 1.5 + dy * 0.6, 22.5)], [1.8, 1.6, 1.2, 0.2], 8))
+    # the shoulder cannon (one, set by the game on each shoulder; anchor at the origin): a junk launcher of an
+    # engine block on a tyre, twin exhaust-pipe barrels aimed forward and up, a hazard band
     c = []
-    c.append(cy("Metal", 6.2, 6.8, 5, (0, 0, -2.5), "Z", 18))
-    c.append(ring("Dark", 6.5, 0.9, (0, 0, -0.2), "Z", 18, 5))
-    c.append(bx("Paint2", -5, 5, -4.4, 5.6, -0.5, 5.4, 1.0, 2, taper=(0.9, 0.9)))
-    for k in (-1, 1):  # twin barrels with muzzle brakes, aimed forward and up
-        barrel = cy("Dark", 1.8, 1.6, 17, (0, 0, 8.5), "Z", 10)
-        muzzle = cy("Metal", 2.5, 2.5, 3.2, (0, 0, 16.4), "Z", 10)
+    c += tyre((0, 0, -2.6), "Z", 5.6, 2.0, hub=False)
+    c.append(bx("Metal", -5, 5, -4.4, 5.6, -1.2, 5.4, 1.0, 2, taper=(0.9, 0.9)))
+    for k in (-1, 1):
+        barrel = cy("Metal", 1.9, 2.2, 17, (0, 0, 8.5), "Z", 10)
+        muzzle = ring("Dark", 2.3, 0.6, (0, 0, 16.6), "Z", 10, 4)
         for o in (barrel, muzzle):
             turn(o, -66, "X")
             move(o, (k * 2.4, 2.5, 2.6))
@@ -409,24 +523,67 @@ def rustjaw():
     b.add("Cannon", c)
     b.add("CannonGlow", ball("Lamp", 2.4, (0, -2.4, 4.0)))
     b.objective_lamp = Vector((0, -2.4, 4.0))
+    # the welding sparks fly from the seams, the crane claw and the exhaust tips (Roblox axes from the feet)
+    b.fx = {"kind": "sparks", "every": 0.6, "at": [(-18, 63.4, -14.6), (18, 63.4, -14.6), (-16, 75.6, -15.0),
+                                                   (16, 75.6, -15.0), (34, 30, -4), (-12, 106, 20), (12, 100, 21)]}
+    # the part-built look until the meshes are imported (23 parts, as before)
+    b.parts = []
+    for s in (-1, 1):
+        b.parts += [
+            P("body", "Block", (16, 9, 26), (s * 14, 4.6, -2), color=TEAL if s < 0 else CHERRY),
+            P("body", "Block", (11, 38, 11), (s * 14, 27, 0), color=CREAM if s < 0 else TEAL),
+            P("weak", "Ball", (5, 5, 5), (s * 14, 30, -7.6)),
+        ]
+    b.parts += [
+        P("body", "Block", (48, 42, 28), (0, 68, 0), color=CHERRY),
+        P("weak", "Ball", (7, 7, 7), (0, 72, -17.6)),
+        P("body", "Block", (24, 13, 20), (0, 99.5, -2.6), color=TEAL),
+        P("body", "Block", (30, 9, 23), (0, 89, -9), color=CHROME, mat="Metal"),
+        P("glow", "Cylinder", (1, 5.6, 5.6), (-6.2, 99.6, -13), rot=(0, 90, 0)),
+        P("glow", "Cylinder", (1, 5.6, 5.6), (6.2, 99.6, -13), rot=(0, 90, 0)),
+        P("body", "Block", (10, 34, 10), (-31, 62, -1), rot=(0, 0, -6), color=CREAM),
+        P("body", "Block", (18, 16, 18), (-33, 32, -1), color=TEAL),
+        P("body", "Block", (6, 44, 6), (32, 61, 1), rot=(0, 0, 5), color=CRANE),
+        P("body", "Block", (10, 12, 10), (34, 34, -1.5), color=TYRE),
+        P("body", "Cylinder", (30, 5, 5), (0, 92, 20), rot=(0, 0, 90), color=CHROME, mat="Metal"),
+    ]
+    b.objective_parts = [
+        P("objective", "Cylinder", (4, 11, 11), (0, -2.6, 0), rot=(0, 0, 90), color=TYRE),
+        P("objective", "Cylinder", (16, 4.2, 4.2), (0, 4.6, -5.2), rot=(0, 90, 66), color=CHROME, mat="Metal"),
+        P("objectiveGlow", "Ball", (3.4, 3.4, 3.4), (0, 4, 2.4)),
+    ]
     return b
 
 
-# ================================================================ LumenMaw: a four-legged beast with crystals
+# ================================================================ LumenMaw: the Light Eater (a night creature)
+# A sleek dark creature that eats light: a long panther-low body, bioluminescent stripes down its back and flanks,
+# three glowing light sacs on stalks over its shoulders (the weak points; ids crystalA..C), and a huge maw that
+# swallows light: a glowing throat vortex with light streams curving into it. Its pit's three stolen lights (the
+# generators) feed it. A creature, but cartoon: no blood ever; it bursts into light motes.
+NIGHT = (38, 32, 78)
+DEEP = (20, 18, 42)
+BONE = (232, 236, 250)
+VIOLET = (110, 80, 186)
+BIO = (90, 240, 230)
+
+
 def maw():
     b = Boss("LumenMaw", {
-        "Paint": ((112, 118, 128), 0.55, 0.0),   # cool grey shell
-        "Paint2": ((186, 180, 166), 0.5, 0.1),   # pale sand-grey bands
-        "Metal": ((150, 150, 166), 0.36, 1.0),
-        "Dark": ((36, 32, 48), 0.65, 0.2),
-        "Hazard": ((250, 200, 40), 0.5, 0.0),
-        "Accent": ((90, 96, 108), 0.5, 0.0),
-    }, PHASES, ("Generator", "GeneratorCore"))
+        "Paint": (NIGHT, 0.35, 0.0),     # sleek indigo hide
+        "Paint2": (DEEP, 0.4, 0.0),      # the deep night belly and shell
+        "Metal": (BONE, 0.38, 0.0),      # pale fangs and claws
+        "Dark": ((14, 12, 26), 0.6, 0.0),
+        "Hazard": (VIOLET, 0.4, 0.0),    # violet ridges
+        "Accent": ((150, 120, 230), 0.35, 0.0),
+    }, [BIO, (186, 110, 255), (255, 70, 150)], ("Generator", "GeneratorCore"))
+    b.look = "the Light Eater: a sleek night creature that swallows light"
+    b.theme = BIO
+    b.debris = (150, 120, 230)
     H = "Hull"
-    # the carapace: a long armoured body along y (tail at the back, shoulders at the front)
-    body = [(-42, 9, 8, 0, 20), (-34, 19, 15, 0, 25), (-20, 24, 20, 0, 29), (-4, 25.5, 21, 0, 31),
-            (10, 23.5, 19, 0, 31), (20, 18, 15, 0, 32), (24, 12, 10, 0, 32)]
-    b.add(H, loft_y("Dark", [(y, rx * 0.96, rz * 0.96, cx, cz) for y, rx, rz, cx, cz in body], segs=26, power=2.7))
+    # the body: a long sleek loft along y, low at the hips, the shoulders high (tail at the back)
+    body = [(-44, 6, 6, 0, 26), (-34, 11, 10, 0, 28), (-20, 14.5, 12, 0, 31), (-6, 16, 13.5, 0, 35),
+            (8, 16, 13.5, 0, 37), (18, 13.5, 11.5, 0, 37), (24, 10, 9, 0, 38)]
+    b.add(H, loft_y("Paint", body, segs=28, power=2.2))
 
     def prof(y):
         for (y0, rx0, rz0, _, z0), (y1, rx1, rz1, _, z1) in zip(body, body[1:]):
@@ -435,234 +592,339 @@ def maw():
                 return rx0 + (rx1 - rx0) * f, rz0 + (rz1 - rz0) * f, z0 + (z1 - z0) * f
         return body[-1][1], body[-1][2], body[-1][4]
 
-    # overlapping armour shells, back to front like a pangolin's, each with a pale front lip
-    for y0, y1 in ((-41, -29), (-31, -17), (-19, -5), (-7, 7), (5, 17), (15, 24)):
-        rings = []
-        for y, k in ((y0, 0.9), (y0 + (y1 - y0) * 0.5, 1.0), (y1 - 0.8, 1.05)):
-            rx, rz, cz = prof(y)
-            rings.append((y, rx * k, rz * k, 0, cz))
-        b.add(H, loft_y("Paint", rings, segs=26, power=2.7))
-        rx, rz, cz = prof(y1)
-        b.add(H, loft_y("Paint2", [(y1 - 1.0, rx * 1.07, rz * 1.07, 0, cz), (y1 + 0.4, rx * 1.03, rz * 1.03, 0, cz)],
-                        segs=26, power=2.7))
-    b.add(H, bx("Dark", -10, 10, -30, 16, 8, 13, 1.4, 2))  # the belly keel
-    # vents along the flanks (phase glow)
+    def on(y, a, out=1.02):
+        """A point on the body's surface at y and angle a (0 = the side, 90 = the top)."""
+        rx, rz, cz = prof(y)
+        return (rx * math.cos(math.radians(a)) * out, y, cz + rz * math.sin(math.radians(a)) * out)
+
+    b.add(H, loft_y("Paint2", [(y, rx * 0.8, rz * 0.6, 0, cz - rz * 0.42) for y, rx, rz, _, cz in body[1:-1]], segs=20,
+                    power=2.2))  # the dark belly
+    # bioluminescent stripes: a dorsal line and three sweeping stripes down each flank (phase glow)
+    b.add("Glow", tube("Lamp", [on(y, 90, 1.0) for y in (-40, -30, -18, -6, 6, 16, 22)], [0.8, 1.2, 1.3, 1.3, 1.3, 1.2, 0.7], 6))
     for s in (-1, 1):
-        for y in (-24, -10, 4):
-            rx, rz, cz = prof(y)
-            b.add("Glow", bx("Lamp", min(s * (rx * 1.04 - 0.6), s * (rx * 1.04 + 0.4)), max(s * (rx * 1.04 - 0.6), s * (rx * 1.04 + 0.4)),
-                             y - 3, y + 3, cz + 6.5, cz + 8, 0))
-    # glowing spines along the back (phase glow) between the three crystals
-    for k, y in enumerate((-36, 2, 12)):
-        z = 46 if y > -30 else 37
-        b.add("Glow", spike("Lamp", (0, y, z - 2), (0, y - 3, z + 7 - k), 2.2, 6))
-    for y in (-28, -2):
-        for s in (-1, 1):
-            b.add("Glow", spike("Lamp", (s * 7, y, 47), (s * 9.5, y - 2.5, 53), 1.5, 6))
-    # crystal sockets and the three big crystals (the weak points; Config.Boss crystalA..C)
+        for y0 in (-30, -14, 2):
+            pts = [on(y0 + 7 * t, s * 0 + (70 - 70 * t) if s > 0 else 180 - (70 - 70 * t), 1.0) for t in (0, 0.33, 0.66, 1.0)]
+            b.add("Glow", tube("Lamp", pts, [1.2, 1.0, 0.8, 0.25], 6))
+    # ridges of violet along the spine
+    for k, y in enumerate((-34, -24, 14, 20)):
+        p = on(y, 90, 0.98)
+        b.add(H, spike("Hazard", p, (0, y - 4, p[2] + 4.5 - k * 0.4), 1.8, 5))
+    # the three light sacs over the shoulders (weak points; Config.Boss crystalA..C) on dark stalks with collars
     for tid, at in (("crystalA", (-12, -8, 58)), ("crystalB", (0, -16, 62)), ("crystalC", (12, -8, 58))):
         x, y, z = at
-        lean = Vector((x * 0.04, y * 0.0 - 0.12, 1)).normalized()
-        base = Vector((x, y, z)) - lean * 7.5
-        b.add(H, ring("Metal", 3.8, 1.1, tuple(base + lean * 0.8), "Z", 14, 5))
-        b.add(H, cy("Dark", 4.4, 3.6, 3, tuple(base - lean * 0.6), "Z", 10))
-        tip = Vector((x, y, z)) + lean * 7.5
+        root = Vector(on(y, 90, 0.92)) + Vector((x * 0.7, 0, 0))
         mid = Vector((x, y, z))
-        b.add("Weak", tube("Lamp", [base, base + lean * 4, mid + lean * 3, tip], [2.8, 3.2, 2.6, 0.0], 6))
+        b.add(H, tube("Paint2", [root, root.lerp(mid, 0.5) + Vector((0, 1.5, 0)), mid - Vector((0, 0, 4.2))], [2.6, 1.6, 1.4], 8))
+        b.add(H, ring("Hazard", 2.6, 0.7, tuple(mid - Vector((0, 0, 3.8))), "Z", 12, 4))
+        b.add("Weak", ball("Lamp", 3.4, tuple(mid), (1, 1, 1.25), 14, 9))
         b.weak[tid] = mid
-    # flank armour (Plates2) and the back plates round the crystals (Plates3)
+    # Plates2: dark shell plates over the flanks (66%); Plates3: the brow and shoulder plates (33%)
     for s in (-1, 1):
-        for y0 in (-24, -8, 8):
-            pl = loft_y("Paint", [(y0, 3, 7, 0, 0), (y0 + 13, 3, 7, 0, 0)], segs=12, power=4)
-            move(pl, (s * 25.4, 0, 28))
-            turn(pl, s * -8, "Y", (s * 25.4, 0, 28))
+        for y0 in (-26, -10, 6):
+            pl = loft_y("Paint2", [(y0, 1.8, 6.0, 0, 0), (y0 + 12, 1.8, 6.0, 0, 0)], segs=12, power=2.2)
+            rx, rz, cz = prof(y0 + 6)
+            move(pl, (s * (rx + 1.4), 0, cz + 2))
+            turn(pl, s * -10, "Y", (s * (rx + 1.4), 0, cz + 2))
             b.add("Plates2", pl)
-            b.add("Plates2", rivets("Paint2", [(s * 28.6, y0 + 3, 31), (s * 28.6, y0 + 10, 31)], 0.7, "X", 0.6))
-    # Plates3: shoulder guards over the front legs (studded pads)
+            b.add("Plates2", bx("Hazard", s * (rx + 3.6) - 0.4, s * (rx + 3.6) + 0.4, y0 + 1, y0 + 11, cz + 5.6, cz + 6.4, 0))
     for s in (-1, 1):
-        pad = loft("Paint", [(0, 7, 8, 0, 0), (2.4, 7.6, 8.6, 0, 0), (4.0, 5.6, 6.4, 0, 0)], segs=16, power=2.6)
-        turn(pad, s * 62, "Y")
-        move(pad, (s * 24, 12, 31))
+        pad = loft("Paint2", [(0, 7, 8, 0, 0), (2.4, 7.6, 8.6, 0, 0), (4.2, 5.4, 6.2, 0, 0)], segs=16, power=2.4)
+        turn(pad, s * 60, "Y")
+        move(pad, (s * 17, 14, 40))
         b.add("Plates3", pad)
-        b.add("Plates3", rivets("Paint2", [(s * 27.6, 12 + k * 4, 34.4 - abs(k) * 0.8) for k in (-1, 0, 1)], 0.8, "X", 0.8))
-    # the head: a wedge skull with angry eyes and a ridge of horns, an open lower jaw, steel fangs, a throat glow
-    b.add(H, loft_y("Paint", [(18, 14, 11, 0, 41), (28, 16, 11.5, 0, 43), (40, 14.5, 9.5, 0, 43.5), (49, 10, 6.5, 0, 42),
-                              (52, 6, 3.5, 0, 41)], segs=24, power=2.4))
-    for k, (y, h) in enumerate(((44, 4.5), (37, 6), (29, 7.5))):
-        top = 43.5 + 10.5 - k * 0.3
-        b.add(H, spike("Paint2", (0, y, top - 2.5), (0, y - 5, top + h), 2.4, 6))
-    b.add(H, loft_y("Paint", [(16, 12.5, 5, 0, 27), (30, 13, 5.5, 0, 25), (44, 10.5, 4, 0, 21), (50, 6, 2.5, 0, 20)],
-                    segs=22, power=2.4))
-    b.add(H, loft_y("Dark", [(18, 12, 9, 0, 33.5), (30, 11, 7, 0, 32), (33, 10, 6, 0, 31.6)], segs=18, power=2.2))
-    b.add("Glow", loft_y("Lamp", [(32.6, 9.6, 5.8, 0, 31.8), (34, 9.0, 5.2, 0, 31.8)], segs=18, power=2.2))
-    for k in range(7):  # upper fangs round the skull's rim, lower fangs on the jaw
-        a = (k - 3) / 3.0
-        x = a * 11.5
-        y = 47 - abs(a) ** 2 * 10
-        b.add(H, spike("Metal", (x, y, 37.6), (x, y + 0.6, 32.4 - (1 - abs(a)) * 1.4), 1.5, 5))
-        b.add(H, spike("Metal", (x * 0.85, y - 3, 22.4), (x * 0.85, y - 2.4, 26.6), 1.2, 5))
+        brow = bx("Paint2", min(s * 3, s * 15), max(s * 3, s * 15), 34, 44, 51, 53.6, 0.8, 2)
+        shear(brow, lambda v, s=s: Vector((v.x, v.y, v.z - (abs(v.x) - 3) * 0.22)))
+        b.add("Plates3", brow)
+    # the head: almost all maw: a sleek upper skull, a wide jaw dropped open, rows of pale fangs, four slit eyes
+    b.add(H, loft_y("Paint", [(18, 13, 10, 0, 42), (28, 16.5, 10, 0, 44.5), (40, 17, 8.5, 0, 45), (50, 14, 6, 0, 43.5),
+                              (55, 9, 3.6, 0, 42)], segs=26, power=2.3))
+    b.add(H, loft_y("Paint", [(16, 12, 5, 0, 26), (30, 15.5, 5.6, 0, 22.5), (44, 15, 4.4, 0, 18.5), (52, 10, 3, 0, 18)],
+                    segs=24, power=2.3))
+    b.add(H, loft_y("Dark", [(20, 13, 9, 0, 32.5), (34, 14, 9.6, 0, 31.5), (46, 12.4, 8.4, 0, 30.5), (49, 11, 7.6, 0, 30.4)],
+                    segs=22, power=2.2))  # the mouth's dark inside
+    # the throat vortex: glowing rings sinking into the throat (phase glow) and a bright core
+    for k in range(4):
+        b.add("Glow", ring("Lamp", 7.6 - k * 1.7, 0.55, (0, 44 - k * 4.5, 31), "Y", 22, 4))
+    b.add("Glow", ball("Lamp", 2.8, (0, 28, 31), (1, 0.5, 1)))
+    # light streams curving in from around the jaws to the throat (phase glow)
+    for k in range(8):  # a spiral funnel: each stream winds in as it nears the mouth
+        a0 = math.radians(k * 45)
+        r0 = 13 + (k % 2) * 3
+        pts = []
+        for t in (0, 0.25, 0.5, 0.75, 1.0):
+            ang = a0 + t * 2.4
+            r = r0 * (1 - t) + 1.5
+            pts.append((math.cos(ang) * r, 44 + 18 * (1 - t), 31 + math.sin(ang) * r * 0.75))
+        b.add("Glow", tube("Lamp", pts, [0.08, 0.35, 0.55, 0.65, 0.45], 5))
+    for k in range(9):  # upper fangs round the skull's rim, lower fangs on the jaw
+        a = (k - 4) / 4.0
+        xk = a * 14
+        yk = 51 - abs(a) ** 2 * 11
+        ln = 6.4 - abs(a) * 2.4
+        b.add(H, spike("Metal", (xk, yk, 38.6), (xk, yk + 0.8, 38.6 - ln), 1.5, 5))
+        b.add(H, spike("Metal", (xk * 0.92, yk - 2.4, 21.6), (xk * 0.92, yk - 1.8, 21.6 + ln * 0.8), 1.3, 5))
     for s in (-1, 1):
-        eye = bx("Lamp", min(s * 4.5, s * 11), max(s * 4.5, s * 11), 42.4, 44.2, 46.2, 48.4, 0)
-        shear(eye, lambda v: Vector((v.x, v.y - (abs(v.x) - 4.5) * 0.45, v.z + (abs(v.x) - 4.5) * 0.3)))
-        b.add("Glow", eye)
-        b.add(H, cy("Dark", 2.6, 2.6, 3, (s * 15.8, 22, 31), "X", 12))  # jaw hinges
-    # an angler lure: a stalk from the brow with a lamp at its tip (phase glow)
-    stalk = [(0, 22 + 34 * t, 52 + 15 * math.sin(t * math.pi * 0.85)) for t in [k / 8 for k in range(9)]]
-    b.add(H, tube("Paint2", stalk, [2.0 - 1.0 * k / 8 for k in range(9)], 10))
-    tip = stalk[-1]
-    b.add("Glow", ball("Lamp", 3.2, (0, tip[1] + 1.5, tip[2] - 2.8)))
-    # four digger legs (shoulder ball, a bent leg, a three-talon foot) and a drill tail
+        for k, (dx, dy, w) in enumerate(((6, 40, 5.4), (11, 33, 3.6))):
+            eye = bx("Lamp", min(s * dx, s * (dx + w)), max(s * dx, s * (dx + w)), dy, dy + 1.6, 49.4 - k, 50.8 - k, 0)
+            shear(eye, lambda v, dx=dx, dy=dy: Vector((v.x, v.y - (abs(v.x) - dx) * 0.5, v.z + (abs(v.x) - dx) * 0.35)))
+            b.add("Glow", eye)
+        b.add(H, cy("Dark", 2.4, 2.4, 3, (s * 15.6, 20, 32), "X", 12))  # jaw hinges
+        # swept ear fins
+        b.add(H, beam("Hazard", (s * 12, 22, 48), (s * 20, 12, 57), 1.2, 6, 0.3, 1, 0.3))
+    # four long legs (shoulders high, paws with pale claws) and a long curling tail with a glowing tip
     for s in (-1, 1):
-        for y in (12, -22):
-            sh = (s * 22, y, 25)
-            kn = (s * 33, y + 2, 22)
-            ft = (s * 31, y + 5, 3)
-            b.add(H, ball("Dark", 6.0, sh))
-            b.add(H, beam("Paint", sh, kn, 8, 8, 1.2, 2, 0.85))
-            b.add(H, ball("Metal", 4.2, kn))
-            b.add(H, beam("Paint", kn, ft, 7, 7, 1.0, 2, 0.8))
-            b.add(H, bx("Dark", ft[0] - 5, ft[0] + 5, ft[1] - 5, ft[1] + 4, 0, 4, 1.0))
+        for y, dy in ((12, 5), (-26, -6)):  # the front knees forward, the back hocks back, like a big cat
+            sh = (s * 13, y, 32)
+            kn = (s * 18, y + dy, 17)
+            ft = (s * 16, y + 2, 3)
+            b.add(H, ball("Paint", 7.0, sh))
+            b.add(H, beam("Paint", sh, kn, 8, 8, 1.4, 2, 0.8))
+            b.add(H, ball("Paint2", 4.0, kn))
+            b.add(H, beam("Paint", kn, ft, 6.4, 6.4, 1.2, 2, 0.75))
+            b.add(H, bx("Paint2", ft[0] - 4.6, ft[0] + 4.6, ft[1] - 4.6, ft[1] + 4.6, 0, 3.4, 1.4, 2))
             for k in (-1, 0, 1):
-                b.add(H, spike("Metal", (ft[0] + k * 3.2, ft[1] + 3.5, 2), (ft[0] + k * 3.8, ft[1] + 9, 0.6), 1.4, 5))
-            b.add(H, ring("Paint2", 4.0, 0.9, kn, "X", 14, 5))
-    b.add(H, loft_y("Paint", [(-62, 2, 2, 0, 9), (-54, 6, 6, 0, 12), (-44, 9, 8, 0, 18)], segs=16, power=2.2))
-    b.add(H, cy("Metal", 5.0, 0.4, 12, (0, -68, 8.5), "Y", 10))
-    for k in range(3):
-        b.add(H, ring("Paint2", 4.0 - k * 1.2, 0.6, (0, -64.5 - k * 3, 8.5), "Y", 12, 5))
-    # the generator (one; the game stands one at each point round the pit; its foot at the origin). Its core
-    # sits inside the generator's hit sphere (8 studs up, BossSim)
+                b.add(H, spike("Metal", (ft[0] + k * 2.8, ft[1] + 4, 1.6), (ft[0] + k * 3.4, ft[1] + 8.4, 0.4), 1.2, 5))
+            b.add("Glow", tube("Lamp", [(kn[0] * 1.04, kn[1] + 1, kn[2] + 4), (ft[0] * 1.08, ft[1] + 2, 8)], [0.5, 0.3], 5))
+    tail = [(0, -42, 27), (0, -54, 25), (0, -64, 27), (0, -73, 32), (0, -79, 39), (-2, -81, 46)]
+    b.add(H, tube("Paint", tail, [5.4, 4.4, 3.4, 2.6, 1.8, 1.0], 12))
+    b.add("Glow", tube("Lamp", [(0, -56, 29.6), (0, -66, 31), (0, -74, 35.4), (-1, -79.6, 41.4)], [0.6, 0.7, 0.6, 0.3], 6))
+    b.add("Glow", ball("Lamp", 2.4, (-2.4, -81.4, 47.6)))
+    # the generator (one; the game stands one at each point round the pit; its foot at the origin): a stolen light,
+    # a dark standing stone with violet bands and a glowing orb held in pale prongs. Its core sits inside the
+    # generator's hit sphere (8 studs up, BossSim)
     g = []
-    g.append(bx("Metal", -6.5, 6.5, -6.5, 6.5, 0, 3, 0.8, 2))
-    g.append(cy("Paint", 5.0, 4.0, 6.5, (0, 0, 6.2), "Z", 6))
-    g.append(ring("Paint2", 4.7, 0.7, (0, 0, 5.0), "Z", 6, 4))
-    g.append(hazard(-4.4, 4.4, 1.0, 2.6, 6.6, 3, 0.3, facing=1))
+    g.append(bx("Paint2", -6.5, 6.5, -6.5, 6.5, 0, 2.6, 0.8, 2))
+    g.append(cy("Paint", 4.4, 3.0, 7.4, (0, 0, 6.2), "Z", 6))
+    g.append(ring("Hazard", 4.1, 0.6, (0, 0, 4.4), "Z", 6, 4))
     for k in range(3):
         a = k * 2 * math.pi / 3 + math.pi / 6
-        g.append(tube("Metal", [(math.cos(a) * 3.2, math.sin(a) * 3.2, 9), (math.cos(a) * 5.2, math.sin(a) * 5.2, 12),
-                                (math.cos(a) * 3.0, math.sin(a) * 3.0, 16)], [1.1, 0.9, 0.2], 6))
+        g.append(tube("Metal", [(math.cos(a) * 2.6, math.sin(a) * 2.6, 9.4), (math.cos(a) * 4.6, math.sin(a) * 4.6, 12),
+                                (math.cos(a) * 2.2, math.sin(a) * 2.2, 16)], [1.0, 0.8, 0.15], 6))
     b.add("Generator", g)
     b.add("GeneratorCore", ball("Lamp", 3.2, (0, 0, 12)))
     b.objective_lamp = Vector((0, 0, 12))
+    # light streams pulled into the maw (from a ring round the mouth) and the area dims round it
+    b.fx = {"kind": "light", "every": 0.12, "at": [(0, 31, -44)], "reach": 34, "dim": 0.22}
+    # the part-built look until the meshes are imported (13 parts and 2 a generator, as before)
+    b.parts = [
+        P("body", "Block", (32, 32, 60), (0, 34, 10), color=NIGHT),
+        P("body", "Block", (32, 13, 28), (0, 45, -32), color=NIGHT),
+        P("body", "Block", (28, 4, 24), (0, 22.5, -34), rot=(-14, 0, 0), color=DEEP),
+        P("glow", "Cylinder", (1, 12, 12), (0, 31, -44), rot=(0, 90, 0)),
+        P("glow", "Block", (16, 2, 1), (0, 48.6, -46), rot=(0, 0, 0)),
+        P("glow", "Block", (2, 1, 60), (0, 48.4, 10)),
+    ]
+    for s in (-1, 1):
+        for y in (-12, 24):
+            b.parts.append(P("body", "Block", (7, 24, 7), (s * 16, 11, y), color=NIGHT))
+    # the light sacs as glowing stalks standing on the back (each centre inside its hit sphere)
+    for at, length in (((-12, 55, 8), 12), ((0, 58, 16), 16), ((12, 55, 8), 12)):
+        b.parts.append(P("weak", "Cylinder", (length, 5, 5), at, rot=(0, 0, 90)))
+    b.objective_parts = [
+        P("objective", "Block", (7, 10, 7), (0, 5, 0), rot=(0, 45, 0), color=DEEP),
+        P("objectiveGlow", "Ball", (5, 5, 5), (0, 12, 0)),
+    ]
     return b
 
 
-# ================================================================ LeviathanEngine: a serpent-shaped sea machine
+# ================================================================ LeviathanEngine: the Deep Machine
+# An ancient sea machine of brass and stone, older than the city: a barnacled stone hull ringed with brass bands
+# and portholes running back under the water, brass gear wheels on its flanks, a neck of stacked gear rings rising
+# to a brass diving-bell head with porthole eyes (weak points), stone jaws, and a tide-turbine heart on its back
+# (the reactor weak point) between two bronze vent hatches (the objectives).
+BRASS = (204, 152, 64)
+STONE = (92, 108, 100)
+VERDI = (86, 168, 148)
+BARN = (232, 226, 206)
+AQUA = (80, 230, 255)
+
+
 def leviathan():
     b = Boss("LeviathanEngine", {
-        "Paint": ((96, 110, 120), 0.5, 0.1),     # blue-grey hull
-        "Paint2": ((158, 164, 170), 0.5, 0.05),  # light grey stripe and fins
-        "Metal": ((140, 148, 156), 0.35, 1.0),
-        "Dark": ((26, 32, 40), 0.6, 0.2),
-        "Hazard": ((250, 200, 40), 0.5, 0.0),
-        "Accent": ((214, 218, 222), 0.45, 0.0),  # a pale band (no markings)
-    }, PHASES, ("Bay", "BayGlow"))
+        "Paint": (BRASS, 0.34, 0.85),    # old brass
+        "Paint2": (STONE, 0.85, 0.0),    # sea-worn stone
+        "Metal": (VERDI, 0.45, 0.55),    # verdigris bronze
+        "Dark": ((28, 34, 40), 0.6, 0.2),
+        "Hazard": (BARN, 0.9, 0.0),      # barnacles
+        "Accent": ((96, 140, 84), 0.7, 0.0),  # sea moss
+    }, [AQUA, (255, 172, 60), (255, 60, 48)], ("Bay", "BayGlow"))
+    b.look = "the Deep Machine: an ancient brass-and-stone sea machine"
+    b.theme = AQUA
+    b.debris = BRASS
     H = "Hull"
-    # the hull: a long body running back and down under the water (the surface is z = 0)
+    # the hull: a long stone body running back and down under the water (the surface is z = 0)
     hull_rings = [(22, 9, 8, 0, -1), (10, 15, 12, 0, 2), (-8, 16.5, 13, 0, 2.5), (-28, 15.5, 12, 0, 0),
                   (-52, 13, 10, 0, -6), (-78, 10.5, 8, 0, -13), (-102, 8, 6, 0, -21), (-124, 5, 4, 0, -28),
                   (-140, 2.6, 2.2, 0, -33)]
-    b.add(H, loft_y("Paint", hull_rings, segs=26, power=2.4))
-    # dark segment bands and a light stripe along the waterline
-    for (y0, rx0, rz0, _, z0), (y1, rx1, rz1, _, z1) in zip(hull_rings[1:7], hull_rings[2:8]):
-        y = (y0 + y1) / 2
-        rx, rz, z = (rx0 + rx1) / 2 + 0.4, (rz0 + rz1) / 2 + 0.4, (z0 + z1) / 2
-        b.add(H, loft_y("Dark", [(y - 1, rx, rz, 0, z), (y + 1, rx, rz, 0, z)], segs=26, power=2.4))
-    for s in (-1, 1):
-        stripe = tube("Paint2", [(s * 15.6, 14, 0.5), (s * 16.6, -8, 0.6), (s * 15.6, -28, -1.6), (s * 13, -52, -7),
-                                 (s * 10.4, -78, -13.8)], [1.6, 1.6, 1.5, 1.3, 1.0], 8)
-        b.add(H, stripe)
-        b.add(H, bx("Accent", s * 15.2, s * 17.2, -20, -10, 4, 7.4, 0.3) if s > 0 else bx("Accent", -17.2, -15.2, -20, -10, 4, 7.4, 0.3))
-    # a dorsal tower with portholes, its fin planes, and dorsal fins down the back
-    b.add(H, loft("Paint", [(10, 4.5, 11, 0, -34), (20, 4.0, 10, 0, -35), (24, 3.4, 8.5, 0, -36)], segs=20, power=2.6))
-    b.add(H, bx("Paint2", -3.8, 3.8, -45, -26, 23.2, 24.6, 0.4))
-    for s in (-1, 1):
-        b.add(H, bx("Paint2", min(s * 4, s * 11), max(s * 4, s * 11), -31, -27, 17, 18.2, 0.4))
-        for k in range(3):
-            b.add("Glow", cy("Lamp", 0.9, 0.9, 0.6, (s * 4.0, -28 - k * 4, 18.8 - k * 0.3), "X", 8))
-    def hull_top(y):
-        for (y0, _, rz0, _, z0), (y1, _, rz1, _, z1) in zip(hull_rings, hull_rings[1:]):
+    b.add(H, loft_y("Paint2", hull_rings, segs=26, power=2.4))
+
+    def ring_at(y):
+        for (y0, rx0, rz0, _, z0), (y1, rx1, rz1, _, z1) in zip(hull_rings, hull_rings[1:]):
             if y1 <= y <= y0:
                 f = (y0 - y) / (y0 - y1)
-                return (z0 + rz0) * (1 - f) + (z1 + rz1) * f
-        return 0
+                return rx0 + (rx1 - rx0) * f, rz0 + (rz1 - rz0) * f, z0 + (z1 - z0) * f
+        return hull_rings[-1][1], hull_rings[-1][2], hull_rings[-1][4]
+
+    # brass bands ringing the hull, with portholes between them along the waterline (phase glow)
+    for y in (4, -18, -40, -64, -90, -114):
+        rx, rz, z = ring_at(y)
+        b.add(H, loft_y("Paint", [(y - 1.4, rx + 0.5, rz + 0.5, 0, z), (y + 1.4, rx + 0.5, rz + 0.5, 0, z)], segs=26, power=2.4))
+    for s in (-1, 1):
+        for y in (-7, -29, -52, -77):
+            rx, rz, z = ring_at(y)
+            p = (s * (rx * 0.97), y, z + rz * 0.28)
+            b.add(H, ring("Paint", 2.0, 0.55, p, "X", 12, 4))
+            b.add("Glow", cy("Lamp", 1.6, 1.6, 0.6, (p[0] + s * 0.2, p[1], p[2]), "X", 10))
+    # barnacle clusters and moss on the stone
+    pts = []
+    for s in (-1, 1):
+        for y, a in ((-14, 50), (-22, 30), (-36, 62), (-46, 40), (-60, 55), (-70, 25), (-86, 48)):
+            rx, rz, z = ring_at(y)
+            for k in range(3):
+                pts.append((s * rx * math.cos(math.radians(a + k * 7)) * 0.98, y + k * 1.6,
+                            z + rz * math.sin(math.radians(a + k * 7)) * 0.98))
+    b.add(H, barnacles(pts))
+    for s in (-1, 1):
+        b.add(H, bx("Accent", s * 12 - 2, s * 12 + 2, -34, -22, 9.5, 11.6, 0.6, 1))
+    # brass gear wheels turning on the flanks (one big, one small a side)
+    for s in (-1, 1):
+        b.add(H, gear((s * 16.4, -16, 3), 7.5, 2.4, "X", 12))
+        b.add(H, gear((s * 14.6, -34, 6.5), 4.6, 2.0, "X", 9, "Metal"))
+    # stone dorsal fins down the back, barnacled
+    def hull_top(y):
+        rx, rz, z = ring_at(y)
+        return z + rz
 
     for k, y in enumerate((-54, -74, -94)):
-        fin = bx("Paint2", -0.9, 0.9, y - 9, y + 3, 0, 9 - k * 1.5, 0.3)
+        fin = bx("Paint2", -1.0, 1.0, y - 9, y + 3, 0, 9 - k * 1.5, 0.4)
         shear(fin, lambda v: Vector((v.x, v.y - v.z * 0.7, v.z)))
         move(fin, (0, 0, hull_top(y) - 1.5))
         b.add(H, fin)
-    # side diving fins and the tail propeller in its shroud
-    fin = bx("Paint2", 0, 16, -6, 6, -0.8, 0.8, 0.4, 1)
+    b.add(H, barnacles([(0.8, -58, hull_top(-56) + 3), (-0.8, -78, hull_top(-76) + 2.5)], 0.9))
+    # side flippers of stone with brass edges, and the tail: a tide wheel in a brass shroud
+    fin = bx("Paint2", 0, 16, -6, 6, -0.9, 0.9, 0.5, 1)
     shear(fin, lambda v: Vector((v.x, v.y - v.x * 0.45, v.z - v.x * 0.12)))
     move(fin, (14, 6, 2))
     b.add(H, fin, mirror([fin]))
-    b.add(H, ring("Metal", 5.2, 1.0, (0, -142, -33.5), "Y", 18, 6))
-    for k in range(4):
-        blade = bx("Metal", -0.5, 0.5, -0.4, 0.4, 0, 4.2, 0.2)
+    b.add(H, ring("Paint", 5.4, 1.1, (0, -142, -33.5), "Y", 18, 6))
+    for k in range(6):
+        blade = bx("Metal", -0.5, 0.5, -0.4, 0.4, 0, 4.4, 0.2)
         turn(blade, 20, "Z")
-        turn(blade, k * 90, "Y")
+        turn(blade, k * 60, "Y")
         move(blade, (0, -142, -33.5))
         b.add(H, blade)
-    # the reactor dome at the base of the neck (a weak point) in a steel collar
-    b.add(H, ring("Metal", 5.0, 1.2, (0, -2, 13.2), "Z", 20, 6))
-    b.add(H, cy("Dark", 5.6, 5.0, 2.4, (0, -2, 12.4), "Z", 18))
-    b.lamp("reactor", (0, -2, 14.4), 4.2, (1, 1, 0.75))
-    # the neck: armoured rings rising in an S to the head
+    # the tide-turbine heart on the back (the reactor weak point): a brass housing with turbine blades round a gold
+    # hub, in a glowing ring (phase glow)
+    b.add(H, cy("Paint", 7.4, 7.4, 2.4, (0, -2, 12.4), "Z", 20))
+    b.add(H, ring("Metal", 7.4, 1.1, (0, -2, 13.6), "Z", 20, 6))
+    b.add("Glow", ring("Lamp", 5.6, 0.45, (0, -2, 13.8), "Z", 20, 4))
+    for k in range(8):
+        blade = bx("Paint", 0, 5.0, -0.9, 0.9, -0.25, 0.25, 0.1)
+        turn(blade, 25, "X")
+        turn(blade, k * 45, "Z")
+        move(blade, (0, -2, 13.9))
+        b.add(H, blade)
+    b.lamp("reactor", (0, -2, 14.6), 3.4, (1, 1, 0.7))
+    # the neck: stacked brass gear rings rising in an S to the head, verdigris collars between
     neck = [(0, 6, 4), (0, 13, 13), (0, 19, 24), (0, 23, 33), (0, 28, 40)]
-    b.add(H, tube("Paint", neck, [10.5, 9.8, 9.2, 8.6, 8.2], 18))
+    radii = [10.5, 9.8, 9.2, 8.6, 8.2]
+    b.add(H, tube("Paint", neck, radii, 18))
     for k in range(1, 5):
         p0, p1 = Vector(neck[k - 1]), Vector(neck[k])
         c = (p0 + p1) / 2
-        r = [10.5, 9.8, 9.2, 8.6, 8.2][k] + 0.7
-        rg = ring("Dark", r, 1.0, (0, 0, 0), "Z", 18, 5)
+        r = radii[k] + 0.7
         q = Vector((0, 0, 1)).rotation_difference((p1 - p0).normalized())
-        rg.data.transform(Matrix.Translation(c) @ q.to_matrix().to_4x4())
-        b.add(H, rg)
-    # the head: an armoured eel skull with a snout, an open jaw, steel teeth, a throat glow, a crest and a periscope
-    b.add(H, loft_y("Paint", [(22, 10.5, 8.5, 0, 44.5), (32, 13, 10, 0, 47), (44, 12.5, 9, 0, 48.5), (54, 9.5, 6, 0, 47.5),
-                              (62, 5, 3.2, 0, 46)], segs=24, power=2.5))
-    b.add(H, loft_y("Paint", [(26, 10, 4.5, 0, 35.5), (40, 9.6, 3.8, 0, 32.5), (50, 7.4, 2.8, 0, 31.2), (57, 4.4, 2, 0, 32)],
+        collar = ring("Metal", r, 1.0, (0, 0, 0), "Z", 18, 5)
+        collar.data.transform(Matrix.Translation(c) @ q.to_matrix().to_4x4())
+        b.add(H, collar)
+        for t in range(8):  # gear teeth round each collar
+            tooth = bx("Metal", -0.8, 0.8, r + 0.4, r + 1.8, -0.8, 0.8, 0)
+            turn(tooth, t * 45 + k * 22, "Z")
+            tooth.data.transform(Matrix.Translation(c) @ q.to_matrix().to_4x4())
+            b.add(H, tooth)
+    # the head: a brass diving-bell skull with a stone brow and snout, stone jaws with bronze teeth, a throat glow,
+    # porthole eyes (weak points) in heavy bronze rings, a barnacled stone crest and an old brass horn
+    b.add(H, loft_y("Paint", [(22, 10.5, 8.5, 0, 44.5), (32, 13, 10.5, 0, 47.5), (44, 12.5, 9.5, 0, 48.5), (54, 9.5, 6.4, 0, 47.5),
+                              (62, 5, 3.4, 0, 46)], segs=24, power=2.3))
+    b.add(H, loft_y("Paint2", [(26, 10, 4.5, 0, 35.5), (40, 9.6, 3.8, 0, 32.5), (50, 7.4, 2.8, 0, 31.2), (57, 4.4, 2, 0, 32)],
                     segs=20, power=2.4))
     b.add(H, loft_y("Dark", [(28, 9.2, 5.6, 0, 38.6), (44, 8.4, 4.4, 0, 37.6), (50, 7, 3.6, 0, 37.4)], segs=18, power=2.2))
     b.add("Glow", loft_y("Lamp", [(49.4, 7.2, 3.8, 0, 37.6), (50.6, 6.6, 3.4, 0, 37.6)], segs=16, power=2.2))
     for k in range(6):
         a = (k - 2.5) / 2.5
-        x = a * 8.4
-        y = 58 - abs(a) ** 2 * 9
-        b.add(H, spike("Metal", (x, y, 42.2), (x, y + 0.4, 37.6), 1.35, 5))
-        b.add(H, spike("Metal", (x * 0.85, y - 3, 33.6), (x * 0.85, y - 2.6, 37.2), 1.15, 5))
-    for s in (-1, 1):  # swept gill fins behind the jaw (they come off at 66%)
+        xk = a * 8.4
+        yk = 58 - abs(a) ** 2 * 9
+        b.add(H, spike("Metal", (xk, yk, 42.2), (xk, yk + 0.4, 37.8), 1.3, 5))
+        b.add(H, spike("Metal", (xk * 0.85, yk - 3, 33.6), (xk * 0.85, yk - 2.6, 37.0), 1.1, 5))
+    for s in (-1, 1):  # stone cheek fins with barnacles (they come off at 66%)
         for k, z in enumerate((41, 46.5)):
-            b.add("Plates2", beam("Paint2", (s * 10.6, 34 - k * 2, z), (s * 17.5, 22 - k * 3, z + 4), 1.0, 7 - k, 0.3, 1, 0.35))
+            b.add("Plates2", beam("Paint2", (s * 10.6, 34 - k * 2, z), (s * 17.5, 22 - k * 3, z + 4), 1.2, 7 - k, 0.4, 1, 0.4))
+        b.add("Plates2", barnacles([(s * 12.6, 30, 44), (s * 14.6, 27.4, 50)], 0.8))
     for s in (-1, 1):
-        b.add(H, cy("Dark", 4.2, 4.2, 2.4, (s * 9.4, 46, 50), "X", 14))  # eye sockets
-        brow = bx("Paint2", min(s * 4, s * 12.4), max(s * 4, s * 12.4), 42, 50, 53.4, 55.4, 0.6)
-        shear(brow, lambda v: Vector((v.x, v.y, v.z - (12.4 - abs(v.x)) * 0.28)))
+        b.add(H, ring("Metal", 3.9, 1.1, (s * 8.8, 46.0, 50), "Y", 16, 5))  # the porthole rings
+        for k in range(4):
+            a = k * math.pi / 2 + math.pi / 4
+            b.add(H, cy("Paint", 0.6, 0.6, 0.8, (s * 8.8 + math.cos(a) * 3.9, 47.0, 50 + math.sin(a) * 3.9), "Y", 6))
+        brow = bx("Paint2", min(s * 4, s * 12.8), max(s * 4, s * 12.8), 42, 50, 54.2, 56.4, 0.6)
+        shear(brow, lambda v: Vector((v.x, v.y, v.z - (12.8 - abs(v.x)) * 0.26)))
         b.add(H, brow)
         b.lamp("eye" + ("L" if s < 0 else "R"), (s * 8.8, 46.6, 50), 3.0)
-    crest = bx("Paint2", -0.9, 0.9, 22, 44, 55, 59, 0.3)
+    crest = bx("Paint2", -1.0, 1.0, 22, 44, 55, 59, 0.4)
     shear(crest, lambda v: Vector((v.x, v.y, v.z - (v.y - 22) * 0.12 + (2 if v.z > 57 else 0) * (44 - v.y) / 22)))
     b.add(H, crest)
-    b.add(H, tube("Metal", [(0, 26, 52), (0, 25, 62), (0, 27.5, 64.5)], [0.9, 0.9, 0.9], 8))  # the periscope
-    b.add(H, bx("Metal", -1.4, 1.4, 26.4, 30, 63, 66, 0.3))
-    b.add("Glow", cy("Lamp", 1.0, 1.0, 0.4, (0, 30.2, 64.5), "Y", 10))
-    # armour sleeves on the neck (Plates3: they come off at 33%, leaving the dark ribbed neck)
-    radii = [10.5, 9.8, 9.2, 8.6, 8.2]
+    b.add(H, barnacles([(0.6, 30, 58.4), (-0.6, 36, 57.8), (0.5, 26, 59)], 0.8))
+    b.add(H, tube("Paint", [(0, 26, 52), (0, 25, 60), (0, 27, 63.5), (0, 30.4, 64.5)], [0.9, 0.9, 1.1, 1.8], 10))  # the horn
+    b.add("Glow", cy("Lamp", 1.5, 1.5, 0.4, (0, 30.8, 64.5), "Y", 10))
+    # Plates3: stone sleeves on the neck (33%: they come off, leaving the brass gear rings)
     for k in (1, 3):
         p0, p1 = Vector(neck[k - 1]), Vector(neck[k])
-        r = (radii[k - 1] + radii[k]) / 2 + 0.9
-        b.add("Plates3", tube("Paint2", [p0.lerp(p1, 0.18), p0.lerp(p1, 0.5), p0.lerp(p1, 0.82)], [r, r + 0.3, r], 18))
-    # the torpedo bay (one; the game sets one at each objective on the back; anchor at the origin)
+        r = (radii[k - 1] + radii[k]) / 2 + 1.0
+        b.add("Plates3", tube("Paint2", [p0.lerp(p1, 0.18), p0.lerp(p1, 0.5), p0.lerp(p1, 0.82)], [r, r + 0.4, r], 18))
+        c = p0.lerp(p1, 0.5)
+        b.add("Plates3", barnacles([(r * 0.7, c.y + 1, c.z + r * 0.6), (-r * 0.6, c.y - 1, c.z + r * 0.7)], 0.9))
+    # the vent hatch (one; the game sets one at each objective on the back; anchor at the origin): a stone block, a
+    # brass porthole hatch and two bronze vent pipes
     t = []
-    t.append(bx("Metal", -4.6, 4.6, -6.2, 6.2, -7, 0.6, 1.0, 2))
-    t.append(hazard(-4, 4, -2.6, -0.2, 6.3, 4, 0.4, facing=1))
+    t.append(bx("Paint2", -4.6, 4.6, -6.2, 6.2, -7, 0.6, 1.0, 2))
+    t.append(ring("Paint", 3.2, 0.7, (0, -1.2, 0.9), "Z", 14, 4))
     for s in (-1, 1):
-        t.append(cy("Dark", 1.6, 1.6, 2, (s * 2.0, 2.4, 0.9), "Z", 10))
-        t.append(ring("Paint2", 1.7, 0.4, (s * 2.0, 2.4, 1.8), "Z", 10, 4))
-    t.append(bx("Paint2", -4.0, 4.0, -5.2, -1.4, 0.4, 1.2, 0.3))
+        t.append(cy("Metal", 1.6, 1.8, 2.6, (s * 2.4, 3.4, 1.2), "Z", 10))
+        t.append(ring("Paint", 1.8, 0.4, (s * 2.4, 3.4, 2.5), "Z", 10, 4))
+    t += barnacles([(-3.6, -5, 0.6), (3.4, 4.8, 0.6)], 0.7)
     b.add("Bay", t)
-    b.add("BayGlow", ball("Lamp", 1.5, (0, -3.3, 2.2)))
-    b.objective_lamp = Vector((0, -3.3, 2.2))
+    b.add("BayGlow", ball("Lamp", 1.6, (0, -1.2, 2.2)))
+    b.objective_lamp = Vector((0, -1.2, 2.2))
+    # sea mist and bubbles from the vents and the turbine
+    b.fx = {"kind": "tide", "every": 0.5, "at": [(0, 15, -2), (-14, 18, 12), (14, 18, 12), (0, 64.5, -30)]}
+    # the part-built look until the meshes are imported (at most 29 parts, as before)
+    b.parts = []
+    for k in range(6):
+        size = 30 - k * 3.6
+        b.parts.append(P("body", "Block", (size, size * 0.72, 24), (0, 2 - k * 5, 8 + k * 22), rot=(-10, 0, 0),
+                         color=STONE if k % 2 == 0 else BRASS, mat="Slate" if k % 2 == 0 else "Metal"))
+    b.parts += [
+        P("body", "Cylinder", (2.4, 15, 15), (-16.4, 3, 16), color=BRASS, mat="Metal"),
+        P("body", "Cylinder", (2.4, 15, 15), (16.4, 3, 16), color=BRASS, mat="Metal"),
+        P("body", "Cylinder", (2.4, 15, 15), (0, 12.4, 2), rot=(0, 0, 90), color=BRASS, mat="Metal"),
+        P("weak", "Ball", (6, 6, 6), (0, 14.6, 2)),
+        P("body", "Block", (16, 14, 16), (0, 12, -6), rot=(-35, 0, 0), color=BRASS, mat="Metal"),
+        P("body", "Block", (15, 14, 15), (0, 23, -15), rot=(-35, 0, 0), color=VERDI, mat="Metal"),
+        P("body", "Block", (14, 14, 14), (0, 34, -24), rot=(-35, 0, 0), color=BRASS, mat="Metal"),
+        P("body", "Block", (24, 18, 30), (0, 47.5, -38), color=BRASS, mat="Metal"),
+        P("body", "Block", (20, 5, 26), (0, 34.5, -41), color=STONE, mat="Slate"),
+        P("glow", "Block", (14, 4, 1), (0, 38, -54)),
+        P("weak", "Ball", (6, 6, 6), (-8.8, 50, -46.6)),
+        P("weak", "Ball", (6, 6, 6), (8.8, 50, -46.6)),
+        P("glow", "Block", (1, 2, 26), (-15.4, 3.5, 12), rot=(-10, 0, 0)),
+        P("glow", "Block", (1, 2, 26), (15.4, 3.5, 12), rot=(-10, 0, 0)),
+        P("body", "Block", (2, 7, 26), (0, 58, -33), color=STONE, mat="Slate"),
+        P("body", "Block", (30, 2, 12), (0, 2, -6), rot=(0, 0, 0), color=STONE, mat="Slate"),
+        P("body", "Block", (2, 14, 10), (0, -30, 142), color=BRASS, mat="Metal"),
+    ]
+    b.objective_parts = [
+        P("objective", "Block", (9, 7, 12), (0, -3, 0), color=STONE, mat="Slate"),
+        P("objectiveGlow", "Ball", (3.2, 3.2, 3.2), (0, 2.2, 1.2)),
+    ]
     return b
 
 
@@ -875,7 +1137,17 @@ yy, xx = np.mgrid[0:RES, 0:RES].astype(np.float32)
 DOT = 5.0  # halftone cell, pixels
 cell = np.hypot((xx % DOT) - DOT / 2, (yy % DOT) - DOT / 2)
 
-for bid, bb in BOSSES.items():
+QUICK = "--quick" in sys.argv  # shapes only: flat palette colours, no bake, no export (for previews while working)
+if QUICK:
+    for bid, bb in BOSSES.items():
+        for o in bb.textured():
+            mats = []
+            for m in o.data.materials:
+                rgb, r, mt = bb.palette[m.name]
+                mats.append(kit.material("%s_%s" % (bid, m.name), rgb, metal=mt, rough=r))
+            for i, m in enumerate(mats):
+                o.data.materials[i] = m
+for bid, bb in (() if QUICK else BOSSES.items()):
     objs = bb.textured()
     # UVs: one atlas for this boss's textured pieces
     bpy.ops.object.select_all(action="DESELECT")
@@ -990,17 +1262,40 @@ def v3(v):
     return "{ %.3f, %.3f, %.3f }" % (v[0], v[2], -v[1])
 
 
+def fmt(c):
+    return ("%.3f" % c).rstrip("0").rstrip(".") if c != int(c) else "%d" % c
+
+
+def part_row(r):
+    vec = lambda t: "{ %s }" % ", ".join(fmt(c) for c in t)  # noqa: E731
+    out = 'role = "%s", shape = "%s", size = %s, at = %s' % (r["role"], r["shape"], vec(r["size"]), vec(r["at"]))
+    if any(r["rot"]):
+        out += ", rot = %s" % vec(r["rot"])
+    if r["role"] in ("body", "objective"):
+        out += ', color = %s, mat = "%s"' % (vec(r["color"]), r["mat"])
+    return "{ %s }" % out
+
+
 def size3(lo, hi):
     return "{ %.3f, %.3f, %.3f }" % (hi.x - lo.x, hi.z - lo.z, hi.y - lo.y)
 
 
-if ONLY is None:
+if ONLY is None and not QUICK:
     rows = []
     for bid, bb in BOSSES.items():
         counts = bb.tris()
         rows.append("\t%s = {" % bid)
         rows.append("\t\ttriangles = %d," % sum(counts.values()))
         rows.append("\t\tglow = { %s }, -- phases 1, 2, 3" % ", ".join("{ %d, %d, %d }" % c for c in bb.glow))
+        if bb.look:
+            rows.append("\t\tlook = \"%s\"," % bb.look)
+            rows.append("\t\ttheme = { %d, %d, %d }, -- the entrance effects and the name card's slash" % bb.theme)
+            rows.append("\t\tdebris = { %d, %d, %d }, -- the bits that fly off" % bb.debris)
+        if bb.fx:
+            fx = bb.fx
+            extra = "".join(", %s = %s" % (k, fx[k]) for k in ("reach", "dim") if k in fx)
+            rows.append("\t\tfx = { kind = \"%s\", every = %s%s, at = { %s } }," % (
+                fx["kind"], fx["every"], extra, ", ".join("{ %s, %s, %s }" % tuple(fmt(c) for c in p) for p in fx["at"])))
         rows.append("\t\tpieces = {")
         for name in sorted(bb.pieces):
             role = bb.roles[name]
@@ -1021,6 +1316,16 @@ if ONLY is None:
             rows.append("\t\t\t%s = { role = \"%s\", size = %s, offset = %s }, -- %d tris"
                         % (name, role, size3(lo, hi), v3((lo + hi) / 2), counts[name]))
         rows.append("\t\t},")
+        if bb.parts:
+            n = len(bb.parts) + len(bb.objective_parts) * len(ANCHORS[bid] or [0, 0, 0])
+            rows.append("\t\t-- the part-built look until the meshes are imported (x, up, z from the feet; rot in degrees,")
+            rows.append("\t\t-- CFrame.Angles); objectiveParts are set at each objective. %d parts in all" % n)
+            rows.append("\t\tparts = {")
+            rows += ["\t\t\t%s," % part_row(r) for r in bb.parts]
+            rows.append("\t\t},")
+            rows.append("\t\tobjectiveParts = {")
+            rows += ["\t\t\t%s," % part_row(r) for r in bb.objective_parts]
+            rows.append("\t\t},")
         rows.append("\t\t-- where each weak point's lamp sits (from the feet): inside its Config.Boss hit sphere")
         rows.append("\t\tweak = {")
         for tid in sorted(bb.weak):
@@ -1029,24 +1334,30 @@ if ONLY is None:
         rows.append("\t},")
     text = "\n".join([
         "-- GENERATED by art/blender/bosses.py: do not edit by hand.",
-        "-- PLACEHOLDER LOOK: boss lore pending (generic neutral machines: no emblems, no text, no story looks).",
+        "-- PLACEHOLDER ART until nate imports art/export/Bosses.fbx. The world bosses wear nate's lore looks (2026-11-17,",
+        "-- build plan step 8: Rustjaw Prime the junkyard titan, Lumen Maw the light eater, Leviathan Engine the deep",
+        "-- machine); Bulwark's battle form (NullWarFrame) keeps the neutral machine look until its own pass.",
         "-- The remade bosses (ReplicatedStorage.Art.Bosses, meshes named \"<Boss>_<Piece>\"): each piece's size and its",
         "-- centre from the boss's feet, in studs (x, up, back; a boss faces -z). Roles: hull (textured body), shed2 and",
         "-- shed3 (textured plates that break off at phases 2 and 3), glow (Neon, the phase colour), weak (Neon, the",
         "-- pulsing weak-point gold), objective and objectiveGlow (one set per Config.Boss objective; the lamp goes dark",
         "-- when broken). One %d px texture set per boss (art/export/bosses). Hit boxes stay Config.Boss's." % RES,
+        "-- look, theme, debris, fx and parts (the world bosses): the look in words, its colour (entrance and name card),",
+        "-- the colour of the bits that fly off, its own effect round it (sparks, light pulled in, sea mist) and the",
+        "-- part-built look the game draws until the meshes are imported (at most partBudget parts, the old count).",
         "return {",
         "\ttexture = %d," % RES,
         "\tweakColor = { { 255, 196, 40 }, { 255, 246, 190 } }, -- the weak points pulse between these",
         "\tpulse = 2.2, -- pulses a second",
         "\tobjectiveColor = { 255, 70, 60 },",
+        "\tpartBudget = { RustjawPrime = 23, LumenMaw = 19, LeviathanEngine = 29 }, -- the part-built looks' old counts",
     ] + rows + ["}", ""])
     cfg = os.path.normpath(os.path.join(kit.ROOT, "..", "src", "config", "BossArt.luau"))
     with open(cfg, "w") as f:
         f.write(text)
     print("wrote", cfg)
 
-if ONLY is None and "--no-export" not in sys.argv:
+if ONLY is None and not QUICK and "--no-export" not in sys.argv:
     export = []
     for bid, bb in BOSSES.items():
         for name, ob in bb.pieces.items():
@@ -1196,6 +1507,59 @@ if "--preview" in sys.argv:
         hero((0, 30, 0))
         camera((0, d, ch), (0, 0, h), 32)
         kit.render(os.path.join(kit.ROOT, "preview", "boss_%s.png" % bid))
+        clear()
+    # the part-built look (what the game draws until the meshes are imported), phase 1, the same view as above
+    T = Matrix(((1, 0, 0), (0, 0, -1), (0, 1, 0)))  # Roblox (x, up, z) to Blender (x, front, up)
+
+    def roblox_rot(rot):
+        rx, ry, rz = (math.radians(a) for a in rot)
+        return (Matrix.Rotation(rx, 3, "X") @ Matrix.Rotation(ry, 3, "Y") @ Matrix.Rotation(rz, 3, "Z"))
+
+    def fallback_part(row, base, mats, color=None):
+        sx, sy, sz = row["size"]
+        if row["shape"] == "Ball":
+            ob = kit.sphere("fp", min(sx, sy, sz) / 2, segs=16, rings=10)
+        elif row["shape"] == "Cylinder":
+            ob = kit.cyl("fp", min(sy, sz) / 2, min(sy, sz) / 2, sx, segs=20, axis="X")  # along Roblox x
+        else:
+            ob = kit.box("fp", sx, sy, sz)
+        # the shape is built in Roblox's local axes (a cylinder along x); turn it, then map to Blender's axes
+        M = roblox_rot(row["rot"])
+        for v in ob.data.vertices:
+            v.co = T @ (M @ v.co)
+        ob.data.update()
+        ob.matrix_world = base @ Matrix.Translation(rb(row["at"]))
+        role = row["role"]
+        if role in mats:
+            ob.data.materials.append(mats[role])
+        else:
+            ob.data.materials.append(kit.material("fp%d_%d_%d" % tuple(color or row["color"]), color or row["color"],
+                                                  metal=0.6 if row["mat"] == "Metal" else 0.0, rough=0.5))
+        return keep(ob)
+
+    for bid, bb in BOSSES.items():
+        if not bb.parts:
+            continue
+        sep, d, ch, h = VIEW[bid]
+        ground(sea=bid == "LeviathanEngine")
+        mats = phase_mats(bb, 1)
+        for at, yaw in (((sep, 0, 0), -30), ((-sep, 0, 0), 150)):
+            base = Matrix.Translation(Vector(at)) @ Matrix.Rotation(math.radians(yaw), 4, "Z")
+            for row in bb.parts:
+                fallback_part(row, base, mats)
+            if bid == "LumenMaw":
+                for k in range(3):
+                    a = math.radians(yaw + 90 + (k - 1) * 55)
+                    g = Vector(at) + Vector((math.cos(a) * 46, math.sin(a) * 46, 0))
+                    for row in bb.objective_parts:
+                        fallback_part(row, Matrix.Translation(g), mats)
+            else:
+                for anchor in ANCHORS[bid]:
+                    for row in bb.objective_parts:
+                        fallback_part(row, base @ Matrix.Translation(rb(anchor)), mats)
+        hero((0, 30, 0))
+        camera((0, d, ch), (0, 0, h), 32)
+        kit.render(os.path.join(kit.ROOT, "preview", "boss_%s_parts.png" % bid))
         clear()
     if ONLY is None:
         # the lineup: all four in scale, phase 1, three-quarter view, with a hero for scale
