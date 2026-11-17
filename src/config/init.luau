@@ -28,6 +28,7 @@ local NAMES = {
 	"Incidents",
 	"Contracts",
 	"Events",
+	"Heroic",
 	"Boss",
 	"Story",
 	"Pvp",

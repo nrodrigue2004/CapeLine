@@ -3233,14 +3233,18 @@ test("M6: the world clock runs 24 minutes: 16 day, 3 dusk, 4 night, 1 dawn", fun
 end)
 
 local IC = Config.Incidents
-local ALL_WHERE = { street = true, tower = true, tram = true, sign = true, roof = true, crane = true }
+local ALL_WHERE =
+	{ street = true, tower = true, tram = true, sign = true, roof = true, crane = true, nest = true }
 
-test("M6: 10 incident templates; each side gets its own and the shared ones", function()
-	check(#IC.order == 10, "10 templates")
+test("M6: 24 incident templates; each side gets its own and the shared ones", function()
+	check(#IC.order == 24, "24 templates (10 at M6, 14 more on 2026-11-17)")
 	local nums = {}
 	for _, tid in IC.order do
 		local t = IC.templates[tid]
-		check(t ~= nil and not nums[t.num] and t.num >= 1 and t.num <= 10, tid .. " has a unique number")
+		check(
+			t ~= nil and not nums[t.num] and t.num >= 1 and t.num <= #IC.order,
+			tid .. " has a unique number"
+		)
 		nums[t.num] = true
 		check(t.time >= 30 and t.time <= 120, tid .. " takes 30 s to 2 min")
 		check(#t.steps >= 1, tid .. " has steps")
@@ -3251,12 +3255,12 @@ test("M6: 10 incident templates; each side gets its own and the shared ones", fu
 	local hero = IncidentPlan.choices(IC, "hero", ALL_WHERE, false)
 	local villain = IncidentPlan.choices(IC, "villain", ALL_WHERE, false)
 	check(
-		#hero == 6 and table.find(hero, "RobotHeist") and not table.find(hero, "VaultBreach"),
-		"hero: 6 without a boss"
+		#hero == 18 and table.find(hero, "RobotHeist") and not table.find(hero, "VaultBreach"),
+		"hero: 18 without a boss"
 	)
 	check(
-		#villain == 8 and table.find(villain, "ShardCrate") and not table.find(villain, "RobotHeist"),
-		"villain: 8"
+		#villain == 21 and table.find(villain, "ShardCrate") and not table.find(villain, "RobotHeist"),
+		"villain: 21"
 	)
 	check(not table.find(hero, "RaidPrep"), "Raid prep only while a boss counts down")
 	local bare = IncidentPlan.choices(IC, "hero", { street = true }, false)
@@ -3331,19 +3335,19 @@ end)
 
 local CC = Config.Contracts
 
-test("M6: contract boards offer 3 for your side, the same until they change; max 3 accepted", function()
-	check(#CC.order == 6, "6 contract types")
+test("M6: contract boards offer 4 for your side, the same until they change; max 3 accepted", function()
+	check(#CC.order == 12, "12 contract types (6 at M6, 6 more on 2026-11-17)")
 	for w = 1, 60 do
 		local h = ContractPlan.offers(CC, 7, "hero", w, 10)
 		local v = ContractPlan.offers(CC, 7, "villain", w, 10)
-		check(#h == 3 and #v == 3, "3 offers")
+		check(#h == CC.board.offers and #v == CC.board.offers and CC.board.offers == 4, "4 offers")
 		local seen = {}
 		for _, o in h do
 			check(o.type ~= "VaultJob" and not seen[o.type], "heroes never see the Vault job; no repeats")
 			seen[o.type] = true
 		end
 		for _, o in v do
-			check(o.type ~= "Stakeout", "villains never see the Stakeout")
+			check(o.type ~= "Stakeout" and o.type ~= "Defusal", "villains never see the hero-only jobs")
 		end
 	end
 	local a, b = ContractPlan.offers(CC, 7, "hero", 5, 10), ContractPlan.offers(CC, 7, "hero", 5, 10)
@@ -3396,33 +3400,476 @@ test("M6: contract pay follows the table, the first 5 each day pay double", func
 	check(#ContractPlan.repair(CC, "bad", Config.Stats.levelCap) == 0, "repair of junk is empty")
 end)
 
-test("M6: random events every 4 to 6 minutes, max 2, never the same twice in a row, all 6 turn up", function()
-	local EV = Config.Events
-	check(#EV.order == 6, "6 events")
-	local st = EventPlan.new(EV, 0)
-	local rng = Rng.new(21)
-	local last, starts, seen, lastStart = nil, 0, {}, nil
-	for t = 0, 7200, 1 do
-		local id = EventPlan.due(EV, st, t, rng)
-		check(EventPlan.activeCount(st) <= 2, "never more than 2 at once")
-		if id then
-			check(id ~= last, "never the same type twice in a row")
-			if lastStart then
-				check(t - lastStart >= 240 - 1e-6 and t - lastStart <= 360 + 1, "4 to 6 minutes apart")
-			else
-				check(t == EV.scheduler.firstAfter, "the first comes 90 s after boot")
+test(
+	"M6: random events every 4 to 6 minutes, max 2, never the same twice in a row, all 12 turn up",
+	function()
+		local EV = Config.Events
+		check(#EV.order == 12, "12 events (6 at M6, 6 more on 2026-11-17)")
+		local st = EventPlan.new(EV, 0)
+		local rng = Rng.new(21)
+		local last, starts, seen, lastStart = nil, 0, {}, nil
+		for t = 0, 14400, 1 do
+			local id = EventPlan.due(EV, st, t, rng)
+			check(EventPlan.activeCount(st) <= 2, "never more than 2 at once")
+			if id then
+				check(id ~= last, "never the same type twice in a row")
+				if lastStart then
+					check(t - lastStart >= 240 - 1e-6 and t - lastStart <= 360 + 1, "4 to 6 minutes apart")
+				else
+					check(t == EV.scheduler.firstAfter, "the first comes 90 s after boot")
+				end
+				last, lastStart = id, t
+				starts += 1
+				seen[id] = true
 			end
-			last, lastStart = id, t
-			starts += 1
-			seen[id] = true
+		end
+		local kinds = 0
+		for _ in seen do
+			kinds += 1
+		end
+		check(
+			starts >= 38 and kinds == 12,
+			string.format("about one every 5 minutes (%d), all 12 kinds", starts)
+		)
+		check(
+			EventPlan.inPocket(EV, 3000) and not EventPlan.inPocket(EV, 100),
+			"no events in mission pockets"
+		)
+	end
+)
+
+---------------------------------------------------------------------------
+-- More activities (2026-11-17): 24 incidents, 12 events, 12 contracts, the Heroic tier
+---------------------------------------------------------------------------
+
+local HeroicRules = require("../src/shared/HeroicRules")
+local EnemyVariety = require("../src/shared/EnemyVariety")
+
+-- A copy of Config with some robot types switched off (the real Config is never changed)
+local function configWithOff(off: { string }): any
+	local c = table.clone(Config)
+	c.Enemies = table.clone(Config.Enemies)
+	for _, kind in off do
+		c.Enemies[kind] = table.clone(Config.Enemies[kind])
+		c.Enemies[kind].on = false
+	end
+	return c
+end
+
+local NEW_TYPES = {
+	"ShieldBearer",
+	"MedicUnit",
+	"Sniper",
+	"Swarmer",
+	"Mimic",
+	"Interceptor",
+	"Bomber",
+	"Captain",
+	"Grappler",
+}
+
+test("Activities: every incident template is valid (robots exist, step kinds handled, fixed text)", function()
+	local kinds = {}
+	for _, k in IncidentPlan.KINDS do
+		kinds[k] = true
+		check(IC.kinds[k] ~= nil and IC.kinds[k].text ~= "", k .. " has a tracker line")
+	end
+	for k in IC.kinds do
+		check(kinds[k] == true, k .. " is a kind the server builds")
+	end
+	local where = {
+		street = true,
+		tower = true,
+		tram = true,
+		sign = true,
+		roof = true,
+		crane = true,
+		nest = true,
+		any = true,
+	}
+	local featured = {}
+	local function enemy(kind: any, tid: string)
+		check(
+			type(kind) == "string" and Config.Enemies[kind] ~= nil,
+			tid .. ": robot " .. tostring(kind) .. " exists"
+		)
+		featured[kind] = true
+	end
+	for _, tid in IC.order do
+		local t = IC.templates[tid]
+		check(where[t.where] == true, tid .. " has a known spot kind")
+		for _, kind in t.requires or {} do
+			enemy(kind, tid)
+			check(
+				IncidentPlan.levelFor(IC, Config, tid) >= IncidentPlan.unlockLevel(Config, kind),
+				tid .. " waits for " .. kind
+			)
+		end
+		for i, row in t.steps do
+			check(kinds[row.kind] == true, tid .. " step " .. i .. " kind " .. row.kind .. " is handled")
+			check(IncidentPlan.stepText(IC, tid, i, "hero") ~= "", tid .. " step " .. i .. " has a line")
+			for _, e in row.enemies or {} do
+				enemy(e[1], tid)
+				check(e[2] >= 0 and e[3] >= e[2], tid .. " row counts")
+				if e[4] then
+					enemy(e[4], tid)
+					check(
+						IncidentPlan.unlockLevel(Config, e[4]) <= IncidentPlan.unlockLevel(Config, e[1]),
+						tid .. " fallback unlocks no later"
+					)
+				end
+			end
+			if row.leader then
+				enemy(row.leader, tid)
+			end
+			if row.enemy then
+				enemy(row.enemy, tid)
+			end
+			if row.prop then
+				check(table.find(IC.props, row.prop) ~= nil, tid .. " prop is built")
+			end
+			if row.kind == "object" then
+				check(
+					row.label == nil or table.find(IC.objects, row.label) ~= nil,
+					tid .. " object model is built"
+				)
+			end
+			if row.kind == "barrage" then
+				check(row.blocks >= 1 and row.misses >= 0 and row.every > row.warn, tid .. " barrage timing")
+			end
 		end
 	end
-	local kinds = 0
-	for _ in seen do
-		kinds += 1
+	for _, kind in NEW_TYPES do
+		check(featured[kind] == true, kind .. " has an incident of its own")
 	end
-	check(starts >= 19 and kinds == 6, string.format("about one every 5 minutes (%d), all 6 kinds", starts))
-	check(EventPlan.inPocket(EV, 3000) and not EventPlan.inPocket(EV, 100), "no events in mission pockets")
+	for key, b in IC.beats do
+		check(Config.Audio.sounds[b.juice] ~= nil and b.text ~= "", key .. " beat has a sound and a line")
+	end
+	check(#IncidentPlan.KINDS == 11, "6 new step kinds on top of the first 5")
+end)
+
+test("Activities: switched-off or locked robot types skip a template or fall back", function()
+	local lvl50 = IncidentPlan.choices(IC, "hero", ALL_WHERE, false, Config, 50)
+	check(#lvl50 == 18, "every hero template at level 50 with every type on (" .. #lvl50 .. ")")
+	local lvl1 = IncidentPlan.choices(IC, "hero", ALL_WHERE, false, Config, 1)
+	check(
+		not table.find(lvl1, "SniperNest") and not table.find(lvl1, "MimicCrowd"),
+		"new types wait for their level"
+	)
+	check(
+		table.find(lvl1, "DroneSwarm") ~= nil and table.find(lvl1, "ShieldWall") ~= nil,
+		"fallback templates run early"
+	)
+	check(
+		not IncidentPlan.available(IC, Config, "MimicCrowd", 8)
+			and IncidentPlan.available(IC, Config, "MimicCrowd", 9),
+		"the Mimic unlocks at 9"
+	)
+	local off = configWithOff({ "Sniper", "Captain" })
+	local list = IncidentPlan.choices(IC, "villain", ALL_WHERE, false, off, 50)
+	check(
+		not table.find(list, "SniperNest") and not table.find(list, "CaptainWarband"),
+		"a switched-off type's template is skipped"
+	)
+	check(table.find(list, "SignalJam") ~= nil, "a template that only features it stays")
+	local rng = Rng.new(5)
+	local jam = IncidentPlan.new(IC, rng, "SignalJam", 50, 0, { config = off })
+	for _, r in jam.steps[1].spawn :: any do
+		check(r.kind ~= "Sniper", "the Sniper falls back")
+	end
+	check((jam.steps[1].spawn :: any)[1].kind == "Turret", "to a Turret")
+	local swarm = IncidentPlan.new(IC, rng, "DroneSwarm", 1, 0, { config = Config })
+	for _, r in swarm.steps[1].spawn :: any do
+		check(r.kind == "SparkDrone", "level 1: the swarm is Spark Drones")
+	end
+	local all = configWithOff(NEW_TYPES)
+	for _ = 1, 300 do
+		local tid = IncidentPlan.pick(IC, rng, "hero", ALL_WHERE, nil, false, false, nil, all, 50)
+		check(tid ~= nil, "something to do with every new type off")
+		for _, row in IC.templates[tid :: string].steps do
+			check(
+				row.kind ~= "leader"
+					and row.kind ~= "find"
+					and row.kind ~= "convoy"
+					and row.kind ~= "barrage"
+					and row.kind ~= "tug",
+				"no template that needs a cut type"
+			)
+		end
+		local inc = IncidentPlan.new(IC, rng, tid :: string, 50, 0, { config = all })
+		for _, st in inc.steps do
+			for _, r in st.spawn or {} do
+				check(EnemyVariety.enabled(all, r.kind), "never a switched-off robot")
+			end
+		end
+	end
+end)
+
+test("Activities: the scheduler picks the new templates", function()
+	local rng = Rng.new(17)
+	local seen = {}
+	for _ = 1, 6000 do
+		local tid = IncidentPlan.pick(IC, rng, "hero", ALL_WHERE, nil, false, false, nil, Config, 50)
+		seen[tid :: string] = true
+	end
+	for _, tid in IncidentPlan.choices(IC, "hero", ALL_WHERE, false, Config, 50) do
+		check(seen[tid] == true, tid .. " turns up")
+	end
+	check(seen.SniperNest and seen.BomberBarrage and seen.GrapplerTow, "new ones among them")
+end)
+
+test("Activities: the new step kinds count right (leader, find, convoy, barrage, tug, nest)", function()
+	local rng = Rng.new(23)
+	local war = IncidentPlan.new(IC, rng, "CaptainWarband", 30, 0, { config = Config })
+	local s = war.steps[1]
+	check(
+		s.kind == "leader" and s.need == 1 and s.leader == "Captain" and #(s.spawn :: any) >= 1,
+		"one Captain to down, an escort"
+	)
+	check(IncidentPlan.advance(war, "leader", 1) == "done", "the Captain falls: done")
+	local mimic = IncidentPlan.new(IC, rng, "MimicCrowd", 30, 0, { config = Config })
+	check(mimic.steps[1].need == 1 and (mimic.steps[1].spawn :: any)[1].kind == "Mimic", "one Mimic to find")
+	local convoy = IncidentPlan.new(IC, rng, "MedicConvoy", 30, 0, { config = Config })
+	check(
+		convoy.steps[1].need == 2 and (convoy.steps[1].spawn :: any)[1].kind == "MedicUnit",
+		"2 Medic Units, then the squad"
+	)
+	check(
+		IncidentPlan.advance(convoy, "convoy", 2) == "step" and convoy.steps[2].kind == "defeat",
+		"convoy stopped: the squad"
+	)
+	local b = IncidentPlan.new(IC, rng, "BomberBarrage", 30, 0, { config = Config })
+	local row = IC.templates.BomberBarrage.steps[1]
+	check(b.steps[1].need == row.blocks, "blocks to make")
+	check(IncidentPlan.shell(b, true) == nil and b.steps[1].have == 1, "a block counts")
+	for _ = 1, row.misses do
+		check(IncidentPlan.shell(b, false) == nil, "misses up to the limit are allowed")
+	end
+	check(IncidentPlan.shell(b, false) == "failed" and b.failed, "one more fails it")
+	local b2 = IncidentPlan.new(IC, rng, "BomberBarrage", 30, 0, { config = Config })
+	check(IncidentPlan.endBarrage(b2) == "done" and b2.done, "every Bomber down ends the barrage")
+	local tow = IncidentPlan.new(IC, rng, "GrapplerTow", 30, 0, { config = Config })
+	check(
+		tow.steps[1].need == 1 and #tow.steps == 2 and tow.steps[2].kind == "rescue",
+		"down the Grappler, then the driver"
+	)
+	local nest = IncidentPlan.new(IC, rng, "SniperNest", 30, 0, { config = Config })
+	check(nest.steps[1].need >= 3, "2 Snipers and drones on the roof")
+	check(
+		IncidentPlan.stepText(IC, "WaterMain", 2, "hero") == "Carry the soaked citizens out",
+		"step lines come from config"
+	)
+end)
+
+test("Activities: Heroic rules (level 40+, tougher robots, one more each squad, x1.5 pay)", function()
+	local H = Config.Heroic
+	check(
+		H.minLevel == 40 and not HeroicRules.eligible(Config, 39) and HeroicRules.eligible(Config, 40),
+		"from level 40"
+	)
+	local rng = Rng.new(31)
+	local n = 0
+	for _ = 1, 4000 do
+		if HeroicRules.roll(Config, "incident", 45, rng) then
+			n += 1
+		end
+		check(not HeroicRules.roll(Config, "incident", 39, rng), "never under 40")
+	end
+	near(n / 4000, H.chance.incident, 0.03, "rolls at its chance")
+	check(
+		HeroicRules.robotLevel(Config, 45, true) == 50 and HeroicRules.robotLevel(Config, 45, false) == 45,
+		"robots 5 levels up"
+	)
+	local rows = { { kind = "BurglarBot", n = 2 }, { kind = "SparkDrone", n = 1 } }
+	local more = HeroicRules.squad(Config, rows, true)
+	check(more[1].n == 3 and more[2].n == 1 and rows[1].n == 2, "one more robot, template untouched")
+	local c, r = HeroicRules.pay(Config, 100, 41, true)
+	check(c == 150 and r == 62, "x1.5 pay, rounded")
+	check(HeroicRules.gearLevel(Config, 50, true) == Config.Stats.levelCap, "gear capped at the level cap")
+	check(HeroicRules.time(Config, 100, true) == 115, "15% more time")
+	local inc = IncidentPlan.new(IC, rng, "RobotHeist", 45, 0, { config = Config, heroic = true })
+	local plain = IncidentPlan.new(IC, Rng.new(1), "RobotHeist", 45, 0, { config = Config })
+	check(
+		inc.heroic and inc.steps[1].need >= 5 and plain.steps[1].need >= 4,
+		"a Heroic squad has the extra robot"
+	)
+	check(inc.deadline == HeroicRules.time(Config, 90, true) and inc.deadline >= 103, "and 15% more time")
+	check(
+		not IncidentPlan.canHeroic(IC, "TowerFire") and IncidentPlan.canHeroic(IC, "WaterMain"),
+		"only robots or objects get tougher"
+	)
+	-- the economy check (Decisions 2026-11-17): the bump over the play model stays small
+	local bc, br = HeroicRules.incomeBump(Config, 45)
+	print(
+		string.format("  [Heroic] level 45 income bump: Credits +%.1f%%, Renown +%.1f%%", bc * 100, br * 100)
+	)
+	check(bc > 0.02 and bc < 0.12 and br > 0.02 and br < 0.12, "Heroic adds a few percent, never a new pace")
+	local zc, zr = HeroicRules.incomeBump(Config, 39)
+	check(zc == 0 and zr == 0, "nothing under 40")
+end)
+
+test("Activities: 12 events, each a known goal, placed by district name (a second downtown joins)", function()
+	local EV = Config.Events
+	local goals = {}
+	for _, g in EventPlan.GOALS do
+		goals[g] = true
+	end
+	local nums, used = {}, {}
+	for _, id in EV.order do
+		local d = EV.events[id]
+		check(goals[d.goal] == true, id .. " has a goal the server builds")
+		check(not nums[d.num], id .. " has its own number")
+		nums[d.num] = true
+		if d.where ~= "hub" and d.where ~= "anchor" then
+			local areas = EventPlan.areas(Config, d.where)
+			check(#areas >= 1, id .. " finds its district")
+			for _, a in areas do
+				used[a.name] = true
+			end
+		end
+		for _, w in d.waves or {} do
+			check(Config.Enemies[w[1]] ~= nil and w[2] >= 1, id .. " wave robot " .. w[1])
+			check(w[3] == nil or Config.Enemies[w[3]] ~= nil, id .. " wave fallback")
+		end
+		for _, g in EventPlan.guardRows(d) do
+			check(Config.Enemies[g[1]] ~= nil, id .. " guard robot " .. g[1])
+		end
+	end
+	check(
+		used.Downtown and used.Docks and used.OldTown,
+		"events spread over Downtown, the Docks and Old Town"
+	)
+	local rng = Rng.new(3)
+	local x, z, name = EventPlan.place(Config, EV.events.HarbourFog, rng)
+	local docks = Config.City.districts.Docks
+	check(
+		name == "Docks" and x >= docks.minX and x <= docks.maxX and z >= docks.minZ and z <= docks.maxZ,
+		"inside the Docks"
+	)
+	check(
+		EventPlan.place(Config, EV.events.RobotRampage, rng) == nil,
+		"anchor events are placed by the server"
+	)
+	-- a bigger city: Uptown (and any "Downtown" district) joins the downtown events
+	local big = table.clone(Config)
+	big.City = table.clone(Config.City)
+	big.City.districts = table.clone(Config.City.districts)
+	big.City.districts.Uptown = { minX = -1600, maxX = -900, minZ = -350, maxZ = 350 }
+	big.City.districts.DowntownEast = { minX = 900, maxX = 1200, minZ = 0, maxZ = 300 }
+	local names = {}
+	for _, a in EventPlan.areas(big, "downtown") do
+		names[a.name] = true
+	end
+	check(
+		names.Downtown and names.Uptown and names.DowntownEast and not names.Docks,
+		"every downtown, by name"
+	)
+	local lm = EventPlan.areas(Config, { "CometCrater" })
+	check(#lm == 1 and lm[1].hx == 200, "landmarks by id")
+	local off = configWithOff({ "Mimic" })
+	local function ready(kind: string, level: number): boolean
+		return IncidentPlan.kindReady(off, kind, level)
+	end
+	local row = EventPlan.row(off, { "Mimic", 2, "SneakBot" }, 50, false, ready)
+	check(row ~= nil and row.kind == "SneakBot" and row.n == 2, "a cut type uses the fallback")
+	local hrow = EventPlan.row(Config, { "BurglarBot", 4 }, 45, true, ready)
+	check(hrow ~= nil and hrow.n == 5, "Heroic adds one")
+	check(EventPlan.row(off, { "Mimic", 2 }, 50, false, ready) == nil, "no fallback: dropped")
+end)
+
+test("Activities: 12 contracts: bounty names, Heroic offers and pay, timers, repair", function()
+	local B = CC.types.Bounty
+	check(#B.names == 12, "12 fixed bounty names")
+	for _, kind in B.targets do
+		check(Config.Enemies[kind] ~= nil, "bounty target " .. kind .. " exists")
+	end
+	for _, id in CC.order do
+		local t = CC.types[id]
+		for _, key in { "squad", "guards", "ambush", "escort" } do
+			local g = t[key]
+			if g then
+				for _, r in (if type(g[1]) == "string" then { g } else g) do
+					check(Config.Enemies[r[1]] ~= nil, id .. " robot " .. r[1])
+				end
+			end
+		end
+		for _, w in t.waves or {} do
+			check(Config.Enemies[w[1]] ~= nil, id .. " wave robot " .. w[1])
+		end
+	end
+	local ready = ContractPlan.readyFor(Config)
+	local who, kind = ContractPlan.bounty(CC, 1, 50, ready)
+	check(who == "Rust Baron" and kind == "Captain", "pick 1: the first name, the first ready type")
+	local _, early = ContractPlan.bounty(CC, 1, 4, ready)
+	check(early == "ShieldBearer", "at level 4 only unlocked types are hunted")
+	local offReady =
+		ContractPlan.readyFor(configWithOff({ "Captain", "Grappler", "ShieldBearer", "Bomber", "Sniper" }))
+	local _, last = ContractPlan.bounty(CC, 3, 50, offReady)
+	check(last == "BruteBot", "everything cut: a Brute Bot")
+	local enemyName = function(k: string): string
+		return Config.Enemies[k].name
+	end
+	local title, text = ContractPlan.title(
+		CC,
+		{ type = "Bounty", seed = 1, level = 50, got = 0, pick = 2 },
+		"hero",
+		enemyName,
+		ready
+	)
+	check(
+		title == "Bounty: Iron Widow" and string.find(text, "Iron Widow", 1, true) ~= nil,
+		"the bounty's name on the board"
+	)
+	local gt = ContractPlan.title(
+		CC,
+		{ type = "GeneratorHold", seed = 1, level = 5, got = 0 },
+		"villain",
+		enemyName,
+		ready
+	)
+	check(gt == "Power tap", "villains see their name")
+	local heroic, plain = 0, 0
+	for w = 1, 400 do
+		for _, o in ContractPlan.offers(CC, 9, "hero", w, 45, false, nil, Config) do
+			if o.heroic then
+				heroic += 1
+			else
+				plain += 1
+			end
+			if o.type == "Bounty" then
+				check(o.pick ~= nil and o.pick >= 1 and o.pick <= 12, "a bounty offer has a name")
+			end
+		end
+		for _, o in ContractPlan.offers(CC, 9, "hero", w, 30, false, nil, Config) do
+			check(not o.heroic, "no Heroic offers under 40")
+		end
+	end
+	near(heroic / (heroic + plain), Config.Heroic.chance.contract, 0.04, "Heroic offers at their chance")
+	local c1, r1 = ContractPlan.pay(Config, "Demolition", 45, 9)
+	local c2, r2 = ContractPlan.pay(Config, "Demolition", 45, 9, true)
+	check(c2 == math.floor(c1 * 1.5 + 0.5) and r2 == math.floor(r1 * 1.5 + 0.5), "Heroic pays x1.5")
+	local fixed = ContractPlan.repair(
+		CC,
+		{ { type = "Bounty", pick = 99, heroic = true, got = 3 }, { type = "Escort", pick = 4 } },
+		50
+	)
+	check(
+		fixed[1].pick == 12 and fixed[1].heroic == true and fixed[1].got == 1,
+		"repair keeps Heroic and clamps the pick"
+	)
+	check(fixed[2].pick == nil and fixed[2].heroic == nil, "no pick on other types")
+	near(ContractPlan.holdTick(CC, 10, true, 1), 11, 1e-9, "holding fills")
+	near(ContractPlan.holdTick(CC, 10, false, 2), 9, 1e-9, "an empty ring drains")
+	check(
+		ContractPlan.holdTick(CC, 0.2, false, 2) == 0 and ContractPlan.holdTick(CC, 44.9, true, 1) == 45,
+		"clamped"
+	)
+	check(
+		ContractPlan.courierLeft(CC, nil, 5) == nil and ContractPlan.courierLeft(CC, 0, 30) == 45,
+		"the courier's clock"
+	)
+	check(ContractPlan.courierLeft(CC, 0, 99) == 0, "late")
+	check(ContractPlan.fuseLeft(CC, 10, 70) == 0 and ContractPlan.fuseLeft(CC, 10, 20) == 40, "the fuse")
 end)
 
 test("M6: boss HP scales with heroes and the median level, minus Raid prep (at most 15%)", function()

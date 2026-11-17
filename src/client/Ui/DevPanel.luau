@@ -5,7 +5,9 @@
 -- event by type, boss now, boss to 1 HP, finish contract, clock phase, hero or villain side, and (M7) replay
 -- the opening, jump to an opening step, enter a mission, finish the step, leave, start a side quest, clear
 -- Act 1 and reset the story, and (M9) the creator, enter HQ, HQ level, 8 h away, all pieces, a test buy
--- (twice grants once) and the level cap. The stats line shows the server frame, script time per service, enemies, bots, send
+-- (twice grants once) and the level cap, and (2026-11-17) the next incident, event or contract to try (the
+-- "Inc:", "Ev:" and "Con:" buttons start the one named, "next" picks another), and a Heroic switch for them.
+-- The stats line shows the server frame, script time per service, enemies, bots, send
 -- rate and memory, plus the client fps and preset.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -31,7 +33,7 @@ function DevPanel.init()
 	end
 	local gui = Kit.screen("DevPanel", 20)
 	local panel = Kit.frame({
-		Size = UDim2.fromOffset(300, 815),
+		Size = UDim2.fromOffset(300, 885),
 		AnchorPoint = Vector2.new(1, 0),
 		Position = UDim2.new(1, -16, 0, 60),
 		BackgroundColor3 = Kit.color.night,
@@ -55,19 +57,20 @@ function DevPanel.init()
 	grid.SortOrder = Enum.SortOrder.LayoutOrder
 	local holder = Instance.new("Frame")
 	holder.BackgroundTransparency = 1
-	holder.Size = UDim2.new(1, -16, 0, 680)
+	holder.Size = UDim2.new(1, -16, 0, 750)
 	holder.Position = UDim2.fromOffset(8, 8)
 	grid.Parent = holder
 	holder.Parent = panel
 
 	local spawner, god, anime = false, false, false
-	local function add(text: string, fn: (TextButton) -> ())
+	local function add(text: string, fn: (TextButton) -> ()): TextButton
 		local b: TextButton
 		b = Kit.button({ Text = text, maxText = 18 }, function()
 			fn(b)
 		end)
 		b.LayoutOrder = #holder:GetChildren()
 		b.Parent = holder
+		return b
 	end
 	add("30 bots", function()
 		Net.send("DevCommand", "bots", Config.Dev.loadBots.max)
@@ -181,19 +184,43 @@ function DevPanel.init()
 	end)
 	-- M6: world activity
 	local incIdx = 1
-	add("Inc: " .. Config.Incidents.order[1], function(b)
+	local incButton = add("Inc: " .. Config.Incidents.order[1], function(b)
 		Net.send("DevCommand", "incident", incIdx)
 		incIdx = incIdx % #Config.Incidents.order + 1
 		b.Text = "Inc: " .. Config.Incidents.order[incIdx]
+	end)
+	add("Inc next", function()
+		incIdx = incIdx % #Config.Incidents.order + 1
+		incButton.Text = "Inc: " .. Config.Incidents.order[incIdx]
 	end)
 	add("Clear incidents", function()
 		Net.send("DevCommand", "clearincidents")
 	end)
 	local evIdx = 1
-	add("Ev: " .. Config.Events.order[1], function(b)
+	local evButton = add("Ev: " .. Config.Events.order[1], function(b)
 		Net.send("DevCommand", "event", evIdx)
 		evIdx = evIdx % #Config.Events.order + 1
 		b.Text = "Ev: " .. Config.Events.order[evIdx]
+	end)
+	add("Ev next", function()
+		evIdx = evIdx % #Config.Events.order + 1
+		evButton.Text = "Ev: " .. Config.Events.order[evIdx]
+	end)
+	local conIdx = 1
+	local conButton = add("Con: " .. Config.Contracts.order[1], function(b)
+		Net.send("DevCommand", "contractstart", conIdx)
+		conIdx = conIdx % #Config.Contracts.order + 1
+		b.Text = "Con: " .. Config.Contracts.order[conIdx]
+	end)
+	add("Con next", function()
+		conIdx = conIdx % #Config.Contracts.order + 1
+		conButton.Text = "Con: " .. Config.Contracts.order[conIdx]
+	end)
+	local heroic = false
+	add("Heroic OFF", function(b)
+		heroic = not heroic
+		b.Text = if heroic then "Heroic ON" else "Heroic OFF"
+		Net.send("DevCommand", "heroic", if heroic then 1 else 0)
 	end)
 	add("Boss now", function()
 		Net.send("DevCommand", "boss")
@@ -311,7 +338,7 @@ function DevPanel.init()
 	local stats = Kit.label({
 		Text = "waiting for server stats",
 		Size = UDim2.new(1, -16, 0, 100),
-		Position = UDim2.fromOffset(8, 693),
+		Position = UDim2.fromOffset(8, 763),
 		TextXAlignment = Enum.TextXAlignment.Left,
 		TextYAlignment = Enum.TextYAlignment.Top,
 		TextColor3 = Kit.color.paper,

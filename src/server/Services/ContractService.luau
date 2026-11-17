@@ -1,5 +1,5 @@
 -- ContractService: Radiant contracts (spec: Radiant contracts; Contract.Accept, Contract.Abandon,
--- Contract.Update). The Contract Board terminal at every safehouse shows a hero 3 offers for their side
+-- Contract.Update). The Contract Board terminal at every safehouse shows a hero 4 offers for their side
 -- (ContractPlan); up to 3 run at once and are saved on the character, so they survive a rejoin (the seed
 -- rebuilds the sites around the board they came from).
 -- * Drone sweep: 3 Spark Trooper squads. Rescue run: 5 stranded citizens, carried to any safehouse.
@@ -7,8 +7,15 @@
 --   Escort: a truck rolls 600 studs while a hero stays near it, with 2 ambushes. Vault job (villain): 2
 --   vaults, each guarded by 2 turrets, cracked by holding at the door. Stakeout (hero): photograph 3
 --   cloaking Sneak Bots by keeping them in view within 40 studs for 2 s.
+-- * 2026-11-17: Bounty (an elite robot with a name from a fixed list, 3x HP, 3 levels up, with an escort),
+--   Outpost demolition (break 3 guarded pylons), Rooftop courier (grab the parcel, touch 5 rooftop drops in
+--   75 s; late puts the parcel back), Sabotage defusal (hero: 3 guarded charges, each fuse starts when you
+--   come near; a popped one re-plants elsewhere), Photo recon (a Photo Mode shot from 3 rooftop lookouts)
+--   and Protect the generator (hold its ring for 45 s while robots attack; it drains while empty). The
+--   radar points at the next goal of the new ones too.
 -- * Pay: the contract table at the zone level, x2 for the first 5 each day, then the friend and Legacy
---   bonuses; plus a gear roll from the "contract" drop source.
+--   bonuses; plus a gear roll from the "contract" drop source. A Heroic contract (level 40+, Shared.
+--   HeroicRules) has robots 5 levels up and one more in each squad, and pays x1.5.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -28,6 +35,8 @@ local ZoneLevel = require(Shared:WaitForChild("ZoneLevel"))
 local WorldClock = require(Shared:WaitForChild("WorldClock"))
 local Progress = require(Shared:WaitForChild("Progress"))
 local ProfileSchema = require(Shared:WaitForChild("ProfileSchema"))
+local HeroicRules = require(Shared:WaitForChild("HeroicRules"))
+local EventPlan = require(Shared:WaitForChild("EventPlan"))
 
 local CityBuilder = require(script.Parent.CityBuilder)
 local HeroService = require(script.Parent.HeroService)
@@ -43,6 +52,17 @@ local Analytics = require(script.Parent.Analytics)
 local ContractService = {}
 
 local CC = Config.Contracts
+local ready = ContractPlan.readyFor(Config)
+
+type Spot = {
+	pos: Vector3,
+	guards: { [number]: boolean },
+	held: number,
+	done: boolean,
+	model: Model?,
+	ring: Model?,
+	woke: number?, -- defusal: when the fuse started
+}
 
 type Run = {
 	saved: ContractPlan.Saved,
@@ -55,15 +75,28 @@ type Run = {
 	length: number,
 	travelled: number,
 	ambushed: number,
-	vaults: { { guards: { [number]: boolean }, pos: Vector3, held: number, done: boolean } },
+	vaults: { Spot }, -- vault job, defusal charges, photo lookouts
 	sneaks: { [number]: number }, -- stakeout: robot id -> seconds in view
 	tag: number,
+	-- 2026-11-17 types
+	bountyId: number?,
+	bountyAt: Vector3?,
+	bountyRetry: number,
+	drops: { Vector3 }?, -- courier: the parcel's roof, then the drops
+	next: any?, -- courier: the pickup to touch now
+	grabbedAt: number?,
+	gen: Vector3?, -- protect the generator
+	held: number,
+	waveIdx: number,
+	nextWave: number,
+	alive: { [number]: boolean }, -- generator: robots of its waves still up
 }
 
 local runs: { [Player]: { Run } } = {}
 local boardAt: { [Player]: Vector3 } = {}
 local byEnemy: { [number]: { player: Player, run: Run } } = {}
 local nextTag = 1000000
+local fresh = Rng.new(Rng.hash(os.time(), 53)) -- re-planted charges go somewhere new
 
 local function char(player: Player): any
 	local profile = DataService.get(player)
@@ -76,6 +109,11 @@ end
 
 local function night(): boolean
 	return WorldClock.isNight(Config.World.clock, os.time() - IncidentService.clockStart)
+end
+
+local function enemyName(kind: string): string
+	local e = Config.Enemies[kind]
+	return e and e.name or kind
 end
 
 local function offersFor(player: Player): { ContractPlan.Saved }
@@ -92,7 +130,8 @@ local function offersFor(player: Player): { ContractPlan.Saved }
 		window(),
 		level,
 		night(),
-		Config.World.clock.nightVillain
+		Config.World.clock.nightVillain,
+		Config
 	)
 end
 
@@ -101,10 +140,15 @@ local function view(player: Player): { [string]: any }
 	local profile = DataService.get(player)
 	local active = {}
 	for _, r in runs[player] or {} do
-		table.insert(
-			active,
-			{ CC.types[r.saved.type].num, r.saved.got, ContractPlan.goal(CC, r.saved.type), r.saved.level }
-		)
+		local s = r.saved
+		table.insert(active, {
+			CC.types[s.type].num,
+			s.got,
+			ContractPlan.goal(CC, s.type),
+			s.level,
+			if s.heroic then 1 else 0,
+			s.pick or 0,
+		})
 	end
 	local offers = {}
 	for _, o in offersFor(player) do
@@ -114,9 +158,22 @@ local function view(player: Player): { [string]: any }
 				taken = true
 			end
 		end
-		local credits, renown =
-			ContractPlan.pay(Config, o.type, o.level, if profile then profile.daily.contractsDone else 99)
-		table.insert(offers, { CC.types[o.type].num, o.level, credits, renown, if taken then 1 else 0 })
+		local credits, renown = ContractPlan.pay(
+			Config,
+			o.type,
+			o.level,
+			if profile then profile.daily.contractsDone else 99,
+			o.heroic
+		)
+		table.insert(offers, {
+			CC.types[o.type].num,
+			o.level,
+			credits,
+			renown,
+			if taken then 1 else 0,
+			if o.heroic then 1 else 0,
+			o.pick or 0,
+		})
 	end
 	return {
 		offers = offers,
@@ -142,7 +199,24 @@ end
 -- Building a contract's sites
 ---------------------------------------------------------------------------
 
-local function spots(r: Run, n: number, rng: any): { Vector3 }
+local function robotLevel(r: Run): number
+	return HeroicRules.robotLevel(Config, r.saved.level, r.saved.heroic)
+end
+
+-- A squad row { kind, n, fallback? } at the contract's level (a type that is off or locked uses the
+-- fallback), Heroic's extra robot added
+local function rows(r: Run, list: { { any } }): { { kind: string, n: number } }
+	local out = {}
+	for i, row in list do
+		local res = EventPlan.row(Config, row, r.saved.level, r.saved.heroic and i == 1, ready)
+		if res then
+			table.insert(out, res)
+		end
+	end
+	return out
+end
+
+local function spots(r: Run, n: number, rng: any, kind: string?): { Vector3 }
 	local out = {}
 	local o = Vector3.new(r.saved.ox or 0, 0, r.saved.oz or 0)
 	local world = CityBuilder.world
@@ -150,8 +224,16 @@ local function spots(r: Run, n: number, rng: any): { Vector3 }
 		if #out >= n then
 			break
 		end
-		local s =
-			IncidentSpots.find(Config, world, "street", o.X, o.Z, CC.board.radius[1], CC.board.radius[2], rng)
+		local s = IncidentSpots.find(
+			Config,
+			world,
+			kind or "street",
+			o.X,
+			o.Z,
+			CC.board.radius[1],
+			CC.board.radius[2],
+			rng
+		)
 		if s then
 			local p = Vector3.new(s.x, s.y, s.z)
 			local ok = true
@@ -165,6 +247,12 @@ local function spots(r: Run, n: number, rng: any): { Vector3 }
 			end
 		end
 	end
+	-- no roofs out here: the street does
+	if kind and kind ~= "street" and #out < n then
+		for _, p in spots(r, n - #out, rng, "street") do
+			table.insert(out, p)
+		end
+	end
 	return out
 end
 
@@ -176,6 +264,17 @@ local function tagEnemies(player: Player, r: Run, ids: { number }): { [number]: 
 		table.insert(r.things, id)
 	end
 	return set
+end
+
+local function squadAt(
+	player: Player,
+	r: Run,
+	list: { { any } },
+	p: Vector3,
+	ring: number
+): { [number]: boolean }
+	local ids = SiteKit.squad(rows(r, list), p, robotLevel(r), r.tag, ring)
+	return tagEnemies(player, r, ids)
 end
 
 -- Forget a run's robots and take its sites down
@@ -200,7 +299,7 @@ local function complete(player: Player, r: Run)
 	if profile then
 		ProfileSchema.rollDay(profile, os.time())
 		local done = profile.daily.contractsDone
-		local credits, renown = ContractPlan.pay(Config, r.saved.type, r.saved.level, 99)
+		local credits, renown = ContractPlan.pay(Config, r.saved.type, r.saved.level, 99, r.saved.heroic)
 		local m = Progress.multiplier(
 			Config,
 			EconomyService.bonus(player, { firstContract = done < Config.Economy.bonus.firstContracts })
@@ -214,14 +313,17 @@ local function complete(player: Player, r: Run)
 		profile.stats.contracts += 1 -- the trophy wall (M9)
 		EconomyService.addCredits(player, credits)
 		EconomyService.addRenown(player, renown)
-		GearService.grant(player, "contract", r.saved.level)
+		GearService.grant(player, "contract", HeroicRules.gearLevel(Config, r.saved.level, r.saved.heroic))
 		EconomyService.Earned:Fire(player, "contract")
+		local hero = HeroService.get(player)
+		local name = ContractPlan.title(CC, r.saved, if hero then hero.side else "hero", enemyName, ready)
 		Net.fire("Toast", player, {
 			id = "contract",
-			name = CC.types[r.saved.type].name,
+			name = name,
 			credits = credits,
 			renown = renown,
 			double = done < Config.Economy.bonus.firstContracts,
+			heroic = r.saved.heroic or nil,
 		})
 	end
 	save(player)
@@ -236,6 +338,86 @@ local function progress(player: Player, r: Run, amount: number)
 	end
 end
 
+local function chargeModel(p: Vector3): Model
+	-- PLACEHOLDER ART: a robot charge with a blinking light
+	local m = SiteKit.model("Charge")
+	SiteKit.part(
+		m,
+		Vector3.new(3, 2, 3),
+		CFrame.new(p + Vector3.new(0, 1, 0)),
+		Color3.fromRGB(60, 62, 70),
+		Enum.Material.Metal
+	)
+	local light = SiteKit.part(
+		m,
+		Vector3.new(1, 1, 1),
+		CFrame.new(p + Vector3.new(0, 2.5, 0)),
+		Color3.fromRGB(255, 70, 60),
+		Enum.Material.Neon,
+		Enum.PartType.Ball
+	)
+	light.Name = "Core"
+	return m
+end
+
+local function pylonModel(m: Model)
+	SiteKit.part(
+		m,
+		Vector3.new(3, 14, 3),
+		CFrame.new(0, 7, 0),
+		Color3.fromRGB(70, 74, 86),
+		Enum.Material.Metal
+	)
+	SiteKit.part(
+		m,
+		Vector3.new(4, 1.2, 4),
+		CFrame.new(0, 14, 0),
+		Color3.fromRGB(255, 90, 60),
+		Enum.Material.Neon
+	)
+end
+
+-- Rooftop courier: put the next thing to touch (the parcel, then each drop) out
+local function courierNext(player: Player, r: Run)
+	local drops = r.drops
+	if not drops then
+		return
+	end
+	local def = CC.types.RooftopCourier
+	local idx = if r.grabbedAt then r.saved.got + 2 else 1
+	local at = drops[math.min(idx, #drops)]
+	local h
+	h = SiteKit.pickup(
+		at,
+		def.touch,
+		if r.grabbedAt then Color3.fromRGB(255, 210, 70) else Color3.fromRGB(120, 255, 170),
+		function()
+			local i = table.find(r.things, h)
+			if i then
+				table.remove(r.things, i)
+			end
+			r.next = nil
+			if not r.grabbedAt then
+				r.grabbedAt = os.clock()
+				Net.fire("Toast", player, { id = "courier", left = def.timeLimit })
+				courierNext(player, r)
+			else
+				local runsOf = runs[player]
+				progress(player, r, 1)
+				if runsOf and table.find(runsOf, r) then
+					courierNext(player, r)
+				end
+			end
+		end,
+		0,
+		function(hero)
+			return hero.player == player
+		end
+	)
+	r.next = h
+	table.insert(r.things, h)
+end
+
 local function build(player: Player, r: Run)
 	local t = r.saved.type
 	local def = CC.types[t]
@@ -244,8 +426,7 @@ local function build(player: Player, r: Run)
 	local level = r.saved.level
 	if t == "DroneSweep" then
 		for _, p in spots(r, left, rng) do
-			local ids = SiteKit.squad({ { kind = def.squad[1], n = def.squad[2] } }, p, level, r.tag, 14)
-			table.insert(r.squads, tagEnemies(player, r, ids))
+			table.insert(r.squads, squadAt(player, r, { def.squad }, p, 14))
 		end
 	elseif t == "RescueRun" then
 		for _, p in spots(r, left, rng) do
@@ -318,7 +499,7 @@ local function build(player: Player, r: Run)
 		table.insert(r.things, r.truck)
 	elseif t == "VaultJob" then
 		for _, p in spots(r, left, rng) do
-			local ids = SiteKit.squad({ { kind = def.guards[1], n = def.guards[2] } }, p, level, r.tag, 12)
+			local guards = squadAt(player, r, { def.guards }, p, 12)
 			local m = SiteKit.model("Vault")
 			SiteKit.part(
 				m,
@@ -336,15 +517,120 @@ local function build(player: Player, r: Run)
 				Enum.PartType.Cylinder
 			)
 			table.insert(r.things, m)
-			table.insert(r.vaults, { guards = tagEnemies(player, r, ids), pos = p, held = 0, done = false })
+			table.insert(r.vaults, { guards = guards, pos = p, held = 0, done = false })
 		end
 	elseif t == "Stakeout" then
 		for _, p in spots(r, left, rng) do
-			local ids = SiteKit.squad({ { kind = "SneakBot", n = 1 } }, p, level, r.tag, 2)
+			local ids = SiteKit.squad({ { kind = "SneakBot", n = 1 } }, p, robotLevel(r), r.tag, 2)
 			for id in tagEnemies(player, r, ids) do
 				r.sneaks[id] = 0
 			end
 		end
+	elseif t == "Bounty" then
+		r.bountyAt = spots(r, 1, rng)[1] or Vector3.new(r.saved.ox or 0, 0.5, r.saved.oz or 0)
+		r.bountyRetry = 0 -- the elite spawns on the next tick (stepRun keeps it up until it falls)
+		squadAt(player, r, { def.escort }, r.bountyAt :: Vector3, 10)
+	elseif t == "Demolition" then
+		local p = spots(r, 1, rng)[1] or Vector3.new(r.saved.ox or 0, 0.5, r.saved.oz or 0)
+		local mast = SiteKit.prop("Outpost", function(m)
+			-- PLACEHOLDER ART: the outpost's mast and its red lamp
+			SiteKit.part(
+				m,
+				Vector3.new(2, 26, 2),
+				CFrame.new(0, 13, 0),
+				Color3.fromRGB(60, 62, 72),
+				Enum.Material.Metal
+			)
+			SiteKit.part(
+				m,
+				Vector3.new(3, 3, 3),
+				CFrame.new(0, 27, 0),
+				Color3.fromRGB(255, 70, 60),
+				Enum.Material.Neon,
+				Enum.PartType.Ball
+			)
+		end)
+		SiteKit.place(mast, p)
+		table.insert(r.things, mast)
+		for i = 1, left do
+			local a = i / 3 * math.pi * 2
+			local at = p + Vector3.new(math.cos(a) * def.spread, 0, math.sin(a) * def.spread)
+			local hp = IncidentPlan.objectHp(Config, def.hits, robotLevel(r))
+			local h = SiteKit.object("Pylon", at, 6, 4, hp, pylonModel, nil, function()
+				progress(player, r, 1)
+			end)
+			SiteKit.moveObject(h, at, 0)
+			table.insert(r.things, h)
+		end
+		squadAt(player, r, def.guards, p, 14)
+	elseif t == "RooftopCourier" then
+		-- a timed run: the clock restarts from the parcel after a rejoin
+		r.saved.got = 0
+		local o = Vector3.new(r.saved.ox or 0, 0, r.saved.oz or 0)
+		local s = IncidentSpots.find(
+			Config,
+			CityBuilder.world,
+			"roof",
+			o.X,
+			o.Z,
+			CC.board.radius[1] * 0.5,
+			CC.board.radius[2],
+			rng,
+			{ hops = def.goal + 1 }
+		)
+		local drops = {}
+		for _, pt in (s and s.points) or {} do
+			table.insert(drops, Vector3.new(pt[1], pt[2], pt[3]))
+		end
+		-- too few roofs together: street drops make up the rest
+		for _, p in spots(r, def.goal + 1 - #drops, rng) do
+			table.insert(drops, p)
+		end
+		r.drops = drops
+		courierNext(player, r)
+	elseif t == "Defusal" then
+		for _, p in spots(r, left, rng) do
+			local guards = squadAt(player, r, { def.guards }, p, 10)
+			local m = chargeModel(p)
+			local ring = SiteKit.ring(p, def.radius, Color3.fromRGB(255, 90, 60))
+			table.insert(r.things, m)
+			table.insert(r.things, ring)
+			table.insert(
+				r.vaults,
+				{ guards = guards, pos = p, held = 0, done = false, model = m, ring = ring }
+			)
+		end
+	elseif t == "PhotoRecon" then
+		for _, p in spots(r, left, rng, "nest") do
+			local ring = SiteKit.ring(p, def.range - 2, Color3.fromRGB(120, 220, 255))
+			table.insert(r.things, ring)
+			table.insert(r.vaults, { guards = {}, pos = p, held = 0, done = false, ring = ring })
+		end
+	elseif t == "GeneratorHold" then
+		local p = spots(r, 1, rng)[1] or Vector3.new(r.saved.ox or 0, 0.5, r.saved.oz or 0)
+		r.gen = p
+		r.held = r.saved.got
+		local m = SiteKit.prop("Generator", function(model)
+			-- PLACEHOLDER ART: the generator and its core
+			SiteKit.part(
+				model,
+				Vector3.new(6, 6, 6),
+				CFrame.new(0, 3, 0),
+				Color3.fromRGB(70, 75, 85),
+				Enum.Material.Metal
+			)
+			SiteKit.part(
+				model,
+				Vector3.new(2, 2, 2),
+				CFrame.new(0, 7, 0),
+				Color3.fromRGB(120, 200, 255),
+				Enum.Material.Neon,
+				Enum.PartType.Ball
+			)
+		end)
+		SiteKit.place(m, p)
+		table.insert(r.things, m)
+		table.insert(r.things, SiteKit.ring(p, def.radius, Color3.fromRGB(120, 200, 255)))
 	end
 end
 
@@ -364,6 +650,11 @@ local function newRun(saved: ContractPlan.Saved): Run
 		vaults = {},
 		sneaks = {},
 		tag = nextTag,
+		bountyRetry = 0,
+		held = 0,
+		waveIdx = 0,
+		nextWave = 0,
+		alive = {},
 	}
 end
 
@@ -421,10 +712,12 @@ local function onKilled(_kind: string, _by: number?, _pos: Vector3, enemyId: num
 	end
 	byEnemy[enemyId :: number] = nil
 	local r = link.run
+	local id = enemyId :: number
+	r.alive[id] = nil
 	if r.saved.type == "DroneSweep" then
 		for i, squad in r.squads do
-			if squad[enemyId :: number] then
-				squad[enemyId :: number] = nil
+			if squad[id] then
+				squad[id] = nil
 				if next(squad) == nil then
 					table.remove(r.squads, i)
 					progress(link.player, r, 1)
@@ -432,24 +725,53 @@ local function onKilled(_kind: string, _by: number?, _pos: Vector3, enemyId: num
 				break
 			end
 		end
-	elseif r.saved.type == "VaultJob" then
+	elseif r.saved.type == "VaultJob" or r.saved.type == "Defusal" then
 		for _, v in r.vaults do
-			v.guards[enemyId :: number] = nil
+			v.guards[id] = nil
+		end
+	elseif r.saved.type == "Bounty" then
+		if id == r.bountyId then
+			r.bountyId = nil
+			progress(link.player, r, 1)
 		end
 	elseif r.saved.type == "Stakeout" then
 		-- beaten before the photo: another Sneak Bot slips in nearby
-		if r.sneaks[enemyId :: number] then
-			r.sneaks[enemyId :: number] = nil
+		if r.sneaks[id] then
+			r.sneaks[id] = nil
 			local e = Vector3.new(_pos.X, _pos.Y, _pos.Z)
 			local ids = SiteKit.squad(
 				{ { kind = "SneakBot", n = 1 } },
 				e + Vector3.new(60, 0, 0),
-				r.saved.level,
+				robotLevel(r),
 				r.tag,
 				2
 			)
-			for id in tagEnemies(link.player, r, ids) do
-				r.sneaks[id] = 0
+			for nid in tagEnemies(link.player, r, ids) do
+				r.sneaks[nid] = 0
+			end
+		end
+	end
+end
+
+-- Photo recon: a Photo Mode shot counts at a lookout the owner stands at
+local function onPhoto(player: Player)
+	local hero = HeroService.get(player)
+	local pos = hero and HeroService.position(hero)
+	if not pos then
+		return
+	end
+	for _, r in table.clone(runs[player] or {}) do
+		if r.saved.type == "PhotoRecon" then
+			for _, v in r.vaults do
+				if not v.done and (v.pos - pos).Magnitude <= CC.types.PhotoRecon.range then
+					v.done = true
+					if v.ring then
+						v.ring:Destroy()
+					end
+					Net.fire("Toast", player, { id = "photoRecon" })
+					progress(player, r, 1)
+					break
+				end
 			end
 		end
 	end
@@ -465,9 +787,21 @@ local function inView(from: Vector3, to: Vector3): boolean
 	return hit == nil
 end
 
+local function untag(r: Run, ids: { [number]: boolean })
+	for id in ids do
+		byEnemy[id] = nil
+		EnemyService.remove(id)
+		local i = table.find(r.things, id)
+		if i then
+			table.remove(r.things, i)
+		end
+	end
+end
+
 local function stepRun(player: Player, r: Run, dt: number, pos: Vector3)
 	local t = r.saved.type
 	local def = CC.types[t]
+	local now = os.clock()
 	if t == "Escort" and r.truck and r.path and r.truckPos then
 		local near = #SiteKit.heroesIn(r.truckPos, def.near) > 0
 		if near and r.travelled < r.length then
@@ -490,14 +824,7 @@ local function stepRun(player: Player, r: Run, dt: number, pos: Vector3)
 			local share = r.travelled / r.length
 			if r.ambushed < #def.ambushAt and share >= def.ambushAt[r.ambushed + 1] then
 				r.ambushed += 1
-				local ids = SiteKit.squad(
-					{ { kind = def.ambush[1], n = def.ambush[2] } },
-					at,
-					r.saved.level,
-					r.tag,
-					22
-				)
-				tagEnemies(player, r, ids)
+				squadAt(player, r, { def.ambush }, at, 22)
 			end
 			-- progress in studs of the 600 (a shorter street path is scaled up to the full goal)
 			local got = math.floor(share * def.goal + 1e-6)
@@ -514,6 +841,113 @@ local function stepRun(player: Player, r: Run, dt: number, pos: Vector3)
 					v.done = true
 					progress(player, r, 1)
 				end
+			end
+		end
+	elseif t == "Defusal" then
+		for _, v in table.clone(r.vaults) do
+			if not v.done then
+				if not v.woke and (v.pos - pos).Magnitude <= def.wake then
+					v.woke = now
+					Net.fire("Toast", player, { id = "fuse", left = def.fuse })
+				end
+				if next(v.guards) == nil then
+					local inRing = SiteKit.heroesIn(v.pos, def.radius + 3)
+					v.held += IncidentPlan.holdRate(Config.Incidents, #inRing) * dt
+					if v.held >= def.defuse then
+						v.done = true
+						if v.model then
+							v.model:Destroy()
+						end
+						if v.ring then
+							v.ring:Destroy()
+						end
+						Net.fire("Toast", player, { id = "defused" })
+						progress(player, r, 1)
+						if not table.find(runs[player] or {}, r) then
+							return
+						end
+					end
+				end
+				if not v.done and ContractPlan.fuseLeft(CC, v.woke, now) == 0 then
+					-- it pops (a harmless cartoon puff) and the robots plant a new one somewhere else
+					local i = table.find(r.vaults, v)
+					if i then
+						table.remove(r.vaults, i)
+					end
+					untag(r, v.guards)
+					if v.model then
+						v.model:Destroy()
+					end
+					if v.ring then
+						v.ring:Destroy()
+					end
+					Net.fire("Toast", player, { id = "fizzled" })
+					for _, p in spots(r, 1, fresh) do
+						local guards = squadAt(player, r, { def.guards }, p, 10)
+						local m = chargeModel(p)
+						local ring = SiteKit.ring(p, def.radius, Color3.fromRGB(255, 90, 60))
+						table.insert(r.things, m)
+						table.insert(r.things, ring)
+						table.insert(
+							r.vaults,
+							{ guards = guards, pos = p, held = 0, done = false, model = m, ring = ring }
+						)
+					end
+				end
+			end
+		end
+	elseif t == "Bounty" and r.bountyAt then
+		-- keep the elite up until it falls (the server cap, or a respawn after a rejoin)
+		if (not r.bountyId or not EnemyService.alive(r.bountyId)) and now >= r.bountyRetry then
+			r.bountyRetry = now + 5
+			local _, kind = ContractPlan.bounty(CC, r.saved.pick, r.saved.level, ready)
+			local id = EnemyService.spawnAt(kind, r.bountyAt, robotLevel(r) + def.elite.levelBonus, r.tag)
+			if id then
+				EnemyService.tune(id, { hpMult = def.elite.hpMult })
+				r.bountyId = id
+				tagEnemies(player, r, { id })
+			end
+		end
+	elseif t == "RooftopCourier" and r.grabbedAt then
+		if ContractPlan.courierLeft(CC, r.grabbedAt, now) == 0 then
+			-- late: the parcel goes back to its roof
+			if r.next then
+				local i = table.find(r.things, r.next)
+				if i then
+					table.remove(r.things, i)
+				end
+				SiteKit.removePickup(r.next)
+				r.next = nil
+			end
+			r.grabbedAt = nil
+			r.saved.got = 0
+			save(player)
+			Net.fire("Toast", player, { id = "courierLate" })
+			courierNext(player, r)
+		end
+	elseif t == "GeneratorHold" and r.gen then
+		local holding = #SiteKit.heroesIn(r.gen, def.radius + 3) > 0
+		local near = (r.gen - pos).Magnitude <= 150
+		if near or r.held > 0 then
+			r.held = ContractPlan.holdTick(CC, r.held, holding, dt)
+		end
+		local got = math.floor(r.held)
+		if got ~= r.saved.got then
+			progress(player, r, got - r.saved.got)
+			if not table.find(runs[player] or {}, r) then
+				return
+			end
+		end
+		-- waves while the hero is near, never more than 8 robots up
+		local up = 0
+		for _ in r.alive do
+			up += 1
+		end
+		if near and now >= r.nextWave and up < 8 then
+			r.waveIdx = r.waveIdx % #def.waves + 1
+			r.nextWave = now + def.waveEvery
+			for id in squadAt(player, r, { def.waves[r.waveIdx] }, r.gen, 22) do
+				r.alive[id] = true
 			end
 		end
 	elseif t == "Stakeout" then
@@ -537,23 +971,60 @@ local function stepRun(player: Player, r: Run, dt: number, pos: Vector3)
 	end
 end
 
+-- The radar's goal for a contract: the nearest shard, the next courier stop, the bounty, a charge or a
+-- lookout still to do. Returns distance and direction x 100 (0, 0, 0 for none).
 local function radar(r: Run, pos: Vector3): (number, number, number)
-	if r.saved.type ~= "ShardRecovery" then
-		return 0, 0, 0
+	local t = r.saved.type
+	local targets: { Vector3 } = {}
+	if t == "ShardRecovery" then
+		for _, h in r.shards do
+			table.insert(targets, h.pos)
+		end
+	elseif t == "RooftopCourier" and r.next then
+		table.insert(targets, r.next.pos)
+	elseif t == "Bounty" and r.bountyId then
+		local e = EnemyService.get(r.bountyId)
+		if e and e.alive then
+			table.insert(targets, Vector3.new(e.x, e.y, e.z))
+		end
+	elseif t == "Defusal" or t == "PhotoRecon" then
+		for _, v in r.vaults do
+			if not v.done then
+				table.insert(targets, v.pos)
+			end
+		end
 	end
 	local best, bestD = nil, math.huge
-	for _, h in r.shards do
-		local d = (h.pos - pos).Magnitude
+	for _, p in targets do
+		local d = (p - pos).Magnitude
 		if d < bestD then
-			best, bestD = h, d
+			best, bestD = p, d
 		end
 	end
 	if not best then
 		return 0, 0, 0
 	end
-	local dir = (best.pos - pos) * Vector3.new(1, 0, 1)
+	local dir = (best - pos) * Vector3.new(1, 0, 1)
 	local u = if dir.Magnitude > 0.1 then dir.Unit else Vector3.zero
 	return math.floor(bestD), math.floor(u.X * 100), math.floor(u.Z * 100)
+end
+
+-- Seconds left on a contract's clock (the courier's parcel, the nearest lit fuse), or 0
+local function clock(r: Run): number
+	local now = os.clock()
+	if r.saved.type == "RooftopCourier" then
+		return math.floor(ContractPlan.courierLeft(CC, r.grabbedAt, now) or 0)
+	elseif r.saved.type == "Defusal" then
+		local best = 0
+		for _, v in r.vaults do
+			local left = not v.done and ContractPlan.fuseLeft(CC, v.woke, now)
+			if left and (best == 0 or left < best) then
+				best = left
+			end
+		end
+		return math.floor(best)
+	end
+	return 0
 end
 
 -- Studio: finish a contract now
@@ -562,6 +1033,44 @@ function ContractService.finishFirst(player: Player)
 	if r then
 		complete(player, r)
 	end
+end
+
+-- Studio: start contract type n right here (no board), Heroic if asked; one of the same type is replaced
+function ContractService.forceStart(player: Player, n: number, heroic: boolean?): boolean
+	local id = CC.order[n]
+	local hero = HeroService.get(player)
+	local pos = hero and HeroService.position(hero)
+	if not id or not hero or not pos then
+		return false
+	end
+	local list = runs[player] or {}
+	runs[player] = list
+	for i, r in list do
+		if r.saved.type == id then
+			table.remove(list, i)
+			teardown(r)
+			break
+		end
+	end
+	if #list >= CC.board.maxAccepted then
+		teardown(table.remove(list, 1) :: Run)
+	end
+	local def = CC.types[id]
+	local saved: ContractPlan.Saved = {
+		type = id,
+		seed = fresh:nextInt32() % 2147483647,
+		level = ZoneLevel.at(Config, pos.X, pos.Z, hero.level, CityBuilder.world.tiles),
+		got = 0,
+		ox = pos.X,
+		oz = pos.Z,
+		heroic = if heroic then true else nil,
+		pick = if def.names then fresh:int(1, #def.names) else nil,
+	}
+	local r = newRun(saved)
+	table.insert(list, r)
+	build(player, r)
+	save(player)
+	return true
 end
 
 function ContractService.init()
@@ -581,6 +1090,7 @@ function ContractService.init()
 	Net.on("ContractAccept", accept)
 	Net.on("ContractAbandon", abandon)
 	EnemyService.Killed:Connect(onKilled)
+	Analytics.Photo:Connect(onPhoto)
 	DataService.Loaded:Connect(function(player, profile)
 		local c = ProfileSchema.active(profile)
 		ProfileSchema.rollDay(profile, os.time())
@@ -616,7 +1126,9 @@ function ContractService.init()
 				local pos = hero and hero.alive and HeroService.position(hero)
 				if pos then
 					for _, r in table.clone(list) do
-						stepRun(player, r, acc, pos)
+						if table.find(list, r) then
+							stepRun(player, r, acc, pos)
+						end
 					end
 				end
 			end
@@ -628,19 +1140,22 @@ function ContractService.init()
 				if #list > 0 then
 					local hero = HeroService.get(player)
 					local pos = hero and HeroService.position(hero) or Vector3.zero
-					local rows = {}
+					local out = {}
 					for _, r in list do
 						local d, dx, dz = radar(r, pos)
-						table.insert(rows, {
+						table.insert(out, {
 							CC.types[r.saved.type].num,
 							r.saved.got,
 							ContractPlan.goal(CC, r.saved.type),
 							d,
 							dx,
 							dz,
+							if r.saved.heroic then 1 else 0,
+							r.saved.pick or 0,
+							clock(r),
 						})
 					end
-					Net.fire("ContractUpdate", player, { list = rows })
+					Net.fire("ContractUpdate", player, { list = out })
 				end
 			end
 		end
