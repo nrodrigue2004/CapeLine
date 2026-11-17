@@ -99,7 +99,8 @@ end
 
 local BUILD: { [string]: (Layout, any) -> () } = {}
 
--- Mission 2: a Downtown block with 3 power stations (or shard crates) and cover
+-- A Downtown block with 3 power stations (or crates) and cover (no Act 1 mission uses it since lore step 5;
+-- kept for later acts)
 function BUILD.station(l: Layout)
 	box(l, "road", 0, 0.1, 0, 30, 0.2, 380, "road")
 	box(l, "road", 0, 0.1, 0, 380, 0.2, 30, "road")
@@ -115,13 +116,14 @@ function BUILD.station(l: Layout)
 	end
 	-- the branch after choice 1: a tram line (train) and roof hops (thief) along the east side
 	point(l, "trainStart", -170, 0.2, 150)
-	point(l, "trainDir", 1, 0, 300)
+	l.points.trainDir = { 1, 0, 300 } -- a direction (x, z) and a length, not a place
 	for i = 0, 6 do
 		add(l, "path", -150 + i * 50, 51.5, if i % 2 == 0 then 110 else -110)
 	end
 end
 
--- Mission 3: a signal tower with a spiral of ledges up to a top deck and its mast
+-- The Signal (mission 5): Crane Tower, a spiral of ledges up to a top deck, its broadcast mast (the Vigil
+-- guards Patch's uplink there) and a relay across the deck (the Syndicate plants its feed there)
 function BUILD.tower(l: Layout)
 	local h = 180
 	box(l, "building", 0, h / 2, 0, 40, h, 40, "slate")
@@ -137,9 +139,13 @@ function BUILD.tower(l: Layout)
 	point(l, "top", 0, h + 3, 0)
 	point(l, "mast", 0, h + 2.5, -24)
 	point(l, "boss", 0, h + 3, 20)
+	box(l, "prop", 30, h + 4, 0, 4, 6, 4, "steel")
+	box(l, "glow", 30, h + 7.5, 0, 3, 1, 3, "foundryGlow")
+	point(l, "relay", 26, h + 2.5, 0)
 end
 
--- Mission 4: rooftops of Old Town with the contact on one and a chase across the rest
+-- The Copy (mission 4): rooftops of Old Town with the contact on one, the copy waiting on the next, and a
+-- lap of the rest
 function BUILD.rooftops(l: Layout)
 	local roofs = {}
 	for gx = -2, 2 do
@@ -153,6 +159,8 @@ function BUILD.rooftops(l: Layout)
 	end
 	local c = roofs[13] -- the middle roof
 	point(l, "contact", c[1], c[2], c[3])
+	local k = roofs[8] -- the roof beside it: where the copy stands
+	point(l, "copy", k[1], k[2], k[3])
 	-- the chase: a lap of the outer roofs
 	for _, i in { 12, 7, 2, 3, 4, 9, 14, 19, 24, 23, 22 } do
 		add(l, "path", roofs[i][1], roofs[i][2], roofs[i][3])
@@ -160,7 +168,8 @@ function BUILD.rooftops(l: Layout)
 	point(l, "spawn", 0, 3, 180)
 end
 
--- Mission 5: three rooms under the Docks in a row, a gauntlet in the middle, the vault at the end
+-- Safehouse (mission 2): the old tunnels under the plaza, three rooms in a row, the old security line in the
+-- middle and the Vigil's safehouse door at the end (the Syndicate smashes the scanner relays on the way)
 function BUILD.dungeon(l: Layout)
 	local wallH = 30
 	box(l, "building", 0, wallH + 1, 0, 400, 2, 400, "foundry", { tag = "ceiling" }) -- the ceiling (robots never stand on it)
@@ -180,11 +189,16 @@ function BUILD.dungeon(l: Layout)
 	end
 	point(l, "gauntletEnd", 70, 3, 0)
 	point(l, "boss", 150, 3, 0)
-	box(l, "glow", 180, 8, 0, 4, 12, 12, "foundryGlow") -- the shard vault
+	box(l, "glow", 180, 8, 0, 4, 12, 12, "beaconGlow") -- the safehouse door
+	point(l, "door", 160, 3, 0)
+	for _, r in { { -150, -40 }, { -110, 40 }, { -20, -42 } } do
+		add(l, "relays", r[1], 0.5, r[2])
+	end
 	point(l, "spawn", -170, 3, 0)
 end
 
--- Mission 6: the War-Frame arena with 6 pillars to hide behind
+-- Live (mission 6): the fake's big public event, a stage under a giant screen, cameras and stage screens
+-- around it, and 6 pillars to hide behind when Bulwark's battle form fires
 function BUILD.arena(l: Layout, Config: any)
 	local w = Config.Story.warframe
 	for _, p in w.pillars do
@@ -203,7 +217,58 @@ function BUILD.arena(l: Layout, Config: any)
 		add(l, "pillars", p[1], 0, p[2])
 	end
 	point(l, "boss", 0, 0.5, -20)
+	box(l, "building", 0, 1.5, -160, 120, 3, 40, "slate") -- the stage
+	box(l, "glow", 0, 34, -188, 140, 46, 2, "beaconGlow") -- the giant screen
+	for _, c in { { -130, 10 }, { 130, 10 }, { 0, 150 } } do
+		add(l, "cams", c[1], 0.5, c[2])
+		box(l, "prop", c[1], 3, c[2] - 6, 2, 6, 2, "steel")
+		box(l, "prop", c[1], 6.5, c[2] - 6, 4, 3, 5, "steel")
+	end
+	for _, c in { { -150, -120 }, { 150, -120 }, { 70, 160 } } do
+		add(l, "screens", c[1], 0.5, c[2])
+	end
 	point(l, "spawn", 0, 3, 170)
+end
+
+-- Framed (mission 3): a rail and road bridge over the water, two towers with cables, stranded people on the
+-- deck (the Vigil's rings), armored trucks (the Syndicate's crates), the runaway train's line and a cash van
+function BUILD.bridge(l: Layout)
+	local deck = 20
+	box(l, "plaza", 0, 0.1, 0, 396, 0.2, 396, "water")
+	box(l, "road", 0, deck - 1, 0, 60, 2, 396, "road")
+	for k = -1, 1, 2 do
+		box(l, "ledge", k * 31, deck + 1.5, 0, 2, 3, 396, "steel") -- the railings
+		for _, z in { -90, 90 } do
+			box(l, "building", k * 34, 50, z, 6, 100, 6, "steel") -- the towers
+		end
+	end
+	for _, z in { -90, 90 } do
+		box(l, "ledge", 0, 98, z, 74, 4, 6, "steel")
+	end
+	local crates = { { 16, 70 }, { -16, -70 }, { 12, -150 } }
+	for i, st in { { -14, 40 }, { 14, -30 }, { 0, -120 } } do
+		add(l, "stations", st[1], deck + 0.5, st[2])
+		add(l, "crates", crates[i][1], deck + 0.5, crates[i][2])
+	end
+	point(l, "trainStart", -20, deck + 0.2, 180)
+	l.points.trainDir = { 0, -1, 330 } -- a direction (x, z) and a length, not a place
+	point(l, "van", 18, deck + 0.5, 120)
+	point(l, "boss", 0, deck + 0.5, -40)
+	-- the chase: tower tops, crossbeams and the deck
+	for _, c in
+		{
+			{ -34, 101, 90 },
+			{ 34, 101, 90 },
+			{ 20, deck + 1.5, 20 },
+			{ -34, 101, -90 },
+			{ 34, 101, -90 },
+			{ 0, deck + 1.5, -170 },
+			{ -20, deck + 1.5, 60 },
+		}
+	do
+		add(l, "path", c[1], c[2], c[3])
+	end
+	point(l, "spawn", 0, deck + 3, 175)
 end
 
 -- Lane i (1 to Config.Story.opening.subway.lanes) of the subway pocket

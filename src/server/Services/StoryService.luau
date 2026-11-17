@@ -194,11 +194,14 @@ function StoryService.choose(player: Player, choiceNum: number, option: number):
 	if not ok or not fx then
 		return false
 	end
+	-- lore step 5: a choice pays its Skill Points, reputation and story flag (the pick itself, saved), and a
+	-- cosmetic perk for a few options; nothing that changes stats
 	StoryService.addSkillPoints(player, fx.skillPoints)
 	if fx.rep then
 		StoryService.addRep(player, fx.rep[1], fx.rep[2])
 	end
-	StoryService.pay(player, { credits = fx.credits, renown = fx.renown, gadget = fx.gadget }, hero.level)
+	DataService.changed(player)
+	DataService.saveSoon(player)
 	if fx.perk then
 		Net.fire("Toast", player, { id = "unlock", kind = "perks", name = fx.perk })
 	end

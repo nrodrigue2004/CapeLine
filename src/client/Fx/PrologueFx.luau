@@ -1173,6 +1173,15 @@ local function frame(dt: number)
 	end
 end
 
+-- Lodestar's figure for a mission's camera beat (StoryFx, lore step 5): his fixed look and name plate, on
+-- this device only. Returns the rig (NpcRig.place it, destroy rig.model when done).
+function PrologueFx.lodestarRig(parent: Instance): any
+	local rig = hero("Lodestar", FakeRules.lookFrom(Config, O.lodestar.look, "Lodestar"))
+	plate(rig.model, O.lodestar.name, O.lodestar.title, Color3.fromRGB(150, 190, 255))
+	rig.model.Parent = parent
+	return rig
+end
+
 function PrologueFx.init()
 	StoryClient.Changed:Connect(function(what)
 		if what == "opening" then

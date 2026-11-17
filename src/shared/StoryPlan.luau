@@ -1,13 +1,15 @@
 --!strict
--- StoryPlan: Act 1 and side quest rules on the saved story table (spec: Act 1: Shardfall; Act 1 choices;
--- Side quests; Faction reputation). Pure, so Lune checks the gates, the choices, the Skill Point total and
--- the step counts. MissionService, QuestService and StoryService do the world side.
+-- StoryPlan: Act 1 and side quest rules on the saved story table (spec: Act 1; Act 1 choices; Side quests;
+-- Faction reputation; nate's lore, build plan step 5). Pure, so Lune checks the gates, the stages, the choices,
+-- the flags, the Skill Point total and the step counts. MissionService, QuestService and StoryService do the
+-- world side.
 -- * Missions open in order (mission n needs mission n - 1 cleared) at their minimum level; cleared ones
 --   can be replayed, and only the first clear pays.
--- * A choice is picked once (later replays keep the first pick) and grants its Skill Points once.
--- * steps(): a mission's steps for a side, with the branch a choice picked put in place and the Trust Her
---   shortcut applied to the gauntlet.
--- * Objective progress: need() says how much each step takes; a run is { idx, have } over its steps.
+-- * Every mission is co-op in stages: stage() is a side's step with its branch in place; shared() says the whole
+--   party plays one step (a boss, a camera beat), else each side does its own job at the same time.
+-- * A choice is picked once (later replays keep the first pick) and grants its Skill Points once; each side
+--   has its own two options, and flags() reads the story flags the picks set.
+-- * Objective progress: need() says how much each step takes; a run tracks { have } per side.
 
 local StoryPlan = {}
 
@@ -73,36 +75,116 @@ function StoryPlan.nextMission(Config: any, story: any): number?
 	return nil
 end
 
--- A mission's steps for a side, with chosen branches in place. choices: the story's picks.
-function StoryPlan.steps(Config: any, num: number, side: string, choices: { number }): { any }
+local function sideKey(side: string): string
+	return if side == "villain" then "villain" else "hero"
+end
+StoryPlan.sideKey = sideKey
+
+-- How many stages a mission has (both sides' lists are the same length)
+function StoryPlan.stages(Config: any, num: number): number
 	local m = Config.Story.missions[num]
-	local list = if side == "villain" then m.villain else m.hero
+	return if m and m.hero then #m.hero else 0
+end
+
+-- Is stage i one goal for the whole party (the same table in both lists: one boss, one camera beat)?
+function StoryPlan.shared(Config: any, num: number, i: number): boolean
+	local m = Config.Story.missions[num]
+	return m ~= nil and m.hero ~= nil and m.hero[i] ~= nil and rawequal(m.hero[i], m.villain[i])
+end
+
+-- A side's step at stage i with its branch put in place: nil when the side has nothing to do there (a branch
+-- whose pick is "none", or one still waiting on its choice). choices: the deciding player's story picks.
+function StoryPlan.stage(Config: any, num: number, i: number, side: string, choices: { number }): any?
+	local m = Config.Story.missions[num]
+	local key = sideKey(side)
+	local step = m and m[key] and m[key][i]
+	if not step then
+		return nil
+	end
+	if step.kind == "branch" then
+		local pick = choices[step.choice]
+		local list = m.branches and m.branches[key]
+		local b = list and pick and pick > 0 and list[pick]
+		if b and b.kind ~= "none" then
+			return b
+		end
+		return nil
+	end
+	return step
+end
+
+-- What a party plays at stage i: { both = step } on a shared stage, else one entry per side present
+-- ({ hero = step or false, villain = ... }: false when that side has nothing to do there). present maps each
+-- side in the party to the picks of the member who decides for it.
+function StoryPlan.tracks(
+	Config: any,
+	num: number,
+	i: number,
+	present: { [string]: { number } }
+): { [string]: any }
 	local out = {}
-	for _, step in list or {} do
-		if step.kind == "branch" then
-			local pick = choices[step.choice]
-			local b = m.branches and pick and pick > 0 and m.branches[pick]
-			if b and b.kind ~= "none" then
-				table.insert(out, b)
-			end
-		elseif step.kind == "reach" and step.turrets and choices[2] == 1 then
-			-- Trust Her: the informant's shortcut leaves fewer turrets in the gauntlet
-			local s = table.clone(step)
-			s.turrets = step.trustTurrets or step.turrets
-			table.insert(out, s)
-		else
-			table.insert(out, step)
+	if StoryPlan.shared(Config, num, i) then
+		out.both = Config.Story.missions[num].hero[i]
+		return out
+	end
+	for _, key in { "hero", "villain" } do
+		local choices = present[key]
+		if choices then
+			out[key] = StoryPlan.stage(Config, num, i, key, choices) or false
 		end
 	end
 	return out
 end
 
--- Is the next step a branch still waiting on its choice? (the branch is resolved once the choice is in)
+-- A mission's steps for a side, stage by stage, with chosen branches in place (empty ones left out)
+function StoryPlan.steps(Config: any, num: number, side: string, choices: { number }): { any }
+	local out = {}
+	for i = 1, StoryPlan.stages(Config, num) do
+		local s = StoryPlan.stage(Config, num, i, side, choices)
+		if s then
+			table.insert(out, s)
+		end
+	end
+	return out
+end
+
+-- Is stage idx a branch still waiting on its choice? (the branch is resolved once the choice is in)
 function StoryPlan.pendingBranch(Config: any, num: number, side: string, idx: number): number?
 	local m = Config.Story.missions[num]
-	local list = if side == "villain" then m.villain else m.hero
+	local list = m and m[sideKey(side)]
 	local step = list and list[idx]
 	return if step and step.kind == "branch" then step.choice else nil
+end
+
+-- The objective text a side reads for a step (a shared step can word it per side)
+function StoryPlan.text(step: any, side: string): string
+	if side == "villain" and step.villainText then
+		return step.villainText
+	end
+	return step.text or ""
+end
+
+-- A camera beat's subtitled lines for a side, by time: { at, who, text }
+function StoryPlan.sceneLines(step: any, side: string): { { at: number, who: string, text: string } }
+	local out = {}
+	local key = sideKey(side)
+	for _, l in step.lines or {} do
+		local text = l.text or l[key]
+		if type(text) == "string" then
+			table.insert(out, { at = l.at, who = l.who, text = text })
+		end
+	end
+	table.sort(out, function(a, b)
+		return a.at < b.at
+	end)
+	return out
+end
+
+-- The ending broadcast that plays after clearing mission num (nil for every mission but the act's last)
+function StoryPlan.ending(Config: any, num: number): string?
+	local m = Config.Story.missions[num]
+	local id = m and m.ending
+	return if id and Config.Story.ending[id] then id else nil
 end
 
 -- How much progress a step takes
@@ -124,14 +206,21 @@ function StoryPlan.need(step: any): number
 		return step.checkpoints
 	elseif k == "escort" then
 		return step.goal
-	elseif k == "beacon" then
+	elseif k == "beacon" or k == "scene" then
 		return step.seconds
 	end
-	return 1 -- reach, choice, chase, boss, warframe, carry, deliver, find
+	return 1 -- reach, choice, chase, boss, fake, twin (one per hero, set when they spawn), warframe, carry, deliver, find
 end
 
--- A choice: returns ok and the effects to pay ({ skillPoints, rep = { track, amount }, credits, renown,
--- gadget, perk, shortcut, epicChance, arena }) the first time; a replay pick changes nothing.
+-- A choice's option as a side sees it (its label, flag, reputation and cosmetic), or nil
+function StoryPlan.option(Config: any, choiceNum: number, side: string, option: number): any?
+	local c = Config.Story.choices[choiceNum]
+	local list = c and c[sideKey(side)]
+	return list and list[option]
+end
+
+-- A choice: returns ok and the effects to pay ({ skillPoints, rep = { track, amount }, flag, perk, arena })
+-- the first time; a replay pick changes nothing. The pick is saved as 1 or 2 (the side's own options).
 function StoryPlan.pick(
 	Config: any,
 	story: any,
@@ -140,22 +229,18 @@ function StoryPlan.pick(
 	side: string
 ): (boolean, any?)
 	local c = Config.Story.choices[choiceNum]
-	if not c or not c.options[option] then
+	local o = StoryPlan.option(Config, choiceNum, side, option)
+	if not c or not o then
 		return false, nil
 	end
 	if story.choices[choiceNum] ~= 0 then
 		return false, nil -- already picked
 	end
 	story.choices[choiceNum] = option
-	local o = c.options[option]
 	local fx: { [string]: any } = {
 		skillPoints = c.skillPoints,
-		credits = o.credits,
-		renown = o.renown,
-		gadget = o.gadget,
+		flag = o.flag,
 		perk = o.perk,
-		shortcut = o.shortcut,
-		epicChance = o.epicChance,
 		arena = o.arena,
 	}
 	if o.rep then
@@ -174,12 +259,27 @@ end
 -- The button labels for a choice on a side
 function StoryPlan.labels(Config: any, choiceNum: number, side: string): { string }
 	local out = {}
-	for _, o in Config.Story.choices[choiceNum].options do
-		table.insert(out, if side == "villain" and o.villainLabel then o.villainLabel else o.label)
+	for _, o in Config.Story.choices[choiceNum][sideKey(side)] do
+		table.insert(out, o.label)
 	end
 	return out
 end
 
+-- The story flags a character's picks have set ({ [flag] = true }); the side reads the options
+function StoryPlan.flags(Config: any, story: any, side: string): { [string]: boolean }
+	local out = {}
+	for n in Config.Story.choices do
+		local o = StoryPlan.option(Config, n, side, story.choices[n] or 0)
+		if o and o.flag then
+			out[o.flag] = true
+		end
+	end
+	return out
+end
+
+function StoryPlan.flag(Config: any, story: any, side: string, name: string): boolean
+	return StoryPlan.flags(Config, story, side)[name] == true
+end
 -- Skill Points Act 1 grants in all: every choice plus the missions that give one (spec: 8)
 function StoryPlan.actSkillPoints(Config: any): number
 	local n = 0
@@ -246,7 +346,7 @@ function StoryPlan.npcName(Config: any, num: number, side: string): string
 end
 
 -- What the journal pins: the side quest the hero pinned, else the next story mission
-function StoryPlan.pinnedText(Config: any, story: any, side: string): string?
+function StoryPlan.pinnedText(Config: any, story: any, _side: string): string?
 	local p = story.pinned
 	if p > 0 then
 		local q = Config.Story.quests[p]
@@ -259,9 +359,7 @@ function StoryPlan.pinnedText(Config: any, story: any, side: string): string?
 	if not num then
 		return nil
 	end
-	local m = Config.Story.missions[num]
-	local name = if side == "villain" and m.villainName then m.villainName else m.name
-	return string.format("Mission %d: %s", num, name)
+	return string.format("Mission %d: %s", num, Config.Story.missions[num].name)
 end
 
 return StoryPlan

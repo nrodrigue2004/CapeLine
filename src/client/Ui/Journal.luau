@@ -1,6 +1,7 @@
 -- Journal: the story screen (spec: Story perks live in the Journal; the mission replay board; Side quests;
 -- Faction reputation). Four tabs:
--- * STORY: Act 1's 6 missions with their state, a START (or REPLAY) button, the choices picked so far, and
+-- * STORY: Act 1's 6 missions (1 the Ceremony prologue) with their state and a line about each, a START (or
+--   REPLAY) button, the choices picked so far (each side's own options), and
 --   a PIN button for the story.
 -- * QUESTS: the 8 side quest arcs: who gives them and where, the current step, PIN.
 -- * REP: Vigil Trust, Syndicate Fear and City Reputation with their rank (ranks at 100, 300, 600, 1,000, 1,500).
@@ -92,22 +93,34 @@ local function drawStory(j: any)
 	local side = j.side
 	for num, m in S.missions do
 		local st = j.states[num] or "locked"
-		local r = row(num)
-		local name = if side == "villain" and m.villainName then m.villainName else m.name
+		local r = row(num, 86)
 		text(
 			r,
-			string.format("%d. %s", num, string.upper(name)),
+			string.format("%d. %s", num, string.upper(m.name)),
 			UDim2.fromOffset(10, 6),
 			UDim2.new(0.6, 0, 0, 26),
 			nil,
 			22
 		)
+		-- lore step 5: mission 1 is the Ceremony prologue (replayed from the main menu, not the board)
 		local label = string.format(STATE_TEXT[st] or "", m.minLevel)
+			.. (if m.opening then "  (PROLOGUE)" else "")
 		local col = if st == "done"
 			then rgb(U.colors.health)
 			elseif st == "open" then Kit.color.gold
 			else Kit.color.muted
-		text(r, label, UDim2.fromOffset(10, 36), UDim2.new(0.5, 0, 0, 20), col, 16, Kit.bodyFont)
+		text(r, label, UDim2.fromOffset(10, 34), UDim2.new(0.6, 0, 0, 20), col, 16, Kit.bodyFont)
+		if m.blurb then
+			text(
+				r,
+				m.blurb,
+				UDim2.fromOffset(10, 58),
+				UDim2.new(1, -124, 0, 20),
+				Kit.color.ink,
+				14,
+				Kit.bodyFont
+			)
+		end
 		if not m.opening and (st == "open" or st == "done") then
 			local b = Kit.button({
 				Text = if st == "done" then "REPLAY" else "START",
@@ -125,13 +138,22 @@ local function drawStory(j: any)
 	-- the choices picked so far
 	local r = row(20, 32 + #S.choices * 24)
 	text(r, "YOUR CHOICES", UDim2.fromOffset(10, 4), UDim2.new(0.6, 0, 0, 24), nil, 20)
-	for i, c in S.choices do
+	-- in mission order (the choice numbers are save slots); each side reads its own options
+	local order = {}
+	for i in S.choices do
+		table.insert(order, i)
+	end
+	table.sort(order, function(a, b)
+		return S.choices[a].mission < S.choices[b].mission
+	end)
+	for k, i in order do
+		local c = S.choices[i]
 		local pick = j.choices[i] or 0
 		local t = if pick > 0 then StoryPlan.labels(Config, i, side)[pick] else "not yet"
 		text(
 			r,
-			string.format("Choice %d (mission %d): %s", i, c.mission, t),
-			UDim2.fromOffset(10, 6 + i * 24),
+			string.format("%s: %s", S.missions[c.mission].name, t),
+			UDim2.fromOffset(10, 6 + k * 24),
 			UDim2.new(1, -20, 0, 20),
 			nil,
 			15,

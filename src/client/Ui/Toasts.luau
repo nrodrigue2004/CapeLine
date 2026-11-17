@@ -340,6 +340,17 @@ function Toasts.show(data: { [string]: any })
 	elseif id == "unlock" then
 		local name = UNLOCK_NAMES[data.name or ""] or data.name or ""
 		push(string.format("UNLOCKED: %s", string.upper(name)), Kit.color.gold, true, 4.5)
+	elseif id == "news" then
+		-- lore step 5: a fake unmasked live goes out on every screen in the server (fixed text)
+		local text = Config.Story.news[data.key or ""]
+		if text then
+			push(
+				string.format(text, string.upper(tostring(data.name or ""))),
+				Color3.fromRGB(255, 90, 90),
+				true,
+				5
+			)
+		end
 	elseif id == "choiceKept" then
 		push("Your first choice stands on a replay", Kit.color.paper)
 	elseif id == "missionRefused" then

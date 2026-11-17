@@ -250,13 +250,14 @@ return {
 				},
 			},
 		},
-		-- Mission 6 (Story): the War-Frame (a famous fake's battle form from build plan step 5). Not in `order`, so the world scheduler never picks it. 3 phases:
+		-- Mission 6 (Story, Live): Bulwark's battle form, what the famous fake turns into once unmasked live (lore step 5;
+		-- the old mission 6 fight reused, id kept). Not in `order`, so the world scheduler never picks it. 3 phases:
 		-- rockets and a ground sweep while its 2 shoulder cannons stand; at 66% it calls 6 Spark Drones and
 		-- raises a shield that only 3 hits on the back weak point break; at 33% a floor-fire sweep and a
 		-- charged laser that the arena's pillars block. It never retreats (a wipe just retries).
 		NullWarFrame = {
 			num = 3,
-			name = "The War-Frame",
+			name = "{Bulwark}'s Battle Form", -- lore step 5: the famous fake unmasked in Live (was "The War-Frame")
 			mission = true,
 			arenaRadius = 180,
 			height = 60,
