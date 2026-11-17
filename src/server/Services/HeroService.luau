@@ -111,6 +111,10 @@ HeroService.downHandler = nil :: ((Hero, any?) -> boolean)?
 HeroService.Spawned = Signal.new() -- (hero) a player's character spawned or respawned
 HeroService.Defeated = Signal.new() -- (hero, source)
 HeroService.Removed = Signal.new() -- (hero)
+-- Hero MMO features: BlockService resolves blocks on hits (amount in, amount out) and the movement
+-- scales (blocking, charging, carrying) each return a multiplier
+HeroService.guardHook = nil :: ((any, number, any?) -> number)?
+HeroService.speedHooks = {} :: { [string]: (any) -> number }
 HeroService.Parried = Signal.new() -- (hero, source) a hit was turned aside by Parry Stance
 HeroService.Reflected = Signal.new() -- (hero, enemyId, amount) Thorns sends part of a robot's hit back
 HeroService.Awakened = Signal.new() -- (hero)
@@ -231,9 +235,14 @@ function HeroService.speedMult(hero: Hero): number
 		return 0
 	end
 	local slow = Status.get(hero.status, "slow", now)
+	local extra = 1
+	for _, fn in HeroService.speedHooks do
+		extra *= fn(hero) -- Hero MMO features: blocking, charging, carrying
+	end
 	return (1 + (class.moveSpeed or 0))
 		* (1 + Status.value(hero.status, "speed", now, 0))
 		* (if slow then slow.value else 1)
+		* extra
 end
 
 -- Crowd control on a hero (PvP): Resolve shortens it (at its PvP quarter), stuns and roots have
@@ -567,6 +576,12 @@ function HeroService.damage(hero: Hero, amount: number, source: any?)
 		HeroService.Parried:Fire(hero, source)
 		HeroService.sendStatus(hero)
 		return 0
+	end
+	if HeroService.guardHook then
+		amount = HeroService.guardHook(hero, amount, source) -- H1: block, perfect block, shatter
+		if amount <= 0 then
+			return 0
+		end
 	end
 	local hadShield = Status.has(hero.status, "shield", now)
 	amount = HeroService.mitigate(hero, amount, now)

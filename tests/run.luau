@@ -4606,7 +4606,7 @@ end
 
 test("M11: the juice table has all 31 actions, each with a sound and a visual, and each is fired", function()
 	local Au = Config.Audio
-	check(#Au.juice == 31, "31 juice actions (spec juice table)")
+	check(Au.juiceSpec == 31 and #Au.juice >= 31, "31 juice actions (spec juice table), then the MMO rows")
 	local src = clientSources()
 	local seen = {}
 	for _, row in Au.juice do
@@ -6717,7 +6717,8 @@ test("City kit block: textured fronts, street dressing, and the rest of Downtown
 		"one of each a side"
 	)
 	check(layout.parts <= Config.City.partBudget.downtown, "still within the Downtown part budget")
-end)
+end); -- Hero MMO features (H1 to H8) live in their own file so this one merges easily
+(require :: any)("./mmo")({ test = test, check = check, near = near, Config = Config })
 
 print(string.format("\n%d passed, %d failed", passed, failed))
 if failed > 0 then

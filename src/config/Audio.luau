@@ -50,7 +50,14 @@ return {
 		{ id = "fastTravel", visual = "TravelClient" }, -- whoosh; streaks; skip button
 		{ id = "respawn", visual = "JuiceFx" }, -- rising hum; protect shield ring for 5 s
 		{ id = "contractDone", visual = "JuiceFx" }, -- chime; stamp; reward banner
+		-- Hero MMO features (spec: "every new action gets a sound, a flash and a shake in the juice table")
+		{ id = "block", visual = "GuardFx" }, -- dull clank; shield flash; BLOCKED word
+		{ id = "perfectBlock", visual = "GuardFx" }, -- bright ting; gold flash; PERFECT! and a camera punch
+		{ id = "shatter", visual = "GuardFx" }, -- glass crunch; orange shards; SHATTER! and a 0.12 s shake
+		{ id = "interrupt", visual = "GuardFx" }, -- snip; green flash; CUT OFF!
 	},
+	-- the spec's own juice table is the first 31 rows above; the rest came with the Hero MMO features
+	juiceSpec = 31,
 
 	-- one sound per juice action (3D ones play at the action's spot, heard within `range` studs)
 	sounds = {
@@ -85,6 +92,10 @@ return {
 		fastTravel = s("swoosh.wav", 0.8, 0.7),
 		respawn = s("action_get_up.mp3", 0.7, 0.8),
 		contractDone = s("electronicpingshort.wav", 0.7, 0.95),
+		block = s("action_jump_land.mp3", 0.5, 1.8, { range = 100, vary = 0.08 }),
+		perfectBlock = s("electronicpingshort.wav", 0.8, 2.4, { range = 120 }),
+		shatter = s("action_jump_land.mp3", 0.9, 1.25, { range = 160 }),
+		interrupt = s("clickfast.wav", 0.8, 0.8, { range = 120 }),
 		ui = s("button.wav", 0.35, 1), -- every button tap
 	},
 
@@ -110,7 +121,16 @@ return {
 		range = 90, -- other heroes' lines are heard this close
 	},
 
-	haptics = { land = 0.35, super = 0.6, clash = 0.8, downed = 0.5, bossPhase = 0.5, collapse = 0.4 },
+	haptics = {
+		land = 0.35,
+		super = 0.6,
+		clash = 0.8,
+		downed = 0.5,
+		bossPhase = 0.5,
+		collapse = 0.4,
+		shatter = 0.6,
+		perfectBlock = 0.4,
+	},
 
 	pool = 24, -- 3D sounds alive at once (the oldest is reused)
 }

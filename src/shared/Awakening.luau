@@ -38,6 +38,15 @@ function Awakening.hurt(config: any, m: Meter, fraction: number, now: number): n
 	return m.value
 end
 
+-- A flat amount (a perfect block's +10, H1); like gain, nothing while awake
+function Awakening.add(config: any, m: Meter, amount: number, now: number): number
+	if Awakening.active(m, now) then
+		return m.value
+	end
+	m.value = math.min(config.Abilities.awakening.max, m.value + amount)
+	return m.value
+end
+
 function Awakening.ready(config: any, m: Meter, now: number): boolean
 	return m.value >= config.Abilities.awakening.max and not Awakening.active(m, now)
 end

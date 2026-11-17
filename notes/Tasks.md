@@ -19,6 +19,15 @@ phones or Studio go on the Studio test list below.
 | M11 | Juice, audio, wait fillers | Juice table, sounds, music, offline drones, downed polish, friend boost, Photo Mode | No idle wait over 5 s in a 30-minute session with 8 testers; every action has a sound and visual | Code-complete 2026-11-16 (the 8-tester gate and real sound ids are on the Studio list and Launch Checklist) |
 | M12 | Test and launch prep | Playtests, balance, thumbnails, icon, analytics, soft launch plan | 20 testers play with no crash reports in one session week; analytics visible | Code-complete 2026-11-16 (analytics wired; the playtest week, art and launch need nate: Playtest Kit, Store Page, Soft Launch Plan) |
 
+## Hero MMO features (spec section "Hero MMO features", H1 to H8; nate asked to build them 2026-11-17)
+
+| # | Milestone | Done when (tests) | State |
+|---|---|---|---|
+| H1 | Block, breaker, interrupt, perfect block, robot blocks and tells | GuardMath tests: each side of the triangle, Guard drain and refill, perfect block window, PvP compression | Code-complete 2026-11-17 |
+
+Waiting on others:
+- H1: the Sneak Bot's lunge wind-up (spec: "Sneak Bots charge a lunge") needs a short wind-up before its stab in EnemySim's sneak brain, which the enemy thread is reworking; interrupts already cancel any robot wind-up, so it works once the sneak sets `windupUntil`. The War-Frame's timed block waits for the same reason (BossSim and the mission's War-Frame); add `WarFrame` to Config.Guard.robotBlocks once it has a facing and a block window.
+
 ## Placeholder art and animation (replace before launch)
 - City: Downtown greybox boxes, window bands and rooftop props (CityBuilder). PLACEHOLDER ART.
 - World (M4): the Docks, Old Town, hub filler blocks, all 32 outskirts tile variants (houses, shops, parks, farms, coast), the 3 landmarks, safehouses, beacons, the sand and the ocean are simple parts (Districts, WorldGen, WorldMap). Balls stand in for leaves, domes and dunes. PLACEHOLDER ART until the M5 kit.
@@ -49,6 +58,7 @@ phones or Studio go on the Studio test list below.
 - HQ rooms (M9): Beacon Tower and The Foundry are box rooms with neon pads and signs, part-built dummies and boss sim robot, marble copies of the hero for statues, box trophies and props (HqClient). PLACEHOLDER ART.
 - Creator, Robux shop, HQ panels (M9): Kit placeholder look, text tiles, no piece icons; the preview is a ViewportFrame copy of the hero (CreatorScreen, ShopHud, HqHud, Preview). PLACEHOLDER ART until M10.
 - HUD: Kit placeholder look (M10 restyles).
+- Block (H1): the hero's shield is a flat neon disc held out in front, a robot's block is a blue ForceField ball, the shatter and perfect flashes are neon balls, and the comic words are Bangers text (GuardFx); no block pose yet (HeroAnimator keeps the walk). PLACEHOLDER ART.
 - M11 sounds: every juice sound is one of Roblox's built-in client sounds (rbxasset://sounds: swoosh, jump land, falling, get up, ping, button, click) pitched per action; music loops and voice clips are silent (asset 0) (Config.Audio, Config.Shop.voiceSounds). PLACEHOLDER SOUND until nate picks licence-checked Creator Store ids.
 - M11 juice visuals: coin burst, medal and NEW stamps, the level badge, tier beams, fireworks, confetti, the shield ring and dazed stars are neon parts and Kit frames (JuiceFx); Photo Mode backdrops are Kit frames and colour grades (PhotoMode); the photo poses are joint angles (EmoteFx). PLACEHOLDER ART until the art pass.
 - M10 screens: Settings, the squad list, panel and invite card, the radar (Kit shapes and glyphs: circle, diamond, triangle, square, star), the ping wheel, the settings gear and the main menu are Kit placeholder looks (SettingsMenu, SquadHud, Radar, Shapes, Hud, MainMenu). PLACEHOLDER ART until the art pass. The squad emblem is a text glyph.
@@ -277,6 +287,19 @@ Checks (DEV panel "3x" until a Spark Trooper comes up):
 7. Damage: skin and suit still break off part by part (the hair with the head), showing the metal skeleton only where broken.
 7b. Turning: the eyes stay human while it patrols. The first time it winds up an attack or a piece breaks, the whites go dark and the irises glow (red during each windup) and stay that way.
 8. Performance: about 5,000 triangles a robot; 60 on PC (High) and 20 on a phone (Low) hold the frame rate.
+
+### H1 Block, breaker, interrupt (2026-11-17)
+The Output at boot says build mmo-h1 block (2026-11-17).
+1. Hold Alt (PC), LB (controller) or the blue BLOCK button above FLY (phone): a blue shield disc shows in front of your hero (others see it too), you walk and fly at half speed, Boost is off, and no skill or basic fires. Let go: back to normal at once.
+2. Block a Spark Trooper's shots from the front: BLOCKED pops, each hit takes about 70% less, and the ring round the BLOCK button drains a little per hit. Turn your back: the shots hit in full.
+3. Guard: keep blocking a stream of hits until the ring empties: SHATTER! pops with a crunch and a shake, you reel for 1 second and take the hit in full. Let go: after 1 second the ring refills (full in about 4 s). With an almost empty ring the block will not start.
+4. Perfect block: press Block just as a Brute Bot's slam lands (watch its warning ring): PERFECT! with a gold flash, no damage, the Brute reels, and the Awakening meter jumps. Pressed early (held a while), the slam shatters your block instead (Brute slams and Null Sentinel sweeps are breakers).
+5. Break a Brute Bot's block: it raises a blue shine every few seconds while fighting; normal hits take much less (BLOCK numbers); a heavy (coefficient 2.5+, e.g. a super or Titan's slam) or a full charge shatters it (SHATTER!, BREAK! number) and it reels; it cannot block again for 5 s. Null Sentinel: a heavy from the front now breaks its guard too (as a flank hit did).
+6. Interrupt: hit a Brute Bot or Null Sentinel with a fast light attack (the basic) while its warning ring fills: CUT OFF! pops and the slam never lands. Sneak Bot's lunge waits on the enemy thread (Tasks, H1 waiting).
+7. Your own heavy wind-up (a skill with a cast time and coefficient 2.5+) or a skill you are charging gets CUT OFF! by a Spark Trooper shot or a flagged player's light hit: the charge ring drops, nothing fires and the skill shows half its cooldown.
+8. PvP (two flagged players): blocks, perfect blocks, shatters and interrupts work the same with the compressed damage; a blocked hit pushes nobody. Inside a safehouse the block will not start; in HQ it works on the training dummies.
+9. Parry Stance and the Martial Arts parry still riposte, and now also pop PERFECT!.
+10. Controller: Skill 3 is on d-pad left and Skill 4 on d-pad down now (LB is Block); POWERS opens from its HUD button.
 
 ### Hold to aim and charge (2026-11-17)
 The Output at boot says build aim-charge (2026-11-17).

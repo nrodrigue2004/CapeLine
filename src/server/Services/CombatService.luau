@@ -46,6 +46,8 @@ local BuildingService = require(script.Parent.BuildingService)
 local VehicleService = require(script.Parent.VehicleService)
 local FlagService = require(script.Parent.FlagService)
 local Analytics = require(script.Parent.Analytics)
+local BlockService = require(script.Parent.BlockService) -- H1: block, breaker, interrupt
+local GuardMath = require(Shared:WaitForChild("GuardMath"))
 
 local CombatService = {}
 -- DeathService sets this: Dawnburst stands up every Downed ally within the radius
@@ -340,7 +342,29 @@ local function pvpHit(
 		dmg = FlagService.damage(hero, target, dmg, eff.slot == "super")
 	end
 	FlagService.notePvp(hero, target)
-	local dealt = if dmg > 0 then HeroService.damage(target, dmg, { pvp = hero, at = from }) else 0
+	-- H1: the target's block (on the compressed damage), then any interrupt of its wind-up or charge
+	local guardInfo = {
+		damage = dmg,
+		coeff = coeff,
+		charged = eff.charged,
+		grab = eff.grab,
+		breaker = eff.breaker,
+		status = eff.status,
+		status2 = eff.status2,
+		from = from,
+		attacker = hero,
+	}
+	local guard = BlockService.resolveHero(target, guardInfo)
+	dmg *= guard.mult
+	if guard.noKnock then
+		noStatus = true
+	elseif guard.outcome == "hit" then
+		BlockService.interruptHero(target, guardInfo)
+	end
+	local gflag = if guard.outcome == "shatter" then 2 elseif guard.outcome ~= "hit" then 1 else 0
+	local dealt = if dmg > 0
+		then HeroService.damage(target, dmg, { pvp = hero, at = from, guarded = true })
+		else 0
 	local killed = not target.alive
 	local pos = HeroService.position(target) or Vector3.new(cand.x, cand.y, cand.z)
 	table.insert(r.h, {
@@ -351,7 +375,7 @@ local function pvpHit(
 		pos.X,
 		pos.Y,
 		pos.Z,
-		0,
+		gflag,
 	})
 	if killed then
 		if hero.perks.CoolingKill and hero.loadout.super then
@@ -423,9 +447,26 @@ local function applyHit(
 	if coeff > 0 then
 		dmg, crit = rollDamage(hero, coeff, eff, false, cand.id)
 	end
+	-- H1: a robot's timed block (or the Sentinel's guard) against breakers, and interrupts on its wind-up
+	local gmult, gflag, gblocked = BlockService.robotHit(hero, cand.id, {
+		coeff = coeff,
+		charged = eff.charged,
+		grab = eff.grab,
+		breaker = eff.breaker,
+		status = eff.status,
+		status2 = eff.status2,
+		from = from,
+	})
+	dmg *= gmult
+	if gblocked then
+		noStatus = true -- a blocked hit pushes nothing
+	end
 	local killed, e, dealt, flag = EnemyService.damage(cand.id, dmg, hero.id, from)
 	if not e then
 		return false
+	end
+	if gflag and flag == 0 then
+		flag = gflag
 	end
 	shareLinked(hero, cand.id, dealt or 0)
 	table.insert(r.h, {
@@ -1229,8 +1270,8 @@ function CombatService.use(
 	charge: number?
 ): boolean
 	local row = A.byNum[num]
-	if not row or not hero.alive or HeroService.disabled(hero) then
-		return false
+	if not row or not hero.alive or HeroService.disabled(hero) or BlockService.blocking(hero) then
+		return false -- H1: no casting while blocking
 	end
 	local slot = slotOf(hero, row.id)
 	if not slot then
@@ -1291,7 +1332,20 @@ function CombatService.use(
 		-- windup: others see it coming; the hit lands from where the hero is when it finishes
 		local r = record(hero, num, seq, K.WINDUP, origin, dir)
 		r.dur = eff.cast
+		-- H1: a heavy wind-up can be interrupted (BlockService.interruptHero cancels it)
+		local w = if GuardMath.heavyWindup(Config.Guard, eff)
+			then { num = num, id = row.id, untilT = now + eff.cast, full = full, cancelled = false }
+			else nil
+		hero.windup = w
 		after(eff.cast, function()
+			if w then
+				if hero.windup == w then
+					hero.windup = nil
+				end
+				if w.cancelled then
+					return
+				end
+			end
 			local pos = HeroService.position(hero)
 			if hero.alive and pos then
 				resolve(hero, eff, num, seq, pos + CHEST, dir, hint)

@@ -45,6 +45,7 @@ local NAMES = {
 	"StreetArt",
 	"NpcLooks",
 	"Weapons",
+	"Guard", -- H1: block, breaker, interrupt (Hero MMO features)
 }
 
 local Config: { [string]: any } = {}

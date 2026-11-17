@@ -1,6 +1,7 @@
 -- Hud: the main HUD (spec: Screens and UI > Main HUD): health bar with the shield on top, stamina ring, the
 -- basic, 4 skill buttons and the super with cooldown sweeps (coloured by power set), the Awakening meter and
--- its button, active buffs, the movement buttons (Leap, Fly, Boost, Down), a crosshair that pops on a
+-- its button, active buffs, the movement buttons (Leap, Fly, Boost, Down), the shield button with its Guard
+-- ring (H1, hold to block), a crosshair that pops on a
 -- confirmed hit, the level, class, power set and gear score, the Renown bar with the next unlock, the
 -- wallet, a GADGET button when one is worn, and POWERS, GEAR, MAP, JOURNAL, SHOP and EMOTE buttons for those screens. Phone first: 56 px buttons, a 16 px safe area, and the
 -- bottom 80 px on the right left clear for the flight pad. Buttons carry only verbs (spec: first 30 seconds).
@@ -26,6 +27,7 @@ local InputController = require(script.Parent.Parent.Controllers.InputController
 local MoveController = require(script.Parent.Parent.Controllers.MoveController)
 local CombatClient = require(script.Parent.Parent.Controllers.CombatClient)
 local GadgetClient = require(script.Parent.Parent.Controllers.GadgetClient)
+local BlockClient = require(script.Parent.Parent.Controllers.BlockClient)
 
 local Hud = {}
 
@@ -37,6 +39,7 @@ local gui: ScreenGui
 local healthFill: Frame
 local healthText: TextLabel
 local staminaDots: { Frame } = {}
+local guardDots: { Frame } = {} -- H1: the Guard ring round the shield button
 local infoText: TextLabel
 local crosshair: Frame
 local buttons: { [string]: { button: TextButton, sweep: Frame?, hint: TextLabel } } = {}
@@ -279,6 +282,24 @@ local function buildStaminaRing(around: GuiObject)
 	end
 end
 
+-- H1: the Guard ring, 16 dots round the shield button (blue; orange while staggered)
+local function buildGuardRing(around: GuiObject)
+	local n = 16
+	local r = around.Size.X.Offset / 2 + 7
+	for i = 1, n do
+		local ang = (i - 1) / n * math.pi * 2 - math.pi / 2
+		local d = Instance.new("Frame")
+		d.AnchorPoint = Vector2.new(0.5, 0.5)
+		d.Size = UDim2.fromOffset(5, 5)
+		d.Position = UDim2.new(0.5, math.cos(ang) * r, 0.5, math.sin(ang) * r)
+		d.BackgroundColor3 = Color3.fromRGB(150, 205, 255)
+		d.BorderSizePixel = 0
+		Kit.round(d, 3)
+		d.Parent = around
+		table.insert(guardDots, d)
+	end
+end
+
 local function buildCluster()
 	cluster = Instance.new("Frame")
 	cluster.Name = "Cluster"
@@ -311,7 +332,7 @@ local function buildCluster()
 		"Awaken",
 		"AWAKEN",
 		s,
-		UDim2.new(1, -big - s * 1.5 - 48, 1, -big - s * 1.5 - 34),
+		UDim2.new(1, -big - s * 1.5 - 48, 1, -big - s * 2 - 70), -- raised for the shield button (H1)
 		Color3.fromRGB(255, 220, 90)
 	)
 	-- power or weapon (hero creator plan: keys 1 and 2 on PC, the left stick click on gamepads)
@@ -329,6 +350,16 @@ local function buildCluster()
 		actionButton(cluster, "Boost", "BOOST", s, UDim2.new(1, -big - s * 2.5 - 64, 1, -s * 1.5 - 22), gold)
 	actionButton(cluster, "Down", "DOWN", s - 8, UDim2.new(1, -big - s * 2.5 - 64, 1, -s / 2 - 4), gold)
 	buildStaminaRing(boost)
+	-- H1 (spec: "a new shield button above the jump button"): hold to block, above LEAP and FLY
+	local block = actionButton(
+		cluster,
+		"Block",
+		"BLOCK",
+		s - 6,
+		UDim2.new(1, -big - s * 1.5 - 48, 1, -s * 2.5 - 44),
+		Color3.fromRGB(110, 180, 255)
+	)
+	buildGuardRing(block)
 	-- the loadout screen
 	local powers = actionButton(
 		gui,
@@ -733,6 +764,22 @@ function Hud.init()
 		buttons.Down.button.Visible = labels.down ~= nil
 		buttons.Down.button.Text = labels.down or "DOWN"
 		buttons.Leap.button.Text = labels.leap
+		-- H1: the Guard ring, and the shield button lit while blocking
+		local g = BlockClient.guard()
+		local litG = math.floor(g * #guardDots + 0.5)
+		local broken = BlockClient.broken()
+		for i, d in guardDots do
+			d.BackgroundTransparency = if i <= litG then 0 else 0.8
+			d.BackgroundColor3 = if broken
+				then Color3.fromRGB(255, 140, 60)
+				else Color3.fromRGB(150, 205, 255)
+		end
+		local blockBtn = buttons.Block
+		if blockBtn then
+			blockBtn.button.BackgroundColor3 = if BlockClient.blocking()
+				then Color3.fromRGB(200, 235, 255)
+				else Color3.fromRGB(110, 180, 255)
+		end
 		applyFocus()
 	end))
 end

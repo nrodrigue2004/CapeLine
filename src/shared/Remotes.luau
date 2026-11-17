@@ -231,6 +231,15 @@ local Remotes: { [string]: RemoteDef } = {
 	SquadKick = { dir = "C2S", schema = { n(1, 2 ^ 52) }, rate = 1, burst = 2 }, -- leader only
 	SquadState = { dir = "S2C" }, -- { members = { { userId, name, level, classId, side, slot } }, leader }
 	SquadInvited = { dir = "S2C" }, -- { from, name, size, life }: an invite card
+
+	-- Hero MMO features (spec: Hero MMO features > Data, remotes and services)
+	-- H1: hold Block (spec: Combat.Block {on} 10/s); GuardState to your own hero: { guard, on, broken (s
+	-- left), cut = ability num (a charge or wind-up of yours was interrupted), cd }; GuardEvent to players
+	-- near: { { k, x, y, z, a (actor user id or robot id), t } } words (block, perfect, shatter, cut) and
+	-- robot shields (k "rup" / "rdown")
+	CombatBlock = { dir = "C2S", schema = { { t = "boolean" } }, rate = 10, burst = 10 },
+	GuardState = { dir = "S2C" },
+	GuardEvent = { dir = "S2C" },
 }
 
 return Remotes

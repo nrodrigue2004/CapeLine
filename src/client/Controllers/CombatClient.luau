@@ -50,6 +50,8 @@ local player = Players.LocalPlayer
 local CombatClient = {}
 CombatClient.HitConfirm = Signal.new() -- (crit)
 CombatClient.Cast = Signal.new() -- (abilityId)
+-- H1: BlockClient sets this (no casting while Block is held)
+CombatClient.blocked = nil :: (() -> boolean)?
 
 local book = Cooldowns.new()
 local recast: AbilityRules.RecastState = {}
@@ -235,8 +237,8 @@ function CombatClient.fire(id: string, charge: number?): boolean
 			return false
 		end
 	end
-	if PvpClient.downed() then
-		return false
+	if PvpClient.downed() or (CombatClient.blocked and CombatClient.blocked()) then
+		return false -- H1: no casting while blocking
 	end
 	local slot = slotOf(id)
 	if not slot then
@@ -699,7 +701,7 @@ end
 
 startHold = function(action: string, id: string)
 	local row = A.list[id]
-	if not row then
+	if not row or (CombatClient.blocked and CombatClient.blocked()) then
 		return
 	end
 	if channel and channel.id == id and os.clock() < channel.untilT then
@@ -750,6 +752,29 @@ updateHold = function()
 		FxLib.gather(origin, eff.set, color) -- fully charged
 		Juice.fire("skillRank", origin, { mine = true })
 	end
+end
+
+-- H1: the server interrupted your charge or heavy wind-up: drop the hold, and the skill costs `cd`
+function CombatClient.cancelHold(num: number, cd: number)
+	local row = A.byNum[num]
+	if not row then
+		return
+	end
+	local h = holding
+	if h and h.id == row.id then
+		holding = nil
+		AimPreview.hide()
+	end
+	Cooldowns.start(book, row.id, os.clock(), cd)
+end
+
+-- What is held now (Hud's charge ring, H2): the ability id and its charge level (0 to 1), or nil
+function CombatClient.holdState(): (string?, number, boolean)
+	local h = holding
+	if not h then
+		return nil, 0, false
+	end
+	return h.id, if h.charge then ChargeRules.level(C, os.clock() - h.t0) else 0, h.charge
 end
 
 function CombatClient.init()

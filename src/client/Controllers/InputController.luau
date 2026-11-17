@@ -3,7 +3,7 @@
 -- Actions: Leap (hold in the air to glide; climbs while flying), Fly (toggle), Boost (hold), Down (hold),
 -- Basic (hold to keep firing), Skill1 to Skill4, Super, Awaken, Loadout (opens the loadout screen), Gear (the
 -- gear screen), Gadget (the gadget slot's active), Map (the map and fast travel), HoldPower, HoldWeapon and
--- Swap (what M1 and the skills cast: the power or the carried weapon).
+-- Swap (what M1 and the skills cast: the power or the carried weapon). H1: Block (hold).
 -- M10 (spec: Accessibility "left-handed layout ... one-hand flight mode (right thumb only with auto-turn)"):
 -- on touch, the left-handed layout and one-hand flight swap Roblox's left thumbstick for this module's own
 -- stick on the right side (the HUD buttons move left for left-handed). In one-hand mode the stick's sideways
@@ -59,6 +59,8 @@ local KEYS: { [Enum.KeyCode]: string } = {
 	[Enum.KeyCode.B] = "Catch", -- the interact key (only the opening's catch step listens)
 	[Enum.KeyCode.P] = "Shop",
 	[Enum.KeyCode.H] = "Emote",
+	-- H1 (Hero MMO features): hold to block. The spec's F stays Fly (Decisions 2026-11-17), so Block is Alt
+	[Enum.KeyCode.LeftAlt] = "Block",
 	-- gamepad
 	[Enum.KeyCode.ButtonA] = "Leap",
 	[Enum.KeyCode.ButtonY] = "Fly",
@@ -68,11 +70,13 @@ local KEYS: { [Enum.KeyCode]: string } = {
 	[Enum.KeyCode.ButtonR2] = "Basic",
 	[Enum.KeyCode.ButtonX] = "Skill1",
 	[Enum.KeyCode.ButtonR1] = "Skill2",
-	[Enum.KeyCode.ButtonL1] = "Skill3",
-	[Enum.KeyCode.DPadLeft] = "Skill4",
+	-- H1: LB holds Block (spec); Skill 3 and 4 move to the d-pad, and the POWERS screen opens from its HUD
+	-- button (gamepad UI selection) instead of d-pad down
+	[Enum.KeyCode.ButtonL1] = "Block",
+	[Enum.KeyCode.DPadLeft] = "Skill3",
+	[Enum.KeyCode.DPadDown] = "Skill4",
 	[Enum.KeyCode.DPadUp] = "Super",
 	[Enum.KeyCode.DPadRight] = "Awaken",
-	[Enum.KeyCode.DPadDown] = "Loadout",
 	[Enum.KeyCode.ButtonSelect] = "Gear",
 	[Enum.KeyCode.ButtonR3] = "Gadget",
 }
@@ -101,6 +105,7 @@ InputController.hints = {
 	Catch = "B",
 	Shop = "P",
 	Emote = "H",
+	Block = "Alt",
 }
 
 function InputController.isDown(action: string): boolean

@@ -138,6 +138,17 @@ local function downed(): boolean
 end
 MoveController.held = held
 
+-- Hero MMO features: named speed scales (block 0.5, charge 0.6, carry 0.8); the slowest one counts
+MoveController.scales = {} :: { [string]: number }
+local function scaleNow(): number
+	local m = 1
+	for _, v in MoveController.scales do
+		m = math.min(m, v)
+	end
+	return m
+end
+MoveController.scaleNow = scaleNow
+
 -- Run speed with Speedster's +10%, the Weightless buff, and PvP slows, stuns and roots
 local function runSpeed(): number
 	if downed() then
@@ -157,10 +168,10 @@ local function runSpeed(): number
 	elseif pick == "acrobat" then
 		base = M.mobility.acrobat.run
 	end
-	local speed = base * (1 + bonus) * (1 + State.buff("speed")) * slowMult
+	local speed = base * (1 + bonus) * (1 + State.buff("speed")) * slowMult * scaleNow()
 	if hum and hum:GetState() == Enum.HumanoidStateType.Swimming then
 		-- underwater: everyone swims, each mobility at its own speed
-		speed = math.max(M.swim.base, mob().swim or M.swim.base) * slowMult
+		speed = math.max(M.swim.base, mob().swim or M.swim.base) * slowMult * scaleNow()
 	end
 	return speed
 end
@@ -447,6 +458,17 @@ function MoveController.takeOff()
 end
 
 -- The touch and HUD labels for this hero's buttons (nil = hidden)
+-- Set (or clear with nil) one named speed scale and apply it to the walk at once
+function MoveController.setScale(name: string, value: number?)
+	if MoveController.scales[name] == value then
+		return
+	end
+	MoveController.scales[name] = value
+	if hum and not hum.PlatformStand then
+		hum.WalkSpeed = runSpeed()
+	end
+end
+
 function MoveController.labels(): { leap: string, fly: string?, boost: string?, down: string? }
 	local mode = MoveController.mode
 	local pick = mobility()
@@ -597,6 +619,10 @@ local function step(dt: number)
 			flat = Vector3.new(toward.X, 0, toward.Z).Unit
 		end
 	end
+	local scale = scaleNow()
+	if scale < 1 then
+		full *= scale -- blocking, charging or carrying: slower in the air too
+	end
 	local fallSpeed = -vel.Y
 	if held() or downed() then
 		-- no control: a flight or glide drops into a fall
@@ -642,7 +668,7 @@ local function step(dt: number)
 	elseif mode == "fly" then
 		local vertical = (if InputController.isDown("Leap") then 1 else 0)
 			- (if InputController.isDown("Down") then 1 else 0)
-		local wantBoost = InputController.isDown("Boost")
+		local wantBoost = InputController.isDown("Boost") and scale >= 1 -- no boost while blocking or carrying
 		if wantBoost and not MoveController.boosting and MoveController.stamina < M.stamina.boostMin then
 			wantBoost = false
 		end
