@@ -36,7 +36,7 @@ return {
 	scale = { hpPerLevel = 0.1, dmgBase = 20, dmgPerLevel = 4 },
 	SparkDrone = {
 		typeId = 1,
-		name = "Spark Trooper", -- a jet-boot android (was a drone; id kept so saves and data stay put)
+		name = "Crane Trooper", -- a jet-boot android (was "Spark Trooper" before nate's lore; id SparkDrone kept so saves and data stay put)
 		ai = "flyer",
 		hp = 100,
 		flies = true,
