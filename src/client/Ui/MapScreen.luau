@@ -351,6 +351,44 @@ local function drawWorld()
 			end
 		end
 	end
+	-- lore step 11: chain sites in existing buildings (HALO ACADEMY), named, while their chain is open or under
+	-- way for you
+	local okSites, sites = pcall(function()
+		return HttpService:JSONDecode(ReplicatedStorage:GetAttribute("SideQuestSites") or "{}")
+	end)
+	if okSites and type(sites) == "table" and j then
+		local live = {}
+		for _, r in j.sq or {} do
+			local chain = SideQuestPlan.byBit(Config, r.bit)
+			if chain and chain.site and (r.state == "open" or r.state == "active") then
+				live[chain.site] = true
+			end
+		end
+		for id in live do
+			local at = sites[id]
+			local st = Config.SideQuests.sites[id]
+			if type(at) == "table" and st then
+				local d = dot("Site", at[1], at[2], 16, Kit.color.gold)
+				local corner = d:FindFirstChildOfClass("UICorner")
+				if corner then
+					corner.CornerRadius = UDim.new(0, 2)
+				end
+				local l = Kit.label({
+					Text = st.name, -- a fixed site name from Config.SideQuests.sites
+					AnchorPoint = Vector2.new(0.5, 0),
+					Size = UDim2.fromOffset(120, 14),
+					Position = UDim2.new(0.5, 0, 1, 2),
+					TextColor3 = Kit.color.gold,
+					TextStrokeTransparency = 0.3,
+					Font = Kit.bodyFont,
+					maxText = 11,
+				})
+				l.Parent = d
+				flyable(d, Vector3.new(at[1], Config.City.ground.y, at[2]), st.name)
+				table.insert(worldMarks, d)
+			end
+		end
+	end
 	local q = StoryClient.quest
 	if q and q.target then
 		local d = dot("SideQuest", q.target[1], q.target[3], 14, Kit.color.gold)

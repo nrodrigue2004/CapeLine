@@ -12,7 +12,11 @@
 --   mission pocket through MissionService.enterCustom: stand in the ring) and finale (the mini villain: a
 --   boss-lite elite or famous fake, its name card on the device).
 -- * Save: lore step 10's `sq` (ProfileSchema migration 11); settle() pays what the retired arcs left, once.
--- PLACEHOLDER ART: givers are R15 people in plain colours; crates, rings and the motorcade are plain parts.
+-- * Sites (lore step 11): a chain may happen inside an existing building (Config.SideQuests.sites, picked by
+--   Shared.SideQuestSites); its giver stands at the door under the site's sign, and the map marks it (the
+--   ReplicatedStorage attribute SideQuestSites). The Hero Academy's inside is the "academy" mission pocket.
+-- PLACEHOLDER ART: givers without a `look` are R15 people in plain colours; a giver with one wears its fixed
+-- hero look (earnable creator pieces, LookKit); crates, rings, site signs and the motorcade are plain parts.
 
 local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
@@ -30,6 +34,10 @@ local IncidentSpots = require(Shared:WaitForChild("IncidentSpots"))
 local OpeningPlan = require(Shared:WaitForChild("OpeningPlan"))
 local RigMath = require(Shared:WaitForChild("RigMath"))
 local NpcRig = require(Shared:WaitForChild("NpcRig"))
+local SideQuestSites = require(Shared:WaitForChild("SideQuestSites"))
+local FakeRules = require(Shared:WaitForChild("FakeRules"))
+local BodyShape = require(Shared:WaitForChild("BodyShape"))
+local LookKit = require(Shared:WaitForChild("LookKit"))
 
 local CityBuilder = require(script.Parent.CityBuilder)
 local DataService = require(script.Parent.DataService)
@@ -112,6 +120,14 @@ local function anchor(g: any): (number, number)
 	elseif g.anchor == "hq" then
 		local s = world.safehouses[Config.World.safehouse.homeSafehouse]
 		x, z = s.x, s.z + 30
+	elseif g.anchor == "site" then
+		-- lore step 11: at the door of the site's building (its sign beside it)
+		local _, door = SideQuestSites.place(Config, world, g.site)
+		if door then
+			x, z = door.x, door.z
+		else
+			x, z = OpeningPlan.plaza(world)
+		end
 	else
 		local d = Config.City.districts[g.anchor]
 		x, z = (d.minX + d.maxX) / 2, (d.minZ + d.maxZ) / 2
@@ -119,17 +135,51 @@ local function anchor(g: any): (number, number)
 	return x + (g.dx or 0), z + (g.dz or 0)
 end
 
--- A giver: a person on the heroes' blocky R15 rig in the giver's colour, a marker over the head
+-- A giver: a person on the heroes' blocky R15 rig in the giver's colour (or, with a `look`, its fixed hero
+-- look from earnable creator pieces, like Lodestar's), a marker over the head
 local npcLayout = RigMath.layout(Config.HeroRig, nil, 1)
-local function npcModel(name: string, color: { number }, pos: Vector3): (Model, BasePart)
-	local rig = NpcRig.person(
-		npcLayout,
-		"Giver" .. name,
-		Color3.fromRGB(color[1], color[2], color[3]),
-		Color3.fromRGB(50, 50, 60),
-		Color3.fromRGB(235, 200, 160),
-		Color3.fromRGB(70, 46, 30)
-	)
+local function lookRig(id: string, def: any): any
+	local look = FakeRules.lookFrom(Config, def, id)
+	local factors =
+		BodyShape.factors(Config, { gender = look.gender, build = look.build, height = look.height })
+	local layout = RigMath.layout(Config.HeroRig, factors, 1)
+	local sk = Config.Creator.skins[look.skin] or Config.Creator.skins[1]
+	local skin = Color3.fromRGB(sk[1], sk[2], sk[3])
+	local colors = {}
+	for _, n in { "Head", "UpperTorso", "LowerTorso" } do
+		colors[n] = skin
+	end
+	for _, side in { "Left", "Right" } do
+		for _, n in { "UpperArm", "LowerArm", "Hand", "UpperLeg", "LowerLeg", "Foot" } do
+			colors[side .. n] = skin
+		end
+	end
+	local rig = NpcRig.build(layout, "Giver" .. id, colors, nil, nil, BodyShape.setKey(Config, look))
+	NpcRig.face(rig, "rbxasset://textures/face.png")
+	local ok, err = pcall(LookKit.build, rig.model, look)
+	if not ok then
+		warn("[SideQuestService] giver look", id, err)
+	end
+	return rig
+end
+
+local function npcModel(
+	name: string,
+	color: { number },
+	pos: Vector3,
+	id: string?,
+	def: any?
+): (Model, BasePart)
+	local rig = if id and def
+		then lookRig(id, def)
+		else NpcRig.person(
+			npcLayout,
+			"Giver" .. name,
+			Color3.fromRGB(color[1], color[2], color[3]),
+			Color3.fromRGB(50, 50, 60),
+			Color3.fromRGB(235, 200, 160),
+			Color3.fromRGB(70, 46, 30)
+		)
 	local m = rig.model
 	local holder = SiteKit.model("Giver" .. name) -- where SiteKit keeps site models
 	m.Parent = holder.Parent
@@ -478,8 +528,7 @@ local function stateFor(g: Group?, player: Player): { [string]: any }
 	local t = if goal.st.kind == "find" then nil else goal.target
 	local card = nil
 	if goal.st.kind == "finale" then
-		local v = if g.test then { name = "KIND TEST", title = "FINALE" } else g.chain.villain
-		card = { name = v.name, title = v.title }
+		card = if g.test then { name = "KIND TEST", title = "FINALE" } else SideQuestPlan.card(g.chain, g.idx)
 	end
 	return {
 		bit = g.chain.bit,
@@ -929,15 +978,71 @@ local function act(player: Player, what: number, bit: number)
 	end
 end
 
+-- A site's sign (lore step 11): a lit frame by the door with the site's fixed name. PLACEHOLDER ART.
+local function siteSign(name: string, door: any)
+	local m = SiteKit.prop("SiteSign", function(model)
+		SiteKit.part(model, Vector3.new(1, 12, 1), CFrame.new(-7, 6, 0), Color3.fromRGB(70, 80, 100))
+		SiteKit.part(model, Vector3.new(1, 12, 1), CFrame.new(7, 6, 0), Color3.fromRGB(70, 80, 100))
+		local board = SiteKit.part(
+			model,
+			Vector3.new(16, 3.4, 0.6),
+			CFrame.new(0, 11, 0),
+			Color3.fromRGB(245, 245, 250)
+		)
+		SiteKit.part(
+			model,
+			Vector3.new(5, 0.5, 5),
+			CFrame.new(0, 14, 0),
+			Color3.fromRGB(255, 215, 80),
+			Enum.Material.Neon
+		)
+		for _, face in { Enum.NormalId.Front, Enum.NormalId.Back } do
+			local gui = Instance.new("SurfaceGui")
+			gui.Face = face
+			gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+			gui.PixelsPerStud = 40
+			local label = Instance.new("TextLabel")
+			label.Size = UDim2.fromScale(1, 1)
+			label.BackgroundTransparency = 1
+			label.Font = Enum.Font.GothamBlack
+			label.TextScaled = true
+			label.TextColor3 = Color3.fromRGB(40, 90, 170)
+			label.Text = name -- a fixed site name from Config.SideQuests.sites
+			label.Parent = gui
+			gui.Parent = board
+		end
+	end)
+	-- beside the door, facing the street
+	local at = Vector3.new(door.x + door.fz * 12, gy(), door.z - door.fx * 12)
+	SiteKit.place(m, at, math.atan2(-door.fx, -door.fz))
+end
+
+local function placeSites(): { [string]: { number } }
+	local world = CityBuilder.world
+	local out = {}
+	for id, st in SQ.sites or {} do
+		local b, door = SideQuestSites.place(Config, world, id)
+		if b and door then
+			siteSign(st.name, door)
+			out[id] = { math.floor(b.x), math.floor(b.z) }
+		else
+			warn("[SideQuestService] no building fits site", id)
+		end
+	end
+	return out
+end
+
 local function placeGivers()
 	local world = CityBuilder.world
 	local where = {}
+	ReplicatedStorage:SetAttribute("SideQuestSites", HttpService:JSONEncode(placeSites()))
 	for id, gv in SQ.givers do
 		if not gv.dev or RunService:IsStudio() then
 			local x, z = anchor(gv)
-			local px, py, pz = IncidentSpots.groundNear(Config, world, x, z, 40, rng)
+			local px, py, pz =
+				IncidentSpots.groundNear(Config, world, x, z, if gv.anchor == "site" then 6 else 40, rng)
 			local pos = Vector3.new(px, py, pz)
-			local _, body = npcModel(gv.name, gv.color, pos)
+			local _, body = npcModel(gv.name, gv.color, pos, if gv.look then id else nil, gv.look)
 			local prompt = Instance.new("ProximityPrompt")
 			prompt.ActionText = "Talk"
 			prompt.ObjectText = gv.name
@@ -974,7 +1079,8 @@ function SideQuestService.skipStep(player: Player)
 end
 
 -- Dev panel (Studio only, through DevService): 1 give the sample chain, 2 restart the step, 3 finish the step,
--- 4 finish the whole chain, 5 forget the sample chain, 100 + k jump to step k, 200 + i try kind i alone
+-- 4 finish the whole chain, 5 forget the sample chain, 100 + k jump to step k, 200 + i try kind i alone,
+-- 300 + i start chain i (Config.SideQuests.chains) at step 1 (then 100 + k jumps through it)
 function SideQuestService.dev(player: Player, what: number)
 	local c = StoryService.char(player)
 	local hero = HeroService.get(player)
@@ -1002,7 +1108,10 @@ function SideQuestService.dev(player: Player, what: number)
 	elseif what > 100 and what <= 100 + SQ.maxSteps and chain then
 		leave(player)
 		SideQuestPlan.jump(c, chain, what - 100)
-	elseif what > 200 and SQ.devKinds[what - 200] then
+	elseif what > 300 and SQ.chains[what - 300] then
+		leave(player)
+		SideQuestPlan.jump(c, SQ.chains[what - 300], 1)
+	elseif what > 200 and what <= 300 and SQ.devKinds[what - 200] then
 		leave(player)
 		local i = what - 200
 		local goal = SQ.devKinds[i]

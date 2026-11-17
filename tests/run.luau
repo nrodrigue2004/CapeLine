@@ -9569,7 +9569,7 @@ local FakeRules = require("../src/shared/FakeRules")
 local function readFile(path: string): string
 	return require("@lune/fs").readFile(path)
 end
-local FAKES = { "Radiant", "Bulwark", "Skylance" }
+local FAKES = { "Radiant", "Bulwark", "Skylance", "HeadmasterHalo" } -- Halo: lore step 11's chain fake
 
 test("Lore 4: each famous fake wears a full hero look that validates through CreatorRules", function()
 	local CreatorRules = require("../src/shared/CreatorRules")
@@ -12782,8 +12782,19 @@ do
 		check(not again and awhy == "done", "and is not taken twice")
 		-- a Dev chain only with the Dev flag
 		local devC = SideQuestPlan.chain(Config, "Sample")
-		check(#SideQuestPlan.journal(Config, c, 50, "hero", false) == 0, "no Dev chain in a live Journal")
-		check(#SideQuestPlan.journal(Config, c, 50, "hero", true) == 1, "the sample with the Dev flag")
+		local function hasSample(rows: { any }): boolean
+			for _, r in rows do
+				if r.bit == (devC :: any).bit then
+					return true
+				end
+			end
+			return false
+		end
+		check(
+			not hasSample(SideQuestPlan.journal(Config, c, 50, "hero", false)),
+			"no Dev chain in a live Journal"
+		)
+		check(hasSample(SideQuestPlan.journal(Config, c, 50, "hero", true)), "the sample with the Dev flag")
 		check(
 			select(2, SideQuestPlan.talkPick(Config, c, "SampleGiver", 50, "hero", false)) == "none",
 			"live"
@@ -13366,6 +13377,604 @@ test(
 		)
 	end
 )
+---------------------------------------------------------------------------
+-- Lore step 11, chain 1: The Hero Academy (Downtown). Config.SideQuests (the chain, Janitor Gus, the Academy
+-- site), Shared.SideQuestSites (the building), PocketLayout "academy" (its inside), Headmaster Halo (a famous
+-- fake: Config.Enemies.HeadmasterHalo, also in FAKES above), the scenes, the reward, the Dev panel.
+---------------------------------------------------------------------------
+
+do
+	local SideQuestPlan = require("../src/shared/SideQuestPlan")
+	local SideQuestSites = require("../src/shared/SideQuestSites")
+	local CreatorRules = require("../src/shared/CreatorRules")
+	local CinemaPlan = require("../src/shared/CinemaPlan")
+	local StoryPlan = require("../src/shared/StoryPlan")
+	local HqRules = require("../src/shared/HqRules")
+	local fs = require("@lune/fs")
+	local SQ = Config.SideQuests
+	local A = SideQuestPlan.chain(Config, "HeroAcademy") :: any
+	local SIDES = { "hero", "villain" }
+
+	local function flat(ax: number, az: number, bx: number, bz: number): number
+		return math.sqrt((ax - bx) ^ 2 + (az - bz) ^ 2)
+	end
+
+	-- a hero who has cleared Act 1's Ceremony and Safehouse
+	local function afterSafehouse(): any
+		local c = ProfileSchema.newCharacter()
+		c.story.missions = StoryPlan.setBit(StoryPlan.setBit(0, 1), 2)
+		return c
+	end
+
+	test(
+		"Lore 11: The Hero Academy validates: 8 Downtown quests, each side's flavour, Halo's finale",
+		function()
+			local bad = SideQuestPlan.validate(Config)
+			for _, b in bad do
+				check(false, b)
+			end
+			check(#bad == 0, "the chain validator passes")
+			check(A ~= nil and not A.dev, "a real chain")
+			check(#A.steps == 8 and A.layer == "district" and A.district == "Downtown", "8 Downtown quests")
+			local gus = SQ.givers.Gus
+			check(A.giver == "Gus" and not gus.dev and gus.anchor == "site", "Janitor Gus gives it at a site")
+			check(A.site == "Academy" and gus.site == "Academy", "the Academy")
+			local last = A.steps[#A.steps]
+			local fin = SideQuestPlan.goal(last, "hero") :: any
+			check(
+				SideQuestPlan.shared(last) and fin.kind == "finale" and fin.enemy == "HeadmasterHalo",
+				"Halo's finale, both sides together"
+			)
+			check(
+				Config.Enemies.HeadmasterHalo.fake ~= nil
+					and table.find(SQ.finale.enemies, "HeadmasterHalo") ~= nil,
+				"Halo is a famous fake on the finale list (face crack: the Lore 4 tests run on FAKES)"
+			)
+			-- each side's flavour (nate: the Vigil rescue and expose fakes, the Syndicate heist and sabotage)
+			local kinds = { hero = {}, villain = {} }
+			local split = 0
+			for i, step in A.steps do
+				for _, side in SIDES do
+					kinds[side][(SideQuestPlan.goal(step, side) :: any).kind] = true
+				end
+				if SideQuestPlan.shared(step) then
+					local g = SideQuestPlan.goal(step, "hero") :: any
+					check(
+						type(g.villainText) == "string" and g.villainText ~= g.text,
+						"step " .. i .. ": the Syndicate reads its own goal"
+					)
+				else
+					split += 1
+					check(
+						SideQuestPlan.text(SideQuestPlan.goal(step, "hero"), "hero")
+							~= SideQuestPlan.text(SideQuestPlan.goal(step, "villain"), "villain"),
+						"step " .. i .. ": each side's own job"
+					)
+				end
+			end
+			check(split >= 5, "most steps give each side its own job (" .. split .. ")")
+			for _, k in { "photo", "escort", "find", "carry", "hold" } do
+				check(kinds.hero[k] == true, "the Vigil: " .. k)
+			end
+			for _, k in { "fetch", "chase", "deliver", "race" } do
+				check(kinds.villain[k] == true, "the Syndicate: " .. k)
+			end
+			check(kinds.hero.pocket and kinds.villain.pocket, "inside the academy, both sides")
+			-- who speaks: the guides and the chain's own cast
+			local who = {}
+			for _, step in A.steps do
+				for _, l in step.lines or {} do
+					who[l.who] = true
+				end
+			end
+			for _, w in { "Gus", "patch", "lodestar", "halo", "wren" } do
+				check(who[w] == true, "speaks: " .. w)
+			end
+			for _, w in { "halo", "wren" } do
+				local sp = Config.Story.guides.speakers[w]
+				check(
+					sp ~= nil and sp.portrait ~= nil and Config.Audio.sounds[sp.blip] ~= nil,
+					w .. ": a guide speaker with a portrait and a blip"
+				)
+			end
+			-- 1 to 3 short device scenes, one before the finale
+			local scenes = 0
+			for _, step in A.steps do
+				if step.scene then
+					scenes += 1
+					local sc = Config.Cinema.scenes[step.scene]
+					check(sc ~= nil and sc.client == true, step.scene .. ": a device scene")
+					check(sc and CinemaPlan.check(Config, sc), step.scene .. ": 5 to 20 s")
+					for _, l in (sc and sc.lines) or {} do
+						check(
+							Config.Story.guides.speakers[l.who] ~= nil or SQ.givers[l.who] ~= nil,
+							step.scene .. ": speaker " .. tostring(l.who)
+						)
+					end
+				end
+			end
+			check(scenes >= 1 and scenes <= 3, "1 to 3 short scenes (" .. scenes .. ")")
+			check(last.scene ~= nil, "a scene before Halo's finale")
+			check(Config.Cinema.comic.pages.wrenStory ~= nil, "Wren's story is a comic page")
+			local hud = fs.readFile("src/client/Ui/CinemaHud.luau")
+			for _, k in { "school", "scan" } do
+				check(string.find(hud, 'kind == "' .. k .. '"', 1, true) ~= nil, "the comic draws " .. k)
+			end
+		end
+	)
+
+	test("Lore 11: the finale's name card: HEADMASTER HALO on the last step only", function()
+		for i = 1, #A.steps - 1 do
+			check(SideQuestPlan.card(A, i) == nil, "no card on step " .. i)
+		end
+		local card = SideQuestPlan.card(A, #A.steps) :: any
+		check(card ~= nil and card.name == "HEADMASTER HALO", "the finale's card names Halo")
+		check(card and card.title == A.villain.title and #card.title > 0, "and his title")
+		check(
+			SideQuestPlan.fixedText(card.name, 32) == nil and SideQuestPlan.fixedText(card.title, 32) == nil,
+			"fixed text that fits the card"
+		)
+		local svc = fs.readFile("src/server/Services/SideQuestService.luau")
+		check(string.find(svc, "SideQuestPlan.card(g.chain, g.idx)", 1, true) ~= nil, "the server sends it")
+		local sh = fs.readFile("src/client/Ui/StoryHud.luau")
+		check(string.find(sh, "CinemaHud.nameCard", 1, true) ~= nil, "the device shows it on arrival")
+	end)
+
+	test(
+		"Lore 11: it opens after Act 1's Safehouse for both sides; Gus offers it; the Journal page",
+		function()
+			for _, side in SIDES do
+				local c = ProfileSchema.newCharacter()
+				c.story.missions = StoryPlan.setBit(0, 1)
+				local st, why, n = SideQuestPlan.state(Config, c, A, 10, side)
+				check(st == "locked" and why == "story" and n == 2, side .. ": waits for the Safehouse")
+				local rows = SideQuestPlan.journal(Config, c, 10, side, false)
+				local row = nil
+				for _, r in rows do
+					if r.bit == A.bit then
+						row = r
+					end
+				end
+				check(row ~= nil and row.why == "story", side .. ": the Journal says what it waits on")
+				check(
+					select(2, SideQuestPlan.talkPick(Config, c, "Gus", 10, side, false)) == "none",
+					side .. ": Gus has nothing yet"
+				)
+				local d = afterSafehouse()
+				check(
+					SideQuestPlan.state(Config, d, A, 3, side) == "open",
+					side .. ": open after the Safehouse"
+				)
+				local pick, kind = SideQuestPlan.talkPick(Config, d, "Gus", 3, side, false)
+				check(pick == A and kind == "offer", side .. ": Gus offers it")
+				check(SideQuestPlan.fixedText(A.blurb[side], 90) == nil, side .. ": the page's line")
+				check(SideQuestPlan.fixedText(A.lines.offer[side], 120) == nil, side .. ": Gus's offer")
+			end
+			check(
+				string.find(fs.readFile("src/client/Ui/Journal.luau"), "chain.blurb", 1, true) ~= nil,
+				"the Journal shows the page line"
+			)
+			check(
+				string.find(fs.readFile("src/client/Ui/MapScreen.luau"), "SideQuestSites", 1, true) ~= nil,
+				"the map marks the site"
+			)
+			check(
+				string.find(
+					fs.readFile("src/server/Services/SideQuestService.luau"),
+					'SetAttribute("SideQuestSites"',
+					1,
+					true
+				) ~= nil,
+				"the server publishes the site"
+			)
+		end
+	)
+
+	test(
+		"Lore 11: Halo Academy is an existing Downtown building clear of the ceremony, row and stairwell",
+		function()
+			local L = world.downtown
+			local st = SQ.sites.Academy
+			local b, door = SideQuestSites.place(Config, world, "Academy")
+			check(b ~= nil and door ~= nil, "a building fits")
+			if not b or not door then
+				return
+			end
+			check(table.find(L.buildings, b) ~= nil, "one of Downtown's own buildings")
+			check(not b.crown and b.h >= st.height[1] and b.h <= st.height[2], "a school block, not a tower")
+			check(b.sx >= 40 and b.sz >= 40, "a large footprint")
+			local bt = L.beacon
+			check(flat(b.x, b.z, bt.x, bt.z) >= st.away.plaza, "away from the plaza's ceremony")
+			for i, r in L.row do
+				check(flat(b.x, b.z, r.x, r.z) >= st.away.row, "clear of chase roof " .. i)
+			end
+			local hd = HqRules.heroDoor(Config, world) :: any
+			check(flat(b.x, b.z, hd.x, hd.z) >= st.away.door, "clear of the Safehouse stairwell")
+			for _, o in L.open do
+				check(
+					math.abs(b.x - o.x) > o.size / 2 + st.away.open
+						or math.abs(b.z - o.z) > o.size / 2 + st.away.open,
+					"not The Gala Heist's square " .. o.id
+				)
+			end
+			-- the door: on the building's face, in no building, the plaza side
+			for _, o in world.buildings do
+				check(
+					math.abs(door.x - o.x) >= o.sx / 2 or math.abs(door.z - o.z) >= o.sz / 2,
+					"the door is outside every building"
+				)
+			end
+			local half = if door.fx ~= 0 then b.sx / 2 else b.sz / 2
+			near(flat(door.x, door.z, b.x, b.z), half + 6, 0.01, "at the face")
+			check(
+				flat(door.x, door.z, bt.x, bt.z) < flat(b.x, b.z, bt.x, bt.z),
+				"the door faces toward the plaza side"
+			)
+			-- Downtown's layout is fixed: the same building every week
+			local again = SideQuestSites.building(Config, world, "Academy")
+			check(again == b, "picked the same way every time")
+			check(
+				SideQuestSites.building(Config, { downtown = nil }, "Academy") == nil,
+				"no Downtown, no site"
+			)
+		end
+	)
+
+	test("Lore 11: Halo Academy's pocket: classrooms, the training hall and the workshop under it", function()
+		check(PocketLayout.known("academy"), "a pocket layout")
+		local l = PocketLayout.build(Config, 1, "academy")
+		check(#l.boxes < 400, "under 400 parts (" .. #l.boxes .. ")")
+		local sp = l.points.spawn
+		check(PocketLayout.at(Config, sp[1], sp[2], sp[3]) == 1, "the spawn is inside its pocket")
+		check(#(l.lists.rooms or {}) >= 2, "two classrooms")
+		check(#(l.lists.pods or {}) >= 4, "four scanner pods")
+		for _, p in { "hall", "hiddenDoor", "workshop", "boss" } do
+			check(l.points[p] ~= nil, "has " .. p)
+		end
+		local deck = PocketLayout.heightAt(l, sp[1], sp[3])
+		check(deck > l.floorY + 20, "the school stands on its floor above the workshop")
+		for i, r in l.lists.rooms do
+			near(
+				PocketLayout.heightAt(l, r[1], r[3]),
+				deck,
+				0.5,
+				"classroom " .. i .. " is on the school floor"
+			)
+		end
+		local hall = l.points.hall
+		near(PocketLayout.heightAt(l, hall[1], hall[3]), deck, 0.5, "the training hall")
+		for _, name in { "workshop", "boss" } do
+			local p = l.points[name]
+			near(PocketLayout.heightAt(l, p[1], p[3]), l.floorY, 0.01, name .. " is on the workshop floor")
+		end
+		for i, p in l.lists.pods do
+			near(
+				PocketLayout.heightAt(l, p[1], p[3]),
+				l.floorY,
+				0.01,
+				"pod " .. i .. " is not on the ceiling"
+			)
+		end
+		-- under the school: a ceiling over the workshop (robots never stand on it)
+		local b = l.points.boss
+		local over = false
+		for _, x in l.boxes do
+			if
+				x.tag == "ceiling"
+				and math.abs(x.cx - b[1]) <= x.sx / 2
+				and math.abs(x.cz - b[3]) <= x.sz / 2
+				and x.cy > l.floorY + 20
+			then
+				over = true
+			end
+		end
+		check(over, "the workshop is under the school's floor")
+		-- the hidden stairs: from the door down to the workshop, no step over 2.5 studs
+		local from, to = l.points.hiddenDoor, l.points.workshop
+		local prev = PocketLayout.heightAt(l, from[1], from[3])
+		local ok = true
+		for z = from[3], to[3], -1 do
+			local h = PocketLayout.heightAt(l, from[1], z)
+			if h > prev + 1e-6 or prev - h > 2.5 then
+				ok = false
+			end
+			prev = h
+		end
+		check(ok and math.abs(prev - l.floorY) < 0.01, "the stairs walk down to the workshop")
+		-- every pocket step of the chain finds its places there (the framework's pocket check runs too)
+		local pocket = SideQuestPlan.goal(A.steps[5], "hero") :: any
+		check(pocket.kind == "pocket" and pocket.layout == "academy", "step 5 is inside the academy")
+		local used = {}
+		for _, s in pocket.steps do
+			used[s.kind] = true
+			if s.at then
+				check(l.points[s.at] ~= nil, s.kind .. " at " .. s.at)
+			end
+			if s.room then
+				check(l.lists.rooms[s.room] ~= nil, s.kind .. " in room " .. s.room)
+			end
+			if s.list then
+				check(#(l.lists[s.list] or {}) >= (s.points or 1), s.kind .. " on " .. s.list)
+			end
+			check(SideQuestPlan.POCKET_KINDS[s.kind] == true, s.kind .. " runs in a pocket")
+		end
+		check(
+			used.defeat and used.hold and used.reach and used["break"] and used.boss,
+			"class, hall, stairs, pods, foreman"
+		)
+		check(
+			string.find(fs.readFile("src/shared/PocketLayout.luau"), "PLACEHOLDER ART", 1, true) ~= nil,
+			"placeholder art labelled"
+		)
+	end)
+
+	test("Lore 11: Gus and Headmaster Halo wear hero looks that validate through CreatorRules", function()
+		local profile = ProfileSchema.default()
+		for _, p in CreatorRules.index(Config).list do
+			if p.source.kind ~= "pack" and p.source.kind ~= "starter" then
+				CreatorRules.grant(profile, p)
+			end
+		end
+		local n = 0
+		for id, g in SQ.givers do
+			if g.look then
+				n += 1
+				local look = FakeRules.lookFrom(Config, g.look, id)
+				local ok, why = CreatorRules.validate(Config, profile, look)
+				check(ok, id .. "'s look validates (" .. tostring(why) .. ")")
+				for slot, i in look.pieces do
+					if i > 0 then
+						local p = CreatorRules.piece(Config, slot, i)
+						check(
+							p ~= nil and p.source.kind ~= "pack",
+							id .. " " .. slot .. " is never a Robux piece"
+						)
+					end
+				end
+			end
+		end
+		check(n >= 1 and SQ.givers.Gus.look ~= nil, "Gus has a look")
+		local halo = FakeRules.look(Config, "HeadmasterHalo")
+		check(CreatorRules.validate(Config, profile, halo), "Halo's look validates")
+		check(FakeRules.plate(Config, "HeadmasterHalo", false).name == "HEADMASTER HALO", "his hero plate")
+		check(FakeRules.plate(Config, "HeadmasterHalo", true).name == "FAKE", "FAKE once his face cracks")
+		check(Config.Enemies.mix.HeadmasterHalo == nil, "never in the ambient mix")
+		local svc = fs.readFile("src/server/Services/SideQuestService.luau")
+		check(string.find(svc, "LookKit.build", 1, true) ~= nil, "the server dresses the giver")
+		check(string.find(svc, "FakeRules.lookFrom", 1, true) ~= nil, "from its fixed look")
+	end)
+
+	-- one test per side (like the mission tests): that side takes the chain from Gus, a squadmate of the
+	-- other side joins from the Journal, and they play all 8 steps together in one run
+	for _, lead in SIDES do
+		local mate = if lead == "hero" then "villain" else "hero"
+		local label = if lead == "villain" then "the Syndicate" else "the Vigil"
+		test(
+			"Lore 11: The Hero Academy as " .. label .. ": all 8 steps co-op with the other side, to the end",
+			function()
+				local a, b = afterSafehouse(), afterSafehouse()
+				check(SideQuestPlan.accept(Config, a, A, 6, lead, false), "the lead takes it from Gus")
+				check(SideQuestPlan.accept(Config, b, A, 6, mate, true), "the squadmate from the Journal")
+				local credits = { 0, 0 }
+				for i, step in A.steps do
+					check(
+						SideQuestPlan.stepOf(a, A) == i and SideQuestPlan.stepOf(b, A) == i,
+						"both on step " .. i
+					)
+					local g = SideQuestPlan.newGroup(A.id, i)
+					local ka, newA = SideQuestPlan.join(g, step, "lead", lead)
+					local kb, newB = SideQuestPlan.join(g, step, "mate", mate)
+					if SideQuestPlan.shared(step) then
+						check(
+							ka == "both" and kb == "both" and newA and not newB,
+							"step " .. i .. ": one shared goal"
+						)
+					else
+						check(
+							ka == lead and kb == mate and newA and newB,
+							"step " .. i .. ": a goal per side"
+						)
+					end
+					for _, k in { ka, kb } do
+						local goal =
+							SideQuestPlan.goal(step, if k == "villain" then "villain" else "hero") :: any
+						check(
+							g.sides[k].need == SideQuestPlan.need(goal),
+							"step " .. i .. ": " .. k .. "'s need"
+						)
+					end
+					check(
+						SideQuestPlan.set(g, ka, g.sides[ka].need),
+						"step " .. i .. ": the lead's side finishes"
+					)
+					if ka ~= kb then
+						check(
+							SideQuestPlan.waiting(g, ka) and not SideQuestPlan.groupDone(g),
+							"step " .. i .. ": and waits for the other side"
+						)
+						check(
+							SideQuestPlan.set(g, kb, g.sides[kb].need),
+							"step " .. i .. ": the other side finishes"
+						)
+					end
+					check(SideQuestPlan.groupDone(g), "step " .. i .. ": done for the group")
+					local last = i == #A.steps
+					if last then
+						check(SideQuestPlan.card(A, i) ~= nil, "Halo's name card at the finale")
+					end
+					for n, c in { a, b } do
+						local cr = SideQuestPlan.stepPay(Config, 6, last)
+						credits[n] += cr
+						check(
+							SideQuestPlan.advance(c, A) == (if last then "done" else "next"),
+							"step " .. i .. " moves on"
+						)
+					end
+				end
+				for n, c in { a, b } do
+					check(
+						SideQuestPlan.isDone(c, A) and c.story.pinned == 0 and c.sq.at.HeroAcademy == nil,
+						"done, untracked"
+					)
+					check(
+						credits[n] > 0 and SideQuestPlan.chainPay(Config, A, 6) > 0,
+						"steps and the end pay"
+					)
+					check(
+						SideQuestPlan.chainsDone(Config, { characters = { c } }) == 1,
+						"counts toward the creator's chain pieces"
+					)
+					check(
+						not SideQuestPlan.accept(Config, c, A, 6, if n == 1 then lead else mate, false),
+						"once only"
+					)
+				end
+			end
+		)
+	end
+
+	test("Lore 11: the reward is a chain title and one cosmetic, earned only; nothing sold", function()
+		local cos = SideQuestPlan.cosmetic(A)
+		local n = 0
+		for _ in cos do
+			n += 1
+		end
+		check(n == 2 and cos.title == "Class Dismissed" and cos.style == "CrackedHalo", "a title and a style")
+		local bit = Config.Story.unlocks.titles["Class Dismissed"]
+		check(type(bit) == "number" and bit < 100, "a story title")
+		local seen = {}
+		for name, b in Config.Story.unlocks.titles do
+			check(not seen[b], "title bit " .. b .. " used once (" .. name .. ")")
+			seen[b] = true
+		end
+		local id = GearMath.questStyle(Config, "CrackedHalo")
+		check(id ~= nil, "the Cracked Halo is a gear style")
+		local styles = 0
+		for _, slot in Config.Gear.slotOrder do
+			for _, row in Config.Gear.styles[slot] do
+				if row.quest == "CrackedHalo" then
+					styles += 1
+					check(row.tier == "Story" and row.price == nil, "never rolled, never sold")
+				end
+			end
+		end
+		check(styles == 1, "one Cracked Halo")
+		check(A.reward.share > 0 and A.reward.share <= SQ.pay.maxShare, "the end's pay share in range")
+		for _, k in { "credits", "renown", "skillPoints", "loot", "gadget", "dust", "xp" } do
+			check(A.reward[k] == nil, "no " .. k)
+		end
+	end)
+
+	test(
+		"Lore 11: the framework checks a pocket's places, sites and the title plus cosmetic reward",
+		function()
+			local function deep(v: any): any
+				if type(v) ~= "table" then
+					return v
+				end
+				local out = {}
+				for k, x in v do
+					out[k] = deep(x)
+				end
+				return out
+			end
+			local function problems(edit: (any, any) -> ()): string
+				local sq = deep(SQ)
+				local C = setmetatable({ SideQuests = sq }, { __index = Config })
+				local chain = SideQuestPlan.chain(C, "HeroAcademy") :: any
+				edit(chain, sq)
+				return table.concat(SideQuestPlan.validate(C), " | ")
+			end
+			local function fails(edit: (any, any) -> (), want: string, label: string)
+				local got = problems(edit)
+				check(string.find(got, want, 1, true) ~= nil, label .. " (wants: " .. want .. ")")
+			end
+			check(problems(function() end) == "", "the copy is clean")
+			fails(function(c)
+				c.steps[5].hero.steps[2].at = "moon"
+			end, "point moon is not in academy", "a pocket point that is not there")
+			fails(function(c)
+				c.steps[5].hero.steps[1].room = 9
+			end, "room 9 is not in academy", "a classroom that is not there")
+			fails(function(c)
+				c.steps[5].hero.steps[4].points = 9
+			end, "pods in academy are too few", "more pods than the workshop has")
+			fails(function(c)
+				c.steps[5].hero.steps[4].hits = nil
+			end, "break needs hits", "a break with no hits")
+			fails(function(c)
+				c.reward.emote = "Bow"
+			end, "one cosmetic or title", "two cosmetics with the title")
+			fails(function(c)
+				c.reward.title, c.reward.style = nil, nil
+			end, "one cosmetic or title", "no reward at all")
+			check(problems(function(c)
+				c.reward.style = nil
+			end) == "", "a title alone is fine")
+			fails(function(c)
+				c.site = "Moon"
+			end, "site Moon", "an unknown site")
+			fails(function(_, sq)
+				sq.givers.Gus.site = "Moon"
+			end, "giver Gus: anchor site", "a giver at an unknown site")
+			fails(function(_, sq)
+				sq.sites.Academy.away.row = nil
+			end, "away.row", "a site without its row distance")
+			fails(function(c)
+				c.blurb.villain = "Steal %s"
+			end, "villain blurb", "a page line with a format hole")
+		end
+	)
+
+	test("Lore 11: no old names in the chain; the Dev panel starts it and jumps to each step", function()
+		local ARC =
+			{ "Bellweather", "Mayor", "Pip", "Maribel", "Tamsin", "Quill", "Iron Dee", "IronDee", "Skye" }
+		local hits = {}
+		local function walk(v: any, path: string)
+			if type(v) == "string" then
+				local w = oldLore(v)
+				if w then
+					table.insert(hits, path .. ": " .. w)
+				end
+				for _, a in ARC do
+					if string.find(v, "%f[%w]" .. a .. "%f[%W]") then
+						table.insert(hits, path .. ": " .. a)
+					end
+				end
+			elseif type(v) == "table" then
+				for k, x in v do
+					walk(x, path .. "." .. tostring(k))
+				end
+			end
+		end
+		walk(A, "HeroAcademy")
+		walk(SQ.givers.Gus, "Gus")
+		walk(SQ.sites, "sites")
+		walk(Config.Story.guides.speakers.halo, "halo")
+		walk(Config.Story.guides.speakers.wren, "wren")
+		for _, id in { "academyGates", "wrenStory", "haloBell" } do
+			walk(Config.Cinema.scenes[id], id)
+		end
+		walk(Config.Cinema.comic.pages.wrenStory, "wrenStory page")
+		walk(Config.Enemies.HeadmasterHalo, "HeadmasterHalo")
+		for _, h in hits do
+			check(false, "an old name: " .. h)
+		end
+		check(#hits == 0, "no old lore or retired arc names")
+		local dev = fs.readFile("src/client/Ui/DevPanel.luau")
+		check(string.find(dev, "SQ chain: ", 1, true) ~= nil, "Dev panel: start a chain")
+		check(string.find(dev, "SQ: start step", 1, true) ~= nil, "Dev panel: jump to a step")
+		local svc = fs.readFile("src/server/Services/SideQuestService.luau")
+		check(
+			string.find(svc, "what > 300 and SQ.chains[what - 300]", 1, true) ~= nil,
+			"the server starts it"
+		)
+		check(
+			#A.steps <= SQ.maxSteps and 300 + #SQ.chains <= 1000,
+			"every step and chain fits the Dev command"
+		)
+	end)
+end
 
 print(string.format("\n%d passed, %d failed", passed, failed))
 if failed > 0 then

@@ -356,6 +356,25 @@ function DevPanel.init()
 		sqStep = sqStep % Config.SideQuests.maxSteps + 1
 		b.Text = "SQ: start step " .. sqStep
 	end)
+	-- lore step 11: start any real chain at step 1 (tap again for the next chain), then "SQ: start step" jumps
+	-- through it
+	local sqChains = {}
+	for i, ch in Config.SideQuests.chains do
+		if not ch.dev then
+			table.insert(sqChains, i)
+		end
+	end
+	if #sqChains > 0 then
+		local chainIdx = 1
+		local function chainName(n: number): string
+			return Config.SideQuests.chains[sqChains[n]].name
+		end
+		add("SQ chain: " .. chainName(1), function(b)
+			Net.send("DevCommand", "sidequest", 300 + sqChains[chainIdx])
+			chainIdx = chainIdx % #sqChains + 1
+			b.Text = "SQ chain: " .. chainName(chainIdx)
+		end)
+	end
 	add("SQ: restart step", function()
 		Net.send("DevCommand", "sidequest", 2)
 	end)

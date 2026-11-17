@@ -197,6 +197,15 @@ return {
 			{ n = 4, name = "Fin Helm", shape = "fin", tier = "Uncommon", color = { 200, 60, 60 } },
 			{ n = 5, name = "Horned Helm", shape = "horns", tier = "Rare", color = { 240, 200, 70 } },
 			{ n = 6, name = "Halo Crown", shape = "halo", tier = "Rare", color = { 255, 240, 160 } },
+			-- side quest reward (lore step 11, The Hero Academy): Headmaster Halo's own halo, cracked. Never rolled.
+			{
+				n = 20,
+				name = "Cracked Halo",
+				shape = "halo",
+				tier = "Story",
+				quest = "CrackedHalo",
+				color = { 200, 170, 90 },
+			},
 			-- Fame and Infamy rank rewards (M8): never rolled by loot (tier "Fame")
 			{
 				n = 21,
