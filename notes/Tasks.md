@@ -61,6 +61,17 @@ phones or Studio go on the Studio test list below.
 ## Studio test list (needs nate's PC)
 Start: `rojo serve`, connect the Rojo plugin, press Play (or Test > Clients and Servers with 2 players). The DEV button (top right, Studio only) has the test tools.
 
+### New robot types: review fixes (2026-11-17)
+The review's fixes (Decisions.md, 2026-11-17 robots review). DEV > robot button cycles the types.
+1. Sniper: let it start its laser on you, then stun it (any stun power): the red laser, the red screen edge and the lock sound all stop, and no round comes. Do the same with a Pull: no round right after the pull ends.
+2. Medic Unit: stun it while its green beam is on a robot: the beam goes out at once (not up to a second later).
+3. Grappler: stun it while the hook is flying: the hook reels back and you are not pulled. Defeat one while the hook flies: the hook vanishes and you are not pulled.
+4. Grappler on a flier at 30+ studs: you are pulled to it and down, the speed check never pulls you back (Output has no MoveCorrect), and you land on the street, not inside it.
+5. Interceptor: fly so it chases you, then land: for 2 s it may still shoot, but its net never comes at you on the ground.
+6. A site with a Mimic (level 9+ incident or event; or DEV robot Mimic next to a site): defeat the rest of the squad from far away or while hovering over it: the Mimic shows itself (glitch burst) and can be hit, so the site finishes.
+7. DEV robot button with a type switched off in Config.Enemies (on = false): the button skips it.
+8. Swarmer or Captain next to a building (DEV robot at a wall): no Swarmer or escort stands on a roof.
+
 ### New robot types: looks and effects (2026-11-17)
 Needs the server AI for the nine new robots (each one spawns in the ambient mix and in open-world squads). Best with a second player to see the effects from outside.
 1. Shield Bearer: a big dark riot shield with a window and a gold stripe held out in front on the left arm; a hit from the side or back knocks it away in a burst of chips and the arm drops; it comes back when the guard does.

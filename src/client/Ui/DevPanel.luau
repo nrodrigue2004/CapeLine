@@ -15,6 +15,7 @@ local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local AbilityRules = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("AbilityRules"))
 local Net = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Net"))
 local ShopRules = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("ShopRules"))
+local EnemySim = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("EnemySim"))
 
 local Kit = require(script.Parent.Kit)
 local State = require(script.Parent.Parent.State)
@@ -121,10 +122,11 @@ function DevPanel.init()
 	add("Heal", function()
 		Net.send("DevCommand", "heal")
 	end)
-	local robotIdx = 1
-	add("3x " .. Config.Enemies[Config.Enemies.order[1]].name, function(b)
+	-- cycles the robot types that are switched on (Config.Enemies.<Kind>.on), by their index in the order
+	local robotIdx = EnemySim.nextEnabled(Config, 0)
+	add("3x " .. Config.Enemies[Config.Enemies.order[robotIdx]].name, function(b)
 		Net.send("DevCommand", "robot", robotIdx)
-		robotIdx = robotIdx % #Config.Enemies.order + 1
+		robotIdx = EnemySim.nextEnabled(Config, robotIdx)
 		b.Text = "3x " .. Config.Enemies[Config.Enemies.order[robotIdx]].name
 	end)
 	-- the robots' look, to compare the two styles live (nate, 2026-11-17): Auto, Roblox (classic clothes and

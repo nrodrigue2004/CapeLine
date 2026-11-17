@@ -430,6 +430,21 @@ local function reveal(sim: Sim, e: Enemy)
 	end
 end
 
+-- A Grappler's hook comes back: the cable in flight is cut (it pulls nobody) and the hooked bit clears. A
+-- stun or the Grappler's fall does this, so a hook never yanks a hero toward a robot that is down or gone.
+local function cutHook(sim: Sim, e: Enemy)
+	if e.cfg.hook == nil then
+		return
+	end
+	e.hookUntil = 0
+	for i = #sim.shots, 1, -1 do
+		local s = sim.shots[i]
+		if s.enemyId == e.id and s.pull then
+			table.remove(sim.shots, i)
+		end
+	end
+end
+
 -- Damage from the Combat service. fromX/fromZ: where the hit came from (the Sentinel's guard checks it).
 -- Returns killed, the enemy (nil if unknown or dead already), the damage dealt, and a flag (HIT, BLOCKED,
 -- BROKE).
@@ -494,6 +509,7 @@ function EnemySim.damage(
 			sim.events,
 			{ k = "die", e = e.id, x = e.x, y = e.y, z = e.z, by = attacker, kind = e.kind }
 		)
+		cutHook(sim, e)
 		local fall = cfg.leaderless
 		if fall then
 			-- the Captain fell: the robots it rallied falter
@@ -542,6 +558,7 @@ function EnemySim.applyStatus(
 			e.burstLeft = 0
 			e.aimUntil = 0 -- and a Sniper's aim
 			e.mendUntil = 0 -- and a Medic's beam
+			cutHook(sim, e) -- and a Grappler's hook
 		end
 	end
 	return dur
@@ -815,6 +832,11 @@ local function nearestHeroDist(e: Enemy, heroes: { Hero }): number
 	return best
 end
 
+-- A hero at least `over` studs above the ground or roof under it (an Interceptor's prey)
+local function airborne(sim: Sim, h: Hero, over: number): boolean
+	return h.y - sim.heightAt(h.x, h.z, h.y) >= over
+end
+
 -- Keep, drop or pick a target. Taunts force one; blind stops new picks.
 local function upkeepTarget(sim: Sim, e: Enemy, heroes: { Hero }): Hero?
 	local cfg = e.cfg
@@ -830,7 +852,7 @@ local function upkeepTarget(sim: Sim, e: Enemy, heroes: { Hero }): Hero?
 	local target = findHero(heroes, e.target)
 	-- an Interceptor hunts only heroes in the air (it lets one go once it has been down a moment)
 	local function inAir(h: Hero): boolean
-		return h.y - sim.heightAt(h.x, h.z, h.y) >= cfg.airborne
+		return airborne(sim, h, cfg.airborne)
 	end
 	if target and cfg.hunter then
 		if inAir(target) then
@@ -957,7 +979,8 @@ local function thinkFlyer(sim: Sim, e: Enemy, target: Hero?, speed: number, canM
 		e.nextShot = now + cfg.burst.gap
 	end
 	local net = cfg.net
-	if net and now >= e.nextSpecial then
+	-- (only at a hero still in the air: in the moment it keeps a landed hero, it shoots but never nets)
+	if net and now >= e.nextSpecial and (not cfg.hunter or airborne(sim, target, cfg.airborne)) then
 		-- the Interceptor's net: holds a flier a moment, so it drops out of flight
 		shoot(
 			sim,
@@ -1572,10 +1595,30 @@ end
 
 -- Mimic: dressed as a citizen it strolls (no hit target); near a fight a while, it walks up to a hero at a
 -- citizen's pace; a hero this close (or a hit) and it shows itself, then strikes hard once and fights on
+-- A site's robot (tagged) with another robot of its fight still standing near it (a disguised Mimic does not
+-- count: it hides among them)
+local function squadNear(sim: Sim, e: Enemy, radius: number): boolean
+	local r2 = radius * radius
+	for _, o in sim.enemies do
+		if o ~= e and o.alive and o.tag == e.tag and not o.disguised then
+			local dx, dy, dz = o.x - e.x, o.y - e.y, o.z - e.z
+			if dx * dx + dy * dy + dz * dz <= r2 then
+				return true
+			end
+		end
+	end
+	return false
+end
+
 local function thinkMimic(sim: Sim, e: Enemy, target: Hero?, speed: number, canMove: boolean, dt: number)
 	local cfg = e.cfg
 	local now = sim.now
 	local dg = cfg.disguise
+	if e.disguised and e.tag ~= nil and not squadNear(sim, e, dg.alone) then
+		-- the last of its site's squad shows itself, so the site can always be finished (a hero hanging back
+		-- or hovering over it would never give it away, and it is no hit target while disguised)
+		reveal(sim, e)
+	end
 	if e.disguised then
 		e.state = EnemySim.PATROL
 		if not target then
@@ -1786,6 +1829,7 @@ local function think(sim: Sim, e: Enemy, heroes: { Hero }, dt: number)
 			end
 		end
 		e.windupUntil = 0
+		e.aimUntil = 0 -- a Sniper being dragged loses its aim (no round without a fresh laser)
 		return
 	end
 
@@ -2167,6 +2211,17 @@ function EnemySim.company(sim: Sim, lead: Enemy, escort: boolean?): { Enemy }
 		local r = if cfg.pack then 3 else 6
 		local x, z = lead.x + math.cos(a) * r, lead.z + math.sin(a) * r
 		local y = if kc.ai == "flyer" then lead.y + (kc.hover and kc.hover.min or 14) else lead.y
+		if
+			kc.ai ~= "flyer"
+			and (
+				sim.heightAt(x, z, lead.y) > lead.y - halfHeight(lead.cfg) + 2.5
+				or (not kc.sea and sim.water(x, sim.waterTop + 1, z))
+			)
+		then
+			-- that spot is a building (spawn would stand it on the roof) or the water: start on the leader's
+			-- own spot (a hair apart, so separate() can spread them)
+			x, z = lead.x + math.cos(a) * 0.1, lead.z + math.sin(a) * 0.1
+		end
 		local e = EnemySim.spawn(sim, kind, x, y, z, lead.level)
 		if e then
 			e.tag = lead.tag
@@ -2187,6 +2242,34 @@ function EnemySim.company(sim: Sim, lead: Enemy, escort: boolean?): { Enemy }
 		end
 	end
 	return out
+end
+
+-- A Grappler's hook on a hero at (px, py, pz): the flat move (to `reel` studs short of the Grappler), the drop
+-- down to it, and the travel MoveGuard grants for it. The drop is not granted: falling is free in MoveCheck
+-- up to terminal speed, so granting it would only bank budget an exploiter could spend elsewhere.
+function EnemySim.hookPull(pull: any, px: number, py: number, pz: number): (number, number, number, number)
+	local tx, ty, tz = pull.x - px, pull.y - py, pull.z - pz
+	local flat = math.sqrt(tx * tx + tz * tz)
+	local len = math.max(0, flat - pull.reel)
+	local mx, mz = 0, 0
+	if flat > 0.1 then
+		mx, mz = tx / flat * len, tz / flat * len
+	else
+		len = 0
+	end
+	return mx, mz, math.min(0, ty), len + 10 -- + the arc's 3-stud lift and some slack
+end
+
+-- The next robot type after order index `index` whose switch is on (wraps; the Dev panel's robot button)
+function EnemySim.nextEnabled(config: any, index: number): number
+	local order = config.Enemies.order
+	for k = 1, #order do
+		local i = (index + k - 1) % #order + 1
+		if EnemySim.enabled(config, order[i]) then
+			return i
+		end
+	end
+	return 1
 end
 
 -- Take an enemy away without a defeat (its incident ended)

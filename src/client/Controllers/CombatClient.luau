@@ -70,6 +70,15 @@ local SHOT, HERO_HIT, DIE, WARN, SLAM, SWING, BLOCKED = 1, 2, 3, 4, 5, 6, 7
 local AIM, RALLY, LOB, ZONE, MEND, REVEAL, BOOM = 8, 9, 10, 11, 12, 13, 14
 local HOOKED = EnemySim.EXTRA.hooked
 
+-- While robot e's EXTRA bit holds (after a short grace for the next Enemy.Delta): a stun breaks a Sniper's
+-- aim and a Medic's beam on the server, and these let the client's laser and beam end with them
+local function holds(e: number, bit: number): () -> boolean
+	local t0 = os.clock()
+	return function()
+		return os.clock() - t0 < 0.3 or bit32.band(EnemyRenderer.extra(e), bit) ~= 0
+	end
+end
+
 local PREDICTED =
 	{ bolt = true, chain = true, dash = true, cone = true, arc = true, nova = true, line = true, buff = true }
 
@@ -732,13 +741,22 @@ local function onEvents(list: { any })
 		elseif kind == AIM then
 			-- {8, e, x,y,z, heroUserId, time, lock}: a Sniper's laser on a hero (bots have no body to aim at)
 			local to = heroChest(ev[6])
+			local aiming = holds(ev[2], EnemySim.EXTRA.aim)
 			if to() then
-				CombatFx.aimLaser(robotAt(ev[2], "RifleTip", Vector3.new(0, 1.5, 0)), to, ev[7], ev[8])
+				CombatFx.aimLaser(
+					robotAt(ev[2], "RifleTip", Vector3.new(0, 1.5, 0)),
+					to,
+					ev[7],
+					ev[8],
+					aiming
+				)
 			end
 			if ev[6] == player.UserId then
-				CombatFx.targeted(ev[7], ev[8])
+				CombatFx.targeted(ev[7], ev[8], aiming)
 				task.delay(math.max(0, ev[7] - ev[8]), function()
-					Juice.fire("aimLock", nil, { mine = true })
+					if aiming() then -- no lock sound for an aim a stun already broke
+						Juice.fire("aimLock", nil, { mine = true })
+					end
 				end)
 			end
 		elseif kind == RALLY then
@@ -755,7 +773,7 @@ local function onEvents(list: { any })
 			local patient = ev[6]
 			CombatFx.mend(robotAt(ev[2], "RightHand", Vector3.new(0, 1, 0)), function()
 				return EnemyRenderer.position(patient)
-			end, ev[7])
+			end, ev[7], holds(ev[2], EnemySim.EXTRA.mend))
 		elseif kind == REVEAL then
 			local at = EnemyRenderer.position(ev[2]) or Vector3.new(ev[3], ev[4], ev[5])
 			CombatFx.reveal(at)

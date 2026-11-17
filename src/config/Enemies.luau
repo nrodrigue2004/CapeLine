@@ -456,8 +456,9 @@ return {
 		speed = 24,
 		aggro = 70,
 		attackRange = 6,
-		-- shows itself 12 studs from a hero; near a fight for 5 s, it walks up to one at a citizen's pace
-		disguise = { reveal = 12, stalk = 5, walk = 6 },
+		-- shows itself 12 studs from a hero; near a fight for 5 s, it walks up to one at a citizen's pace; a
+		-- site's Mimic with no robot of its fight left within `alone` studs shows itself (so the site can finish)
+		disguise = { reveal = 12, stalk = 5, walk = 6, alone = 150 },
 		ambush = { delay = 0.35, coeff = 1.8 }, -- the first strike after it shows itself
 		stab = { cooldown = 1.2 },
 		coeff = 0.7,

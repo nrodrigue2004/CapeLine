@@ -1984,6 +1984,171 @@ test("New robot types: fast shots never pass through a hero between steps", func
 	check(hit, "the round still hits")
 end)
 
+test("New robot types (review): a pull breaks a Sniper's aim, so no round comes without a laser", function()
+	local sim = robotSim()
+	local sn = EnemySim.spawn(sim, "Sniper", -60, 0, 0, 1) :: any
+	sn.nextSpecial = 0
+	local hero = { id = 1, x = -60, y = 3, z = -80, alive = true }
+	local t = run(sim, { hero }, 0, 0.3)
+	check(sn.aimUntil > 0, "aiming")
+	-- a Pull longer than the aim drags it 10 studs toward the hero
+	EnemySim.applyStatus(sim, sn.id, "pull", 2, { x = -60, y = 3, z = -10, speed = 5 })
+	local shots = 0
+	run(sim, { hero }, t, t + 2.4, function(ev)
+		if ev.k == "shot" then
+			shots += 1
+		end
+	end)
+	check(shots == 0, string.format("no round right after the pull (%d)", shots))
+	check(bit32.band(sn.extra, EnemySim.EXTRA.aim) == 0 or sn.aimUntil > sim.now, "no stale aim bit")
+end)
+
+test("New robot types (review): a Grappler that falls or is stunned cuts its hook", function()
+	local function fired(stun: boolean): (number, any, any)
+		local sim = robotSim()
+		local g = EnemySim.spawn(sim, "Grappler", -60, 0, 0, 1) :: any
+		g.nextSpecial = 0
+		local hero = { id = 1, x = -60, y = 3, z = -40, alive = true }
+		local t, shot = 0, false
+		while not shot and t < 2 do
+			t += 0.05
+			EnemySim.step(sim, t, { hero })
+			for _, ev in EnemySim.drainEvents(sim) do
+				if ev.k == "shot" and ev.style == 3 then
+					shot = true
+				end
+			end
+		end
+		check(shot, "the hook is out")
+		if stun then
+			EnemySim.applyStatus(sim, g.id, "stun", 1)
+		else
+			EnemySim.damage(sim, g.id, math.huge, 1)
+		end
+		local pulls = 0
+		run(sim, { hero }, t, t + 1.5, function(ev)
+			if ev.k == "hit" and ev.pull then
+				pulls += 1
+			end
+		end)
+		return pulls, g, sim
+	end
+	local pulls = fired(false)
+	check(pulls == 0, "a fallen Grappler's hook pulls nobody")
+	local p2, g2, s2 = fired(true)
+	check(p2 == 0, "a stun cuts the cable")
+	check(
+		g2.hookUntil <= s2.now and bit32.band(g2.extra, EnemySim.EXTRA.hooked) == 0,
+		"the hooked bit clears"
+	)
+	for _, s in s2.shots do
+		check(s.enemyId ~= g2.id or not s.pull, "no hook left in flight")
+	end
+end)
+
+test("New robot types (review): a site's Mimic shows itself once the rest of its squad is gone", function()
+	local sim = robotSim()
+	local m = EnemySim.spawn(sim, "Mimic", -60, 0, 0, 5) :: any
+	local mate = EnemySim.spawn(sim, "BurglarBot", -60, 0, 20, 5) :: any
+	m.tag, mate.tag = 7, 7
+	-- the hero hangs back out of its sight (or hovers over it): nothing would ever give it away
+	local hero = { id = 1, x = -60, y = 3, z = -150, alive = true }
+	local t = run(sim, { hero }, 0, 1)
+	check(m.disguised, "disguised while its squad fights")
+	EnemySim.damage(sim, mate.id, math.huge, 1)
+	local revealed = false
+	t = run(sim, { hero }, t, t + 1, function(ev)
+		if ev.k == "reveal" and ev.e == m.id then
+			revealed = true
+		end
+	end)
+	check(revealed and not m.disguised, "the last of its squad: it shows itself")
+	local seen = false
+	for _, c in EnemySim.candidates(sim) do
+		seen = seen or c.id == m.id
+	end
+	check(seen, "and can be hit, so the site can finish")
+	-- an untagged one (the Dev panel, the stand-in spawner) keeps its disguise alone
+	local s2 = robotSim()
+	local m2 = EnemySim.spawn(s2, "Mimic", -60, 0, 0, 5) :: any
+	run(s2, { hero }, 0, 1)
+	check(m2.disguised, "an ambient Mimic stays disguised")
+end)
+
+test("New robot types (review): an Interceptor never nets a hero who has landed", function()
+	local sim = robotSim()
+	local it = EnemySim.spawn(sim, "Interceptor", -60, 40, 0, 1) :: any
+	local flier = { id = 2, x = -60, y = 50, z = -30, alive = true }
+	local t = run(sim, { flier }, 0, 1)
+	check(it.target == 2, "after the flier")
+	flier.y = 3 -- lands; the Interceptor keeps it 2 s
+	it.nextSpecial = 0
+	local nets = 0
+	run(sim, { flier }, t, t + 1.8, function(ev)
+		if ev.k == "shot" and ev.style == 2 then
+			nets += 1
+		end
+	end)
+	check(nets == 0, string.format("no net at a grounded hero (%d)", nets))
+end)
+
+test("New robot types (review): a pack or escort never spawns inside a building", function()
+	local sim = robotSim()
+	-- the street ends at x = 20, where a 30-stud building starts
+	local lead = EnemySim.spawn(sim, "Swarmer", 17, 0, 0, 1) :: any
+	local cap = EnemySim.spawn(sim, "Captain", 15, 0, 50, 1) :: any
+	local all = EnemySim.company(sim, lead)
+	for _, o in EnemySim.company(sim, cap) do
+		table.insert(all, o)
+	end
+	check(#all == 7, "the pack and the escort")
+	for _, o in all do
+		if o.ai ~= "flyer" then
+			check(cityHeight(o.x, o.z) <= 1, o.kind .. " on the street")
+			near(o.y, EnemySim.halfHeight(o.cfg), 1e-6, o.kind .. " on the ground, not a roof")
+		end
+	end
+end)
+
+test(
+	"New robot types (review): a hook's pull is granted its flat travel only (the drop is a free fall)",
+	function()
+		local pull = { x = 0, y = 3.5, z = 0, reel = 6, time = 0.5 }
+		local hx, hy, hz = 0, 45, 30 -- a flier 30 studs out and 41.5 up
+		local mx, mz, drop, grant = EnemySim.hookPull(pull, hx, hy, hz)
+		near(math.sqrt(mx * mx + mz * mz), 24, 1e-6, "pulled to `reel` studs short")
+		near(drop, 3.5 - 45, 1e-6, "and down to it")
+		check(grant <= 24 + 12, string.format("grant %.1f has no drop in it", grant))
+		-- the client's arc (MoveController.arcTo, height 3) passes the speed check with that grant
+		local st = MoveCheck.new(hx, hy, hz, 0)
+		MoveCheck.grant(st, grant)
+		local tx, ty, tz = hx + mx, hy + drop, hz + mz
+		local ok = true
+		for i = 1, 5 do
+			local u = i / 5
+			local x = hx + (tx - hx) * u
+			local y = hy + (ty - hy) * u + 3 * 4 * u * (1 - u)
+			local z = hz + (tz - hz) * u
+			local pass =
+				MoveCheck.sample(st, x, y, z, i * 0.1, Config.Move.caps.run, Config.Move, Config.Safety)
+			ok = ok and pass
+		end
+		check(ok, "the pull is never pulled back")
+	end
+)
+
+test("New robot types (review): the Dev panel's robot button skips switched-off types", function()
+	local order = Config.Enemies.order
+	local sniper = table.find(order, "Sniper") :: number
+	Config.Enemies.Sniper.on = false
+	local nextIdx = EnemySim.nextEnabled(Config, sniper - 1)
+	local wrap = EnemySim.nextEnabled(Config, #order)
+	Config.Enemies.Sniper.on = true
+	check(order[nextIdx] == "Bomber", "Sniper off: Captain then Bomber")
+	check(wrap == 1, "wraps to the first")
+	check(order[EnemySim.nextEnabled(Config, sniper - 1)] == "Sniper", "on again: back in the cycle")
+end)
+
 test("M2: populate mixes the robot kinds and keeps ground robots on streets", function()
 	local sim = robotSim()
 	local heroes = {}
