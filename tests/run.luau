@@ -5970,8 +5970,8 @@ test(
 			end
 		end
 		-- 121 in the first slice, then 2026-11-17's head area: 20 hair, 7 facial hair, 15 faces, 12 makeup,
-		-- 4 ears, 14 eyes and 20 emblems
-		check(count == 121 + 92, "213 pieces beyond the first 146")
+		-- 4 ears, 14 eyes and 20 emblems; then 10 headwear and 14 masks
+		check(count == 121 + 92 + 24, "237 pieces beyond the first 146")
 		-- every piece's unlock can actually be earned
 		for _, p in idx.list do
 			local src, n = p.source, p.source.n
@@ -6025,7 +6025,7 @@ test(
 			rshin = true,
 		}
 		for slot, set in kits do
-			if type(set) == "table" and slot ~= "hatHidesHair" and slot ~= "hatHidesFace" then
+			if type(set) == "table" and not string.find(slot, "Hides") then
 				for kit, specs in set do
 					local list = if slot == "legs" then specs.parts else specs
 					for _, s in list do

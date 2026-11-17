@@ -1008,6 +1008,142 @@ ears.gems =
 	both(S("head", V(0.1, 0.1, 0.1), CF(-0.62, -0.08, 0), "a", { shape = "Ball", mat = Enum.Material.Glass }))
 ears.fins = both(S("head", V(0.06, 0.4, 0.5), CF(-0.66, 0.1, 0.1), "p", { shape = "Wedge" }))
 
+-- headwear: 10 more (the head top is y = 0.64)
+hat.dorag = cat(
+	S("head", V(1.28, 0.42, 1.3), CF(0, TOP - 0.12, 0.02), "p", { mat = Enum.Material.Fabric }),
+	S("head", V(0.3, 0.5, 0.08), CF(0, 0.05, 0.66) * rx(15), "p", { mat = Enum.Material.Fabric })
+)
+hat.beret = {
+	S("head", V(1.3, 0.24, 1.25), CF(0.12, TOP + 0.04, 0.05) * rz(-10), "p", { mat = Enum.Material.Fabric }),
+}
+hat.bucket = cat(
+	S("head", V(1.26, 0.42, 1.26), CF(0, TOP - 0.02, 0), "p", { mat = Enum.Material.Fabric }),
+	S("head", V(1.6, 0.08, 1.6), CF(0, TOP - 0.22, 0), "p", { mat = Enum.Material.Fabric })
+)
+hat.catears = cat(
+	S("head", V(1.24, 0.1, 0.16), CF(0, TOP - 0.02, 0.05), "dark"),
+	both(S("head", V(0.1, 0.38, 0.32), CF(-0.38, TOP + 0.18, 0.05) * rz(12), "p", { shape = "Wedge" }))
+)
+hat.antlers = cat(
+	both(S("head", V(0.1, 0.6, 0.1), CF(-0.35, TOP + 0.25, 0.05) * rz(25), "s")),
+	both(S("head", V(0.08, 0.3, 0.08), CF(-0.52, TOP + 0.45, 0.05) * rz(-20), "s")),
+	both(S("head", V(0.08, 0.28, 0.08), CF(-0.28, TOP + 0.52, 0.05) * rz(40), "s"))
+)
+hat.hachimaki = cat(
+	S("head", V(1.25, 0.16, 1.25), CF(0, 0.34, 0), "white", { mat = Enum.Material.Fabric }),
+	S("head", V(0.22, 0.12, 0.05), CF(0, 0.34, -0.64), "glowRed"),
+	both(
+		S("head", V(0.08, 0.5, 0.06), CF(-0.1, 0.12, 0.67) * rz(15), "white", { mat = Enum.Material.Fabric })
+	)
+)
+hat.tiara = cat(
+	S("head", V(1.22, 0.08, 1.22), CF(0, 0.42, 0), "gold", { mat = Enum.Material.Metal }),
+	S("head", V(0.2, 0.25, 0.06), CF(0, 0.52, -0.62) * rz(45), "a", { mat = Enum.Material.Glass })
+)
+hat.laurel = cat(
+	both(S("head", V(0.12, 0.14, 1.0), CF(-0.58, 0.4, 0.05) * rx(8), "gold", { mat = Enum.Material.Metal })),
+	both(S("head", V(0.18, 0.08, 0.3), CF(-0.62, 0.48, -0.25), "gold", { mat = Enum.Material.Metal }))
+)
+hat.lens = cat(
+	S("head", V(0.08, 0.1, 0.9), CF(0.63, 0.1, -0.15), "dark"),
+	S("head", V(0.32, 0.26, 0.05), CF(0.38, 0.12, FZ - 0.06), "a", { neon = true, alpha = 0.3 })
+)
+hat.aviator = cat(
+	S("head", V(1.3, 0.4, 1.3), CF(0, TOP - 0.1, 0.02), "s", { mat = Enum.Material.Leather }),
+	both(S("head", V(0.12, 0.6, 0.45), CF(-0.64, 0.05, 0.05), "s", { mat = Enum.Material.Leather })),
+	both(
+		S(
+			"head",
+			V(0.3, 0.3, 0.14),
+			CF(-0.24, TOP - 0.04, -0.6),
+			"a",
+			{ shape = "Ball", mat = Enum.Material.Glass }
+		)
+	)
+)
+hatHidesHair.dorag = true
+hatHidesHair.bucket = true
+hatHidesHair.aviator = true
+
+-- masks (the Masks slot's 2026-11-17 extras; LookKit falls back here for kits it does not have)
+local head = {}
+head.ninja = cat(
+	S("head", V(1.28, 0.62, 1.28), CF(0, -0.32, 0), "dark", { mat = Enum.Material.Fabric }),
+	S("head", V(1.28, 0.24, 1.28), CF(0, 0.45, 0), "dark", { mat = Enum.Material.Fabric })
+)
+head.skull = cat(
+	S("head", V(1.22, 1.3, 0.1), CF(0, 0, FZ - 0.03), "white"),
+	both(S("head", V(0.3, 0.26, 0.04), CF(-0.24, 0.12, FZ - 0.09), "dark")),
+	S("head", V(0.1, 0.12, 0.04), CF(0, -0.08, FZ - 0.09), "dark"),
+	S("head", V(0.5, 0.06, 0.04), CF(0, -0.32, FZ - 0.09), "dark")
+)
+head.gasmask = cat(
+	S("head", V(1.0, 0.75, 0.2), CF(0, -0.05, FZ - 0.05), "dark", { mat = Enum.Material.Rubber }),
+	both(
+		S(
+			"head",
+			V(0.3, 0.3, 0.06),
+			CF(-0.24, 0.14, FZ - 0.16),
+			"a",
+			{ shape = "Ball", mat = Enum.Material.Glass }
+		)
+	),
+	S("head", V(0.36, 0.36, 0.3), CF(0, -0.32, FZ - 0.25) * rx(90), "s", { shape = "Cylinder" })
+)
+head.fullface = cat(
+	S("head", V(1.22, 1.3, 0.1), CF(0, 0, FZ - 0.03), "p"),
+	S("head", V(0.9, 0.12, 0.04), CF(0, 0.14, FZ - 0.09), "a", { neon = true })
+)
+head.oni = cat(
+	S("head", V(1.15, 1.2, 0.12), CF(0, 0, FZ - 0.04), "glowRed"),
+	both(S("head", V(0.16, 0.4, 0.2), CF(-0.42, 0.68, -0.45) * rz(15), "white", { shape = "Wedge" })),
+	S("head", V(0.6, 0.1, 0.04), CF(0, -0.28, FZ - 0.11), "white"),
+	both(S("head", V(0.28, 0.08, 0.04), CF(-0.24, 0.24, FZ - 0.11) * rz(20), "dark"))
+)
+head.fox = cat(
+	S("head", V(1.1, 1.0, 0.1), CF(0, 0.08, FZ - 0.03), "white"),
+	S("head", V(0.4, 0.3, 0.3), CF(0, -0.18, FZ - 0.18), "white", { shape = "Wedge" }),
+	both(S("head", V(0.12, 0.42, 0.3), CF(-0.4, 0.68, -0.4) * rz(15), "white", { shape = "Wedge" })),
+	both(S("head", V(0.26, 0.05, 0.04), CF(-0.24, 0.16, FZ - 0.09) * rz(-20), "glowRed"))
+)
+head.goalie = cat(
+	S("head", V(1.2, 1.28, 0.1), CF(0, 0, FZ - 0.03), "white"),
+	S("head", V(0.08, 0.5, 0.04), CF(-0.2, -0.2, FZ - 0.09), "dark"),
+	S("head", V(0.08, 0.5, 0.04), CF(0.2, -0.2, FZ - 0.09), "dark"),
+	S("head", V(0.08, 0.5, 0.04), CF(0, -0.2, FZ - 0.09), "dark"),
+	both(S("head", V(0.26, 0.2, 0.04), CF(-0.24, 0.16, FZ - 0.09), "dark"))
+)
+head.respirator = cat(
+	S("head", V(0.8, 0.45, 0.16), CF(0, -0.3, FZ - 0.04), "s", { mat = Enum.Material.Metal }),
+	both(S("head", V(0.24, 0.24, 0.2), CF(-0.38, -0.32, FZ - 0.08) * ROT_Y, "dark", { shape = "Cylinder" }))
+)
+head.eyepatch = cat(
+	S("head", V(0.3, 0.26, 0.06), CF(0.22, 0.12, FZ - 0.03), "dark"),
+	S("head", V(1.26, 0.05, 1.26), CF(0, 0.2, 0) * rz(-12), "dark")
+)
+head.monovisor = cat(
+	S("head", V(1.3, 0.5, 1.3), CF(0, 0.12, 0), "p", { mat = Enum.Material.Metal }),
+	S("head", V(0.9, 0.08, 0.06), CF(0, 0.12, FZ - 0.07), "a", { neon = true })
+)
+head.welder = cat(
+	S("head", V(1.25, 1.1, 0.14), CF(0, -0.05, FZ - 0.05), "s", { mat = Enum.Material.Metal }),
+	S("head", V(0.8, 0.2, 0.05), CF(0, 0.15, FZ - 0.13), "dark", { mat = Enum.Material.Glass })
+)
+head.masquerade = cat(
+	S("head", V(1.0, 0.32, 0.08), CF(0, 0.13, FZ - 0.02), "p"),
+	both(S("head", V(0.14, 0.4, 0.06), CF(-0.55, 0.38, FZ - 0.02) * rz(30), "a", { shape = "Wedge" }))
+)
+head.techmask = cat(
+	S("head", V(1.0, 0.5, 0.14), CF(0, -0.28, FZ - 0.04), "dark", { mat = Enum.Material.Metal }),
+	both(S("head", V(0.06, 0.2, 0.04), CF(-0.25, -0.28, FZ - 0.12), "a", { neon = true })),
+	S("head", V(0.06, 0.2, 0.04), CF(0, -0.28, FZ - 0.12), "a", { neon = true })
+)
+head.crystal = cat(
+	S("head", V(1.18, 0.6, 0.12), CF(0, 0.1, FZ - 0.04), "a", { mat = Enum.Material.Glass, alpha = 0.2 }),
+	S("head", V(0.3, 0.5, 0.3), CF(0, 0.72, -0.2) * rz(45), "a", { mat = Enum.Material.Glass, alpha = 0.2 })
+)
+local maskHidesHair = { ninja = true }
+
 return {
 	beard = beard,
 	face = face,
@@ -1024,4 +1160,6 @@ return {
 	hair = hair,
 	hatHidesHair = hatHidesHair,
 	hatHidesFace = hatHidesFace,
+	head = head,
+	maskHidesHair = maskHidesHair,
 }

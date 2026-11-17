@@ -1206,7 +1206,9 @@ function LookKit.build(char: Model, look: any, weapon: any?): Folder
 	for _, tab in { "back", "head", "hands", "feet" } do
 		local kit = kitOf(tab)
 		local c, m = slotColors(colors, look, tab)
-		addSpecs(char, folder, tab, kit and KITS[tab][kit], c, m)
+		-- the slot's own kits, then the 2026-11-17 extras in PieceKits
+		local extra = PieceKits[tab]
+		addSpecs(char, folder, tab, kit and (KITS[tab][kit] or (extra and extra[kit])), c, m)
 	end
 	if legDef then
 		addSpecs(char, folder, "legs", legDef.parts, legColors, legMat)
@@ -1214,7 +1216,8 @@ function LookKit.build(char: Model, look: any, weapon: any?): Folder
 	-- headwear and masks may hide the hair (and a closed helm the face)
 	local headKit = kitOf("head")
 	local hatKit = kitOf("hat")
-	local hidesHair = (headKit and HIDES_HAIR[headKit]) or (hatKit and PieceKits.hatHidesHair[hatKit])
+	local hidesHair = (headKit and (HIDES_HAIR[headKit] or PieceKits.maskHidesHair[headKit]))
+		or (hatKit and PieceKits.hatHidesHair[hatKit])
 	local hidesFace = hatKit ~= nil and PieceKits.hatHidesFace[hatKit] == true
 	local hairKit = kitOf("hair")
 	if hairKit and not hidesHair then
