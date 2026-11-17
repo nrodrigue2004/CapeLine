@@ -15,6 +15,7 @@ local Net = require(Shared:WaitForChild("Net"))
 local ShopRules = require(Shared:WaitForChild("ShopRules"))
 local CreatorRules = require(Shared:WaitForChild("CreatorRules"))
 local GearMath = require(Shared:WaitForChild("GearMath"))
+local RepTiers = require(Shared:WaitForChild("RepTiers")) -- lore step 12: the side styles
 
 local Kit = require(script.Parent.Kit)
 local State = require(script.Parent.Parent.State)
@@ -180,6 +181,31 @@ local function drawGizmo()
 		note("Your HQ is at its top level")
 	end
 	note("Gizmo's styles: looks only, never stats. Credits: " .. Kit.comma(State.hero.credits or 0))
+	-- lore step 12: your own side's styles, opened by its reputation rank (Credits only, looks only)
+	local track = RepTiers.track(Config, State.hero.side)
+	local tier = s.repTier or 0
+	note(string.format("%s RANK %d: side styles", string.upper(Config.Story.rep.labels[track] or ""), tier))
+	for _, e in RepTiers.styles(Config) do
+		if e.track == track then
+			local slot = Config.Gear.slotOrder[(GearMath.styleParts(e.id))] or ""
+			local have = owned[e.id] == true
+			local open = tier >= e.tier
+			row(
+				string.format(
+					"%s  (%s)  %s",
+					e.row.name,
+					slot,
+					if have then "OWNED" elseif open then Kit.comma(e.price) .. " CR" else "RANK " .. e.tier
+				),
+				function()
+					if not have and open then
+						Net.send("GizmoBuy", e.id)
+					end
+				end,
+				if have or not open then Kit.color.muted else Kit.color.gold
+			)
+		end
+	end
 	for _, e in ShopRules.gizmo(Config) do
 		local slotIdx = GearMath.styleParts(e.id)
 		local slot = Config.Gear.slotOrder[slotIdx] or ""

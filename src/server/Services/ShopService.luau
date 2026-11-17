@@ -1,7 +1,8 @@
 -- ShopService: Gizmo's shop at HQ and wearing what was bought (spec: Hero HQ > Gizmo's shop "Base styles
 -- for Credits (500 to 3,000), Lumen Dust upgrade bench"; Revenue levers "Effect colors", "Emotes and landing
 -- poses").
--- * GizmoBuy: a base style for Credits only, inside the HQ. It unlocks the style for the account, the same
+-- * GizmoBuy: a base style for Credits only, inside the HQ (lore step 12: and the side styles your own side's
+--   reputation tier has opened, Shared.RepTiers). It unlocks the style for the account, the same
 --   as looting it; the Style Collection shows it. (The Dust bench is the GEAR screen's Upgrade.)
 -- * TintSet and LandingSet: wear an owned effect colour or landing pose (0 takes it off). Looks only.
 -- * EmotePlay: an owned emote or landing pose plays on the hero for everyone (the Emote attribute).
@@ -39,7 +40,15 @@ local function gizmoBuy(player: Player, styleId: number)
 	end
 	local price = ShopRules.gizmoPrice(Config, styleId)
 	if not price then
-		return
+		-- lore step 12: a side style, open to your own side's reputation tier only
+		local why
+		price, why = ShopRules.repPrice(Config, ProfileSchema.active(profile), styleId)
+		if not price then
+			if why == "tier" or why == "side" then
+				Net.fire("Toast", player, { id = "shopRefused", reason = "rep" })
+			end
+			return
+		end
 	end
 	if Bits.get(profile.styles, styleId) then
 		Net.fire("Toast", player, { id = "shopRefused", reason = "owned" })

@@ -7,17 +7,53 @@
 
 local EventPlan = {}
 
--- active: id -> end time; rareAt: no rare event before this (lore step 9, scheduler.rare)
-export type State = { nextAt: number, last: string?, active: { [string]: number }, rareAt: number }
+-- active: id -> end time; rareAt: no rare event before this (lore step 9, scheduler.rare); sideAt: no side event
+-- before this (lore step 12, scheduler.side)
+export type State = {
+	nextAt: number,
+	last: string?,
+	active: { [string]: number },
+	rareAt: number,
+	sideAt: number,
+}
 
 function EventPlan.new(cfg: any, now: number): State
 	local rare = cfg.scheduler.rare
+	local side = cfg.scheduler.side
 	return {
 		nextAt = now + cfg.scheduler.firstAfter,
 		last = nil,
 		active = {},
 		rareAt = now + (if rare then rare.firstAfter else math.huge),
+		sideAt = now + (if side then side.firstAfter else math.huge),
 	}
+end
+
+-- The side tier (lore step 12): when a slot is due (and the rare tier did not take it) and the side gap has
+-- passed, the side events that `allowed(id)` says may run now (both sides in the server) are asked first, so a
+-- server without both sides never rolls (and the normal mix's draws stay exactly as before); then one roll of
+-- scheduler.side.chance picks one of them. Returns the side id or nil.
+local function sidePick(
+	cfg: any,
+	state: State,
+	now: number,
+	rng: any,
+	allowed: ((string) -> boolean)?
+): string?
+	local T = cfg.scheduler.side
+	if not T or not allowed or not cfg.side or now < (state.sideAt or math.huge) then
+		return nil
+	end
+	local ok = {}
+	for _, id in cfg.side do
+		if state.active[id] == nil and cfg.events[id] and allowed(id) then
+			table.insert(ok, id)
+		end
+	end
+	if #ok == 0 or rng:range(0, 1) >= T.chance then
+		return nil
+	end
+	return ok[rng:int(1, #ok)]
 end
 
 -- The rare tier (lore step 9): when a slot is due and the rare gap has passed, one roll of scheduler.rare.chance;
@@ -56,13 +92,16 @@ end
 -- Which event starts now, or nil (not due, two running, or nothing allowed). rng: :range and :int.
 -- weights (H8, the weekly episode's theme): an event id's weight in the pick; missing ids weigh 1.
 -- rare (lore step 9): may a rare event start now (someone eligible)? Without it the rare tier never rolls.
+-- side (lore step 12): may this side-vs-side event start now (both sides here)? Without it the side tier never
+-- rolls; it rolls after the rare tier, on slots the rare tier left.
 function EventPlan.due(
 	cfg: any,
 	state: State,
 	now: number,
 	rng: any,
 	weights: { [string]: number }?,
-	rare: ((string) -> boolean)?
+	rare: ((string) -> boolean)?,
+	side: ((string) -> boolean)?
 ): string?
 	for id, ends in state.active do
 		if now >= ends then
@@ -79,6 +118,14 @@ function EventPlan.due(
 		state.rareAt = now + cfg.scheduler.rare.gap
 		state.nextAt = now + rng:range(cfg.scheduler.every[1], cfg.scheduler.every[2])
 		return rid
+	end
+	local sid = sidePick(cfg, state, now, rng, side)
+	if sid then
+		state.last = sid
+		state.active[sid] = now + cfg.events[sid].length
+		state.sideAt = now + cfg.scheduler.side.gap
+		state.nextAt = now + rng:range(cfg.scheduler.every[1], cfg.scheduler.every[2])
+		return sid
 	end
 	local pool = {}
 	for _, id in cfg.order do
@@ -289,6 +336,95 @@ function EventPlan.doublePick(cfg: any, list: { [number]: DoubleInfo }, rng: any
 	end
 	table.sort(ids)
 	return ids[rng:int(1, #ids)]
+end
+
+---------------------------------------------------------------------------
+-- Side-vs-side events (lore step 12): one side defends, the other steals
+---------------------------------------------------------------------------
+
+-- Is this a side-vs-side event?
+function EventPlan.isSide(cfg: any, id: string): boolean
+	return cfg.side ~= nil and table.find(cfg.side, id) ~= nil
+end
+
+-- The defending and the stealing side of a side event's def ("hero" or "villain")
+function EventPlan.roles(def: any): (string, string)
+	local defend = if def.defend == "villain" then "villain" else "hero"
+	return defend, if defend == "hero" then "villain" else "hero"
+end
+
+-- May a side event start with these many heroes of each side in the server?
+function EventPlan.sideOk(cfg: any, heroes: number, villains: number): boolean
+	local n = (cfg.scheduler.side and cfg.scheduler.side.minEach) or 1
+	return heroes >= n and villains >= n
+end
+
+-- The vault's crack rate (seconds of crack a second) with `stealers` and `defenders` in its ring: it only moves
+-- while the stealers outnumber the defenders, at the incidents' hold rate for the difference (the same rule as
+-- IncidentPlan.holdRate: Config.Incidents.holdRate first, each, max)
+function EventPlan.crackRate(incidents: any, stealers: number, defenders: number): number
+	local k = stealers - defenders
+	if k <= 0 then
+		return 0
+	end
+	local h = incidents.holdRate
+	return math.min(h.max, h.first + h.each * (k - 1))
+end
+
+-- May this hero's hit crack a side event's objective? Only the stealing side's (the defenders guard it)
+function EventPlan.canCrack(def: any, side: string?): boolean
+	local _, steal = EventPlan.roles(def)
+	return (if side == "villain" then "villain" else "hero") == steal
+end
+
+export type SideState = {
+	goal: string,
+	broken: boolean?, -- float: the stealers cracked it
+	arrived: boolean?, -- float: it reached the end of its route
+	cracked: boolean?, -- hold: the crack is done
+	timeUp: boolean?,
+	hero: number, -- shards: the Vigil's grabs
+	villain: number, -- shards: the Syndicate's grabs
+	need: number?, -- shards: how many there are
+}
+
+-- The result of a side event now: "hero" or "villain" (the winning side), "draw", or nil (still on)
+function EventPlan.sideResult(def: any, s: SideState): string?
+	local defend, steal = EventPlan.roles(def)
+	if s.goal == "float" then
+		if s.broken then
+			return steal
+		elseif s.arrived then
+			return defend
+		elseif s.timeUp then
+			return "draw"
+		end
+	elseif s.goal == "hold" then
+		if s.cracked then
+			return steal
+		elseif s.timeUp then
+			return defend
+		end
+	elseif s.goal == "shards" then
+		local all = s.need ~= nil and s.hero + s.villain >= s.need
+		if all or s.timeUp then
+			if s.hero > s.villain then
+				return "hero"
+			elseif s.villain > s.hero then
+				return "villain"
+			end
+			return "draw"
+		end
+	elseif s.timeUp then
+		return "draw"
+	end
+	return nil
+end
+
+-- Own-side reputation for taking part (Config.Remembers.earn): every side, the winners a little more
+function EventPlan.sideRep(earn: any, result: string?, side: string?): number
+	local mine = if side == "villain" then "villain" else "hero"
+	return earn.sideEvent + (if result == mine then earn.sideWin else 0)
 end
 
 -- The rare tier's pay on top of an event's (Credits, Renown)

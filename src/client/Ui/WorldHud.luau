@@ -153,16 +153,17 @@ local function refreshTracker()
 			local villain = State.hero.side == "villain"
 			local name = if villain and def.villainName then def.villainName else def.name
 			local dist = if pos then math.floor((Vector3.new(ev.x, pos.Y, ev.z) - pos).Magnitude) else 0
+			local score = string.format("%s / %s", tostring(ev.have), tostring(ev.need))
+			if ev.defend then
+				-- lore step 12: a side event shows both sides' scores (crystals, or % of the route, crack or clock)
+				local unit = if def.goal == "shards" then "" else "%"
+				score =
+					string.format("VIGIL %d%s  SYNDICATE %d%s", ev.vigil or 0, unit, ev.syndicate or 0, unit)
+			end
 			setRow(
 				rows[n],
 				heroicTitle("EVENT: " .. string.upper(name), ev.heroic),
-				string.format(
-					"%s / %s   %s   %d studs",
-					tostring(ev.have),
-					tostring(ev.need),
-					Kit.time(ev.ends - now),
-					dist
-				),
+				string.format("%s   %s   %d studs", score, Kit.time(ev.ends - now), dist),
 				if ev.need > 0 then ev.have / ev.need else 0,
 				if ev.heroic then HEROIC_COLOR else Kit.color.gold
 			)

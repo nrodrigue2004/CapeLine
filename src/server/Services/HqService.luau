@@ -26,6 +26,7 @@ local HqRules = require(Shared:WaitForChild("HqRules"))
 local LookCodec = require(Shared:WaitForChild("LookCodec"))
 local CreatorRules = require(Shared:WaitForChild("CreatorRules"))
 local StoryPlan = require(Shared:WaitForChild("StoryPlan"))
+local RepTiers = require(Shared:WaitForChild("RepTiers")) -- lore step 12
 local ProfileSchema = require(Shared:WaitForChild("ProfileSchema"))
 
 local CityBuilder = require(script.Parent.CityBuilder)
@@ -174,7 +175,17 @@ local function state(visit: Visit?, player: Player)
 		statues = statues,
 		props = if profile then Bits.list(profile.props) else {},
 		sim = if v.sim then { x = v.sim.pos.X, y = v.sim.pos.Y, z = v.sim.pos.Z, id = v.sim.id } else nil,
+		-- lore step 12: your own side's reputation tier dresses the hideout (Shared.RepTiers.dressing)
+		repTier = if c then RepTiers.tier(Config, c) else 0,
 	})
+end
+
+-- Lore step 12: send the HQ again (a new reputation tier redresses the hideout while you are in it)
+function HqService.redraw(player: Player)
+	local v = visits[player]
+	if v then
+		state(v, player)
+	end
 end
 
 local function buildCell(centre: Vector3, slot: number): Model

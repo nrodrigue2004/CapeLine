@@ -28,6 +28,11 @@ return {
 		-- never in the first `firstAfter` s of the server nor within `gap` s of the last rare one; it pays `pay`
 		-- times an event's Credits and Renown. Rare events never join the normal mix (order).
 		rare = { chance = 0.1, gap = 3600, firstAfter = 1200, pay = 3 },
+		-- the side tier (lore step 12): side-vs-side events (Events.side) take a due slot on their own roll after
+		-- the rare tier's, only with at least `minEach` heroes of each side in the server, never in the first
+		-- `firstAfter` s nor within `gap` s of the last one. They never join the normal mix (order), so its odds
+		-- and the rare tier's stay as they were.
+		side = { chance = 0.2, gap = 2700, firstAfter = 600, minEach = 1 },
 	},
 	reward = { credits = { 60, 4 }, renown = { 80, 6 } }, -- per participant (M6, see Decisions)
 	helpRadius = 150, -- heroes this close when it ends who took part count
@@ -50,6 +55,8 @@ return {
 	},
 	-- the rare tier (scheduler.rare): picked only on its own roll, and only when someone may get it
 	rare = { "YourDouble" },
+	-- the side tier (scheduler.side): one side defends, the other steals (lore step 12)
+	side = { "DataTruck", "UptownVault", "SparkShipment" },
 	events = {
 		MeteorShower = {
 			num = 1,
@@ -263,6 +270,84 @@ return {
 			text = "A fake wearing your face is loose. Crack it before it slips away!",
 			helpText = "A fake is copying a hero nearby. Help crack it!",
 			notify = 300, -- heroes this close when it starts hear about it (everyone sees the news flash)
+		},
+		-- Side-vs-side events (nate's lore, build plan step 12): one side defends, the other steals, on an existing
+		-- goal. `defend` is the defending side ("hero" = the Vigil, "villain" = the Dread Syndicate); the other side
+		-- steals. PvP stays as ever: only flagged heroes fight each other; unflagged heroes fight the robots and the
+		-- objective. Everyone who took part gets the event's pay and own-side reputation (Config.Remembers.earn),
+		-- the winning side a little more; a news flash and a name card open it, the news names the winners.
+		-- * float: the armoured truck rolls its route at full speed while a defender is within `escort` studs
+		--   (else it crawls at `crawl`); only the stealing side's hits crack it (`hits`). It reaching the end is
+		--   the defenders' win, cracked the stealers'; time up is a draw.
+		-- * hold: the stealers crack the vault by standing in its ring, only while they outnumber the defenders in
+		--   it (Shared.EventPlan.crackRate); cracked (`hold` s) is the stealers' win, time up the defenders'.
+		-- * shards: every crystal counts for the side that grabs it; more when all are grabbed (or time is up)
+		--   wins, level is a draw (an odd count, so all grabbed always has a winner).
+		DataTruck = {
+			num = 14,
+			name = "Data truck standoff",
+			villainName = "Data truck heist",
+			goal = "float",
+			where = { "Downtown" },
+			side = true,
+			defend = "hero",
+			length = 180,
+			text = "An armoured Crane data truck is crossing Downtown: escort it to the press office",
+			villainText = "An armoured Crane data truck is crossing Downtown: crack it before it gets there",
+			hits = 70,
+			speed = 6,
+			crawl = 0.3,
+			escort = 60,
+			legs = 8,
+			leg = 45,
+			model = "Truck",
+			waves = {
+				{ "Interceptor", 3, "SparkDrone" },
+				{ "BurglarBot", 4 },
+				{ "ShieldBearer", 2, "BruteBot" },
+				{ "SparkDrone", 4 },
+			},
+			waveGap = 30,
+		},
+		UptownVault = {
+			num = 15,
+			name = "Uptown vault standoff",
+			villainName = "Uptown vault job",
+			goal = "hold",
+			where = { "Uptown" },
+			side = true,
+			defend = "hero",
+			length = 160,
+			text = "The Syndicate want the Uptown vault: stand in its ring to stop the crack",
+			villainText = "The Uptown vault is ripe: outnumber the Vigil in its ring to crack it",
+			hold = 40,
+			ring = 16,
+			prop = "Vault",
+			waves = {
+				{ "BurglarBot", 4 },
+				{ "SneakBot", 3 },
+				{ "Captain", 1, "BruteBot" },
+				{ "BurglarBot", 4 },
+			},
+			waveGap = 30,
+		},
+		SparkShipment = {
+			num = 16,
+			name = "Spark crystal raid",
+			villainName = "Spark crystal shipment",
+			goal = "shards",
+			where = { "Docks" },
+			side = true,
+			defend = "villain",
+			length = 150,
+			text = "A Syndicate Spark crystal shipment spilled on the quay: seize the crystals",
+			villainText = "Your Spark crystal shipment spilled on the quay: save the cargo before the Vigil",
+			shards = 9,
+			spread = 260,
+			grab = 10,
+			fallTime = 3,
+			waves = { { "SneakBot", 3 }, { "BruteBot", 3 }, { "Mimic", 2, "SneakBot" } },
+			waveGap = 30,
 		},
 	},
 }

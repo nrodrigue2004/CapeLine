@@ -22,8 +22,17 @@
 --   in the Crater, the prologue or a mission, not AFK, 3 h of play since their last) meets their own twin
 --   (EnemyService.spawnTwin) nearby, with a news flash for everyone and a name card and Patch's radio line on
 --   their device; nearby heroes help and share x3 pay. profile.stats.doubleAt keeps the play time of the last.
+-- * Side-vs-side events (nate's lore, build plan step 12): the side tier (Config.Events.scheduler.side) may give a
+--   due slot to one of 3 events where one side defends and the other steals, when both sides are on the server:
+--   the armoured Crane data truck across Downtown (float: the Vigil escort it, only the Syndicate's hits crack
+--   it), the Uptown vault (hold: the Syndicate crack it only while they outnumber the Vigil in its ring) and the
+--   Syndicate's Spark crystal shipment at the Docks (shards: each crystal counts for the side that grabs it).
+--   PvP rules are untouched: only flagged heroes fight each other; everyone fights the robot waves. Everyone
+--   who took part is paid as for any event plus own-side reputation (Paid signal, RepService), the winners a
+--   little more; a news flash and a name card open it and the news names a hero of the winning side.
 -- * Zone level: the median level of the heroes in the server, raised to the area floor (ZoneLevel).
--- * Event.State goes to everyone at 1 Hz while events run: { num, x, z, left, have, need, state, heroic }.
+-- * Event.State goes to everyone at 1 Hz while events run: { num, x, z, left, have, need, state, heroic,
+--   defend (0, or 1 the Vigil / 2 the Syndicate for a side event), Vigil score, Syndicate score }.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -44,6 +53,7 @@ local Progress = require(Shared:WaitForChild("Progress"))
 local HeroicRules = require(Shared:WaitForChild("HeroicRules"))
 local StoryPlan = require(Shared:WaitForChild("StoryPlan"))
 local ProfileSchema = require(Shared:WaitForChild("ProfileSchema"))
+local Signal = require(Shared:WaitForChild("Util"):WaitForChild("Signal"))
 
 local CityBuilder = require(script.Parent.CityBuilder)
 local HeroService = require(script.Parent.HeroService)
@@ -60,6 +70,10 @@ local MissionService = require(script.Parent.MissionService)
 local NewsService = require(script.Parent.NewsService)
 
 local EventService = {}
+
+-- (player, id, result, rep) every hero an event paid; result is the winning side or "draw" for a side event
+-- (nil for the rest). RepService pays own-side reputation from it (lore step 12).
+EventService.Paid = Signal.new()
 
 local EC = Config.Events
 local STATE = { active = 0, done = 1, failed = 2 }
@@ -104,6 +118,9 @@ type Live = {
 	reported: boolean,
 	target: Player?, -- Your double: the hero it copies
 	twin: number?, -- Your double: the twin's robot id
+	side: EventPlan.SideState?, -- lore step 12: a side-vs-side event's score
+	result: string?, -- lore step 12: "hero", "villain" or "draw" once it is over
+	top: { [string]: { [number]: number } }?, -- lore step 12: each side's heroes' share (for the news)
 }
 
 local plan: EventPlan.State
@@ -293,10 +310,56 @@ local function clampModel(m: Model)
 	)
 end
 
+-- lore step 12: the armoured Crane data truck (PLACEHOLDER ART: a navy box truck with the Crane C on its sides)
+local function truckModel(m: Model)
+	local navy = Color3.fromRGB(36, 48, 92)
+	SiteKit.part(
+		m,
+		Vector3.new(9, 3, 22),
+		CFrame.new(0, 2, 0),
+		Color3.fromRGB(40, 42, 50),
+		Enum.Material.Metal
+	)
+	SiteKit.part(m, Vector3.new(9, 8, 14), CFrame.new(0, 7.5, 3), navy, Enum.Material.DiamondPlate)
+	SiteKit.part(m, Vector3.new(8.6, 5, 6), CFrame.new(0, 6, -7.5), navy, Enum.Material.Metal)
+	SiteKit.part(
+		m,
+		Vector3.new(7.8, 2.2, 0.3),
+		CFrame.new(0, 7, -10.6),
+		Color3.fromRGB(140, 190, 230),
+		Enum.Material.Glass
+	)
+	for _, s in { -1, 1 } do
+		-- the Crane C: three white bars on each side
+		local x = s * 4.6
+		SiteKit.part(m, Vector3.new(0.2, 0.8, 4), CFrame.new(x, 10, 3), Color3.fromRGB(245, 245, 250))
+		SiteKit.part(m, Vector3.new(0.2, 4, 0.8), CFrame.new(x, 8, 4.6), Color3.fromRGB(245, 245, 250))
+		SiteKit.part(m, Vector3.new(0.2, 0.8, 4), CFrame.new(x, 6, 3), Color3.fromRGB(245, 245, 250))
+		for _, z in { -7, 7 } do
+			SiteKit.part(
+				m,
+				Vector3.new(1.4, 3.2, 3.2),
+				CFrame.new(s * 4.4, 1.6, z) * CFrame.Angles(0, 0, math.rad(90)),
+				Color3.fromRGB(20, 20, 24),
+				Enum.Material.SmoothPlastic,
+				Enum.PartType.Cylinder
+			)
+		end
+	end
+	SiteKit.part(
+		m,
+		Vector3.new(4, 0.5, 1),
+		CFrame.new(0, 11.8, 3),
+		Color3.fromRGB(255, 80, 60),
+		Enum.Material.Neon
+	)
+end
+
 local OBJECT_MODELS: { [string]: (Model) -> () } = {
 	Airship = airshipModel,
 	Float = floatModel,
 	Clamp = clampModel,
+	Truck = truckModel,
 }
 
 local function siteModel(kind: string?, at: Vector3): Model
@@ -429,7 +492,14 @@ local function build(ev: Live)
 			local h = SiteKit.pickup(at, d.grab, Color3.fromRGB(150, 120, 255), function(hero)
 				ev.helpers[hero.id] = true
 				ev.have += 1
-				if hero.player then
+				local s = ev.side
+				if s then
+					-- lore step 12: a crystal counts for the grabber's side (the pay's gear roll comes at the end)
+					local k = if hero.side == "villain" then "villain" else "hero"
+					s[k] += 1
+					local top = ev.top :: any
+					top[k][hero.id] = (top[k][hero.id] or 0) + 1
+				elseif hero.player then
 					GearService.grant(
 						hero.player,
 						"event",
@@ -560,6 +630,19 @@ local function build(ev: Live)
 		ev.path, ev.length, ev.travelled = path, length, 0
 		ev.object = target(ev, d.model or "Float", path[1], 5, 10, d.hits, false)
 		SiteKit.moveObject(ev.object, path[1], 0)
+		if ev.side then
+			-- lore step 12: only the stealing side's hits crack the truck (the defenders guard it)
+			ev.object.allow = function(heroId: number?): boolean
+				local h = heroId and HeroService.byId(heroId)
+				local ok = h ~= nil and EventPlan.canCrack(d, h.side)
+				if ok and h then
+					local k = if h.side == "villain" then "villain" else "hero"
+					local top = ev.top :: any
+					top[k][h.id] = (top[k][h.id] or 0) + 1
+				end
+				return ok
+			end
+		end
 	end
 	-- the first wave comes at once
 	if d.waves and ev.state == STATE.active then
@@ -619,6 +702,11 @@ local function start(id: string)
 		generators = {},
 		reported = false,
 	}
+	if def.side then
+		-- lore step 12: a side-vs-side event keeps each side's score
+		ev.side = { goal = def.goal, hero = 0, villain = 0, need = def.shards }
+		ev.top = { hero = {}, villain = {} }
+	end
 	live[id] = ev
 	build(ev)
 	for _, player in Players:GetPlayers() do
@@ -630,7 +718,11 @@ local function start(id: string)
 			name = if villain and def.villainName then def.villainName else def.name,
 			text = if villain and def.villainText then def.villainText else def.text,
 			heroic = heroic or nil,
+			side = def.side or nil, -- lore step 12: the name card shows for everyone
 		})
+	end
+	if def.side and ev.state == STATE.active then
+		NewsService.post("sideStart", nil, def.num)
 	end
 end
 
@@ -802,11 +894,15 @@ local function pay(ev: Live)
 			end
 			EconomyService.addCredits(player, credits)
 			EconomyService.addRenown(player, renown)
-			-- the meteor shower's roll is the shard itself
-			if ev.goal ~= "shards" then
+			-- the meteor shower's roll is the shard itself (a side event's crystals are not: it rolls here)
+			if ev.goal ~= "shards" or ev.side then
 				GearService.grant(player, "event", HeroicRules.gearLevel(Config, ev.level, ev.heroic))
 			end
 			local villain = hero.side == "villain"
+			-- lore step 12: own-side reputation for taking part (RepService pays it), the winners a little more
+			local E = Config.Remembers.earn
+			local rep = if ev.side then EventPlan.sideRep(E, ev.result, hero.side) else E.event
+			local mine = if villain then "villain" else "hero"
 			Net.fire("Toast", player, {
 				id = "eventDone",
 				num = ev.def.num,
@@ -814,9 +910,40 @@ local function pay(ev: Live)
 				credits = credits,
 				renown = renown,
 				heroic = ev.heroic or nil,
+				winner = if ev.side then ev.result else nil,
+				result = if not ev.side
+					then nil
+					elseif ev.result == "draw" then "draw"
+					elseif ev.result == mine then "win"
+					else "lose",
+				rep = rep,
+				track = if villain then "syndicate" else "vigil",
 			})
+			EventService.Paid:Fire(player, ev.id, ev.result, rep)
 		end
 	end
+end
+
+-- Lore step 12: the hero the news names for a side event's winners (the most crystals, hits or ring time;
+-- any helper of that side when nobody scored)
+local function sideTop(ev: Live, winner: string): Player?
+	local best, bestN = nil, -1
+	for heroId, n in (ev.top and ev.top[winner]) or {} do
+		local h = HeroService.byId(heroId)
+		if h and h.player and n > bestN then
+			best, bestN = h.player, n
+		end
+	end
+	if best then
+		return best
+	end
+	for heroId in ev.helpers do
+		local h = HeroService.byId(heroId)
+		if h and h.player and (if h.side == "villain" then "villain" else "hero") == winner then
+			return h.player
+		end
+	end
+	return nil
 end
 
 local function finish(ev: Live, ok: boolean)
@@ -825,6 +952,18 @@ local function finish(ev: Live, ok: boolean)
 		pay(ev)
 		if ev.goal == "twin" and ev.target and ev.target.Parent then
 			NewsService.post("doubleDown", ev.target)
+		end
+		-- lore step 12: the side event's result on the news, naming a hero of the winning side
+		if ev.side and ev.result then
+			if ev.result == "draw" then
+				NewsService.post("sideDraw", nil, ev.def.num)
+			else
+				NewsService.post(
+					if ev.result == "hero" then "sideVigil" else "sideSyndicate",
+					sideTop(ev, ev.result),
+					ev.def.num
+				)
+			end
 		end
 	end
 	for rid in ev.robots do
@@ -835,6 +974,77 @@ local function finish(ev: Live, ok: boolean)
 	task.delay(3, function()
 		SiteKit.clear(things)
 	end)
+end
+
+-- Lore step 12: a side-vs-side event's step. Each side does its own part on the same objective (EventPlan's
+-- rules); PvP is untouched (only flagged heroes may hit each other, as everywhere).
+local function sideOf(h: any): string
+	return if h.side == "villain" then "villain" else "hero"
+end
+
+local function stepSide(ev: Live, now: number, dt: number)
+	local d, s = ev.def, ev.side :: EventPlan.SideState
+	local top = ev.top :: any
+	local defend, steal = EventPlan.roles(d)
+	if ev.goal == "float" and ev.object and ev.path then
+		-- the truck rolls at full speed while a defender is near it, else it crawls; damage never slows it
+		local o = ev.object
+		local escorted = false
+		for _, h in SiteKit.heroesIn(o.pos, d.escort) do
+			ev.helpers[h.id] = true
+			if sideOf(h) == defend then
+				escorted = true
+				top[defend][h.id] = (top[defend][h.id] or 0) + dt
+			end
+		end
+		ev.travelled = math.min(ev.length, ev.travelled + d.speed * (if escorted then 1 else d.crawl) * dt)
+		local left = ev.travelled
+		local at, yaw = ev.path[#ev.path], 0
+		for i = 1, #ev.path - 1 do
+			local a, b = ev.path[i], ev.path[i + 1]
+			local seg = (b - a).Magnitude
+			if left <= seg then
+				at = a:Lerp(b, left / math.max(seg, 1e-3))
+				yaw = math.atan2(-(b.X - a.X), -(b.Z - a.Z))
+				break
+			end
+			left -= seg
+		end
+		if ev.have < 1 then
+			SiteKit.moveObject(o, at, yaw)
+			ev.pos = at
+			CitizenService.danger(at.X, at.Z, 40, 2)
+		end
+		s.broken = ev.have >= 1
+		s.arrived = ev.travelled >= ev.length
+		s[defend] = math.floor(ev.travelled / math.max(ev.length, 1) * 100)
+		s[steal] = math.floor((1 - math.max(0, o.hp) / math.max(o.maxHp, 1)) * 100)
+	elseif ev.goal == "hold" then
+		-- the stealers crack the vault only while they outnumber the defenders in its ring
+		local nD, nS = 0, 0
+		for _, h in SiteKit.heroesIn(ev.pos, (d.ring or 14) + 3) do
+			ev.helpers[h.id] = true
+			local k = sideOf(h)
+			if k == defend then
+				nD += 1
+			else
+				nS += 1
+			end
+			top[k][h.id] = (top[k][h.id] or 0) + dt
+		end
+		ev.held += EventPlan.crackRate(Config.Incidents, nS, nD) * dt
+		ev.have = math.min(ev.need, math.floor(ev.held * 10) / 10)
+		s.cracked = ev.held >= ev.need
+		s[steal] = math.floor(math.min(1, ev.held / math.max(ev.need, 1)) * 100)
+		s[defend] = math.floor(math.min(1, (now - ev.started) / d.length) * 100)
+	end
+	-- shards: the pickups add to each side's count as they are grabbed
+	s.timeUp = now >= ev.ends
+	local r = EventPlan.sideResult(d, s)
+	if r then
+		ev.result = r
+		finish(ev, true) -- both sides are paid for taking part, the winners a little more
+	end
 end
 
 local function stepEvent(ev: Live, now: number, dt: number)
@@ -850,6 +1060,10 @@ local function stepEvent(ev: Live, now: number, dt: number)
 			addRobots(ev, d.waves[ev.wave], ev.pos, if goal == "hold" then (d.ring or 14) + 12 else 18)
 			ev.nextWave = now + d.waveGap
 		end
+	end
+	if ev.side then
+		stepSide(ev, now, dt)
+		return
 	end
 	if goal == "hold" then
 		local inRing = SiteKit.heroesIn(ev.pos, (d.ring or 14) + 3)
@@ -972,6 +1186,10 @@ local function packet(): { any }
 			ev.need,
 			ev.state,
 			if ev.heroic then 1 else 0,
+			-- lore step 12: a side event's defending side (1 the Vigil, 2 the Syndicate) and each side's score
+			if ev.side then (if ev.def.defend == "villain" then 2 else 1) else 0,
+			if ev.side then ev.side.hero else 0,
+			if ev.side then ev.side.villain else 0,
 		})
 	end
 	return list
@@ -988,6 +1206,34 @@ function EventService.force(n: number, heroic: boolean?): boolean
 	EventService.forceHeroic = heroic == true
 	start(id)
 	return true
+end
+
+-- Studio: start side event n (1 to 3, Config.Events.side) now, ignoring the side tier's odds and gap and who
+-- is on the server (lore step 12)
+function EventService.forceSide(n: number): boolean
+	local id = EC.side and EC.side[n]
+	if not id or live[id] then
+		return false
+	end
+	plan.active[id] = os.clock() + EC.events[id].length
+	plan.last = id
+	start(id)
+	return true
+end
+
+-- The side tier asks: may this side event start now? (both sides in the open city, lore step 12)
+local function sideAllowed(_id: string): boolean
+	local heroes, villains = 0, 0
+	for _, h in HeroService.all() do
+		if h.player then
+			if h.side == "villain" then
+				villains += 1
+			else
+				heroes += 1
+			end
+		end
+	end
+	return EventPlan.sideOk(EC, heroes, villains)
 end
 
 -- Studio: your double on you now, ignoring the rare tier's odds, cooldowns and who may get it (the twin must
@@ -1056,8 +1302,15 @@ function EventService.init()
 		local now = os.clock()
 		local t0 = now
 		if #Players:GetPlayers() > 0 then
-			local id =
-				EventPlan.due(EC, plan, now, rng, PassRules.eventWeights(Config, os.time()), rareAllowed)
+			local id = EventPlan.due(
+				EC,
+				plan,
+				now,
+				rng,
+				PassRules.eventWeights(Config, os.time()),
+				rareAllowed,
+				sideAllowed
+			)
 			if id == "YourDouble" then
 				local h = doubleFor and HeroService.byId(doubleFor)
 				if not h or not startDouble(h) then
