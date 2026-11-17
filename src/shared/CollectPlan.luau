@@ -3,7 +3,7 @@
 -- and the Lune tests agree:
 -- * the sets and their save bits (Config.Collect: each set's `at` + its place - 1, in 128 bits);
 -- * where every find sits for a world (spots): the hidden sets from the city's own layout with a fixed seed
---   (on open street in their district, on a tall roof, or on the seabed), the weekly Comet Shards from the
+--   (on open street in their district, on a tall roof, or on the seabed), the weekly Star Charms from the
 --   week's world seed in the outskirts; every spot is checked against the height map so it never sits inside
 --   a building or under the water it should not be in;
 -- * the item a drop or an earned moment gives (robot parts, boss plates, nemesis cores, ribbons, keepsakes,

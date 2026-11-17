@@ -204,7 +204,21 @@ local function showTitle(player: Player)
 		return g ~= nil and table.find(done, g.accolade) ~= nil
 	end
 	player:SetAttribute("AccoladeAura", if owned(aura) then aura.accolade.id else nil)
-	player:SetAttribute("PlateTrim", if owned(trim) then trim.accolade.id else nil)
+	local passTrim = BadgeService.passTrim(profile, c.mmo.trim or 0)
+	player:SetAttribute(
+		"PlateTrim",
+		if passTrim then passTrim.id elseif owned(trim) then trim.accolade.id else nil
+	)
+end
+
+-- H8: a Hero Pass plate trim (mmo.trim = Config.Pass.trimBase + n) the account owns, or nil
+function BadgeService.passTrim(profile: any, value: number): any?
+	local P = Config.Pass
+	local n = value - P.trimBase
+	if n < 1 or not P.trims[n] or not Bits.get(profile.pass.trims, n) then
+		return nil
+	end
+	return P.trims[n]
 end
 
 -- The Badge Book's packet: earned bits, progress numbers, titles, accolades
@@ -260,6 +274,16 @@ local function wear(player: Player, slot: number, group: number)
 	end
 	local g = B.groups[group]
 	local kind = if slot == 1 then "aura" else "trim"
+	-- H8: a Hero Pass trim (Config.Pass.trimBase + n)
+	if slot == 2 and group > Config.Pass.trimBase then
+		if BadgeService.passTrim(profile, group) then
+			c.mmo.trim = group
+			showTitle(player)
+			DataService.saveSoon(player)
+		end
+		book(player)
+		return
+	end
 	if group == 0 or (g and g.accolade and g.accolade.kind == kind) then
 		if group ~= 0 and not table.find(BadgeRules.accolades(B, profile.mmo.badges), g.accolade) then
 			return

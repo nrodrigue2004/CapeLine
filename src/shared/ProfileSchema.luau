@@ -193,7 +193,9 @@ function ProfileSchema.newCharacter(side: string?, classId: string?): { [string]
 			-- H7: the title shown under your name (0 = your origin's; Shared.BadgeRules ids)
 			title = 0,
 			aura = 0, -- the accolade aura and plate trim worn (Config.Badges.groups index; 0 = none)
-			trim = 0,
+			trim = 0, -- (H8: 100 + n a Hero Pass trim, Config.Pass.trims)
+			-- H8: the travel style worn per mobility (Config.Move.mobilityOrder; slot 1 to 6, 0 = plain)
+			travel = { 0, 0, 0, 0, 0 },
 		},
 	}
 end
@@ -252,7 +254,23 @@ function ProfileSchema.default(): { [string]: any }
 			collect = words(4),
 			scanner = 0,
 			contest = { wins = 0, lastWin = 0 },
+			travel = words(1), -- H8: travel styles owned from the shop and the pass (Config.TravelStyles ids)
 		},
+		-- H8: the Hero Pass (Shared.PassRules): season, xp, paid = the season's paid track (from a receipt),
+		-- claimed = tier bits per track, day = the last daily first-win bonus (UTC day), titles and trims =
+		-- pass looks kept forever (Config.Pass.titles / trims)
+		pass = {
+			season = 0,
+			xp = 0,
+			paid = false,
+			claimed = { free = words(2), paid = words(2) },
+			day = 0,
+			titles = words(1),
+			trims = words(1),
+		},
+		-- H8: this week's episode: week (PassRules.week), steps = done bits, counts per step, intro = the week
+		-- whose panels were shown
+		episode = { week = 0, steps = 0, counts = { 0, 0, 0, 0 }, intro = 0 },
 	}
 end
 
@@ -508,7 +526,8 @@ local function repair(p: any): any
 				c.mmo.mentorLook = num(c.mmo.mentorLook, 0, 4, 0)
 				c.mmo.title = num(c.mmo.title, 0, 65535, 0)
 				c.mmo.aura = num(c.mmo.aura, 0, 16, 0)
-				c.mmo.trim = num(c.mmo.trim, 0, 16, 0)
+				c.mmo.trim = num(c.mmo.trim, 0, 131, 0)
+				c.mmo.travel = cleanNumbers(c.mmo.travel, 5, 0, 6, true)
 				local looks = {}
 				for _, l in c.looks do
 					if type(l) == "table" and #looks < 4 then
@@ -589,6 +608,22 @@ local function repair(p: any): any
 	p.mmo.scanner = num(p.mmo.scanner, 0, 1, 0)
 	p.mmo.contest.wins = num(p.mmo.contest.wins, 0, 2 ^ 31, 0)
 	p.mmo.contest.lastWin = num(p.mmo.contest.lastWin, 0, 2 ^ 40, 0)
+	-- H8: travel styles, the Hero Pass, the episode
+	p.mmo.travel = cleanNumbers(p.mmo.travel, 1, 0, 2 ^ 32 - 1, true)
+	local pass = p.pass
+	pass.season = num(pass.season, 0, 65535, 0)
+	pass.xp = num(pass.xp, 0, 2 ^ 31, 0)
+	pass.paid = pass.paid == true
+	pass.claimed.free = cleanNumbers(pass.claimed.free, 2, 0, 2 ^ 32 - 1, true)
+	pass.claimed.paid = cleanNumbers(pass.claimed.paid, 2, 0, 2 ^ 32 - 1, true)
+	pass.day = num(pass.day, 0, 2 ^ 31, 0)
+	pass.titles = cleanNumbers(pass.titles, 1, 0, 2 ^ 32 - 1, true)
+	pass.trims = cleanNumbers(pass.trims, 1, 0, 2 ^ 32 - 1, true)
+	local ep = p.episode
+	ep.week = num(ep.week, 0, 2 ^ 31, 0)
+	ep.steps = num(ep.steps, 0, 15, 0)
+	ep.counts = cleanNumbers(ep.counts, 4, 0, 100000, true)
+	ep.intro = num(ep.intro, 0, 2 ^ 31, 0)
 	p.stats.contracts = num(p.stats.contracts, 0, 2 ^ 31, 0)
 	p.stats.mvps = num(p.stats.mvps, 0, 2 ^ 31, 0)
 	local receipts = {}
@@ -754,6 +789,11 @@ function ProfileSchema.clientView(profile: any, walletOnly: boolean?): { [string
 		stats = profile.stats,
 		settings = profile.settings, -- M10
 		mutes = profile.mutes,
+		-- H8: travel styles, the Hero Pass, the episode (PassHud, TravelStyleFx, the shop)
+		travelOwned = Bits.list(profile.mmo.travel),
+		travel = c.mmo.travel,
+		passSeason = profile.pass.season,
+		passPaid = profile.pass.paid,
 	}
 end
 

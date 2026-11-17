@@ -19,6 +19,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local CollectPlan = require(Shared:WaitForChild("CollectPlan"))
 local ContestRules = require(Shared:WaitForChild("ContestRules"))
 local Net = require(Shared:WaitForChild("Net"))
+local Signal = require(Shared:WaitForChild("Util"):WaitForChild("Signal"))
 
 local Analytics = require(script.Parent.Analytics)
 local BadgeService = require(script.Parent.BadgeService)
@@ -31,6 +32,8 @@ local SafehouseService = require(script.Parent.SafehouseService)
 local SquadService = require(script.Parent.SquadService)
 
 local ContestService = {}
+ContestService.Entered = Signal.new() -- (player) stepped on the stage (Hero Pass XP, the episode; H8)
+ContestService.Placed = Signal.new() -- (player, place) a contest result (Hero Pass XP; H8)
 
 local K = Config.Contest
 local joinedAt: { [Player]: number } = {}
@@ -182,6 +185,7 @@ local function enter(player: Player)
 	local i = #s.entries
 	SafehouseService.place(hero, padCFrame(i))
 	BadgeService.bump(player, "contestEntries")
+	ContestService.Entered:Fire(player)
 	CollectService.give(player, CollectPlan.ribbon(Config.Collect, "enter"))
 	Analytics.event(player, "contest_enter", 1, { s.theme })
 	broadcast(s)
@@ -260,6 +264,7 @@ local function results(s: State)
 			local credits = ContestRules.pay(K, place, false)
 			EconomyService.addCredits(p, credits)
 			Net.fire("Toast", p, { id = "contestPlace", place = place, credits = credits })
+			ContestService.Placed:Fire(p, place)
 			if place <= 3 then
 				BadgeService.bump(p, "contestPodiums")
 				CollectService.give(

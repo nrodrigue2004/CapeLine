@@ -4,7 +4,7 @@
 -- * hidden: spots in the hub and districts, placed from the city's own layout with a fixed seed (Shared.
 --   CollectPlan), so they sit on open ground or a roof on every world seed; they sparkle within `sparkle`
 --   studs with a soft chime, and you pick one up by passing within `reach`.
--- * weekly: Comet Shards, spots in the outskirts placed by the weekly world seed, so they move each week
+-- * weekly: Star Charms (id CometShards), spots in the outskirts placed by the weekly world seed, so they move each week
 --   (a shard found last week is still yours; this week's spots pay the same bits again only if missing).
 -- * drops: a small chance from defeats, never paid. earned: from the Hero MMO features.
 -- The save: profile.mmo.collect (4 words, 128 bits); an item's bit is its set's `at` + its place - 1.
@@ -74,13 +74,13 @@ return {
 		},
 		{
 			id = "CometShards",
-			name = "Comet Shards",
+			name = "Star Charms", -- not "Comet": the old lore word (id kept)
 			kind = "weekly",
 			at = 40,
 			count = 8,
 			area = "outskirts", -- the suburbs, farmland and coast, placed by the weekly seed
 			place = "ground",
-			reward = { renown = 3000, prop = 12 }, -- Comet Lamp (Config.Hq.props)
+			reward = { renown = 3000, prop = 12 }, -- Star Lamp (Config.Hq.props)
 		},
 		{
 			id = "RobotParts",

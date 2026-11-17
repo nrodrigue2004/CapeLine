@@ -1,6 +1,6 @@
 -- CollectService: collections (spec: Hero MMO features > Collections; H7). Twelve sets (Config.Collect,
 -- Shared.CollectPlan), saved on the account (profile.mmo.collect):
--- * hidden finds and this week's Comet Shards: spots made from the world at boot; the server picks one up
+-- * hidden finds and this week's Star Charms: spots made from the world at boot; the server picks one up
 --   when a hero passes within reach (twice a second), and each device sparkles and chimes near the ones its
 --   player is missing (CollectState carries the spots);
 -- * drops: a robot's part (a small chance once you are missing it), a world boss's plate on its defeat;

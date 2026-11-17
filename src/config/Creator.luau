@@ -9,7 +9,8 @@
 --     "lvl:L" any character reaches level L; "rep:vigil:R" / "rep:syndicate:R" a reputation rank (Vigil Trust, Syndicate Fear);
 --     "fame:R" a Fame or Infamy rank; "boss:Id:T" a world boss reward tier (1 joined, 2 contributor, 3 MVP);
 --     "mission:N" mission N's first clear; "quest:N" side quest arc N done; "legacy:R" a Legacy rank;
---     "drop" a random locked piece from an Epic or Legendary drop (dropChance).
+--     "drop" a random locked piece from an Epic or Legendary drop (dropChance); "pass:S" a Hero Pass
+--     season S reward (Config.Pass, H8).
 -- Spec counts (tests check them): Suits 14 (5 free, 5 loot, 4 Robux), Capes 12 (3/5/4), Masks 16 (5/6/5),
 -- Gloves 8 (3/3/2), Boots 8 (3/3/2), Emblems 40 (8/20/12), Auras 6 (0/4/2), Flight trails 8 (2/4/2),
 -- Voice packs 4 (1/2/1): 116 pieces (30/52/34). Anime pieces (28: 7 free, 13 loot, 8 Robux) sit in the
@@ -72,6 +73,8 @@ return {
 					{ "Magma Veins", "magma", "drop" },
 					{ "Frost Shell", "frost", "drop" },
 					{ "Starfield Suit", "starfield", "fame:8" },
+					-- H8: Hero Pass season 1's costume set (PieceKits; PLACEHOLDER ART until the art pass)
+					{ "Opening Night Suit", "nightTux", "pass:1" },
 				},
 			},
 		},
@@ -109,6 +112,7 @@ return {
 					{ "Hooded Cape", "cape:hood", "free" },
 					{ "Feather Cape", "cape:feather", "lvl:15" },
 					{ "Star Cape", "cape:star", "fame:9" },
+					{ "Opening Night Cape", "cape:night", "pass:1" }, -- H8: Hero Pass season 1
 				},
 			},
 		},
@@ -151,6 +155,7 @@ return {
 					{ "Oni Mask", "oni", "drop" },
 					{ "Fox Mask", "fox", "drop" },
 					{ "Crystal Mask", "crystal", "legacy:4" },
+					{ "Opening Night Mask", "nightMask", "pass:1" }, -- H8: Hero Pass season 1
 				},
 			},
 		},
@@ -218,6 +223,7 @@ return {
 					{ "Slippers", "slippers", "lvl:2" },
 					{ "Loafers", "loafers", "quest:8" },
 					{ "Ice Boots", "ice", "drop" },
+					{ "Opening Night Boots", "nightBoots", "pass:1" }, -- H8: Hero Pass season 1
 				},
 			},
 		},

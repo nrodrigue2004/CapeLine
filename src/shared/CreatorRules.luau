@@ -62,7 +62,7 @@ function CreatorRules.parse(s: string): Source
 	local kind = parts[1]
 	if kind == "lvl" or kind == "fame" or kind == "mission" or kind == "quest" or kind == "legacy" then
 		return { kind = kind, n = tonumber(parts[2]) }
-	elseif kind == "pack" or kind == "origin" then
+	elseif kind == "pack" or kind == "origin" or kind == "pass" then
 		return { kind = kind, n = tonumber(parts[2]) }
 	elseif kind == "rep" then
 		return { kind = "rep", a = parts[2], n = tonumber(parts[3]) }

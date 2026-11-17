@@ -15,6 +15,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Net = require(Shared:WaitForChild("Net"))
 local ShopRules = require(Shared:WaitForChild("ShopRules"))
 local CreatorRules = require(Shared:WaitForChild("CreatorRules"))
+local TravelStyleRules = require(Shared:WaitForChild("TravelStyleRules"))
 local LookCodec = require(Shared:WaitForChild("LookCodec"))
 
 local Kit = require(script.Parent.Kit)
@@ -68,6 +69,9 @@ local function profileView(): any
 		pieces = bitset(p.pieces, 8),
 		emotes = bitset(p.emotes, 2),
 		purchases = { passes = p.passes or {}, slots = p.slots or 0, tints = p.tints or 0, receipts = {} },
+		-- H8: travel styles bought and the Hero Pass's paid track
+		mmo = { travel = bitset(p.travelOwned, 1) },
+		pass = { season = p.passSeason or 0, paid = p.passPaid == true },
 	}
 end
 
@@ -98,6 +102,20 @@ local function itemText(key: string, row: any, kind: string?): (string, string, 
 			Kit.color.paper
 	elseif kind == "starter" then
 		return "STARTER PACK", "Starter Cape, Chrome Finish and the Rookie Cheer emote", Kit.color.gold
+	elseif kind == "travel" then
+		local s = TravelStyleRules.byId(Config, row.style)
+		local m = s and Config.Move.mobility[s.mobility]
+		return string.upper(s and s.name or key),
+			string.format("A %s travel style: trail, take-off and landing. Looks only", m and m.name or ""),
+			if s then rgb(s.c1) else Kit.color.paper
+	elseif kind == "heroPass" then
+		local d = Config.Pass.seasons[State.profile.passSeason or 0]
+		return "HERO PASS: PAID TRACK",
+			string.format(
+				"%s: 30 more looks on the pass (see PASS for every reward). No skips, nothing random",
+				d and d.name or "This season"
+			),
+			Kit.color.gold
 	end
 	return key, "", Kit.color.paper
 end

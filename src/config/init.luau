@@ -56,6 +56,9 @@ local NAMES = {
 	"Badges", -- H7: badges, titles and accolades
 	"Collect", -- H7: collections
 	"Contest", -- H7: costume contests
+	"TravelStyles", -- H8: travel power styles
+	"Episodes", -- H8: the weekly episodes
+	"Pass", -- H8: the Hero Pass
 }
 
 local Config: { [string]: any } = {}

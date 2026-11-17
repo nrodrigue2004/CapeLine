@@ -71,6 +71,11 @@ AnalyticsSchema.EVENTS = {
 	collect_set = { "set" },
 	contest_enter = { "theme" },
 	contest_done = { "theme", "voters" }, -- value: contestants
+	pass_tier = { "season" }, -- H8: value: the tier reached
+	pass_claim = { "track", "kind" }, -- value: the tier
+	episode_step = { "episode" }, -- value: the step
+	episode_done = { "episode" },
+	travel_style = { "mobility" }, -- value: the style id worn (0 = plain)
 }
 
 AnalyticsSchema.FUNNELS = {

@@ -65,6 +65,8 @@ local MentorFx = require(Fx.MentorFx)
 local BadgeHud = require(Ui.BadgeHud) -- H7: the Badge Book, collections and titles
 local ContestHud = require(Ui.ContestHud) -- H7: costume contests
 local CollectClient = require(Controllers.CollectClient) -- H7: collection sparkles and the scanner marker
+local PassHud = require(Ui.PassHud) -- H8: the Hero Pass, the episode and travel styles
+local TravelStyleFx = require(Fx.TravelStyleFx) -- H8: travel styles on every screen
 local StoryHud = require(Ui.StoryHud)
 local Journal = require(Ui.Journal)
 local PvpHud = require(Ui.PvpHud)
@@ -131,6 +133,8 @@ MentorFx.init()
 BadgeHud.init()
 ContestHud.init()
 CollectClient.init()
+PassHud.init()
+TravelStyleFx.init()
 Toasts.init()
 MapScreen.init()
 WorldHud.init()

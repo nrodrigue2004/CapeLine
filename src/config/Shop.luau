@@ -50,6 +50,20 @@ return {
 		weaponYoyo = { id = 0, robux = 249, kind = "weapon", weapon = 34 },
 		weaponDart = { id = 0, robux = 249, kind = "weapon", weapon = 35 },
 		weaponBoomerang = { id = 0, robux = 149, kind = "weapon", weapon = 36 },
+		-- H8: the Hero Pass's paid track for the current season (one product, every season; nate's call 4:
+		-- 499 Robux, no tier skips). Cosmetics only; every reward is shown before buying (Config.Pass).
+		heroPass = { id = 0, robux = 499, kind = "heroPass" },
+		-- H8: travel power styles sold in the shop (Config.TravelStyles ids; 2 per mobility, 99 to 199 Robux)
+		travel3 = { id = 0, robux = 99, kind = "travel", style = 3 },
+		travel4 = { id = 0, robux = 149, kind = "travel", style = 4 },
+		travel9 = { id = 0, robux = 99, kind = "travel", style = 9 },
+		travel10 = { id = 0, robux = 149, kind = "travel", style = 10 },
+		travel15 = { id = 0, robux = 99, kind = "travel", style = 15 },
+		travel16 = { id = 0, robux = 149, kind = "travel", style = 16 },
+		travel21 = { id = 0, robux = 99, kind = "travel", style = 21 },
+		travel22 = { id = 0, robux = 149, kind = "travel", style = 22 },
+		travel27 = { id = 0, robux = 149, kind = "travel", style = 27 },
+		travel28 = { id = 0, robux = 199, kind = "travel", style = 28 },
 	},
 	-- Game passes (owned for life; checked on join and after a purchase)
 	passes = {
@@ -82,6 +96,17 @@ return {
 				"tint8",
 				"tint9",
 				"tint10",
+				-- H8: travel power styles (Config.TravelStyles)
+				"travel3",
+				"travel4",
+				"travel9",
+				"travel10",
+				"travel15",
+				"travel16",
+				"travel21",
+				"travel22",
+				"travel27",
+				"travel28",
 			},
 		},
 		{
@@ -102,7 +127,8 @@ return {
 				"pose24",
 			},
 		},
-		{ id = "passes", name = "Passes", items = { "quickSwap", "double" } },
+		-- H8: the Hero Pass leads the Passes tab (a seventh tab is too small to read on a phone)
+		{ id = "passes", name = "Passes", items = { "heroPass", "quickSwap", "double" } },
 		{ id = "slots", name = "Slots", items = { "slot3", "slot4" } },
 	},
 
@@ -133,6 +159,12 @@ return {
 		{ name = "Shadow", color = { 70, 40, 110 } },
 		{ name = "Prism", color = { 255, 255, 255 }, rainbow = true },
 		{ name = "Void", color = { 20, 10, 30 }, glow = { 190, 120, 255 } },
+		-- H8: Hero Pass season 1 tints (Config.Pass): earned on the pass, never sold in the shop
+		{ name = "Sky Blue", color = { 90, 170, 255 }, pass = true },
+		{ name = "Holo Gold", color = { 255, 225, 140 }, glow = { 255, 245, 200 }, pass = true },
+		{ name = "Neon Night", color = { 255, 60, 200 }, glow = { 120, 60, 255 }, pass = true },
+		{ name = "Halftone Red", color = { 230, 60, 50 }, pass = true },
+		{ name = "Starlight", color = { 235, 240, 255 }, glow = { 170, 200, 255 }, pass = true },
 	},
 
 	-- Emotes and landing poses. Bits in profile.emotes: 1 to 19 emotes, 20 to 31 landing poses.
@@ -158,11 +190,15 @@ return {
 		-- H7: badge accolades (finish a Badge Book group; Config.Badges)
 		[16] = { name = "Double Thumbs Up", earned = true },
 		[17] = { name = "Team Huddle", earned = true },
+		-- H8: Hero Pass season 1 (Config.Pass)
+		[18] = { name = "Comic Pose", earned = true },
+		[19] = { name = "Spotlight Spin", earned = true },
 		[20] = { name = "Super Landing", earned = true, landing = true },
 		[21] = { name = "Kneel Landing", landing = true },
 		[22] = { name = "Spin Landing", landing = true },
 		[23] = { name = "Crater Landing", landing = true },
 		[24] = { name = "Float Down", landing = true },
+		[25] = { name = "Spotlight Landing", earned = true, landing = true }, -- H8: Hero Pass season 1
 	},
 	emoteTime = 2.4, -- seconds a pose holds
 	emoteRate = 1.5, -- seconds between emotes

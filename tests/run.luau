@@ -5003,6 +5003,8 @@ test(
 					check((p.source.n or 0) <= Config.Hq.legacy.maxRanks, p.name)
 				elseif k == "pack" then
 					check(Config.Shop.packs[p.source.n or 0] ~= nil, p.name .. " pack")
+				elseif k == "pass" then -- H8: a Hero Pass season's costume set
+					check(Config.Pass.seasons[p.source.n or 0] ~= nil, p.name .. " pass season")
 				else
 					check(
 						k == "free"
@@ -5298,7 +5300,9 @@ test(
 		end
 		local before = frozen(profile)
 		for key, row in Config.Shop.products do
-			check(row.robux >= 25 and row.robux <= 399, key .. " priced 25 to 399")
+			-- the Hero Pass is nate's call 4: 499 Robux (H8)
+			local hi = if row.kind == "heroPass" then 499 else 399
+			check(row.robux >= 25 and row.robux <= hi, key .. " priced 25 to " .. hi)
 			local ok, got = ShopRules.grant(Config, profile, key, "r-" .. key)
 			check(ok and got ~= nil, key .. " grants")
 			check(ShopRules.owned(Config, profile, key), key .. " is owned after")
@@ -7192,7 +7196,8 @@ test(
 		-- 4 ears, 14 eyes and 20 emblems; then 10 headwear and 14 masks; then 30 tops, 10 shoulders and 7 neck; then 7 arms, 8 gloves, 14 boots, 6 wrist, 7 belts, 18 legs, 10 back bling and 3 capes (73)
 		-- and the classic clothes and faces (2026-11-17): 18 shirts, 12 pants, 6 faces; and the 5 origin crests
 		-- (lore step 2)
-		check(count == 121 + 92 + 24 + 47 + 73 + 36 + 5, "398 pieces beyond the first 146 (544 in all)")
+		-- and Hero Pass season 1's Opening Night set (H8: suit, cape, mask, boots)
+		check(count == 121 + 92 + 24 + 47 + 73 + 36 + 5 + 4, "402 pieces beyond the first 146 (548 in all)")
 		-- every piece's unlock can actually be earned
 		for _, p in idx.list do
 			local src, n = p.source, p.source.n

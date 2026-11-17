@@ -1106,6 +1106,12 @@ head.fox = cat(
 	both(S("head", V(0.12, 0.42, 0.3), CF(-0.4, 0.68, -0.4) * rz(15), "white", { shape = "Wedge" })),
 	both(S("head", V(0.26, 0.05, 0.04), CF(-0.24, 0.16, FZ - 0.09) * rz(-20), "glowRed"))
 )
+head.nightMask = cat( -- H8: Hero Pass season 1 (Opening Night Mask)
+	S("head", V(1.2, 0.36, 0.08), CF(0, 0.16, FZ - 0.03), "dark"),
+	S("head", V(1.24, 0.06, 0.08), CF(0, 0.36, FZ - 0.05), "gold", GOLD),
+	both(S("head", V(0.24, 0.08, 0.04), CF(-0.24, 0.16, FZ - 0.08), "white", { neon = true })),
+	both(S("head", V(0.3, 0.14, 0.06), CF(-0.62, 0.22, FZ + 0.02) * rz(25), "gold", GOLD))
+)
 head.goalie = cat(
 	S("head", V(1.2, 1.28, 0.1), CF(0, 0, FZ - 0.03), "white"),
 	S("head", V(0.08, 0.5, 0.04), CF(-0.2, -0.2, FZ - 0.09), "dark"),
@@ -1215,6 +1221,17 @@ top(
 		S("torso", V(0.55, 1.2, 0.04), CF(0, 0.2, TZ), "white"),
 		S("torso", V(0.4, 0.14, 0.08), CF(0, 0.66, TZ - 0.04), "a"),
 		S("torso", V(0.08, 0.08, 0.04), CF(0, 0.2, TZ - 0.03), "dark", { shape = "Ball" })
+	)
+)
+-- H8: Hero Pass season 1's Opening Night set (PLACEHOLDER ART until the art pass)
+top(
+	"nightTux",
+	{ "dark", "dark", "dark" },
+	cat(
+		S("torso", V(0.55, 1.2, 0.04), CF(0, 0.2, TZ), "white"),
+		both(S("torso", V(0.12, 0.9, 0.05), CF(-0.32, 0.35, TZ - 0.03) * rz(-15), "gold", GOLD)),
+		S("torso", V(0.16, 0.16, 0.05), CF(0.55, 0.45, TZ - 0.04), "gold", { shape = "Ball", neon = true }),
+		S("waist", V(2.1, 0.22, 1.1), CF(0, 0.12, 0), "gold", GOLD)
 	)
 )
 top(
@@ -1737,6 +1754,12 @@ local feetKit = {
 		feet(S("lfoot", SHOE, CF(0, 0, -0.04), "dark", { mat = Enum.Material.Leather })),
 		feet(S("lfoot", V(0.5, 0.06, 0.08), CF(0, 0.12, -0.35), "gold", GOLD))
 	),
+	nightBoots = cat( -- H8: Hero Pass season 1 (Opening Night Boots)
+		feet(S("lfoot", SHOE, CF(0, 0, -0.04), "dark", { mat = Enum.Material.Leather })),
+		shins(S("lshin", V(1.08, 0.7, 1.08), CF(0, -0.1, 0), "dark", { mat = Enum.Material.Leather })),
+		shins(S("lshin", V(1.1, 0.1, 1.1), CF(0, 0.22, 0), "gold", GOLD)),
+		feet(S("lfoot", V(0.5, 0.14, 0.2), CF(0, -0.1, 0.45), "a", { neon = true }))
+	),
 	ice = cat(
 		feet(S("lfoot", SHOE, CF(0, 0, -0.04), "ice", { mat = Enum.Material.Glass })),
 		shins(S("lshin", V(1.1, 0.5, 1.1), CF(0, -0.2, 0), "ice", { mat = Enum.Material.Glass, alpha = 0.2 }))
@@ -2002,6 +2025,12 @@ local back = {
 		S("torso", V(1.9, 2.4, 0.08), CF(0, -0.7, 0.62), "p", FABRIC),
 		both(S("torso", V(0.08, 0.8, 0.5), CF(-0.6, -2.1, 0.62) * ROT_Y * rx(180), "s", { shape = "Wedge" })),
 		S("torso", V(0.08, 0.8, 0.5), CF(0, -2.2, 0.62) * ROT_Y * rx(180), "s", { shape = "Wedge" })
+	),
+	["cape:night"] = cat( -- H8: Hero Pass season 1 (Opening Night Cape)
+		S("torso", V(1.9, 2.9, 0.08), CF(0, -0.95, 0.62), "p", FABRIC),
+		S("torso", V(1.92, 0.14, 0.1), CF(0, -2.35, 0.62), "gold", GOLD),
+		S("torso", V(0.16, 0.16, 0.04), CF(-0.45, -0.6, 0.68), "gold", { shape = "Ball", neon = true }),
+		S("torso", V(0.16, 0.16, 0.04), CF(0.45, -1.4, 0.68), "gold", { shape = "Ball", neon = true })
 	),
 	["cape:star"] = cat(
 		S("torso", V(1.9, 3.0, 0.08), CF(0, -1.0, 0.62), "dark"),

@@ -84,6 +84,12 @@ local POSES: { [number]: Pose } = {
 		RightKnee = { -110, 0, 0 },
 		LeftKnee = { -110, 0, 0 },
 	}, -- Crater Landing (both fists into the ground)
+	[25] = {
+		Root = { 0, 180, 0 },
+		RightShoulder = { 0, 0, 160 },
+		LeftShoulder = { 0, 0, -160 },
+		Neck = { -10, 0, 0 },
+	}, -- Spotlight Landing: land facing out, both arms up (H8 Hero Pass)
 	[24] = {
 		RightShoulder = { 0, 0, 45 },
 		LeftShoulder = { 0, 0, -45 },
@@ -129,6 +135,18 @@ local POSES: { [number]: Pose } = {
 		RightShoulder = { 70, 0, 60 },
 		LeftShoulder = { 70, 0, -60 },
 	}, -- Team Huddle: lean in, arms out round your mates (H7 accolade)
+	[18] = {
+		RightShoulder = { 0, 0, 150 },
+		RightElbow = { 0, 0, 40 },
+		LeftShoulder = { 0, 0, -30 },
+		LeftElbow = { 0, 0, -80 },
+		Waist = { 0, 20, 0 },
+	}, -- Comic Pose: one fist up, one on the hip (H8 Hero Pass)
+	[19] = {
+		Root = { 0, 180, 0 },
+		RightShoulder = { 0, 0, 120 },
+		LeftShoulder = { 0, 0, -120 },
+	}, -- Spotlight Spin: a half turn to face the crowd, arms up (H8 Hero Pass)
 	-- Photo Mode's own poses (free, only on your screen while you take a photo; M11)
 	[101] = {
 		RightShoulder = { 80, 0, 20 },

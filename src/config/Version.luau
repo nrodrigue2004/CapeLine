@@ -1,5 +1,5 @@
 -- Balance table version (spec: Live data). Bump when any Config number changes so analytics can split by it.
 return {
 	balance = 1,
-	build = "mmo-h7 badges (2026-11-17)", -- shown in the Output at boot: tells which build is open
+	build = "mmo-h8 pass (2026-11-17)", -- shown in the Output at boot: tells which build is open
 }

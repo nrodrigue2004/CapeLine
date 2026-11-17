@@ -234,5 +234,21 @@ return {
 				b("crater50", "Crater King", "craterWins", 50, "Win 50 fights in the Crater"),
 			},
 		},
+		{
+			-- H8: the weekly episodes; badge e is the season's episode e (EpisodeRules), finished in any season
+			id = "episodes",
+			at = 216,
+			name = "Episodes",
+			badges = {
+				b("ep1", "Opening Night Crew", "episode:1", 1, "Finish an episode in week 1 of a season"),
+				b("ep2", "Lights Out Crew", "episode:2", 1, "Finish an episode in week 2 of a season"),
+				b("ep3", "High Tide Crew", "episode:3", 1, "Finish an episode in week 3 of a season"),
+				b("ep4", "Sky Freight Crew", "episode:4", 1, "Finish an episode in week 4 of a season"),
+				b("ep5", "Vault Week Crew", "episode:5", 1, "Finish an episode in week 5 of a season"),
+				b("ep6", "Bridge Out Crew", "episode:6", 1, "Finish an episode in week 6 of a season"),
+				b("ep7", "Rooftop Crew", "episode:7", 1, "Finish an episode in week 7 of a season"),
+				b("ep8", "Finale Crew", "episode:8", 1, "Finish an episode in week 8 of a season"),
+			},
+		},
 	},
 }

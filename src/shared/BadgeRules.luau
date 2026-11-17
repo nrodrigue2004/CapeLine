@@ -188,6 +188,15 @@ function BadgeRules.titles(Config: any, profile: any, char: any): { { id: number
 			end
 		end
 	end
+	-- H8: Hero Pass titles (kept forever once claimed)
+	local P = Config.Pass
+	if P and profile.pass and profile.pass.titles then
+		for _, n in Bits.list(profile.pass.titles) do
+			if P.titles[n] then
+				table.insert(out, { id = P.titleBase + n, name = P.titles[n] })
+			end
+		end
+	end
 	if mmo and mmo.banes then
 		for i, seed in mmo.banes do
 			if seed ~= 0 then

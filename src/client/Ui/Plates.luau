@@ -58,6 +58,9 @@ for _, g in Config.Badges.groups do
 		TRIMS[g.accolade.id] = g.accolade.color
 	end
 end
+for _, t in Config.Pass.trims do -- H8: the Hero Pass's plate trims
+	TRIMS[t.id] = t.color
+end
 
 local function refresh(p: Player)
 	local pl = plates[p]

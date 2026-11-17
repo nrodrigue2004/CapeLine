@@ -224,7 +224,7 @@ local Remotes: { [string]: RemoteDef } = {
 	ShopResult = { dir = "S2C" }, -- { ok, key, kind, pieces, reason }: after a purchase lands (or not)
 	ShopOffer = { dir = "S2C" }, -- { key }: the starter pack offer, once
 	ShopDismiss = { dir = "C2S", schema = {}, rate = 1, burst = 2 },
-	TintSet = { dir = "C2S", schema = { n(0, 10) }, rate = 1, burst = 3 }, -- an owned effect colour, 0 none
+	TintSet = { dir = "C2S", schema = { n(0, 15) }, rate = 1, burst = 3 }, -- an owned effect colour, 0 none
 	LandingSet = { dir = "C2S", schema = { n(0, 31) }, rate = 1, burst = 3 }, -- an owned landing pose, 0 none
 	EmotePlay = { dir = "C2S", schema = { n(1, 31) }, rate = 1, burst = 2 }, -- an owned emote or landing pose
 	-- M10: settings (spec: Settings.Set {key, value} 2/s) and the saved mute list
@@ -280,7 +280,7 @@ local Remotes: { [string]: RemoteDef } = {
 	-- AccoladeWear: slot (1 aura, 2 trim), group index (0 = none). BadgeBook / BadgeEarned: S2C.
 	BadgeOpen = { dir = "C2S", schema = {}, rate = 1, burst = 3 },
 	TitleSet = { dir = "C2S", schema = { n(0, 65535) }, rate = 1, burst = 2 },
-	AccoladeWear = { dir = "C2S", schema = { n(1, 2), n(0, 16) }, rate = 1, burst = 3 },
+	AccoladeWear = { dir = "C2S", schema = { n(1, 2), n(0, 131) }, rate = 1, burst = 3 }, -- 100+n: pass trim n
 	BadgeBook = { dir = "S2C" },
 	BadgeEarned = { dir = "S2C" },
 	-- H7: collections. CollectOpen: ask for the spots and finds; CollectScanner: buy the HQ Scanner (at HQ).
@@ -293,6 +293,15 @@ local Remotes: { [string]: RemoteDef } = {
 	ContestEnter = { dir = "C2S", schema = {}, rate = 1, burst = 2 },
 	ContestVote = { dir = "C2S", schema = { n(1, 2 ^ 53), n(1, 5) }, rate = 4, burst = 8 },
 	ContestState = { dir = "S2C" },
+	-- H8: the Hero Pass and the weekly episode. PassOpen: ask for the pass and episode; PassClaim: tier,
+	-- track (0 free, 1 paid); EpisodeSeen: the intro panels were shown; PassState / PassXp: S2C.
+	PassOpen = { dir = "C2S", schema = {}, rate = 1, burst = 3 },
+	PassClaim = { dir = "C2S", schema = { n(1, 40), n(0, 1) }, rate = 2, burst = 6 },
+	EpisodeSeen = { dir = "C2S", schema = {}, rate = 1, burst = 2 },
+	PassState = { dir = "S2C" },
+	PassXp = { dir = "S2C" },
+	-- H8: travel power styles. TravelStyleSet: mobility index (Config.Move.mobilityOrder), slot (0 plain)
+	TravelStyleSet = { dir = "C2S", schema = { n(1, 5), n(0, 6) }, rate = 2, burst = 4 },
 }
 
 return Remotes

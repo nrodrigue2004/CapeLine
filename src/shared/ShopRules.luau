@@ -100,6 +100,10 @@ function ShopRules.owned(Config: any, profile: any, key: string): boolean
 		return Bits.get(profile.emotes, row.emote)
 	elseif kind == "weapon" then
 		return Bits.get(profile.weaponsOwned, row.weapon)
+	elseif kind == "travel" then
+		return profile.mmo ~= nil and Bits.get(profile.mmo.travel, row.style)
+	elseif kind == "heroPass" then
+		return profile.pass ~= nil and profile.pass.paid == true
 	end
 	return false
 end
@@ -118,6 +122,10 @@ function ShopRules.available(Config: any, profile: any, key: string): (boolean, 
 	end
 	-- a weapon is only sold once it is playable (the creator plan builds the 36 in steps)
 	if kind == "weapon" and not table.find(Config.Weapons.playable, row.weapon) then
+		return false, "soon"
+	end
+	-- H8: the Hero Pass sells only while a season with rewards is running (its season set by PassService)
+	if kind == "heroPass" and not (profile.pass and Config.Pass.seasons[profile.pass.season]) then
 		return false, "soon"
 	end
 	return true, nil
@@ -172,6 +180,13 @@ function ShopRules.grant(
 	elseif kind == "weapon" then
 		Bits.set(profile.weaponsOwned, row.weapon)
 		got.weapon = row.weapon
+	elseif kind == "travel" then
+		Bits.set(profile.mmo.travel, row.style)
+		got.style = row.style
+	elseif kind == "heroPass" then
+		-- the paid track of the season this profile is on (PassService rolls it to the live season first)
+		profile.pass.paid = true
+		got.season = profile.pass.season
 	end
 	remember(profile, receiptId)
 	return true, got

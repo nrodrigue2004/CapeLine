@@ -62,6 +62,8 @@ local MentorService = require(Services.MentorService)
 local BadgeService = require(Services.BadgeService)
 local CollectService = require(Services.CollectService)
 local ContestService = require(Services.ContestService)
+local PassService = require(Services.PassService)
+local TravelStyleService = require(Services.TravelStyleService)
 local QuestService = require(Services.QuestService)
 local FlagService = require(Services.FlagService)
 local FameService = require(Services.FameService)
@@ -132,6 +134,8 @@ boot("MentorService", MentorService.init) -- H6: mentors
 boot("BadgeService", BadgeService.init) -- H7: badges, titles, accolades
 boot("CollectService", CollectService.init) -- H7: collections
 boot("ContestService", ContestService.init) -- H7: costume contests
+boot("PassService", PassService.init) -- H8: the Hero Pass and the weekly episode
+boot("TravelStyleService", TravelStyleService.init) -- H8: travel power styles
 boot("QuestService", QuestService.init)
 boot("FlagService", FlagService.init)
 boot("FameService", FameService.init)

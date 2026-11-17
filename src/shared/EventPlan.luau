@@ -20,7 +20,8 @@ function EventPlan.activeCount(state: State): number
 end
 
 -- Which event starts now, or nil (not due, two running, or nothing allowed). rng: :range and :int.
-function EventPlan.due(cfg: any, state: State, now: number, rng: any): string?
+-- weights (H8, the weekly episode's theme): an event id's weight in the pick; missing ids weigh 1.
+function EventPlan.due(cfg: any, state: State, now: number, rng: any, weights: { [string]: number }?): string?
 	for id, ends in state.active do
 		if now >= ends then
 			state.active[id] = nil
@@ -39,6 +40,20 @@ function EventPlan.due(cfg: any, state: State, now: number, rng: any): string?
 		return nil
 	end
 	local id = pool[rng:int(1, #pool)]
+	if weights and next(weights) ~= nil then
+		local total = 0
+		for _, e in pool do
+			total += math.max(0, weights[e] or 1)
+		end
+		local roll = rng:range(0, total)
+		for _, e in pool do
+			roll -= math.max(0, weights[e] or 1)
+			if roll <= 0 then
+				id = e
+				break
+			end
+		end
+	end
 	state.last = id
 	state.active[id] = now + cfg.events[id].length
 	state.nextAt = now + rng:range(cfg.scheduler.every[1], cfg.scheduler.every[2])

@@ -50,6 +50,7 @@ local MoveController = {}
 MoveController.mode = "ground"
 MoveController.stamina = M.stamina.max
 MoveController.boosting = false
+MoveController.lineColor = nil :: Color3? -- H8: the worn travel style colours the swing line (TravelStyleFx)
 MoveController.velocity = Vector3.zero
 MoveController.Leaped = Signal.new() -- (position)
 MoveController.Landed = Signal.new() -- (position, fallSpeed)
@@ -396,7 +397,7 @@ local function startSwing(): boolean
 	line.CanQuery = false
 	line.CanTouch = false
 	line.Material = Enum.Material.Neon
-	line.Color = Color3.fromRGB(235, 235, 245)
+	line.Color = MoveController.lineColor or Color3.fromRGB(235, 235, 245)
 	line.Size = Vector3.new(0.15, 0.15, 1)
 	line.Parent = Workspace
 	swingLine = line

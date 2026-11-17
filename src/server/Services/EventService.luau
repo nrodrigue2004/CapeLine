@@ -31,6 +31,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Net = require(Shared:WaitForChild("Net"))
 local Rng = require(Shared:WaitForChild("Rng"))
 local EventPlan = require(Shared:WaitForChild("EventPlan"))
+local PassRules = require(Shared:WaitForChild("PassRules")) -- H8: the weekly episode tilts the mix
 local IncidentPlan = require(Shared:WaitForChild("IncidentPlan"))
 local IncidentSpots = require(Shared:WaitForChild("IncidentSpots"))
 local ZoneLevel = require(Shared:WaitForChild("ZoneLevel"))
@@ -841,7 +842,7 @@ function EventService.init()
 		local now = os.clock()
 		local t0 = now
 		if #Players:GetPlayers() > 0 then
-			local id = EventPlan.due(EC, plan, now, rng)
+			local id = EventPlan.due(EC, plan, now, rng, PassRules.eventWeights(Config, os.time()))
 			if id then
 				start(id)
 			end

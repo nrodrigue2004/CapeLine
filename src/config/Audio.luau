@@ -66,6 +66,10 @@ return {
 		{ id = "collectFind", visual = "JuiceFx" }, -- sparkle ping; a ring and the set count pop (H7)
 		{ id = "contestCall", visual = "JuiceFx" }, -- fanfare swoosh; the CONTEST! stamp (H7)
 		{ id = "contestWin", visual = "JuiceFx" }, -- cheer ping; confetti, WINNER! on the winner's screen (H7)
+		{ id = "passTier", visual = "PassHud" }, -- rising chime; the TIER UP card slides in (H8)
+		{ id = "passClaim", visual = "PassHud" }, -- coin ping; the reward pops on its tier (H8)
+		{ id = "episodeIntro", visual = "PassHud" }, -- page flip; the episode's 3 comic panels (H8)
+		{ id = "styleBurst", visual = "TravelStyleFx" }, -- whoosh; the travel style's take-off burst (H8)
 	},
 	-- the spec's own juice table is the first 31 rows above; the rest came with the Hero MMO features
 	juiceSpec = 31,
@@ -126,6 +130,10 @@ return {
 		collectNear = s("clickfast.wav", 0.25, 2.4, { range = 40 }), -- the soft chime near a find (not a juice row)
 		contestCall = s("swoosh.wav", 0.6, 1.2),
 		contestWin = s("electronicpingshort.wav", 0.8, 1.3),
+		passTier = s("electronicpingshort.wav", 0.8, 1.7),
+		passClaim = s("electronicpingshort.wav", 0.6, 2.1),
+		episodeIntro = s("swoosh.wav", 0.5, 1.4),
+		styleBurst = s("swoosh.wav", 0.5, 1.1, { range = 120, vary = 0.08 }),
 		ui = s("button.wav", 0.35, 1), -- every button tap
 		-- the newer robots (not juice actions; CombatClient plays them with their CombatFx visuals)
 		aimLock = s("electronicpingshort.wav", 0.6, 2.6), -- a Sniper's laser locks on you

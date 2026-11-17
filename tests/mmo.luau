@@ -1374,7 +1374,7 @@ return function(T: any)
 						moved = true
 					end
 				end
-				check(moved, "comet shards move with the week")
+				check(moved, "star charms move with the week")
 			end
 			first = spots
 			local near = CollectPlan.nearest(spots, { 0, 0, 0, 0 }, spots[1].x, spots[1].z, 10)
@@ -1462,5 +1462,404 @@ return function(T: any)
 		check(string.find(src, "ContestRules.canVote(", 1, true) ~= nil, "the server checks every vote")
 		check(string.find(src, "ContestRules.placings(", 1, true) ~= nil, "the hourly win rule")
 		check(string.find(src, "SquadService", 1, true) ~= nil, "squad votes weighed")
+	end)
+
+	---------------------------------------------------------------------------
+	-- H8: travel power styles, weekly episodes, the Hero Pass
+	---------------------------------------------------------------------------
+	local PassRules = require("../src/shared/PassRules")
+	local TravelStyleRules = require("../src/shared/TravelStyleRules")
+	local PS = Config.Pass
+
+	test("H8: 30 travel styles, 6 per mobility: 2 earned, 2 shop, 2 pass; looks only", function()
+		local list = TravelStyleRules.list(Config)
+		check(#list == 30, "30 styles")
+		local names = {}
+		for _, m in Config.Move.mobilityOrder do
+			local n = { badge = 0, mentor = 0, shop = 0, pass = 0 }
+			local tracks = {}
+			for slot = 1, 6 do
+				local s = TravelStyleRules.at(Config, m, slot) :: any
+				check(s ~= nil and s.mobility == m and s.slot == slot, m .. " slot " .. slot)
+				check(not names[s.name], "unique name " .. s.name)
+				names[s.name] = true
+				n[s.source] += 1
+				for _, k in { "speed", "boost", "cap", "accel", "sprint", "range", "stamina" } do
+					check(s[k] == nil, s.name .. " never touches " .. k)
+				end
+				check(#s.c1 == 3 and #s.c2 == 3 and s.width > 0 and s.life > 0, s.name .. ": a look")
+				if s.source == "shop" then
+					local row = Config.Shop.products[s.product]
+					check(row and row.kind == "travel" and row.style == s.id, s.name .. ": its product")
+					check(
+						row.robux >= 99 and row.robux <= 199 and row.id == 0,
+						"99 to 199 Robux, id 0 until nate"
+					)
+				elseif s.source == "badge" then
+					local ok = false
+					for _, g in Config.Badges.groups do
+						ok = ok or (g.id == s.group and g.accolade ~= nil)
+					end
+					check(ok, s.name .. ": a badge accolade group")
+				elseif s.source == "pass" then
+					tracks[s.track] = true
+				end
+			end
+			check(n.badge + n.mentor == 2 and n.shop == 2 and n.pass == 2, m .. ": 2 earned, 2 shop, 2 pass")
+			check(n.badge == 1 and n.mentor == 1, m .. ": a badge accolade and a mentor reward")
+			check(tracks.free and tracks.paid, m .. ": one on each pass track")
+		end
+		local P = require("../src/shared/ProfileSchema")
+		local profile = P.default()
+		local c = P.newCharacter()
+		profile.characters = { c }
+		c.mobility = "flight"
+		check(not TravelStyleRules.canWear(Config, profile, "flight", 3), "not owned")
+		check(TravelStyleRules.canWear(Config, profile, "flight", 0), "the plain look always")
+		local ShopRules = require("../src/shared/ShopRules")
+		check(ShopRules.grant(Config, profile, "travel3", "r1"), "bought")
+		check(not ShopRules.grant(Config, profile, "travel3", "r1"), "once per receipt")
+		check(ShopRules.owned(Config, profile, "travel3"), "owned")
+		check(TravelStyleRules.canWear(Config, profile, "flight", 3), "now wearable")
+		c.mmo.travel[1] = 3
+		check(TravelStyleRules.shown(Config, profile, c) == 3, "the attribute's id")
+		c.mobility = "speed"
+		check(TravelStyleRules.shown(Config, profile, c) == 0, "per mobility")
+		check(not TravelStyleRules.canWear(Config, profile, "flight", 2), "mentor style locked")
+		c.mmo.mentorParts = { #Config.Mentors.quest, 0, 0, 0 }
+		check(TravelStyleRules.canWear(Config, profile, "flight", 2), "a finished mentor line earns it")
+		local g = Config.Badges.groups[1]
+		for i = 1, #g.badges do
+			P.Bits.set(profile.mmo.badges, g.at + i - 1)
+		end
+		check(TravelStyleRules.canWear(Config, profile, "flight", 1), "a finished badge group earns it")
+		local src = source("src/server/Services/TravelStyleService.luau")
+			.. source("src/client/Fx/TravelStyleFx.luau")
+		for _, bad in { "MoveGuard", "speedCap", "WalkSpeed", ".Velocity =", "AssemblyLinearVelocity =" } do
+			check(string.find(src, bad, 1, true) == nil, "styles never change movement (" .. bad .. ")")
+		end
+	end)
+
+	test(
+		"H8: the Hero Pass: 8 weeks, 40 tiers, every reward shown, cosmetics only on the paid track",
+		function()
+			check(PS.tiers == 40 and PS.weeks == 8, "8 weeks, 40 tiers")
+			local prod = Config.Shop.products.heroPass
+			check(
+				prod.robux == 499 and prod.id == 0 and prod.kind == "heroPass",
+				"499 Robux, id 0 until nate"
+			)
+			local CreatorRules = require("../src/shared/CreatorRules")
+			local shopTints = {}
+			for _, tab in Config.Shop.tabs do
+				for _, key in tab.items do
+					local row = Config.Shop.products[key]
+					if row and row.kind == "tint" then
+						shopTints[row.tint] = true
+					end
+				end
+			end
+			for si, d in PS.seasons do
+				check(#d.free == PS.tiers and #d.paid == PS.tiers, "a reward slot per tier on both tracks")
+				local free, paid, travel = 0, 0, {}
+				for track, rows in { free = d.free, paid = d.paid } do
+					for tier = 1, PS.tiers do
+						local r = rows[tier]
+						if track == "free" then
+							check(r ~= nil and r ~= false, "a free reward on every tier (" .. tier .. ")")
+						end
+						if r then
+							local cosmetic = r.kind ~= "credits" and r.kind ~= "dust"
+							if track == "paid" then
+								check(cosmetic, "the paid track is cosmetics only (tier " .. tier .. ")")
+								paid += 1
+							elseif cosmetic then
+								free += 1
+							end
+							check(PassRules.label(Config, r) ~= "", "a label for tier " .. tier)
+							if r.kind == "title" then
+								check(PS.titles[r.v] ~= nil, "title " .. r.v)
+							elseif r.kind == "trim" then
+								check(PS.trims[r.v] ~= nil, "trim " .. r.v)
+							elseif r.kind == "emote" then
+								local e = Config.Shop.emotes[r.v]
+								check(e ~= nil and e.earned == true, "an earned emote " .. r.v)
+							elseif r.kind == "tint" then
+								local t = Config.Shop.tints[r.v]
+								check(
+									t ~= nil and t.pass == true and not shopTints[r.v],
+									"a pass tint, never sold"
+								)
+							elseif r.kind == "travel" then
+								local s = TravelStyleRules.byId(Config, r.v)
+								check(
+									s ~= nil and s.source == "pass" and s.track == track,
+									"a pass style on its track"
+								)
+								travel[r.v] = true
+							elseif r.kind == "piece" then
+								local p = CreatorRules.index(Config).byName[r.v]
+								check(
+									p ~= nil and p.source.kind == "pass" and p.source.n == si,
+									"a season piece " .. r.v
+								)
+							elseif r.kind == "prop" then
+								check(Config.Hq.props[r.v] ~= nil, "an HQ prop " .. r.v)
+							end
+						end
+					end
+				end
+				check(free >= 13 and free <= 17, "about 15 free cosmetics (" .. free .. ")")
+				check(paid >= 28 and paid <= 32, "about 30 paid cosmetics (" .. paid .. ")")
+				local n = 0
+				for _ in travel do
+					n += 1
+				end
+				check(n == 10, "2 travel styles per mobility on the pass")
+			end
+			for _, k in
+				{
+					"incident",
+					"contract",
+					"mission",
+					"taskForce",
+					"boss",
+					"badge",
+					"contestEnter",
+					"dailyFirst",
+				}
+			do
+				check((PS.xp[k] or 0) > 0, "Pass XP from " .. k)
+			end
+			local src = source("src/server/Services/PassService.luau")
+			check(
+				string.find(src, "Progress.multiplier", 1, true) == nil,
+				"the 2x pass never doubles Pass XP"
+			)
+			check(string.find(src, "bonus(", 1, true) == nil, "no Credit bonuses on Pass XP")
+			for key, row in Config.Shop.products do
+				check(
+					row.kind ~= "passSkip" and not string.find(key, "skip", 1, true),
+					"no tier skips at launch"
+				)
+			end
+		end
+	)
+
+	test("H8: Pass XP, tiers, the daily first win, claims once, the paid track from a receipt", function()
+		local P = require("../src/shared/ProfileSchema")
+		local ShopRules = require("../src/shared/ShopRules")
+		local profile = P.default()
+		profile.characters = { P.newCharacter() }
+		check(not ShopRules.available(Config, profile, "heroPass"), "no pass before the season is set")
+		check(PassRules.roll(profile.pass, 1) and not PassRules.roll(profile.pass, 1), "rolled once")
+		check(ShopRules.available(Config, profile, "heroPass"), "on sale in a written season")
+		local pass = profile.pass
+		local add, before, after = PassRules.addXp(PS, pass, 100, "incident", 500)
+		check(add == 100 + PS.xp.dailyFirst and before == 0 and after == 0, "the daily first win once")
+		add = PassRules.addXp(PS, pass, 100, "incident", 500)
+		check(add == 100, "not twice the same day")
+		add = PassRules.addXp(PS, pass, 100, "badge", 501)
+		check(add == 100 and pass.day == 500, "a badge is not a win")
+		PassRules.addXp(PS, pass, 10 ^ 7, nil, 501)
+		check(
+			pass.xp == PS.tiers * PS.xpPerTier and PassRules.tier(PS, pass.xp) == PS.tiers,
+			"capped at tier 40"
+		)
+		local ok, row = PassRules.claim(Config, profile, 2, false)
+		check(ok and row.kind == "title" and P.Bits.get(pass.titles, row.v), "a title kept on the account")
+		check(not PassRules.claim(Config, profile, 2, false), "claims once")
+		check(not PassRules.claim(Config, profile, 2, true), "the paid track needs the receipt")
+		check(ShopRules.grant(Config, profile, "heroPass", "rcpt"), "the receipt")
+		check(not ShopRules.grant(Config, profile, "heroPass", "rcpt"), "one grant per receipt")
+		check(pass.paid and ShopRules.owned(Config, profile, "heroPass"), "the paid flag")
+		ok, row = PassRules.claim(Config, profile, 4, true)
+		check(ok and row.kind == "emote" and P.Bits.get(profile.emotes, row.v), "an emote")
+		check(not PassRules.claim(Config, profile, 1, true), "tier 1 has no paid reward")
+		ok, row = PassRules.claim(Config, profile, 1, false)
+		check(ok and row.kind == "credits", "Credits come back for the server to pay")
+		ok, row = PassRules.claim(Config, profile, 40, true)
+		local CreatorRules = require("../src/shared/CreatorRules")
+		local p = CreatorRules.index(Config).byName[row.v]
+		check(ok and P.Bits.get(profile.pieces, p.id), "the costume piece")
+		local profile2 = P.default()
+		PassRules.roll(profile2.pass, 1)
+		PassRules.addXp(PS, profile2.pass, 3000, nil, 1)
+		check(not PassRules.claim(Config, profile2, 4, false), "a tier not reached")
+		-- a new season: progress and the paid track start over, claimed looks stay
+		local title = pass.titles[1]
+		check(PassRules.roll(pass, 2) and pass.xp == 0 and not pass.paid, "a new season")
+		check(pass.titles[1] == title and P.Bits.get(profile.emotes, 19), "earned looks stay forever")
+		check(
+			PassRules.data(PS, 2) == nil and not ShopRules.available(Config, profile, "heroPass"),
+			"no season 2 yet"
+		)
+		check(not PassRules.canClaim(PS, pass, 2, false), "nothing to claim in an unwritten season")
+	end)
+
+	test("H8: weekly episodes: Monday reset, rotation, steps and the event mix", function()
+		local WorldGen = require("../src/shared/WorldGen")
+		local monday = 20787 * 86400 -- 2026-11-30 00:00 UTC, a Monday
+		check(PassRules.week(monday) == PassRules.week(monday - 1) + 1, "a new week on Monday 00:00 UTC")
+		check(PassRules.week(monday + 6 * 86400 + 86399) == PassRules.week(monday), "the whole week")
+		check(
+			WorldGen.weekSeed(monday) ~= WorldGen.weekSeed(monday - 1)
+				and WorldGen.weekSeed(monday + 86400 * 6) == WorldGen.weekSeed(monday),
+			"the same Monday reset as the world seed"
+		)
+		check(PassRules.weekEnds(monday + 100) == monday + 7 * 86400, "the reset time")
+		check(PS.startWeek == PassRules.week(monday), "season 1 starts that Monday")
+		local s, w = PassRules.season(PS, monday + 9 * 7 * 86400)
+		check(s == 2 and w == 2, "week 10 is season 2 week 2")
+		check(PassRules.season(PS, 0) == 1, "before launch: season 1")
+		local E = Config.Episodes
+		check(#E.seasons[1] == 8, "8 episodes a season")
+		local seen = {}
+		for i = 0, 7 do
+			local ep, e = PassRules.episode(Config, monday + i * 7 * 86400 + 3600)
+			check(ep == E.seasons[1][i + 1] and e == i + 1, "episode " .. (i + 1))
+			seen[ep] = true
+		end
+		check(PassRules.episode(Config, monday + 8 * 7 * 86400) == E.seasons[1][1], "replays when unwritten")
+		local incidents = Config.Incidents.templates or Config.Incidents
+		for _, ep in E.seasons[1] do
+			check(#ep.panels == 3 and #ep.steps == 4, ep.name .. ": 3 panels and 4 steps")
+			for _, p in ep.panels do
+				local h, v = Config.Mentors.list[p.who[1]], Config.Mentors.list[p.who[2]]
+				check(h and h.side == "hero" and v and v.side == "villain", "a mentor of each side")
+				for _, w2 in { "League", "Null", "Shardfall" } do
+					check(not string.find(p.hero .. p.villain, w2, 1, true), "lore: no " .. w2)
+				end
+			end
+			for id, wt in ep.events do
+				check(Config.Events.events[id] ~= nil and wt > 0, "a real event " .. id)
+			end
+			local last = ep.steps[4].key
+			check(last == "taskForce" or last == "mission", "the 4th step is a task force or a mission")
+			for _, st in ep.steps do
+				local base, arg = string.match(st.key, "^(%a+):?(.*)$")
+				check(table.find({
+					"incident",
+					"contract",
+					"rescue",
+					"kill",
+					"find",
+					"contest",
+					"boss",
+					"mission",
+					"taskForce",
+				}, base) ~= nil, "a counted key " .. st.key)
+				if base == "kill" and arg ~= "" then
+					check(Config.Enemies[arg] ~= nil, "a robot kind " .. arg)
+				elseif base == "incident" and arg ~= "" then
+					check(
+						incidents[arg] ~= nil or (Config.Incidents.types or {})[arg] ~= nil,
+						"an incident " .. arg
+					)
+				end
+				check(st.n >= 1 and #st.text > 0, "a goal and its text")
+			end
+		end
+		local P = require("../src/shared/ProfileSchema")
+		local pe = P.default().episode
+		local ep = E.seasons[1][1]
+		check(PassRules.episodeRoll(pe, 100) and not PassRules.episodeRoll(pe, 100), "rolled once a week")
+		local done, all = PassRules.bump(ep, pe, "incident", 5)
+		check(#done == 0 and pe.counts[1] == 5 and not all, "counting")
+		done = PassRules.bump(ep, pe, "incident", 3)
+		check(#done == 1 and done[1] == 1 and pe.counts[1] == ep.steps[1].n, "a step done, capped")
+		check(#PassRules.bump(ep, pe, "incident") == 0, "never twice")
+		PassRules.bump(ep, pe, "rescue", 99)
+		PassRules.bump(ep, pe, "contest")
+		done, all = PassRules.bump(ep, pe, "taskForce")
+		check(#done == 1 and all and PassRules.episodeDone(ep, pe), "the episode done")
+		check(
+			PassRules.episodeRoll(pe, 101) and pe.steps == 0 and pe.counts[1] == 0,
+			"a new week starts over"
+		)
+		-- the badge for each episode
+		local g
+		for _, row in Config.Badges.groups do
+			if row.id == "episodes" then
+				g = row
+			end
+		end
+		check(g ~= nil and #g.badges == 8, "a weekly badge for each of the 8 episodes")
+		-- the theme tilts the events' mix
+		local EventPlan = require("../src/shared/EventPlan")
+		local EC = Config.Events
+		local Rng = require("../src/shared/Rng")
+		local hits, runs = 0, 400
+		for i = 1, runs do
+			local st = EventPlan.new(EC, 0)
+			st.nextAt = 0
+			local id = EventPlan.due(EC, st, 1, Rng.new(i), { ParadeGoneWrong = 20 })
+			if id == "ParadeGoneWrong" then
+				hits += 1
+			end
+		end
+		check(hits > runs * 0.4, "a weighted event comes up far more often (" .. hits .. ")")
+		local w0 = PassRules.eventWeights(Config, monday + 3600)
+		check(w0.ParadeGoneWrong == 4, "this week's weights")
+	end)
+
+	test("H8: the save, remotes, analytics and wiring", function()
+		local P = require("../src/shared/ProfileSchema")
+		local p = P.default()
+		check(p.pass.season == 0 and p.pass.xp == 0 and p.pass.paid == false, "a fresh pass")
+		check(#p.pass.claimed.free == 2 and #p.pass.claimed.paid == 2, "40 tier bits per track")
+		check(p.episode.week == 0 and #p.episode.counts == 4 and #p.mmo.travel == 1, "episode and styles")
+		check(#P.newCharacter().mmo.travel == 5, "a style per mobility")
+		local bad = P.load({
+			version = P.VERSION,
+			pass = { season = -1, xp = "x", paid = "yes", claimed = { free = 5 } },
+			episode = { week = -2, steps = 99, counts = { 1e9 } },
+			characters = { { mmo = { travel = { 9, -1 }, trim = 500 } } },
+		})
+		check(bad.pass.season == 0 and bad.pass.xp == 0 and bad.pass.paid == false, "pass repaired")
+		check(#bad.pass.claimed.free == 2 and #bad.pass.claimed.paid == 2, "claims repaired")
+		check(bad.episode.week == 0 and bad.episode.steps == 15 and bad.episode.counts[1] == 0, "episode")
+		local c = bad.characters[1].mmo
+		check(c.travel[1] == 0 and c.travel[2] == 0 and #c.travel == 5 and c.trim == 131, "styles and trim")
+		local v = P.clientView(P.default())
+		check(v.travelOwned ~= nil and v.travel ~= nil and v.passPaid == false, "the client view")
+		local R = require("../src/shared/Remotes")
+		check(R.PassClaim.dir == "C2S" and R.PassClaim.rate == 2, "Pass.Claim 2/s")
+		check(R.TravelStyleSet.dir == "C2S" and R.TravelStyleSet.rate == 2, "Style.Travel 2/s")
+		check(R.PassState.dir == "S2C" and R.PassXp.dir == "S2C", "state to the device")
+		local AS = require("../src/shared/AnalyticsSchema")
+		for _, ev in { "pass_tier", "pass_claim", "episode_step", "episode_done", "travel_style" } do
+			check(AS.EVENTS[ev] ~= nil, "analytics " .. ev)
+		end
+		local BadgeRules = require("../src/shared/BadgeRules")
+		local prof = P.default()
+		local ch = P.newCharacter()
+		prof.characters = { ch }
+		P.Bits.set(prof.pass.titles, 3)
+		check(
+			BadgeRules.titleText(Config, prof, ch, PS.titleBase + 3) == PS.titles[3],
+			"a pass title is in the title list"
+		)
+		local ev = source("src/server/Services/EventService.luau")
+		check(
+			string.find(ev, "PassRules.eventWeights(", 1, true) ~= nil,
+			"the episode's mix reaches the events"
+		)
+		local ps = source("src/server/Services/PassService.luau")
+		for _, hook in
+			{
+				"IncidentService.Cleared",
+				"EconomyService.Earned",
+				"MissionService.Cleared",
+				"TaskForceService.Done",
+				"BossService.Rewarded",
+				"BadgeService.Earned",
+				"CollectService.Found",
+				"ContestService.Entered",
+			}
+		do
+			check(string.find(ps, hook, 1, true) ~= nil, "Pass XP from " .. hook)
+		end
+		check(string.find(ps, '"episode:" .. e', 1, true) ~= nil, "the week's badge")
 	end)
 end

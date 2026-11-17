@@ -539,6 +539,22 @@ function Toasts.show(data: { [string]: any })
 			),
 			Kit.color.paper
 		)
+	elseif id == "episodeStep" then
+		-- H8: a step of this week's episode
+		push(
+			string.format("Episode step done: %s  +%s Renown", data.text or "?", Kit.comma(data.renown or 0)),
+			Kit.color.gold
+		)
+	elseif id == "episodeDone" then
+		push(
+			string.format(
+				"Episode %s done! +%s Renown and the week's badge",
+				data.name or "",
+				Kit.comma(data.renown or 0)
+			),
+			Kit.color.gold,
+			true
+		)
 	elseif id == "contestWait" then
 		push("Watch every contestant before you vote", Kit.color.muted)
 	elseif id == "saveDown" then

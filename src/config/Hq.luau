@@ -79,13 +79,17 @@ return {
 		[9] = "Ship's Bell", -- H7: the ShipBells collection
 		[10] = "Relic Case", -- H7: the DeepRelics collection
 		[11] = "Pigeon Coop", -- H7: the RoofPigeons collection
-		[12] = "Comet Lamp", -- H7: the CometShards collection
+		[12] = "Star Lamp", -- H7: the Star Charms collection (id CometShards)
 		[13] = "Parts Rack", -- H7: the RobotParts collection
 		[14] = "Boss Plate Wall", -- H7: the BossPlates collection
 		[15] = "Core Case", -- H7: the NemesisCores collection
 		[16] = "Ribbon Board", -- H7: the ContestRibbons collection
 		[17] = "Keepsake Box", -- H7: the MentorKeepsakes collection
 		[18] = "Crest Banner", -- H7: the Task Force Crests collection (id TaskForcePatches)
+		[19] = "Season One Poster", -- H8: Hero Pass season 1 (free track)
+		[20] = "Golden Ticket Booth", -- H8: Hero Pass season 1 (paid track)
+		[21] = "Spotlight Rig", -- H8
+		[22] = "Season One Statue", -- H8
 	},
 
 	-- Legacy rebirth (spec: at the level cap, 50 since 2026-11-17, retire to the Hall of Legends: a statue;
