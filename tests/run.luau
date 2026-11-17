@@ -5044,7 +5044,13 @@ test(
 				elseif k == "pack" then
 					check(Config.Shop.packs[p.source.n or 0] ~= nil, p.name .. " pack")
 				else
-					check(k == "free" or k == "drop" or k == "starter", p.name .. " source " .. k)
+					check(
+						k == "free"
+							or k == "drop"
+							or k == "starter"
+							or (k == "origin" and Config.Creator.origins[p.source.n or 0] ~= nil),
+						p.name .. " source " .. k
+					)
 				end
 				if tab.id == "emblem" then
 					check(C.shapes[string.split(p.kit, ":")[1]] ~= nil, p.name .. " shape")
@@ -7141,7 +7147,7 @@ test("Creator plan: save v9 pads looks and pieces, keeps weapons, repairs junk",
 	old.characters[1].look = LookCodec.toWords(v1)
 	old.characters[1].weapon = "x"
 	local p = ProfileSchema.load(serde.decode("json", serde.encode("json", old)))
-	check(p.version == 9, "version 9")
+	check(p.version == ProfileSchema.VERSION and p.version >= 9, "version 9 or later")
 	check(
 		#p.pieces == ProfileSchema.PIECE_WORDS and p.pieces[8] == 8 and p.pieces[9] == 0,
 		"the unlock set pads to its full size, keeping bits"
@@ -7224,8 +7230,9 @@ test(
 		end
 		-- 121 in the first slice, then 2026-11-17's head area: 20 hair, 7 facial hair, 15 faces, 12 makeup,
 		-- 4 ears, 14 eyes and 20 emblems; then 10 headwear and 14 masks; then 30 tops, 10 shoulders and 7 neck; then 7 arms, 8 gloves, 14 boots, 6 wrist, 7 belts, 18 legs, 10 back bling and 3 capes (73)
-		-- and the classic clothes and faces (2026-11-17): 18 shirts, 12 pants, 6 faces
-		check(count == 121 + 92 + 24 + 47 + 73 + 36, "393 pieces beyond the first 146 (539 in all)")
+		-- and the classic clothes and faces (2026-11-17): 18 shirts, 12 pants, 6 faces; and the 5 origin crests
+		-- (lore step 2)
+		check(count == 121 + 92 + 24 + 47 + 73 + 36 + 5, "398 pieces beyond the first 146 (544 in all)")
 		-- every piece's unlock can actually be earned
 		for _, p in idx.list do
 			local src, n = p.source, p.source.n
@@ -9460,6 +9467,154 @@ test("Lore step 1: League rep is Vigil Trust, Syndicate rep is Fear; old saves k
 	end
 	walk(Config.Creator)
 	check(unlocks >= 30, "the rep unlocks were found")
+end)
+
+test(
+	"Lore step 2: origins are a title and one crest, never a stat; saves v9 load with a default origin",
+	function()
+		local CreatorRules = require("../src/shared/CreatorRules")
+		local C = Config.Creator
+		check(#C.origins == 5, "five origins")
+		local want = { "Lab accident", "Alien blood", "Magic relic", "Tech suit", "Training" }
+		for i, o in C.origins do
+			check(o.name == want[i], "origin " .. i .. " is " .. want[i])
+			check(type(o.title) == "string" and o.title ~= "", o.name .. " has a title")
+			check(
+				type(o.line) == "string" and #o.line > 10 and #o.line <= 80,
+				o.name .. " has one short fixed line"
+			)
+			-- looks only: an origin row holds words, never a number a fight could read
+			for k, v in o do
+				check(type(v) == "string", o.name .. "." .. k .. " is text, not a stat")
+			end
+			local crest = CreatorRules.originPiece(Config, i)
+			check(crest ~= nil and crest.tab == "emblem", o.name .. " has its crest in the Emblems tab")
+			if crest then
+				check(C.shapes[string.split(crest.kit, ":")[1]] ~= nil, crest.name .. " has a shape")
+			end
+		end
+		check(CreatorRules.originOk(Config, 1) and CreatorRules.originOk(Config, 5), "1 to 5 are origins")
+		check(
+			not CreatorRules.originOk(Config, 0) and not CreatorRules.originOk(Config, 6),
+			"0 and 6 are not"
+		)
+		check(C.origins[C.originDefault] ~= nil, "the default origin exists")
+		-- the crest: worn free by a hero of that origin, refused for another, unlocked once any hero has it
+		local profile = ProfileSchema.default()
+		local look = CreatorRules.defaultLook(Config)
+		local lab = CreatorRules.originPiece(Config, 1) :: any
+		look.pieces.emblem = lab.index
+		check(not (CreatorRules.validate(Config, profile, look)), "the Lab crest is locked with no origin")
+		check(CreatorRules.validate(Config, profile, look, 1), "a Lab-accident hero may wear it")
+		check(not (CreatorRules.validate(Config, profile, look, 2)), "an Alien-blood hero may not")
+		profile.characters[1].origin = 1
+		local earned = CreatorRules.earned(Config, profile)
+		local got = false
+		for _, p in earned do
+			got = got or p.id == lab.id
+		end
+		check(got, "a Lab-accident hero earns the Lab crest for the account")
+		CreatorRules.grant(profile, lab)
+		check(CreatorRules.validate(Config, profile, look, 3), "once unlocked, any hero may wear it")
+		-- the save: v10, a new character has no origin yet, an old one gets the default, bad values are fixed
+		check(ProfileSchema.VERSION == 10, "save version 10")
+		check(ProfileSchema.newCharacter().origin == 0, "a new character has not picked an origin")
+		local old = ProfileSchema.default()
+		old.version = 9
+		old.characters[1].origin = nil
+		old.characters[1].created = 1
+		old.characters[1].level = 12
+		old.characters[2] = ProfileSchema.newCharacter("villain")
+		old.characters[2].origin = nil
+		local back = ProfileSchema.load(serde.decode("json", serde.encode("json", old)))
+		check(back.version == 10, "a v9 save loads at v10")
+		check(back.characters[1].origin == C.originDefault, "an old hero gets the default origin")
+		check(back.characters[2].origin == C.originDefault, "every old character does")
+		check(back.characters[1].level == 12, "nothing else moved")
+		local bad = ProfileSchema.default()
+		bad.characters[1].origin = 99
+		check(ProfileSchema.load(bad).characters[1].origin == 0, "an origin out of range is cleared")
+		local made = ProfileSchema.default()
+		made.characters[1].created = 1
+		made.characters[1].origin = 0
+		check(ProfileSchema.load(made).characters[1].origin == C.originDefault, "a made hero always has one")
+		local view = ProfileSchema.clientView(back)
+		check(
+			view.origin == C.originDefault and view.roster[1].origin == C.originDefault,
+			"the client sees it"
+		)
+		-- Hero.Create carries the origin (optional, last)
+		local hc = Remotes.HeroCreate.schema
+		local last = hc[#hc]
+		check(
+			last.optional == true and last.min == 1 and last.max == #C.origins,
+			"HeroCreate's last arg is the origin"
+		)
+	end
+)
+
+test("Lore step 2: the street outfit is plain classic clothes and the hero's own face and hair", function()
+	local CreatorRules = require("../src/shared/CreatorRules")
+	local LookCodec = require("../src/shared/LookCodec")
+	local C = Config.Creator
+	local S = C.street
+	local profile = ProfileSchema.default()
+	local rng = Rng.new(77)
+	for n = 1, 40 do
+		local look = CreatorRules.randomize(Config, profile, rng)
+		look.pieces.suit = 1
+		look.pieces.back = 2
+		look.pieces.hair = 2
+		look.tints.suit = { 3, 4, 5 }
+		look.tints.hair = { 6, 0, 0 }
+		look.mats.suit = 3
+		local before = LookCodec.copy(look)
+		local st = CreatorRules.streetLook(Config, look)
+		for _, slot in LookCodec.ALL do
+			local keep = table.find(S.keep, slot) ~= nil
+			if slot == "shirt" then
+				check(st.pieces.shirt == S.shirt, "street shirt " .. n)
+			elseif slot == "pants" then
+				check(st.pieces.pants == S.pants, "street pants " .. n)
+			elseif keep then
+				check(st.pieces[slot] == (look.pieces[slot] or 0), slot .. " is the hero's own " .. n)
+			else
+				check(st.pieces[slot] == 0, slot .. " is off in the street " .. n)
+			end
+		end
+		check(st.pieces.suit == 0 and st.pieces.back == 0 and st.pieces.head == 0, "no suit, cape or mask")
+		check(st.pieces.emblem == 0 and st.pieces.aura == 0, "no emblem or aura")
+		check(st.tints.suit == nil and st.mats.suit == nil, "the suit's colours and material are gone")
+		check(st.tints.hair ~= nil and st.tints.hair[1] == 6, "the hair keeps its colour")
+		check(st.tints.shirt[1] == S.shirtColor and st.tints.pants[1] == S.pantsColor, "plain colours")
+		check(
+			st.skin == look.skin and st.hair == look.hair and st.anime == look.anime,
+			"skin and hair colour"
+		)
+		check(
+			buffer.tostring(LookCodec.encode(look)) == buffer.tostring(LookCodec.encode(before)),
+			"the designed look is not changed"
+		)
+		check(CreatorRules.validate(Config, profile, st), "the street outfit is always wearable " .. n)
+		check(LookCodec.decode(LookCodec.encode(st)) ~= nil, "it encodes " .. n)
+	end
+	local shirt = CreatorRules.piece(Config, "shirt", S.shirt)
+	local pants = CreatorRules.piece(Config, "pants", S.pants)
+	check(shirt ~= nil and shirt.source.kind == "free", "the street shirt is one of our free shirts")
+	check(pants ~= nil and pants.source.kind == "free", "the street pants are free")
+	check(C.palette[S.shirtColor] ~= nil and C.palette[S.pantsColor] ~= nil, "street colours on the palette")
+	check(C.avatar.on == false, "nothing from the player's own avatar")
+end)
+
+test("Lore step 2: creator first: the Opening funnel starts with the creator", function()
+	local AnalyticsSchema = require("../src/shared/AnalyticsSchema")
+	local F = AnalyticsSchema.FUNNELS.Opening
+	check(
+		F[1] == "session_start" and F[2] == "creator_open" and F[3] == "creator_done",
+		"creator steps first"
+	)
+	check(F[4] == "first_leap" and F[7] == "opening_done", "then the opening")
+	check(AnalyticsSchema.EVENTS.origin_pick ~= nil, "origin picks are logged")
 end)
 
 print(string.format("\n%d passed, %d failed", passed, failed))

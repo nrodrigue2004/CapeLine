@@ -57,6 +57,7 @@ phones or Studio go on the Studio test list below.
 - More activities (2026-11-17): the valve, scaffold, crane load, crate stack, convoy and tow cars, airship, parade float, power clamps, stadium gates, bridge barricade, defusal charge, demolition pylons, courier drop pads, recon outposts, the contract generator and the Harbour fog banks are plain parts (IncidentService, EventService, ContractService, ActivityFx). PLACEHOLDER ART.
 - New robot types (2026-11-17): the riot shield, officer's cap, rifle, visor, bandolier, medic backpack, jet wings and hook launcher are plain parts (EnemyRenderer); the aim laser, tracer, net, hook and cable, grenade, burning patch, repair beam, rally ring and the Mimic's glitch burst are neon parts and the effects library's particles (CombatFx); their sounds are pitched built-in sounds (Config.Audio aimLock, grenadeBoom, rally, reveal). PLACEHOLDER ART until meshes and effect sheets.
 - Store page (M12): candidate icons and thumbnails made 2026-11-17 (art/export/store, see "Store art candidates" below); thumbnail 3 shows Rustjaw Prime's PLACEHOLDER LOOK (re-render it with `bash art/store/make.sh boss` once the boss lore look is final). No concept art yet.
+- Origin crests (lore step 2, 2026-11-17): the five origin crests (Lab, Star-Blood, Relic, Tech, Dojo) are glyphs (⚗ ☄ ❂ ⚙ ⚔) on the crest backing like every emblem (Config.Creator.shapes). PLACEHOLDER ART until the emblem set; check each glyph renders in Studio.
 - Hero creator first slice (2026-11-16): the 121 new pieces (beards, faces, makeup, hats, ears, shoulders, neck, arms, wrists, belts, legs, back bling, 10 hair styles) are blocks, wedges, balls and cylinders welded to the body (PieceKits); all 36 weapons are part-built (WeaponKit); body builds and heights scale the blocky rig and the 8 Blender body sets (art/blender/bodies.py, 2026-11-17) reshape it once Bodies.fbx is imported; weapon moves reuse the power visuals in a steel colour with no swing animation. PLACEHOLDER ART.
 
 ## Store art candidates (2026-11-17)
@@ -82,6 +83,19 @@ What nate does:
 
 ## Studio test list (needs nate's PC)
 Start: `rojo serve`, connect the Rojo plugin, press Play (or Test > Clients and Servers with 2 players). The DEV button (top right, Studio only) has the test tools.
+
+### Lore step 2: creator first and origins (2026-11-17)
+Build plan step 2 (https://claude.ai/artifact/9F2uydBzqv4KhcPG1aFdp5). The old opening still runs after the creator until step 3 replaces it. DEV > Wipe starts over as a brand-new player.
+1. Brand-new player (DEV > Wipe, or a fresh test account): about 1.5 s after loading the creator opens at once, before any cinematic or story: SIDE first (The Vigil or The Dread Syndicate), then ORIGIN, MOBILITY, POWERS, WEAPON, APPEARANCE, PLAY. No robots, incidents or events bother the hero while it is open. Nothing from your Roblox avatar shows on the hero.
+2. ORIGIN tab: five rows (Lab accident, Alien blood, Magic relic, Tech suit, Training), each with its title on the right (Lab-Born, Star-Blooded, Relic-Bound, Suit-Forged, Self-Made). Hovering (PC) shows the line and the crest on the preview; tapping picks it and puts that origin's crest on the chest (the Symbol slot; change it under APPEARANCE). The card says "Looks only: every origin has the same Spark and the same stats". RANDOMIZE on this tab picks a random origin.
+3. DONE without an origin says "Pick an origin (ORIGIN)". With everything picked, DONE saves; a toast unlocks the crest ("Lab Crest"); then the cinematic and the opening start. At the shard the opening asks nothing: a Vigil hero gets the save-her step, a Syndicate villain the grab-the-shard escape. At the end of the run (Suit Up) nothing opens: level 3, Flight and the Skill Point arrive and the guided flight starts.
+4. Check the hero's power numbers (Dev panel stats) with two heroes of different origins and the same path: identical.
+5. Another player's name plate shows the origin title before "@name" (e.g. "Lab-Born  @Player").
+6. Returning hero: open the creator at a safehouse or HQ: ORIGIN shows your origin; pick another and DONE: it saves free (no cost), the plate title changes. SIDE says "picked at the start" and cannot change.
+7. Old save: a hero made before this update loads with the Training origin (Self-Made) and the Dojo Crest unlocked on join (toast); nothing else about it changed.
+8. New hero on a returning account (HQ > a new character slot): the creator opens first; after DONE the main menu offers CREATE FIRST (straight to the city, no cinematic, no disaster) or PLAY THE OPENING. The PLAY, SHOP, SETTINGS menu does not pop up after DONE.
+9. Street outfit: DEV > "Street outfit: off" toggles it. On: the hero wears the slate hoodie and navy jeans with its own face, hair and skin; no suit, cape, mask, gloves, boots, emblem, aura, gear looks or weapon. Respawn: still on. Off: the designed look comes back exactly. Abilities and stats work the same either way.
+10. Phone (Device Emulator): the creator's 7 step tabs fit on one row and every ORIGIN row is tappable.
 
 ### Lore step 1: renames (2026-11-17)
 nate's lore and build plan step 1 (https://claude.ai/artifact/9F2uydBzqv4KhcPG1aFdp5): display names only; ids and saves are unchanged. The opening, missions, choices and side quests still carry the old text until steps 3 and 5.

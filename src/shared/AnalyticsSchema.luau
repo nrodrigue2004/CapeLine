@@ -3,7 +3,9 @@
 -- data, so the server can refuse anything else and Lune can test the list. Event names are lowercase with
 -- underscores; fields are short codes and numbers only: never names, chat or free text.
 -- * EVENTS[name] = the meaning of CustomField01 to 03 (at most 3, Roblox's limit).
--- * FUNNELS[name] = the steps in order. "Opening" is the onboarding funnel (once per account).
+-- * FUNNELS[name] = the steps in order. "Opening" is the onboarding funnel (once per account); since lore
+--   step 2 (creator first) the creator's steps come right after session_start, and opening_done (the run's
+--   end) replaced choice_made (the side is picked in the creator; choice_made stays an event).
 -- * check(name, fields) cleans one event: false for an unknown name or too many fields; text fields are
 --   cut to 32 characters with anything but letters, digits, "_", "-", "." and ":" removed.
 
@@ -22,6 +24,7 @@ AnalyticsSchema.EVENTS = {
 	choice_made = { "choice", "option" },
 	choice_pick = { "choice", "option" },
 	creator_done = { "class", "side", "set" }, -- value: seconds in the creator
+	origin_pick = { "origin", "mode" }, -- value: level; lore step 2: a new hero's origin, or a free change
 	path_change = { "class", "set", "kind" }, -- value: level; kind: free (the one change) or first
 	incident_done = { "template", "medal", "participants" }, -- value: seconds
 	contract_done = { "type", "daily_bonus" }, -- value: seconds
@@ -57,12 +60,12 @@ AnalyticsSchema.EVENTS = {
 AnalyticsSchema.FUNNELS = {
 	Opening = {
 		"session_start",
+		"creator_open",
+		"creator_done",
 		"first_leap",
 		"first_catch",
 		"first_blast",
-		"choice_made",
-		"creator_open",
-		"creator_done",
+		"opening_done",
 		"first_incident",
 		"level_3",
 		"first_boss_join",

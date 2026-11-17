@@ -2,7 +2,7 @@
 -- servers never run them. Commands: bots n, clearbots, drones n, robot 1-6 (3 of that kind), cleardrones,
 -- spawner 0/1, god 0/1, class 1-4, level n, heal, style 0/1 (Comic/Anime), points n (bonus Skill Points),
 -- meter (fill Awakening), respec (no cooldown), loot 1-8 (roll a drop source at the hero's level), renown n,
--- credits n, dust n, save (save now), map (every beacon and safehouse found), wipe (start over as a new player: the opening then the creator), wreck n (structure damage
+-- credits n, dust n, save (save now), map (every beacon and safehouse found), wipe (start over as a new player: the creator then the opening), wreck n (structure damage
 -- around the hero, default 3000), repair (every building back), flip (every vehicle near the hero),
 -- incident 1-24 (that template next to the hero), clearincidents, event 1-12, boss (land the next world
 -- boss in 3 s), bosskill (the boss to 1 HP), contract (finish the first accepted contract), clock 0-3
@@ -12,6 +12,7 @@
 -- M9: creator (open the creator to remake this hero), hq (enter your HQ), hqlevel n, away n (offline drones
 -- for n hours away), pieces (unlock every creator piece), buy n (test-purchase shop item n with a fixed
 -- receipt id: the second time grants nothing), legacy (the level cap and retire at HQ next).
+-- Lore step 2: street 0/1 (the street outfit off or on, CreatorService.streetOutfit).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -160,8 +161,8 @@ local commands: { [string]: (player: Player, hero: any, value: number) -> () } =
 			HeroService.applyProfile(hero, profile.characters[1], profile.currency)
 			GearService.refresh(player)
 		end
-		-- a brand new player: the opening (the tutorial) runs now and ends in Suit Up, the creator
-		task.delay(0.5, OpeningService.start, player)
+		-- a brand new player: the creator first, then the opening (lore step 2)
+		task.delay(0.5, CreatorService.createFirst, player)
 	end,
 	heal = function(_, hero)
 		hero.health = hero.maxHealth
@@ -293,6 +294,9 @@ local commands: { [string]: (player: Player, hero: any, value: number) -> () } =
 		HeroService.setFxStyle(hero, if anime ~= 0 then "Anime" else "Comic")
 	end,
 	-- M9
+	street = function(player, _, on)
+		CreatorService.streetOutfit(player, on ~= 0)
+	end,
 	creator = function(player)
 		local profile = DataService.get(player)
 		if profile then

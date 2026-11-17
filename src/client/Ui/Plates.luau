@@ -86,9 +86,12 @@ local function refresh(p: Player)
 	local stars = if typeof(legacy) == "number" and legacy > 0
 		then "  " .. string.rep("★", math.min(legacy, 5))
 		else ""
+	-- lore step 2: the origin's title ("Lab-Born") before the player's name
+	local origin = p:GetAttribute("OriginTitle")
+	local title = if typeof(origin) == "string" and origin ~= "" then origin .. "  " else ""
 	if typeof(hero) == "string" and hero ~= "" then
 		pl.name.Text = string.upper(hero)
-		pl.who.Text = "@" .. p.DisplayName .. stars
+		pl.who.Text = title .. "@" .. p.DisplayName .. stars
 	else
 		pl.name.Text = p.DisplayName
 		pl.who.Text = stars
@@ -169,7 +172,19 @@ local function watch(p: Player)
 		task.spawn(attach, p, p.Character)
 	end
 	for _, attr in
-		{ "Pvp", "PvpSide", "Downed", "Fame", "FameRank", "Side", "HeroName", "Legacy", "Squad", "SquadSlot" }
+		{
+			"Pvp",
+			"PvpSide",
+			"Downed",
+			"Fame",
+			"FameRank",
+			"Side",
+			"HeroName",
+			"Legacy",
+			"OriginTitle",
+			"Squad",
+			"SquadSlot",
+		}
 	do
 		p:GetAttributeChangedSignal(attr):Connect(function()
 			refresh(p)

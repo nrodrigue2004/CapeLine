@@ -169,7 +169,8 @@ local Remotes: { [string]: RemoteDef } = {
 	-- Creator, HQ, shops and passes (M9; spec: Hero.Create {side, classId, setId, look, colors, titleId,
 	-- nounId} 1/10s, Hero.Select {slot} 1/5s). The look is one 128-byte LookCodec buffer.
 	-- HeroCreate: look, side (1 hero, 2 villain), archetype (1-4), path in the archetype (1-5), title, noun,
-	-- mobility (1-5, Move.mobilityOrder), weapon (a 12-byte WeaponRules look: id, style, finish, colours, ...)
+	-- mobility (1-5, Move.mobilityOrder), weapon (a 12-byte WeaponRules look: id, style, finish, colours, ...),
+	-- origin (1-5, Creator.origins; lore step 2)
 	HeroCreate = {
 		dir = "C2S",
 		schema = {
@@ -181,12 +182,13 @@ local Remotes: { [string]: RemoteDef } = {
 			n(1, 16),
 			n(1, 5),
 			{ t = "buffer", len = { 12 }, optional = true },
+			n(1, 5, true),
 		},
 		rate = 0.1,
 		burst = 2,
 	},
 	HeroSelect = { dir = "C2S", schema = { n(1, 4) }, rate = 0.2, burst = 2 }, -- a character slot (new = create)
-	CreatorOpen = { dir = "S2C" }, -- { mode = "create" | "edit" | "first", side, classIdx, hq }: open the creator
+	CreatorOpen = { dir = "S2C" }, -- { mode = "create" | "edit" | "first", side, classIdx, hq, origin }: open it
 	CreatorResult = { dir = "S2C" }, -- { ok, reason }
 	LookSave = { dir = "C2S", schema = { n(1, 4) }, rate = 1, burst = 2 }, -- save the look on mannequin n (HQ)
 	LookWear = { dir = "C2S", schema = { n(1, 4) }, rate = 1, burst = 2 }, -- wear mannequin n's look (HQ)
