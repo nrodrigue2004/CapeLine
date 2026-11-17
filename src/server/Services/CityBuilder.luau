@@ -58,7 +58,10 @@ local MATERIAL = {
 }
 
 -- The city kit (Config.City.kit): a kit part takes MaterialVariant "Kit" .. name when nate's uploaded textures
--- are in MaterialService (art/city/materials.py; Tasks.md "Downtown kit block"), else it keeps its plain look
+-- are in MaterialService (art/city/materials.py; Tasks.md "City kit: the whole city"), else it keeps its plain
+-- look. Each texture switches on alone: a building's window bands (b.plain) give way once its own front is in.
+-- Tinted textures keep a colour (the box's tint, else its own colour); the rest show white so nothing tints.
+-- The street props are not built here: each device builds the ones near it (CityProps).
 local KIT = Config.City.kit
 local WHITE = Color3.new(1, 1, 1)
 local kitFound: { [string]: boolean } = {}
@@ -71,14 +74,9 @@ local function kitHas(name: string): boolean
 	end
 	return found
 end
--- every kit texture is in: the kit buildings' window bands give way to their textured fronts
-local function kitReady(): boolean
-	for name in KIT.baseMaterial do
-		if not kitHas(name) then
-			return false
-		end
-	end
-	return true
+-- a plain part (window bands) that its building's kit front replaces once that texture is in
+local function skipPlain(b: any): boolean
+	return b.plain ~= nil and kitHas(b.plain)
 end
 
 local colorCache: { [string]: Color3 } = {}
@@ -139,7 +137,7 @@ local function makePart(b: any): BasePart -- also CityBuilder.part (mission pock
 	if b.kit and kitHas(b.kit) then
 		p.Material = (Enum.Material :: any)[KIT.baseMaterial[b.kit]]
 		p.MaterialVariant = "Kit" .. b.kit
-		p.Color = WHITE
+		p.Color = if KIT.tinted[b.kit] ~= nil then color(b.tint or b.color) else WHITE
 	end
 	if b.kind == "mark" then
 		p.CanCollide = false
@@ -189,10 +187,9 @@ local function buildHub(world: any, folder: Folder)
 		end
 		return m
 	end
-	local skipPlain = kitReady()
 	local skipped = 0
 	for _, b in world.hubBoxes do
-		if b.plain and skipPlain then
+		if skipPlain(b) then
 			skipped += 1
 			continue
 		end
@@ -217,7 +214,6 @@ local function buildHub(world: any, folder: Folder)
 		makePart(b).Parent = parent
 	end
 	CityBuilder.builtParts += #world.baseBoxes + #world.hubBoxes - skipped
-	CityBuilder.builtParts += CityBuilder.buildProps(world.downtown.props, chunk)
 	-- New heroes land on the plaza (spec: Players, joining and leaving)
 	for i, s in world.spawns do
 		local sp = Instance.new("SpawnLocation")
@@ -232,54 +228,6 @@ local function buildHub(world: any, folder: Folder)
 		sp.Material = Enum.Material.Neon
 		sp.Parent = folder
 	end
-end
-
--- The kit blocks' street props from ReplicatedStorage.Art.Street (art/blender/street.py), each piece placed from
--- Config.StreetArt and coloured from Config.City.kit.props; none until the meshes are imported. Returns parts.
-function CityBuilder.buildProps(props: { any }, chunk: (number, number) -> Model): number
-	local art = ReplicatedStorage:FindFirstChild("Art")
-	local street = art and art:FindFirstChild("Street")
-	if not street then
-		return 0
-	end
-	local made = 0
-	for _, pr in props do
-		local pieces = KIT.props[pr.name]
-		local fit = Config.StreetArt[pr.name]
-		if not (pieces and fit) then
-			continue
-		end
-		local model = Instance.new("Model")
-		model.Name = pr.name
-		local at = CFrame.new(pr.x, pr.y, pr.z) * CFrame.Angles(0, math.rad(pr.ry), 0)
-		for piece, look in pieces do
-			local src = street:FindFirstChild(piece, true)
-			local f = fit[piece]
-			if not (src and src:IsA("MeshPart") and f) then
-				continue
-			end
-			local p = src:Clone()
-			for _, c in p:GetChildren() do
-				if not c:IsA("SurfaceAppearance") then
-					c:Destroy()
-				end
-			end
-			p.Name = piece
-			p.Anchored = true
-			p.Size = Vector3.new(f.size[1], f.size[2], f.size[3])
-			p.CFrame = at * CFrame.new(f.offset[1], f.offset[2], f.offset[3])
-			p.Color = Color3.fromRGB(look[1][1], look[1][2], look[1][3])
-			p.Material = (Enum.Material :: any)[look[2]]
-			p.CanCollide = look[3]
-			p.CanQuery = look[3]
-			p.CanTouch = false
-			p.CastShadow = look[2] ~= "Neon"
-			p.Parent = model
-			made += 1
-		end
-		model.Parent = chunk(pr.x, pr.z)
-	end
-	return made
 end
 
 local function buildOutskirts(world: any, folder: Folder)
@@ -302,11 +250,15 @@ local function buildOutskirts(world: any, folder: Folder)
 		local m = Instance.new("Model")
 		m.Name = string.format("Tile_%d_%d", plan.tx, plan.tz)
 		m.ModelStreamingMode = Enum.ModelStreamingMode.Atomic
+		local made = 0
 		for _, b in plan.boxes do
-			makePart(b).Parent = m
+			if not skipPlain(b) then
+				makePart(b).Parent = m
+				made += 1
+			end
 		end
 		m.Parent = tilesFolder
-		CityBuilder.builtParts += #plan.boxes
+		CityBuilder.builtParts += made
 		if i % perFrame == 0 then
 			RunService.Heartbeat:Wait()
 		end

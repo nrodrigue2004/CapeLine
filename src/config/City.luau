@@ -24,24 +24,89 @@ return {
 		beacon = { height = 320, width = 46 }, -- Beacon Tower HQ (League side), the Downtown landmark
 		seed = 20261116, -- fixed: the hub is handcrafted in the spec, so it never changes with the weekly seed
 	},
-	-- The city kit (overhaul plan step 3: one Downtown block to the new look; the rest in step 5). Kit blocks
-	-- (offsets in blocks from the plaza's) get textured building fronts, paving, kerbs, lane dashes and street
-	-- props. Textures are MaterialVariants in MaterialService (art/city/materials.py, uploaded by nate; until
-	-- then the parts keep their plain materials); props are ReplicatedStorage.Art.Street meshes
-	-- (art/blender/street.py; skipped until imported).
+	-- The city kit (overhaul plan step 3: the first Downtown block; step 5: the whole city). Building fronts,
+	-- paving, roads and roofs are tiling MaterialVariants in MaterialService named "Kit" .. name
+	-- (art/city/materials.py, uploaded by nate); until one is in, the parts that use it keep their plain look
+	-- (and their window bands). Street props are ReplicatedStorage.Art.Street meshes (art/blender/street.py),
+	-- built by each device near its camera (CityProps, Config.Presets props budget); none until imported.
+	-- Dressing never changes a layout's random draws: picks use Rng.hash(seed, position) and the props and
+	-- kerbs are added after (tests "City kit").
 	kit = {
-		blocks = { { 1, 0 } }, -- the block east of the plaza, in view where new heroes land
-		-- a building's palette colour -> its front (MaterialVariant "Kit" .. name, 12 studs a tile = a storey)
+		seed = 20261120, -- the hash seed for the dressing's picks (fronts, tints, which props a side gets)
+		previewBlock = { 1, 0 }, -- art/city/block.luau's block (east of the plaza, in view where new heroes land)
+		-- a building's palette colour -> its front choices (one picked per building by hash, so streets don't
+		-- repeat); every front is a 12-stud storey a tile
 		fronts = {
-			brick = "Brick",
-			concrete = "Office",
-			slate = "Office",
-			sand = "Stone",
-			steel = "Curtain",
-			glass = "Curtain",
+			Downtown = {
+				brick = { "Brick", "Brick", "Deco" },
+				concrete = { "Office", "Panel" },
+				slate = { "Office", "Deco" },
+				sand = { "Stone", "Deco" },
+				steel = { "Curtain", "Panel" },
+				glass = { "Curtain" },
+				tower = { "Curtain", "Curtain", "Deco", "Panel" }, -- buildings over 200 studs
+			},
+			Docks = { steel = { "Warehouse" }, brick = { "DockBrick" }, foundry = { "Warehouse" } },
+			OldTown = {
+				brick = { "OldBrick" },
+				sand = { "Stone", "Timber" },
+				white = { "Plaster", "Timber", "Plaster" },
+				concrete = { "Plaster" },
+			},
+			-- the outskirts and the hub filler, by lot kind and body colour
+			house = {
+				white = { "Siding" },
+				sand = { "Siding" },
+				brick = { "Brick" },
+				concrete = { "Siding", "Plaster" },
+			},
+			shop = {
+				white = { "Plaster" },
+				sand = { "Plaster", "Stone" },
+				brick = { "Brick" },
+				concrete = { "Office" },
+			},
+			apt = {
+				white = { "Plaster", "Panel" },
+				sand = { "Stone" },
+				brick = { "Brick" },
+				concrete = { "Office" },
+			},
+			barn = { roofRed = { "Siding" } },
 		},
-		towerFront = "Curtain", -- every tower is glass
-		studsPerTile = { Brick = 12, Office = 12, Curtain = 12, Stone = 12, Paving = 8, Asphalt = 16 },
+		-- tinted fronts: the texture is drawn light and the part keeps a colour (palette keys, picked by hash);
+		-- false keeps the part's own colour (containers, roofs, the Foundry)
+		tinted = {
+			Warehouse = { "whTeal", "whRust", "whBlue", "whGreen" },
+			Plaster = { "plYellow", "plPeach", "plMint", "plSky", "plRose", "plCream" },
+			Timber = { "plCream", "plYellow", "plRose" },
+			Siding = { "sdBlue", "sdYellow", "sdMint", "sdCream", "sdRose", "sdWhite" },
+			Container = false,
+			RoofTile = false,
+		},
+		barnTint = "sdBarn", -- barns are red clapboard
+		roofTints = { roofRed = "tileRed", roofBlue = "tileBlue", roof = "tileSlate" }, -- RoofTile on pitched roofs
+		studsPerTile = {
+			Brick = 12,
+			Office = 12,
+			Curtain = 12,
+			Stone = 12,
+			Paving = 8,
+			Asphalt = 16,
+			Deco = 12,
+			Panel = 12,
+			Warehouse = 12,
+			DockBrick = 12,
+			Quay = 12,
+			Container = 8,
+			OldBrick = 12,
+			Plaster = 12,
+			Timber = 12,
+			Cobble = 8,
+			Flagstone = 8,
+			Siding = 12,
+			RoofTile = 6,
+		},
 		baseMaterial = {
 			Brick = "Brick",
 			Office = "Concrete",
@@ -49,35 +114,196 @@ return {
 			Stone = "Sandstone",
 			Paving = "Pavement",
 			Asphalt = "Asphalt",
+			Deco = "Limestone",
+			Panel = "Marble",
+			Warehouse = "CorrodedMetal",
+			DockBrick = "Brick",
+			Quay = "Concrete",
+			Container = "DiamondPlate",
+			OldBrick = "Brick",
+			Plaster = "Plaster",
+			Timber = "WoodPlanks",
+			Cobble = "Cobblestone",
+			Flagstone = "Slate",
+			Siding = "Wood",
+			RoofTile = "ClayRoofTiles",
+		},
+		-- the ground each district's kit puts down
+		ground = {
+			Downtown = { sidewalk = "Paving", road = "Asphalt" },
+			OldTown = { sidewalk = "Flagstone", road = "Cobble", square = "Flagstone" },
+			Docks = { quay = "Quay" },
+			Hub = { sidewalk = "Paving" },
+			Outskirts = { road = "Asphalt" },
 		},
 		kerb = 0.6, -- kerb width on the sidewalk's edge
 		cornice = 1.2, -- the roof cornice: a cap this deep over the roof (0.05 above it, 0.5 proud all round), so the
 		-- front texture never shows on top
 		lampEvery = 26, -- street lamps along each side (studs apart), planted trees between them
-		dash = { length = 6, gap = 6, width = 0.5 }, -- the lane dashes down the middle of the streets around it
-		-- each prop's pieces: Art.Street mesh name -> colour, material, collides
+		dash = { length = 6, gap = 6, width = 0.5 }, -- the lane dashes down the middle of Downtown's streets
+		-- props: what each is made of (Art.Street mesh name -> colour, material, collides, transparency), its
+		-- tier (1 every device, 2 medium and high, 3 high only: Config.Presets props) and its footprint on the
+		-- ground (width across, depth, and how far the footprint's centre sits behind the foot point), which the
+		-- layout keeps clear of buildings, roads and other props
 		props = {
 			StreetLamp = {
-				Pole = { { 48, 60, 56 }, "Metal", true },
-				LampHead = { { 48, 60, 56 }, "Metal", false },
-				Bulb = { { 255, 236, 190 }, "Neon", false },
+				tier = 1,
+				foot = { 1, 1, 0 },
+				pieces = {
+					Pole = { { 48, 60, 56 }, "Metal", true },
+					LampHead = { { 48, 60, 56 }, "Metal", false },
+					Bulb = { { 255, 236, 190 }, "Neon", false },
+				},
 			},
 			Bench = {
-				BenchSeat = { { 150, 102, 64 }, "WoodPlanks", true },
-				BenchFrame = { { 40, 44, 48 }, "Metal", true },
+				tier = 2,
+				foot = { 5.2, 1.9, 0.5 },
+				pieces = {
+					BenchSeat = { { 150, 102, 64 }, "WoodPlanks", true },
+					BenchFrame = { { 40, 44, 48 }, "Metal", true },
+				},
 			},
-			Hydrant = { Hydrant = { { 200, 52, 44 }, "SmoothPlastic", true } },
-			Bin = { Bin = { { 60, 84, 72 }, "Metal", true } },
+			Hydrant = {
+				tier = 2,
+				foot = { 1.4, 1.4, 0 },
+				pieces = { Hydrant = { { 214, 52, 44 }, "SmoothPlastic", true } },
+			},
+			Bin = { tier = 2, foot = { 2.2, 2.2, 0 }, pieces = { Bin = { { 60, 84, 72 }, "Metal", true } } },
 			Planter = {
-				PlanterBox = { { 168, 164, 156 }, "Concrete", true },
-				Trunk = { { 96, 70, 50 }, "Wood", true },
-				Crown = { { 84, 140, 70 }, "Grass", false },
+				tier = 2,
+				foot = { 3.4, 3.4, 0 },
+				pieces = {
+					PlanterBox = { { 168, 164, 156 }, "Concrete", true },
+					Trunk = { { 96, 70, 50 }, "Wood", true },
+					Crown = { { 84, 150, 70 }, "Grass", false },
+				},
 			},
 			TrafficLight = {
-				SignalPole = { { 54, 58, 64 }, "Metal", true },
-				SignalBox = { { 40, 42, 46 }, "Metal", false },
-				SignalLights = { { 120, 255, 140 }, "Neon", false },
+				tier = 1,
+				foot = { 1, 1, 0 },
+				pieces = {
+					SignalPole = { { 54, 58, 64 }, "Metal", true },
+					SignalBox = { { 40, 42, 46 }, "Metal", false },
+					SignalLights = { { 120, 255, 140 }, "Neon", false },
+				},
 			},
+			-- Downtown extras
+			BusStop = {
+				tier = 2,
+				foot = { 7.4, 2.4, 0.05 },
+				pieces = {
+					ShelterFrame = { { 52, 60, 70 }, "Metal", true },
+					ShelterRoof = { { 40, 160, 200 }, "SmoothPlastic", true },
+					ShelterGlass = { { 190, 225, 240 }, "Glass", true, 0.6 },
+					ShelterSeat = { { 230, 232, 236 }, "Metal", true },
+				},
+			},
+			BikeRack = {
+				tier = 3,
+				foot = { 5.2, 2.4, 0 },
+				pieces = { BikeRack = { { 70, 140, 210 }, "Metal", true } },
+			},
+			Bollard = {
+				tier = 3,
+				foot = { 0.8, 0.8, 0 },
+				pieces = { Bollard = { { 58, 62, 70 }, "Metal", true } },
+			},
+			-- the Docks
+			Crate = {
+				tier = 2,
+				foot = { 3.2, 3.2, 0 },
+				pieces = { Crate = { { 186, 140, 88 }, "WoodPlanks", true } },
+			},
+			Barrel = {
+				tier = 3,
+				foot = { 2, 2, 0 },
+				pieces = { Barrel = { { 40, 110, 190 }, "Metal", true } },
+			},
+			Pallet = {
+				tier = 3,
+				foot = { 4, 4, 0 },
+				pieces = { Pallet = { { 176, 136, 92 }, "Wood", true } },
+			},
+			MooringBollard = {
+				tier = 2,
+				foot = { 2, 2, 0 },
+				pieces = { MooringBollard = { { 44, 46, 52 }, "Metal", true } },
+			},
+			DockLight = {
+				tier = 1,
+				foot = { 1.8, 1.8, 0 },
+				pieces = {
+					DockMast = { { 236, 190, 50 }, "Metal", true },
+					DockLamps = { { 255, 244, 214 }, "Neon", false },
+				},
+			},
+			JibCrane = {
+				tier = 1,
+				foot = { 6.8, 6.8, 0 },
+				pieces = {
+					CranePedestal = { { 60, 110, 170 }, "Metal", true },
+					CraneCab = { { 236, 236, 230 }, "SmoothPlastic", true },
+					CraneJib = { { 244, 190, 40 }, "Metal", false },
+					CraneHook = { { 40, 40, 44 }, "Metal", false },
+				},
+			},
+			-- Old Town
+			OldLamp = {
+				tier = 1,
+				foot = { 1.3, 1.3, 0 },
+				pieces = {
+					OldPost = { { 40, 70, 58 }, "Metal", true },
+					OldLantern = { { 40, 70, 58 }, "Metal", false },
+					OldGlow = { { 255, 214, 140 }, "Neon", false },
+				},
+			},
+			FlowerTub = {
+				tier = 2,
+				foot = { 2.6, 2.6, 0 },
+				pieces = {
+					Tub = { { 196, 110, 72 }, "Concrete", true },
+					TubLeaves = { { 80, 150, 64 }, "Grass", false },
+					TubBlooms = { { 255, 110, 150 }, "SmoothPlastic", false },
+				},
+			},
+			CafeSet = {
+				tier = 3,
+				foot = { 5.6, 2.6, 0 },
+				pieces = {
+					CafeTable = { { 50, 54, 60 }, "Metal", true },
+					CafeChairs = { { 50, 54, 60 }, "Metal", true },
+					Umbrella = { { 236, 84, 72 }, "Fabric", false },
+				},
+			},
+			-- the outskirts
+			Mailbox = {
+				tier = 2,
+				foot = { 1.1, 1.7, 0 },
+				pieces = {
+					MailPost = { { 132, 100, 70 }, "Wood", true },
+					MailBox = { { 60, 110, 200 }, "SmoothPlastic", true },
+				},
+			},
+			Bush = {
+				tier = 3,
+				foot = { 4.6, 4.4, 0 },
+				pieces = { Bush = { { 72, 150, 66 }, "Grass", true } },
+			},
+			PowerPole = {
+				tier = 2,
+				foot = { 1.2, 1.2, 0 },
+				pieces = { PowerPole = { { 120, 92, 66 }, "Wood", true } },
+			},
+		},
+		-- the most each district may add, all tiers (props, their mesh parts, and the server-built kerbs, dashes
+		-- and cornices, which also count in partBudget). A device builds only the props near its camera, under its
+		-- preset's cap (Config.Presets props).
+		budget = {
+			Downtown = { props = 1300, parts = 2800, boxes = 900 },
+			Docks = { props = 260, parts = 420, boxes = 20 },
+			OldTown = { props = 520, parts = 1200, boxes = 300 },
+			Hub = { props = 1150, parts = 2400, boxes = 0 },
+			Outskirts = { props = 9000, parts = 13000, boxes = 0 },
 		},
 	},
 	-- The Docks (spec: cranes, warehouses, the Foundry villain HQ). Fixed seed like Downtown.
@@ -89,6 +315,7 @@ return {
 		containers = { minX = 450, maxX = 790, minZ = 410, maxZ = 545, cols = 7, rows = 4, maxStack = 3 },
 		container = { sx = 8, sy = 8.5, sz = 20 },
 		cranes = { count = 3, minX = 470, maxX = 760, z = 552, height = 96, span = 34, boom = 70 },
+		lane = { minX = 0, maxX = 440, minZ = 552, maxZ = 580 }, -- the truck lane (Vehicles): no street props
 		foundry = {
 			minX = 40,
 			maxX = 330,
@@ -139,6 +366,7 @@ return {
 		glass = { 70, 96, 120 },
 		road = { 46, 48, 54 },
 		kerb = { 186, 184, 178 },
+		cornice = { 132, 134, 138 }, -- the kit's roof caps (mid grey, so roofs read under the light fronts)
 		mark = { 236, 234, 226 },
 		sidewalk = { 120, 120, 118 },
 		grass = { 92, 130, 78 },
@@ -174,6 +402,27 @@ return {
 		weapons = { 200, 205, 215 }, -- the Weapon Rack (hero creator plan)
 		beaconLight = { 255, 240, 170 },
 		line = { 240, 210, 90 },
+		-- city kit tints (Config.City.kit.tinted): bright, readable cartoon colours on the light tinted fronts
+		whTeal = { 92, 176, 186 },
+		whRust = { 206, 110, 80 },
+		whBlue = { 96, 140, 206 },
+		whGreen = { 120, 176, 110 },
+		plYellow = { 255, 226, 150 },
+		plPeach = { 255, 196, 160 },
+		plMint = { 186, 236, 200 },
+		plSky = { 180, 214, 250 },
+		plRose = { 250, 188, 196 },
+		plCream = { 255, 240, 214 },
+		sdBlue = { 160, 200, 236 },
+		sdYellow = { 255, 228, 160 },
+		sdMint = { 176, 226, 196 },
+		sdCream = { 250, 238, 214 },
+		sdRose = { 246, 190, 190 },
+		sdWhite = { 246, 246, 242 },
+		sdBarn = { 196, 70, 58 },
+		tileRed = { 214, 96, 70 },
+		tileBlue = { 88, 128, 190 },
+		tileSlate = { 120, 126, 140 },
 	},
 	partBudget = { downtown = 6000, docks = 1500, oldTown = 2500, hub = 14000 }, -- greybox part count ceiling (hub budget 55,000 in the spec)
 }

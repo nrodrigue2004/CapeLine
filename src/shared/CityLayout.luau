@@ -3,9 +3,11 @@
 -- rest of the map in M4 and has the whole-map heightAt). Pure and
 -- seeded, so the server builds the same city every time, the Lune tests can check part counts and heights,
 -- and the drone AI can ask how tall the city is anywhere (heightAt) without raycasts.
--- PLACEHOLDER ART: grey boxes, window bands and rooftop props until the kit pass (M5).
+-- PLACEHOLDER ART: grey boxes, window bands and rooftop props until the kit pass (M5). With Config.City.kit
+-- (overhaul step 5) every block is dressed: textured fronts, paving, kerbs, lane dashes, cornices and props.
 
 local Rng = if script then require(script.Parent.Rng) else (require :: any)("./Rng")
+local CityKit = if script then require(script.Parent.CityKit) else (require :: any)("./CityKit")
 
 local CityLayout = {}
 
@@ -25,13 +27,14 @@ export type Box = {
 	ghost: boolean?, -- no collision (light beams, signs above heads)
 	grp: string?, -- the building this part belongs to (its body, bands, roof and rooftop props)
 	bid: number?, -- the destructible building id (WorldMap), when that building can be wrecked
-	kit: string?, -- city kit texture (MaterialVariant "Kit" .. kit, Config.City.kit), on kit blocks
-	plain: boolean?, -- drawn only while the kit textures are missing (a kit building's window bands)
+	kit: string?, -- city kit texture (MaterialVariant "Kit" .. kit, Config.City.kit)
+	tint: string?, -- the palette colour a tinted kit texture shows in (Config.City.kit.tinted)
+	plain: string?, -- drawn only while this kit texture is missing (a kit building's window bands)
+	dress: boolean?, -- added by the kit (kerbs, dashes, cornices): not part of the seeded layout
 }
 
--- A street prop on a kit block (Config.City.kit.props; Art.Street meshes): its foot point and facing (degrees
--- around y; a prop faces -z, toward the street)
-export type Prop = { name: string, x: number, y: number, z: number, ry: number }
+-- A street prop (Config.City.kit.props; Art.Street meshes, built by each device: CityProps)
+export type Prop = CityKit.Prop
 
 export type Layout = {
 	boxes: { Box },
@@ -65,9 +68,10 @@ end
 
 local BODY_COLORS = { "concrete", "brick", "slate", "sand", "steel", "glass" }
 
--- The city kit's street dressing for one block (no random draws, so the rest of Downtown is unchanged): kerbs,
--- lane dashes down the streets around it, and props along each side (lamps at the kerb with trees between,
--- benches and bins near the middle, a hydrant near a corner, traffic lights on two corners).
+-- The city kit's street dressing for one Downtown block (no random draws, so the layout is unchanged; picks are
+-- hashes of the block's position): kerbs, and props along each side: lamps at the kerb with trees between, a
+-- feature near the middle (a bench and a bin, a bus stop, a bike rack with bollards, or two benches), a hydrant
+-- near a corner, and traffic lights on the north-west and south-east corners (two at every crossing).
 local function dressBlock(
 	boxes: { Box },
 	props: { Prop },
@@ -78,45 +82,15 @@ local function dressBlock(
 	gy: number
 )
 	local b = t.block
-	local cx, cz = minX + b / 2, minZ + b / 2
 	local kw = kit.kerb
 	local top = gy + 0.9
-	-- kerbs on the four edges
-	box(boxes, "sidewalk", cx, gy + 0.55, minZ + kw / 2, b, 0.9, kw, "kerb")
-	box(boxes, "sidewalk", cx, gy + 0.55, minZ + b - kw / 2, b, 0.9, kw, "kerb")
-	box(boxes, "sidewalk", minX + kw / 2, gy + 0.55, cz, kw, 0.9, b - 2 * kw, "kerb")
-	box(boxes, "sidewalk", minX + b - kw / 2, gy + 0.55, cz, kw, 0.9, b - 2 * kw, "kerb")
-	-- lane dashes down the middle of the four streets, along the block
-	local d = kit.dash
-	local n = math.floor((b + d.gap) / (d.length + d.gap))
-	local run = n * d.length + (n - 1) * d.gap
-	for k = 0, n - 1 do
-		local along = -run / 2 + d.length / 2 + k * (d.length + d.gap)
-		for _, side in { -1, 1 } do
-			local lineZ = cz + side * (b / 2 + t.street / 2)
-			local lineX = cx + side * (b / 2 + t.street / 2)
-			box(boxes, "mark", cx + along, gy + 0.22, lineZ, d.length, 0.04, d.width, "mark")
-			box(boxes, "mark", lineX, gy + 0.22, cz + along, d.width, 0.04, d.length, "mark")
-		end
-	end
-	-- props along each side: (edge point, along axis, outward facing)
-	local sides = {
-		{ x = cx, z = minZ, ax = 1, az = 0, ox = 0, oz = -1, ry = 0 },
-		{ x = cx, z = minZ + b, ax = -1, az = 0, ox = 0, oz = 1, ry = 180 },
-		{ x = minX, z = cz, ax = 0, az = -1, ox = -1, oz = 0, ry = 90 },
-		{ x = minX + b, z = cz, ax = 0, az = 1, ox = 1, oz = 0, ry = -90 },
-	}
+	CityKit.kerbs(boxes, minX, minZ, b, gy + 0.55, kw)
+	local sides = CityKit.sides(minX, minZ, b)
 	local span = b - 16
 	local lamps = math.max(2, math.floor(span / kit.lampEvery) + 1)
 	local step = span / (lamps - 1)
 	local function put(name: string, side: any, along: number, inset: number)
-		table.insert(props, {
-			name = name,
-			x = side.x + side.ax * along - side.ox * inset,
-			y = top,
-			z = side.z + side.az * along - side.oz * inset,
-			ry = side.ry,
-		})
+		CityKit.onSide(props, name, side, along, inset, top)
 	end
 	for si, side in sides do
 		for k = 0, lamps - 1 do
@@ -126,15 +100,79 @@ local function dressBlock(
 				put("Planter", side, along + step / 2, kw + 2.1)
 			end
 		end
-		-- a bench with a bin beside it, between the middle lamps; a hydrant near a corner
+		-- the side's feature between the middle lamps, picked by hash; a hydrant near a corner
 		local mid = -span / 2 + math.floor((lamps - 1) / 2) * step + step * 0.25
-		put("Bench", side, mid, 3.9)
-		put("Bin", side, mid + 4.2, 3.9)
+		local feature = CityKit.pick(kit, { "bench", "bus", "bikes", "benches" }, side.x, side.z, 11)
+		if feature == "bus" then
+			put("BusStop", side, mid - 0.5, 3.0)
+			put("Bin", side, mid + 4.4, 3.2)
+		elseif feature == "bikes" then
+			put("BikeRack", side, mid, 3.2)
+			put("Bollard", side, mid + 4.0, kw + 0.9)
+			put("Bollard", side, mid - 4.0, kw + 0.9)
+		elseif feature == "benches" then
+			put("Bench", side, mid - 3.0, 3.2)
+			put("Bin", side, mid + 1.3, 3.2)
+			put("Bench", side, mid + step / 2, 3.2)
+		else
+			put("Bench", side, mid, 3.2)
+			put("Bin", side, mid + 4.2, 3.2)
+		end
 		put("Hydrant", side, (if si % 2 == 0 then -1 else 1) * (b / 2 - 5), kw + 0.9)
 	end
 	-- traffic lights on two opposite corners, arms out over the street
 	put("TrafficLight", sides[1], -b / 2 + 2.2, kw + 1.2)
 	put("TrafficLight", sides[2], -b / 2 + 2.2, kw + 1.2)
+end
+
+-- Lane dashes down the middle of the streets east (+x) and south (+z) of a block, when a block lies beyond
+-- (every street between two blocks gets its dashes once; the outer streets are half on the grass)
+local function dashes(
+	boxes: { Box },
+	t: any,
+	kit: any,
+	minX: number,
+	minZ: number,
+	gy: number,
+	east: boolean,
+	south: boolean
+)
+	local b = t.block
+	local cx, cz = minX + b / 2, minZ + b / 2
+	local d = kit.dash
+	local n = math.floor((b + d.gap) / (d.length + d.gap))
+	local run = n * d.length + (n - 1) * d.gap
+	for k = 0, n - 1 do
+		local along = -run / 2 + d.length / 2 + k * (d.length + d.gap)
+		if south then
+			box(
+				boxes,
+				"mark",
+				cx + along,
+				gy + 0.22,
+				minZ + b + t.street / 2,
+				d.length,
+				0.04,
+				d.width,
+				"mark"
+			)
+			boxes[#boxes].dress = true
+		end
+		if east then
+			box(
+				boxes,
+				"mark",
+				minX + b + t.street / 2,
+				gy + 0.22,
+				cz + along,
+				d.width,
+				0.04,
+				d.length,
+				"mark"
+			)
+			boxes[#boxes].dress = true
+		end
+	end
 end
 
 -- worldCfg (optional): Config.World, whose Downtown safehouses take a reserved lot each. The random draws
@@ -173,18 +211,15 @@ function CityLayout.downtown(cityCfg: any, worldCfg: any?): Layout
 	local nz = math.floor(h / pitch)
 	local midX, midZ = math.ceil(nx / 2), math.ceil(nz / 2)
 	local beacon = { x = 0, z = 0, h = t.beacon.height }
-	local kitBlocks: { [string]: boolean } = {}
-	if kit then
-		for _, o in kit.blocks do
-			kitBlocks[(midX + o[1]) .. "," .. (midZ + o[2])] = true
-		end
-	end
 
 	for bx = 1, nx do
 		for bz = 1, nz do
 			local minX = d.minX + t.street / 2 + (bx - 1) * pitch
 			local minZ = d.minZ + t.street / 2 + (bz - 1) * pitch
 			local bcx, bcz = minX + t.block / 2, minZ + t.block / 2
+			if kit then
+				dashes(boxes, t, kit, minX, minZ, gy, bx < nx, bz < nz)
+			end
 			if bx == midX and bz == midZ then
 				-- the plaza and Beacon Tower (League HQ): where new heroes land
 				box(boxes, "plaza", bcx, gy + 0.6, bcz, t.block, 1, t.block, "sidewalk")
@@ -231,10 +266,12 @@ function CityLayout.downtown(cityCfg: any, worldCfg: any?): Layout
 					table.insert(spawns, { x = bcx + c[1] * off, y = gy + 4, z = bcz + c[2] * off })
 				end
 			else
-				local isKit = kitBlocks[bx .. "," .. bz] == true
+				local isKit = kit ~= nil
+				local blockFirst = #boxes + 1
+				local propsFrom = #props + 1
 				box(boxes, "sidewalk", bcx, gy + 0.5, bcz, t.block, 0.8, t.block, "sidewalk")
 				if isKit then
-					boxes[#boxes].kit = "Paving"
+					boxes[#boxes].kit = kit.ground.Downtown.sidewalk
 					dressBlock(boxes, props, t, kit, minX, minZ, gy)
 				end
 				local inner = t.block - 2 * t.sidewalk
@@ -267,14 +304,21 @@ function CityLayout.downtown(cityCfg: any, worldCfg: any?): Layout
 						local y = 10
 						while y < height - 6 do
 							box(boxes, "band", lcx, gy + 0.9 + y, lcz, sx + 0.4, 3, sz + 0.4, "window")
-							if isKit then
-								boxes[#boxes].plain = true
-							end
 							y += 12
 						end
 						if isKit then
-							-- a kit building: its front has the windows in it (one storey a tile), a roof cornice
-							boxes[first].kit = if tall then kit.towerFront else kit.fronts[color] or "Office"
+							-- a kit building: its front has the windows in it (one storey a tile; picked by hash
+							-- from its colour's fronts), its bands show only until that texture is in, and a
+							-- roof cornice caps it
+							local front = CityKit.front(
+								kit,
+								boxes[first],
+								kit.fronts.Downtown,
+								if tall then "tower" else color
+							) or "Office"
+							for k = first + 1, #boxes do
+								boxes[k].plain = front
+							end
 							box(
 								boxes,
 								"ledge",
@@ -284,8 +328,9 @@ function CityLayout.downtown(cityCfg: any, worldCfg: any?): Layout
 								sx + 1,
 								kit.cornice,
 								sz + 1,
-								"kerb"
+								"cornice"
 							)
+							boxes[#boxes].dress = true
 						end
 						-- rooftop: a ledge you can land on and a few props
 						if hasLedge then
@@ -324,6 +369,12 @@ function CityLayout.downtown(cityCfg: any, worldCfg: any?): Layout
 						})
 						table.insert(droneSpots, { x = lcx, y = top + 18, z = lcz })
 					end
+				end
+				if isKit then
+					-- the block's props stay clear of its buildings and of each other
+					local clearOf = {}
+					table.move(boxes, blockFirst, #boxes, 1, clearOf)
+					CityKit.keep(kit, props, propsFrom, CityKit.obstacles(clearOf, gy + 0.9))
 				end
 			end
 		end

@@ -3,7 +3,9 @@
 -- build(Config, seed) gives the hub (Downtown, the Docks, Old Town and filler tiles), the outskirts tile
 -- plans, the landmarks, the 16 safehouses with their terminals and respawn points, the 12 fast-travel
 -- beacons, the base (ground, sand, ocean, roads) and a heightmap of everything. The server builds parts
--- from it (the hub at once, the outskirts 40 tiles a frame); the tests check it in Lune.
+-- from it (the hub at once, the outskirts 40 tiles a frame); the tests check it in Lune. With Config.City.kit
+-- it also lists every street prop (props, each with its district), which each device builds near its camera
+-- (CityProps): the client calls build(Config, seed, { props = true }) and skips the heightmap.
 
 local CityLayout = if script then require(script.Parent.CityLayout) else (require :: any)("./CityLayout")
 local Districts = if script then require(script.Parent.Districts) else (require :: any)("./Districts")
@@ -11,6 +13,7 @@ local WorldGen = if script then require(script.Parent.WorldGen) else (require ::
 local HeightMap = if script then require(script.Parent.HeightMap) else (require :: any)("./HeightMap")
 local BoxKit = if script then require(script.Parent.BoxKit) else (require :: any)("./BoxKit")
 local Rng = if script then require(script.Parent.Rng) else (require :: any)("./Rng")
+local CityKit = if script then require(script.Parent.CityKit) else (require :: any)("./CityKit")
 
 local WorldMap = {}
 
@@ -62,6 +65,7 @@ export type World = {
 	spots: { [string]: Point },
 	heights: HeightMap.HeightMap,
 	parts: { hub: number, base: number, outskirts: number, landmarks: number, total: number },
+	props: { CityKit.Prop }, -- the city kit's street props, each with its district (d)
 }
 
 local function append(into: { Box }, from: { Box })
@@ -159,7 +163,8 @@ local function tallestNear(buildings: { any }, x: number, z: number, r: number, 
 	return best
 end
 
-function WorldMap.build(Config: any, seed: number): World
+-- opts.props: only what the street props need (no heightmap), for a device building them
+function WorldMap.build(Config: any, seed: number, opts: { props: boolean? }?): World
 	local city = Config.City
 	local w = Config.World
 	local gy = city.ground.y
@@ -203,14 +208,35 @@ function WorldMap.build(Config: any, seed: number): World
 	append(hubBoxes, docks.boxes)
 	append(hubBoxes, oldTown.boxes)
 
+	-- the street props, by district (Config.City.kit)
+	local props: { CityKit.Prop } = {}
+	local function addProps(list: { CityKit.Prop }, from: number, district: string)
+		for i = from, #list do
+			list[i].d = district
+			if list ~= props then
+				table.insert(props, list[i])
+			end
+		end
+	end
+	if city.kit then
+		addProps(downtown.props, 1, "Downtown")
+		addProps(docks.props, 1, "Docks")
+		addProps(oldTown.props, 1, "OldTown")
+	end
+
 	-- the outskirts
 	local tiles = WorldGen.tiles(city, w, seed)
 	local tilePlans = {}
 	local outskirtsParts = 0
 	local n = w.tiles
+	local tileProps: { CityKit.Prop }? = if city.kit then props else nil
 	for tz = 0, n - 1 do
 		for tx = 0, n - 1 do
-			local plan = WorldGen.tilePlan(city, w, tiles, seed, tx, tz, clear)
+			local from = #props + 1
+			local plan = WorldGen.tilePlan(city, w, tiles, seed, tx, tz, clear, tileProps)
+			if tileProps then
+				addProps(props, from, if WorldGen.ring(w, tx, tz) == 0 then "Hub" else "Outskirts")
+			end
 			if #plan > 0 then
 				table.insert(tilePlans, { tx = tx, tz = tz, boxes = plan })
 				outskirtsParts += #plan
@@ -264,19 +290,22 @@ function WorldMap.build(Config: any, seed: number): World
 		beacons[b.id] = buildBeacon(hubBoxes, w, b, p)
 	end
 
-	-- heights of everything
-	local heights = HeightMap.new(city.mapSize, w.heightCell, w.coast.waterY)
-	for _, b in hubBoxes do
-		HeightMap.stamp(heights, b)
-	end
-	for _, plan in tilePlans do
-		for _, b in plan.boxes do
+	-- heights of everything (a device that only wants the props skips them)
+	local heights =
+		HeightMap.new(if opts and opts.props then 0 else city.mapSize, w.heightCell, w.coast.waterY)
+	if not (opts and opts.props) then
+		for _, b in hubBoxes do
 			HeightMap.stamp(heights, b)
 		end
-	end
-	for _, lm in landmarks do
-		for _, b in lm.boxes do
-			HeightMap.stamp(heights, b)
+		for _, plan in tilePlans do
+			for _, b in plan.boxes do
+				HeightMap.stamp(heights, b)
+			end
+		end
+		for _, lm in landmarks do
+			for _, b in lm.boxes do
+				HeightMap.stamp(heights, b)
+			end
 		end
 	end
 
@@ -303,6 +332,7 @@ function WorldMap.build(Config: any, seed: number): World
 			landmarks = landmarkParts,
 			total = hubParts + #baseBoxes + outskirtsParts + landmarkParts,
 		},
+		props = props,
 	}
 end
 

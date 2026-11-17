@@ -6679,14 +6679,18 @@ test("City kit block: textured fronts, street dressing, and the rest of Downtown
 		local k = layout.buildings[i]
 		check(k.x == b.x and k.z == b.z and k.h == b.h, "building " .. i .. " unchanged")
 	end
-	local kits, bands, marks, kerbs = {}, 0, 0, 0
+	check(#plain.props == 0, "no props without the kit")
+	local kits, bands, marks, kerbs, blocks = {}, 0, 0, 0, 0
 	for _, b in layout.boxes do
 		if b.kit then
 			check(K.baseMaterial[b.kit] ~= nil and K.studsPerTile[b.kit] ~= nil, b.kit .. " is a kit texture")
 			kits[b.kit] = (kits[b.kit] or 0) + 1
 		end
 		if b.plain then
-			check(b.kind == "band", "only window bands give way to the kit fronts")
+			check(
+				b.kind == "band" and K.baseMaterial[b.plain] ~= nil,
+				"only window bands give way to a kit front"
+			)
 			bands += 1
 		end
 		if b.kind == "mark" then
@@ -6695,29 +6699,501 @@ test("City kit block: textured fronts, street dressing, and the rest of Downtown
 		if b.color == "kerb" and b.kind == "sidewalk" then
 			kerbs += 1
 		end
+		if b.kind == "sidewalk" and b.color == "sidewalk" then
+			blocks += 1
+		end
 	end
-	check(kits.Paving == 1 and kits.Asphalt == 1, "one paved block, the road textured")
-	local fronts = (kits.Brick or 0) + (kits.Office or 0) + (kits.Curtain or 0) + (kits.Stone or 0)
-	check(fronts >= 3 and fronts <= 4, string.format("%d textured fronts on the block", fronts))
-	check(bands > 0 and marks > 0 and kerbs == 4, "bands to replace, lane dashes and four kerbs")
-	-- props: on the block's sidewalk, each a known prop with its pieces in StreetArt
+	check(
+		kits.Paving == blocks and blocks == 24 and kits.Asphalt == 1,
+		"every block paved, the road textured"
+	)
+	local fronts = 0
+	for _, name in { "Brick", "Office", "Curtain", "Stone", "Deco", "Panel" } do
+		fronts += kits[name] or 0
+		check((kits[name] or 0) > 0, name .. " fronts in Downtown")
+	end
+	check(
+		fronts == #layout.buildings - 1,
+		string.format("%d textured fronts (every building but the Beacon)", fronts)
+	)
+	check(
+		bands > 0 and marks > 0 and kerbs == 4 * blocks,
+		"bands to replace, lane dashes and four kerbs a block"
+	)
+	-- every street between two blocks gets its dashes once: no two dashes in one place
+	local seen, dup = {}, 0
+	for _, b in layout.boxes do
+		if b.kind == "mark" then
+			local key = string.format("%.1f,%.1f", b.cx, b.cz)
+			if seen[key] then
+				dup += 1
+			end
+			seen[key] = true
+		end
+	end
+	check(dup == 0, "no doubled lane dashes")
+	-- props: each a known prop with its pieces in StreetArt, on a block's sidewalk
 	local counts = {}
 	for _, pr in layout.props do
 		counts[pr.name] = (counts[pr.name] or 0) + 1
-		local pieces = K.props[pr.name]
-		check(pieces ~= nil, pr.name .. " is a kit prop")
-		for piece in pieces do
+		local def = K.props[pr.name]
+		check(def ~= nil, pr.name .. " is a kit prop")
+		for piece in def.pieces do
 			check(Config.StreetArt[pr.name][piece] ~= nil, piece .. " has a mesh size")
 		end
 		check(math.abs(pr.y - (Config.City.ground.y + 0.9)) < 1e-6, "props stand on the sidewalk")
 	end
-	check((counts.StreetLamp or 0) >= 8 and (counts.Planter or 0) >= 4, "lamps and trees line the block")
 	check(
-		counts.Bench == 4 and counts.Bin == 4 and counts.Hydrant == 4 and counts.TrafficLight == 2,
-		"one of each a side"
+		(counts.StreetLamp or 0) >= 8 * blocks and (counts.Planter or 0) >= 4 * blocks,
+		"lamps and trees line every block"
+	)
+	check(
+		counts.TrafficLight == 2 * blocks and (counts.Hydrant or 0) == 4 * blocks,
+		"lights on two corners, a hydrant a side"
+	)
+	check(
+		(counts.BusStop or 0) > 0 and (counts.BikeRack or 0) > 0 and (counts.Bench or 0) > blocks,
+		"the sides vary: bus stops, bike racks, benches"
 	)
 	check(layout.parts <= Config.City.partBudget.downtown, "still within the Downtown part budget")
 end)
+
+test(
+	"City kit: every district dressed, deterministic, within budget, nothing in buildings or roads",
+	function()
+		local fs = require("@lune/fs")
+		local Districts = require("../src/shared/Districts")
+		local CityKit = require("../src/shared/CityKit")
+		local K = Config.City.kit
+		local C = Config.City
+		local gy = C.ground.y
+		local seed = 202647
+		local a = WorldMap.build(Config, seed)
+		local b = WorldMap.build(Config, seed, { props = true })
+		-- deterministic: the same props in the same order (a device builds the same list as the tests)
+		local same = #a.props == #b.props
+		for i, p in a.props do
+			local q = b.props[i]
+			if
+				not (
+					q
+					and q.name == p.name
+					and q.x == p.x
+					and q.y == p.y
+					and q.z == p.z
+					and q.ry == p.ry
+					and q.d == p.d
+				)
+			then
+				same = false
+			end
+		end
+		check(same and #a.props > 5000, string.format("same seed, same %d props", #a.props))
+
+		-- the kit changes no random draw: without it the world is the same, box for box
+		local bareCfg = table.clone(Config)
+		bareCfg.City = table.clone(Config.City)
+		bareCfg.City.kit = nil
+		local p0 = WorldMap.build(bareCfg, seed)
+		check(p0.hash == a.hash and #p0.props == 0, "same tile hash, no props without the kit")
+		local bOk = #p0.buildings == #a.buildings
+		for i, x in p0.buildings do
+			local y = a.buildings[i]
+			bOk = bOk and y.x == x.x and y.z == x.z and y.sx == x.sx and y.base == x.base and y.top == x.top
+		end
+		check(bOk, "the same wreckable buildings, ids and sizes")
+		local FIELDS =
+			{ "kind", "cx", "cy", "cz", "sx", "sy", "sz", "color", "shape", "ry", "grp", "bid", "tag", "ref" }
+		local function sameBoxes(x: { any }, y: { any }, what: string)
+			local ys = {}
+			for _, bx in y do
+				if not bx.dress then
+					table.insert(ys, bx)
+				end
+			end
+			local ok = #x == #ys
+			for i, bx in x do
+				local by = ys[i]
+				if not by then
+					ok = false
+					break
+				end
+				for _, f in FIELDS do
+					if bx[f] ~= by[f] then
+						ok = false
+					end
+				end
+			end
+			check(ok, what .. ": every box as before (the kit only adds kerbs, lines and cornices)")
+		end
+		sameBoxes(p0.hubBoxes, a.hubBoxes, "hub")
+		sameBoxes(p0.baseBoxes, a.baseBoxes, "base")
+		local plansOk = #p0.tilePlans == #a.tilePlans
+		for i, plan in p0.tilePlans do
+			local other = a.tilePlans[i]
+			if not other or #other.boxes ~= #plan.boxes then
+				plansOk = false
+			else
+				for k, bx in plan.boxes do
+					for _, f in FIELDS do
+						if other.boxes[k][f] ~= bx[f] then
+							plansOk = false
+						end
+					end
+				end
+			end
+		end
+		check(plansOk, "outskirts tiles: every box as before")
+
+		-- every kit texture has its files, a base material and a tile size; every tint is a palette colour
+		local used = {}
+		local function scanKit(list: { any })
+			for _, bx in list do
+				if bx.kit then
+					used[bx.kit] = true
+				end
+				if bx.tint then
+					check(C.palette[bx.tint] ~= nil, bx.tint .. " is a palette colour")
+					check(K.tinted[bx.kit] ~= nil, bx.kit .. " is a tinted texture")
+				end
+				if bx.plain then
+					check(bx.kind == "band", "only window bands are plain")
+				end
+			end
+		end
+		scanKit(a.hubBoxes)
+		scanKit(a.baseBoxes)
+		for _, plan in a.tilePlans do
+			scanKit(plan.boxes)
+		end
+		for name in K.baseMaterial do
+			check(used[name] == true, name .. " is used somewhere in the city")
+			check(K.studsPerTile[name] ~= nil, name .. " has a tile size")
+			for _, map in { "Color", "Normal", "Roughness" } do
+				check(
+					fs.isFile("art/export/city/" .. name .. "_" .. map .. ".png"),
+					name .. "_" .. map .. ".png exists"
+				)
+			end
+		end
+		for name in used do
+			check(K.baseMaterial[name] ~= nil, name .. " has a base material")
+		end
+		for _, list in K.tinted do
+			if type(list) == "table" then
+				for _, key in list do
+					check(C.palette[key] ~= nil, key .. " tint is in the palette")
+				end
+			end
+		end
+
+		-- budgets per district: props, their mesh parts, and the server-built dressing boxes
+		local per = {}
+		for _, p in a.props do
+			local def = K.props[p.name]
+			check(
+				def ~= nil and def.tier >= 1 and def.tier <= 3 and #def.foot == 3,
+				p.name .. " is a kit prop"
+			)
+			for piece in def.pieces do
+				check(
+					Config.StreetArt[p.name] ~= nil and Config.StreetArt[p.name][piece] ~= nil,
+					piece .. " has a mesh"
+				)
+			end
+			local d = per[p.d] or { props = 0, parts = 0, boxes = 0, tier1 = 0 }
+			per[p.d] = d
+			d.props += 1
+			d.parts += CityKit.parts(K, p.name)
+			if def.tier == 1 then
+				d.tier1 += CityKit.parts(K, p.name)
+			end
+		end
+		local function districtOf(x: number, z: number): string
+			for name, r in C.districts do
+				if x >= r.minX and x <= r.maxX and z >= r.minZ and z <= r.maxZ then
+					return name
+				end
+			end
+			return "Hub"
+		end
+		for _, bx in a.hubBoxes do
+			if bx.dress then
+				local d = per[districtOf(bx.cx, bx.cz)]
+				d.boxes += 1
+			end
+		end
+		local lines = {}
+		for _, name in { "Downtown", "Docks", "OldTown", "Hub", "Outskirts" } do
+			local d = per[name]
+			local cap = K.budget[name]
+			check(d ~= nil and d.props > 0, name .. " has props")
+			if d then
+				check(
+					d.props <= cap.props and d.parts <= cap.parts and d.boxes <= cap.boxes,
+					string.format(
+						"%s within budget: %d props, %d parts, %d boxes",
+						name,
+						d.props,
+						d.parts,
+						d.boxes
+					)
+				)
+				check(d.tier1 < d.parts, name .. ": a phone (tier 1) builds fewer")
+				table.insert(lines, string.format("%s %d/%d/%d", name, d.props, d.parts, d.boxes))
+			end
+		end
+		print("  city kit (props/parts/boxes): " .. table.concat(lines, ", "))
+		-- device presets: phones get the fewest, nearest first
+		local P = Config.Presets
+		for i, name in P.order do
+			local pr = P[name].props
+			check(pr ~= nil and pr.tier == i, name .. " builds props up to tier " .. i)
+			if i > 1 then
+				local lo = P[P.order[i - 1]].props
+				check(
+					pr.radius > lo.radius and pr.parts > lo.parts,
+					name .. " builds more than " .. P.order[i - 1]
+				)
+			end
+		end
+		check(C.partBudget.downtown >= a.downtown.parts, "Downtown within its part budget")
+		local docks = Districts.docks(C, {})
+		local old = Districts.oldTown(C, {})
+		check(
+			docks.parts <= C.partBudget.docks and old.parts <= C.partBudget.oldTown,
+			"Docks and Old Town part budgets"
+		)
+
+		-- placement: no ground prop inside anything solid (buildings, walls, props, trees, terminals, water),
+		-- a parked vehicle, the harbour or another prop; independent of the layout's own check
+		local cell = 20
+		local grid = {}
+		local function addRect(r: any, what: string)
+			for ix = math.floor(r.x0 / cell), math.floor(r.x1 / cell) do
+				for iz = math.floor(r.z0 / cell), math.floor(r.z1 / cell) do
+					local k = ix * 100000 + iz
+					grid[k] = grid[k] or {}
+					table.insert(grid[k], { r = r, what = what })
+				end
+			end
+		end
+		local function hit(r: any): string?
+			for ix = math.floor(r.x0 / cell), math.floor(r.x1 / cell) do
+				for iz = math.floor(r.z0 / cell), math.floor(r.z1 / cell) do
+					for _, o in grid[ix * 100000 + iz] or {} do
+						local q = o.r
+						if
+							r.x0 < q.x1 - 1e-6
+							and q.x0 < r.x1 - 1e-6
+							and r.z0 < q.z1 - 1e-6
+							and q.z0 < r.z1 - 1e-6
+						then
+							return o.what
+						end
+					end
+				end
+			end
+			return nil
+		end
+		local SOLIDS = {
+			building = true,
+			prop = true,
+			roof = true,
+			ledge = true,
+			beacon = true,
+			terminal = true,
+			water = true,
+		}
+		local function addSolids(list: { any })
+			for _, bx in list do
+				local bottom, top = bx.cy - bx.sy / 2, bx.cy + bx.sy / 2
+				if SOLIDS[bx.kind] and bottom < gy + 7 and top > gy + 0.5 and bx.sx < 400 and bx.sz < 400 then
+					local fx, fz = BoxKit.footprint(bx)
+					addRect(
+						{ x0 = bx.cx - fx / 2, z0 = bx.cz - fz / 2, x1 = bx.cx + fx / 2, z1 = bx.cz + fz / 2 },
+						bx.kind
+					)
+				end
+			end
+		end
+		addSolids(a.hubBoxes)
+		for _, plan in a.tilePlans do
+			addSolids(plan.boxes)
+		end
+		for _, v in Vehicles.place(Config) do
+			local fx, fz = v.sx, v.sz
+			if v.ry % 180 == 90 then
+				fx, fz = fz, fx
+			end
+			addRect({ x0 = v.x - fx / 2, z0 = v.z - fz / 2, x1 = v.x + fx / 2, z1 = v.z + fz / 2 }, "vehicle")
+		end
+		local bs = C.docks.basin
+		addRect({ x0 = bs.minX, z0 = bs.minZ, x1 = bs.maxX, z1 = bs.maxZ }, "harbour")
+		local lane = C.docks.lane
+		addRect({ x0 = lane.minX, z0 = lane.minZ, x1 = lane.maxX, z1 = lane.maxZ }, "truck lane")
+		-- the roads where cars drive: Downtown's and Old Town's streets (everything off a block), the outskirts
+		-- road strips and the filler tiles' street ring
+		local function blockRects(r: any, block: number, street: number): { any }
+			local out = {}
+			local pitch = block + street
+			for bx = 1, math.floor((r.maxX - r.minX) / pitch) do
+				for bz = 1, math.floor((r.maxZ - r.minZ) / pitch) do
+					local x0 = r.minX + street / 2 + (bx - 1) * pitch
+					local z0 = r.minZ + street / 2 + (bz - 1) * pitch
+					table.insert(out, { x0 = x0, z0 = z0, x1 = x0 + block, z1 = z0 + block })
+				end
+			end
+			return out
+		end
+		local onBlock = {
+			Downtown = blockRects(C.districts.Downtown, C.downtown.block, C.downtown.street),
+			OldTown = blockRects(C.districts.OldTown, C.oldTown.block, C.oldTown.street),
+		}
+		do -- Clock Square spans its 2 x 2 blocks and the streets between them (no cars there)
+			local o, ot = C.districts.OldTown, C.oldTown
+			local x0 = o.minX + ot.street / 2 + (ot.square[1] - 1) * (ot.block + ot.street)
+			local z0 = o.minZ + ot.street / 2 + (ot.square[1] - 1) * (ot.block + ot.street)
+			local size = 2 * ot.block + ot.street
+			table.insert(onBlock.OldTown, { x0 = x0, z0 = z0, x1 = x0 + size, z1 = z0 + size })
+		end
+		local function within(r: any, list: { any }): boolean
+			for _, q in list do
+				if
+					r.x0 >= q.x0 - 1e-6
+					and r.x1 <= q.x1 + 1e-6
+					and r.z0 >= q.z0 - 1e-6
+					and r.z1 <= q.z1 + 1e-6
+				then
+					return true
+				end
+			end
+			return false
+		end
+		local roads = {}
+		for _, bx in a.baseBoxes do
+			if bx.kind == "road" then
+				table.insert(roads, {
+					x0 = bx.cx - bx.sx / 2,
+					z0 = bx.cz - bx.sz / 2,
+					x1 = bx.cx + bx.sx / 2,
+					z1 = bx.cz + bx.sz / 2,
+				})
+			end
+		end
+		local bad: { [string]: number } = {}
+		local function fail(why: string)
+			bad[why] = (bad[why] or 0) + 1
+		end
+		local stacked = 0
+		local hubFill = C.hubFill.street
+		for _, p in a.props do
+			local r = CityKit.footprint(K, p)
+			local ground = p.y <= gy + 1
+			if not ground then
+				-- only crates stack, square on a crate below
+				local under = false
+				for _, q in a.props do
+					if
+						q ~= p
+						and q.name == "Crate"
+						and q.x == p.x
+						and q.z == p.z
+						and math.abs(q.y + 3 - p.y) < 1e-6
+					then
+						under = true
+					end
+				end
+				if not (p.name == "Crate" and under) then
+					fail("a raised prop not on a crate")
+				end
+				stacked += 1
+				continue
+			end
+			local what = hit(r)
+			if what then
+				fail(p.d .. " " .. p.name .. " in a " .. what)
+			end
+			if p.d == "Downtown" or p.d == "OldTown" then
+				if not within(r, onBlock[p.d]) then
+					fail(p.d .. " " .. p.name .. " in the street")
+				end
+			elseif p.d == "Hub" or p.d == "Outskirts" then
+				for _, q in roads do
+					if r.x0 < q.x1 and q.x0 < r.x1 and r.z0 < q.z1 and q.z0 < r.z1 then
+						fail(p.d .. " " .. p.name .. " on a road")
+						break
+					end
+				end
+				if p.d == "Hub" then
+					local tx, tz = WorldGen.tileOf(C, p.x, p.z)
+					local x0, z0 = WorldGen.tileOrigin(C, tx, tz)
+					local inner = {
+						{
+							x0 = x0 + hubFill,
+							z0 = z0 + hubFill,
+							x1 = x0 + C.tile - hubFill,
+							z1 = z0 + C.tile - hubFill,
+						},
+					}
+					if not within(r, inner) then
+						fail("Hub " .. p.name .. " in the filler street")
+					end
+				end
+			end
+			addRect(r, "prop " .. p.name)
+		end
+		local msgs = {}
+		for why, n in bad do
+			table.insert(msgs, why .. " x" .. n)
+		end
+		table.sort(msgs)
+		check(
+			#msgs == 0,
+			"every prop clear of buildings, roads, water, vehicles and other props: "
+				.. table.concat(msgs, "; ")
+		)
+		check(stacked > 0, "some crates are stacked")
+
+		-- variety: fronts and tints differ along a street
+		local frontKinds: { [string]: { [string]: boolean } } = {}
+		for _, bx in a.hubBoxes do
+			if bx.kind == "building" and bx.kit then
+				local d = districtOf(bx.cx, bx.cz)
+				frontKinds[d] = frontKinds[d] or {}
+				frontKinds[d][bx.kit .. ":" .. (bx.tint or "")] = true
+			end
+		end
+		local function count(t: { [string]: boolean }?): number
+			local n = 0
+			for _ in t or {} do
+				n += 1
+			end
+			return n
+		end
+		check(count(frontKinds.Downtown) >= 6, "Downtown has at least 6 fronts")
+		check(count(frontKinds.OldTown) >= 8, "Old Town has at least 8 front and colour mixes")
+		check(count(frontKinds.Docks) >= 3, "the Docks have at least 3 fronts")
+		local houses = {}
+		for _, plan in a.tilePlans do
+			for _, bx in plan.boxes do
+				if bx.kind == "building" and bx.kit then
+					houses[bx.kit .. ":" .. (bx.tint or "")] = true
+				end
+			end
+		end
+		check(count(houses) >= 8, "the outskirts have at least 8 front and colour mixes")
+		for _, name in { "Downtown", "Docks", "OldTown", "Hub", "Outskirts" } do
+			local kinds = {}
+			for _, p in a.props do
+				if p.d == name then
+					kinds[p.name] = true
+				end
+			end
+			check(count(kinds) >= 3, name .. " has at least 3 kinds of prop")
+		end
+	end
+)
 
 print(string.format("\n%d passed, %d failed", passed, failed))
 if failed > 0 then

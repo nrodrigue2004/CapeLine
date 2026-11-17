@@ -219,11 +219,270 @@ t.col[crack] *= 0.6
 t.h[crack] = -0.2
 sheet["Asphalt"] = t.save("Asphalt", strength=3.0, grime=0.04)
 
-# contact sheet for review
+# ================================================================ step 5: the whole city (more fronts, the
+# Docks, Old Town and the outskirts). "Tinted" sets are drawn light and neutral: the game keeps the part's
+# colour on them (Config.City.kit.tinted), so one texture gives many coloured buildings.
+
+
+def circle(cx, cy, r, studs):
+    """A disc mask, centre and radius in studs (y up)."""
+    s = N / studs
+    return (X - cx * s) ** 2 + (Y - (N - cy * s)) ** 2 < (r * s) ** 2
+
+
+def arch_window(t, x0, y0, x1, y1, studs, frame, panes=(2, 3)):
+    """A round-headed window: a frame, glass and a glazing grid; (y1 is the top of the arch)."""
+    r = (x1 - x0) / 2
+    cx = (x0 + x1) / 2
+    spring = y1 - r
+    fw = 0.24
+    outer = rect(x0, y0, x1, spring, studs) | (circle(cx, spring, r, studs) & rect(x0, spring, x1, y1, studs))
+    t.paint(outer, frame, height=0.35, rough=0.5)
+    gl = rect(x0 + fw, y0 + fw, x1 - fw, spring, studs) | (
+        circle(cx, spring, r - fw, studs) & rect(x0, spring, x1, y1, studs)
+    )
+    s = N / studs
+    v = np.clip((Y - (N - y1 * s)) / ((y1 - y0) * s), 0, 1)
+    sky = np.dstack([0.34 - 0.18 * v, 0.44 - 0.2 * v, 0.58 - 0.22 * v])
+    t.col[gl] = sky[gl]
+    t.h[gl] = 0.0
+    t.r[gl] = 0.08
+    grid = np.zeros((N, N), bool)
+    for k in range(1, panes[0]):
+        x = x0 + (x1 - x0) * k / panes[0]
+        grid |= rect(x - 0.06, y0, x + 0.06, y1, studs)
+    for k in range(1, panes[1]):
+        y = y0 + (spring - y0) * k / panes[1]
+        grid |= rect(x0, y - 0.06, x1, y + 0.06, studs)
+    t.paint(grid & gl, frame, 0.3, 0.5)
+
+
+def shutters(t, x0, y0, x1, y1, studs, color):
+    """Louvred shutters either side of a window."""
+    w = (x1 - x0) * 0.42
+    for a, b in ((x0 - w, x0), (x1, x1 + w)):
+        t.paint(rect(a, y0, b, y1, studs), color, height=0.45, rough=0.7)
+        s = N / studs
+        slat = (((N - Y) / s * 4) % 1.0) < 0.22
+        t.paint(rect(a + 0.12, y0 + 0.15, b - 0.12, y1 - 0.15, studs) & slat, tuple(int(c * 0.72) for c in color), 0.3)
+
+
+def bricks(t, studs, course, length, color, mortar_color, tone_amp=0.3, mortar=0.05, height=0.25):
+    """A running-bond brick field over the whole tile."""
+    S = N / studs
+    rowi = np.floor((N - 1 - Y) / (course * S)).astype(int)
+    off = (rowi % 2) * length * S / 2
+    coli = np.floor((X + off) / (length * S)).astype(int)
+    bid = (rowi * 131 + coli * 17) % 97
+    tone = 1 - tone_amp / 2 + tone_amp * ((bid * 37) % 23) / 23.0
+    m = (((N - 1 - Y) % (course * S)) < mortar * S) | (((X + off) % (length * S)) < mortar * S)
+    t.paint(~m, color, height=height, rough=0.85, vary=tone + (noise(24) - 0.5) * 0.2)
+    t.paint(m, mortar_color, height=0.0, rough=0.9)
+
+
+# ---------------------------------------------------------------- Deco: cream stone piers, bronze spandrels
+t = Tex()
+t.paint(np.ones((N, N), bool), (226, 214, 190), height=0.3, rough=0.8, vary=0.94 + (noise(12) - 0.5) * 0.12)
+for px in (0.0, 6.0, 12.0):
+    t.paint(rect(px - 0.7, 0, px + 0.7, 12, 12), (238, 228, 206), height=0.6, rough=0.75)
+    t.paint(rect(px - 0.75, 0, px - 0.62, 12, 12) | rect(px + 0.62, 0, px + 0.75, 12, 12), (196, 182, 156), 0.4)
+for wx in (3.0, 9.0):
+    t.paint(rect(wx - 1.75, 0.2, wx + 1.75, 2.4, 12), (120, 86, 58), height=0.2, rough=0.45, metal=0.6)
+    for k in range(3):  # chevrons on the spandrel
+        cy = 0.7 + k * 0.55
+        chev = (np.abs(X / (N / 12) - wx) * 0.5 + (N - Y) / (N / 12) > cy) & (
+            np.abs(X / (N / 12) - wx) * 0.5 + (N - Y) / (N / 12) < cy + 0.18
+        )
+        t.paint(chev & rect(wx - 1.6, 0.3, wx + 1.6, 2.3, 12), (214, 170, 96), 0.35, 0.35, metal=0.8)
+    window(t, wx - 1.6, 2.6, wx + 1.6, 11.2, 12, frame=(70, 66, 60))
+t.paint(rect(0, 11.5, 12, 12, 12), (206, 192, 166), 0.5)
+sheet["Deco"] = t.save("Deco")
+
+# ---------------------------------------------------------------- Panel: white panels, teal fins, wide windows
+t = Tex()
+t.paint(np.ones((N, N), bool), (236, 238, 236), height=0.3, rough=0.6, vary=0.97 + (noise(6) - 0.5) * 0.06)
+t.paint(rect(0, 0, 12, 0.06, 12) | rect(0, 2.94, 12, 3.06, 12), (180, 184, 184), 0.1)
+window(t, 0.6, 3.6, 5.4, 10.6, 12, frame=(54, 60, 66), mull=False)
+window(t, 6.6, 3.6, 11.4, 10.6, 12, frame=(54, 60, 66), mull=False)
+t.paint(rect(5.65, 3.0, 6.35, 12, 12), (40, 176, 170), height=0.7, rough=0.4)  # the fin
+t.paint(rect(0, 0.8, 12, 1.6, 12), (40, 176, 170), height=0.4, rough=0.4)  # the colour band
+sheet["Panel"] = t.save("Panel", grime=0.06)
+
+# ---------------------------------------------------------------- Warehouse: corrugated siding (tinted)
+t = Tex()
+rib = 0.5 + 0.5 * np.cos(X / (N / 12) * 2 * np.pi / 0.75)
+t.paint(np.ones((N, N), bool), (226, 226, 222), rough=0.55, metal=0.5, vary=0.86 + 0.14 * rib)
+t.h[:] = rib * 0.5
+t.paint(rect(0, 0, 12, 0.7, 12), (150, 150, 146), 0.6, 0.6, metal=0.4)  # the base rail
+for k in range(3):  # clerestory windows high up
+    x0 = 0.6 + k * 4.0
+    window(t, x0, 8.6, x0 + 2.8, 10.6, 12, frame=(200, 200, 196), mull=False)
+t.paint(rect(0, 11.4, 12, 12, 12), (176, 176, 172), 0.6, 0.6, metal=0.4)
+rust = np.clip((noise(8, 3) - 0.62) * 3, 0, 1) * np.clip((N - Y) / N * 1.6 - 0.2, 0, 1)
+t.col *= 1 - 0.22 * rust[..., None] * np.array([0.2, 0.55, 0.8], np.float32)
+sheet["Warehouse"] = t.save("Warehouse", metal=True, grime=0.1)
+
+# ---------------------------------------------------------------- DockBrick: dark brick, big arched windows
+t = Tex()
+bricks(t, 12, 0.27, 0.85, (118, 58, 46), (90, 84, 78), tone_amp=0.34)
+for wx in (3.0, 9.0):
+    t.paint(rect(wx - 2.1, 1.8, wx + 2.1, 2.2, 12), (150, 140, 128), 0.5, 0.75)
+    arch = circle(wx, 8.4, 2.3, 12) & rect(wx - 2.3, 8.4, wx + 2.3, 11, 12)
+    t.paint(arch, (150, 76, 58), 0.45, 0.8)  # the brick arch
+    arch_window(t, wx - 1.9, 2.2, wx + 1.9, 10.3, 12, frame=(54, 72, 66), panes=(3, 4))
+sheet["DockBrick"] = t.save("DockBrick")
+
+# ---------------------------------------------------------------- Quay: big concrete slabs, rust and joints
+t = Tex()
+slab = N / 2
+sid = (np.floor(X / slab).astype(int) * 5 + np.floor(Y / slab).astype(int) * 3) % 5
+t.paint(np.ones((N, N), bool), (182, 178, 168), height=0.3, rough=0.9, vary=0.9 + 0.06 * sid + (noise(10) - 0.5) * 0.16)
+joint = ((X % slab) < 3) | ((Y % slab) < 3)
+t.paint(joint, (96, 94, 90), height=0.0)
+stain = np.clip((noise(4, 3) - 0.6) * 2.5, 0, 1)
+t.col *= 1 - 0.25 * stain[..., None] * np.array([0.1, 0.35, 0.6], np.float32)
+sheet["Quay"] = t.save("Quay", strength=4.0)
+
+# ---------------------------------------------------------------- Container: corrugated box sides (tinted)
+t = Tex()
+s8 = N / 8
+u = (X % (s8 * 1.0)) / s8  # one rib a stud
+prof = np.clip(np.abs(u - 0.5) * 4 - 0.6, 0, 1)  # trapezoid ribs
+t.paint(np.ones((N, N), bool), (236, 236, 232), rough=0.5, metal=0.3, vary=0.84 + 0.16 * prof)
+t.h[:] = prof * 0.6
+t.paint(rect(0, 0, 8, 0.35, 8) | rect(0, 7.65, 8, 8, 8), (200, 200, 196), 0.7, 0.5, metal=0.4)
+scuff = np.clip((noise(10, 3) - 0.66) * 3, 0, 1)
+t.col *= 1 - 0.18 * scuff[..., None]
+sheet["Container"] = t.save("Container", metal=True, grime=0.06)
+
+# ---------------------------------------------------------------- OldBrick: warm brick, white sash windows
+t = Tex()
+bricks(t, 12, 0.25, 0.8, (188, 104, 66), (222, 210, 190), tone_amp=0.36)
+for wx in (3.0, 9.0):
+    t.paint(rect(wx - 1.8, 2.8, wx + 1.8, 3.25, 12), (236, 232, 222), 0.55, 0.7)
+    arch = circle(wx, 8.0, 2.0, 12) & rect(wx - 2.0, 8.0, wx + 2.0, 10.2, 12)
+    t.paint(arch, (158, 82, 52), 0.4, 0.8)
+    arch_window(t, wx - 1.5, 3.25, wx + 1.5, 9.6, 12, frame=(244, 242, 236), panes=(2, 3))
+    t.paint(rect(wx - 1.7, 2.2, wx + 1.7, 2.8, 12), (92, 132, 70), 0.6, 0.8)  # flower box
+    for k in range(5):
+        t.paint(circle(wx - 1.4 + k * 0.7, 2.95, 0.22, 12), ((236, 86, 96), (255, 206, 72))[k % 2], 0.7, 0.8)
+t.paint(rect(0, 0, 12, 0.45, 12), (226, 214, 196), 0.45, 0.75)
+sheet["OldBrick"] = t.save("OldBrick")
+
+# ---------------------------------------------------------------- Plaster: smooth render, shuttered windows (tinted)
+t = Tex()
+t.paint(np.ones((N, N), bool), (244, 242, 236), height=0.2, rough=0.9, vary=0.95 + (noise(10, 4) - 0.5) * 0.1)
+for wx in (3.0, 9.0):
+    t.paint(rect(wx - 1.5, 3.0, wx + 1.5, 9.4, 12), (252, 252, 250), 0.35, 0.8)  # the surround
+    window(t, wx - 1.2, 3.3, wx + 1.2, 9.1, 12, frame=(250, 250, 248))
+    shutters(t, wx - 1.5, 3.2, wx + 1.5, 9.2, 12, (150, 160, 170))
+t.paint(rect(0, 0, 12, 0.5, 12), (214, 210, 202), 0.45, 0.8)
+t.paint(rect(0, 11.6, 12, 12, 12), (226, 222, 214), 0.45, 0.8)
+sheet["Plaster"] = t.save("Plaster", grime=0.1)
+
+# ---------------------------------------------------------------- Timber: half-timbered plaster (tinted)
+t = Tex()
+t.paint(np.ones((N, N), bool), (246, 242, 230), height=0.2, rough=0.9, vary=0.95 + (noise(10, 4) - 0.5) * 0.1)
+beam = (110, 76, 52)
+wood = 0.9 + (noise(30, 2) - 0.5) * 0.2
+for y0 in (0.0, 5.6, 11.4):
+    t.paint(rect(0, y0, 12, y0 + 0.6, 12), beam, 0.6, 0.85, vary=wood)
+for x in (0.0, 4.0, 8.0, 12.0):
+    t.paint(rect(x - 0.3, 0, x + 0.3, 12, 12), beam, 0.6, 0.85, vary=wood)
+S = N / 12
+u, v = X / S, (N - Y) / S
+for x in (4.0, 8.0):  # braces in the lower panels
+    brace = (np.abs((u - x) - (v - 0.6) * 0.8) < 0.28) & rect(x, 0.6, x + 4, 5.6, 12)
+    t.paint(brace, beam, 0.6, 0.85, vary=wood)
+for wx in (2.0, 10.0, 6.0):  # windows up top
+    window(t, wx - 1.1, 7.0, wx + 1.1, 10.4, 12, frame=(236, 230, 214))
+window(t, 0.9, 1.6, 3.1, 4.6, 12, frame=(236, 230, 214))
+sheet["Timber"] = t.save("Timber")
+
+# ---------------------------------------------------------------- Cobble: rounded setts (an 8-stud tile)
+t = Tex()
+s8 = N / 8
+rowc = np.floor(Y / (s8 * 0.8)).astype(int)
+offc = (rowc % 2) * s8 * 0.55
+colc = np.floor((X + offc) / (s8 * 1.1)).astype(int)
+fu = ((X + offc) % (s8 * 1.1)) / (s8 * 1.1) - 0.5
+fv = (Y % (s8 * 0.8)) / (s8 * 0.8) - 0.5
+d = np.sqrt((fu * 1.0) ** 2 + (fv * 1.1) ** 2)
+dome = np.clip(1 - d * 2.2, 0, 1) ** 0.6
+cid = (rowc * 71 + colc * 13) % 29
+tone = 0.82 + 0.3 * ((cid * 11) % 17) / 17.0
+stone = dome > 0.05
+t.paint(stone, (150, 144, 136), rough=0.8, vary=tone * (0.85 + 0.15 * dome) + (noise(20) - 0.5) * 0.1)
+t.paint(~stone, (84, 80, 74), rough=0.95)
+t.h[:] = dome * 0.8
+sheet["Cobble"] = t.save("Cobble", strength=3.0, grime=0.08)
+
+# ---------------------------------------------------------------- Flagstone: irregular big flags (8 studs)
+t = Tex()
+pts = rng.random((14, 2)).astype(np.float32) * N
+dist = np.full((N, N), 1e9, np.float32)
+second = np.full((N, N), 1e9, np.float32)
+idx = np.zeros((N, N), int)
+for i, (px, py) in enumerate(pts):
+    for ox in (-N, 0, N):
+        for oy in (-N, 0, N):
+            dd = np.sqrt((X - px - ox) ** 2 + (Y - py - oy) ** 2)
+            closer = dd < dist
+            second = np.where(closer, dist, np.minimum(second, dd))
+            idx = np.where(closer, i, idx)
+            dist = np.where(closer, dd, dist)
+edge = (second - dist) < 3.2
+tone = 0.86 + 0.22 * ((idx * 7) % 13) / 13.0
+t.paint(~edge, (196, 186, 168), height=0.3, rough=0.85, vary=tone + (noise(18) - 0.5) * 0.14)
+t.paint(edge, (110, 104, 94), height=0.0, rough=0.95)
+sheet["Flagstone"] = t.save("Flagstone", strength=4.0)
+
+# ---------------------------------------------------------------- Siding: clapboard with two windows (tinted)
+t = Tex()
+board = ((N - 1 - Y) % (N / 12 * 0.6)) / (N / 12 * 0.6)
+t.paint(np.ones((N, N), bool), (246, 246, 242), rough=0.75, vary=0.9 + 0.1 * board)
+t.h[:] = board * 0.4
+for wx in (3.0, 9.0):
+    t.paint(rect(wx - 1.75, 3.1, wx + 1.75, 9.3, 12), (255, 255, 255), 0.5, 0.6)
+    window(t, wx - 1.45, 3.4, wx + 1.45, 9.0, 12, frame=(255, 255, 255))
+t.paint(rect(0, 0, 12, 0.6, 12), (200, 200, 196), 0.5, 0.8)
+sheet["Siding"] = t.save("Siding", grime=0.06)
+
+# ---------------------------------------------------------------- RoofTile: scalloped shingles (tinted, 6 studs)
+t = Tex()
+s6 = N / 6
+rowr = np.floor(Y / (s6 * 0.5)).astype(int)
+offr = (rowr % 2) * s6 * 0.375
+fu = ((X + offr) % (s6 * 0.75)) / (s6 * 0.75)
+fv = (Y % (s6 * 0.5)) / (s6 * 0.5)  # 0 at the top of a row
+bottom = 0.55 + 0.45 * np.sqrt(np.clip(1 - (2 * fu - 1) ** 2, 0, 1))  # each tile's rounded lower edge
+below = fv > bottom  # the shadow under a tile's round edge, on the tile beneath
+side = (fu < 0.035) | (fu > 0.965)
+rid = (rowr * 19 + np.floor((X + offr) / (s6 * 0.75)).astype(int) * 7) % 13
+tone = 0.86 + 0.2 * rid / 13.0
+t.paint(np.ones((N, N), bool), (238, 236, 232), rough=0.7, vary=tone * (1.04 - 0.16 * fv))
+t.paint(below | (side & (fv < bottom)), (150, 148, 144), rough=0.85)
+t.h[:] = np.where(below, 0.0, (1 - fv) * 0.6 + 0.2)
+sheet["RoofTile"] = t.save("RoofTile", strength=3.0, grime=0.08)
+
+# contact sheet for review (tinted sets shown in one of their game tints)
+TINTS = {"Warehouse": (96, 170, 186), "Container": (214, 92, 62), "Plaster": (250, 214, 150),
+         "Timber": (246, 226, 196), "Siding": (150, 196, 230), "RoofTile": (198, 88, 66)}
 tiles = [(k, v) for k, v in sheet.items()]
-img = Image.new("RGB", (3 * 260 + 20, 2 * 280 + 20), (40, 42, 48))
+cols = 5
+img = Image.new("RGB", (cols * 210 + 10, ((len(tiles) + cols - 1) // cols) * 228 + 10), (40, 42, 48))
+try:
+    from PIL import ImageDraw
+    draw = ImageDraw.Draw(img)
+except Exception:
+    draw = None
 for i, (k, v) in enumerate(tiles):
-    im = Image.fromarray((v * 255).astype(np.uint8)).resize((256, 256))
-    img.paste(im, (10 + (i % 3) * 260, 10 + (i // 3) * 280))
+    if k in TINTS:
+        v = v * (np.array(TINTS[k], np.float32) / 255)
+    im = Image.fromarray((np.clip(v, 0, 1) * 255).astype(np.uint8)).resize((200, 200))
+    x, y = 10 + (i % cols) * 210, 10 + (i // cols) * 228
+    img.paste(im, (x, y))
+    if draw:
+        draw.text((x, y + 203), k + (" (tinted)" if k in TINTS else ""), fill=(220, 220, 220))
 img.save(os.path.join(ROOT, "preview", "city_materials.png"))
 print("wrote", len(sheet), "materials to", OUT)
