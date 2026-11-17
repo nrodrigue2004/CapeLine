@@ -59,6 +59,26 @@ return {
 			{ id = "OpenNorth", block = { 2, 0 } },
 			{ id = "OpenWest", block = { 0, 4 } },
 		},
+		-- the rooftop row (nate 2026-11-17: a longer prologue chase): purpose-built roofs one short Leap apart
+		-- on the first lot strip (lots lz = strip) of the two core blocks east of the plaza, for the Ceremony
+		-- prologue's chase (Shared.OpeningPlan) and anyone running roofs. The strip's lots still take their
+		-- draws, so nothing else moves; the other strip keeps its seeded buildings. `at`: each block's roofs
+		-- along x from its middle (38 apart in a block, 64 across the street); `roofs` in running order: body
+		-- height, width along the row, depth, colour and the rooftop dressing (solid where you land, walk-through
+		-- where it is decoration). Rises stay inside a Leap's climb (Config.Story.opening.roofs.climb).
+		row = {
+			blocks = { { 4, 3 }, { 5, 3 } },
+			strip = 1,
+			at = { -38, 0, 38 },
+			roofs = {
+				{ h = 24, w = 20, d = 36, color = "brick", dress = { "ac", "hatch" } },
+				{ h = 32, w = 22, d = 38, color = "sand", dress = { "tank" } },
+				{ h = 40, w = 20, d = 40, color = "slate", dress = { "billboard" } },
+				{ h = 36, w = 22, d = 36, color = "concrete", dress = { "skylights", "ac" } },
+				{ h = 44, w = 18, d = 38, color = "brick", dress = { "laundry" } },
+				{ h = 40, w = 24, d = 40, color = "steel", dress = { "tank", "hatch" } },
+			},
+		},
 	},
 	-- Uptown (PLACEHOLDER NAME): the second Downtown-style district, its own grid, heights and palette (sunset
 	-- coral, teal, amber and violet fronts over warm terrazzo, flower tubs and bushes instead of trees), so it
