@@ -86,5 +86,52 @@ return {
 			clothes = { Grunt = 0, Veteran = 0, Elite = 0 },
 			hair = { "BlackPonytail", "BlondeSpiked", "BrownCharmer" },
 		},
+		-- Shield Bearer: riot armour, plated vest and shoulder pads, the shield-wall mark (navy, worn, then black
+		-- and gold)
+		ShieldBearer = {
+			clothes = { Grunt = 0, Veteran = 0, Elite = 0 },
+			hair = { "BrownCharmer", "BlackPonytail", "Pal" },
+		},
+		-- Captain: an officer's tunic with epaulettes, cuff rings for rank and a cape (hussar braid on Elites)
+		Captain = {
+			clothes = { Grunt = 0, Veteran = 0, Elite = 0 },
+			hair = { "LavenderUpdo", "BrownCharmer", "BlondeSpiked" },
+		},
+		-- Sniper: camouflage with a chest rig of pouches (woodland, urban grey, then night with gold)
+		Sniper = {
+			clothes = { Grunt = 0, Veteran = 0, Elite = 0 },
+			hair = { "Pal", "BlackPonytail", "LongRed" },
+		},
+		-- Bomber: a quilted demolition jacket, crossed bandoliers, hazard stripes (scorched, then black and gold)
+		Bomber = {
+			clothes = { Grunt = 0, Veteran = 0, Elite = 0 },
+			hair = { "BlondeSpiked", "LongRed", "BrownCharmer" },
+		},
+		-- Medic Unit: a white field tunic with a green yoke and the green plus (never a red cross)
+		MedicUnit = {
+			clothes = { Grunt = 0, Veteran = 0, Elite = 0 },
+			hair = { "LavenderUpdo", "Pal", "BlackPonytail" },
+		},
+		-- Swarmer: a hive-patterned runner's top, shorts and long socks (olive, black, then glowing lime)
+		Swarmer = {
+			clothes = { Grunt = 0, Veteran = 0, Elite = 0 },
+			hair = { "BlondeSpiked", "LongRed", "BlackPonytail" },
+		},
+		-- Mimic: an ordinary citizen's street clothes, no mark (tee and jeans, flannel and chinos, hoodie and
+		-- joggers); everyday hair so it passes for a civilian
+		Mimic = {
+			clothes = { Grunt = 0, Veteran = 0, Elite = 0 },
+			hair = { "BrownCharmer", "Pal", "BlackPonytail" },
+		},
+		-- Interceptor: a white and blue flight suit with a harness and wings across the back
+		Interceptor = {
+			clothes = { Grunt = 0, Veteran = 0, Elite = 0 },
+			hair = { "BlondeSpiked", "LavenderUpdo", "BrownCharmer" },
+		},
+		-- Grappler: a heavy work jacket with one armoured hook arm, a chain across the chest, the hook mark
+		Grappler = {
+			clothes = { Grunt = 0, Veteran = 0, Elite = 0 },
+			hair = { "Pal", "LongRed", "BrownCharmer" },
+		},
 	},
 }
