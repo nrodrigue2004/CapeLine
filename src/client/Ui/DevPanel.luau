@@ -21,6 +21,7 @@ local State = require(script.Parent.Parent.State)
 local QualityController = require(script.Parent.Parent.Controllers.QualityController)
 local Telemetry = require(script.Parent.Parent.Controllers.Telemetry)
 local SettingsClient = require(script.Parent.Parent.Controllers.SettingsClient)
+local EnemyRenderer = require(script.Parent.Parent.Controllers.EnemyRenderer)
 
 local DevPanel = {}
 
@@ -30,7 +31,7 @@ function DevPanel.init()
 	end
 	local gui = Kit.screen("DevPanel", 20)
 	local panel = Kit.frame({
-		Size = UDim2.fromOffset(300, 780),
+		Size = UDim2.fromOffset(300, 815),
 		AnchorPoint = Vector2.new(1, 0),
 		Position = UDim2.new(1, -16, 0, 60),
 		BackgroundColor3 = Kit.color.night,
@@ -54,7 +55,7 @@ function DevPanel.init()
 	grid.SortOrder = Enum.SortOrder.LayoutOrder
 	local holder = Instance.new("Frame")
 	holder.BackgroundTransparency = 1
-	holder.Size = UDim2.new(1, -16, 0, 645)
+	holder.Size = UDim2.new(1, -16, 0, 680)
 	holder.Position = UDim2.fromOffset(8, 8)
 	grid.Parent = holder
 	holder.Parent = panel
@@ -125,6 +126,16 @@ function DevPanel.init()
 		Net.send("DevCommand", "robot", robotIdx)
 		robotIdx = robotIdx % #Config.Enemies.order + 1
 		b.Text = "3x " .. Config.Enemies[Config.Enemies.order[robotIdx]].name
+	end)
+	-- the robots' look, to compare the two styles live (nate, 2026-11-17): Auto, Roblox (classic clothes and
+	-- catalog hair), Shell (the Blender superhero meshes), Plain
+	local STYLES = { "auto", "roblox", "shell", "plain" }
+	local styleIdx = table.find(STYLES, Config.NpcLooks.style) or 1
+	local LABEL =
+		{ auto = "Robots: Auto", roblox = "Robots: Roblox", shell = "Robots: Shell", plain = "Robots: Plain" }
+	add(LABEL[STYLES[styleIdx]], function(b)
+		styleIdx = styleIdx % #STYLES + 1
+		b.Text = LABEL[EnemyRenderer.setStyle(STYLES[styleIdx])]
 	end)
 	add("Level 40", function()
 		Net.send("DevCommand", "level", Config.Stats.levelCap)
@@ -300,7 +311,7 @@ function DevPanel.init()
 	local stats = Kit.label({
 		Text = "waiting for server stats",
 		Size = UDim2.new(1, -16, 0, 100),
-		Position = UDim2.fromOffset(8, 658),
+		Position = UDim2.fromOffset(8, 693),
 		TextXAlignment = Enum.TextXAlignment.Left,
 		TextYAlignment = Enum.TextYAlignment.Top,
 		TextColor3 = Kit.color.paper,

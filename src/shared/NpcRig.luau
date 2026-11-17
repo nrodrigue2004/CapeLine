@@ -12,6 +12,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local RigMath = require(script.Parent.RigMath)
+local ClothesMap = require(script.Parent.ClothesMap)
 
 local NpcRig = {}
 
@@ -247,6 +248,96 @@ function NpcRig.person(
 		NpcRig.fix(rig, "Head", h, CFrame.new(0, head.Size.Y * 0.45, head.Size.Z * 0.04))
 	end
 	return rig
+end
+
+-- Classic Roblox clothes on the rig (no Humanoid needed): one clothes image (the shirt over the pants on the
+-- classic template) shown on every face of the torso, arms and legs with a Texture cut to that face's piece of
+-- the template (Shared.ClothesMap). `sign` is Config.NpcLooks.offsetSign. Returns the Textures by part, so the
+-- caller can hide a part's clothes with it.
+function NpcRig.dress(rig: Rig, image: string, sign: number?): { [string]: { Texture } }
+	local out: { [string]: { Texture } } = {}
+	for pname, p in rig.parts do
+		local list = {}
+		for _, face in ClothesMap.FACES do
+			local r = ClothesMap.rect(pname, face)
+			if r then
+				local fw, fh = ClothesMap.faceSize({ p.Size.X, p.Size.Y, p.Size.Z }, face)
+				local su, sv, ou, ov = ClothesMap.texture(r, fw, fh, sign)
+				local t = Instance.new("Texture")
+				t.Name = "Clothes"
+				t.Texture = image
+				t.Face = (Enum.NormalId :: any)[face]
+				t.StudsPerTileU = su
+				t.StudsPerTileV = sv
+				t.OffsetStudsU = ou
+				t.OffsetStudsV = ov
+				t.Parent = p
+				table.insert(list, t)
+			end
+		end
+		out[pname] = list
+	end
+	return out
+end
+
+-- A face decal on the head (a Roblox face; swap its Texture to change the face)
+function NpcRig.face(rig: Rig, image: string): Decal
+	local d = Instance.new("Decal")
+	d.Name = "face"
+	d.Texture = image
+	d.Face = Enum.NormalId.Front
+	d.Parent = rig.parts.Head
+	return d
+end
+
+-- Wear a Roblox accessory (hair, a hat) without a Humanoid: its handle is scaled from Roblox's standard 1.2 stud
+-- head to this rig's head and fixed where its attachment meets the rig's attachment of the same name (the
+-- rig has every R15 accessory attachment). Returns the handle (named `name`), or nil if it cannot fit.
+function NpcRig.wear(rig: Rig, accessory: Accessory, name: string): BasePart?
+	local src = accessory:FindFirstChild("Handle")
+	if not (src and src:IsA("BasePart")) then
+		return nil
+	end
+	local handle = src:Clone()
+	local att = handle:FindFirstChildWhichIsA("Attachment")
+	if not att then
+		handle:Destroy()
+		return nil
+	end
+	local target: Attachment?, parent: string? = nil, nil
+	for pname, p in rig.parts do
+		local a = p:FindFirstChild(att.Name)
+		if a and a:IsA("Attachment") then
+			target, parent = a, pname
+			break
+		end
+	end
+	if not (target and parent) then
+		handle:Destroy()
+		return nil
+	end
+	local k = rig.parts.Head.Size.Y / 1.2
+	local mesh = handle:FindFirstChildWhichIsA("SpecialMesh")
+	if mesh then
+		mesh.Scale *= k
+		mesh.Offset *= k
+	end
+	handle.Size *= k
+	for _, d in handle:GetDescendants() do
+		if d:IsA("Attachment") then
+			d.Position *= k
+		elseif d:IsA("JointInstance") or d:IsA("WeldConstraint") or d:IsA("LuaSourceContainer") then
+			d:Destroy()
+		end
+	end
+	handle.Name = name
+	handle.CanCollide = false
+	handle.CanQuery = false
+	handle.CanTouch = false
+	handle.Massless = true
+	handle.CastShadow = false
+	NpcRig.fix(rig, parent :: string, handle, (target :: Attachment).CFrame * att.CFrame:Inverse())
+	return handle
 end
 
 -- Stand the rig with its soles on `feet` (a position and facing)

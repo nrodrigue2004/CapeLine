@@ -236,9 +236,24 @@ Checks (walk out of the plaza to the east):
 9. Smash a building on the block: the falling wall panels keep the front texture; rubble is plain.
 10. Performance: about 120 more parts on the block; the Dev panel frame time is unchanged.
 
+### Robots: try both looks in game (2026-11-17)
+nate wants to compare the two robot looks in game: "Roblox" (a plain Roblox character: blocky R15 body, classic clothes image, a Roblox face that turns, real Roblox hair from the catalog) and "Shell" (the Blender superhero meshes below). Dev panel button "Robots: Auto / Roblox / Shell / Plain" switches every robot live. The Output says build robot-looks (2026-11-17).
+Uploads (once; then Claude builds one place with everything in it):
+1. Download Trooper_Clothes.png, Trooper_Face.png, Trooper_FaceTurned.png and Trooper.fbx (project files capeline/art/clothes and capeline/art/trooper).
+2. Studio, any place: View > Asset Manager > Bulk Import, pick the three PNGs, Open. Wait until they show under Images.
+3. In Asset Manager > Images, right-click each of the three > Copy ID to Clipboard, and paste each into the chat with its name.
+4. Home > Import 3D, pick Trooper.fbx, keep "Import only as a single mesh" OFF, Import.
+5. In the Explorer, right-click the new Trooper model > Save to File..., save Trooper.rbxm, and attach it in the chat.
+6. Claude puts the ids in Config.NpcLooks and Trooper.rbxm in the repo and sends a new Capeline.rbxl; open it.
+Checks:
+7. Play, DEV > "3x Spark Trooper", then press "Robots:" to cycle. Roblox: blue suit with the diamond bolt emblem, orange gloves and boots, belt, a face with human eyes, Roblox hair (one of three styles, different per robot). Shell: the Blender superhero. Plain: the old look.
+8. Roblox look: the clothes sit right on every face (emblem centred on the chest, gloves on the hands, boots at the feet). If every face is shifted, Claude flips Config.NpcLooks.offsetSign. If the hair is missing, copy the Output's [NpcLooks] lines into the chat.
+9. Roblox look: the face turns (dark eyes that glow) the first time it attacks or breaks; it reddens during a windup; the white hit flash still shows; broken parts take their clothes with them.
+10. Performance: 30 Roblox-look robots near you hold the frame rate on PC (High) and on a phone (Low).
+
 ### Remade Spark Trooper (2026-11-17)
 The first robot to the new look (overhaul plan step 3), redone as a superhero on nate's note (2026-11-17, "not humanoid enough"): a face with skin, glowing eyes and swept hair, a fitted blue suit with a white and orange diamond emblem, orange gloves and boots, a belt and side stripes, all on the blocky R15 body with one baked texture set (art/blender/trooper.py; preview art/preview/trooper.png). Until it is imported the Spark Trooper keeps today's look, so nothing breaks. The build line in the Output says hero-trooper (2026-11-17).
-Import (Claude can do it on your PC when you say so, like the robot meshes):
+Import (steps 4 to 6 of "Robots: try both looks in game" above do this):
 1. Studio: Home > Import 3D, pick `art/export/Trooper.fbx` (project files: capeline/art/trooper/Trooper.fbx). Turn OFF "Import as a single mesh". The textures are inside the file; the importer should give each part a SurfaceAppearance.
 2. A model with 16 MeshParts appears (Head, UpperTorso ... RightFoot, Hair). Rename it `Trooper` and drag it into ReplicatedStorage.Art.
 3. If the parts come in white with no textures: import the four PNGs next to it (Trooper_Color, _Normal, _Roughness, _Metalness), set them on one SurfaceAppearance and copy it into every part.

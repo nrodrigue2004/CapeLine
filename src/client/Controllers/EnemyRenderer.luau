@@ -48,10 +48,17 @@ local lastSeq = 0
 local frame = 0
 
 local byType: { [number]: any } = {}
+local kindByType: { [number]: string } = {}
 for _, kind in Config.Enemies.order do
 	local cfg = Config.Enemies[kind]
 	byType[cfg.typeId] = cfg
+	kindByType[cfg.typeId] = kind
 end
+
+-- Which look robots wear (Config.NpcLooks.style; the Dev panel "Robots:" button cycles it to compare)
+local NL = Config.NpcLooks
+local style: string = NL.style
+local HAIR_SLOTS = 3 -- a Roblox-look robot carries up to this many of its kind's hairs and shows one
 
 type Body = {
 	model: Model,
@@ -86,6 +93,13 @@ type Body = {
 	look: string?,
 	glow: Color3,
 	turned: boolean,
+	-- the Roblox look (Config.NpcLooks): "roblox", "shell" or "plain"; its clothes Textures by part, the face
+	-- decal and its two images, and the hair handles it can show (one picked per robot)
+	mode: string,
+	clothes: { [string]: { Texture } }?,
+	faceDecal: Decal?,
+	faces: { string }?,
+	hairs: { string },
 }
 
 local live: { [number]: Body } = {}
@@ -102,6 +116,9 @@ local LOOK = Config.Enemies.look
 local TIES: { [string]: { string } } = {
 	EyeL = { "Head" },
 	EyeR = { "Head" },
+	Hair1 = { "Head" },
+	Hair2 = { "Head" },
+	Hair3 = { "Head" },
 	IrisL = { "Head" },
 	IrisR = { "Head" },
 	Mask = { "Head" },
@@ -240,9 +257,27 @@ local function makeRobot(typeId: number): Body
 		colors[s .. "Foot"] = trim
 	end
 	local set = BodyShape.setKey(Config, { gender = 1, build = LOOK.builds[body.build] or 2 })
-	-- a remade robot (overhaul plan step 3): its superhero shell set once imported (a face, a fitted suit
-	-- with a chest emblem, gloves, boots and a belt baked in), else the plain shell
-	local look: string? = if body.art and NpcRig.meshes(set, body.art) then body.art else nil
+	-- the look (nate is trying both in game, 2026-11-17): "roblox" = a plain Roblox character in classic
+	-- clothes with a Roblox face and catalog hair (Config.NpcLooks, once its images are uploaded); "shell" =
+	-- the Blender superhero shell set (overhaul plan step 3: a face, a fitted suit with a chest emblem, gloves,
+	-- boots and a belt baked in) once imported; else the plain look
+	local recipe = NL.robots[kindByType[typeId] or ""]
+	local hasRoblox = recipe ~= nil and recipe.clothes ~= 0 and recipe.face ~= 0
+	local hasShell = body.art ~= nil and NpcRig.meshes(set, body.art) ~= nil
+	local mode = if style == "roblox"
+		then (if hasRoblox then "roblox" else "plain")
+		elseif style == "shell" then (if hasShell then "shell" else "plain")
+		elseif style == "plain" then "plain"
+		elseif hasRoblox then "roblox"
+		elseif hasShell then "shell"
+		else "plain"
+	local look: string? = if mode == "shell" then body.art else nil
+	if mode == "roblox" then
+		-- skin everywhere: the clothes image covers the body, the skin shows on the head and where it is clear
+		for pname in colors do
+			colors[pname] = skin
+		end
+	end
 	local rig = NpcRig.build(layout, cfg.name, colors, SKIN, nil, set, look)
 	local model = rig.model
 	local parts, names, cols, trans, byName, index = {}, {}, {}, {}, {}, {}
@@ -357,8 +392,8 @@ local function makeRobot(typeId: number): Body
 		)
 		add("Foot" .. sl, s .. "Foot", I, foot * 0.7, metal, M)
 	end
-	-- the shell's extras (a remade robot's suit has its own belt and chest emblem baked in)
-	if not look then
+	-- the shell's extras (the remade suit and the Roblox clothes have their own belt and chest emblem)
+	if mode == "plain" then
 		add(
 			"Belt",
 			"LowerTorso",
@@ -377,8 +412,26 @@ local function makeRobot(typeId: number): Body
 		)
 	end
 	local glow = eye:Lerp(Color3.new(1, 1, 1), 0.35)
-	-- the hair: a remade robot's swept hair mesh from its set (Config.TrooperArt), else a plain cap
+	-- the hair: a Roblox-look robot carries its kind's Roblox hairs (NpcLookService loads them; one shows per
+	-- robot); a remade robot its swept hair mesh (Config.TrooperArt); else a plain cap
 	local hairMesh = false
+	local hairs: { string } = {}
+	local hairFolder = ReplicatedStorage:FindFirstChild("NpcLooks")
+	hairFolder = hairFolder and hairFolder:FindFirstChild("Hair")
+	if mode == "roblox" and recipe and hairFolder then
+		for _, hname in recipe.hair do
+			local acc = hairFolder:FindFirstChild(hname)
+			if acc and acc:IsA("Accessory") and #hairs < HAIR_SLOTS then
+				local slot = "Hair" .. (#hairs + 1)
+				local handle = NpcRig.wear(rig, acc, slot)
+				if handle then
+					register(slot, handle)
+					table.insert(hairs, slot)
+				end
+			end
+		end
+		hairMesh = #hairs > 0
+	end
 	if look then
 		for xname, x in Config.TrooperArt.extras do
 			local p = lookMesh(look, xname)
@@ -406,9 +459,21 @@ local function makeRobot(typeId: number): Body
 			SKIN
 		)
 	end
-	-- human eyes (the remade face's brows sit just above them): the white and an iris that glows once the
-	-- robot turns (applyFlags)
-	for _, side in SIDES do
+	-- the face: a Roblox-look robot wears a face decal (swapped to the turned face in applyFlags); the others
+	-- get human eyes (the remade face's brows sit just above them): the white and an iris that glows once the
+	-- robot turns
+	local clothes: { [string]: { Texture } }? = nil
+	local faceDecal: Decal? = nil
+	local faces: { string }? = nil
+	if mode == "roblox" and recipe then
+		clothes = NpcRig.dress(rig, "rbxassetid://" .. recipe.clothes, NL.offsetSign)
+		local human = "rbxassetid://" .. recipe.face
+		faces =
+			{ human, "rbxassetid://" .. (if recipe.faceTurned ~= 0 then recipe.faceTurned else recipe.face) }
+		faceDecal = NpcRig.face(rig, human)
+	end
+	local eyeSides: { any } = if mode == "roblox" then {} else SIDES
+	for _, side in eyeSides do
 		local at = CFrame.new(side[3] * HD.X * 0.2, HD.Y * 0.06, -HD.Z * 0.5 - 0.02)
 		add("Eye" .. side[2], "Head", at, Vector3.new(HD.X * 0.22, HD.Y * 0.09, 0.05), rgb(LOOK.sclera), SKIN)
 		add(
@@ -633,6 +698,11 @@ local function makeRobot(typeId: number): Body
 		look = look,
 		glow = glow,
 		turned = false,
+		mode = mode,
+		clothes = clothes,
+		faceDecal = faceDecal,
+		faces = faces,
+		hairs = hairs,
 	}
 end
 
@@ -647,7 +717,19 @@ local function assign(body: Body, id: number)
 	local skin = rgb(LOOK.skins[h % #LOOK.skins + 1])
 	local hair = rgb(LOOK.hair[(h // 7) % #LOOK.hair + 1])
 	local iris = rgb(LOOK.irises[(h // 49) % #LOOK.irises + 1])
-	for name, color in { Head = skin, Hair = hair, IrisL = iris, IrisR = iris } do
+	local paint: { [string]: Color3 } = { Head = skin, Hair = hair, IrisL = iris, IrisR = iris }
+	if body.mode == "roblox" then
+		for _, pname in BodyShape.PARTS do
+			paint[pname] = skin
+		end
+		-- one of its Roblox hairs shows, picked by the id like the skin
+		local pick = if #body.hairs > 0 then body.hairs[(h // 343) % #body.hairs + 1] else nil
+		for _, slot in body.hairs do
+			local i = body.index[slot]
+			body.baseTransparency[i] = if slot == pick then 0 else 1
+		end
+	end
+	for name, color in paint do
 		local i = body.index[name]
 		if i then
 			body.baseColors[i] = color
@@ -753,6 +835,19 @@ local function applyFlags(body: Body)
 		end
 		p.Color = color
 		p.Transparency = t
+		local tex = body.clothes and body.clothes[name]
+		if tex then
+			for _, x in tex do
+				x.Transparency = t
+				x.Color3 = if cold then ICE else Color3.new(1, 1, 1)
+			end
+		end
+		if name == "Head" and body.faceDecal and body.faces then
+			local d = body.faceDecal
+			d.Texture = if turned then body.faces[2] else body.faces[1]
+			d.Transparency = t
+			d.Color3 = if windup then Color3.fromRGB(255, 110, 110) else Color3.new(1, 1, 1)
+		end
 	end
 	body.bar.Enabled = body.health < 0.999 and not cloak
 end
@@ -823,6 +918,12 @@ function EnemyRenderer.flash(id: number)
 		for i, p in body.parts do
 			if body.baseTransparency[i] < 1 and not gone(body, body.names[i]) then
 				p.Color = Color3.new(1, 1, 1)
+				local tex = body.clothes and body.clothes[body.names[i]]
+				if tex then
+					for _, x in tex do
+						x.Transparency = 0.6 -- the white flash shows through the clothes
+					end
+				end
 			end
 		end
 	end
@@ -850,6 +951,23 @@ function EnemyRenderer.kill(id: number): (Vector3?, Color3?)
 		snap.rows[id] = nil
 	end
 	return pos, color
+end
+
+-- Switch the look every robot wears ("auto", "roblox", "shell", "plain"; the Dev panel compares them):
+-- every drawn and pooled body is rebuilt in the new look on the next frame. Returns the style.
+function EnemyRenderer.setStyle(s: string): string
+	style = s
+	for id, body in live do
+		body.model:Destroy()
+		live[id] = nil
+	end
+	for _, list in pool do
+		for _, body in list do
+			body.model:Destroy()
+		end
+	end
+	table.clear(pool)
+	return style
 end
 
 function EnemyRenderer.position(id: number): Vector3?

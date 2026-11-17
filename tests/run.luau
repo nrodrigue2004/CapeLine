@@ -6451,6 +6451,84 @@ test("Remade robot (Spark Trooper): its superhero shell set and hair", function(
 	check(Config.Enemies.SparkDrone.body.art == "Trooper", "the Spark Trooper uses the remade set")
 end)
 
+test("Roblox look: classic clothes map onto the R15 body, robots' recipes and Roblox hair", function()
+	local ClothesMap = require("../src/shared/ClothesMap")
+	local W, H = ClothesMap.W, ClothesMap.H
+	local parts = { "UpperTorso", "LowerTorso" }
+	for _, side in { "Left", "Right" } do
+		for _, p in { "UpperArm", "LowerArm", "Hand", "UpperLeg", "LowerLeg", "Foot" } do
+			table.insert(parts, side .. p)
+		end
+	end
+	for _, part in parts do
+		local shown = 0
+		for _, face in ClothesMap.FACES do
+			local r = ClothesMap.rect(part, face)
+			if r then
+				shown += 1
+				check(
+					r[1] >= 0 and r[2] >= 0 and r[1] + r[3] <= W and r[2] + r[4] <= H,
+					part .. " " .. face .. " inside"
+				)
+				check(r[3] > 0 and r[4] > 0, part .. " " .. face .. " has area")
+				-- the Texture settings put exactly that rectangle on the face
+				local fw, fh = 1.6, 2.2
+				local su, sv, ou, ov = ClothesMap.texture(r, fw, fh)
+				check(
+					math.abs(su * r[3] / W - fw) < 1e-6 and math.abs(sv * r[4] / H - fh) < 1e-6,
+					"rect fills the face"
+				)
+				check(
+					math.abs(-ou / su * W - r[1]) < 1e-6 and math.abs(-ov / sv * H - r[2]) < 1e-6,
+					"rect starts at the corner"
+				)
+			end
+		end
+		check(shown >= 4, part .. " shows its four sides")
+	end
+	check(ClothesMap.rect("Head", "Front") == nil, "the head is skin and the face decal")
+	-- the torso's two parts split the torso strip with no gap or overlap; the limbs split theirs
+	local ut, lt = ClothesMap.rect("UpperTorso", "Front"), ClothesMap.rect("LowerTorso", "Front")
+	check(ut and lt and ut[2] + ut[4] == lt[2] and lt[2] + lt[4] == 74 + 128, "torso split")
+	local ua, la, ha =
+		ClothesMap.rect("RightUpperArm", "Front"),
+		ClothesMap.rect("RightLowerArm", "Front"),
+		ClothesMap.rect("RightHand", "Front")
+	check(
+		ua and la and ha and ua[2] + ua[4] == la[2] and la[2] + la[4] == ha[2] and ha[2] + ha[4] == 355 + 128,
+		"arm split"
+	)
+	-- the right limb's outer face sits next to its front on the template (the strip wraps round the limb)
+	local rr, rf = ClothesMap.rect("RightUpperArm", "Right"), ClothesMap.rect("RightUpperArm", "Front")
+	check(rr and rf and rr[1] + rr[3] + 2 == rf[1], "right arm: R next to F")
+	check(
+		ClothesMap.rect("RightUpperArm", "Top") ~= nil and ClothesMap.rect("RightLowerArm", "Top") == nil,
+		"only the shoulder shows the top"
+	)
+	check(
+		ClothesMap.rect("RightHand", "Bottom") ~= nil and ClothesMap.rect("RightUpperArm", "Bottom") == nil,
+		"only the hand shows the bottom"
+	)
+	-- every robot recipe names a real robot and only Roblox hairs from the list
+	local NL = Config.NpcLooks
+	check(
+		NL.style == "auto" or NL.style == "roblox" or NL.style == "shell" or NL.style == "plain",
+		"a known style"
+	)
+	check(NL.offsetSign == 1 or NL.offsetSign == -1, "offset sign")
+	for kind, r in NL.robots do
+		check(Config.Enemies[kind] ~= nil and Config.Enemies[kind].typeId ~= nil, kind .. " is a robot")
+		check(
+			type(r.clothes) == "number" and type(r.face) == "number" and type(r.faceTurned) == "number",
+			kind .. " ids"
+		)
+		check(#r.hair >= 1, kind .. " has hair")
+		for _, h in r.hair do
+			check(type(NL.hairs[h]) == "number" and NL.hairs[h] > 0, kind .. " hair " .. h .. " is listed")
+		end
+	end
+end)
+
 test("City kit block: textured fronts, street dressing, and the rest of Downtown unchanged", function()
 	local K = Config.City.kit
 	local layout = CityLayout.downtown(Config.City, Config.World)

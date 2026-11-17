@@ -1,7 +1,9 @@
 # art/clothes/trooper.py: the Spark Trooper as a plain Roblox character in classic clothing (nate, 2026-11-17:
 # "just looks like a roblox character with clothes"). Draws the real upload-ready textures on Roblox's classic
 # clothing template (585 x 559; Shirt and Pants), plus the face decal (human, and "turned" with glowing eyes).
-# Output: art/export/clothes/Trooper_Shirt.png, Trooper_Pants.png, Trooper_Face.png, Trooper_FaceTurned.png.
+# Output: art/export/clothes/Trooper_Clothes.png (the shirt over the pants on one template: the image the game's
+# robots wear, Shared.ClothesMap), Trooper_Shirt.png and Trooper_Pants.png (the same as real Roblox clothing),
+# Trooper_Face.png and Trooper_FaceTurned.png.
 # Run: python3 art/clothes/trooper.py   (PIL only)
 import math
 import os
@@ -183,8 +185,11 @@ def face(turned):
 
 
 if __name__ == "__main__":
-    for name, im in (("Trooper_Shirt", shirt()), ("Trooper_Pants", pants()), ("Trooper_Face", face(False)),
-                     ("Trooper_FaceTurned", face(True))):
+    top, bottom = shirt(), pants()
+    both = bottom.copy()
+    both.alpha_composite(top)  # Roblox draws the shirt over the pants
+    for name, im in (("Trooper_Clothes", both), ("Trooper_Shirt", top), ("Trooper_Pants", bottom),
+                     ("Trooper_Face", face(False)), ("Trooper_FaceTurned", face(True))):
         path = os.path.join(OUT, name + ".png")
         im.save(path)
         print("wrote", path)
