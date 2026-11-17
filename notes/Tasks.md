@@ -239,14 +239,15 @@ Checks (walk out of the plaza to the east):
 ### Robots: try both looks in game (2026-11-17)
 nate wants to compare the two robot looks in game: "Roblox" (a plain Roblox character: blocky R15 body, classic clothes image, a Roblox face that turns, real Roblox hair from the catalog) and "Shell" (the Blender superhero meshes below). Dev panel button "Robots: Auto / Roblox / Shell / Plain" switches every robot live. The Output says build robot-looks (2026-11-17).
 Uploads (once; then Claude builds one place with everything in it):
-1. Download Trooper_Clothes.png, Trooper_Face.png, Trooper_FaceTurned.png and Trooper.fbx (project files capeline/art/clothes and capeline/art/trooper).
-2. Studio, any place: View > Asset Manager > Bulk Import, pick the three PNGs, Open. Wait until they show under Images.
-3. In Asset Manager > Images, right-click each of the three > Copy ID to Clipboard, and paste each into the chat with its name.
+(Faster: an Open Cloud API key lets Claude upload all of these itself through Remote Control; see Decisions 2026-11-17.)
+1. Download Trooper_Clothes.png, the 12 face PNGs (Face_<Name>.png and Face_<Name>_Turned.png) and Trooper.fbx (project files capeline/art/clothes, capeline/art/clothes/faces and capeline/art/trooper).
+2. Studio, any place: View > Asset Manager > Bulk Import, pick the 13 PNGs, Open. Wait until they show under Images.
+3. In Asset Manager > Images, right-click each > Copy ID to Clipboard, and paste each into the chat with its name.
 4. Home > Import 3D, pick Trooper.fbx, keep "Import only as a single mesh" OFF, Import.
 5. In the Explorer, right-click the new Trooper model > Save to File..., save Trooper.rbxm, and attach it in the chat.
 6. Claude puts the ids in Config.NpcLooks and Trooper.rbxm in the repo and sends a new Capeline.rbxl; open it.
 Checks:
-7. Play, DEV > "3x Spark Trooper", then press "Robots:" to cycle. Roblox: blue suit with the diamond bolt emblem, orange gloves and boots, belt, a face with human eyes, Roblox hair (one of three styles, different per robot). Shell: the Blender superhero. Plain: the old look.
+7. Play, DEV > "3x Spark Trooper", then press "Robots:" to cycle. Roblox: blue suit with the diamond bolt emblem, orange gloves and boots, belt, one of six comic-style faces, Roblox hair (one of three styles); face, hair and skin differ robot to robot. Shell: the Blender superhero. Plain: the old look.
 8. Roblox look: the clothes sit right on every face (emblem centred on the chest, gloves on the hands, boots at the feet). If every face is shifted, Claude flips Config.NpcLooks.offsetSign. If the hair is missing, copy the Output's [NpcLooks] lines into the chat.
 9. Roblox look: the face turns (dark eyes that glow) the first time it attacks or breaks; it reddens during a windup; the white hit flash still shows; broken parts take their clothes with them.
 10. Performance: 30 Roblox-look robots near you hold the frame rate on PC (High) and on a phone (Low).

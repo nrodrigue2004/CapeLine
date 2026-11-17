@@ -6516,12 +6516,14 @@ test("Roblox look: classic clothes map onto the R15 body, robots' recipes and Ro
 		"a known style"
 	)
 	check(NL.offsetSign == 1 or NL.offsetSign == -1, "offset sign")
+	check(#NL.faceOrder >= 6, "at least six faces, so robots do not repeat")
+	for _, fname in NL.faceOrder do
+		local f = NL.faces[fname]
+		check(f ~= nil and type(f.human) == "number" and type(f.turned) == "number", fname .. " face ids")
+	end
 	for kind, r in NL.robots do
 		check(Config.Enemies[kind] ~= nil and Config.Enemies[kind].typeId ~= nil, kind .. " is a robot")
-		check(
-			type(r.clothes) == "number" and type(r.face) == "number" and type(r.faceTurned) == "number",
-			kind .. " ids"
-		)
+		check(type(r.clothes) == "number", kind .. " clothes id")
 		check(#r.hair >= 1, kind .. " has hair")
 		for _, h in r.hair do
 			check(type(NL.hairs[h]) == "number" and NL.hairs[h] > 0, kind .. " hair " .. h .. " is listed")

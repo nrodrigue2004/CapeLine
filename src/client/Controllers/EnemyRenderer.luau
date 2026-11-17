@@ -59,6 +59,15 @@ end
 local NL = Config.NpcLooks
 local style: string = NL.style
 local HAIR_SLOTS = 3 -- a Roblox-look robot carries up to this many of its kind's hairs and shows one
+-- the shared faces that are uploaded: { human image, turned image } (a missing turned id keeps the human face)
+local upFaces: { { string } } = {}
+for _, fname in NL.faceOrder do
+	local f = NL.faces[fname]
+	if f and f.human ~= 0 then
+		local human = "rbxassetid://" .. f.human
+		table.insert(upFaces, { human, if f.turned ~= 0 then "rbxassetid://" .. f.turned else human })
+	end
+end
 
 type Body = {
 	model: Model,
@@ -262,7 +271,7 @@ local function makeRobot(typeId: number): Body
 	-- the Blender superhero shell set (overhaul plan step 3: a face, a fitted suit with a chest emblem, gloves,
 	-- boots and a belt baked in) once imported; else the plain look
 	local recipe = NL.robots[kindByType[typeId] or ""]
-	local hasRoblox = recipe ~= nil and recipe.clothes ~= 0 and recipe.face ~= 0
+	local hasRoblox = recipe ~= nil and recipe.clothes ~= 0 and #upFaces > 0
 	local hasShell = body.art ~= nil and NpcRig.meshes(set, body.art) ~= nil
 	local mode = if style == "roblox"
 		then (if hasRoblox then "roblox" else "plain")
@@ -464,13 +473,9 @@ local function makeRobot(typeId: number): Body
 	-- robot turns
 	local clothes: { [string]: { Texture } }? = nil
 	local faceDecal: Decal? = nil
-	local faces: { string }? = nil
 	if mode == "roblox" and recipe then
 		clothes = NpcRig.dress(rig, "rbxassetid://" .. recipe.clothes, NL.offsetSign)
-		local human = "rbxassetid://" .. recipe.face
-		faces =
-			{ human, "rbxassetid://" .. (if recipe.faceTurned ~= 0 then recipe.faceTurned else recipe.face) }
-		faceDecal = NpcRig.face(rig, human)
+		faceDecal = NpcRig.face(rig, upFaces[1][1]) -- assign picks this robot's face
 	end
 	local eyeSides: { any } = if mode == "roblox" then {} else SIDES
 	for _, side in eyeSides do
@@ -701,7 +706,7 @@ local function makeRobot(typeId: number): Body
 		mode = mode,
 		clothes = clothes,
 		faceDecal = faceDecal,
-		faces = faces,
+		faces = nil,
 		hairs = hairs,
 	}
 end
@@ -722,7 +727,10 @@ local function assign(body: Body, id: number)
 		for _, pname in BodyShape.PARTS do
 			paint[pname] = skin
 		end
-		-- one of its Roblox hairs shows, picked by the id like the skin
+		-- one of the shared faces and one of its Roblox hairs, picked by the id like the skin
+		if #upFaces > 0 then
+			body.faces = upFaces[(h // 2401) % #upFaces + 1]
+		end
 		local pick = if #body.hairs > 0 then body.hairs[(h // 343) % #body.hairs + 1] else nil
 		for _, slot in body.hairs do
 			local i = body.index[slot]

@@ -83,7 +83,13 @@ def image(name):
 
 shirt_img = image(ROBOT + "_Shirt")
 pants_img = image(ROBOT + "_Pants")
-faces = {False: image(ROBOT + "_Face"), True: image(ROBOT + "_FaceTurned")}
+FACES_DIR = os.path.join(CLOTHES, "faces")
+
+
+def face_img(name, turned):
+    img = bpy.data.images.load(os.path.join(FACES_DIR, "Face_%s%s.png" % (name, "_Turned" if turned else "")))
+    img.alpha_mode = "STRAIGHT"
+    return img
 
 
 def clothed_mat(name, skin, layers):
@@ -182,7 +188,7 @@ def hair():
     return kit.join("Hair", subs)
 
 
-def face_plane(turned):
+def face_plane(turned, name):
     bpy.ops.mesh.primitive_plane_add(size=1.12, location=(0, 0.635, 4.6), rotation=(math.pi / 2, 0, 0))
     ob = bpy.context.active_object
     m = bpy.data.materials.new("face")
@@ -190,7 +196,7 @@ def face_plane(turned):
     nt = m.node_tree
     p = nt.nodes["Principled BSDF"]
     t = nt.nodes.new("ShaderNodeTexImage")
-    t.image = faces[turned]
+    t.image = face_img(name, turned)
     nt.links.new(t.outputs["Color"], p.inputs["Base Color"])
     nt.links.new(t.outputs["Alpha"], p.inputs["Alpha"])
     p.inputs["Roughness"].default_value = 0.5
@@ -201,7 +207,7 @@ def face_plane(turned):
     return ob
 
 
-def figure(at, yaw, skin, hair_rgb, turned=False, arm_up=False):
+def figure(at, yaw, skin, hair_rgb, turned=False, arm_up=False, face="Hero"):
     Y = Matrix.Translation(Vector(at)) @ Matrix.Rotation(math.radians(yaw), 4, "Z")
     obs = []
     for name in BLOCKS:
@@ -219,7 +225,7 @@ def figure(at, yaw, skin, hair_rgb, turned=False, arm_up=False):
     kit.shade_auto(h, 60)
     h.data.materials.append(kit.material("skin%d" % len(bpy.data.materials), srgb(skin), rough=0.55))
     obs.append(h)
-    obs.append(face_plane(turned))
+    obs.append(face_plane(turned, face))
     hr = hair()
     kit.shade_auto(hr, 40)
     hr.data.materials.append(kit.material("hair%d" % len(bpy.data.materials), srgb(hair_rgb), rough=0.6))
@@ -229,10 +235,10 @@ def figure(at, yaw, skin, hair_rgb, turned=False, arm_up=False):
 
 
 kit.studio(res=(1800, 1000), samples=64)
-figure((7.6, 0, 0), 0, (240, 190, 150), (70, 46, 30))
-figure((2.6, 0, 0), 30, (141, 95, 64), (30, 26, 24), arm_up=True)
-figure((-2.6, 0, 0), 180, (224, 172, 130), (160, 120, 60))
-figure((-7.6, 0, 0), -15, (240, 190, 150), (70, 46, 30), turned=True)
+figure((7.6, 0, 0), 0, (240, 190, 150), (70, 46, 30), face="Hero")
+figure((2.6, 0, 0), 20, (141, 95, 64), (30, 26, 24), arm_up=True, face="Stern")
+figure((-2.6, 0, 0), 0, (224, 172, 130), (160, 120, 60), face="Sharp")
+figure((-7.6, 0, 0), -15, (198, 140, 96), (70, 46, 30), turned=True, face="Scarred")
 floor = kit.cyl("floor", 16, 16, 0.2, at=(0, 0, -0.1), segs=48)
 floor.data.materials.append(kit.material("floor", (60, 64, 72), rough=0.8))
 kit.camera((0, 25.0, 5.4), (0, 0, 2.6), lens=42)

@@ -2,8 +2,8 @@
 # "just looks like a roblox character with clothes"). Draws the real upload-ready textures on Roblox's classic
 # clothing template (585 x 559; Shirt and Pants), plus the face decal (human, and "turned" with glowing eyes).
 # Output: art/export/clothes/Trooper_Clothes.png (the shirt over the pants on one template: the image the game's
-# robots wear, Shared.ClothesMap), Trooper_Shirt.png and Trooper_Pants.png (the same as real Roblox clothing),
-# Trooper_Face.png and Trooper_FaceTurned.png.
+# robots wear, Shared.ClothesMap), Trooper_Shirt.png and Trooper_Pants.png (the same as real Roblox clothing).
+# The faces are shared by every robot: art/clothes/faces.py.
 # Run: python3 art/clothes/trooper.py   (PIL only)
 import math
 import os
@@ -148,48 +148,11 @@ def pants():
     return im
 
 
-def face(turned):
-    """A Roblox face decal (the head's front): brows, eyes, nose and mouth on a clear background. Human eyes
-    (white, a blue iris, a pupil and a glint); turned, the whites go dark and the irises glow."""
-    S = 512
-    im = Image.new("RGBA", (S, S), (0, 0, 0, 0))
-    d = ImageDraw.Draw(im)
-    brow = (44, 30, 22, 255)
-    for s in (-1, 1):
-        cx = S // 2 + s * 92
-        # a heroic brow: thick, angled down toward the nose
-        d.polygon([(cx - 52, 196 + (6 if s > 0 else -6)), (cx + 52, 196 - (6 if s > 0 else -6)),
-                   (cx + 52, 214 - (6 if s > 0 else -6)), (cx - 52, 214 + (6 if s > 0 else -6))], fill=brow)
-        ey = 258
-        if turned:
-            d.ellipse([cx - 42, ey - 22, cx + 42, ey + 22], fill=(22, 22, 28, 255))
-            glow = Image.new("RGBA", (S, S), (0, 0, 0, 0))
-            gd = ImageDraw.Draw(glow)
-            gd.ellipse([cx - 30, ey - 24, cx + 30, ey + 24], fill=(255, 120, 60, 200))
-            glow = glow.filter(ImageFilter.GaussianBlur(9))
-            im.alpha_composite(glow)
-            d = ImageDraw.Draw(im)
-            d.ellipse([cx - 16, ey - 16, cx + 16, ey + 16], fill=(255, 190, 140, 255))
-            d.ellipse([cx - 8, ey - 8, cx + 8, ey + 8], fill=(255, 245, 230, 255))
-        else:
-            d.ellipse([cx - 42, ey - 22, cx + 42, ey + 22], fill=(246, 244, 238, 255), outline=(60, 44, 36, 255),
-                      width=4)
-            d.ellipse([cx - 19 - s * 4, ey - 19, cx + 19 - s * 4, ey + 19], fill=(60, 110, 170, 255))
-            d.ellipse([cx - 9 - s * 4, ey - 9, cx + 9 - s * 4, ey + 9], fill=(16, 16, 20, 255))
-            d.ellipse([cx - 1 - s * 4, ey - 12, cx + 7 - s * 4, ey - 4], fill=(255, 255, 255, 255))
-            d.line([(cx - 44, ey - 22), (cx + 44, ey - 24)], fill=(60, 44, 36, 255), width=5)  # the lid
-    # nose (a soft shadow) and a confident half smile
-    d.line([(S // 2 + 6, 290), (S // 2 + 12, 330), (S // 2 - 4, 336)], fill=(150, 100, 80, 160), width=6)
-    d.arc([S // 2 - 58, 330, S // 2 + 58, 392], 25, 150, fill=(70, 40, 34, 255), width=8)
-    return im
-
-
 if __name__ == "__main__":
     top, bottom = shirt(), pants()
     both = bottom.copy()
     both.alpha_composite(top)  # Roblox draws the shirt over the pants
-    for name, im in (("Trooper_Clothes", both), ("Trooper_Shirt", top), ("Trooper_Pants", bottom),
-                     ("Trooper_Face", face(False)), ("Trooper_FaceTurned", face(True))):
+    for name, im in (("Trooper_Clothes", both), ("Trooper_Shirt", top), ("Trooper_Pants", bottom)):
         path = os.path.join(OUT, name + ".png")
         im.save(path)
         print("wrote", path)

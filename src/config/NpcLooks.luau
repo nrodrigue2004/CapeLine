@@ -19,13 +19,23 @@ return {
 		LavenderUpdo = 451220849,
 		LongRed = 2956239660,
 	},
-	-- per robot kind (Config.Enemies key): uploaded image ids (0 until nate uploads art/export/clothes/*.png:
-	-- <Robot>_Clothes, <Robot>_Face, <Robot>_FaceTurned) and the hair it may wear (picked per robot by its id)
+	-- the faces every robot shares (art/clothes/faces.py, comic-book style; nate: "not super kiddish"): the
+	-- uploaded image ids of each face and its turned version (0 until uploaded; a face with no id is skipped).
+	-- A robot picks one by its id, so the same kind looks different robot to robot.
+	faces = {
+		Hero = { human = 0, turned = 0 },
+		Stern = { human = 0, turned = 0 },
+		Sharp = { human = 0, turned = 0 },
+		Scarred = { human = 0, turned = 0 },
+		Rookie = { human = 0, turned = 0 },
+		Cold = { human = 0, turned = 0 },
+	},
+	faceOrder = { "Hero", "Stern", "Sharp", "Scarred", "Rookie", "Cold" },
+	-- per robot kind (Config.Enemies key): the uploaded clothes image id (0 until nate uploads
+	-- art/export/clothes/<Robot>_Clothes.png) and the hairs it may wear (one picked per robot by its id)
 	robots = {
 		SparkDrone = {
 			clothes = 0,
-			face = 0,
-			faceTurned = 0,
 			hair = { "BrownCharmer", "BlondeSpiked", "Pal" },
 		},
 	},
