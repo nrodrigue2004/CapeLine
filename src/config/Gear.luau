@@ -174,6 +174,44 @@ return {
 	-- tier: the lowest tier that can roll it. Set and Legendary styles come only with those pieces.
 	styles = {
 		head = {
+			-- lore step 12 (the city remembers): side styles at Gizmo's bench, Credits only, opened by your own
+			-- side's reputation tier (rep = { track, tier }); never rolled by loot (tier "Rep"), looks only
+			{
+				n = 55,
+				name = "Vigil Patrol Visor",
+				shape = "visor",
+				tier = "Rep",
+				rep = { "vigil", 1 },
+				price = 1000,
+				color = { 90, 170, 255 },
+			},
+			{
+				n = 56,
+				name = "Vigil Halo",
+				shape = "halo",
+				tier = "Rep",
+				rep = { "vigil", 4 },
+				price = 2500,
+				color = { 255, 230, 150 },
+			},
+			{
+				n = 57,
+				name = "Syndicate Mask",
+				shape = "mask",
+				tier = "Rep",
+				rep = { "syndicate", 1 },
+				price = 1000,
+				color = { 150, 30, 50 },
+			},
+			{
+				n = 58,
+				name = "Dread Horns",
+				shape = "horns",
+				tier = "Rep",
+				rep = { "syndicate", 4 },
+				price = 2500,
+				color = { 120, 40, 160 },
+			},
 			-- Gizmo's shop at HQ (M9): bought with Credits only, never rolled by loot (tier "Shop")
 			{
 				n = 10,
@@ -226,6 +264,44 @@ return {
 			},
 		},
 		chest = {
+			-- lore step 12 (the city remembers): side styles at Gizmo's bench, Credits only, opened by your own
+			-- side's reputation tier (rep = { track, tier }); never rolled by loot (tier "Rep"), looks only
+			{
+				n = 55,
+				name = "Lantern Vest",
+				shape = "vest",
+				tier = "Rep",
+				rep = { "vigil", 2 },
+				price = 1500,
+				color = { 70, 120, 220 },
+			},
+			{
+				n = 56,
+				name = "Beacon Plate",
+				shape = "plate",
+				tier = "Rep",
+				rep = { "vigil", 4 },
+				price = 2800,
+				color = { 235, 240, 255 },
+			},
+			{
+				n = 57,
+				name = "Foundry Harness",
+				shape = "harness",
+				tier = "Rep",
+				rep = { "syndicate", 2 },
+				price = 1500,
+				color = { 60, 40, 50 },
+			},
+			{
+				n = 58,
+				name = "Vault Core",
+				shape = "core",
+				tier = "Rep",
+				rep = { "syndicate", 4 },
+				price = 2800,
+				color = { 210, 60, 60 },
+			},
 			-- Gizmo's shop at HQ (M9): bought with Credits only, never rolled by loot (tier "Shop")
 			{
 				n = 10,
@@ -258,6 +334,26 @@ return {
 			},
 		},
 		hands = {
+			-- lore step 12 (the city remembers): side styles at Gizmo's bench, Credits only, opened by your own
+			-- side's reputation tier (rep = { track, tier }); never rolled by loot (tier "Rep"), looks only
+			{
+				n = 55,
+				name = "Watchman Wraps",
+				shape = "wraps",
+				tier = "Rep",
+				rep = { "vigil", 2 },
+				price = 1200,
+				color = { 220, 230, 250 },
+			},
+			{
+				n = 57,
+				name = "Spike Knuckles",
+				shape = "spikes",
+				tier = "Rep",
+				rep = { "syndicate", 2 },
+				price = 1200,
+				color = { 90, 20, 40 },
+			},
 			-- Gizmo's shop at HQ (M9): bought with Credits only, never rolled by loot (tier "Shop")
 			{
 				n = 10,
@@ -335,6 +431,26 @@ return {
 			},
 		},
 		feet = {
+			-- lore step 12 (the city remembers): side styles at Gizmo's bench, Credits only, opened by your own
+			-- side's reputation tier (rep = { track, tier }); never rolled by loot (tier "Rep"), looks only
+			{
+				n = 55,
+				name = "Rooftop Boots",
+				shape = "boots",
+				tier = "Rep",
+				rep = { "vigil", 3 },
+				price = 1800,
+				color = { 40, 70, 150 },
+			},
+			{
+				n = 57,
+				name = "Getaway Heels",
+				shape = "jets",
+				tier = "Rep",
+				rep = { "syndicate", 3 },
+				price = 1800,
+				color = { 230, 60, 60 },
+			},
 			-- Gizmo's shop at HQ (M9): bought with Credits only, never rolled by loot (tier "Shop")
 			{
 				n = 10,
@@ -357,6 +473,44 @@ return {
 			{ n = 3, name = "Winged Boots", shape = "wings", tier = "Rare", color = { 240, 240, 250 } },
 		},
 		back = {
+			-- lore step 12 (the city remembers): side styles at Gizmo's bench, Credits only, opened by your own
+			-- side's reputation tier (rep = { track, tier }); never rolled by loot (tier "Rep"), looks only
+			{
+				n = 55,
+				name = "Safehouse Cape",
+				shape = "cape",
+				tier = "Rep",
+				rep = { "vigil", 3 },
+				price = 2000,
+				color = { 60, 110, 230 },
+			},
+			{
+				n = 56,
+				name = "Guardian Longcape",
+				shape = "longcape",
+				tier = "Rep",
+				rep = { "vigil", 5 },
+				price = 3000,
+				color = { 255, 215, 90 },
+			},
+			{
+				n = 57,
+				name = "Smoke Cape",
+				shape = "cape",
+				tier = "Rep",
+				rep = { "syndicate", 3 },
+				price = 2000,
+				color = { 50, 40, 60 },
+			},
+			{
+				n = 58,
+				name = "Kingpin Longcape",
+				shape = "longcape",
+				tier = "Rep",
+				rep = { "syndicate", 5 },
+				price = 3000,
+				color = { 170, 20, 40 },
+			},
 			-- Gizmo's shop at HQ (M9): bought with Credits only, never rolled by loot (tier "Shop")
 			{
 				n = 10,
@@ -405,6 +559,44 @@ return {
 			},
 		},
 		belt = {
+			-- lore step 12 (the city remembers): side styles at Gizmo's bench, Credits only, opened by your own
+			-- side's reputation tier (rep = { track, tier }); never rolled by loot (tier "Rep"), looks only
+			{
+				n = 55,
+				name = "Vigil Buckle",
+				shape = "buckle",
+				tier = "Rep",
+				rep = { "vigil", 1 },
+				price = 800,
+				color = { 90, 160, 255 },
+			},
+			{
+				n = 56,
+				name = "City Sash",
+				shape = "sash",
+				tier = "Rep",
+				rep = { "vigil", 5 },
+				price = 3000,
+				color = { 255, 200, 60 },
+			},
+			{
+				n = 57,
+				name = "Dread Buckle",
+				shape = "buckle",
+				tier = "Rep",
+				rep = { "syndicate", 1 },
+				price = 800,
+				color = { 200, 40, 60 },
+			},
+			{
+				n = 58,
+				name = "Syndicate Sash",
+				shape = "sash",
+				tier = "Rep",
+				rep = { "syndicate", 5 },
+				price = 3000,
+				color = { 130, 30, 150 },
+			},
 			-- Gizmo's shop at HQ (M9): bought with Credits only, never rolled by loot (tier "Shop")
 			{
 				n = 10,

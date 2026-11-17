@@ -142,6 +142,9 @@ local function onEvents(data: { [string]: any })
 		ev.ends = now + r[4]
 		ev.have, ev.need, ev.state = r[5], r[6], r[7]
 		ev.heroic = r[8] == 1
+		-- lore step 12: a side event's defending side (1 the Vigil, 2 the Syndicate) and each side's score
+		ev.defend = if r[9] == 2 then "villain" elseif r[9] == 1 then "hero" else nil
+		ev.vigil, ev.syndicate = r[10] or 0, r[11] or 0
 	end
 	for num in WorldClient.events do
 		if not seen[num] then

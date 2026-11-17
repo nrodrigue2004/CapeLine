@@ -169,6 +169,22 @@ function DevPanel.init()
 	add("Event: my double", function()
 		Net.send("DevCommand", "double")
 	end)
+	-- lore step 12 (the city remembers): your own side's reputation tier, and each side-vs-side event now
+	local repTier = 0
+	add("Rep tier: set 1", function(b)
+		repTier = repTier % 5 + 1
+		Net.send("DevCommand", "reptier", repTier)
+		b.Text = string.format("Rep tier: set %d (now %d)", repTier % 5 + 1, repTier)
+	end)
+	add("Rep tier: 0", function()
+		repTier = 0
+		Net.send("DevCommand", "reptier", 0)
+	end)
+	for i, id in Config.Events.side do
+		add("Side event: " .. Config.Events.events[id].name, function()
+			Net.send("DevCommand", "sideevent", i)
+		end)
+	end
 
 	-- the robots' look, to compare the two styles live (nate, 2026-11-17): Auto, Roblox (classic clothes and
 	-- catalog hair), Shell (the Blender superhero meshes), Plain

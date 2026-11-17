@@ -13302,7 +13302,7 @@ test(
 				'NewsService.post("double", player)',
 				'NewsService.post("doubleDown", ev.target)',
 				"EventPlan.rarePay(EC, credits, renown)",
-				"PassRules.eventWeights(Config, os.time()), rareAllowed)",
+				"PassRules.eventWeights(Config, os.time()),\n\t\t\t\trareAllowed,", -- lore step 12 adds sideAllowed
 				"player.Idled:Connect",
 				"OpeningService.running(player)",
 				"MissionService.runOf(player) ~= nil",
@@ -13366,6 +13366,782 @@ test(
 		)
 	end
 )
+
+---------------------------------------------------------------------------
+-- Lore step 12: the city remembers (Config.Remembers, Shared.RepTiers, the side tier in EventPlan; RepService,
+-- EventService's side events, HqClient's dressing, CitizenRenderer's reactions, GuideClient's radio)
+---------------------------------------------------------------------------
+do
+	local RepTiers = require("../src/shared/RepTiers")
+	local BadgeRules = require("../src/shared/BadgeRules")
+	local ShopRules = require("../src/shared/ShopRules")
+	local NewsPlan = require("../src/shared/NewsPlan")
+	local CinemaPlan = require("../src/shared/CinemaPlan")
+	local PvpRules = require("../src/shared/PvpRules")
+	local CreatorRules = require("../src/shared/CreatorRules")
+	local R = Config.Remembers
+
+	local function charWith(side: string, track: string?, points: number): any
+		local c = ProfileSchema.newCharacter()
+		c.side = side
+		c.rep = { 0, 0, 0 }
+		if track then
+			c.rep[if track == "syndicate" then 2 else 1] = points
+		end
+		return c
+	end
+
+	test(
+		"Lore 12: reputation tiers: 5 a side on the rank ladder, paced so rank 5 is a long-term goal",
+		function()
+			check(
+				R.tracks.hero == "vigil" and R.tracks.villain == "syndicate",
+				"Vigil Trust and Syndicate Fear"
+			)
+			check(
+				Config.Story.rep.order[1] == "vigil" and Config.Story.rep.order[2] == "syndicate",
+				"the save's positional keys"
+			)
+			local ranks = Config.Story.rep.ranks
+			check(#ranks == RepTiers.MAX and RepTiers.MAX == 5, "5 tiers")
+			for t = 1, 5 do
+				check(RepTiers.tierOf(Config, ranks[t]) == t, "tier " .. t .. " at its threshold")
+				check(RepTiers.tierOf(Config, ranks[t] - 1) == t - 1, "and not a point before")
+				check(RepTiers.need(Config, t) == ranks[t], "need")
+			end
+			for k, v in R.earn do
+				check(type(v) == "number" and v > 0, "earn " .. k)
+			end
+			check(R.earn.sideWin <= R.earn.sideEvent, "losing a side event still pays most of it")
+			for _, side in { "hero", "villain" } do
+				local lo, hi = RepTiers.act1(Config, side)
+				check(
+					lo >= ranks[1] and lo < ranks[3],
+					side .. ": Act 1 alone reaches tier 1, not tier 3 (" .. lo .. ")"
+				)
+				check(hi >= lo and hi < ranks[5], side .. ": Act 1 never reaches tier 5 (" .. hi .. ")")
+				local pace = RepTiers.pace(Config, side)
+				for t = 2, 5 do
+					check(pace[t] >= pace[t - 1], "each tier takes longer")
+				end
+				local g = R.paceGoal
+				check(
+					pace[3] >= g.tier3[1] - 1e-9 and pace[3] <= g.tier3[2],
+					string.format("%s: rank 3 %.1f h past Act 1", side, pace[3])
+				)
+				check(
+					pace[5] >= g.tier5[1] and pace[5] <= g.tier5[2],
+					string.format("%s: rank 5 %.1f h past Act 1 (a long-term goal)", side, pace[5])
+				)
+				-- rank 5 takes longer than half the hours of the level cap's last ten levels... and less than the cap
+				check(pace[5] < 91.5, "but sooner than the level cap (91.5 h)")
+			end
+			-- the hour model matches the earn table
+			local P, E = R.pace, R.earn
+			local hour = P.incidents * E.incident
+				+ P.contracts * E.contract
+				+ P.events * E.event
+				+ P.sideEvents * (E.sideEvent + P.winShare * E.sideWin)
+				+ P.sideSteps * E.sideStep
+			check(math.abs(RepTiers.perHour(Config) - hour) < 1e-9, "per hour")
+			check(
+				P.incidents == Config.Economy.sim.per30.incident * 2,
+				"incidents from the economy sim's play model"
+			)
+			check(P.contracts == Config.Economy.sim.per30.contract * 2, "contracts too")
+			-- the server pays it: every hook is wired
+			local rs = readFile("src/server/Services/RepService.luau")
+			for _, needle in
+				{
+					"IncidentService.Cleared:Connect",
+					'action == "contract"',
+					"EventService.Paid:Connect",
+					"SideQuestService.StepPaid:Connect",
+					'StoryService.addRep(player, "side", amount)',
+				}
+			do
+				check(string.find(rs, needle, 1, true) ~= nil, "RepService: " .. needle)
+			end
+			check(
+				string.find(
+					readFile("src/server/Services/SideQuestService.luau"),
+					'SideQuestService.StepPaid:Fire(player, res == "done")',
+					1,
+					true
+				) ~= nil,
+				"side quest steps pay"
+			)
+			check(
+				string.find(
+					readFile("src/server/init.server.luau"),
+					'boot("RepService", RepService.init)',
+					1,
+					true
+				) ~= nil,
+				"RepService boots"
+			)
+		end
+	)
+
+	test(
+		"Lore 12: nothing sold or unlocked changes stats (every side style, title and hideout prop)",
+		function()
+			local styles = RepTiers.styles(Config)
+			check(#styles == 20, "20 side styles (2 a tier a side)")
+			local COSMETIC =
+				{ n = true, name = true, shape = true, tier = true, rep = true, price = true, color = true }
+			local STAT_WORDS =
+				{ "Might", "Vitality", "Focus", "Precision", "Resolve", "power", "health", "damage" }
+			local ids = {}
+			for _, s in styles do
+				check(not ids[s.id], "unique id " .. s.id)
+				ids[s.id] = true
+				for k in s.row do
+					check(COSMETIC[k] == true, s.row.name .. ": only looks fields (" .. tostring(k) .. ")")
+				end
+				check(
+					s.row.tier == "Rep" and table.find(Config.Gear.tierOrder, "Rep") == nil,
+					"never a loot tier"
+				)
+				check(s.price >= 500 and s.price <= 3000, s.row.name .. ": 500 to 3,000 Credits like Gizmo's")
+				check(GearMath.styleRow(Config, s.id) == s.row, "a real style row")
+				-- the shape is one its slot already builds
+				local slot = Config.Gear.slotOrder[(GearMath.styleParts(s.id))]
+				local known = false
+				for _, row in Config.Gear.styles[slot] do
+					if row.tier ~= "Rep" and row.shape == s.row.shape then
+						known = true
+					end
+				end
+				check(known, s.row.name .. ": a shape the " .. slot .. " slot draws")
+				check(ShopRules.gizmoPrice(Config, s.id) == nil, "not in the 40 base styles")
+			end
+			check(#ShopRules.gizmo(Config) == 40, "Gizmo's 40 base styles unchanged")
+			-- never sold for Robux: no product or pass names one
+			for key, p in Config.Shop.products do
+				for _, v in p do
+					check(
+						not (type(v) == "number" and ids[v] and p.kind == "style"),
+						key .. ": no Robux style"
+					)
+				end
+				check(p.kind ~= "rep", key)
+			end
+			-- loot never rolls one
+			local rng = Rng.new(12)
+			for _ = 1, 3000 do
+				local piece = GearMath.roll(Config, rng, "Rare", 30, {})
+				check(not ids[piece.style], "loot never rolls a side style")
+			end
+			-- wearing one changes no number
+			local worn = {}
+			for i = 1, 4 do
+				table.insert(worn, GearMath.roll(Config, Rng.new(40 + i), "Rare", 30, {}))
+			end
+			local before = GearMath.totals(Config, worn)
+			for i, piece in worn do
+				for _, s in styles do
+					if (GearMath.styleParts(s.id)) == piece.slot then
+						worn[i] = table.clone(piece)
+						worn[i].style = s.id
+					end
+				end
+			end
+			local after = GearMath.totals(Config, worn)
+			check(after.gearScore == before.gearScore, "gear score unchanged")
+			for k, v in before.stats do
+				check(after.stats[k] == v, "stat " .. k .. " unchanged")
+			end
+			-- titles are words; the hideout dressing is props; the config holds no stat word
+			for _, track in { "vigil", "syndicate" } do
+				for t, name in R.titles[track] do
+					check(type(name) == "string" and #name <= 24, track .. " title " .. t)
+				end
+			end
+			for _, side in { "hero", "villain" } do
+				for _, p in RepTiers.dressing(Config, side, 5) do
+					for k in p do
+						check(table.find({
+							"name",
+							"tier",
+							"x",
+							"y",
+							"z",
+							"sx",
+							"sy",
+							"sz",
+							"rgb",
+							"mat",
+							"shape",
+							"glow",
+							"light",
+							"clear",
+							"ry",
+							"rz",
+						}, k) ~= nil, "a prop's field: " .. tostring(k))
+					end
+				end
+			end
+			local src = readFile("src/config/Remembers.luau")
+				.. readFile("src/server/Services/RepService.luau")
+			for _, w in STAT_WORDS do
+				check(string.find(src, w .. " =", 1, true) == nil, "no stat in the city remembers: " .. w)
+			end
+			local rs = readFile("src/server/Services/RepService.luau")
+			for _, call in
+				{ "addCredits", "addRenown", "GearService", "bonusPoints", "setLevel", "addSkillPoints" }
+			do
+				check(string.find(rs, call, 1, true) == nil, "RepService never pays " .. call)
+			end
+			-- and the side events pay what any event pays: Credits, Renown and one gear roll, never by tier
+			local es = readFile("src/server/Services/EventService.luau")
+			check(string.find(es, "RepTiers", 1, true) == nil, "event pay never reads a tier")
+		end
+	)
+
+	test(
+		"Lore 12: unlocks gated by side and tier: Gizmo's side styles, titles and what each tier opens",
+		function()
+			local vig = RepTiers.styles(Config)[1]
+			check(vig.track == "vigil" and vig.tier == 1, "vigil first, tier 1 first")
+			for _, s in RepTiers.styles(Config) do
+				local side = RepTiers.sideOf(Config, s.track) :: string
+				local other = if side == "hero" then "villain" else "hero"
+				local low = charWith(side, s.track, RepTiers.need(Config, s.tier) - 1)
+				local ok, why = RepTiers.canBuy(Config, low, s.id)
+				check(not ok and why == "tier", s.row.name .. ": not before its tier")
+				local at = charWith(side, s.track, RepTiers.need(Config, s.tier))
+				check((RepTiers.canBuy(Config, at, s.id)), s.row.name .. ": at its tier")
+				local rival = charWith(other, s.track, 99999)
+				local ok2, why2 = RepTiers.canBuy(Config, rival, s.id)
+				check(not ok2 and why2 == "side", s.row.name .. ": never the other side's")
+			end
+			-- buying: Credits only, once, inside the same Gizmo path
+			local profile = ProfileSchema.default()
+			profile.currency.credits = 1500
+			profile.currency.banked = 0
+			local c = charWith("hero", "vigil", 100)
+			local ok, _, price = ShopRules.gizmoBuy(Config, profile, vig.id, c)
+			check(
+				ok and price == vig.price and profile.currency.credits == 1500 - vig.price,
+				"bought for Credits"
+			)
+			check(ProfileSchema.Bits.get(profile.styles, vig.id), "the style is unlocked")
+			check(select(2, ShopRules.gizmoBuy(Config, profile, vig.id, c)) == "owned", "not twice")
+			local t5 = RepTiers.styles(Config)[10]
+			check(t5.tier == 5, "the Vigil's tier 5 style")
+			check(
+				select(2, ShopRules.gizmoBuy(Config, profile, t5.id, c)) == "tier",
+				"rank 1 cannot buy rank 5"
+			)
+			check(
+				select(2, ShopRules.gizmoBuy(Config, profile, t5.id)) == "item",
+				"no character: not a base style"
+			)
+			local rich = charWith("hero", "vigil", 1500)
+			check(
+				select(2, ShopRules.gizmoBuy(Config, profile, t5.id, rich)) == "credits",
+				"needs the Credits"
+			)
+			local ss = readFile("src/server/Services/ShopService.luau")
+			check(
+				string.find(ss, "ShopRules.repPrice(Config, ProfileSchema.active(profile), styleId)", 1, true)
+						~= nil
+					and string.find(ss, "CreatorService.inHq(hero)", 1, true) ~= nil,
+				"the server gates the buy (at HQ, by tier)"
+			)
+			-- titles: one a tier, kept while the points are there, in the H7 title list
+			for _, track in { "vigil", "syndicate" } do
+				local side = RepTiers.sideOf(Config, track) :: string
+				for t = 0, 5 do
+					local ch = charWith(side, track, RepTiers.need(Config, t))
+					local list = RepTiers.titles(Config, ch)
+					check(#list == t, track .. " tier " .. t .. ": " .. t .. " titles")
+					local p = ProfileSchema.default()
+					for _, e in list do
+						check(
+							BadgeRules.titleText(Config, p, ch, e.id) == e.name,
+							"in the title list: " .. e.name
+						)
+						check(
+							e.id > Config.Pass.titleBase + 100 and e.id < R.titleBase + 100,
+							"its own id range"
+						)
+					end
+					if t > 0 then
+						local u = RepTiers.unlocks(Config, track, t)
+						check(
+							#u.styles == 2 and u.title ~= nil and u.hideout ~= nil,
+							track .. " tier " .. t .. " opens 3"
+						)
+					end
+				end
+			end
+			-- every title name is new (not a badge's, a story or pass title)
+			local names = {}
+			for name in Config.Story.unlocks.titles do
+				names[name] = true
+			end
+			for _, n in Config.Pass.titles do
+				names[n] = true
+			end
+			for _, e in BadgeRules.list(Config.Badges) do
+				names[e.name] = true
+			end
+			for _, track in { "vigil", "syndicate" } do
+				for _, n in R.titles[track] do
+					check(not names[n], "a new title: " .. n)
+					names[n] = true
+				end
+			end
+			-- the HQ panel lists only your own side's styles
+			local hud = clientSources()["src/client/Ui/HqHud.luau"]
+			check(string.find(hud, "if e.track == track then", 1, true) ~= nil, "HqHud: own side only")
+		end
+	)
+
+	test(
+		"Lore 12: the hideouts dress by tier: the right props, clear of the stations, in the cell",
+		function()
+			local function count(list: { any }, name: string): number
+				local n = 0
+				for _, p in list do
+					if p.name == name then
+						n += 1
+					end
+				end
+				return n
+			end
+			local per = R.hideout.notesPerTier
+			for _, side in { "hero", "villain" } do
+				check(#RepTiers.dressing(Config, side, 0) == 0, side .. ": nothing at tier 0")
+				local prev = 0
+				for t = 1, 5 do
+					local n = #RepTiers.dressing(Config, side, t)
+					check(n > prev, side .. ": tier " .. t .. " adds props")
+					prev = n
+				end
+				check(prev <= 140, side .. ": a part budget (" .. prev .. ")")
+			end
+			local v = function(t)
+				return RepTiers.dressing(Config, "hero", t)
+			end
+			check(
+				count(v(1), "noteBoard") == 1 and count(v(1), "note") == per,
+				"Safehouse 1: the thank-you wall"
+			)
+			check(count(v(1), "rigScreen") == 0 and count(v(2), "rigScreen") == 3, "2: Patch's hacking rig")
+			check(count(v(2), "relicCape") == 0, "no relics before 3")
+			check(
+				count(v(3), "relicCape") == 1 and count(v(3), "relicShield") == 1,
+				"3: the hero relic display"
+			)
+			check(count(v(4), "relicHelmet") == 1 and count(v(4), "spotLamp") == 1, "4: the relic spotlight")
+			check(count(v(5), "thanksBanner") == 1 and count(v(5), "note") == per * 5, "5: the city's thanks")
+			for t = 1, 5 do
+				check(count(v(t), "note") == per * t, "notes grow with the tier")
+				check(count(v(t), "noteIcon") == count(v(t), "note"), "every note has a fixed icon (no text)")
+			end
+			local s = function(t)
+				return RepTiers.dressing(Config, "villain", t)
+			end
+			check(count(s(1), "vaultDoor") == 1 and count(s(1), "goldBar") == 6, "Foundry 1: the loot vault")
+			check(count(s(2), "trophyScreen") == 1, "2: the trophy screen")
+			check(
+				count(s(2), "robotHead") == 0 and count(s(3), "robotHead") == 1,
+				"3: the captured Crane robot"
+			)
+			check(count(s(3), "craneC") == 3 and count(s(3), "hookChain") == 1, "on a hook, with the Crane C")
+			check(count(s(4), "goldBar") == 15 and count(s(4), "cashCrate") == 2, "4: the vault expansion")
+			check(
+				count(s(5), "carpet") == 1 and count(s(5), "kingpinFrame") == 4,
+				"5: the kingpin's spotlight"
+			)
+			-- inside the cell, never on a station's pad
+			local half = Config.Hq.cell.size / 2
+			for _, side in { "hero", "villain" } do
+				for _, p in RepTiers.dressing(Config, side, 5) do
+					-- a piece turned 90 degrees about y (the vault door, the shield) swaps its x and z sizes
+					local sx, sz = p.sx, p.sz
+					if p.ry and math.abs(p.ry) % 180 == 90 then
+						sx, sz = sz, sx
+					end
+					check(
+						math.abs(p.x) + sx / 2 <= half
+							and math.abs(p.z) + sz / 2 <= half
+							and p.y - p.sy / 2 >= 0,
+						side .. ": " .. p.name .. " inside the cell"
+					)
+					if p.y - p.sy / 2 < 8 then -- at walking height
+						for name, at in Config.Hq.stations do
+							local dx = math.max(0, math.abs(p.x - at[1]) - sx / 2)
+							local dz = math.max(0, math.abs(p.z - at[2]) - sz / 2)
+							check(
+								dx * dx + dz * dz >= Config.Hq.stationRange ^ 2 * 0.25,
+								side .. ": " .. p.name .. " clear of the " .. name
+							)
+						end
+					end
+				end
+			end
+			-- the server sends the tier, the device draws it; the stations are the same
+			check(
+				string.find(
+					readFile("src/server/Services/HqService.luau"),
+					"repTier = if c then RepTiers.tier(Config, c)",
+					1,
+					true
+				) ~= nil,
+				"HqState carries the tier"
+			)
+			local hq = clientSources()["src/client/Controllers/HqClient.luau"]
+			check(
+				string.find(hq, "RepTiers.dressing(Config, state.side, state.repTier or 0)", 1, true) ~= nil,
+				"HqClient draws it"
+			)
+			check(string.find(hq, "PLACEHOLDER ART", 1, true) ~= nil, "labelled placeholder art")
+		end
+	)
+
+	test(
+		"Lore 12: side-vs-side events: one side defends, one steals; scheduler odds and PvP unchanged",
+		function()
+			local EV = Config.Events
+			local T = EV.scheduler.side
+			check(#EV.side == 3, "3 side events")
+			local defends = {}
+			local nums = {}
+			for _, e in EV.events do
+				check(not nums[e.num], "unique num " .. e.num)
+				nums[e.num] = true
+			end
+			for _, id in EV.side do
+				local d = EV.events[id]
+				check(d ~= nil and d.side == true, id .. ": a side event")
+				check(
+					table.find(EV.order, id) == nil and table.find(EV.rare, id) == nil,
+					id .. ": not in the mix"
+				)
+				check(
+					table.find(EventPlan.GOALS, d.goal) ~= nil,
+					id .. ": an existing goal (" .. d.goal .. ")"
+				)
+				check(
+					d.goal == "float" or d.goal == "hold" or d.goal == "shards",
+					id .. ": a goal with side rules"
+				)
+				defends[d.defend] = true
+				check(#EventPlan.areas(Config, d.where) > 0, id .. ": its district exists")
+				for _, w in d.waves or {} do
+					check(Config.Enemies[w[1]] ~= nil, id .. ": robot " .. w[1])
+				end
+				local nm, title = CinemaPlan.card(Config, "events", id)
+				check(nm ~= nil and title ~= nil, id .. ": a name card")
+				check(
+					d.text ~= d.villainText and #d.text <= 120 and #d.villainText <= 120,
+					id .. ": each side's line"
+				)
+				if d.goal == "shards" then
+					check(d.shards % 2 == 1, id .. ": an odd count, so all grabbed has a winner")
+				end
+			end
+			check(defends.hero and defends.villain, "each side defends one")
+			check(EV.events.DataTruck.where[1] == "Downtown", "the data truck crosses Downtown")
+			check(EV.events.UptownVault.where[1] == "Uptown", "the vault is in Uptown")
+			check(EV.events.SparkShipment.where[1] == "Docks", "the shipment is at the Docks")
+			-- odds unchanged: with nobody of the other side (or the old call), the scheduler draws exactly as before
+			local function run(seed: number, side: ((string) -> boolean)?, rare: boolean): { string }
+				local st = EventPlan.new(EV, 0)
+				local r = Rng.new(seed)
+				local out = {}
+				for t = 0, 86400, 2 do
+					local id = EventPlan.due(
+						EV,
+						st,
+						t,
+						r,
+						nil,
+						if rare
+							then function()
+								return true
+							end
+							else nil,
+						side
+					)
+					if id then
+						table.insert(out, id)
+					end
+				end
+				return out
+			end
+			for _, rare in { false, true } do
+				local a, b = run(31, nil, rare), run(31, function()
+					return false
+				end, rare)
+				check(#a == #b, "same count")
+				local same = true
+				for i = 1, #a do
+					same = same and a[i] == b[i]
+				end
+				check(
+					same,
+					"no side event possible: the very same draws (rare tier " .. tostring(rare) .. ")"
+				)
+			end
+			-- with both sides always here: the side tier's rate and gaps; the rare tier keeps its own odds
+			local st = EventPlan.new(EV, 0)
+			local r = Rng.new(77)
+			local sides, rares, all, lastSide, most = 0, 0, 0, nil, 0
+			local mix: { [string]: number } = {}
+			for t = 0, 172800 do
+				local id = EventPlan.due(EV, st, t, r, nil, function()
+					return true
+				end, function()
+					return true
+				end)
+				most = math.max(most, EventPlan.activeCount(st))
+				if id then
+					all += 1
+					if EventPlan.isSide(EV, id) then
+						sides += 1
+						check(t >= T.firstAfter, "never in the first 10 minutes")
+						if lastSide then
+							check(t - lastSide >= T.gap, "at most one side event a 45 minutes")
+						end
+						lastSide = t
+					elseif id == "YourDouble" then
+						rares += 1
+					else
+						mix[id] = (mix[id] or 0) + 1
+					end
+				end
+			end
+			check(most <= EV.scheduler.maxActive, "never more than 2 at once")
+			check(
+				sides >= 20 and sides <= 64,
+				string.format("%d side events in 48 h (about one an hour)", sides)
+			)
+			check(rares >= 8 and rares <= 48, string.format("%d rare events still", rares))
+			local n, total = 0, 0
+			for _, k in mix do
+				n += 1
+				total += k
+			end
+			check(n == #EV.order, "every normal event still runs")
+			for id, k in mix do
+				check(k >= total / n * 0.5 and k <= total / n * 1.5, id .. ": the normal mix stays even")
+			end
+			check(EventPlan.sideOk(EV, 1, 1) and not EventPlan.sideOk(EV, 5, 0), "both sides present")
+			check(not EventPlan.sideOk(EV, 0, 5), "both, either way")
+			-- the side rules
+			local truck = EV.events.DataTruck
+			check(
+				EventPlan.canCrack(truck, "villain") and not EventPlan.canCrack(truck, "hero"),
+				"only stealers crack"
+			)
+			check(
+				EventPlan.canCrack(EV.events.SparkShipment, "hero"),
+				"the Vigil steal the Syndicate's shipment"
+			)
+			for k = 0, 4 do
+				check(EventPlan.crackRate(Config.Incidents, k, k) == 0, "an even ring never cracks")
+				check(EventPlan.crackRate(Config.Incidents, k, k + 1) == 0, "the defenders hold it")
+				check(
+					EventPlan.crackRate(Config.Incidents, k + 2, 1)
+						== IncidentPlan.holdRate(Config.Incidents, k + 1),
+					"outnumbered: the hold rate of the difference"
+				)
+			end
+			local function res(def, s)
+				s.hero = s.hero or 0
+				s.villain = s.villain or 0
+				return EventPlan.sideResult(def, s)
+			end
+			check(res(truck, { goal = "float" }) == nil, "still on")
+			check(res(truck, { goal = "float", broken = true }) == "villain", "cracked: the Syndicate")
+			check(res(truck, { goal = "float", arrived = true }) == "hero", "delivered: the Vigil")
+			check(res(truck, { goal = "float", timeUp = true }) == "draw", "time up: a draw")
+			local vault = EV.events.UptownVault
+			check(res(vault, { goal = "hold", cracked = true }) == "villain", "vault cracked")
+			check(res(vault, { goal = "hold", timeUp = true }) == "hero", "vault held")
+			local ship = EV.events.SparkShipment
+			check(
+				res(ship, { goal = "shards", hero = 5, villain = 4, need = 9 }) == "hero",
+				"more crystals win"
+			)
+			check(res(ship, { goal = "shards", hero = 2, villain = 3, need = 9 }) == nil, "still on")
+			check(
+				res(ship, { goal = "shards", hero = 2, villain = 2, need = 9, timeUp = true }) == "draw",
+				"level"
+			)
+			local E = R.earn
+			check(EventPlan.sideRep(E, "hero", "hero") == E.sideEvent + E.sideWin, "the winners")
+			check(EventPlan.sideRep(E, "hero", "villain") == E.sideEvent, "the losers still earn")
+			check(EventPlan.sideRep(E, "draw", "villain") == E.sideEvent, "a draw")
+			-- PvP unchanged: only flagged heroes may hit each other, in a side event or not
+			local P = Config.Pvp
+			local function side(id: number, flagged: boolean): any
+				local f = PvpRules.newFlag()
+				if flagged then
+					PvpRules.set(f, true, -1000)
+				end
+				return { id = id, alive = true, level = math.max(P.minLevel, 20), flag = f, safe = false }
+			end
+			check(not PvpRules.canHit(P, side(1, false), side(2, false), false, 0), "unflagged: never")
+			check(not PvpRules.canHit(P, side(1, true), side(2, false), false, 0), "one flagged: never")
+			check((PvpRules.canHit(P, side(1, true), side(2, true), false, 0)), "both flagged: yes")
+			local es = readFile("src/server/Services/EventService.luau")
+			check(
+				string.find(es, "FlagService", 1, true) == nil and string.find(es, "PvpRules", 1, true) == nil,
+				"the side events add no PvP rule"
+			)
+			for _, needle in
+				{
+					"EventPlan.canCrack(d, h.side)",
+					"EventPlan.crackRate(Config.Incidents, nS, nD)",
+					"EventPlan.sideResult(d, s)",
+					'NewsService.post("sideStart", nil, def.num)',
+					"EventService.Paid:Fire(player, ev.id, ev.result, rep)",
+					"rareAllowed,\n\t\t\t\tsideAllowed",
+				}
+			do
+				check(string.find(es, needle, 1, true) ~= nil, "EventService: " .. needle)
+			end
+			check(
+				string.find(
+					readFile("src/server/Services/SiteKit.luau"),
+					"if h.allow and not h.allow(heroId) then",
+					1,
+					true
+				) ~= nil,
+				"the objective takes only the stealers' hits"
+			)
+			-- the news: a flash as it starts, the winners named
+			local nm = "Captain Spark"
+			for _, kind in { "sideStart", "sideVigil", "sideSyndicate", "sideDraw" } do
+				local line = NewsPlan.text(Config, { k = NewsPlan.CODE[kind], a = truck.num }, nm)
+				check(
+					line ~= nil and string.find(line :: string, "DATA TRUCK STANDOFF", 1, true) ~= nil,
+					kind
+				)
+				check(
+					NewsPlan.named(kind) == (kind == "sideVigil" or kind == "sideSyndicate"),
+					kind .. " names"
+				)
+			end
+			check(NewsPlan.flash(Config, { k = NewsPlan.CODE.sideStart }), "a news flash")
+			check(
+				NewsPlan.text(Config, { k = NewsPlan.CODE.sideStart, a = 99 }, nm) == nil,
+				"an unknown event"
+			)
+			check(
+				string.find(
+					clientSources()["src/client/Ui/NewsHud.luau"],
+					'data.id == "event" and data.side',
+					1,
+					true
+				) ~= nil,
+				"the name card for everyone"
+			)
+		end
+	)
+
+	test("Lore 12: the city reacts: cheers and flinches, Patch and the news name high-tier heroes", function()
+		local C = R.citizens
+		check(RepTiers.reaction(Config, "hero", C.minTier - 1, 1) == nil, "below the tier: nothing")
+		check(RepTiers.reaction(Config, "hero", C.minTier, C.range) == "cheer", "the Vigil: cheers")
+		check(RepTiers.reaction(Config, "villain", C.minTier, C.range) == "flinch", "the Syndicate: flinches")
+		check(RepTiers.reaction(Config, "hero", C.minTier, C.range + 1) == nil, "too far")
+		check(
+			RepTiers.reaction(Config, "hero", C.highTier, C.highRange) == "cheer",
+			"high tiers: from further"
+		)
+		check(RepTiers.reaction(Config, "hero", 5, 1, true) == nil, "a fleeing citizen never stops to cheer")
+		local cr = clientSources()["src/client/Controllers/CitizenRenderer.luau"]
+		check(
+			string.find(cr, "RepTiers.reaction(Config, best.side, best.tier, bestD, fleeing)", 1, true) ~= nil
+				and string.find(cr, 'p:GetAttribute("RepTier")', 1, true) ~= nil,
+			"CitizenRenderer reacts"
+		)
+		-- the longest safe name fits every line on a phone
+		local long = ""
+		for t in Config.Creator.titles do
+			for n in Config.Creator.nouns do
+				local name = CreatorRules.heroName(Config, t, n) :: string
+				if #name > #long then
+					long = name
+				end
+			end
+		end
+		for _, side in { "hero", "villain" } do
+			for t = 1, 5 do
+				local line = RepTiers.radioSelf(Config, side, t, long) :: string
+				check(
+					line ~= nil and string.find(line, long, 1, true) ~= nil,
+					side .. " tier " .. t .. ": names you"
+				)
+				check(#line <= 120, side .. " tier " .. t .. ": phone length (" .. #line .. ")")
+				check(not string.find(line, "%", 1, true), "filled")
+			end
+			for _, track in { "vigil", "syndicate" } do
+				local line = RepTiers.radioAbout(Config, side, track, long) :: string
+				check(
+					line ~= nil and #line <= 120 and string.find(line, long, 1, true) ~= nil,
+					side .. " about " .. track
+				)
+			end
+			check(
+				RepTiers.radioAbout(Config, side, "vigil", "X")
+					~= RepTiers.radioAbout(Config, side, "syndicate", "X"),
+				"friend or rival"
+			)
+		end
+		check(R.radio.self.hero[1] ~= R.radio.self.villain[1], "side-flavoured")
+		check(
+			not RepTiers.mention(Config, R.mention.tier - 1) and RepTiers.mention(Config, R.mention.tier),
+			"who"
+		)
+		local line = NewsPlan.text(Config, { k = NewsPlan.CODE.repVigil, a = 5 }, "Captain Spark")
+		check(
+			line == 'THE CITY TRUSTS CAPTAIN SPARK: VIGIL TRUST RANK 5, "HEART OF THE CITY"',
+			"the news: " .. tostring(line)
+		)
+		check(
+			NewsPlan.text(Config, { k = NewsPlan.CODE.repSyndicate, a = 4 }, nil)
+				== 'THE CITY FEARS A HERO: SYNDICATE FEAR RANK 4, "SYNDICATE KINGPIN"',
+			"no name: A HERO"
+		)
+		check(NewsPlan.text(Config, { k = NewsPlan.CODE.repVigil, a = 6 }, "X") == nil, "a bad rank")
+		local rs = readFile("src/server/Services/RepService.luau")
+		check(
+			string.find(rs, "NewsService.post(newsKind(track), player, tier)", 1, true) ~= nil,
+			"the news names them"
+		)
+		check(string.find(rs, 'player:SetAttribute("RepTier", tier)', 1, true) ~= nil, "the attribute")
+		local gc = clientSources()["src/client/Controllers/GuideClient.luau"]
+		for _, needle in
+			{
+				"RepTiers.radioSelf(Config, side(), data.tier",
+				"RepTiers.radioAbout(Config, side(), track, name)",
+				'Net.listen("NewsFact", onRepFacts)',
+				'SettingsClient.on("guideRadio")',
+			}
+		do
+			check(string.find(gc, needle, 1, true) ~= nil, "GuideClient: " .. needle)
+		end
+		-- Dev panel: set your rep tier, start each side event
+		local dev = clientSources()["src/client/Ui/DevPanel.luau"]
+		for _, needle in { '"DevCommand", "reptier"', '"DevCommand", "sideevent", i' } do
+			check(string.find(dev, needle, 1, true) ~= nil, "Dev: " .. needle)
+		end
+		local ds = readFile("src/server/Services/DevService.luau")
+		check(
+			string.find(ds, "RepService.devTier(player, n)", 1, true) ~= nil
+				and string.find(ds, "EventService.forceSide(n)", 1, true) ~= nil,
+			"DevService"
+		)
+	end)
+end
 
 print(string.format("\n%d passed, %d failed", passed, failed))
 if failed > 0 then

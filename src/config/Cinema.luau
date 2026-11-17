@@ -109,6 +109,22 @@ return {
 				title = "A FAKE WEARING YOUR FACE",
 				color = { 235, 70, 70 },
 			},
+			-- lore step 12: the side-vs-side events' cards, for everyone as they start
+			DataTruck = {
+				name = "DATA TRUCK STANDOFF",
+				title = "ESCORT IT OR CRACK IT",
+				color = { 150, 110, 255 },
+			},
+			UptownVault = {
+				name = "UPTOWN VAULT STANDOFF",
+				title = "BLOCK THE RING OR CRACK THE VAULT",
+				color = { 150, 110, 255 },
+			},
+			SparkShipment = {
+				name = "SPARK CRYSTAL RAID",
+				title = "SEIZE THE CRYSTALS OR SAVE THE CARGO",
+				color = { 150, 110, 255 },
+			},
 		},
 	},
 
@@ -140,8 +156,17 @@ return {
 			act1 = '%s FINISHES "%t"',
 			double = "BREAKING: A FAKE OF %s IS LOOSE IN THE CITY", -- lore step 9: Your double starts
 			doubleDown = "%s CRACKS THEIR OWN DOUBLE",
+			-- lore step 12 (the city remembers): a hero reaching a high reputation rank (%t: the rank and its
+			-- title), a side-vs-side event starting and its result (%t: the event's card name)
+			repVigil = "THE CITY TRUSTS %s: VIGIL TRUST %t",
+			repSyndicate = "THE CITY FEARS %s: SYNDICATE FEAR %t",
+			sideStart = "BREAKING: VIGIL AND SYNDICATE CLASH IN THE %t",
+			sideVigil = "%s AND THE VIGIL WIN THE %t",
+			sideSyndicate = "%s AND THE SYNDICATE TAKE THE %t",
+			sideDraw = "NO WINNER IN THE %t",
 		},
-		flash = { boss = true, unmask = true, double = true }, -- these also flash on every HUD (toast + corner TV)
+		-- these also flash on every HUD (toast + corner TV)
+		flash = { boss = true, unmask = true, double = true, sideStart = true },
 		-- the corner TV: a flash plays this long; any other new fact shows on its ticker for `fact` s; with nothing
 		-- new, Crane's segment airs every `craneEvery` s for `crane` s (never in the prologue, a mission or a scene)
 		tv = { seconds = 7, fact = 5, crane = 8, craneEvery = 180, scroll = 10 },

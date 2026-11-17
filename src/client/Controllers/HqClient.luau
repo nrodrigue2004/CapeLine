@@ -10,6 +10,7 @@
 -- * Training dummies (aim assist through CombatClient.addTargetSource), the boss sim's robot and its slam
 --   rings (HqDps), statues of retired heroes in their own looks, the trophy plaques and the city's
 --   thank-you props.
+-- * Lore step 12: the dressing your own side's reputation tier has opened (Shared.RepTiers.dressing).
 -- HqHud draws the station panels. PLACEHOLDER ART: every room piece is a box until the art pass (M10).
 
 local Players = game:GetService("Players")
@@ -27,6 +28,7 @@ local RigMath = require(Shared:WaitForChild("RigMath"))
 local NpcRig = require(Shared:WaitForChild("NpcRig"))
 local BodyShape = require(Shared:WaitForChild("BodyShape"))
 local HqRules = require(Shared:WaitForChild("HqRules"))
+local RepTiers = require(Shared:WaitForChild("RepTiers")) -- lore step 12: the hideout's tiered dressing
 local State = require(script.Parent.Parent.State)
 
 local CombatClient = require(script.Parent.CombatClient)
@@ -390,6 +392,54 @@ local function props(f: Folder)
 	end
 end
 
+-- Lore step 12 (the city remembers): the hideout's dressing for your own side's reputation tier (Shared.RepTiers:
+-- the Safehouse's thank-you notes, Patch's hacking rig and the relic case; the Foundry's loot vault, trophy
+-- screen and captured Crane robot). Purely visual; the stations stay where they are. PLACEHOLDER ART.
+local SHAPES: { [string]: Enum.PartType } = {
+	Ball = Enum.PartType.Ball,
+	Cylinder = Enum.PartType.Cylinder,
+	Wedge = Enum.PartType.Wedge,
+}
+local function dressing(f: Folder)
+	local c = centre()
+	for _, p in RepTiers.dressing(Config, state.side, state.repTier or 0) do
+		local cf = CFrame.new(c + Vector3.new(p.x, p.y, p.z))
+		if p.ry then
+			cf *= CFrame.Angles(0, math.rad(p.ry), 0)
+		end
+		if p.rz then
+			cf *= CFrame.Angles(0, 0, math.rad(p.rz))
+		end
+		local made = part(f, Vector3.new(p.sx, p.sy, p.sz), cf, Color3.fromRGB(p.rgb[1], p.rgb[2], p.rgb[3]))
+		local mat = p.mat and (Enum.Material :: any)[p.mat]
+		if mat then
+			made.Material = mat
+		end
+		local shape = p.shape and SHAPES[p.shape]
+		if shape == Enum.PartType.Wedge then
+			-- a wedge is its own class: swap the box for one
+			local w = Instance.new("WedgePart")
+			w.Anchored, w.CanCollide, w.CanQuery, w.CanTouch, w.CastShadow = true, false, false, false, false
+			w.Size, w.CFrame, w.Color, w.Material = made.Size, made.CFrame, made.Color, made.Material
+			w.Parent = f
+			made:Destroy()
+			made = w :: any
+		elseif shape then
+			made.Shape = shape
+		end
+		if p.clear then
+			made.Transparency = p.clear
+		end
+		if p.light then
+			local l = Instance.new("PointLight")
+			l.Range = p.light
+			l.Brightness = 1.2
+			l.Color = made.Color
+			l.Parent = made
+		end
+	end
+end
+
 local function draw()
 	clear()
 	if not state.on then
@@ -428,6 +478,7 @@ local function draw()
 	end
 	trophyWall(f, colors)
 	props(f)
+	dressing(f)
 end
 
 -- a slam ring that fills over its warning time

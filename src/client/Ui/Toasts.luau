@@ -44,6 +44,7 @@ local M9_REASONS: { [string]: string } = {
 	slot = "Buy that hero slot in the shop first",
 	locked = "Buy that hero slot in the shop first",
 	hq = "Buy styles from Gizmo at your HQ",
+	rep = "Your side's reputation rank opens that style", -- lore step 12
 	where = "Open the shop at your HQ, a safehouse or the menu",
 	soon = "Coming soon",
 	slot3 = "Buy slot 3 first",
@@ -331,6 +332,44 @@ function Toasts.show(data: { [string]: any })
 			true,
 			4.5
 		)
+		-- lore step 12: a side-vs-side event's result and the reputation it paid
+		if data.winner then
+			local mine = data.result == "win"
+			push(
+				string.format(
+					"%s%s",
+					if data.winner == "hero"
+						then "THE VIGIL WIN!"
+						elseif data.winner == "villain" then "THE SYNDICATE WIN!"
+						else "NO WINNER THIS TIME",
+					if (data.rep or 0) > 0
+						then string.format(
+							"  +%d %s",
+							data.rep,
+							string.upper(Config.Story.rep.words[data.track or ""] or "")
+						)
+						else ""
+				),
+				if mine then Kit.color.gold else Kit.color.paper,
+				mine,
+				4.5
+			)
+		end
+	elseif id == "repUnlocks" then
+		-- lore step 12: what a new reputation rank opened (Shared.RepTiers.unlocks)
+		local parts = {}
+		if data.hideout then
+			table.insert(parts, string.upper(data.hideout))
+		end
+		if data.title then
+			table.insert(parts, string.format('TITLE "%s"', string.upper(data.title)))
+		end
+		if (data.styles or 0) > 0 then
+			table.insert(parts, string.format("%d NEW STYLES AT GIZMO'S", data.styles))
+		end
+		if #parts > 0 then
+			push("OPENED: " .. table.concat(parts, ", "), Kit.color.gold, false, 5)
+		end
 	-- M7: the story
 	elseif id == "catch" then
 		push(string.format("+%d RENOWN", data.renown or 0), Kit.color.gold, true, 3)

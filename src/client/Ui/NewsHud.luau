@@ -392,6 +392,13 @@ function NewsHud.init()
 			and data.num == Config.Events.events.YourDouble.num
 		then
 			showCard("events", "YourDouble")
+		elseif type(data) == "table" and data.id == "event" and data.side then
+			-- lore step 12: a side-vs-side event's card, for everyone as it starts
+			for _, id in Config.Events.side or {} do
+				if Config.Events.events[id].num == data.num then
+					showCard("events", id)
+				end
+			end
 		end
 	end)
 	task.spawn(function()

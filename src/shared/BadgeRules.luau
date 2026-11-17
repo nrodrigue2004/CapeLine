@@ -7,13 +7,15 @@
 --   of that group you have), each once;
 -- * accolades: a group with every badge earned;
 -- * titles: one shown at a time, from one id space: 0 = your origin's title, 1 to 255 = the story and Fame
---   titles (profile.titles bits), titleBase + bit = a badge's name, baneBase + i = "Bane of <nemesis>".
+--   titles (profile.titles bits), titleBase + bit = a badge's name, baneBase + i = "Bane of <nemesis>",
+--   Config.Remembers.titleBase + track x 10 + tier = a reputation tier's title (lore step 12, Shared.RepTiers).
 --   All fixed text from the lists; nothing typed.
 
 local Bits = if script
 	then require(script.Parent.ProfileSchema).Bits
 	else (require :: any)("./ProfileSchema").Bits
 local NemesisMath = if script then require(script.Parent.NemesisMath) else (require :: any)("./NemesisMath")
+local RepTiers = if script then require(script.Parent.RepTiers) else (require :: any)("./RepTiers")
 
 local BadgeRules = {}
 
@@ -195,6 +197,12 @@ function BadgeRules.titles(Config: any, profile: any, char: any): { { id: number
 			if P.titles[n] then
 				table.insert(out, { id = P.titleBase + n, name = P.titles[n] })
 			end
+		end
+	end
+	-- lore step 12: the reputation tier titles (Vigil Trust and Syndicate Fear), held while the points are there
+	if Config.Remembers then
+		for _, t in RepTiers.titles(Config, char) do
+			table.insert(out, t)
 		end
 	end
 	if mmo and mmo.banes then

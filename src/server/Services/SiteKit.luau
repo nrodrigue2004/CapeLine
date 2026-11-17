@@ -462,6 +462,10 @@ function SiteKit.object(
 			if h.hp <= 0 then
 				return 0, true
 			end
+			-- allow (lore step 12, a side event's objective): only some heroes' hits count
+			if h.allow and not h.allow(heroId) then
+				return 0, false
+			end
 			-- perHit: a story object that takes a set number of hits (the shard crates, the runaway train)
 			local dealt = math.min(h.hp, if h.perHit then 1 else amount)
 			h.hp -= dealt

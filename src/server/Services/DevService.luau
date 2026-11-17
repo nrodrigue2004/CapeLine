@@ -19,6 +19,7 @@
 -- (an evil twin of your own hero there).
 -- Lore step 5: missionas n (mission n // 10 as the Vigil, n % 10 = 0, or the Syndicate, 1; the missions before it
 -- cleared and its level met), missionstep n (jump to stage n of the running mission).
+-- Lore step 12: reptier 0-5 (your own side's reputation tier), sideevent 1-3 (a side-vs-side event now).
 -- Hero MMO: nemesis 0/1 (your nemesis ambushes you now / your Intel is full: the Showdown opens).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -55,6 +56,7 @@ local CreatorService = require(script.Parent.CreatorService)
 local HqService = require(script.Parent.HqService)
 local PurchaseService = require(script.Parent.PurchaseService)
 local NewsService = require(script.Parent.NewsService) -- lore step 7
+local RepService = require(script.Parent.RepService) -- lore step 12
 local ShopRules = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("ShopRules"))
 local CreatorRules = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("CreatorRules"))
 local ProfileSchema = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("ProfileSchema"))
@@ -109,6 +111,13 @@ local commands: { [string]: (player: Player, hero: any, value: number) -> () } =
 				tostring(EventService.forceDouble(player))
 			)
 		)
+	end,
+	-- lore step 12: your own side's reputation tier (0 to 5) and each side-vs-side event (1 to 3) now
+	reptier = function(player, _, n)
+		RepService.devTier(player, n)
+	end,
+	sideevent = function(_, _, n)
+		print(string.format("[Dev] side event %d: %s", n, tostring(EventService.forceSide(n))))
 	end,
 	points = function(_, hero, n)
 		hero.bonusPoints += n

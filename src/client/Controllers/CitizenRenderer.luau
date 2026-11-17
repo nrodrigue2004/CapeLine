@@ -26,6 +26,8 @@ local BodyShape = require(Shared:WaitForChild("BodyShape"))
 local NpcRig = require(Shared:WaitForChild("NpcRig"))
 local ClothesMap = require(Shared:WaitForChild("ClothesMap"))
 local QualityRules = require(Shared:WaitForChild("QualityRules"))
+local RepTiers = require(Shared:WaitForChild("RepTiers")) -- lore step 12: citizens cheer or flinch
+local Players = game:GetService("Players")
 
 local QualityController = require(script.Parent.QualityController)
 
@@ -185,13 +187,58 @@ local function lerpAngle(a: number, b: number, t: number): number
 	return a + d * t
 end
 
+-- Lore step 12 (the city remembers): heroes near enough with a reputation tier (their RepTier attribute) get a
+-- reaction from walking and standing citizens: a cheer for the Vigil, a flinch for the Syndicate (Shared.RepTiers
+-- .reaction). The heroes are scanned a few times a second; only citizens posed this frame react.
+local R = Config.Remembers.citizens
+local reactors: { { pos: Vector3, side: string, tier: number } } = {}
+local lastScan = 0
+local function scanReactors(now: number)
+	if now - lastScan < R.every then
+		return
+	end
+	lastScan = now
+	table.clear(reactors)
+	for _, p in Players:GetPlayers() do
+		local tier = p:GetAttribute("RepTier")
+		local ch = p.Character
+		local root = ch and ch.PrimaryPart
+		if type(tier) == "number" and tier >= R.minTier and root then
+			local side = p:GetAttribute("Side")
+			table.insert(reactors, {
+				pos = root.Position,
+				side = if side == "villain" then "villain" else "hero",
+				tier = tier,
+			})
+		end
+	end
+end
+
+local function reactionAt(pos: Vector3, fleeing: boolean): string?
+	if fleeing or #reactors == 0 then
+		return nil
+	end
+	local best, bestD = nil, math.huge
+	for _, r in reactors do
+		local d = (r.pos - pos).Magnitude
+		if d < bestD then
+			best, bestD = r, d
+		end
+	end
+	return best and RepTiers.reaction(Config, best.side, best.tier, bestD, fleeing)
+end
+
 -- Pose one citizen (pos is the feet): the root goes on the BulkMoveTo lists, the R15 joints turn when
 -- `joints` is true
 local function pose(body: Body, dt: number, roots: { BasePart }, cframes: { CFrame }, joints: boolean)
 	local moving = body.speed > 0.8
 	local fleeing = body.state == FLEE
+	local react = if joints then reactionAt(body.pos, fleeing) else nil
 	body.phase += dt * (if fleeing then 14 else 8) * (if moving then 1 else 0)
 	local bob = if moving then math.abs(math.sin(body.phase)) * 0.15 else 0
+	if react == "cheer" then
+		bob += math.abs(math.sin(os.clock() * 7)) * 0.35 -- little hops
+	end
 	table.insert(roots, body.rig.root)
 	table.insert(
 		cframes,
@@ -212,6 +259,22 @@ local function pose(body: Body, dt: number, roots: { BasePart }, cframes: { CFra
 		NpcRig.turn(rig, name .. "Shoulder", CFrame.Angles(armUp - swing * sign * 0.8 - idle * sign, 0, 0))
 		NpcRig.turn(rig, name .. "Elbow", CFrame.Angles(if moving then math.rad(20) else math.rad(5), 0, 0))
 	end
+	-- lore step 12: the reaction over the walk (arms only, so the feet keep walking)
+	if react == "cheer" then
+		local wave = math.sin(os.clock() * 9) * 0.35
+		for _, side in SIDES do
+			local name, sign = side[1], side[2]
+			NpcRig.turn(rig, name .. "Shoulder", CFrame.Angles(math.rad(-160) + wave * sign, 0, sign * 0.25))
+			NpcRig.turn(rig, name .. "Elbow", CFrame.Angles(math.rad(15), 0, 0))
+		end
+	elseif react == "flinch" then
+		NpcRig.turn(rig, "Waist", CFrame.Angles(math.rad(14), 0, 0))
+		for _, side in SIDES do
+			local name, sign = side[1], side[2]
+			NpcRig.turn(rig, name .. "Shoulder", CFrame.Angles(math.rad(-85), 0, -sign * 0.35))
+			NpcRig.turn(rig, name .. "Elbow", CFrame.Angles(math.rad(95), 0, 0))
+		end
+	end
 end
 
 local lastRender = os.clock()
@@ -223,6 +286,7 @@ local function render()
 	if n == 0 then
 		return
 	end
+	scanReactors(now)
 	local renderT = now - C.drawDelay
 	local a, b = snapshots[1], snapshots[n]
 	for i = n - 1, 1, -1 do

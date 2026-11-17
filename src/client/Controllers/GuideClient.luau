@@ -6,7 +6,8 @@
 --   opens a story mission, a hint when the hero stands still with a story mission pinned, and a line after
 --   Act 1's ending broadcast, and the rare Your double event on this hero (lore step 9, it skips the gap);
 --   side-flavoured, at most one a Config.Story.guides.radio.gap, never in a mission
---   or the prologue, all off with the "Guide radio" setting.
+--   or the prologue, all off with the "Guide radio" setting. Lore step 12: your own new reputation tier, and a
+--   high-tier hero the news names on this server (their safe hero name, once a session each).
 -- * Lodestar in person: in the Vigil's HQ (the hero's HQ cell) with a Talk prompt (a fixed rotation of lines
 --   that change with the story); he keeps away from the Dread Syndicate's Foundry. The Dev panel can spawn him
 --   beside you. His figure is PrologueFx.lodestarRig (his fixed look from earnable creator pieces).
@@ -22,6 +23,10 @@ local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local GuidePlan = require(Shared:WaitForChild("GuidePlan"))
 local NpcRig = require(Shared:WaitForChild("NpcRig"))
+local Net = require(Shared:WaitForChild("Net"))
+local NewsPlan = require(Shared:WaitForChild("NewsPlan"))
+local CreatorRules = require(Shared:WaitForChild("CreatorRules"))
+local RepTiers = require(Shared:WaitForChild("RepTiers")) -- lore step 12: Patch names high-tier heroes
 
 local State = require(script.Parent.Parent.State)
 local StoryClient = require(script.Parent.StoryClient)
@@ -78,6 +83,50 @@ local function say(key: string, lineKey: string, n: number?): boolean
 		return true
 	end
 	return false
+end
+
+-- Lore step 12 (the city remembers): Patch names high-tier heroes (their safe hero names, Shared.RepTiers): you on
+-- your own tier-up, and a high-tier hero the news names on this server (once a session each); same rate rules.
+local aboutSaid: { [string]: boolean } = {}
+local function sayText(key: string, text: string?): boolean
+	local now = os.clock()
+	if
+		not text
+		or not GuidePlan.radioOk(
+			Config,
+			radio,
+			now,
+			key,
+			{ on = SettingsClient.on("guideRadio"), busy = busy() }
+		)
+	then
+		return false
+	end
+	-- a fixed Config.Remembers line with a safe hero name in it (RepTiers), always Patch's
+	local l = { who = "patch", text = text :: string }
+	if GuideHud.say(l.who, l.text, { world = true, tag = "world" }) then
+		GuidePlan.radioMark(radio, now, key)
+		return true
+	end
+	return false
+end
+
+local function onRepFacts(data: any)
+	if type(data) ~= "table" or data.join or type(data.list) ~= "table" then
+		return
+	end
+	for _, f in data.list do
+		local kind = type(f) == "table" and NewsPlan.KINDS[f.k]
+		if (kind == "repVigil" or kind == "repSyndicate") and (tonumber(f.g) or 0) < 5 then
+			local name = CreatorRules.heroName(Config, tonumber(f.t) or 0, tonumber(f.n) or 0)
+			if name and name ~= player:GetAttribute("HeroName") and not aboutSaid[name] then
+				local track = if kind == "repSyndicate" then "syndicate" else "vigil"
+				if sayText("repAbout", RepTiers.radioAbout(Config, side(), track, name)) then
+					aboutSaid[name] = true
+				end
+			end
+		end
+	end
 end
 
 -- Idle: standing still (under idleMove studs) for `idle` seconds with a story mission pinned
@@ -241,6 +290,14 @@ function GuideClient.init()
 		if data.id == "event" and data.mine and data.num == Config.Events.events.YourDouble.num then
 			say("double", "double")
 		end
+		-- lore step 12: your own new reputation tier
+		if data.id == "repUnlocks" and type(data.tier) == "number" then
+			local name = player:GetAttribute("HeroName")
+			sayText(
+				"repTier" .. data.tier,
+				RepTiers.radioSelf(Config, side(), data.tier, if type(name) == "string" then name else nil)
+			)
+		end
 		if data.id == "levelUp" and s and type(data.level) == "number" then
 			local n = GuidePlan.unlockAt(Config, s, data.level)
 			if n then
@@ -257,6 +314,7 @@ function GuideClient.init()
 		end
 	end)
 	HqClient.Changed:Connect(onHq)
+	Net.listen("NewsFact", onRepFacts) -- lore step 12
 	local acc = 0
 	RunService.Heartbeat:Connect(FrameProf.wrap("GuideClient", function(dt)
 		acc += dt

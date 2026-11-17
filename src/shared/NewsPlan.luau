@@ -28,6 +28,13 @@ NewsPlan.KINDS = {
 	"act1",
 	"double",
 	"doubleDown",
+	-- lore step 12 (the city remembers): a = the rank (1 to 5) for the rep kinds, the event's num for the side kinds
+	"repVigil",
+	"repSyndicate",
+	"sideStart",
+	"sideVigil",
+	"sideSyndicate",
+	"sideDraw",
 }
 NewsPlan.CODE = {} :: { [string]: number }
 for i, k in NewsPlan.KINDS do
@@ -63,13 +70,28 @@ local function thing(Config: any, kind: string, a: number?): string?
 	elseif kind == "act1" then
 		local m = Config.Story.missions[n]
 		return if m and m.name then string.upper(m.name) else nil
+	elseif kind == "repVigil" or kind == "repSyndicate" then
+		-- lore step 12: the rank and its title (Config.Remembers.titles), e.g. RANK 5, "HEART OF THE CITY"
+		local list = Config.Remembers.titles[if kind == "repVigil" then "vigil" else "syndicate"]
+		local title = list and list[n]
+		return if title then string.format('RANK %d, "%s"', n, string.upper(title)) else nil
+	elseif kind == "sideStart" or kind == "sideVigil" or kind == "sideSyndicate" or kind == "sideDraw" then
+		-- lore step 12: a side-vs-side event's card name
+		for _, id in Config.Events.side or {} do
+			local e = Config.Events.events[id]
+			local card = Config.Cinema.nameCard.events[id]
+			if e and e.num == n then
+				return if card then card.name else string.upper(e.name)
+			end
+		end
+		return nil
 	end
 	return ""
 end
 
 -- Does this kind name a hero?
 function NewsPlan.named(kind: string): boolean
-	return kind ~= "boss" and kind ~= "bossAway"
+	return kind ~= "boss" and kind ~= "bossAway" and kind ~= "sideStart" and kind ~= "sideDraw"
 end
 
 -- A fact's line (nil for a bad fact): the template with the hero's name and the thing put in

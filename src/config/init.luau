@@ -61,6 +61,7 @@ local NAMES = {
 	"Pass", -- H8: the Hero Pass
 	"Cinema", -- lore step 7: cutscenes, news, comic pages, finishers, the dynamic camera
 	"SideQuests", -- lore step 10: the side quest framework (chains, givers, the retired arcs)
+	"Remembers", -- lore step 12: the city remembers (reputation tiers, side rewards, side-vs-side events)
 }
 
 local Config: { [string]: any } = {}

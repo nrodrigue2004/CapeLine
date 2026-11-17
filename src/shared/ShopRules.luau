@@ -17,6 +17,7 @@ local CreatorRules = if script
 	else (require :: any)("./CreatorRules")
 local GearMath = if script then require(script.Parent.GearMath) else (require :: any)("./GearMath")
 local Progress = if script then require(script.Parent.Progress) else (require :: any)("./Progress")
+local RepTiers = if script then require(script.Parent.RepTiers) else (require :: any)("./RepTiers")
 
 local Bits = ProfileSchema.Bits
 
@@ -243,9 +244,32 @@ function ShopRules.gizmoPrice(Config: any, styleId: number): number?
 	return nil
 end
 
--- Buy a base style with Credits (on hand first, then banked). Returns ok, reason, price.
-function ShopRules.gizmoBuy(Config: any, profile: any, styleId: number): (boolean, string?, number?)
+-- Lore step 12: a side style's Credit price for this character, or nil and why ("item", "side", "tier"):
+-- Gizmo also sells the side styles your own side's reputation tier has opened (Shared.RepTiers)
+function ShopRules.repPrice(Config: any, char: any, styleId: number): (number?, string?)
+	local ok, why, s = RepTiers.canBuy(Config, char, styleId)
+	if not ok or not s then
+		return nil, why
+	end
+	return s.price, nil
+end
+
+-- Buy a base style (or, with the character, a side style its tier has opened) with Credits (on hand first,
+-- then banked). Returns ok, reason, price.
+function ShopRules.gizmoBuy(
+	Config: any,
+	profile: any,
+	styleId: number,
+	char: any?
+): (boolean, string?, number?)
 	local price = ShopRules.gizmoPrice(Config, styleId)
+	if not price and char then
+		local why
+		price, why = ShopRules.repPrice(Config, char, styleId)
+		if not price and why ~= "item" then
+			return false, why, nil
+		end
+	end
 	if not price then
 		return false, "item", nil
 	end
