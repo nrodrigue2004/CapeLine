@@ -226,3 +226,4 @@ One line each, newest at the bottom. Spec = "Capeline build spec".
 - 2026-11-17 (nate, decisions thread): the store art hero keeps his colours (blue suit, red cape, star emblem); nate likes them. Claude had flagged that the combination may read close to a famous superhero and offered a recolour; nate declined. No re-render.
 - 2026-11-17 (nate, decisions thread): store art for the ad tests: icon_clash, icon_smash, thumb_build and thumb_boss go forward (re-rendered with the final art before ads); icon_flight and thumb_fly are dropped as too basic. A third thumbnail (the fake-hero twist: a half-torn face showing the robot) is queued after lore step 4, when the fakes exist.
 - 2026-11-17 (nate, decisions thread): the contract board keeps 4 offers instead of the spec's 3 (spec change approved), since the job pool doubled to 12 types.
+- 2026-11-17 (nate, decisions thread): Heroic tier pay (x1.5, about +10% Credits at level 45) stays as is until playtest data.
