@@ -1,8 +1,8 @@
-# art/store/post.py: finishes the store art candidates (notes/Store Page.md) from the Blender renders in
+# art/store/post.py: finishes the store art (notes/Store Page.md; nate's picks 2026-11-17) from the Blender renders in
 # art/export/store/raw/: a light grade (contrast, colour, vignette), comic speed lines, the captions in one clean
 # original style (heavy italic capitals, a gold-to-white fill, an ink outline and a hard drop shadow), the boss
 # bar, then the upload sizes: icons 512 x 512, thumbnails 1920 x 1080 (art/export/store/*.png). Also the contact
-# sheet art/preview/store_candidates.png with each icon at 150 px and 50 px, the sizes players see it at.
+# sheet art/preview/store_picks.png with each icon at 150 px and 50 px, the sizes players see it at.
 # Captions: at most 3 words each (Store Page rule). Fonts: Inter Black Italic (SIL Open Font License, the system
 # copy), falling back to DejaVu Sans Bold.
 # Run: python3 art/store/post.py [--draft]   (PIL and numpy)
@@ -180,6 +180,7 @@ def thumb(name, cap, lines=None, bar=False):
 GOLD = ((255, 250, 220), (255, 196, 40))
 WHITE = ((255, 255, 255), (214, 228, 255))
 PURPLE = ((236, 200, 255), (170, 80, 255))
+RED = ((255, 226, 214), (240, 52, 40))  # the fake's red eye
 
 
 def sheet(icons, thumbs):
@@ -189,7 +190,7 @@ def sheet(icons, thumbs):
     out = Image.new("RGB", (W, 2000), (30, 32, 44))
     d = ImageDraw.Draw(out)
     fs = font(26)
-    d.text((pad, 20), "Capeline store art candidates (Store Page.md): icons (512 px files, shown at 400, 150 and 50 px) and thumbnails (1920 x 1080)",
+    d.text((pad, 20), "Capeline store art, nate's picks (Store Page.md): icons (512 px files, shown at 400, 150 and 50 px) and thumbnails (1920 x 1080)",
            font=fs, fill=(230, 230, 240))
     x, y = pad, 70
     big = 400
@@ -213,18 +214,17 @@ def sheet(icons, thumbs):
         d.text((x, y + th + 6), os.path.basename(p), font=fs, fill=(200, 204, 220))
         x += tw + pad
     out = out.crop((0, 0, W, y + th + 50))
-    path = os.path.join(ART, "preview", "store_candidates%s.png" % SUFFIX)
+    path = os.path.join(ART, "preview", "store_picks%s.png" % SUFFIX)
     out.save(path, optimize=True)
     print("wrote", path)
 
 
 if __name__ == "__main__":
-    icons = [icon("flight", lines=(0.5, 0.48, 0.4, 60)), icon("clash", lines=(0.5, 0.5, 0.42, 70)),
-             icon("smash", lines=(0.62, 0.42, 0.38, 50))]
+    icons = [icon("clash", lines=(0.5, 0.5, 0.42, 70)), icon("smash", lines=(0.62, 0.42, 0.38, 50))]
     thumbs = [
-        thumb("fly", ([("FLY.", WHITE), ("FIGHT.", WHITE), ("SAVE.", GOLD)], 132, (0.66, 0.13)),
-              lines=(0.2, 0.46, 0.2, 60)),
         thumb("build", ([("HERO", GOLD), ("OR", WHITE), ("VILLAIN?", PURPLE)], 150, (0.5, 0.13))),
         thumb("boss", ([("GIANT", WHITE), ("WORLD", WHITE), ("BOSS", GOLD)], 150, (0.5, 0.86)), bar=True),
+        thumb("twist", ([("TRUST", WHITE), ("NO", WHITE), ("HERO", RED)], 150, (0.5, 0.86)),
+              lines=(0.6, 0.38, 0.12, 60)),
     ]
     sheet(icons, thumbs)

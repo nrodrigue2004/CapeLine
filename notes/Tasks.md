@@ -56,7 +56,7 @@ phones or Studio go on the Studio test list below.
 - Underwater (2026-11-16): the basin walls, the Sunken Line tunnel, station and train cars, reef, kelp, wrecks, caches and the sunken factory are plain parts; the seabed and rock walls are Terrain sand and rock (DeepLayout, CityBuilder); commuters are blocky figures in a glass bubble, cache markers are labels (DeepClient); Diver helmets and tanks are parts (EnemyRenderer); torpedoes are a box with ball bubbles (CombatFx); the Leviathan Engine is a part-built serpent sub (WorldFx). PLACEHOLDER ART.
 - More activities (2026-11-17): the valve, scaffold, crane load, crate stack, convoy and tow cars, airship, parade float, power clamps, stadium gates, bridge barricade, defusal charge, demolition pylons, courier drop pads, recon outposts, the contract generator and the Harbour fog banks are plain parts (IncidentService, EventService, ContractService, ActivityFx). PLACEHOLDER ART.
 - New robot types (2026-11-17): the riot shield, officer's cap, rifle, visor, bandolier, medic backpack, jet wings and hook launcher are plain parts (EnemyRenderer); the aim laser, tracer, net, hook and cable, grenade, burning patch, repair beam, rally ring and the Mimic's glitch burst are neon parts and the effects library's particles (CombatFx); their sounds are pitched built-in sounds (Config.Audio aimLock, grenadeBoom, rally, reveal). PLACEHOLDER ART until meshes and effect sheets.
-- Store page (M12): candidate icons and thumbnails made 2026-11-17 (art/export/store, see "Store art candidates" below); thumbnail 3 shows Rustjaw Prime's PLACEHOLDER LOOK (re-render it with `bash art/store/make.sh boss` once the boss lore look is final). No concept art yet.
+- Store page (M12): icons and thumbnails made 2026-11-17, nate's picks (art/export/store, see "Store art picks" below); thumbnail 3 shows Rustjaw Prime's PLACEHOLDER LOOK (re-render it with `bash art/store/make.sh boss` once the boss lore look is final). No concept art yet.
 - Origin crests (lore step 2, 2026-11-17): the five origin crests (Lab, Star-Blood, Relic, Tech, Dojo) are glyphs (⚗ ☄ ❂ ⚙ ⚔) on the crest backing like every emblem (Config.Creator.shapes). PLACEHOLDER ART until the emblem set; check each glyph renders in Studio.
 - The Ceremony prologue (lore step 3, 2026-11-17): the stage before Crane's Hero Hall (a deck, gold trim, steps, a podium and the Hall's banner), the scanner drone and its red sweep, the falling sign, the shield bubble, the subway slabs and rubble, and the Crane Industries billboard (Silas Crane's smiling face drawn with UI shapes, the brand and the slogan) are plain parts and frames (PrologueFx); the crowd, the kid, the shover and Silas Crane are plain people on the blocky rig in flat colours with a code cheer, wave and run (PrologueFx); the subway pocket's tunnels are greybox like every pocket (PocketLayout); the CAPELINE title card is the plain Kit title (StoryHud); Patch's radio blip is a pitched built-in clip (Config.Audio radio). PLACEHOLDER ART.
 - The rooftop row (2026-11-17, Config.City.downtown.row): its rooftop dressing (AC units, water tanks, a blank billboard frame, a washing line, skylights, roof hatches) is plain boxes in the city palette (CityLayout ROW_DRESS); the billboard face is blank. PLACEHOLDER ART until the kit gets rooftop meshes.
@@ -64,26 +64,30 @@ phones or Studio go on the Studio test list below.
 - Famous fakes and the evil twin (lore step 4, 2026-11-17): the cracked faces are art/export/clothes/faces/Face_<Name>_Cracked.png (6, made by art/clothes/faces.py; nate uploads them into Config.NpcLooks.faces.<Name>.cracked, 0 until then); until then the crack is a part-built overlay (a steel plate, a neon red eye ball and three dark crack bars on the head, EnemyRenderer). Skylance's spear is a cylinder and a wedge; the path-coloured shots are a neon core with a trail (CombatFx.pathShot); the unmask sound is a pitched built-in click (Config.Audio unmask) and its flash, rings and "FAKE!" pop are neon parts and Kit frames (JuiceFx.unmask). PLACEHOLDER ART.
 - Hero creator first slice (2026-11-16): the 121 new pieces (beards, faces, makeup, hats, ears, shoulders, neck, arms, wrists, belts, legs, back bling, 10 hair styles) are blocks, wedges, balls and cylinders welded to the body (PieceKits); all 36 weapons are part-built (WeaponKit); body builds and heights scale the blocky rig and the 8 Blender body sets (art/blender/bodies.py, 2026-11-17) reshape it once Bodies.fbx is imported; weapon moves reuse the power visuals in a steel colour with no swing animation. PLACEHOLDER ART.
 
-## Store art candidates (2026-11-17)
+## Store art picks (2026-11-17)
 Rendered with our Blender pipeline from notes/Store Page.md (scripts art/store/*.py; regenerate all with
-`bash art/store/make.sh`, or one with `bash art/store/make.sh <flight|clash|smash|fly|build|boss>`).
-- Icons (512 x 512, no text): `icon_flight.png` (Comic hero flying through Volt lightning over the towers),
-  `icon_clash.png` (Anime hero with a gold aura against a Spark Trooper, shockwave ring), `icon_smash.png`
-  (Comic hero punching a Spark Trooper through a cracking tower wall).
-- Thumbnails (1920 x 1080): `thumb_fly.png` ("FLY. FIGHT. SAVE.": banking between towers at sunset as one
-  collapses), `thumb_build.png` ("HERO OR VILLAIN?": Bruiser, Blaster, Speedster and Controller, two Comic
-  and two Anime, with Titan, Volt, Pulse plus a Blade, and Frost; the Controller in the horned villain look), `thumb_boss.png` ("GIANT WORLD
-  BOSS": ten heroes around Rustjaw Prime with the boss bar and fireworks).
+`bash art/store/make.sh`, or one with `bash art/store/make.sh <clash|smash|build|boss|twist>`). nate's picks
+(2026-11-17): the flying icon and thumbnail were dropped as too basic; the hero keeps his colours.
+- Icons (512 x 512, no text): `icon_clash.png` (Anime hero with a gold aura against a Spark Trooper, shockwave
+  ring), `icon_smash.png` (Comic hero punching a Spark Trooper through a cracking tower wall).
+- Thumbnails (1920 x 1080): `thumb_build.png` ("HERO OR VILLAIN?": Bruiser, Blaster, Speedster and Controller,
+  two Comic and two Anime, with Titan, Volt, Pulse plus a Blade, and Frost; the Controller in the horned villain
+  look), `thumb_boss.png` ("GIANT WORLD BOSS": ten heroes around Rustjaw Prime with the boss bar and fireworks),
+  `thumb_twist.png` ("TRUST NO HERO": the Comic hero's punch landing on Radiant, the golden famous fake, its face
+  cracked half open to the metal and a red eye; white flash and sparks; Downtown by day with a corner of the
+  Crane Industries billboard, its words drawn as bars).
 - Files: art/export/store/*.png (also copied to the project files, capeline/art/store/); contact sheet
-  art/preview/store_candidates.png shows each icon at 150 and 50 px as a phone shows it.
+  art/preview/store_picks.png (project files: capeline/art/store/picks.png) shows each icon at 150 and 50 px as
+  a phone shows it.
 
 What nate does:
-1. Look at art/preview/store_candidates.png and the full-size files; pick 2 or 3 icons and 2 or 3 thumbnails
-   (or ask for changes).
+1. Look at art/preview/store_picks.png and the full-size files (or ask for changes).
 2. Run the Playtest Kit check #42 (name and look) on the picks.
 3. Upload them himself in the Creator Dashboard (Places > Configure: icon and thumbnails). Nothing was uploaded.
 4. A/B test them with the Dashboard's icon and thumbnail tests and the launch ads; keep the best click-through.
-5. Re-render thumb_boss once the bosses' lore look is final (`bash art/store/make.sh boss`).
+5. Re-render with the final art before the ads: thumb_boss once the bosses' lore look is final
+   (`bash art/store/make.sh boss`), thumb_twist once Radiant's cracked face decal and look are final in game
+   (`bash art/store/make.sh twist`).
 
 ## Studio test list (needs nate's PC)
 
