@@ -249,13 +249,14 @@ if ROBOT == "heroes":
              (60, 40, 28), (150, 140, 170)]
     faces = ["Hero", "Stern", "Sharp", "Rookie", "Cold", "Scarred", "Hero", "Sharp"]
     kit.studio(res=(2400, 760), samples=48)
+    page = int(VERSION) if VERSION.isdigit() else 1  # clothed.py heroes 2: outfits 9 to 16
     for i in range(8):
         figure(((3.5 - i) * 4.4, 0, 0), (i % 3 - 1) * 12, skins[i], hairs[i], face=faces[i],
-               outfit="heroes/preview/Hero%d" % (i + 1), layered=True)
+               outfit="heroes/preview/Hero%d" % ((page - 1) * 8 + i + 1), layered=True)
     floor = kit.cyl("floor", 24, 24, 0.2, at=(0, 0, -0.1), segs=48)
     floor.data.materials.append(kit.material("floor", (60, 64, 72), rough=0.8))
     kit.camera((0, 40.0, 4.2), (0, 0, 2.3), lens=37)
-    kit.render(os.path.join(kit.ROOT, "preview", "hero_clothes.png"))
+    kit.render(os.path.join(kit.ROOT, "preview", "hero_clothes.png" if page == 1 else "hero_clothes_%d.png" % page))
 elif ROBOT == "uniforms":
     # every robot kind in one version of its uniform, with mixed skins, faces and hair (art/clothes/uniforms.py)
     kinds = ["SparkDrone", "BurglarBot", "SneakBot", "BruteBot", "Turret", "NullSentinel", "Diver", "Anchor",

@@ -237,15 +237,16 @@ Checks (walk out of the plaza to the east):
 10. Performance: about 120 more parts on the block; the Dev panel frame time is unchanged.
 
 ### Heroes: a Roblox character in our own clothes (2026-11-17)
-nate's call: every hero is the classic blocky Roblox character and keeps nothing from the player's avatar ("They wear our clothes, our gear, our accessories"). Our classic Shirt and Pants (art/clothes/heroes.py: 10 shirts, 6 pants, preview art/preview/hero_clothes.png), tinted by the hero's colours, our 6 faces and our hair, with suits and gear on top. No gender, build or height. The Output says build our-clothes (2026-11-17).
+nate's call: every hero is the classic blocky Roblox character and keeps nothing from the player's avatar ("They wear our clothes, our gear, our accessories"). Our classic Shirt and Pants (art/clothes/heroes.py: 18 shirts, 12 pants, previews art/preview/hero_clothes.png and hero_clothes_2.png), tinted by the hero's colours, our 6 faces and our hair, with suits and gear on top. No gender, build or height. The Output says build city-clothes (2026-11-17).
 Uploads (with the robot uploads below; Claude puts the ids in Config.Creator.clothes):
-1. Asset Manager > Bulk Import the 16 PNGs in project files capeline/art/clothes/heroes (Shirt_*.png, Pants_*.png; not the preview folder). Copy each id into the chat with its name. Until then the body is painted in the shirt's and pants' colours.
+1. Asset Manager > Bulk Import the 30 PNGs in project files capeline/art/clothes/heroes (Shirt_*.png, Pants_*.png; not the preview folder). Copy each id into the chat with its name. Until then the body is painted in the shirt's and pants' colours.
 Checks:
 2. New hero: a hoodie and jeans (tinted in the hero colours), the Hero face, swept hair, a domino mask, a classic cape and a star. Nothing from your Roblox avatar shows (no hats, hair, clothes or face of yours).
 3. Creator: no Body step. HEAD has Face (our 6 faces) first; TORSO has Shirt first; WAIST AND LEGS has Pants first. Shirt, Pants and Face have no NONE. Each shirt and pants changes in the preview and in the world; a slot colour square tints it.
 4. Pick a Top (suit): it covers the shirt and pants; NONE on Top brings the shirt and pants back. A Legs piece covers only the pants.
 5. Short sleeves, the tank and shorts show the skin; hands are skin under every shirt.
 6. HQ mannequins show the outfit as plain colours (they have no Humanoid, so Roblox clothing cannot draw on them).
+7. Citizens: once the clothes are uploaded, every citizen wears one of the shirts and pants in its own colours, with one of our faces (if uploaded); walking around, no two near each other look the same. Clothes sit right on every face of the body (if all are shifted, Config.NpcLooks.offsetSign flips them, as for robots).
 
 ### Robots: try both looks in game (2026-11-17)
 nate wants to compare the two robot looks in game: "Roblox" (a plain Roblox character: blocky R15 body, classic clothes image, a Roblox face that turns, real Roblox hair from the catalog; every robot kind has 3 uniform versions, Grunt, Veteran and Elite, preview art/preview/uniforms.png) and "Shell" (the Blender superhero meshes below). Dev panel button "Robots: Auto / Roblox / Shell / Plain" switches every robot live. The Output says build robot-uniforms (2026-11-17).

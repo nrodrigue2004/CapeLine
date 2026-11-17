@@ -5977,8 +5977,8 @@ test(
 		end
 		-- 121 in the first slice, then 2026-11-17's head area: 20 hair, 7 facial hair, 15 faces, 12 makeup,
 		-- 4 ears, 14 eyes and 20 emblems; then 10 headwear and 14 masks; then 30 tops, 10 shoulders and 7 neck; then 7 arms, 8 gloves, 14 boots, 6 wrist, 7 belts, 18 legs, 10 back bling and 3 capes (73)
-		-- and the classic clothes and faces (2026-11-17): 10 shirts, 6 pants, 6 faces
-		check(count == 121 + 92 + 24 + 47 + 73 + 22, "379 pieces beyond the first 146 (525 in all)")
+		-- and the classic clothes and faces (2026-11-17): 18 shirts, 12 pants, 6 faces
+		check(count == 121 + 92 + 24 + 47 + 73 + 36, "393 pieces beyond the first 146 (539 in all)")
 		-- every piece's unlock can actually be earned
 		for _, p in idx.list do
 			local src, n = p.source, p.source.n

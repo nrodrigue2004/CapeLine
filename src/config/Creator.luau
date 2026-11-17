@@ -730,7 +730,7 @@ return {
 			},
 		},
 		-- 2026-11-17 (nate: heroes keep nothing from their avatar, "They wear our clothes, our gear, our
-		-- accessories"): a blocky Roblox character in our own classic Shirt and Pants (art/clothes/heroes.py,
+		-- accessories"): a blocky Roblox character in our own classic Shirt and Pants (18 shirts, 12 pants) (art/clothes/heroes.py,
 		-- tinted by the slot's colour; image ids in Config.Creator.clothes) and one of our faces. A suit or legs
 		-- piece goes over them. All free: the everyday look is never sold.
 		{
@@ -748,6 +748,14 @@ return {
 				{ "Tank", "Tank", "free" },
 				{ "Knit Sweater", "Sweater", "free" },
 				{ "Bomber", "Bomber", "free" },
+				{ "Flannel Shirt", "Flannel", "free" },
+				{ "Denim Jacket", "DenimJacket", "free" },
+				{ "Leather Jacket", "LeatherJacket", "free" },
+				{ "Blazer and Tie", "Blazer", "free" },
+				{ "Turtleneck", "Turtleneck", "free" },
+				{ "Raglan Tee", "Raglan", "free" },
+				{ "Comet Tee", "GraphicTee", "free" },
+				{ "Puffer Vest", "PufferVest", "free" },
 			},
 		},
 		{
@@ -761,6 +769,12 @@ return {
 				{ "Casual Shorts", "Shorts", "free" },
 				{ "Track Bottoms", "TrackPants", "free" },
 				{ "Slacks", "Slacks", "free" },
+				{ "Classic Skirt", "Skirt", "free" },
+				{ "Long Skirt", "LongSkirt", "free" },
+				{ "Torn Denim", "RippedJeans", "free" },
+				{ "Chinos", "Chinos", "free" },
+				{ "Leggings", "Leggings", "free" },
+				{ "Lounge Sweats", "Sweatpants", "free" },
 			},
 		},
 		{
@@ -793,8 +807,29 @@ return {
 			Tank = 0,
 			Sweater = 0,
 			Bomber = 0,
+			Flannel = 0,
+			DenimJacket = 0,
+			LeatherJacket = 0,
+			Blazer = 0,
+			Turtleneck = 0,
+			Raglan = 0,
+			GraphicTee = 0,
+			PufferVest = 0,
 		},
-		pants = { Jeans = 0, Cargo = 0, Joggers = 0, Shorts = 0, TrackPants = 0, Slacks = 0 },
+		pants = {
+			Jeans = 0,
+			Cargo = 0,
+			Joggers = 0,
+			Shorts = 0,
+			TrackPants = 0,
+			Slacks = 0,
+			Skirt = 0,
+			LongSkirt = 0,
+			RippedJeans = 0,
+			Chinos = 0,
+			Leggings = 0,
+			Sweatpants = 0,
+		},
 	},
 	-- gender, build and height (nate, 2026-11-17: removed; every hero is the standard blocky body). true brings
 	-- the creator's Body step back.
