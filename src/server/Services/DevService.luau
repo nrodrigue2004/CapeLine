@@ -13,6 +13,8 @@
 -- for n hours away), pieces (unlock every creator piece), buy n (test-purchase shop item n with a fixed
 -- receipt id: the second time grants nothing), legacy (the level cap and retire at HQ next).
 -- Lore step 2: street 0/1 (the street outfit off or on, CreatorService.streetOutfit).
+-- Lore step 4: fake 1-3 (Radiant, Bulwark or Skylance 25 studs in front of the hero, at the hero's level), twin
+-- (an evil twin of your own hero there).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -73,6 +75,20 @@ local commands: { [string]: (player: Player, hero: any, value: number) -> () } =
 		local pos = HeroService.position(hero)
 		if kind and pos then
 			EnemyService.spawnAround(pos, 3, kind)
+		end
+	end,
+	fake = function(_, hero, index)
+		local kind = ({ "Radiant", "Bulwark", "Skylance" })[index]
+		local pos = HeroService.position(hero)
+		if kind and pos then
+			local cfg = Config.Enemies[kind]
+			EnemyService.spawnAt(kind, pos + Vector3.new(0, if cfg.flies then 14 else 0, -25), hero.level)
+		end
+	end,
+	twin = function(player, hero)
+		local pos = HeroService.position(hero)
+		if pos then
+			EnemyService.spawnTwin(player, pos + Vector3.new(0, 14, -25), hero.level)
 		end
 	end,
 	points = function(_, hero, n)

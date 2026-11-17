@@ -8193,7 +8193,10 @@ test("Roblox look: classic clothes map onto the R15 body, robots' recipes and Ro
 	-- every robot kind has its three uniform versions, so no kind is left in the plain look
 	check(#NL.versions == 3, "three uniform versions")
 	for _, kind in Config.Enemies.order do
-		check(NL.robots[kind] ~= nil, kind .. " has a Roblox-look uniform")
+		-- (the famous fakes and the twin wear a hero look instead: lore step 4)
+		if not Config.Enemies[kind].fake then
+			check(NL.robots[kind] ~= nil, kind .. " has a Roblox-look uniform")
+		end
 	end
 	for kind, r in NL.robots do
 		check(Config.Enemies[kind] ~= nil and Config.Enemies[kind].typeId ~= nil, kind .. " is a robot")
@@ -9615,6 +9618,472 @@ test("Lore step 2: creator first: the Opening funnel starts with the creator", f
 	)
 	check(F[4] == "first_leap" and F[7] == "opening_done", "then the opening")
 	check(AnalyticsSchema.EVENTS.origin_pick ~= nil, "origin picks are logged")
+end)
+
+---------------------------------------------------------------------------
+-- Lore step 4: the famous fakes and the evil twin (Config.Enemies `fake`, Shared.FakeRules)
+---------------------------------------------------------------------------
+
+local FakeRules = require("../src/shared/FakeRules")
+local function readFile(path: string): string
+	return require("@lune/fs").readFile(path)
+end
+local FAKES = { "Radiant", "Bulwark", "Skylance" }
+
+test("Lore 4: each famous fake wears a full hero look that validates through CreatorRules", function()
+	local CreatorRules = require("../src/shared/CreatorRules")
+	local LookCodec = require("../src/shared/LookCodec")
+	local ProfileSchema = require("../src/shared/ProfileSchema")
+	-- an account that has earned everything a player can earn (every piece but the Robux packs')
+	local profile = ProfileSchema.default()
+	for _, p in CreatorRules.index(Config).list do
+		if p.source.kind ~= "pack" and p.source.kind ~= "starter" then
+			CreatorRules.grant(profile, p)
+		end
+	end
+	local L = Config.Enemies.look
+	local names = {}
+	for _, kind in FAKES do
+		local cfg = Config.Enemies[kind]
+		check(cfg.fake ~= nil and cfg.fake.look ~= nil, kind .. " has a hero look")
+		check(type(cfg.fake.title) == "string" and cfg.fake.title ~= "", kind .. " has a title")
+		check(Config.Abilities.setName[cfg.fake.path] ~= nil, kind .. "'s attacks take a real path's look")
+		local look = FakeRules.look(Config, kind)
+		local ok, why = CreatorRules.validate(Config, profile, look)
+		check(ok, kind .. " look validates (" .. tostring(why) .. ")")
+		for slot, i in look.pieces do
+			if i > 0 then
+				local p = CreatorRules.piece(Config, slot, i)
+				check(
+					p ~= nil and p.source.kind ~= "pack",
+					kind .. " " .. slot .. " is earnable, never a Robux piece"
+				)
+			end
+		end
+		-- a full hero: a suit, a face, hair, an emblem and its colours
+		for _, slot in { "suit", "visage", "hair", "emblem" } do
+			check((look.pieces[slot] or 0) > 0, kind .. " wears a " .. slot)
+		end
+		-- the record survives the codec byte for byte
+		local again = LookCodec.decode(LookCodec.encode(look :: any)) :: any
+		check(
+			again ~= nil
+				and buffer.tostring(LookCodec.encode(again))
+					== buffer.tostring(LookCodec.encode(look :: any)),
+			kind .. " look round-trips"
+		)
+		-- drawn on the build and gender its look has
+		check(L.builds[cfg.body.build] == look.build, kind .. " robot build matches its hero build")
+		check((cfg.body.gender or 1) == look.gender, kind .. " robot gender matches its look")
+		check(not names[cfg.name], kind .. " has its own name")
+		names[cfg.name] = true
+		check(cfg.elite and cfg.miniBoss, kind .. " is mini-boss tier")
+		check(cfg.hp >= 4 * Config.Enemies.NullSentinel.hp / 2, kind .. " HP is mini-boss tier")
+		check(Config.Enemies.mix[kind] == nil, kind .. " never spawns in the ambient mix")
+	end
+	check(Config.Enemies.Bulwark.body.height > 1.5 * Config.Enemies.Radiant.body.height, "Bulwark is a giant")
+	check(FakeRules.look(Config, "Bulwark").build == 4, "Bulwark has the Titan build")
+	-- the twin with no hero yet wears the default look
+	local d = FakeRules.look(Config, "EvilTwin")
+	check(CreatorRules.validate(Config, profile, d), "the twin's stand-in look is the default look")
+end)
+
+test(
+	"Lore 4: fakes and the twin respect their switches; nothing new in the ambient mix or the swaps",
+	function()
+		for _, kind in { "Radiant", "Bulwark", "Skylance", "EvilTwin" } do
+			local cfg = Config.Enemies[kind]
+			check(cfg.on == true, kind .. " has an on switch (on)")
+			local off = table.clone(Config)
+			off.Enemies = table.clone(Config.Enemies)
+			off.Enemies[kind] = table.clone(cfg)
+			off.Enemies[kind].on = false
+			local sim = EnemySim.new(off, {})
+			check(EnemySim.spawn(sim, kind, 0, 20, 0, 5) == nil, kind .. " off: never spawns")
+			check(not EnemySim.enabled(off, kind), kind .. " off: not enabled")
+			if kind == "EvilTwin" then
+				check(EnemySim.spawnTwin(sim, "Fire", 0, 20, 0, 5) == nil, "twin off: no twin of anyone")
+			end
+			local on = EnemySim.new(Config, {})
+			check(EnemySim.spawn(on, kind, 0, 20, 0, 5) ~= nil, kind .. " on: spawns")
+			for _, sw in Config.Enemies.variety.swaps do
+				check(sw.kind ~= kind and not table.find(sw.from, kind), kind .. " is not an open-world swap")
+			end
+		end
+	end
+)
+
+test("Lore 4: the face cracks at the threshold, once, and the shell only breaks after it", function()
+	local RobotDamage = require("../src/shared/RobotDamage")
+	local crack = FakeRules.crackAt(Config)
+	check(crack > 0 and crack < 1, "a crack threshold")
+	check(not FakeRules.cracked(Config, crack + 0.01) and FakeRules.cracked(Config, crack), "cracked at it")
+	for _, kind in FAKES do
+		local sim = EnemySim.new(Config, {})
+		local e = EnemySim.spawn(sim, kind, 0, 20, 0, 10) :: any
+		EnemySim.drainEvents(sim)
+		local max = e.maxHealth
+		-- (mitigation cuts each hit, so hit by what lands)
+		local cut = 1 - (e.cfg.mitigation or 0)
+		EnemySim.damage(sim, e.id, (max * (1 - crack) - 5) / cut, 1)
+		local unmasks = 0
+		for _, ev in EnemySim.drainEvents(sim) do
+			if ev.k == "unmask" then
+				unmasks += 1
+			end
+		end
+		EnemySim.step(sim, 1, {})
+		check(unmasks == 0 and not e.unmasked, kind .. " still a hero just above the crack")
+		check(bit32.band(e.extra, EnemySim.EXTRA.unmasked) == 0, kind .. " no unmasked bit yet")
+		local h = e.health / max
+		check(FakeRules.shellHealth(Config, h, false) == 1, kind .. " shell whole before the crack")
+		check(
+			RobotDamage.count(FakeRules.shellHealth(Config, h, false), 17, Config.Enemies.look.stripBy) == 0,
+			"no piece off"
+		)
+		EnemySim.damage(sim, e.id, 10 / cut, 1)
+		EnemySim.damage(sim, e.id, 10 / cut, 1)
+		for _, ev in EnemySim.drainEvents(sim) do
+			if ev.k == "unmask" then
+				unmasks += 1
+				check(ev.e == e.id, "the event names the fake")
+			end
+		end
+		EnemySim.step(sim, 2, {})
+		check(unmasks == 1 and e.unmasked, kind .. " unmasked once, at the crack")
+		check(bit32.band(e.extra, EnemySim.EXTRA.unmasked) ~= 0, kind .. " unmasked bit on the wire")
+		near(
+			FakeRules.shellHealth(Config, crack * 0.5, true),
+			0.5,
+			1e-9,
+			"half the shell health left at half the crack"
+		)
+		check(FakeRules.shellHealth(Config, 0, true) == 0, "all metal at the end")
+	end
+	-- a plain robot never unmasks
+	local sim = EnemySim.new(Config, {})
+	local w = EnemySim.spawn(sim, "BruteBot", 0, 0, 0, 1) :: any
+	EnemySim.damage(sim, w.id, w.maxHealth * 0.8, 1)
+	for _, ev in EnemySim.drainEvents(sim) do
+		check(ev.k ~= "unmask", "robots without a hero look have no face to crack")
+	end
+end)
+
+test("Lore 4: plates read the hero name and title, no robot tag, then FAKE in red", function()
+	for _, kind in FAKES do
+		local cfg = Config.Enemies[kind]
+		local p = FakeRules.plate(Config, kind, false)
+		check(
+			p.name == string.upper(cfg.name) and p.sub == cfg.fake.title and not p.red,
+			kind .. " hero plate"
+		)
+		local lower = string.lower(p.name .. " " .. p.sub)
+		for _, word in { "robot", "bot", "fake", "crane", "android" } do
+			check(not string.find(lower, word, 1, true), kind .. " plate has no robot tag: " .. word)
+		end
+		local u = FakeRules.plate(Config, kind, true)
+		check(
+			u.name == "FAKE" and u.red and u.sub == string.upper(cfg.name),
+			kind .. " unmasked: FAKE in red"
+		)
+	end
+	local ident = { name = "Iron Comet", title = "Lab-Born" }
+	local t = FakeRules.plate(Config, "EvilTwin", false, ident)
+	check(t.name == "IRON COMET" and t.sub == "Lab-Born" and not t.red, "the twin's plate reads its hero")
+	local tu = FakeRules.plate(Config, "EvilTwin", true, ident)
+	check(tu.name == "FAKE" and tu.red and tu.sub == "IRON COMET", "the twin unmasked")
+	-- the client builds the plate and turns it on the unmasked bit
+	local src = clientSources()["src/client/Controllers/EnemyRenderer.luau"]
+	check(string.find(src, "FakeRules.plate(", 1, true) ~= nil, "EnemyRenderer draws plates from FakeRules")
+	check(string.find(src, "EXTRA.unmasked", 1, true) ~= nil, "and reads the unmasked bit")
+end)
+
+test("Lore 4: the evil twin copies its hero's look bytes and fights with its path's style", function()
+	local LookCodec = require("../src/shared/LookCodec")
+	local CreatorRules = require("../src/shared/CreatorRules")
+	-- the server sends the active character's words as they are; the client reads the same look back
+	local rng = Rng.new(44)
+	local look = CreatorRules.randomize(Config, nil, rng)
+	look.tints.suit = { 3, 7, 0 }
+	look.mats.back = 2
+	local words = LookCodec.write(look)
+	local sent = LookCodec.toWords(LookCodec.fromWords(words))
+	check(#sent == #words, "same word count")
+	local same = true
+	for i, w in words do
+		same = same and sent[i] == w
+	end
+	check(same, "the twin carries the exact look record")
+	local back = LookCodec.read(sent) :: any
+	check(
+		buffer.tostring(LookCodec.encode(back)) == buffer.tostring(LookCodec.encode(look)),
+		"and draws the exact look"
+	)
+	-- every one of the 17 paths maps to a style its brain knows, drawn in that path's look
+	local brains = {
+		blaster = "flyer",
+		gunner = "sniper",
+		lobber = "bomber",
+		striker = "sneak",
+		duelist = "sneak",
+		smasher = "brute",
+	}
+	local n = 0
+	for _, arch in Config.Classes.order do
+		for _, path in Config.Classes[arch].paths do
+			n += 1
+			local style = FakeRules.styleOf(Config, path)
+			local cfg = FakeRules.twinCfg(Config, path)
+			check(brains[style] ~= nil and cfg.ai == brains[style], path .. " -> " .. tostring(style))
+			check(cfg.fake.path == path, path .. " twin draws its attacks in its path's look")
+			local sim = EnemySim.new(Config, {})
+			local e = EnemySim.spawnTwin(sim, path, 0, 20, 0, 12) :: any
+			check(
+				e ~= nil and e.kind == "EvilTwin" and e.path == path and e.ai == cfg.ai,
+				path .. " twin spawns"
+			)
+			check(e.maxHealth == Formulas.enemyHealth(Config, "EvilTwin", 12), path .. " twin HP")
+		end
+	end
+	check(n == 17, "all 17 paths")
+	check(
+		FakeRules.styleOf(Config, "Titan") == "smasher" and FakeRules.styleOf(Config, "Shadow") == "striker",
+		"melee paths"
+	)
+	check(FakeRules.twinCfg(Config, "Blade").cloak == false, "a sword twin walks straight in (no cloak)")
+	check(
+		FakeRules.twinCfg(Config, "nope").fake.path == Config.Enemies.EvilTwin.twin.default,
+		"unknown path: default"
+	)
+	-- the server's API and its wire
+	local svc = readFile("src/server/Services/EnemyService.luau")
+	check(
+		string.find(
+			svc,
+			"function EnemyService.spawnTwin(player: Player, pos: Vector3, level: number",
+			1,
+			true
+		) ~= nil,
+		"EnemyService.spawnTwin(player, pos, level)"
+	)
+	check(
+		string.find(svc, '"EnemyIdentity"', 1, true) ~= nil and Remotes.EnemyIdentity ~= nil,
+		"who a twin copies goes to every device"
+	)
+end)
+
+test(
+	"Lore 4: the fakes' moves: Radiant's dive, Bulwark's guard, charge and shockwave, Skylance's spear and dash",
+	function()
+		-- Radiant: a warning ring under the hero, then the dive lands on it
+		local sim = EnemySim.new(Config, {})
+		local r = EnemySim.spawn(sim, "Radiant", 0, 30, 0, 10) :: any
+		local hero = { id = 1, x = 0, y = 3, z = -30, alive = true }
+		local warned, dived, hit, pathShots = false, false, 0, 0
+		run(sim, { hero }, 0, 14, function(ev)
+			if ev.k == "warn" and ev.e == r.id then
+				warned = true
+			elseif ev.k == "dash" and ev.e == r.id then
+				dived = true
+			elseif ev.k == "hit" and ev.melee then
+				hit += 1
+			elseif ev.k == "shot" and ev.style == 4 then
+				pathShots += 1
+			end
+		end)
+		check(warned and dived and hit >= 1, "Radiant warns, dives and strikes")
+		check(pathShots >= 3, "Radiant's bolts are path shots")
+		-- Bulwark: the shield takes front hits; a charge down a lane at a hero farther off; every 3rd slam a shockwave
+		sim = EnemySim.new(Config, {})
+		local b = EnemySim.spawn(sim, "Bulwark", 0, 0, 0, 10) :: any
+		b.yaw = 0
+		local fx, fz = -math.sin(0), -math.cos(0)
+		local _, _, _, flag = EnemySim.damage(sim, b.id, 100, 1, b.x + fx * 10, b.z + fz * 10)
+		check(flag == EnemySim.BLOCKED, "a front hit meets the tower shield")
+		local far = { id = 1, x = 0, y = 3, z = -35, alive = true }
+		b.nextSpecial = 0 -- the charge is ready
+		local charged, stunned, lane = false, false, false
+		run(sim, { far }, 0, 6, function(ev)
+			if ev.k == "warn" and ev.e == b.id and ev.arc and ev.arc < 90 then
+				lane = true
+			elseif ev.k == "dash" and ev.e == b.id then
+				charged = true
+			elseif ev.k == "hit" and ev.cc == "stun" then
+				stunned = true
+			end
+		end)
+		check(lane and charged and stunned, "Bulwark shows a lane, charges and stuns the hero in it")
+		sim = EnemySim.new(Config, {})
+		b = EnemySim.spawn(sim, "Bulwark", 0, 0, 0, 10) :: any
+		b.nextSpecial = math.huge -- slams only
+		local close = { id = 1, x = 0, y = 3, z = -6, alive = true }
+		local radii = {}
+		run(sim, { close }, 0, 14, function(ev)
+			if ev.k == "slam" and ev.e == b.id then
+				table.insert(radii, ev.r)
+			end
+		end)
+		check(
+			#radii >= 3 and radii[3] == Config.Enemies.Bulwark.shockwave.radius,
+			"every 3rd slam is a shockwave"
+		)
+		check(radii[1] == Config.Enemies.Bulwark.slam.radius, "the others the shield slam")
+		-- a hero in the air (a jump) clears the shockwave
+		sim = EnemySim.new(Config, {})
+		b = EnemySim.spawn(sim, "Bulwark", 0, 0, 0, 10) :: any
+		b.nextSpecial = math.huge
+		b.slams = 2
+		local jumper = { id = 1, x = 0, y = 9, z = -6, alive = true }
+		local hits = 0
+		run(sim, { jumper }, 0, 2.5, function(ev)
+			if ev.k == "hit" then
+				hits += 1
+			end
+		end)
+		check(hits == 0, "jumping clears the shockwave")
+		-- Skylance: a sighting line, a path spear, a dash to one side
+		sim = EnemySim.new(Config, {})
+		local s = EnemySim.spawn(sim, "Skylance", 0, 0, 0, 10) :: any
+		local target = { id = 1, x = 0, y = 3, z = -50, alive = true }
+		local aimed, spear, dashed = false, false, false
+		run(sim, { target }, 0, 8, function(ev)
+			if ev.k == "aim" and ev.e == s.id then
+				aimed = true
+			elseif ev.k == "shot" and ev.e == s.id and ev.style == 4 then
+				spear = true
+			elseif ev.k == "dash" and ev.e == s.id then
+				dashed = true
+			end
+		end)
+		check(aimed and spear and dashed, "Skylance sights, throws a spear and dashes aside")
+		-- the dive, charge and dash and the face crack reach every device
+		local svc = readFile("src/server/Services/EnemyService.luau")
+		check(
+			string.find(svc, 'ev.k == "dash"', 1, true) ~= nil
+				and string.find(svc, 'ev.k == "unmask"', 1, true) ~= nil,
+			"DASH and UNMASK on the wire"
+		)
+		local cc = clientSources()["src/client/Controllers/CombatClient.luau"]
+		check(string.find(cc, "CombatFx.pathShot(", 1, true) ~= nil, "path shots drawn in the path's look")
+		check(
+			string.find(cc, 'Juice.fire("unmask"', 1, true) ~= nil
+				and string.find(cc, "hitPause(Config.Fx.fakes.unmaskPause)", 1, true) ~= nil,
+			"the crack: sound, flash and hit-stop"
+		)
+		check(Config.Audio.sounds.unmask ~= nil, "the crack has a sound")
+	end
+)
+
+-- damage a second on a hero standing 30 studs off (80 for a Sniper), from one robot over 60 s, per (20 + 4L)
+local function robotDps(kind: string, level: number, path: string?): number
+	local sim = EnemySim.new(Config, {})
+	local e = if path
+		then EnemySim.spawnTwin(sim, path, 0, 30, 0, level) :: any
+		else EnemySim.spawn(sim, kind, 0, 30, 0, level) :: any
+	if e.ai ~= "flyer" then
+		e.y = EnemySim.halfHeight(e.cfg)
+	end
+	local dist = if e.ai == "sniper" and not e.cfg.dash then 80 else 30
+	local hero = { id = 1, x = 0, y = 3, z = -dist, alive = true, lx = 0, lz = 1 }
+	local total, t = 0, 0
+	while t < 60 do
+		t += 1 / 30
+		EnemySim.step(sim, t, { hero })
+		for _, ev in EnemySim.drainEvents(sim) do
+			if ev.k == "hit" and ev.hero == 1 then
+				total += ev.damage
+			end
+		end
+	end
+	return total / 60
+end
+
+local function bossDps(id: string, level: number): number
+	local sim = BossSim.new(Config, id, 0, 0, 0, 1e9, level, 0, Rng.new(5))
+	BossSim.step(sim, 6, {})
+	local hero = { id = 1, x = 0, y = 3, z = -30, alive = true }
+	local total, t = 0, 6
+	while t < 66 do
+		t += 0.1
+		BossSim.step(sim, t, { hero })
+		for _, ev in BossSim.drain(sim) do
+			if ev.k == "strike" then
+				for _, h in ev.hits do
+					total += h[2]
+				end
+			end
+		end
+	end
+	return total / 60
+end
+
+test(
+	"Lore 4: a fake's damage a second sits between the elite robots and the hardest-hitting world boss",
+	function()
+		local twinPaths = {}
+		local seen = {}
+		for path, style in Config.Enemies.EvilTwin.twin.paths do
+			if not seen[style] then
+				seen[style] = true
+				table.insert(twinPaths, path)
+			end
+		end
+		table.sort(twinPaths)
+		for _, lv in { 5, 20, 40, 50 } do
+			local elite = 0
+			for _, kind in Config.Enemies.order do
+				local cfg = Config.Enemies[kind]
+				if cfg.elite and not cfg.fake then
+					elite = math.max(elite, robotDps(kind, lv))
+				end
+			end
+			local boss = 0
+			for id in Config.Boss.bosses do
+				boss = math.max(boss, bossDps(id, lv))
+			end
+			check(elite > 0 and boss > elite, "L" .. lv .. " a band to fit in")
+			for _, kind in FAKES do
+				local d = robotDps(kind, lv)
+				check(
+					d > elite and d < boss,
+					string.format("L%d %s %.1f between elite %.1f and boss %.1f", lv, kind, d, elite, boss)
+				)
+			end
+			for _, path in twinPaths do
+				local d = robotDps("EvilTwin", lv, path)
+				check(
+					d > elite and d < boss,
+					string.format(
+						"L%d twin of %s (%s) %.1f between %.1f and %.1f",
+						lv,
+						path,
+						FakeRules.styleOf(Config, path),
+						d,
+						elite,
+						boss
+					)
+				)
+			end
+		end
+	end
+)
+
+test("Lore 4: the cracked faces and the Dev panel buttons", function()
+	local NL = Config.NpcLooks
+	for _, fname in NL.faceOrder do
+		check(type(NL.faces[fname].cracked) == "number", fname .. " has a cracked face id (0 until uploaded)")
+	end
+	local dev = clientSources()["src/client/Ui/DevPanel.luau"]
+	check(
+		string.find(dev, '"fake", i', 1, true) ~= nil and string.find(dev, '"twin"', 1, true) ~= nil,
+		"Dev: each fake and your twin"
+	)
+	local ds = readFile("src/server/Services/DevService.luau")
+	check(
+		string.find(ds, "fake = function", 1, true) ~= nil
+			and string.find(ds, "EnemyService.spawnTwin(player", 1, true) ~= nil,
+		"DevService spawns them"
+	)
 end)
 
 print(string.format("\n%d passed, %d failed", passed, failed))

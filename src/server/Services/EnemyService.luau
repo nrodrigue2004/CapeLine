@@ -19,7 +19,11 @@ local EnemyBuffer = require(Shared:WaitForChild("EnemyBuffer"))
 local DeepLayout = require(Shared:WaitForChild("DeepLayout"))
 local Signal = require(Shared:WaitForChild("Util"):WaitForChild("Signal"))
 
+local LookCodec = require(Shared:WaitForChild("LookCodec"))
+local ProfileSchema = require(Shared:WaitForChild("ProfileSchema"))
+
 local HeroService = require(script.Parent.HeroService)
+local DataService = require(script.Parent.DataService)
 local MoveGuard = require(script.Parent.MoveGuard)
 local PerfMonitor = require(script.Parent.PerfMonitor)
 
@@ -54,6 +58,11 @@ EnemyService.WARN, EnemyService.SLAM, EnemyService.SWING, EnemyService.BLOCKED =
 -- the nine new robot types (see EnemySim.EXTRA for the matching wire flags)
 EnemyService.AIM, EnemyService.RALLY, EnemyService.LOB, EnemyService.ZONE = 8, 9, 10, 11
 EnemyService.MEND, EnemyService.REVEAL, EnemyService.BOOM = 12, 13, 14
+-- the famous fakes and the evil twin (lore step 4): a dive, charge or dash; a face cracking
+EnemyService.DASH, EnemyService.UNMASK = 15, 16
+
+-- Evil twins alive now and who they copy (EnemyIdentity: the look, path, name and title every device draws)
+local idents: { [number]: { [string]: any } } = {}
 
 function EnemyService.candidates(): { any }
 	local list = EnemySim.candidates(sim)
@@ -136,8 +145,53 @@ function EnemyService.tune(id: number, opts: { hpMult: number?, dmgMult: number?
 	end
 end
 
+local function forgetIdent(id: number)
+	if idents[id] then
+		idents[id] = nil
+		Net.fireAll("EnemyIdentity", { id = id })
+	end
+end
+
 function EnemyService.remove(id: number)
 	EnemySim.remove(sim, id)
+	forgetIdent(id)
+end
+
+-- An evil twin of `player` (nate's lore, build plan step 4): a fake that beat this hero wears their exact look
+-- (the active character's LookCodec record) and fights with moves from their own power path; its plate reads
+-- their hero name (and origin title) until its face cracks. Story missions (step 5) and a rare world event
+-- (step 9) call this. Returns the robot id, or nil (the twin is switched off, the server is full, no profile).
+function EnemyService.spawnTwin(player: Player, pos: Vector3, level: number, tag: number?): number?
+	local profile = DataService.get(player)
+	local char = profile and ProfileSchema.active(profile)
+	local hero = HeroService.get(player)
+	if not char then
+		return nil
+	end
+	local path = if hero then hero.startSet else char.startSet
+	local e = EnemySim.spawnTwin(sim, path, pos.X, pos.Y, pos.Z, level)
+	if not e then
+		return nil
+	end
+	e.tag = tag
+	local name = player:GetAttribute("HeroName")
+	local title = player:GetAttribute("OriginTitle")
+	local ident = {
+		id = e.id,
+		userId = player.UserId,
+		words = LookCodec.toWords(LookCodec.fromWords(char.look)), -- the exact record (v1 saves read as v2)
+		path = e.path,
+		name = if typeof(name) == "string" and name ~= "" then name else player.DisplayName,
+		title = if typeof(title) == "string" then title else "",
+	}
+	idents[e.id] = ident
+	Net.fireAll("EnemyIdentity", ident)
+	return e.id
+end
+
+-- Who an evil twin copies (nil for any other robot): { userId, words, path, name, title }
+function EnemyService.identity(id: number): { [string]: any }?
+	return idents[id]
 end
 
 function EnemyService.alive(id: number): boolean
@@ -337,6 +391,7 @@ local function handleEvents()
 				{ EnemyService.DIE, ev.e, ev.x, ev.y, ev.z, cfg and cfg.typeId or 1, ev.by or 0 }
 			)
 			EnemyService.Killed:Fire(ev.kind, ev.by, Vector3.new(ev.x, ev.y, ev.z), ev.e)
+			forgetIdent(ev.e)
 		elseif ev.k == "warn" then
 			table.insert(
 				out,
@@ -365,6 +420,10 @@ local function handleEvents()
 			table.insert(out, { EnemyService.REVEAL, ev.e, ev.x, ev.y, ev.z })
 		elseif ev.k == "boom" then
 			table.insert(out, { EnemyService.BOOM, ev.e, ev.x, ev.y, ev.z, ev.r })
+		elseif ev.k == "dash" then
+			table.insert(out, { EnemyService.DASH, ev.e, ev.x, ev.y, ev.z, ev.tx, ev.ty, ev.tz })
+		elseif ev.k == "unmask" then
+			table.insert(out, { EnemyService.UNMASK, ev.e, ev.x, ev.y, ev.z })
 		end
 	end
 	return out
@@ -419,6 +478,13 @@ function EnemyService.init(heightAt: (number, number) -> number)
 	HeroService.Removed:Connect(function(hero)
 		EnemySim.forgetHero(sim, hero.id)
 	end)
+	-- a player who joins sees the twins already out
+	Players.PlayerAdded:Connect(function(player)
+		for _, ident in idents do
+			Net.fire("EnemyIdentity", player, ident)
+		end
+	end)
+
 	PerfMonitor.watch("enemies", function()
 		return EnemySim.count(sim)
 	end)

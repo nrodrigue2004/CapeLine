@@ -68,6 +68,9 @@ local K = { CAST = 1, WINDUP = 2, TICK = 3, LAND = 4, ECHO = 5, END = 6, COMBO =
 local SHOT, HERO_HIT, DIE, WARN, SLAM, SWING, BLOCKED = 1, 2, 3, 4, 5, 6, 7
 -- the nine newer robot types (EnemyService.AIM ... BOOM; the robots' own flags are EnemySim.EXTRA)
 local AIM, RALLY, LOB, ZONE, MEND, REVEAL, BOOM = 8, 9, 10, 11, 12, 13, 14
+-- the famous fakes and the evil twin (lore step 4): a dive, charge or dash; a face cracking
+local DASH, UNMASK = 15, 16
+local PATH_SHOT = 4 -- shot style 4: a power path's shot (CombatFx.pathShot)
 local HOOKED = EnemySim.EXTRA.hooked
 
 -- While robot e's EXTRA bit holds (after a short grace for the next Enemy.Delta): a stun breaks a Sniper's
@@ -689,12 +692,23 @@ local function near(pos: Vector3, range: number): boolean
 	return p ~= nil and (p - pos).Magnitude < range
 end
 
+-- A famous fake's or an evil twin's attacks take its power path's look (lore step 4): the path, the effect
+-- style to draw in (yours) and the colour (a twin's: the effect tint of the player it copies)
+local function fakeLook(e: number): (string?, string, Color3)
+	local set, userId = EnemyRenderer.pathOf(e)
+	return set, styleOf(player.UserId), CombatFx.colorOf(set, userId)
+end
+
 local function onEvents(list: { any })
 	for _, ev in list do
 		local kind = ev[1]
 		if kind == SHOT then
 			local pos, vel = Vector3.new(ev[3], ev[4], ev[5]), Vector3.new(ev[6], ev[7], ev[8])
-			if ev[9] and ev[9] ~= 0 then
+			if ev[11] == PATH_SHOT then
+				local set, style, color = fakeLook(ev[2])
+				CombatFx.pathShot(pos, vel, set, style, color)
+				Juice.path(set, "cast", pos)
+			elseif ev[9] and ev[9] ~= 0 then
 				CombatFx.torpedo(pos, vel, ev[9], ev[10])
 			elseif ev[11] == 3 then
 				local e = ev[2]
@@ -730,12 +744,24 @@ local function onEvents(list: { any })
 			CombatFx.warn(Vector3.new(ev[3], ev[4], ev[5]), ev[6], ev[7], ev[8], ev[9])
 		elseif kind == SLAM then
 			CombatFx.slam(Vector3.new(ev[3], ev[4], ev[5]), ev[6])
+			local set, style, color = fakeLook(ev[2])
+			if set then
+				-- a fake's slam, shockwave or dive lands in its path's look (Colossus' quake, Light's prism...)
+				CombatFx.nova(Vector3.new(ev[3], ev[4] + 1.2, ev[5]), ev[6], style, color, ev[6] >= 18, set)
+				Juice.path(set, "hit", Vector3.new(ev[3], ev[4], ev[5]))
+			end
 			local p = myChest()
 			if p and (p - Vector3.new(ev[3], ev[4], ev[5])).Magnitude < 40 then
 				CameraController.shake(0.2, 0.4)
 			end
 		elseif kind == SWING then
 			EnemyRenderer.swing(ev[2])
+			local set, style, color = fakeLook(ev[2])
+			local f = EnemyRenderer.facing(ev[2])
+			if set and f then
+				-- an evil twin's strike: its path's cut or blow in front of it
+				CombatFx.arc(Vector3.new(ev[3], ev[4], ev[5]), f, 7, 110, style, color, 1, true, false, set)
+			end
 		elseif kind == BLOCKED then
 			CombatFx.blocked(Vector3.new(ev[3], ev[4], ev[5]))
 		elseif kind == AIM then
@@ -780,10 +806,36 @@ local function onEvents(list: { any })
 			Juice.fire("reveal", at, { mine = false })
 		elseif kind == BOOM then
 			local at = Vector3.new(ev[3], ev[4], ev[5])
-			CombatFx.boom(at, ev[6])
+			local set, style, color = fakeLook(ev[2])
+			if set then
+				CombatFx.nova(at + Vector3.new(0, 1.2, 0), ev[6], style, color, false, set) -- a twin's blast
+			else
+				CombatFx.boom(at, ev[6])
+			end
 			Juice.fire("grenadeBoom", at, { mine = false })
 			if near(at, Config.Fx.robots.boom.shake) then
 				CameraController.shake(0.2, 0.45)
+			end
+		elseif kind == DASH then
+			-- {15, e, x,y,z, tx,ty,tz}: a fake's dive, charge or dash, a streak in its path's look
+			local set, style, color = fakeLook(ev[2])
+			CombatFx.dash(
+				Vector3.new(ev[3], ev[4], ev[5]),
+				Vector3.new(ev[6], ev[7], ev[8]),
+				style,
+				color,
+				set
+			)
+		elseif kind == UNMASK then
+			-- {16, e, x,y,z}: a famous fake's face cracks to show metal: sound, flash, and a short hit-stop
+			-- and camera punch when it is near you
+			local at = EnemyRenderer.position(ev[2]) or Vector3.new(ev[3], ev[4], ev[5])
+			local close = near(at, Config.Fx.fakes.unmaskNear)
+			Juice.fire("unmask", at + Vector3.new(0, 2, 0), { mine = close, near = close })
+			if close then
+				hitPause(Config.Fx.fakes.unmaskPause)
+				CameraController.punch(C.punchHeavy)
+				CameraController.shake(0.15, 0.3)
 			end
 		end
 	end

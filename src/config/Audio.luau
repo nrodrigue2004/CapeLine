@@ -91,6 +91,8 @@ return {
 		grenadeBoom = s("action_jump_land.mp3", 0.9, 0.5, { range = 200, vary = 0.08 }), -- a Bomber's grenade
 		rally = s("electronicpingshort.wav", 0.6, 0.6, { range = 160 }), -- a Captain's rally
 		reveal = s("clickfast.wav", 0.7, 0.7, { range = 120 }), -- a Mimic shows itself
+		-- lore step 4: a famous fake's face cracks to show metal (with a white flash and a short hit-stop)
+		unmask = s("clickfast.wav", 1, 0.45, { range = 200 }),
 	},
 
 	-- every path's own sound layer (overhaul plan step 6), played with the slot's cast sound above (Juice.path):

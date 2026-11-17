@@ -7,7 +7,7 @@ OUT_DIR gets files/<name>.png, manifest.json, upload.bat, upload.ps1 and README.
 upload.bat; it writes ids.json (file -> Decal id), which comes back to Claude to fill the configs.
 Targets (manifest "target"):
   npc_clothes  Config.NpcLooks.robots.<robot>.clothes.<version>
-  npc_face     Config.NpcLooks.faces.<face>.<human|turned>
+  npc_face     Config.NpcLooks.faces.<face>.<human|turned|cracked>
   hero_clothes Config.Creator.clothes.<shirts|pants>.<name>
   fx_texture   Config.Fx.lib.textures.<name>.id
   city_map     MaterialVariant "Kit"<name> in MaterialService (<map>: Color, Normal, Roughness, Metalness)
@@ -46,11 +46,14 @@ def entries():
             add(f"clothes/uniforms/{robot}_{version}.png", f"Uniform_{robot}_{version}",
                 {"kind": "npc_clothes", "robot": robot, "version": version})
     # the six shared faces and their turned versions
-    faces = re.findall(r"^\t\t([A-Za-z]+) = \{ human = 0, turned = 0 \}", npc, re.M)
+    faces = re.findall(r"^\t\t([A-Za-z]+) = \{ human = 0, turned = 0", npc, re.M)
     for face in faces:
         add(f"clothes/faces/Face_{face}.png", f"Face_{face}", {"kind": "npc_face", "face": face, "which": "human"})
         add(f"clothes/faces/Face_{face}_Turned.png", f"Face_{face}_Turned",
             {"kind": "npc_face", "face": face, "which": "turned"})
+        if os.path.isfile(os.path.join(EXPORT, f"clothes/faces/Face_{face}_Cracked.png")):
+            add(f"clothes/faces/Face_{face}_Cracked.png", f"Face_{face}_Cracked",
+                {"kind": "npc_face", "face": face, "which": "cracked"})
     # hero shirts and pants
     for f in sorted(os.listdir(os.path.join(EXPORT, "clothes", "heroes"))):
         m = re.match(r"(Shirt|Pants)_([A-Za-z]+)\.png$", f)
