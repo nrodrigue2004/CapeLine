@@ -59,6 +59,9 @@ local MissionService = require(Services.MissionService)
 local TaskForceService = require(Services.TaskForceService)
 local NemesisService = require(Services.NemesisService)
 local MentorService = require(Services.MentorService)
+local BadgeService = require(Services.BadgeService)
+local CollectService = require(Services.CollectService)
+local ContestService = require(Services.ContestService)
 local QuestService = require(Services.QuestService)
 local FlagService = require(Services.FlagService)
 local FameService = require(Services.FameService)
@@ -126,6 +129,9 @@ boot("MissionService", MissionService.init)
 boot("TaskForceService", TaskForceService.init) -- H4: the Task Force board and quick join
 boot("NemesisService", NemesisService.init) -- H5: your nemesis
 boot("MentorService", MentorService.init) -- H6: mentors
+boot("BadgeService", BadgeService.init) -- H7: badges, titles, accolades
+boot("CollectService", CollectService.init) -- H7: collections
+boot("ContestService", ContestService.init) -- H7: costume contests
 boot("QuestService", QuestService.init)
 boot("FlagService", FlagService.init)
 boot("FameService", FameService.init)

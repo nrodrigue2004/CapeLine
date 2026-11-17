@@ -4,6 +4,7 @@
 --   or an aura on them (Old Beacon's lantern glow, The Velvet Paw's spark crackle). Looks only, never stats.
 -- * The ally in a task force's final fight: a bright beam from the mentor to the robot they hit.
 -- * The reward moment: a burst of the new look and a chime.
+-- * H7: the accolade aura a player wears (AccoladeAura, from a finished badge group): soft motes round them.
 -- PLACEHOLDER ART: engine Trails, ParticleEmitters and a PointLight with default textures until the effects
 -- pass (FxLib textures); the beam is a neon part.
 
@@ -99,16 +100,61 @@ local function dress(player: Player)
 	end
 end
 
+-- H7: an accolade aura (a finished badge group, Config.Badges): a soft ring of motes on the hero. Looks only.
+local AURAS: { [string]: { number } } = {}
+for _, g in Config.Badges.groups do
+	if g.accolade and g.accolade.kind == "aura" then
+		AURAS[g.accolade.id] = g.accolade.color
+	end
+end
+local AURA_TAG = "AccoladeAuraFx"
+
+local function dressAura(player: Player)
+	local char = player.Character
+	if not char then
+		return
+	end
+	for _, d in char:GetDescendants() do
+		if d.Name == AURA_TAG then
+			d:Destroy()
+		end
+	end
+	local col = AURAS[player:GetAttribute("AccoladeAura") :: any]
+	local root = char:FindFirstChild("HumanoidRootPart")
+	if not col or not root or not root:IsA("BasePart") then
+		return
+	end
+	local c = rgb(col)
+	local e = Instance.new("ParticleEmitter")
+	e.Name = AURA_TAG
+	e.Color = ColorSequence.new(c)
+	e.LightEmission = 0.7
+	e.Rate = 8
+	e.Lifetime = NumberRange.new(0.8, 1.2)
+	e.Speed = NumberRange.new(0.6, 1.4)
+	e.SpreadAngle = Vector2.new(180, 20)
+	e.Size = NumberSequence.new(0.35, 0)
+	e.Transparency = NumberSequence.new(0.2, 1)
+	e.Shape = Enum.ParticleEmitterShape.Cylinder
+	e.ShapeStyle = Enum.ParticleEmitterShapeStyle.Surface
+	e.Parent = root
+end
+
 local function watch(player: Player)
 	player:GetAttributeChangedSignal("MentorLook"):Connect(function()
 		dress(player)
 	end)
+	player:GetAttributeChangedSignal("AccoladeAura"):Connect(function()
+		dressAura(player)
+	end)
 	player.CharacterAdded:Connect(function(char)
 		char:WaitForChild("UpperTorso", 10)
 		dress(player)
+		dressAura(player)
 	end)
 	if player.Character then
 		dress(player)
+		dressAura(player)
 	end
 end
 

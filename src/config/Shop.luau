@@ -155,6 +155,9 @@ return {
 		[13] = { name = "Big Wave", earned = true },
 		[14] = { name = "Grand Bow", earned = true },
 		[15] = { name = "Shrug", earned = true },
+		-- H7: badge accolades (finish a Badge Book group; Config.Badges)
+		[16] = { name = "Double Thumbs Up", earned = true },
+		[17] = { name = "Team Huddle", earned = true },
 		[20] = { name = "Super Landing", earned = true, landing = true },
 		[21] = { name = "Kneel Landing", landing = true },
 		[22] = { name = "Spin Landing", landing = true },

@@ -53,6 +53,9 @@ local NAMES = {
 	"TaskForce", -- H4: task forces
 	"Nemesis", -- H5: your nemesis
 	"Mentors", -- H6: mentors
+	"Badges", -- H7: badges, titles and accolades
+	"Collect", -- H7: collections
+	"Contest", -- H7: costume contests
 }
 
 local Config: { [string]: any } = {}

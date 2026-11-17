@@ -237,7 +237,7 @@ end
 
 -- M10 squads set this: (leader) -> squadmates who may come along (near, free, out of combat)
 MissionService.partyOf = nil :: ((Player) -> { Player })?
--- H4: (player, num, { mentor, sidekick, taskForce }) a member was paid for a clear (badges count them, H7)
+-- H4: (player, num, { mentor, sidekick, taskForce, party }) a member was paid for a clear (badges, H7)
 MissionService.Cleared = Signal.new()
 -- H4: TaskForceService sets this: the final pay of a task force (Epic roll, weekly double Renown)
 MissionService.payTaskForce = nil :: ((any, Player, { [string]: any }, number) -> { [string]: any })?
@@ -983,7 +983,11 @@ local function pay(run: Run, player: Player): { [string]: any }
 		out.renown += extra
 	end
 	out.sidekick, out.mentor = sidekick or nil, mentor or nil
-	MissionService.Cleared:Fire(player, run.num, { mentor = mentor, sidekick = sidekick, taskForce = run.tf })
+	MissionService.Cleared:Fire(
+		player,
+		run.num,
+		{ mentor = mentor, sidekick = sidekick, taskForce = run.tf, party = #run.members }
+	)
 	if run.tf then
 		return MissionService.payTaskForce and MissionService.payTaskForce(run, player, out, own) or out
 	elseif run.m.custom then

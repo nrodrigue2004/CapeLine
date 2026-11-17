@@ -51,6 +51,14 @@ local function openMenu(p: Player)
 	Kit.bounce(menu)
 end
 
+-- H7: accolade plate trims by id (Config.Badges groups whose accolade is a trim)
+local TRIMS: { [string]: { number } } = {}
+for _, g in Config.Badges.groups do
+	if g.accolade and g.accolade.kind == "trim" then
+		TRIMS[g.accolade.id] = g.accolade.color
+	end
+end
+
 local function refresh(p: Player)
 	local pl = plates[p]
 	if not pl then
@@ -91,7 +99,11 @@ local function refresh(p: Player)
 		then "  " .. string.rep("★", math.min(legacy, 5))
 		else ""
 	-- lore step 2: the origin's title ("Lab-Born") before the player's name
-	local origin = p:GetAttribute("OriginTitle")
+	-- H7: the title picked in the Badge Book replaces it (fixed text only)
+	local picked = p:GetAttribute("Title")
+	local origin = if typeof(picked) == "string" and picked ~= ""
+		then picked
+		else p:GetAttribute("OriginTitle")
 	local title = if typeof(origin) == "string" and origin ~= "" then origin .. "  " else ""
 	if typeof(hero) == "string" and hero ~= "" then
 		pl.name.Text = string.upper(hero)
@@ -101,6 +113,23 @@ local function refresh(p: Player)
 		pl.who.Text = stars
 	end
 	pl.name.TextColor3 = if rank >= #Config.Pvp.fame.ranks then Kit.color.gold else Kit.color.paper -- gold trim
+	-- H7: an accolade plate trim (a finished badge group) outlines the name in its colour
+	local trim = TRIMS[p:GetAttribute("PlateTrim") :: any]
+	local stroke = pl.name:FindFirstChild("AccoladeTrim") :: UIStroke?
+	if trim and not stroke then
+		local st = Instance.new("UIStroke")
+		st.Name = "AccoladeTrim"
+		st.Thickness = 2
+		st.ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual
+		st.Parent = pl.name
+		stroke = st
+	end
+	if stroke then
+		stroke.Enabled = trim ~= nil
+		if trim then
+			stroke.Color = Color3.fromRGB(trim[1], trim[2], trim[3])
+		end
+	end
 end
 
 local function attach(p: Player, char: Model)
@@ -186,6 +215,8 @@ local function watch(p: Player)
 			"HeroName",
 			"Legacy",
 			"OriginTitle",
+			"Title",
+			"PlateTrim",
 			"Squad",
 			"SquadSlot",
 			"Sidekick",

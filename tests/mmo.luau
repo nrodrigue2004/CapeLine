@@ -1151,4 +1151,316 @@ return function(T: any)
 		local AS = require("../src/shared/AnalyticsSchema")
 		check(AS.EVENTS.mentor_pick ~= nil and AS.EVENTS.mentor_line_done ~= nil, "analytics")
 	end)
+
+	---------------------------------------------------------------------------
+	-- H7: badges and titles, collections, costume contests
+	---------------------------------------------------------------------------
+	local BadgeRules = require("../src/shared/BadgeRules")
+	local CollectPlan = require("../src/shared/CollectPlan")
+	local ContestRules = require("../src/shared/ContestRules")
+	local B = Config.Badges
+	local CC = Config.Collect
+	local K = Config.Contest
+
+	test("H7: about 120 badges in fixed bit ranges, each with a hint and a source", function()
+		local list = BadgeRules.list(B)
+		check(#list >= 110 and #list <= 130, "about 120 badges (" .. #list .. ")")
+		for gi, g in B.groups do
+			local hi = if B.groups[gi + 1] then B.groups[gi + 1].at else B.bits
+			check(g.at + #g.badges <= hi, g.id .. " stays inside its bit range")
+		end
+		local src = ""
+		for _, f in fs.readDir("src/server/Services") do
+			src ..= source("src/server/Services/" .. f)
+		end
+		local ids, bits, names = {}, {}, {}
+		for _, e in list do
+			check(not ids[e.id], "unique id " .. e.id)
+			check(not bits[e.bit] and e.bit >= 0 and e.bit < B.bits, "unique bit for " .. e.id)
+			check(not names[e.name], "unique name (a title) " .. e.name)
+			ids[e.id], bits[e.bit], names[e.name] = true, true, true
+			check(e.n >= 1 and #e.hint > 0 and #e.hint <= 70, e.id .. ": a goal and a short hint")
+			local pre = string.match(e.key, "^([%w]+):")
+			local fed = string.sub(e.key, 1, 6) == "group:"
+				or string.find(src, '"' .. e.key .. '"', 1, true) ~= nil
+				or string.find(src, "f." .. e.key .. " = ", 1, true) ~= nil
+				or (pre ~= nil and string.find(src, '"' .. pre .. ':"', 1, true) ~= nil)
+			check(fed, "something feeds " .. e.key)
+			check(BadgeRules.byBit(B, e.bit) == e and BadgeRules.byId(B, e.id) == e, "lookups for " .. e.id)
+			for _, w in { "League", "Null", "Shardfall", "Blood", "Kill" } do
+				check(not string.find(e.name, w, 1, true), "lore: no " .. w .. " in " .. e.name)
+			end
+		end
+		check(B.titleBase > 255 and B.baneBase >= B.titleBase + B.bits, "title ids never overlap")
+		local kinds = {}
+		for _, g in B.groups do
+			local a = g.accolade
+			if a then
+				kinds[a.kind] = (kinds[a.kind] or 0) + 1
+				check(a.kind == "aura" or a.kind == "trim" or a.kind == "emote", "accolades are looks only")
+				check(a.kind ~= "emote" or Config.Shop.emotes[a.emote].earned == true, "an earned emote")
+				check(a.stat == nil and a.damage == nil and a.health == nil, "never stats")
+			end
+		end
+		check(kinds.aura == 2 and kinds.trim == 2 and kinds.emote == 2, "six accolades: auras, trims, emotes")
+	end)
+
+	test("H7: counting, earning and the group badges", function()
+		local P = require("../src/shared/ProfileSchema")
+		local words = P.default().mmo.badges
+		local counts = {}
+		BadgeRules.bump(B, counts, "rescues", 3)
+		BadgeRules.bump(B, counts, "rescues")
+		BadgeRules.bump(B, counts, "height", 300)
+		BadgeRules.bump(B, counts, "height", 120)
+		check(counts.rescues == 4 and counts.height == 300, "sums, and max keys keep the highest")
+		local have = BadgeRules.have(counts, { rescues = 10 })
+		check(have.rescues == 10 and counts.rescues == 4, "facts win, counters untouched")
+		local got = BadgeRules.earn(B, words, have)
+		check(#got > 0, "something earned")
+		for _, e in got do
+			check((have[e.key] or 0) >= e.n, e.id .. " met its goal")
+		end
+		check(#BadgeRules.earn(B, words, have) == 0, "never twice")
+		-- a whole group: its meta badge (if any) and its accolade on the same check
+		local g = B.groups[1]
+		local all = {}
+		for _, b in g.badges do
+			if string.sub(b.key, 1, 6) ~= "group:" then
+				all[b.key] = math.max(all[b.key] or 0, b.n)
+			end
+		end
+		BadgeRules.earn(B, words, all)
+		check(BadgeRules.count(B, words, g.id) == #g.badges, "the whole group, the meta badge included")
+		local acc = BadgeRules.accolades(B, words)
+		check(#acc == 1 and acc[1] == g.accolade, "its accolade")
+		local e = BadgeRules.list(B)[45]
+		local h, need = BadgeRules.progress(B, words, {}, e)
+		check(h == 0 and need == e.n, "progress for the book")
+	end)
+
+	test("H7: titles: the origin's, story, badges and banes; fixed text only", function()
+		local P = require("../src/shared/ProfileSchema")
+		local profile = P.default()
+		local c = P.newCharacter()
+		profile.characters = { c }
+		local t = BadgeRules.titles(Config, profile, c)
+		check(#t >= 1 and t[1].id == 0, "the origin's title first")
+		local e = BadgeRules.list(B)[5]
+		P.Bits.set(profile.mmo.badges, e.bit)
+		check(BadgeRules.titleText(Config, profile, c, B.titleBase + e.bit) == e.name, "a badge is a title")
+		check(BadgeRules.titleText(Config, profile, c, B.titleBase + e.bit + 1) == nil, "only owned titles")
+		local R = require("../src/shared/Remotes")
+		check(R.TitleSet.dir == "C2S" and R.AccoladeWear.dir == "C2S", "picked by number, never text")
+		local src = source("src/server/Services/BadgeService.luau")
+		check(
+			string.find(src, "BadgeRules.titleText(", 1, true) ~= nil,
+			"the server checks the title is owned"
+		)
+		for _, bad in { "HeroService.refresh", "addBuff", "Status.", "statLevel" } do
+			check(string.find(src, bad, 1, true) == nil, "badges never touch stats (" .. bad .. ")")
+		end
+	end)
+
+	test("H7: the save: badges, counters, collections, contest wins; repaired", function()
+		local P = require("../src/shared/ProfileSchema")
+		local p = P.default()
+		check(#p.mmo.badges == 8 and #p.mmo.collect == 4 and p.mmo.scanner == 0, "account level")
+		check(p.mmo.contest.wins == 0 and p.mmo.contest.lastWin == 0, "contest record")
+		local c = P.newCharacter()
+		check(c.mmo.title == 0 and c.mmo.aura == 0 and c.mmo.trim == 0, "per character: title and looks")
+		local long = string.rep("x", 60)
+		local bad = P.load({
+			version = P.VERSION,
+			mmo = {
+				badges = { "x" },
+				counts = { ok = 5, [long] = 1, neg = -4, huge = 2 ^ 40 },
+				collect = 7,
+				scanner = 9,
+			},
+			characters = { { mmo = { title = -3, aura = 99, trim = "x" } } },
+		})
+		check(#bad.mmo.badges == 8 and #bad.mmo.collect == 4 and bad.mmo.scanner == 1, "words and flags")
+		check(bad.mmo.counts.ok == 5 and bad.mmo.counts[long] == nil, "long keys dropped")
+		check(bad.mmo.counts.neg == 0 and bad.mmo.counts.huge <= 2 ^ 31, "counts clamped")
+		local m = bad.characters[1].mmo
+		check(m.title == 0 and m.aura == 16 and m.trim == 0, "character fields clamped")
+	end)
+
+	test("H7: twelve collection sets, bits in range, rewards are HQ props and Renown", function()
+		local Bits = require("../src/shared/ProfileSchema").Bits
+		check(#CC.sets == 12, "12 sets")
+		local used = {}
+		local items = 0
+		for _, set in CC.sets do
+			items += set.count
+			for i = 1, set.count do
+				local b = CollectPlan.bit(set, i)
+				check(b >= 0 and b < CC.bits and not used[b], set.id .. ": a free bit " .. b)
+				used[b] = true
+				local s2, it = CollectPlan.setOfBit(CC, b)
+				check(s2 == set and it == i, "setOfBit for " .. set.id)
+			end
+			check(set.reward.renown > 0 and Config.Hq.props[set.reward.prop] ~= nil, set.id .. ": reward")
+			check(set.reward.credits == nil and set.reward.stat == nil, "looks and Renown only")
+		end
+		check(items >= 80 and items <= 100, "about 90 items")
+		local parts = CollectPlan.set(CC, "RobotParts")
+		for i, kind in parts.items do
+			check(Config.Enemies[kind] ~= nil, "a real robot kind " .. kind)
+			check(CollectPlan.robotPart(CC, kind) == CollectPlan.bit(parts, i), "its part")
+		end
+		check(CollectPlan.nemesisCore(CC, 1) ~= nil and CollectPlan.nemesisCore(CC, 6) == nil, "5 cores")
+		check(CollectPlan.ribbon(CC, "first") ~= nil and CollectPlan.ribbon(CC, "nope") == nil, "ribbons")
+		check(
+			CollectPlan.keepsake(CC, 1, 2) ~= nil and CollectPlan.keepsake(CC, 1, 3) == nil,
+			"parts 2 and 4"
+		)
+		check(CollectPlan.patch(CC, 2, "full") ~= nil and CollectPlan.patch(CC, 3, "clear") == nil, "patches")
+		local words = { 0, 0, 0, 0 }
+		local plates = CollectPlan.set(CC, "BossPlates")
+		local p1 = CollectPlan.bossPlate(CC, words, plates.bosses[1]) :: number
+		Bits.set(words, p1)
+		local p2 = CollectPlan.bossPlate(CC, words, plates.bosses[1]) :: number
+		check(p1 ~= p2 and p2 ~= nil, "the boss's second plate next")
+		Bits.set(words, p2)
+		check(CollectPlan.bossPlate(CC, words, plates.bosses[1]) == nil, "two plates a boss")
+		local cores = CollectPlan.set(CC, "NemesisCores")
+		for r = 1, 5 do
+			Bits.set(words, CollectPlan.nemesisCore(CC, r) :: number)
+		end
+		check(CollectPlan.done(words, cores) and CollectPlan.fullSets(CC, words) == 1, "a full set")
+	end)
+
+	test("H7: the finds sit on streets, roofs, the seabed and the outskirts", function()
+		local WorldMap = require("../src/shared/WorldMap")
+		local DeepLayout = require("../src/shared/DeepLayout")
+		local first
+		for _, seed in { 202647, 202651 } do
+			local world = WorldMap.build(Config, seed)
+			local spots = CollectPlan.spots(Config, world)
+			local per = {}
+			for _, s in spots do
+				per[s.set] = (per[s.set] or 0) + 1
+				local set = CollectPlan.set(CC, s.set)
+				check(set ~= nil and s.bit == CollectPlan.bit(set, s.item), "bit matches")
+				if set.place == "street" then
+					local r = Config.City.districts[set.area]
+					check(
+						s.x >= r.minX and s.x <= r.maxX and s.z >= r.minZ and s.z <= r.maxZ,
+						s.set .. " in its district"
+					)
+					check(CollectPlan.isStreet(Config, world, s.x, s.z), s.set .. " on the street")
+				elseif set.place == "roof" then
+					check(s.y - Config.City.ground.y >= set.minHeight, "a tall roof")
+				elseif set.place == "seabed" then
+					local a = DeepLayout.area(Config, s.x, s.z)
+					check(a == "sea" or a == "shelf", "on the seabed")
+				end
+			end
+			for _, set in CC.sets do
+				if set.kind == "hidden" or set.kind == "weekly" then
+					check(
+						per[set.id] == set.count,
+						set.id .. ": every item placed (" .. tostring(per[set.id]) .. ")"
+					)
+				end
+			end
+			if first then
+				local moved = false
+				for i, s in spots do
+					local o = first[i]
+					if s.set == "CometShards" and o and (o.x ~= s.x or o.z ~= s.z) then
+						moved = true
+					end
+				end
+				check(moved, "comet shards move with the week")
+			end
+			first = spots
+			local near = CollectPlan.nearest(spots, { 0, 0, 0, 0 }, spots[1].x, spots[1].z, 10)
+			check(near == spots[1], "the scanner finds the nearest")
+		end
+	end)
+
+	test("H7: costume contests every 30 minutes; phases, themes and entries", function()
+		check(
+			K.every == 1800 and K.maxEntries == 8 and K.minEntries == 3 and K.minVoters == 5,
+			"spec numbers"
+		)
+		check(
+			K.show == 10 and K.voteAfter == 120 and K.squadWeight == 0.5 and K.winEvery == 3600,
+			"spec numbers"
+		)
+		check(#K.themes >= 20, "a fixed theme list")
+		local cyc, callAt, showAt, endAt = ContestRules.cycle(K, 10 ^ 9)
+		check(showAt - callAt == K.call and endAt - callAt < K.every, "a contest fits its half hour")
+		check(ContestRules.phase(K, callAt - 1, 0) == "idle", "idle before the call")
+		check(ContestRules.phase(K, callAt + 1, 0) == "call", "the call")
+		local ph, i = ContestRules.phase(K, showAt + K.show + 1, 4)
+		check(ph == "show" and i == 2, "the second contestant in the spotlight")
+		check(ContestRules.phase(K, showAt + K.show * 4 + 1, 4) == "vote", "the vote")
+		check(ContestRules.phase(K, showAt + K.show * 4 + K.vote + 1, 4) == "results", "the results")
+		check(ContestRules.theme(K, cyc) == ContestRules.theme(K, cyc), "every server agrees")
+		local seen, n = {}, 0
+		for c = 1, #K.themes do
+			local t = ContestRules.theme(K, c)
+			if not seen[t] then
+				seen[t] = true
+				n += 1
+			end
+		end
+		check(n == #K.themes, "every theme before a repeat")
+		check(ContestRules.canEnter(K, {}, 1, 10), "step on near the stage")
+		check(not ContestRules.canEnter(K, { 1 }, 1, 10), "once")
+		check(not ContestRules.canEnter(K, {}, 1, K.enterRange + 1), "near the stage only")
+		check(not ContestRules.canEnter(K, { 1, 2, 3, 4, 5, 6, 7, 8 }, 9, 1), "8 at most")
+	end)
+
+	test("H7: votes, weights, placings and pay", function()
+		check(not ContestRules.canVote(K, 0, 60, false), "2 minutes on the server first")
+		check(
+			ContestRules.canVote(K, 0, 130, false) and not ContestRules.canVote(K, 0, 130, true),
+			"not contestants"
+		)
+		check(ContestRules.weight(K, 1, 2, 4, false) == 4, "stars")
+		check(ContestRules.weight(K, 1, 2, 4, true) == 2, "a squadmate's vote counts half")
+		check(ContestRules.weight(K, 1, 1, 5, false) == 0, "never your own")
+		check(
+			ContestRules.weight(K, 1, 2, 6, false) == 0 and ContestRules.weight(K, 1, 2, 2.5, false) == 0,
+			"1 to 5"
+		)
+		check(not ContestRules.enough(K, 2, 9) and not ContestRules.enough(K, 5, 4), "skipped when too few")
+		check(ContestRules.enough(K, 3, 5), "enough")
+		local now = 10 ^ 6
+		local order = ContestRules.placings(K, { 1, 2, 3 }, { [1] = 10, [2] = 30, [3] = 20 }, {}, now)
+		check(order[1] == 2 and order[2] == 3 and order[3] == 1, "best first")
+		order = ContestRules.placings(
+			K,
+			{ 1, 2, 3 },
+			{ [1] = 10, [2] = 30, [3] = 20 },
+			{ [2] = now - 60 },
+			now
+		)
+		check(order[1] == 3 and order[2] == 2, "a win within the hour passes first to the next best")
+		check(
+			ContestRules.placings(K, { 1, 2 }, { [1] = 5, [2] = 5 }, {}, now)[1] == 1,
+			"ties keep entry order"
+		)
+		check(ContestRules.pay(K, 1, false) == K.pay.first + K.pay.entry, "first")
+		check(ContestRules.pay(K, 5, false) == K.pay.entry, "taking part pays")
+		check(ContestRules.pay(K, nil, true) == K.pay.showedUp, "a skipped contest still pays")
+		local R = require("../src/shared/Remotes")
+		check(
+			R.ContestEnter.dir == "C2S" and R.ContestVote.dir == "C2S" and R.ContestState.dir == "S2C",
+			"remotes"
+		)
+		local AS = require("../src/shared/AnalyticsSchema")
+		for _, ev in { "badge_earned", "collect_found", "collect_set", "contest_enter", "contest_done" } do
+			check(AS.EVENTS[ev] ~= nil, "analytics " .. ev)
+		end
+		local src = source("src/server/Services/ContestService.luau")
+		check(string.find(src, "ContestRules.canVote(", 1, true) ~= nil, "the server checks every vote")
+		check(string.find(src, "ContestRules.placings(", 1, true) ~= nil, "the hourly win rule")
+		check(string.find(src, "SquadService", 1, true) ~= nil, "squad votes weighed")
+	end)
 end

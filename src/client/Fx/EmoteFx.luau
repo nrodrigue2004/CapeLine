@@ -116,6 +116,19 @@ local POSES: { [number]: Pose } = {
 		LeftElbow = { 0, 0, -90 },
 		Neck = { 0, 0, 12 },
 	}, -- Shrug
+	[16] = {
+		RightShoulder = { 0, 0, 80 },
+		LeftShoulder = { 0, 0, -80 },
+		RightElbow = { 0, 0, 100 },
+		LeftElbow = { 0, 0, -100 },
+		Neck = { -6, 0, 0 },
+	}, -- Double Thumbs Up (H7 accolade)
+	[17] = {
+		Waist = { -30, 0, 0 },
+		Neck = { -20, 0, 0 },
+		RightShoulder = { 70, 0, 60 },
+		LeftShoulder = { 70, 0, -60 },
+	}, -- Team Huddle: lean in, arms out round your mates (H7 accolade)
 	-- Photo Mode's own poses (free, only on your screen while you take a photo; M11)
 	[101] = {
 		RightShoulder = { 80, 0, 20 },

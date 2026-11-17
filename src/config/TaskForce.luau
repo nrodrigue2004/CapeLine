@@ -13,6 +13,7 @@ return {
 	rejoin = 180, -- seconds a member who left or dropped keeps their place
 	numBase = 100, -- MissionState num for a task force run: numBase + its index
 	panelTime = 4, -- seconds on the comic panel between legs
+	speedClear = 1200, -- a clear under 20 minutes earns the speed badge and patch (H7)
 	legMinutes = 8, -- a leg's expected length (25 to 40 minutes a run)
 	epicTier = "Epic", -- the guaranteed roll at the end, at your own level
 	weeklyRenownMult = 2, -- the first clear each week (per task force) pays double Renown

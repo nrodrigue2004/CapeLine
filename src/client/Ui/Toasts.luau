@@ -493,6 +493,54 @@ function Toasts.show(data: { [string]: any })
 			Kit.color.gold,
 			true
 		)
+	elseif id == "badgeMate" then
+		-- H7: a squadmate near you earned a badge
+		push(
+			string.format("%s earned the %s badge", data.who or "A squadmate", data.name or "?"),
+			Kit.color.paper
+		)
+	elseif id == "accolade" then
+		-- H7: a whole badge group done
+		push(
+			string.format("Accolade earned: %s (wear it from BADGES > TITLES)", data.name or "?"),
+			Kit.color.gold,
+			true
+		)
+	elseif id == "collectSet" then
+		-- H7: a full collection set
+		push(
+			string.format(
+				"%s complete! +%s Renown and the %s for your HQ",
+				data.name or "Set",
+				Kit.comma(data.renown or 0),
+				data.prop or "prop"
+			),
+			Kit.color.gold,
+			true
+		)
+	elseif id == "scanner" then
+		push("HQ Scanner on: a marker now shows your nearest missing find", Kit.color.gold)
+	elseif id == "contestPlace" then
+		-- H7: your costume contest result
+		push(
+			string.format(
+				"Costume contest: %s place, +%s Credits",
+				({ "1st", "2nd", "3rd" })[data.place or 0] or ((data.place or 0) .. "th"),
+				Kit.comma(data.credits or 0)
+			),
+			if (data.place or 9) <= 3 then Kit.color.gold else Kit.color.paper,
+			(data.place or 9) <= 3
+		)
+	elseif id == "contestSkipped" then
+		push(
+			string.format(
+				"Not enough players for the contest this time: +%s Credits for showing up",
+				Kit.comma(data.credits or 0)
+			),
+			Kit.color.paper
+		)
+	elseif id == "contestWait" then
+		push("Watch every contestant before you vote", Kit.color.muted)
 	elseif id == "saveDown" then
 		push(
 			"Saving is down right now: this session's progress will not be kept",

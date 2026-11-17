@@ -62,6 +62,9 @@ local NemesisHud = require(Ui.NemesisHud) -- H5: the WANTED poster and taunts
 local NemesisFx = require(Fx.NemesisFx)
 local MentorHud = require(Ui.MentorHud) -- H6: the mentor card, picker and panels
 local MentorFx = require(Fx.MentorFx)
+local BadgeHud = require(Ui.BadgeHud) -- H7: the Badge Book, collections and titles
+local ContestHud = require(Ui.ContestHud) -- H7: costume contests
+local CollectClient = require(Controllers.CollectClient) -- H7: collection sparkles and the scanner marker
 local StoryHud = require(Ui.StoryHud)
 local Journal = require(Ui.Journal)
 local PvpHud = require(Ui.PvpHud)
@@ -125,6 +128,9 @@ NemesisHud.init()
 NemesisFx.init()
 MentorHud.init()
 MentorFx.init()
+BadgeHud.init()
+ContestHud.init()
+CollectClient.init()
 Toasts.init()
 MapScreen.init()
 WorldHud.init()

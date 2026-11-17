@@ -66,6 +66,11 @@ AnalyticsSchema.EVENTS = {
 	nemesis_showdown = { "rank" }, -- a Showdown won
 	mentor_pick = { "mentor", "kind" }, -- kind: first or change
 	mentor_line_done = { "mentor" },
+	badge_earned = { "badge" }, -- H7
+	collect_found = { "set" }, -- value: finds in that set
+	collect_set = { "set" },
+	contest_enter = { "theme" },
+	contest_done = { "theme", "voters" }, -- value: contestants
 }
 
 AnalyticsSchema.FUNNELS = {

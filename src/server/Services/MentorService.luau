@@ -41,6 +41,7 @@ local TaskForceService = require(script.Parent.TaskForceService)
 local MentorService = {}
 MentorService.Picked = Signal.new() -- (player, mentor index)
 MentorService.LineDone = Signal.new() -- (player, mentor index) a quest line finished (badges, H7)
+MentorService.PartDone = Signal.new() -- (player, mentor index, part) a quest part finished (keepsakes, H7)
 
 local M = Config.Mentors
 
@@ -122,6 +123,7 @@ local function count(player: Player, kind: string, n: number?)
 	if done then
 		EconomyService.reward(player, "mission", hero.level)
 		Net.fire("Toast", player, { id = "mentorPart", part = done, of = #M.quest })
+		MentorService.PartDone:Fire(player, s.mentor, done)
 		if MentorRules.lineDone(M, s, s.mentor) then
 			local mentor = M.list[s.mentor]
 			local profile = DataService.get(player)

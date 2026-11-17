@@ -24,6 +24,7 @@ local LoadoutScreen = require(script.Parent.LoadoutScreen)
 local Journal = require(script.Parent.Journal)
 local CreatorScreen = require(script.Parent.CreatorScreen)
 local ShopHud = require(script.Parent.ShopHud)
+local CollectClient = require(script.Parent.Parent.Controllers.CollectClient)
 
 local HqHud = {}
 
@@ -36,6 +37,7 @@ local TITLES = {
 	training = "TRAINING ROOM",
 	trophies = "TROPHY WALL",
 	legends = "HALL OF LEGENDS",
+	scanner = "HQ SCANNER",
 }
 
 local gui: ScreenGui
@@ -302,6 +304,19 @@ local function drawLegends()
 	end
 end
 
+-- H7: the HQ Scanner (Config.Collect.scanner): bought once with Credits, it marks your nearest missing find
+local function drawScanner()
+	if CollectClient.hasScanner() then
+		note("The Scanner is on: out in the city, a FIND marker shows your nearest missing collection item.")
+		return
+	end
+	note("Marks the nearest collection find you are missing, wherever you are in the city. Bought once.")
+	row(string.format("BUY (%s CREDITS)", Kit.comma(Config.Collect.scanner.cost)), function()
+		Net.send("CollectScanner")
+		HqHud.close()
+	end, Kit.color.gold)
+end
+
 draw = function()
 	clearBody()
 	order = 0
@@ -324,6 +339,8 @@ draw = function()
 		drawTrophies()
 	elseif current == "legends" then
 		drawLegends()
+	elseif current == "scanner" then
+		drawScanner()
 	end
 	row("SHOP", function()
 		HqHud.close()

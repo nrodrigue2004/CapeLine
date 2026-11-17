@@ -46,6 +46,7 @@ local STATION_NAMES = {
 	training = "Training Room",
 	trophies = "Trophy Wall",
 	legends = "Hall of Legends",
+	scanner = "HQ Scanner",
 	exit = "Exit",
 }
 local STATION_ACTIONS = {
@@ -55,6 +56,7 @@ local STATION_ACTIONS = {
 	training = "Test your damage",
 	trophies = "Pick trophies",
 	legends = "Legacy",
+	scanner = "Find collections",
 	exit = "Back to the city",
 }
 
@@ -296,6 +298,19 @@ local PROP_SPOTS = {
 	[4] = { 46, -40 },
 	[5] = { 16, -26 },
 	[6] = { 0, 20 },
+	-- H7: the collection set props (Config.Collect rewards) along the side walls
+	[7] = { -52, -28 },
+	[8] = { -52, -16 },
+	[9] = { -52, -4 },
+	[10] = { -52, 22 },
+	[11] = { -52, 34 },
+	[12] = { -52, 46 },
+	[13] = { 52, -28 },
+	[14] = { 52, -16 },
+	[15] = { 52, -4 },
+	[16] = { 52, 22 },
+	[17] = { 52, 34 },
+	[18] = { 52, 46 },
 }
 local function props(f: Folder)
 	for _, bit in state.props or {} do

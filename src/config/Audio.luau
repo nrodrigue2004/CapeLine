@@ -62,6 +62,10 @@ return {
 		{ id = "nemesisEscape", visual = "NemesisFx" }, -- teleport zap; a white flash where it stood (H5)
 		{ id = "mentorPanel", visual = "MentorFx" }, -- page flip; the mentor's comic panel slides in (H6)
 		{ id = "mentorReward", visual = "MentorFx" }, -- bright chime; the new look bursts on (H6)
+		{ id = "badgeEarned", visual = "JuiceFx" }, -- stamp thunk and chime; the badge stamp and confetti (H7)
+		{ id = "collectFind", visual = "JuiceFx" }, -- sparkle ping; a ring and the set count pop (H7)
+		{ id = "contestCall", visual = "JuiceFx" }, -- fanfare swoosh; the CONTEST! stamp (H7)
+		{ id = "contestWin", visual = "JuiceFx" }, -- cheer ping; confetti, WINNER! on the winner's screen (H7)
 	},
 	-- the spec's own juice table is the first 31 rows above; the rest came with the Hero MMO features
 	juiceSpec = 31,
@@ -117,6 +121,11 @@ return {
 		nemesisEscape = s("electronicpingshort.wav", 0.9, 0.5, { range = 220 }),
 		mentorPanel = s("swoosh.wav", 0.4, 1.6),
 		mentorReward = s("electronicpingshort.wav", 0.8, 1.9),
+		badgeEarned = s("electronicpingshort.wav", 0.8, 1.5),
+		collectFind = s("electronicpingshort.wav", 0.7, 2.2),
+		collectNear = s("clickfast.wav", 0.25, 2.4, { range = 40 }), -- the soft chime near a find (not a juice row)
+		contestCall = s("swoosh.wav", 0.6, 1.2),
+		contestWin = s("electronicpingshort.wav", 0.8, 1.3),
 		ui = s("button.wav", 0.35, 1), -- every button tap
 		-- the newer robots (not juice actions; CombatClient plays them with their CombatFx visuals)
 		aimLock = s("electronicpingshort.wav", 0.6, 2.6), -- a Sniper's laser locks on you

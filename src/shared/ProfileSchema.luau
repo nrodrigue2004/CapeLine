@@ -190,6 +190,10 @@ function ProfileSchema.newCharacter(side: string?, classId: string?): { [string]
 			mentorParts = { 0, 0, 0, 0 },
 			mentorCount = { 0, 0 },
 			mentorLook = 0,
+			-- H7: the title shown under your name (0 = your origin's; Shared.BadgeRules ids)
+			title = 0,
+			aura = 0, -- the accolade aura and plate trim worn (Config.Badges.groups index; 0 = none)
+			trim = 0,
 		},
 	}
 end
@@ -239,6 +243,16 @@ function ProfileSchema.default(): { [string]: any }
 			mvps = 0,
 		},
 		guard = { kicks = 0, reviewed = 0 }, -- M8: safety kicks on this account (review queue after 2); never a ban
+		-- Hero MMO features on the account (H7): badges = 256 badge bits, counts = the counters badges read
+		-- (kills by kind, blocks, throws, ...), collect = 128 collection item bits, scanner = the HQ Scanner
+		-- bought (1), contest = contest wins and the last win (os.time; a win at most once an hour)
+		mmo = {
+			badges = words(8),
+			counts = {},
+			collect = words(4),
+			scanner = 0,
+			contest = { wins = 0, lastWin = 0 },
+		},
 	}
 end
 
@@ -492,6 +506,9 @@ local function repair(p: any): any
 				c.mmo.mentorParts = cleanNumbers(c.mmo.mentorParts, 4, 0, 4, true)
 				c.mmo.mentorCount = cleanNumbers(c.mmo.mentorCount, 2, 0, 1000, true)
 				c.mmo.mentorLook = num(c.mmo.mentorLook, 0, 4, 0)
+				c.mmo.title = num(c.mmo.title, 0, 65535, 0)
+				c.mmo.aura = num(c.mmo.aura, 0, 16, 0)
+				c.mmo.trim = num(c.mmo.trim, 0, 16, 0)
 				local looks = {}
 				for _, l in c.looks do
 					if type(l) == "table" and #looks < 4 then
@@ -558,6 +575,20 @@ local function repair(p: any): any
 		p.bosses[i] = num(p.bosses[i], 0, 3, 0)
 	end
 	p.shop.starterSeen = num(p.shop.starterSeen, 0, 1, 0)
+	-- H7: badges, counters, collections
+	p.mmo.badges = cleanNumbers(p.mmo.badges, 8, 0, 2 ^ 32 - 1, true)
+	p.mmo.collect = cleanNumbers(p.mmo.collect, 4, 0, 2 ^ 32 - 1, true)
+	local counts, nCounts = {}, 0
+	for k, v in p.mmo.counts do
+		if type(k) == "string" and #k <= 40 and type(v) == "number" and v == v and nCounts < 200 then
+			counts[k] = math.clamp(math.floor(v), 0, 2 ^ 31)
+			nCounts += 1
+		end
+	end
+	p.mmo.counts = counts
+	p.mmo.scanner = num(p.mmo.scanner, 0, 1, 0)
+	p.mmo.contest.wins = num(p.mmo.contest.wins, 0, 2 ^ 31, 0)
+	p.mmo.contest.lastWin = num(p.mmo.contest.lastWin, 0, 2 ^ 40, 0)
 	p.stats.contracts = num(p.stats.contracts, 0, 2 ^ 31, 0)
 	p.stats.mvps = num(p.stats.mvps, 0, 2 ^ 31, 0)
 	local receipts = {}

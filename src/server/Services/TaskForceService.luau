@@ -31,7 +31,7 @@ local TaskForceService = {}
 local TF = Config.TaskForce
 local ACT = { open = 1, join = 2, leave = 3, start = 4, lock = 5, rejoin = 6 }
 TaskForceService.ACT = ACT
-TaskForceService.Done = Signal.new() -- (player, tf index) a task force finished (badges and titles, H7)
+TaskForceService.Done = Signal.new() -- (player, tf index, seconds, party) a task force finished (badges, H7)
 
 local lobbies: { [number]: TaskForcePlan.Lobby } = {}
 local nextId = 1
@@ -233,7 +233,7 @@ local function payTaskForce(run: any, player: Player, out: { [string]: any }, ow
 		math.floor(os.clock() - run.startedAt),
 		{ run.tf, #run.members }
 	)
-	TaskForceService.Done:Fire(player, run.tf)
+	TaskForceService.Done:Fire(player, run.tf, os.clock() - run.startedAt, #run.members)
 	return out
 end
 

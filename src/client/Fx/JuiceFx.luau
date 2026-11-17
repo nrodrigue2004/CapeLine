@@ -164,6 +164,29 @@ local function myRoot(): BasePart?
 	return char and char:FindFirstChild("HumanoidRootPart") :: BasePart?
 end
 
+-- Paper confetti falling over the screen (none with reduce flashing)
+local function confetti(n: number)
+	if JuiceFx.reduce then
+		return
+	end
+	for _ = 1, n do
+		local p = Kit.frame({
+			Position = UDim2.new(math.random(), 0, -0.05, 0),
+			Size = UDim2.fromOffset(8, 14),
+			BackgroundColor3 = Color3.fromHSV(math.random(), 0.75, 1),
+			round = false,
+			Rotation = math.random(0, 360),
+		})
+		p.Parent = gui
+		local t = 1.6 + math.random() * 1.2
+		TweenService:Create(p, TweenInfo.new(t, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+			Position = UDim2.new(p.Position.X.Scale + (math.random() - 0.5) * 0.2, 0, 1.05, 0),
+			Rotation = p.Rotation + math.random(-360, 360),
+		}):Play()
+		Debris:AddItem(p, t + 0.1)
+	end
+end
+
 ---------------------------------------------------------------------------
 -- The juice rows
 ---------------------------------------------------------------------------
@@ -321,25 +344,7 @@ function JuiceFx.bossDefeated(at: Vector3?)
 			end)
 		end
 	end
-	if JuiceFx.reduce then
-		return
-	end
-	for _ = 1, 40 do
-		local p = Kit.frame({
-			Position = UDim2.new(math.random(), 0, -0.05, 0),
-			Size = UDim2.fromOffset(8, 14),
-			BackgroundColor3 = Color3.fromHSV(math.random(), 0.75, 1),
-			round = false,
-			Rotation = math.random(0, 360),
-		})
-		p.Parent = gui
-		local t = 1.6 + math.random() * 1.2
-		TweenService:Create(p, TweenInfo.new(t, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
-			Position = UDim2.new(p.Position.X.Scale + (math.random() - 0.5) * 0.2, 0, 1.05, 0),
-			Rotation = p.Rotation + math.random(-360, 360),
-		}):Play()
-		Debris:AddItem(p, t + 0.1)
-	end
+	confetti(40)
 end
 
 -- Purchase: the NEW badge
@@ -373,6 +378,40 @@ end
 -- Contract done: a stamp and the reward banner
 function JuiceFx.contractDone(_at: Vector3?, data: { [string]: any }?)
 	stamp("DONE!", Kit.color.health, data and data.name and string.upper(data.name) or "CONTRACT")
+end
+
+-- H7: a badge earned: the stamp with the badge's name, then confetti
+function JuiceFx.badgeEarned(_at: Vector3?, data: { [string]: any }?)
+	stamp("BADGE!", GOLD, data and data.name and string.upper(data.name) or nil)
+	confetti(24)
+end
+
+-- H7: a collection find: a sparkle burst where it lay and a "2 / 8" pop with the set's name
+function JuiceFx.collectFind(at: Vector3?, data: { [string]: any }?)
+	local where = at or (myRoot() and (myRoot() :: BasePart).Position)
+	if not where then
+		return
+	end
+	ring(where, 6, Color3.fromRGB(150, 230, 255), 0.6)
+	local text = if data and data.count
+		then string.format("%s %d / %d", string.upper(data.name or "FIND"), data.found or 0, data.count)
+		else "FOUND!"
+	pop(where + Vector3.new(0, 3, 0), text, GOLD)
+end
+
+-- H7: a costume contest calls for contestants: a small "CONTEST!" stamp
+function JuiceFx.contestCall()
+	stamp("CONTEST!", Color3.fromRGB(200, 140, 255), "COSTUME CONTEST ON THE PLAZA")
+end
+
+-- H7: the results: confetti for everyone, the WINNER stamp on the winner's screen
+function JuiceFx.contestWin(_at: Vector3?, data: { [string]: any }?)
+	if data and data.mine then
+		stamp("WINNER!", GOLD, "COSTUME CONTEST")
+		confetti(60)
+	else
+		confetti(20)
+	end
 end
 
 -- A famous fake unmasked (lore step 4; Juice.fire("unmask")): its face cracks to show metal: a white flash on

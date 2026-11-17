@@ -18,6 +18,7 @@ return {
 		training = { -30, 30 }, -- dummies with a DPS meter
 		trophies = { 30, 30 }, -- the trophy wall
 		legends = { 0, 44 }, -- the Hall of Legends (statues, Retire at the level cap)
+		scanner = { -36, 12 }, -- the HQ Scanner: marks your nearest missing collection find (H7)
 		exit = { 0, -54 },
 	},
 	stationRange = 12,
@@ -73,6 +74,18 @@ return {
 		[4] = "Thank-You Board",
 		[5] = "Rescue Bell",
 		[6] = "Key to the City",
+		[7] = "Comic Rack", -- H7: the ComicCovers collection
+		[8] = "Toy Shelf", -- H7: the LostToys collection
+		[9] = "Ship's Bell", -- H7: the ShipBells collection
+		[10] = "Relic Case", -- H7: the DeepRelics collection
+		[11] = "Pigeon Coop", -- H7: the RoofPigeons collection
+		[12] = "Comet Lamp", -- H7: the CometShards collection
+		[13] = "Parts Rack", -- H7: the RobotParts collection
+		[14] = "Boss Plate Wall", -- H7: the BossPlates collection
+		[15] = "Core Case", -- H7: the NemesisCores collection
+		[16] = "Ribbon Board", -- H7: the ContestRibbons collection
+		[17] = "Keepsake Box", -- H7: the MentorKeepsakes collection
+		[18] = "Crest Banner", -- H7: the Task Force Crests collection (id TaskForcePatches)
 	},
 
 	-- Legacy rebirth (spec: at the level cap, 50 since 2026-11-17, retire to the Hall of Legends: a statue;

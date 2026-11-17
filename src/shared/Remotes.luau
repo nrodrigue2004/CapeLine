@@ -276,6 +276,23 @@ local Remotes: { [string]: RemoteDef } = {
 	MentorPick = { dir = "C2S", schema = { n(1, 4) }, rate = 1, burst = 2 },
 	MentorWear = { dir = "C2S", schema = { n(0, 4) }, rate = 1, burst = 2 },
 	MentorState = { dir = "S2C" },
+	-- H7: badges and titles. BadgeOpen: ask for the Badge Book; TitleSet: show title id (0 = your origin's);
+	-- AccoladeWear: slot (1 aura, 2 trim), group index (0 = none). BadgeBook / BadgeEarned: S2C.
+	BadgeOpen = { dir = "C2S", schema = {}, rate = 1, burst = 3 },
+	TitleSet = { dir = "C2S", schema = { n(0, 65535) }, rate = 1, burst = 2 },
+	AccoladeWear = { dir = "C2S", schema = { n(1, 2), n(0, 16) }, rate = 1, burst = 3 },
+	BadgeBook = { dir = "S2C" },
+	BadgeEarned = { dir = "S2C" },
+	-- H7: collections. CollectOpen: ask for the spots and finds; CollectScanner: buy the HQ Scanner (at HQ).
+	CollectOpen = { dir = "C2S", schema = {}, rate = 1, burst = 3 },
+	CollectScanner = { dir = "C2S", schema = {}, rate = 1, burst = 2 },
+	CollectState = { dir = "S2C" },
+	CollectFound = { dir = "S2C" },
+	-- H7: costume contests. ContestEnter: step on (near the stage, in the call); ContestVote: user id, stars
+	ContestOpen = { dir = "C2S", schema = {}, rate = 1, burst = 3 },
+	ContestEnter = { dir = "C2S", schema = {}, rate = 1, burst = 2 },
+	ContestVote = { dir = "C2S", schema = { n(1, 2 ^ 53), n(1, 5) }, rate = 4, burst = 8 },
+	ContestState = { dir = "S2C" },
 }
 
 return Remotes
