@@ -42,6 +42,7 @@ local NAMES = {
 	"ArtFit",
 	"HeroRig",
 	"TrooperArt",
+	"StreetArt",
 	"Weapons",
 }
 

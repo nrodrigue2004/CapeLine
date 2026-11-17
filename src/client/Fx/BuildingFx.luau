@@ -72,7 +72,13 @@ local bodyFlags: { [BasePart]: { collide: boolean, query: boolean } } = {}
 local folder: Folder
 local synced = false
 
-local function newPart(size: Vector3, cf: CFrame, color: Color3, material: Enum.Material?): Part
+local function newPart(
+	size: Vector3,
+	cf: CFrame,
+	color: Color3,
+	material: Enum.Material?,
+	variant: string?
+): Part
 	local p = Instance.new("Part")
 	p.Anchored = true
 	p.CanCollide = false
@@ -85,11 +91,14 @@ local function newPart(size: Vector3, cf: CFrame, color: Color3, material: Enum.
 	p.CFrame = cf
 	p.Color = color
 	p.Material = material or Enum.Material.Concrete
+	if variant and variant ~= "" then
+		p.MaterialVariant = variant -- a city kit building's texture (Config.City.kit)
+	end
 	return p
 end
 
--- The colour and material of a building's biggest part (its body)
-local function bodyLook(model: Model?): (Color3, Enum.Material)
+-- The colour, material and material variant of a building's biggest part (its body)
+local function bodyLook(model: Model?): (Color3, Enum.Material, string)
 	local best, bestV = nil, 0
 	if model then
 		for _, p in model:GetDescendants() do
@@ -102,9 +111,9 @@ local function bodyLook(model: Model?): (Color3, Enum.Material)
 		end
 	end
 	if best then
-		return best.Color, best.Material
+		return best.Color, best.Material, best.MaterialVariant
 	end
-	return Color3.fromRGB(170, 160, 150), Enum.Material.Concrete
+	return Color3.fromRGB(170, 160, 150), Enum.Material.Concrete, ""
 end
 
 -- Hide the real body on this device; hidden, it also stops colliding here so the holes are real
@@ -160,7 +169,7 @@ end
 
 -- The building as Structure pieces, without the ones in skip. Returns the model and its parts by piece.
 local function drawStructure(rec: Rec, skip: { [number]: boolean }): (Model, { [number]: BasePart })
-	local color, material = bodyLook(models[rec.id])
+	local color, material, variant = bodyLook(models[rec.id])
 	local m = Instance.new("Model")
 	m.Name = "Wreck_" .. rec.id
 	local parts: { [number]: BasePart } = {}
@@ -170,7 +179,8 @@ local function drawStructure(rec: Rec, skip: { [number]: boolean }): (Model, { [
 				Vector3.new(c.sx - 0.05, c.sy - 0.05, c.sz - 0.05),
 				CFrame.new(c.cx, c.cy, c.cz),
 				if c.kind == "pillar" then color:Lerp(Color3.new(0, 0, 0), 0.18) else shade(color, i),
-				material
+				material,
+				if c.kind == "wall" then variant else nil -- a kit front keeps its windows on the wall panels
 			)
 			p.CanCollide = true
 			p.CanQuery = true

@@ -220,6 +220,22 @@ nate's plan: https://claude.ai/artifact/VeuJPWz6kKE6gGsUBmqQC9. Use a fresh hero
 9. Body sizes and doors: as a Titan and as a Small hero, walk through a safehouse shelter, a doorway and under a low ledge: both fit the same places a Medium hero does (one standard collider), and nobody falls through the floor or sinks into it.
 10. Old heroes: a hero made before this update keeps its look (no missing pieces), has Bare Fists on 2 and Male Medium Average.
 
+### Downtown kit block (2026-11-17)
+One Downtown block (east of the plaza) to the new look (overhaul plan step 3): textured building fronts with the windows in them, paved sidewalk, kerbs, lane dashes, textured roads, street lamps, planted trees, benches, bins, hydrants and traffic lights. Previews: art/preview/block_street.png and block_air.png (rendered from the game's own layout). Until the textures and props are in, the block keeps today's look (plain colours, window bands, no props), so nothing breaks.
+Textures (art/export/city, project files capeline/art/city; Claude can do this on your PC when you say so):
+1. Studio: View > Material Manager. For each of the six (Brick, Office, Curtain, Stone, Paving, Asphalt), create a variant named `Kit` + the name (KitBrick, KitOffice, ...) on its base material: Brick on Brick, Office on Concrete, Curtain on Glass, Stone on Sandstone, Paving on Pavement, Asphalt on Asphalt.
+2. In each variant, import its `_Color`, `_Normal` and `_Roughness` PNGs (Curtain also `_Metalness`). Studs Per Tile: 12 for the four fronts, 8 for Paving, 16 for Asphalt. Pattern: Regular.
+3. The variants live in MaterialService and publish with the place. Claude then pulls them into the repo so every build has them.
+Props:
+4. Home > Import 3D, pick `art/export/Street.fbx` (project files capeline/art/city/Street.fbx), "Import as a single mesh" OFF. Rename the model `Street`, put it in ReplicatedStorage.Art. Claude pulls it into the repo (art/models/Street.rbxm).
+Checks (walk out of the plaza to the east):
+5. The block's four buildings show stone, office or glass-tower fronts with windows, a storey a tile; the window bands are gone there (only there); each roof has a pale cornice. The other blocks look as before.
+6. Windows line up with the storeys and are not stretched (if they sit half a storey off, tell Claude: the tiling start moves in one step).
+7. The sidewalk is paved slabs with a kerb; the roads everywhere in Downtown have asphalt grit; white dashes run down the four streets around the block.
+8. Lamps (lit bulbs) along the kerb with trees in planters between, a bench and a bin on each side, a hydrant near a corner, traffic lights on two corners with their lights over the street. You can stand on benches and planters, walk through leaves.
+9. Smash a building on the block: the falling wall panels keep the front texture; rubble is plain.
+10. Performance: about 120 more parts on the block; the Dev panel frame time is unchanged.
+
 ### Remade Spark Trooper (2026-11-17)
 The first robot to the new look (overhaul plan step 3): armour on the blocky R15 body, one baked texture set (art/blender/trooper.py; preview art/preview/trooper.png). Until it is imported the Spark Trooper keeps today's look, so nothing breaks.
 Import (Claude can do it on your PC when you say so, like the robot meshes):

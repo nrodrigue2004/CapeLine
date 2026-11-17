@@ -6449,6 +6449,58 @@ test("Remade robot (Spark Trooper): its shell set and extras", function()
 	check(Config.Enemies.SparkDrone.body.art == "Trooper", "the Spark Trooper uses the remade set")
 end)
 
+test("City kit block: textured fronts, street dressing, and the rest of Downtown unchanged", function()
+	local K = Config.City.kit
+	local layout = CityLayout.downtown(Config.City, Config.World)
+	-- the same Downtown without the kit: every building where it was
+	local bare = table.clone(Config.City)
+	bare.kit = nil
+	local plain = CityLayout.downtown(bare, Config.World)
+	check(#plain.buildings == #layout.buildings, "same buildings with the kit")
+	for i, b in plain.buildings do
+		local k = layout.buildings[i]
+		check(k.x == b.x and k.z == b.z and k.h == b.h, "building " .. i .. " unchanged")
+	end
+	local kits, bands, marks, kerbs = {}, 0, 0, 0
+	for _, b in layout.boxes do
+		if b.kit then
+			check(K.baseMaterial[b.kit] ~= nil and K.studsPerTile[b.kit] ~= nil, b.kit .. " is a kit texture")
+			kits[b.kit] = (kits[b.kit] or 0) + 1
+		end
+		if b.plain then
+			check(b.kind == "band", "only window bands give way to the kit fronts")
+			bands += 1
+		end
+		if b.kind == "mark" then
+			marks += 1
+		end
+		if b.color == "kerb" and b.kind == "sidewalk" then
+			kerbs += 1
+		end
+	end
+	check(kits.Paving == 1 and kits.Asphalt == 1, "one paved block, the road textured")
+	local fronts = (kits.Brick or 0) + (kits.Office or 0) + (kits.Curtain or 0) + (kits.Stone or 0)
+	check(fronts >= 3 and fronts <= 4, string.format("%d textured fronts on the block", fronts))
+	check(bands > 0 and marks > 0 and kerbs == 4, "bands to replace, lane dashes and four kerbs")
+	-- props: on the block's sidewalk, each a known prop with its pieces in StreetArt
+	local counts = {}
+	for _, pr in layout.props do
+		counts[pr.name] = (counts[pr.name] or 0) + 1
+		local pieces = K.props[pr.name]
+		check(pieces ~= nil, pr.name .. " is a kit prop")
+		for piece in pieces do
+			check(Config.StreetArt[pr.name][piece] ~= nil, piece .. " has a mesh size")
+		end
+		check(math.abs(pr.y - (Config.City.ground.y + 0.9)) < 1e-6, "props stand on the sidewalk")
+	end
+	check((counts.StreetLamp or 0) >= 8 and (counts.Planter or 0) >= 4, "lamps and trees line the block")
+	check(
+		counts.Bench == 4 and counts.Bin == 4 and counts.Hydrant == 4 and counts.TrafficLight == 2,
+		"one of each a side"
+	)
+	check(layout.parts <= Config.City.partBudget.downtown, "still within the Downtown part budget")
+end)
+
 print(string.format("\n%d passed, %d failed", passed, failed))
 if failed > 0 then
 	process.exit(1)

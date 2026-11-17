@@ -24,6 +24,62 @@ return {
 		beacon = { height = 320, width = 46 }, -- Beacon Tower HQ (League side), the Downtown landmark
 		seed = 20261116, -- fixed: the hub is handcrafted in the spec, so it never changes with the weekly seed
 	},
+	-- The city kit (overhaul plan step 3: one Downtown block to the new look; the rest in step 5). Kit blocks
+	-- (offsets in blocks from the plaza's) get textured building fronts, paving, kerbs, lane dashes and street
+	-- props. Textures are MaterialVariants in MaterialService (art/city/materials.py, uploaded by nate; until
+	-- then the parts keep their plain materials); props are ReplicatedStorage.Art.Street meshes
+	-- (art/blender/street.py; skipped until imported).
+	kit = {
+		blocks = { { 1, 0 } }, -- the block east of the plaza, in view where new heroes land
+		-- a building's palette colour -> its front (MaterialVariant "Kit" .. name, 12 studs a tile = a storey)
+		fronts = {
+			brick = "Brick",
+			concrete = "Office",
+			slate = "Office",
+			sand = "Stone",
+			steel = "Curtain",
+			glass = "Curtain",
+		},
+		towerFront = "Curtain", -- every tower is glass
+		studsPerTile = { Brick = 12, Office = 12, Curtain = 12, Stone = 12, Paving = 8, Asphalt = 16 },
+		baseMaterial = {
+			Brick = "Brick",
+			Office = "Concrete",
+			Curtain = "Glass",
+			Stone = "Sandstone",
+			Paving = "Pavement",
+			Asphalt = "Asphalt",
+		},
+		kerb = 0.6, -- kerb width on the sidewalk's edge
+		cornice = 1.2, -- the roof cornice: a cap this deep over the roof (0.05 above it, 0.5 proud all round), so the
+		-- front texture never shows on top
+		lampEvery = 26, -- street lamps along each side (studs apart), planted trees between them
+		dash = { length = 6, gap = 6, width = 0.5 }, -- the lane dashes down the middle of the streets around it
+		-- each prop's pieces: Art.Street mesh name -> colour, material, collides
+		props = {
+			StreetLamp = {
+				Pole = { { 48, 60, 56 }, "Metal", true },
+				LampHead = { { 48, 60, 56 }, "Metal", false },
+				Bulb = { { 255, 236, 190 }, "Neon", false },
+			},
+			Bench = {
+				BenchSeat = { { 150, 102, 64 }, "WoodPlanks", true },
+				BenchFrame = { { 40, 44, 48 }, "Metal", true },
+			},
+			Hydrant = { Hydrant = { { 200, 52, 44 }, "SmoothPlastic", true } },
+			Bin = { Bin = { { 60, 84, 72 }, "Metal", true } },
+			Planter = {
+				PlanterBox = { { 168, 164, 156 }, "Concrete", true },
+				Trunk = { { 96, 70, 50 }, "Wood", true },
+				Crown = { { 84, 140, 70 }, "Grass", false },
+			},
+			TrafficLight = {
+				SignalPole = { { 54, 58, 64 }, "Metal", true },
+				SignalBox = { { 40, 42, 46 }, "Metal", false },
+				SignalLights = { { 120, 255, 140 }, "Neon", false },
+			},
+		},
+	},
 	-- The Docks (spec: cranes, warehouses, the Foundry villain HQ). Fixed seed like Downtown.
 	docks = {
 		seed = 20261117,
@@ -82,6 +138,8 @@ return {
 		steel = { 120, 130, 140 },
 		glass = { 70, 96, 120 },
 		road = { 46, 48, 54 },
+		kerb = { 186, 184, 178 },
+		mark = { 236, 234, 226 },
 		sidewalk = { 120, 120, 118 },
 		grass = { 92, 130, 78 },
 		roof = { 74, 76, 82 },
