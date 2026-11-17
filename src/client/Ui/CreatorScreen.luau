@@ -37,7 +37,8 @@ local C = Config.Creator
 local B = C.body
 local W = Config.Weapons
 local T = Config.Ui.touchTarget
--- heroes wear the player's own avatar (Config.Creator.avatar): no Body step then (the avatar is the body)
+-- heroes wear the player's own avatar (Config.Creator.avatar, off since nate's 2026-11-17 call); the Body
+-- step (gender, build, height) shows only with Config.Creator.bodyStep
 local AVATAR = C.avatar.on == true
 local STEPS = {
 	{ id = "body", name = "Body" },
@@ -51,10 +52,10 @@ local STEPS = {
 -- the appearance list: body areas, then their slots (tab ids from Config.Creator, plus skin and colours)
 local AREAS = {
 	{ "BODY", { "skin", "colors" } },
-	{ "HEAD", { "hair", "beard", "eyes", "face", "makeup", "head", "hat", "ears" } },
-	{ "TORSO", { "suit", "shoulders", "neck", "emblem" } },
+	{ "HEAD", { "visage", "hair", "beard", "eyes", "face", "makeup", "head", "hat", "ears" } },
+	{ "TORSO", { "shirt", "suit", "shoulders", "neck", "emblem" } },
 	{ "ARMS", { "arms", "hands", "wrist" } },
-	{ "WAIST AND LEGS", { "belt", "legs", "feet" } },
+	{ "WAIST AND LEGS", { "pants", "belt", "legs", "feet" } },
 	{ "BACK", { "backpack", "back" } },
 	{ "EXTRAS", { "aura", "trail", "voice" } },
 }
@@ -62,6 +63,10 @@ local SLOT_NAMES = {
 	skin = "Skin",
 	colors = "Colours (match all)",
 	suit = "Top",
+	shirt = "Shirt",
+	pants = "Pants",
+	visage = "Face",
+	face = "Face details",
 	back = "Cape",
 	head = "Mask",
 	hands = "Gloves",
@@ -75,7 +80,14 @@ local FACE_SLOTS = { hair = true, beard = true, eyes = true, face = true, makeup
 local BACK_SLOTS = { back = true, backpack = true }
 -- slots with no NONE choice (every hero has a flight trail and a voice; a top too, unless heroes wear their
 -- own avatar, whose clothes show with no suit)
-local REQUIRED = { suit = not AVATAR, trail = true, voice = true }
+local REQUIRED = {
+	suit = not AVATAR and not C.clothes.on, -- with no suit, our classic Shirt and Pants show
+	shirt = true,
+	pants = true,
+	visage = true,
+	trail = true,
+	voice = true,
+}
 -- on the player's own avatar, an empty slot shows the avatar's own item there (Shared.AvatarRules)
 local OWN = {
 	suit = true,
@@ -91,7 +103,7 @@ local OWN = {
 	neck = true,
 	belt = true,
 }
-if AVATAR then
+if AVATAR or not C.bodyStep then
 	table.remove(STEPS, 1)
 end
 local REASONS = {
@@ -885,6 +897,17 @@ local function drawAppearance()
 end
 
 ----------------------------------------------------------------------------------------------- PLAY
+-- the classic clothes in words ("Hoodie and Jeans", or the suit's name over them)
+local function clothesLine(): string
+	local function name(tab: string): string?
+		local i = look.pieces[tab] or 0
+		local p = if i > 0 then CreatorRules.piece(Config, tab, i) else nil
+		return p and p.name
+	end
+	local top = name("suit") or name("shirt") or ""
+	local bottom = name("legs") or name("pants") or ""
+	return top .. (if top ~= "" and bottom ~= "" then " and " else "") .. bottom
+end
 local function drawPlay()
 	preview.focus("full")
 	header("TITLE")
@@ -918,6 +941,7 @@ local function drawPlay()
 				"%s\n%s, %s\n%s\n%s",
 				if AVATAR
 					then "Your own avatar"
+					elseif not C.bodyStep then clothesLine()
 					else string.format(
 						"%s %s, %s",
 						B.genders[look.gender] or "",
@@ -1306,7 +1330,7 @@ function CreatorScreen.open(opts: { [string]: any })
 			step = i
 		end
 	end
-	slot = "suit"
+	slot = if C.clothes.on then "shirt" else "suit"
 	colorTarget, weaponTarget = 1, 1
 	cancelButton.Visible = mode == "edit"
 	gui.Enabled = true

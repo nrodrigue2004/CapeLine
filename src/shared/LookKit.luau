@@ -1303,6 +1303,70 @@ local function avatarColors(char: Model, look: any): Color3?
 	return swap or skin
 end
 
+-- The classic clothes (no suit): our own Shirt and Pants (Config.Creator.clothes, tinted by the slot's main
+-- colour, the shirt's default the whole-hero primary, the pants' the secondary) on a Humanoid body, with the
+-- skin under them; a body with no Humanoid (an HQ mannequin) or a kit not uploaded yet is painted in the
+-- clothes' colours instead. A legs piece paints the legs and the pants stay off.
+local function classicClothes(
+	char: Model,
+	look: any,
+	colors: Colors,
+	shirtKit: string?,
+	pantsKit: string?,
+	legPaint: { Color3 }?,
+	skinMat: Enum.Material?
+)
+	local CC = C.clothes
+	local hum = char:FindFirstChildOfClass("Humanoid")
+	local shirtTint = (slotColors(colors, look, "shirt")).p
+	local pantsTint = if look.tints and look.tints.pants
+		then (slotColors(colors, look, "pants")).p
+		else colors.s
+	local shirtId = if shirtKit and hum then CC.shirts[shirtKit] or 0 else 0
+	local pantsId = if pantsKit and hum and not legPaint then CC.pants[pantsKit] or 0 else 0
+	local top = if shirtId ~= 0 or not shirtKit then colors.skin else shirtTint
+	local legs = if pantsId ~= 0 or not pantsKit then colors.skin else pantsTint
+	for _, p in char:GetChildren() do
+		if p:IsA("BasePart") and p.Name ~= "HumanoidRootPart" then
+			local n = p.Name
+			local c: Color3? = nil
+			if n == "Head" then
+				c = colors.skin
+			elseif string.find(n, "LowerTorso") then
+				c = if legPaint then legPaint[1] elseif pantsId ~= 0 or not pantsKit then top else pantsTint
+			elseif string.find(n, "Torso") or string.find(n, "Arm") or string.find(n, "Hand") then
+				c = top
+			elseif string.find(n, "Leg") or string.find(n, "Foot") then
+				c = if legPaint
+					then (if string.find(n, "LowerLeg") then legPaint[2] else legPaint[1])
+					else legs
+			end
+			if c then
+				p.Color = c
+				p.Material = if c == colors.skin and skinMat then skinMat else Enum.Material.SmoothPlastic
+			end
+		end
+	end
+	local bc = char:FindFirstChildOfClass("BodyColors")
+	if bc then
+		bc:Destroy() -- the parts carry the colours (a BodyColors would repaint them)
+	end
+	if shirtId ~= 0 then
+		local sh = Instance.new("Shirt")
+		sh.Name = "HeroShirt"
+		sh.ShirtTemplate = "rbxassetid://" .. shirtId
+		sh.Color3 = shirtTint
+		sh.Parent = char
+	end
+	if pantsId ~= 0 then
+		local pa = Instance.new("Pants")
+		pa.Name = "HeroPants"
+		pa.PantsTemplate = "rbxassetid://" .. pantsId
+		pa.Color3 = pantsTint
+		pa.Parent = char
+	end
+end
+
 -- Build a whole look (LookService adds the gear styles the look does not cover). Returns the folder.
 -- The body wears its body set and is shaped first (build, height, gender), so every piece is sized for it.
 local NEW_SLOTS =
@@ -1312,9 +1376,15 @@ function LookKit.build(char: Model, look: any, weapon: any?): Folder
 	LookKit.clear(char)
 	-- a hero wearing the player's own avatar keeps the classic blocky body (no body set, build or height)
 	local avatar = char:GetAttribute("Avatar") == true
-	if not avatar then
+	if not avatar and C.bodyStep then
 		LookKit.wearBodySet(char, look)
 		LookKit.shapeBody(char, look)
+	end
+	for _, name in { "HeroShirt", "HeroPants" } do
+		local old = char:FindFirstChild(name)
+		if old then
+			old:Destroy()
+		end
 	end
 	local folder = Instance.new("Folder")
 	folder.Name = "HeroLook"
@@ -1343,7 +1413,10 @@ function LookKit.build(char: Model, look: any, weapon: any?): Folder
 		end
 	end
 	local suitKit = kitOf("suit")
-	if suitKit or not avatar then
+	local classic = not suitKit and not avatar and C.clothes.on == true
+	if classic then
+		classicClothes(char, look, colors, kitOf("shirt"), kitOf("pants"), legPaint, skinMat)
+	elseif suitKit or not avatar then
 		local suit = suitKit or "plain"
 		paintBody(char, suit, suitColors, skinMat, legPaint)
 		addSpecs(char, folder, "Suit", KITS.suit[suit] or PieceKits.suit[suit], suitColors, suitMat)
@@ -1400,6 +1473,11 @@ function LookKit.build(char: Model, look: any, weapon: any?): Folder
 		local head = char:FindFirstChild("Head")
 		local decal = head and head:FindFirstChild("face")
 		if decal and decal:IsA("Decal") then
+			-- one of our faces (Config.NpcLooks.faces, once uploaded), else Roblox's built-in face
+			local f = Config.NpcLooks.faces[kitOf("visage") or ""]
+			decal.Texture = if f and f.human ~= 0
+				then "rbxassetid://" .. f.human
+				else "rbxasset://textures/face.png"
 			decal.Transparency = if kitOf("face") or hidesFace then 1 else 0
 		end
 	end

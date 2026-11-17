@@ -236,16 +236,16 @@ Checks (walk out of the plaza to the east):
 9. Smash a building on the block: the falling wall panels keep the front texture; rubble is plain.
 10. Performance: about 120 more parts on the block; the Dev panel frame time is unchanged.
 
-### Heroes: your own avatar plus hero gear (2026-11-17)
-nate picked "own avatar plus hero gear" (like Blox Fruits). Every hero is the player's own Roblox avatar (clothes, face, skin colour, hair, accessories) on the classic blocky R15 body, with the creator's pieces on top. The Output says build own-avatar (2026-11-17). Play Solo uses your real avatar (Studio's 2-player Local Server test players have none, so they keep the old painted body).
-1. Play Solo: you spawn as your own avatar (your shirt, pants, face, hair, hats, skin colour) on the blocky body, wearing a domino mask, a classic cape and a star on the chest. Nothing floats or sits inside the body. The Output shows no [AvatarService] warning.
-2. Rthro or slim avatars come out the standard blocky size (same height as everyone).
-3. HQ or a safehouse, open the creator: there is no Body step. Empty slots say MY OWN (Top, Legs, Shoes, Hair, Headwear, Face, Beard, Cape, Back bling, Shoulders, Neck, Belt). Skin has MY OWN first.
-4. Pick a Top: your shirt and pants go away and the suit colours the body; pick MY OWN again and your clothes and colours come back. The preview in the creator matches what you see in the world.
-5. Pick creator Hair: your own hair hides (hats stay). Pick Headwear: your hat hides. A full helm hides hair and hats. A Cape or Back bling hides wings and big back items. A Face piece replaces your face.
-6. Pick a skin swatch: only the skin areas change (the head and bare arms, not the shirt). MY OWN brings your colour back.
-7. Respawn (die or reset): the avatar and the look come back the same. A second player sees the same thing (Test > 2 players only shows the painted fallback; check with a friend on a published test place later).
-8. Weapons, gloves, emblem, aura and flight trail still sit right on the avatar.
+### Heroes: a Roblox character in our own clothes (2026-11-17)
+nate's call: every hero is the classic blocky Roblox character and keeps nothing from the player's avatar ("They wear our clothes, our gear, our accessories"). Our classic Shirt and Pants (art/clothes/heroes.py: 10 shirts, 6 pants, preview art/preview/hero_clothes.png), tinted by the hero's colours, our 6 faces and our hair, with suits and gear on top. No gender, build or height. The Output says build our-clothes (2026-11-17).
+Uploads (with the robot uploads below; Claude puts the ids in Config.Creator.clothes):
+1. Asset Manager > Bulk Import the 16 PNGs in project files capeline/art/clothes/heroes (Shirt_*.png, Pants_*.png; not the preview folder). Copy each id into the chat with its name. Until then the body is painted in the shirt's and pants' colours.
+Checks:
+2. New hero: a hoodie and jeans (tinted in the hero colours), the Hero face, swept hair, a domino mask, a classic cape and a star. Nothing from your Roblox avatar shows (no hats, hair, clothes or face of yours).
+3. Creator: no Body step. HEAD has Face (our 6 faces) first; TORSO has Shirt first; WAIST AND LEGS has Pants first. Shirt, Pants and Face have no NONE. Each shirt and pants changes in the preview and in the world; a slot colour square tints it.
+4. Pick a Top (suit): it covers the shirt and pants; NONE on Top brings the shirt and pants back. A Legs piece covers only the pants.
+5. Short sleeves, the tank and shorts show the skin; hands are skin under every shirt.
+6. HQ mannequins show the outfit as plain colours (they have no Humanoid, so Roblox clothing cannot draw on them).
 
 ### Robots: try both looks in game (2026-11-17)
 nate wants to compare the two robot looks in game: "Roblox" (a plain Roblox character: blocky R15 body, classic clothes image, a Roblox face that turns, real Roblox hair from the catalog; every robot kind has 3 uniform versions, Grunt, Veteran and Elite, preview art/preview/uniforms.png) and "Shell" (the Blender superhero meshes below). Dev panel button "Robots: Auto / Roblox / Shell / Plain" switches every robot live. The Output says build robot-uniforms (2026-11-17).
@@ -321,7 +321,7 @@ The Output at boot says build all-weapons (2026-11-17). DEV: give Credits, buy w
 
 ### Body sets (2026-11-17)
 The Output at boot says build body-sets (2026-11-17). Needs art/export/Bodies.fbx imported first (Studio 3D Importer, into ReplicatedStorage.Art, named "Bodies"; preview art/preview/bodies.png). Before the import everything looks as it does now.
-(2026-11-17: heroes now wear their own avatar on the blocky body, so steps 1 and 2 only apply with Config.Creator.avatar.on = false; citizens and robots in step 3 still use the sets.)
+(2026-11-17: heroes no longer choose a body (Config.Creator.bodyStep = false), so steps 1 and 2 only apply if that is turned back on; citizens and robots in step 3 still use the sets.)
 1. Creator: pick each of the 8 bodies (Male and Female, Small, Medium, Large, Titan). The torso, arms and legs change shape, not just size: tapers, a broad V on Large and Titan, a soft chest and wider hips on the female bodies. Nothing stretches oddly or leaves gaps at the joints.
 2. Switch body back and forth in the creator, then press Play: the hero in the city has the same body as the creator preview, and hats, coats and armour still sit right.
 3. Citizens: men and women, slim to big, walk around (no Titans). Robots: Brutes and Sentinels have the Large body, drones and Sneak Bots the Small one. The big HQ dummy is Large.

@@ -5896,8 +5896,8 @@ test("Creator plan: save v9 pads looks and pieces, keeps weapons, repairs junk",
 	local p = ProfileSchema.load(serde.decode("json", serde.encode("json", old)))
 	check(p.version == 9, "version 9")
 	check(
-		#p.pieces == 32 and p.pieces[8] == 8 and p.pieces[9] == 0,
-		"the unlock set pads to 32 words, keeping bits"
+		#p.pieces == ProfileSchema.PIECE_WORDS and p.pieces[8] == 8 and p.pieces[9] == 0,
+		"the unlock set pads to its full size, keeping bits"
 	)
 	check(#p.weaponsOwned == 2, "weapons owned added")
 	check(
@@ -5958,6 +5958,12 @@ test(
 						Config.Creator.shapes[glyph] ~= nil and backings[backing] ~= nil,
 						p.name .. " is a real emblem"
 					)
+				elseif p.tab == "shirt" or p.tab == "pants" then
+					local CC = Config.Creator.clothes
+					local ids = if p.tab == "shirt" then CC.shirts else CC.pants
+					check(type(ids[p.kit]) == "number", p.name .. " has a clothes image slot")
+				elseif p.tab == "visage" then
+					check(Config.NpcLooks.faces[p.kit] ~= nil, p.name .. " is one of our faces")
 				else
 					local set = kits[p.tab]
 					check(
@@ -5966,12 +5972,13 @@ test(
 					)
 				end
 				check(p.index <= 255, p.name .. " fits a look byte")
-				check(p.id < 1024, p.name .. " fits the 1,024-bit pieces bitset")
+				check(p.id < 32 * ProfileSchema.PIECE_WORDS, p.name .. " fits the pieces bitset")
 			end
 		end
 		-- 121 in the first slice, then 2026-11-17's head area: 20 hair, 7 facial hair, 15 faces, 12 makeup,
 		-- 4 ears, 14 eyes and 20 emblems; then 10 headwear and 14 masks; then 30 tops, 10 shoulders and 7 neck; then 7 arms, 8 gloves, 14 boots, 6 wrist, 7 belts, 18 legs, 10 back bling and 3 capes (73)
-		check(count == 121 + 92 + 24 + 47 + 73, "357 pieces beyond the first 146 (503 in all)")
+		-- and the classic clothes and faces (2026-11-17): 10 shirts, 6 pants, 6 faces
+		check(count == 121 + 92 + 24 + 47 + 73 + 22, "379 pieces beyond the first 146 (525 in all)")
 		-- every piece's unlock can actually be earned
 		for _, p in idx.list do
 			local src, n = p.source, p.source.n
@@ -6043,7 +6050,7 @@ test(
 		-- the creator's slots are LookCodec's slots
 		local LookCodec = require("../src/shared/LookCodec")
 		for _, tab in Config.Creator.tabs do
-			check(table.find(LookCodec.SLOTS, tab.id) ~= nil, tab.id .. " is a look slot")
+			check(table.find(LookCodec.ALL, tab.id) ~= nil, tab.id .. " is a look slot")
 		end
 		-- body: Medium is the standard rig, Titan is wide and tall, the head never stretches, legs fit the waist
 		local std = BodyShape.factors(Config, { build = 2, height = 3, gender = 1 })
@@ -6451,78 +6458,110 @@ test("Remade robot (Spark Trooper): its superhero shell set and hair", function(
 	check(Config.Enemies.SparkDrone.body.art == "Trooper", "the Spark Trooper uses the remade set")
 end)
 
-test("Own avatar plus hero gear: what each piece hides, the default look, skin 0 and the creator", function()
-	local AvatarRules = require("../src/shared/AvatarRules")
-	local CreatorRules = require("../src/shared/CreatorRules")
-	local ProfileSchema = require("../src/shared/ProfileSchema")
-	check(Config.Creator.avatar.on == true, "heroes wear their own avatar")
-	-- nothing picked: every avatar item shows
-	local none = AvatarRules.hides({})
-	check(
-		not none.shirt and not none.pants and not none.face and next(none.types) == nil,
-		"an empty look hides nothing"
-	)
-	-- a suit is a bodysuit: shirt, pants, layered tops and bottoms and chest items go
-	local suit = AvatarRules.hides({ suit = 1 })
-	check(suit.shirt and suit.pants, "a suit hides the shirt and pants")
-	for _, t in { "TShirt", "Shirt", "Sweater", "Jacket", "Pants", "Shorts", "DressSkirt", "Front" } do
-		check(suit.types[t] == true, "a suit hides layered " .. t)
+test(
+	"Heroes in our own clothes: avatar off, the classic clothes and faces, and the avatar rules kept",
+	function()
+		local AvatarRules = require("../src/shared/AvatarRules")
+		local LookCodec = require("../src/shared/LookCodec")
+		local CreatorRules = require("../src/shared/CreatorRules")
+		local ProfileSchema = require("../src/shared/ProfileSchema")
+		-- nate, 2026-11-17: nothing from the player's avatar; our clothes, faces, hair and gear only
+		check(Config.Creator.avatar.on == false, "the player's avatar is not used")
+		check(Config.Creator.bodyStep == false, "no gender, build or height")
+		check(Config.Creator.clothes.on == true, "heroes wear our classic Shirt and Pants")
+		-- nothing picked: every avatar item shows
+		local none = AvatarRules.hides({})
+		check(
+			not none.shirt and not none.pants and not none.face and next(none.types) == nil,
+			"an empty look hides nothing"
+		)
+		-- a suit is a bodysuit: shirt, pants, layered tops and bottoms and chest items go
+		local suit = AvatarRules.hides({ suit = 1 })
+		check(suit.shirt and suit.pants, "a suit hides the shirt and pants")
+		for _, t in { "TShirt", "Shirt", "Sweater", "Jacket", "Pants", "Shorts", "DressSkirt", "Front" } do
+			check(suit.types[t] == true, "a suit hides layered " .. t)
+		end
+		check(
+			not suit.types.Hair and not suit.types.Hat and not suit.face,
+			"a suit keeps hair, hats and the face"
+		)
+		local legs = AvatarRules.hides({ legs = 3 })
+		check(
+			not legs.shirt and legs.pants and legs.types.Shorts and not legs.types.Jacket,
+			"legs hide only the bottoms"
+		)
+		check(
+			AvatarRules.hides({ feet = 1 }).types.LeftShoe and AvatarRules.hides({ feet = 1 }).types.RightShoe,
+			"shoes"
+		)
+		local hair = AvatarRules.hides({ hair = 2 })
+		check(hair.types.Hair and not hair.types.Hat, "creator hair replaces the avatar's hair, hats stay")
+		check(AvatarRules.hides({ hat = 1 }).types.Hat, "creator headwear replaces the avatar's hat")
+		local helm = AvatarRules.hides({ head = 4 }, true, false)
+		check(
+			helm.types.Hair and helm.types.Hat and helm.types.Face and not helm.face,
+			"a full helm hides hair and hats"
+		)
+		check(AvatarRules.hides({}, false, true).face, "a closed helm hides the face")
+		check(AvatarRules.hides({ face = 1 }).face, "a Face piece replaces the avatar's face")
+		check(
+			AvatarRules.hides({ back = 2 }).types.Back and AvatarRules.hides({ backpack = 1 }).types.Back,
+			"a cape hides wings"
+		)
+		check(AvatarRules.hides({ back = 0, hair = 0 }).types.Back == nil, "0 means the avatar's own")
+		-- old items with no type go by their attachment
+		check(AvatarRules.kind("Unknown", "HairAttachment") == "Hair", "an untyped hair")
+		check(AvatarRules.kind("Unknown", "BodyBackAttachment") == "Back", "an untyped back item")
+		check(AvatarRules.kind("Hat", "HairAttachment") == "Hat", "a typed item keeps its type")
+		check(AvatarRules.kind("Unknown", nil) == "Unknown", "no attachment")
+		-- every hero is the same size: body parts and scales reset
+		for _, f in { "Head", "Torso", "LeftArm", "RightArm", "LeftLeg", "RightLeg" } do
+			check(table.find(AvatarRules.CLEAR, f) ~= nil, f .. " body part reset to the blocky one")
+		end
+		check(
+			AvatarRules.SCALES.HeightScale == 1 and AvatarRules.SCALES.BodyTypeScale == 0,
+			"standard scales"
+		)
+		-- the default look: our hoodie and jeans, a face and hair, with a starter mask, cape and symbol, all free
+		local look = CreatorRules.defaultLook(Config)
+		check((look.pieces.suit or 0) == 0, "no suit: the classic clothes show")
+		check(
+			look.pieces.shirt > 0 and look.pieces.pants > 0 and look.pieces.visage > 0,
+			"a shirt, pants and a face"
+		)
+		check(look.pieces.hair > 0 and Config.Creator.skins[look.skin] ~= nil, "our hair and a skin tone")
+		check(
+			look.pieces.head > 0 and look.pieces.back > 0 and look.pieces.emblem > 0,
+			"a starter mask, cape and symbol"
+		)
+		check((CreatorRules.validate(Config, ProfileSchema.default(), look)), "the default look is valid")
+		local bad = LookCodec.copy(look)
+		bad.skin = 0
+		check(
+			not (CreatorRules.validate(Config, ProfileSchema.default(), bad)),
+			"skin 0 (the avatar's) is not allowed"
+		)
+		-- the clothes and face round-trip through the save (kept in the look record's spare bytes)
+		look.pieces.shirt, look.pieces.pants, look.pieces.visage = 10, 6, 4
+		look.tints.shirt, look.tints.pants = { 7, 0, 0 }, { 12, 0, 0 }
+		local back = LookCodec.read(LookCodec.write(look)) :: any
+		check(
+			back.pieces.shirt == 10 and back.pieces.pants == 6 and back.pieces.visage == 4,
+			"clothes and face saved"
+		)
+		check(back.tints.shirt[1] == 7 and back.tints.pants[1] == 12, "the clothes' tints saved")
+		check(
+			back.pieces.head == look.pieces.head and back.pieces.emblem == look.pieces.emblem,
+			"the other slots kept"
+		)
+		for _, tab in { "shirt", "pants", "visage" } do
+			check(#(CreatorRules.index(Config).byTab[tab] or {}) >= 6, tab .. " has its pieces")
+			for _, p in CreatorRules.index(Config).byTab[tab] do
+				check(p.source.kind == "free", p.name .. " is free (the everyday look is never sold)")
+			end
+		end
 	end
-	check(
-		not suit.types.Hair and not suit.types.Hat and not suit.face,
-		"a suit keeps hair, hats and the face"
-	)
-	local legs = AvatarRules.hides({ legs = 3 })
-	check(
-		not legs.shirt and legs.pants and legs.types.Shorts and not legs.types.Jacket,
-		"legs hide only the bottoms"
-	)
-	check(
-		AvatarRules.hides({ feet = 1 }).types.LeftShoe and AvatarRules.hides({ feet = 1 }).types.RightShoe,
-		"shoes"
-	)
-	local hair = AvatarRules.hides({ hair = 2 })
-	check(hair.types.Hair and not hair.types.Hat, "creator hair replaces the avatar's hair, hats stay")
-	check(AvatarRules.hides({ hat = 1 }).types.Hat, "creator headwear replaces the avatar's hat")
-	local helm = AvatarRules.hides({ head = 4 }, true, false)
-	check(
-		helm.types.Hair and helm.types.Hat and helm.types.Face and not helm.face,
-		"a full helm hides hair and hats"
-	)
-	check(AvatarRules.hides({}, false, true).face, "a closed helm hides the face")
-	check(AvatarRules.hides({ face = 1 }).face, "a Face piece replaces the avatar's face")
-	check(
-		AvatarRules.hides({ back = 2 }).types.Back and AvatarRules.hides({ backpack = 1 }).types.Back,
-		"a cape hides wings"
-	)
-	check(AvatarRules.hides({ back = 0, hair = 0 }).types.Back == nil, "0 means the avatar's own")
-	-- old items with no type go by their attachment
-	check(AvatarRules.kind("Unknown", "HairAttachment") == "Hair", "an untyped hair")
-	check(AvatarRules.kind("Unknown", "BodyBackAttachment") == "Back", "an untyped back item")
-	check(AvatarRules.kind("Hat", "HairAttachment") == "Hat", "a typed item keeps its type")
-	check(AvatarRules.kind("Unknown", nil) == "Unknown", "no attachment")
-	-- every hero is the same size: body parts and scales reset
-	for _, f in { "Head", "Torso", "LeftArm", "RightArm", "LeftLeg", "RightLeg" } do
-		check(table.find(AvatarRules.CLEAR, f) ~= nil, f .. " body part reset to the blocky one")
-	end
-	check(AvatarRules.SCALES.HeightScale == 1 and AvatarRules.SCALES.BodyTypeScale == 0, "standard scales")
-	-- the default look: own clothes and skin with a starter mask, cape and symbol, all free
-	local look = CreatorRules.defaultLook(Config)
-	check(
-		look.skin == 0 and (look.pieces.suit or 0) == 0 and (look.pieces.hair or 0) == 0,
-		"own skin, clothes and hair"
-	)
-	check(
-		look.pieces.head > 0 and look.pieces.back > 0 and look.pieces.emblem > 0,
-		"a starter mask, cape and symbol"
-	)
-	check((CreatorRules.validate(Config, ProfileSchema.default(), look)), "the default look is valid")
-	local d = AvatarRules.hides(look.pieces)
-	check(
-		not d.shirt and not d.pants and d.types.Back and d.types.Front,
-		"the default shows your own clothes"
-	)
-end)
+)
 
 test("Roblox look: classic clothes map onto the R15 body, robots' recipes and Roblox hair", function()
 	local ClothesMap = require("../src/shared/ClothesMap")

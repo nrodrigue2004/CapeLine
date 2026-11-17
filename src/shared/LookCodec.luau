@@ -10,11 +10,11 @@
 --   byte 5       skin (Config.Creator.skins, 1 to 30)
 --   byte 6       hair colour, byte 7 eye colour (palette; eye colour 0 = the eyes piece's own)
 --   bytes 8-10   the whole-hero primary, secondary and accent colour (palette 1 to 48)
---   bytes 11-19  reserved (0)
+--   bytes 11-13  the classic clothes and face (LookCodec.EXTRA: Shirt, Pants, Face decal), bytes 14-19 reserved
 --   bytes 20-42  one piece per slot (LookCodec.SLOTS order), the piece's index in its tab, 0 = none
 --   bytes 44-112 per slot main, trim and glow colour (palette; 0 = the whole-hero colour)
 --   bytes 113-124 per slot material, a nibble each (0 = the piece's own; Config.Creator.materials)
---   bytes 125-127 reserved (0)
+--   bytes 125-126 the Shirt's and the Pants' tint (palette; 0 = the whole-hero colour), byte 127 reserved
 -- Version 1 records (32 bytes: flags, 11 pieces, 3 colours, hair, skin) still read: the first 11 slots
 -- keep their order, so a saved v1 look reads with Male, Medium, standard height and no per-slot colours.
 -- On the wire it is a buffer; in the save it is unsigned 32-bit words (DataStores store JSON).
@@ -52,6 +52,20 @@ LookCodec.SLOTS = {
 	"backpack", -- Back bling
 }
 local PIECES_AT, TINTS_AT, MATS_AT = 20, 44, 113
+-- 2026-11-17 (nate: heroes are a blocky Roblox character in our own clothes, nothing from their avatar): the
+-- classic Shirt and Pants and the face decal, kept in reserved bytes (the 23 slots fill bytes 20 to 112), each
+-- with at most a main tint
+local EXTRA: { { slot: string, at: number, tint: number? } } = {
+	{ slot = "shirt", at = 11, tint = 125 },
+	{ slot = "pants", at = 12, tint = 126 },
+	{ slot = "visage", at = 13 },
+}
+LookCodec.EXTRA = EXTRA
+-- every look slot: the 23 above, then the extras
+LookCodec.ALL = table.clone(LookCodec.SLOTS)
+for _, e in LookCodec.EXTRA do
+	table.insert(LookCodec.ALL, e.slot)
+end
 
 export type Tint = { number } -- main, trim, glow (0 = the whole-hero colour)
 
@@ -106,6 +120,13 @@ function LookCodec.encode(look: Look): buffer
 			if (i - 1) % 2 == 0 then bit32.bor(old, m) else bit32.bor(old, bit32.lshift(m, 4))
 		)
 	end
+	for _, e in LookCodec.EXTRA do
+		buffer.writeu8(b, e.at, byte(look.pieces[e.slot], 0, 255, 0))
+		local t = tints[e.slot]
+		if e.tint then
+			buffer.writeu8(b, e.tint, byte(t and t[1], 0, 255, 0))
+		end
+	end
 	return b
 end
 
@@ -157,6 +178,13 @@ function LookCodec.decode(b: buffer): Look?
 		local m = if (i - 1) % 2 == 0 then bit32.band(packed, 15) else bit32.rshift(packed, 4)
 		if m ~= 0 then
 			mats[slot] = m
+		end
+	end
+	for _, e in LookCodec.EXTRA do
+		pieces[e.slot] = buffer.readu8(b, e.at)
+		local c = if e.tint then buffer.readu8(b, e.tint) else 0
+		if c ~= 0 then
+			tints[e.slot] = { c, 0, 0 }
 		end
 	end
 	return {

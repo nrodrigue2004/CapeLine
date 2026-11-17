@@ -208,7 +208,7 @@ def face_plane(turned, name):
     return ob
 
 
-def figure(at, yaw, skin, hair_rgb, turned=False, arm_up=False, face="Hero", outfit=None):
+def figure(at, yaw, skin, hair_rgb, turned=False, arm_up=False, face="Hero", outfit=None, layered=False):
     """outfit: the clothes image's name (under art/export/clothes), shirt and pants as <outfit>_Shirt/_Pants"""
     outfit = outfit or ROBOT
     shirt_img, pants_img = image(outfit + "_Shirt"), image(outfit + "_Pants")
@@ -220,6 +220,8 @@ def figure(at, yaw, skin, hair_rgb, turned=False, arm_up=False, face="Hero", out
         # as the game's robots wear them (Shared.ClothesMap): the upper torso and arms show the shirt, the lower
         # torso and legs the pants
         layers = [shirt_img] if short in ("UpperTorso", "UpperArm", "LowerArm", "Hand") else [pants_img]
+        if layered and "Torso" in short:
+            layers = [pants_img, shirt_img]  # a real Shirt and Pants on a Humanoid: the shirt over the pants
         ob.data.materials.append(clothed_mat(name, skin, layers))
         if arm_up and name in ("RightUpperArm", "RightLowerArm", "RightHand"):
             pivot = Vector((1.0, 0, 3.76))
@@ -239,7 +241,22 @@ def figure(at, yaw, skin, hair_rgb, turned=False, arm_up=False, face="Hero", out
         ob.matrix_world = Y @ ob.matrix_world
 
 
-if ROBOT == "uniforms":
+if ROBOT == "heroes":
+    # heroes in our own Roblox-style clothes (art/clothes/heroes.py), with our faces
+    skins = [(240, 190, 150), (141, 95, 64), (224, 172, 130), (198, 140, 96), (92, 62, 44), (250, 210, 180),
+             (170, 120, 84), (232, 180, 140)]
+    hairs = [(70, 46, 30), (30, 26, 24), (160, 120, 60), (20, 20, 22), (120, 50, 30), (200, 170, 110),
+             (60, 40, 28), (150, 140, 170)]
+    faces = ["Hero", "Stern", "Sharp", "Rookie", "Cold", "Scarred", "Hero", "Sharp"]
+    kit.studio(res=(2400, 760), samples=48)
+    for i in range(8):
+        figure(((3.5 - i) * 4.4, 0, 0), (i % 3 - 1) * 12, skins[i], hairs[i], face=faces[i],
+               outfit="heroes/preview/Hero%d" % (i + 1), layered=True)
+    floor = kit.cyl("floor", 24, 24, 0.2, at=(0, 0, -0.1), segs=48)
+    floor.data.materials.append(kit.material("floor", (60, 64, 72), rough=0.8))
+    kit.camera((0, 40.0, 4.2), (0, 0, 2.3), lens=37)
+    kit.render(os.path.join(kit.ROOT, "preview", "hero_clothes.png"))
+elif ROBOT == "uniforms":
     # every robot kind in one version of its uniform, with mixed skins, faces and hair (art/clothes/uniforms.py)
     kinds = ["SparkDrone", "BurglarBot", "SneakBot", "BruteBot", "Turret", "NullSentinel", "Diver", "Anchor",
              "TorpedoSentry"]

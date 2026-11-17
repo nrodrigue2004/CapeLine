@@ -729,7 +729,76 @@ return {
 				{ "Orbit Orbs", "orbs", "legacy:5" },
 			},
 		},
+		-- 2026-11-17 (nate: heroes keep nothing from their avatar, "They wear our clothes, our gear, our
+		-- accessories"): a blocky Roblox character in our own classic Shirt and Pants (art/clothes/heroes.py,
+		-- tinted by the slot's colour; image ids in Config.Creator.clothes) and one of our faces. A suit or legs
+		-- piece goes over them. All free: the everyday look is never sold.
+		{
+			id = "shirt",
+			name = "Shirt",
+			base = 1100,
+			pieces = {
+				{ "Tee", "Tee", "free" },
+				{ "Long Sleeve", "LongSleeve", "free" },
+				{ "Pullover Hoodie", "Hoodie", "free" },
+				{ "Zip Jacket", "ZipJacket", "free" },
+				{ "Track Top", "TrackTop", "free" },
+				{ "Button Shirt", "ButtonShirt", "free" },
+				{ "Polo", "Polo", "free" },
+				{ "Tank", "Tank", "free" },
+				{ "Knit Sweater", "Sweater", "free" },
+				{ "Bomber", "Bomber", "free" },
+			},
+		},
+		{
+			id = "pants",
+			name = "Pants",
+			base = 1130,
+			pieces = {
+				{ "Denim Jeans", "Jeans", "free" },
+				{ "Cargo Trousers", "Cargo", "free" },
+				{ "Jogger Pants", "Joggers", "free" },
+				{ "Casual Shorts", "Shorts", "free" },
+				{ "Track Bottoms", "TrackPants", "free" },
+				{ "Slacks", "Slacks", "free" },
+			},
+		},
+		{
+			id = "visage",
+			name = "Face",
+			base = 1160,
+			-- the shared comic-book faces (Config.NpcLooks.faces, art/clothes/faces.py)
+			pieces = {
+				{ "Hero Face", "Hero", "free" },
+				{ "Stern Face", "Stern", "free" },
+				{ "Sharp Face", "Sharp", "free" },
+				{ "Scarred Face", "Scarred", "free" },
+				{ "Rookie Face", "Rookie", "free" },
+				{ "Cold Face", "Cold", "free" },
+			},
+		},
 	},
+	-- The heroes' classic clothes: each kit's uploaded image id (0 until nate uploads art/export/clothes/heroes;
+	-- until then the body is painted in the shirt's and pants' colours). on = false: no classic clothes.
+	clothes = {
+		on = true,
+		shirts = {
+			Tee = 0,
+			LongSleeve = 0,
+			Hoodie = 0,
+			ZipJacket = 0,
+			TrackTop = 0,
+			ButtonShirt = 0,
+			Polo = 0,
+			Tank = 0,
+			Sweater = 0,
+			Bomber = 0,
+		},
+		pants = { Jeans = 0, Cargo = 0, Joggers = 0, Shorts = 0, TrackPants = 0, Slacks = 0 },
+	},
+	-- gender, build and height (nate, 2026-11-17: removed; every hero is the standard blocky body). true brings
+	-- the creator's Body step back.
+	bodyStep = false,
 
 	-- Emblem shapes (PLACEHOLDER ART: a glyph on a backing until the generated, hand-cleaned emblem set;
 	-- review every emblem before each release so none resembles a famous symbol)
@@ -960,18 +1029,26 @@ return {
 	looks = 4, -- saved looks (the 4 mannequins at HQ; HQ level 1 shows 1, level 2 all 4)
 	dropChance = 0.15, -- an Epic or Legendary drop also unlocks a random locked "drop" piece
 	-- A new hero before the creator: these free pieces (tab index -> piece index), colours and skin
-	-- Heroes are the player's own Roblox avatar plus hero gear (nate, 2026-11-17: "Own avatar plus hero gear"):
-	-- AvatarService puts the avatar (clothes, face, skin colour, hair, accessories) on the classic blocky body
-	-- and the creator's pieces go on top, each hiding the avatar's own item in its slot (Shared.AvatarRules).
-	-- The creator drops its Body step. Off = the old hero body painted by its suit.
-	avatar = { on = true },
-	-- a new hero: their own avatar (no suit, their own skin, hair, gloves and shoes) with a starter mask,
-	-- cape and chest symbol, so they look like a hero from the first second without opening the creator
+	-- The player's own Roblox avatar on the hero (AvatarService, Shared.AvatarRules). OFF (nate, 2026-11-17:
+	-- "i dont want the player to keep anything about their avatar"): heroes wear only our clothes, faces, hair
+	-- and gear. Kept as a switch.
+	avatar = { on = false },
+	-- a new hero (before the creator): a hoodie and jeans, the Hero face, swept hair, a mask, cape and star
 	default = {
-		pieces = { back = 2, head = 1, emblem = 1, trail = 1, voice = 1 },
+		pieces = {
+			shirt = 3,
+			pants = 1,
+			visage = 1,
+			hair = 2,
+			back = 2,
+			head = 1,
+			emblem = 1,
+			trail = 1,
+			voice = 1,
+		},
 		colors = { 10, 1, 4 },
 		hair = 22,
-		skin = 0, -- 0 = the avatar's own skin colour
+		skin = 3,
 		gender = 1,
 		build = 2,
 		height = 3,

@@ -14,7 +14,8 @@ ProfileSchema.BOSSES = 3 -- #Config.Boss.order (a test checks they match)
 ProfileSchema.SLOTS = 8
 ProfileSchema.STYLE_WORDS = 16 -- 512 bits
 ProfileSchema.SMALL_WORDS = 4 -- 128 bits for emotes, titles, Rogues File pages, seen flags
-ProfileSchema.PIECE_WORDS = 32 -- 1,024 bits: creator pieces unlocked (M9; 32 since the 2026-11-16 creator plan)
+ProfileSchema.PIECE_WORDS = 40 -- 1,280 bits: creator pieces unlocked (M9; 32 since the 2026-11-16 creator plan, 40 since the
+-- 2026-11-17 classic clothes and faces; repair pads an older save with 0)
 ProfileSchema.LOOK_WORDS = 32 -- a 128-byte look record (LookCodec v2; an 8-word v1 record pads with 0 and still reads)
 ProfileSchema.WEAPON_WORDS = 2 -- 64 bits: weapons owned (Config.Weapons ids)
 -- a weapon's saved state: mastery points, style, finish, main, trim and glow colour, glow strength, emblem, trail

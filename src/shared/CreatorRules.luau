@@ -174,7 +174,7 @@ end
 
 function CreatorRules.validate(Config: any, profile: any, look: Look): (boolean, string?)
 	local C = Config.Creator
-	for _, slot in LookCodec.SLOTS do
+	for _, slot in LookCodec.ALL do
 		local i = look.pieces[slot] or 0
 		if i ~= 0 then
 			local p = CreatorRules.piece(Config, slot, i)
@@ -200,7 +200,7 @@ function CreatorRules.validate(Config: any, profile: any, look: Look): (boolean,
 	end
 	local tints: { [string]: { number } } = look.tints or {}
 	for slot, t in tints do
-		if not table.find(LookCodec.SLOTS, slot) then
+		if not table.find(LookCodec.ALL, slot) then
 			return false, "slot"
 		end
 		for i = 1, 3 do
@@ -212,7 +212,7 @@ function CreatorRules.validate(Config: any, profile: any, look: Look): (boolean,
 	end
 	local mats: { [string]: number } = look.mats or {}
 	for slot, m in mats do
-		if not table.find(LookCodec.SLOTS, slot) or (m ~= 0 and not C.materials[m]) then
+		if not table.find(LookCodec.ALL, slot) or (m ~= 0 and not C.materials[m]) then
 			return false, "material"
 		end
 	end
@@ -349,7 +349,7 @@ function CreatorRules.randomize(Config: any, profile: any, rng: any): (Look, num
 		legs = 0.5,
 		backpack = 0.25,
 	}
-	for _, slot in LookCodec.SLOTS do
+	for _, slot in LookCodec.ALL do
 		local pool = CreatorRules.ownedIn(Config, profile, slot)
 		local keep = optional[slot]
 		if #pool == 0 or (keep and not rng:chance(keep)) then
