@@ -191,7 +191,8 @@ function CreatorRules.validate(Config: any, profile: any, look: Look): (boolean,
 			return false, "color"
 		end
 	end
-	if not C.palette[look.hair] or not C.skins[look.skin] then
+	-- skin 0 = the player's own avatar's skin colour (Config.Creator.avatar)
+	if not C.palette[look.hair] or not (C.skins[look.skin] or (look.skin == 0 and C.avatar.on)) then
 		return false, "color"
 	end
 	if look.eyeColor ~= 0 and not C.palette[look.eyeColor] then

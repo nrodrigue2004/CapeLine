@@ -27,6 +27,7 @@ local HeroService = require(script.Parent.HeroService)
 local EnemyService = require(script.Parent.EnemyService)
 local MoveGuard = require(script.Parent.MoveGuard)
 local LookService = require(script.Parent.LookService)
+local AvatarService = require(script.Parent.AvatarService)
 local Analytics = require(script.Parent.Analytics)
 
 local GearService = {}
@@ -234,11 +235,17 @@ function GearService.init()
 			HeroService.writeBack(hero, ProfileSchema.active(profile))
 		end
 	end)
-	-- a new body gets the look again
+	-- a new body gets the look again, and again once the player's avatar is on it (AvatarService)
 	HeroService.Spawned:Connect(function(hero)
 		if hero.player and DataService.get(hero.player) then
 			local profile = DataService.get(hero.player) :: any
 			GearService.showLook(hero.player, profile, ProfileSchema.active(profile))
+		end
+	end)
+	AvatarService.Ready:Connect(function(player: Player)
+		local profile = DataService.get(player)
+		if profile then
+			GearService.showLook(player, profile, ProfileSchema.active(profile))
 		end
 	end)
 	HeroService.Leveled:Connect(function(hero)

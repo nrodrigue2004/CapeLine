@@ -37,6 +37,8 @@ local C = Config.Creator
 local B = C.body
 local W = Config.Weapons
 local T = Config.Ui.touchTarget
+-- heroes wear the player's own avatar (Config.Creator.avatar): no Body step then (the avatar is the body)
+local AVATAR = C.avatar.on == true
 local STEPS = {
 	{ id = "body", name = "Body" },
 	{ id = "side", name = "Side" },
@@ -71,8 +73,27 @@ local SLOT_NAMES = {
 }
 local FACE_SLOTS = { hair = true, beard = true, eyes = true, face = true, makeup = true, ears = true }
 local BACK_SLOTS = { back = true, backpack = true }
--- slots with no NONE choice (every hero has a top, a flight trail and a voice)
-local REQUIRED = { suit = true, trail = true, voice = true }
+-- slots with no NONE choice (every hero has a flight trail and a voice; a top too, unless heroes wear their
+-- own avatar, whose clothes show with no suit)
+local REQUIRED = { suit = not AVATAR, trail = true, voice = true }
+-- on the player's own avatar, an empty slot shows the avatar's own item there (Shared.AvatarRules)
+local OWN = {
+	suit = true,
+	legs = true,
+	feet = true,
+	hair = true,
+	hat = true,
+	face = true,
+	beard = true,
+	back = true,
+	backpack = true,
+	shoulders = true,
+	neck = true,
+	belt = true,
+}
+if AVATAR then
+	table.remove(STEPS, 1)
+end
 local REASONS = {
 	locked = "That piece is not unlocked yet",
 	piece = "That piece does not exist",
@@ -743,6 +764,13 @@ local function drawSlotColors()
 	end
 end
 local function drawSkin()
+	if AVATAR then
+		-- the avatar's own skin colour (0)
+		tile("MY OWN", nil, (look.skin or 0) == 0, false, function()
+			look.skin = 0
+			refresh()
+		end)
+	end
 	for i, c in C.skins do
 		local fantasy = C.fantasySkins[i]
 		swatch(rgb(c), look.skin == i, function()
@@ -787,7 +815,7 @@ local function drawPieces()
 	local cur = look.pieces[slot] or 0
 	if not REQUIRED[slot] then
 		tile(
-			"NONE",
+			if AVATAR and OWN[slot] then "MY OWN" else "NONE",
 			nil,
 			cur == 0,
 			false,
@@ -887,10 +915,15 @@ local function drawPlay()
 			heroName(),
 			Players.LocalPlayer.DisplayName,
 			string.format(
-				"%s %s, %s\n%s, %s\n%s\n%s",
-				B.genders[look.gender] or "",
-				b.name,
-				string.lower(B.heightNames[look.height] or ""),
+				"%s\n%s, %s\n%s\n%s",
+				if AVATAR
+					then "Your own avatar"
+					else string.format(
+						"%s %s, %s",
+						B.genders[look.gender] or "",
+						b.name,
+						string.lower(B.heightNames[look.height] or "")
+					),
 				SIDES[sideIdx][1],
 				if mob then mob.name else "",
 				if set
@@ -1007,9 +1040,18 @@ local function randomize()
 			weaponLook.glowLevel = rng:int(0, W.glowLevels)
 		end
 	elseif id == "appearance" then
-		local keep = { gender = look.gender, build = look.build, height = look.height, anime = look.anime }
+		local keep = {
+			gender = look.gender,
+			build = look.build,
+			height = look.height,
+			anime = look.anime,
+			skin = look.skin,
+		}
 		look = l
 		look.gender, look.build, look.height, look.anime = keep.gender, keep.build, keep.height, keep.anime
+		if AVATAR then
+			look.skin = keep.skin -- randomizing the look keeps your own skin
+		end
 	elseif id == "play" then
 		titleId, nounId = t, n
 	end
@@ -1256,10 +1298,11 @@ function CreatorScreen.open(opts: { [string]: any })
 	local carried = if (p.weapon or 0) ~= 0 then p.weapon else W.defaultWeapon
 	weaponLook = WeaponRules.lookOf(profileView(), carried)
 	family = (WeaponRules.get(Config, carried) or WeaponRules.get(Config, W.defaultWeapon)).family
-	-- a new hero starts at the body; an edit opens on the looks (or the step asked for: the Weapon Rack)
-	step = if mode == "edit" then 6 else 1
+	-- a new hero starts at the first step; an edit opens on the looks (or the step asked for: the Weapon Rack)
+	local want = opts.step or (if mode == "edit" then "appearance" else nil)
+	step = 1
 	for i, st in STEPS do
-		if st.id == opts.step then
+		if st.id == want then
 			step = i
 		end
 	end

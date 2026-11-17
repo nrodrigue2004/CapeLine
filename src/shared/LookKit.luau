@@ -1,7 +1,9 @@
 -- LookKit: builds a creator look on a character (spec: Hero creator "Pieces are accessories on a standard
 -- Roblox rig"). The server builds it on every hero so everyone sees it (LookService); the creator screen
 -- builds the same look on its preview dummy. Not pure (makes Instances), so Lune only checks it exists.
--- * strip(char): the avatar's own accessories and clothes come off (a standard rig), the face stays.
+-- * strip(char): the avatar's own accessories and clothes come off (a standard rig), the face stays; on a hero
+--   wearing the player's own avatar (marked Avatar by AvatarService) nothing comes off: build() hides and
+--   brings back the avatar's items as the look's pieces cover them (Shared.AvatarRules).
 -- * build(char, folder, look): body colours from the suit, then every piece as small welded parts,
 --   the emblem as a glyph on the chest, the aura as one emitter, the flight trail as one Trail.
 -- Parts are massless and never collide, touch or block raycasts. Works on R15 and R6 bodies.
@@ -14,6 +16,7 @@ local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local CreatorRules = require(Shared:WaitForChild("CreatorRules"))
 local BodyShape = require(Shared:WaitForChild("BodyShape"))
+local AvatarRules = require(Shared:WaitForChild("AvatarRules"))
 local NpcRig = require(Shared:WaitForChild("NpcRig"))
 local PieceKits = require(Shared:WaitForChild("PieceKits"))
 local WeaponKit = require(Shared:WaitForChild("WeaponKit"))
@@ -956,8 +959,12 @@ function LookKit.shapeBody(char: Model, look: any)
 	end
 end
 
--- The avatar's own accessories and clothes come off (the face stays)
+-- The avatar's own accessories and clothes come off (the face stays); a hero wearing the player's own avatar
+-- keeps them (build hides what the look covers)
 function LookKit.strip(char: Model)
+	if char:GetAttribute("Avatar") == true then
+		return
+	end
 	for _, d in char:GetChildren() do
 		if
 			d:IsA("Accessory")
@@ -1202,6 +1209,100 @@ function LookKit.clear(char: Model)
 	end
 end
 
+-- Hide or bring back the player's own avatar items (AvatarService puts the avatar on; Shared.AvatarRules says
+-- what the look covers): classic clothes move into AvatarStash and back (a Shirt only shows as a child of the
+-- character), accessories turn see-through and back (their first transparency is kept on each part).
+local function dressAvatar(char: Model, hides: AvatarRules.Hides)
+	local stash = char:FindFirstChild("AvatarStash")
+	if not stash then
+		stash = Instance.new("Folder")
+		stash.Name = "AvatarStash"
+		stash.Parent = char
+	end
+	local function place(item: Instance, hidden: boolean)
+		item.Parent = if hidden then stash else char
+	end
+	for _, holder in { char, stash :: Instance } do
+		for _, d in holder:GetChildren() do
+			if d:IsA("Shirt") or d:IsA("ShirtGraphic") then
+				place(d, hides.shirt)
+			elseif d:IsA("Pants") then
+				place(d, hides.pants)
+			end
+		end
+	end
+	for _, acc in char:GetChildren() do
+		if acc:IsA("Accessory") then
+			local handle = acc:FindFirstChild("Handle")
+			local att = handle and handle:FindFirstChildOfClass("Attachment")
+			local kind = AvatarRules.kind(acc.AccessoryType.Name, att and att.Name)
+			local hidden = hides.types[kind] == true
+			for _, p in acc:GetDescendants() do
+				if p:IsA("BasePart") or p:IsA("Decal") then
+					local base = p:GetAttribute("AvatarAlpha")
+					if type(base) ~= "number" then
+						base = p.Transparency
+						p:SetAttribute("AvatarAlpha", base)
+					end
+					p.Transparency = if hidden then 1 else base :: number
+				end
+			end
+		end
+	end
+	local head = char:FindFirstChild("Head")
+	local decal = head and head:FindFirstChild("face")
+	if decal and decal:IsA("Decal") then
+		decal.Transparency = if hides.face then 1 else 0
+	end
+end
+
+-- The avatar's own colours back on the body (kept by AvatarService), with the look's skin (if it picks one) in
+-- place of the avatar's skin; returns the skin colour the look's skin-coloured pieces use
+local function avatarColors(char: Model, look: any): Color3?
+	local stash = char:FindFirstChild("AvatarStash")
+	local own = stash and stash:FindFirstChild("AvatarColors")
+	if not own or not own:IsA("BodyColors") then
+		return nil
+	end
+	local skin = own.HeadColor3
+	local pick = C.skins[look.skin or 0]
+	local swap = if (look.skin or 0) ~= 0 and pick then rgb(pick) else nil
+	local bc = char:FindFirstChildOfClass("BodyColors") or Instance.new("BodyColors")
+	for _, field in
+		{ "HeadColor3", "TorsoColor3", "LeftArmColor3", "RightArmColor3", "LeftLegColor3", "RightLegColor3" }
+	do
+		local c: Color3 = (own :: any)[field];
+		(bc :: any)[field] = if swap and c == skin then swap else c
+	end
+	bc.Parent = char
+	-- the parts too (the same as BodyColors does), so nothing waits on the Humanoid's appearance pass
+	local byPart = {
+		Head = bc.HeadColor3,
+		UpperTorso = bc.TorsoColor3,
+		LowerTorso = bc.TorsoColor3,
+		LeftUpperArm = bc.LeftArmColor3,
+		LeftLowerArm = bc.LeftArmColor3,
+		LeftHand = bc.LeftArmColor3,
+		RightUpperArm = bc.RightArmColor3,
+		RightLowerArm = bc.RightArmColor3,
+		RightHand = bc.RightArmColor3,
+		LeftUpperLeg = bc.LeftLegColor3,
+		LeftLowerLeg = bc.LeftLegColor3,
+		LeftFoot = bc.LeftLegColor3,
+		RightUpperLeg = bc.RightLegColor3,
+		RightLowerLeg = bc.RightLegColor3,
+		RightFoot = bc.RightLegColor3,
+	}
+	for name, c in byPart do
+		local p = char:FindFirstChild(name)
+		if p and p:IsA("BasePart") then
+			p.Color = c
+			p.Material = Enum.Material.Plastic
+		end
+	end
+	return swap or skin
+end
+
 -- Build a whole look (LookService adds the gear styles the look does not cover). Returns the folder.
 -- The body wears its body set and is shaped first (build, height, gender), so every piece is sized for it.
 local NEW_SLOTS =
@@ -1209,8 +1310,12 @@ local NEW_SLOTS =
 -- weapon (optional): a WeaponRules weapon look, built in a "Weapon" folder inside the look
 function LookKit.build(char: Model, look: any, weapon: any?): Folder
 	LookKit.clear(char)
-	LookKit.wearBodySet(char, look)
-	LookKit.shapeBody(char, look)
+	-- a hero wearing the player's own avatar keeps the classic blocky body (no body set, build or height)
+	local avatar = char:GetAttribute("Avatar") == true
+	if not avatar then
+		LookKit.wearBodySet(char, look)
+		LookKit.shapeBody(char, look)
+	end
 	local folder = Instance.new("Folder")
 	folder.Name = "HeroLook"
 	local colors = LookKit.colors(look)
@@ -1228,10 +1333,28 @@ function LookKit.build(char: Model, look: any, weapon: any?): Folder
 	local legPaint = if legDef
 		then { legColors[legDef.paint[1]] or legColors.s, legColors[legDef.paint[2]] or legColors.s }
 		else nil
-	local suit = kitOf("suit") or "plain"
 	local suitColors, suitMat = slotColors(colors, look, "suit")
-	paintBody(char, suit, suitColors, skinMat, legPaint)
-	addSpecs(char, folder, "Suit", KITS.suit[suit] or PieceKits.suit[suit], suitColors, suitMat)
+	if avatar then
+		-- the avatar's own colours (and skin, unless the look picks one); a suit or legs piece paints over them
+		local skin = avatarColors(char, look)
+		if skin and (look.skin or 0) == 0 then
+			colors.skin = skin
+			suitColors.skin = skin
+		end
+	end
+	local suitKit = kitOf("suit")
+	if suitKit or not avatar then
+		local suit = suitKit or "plain"
+		paintBody(char, suit, suitColors, skinMat, legPaint)
+		addSpecs(char, folder, "Suit", KITS.suit[suit] or PieceKits.suit[suit], suitColors, suitMat)
+	elseif legPaint then
+		-- no suit (the avatar's own top shows): the legs piece paints only the legs
+		for _, p in char:GetChildren() do
+			if p:IsA("BasePart") and (string.find(p.Name, "Leg") or string.find(p.Name, "Foot")) then
+				p.Color = if string.find(p.Name, "LowerLeg") then legPaint[2] else legPaint[1]
+			end
+		end
+	end
 	for _, tab in { "back", "head", "hands", "feet" } do
 		local kit = kitOf(tab)
 		local c, m = slotColors(colors, look, tab)
@@ -1269,11 +1392,16 @@ function LookKit.build(char: Model, look: any, weapon: any?): Folder
 			)
 		end
 	end
-	-- the default face decal steps aside for a Face piece or a closed helm
-	local head = char:FindFirstChild("Head")
-	local decal = head and head:FindFirstChild("face")
-	if decal and decal:IsA("Decal") then
-		decal.Transparency = if kitOf("face") or hidesFace then 1 else 0
+	-- the default face decal steps aside for a Face piece or a closed helm; on the player's own avatar, every
+	-- avatar item a piece covers hides (Shared.AvatarRules)
+	if avatar then
+		dressAvatar(char, AvatarRules.hides(look.pieces, hidesHair ~= nil and hidesHair ~= false, hidesFace))
+	else
+		local head = char:FindFirstChild("Head")
+		local decal = head and head:FindFirstChild("face")
+		if decal and decal:IsA("Decal") then
+			decal.Transparency = if kitOf("face") or hidesFace then 1 else 0
+		end
 	end
 	local e = kitOf("emblem")
 	if e then

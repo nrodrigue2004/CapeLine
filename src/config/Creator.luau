@@ -960,11 +960,18 @@ return {
 	looks = 4, -- saved looks (the 4 mannequins at HQ; HQ level 1 shows 1, level 2 all 4)
 	dropChance = 0.15, -- an Epic or Legendary drop also unlocks a random locked "drop" piece
 	-- A new hero before the creator: these free pieces (tab index -> piece index), colours and skin
+	-- Heroes are the player's own Roblox avatar plus hero gear (nate, 2026-11-17: "Own avatar plus hero gear"):
+	-- AvatarService puts the avatar (clothes, face, skin colour, hair, accessories) on the classic blocky body
+	-- and the creator's pieces go on top, each hiding the avatar's own item in its slot (Shared.AvatarRules).
+	-- The creator drops its Body step. Off = the old hero body painted by its suit.
+	avatar = { on = true },
+	-- a new hero: their own avatar (no suit, their own skin, hair, gloves and shoes) with a starter mask,
+	-- cape and chest symbol, so they look like a hero from the first second without opening the creator
 	default = {
-		pieces = { suit = 1, back = 2, head = 1, hands = 1, feet = 1, emblem = 1, trail = 1, voice = 1 },
+		pieces = { back = 2, head = 1, emblem = 1, trail = 1, voice = 1 },
 		colors = { 10, 1, 4 },
 		hair = 22,
-		skin = 3,
+		skin = 0, -- 0 = the avatar's own skin colour
 		gender = 1,
 		build = 2,
 		height = 3,
