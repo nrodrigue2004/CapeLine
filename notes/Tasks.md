@@ -220,6 +220,14 @@ nate's plan: https://claude.ai/artifact/VeuJPWz6kKE6gGsUBmqQC9. Use a fresh hero
 9. Body sizes and doors: as a Titan and as a Small hero, walk through a safehouse shelter, a doorway and under a low ledge: both fit the same places a Medium hero does (one standard collider), and nobody falls through the floor or sinks into it.
 10. Old heroes: a hero made before this update keeps its look (no missing pieces), has Bare Fists on 2 and Male Medium Average.
 
+### All 36 weapons playable (2026-11-17)
+The Output at boot says build all-weapons (2026-11-17). DEV: give Credits, buy weapons at the Weapon Rack (or set mastery to 150 to open X, C and V).
+1. Weapon Rack and creator: no weapon says "Coming soon"; every Rack weapon can be bought and carried, and the creator's free pick offers all 31 Rack weapons.
+2. Try one per family on robots, all 5 moves each: Martial Arts (Counter Stance parries), Power Gauntlets (Ground Pound breaks walls), Katana (Thousand Cuts channels), Spear (long M1 reach), Scythe (Reaping Pull pulls robots in), Tower Shield (Cover Allies shields squadmates nearby), Bow (Arrow Rain), Crossbow (Net Bolt roots), Throwing Stars (Ricochet bounces to 4), Chain Whip (Pull Lash), War Fan (Glide Step speeds you up), Yo-yo, Rope Dart. Every move hits, shows its visual and its comic word, and nothing errors.
+3. Feel: no weapon kills robots clearly faster than a power of the same role; the M1 combos all take about the same time to kill a Spark Trooper (fists and daggers fast and light, hammers and great axes slow and heavy).
+4. Exotic weapons (Chain Whip, War Fan, Yo-yo, Rope Dart, Boomerang) show their Robux price and need product ids before they can be bought (Launch Checklist).
+5. Known placeholder: weapon moves reuse the power visuals in a steel colour and there are no swing animations yet (PLACEHOLDER ART).
+
 ### Body sets (2026-11-17)
 The Output at boot says build body-sets (2026-11-17). Needs art/export/Bodies.fbx imported first (Studio 3D Importer, into ReplicatedStorage.Art, named "Bodies"; preview art/preview/bodies.png). Before the import everything looks as it does now.
 1. Creator: pick each of the 8 bodies (Male and Female, Small, Medium, Large, Titan). The torso, arms and legs change shape, not just size: tapers, a broad V on Large and Titan, a soft chest and wider hips on the female bodies. Nothing stretches oddly or leaves gaps at the joints.

@@ -5800,7 +5800,7 @@ test("Creator plan: 36 weapons in 7 families, Exotic ones sold for Robux, the re
 	for _, f in W.families do
 		check(perFamily[f.id] == want[f.id], f.name .. " count")
 	end
-	check(#W.playable == 7, "the first slice: one playable weapon per family")
+	check(#W.playable == 36, "all 36 weapons are playable")
 	local seen = {}
 	for _, id in W.playable do
 		seen[list[id].family] = true
@@ -5820,7 +5820,7 @@ test("Creator plan: weapon ownership, free pick, the Rack, mastery skills and th
 	check(not WeaponRules.owned(Config, p, 5), "the Sword is not owned yet")
 	check(WeaponRules.freePickOk(Config, 5), "the creator may give the Sword free")
 	check(not WeaponRules.freePickOk(Config, 36), "never a Robux weapon free")
-	check(not WeaponRules.freePickOk(Config, 6), "only playable weapons in the first slice")
+	check(WeaponRules.freePickOk(Config, 6), "the Katana is a free pick now that every weapon is playable")
 	local ok, why = WeaponRules.buyOk(Config, p, 5, 100)
 	check(not ok and why == "credits", "too few Credits")
 	ok = WeaponRules.buyOk(Config, p, 5, 5000)
@@ -6010,7 +6010,7 @@ test(
 	end
 )
 
-test("Creator plan: 7 playable weapons have an M1 and Z X C V, held with key 2, opened by Mastery", function()
+test("Creator plan: all 36 weapons have an M1 and Z X C V, held with key 2, opened by Mastery", function()
 	local WeaponRules = require("../src/shared/WeaponRules")
 	local A, W = Config.Abilities, Config.Weapons
 	check(#A.order == 136, "weapon moves stay out of the power order and loadouts")
@@ -6052,7 +6052,7 @@ test("Creator plan: 7 playable weapons have an M1 and Z X C V, held with key 2, 
 			end
 		end
 	end
-	check(rows == 7 * 5, "35 weapon moves")
+	check(rows == 36 * 5, "180 weapon moves")
 	for wid in W.skills do
 		check(WeaponRules.playable(Config, wid), "only playable weapons have moves")
 	end
@@ -6078,8 +6078,8 @@ test("Creator plan: 7 playable weapons have an M1 and Z X C V, held with key 2, 
 	check(not k25.locked[2] and k25.locked[3], "Mastery 25 opens X")
 	local k150 = WeaponRules.kit(Config, loadout, "weapon", 5, 150 * per)
 	check(not k150.locked[3] and not k150.locked[4], "Mastery 150 opens C and V")
-	local soon = WeaponRules.kit(Config, loadout, "weapon", 6, 0)
-	check(not soon.weapon and soon.basic == "ZapBolt", "a weapon with no moves yet falls back to the power")
+	local soon = WeaponRules.kit(Config, loadout, "weapon", 99, 0) -- a future weapon with no kit yet
+	check(not soon.weapon and soon.basic == "ZapBolt", "a weapon with no moves falls back to the power")
 	-- the slot in play
 	for _, name in { "WeaponHold", "WeaponBuy", "WeaponCarry" } do
 		check(
