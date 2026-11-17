@@ -13,9 +13,19 @@ if (-not (Test-Path $KeyFile)) { Write-Host "Key file not found: $KeyFile"; exit
 
 $ErrorActionPreference = "Stop"
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
-$lines = Get-Content -Path $KeyFile
-$key = $lines[0].Trim()
-$userId = $lines[1].Trim()
+$lines = @(Get-Content -Path $KeyFile | ForEach-Object { "$_".Trim() } | Where-Object { $_ -ne "" })
+if ($lines.Count -eq 1 -and $lines[0] -match "\s") { $lines = @($lines[0] -split "\s+") }
+if ($lines.Count -lt 2) {
+	Write-Host "The key file needs 2 lines: line 1 the API key, line 2 your Roblox user id (the number in roblox.com/users/NUMBER/profile)."
+	Write-Host "Open $KeyFile in Notepad, add the user id on line 2, save, and double-click upload.bat again."
+	exit 1
+}
+$key = [string]$lines[0]
+$userId = [string]$lines[1]
+if ($userId -notmatch "^[0-9]+$") {
+	Write-Host "Line 2 of the key file should be only your Roblox user id (numbers only). Fix it in Notepad and run again."
+	exit 1
+}
 $manifest = Get-Content -Raw -Path (Join-Path $here "manifest.json") | ConvertFrom-Json
 $idsPath = Join-Path $here "ids.json"
 $ids = @{}
