@@ -1,7 +1,8 @@
 -- AudioController: every sound on this device (spec: Audio, VFX and juice; Music "Three loops: city patrol
 -- (day and night versions), boss theme, victory sting. Music ducks 40% for the boss siren and voices").
 -- * play(id, at?): a juice action's sound from Config.Audio.sounds, 2D or at a spot in the world (3D, from
---   a pool of 24 so a big fight never piles up sounds). Effects group.
+--   a pool of 24 so a big fight never piles up sounds). Effects group. playSpec(row, at?) plays any other row
+--   the same way (a path's own sound layer, Config.Audio.paths).
 -- * loop(id, on, volume?): held sounds (flight wind, the Downed heartbeat).
 -- * voice(userId, line): a hero's voice pack line (player attribute Voice, ids in Config.Shop.voiceSounds),
 --   at most one per hero every 2.5 s; the music ducks under it. Voice group (inside Effects).
@@ -112,9 +113,17 @@ end
 
 -- Play one juice action's sound. `at` is a world spot (3D) or nil (2D, on you). opts: pitch, volume
 function AudioController.play(id: string, at: Vector3?, opts: { [string]: any }?)
-	local spec = A.sounds[id]
+	AudioController.playSpec(A.sounds[id], at, opts)
+end
+
+-- Play a sound row that is not a juice action (a path's own layer: Config.Audio.paths)
+function AudioController.playSpec(row: { [string]: any }?, at: Vector3?, opts: { [string]: any }?)
+	if not row then
+		return
+	end
+	local spec = row :: { [string]: any }
 	local sid = AudioController.idOf(spec)
-	if not spec or not sid then
+	if not sid then
 		return
 	end
 	local o = opts or {}

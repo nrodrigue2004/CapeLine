@@ -7009,6 +7009,211 @@ test("Effects library: every set has an element, every kind a texture, budgets a
 	L.textures.smoke.id = saved
 end)
 
+test(
+	"All power paths: every path has its own look in both styles, every element every moment, and the budget holds",
+	function()
+		local FxPlan = require("../src/shared/FxPlan")
+		local F = Config.Fx
+		local L = F.lib
+		local A = Config.Abilities
+		local function has(list, name)
+			return table.find(list, name) ~= nil
+		end
+		local function rgbOk(t)
+			return type(t) == "table" and #t == 3 and t[1] >= 0 and t[1] <= 255 and t[2] >= 0 and t[3] <= 255
+		end
+		-- which shapes each path has (heads are needed where something flies)
+		local shapes: { [string]: { [string]: boolean } } = {}
+		local superOf: { [string]: any } = {}
+		for _, row in A.list do
+			if row.set ~= "Weapon" then
+				shapes[row.set] = shapes[row.set] or {}
+				shapes[row.set][row.shape] = true
+				if row.slot == "super" then
+					superOf[row.set] = row
+				end
+			end
+		end
+		-- every super look draws from what its shape gives it (a line's end, a cone's fan, an area's centre)
+		local LOOK_SHAPE = {
+			icecrown = "field",
+			sunfall = "field",
+			overgrowth = "field",
+			tsunami = "line",
+			splitter = "line",
+			highnoon = "cone",
+			mechdrop = "field",
+			eclipse = "nova",
+			meteor = "leap",
+			heavenfall = "line",
+			siege = "field",
+			titanrise = "field",
+			singularity = "field",
+			psistorm = "field",
+			ascend = "field",
+			dawn = "nova",
+		}
+		local paths, elements, tuples, looks = 0, {}, {}, {}
+		for set in A.setColor do
+			paths += 1
+			local p = F.paths[set]
+			check(p ~= nil, set .. " has a look row")
+			if p then
+				check(rgbOk(p.accent) and rgbOk(p.super.tint), set .. " accent and tint are colours")
+				check(has(FxPlan.HEADS, p.head), set .. " head " .. tostring(p.head))
+				check(has(FxPlan.MARKS, p.mark), set .. " mark " .. tostring(p.mark))
+				check(has(FxPlan.CASTS, p.cast), set .. " cast " .. tostring(p.cast))
+				check(has(FxPlan.DASHES, p.dash), set .. " dash " .. tostring(p.dash))
+				check(has(FxPlan.PIECES, p.piece), set .. " piece " .. tostring(p.piece))
+				check(
+					has(FxPlan.PIECES, p.field.piece) and has(FxPlan.MOTIONS, p.field.motion),
+					set .. " field"
+				)
+				check(
+					has(FxPlan.PIECES, p.charge.piece) and p.charge.piece ~= "none" and p.charge.n >= 1,
+					set .. " charge motes"
+				)
+				check(
+					p.charge.n <= 8 and p.charge.radius > 0 and p.charge.spin > 0,
+					set .. " charge motes stay small"
+				)
+				check(has(FxPlan.SUPERS, p.super.look), set .. " super " .. tostring(p.super.look))
+				check(F.words[set] ~= nil and #F.words[set] == 3, set .. " has its Comic sound words")
+				local sounds = Config.Audio.paths[set]
+				check(sounds ~= nil, set .. " has its sound layer")
+				for _, moment in { "cast", "super", "hit", "charge" } do
+					local s = sounds and sounds[moment]
+					check(s ~= nil and (s.asset > 0 or s.fallback ~= nil), set .. " " .. moment .. " sound")
+				end
+				local el = L.setElement[set]
+				check(el ~= nil and not elements[el], set .. " has its own element (" .. tostring(el) .. ")")
+				elements[el] = true
+				if set == "Volt" then
+					-- the slice nate OKed keeps its look: nothing of the path section draws over it
+					check(
+						p.head == "none"
+							and p.mark == "none"
+							and p.cast == "none"
+							and p.dash == "none"
+							and p.piece == "none"
+							and p.field.piece == "none"
+							and p.super.look == "none",
+						"Volt keeps the slice's look"
+					)
+					check(L.setElement.Volt == "electric", "Volt stays electric")
+				else
+					check(
+						p.mark ~= "none" and p.cast ~= "none" and p.piece ~= "none",
+						set .. " has a mark, flourish, piece"
+					)
+					check(
+						p.super.look ~= "none" and not looks[p.super.look],
+						set .. " has its own super moment"
+					)
+					looks[p.super.look] = true
+					local key = p.mark .. "/" .. p.cast .. "/" .. p.head
+					check(not tuples[key], set .. " does not share its look with another path")
+					tuples[key] = true
+					local sh = shapes[set] or {}
+					if sh.bolt or sh.chain then
+						check(p.head ~= "none", set .. " has a head for what it throws")
+					end
+					if sh.dash then
+						check(p.dash ~= "none", set .. " has a dash trail")
+					end
+					local sup = superOf[set]
+					check(sup ~= nil, set .. " has a super")
+					if sup then
+						check(
+							LOOK_SHAPE[p.super.look] == sup.shape,
+							set .. " super look " .. p.super.look .. " suits its " .. sup.shape
+						)
+					end
+				end
+			end
+		end
+		check(paths == 17, "17 paths")
+		-- CombatFx draws every name the rows may use
+		local src = clientSources()["src/client/Fx/CombatFx.luau"]
+		local function drawn(prefix, list)
+			for _, name in list do
+				if not (prefix == "PIECE" and name == "none") then
+					check(
+						string.find(src, prefix .. "." .. name .. " = function", 1, true) ~= nil,
+						"CombatFx draws " .. prefix .. "." .. name
+					)
+				end
+			end
+		end
+		drawn("HEAD", FxPlan.HEADS)
+		drawn("MARK", FxPlan.MARKS)
+		drawn("CAST", FxPlan.CASTS)
+		drawn("DASH", FxPlan.DASHES)
+		drawn("MOTION", FxPlan.MOTIONS)
+		drawn("PIECE", FxPlan.PIECES)
+		drawn("SUPER", FxPlan.SUPERS)
+		-- every element has all five moments, each a real kind
+		for el, e in L.elements do
+			for _, moment in { "impact", "trail", "burst", "charge", "super" } do
+				check(e[moment] ~= nil, el .. " has a " .. moment)
+				for kind, n in e[moment] or {} do
+					check(L.kinds[kind] ~= nil and n >= 1, el .. "." .. moment .. "." .. kind .. " is a kind")
+					check(kind ~= "shock", el .. "." .. moment .. " leaves shock rings to FxLib.shock")
+				end
+			end
+		end
+		-- the budget: a whole super (burst, its own particles, crits on six robots) fits every preset, phones fewer
+		for el in L.elements do
+			local prev = -1
+			for _, name in Config.Presets.order do
+				local cost = FxPlan.superCost(L, el, L.scale[name])
+				check(
+					cost <= L.budget[name] * L.superShare,
+					string.format("%s super on %s: %d of %d", el, name, cost, L.budget[name])
+				)
+				check(cost > prev, el .. " draws more on bigger presets")
+				prev = cost
+			end
+		end
+		check(
+			L.partBudget.low < L.partBudget.medium and L.partBudget.medium < L.partBudget.high,
+			"path pieces: phones fewer"
+		)
+		check(
+			FxPlan.pieces(L, "low", 10) < FxPlan.pieces(L, "high", 10) and FxPlan.pieces(L, "low", 1) == 1,
+			"piece counts scale by preset and never vanish"
+		)
+		-- charge motes close in and grow as the charge fills
+		local ch = F.paths.Frost.charge
+		local x0, y0, z0, s0 = FxPlan.orbit(ch, 0, 0.3, 1)
+		local x1, y1, z1, s1 = FxPlan.orbit(ch, 1, 0.3, 1)
+		check(
+			math.sqrt(x1 * x1 + y1 * y1 + z1 * z1) < math.sqrt(x0 * x0 + y0 * y0 + z0 * z0),
+			"motes close in at full charge"
+		)
+		check(s1 > s0, "motes grow at full charge")
+		local ax, _, az = FxPlan.orbit(ch, 0.5, 0, 1)
+		local bx, _, bz = FxPlan.orbit(ch, 0.5, 0, 2)
+		check(math.abs(ax - bx) + math.abs(az - bz) > 0.5, "motes spread around the hand")
+		check(
+			FxPlan.pathOf(F, "Weapon") == nil and FxPlan.pathOf(F, nil) == nil,
+			"weapon moves keep their shapes"
+		)
+		-- the client plays the path's sound layer for casts, supers, hits and charges
+		local cc = clientSources()["src/client/Controllers/CombatClient.luau"]
+		check(
+			string.find(cc, 'Juice.path(eff.set, if slot == "super" then "super" else "cast"', 1, true) ~= nil,
+			"cast sound"
+		)
+		check(
+			string.find(cc, '"hit",', 1, true) ~= nil and string.find(cc, '"charge", origin', 1, true) ~= nil,
+			"hit and charge sounds"
+		)
+		check(string.find(cc, "CombatFx.castFlourish(", 1, true) ~= nil, "your own flourish")
+		check(string.find(cc, "CombatFx.superMoment(", 1, true) ~= nil, "your predicted super's moment")
+	end
+)
+
 test("Hold to aim and charge: what charges, how much, and the server's cap", function()
 	local ChargeRules = require("../src/shared/ChargeRules")
 	local CC = Config.Combat

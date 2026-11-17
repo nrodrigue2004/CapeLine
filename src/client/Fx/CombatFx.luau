@@ -8,6 +8,8 @@
 -- buff, wall, ramp), coloured by the power set, so all 40 abilities have both looks. CombatFx.cast picks
 -- the right one from the ability row. Built-in parts and tweens, with FxLib's textured particles (sparks,
 -- crackle, smoke, embers, shards, shockwave rings) under them per element: the optional `set` argument picks it.
+-- Every power path also has its own look on top (overhaul plan step 6; the path section, Config.Fx.paths): a
+-- head that flies, a hit mark, a cast flourish, dash trails, field drift, charge motes and a super moment.
 -- PLACEHOLDER ART until the VFX pass (Tasks.md).
 
 local Debris = game:GetService("Debris")
@@ -21,6 +23,7 @@ local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local EnemySim = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("EnemySim"))
+local FxPlan = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("FxPlan"))
 
 local QualityController = require(script.Parent.Parent.Controllers.QualityController)
 local DebrisBudget = require(script.Parent.DebrisBudget)
@@ -129,6 +132,7 @@ CombatFx.ring = ring
 
 local impactFrame: Frame? = nil
 local banner: TextLabel? = nil
+local slashFrame: Frame? = nil -- a thin line across the screen (Blade's Heaven Splitter cuts it)
 
 local function flashScreen(color: Color3, time: number, strength: number?)
 	if CombatFx.reduceFlashing or not impactFrame then
@@ -238,6 +242,9 @@ local function speedLines(pos: Vector3, scale: number, color: Color3, count: num
 	end
 end
 
+-- every path's own look (overhaul plan step 6): filled in by the path section below the shapes
+local sig: any = {}
+
 ---------------------------------------------------------------------------
 -- Shapes
 ---------------------------------------------------------------------------
@@ -253,6 +260,7 @@ function CombatFx.bolt(from: Vector3, to: Vector3, style: string, color: Color3?
 		beam(from, to, F.bolt.width * 1.6, c, F.bolt.life * 1.2)
 		beam(from, to, F.bolt.width * 0.6, WHITE, F.bolt.life)
 	end
+	sig.head(set, from, to, style, c, 1)
 end
 
 -- Jagged lightning through a list of points (Chain Lightning)
@@ -263,6 +271,7 @@ function CombatFx.chain(points: { Vector3 }, style: string, color: Color3?, set:
 		local a, b = points[i], points[i + 1]
 		FxLib.trail(a, b, set, col)
 		FxLib.impact(b, set, col, 0.6, nil, style)
+		sig.head(set, a, b, style, col, 0.7)
 		local prev = a
 		for s = 1, c.segments do
 			local t = s / c.segments
@@ -291,6 +300,7 @@ function CombatFx.dash(from: Vector3, to: Vector3, style: string, color: Color3?
 		beam(from, to, 2.2, c, F.dash.trailLife)
 		beam(from, to, 0.8, WHITE, F.dash.trailLife * 0.7)
 	end
+	sig.dash(set, from, to, style, c)
 end
 
 -- A fan in front of the hero (Arc Flash, Push Wave)
@@ -334,6 +344,7 @@ function CombatFx.cone(
 		p.Transparency = 0.5
 		fade(p, 0.25)
 	end
+	sig.cone(set, origin, f, range, coneDeg, style, color)
 end
 
 -- A crescent slash or a punch in front (Punch Combo, Blade Slash, Rising Blade, Haymaker)
@@ -383,6 +394,7 @@ function CombatFx.arc(
 		)
 		fade(ball, 0.15, { Size = Vector3.one * (if st == 3 then 6 else 4) })
 	end
+	sig.swing(set, origin + f * reach, f, style, color, st == 3)
 end
 
 -- A burst around a point (novas, slams, landings)
@@ -423,6 +435,7 @@ function CombatFx.nova(
 			flashScreen(color, 0.15, 0.3)
 		end
 	end
+	sig.burst(set, center, radius, style, color, big)
 end
 
 -- A travelling line (Ground Spark, Crescent Wave, Heaven Splitter)
@@ -491,6 +504,7 @@ function CombatFx.line(
 	if style == "Anime" then
 		beam(from, to, width * 0.6, color, 0.4)
 	end
+	sig.head(set, from, to, style, color, math.clamp(width / 4, 1, 3))
 end
 
 -- A lasting area (Static Field, Blizzard Dome, Gravity Well, Singularity, Blade Storm, Molten Crater).
@@ -503,7 +517,8 @@ function CombatFx.field(
 	color: Color3,
 	dome: boolean?,
 	follow: (() -> Vector3?)?,
-	swirl: boolean?
+	swirl: boolean?,
+	set: string?
 )
 	local disc = part(
 		Vector3.new(0.25, radius * 2, radius * 2),
@@ -552,6 +567,7 @@ function CombatFx.field(
 		if now >= nextPulse then
 			nextPulse = now + F.fieldPulse
 			local p = disc.Position + Vector3.new(0, 0.2, 0)
+			sig.drift(set, p, radius, style, color)
 			if style == "Anime" then
 				ring(p, radius, WHITE, 0.35, 0.1)
 			else
@@ -883,6 +899,8 @@ function CombatFx.windup(at: () -> Vector3?, duration: number, style: string, co
 		FxLib.gather(p0, set, color)
 	end
 	orb.Transparency = 0.2
+	local motes = sig.motes(set, style, color)
+	local nextCharge = 0
 	local start = os.clock()
 	local conn
 	conn = RunService.RenderStepped:Connect(FrameProf.wrap("CombatFx", function()
@@ -891,11 +909,17 @@ function CombatFx.windup(at: () -> Vector3?, duration: number, style: string, co
 		if not p or t >= duration then
 			conn:Disconnect()
 			fade(orb, 0.1)
+			sig.dropMotes(motes)
 			return
 		end
 		local k = t / duration
 		orb.Size = Vector3.one * (0.5 + k * 3.5)
 		orb.CFrame = CFrame.new(p)
+		sig.placeMotes(motes, set, p, k, t)
+		if t >= nextCharge then
+			nextCharge = t + 0.25
+			FxLib.charge(p, set, color)
+		end
 		if style == "Anime" and math.random() < 0.4 then
 			local dir = Vector3.new(math.random() - 0.5, math.random() - 0.5, math.random() - 0.5).Unit
 			beam(p + dir * 5, p, 0.1, WHITE, 0.1)
@@ -975,6 +999,1499 @@ function CombatFx.combo(
 end
 
 ---------------------------------------------------------------------------
+-- Every path's own look (overhaul plan step 6; Config.Fx.paths, rules in Shared.FxPlan). The shapes above
+-- call in here with their set: a head flies on bolts, chain hops and lines, a mark lands on hits, a flourish
+-- plays on the caster, dashes leave the path's trail, fields drift its pieces, windups and held skills gather
+-- its charge motes, and each super has its own big moment. Volt (the slice nate OKed) and weapon moves have
+-- nothing here that draws, so they keep their look. Comic: chunky pieces in the path colour, solid and bold;
+-- Anime: thinner, white-cored pieces with a colour afterimage, speed lines and quicker motion. Every piece
+-- comes out of FxLib's part budget for the device preset (phones draw fewer). PLACEHOLDER ART: part-built.
+---------------------------------------------------------------------------
+
+local P = F.paths
+local LIB = F.lib
+local ACCENT: { [string]: Color3 } = {}
+local TINT: { [string]: Color3 } = {}
+for set, row in P do
+	ACCENT[set] = rgb(row.accent)
+	TINT[set] = rgb(row.super.tint)
+end
+local UP = Vector3.new(0, 1, 0)
+
+local function anime(style: string): boolean
+	return style == "Anime"
+end
+
+local function randomUnit(): Vector3
+	local v = Vector3.new(math.random() - 0.5, math.random() - 0.5, math.random() - 0.5)
+	return if v.Magnitude < 0.05 then UP else v.Unit
+end
+
+local function facing(pos: Vector3): CFrame
+	local cam = Workspace.CurrentCamera
+	return if cam then CFrame.lookAt(pos, cam.CFrame.Position) else CFrame.new(pos)
+end
+
+-- a ring facing `normal` (flat on the ground when normal is up) that grows to radius and fades
+local function disc(
+	pos: Vector3,
+	normal: Vector3,
+	radius: number,
+	color: Color3,
+	time: number,
+	thick: number?
+)
+	local cf = if math.abs(normal.Unit.Y) > 0.98
+		then CFrame.new(pos) * CFrame.Angles(0, 0, math.rad(90))
+		else CFrame.lookAt(pos, pos + normal) * CFrame.Angles(0, math.rad(90), 0)
+	local p = part(Vector3.new(thick or 0.2, 1, 1), cf, color, Enum.PartType.Cylinder)
+	p.Transparency = 0.1
+	fade(p, time, { Size = Vector3.new(0.05, radius * 2, radius * 2) })
+	return p
+end
+
+-- one part-built piece of a path (Config.Fx.paths piece names; FxPlan.PIECES), size s, placed by the caller
+local PIECE = {}
+PIECE.ball = function(s: number, c: Color3): Part
+	return part(Vector3.one * s, CFrame.new(), c, Enum.PartType.Ball)
+end
+PIECE.ember = function(s: number, c: Color3): Part
+	return part(Vector3.one * s * 0.6, CFrame.new(), c, Enum.PartType.Ball)
+end
+PIECE.flake = function(s: number, c: Color3): Part -- Frost: a flat snowflake chip that tumbles as it falls
+	local p = part(Vector3.new(s * 0.6, s * 0.06, s * 0.6), CFrame.new(), c:Lerp(WHITE, 0.5))
+	p.Transparency = 0.1
+	return p
+end
+PIECE.flame = function(s: number, c: Color3): Part
+	local p = part(Vector3.one * s, CFrame.new(), c, Enum.PartType.Ball)
+	p.Transparency = 0.25
+	return p
+end
+PIECE.drop = function(s: number, c: Color3): Part
+	local p = part(Vector3.one * s * 0.8, CFrame.new(), c, Enum.PartType.Ball)
+	p.Material = Enum.Material.Glass
+	p.Transparency = 0.2
+	return p
+end
+PIECE.spike = function(s: number, c: Color3): Part
+	return part(Vector3.new(s * 0.3, s * 0.3, s * 2.2), CFrame.new(), c)
+end
+PIECE.shard = function(s: number, c: Color3): Part
+	local p = part(Vector3.new(s * 0.45, s * 0.45, s * 1.2), CFrame.new(), c)
+	p.Material = Enum.Material.Glass
+	p.Transparency = 0.15
+	return p
+end
+PIECE.rock = function(s: number, c: Color3): Part
+	local p = part(Vector3.new(s, s * 0.8, s * 0.9), CFrame.new(), c)
+	p.Material = Enum.Material.Slate
+	return p
+end
+PIECE.kunai = function(s: number, c: Color3): Part
+	local p = part(Vector3.new(s * 0.22, s * 0.22, s * 1.6), CFrame.new(), c)
+	p.Material = Enum.Material.Metal
+	return p
+end
+PIECE.plate = function(s: number, c: Color3): Part
+	return part(Vector3.new(s, s * 0.15, s), CFrame.new(), c)
+end
+PIECE.tri = function(s: number, c: Color3): Part
+	return part(Vector3.new(s * 0.12, s * 0.7, s * 0.7), CFrame.new(), c)
+end
+PIECE.ring = function(s: number, c: Color3): Part
+	local p = part(Vector3.new(s * 0.12, s, s), CFrame.new(), c, Enum.PartType.Cylinder)
+	p.Transparency = 0.3
+	return p
+end
+
+local function piece(kind: string, s: number, c: Color3): Part?
+	local make = PIECE[kind]
+	return if make then make(s, c) else nil
+end
+CombatFx.piece = piece
+
+-- n pieces fly out from pos (biased along dir when given, up adds lift), shrink and fade
+local function bits(
+	pos: Vector3,
+	kind: string,
+	n: number,
+	size: number,
+	speed: number,
+	color: Color3,
+	style: string,
+	up: number?,
+	dir: Vector3?,
+	life: number?
+)
+	local count = FxLib.pieces(n)
+	local an = anime(style)
+	local sz = size * (if an then 0.8 else LIB.comicSize)
+	local sp = speed * (if an then LIB.animeSpeed else 1)
+	local time = life or 0.35
+	for i = 1, count do
+		local d = randomUnit()
+		if dir and dir.Magnitude > 1e-3 then
+			d = (d + dir.Unit * 1.3).Unit
+		end
+		d = (d + Vector3.new(0, up or 0, 0)).Unit
+		local p = piece(kind, sz * (0.7 + math.random() * 0.6), if an and i % 2 == 0 then WHITE else color)
+		if p then
+			p.CFrame = CFrame.lookAt(pos, pos + d) * CFrame.Angles(0, 0, math.random() * 6)
+			local to = pos + d * sp * time - Vector3.new(0, (up or 0) > 0 and 2 or 0, 0)
+			fade(p, time, {
+				CFrame = CFrame.lookAt(to, to + d) * CFrame.Angles(math.random() * 4, 0, math.random() * 4),
+				Size = p.Size * 0.4,
+			})
+		end
+	end
+end
+
+-- a piece flying from -> to in `time`, turning `roll` radians about its flight
+local ACROSS = CFrame.Angles(0, math.rad(90), 0) -- a ring (cylinder) standing across its flight
+local function fly(
+	p: BasePart,
+	from: Vector3,
+	to: Vector3,
+	time: number,
+	roll: number?,
+	delay: number?,
+	twist: CFrame?
+)
+	local d = to - from
+	local look = if d.Magnitude > 1e-3 then d.Unit else UP
+	local tw = twist or CFrame.identity
+	p.CFrame = CFrame.lookAt(from, from + look) * tw
+	TweenService:Create(
+		p,
+		TweenInfo.new(time, Enum.EasingStyle.Linear, Enum.EasingDirection.Out, 0, false, delay or 0),
+		{ CFrame = CFrame.lookAt(to, to + look) * CFrame.Angles(0, 0, roll or 0) * tw }
+	):Play()
+	fade(p, 0.1, nil, time + (delay or 0))
+end
+
+local function flightTime(from: Vector3, to: Vector3, speed: number): number
+	return math.clamp((to - from).Magnitude / speed, 0.06, 0.35)
+end
+
+-- two crossed thin bars: a glint, a star, a cross cut
+local function crossBars(at: CFrame, len: number, width: number, color: Color3, time: number, angle: number?)
+	for k = 0, 1 do
+		local a = math.rad((angle or 45) + 90 * k)
+		local b = part(
+			Vector3.new(width, width, len),
+			at * CFrame.Angles(0, 0, a) * CFrame.Angles(math.rad(90), 0, 0),
+			color
+		)
+		fade(b, time, { Size = Vector3.new(width * 0.2, width * 0.2, len * 1.4) })
+	end
+end
+
+---------------------------------------------------------------------------
+-- Heads: what flies (bolts, chain hops, lines)
+---------------------------------------------------------------------------
+
+local HEAD = {}
+HEAD.none = function() end
+HEAD.spike = function(from, to, style, color, accent, s) -- Frost: a spinning ice spike
+	local t = flightTime(from, to, 240)
+	local p = PIECE.shard(1.6 * s, if anime(style) then accent else color)
+	p.Size = Vector3.new(0.6, 0.6, 2.8) * s
+	fly(p, from, to, t, 9)
+	if anime(style) then
+		local glow = PIECE.spike(1.2 * s, color)
+		glow.Transparency = 0.5
+		fly(glow, from, to, t, -9, 0.03)
+	end
+end
+HEAD.fireball = function(from, to, style, color, accent, s) -- Fire: a fireball with a hot core and embers
+	local t = flightTime(from, to, 200)
+	local outer = PIECE.flame(2 * s * (if anime(style) then 0.8 else 1.1), color)
+	local core = PIECE.ball(1.1 * s, if anime(style) then WHITE else accent)
+	fly(outer, from, to, t)
+	fly(core, from, to, t)
+	for k = 1, 3 do
+		local e = PIECE.ember(0.9 * s, if k == 2 then accent else color)
+		fly(e, from, to, t, nil, 0.03 * k)
+	end
+end
+HEAD.rock = function(from, to, style, color, accent, s) -- Earth: a tumbling stone
+	local t = flightTime(from, to, 180)
+	local r = PIECE.rock(1.4 * s, color)
+	fly(r, from, to, t, 8)
+	if anime(style) then
+		beam(from, to, 0.12, accent, t + 0.1)
+	end
+end
+HEAD.boulder = function(from, to, _style, color, accent, s) -- Colossus: a big boulder with a dust tail
+	local t = flightTime(from, to, 150)
+	local r = PIECE.rock(3 * s, color)
+	fly(r, from, to, t, 6)
+	local d = (to - from)
+	for k = 1, 3 do
+		local puff = PIECE.ball(1.6 * s, accent)
+		puff.Material = Enum.Material.SmoothPlastic
+		puff.Transparency = 0.4
+		fly(puff, from, from + d * (0.3 * k), t * 0.3 * k, nil, 0.02)
+	end
+end
+HEAD.glob = function(from, to, style, color, accent, s) -- Tide: a water glob in a foam ring
+	local t = flightTime(from, to, 200)
+	local g = PIECE.drop(2 * s, color)
+	fly(g, from, to, t)
+	local foam = PIECE.ring(2.4 * s, if anime(style) then WHITE else accent)
+	fly(foam, from, to, t, 0, nil, ACROSS)
+end
+HEAD.tracer = function(from, to, style, color, accent, s) -- Gunslinger: a fast bright tracer
+	local t = flightTime(from, to, 420)
+	local p = part(Vector3.new(0.18, 0.18, 4) * s, CFrame.new(), if anime(style) then WHITE else accent)
+	fly(p, from, to, t)
+	local glow = part(Vector3.new(0.5, 0.5, 2.5) * s, CFrame.new(), color)
+	glow.Transparency = 0.4
+	fly(glow, from, to, t, nil, 0.015)
+end
+HEAD.plasma = function(from, to, style, color, accent, s) -- Gadgeteer: a plasma pellet in a spinning ring
+	local t = flightTime(from, to, 260)
+	local b = PIECE.ball(1.2 * s, if anime(style) then WHITE else accent)
+	fly(b, from, to, t)
+	local ringP = PIECE.ring(2.2 * s, color)
+	fly(ringP, from, to, t, 0, nil, ACROSS * CFrame.Angles(0.5, 0, 0))
+end
+HEAD.kunai = function(from, to, style, color, accent, s) -- Shadow: a dark blade with a coloured edge
+	local t = flightTime(from, to, 300)
+	local k = PIECE.kunai(2 * s, accent)
+	fly(k, from, to, t, 14)
+	local edge = part(Vector3.new(0.1, 0.1, 2.6) * s, CFrame.new(), if anime(style) then WHITE else color)
+	fly(edge, from, to, t, 14)
+end
+HEAD.kiorb = function(from, to, style, color, accent, s) -- Martial: a ki sphere with a white core and a halo
+	local t = flightTime(from, to, 170)
+	local outer = PIECE.flame(2.4 * s, color)
+	outer.Material = Enum.Material.ForceField
+	outer.Transparency = 0
+	local core = PIECE.ball(1.3 * s, accent)
+	fly(outer, from, to, t)
+	fly(core, from, to, t)
+	local halo = PIECE.ring(3.2 * s, if anime(style) then WHITE else color)
+	fly(halo, from, to, t, 0, nil, ACROSS)
+end
+HEAD.lens = function(from, to, style, color, accent, s) -- Pulse: a warped sphere with a void core
+	local t = flightTime(from, to, 190)
+	local shell = PIECE.ball(2.6 * s, color)
+	shell.Material = Enum.Material.ForceField
+	local void = PIECE.ball(1 * s, accent)
+	void.Material = Enum.Material.SmoothPlastic
+	fly(shell, from, to, t)
+	fly(void, from, to, t)
+	if anime(style) then
+		local r = PIECE.ring(3 * s, WHITE)
+		fly(r, from, to, t, 0, nil, ACROSS)
+	end
+end
+HEAD.psiring = function(from, to, style, color, accent, s) -- Mind: a spinning ring, face-on to its flight
+	local t = flightTime(from, to, 230)
+	local r = PIECE.ring(2.6 * s, color)
+	r.Transparency = 0.1
+	fly(r, from, to, t, 0, nil, ACROSS)
+	local inner = PIECE.tri(1.4 * s, if anime(style) then WHITE else accent)
+	fly(inner, from, to, t, 10)
+end
+HEAD.wisp = function(from, to, _style, color, accent, s) -- Spirit: a spirit flame with a trail of wisps
+	local t = flightTime(from, to, 190)
+	local head = PIECE.flame(1.8 * s, color)
+	fly(head, from, to, t)
+	for k = 1, 4 do
+		local w = PIECE.ember(1.6 * s * (1 - k * 0.15), if k % 2 == 0 then accent else color)
+		w.Transparency = 0.2 + k * 0.12
+		fly(w, from, to, t, nil, 0.025 * k)
+	end
+end
+HEAD.lance = function(from, to, style, color, accent, s) -- Light: a long spear of light with a bright tip
+	local t = flightTime(from, to, 360)
+	local spear = part(Vector3.new(0.3, 0.3, 6) * s, CFrame.new(), if anime(style) then WHITE else accent)
+	fly(spear, from, to, t)
+	local glow = part(Vector3.new(0.9, 0.9, 5) * s, CFrame.new(), color)
+	glow.Transparency = 0.5
+	fly(glow, from, to, t)
+end
+
+---------------------------------------------------------------------------
+-- Marks: what a hit leaves on top of the element's particles (scale: 1.5 on a crit, less for others' hits)
+---------------------------------------------------------------------------
+
+local MARK = {}
+MARK.none = function() end
+MARK.crystals = function(pos, style, color, accent, s) -- Frost: ice spikes jut out, then shatter
+	local n = FxLib.pieces(5, s)
+	for _ = 1, n do
+		local d = randomUnit()
+		local sp = PIECE.shard(1.4 * s, if anime(style) then accent else color)
+		sp.CFrame = CFrame.lookAt(pos, pos + d)
+		sp.Size = Vector3.new(0.5, 0.5, 0.4) * s
+		TweenService:Create(sp, TweenInfo.new(0.08), {
+			Size = Vector3.new(0.6, 0.6, 3.2) * s,
+			CFrame = CFrame.lookAt(pos + d * 1.6 * s, pos + d * 3 * s),
+		}):Play()
+		fade(sp, 0.2, nil, 0.22)
+	end
+	task.delay(0.22, function()
+		bits(pos, "shard", 5, 0.6 * s, 22, color, style, 0.4)
+	end)
+end
+MARK.puff = function(pos, style, color, accent, s) -- Fire: a fireball puff with a smoky rim
+	local core = PIECE.ball(1.5 * s, if anime(style) then WHITE else accent)
+	fade(core, 0.18, { Size = Vector3.one * 4.5 * s })
+	local outer = PIECE.flame(2 * s, color)
+	fade(outer, 0.3, { Size = Vector3.one * 6.5 * s })
+	if not anime(style) then
+		disc(pos, UP, 4 * s, Color3.fromRGB(70, 60, 55), 0.4, 0.5)
+	end
+end
+MARK.rubble = function(pos, style, color, accent, s) -- Earth: stones pop up, a crack ring
+	bits(pos, "rock", 5, 0.8 * s, 16, color, style, 1.2)
+	disc(pos, UP, 3 * s, if anime(style) then WHITE else accent, 0.3, 0.3)
+end
+MARK.quake = function(pos, style, color, accent, s) -- Colossus: big stones and a dust ring
+	bits(pos, "rock", 6, 1.4 * s, 18, color, style, 1.4, nil, 0.45)
+	FxLib.dust(pos - Vector3.new(0, 1.5, 0), 4 * s, accent)
+	disc(pos - Vector3.new(0, 1, 0), UP, 6 * s, color, 0.4, 0.6)
+end
+MARK.crown = function(pos, style, color, accent, s) -- Tide: a crown of droplets and a ripple
+	local n = FxLib.pieces(8, s)
+	for i = 1, n do
+		local a = i / n * math.pi * 2
+		local d = Vector3.new(math.cos(a), 1.4, math.sin(a)).Unit
+		local drop = PIECE.drop(0.8 * s, if i % 2 == 0 then accent else color)
+		drop.CFrame = CFrame.new(pos)
+		fade(drop, 0.35, { CFrame = CFrame.new(pos + d * 5 * s), Size = Vector3.one * 0.2 })
+	end
+	disc(pos, UP, 4 * s, if anime(style) then WHITE else accent, 0.35, 0.15)
+end
+MARK.cross = function(pos, style, color, accent, s) -- Blade: an X cut that slides apart
+	local cf = facing(pos)
+	local an = anime(style)
+	crossBars(cf, 6 * s, if an then 0.14 else 0.5, if an then WHITE else color, 0.2)
+	if an then
+		crossBars(cf, 7 * s, 0.5, color, 0.28)
+	else
+		crossBars(cf, 3 * s, 0.2, accent, 0.15)
+	end
+end
+MARK.ricochet = function(pos, style, color, accent, s) -- Gunslinger: sparks glance off, a little star
+	for _ = 1, FxLib.pieces(3, s) do
+		local d = randomUnit()
+		beam(pos, pos + d * 4 * s, 0.12, if anime(style) then WHITE else accent, 0.12)
+	end
+	crossBars(facing(pos), 2.2 * s, 0.25, color, 0.15, 0)
+end
+MARK.hexes = function(pos, style, color, accent, s) -- Gadgeteer: hex plates scatter, a scan ring
+	bits(pos, "plate", 6, 0.7 * s, 18, color, style, 0.3)
+	disc(
+		pos,
+		(Workspace.CurrentCamera and (Workspace.CurrentCamera.CFrame.Position - pos)) or UP,
+		3 * s,
+		if anime(style) then WHITE else accent,
+		0.25,
+		0.12
+	)
+end
+MARK.ink = function(pos, style, color, accent, s) -- Shadow: ink blots splatter, a coloured cut
+	local n = FxLib.pieces(4, s)
+	for _ = 1, n do
+		local d = randomUnit()
+		local blot = part(Vector3.new(1.4, 0.2, 1.1) * s, CFrame.lookAt(pos, pos + d), accent)
+		blot.Material = Enum.Material.SmoothPlastic
+		fade(blot, 0.45, {
+			CFrame = CFrame.lookAt(pos + d * 3 * s, pos + d * 6 * s),
+			Size = Vector3.new(2.2, 0.1, 1.6) * s,
+		})
+	end
+	local cut = facing(pos) * CFrame.Angles(0, 0, math.rad(30))
+	local line = part(
+		Vector3.new(5 * s, if anime(style) then 0.1 else 0.3, 0.1),
+		cut,
+		if anime(style) then WHITE else color
+	)
+	fade(line, 0.2, { Size = Vector3.new(7 * s, 0.05, 0.05) })
+end
+MARK.pow = function(pos, style, color, accent, s) -- Titan: a comic star burst, or a shock cone with lines
+	if anime(style) then
+		disc(
+			pos,
+			(Workspace.CurrentCamera and (Workspace.CurrentCamera.CFrame.Position - pos)) or UP,
+			4 * s,
+			WHITE,
+			0.2,
+			0.1
+		)
+		speedLines(pos, 1.2 * s, color, 8)
+	else
+		local cf = facing(pos)
+		for k = 0, 7 do
+			local spike = part(
+				Vector3.new(0.9 * s, 0.25, 0.25),
+				cf * CFrame.Angles(0, 0, math.rad(45 * k)) * CFrame.new(1.4 * s, 0, 0),
+				if k % 2 == 0 then accent else color
+			)
+			fade(spike, 0.22, { Size = Vector3.new(2.6 * s, 0.1, 0.1) })
+		end
+		local mid = PIECE.ball(1.5 * s, accent)
+		mid.CFrame = CFrame.new(pos)
+		fade(mid, 0.15, { Size = Vector3.one * 3 * s })
+	end
+end
+MARK.kiring = function(pos, _style, color, accent, s) -- Martial: a ki ring bursts flat, glints
+	local cam = Workspace.CurrentCamera
+	local n = if cam then cam.CFrame.Position - pos else UP
+	disc(pos, n, 4 * s, accent, 0.22, 0.2)
+	disc(pos, n, 2.6 * s, color, 0.3, 0.4)
+	FxLib.emit("star", accent, pos, 2)
+end
+MARK.clang = function(pos, style, color, accent, s) -- Juggernaut: a white clang flash and hot metal bits
+	local flash = PIECE.ball(1.6 * s, WHITE)
+	flash.CFrame = CFrame.new(pos)
+	fade(flash, 0.1, { Size = Vector3.one * 4 * s })
+	bits(pos, "plate", 4, 0.6 * s, 20, if anime(style) then accent else color, style, 0.8)
+	for _ = 1, 3 do
+		beam(pos, pos + randomUnit() * 3.5 * s, 0.15, accent, 0.12)
+	end
+end
+MARK.warp = function(pos, style, color, accent, s) -- Pulse: a ring pulls in, then pops
+	local cam = Workspace.CurrentCamera
+	local n = if cam then cam.CFrame.Position - pos else UP
+	local cf = CFrame.lookAt(pos, pos + n) * CFrame.Angles(0, math.rad(90), 0)
+	local r = part(
+		Vector3.new(0.2, 7 * s, 7 * s),
+		cf,
+		if anime(style) then WHITE else color,
+		Enum.PartType.Cylinder
+	)
+	r.Transparency = 0.2
+	TweenService:Create(
+		r,
+		TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+		{ Size = Vector3.new(0.2, 0.4, 0.4) }
+	):Play()
+	Debris:AddItem(r, 0.17)
+	task.delay(0.16, function()
+		local void = PIECE.ball(0.8 * s, accent)
+		void.CFrame = CFrame.new(pos)
+		void.Material = Enum.Material.SmoothPlastic
+		fade(void, 0.2, { Size = Vector3.one * 3.5 * s })
+		disc(pos, n, 4 * s, color, 0.25, 0.15)
+	end)
+end
+MARK.sigil = function(pos, style, color, accent, s) -- Mind: a sigil opens on the target
+	local cf = facing(pos)
+	local an = anime(style)
+	local r = 2.2 * s
+	local corners = {}
+	for k = 0, 2 do
+		local a = math.rad(90 + 120 * k)
+		table.insert(corners, (cf * CFrame.new(math.cos(a) * r, math.sin(a) * r, 0)).Position)
+	end
+	for k = 1, 3 do
+		beam(corners[k], corners[k % 3 + 1], if an then 0.08 else 0.22, if an then WHITE else color, 0.3)
+	end
+	disc(pos, cf.LookVector, r * 1.2, if an then color else accent, 0.35, 0.12)
+end
+MARK.soulflare = function(pos, style, color, accent, s) -- Spirit: spirit flames lick up, wisps rise
+	for k = 1, FxLib.pieces(3, s) do
+		local f = PIECE.flame(1.2 * s, if k == 2 then accent else color)
+		local off = Vector3.new(math.random() - 0.5, 0, math.random() - 0.5) * 2 * s
+		f.CFrame = CFrame.new(pos + off)
+		fade(f, 0.45, { CFrame = CFrame.new(pos + off + Vector3.new(0, 4 * s, 0)), Size = Vector3.one * 0.3 })
+	end
+	if anime(style) then
+		disc(pos, UP, 3 * s, WHITE, 0.25, 0.1)
+	end
+end
+local PRISM = { Color3.fromRGB(255, 120, 140), Color3.fromRGB(140, 255, 170), Color3.fromRGB(130, 170, 255) }
+MARK.prism = function(pos, style, color, accent, s) -- Light: a star glint splits into three colours
+	crossBars(facing(pos), 4 * s, if anime(style) then 0.12 else 0.35, accent, 0.18, 0)
+	for k = 1, 3 do
+		local d = randomUnit()
+		local sh = PIECE.shard(0.8 * s, color:Lerp(PRISM[k], 0.6))
+		sh.Material = Enum.Material.Neon
+		sh.CFrame = CFrame.lookAt(pos, pos + d)
+		fade(sh, 0.3, { CFrame = CFrame.lookAt(pos + d * 5 * s, pos + d * 6 * s), Size = sh.Size * 0.3 })
+	end
+end
+
+---------------------------------------------------------------------------
+-- Casts: a flourish on the caster (skills and supers)
+---------------------------------------------------------------------------
+
+local CAST = {}
+CAST.none = function() end
+CAST.frostring = function(_o, feet, _d, style, color, accent) -- Frost: ice spikes ring the feet
+	for i = 1, FxLib.pieces(6) do
+		local a = i / 6 * math.pi * 2
+		local at = feet + Vector3.new(math.cos(a), 0, math.sin(a)) * 3
+		local sp = PIECE.shard(1, if anime(style) then accent else color)
+		sp.CFrame = CFrame.lookAt(at, at + Vector3.new(math.cos(a) * 0.3, 1, math.sin(a) * 0.3))
+		sp.Size = Vector3.new(0.5, 0.5, 0.3)
+		TweenService:Create(sp, TweenInfo.new(0.1), { Size = Vector3.new(0.6, 0.6, 2.4) }):Play()
+		fade(sp, 0.3, nil, 0.15)
+	end
+	ring(feet, 4, if anime(style) then WHITE else accent, 0.3, 0.12)
+end
+CAST.flare = function(o, _feet, d, style, color, accent) -- Fire: flames burst from the hands
+	local hand = o + d * 1.5
+	bits(hand, "flame", 5, 1.2, 14, color, style, 0.6, d, 0.3)
+	local core = PIECE.ball(1.2, accent)
+	core.CFrame = CFrame.new(hand)
+	fade(core, 0.15, { Size = Vector3.one * 3 })
+end
+CAST.stomp = function(_o, feet, _d, _style, color, accent) -- Earth: a stone juts up under the feet
+	local slab = PIECE.rock(1, color)
+	slab.CFrame = CFrame.new(feet - Vector3.new(0, 1, 0))
+	slab.Size = Vector3.new(4, 0.4, 4)
+	TweenService:Create(slab, TweenInfo.new(0.1), { Size = Vector3.new(4, 1.4, 4) }):Play()
+	fade(slab, 0.3, nil, 0.2)
+	FxLib.dust(feet, 3, accent)
+end
+CAST.swirl = function(_o, feet, _d, style, color, accent) -- Tide: water swirls up around the hero
+	for k = 0, 1 do
+		local r = PIECE.ring(5 - k, if k == 0 then color else accent)
+		r.Material = if anime(style) then Enum.Material.Neon else Enum.Material.Glass
+		r.CFrame = CFrame.new(feet + Vector3.new(0, 0.5, 0)) * CFrame.Angles(0, 0, math.rad(90))
+		fade(r, 0.4, {
+			CFrame = CFrame.new(feet + Vector3.new(0, 4 + k, 0)) * CFrame.Angles(0, 1.5, math.rad(90)),
+			Size = Vector3.new(0.1, 3, 3),
+		}, k * 0.05)
+	end
+end
+CAST.glint = function(o, _feet, d, style, color, accent) -- Blade: a sword glint at the hand
+	local at = o + d * 1.5
+	crossBars(facing(at), 3, if anime(style) then 0.1 else 0.25, accent, 0.18, 0)
+	if anime(style) then
+		crossBars(facing(at), 2, 0.3, color, 0.24, 45)
+	end
+end
+CAST.muzzle = function(o, _feet, d, _style, _color, accent) -- Gunslinger: a muzzle flash and a puff of smoke
+	local at = o + d * 2
+	crossBars(CFrame.lookAt(at, at + d), 2.4, 0.3, accent, 0.08, 0)
+	local f = PIECE.ball(1, accent)
+	f.CFrame = CFrame.new(at)
+	fade(f, 0.08, { Size = Vector3.one * 2.4 })
+	FxLib.emit("smoke", Color3.fromRGB(200, 195, 185), at, 2, d)
+end
+CAST.reticle = function(o, _feet, d, style, color, accent) -- Gadgeteer: a targeting ring with ticks snaps shut
+	local at = o + d * 2.5
+	local cf = CFrame.lookAt(at, at + d)
+	local r =
+		part(Vector3.new(0.12, 4, 4), cf * CFrame.Angles(0, math.rad(90), 0), color, Enum.PartType.Cylinder)
+	r.Transparency = 0.3
+	fade(r, 0.25, { Size = Vector3.new(0.05, 1.5, 1.5) })
+	for k = 0, 3 do
+		local tick = part(
+			Vector3.new(0.15, 0.6, 0.15),
+			cf * CFrame.Angles(0, 0, math.rad(90 * k)) * CFrame.new(0, 2.2, 0),
+			if anime(style) then WHITE else accent
+		)
+		fade(tick, 0.25)
+	end
+end
+CAST.smoke = function(_o, feet, _d, _style, _color, accent) -- Shadow: a puff of smoke at the feet
+	FxLib.emit("smoke", Color3.fromRGB(50, 45, 60), feet + Vector3.new(0, 1, 0), 4)
+	for _ = 1, FxLib.pieces(3) do
+		local b = PIECE.ball(1.5, accent)
+		b.Material = Enum.Material.SmoothPlastic
+		local off = Vector3.new(math.random() - 0.5, 0.2, math.random() - 0.5) * 4
+		b.CFrame = CFrame.new(feet + off)
+		fade(
+			b,
+			0.4,
+			{ Size = Vector3.one * 4, CFrame = CFrame.new(feet + off * 1.5 + Vector3.new(0, 1.5, 0)) }
+		)
+	end
+end
+CAST.crack = function(_o, feet, _d, style, color, _accent) -- Titan: cracks run out from the feet
+	for k = 0, 4 do
+		local a = k / 5 * math.pi * 2 + math.random() * 0.5
+		local dir = Vector3.new(math.cos(a), 0, math.sin(a))
+		local c = part(
+			Vector3.new(0.35, 0.12, 0.5),
+			CFrame.lookAt(feet + dir * 0.3, feet + dir),
+			if anime(style) then WHITE else Color3.fromRGB(60, 50, 40)
+		)
+		c.Material = Enum.Material.SmoothPlastic
+		TweenService:Create(
+			c,
+			TweenInfo.new(0.1),
+			{ Size = Vector3.new(0.3, 0.12, 4), CFrame = CFrame.lookAt(feet + dir * 2.2, feet + dir * 4) }
+		):Play()
+		fade(c, 0.4, nil, 0.15)
+	end
+	ring(feet, 4, color, 0.25, 0.3)
+end
+CAST.aura = function(o, feet, _d, style, color, accent) -- Martial: a ki aura flares up the body
+	for i = 1, FxLib.pieces(6) do
+		local a = i / 6 * math.pi * 2
+		local at = feet + Vector3.new(math.cos(a), 0, math.sin(a)) * 1.6
+		if anime(style) then
+			beam(at, at + Vector3.new(0, 6, 0), 0.1, if i % 2 == 0 then WHITE else color, 0.3)
+		else
+			local f = PIECE.flame(1.4, if i % 2 == 0 then accent else color)
+			f.CFrame = CFrame.new(at)
+			fade(f, 0.35, { CFrame = CFrame.new(at + Vector3.new(0, 5, 0)), Size = Vector3.one * 0.4 })
+		end
+	end
+	FxLib.charge(o, "Martial", color)
+end
+CAST.steam = function(o, _feet, d, _style, _color, accent) -- Juggernaut: steam vents from the shoulders
+	local right = d:Cross(UP)
+	right = if right.Magnitude > 1e-3 then right.Unit else Vector3.new(1, 0, 0)
+	for _, sgn in { -1, 1 } do
+		local at = o + right * sgn * 1.3 + Vector3.new(0, 1, 0)
+		FxLib.emit("smoke", Color3.fromRGB(235, 235, 240), at, 2, Vector3.new(0, 1, 0) + right * sgn * 0.4)
+		local hot = PIECE.ember(1, accent)
+		hot.CFrame = CFrame.new(at)
+		fade(hot, 0.2, { Size = Vector3.one * 0.2 })
+	end
+end
+CAST.footprint = function(_o, feet, _d, _style, _color, accent) -- Colossus: a giant's footfall
+	local p = part(
+		Vector3.new(0.2, 2, 2),
+		CFrame.new(feet) * CFrame.Angles(0, 0, math.rad(90)),
+		Color3.fromRGB(70, 60, 50),
+		Enum.PartType.Cylinder
+	)
+	p.Material = Enum.Material.SmoothPlastic
+	p.Transparency = 0.3
+	fade(p, 0.5, { Size = Vector3.new(0.2, 9, 9) })
+	FxLib.dust(feet, 5, accent)
+end
+CAST.rings = function(o, _feet, d, style, color, _accent) -- Pulse: rings fall in to the hand
+	local hand = o + d * 1.5
+	for k = 0, 2 do
+		local r = part(
+			Vector3.new(0.12, 7 - k * 1.5, 7 - k * 1.5),
+			CFrame.lookAt(hand, hand + d) * CFrame.Angles(0, math.rad(90), 0),
+			if anime(style) and k == 1 then WHITE else color,
+			Enum.PartType.Cylinder
+		)
+		r.Transparency = 0.3
+		TweenService:Create(
+			r,
+			TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In, 0, false, k * 0.05),
+			{ Size = Vector3.new(0.12, 0.3, 0.3) }
+		):Play()
+		Debris:AddItem(r, 0.22 + k * 0.05)
+	end
+end
+CAST.eye = function(o, _feet, d, style, color, accent) -- Mind: a glowing mark on the brow, ripples out
+	local brow = o + Vector3.new(0, 2.1, 0) + d * 0.6
+	local gem = PIECE.tri(1.2, if anime(style) then WHITE else accent)
+	gem.CFrame = CFrame.lookAt(brow, brow + d) * CFrame.Angles(0, math.rad(90), math.rad(45))
+	fade(gem, 0.4)
+	disc(brow, d, 2.5, color, 0.3, 0.1)
+	task.delay(0.08, function()
+		disc(brow, d, 4, color, 0.35, 0.08)
+	end)
+end
+CAST.guardian = function(o, _feet, d, style, color, accent) -- Spirit: the guardian looms behind the hero
+	local f = flatLook(d)
+	local base = CFrame.lookAt(o - f * 2.5, o - f * 2.5 + f)
+	local glass = if anime(style) then 0.65 else 0.5
+	local pieces = {
+		{ Vector3.new(4.5, 4, 2), CFrame.new(0, 1.5, 0), Enum.PartType.Block },
+		{ Vector3.one * 2.6, CFrame.new(0, 4.6, 0), Enum.PartType.Ball },
+	}
+	for _, pc in pieces do
+		local p = part(pc[1], base * pc[2], color, pc[3])
+		p.Transparency = glass
+		fade(p, 0.6, { CFrame = base * pc[2] * CFrame.new(0, 2, 0) })
+	end
+	FxLib.emit("wisp", accent, o, 4)
+end
+CAST.halo = function(o, _feet, _d, _style, color, accent) -- Light: a halo shines above the head
+	local top = o + Vector3.new(0, 2.8, 0)
+	local h = part(
+		Vector3.new(0.15, 2.4, 2.4),
+		CFrame.new(top) * CFrame.Angles(0, 0, math.rad(90)),
+		accent,
+		Enum.PartType.Cylinder
+	)
+	h.Transparency = 0.1
+	fade(h, 0.5, { Size = Vector3.new(0.05, 3.4, 3.4) })
+	FxLib.emit("star", color, top, 1)
+end
+
+---------------------------------------------------------------------------
+-- Dashes, swings, cones, novas, fields and charge motes
+---------------------------------------------------------------------------
+
+local DASH = {}
+DASH.none = function() end
+DASH.afterimage = function(from, to, style, color, _accent) -- Shadow, Blade, Martial: fading copies
+	for k = 1, FxLib.pieces(3) do
+		local at = from:Lerp(to, k / 4)
+		local f = flatLook(to - from)
+		local base = CFrame.lookAt(at, at + f)
+		local glass = 0.45 + k * 0.1
+		local c = if anime(style) then WHITE:Lerp(color, 0.5) else color
+		local torso = part(Vector3.new(2, 2.6, 1), base, c)
+		local head = part(Vector3.one * 1.3, base * CFrame.new(0, 2, 0), c, Enum.PartType.Ball)
+		local legs = part(Vector3.new(1.6, 2.4, 0.8), base * CFrame.new(0, -2.5, 0), c)
+		for _, p in { torso, head, legs } do
+			p.Transparency = glass
+			fade(p, 0.35, nil, k * 0.04)
+		end
+	end
+end
+DASH.plow = function(from, to, style, _color, accent) -- Titan, Juggernaut: dust and chunks thrown aside
+	local f = flatLook(to - from)
+	local right = f:Cross(UP)
+	for k = 1, 3 do
+		local at = from:Lerp(to, k / 3) - Vector3.new(0, 2.5, 0)
+		FxLib.dust(at, 3, nil)
+		bits(
+			at,
+			"rock",
+			2,
+			0.8,
+			14,
+			accent:Lerp(Color3.fromRGB(120, 110, 100), 0.6),
+			style,
+			1,
+			right * (if k % 2 == 0 then 1 else -1)
+		)
+	end
+end
+DASH.trail = function(from, to, _style, color, accent, set) -- Fire, Earth, Spirit: the path's own pieces
+	local row = P[set]
+	local kind = row and row.piece or "none"
+	for k = 1, FxLib.pieces(6) do
+		local at = from:Lerp(to, k / 7)
+		local p = piece(kind, 0.9, if k % 2 == 0 then accent else color)
+		if p then
+			p.CFrame = CFrame.new(at) * CFrame.Angles(math.random() * 3, math.random() * 3, 0)
+			fade(p, 0.4, { Size = p.Size * 0.2, CFrame = CFrame.new(at + Vector3.new(0, 1.5, 0)) }, k * 0.02)
+		end
+	end
+end
+DASH.smoke = function(from, to, _style, _color, _accent) -- Gunslinger: a smoky roll
+	for k = 1, 3 do
+		FxLib.emit("smoke", Color3.fromRGB(200, 195, 185), from:Lerp(to, k / 4) - Vector3.new(0, 2, 0), 2)
+	end
+end
+
+-- what drifts in a lasting area each pulse (fall, rise, swirl, orbit, pop)
+local MOTION = {}
+MOTION.fall = function(p: BasePart, at: Vector3, _center: Vector3, _radius: number)
+	p.CFrame = CFrame.new(at + Vector3.new(0, 9, 0))
+	fade(p, 0.8, { CFrame = CFrame.new(at) * CFrame.Angles(1, 2, 0) })
+end
+MOTION.rise = function(p: BasePart, at: Vector3, _center: Vector3, _radius: number)
+	p.CFrame = CFrame.new(at)
+	fade(p, 0.8, { CFrame = CFrame.new(at + Vector3.new(0, 6, 0)), Size = p.Size * 0.3 })
+end
+MOTION.swirl = function(p: BasePart, at: Vector3, center: Vector3, _radius: number)
+	local off = at - center
+	local turned = center + CFrame.Angles(0, 1.2, 0):VectorToWorldSpace(off) * 0.3 + Vector3.new(0, 2, 0)
+	p.CFrame = CFrame.new(at)
+	fade(p, 0.7, { CFrame = CFrame.new(turned) * CFrame.Angles(0, 3, 0) })
+end
+MOTION.orbit = function(p: BasePart, at: Vector3, center: Vector3, radius: number)
+	local off = Vector3.new(at.X - center.X, 0, at.Z - center.Z)
+	off = if off.Magnitude > 0.1 then off.Unit * radius * 0.7 else Vector3.new(radius * 0.7, 0, 0)
+	local h = Vector3.new(0, 2.5, 0)
+	local a = center + off + h
+	local b = center + CFrame.Angles(0, 1, 0):VectorToWorldSpace(off) + h
+	p.CFrame = CFrame.lookAt(a, b)
+	fade(p, 0.5, { CFrame = CFrame.lookAt(b, b + (b - a)) })
+end
+MOTION.pop = function(p: BasePart, at: Vector3, _center: Vector3, _radius: number)
+	p.CFrame = CFrame.new(at)
+	fade(p, 0.45, { CFrame = CFrame.new(at + Vector3.new(0, 3, 0)), Size = p.Size * 1.6 })
+end
+
+local function drift(set: string?, center: Vector3, radius: number, style: string, color: Color3)
+	local row = FxPlan.pathOf(F, set)
+	if not row or row.field.piece == "none" then
+		return
+	end
+	local move = MOTION[row.field.motion]
+	local accent = ACCENT[set :: string]
+	for k = 1, FxLib.pieces(4) do
+		local a = math.random() * math.pi * 2
+		local r = math.sqrt(math.random()) * radius
+		local at = center + Vector3.new(math.cos(a) * r, 0.3, math.sin(a) * r)
+		local p = piece(row.field.piece, 0.9, if k % 2 == 0 then accent else color)
+		if p and move then
+			if anime(style) then
+				p.Size *= 0.8
+			end
+			move(p, at, center, radius)
+		end
+	end
+	FxLib.emit(
+		if row.field.piece == "flake" then "flake" else "wisp",
+		color,
+		center + Vector3.new(0, 2, 0),
+		2
+	)
+end
+
+-- charge motes: a few of the path's pieces that orbit the hand (FxPlan.orbit), tight and big at full charge
+export type Mote = { p: BasePart, base: Vector3 }
+local function motes(set: string?, style: string, color: Color3): { Mote }
+	local row = FxPlan.pathOf(F, set)
+	local out: { Mote } = {}
+	if not row then
+		return out
+	end
+	local accent = ACCENT[set :: string]
+	for i = 1, math.min(row.charge.n, FxLib.pieces(row.charge.n)) do
+		local p = piece(row.charge.piece, 1, if i % 2 == 0 and not anime(style) then accent else color)
+		if p then
+			p.Transparency = 1
+			table.insert(out, { p = p, base = p.Size })
+		end
+	end
+	return out
+end
+CombatFx.motes = motes
+
+local function placeMotes(list: { Mote }, set: string?, center: Vector3, level: number, t: number)
+	local row = FxPlan.pathOf(F, set)
+	if not row then
+		return
+	end
+	for i, m in list do
+		local x, y, z, size = FxPlan.orbit(row.charge, level, t, i)
+		local at = center + Vector3.new(x, y, z)
+		m.p.Size = m.base * size * 1.6
+		m.p.CFrame = CFrame.lookAt(at, center) * CFrame.Angles(0, 0, t * 4)
+		m.p.Transparency = 0.15 + 0.4 * (1 - level)
+	end
+end
+CombatFx.placeMotes = placeMotes
+
+local function dropMotes(list: { Mote })
+	for _, m in list do
+		fade(m.p, 0.12, { Size = m.p.Size * 0.2 })
+	end
+end
+CombatFx.dropMotes = dropMotes
+
+---------------------------------------------------------------------------
+-- Supers: each path's big moment (the caster also gets the super's name and a screen tint)
+---------------------------------------------------------------------------
+
+-- a lasting set of parts that spins about a point (sigils, accretion discs), then fades
+local function spinner(specs: { any }, center: Vector3, duration: number, rate: number)
+	local parts = {}
+	for _, pc in specs do
+		local p = part(pc[1], CFrame.new(center) * pc[2], pc[3], pc[4])
+		p.Transparency = pc[5] or 0
+		table.insert(parts, p)
+	end
+	local start = os.clock()
+	local conn
+	conn = RunService.RenderStepped:Connect(FrameProf.wrap("CombatFx", function()
+		local t = os.clock() - start
+		if t >= duration then
+			conn:Disconnect()
+			for _, p in parts do
+				fade(p, 0.3)
+			end
+			return
+		end
+		local base = CFrame.new(center) * CFrame.Angles(0, t * rate, 0)
+		for i, p in parts do
+			p.CFrame = base * specs[i][2]
+		end
+	end))
+end
+
+-- a light column from the sky onto a point
+local function column(at: Vector3, width: number, color: Color3, style: string, time: number?)
+	local h = 70
+	local p = part(
+		Vector3.new(h, width, width),
+		CFrame.new(at + Vector3.new(0, h / 2 - 2, 0)) * CFrame.Angles(0, 0, math.rad(90)),
+		if anime(style) then WHITE else color,
+		Enum.PartType.Cylinder
+	)
+	p.Transparency = 0.25
+	fade(p, time or 0.7, { Size = Vector3.new(h * 1.2, width * 0.15, width * 0.15) })
+	if anime(style) then
+		local glow = part(Vector3.new(h, width * 2.2, width * 2.2), p.CFrame, color, Enum.PartType.Cylinder)
+		glow.Transparency = 0.6
+		fade(glow, (time or 0.7) * 1.2)
+	end
+end
+
+-- pieces that rise out of the ground in a ring, hold, then sink and fade
+local function groundRing(
+	center: Vector3,
+	radius: number,
+	n: number,
+	make: (number) -> BasePart,
+	height: number,
+	hold: number,
+	tilt: number?
+)
+	for i = 1, FxLib.pieces(n) do
+		local a = i / n * math.pi * 2 + math.random() * 0.3
+		local out = Vector3.new(math.cos(a), 0, math.sin(a))
+		local at = center + out * radius
+		local p = make(i)
+		local full = p.Size
+		p.Size = Vector3.new(full.X, full.Y, 0.2)
+		local look = CFrame.lookAt(at, at + UP + out * (tilt or 0.3))
+		p.CFrame = look
+		TweenService:Create(p, TweenInfo.new(0.15, Enum.EasingStyle.Back), {
+			Size = Vector3.new(full.X, full.Y, height),
+			CFrame = look * CFrame.new(0, 0, -height / 2),
+		}):Play()
+		fade(p, 0.35, nil, 0.15 + hold)
+	end
+end
+
+local SUPER = {}
+SUPER.none = function() end
+SUPER.icecrown = function(x) -- Frost Blizzard Dome: a crown of ice spikes around the dome's edge
+	groundRing(x.c, x.r * 0.95, 12, function()
+		return PIECE.shard(2.4, if anime(x.style) then x.accent else x.color)
+	end, 12, 1.2, 0.35)
+	task.delay(1.4, function()
+		bits(x.c + Vector3.new(0, 4, 0), "shard", 10, 1, 30, x.color, x.style, 0.6, nil, 0.5)
+	end)
+	ring(x.c, x.r, WHITE, 0.6, 0.3)
+end
+SUPER.sunfall = function(x) -- Fire Sunfall: a small sun forms over the zone and drops onto it
+	local sky = x.c + Vector3.new(0, 40, 0)
+	local corona = PIECE.flame(4, x.color)
+	local sun = PIECE.ball(3, if anime(x.style) then WHITE else x.accent)
+	corona.CFrame, sun.CFrame = CFrame.new(sky), CFrame.new(sky)
+	local grow = TweenInfo.new(0.5, Enum.EasingStyle.Quad)
+	TweenService:Create(corona, grow, { Size = Vector3.one * 22 }):Play()
+	TweenService:Create(sun, grow, { Size = Vector3.one * 14 }):Play()
+	local drop = TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.In, 0, false, 0.55)
+	TweenService:Create(corona, drop, { CFrame = CFrame.new(x.c) }):Play()
+	TweenService:Create(sun, drop, { CFrame = CFrame.new(x.c) }):Play()
+	fade(corona, 0.25, nil, 0.9)
+	fade(sun, 0.2, nil, 0.9)
+	task.delay(0.9, function()
+		CombatFx.nova(x.c, x.r, x.style, x.color, false, "Fire")
+		column(x.c, 10, x.accent, x.style, 0.6)
+	end)
+end
+SUPER.overgrowth = function(x) -- Earth Overgrowth: vines burst up across the zone
+	local vine = Color3.fromRGB(70, 140, 60):Lerp(x.accent, 0.4)
+	for _ = 1, FxLib.pieces(10) do
+		local a, r = math.random() * math.pi * 2, math.sqrt(math.random()) * x.r
+		local at = x.c + Vector3.new(math.cos(a) * r, -1, math.sin(a) * r)
+		local h = 8 + math.random() * 8
+		local tilt = CFrame.Angles(math.random() * 0.5 - 0.25, math.random() * 6, math.random() * 0.5 - 0.25)
+		local v = part(
+			Vector3.new(h, 1.2, 1.2),
+			CFrame.new(at) * tilt * CFrame.Angles(0, 0, math.rad(90)),
+			vine,
+			Enum.PartType.Cylinder
+		)
+		v.Material = Enum.Material.Grass
+		v.Size = Vector3.new(0.5, 1.2, 1.2)
+		TweenService:Create(v, TweenInfo.new(0.3, Enum.EasingStyle.Back), {
+			Size = Vector3.new(h, 1.2, 1.2),
+			CFrame = CFrame.new(at) * tilt * CFrame.new(0, h / 2, 0) * CFrame.Angles(0, 0, math.rad(90)),
+		}):Play()
+		fade(v, 0.4, nil, 1.6)
+		local bud = PIECE.ball(1.6, if anime(x.style) then WHITE else x.accent)
+		bud.CFrame = CFrame.new(at) * tilt * CFrame.new(0, h, 0)
+		bud.Transparency = 1
+		TweenService:Create(
+			bud,
+			TweenInfo.new(0.1, Enum.EasingStyle.Linear, Enum.EasingDirection.Out, 0, false, 0.3),
+			{ Transparency = 0 }
+		):Play()
+		fade(bud, 0.4, nil, 1.6)
+	end
+end
+SUPER.tsunami = function(x) -- Tide Tsunami: a wall of water with a foam crest rolls down the line
+	local from, to = x.o - Vector3.new(0, 2, 0), x.e - Vector3.new(0, 2, 0)
+	local f = flatLook(to - from)
+	local w = x.width
+	local wall = part(Vector3.new(w, 10, 4), CFrame.lookAt(from, from + f) * CFrame.new(0, 4, 0), x.color)
+	wall.Material = if anime(x.style) then Enum.Material.Neon else Enum.Material.Glass
+	wall.Transparency = if anime(x.style) then 0.55 else 0.3
+	local crest = part(
+		Vector3.new(w * 1.05, 1.4, 2.4),
+		CFrame.lookAt(from, from + f) * CFrame.new(0, 9.5, -1),
+		x.accent
+	)
+	local time = 0.9
+	for _, p in { wall, crest } do
+		local offset = p.Position - from
+		TweenService:Create(p, TweenInfo.new(time, Enum.EasingStyle.Linear), {
+			CFrame = CFrame.lookAt(to + offset, to + offset + f),
+		}):Play()
+		fade(p, 0.3, nil, time)
+	end
+	task.delay(time, function()
+		bits(to + Vector3.new(0, 4, 0), "drop", 12, 1.4, 28, x.color, x.style, 1.2, f, 0.5)
+	end)
+end
+SUPER.splitter = function(x) -- Blade Heaven Splitter: a giant vertical crescent cuts down the line
+	local from, to = x.o, x.e
+	local f = (to - from).Unit
+	local start = CFrame.lookAt(from, from + f)
+	local segs = 9
+	local rad = 12
+	for i = 0, segs - 1 do
+		local a0 = math.rad(-70 + i / segs * 140)
+		local a1 = math.rad(-70 + (i + 1) / segs * 140)
+		local p0 = Vector3.new(0, math.sin(a0) * rad, -math.cos(a0) * rad * 0.35)
+		local p1 = Vector3.new(0, math.sin(a1) * rad, -math.cos(a1) * rad * 0.35)
+		local mid = (p0 + p1) / 2
+		local thick = (if anime(x.style) then 0.3 else 0.9) * (0.4 + math.sin((i + 0.5) / segs * math.pi))
+		local seg = part(
+			Vector3.new(thick, thick, (p1 - p0).Magnitude),
+			start * CFrame.lookAt(mid, p1, Vector3.xAxis),
+			if anime(x.style) then WHITE else x.color
+		)
+		local goal = CFrame.lookAt(to, to + f) * CFrame.lookAt(mid, p1, Vector3.xAxis)
+		TweenService:Create(seg, TweenInfo.new(0.35, Enum.EasingStyle.Quad), { CFrame = goal }):Play()
+		fade(seg, 0.2, nil, 0.35)
+	end
+	beam(
+		from - Vector3.new(0, 2.5, 0),
+		to - Vector3.new(0, 2.5, 0),
+		if anime(x.style) then 0.15 else 0.5,
+		x.accent,
+		0.9
+	)
+	if x.mine and not CombatFx.reduceFlashing and slashFrame then
+		-- the screen itself is cut: a thin bright line across it
+		local s = slashFrame :: Frame
+		s.BackgroundColor3 = if anime(x.style) then WHITE else x.color
+		s.BackgroundTransparency = 0
+		s.Size = UDim2.new(0, 0, 0, 6)
+		TweenService:Create(s, TweenInfo.new(0.12), { Size = UDim2.new(1.6, 0, 0, 6) }):Play()
+		TweenService:Create(
+			s,
+			TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In, 0, false, 0.2),
+			{ BackgroundTransparency = 1 }
+		):Play()
+	end
+end
+SUPER.highnoon = function(x) -- Gunslinger High Noon: a sun glare, then a fan of tracers ending in glints
+	local f = x.d.Unit
+	local right = f:Cross(UP)
+	right = if right.Magnitude > 1e-3 then right.Unit else Vector3.new(1, 0, 0)
+	local glare = PIECE.ball(3, x.accent)
+	glare.CFrame = CFrame.new(x.o + Vector3.new(0, 4, 0))
+	fade(glare, 0.5, { Size = Vector3.one * 12 })
+	local half = math.rad((x.cone or 90) / 2)
+	for i = 1, 6 do
+		local a = -half + (i - 1) / 5 * half * 2
+		local d = (f * math.cos(a) + right * math.sin(a)).Unit
+		local tip = x.o + d * x.range * (0.6 + math.random() * 0.4)
+		task.delay(i * 0.05, function()
+			HEAD.tracer(x.o, tip, x.style, x.color, x.accent, 1.3)
+			task.delay(0.12, function()
+				crossBars(facing(tip), 3, 0.3, x.accent, 0.25, 0)
+			end)
+		end)
+	end
+end
+SUPER.mechdrop = function(x) -- Gadgeteer Mech Suit: hex plates fly in and lock on, a scan beam
+	local at = x.o
+	for i = 1, FxLib.pieces(8) do
+		local a = i / 8 * math.pi * 2
+		local from = at + Vector3.new(math.cos(a) * 14, 6 + math.random() * 6, math.sin(a) * 14)
+		local plate = PIECE.plate(2.4, if i % 2 == 0 then x.accent else x.color)
+		plate.Material = if anime(x.style) then Enum.Material.Neon else Enum.Material.Metal
+		plate.CFrame = CFrame.lookAt(from, at)
+		TweenService:Create(
+			plate,
+			TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.In, 0, false, i * 0.03),
+			{
+				CFrame = CFrame.lookAt(at + (from - at).Unit * 2, at),
+				Size = Vector3.new(1.4, 0.2, 1.4),
+			}
+		):Play()
+		fade(plate, 0.15, nil, 0.4 + i * 0.03)
+	end
+	task.delay(0.45, function()
+		column(at, 6, x.color, x.style, 0.5)
+		ring(at - Vector3.new(0, 2.5, 0), 12, x.accent, 0.4, 0.2)
+	end)
+end
+SUPER.eclipse = function(x) -- Shadow Eclipse: a black sun with a burning rim, the light goes out
+	local sky = x.c + Vector3.new(0, 22, 0)
+	local cf = facing(sky)
+	local rim = part(
+		Vector3.new(0.4, 2, 2),
+		cf * CFrame.Angles(0, math.rad(90), 0),
+		if anime(x.style) then WHITE else x.color,
+		Enum.PartType.Cylinder
+	)
+	rim.Transparency = 0.1
+	TweenService:Create(rim, TweenInfo.new(0.3, Enum.EasingStyle.Back), { Size = Vector3.new(0.4, 17, 17) })
+		:Play()
+	fade(rim, 0.4, nil, 1)
+	local sun = PIECE.ball(2, x.accent)
+	sun.Material = Enum.Material.SmoothPlastic
+	sun.CFrame = CFrame.new(sky)
+	TweenService:Create(sun, TweenInfo.new(0.3, Enum.EasingStyle.Back), { Size = Vector3.one * 15 }):Play()
+	fade(sun, 0.4, nil, 1)
+	for _ = 1, 6 do
+		local d = Vector3.new(math.random() - 0.5, -1, math.random() - 0.5).Unit
+		beam(sky, sky + d * 30, if anime(x.style) then 0.1 else 0.4, x.color, 0.5)
+	end
+	if x.mine then
+		flashScreen(x.accent, 0.8, 0.55) -- the eclipse dims your screen
+	end
+	task.delay(0.6, function()
+		bits(x.c, "kunai", 10, 1.2, 30, x.accent, x.style, 0.2, nil, 0.45)
+	end)
+end
+SUPER.meteor = function(x) -- Titan Meteor Leap: the landing craters, stones fly, a fire column
+	local floor = x.c - Vector3.new(0, 1.2, 0)
+	local crater = part(
+		Vector3.new(0.3, 4, 4),
+		CFrame.new(floor) * CFrame.Angles(0, 0, math.rad(90)),
+		Color3.fromRGB(55, 45, 40),
+		Enum.PartType.Cylinder
+	)
+	crater.Material = Enum.Material.SmoothPlastic
+	TweenService:Create(crater, TweenInfo.new(0.15), { Size = Vector3.new(0.3, x.r * 1.2, x.r * 1.2) }):Play()
+	fade(crater, 0.6, nil, 1.2)
+	bits(x.c, "rock", 10, 1.6, 26, Color3.fromRGB(130, 115, 100), x.style, 1.4, nil, 0.6)
+	column(x.c, 8, x.color, x.style, 0.5)
+	disc(floor, UP, x.r, x.accent, 0.5, 0.6)
+end
+SUPER.heavenfall = function(x) -- Martial Heavenfall Beam: a thick ki beam wound with spinning rings
+	local from, to = x.o, x.e
+	local d = to - from
+	local len = d.Magnitude
+	if len < 1 then
+		return
+	end
+	local cf = CFrame.lookAt(from + d / 2, to)
+	local w = x.width * 0.5
+	local core = part(Vector3.new(w * 0.4, w * 0.4, len), cf, if anime(x.style) then WHITE else x.accent)
+	fade(core, 0.6, { Size = Vector3.new(0.2, 0.2, len) })
+	local glow = part(Vector3.new(w, w, len), cf, x.color)
+	glow.Transparency = 0.45
+	fade(glow, 0.7, { Size = Vector3.new(w * 1.4, w * 1.4, len) })
+	for k = 1, FxLib.pieces(5) do
+		local at = from + d * (k / 6)
+		local r = part(
+			Vector3.new(0.3, w * 1.6, w * 1.6),
+			CFrame.lookAt(at, to) * CFrame.Angles(0, math.rad(90), 0),
+			x.accent,
+			Enum.PartType.Cylinder
+		)
+		r.Transparency = 0.2
+		fade(r, 0.4, { Size = Vector3.new(0.1, w * 2.6, w * 2.6) }, k * 0.04)
+	end
+	column(to, 10, x.color, x.style, 0.6)
+end
+SUPER.siege = function(x) -- Juggernaut Siege Mode: four anchors slam into the ground, steam vents
+	local at = x.o - Vector3.new(0, 3, 0)
+	for k = 0, 3 do
+		local a = math.rad(45 + 90 * k)
+		local out = Vector3.new(math.cos(a), 0, math.sin(a))
+		local spot = at + out * 5
+		local anchor = part(
+			Vector3.new(1.4, 6, 2.4),
+			CFrame.new(spot + Vector3.new(0, 14, 0)) * CFrame.Angles(0, -a, 0.35),
+			x.color
+		)
+		anchor.Material = Enum.Material.Metal
+		TweenService:Create(
+			anchor,
+			TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In, 0, false, k * 0.06),
+			{
+				CFrame = CFrame.new(spot + Vector3.new(0, 1.5, 0)) * CFrame.Angles(0, -a, 0.35),
+			}
+		):Play()
+		fade(anchor, 0.4, nil, 1.4)
+		task.delay(0.2 + k * 0.06, function()
+			FxLib.dust(spot, 3, nil)
+			FxLib.emit("smoke", Color3.fromRGB(235, 235, 240), spot + Vector3.new(0, 3, 0), 3, UP)
+			crossBars(facing(spot + Vector3.new(0, 1, 0)), 2.5, 0.25, x.accent, 0.12, 0)
+		end)
+	end
+	ring(at + Vector3.new(0, 0.3, 0), x.r * 0.6, x.accent, 0.5, 0.4)
+end
+SUPER.titanrise = function(x) -- Colossus Titan Form: a red column, stone pillars rise in a ring
+	column(x.o, 12, x.color, x.style, 0.8)
+	groundRing(x.o - Vector3.new(0, 3, 0), 10, 6, function()
+		return PIECE.rock(3, Color3.fromRGB(120, 105, 90))
+	end, 9, 0.9, 0.15)
+	disc(x.o - Vector3.new(0, 2.8, 0), UP, x.r * 0.6, x.accent, 0.6, 0.6)
+end
+SUPER.singularity = function(x) -- Pulse Singularity: a black hole with a spinning disc, matter streaks in
+	local at = x.c + Vector3.new(0, 7, 0)
+	local hole = PIECE.ball(1, x.accent)
+	hole.Material = Enum.Material.SmoothPlastic
+	hole.CFrame = CFrame.new(at)
+	TweenService:Create(hole, TweenInfo.new(0.3, Enum.EasingStyle.Back), { Size = Vector3.one * 7 }):Play()
+	fade(hole, 0.3, { Size = Vector3.one * 0.5 }, 2.2)
+	spinner({
+		{
+			Vector3.new(0.2, 16, 16),
+			CFrame.Angles(0.35, 0, math.rad(90)),
+			x.color,
+			Enum.PartType.Cylinder,
+			0.35,
+		},
+		{
+			Vector3.new(0.25, 11, 11),
+			CFrame.Angles(0.35, 0, math.rad(90)),
+			if anime(x.style) then WHITE else x.color,
+			Enum.PartType.Cylinder,
+			0.15,
+		},
+	}, at, 2.4, 3)
+	for k = 1, FxLib.pieces(10) do
+		task.delay(k * 0.15, function()
+			local a = math.random() * math.pi * 2
+			local from = at + Vector3.new(math.cos(a) * x.r, math.random() * 8 - 4, math.sin(a) * x.r)
+			beam(from, at, if anime(x.style) then 0.08 else 0.25, x.color, 0.25)
+		end)
+	end
+	if x.mine then
+		flashScreen(x.accent, 0.6, 0.35)
+	end
+end
+SUPER.psistorm = function(x) -- Mind Psychic Storm: a huge sigil turns on the ground, debris lifts
+	local at = x.c - Vector3.new(0, 2.6, 0)
+	local r = x.r * 0.8
+	local col = if anime(x.style) then WHITE else x.color
+	local specs = {
+		{
+			Vector3.new(0.15, r * 2, r * 2),
+			CFrame.Angles(0, 0, math.rad(90)),
+			x.color,
+			Enum.PartType.Cylinder,
+			0.55,
+		},
+	}
+	for k = 0, 2 do
+		local a0 = math.rad(90 + 120 * k)
+		local a1 = math.rad(90 + 120 * (k + 1))
+		local p0 = Vector3.new(math.cos(a0) * r, 0.2, math.sin(a0) * r)
+		local p1 = Vector3.new(math.cos(a1) * r, 0.2, math.sin(a1) * r)
+		table.insert(
+			specs,
+			{ Vector3.new(0.5, 0.2, (p1 - p0).Magnitude), CFrame.lookAt((p0 + p1) / 2, p1), col }
+		)
+		-- a small ring at each corner of the triangle
+		table.insert(specs, {
+			Vector3.new(0.15, 3, 3),
+			CFrame.new(p0) * CFrame.Angles(0, 0, math.rad(90)),
+			x.accent,
+			Enum.PartType.Cylinder,
+			0.3,
+		})
+	end
+	-- and the eye ring at the heart (an original sigil, plain geometry)
+	table.insert(specs, {
+		Vector3.new(0.2, r * 0.4, r * 0.4),
+		CFrame.Angles(0, 0, math.rad(90)),
+		x.accent,
+		Enum.PartType.Cylinder,
+		0.2,
+	})
+	spinner(specs, at, 2.2, 0.8)
+	for _ = 1, FxLib.pieces(8) do
+		local a, rr = math.random() * math.pi * 2, math.sqrt(math.random()) * x.r
+		local spot = at + Vector3.new(math.cos(a) * rr, 0.5, math.sin(a) * rr)
+		local rock = PIECE.rock(1 + math.random() * 1.5, Color3.fromRGB(120, 115, 120))
+		rock.CFrame = CFrame.new(spot)
+		TweenService:Create(
+			rock,
+			TweenInfo.new(1.8, Enum.EasingStyle.Sine),
+			{ CFrame = CFrame.new(spot + Vector3.new(0, 8 + math.random() * 6, 0)) * CFrame.Angles(2, 3, 1) }
+		):Play()
+		fade(rock, 0.3, nil, 1.8)
+	end
+end
+SUPER.ascend = function(x) -- Spirit Ascended Guardian: a spirit column, spirit fires ring the hero
+	column(x.o, 9, x.color, x.style, 0.9)
+	groundRing(x.o - Vector3.new(0, 3, 0), 6, 6, function(i)
+		local f = PIECE.flame(2, if i % 2 == 0 then x.accent else x.color)
+		f.Shape = Enum.PartType.Block
+		return f
+	end, 5, 0.8, 0)
+	FxLib.emit("glyph", x.color, x.o - Vector3.new(0, 2, 0), 1)
+end
+SUPER.dawn = function(x) -- Light Dawnburst: a sunrise: a flat flash across the ground, rays, a column
+	local floor = x.c - Vector3.new(0, 2.6, 0)
+	disc(floor, UP, x.r, x.accent, 0.6, 0.4)
+	disc(floor + Vector3.new(0, 0.2, 0), UP, x.r * 0.7, x.color, 0.8, 0.8)
+	for k = 0, 11 do
+		local a = k / 12 * math.pi * 2
+		local d = Vector3.new(math.cos(a), 0.15, math.sin(a))
+		beam(
+			x.c,
+			x.c + d * x.r * 1.3,
+			if anime(x.style) then 0.12 else 0.5,
+			if k % 2 == 0 then x.accent else x.color,
+			0.5
+		)
+	end
+	column(x.c, 14, x.accent, x.style, 0.7)
+	if x.mine then
+		flashScreen(x.accent, 0.5, 0.5)
+	end
+end
+
+-- supers whose moment comes at the landing (CombatFx.area) rather than the cast
+local AT_LANDING = { meteor = true }
+
+---------------------------------------------------------------------------
+-- The path section's entry points (called from the shapes above and from CombatFx.cast / area)
+---------------------------------------------------------------------------
+
+local function rowOf(set: string?): any?
+	return FxPlan.pathOf(F, set)
+end
+
+function sig.head(set: string?, from: Vector3, to: Vector3, style: string, color: Color3, scale: number)
+	local row = rowOf(set)
+	if not row or (to - from).Magnitude < 1 then
+		return
+	end
+	HEAD[row.head](from, to, style, color, ACCENT[set :: string], scale)
+end
+
+function sig.mark(set: string?, pos: Vector3, style: string, color: Color3, scale: number, dir: Vector3?)
+	local row = rowOf(set)
+	if row then
+		MARK[row.mark](pos, style, color, ACCENT[set :: string], scale, dir)
+	end
+end
+
+function sig.dash(set: string?, from: Vector3, to: Vector3, style: string, color: Color3)
+	local row = rowOf(set)
+	if row and (to - from).Magnitude > 2 then
+		DASH[row.dash](from, to, style, color, ACCENT[set :: string], set)
+	end
+end
+
+-- a cone: the path's pieces sweep out across the fan
+function sig.cone(
+	set: string?,
+	origin: Vector3,
+	f: Vector3,
+	range: number,
+	coneDeg: number,
+	style: string,
+	color: Color3
+)
+	local row = rowOf(set)
+	if not row or row.piece == "none" then
+		return
+	end
+	if row.head ~= "none" and row.head ~= "tracer" then
+		-- a few heads fan out (Pulse's push wave reads as warped spheres, Colossus' clap as boulders...)
+		local right = f:Cross(UP)
+		right = if right.Magnitude > 1e-3 then right.Unit else Vector3.new(1, 0, 0)
+		local half = math.rad(coneDeg / 2)
+		for i = -1, 1 do
+			local d = (f * math.cos(half * i * 0.7) + right * math.sin(half * i * 0.7)).Unit
+			HEAD[row.head](origin, origin + d * range * 0.8, style, color, ACCENT[set :: string], 0.7)
+		end
+	end
+	bits(origin + f * 2, row.piece, 6, 1, range * 2.2, color, style, 0, f * 2, 0.35)
+end
+
+-- a melee swing: two of the path's pieces kick out from the reach (more on a combo's last hit)
+function sig.swing(set: string?, at: Vector3, f: Vector3, style: string, color: Color3, last: boolean)
+	local row = rowOf(set)
+	if not row or row.piece == "none" then
+		return
+	end
+	bits(at, row.piece, if last then 4 else 2, 0.7, 12, color, style, 0.2, f, 0.25)
+	if last then
+		MARK[row.mark](at, style, color, ACCENT[set :: string], 0.6, f)
+	end
+end
+
+-- a nova: the path's pieces ring out from the centre, and its mark at the heart
+function sig.burst(set: string?, center: Vector3, radius: number, style: string, color: Color3, big: boolean?)
+	local row = rowOf(set)
+	if not row or row.piece == "none" then
+		return
+	end
+	local n = math.clamp(math.floor(radius * 0.6), 6, 14)
+	bits(center, row.piece, n, 1.1, radius * 2.6, color, style, 0.15, nil, 0.4)
+	MARK[row.mark](
+		center,
+		style,
+		color,
+		ACCENT[set :: string],
+		math.clamp(radius / 8, 1, 3) * (if big then 1.3 else 1),
+		nil
+	)
+end
+
+sig.drift = drift
+sig.motes = motes
+sig.placeMotes = placeMotes
+sig.dropMotes = dropMotes
+
+-- the caster's flourish for a skill or super (not basics): mine from CombatClient.fire, others' from cast()
+function CombatFx.castFlourish(row: any, style: string, o: Vector3, d: Vector3, userId: number?)
+	local pr = rowOf(row.set)
+	if not pr or row.slot == "basic" then
+		return
+	end
+	local color = CombatFx.colorOf(row.set, userId)
+	local dir = if d.Magnitude > 1e-3 then d.Unit else Vector3.new(0, 0, -1)
+	CAST[pr.cast](o, o - Vector3.new(0, 3.2, 0), dir, style, color, ACCENT[row.set])
+end
+
+-- the super's big moment. data as for CombatFx.cast; landing supers (AT_LANDING) come from CombatFx.area.
+function CombatFx.superMoment(row: any, style: string, data: CastData, landing: boolean?)
+	local pr = rowOf(row.set)
+	if not pr or row.slot ~= "super" or pr.super.look == "none" then
+		return
+	end
+	local look = pr.super.look
+	if (AT_LANDING[look] == true) ~= (landing == true) then
+		return
+	end
+	local o, d = data.o, data.d
+	local mine = data.a ~= nil and data.a == Players.LocalPlayer.UserId
+	local color = CombatFx.colorOf(row.set, data.a)
+	if data.aw then
+		color = color:Lerp(AWAKEN, 0.35)
+	end
+	local e = data.e or (o + d * (row.range or 30))
+	local c = data.c or (if row.shape == "line" then e else o)
+	SUPER[look]({
+		o = o,
+		d = d,
+		e = e,
+		c = c,
+		r = data.r or row.radius or 20,
+		range = row.range or 40,
+		cone = row.cone,
+		width = row.width or 10,
+		style = style,
+		color = color,
+		accent = ACCENT[row.set],
+		mine = mine,
+	})
+	FxLib.super(c, row.set, color)
+	if mine then
+		local name = string.upper(row.name or row.id)
+		CombatFx.banner(if style == "Anime" then name else name .. "!", color, style)
+		flashScreen(TINT[row.set], 0.35, if style == "Anime" then 0.4 else 0.3)
+	end
+end
+
+---------------------------------------------------------------------------
 -- Impacts and numbers
 ---------------------------------------------------------------------------
 
@@ -989,6 +2506,7 @@ function CombatFx.impact(
 	local c = color or SET_COLOR.Volt
 	local scale = if crit then 1.5 else 1
 	FxLib.impact(pos, set, c, scale * (if mine then 1 else 0.6), nil, style)
+	sig.mark(set, pos, style, c, scale * (if mine then 1 else 0.6), nil)
 	if style == "Anime" then
 		local flash = part(Vector3.one * 2.5 * scale, CFrame.new(pos), WHITE, Enum.PartType.Ball)
 		fade(flash, 0.12, { Size = Vector3.one * 5 * scale })
@@ -1849,7 +3367,17 @@ function CombatFx.cast(row: any, style: string, data: CastData)
 			return c + Vector3.new(0, 3, 0)
 		end, data.dur or row.duration, style, color, data.r or row.radius)
 		if row.summon == "mines" then
-			CombatFx.field(c, data.r or row.radius, data.dur or row.duration, style, color, false, nil, false)
+			CombatFx.field(
+				c,
+				data.r or row.radius,
+				data.dur or row.duration,
+				style,
+				color,
+				false,
+				nil,
+				false,
+				row.set
+			)
 		end
 	elseif shape == "field" then
 		CombatFx.field(
@@ -1860,7 +3388,8 @@ function CombatFx.cast(row: any, style: string, data: CastData)
 			color,
 			row.id == "BlizzardDome",
 			data.follow,
-			row.status == "pull" or row.id == "BladeStorm"
+			row.status == "pull" or row.id == "BladeStorm",
+			row.set
 		)
 	elseif shape == "buff" then
 		CombatFx.buffPop(o, style, color)
@@ -1870,6 +3399,13 @@ function CombatFx.cast(row: any, style: string, data: CastData)
 		end
 	elseif shape == "wall" or shape == "ramp" then
 		CombatFx.buffPop(o + d * 8, style, color)
+	end
+	-- every path's own look (overhaul plan step 6): your own flourish was drawn when you cast
+	if data.a ~= Players.LocalPlayer.UserId then
+		CombatFx.castFlourish(row, style, o, d, data.a)
+	end
+	if big then
+		CombatFx.superMoment(row, style, data)
 	end
 end
 
@@ -1886,6 +3422,15 @@ function CombatFx.area(
 	CombatFx.nova(center, radius, style, color, row.slot == "super" and mine, row.set)
 	if style ~= "Anime" then
 		CombatFx.word(center, row.set, color, row.slot == "super")
+	end
+	if row.slot == "super" then
+		-- a landing super's big moment (Titan's Meteor Leap)
+		CombatFx.superMoment(
+			row,
+			style,
+			{ o = center, d = Vector3.new(0, -1, 0), c = center, r = radius, a = userId },
+			true
+		)
 	end
 end
 
@@ -1951,6 +3496,15 @@ function CombatFx.init()
 	b.TextStrokeColor3 = Color3.new(0, 0, 0)
 	b.Parent = gui
 	banner = b
+	local slash = Instance.new("Frame")
+	slash.AnchorPoint = Vector2.new(0.5, 0.5)
+	slash.Position = UDim2.fromScale(0.5, 0.5)
+	slash.Size = UDim2.new(0, 0, 0, 6)
+	slash.Rotation = -18
+	slash.BorderSizePixel = 0
+	slash.BackgroundTransparency = 1
+	slash.Parent = gui
+	slashFrame = slash
 	gui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
 end
 

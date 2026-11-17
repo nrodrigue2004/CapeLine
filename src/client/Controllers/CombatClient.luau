@@ -411,6 +411,18 @@ function CombatClient.fire(id: string, charge: number?): boolean
 		local target = root.Position + f * math.max(0, fwd - 2) + Vector3.new(0, up, 0)
 		MoveController.launchTo(target, eff.time or 0.5, math.max(4, up * 0.25))
 	end
+	-- every path's own look and sound (overhaul plan step 6): the flourish, the super's moment, the sound layer
+	if slot ~= "basic" then
+		CombatFx.castFlourish(eff, style, origin, dir, player.UserId)
+		Juice.path(eff.set, if slot == "super" then "super" else "cast", origin)
+	end
+	if slot == "super" and PREDICTED[shape] and not (eff.cast and eff.cast > 0) and not eff.channel then
+		CombatFx.superMoment(
+			eff,
+			style,
+			{ o = origin, d = dir, c = origin, r = eff.radius, a = player.UserId, aw = awake }
+		)
+	end
 	Juice.fire(castSound(slot), origin, { mine = true })
 	Net.send("CombatUse", eff.num, dir, hint, seq, math.floor(chargeLevel * 100 + 0.5))
 	CombatClient.Cast:Fire(id)
@@ -474,6 +486,11 @@ local function drawHits(r: any, row: any, style: string, mine: boolean)
 		-- the camera punch: a small FOV kick on crits and heavy hits, smaller on the rest (never on ticks)
 		if r.k ~= K.TICK then
 			CameraController.punch(if anyCrit or heavy then C.punchHeavy else C.punchHit)
+			Juice.path(
+				row and row.set,
+				"hit",
+				EnemyRenderer.position(hits[1][1]) or Vector3.new(hits[1][5], hits[1][6], hits[1][7])
+			)
 		end
 		CombatClient.HitConfirm:Fire(anyCrit)
 	end
@@ -489,6 +506,9 @@ local function onResult(list: { any })
 			local kind = r.k
 			if kind == K.CAST and not mine then
 				Juice.fire(castSound(row.slot), r.o, { mine = false, userId = r.a })
+				if row.slot ~= "basic" then
+					Juice.path(row.set, if row.slot == "super" then "super" else "cast", r.o)
+				end
 			end
 			if kind == K.CAST and (not mine or (row.cast and row.cast > 0)) then
 				HeroAnimator.cast(HeroAnimator.byUserId(r.a), row, r.m) -- yours after a windup, others' always
@@ -555,7 +575,8 @@ local function onResult(list: { any })
 							function()
 								return EnemyRenderer.position(tid)
 							end,
-							false
+							false,
+							row.set
 						)
 					end
 					-- decoys (Tide Mirror, Holo Decoy, Spirit Swap): a copy the robots chase
@@ -580,7 +601,7 @@ local function onResult(list: { any })
 					end
 				end
 				if kind == K.LAND and r.dur then
-					CombatFx.field(r.c, row.radius * 0.6, r.dur, style, color, false, nil, false)
+					CombatFx.field(r.c, row.radius * 0.6, r.dur, style, color, false, nil, false, row.set)
 				end
 			elseif kind == K.ECHO then
 				if r.c then
@@ -810,9 +831,18 @@ updateHold = function()
 	local origin = root.Position + CHEST
 	local point = aim(rangeOf(eff), origin)
 	local color = CombatFx.colorOf(eff.set, player.UserId)
-	AimPreview.draw(eff, origin, root.Position - Vector3.new(0, 3, 0), point, color, level)
+	AimPreview.draw(
+		eff,
+		origin,
+		root.Position - Vector3.new(0, 3, 0),
+		point,
+		color,
+		level,
+		State.hero.fxStyle
+	)
 	if h.charge and level > 0 and not h.posed then
 		h.posed = true
+		Juice.path(eff.set, "charge", origin)
 		HeroAnimator.windup(player, C.charge.maxHold) -- the charging pose until release
 	end
 	if level >= 1 and not h.full then
