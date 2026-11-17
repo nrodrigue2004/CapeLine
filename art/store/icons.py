@@ -1,13 +1,12 @@
-# art/store/icons.py: the three experience icon candidates (notes/Store Page.md, "Icon (512 x 512), 3 variants
-# to A/B test"), rendered at 1024 x 1024 into art/export/store/raw/; art/store/post.py grades them, adds the
-# speed lines and saves the 512 x 512 PNGs nate uploads.
-#   flight: a Comic hero flying at the camera, fist forward, cape snapping, a burst of blue Volt lightning
-#           behind, Brightharbor's towers small below. No text.
+# art/store/icons.py: the experience icons (notes/Store Page.md, "Icon (512 x 512), 3 variants to A/B test"; nate's
+# picks 2026-11-17: clash and smash; the flying one was dropped), rendered at 1024 x 1024 into
+# art/export/store/raw/; art/store/post.py grades them, adds the speed lines and saves the 512 x 512 PNGs nate
+# uploads. thumbs.py imports COMIC and ANIME from here.
 #   clash:  an Anime hero (white spiky hair, gold aura) and a turned Spark Trooper meeting fists in the centre,
 #           a white shockwave ring between them, a cracked street and chunks. No text.
 #   smash:  the city-destruction moment: a Comic hero punching a turned robot through a tower's corner, the
 #           wall bursting into kit chunks and dust over Downtown. No text.
-# Run: python art/store/icons.py <flight|clash|smash> [--draft]   (with the `bpy` module, Blender 5.0)
+# Run: python art/store/icons.py <clash|smash> [--draft]   (with the `bpy` module, Blender 5.0)
 import math
 import os
 import sys
@@ -17,7 +16,7 @@ import common as C  # noqa: E402
 from mathutils import Vector  # noqa: E402
 
 WHICH = [a for a in sys.argv[1:] if not a.startswith("-")]
-WHICH = WHICH[0] if WHICH else "flight"
+WHICH = WHICH[0] if WHICH else "clash"
 
 # the Comic hero (Store Page: bold outline, primary colours, a cape): Storm Front style suit colours on the
 # blocky body, red cape, gloves and boots, a star emblem, the Domino Mask
@@ -25,51 +24,6 @@ COMIC = dict(suit=((36, 92, 220), (36, 92, 220), (28, 44, 110)), gloves=(230, 36
              belt=((250, 200, 40), (255, 236, 150)), emblem=("star", (232, 30, 40), (255, 214, 50)),
              mask=(18, 20, 34), cape_rgb=(226, 28, 40), hair="swept", hair_rgb=(60, 38, 24),
              skin=(240, 190, 150), face="Hero")
-
-
-# the flying pose, staged against its own camera (icon 1; thumbnail 1 carries it into another camera)
-FLIGHT_POSE = {"LeftShoulder": (172, 14, 0),  # the fist forward (over the head when flying)
-               "RightShoulder": (12, 0, -6), "RightElbow": (10, 0, 0),  # the other arm along the body
-               "LeftHip": (-6, 0, 4), "LeftKnee": (10, 0, 0),
-               "RightHip": (26, 0, -4), "RightKnee": (70, 0, 0), "Neck": (34, 0, 0)}
-FLIGHT_UP, FLIGHT_FRONT = Vector((-0.62, 0.62, 0.48)), Vector((0.25, 1.0, -0.55))
-FLIGHT_CAM = (Vector((0.35, 0.93, 0.05)).normalized() * 11.0, Vector((-0.5, 0, 0.5)))
-FLIGHT_CAPE = dict(length=5.6, flare=2.0, lift=1.8, wave=0.6, flow=(1.6, -1.0, -0.8), seed=4)
-
-
-def flight():
-    C.settings((1024, 1024), samples=96, exposure=0.0, view="Standard")
-    hero_at = Vector((0, 0, 420))
-    # flying up, to the right and at the camera (camera at +y): head along the flight line, chest to the camera
-    root = C.root_axes(hero_at, FLIGHT_UP, FLIGHT_FRONT)
-    M, obs = C.hero(root, FLIGHT_POSE, cape_kw=FLIGHT_CAPE, **COMIC)
-    body = root @ C.CENTRE
-    cam = C.camera(hero_at + FLIGHT_CAM[0], hero_at + FLIGHT_CAM[1], lens=30)
-    # the city far below
-    C.ground(0, -300, 3200)
-    C.city(0, -300, blocks=9, block=96, street=30, seed=11, hmin=70, hmax=240, centre_boost=1.5)
-    C.fog("City", (176, 214, 250), start=200, half=520)
-    C.sky(top=(26, 86, 214), horizon=(160, 214, 255), bottom=(190, 222, 250), ambient=(170, 196, 235),
-          ambient_strength=1.0)
-    C.sun((38, 0, 205), energy=4.6, rgb=(255, 242, 220))
-    # Volt: a lightning burst behind the hero (radial bolts and a blue glow)
-    view = (body - cam.location).normalized()
-    up = Vector((0, 0, 1))
-    right = view.cross(up).normalized()
-    up2 = right.cross(view).normalized()
-    centre = body + view * 6.0
-    for k in range(9):
-        a = k * 2 * math.pi / 9 + 0.3
-        d = right * math.cos(a) + up2 * math.sin(a)
-        C.lightning(centre + d * 1.5, centre + d * (10.0 + (k % 3) * 3.0) + view * 2, seed=k + 3, jag=0.12,
-                    width=0.12, branches=2, strength=10)
-    C.glow(centre + view * 2, 26, cam, (90, 170, 255), strength=1.6)
-    C.glow(centre + view * 1, 9, cam, (200, 235, 255), strength=1.5)
-    # a rim of blue on the hero from the burst, and a warm key from the sun side
-    C.lamp(centre - view * 1.5, 1500, (110, 190, 255), size=3)
-    C.area(cam.location + Vector((6, -2, 6)), body, 900, (255, 240, 220), size=8)
-    C.outlines(["Heroes"], thickness=2.6)
-    C.render("icon_flight")
 
 
 # the Anime hero (Store Page: white hair, gold aura, speed lines): our Leather Jacket and Joggers, Anime Spikes
@@ -249,4 +203,4 @@ def smash():
 
 
 if __name__ == "__main__":
-    {"flight": flight, "clash": clash, "smash": smash}[WHICH]()
+    {"clash": clash, "smash": smash}[WHICH]()

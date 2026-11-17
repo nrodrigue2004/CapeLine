@@ -22,6 +22,7 @@
 - [ ] M11 sound ids: put a licence-checked Creator Store id in `asset` for each of the 32 rows in Config.Audio.sounds (the built-in fallbacks are placeholders), the 4 music tracks in Config.Audio.music (patrol day, patrol night, boss, victory sting) and the 24 voice clips in Config.Shop.voiceSounds; then run the M11 Studio list again.
 - [ ] M11 the 8-tester, 30-minute session: no "[Capeline] idle wait" line over 5 s in the Output.
 - [ ] M12 icon (3 variants), 3 thumbnails, concept art and the description from notes/Store Page.md; pick the image tool and check its licence allows commercial use.
+- [ ] M12 store art picks (nate, 2026-11-17; rendered with our own Blender pipeline, no generator): icons icon_clash and icon_smash, thumbnails thumb_build, thumb_boss and thumb_twist (art/export/store, sheet art/preview/store_picks.png; Tasks.md "Store art picks"); re-render thumb_boss and thumb_twist with the final boss and fake art, run check #42 on each, then upload them yourself.
 - [ ] M12 the playtest week (notes/Playtest Kit.md): 20 testers, private place, no crash report in one week; write each session in notes/Build Log.md.
 - [ ] M12 Creator Dashboard: confirm the custom events and the 5 funnels show (Onboarding, Combat, PvP, Story, Purchase) a day after the first testers.
 - [ ] M12 verify Roblox's current AnalyticsService limits (custom event names, events per server per minute, custom field values) against Config.Analytics.budget and the 34 event names in Shared.AnalyticsSchema.
