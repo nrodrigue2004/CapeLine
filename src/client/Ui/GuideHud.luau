@@ -151,6 +151,20 @@ local function buildPortrait(who: string, sp: any): Frame
 			piece(frame, 0.5, 0.55, 0.56, 0.12, Color3.fromRGB(230, 180, 40), 0.4)
 		elseif extra == "visor" then
 			piece(frame, 0.5, 0.55, 0.56, 0.1, Color3.fromRGB(255, 70, 70), 0.4)
+		elseif extra == "crown" then
+			-- the Harvest King's crown of wheat (chain 4): a gold band and three points
+			local gold = Color3.fromRGB(230, 190, 60)
+			piece(frame, 0.5, 0.24, 0.5, 0.08, gold, 0.2)
+			for i = -1, 1 do
+				local pt = piece(frame, 0.5 + i * 0.17, 0.17, 0.08, 0.1, gold)
+				pt.Rotation = 45
+			end
+		elseif extra == "strawhat" then
+			-- Farmer Dot's straw hat (chain 4): a wide brim and a crown with a band
+			local straw = Color3.fromRGB(230, 200, 120)
+			piece(frame, 0.5, 0.3, 0.86, 0.07, straw, 0.5)
+			piece(frame, 0.5, 0.22, 0.46, 0.14, straw, 0.4)
+			piece(frame, 0.5, 0.27, 0.46, 0.04, Color3.fromRGB(170, 50, 40))
 		end
 	end
 	-- a radio voice's static: faint bars over the portrait (they flicker unless Reduce flashing is on)

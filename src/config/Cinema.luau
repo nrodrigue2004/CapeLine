@@ -218,6 +218,77 @@ return {
 				},
 			},
 		},
+		-- The Harvest King (side quest chain 4, lore step 11, Farmland): dusk over Furrow Farm on step 1, the
+		-- Harvest King's comic page on step 5, and the beast waking at the King's Acre before the finale
+		farmDusk = {
+			bit = 12,
+			client = true,
+			seconds = 10,
+			shots = {
+				{
+					kind = "dolly",
+					t0 = 0,
+					t1 = 5,
+					from = { 0, 6, 34 },
+					to = { 0, 10, 16 },
+					at = { 0, 6, 0 },
+					at2 = { 0, 14, -40 },
+				},
+				{
+					kind = "orbit",
+					t0 = 5,
+					t1 = 10,
+					radius = 24,
+					height = 9,
+					yaw0 = -0.4,
+					yaw1 = 0.8,
+					lift = 6,
+				},
+			},
+			lines = {
+				{
+					at = 0.4,
+					who = "Dot",
+					text = "Every night at dusk the ground shakes. Then the corn just... disappears.",
+				},
+				{
+					at = 5.5,
+					who = "harvest",
+					text = "Eat up, my beauty. Every field from here to the sea is yours.",
+				},
+			},
+		},
+		kingStory = { bit = 13, client = true, seconds = 14, comic = "kingStory" },
+		kingsHarvest = {
+			bit = 14,
+			client = true,
+			seconds = 8,
+			shots = {
+				{ kind = "cut", t0 = 0, t1 = 3, from = { 16, 5, 16 }, at = { 0, 6, 0 } },
+				{
+					kind = "orbit",
+					t0 = 3,
+					t1 = 8,
+					radius = 20,
+					height = 6,
+					yaw0 = 0.4,
+					yaw1 = 1.8,
+					lift = 6,
+				},
+			},
+			lines = {
+				{
+					at = 0.3,
+					who = "harvest",
+					text = "You hurt my crops, my bots, my fields. You will NOT hurt my creation!",
+				},
+				{
+					at = 4,
+					who = "patch",
+					text = "The ground's moving! That's not a hill. That's the beast!",
+				},
+			},
+		},
 	},
 	missionBits = { base = 16, perMission = 8, missions = 13 }, -- bits 16 to 119
 
@@ -419,6 +490,46 @@ return {
 						ground = { 60, 50, 60 },
 						scene = "city",
 						caption = "So I ran. And I kept running until I found you.",
+						at = 10.5,
+					},
+				},
+			},
+			-- The Harvest King's story (The Harvest King, step 5): the drought, his Spark, the beast he grew
+			kingStory = {
+				title = "THE SUMMER THE RAIN STOPPED",
+				panels = {
+					{
+						rect = { 0.03, 0.12, 0.45, 0.4 },
+						sky = { 255, 200, 110 },
+						ground = { 170, 130, 80 },
+						scene = "farm",
+						caption = "Three summers without rain. Every farm out here was drying up.",
+						at = 0,
+					},
+					{
+						rect = { 0.52, 0.12, 0.45, 0.4 },
+						sky = { 150, 210, 255 },
+						ground = { 90, 140, 60 },
+						scene = "sprout",
+						caption = "Then my Spark woke up. Anything I touched would grow. Anything!",
+						word = "SPROUT!",
+						at = 3.5,
+					},
+					{
+						rect = { 0.03, 0.56, 0.45, 0.38 },
+						sky = { 120, 160, 210 },
+						ground = { 60, 110, 50 },
+						scene = "beast",
+						caption = "So I grew a guardian to keep the crows off. It grew. And grew.",
+						word = "RUMBLE!",
+						at = 7,
+					},
+					{
+						rect = { 0.52, 0.56, 0.45, 0.38 },
+						sky = { 255, 140, 90 },
+						ground = { 70, 90, 50 },
+						scene = "farm",
+						caption = "Now it's always hungry. But it's MINE. Nobody hurts what I made.",
 						at = 10.5,
 					},
 				},

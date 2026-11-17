@@ -779,9 +779,14 @@ local function onEvents(list: { any })
 				end
 			end
 		elseif kind == DIE then
-			local pos, metal = EnemyRenderer.kill(ev[2])
+			local pos, metal, creature = EnemyRenderer.kill(ev[2])
 			CombatClient.Finish:Fire("die", ev[6], pos or Vector3.new(ev[3], ev[4], ev[5]), ev[7], ev[2])
-			CombatFx.burst(pos or Vector3.new(ev[3], ev[4], ev[5]), styleOf(ev[7]), metal)
+			if creature then
+				-- a cartoon creature (lore step 11, chain 4) bursts into light, never into metal parts
+				EnemyRenderer.lightBurst(pos or Vector3.new(ev[3], ev[4], ev[5]), metal)
+			else
+				CombatFx.burst(pos or Vector3.new(ev[3], ev[4], ev[5]), styleOf(ev[7]), metal)
+			end
 			Juice.fire("defeat", pos or Vector3.new(ev[3], ev[4], ev[5]), { mine = false })
 			if ev[7] == player.UserId then
 				CameraController.shake(0.08, 0.15)

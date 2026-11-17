@@ -1113,6 +1113,20 @@ return {
 					extras = { "visor" },
 				},
 			},
+			-- The Harvest King (chain 4, Farmland): the farmer in person, a crown of wheat on a grey shock of hair
+			harvest = {
+				name = "THE HARVEST KING",
+				color = { 230, 190, 60 },
+				style = "person",
+				blip = "guideFake",
+				portrait = {
+					bg = { 70, 90, 30 },
+					skin = { 198, 140, 100 },
+					hair = { 175, 180, 190 },
+					shape = "messy",
+					extras = { "beard", "crown" },
+				},
+			},
 		},
 		-- the three guides: each has its own blip and portrait
 		guides = { "lodestar", "patch", "crane" },
@@ -1309,6 +1323,7 @@ return {
 			["Living Legend"] = 5,
 			["Class Dismissed"] = 6, -- side quest chain: The Hero Academy (lore step 11)
 			["Curtain Call"] = 7, -- side quest chain: The Gala Heist (lore step 11, chain 2)
+			Uprooted = 9, -- side quest chain: The Harvest King (lore step 11, chain 4)
 			GoldTrim = 100,
 		},
 	},
