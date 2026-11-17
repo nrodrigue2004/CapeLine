@@ -384,9 +384,13 @@ local function buildCard()
 end
 
 -- Show a boss's name card (3 s): the card slams in big and settles; the slash bar sweeps across in the boss's look
--- colour (Config.BossArt theme: welding orange, the Maw's light, the Deep Machine's aqua; red for the battle form)
-function CinemaHud.nameCard(bossId: string)
+-- colour (Config.BossArt theme; red for the battle form and side quest villains). A side quest
+-- finale (lore step 10) passes its mini villain's fixed name and title from Config.SideQuests instead.
+function CinemaHud.nameCard(bossId: string, ownName: string?, ownTitle: string?)
 	local name, title = CinemaPlan.nameCard(Config, bossId)
+	if ownName then
+		name, title = ownName, ownTitle or ""
+	end
 	cardName.Text = name
 	cardTitle.Text = title
 	local art = Config.BossArt[bossId]

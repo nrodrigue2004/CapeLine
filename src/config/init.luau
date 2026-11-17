@@ -60,6 +60,7 @@ local NAMES = {
 	"Episodes", -- H8: the weekly episodes
 	"Pass", -- H8: the Hero Pass
 	"Cinema", -- lore step 7: cutscenes, news, comic pages, finishers, the dynamic camera
+	"SideQuests", -- lore step 10: the side quest framework (chains, givers, the retired arcs)
 }
 
 local Config: { [string]: any } = {}

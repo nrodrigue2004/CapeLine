@@ -3,7 +3,8 @@
 -- * STORY: Act 1's 6 missions (1 the Ceremony prologue) with their state and a line about each, a START (or
 --   REPLAY) button, the choices picked so far (each side's own options), and
 --   a PIN button for the story.
--- * QUESTS: the 8 side quest arcs: who gives them and where, the current step, PIN.
+-- * QUESTS: the side quest chains (lore step 10) by layer: who gives them and where, the step, ACCEPT, RESUME,
+--   HOLD (abandon: the chain waits at its step) and the lock reason (level, a mission, another chain).
 -- * REP: Vigil Trust, Syndicate Fear and City Reputation with their rank (ranks at 100, 300, 600, 1,000, 1,500).
 -- * PERKS: the story perks unlocked by choices (the Echo Drone).
 -- Opened with the JOURNAL button or J. PLACEHOLDER look until the UI pass (M10).
@@ -12,6 +13,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local StoryPlan = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("StoryPlan"))
+local SideQuestPlan = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("SideQuestPlan"))
 
 local Kit = require(script.Parent.Kit)
 local State = require(script.Parent.Parent.State)
@@ -28,7 +30,14 @@ local body: ScrollingFrame
 local tab = "story"
 local tabButtons: { [string]: TextButton } = {}
 
-local WHERE = { plaza = "the plaza", OldTown = "Old Town", hq = "the home safehouse", Docks = "the Docks" }
+local WHERE = {
+	plaza = "the plaza",
+	hq = "the home safehouse",
+	Downtown = "Downtown",
+	Uptown = "Uptown",
+	OldTown = "Old Town",
+	Docks = "the Docks",
+}
 local STATE_TEXT = { done = "CLEARED", open = "READY", level = "LEVEL %d", locked = "LOCKED" }
 
 local function rgb(t: { number }): Color3
@@ -173,23 +182,111 @@ local function drawStory(j: any)
 	pinButton(p, 0, j.pinned == 0)
 end
 
+-- A small action button on a quest row (ACCEPT, RESUME, HOLD), right-aligned at slot 1 or 2
+local function actButton(parent: Instance, label: string, slot: number, color: Color3, fn: () -> ())
+	local b = Kit.button({
+		Text = label,
+		AnchorPoint = Vector2.new(1, 0.5),
+		Position = UDim2.new(1, -8 - (slot - 1) * 92, 0.5, 0),
+		Size = UDim2.fromOffset(84, U.touchTarget - 12),
+		BackgroundColor3 = color,
+		maxText = 18,
+	}, fn)
+	b.Parent = parent
+end
+
+local LAYER_TITLE = { district = "DISTRICT CHAINS", character = "CHARACTER LINES", origin = "ORIGIN LINES" }
+
+-- lore step 10: one page row per side quest chain (the server's rows: state, step, lock reason)
 local function drawQuests(j: any)
-	for num, q in S.quests do
-		local s = j.quests[num] or 0
-		local r = row(num, 70)
-		local npc = StoryPlan.npcName(Config, num, j.side)
-		text(r, string.upper(npc), UDim2.fromOffset(10, 4), UDim2.new(0.65, 0, 0, 24), rgb(q.color), 20)
-		local line
-		if s == 0 then
-			line = string.format("Talk to %s in %s", npc, WHERE[q.at.anchor] or q.at.anchor)
-		elseif s >= 4 then
-			line = "DONE"
-		else
-			line = string.format("%d/3: %s", s, q.steps[s].text)
-		end
-		text(r, line, UDim2.fromOffset(10, 32), UDim2.new(0.7, 0, 0, 30), Kit.color.ink, 15, Kit.bodyFont)
-		if s >= 1 and s <= 3 then
-			pinButton(r, num, j.pinned == num)
+	local rows = j.sq or {}
+	if #rows == 0 then
+		Kit.stateNote(body, "empty", "New side quest chains are on their way")
+		return
+	end
+	for li, layer in Config.SideQuests.layers do
+		local header = false
+		for _, r in rows do
+			local chain = SideQuestPlan.byBit(Config, r.bit)
+			if chain and chain.layer == layer then
+				if not header then
+					header = true
+					local h = row(li * 1000, 30)
+					h.BackgroundTransparency = 1
+					text(
+						h,
+						LAYER_TITLE[layer],
+						UDim2.fromOffset(4, 2),
+						UDim2.new(1, -8, 1, -4),
+						Kit.color.gold,
+						18
+					)
+				end
+				local giver = Config.SideQuests.givers[chain.giver]
+				local f = row(li * 1000 + r.bit, 78)
+				text(
+					f,
+					string.upper(chain.name),
+					UDim2.fromOffset(10, 4),
+					UDim2.new(0.6, 0, 0, 24),
+					if giver then rgb(giver.color) else Kit.color.ink,
+					20
+				)
+				local where = giver and (WHERE[giver.anchor] or giver.anchor) or ""
+				local line
+				if r.state == "done" then
+					line = "DONE"
+				elseif r.state == "active" then
+					local step = chain.steps[r.step]
+					local goal = step and SideQuestPlan.goal(step, j.side)
+					line = string.format(
+						"%d/%d: %s",
+						r.step,
+						r.steps,
+						if goal then SideQuestPlan.text(goal, j.side) else ""
+					)
+					if j.pinned ~= r.bit then
+						line ..= "  (on hold)"
+					end
+				elseif r.state == "open" then
+					line = string.format("Talk to %s in %s", giver and giver.name or "?", where)
+				elseif r.why == "level" then
+					line = string.format("Opens at level %d", r.n or 1)
+				elseif r.why == "story" then
+					local m = S.missions[r.n or 0]
+					line = "After the mission " .. (if m then m.name else "?")
+				elseif r.why == "after" then
+					local prev = SideQuestPlan.chain(Config, r.after or "")
+					line = "After " .. (if prev then prev.name else "another chain")
+				else
+					line = "LOCKED"
+				end
+				text(
+					f,
+					line,
+					UDim2.fromOffset(10, 32),
+					UDim2.new(0.58, 0, 0, 40),
+					Kit.color.ink,
+					15,
+					Kit.bodyFont
+				)
+				if r.state == "active" then
+					if j.pinned == r.bit then
+						pinButton(f, r.bit, true)
+						actButton(f, "HOLD", 2, Kit.color.muted, function()
+							StoryClient.sideQuest(2, r.bit)
+						end)
+					else
+						actButton(f, "RESUME", 1, Kit.color.gold, function()
+							StoryClient.sideQuest(1, r.bit)
+						end)
+					end
+				elseif r.state == "open" and not (chain.unlock and chain.unlock.npc) then
+					actButton(f, "ACCEPT", 1, Kit.color.gold, function()
+						StoryClient.sideQuest(1, r.bit)
+					end)
+				end
+			end
 		end
 	end
 end

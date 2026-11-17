@@ -4,7 +4,7 @@
 --   riders, revives, blocks, perfect blocks, interrupts, breaks, throws, Awakenings, mission, task force and
 --   Showdown clears, contests) and position checks once a second (areas, the deep, heights, the Trench
 --   floor, time underwater);
--- * facts read from the save (story clears and choices across your heroes, side quests, safehouses and
+-- * facts read from the save (story clears and choices across your heroes, side quest chains, safehouses and
 --   beacons found, styles and emotes owned, full collections, Fame rank, PvP wins);
 -- * a new badge: a stamp, a chime and confetti for you (BadgeEarned), and a toast for squadmates near you;
 -- * accolades: a group finished gives its aura, plate trim or emote (worn from the Badge Book); never stats;
@@ -22,6 +22,7 @@ local DeepLayout = require(Shared:WaitForChild("DeepLayout"))
 local Net = require(Shared:WaitForChild("Net"))
 local ProfileSchema = require(Shared:WaitForChild("ProfileSchema"))
 local StoryPlan = require(Shared:WaitForChild("StoryPlan"))
+local SideQuestPlan = require(Shared:WaitForChild("SideQuestPlan"))
 local ZoneLevel = require(Shared:WaitForChild("ZoneLevel"))
 local Signal = require(Shared:WaitForChild("Util"):WaitForChild("Signal"))
 
@@ -74,7 +75,7 @@ local function facts(player: Player, profile: any): { [string]: number }
 	f.beaconsAll = if f.beacons >= #Config.World.beacons then 1 else 0
 	-- the story across every hero on the account
 	local picked: { [number]: { [number]: boolean } } = {}
-	local quests = 0
+	local quests = false
 	for _, ch in profile.characters do
 		local st = ch.story
 		if st then
@@ -92,19 +93,13 @@ local function facts(player: Player, profile: any): { [string]: number }
 					picked[i][o] = true
 				end
 			end
-			local done = 0
-			for _, q in st.quests or {} do
-				if q >= 4 then
-					done += 1
-				end
-			end
-			quests = math.max(quests, done)
+			quests = quests or SideQuestPlan.allDone(Config, ch) -- lore step 10: every chain or retired arc
 		end
 	end
 	for i, set in picked do
 		f["bothChoices:" .. i] = if set[1] and set[2] then 1 else 0
 	end
-	f.quests = if quests >= #Config.Story.quests then 1 else 0
+	f.quests = if quests then 1 else 0
 	f.styles = #Bits.list(profile.styles)
 	f.emotes = #Bits.list(profile.emotes)
 	f.fullSets = CollectPlan.fullSets(Config.Collect, profile.mmo.collect)

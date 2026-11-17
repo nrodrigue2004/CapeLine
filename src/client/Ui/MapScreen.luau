@@ -4,7 +4,8 @@
 -- beacons (gold once discovered, a tap flies there) and you. M6 adds the incidents near you (blue Vigil,
 -- red Syndicate), running events (gold) and the world boss (big red). M10: your squad (squares in their
 -- slot colours), colorblind-safe shapes (circle incident, star event, diamond boss), and a tap on an
--- incident, event or the boss auto-flies you there (Settings: tap to fly; needs flight). Opens with M, the
+-- incident, event or the boss auto-flies you there (Settings: tap to fly; needs flight). Lore step 10: side quest
+-- givers with a chain for you ("!", gold when one is in progress) and the tracked step. Opens with M, the
 -- MAP button or a tap on the radar.
 -- PLACEHOLDER ART: flat coloured frames until the art pass.
 
@@ -16,6 +17,7 @@ local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Net = require(Shared:WaitForChild("Net"))
 local Travel = require(Shared:WaitForChild("Travel"))
+local SideQuestPlan = require(Shared:WaitForChild("SideQuestPlan"))
 
 local Kit = require(script.Parent.Kit)
 local State = require(script.Parent.Parent.State)
@@ -24,6 +26,7 @@ local WorldClient = require(script.Parent.Parent.Controllers.WorldClient)
 local MoveController = require(script.Parent.Parent.Controllers.MoveController)
 local SquadClient = require(script.Parent.Parent.Controllers.SquadClient)
 local SettingsClient = require(script.Parent.Parent.Controllers.SettingsClient)
+local StoryClient = require(script.Parent.Parent.Controllers.StoryClient)
 
 local MapScreen = {}
 
@@ -321,6 +324,38 @@ local function drawWorld()
 				table.insert(worldMarks, d)
 			end
 		end
+	end
+	-- lore step 10: side quest givers with a chain open or in progress for you ("!"), and the tracked step
+	local okGivers, where = pcall(function()
+		return HttpService:JSONDecode(ReplicatedStorage:GetAttribute("SideQuestGivers") or "{}")
+	end)
+	local j = StoryClient.journal
+	if okGivers and type(where) == "table" and j then
+		local want = {}
+		for _, r in j.sq or {} do
+			local chain = SideQuestPlan.byBit(Config, r.bit)
+			if chain and (r.state == "open" or r.state == "active") then
+				want[chain.giver] = want[chain.giver] or r.state == "active"
+			end
+		end
+		for id, active in want do
+			local at = where[id]
+			local giver = Config.SideQuests.givers[id]
+			if type(at) == "table" and giver then
+				local d = dot("Giver", at[1], at[2], 20, if active then Kit.color.gold else Kit.color.paper)
+				d.Text = "!"
+				d.TextScaled = true
+				d.TextColor3 = Kit.color.ink
+				flyable(d, Vector3.new(at[1], Config.City.ground.y, at[2]), giver.name)
+				table.insert(worldMarks, d)
+			end
+		end
+	end
+	local q = StoryClient.quest
+	if q and q.target then
+		local d = dot("SideQuest", q.target[1], q.target[3], 14, Kit.color.gold)
+		flyable(d, Vector3.new(q.target[1], q.target[2], q.target[3]), "your side quest")
+		table.insert(worldMarks, d)
 	end
 	local b = WorldClient.boss
 	if b.state == 1 or b.state == 2 or b.state == 3 then

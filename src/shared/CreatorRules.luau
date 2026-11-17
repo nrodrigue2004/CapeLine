@@ -7,7 +7,7 @@
 -- * validate(look): every piece exists and is unlocked, every colour is on the palette.
 -- * nameOk(title, noun): both picked from the wheels, and the pair is not on the blocked list.
 -- * earned(profile): the play-unlocked pieces this account has now earned (levels, reputation, Fame,
---   bosses, missions, side quests, Legacy) but not yet got; dropPick rolls a "drop" piece.
+--   bosses, missions, side quest chains, Legacy) but not yet got; dropPick rolls a "drop" piece.
 -- * randomize: a whole random look and name from what the account owns (the creator's Randomize button).
 -- * Origins (lore step 2): originOk, originPiece (the origin's crest, worn free by a hero of that origin and
 --   unlocked for the account once any hero has the origin); nothing about an origin touches a stat.
@@ -19,6 +19,9 @@ local ProfileSchema = if script
 	else (require :: any)("./ProfileSchema")
 local StoryPlan = if script then require(script.Parent.StoryPlan) else (require :: any)("./StoryPlan")
 local PvpRules = if script then require(script.Parent.PvpRules) else (require :: any)("./PvpRules")
+local SideQuestPlan = if script
+	then require(script.Parent.SideQuestPlan)
+	else (require :: any)("./SideQuestPlan")
 
 local Bits = ProfileSchema.Bits
 
@@ -60,7 +63,7 @@ local cache: { [any]: Index } = {}
 function CreatorRules.parse(s: string): Source
 	local parts = string.split(s, ":")
 	local kind = parts[1]
-	if kind == "lvl" or kind == "fame" or kind == "mission" or kind == "quest" or kind == "legacy" then
+	if kind == "lvl" or kind == "fame" or kind == "mission" or kind == "chains" or kind == "legacy" then
 		return { kind = kind, n = tonumber(parts[2]) }
 	elseif kind == "pack" or kind == "origin" or kind == "pass" then
 		return { kind = kind, n = tonumber(parts[2]) }
@@ -262,7 +265,7 @@ end
 
 -- What the account has done, across every character (unlocks are account-wide)
 local function best(Config: any, profile: any)
-	local b = { level = 0, legacy = 0, fame = 0, rep = { 0, 0, 0 }, missions = 0, quests = {}, origins = {} }
+	local b = { level = 0, legacy = 0, fame = 0, rep = { 0, 0, 0 }, missions = 0, chains = 0, origins = {} }
 	for _, c in profile.characters do
 		if type(c.origin) == "number" and c.origin > 0 then
 			b.origins[c.origin] = true
@@ -276,13 +279,9 @@ local function best(Config: any, profile: any)
 		local st = c.story
 		if st then
 			b.missions = bit32.bor(b.missions, st.missions or 0)
-			for q, state in st.quests or {} do
-				if state == 4 then
-					b.quests[q] = true
-				end
-			end
 		end
 	end
+	b.chains = SideQuestPlan.chainsDone(Config, profile) -- lore step 10: side quest chains finished
 	-- a retired hero's level counts too (the Hall of Legends)
 	for _, s in profile.legends or {} do
 		b.level = math.max(b.level, s.level or 0)
@@ -302,8 +301,8 @@ local function earnedBy(Config: any, profile: any, b: any, s: Source): boolean
 		return b.rep[StoryPlan.repIndex(Config, s.a :: string)] >= n
 	elseif k == "mission" then
 		return StoryPlan.cleared({ missions = b.missions }, n)
-	elseif k == "quest" then
-		return b.quests[n] == true
+	elseif k == "chains" then
+		return b.chains >= n
 	elseif k == "origin" then
 		return b.origins[n] == true
 	elseif k == "boss" then

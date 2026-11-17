@@ -1,12 +1,13 @@
 -- StoryService: the saved story and what it pays (spec: Act 1 choices; Faction reputation; Side quests;
--- Story perks live in the Journal). OpeningService, MissionService and QuestService run the world side and
+-- Story perks live in the Journal). OpeningService, MissionService and SideQuestService run the world side and
 -- call in here for everything that touches the save:
 -- * choices: ask() puts big verb buttons in front of a player (ChoicePrompt) and ChoicePick answers the one
 --   that is open; only an open prompt can be answered, so a client cannot pick a choice it was not asked.
 --   Act choices go through StoryPlan.pick (once only) and pay their effects here.
 -- * rewards: Skill Points (the hero's bonus points), reputation (Vigil Trust, Syndicate Fear, City), quest styles,
---   emotes, Photo Mode frames, HQ props, the Decoy gadget, loot and Credits.
--- * the Journal: StoryState after every change; StoryPin pins a side quest step (or the story).
+--   emotes, Photo Mode frames, HQ props, titles, the Decoy gadget, loot and Credits.
+-- * the Journal: StoryState after every change, with the side quest chains' rows (lore step 10); StoryPin tracks
+--   a side quest chain in progress (or the story).
 -- * a citizen carried to safety anywhere adds City reputation.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -18,6 +19,8 @@ local Signal = require(Shared:WaitForChild("Util"):WaitForChild("Signal"))
 local StoryPlan = require(Shared:WaitForChild("StoryPlan"))
 local GearMath = require(Shared:WaitForChild("GearMath"))
 local ProfileSchema = require(Shared:WaitForChild("ProfileSchema"))
+local SideQuestPlan = require(Shared:WaitForChild("SideQuestPlan"))
+local RunService = game:GetService("RunService")
 
 local DataService = require(script.Parent.DataService)
 local HeroService = require(script.Parent.HeroService)
@@ -29,12 +32,16 @@ local Bits = ProfileSchema.Bits
 local S = Config.Story
 
 local StoryService = {}
-StoryService.Changed = Signal.new() -- (player) the story save changed (QuestService rebuilds the pinned step)
+StoryService.Changed = Signal.new() -- (player) the story save changed (SideQuestService rebuilds the tracked step)
 StoryService.Picked = Signal.new() -- (player, id, option) a choice was answered
 
--- Choice ids on the wire: 1 to 3 the Act 1 choices, 4 a side quest pick (Maribel's menu), 0 the opening
-StoryService.QUEST_CHOICE = 4
+-- Choice ids on the wire: 1 to 3 the Act 1 choices, 0 the opening
 StoryService.OPENING_CHOICE = 0
+
+-- lore step 10: Dev side quest chains (the framework sample) are offered in Studio with the Dev flag on
+function StoryService.devChains(): boolean
+	return Config.Dev.sideQuestSample == true and RunService:IsStudio()
+end
 
 local pending: { [Player]: { id: number, count: number, fn: (number) -> () } } = {}
 
@@ -141,7 +148,7 @@ local function unlockBit(player: Player, words: string, name: string)
 	end
 end
 
--- A quest or choice reward table: { style, emote, frame, prop, gadget, loot, credits, renown, skillPoints }
+-- A quest or choice reward table: { style, emote, frame, prop, title, gadget, loot, credits, renown, skillPoints }
 function StoryService.pay(player: Player, reward: any, level: number)
 	local profile = DataService.get(player)
 	if not profile then
@@ -172,6 +179,9 @@ function StoryService.pay(player: Player, reward: any, level: number)
 	end
 	if reward.prop then
 		unlockBit(player, "props", reward.prop)
+	end
+	if reward.title then
+		unlockBit(player, "titles", reward.title)
 	end
 	if reward.gadget then
 		GearService.grantPiece(player, "Rare", level, { gadget = reward.gadget })
@@ -231,12 +241,18 @@ function StoryService.send(player: Player)
 		opening = story.opening,
 		missions = story.missions,
 		choices = story.choices,
-		quests = story.quests,
 		pinned = story.pinned,
 		perks = story.perks,
-		menu = story.menu,
 		rep = c.rep,
 		states = states,
+		-- lore step 10: every side quest chain this hero can see, with its state and step
+		sq = SideQuestPlan.journal(
+			Config,
+			c,
+			hero.level,
+			StoryService.side(player),
+			StoryService.devChains()
+		),
 	})
 end
 
@@ -253,8 +269,12 @@ function StoryService.init()
 		if not story then
 			return
 		end
-		if num == 0 or (story.quests[num] >= 1 and story.quests[num] <= 3) then
-			story.pinned = num
+		local c = StoryService.char(player)
+		local chain = SideQuestPlan.byBit(Config, num)
+		if num == 0 then
+			story.pinned = 0
+			StoryService.changed(player)
+		elseif c and chain and SideQuestPlan.resume(c, chain) then
 			StoryService.changed(player)
 		end
 	end)

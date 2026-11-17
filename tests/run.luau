@@ -4423,35 +4423,13 @@ test("M7: choices pick once, pay once, and change one step of a mission", functi
 	check(StoryPlan.bit(minion.perks, 1), "Reprogram It unlocks the Echo Drone")
 end)
 
-test("M7: 8 side quest arcs of 3 steps; steps advance to done; the journal pins one step", function()
+test("M7: the journal pins the next mission; quest styles; reputation ranks", function()
 	local StoryPlan = require("../src/shared/StoryPlan")
-	local S = Config.Story
-	check(#S.quests == 8, "8 arcs")
-	for _, q in S.quests do
-		check(#q.steps == 3 and #q.lines == 3 and q.reward ~= nil, q.id .. ": 3 steps, 3 lines, a reward")
-		for _, st in q.steps do
-			check(StoryPlan.need(st) >= 1, q.id .. " " .. st.kind .. " needs something")
-		end
-	end
 	local story = ProfileSchema.newCharacter().story
-	check(StoryPlan.startQuest(story, 2) and not StoryPlan.startQuest(story, 2), "start once")
-	story.pinned = 2
-	check(StoryPlan.pinnedText(Config, story, "hero") == S.quests[2].steps[1].text, "pinned quest step")
+	check(StoryPlan.pinnedText(Config, story, "villain") == "Mission 1: The Ceremony", "the next mission")
 	check(
-		StoryPlan.advanceQuest(story, 2) == "next" and StoryPlan.advanceQuest(story, 2) == "next",
-		"steps 2, 3"
-	)
-	check(StoryPlan.advanceQuest(story, 2) == "done" and story.quests[2] == 4, "then done")
-	check(StoryPlan.advanceQuest(story, 2) == nil, "a done arc stays done")
-	story.pinned = 0
-	check(
-		StoryPlan.pinnedText(Config, story, "villain") == "Mission 1: The Ceremony",
-		"else the next mission"
-	)
-	check(StoryPlan.npcName(Config, 4, "villain") == "The Velvet Paw", "villains train with the Velvet Paw")
-	check(
-		GearMath.questStyle(Config, "MayorsSash") ~= nil and GearMath.questStyle(Config, "DockCoat") ~= nil,
-		"quest styles"
+		GearMath.questStyle(Config, "GoldSash") ~= nil and GearMath.questStyle(Config, "DockCoat") ~= nil,
+		"quest styles (side quest chain rewards, lore step 10)"
 	)
 	check(StoryPlan.repRank(Config, 0) == 0 and StoryPlan.repRank(Config, 650) == 3, "rep ranks")
 	check(StoryPlan.repRank(Config, 99999) == 5, "rank 5 is the top")
@@ -4468,8 +4446,12 @@ test("M7: save version 3: returning heroes skip the opening; story numbers are r
 		characters = { { story = { missions = 999, quests = { 9, -1 }, choices = { 5 }, pinned = 40 } } },
 	})
 	local st = bad.characters[1].story
-	check(st.missions == 63 and st.quests[1] == 4 and st.quests[2] == 0 and st.quests[8] == 0, "clamped")
-	check(st.choices[1] == 2 and st.choices[3] == 0 and st.pinned == 8, "choices and pin clamped")
+	check(st.missions == 63 and st.quests == nil, "clamped; the old arc list is gone (lore step 10)")
+	check(bad.characters[1].sq.retired == 1, "a finished old arc is retired, not lost")
+	check(
+		st.choices[1] == 2 and st.choices[3] == 0 and st.pinned == 0,
+		"choices clamped; the old pin dropped"
+	)
 	check(
 		#bad.frames == ProfileSchema.SMALL_WORDS and #bad.props == ProfileSchema.SMALL_WORDS,
 		"new unlock words"
@@ -4993,8 +4975,8 @@ test(
 					check(table.find(Config.Boss.order, p.source.a) ~= nil and (p.source.n or 0) <= 3, p.name)
 				elseif k == "mission" then
 					check(Config.Story.missions[p.source.n or 0] ~= nil, p.name .. " mission")
-				elseif k == "quest" then
-					check(Config.Story.quests[p.source.n or 0] ~= nil, p.name .. " quest")
+				elseif k == "chains" then
+					check((p.source.n or 0) >= 1 and (p.source.n or 0) <= 8, p.name .. " side quest chains")
 				elseif k == "fame" then
 					check((p.source.n or 0) <= #Config.Pvp.fame.ranks, p.name .. " fame")
 				elseif k == "lvl" then
@@ -5236,7 +5218,7 @@ test(
 		villain.rep[2] = 1000 -- Syndicate rank 4
 		villain.fame = 999999
 		villain.story.missions = 0x3F
-		villain.story.quests[4] = 4
+		villain.sq.retired = 15 -- 4 old arcs finished before lore step 10: they count as chains
 		villain.legacy = 2
 		table.insert(profile.characters, villain)
 		profile.bosses[1] = 3
@@ -6379,7 +6361,7 @@ if placePath then
 				"StoryService",
 				"OpeningService",
 				"MissionService",
-				"QuestService",
+				"SideQuestService",
 				"FlagService",
 				"FameService",
 				"GuardService",
@@ -7209,8 +7191,8 @@ test(
 				check(n >= 1 and n <= #Config.Pvp.fame.ranks, p.name .. " Fame rank exists")
 			elseif src.kind == "mission" then
 				check(n >= 1 and n <= #Config.Story.missions, p.name .. " mission exists")
-			elseif src.kind == "quest" then
-				check(n >= 1 and n <= #Config.Story.quests, p.name .. " side quest exists")
+			elseif src.kind == "chains" then
+				check(n >= 1 and n <= Config.SideQuests.retired.arcs, p.name .. " side quest chain count")
 			elseif src.kind == "rep" then
 				check(
 					(src.a == "vigil" or src.a == "syndicate" or src.a == "city")
@@ -9238,12 +9220,8 @@ test(
 -- Crater) is gone from every player-visible text. The Story content that build plan steps 3 and 5 replace
 -- wholesale is excluded below: delete each exclusion when its step lands.
 local OLD_LORE = { "Shardfall", "Null", "League", "Comet" }
-local LORE_SKIP_CONFIG = {
-	["Story.quests"] = true, -- step 10 (the side quests)
-}
-local LORE_SKIP_FILES = {
-	["src/server/Services/QuestService.luau"] = true, -- step 10
-}
+local LORE_SKIP_CONFIG: { [string]: boolean } = {} -- (step 10 retired the side quests: no exclusions left)
+local LORE_SKIP_FILES: { [string]: boolean } = {}
 
 -- The old-lore word in a piece of text, or nil. Whole words as players read them (Title or CAPS), so ids
 -- like CometCrater or NullSentinel that never reach the screen pass.
@@ -9483,7 +9461,7 @@ test(
 		CreatorRules.grant(profile, lab)
 		check(CreatorRules.validate(Config, profile, look, 3), "once unlocked, any hero may wear it")
 		-- the save: v10, a new character has no origin yet, an old one gets the default, bad values are fixed
-		check(ProfileSchema.VERSION == 10, "save version 10")
+		check(ProfileSchema.VERSION >= 10, "save version 10 or later")
 		check(ProfileSchema.newCharacter().origin == 0, "a new character has not picked an origin")
 		local old = ProfileSchema.default()
 		old.version = 9
@@ -9493,7 +9471,7 @@ test(
 		old.characters[2] = ProfileSchema.newCharacter("villain")
 		old.characters[2].origin = nil
 		local back = ProfileSchema.load(serde.decode("json", serde.encode("json", old)))
-		check(back.version == 10, "a v9 save loads at v10")
+		check(back.version == ProfileSchema.VERSION, "a v9 save loads at the current version")
 		check(back.characters[1].origin == C.originDefault, "an old hero gets the default origin")
 		check(back.characters[2].origin == C.originDefault, "every old character does")
 		check(back.characters[1].level == 12, "nothing else moved")
@@ -10886,9 +10864,6 @@ do
 			end
 		end
 		local function walk(v: any, path: string, seen: { [any]: boolean })
-			if path == "Story.quests" then
-				return -- the side quests (build plan step 10 retires them)
-			end
 			if type(v) == "string" then
 				look(path, v)
 			elseif type(v) == "table" and not seen[v] then
@@ -10907,11 +10882,7 @@ do
 				local path = dir .. "/" .. name
 				if fs.isDir(path) then
 					scan(path)
-				elseif
-					string.sub(name, -5) == ".luau"
-					and not string.find(path, "^src/config/")
-					and path ~= "src/server/Services/QuestService.luau"
-				then
+				elseif string.sub(name, -5) == ".luau" and not string.find(path, "^src/config/") then
 					for line in string.gmatch(fs.readFile(path) .. "\n", "([^\n]*)\n") do
 						line = string.gsub(line, '"[^"]*"', function(lit)
 							look(path, lit)
@@ -12470,6 +12441,540 @@ test(
 		)
 	end
 )
+-- Lore step 10: the side quest framework (Config.SideQuests, Shared.SideQuestPlan; SideQuestService, the
+-- Journal's QUESTS page, the tracker, the map's givers, the Dev panel). The 8 old arcs are retired.
+---------------------------------------------------------------------------
+
+do
+	local SideQuestPlan = require("../src/shared/SideQuestPlan")
+	local ContractPlan = require("../src/shared/ContractPlan")
+	local HqRules = require("../src/shared/HqRules")
+	local serde = require("@lune/serde")
+	local fs = require("@lune/fs")
+	local SQ = Config.SideQuests
+	local Bits = ProfileSchema.Bits
+
+	local function deep(v: any): any
+		if type(v) ~= "table" then
+			return v
+		end
+		local out = {}
+		for k, x in v do
+			out[k] = deep(x)
+		end
+		return out
+	end
+
+	-- A Config whose side quest data is a copy with a real (non-Dev) giver "TestGiver" and the chains given
+	local function withChains(chains: { any }): any
+		local sq = deep(SQ)
+		sq.givers.TestGiver = deep(SQ.givers.SampleGiver)
+		sq.givers.TestGiver.dev = nil
+		sq.chains = chains
+		return setmetatable({ SideQuests = sq }, { __index = Config })
+	end
+
+	-- A valid real chain built from the sample
+	local function realChain(id: string, bit: number): any
+		local c = deep(SQ.chains[1])
+		c.id, c.bit, c.dev, c.giver = id, bit, nil, "TestGiver"
+		for _, step in c.steps do
+			for _, l in step.lines or {} do
+				if l.who == "SampleGiver" then
+					l.who = "TestGiver"
+				end
+			end
+		end
+		return c
+	end
+
+	local function problems(C: any, chain: any): { string }
+		local ids = {}
+		for _, ch in C.SideQuests.chains do
+			ids[ch.id] = ch
+		end
+		ids[chain.id] = chain
+		return SideQuestPlan.checkChain(C, chain, ids)
+	end
+
+	local function fails(C: any, chain: any, want: string, label: string)
+		local found = false
+		for _, b in problems(C, chain) do
+			if string.find(b, want, 1, true) then
+				found = true
+			end
+		end
+		check(found, label .. " (wants: " .. want .. ")")
+	end
+
+	test("Lore 10: every chain validates like a mission; the Dev sample runs every brief kind", function()
+		local bad = SideQuestPlan.validate(Config)
+		for _, b in bad do
+			check(false, b)
+		end
+		check(#bad == 0, "the side quest data is clean")
+		local sample = SideQuestPlan.chain(Config, "Sample")
+		check(sample ~= nil and sample.dev == true, "the framework sample is a Dev chain")
+		check(sample and #sample.steps == 5, "5 steps")
+		check(Config.Dev.sideQuestSample == false, "the Dev flag is off in the build")
+		local kinds = {}
+		for _, step in sample.steps do
+			for _, side in SQ.sides do
+				kinds[(SideQuestPlan.goal(step, side) :: any).kind] = true
+			end
+		end
+		for _, k in { "talk", "fight", "incident", "chase", "deliver", "pocket", "finale" } do
+			check(kinds[k] == true, "the sample runs " .. k)
+		end
+		local tried = {}
+		for _, g in SQ.devKinds do
+			tried[g.kind] = true
+		end
+		for k in SideQuestPlan.KINDS do
+			check(tried[k] == true, "the Dev panel can try " .. k .. " alone")
+		end
+		check(SideQuestPlan.shared(sample.steps[5]) and not SideQuestPlan.shared(sample.steps[2]), "shared")
+		check(
+			SideQuestPlan.need(SideQuestPlan.goal(sample.steps[2], "hero")) == 3,
+			"a fight needs its robots"
+		)
+		check(
+			SideQuestPlan.text(SideQuestPlan.goal(sample.steps[2], "villain"), "villain")
+				~= SideQuestPlan.text(SideQuestPlan.goal(sample.steps[2], "hero"), "hero"),
+			"each side its own goal text"
+		)
+		-- a real chain made from the sample validates (with a real giver)
+		local C = withChains({ realChain("Real", 2) })
+		check(#problems(C, C.SideQuests.chains[1]) == 0, "a real chain from the sample is fine")
+	end)
+
+	test("Lore 10: a broken chain fails each check", function()
+		local C = withChains({})
+		local function try(edit: (any) -> (), want: string, label: string)
+			local c = realChain("Broken", 9)
+			edit(c)
+			fails(C, c, want, label)
+		end
+		try(function(c)
+			c.steps[2].hero.kind = "dance"
+		end, "unknown kind", "an unknown step kind")
+		try(function(c)
+			c.steps[2].villain = nil
+		end, "no villain goal", "a side with no goal")
+		try(function(c)
+			c.steps[3].hero.text = nil
+		end, "hero text: no text", "a goal with no text")
+		try(function(c)
+			c.steps[2].hero.text = "Stop %s robots"
+		end, "format hole", "free text holes")
+		try(function(c)
+			c.steps[2].hero.text = string.rep("x", SQ.maxText + 1)
+		end, "characters (cap", "text over the phone cap")
+		try(function(c)
+			c.reward.share = SQ.pay.maxShare + 1
+		end, "reward share out of range", "a reward over the contract range")
+		try(function(c)
+			c.reward.credits = 5000
+		end, "reward credits", "fixed Credits outside the formula")
+		try(function(c)
+			c.reward.skillPoints = 1
+		end, "reward skillPoints", "nothing that changes stats")
+		try(function(c)
+			c.reward.emote = "Wave"
+		end, "must exist and never be sold", "a sold emote")
+		try(function(c)
+			c.reward.frame = "PhotoFrame"
+		end, "one cosmetic or title", "two cosmetics")
+		try(function(c)
+			c.unlock.level = Config.Stats.levelCap + 1
+		end, "out of reach", "an unreachable level")
+		try(function(c)
+			c.unlock.after = "Broken"
+		end, "after Broken", "after itself")
+		try(function(c)
+			c.unlock.after = "Nowhere"
+		end, "after Nowhere", "after a missing chain")
+		try(function(c)
+			c.unlock.story = #Config.Story.missions + 1
+		end, "story mission", "a story mission that does not exist")
+		try(function(c)
+			c.layer = "origin"
+		end, "an origin line needs its origin", "an origin line without an origin")
+		try(function(c)
+			table.remove(c.steps)
+		end, "the last step is the finale", "no finale")
+		try(function(c)
+			c.steps[2].hero = deep(c.steps[5].hero)
+		end, "a finale only as the last step", "a finale in the middle")
+		try(function(c)
+			c.steps[5].hero.enemy = "BurglarBot"
+		end, "an elite or a famous fake", "a finale on a basic robot")
+		try(function(c)
+			c.steps[5].hero.hpMult = 40
+		end, "finale health", "a finale out of the boss-lite range")
+		try(function(c)
+			table.remove(c.steps, 2)
+		end, "4 steps", "too few steps")
+		try(function(c)
+			for _ = 1, 6 do
+				table.insert(c.steps, 2, deep(c.steps[2]))
+			end
+		end, "11 steps", "too many steps")
+		try(function(c)
+			c.steps[5].scene = "ceremony"
+		end, "a device scene", "a prologue beat as a step scene")
+		try(function(c)
+			c.steps[3].hero.template = "Nowhere"
+		end, "unknown incident", "an incident that does not exist")
+		try(function(c)
+			c.steps[3].villain = { kind = "incident", count = 1, template = "RobotHeist", text = "Rob it" }
+		end, "is not for villain", "a Vigil-only incident on the Syndicate side")
+		try(function(c)
+			c.steps[2].lines = { { who = "Stranger", text = "Hello there" } }
+		end, "unknown speaker", "a line by nobody")
+		try(function(c)
+			c.steps[4].hero.layout = "moon"
+		end, "unknown pocket layout", "a pocket that does not exist")
+		try(function(c)
+			c.giver = "SampleGiver"
+		end, "a Dev giver on a real chain", "a real chain on the Dev giver")
+		try(function(c)
+			c.villain = { name = "Boss %s" }
+		end, "villain name card", "a broken name card")
+		-- side and origin reachability through `after`
+		local first = realChain("First", 10)
+		first.unlock.side = "hero"
+		local second = realChain("Second", 11)
+		second.unlock = { level = 1, after = "First", side = "villain" }
+		local C2 = withChains({ first, second })
+		fails(C2, second, "another side cannot finish", "after a chain only the other side can finish")
+		local loopA, loopB = realChain("LoopA", 12), realChain("LoopB", 13)
+		loopA.unlock.after, loopB.unlock.after = "LoopB", "LoopA"
+		fails(withChains({ loopA, loopB }), loopA, "an after loop", "a loop of after links")
+		-- the whole validate() sees duplicate ids and bits
+		local d1, d2 = realChain("Twin", 20), realChain("Twin", 20)
+		local bad = SideQuestPlan.validate(withChains({ d1, d2 }))
+		local idTwice, bitTwice = false, false
+		for _, b in bad do
+			idTwice = idTwice or string.find(b, "chain id twice", 1, true) ~= nil
+			bitTwice = bitTwice or string.find(b, "chain bit twice", 1, true) ~= nil
+		end
+		check(idTwice and bitTwice, "a chain id and bit are each used once")
+	end)
+
+	test("Lore 10: no old arc names anywhere in the side quest data or player text", function()
+		-- the 8 arcs nate retired and their givers (Old Beacon and The Velvet Paw stay H6 mentors)
+		local ARC =
+			{ "Bellweather", "Mayor", "Pip", "Maribel", "Tamsin", "Quill", "Iron Dee", "IronDee", "Skye" }
+		local MENTOR = { "Old Beacon", "OldBeacon", "Velvet Paw", "VelvetPaw" }
+		local hits = {}
+		local function look(where: string, text: string, list: { string })
+			for _, w in list do
+				if string.find(text, "%f[%w]" .. w .. "%f[%W]") then
+					table.insert(hits, where .. ": " .. w)
+				end
+			end
+		end
+		local function walk(v: any, path: string, list: { string }, seen: { [any]: boolean })
+			if type(v) == "string" then
+				look(path, v, list)
+			elseif type(v) == "table" and not seen[v] then
+				seen[v] = true
+				for k, x in v do
+					if type(k) == "string" then
+						look(path, k, list)
+					end
+					walk(x, path .. "." .. tostring(k), list, seen)
+				end
+			end
+		end
+		local all = table.clone(ARC)
+		for _, w in MENTOR do
+			table.insert(all, w)
+		end
+		walk(Config.SideQuests, "SideQuests", all, {})
+		walk(Config.Story, "Story", all, {})
+		for name, mod in Config do
+			if name ~= "Mentors" then
+				walk(mod, name, ARC, {})
+			end
+		end
+		local MENTOR_FILES = {
+			["src/config/Mentors.luau"] = true,
+			["src/client/Fx/MentorFx.luau"] = true,
+			["src/config/Incidents.luau"] = true, -- the Velvet Paw's runner bot (an incident, H6's villain mentor)
+		}
+		local function scan(dir: string)
+			for _, name in fs.readDir(dir) do
+				local path = dir .. "/" .. name
+				if fs.isDir(path) then
+					scan(path)
+				elseif string.sub(name, -5) == ".luau" then
+					look(path, fs.readFile(path), if MENTOR_FILES[path] then ARC else all)
+				end
+			end
+		end
+		scan("src")
+		for _, h in hits do
+			check(false, "an old arc name: " .. h)
+		end
+		check(#hits == 0, "the old arcs are gone")
+		check(not fs.isFile("src/server/Services/QuestService.luau"), "QuestService is gone")
+		check(Config.Story.quests == nil and Config.Story.questRange == nil, "the old arcs' data is gone")
+	end)
+
+	test("Lore 10: unlocks, accept, abandon and resume, advance to the end", function()
+		local a = realChain("A", 2)
+		a.unlock = { level = 5 }
+		local b = realChain("B", 3)
+		b.unlock = { level = 1, after = "A" }
+		local o = realChain("O", 4)
+		o.layer, o.unlock = "origin", { level = 1, origin = 2 }
+		local v = realChain("V", 5)
+		v.unlock = { level = 1, side = "villain", story = 2 }
+		local n = realChain("N", 6)
+		n.layer, n.unlock = "character", { level = 1, npc = true }
+		local C = withChains({ a, b, o, v, n })
+		check(#SideQuestPlan.validate(C) == 0, "the test chains are valid")
+		local c = ProfileSchema.newCharacter()
+		c.origin = 1
+		local st, why = SideQuestPlan.state(C, c, a, 3, "hero")
+		check(st == "locked" and why == "level", "A waits for level 5")
+		check(SideQuestPlan.state(C, c, a, 5, "hero") == "open", "then opens")
+		check(select(2, SideQuestPlan.state(C, c, b, 50, "hero")) == "after", "B after A")
+		check(select(2, SideQuestPlan.state(C, c, o, 50, "hero")) == "origin", "O for origin 2 only")
+		check(select(2, SideQuestPlan.state(C, c, v, 50, "hero")) == "side", "V for the Syndicate")
+		check(select(2, SideQuestPlan.state(C, c, v, 50, "villain")) == "story", "V after mission 2")
+		local rows = SideQuestPlan.journal(C, c, 50, "hero", false)
+		local seen = {}
+		for _, r in rows do
+			seen[r.bit] = r
+		end
+		check(
+			seen[2] and seen[3] and seen[6] and not seen[4] and not seen[5],
+			"other sides' and origins' lines hide"
+		)
+		check(seen[3].why == "after" and seen[3].after == "A", "the Journal says what B waits on")
+		-- an NPC-only line is taken at its giver, never from the Journal
+		local ok, nwhy = SideQuestPlan.accept(C, c, n, 50, "hero", true)
+		check(not ok and nwhy == "npc", "a character line is accepted by talking to its giver")
+		check(SideQuestPlan.accept(C, c, n, 50, "hero", false), "at the giver it starts")
+		check(c.story.pinned == n.bit and SideQuestPlan.stepOf(c, n) == 1, "started at step 1 and tracked")
+		-- abandon and resume
+		check(SideQuestPlan.advance(c, n) == "next" and SideQuestPlan.stepOf(c, n) == 2, "step 2")
+		check(SideQuestPlan.abandon(c, n) and c.story.pinned == 0, "on hold: no longer tracked")
+		check(SideQuestPlan.stepOf(c, n) == 2, "its finished steps are kept")
+		check(SideQuestPlan.pinned(C, c) == nil, "nothing is built while it waits")
+		check(SideQuestPlan.state(C, c, n, 50, "hero") == "active", "still in progress")
+		local pick, kind = SideQuestPlan.talkPick(C, c, "TestGiver", 50, "hero", false)
+		check(kind == "resume" and pick == n, "its giver offers to resume it first")
+		check(SideQuestPlan.resume(c, n) and c.story.pinned == n.bit, "resumed")
+		local chain, step = SideQuestPlan.pinned(C, c)
+		check(chain == n and step == 2, "the tracked step is where it was left")
+		-- to the end
+		for _ = 3, #n.steps do
+			check(SideQuestPlan.advance(c, n) == "next", "next step")
+		end
+		check(SideQuestPlan.advance(c, n) == "done", "the finale ends the chain")
+		check(SideQuestPlan.isDone(c, n) and c.story.pinned == 0 and c.sq.at.N == nil, "done, untracked")
+		check(SideQuestPlan.advance(c, n) == nil, "a done chain stays done")
+		local again, awhy = SideQuestPlan.accept(C, c, n, 50, "hero", false)
+		check(not again and awhy == "done", "and is not taken twice")
+		-- a Dev chain only with the Dev flag
+		local devC = SideQuestPlan.chain(Config, "Sample")
+		check(#SideQuestPlan.journal(Config, c, 50, "hero", false) == 0, "no Dev chain in a live Journal")
+		check(#SideQuestPlan.journal(Config, c, 50, "hero", true) == 1, "the sample with the Dev flag")
+		check(
+			select(2, SideQuestPlan.talkPick(Config, c, "SampleGiver", 50, "hero", false)) == "none",
+			"live"
+		)
+		check(devC ~= nil, "the sample exists")
+	end)
+
+	test("Lore 10: the save: old arcs retire with no loss, settle pays once, repair", function()
+		local old = {
+			version = 10,
+			currency = { credits = 100, banked = 0, dust = 0 },
+			characters = {
+				{
+					level = 12,
+					created = 1,
+					origin = 1,
+					story = {
+						opening = 1,
+						missions = 3,
+						quests = { 4, 2, 0, 4, 3, 0, 0, 4 },
+						pinned = 3,
+						menu = 2,
+					},
+				},
+				{ level = 4, created = 1, origin = 1, story = { opening = 1, missions = 1 } },
+			},
+		}
+		local p = ProfileSchema.load(serde.decode("json", serde.encode("json", old)))
+		check(p.version == ProfileSchema.VERSION and ProfileSchema.VERSION == 11, "save version 11")
+		local c = p.characters[1]
+		check(
+			c.story.quests == nil and c.story.menu == nil and c.story.pinned == 0,
+			"the old list, menu and pin go"
+		)
+		check(c.sq.retired == 1 + 8 + 128, "finished arcs 1, 4 and 8 are retired")
+		check(
+			c.sq.owed == 3 * SQ.retired.stepCredits,
+			"arcs in progress leave Credits for their 3 finished steps"
+		)
+		check(c.sq.settled == 0 and p.characters[2].sq.retired == 0, "to settle; a hero with none has none")
+		check(c.level == 12 and c.story.missions == 3, "nothing else moved")
+		local got = SideQuestPlan.settle(Config, p)
+		check(got.credits == 600 and p.currency.credits == 700, "the Credits are paid")
+		check(Bits.get(p.styles, GearMath.questStyle(Config, "GoldSash") :: number), "arc 1's style is owned")
+		check(Bits.get(p.frames, Config.Story.unlocks.frames.PhotoFrame), "arc 8's frame is owned")
+		check(#got.unlocks == 2, "two unlocks set (arc 4 gave none that is kept)")
+		local twice = SideQuestPlan.settle(Config, p)
+		check(twice.credits == 0 and #twice.unlocks == 0 and p.currency.credits == 700, "settled once only")
+		-- an unlock already owned is not given twice
+		local q = ProfileSchema.load(serde.decode("json", serde.encode("json", old)))
+		Bits.set(q.styles, GearMath.questStyle(Config, "GoldSash") :: number)
+		check(#SideQuestPlan.settle(Config, q).unlocks == 1, "an owned unlock stays as it is")
+		-- the creator's chain pieces, the HQ trophy and the badge read the retired arcs
+		check(SideQuestPlan.chainsDone(Config, p) == 3, "3 retired arcs count as 3 chains")
+		check(not SideQuestPlan.allDone(Config, c), "not every side quest")
+		c.sq.retired = 255
+		check(
+			SideQuestPlan.allDone(Config, c) and HqRules.trophies(Config, p).allQuests,
+			"all 8 keep the trophy"
+		)
+		local fresh = ProfileSchema.default()
+		check(not HqRules.trophies(Config, fresh).allQuests, "a new hero has not done them")
+		check(fresh.characters[1].sq.settled == 1, "a new hero has nothing to settle")
+		-- repair: known chains at real steps only, and the pin only on one of them
+		local r = ProfileSchema.default()
+		local rc = r.characters[1]
+		rc.sq.at = { Sample = 2, Gone = 3 }
+		rc.story.pinned = 1
+		local back = ProfileSchema.load(serde.decode("json", serde.encode("json", r)))
+		local bc = back.characters[1]
+		check(
+			bc.sq.at.Sample == 2 and bc.sq.at.Gone == nil and bc.story.pinned == 1,
+			"a chain in progress survives"
+		)
+		rc.sq.at = { Sample = 99 }
+		local back2 = ProfileSchema.load(serde.decode("json", serde.encode("json", r)))
+		check(
+			back2.characters[1].sq.at.Sample == nil and back2.characters[1].story.pinned == 0,
+			"a bad step goes"
+		)
+		rc.sq.at = {}
+		rc.story.pinned = 77
+		check(ProfileSchema.load(r).characters[1].story.pinned == 0, "a pin on nothing goes")
+	end)
+
+	test("Lore 10: co-op: each side its own goal, and the group moves on when every side is done", function()
+		local sample = SideQuestPlan.chain(Config, "Sample") :: any
+		local split, shared = sample.steps[2], sample.steps[4]
+		local g = SideQuestPlan.newGroup("Sample", 2)
+		local k1, new1 = SideQuestPlan.join(g, split, "hero1", "hero")
+		local k2, new2 = SideQuestPlan.join(g, split, "hero2", "hero")
+		local k3, new3 = SideQuestPlan.join(g, split, "villain1", "villain")
+		check(k1 == "hero" and new1 and k2 == "hero" and not new2, "two Vigil heroes share one goal")
+		check(k3 == "villain" and new3, "the Syndicate member gets its own goal")
+		check(g.sides.hero.need == 3 and g.sides.villain.need == 1, "each side's own need")
+		check(not SideQuestPlan.add(g, "hero", 2), "progress counts for the side")
+		check(SideQuestPlan.add(g, "hero", 1), "the Vigil goal is met")
+		check(
+			not SideQuestPlan.groupDone(g) and SideQuestPlan.waiting(g, "hero"),
+			"the Vigil wait on the Syndicate"
+		)
+		check(SideQuestPlan.set(g, "villain", 1) and SideQuestPlan.groupDone(g), "then the group moves on")
+		-- a side that leaves drops its goal, so nobody waits on it
+		local h = SideQuestPlan.newGroup("Sample", 2)
+		SideQuestPlan.join(h, split, "a", "hero")
+		SideQuestPlan.join(h, split, "b", "villain")
+		SideQuestPlan.add(h, "hero", 3)
+		local dropped, empty = SideQuestPlan.leave(h, "b")
+		check(
+			dropped == "villain" and not empty and SideQuestPlan.groupDone(h),
+			"the rest finish without them"
+		)
+		local _, gone = SideQuestPlan.leave(h, "a")
+		check(gone, "the last one out empties the group")
+		-- a shared step is one goal for both sides
+		local s = SideQuestPlan.newGroup("Sample", 4)
+		local ka = SideQuestPlan.join(s, shared, "a", "hero")
+		local kb, nb = SideQuestPlan.join(s, shared, "b", "villain")
+		check(ka == "both" and kb == "both" and not nb, "a shared step: one goal")
+		check(SideQuestPlan.set(s, "both", 1) and SideQuestPlan.groupDone(s), "one finish moves everyone on")
+		check(
+			SideQuestPlan.canJoin(s, "Sample", 4) and not SideQuestPlan.canJoin(s, "Sample", 3),
+			"same step only"
+		)
+		check(
+			not SideQuestPlan.groupDone(SideQuestPlan.newGroup("Sample", 1)),
+			"an empty group is never done"
+		)
+	end)
+
+	test("Lore 10: pay is a contract's at the hero's level; rewards are a cosmetic, no stats", function()
+		for _, level in { 1, 10, 25, 50 } do
+			local c, r = ContractPlan.pay(Config, SQ.pay.contract, level, math.huge, false)
+			local sc, sr = SideQuestPlan.stepPay(Config, level, false)
+			local fc, fr = SideQuestPlan.stepPay(Config, level, true)
+			check(
+				sc == math.floor(c * SQ.pay.step + 0.5) and sr == math.floor(r * SQ.pay.step + 0.5),
+				"a step"
+			)
+			check(fc > sc and fr > sr, "the finale pays more")
+			local cc, cr = SideQuestPlan.chainPay(Config, SQ.chains[1], level)
+			check(cc <= c * SQ.pay.maxShare + 1 and cr <= r * SQ.pay.maxShare + 1, "the chain's end in range")
+		end
+		local cos = SideQuestPlan.cosmetic(SQ.chains[1])
+		local n = 0
+		for k in cos do
+			n += 1
+			check(k ~= "credits" and k ~= "skillPoints", "a cosmetic key")
+		end
+		check(n == 1 and cos.emote == "Bow", "one cosmetic: the sample's emote")
+		check(Config.Shop.emotes[Config.Story.unlocks.emotes.Bow].earned == true, "never sold")
+	end)
+
+	test("Lore 10: the runtime is wired: service, remotes, Journal, tracker, map, Dev panel", function()
+		local sboot = fs.readFile("src/server/init.server.luau")
+		check(string.find(sboot, 'boot("SideQuestService"', 1, true) ~= nil, "SideQuestService boots")
+
+		local R = Remotes
+		check(R.SideQuestAct ~= nil and R.SideQuestState ~= nil and R.SideQuestTalk ~= nil, "the remotes")
+		check(R.QuestState == nil and R.QuestTalk == nil, "the old remotes are gone")
+		local svc = fs.readFile("src/server/Services/SideQuestService.luau")
+		check(string.find(svc, "PLACEHOLDER ART", 1, true) ~= nil, "placeholder givers labelled")
+		for _, k in { "talk", "fight", "incident", "chase", "deliver", "pocket", "finale" } do
+			check(string.find(svc, 'k == "' .. k .. '"', 1, true) ~= nil, "the service builds " .. k)
+		end
+		check(string.find(svc, "MissionService.enterCustom", 1, true) ~= nil, "pocket steps are pocket runs")
+		check(string.find(svc, "SideQuestPlan.settle", 1, true) ~= nil, "the retired arcs settle on load")
+		local dev = fs.readFile("src/client/Ui/DevPanel.luau")
+		for _, b in
+			{ "SQ: give sample chain", "SQ: start step", "SQ: finish step", "SQ: finish chain", "SQ kind: " }
+		do
+			check(string.find(dev, b, 1, true) ~= nil, "Dev panel: " .. b)
+		end
+		check(
+			string.find(fs.readFile("src/client/Ui/Journal.luau"), "SideQuestPlan", 1, true) ~= nil,
+			"Journal"
+		)
+		check(
+			string.find(fs.readFile("src/client/Ui/MapScreen.luau"), "SideQuestGivers", 1, true) ~= nil,
+			"map"
+		)
+		check(
+			string.find(fs.readFile("src/client/Ui/StoryHud.luau"), "CinemaHud.nameCard", 1, true) ~= nil,
+			"card"
+		)
+		check(
+			string.find(fs.readFile("src/config/SideQuests.luau"), "PLACEHOLDER TEXT", 1, true) ~= nil,
+			"sample"
+		)
+	end)
+end
 
 print(string.format("\n%d passed, %d failed", passed, failed))
 if failed > 0 then

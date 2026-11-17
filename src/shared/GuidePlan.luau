@@ -52,9 +52,9 @@ function GuidePlan.lineText(line: any, side: string): string?
 	return if type(t) == "string" then t else nil
 end
 
--- A speaker's row (Config.Story.guides.speakers), or nil
+-- A speaker's row (Config.Story.guides.speakers, else a side quest giver: lore step 10), or nil
 function GuidePlan.speaker(Config: any, who: string): any?
-	return Config.Story.guides.speakers[who]
+	return Config.Story.guides.speakers[who] or (Config.SideQuests and Config.SideQuests.givers[who])
 end
 
 -- How long a line shows by its length

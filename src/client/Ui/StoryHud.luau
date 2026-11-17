@@ -13,7 +13,8 @@
 --   the beat's fixed lines by side (StoryFx moves the camera).
 -- * The ending broadcast (lore step 5): after Live, a news-style screen: BREAKING NEWS, the registration law,
 --   Crane's lines, and PUBLIC ENEMY #1 over the hero's own name. Nothing flashes.
--- * Side quests: the NPC's speech bubble and the pinned step's tracker, with its marker or search circle.
+-- * Side quests (lore step 10): the tracked chain's step tracker with its marker or search circle; giver and
+--   step lines through GuideHud, a step's scene through CinemaClient, the finale's name card (CinemaHud).
 -- PLACEHOLDER ART: the title card is the plain Kit title until the art pass.
 
 local Players = game:GetService("Players")
@@ -28,10 +29,13 @@ local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local StoryPlan = require(Shared:WaitForChild("StoryPlan"))
 local OpeningPlan = require(Shared:WaitForChild("OpeningPlan"))
+local SideQuestPlan = require(Shared:WaitForChild("SideQuestPlan"))
+local GuidePlan = require(Shared:WaitForChild("GuidePlan"))
 
 local Kit = require(script.Parent.Kit)
 local Hud = require(script.Parent.Hud)
 local GuideHud = require(script.Parent.GuideHud)
+local CinemaHud = require(script.Parent.CinemaHud)
 local State = require(script.Parent.Parent.State)
 local StoryClient = require(script.Parent.Parent.Controllers.StoryClient)
 local InputController = require(script.Parent.Parent.Controllers.InputController)
@@ -52,7 +56,6 @@ local trackText: TextLabel
 local trackFill: Frame
 local leaveButton: TextButton
 local resultCard: Frame
-local bubble: Frame
 local questPanel: Frame
 local questTitle: TextLabel
 local questText: TextLabel
@@ -211,7 +214,7 @@ local function setMarker(t: { number }?, showDistance: boolean)
 end
 
 ---------------------------------------------------------------------------
--- Choice card, trackers, result, bubble
+-- Choice card, trackers, result, side quest lines
 ---------------------------------------------------------------------------
 
 local function refreshChoice()
@@ -236,10 +239,6 @@ local function refreshChoice()
 		}, function()
 			StoryClient.pick(i)
 		end)
-		if c.id == 4 then
-			b.BackgroundColor3 = Kit.color.gold
-			b.TextColor3 = Kit.color.ink
-		end
 		b.Parent = choiceCard
 		Kit.pulse(b, 0.2)
 	end
@@ -352,21 +351,64 @@ local function showResult(r: { [string]: any })
 	end)
 end
 
-local bubbleUntil = 0
-local function showTalk(num: number, line: number, side: string)
-	local q = S.quests[num]
-	if not q then
+-- A side quest giver or step speaks (lore step 10): fixed lines from Config.SideQuests through the guide line
+-- box; a step's scene plays in the next quiet moment
+local function showTalk(t: { [string]: any })
+	local side = State.hero.side or "hero"
+	local chain = SideQuestPlan.byBit(Config, t.bit or 0)
+	if t.kind == "none" then
+		local who = t.giver
+		if type(who) == "string" and Config.SideQuests.givers[who] then
+			GuideHud.say(who, Config.SideQuests.none, { tag = "sideQuest" })
+		end
 		return
 	end
-	local name = StoryPlan.npcName(Config, num, side)
-	local text = if line >= 1 and line <= 3 then q.lines[line] else "Thanks again, friend!"
-	local title = bubble:FindFirstChild("Name") :: TextLabel
-	local body = bubble:FindFirstChild("Line") :: TextLabel
-	title.Text = string.upper(name)
-	body.Text = text
-	bubble.Visible = true
-	Kit.pulse(bubble, 0.15)
-	bubbleUntil = os.clock() + 5
+	if not chain then
+		return
+	end
+	if t.kind == "step" then
+		local step = chain.steps[t.step or 0]
+		if not step then
+			return
+		end
+		for _, l in step.lines or {} do
+			local text = GuidePlan.lineText(l, side)
+			if text then
+				GuideHud.say(l.who, text, { tag = "sideQuest" })
+			end
+		end
+		if step.scene then
+			CinemaClient.playScene(step.scene)
+		end
+		return
+	end
+	local line = chain.lines and chain.lines[t.kind]
+	local text = line and GuidePlan.lineText(line, side)
+	if text then
+		GuideHud.say(chain.giver, text, { tag = "sideQuest" })
+	end
+end
+
+-- The tracker's title and text for the tracked step (a Dev kind test reads Config.SideQuests.devKinds)
+local cardShown: { [string]: boolean } = {}
+local function questLines(q: { [string]: any }, side: string): (string?, string?)
+	local goal, title
+	if q.test then
+		goal = Config.SideQuests.devKinds[q.test]
+		title = "KIND TEST"
+	else
+		local chain = SideQuestPlan.byBit(Config, q.bit or 0)
+		local step = chain and chain.steps[q.step or 0]
+		goal = step and SideQuestPlan.goal(step, side)
+		title = chain and string.format("%s  %d/%d", string.upper(chain.name), q.step or 1, #chain.steps)
+	end
+	if not goal or not title then
+		return nil, nil
+	end
+	if q.wait then
+		return title, S.wait[if side == "villain" then "villain" else "hero"]
+	end
+	return title, SideQuestPlan.text(goal, side)
 end
 
 ---------------------------------------------------------------------------
@@ -642,25 +684,29 @@ local function frame()
 	end
 	-- the side quest tracker (not in a mission)
 	if q and not StoryClient.inMission() and not StoryClient.inOpening() then
-		local def = S.quests[q.num]
-		local st = def and def.steps[q.step]
-		questPanel.Visible = def ~= nil
-		if def and st then
-			questTitle.Text = string.format(
-				"%s  %d/3",
-				string.upper(StoryPlan.npcName(Config, q.num, State.hero.side)),
-				q.step
-			)
+		local title, text = questLines(q, State.hero.side or "hero")
+		questPanel.Visible = title ~= nil
+		if title and text then
+			questTitle.Text = title
 			local left = if q.left then q.left - (now - (q.received or now)) else nil
-			questText.Text = st.text
+			questText.Text = text
 				.. (if left then string.format("  %ds", math.max(0, math.ceil(left))) else "")
 			questFill.Size = UDim2.fromScale(math.clamp((q.have or 0) / math.max(1, q.need or 1), 0, 1), 1)
 		end
+		-- the finale's name card, once a step, when the hero comes within reach of the mini villain
+		local card, target = q.card, q.target
+		local key = string.format("%s:%s", tostring(q.bit or q.test), tostring(q.step))
+		local char = player.Character
+		local root = char and char:FindFirstChild("HumanoidRootPart") :: BasePart?
+		if card and target and root and not cardShown[key] then
+			local d = (root.Position - Vector3.new(target[1], target[2], target[3])).Magnitude
+			if d <= Config.SideQuests.finale.reach then
+				cardShown[key] = true
+				CinemaHud.nameCard("", card.name, card.title)
+			end
+		end
 	else
 		questPanel.Visible = false
-	end
-	if bubble.Visible and now > bubbleUntil then
-		bubble.Visible = false
 	end
 	-- the prologue's words: subtitles, SPARK DETECTED, the title card
 	local t = if o.hold then 0 else StoryClient.beatTime()
@@ -758,39 +804,6 @@ function StoryHud.init()
 	rlist.Parent = resultCard
 	Kit.stroke(resultCard, Kit.color.gold, 3)
 	resultCard.Parent = gui
-	bubble = Kit.frame({
-		Name = "Talk",
-		AnchorPoint = Vector2.new(0.5, 1),
-		Position = UDim2.new(0.5, 0, 1, -200),
-		Size = UDim2.new(0.8, 0, 0, 74),
-		BackgroundColor3 = Kit.color.paper,
-		Visible = false,
-	})
-	local blimit = Instance.new("UISizeConstraint")
-	blimit.MaxSize = Vector2.new(460, 74)
-	blimit.Parent = bubble
-	Kit.stroke(bubble, Kit.color.ink, 3)
-	bubble.Parent = gui
-	local bname = Kit.label({
-		Name = "Name",
-		Size = UDim2.new(1, -16, 0, 24),
-		Position = UDim2.fromOffset(8, 4),
-		TextXAlignment = Enum.TextXAlignment.Left,
-		TextColor3 = Kit.color.ink,
-		maxText = 20,
-	})
-	bname.Parent = bubble
-	local bline = Kit.label({
-		Name = "Line",
-		Size = UDim2.new(1, -16, 0, 36),
-		Position = UDim2.fromOffset(8, 30),
-		TextXAlignment = Enum.TextXAlignment.Left,
-		TextColor3 = Kit.color.ink,
-		Font = Kit.bodyFont,
-		TextWrapped = true,
-		maxText = 18,
-	})
-	bline.Parent = bubble
 	buildPrologue()
 	buildBroadcast()
 	buildMarker()

@@ -17,6 +17,9 @@ local ProfileSchema = if script
 local StoryPlan = if script then require(script.Parent.StoryPlan) else (require :: any)("./StoryPlan")
 local PvpRules = if script then require(script.Parent.PvpRules) else (require :: any)("./PvpRules")
 local MentorRules = if script then require(script.Parent.MentorRules) else (require :: any)("./MentorRules")
+local SideQuestPlan = if script
+	then require(script.Parent.SideQuestPlan)
+	else (require :: any)("./SideQuestPlan")
 local AbilityRules = if script
 	then require(script.Parent.AbilityRules)
 	else (require :: any)("./AbilityRules")
@@ -348,20 +351,14 @@ end
 function HqRules.trophies(Config: any, profile: any): { [string]: boolean }
 	local s = profile.stats
 	local out: { [string]: boolean } = {}
-	local maxLevel, maxFame, maxRep, quests, act1 = 0, 0, 0, 0, false
+	local maxLevel, maxFame, maxRep, quests, act1 = 0, 0, 0, false, false
 	for _, c in profile.characters do
 		maxLevel = math.max(maxLevel, c.level or 1)
 		maxFame = math.max(maxFame, PvpRules.fameRank(Config, c.fame or 0))
 		for i = 1, 3 do
 			maxRep = math.max(maxRep, StoryPlan.repRank(Config, c.rep[i] or 0))
 		end
-		local done = 0
-		for _, q in c.story.quests do
-			if q == 4 then
-				done += 1
-			end
-		end
-		quests = math.max(quests, done)
+		quests = quests or SideQuestPlan.allDone(Config, c) -- lore step 10: every chain (or every retired arc)
 		if StoryPlan.cleared(c.story, #Config.Story.missions) then
 			act1 = true
 		end
@@ -372,7 +369,7 @@ function HqRules.trophies(Config: any, profile: any): { [string]: boolean }
 	out.firstBoss = (s.bossesJoined or 0) >= 1
 	out.bossMvp = (s.mvps or 0) >= 1
 	out.act1 = act1
-	out.allQuests = quests >= #Config.Story.quests
+	out.allQuests = quests
 	out.level20 = maxLevel >= 20
 	out.level40 = maxLevel >= 40
 	out.legacy1 = #profile.legends >= 1

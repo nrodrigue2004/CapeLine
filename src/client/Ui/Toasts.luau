@@ -11,6 +11,7 @@ local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Progress = require(Shared:WaitForChild("Progress"))
 local GearMath = require(Shared:WaitForChild("GearMath"))
+local SideQuestPlan = require(Shared:WaitForChild("SideQuestPlan"))
 
 local Kit = require(script.Parent.Kit)
 local Juice = require(script.Parent.Parent.Fx.Juice)
@@ -26,7 +27,7 @@ local stack: Frame
 local MAX = 4
 
 local UNLOCK_NAMES: { [string]: string } = {
-	MayorsSash = "Mayor's Sash style",
+	GoldSash = "Gold Sash style",
 	DockCoat = "Dock Coat style",
 	PhotoFrame = "Photo frame",
 	CafeSign = "Cafe sign for your HQ",
@@ -74,6 +75,17 @@ local MISSION_REASONS: { [string]: string } = {
 	full = "Every mission pocket is in use: try again in a minute",
 	loading = "Still loading",
 	mission = "That mission cannot be started here",
+}
+
+local SQ_IDS =
+	{ sqStart = 1, sqStep = 1, sqDone = 1, sqHold = 1, sqWait = 1, sqLocked = 1, sqTest = 1, sqRetired = 1 }
+-- Why a side quest chain could not be taken from the Journal (SideQuestPlan.accept reasons)
+local SQ_LOCKED = {
+	level = "You need a higher level for that side quest",
+	story = "Play further in the story first",
+	after = "Finish the chain before it first",
+	npc = "Talk to its giver to take that one",
+	done = "You already finished that side quest",
 }
 
 local function push(text: string, color: Color3, big: boolean?, life: number?)
@@ -361,20 +373,37 @@ function Toasts.show(data: { [string]: any })
 		push("Your first choice stands on a replay", Kit.color.paper)
 	elseif id == "missionRefused" then
 		push(MISSION_REASONS[data.reason or ""] or "You cannot start that mission now", Kit.color.paper)
-	elseif id == "questStep" then
-		local q = Config.Story.quests[data.num or 0]
-		if q then
-			push(string.format("%s: step %d of 3", q.npc, math.min(3, data.step or 1)), Kit.color.paper)
-		end
-	elseif id == "questDone" then
-		local q = Config.Story.quests[data.num or 0]
-		if q then
-			push(string.format("QUEST DONE: %s", string.upper(q.npc)), Kit.color.gold, true, 4.5)
+	elseif SQ_IDS[id] then
+		-- lore step 10: side quest chains (names from Config.SideQuests; nothing free-typed)
+		local chain = SideQuestPlan.byBit(Config, data.bit or 0)
+		local name = if chain then string.upper(chain.name) else "SIDE QUEST"
+		if id == "sqStart" then
+			push("NEW SIDE QUEST: " .. name, Kit.color.gold, true)
+		elseif id == "sqStep" and chain then
+			push(string.format("%s: step %d of %d", name, data.step or 1, #chain.steps), Kit.color.paper)
+		elseif id == "sqDone" then
+			push("SIDE QUEST DONE: " .. name, Kit.color.gold, true, 4.5)
+		elseif id == "sqHold" then
+			push(name .. " is on hold. Resume it from the Journal", Kit.color.paper)
+		elseif id == "sqWait" then
+			push("Your part is done. Help the others finish theirs", Kit.color.paper)
+		elseif id == "sqLocked" then
+			push(SQ_LOCKED[data.why or ""] or "You cannot take that side quest yet", Kit.color.paper)
+		elseif id == "sqTest" then
+			push("Kind test done", Kit.color.paper)
+		elseif id == "sqRetired" then
+			local n = data.credits or 0
+			push(
+				if n > 0
+					then string.format("Old side quests retired: %d Credits for your progress", n)
+					else "Old side quests retired: your rewards are kept",
+				Kit.color.gold,
+				true,
+				5
+			)
 		end
 	elseif id == "raceReset" then
 		push("Out of time! Back to the first ring", Kit.color.paper)
-	elseif id == "wrongSide" then
-		push("Talk to the mentor of your own side", Kit.color.paper)
 	elseif id == "pvpOn" then
 		push("PVP ON: other flagged players can fight you", Color3.fromRGB(255, 120, 110), true)
 	elseif id == "pvpOff" then

@@ -1,8 +1,8 @@
 --!strict
--- StoryPlan: Act 1 and side quest rules on the saved story table (spec: Act 1; Act 1 choices; Side quests;
--- Faction reputation; nate's lore, build plan step 5). Pure, so Lune checks the gates, the stages, the choices,
--- the flags, the Skill Point total and the step counts. MissionService, QuestService and StoryService do the
--- world side.
+-- StoryPlan: Act 1 rules on the saved story table (spec: Act 1; Act 1 choices; Faction reputation; nate's
+-- lore, build plan step 5). Pure, so Lune checks the gates, the stages, the choices, the flags, the Skill
+-- Point total and the step counts. MissionService and StoryService do the world side (side quests:
+-- Shared.SideQuestPlan, lore step 10).
 -- * Missions open in order (mission n needs mission n - 1 cleared) at their minimum level; cleared ones
 --   can be replayed, and only the first clear pays.
 -- * Every mission is co-op in stages: stage() is a side's step with its branch in place; shared() says the whole
@@ -316,45 +316,8 @@ function StoryPlan.repIndex(Config: any, track: string): number
 	return table.find(Config.Story.rep.order, track) or 3
 end
 
--- Side quests: state per arc (0 not started, 1 to 3 the current step, 4 done)
-function StoryPlan.quest(Config: any, num: number): any?
-	return Config.Story.quests[num]
-end
-
-function StoryPlan.startQuest(story: any, num: number): boolean
-	if story.quests[num] ~= 0 then
-		return false
-	end
-	story.quests[num] = 1
-	return true
-end
-
--- Finish the current step; returns "next" (another step), "done" (the arc is complete, pay it) or nil
-function StoryPlan.advanceQuest(story: any, num: number): string?
-	local s = story.quests[num]
-	if s < 1 or s > 3 then
-		return nil
-	end
-	story.quests[num] = s + 1
-	return if s + 1 >= 4 then "done" else "next"
-end
-
--- Is this quest offered to a side? (all 8 are; Old Beacon's drills come from the Velvet Paw for villains)
-function StoryPlan.npcName(Config: any, num: number, side: string): string
-	local q = Config.Story.quests[num]
-	return if side == "villain" and q.villainNpc then q.villainNpc else q.npc
-end
-
--- What the journal pins: the side quest the hero pinned, else the next story mission
+-- What the journal pins when no side quest chain is tracked: the next story mission
 function StoryPlan.pinnedText(Config: any, story: any, _side: string): string?
-	local p = story.pinned
-	if p > 0 then
-		local q = Config.Story.quests[p]
-		local s = story.quests[p]
-		if q and s >= 1 and s <= 3 then
-			return q.steps[s].text
-		end
-	end
 	local num = StoryPlan.nextMission(Config, story)
 	if not num then
 		return nil
