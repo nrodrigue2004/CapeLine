@@ -1,8 +1,8 @@
 -- StoryClient: the client's view of the story (spec: Opening; Act 1; Side quests; Story.State, Mission.State
 -- 2 Hz, Choice.Pick). Screens and effects read these tables and listen to Changed; nothing is trusted.
 -- * journal: the latest StoryState (missions, choices, quests, pin, perks, reputation, mission states)
--- * opening: the playable disaster's step and its points; while it runs the HUD shows only the step's verb
---   button and the sky holds at dusk
+-- * opening: the Ceremony prologue's beat, its clock and the scene's points (lore step 3); while it runs the HUD
+--   shows only the beat's verb buttons and the sky holds at a bright afternoon
 -- * choice: the open choice prompt (its id and verb labels)
 -- * mission: the latest MissionState; result: the last MissionResult
 -- * quest: the pinned side quest's step (QuestState) and the last NPC line (QuestTalk)
@@ -26,21 +26,26 @@ StoryClient.Fade = Signal.new() -- () a mission trip: fade out and back in
 
 StoryClient.journal = nil :: { [string]: any }?
 StoryClient.opening = { step = 0 } :: { [string]: any }
+StoryClient.openingAt = 0 -- os.clock() when the current beat began on the server (from its `t`)
 StoryClient.choice = nil :: { id: number, labels: { string } }?
 StoryClient.mission = { num = 0 } :: { [string]: any }
 StoryClient.quest = nil :: { [string]: any }?
 
--- The verb button(s) each opening step pulses (Hud.setFocus)
+-- The verb button(s) each prologue beat pulses (Hud.setFocus); the camera beats show none
 StoryClient.VERBS = {
+	ceremony = {},
+	scan = {},
+	run = { "Leap" },
+	spark = { "Basic" }, -- the Spark fires from the attack button
 	leap = { "Leap" },
-	glide = { "Leap" }, -- the Leap button reads GLIDE in the air
-	catch = { "Catch" },
-	blast = { "Basic" },
-	choice = { "Leap", "Basic" },
-	save = { "Leap" },
-	grab = { "Leap" },
-	suitup = {},
-	flight = nil, -- the full HUD is back for the guided flight
+	chase = { "Leap" }, -- the Leap button reads GLIDE in the air
+	suit = { "Leap" },
+	descend = { "Leap" },
+	tunnel = { "Leap" },
+	fight = { "Basic", "Skill1", "Skill2", "Leap" },
+	swarm = { "Basic", "Skill1", "Skill2", "Leap" },
+	rescue = {},
+	title = {},
 }
 
 function StoryClient.openingStep(): string?
@@ -48,8 +53,12 @@ function StoryClient.openingStep(): string?
 end
 
 function StoryClient.inOpening(): boolean
-	local s = StoryClient.openingStep()
-	return s ~= nil and s ~= "flight"
+	return StoryClient.openingStep() ~= nil
+end
+
+-- Seconds into the current beat
+function StoryClient.beatTime(): number
+	return os.clock() - StoryClient.openingAt
 end
 
 function StoryClient.inMission(): boolean
@@ -65,12 +74,21 @@ function StoryClient.pick(option: number)
 	end
 end
 
-function StoryClient.catch()
+-- The prologue's acts: the Spark fires, skip a camera beat (replays), Create First, play the prologue
+function StoryClient.spark()
 	Net.send("OpeningAct", 1)
 end
 
-function StoryClient.skipFlight()
+function StoryClient.skipBeat()
 	Net.send("OpeningAct", 2)
+end
+
+function StoryClient.createFirst()
+	Net.send("OpeningAct", 3)
+end
+
+function StoryClient.playPrologue()
+	Net.send("OpeningAct", 4)
 end
 
 function StoryClient.enter(num: number)
@@ -92,6 +110,7 @@ function StoryClient.init()
 	end)
 	Net.listen("OpeningState", function(s)
 		StoryClient.opening = s
+		StoryClient.openingAt = os.clock() - (tonumber(s.t) or 0)
 		WorldClient.clockOverride = if StoryClient.inOpening() then Config.Story.opening.clockTime else nil
 		StoryClient.Changed:Fire("opening")
 	end)

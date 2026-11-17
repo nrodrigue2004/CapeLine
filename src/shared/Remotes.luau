@@ -143,8 +143,9 @@ local Remotes: { [string]: RemoteDef } = {
 	StoryPin = { dir = "C2S", schema = { n(0, 8) }, rate = 2, burst = 3 }, -- 0 the story, 1 to 8 a side quest
 	ChoicePrompt = { dir = "S2C" }, -- { id, labels }: the two (or three) big verb buttons
 	ChoicePick = { dir = "C2S", schema = { n(0, 4), n(1, 3) }, rate = 1, burst = 2 }, -- choice id, option
-	OpeningState = { dir = "S2C" }, -- { step, target = { x, y, z }, side, left }: the playable disaster
-	OpeningAct = { dir = "C2S", schema = { n(1, 3) }, rate = 2, burst = 3 }, -- 1 Catch, 2 skip the flight, 3 Create First
+	OpeningState = { dir = "S2C" }, -- { step, t, target, side, left, the scene's points }: the Ceremony prologue
+	-- 1 the Spark fires, 2 skip a camera beat (replays only), 3 Create First, 4 play the prologue (main menu)
+	OpeningAct = { dir = "C2S", schema = { n(1, 4) }, rate = 2, burst = 3 },
 	MissionEnter = { dir = "C2S", schema = { n(2, 6), n(0, 1000000, true) }, rate = 0.2, burst = 2 },
 	MissionLeave = { dir = "C2S", schema = {}, rate = 0.5, burst = 2 },
 	MissionState = { dir = "S2C" }, -- { num, step, steps, kind, have, need, left, points, target }, 2 Hz

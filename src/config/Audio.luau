@@ -93,6 +93,8 @@ return {
 		reveal = s("clickfast.wav", 0.7, 0.7, { range = 120 }), -- a Mimic shows itself
 		-- lore step 4: a famous fake's face cracks to show metal (with a white flash and a short hit-stop)
 		unmask = s("clickfast.wav", 1, 0.45, { range = 200 }),
+		-- lore step 3: Patch's radio blip as each of his lines starts (PLACEHOLDER SOUND)
+		radio = s("electronicpingshort.wav", 0.45, 3.4),
 	},
 
 	-- every path's own sound layer (overhaul plan step 6), played with the slot's cast sound above (Juice.path):

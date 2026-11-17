@@ -36,8 +36,52 @@ export type Plate = { name: string, sub: string, red: boolean }
 local looks: { [any]: { [string]: Look } } = {}
 local twins: { [any]: { [string]: any } } = {}
 
--- A fake's fixed look; a kind with no `fake.look` (the twin, before it knows its hero) wears the default look.
+-- A fixed hero look from a config def (piece names per creator slot, palette colours, materials by name).
 -- Errors on a piece or material name the creator does not have, so a typo fails the tests, not the game.
+local function fromDef(Config: any, def: any, label: string): Look
+	local byTab = CreatorRules.index(Config).byTab
+	local pieces: { [string]: number } = {}
+	for _, slot in LookCodec.ALL do
+		pieces[slot] = 0
+	end
+	for slot, name in def.pieces do
+		local list = byTab[slot]
+		local found = 0
+		for i, p in list or {} do
+			if p.name == name then
+				found = i
+				break
+			end
+		end
+		assert(found > 0, string.format("FakeRules: %s has no %s piece %q", label, slot, name))
+		pieces[slot] = found
+	end
+	local mats: { [string]: number } = {}
+	for slot, name in def.mats or {} do
+		local m = table.find(Config.Creator.materials, name)
+		assert(m, string.format("FakeRules: %s has no material %q", label, name))
+		mats[slot] = m
+	end
+	local tints: { [string]: { number } } = {}
+	for slot, t in def.tints or {} do
+		tints[slot] = table.clone(t)
+	end
+	return {
+		pieces = pieces,
+		colors = table.clone(def.colors),
+		hair = def.hair,
+		skin = def.skin,
+		anime = false,
+		gender = def.gender,
+		build = def.build,
+		height = def.height,
+		eyeColor = def.eyeColor or 0,
+		tints = tints,
+		mats = mats,
+	}
+end
+
+-- A fake's fixed look; a kind with no `fake.look` (the twin, before it knows its hero) wears the default look.
 function FakeRules.look(Config: any, kind: string): Look
 	local cache = looks[Config]
 	if not cache then
@@ -50,53 +94,15 @@ function FakeRules.look(Config: any, kind: string): Look
 	end
 	local cfg = Config.Enemies[kind]
 	local def = cfg and cfg.fake and cfg.fake.look
-	local look: Look
-	if not def then
-		look = CreatorRules.defaultLook(Config) :: any
-	else
-		local byTab = CreatorRules.index(Config).byTab
-		local pieces: { [string]: number } = {}
-		for _, slot in LookCodec.ALL do
-			pieces[slot] = 0
-		end
-		for slot, name in def.pieces do
-			local list = byTab[slot]
-			local found = 0
-			for i, p in list or {} do
-				if p.name == name then
-					found = i
-					break
-				end
-			end
-			assert(found > 0, string.format("FakeRules: %s has no %s piece %q", kind, slot, name))
-			pieces[slot] = found
-		end
-		local mats: { [string]: number } = {}
-		for slot, name in def.mats or {} do
-			local m = table.find(Config.Creator.materials, name)
-			assert(m, string.format("FakeRules: %s has no material %q", kind, name))
-			mats[slot] = m
-		end
-		local tints: { [string]: { number } } = {}
-		for slot, t in def.tints or {} do
-			tints[slot] = table.clone(t)
-		end
-		look = {
-			pieces = pieces,
-			colors = table.clone(def.colors),
-			hair = def.hair,
-			skin = def.skin,
-			anime = false,
-			gender = def.gender,
-			build = def.build,
-			height = def.height,
-			eyeColor = def.eyeColor or 0,
-			tints = tints,
-			mats = mats,
-		}
-	end
+	local look: Look = if def then fromDef(Config, def, kind) else CreatorRules.defaultLook(Config) :: any
 	cache[kind] = look
 	return LookCodec.copy(look :: any) :: any
+end
+
+-- A story character's fixed hero look (lore step 3: Lodestar, Config.Story.opening.lodestar.look), built the
+-- same way from earnable creator pieces
+function FakeRules.lookFrom(Config: any, def: any, label: string): Look
+	return fromDef(Config, def, label)
 end
 
 -- The health fraction at which a fake's face cracks

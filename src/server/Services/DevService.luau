@@ -13,6 +13,8 @@
 -- for n hours away), pieces (unlock every creator piece), buy n (test-purchase shop item n with a fixed
 -- receipt id: the second time grants nothing), legacy (the level cap and retire at HQ next).
 -- Lore step 2: street 0/1 (the street outfit off or on, CreatorService.streetOutfit).
+-- Lore step 3: prologue 0/1 (the Ceremony prologue from its first beat as the Vigil or the Syndicate), opening n
+-- (0 replays it; 1 to 13 jumps to that beat).
 -- Lore step 4: fake 1-3 (Radiant, Bulwark or Skylance 25 studs in front of the hero, at the hero's level), twin
 -- (an evil twin of your own hero there).
 
@@ -235,7 +237,7 @@ local commands: { [string]: (player: Player, hero: any, value: number) -> () } =
 	end,
 	-- M7: the story
 	opening = function(player, _, stepNum)
-		-- 0 replays the opening from the start; 1 to 9 jumps to that step of a running one
+		-- 0 replays the Ceremony prologue from the start; 1 to 13 jumps to that beat of a running one
 		if stepNum == 0 or not OpeningService.running(player) then
 			OpeningService.start(player, true)
 		end
@@ -243,6 +245,14 @@ local commands: { [string]: (player: Player, hero: any, value: number) -> () } =
 		if name then
 			OpeningService.jump(player, name)
 		end
+	end,
+	-- lore step 3: the prologue from its first beat as the Vigil (0) or the Dread Syndicate (1)
+	prologue = function(player, hero, villain)
+		local side = if villain ~= 0 then "villain" else "hero"
+		OpeningService.stop(player)
+		hero.side = side
+		StoryService.setSide(player, side)
+		OpeningService.start(player, true)
 	end,
 	mission = function(player, _, num)
 		local ok, why = MissionService.enter(player, num)
