@@ -41,6 +41,7 @@ local markers: { [string]: BillboardGui } = {}
 local resultCard: Frame? = nil
 
 local MAX_ROWS = 6
+local shownRows = MAX_ROWS -- the rows that fit this screen (Kit.hudBoxes)
 local TIER_NAME =
 	{ mvp = "MVP", contributor = "Contributor", participant = "Participant", floor = "Took part" }
 
@@ -129,7 +130,7 @@ local function refreshTracker()
 	local n = 0
 	-- events first: they are server-wide
 	for _, ev in WorldClient.events do
-		if n < MAX_ROWS and ev.state == 0 and ev.id then
+		if n < shownRows and ev.state == 0 and ev.id then
 			n += 1
 			local def = Config.Events.events[ev.id]
 			local villain = State.hero.side == "villain"
@@ -151,7 +152,7 @@ local function refreshTracker()
 		end
 	end
 	for _, c in WorldClient.contracts do
-		if n < MAX_ROWS then
+		if n < shownRows then
 			n += 1
 			local id = WorldClient.contractByNum[c[1]]
 			local def = id and Config.Contracts.types[id]
@@ -186,7 +187,7 @@ local function refreshTracker()
 		return a.d < b.d
 	end)
 	for i = 1, math.min(3, #list) do
-		if n < MAX_ROWS then
+		if n < shownRows then
 			n += 1
 			local inc, d = list[i].inc, list[i].d
 			local name = IncidentPlan.title(IC, inc.tid, inc.side)
@@ -492,6 +493,21 @@ function WorldHud.init()
 	for i = 1, MAX_ROWS do
 		rows[i] = makeRow(i)
 	end
+	-- phone pass: the tracker's box and how many rows fit come from the HUD plan (on a phone, 2 rows in the
+	-- top-left corner; elsewhere the rows that fit above the action buttons)
+	local function place()
+		local hb = Kit.hudBoxes()
+		local t = hb.tracker
+		tracker.AnchorPoint = Vector2.zero
+		tracker.Position = UDim2.fromOffset(t.x, t.y)
+		tracker.Size = UDim2.fromOffset(t.w, math.max(t.h, 0))
+		shownRows = math.clamp(hb.trackerRows, 0, MAX_ROWS)
+		for i = shownRows + 1, MAX_ROWS do
+			rows[i].Visible = false
+		end
+	end
+	place()
+	Kit.LayoutChanged:Connect(place)
 
 	bossPanel = Kit.frame({
 		Name = "Boss",

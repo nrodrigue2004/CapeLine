@@ -5019,6 +5019,9 @@ test("M10: colorblind markers: every marker kind has its own shape", function()
 	end
 end)
 
+-- Overhaul step 8, the phone pass: touch layout, presets, Button size, and every screen run headless
+require("./phone_test")(test, check, Config, process.args[1])
+
 ---------------------------------------------------------------------------
 -- M11: juice, audio and wait fillers
 ---------------------------------------------------------------------------

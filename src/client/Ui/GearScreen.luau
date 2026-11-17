@@ -426,6 +426,7 @@ function GearScreen.init()
 	local limit = Instance.new("UISizeConstraint")
 	limit.MaxSize = Vector2.new(980, 720)
 	limit.Parent = panel
+	Kit.fit(panel, 600, 286, 980, 720) -- phone pass: fits the screen (a scale under 600 x 286)
 	panel.Parent = gui
 	header = Kit.label({
 		Text = "GEAR",
@@ -438,8 +439,8 @@ function GearScreen.init()
 	header.Parent = panel
 	wallet = Kit.label({
 		Text = "",
-		Size = UDim2.new(1, -100, 0, 20),
-		Position = UDim2.fromOffset(14, 44),
+		Size = UDim2.new(1, -28, 0, 18), -- phone pass: under the 44 px tabs
+		Position = UDim2.fromOffset(14, 50),
 		TextXAlignment = Enum.TextXAlignment.Left,
 		TextColor3 = Kit.color.paper,
 		Font = Kit.bodyFont,
@@ -456,7 +457,7 @@ function GearScreen.init()
 	-- tabs
 	local tabs = Instance.new("Frame")
 	tabs.BackgroundTransparency = 1
-	tabs.Size = UDim2.new(0.6, 0, 0, 36)
+	tabs.Size = UDim2.new(0.6, 0, 0, 44)
 	tabs.Position = UDim2.new(0.3, 0, 0, 6)
 	local tl = Instance.new("UIListLayout")
 	tl.FillDirection = Enum.FillDirection.Horizontal
@@ -482,7 +483,7 @@ function GearScreen.init()
 	local stash = pages.STASH
 	local slots = listFrame(stash, UDim2.fromScale(0, 0), UDim2.new(0.22, -6, 1, 0))
 	local all = Kit.button(
-		{ Text = "ALL SLOTS", Size = UDim2.new(1, -8, 0, 36), LayoutOrder = 0, maxText = 14 },
+		{ Text = "ALL SLOTS", Size = UDim2.new(1, -8, 0, 44), LayoutOrder = 0, maxText = 14 },
 		function()
 			slotFilter = 0
 			refresh()
