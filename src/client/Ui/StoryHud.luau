@@ -6,7 +6,11 @@
 --   The world side (stage, crowd, camera, effects) is PrologueFx.
 -- * The choice card: two (or three) big verb buttons.
 -- * Suit Up: the run's end (lore step 2: the hero was made in the creator before the opening began).
--- * Missions: a fade on each trip, the objective tracker with a LEAVE button, and the result card.
+-- * Missions: a fade on each trip, the objective tracker with a LEAVE button (each side reads its own goal),
+--   the result card, and (lore step 5) the camera beats: the same letterbox and subtitles as the prologue, with
+--   the beat's fixed lines by side (StoryFx moves the camera).
+-- * The ending broadcast (lore step 5): after Live, a news-style screen: BREAKING NEWS, the registration law,
+--   Crane's lines, and PUBLIC ENEMY #1 over the hero's own name. Nothing flashes.
 -- * Side quests: the NPC's speech bubble and the pinned step's tracker, with its marker or search circle.
 -- PLACEHOLDER ART: the title card is the plain Kit title until the art pass.
 
@@ -176,21 +180,13 @@ local function cut()
 	TweenService:Create(fade, TweenInfo.new(0.7), { BackgroundTransparency = 1 }):Play()
 end
 
--- The subtitle for this moment of the beat (each line stays until the next, or 5 s)
-local lineCache: { step: string?, side: string?, list: { any } } = { step = nil, side = nil, list = {} }
-local function prologueText(step: string?, t: number)
-	if not step then
-		subtitle.Visible = false
-		return
-	end
-	local beat = step :: string
-	local side = StoryClient.opening.side or "hero"
-	if lineCache.step ~= beat or lineCache.side ~= side then
-		lineCache = { step = beat, side = side, list = OpeningPlan.lines(Config, beat, side) }
-	end
+-- The subtitle for this moment of the beat (each line stays until the next, or 6 s). `beat` keys the cache:
+-- a prologue beat's name, or a mission's camera beat (its step table).
+local lineCache: { step: any, side: string?, list: { any } } = { step = nil, side = nil, list = {} }
+local function showLine(list: { any }, t: number)
 	local show = nil
-	for i, l in lineCache.list do
-		local nxt = lineCache.list[i + 1]
+	for i, l in list do
+		local nxt = list[i + 1]
 		local until_ = if nxt then math.min(nxt.at, l.at + 6) else l.at + 6
 		if t >= l.at and t < until_ then
 			show = l
@@ -204,6 +200,26 @@ local function prologueText(step: string?, t: number)
 		radioTag.Visible = who.radio == true
 		subText.Text = show.text
 	end
+end
+
+local function sceneText(st: any, side: string, t: number)
+	if lineCache.step ~= st or lineCache.side ~= side then
+		lineCache = { step = st, side = side, list = StoryPlan.sceneLines(st, side) }
+	end
+	showLine(lineCache.list, t)
+end
+
+local function prologueText(step: string?, t: number)
+	if not step then
+		subtitle.Visible = false
+		return
+	end
+	local beat = step :: string
+	local side = StoryClient.opening.side or "hero"
+	if lineCache.step ~= beat or lineCache.side ~= side then
+		lineCache = { step = beat, side = side, list = OpeningPlan.lines(Config, beat, side) }
+	end
+	showLine(lineCache.list, t)
 end
 
 ---------------------------------------------------------------------------
@@ -353,12 +369,9 @@ local function buildTracker(name: string, y: number): (Frame, TextLabel, TextLab
 	return f, title, text, fill
 end
 
-local function missionName(num: number, side: string): string
+local function missionName(num: number): string
 	local m = S.missions[num]
-	if not m then
-		return ""
-	end
-	return if side == "villain" and m.villainName then m.villainName else m.name
+	return if m then m.name else ""
 end
 
 local function showResult(r: { [string]: any })
@@ -367,9 +380,8 @@ local function showResult(r: { [string]: any })
 			c:Destroy()
 		end
 	end
-	local side = State.hero.side
 	local lines = {
-		{ string.format("%s CLEAR!", string.upper(missionName(r.num or 0, side))), Kit.color.gold, 34 },
+		{ string.format("%s CLEAR!", string.upper(missionName(r.num or 0))), Kit.color.gold, 34 },
 		{
 			Kit.payLine(r.credits or 0, r.renown or 0, 1),
 			Kit.color.paper,
@@ -396,9 +408,6 @@ local function showResult(r: { [string]: any })
 				Kit.color.paper,
 				16,
 			})
-		end
-		if r.epic then
-			table.insert(lines, { "THE EPIC CRATE OPENED!", Color3.fromRGB(200, 120, 255), 20 })
 		end
 	else
 		table.insert(lines, { "Replay: first-clear rewards already earned", Kit.color.muted, 14 })
@@ -443,6 +452,196 @@ local function showTalk(num: number, line: number, side: string)
 end
 
 ---------------------------------------------------------------------------
+-- The ending broadcast (lore step 5): a news-style screen after Live
+---------------------------------------------------------------------------
+
+local news: Frame
+local newsParts: { [string]: TextLabel } = {}
+local newsOn: { id: string, at: number }? = nil
+
+local function buildBroadcast()
+	news = Kit.frame({
+		Name = "Broadcast",
+		Size = UDim2.fromScale(1, 1),
+		BackgroundColor3 = Color3.fromRGB(14, 18, 34),
+		round = false,
+		Visible = false,
+		ZIndex = 48,
+	})
+	news.Parent = gui
+	local band = Kit.frame({
+		Name = "Band",
+		Position = UDim2.fromScale(0, 0.05),
+		Size = UDim2.fromScale(1, 0.09),
+		BackgroundColor3 = Color3.fromRGB(200, 30, 40),
+		round = false,
+		ZIndex = 49,
+	})
+	band.Parent = news
+	local function label(name: string, props: { [string]: any }): TextLabel
+		props.Name = name
+		props.ZIndex = props.ZIndex or 50
+		props.TextStrokeTransparency = props.TextStrokeTransparency or 0.4
+		local l = Kit.label(props)
+		newsParts[name] = l
+		return l
+	end
+	label("Breaking", {
+		Position = UDim2.new(0, U.safe + 8, 0, 0),
+		Size = UDim2.new(0.45, -U.safe, 1, 0),
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextColor3 = Kit.color.paper,
+		maxText = 34,
+	}).Parent =
+		band
+	label("Channel", {
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, -U.safe - 8, 0, 0),
+		Size = UDim2.new(0.45, -U.safe, 1, 0),
+		TextXAlignment = Enum.TextXAlignment.Right,
+		TextColor3 = Kit.color.paper,
+		Font = Kit.bodyFont,
+		maxText = 20,
+	}).Parent =
+		band
+	label("Headline", {
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.fromScale(0.5, 0.2),
+		Size = UDim2.fromScale(0.86, 0.1),
+		TextColor3 = Kit.color.gold,
+		maxText = 60,
+	}).Parent =
+		news
+	label("Speaker", {
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.fromScale(0.5, 0.33),
+		Size = UDim2.fromScale(0.7, 0.06),
+		TextColor3 = rgb(S.opening.speakers.crane.color),
+		maxText = 20,
+	}).Parent =
+		news
+	label("Line", {
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.fromScale(0.5, 0.4),
+		Size = UDim2.fromScale(0.8, 0.1),
+		TextColor3 = Kit.color.paper,
+		Font = Kit.bodyFont,
+		TextWrapped = true,
+		maxText = 24,
+	}).Parent =
+		news
+	label("Enemy", {
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.fromScale(0.5, 0.54),
+		Size = UDim2.fromScale(0.8, 0.1),
+		TextColor3 = Color3.fromRGB(255, 70, 70),
+		TextStrokeTransparency = 0,
+		maxText = 54,
+	}).Parent =
+		news
+	label("Name", {
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.fromScale(0.5, 0.65),
+		Size = UDim2.fromScale(0.7, 0.08),
+		TextColor3 = Kit.color.paper,
+		maxText = 40,
+	}).Parent =
+		news
+	label("Sign", {
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.fromScale(0.5, 0.75),
+		Size = UDim2.fromScale(0.6, 0.06),
+		TextColor3 = Kit.color.gold,
+		maxText = 26,
+	}).Parent =
+		news
+	local tick = Kit.frame({
+		Name = "Ticker",
+		AnchorPoint = Vector2.new(0, 1),
+		Position = UDim2.new(0, 0, 1, -U.safe),
+		Size = UDim2.new(1, 0, 0.08, 0),
+		BackgroundColor3 = Color3.fromRGB(240, 200, 60),
+		round = false,
+		ZIndex = 49,
+	})
+	tick.Parent = news
+	label("Ticker", {
+		Position = UDim2.new(0, U.safe + 8, 0, 0),
+		Size = UDim2.new(1, -3 * U.safe - 24 - 96, 1, 0), -- clear of CLOSE
+		TextColor3 = Kit.color.ink,
+		Font = Kit.bodyFont,
+		TextStrokeTransparency = 1,
+		maxText = 18,
+	}).Parent =
+		tick
+	local close = Kit.button({
+		Name = "Close",
+		Text = "CLOSE",
+		AnchorPoint = Vector2.new(1, 1),
+		Position = UDim2.new(1, -U.safe, 1, -U.safe),
+		Size = UDim2.fromOffset(96, 44),
+		BackgroundColor3 = Kit.color.paper,
+		ZIndex = 51,
+	}, function()
+		newsOn = nil
+		news.Visible = false
+	end)
+	close.Parent = news
+end
+
+local function showBroadcast(id: string)
+	local e = S.ending[id]
+	if not e then
+		return
+	end
+	newsParts.Breaking.Text = e.breaking
+	newsParts.Channel.Text = e.channel
+	newsParts.Headline.Text = e.headline
+	newsParts.Ticker.Text = e.ticker
+	newsParts.Enemy.Text = e.enemy
+	newsParts.Sign.Text = e.sign
+	local name = player:GetAttribute("HeroName")
+	newsParts.Name.Text =
+		string.upper(if typeof(name) == "string" and name ~= "" then name else player.DisplayName)
+	newsOn = { id = id, at = os.clock() }
+	news.Visible = true
+	news.BackgroundTransparency = 1
+	TweenService:Create(news, TweenInfo.new(0.6), { BackgroundTransparency = 0 }):Play()
+end
+
+-- Each frame while it plays: Crane's line for the moment, then PUBLIC ENEMY #1 and the hero's name
+local function broadcastFrame(now: number)
+	local on = newsOn
+	if not on then
+		return
+	end
+	local e = S.ending[on.id]
+	local t = now - on.at
+	if t > e.seconds then
+		newsOn = nil
+		news.Visible = false
+		return
+	end
+	local show = nil
+	for _, l in e.lines do
+		if t >= l.at then
+			show = l
+		end
+	end
+	newsParts.Speaker.Visible = show ~= nil
+	newsParts.Line.Visible = show ~= nil
+	if show then
+		local who = S.opening.speakers[show.who] or S.opening.speakers.crane
+		newsParts.Speaker.Text = who.name
+		newsParts.Line.Text = show.text
+	end
+	local enemy = t >= e.enemyAt
+	newsParts.Enemy.Visible = enemy
+	newsParts.Name.Visible = enemy
+	newsParts.Sign.Visible = t >= e.seconds - 4
+end
+
+---------------------------------------------------------------------------
 -- Each frame
 ---------------------------------------------------------------------------
 
@@ -482,6 +681,7 @@ local function refreshOpening()
 	lastStep = step or ""
 end
 
+local sceneFocus = false
 local function frame()
 	local now = os.clock()
 	local o = StoryClient.opening
@@ -508,11 +708,22 @@ local function frame()
 	else
 		areaPart.Transparency = 1
 	end
+	-- a mission's camera beat (lore step 5): letterbox and subtitles, no tracker
+	local scene, sceneT = StoryClient.missionScene()
+	if not step then
+		for _, b in bars do
+			b.Visible = scene ~= nil
+		end
+		-- the action buttons step aside for the beat (phones too), and come back after it
+		if (scene ~= nil) ~= sceneFocus then
+			sceneFocus = scene ~= nil
+			Hud.setFocus(if sceneFocus then {} else nil)
+		end
+	end
 	-- the mission tracker
-	if (m.num or 0) > 0 then
+	if (m.num or 0) > 0 and not scene then
 		tracker.Visible = true
-		trackTitle.Text =
-			string.format("MISSION %d: %s", m.num, string.upper(missionName(m.num, State.hero.side)))
+		trackTitle.Text = string.format("MISSION %d: %s", m.num, string.upper(missionName(m.num)))
 		trackText.Text = string.format("%s  (%d/%d)", m.text or "", m.step or 1, m.steps or 1)
 		trackFill.Size = UDim2.fromScale(math.clamp((m.have or 0) / math.max(1, m.need or 1), 0, 1), 1)
 		leaveButton.Visible = not m.done
@@ -543,7 +754,12 @@ local function frame()
 	end
 	-- the prologue's words: subtitles, SPARK DETECTED, the title card
 	local t = if o.hold then 0 else StoryClient.beatTime()
-	prologueText(if o.hold then nil else step, t)
+	if scene and not step then
+		sceneText(scene, StoryClient.mission.side or "hero", sceneT)
+	else
+		prologueText(if o.hold then nil else step, t)
+	end
+	broadcastFrame(now)
 	detected.Visible = step == "scan" and t >= S.opening.beats.scan * 0.42
 	local showTitle = step == "title" and t >= S.opening.beats.title * 0.55
 	if showTitle and not titleCard.Visible then
@@ -649,6 +865,7 @@ function StoryHud.init()
 	})
 	bline.Parent = bubble
 	buildPrologue()
+	buildBroadcast()
 	skipBeat = Kit.button({
 		Name = "Skip",
 		Text = "SKIP",
@@ -669,6 +886,7 @@ function StoryHud.init()
 		end
 	end)
 	StoryClient.Result:Connect(showResult)
+	StoryClient.Broadcast:Connect(showBroadcast)
 	StoryClient.Talk:Connect(showTalk)
 	StoryClient.Fade:Connect(function()
 		fade.BackgroundTransparency = 1

@@ -17,6 +17,8 @@
 -- (0 replays it; 1 to 13 jumps to that beat).
 -- Lore step 4: fake 1-3 (Radiant, Bulwark or Skylance 25 studs in front of the hero, at the hero's level), twin
 -- (an evil twin of your own hero there).
+-- Lore step 5: missionas n (mission n // 10 as the Vigil, n % 10 = 0, or the Syndicate, 1; the missions before it
+-- cleared and its level met), missionstep n (jump to stage n of the running mission).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -54,6 +56,7 @@ local ShopRules = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild(
 local CreatorRules = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("CreatorRules"))
 local ProfileSchema = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("ProfileSchema"))
 local OpeningPlan = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("OpeningPlan"))
+local StoryPlan = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("StoryPlan"))
 
 local DevService = {}
 
@@ -257,6 +260,34 @@ local commands: { [string]: (player: Player, hero: any, value: number) -> () } =
 	mission = function(player, _, num)
 		local ok, why = MissionService.enter(player, num)
 		print("[Dev] mission", num, ok, why)
+	end,
+	-- lore step 5: start mission n as a side (value n * 10 + 0 the Vigil, 1 the Syndicate), the missions before
+	-- it cleared and the level met, and jump to stage n of the running mission
+	missionas = function(player, hero, value)
+		local num, villain = value // 10, value % 10
+		local m = Config.Story.missions[num]
+		local story = StoryService.story(player)
+		if not m or m.opening or not story then
+			return
+		end
+		MissionService.leave(player)
+		local side = if villain ~= 0 then "villain" else "hero"
+		StoryService.setSide(player, side)
+		story.opening = 1
+		for n = 1, num - 1 do
+			StoryPlan.clear(story, n)
+		end
+		if hero.level < m.minLevel then
+			HeroService.setLevel(hero, m.minLevel)
+		end
+		StoryService.changed(player)
+		task.delay(1.2, function()
+			local ok, why = MissionService.enter(player, num)
+			print("[Dev] mission", num, side, ok, why)
+		end)
+	end,
+	missionstep = function(player, _, n)
+		MissionService.jumpStage(player, n)
 	end,
 	finishstep = function(player)
 		MissionService.skipStep(player)

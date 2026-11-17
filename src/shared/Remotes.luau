@@ -148,8 +148,9 @@ local Remotes: { [string]: RemoteDef } = {
 	OpeningAct = { dir = "C2S", schema = { n(1, 4) }, rate = 2, burst = 3 },
 	MissionEnter = { dir = "C2S", schema = { n(2, 6), n(0, 1000000, true) }, rate = 0.2, burst = 2 },
 	MissionLeave = { dir = "C2S", schema = {}, rate = 0.5, burst = 2 },
-	MissionState = { dir = "S2C" }, -- { num, step, steps, kind, have, need, left, points, target }, 2 Hz
-	MissionResult = { dir = "S2C" }, -- { num, first, credits, renown, drops, skillPoints, rep, epic }
+	MissionState = { dir = "S2C" }, -- { num, step, steps, side, kind, text, have, need, t, points, target, focus }, 2 Hz
+	MissionResult = { dir = "S2C" }, -- { num, first, credits, renown, drops, skillPoints, rep, ending }
+	StoryBroadcast = { dir = "S2C" }, -- { id }: an act's ending broadcast (lore step 5: after Live, back in the city)
 	QuestTalk = { dir = "S2C" }, -- { num, line, npc }: the NPC's speech bubble (fixed lines, no free text)
 	QuestState = { dir = "S2C" }, -- { num, step, have, need, left, target, area }: the pinned quest, 2 Hz
 

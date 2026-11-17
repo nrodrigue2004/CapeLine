@@ -3,7 +3,7 @@
 -- Comic/Anime style, robots, levels, skill points, Awakening, loot by source, Renown, Credits, Dust, find all
 -- beacons, wreck here, repair city, flip cars, save, wipe, and (M6) incident by template, clear incidents,
 -- event by type, boss now, boss to 1 HP, finish contract, clock phase, hero or villain side, and (M7) the
--- Ceremony prologue as the Vigil or the Syndicate and a jump to each of its beats (lore step 3), enter a mission, finish the step, leave, start a side quest, clear
+-- Ceremony prologue as the Vigil or the Syndicate and a jump to each of its beats (lore step 3), each Act 1 mission as each side and a jump to each of its stages (lore step 5), finish the step, leave, start a side quest, clear
 -- Act 1 and reset the story, and (M9) the creator, enter HQ, HQ level, 8 h away, all pieces, a test buy
 -- (twice grants once) and the level cap, and (2026-11-17) the next incident, event or contract to try (the
 -- "Inc:", "Ev:" and "Con:" buttons start the one named, "next" picks another), and a Heroic switch for them.
@@ -26,6 +26,7 @@ local QualityController = require(script.Parent.Parent.Controllers.QualityContro
 local Telemetry = require(script.Parent.Parent.Controllers.Telemetry)
 local SettingsClient = require(script.Parent.Parent.Controllers.SettingsClient)
 local EnemyRenderer = require(script.Parent.Parent.Controllers.EnemyRenderer)
+local StoryClient = require(script.Parent.Parent.Controllers.StoryClient)
 
 local DevPanel = {}
 
@@ -281,12 +282,37 @@ function DevPanel.init()
 		Net.send("DevCommand", "opening", beat)
 		b.Text = "Beat: " .. OpeningPlan.STEPS[beat % #OpeningPlan.STEPS + 1]
 	end)
-	local missionIdx = 2
-	add("Mission 2", function(b)
-		Net.send("DevCommand", "mission", missionIdx)
-		missionIdx = missionIdx % 6 + 1
-		missionIdx = math.max(2, missionIdx)
-		b.Text = "Mission " .. missionIdx
+	-- lore step 5: each Act 1 mission as each side (tap again for the next), and a jump to each of its stages
+	local runs = {}
+	for n = 2, #Config.Story.missions do
+		table.insert(runs, { n, 0 })
+		table.insert(runs, { n, 1 })
+	end
+	local runIdx = 1
+	local function runName(i: number): string
+		local r = runs[i]
+		return string.format(
+			"%s: %s",
+			Config.Story.missions[r[1]].name,
+			if r[2] == 1 then "Syndicate" else "Vigil"
+		)
+	end
+	add(runName(1), function(b)
+		local r = runs[runIdx]
+		Net.send("DevCommand", "missionas", r[1] * 10 + r[2])
+		runIdx = runIdx % #runs + 1
+		b.Text = runName(runIdx)
+	end)
+	local stageIdx = 1
+	add("Mission stage 1", function(b)
+		Net.send("DevCommand", "missionstep", stageIdx)
+		local m = StoryClient.mission
+		local count = 1
+		if (m.num or 0) > 0 then
+			count = m.steps or 1
+		end
+		stageIdx = stageIdx % math.max(1, count) + 1
+		b.Text = "Mission stage " .. stageIdx
 	end)
 	add("Finish step", function()
 		Net.send("DevCommand", "finishstep")

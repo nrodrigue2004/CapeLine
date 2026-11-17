@@ -4393,31 +4393,34 @@ end)
 test("M7: choices pick once, pay once, and change one step of a mission", function()
 	local StoryPlan = require("../src/shared/StoryPlan")
 	local story = ProfileSchema.newCharacter().story
-	local before = StoryPlan.steps(Config, 2, "hero", story.choices)
-	check(#before == 2, "the branch waits for its choice")
-	check(StoryPlan.pendingBranch(Config, 2, "hero", 3) == 1, "step 3 is choice 1's branch")
+	-- Framed (mission 3): stage 6 is choice 1's branch
+	local before = StoryPlan.steps(Config, 3, "hero", story.choices)
+	check(#before == StoryPlan.stages(Config, 3) - 1, "the branch waits for its choice")
+	check(StoryPlan.pendingBranch(Config, 3, "hero", 6) == 1, "stage 6 is choice 1's branch")
 	local ok, fx = StoryPlan.pick(Config, story, 1, 1, "hero")
-	check(ok and fx.skillPoints == 2 and fx.rep[1] == "city" and fx.gadget == "Decoy", "Save the Train")
+	check(ok and fx.skillPoints == 2 and fx.rep[1] == "city" and fx.flag == "bridgeSaved", "Save the Bridge")
 	check(not StoryPlan.pick(Config, story, 1, 2, "hero"), "a choice is picked only once")
-	local after = StoryPlan.steps(Config, 2, "hero", story.choices)
-	check(#after == 3 and after[3].train, "the train branch goes in")
+	local after = StoryPlan.stage(Config, 3, 6, "hero", story.choices)
+	check(after ~= nil and after.train, "the train branch goes in")
 	local villain = ProfileSchema.newCharacter("villain").story
 	local _, vfx = StoryPlan.pick(Config, villain, 1, 2, "villain")
-	check(vfx.rep[1] == "syndicate" and vfx.credits == 600, "a villain's own-side rep is the Syndicate")
-	check(StoryPlan.labels(Config, 1, "villain")[2] == "Chase the Rival", "villain button labels")
-	-- Trust Her: the mission 5 gauntlet loses 2 turrets; Test Her: an ambush step in mission 4
+	check(
+		vfx.rep[1] == "syndicate" and vfx.flag == "cashGrabbed",
+		"a villain's own-side rep is the Syndicate"
+	)
+	check(StoryPlan.labels(Config, 1, "villain")[2] == "Grab the Cash", "villain button labels")
+	check(StoryPlan.stage(Config, 3, 6, "villain", villain.choices).at == "van", "the cash van branch")
+	-- The Signal: Test Her puts in an ambush; Trust Her goes straight on
 	local trust = ProfileSchema.newCharacter().story
 	StoryPlan.pick(Config, trust, 2, 1, "hero")
-	local m5 = StoryPlan.steps(Config, 5, "hero", trust.choices)
-	check(m5[2].turrets == 2, "a shortcut through the gauntlet")
-	check(#StoryPlan.steps(Config, 4, "hero", trust.choices) == 3, "trust: no ambush")
+	check(StoryPlan.stage(Config, 5, 4, "hero", trust.choices) == nil, "trust: no ambush")
 	local test2 = ProfileSchema.newCharacter().story
 	StoryPlan.pick(Config, test2, 2, 2, "hero")
-	check(#StoryPlan.steps(Config, 4, "hero", test2.choices) == 4, "test: an ambush")
-	check(StoryPlan.steps(Config, 5, "hero", test2.choices)[2].turrets == 4, "no shortcut")
-	local spare = ProfileSchema.newCharacter().story
-	StoryPlan.pick(Config, spare, 3, 1, "hero")
-	check(StoryPlan.bit(spare.perks, 1), "Spare the Core unlocks Null Echo")
+	check(StoryPlan.stage(Config, 5, 4, "hero", test2.choices).kind == "defeat", "test: an ambush")
+	-- The Copy: a villain who reprograms the twin's core gets the Echo Drone (cosmetic)
+	local minion = ProfileSchema.newCharacter("villain").story
+	StoryPlan.pick(Config, minion, 3, 1, "villain")
+	check(StoryPlan.bit(minion.perks, 1), "Reprogram It unlocks the Echo Drone")
 end)
 
 test("M7: 8 side quest arcs of 3 steps; steps advance to done; the journal pins one step", function()
@@ -4528,11 +4531,17 @@ test("M7: 7 sealed pockets at y 3,000; every layout has its points", function()
 	end
 	check(PocketLayout.at(Config, 0, 50, 0) == nil, "the city is not a pocket")
 	local need = {
-		station = { points = { "spawn", "trainStart" }, lists = { stations = 3, crates = 3, path = 3 } },
-		tower = { points = { "spawn", "top", "mast", "boss" }, lists = {} },
-		rooftops = { points = { "spawn", "contact" }, lists = { path = 8 } },
-		dungeon = { points = { "spawn", "gauntletEnd", "boss" }, lists = { rooms = 3, turrets = 4 } },
-		arena = { points = { "spawn", "boss" }, lists = { pillars = 6 } },
+		bridge = {
+			points = { "spawn", "trainStart", "trainDir", "van", "boss" },
+			lists = { stations = 3, crates = 3, path = 3 },
+		},
+		tower = { points = { "spawn", "top", "mast", "relay", "boss" }, lists = {} },
+		rooftops = { points = { "spawn", "contact", "copy" }, lists = { path = 8 } },
+		dungeon = {
+			points = { "spawn", "gauntletEnd", "door", "boss" },
+			lists = { rooms = 3, turrets = 4, relays = 3 },
+		},
+		arena = { points = { "spawn", "boss" }, lists = { pillars = 6, cams = 3, screens = 3 } },
 	}
 	for n = 2, 6 do
 		local m = S.missions[n]
@@ -4552,13 +4561,13 @@ test("M7: 7 sealed pockets at y 3,000; every layout has its points", function()
 		local sp = l.points.spawn
 		check(PocketLayout.at(Config, sp[1], sp[2], sp[3]) == n, m.layout .. " spawn is inside its pocket")
 	end
-	check(seen.station and seen.tower and seen.rooftops and seen.dungeon and seen.arena, "5 layouts")
+	check(seen.bridge and seen.tower and seen.rooftops and seen.dungeon and seen.arena, "5 layouts")
 	-- robots stand on the pocket's own boxes: the tower top, a roof, the floor, never the dungeon ceiling
 	local tower = PocketLayout.build(Config, 3, "tower")
 	local top = tower.points.top
 	near(PocketLayout.heightAt(tower, top[1], top[3]), top[2] - 1, 1.5, "the tower deck")
 	near(PocketLayout.heightAt(tower, tower.cx + 150, tower.cz + 150), tower.floorY, 0.01, "the pocket floor")
-	local dungeon = PocketLayout.build(Config, 5, "dungeon")
+	local dungeon = PocketLayout.build(Config, 2, "dungeon")
 	local room = dungeon.lists.rooms[2]
 	near(PocketLayout.heightAt(dungeon, room[1], room[3]), dungeon.floorY, 0.01, "not the ceiling")
 	check(
@@ -9224,14 +9233,10 @@ test(
 -- wholesale is excluded below: delete each exclusion when its step lands.
 local OLD_LORE = { "Shardfall", "Null", "League", "Comet" }
 local LORE_SKIP_CONFIG = {
-	["Story.missions"] = true, -- step 5 (the new missions)
-	["Story.choices"] = true, -- step 5
-	["Story.quests"] = true, -- step 5 (the side quests)
+	["Story.quests"] = true, -- step 10 (the side quests)
 }
 local LORE_SKIP_FILES = {
-	["src/shared/StoryPlan.luau"] = true, -- step 5
-	["src/server/Services/MissionService.luau"] = true, -- step 5
-	["src/server/Services/QuestService.luau"] = true, -- step 5
+	["src/server/Services/QuestService.luau"] = true, -- step 10
 }
 
 -- The old-lore word in a piece of text, or nil. Whole words as players read them (Title or CAPS), so ids
@@ -9323,7 +9328,10 @@ test(
 			W.landmarks[1].name == "The Crater" and W.safehouses[6].name == "Gantry Yard",
 			"The Crater, Gantry Yard"
 		)
-		check(Config.Boss.bosses.NullWarFrame.name == "The War-Frame", "the War-Frame")
+		check(
+			Config.Boss.bosses.NullWarFrame.name == "Bulwark's Battle Form",
+			"Bulwark's battle form (lore step 5)"
+		)
 		check(Config.Story.perks.NullEcho.name == "Echo Drone", "the Echo Drone perk")
 	end
 )
@@ -10391,6 +10399,532 @@ test("Lore 3: Lodestar's look, the street outfit, the funnel and the Dev panel",
 	check(string.find(fx, "PLACEHOLDER ART", 1, true) ~= nil, "placeholder art is labelled")
 	check(string.find(fx, 'QualityController.name == "low"', 1, true) ~= nil, "a smaller crowd on phones")
 end)
+
+---------------------------------------------------------------------------
+-- Lore step 5: Act 1 rewritten (nate's lore doc A3/A4): Safehouse, Framed, The Copy, The Signal, Live, co-op
+-- with each side's own goals, the 3 choices per side, the ending broadcast, the old saves mapped by index
+---------------------------------------------------------------------------
+
+do
+	local StoryPlan = require("../src/shared/StoryPlan")
+	local PocketLayout = require("../src/shared/PocketLayout")
+	local S = Config.Story
+	local NAMES = { "The Ceremony", "Safehouse", "Framed", "The Copy", "The Signal", "Live" }
+	local KINDS = {
+		hold = true,
+		["break"] = true,
+		chase = true,
+		reach = true,
+		boss = true,
+		defeat = true,
+		fake = true,
+		twin = true,
+		scene = true,
+		choice = true,
+		warframe = true,
+	}
+
+	-- Every step a side can meet in a mission, with both picks of every choice (each branch at least once)
+	local function allSteps(num: number, side: string): { any }
+		local out = {}
+		for pick = 0, 2 do
+			local choices = { pick, pick, pick }
+			for i = 1, StoryPlan.stages(Config, num) do
+				local st = StoryPlan.stage(Config, num, i, side, choices)
+				if st and not table.find(out, st) then
+					table.insert(out, st)
+				end
+			end
+		end
+		return out
+	end
+
+	-- Can this step be played in the layout? (its points, lists, robots and lines all exist)
+	local function playable(l: any, st: any, side: string, where: string)
+		check(KINDS[st.kind] == true, where .. ": a known step kind (" .. tostring(st.kind) .. ")")
+		check(StoryPlan.need(st) >= 1, where .. ": needs something")
+		if st.kind ~= "scene" and st.kind ~= "choice" then
+			local text = StoryPlan.text(st, side)
+			check(#text > 4, where .. ": objective text")
+		end
+		for _, key in { "at", "focus", "lodestar" } do
+			if type(st[key]) == "string" and st[key] ~= "fake" then
+				check(l.points[st[key]] ~= nil, where .. ": the pocket has " .. st[key])
+			end
+		end
+		if st.list then
+			check(
+				l.lists[st.list] and #l.lists[st.list] >= (st.points or 1),
+				where .. ": the pocket has " .. st.list
+			)
+		end
+		if st.kind == "hold" and not st.at and not st.list then
+			check(#(l.lists.stations or {}) >= st.points, where .. ": stations")
+		end
+		if st.kind == "break" and not st.at and not st.list and not st.train then
+			check(#(l.lists.crates or {}) >= st.points, where .. ": crates")
+		end
+		if st.train then
+			check(l.points.trainStart and l.points.trainDir, where .. ": the train line")
+		end
+		if st.room then
+			check(l.lists.rooms and l.lists.rooms[st.room], where .. ": room " .. st.room)
+		end
+		if st.kind == "chase" then
+			check(#(l.lists.path or {}) >= 3, where .. ": a chase path")
+		end
+		if st.kind == "warframe" then
+			check(#(l.lists.pillars or {}) >= 6 and l.points.boss, where .. ": the arena")
+		end
+		for _, kind in { st.enemy, st.guards and st.guards[1], st.adds and st.adds[1] } do
+			if kind then
+				check(Config.Enemies[kind] ~= nil, where .. ": robot " .. kind)
+			end
+		end
+		for _, row in st.squads or {} do
+			check(Config.Enemies[row[1]] ~= nil, where .. ": squad " .. row[1])
+		end
+		for _, row in st.waves or {} do
+			check(Config.Enemies[row[1]] ~= nil, where .. ": wave " .. row[1])
+		end
+		if st.kind == "fake" then
+			check(Config.Enemies[st.enemy].fake ~= nil, where .. ": " .. st.enemy .. " is a famous fake")
+		end
+		if st.kind == "scene" then
+			local lines = StoryPlan.sceneLines(st, side)
+			check(
+				#lines >= 2 and st.seconds >= 5 and st.seconds <= 20,
+				where .. ": a 5 to 20 s beat with lines"
+			)
+			for _, line in lines do
+				check(S.opening.speakers[line.who] ~= nil, where .. ": speaker " .. line.who)
+				check(line.at < st.seconds, where .. ": each line starts inside the beat")
+			end
+		end
+		if st.kind == "choice" then
+			check(
+				S.choices[st.choice] ~= nil and S.choices[st.choice].mission == l.num,
+				where .. ": its choice"
+			)
+		end
+	end
+
+	test(
+		"Lore 5: Act 1 is the 6 missions of nate's lore doc, in order, at the old levels and rewards",
+		function()
+			check(#S.missions == 6, "6 missions")
+			for n, name in NAMES do
+				check(
+					S.missions[n].name == name and S.missions[n].num == n,
+					"mission " .. n .. " is " .. name
+				)
+			end
+			check(S.missions[1].opening and S.opening.next == 2, "1 is the Ceremony prologue; it leads to 2")
+			-- pacing and rewards by index, exactly the old Act 1's (so totals do not move)
+			local OLD = {
+				{ minLevel = 1, skillPoints = 1 },
+				{ minLevel = 3, minutes = 8, loot = "story" },
+				{ minLevel = 4, minutes = 8, loot = "story", renown = 600 },
+				{ minLevel = 5, minutes = 7, rep = 120 },
+				{ minLevel = 6, minutes = 10, loot = "story" },
+				{ minLevel = 8, minutes = 12, loot = "storyFinale", skillPoints = 1 },
+			}
+			for n, old in OLD do
+				local m = S.missions[n]
+				for _, k in { "minLevel", "minutes", "loot", "renown", "rep", "skillPoints" } do
+					check(m[k] == old[k], m.id .. " keeps the old " .. k)
+				end
+			end
+			check(StoryPlan.actSkillPoints(Config) == 8, "Act 1 still grants 8 Skill Points")
+			check(S.missions[6].finale and S.missions[6].ending == "act1", "Live ends the act")
+		end
+	)
+
+	-- one test per mission and side: playable in its pocket, and in a mixed party both sides play at once
+	for n = 2, 6 do
+		for _, side in { "hero", "villain" } do
+			local m = S.missions[n]
+			local label = if side == "villain" then "the Syndicate" else "the Vigil"
+			test(
+				string.format("Lore 5: %s as %s: every stage plays in its pocket, co-op", m.name, label),
+				function()
+					local l = PocketLayout.build(Config, 1, m.layout)
+					l.num = n
+					check(
+						#m.hero == #m.villain and #m.hero == StoryPlan.stages(Config, n),
+						"both lists, one per stage"
+					)
+					local steps = allSteps(n, side)
+					check(#steps >= 4, "at least 4 steps")
+					for i, st in steps do
+						playable(l, st, side, string.format("%s %s step %d", m.id, side, i))
+					end
+					-- a mixed party: each stage gives both sides something, or one shared step; split stages differ
+					local split, kinds = 0, {}
+					for i = 1, StoryPlan.stages(Config, n) do
+						local plan =
+							StoryPlan.tracks(Config, n, i, { hero = { 1, 1, 1 }, villain = { 2, 2, 2 } })
+						if plan.both then
+							check(
+								plan.hero == nil and plan.villain == nil,
+								"a shared stage is one step for all"
+							)
+							kinds[plan.both.kind] = true
+						else
+							check(
+								plan.hero ~= nil and plan.villain ~= nil,
+								"a split stage has a track per side"
+							)
+							local h, v = plan.hero, plan.villain
+							if h and v and h.kind ~= "choice" then
+								split += 1
+								check(
+									StoryPlan.text(h, "hero") ~= StoryPlan.text(v, "villain"),
+									"each side's own goal"
+								)
+							end
+						end
+						-- a solo player of this side gets only their own track
+						local solo = StoryPlan.tracks(Config, n, i, { [side] = { 1, 1, 1 } })
+						local other = if side == "hero" then "villain" else "hero"
+						check(solo[other] == nil, "no track for a side that is not there")
+					end
+					check(split >= 1, "at least one stage where the sides do different jobs at once")
+					check(kinds.scene == true, "at least one camera beat")
+					-- shared steps word the goal per side
+					for i = 1, StoryPlan.stages(Config, n) do
+						local st = m.hero[i]
+						if StoryPlan.shared(Config, n, i) and st.kind ~= "scene" and st.villainText then
+							check(
+								st.villainText ~= st.text,
+								m.id .. " stage " .. i .. ": the Syndicate reads its own goal"
+							)
+						end
+					end
+				end
+			)
+		end
+	end
+
+	test(
+		"Lore 5: the beats follow the doc (Lodestar and Patch, the bridge, the twin, the tower, the unmask)",
+		function()
+			local function has(n: number, kind: string, field: string?, value: any?): boolean
+				for _, side in { "hero", "villain" } do
+					for _, st in allSteps(n, side) do
+						if st.kind == kind and (not field or st[field] == value) then
+							return true
+						end
+					end
+				end
+				return false
+			end
+			local function speaks(n: number, who: string): boolean
+				for _, st in S.missions[n].hero do
+					for _, l in st.lines or {} do
+						if l.who == who then
+							return true
+						end
+					end
+				end
+				return false
+			end
+			check(
+				S.missions[2].layout == "dungeon" and speaks(2, "lodestar") and speaks(2, "patch"),
+				"Safehouse"
+			)
+			check(has(2, "scene", "lodestar", "door"), "Lodestar stands in the safehouse")
+			local offer = S.missions[2].hero[5]
+			check(
+				offer.kind == "scene" and offer.lines[2].hero ~= offer.lines[2].villain,
+				"recruited, or a deal"
+			)
+			check(S.missions[3].layout == "bridge" and has(3, "fake", "enemy", "Radiant"), "Framed: Radiant")
+			check(has(3, "hold") and has(3, "break"), "Vigil saves people while the Syndicate loots")
+			check(has(4, "twin"), "The Copy: the evil twin")
+			check(
+				S.missions[5].layout == "tower" and speaks(5, "insider"),
+				"The Signal: the tower and the insider"
+			)
+			check(
+				has(5, "hold", "at", "mast") and has(5, "hold", "at", "relay"),
+				"guard Patch / plant the feed"
+			)
+			check(
+				has(6, "fake", "enemy", "Bulwark") and has(6, "warframe"),
+				"Live: Bulwark, then its battle form"
+			)
+			check(
+				has(6, "fake", "news", "unmask") and S.news.unmask ~= nil,
+				"the unmask goes out on every screen"
+			)
+			check(Config.Boss.bosses.NullWarFrame.name == "Bulwark's Battle Form", "the battle form's name")
+		end
+	)
+
+	test(
+		"Lore 5: each side's 3 choices record their flag and pay only Skill Points, rep and cosmetics",
+		function()
+			local ALLOWED = { label = true, flag = true, rep = true, perk = true, arena = true }
+			local flags = {}
+			check(#S.choices == 3, "3 choices")
+			local missions = {}
+			for n, c in S.choices do
+				missions[c.mission] = true
+				for _, side in { "hero", "villain" } do
+					local key = StoryPlan.sideKey(side)
+					check(#c[key] == 2, string.format("choice %d: 2 options for the %s", n, side))
+					for o, opt in c[key] do
+						for k in opt do
+							check(
+								ALLOWED[k] == true,
+								string.format("choice %d %s %d: %s changes no stats", n, side, o, k)
+							)
+						end
+						check(not flags[opt.flag], "flag " .. opt.flag .. " is its own")
+						flags[opt.flag] = true
+						local story = ProfileSchema.newCharacter(side).story
+						local ok, fx = StoryPlan.pick(Config, story, n, o, side)
+						check(
+							ok and fx.flag == opt.flag and fx.skillPoints == 2,
+							opt.label .. ": picked, flag, 2 points"
+						)
+						check(story.choices[n] == o, opt.label .. ": saved in its slot")
+						check(
+							StoryPlan.flag(Config, story, side, opt.flag),
+							opt.label .. ": the flag reads back"
+						)
+						local other = c[key][3 - o]
+						check(
+							not StoryPlan.flag(Config, story, side, other.flag),
+							opt.label .. ": not the other flag"
+						)
+						local track = fx.rep and fx.rep[1]
+						check(
+							track == "city" or track == (if side == "villain" then "syndicate" else "vigil"),
+							"rep track"
+						)
+						check(
+							fx.credits == nil and fx.gadget == nil and fx.renown == nil,
+							"no Credits, gear or Renown"
+						)
+						check(not StoryPlan.pick(Config, story, n, 3 - o, side), opt.label .. ": once only")
+					end
+					check(#StoryPlan.labels(Config, n, side) == 2, "2 buttons")
+				end
+			end
+			check(
+				missions[3] and missions[4] and missions[5],
+				"one choice each in Framed, The Copy and The Signal"
+			)
+			-- the flags each mission's choice step asks for match the doc
+			check(StoryPlan.labels(Config, 1, "hero")[1] == "Save the Bridge", "Framed: save the bridge")
+			check(StoryPlan.labels(Config, 1, "villain")[1] == "Grab the Data Core", "Framed: the data core")
+			check(StoryPlan.labels(Config, 3, "hero")[1] == "Spare the Core", "The Copy: spare the core")
+			check(StoryPlan.labels(Config, 3, "villain")[1] == "Reprogram It", "The Copy: a minion")
+			check(StoryPlan.labels(Config, 2, "hero")[2] == "Test Her", "The Signal: test the insider")
+			check(StoryPlan.labels(Config, 2, "villain")[2] == "Hold It for Ransom", "The Signal: the ransom")
+		end
+	)
+
+	test("Lore 5: the ending broadcast plays after Live (registration law, public enemy number 1)", function()
+		for n = 1, 5 do
+			check(StoryPlan.ending(Config, n) == nil, "no broadcast after mission " .. n)
+		end
+		check(StoryPlan.ending(Config, 6) == "act1", "the broadcast after Live")
+		local e = S.ending.act1
+		check(string.find(e.headline, "REGISTRATION", 1, true) ~= nil, "the registration law passes")
+		check(string.find(e.enemy, "PUBLIC ENEMY", 1, true) ~= nil, "public enemy number 1")
+		check(e.enemyAt < e.seconds and #e.lines >= 2, "Crane's lines, then the card")
+		for _, l in e.lines do
+			check(S.opening.speakers[l.who] ~= nil and l.at < e.enemyAt, "a known speaker before the card")
+		end
+		local svc = readFile("src/server/Services/MissionService.luau")
+		check(string.find(svc, 'Net.fire("StoryBroadcast"', 1, true) ~= nil, "the server sends it")
+		check(
+			string.find(svc, "StoryPlan.ending(Config, run.num)", 1, true) ~= nil,
+			"after the act's ending mission"
+		)
+		check(require("../src/shared/Remotes").StoryBroadcast ~= nil, "its remote")
+		local hud = clientSources()["src/client/Ui/StoryHud.luau"]
+		check(
+			string.find(hud, "StoryClient.Broadcast:Connect(showBroadcast)", 1, true) ~= nil,
+			"the HUD shows it"
+		)
+		check(string.find(hud, 'GetAttribute("HeroName")', 1, true) ~= nil, "under the hero's own name")
+	end)
+
+	test("Lore 5: no old Act 1 names in player text", function()
+		local OLD = {
+			"Shardfall",
+			"War-Frame",
+			"War Frame",
+			"Hold the Line",
+			"Signal Tower",
+			"The Informant",
+			"Under the Docks",
+			"Smash and Grab",
+		}
+		local hits = {}
+		local function look(where: string, text: string)
+			for _, w in OLD do
+				if string.find(string.lower(text), string.lower(w), 1, true) then
+					table.insert(hits, where .. ": " .. w .. " in " .. text)
+				end
+			end
+			if string.find(text, "%f[%w]Null%f[%W]") or string.find(text, "%f[%w]NULL%f[%W]") then
+				table.insert(hits, where .. ": Null in " .. text)
+			end
+		end
+		local function walk(v: any, path: string, seen: { [any]: boolean })
+			if path == "Story.quests" then
+				return -- the side quests (build plan step 10 retires them)
+			end
+			if type(v) == "string" then
+				look(path, v)
+			elseif type(v) == "table" and not seen[v] then
+				seen[v] = true
+				for k, x in v do
+					walk(x, path .. "." .. tostring(k), seen)
+				end
+			end
+		end
+		for name, mod in Config do
+			walk(mod, name, {})
+		end
+		local fs = require("@lune/fs")
+		local function scan(dir: string)
+			for _, name in fs.readDir(dir) do
+				local path = dir .. "/" .. name
+				if fs.isDir(path) then
+					scan(path)
+				elseif
+					string.sub(name, -5) == ".luau"
+					and not string.find(path, "^src/config/")
+					and path ~= "src/server/Services/QuestService.luau"
+				then
+					for line in string.gmatch(fs.readFile(path) .. "\n", "([^\n]*)\n") do
+						line = string.gsub(line, '"[^"]*"', function(lit)
+							look(path, lit)
+							return '""'
+						end)
+					end
+				end
+			end
+		end
+		scan("src")
+		for _, h in hits do
+			check(false, "old Act 1 name: " .. h)
+		end
+		check(#hits == 0, "the new Act 1 only")
+	end)
+
+	test(
+		"Lore 5: an old save mid-Act 1 lands on the new mission at the same index and keeps its rewards",
+		function()
+			local StoryPlan2 = StoryPlan
+			-- a hero who cleared the old opening, Hold the Line and Signal Tower and picked twice (train, trust)
+			local old = ProfileSchema.default()
+			old.version = ProfileSchema.VERSION - 1
+			local c = old.characters[1]
+			c.created, c.level, c.bonusPoints = 1, 6, 5
+			c.story.opening = 1
+			c.story.missions = 7 -- 1, 2 and 3
+			c.story.choices = { 1, 1, 0 }
+			c.story.perks = 1 -- the old Echo Drone (spared the old core in a replay save)
+			c.rep = { 250, 0, 120 }
+			local back = ProfileSchema.load(serde.decode("json", serde.encode("json", old)))
+			local st = back.characters[1].story
+			check(
+				st.missions == 7 and st.choices[1] == 1 and st.choices[2] == 1,
+				"the bits and picks are kept"
+			)
+			check(StoryPlan2.nextMission(Config, st) == 4, "next up: mission 4, now The Copy")
+			check(StoryPlan2.state(Config, st, 6, 4) == "open", "open at the same level")
+			check(
+				StoryPlan2.state(Config, st, 6, 3) == "done",
+				"Framed counts as cleared (no second first-clear)"
+			)
+			check(not StoryPlan2.clear(st, 3), "a cleared index never pays its first clear again")
+			check(back.characters[1].bonusPoints == 5, "Skill Points already earned stay")
+			check(back.characters[1].rep[1] == 250 and back.characters[1].rep[3] == 120, "reputation stays")
+			check(StoryPlan2.bit(st.perks, 1), "the Echo Drone stays")
+			-- the old picks keep their meaning in the new slots: 1 the first mission choice, 2 the trust test
+			check(
+				StoryPlan2.flag(Config, st, "hero", "bridgeSaved"),
+				"Save the Train reads as Save the Bridge"
+			)
+			check(StoryPlan2.flag(Config, st, "hero", "insiderTrusted"), "Trust Her stays Trust Her")
+			-- the choice already made is not asked (or paid) again in its new mission
+			check(not StoryPlan2.pick(Config, st, 1, 2, "hero"), "no second pick, no second Skill Points")
+			check(
+				st.choices[3] == 0 and StoryPlan2.pick(Config, st, 3, 1, "hero"),
+				"the new Copy choice is open"
+			)
+			-- a hero who finished the old Act 1 has finished the new one
+			local done = ProfileSchema.newCharacter().story
+			done.missions = 63
+			check(StoryPlan2.nextMission(Config, done) == nil, "all 6 cleared")
+			check(StoryPlan2.canEnter(Config, done, 8, 6), "and Live can be replayed")
+		end
+	)
+
+	test(
+		"Lore 5: the Journal, markers, phone controls, safety, analytics and the Dev panel carry over",
+		function()
+			local svc = readFile("src/server/Services/MissionService.luau")
+			check(
+				string.find(svc, "run.m.minutes * 60 * 2 + 300", 1, true) ~= nil,
+				"an abandoned run ends itself"
+			)
+			check(string.find(svc, '"mission_start"', 1, true) ~= nil, "mission_start is logged on entry")
+			check(
+				string.find(svc, '{ run.m.id, #run.members, run.sides[player] or "hero" }', 1, true) ~= nil,
+				"mission events carry the new mission id and the side"
+			)
+			check(
+				string.find(svc, 'Analytics.step(player, "Story", "act_done")', 1, true) ~= nil,
+				"the funnel's end"
+			)
+			local AS = require("../src/shared/AnalyticsSchema")
+			check(
+				#AS.FUNNELS.Story == 4 and AS.FUNNELS.Story[4] == "act_done",
+				"the Story funnel keeps its shape"
+			)
+			check(
+				AS.EVENTS.mission_done[3] == "side" and AS.EVENTS.choice_pick[3] == "side",
+				"events by side"
+			)
+			check(
+				string.find(svc, "out.target = stepTarget(run, track, player)", 1, true) ~= nil,
+				"each side's marker"
+			)
+			local hud = clientSources()["src/client/Ui/StoryHud.luau"]
+			check(
+				string.find(hud, "Hud.setFocus(if sceneFocus then {} else nil)", 1, true) ~= nil,
+				"buttons step aside"
+			)
+			check(string.find(hud, "sceneText(scene", 1, true) ~= nil, "the beat's subtitles")
+			local fx = clientSources()["src/client/Fx/StoryFx.luau"]
+			check(string.find(fx, "Reduce flashing", 1, true) ~= nil, "no flashes in a camera beat")
+			check(string.find(fx, "PLACEHOLDER ART", 1, true) ~= nil, "placeholder art is labelled")
+			local journal = clientSources()["src/client/Ui/Journal.luau"]
+			check(string.find(journal, "(PROLOGUE)", 1, true) ~= nil, "the Journal marks mission 1")
+			local dev = clientSources()["src/client/Ui/DevPanel.luau"]
+			check(
+				string.find(dev, '"missionas"', 1, true) ~= nil
+					and string.find(dev, '"missionstep"', 1, true) ~= nil,
+				"Dev: each mission as each side, and each stage"
+			)
+			local ds = readFile("src/server/Services/DevService.luau")
+			check(
+				string.find(ds, "missionas = function", 1, true) ~= nil
+					and string.find(ds, "MissionService.jumpStage", 1, true) ~= nil,
+				"DevService"
+			)
+		end
+	)
+end
 
 print(string.format("\n%d passed, %d failed", passed, failed))
 if failed > 0 then

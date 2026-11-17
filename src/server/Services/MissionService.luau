@@ -1,19 +1,27 @@
--- MissionService: Act 1 missions 2 to 6 in the sealed pockets at y 3,000 (spec: Act 1: Shardfall; Map
--- layout > Mission pockets; Mission.Enter / Mission.Leave / Mission.State 2 Hz; Boss: Null War-Frame).
+-- MissionService: Act 1 missions 2 to 6 in the sealed pockets at y 3,000 (spec: Act 1; Map layout > Mission
+-- pockets; Mission.Enter / Mission.Leave / Mission.State 2 Hz; nate's lore, build plan step 5).
 -- * Mission.Enter from the Journal (anywhere out of combat): a free pocket is built from PocketLayout, the
 --   hero fades in at its spawn and comes back to where they left when it ends. M10: squadmates near the
---   leader come too (party of 4 or less, MissionService.partyOf); the leader's story picks the steps and
---   the choices, every member is paid, and first-clear rewards go to members on that mission in their own
---   story. The party's median level sets the robots and the War-Frame. A member can leave on their own;
---   the leader leaving ends the run for everyone.
--- * One script for both routes: StoryPlan.steps gives the side's steps with the chosen branch in place.
---   Step kinds: hold (stand in rings while waves come), break (crates or the runaway train, a set number
---   of hits), chase (a Sneak Bot hops a path), reach (a point, past turrets), boss (a Null Sentinel with
---   adds), defeat (a squad in a room), choice (the Act 1 choice; replays keep the first pick) and
---   warframe (the BossSim War-Frame with the pillars as cover; a wipe respawns the hero at the pocket
---   spawn and the boss keeps its HP, so the reward is guaranteed on a retry).
+--   leader come too (party of 4 or less, MissionService.partyOf), from either side: every mission is co-op.
+--   Every member is paid, and first-clear rewards go to members on that mission in their own story. The
+--   party's median level sets the robots and the battle form. A member can leave on their own; the leader
+--   leaving ends the run for everyone.
+-- * Stages (StoryPlan.stage): a shared stage is one step for the whole party (a camera beat, a fake, a boss);
+--   any other stage runs one track per side present at the same time in the same pocket, each with its own
+--   goal and objective text (the Vigil saves people while the Syndicate loots the trucks). The party moves on
+--   when every track is done; a side that finished first reads Config.Story.wait. Each side's first member
+--   (the leader on the leader's side) answers that side's choice, and branches read their picks.
+-- * Step kinds: hold (stand in rings while waves come), break (crates, relays, screens, the cash van or the
+--   runaway train: a set number of hits), chase (a robot or a cracked fake hops a path), reach (a point, past
+--   turrets), boss (a big robot with adds), defeat (a squad), fake (a famous fake until its face cracks; it
+--   stays, cracked and still, through the next camera beat), twin (an evil twin of every member,
+--   EnemyService.spawnTwin), scene (a short camera beat: letterbox, fixed subtitled lines, a camera on its
+--   focus; it ends on time), choice (the Act 1 choice; replays keep the first pick) and warframe (Bulwark's
+--   battle form: the BossSim fight with the pillars as cover; a wipe respawns the hero at the pocket spawn
+--   and the boss keeps its HP, so the reward is guaranteed on a retry).
 -- * Rewards: every clear pays the Economy "mission" row; the first clear adds the mission's loot, Renown,
---   Skill Point, own-side reputation and the Test Her Epic crate chance.
+--   Skill Point and own-side reputation. After Live, the ending broadcast plays back in the city.
+-- * Safety: a run older than twice its minutes plus 5 minutes ends itself and frees its pocket.
 -- * Pockets have no PvP and no world scheduler: heroes in a mission are in a scene (no incidents, events
 --   or world boss packets) and robots stand on the pocket's own boxes (EnemyService.setPocketHeight).
 -- PLACEHOLDER ART: pockets are greybox parts (PocketLayout).
@@ -34,6 +42,7 @@ local PocketLayout = require(Shared:WaitForChild("PocketLayout"))
 local BossSim = require(Shared:WaitForChild("BossSim"))
 local BossMath = require(Shared:WaitForChild("BossMath"))
 local SquadRules = require(Shared:WaitForChild("SquadRules"))
+local FakeRules = require(Shared:WaitForChild("FakeRules"))
 
 local CityBuilder = require(script.Parent.CityBuilder)
 local DataService = require(script.Parent.DataService)
@@ -55,41 +64,53 @@ local P = S.pockets
 local TAG = -8000 -- pocket robots (never an incident's)
 local FADE = 0.6 -- the client's fade before the hero is moved
 local RESULT_HOLD = 6 -- seconds on the result card before the trip back
+local BROADCAST_DELAY = 1.6 -- seconds back in the city before the ending broadcast
 local rng = Rng.new(Rng.hash(os.time(), 61))
 
-type Run = {
-	num: number,
-	m: any,
-	player: Player, -- the leader (story, choices)
-	hero: any,
-	members: { Player }, -- the leader first
-	heroes: { [Player]: any },
-	entries: { [Player]: CFrame }, -- where each member comes back to
-	side: string,
-	pocket: number,
-	layout: PocketLayout.Layout,
-	model: Model,
-	steps: { any },
-	idx: number,
+type Track = {
+	key: string, -- "hero", "villain", or "both" (a shared stage)
+	lead: Player, -- who answers this track's choice
+	st: any?, -- the step (nil: nothing to do in this stage)
 	have: number,
 	need: number,
-	level: number,
-	entry: CFrame,
-	startedAt: number,
 	stepAt: number,
 	things: { any },
 	enemies: { [number]: boolean },
-	held: { number },
 	points: { { number } },
-	waveAt: number,
+	held: { number },
 	wave: number,
+	waveAt: number,
 	bossId: number?,
+	fakeId: number?,
+	twinOf: { [Player]: number },
 	chase: { id: number, path: { { number } }, at: number, leg: number, speed: number }?,
 	train: { h: any, from: Vector3, dir: Vector3, length: number, t: number }?,
 	wf: { sim: any, targets: { [string]: number }, over: boolean }?,
 	asked: boolean,
 	done: boolean,
 	endAt: number,
+}
+
+type Run = {
+	num: number,
+	m: any,
+	player: Player, -- the leader
+	hero: any,
+	members: { Player }, -- the leader first
+	heroes: { [Player]: any },
+	entries: { [Player]: CFrame }, -- where each member comes back to
+	sides: { [Player]: string },
+	pocket: number,
+	layout: PocketLayout.Layout,
+	model: Model,
+	stage: number,
+	stages: number,
+	tracks: { [string]: Track },
+	kept: { [number]: boolean }, -- a cracked fake held still through the next camera beat
+	level: number,
+	entry: CFrame,
+	startedAt: number,
+	done: boolean,
 }
 
 local busy: { [number]: Run } = {} -- pocket index -> its run
@@ -108,10 +129,6 @@ end
 
 local function v3(t: { number }, up: number?): Vector3
 	return Vector3.new(t[1], t[2] + (up or 0), t[3])
-end
-
-local function side(run: Run): string
-	return run.side
 end
 
 ---------------------------------------------------------------------------
@@ -160,57 +177,41 @@ end
 
 local function spawn(
 	run: Run,
+	track: Track,
 	kind: string,
 	pos: Vector3,
-	opts: { hpMult: number?, scripted: boolean? }?
+	opts: { hpMult: number?, dmg: number?, scripted: boolean? }?
 ): number?
 	local id = EnemyService.spawnAt(kind, pos, run.level, TAG - run.pocket, opts and opts.scripted)
 	if id then
-		run.enemies[id] = true
-		if opts and opts.hpMult then
-			EnemyService.tune(id, { hpMult = opts.hpMult })
+		track.enemies[id] = true
+		if opts and (opts.hpMult or opts.dmg) then
+			EnemyService.tune(id, { hpMult = opts.hpMult, dmgMult = opts.dmg })
 		end
 	end
 	return id
 end
 
-local function squad(run: Run, kind: string, n: number, at: Vector3, ring: number?)
+local function squad(run: Run, track: Track, kind: string, n: number, at: Vector3, ring: number?)
 	for i = 1, n do
 		local a = i / n * math.pi * 2 + rng:range(0, 0.5)
 		local r = (ring or 18) + (i % 3) * 4
 		local cfg = Config.Enemies[kind]
 		local up = if cfg and cfg.flies then 14 else 0
-		spawn(run, kind, at + Vector3.new(math.cos(a) * r, up, math.sin(a) * r))
+		spawn(run, track, kind, at + Vector3.new(math.cos(a) * r, up, math.sin(a) * r))
 	end
 end
 
-local function clearEnemies(run: Run)
-	for id in run.enemies do
+local function dropKept(run: Run)
+	for id in run.kept do
 		EnemyService.remove(id)
 	end
-	table.clear(run.enemies)
-	run.bossId = nil
-	run.chase = nil
+	table.clear(run.kept)
 end
 
 ---------------------------------------------------------------------------
--- Steps
+-- Tracks
 ---------------------------------------------------------------------------
-
-local function step(run: Run): any?
-	return run.steps[run.idx]
-end
-
-local function heroesHere(run: Run): { any }
-	local out = {}
-	for _, p in run.members do
-		local h = run.heroes[p]
-		if h then
-			table.insert(out, h)
-		end
-	end
-	return out
-end
 
 local function fireAll(run: Run, name: string, data: any)
 	for _, p in run.members do
@@ -223,55 +224,98 @@ end
 -- M10 squads set this: (leader) -> squadmates who may come along (near, free, out of combat)
 MissionService.partyOf = nil :: ((Player) -> { Player })?
 
-local function cleanStep(run: Run)
-	SiteKit.clear(run.things)
-	if run.train then
-		run.train = nil
+-- The members a track is for (every member on a shared stage)
+local function membersOf(run: Run, key: string): { Player }
+	local out = {}
+	for _, p in run.members do
+		if key == "both" or run.sides[p] == key then
+			table.insert(out, p)
+		end
 	end
-	if run.wf then
-		BossService.unlinkTargets(run.wf.targets)
-		run.wf = nil
+	return out
+end
+
+local function heroesOf(run: Run, key: string): { any }
+	local out = {}
+	for _, p in membersOf(run, key) do
+		local h = run.heroes[p]
+		if h then
+			table.insert(out, h)
+		end
 	end
-	clearEnemies(run)
-	StoryService.cancelAsk(run.player)
+	return out
+end
+
+-- Who answers a side's choice: the leader on the leader's side, else that side's first member
+local function leadFor(run: Run, key: string): Player?
+	if key == "both" or run.sides[run.player] == key then
+		return run.player
+	end
+	return membersOf(run, key)[1]
+end
+
+local function newTrack(key: string, lead: Player, st: any?): Track
+	return {
+		key = key,
+		lead = lead,
+		st = st,
+		have = 0,
+		need = if st then StoryPlan.need(st) else 1,
+		stepAt = os.clock(),
+		things = {},
+		enemies = {},
+		points = {},
+		held = {},
+		wave = 0,
+		waveAt = 0,
+		bossId = nil,
+		fakeId = nil,
+		twinOf = {},
+		chase = nil,
+		train = nil,
+		wf = nil,
+		asked = false,
+		done = st == nil,
+		endAt = 0,
+	}
+end
+
+-- A finished (or abandoned) track's things go; a cracked fake stays, held still, for the next camera beat
+local function cleanTrack(run: Run, track: Track, keepFake: boolean?)
+	SiteKit.clear(track.things)
+	track.train = nil
+	if track.wf then
+		BossService.unlinkTargets(track.wf.targets)
+		track.wf = nil
+	end
+	local fake = track.fakeId
+	if keepFake and fake and EnemyService.alive(fake) then
+		local e = EnemyService.get(fake)
+		e.scripted = true -- the cracked fake stands and stares
+		e.dmgMult = 0
+		run.kept[fake] = true
+		track.enemies[fake] = nil
+	end
+	for id in track.enemies do
+		EnemyService.remove(id)
+	end
+	table.clear(track.enemies)
+	track.bossId, track.fakeId, track.chase = nil, nil, nil
+	if track.st and track.st.kind == "choice" then
+		StoryService.cancelAsk(track.lead)
+	end
+end
+
+local function cleanStage(run: Run)
+	for _, t in run.tracks do
+		cleanTrack(run, t)
+	end
 end
 
 local finishRun: (Run, boolean) -> ()
-local startStep: (Run) -> ()
+local startStage: (Run) -> ()
 
-local function advance(run: Run)
-	cleanStep(run)
-	run.idx += 1
-	if run.idx > #run.steps then
-		finishRun(run, true)
-		return
-	end
-	startStep(run)
-end
-
-local function stepTarget(run: Run): { number }?
-	local st = step(run)
-	if not st then
-		return nil
-	end
-	local l = run.layout
-	if st.kind == "reach" then
-		return l.points[st.at]
-	elseif st.kind == "boss" or st.kind == "warframe" then
-		return l.points.boss
-	elseif st.kind == "chase" and run.chase then
-		local e = EnemyService.get(run.chase.id)
-		return e and { e.x, e.y, e.z }
-	elseif st.kind == "defeat" and st.room then
-		return l.lists.rooms[st.room]
-	elseif st.kind == "break" and run.train then
-		local p = run.train.h.pos
-		return { p.X, p.Y, p.Z }
-	end
-	return nil
-end
-
-local function warframeArena(run: Run)
+local function warframeArena(run: Run, track: Track)
 	local l = run.layout
 	local b = l.points.boss
 	local level = run.level
@@ -281,35 +325,28 @@ local function warframeArena(run: Run)
 	for _, p in l.lists.pillars do
 		table.insert(sim.cover, { p[1], p[3], S.warframe.pillarRadius })
 	end
-	run.wf = { sim = sim, targets = {}, over = false }
+	track.wf = { sim = sim, targets = {}, over = false }
 	fireAll(run, "BossAttack", { k = "land", num = sim.cfg.num, x = b[1], y = b[2], z = b[3] })
 end
 
-function startStep(run: Run)
-	local st = step(run)
+local function startStep(run: Run, track: Track)
+	local st = track.st
 	if not st then
 		return
 	end
 	local l = run.layout
 	local k = st.kind
-	run.have = 0
-	run.need = StoryPlan.need(st)
-	run.stepAt = os.clock()
-	run.asked = false
-	run.points = {}
-	run.held = {}
 	if k == "hold" then
-		local list = if st.at then { l.points[st.at] } else l.lists.stations
+		local list = if st.at then { l.points[st.at] } else l.lists[st.list or "stations"]
 		for i = 1, st.points or 1 do
-			local p = list[i]
+			local p = list and list[i]
 			if p then
-				table.insert(run.points, p)
-				table.insert(run.held, 0)
-				table.insert(run.things, SiteKit.ring(v3(p), st.radius))
+				table.insert(track.points, p)
+				table.insert(track.held, 0)
+				table.insert(track.things, SiteKit.ring(v3(p), st.radius))
 			end
 		end
-		run.wave = 0
-		run.waveAt = os.clock() + 2
+		track.waveAt = os.clock() + 2
 	elseif k == "break" then
 		if st.train then
 			local from = v3(l.points.trainStart, 4)
@@ -336,14 +373,14 @@ function startStep(run: Run)
 				end,
 				nil,
 				function()
-					if runs[run.player] == run then
-						run.have = 1
+					if not track.done then
+						track.have = 1
 					end
 				end
 			)
 			h.perHit = true
-			table.insert(run.things, h)
-			run.train = {
+			table.insert(track.things, h)
+			track.train = {
 				h = h,
 				from = from,
 				dir = Vector3.new(d[1], 0, d[2]).Unit,
@@ -351,11 +388,12 @@ function startStep(run: Run)
 				t = 0,
 			}
 		else
-			for i = 1, st.points do
-				local p = l.lists.crates[i]
+			local list = if st.at then { l.points[st.at] } else l.lists[st.list or "crates"]
+			for i = 1, st.points or 1 do
+				local p = list and list[i]
 				if p then
 					local h = SiteKit.object(
-						"ShardCrate",
+						"StoryCrate",
 						v3(p),
 						2,
 						5,
@@ -377,103 +415,165 @@ function startStep(run: Run)
 						end,
 						nil,
 						function()
-							if runs[run.player] == run then
-								run.have += 1
+							if not track.done then
+								track.have += 1
 							end
 						end
 					)
 					h.perHit = true
 					SiteKit.moveObject(h, v3(p))
-					table.insert(run.things, h)
+					table.insert(track.things, h)
 					if st.guards then
-						squad(run, st.guards[1], st.guards[2], v3(p), 14)
+						squad(run, track, st.guards[1], st.guards[2], v3(p), 14)
 					end
 				end
 			end
 		end
 	elseif k == "chase" then
 		local path = l.lists.path
-		local id = spawn(run, st.enemy, v3(path[1], 2), { scripted = true })
+		local id = spawn(run, track, st.enemy, v3(path[1], 2), { scripted = true, hpMult = st.hpMult or 0.3 })
 		if id then
-			run.chase = { id = id, path = path, at = 0, leg = 1, speed = st.speed }
+			track.chase = { id = id, path = path, at = 0, leg = 1, speed = st.speed }
+			if st.fake then
+				EnemyService.get(id).unmasked = true -- the fake already cracked: it flees showing metal
+			end
 		end
 	elseif k == "reach" then
 		for i = 1, st.turrets or 0 do
-			local p = l.lists.turrets[i]
+			local p = l.lists.turrets and l.lists.turrets[i]
 			if p then
-				spawn(run, "Turret", v3(p))
+				spawn(run, track, "Turret", v3(p))
 			end
 		end
 	elseif k == "boss" then
-		local at = if st.room then v3(l.lists.rooms[st.room]) else v3(l.points.boss)
-		if st.room and l.points.boss then
-			at = v3(l.points.boss)
-		end
-		run.bossId = spawn(run, st.enemy, at, { hpMult = st.hpMult })
+		local at = v3(l.points.boss)
+		track.bossId = spawn(run, track, st.enemy, at, { hpMult = st.hpMult })
 		if st.adds then
-			squad(run, st.adds[1], st.adds[2], at, 22)
+			squad(run, track, st.adds[1], st.adds[2], at, 22)
+		end
+	elseif k == "fake" then
+		track.fakeId = spawn(
+			run,
+			track,
+			st.enemy,
+			v3(l.points[st.at or "boss"], 2),
+			{ hpMult = st.hpMult, dmg = st.dmg }
+		)
+		if not track.fakeId then
+			track.have = 1 -- the fake is switched off: the story moves on
+		end
+	elseif k == "twin" then
+		local at = v3(l.points[st.at or "boss"], 2)
+		local n = 0
+		for i, p in membersOf(run, track.key) do
+			local a = i * 2.1
+			local id = EnemyService.spawnTwin(
+				p,
+				at + Vector3.new(math.cos(a) * 8, 0, math.sin(a) * 8),
+				run.level,
+				TAG - run.pocket
+			)
+			if id then
+				track.enemies[id] = true
+				track.twinOf[p] = id
+				n += 1
+			end
+		end
+		track.need = math.max(1, n)
+		if n == 0 then
+			track.have = 1 -- the twin is switched off: the story moves on
 		end
 	elseif k == "defeat" then
-		local at = if st.room then v3(l.lists.rooms[st.room]) else v3(l.points.spawn)
+		local at = if st.room
+			then v3(l.lists.rooms[st.room])
+			elseif st.at then v3(l.points[st.at])
+			else v3(l.points.spawn)
 		for _, row in st.squads do
-			squad(run, row[1], row[2], at, 20)
+			squad(run, track, row[1], row[2], at, 20)
 		end
 	elseif k == "warframe" then
-		warframeArena(run)
+		warframeArena(run, track)
 	end
-	-- "choice" waits in tick(): the prompt goes up once the step starts
+	-- "choice" waits in tickTrack(): the prompt goes up once the step starts; "scene" runs on the clock
 end
 
--- The mission's steps again after a choice (the branch goes in at the next index)
-local function reresolve(run: Run)
-	local story = StoryService.story(run.player)
-	if story then
-		run.steps = StoryPlan.steps(Config, run.num, side(run), story.choices)
-	end
-end
-
-local function tickChoice(run: Run, st: any)
-	if run.asked then
+-- The next stage: one shared track, or one per side present with that side's step
+startStage = function(run: Run)
+	cleanStage(run)
+	run.tracks = {}
+	if run.stage > run.stages then
+		finishRun(run, true)
 		return
 	end
-	run.asked = true
-	local story = StoryService.story(run.player)
+	local present = {}
+	local leads = {}
+	for _, key in { "hero", "villain" } do
+		local lead = leadFor(run, key)
+		if lead then
+			local story = StoryService.story(lead)
+			present[key] = if story then story.choices else {}
+			leads[key] = lead
+		end
+	end
+	local plan = StoryPlan.tracks(Config, run.num, run.stage, present)
+	if not (plan.both and plan.both.kind == "scene") then
+		dropKept(run) -- a cracked fake stays only through the camera beat right after it
+	end
+	for key, st in plan do
+		run.tracks[key] = newTrack(key, leads[key] or run.player, st or nil)
+	end
+	for _, t in run.tracks do
+		startStep(run, t)
+	end
+end
+
+local function tickChoice(run: Run, track: Track, st: any)
+	if not table.find(run.members, track.lead) then
+		-- the side's chooser left: the next member of that side answers
+		local lead = leadFor(run, track.key)
+		if not lead then
+			track.done = true
+			return
+		end
+		track.lead, track.asked = lead, false
+	end
+	if track.asked then
+		return
+	end
+	track.asked = true
+	local lead = track.lead
+	local story = StoryService.story(lead)
 	if not story then
+		track.have = 1
 		return
 	end
 	if story.choices[st.choice] ~= 0 then
 		-- a replay keeps the first pick
-		Net.fire(
-			"Toast",
-			run.player,
-			{ id = "choiceKept", choice = st.choice, option = story.choices[st.choice] }
-		)
+		Net.fire("Toast", lead, { id = "choiceKept", choice = st.choice, option = story.choices[st.choice] })
 		task.delay(1.5, function()
-			if runs[run.player] == run and step(run) == st then
-				reresolve(run)
-				advance(run)
+			if track.st == st and not track.done then
+				track.have = 1
 			end
 		end)
 		return
 	end
-	StoryService.ask(run.player, st.choice, StoryPlan.labels(Config, st.choice, side(run)), function(option)
-		if runs[run.player] ~= run or step(run) ~= st then
+	StoryService.ask(lead, st.choice, StoryPlan.labels(Config, st.choice, track.key), function(option)
+		if runs[lead] ~= run or track.st ~= st or track.done then
 			return
 		end
-		StoryService.choose(run.player, st.choice, option)
-		reresolve(run)
-		advance(run)
+		StoryService.choose(lead, st.choice, option)
+		track.have = 1
 	end)
 end
 
-local function tickWarframe(run: Run, now: number)
-	local wf = run.wf
+local function tickWarframe(run: Run, track: Track, now: number)
+	local wf = track.wf
 	if not wf or wf.over then
 		return
 	end
 	local sim = wf.sim
 	local heroes = {}
-	for _, h in heroesHere(run) do
+	for _, h in heroesOf(run, "both") do
 		local p = HeroService.position(h)
 		if p then
 			table.insert(heroes, { id = h.id, x = p.X, y = p.Y, z = p.Z, alive = h.alive })
@@ -490,10 +590,10 @@ local function tickWarframe(run: Run, now: number)
 				end
 			end
 		elseif ev.k == "summon" then
-			squad(run, ev.kind, ev.n, Vector3.new(sim.x, sim.y + 4, sim.z), 40)
+			squad(run, track, ev.kind, ev.n, Vector3.new(sim.x, sim.y + 4, sim.z), 40)
 		elseif ev.k == "dead" then
 			wf.over = true
-			run.have = 1
+			track.have = 1
 		end
 		local out = table.clone(ev)
 		out.hits = nil
@@ -502,32 +602,32 @@ local function tickWarframe(run: Run, now: number)
 	end
 end
 
-local function holdStep(run: Run, st: any, dt: number, now: number)
+local function holdStep(run: Run, track: Track, st: any, dt: number, now: number)
 	local have = 0
-	for i, p in run.points do
-		if run.held[i] < st.seconds and #SiteKit.heroesIn(v3(p), st.radius) > 0 then
-			run.held[i] = math.min(st.seconds, run.held[i] + dt)
+	for i, p in track.points do
+		if track.held[i] < st.seconds and #SiteKit.heroesIn(v3(p), st.radius) > 0 then
+			track.held[i] = math.min(st.seconds, track.held[i] + dt)
 		end
-		have += run.held[i]
+		have += track.held[i]
 	end
-	run.have = have
-	local waves = run.m.waves
-	if waves and now >= run.waveAt then
-		run.wave += 1
-		local w = waves[(run.wave - 1) % #waves + 1]
-		local p = run.points[(run.wave - 1) % math.max(1, #run.points) + 1] or run.layout.points.spawn
-		squad(run, w[1], w[2], v3(p), 26)
-		run.waveAt = now + (run.m.waveGap or 14)
+	track.have = have
+	local waves = st.waves
+	if waves and now >= track.waveAt then
+		track.wave += 1
+		local w = waves[(track.wave - 1) % #waves + 1]
+		local p = track.points[(track.wave - 1) % math.max(1, #track.points) + 1] or run.layout.points.spawn
+		squad(run, track, w[1], w[2], v3(p), 26)
+		track.waveAt = now + (st.waveGap or 14)
 	end
 end
 
-local function chaseStep(run: Run, dt: number)
-	local c = run.chase
+local function chaseStep(track: Track, dt: number)
+	local c = track.chase
 	if not c then
 		return
 	end
 	if not EnemyService.alive(c.id) then
-		run.have = 1
+		track.have = 1
 		return
 	end
 	-- hop along the path; at the end it doubles back to the start
@@ -543,8 +643,8 @@ local function chaseStep(run: Run, dt: number)
 	EnemyService.place(c.id, pos)
 end
 
-local function trainStep(run: Run, dt: number)
-	local t = run.train
+local function trainStep(track: Track, dt: number)
+	local t = track.train
 	if not t or t.h.hp <= 0 then
 		return
 	end
@@ -552,24 +652,37 @@ local function trainStep(run: Run, dt: number)
 	SiteKit.moveObject(t.h, t.from + t.dir * t.t, math.atan2(-t.dir.X, -t.dir.Z))
 end
 
-local function tick(run: Run, dt: number, now: number)
-	if run.done then
-		return
+local function fakeStep(track: Track, st: any)
+	local e = track.fakeId and EnemyService.get(track.fakeId)
+	local cracked = not e or not e.alive or FakeRules.cracked(Config, e.health / math.max(1, e.maxHealth))
+	if cracked and track.have < 1 then
+		track.have = 1
+		if st.news then
+			local def = Config.Enemies[st.enemy]
+			Net.fireAll("Toast", { id = "news", key = st.news, name = def and def.name or st.enemy })
+		end
 	end
-	local st = step(run)
-	if not st then
+end
+
+local function tickTrack(run: Run, track: Track, dt: number, now: number)
+	local st = track.st
+	if track.done or not st then
 		return
 	end
 	local k = st.kind
 	if k == "hold" then
-		holdStep(run, st, dt, now)
+		holdStep(run, track, st, dt, now)
 	elseif k == "break" then
-		trainStep(run, dt)
+		trainStep(track, dt)
 	elseif k == "chase" then
-		chaseStep(run, dt)
+		chaseStep(track, dt)
+	elseif k == "fake" then
+		fakeStep(track, st)
+	elseif k == "scene" then
+		track.have = now - track.stepAt
 	elseif k == "reach" then
 		local t = run.layout.points[st.at]
-		for _, h in heroesHere(run) do
+		for _, h in heroesOf(run, track.key) do
 			local p = HeroService.position(h)
 			if
 				p
@@ -577,58 +690,159 @@ local function tick(run: Run, dt: number, now: number)
 				and (Vector3.new(t[1], 0, t[3]) - Vector3.new(p.X, 0, p.Z)).Magnitude <= S.opening.reach
 				and p.Y >= t[2] - 4
 			then
-				run.have = 1
+				track.have = 1
 			end
 		end
 	elseif k == "choice" then
-		tickChoice(run, st)
-		return
+		tickChoice(run, track, st)
 	elseif k == "warframe" then
-		tickWarframe(run, now)
+		tickWarframe(run, track, now)
 	end
-	if run.have >= run.need then
+	if track.have >= track.need then
 		if k == "warframe" then
-			-- the frame powers down and topples before the result
-			if run.endAt == 0 then
-				run.endAt = now + 3
-			elseif now >= run.endAt then
-				run.endAt = 0
-				advance(run)
+			-- the battle form powers down and topples before the result
+			if track.endAt == 0 then
+				track.endAt = now + 3
+				return
+			elseif now < track.endAt then
+				return
 			end
-		else
-			advance(run)
 		end
+		track.done = true
+		cleanTrack(run, track, k == "fake")
 	end
-	if now - run.startedAt > run.m.minutes * 60 * 2 + 300 then
+end
+
+local function tick(run: Run, dt: number, now: number)
+	if run.done then
+		return
+	end
+	local all = true
+	for _, t in run.tracks do
+		tickTrack(run, t, dt, now)
+		all = all and t.done
+	end
+	if run.done then
+		return
+	end
+	if all then
+		run.stage += 1
+		startStage(run)
+	end
+	if not run.done and now - run.startedAt > run.m.minutes * 60 * 2 + 300 then
 		finishRun(run, false) -- an abandoned run frees its pocket
 	end
 end
 
 ---------------------------------------------------------------------------
--- Entering, the result and the trip back
+-- What each member sees
 ---------------------------------------------------------------------------
 
-local function statePacket(run: Run): { [string]: any }
-	local st = step(run)
-	local story = StoryService.story(run.player)
-	return {
+local function trackFor(run: Run, player: Player): Track?
+	return run.tracks.both or run.tracks[run.sides[player] or "hero"]
+end
+
+local function keptPos(run: Run): { number }?
+	for id in run.kept do
+		local e = EnemyService.get(id)
+		if e and e.alive then
+			return { e.x, e.y, e.z }
+		end
+	end
+	return nil
+end
+
+local function enemyPos(id: number?): { number }?
+	local e = id and EnemyService.get(id)
+	return if e and e.alive then { e.x, e.y, e.z } else nil
+end
+
+local function stepTarget(run: Run, track: Track, player: Player): { number }?
+	local st = track.st
+	if not st or track.done then
+		return nil
+	end
+	local l = run.layout
+	local k = st.kind
+	if k == "reach" then
+		return l.points[st.at]
+	elseif k == "boss" or k == "warframe" then
+		return l.points.boss
+	elseif k == "fake" then
+		return enemyPos(track.fakeId)
+	elseif k == "twin" then
+		return enemyPos(track.twinOf[player])
+	elseif k == "chase" and track.chase then
+		return enemyPos(track.chase.id)
+	elseif k == "defeat" and st.room then
+		return l.lists.rooms[st.room]
+	elseif k == "break" and track.train then
+		local p = track.train.h.pos
+		return { p.X, p.Y, p.Z }
+	elseif k == "break" and st.at then
+		return l.points[st.at]
+	end
+	return nil
+end
+
+-- Does this character's pick light Live's arena (Destroy It)? A cosmetic effect only.
+local function arenaOn(story: any, side: string): boolean
+	for n in S.choices do
+		local o = StoryPlan.option(Config, n, side, story.choices[n] or 0)
+		if o and o.arena then
+			return true
+		end
+	end
+	return false
+end
+
+local function statePacket(run: Run, player: Player): { [string]: any }
+	local side = run.sides[player] or "hero"
+	local track = trackFor(run, player)
+	local st = track and track.st
+	local story = StoryService.story(player)
+	local now = os.clock()
+	local out: { [string]: any } = {
 		num = run.num,
-		step = run.idx,
-		steps = #run.steps,
-		kind = st and st.kind or "",
-		text = st and st.text or "",
-		have = math.floor(run.have * 10) / 10,
-		need = run.need,
-		target = stepTarget(run),
-		points = run.points,
-		held = run.held,
-		arena = story and story.choices[3] == 2 or false,
+		step = run.stage,
+		steps = run.stages,
+		side = side,
+		arena = story ~= nil and arenaOn(story, side),
 		done = run.done,
 	}
+	if not track or not st or track.done then
+		-- this side's job is done; the other side is still on theirs
+		out.kind, out.text, out.have, out.need = "wait", S.wait[StoryPlan.sideKey(side)], 1, 1
+		return out
+	end
+	out.kind = st.kind
+	out.text = StoryPlan.text(st, side)
+	out.have = math.floor(track.have * 10) / 10
+	out.need = track.need
+	out.target = stepTarget(run, track, player)
+	out.points = track.points
+	out.held = track.held
+	out.t = now - track.stepAt
+	if st.kind == "scene" then
+		out.focus = if st.focus == "fake" then keptPos(run) else run.layout.points[st.focus or "spawn"]
+		out.lodestar = if st.lodestar then run.layout.points[st.lodestar] else nil
+	end
+	return out
+end
+
+local function sendState(run: Run)
+	for _, p in run.members do
+		if p.Parent then
+			Net.fire("MissionState", p, statePacket(run, p))
+		end
+	end
 end
 
 local function bossPacket(run: Run): { [string]: any }
-	local wf = run.wf
+	local wf = nil
+	for _, t in run.tracks do
+		wf = wf or t.wf
+	end
 	if not wf then
 		return { state = BossService.STATE.idle, at = 0 }
 	end
@@ -655,6 +869,10 @@ local function bossPacket(run: Run): { [string]: any }
 	}
 end
 
+---------------------------------------------------------------------------
+-- Entering, the result and the trip back
+---------------------------------------------------------------------------
+
 local function travel(run: Run, player: Player, cf: CFrame, after: (() -> ())?)
 	Net.fire("MissionState", player, { fade = true })
 	task.delay(FADE, function()
@@ -668,7 +886,7 @@ local function travel(run: Run, player: Player, cf: CFrame, after: (() -> ())?)
 	end)
 end
 
--- One member out of the run (back in the city, or gone)
+-- One member out of the run (back in the city, or gone). A side left with nobody has nothing more to do.
 local function releaseMember(run: Run, player: Player)
 	local at = table.find(run.members, player)
 	if at then
@@ -682,6 +900,13 @@ local function releaseMember(run: Run, player: Player)
 	if hero then
 		hero.scene = nil
 	end
+	local side = run.sides[player]
+	run.sides[player] = nil
+	local t = side and run.tracks[side]
+	if t and not t.done and #membersOf(run, side) == 0 then
+		t.done = true
+		cleanTrack(run, t)
+	end
 	player:SetAttribute("Mission", nil)
 	if player.Parent then
 		Net.fire("MissionState", player, { num = 0 })
@@ -690,7 +915,8 @@ local function releaseMember(run: Run, player: Player)
 end
 
 local function release(run: Run)
-	cleanStep(run)
+	cleanStage(run)
+	dropKept(run)
 	if busy[run.pocket] == run then
 		busy[run.pocket] = nil
 	end
@@ -702,7 +928,8 @@ end
 
 local function pay(run: Run, player: Player): { [string]: any }
 	local story = StoryService.story(player)
-	local out: { [string]: any } = { num = run.num, first = false }
+	local out: { [string]: any } =
+		{ num = run.num, first = false, ending = StoryPlan.ending(Config, run.num) }
 	if not story then
 		return out
 	end
@@ -729,26 +956,22 @@ local function pay(run: Run, player: Player): { [string]: any }
 		local rep = S.rep.mission + (m.rep or 0)
 		StoryService.addRep(player, "side", rep)
 		out.rep = rep
-		-- Test Her: a 10% Epic crate at the end of The Informant
-		local test = S.choices[2].options[2]
-		if run.num == S.choices[2].mission and story.choices[2] == 2 and rng:chance(test.epicChance) then
-			GearService.grantPiece(player, "Epic", run.level)
-			out.epic = true
-		end
 		StoryService.changed(player)
 		DataService.saveSoon(player)
 	end
 	return out
 end
 
--- Send everyone home (after the result card when ok), then free the pocket
+-- Send everyone home (after the result card when ok), then free the pocket. After the act's last mission
+-- the ending broadcast plays once each member is back in the city.
 function finishRun(run: Run, ok: boolean)
 	if run.done then
 		return
 	end
 	run.done = true
-	cleanStep(run)
+	cleanStage(run)
 	local members = table.clone(run.members)
+	local ending = if ok then StoryPlan.ending(Config, run.num) else nil
 	if ok then
 		for _, player in members do
 			if player.Parent then
@@ -756,14 +979,14 @@ function finishRun(run: Run, ok: boolean)
 					player,
 					"mission_done",
 					math.floor(os.clock() - run.startedAt),
-					{ run.num, #members }
+					{ run.m.id, #members, run.sides[player] or "hero" }
 				)
 				Analytics.step(player, "Story", "mission_done")
 				if run.num == #S.missions then
 					Analytics.step(player, "Story", "act_done")
 				end
 				Net.fire("MissionResult", player, pay(run, player))
-				Net.fire("MissionState", player, statePacket(run))
+				Net.fire("MissionState", player, statePacket(run, player))
 			end
 		end
 	end
@@ -781,7 +1004,16 @@ function finishRun(run: Run, ok: boolean)
 		end
 		for _, player in members do
 			if player.Parent and runs[player] == run then
-				travel(run, player, run.entries[player] or run.entry, one)
+				travel(run, player, run.entries[player] or run.entry, function()
+					one()
+					if ending then
+						task.delay(BROADCAST_DELAY, function()
+							if player.Parent then
+								Net.fire("StoryBroadcast", player, { id = ending })
+							end
+						end)
+					end
+				end)
 			else
 				one()
 			end
@@ -828,10 +1060,11 @@ function MissionService.enter(player: Player, num: number): (boolean, string?)
 		return false, "loading"
 	end
 	local m = S.missions[num]
-	-- the party: the leader plus squadmates near them who are free (MissionService.partyOf)
+	-- the party: the leader plus squadmates near them who are free (MissionService.partyOf), either side
 	local members = { player }
 	local heroes = { [player] = hero }
 	local entries = { [player] = root0.CFrame + Vector3.new(0, 2, 0) }
+	local sides = { [player] = StoryService.side(player) }
 	local levels = { hero.level }
 	for _, mate in (if MissionService.partyOf then MissionService.partyOf(player) else {}) do
 		local h = HeroService.get(mate)
@@ -840,11 +1073,11 @@ function MissionService.enter(player: Player, num: number): (boolean, string?)
 			table.insert(members, mate)
 			heroes[mate] = h
 			entries[mate] = r.CFrame + Vector3.new(0, 2, 0)
+			sides[mate] = StoryService.side(mate)
 			table.insert(levels, h.level)
 		end
 	end
 	local layout, model = buildPocket(pocket, m.layout)
-	local hs = StoryService.side(player)
 	local run: Run = {
 		num = num,
 		m = m,
@@ -853,31 +1086,18 @@ function MissionService.enter(player: Player, num: number): (boolean, string?)
 		members = members,
 		heroes = heroes,
 		entries = entries,
-		side = hs,
+		sides = sides,
 		pocket = pocket,
 		layout = layout,
 		model = model,
-		steps = StoryPlan.steps(Config, num, hs, story.choices),
-		idx = 1,
-		have = 0,
-		need = 1,
+		stage = 1,
+		stages = StoryPlan.stages(Config, num),
+		tracks = {},
+		kept = {},
 		level = math.max(SquadRules.median(levels), m.minLevel),
 		entry = root0.CFrame + Vector3.new(0, 2, 0),
 		startedAt = os.clock(),
-		stepAt = os.clock(),
-		things = {},
-		enemies = {},
-		held = {},
-		points = {},
-		waveAt = 0,
-		wave = 0,
-		bossId = nil,
-		chase = nil,
-		train = nil,
-		wf = nil,
-		asked = false,
 		done = false,
-		endAt = 0,
 	}
 	busy[pocket] = run
 	for i, p in members do
@@ -893,8 +1113,8 @@ function MissionService.enter(player: Player, num: number): (boolean, string?)
 			if p == player
 				then function()
 					if runs[player] == run then
-						startStep(run)
-						fireAll(run, "MissionState", statePacket(run))
+						startStage(run)
+						sendState(run)
 					end
 				end
 				else nil
@@ -914,18 +1134,44 @@ function MissionService.leave(player: Player)
 	end
 end
 
--- Dev: finish the current step
+-- Dev: finish the current stage for every side (an open choice takes its first option)
 function MissionService.skipStep(player: Player)
 	local run = runs[player]
 	if not run or run.done then
 		return
 	end
-	local st = step(run)
-	if st and st.kind == "choice" then
-		StoryService.choose(player, st.choice, 1)
-		reresolve(run)
+	for _, t in run.tracks do
+		local st = t.st
+		if st and st.kind == "choice" and not t.done then
+			StoryService.choose(t.lead, st.choice, 1)
+		end
+		t.done = true
 	end
-	advance(run)
+	cleanStage(run)
+	run.stage += 1
+	startStage(run)
+	sendState(run)
+end
+
+-- Dev: jump to stage n of the running mission
+function MissionService.jumpStage(player: Player, n: number)
+	local run = runs[player]
+	if not run or run.done or n < 1 or n > run.stages then
+		return
+	end
+	dropKept(run)
+	run.stage = n
+	startStage(run)
+	sendState(run)
+end
+
+-- The stage a player's run is on, and how many there are (Dev panel)
+function MissionService.stageOf(player: Player): (number, number)
+	local run = runs[player]
+	if not run then
+		return 0, 0
+	end
+	return run.stage, run.stages
 end
 
 function MissionService.status(): string
@@ -942,7 +1188,12 @@ function MissionService.init()
 		local ok, why = MissionService.enter(player, num)
 		local run = runs[player]
 		if ok and run then
-			Analytics.event(player, "mission_start", 1, { run.num, #run.members })
+			Analytics.event(
+				player,
+				"mission_start",
+				1,
+				{ run.m.id, #run.members, run.sides[player] or "hero" }
+			)
 			Analytics.step(player, "Story", "mission_start")
 		end
 		if not ok then
@@ -952,18 +1203,23 @@ function MissionService.init()
 	Net.on("MissionLeave", MissionService.leave)
 	EnemyService.Killed:Connect(function(_, _, _, enemyId)
 		for _, run in busy do
-			if run.enemies[enemyId] then
-				run.enemies[enemyId] = nil
-				local st = step(run)
-				if st and st.kind == "defeat" then
-					run.have += 1
-				elseif st and st.kind == "boss" and enemyId == run.bossId then
-					run.have = 1
+			run.kept[enemyId] = nil
+			for _, t in run.tracks do
+				if t.enemies[enemyId] then
+					t.enemies[enemyId] = nil
+					local st = t.st
+					if st and not t.done then
+						if st.kind == "defeat" or st.kind == "twin" then
+							t.have += 1
+						elseif st.kind == "boss" and enemyId == t.bossId then
+							t.have = 1
+						end
+					end
 				end
 			end
 		end
 	end)
-	-- a defeated hero comes back at the pocket spawn (the War-Frame keeps its HP: a wipe is a retry)
+	-- a defeated hero comes back at the pocket spawn (the battle form keeps its HP: a wipe is a retry)
 	local previous = SafehouseService.spawnOverride
 	SafehouseService.spawnOverride = function(hero)
 		local run = hero.player and runs[hero.player]
@@ -1000,9 +1256,10 @@ function MissionService.init()
 			sendAcc = 0
 			for player, run in runs do
 				if not run.done then
-					Net.fire("MissionState", player, statePacket(run))
-					if run.wf then
-						Net.fire("BossState", player, bossPacket(run))
+					Net.fire("MissionState", player, statePacket(run, player))
+					local b = bossPacket(run)
+					if b.mission then
+						Net.fire("BossState", player, b)
 					end
 				end
 			end

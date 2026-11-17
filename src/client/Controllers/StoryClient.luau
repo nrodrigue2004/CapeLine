@@ -23,6 +23,9 @@ StoryClient.Changed = Signal.new() -- (what) "journal", "opening", "choice", "mi
 StoryClient.Result = Signal.new() -- (result) a mission's result card
 StoryClient.Talk = Signal.new() -- (num, line, side) an NPC speaks
 StoryClient.Fade = Signal.new() -- () a mission trip: fade out and back in
+StoryClient.Broadcast = Signal.new() -- (id) an act's ending broadcast (lore step 5)
+
+StoryClient.missionAt = 0 -- os.clock() when the mission's current step began on the server (from its `t`)
 
 StoryClient.journal = nil :: { [string]: any }?
 StoryClient.opening = { step = 0 } :: { [string]: any }
@@ -63,6 +66,21 @@ end
 
 function StoryClient.inMission(): boolean
 	return (StoryClient.mission.num or 0) > 0
+end
+
+-- The mission's camera beat right now (lore step 5): its step from Config and seconds into it, or nil
+function StoryClient.missionScene(): (any?, number)
+	local m = StoryClient.mission
+	local def = Config.Story.missions[m.num or 0]
+	if m.kind ~= "scene" or m.done or not def or not def.hero then
+		return nil, 0
+	end
+	local list = if m.side == "villain" then def.villain else def.hero
+	local st = list and list[m.step or 0]
+	if not st or st.kind ~= "scene" then
+		return nil, 0
+	end
+	return st, os.clock() - StoryClient.missionAt
 end
 
 function StoryClient.pick(option: number)
@@ -124,10 +142,18 @@ function StoryClient.init()
 			return
 		end
 		StoryClient.mission = m
+		if m.t then
+			StoryClient.missionAt = os.clock() - (tonumber(m.t) or 0)
+		end
 		StoryClient.Changed:Fire("mission")
 	end)
 	Net.listen("MissionResult", function(r)
 		StoryClient.Result:Fire(r)
+	end)
+	Net.listen("StoryBroadcast", function(b)
+		if type(b) == "table" and type(b.id) == "string" and Config.Story.ending[b.id] then
+			StoryClient.Broadcast:Fire(b.id)
+		end
 	end)
 	Net.listen("QuestState", function(q)
 		q.received = os.clock()
