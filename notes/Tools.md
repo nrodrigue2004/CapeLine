@@ -82,4 +82,5 @@ record the source here. Status: Using / Recommended (milestone) / Paid (ask nate
 - Third-party analytics (GameAnalytics Roblox SDK, MIT; PlayFab): Skipped for launch. The Dashboard covers the spec's funnels and KPIs; GameAnalytics adds cohorts and A/B tests and could come later, but it sends player data to an outside service, which needs nate's OK and a privacy review.
 - Roblox experience icon and thumbnail A/B testing (Creator Dashboard, built in): Recommended for the 3 icon variants once art exists (verify it is available for the experience).
 - Image generation for the icon, thumbnails and concept art (any tool nate picks): Needed; check the tool's licence allows commercial use and note it here. Not used yet.
+- Store art (2026-11-17): the icon and thumbnail candidates are rendered with our Blender pipeline (above) and finished with PIL, no image generator, so nothing to licence. Caption font: Inter Black Italic (SIL Open Font License 1.1, free for commercial use; the system copy, not shipped in the game).
 - Playtest tools (Roblox private servers, Studio Team Test, the Creator Dashboard Error report): Used by the Playtest Kit; all built in and free.
