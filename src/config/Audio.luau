@@ -86,6 +86,11 @@ return {
 		respawn = s("action_get_up.mp3", 0.7, 0.8),
 		contractDone = s("electronicpingshort.wav", 0.7, 0.95),
 		ui = s("button.wav", 0.35, 1), -- every button tap
+		-- the newer robots (not juice actions; CombatClient plays them with their CombatFx visuals)
+		aimLock = s("electronicpingshort.wav", 0.6, 2.6), -- a Sniper's laser locks on you
+		grenadeBoom = s("action_jump_land.mp3", 0.9, 0.5, { range = 200, vary = 0.08 }), -- a Bomber's grenade
+		rally = s("electronicpingshort.wav", 0.6, 0.6, { range = 160 }), -- a Captain's rally
+		reveal = s("clickfast.wav", 0.7, 0.7, { range = 120 }), -- a Mimic shows itself
 	},
 
 	-- per-tier gear chimes (pitch rises with the tier; Legendary plays a second chime 0.25 s later)

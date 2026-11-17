@@ -10,6 +10,22 @@ return {
 	numbers = { rise = 3, life = 0.8, critScale = 1.5 },
 	enemyDeath = { parts = 6, life = 2 },
 	shot = { width = 0.4 },
+	-- the newer robots' effects (CombatFx): the Sniper's aim laser (it thickens and blinks for the locked last
+	-- part) and its tracer round, the Interceptor's net, the Grappler's hook on its cable, the Bomber's grenade
+	-- (its light blinks faster as it falls), its burning patch and blast, the Medic Unit's repair beam, the
+	-- Captain's rally ring and the Mimic's glitch reveal. `shake` is how near a blast shakes your camera.
+	robots = {
+		aim = { color = { 255, 40, 40 }, width = 0.1, lockWidth = 0.3, blink = 14, dot = 0.6 },
+		tracer = { color = { 255, 240, 210 }, glow = { 255, 80, 60 }, length = 14, width = 0.22 },
+		net = { color = { 190, 235, 255 }, size = 4.5, spin = 8 },
+		hook = { cable = 0.16, color = { 60, 60, 66 }, claw = { 200, 120, 50 }, hold = 1.6, reel = 0.2 },
+		lob = { gravity = 80, size = 0.7, blink = { 4, 16 } },
+		zone = { color = { 255, 110, 30 }, core = { 255, 200, 70 }, every = 0.2 },
+		mend = { color = { 80, 240, 140 }, width = 0.25, packet = 0.3 },
+		rally = { color = { 255, 205, 70 }, life = 0.7 },
+		reveal = { colors = { { 60, 240, 255 }, { 255, 60, 220 } }, squares = 10, life = 0.4 },
+		boom = { color = { 255, 150, 50 }, chunks = 5, shake = 40 },
+	},
 	trail = { boostLife = 0.4 },
 	voltColor = { 120, 210, 255 },
 	weaponColor = { 240, 236, 225 }, -- weapon moves: a bright steel streak
