@@ -301,6 +301,12 @@ function DevPanel.init()
 	add("Creator", function()
 		Net.send("DevCommand", "creator")
 	end)
+	local street = false
+	add("Street outfit: off", function(b)
+		street = not street
+		b.Text = if street then "Street outfit: on" else "Street outfit: off"
+		Net.send("DevCommand", "street", if street then 1 else 0)
+	end)
 	add("Enter HQ", function()
 		Net.send("DevCommand", "hq")
 	end)

@@ -36,6 +36,7 @@ GearService.onRareDrop = nil :: ((Player, any) -> ())?
 
 local G = Config.Gear
 local busy: { [Player]: boolean } = {}
+local streetOn: { [Player]: boolean? } = {} -- lore step 2: heroes in the street outfit (CreatorService.streetOutfit)
 local rng = Rng.new(os.time() + math.floor(os.clock() * 1000))
 
 local function notice(player: Player, ok: boolean, reason: string?, extra: { [string]: any }?)
@@ -63,9 +64,36 @@ function GearService.refresh(player: Player)
 	DataService.changed(player)
 end
 
--- The creator look plus the gear styles it does not cover (M9)
+-- The street outfit on or off (CreatorService.streetOutfit is the API; looks only)
+function GearService.setStreet(player: Player, on: boolean)
+	if (streetOn[player] == true) == on then
+		return
+	end
+	streetOn[player] = if on then true else nil
+	local profile = DataService.get(player)
+	if profile and player.Parent then
+		GearService.showLook(player, profile, ProfileSchema.active(profile))
+	end
+end
+
+function GearService.street(player: Player): boolean
+	return streetOn[player] == true
+end
+
+-- The creator look plus the gear styles it does not cover (M9). In the street outfit: the plain clothes with
+-- the hero's own face and hair (Shared.CreatorRules.streetLook), no gear styles and no weapon.
 function GearService.showLook(player: Player, profile: any, char: any)
 	local look = CreatorRules.lookOf(Config, char)
+	if streetOn[player] then
+		LookService.apply(
+			player,
+			table.create(#G.slotOrder, 0),
+			CreatorRules.streetLook(Config, look),
+			nil,
+			false
+		)
+		return
+	end
 	local styles = CreatorRules.visibleStyles(Config, look, Inventory.shownStyles(profile, char), char.shown)
 	local hero = HeroService.get(player)
 	local weaponId = WeaponRules.carried(Config, profile, char)
@@ -261,6 +289,7 @@ function GearService.init()
 	Players.PlayerRemoving:Connect(function(player)
 		busy[player] = nil
 		gadgetBooks[player] = nil
+		streetOn[player] = nil
 	end)
 
 	Net.on("GearEquip", function(player, id: number, slot: number)

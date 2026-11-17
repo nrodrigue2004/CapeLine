@@ -4,12 +4,15 @@
 --   glide: Glide down to the tram car hanging off the broken rail
 --   catch: Catch the car (OpeningAct 1, within 40 studs): citizens climb out, +50 Renown
 --   blast: two Spark Drones; the first takes 2 hits and never fires, the second takes 4 and hits weakly
---   choice: a shard lands by a trapped citizen: Save Her (hero) or Grab It (villain) sets the side
+--   choice: a shard lands by a trapped citizen; the side picked in the creator decides (lore step 2: the
+--     creator comes first now, so nothing is asked): a hero saves her, a villain grabs it
 --   save: carry her to a rooftop pad / grab: take the shard and outrun 3 drones to the Docks marker
---   suitup: the hero creator (M9, CreatorService) opens; Done saves the hero; then level 3, Flight, +1 Skill Point
+--   suitup: the run ends (the hero was made in the creator before the opening); level 3, Flight, +1 Skill Point
 --   flight: a guided flight marker to the first beacon (skippable)
 -- Words on screen are only verb buttons: the client shows markers and pulses one button per step. A stuck
 -- opening goes straight to Suit Up after 4 minutes. The hero is in a scene: no incidents or events find it.
+-- Creator first (lore step 2): a character starts the opening only once its creator is done (CreatorService
+-- starts it on Done; a rejoin mid-opening starts it again). Build plan step 3 replaces this opening.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -51,7 +54,6 @@ type Run = {
 	drones: { [number]: boolean },
 	things: { any },
 	side: string,
-	asked: boolean?,
 }
 
 local runs: { [Player]: Run } = {}
@@ -141,25 +143,23 @@ local function clearDrones(r: Run)
 end
 
 -- M12: the step just finished, for the Opening funnel (spec: Analytics and KPIs)
+-- (lore step 2: the creator steps come first now, from CreatorService; the side's scene is an event only)
 local FUNNEL = {
 	glide = "first_leap",
 	blast = "first_catch",
 	choice = "first_blast",
-	save = "choice_made",
-	grab = "choice_made",
-	suitup = "creator_open",
 }
 
 local function track(r: Run, step: string)
+	if step == "save" or step == "grab" then
+		Analytics.event(r.player, "choice_made", Analytics.since(r.player), { "shardfall", step })
+		return
+	end
 	local done = FUNNEL[step]
 	if not done then
 		return
 	end
-	if done == "choice_made" then
-		Analytics.event(r.player, "choice_made", Analytics.since(r.player), { "shardfall", step })
-	elseif done ~= "creator_open" then
-		Analytics.event(r.player, done, Analytics.since(r.player))
-	end
+	Analytics.event(r.player, done, Analytics.since(r.player))
 	Analytics.step(r.player, "Opening", done)
 end
 
@@ -194,18 +194,16 @@ local function setStep(r: Run, step: string)
 		clearDrones(r)
 		SiteKit.clear(r.things)
 		StoryService.cancelAsk(r.player)
+		-- the hero was made in the creator first (lore step 2): Suit Up finishes the run at once
+		local c = StoryService.char(r.player)
+		OpeningService.suitUp(r.player, if c then c.classId else r.hero.classId, r.side)
+		return
 	end
 	send(r)
 end
 
--- Is this player on the Suit Up step (the creator's "create" mode)? Returns the side the choice picked.
-function OpeningService.atSuitUp(player: Player): string?
-	local r = runs[player]
-	return if r and r.step == "suitup" then r.side else nil
-end
-
--- Suit Up done (CreatorService saved the hero): the class and side, then level 3, Flight, the Skill Point
--- and mission 1's first clear
+-- Suit Up (the run's end): the class and side the creator saved, then level 3, Flight, the Skill Point and
+-- mission 1's first clear
 function OpeningService.suitUp(player: Player, classId: string, side: string)
 	local r = runs[player]
 	if not r then
@@ -216,7 +214,7 @@ function OpeningService.suitUp(player: Player, classId: string, side: string)
 	if not story or r.step ~= "suitup" then
 		return
 	end
-	if Config.Classes[classId] then
+	if Config.Classes[classId] and classId ~= hero.classId then
 		HeroService.setClass(hero, classId)
 		local c = StoryService.char(player)
 		if c then
@@ -226,6 +224,7 @@ function OpeningService.suitUp(player: Player, classId: string, side: string)
 	StoryService.setSide(player, if side == "villain" then "villain" else "hero")
 	r.side = StoryService.side(player)
 	story.opening = 1
+	Analytics.step(player, "Opening", "opening_done")
 	if StoryPlan.clear(story, 1) then
 		local need = Progress.totalTo(Config, O.reward.level)
 			- (Progress.totalTo(Config, hero.level) + hero.xp)
@@ -341,19 +340,10 @@ local function step(r: Run, now: number)
 		end
 	elseif s == "choice" then
 		if (v3(r.route.shard) - pos).Magnitude <= 40 then
-			-- ask once; the prompt stays until answered
-			if not r.asked then
-				r.asked = true
-				StoryService.ask(r.player, StoryService.OPENING_CHOICE, O.choice, function(option)
-					if runs[r.player] ~= r then
-						return
-					end
-					StoryService.setSide(r.player, if option == 2 then "villain" else "hero")
-					r.side = StoryService.side(r.player)
-					SiteKit.clear(r.things)
-					setStep(r, if option == 2 then "grab" else "save")
-				end)
-			end
+			-- the side was picked in the creator (lore step 2): a hero saves her, a villain grabs the shard
+			r.side = StoryService.side(r.player)
+			SiteKit.clear(r.things)
+			setStep(r, if r.side == "villain" then "grab" else "save")
 		end
 	elseif s == "grab" then
 		if OpeningPlan.at(Config, r.route.escape, pos.X, pos.Y, pos.Z, 20) then
@@ -390,7 +380,17 @@ end
 local function maybeStart(player: Player)
 	local story = StoryService.story(player)
 	local hero = HeroService.get(player)
-	if story and hero and hero.loaded and story.opening == 0 and not runs[player] then
+	local c = StoryService.char(player)
+	-- creator first (lore step 2): a new character's opening waits for its creator's Done
+	if
+		story
+		and hero
+		and hero.loaded
+		and story.opening == 0
+		and c
+		and c.created == 1
+		and not runs[player]
+	then
 		OpeningService.start(player)
 	end
 end

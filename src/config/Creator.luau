@@ -291,6 +291,13 @@ return {
 					{ "Quad Gem", "quad:gem", "mission:6" },
 					{ "Burst Gem", "burst:gem", "fame:7" },
 					{ "Spade Gem", "spade:gem", "legacy:5" },
+					-- 2026-11-17 (lore step 2): the five origin crests, one per origin (Config.Creator.origins):
+					-- free to wear for a hero of that origin, unlocked for the account once any hero has it
+					{ "Lab Crest", "lab:crest", "origin:1" },
+					{ "Star-Blood Crest", "alien:crest", "origin:2" },
+					{ "Relic Crest", "relic:crest", "origin:3" },
+					{ "Tech Crest", "tech:crest", "origin:4" },
+					{ "Dojo Crest", "dojo:crest", "origin:5" },
 				},
 			},
 		},
@@ -854,6 +861,12 @@ return {
 		quad = "❖",
 		burst = "✹",
 		spade = "♠",
+		-- lore step 2: the origin crests (PLACEHOLDER ART like every glyph here)
+		lab = "⚗",
+		alien = "☄",
+		relic = "❂",
+		tech = "⚙",
+		dojo = "⚔",
 	},
 
 	-- 48 fixed colours (primary, secondary, accent, hair, eyes and every slot's own colours pick from these);
@@ -1086,6 +1099,56 @@ return {
 		gender = 1,
 		build = 2,
 		height = 3,
+	},
+	-- Origins (nate's lore, build plan step 2): every hero picks how the Spark woke in them. The Spark is the
+	-- same underneath, so an origin is a title and one look piece only (its crest in the Emblems tab) and never
+	-- changes a number. Saved as the character's origin (1 to 5, 0 = not picked yet); later steps add an origin
+	-- quest line per origin. Changing it in the creator is free. Never reorder (saves keep the index).
+	origins = {
+		{
+			id = "lab",
+			name = "Lab accident",
+			title = "Lab-Born",
+			line = "A lab test went wrong and woke the Spark in you.",
+		},
+		{
+			id = "alien",
+			name = "Alien blood",
+			title = "Star-Blooded",
+			line = "Blood from beyond the stars woke the Spark in you.",
+		},
+		{
+			id = "relic",
+			name = "Magic relic",
+			title = "Relic-Bound",
+			line = "An old relic answered your touch and woke your Spark.",
+		},
+		{
+			id = "tech",
+			name = "Tech suit",
+			title = "Suit-Forged",
+			line = "A suit you built pushed your Spark awake.",
+		},
+		{
+			id = "training",
+			name = "Training",
+			title = "Self-Made",
+			line = "Years of hard training woke your Spark the slow way.",
+		},
+	},
+	originDefault = 5, -- a hero saved before origins (save v9) is Training until its player picks another
+	originNote = "Looks only: every origin has the same Spark and the same stats",
+	-- The street outfit (lore step 2; the prologue in step 3 starts in it and the suit snaps on mid-chase):
+	-- our own classic Shirt and Pants in plain colours with the hero's own face, hair, skin and voice, and
+	-- nothing else (no suit, cape, mask, gloves, boots, emblem, aura, gear look or weapon).
+	-- Shared.CreatorRules.streetLook builds it; CreatorService.streetOutfit puts it on and takes it off.
+	street = {
+		shirt = 3, -- Pullover Hoodie (free)
+		pants = 1, -- Denim Jeans (free)
+		shirtColor = 43, -- slate
+		pantsColor = 11, -- navy
+		-- the slots the hero keeps (its own face and hair; the flight trail and voice are not clothes)
+		keep = { "visage", "hair", "beard", "eyes", "face", "makeup", "ears", "trail", "voice" },
 	},
 	-- Hero creator rules (spec: Done needs a title, a noun and a class; saves via Hero.Create)
 	createRate = 10, -- seconds between saves

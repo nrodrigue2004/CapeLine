@@ -5,7 +5,7 @@
 -- * The opening: the HUD shows only the step's verb button (Hud.setFocus), a marker shows where to go, and
 --   other screens stay hidden; the sky holds at dusk (StoryClient). No words except verb buttons.
 -- * The choice card: two (or three) big verb buttons.
--- * Suit Up: the hero creator (CreatorScreen, M9) opens with the side the choice picked.
+-- * Suit Up: the run's end (lore step 2: the hero was made in the creator before the opening began).
 -- * Missions: a fade on each trip, the objective tracker with a LEAVE button, and the result card.
 -- * Side quests: the NPC's speech bubble and the pinned step's tracker, with its marker or search circle.
 -- PLACEHOLDER ART: the cinematic panels are flat shapes until the art pass.
@@ -23,7 +23,6 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local StoryPlan = require(Shared:WaitForChild("StoryPlan"))
 
 local Kit = require(script.Parent.Kit)
-local CreatorScreen = require(script.Parent.CreatorScreen)
 local Hud = require(script.Parent.Hud)
 local State = require(script.Parent.Parent.State)
 local StoryClient = require(script.Parent.Parent.Controllers.StoryClient)
@@ -495,12 +494,7 @@ local function refreshOpening()
 	elseif Hud.focused() then
 		Hud.setFocus(nil)
 	end
-	-- Suit Up is the hero creator (M9): the side the choice picked comes in preset
-	if step == "suitup" and lastStep ~= "suitup" then
-		CreatorScreen.open({ mode = "create", side = StoryClient.opening.side or State.hero.side })
-	elseif step ~= "suitup" and lastStep == "suitup" then
-		CreatorScreen.closeMode("create")
-	end
+	-- (lore step 2: the creator comes first, opened by the server for a new character; Suit Up opens nothing)
 	skipFlight.Visible = step == "flight"
 	-- a returning account picks first on the main menu (Create First skips the cinematic)
 	if step == "leap" and lastStep == "" and not StoryClient.opening.createFirst then

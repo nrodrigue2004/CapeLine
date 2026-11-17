@@ -17,7 +17,7 @@ local ProfileSchema = {}
 -- 40 cap is already in range, so raising the cap needs no migration.
 ProfileSchema.LEVEL_CAP = Config.Stats.levelCap
 
-ProfileSchema.VERSION = 9
+ProfileSchema.VERSION = 10
 ProfileSchema.BOSSES = 3 -- #Config.Boss.order (a test checks they match)
 ProfileSchema.SLOTS = 8
 ProfileSchema.STYLE_WORDS = 16 -- 512 bits
@@ -142,6 +142,9 @@ function ProfileSchema.newCharacter(side: string?, classId: string?): { [string]
 		mobility = "flight", -- swapped free at any safehouse
 		weapon = 0, -- the carried weapon (Config.Weapons id), 0 = Bare Fists
 		pathChanged = 0, -- 1 once the free archetype or path change (before level 10) is used
+		-- lore step 2: how the Spark woke (Config.Creator.origins index, 0 = not picked yet; picked in the
+		-- creator, changed there free); a title and one look piece, never a stat
+		origin = 0,
 		tint = 0, -- an owned effect colour (Config.Shop.tints), 0 = the set's own
 		landing = 0, -- an owned landing pose (emote bit 20 to 31), 0 = none
 		fame = 0,
@@ -290,6 +293,17 @@ local MIGRATIONS: { [number]: (any) -> () } = {
 		-- the hero creator plan (2026-11-16): looks grow to 32 words (old 8-word looks still read), the piece
 		-- bitset to 32 words, weapons owned and each weapon's mastery and look; repair() pads and fills them
 	end,
+	[10] = function(p)
+		-- nate's lore, build plan step 2: every character has an origin; a hero saved before origins gets the
+		-- default (Config.Creator.originDefault) and may pick another in the creator for free
+		if type(p.characters) == "table" then
+			for _, c in p.characters do
+				if type(c) == "table" and (tonumber(c.origin) or 0) == 0 then
+					c.origin = Config.Creator.originDefault
+				end
+			end
+		end
+	end,
 }
 ProfileSchema.MIGRATIONS = MIGRATIONS
 
@@ -432,6 +446,13 @@ local function repair(p: any): any
 					c.mobility = "flight"
 				end
 				c.pathChanged = num(c.pathChanged, 0, 1, 0)
+				c.origin = num(c.origin, 0, 1e6, 0)
+				if not Config.Creator.origins[c.origin] then
+					c.origin = 0 -- not an origin: not picked yet
+				end
+				if c.origin == 0 and c.created == 1 then
+					c.origin = Config.Creator.originDefault -- a made hero always has one
+				end
 				c.weapon = num(c.weapon, 0, 64, 0)
 				c.hq.level = num(c.hq.level, 1, 6, 1)
 				c.hq.droneAt = num(c.hq.droneAt, 0, 2 ^ 40, 0)
@@ -611,6 +632,7 @@ function ProfileSchema.roster(profile: any): { any }
 			legacy = c.legacy,
 			created = c.created,
 			look = c.look,
+			origin = c.origin,
 		}
 	end
 	return out
@@ -656,6 +678,7 @@ function ProfileSchema.clientView(profile: any, walletOnly: boolean?): { [string
 		startSet = c.startSet,
 		mobility = c.mobility,
 		pathChanged = c.pathChanged,
+		origin = c.origin,
 		tint = c.tint,
 		landing = c.landing,
 		legacy = c.legacy,

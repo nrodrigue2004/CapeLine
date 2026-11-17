@@ -1,17 +1,20 @@
 -- CreatorScreen: "Who are you?" The old-RPG style creator from nate's hero creator plan (2026-11-16,
--- https://claude.ai/artifact/VeuJPWz6kKE6gGsUBmqQC9): tabs along the top (BODY > SIDE > MOBILITY > POWERS >
--- WEAPON > APPEARANCE > PLAY), the choices on the left, the hero big in the middle showing each choice live
+-- https://claude.ai/artifact/VeuJPWz6kKE6gGsUBmqQC9): tabs along the top (BODY > SIDE > ORIGIN > MOBILITY >
+-- POWERS > WEAPON > APPEARANCE > PLAY), the choices on the left, the hero big in the middle showing each choice live
 -- (hovering previews it), and a detail card on the right with a Complexity rating, a short description and
 -- the keys; pieces, colours and the weapon's look are picked on the right too. Back, Randomize and Next sit
 -- along the bottom. On phones the list moves to a drawer along the bottom.
 -- * BODY: gender, build (Small, Medium, Large, Titan) and height; looks only.
--- * SIDE: Hero or Villain (new heroes only). MOBILITY: 5 picks. POWERS: archetype, path, Comic or Anime.
+-- * SIDE: The Vigil or The Dread Syndicate (new heroes only). ORIGIN (lore step 2): how the Spark woke, 5
+--   picks, each a fixed line, a title and its crest (looks only; any hero changes it free). MOBILITY: 5 picks.
+--   POWERS: archetype, path, Comic or Anime.
 -- * WEAPON: a family, then a weapon; a new hero takes any playable Rack weapon free; its style, finish,
 --   colours, glow and emblem.
 -- * APPEARANCE: 23 slots in body areas, each with its pieces (locked ones say how to get them), its own
 --   main, trim and glow colour (AUTO = the whole-hero colour) and a material; SKIN; COLORS (match all).
 -- * PLAY: a Title and a Noun from two wheels, never typed; then DONE sends Hero.Create.
--- Modes: "create" (Suit Up), "first" (a hero made before the creator), "edit" (HQ or a safehouse).
+-- Modes: "create" (a brand-new character, before any story: creator first), "first" (a hero made before the
+-- creator), "edit" (HQ or a safehouse).
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -42,6 +45,7 @@ local AVATAR = C.avatar.on == true
 local STEPS = {
 	{ id = "body", name = "Body" },
 	{ id = "side", name = "Side" },
+	{ id = "origin", name = "Origin" },
 	{ id = "mobility", name = "Mobility" },
 	{ id = "powers", name = "Powers" },
 	{ id = "weapon", name = "Weapon" },
@@ -113,6 +117,7 @@ local REASONS = {
 	body = "Pick a gender, build and height",
 	name = "Pick another name pair",
 	pick = "Pick an archetype, a path and a mobility",
+	origin = "Pick an origin",
 	path = "Your archetype and path are set (one free change before level 10)",
 	look = "Something went wrong: try again",
 	scene = "Finish what you are doing first",
@@ -147,6 +152,7 @@ local look: LookCodec.Look = CreatorRules.defaultLook(Config)
 local weaponLook: WeaponRules.WeaponLook = WeaponRules.lookOf(nil, W.defaultWeapon)
 local titleId, nounId, classIdx, sideIdx, setIdx = 0, 0, 0, 1, 1
 local mobIdx = 1
+local originIdx = 0 -- Config.Creator.origins index (0 = not picked yet)
 local pathOpen = true
 local step = 1
 local slot = "suit" -- the appearance slot open on the right
@@ -257,6 +263,9 @@ local function canFinish(): (boolean, string?)
 	end
 	if not CreatorRules.nameOk(Config, titleId, nounId) then
 		return false, REASONS.name
+	end
+	if not CreatorRules.originOk(Config, originIdx) then
+		return false, "Pick an origin (ORIGIN)"
 	end
 	if classIdx == 0 then
 		return false, "Pick an archetype (POWERS)"
@@ -522,12 +531,12 @@ local function drawSide()
 	local creating = mode == "create"
 	header("SIDE")
 	for i, s in SIDES do
-		row(s[1], if creating then nil else "set by your story", sideIdx == i, not creating, function()
+		row(s[1], if creating then nil else "picked at the start", sideIdx == i, not creating, function()
 			if creating then
 				sideIdx = i
 				refresh()
 			else
-				status.Text = "Your side is set by your story"
+				status.Text = "Your side was picked when this hero was made"
 			end
 		end, function()
 			setCard(s[1], nil, s[2])
@@ -535,7 +544,49 @@ local function drawSide()
 	end
 	cardFor = function()
 		local s = SIDES[sideIdx]
-		setCard(s[1], if creating then "Pick once for this hero" else "Set by your story", s[2])
+		setCard(s[1], if creating then "Pick once for this hero" else "Picked when this hero was made", s[2])
+	end
+	cardFor()
+end
+
+----------------------------------------------------------------------------------------------- ORIGIN
+-- How the Spark woke (lore step 2): a fixed line, a title and the origin's crest, which picking puts on the
+-- Symbol slot (change it under APPEARANCE). Looks only; any hero changes it free.
+local function originCard(i: number)
+	local o = C.origins[i]
+	local crest = CreatorRules.originPiece(Config, i)
+	setCard(
+		o.name,
+		"Title: " .. o.title,
+		string.format("%s\n\nLook: %s\n%s", o.line, if crest then crest.name else "", C.originNote)
+	)
+end
+local function drawOrigin()
+	preview.focus("full")
+	header("HOW YOUR SPARK WOKE")
+	for i, o in C.origins do
+		local crest = CreatorRules.originPiece(Config, i)
+		row(o.name, o.title, originIdx == i, false, function()
+			originIdx = i
+			if crest then
+				look.pieces.emblem = crest.index
+			end
+			refresh()
+		end, function()
+			originCard(i)
+			if crest then
+				hoverLook(function(l)
+					l.pieces.emblem = crest.index
+				end)()
+			end
+		end)
+	end
+	cardFor = function()
+		if C.origins[originIdx] then
+			originCard(originIdx)
+		else
+			setCard("Origin", "Pick how your Spark woke", C.originNote)
+		end
 	end
 	cardFor()
 end
@@ -838,7 +889,7 @@ local function drawPieces()
 		)
 	end
 	for _, p in CreatorRules.index(Config).byTab[slot] or {} do
-		local have = CreatorRules.owned(Config, pv, p)
+		local have = CreatorRules.wearable(Config, pv, p, originIdx)
 		tile(
 			p.name,
 			if have then nil else sourceText(p),
@@ -935,7 +986,7 @@ local function drawPlay()
 			heroName(),
 			Players.LocalPlayer.DisplayName,
 			string.format(
-				"%s\n%s, %s\n%s\n%s",
+				"%s\n%s, %s, %s\n%s\n%s",
 				if AVATAR
 					then "Your own avatar"
 					elseif not C.bodyStep then clothesLine()
@@ -946,6 +997,7 @@ local function drawPlay()
 						string.lower(B.heightNames[look.height] or "")
 					),
 				SIDES[sideIdx][1],
+				if C.origins[originIdx] then C.origins[originIdx].title else "no origin",
 				if mob then mob.name else "",
 				if set
 					then (Config.Abilities.setName[set] or set) .. " (" .. Config.Classes[cls].name .. ")"
@@ -960,6 +1012,7 @@ end
 local DRAW = {
 	body = drawBody,
 	side = drawSide,
+	origin = drawOrigin,
 	mobility = drawMobility,
 	powers = drawPowers,
 	weapon = drawWeapon,
@@ -1011,7 +1064,8 @@ local function finish()
 		titleId,
 		nounId,
 		mobIdx,
-		WeaponRules.encodeLook(weaponLook)
+		WeaponRules.encodeLook(weaponLook),
+		originIdx
 	)
 	refresh()
 	-- no answer: let them try again (spec: every remote call has an error state)
@@ -1035,6 +1089,12 @@ local function randomize()
 	elseif id == "side" then
 		if mode == "create" then
 			sideIdx = rng:int(1, 2)
+		end
+	elseif id == "origin" then
+		originIdx = rng:int(1, #C.origins)
+		local crest = CreatorRules.originPiece(Config, originIdx)
+		if crest then
+			look.pieces.emblem = crest.index
 		end
 	elseif id == "mobility" then
 		mobIdx = rng:int(1, #Config.Move.mobilityOrder)
@@ -1317,7 +1377,7 @@ local function build()
 	Kit.LayoutChanged:Connect(layout)
 end
 
--- opts: { mode, side, classIdx, pathOpen, step (a STEPS id) }
+-- opts: { mode, side, classIdx, pathOpen, origin, step (a STEPS id) }
 function CreatorScreen.open(opts: { [string]: any })
 	mode = opts.mode or "edit"
 	pending = false
@@ -1332,6 +1392,8 @@ function CreatorScreen.open(opts: { [string]: any })
 	local cls = Config.Classes.order[classIdx]
 	setIdx = if cls then table.find(AbilityRules.paths(Config, cls), p.startSet or "Volt") or 1 else 1
 	mobIdx = table.find(Config.Move.mobilityOrder, State.hero.mobility or "flight") or 1
+	-- a new hero picks an origin; anyone else starts on their saved one
+	originIdx = if mode == "create" then 0 else (opts.origin or p.origin or 0)
 	pathOpen = if opts.pathOpen == nil then mode ~= "edit" else opts.pathOpen == true
 	local carried = if (p.weapon or 0) ~= 0 then p.weapon else W.defaultWeapon
 	weaponLook = WeaponRules.lookOf(profileView(), carried)

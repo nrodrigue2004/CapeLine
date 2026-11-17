@@ -1,9 +1,12 @@
 -- MainMenu: the menu over the city when a returning player joins (spec: Main menu "Create First, Play,
 -- Settings | Create First skips the cinematic for returning players"; First 30 seconds).
--- * A brand-new player never sees it: the opening starts at once (the first 30 seconds pillar).
--- * A returning hero (created) sees PLAY, SHOP and SETTINGS over the live city; PLAY is one tap.
--- * A new hero on an account that already did the opening (OpeningState createFirst) sees CREATE FIRST
---   (straight to Suit Up, no cinematic, no disaster) or PLAY THE OPENING (the cinematic, then the run).
+-- * A brand-new player never sees it: the hero creator opens at once, then the opening (creator first, lore
+--   step 2).
+-- * A returning hero (created when the session's first profile came) sees PLAY, SHOP and SETTINGS over the
+--   live city; PLAY is one tap. A hero made this session never gets it (it is in the opening).
+-- * A new hero on an account that already did the opening (OpeningState createFirst), once made in the
+--   creator, sees CREATE FIRST (the Create First path: straight to the city, no cinematic, no disaster) or PLAY
+--   THE OPENING (the cinematic, then the run).
 -- PLACEHOLDER ART: a Kit panel with the title until the art pass.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -63,7 +66,7 @@ local function show(kind: string)
 	mode = kind
 	clear()
 	if kind == "createFirst" then
-		sub.Text = "A new hero. Build them now, or play the opening again."
+		sub.Text = "Your new hero is ready. Go to the city, or play the opening again."
 		add("CREATE FIRST", Kit.color.gold, 1, function()
 			Net.send("OpeningAct", 3)
 			MainMenu.close()
@@ -137,12 +140,15 @@ function MainMenu.init()
 	list.SortOrder = Enum.SortOrder.LayoutOrder
 	list.Parent = buttons
 
-	-- a returning hero: the first full profile says it was created already
+	-- a returning hero: the first full profile says it was created already (a hero made later this session,
+	-- in the creator, goes on to the opening instead)
+	local decided = false
 	local function check()
 		local p = State.profile
-		if shown or type(p.settings) ~= "table" then
+		if shown or decided or type(p.settings) ~= "table" then
 			return
 		end
+		decided = true
 		if p.created == true or (type(p.created) == "number" and p.created ~= 0) then
 			show("returning")
 		end
