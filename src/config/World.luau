@@ -111,6 +111,7 @@ return {
 		CometCrater = 10,
 		RadioHill = 1,
 		OldQuarry = 20,
+		Uptown = 5, -- the second business district sits among the first suburbs, so it starts at their floor
 	},
 	maxLevel = 40,
 }

@@ -48,7 +48,11 @@ function CityKit.front(kit: any, b: any, group: { [string]: { string } }?, color
 	end
 	local name = CityKit.pick(kit, list :: { string }, b.cx, b.cz, 1)
 	b.kit = name
-	b.tint = CityKit.tint(kit, name, b.cx, b.cz)
+	-- a body already in one of the front's tints keeps it (Uptown's sunset colours); others get one by hash
+	local tints = kit.tinted[name]
+	b.tint = if type(tints) == "table" and table.find(tints, b.color)
+		then b.color
+		else CityKit.tint(kit, name, b.cx, b.cz)
 	return name
 end
 

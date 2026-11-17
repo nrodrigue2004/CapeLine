@@ -2,7 +2,8 @@
 -- wave). The server keeps a state per hub building (Intact, Damaged, Collapsed) and the client draws every
 -- chunk, crack and dust cloud. (tune)
 return {
-	hubBuildings = 220, -- destructible buildings in the hub: all of Downtown, the Docks warehouses, the rest from Old Town
+	hubBuildings = 220, -- destructible buildings in the hub: all of the first Downtown, the Docks warehouses, the rest from Old Town;
+	-- every building of the grown Downtown blocks and Uptown comes after these (ids 221 on; WorldMap.pickBuildings)
 	hp = { small = 6000, medium = 10000, tower = 14000 }, -- structure HP by size
 	smallMax = 30, -- a building up to this tall (2 or so floors) is small
 	mediumMax = 150, -- up to this tall is medium, taller is a tower

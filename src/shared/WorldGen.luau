@@ -167,7 +167,10 @@ function WorldGen.tiles(cityCfg: any, w: any, seed: number): buffer
 			local ring = WorldGen.ring(w, tx, tz)
 			local zone, variant, rot, flags = 0, 0, 0, 0
 			local lm = WorldGen.landmarkAt(w, tx, tz)
-			if ring == 0 then
+			if ring > 0 and touchesDistrict(cityCfg, tx, tz) then
+				-- a district out of the hub (Uptown): fixed like the hub, built by its own layout, no roads
+				zone = Z.hub
+			elseif ring == 0 then
 				-- the hub is fixed: districts, or a filler tile from the hub's own seed
 				if not touchesDistrict(cityCfg, tx, tz) then
 					local h = Rng.hash(cityCfg.hubFill.seed, tx, tz)

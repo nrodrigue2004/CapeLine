@@ -465,9 +465,71 @@ t.paint(below | (side & (fv < bottom)), (150, 148, 144), rough=0.85)
 t.h[:] = np.where(below, 0.0, (1 - fv) * 0.6 + 0.2)
 sheet["RoofTile"] = t.save("RoofTile", strength=3.0, grime=0.08)
 
+# ---------------------------------------------------------------- Uptown (2026-11-17): Ribbon, Prism, Terrazzo
+# Ribbon: a modern storey with one long band of glass and slim mullions over a smooth spandrel (tinted, so the
+# spandrels take the building's sunset colour and the frames a darker shade of it)
+t = Tex()
+t.paint(np.ones((N, N), bool), (250, 248, 244), height=0.4, rough=0.45, vary=0.98 + (noise(6) - 0.5) * 0.04)
+t.paint(rect(0, 3.0, 12, 3.4, 12), (226, 224, 220), 0.55, 0.5)  # the sill
+gl = rect(0, 3.6, 12, 10.4, 12)
+s12 = N / 12
+v = np.clip((Y - (N - 10.4 * s12)) / (6.8 * s12), 0, 1)
+sky = np.dstack([0.5 - 0.2 * v, 0.6 - 0.22 * v, 0.68 - 0.24 * v])
+streak = (np.sin((X + Y * 0.6) / N * 40) > 0.85) * 0.06
+t.col[gl] = np.clip(sky[gl] + streak[gl][:, None], 0, 1)
+t.h[gl] = 0.0
+t.r[gl] = 0.08
+for mx in (0.0, 3.0, 6.0, 9.0, 12.0):  # mullions, darker than the spandrel so they read under any tint
+    t.paint(rect(mx - 0.09, 3.6, mx + 0.09, 10.4, 12), (150, 148, 144), 0.3, 0.4)
+t.paint(rect(0, 10.4, 12, 10.6, 12), (150, 148, 144), 0.3, 0.4)
+t.paint(rect(0, 0, 12, 0.08, 12), (200, 198, 194), 0.1)  # the floor line
+sheet["Ribbon"] = t.save("Ribbon", grime=0.05)
+
+# Prism: tinted glass in a diamond lattice (tinted: the glass and frames take the colour, the lattice stays bright)
+t = Tex()
+u = X / (N / 12)
+w = (N - 1 - Y) / (N / 12)
+a = (u + w) % 3.0
+b = (u - w) % 3.0
+frame = (np.minimum(a, 3.0 - a) < 0.1) | (np.minimum(b, 3.0 - b) < 0.1)
+v = (N - 1 - Y) / N
+glass = np.dstack([0.62 + 0.18 * v, 0.66 + 0.18 * v, 0.7 + 0.18 * v])
+glint = (np.sin((X - Y * 0.8) / N * 30) > 0.9) * 0.1
+t.col[:] = np.clip(glass + glint[..., None], 0, 1)
+t.r[:] = 0.06
+t.m[:] = 0.55
+t.h[:] = 0.0
+t.paint(frame, (248, 248, 246), height=0.5, rough=0.35, metal=0.3)
+t.paint(rect(0, 0, 12, 0.25, 12), (232, 232, 230), 0.5, 0.4, metal=0.3)  # the floor line
+sheet["Prism"] = t.save("Prism", metal=True, grime=0.03)
+
+# Terrazzo: warm cream with coloured chips and brass divider strips (an 8-stud tile)
+t = Tex()
+t.paint(np.ones((N, N), bool), (226, 210, 188), height=0.2, rough=0.5, vary=0.95 + (noise(10) - 0.5) * 0.08)
+chips = [((236, 128, 104), 0.012), ((64, 170, 168), 0.01), ((240, 178, 84), 0.012), ((120, 110, 100), 0.02)]
+for col, amount in chips:
+    n = int(N * N * amount / 40)
+    cx = rng.random(n) * N
+    cy = rng.random(n) * N
+    r = 1.5 + rng.random(n) * 3.0
+    m = np.zeros((N, N), bool)
+    for x0, y0, rr in zip(cx, cy, r):
+        x0i, y0i, ri = int(x0), int(y0), int(rr) + 1
+        ys = np.arange(y0i - ri, y0i + ri + 1) % N
+        xs = np.arange(x0i - ri, x0i + ri + 1) % N
+        yy, xx = np.meshgrid(ys, xs, indexing="ij")
+        dd = (np.arange(-ri, ri + 1)[:, None] ** 2 + np.arange(-ri, ri + 1)[None, :] ** 2) <= rr * rr
+        m[yy[dd], xx[dd]] = True
+    t.paint(m, col, height=0.25, rough=0.35)
+for k in (0.0, 4.0):  # brass strips every 4 studs both ways
+    strip = rect(k, 0, k + 0.1, 8, 8) | rect(0, k, 8, k + 0.1, 8)
+    t.paint(strip, (196, 160, 92), height=0.3, rough=0.3)
+sheet["Terrazzo"] = t.save("Terrazzo", strength=2.0, grime=0.05)
+
 # contact sheet for review (tinted sets shown in one of their game tints)
 TINTS = {"Warehouse": (96, 170, 186), "Container": (214, 92, 62), "Plaster": (250, 214, 150),
-         "Timber": (246, 226, 196), "Siding": (150, 196, 230), "RoofTile": (198, 88, 66)}
+         "Timber": (246, 226, 196), "Siding": (150, 196, 230), "RoofTile": (198, 88, 66),
+         "Ribbon": (236, 128, 104), "Prism": (64, 170, 168)}
 tiles = [(k, v) for k, v in sheet.items()]
 cols = 5
 img = Image.new("RGB", (cols * 210 + 10, ((len(tiles) + cols - 1) // cols) * 228 + 10), (40, 42, 48))

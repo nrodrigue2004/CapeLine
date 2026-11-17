@@ -1,20 +1,45 @@
 -- World layout (spec: World, city generator and destruction budgets > Map layout). World origin is the map
 -- centre, so the 4,800 stud map runs -2,400 to 2,400 and the Brightharbor hub -800 to 800 on both axes.
 -- M1 builds only the Downtown greybox; M4 adds the other districts and the seeded outskirts. (tune)
+
+-- Downtown's size (nate 2026-11-17: "make downtown bigger"; nate picked about 1.5x, ~860 x 860). The core is
+-- the first 700 x 700 Downtown, built from the same draws as always; `grow` adds whole blocks (110 + a 30
+-- street = 140 studs) on each side: 1 north and 1 west makes 840 x 840 (1.44x; the nearest square to 860).
+-- West reaches 90 studs past the hub edge into the first suburb ring (those tiles become Downtown's); east
+-- would run into the Docks. Other sizes are this one line (2 + 2 would need North Park moved).
+local DOWNTOWN_BLOCK, DOWNTOWN_STREET = 110, 30
+local PITCH = DOWNTOWN_BLOCK + DOWNTOWN_STREET
+local CORE = { minX = -750, maxX = -50, minZ = -350, maxZ = 350 }
+local GROW = { north = 1, south = 0, west = 1, east = 0 }
+-- Uptown (PLACEHOLDER NAME; the lore thread decides what it is): the second Downtown-style district, out of
+-- the hub just north of it, between North Park and Northgate. A square of `size` studs centred on (x, z).
+local UPTOWN = { x = -400, z = -1100, size = 600 }
+
 return {
 	mapSize = 4800,
 	tile = 100,
 	hub = { min = -800, max = 800 },
 	ground = { y = 0, thickness = 4 },
 	districts = {
-		Downtown = { minX = -750, maxX = -50, minZ = -350, maxZ = 350 }, -- 700 x 700, towers and rooftops
+		Downtown = { -- the core grown by whole blocks: 840 x 840 with GROW above, towers and rooftops
+			minX = CORE.minX - GROW.west * PITCH,
+			maxX = CORE.maxX + GROW.east * PITCH,
+			minZ = CORE.minZ - GROW.north * PITCH,
+			maxZ = CORE.maxZ + GROW.south * PITCH,
+		},
 		Docks = { minX = 0, maxX = 800, minZ = 300, maxZ = 800 }, -- 800 x 500 (M4)
 		OldTown = { minX = 100, maxX = 700, minZ = -700, maxZ = -100 }, -- 600 x 600 (M4)
+		Uptown = { -- 600 x 600, the second business district (2026-11-17), out in the first suburb rings
+			minX = UPTOWN.x - UPTOWN.size / 2,
+			maxX = UPTOWN.x + UPTOWN.size / 2,
+			minZ = UPTOWN.z - UPTOWN.size / 2,
+			maxZ = UPTOWN.z + UPTOWN.size / 2,
+		},
 	},
 	-- Downtown greybox grid: blocks of buildings split by streets
 	downtown = {
-		block = 110,
-		street = 30, -- road width between blocks
+		block = DOWNTOWN_BLOCK,
+		street = DOWNTOWN_STREET, -- road width between blocks
 		sidewalk = 5,
 		lotsPerSide = 2, -- each block holds 2 x 2 lots
 		lotGap = 6,
@@ -23,6 +48,31 @@ return {
 		plaza = { size = 140 }, -- the open square around the Beacon Tower, where new heroes land
 		beacon = { height = 320, width = 46 }, -- Beacon Tower HQ (League side), the Downtown landmark
 		seed = 20261116, -- fixed: the hub is handcrafted in the spec, so it never changes with the weekly seed
+		core = CORE, -- the first 700 x 700: its blocks keep their draws, so its buildings never move
+		grow = GROW,
+		-- open squares in the new blocks, kept for the lore thread's side quest chains (a fake hero academy and
+		-- one more): paved, lamps and benches round the edge, nothing built. Block (x, z) counts like the
+		-- safehouse lots: the core is 1..5 on both axes, the north row and the west column 0.
+		open = {
+			{ id = "OpenNorth", block = { 2, 0 } },
+			{ id = "OpenWest", block = { 0, 4 } },
+		},
+	},
+	-- Uptown (PLACEHOLDER NAME): the second Downtown-style district, its own grid, heights and palette (sunset
+	-- coral, teal, amber and violet fronts over warm terrazzo, flower tubs and bushes instead of trees), so it
+	-- does not read as a copy of Downtown. Built like Downtown's grown blocks (CityLayout.uptown).
+	uptown = {
+		seed = 20261121,
+		block = 120,
+		street = 30,
+		sidewalk = 5,
+		lotsPerSide = 2,
+		lotGap = 6,
+		height = { min = 48, max = 170, towerChance = 0.24, towerMin = 190, towerMax = 260 },
+		rooftop = { ledgeChance = 0.4, gardenChance = 0.35, antennaChance = 0.25 },
+		colors = { "upCoral", "upTeal", "upAmber", "upViolet", "upCream", "upSky" },
+		park = { 3, 2 }, -- one block is a green with a fountain (block x, z from the north-west corner, 1..4)
+		fountain = { radius = 14, height = 2.4, jet = 10 },
 	},
 	-- The city kit (overhaul plan step 3: the first Downtown block; step 5: the whole city). Building fronts,
 	-- paving, roads and roofs are tiling MaterialVariants in MaterialService named "Kit" .. name
@@ -47,6 +97,16 @@ return {
 				tower = { "Curtain", "Curtain", "Deco", "Panel" }, -- buildings over 200 studs
 			},
 			Docks = { steel = { "Warehouse" }, brick = { "DockBrick" }, foundry = { "Warehouse" } },
+			-- Uptown: ribbon windows and prism glass tinted in the district's sunset colours, white panels
+			Uptown = {
+				upCoral = { "Ribbon", "Ribbon", "Panel" },
+				upTeal = { "Prism", "Ribbon" },
+				upAmber = { "Ribbon", "Prism" },
+				upViolet = { "Prism", "Ribbon" },
+				upCream = { "Panel", "Ribbon" },
+				upSky = { "Prism", "Panel" },
+				tower = { "Prism", "Prism", "Ribbon" },
+			},
 			OldTown = {
 				brick = { "OldBrick" },
 				sand = { "Stone", "Timber" },
@@ -81,6 +141,8 @@ return {
 			Plaster = { "plYellow", "plPeach", "plMint", "plSky", "plRose", "plCream" },
 			Timber = { "plCream", "plYellow", "plRose" },
 			Siding = { "sdBlue", "sdYellow", "sdMint", "sdCream", "sdRose", "sdWhite" },
+			Ribbon = { "upCoral", "upTeal", "upAmber", "upViolet", "upMint" },
+			Prism = { "upTeal", "upViolet", "upAmber", "upSky" },
 			Container = false,
 			RoofTile = false,
 		},
@@ -106,6 +168,9 @@ return {
 			Flagstone = 8,
 			Siding = 12,
 			RoofTile = 6,
+			Ribbon = 12,
+			Prism = 12,
+			Terrazzo = 8,
 		},
 		baseMaterial = {
 			Brick = "Brick",
@@ -127,12 +192,16 @@ return {
 			Flagstone = "Slate",
 			Siding = "Wood",
 			RoofTile = "ClayRoofTiles",
+			Ribbon = "SmoothPlastic",
+			Prism = "Glass",
+			Terrazzo = "Pavement",
 		},
 		-- the ground each district's kit puts down
 		ground = {
 			Downtown = { sidewalk = "Paving", road = "Asphalt" },
 			OldTown = { sidewalk = "Flagstone", road = "Cobble", square = "Flagstone" },
 			Docks = { quay = "Quay" },
+			Uptown = { sidewalk = "Terrazzo", road = "Asphalt", park = "Terrazzo" },
 			Hub = { sidewalk = "Paving" },
 			Outskirts = { road = "Asphalt" },
 		},
@@ -299,7 +368,8 @@ return {
 		-- and cornices, which also count in partBudget). A device builds only the props near its camera, under its
 		-- preset's cap (Config.Presets props).
 		budget = {
-			Downtown = { props = 1300, parts = 2800, boxes = 900 },
+			Downtown = { props = 1900, parts = 4000, boxes = 1200 },
+			Uptown = { props = 900, parts = 2400, boxes = 500 },
 			Docks = { props = 260, parts = 420, boxes = 20 },
 			OldTown = { props = 520, parts = 1200, boxes = 300 },
 			Hub = { props = 1150, parts = 2400, boxes = 0 },
@@ -413,6 +483,16 @@ return {
 		plSky = { 180, 214, 250 },
 		plRose = { 250, 188, 196 },
 		plCream = { 255, 240, 214 },
+		-- Uptown (2026-11-17): sunset fronts, plain bodies until the kit is in, and their kit tints
+		upCoral = { 236, 128, 104 },
+		upTeal = { 64, 170, 168 },
+		upAmber = { 240, 178, 84 },
+		upViolet = { 150, 118, 196 },
+		upCream = { 244, 230, 206 },
+		upSky = { 120, 182, 226 },
+		upMint = { 136, 214, 176 },
+		upRoof = { 196, 190, 180 },
+		terrazzo = { 222, 206, 186 },
 		sdBlue = { 160, 200, 236 },
 		sdYellow = { 255, 228, 160 },
 		sdMint = { 176, 226, 196 },
@@ -424,5 +504,5 @@ return {
 		tileBlue = { 88, 128, 190 },
 		tileSlate = { 120, 126, 140 },
 	},
-	partBudget = { downtown = 6000, docks = 1500, oldTown = 2500, hub = 14000 }, -- greybox part count ceiling (hub budget 55,000 in the spec)
+	partBudget = { downtown = 6000, docks = 1500, oldTown = 2500, uptown = 2000, hub = 14000 }, -- greybox part count ceiling (hub budget 55,000 in the spec)
 }

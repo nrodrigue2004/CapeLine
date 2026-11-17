@@ -253,6 +253,19 @@ Checks:
 10. Props per preset (Settings > Graphics): Low shows only lamps, lights and the big pieces within ~260 studs (cap 700 mesh parts), Medium adds benches, bins and planters within ~420 (cap 2000), High everything within ~600 (cap 4000). Props pop in by cell without a hitch while flying fast across the city; you can stand on benches, crates and planters and walk through leaves and umbrellas.
 11. Performance: the Dev panel's frame time and part count on a phone (Device emulator, Low) and on the PC (High) in Downtown, the Docks and Old Town, against today's build. Layout parts added: Downtown ~550 (kerbs, cornices, dashes), Old Town ~240, Docks 2; props are mesh parts on the device only.
 
+### Bigger Downtown and Uptown (2026-11-17)
+nate: "let's put one more downtown and make downtown bigger" (nate picked ~1.5x and a ~600 x 600 second one). Downtown grows a column of blocks west and a row north (840 x 840, the first 700 x 700 exactly as before), with 2 open squares for the lore thread's side quests, and Uptown (PLACEHOLDER NAME), a 600 x 600 business district just north of the hub (past North Park, next to the Northgate safehouse) in its own sunset colours. Previews: art/preview/DowntownWide_air.png, Uptown_air.png, Uptown_street.png, Uptown_green.png.
+Textures (with the 19 of "City kit: the whole city"):
+1. Material Manager: 3 more variants, `KitRibbon` (SmoothPlastic, 12), `KitPrism` (Glass, 12) and `KitTerrazzo` (Pavement, 8), each with its `_Color`, `_Normal` and `_Roughness` PNGs (Prism also `_Metalness`).
+Checks:
+2. From the plaza, fly north and west: one more row and column of blocks, the same kind of buildings, lamps and props as the rest of Downtown; the plaza, the 4 Downtown safehouses, the trams and every old building are where they were.
+3. The two open squares (north row, second block from the west; west column, fourth block from the north): paved, kerbed, lamps and trees round the edge, benches facing in, nothing built. Walk across both.
+4. Fly north past North Park: Uptown, 16 blocks: coral, teal, amber, violet, cream and sky-blue buildings (plain colours and window bands until the textures are in; then ribbon windows and diamond glass in those colours), roof gardens, flower tubs and a green with a fountain (land on its rim; the jet is walk-through). The roads around it meet its streets; no outskirts houses or roads inside it.
+5. The map screen shows UPTOWN; incidents, contracts and events can happen there (a tower or sign incident in Uptown), and its rewards are at least level 5 (the suburbs' floor).
+6. Smash an Uptown building and a building in a new Downtown row: both break, fall and get repaired like the rest (3 repair drones for Uptown).
+7. Fast travel to Northgate and fly to Uptown; respawning still uses the 16 safehouses.
+8. Performance: the Dev panel's part count and frame time in Uptown and in the new Downtown rows on a phone (Device emulator, Low) and on the PC; streaming should keep a phone's load like the rest of Downtown.
+
 ### Heroes: a Roblox character in our own clothes (2026-11-17)
 nate's call: every hero is the classic blocky Roblox character and keeps nothing from the player's avatar ("They wear our clothes, our gear, our accessories"). Our classic Shirt and Pants (art/clothes/heroes.py: 18 shirts, 12 pants, previews art/preview/hero_clothes.png and hero_clothes_2.png), tinted by the hero's colours, our 6 faces and our hair, with suits and gear on top. No gender, build or height. The Output says build city-clothes (2026-11-17).
 Uploads (with the robot uploads below; Claude puts the ids in Config.Creator.clothes):

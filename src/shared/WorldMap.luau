@@ -1,6 +1,7 @@
 --!strict
 -- WorldMap: the whole city as plain data for one seed (spec: Map layout; Server lifecycle steps 2 and 3).
--- build(Config, seed) gives the hub (Downtown, the Docks, Old Town and filler tiles), the outskirts tile
+-- build(Config, seed) gives the hub (Downtown, the Docks, Old Town and filler tiles), Uptown (the second
+-- business district, just north of the hub, built with the hub), the outskirts tile
 -- plans, the landmarks, the 16 safehouses with their terminals and respawn points, the 12 fast-travel
 -- beacons, the base (ground, sand, ocean, roads) and a heightmap of everything. The server builds parts
 -- from it (the hub at once, the outskirts 40 tiles a frame); the tests check it in Lune. With Config.City.kit
@@ -34,7 +35,7 @@ export type Safehouse = {
 
 export type Beacon = { id: number, name: string, x: number, y: number, z: number }
 
--- A wreckable hub building (spec: Destruction, 220 in the hub)
+-- A wreckable hub building (spec: Destruction, 220 in the hub; then the grown Downtown blocks and Uptown)
 export type Building = {
 	id: number,
 	grp: string,
@@ -47,6 +48,8 @@ export type Building = {
 	top: number, -- the top of its body (roofs and props stand above)
 	size: string, -- small, medium or tower
 	hp: number,
+	crown: string?, -- a skyscraper's silhouette above its body (Config.City.skyline); nothing lands on its top
+	peak: number?, -- the top of that crown
 }
 
 export type World = {
@@ -54,7 +57,9 @@ export type World = {
 	tiles: buffer,
 	hash: string,
 	downtown: any,
-	hubBoxes: { Box }, -- Downtown, the Docks, Old Town, safehouses and beacons: built at boot
+	uptown: any, -- CityLayout.uptown: its buildings, droneSpots and park (the green with the fountain)
+	open: { { id: string, x: number, z: number, size: number } }, -- open squares kept for the lore thread
+	hubBoxes: { Box }, -- Downtown, the Docks, Old Town, Uptown, safehouses and beacons: built at boot
 	baseBoxes: { Box }, -- ground, sand, ocean and road strips: built at boot
 	tilePlans: { { tx: number, tz: number, boxes: { Box } } }, -- hub filler and outskirts, built in batches
 	landmarks: { WorldGen.Landmark },
@@ -153,14 +158,17 @@ local function buildBeacon(list: { Box }, w: any, b: any, p: Point): Beacon
 	return { id = b.id, name = b.name, x = p.x, y = p.y + 1, z = p.z }
 end
 
-local function tallestNear(buildings: { any }, x: number, z: number, r: number, gy: number): Point
+local function tallestNear(buildings: { any }, x: number, z: number, r: number, gy: number): (Point, string?)
+	-- a skyscraper's crown (spire, setbacks, lantern) is no place for a beacon
 	local best: Point = { x = x, y = gy, z = z }
+	local grp: string? = nil
 	for _, b in buildings do
-		if (b.x - x) ^ 2 + (b.z - z) ^ 2 <= r * r and gy + b.h > best.y then
+		if b.crown == nil and (b.x - x) ^ 2 + (b.z - z) ^ 2 <= r * r and gy + b.h > best.y then
 			best = { x = b.x, y = gy + b.h, z = b.z }
+			grp = b.grp
 		end
 	end
-	return best
+	return best, grp
 end
 
 -- opts.props: only what the street props need (no heightmap), for a device building them
@@ -189,13 +197,14 @@ function WorldMap.build(Config: any, seed: number, opts: { props: boolean? }?): 
 	end
 	local docks = Districts.docks(city, clear)
 	local oldTown = Districts.oldTown(city, clear)
+	local uptown = CityLayout.uptown(city)
 
-	local buildings = WorldMap.pickBuildings(Config, downtown, docks, oldTown)
+	local buildings = WorldMap.pickBuildings(Config, downtown, docks, oldTown, uptown)
 	local byGrp: { [string]: number } = {}
 	for _, b in buildings do
 		byGrp[b.grp] = b.id
 	end
-	for _, list in { downtown.boxes, docks.boxes, oldTown.boxes } do
+	for _, list in { downtown.boxes, docks.boxes, oldTown.boxes, uptown.boxes } do
 		for _, b in list do
 			if b.grp then
 				b.bid = byGrp[b.grp]
@@ -207,6 +216,7 @@ function WorldMap.build(Config: any, seed: number, opts: { props: boolean? }?): 
 	append(hubBoxes, downtown.boxes)
 	append(hubBoxes, docks.boxes)
 	append(hubBoxes, oldTown.boxes)
+	append(hubBoxes, uptown.boxes)
 
 	-- the street props, by district (Config.City.kit)
 	local props: { CityKit.Prop } = {}
@@ -222,6 +232,7 @@ function WorldMap.build(Config: any, seed: number, opts: { props: boolean? }?): 
 		addProps(downtown.props, 1, "Downtown")
 		addProps(docks.props, 1, "Docks")
 		addProps(oldTown.props, 1, "OldTown")
+		addProps(uptown.props, 1, "Uptown")
 	end
 
 	-- the outskirts
@@ -270,7 +281,17 @@ function WorldMap.build(Config: any, seed: number, opts: { props: boolean? }?): 
 			-- on the roof, in a corner clear of the glowing crown
 			p = { x = bt.x + 17, y = gy + 1 + bt.h, z = bt.z + 17 }
 		elseif b.at == "roof" then
-			p = tallestNear(downtown.buildings, b.x, b.z, 60, gy)
+			local grp
+			p, grp = tallestNear(downtown.buildings, b.x, b.z, 60, gy)
+			if grp then
+				-- the beacon takes the roof: its water tower and mast make way for the pad
+				for i = #hubBoxes, 1, -1 do
+					local x = hubBoxes[i]
+					if x.grp == grp and x.kind == "prop" and x.cy > p.y then
+						table.remove(hubBoxes, i)
+					end
+				end
+			end
 		elseif b.at == "crane" or b.at == "clock" then
 			p = spots[b.at]
 		elseif b.at == "safehouse" then
@@ -315,6 +336,8 @@ function WorldMap.build(Config: any, seed: number, opts: { props: boolean? }?): 
 		tiles = tiles,
 		hash = WorldGen.hash(tiles),
 		downtown = downtown,
+		uptown = uptown,
+		open = downtown.open,
 		hubBoxes = hubBoxes,
 		baseBoxes = baseBoxes,
 		tilePlans = tilePlans,
@@ -336,9 +359,17 @@ function WorldMap.build(Config: any, seed: number, opts: { props: boolean? }?): 
 	}
 end
 
--- The wreckable buildings: all of Downtown, the Docks warehouses, then Old Town houses picked by a fixed
--- hash until Config.Destruction.hubBuildings is reached. Ids are 1..n in that order, the same every week.
-function WorldMap.pickBuildings(Config: any, downtown: any, docks: any, oldTown: any): { Building }
+-- The wreckable buildings: all of the first Downtown, the Docks warehouses, then Old Town houses picked by a
+-- fixed hash until Config.Destruction.hubBuildings is reached; then every building of the grown Downtown
+-- blocks and of Uptown (2026-11-17), so the first 220 keep their ids. Ids are 1..n in that order, the same
+-- every week.
+function WorldMap.pickBuildings(
+	Config: any,
+	downtown: any,
+	docks: any,
+	oldTown: any,
+	uptown: any?
+): { Building }
 	local D = Config.Destruction
 	local list: { Building } = {}
 	local function add(b: any, district: string, base: number, top: number)
@@ -356,11 +387,13 @@ function WorldMap.pickBuildings(Config: any, downtown: any, docks: any, oldTown:
 			top = top,
 			size = size,
 			hp = D.hp[size],
+			crown = b.crown,
+			peak = b.peak,
 		})
 	end
 	local gy = Config.City.ground.y
 	for _, b in downtown.buildings do
-		if b.grp then
+		if b.grp and not b.grown then
 			add(b, "Downtown", b.base or gy, gy + b.h)
 		end
 	end
@@ -378,6 +411,16 @@ function WorldMap.pickBuildings(Config: any, downtown: any, docks: any, oldTown:
 			break
 		end
 		add(b, "OldTown", b.base, b.base + b.h)
+	end
+	for _, b in downtown.buildings do
+		if b.grp and b.grown then
+			add(b, "Downtown", b.base or gy, gy + b.h)
+		end
+	end
+	if uptown then
+		for _, b in uptown.buildings do
+			add(b, "Uptown", b.base, gy + b.h)
+		end
 	end
 	return list
 end

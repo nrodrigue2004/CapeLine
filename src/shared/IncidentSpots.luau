@@ -108,7 +108,7 @@ local function roofPath(world: any, start: any, hops: number): { { number } }
 	for _ = 2, hops do
 		local best, bestD = nil, 70
 		for _, b in world.buildings do
-			if not used[b.id] then
+			if not used[b.id] and b.crown == nil then -- a skyscraper's crown is not a roof to land on
 				local d = dist(b.x, b.z, cur.x, cur.z)
 				if d < bestD then
 					best, bestD = b, d
@@ -127,7 +127,8 @@ end
 
 local function tramLines(Config: any): ({ number }, any, number)
 	local city = Config.City
-	local d = city.districts.Downtown
+	-- the tram lines run through the first 700 x 700 (downtown.core), where they always have
+	local d = city.downtown.core or city.districts.Downtown
 	local pitch = city.downtown.block + city.downtown.street
 	return { d.minZ + pitch * 2, d.minZ + pitch * 4 }, d, pitch
 end
@@ -157,7 +158,9 @@ function IncidentSpots.find(
 	elseif kind == "sign" then
 		local list = buildingsNear(world, x, z, minD, maxD, function(b)
 			local h = b.top - b.base
-			return h >= 18 and h <= 90 and (b.district == "Downtown" or b.district == "OldTown")
+			return h >= 18
+				and h <= 90
+				and (b.district == "Downtown" or b.district == "OldTown" or b.district == "Uptown")
 		end)
 		if #list == 0 then
 			return nil
@@ -297,7 +300,11 @@ function IncidentSpots.kinds(
 			if h >= 60 then
 				out.tower = true
 			end
-			if h >= 18 and h <= 90 and (b.district == "Downtown" or b.district == "OldTown") then
+			if
+				h >= 18
+				and h <= 90
+				and (b.district == "Downtown" or b.district == "OldTown" or b.district == "Uptown")
+			then
 				out.sign = true
 			end
 			out.roof = true

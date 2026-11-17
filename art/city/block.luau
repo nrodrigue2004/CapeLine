@@ -1,8 +1,9 @@
 -- block.luau: writes a piece of the dressed city (Config.City.kit) as JSON for art/blender/block.py's preview,
 -- straight from the game's own layout (WorldMap.build), so the render is what players see once nate has
 -- uploaded the textures and imported Art.Street.
--- Run: lune run art/city/block.luau [area]   (area: Downtown (default, the kit's preview block), Docks, OldTown,
--- Suburbs; writes art/export/city/<area>.json, Downtown as block.json)
+-- Run: lune run art/city/block.luau [area]   (area: Downtown (default, the kit's preview block), DowntownWide (the
+-- whole grown Downtown), Uptown, Docks, OldTown, Suburbs; writes art/export/city/<area>.json, Downtown as
+-- block.json)
 local fs = require("@lune/fs")
 local process = require("@lune/process")
 local serde = require("@lune/serde")
@@ -25,6 +26,7 @@ local bx, bz = math.ceil(nx / 2) + o[1], math.ceil(nz / 2) + o[2]
 local minX = d.minX + t.street / 2 + (bx - 1) * pitch
 local minZ = d.minZ + t.street / 2 + (bz - 1) * pitch
 local b = C.docks.basin
+local u = C.districts.Uptown
 local AREAS = {
 	Downtown = {
 		window = { minX - 180, minZ - 180, minX + t.block + 180, minZ + t.block + 180 },
@@ -54,6 +56,22 @@ local AREAS = {
 		cams = {
 			street = { { 196, gy + 6, -553 }, { 300, gy + 15, -528 }, 22 },
 			air = { { 160, gy + 170, -620 }, { 290, gy + 10, -440 }, 30 },
+		},
+	},
+	-- the whole grown Downtown and its skyline from the north-east, the north open square in front (2026-11-17)
+	DowntownWide = {
+		window = { d.minX - 40, d.minZ - 40, d.maxX + 40, d.maxZ + 40 },
+		cams = {
+			air = { { 40, gy + 560, -1080 }, { -470, gy + 120, -160 }, 30 },
+		},
+	},
+	-- Uptown (PLACEHOLDER NAME), the second business district north of the hub
+	Uptown = {
+		window = { u.minX - 60, u.minZ - 60, u.maxX + 60, u.maxZ + 60 },
+		cams = {
+			street = { { -403, gy + 6, -905 }, { -360, gy + 16, -1060 }, 22 },
+			air = { { -980, gy + 460, -560 }, { -380, gy + 170, -1120 }, 28 },
+			green = { { -380, gy + 30, -1120 }, { -282, gy + 22, -1222 }, 24 },
 		},
 	},
 	Suburbs = {
