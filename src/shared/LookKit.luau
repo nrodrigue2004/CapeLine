@@ -949,7 +949,7 @@ local function paintBody(
 	skinMat: Enum.Material?,
 	legPaint: { Color3 }?
 )
-	local roles = SUIT_COLORS[pattern] or SUIT_COLORS.plain
+	local roles = SUIT_COLORS[pattern] or PieceKits.suitPaint[pattern] or SUIT_COLORS.plain
 	local torso, arms, legs = colors[roles[1]], colors[roles[2]], colors[roles[3]]
 	if legPaint then
 		legs = legPaint[1]
@@ -1202,7 +1202,7 @@ function LookKit.build(char: Model, look: any, weapon: any?): Folder
 	local suit = kitOf("suit") or "plain"
 	local suitColors, suitMat = slotColors(colors, look, "suit")
 	paintBody(char, suit, suitColors, skinMat, legPaint)
-	addSpecs(char, folder, "Suit", KITS.suit[suit], suitColors, suitMat)
+	addSpecs(char, folder, "Suit", KITS.suit[suit] or PieceKits.suit[suit], suitColors, suitMat)
 	for _, tab in { "back", "head", "hands", "feet" } do
 		local kit = kitOf(tab)
 		local c, m = slotColors(colors, look, tab)

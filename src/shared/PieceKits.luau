@@ -1144,6 +1144,428 @@ head.crystal = cat(
 )
 local maskHidesHair = { ninja = true }
 
+-- tops: the Suits slot's 2026-11-17 extras. Each has its body paint (torso, arms, legs colour roles, like
+-- LookKit's SUIT_COLORS) and its parts. The upper torso's front is z = -0.5, its top y = 0.8.
+local suitPaint = {}
+local suit = {}
+local function top(name: string, paint: { string }, parts: { Spec })
+	suitPaint[name] = paint
+	suit[name] = parts
+end
+local FABRIC = { mat = Enum.Material.Fabric }
+local METAL = { mat = Enum.Material.Metal }
+local GLOW = { neon = true }
+top("tee", { "p", "skin", "s" }, arms(S("luarm", V(1.08, 0.42, 1.08), CF(0, 0.24, 0), "p", FABRIC)))
+top("tank", { "p", "skin", "s" }, {
+	S("torso", V(0.8, 0.08, 0.04), CF(0, 0.62, TZ), "s"),
+	S("torso", V(1.0, 0.08, 0.04), CF(0, 0.7, -TZ), "s"),
+})
+top(
+	"hoodie",
+	{ "p", "p", "s" },
+	cat(
+		S("torso", V(1.3, 0.5, 0.4), CF(0, 0.75, 0.6), "p", FABRIC),
+		S("torso", V(1.2, 0.4, 0.06), CF(0, -0.45, TZ), "p", FABRIC),
+		both(S("torso", V(0.05, 0.4, 0.04), CF(-0.15, 0.45, TZ - 0.03), "white"))
+	)
+)
+top(
+	"varsity",
+	{ "p", "s", "s" },
+	cat(
+		S("torso", V(0.4, 0.45, 0.04), CF(-0.5, 0.3, TZ), "white"),
+		S("waist", V(2.06, 0.14, 1.06), CF(0, 0.12, 0), "s"),
+		both(S("llarm", V(1.06, 0.1, 1.06), CF(0, -0.32, 0), "white"), "llarm", "rlarm")
+	)
+)
+top(
+	"tracksuit",
+	{ "p", "p", "p" },
+	cat(
+		S("torso", V(0.06, 1.5, 0.04), CF(0, 0, TZ), "white", METAL),
+		arms(S("luarm", V(0.04, 0.87, 0.24), CF(-0.51, 0, 0), "white")),
+		both(S("llarm", V(0.04, 0.87, 0.24), CF(-0.51, 0, 0), "white"), "llarm", "rlarm")
+	)
+)
+top(
+	"trench",
+	{ "s", "s", "dark" },
+	cat(
+		both(S("torso", V(0.55, 1.6, 0.1), CF(-0.72, 0, TZ - 0.02), "s", FABRIC)),
+		S("torso", V(2.1, 0.35, 1.12), CF(0, 0.72, 0.02), "s", FABRIC),
+		both(S("lthigh", V(1.1, 0.9, 1.1), CF(-0.04, 0.02, 0.02), "s", FABRIC), "lthigh", "rthigh")
+	)
+)
+top(
+	"labcoat",
+	{ "white", "white", "dark" },
+	cat(
+		both(
+			S("torso", V(0.12, 0.8, 0.35), CF(-0.3, 0.35, TZ - 0.08) * rz(-20), "white", { shape = "Wedge" })
+		),
+		S("torso", V(0.4, 0.35, 0.04), CF(0.55, 0.2, TZ - 0.02), "white"),
+		S("torso", V(0.06, 0.2, 0.04), CF(0.48, 0.32, TZ - 0.05), "a"),
+		both(S("lthigh", V(1.08, 0.7, 1.08), CF(0, 0.12, 0), "white", FABRIC), "lthigh", "rthigh")
+	)
+)
+top(
+	"tux",
+	{ "dark", "dark", "dark" },
+	cat(
+		S("torso", V(0.55, 1.2, 0.04), CF(0, 0.2, TZ), "white"),
+		S("torso", V(0.4, 0.14, 0.08), CF(0, 0.66, TZ - 0.04), "a"),
+		S("torso", V(0.08, 0.08, 0.04), CF(0, 0.2, TZ - 0.03), "dark", { shape = "Ball" })
+	)
+)
+top(
+	"vest",
+	{ "p", "skin", "s" },
+	cat(
+		both(S("torso", V(0.75, 1.5, 0.1), CF(-0.6, -0.02, TZ - 0.02), "s")),
+		both(S("torso", V(0.75, 1.5, 0.1), CF(-0.6, -0.02, -TZ + 0.02), "s"))
+	)
+)
+top(
+	"kimono",
+	{ "p", "p", "p" },
+	cat(
+		S("torso", V(0.3, 1.9, 0.06), CF(0.1, 0.05, TZ) * rz(-30), "s", FABRIC),
+		S("waist", V(2.1, 0.32, 1.1), CF(0, 0.08, 0), "s", FABRIC),
+		both(S("llarm", V(1.3, 0.8, 1.4), CF(-0.1, -0.1, 0.1), "p", FABRIC), "llarm", "rlarm")
+	)
+)
+top(
+	"gi",
+	{ "white", "white", "white" },
+	cat(
+		both(S("torso", V(0.2, 1.3, 0.06), CF(-0.2, 0.2, TZ) * rz(-25), "white", FABRIC)),
+		S("waist", V(2.08, 0.16, 1.08), CF(0, 0.1, 0), "dark", FABRIC),
+		both(S("waist", V(0.1, 0.45, 0.04), CF(-0.15, -0.2, BZ - 0.02) * rz(-10), "dark", FABRIC))
+	)
+)
+top(
+	"spacesuit",
+	{ "white", "white", "white" },
+	cat(
+		S("torso", V(0.9, 0.6, 0.25), CF(0, 0.05, TZ - 0.1), "s", METAL),
+		S("torso", V(0.15, 0.15, 0.06), CF(-0.2, 0.1, TZ - 0.25), "a", GLOW),
+		S("torso", V(1.3, 0.2, 1.1), CF(0, 0.82, 0), "s", METAL),
+		both(S("lshin", V(0.7, 0.35, 0.14), CF(0, 0.3, -0.53), "s"), "lshin", "rshin")
+	)
+)
+top(
+	"racing",
+	{ "p", "s", "p" },
+	cat(
+		S("torso", V(2.04, 0.3, 1.04), CF(0, 0.1, 0) * rz(20), "a"),
+		both(S("llarm", V(0.6, 0.3, 0.14), CF(0, 0.32, 0.53), "dark"), "llarm", "rlarm"),
+		both(S("lthigh", V(0.04, 0.87, 0.24), CF(-0.51, 0, 0), "a"), "lthigh", "rthigh")
+	)
+)
+top(
+	"wetsuit",
+	{ "dark", "dark", "dark" },
+	cat(
+		both(S("torso", V(0.04, 1.6, 0.2), CF(-1.01, 0, 0), "a")),
+		both(S("lthigh", V(0.04, 0.87, 0.2), CF(-0.51, 0, 0), "a"), "lthigh", "rthigh"),
+		S("torso", V(0.06, 0.8, 0.04), CF(0, 0.4, -TZ), "s", METAL)
+	)
+)
+top(
+	"plate",
+	{ "s", "s", "s" },
+	cat(
+		S("torso", V(1.7, 1.3, 0.3), CF(0, 0.15, TZ - 0.08), "s", METAL),
+		S("torso", V(0.7, 1.4, 0.05), CF(0, -0.2, TZ - 0.25), "p", FABRIC),
+		both(S("torso", V(0.4, 0.4, 0.06), CF(-0.6, -0.55, TZ - 0.08), "s", METAL))
+	)
+)
+top(
+	"shinobi",
+	{ "dark", "dark", "dark" },
+	cat(
+		S("waist", V(2.08, 0.25, 1.08), CF(0, 0.08, 0), "s", FABRIC),
+		both(S("llarm", V(1.05, 0.6, 1.05), CF(0, -0.08, 0), "s", FABRIC), "llarm", "rlarm"),
+		both(S("lshin", V(1.05, 0.5, 1.05), CF(0, -0.15, 0), "s", FABRIC), "lshin", "rshin")
+	)
+)
+top(
+	"exo",
+	{ "dark", "dark", "dark" },
+	cat(
+		S("torso", V(0.5, 0.5, 0.2), CF(0, 0.2, TZ - 0.08), "a", GLOW),
+		both(S("torso", V(0.12, 1.4, 0.12), CF(-0.6, 0, TZ - 0.06), "s", METAL)),
+		arms(S("luarm", V(0.12, 0.8, 0.12), CF(-0.52, 0, 0), "s", METAL)),
+		both(S("lshin", V(0.12, 0.8, 0.12), CF(-0.52, 0, 0), "s", METAL), "lshin", "rshin")
+	)
+)
+top(
+	"royal",
+	{ "p", "p", "s" },
+	cat(
+		S("torso", V(2.04, 0.1, 1.04), CF(0, 0.75, 0), "gold", GOLD),
+		S("torso", V(0.08, 1.4, 0.04), CF(0, 0, TZ), "gold", GOLD),
+		both(
+			S(
+				"torso",
+				V(0.1, 0.1, 0.06),
+				CF(-0.2, 0.3, TZ - 0.02),
+				"gold",
+				{ shape = "Ball", mat = Enum.Material.Metal }
+			)
+		),
+		both(
+			S(
+				"torso",
+				V(0.1, 0.1, 0.06),
+				CF(-0.2, -0.1, TZ - 0.02),
+				"gold",
+				{ shape = "Ball", mat = Enum.Material.Metal }
+			)
+		)
+	)
+)
+top(
+	"fatigues",
+	{ "s", "s", "s" },
+	cat(
+		both(S("torso", V(0.45, 0.4, 0.08), CF(-0.5, 0.3, TZ - 0.02), "s")),
+		S("torso", V(0.6, 0.35, 0.04), CF(0.2, -0.3, TZ - 0.01), "dark", { alpha = 0.3 }),
+		S("torso", V(0.4, 0.3, 0.04), CF(-0.5, -0.45, TZ - 0.01), "dark", { alpha = 0.3 })
+	)
+)
+top(
+	"puffer",
+	{ "p", "p", "s" },
+	cat(
+		S("torso", V(2.2, 0.42, 1.2), CF(0, 0.5, 0), "p", FABRIC),
+		S("torso", V(2.2, 0.42, 1.2), CF(0, 0.04, 0), "p", FABRIC),
+		S("torso", V(2.2, 0.42, 1.2), CF(0, -0.42, 0), "p", FABRIC),
+		arms(S("luarm", V(1.2, 0.5, 1.2), CF(0, 0.1, 0), "p", FABRIC))
+	)
+)
+top(
+	"overalls",
+	{ "p", "p", "s" },
+	cat(
+		S("torso", V(1.2, 0.9, 0.08), CF(0, -0.35, TZ - 0.02), "s", FABRIC),
+		both(S("torso", V(0.18, 0.9, 0.06), CF(-0.5, 0.35, TZ - 0.02), "s", FABRIC)),
+		both(
+			S(
+				"torso",
+				V(0.12, 0.12, 0.06),
+				CF(-0.5, 0.0, TZ - 0.06),
+				"gold",
+				{ shape = "Ball", mat = Enum.Material.Metal }
+			)
+		)
+	)
+)
+top(
+	"bomber",
+	{ "s", "s", "dark" },
+	cat(
+		S("torso", V(2.1, 0.3, 1.15), CF(0, 0.78, 0), "white", FABRIC),
+		S("waist", V(2.06, 0.18, 1.06), CF(0, 0.14, 0), "dark", FABRIC),
+		both(S("llarm", V(1.06, 0.14, 1.06), CF(0, -0.34, 0), "dark", FABRIC), "llarm", "rlarm"),
+		S("torso", V(0.3, 0.1, 0.04), CF(-0.55, 0.3, TZ - 0.01), "a")
+	)
+)
+top(
+	"sweater",
+	{ "p", "p", "s" },
+	cat(
+		S("torso", V(1.4, 0.3, 1.2), CF(0, 0.82, 0), "p", FABRIC),
+		S("torso", V(2.04, 0.14, 1.04), CF(0, 0.15, 0), "s"),
+		S("torso", V(2.04, 0.14, 1.04), CF(0, -0.15, 0), "white")
+	)
+)
+top(
+	"jersey",
+	{ "p", "p", "s" },
+	cat(
+		S("torso", V(0.3, 0.6, 0.04), CF(-0.2, 0.05, TZ), "white"),
+		S("torso", V(0.3, 0.6, 0.04), CF(0.2, 0.05, TZ), "white"),
+		S("torso", V(0.7, 0.12, 0.3), CF(0, 0.75, TZ + 0.1), "s"),
+		arms(S("luarm", V(1.08, 0.1, 1.08), CF(0, 0.05, 0), "s"))
+	)
+)
+top(
+	"ranger",
+	{ "s", "s", "dark" },
+	cat(
+		S("torso", V(0.18, 2.2, 0.06), CF(0, 0, TZ - 0.02) * rz(35), "dark", { mat = Enum.Material.Leather }),
+		S("torso", V(0.18, 2.2, 0.06), CF(0, 0, TZ - 0.03) * rz(-35), "dark", { mat = Enum.Material.Leather }),
+		both(
+			S("torso", V(0.28, 0.28, 0.16), CF(-0.65, -0.5, TZ - 0.06), "s", { mat = Enum.Material.Leather })
+		)
+	)
+)
+top(
+	"robe",
+	{ "p", "p", "p" },
+	cat(
+		S("waist", V(2.3, 1.6, 1.3), CF(0, -0.9, 0.02), "p", FABRIC),
+		both(S("llarm", V(1.3, 0.9, 1.4), CF(-0.12, -0.15, 0.1), "p", FABRIC), "llarm", "rlarm"),
+		S("torso", V(0.3, 0.3, 0.04), CF(0, 0.2, TZ) * rz(45), "a", GLOW)
+	)
+)
+top(
+	"cyber",
+	{ "dark", "dark", "dark" },
+	cat(
+		S("torso", V(0.06, 0.9, 0.04), CF(-0.3, 0.1, TZ) * rz(30), "a", GLOW),
+		S("torso", V(0.06, 0.9, 0.04), CF(0.3, 0.1, TZ) * rz(-30), "a", GLOW),
+		S("torso", V(0.6, 0.06, 0.04), CF(0, -0.3, TZ), "a", GLOW),
+		arms(S("luarm", V(1.06, 0.06, 1.06), CF(0, -0.2, 0), "a", GLOW))
+	)
+)
+top(
+	"magma",
+	{ "dark", "dark", "dark" },
+	cat(
+		S("torso", V(0.08, 0.8, 0.04), CF(-0.2, 0.2, TZ) * rz(20), "glowRed", GLOW),
+		S("torso", V(0.08, 0.6, 0.04), CF(0.25, -0.2, TZ) * rz(-35), "glowRed", GLOW),
+		S("torso", V(0.5, 0.08, 0.04), CF(0.1, -0.45, TZ) * rz(10), "glowRed", GLOW),
+		both(S("lthigh", V(0.04, 0.6, 0.08), CF(-0.51, 0, 0) * rx(20), "glowRed", GLOW), "lthigh", "rthigh")
+	)
+)
+top(
+	"frost",
+	{ "white", "white", "white" },
+	cat(
+		arms(S("luarm", V(0.2, 0.5, 0.2), CF(-0.3, 0.62, 0) * rz(25), "ice", { mat = Enum.Material.Glass })),
+		S("torso", V(0.3, 0.5, 0.15), CF(0, 0.15, TZ - 0.05) * rz(45), "ice", { mat = Enum.Material.Glass }),
+		S("waist", V(2.06, 0.1, 1.06), CF(0, 0.15, 0), "ice", { mat = Enum.Material.Glass })
+	)
+)
+top(
+	"starfield",
+	{ "dark", "dark", "dark" },
+	cat(
+		S("torso", V(0.1, 0.1, 0.04), CF(-0.5, 0.4, TZ), "white", { shape = "Ball", neon = true }),
+		S("torso", V(0.08, 0.08, 0.04), CF(0.3, 0.55, TZ), "white", { shape = "Ball", neon = true }),
+		S("torso", V(0.12, 0.12, 0.04), CF(0.15, -0.1, TZ), "a", { shape = "Ball", neon = true }),
+		S("torso", V(0.08, 0.08, 0.04), CF(-0.25, -0.4, TZ), "white", { shape = "Ball", neon = true }),
+		S("torso", V(0.1, 0.1, 0.04), CF(0.6, -0.35, TZ), "white", { shape = "Ball", neon = true }),
+		arms(S("luarm", V(0.04, 0.08, 0.08), CF(-0.51, 0.1, 0), "white", { neon = true }))
+	)
+)
+
+-- shoulders: 10 more
+shoulders.mantle = { S("torso", V(2.5, 0.25, 1.4), CF(0, 0.8, 0.05), "p", FABRIC) }
+shoulders.feathers = cat(
+	arms(S("luarm", V(0.1, 0.5, 0.5), CF(-0.5, AT, 0) * rz(30), "white", FABRIC)),
+	arms(S("luarm", V(0.1, 0.45, 0.45), CF(-0.42, AT + 0.1, 0.25) * rz(40), "a", FABRIC)),
+	arms(S("luarm", V(0.1, 0.45, 0.45), CF(-0.42, AT + 0.1, -0.25) * rz(40), "a", FABRIC))
+)
+shoulders.scales = cat(
+	arms(S("luarm", V(1.12, 0.14, 1.12), CF(-0.04, AT + 0.04, 0) * rz(10), "s", METAL)),
+	arms(S("luarm", V(1.08, 0.14, 1.08), CF(-0.08, AT - 0.1, 0) * rz(18), "p", METAL))
+)
+shoulders.riveted = cat(
+	arms(S("luarm", V(1.2, 0.36, 1.2), CF(-0.04, AT + 0.04, 0), "s", METAL)),
+	arms(S("luarm", V(0.08, 0.08, 0.08), CF(-0.62, AT, 0.3), "white", { shape = "Ball" })),
+	arms(S("luarm", V(0.08, 0.08, 0.08), CF(-0.62, AT, -0.3), "white", { shape = "Ball" }))
+)
+shoulders.plume = cat(
+	S("luarm", V(1.2, 0.3, 1.2), CF(0, AT + 0.04, 0), "gold", GOLD),
+	S("luarm", V(0.14, 0.7, 0.4), CF(-0.2, AT + 0.5, 0) * rz(15), "a", FABRIC)
+)
+shoulders.wingtips =
+	arms(S("luarm", V(0.1, 0.6, 0.6), CF(-0.35, AT + 0.3, 0.2) * rz(35), "white", { shape = "Wedge" }))
+shoulders.shell = arms(S("luarm", V(1.3, 0.7, 1.3), CF(-0.08, AT, 0), "p", { shape = "Ball" }))
+shoulders.gears = cat(
+	arms(
+		S(
+			"luarm",
+			V(0.12, 0.8, 0.8),
+			CF(-0.56, AT - 0.08, 0),
+			"s",
+			{ shape = "Cylinder", mat = Enum.Material.Metal }
+		)
+	),
+	arms(
+		S(
+			"luarm",
+			V(0.14, 0.3, 0.3),
+			CF(-0.6, AT - 0.08, 0),
+			"gold",
+			{ shape = "Cylinder", mat = Enum.Material.Metal }
+		)
+	)
+)
+shoulders.flames = cat(
+	arms(
+		S(
+			"luarm",
+			V(0.2, 0.5, 0.2),
+			CF(-0.2, AT + 0.2, 0.15) * rz(10),
+			"glowRed",
+			{ neon = true, alpha = 0.25 }
+		)
+	),
+	arms(
+		S(
+			"luarm",
+			V(0.16, 0.4, 0.16),
+			CF(-0.05, AT + 0.18, -0.2) * rz(-10),
+			"a",
+			{ neon = true, alpha = 0.25 }
+		)
+	)
+)
+shoulders.blades = cat(
+	arms(S("luarm", V(1.1, 0.24, 1.1), CF(0, AT + 0.04, 0), "dark", METAL)),
+	arms(
+		S(
+			"luarm",
+			V(0.06, 0.7, 0.3),
+			CF(-0.35, AT + 0.35, 0) * rz(35),
+			"white",
+			{ shape = "Wedge", mat = Enum.Material.Metal }
+		)
+	)
+)
+
+-- neck: 7 more
+neck.scarf = cat(
+	S("torso", V(1.0, 0.3, 0.8), CF(0, 0.85, -0.05), "p", FABRIC),
+	S("torso", V(0.3, 0.8, 0.08), CF(0.3, 0.3, TZ - 0.05) * rz(8), "p", FABRIC)
+)
+neck.kerchief = cat(
+	S("torso", V(0.8, 0.12, 0.7), CF(0, 0.84, -0.04), "s", FABRIC),
+	S("torso", V(0.6, 0.45, 0.05), CF(0, 0.55, TZ - 0.02) * rz(45), "s", FABRIC)
+)
+neck.medal = cat(
+	both(S("torso", V(0.12, 0.6, 0.04), CF(-0.12, 0.55, TZ) * rz(-15), "a", FABRIC)),
+	S(
+		"torso",
+		V(0.3, 0.3, 0.08),
+		CF(0, 0.2, TZ - 0.03) * ROT_Y,
+		"gold",
+		{ shape = "Cylinder", mat = Enum.Material.Metal }
+	)
+)
+neck.whistle = cat(chainV, S("torso", V(0.3, 0.12, 0.12), CF(0, 0.2, TZ - 0.05), "white", METAL))
+neck.fang = cat(
+	S("torso", V(0.9, 0.06, 0.7), CF(0, 0.82, -0.04), "dark", { mat = Enum.Material.Leather }),
+	S("torso", V(0.12, 0.3, 0.1), CF(0, 0.55, TZ - 0.02), "white", { shape = "Wedge" })
+)
+neck.neckphones = cat(
+	S("torso", V(1.0, 0.14, 0.14), CF(0, 0.86, 0.35), "dark"),
+	both(S("torso", V(0.22, 0.4, 0.4), CF(-0.48, 0.86, -0.05) * ROT_Y, "s", { shape = "Cylinder" }))
+)
+neck.ruff = {
+	S(
+		"torso",
+		V(0.3, 1.5, 1.5),
+		CF(0, 0.85, 0) * FLAT,
+		"white",
+		{ shape = "Cylinder", mat = Enum.Material.Fabric }
+	),
+}
+
 return {
 	beard = beard,
 	face = face,
@@ -1161,5 +1583,7 @@ return {
 	hatHidesHair = hatHidesHair,
 	hatHidesFace = hatHidesFace,
 	head = head,
+	suit = suit,
+	suitPaint = suitPaint,
 	maskHidesHair = maskHidesHair,
 }
