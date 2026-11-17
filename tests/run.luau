@@ -7619,8 +7619,11 @@ test("Effects library: every set has an element, every kind a texture, budgets a
 	local pts = FxPlan.trailPoints(L, 1000)
 	check(#pts == L.trailMax and pts[1] > 0 and pts[#pts] < 1, "long trails cap their points")
 	check(#FxPlan.trailPoints(L, 2) == 1, "short trails emit once")
+	local savedSpark = L.textures.spark.id
+	L.textures.spark.id = 0
 	local tex = FxPlan.textureOf(L, "spark")
 	check(tex == L.textures.spark.builtin, "no upload yet: the built-in image")
+	L.textures.spark.id = savedSpark
 	local saved = L.textures.smoke.id
 	L.textures.smoke.id = 12345
 	local t2, flip = FxPlan.textureOf(L, "smoke")

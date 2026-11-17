@@ -88,6 +88,8 @@ def main():
         json.dump({"items": items}, f, indent=1)
     for name in ("upload.bat", "upload.ps1", "README.txt"):
         shutil.copyfile(os.path.join(HERE, name), os.path.join(out_dir, name))
+    # the Studio command-bar step that reads each decal's image id (apply_ids.py takes its output)
+    shutil.copyfile(os.path.join(HERE, "resolve_ids.lua"), os.path.join(out_dir, "resolve_ids.txt"))
     counts = {}
     for e in items:
         counts[e["target"]["kind"]] = counts.get(e["target"]["kind"], 0) + 1
