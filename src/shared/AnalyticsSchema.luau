@@ -5,7 +5,9 @@
 -- * EVENTS[name] = the meaning of CustomField01 to 03 (at most 3, Roblox's limit).
 -- * FUNNELS[name] = the steps in order. "Opening" is the onboarding funnel (once per account); since lore
 --   step 2 (creator first) the creator's steps come right after session_start, and opening_done (the run's
---   end) replaced choice_made (the side is picked in the creator; choice_made stays an event).
+--   end) replaced choice_made (the side is picked in the creator; choice_made stays an event). Lore step 3: the
+--   prologue's three beats are spark_detected (the scan found you), first_spark (the side's Spark beat) and
+--   fake_cracked (Skylance's face cracked), where first_leap, first_catch and first_blast were.
 -- * check(name, fields) cleans one event: false for an unknown name or too many fields; text fields are
 --   cut to 32 characters with anything but letters, digits, "_", "-", "." and ":" removed.
 
@@ -18,9 +20,9 @@ AnalyticsSchema.EVENTS = {
 	session_end = { "stage", "activity", "reason_length" }, -- value: session seconds
 	first_session_end = { "stage", "activity", "reason_length" }, -- value: session seconds
 	session_device = { "platform", "new_or_returning", "side" }, -- value: level (was session_start)
-	first_leap = {}, -- value: seconds since join
-	first_catch = {},
-	first_blast = {},
+	spark_detected = {}, -- value: seconds since join (lore step 3: the Ceremony prologue's beats)
+	first_spark = {},
+	fake_cracked = {},
 	choice_made = { "choice", "option" },
 	choice_pick = { "choice", "option" },
 	creator_done = { "class", "side", "set" }, -- value: seconds in the creator
@@ -62,9 +64,9 @@ AnalyticsSchema.FUNNELS = {
 		"session_start",
 		"creator_open",
 		"creator_done",
-		"first_leap",
-		"first_catch",
-		"first_blast",
+		"spark_detected",
+		"first_spark",
+		"fake_cracked",
 		"opening_done",
 		"first_incident",
 		"level_3",

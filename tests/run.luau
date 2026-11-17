@@ -4441,7 +4441,10 @@ test("M7: 8 side quest arcs of 3 steps; steps advance to done; the journal pins 
 	check(StoryPlan.advanceQuest(story, 2) == "done" and story.quests[2] == 4, "then done")
 	check(StoryPlan.advanceQuest(story, 2) == nil, "a done arc stays done")
 	story.pinned = 0
-	check(StoryPlan.pinnedText(Config, story, "villain") == "Mission 1: Shardfall", "else the next mission")
+	check(
+		StoryPlan.pinnedText(Config, story, "villain") == "Mission 1: The Ceremony",
+		"else the next mission"
+	)
 	check(StoryPlan.npcName(Config, 4, "villain") == "The Velvet Paw", "villains train with the Velvet Paw")
 	check(
 		GearMath.questStyle(Config, "MayorsSash") ~= nil and GearMath.questStyle(Config, "DockCoat") ~= nil,
@@ -4470,7 +4473,7 @@ test("M7: save version 3: returning heroes skip the opening; story numbers are r
 	)
 end)
 
-test("M7: the opening's drones: the first never fires and falls in 2 hits; the second hits weakly", function()
+test("M7: story robots: a harmless one never fires and falls in 2 hits; a weak one takes 4", function()
 	local sim = EnemySim.new(Config, {
 		random = function()
 			return 0.5
@@ -4479,7 +4482,7 @@ test("M7: the opening's drones: the first never fires and falls in 2 hits; the s
 	local a = EnemySim.spawn(sim, "SparkDrone", 0, 20, 0, 1) :: any
 	local b = EnemySim.spawn(sim, "SparkDrone", 10, 20, 0, 1) :: any
 	a.dmgMult, a.hitLife = 0, 2
-	b.dmgMult, b.hitLife = Config.Story.opening.secondDamage, 4
+	b.dmgMult, b.hitLife = 0.35, 4
 	local killed = EnemySim.damage(sim, a.id, 1, 1)
 	check(not killed and a.health > 0, "1 hit: still up")
 	killed = EnemySim.damage(sim, a.id, 1, 1)
@@ -4503,58 +4506,6 @@ test("M7: the opening's drones: the first never fires and falls in 2 hits; the s
 	end
 	check(shots == 0, "the first drone never attacks back")
 end)
-
-test(
-	"M7: the opening route is real for every seed: roofs within one Leap, a tram, the shard, a pad, the Docks",
-	function()
-		local OpeningPlan = require("../src/shared/OpeningPlan")
-		local O = Config.Story.opening
-		local gy = Config.City.ground.y
-		for _, seed in { 202647, 11, 777, 31337 } do
-			local w = if seed == 202647 then world else WorldMap.build(Config, seed)
-			for k = 1, 5 do
-				local r = OpeningPlan.route(Config, w, Rng.new(seed + k))
-				check(r ~= nil, "a route for seed " .. seed)
-				if r then
-					local h = r.start[2] - gy
-					check(h >= O.startRoof.minH and h <= O.startRoof.maxH + 2, "start roof height " .. h)
-					local px, pz = OpeningPlan.plaza(w)
-					check(
-						math.sqrt((r.start[1] - px) ^ 2 + (r.start[3] - pz) ^ 2) <= O.startRoof.near,
-						"near the plaza"
-					)
-					local gap = math.sqrt((r.leap[1] - r.start[1]) ^ 2 + (r.leap[3] - r.start[3]) ^ 2)
-					check(
-						gap >= O.leapRoof.minGap and gap <= Config.Move.leap.range,
-						"the next roof is one Leap away"
-					)
-					check(r.leap[2] <= r.start[2] + 12, "not higher than a Leap climbs")
-					check(
-						HeightMap.at(w.heights, r.tram[1], r.tram[3]) <= gy + 1.5,
-						"the tram is on the street"
-					)
-					check(
-						HeightMap.at(w.heights, r.shard[1], r.shard[3]) <= gy + 1.5,
-						"the shard is on open ground"
-					)
-					local pg = math.sqrt((r.pad[1] - r.shard[1]) ^ 2 + (r.pad[3] - r.shard[3]) ^ 2)
-					check(pg >= O.rescueGap[1] and pg <= O.rescueGap[2], "the rescue pad gap")
-					local eg = math.sqrt((r.escape[1] - r.shard[1]) ^ 2 + (r.escape[3] - r.shard[3]) ^ 2)
-					check(eg >= O.escape[1] and eg <= O.escape[2], "the escape run")
-					check(r.beacon > 0 and w.beacons[r.beacon] ~= nil, "a first beacon")
-					check(
-						OpeningPlan.at(Config, r.leap, r.leap[1] + 5, r.leap[2], r.leap[3]),
-						"standing on the roof counts"
-					)
-					check(
-						not OpeningPlan.at(Config, r.leap, r.leap[1], r.leap[2] - 30, r.leap[3]),
-						"the street below does not"
-					)
-				end
-			end
-		end
-	end
-)
 
 test("M7: 7 sealed pockets at y 3,000; every layout has its points", function()
 	local PocketLayout = require("../src/shared/PocketLayout")
@@ -5999,9 +5950,9 @@ end
 test("M12: every spec event and funnel step is in the schema, and each one is logged somewhere", function()
 	local spec = {
 		"session_start",
-		"first_leap",
-		"first_catch",
-		"first_blast",
+		"spark_detected",
+		"first_spark",
+		"fake_cracked",
 		"choice_made",
 		"choice_pick",
 		"creator_done",
@@ -6079,7 +6030,7 @@ test("M12: events are checked: unknown names refused, fields cut to short safe c
 	local _, g = AnalyticsSchema.check("choice_pick", { "a b<script>", string.rep("x", 50) })
 	check(g[1] == "abscript", "spaces and symbols removed")
 	check(#g[2] == 32, "cut to 32 characters")
-	ok = AnalyticsSchema.check("first_leap", nil)
+	ok = AnalyticsSchema.check("spark_detected", nil)
 	check(ok, "no fields is fine")
 	local A = Config.Analytics
 	check(A.castSample > 0 and A.castSample <= 0.2, "skill casts are sampled at 20% or less (spec)")
@@ -9273,19 +9224,14 @@ test(
 -- wholesale is excluded below: delete each exclusion when its step lands.
 local OLD_LORE = { "Shardfall", "Null", "League", "Comet" }
 local LORE_SKIP_CONFIG = {
-	["Story.cinematic"] = true, -- step 3 (the new opening)
-	["Story.opening"] = true, -- step 3
 	["Story.missions"] = true, -- step 5 (the new missions)
 	["Story.choices"] = true, -- step 5
 	["Story.quests"] = true, -- step 5 (the side quests)
 }
 local LORE_SKIP_FILES = {
-	["src/shared/OpeningPlan.luau"] = true, -- step 3
-	["src/shared/StoryPlan.luau"] = true, -- steps 3 and 5
-	["src/server/Services/OpeningService.luau"] = true, -- step 3
+	["src/shared/StoryPlan.luau"] = true, -- step 5
 	["src/server/Services/MissionService.luau"] = true, -- step 5
 	["src/server/Services/QuestService.luau"] = true, -- step 5
-	["src/client/Fx/StoryFx.luau"] = true, -- steps 3 and 5
 }
 
 -- The old-lore word in a piece of text, or nil. Whole words as players read them (Title or CAPS), so ids
@@ -9619,7 +9565,7 @@ test("Lore step 2: creator first: the Opening funnel starts with the creator", f
 		F[1] == "session_start" and F[2] == "creator_open" and F[3] == "creator_done",
 		"creator steps first"
 	)
-	check(F[4] == "first_leap" and F[7] == "opening_done", "then the opening")
+	check(F[4] == "spark_detected" and F[7] == "opening_done", "then the prologue")
 	check(AnalyticsSchema.EVENTS.origin_pick ~= nil, "origin picks are logged")
 end)
 
@@ -10087,6 +10033,363 @@ test("Lore 4: the cracked faces and the Dev panel buttons", function()
 			and string.find(ds, "EnemyService.spawnTwin(player", 1, true) ~= nil,
 		"DevService spawns them"
 	)
+end)
+
+---------------------------------------------------------------------------
+-- Lore step 3: the Ceremony prologue (Config.Story.opening, Shared.OpeningPlan, OpeningService, PrologueFx)
+---------------------------------------------------------------------------
+
+local OpeningPlan = require("../src/shared/OpeningPlan")
+local PocketLayout = require("../src/shared/PocketLayout")
+local OP = Config.Story.opening
+local SIDES = { "hero", "villain" }
+
+local function flat(a: { number }, b: { number }): number
+	return math.sqrt((a[1] - b[1]) ^ 2 + (a[3] - b[3]) ^ 2)
+end
+
+test("Lore 3: the prologue's whole route is real for any weekly seed", function()
+	local gy = Config.City.ground.y
+	local R = OP.roofs
+	local half = Config.City.downtown.beacon.width / 2
+	local front = half + OP.plaza.stage.gap + OP.plaza.stage.depth
+	for _, seed in { 202647, 11, 777, 31337, 2026, 99991 } do
+		local w = if seed == 202647 then world else WorldMap.build(Config, seed)
+		for k = 1, 6 do
+			local r = OpeningPlan.route(Config, w, Rng.new(seed * 7 + k))
+			check(r ~= nil, "a route for seed " .. seed .. " #" .. k)
+			if r then
+				local tag = " (seed " .. seed .. ")"
+				local hx, hz = OpeningPlan.plaza(w)
+				check(r.hall[1] == hx and r.hall[3] == hz, "the stage is at Crane's Hero Hall" .. tag)
+				check(
+					#r.crowd == OP.plaza.crowd.count and #r.fakes == 3,
+					"a full crowd and the three fakes" .. tag
+				)
+				for _, c in r.crowd do
+					check(
+						HeightMap.at(w.heights, c[1], c[3]) <= gy + 1.5,
+						"the crowd stands on open ground" .. tag
+					)
+				end
+				check(
+					HeightMap.at(w.heights, r.start[1], r.start[3]) <= gy + 1.5,
+					"the hero starts on the ground"
+				)
+				check(flat(r.stage, r.hall) <= front, "the stage stands before the Hall" .. tag)
+				local away = (r.spark[1] - hx) * r.face[1] + (r.spark[3] - hz) * r.face[3]
+				check(away >= front, "the run goes away from the stage" .. tag)
+				local run = flat(r.spark, r.start)
+				check(
+					run >= OP.run.minD - 1 and run <= OP.run.maxD + 1,
+					"the run is " .. math.floor(run) .. tag
+				)
+				check(
+					HeightMap.at(w.heights, r.spark[1], r.spark[3]) <= gy + 1.5,
+					"the spark point is open ground"
+				)
+				check(#r.roofs == R.count, R.count .. " roofs for the chase" .. tag)
+				for i = 2, #r.roofs do
+					local a, b = r.roofs[i - 1], r.roofs[i]
+					local gap = flat(a, b)
+					check(
+						gap >= R.gap[1] and gap <= Config.Move.leap.range,
+						"roof " .. i .. " is one Leap away" .. tag
+					)
+					check(b[2] <= a[2] + R.climb, "no higher than a Leap climbs" .. tag)
+					check(b[2] - gy >= R.minH, "a real roof" .. tag)
+				end
+				check(
+					HeightMap.at(w.heights, r.entrance[1], r.entrance[3]) <= gy + 1.5,
+					"the subway steps are on the street" .. tag
+				)
+				local eg = flat(r.entrance, r.roofs[#r.roofs])
+				check(
+					eg >= OP.entrance.minD and eg <= OP.entrance.maxD + 1,
+					"the steps are below the last roof"
+				)
+				check(
+					r.billboard[2] - gy >= 20 and (r.billboard[4] ~= 0 or r.billboard[5] ~= 0),
+					"a billboard"
+				)
+				check(flat(r.landing, r.hall) <= 120, "the hero lands back in the plaza" .. tag)
+				-- every beat has a place to start from, in the city or the subway, on both sides
+				local lane = OpeningPlan.lane(Config, (k - 1) % OP.subway.lanes + 1)
+				for _, step in OpeningPlan.STEPS do
+					local p = OpeningPlan.startPoint(r, lane, step)
+					local inPocket = PocketLayout.at(Config, p[1], p[2], p[3])
+						== PocketLayout.subwayIndex(Config)
+					check(
+						inPocket == (OpeningPlan.CITY[step] ~= true),
+						step .. " starts in the right place" .. tag
+					)
+					check(
+						OpeningPlan.startPoint(r, nil, step) ~= nil,
+						step .. " has a place with every lane busy"
+					)
+				end
+			end
+		end
+	end
+end)
+
+test("Lore 3: the subway pocket: a lane per prologue, collapses on a timer, a fight chamber", function()
+	local S = OP.subway
+	local idx = PocketLayout.subwayIndex(Config)
+	check(idx == Config.Story.pockets.count + 1, "the subway is its own pocket (missions never take it)")
+	local l = PocketLayout.build(Config, idx, "subway")
+	check(#l.boxes > 10 and #(l.lists.lanes or {}) == S.lanes, "the tunnels are built, one a lane")
+	local seen = {}
+	for i = 1, S.lanes do
+		local ln = OpeningPlan.lane(Config, i)
+		check(
+			PocketLayout.at(Config, ln.start[1], ln.start[2], ln.start[3]) == idx,
+			"lane " .. i .. " start inside"
+		)
+		check(
+			PocketLayout.at(Config, ln.fight[1], ln.fight[2], ln.fight[3]) == idx,
+			"lane " .. i .. " chamber inside"
+		)
+		check(ln.start[3] > ln.z1 and ln.fight[3] < ln.z1, "the chamber is past the tunnel")
+		local last = 0
+		for _, c in ln.collapses do
+			check(c.z < ln.start[3] and c.z > ln.z1, "each slab falls inside the tunnel")
+			check(c.t > last, "the slabs fall in order")
+			last = c.t
+		end
+		check(#ln.collapses >= 3, "the tunnel collapses as timed obstacles")
+		check(not seen[ln.x], "lanes do not overlap")
+		seen[ln.x] = true
+	end
+	check(S.pitch >= S.chamber + 4, "chambers fit side by side")
+	check(S.rubble < Config.Move.leap.range, "the rubble can be leapt")
+end)
+
+test("Lore 3: every beat in order for both sides; the side's own Spark and lines", function()
+	check(#OpeningPlan.STEPS == 13 and OpeningPlan.STEPS[1] == "ceremony", "13 beats, the ceremony first")
+	check(OpeningPlan.STEPS[#OpeningPlan.STEPS] == "title", "the title card last")
+	for i, step in OpeningPlan.STEPS do
+		check(OpeningPlan.CODE[step] == i, step .. " has its code")
+		check(OpeningPlan.limit(Config, step) > 0, step .. " moves on by itself")
+	end
+	check(OpeningPlan.sparkBeat("hero") == "shield", "the Vigil's Spark shields the kid")
+	check(OpeningPlan.sparkBeat("villain") == "blast", "the Syndicate's Spark blasts the shover")
+	local patchFrom = OpeningPlan.CODE.leap
+	for _, side in SIDES do
+		for _, step in OpeningPlan.STEPS do
+			for _, l in OpeningPlan.lines(Config, step, side) do
+				check(
+					type(l.text) == "string" and #l.text > 0 and #l.text <= 90,
+					step .. " line text (" .. side .. ")"
+				)
+				check(OP.speakers[l.who] ~= nil, step .. ": a known speaker " .. tostring(l.who))
+				check(
+					l.at >= 0 and l.at < OpeningPlan.limit(Config, step),
+					step .. " line comes inside its beat"
+				)
+				if l.who == "patch" then
+					check(OpeningPlan.CODE[step] >= patchFrom, "Patch is on the radio from the chase on")
+				end
+			end
+		end
+		check(#OpeningPlan.lines(Config, "ceremony", side) >= 4, "Crane's stage speech")
+		local rescue = OpeningPlan.lines(Config, "rescue", side)
+		local lodestar = false
+		for _, l in rescue do
+			lodestar = lodestar or l.who == "lodestar"
+		end
+		check(lodestar, "Lodestar speaks at the rescue")
+	end
+	for _, step in { "spark", "chase", "rescue" } do
+		local a, b = OpeningPlan.lines(Config, step, "hero"), OpeningPlan.lines(Config, step, "villain")
+		check(#a == #b and a[1].text ~= b[1].text, step .. ": a side-flavoured line")
+	end
+	check(OP.speakers.patch.radio == true and not OP.speakers.lodestar.radio, "Patch is a radio voice")
+	check(
+		OP.chase.fake == "Skylance" and Config.Enemies.Skylance.fake ~= nil,
+		"Skylance chases (a famous fake)"
+	)
+	check(OP.fight.fake == "Skylance", "the fight is with the chaser")
+	local sum = 0
+	for _, step in OpeningPlan.STEPS do
+		if OpeningPlan.timed(Config, step) then
+			sum += OpeningPlan.limit(Config, step)
+		end
+	end
+	check(sum >= 50 and sum <= 90, "about a minute of camera beats in about 4 minutes")
+end)
+
+test("Lore 3: stuck beats move on, the prologue finishes itself, skips only on a replay", function()
+	-- a hero who never does anything still reaches the end, every beat once, in order
+	local step: string? = OpeningPlan.STEPS[1]
+	local t, seen = 0, {}
+	while step do
+		table.insert(seen, step)
+		t += OpeningPlan.limit(Config, step)
+		step = OpeningPlan.next(step)
+	end
+	check(#seen == #OpeningPlan.STEPS, "every beat once")
+	check(OP.timeout < t, "the whole-prologue timeout cuts a stuck run short (" .. math.floor(t) .. " s)")
+	check(OP.timeout >= 240, "but never a played one (about 4 minutes)")
+	for _, step in OpeningPlan.STEPS do
+		check(not OpeningPlan.canSkip(step, false), step .. ": no skip the first time")
+		check(
+			OpeningPlan.canSkip(step, true) == (OpeningPlan.CUT[step] == true),
+			step .. ": skip on a replay"
+		)
+	end
+	check(
+		OP.spark.auto < OpeningPlan.limit(Config, "spark"),
+		"the Spark fires by itself before its beat ends"
+	)
+	-- the server: the safety, the hold for a returning account, Create First and skips
+	local src = readFile("src/server/Services/OpeningService.luau")
+	for _, needle in
+		{
+			"O.timeout",
+			"OpeningPlan.limit(Config, s)",
+			"OpeningPlan.canSkip(r.step, r.replay)",
+			"act == 3 and r.hold",
+			"act == 4 and r.hold",
+			"hero.floor",
+			"OpeningService.Finished",
+		}
+	do
+		check(string.find(src, needle, 1, true) ~= nil, "OpeningService: " .. needle)
+	end
+end)
+
+test(
+	"Lore 3: returning players skip it; old saves never replay it; a save mid-opening restarts it",
+	function()
+		check(not OpeningPlan.due(ProfileSchema.newCharacter()), "a hero not made yet waits for its creator")
+		local v10 = ProfileSchema.load({
+			version = 10,
+			characters = {
+				{ created = 1, level = 1, story = { opening = 0 } },
+				{ created = 1, story = { opening = 1 } },
+			},
+		})
+		check(
+			OpeningPlan.due(v10.characters[1]),
+			"a v10 save that stopped mid-opening starts the new prologue"
+		)
+		check(not OpeningPlan.due(v10.characters[2]), "anyone past the old opening is never sent back")
+		local old = ProfileSchema.load({ version = 2, characters = { { level = 7, xp = 10 } } })
+		check(not OpeningPlan.due(old.characters[1]), "an old played hero skips it")
+		check(
+			Config.Story.missions[1].opening and Config.Story.missions[1].name == "The Ceremony",
+			"mission 1"
+		)
+		check(Config.Story.missions[OP.next] ~= nil, "the hook: the next mission")
+		local menu = clientSources()["src/client/Ui/MainMenu.luau"]
+		check(
+			string.find(menu, "StoryClient.createFirst()", 1, true) ~= nil
+				and string.find(menu, "StoryClient.playPrologue()", 1, true) ~= nil,
+			"the main menu's Create First and PLAY THE PROLOGUE"
+		)
+		check(Config.Story.cinematic == nil, "the old cinematic is gone")
+	end
+)
+
+test("Lore 3: no old opening names in the prologue's player text", function()
+	local OLD = { "shardfall", "tram", "comet", "save her", "grab it" }
+	local hits = {}
+	local function look(where: string, text: string)
+		local low = string.lower(text)
+		for _, w in OLD do
+			if string.find(low, "%f[%w]" .. w .. "%f[%W]") then
+				table.insert(hits, where .. ": " .. w .. " in " .. text)
+			end
+		end
+	end
+	local function walk(v: any, path: string)
+		if type(v) == "string" then
+			look(path, v)
+		elseif type(v) == "table" then
+			for k, x in v do
+				walk(x, path .. "." .. tostring(k))
+			end
+		end
+	end
+	walk(OP, "Story.opening")
+	walk(Config.Story.missions[1], "Story.missions[1]")
+	for _, path in
+		{
+			"src/shared/OpeningPlan.luau",
+			"src/server/Services/OpeningService.luau",
+			"src/client/Fx/PrologueFx.luau",
+			"src/client/Fx/StoryFx.luau",
+			"src/client/Ui/StoryHud.luau",
+			"src/client/Controllers/StoryClient.luau",
+			"src/client/Ui/MainMenu.luau",
+		}
+	do
+		local src = readFile(path)
+		for line in string.gmatch(src .. "\n", "([^\n]*)\n") do
+			local cut = string.find(line, "--", 1, true)
+			local code = if cut then string.sub(line, 1, cut - 1) else line
+			for lit in string.gmatch(code, '"[^"]*"') do
+				if lit ~= '"Catch"' then -- the HUD's interact button id (Hud), not text
+					look(path, lit)
+				end
+			end
+		end
+	end
+	check(#hits == 0, "old opening names left: " .. table.concat(hits, "; "))
+end)
+
+test("Lore 3: Lodestar's look, the street outfit, the funnel and the Dev panel", function()
+	local CreatorRules = require("../src/shared/CreatorRules")
+	local profile = ProfileSchema.default()
+	for _, p in CreatorRules.index(Config).list do
+		if p.source.kind ~= "pack" and p.source.kind ~= "starter" then
+			CreatorRules.grant(profile, p)
+		end
+	end
+	local look = FakeRules.lookFrom(Config, OP.lodestar.look, "Lodestar")
+	local ok, why = CreatorRules.validate(Config, profile, look)
+	check(ok, "Lodestar's hero look validates (" .. tostring(why) .. ")")
+	check(look.pieces.suit > 0 and look.pieces.back > 0 and look.pieces.emblem > 0, "a full hero look")
+	local src = readFile("src/server/Services/OpeningService.luau")
+	check(
+		string.find(src, "GearService.setStreet(r.player, true)", 1, true) ~= nil
+			and string.find(src, "GearService.setStreet(r.player, false)", 1, true) ~= nil,
+		"the street outfit on at the ceremony, off for the suit"
+	)
+	local AnalyticsSchema = require("../src/shared/AnalyticsSchema")
+	local F = AnalyticsSchema.FUNNELS.Opening
+	check(#F == 12, "the funnel keeps its shape")
+	check(
+		F[4] == "spark_detected"
+			and F[5] == "first_spark"
+			and F[6] == "fake_cracked"
+			and F[7] == "opening_done",
+		"the prologue's beats in the funnel"
+	)
+	for _, name in { "spark_detected", "first_spark", "fake_cracked" } do
+		check(string.find(src, '"' .. name .. '"', 1, true) ~= nil, name .. " is logged by the prologue")
+	end
+	local dev = clientSources()["src/client/Ui/DevPanel.luau"]
+	check(
+		string.find(dev, '"prologue", 0', 1, true) ~= nil
+			and string.find(dev, '"prologue", 1', 1, true) ~= nil
+			and string.find(dev, '"opening", beat', 1, true) ~= nil,
+		"Dev: the prologue as each side and a jump to each beat"
+	)
+	check(
+		string.find(readFile("src/server/Services/DevService.luau"), "prologue = function", 1, true) ~= nil,
+		"DevService"
+	)
+	local hud = clientSources()["src/client/Ui/StoryHud.luau"]
+	check(string.find(hud, "OpeningPlan.canSkip", 1, true) ~= nil, "the SKIP button follows canSkip")
+	local fx = clientSources()["src/client/Fx/PrologueFx.luau"]
+	check(
+		string.find(fx, "CombatFx.reduceFlashing", 1, true) ~= nil,
+		"reduce flashing softens the slow motion"
+	)
+	check(string.find(fx, "PLACEHOLDER ART", 1, true) ~= nil, "placeholder art is labelled")
+	check(string.find(fx, 'QualityController.name == "low"', 1, true) ~= nil, "a smaller crowd on phones")
 end)
 
 print(string.format("\n%d passed, %d failed", passed, failed))

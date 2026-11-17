@@ -1,14 +1,14 @@
 -- StoryHud: the story on screen (spec: The opening; First 30 seconds; Suit up; Act 1; Side quests).
--- * The cinematic: 4 comic panels over 20 seconds (the comet, two rooftop silhouettes, the shadow over the
---   moon, down to the street), skippable after 2 s. The opening runs underneath, so a skip never skips the
---   control hand-off or the first incident.
--- * The opening: the HUD shows only the step's verb button (Hud.setFocus), a marker shows where to go, and
---   other screens stay hidden; the sky holds at dusk (StoryClient). No words except verb buttons.
+-- * The Ceremony prologue (lore step 3): letterbox bars on the camera beats, the subtitles (Crane on the stage,
+--   Patch on the radio, Lodestar; fixed lines from Config.Story.opening.lines by side), SPARK DETECTED, the
+--   SKIP button (camera beats, replays only), the CAPELINE title card, and a quick fade on each cut. The HUD
+--   shows only the beat's verb buttons (Hud.setFocus); a marker shows where to go; other screens stay hidden.
+--   The world side (stage, crowd, camera, effects) is PrologueFx.
 -- * The choice card: two (or three) big verb buttons.
 -- * Suit Up: the run's end (lore step 2: the hero was made in the creator before the opening began).
 -- * Missions: a fade on each trip, the objective tracker with a LEAVE button, and the result card.
 -- * Side quests: the NPC's speech bubble and the pinned step's tracker, with its marker or search circle.
--- PLACEHOLDER ART: the cinematic panels are flat shapes until the art pass.
+-- PLACEHOLDER ART: the title card is the plain Kit title until the art pass.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -21,6 +21,7 @@ local Workspace = game:GetService("Workspace")
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local StoryPlan = require(Shared:WaitForChild("StoryPlan"))
+local OpeningPlan = require(Shared:WaitForChild("OpeningPlan"))
 
 local Kit = require(script.Parent.Kit)
 local Hud = require(script.Parent.Hud)
@@ -48,7 +49,14 @@ local questPanel: Frame
 local questTitle: TextLabel
 local questText: TextLabel
 local questFill: Frame
-local skipFlight: TextButton
+local skipBeat: TextButton
+local bars: { Frame } = {}
+local subtitle: Frame
+local subName: TextLabel
+local subText: TextLabel
+local radioTag: TextLabel
+local detected: TextLabel
+local titleCard: Frame
 local markerPart: Part
 local markerGui: BillboardGui
 local markerText: TextLabel
@@ -61,179 +69,141 @@ local function rgb(t: { number }): Color3
 end
 
 ---------------------------------------------------------------------------
--- The cinematic (PLACEHOLDER ART: flat comic panels)
+-- The prologue's screen: letterbox, subtitles, SPARK DETECTED, the title card
 ---------------------------------------------------------------------------
 
-local function panel(parent: Instance, color: Color3): Frame
-	local f = Kit.frame({
+local function buildPrologue()
+	for i = 1, 2 do
+		local bar = Kit.frame({
+			Name = if i == 1 then "LetterTop" else "LetterBottom",
+			AnchorPoint = Vector2.new(0, if i == 1 then 0 else 1),
+			Position = UDim2.fromScale(0, if i == 1 then 0 else 1),
+			Size = UDim2.fromScale(1, 0.1),
+			BackgroundColor3 = Color3.new(0, 0, 0),
+			round = false,
+			Visible = false,
+			ZIndex = 30,
+		})
+		bar.Parent = gui
+		table.insert(bars, bar)
+	end
+	subtitle = Kit.frame({
+		Name = "Subtitle",
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0.11, 6),
+		Size = UDim2.new(0.7, 0, 0, 66),
+		BackgroundColor3 = Kit.color.ink,
+		BackgroundTransparency = 0.25,
+		Visible = false,
+		ZIndex = 32,
+	})
+	local slimit = Instance.new("UISizeConstraint")
+	slimit.MaxSize = Vector2.new(600, 66)
+	slimit.Parent = subtitle
+	subtitle.Parent = gui
+	subName = Kit.label({
+		Name = "Speaker",
+		Size = UDim2.new(1, -90, 0, 22),
+		Position = UDim2.fromOffset(10, 4),
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextColor3 = Kit.color.gold,
+		maxText = 18,
+		ZIndex = 33,
+	})
+	subName.Parent = subtitle
+	radioTag = Kit.label({
+		Name = "Radio",
+		Text = "RADIO",
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, -10, 0, 4),
+		Size = UDim2.fromOffset(70, 20),
+		TextColor3 = Color3.fromRGB(120, 230, 255),
+		maxText = 14,
+		Visible = false,
+		ZIndex = 33,
+	})
+	radioTag.Parent = subtitle
+	subText = Kit.label({
+		Name = "Line",
+		Size = UDim2.new(1, -20, 0, 36),
+		Position = UDim2.fromOffset(10, 27),
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextColor3 = Kit.color.paper,
+		Font = Kit.bodyFont,
+		TextWrapped = true,
+		maxText = 16,
+		ZIndex = 33,
+	})
+	subText.Parent = subtitle
+	detected = Kit.label({
+		Name = "Detected",
+		Text = S.opening.detected,
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.5),
+		Size = UDim2.fromScale(0.8, 0.14),
+		TextColor3 = Color3.fromRGB(255, 60, 60),
+		TextStrokeTransparency = 0,
+		maxText = 64,
+		Visible = false,
+		ZIndex = 34,
+	})
+	detected.Parent = gui
+	titleCard = Kit.frame({
+		Name = "TitleCard",
 		Size = UDim2.fromScale(1, 1),
-		BackgroundColor3 = color,
+		BackgroundColor3 = Color3.fromRGB(12, 14, 30),
 		round = false,
 		Visible = false,
+		ZIndex = 45,
 	})
-	f.Parent = parent
-	return f
-end
-
-local function shape(parent: Instance, color: Color3, pos: UDim2, size: UDim2, round: number?): Frame
-	local f = Kit.frame({
-		Position = pos,
-		Size = size,
-		BackgroundColor3 = color,
-		AnchorPoint = Vector2.new(0.5, 0.5),
-		round = false,
-	})
-	if round then
-		Kit.round(f, round)
-	end
-	f.Parent = parent
-	return f
-end
-
-local function playCinematic()
-	if gui:FindFirstChild("Cinematic") then
-		return
-	end
-	local layer = Kit.frame({
-		Name = "Cinematic",
-		Size = UDim2.fromScale(1, 1),
-		BackgroundColor3 = Color3.new(0, 0, 0),
-		round = false,
-		ZIndex = 50,
-	})
-	layer.Parent = gui
-	local sky = Color3.fromRGB(14, 16, 40)
-	local beats = {}
-	-- 1: the comet breaking, the title card
-	local p1 = panel(layer, sky)
-	local comet =
-		shape(p1, Color3.fromRGB(255, 240, 180), UDim2.fromScale(0.2, 0.2), UDim2.fromOffset(28, 28), 14)
-	local tail =
-		shape(p1, Color3.fromRGB(120, 210, 255), UDim2.fromScale(0.12, 0.12), UDim2.fromOffset(140, 6))
-	tail.Rotation = 35
+	titleCard.Parent = gui
 	local title = Kit.label({
+		Name = "Title",
 		Text = "CAPELINE",
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.fromScale(0.5, 0.62),
-		Size = UDim2.fromScale(0.7, 0.16),
+		Position = UDim2.fromScale(0.5, 0.46),
+		Size = UDim2.fromScale(0.8, 0.2),
 		TextColor3 = Kit.color.gold,
 		TextStrokeTransparency = 0,
-		TextTransparency = 1,
-		maxText = 96,
+		maxText = 110,
+		ZIndex = 46,
 	})
-	title.Parent = p1
-	table.insert(beats, {
-		frame = p1,
-		run = function(len)
-			TweenService:Create(comet, TweenInfo.new(len), { Position = UDim2.fromScale(0.62, 0.42) }):Play()
-			TweenService:Create(tail, TweenInfo.new(len), { Position = UDim2.fromScale(0.52, 0.34) }):Play()
-			TweenService:Create(title, TweenInfo.new(1.2), { TextTransparency = 0 }):Play()
-		end,
-	})
-	-- 2: shards fall; a hero silhouette and a masked silhouette on two rooftops
-	local p2 = panel(layer, Color3.fromRGB(26, 22, 54))
-	shape(p2, Color3.fromRGB(10, 10, 18), UDim2.fromScale(0.2, 0.86), UDim2.fromScale(0.34, 0.3))
-	shape(p2, Color3.fromRGB(10, 10, 18), UDim2.fromScale(0.8, 0.84), UDim2.fromScale(0.34, 0.34))
-	shape(p2, rgb(U.colors.vigil), UDim2.fromScale(0.2, 0.62), UDim2.fromOffset(18, 46), 6)
-	shape(p2, rgb(U.colors.syndicate), UDim2.fromScale(0.8, 0.6), UDim2.fromOffset(18, 46), 6)
-	local shards = {}
-	for i = 1, 6 do
-		local s = shape(
-			p2,
-			Color3.fromRGB(150, 230, 255),
-			UDim2.fromScale(0.15 + i * 0.12, -0.05),
-			UDim2.fromOffset(6, 16)
-		)
-		s.Rotation = 20
-		table.insert(shards, s)
+	title.Parent = titleCard
+end
+
+local function cut()
+	fade.BackgroundTransparency = 0
+	TweenService:Create(fade, TweenInfo.new(0.7), { BackgroundTransparency = 1 }):Play()
+end
+
+-- The subtitle for this moment of the beat (each line stays until the next, or 5 s)
+local lineCache: { step: string?, side: string?, list: { any } } = { step = nil, side = nil, list = {} }
+local function prologueText(step: string?, t: number)
+	if not step then
+		subtitle.Visible = false
+		return
 	end
-	table.insert(beats, {
-		frame = p2,
-		run = function(len)
-			for i, s in shards do
-				TweenService:Create(s, TweenInfo.new(len * (0.6 + i * 0.05)), {
-					Position = UDim2.fromScale(0.1 + i * 0.12, 0.75),
-				}):Play()
-			end
-		end,
-	})
-	-- 3: the city flickers; a huge shadow crosses the moon
-	local p3 = panel(layer, Color3.fromRGB(20, 20, 34))
-	local moon =
-		shape(p3, Color3.fromRGB(235, 235, 210), UDim2.fromScale(0.5, 0.35), UDim2.fromOffset(180, 180), 90)
-	local shadow =
-		shape(p3, Color3.fromRGB(8, 8, 12), UDim2.fromScale(-0.2, 0.36), UDim2.fromOffset(150, 220), 30)
-	for i = 0, 7 do
-		shape(
-			p3,
-			Color3.fromRGB(255, 220, 120),
-			UDim2.fromScale(0.08 + i * 0.12, 0.88),
-			UDim2.fromOffset(10, 10)
-		)
+	local beat = step :: string
+	local side = StoryClient.opening.side or "hero"
+	if lineCache.step ~= beat or lineCache.side ~= side then
+		lineCache = { step = beat, side = side, list = OpeningPlan.lines(Config, beat, side) }
 	end
-	table.insert(beats, {
-		frame = p3,
-		run = function(len)
-			TweenService:Create(shadow, TweenInfo.new(len), { Position = UDim2.fromScale(1.2, 0.34) }):Play()
-			TweenService
-				:Create(moon, TweenInfo.new(len), { BackgroundColor3 = Color3.fromRGB(200, 120, 120) })
-				:Play()
-		end,
-	})
-	-- 4: down to the street, then the hand-off
-	local p4 = panel(layer, Color3.fromRGB(255, 160, 90))
-	shape(p4, Color3.fromRGB(60, 40, 60), UDim2.fromScale(0.5, 0.8), UDim2.fromScale(1, 0.4))
-	table.insert(beats, {
-		frame = p4,
-		run = function(len)
-			TweenService:Create(p4, TweenInfo.new(len), { BackgroundTransparency = 1 }):Play()
-		end,
-	})
-	local skip = Kit.button({
-		Text = "SKIP",
-		AnchorPoint = Vector2.new(1, 1),
-		Position = UDim2.new(1, -U.safe, 1, -U.safe),
-		Size = UDim2.fromOffset(U.touchTarget * 2, U.touchTarget),
-		BackgroundColor3 = Kit.color.paper,
-		Visible = false,
-		ZIndex = 60,
-	})
-	skip.Parent = layer
-	local done = false
-	local function finish()
-		if done then
-			return
+	local show = nil
+	for i, l in lineCache.list do
+		local nxt = lineCache.list[i + 1]
+		local until_ = if nxt then math.min(nxt.at, l.at + 6) else l.at + 6
+		if t >= l.at and t < until_ then
+			show = l
 		end
-		done = true
-		TweenService:Create(layer, TweenInfo.new(0.4), { BackgroundTransparency = 1 }):Play()
-		for _, d in layer:GetDescendants() do
-			if d:IsA("GuiObject") then
-				d.Visible = false
-			end
-		end
-		task.delay(0.45, function()
-			layer:Destroy()
-		end)
 	end
-	skip.Activated:Connect(finish)
-	task.delay(S.cinematic.skipAfter, function()
-		if not done then
-			skip.Visible = true
-		end
-	end)
-	task.spawn(function()
-		for i, beat in S.cinematic.beats do
-			if done then
-				return
-			end
-			for j, b in beats do
-				b.frame.Visible = j == i
-			end
-			beats[i].run(beat.len)
-			task.wait(beat.len)
-		end
-		finish()
-	end)
+	subtitle.Visible = show ~= nil
+	if show then
+		local who = S.opening.speakers[show.who] or S.opening.speakers.crane
+		subName.Text = who.name
+		subName.TextColor3 = rgb(who.color)
+		radioTag.Visible = who.radio == true
+		subText.Text = show.text
+	end
 end
 
 ---------------------------------------------------------------------------
@@ -494,11 +464,20 @@ local function refreshOpening()
 	elseif Hud.focused() then
 		Hud.setFocus(nil)
 	end
-	-- (lore step 2: the creator comes first, opened by the server for a new character; Suit Up opens nothing)
-	skipFlight.Visible = step == "flight"
-	-- a returning account picks first on the main menu (Create First skips the cinematic)
-	if step == "leap" and lastStep == "" and not StoryClient.opening.createFirst then
-		playCinematic()
+	local o = StoryClient.opening
+	local cutBeat = step ~= nil and OpeningPlan.CUT[step] == true
+	for _, b in bars do
+		b.Visible = cutBeat and not o.hold
+	end
+	skipBeat.Visible = step ~= nil and not o.hold and OpeningPlan.canSkip(step, o.replay == true)
+	-- a quick fade from black on each cut to a new place
+	if step and step ~= lastStep and (step == "leap" or step == "tunnel" or step == "title") then
+		cut()
+	end
+	if not step then
+		titleCard.Visible = false
+		detected.Visible = false
+		subtitle.Visible = false
 	end
 	lastStep = step or ""
 end
@@ -509,9 +488,9 @@ local function frame()
 	local step = StoryClient.openingStep()
 	local m = StoryClient.mission
 	local q = StoryClient.quest
-	-- the marker: the opening's step, else the mission's, else the pinned quest's
-	if step and step ~= "suitup" then
-		setMarker(o.target, step == "flight")
+	-- the marker: the prologue's beat, else the mission's, else the pinned quest's
+	if step then
+		setMarker(if OpeningPlan.CUT[step] then nil else o.target, false)
 	elseif (m.num or 0) > 0 and not m.done then
 		setMarker(m.target, true)
 	elseif q and q.target then
@@ -562,11 +541,16 @@ local function frame()
 	if bubble.Visible and now > bubbleUntil then
 		bubble.Visible = false
 	end
-end
-
--- The main menu's PLAY THE OPENING
-function StoryHud.playCinematic()
-	playCinematic()
+	-- the prologue's words: subtitles, SPARK DETECTED, the title card
+	local t = if o.hold then 0 else StoryClient.beatTime()
+	prologueText(if o.hold then nil else step, t)
+	detected.Visible = step == "scan" and t >= S.opening.beats.scan * 0.42
+	local showTitle = step == "title" and t >= S.opening.beats.title * 0.55
+	if showTitle and not titleCard.Visible then
+		titleCard.BackgroundTransparency = 1
+		TweenService:Create(titleCard, TweenInfo.new(0.8), { BackgroundTransparency = 0 }):Play()
+	end
+	titleCard.Visible = showTitle
 end
 
 function StoryHud.init()
@@ -664,15 +648,18 @@ function StoryHud.init()
 		maxText = 18,
 	})
 	bline.Parent = bubble
-	skipFlight = Kit.button({
+	buildPrologue()
+	skipBeat = Kit.button({
+		Name = "Skip",
 		Text = "SKIP",
-		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, 64),
-		Size = UDim2.fromOffset(110, U.touchTarget - 8),
+		AnchorPoint = Vector2.new(1, 1),
+		Position = UDim2.new(1, -U.safe, 1, -U.safe),
+		Size = UDim2.fromOffset(U.touchTarget * 2, U.touchTarget),
 		BackgroundColor3 = Kit.color.paper,
 		Visible = false,
-	}, StoryClient.skipFlight)
-	skipFlight.Parent = gui
+		ZIndex = 50,
+	}, StoryClient.skipBeat)
+	skipBeat.Parent = gui
 	buildMarker()
 	StoryClient.Changed:Connect(function(what)
 		if what == "opening" then
@@ -691,8 +678,8 @@ function StoryHud.init()
 		end)
 	end)
 	InputController.Pressed:Connect(function(action)
-		if action == "Catch" and StoryClient.openingStep() == "catch" then
-			StoryClient.catch()
+		if action == "Basic" and StoryClient.openingStep() == "spark" then
+			StoryClient.spark() -- the Spark fires (lore step 3)
 		end
 	end)
 	RunService.RenderStepped:Connect(FrameProf.wrap("StoryHud", frame))

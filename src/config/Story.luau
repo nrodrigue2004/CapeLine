@@ -1,37 +1,202 @@
 -- Story (spec: Opening, Act 1 story, quests; Act 1: Shardfall; Act 1 choices; Boss: Null War-Frame; Side
--- quests). Pure data: the opening's beats and the playable disaster, the 6 Act 1 missions (mission 1 is the
--- disaster itself), the 3 choices, the 7 mission pockets and the 8 side quest arcs. Both routes share the
+-- quests). Pure data: the Ceremony prologue's beats and lines, the 6 Act 1 missions (mission 1 is the
+-- prologue itself), the 3 choices, the 7 mission pockets and the 8 side quest arcs. Both routes share the
 -- pockets and enemies; only the text, the NPC lines and the banners change. Every number is a starting
 -- value to tune. All names and characters are original.
 return {
-	-- The cinematic over loading (Client): skippable after 2 s; 4 beats, 20 s
-	cinematic = {
-		skipAfter = 2,
-		beats = {
-			{ t = 0, len = 4, shot = "comet" }, -- night sky, the comet breaking, the title card
-			{ t = 4, len = 5, shot = "rooftops" }, -- shards fall; two silhouettes watch from two rooftops
-			{ t = 9, len = 5, shot = "shadow" }, -- the city flickers; a huge shadow crosses the moon
-			{ t = 14, len = 6, shot = "street" }, -- down to the street; control is handed over
-		},
-	},
-
-	-- The playable disaster (mission 1, Shardfall): only verb buttons carry words
+	-- The Ceremony prologue (nate's lore, build plan step 3; mission 1): about 4 minutes, right after the creator.
+	-- Silas Crane hands out medals at Crane's Hero Hall in the Downtown plaza; his scanner finds the new hero's
+	-- Spark; a run through the panic, a rooftop chase by Skylance, a subway full of falling tunnel, a fight that
+	-- cracks the fake's face to metal, a swarm of Crane robots, and Lodestar's rescue. Then the billboard and the
+	-- CAPELINE title card. Every line is fixed text here (nothing free-typed); a line with `hero` and `villain`
+	-- texts reads by the side picked in the creator. OpeningPlan.STEPS is the beat order.
 	opening = {
-		clockTime = 18.2, -- dusk on the client while it runs
-		startRoof = { minH = 30, maxH = 90, near = 320 }, -- a roof near the plaza to start on
-		leapRoof = { minGap = 30, maxGap = 75 }, -- the next roof, within one Leap
-		reach = 14, -- studs from a target that count as there
-		catchRange = 40, -- the Catch button works this close to the tram car
-		catchRenown = 50,
-		drones = { first = 2, second = 4 }, -- hits of the hero's basic attack each takes
-		secondDamage = 0.35, -- the second drone hits this hard (x a normal Spark Drone)
-		choice = { "Save Her", "Grab It" },
-		rescueGap = { 120, 200 }, -- Save: carry her to a rooftop pad this far away
-		escape = { 260, 340 }, -- Grab: reach the Docks marker this far away while drones chase
-		escapeDrones = 3,
-		reward = { level = 3, skillPoints = 1 }, -- level 3 and Flight; then the Suit Up screen
-		guidedFlight = true, -- a marker leads the first flight to the nearest beacon
-		timeout = 240, -- a stuck opening finishes itself after 4 minutes
+		clockTime = 14.5, -- a bright afternoon on the client while it runs (bright world, serious story)
+		timeout = 330, -- a stuck prologue finishes itself (straight to the title and the rewards) after this
+		reach = 14, -- studs from a target that count as there (missions use it too)
+		-- timed beats (seconds); the skip button shows on them only on a replay or for a returning account
+		beats = { ceremony = 30, scan = 8, suit = 3.5, rescue = 9, title = 10 },
+		-- a beat the hero has not finished in this long moves on by itself (the hero is placed at the next one)
+		stuck = {
+			run = 45,
+			spark = 12,
+			leap = 45,
+			chase = 60,
+			descend = 50,
+			tunnel = 75,
+			fight = 100,
+			swarm = 11,
+		},
+		-- the plaza: the stage in front of Crane's Hero Hall, the crowd on the street before it
+		plaza = {
+			stage = { gap = 4, depth = 14, width = 44, height = 4 }, -- from the Hall's face, studs
+			crowd = { count = 30, low = 14, rows = 4, near = 8, far = 34 }, -- low: the phone preset's crowd
+			start = 18, -- the hero stands this far from the stage, among the crowd
+			kid = 4, -- the kid (Vigil) or the shover (Syndicate) stands this far from the spark point
+		},
+		run = { minD = 60, maxD = 110 }, -- the spark point: open ground this far from the start, away from the stage
+		spark = { reach = 18, auto = 6, after = 3, blast = 70 }, -- fires on Basic (or by itself); the shove flies 70
+		roofs = { count = 3, minH = 18, maxH = 200, near = { 20, 160 }, gap = { 30, 75 }, climb = 12 },
+		chase = { fake = "Skylance", behind = 26, throwEvery = 3.2, warn = 0.7 }, -- harmless telegraphed spears
+		suit = { pieceGap = 0.16 }, -- the suit snaps on piece by piece this fast
+		entrance = { minD = 20, maxD = 80 }, -- the subway steps: open ground below the last roof
+		-- the subway pocket: Config.Story.pockets index count + 1 (missions never take it), one lane per prologue
+		subway = {
+			lanes = 6,
+			pitch = 64, -- lane centres this far apart
+			width = 26,
+			height = 24,
+			length = 300, -- start to the fight chamber
+			chamber = 56, -- the chamber at the end, square
+			-- tunnel collapses: a slab falls across the lane `at` studs in, `t` seconds after the tunnel starts,
+			-- with a warning ring `warn` seconds before; a hero under it is knocked back `push` studs (no damage)
+			collapses = {
+				{ at = 60, t = 4 },
+				{ at = 120, t = 9 },
+				{ at = 180, t = 14 },
+				{ at = 240, t = 19 },
+			},
+			warn = 1.2,
+			slab = 10, -- studs deep
+			rubble = 4, -- the pile left behind is this tall (Leap over it)
+			push = 22,
+		},
+		fight = { fake = "Skylance", hpMult = 0.55, dmg = 0.35, lowHealth = 0.3 }, -- ends at the face crack
+		swarm = { kind = "SparkDrone", count = 7, ring = 22, dmg = 0.12, lowHealth = 0.35 }, -- the Crane Troopers
+		reward = { level = 3, skillPoints = 1 }, -- level 3 and Flight, as the old opening paid
+		next = 2, -- the hook: mission 2 (Safehouse, lore step 5) is what the Journal pins next
+		-- the billboard for the last shot: a tall building's face toward the plaza
+		billboard = { minH = 80, near = { 140, 380 }, size = { 70, 40 } },
+		-- Lodestar (veteran Vigil hero; Patch calls him "Old Star"): a fixed look from earnable creator pieces
+		lodestar = {
+			name = "LODESTAR",
+			title = "THE VIGIL",
+			look = {
+				gender = 1,
+				build = 3,
+				height = 5,
+				skin = 4,
+				hair = 19, -- silver
+				colors = { 11, 19, 4 }, -- navy, silver, gold
+				pieces = {
+					suit = "Split Tone",
+					back = "Classic Cape",
+					hands = "Gloves",
+					feet = "Tall Boots",
+					emblem = "Star",
+					hair = "Slicked Back",
+					beard = "Full Beard",
+					shoulders = "Mantle",
+					belt = "Utility Belt",
+					visage = "Scarred Face",
+				},
+				tints = { back = { 11, 4, 0 } },
+				mats = {},
+			},
+		},
+		-- the voices: Crane on the stage (and the plaza speakers), Patch on the radio (subtitles and a radio
+		-- blip; no voice acting), Lodestar in person
+		speakers = {
+			crane = { name = "SILAS CRANE", color = { 255, 210, 60 } },
+			patch = { name = "PATCH", color = { 120, 230, 255 }, radio = true },
+			lodestar = { name = "LODESTAR", color = { 150, 190, 255 } },
+		},
+		-- subtitled lines by beat: `at` seconds into the beat
+		lines = {
+			ceremony = {
+				{ at = 1, who = "crane", text = "Brightharbor! Thank you all for coming out today." },
+				{ at = 6.5, who = "crane", text = "Ten years ago, the Spark nearly tore this city apart." },
+				{ at = 12, who = "crane", text = "Today we honour the heroes who keep you safe. Radiant!" },
+				{ at = 16, who = "crane", text = "Bulwark! And Skylance! Built strong by Crane Industries." },
+				{
+					at = 22,
+					who = "crane",
+					text = "And with our new scanners, no rogue Spark will hurt you again.",
+				},
+			},
+			scan = {
+				{ at = 0.5, who = "crane", text = "Scanners on, everyone. Big smiles!" },
+				{ at = 4.5, who = "crane", text = "Well, well. It seems we have a guest. Officers?" },
+			},
+			run = {
+				{
+					at = 1,
+					who = "crane",
+					text = "Please remain calm! Crane Industries has this under control!",
+				},
+			},
+			spark = {
+				{
+					at = 0.5,
+					who = "crane",
+					hero = "Officers! Get that rogue away from the child!",
+					villain = "You see? A rogue Spark, attacking citizens! This is why we scan!",
+				},
+			},
+			leap = {
+				{
+					at = 1,
+					who = "patch",
+					text = "Hey! You, the one glowing like a firework! Can you hear me?",
+				},
+				{ at = 5.5, who = "patch", text = "I'm Patch. I hacked your phone. Jump to that roof, now!" },
+			},
+			chase = {
+				{
+					at = 0.5,
+					who = "patch",
+					hero = "You shielded that kid. Cool. Now Skylance is on your tail!",
+					villain = "You sent that guy flying. Noted. Now Skylance is on your tail!",
+				},
+				{ at = 7, who = "patch", text = "Keep jumping! His spears never miss twice!" },
+			},
+			suit = {
+				{ at = 0.4, who = "patch", text = "Whoa. Is your Spark making you a suit? That is SO cool." },
+			},
+			descend = {
+				{
+					at = 0.5,
+					who = "patch",
+					text = "Subway steps, down below! His scanners can't see underground!",
+				},
+			},
+			tunnel = {
+				{ at = 0.5, who = "patch", text = "That's the old tunnel. It's not exactly stable. RUN!" },
+			},
+			fight = {
+				{ at = 0.5, who = "patch", text = "He's blocking the way out. You'll have to fight him!" },
+			},
+			swarm = {
+				{
+					at = 0.3,
+					who = "patch",
+					text = "His face... it's METAL! Skylance is a robot? He's a FAKE!",
+				},
+				{
+					at = 5,
+					who = "patch",
+					text = "Crane robots, a whole squad! Hang on, I'm calling Old Star!",
+				},
+			},
+			rescue = {
+				{
+					at = 1.2,
+					who = "lodestar",
+					hero = "Easy, rookie. You fought like the Vigil. Let an old star take it from here.",
+					villain = "Mean little Spark you've got. Crane wants it. Tonight, he doesn't get it.",
+				},
+				{ at = 5.5, who = "patch", text = "Old Star! I knew you'd come!" },
+				{ at = 7, who = "lodestar", text = "Hold on tight. We're going underground." },
+			},
+			title = {
+				{ at = 0.8, who = "crane", text = "Crane Industries. Your heroes. Our promise." },
+			},
+		},
+		-- the scan's banner and the billboard (fixed text)
+		detected = "SPARK DETECTED",
+		slogan = "A SAFER CITY, ONE SPARK AT A TIME",
+		brand = "CRANE INDUSTRIES",
+		hall = "CRANE'S HERO HALL",
 	},
 
 	-- Mission pockets: sealed 400 x 400 areas at y = 3,000 (no PvP, no world schedulers)
@@ -41,10 +206,10 @@ return {
 	missions = {
 		{
 			num = 1,
-			id = "Shardfall",
-			name = "Shardfall",
+			id = "Ceremony",
+			name = "The Ceremony",
 			minLevel = 1,
-			opening = true, -- the playable disaster in the city, not a pocket
+			opening = true, -- the prologue (lore step 3), in the city and the subway pocket, not the board
 			skillPoints = 1,
 		},
 		{

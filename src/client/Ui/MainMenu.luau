@@ -5,19 +5,17 @@
 -- * A returning hero (created when the session's first profile came) sees PLAY, SHOP and SETTINGS over the
 --   live city; PLAY is one tap. A hero made this session never gets it (it is in the opening).
 -- * A new hero on an account that already did the opening (OpeningState createFirst), once made in the
---   creator, sees CREATE FIRST (the Create First path: straight to the city, no cinematic, no disaster) or PLAY
---   THE OPENING (the cinematic, then the run).
+--   creator, sees CREATE FIRST (the Create First path: straight to the city with the rewards) or PLAY THE
+--   PROLOGUE (the Ceremony waits on its first beat until then; lore step 3).
 -- PLACEHOLDER ART: a Kit panel with the title until the art pass.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
-local Net = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Net"))
 
 local Kit = require(script.Parent.Kit)
 local SettingsMenu = require(script.Parent.SettingsMenu)
 local ShopHud = require(script.Parent.ShopHud)
-local StoryHud = require(script.Parent.StoryHud)
 local State = require(script.Parent.Parent.State)
 local StoryClient = require(script.Parent.Parent.Controllers.StoryClient)
 
@@ -66,14 +64,14 @@ local function show(kind: string)
 	mode = kind
 	clear()
 	if kind == "createFirst" then
-		sub.Text = "Your new hero is ready. Go to the city, or play the opening again."
+		sub.Text = "Your new hero is ready. Go to the city, or play the prologue again."
 		add("CREATE FIRST", Kit.color.gold, 1, function()
-			Net.send("OpeningAct", 3)
+			StoryClient.createFirst()
 			MainMenu.close()
 		end)
-		add("PLAY THE OPENING", Kit.color.paper, 2, function()
+		add("PLAY THE PROLOGUE", Kit.color.paper, 2, function()
+			StoryClient.playPrologue()
 			MainMenu.close()
-			StoryHud.playCinematic()
 		end)
 	else
 		sub.Text = "Brightharbor needs you."
@@ -160,9 +158,9 @@ function MainMenu.init()
 		if what ~= "opening" then
 			return
 		end
-		if StoryClient.opening.createFirst and StoryClient.openingStep() == "leap" then
+		if StoryClient.opening.createFirst and StoryClient.openingStep() == "ceremony" then
 			show("createFirst")
-		elseif mode == "createFirst" and StoryClient.openingStep() ~= "leap" then
+		elseif mode == "createFirst" and not StoryClient.opening.createFirst then
 			MainMenu.close()
 		end
 	end)

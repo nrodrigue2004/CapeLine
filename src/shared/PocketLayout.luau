@@ -11,6 +11,18 @@ local BoxKit = if script then require(script.Parent.BoxKit) else (require :: any
 
 local PocketLayout = {}
 
+-- One prologue's tunnel in the subway pocket: it runs from start (the steps down) along -z to the fight chamber
+export type Lane = {
+	index: number,
+	x: number, -- the lane's centre line
+	z0: number, -- the tunnel mouth (the start end)
+	z1: number, -- the tunnel's far end, where the chamber begins
+	floorY: number,
+	start: { number },
+	fight: { number }, -- the chamber's centre
+	collapses: { { z: number, t: number } }, -- where each slab falls (its centre z) and when (s into the tunnel)
+}
+
 export type Layout = {
 	index: number,
 	cx: number,
@@ -29,13 +41,18 @@ function PocketLayout.centre(Config: any, i: number): (number, number, number)
 	return p.firstX + (i - 1) * p.gap, p.y, p.z
 end
 
--- Which pocket a point is in, or nil
+-- The subway pocket of the Ceremony prologue (lore step 3): the one after the missions' (they never take it)
+function PocketLayout.subwayIndex(Config: any): number
+	return Config.Story.pockets.count + 1
+end
+
+-- Which pocket a point is in, or nil (the subway pocket counts: no PvP, no world schedulers there either)
 function PocketLayout.at(Config: any, x: number, y: number, z: number): number?
 	local p = Config.Story.pockets
 	if y < p.y - 100 then
 		return nil
 	end
-	for i = 1, p.count do
+	for i = 1, p.count + 1 do
 		local cx, _, cz = PocketLayout.centre(Config, i)
 		if math.abs(x - cx) <= p.size / 2 + 20 and math.abs(z - cz) <= p.size / 2 + 20 then
 			return i
@@ -187,6 +204,67 @@ function BUILD.arena(l: Layout, Config: any)
 	end
 	point(l, "boss", 0, 0.5, -20)
 	point(l, "spawn", 0, 3, 170)
+end
+
+-- Lane i (1 to Config.Story.opening.subway.lanes) of the subway pocket
+function PocketLayout.lane(Config: any, i: number): Lane
+	local S = Config.Story.opening.subway
+	local cx, cy, cz = PocketLayout.centre(Config, PocketLayout.subwayIndex(Config))
+	local x = cx + (i - (S.lanes + 1) / 2) * S.pitch
+	local z0 = cz + Config.Story.pockets.size / 2 - 16
+	local z1 = z0 - S.length
+	local collapses = {}
+	for _, c in S.collapses do
+		table.insert(collapses, { z = z0 - c.at, t = c.t })
+	end
+	return {
+		index = i,
+		x = x,
+		z0 = z0,
+		z1 = z1,
+		floorY = cy,
+		start = { x, cy + 3, z0 - 8 },
+		fight = { x, cy + 3, z1 - S.chamber / 2 },
+		collapses = collapses,
+	}
+end
+
+-- The prologue's subway (lore step 3): one tunnel a lane (walls, a ceiling, rails, lamps), each ending in a
+-- square fight chamber. The falling slabs and rubble are drawn on the hero's device (PrologueFx).
+-- PLACEHOLDER ART: greybox like every pocket.
+function BUILD.subway(l: Layout, Config: any)
+	local S = Config.Story.opening.subway
+	for i = 1, S.lanes do
+		local ln = PocketLayout.lane(Config, i)
+		local x = ln.x - l.cx
+		local z0, z1 = ln.z0 - l.cz, ln.z1 - l.cz
+		local len = z0 - z1
+		local zm = (z0 + z1) / 2
+		local w, h = S.width, S.height
+		for k = -1, 1, 2 do
+			box(l, "building", x + k * (w / 2 + 1), h / 2, zm, 2, h, len, "foundry")
+		end
+		box(l, "building", x, h + 1, zm, w + 4, 2, len, "foundry", { tag = "ceiling" })
+		box(l, "road", x, 0.1, zm, w, 0.2, len, "road")
+		for k = -1, 1, 2 do
+			box(l, "prop", x + k * 3, 0.35, zm, 0.6, 0.5, len, "steel") -- the rails
+		end
+		for z = z0 - 20, z1 + 10, -40 do
+			box(l, "glow", x, h - 0.4, z, 3, 0.6, 3, "foundryGlow") -- a lamp every 40 studs
+		end
+		box(l, "building", x, h / 2, z0 + 1, w + 4, h, 2, "foundry") -- the end wall behind the steps
+		-- the fight chamber: wider than the tunnel, with a ceiling and a doorway from the tunnel
+		local c = S.chamber
+		local czm = z1 - c / 2
+		for k = -1, 1, 2 do
+			box(l, "building", x + k * (c / 2 + 1), h / 2, czm, 2, h, c, "foundry")
+			box(l, "building", x + k * (c + w) / 4, h / 2, z1 + 1, (c - w) / 2, h, 2, "foundry")
+		end
+		box(l, "building", x, h / 2, z1 - c - 1, c + 4, h, 2, "foundry")
+		box(l, "building", x, h + 1, czm, c + 4, 2, c + 4, "foundry", { tag = "ceiling" })
+		box(l, "glow", x, h - 0.4, czm, 6, 0.6, 6, "foundryGlow")
+		add(l, "lanes", ln.start[1] - l.cx, 0.5, ln.start[3] - l.cz)
+	end
 end
 
 function PocketLayout.build(Config: any, index: number, layout: string): Layout

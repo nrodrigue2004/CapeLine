@@ -2,8 +2,8 @@
 -- in a live game. Buttons: 30 load bots, clear bots, 5 drones, clear drones, spawner, god, class, level,
 -- Comic/Anime style, robots, levels, skill points, Awakening, loot by source, Renown, Credits, Dust, find all
 -- beacons, wreck here, repair city, flip cars, save, wipe, and (M6) incident by template, clear incidents,
--- event by type, boss now, boss to 1 HP, finish contract, clock phase, hero or villain side, and (M7) replay
--- the opening, jump to an opening step, enter a mission, finish the step, leave, start a side quest, clear
+-- event by type, boss now, boss to 1 HP, finish contract, clock phase, hero or villain side, and (M7) the
+-- Ceremony prologue as the Vigil or the Syndicate and a jump to each of its beats (lore step 3), enter a mission, finish the step, leave, start a side quest, clear
 -- Act 1 and reset the story, and (M9) the creator, enter HQ, HQ level, 8 h away, all pieces, a test buy
 -- (twice grants once) and the level cap, and (2026-11-17) the next incident, event or contract to try (the
 -- "Inc:", "Ev:" and "Con:" buttons start the one named, "next" picks another), and a Heroic switch for them.
@@ -18,6 +18,7 @@ local AbilityRules = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChi
 local Net = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Net"))
 local ShopRules = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("ShopRules"))
 local EnemySim = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("EnemySim"))
+local OpeningPlan = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("OpeningPlan"))
 
 local Kit = require(script.Parent.Kit)
 local State = require(script.Parent.Parent.State)
@@ -267,15 +268,18 @@ function DevPanel.init()
 		Net.send("DevCommand", "side", if villain then 1 else 0)
 	end)
 	-- M7: the story
-	add("Opening", function()
-		Net.send("DevCommand", "opening", 0)
+	-- lore step 3: the Ceremony prologue as either side, and a jump to each beat (tap again for the next)
+	add("Prologue: Vigil", function()
+		Net.send("DevCommand", "prologue", 0)
 	end)
-	local openStep = 1
-	add("Open step: leap", function(b)
-		openStep = openStep % 9 + 1
-		local names = { "leap", "glide", "catch", "blast", "choice", "save", "grab", "suitup", "flight" }
-		b.Text = "Open step: " .. names[openStep]
-		Net.send("DevCommand", "opening", openStep)
+	add("Prologue: Syndicate", function()
+		Net.send("DevCommand", "prologue", 1)
+	end)
+	local beat = 0
+	add("Beat: ceremony", function(b)
+		beat = beat % #OpeningPlan.STEPS + 1
+		Net.send("DevCommand", "opening", beat)
+		b.Text = "Beat: " .. OpeningPlan.STEPS[beat % #OpeningPlan.STEPS + 1]
 	end)
 	local missionIdx = 2
 	add("Mission 2", function(b)
