@@ -318,17 +318,14 @@ local function handleEvents()
 					end
 					local pull = ev.pull
 					if pull and pos and hero.player then
-						-- a Grappler's hook: pulled toward it (and down to it), stopping `reel` studs short
-						local to = Vector3.new(pull.x, pull.y, pull.z) - pos
-						local flat = Vector3.new(to.X, 0, to.Z)
-						local len = math.max(0, flat.Magnitude - pull.reel)
-						local move = if flat.Magnitude > 0.1 then flat.Unit * len else Vector3.zero
-						local drop = math.min(0, to.Y)
-						MoveGuard.grant(hero, move.Magnitude + math.abs(drop) + 10)
+						-- a Grappler's hook: pulled toward it (and down to it), stopping `reel` studs short; only the
+						-- flat travel is granted (the drop is a fall, free in MoveCheck)
+						local mx, mz, drop, grant = EnemySim.hookPull(pull, pos.X, pos.Y, pos.Z)
+						MoveGuard.grant(hero, grant)
 						Net.fire(
 							"HeroKnock",
 							hero.player,
-							{ x = move.X, y = 3, z = move.Z, time = pull.time, drop = drop }
+							{ x = mx, y = 3, z = mz, time = pull.time, drop = drop }
 						)
 					end
 				end

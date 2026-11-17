@@ -1323,9 +1323,10 @@ function CombatFx.hook(from: () -> Vector3?, pos: Vector3, vel: Vector3, out: ()
 			end
 			if phase == "fly" then
 				local hit = Workspace:Raycast(tip, nextTip - tip, params)
-				if hit then
+				local cut = t >= 0.3 and not out() -- the cable was cut (the Grappler was stunned)
+				if hit and not cut then
 					tip, phase, stuckT = hit.Position, "stuck", 0.15
-				elseif t >= life then
+				elseif cut or t >= life then
 					tip, phase = nextTip, "reel"
 					reelFrom, reelT = tip, 0
 				else
@@ -1370,7 +1371,14 @@ end
 
 -- A Sniper's aim: a red laser from its rifle tip (`from`, nil when the robot is gone) to its hero (`to`) for
 -- `time` s. For the last `lock` s it stops following, thickens and blinks: the aim is locked, dodge now.
-function CombatFx.aimLaser(from: () -> Vector3?, to: () -> Vector3?, time: number, lock: number)
+-- on() (optional) says the aim still holds (the robot's aim bit): a stun or a pull breaks it, and the laser goes.
+function CombatFx.aimLaser(
+	from: () -> Vector3?,
+	to: () -> Vector3?,
+	time: number,
+	lock: number,
+	on: (() -> boolean)?
+)
 	local am = R.aim
 	local color = rgb(am.color)
 	local beamPart = part(Vector3.new(am.width, am.width, 1), CFrame.new(), color)
@@ -1383,7 +1391,7 @@ function CombatFx.aimLaser(from: () -> Vector3?, to: () -> Vector3?, time: numbe
 	conn = RunService.RenderStepped:Connect(FrameProf.wrap("CombatFx", function(dt)
 		t += dt
 		local a = from()
-		if not a or t >= time then
+		if not a or t >= time or (on and not on()) then
 			conn:Disconnect()
 			beamPart:Destroy()
 			dot:Destroy()
@@ -1420,14 +1428,14 @@ end
 -- (steady with reduce flashing on)
 local aimEdges: { Frame } = {}
 local aimToken = 0
-function CombatFx.targeted(time: number, lock: number)
+function CombatFx.targeted(time: number, lock: number, on: (() -> boolean)?)
 	aimToken += 1
 	local token = aimToken
 	local t = 0
 	local conn: RBXScriptConnection
 	conn = RunService.RenderStepped:Connect(FrameProf.wrap("CombatFx", function(dt)
 		t += dt
-		local done = t >= time or token ~= aimToken
+		local done = t >= time or token ~= aimToken or (on ~= nil and not on())
 		local strength = 0
 		if not done then
 			if t >= time - lock then
@@ -1553,8 +1561,9 @@ function CombatFx.zone(center: Vector3, radius: number, time: number)
 end
 
 -- A Medic Unit's repair beam: green, from the Medic (`from`) to its patient (`to`), both ends following, with
--- small repair packets running along it for `time` s
-function CombatFx.mend(from: () -> Vector3?, to: () -> Vector3?, time: number)
+-- small repair packets running along it for `time` s, or until on() (optional, the Medic's mend bit) says
+-- the beam broke (a stun)
+function CombatFx.mend(from: () -> Vector3?, to: () -> Vector3?, time: number, on: (() -> boolean)?)
 	local md = R.mend
 	local color = rgb(md.color)
 	local core = part(Vector3.new(md.width, md.width, 1), CFrame.new(), WHITE:Lerp(color, 0.5))
@@ -1566,7 +1575,7 @@ function CombatFx.mend(from: () -> Vector3?, to: () -> Vector3?, time: number)
 	conn = RunService.RenderStepped:Connect(FrameProf.wrap("CombatFx", function(dt)
 		t += dt
 		local a, b = from(), to()
-		if not a or not b or t >= time then
+		if not a or not b or t >= time or (on and not on()) then
 			conn:Disconnect()
 			fade(core, 0.15)
 			fade(glow, 0.2)
