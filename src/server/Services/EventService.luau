@@ -17,6 +17,11 @@
 --   150 studs when it cleared gets the event's Credits and Renown at its zone level and one gear roll from
 --   the "event" source. A failed event pays nothing. From level 40 an event may roll Heroic
 --   (Shared.HeroicRules): robots 5 levels up, one more in each wave and guard row, x1.5 pay.
+-- * Your double (nate's lore A2, build plan step 9): the rare tier (Config.Events.scheduler.rare) may give a due
+--   slot to the evil twin's return: one eligible hero (EventPlan.doubleOk: past The Copy, in the open city, not
+--   in the Crater, the prologue or a mission, not AFK, 3 h of play since their last) meets their own twin
+--   (EnemyService.spawnTwin) nearby, with a news flash for everyone and a name card and Patch's radio line on
+--   their device; nearby heroes help and share x3 pay. profile.stats.doubleAt keeps the play time of the last.
 -- * Zone level: the median level of the heroes in the server, raised to the area floor (ZoneLevel).
 -- * Event.State goes to everyone at 1 Hz while events run: { num, x, z, left, have, need, state, heroic }.
 
@@ -37,6 +42,8 @@ local IncidentSpots = require(Shared:WaitForChild("IncidentSpots"))
 local ZoneLevel = require(Shared:WaitForChild("ZoneLevel"))
 local Progress = require(Shared:WaitForChild("Progress"))
 local HeroicRules = require(Shared:WaitForChild("HeroicRules"))
+local StoryPlan = require(Shared:WaitForChild("StoryPlan"))
+local ProfileSchema = require(Shared:WaitForChild("ProfileSchema"))
 
 local CityBuilder = require(script.Parent.CityBuilder)
 local HeroService = require(script.Parent.HeroService)
@@ -48,6 +55,9 @@ local CitizenService = require(script.Parent.CitizenService)
 local IncidentService = require(script.Parent.IncidentService)
 local PerfMonitor = require(script.Parent.PerfMonitor)
 local SiteKit = require(script.Parent.SiteKit)
+local OpeningService = require(script.Parent.OpeningService)
+local MissionService = require(script.Parent.MissionService)
+local NewsService = require(script.Parent.NewsService)
 
 local EventService = {}
 
@@ -92,6 +102,8 @@ type Live = {
 	travelled: number,
 	generators: { Site },
 	reported: boolean,
+	target: Player?, -- Your double: the hero it copies
+	twin: number?, -- Your double: the twin's robot id
 }
 
 local plan: EventPlan.State
@@ -622,6 +634,155 @@ local function start(id: string)
 	end
 end
 
+---------------------------------------------------------------------------
+-- Your double (lore step 9): the rare tier's evil twin, aimed at one hero
+---------------------------------------------------------------------------
+
+local DOUBLE = EC.events.YourDouble
+local moved: { [number]: { pos: Vector3, at: number } } = {} -- hero id -> last spot that counted as a move
+local idledAt: { [Player]: number } = {} -- os.clock of the last Player.Idled (Roblox: 2 minutes without input)
+local doubleFor: number? = nil -- the hero the rare tier just picked
+
+-- Watch who is moving (AFK check), once a second
+local function watchMoves(now: number)
+	for id, h in HeroService.all() do
+		local p = h.player and HeroService.position(h)
+		if p then
+			local m = moved[id]
+			if not m or (p - m.pos).Magnitude >= DOUBLE.afkMove then
+				moved[id] = { pos = p, at = now }
+			end
+		end
+	end
+	for id in moved do
+		if not HeroService.byId(id) then
+			moved[id] = nil
+		end
+	end
+end
+
+-- What EventPlan.doubleOk reads about a hero (nil for a bot or a hero not loaded yet)
+local function doubleInfo(h: any, now: number): EventPlan.DoubleInfo?
+	local player = h.player
+	local pos = player and h.loaded and HeroService.position(h)
+	local profile = player and DataService.get(player)
+	local char = profile and ProfileSchema.active(profile)
+	if not pos or not profile or not char then
+		return nil
+	end
+	local m = moved[h.id]
+	local still = if m then now - m.at else 0
+	local idle = idledAt[player]
+	if idle and (not m or idle > m.at) then
+		still = math.max(still, DOUBLE.afk)
+	end
+	local last = profile.stats.doubleAt or 0
+	return {
+		level = h.level,
+		copyDone = type(char.story) == "table" and StoryPlan.cleared(char.story, DOUBLE.mission),
+		prologue = OpeningService.running(player),
+		mission = MissionService.runOf(player) ~= nil,
+		y = pos.Y,
+		crater = player:GetAttribute("InCrater") == true,
+		busy = not h.alive or h.downed == true or h.scene ~= nil or h.traveling == true,
+		still = still,
+		played = profile.stats.playSeconds or 0,
+		lastAt = if last > 0 then last else nil,
+	}
+end
+
+-- The rare tier asks: may a rare event start now? (picks the double's hero)
+local function rareAllowed(id: string): boolean
+	if id ~= "YourDouble" or not Config.Enemies.EvilTwin.on then
+		return false
+	end
+	local now = os.clock()
+	local list = {}
+	for hid, h in HeroService.all() do
+		local info = doubleInfo(h, now)
+		if info then
+			list[hid] = info
+		end
+	end
+	doubleFor = EventPlan.doublePick(EC, list, rng)
+	return doubleFor ~= nil
+end
+
+-- Start the double on this hero. Returns false when the twin could not spawn (switched off, server full).
+local function startDouble(h: any): boolean
+	local player: Player? = h.player
+	local at = player and HeroService.position(h)
+	if not player or not at then
+		return false
+	end
+	local a = rng:range(0, 2 * math.pi)
+	local d = rng:range(DOUBLE.spawnAt[1], DOUBLE.spawnAt[2])
+	local near = Vector3.new(at.X + math.cos(a) * d, at.Y, at.Z + math.sin(a) * d)
+	local spot = groundSpot(near, 0, 30)
+	nextTag += 1
+	local twin = EnemyService.spawnTwin(player, spot + Vector3.new(0, 2, 0), h.level, nextTag)
+	if not twin then
+		return false
+	end
+	EnemyService.tune(twin, { hpMult = DOUBLE.hpMult })
+	local now = os.clock()
+	local ev: Live = {
+		id = "YourDouble",
+		def = DOUBLE,
+		goal = "twin",
+		level = h.level,
+		heroic = false,
+		pos = spot,
+		tag = nextTag,
+		started = now,
+		ends = now + DOUBLE.length,
+		have = 0,
+		need = 1,
+		state = STATE.active,
+		things = { twin },
+		robots = { [twin] = true },
+		helpers = { [h.id] = true },
+		wave = 0,
+		nextWave = math.huge,
+		ring = nil,
+		held = 0,
+		object = nil,
+		dir = nil,
+		start = nil,
+		path = nil,
+		length = 1,
+		travelled = 0,
+		generators = {},
+		reported = false,
+	}
+	ev.target = player
+	ev.twin = twin
+	byRobot[twin] = ev.id
+	live[ev.id] = ev
+	local profile = DataService.get(player)
+	if profile then
+		profile.stats.doubleAt = math.max(1, profile.stats.playSeconds or 0)
+	end
+	-- the hero hears it on their device (name card, Patch on the radio); heroes near them get the call to help
+	Net.fire(
+		"Toast",
+		player,
+		{ id = "event", num = DOUBLE.num, name = DOUBLE.name, text = DOUBLE.text, mine = true }
+	)
+	for _, other in SiteKit.heroesIn(at, DOUBLE.notify) do
+		if other.player and other.player ~= player then
+			Net.fire("Toast", other.player, {
+				id = "event",
+				num = DOUBLE.num,
+				name = DOUBLE.name,
+				text = DOUBLE.helpText,
+			})
+		end
+	end
+	NewsService.post("double", player)
+	return true
+end
+
 local function pay(ev: Live)
 	markNear(ev, ev.pos, EC.helpRadius)
 	for _, g in ev.generators do
@@ -636,6 +797,9 @@ local function pay(ev: Live)
 			local credits = math.floor((r.credits[1] + r.credits[2] * ev.level) * m + 0.5)
 			local renown = math.floor((r.renown[1] + r.renown[2] * ev.level) * m + 0.5)
 			credits, renown = HeroicRules.pay(Config, credits, renown, ev.heroic)
+			if table.find(EC.rare, ev.id) then
+				credits, renown = EventPlan.rarePay(EC, credits, renown)
+			end
 			EconomyService.addCredits(player, credits)
 			EconomyService.addRenown(player, renown)
 			-- the meteor shower's roll is the shard itself
@@ -659,6 +823,9 @@ local function finish(ev: Live, ok: boolean)
 	ev.state = if ok then STATE.done else STATE.failed
 	if ok then
 		pay(ev)
+		if ev.goal == "twin" and ev.target and ev.target.Parent then
+			NewsService.post("doubleDown", ev.target)
+		end
 	end
 	for rid in ev.robots do
 		byRobot[rid] = nil
@@ -747,6 +914,15 @@ local function stepEvent(ev: Live, now: number, dt: number)
 			end
 		end
 		ev.have = done
+	elseif goal == "twin" and ev.twin and ev.have < 1 then
+		-- the marker and the help radius follow the twin; a twin removed some other way ends it
+		local e = EnemyService.get(ev.twin)
+		if e and e.alive then
+			ev.pos = Vector3.new(e.x, e.y, e.z)
+		else
+			finish(ev, false)
+			return
+		end
 	end
 	if ev.have >= ev.need then
 		finish(ev, true)
@@ -770,7 +946,7 @@ local function onKilled(_kind: string, by: number?, _pos: Vector3, enemyId: numb
 	for _, g in ev.generators do
 		g.guards[enemyId :: number] = nil
 	end
-	if ev.goal == "robots" then
+	if ev.goal == "robots" or ev.goal == "twin" then
 		ev.have += 1
 	end
 end
@@ -814,6 +990,32 @@ function EventService.force(n: number, heroic: boolean?): boolean
 	return true
 end
 
+-- Studio: your double on you now, ignoring the rare tier's odds, cooldowns and who may get it (the twin must
+-- still spawn); false when one is already running or the twin is switched off
+function EventService.forceDouble(player: Player): boolean
+	local h = HeroService.get(player)
+	if not h or live.YourDouble then
+		return false
+	end
+	plan.active.YourDouble = os.clock() + DOUBLE.length
+	if not startDouble(h) then
+		plan.active.YourDouble = nil
+		return false
+	end
+	return true
+end
+
+-- Studio: why the rare tier would or would not pick this hero now (EventPlan.doubleOk's reason)
+function EventService.doubleWhy(player: Player): string
+	local h = HeroService.get(player)
+	local info = h and doubleInfo(h, os.clock())
+	if not info then
+		return "not loaded"
+	end
+	local ok, why = EventPlan.doubleOk(EC, info)
+	return if ok then "eligible" else (why or "?")
+end
+
 function EventService.active(): { [string]: any }
 	return live
 end
@@ -825,7 +1027,19 @@ function EventService.init()
 	PerfMonitor.watch("events", function()
 		return EventPlan.activeCount(plan)
 	end)
+	local function watchIdle(player: Player)
+		player.Idled:Connect(function()
+			idledAt[player] = os.clock()
+		end)
+	end
+	for _, p in Players:GetPlayers() do
+		watchIdle(p)
+	end
+	Players.PlayerRemoving:Connect(function(player)
+		idledAt[player] = nil
+	end)
 	Players.PlayerAdded:Connect(function(player)
+		watchIdle(player)
 		task.delay(5, function()
 			if player.Parent and next(live) then
 				Net.fire("EventState", player, { list = packet() })
@@ -842,8 +1056,15 @@ function EventService.init()
 		local now = os.clock()
 		local t0 = now
 		if #Players:GetPlayers() > 0 then
-			local id = EventPlan.due(EC, plan, now, rng, PassRules.eventWeights(Config, os.time()))
-			if id then
+			local id =
+				EventPlan.due(EC, plan, now, rng, PassRules.eventWeights(Config, os.time()), rareAllowed)
+			if id == "YourDouble" then
+				local h = doubleFor and HeroService.byId(doubleFor)
+				if not h or not startDouble(h) then
+					EventPlan.finish(plan, id)
+				end
+				doubleFor = nil
+			elseif id then
 				start(id)
 			end
 		end
@@ -853,6 +1074,7 @@ function EventService.init()
 		acc = 0
 		if sendAcc >= 1 then
 			sendAcc = 0
+			watchMoves(now)
 			if next(live) then
 				Net.fireAll("EventState", { list = packet() })
 			end

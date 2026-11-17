@@ -284,6 +284,9 @@ function GuidePlan.radio(): Radio
 end
 
 local ONCE = { firstIncident = true, firstBoss = true, afterAct1 = true }
+-- lines that skip the gap (still off with the setting, and never in a mission or the prologue): lore step 9's
+-- Your double, a rare event aimed at this hero
+GuidePlan.URGENT = { double = true }
 
 -- May Patch say an open-world line for `key` now? ctx.on: the Guide radio setting; ctx.busy: in a mission,
 -- the prologue or a camera beat. Unlock keys ("unlock3") and afterAct1 are once a session too.
@@ -298,7 +301,7 @@ function GuidePlan.radioOk(
 	if not ctx.on or ctx.busy then
 		return false
 	end
-	if now - R.last < cfg.gap then
+	if now - R.last < cfg.gap and not GuidePlan.URGENT[key] then
 		return false
 	end
 	if (ONCE[key] or string.sub(key, 1, 6) == "unlock") and R.once[key] then

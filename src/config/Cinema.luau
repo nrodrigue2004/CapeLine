@@ -98,6 +98,18 @@ return {
 			LeviathanEngine = "THE DEEP MACHINE",
 			NullWarFrame = "THE SHIELD UNMASKED",
 		},
+		-- lore step 9: place and event cards in the same style (CinemaHud.card): the Crater the first time a
+		-- session a hero walks in, and Your double on the copied hero's own device. { name, title, colour }
+		places = {
+			crater = { name = "THE CRATER", title = "WHERE THE OLD HEROES FELL", color = { 110, 200, 225 } },
+		},
+		events = {
+			YourDouble = {
+				name = "DOUBLE TROUBLE",
+				title = "A FAKE WEARING YOUR FACE",
+				color = { 235, 70, 70 },
+			},
+		},
 	},
 
 	news = {
@@ -126,8 +138,10 @@ return {
 			heist = "%s STOPS A ROBOT HEIST",
 			heistVillain = "%s PULLS OFF A ROBOT HEIST",
 			act1 = '%s FINISHES "%t"',
+			double = "BREAKING: A FAKE OF %s IS LOOSE IN THE CITY", -- lore step 9: Your double starts
+			doubleDown = "%s CRACKS THEIR OWN DOUBLE",
 		},
-		flash = { boss = true, unmask = true }, -- these also flash on every HUD (toast + corner TV)
+		flash = { boss = true, unmask = true, double = true }, -- these also flash on every HUD (toast + corner TV)
 		-- the corner TV: a flash plays this long; any other new fact shows on its ticker for `fact` s; with nothing
 		-- new, Crane's segment airs every `craneEvery` s for `crane` s (never in the prologue, a mission or a scene)
 		tv = { seconds = 7, fact = 5, crane = 8, craneEvery = 180, scroll = 10 },

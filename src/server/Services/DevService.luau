@@ -99,6 +99,17 @@ local commands: { [string]: (player: Player, hero: any, value: number) -> () } =
 			EnemyService.spawnTwin(player, pos + Vector3.new(0, 14, -25), hero.level)
 		end
 	end,
+	-- lore step 9: the Your double world event on you now (skips its odds, cooldowns and who may get it)
+	double = function(player)
+		print(
+			string.format(
+				"[Dev] Your double for %s: rare tier would say %s; forced: %s",
+				player.Name,
+				EventService.doubleWhy(player),
+				tostring(EventService.forceDouble(player))
+			)
+		)
+	end,
 	points = function(_, hero, n)
 		hero.bonusPoints += n
 		HeroService.sendState(hero)

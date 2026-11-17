@@ -10,7 +10,7 @@
 --   into 4 lots around their roads; the variant says what stands on each lot and the rotation turns that
 --   pattern a quarter turn at a time. Coast tiles are beaches, piers, lighthouses and dunes.
 -- * base: the ground, the coast sand, the ocean past the map edge and the long road strips.
--- * landmark: The Crater (id CometCrater), Radio Hill and the Old Quarry, hand-placed on fixed tiles.
+-- * landmark: The Crater (id CometCrater; a blasted Crane lab, lore step 9), Radio Hill and the Old Quarry, hand-placed on fixed tiles.
 -- PLACEHOLDER ART: simple parts until the kit pass (M5). With Config.City.kit (overhaul step 5) the outskirts
 -- and hub filler are dressed after each lot is built (no random draws change): clapboard, plaster and brick
 -- fronts, clay-tiled roofs, paved filler sidewalks and asphalt roads, mailboxes and bushes by the houses,
@@ -1056,6 +1056,113 @@ export type Landmark = {
 	size: number,
 }
 
+-- A local (lx, lz) offset turned by ry degrees (Roblox's turn about +y: local +x goes to (cos, -sin))
+local function turned(lx: number, lz: number, ry: number): (number, number)
+	local t = math.rad(ry)
+	return lx * math.cos(t) + lz * math.sin(t), -lx * math.sin(t) + lz * math.cos(t)
+end
+
+-- The Crater's floor dressed as the blasted Crane Industries lab and the old battle's wreckage (nate's lore,
+-- build plan step 9; Config.World.crater). fy is the floor's top. PLACEHOLDER ART: plain parts; the walls and
+-- towers take the kit's white Panel texture once it is in; the foundation stays scorched.
+local function craterRuins(list: { Box }, c: any, cx: number, fy: number, cz: number)
+	-- burn scars radiating out from the blast (flat marks, under everything else)
+	local sc = c.scars
+	for k = 0, sc.n - 1 do
+		local a = (k + 0.5) / sc.n * 2 * math.pi + (if k % 2 == 0 then 0.06 else -0.09)
+		local len = (sc.to - sc.from) * (if k % 3 == 0 then 1 else 0.8)
+		local mid = sc.from + len / 2
+		box(
+			list,
+			"mark",
+			cx + math.cos(a) * mid,
+			fy + 0.03,
+			cz + math.sin(a) * mid,
+			len,
+			0.05,
+			sc.width * (if k % 2 == 0 then 1 else 0.7),
+			"scorch",
+			{ ry = -math.deg(a) }
+		)
+	end
+	-- the scorched foundation
+	local f = c.foundation
+	box(list, "ledge", cx, fy + f.h / 2, cz, f.w, f.h, f.d, "scorch")
+	local top = fy + f.h
+	-- broken walls on its edges, ragged on top; the Crane C on two of them
+	local th = c.wallThick
+	for _, wl in c.walls do
+		local alongX = wl.along == "x"
+		local wx, wz = cx + wl.x, cz + wl.z
+		local sx = if alongX then wl.len else th
+		local sz = if alongX then th else wl.len
+		box(list, "building", wx, top + wl.h / 2, wz, sx, wl.h, sz, "labWall").kit = "Panel"
+		local j = wl.jag
+		local jx = if alongX then wx + j[1] else wx
+		local jz = if alongX then wz else wz + j[1]
+		local jsx = if alongX then j[2] else th
+		local jsz = if alongX then th else j[2]
+		box(list, "building", jx, top + wl.h + j[3] / 2, jz, jsx, j[3], jsz, "labWall").kit = "Panel"
+		if wl.logo then
+			-- the Crane Industries C (original): a navy plate, a white C opening to the viewer's right. Seen from
+			-- outside a north wall (logo 1) the viewer faces -z, so their right is +x; on a south wall it is -x.
+			local L = c.logo
+			local side = wl.logo
+			local y = top + L.at
+			local sz2, b = L.size, L.bar
+			local plate = wz + side * (th / 2 + 0.15)
+			box(list, "prop", wx, y, plate, sz2, sz2, 0.3, "craneNavy")
+			local fz = plate + side * 0.2
+			local arm = sz2 / 2 - 1 - b / 2
+			box(list, "prop", wx - side * arm, y, fz, b, sz2 - 2, 0.2, "white")
+			box(list, "prop", wx - side * 0.25, y + arm, fz, sz2 - 2.5, b, 0.2, "white")
+			box(list, "prop", wx - side * 0.25, y - arm, fz, sz2 - 2.5, b, 0.2, "white")
+		end
+	end
+	-- cracked containment tanks: the broken shell, the faint Spark glow left inside, a shard beside it
+	for _, t in c.tanks do
+		local tx, tz = cx + t.x, cz + t.z
+		box(list, "prop", tx, top + t.h / 2, tz, t.r * 2, t.h, t.r * 2, "glass", { shape = "cylinder" })
+		box(list, "glow", tx, top + t.glow / 2, tz, t.r, t.glow, t.r, "sparkGlow", { shape = "cylinder" })
+		local sh = t.shard
+		box(list, "prop", tx + sh[1] + t.r, top + 1.5, tz + sh[2], 3, 3, 0.6, "glass", { ry = sh[3] })
+	end
+	-- toppled lab towers: the shaft lying on the floor, its crown broken off past the top, the mast beside it
+	for _, tw in c.towers do
+		local ox, oz = cx + tw.x, cz + tw.z
+		box(list, "building", ox, fy + tw.h / 2, oz, tw.w, tw.h, tw.len, "labWall", { ry = tw.ry }).kit =
+			"Panel"
+		local ex, ez = turned(0, tw.len / 2 + 9, tw.ry)
+		box(list, "building", ox + ex, fy + 2.5, oz + ez, tw.w + 4, 5, 12, "craneNavy", { ry = tw.ry + 12 })
+		local mx, mz = turned(tw.w / 2 + 3, 6, tw.ry)
+		box(list, "prop", ox + mx, fy + 0.6, oz + mz, 1.2, 1.2, 28, "steel", { ry = tw.ry - 6 })
+	end
+	-- robot husks from the battle: a torso on its back, its head rolled off
+	for _, h in c.husks do
+		local a = math.rad(h.a)
+		local hx, hz = cx + math.cos(a) * h.d, cz + math.sin(a) * h.d
+		box(list, "prop", hx, fy + 1.5, hz, 4.5, 3, 6.5, "husk", { ry = h.ry })
+		local dx, dz = turned(3.5, 5.5, h.ry)
+		box(list, "prop", hx + dx, fy + 1.4, hz + dz, 2.8, 2.8, 2.8, "rust", { ry = h.ry + 35 })
+	end
+	-- the old heroes' relics where they made their stand (original designs)
+	local rl = c.relics
+	local cp = rl.cape
+	local px, pz = cx + cp.x, cz + cp.z
+	box(list, "prop", px, fy + cp.rebar / 2, pz, 0.8, cp.rebar, 0.8, "steel", { shape = "cylinder" })
+	box(list, "prop", px + 0.5, fy + cp.rebar - 3.6, pz, 0.3, 6.5, 4.5, "relicRed")
+	box(list, "prop", px + 0.5, fy + cp.rebar - 8, pz - 1.2, 0.3, 2.6, 1.6, "relicRed", { ry = 12 })
+	local sd = rl.shield
+	local shx, shz = cx + sd.x, cz + sd.z
+	box(list, "prop", shx, fy + 0.4, shz, sd.w, 0.8, sd.d, "relicBlue", { ry = sd.ry })
+	box(list, "prop", shx, fy + 0.85, shz, sd.w * 0.5, 0.2, sd.d * 0.4, "relicGold", { ry = sd.ry })
+	box(list, "mark", shx, fy + 0.97, shz, 0.4, 0.05, sd.d * 1.05, "scorch", { ry = sd.ry + 28 })
+	local hm = rl.helmet
+	local hx, hz = cx + hm.x, cz + hm.z
+	box(list, "prop", hx, fy + hm.size * 0.3, hz, hm.size, hm.size, hm.size, "relicGold", { shape = "ball" })
+	box(list, "prop", hx, fy + hm.size * 0.45, hz - hm.size / 2 + 0.2, hm.size * 0.7, 1, 0.6, "scorch")
+end
+
 function WorldGen.landmark(cityCfg: any, w: any, index: number): Landmark
 	local lm = w.landmarks[index]
 	local x0, z0 = WorldGen.tileOrigin(cityCfg, lm.tx, lm.tz)
@@ -1085,12 +1192,7 @@ function WorldGen.landmark(cityCfg: any, w: any, index: number): Landmark
 				{ ry = -math.deg(a) }
 			)
 		end
-		-- the glowing core left in the blown Crane lab's ruins (the "comet" glow colour; nate's lore 2026-11-17)
-		box(list, "glow", cx, gy + c.glowHeight / 2 + 4, cz, 30, 30, 30, "comet", { shape = "ball" })
-		for k = 0, 2 do
-			local a = k / 3 * 2 * math.pi
-			box(list, "glow", cx + math.cos(a) * 30, gy + 10, cz + math.sin(a) * 30, 6, 20, 6, "comet")
-		end
+		craterRuins(list, c, cx, gy + 0.6, cz)
 		spot = { x = cx, y = gy + c.rimHeight + 0.5, z = cz - r }
 	elseif lm.id == "RadioHill" then
 		local h = w.radioHill

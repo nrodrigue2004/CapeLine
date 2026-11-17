@@ -19,7 +19,16 @@
 -- one joins by name), or a list of district names (Config.City.districts) and landmark ids
 -- (Config.World.landmarks); Shared.EventPlan.place resolves it, never fixed coordinates.
 return {
-	scheduler = { every = { 240, 360 }, maxActive = 2, firstAfter = 90, pocketY = 2000 },
+	scheduler = {
+		every = { 240, 360 },
+		maxActive = 2,
+		firstAfter = 90,
+		pocketY = 2000,
+		-- the rare tier (lore step 9): when a slot comes up, a rare event (Events.rare) takes it on a `chance` roll,
+		-- never in the first `firstAfter` s of the server nor within `gap` s of the last rare one; it pays `pay`
+		-- times an event's Credits and Renown. Rare events never join the normal mix (order).
+		rare = { chance = 0.1, gap = 3600, firstAfter = 1200, pay = 3 },
+	},
 	reward = { credits = { 60, 4 }, renown = { 80, 6 } }, -- per participant (M6, see Decisions)
 	helpRadius = 150, -- heroes this close when it ends who took part count
 	-- the districts "downtown" events may use (any listed name that exists in Config.City.districts, plus any
@@ -39,6 +48,8 @@ return {
 		"ParadeGoneWrong",
 		"HarbourFog",
 	},
+	-- the rare tier (scheduler.rare): picked only on its own roll, and only when someone may get it
+	rare = { "YourDouble" },
 	events = {
 		MeteorShower = {
 			num = 1,
@@ -229,6 +240,29 @@ return {
 				{ "SneakBot", 3 },
 			},
 			waveGap = 25,
+		},
+		-- Your double (nate's lore A2, build plan step 9): the evil twin from The Copy returns as a rare world event.
+		-- It picks one hero who may get it (EventPlan.doubleOk: level, The Copy cleared, in the open city, not
+		-- in the Crater, the prologue, a mission, a scene or a trip, not AFK, and `playerGap` s of play since their
+		-- last one) and spawns that hero's twin (EnemyService.spawnTwin: their look, their power path) `spawnAt`
+		-- studs from them with a news flash and a name card; heroes near enough help and share the pay. The twin
+		-- slips away at `length` s. Pay: an event's at the rare tier's `pay` (x3), one gear roll.
+		YourDouble = {
+			num = 13,
+			name = "Double Trouble", -- fixed for everyone (helpers too); the hero's own card says it wears their face
+			goal = "twin",
+			where = "target",
+			length = 180,
+			minLevel = 6, -- The Copy opens at 5
+			mission = 4, -- The Copy: cleared first
+			playerGap = 10800, -- seconds of play (profile.stats.playSeconds) between one hero's doubles
+			afk = 120, -- no `afkMove`-stud move (or a Roblox Idled) for this long is AFK
+			afkMove = 8,
+			spawnAt = { 35, 60 },
+			hpMult = 3, -- a fake of a whole hero: tough enough for a few helpers
+			text = "A fake wearing your face is loose. Crack it before it slips away!",
+			helpText = "A fake is copying a hero nearby. Help crack it!",
+			notify = 300, -- heroes this close when it starts hear about it (everyone sees the news flash)
 		},
 	},
 }

@@ -2,13 +2,47 @@
 -- EventPlan: the random event scheduler (spec: "One event every 4 to 6 minutes, max 2 at once, never the
 -- same type twice in a row, never inside a mission pocket"). Pure: EventService asks it when the next one
 -- is due and which one; the events themselves live in EventService.
+-- * The rare tier (lore step 9, scheduler.rare): a rare event takes a due slot on its own roll, at most once a
+--   `gap`; Your double (doubleOk, doublePick) is the first, aimed at one eligible hero.
 
 local EventPlan = {}
 
-export type State = { nextAt: number, last: string?, active: { [string]: number } } -- active: id -> end time
+-- active: id -> end time; rareAt: no rare event before this (lore step 9, scheduler.rare)
+export type State = { nextAt: number, last: string?, active: { [string]: number }, rareAt: number }
 
 function EventPlan.new(cfg: any, now: number): State
-	return { nextAt = now + cfg.scheduler.firstAfter, last = nil, active = {} }
+	local rare = cfg.scheduler.rare
+	return {
+		nextAt = now + cfg.scheduler.firstAfter,
+		last = nil,
+		active = {},
+		rareAt = now + (if rare then rare.firstAfter else math.huge),
+	}
+end
+
+-- The rare tier (lore step 9): when a slot is due and the rare gap has passed, one roll of scheduler.rare.chance;
+-- on a hit, the first rare event (cfg.rare) that is not running and that `allowed(id)` says someone may get.
+-- A miss or nobody eligible leaves the slot to the normal mix. Returns the rare id or nil.
+local function rarePick(
+	cfg: any,
+	state: State,
+	now: number,
+	rng: any,
+	allowed: ((string) -> boolean)?
+): string?
+	local R = cfg.scheduler.rare
+	if not R or not allowed or not cfg.rare or now < state.rareAt then
+		return nil
+	end
+	if rng:range(0, 1) >= R.chance then
+		return nil
+	end
+	for _, id in cfg.rare do
+		if state.active[id] == nil and cfg.events[id] and allowed(id) then
+			return id
+		end
+	end
+	return nil
 end
 
 function EventPlan.activeCount(state: State): number
@@ -21,7 +55,15 @@ end
 
 -- Which event starts now, or nil (not due, two running, or nothing allowed). rng: :range and :int.
 -- weights (H8, the weekly episode's theme): an event id's weight in the pick; missing ids weigh 1.
-function EventPlan.due(cfg: any, state: State, now: number, rng: any, weights: { [string]: number }?): string?
+-- rare (lore step 9): may a rare event start now (someone eligible)? Without it the rare tier never rolls.
+function EventPlan.due(
+	cfg: any,
+	state: State,
+	now: number,
+	rng: any,
+	weights: { [string]: number }?,
+	rare: ((string) -> boolean)?
+): string?
 	for id, ends in state.active do
 		if now >= ends then
 			state.active[id] = nil
@@ -29,6 +71,14 @@ function EventPlan.due(cfg: any, state: State, now: number, rng: any, weights: {
 	end
 	if now < state.nextAt or EventPlan.activeCount(state) >= cfg.scheduler.maxActive then
 		return nil
+	end
+	local rid = rarePick(cfg, state, now, rng, rare)
+	if rid then
+		state.last = rid
+		state.active[rid] = now + cfg.events[rid].length
+		state.rareAt = now + cfg.scheduler.rare.gap
+		state.nextAt = now + rng:range(cfg.scheduler.every[1], cfg.scheduler.every[2])
+		return rid
 	end
 	local pool = {}
 	for _, id in cfg.order do
@@ -72,7 +122,7 @@ end
 
 -- Every goal EventService knows how to build (tests check each event uses one)
 EventPlan.GOALS =
-	{ "shards", "robots", "rescue", "hold", "train", "generators", "object", "objects", "float" }
+	{ "shards", "robots", "rescue", "hold", "train", "generators", "object", "objects", "float", "twin" }
 
 export type Area = { name: string, x: number, z: number, hx: number, hz: number } -- centre and half sizes
 
@@ -179,6 +229,72 @@ function EventPlan.guardRows(def: any): { { any } }
 		return { g }
 	end
 	return g
+end
+
+---------------------------------------------------------------------------
+-- Your double (nate's lore A2, build plan step 9): who may meet their twin in the open city
+---------------------------------------------------------------------------
+
+-- What the server knows about one hero when the rare tier asks
+export type DoubleInfo = {
+	level: number,
+	copyDone: boolean, -- The Copy (Config.Events.events.YourDouble.mission) is cleared on this character
+	prologue: boolean, -- still in the Ceremony prologue
+	mission: boolean, -- in a story mission or a task force run
+	y: number, -- height (mission pockets sit high above the city)
+	crater: boolean, -- in the Crater (the forced PvP zone), its warning ring too
+	busy: boolean, -- Downed, in a scene, travelling, or dead
+	still: number, -- seconds since the hero last moved (or since a Roblox Idled)
+	played: number, -- profile.stats.playSeconds
+	lastAt: number?, -- playSeconds at this hero's last double (nil: never)
+}
+
+-- May this hero get the double now? (ok, reason) with reasons "level", "copy", "prologue", "mission",
+-- "pocket", "crater", "busy", "afk", "cooldown"
+function EventPlan.doubleOk(cfg: any, info: DoubleInfo): (boolean, string?)
+	local d = cfg.events.YourDouble
+	if info.prologue then
+		return false, "prologue"
+	elseif info.level < d.minLevel then
+		return false, "level"
+	elseif not info.copyDone then
+		return false, "copy"
+	elseif info.mission then
+		return false, "mission"
+	elseif EventPlan.inPocket(cfg, info.y) then
+		return false, "pocket"
+	elseif info.crater then
+		return false, "crater"
+	elseif info.busy then
+		return false, "busy"
+	elseif info.still >= d.afk then
+		return false, "afk"
+	elseif info.lastAt and info.played - info.lastAt < d.playerGap then
+		return false, "cooldown"
+	end
+	return true, nil
+end
+
+-- One of the eligible heroes (keys of `list` whose info passes), picked by rng from a sorted list so a seed
+-- always picks the same one; nil when nobody may get it
+function EventPlan.doublePick(cfg: any, list: { [number]: DoubleInfo }, rng: any): number?
+	local ids = {}
+	for id, info in list do
+		if EventPlan.doubleOk(cfg, info) then
+			table.insert(ids, id)
+		end
+	end
+	if #ids == 0 then
+		return nil
+	end
+	table.sort(ids)
+	return ids[rng:int(1, #ids)]
+end
+
+-- The rare tier's pay on top of an event's (Credits, Renown)
+function EventPlan.rarePay(cfg: any, credits: number, renown: number): (number, number)
+	local m = (cfg.scheduler.rare and cfg.scheduler.rare.pay) or 1
+	return math.floor(credits * m + 0.5), math.floor(renown * m + 0.5)
 end
 
 return EventPlan
