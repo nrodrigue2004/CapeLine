@@ -84,6 +84,8 @@ type Body = {
 	lastFlags: number,
 	swingUntil: number,
 	look: string?,
+	glow: Color3,
+	turned: boolean,
 }
 
 local live: { [number]: Body } = {}
@@ -100,6 +102,8 @@ local LOOK = Config.Enemies.look
 local TIES: { [string]: { string } } = {
 	EyeL = { "Head" },
 	EyeR = { "Head" },
+	IrisL = { "Head" },
+	IrisR = { "Head" },
 	Mask = { "Head" },
 	Hair = { "Head" },
 	Emblem = { "UpperTorso" },
@@ -402,15 +406,18 @@ local function makeRobot(typeId: number): Body
 			SKIN
 		)
 	end
-	-- the glowing eyes (the remade face's brows sit just above them)
+	-- human eyes (the remade face's brows sit just above them): the white and an iris that glows once the
+	-- robot turns (applyFlags)
 	for _, side in SIDES do
+		local at = CFrame.new(side[3] * HD.X * 0.2, HD.Y * 0.06, -HD.Z * 0.5 - 0.02)
+		add("Eye" .. side[2], "Head", at, Vector3.new(HD.X * 0.22, HD.Y * 0.09, 0.05), rgb(LOOK.sclera), SKIN)
 		add(
-			"Eye" .. side[2],
+			"Iris" .. side[2],
 			"Head",
-			CFrame.new(side[3] * HD.X * 0.2, HD.Y * 0.06, -HD.Z * 0.5 - 0.02),
-			Vector3.new(HD.X * 0.22, HD.Y * 0.09, 0.05),
-			glow,
-			N
+			at * CFrame.new(-side[3] * HD.X * 0.015, 0, -0.02),
+			Vector3.new(HD.X * 0.09, HD.Y * 0.09, 0.05),
+			rgb(LOOK.irises[1]),
+			SKIN
 		)
 	end
 	if body.cape then
@@ -624,6 +631,8 @@ local function makeRobot(typeId: number): Body
 		lastFlags = -1,
 		swingUntil = 0,
 		look = look,
+		glow = glow,
+		turned = false,
 	}
 end
 
@@ -632,11 +641,13 @@ local function assign(body: Body, id: number)
 	body.order = RobotDamage.order(id, body.shell, LOOK.spread)
 	body.broken = {}
 	body.brokenN = -1 -- set without chips on the first frame (a robot can arrive already hurt)
+	body.turned = false
 	body.sparks.Enabled = false
 	local h = Rng.hash(id, 3301)
 	local skin = rgb(LOOK.skins[h % #LOOK.skins + 1])
 	local hair = rgb(LOOK.hair[(h // 7) % #LOOK.hair + 1])
-	for name, color in { Head = skin, Hair = hair } do
+	local iris = rgb(LOOK.irises[(h // 49) % #LOOK.irises + 1])
+	for name, color in { Head = skin, Hair = hair, IrisL = iris, IrisR = iris } do
 		local i = body.index[name]
 		if i then
 			body.baseColors[i] = color
@@ -669,8 +680,8 @@ end
 local ICE = Color3.fromRGB(170, 225, 255)
 local NEON_KEEP = {
 	Eyes = true,
-	EyeL = true,
-	EyeR = true,
+	IrisL = true,
+	IrisR = true,
 	Core = true,
 	JetL = true,
 	JetR = true,
@@ -707,6 +718,9 @@ local function applyFlags(body: Body)
 	local shield = bit32.band(f, BITS.shield) ~= 0
 	local stun = bit32.band(f, BITS.stun) ~= 0
 	local windup = bit32.band(f, BITS.windup) ~= 0
+	-- the robot turns (and stays turned) the first time it winds up an attack or its shell starts to break
+	body.turned = body.turned or windup or body.brokenN > 0
+	local turned = body.turned
 	for i, p in body.parts do
 		local name = body.names[i]
 		local color = body.baseColors[i]
@@ -714,7 +728,16 @@ local function applyFlags(body: Body)
 		if cold and not NEON_KEEP[name] then
 			color = color:Lerp(ICE, 0.6)
 		end
-		if windup and (name == "Eyes" or name == "EyeL" or name == "EyeR") then
+		if name == "IrisL" or name == "IrisR" then
+			if turned then
+				color = if windup then Color3.fromRGB(255, 40, 40) else body.glow
+			end
+			p.Material = if turned then Enum.Material.Neon else Enum.Material.SmoothPlastic
+		elseif name == "EyeL" or name == "EyeR" then
+			if turned then
+				color = rgb(LOOK.turnedSclera)
+			end
+		elseif windup and name == "Eyes" then
 			color = Color3.fromRGB(255, 40, 40)
 		end
 		if name == "Stun" then
@@ -726,7 +749,7 @@ local function applyFlags(body: Body)
 		elseif gone(body, name) then
 			t = 1
 		elseif cloak then
-			t = if name == "Eyes" or name == "EyeL" or name == "EyeR" then 0.6 else 0.92
+			t = if name == "Eyes" or name == "IrisL" or name == "IrisR" then 0.6 else 0.92
 		end
 		p.Color = color
 		p.Transparency = t

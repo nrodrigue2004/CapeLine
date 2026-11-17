@@ -313,6 +313,12 @@ return {
 			{ 92, 62, 44 },
 		},
 		hair = { { 30, 26, 24 }, { 70, 46, 30 }, { 160, 120, 60 }, { 225, 225, 230 }, { 120, 40, 40 } },
+		-- human eyes until the robot turns (nate, 2026-11-17: "make the eyes look human before turning"): white
+		-- eyes with an iris picked per robot; once it winds up an attack or its shell starts breaking, the eyes go
+		-- dark and the irises glow in the robot's eye colour (red on a windup)
+		irises = { { 70, 45, 30 }, { 50, 90, 140 }, { 70, 110, 70 }, { 110, 80, 50 }, { 40, 40, 45 } },
+		sclera = { 242, 240, 234 },
+		turnedSclera = { 22, 22, 28 },
 	},
 	caps = {
 		perServer = 90,

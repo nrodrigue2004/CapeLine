@@ -244,9 +244,10 @@ Import (Claude can do it on your PC when you say so, like the robot meshes):
 3. If the parts come in white with no textures: import the four PNGs next to it (Trooper_Color, _Normal, _Roughness, _Metalness), set them on one SurfaceAppearance and copy it into every part.
 4. Claude then pulls the model into the repo (art/models/Trooper.rbxm, mapped by Rojo) so every build has it.
 Checks (DEV panel "3x" until a Spark Trooper comes up):
-5. It reads as a person in a hero suit: a face (skin, brows, nose, mouth) with two glowing eyes under the brows, swept hair in one of the hair colours, the diamond emblem on the chest, the belt with its round buckle, orange gloves and boots. Skin and hair differ from robot to robot. Nothing floats or sits inside the body; it faces the way it flies.
+5. It reads as a person in a hero suit: a face (skin, brows, nose, mouth) with human eyes under the brows (white with a brown, blue, green or dark iris), swept hair in one of the hair colours, the diamond emblem on the chest, the belt with its round buckle, orange gloves and boots. Skin and hair differ from robot to robot. Nothing floats or sits inside the body; it faces the way it flies.
 6. Hits: the white flash still shows on the suit, skin and gloves; the ice tint shows when slowed.
 7. Damage: skin and suit still break off part by part (the hair with the head), showing the metal skeleton only where broken.
+7b. Turning: the eyes stay human while it patrols. The first time it winds up an attack or a piece breaks, the whites go dark and the irises glow (red during each windup) and stay that way.
 8. Performance: about 5,000 triangles a robot; 60 on PC (High) and 20 on a phone (Low) hold the frame rate.
 
 ### Hold to aim and charge (2026-11-17)

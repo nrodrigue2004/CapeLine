@@ -651,9 +651,13 @@ if "--preview" in sys.argv:
                 out[sd + pn] = trim
         return {k: game_mat(v) for k, v in out.items()}
 
-    eye_mat = kit.material("eye", (255, 167, 124), emit=3.0)  # Spark Trooper eye, lerped to white as in game
+    # human eyes (Config.Enemies.look sclera and irises) until the robot turns: then dark with glowing irises
+    white = kit.material("sclera", (242, 240, 234), rough=0.3)
+    dark = kit.material("sclera_turned", (22, 22, 28), rough=0.3)
+    glow = kit.material("eye", (255, 120, 60), emit=1.6)  # Spark Trooper eye, lerped to white as in game
+    irises = [kit.material("iris%d" % i, c, rough=0.3) for i, c in enumerate([(70, 45, 30), (50, 90, 140), (70, 110, 70)])]
 
-    def pose_copy(at, bends, mats, yaw=0.0, hide=(), endo=None):
+    def pose_copy(at, bends, mats, yaw=0.0, hide=(), endo=None, iris=0, turned=False):
         world = {}
 
         def matrix(n):
@@ -692,8 +696,11 @@ if "--preview" in sys.argv:
             if n == "Head":
                 for sd in (-1, 1):
                     e = kit.box("eye", 0.27, 0.05, 0.1, at=(sd * 0.24, 0.61, 4.66))
-                    e.data.materials.append(eye_mat)
+                    e.data.materials.append(dark if turned else white)
                     e.matrix_world = Y @ matrix(n)
+                    ir = kit.box("iris", 0.1, 0.05, 0.1, at=(sd * 0.22, 0.63, 4.66))
+                    ir.data.materials.append(glow if turned else irises[iris])
+                    ir.matrix_world = Y @ matrix(n)
 
     for ob in pieces.values():
         ob.hide_render = True
@@ -705,11 +712,11 @@ if "--preview" in sys.argv:
     chrome = kit.material("endo", (150, 155, 168), metal=1.0, rough=0.3)
     fly = {"LeftShoulder": ("X", -25), "RightShoulder": ("X", 70), "RightElbow": ("X", 15),
            "LeftHip": ("X", 15), "LeftKnee": ("X", -35), "RightHip": ("X", -10), "RightKnee": ("X", -15)}
-    pose_copy((7.6, 0, 0), {}, a)
+    pose_copy((7.6, 0, 0), {}, a, iris=1)
     pose_copy((2.6, 0, 0.6), fly, b2, yaw=35)
-    pose_copy((-2.6, 0, 0), {}, c, yaw=180)
+    pose_copy((-2.6, 0, 0), {}, c, yaw=180, iris=2)
     pose_copy((-7.6, 0, 0), {"Neck": ("Z", -12)}, a, yaw=-20,
-              hide=("LeftUpperArm", "LeftLowerArm", "LeftHand", "RightLowerLeg", "RightFoot"), endo=chrome)
+              hide=("LeftUpperArm", "LeftLowerArm", "LeftHand", "RightLowerLeg", "RightFoot"), endo=chrome, turned=True)
     floor = kit.cyl("floor", 16, 16, 0.2, at=(0, 0, -0.1), segs=48)
     floor.data.materials.append(kit.material("floor", (60, 64, 72), rough=0.8))
     kit.camera((0, 25.0, 5.4), (0, 0, 2.6), lens=42)
