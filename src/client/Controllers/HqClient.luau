@@ -196,7 +196,8 @@ local function dummy(f: Folder, pos: Vector3, big: boolean?)
 	for _, name in BodyShape.PARTS do
 		colors[name] = if big and string.find(name, "Arm") then Color3.fromRGB(90, 94, 110) else metal
 	end
-	local rig = NpcRig.build(layout, "Dummy", colors, Enum.Material.Metal)
+	local rig =
+		NpcRig.build(layout, "Dummy", colors, Enum.Material.Metal, nil, if big then "MaleLarge" else nil)
 	rig.model.Parent = f
 	NpcRig.place(rig, CFrame.new(base + Vector3.new(0, 0.6, 0)))
 	for _, name in { "Head", "UpperTorso", "LowerTorso" } do

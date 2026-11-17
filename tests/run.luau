@@ -1201,6 +1201,59 @@ test("M2: robots: every kind spawns as the right brain; ground robots stand on t
 	end
 end)
 
+test("Body sets: 8 sets keyed by gender and build, Blender in step with the creator's factors", function()
+	local BodyShape = require("../src/shared/BodyShape")
+	local RigMath = require("../src/shared/RigMath")
+	local B = Config.Creator.body
+	check(#B.builds == 4 and #B.genders == 2, "4 builds and 2 genders: 8 body sets")
+	local keys = {}
+	for g = 1, 2 do
+		for b = 1, #B.builds do
+			local key = BodyShape.setKey(Config, { gender = g, build = b, height = 3 })
+			check(keys[key] == nil, key .. " is its own set")
+			keys[key] = true
+			check(key == B.genders[g] .. B.builds[b].name, key .. " names its gender and build")
+		end
+	end
+	check(BodyShape.setKey(Config, {}) == "MaleMedium", "a look with no body is the hero body (MaleMedium)")
+	check(
+		BodyShape.setKey(Config, { gender = 2, build = 9 }) == "FemaleMedium",
+		"a bad build falls back to Medium"
+	)
+	-- art/blender/bodies.py sizes its preview with the same numbers (width, depth, limbs, hands, head, tall)
+	local py = require("@lune/fs").readFile("art/blender/bodies.py")
+	for _, b in B.builds do
+		local row = string.match(py, '"' .. b.name .. '": %(([^)]*)%)')
+		check(row ~= nil, "bodies.py has the " .. b.name .. " factors")
+		local nums = {}
+		for n in string.gmatch(row or "", "[%d%.]+") do
+			table.insert(nums, tonumber(n))
+		end
+		local want = { b.width, b.depth, b.limbs, b.hands, b.head, b.tall }
+		for i, v in want do
+			near(nums[i] or -1, v, 1e-9, b.name .. " factor " .. i .. " matches Config.Creator")
+		end
+	end
+	local waist = tonumber(string.match(py, "FEMALE_WAIST = ([%d%.]+)"))
+	near(waist or -1, B.femaleWaist, 1e-9, "bodies.py female waist matches Config.Creator")
+	-- citizens wear sets too: every citizen body is a real gender and build, and its rig stands
+	local C = Config.Destruction.citizens
+	check(#C.bodies >= 2, "citizens come in more than one body")
+	local women = 0
+	for i, b in C.bodies do
+		check(b[1] == 1 or b[1] == 2, "citizen body " .. i .. " has a gender")
+		check(B.builds[b[2]] ~= nil, "citizen body " .. i .. " has a build")
+		women += if b[1] == 2 then 1 else 0
+		local lay = RigMath.layout(
+			Config.HeroRig,
+			BodyShape.factors(Config, { gender = b[1], build = b[2], height = 3 }),
+			1
+		)
+		check(lay.ground > 0 and lay.ground < lay.height, "citizen body " .. i .. " stands on its feet")
+	end
+	check(women * 2 == #C.bodies, "half the citizen bodies are women")
+end)
+
 test("Everyone on R15: robots and citizens use the heroes' rig, joints and attachments", function()
 	local RigMath = require("../src/shared/RigMath")
 	local BodyShape = require("../src/shared/BodyShape")

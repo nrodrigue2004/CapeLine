@@ -222,7 +222,8 @@ local function makeRobot(typeId: number): Body
 		colors[s .. "LowerLeg"] = trim
 		colors[s .. "Foot"] = trim
 	end
-	local rig = NpcRig.build(layout, cfg.name, colors, SKIN)
+	local set = BodyShape.setKey(Config, { gender = 1, build = LOOK.builds[body.build] or 2 })
+	local rig = NpcRig.build(layout, cfg.name, colors, SKIN, nil, set)
 	local model = rig.model
 	local parts, names, cols, trans, byName, index = {}, {}, {}, {}, {}, {}
 	local function register(name: string, p: BasePart)

@@ -86,6 +86,8 @@ return {
 		},
 		-- hair colours, picked per citizen from its id (every citizen is on the blocky R15 rig, like heroes)
 		hair = { { 30, 26, 24 }, { 70, 46, 30 }, { 160, 120, 60 }, { 225, 225, 230 }, { 120, 40, 40 } },
+		-- body sets (gender, build), picked per citizen from its id: men and women, slim to big, no Titans
+		bodies = { { 1, 1 }, { 1, 2 }, { 1, 2 }, { 1, 3 }, { 2, 1 }, { 2, 2 }, { 2, 2 }, { 2, 3 } },
 		poseNear = 100, -- citizens this close to the camera pose every frame; farther ones every poseEvery frames
 		poseEvery = 3,
 		drawDelay = 0.3, -- clients draw citizens this far in the past (packets come 4 times a second)

@@ -55,7 +55,7 @@ phones or Studio go on the Studio test list below.
 - 17 paths (2026-11-16): the 96 new abilities use the existing neon parts, beams and rings; summons (turret, drone, clones, totem, guardian, mines, holo decoy) and rides (jets, rock, board, platform, rail) are a few parts each; size forms just scale the hero (CombatFx, CombatClient). Swing lines are a thin part (MoveController). PLACEHOLDER ART.
 - Underwater (2026-11-16): the basin walls, the Sunken Line tunnel, station and train cars, reef, kelp, wrecks, caches and the sunken factory are plain parts; the seabed and rock walls are Terrain sand and rock (DeepLayout, CityBuilder); commuters are blocky figures in a glass bubble, cache markers are labels (DeepClient); Diver helmets and tanks are parts (EnemyRenderer); torpedoes are a box with ball bubbles (CombatFx); the Leviathan Engine is a part-built serpent sub (WorldFx). PLACEHOLDER ART.
 - Store page (M12): no icon, thumbnails or concept art yet; briefs in notes/Store Page.md (generated and hand-cleaned, nate approves each).
-- Hero creator first slice (2026-11-16): the 121 new pieces (beards, faces, makeup, hats, ears, shoulders, neck, arms, wrists, belts, legs, back bling, 10 hair styles) are blocks, wedges, balls and cylinders welded to the body (PieceKits); all 36 weapons are part-built (WeaponKit); body builds and heights scale the blocky rig until the 8 Blender body sets; weapon moves reuse the power visuals in a steel colour with no swing animation. PLACEHOLDER ART.
+- Hero creator first slice (2026-11-16): the 121 new pieces (beards, faces, makeup, hats, ears, shoulders, neck, arms, wrists, belts, legs, back bling, 10 hair styles) are blocks, wedges, balls and cylinders welded to the body (PieceKits); all 36 weapons are part-built (WeaponKit); body builds and heights scale the blocky rig and the 8 Blender body sets (art/blender/bodies.py, 2026-11-17) reshape it once Bodies.fbx is imported; weapon moves reuse the power visuals in a steel colour with no swing animation. PLACEHOLDER ART.
 
 ## Studio test list (needs nate's PC)
 Start: `rojo serve`, connect the Rojo plugin, press Play (or Test > Clients and Servers with 2 players). The DEV button (top right, Studio only) has the test tools.
@@ -219,6 +219,13 @@ nate's plan: https://claude.ai/artifact/VeuJPWz6kKE6gGsUBmqQC9. Use a fresh hero
 8. Weapon Rack: the grey fifth terminal at a safehouse (hold B): every weapon by family; BUY one for Credits (Credits go down, it says it's yours), CARRY it (the hand shows it on 2), CUSTOMIZE opens the creator on the weapon step. Exotic ones show their Robux price; the Boomerang bought in the shop (test purchase) can be carried.
 9. Body sizes and doors: as a Titan and as a Small hero, walk through a safehouse shelter, a doorway and under a low ledge: both fit the same places a Medium hero does (one standard collider), and nobody falls through the floor or sinks into it.
 10. Old heroes: a hero made before this update keeps its look (no missing pieces), has Bare Fists on 2 and Male Medium Average.
+
+### Body sets (2026-11-17)
+The Output at boot says build body-sets (2026-11-17). Needs art/export/Bodies.fbx imported first (Studio 3D Importer, into ReplicatedStorage.Art, named "Bodies"; preview art/preview/bodies.png). Before the import everything looks as it does now.
+1. Creator: pick each of the 8 bodies (Male and Female, Small, Medium, Large, Titan). The torso, arms and legs change shape, not just size: tapers, a broad V on Large and Titan, a soft chest and wider hips on the female bodies. Nothing stretches oddly or leaves gaps at the joints.
+2. Switch body back and forth in the creator, then press Play: the hero in the city has the same body as the creator preview, and hats, coats and armour still sit right.
+3. Citizens: men and women, slim to big, walk around (no Titans). Robots: Brutes and Sentinels have the Large body, drones and Sneak Bots the Small one. The big HQ dummy is Large.
+4. The Output has no "[LookKit] body set" warnings (MeshPart:ApplyMesh is the one new Roblox call here).
 
 ### Everyone on R15 (2026-11-16)
 The Output at boot says build r15-everyone (2026-11-16). Works before and after the Hero.fbx import.

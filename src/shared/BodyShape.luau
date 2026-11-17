@@ -73,6 +73,16 @@ function BodyShape.factors(Config: any, look: any): (Factors, number)
 	return out, tall
 end
 
+-- The body set a look wears (art/blender/bodies.py): "<Gender><Build>", e.g. "FemaleTitan". Each set is the
+-- blocky hero reshaped (tapers, a V on the big builds, a soft chest and hips on the female sets); its meshes are
+-- ReplicatedStorage.Art.Bodies["<Set>_<Part>"], and a part a set does not change is the hero's own
+-- (Art.Hero). "MaleMedium" is the hero body itself.
+function BodyShape.setKey(Config: any, look: any): string
+	local B = Config.Creator.body
+	local build = pick(B.builds, look.build, 2)
+	return (if look.gender == 2 then "Female" else "Male") .. build.name
+end
+
 -- Is this the standard body (nothing to scale)?
 function BodyShape.standard(look: any): boolean
 	return (look.build or 2) == 2 and (look.height or 3) == 3 and (look.gender or 1) == 1

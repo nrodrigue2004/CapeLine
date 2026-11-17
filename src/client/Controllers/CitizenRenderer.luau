@@ -21,6 +21,7 @@ local Net = require(Shared:WaitForChild("Net"))
 local CitizenBuffer = require(Shared:WaitForChild("CitizenBuffer"))
 local Rng = require(Shared:WaitForChild("Rng"))
 local RigMath = require(Shared:WaitForChild("RigMath"))
+local BodyShape = require(Shared:WaitForChild("BodyShape"))
 local NpcRig = require(Shared:WaitForChild("NpcRig"))
 
 local CitizenRenderer = {}
@@ -28,13 +29,28 @@ local CitizenRenderer = {}
 local C = Config.Destruction.citizens
 local FLEE, PAUSE = 2, 1
 local SIDES = { { "Left", -1 }, { "Right", 1 } }
-local layout = RigMath.layout(Config.HeroRig, nil, 1)
+-- one rig layout per body (C.bodies: gender and build), each in its body set's shape
+local layouts: { [number]: RigMath.Layout } = {}
+local function bodyLook(i: number): any
+	local b = C.bodies[i] or C.bodies[1]
+	return { gender = b[1], build = b[2], height = 3 }
+end
+local function layoutOf(i: number): RigMath.Layout
+	local l = layouts[i]
+	if not l then
+		local factors = BodyShape.factors(Config, bodyLook(i))
+		l = RigMath.layout(Config.HeroRig, factors, 1)
+		layouts[i] = l
+	end
+	return l
+end
 
 type Body = {
 	model: Model,
 	rig: NpcRig.Rig,
 	hair: BasePart,
 	color: number,
+	key: number,
 	pos: Vector3,
 	yaw: number,
 	phase: number,
@@ -53,15 +69,29 @@ local function rgb(t: { number }): Color3
 	return Color3.fromRGB(t[1], t[2], t[3])
 end
 
-local function newBody(color: number): Body
+-- A pool key: the colour set and the body (a pooled body only goes back to a citizen with both the same)
+local function keyOf(color: number, bodyIndex: number): number
+	return color * 16 + bodyIndex
+end
+
+local function newBody(color: number, bodyIndex: number): Body
 	local set = C.colors[color] or C.colors[1]
-	local rig = NpcRig.person(layout, "Citizen", rgb(set[1]), rgb(set[2]), rgb(set[3]), rgb(C.hair[1]))
+	local rig = NpcRig.person(
+		layoutOf(bodyIndex),
+		"Citizen",
+		rgb(set[1]),
+		rgb(set[2]),
+		rgb(set[3]),
+		rgb(C.hair[1]),
+		BodyShape.setKey(Config, bodyLook(bodyIndex))
+	)
 	rig.model.Parent = folder
 	return {
 		model = rig.model,
 		rig = rig,
 		hair = rig.model:FindFirstChild("Hair") :: BasePart,
 		color = color,
+		key = keyOf(color, bodyIndex),
 		pos = Vector3.zero,
 		yaw = 0,
 		phase = 0,
@@ -70,20 +100,20 @@ local function newBody(color: number): Body
 	}
 end
 
-local function acquire(color: number): Body
-	local list = pool[color]
+local function acquire(color: number, bodyIndex: number): Body
+	local list = pool[keyOf(color, bodyIndex)]
 	local body = list and table.remove(list)
 	if body then
 		body.model.Parent = folder
 		return body
 	end
-	return newBody(color)
+	return newBody(color, bodyIndex)
 end
 
 local function release(body: Body)
 	body.model.Parent = nil
-	pool[body.color] = pool[body.color] or {}
-	table.insert(pool[body.color], body)
+	pool[body.key] = pool[body.key] or {}
+	table.insert(pool[body.key], body)
 end
 
 local function lerpAngle(a: number, b: number, t: number): number
@@ -101,7 +131,7 @@ local function pose(body: Body, dt: number, roots: { BasePart }, cframes: { CFra
 	table.insert(roots, body.rig.root)
 	table.insert(
 		cframes,
-		CFrame.new(body.pos + Vector3.new(0, layout.ground + bob, 0)) * CFrame.Angles(0, body.yaw, 0)
+		CFrame.new(body.pos + Vector3.new(0, body.rig.layout.ground + bob, 0)) * CFrame.Angles(0, body.yaw, 0)
 	)
 	if not joints then
 		return
@@ -155,7 +185,7 @@ local function render()
 		local pos = Vector3.new(ra.x, ra.y, ra.z):Lerp(Vector3.new(rbb.x, rbb.y, rbb.z), alpha)
 		local body = live[id]
 		if not body then
-			body = acquire(rb.color)
+			body = acquire(rb.color, Rng.hash(id, 5113) % #C.bodies + 1)
 			body.hair.Color = rgb(C.hair[Rng.hash(id, 4409) % #C.hair + 1])
 			NpcRig.rest(body.rig)
 			live[id] = body

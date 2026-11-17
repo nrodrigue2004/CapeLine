@@ -14,6 +14,7 @@ local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local CreatorRules = require(Shared:WaitForChild("CreatorRules"))
 local BodyShape = require(Shared:WaitForChild("BodyShape"))
+local NpcRig = require(Shared:WaitForChild("NpcRig"))
 local PieceKits = require(Shared:WaitForChild("PieceKits"))
 local WeaponKit = require(Shared:WaitForChild("WeaponKit"))
 
@@ -829,6 +830,37 @@ local function addSpecs(
 	end
 end
 
+-- Wear the look's body set (BodyShape.setKey; art/blender/bodies.py): each body MeshPart takes the set's mesh
+-- with MeshPart:ApplyMesh, in place, so its joints, attachments and everything welded to it stay. Sizes are
+-- kept (shapeBody sizes every part right after). Skipped when the set is already worn, while the meshes are
+-- not imported (a plain block body), or for a part that is not a MeshPart. Marks the model "BodySet".
+function LookKit.wearBodySet(char: Model, look: any)
+	local key = BodyShape.setKey(Config, look)
+	if char:GetAttribute("BodySet") == key then
+		return
+	end
+	local meshes = NpcRig.meshes(key)
+	if not meshes then
+		return
+	end
+	for _, name in BodyShape.PARTS do
+		local p = char:FindFirstChild(name)
+		local src = meshes[name]
+		if p and p:IsA("MeshPart") and src then
+			local size = p.Size
+			local ok, err = pcall(function()
+				p:ApplyMesh(src)
+			end)
+			if not ok then
+				warn("[LookKit] body set", key, name, err)
+				return -- leave the mark off so the next build tries again
+			end
+			p.Size = size
+		end
+	end
+	char:SetAttribute("BodySet", key)
+end
+
 -- Shape the body for the look's gender, build and height (BodyShape): every body part and its attachments
 -- scale from their first-seen size, the joints follow the moved attachments, and the hip height follows the
 -- legs. The HumanoidRootPart (the collider and hit capsule) never changes. Safe to call again on a new look.
@@ -1124,12 +1156,13 @@ function LookKit.clear(char: Model)
 end
 
 -- Build a whole look (LookService adds the gear styles the look does not cover). Returns the folder.
--- The body is shaped first (build, height, gender), so every piece is sized for it.
+-- The body wears its body set and is shaped first (build, height, gender), so every piece is sized for it.
 local NEW_SLOTS =
 	{ "beard", "face", "makeup", "hat", "ears", "shoulders", "neck", "arms", "wrist", "belt", "backpack" }
 -- weapon (optional): a WeaponRules weapon look, built in a "Weapon" folder inside the look
 function LookKit.build(char: Model, look: any, weapon: any?): Folder
 	LookKit.clear(char)
+	LookKit.wearBodySet(char, look)
 	LookKit.shapeBody(char, look)
 	local folder = Instance.new("Folder")
 	folder.Name = "HeroLook"

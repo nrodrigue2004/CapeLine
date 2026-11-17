@@ -6,8 +6,8 @@
 -- Humanoid (a hundred of them on a phone would cost too much) and is drawn on the device only:
 -- * the root is anchored and moved with BulkMoveTo, the limbs follow through the joints;
 -- * poses are set on the Motor6Ds' Transform (NpcRig.turn), written only when they change.
--- The 15 parts use the hero meshes (ReplicatedStorage.Art.Hero) once nate imports them, else plain blocks of
--- the same sizes, which is the same blocky body.
+-- The 15 parts use the hero meshes (ReplicatedStorage.Art.Hero, reshaped per body set from Art.Bodies) once
+-- nate imports them, else plain blocks of the same sizes, which is the same blocky body.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -30,20 +30,28 @@ local function v3(t: { number }): Vector3
 	return Vector3.new(t[1], t[2], t[3])
 end
 
--- The imported hero meshes by part name, or nil while any of the 15 is missing (found once)
-local meshCache: { [string]: MeshPart } | false | nil = nil
-function NpcRig.meshes(): { [string]: MeshPart }?
-	if meshCache ~= nil then
-		return meshCache or nil
+-- The imported meshes by part name for one body set (BodyShape.setKey; nil is the hero body, "MaleMedium"):
+-- each part from ReplicatedStorage.Art.Bodies["<set>_<part>"] when the set reshapes it, else the hero's own
+-- part from Art.Hero. Nil while any of the 15 hero parts is missing (plain blocks then). Found once per set.
+local meshCache: { [string]: { [string]: MeshPart } | false } = {}
+function NpcRig.meshes(set: string?): { [string]: MeshPart }?
+	local key = set or "MaleMedium"
+	local cached = meshCache[key]
+	if cached ~= nil then
+		return cached or nil
 	end
 	local art = ReplicatedStorage:FindFirstChild("Art")
 	local folder = art and art:FindFirstChild("Hero")
+	local bodies = art and art:FindFirstChild("Bodies")
 	local out = {}
 	local ok = folder ~= nil
 	if folder then
 		for _, j in RigMath.JOINTS do
 			local name = j[3]
-			local found = folder:FindFirstChild(name, true)
+			local shaped = bodies and key ~= "MaleMedium" and bodies:FindFirstChild(key .. "_" .. name, true)
+			local found = if shaped and shaped:IsA("MeshPart")
+				then shaped
+				else folder:FindFirstChild(name, true)
 			if found and found:IsA("MeshPart") then
 				out[name] = found
 			else
@@ -51,7 +59,7 @@ function NpcRig.meshes(): { [string]: MeshPart }?
 			end
 		end
 	end
-	meshCache = if ok then out else false
+	meshCache[key] = if ok then out else false
 	return if ok then out else nil
 end
 
@@ -72,15 +80,17 @@ local function quiet(p: BasePart)
 	p.Massless = true
 end
 
--- A rig for one body. `colors` paints each of the 15 parts by name (a missing name stays grey).
+-- A rig for one body. `colors` paints each of the 15 parts by name (a missing name stays grey); `set` picks the
+-- body set's meshes (BodyShape.setKey: use the gender and build the layout's factors came from).
 function NpcRig.build(
 	layout: RigMath.Layout,
 	name: string,
 	colors: { [string]: Color3 },
 	material: Enum.Material?,
-	shadows: boolean?
+	shadows: boolean?,
+	set: string?
 ): Rig
-	local meshes = NpcRig.meshes()
+	local meshes = NpcRig.meshes(set)
 	local model = Instance.new("Model")
 	model.Name = name
 	local root = Instance.new("Part")
@@ -166,14 +176,16 @@ end
 
 -- A plain person on the rig (citizens, quest givers, the stranded at incidents): the shirt on the torso and
 -- upper arms, skin on the forearms, hands and head with Roblox's classic face, pants, darker shoes and blocky
--- hair (Hair, fixed to the head; nil hair leaves it off)
+-- hair (Hair, fixed to the head; nil hair leaves it off). `set` is the body set (BodyShape.setKey) whose
+-- factors made `layout`.
 function NpcRig.person(
 	layout: RigMath.Layout,
 	name: string,
 	shirt: Color3,
 	pants: Color3,
 	skin: Color3,
-	hair: Color3?
+	hair: Color3?,
+	set: string?
 ): Rig
 	local shoes = pants:Lerp(Color3.new(0, 0, 0), 0.5)
 	local colors: { [string]: Color3 } = { Head = skin, UpperTorso = shirt, LowerTorso = pants }
@@ -185,7 +197,7 @@ function NpcRig.person(
 		colors[s .. "LowerLeg"] = pants
 		colors[s .. "Foot"] = shoes
 	end
-	local rig = NpcRig.build(layout, name, colors)
+	local rig = NpcRig.build(layout, name, colors, nil, nil, set)
 	local head = rig.parts.Head
 	local face = Instance.new("Decal")
 	face.Name = "face"
