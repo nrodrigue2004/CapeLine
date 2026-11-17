@@ -753,6 +753,261 @@ local hair = {
 	),
 }
 
+-- 2026-11-17: toward the creator plan's launch counts (head area). Same blocky style and roles as above.
+-- PLACEHOLDER ART like the rest.
+local CAP = S("head", V(1.28, 0.3, 1.28), CF(0, TOP - 0.08, 0.02), "hair")
+local function spike(x: number, y: number, z: number, h: number, tilt: number, lean: number): Spec
+	return S("head", V(0.32, h, 0.32), CF(x, y, z) * rz(tilt) * rx(lean), "hair", { shape = "Wedge" })
+end
+
+-- hair: 20 more styles
+hair.spikes = cat(
+	CAP,
+	spike(0, TOP + 0.25, 0.1, 0.6, 0, -25),
+	spike(-0.35, TOP + 0.18, 0.05, 0.5, 25, -20),
+	spike(0.35, TOP + 0.18, 0.05, 0.5, -25, -20),
+	spike(-0.2, TOP + 0.1, 0.45, 0.5, 15, -50),
+	spike(0.2, TOP + 0.1, 0.45, 0.5, -15, -50)
+)
+hair.quiff = cat(CAP, S("head", V(1.0, 0.4, 0.55), CF(0, TOP + 0.12, -0.35) * rx(-20), "hair"))
+hair.sidepart = cat(
+	S("head", V(1.3, 0.3, 1.3), CF(0, TOP - 0.06, 0.02), "hair"),
+	S("head", V(0.8, 0.14, 0.4), CF(0.2, TOP + 0.08, -0.4) * rz(-8), "hair"),
+	both(S("head", V(0.12, 0.5, 0.9), CF(-0.64, 0.25, 0.15), "hair"))
+)
+hair.bangs = cat(
+	CAP,
+	S("head", V(0.7, 0.55, 0.12), CF(-0.18, 0.28, FZ - 0.04) * rz(-12), "hair"),
+	both(S("head", V(0.12, 0.7, 0.9), CF(-0.64, 0.15, 0.15), "hair"))
+)
+hair.messy = cat(
+	CAP,
+	S("head", V(0.4, 0.3, 0.4), CF(-0.3, TOP + 0.12, -0.2) * rz(20), "hair"),
+	S("head", V(0.45, 0.3, 0.4), CF(0.25, TOP + 0.14, 0.1) * rz(-15), "hair"),
+	S("head", V(0.35, 0.28, 0.35), CF(0, TOP + 0.1, 0.45) * rx(25), "hair"),
+	S("head", V(0.3, 0.25, 0.3), CF(0.35, TOP + 0.05, -0.35) * rz(-30), "hair")
+)
+hair.braids = cat(
+	CAP,
+	both(S("head", V(0.2, 1.3, 0.2), CF(-0.5, -0.45, 0.25), "hair")),
+	both(S("head", V(0.24, 0.1, 0.24), CF(-0.5, -1.12, 0.25), "a"))
+)
+hair.rows = cat(
+	S("head", V(1.24, 0.12, 1.24), CF(0, TOP - 0.02, 0.02), "hair"),
+	S("head", V(0.12, 0.08, 1.2), CF(-0.3, TOP + 0.06, 0.02), "hair"),
+	S("head", V(0.12, 0.08, 1.2), CF(0, TOP + 0.06, 0.02), "hair"),
+	S("head", V(0.12, 0.08, 1.2), CF(0.3, TOP + 0.06, 0.02), "hair")
+)
+hair.buzz = { S("head", V(1.22, 0.12, 1.22), CF(0, TOP - 0.02, 0.01), "hair", { alpha = 0.15 }) }
+hair.topbun = cat(CAP, S("head", V(0.5, 0.45, 0.5), CF(0, TOP + 0.28, 0.1), "hair", { shape = "Ball" }))
+hair.pigs = cat(
+	CAP,
+	both(S("head", V(0.32, 0.32, 0.32), CF(-0.68, 0.2, 0.25), "a", { shape = "Ball" })),
+	both(S("head", V(0.3, 1.0, 0.3), CF(-0.85, -0.2, 0.3) * rz(-15), "hair"))
+)
+hair.shaggy = cat(
+	S("head", V(1.34, 0.36, 1.34), CF(0, TOP - 0.06, 0.02), "hair"),
+	S("head", V(1.34, 0.7, 0.3), CF(0, 0.05, 0.6), "hair"),
+	both(S("head", V(0.16, 0.6, 1.0), CF(-0.66, 0.15, 0.1), "hair")),
+	S("head", V(1.1, 0.22, 0.14), CF(0, 0.42, -0.62) * rx(10), "hair")
+)
+hair.slick = cat(
+	S("head", V(1.26, 0.22, 1.3), CF(0, TOP - 0.02, 0.04), "hair"),
+	S("head", V(1.2, 0.45, 0.2), CF(0, 0.3, 0.64), "hair")
+)
+hair.wolf = cat(
+	CAP,
+	S("head", V(1.2, 0.5, 0.3), CF(0, 0.2, 0.62), "hair"),
+	S("head", V(0.9, 0.5, 0.25), CF(0, -0.25, 0.66) * rx(10), "hair"),
+	both(S("head", V(0.14, 0.75, 0.8), CF(-0.66, 0.05, 0.2), "hair")),
+	S("head", V(0.9, 0.2, 0.12), CF(0, 0.45, -0.62), "hair")
+)
+hair.hime = cat(
+	CAP,
+	S("head", V(1.22, 0.22, 0.1), CF(0, 0.42, -0.63), "hair"),
+	both(S("head", V(0.14, 1.1, 0.35), CF(-0.66, -0.15, -0.35), "hair")),
+	S("head", V(1.3, 2.0, 0.28), CF(0, -0.5, 0.62), "hair")
+)
+hair.flame = cat(
+	CAP,
+	spike(0, TOP + 0.35, 0.05, 0.8, 0, -8),
+	spike(-0.32, TOP + 0.25, 0.1, 0.6, 18, -10),
+	spike(0.32, TOP + 0.25, 0.1, 0.6, -18, -10),
+	spike(0, TOP + 0.2, 0.45, 0.6, 0, -30)
+)
+hair.super = cat(
+	CAP,
+	spike(0, TOP + 0.45, 0.05, 1.0, 0, -5),
+	spike(-0.4, TOP + 0.35, 0, 0.85, 30, -5),
+	spike(0.4, TOP + 0.35, 0, 0.85, -30, -5),
+	spike(-0.25, TOP + 0.3, 0.45, 0.8, 18, -35),
+	spike(0.25, TOP + 0.3, 0.45, 0.8, -18, -35),
+	spike(0, TOP + 0.05, -0.55, 0.35, 0, 30)
+)
+hair.sidebraid = cat(
+	CAP,
+	S("head", V(0.24, 1.3, 0.24), CF(0.55, -0.45, -0.1), "hair"),
+	S("head", V(0.28, 0.1, 0.28), CF(0.55, -1.12, -0.1), "a")
+)
+hair.fauxhawk = cat(
+	S("head", V(1.1, 0.16, 1.24), CF(0, TOP - 0.02, 0.02), "hair"),
+	S("head", V(0.4, 0.35, 1.0), CF(0, TOP + 0.15, -0.05), "hair")
+)
+hair.drills = cat(
+	CAP,
+	S("head", V(1.22, 0.2, 0.1), CF(0, 0.42, -0.63), "hair"),
+	both(S("head", V(0.36, 0.36, 1.2), CF(-0.75, -0.35, 0.1) * rx(90), "hair", { shape = "Cylinder" }))
+)
+
+hair.crownbraid = cat(
+	S("head", V(1.26, 0.22, 1.26), CF(0, TOP - 0.04, 0.02), "hair"),
+	S("head", V(1.36, 0.18, 1.36), CF(0, 0.38, 0.02), "hair", { mat = Enum.Material.Fabric })
+)
+
+-- facial hair: 7 more
+beard.soul = { S("head", V(0.12, 0.14, 0.06), CF(0, -0.38, FZ - 0.02), "hair") }
+beard.pencil = { S("head", V(0.42, 0.04, 0.05), CF(0, -0.13, FZ - 0.02), "hair") }
+beard.horseshoe = cat(
+	S("head", V(0.5, 0.09, 0.07), CF(0, -0.12, FZ - 0.02), "hair"),
+	both(S("head", V(0.09, 0.3, 0.07), CF(-0.22, -0.3, FZ - 0.02), "hair"))
+)
+beard.anchor = cat(
+	MUSTACHE,
+	S("head", V(0.5, 0.1, 0.08), CF(0, -0.44, FZ - 0.01), "hair"),
+	S("head", V(0.14, 0.24, 0.08), CF(0, -0.55, FZ - 0.01), "hair")
+)
+beard.boxed = cat(S("head", V(1.12, 0.42, 0.16), CF(0, -0.44, FZ + 0.03), "hair"), MUSTACHE)
+beard.forked = cat(
+	S("head", V(1.0, 0.36, 0.14), CF(0, -0.44, FZ + 0.03), "hair"),
+	both(S("head", V(0.18, 0.4, 0.14), CF(-0.16, -0.78, FZ + 0.05) * rz(10), "hair")),
+	MUSTACHE
+)
+beard.wizard = cat(
+	S("head", V(1.1, 0.5, 0.18), CF(0, -0.42, FZ + 0.03), "hair"),
+	S("head", V(0.6, 0.9, 0.18), CF(0, -1.05, FZ + 0.06), "hair", { shape = "Wedge" }),
+	MUSTACHE
+)
+
+-- faces: 15 more (brows, eyes and mouth together)
+face.happy = cat(
+	eyes(0.16, 0.08),
+	brows(0),
+	mouth(0.4, 0.08),
+	both(S("head", V(0.1, 0.06, 0.04), CF(-0.22, -0.19, FZ - 0.01) * rz(-35), "dark"))
+)
+face.wink = cat(
+	eyes()[1],
+	S("head", V(0.18, 0.05, 0.04), CF(0.22, 0.08, FZ - 0.01), "dark"),
+	brows(0),
+	mouth(0.3, 0.07, 0.06, 10)
+)
+face.tired = cat(eyes(0.16, 0.08), brows(-8, 0.24), mouth(0.26, 0.05))
+face.surprised =
+	cat(eyes(0.16, 0.24), brows(0, 0.4), S("head", V(0.18, 0.2, 0.04), CF(0, -0.27, FZ - 0.01), "dark"))
+face.angry = cat(
+	eyes(0.16, 0.12),
+	brows(25),
+	mouth(0.34, 0.06),
+	both(S("head", V(0.08, 0.06, 0.04), CF(-0.2, -0.28, FZ - 0.01) * rz(30), "dark"))
+)
+face.smug = cat(eyes(0.16, 0.1), brows(-15), mouth(0.3, 0.06, 0.1, 18))
+face.determined = cat(eyes(0.18, 0.12), brows(18), mouth(0.36, 0.05))
+face.sleepy = cat(
+	both(S("head", V(0.18, 0.04, 0.04), CF(-0.22, 0.08, FZ - 0.01), "dark", { eye = true })),
+	brows(-5, 0.26),
+	mouth(0.16, 0.08)
+)
+face.toothy = cat(
+	eyes(),
+	brows(0),
+	S("head", V(0.46, 0.12, 0.04), CF(0, -0.24, FZ - 0.015), "white"),
+	S("head", V(0.02, 0.12, 0.045), CF(0, -0.24, FZ - 0.02), "dark")
+)
+face.stern = cat(eyes(0.16, 0.12), brows(8, 0.28), mouth(0.4, 0.05))
+face.cheeky = cat(
+	eyes(),
+	brows(-5),
+	mouth(0.3, 0.07),
+	S("head", V(0.1, 0.1, 0.045), CF(0.05, -0.32, FZ - 0.015), "glowRed")
+)
+face.battle = cat(
+	eyes(0.16, 0.12),
+	brows(22),
+	mouth(0.34, 0.06),
+	S("head", V(0.3, 0.05, 0.045), CF(-0.22, 0.32, FZ - 0.02) * rz(-40), "glowRed", { alpha = 0.3 })
+)
+face.cool = cat(eyes(0.2, 0.08), brows(-3), mouth(0.24, 0.05, 0.05, 6))
+face.stitched = cat(
+	eyes(),
+	brows(0),
+	mouth(0.36, 0.05),
+	S("head", V(0.04, 0.3, 0.045), CF(-0.1, -0.24, FZ - 0.02), "dark"),
+	S("head", V(0.04, 0.3, 0.045), CF(0.1, -0.24, FZ - 0.02), "dark")
+)
+face.joker = cat(
+	eyes(0.18, 0.18),
+	brows(-20),
+	mouth(0.5, 0.08),
+	both(S("head", V(0.12, 0.06, 0.04), CF(-0.27, -0.18, FZ - 0.01) * rz(-35), "dark"))
+)
+
+-- makeup: 12 more
+makeup.shadow = both(S("head", V(0.28, 0.12, 0.03), CF(-0.22, 0.2, MZ), "p", { alpha = 0.3 }))
+makeup.wing = cat(
+	both(S("head", V(0.26, 0.03, 0.03), CF(-0.22, -0.01, MZ), "dark")),
+	both(S("head", V(0.16, 0.04, 0.03), CF(-0.4, 0.06, MZ) * rz(40), "dark"))
+)
+makeup.mask = { S("head", V(1.04, 0.24, 0.03), CF(0, 0.1, MZ), "dark") }
+makeup.stripes = cat(
+	both(S("head", V(0.3, 0.06, 0.03), CF(-0.32, -0.04, MZ) * rz(10), "p")),
+	both(S("head", V(0.3, 0.06, 0.03), CF(-0.32, -0.16, MZ) * rz(10), "p"))
+)
+makeup.dots = cat(
+	both(S("head", V(0.06, 0.06, 0.03), CF(-0.22, 0.34, MZ), "a")),
+	both(S("head", V(0.06, 0.06, 0.03), CF(-0.32, 0.3, MZ), "a")),
+	S("head", V(0.08, 0.08, 0.03), CF(0, 0.4, MZ), "a")
+)
+makeup.mark = { S("head", V(0.12, 0.16, 0.03), CF(0, 0.38, MZ) * rz(45), "a", { neon = true }) }
+makeup.star = { S("head", V(0.16, 0.16, 0.03), CF(0.3, 0.12, MZ) * rz(45), "a") }
+makeup.tribal = cat(
+	both(S("head", V(0.05, 0.4, 0.03), CF(-0.42, 0.1, MZ) * rz(20), "p")),
+	both(S("head", V(0.05, 0.3, 0.03), CF(-0.32, -0.25, MZ) * rz(-25), "p"))
+)
+makeup.clown = cat(
+	S("head", V(0.14, 0.14, 0.03), CF(0, -0.1, MZ - 0.01), "glowRed"),
+	both(S("head", V(0.14, 0.26, 0.03), CF(-0.22, 0.12, MZ), "p"))
+)
+makeup.glitter = cat(
+	both(S("head", V(0.05, 0.05, 0.03), CF(-0.3, 0.02, MZ), "a", { neon = true })),
+	both(S("head", V(0.04, 0.04, 0.03), CF(-0.38, -0.06, MZ), "a", { neon = true })),
+	both(S("head", V(0.04, 0.04, 0.03), CF(-0.28, -0.12, MZ), "a", { neon = true }))
+)
+makeup.lightning = { S("head", V(0.08, 0.5, 0.03), CF(-0.25, 0.1, MZ) * rz(20), "a", { neon = true }) }
+makeup.skull = cat(
+	both(S("head", V(0.3, 0.26, 0.03), CF(-0.22, 0.1, MZ), "dark")),
+	S("head", V(0.1, 0.1, 0.03), CF(0, -0.08, MZ), "dark"),
+	S("head", V(0.5, 0.06, 0.03), CF(0, -0.26, MZ), "dark")
+)
+
+-- ears: 4 more
+ears.gauges =
+	both(S("head", V(0.08, 0.2, 0.2), CF(-0.62, -0.05, 0.05) * rz(90), "dark", { shape = "Cylinder" }))
+ears.chain = cat(
+	both(
+		S(
+			"head",
+			V(0.06, 0.06, 0.06),
+			CF(-0.62, -0.1, 0),
+			"gold",
+			{ shape = "Ball", mat = Enum.Material.Metal }
+		)
+	),
+	both(S("head", V(0.04, 0.4, 0.04), CF(-0.64, -0.32, 0.05), "gold", { mat = Enum.Material.Metal }))
+)
+ears.gems =
+	both(S("head", V(0.1, 0.1, 0.1), CF(-0.62, -0.08, 0), "a", { shape = "Ball", mat = Enum.Material.Glass }))
+ears.fins = both(S("head", V(0.06, 0.4, 0.5), CF(-0.66, 0.1, 0.1), "p", { shape = "Wedge" }))
+
 return {
 	beard = beard,
 	face = face,

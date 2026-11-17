@@ -688,6 +688,19 @@ local EYE_COLORS = {
 	ice = { 200, 245, 255 },
 	ember = { 255, 110, 40 },
 	spirit = { 170, 255, 255 },
+	white = { 245, 245, 250 },
+	violet = { 190, 120, 255 },
+	toxic = { 140, 255, 90 },
+}
+-- eye shapes (kit "shape:colour"; a plain colour kit is the "bar"): size, x, y, z-rotation of the left eye
+local EYE_SHAPES = {
+	bar = { V(0.2, 0.09, 0.05), 0.22, 0.12, 0 },
+	sharp = { V(0.24, 0.07, 0.05), 0.22, 0.12, -12 },
+	round = { V(0.15, 0.15, 0.05), 0.22, 0.12, 0, "Ball" },
+	big = { V(0.2, 0.24, 0.05), 0.22, 0.1, 0 },
+	narrow = { V(0.22, 0.04, 0.05), 0.22, 0.12, 0 },
+	slit = { V(0.05, 0.2, 0.05), 0.22, 0.12, 0 },
+	visor = { V(0.78, 0.11, 0.05), 0, 0.12, 0, nil, true },
 }
 local AURAS = {
 	ember = { rate = 10, speed = 3, life = 1.0, size = 0.5, light = 1, colors = { "a", "glowRed" } },
@@ -1035,19 +1048,24 @@ local function eyes(char: Model, folder: Instance, kit: string, colors: Colors)
 	if not head then
 		return
 	end
-	local left = if kit == "accent" or kit == "prism"
+	local bits = string.split(kit, ":")
+	local shape = if #bits > 1 then EYE_SHAPES[bits[1]] or EYE_SHAPES.bar else EYE_SHAPES.bar
+	local tone = if #bits > 1 then bits[2] else bits[1]
+	local left = if tone == "accent" or tone == "prism"
 		then colors.a
-		else rgb(EYE_COLORS[kit] or { 255, 255, 255 })
-	local right = if kit == "prism" then colors.p else left
+		else rgb(EYE_COLORS[tone] or { 255, 255, 255 })
+	local right = if tone == "prism" then colors.p else left
 	if colors.eyeOverride then
 		left, right = colors.eyeOverride, colors.eyeOverride
 	end
-	for i, x in { -0.22, 0.22 } do
+	local size, x, y, tilt, form, single = shape[1], shape[2], shape[3], shape[4], shape[5], shape[6]
+	for i, sx in (if single then { 0 } else { -1, 1 }) do
 		make(char, folder, "Eye", {
 			at = "head",
-			size = Vector3.new(0.2, 0.09, 0.05),
-			cf = CFrame.new(x, 0.12, -head.Size.Z / 2 - 0.01),
+			size = size,
+			cf = CFrame.new(sx * x, y, -head.Size.Z / 2 - 0.01) * CFrame.Angles(0, 0, math.rad(-sx * tilt)),
 			color = "eye" .. i,
+			shape = form,
 			neon = true,
 		}, { ["eye1"] = left, ["eye2"] = right, p = left } :: any)
 	end

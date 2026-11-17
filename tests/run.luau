@@ -5932,15 +5932,83 @@ test(
 		for _, p in idx.list do
 			if p.id > 146 then
 				count += 1
-				local set = kits[p.tab]
-				check(
-					set ~= nil and set[p.kit] ~= nil,
-					p.name .. " has a kit (" .. p.tab .. "." .. p.kit .. ")"
-				)
+				if p.tab == "eyes" then
+					-- eye shapes: "shape:colour" (LookKit's EYE_SHAPES and EYE_COLORS)
+					local shape, tone = string.match(p.kit, "^(%a+):(%a+)$")
+					local shapes = { bar = 1, sharp = 1, round = 1, big = 1, narrow = 1, slit = 1, visor = 1 }
+					local tones = {
+						accent = 1,
+						prism = 1,
+						gold = 1,
+						ice = 1,
+						ember = 1,
+						spirit = 1,
+						white = 1,
+						violet = 1,
+						toxic = 1,
+					}
+					check(
+						shapes[shape] ~= nil and tones[tone] ~= nil,
+						p.name .. " is a real eye shape and colour"
+					)
+				elseif p.tab == "emblem" then
+					local glyph, backing = string.match(p.kit, "^(%a+):(%a+)$")
+					local backings = { none = 1, badge = 1, crest = 1, gem = 1 }
+					check(
+						Config.Creator.shapes[glyph] ~= nil and backings[backing] ~= nil,
+						p.name .. " is a real emblem"
+					)
+				else
+					local set = kits[p.tab]
+					check(
+						set ~= nil and set[p.kit] ~= nil,
+						p.name .. " has a kit (" .. p.tab .. "." .. p.kit .. ")"
+					)
+				end
 				check(p.index <= 255, p.name .. " fits a look byte")
+				check(p.id < 1024, p.name .. " fits the 1,024-bit pieces bitset")
 			end
 		end
-		check(count == 121, "121 new pieces in the first slice (111 in 12 new slots, 10 hair)")
+		-- 121 in the first slice, then 2026-11-17's head area: 20 hair, 7 facial hair, 15 faces, 12 makeup,
+		-- 4 ears, 14 eyes and 20 emblems
+		check(count == 121 + 92, "213 pieces beyond the first 146")
+		-- every piece's unlock can actually be earned
+		for _, p in idx.list do
+			local src, n = p.source, p.source.n
+			if src.kind == "lvl" then
+				check(n >= 1 and n <= Config.Stats.levelCap, p.name .. " level unlock is reachable")
+			elseif src.kind == "legacy" then
+				check(n >= 1 and n <= Config.Hq.legacy.maxRanks, p.name .. " Legacy rank exists")
+			elseif src.kind == "fame" then
+				check(n >= 1 and n <= #Config.Pvp.fame.ranks, p.name .. " Fame rank exists")
+			elseif src.kind == "mission" then
+				check(n >= 1 and n <= #Config.Story.missions, p.name .. " mission exists")
+			elseif src.kind == "quest" then
+				check(n >= 1 and n <= #Config.Story.quests, p.name .. " side quest exists")
+			elseif src.kind == "rep" then
+				check(
+					(src.a == "league" or src.a == "syndicate" or src.a == "city")
+						and n >= 1
+						and n <= #Config.Story.rep.ranks,
+					p.name .. " reputation rank exists"
+				)
+			end
+		end
+		-- every piece beyond the first 146 looks different: no kit shared with another piece in its slot (the
+		-- old Robux pack pieces reuse kits in their own colours on purpose)
+		local seenKit = {}
+		for _, p in idx.list do
+			if p.id <= 146 then
+				seenKit[p.tab .. "/" .. p.kit] = true
+			end
+		end
+		for _, p in idx.list do
+			if p.id > 146 then
+				local key = p.tab .. "/" .. p.kit
+				check(not seenKit[key], p.name .. " has its own kit (" .. key .. ")")
+				seenKit[key] = true
+			end
+		end
 		local roles = {
 			head = true,
 			torso = true,
