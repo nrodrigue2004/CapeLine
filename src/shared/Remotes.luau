@@ -66,6 +66,8 @@ local Remotes: { [string]: RemoteDef } = {
 
 	-- Enemies (not in the spec's list; see EnemyBuffer and Decisions.md)
 	EnemyDelta = { dir = "S2C", unreliable = true },
+	-- lore step 4: who an evil twin copies ({ id, userId, words, path, name, title }; { id } when it is gone)
+	EnemyIdentity = { dir = "S2C" },
 
 	-- Hero state the HUD needs that attributes do not carry well
 	HeroState = { dir = "S2C" }, -- { level, classId, power, maxHealth, styles, loadout }

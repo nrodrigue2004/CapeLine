@@ -3,8 +3,10 @@
 # all ages but not super kiddish"; "dont want enemies to get repetitive"). Each face has a human version and a
 # turned one (dark whites, glowing irises, an android seam on one cheek). The shading is see-through dark, so
 # one face works on every skin tone. A robot picks its face from its id, like its skin and hair.
-# Output: art/export/clothes/faces/Face_<Name>.png and Face_<Name>_Turned.png (1024 px), and
-# art/preview/faces.png (all of them on two skin tones).
+# Lore step 4: a cracked version of each (a famous fake unmasked: half the face torn away to a riveted metal
+# plate with a glowing eye, cracks running out across the skin). PLACEHOLDER ART until nate uploads them.
+# Output: art/export/clothes/faces/Face_<Name>.png, Face_<Name>_Turned.png and Face_<Name>_Cracked.png
+# (1024 px), and art/preview/faces.png (human on two skin tones, turned, cracked).
 # Run: python3 art/clothes/faces.py   (PIL only)
 import math
 import os
@@ -58,7 +60,74 @@ def soft(shapes, blur):
     return lay.filter(ImageFilter.GaussianBlur(blur))
 
 
-def face(f, turned):
+def crack(im):
+    """Lore step 4: tear the viewer's right half of the face away to a metal plate with a glowing eye."""
+    import random
+    rnd = random.Random(23)
+    cx, cy = 1460, 1060
+    # a jagged tear round the right eye and cheek, reaching past the middle of the face
+    edge = []
+    wobble = 0.0
+    for i in range(54):
+        a = i / 54 * 2 * math.pi + rnd.uniform(-0.03, 0.03)
+        rx, ry = 600, 700
+        wobble = wobble * 0.6 + rnd.uniform(-0.1, 0.1)  # long irregular bulges, not a saw edge
+        r = 1 + wobble + rnd.choice((0, 0, 0, 0.1, -0.07))
+        edge.append((cx + math.cos(a) * rx * r, cy + math.sin(a) * ry * r))
+    mask = Image.new("L", (S, S), 0)
+    ImageDraw.Draw(mask).polygon(edge, fill=255)
+    # the metal: a cool steel gradient with brushed streaks, panel seams and rivets
+    metal = Image.new("RGBA", (S, S), (0, 0, 0, 0))
+    md = ImageDraw.Draw(metal)
+    for y in range(0, S, 4):
+        v = int(150 - (y / S) * 55)
+        md.rectangle([0, y, S, y + 4], fill=(v, v + 4, v + 14, 255))
+    for _ in range(140):
+        y = rnd.uniform(300, 1900)
+        x = rnd.uniform(860, 2048)
+        md.line([(x, y), (x + rnd.uniform(60, 200), y + rnd.uniform(-6, 6))], fill=(190, 196, 206, 70), width=3)
+    seams = [[(1060, 760), (1980, 720)], [(1080, 1360), (1990, 1400)], [(1520, 380), (1560, 1780)]]
+    for sm in seams:
+        md.line(sm, fill=(52, 56, 66, 255), width=10)
+        md.line([(sm[0][0], sm[0][1] + 10), (sm[1][0], sm[1][1] + 10)], fill=(200, 206, 216, 160), width=4)
+    for x, y in [(1180, 820), (1400, 805), (1700, 790), (1180, 1310), (1720, 1440), (1600, 520), (1610, 1650)]:
+        md.ellipse([x - 22, y - 22, x + 22, y + 22], fill=(90, 94, 104, 255))
+        md.ellipse([x - 12, y - 16, x + 8, y + 2], fill=(220, 226, 236, 255))
+    # the eye: a dark lens housing with a hot red-orange glow
+    ex, ey = 1424, 935
+    md.ellipse([ex - 150, ey - 120, ex + 150, ey + 120], fill=(26, 26, 32, 255))
+    md.ellipse([ex - 120, ey - 92, ex + 120, ey + 92], fill=(60, 20, 18, 255))
+    glow = Image.new("RGBA", (S, S), (0, 0, 0, 0))
+    ImageDraw.Draw(glow).ellipse([ex - 170, ey - 150, ex + 170, ey + 150], fill=(255, 70, 40, 230))
+    metal.alpha_composite(glow.filter(ImageFilter.GaussianBlur(46)))
+    md = ImageDraw.Draw(metal)
+    md.ellipse([ex - 78, ey - 66, ex + 78, ey + 66], fill=(255, 80, 45, 255))
+    md.ellipse([ex - 46, ey - 38, ex + 46, ey + 38], fill=(255, 190, 120, 255))
+    md.ellipse([ex - 18, ey - 15, ex + 18, ey + 15], fill=(255, 250, 235, 255))
+    # a shadow just inside the tear (the skin stands proud of the metal)
+    shade = Image.new("RGBA", (S, S), (0, 0, 0, 0))
+    ImageDraw.Draw(shade).line(edge + [edge[0]], fill=(0, 0, 0, 200), width=70)
+    shade = shade.filter(ImageFilter.GaussianBlur(26))
+    metal.alpha_composite(shade)
+    cut = Image.new("RGBA", (S, S), (0, 0, 0, 0))
+    cut.paste(metal, (0, 0), mask)
+    im.alpha_composite(cut)
+    d = ImageDraw.Draw(im)
+    # the torn skin edge: an ink line with a pale peeled lip, and cracks running out across the face
+    d.line(edge + [edge[0]], fill=(*INK, 255), width=18, joint="curve")
+    d.line([(x - 10, y - 10) for x, y in edge] + [(edge[0][0] - 10, edge[0][1] - 10)], fill=(255, 240, 225, 90), width=6)
+    for a0 in (2.7, 3.3, 3.9, 4.6, 1.9):
+        x, y = cx + math.cos(a0) * 600, cy + math.sin(a0) * 700
+        pts = [(x, y)]
+        for _ in range(4):
+            x += math.cos(a0) * rnd.uniform(60, 120) + rnd.uniform(-40, 40)
+            y += math.sin(a0) * rnd.uniform(60, 120) + rnd.uniform(-40, 40)
+            pts.append((x, y))
+        d.line(pts, fill=(*INK, 230), width=9, joint="curve")
+    return im
+
+
+def face(f, turned, cracked=False):
     im = Image.new("RGBA", (S, S), (0, 0, 0, 0))
     k = f["cheek"]
     # form shading: cheekbone hollows and jaw sides (a narrow band each side), under the brows, the nose's side,
@@ -195,24 +264,28 @@ def face(f, turned):
     d.line([(1000, 1370), (995, 1490)], fill=(*SHADE, 70), width=6)
     d.line([(1048, 1370), (1053, 1490)], fill=(*SHADE, 70), width=6)
     d.line(bez((930, 1880), (990, 1910), (1060, 1910), (1120, 1880), 12), fill=(*SHADE, 120), width=8, joint="curve")
+    if cracked:
+        im = crack(im)
     return im.resize((1024, 1024), Image.LANCZOS)
 
 
 if __name__ == "__main__":
     tiles = []
     for name, f in FACES.items():
-        for turned in (False, True):
-            im = face(f, turned)
-            path = os.path.join(OUT, "Face_%s%s.png" % (name, "_Turned" if turned else ""))
+        for version in ("", "_Turned", "_Cracked"):
+            im = face(f, version == "_Turned", version == "_Cracked")
+            path = os.path.join(OUT, "Face_%s%s.png" % (name, version))
             im.save(path)
-            tiles.append((name, turned, im))
-    # preview: each face (human, turned) on a light and a dark skin
+            tiles.append((name, version, im))
+    # preview: each face (human on a light and a dark skin, turned, cracked)
     T = 300
-    sheet = Image.new("RGBA", (T * len(FACES), T * 3), (40, 42, 48, 255))
+    sheet = Image.new("RGBA", (T * len(FACES), T * 4), (40, 42, 48, 255))
     for i, (name, f) in enumerate(FACES.items()):
-        human = [t[2] for t in tiles if t[0] == name and not t[1]][0]
-        turned = [t[2] for t in tiles if t[0] == name and t[1]][0]
-        for row, (skin, im) in enumerate((((240, 190, 150), human), ((141, 95, 64), human), ((224, 172, 130), turned))):
+        human = [t[2] for t in tiles if t[0] == name and t[1] == ""][0]
+        turned = [t[2] for t in tiles if t[0] == name and t[1] == "_Turned"][0]
+        cracked = [t[2] for t in tiles if t[0] == name and t[1] == "_Cracked"][0]
+        rows = (((240, 190, 150), human), ((141, 95, 64), human), ((224, 172, 130), turned), ((240, 190, 150), cracked))
+        for row, (skin, im) in enumerate(rows):
             tile = Image.new("RGBA", (1024, 1024), (*skin, 255))
             tile.alpha_composite(im)
             sheet.paste(tile.resize((T - 8, T - 8), Image.LANCZOS), (i * T + 4, row * T + 4))

@@ -14,6 +14,9 @@ return {
 	-- part) and its tracer round, the Interceptor's net, the Grappler's hook on its cable, the Bomber's grenade
 	-- (its light blinks faster as it falls), its burning patch and blast, the Medic Unit's repair beam, the
 	-- Captain's rally ring and the Mimic's glitch reveal. `shake` is how near a blast shakes your camera.
+	-- the famous fakes (lore step 4): a fake's face cracking within `unmaskNear` studs of you flashes your
+	-- screen and freezes your hero for `unmaskPause` seconds (a hit-stop), with a camera punch
+	fakes = { unmaskNear = 60, unmaskPause = 0.12 },
 	robots = {
 		aim = { color = { 255, 40, 40 }, width = 0.1, lockWidth = 0.3, blink = 14, dot = 0.6 },
 		tracer = { color = { 255, 240, 210 }, glow = { 255, 80, 60 }, length = 14, width = 0.22 },

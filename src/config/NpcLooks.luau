@@ -22,13 +22,15 @@ return {
 	-- the faces every robot shares (art/clothes/faces.py, comic-book style; nate: "not super kiddish"): the
 	-- uploaded image ids of each face and its turned version (0 until uploaded; a face with no id is skipped).
 	-- A robot picks one by its id, so the same kind looks different robot to robot.
+	-- `cracked` (lore step 4): the face a famous fake shows once unmasked, half torn away to a metal plate with a
+	-- glowing eye (Face_<Name>_Cracked.png; PLACEHOLDER ART until uploaded: a part-built crack overlay shows then)
 	faces = {
-		Hero = { human = 0, turned = 0 },
-		Stern = { human = 0, turned = 0 },
-		Sharp = { human = 0, turned = 0 },
-		Scarred = { human = 0, turned = 0 },
-		Rookie = { human = 0, turned = 0 },
-		Cold = { human = 0, turned = 0 },
+		Hero = { human = 0, turned = 0, cracked = 0 },
+		Stern = { human = 0, turned = 0, cracked = 0 },
+		Sharp = { human = 0, turned = 0, cracked = 0 },
+		Scarred = { human = 0, turned = 0, cracked = 0 },
+		Rookie = { human = 0, turned = 0, cracked = 0 },
+		Cold = { human = 0, turned = 0, cracked = 0 },
 	},
 	faceOrder = { "Hero", "Stern", "Sharp", "Scarred", "Rookie", "Cold" },
 	-- every robot kind's uniform comes in three versions (nate, 2026-11-17: "Dont want enemies to get

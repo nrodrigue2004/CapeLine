@@ -125,13 +125,34 @@ function DevPanel.init()
 	add("Heal", function()
 		Net.send("DevCommand", "heal")
 	end)
-	-- cycles the robot types that are switched on (Config.Enemies.<Kind>.on), by their index in the order
-	local robotIdx = EnemySim.nextEnabled(Config, 0)
+	-- cycles the robot types that are switched on (Config.Enemies.<Kind>.on), by their index in the order; the
+	-- famous fakes and the twin have their own buttons below
+	local function nextRobot(i: number): number
+		local n = EnemySim.nextEnabled(Config, i)
+		for _ = 1, #Config.Enemies.order do
+			if not Config.Enemies[Config.Enemies.order[n]].fake then
+				break
+			end
+			n = EnemySim.nextEnabled(Config, n)
+		end
+		return n
+	end
+	local robotIdx = nextRobot(0)
 	add("3x " .. Config.Enemies[Config.Enemies.order[robotIdx]].name, function(b)
 		Net.send("DevCommand", "robot", robotIdx)
-		robotIdx = EnemySim.nextEnabled(Config, robotIdx)
+		robotIdx = nextRobot(robotIdx)
 		b.Text = "3x " .. Config.Enemies[Config.Enemies.order[robotIdx]].name
 	end)
+	-- lore step 4: each famous fake, and an evil twin of your own hero (25 studs in front, at your level)
+	for i, kind in { "Radiant", "Bulwark", "Skylance" } do
+		add("Fake: " .. Config.Enemies[kind].name, function()
+			Net.send("DevCommand", "fake", i)
+		end)
+	end
+	add("My evil twin", function()
+		Net.send("DevCommand", "twin")
+	end)
+
 	-- the robots' look, to compare the two styles live (nate, 2026-11-17): Auto, Roblox (classic clothes and
 	-- catalog hair), Shell (the Blender superhero meshes), Plain
 	local STYLES = { "auto", "roblox", "shell", "plain" }

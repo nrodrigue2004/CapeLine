@@ -2782,7 +2782,31 @@ function CombatFx.enemyShot(pos: Vector3, vel: Vector3, style: number?)
 	Debris:AddItem(p, life)
 end
 
+-- A famous fake's or an evil twin's shot (shot style 4, lore step 4): a robot shot drawn in a power path's own
+-- look: the path's trail and head (a lance of light, a blade's afterimage...) over a glowing core in the path's
+-- colour that flies at the shot's real speed, so it can still be dodged. PLACEHOLDER ART like the other shots.
+function CombatFx.pathShot(pos: Vector3, vel: Vector3, set: string?, style: string, color: Color3)
+	local speed = vel.Magnitude
+	if speed < 1 then
+		return
+	end
+	local life = math.min(1.6, 90 / speed)
+	local to = pos + vel * life
+	FxLib.emit("glow", color, pos, 1)
+	FxLib.trail(pos, pos + vel * math.min(life, 0.35), set, color)
+	sig.head(set, pos, pos + vel * math.min(life, 0.35), style, color, 1)
+	local cf = CFrame.lookAt(pos, pos + vel)
+	local core = part(Vector3.new(F.shot.width * 1.4, F.shot.width * 1.4, 3.6), cf, color)
+	local tip = part(Vector3.new(F.shot.width * 0.6, F.shot.width * 0.6, 4.2), cf, WHITE)
+	local goal = { CFrame = CFrame.lookAt(to, to + vel) }
+	for _, p in { core, tip } do
+		TweenService:Create(p, TweenInfo.new(life, Enum.EasingStyle.Linear), goal):Play()
+		Debris:AddItem(p, life)
+	end
+end
+
 -- A Grappler's hook (shot style 3): a claw on a cable from the robot's launcher (`from` follows it; nil
+
 -- when the robot is gone). It flies until it catches a hero (then holds on while `out()` says the hook is
 -- still out, the robot's `hooked` bit), sticks where it hits the world, or runs out; then it reels back in.
 function CombatFx.hook(from: () -> Vector3?, pos: Vector3, vel: Vector3, out: () -> boolean)

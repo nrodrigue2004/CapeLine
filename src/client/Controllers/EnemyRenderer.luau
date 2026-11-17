@@ -24,6 +24,12 @@
 -- extras use the Blender robot meshes in ReplicatedStorage.Art.Robots (art/blender/robots.py, uploaded by
 -- nate, art/models/Robots.rbxm mapped by Rojo), each a clone sized by Config.ArtFit; a piece with no mesh
 -- stays a plain part. The animations are still posed in code (PLACEHOLDER until real R15 animations).
+-- The famous fakes and the evil twin (nate's lore, build plan step 4; Config.Enemies `fake`, Shared.FakeRules)
+-- wear a full hero look on the same rig (LookKit: suit, cape, hair, face, emblem, colours; a twin the look of
+-- the player it copies, from EnemyIdentity) with a hero name plate (name and title, no robot tag). Once its
+-- health falls to the crack its face cracks to show metal and a glowing eye (Config.NpcLooks.faces' cracked
+-- image once uploaded, else a part-built crack overlay on the head; PLACEHOLDER ART), the plate reads FAKE in
+-- red, and the rest of the shell breaks off over the health that is left, hero pieces with their body part.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -43,9 +49,14 @@ local NpcRig = require(Shared:WaitForChild("NpcRig"))
 local BodyShape = require(Shared:WaitForChild("BodyShape"))
 local ClothesMap = require(Shared:WaitForChild("ClothesMap"))
 local EnemySim = require(Shared:WaitForChild("EnemySim"))
+local FakeRules = require(Shared:WaitForChild("FakeRules"))
+local LookCodec = require(Shared:WaitForChild("LookCodec"))
+local LookKit = require(Shared:WaitForChild("LookKit"))
+local CreatorRules = require(Shared:WaitForChild("CreatorRules"))
 
 local QualityController = require(script.Parent.QualityController)
 local DebrisBudget = require(script.Parent.Parent.Fx.DebrisBudget)
+local Kit = require(script.Parent.Parent.Ui.Kit)
 
 local EnemyRenderer = {}
 
@@ -137,6 +148,21 @@ type Body = {
 	streetClothes: { [string]: { Texture } }?,
 	streetTint: { Color3 },
 	streetFace: Decal?,
+	-- a famous fake or an evil twin (lore step 4): its hero look's pieces with the body part each is fixed to,
+	-- its plate, its face decal's human and cracked images, its path (for the attacks' look) and whom it copies
+	fake: boolean,
+	kind: string,
+	ident: { [string]: any }?,
+	lookParts: { { p: BasePart, owner: string, t: number } },
+	plate: BillboardGui?,
+	plateName: TextLabel?,
+	plateSub: TextLabel?,
+	heroFace: Decal?,
+	humanFace: string,
+	crackFace: string?,
+	unmasked: boolean,
+	path: string?,
+	userId: number?,
 }
 
 -- The citizens' uploaded street clothes and faces (as CitizenRenderer picks them), so a disguised Mimic wears
@@ -197,7 +223,17 @@ local TIES: { [string]: { string } } = {
 	Hair = { "Head" },
 	Emblem = { "UpperTorso" },
 	Belt = { "LowerTorso" },
+	-- a fake's crack overlay goes with its head
+	CrackPlate = { "Head" },
+	CrackEye = { "Head" },
+	CrackLine1 = { "Head" },
+	CrackLine2 = { "Head" },
+	CrackLine3 = { "Head" },
 }
+local CRACK = { CrackPlate = true, CrackEye = true, CrackLine1 = true, CrackLine2 = true, CrackLine3 = true }
+local FAKE_RED = Color3.fromRGB(255, 70, 60)
+-- who each evil twin copies (EnemyIdentity): { userId, words, path, name, title }
+local idents: { [number]: { [string]: any } } = {}
 
 -- The Blender robot meshes, found once. A piece takes the mesh named after it, else its unsided name (UpperL
 -- uses Upper); Tank2 is a second Tank.
@@ -298,13 +334,30 @@ local function layoutFor(typeId: number, body: any): RigMath.Layout
 	return layout
 end
 
+-- A fake's rig: its hero look's gender and build proportions, scaled so the body is its kind's height
+local function fakeLayout(look: any, height: number): RigMath.Layout
+	local factors = BodyShape.factors(Config, { gender = look.gender, build = look.build, height = 3 })
+	local base = RigMath.layout(Config.HeroRig, factors, 1)
+	return RigMath.layout(Config.HeroRig, factors, height / base.height)
+end
+
 local SIDES = { { "Left", "L", -1 }, { "Right", "R", 1 } }
 
 -- One robot: the R15 rig as the superhuman shell (uniform, skin, gloves, boots, hair, chest mark, cape on
 -- elites) that breaks off with damage, and inside it the metal endoskeleton (spine, ribs, glowing core,
--- skull and eyes, bones, joints).
-local function makeRobot(typeId: number): Body
+-- skull and eyes, bones, joints). ident: who an evil twin copies (EnemyIdentity), when known.
+local function makeRobot(typeId: number, ident: { [string]: any }?): Body
 	local cfg = byType[typeId] or Config.Enemies.SparkDrone
+	local kind = kindByType[typeId] or "SparkDrone"
+	if cfg.twin then
+		cfg = FakeRules.twinCfg(Config, ident and ident.path) -- the path's fighting style (pose and moves)
+	end
+	local fake = cfg.fake ~= nil
+	-- a fake's hero look: its fixed one, or the look of the player a twin copies
+	local heroLook: any = nil
+	if fake then
+		heroLook = (ident and LookCodec.read(ident.words)) or FakeRules.look(Config, kind)
+	end
 	local body = cfg.body
 	local h = body.height
 	local metal = rgb(LOOK.endo):Lerp(rgb(body.metal), 0.35)
@@ -313,7 +366,7 @@ local function makeRobot(typeId: number): Body
 	local suit = rgb(body.suit or body.metal)
 	local trim = rgb(body.trim or body.eye)
 	local skin = rgb(LOOK.skins[1])
-	local layout = layoutFor(typeId, body)
+	local layout = if heroLook then fakeLayout(heroLook, body.height) else layoutFor(typeId, body)
 	local M, N = Enum.Material.Metal, Enum.Material.Neon
 	local SKIN = Enum.Material.SmoothPlastic
 	-- the shell: suit on the torso, upper arms and thighs, trim for gloves and boots (skin and hair colours
@@ -328,7 +381,9 @@ local function makeRobot(typeId: number): Body
 		colors[s .. "LowerLeg"] = trim
 		colors[s .. "Foot"] = trim
 	end
-	local set = BodyShape.setKey(Config, { gender = 1, build = LOOK.builds[body.build] or 2 })
+	local set = if heroLook
+		then BodyShape.setKey(Config, heroLook)
+		else BodyShape.setKey(Config, { gender = 1, build = LOOK.builds[body.build] or 2 })
 	-- the look (nate is trying both in game, 2026-11-17): "roblox" = a plain Roblox character in classic
 	-- clothes with a Roblox face and catalog hair (Config.NpcLooks, once its images are uploaded); "shell" =
 	-- the Blender superhero shell set (overhaul plan step 3: a face, a fitted suit with a chest emblem, gloves,
@@ -337,8 +392,9 @@ local function makeRobot(typeId: number): Body
 	local outfits = outfitsOf(recipe)
 	local hasRoblox = #outfits > 0 and #upFaces > 0
 	local hasShell = body.art ~= nil and NpcRig.meshes(set, body.art) ~= nil
-	local mode = if style == "roblox"
-		then (if hasRoblox then "roblox" else "plain")
+	local mode = if fake
+		then "fake" -- a hero look, whatever the robots' style
+		elseif style == "roblox" then (if hasRoblox then "roblox" else "plain")
 		elseif style == "shell" then (if hasShell then "shell" else "plain")
 		elseif style == "plain" then "plain"
 		elseif hasRoblox then "roblox"
@@ -353,6 +409,32 @@ local function makeRobot(typeId: number): Body
 	end
 	local rig = NpcRig.build(layout, cfg.name, colors, SKIN, nil, set, look)
 	local model = rig.model
+	-- a fake: the whole hero look, built before the endoskeleton so only the 15 body parts take its paint
+	local lookParts: { { p: BasePart, owner: string, t: number } } = {}
+	local heroFace: Decal? = nil
+	local humanFace, crackFace = CLASSIC_FACE, nil
+	if heroLook then
+		heroFace = NpcRig.face(rig, CLASSIC_FACE)
+		local ok, err = pcall(LookKit.build, model, heroLook)
+		if not ok then
+			warn("[EnemyRenderer] fake look", kind, err)
+		end
+		local hl = model:FindFirstChild("HeroLook")
+		for _, d in if hl then hl:GetDescendants() else {} do
+			if d:IsA("BasePart") then
+				local w = d:FindFirstChildOfClass("WeldConstraint")
+				local owner = if w and w.Part0 then w.Part0.Name else "UpperTorso"
+				table.insert(lookParts, { p = d, owner = owner, t = d.Transparency })
+			end
+		end
+		humanFace = (heroFace :: Decal).Texture
+		-- the cracked face image for its visage (Config.NpcLooks.faces; 0 until nate uploads it)
+		local vp = CreatorRules.piece(Config, "visage", heroLook.pieces.visage or 0)
+		local fr = vp and NL.faces[vp.kit]
+		if fr and (fr.cracked or 0) ~= 0 then
+			crackFace = "rbxassetid://" .. fr.cracked
+		end
+	end
 	local parts, names, cols, trans, byName, index = {}, {}, {}, {}, {}, {}
 	local function register(name: string, p: BasePart)
 		table.insert(parts, p)
@@ -522,7 +604,7 @@ local function makeRobot(typeId: number): Body
 			end
 		end
 	end
-	if not hairMesh then
+	if not hairMesh and not fake then
 		add(
 			"Hair",
 			"Head",
@@ -541,7 +623,7 @@ local function makeRobot(typeId: number): Body
 		clothes = NpcRig.dress(rig, outfits[1], NL.offsetSign) -- assign picks this robot's uniform version
 		faceDecal = NpcRig.face(rig, upFaces[1][1]) -- assign picks this robot's face
 	end
-	local eyeSides: { any } = if mode == "roblox" then {} else SIDES
+	local eyeSides: { any } = if mode == "roblox" or fake then {} else SIDES
 	for _, side in eyeSides do
 		local at = CFrame.new(side[3] * HD.X * 0.2, HD.Y * 0.06, -HD.Z * 0.5 - 0.02)
 		add("Eye" .. side[2], "Head", at, Vector3.new(HD.X * 0.22, HD.Y * 0.09, 0.05), rgb(LOOK.sclera), SKIN)
@@ -552,6 +634,69 @@ local function makeRobot(typeId: number): Body
 			Vector3.new(HD.X * 0.09, HD.Y * 0.09, 0.05),
 			rgb(LOOK.irises[1]),
 			SKIN
+		)
+	end
+	-- a fake's face crack (PLACEHOLDER ART until the cracked face images are uploaded): one half of the face
+	-- torn away to a metal plate with a glowing eye, and dark cracks across the rest; shown once unmasked
+	if fake then
+		local front = -HD.Z * 0.5 - 0.03
+		add(
+			"CrackPlate",
+			"Head",
+			CFrame.new(HD.X * 0.24, HD.Y * 0.02, front),
+			Vector3.new(HD.X * 0.5, HD.Y * 0.86, 0.06),
+			Color3.fromRGB(150, 156, 168),
+			M,
+			nil,
+			1
+		)
+		add(
+			"CrackEye",
+			"Head",
+			CFrame.new(HD.X * 0.2, HD.Y * 0.08, front - 0.04),
+			Vector3.new(HD.X * 0.2, HD.X * 0.2, 0.08),
+			Color3.fromRGB(255, 50, 40),
+			N,
+			Enum.PartType.Ball,
+			1
+		)
+		local lines = {
+			{ -0.02, 0.28, 34, 0.42 },
+			{ -0.04, -0.12, -28, 0.36 },
+			{ -0.18, 0.06, 70, 0.3 },
+		}
+		for k, l in lines do
+			add(
+				"CrackLine" .. k,
+				"Head",
+				CFrame.new(HD.X * l[1], HD.Y * l[2], front - 0.02) * CFrame.Angles(0, 0, math.rad(l[3])),
+				Vector3.new(HD.X * l[4], HD.Y * 0.035, 0.04),
+				Color3.fromRGB(25, 25, 30),
+				SKIN,
+				nil,
+				1
+			)
+		end
+	end
+	if body.spear then
+		-- Skylance's spear, held upright in the right hand (PLACEHOLDER ART)
+		local hand = size("RightHand")
+		local len = h * 1.15
+		add(
+			"Spear",
+			"RightHand",
+			CFrame.new(0, -hand.Y * 0.3, -hand.Z * 0.2),
+			Vector3.new(0.18, len, 0.18),
+			Color3.fromRGB(215, 220, 230),
+			M
+		)
+		add(
+			"SpearTip",
+			"RightHand",
+			CFrame.new(0, -hand.Y * 0.3 + len * 0.5 + 0.4, -hand.Z * 0.2) * CFrame.Angles(0, math.rad(45), 0),
+			Vector3.new(0.35, 0.9, 0.35),
+			trim,
+			N
 		)
 	end
 	if body.cape then
@@ -943,6 +1088,42 @@ local function makeRobot(typeId: number): Body
 	fill.BorderSizePixel = 0
 	fill.Parent = back
 	bar.Parent = head
+	-- a fake's name plate: its hero name big and its title under it like a real hero's (no robot tag), then
+	-- FAKE in red once unmasked (FakeRules.plate); the health bar stays under it
+	local plate: BillboardGui? = nil
+	local plateName: TextLabel? = nil
+	local plateSub: TextLabel? = nil
+	if fake then
+		local pl = Instance.new("BillboardGui")
+		pl.Name = "Plate"
+		pl.Adornee = head
+		pl.Size = UDim2.fromOffset(190, 44)
+		pl.StudsOffset = Vector3.new(0, HD.Y + 1.6, 0)
+		pl.MaxDistance = Config.Enemies.fakes.plateRange
+		pl.AlwaysOnTop = true
+		pl.LightInfluence = 0
+		local text = FakeRules.plate(Config, kind, false, ident)
+		local nm = Kit.label({
+			Text = text.name,
+			Size = UDim2.new(1, 0, 0, 26),
+			TextColor3 = Kit.color.paper,
+			TextStrokeTransparency = 0.2,
+			maxText = 22,
+		})
+		nm.Parent = pl
+		local sub = Kit.label({
+			Text = text.sub,
+			Size = UDim2.new(1, 0, 0, 16),
+			Position = UDim2.fromOffset(0, 26),
+			TextColor3 = Kit.color.paper,
+			TextStrokeTransparency = 0.3,
+			Font = Kit.bodyFont,
+			maxText = 24,
+		})
+		sub.Parent = pl
+		pl.Parent = head
+		plate, plateName, plateSub = pl, nm, sub
+	end
 	-- the rally chevron over the head (a billboard, so it reads from every side)
 	local rally = Instance.new("BillboardGui")
 	rally.Name = "Rally"
@@ -1034,6 +1215,19 @@ local function makeRobot(typeId: number): Body
 		streetClothes = streetClothes,
 		streetTint = { Color3.new(1, 1, 1), Color3.new(1, 1, 1) },
 		streetFace = streetFace,
+		fake = fake,
+		kind = kind,
+		ident = ident,
+		lookParts = lookParts,
+		plate = plate,
+		plateName = plateName,
+		plateSub = plateSub,
+		heroFace = heroFace,
+		humanFace = humanFace,
+		crackFace = crackFace,
+		unmasked = false,
+		path = if fake then cfg.fake.path else nil,
+		userId = ident and ident.userId,
 	}
 end
 
@@ -1096,6 +1290,22 @@ local function assign(body: Body, id: number)
 	body.brokenN = -1 -- set without chips on the first frame (a robot can arrive already hurt)
 	body.turned = false
 	body.sparks.Enabled = false
+	body.unmasked = false
+	if body.fake then
+		-- a fake keeps its hero look's own skin, hair and face (the same on every device)
+		NpcRig.rest(body.rig)
+		body.lastFlags = -1
+		body.prevFlags = -1
+		body.extra = 0
+		body.riotUp = false
+		if body.plateName and body.plateSub then
+			local text = FakeRules.plate(Config, body.kind, false, body.ident)
+			body.plateName.Text = text.name
+			body.plateName.TextColor3 = Kit.color.paper
+			body.plateSub.Text = text.sub
+		end
+		return
+	end
 	local h = Rng.hash(id, 3301)
 	local skin = rgb(LOOK.skins[h % #LOOK.skins + 1])
 	local hair = rgb(LOOK.hair[(h // 7) % #LOOK.hair + 1])
@@ -1142,11 +1352,14 @@ local function assign(body: Body, id: number)
 	body.riotUp = false
 end
 
-local function acquire(typeId: number): Body
-	local list = pool[typeId]
-	local body = list and table.remove(list)
-	if not body then
-		body = makeRobot(typeId)
+local function acquire(typeId: number, id: number): Body
+	local base = byType[typeId]
+	local body: Body
+	if base and base.twin then
+		body = makeRobot(typeId, idents[id]) -- an evil twin wears its own hero's look: never pooled
+	else
+		local list = pool[typeId]
+		body = (list and table.remove(list)) or makeRobot(typeId)
 	end
 	body.lastFlags = -1
 	body.model.Parent = folder
@@ -1154,6 +1367,10 @@ local function acquire(typeId: number): Body
 end
 
 local function release(body: Body)
+	if body.ident or (byType[body.typeId] and byType[body.typeId].twin) then
+		body.model:Destroy()
+		return
+	end
 	body.model.Parent = nil
 	body.bar.Enabled = false
 	body.rally.Enabled = false
@@ -1316,6 +1533,39 @@ local function applyFlags(body: Body)
 	end
 	body.rally.Enabled = rally and not disguised and not cloak
 	body.bar.Enabled = body.health < 0.999 and not cloak and not disguised
+	if body.fake then
+		-- the hero look's pieces go with their body part (and fade with a cloak); the face cracks once unmasked
+		local unmasked = bit32.band(x, EXTRA.unmasked) ~= 0
+		for _, lp in body.lookParts do
+			lp.p.Transparency = if gone(body, lp.owner) then 1 elseif cloak then 0.92 else lp.t
+		end
+		local headGone = gone(body, "Head")
+		for name in CRACK do
+			local i = body.index[name]
+			if i then
+				body.parts[i].Transparency = if unmasked
+						and not headGone
+						and not cloak
+						and not body.crackFace
+					then 0
+					else 1
+			end
+		end
+		if body.heroFace then
+			body.heroFace.Texture = if unmasked and body.crackFace then body.crackFace else body.humanFace
+			body.heroFace.Transparency = if headGone or cloak then 1 else 0
+		end
+		if body.plate then
+			body.plate.Enabled = not cloak
+		end
+		if unmasked ~= body.unmasked and body.plateName and body.plateSub then
+			body.unmasked = unmasked
+			local text = FakeRules.plate(Config, body.kind, unmasked, body.ident)
+			body.plateName.Text = text.name
+			body.plateName.TextColor3 = if text.red then FAKE_RED else Kit.color.paper
+			body.plateSub.Text = text.sub
+		end
+	end
 end
 
 -- A shell piece breaks off: two or three chips of it fly and sparks pop (local, inside the debris budget)
@@ -1391,7 +1641,17 @@ local function updateShell(body: Body, near: boolean)
 	if body.sparks.Enabled ~= spark then
 		body.sparks.Enabled = spark
 	end
-	local n = RobotDamage.count(body.health, #body.order, LOOK.stripBy)
+	-- a fake's shell stays whole until its face cracks, then breaks off over the health that is left
+	local shellHealth = if body.fake
+		then FakeRules.shellHealth(Config, body.health, bit32.band(body.extra, EXTRA.unmasked) ~= 0)
+		else body.health
+	if body.fake then
+		local fakeSpark = shellHealth < LOOK.sparksBelow and bit32.band(body.flags, BITS.cloak) == 0
+		if body.sparks.Enabled ~= fakeSpark then
+			body.sparks.Enabled = fakeSpark
+		end
+	end
+	local n = RobotDamage.count(shellHealth, #body.order, LOOK.stripBy)
 	if n == body.brokenN then
 		return
 	end
@@ -1474,6 +1734,23 @@ end
 function EnemyRenderer.position(id: number): Vector3?
 	local body = live[id]
 	return body and body.pos
+end
+
+-- A famous fake's or an evil twin's power path (its attacks take that path's look), else nil; and, for a twin,
+-- the player it copies (their effect tint)
+function EnemyRenderer.pathOf(id: number): (string?, number?)
+	local body = live[id]
+	if body then
+		return body.path, body.userId
+	end
+	local ident = idents[id]
+	return if ident then ident.path else nil, if ident then ident.userId else nil
+end
+
+-- Where a drawn robot faces (flat), or nil
+function EnemyRenderer.facing(id: number): Vector3?
+	local body = live[id]
+	return body and Vector3.new(-math.sin(body.yaw), 0, -math.cos(body.yaw))
 end
 
 -- Where one of a drawn robot's pieces is now (the rifle tip, the hook launcher's claw, a hand), or nil
@@ -1712,7 +1989,7 @@ local function render()
 		local pos = pa:Lerp(pb, alpha)
 		local body = live[id]
 		if not body then
-			body = acquire(rb.typeId)
+			body = acquire(rb.typeId, id)
 			assign(body, id)
 			live[id] = body
 			body.pos = pos
@@ -1751,6 +2028,19 @@ function EnemyRenderer.init()
 	folder.Name = "Enemies"
 	folder.Parent = Workspace
 	Net.listen("EnemyDelta", onDelta)
+	-- who an evil twin copies; a twin already drawn is rebuilt in its hero's look on the next frame
+	Net.listen("EnemyIdentity", function(msg: any)
+		if type(msg) ~= "table" or type(msg.id) ~= "number" then
+			return
+		end
+		idents[msg.id] = if msg.words then msg else nil
+		local body = live[msg.id]
+		if body and msg.words then
+			live[msg.id] = nil
+			release(body)
+		end
+	end)
+
 	RunService.RenderStepped:Connect(FrameProf.wrap("EnemyRenderer", render))
 end
 

@@ -375,6 +375,39 @@ function JuiceFx.contractDone(_at: Vector3?, data: { [string]: any }?)
 	stamp("DONE!", Kit.color.health, data and data.name and string.upper(data.name) or "CONTRACT")
 end
 
+-- A famous fake unmasked (lore step 4; Juice.fire("unmask")): its face cracks to show metal: a white flash on
+-- the screen when it is near you (soft with reduce flashing), a burst of metal glints and a red "FAKE!" pop
+function JuiceFx.unmask(at: Vector3?, data: { [string]: any }?)
+	if not at then
+		return
+	end
+	ring(at, 9, Color3.fromRGB(255, 240, 220), 0.35)
+	ring(at, 5, Color3.fromRGB(255, 70, 60), 0.5)
+	for i = 1, 8 do
+		local a = i / 8 * math.pi * 2
+		local g = bit(
+			Vector3.new(0.2, 0.2, 1.4),
+			CFrame.lookAt(at, at + Vector3.new(math.cos(a), 0.5, math.sin(a))),
+			Color3.fromRGB(205, 210, 220)
+		)
+		g.Material = Enum.Material.Metal
+		fadeOut(g, 0.45, { CFrame = g.CFrame * CFrame.new(0, 0, -6) })
+	end
+	pop(at + Vector3.new(0, 3, 0), "FAKE!", Color3.fromRGB(255, 70, 60))
+	if data and data.near then
+		local f = Instance.new("Frame")
+		f.Size = UDim2.fromScale(1, 1)
+		f.BorderSizePixel = 0
+		f.BackgroundColor3 = Color3.new(1, 1, 1)
+		f.BackgroundTransparency = if JuiceFx.reduce then 0.85 else 0.35
+		f.ZIndex = 50
+		f.Parent = gui
+		TweenService:Create(f, TweenInfo.new(0.35, Enum.EasingStyle.Quad), { BackgroundTransparency = 1 })
+			:Play()
+		Debris:AddItem(f, 0.4)
+	end
+end
+
 -- Dazed stars over your head while a stun holds you (PvP crowd control)
 function JuiceFx.dazed(on: boolean)
 	if not on then
