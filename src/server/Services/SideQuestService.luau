@@ -15,9 +15,15 @@
 -- * Sites (lore step 11): a chain may happen inside an existing building (Config.SideQuests.sites, picked by
 --   Shared.SideQuestSites); its giver stands at the door under the site's sign, and the map marks it (the
 --   ReplicatedStorage attribute SideQuestSites). The Hero Academy's inside is the "academy" mission pocket.
+-- * Chain 2 (The Gala Heist): sites in Downtown's open squares hold set pieces (Shared.SideQuestSets: the
+--   gala marquee and stage, the racers' meet), built here for everyone, their breakable pieces combat targets
+--   that burst and stand again; a step's `at` builds it round its site; races and chases may run a rooftop
+--   course (Shared.SideQuestSites.course); a finale may have an encore villain (its own name card).
 -- PLACEHOLDER ART: givers without a `look` are R15 people in plain colours; a giver with one wears its fixed
--- hero look (earnable creator pieces, LookKit); crates, rings, site signs and the motorcade are plain parts.
+-- hero look (earnable creator pieces, LookKit); crates, rings, site signs, set pieces and the motorcade are
+-- plain parts.
 
+local Debris = game:GetService("Debris")
 local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -38,6 +44,8 @@ local SideQuestSites = require(Shared:WaitForChild("SideQuestSites"))
 local FakeRules = require(Shared:WaitForChild("FakeRules"))
 local BodyShape = require(Shared:WaitForChild("BodyShape"))
 local LookKit = require(Shared:WaitForChild("LookKit"))
+local SideQuestSets = require(Shared:WaitForChild("SideQuestSets"))
+local IncidentPlan = require(Shared:WaitForChild("IncidentPlan"))
 
 local CityBuilder = require(script.Parent.CityBuilder)
 local DataService = require(script.Parent.DataService)
@@ -77,6 +85,7 @@ type Goal = {
 	photos: { [number]: number }?,
 	boss: number?,
 	bossAt: Vector3?,
+	phase: number?, -- the finale's villain: 1, then 2 for an encore (lore step 11, chain 2)
 	pocketAt: number?, -- os.clock() of the last pocket try (a short wait between tries)
 	done: boolean,
 }
@@ -244,6 +253,21 @@ local function roofSpot(at: Vector3, minH: number, range: { number }): Vector3?
 	return Vector3.new(b.x, b.top + 1.5, b.z)
 end
 
+-- A rooftop course's roofs (lore step 11, chain 2: Shared.SideQuestSites.course), worked out once: the city's
+-- Downtown and Uptown never change, so every server runs the same course
+local courses: { [string]: any } = {}
+local function courseRoofs(id: string): { any }?
+	local hit = courses[id]
+	if hit == nil then
+		hit = SideQuestSites.course(Config, CityBuilder.world, id) or false
+		if not hit then
+			warn("[SideQuestService] no rooftop course", id)
+		end
+		courses[id] = hit
+	end
+	return if hit then hit else nil
+end
+
 -- The players working on a goal (by its key)
 local function membersOf(g: Group, key: string): { Player }
 	local out = {}
@@ -306,6 +330,7 @@ local function build(g: Group, key: string, st: any): Goal
 		photos = nil,
 		boss = nil,
 		bossAt = nil,
+		phase = 1,
 		pocketAt = nil,
 		done = false,
 	}
@@ -385,13 +410,27 @@ local function build(g: Group, key: string, st: any): Goal
 		goal.target = padAt
 	elseif k == "race" then
 		local rings = {}
-		local p = home + Vector3.new(0, 30, 0)
-		local a = rng:range(0, math.pi * 2)
-		for i = 1, st.checkpoints do
-			a += rng:range(-0.6, 0.6)
-			p = Vector3.new(p.X + math.cos(a) * st.gap, gy() + 30 + (i % 3) * 18, p.Z + math.sin(a) * st.gap)
-			table.insert(rings, p)
-			table.insert(goal.things, SiteKit.ring(p, 10, Color3.fromRGB(90, 200, 255)))
+		local roofs = st.course and courseRoofs(st.course)
+		if roofs then
+			-- lore step 11, chain 2: a rooftop course, a ring over each roof (the first is where the run starts)
+			local up = SQ.courses.ringUp
+			for i, b in roofs do
+				local p = Vector3.new(b.x, b.top + up, b.z)
+				table.insert(rings, p)
+				local col = if i == #roofs then Color3.fromRGB(255, 215, 80) else Color3.fromRGB(255, 90, 70)
+				table.insert(goal.things, SiteKit.ring(p, 10, col))
+			end
+			setNeed(g, goal, #rings)
+		else
+			local p = home + Vector3.new(0, 30, 0)
+			local a = rng:range(0, math.pi * 2)
+			for i = 1, st.checkpoints do
+				a += rng:range(-0.6, 0.6)
+				local gap = st.gap or 60
+				p = Vector3.new(p.X + math.cos(a) * gap, gy() + 30 + (i % 3) * 18, p.Z + math.sin(a) * gap)
+				table.insert(rings, p)
+				table.insert(goal.things, SiteKit.ring(p, 10, Color3.fromRGB(90, 200, 255)))
+			end
 		end
 		goal.rings = rings
 		goal.target = rings[1]
@@ -427,6 +466,17 @@ local function build(g: Group, key: string, st: any): Goal
 		end)
 		SiteKit.place(prop, at)
 		table.insert(goal.things, prop)
+	elseif k == "chase" and st.course and courseRoofs(st.course) then
+		-- lore step 11, chain 2: the runner hops the course's roofs (it loops until caught)
+		local path = {}
+		for _, b in courseRoofs(st.course) :: { any } do
+			table.insert(path, { b.x, b.top + 1, b.z })
+		end
+		local id = EnemyService.spawnAt(st.enemy, v3(path[1], 2), g.level, TAG, true)
+		if id then
+			goal.enemies[id] = true
+			goal.chase = { id = id, path = path, leg = 1, at = 0, speed = st.speed }
+		end
 	elseif k == "chase" then
 		local spot = IncidentSpots.find(
 			Config,
@@ -504,12 +554,13 @@ local function clearGoal(goal: Goal)
 	SiteKit.clear(goal.things)
 end
 
--- The finale's mini villain (spawned, and spawned again if it is gone without being beaten)
+-- The finale's mini villain (spawned, and spawned again if it is gone without being beaten); with an encore
+-- (lore step 11, chain 2) the second villain once the first is beaten
 local function spawnBoss(g: Group, goal: Goal)
-	local st = goal.st
-	local id = EnemyService.spawnAt(st.enemy, goal.bossAt or g.home, g.level, TAG)
+	local foe = SideQuestPlan.finaleFoe(goal.st, goal.phase or 1)
+	local id = EnemyService.spawnAt(foe.enemy, goal.bossAt or g.home, g.level, TAG)
 	if id then
-		EnemyService.tune(id, { hpMult = math.clamp(st.hpMult, SQ.finale.hpMult[1], SQ.finale.hpMult[2]) })
+		EnemyService.tune(id, { hpMult = math.clamp(foe.hpMult, SQ.finale.hpMult[1], SQ.finale.hpMult[2]) })
 		goal.boss = id
 	end
 end
@@ -531,7 +582,9 @@ local function stateFor(g: Group?, player: Player): { [string]: any }
 	local t = if goal.st.kind == "find" then nil else goal.target
 	local card = nil
 	if goal.st.kind == "finale" then
-		card = if g.test then { name = "KIND TEST", title = "FINALE" } else SideQuestPlan.card(g.chain, g.idx)
+		card = if g.test
+			then { name = "KIND TEST", title = "FINALE" }
+			else SideQuestPlan.card(g.chain, g.idx, goal.phase)
 	end
 	return {
 		bit = g.chain.bit,
@@ -545,6 +598,7 @@ local function stateFor(g: Group?, player: Player): { [string]: any }
 		target = if t and not goal.done then { t.X, t.Y, t.Z } else nil,
 		area = if goal.done then nil else goal.area,
 		card = card,
+		phase = if goal.st.kind == "finale" then goal.phase else nil, -- the name card shows again for an encore
 	}
 end
 
@@ -613,10 +667,25 @@ local function join(g: Group, player: Player, side: string)
 	Net.fire("SideQuestState", player, stateFor(g, player))
 end
 
+-- Where a site's steps are built (lore step 11, chain 2): an open square's middle, or a building's door
+local function siteHome(id: string): Vector3?
+	local world = CityBuilder.world
+	local st = SQ.sites[id]
+	local spot, door = SideQuestSites.place(Config, world, id)
+	if not st or not spot or not door then
+		return nil
+	end
+	if st.square then
+		return Vector3.new(spot.x, gy() + 1, spot.z)
+	end
+	return Vector3.new(door.x, gy() + 1, door.z)
+end
+
 local function newGroup(chain: any, idx: number, hero: any, test: number?): Group
 	local giver = givers[chain.giver]
-	local home = if giver then giver.pos else (HeroService.position(hero) or Vector3.zero)
 	local step = chain.steps[idx]
+	local home = (step.at and siteHome(step.at))
+		or (if giver then giver.pos else (HeroService.position(hero) or Vector3.zero))
 	local g: Group = {
 		plan = SideQuestPlan.newGroup(chain.id, idx),
 		chain = chain,
@@ -1021,13 +1090,150 @@ local function siteSign(name: string, door: any)
 	SiteKit.place(m, at, math.atan2(-door.fx, -door.fz))
 end
 
+-- A set piece's fixed sign text on both faces of a board (lore step 11, chain 2)
+local function writeSign(board: BasePart, text: string, color: Color3)
+	for _, face in { Enum.NormalId.Front, Enum.NormalId.Back } do
+		local gui = Instance.new("SurfaceGui")
+		gui.Face = face
+		gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+		gui.PixelsPerStud = 40
+		local label = Instance.new("TextLabel")
+		label.Size = UDim2.fromScale(1, 1)
+		label.BackgroundTransparency = 1
+		label.Font = Enum.Font.GothamBlack
+		label.TextScaled = true
+		label.TextColor3 = color
+		label.Text = text -- a fixed set piece sign from Shared.SideQuestSets
+		label.Parent = gui
+		gui.Parent = board
+	end
+end
+
+-- One box of a set piece (Shared.SideQuestSets), at cf. PLACEHOLDER ART: plain parts.
+local function setPart(parent: Instance, b: any, cf: CFrame): BasePart
+	local at = cf
+	if b.upright then
+		at *= CFrame.Angles(0, 0, math.rad(90))
+	end
+	if b.tilt then
+		at *= CFrame.Angles(math.rad(b.tilt), 0, 0)
+	end
+	local okMat, mat = pcall(function()
+		return (Enum.Material :: any)[b.mat or "SmoothPlastic"]
+	end)
+	local shape = if b.shape == "cylinder"
+		then Enum.PartType.Cylinder
+		elseif b.shape == "ball" then Enum.PartType.Ball
+		else nil
+	local p = SiteKit.part(
+		parent,
+		Vector3.new(b.sx, b.sy, b.sz),
+		at,
+		Color3.fromRGB(b.color[1], b.color[2], b.color[3]),
+		if okMat then mat else nil,
+		shape
+	)
+	p.CanCollide = not b.ghost
+	p.CanQuery = not b.ghost
+	p.CastShadow = not b.ghost
+	p.Transparency = b.alpha or 0
+	if b.sign then
+		writeSign(p, b.sign, Color3.fromRGB(150, 30, 50))
+	end
+	return p
+end
+
+-- A broken piece bursts into loose chunks that tumble for a moment (cartoon: no harm, they are gone in 3 s)
+local function burst(model: Model, at: Vector3)
+	for _, d in model:GetDescendants() do
+		if d:IsA("BasePart") and d.Name ~= "Root" and d.Transparency < 1 then
+			local c = d:Clone()
+			for _, gui in c:GetChildren() do
+				gui:Destroy()
+			end
+			c.Anchored = false
+			c.CanCollide = true
+			c.CanQuery = false
+			c.CanTouch = false
+			c.Massless = true
+			c.Parent = model.Parent
+			local out = (c.Position - at)
+			local flatOut = Vector3.new(out.X, 0, out.Z)
+			local dir = if flatOut.Magnitude > 0.1
+				then flatOut.Unit
+				else Vector3.new(rng:range(-1, 1), 0, 1).Unit
+			c.AssemblyLinearVelocity = dir * rng:range(10, 24) + Vector3.new(0, rng:range(18, 30), 0)
+			c.AssemblyAngularVelocity = Vector3.new(rng:range(-6, 6), rng:range(-6, 6), rng:range(-6, 6))
+			Debris:AddItem(c, 3)
+		end
+	end
+end
+
+-- A breakable piece of a set: a combat target that bursts when its HP runs out and stands again after
+-- Config.SideQuests.sets.rebuild seconds (the incidents' objects, SiteKit.object)
+local function setPiece(set: any, pid: string, origin: Vector3)
+	local pc = set.pieces[pid]
+	local centre = origin + Vector3.new(pc.x, pc.y, pc.z)
+	local S = SQ.sets
+	local hp = IncidentPlan.objectHp(Config, S.hits, S.level)
+	local h: any = nil
+	h = SiteKit.object(
+		"SetPiece_" .. pid,
+		centre,
+		0,
+		pc.r,
+		hp,
+		function(m)
+			for _, b in set.boxes do
+				if b.piece == pid then
+					setPart(m, b, CFrame.new(b.x - pc.x, b.y - pc.y, b.z - pc.z))
+				end
+			end
+		end,
+		nil,
+		function()
+			if not h then
+				return
+			end
+			burst(h.model, centre)
+			SiteKit.removeObject(h)
+			task.delay(S.rebuild, function()
+				setPiece(set, pid, origin)
+			end)
+		end
+	)
+	SiteKit.moveObject(h, centre)
+end
+
+-- A square site's set piece (lore step 11, chain 2): its solid boxes in one model, each breakable piece its
+-- own target
+local function buildSet(id: string, square: any)
+	local set = SideQuestSets.build(id)
+	local origin = Vector3.new(square.x, gy() + 0.9, square.z) -- on the square's paving
+	local m = SiteKit.model("Set_" .. id)
+	for _, b in set.boxes do
+		if not b.piece then
+			setPart(m, b, CFrame.new(origin + Vector3.new(b.x, b.y, b.z)))
+		end
+	end
+	for pid in set.pieces do
+		setPiece(set, pid, origin)
+	end
+end
+
 local function placeSites(): { [string]: { number } }
 	local world = CityBuilder.world
 	local out = {}
 	for id, st in SQ.sites or {} do
 		local b, door = SideQuestSites.place(Config, world, id)
 		if b and door then
-			siteSign(st.name, door)
+			if st.square then
+				if st.set then
+					buildSet(st.set, b)
+				end
+			else
+				siteSign(st.name, door)
+			end
 			out[id] = { math.floor(b.x), math.floor(b.z) }
 		else
 			warn("[SideQuestService] no building fits site", id)
@@ -1176,7 +1382,21 @@ function SideQuestService.init()
 			for _, goal in g.goals do
 				if goal.boss == enemyId then
 					goal.boss = nil
-					setHave(g, goal, goal.need)
+					if goal.st.encore and (goal.phase or 1) < 2 then
+						-- lore step 11, chain 2: the first villain is down; the encore lands with its own crew
+						goal.phase = 2
+						setHave(g, goal, 1)
+						local adds = goal.st.encore.adds
+						if adds then
+							squad(goal, g.level, adds, goal.bossAt or g.home)
+						end
+						spawnBoss(g, goal)
+						for _, p in membersOf(g, goal.key) do
+							Net.fire("Toast", p, { id = "sqEncore" })
+						end
+					else
+						setHave(g, goal, goal.need)
+					end
 				elseif goal.enemies[enemyId] then
 					goal.enemies[enemyId] = nil
 					if goal.st.kind == "fight" then

@@ -39,6 +39,9 @@ return {
 		"EvilTwin",
 		-- side quest mini villains that are famous fakes (nate's lore, build plan step 11)
 		"HeadmasterHalo",
+		-- The Gala Heist's costumed villains in powered suits (lore step 11, chain 2)
+		"Redline",
+		"MasqueARade",
 		-- the Suburbs chain's clockwork toys (nate's lore, build plan step 11: Wind-Up Lane, the Toymaker)
 		"WindupToy",
 		"WindupGiant",
@@ -826,6 +829,139 @@ return {
 			eye = { 120, 200, 255 },
 			suit = { 245, 245, 245 },
 			trim = { 60, 150, 230 },
+		},
+	},
+	-- The Gala Heist's villains (nate's lore, build plan step 11, Downtown chain 2): costumed thieves, not
+	-- Crane's fakes, who fight in powered suits (nate's rule: machine enemies; robots spark). They wear a hero
+	-- look like a fake does (`fake` with costumed = true: Shared.FakeRules) but never crack or read FAKE; the
+	-- costume tears off the suit's frame over the last half of its health. The finale's two boss-lite fights
+	-- (Config.SideQuests.finale, the encore). Never in the ambient mix or swaps. Attack numbers are the
+	-- famous fakes' (Skylance's and Headmaster Halo's), so they sit in the fakes' damage band.
+	-- Redline: the getaway racer, King of the Rooftops: Skylance's sighting brain at a racer's speed, Fire-path
+	-- blasts from his rocket boots, and a long sidestep dash after each one.
+	Redline = {
+		typeId = 24,
+		on = true,
+		name = "Redline",
+		fake = {
+			costumed = true,
+			title = "King of the Rooftops",
+			path = "Fire",
+			look = {
+				gender = 1,
+				build = 1, -- Small: a lean racer
+				height = 3,
+				skin = 5,
+				hair = 1, -- red
+				colors = { 1, 22, 24 }, -- red, black, ember
+				pieces = {
+					suit = "Racer Stripe",
+					head = "Visor Band",
+					hat = "Flight Goggles",
+					hands = "Fingerless Gloves",
+					feet = "Jet Boots",
+					emblem = "Spark",
+					hair = "Wolf Cut",
+					back = "Hero Scarf",
+					trail = "Streak Trail",
+					visage = "Sharp Face",
+				},
+				tints = { back = { 1, 22, 0 } }, -- a red scarf with black trim
+				mats = {},
+			},
+		},
+		ai = "sniper",
+		hp = 1800,
+		speed = 34,
+		aggro = 130,
+		attackRange = 100,
+		keep = { min = 24, max = 64 },
+		turnRate = 360,
+		aim = { time = 0.8, lock = 0.25, every = 1.4 },
+		fire = { shotSpeed = 190, shotRadius = 3.5, coeff = 2.1 },
+		shotStyle = 4,
+		dash = { dist = 22 }, -- a racer's sidestep: further than Skylance's
+		coeff = 0.8,
+		mitigation = 0.05,
+		ccResist = 0.4,
+		fleeBelow = 0,
+		radius = 2.6,
+		elite = true,
+		miniBoss = true,
+		body = {
+			build = "slim",
+			gender = 1,
+			height = 5.4,
+			metal = { 120, 110, 110 },
+			eye = { 255, 80, 40 },
+			suit = { 220, 40, 40 },
+			trim = { 30, 30, 34 },
+		},
+	},
+	-- Madame Masque-a-rade: the masked thief who plans the jobs and leads the crew: Headmaster Halo's flyer
+	-- brain (ribbon wires: she floats over the fight, throws Shadow-path bolts and swoops on a hero, "the curtain
+	-- drop").
+	MasqueARade = {
+		typeId = 25,
+		on = true,
+		name = "Madame Masque-a-rade",
+		fake = {
+			costumed = true,
+			title = "The Masked Thief",
+			path = "Shadow",
+			look = {
+				gender = 2,
+				build = 2,
+				height = 4,
+				skin = 2,
+				hair = 35, -- deep purple
+				colors = { 35, 4, 48 }, -- deep purple, gold, ultraviolet
+				pieces = {
+					suit = "Split Tone",
+					back = "High Collar Cape",
+					head = "Masquerade",
+					hands = "Long Cuffs",
+					feet = "Tall Boots",
+					emblem = "Diamond",
+					hair = "Long Straight",
+					shoulders = "Feather Pads",
+					neck = "Choker",
+					trail = "Ribbon Trail",
+					visage = "Sharp Face",
+				},
+				tints = { back = { 4, 35, 0 } }, -- a gold cape lined in purple
+				mats = {},
+			},
+		},
+		ai = "flyer",
+		hp = 2000,
+		flies = true,
+		speed = 30,
+		hover = { min = 12, max = 28 },
+		aggro = 110,
+		attackRange = 66,
+		orbit = { min = 24, max = 40 },
+		burst = { shots = 3, gap = 0.2, every = 3 },
+		coeff = 0.46,
+		shotSpeed = 120,
+		shotRadius = 4,
+		shotStyle = 4,
+		dive = { every = 8, windup = 1.2, radius = 11, coeff = 2.2 },
+		fleeBelow = 0,
+		fleeTime = 0,
+		mitigation = 0.1,
+		ccResist = 0.5,
+		radius = 3,
+		elite = true,
+		miniBoss = true,
+		body = {
+			build = "normal",
+			gender = 2,
+			height = 5.8,
+			metal = { 150, 120, 170 },
+			eye = { 200, 120, 255 },
+			suit = { 80, 30, 120 },
+			trim = { 230, 190, 60 },
 		},
 	},
 	-- The Toymaker's clockwork toys (nate's lore, build plan step 11: the Suburbs chain, Wind-Up Lane). Machines

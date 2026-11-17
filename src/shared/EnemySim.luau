@@ -544,6 +544,7 @@ function EnemySim.damage(
 	end
 	if
 		cfg.fake
+		and not cfg.fake.costumed -- a costumed villain's suit (lore step 11) is no fake: no crack, no FAKE
 		and not e.unmasked
 		and e.health > 0
 		and FakeRules.cracked(sim.config, e.health / e.maxHealth)

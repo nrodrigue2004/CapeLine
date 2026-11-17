@@ -22,6 +22,10 @@
 --   the chain's end its reward: a share of contract pay (at most pay.maxShare) and one cosmetic or title.
 --   Nothing sold, nothing that changes stats beyond normal Renown.
 -- * lines: what the giver says on the Talk prompt (offer, resume, done), each side its own text.
+-- * (lore step 11, chain 2) a step's `at`: the site (sites) its goals are built round (else the giver); a race
+--   or chase goal's `course`: a rooftop course (courses) instead of rings in the air or nearby roofs; a
+--   finale's `card` (its first villain's name card) and `encore` (a second villain who lands when the first
+--   falls; the chain's `villain` card is the last one standing).
 -- No free text anywhere: every string is fixed, with no format holes.
 return {
 	range = 12, -- talk range to a giver (the Talk prompt)
@@ -59,6 +63,9 @@ return {
 			"Bulwark",
 			"Skylance",
 			"HeadmasterHalo",
+			-- The Gala Heist's costumed villains in their powered suits (lore step 11, chain 2)
+			"Redline",
+			"MasqueARade",
 			"WindupGiant", -- the Toymaker's giant clockwork soldier (Wind-Up Lane)
 		},
 	},
@@ -98,6 +105,35 @@ return {
 			height = { 80, 200 }, -- a big school block, not a tower (no skyscraper crown either)
 			away = { plaza = 220, row = 150, door = 180, open = 80 },
 		},
+		-- The Gala Heist (chain 2, nate's decisions 2026-11-17): both of Downtown's open squares, kept empty for
+		-- this chain, hold its set pieces (Shared.SideQuestSets, built by SideQuestService): the City Museum's
+		-- gala marquee with the opera's open-air stage in the north row's square, and Redline's racers' meet in
+		-- the west column's. `square`: a Config.City.downtown.open id; `spot`: where the giver stands and the
+		-- steps start, studs from the square's middle.
+		Gala = {
+			name = "THE MUSEUM GALA",
+			district = "Downtown",
+			square = "OpenNorth",
+			set = "gala",
+			spot = { 0, 34 },
+		},
+		MeetUp = {
+			name = "THE RACERS' MEET",
+			district = "Downtown",
+			square = "OpenWest",
+			set = "meet",
+			spot = { 0, 10 },
+		},
+		-- nate: the bank job happens in Uptown (Crane Tower's district): an existing Uptown building near its
+		-- landmark tower (`near` from the tower, at least away.landmark from it), so the escape runs over
+		-- Uptown's roofs. A sign by its door like the academy's.
+		Bank = {
+			name = "BRIGHTHARBOR BANK",
+			district = "Uptown",
+			near = { 150, 0 },
+			height = { 60, 170 },
+			away = { landmark = 90 },
+		},
 		-- The Suburbs chain (Wind-Up Lane): Tick-Tock Toys, the Toymaker's shop, is an existing outskirts shop lot
 		-- (a Suburbs tile's "shop", with its clapboard front, mailboxes and power poles around it). The outskirts
 		-- are seeded weekly, so the pick is a rule (Shared.SideQuestSites.outskirts): of the shop lots on Suburbs
@@ -114,6 +150,29 @@ return {
 			away = { pad = 150, beacon = 150, landmark = 300, district = 200, site = 400 },
 		},
 	},
+
+	-- Rooftop race courses (chain 2: Rooftop Racers over both skylines, nate): Shared.SideQuestSites.course
+	-- picks `count` real roofs from the one nearest the `from` site (or the site's own roof), heading toward
+	-- `toward` (a site, or studs from the start), every hop inside the 6-roof chase row's rules
+	-- (Config.Story.opening.roofs: gap[1] apart at least, no rise past `climb`) and an edge-to-edge jump of at
+	-- most `jump` (the row's rule, 75 studs centre to centre, on its narrowest 20-stud roofs: one Leap). Getting
+	-- up onto the first roof takes your mobility pick (all five reach a roof: the doc's "powered races"); from
+	-- there the base Leap runs the course. Each checkpoint is a ring over a roof.
+	courses = {
+		jump = 55,
+		startNear = 170, -- the first roof is at most this far from the start site
+		ringUp = 6, -- a checkpoint ring floats this far over its roof
+		GalaRun = { from = "Gala", toward = "MeetUp", count = 7 }, -- the museum crew's getaway (Downtown)
+		-- the opera runner's roofs (Downtown), none of the museum run's
+		OperaRun = { from = "Gala", toward = { 420, 120 }, count = 5, avoid = { "GalaRun" } },
+		BankRun = { from = "Bank", toward = { -60, -320 }, count = 7 }, -- the bank crew over Uptown
+	},
+
+	-- The set pieces in the open squares (Shared.SideQuestSets): their breakable pieces are combat targets that
+	-- take about `hits` blows from a hero of `level` and come back after `rebuild` seconds. `parts`: the most
+	-- parts one set may have (they stand all the time, on every device, so they count against the phone's
+	-- budget); `clear`: studs kept free inside the square's ring of benches and planters.
+	sets = { parts = 60, hits = 6, level = 15, rebuild = 45, clear = 3 },
 
 	-- Who gives chains: a person on the R15 rig at an anchor ("plaza", "hq", a Config.City district, or "site"
 	-- with `site`: a row in sites) plus an offset; also a guide speaker (GuideHud lines). `look` (optional): a
@@ -157,6 +216,43 @@ return {
 				mats = {},
 			},
 		},
+		-- The Gala Heist's giver: the gala's valet, who parks the racers' cars too, so he has seen the masks and
+		-- the getaway roofs. He wants the crew stopped before someone gets hurt (the Vigil), or a cut of the
+		-- take for his tips (the Dread Syndicate).
+		Benny = {
+			name = "VALET BENNY",
+			anchor = "site",
+			site = "Gala",
+			color = { 200, 40, 60 },
+			style = "person",
+			blip = "guideLodestar",
+			portrait = {
+				bg = { 90, 24, 36 },
+				skin = { 160, 105, 70 },
+				hair = { 30, 26, 24 },
+				shape = "slick",
+				extras = { "tie" },
+			},
+			look = {
+				gender = 1,
+				build = 2,
+				height = 3,
+				skin = 5,
+				hair = 22, -- black
+				colors = { 2, 4, 18 }, -- crimson, gold, white
+				pieces = {
+					shirt = "Blazer and Tie",
+					pants = "Slacks",
+					visage = "Hero Face",
+					hair = "Side Part",
+					beard = "Soul Patch",
+					feet = "Boots",
+					hands = "Gloves",
+				},
+				tints = {},
+				mats = {},
+			},
+		},
 		-- Wind-Up Lane's giver: Scoops, who drives the Suburbs' ice cream truck and parks outside Tick-Tock Toys every
 		-- afternoon. She knows every kid on the street and has seen the toys walk. She wants the kids safe (the
 		-- Vigil), or a cut of the Toymaker's gold clockwork with her truck as the getaway (the Dread Syndicate).
@@ -194,6 +290,7 @@ return {
 				mats = {},
 			},
 		},
+		-- PLACEHOLDER (Dev only): the framework sample's giver
 		-- PLACEHOLDER (Dev only): the framework sample's giver
 		SampleGiver = {
 			name = "TEST GIVER",
@@ -577,11 +674,252 @@ return {
 			},
 		},
 
+		-- Downtown chain 2 (nate's lore, build plan step 11): The Gala Heist with Rooftop Racers. nate's pick: "A
+		-- costumed crew hits the museum, the opera and the bank, and escapes each time by racing across the
+		-- rooftops, so you chase them over the skyline." Villains Madame Masque-a-rade and Redline. 8 quests (the
+		-- draft's count). Madame Masque-a-rade plans the jobs and leads the masked crew (the heist half); Redline
+		-- runs the getaways over the roofs (the racers' half). Both fight in powered suits, so the fights are
+		-- machines that spark apart (nate's rule: machine enemies). Standalone: not Crane's. The Vigil stop the
+		-- robberies and chase the crew down; the Dread Syndicate rob the robbers and race them for the loot. Both
+		-- face Redline, then Madame Masque-a-rade herself, at the racers' meet.
+		{
+			id = "GalaHeist",
+			bit = 3,
+			name = "The Gala Heist",
+			layer = "district",
+			district = "Downtown",
+			giver = "Benny",
+			site = "Gala",
+			unlock = { story = 2, level = 5 }, -- after Act 1's Safehouse; level 5 for Uptown's floor (the bank)
+			villain = { name = "MADAME MASQUE-A-RADE", title = "THE MASKED THIEF" },
+			reward = { share = 3, title = "Curtain Call", style = "MasqueradeMask" },
+			blurb = {
+				hero = "A masked crew robs the city's grandest nights, then races off over the roofs.",
+				villain = "A masked crew is robbing the city's richest nights. Rob them first.",
+			},
+			lines = {
+				offer = {
+					hero = "You look quick. Masked thieves hit the gala tonight and fled over the roofs. Help me stop them?",
+					villain = "You look crooked. Good. A masked crew's robbing the gala. Rob them first and cut me in.",
+				},
+				resume = {
+					hero = "Back? The masks are still out there. So are the racers.",
+					villain = "Back for your cut? The crew's still loaded. Go take it.",
+				},
+				done = {
+					hero = "Masks off, engines cold. The city sleeps easy tonight. Thanks, hero.",
+					villain = "The crew's loot is yours and my tips are fat. Encore any time.",
+				},
+			},
+			steps = {
+				-- 1. Gala night: the museum's treasures under the marquee; Benny saw the masks
+				{
+					hero = { kind = "talk", text = "Meet Valet Benny at the Museum Gala" },
+					villain = { kind = "talk", text = "Get Valet Benny's tip at the Museum Gala" },
+					at = "Gala",
+					scene = "galaNight",
+					lines = {
+						{
+							who = "Benny",
+							hero = "Masked guests, no invitations, and a racer idling on every roof. Tonight they rob the gala.",
+							villain = "Masked crew, museum jewels, rooftop getaway. You want in before they cash out?",
+						},
+						{
+							who = "patch",
+							hero = "The City Museum's gala, the opera, and Brightharbor Bank all this week. Big targets.",
+							villain = "Gala, opera, then the bank? Somebody's planned a whole heist season.",
+						},
+					},
+				},
+				-- 2. The museum job: the Vigil stop the crew; the Syndicate snatch the jewels first
+				{
+					hero = {
+						kind = "fight",
+						home = true,
+						squads = { { "BurglarBot", 3 }, { "SneakBot", 2 } },
+						text = "Stop the masked crew robbing the gala",
+					},
+					villain = {
+						kind = "fetch",
+						count = 3,
+						range = { 30, 90 },
+						guards = { "BurglarBot", 2 },
+						text = "Snatch the museum's jewels before the crew",
+					},
+					at = "Gala",
+					lines = {
+						{
+							who = "masque",
+							hero = "Bonsoir, darlings! Do enjoy the show. My crew will be taking the jewels.",
+							villain = "A rival in a cheap mask? How sweet. The jewels are spoken for, darling.",
+						},
+					},
+				},
+				-- 3. The first getaway: over Downtown's roofs toward the racers' meet
+				{
+					hero = {
+						kind = "race",
+						course = "GalaRun",
+						checkpoints = 7,
+						time = 80,
+						text = "Chase the crew's racer over the rooftops",
+						villainText = "Race the crew's runner to the loot drop",
+					},
+					villain = "same",
+					at = "Gala",
+					lines = {
+						{
+							who = "redline",
+							text = "Catch me? On MY roofs? Cute. Every jump's a Leap. Try to keep up.",
+						},
+						{
+							who = "patch",
+							hero = "That racer is Redline. He runs the getaways. Follow the rings!",
+							villain = "That racer is Redline, the crew's driver. Beat him to the drop!",
+						},
+					},
+				},
+				-- 4. Opera night on the gala stage: the Vigil shield the audience; the Syndicate find the stash
+				{
+					hero = {
+						kind = "hold",
+						home = true,
+						seconds = 25,
+						radius = 14,
+						text = "Shield the opera's audience from the smoke bombs",
+					},
+					villain = {
+						kind = "find",
+						range = { 60, 160 },
+						text = "Find where the crew stashed the opera loot",
+					},
+					at = "Gala",
+					lines = {
+						{
+							who = "masque",
+							text = "Tonight's aria is called Hand Over the Diamonds. Masks on, my darlings!",
+						},
+						{
+							who = "Benny",
+							hero = "Smoke on the stage! Keep the crowd calm. I'll get the doors.",
+							villain = "The crew swapped the diva's diamonds while everyone watched the smoke. Find the stash!",
+						},
+					},
+				},
+				-- 5. The second getaway: catch the runner over the roofs
+				{
+					hero = {
+						kind = "chase",
+						course = "OperaRun",
+						enemy = "SneakBot",
+						hops = 5,
+						speed = 24,
+						text = "Catch the runner with the opera's diamonds",
+						villainText = "Catch the runner and keep the diamonds",
+					},
+					villain = "same",
+					at = "Gala",
+					lines = {
+						{
+							who = "redline",
+							hero = "My runner's faster than your whole team, hero. Bye now!",
+							villain = "Stealing from thieves? Respect. You still won't catch my runner.",
+						},
+						{
+							who = "lodestar",
+							hero = "Rooftop crews always run the same line. Cut the corners, kid.",
+							villain = "Stealing from thieves is still stealing. Just keep the civilians out of it.",
+						},
+					},
+				},
+				-- 6. The bank job in Uptown: the Vigil fly a teller out; the Syndicate crack the vault first
+				{
+					hero = {
+						kind = "carry",
+						range = { 60, 160 },
+						text = "Fly a trapped teller out of the bank",
+					},
+					villain = {
+						kind = "fetch",
+						count = 3,
+						range = { 30, 100 },
+						guards = { "ShieldBearer", 1 },
+						text = "Empty the vault before the crew does",
+					},
+					at = "Bank",
+					scene = "bankJob",
+					lines = {
+						{
+							who = "masque",
+							text = "The grand finale: Brightharbor Bank! No encores. Well... maybe one.",
+						},
+						{
+							who = "patch",
+							hero = "They're in the bank, right under Crane Tower. Tellers are trapped inside!",
+							villain = "The bank's vault is open and the crew's busy. Go, go, go!",
+						},
+					},
+				},
+				-- 7. The last getaway: over Uptown's skyline
+				{
+					hero = {
+						kind = "race",
+						course = "BankRun",
+						checkpoints = 7,
+						time = 80,
+						text = "Chase the bank crew over Uptown's rooftops",
+						villainText = "Beat the bank crew across Uptown's roofs",
+					},
+					villain = "same",
+					at = "Bank",
+					lines = {
+						{
+							who = "redline",
+							text = "New skyline, same result. Last one to the meet buys the fuel!",
+						},
+						{
+							who = "Benny",
+							hero = "They always end up at the racers' meet. That's where they split the take.",
+							villain = "Win this and the whole take's waiting at the racers' meet. Cut me in!",
+						},
+					},
+				},
+				-- 8. The finale at the racers' meet: Redline, then Madame Masque-a-rade herself
+				{
+					hero = {
+						kind = "finale",
+						enemy = "Redline",
+						hpMult = 3,
+						card = { name = "REDLINE", title = "KING OF THE ROOFTOPS" },
+						adds = { { "BurglarBot", 2 }, { "SneakBot", 2 } },
+						encore = { enemy = "MasqueARade", hpMult = 3, adds = { { "SneakBot", 2 } } },
+						range = { 10, 40 },
+						text = "Stop Redline, then Madame Masque-a-rade",
+						villainText = "Beat Redline and Madame Masque-a-rade for the take",
+					},
+					villain = "same",
+					at = "MeetUp",
+					scene = "curtainCall",
+					lines = {
+						{
+							who = "redline",
+							hero = "End of the line, hero. Nobody passes Redline on the last lap!",
+							villain = "Want the take? Win it. Last race, winner keeps everything!",
+						},
+						{
+							who = "masque",
+							text = "Bravo! Bravo! Now for my favourite part of the show. The curtain call!",
+						},
+					},
+				},
+			},
+		},
+
 		-- Suburbs chain (nate's lore, build plan step 11): Wind-Up Lane. nate's draft: "A powered kid's tantrums are
 		-- bringing toys and lawn gnomes to life across the neighborhood. The Toymaker, an old inventor using the
-		-- kid." 8 quests (the draft's count). Benny's Spark makes clockwork run when he is upset; the Toymaker, who
+		-- kid." 8 quests (the draft's count). Toby's Spark makes clockwork run when he is upset; the Toymaker, who
 		-- runs Tick-Tock Toys, gave him a wind-up bear, keeps him crying and drinks the winding through a machine in
-		-- his basement (the Tantrum Tap) to power a clockwork army. The Vigil stop the toys, find Benny, get the
+		-- his basement (the Tantrum Tap) to power a clockwork army. The Vigil stop the toys, find Toby, get the
 		-- kids home, shield him inside the shop, smash the Tap and help him calm down; the Dread Syndicate grab
 		-- the gold mainsprings, steal the basement key, fence the springs, rip out the Tap's gold and lift the
 		-- blueprints. Both topple the Toymaker's giant at the end. Standalone: no Crane in it.
@@ -602,7 +940,7 @@ return {
 			},
 			lines = {
 				offer = {
-					hero = "Toys are walking on this street, hero. And every time, little Benny is crying nearby. Help?",
+					hero = "Toys are walking on this street, hero. And every time, little Toby is crying nearby. Help?",
 					villain = "The old toymaker's basement is full of gold clockwork. My truck's fast. Want in?",
 				},
 				resume = {
@@ -610,7 +948,7 @@ return {
 					villain = "Back for more gold? The Toymaker's still got plenty.",
 				},
 				done = {
-					hero = "Benny's laughing again and the gnomes are just gnomes. Ice cream's on me, hero.",
+					hero = "Toby's laughing again and the gnomes are just gnomes. Ice cream's on me, hero.",
 					villain = "Gold, blueprints and a whole toy army. And free ice cream. Best job ever.",
 				},
 			},
@@ -623,7 +961,7 @@ return {
 					lines = {
 						{
 							who = "Scoops",
-							hero = "Gnomes walking. Toy soldiers marching. And little Benny is always crying nearby. It's not right.",
+							hero = "Gnomes walking. Toy soldiers marching. And little Toby is always crying nearby. It's not right.",
 							villain = "Tick-Tock Toys has a basement full of gold clockwork, and the old man is up to something.",
 						},
 						{
@@ -662,7 +1000,7 @@ return {
 						kind = "find",
 						range = { 100, 250 },
 						witness = true,
-						text = "Find Benny, the boy who ran off crying",
+						text = "Find Toby, the boy who ran off crying",
 					},
 					villain = {
 						kind = "chase",
@@ -674,17 +1012,17 @@ return {
 					lines = {
 						{
 							who = "Scoops",
-							hero = "The Toymaker gave Benny another present, and it broke. Again. He ran off crying.",
+							hero = "The Toymaker gave Toby another present, and it broke. Again. He ran off crying.",
 							villain = "One of those toys carries the key to the Toymaker's basement. Don't let it get home!",
 						},
 						{
 							who = "patch",
-							hero = "Every time Benny cries, the toys wind up harder. Find him and the street calms down.",
+							hero = "Every time Toby cries, the toys wind up harder. Find him and the street calms down.",
 							villain = "It hops when it's scared. Ha. Same as you when Lodestar shows up.",
 						},
 					},
 				},
-				-- 4. Benny's story begins; the kids home / fence the springs
+				-- 4. Toby's story begins; the kids home / fence the springs
 				{
 					hero = {
 						kind = "escort",
@@ -700,7 +1038,7 @@ return {
 					},
 					lines = {
 						{
-							who = "benny",
+							who = "toby",
 							hero = "I didn't mean to! When I get sad, the toys just... wake up. All of them.",
 							villain = "Are you bad guys? You don't look like bad guys. You look like cool guys.",
 						},
@@ -735,7 +1073,7 @@ return {
 								radius = 16,
 								waves = { { "WindupToy", 4 } },
 								waveGap = 10,
-								text = "Shield Benny in the playroom",
+								text = "Shield Toby in the playroom",
 								villainText = "Hold the playroom while the till cracks",
 							},
 							{
@@ -763,10 +1101,10 @@ return {
 						},
 					},
 					villain = "same",
-					scene = "bennyStory",
+					scene = "tobyStory",
 					lines = {
 						{
-							who = "benny",
+							who = "toby",
 							hero = "He gave me a bear that winds up when I cry. Then he MAKES me cry. The machine is downstairs!",
 							villain = "You want the gold? It's downstairs, in the crying machine. Break it too? Please?",
 						},
@@ -798,13 +1136,13 @@ return {
 						},
 					},
 				},
-				-- 7. Benny calms down / the Toymaker's blueprints
+				-- 7. Toby calms down / the Toymaker's blueprints
 				{
 					hero = {
 						kind = "hold",
 						seconds = 20,
 						radius = 10,
-						text = "Stay with Benny while he calms down",
+						text = "Stay with Toby while he calms down",
 					},
 					villain = {
 						kind = "fetch",
@@ -815,14 +1153,14 @@ return {
 					},
 					lines = {
 						{
-							who = "benny",
+							who = "toby",
 							hero = "Deep breaths, like Mom says. In... and out. Hey, look! The gnomes stopped moving!",
 							villain = "You took his drawings? Good. Then nobody can make me cry for a machine again.",
 						},
 						{
 							who = "patch",
-							hero = "It's working! Benny's calm and the toys are winding down all over the street!",
-							villain = "Those blueprints show a toy army on every street in the city. Don't tell Benny.",
+							hero = "It's working! Toby's calm and the toys are winding down all over the street!",
+							villain = "Those blueprints show a toy army on every street in the city. Don't tell Toby.",
 						},
 					},
 				},

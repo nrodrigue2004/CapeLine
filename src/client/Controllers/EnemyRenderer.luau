@@ -158,6 +158,7 @@ type Body = {
 	-- a famous fake or an evil twin (lore step 4): its hero look's pieces with the body part each is fixed to,
 	-- its plate, its face decal's human and cracked images, its path (for the attacks' look) and whom it copies
 	fake: boolean,
+	costumed: boolean, -- lore step 11, chain 2: a costumed villain's powered suit (never cracks or reads FAKE)
 	kind: string,
 	ident: { [string]: any }?,
 	lookParts: { { p: BasePart, owner: string, t: number } },
@@ -1255,6 +1256,7 @@ local function makeRobot(typeId: number, ident: { [string]: any }?): Body
 		streetTint = { Color3.new(1, 1, 1), Color3.new(1, 1, 1) },
 		streetFace = streetFace,
 		fake = fake,
+		costumed = fake and cfg.fake.costumed == true,
 		kind = kind,
 		ident = ident,
 		lookParts = lookParts,
@@ -1680,9 +1682,14 @@ local function updateShell(body: Body, near: boolean)
 	if body.sparks.Enabled ~= spark then
 		body.sparks.Enabled = spark
 	end
-	-- a fake's shell stays whole until its face cracks, then breaks off over the health that is left
+	-- a fake's shell stays whole until its face cracks, then breaks off over the health that is left (a
+	-- costumed villain's suit, lore step 11: never cracks, so its costume tears off from the crack's health on)
 	local shellHealth = if body.fake
-		then FakeRules.shellHealth(Config, body.health, bit32.band(body.extra, EXTRA.unmasked) ~= 0)
+		then FakeRules.shellHealth(
+			Config,
+			body.health,
+			body.costumed or bit32.band(body.extra, EXTRA.unmasked) ~= 0
+		)
 		else body.health
 	if body.fake then
 		local fakeSpark = shellHealth < LOOK.sparksBelow and bit32.band(body.flags, BITS.cloak) == 0

@@ -8,6 +8,9 @@
 --   unmasked); its shell stays whole until then and breaks off over the rest of its health after.
 -- * plate: what its name plate shows: the hero name and title like a real hero's until unmasked, then FAKE.
 -- * twinCfg: an evil twin's config for a power path: the twin's base with its path's fighting style on top.
+-- * fake.costumed (lore step 11, chain 2: The Gala Heist's villains): a costumed villain fighting in a powered
+--   suit wears its hero look the same way but is not one of Crane's fakes: its face never cracks (no unmask,
+--   no FAKE plate, no news); EnemyRenderer breaks its costume off over the health below the crack instead.
 
 local LookCodec = if script then require(script.Parent.LookCodec) else (require :: any)("./LookCodec")
 local CreatorRules = if script

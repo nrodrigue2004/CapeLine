@@ -695,7 +695,9 @@ local function frame()
 		end
 		-- the finale's name card, once a step, when the hero comes within reach of the mini villain
 		local card, target = q.card, q.target
-		local key = string.format("%s:%s", tostring(q.bit or q.test), tostring(q.step))
+		-- (lore step 11, chain 2: a finale with an encore shows the second villain's card too: its phase)
+		local key =
+			string.format("%s:%s:%s", tostring(q.bit or q.test), tostring(q.step), tostring(q.phase or 1))
 		local char = player.Character
 		local root = char and char:FindFirstChild("HumanoidRootPart") :: BasePart?
 		if card and target and root and not cardShown[key] then
