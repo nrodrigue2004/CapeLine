@@ -539,6 +539,28 @@ local function lotRects(
 	}
 end
 
+-- A Suburbs tile's 4 lots as tilePlan lays them (lore step 11: side quest sites in the outskirts pick a lot by
+-- kind): { kind, x0, z0, x1, z1 } clockwise from the north-west, or {} for any other tile. A lot under a
+-- safehouse pad is listed too, but tilePlan leaves it empty.
+function WorldGen.suburbLots(cityCfg: any, w: any, tiles: buffer, tx: number, tz: number): { any }
+	local t = WorldGen.get(w, tiles, tx, tz)
+	if t.zone ~= w.zones.suburbs or t.variant == w.special then
+		return {}
+	end
+	local x0, z0 = WorldGen.tileOrigin(cityCfg, tx, tz)
+	local rects = lotRects(w, x0, z0, cityCfg.tile, t, 3)
+	local kinds = VARIANTS.suburbs[t.variant + 1]
+	local out = {}
+	for i = 1, 4 do
+		local r = rects[i]
+		table.insert(
+			out,
+			{ kind = kinds[(i - 1 + t.rot) % 4 + 1], x0 = r[1], z0 = r[2], x1 = r[3], z1 = r[4] }
+		)
+	end
+	return out
+end
+
 -- The kit's dressing for one built lot (after its random draws): its building's front and tint, tiled roofs,
 -- and a few props by what stands there (all placed from the building's own box, so they stay in its yard)
 local FRONT_GROUP = { house = "house", bighouse = "house", shop = "shop", apt = "apt", barn = "barn" }

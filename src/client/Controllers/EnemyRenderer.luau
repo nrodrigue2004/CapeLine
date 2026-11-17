@@ -706,6 +706,32 @@ local function makeRobot(typeId: number, ident: { [string]: any }?): Body
 			N
 		)
 	end
+	if body.windKey then
+		-- the Toymaker's toys (lore step 11, the Suburbs chain): a brass wind-up key in the back, its shaft out of
+		-- the upper torso and two round bows across the top (PLACEHOLDER ART)
+		local brass = Color3.fromRGB(215, 170, 70)
+		local k = UT.X * 0.18
+		add(
+			"KeyShaft",
+			"UpperTorso",
+			CFrame.new(0, UT.Y * 0.1, UT.Z * 0.5 + k * 1.5),
+			Vector3.new(k * 0.6, k * 0.6, k * 3),
+			brass,
+			M
+		)
+		for s = -1, 1, 2 do
+			-- a disc facing back: a cylinder's axis is its X, turned to point along Z
+			add(
+				"KeyBow" .. (if s < 0 then "L" else "R"),
+				"UpperTorso",
+				CFrame.new(s * k * 1.1, UT.Y * 0.1, UT.Z * 0.5 + k * 3) * CFrame.Angles(0, math.rad(90), 0),
+				Vector3.new(k * 0.4, k * 1.8, k * 1.8),
+				brass,
+				M,
+				Enum.PartType.Cylinder
+			)
+		end
+	end
 	if body.cape then
 		local capeH = (UT.Y + LT.Y) * 1.25
 		add(

@@ -1085,6 +1085,34 @@ return {
 					extras = { "cap" },
 				},
 			},
+			-- Wind-Up Lane (the Suburbs): the Toymaker, an old inventor, on his shop's music-box speakers and in
+			-- person, and Benny, the boy whose Spark winds clockwork when he is upset
+			toymaker = {
+				name = "THE TOYMAKER",
+				color = { 230, 190, 90 },
+				style = "broadcast",
+				blip = "guideCrane",
+				portrait = {
+					bg = { 70, 40, 30 },
+					skin = { 241, 194, 160 },
+					hair = { 235, 235, 240 },
+					shape = "messy",
+					extras = { "beard", "visor" },
+				},
+			},
+			benny = {
+				name = "BENNY",
+				color = { 120, 200, 255 },
+				style = "person",
+				blip = "guideInsider",
+				portrait = {
+					bg = { 40, 70, 110 },
+					skin = { 255, 224, 196 },
+					hair = { 230, 170, 70 },
+					shape = "messy",
+					extras = {},
+				},
+			},
 		},
 		-- the three guides: each has its own blip and portrait
 		guides = { "lodestar", "patch", "crane" },
@@ -1280,6 +1308,7 @@ return {
 			["Big Deal"] = 4,
 			["Living Legend"] = 5,
 			["Class Dismissed"] = 6, -- side quest chain: The Hero Academy (lore step 11)
+			Unwound = 8, -- side quest chain: Wind-Up Lane (lore step 11)
 			GoldTrim = 100,
 		},
 	},

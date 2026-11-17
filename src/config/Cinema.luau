@@ -119,6 +119,78 @@ return {
 				},
 			},
 		},
+		-- Wind-Up Lane (the Suburbs' side quest chain, lore step 11): the Lane outside Tick-Tock Toys on step 1,
+		-- Benny's story as a comic page on step 5, and the Toymaker winding his giant before the finale. Bits 13
+		-- to 15 (the top of the named range, clear of the Downtown chains')
+		tickTockLane = {
+			bit = 13,
+			client = true,
+			seconds = 10,
+			shots = {
+				{
+					kind = "dolly",
+					t0 = 0,
+					t1 = 5,
+					from = { -30, 24, 40 },
+					to = { 10, 10, 24 },
+					at = { 0, 4, 0 },
+					at2 = { 0, 3, 0 },
+				},
+				{
+					kind = "orbit",
+					t0 = 5,
+					t1 = 10,
+					radius = 18,
+					height = 4,
+					yaw0 = 0.3,
+					yaw1 = 1.4,
+					lift = 2,
+				},
+			},
+			lines = {
+				{
+					at = 0.4,
+					who = "toymaker",
+					text = "Tick-Tock Toys! Toys that play all by themselves! Don't cry, little ones. Not yet.",
+				},
+				{
+					at = 5.5,
+					who = "Scoops",
+					text = "That's the Toymaker. Sweet old man. Real sweet. Too sweet.",
+				},
+			},
+		},
+		bennyStory = { bit = 14, client = true, seconds = 14, comic = "bennyStory" },
+		windupGiant = {
+			bit = 15,
+			client = true,
+			seconds = 8,
+			shots = {
+				{ kind = "cut", t0 = 0, t1 = 3, from = { -16, 3, 16 }, at = { 0, 9, 0 } },
+				{
+					kind = "orbit",
+					t0 = 3,
+					t1 = 8,
+					radius = 22,
+					height = 6,
+					yaw0 = -0.4,
+					yaw1 = 1.2,
+					lift = 6,
+				},
+			},
+			lines = {
+				{
+					at = 0.3,
+					who = "toymaker",
+					text = "Behold my masterpiece! Wound up by hand, by me. Who needs a crying child?",
+				},
+				{
+					at = 4,
+					who = "patch",
+					text = "That's a giant toy soldier. Of course it is. Knock it over!",
+				},
+			},
+		},
 	},
 	missionBits = { base = 16, perMission = 8, missions = 13 }, -- bits 16 to 119
 
@@ -320,6 +392,46 @@ return {
 						ground = { 60, 50, 60 },
 						scene = "city",
 						caption = "So I ran. And I kept running until I found you.",
+						at = 10.5,
+					},
+				},
+			},
+			-- Benny's story (Wind-Up Lane, step 5): how the Toymaker uses him
+			bennyStory = {
+				title = "BENNY AND THE WIND-UP BEAR",
+				panels = {
+					{
+						rect = { 0.03, 0.12, 0.45, 0.4 },
+						sky = { 170, 220, 255 },
+						ground = { 110, 170, 90 },
+						scene = "toyshop",
+						caption = "Tick-Tock Toys was my favourite shop. The Toymaker said I was special.",
+						at = 0,
+					},
+					{
+						rect = { 0.52, 0.12, 0.45, 0.4 },
+						sky = { 255, 220, 170 },
+						ground = { 110, 170, 90 },
+						scene = "gnome",
+						caption = "He gave me a wind-up bear. When I cried, every toy on the street woke up!",
+						word = "TICK-TICK!",
+						at = 3.5,
+					},
+					{
+						rect = { 0.03, 0.56, 0.45, 0.38 },
+						sky = { 90, 80, 120 },
+						ground = { 70, 60, 70 },
+						scene = "tantrum",
+						caption = "Then he broke my toys on purpose. Every day. So I would keep crying.",
+						at = 7,
+					},
+					{
+						rect = { 0.52, 0.56, 0.45, 0.38 },
+						sky = { 40, 40, 60 },
+						ground = { 30, 30, 40 },
+						scene = "tap",
+						caption = "His machine in the basement drinks it all up. He calls it the Tantrum Tap.",
+						word = "GLUG!",
 						at = 10.5,
 					},
 				},

@@ -460,6 +460,98 @@ function BUILD.academy(l: Layout, _Config: any)
 	point(l, "boss", 0, 0.5, -160)
 end
 
+-- Tick-Tock Toys (lore step 11, the Suburbs chain Wind-Up Lane): the Toymaker's toy shop. The shop floor is a deck
+-- over the south of the pocket: the toy aisles west (room 1) and east (room 2) with their shelves, the playroom in
+-- the middle (`playroom`: a rug, a toy train ring and the giant music box), the counter at the back with the
+-- trapdoor behind it (`trapdoor`) and a stairwell down. Under the shop floor (its ceiling tagged so robots never
+-- stand on it) is the basement workshop: four clockwork winders (`winders`) piped to the Tantrum Tap, the brass
+-- tank in the middle, half-built toy soldiers on the benches and the boss spot (`boss`); `workshop` is the foot
+-- of the stairs.
+-- PLACEHOLDER ART: greybox parts in the city palette, like every pocket.
+local SHOP_DECK = 20
+function BUILD.toyshop(l: Layout, _Config: any)
+	local D = SHOP_DECK
+	local deco = { tag = "decor", ghost = true }
+	-- the shop floor: a deck over the south of the pocket, with a wood skin
+	box(l, "building", 0, D / 2, 80, 396, D, 232, "sand")
+	box(l, "plaza", 0, D + 0.1, 80, 396, 0.2, 232, "wood")
+	point(l, "spawn", 0, D + 3, 172)
+	-- the front: the big clock sign over the door, the shop window's glow
+	box(l, "glow", 0, D + 22, 195, 16, 16, 1, "beaconGlow", deco)
+	box(l, "prop", 0, D + 22, 194.2, 1, 6, 0.4, "steel", deco) -- the clock's hands
+	box(l, "prop", 2, D + 22, 194.2, 4, 1, 0.4, "steel", deco)
+	box(l, "glow", 0, D + 9, 196, 160, 10, 1, "window", deco)
+	-- the aisles: tall toy shelves in rows, west (room 1) and east (room 2), toys on every shelf
+	for k = -1, 1, 2 do
+		for r = 0, 2 do
+			local z = 40 + r * 36
+			box(l, "prop", k * 130, D + 6, z, 70, 12, 4, "wood", deco)
+			for c = 0, 4 do
+				local col = if (r + c) % 3 == 0
+					then "roofRed"
+					elseif (r + c) % 3 == 1 then "roofBlue"
+					else "white"
+				box(l, "prop", k * (100 + c * 14), D + 13.5, z, 4, 3, 3, col, deco)
+			end
+		end
+		add(l, "rooms", k * 130, D + 0.5, 58)
+	end
+	-- the playroom: a round rug, a toy train ring, giant blocks and the music box that plays the Toymaker's tune
+	box(l, "plaza", 0, D + 0.25, 60, 64, 0.3, 64, "roofRed", { shape = "cylinder" })
+	for i = 0, 7 do
+		local a = i * math.pi / 4
+		box(l, "prop", math.cos(a) * 26, D + 1, 60 + math.sin(a) * 26, 5, 2, 3, "steel", deco)
+	end
+	for i, p in { { -20, 30 }, { 22, 34 }, { -24, 92 } } do
+		box(l, "prop", p[1], D + 2.5, p[2], 5, 5, 5, if i == 2 then "roofBlue" else "white", deco)
+	end
+	box(l, "prop", 18, D + 4, 88, 10, 8, 8, "wood", deco) -- the music box
+	box(l, "glow", 18, D + 8.5, 88, 6, 0.6, 6, "beaconGlow", deco)
+	point(l, "playroom", 0, D + 0.5, 60)
+	-- the back wall, the counter and the trapdoor behind it
+	box(l, "building", -107, D + 15, -34, 178, 30, 4, "white")
+	box(l, "building", 107, D + 15, -34, 178, 30, 4, "white")
+	box(l, "prop", 0, D + 2, -14, 50, 4, 6, "wood", deco) -- the counter
+	box(l, "prop", -16, D + 5, -14, 4, 3, 3, "steel", deco) -- the till
+	point(l, "trapdoor", 0, D + 0.5, -28)
+	-- the stairwell down: 9 steps of 2 studs from the shop floor to the basement floor, walled both sides
+	for i = 1, 9 do
+		local top = D - 2 * i
+		box(l, "building", 0, top / 2, -39 - (i - 1) * 6, 32, top, 6, "concrete")
+	end
+	for k = -1, 1, 2 do
+		box(l, "building", k * 18, 18, -64, 4, 36, 56, "tunnel")
+	end
+	point(l, "workshop", 0, 0.5, -100)
+	-- the basement workshop under the shop: its ceiling is the shop's floor level (robots never stand on it)
+	local ceil = { tag = "ceiling" }
+	box(l, "building", -109, D + 2, -117, 178, 4, 162, "tunnel", ceil)
+	box(l, "building", 109, D + 2, -117, 178, 4, 162, "tunnel", ceil)
+	box(l, "building", 0, D + 2, -152, 40, 4, 92, "tunnel", ceil)
+	-- the four winders: big brass keys turning on plinths, piped to the Tap
+	for _, p in { { -120, -80 }, { -120, -150 }, { 120, -80 }, { 120, -150 } } do
+		add(l, "winders", p[1], 0.5, p[2])
+		box(l, "prop", p[1], 0.5, p[2], 9, 1, 9, "steel", deco)
+		box(l, "prop", p[1], 5, p[2], 2, 8, 2, "roof", deco)
+		box(l, "prop", p[1], 9, p[2], 8, 3, 1, "roof", deco)
+		box(l, "prop", p[1] / 2, 14, p[2], math.abs(p[1]), 1.5, 1.5, "steel", deco) -- its pipe to the middle
+	end
+	-- the Tantrum Tap: a brass tank fed by the main pipe, its gauge glowing, and the toy soldier benches either side
+	box(l, "prop", 0, 14, -127.5, 1.5, 1.5, 95, "steel", deco)
+	box(l, "prop", 0, 9, -178, 26, 18, 26, "roof", { shape = "cylinder", tag = "decor", ghost = true })
+	box(l, "glow", 0, 12, -164.6, 8, 4, 0.4, "nullGlow", deco)
+	for k = -1, 1, 2 do
+		box(l, "prop", k * 60, 1.5, -190, 60, 3, 8, "wood", deco)
+		for i = 0, 3 do
+			box(l, "prop", k * (40 + i * 12), 5, -190, 3, 5, 3, "roofRed", deco)
+		end
+	end
+	for _, x in { -150, -60, 60, 150 } do
+		box(l, "glow", x, D - 0.6, -117, 10, 0.6, 3, "workLamp", deco)
+	end
+	point(l, "boss", 0, 0.5, -140)
+end
+
 -- Is this a pocket layout name? (lore step 10: side quest pocket steps are checked against it)
 function PocketLayout.known(layout: any): boolean
 	return type(layout) == "string" and BUILD[layout] ~= nil

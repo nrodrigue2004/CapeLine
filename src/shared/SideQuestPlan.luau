@@ -1061,14 +1061,49 @@ function SideQuestPlan.validate(Config: any): { string }
 		if fixedText(st.name, 24) then
 			table.insert(bad, w .. ": name")
 		end
-		if not table.find(SQ.districts, st.district) or not Config.City.districts[st.district] then
+		-- an outskirts site (a `lot` kind on the seeded Suburbs tiles, Shared.SideQuestSites.outskirts) or a
+		-- Downtown building
+		local outskirts = st.lot ~= nil
+		if
+			not table.find(SQ.districts, st.district)
+			or (not outskirts and not Config.City.districts[st.district])
+			or (outskirts and st.district ~= "Suburbs")
+		then
 			table.insert(bad, w .. ": district " .. tostring(st.district))
 		end
 		if type(st.near) ~= "table" or type(st.height) ~= "table" or st.height[1] > st.height[2] then
 			table.insert(bad, w .. ": near and height")
 		end
+		if outskirts then
+			local WorldGen = if script
+				then require((script :: any).Parent.WorldGen)
+				else (require :: any)("./WorldGen")
+			local known = false
+			for _, kinds in WorldGen.VARIANTS.suburbs do
+				if table.find(kinds, st.lot) then
+					known = true
+				end
+			end
+			if not known then
+				table.insert(bad, w .. ": lot " .. tostring(st.lot) .. " is not a Suburbs lot")
+			end
+			local r = st.rings
+			if
+				type(r) ~= "table"
+				or type(r[1]) ~= "number"
+				or type(r[2]) ~= "number"
+				or r[1] < 1
+				or r[1] > r[2]
+				or r[2] > Config.World.rings.suburbsTo
+			then
+				table.insert(bad, w .. ": rings inside the Suburbs")
+			end
+		end
 		local a = st.away or {}
-		for _, k in { "plaza", "row", "door", "open" } do
+		local keys: { string } = if outskirts
+			then { "pad", "beacon", "landmark", "district", "site" }
+			else { "plaza", "row", "door", "open" }
+		for _, k in keys do
 			if type(a[k]) ~= "number" or a[k] < 0 then
 				table.insert(bad, w .. ": away." .. k)
 			end

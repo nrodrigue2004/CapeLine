@@ -13977,6 +13977,685 @@ do
 end
 
 ---------------------------------------------------------------------------
+-- Lore step 11, chain 3: Wind-Up Lane (the Suburbs). Config.SideQuests (the chain, Scoops, the ToyShop site),
+-- Shared.SideQuestSites.outskirts (a seeded Suburbs shop lot), PocketLayout "toyshop" (its inside), the
+-- Toymaker's clockwork toys (Config.Enemies.WindupToy and WindupGiant), the scenes, the reward, the Dev panel.
+---------------------------------------------------------------------------
+
+do
+	local SideQuestPlan = require("../src/shared/SideQuestPlan")
+	local SideQuestSites = require("../src/shared/SideQuestSites")
+	local CreatorRules = require("../src/shared/CreatorRules")
+	local CinemaPlan = require("../src/shared/CinemaPlan")
+	local StoryPlan = require("../src/shared/StoryPlan")
+	local EnemyVariety = require("../src/shared/EnemyVariety")
+	local fs = require("@lune/fs")
+	local SQ = Config.SideQuests
+	local W = SideQuestPlan.chain(Config, "WindUpLane") :: any
+	local SIDES = { "hero", "villain" }
+	local TOYS = { "WindupToy", "WindupGiant" }
+
+	local function flat(ax: number, az: number, bx: number, bz: number): number
+		return math.sqrt((ax - bx) ^ 2 + (az - bz) ^ 2)
+	end
+
+	-- a hero who has cleared Act 1's Ceremony and Safehouse
+	local function afterSafehouse(): any
+		local c = ProfileSchema.newCharacter()
+		c.story.missions = StoryPlan.setBit(StoryPlan.setBit(0, 1), 2)
+		return c
+	end
+
+	test(
+		"Lore 11 Suburbs: Wind-Up Lane validates: 8 Suburbs quests, each side's flavour, the Toymaker",
+		function()
+			local bad = SideQuestPlan.validate(Config)
+			for _, b in bad do
+				check(false, b)
+			end
+			check(#bad == 0, "the chain validator passes")
+			check(W ~= nil and not W.dev, "a real chain")
+			check(#W.steps == 8 and W.layer == "district" and W.district == "Suburbs", "8 Suburbs quests")
+			local sc = SQ.givers.Scoops
+			check(W.giver == "Scoops" and not sc.dev and sc.anchor == "site", "Scoops gives it at a site")
+			check(W.site == "ToyShop" and sc.site == "ToyShop", "Tick-Tock Toys")
+			check(W.bit ~= SideQuestPlan.chain(Config, "HeroAcademy").bit, "its own save bit")
+			local last = W.steps[#W.steps]
+			local fin = SideQuestPlan.goal(last, "hero") :: any
+			check(
+				SideQuestPlan.shared(last) and fin.kind == "finale" and fin.enemy == "WindupGiant",
+				"the Toymaker's giant, both sides together"
+			)
+			check(table.find(SQ.finale.enemies, "WindupGiant") ~= nil, "the giant is on the finale list")
+			local kinds = { hero = {}, villain = {} }
+			local split = 0
+			for i, step in W.steps do
+				for _, side in SIDES do
+					kinds[side][(SideQuestPlan.goal(step, side) :: any).kind] = true
+				end
+				if SideQuestPlan.shared(step) then
+					local g = SideQuestPlan.goal(step, "hero") :: any
+					check(
+						type(g.villainText) == "string" and g.villainText ~= g.text,
+						"step " .. i .. ": the Syndicate reads its own goal"
+					)
+				else
+					split += 1
+					check(
+						SideQuestPlan.text(SideQuestPlan.goal(step, "hero"), "hero")
+							~= SideQuestPlan.text(SideQuestPlan.goal(step, "villain"), "villain"),
+						"step " .. i .. ": each side's own job"
+					)
+				end
+			end
+			check(split >= 5, "most steps give each side its own job (" .. split .. ")")
+			-- the Vigil rescue and protect; the Dread Syndicate heist and sabotage
+			for _, k in { "fight", "find", "escort", "carry", "hold" } do
+				check(kinds.hero[k] == true, "the Vigil: " .. k)
+			end
+			for _, k in { "fetch", "chase", "deliver", "race" } do
+				check(kinds.villain[k] == true, "the Syndicate: " .. k)
+			end
+			check(kinds.hero.pocket and kinds.villain.pocket, "inside the toy shop, both sides")
+			-- the toys are the chain's robots: every fight, guard, chase and add is a clockwork toy
+			local toyOnly = true
+			for _, step in W.steps do
+				for _, side in SIDES do
+					local g = SideQuestPlan.goal(step, side) :: any
+					for _, row in g.squads or {} do
+						toyOnly = toyOnly and table.find(TOYS, row[1]) ~= nil
+					end
+					for _, row in g.adds or {} do
+						toyOnly = toyOnly and table.find(TOYS, row[1]) ~= nil
+					end
+					if g.guards then
+						toyOnly = toyOnly and table.find(TOYS, g.guards[1]) ~= nil
+					end
+					if g.kind == "chase" or g.kind == "finale" then
+						toyOnly = toyOnly and table.find(TOYS, g.enemy) ~= nil
+					end
+					for _, s in g.steps or {} do
+						for _, row in s.squads or {} do
+							toyOnly = toyOnly and table.find(TOYS, row[1]) ~= nil
+						end
+						if s.enemy then
+							toyOnly = toyOnly and table.find(TOYS, s.enemy) ~= nil
+						end
+					end
+					check(g.kind ~= "photo", "no photo step (it spawns Sneak Bots, not toys)")
+				end
+			end
+			check(
+				toyOnly,
+				"every robot in the chain is one of the Toymaker's toys (standalone: no Crane robots)"
+			)
+			local who = {}
+			for _, step in W.steps do
+				for _, l in step.lines or {} do
+					who[l.who] = true
+				end
+			end
+			for _, w in { "Scoops", "patch", "lodestar", "toymaker", "benny" } do
+				check(who[w] == true, "speaks: " .. w)
+			end
+			for _, w in { "toymaker", "benny" } do
+				local sp = Config.Story.guides.speakers[w]
+				check(
+					sp ~= nil and sp.portrait ~= nil and Config.Audio.sounds[sp.blip] ~= nil,
+					w .. ": a guide speaker with a portrait and a blip"
+				)
+			end
+			local scenes = 0
+			for _, step in W.steps do
+				if step.scene then
+					scenes += 1
+					local s = Config.Cinema.scenes[step.scene]
+					check(s ~= nil and s.client == true, step.scene .. ": a device scene")
+					check(s and CinemaPlan.check(Config, s), step.scene .. ": 5 to 20 s")
+					check(s and s.bit >= 0 and s.bit <= 15, step.scene .. ": a named scene bit")
+					for _, l in (s and s.lines) or {} do
+						check(
+							Config.Story.guides.speakers[l.who] ~= nil or SQ.givers[l.who] ~= nil,
+							step.scene .. ": speaker " .. tostring(l.who)
+						)
+					end
+				end
+			end
+			check(scenes >= 1 and scenes <= 3, "1 to 3 short scenes (" .. scenes .. ")")
+			check(last.scene ~= nil, "a scene before the Toymaker's finale")
+			local seenBits = {}
+			for id, s in Config.Cinema.scenes do
+				check(not seenBits[s.bit], "scene bit " .. s.bit .. " used once (" .. id .. ")")
+				seenBits[s.bit] = true
+			end
+			local page = Config.Cinema.comic.pages.bennyStory
+			check(page ~= nil and #page.panels == 4, "Benny's story is a comic page")
+			local hud = fs.readFile("src/client/Ui/CinemaHud.luau")
+			for _, p in page.panels do
+				check(
+					string.find(hud, 'kind == "' .. p.scene .. '"', 1, true) ~= nil,
+					"the comic draws " .. p.scene
+				)
+			end
+		end
+	)
+
+	test("Lore 11 Suburbs: the finale's name card: THE TOYMAKER on the last step only", function()
+		for i = 1, #W.steps - 1 do
+			check(SideQuestPlan.card(W, i) == nil, "no card on step " .. i)
+		end
+		local card = SideQuestPlan.card(W, #W.steps) :: any
+		check(card ~= nil and card.name == "THE TOYMAKER", "the finale's card names the Toymaker")
+		check(card and card.title == "THE OLD INVENTOR", "and his title")
+		check(
+			SideQuestPlan.fixedText(card.name, 32) == nil and SideQuestPlan.fixedText(card.title, 32) == nil,
+			"fixed text that fits the card"
+		)
+	end)
+
+	test(
+		"Lore 11 Suburbs: it opens after the Safehouse at the Suburbs' level for both sides; Scoops offers it",
+		function()
+			for _, side in SIDES do
+				local c = ProfileSchema.newCharacter()
+				c.story.missions = StoryPlan.setBit(0, 1)
+				local st, why, n = SideQuestPlan.state(Config, c, W, 10, side)
+				check(st == "locked" and why == "story" and n == 2, side .. ": waits for the Safehouse")
+				check(
+					select(2, SideQuestPlan.talkPick(Config, c, "Scoops", 10, side, false)) == "none",
+					side .. ": Scoops has nothing yet"
+				)
+				local d = afterSafehouse()
+				local st2, why2, lv = SideQuestPlan.state(Config, d, W, 4, side)
+				check(
+					st2 == "locked" and why2 == "level" and lv == Config.World.zoneFloor.suburbs,
+					side .. ": and the Suburbs' level floor"
+				)
+				check(SideQuestPlan.state(Config, d, W, 5, side) == "open", side .. ": open at level 5")
+				local pick, kind = SideQuestPlan.talkPick(Config, d, "Scoops", 5, side, false)
+				check(pick == W and kind == "offer", side .. ": Scoops offers it")
+				check(SideQuestPlan.fixedText(W.blurb[side], 90) == nil, side .. ": the page's line")
+				check(SideQuestPlan.fixedText(W.lines.offer[side], 120) == nil, side .. ": Scoops's offer")
+				-- the Hero Academy's giver never offers it, and Scoops never offers the Academy
+				local gp = SideQuestPlan.talkPick(Config, d, "Gus", 5, side, false)
+				check(gp ~= W, side .. ": Gus never offers it")
+			end
+			local J = fs.readFile("src/client/Ui/Journal.luau")
+			check(string.find(J, 'Suburbs = "the Suburbs"', 1, true) ~= nil, "the Journal names the Suburbs")
+		end
+	)
+
+	test("Lore 11 Suburbs: Tick-Tock Toys is a seeded Suburbs shop lot, picked by rule every week", function()
+		local st = SQ.sites.ToyShop
+		check(
+			SideQuestSites.isOutskirts(st) and not SideQuestSites.isOutskirts(SQ.sites.Academy),
+			"an outskirts site"
+		)
+		check(SideQuestSites.building(Config, world, "ToyShop") == nil, "never a Downtown building")
+		local gy = Config.City.ground.y
+		local Z = Config.World.zones
+		for _, seed in { 202647, 202648, 202701, 202720, 202752 } do
+			local wd = if seed == 202647 then world else WorldMap.build(Config, seed)
+			local b, door = SideQuestSites.place(Config, wd, "ToyShop")
+			check(b ~= nil and door ~= nil, seed .. ": a shop fits")
+			if b and door then
+				local t = WorldGen.get(Config.World, wd.tiles, b.tx, b.tz)
+				check(
+					t.zone == Z.suburbs and t.variant ~= Config.World.special,
+					seed .. ": on a Suburbs tile"
+				)
+				local ring = WorldGen.ring(Config.World, b.tx, b.tz)
+				check(ring >= st.rings[1] and ring <= st.rings[2], seed .. ": ring " .. ring .. " in range")
+				check(b.lot.kind == "shop", seed .. ": a shop lot")
+				local tx, tz = WorldGen.tileOf(Config.City, b.x, b.z)
+				check(tx == b.tx and tz == b.tz, seed .. ": the building stands on its tile")
+				check(b.h >= st.height[1] and b.h <= st.height[2], seed .. ": a one-storey shop")
+				local a = st.away
+				for _, s in wd.safehouses do
+					check(flat(b.x, b.z, s.x, s.z) >= a.pad, seed .. ": clear of safehouse " .. s.id)
+				end
+				for _, bc in wd.beacons do
+					check(flat(b.x, b.z, bc.x, bc.z) >= a.beacon, seed .. ": clear of beacon " .. bc.id)
+				end
+				for name, dr in Config.City.districts do
+					check(
+						b.x < dr.minX - a.district
+							or b.x > dr.maxX + a.district
+							or b.z < dr.minZ - a.district
+							or b.z > dr.maxZ + a.district
+							or flat(
+									b.x,
+									b.z,
+									math.clamp(b.x, dr.minX, dr.maxX),
+									math.clamp(b.z, dr.minZ, dr.maxZ)
+								)
+								>= a.district,
+						seed .. ": clear of " .. name
+					)
+				end
+				local ac = SideQuestSites.building(Config, wd, "Academy")
+				check(ac ~= nil and flat(b.x, b.z, ac.x, ac.z) >= a.site, seed .. ": far from Halo Academy")
+				-- the door: the shop's front, open ground in front of it, not inside any outskirts box
+				near(door.z, b.z + b.sz / 2 + 6, 1e-6, seed .. ": the door is at the front")
+				check(WorldMap.heightAt(wd, door.x, door.z) <= gy + 1.5, seed .. ": open ground at the door")
+				-- among the Suburbs' houses: mailboxes and power poles from the city kit around it
+				local mail, poles = 0, 0
+				for _, p in wd.props do
+					local d = flat(p.x, p.z, b.x, b.z)
+					if p.name == "Mailbox" and d <= 160 then
+						mail += 1
+					elseif p.name == "PowerPole" and d <= 160 then
+						poles += 1
+					end
+				end
+				check(mail >= 1 and poles >= 1, seed .. ": mailboxes and power poles nearby")
+				local again = SideQuestSites.outskirts(Config, wd, "ToyShop")
+				check(again and again.x == b.x and again.z == b.z, seed .. ": the same seed, the same shop")
+			end
+		end
+		-- the framework checks an outskirts site's rules
+		local function deep(v: any): any
+			if type(v) ~= "table" then
+				return v
+			end
+			local out = {}
+			for k, x in v do
+				out[k] = deep(x)
+			end
+			return out
+		end
+		local function problems(edit: (any) -> ()): string
+			local sq = deep(SQ)
+			edit(sq.sites.ToyShop)
+			local C = setmetatable({ SideQuests = sq }, { __index = Config })
+			return table.concat(SideQuestPlan.validate(C), " | ")
+		end
+		check(problems(function() end) == "", "the copy is clean")
+		check(string.find(
+			problems(function(s)
+				s.lot = "moon"
+			end),
+			"lot moon is not a Suburbs lot",
+			1,
+			true
+		) ~= nil, "an unknown lot kind")
+		check(string.find(
+			problems(function(s)
+				s.rings = { 2, 9 }
+			end),
+			"rings inside the Suburbs",
+			1,
+			true
+		) ~= nil, "rings past the Suburbs")
+		check(string.find(
+			problems(function(s)
+				s.away.pad = nil
+			end),
+			"away.pad",
+			1,
+			true
+		) ~= nil, "no safehouse distance")
+		check(string.find(
+			problems(function(s)
+				s.district = "Downtown"
+			end),
+			"district Downtown",
+			1,
+			true
+		) ~= nil, "an outskirts site is in the Suburbs")
+		-- the server stands Scoops at the door and marks the map for any site (the framework's own hooks)
+		local svc = fs.readFile("src/server/Services/SideQuestService.luau")
+		check(
+			string.find(svc, "SideQuestSites.place(Config, world, id)", 1, true) ~= nil,
+			"the server places it"
+		)
+	end)
+
+	test(
+		"Lore 11 Suburbs: Tick-Tock Toys' pocket: the aisles, the playroom and the workshop under it",
+		function()
+			check(PocketLayout.known("toyshop"), "a pocket layout")
+			local l = PocketLayout.build(Config, 1, "toyshop")
+			check(#l.boxes < 400, "under 400 parts (" .. #l.boxes .. ")")
+			local sp = l.points.spawn
+			check(PocketLayout.at(Config, sp[1], sp[2], sp[3]) == 1, "the spawn is inside its pocket")
+			check(#(l.lists.rooms or {}) >= 2, "two toy aisles")
+			check(#(l.lists.winders or {}) >= 4, "four winders")
+			for _, p in { "playroom", "trapdoor", "workshop", "boss" } do
+				check(l.points[p] ~= nil, "has " .. p)
+			end
+			local deck = PocketLayout.heightAt(l, sp[1], sp[3])
+			check(deck > l.floorY + 15, "the shop stands on its floor above the workshop")
+			for i, r in l.lists.rooms do
+				near(
+					PocketLayout.heightAt(l, r[1], r[3]),
+					deck,
+					0.5,
+					"aisle " .. i .. " is on the shop floor"
+				)
+			end
+			local pr = l.points.playroom
+			near(PocketLayout.heightAt(l, pr[1], pr[3]), deck, 0.5, "the playroom")
+			for _, name in { "workshop", "boss" } do
+				local p = l.points[name]
+				near(
+					PocketLayout.heightAt(l, p[1], p[3]),
+					l.floorY,
+					0.01,
+					name .. " is on the workshop floor"
+				)
+			end
+			for i, p in l.lists.winders do
+				near(
+					PocketLayout.heightAt(l, p[1], p[3]),
+					l.floorY,
+					0.01,
+					"winder " .. i .. " is on the floor"
+				)
+			end
+			local b = l.points.boss
+			local over = false
+			for _, x in l.boxes do
+				if
+					x.tag == "ceiling"
+					and math.abs(x.cx - b[1]) <= x.sx / 2
+					and math.abs(x.cz - b[3]) <= x.sz / 2
+					and x.cy > l.floorY + 15
+				then
+					over = true
+				end
+			end
+			check(over, "the workshop is under the shop's floor")
+			local from, to = l.points.trapdoor, l.points.workshop
+			local prev = PocketLayout.heightAt(l, from[1], from[3])
+			local ok = true
+			for z = from[3], to[3], -1 do
+				local h = PocketLayout.heightAt(l, from[1], z)
+				if h > prev + 1e-6 or prev - h > 2.5 then
+					ok = false
+				end
+				prev = h
+			end
+			check(ok and math.abs(prev - l.floorY) < 0.01, "the stairs walk down to the workshop")
+			local pocket = SideQuestPlan.goal(W.steps[5], "hero") :: any
+			check(pocket.kind == "pocket" and pocket.layout == "toyshop", "step 5 is inside the shop")
+			local used = {}
+			for _, s in pocket.steps do
+				used[s.kind] = true
+				if s.at then
+					check(l.points[s.at] ~= nil, s.kind .. " at " .. s.at)
+				end
+				if s.room then
+					check(l.lists.rooms[s.room] ~= nil, s.kind .. " in aisle " .. s.room)
+				end
+				if s.list then
+					check(#(l.lists[s.list] or {}) >= (s.points or 1), s.kind .. " on " .. s.list)
+				end
+			end
+			check(
+				used.defeat and used.hold and used.reach and used["break"] and used.boss,
+				"aisles, playroom, trapdoor, winders, captain"
+			)
+		end
+	)
+
+	test(
+		"Lore 11 Suburbs: the Toymaker's toys: switches, uniforms, never ambient, a boss-lite giant",
+		function()
+			local profile = ProfileSchema.default()
+			for _, p in CreatorRules.index(Config).list do
+				if p.source.kind ~= "pack" and p.source.kind ~= "starter" then
+					CreatorRules.grant(profile, p)
+				end
+			end
+			local look = FakeRules.lookFrom(Config, SQ.givers.Scoops.look, "Scoops")
+			local ok, why = CreatorRules.validate(Config, profile, look)
+			check(ok, "Scoops's look validates (" .. tostring(why) .. ")")
+			for slot, i in look.pieces do
+				if i > 0 then
+					local p = CreatorRules.piece(Config, slot, i)
+					check(
+						p ~= nil and p.source.kind ~= "pack",
+						"Scoops " .. slot .. " is never a Robux piece"
+					)
+				end
+			end
+			local NL = Config.NpcLooks
+			for _, kind in TOYS do
+				local cfg = Config.Enemies[kind]
+				check(cfg.on == true and cfg.fake == nil, kind .. ": a machine with an on switch")
+				check(table.find(Config.Enemies.order, kind) ~= nil, kind .. " is in the order")
+				check(Config.Enemies.mix[kind] == nil, kind .. " never spawns in the ambient mix")
+				for _, sw in Config.Enemies.variety.swaps do
+					check(
+						sw.kind ~= kind and table.find(sw.from, kind) == nil,
+						kind .. " is never swapped in or out"
+					)
+				end
+				check(cfg.body.windKey == true, kind .. " has its wind-up key")
+				check(NL.robots[kind] ~= nil, kind .. " has its three toy uniforms")
+				for _, v in NL.versions do
+					check(
+						fs.isFile("art/export/clothes/uniforms/" .. kind .. "_" .. v .. ".png"),
+						kind .. " " .. v .. " uniform is drawn for upload"
+					)
+				end
+				-- switched off: never spawns
+				cfg.on = false
+				local sim = EnemySim.new(Config, {})
+				local gone = EnemySim.spawn(sim, kind, 0, 0, 0, 1) == nil
+				cfg.on = true
+				check(gone, kind .. " off: never spawns")
+				check(
+					EnemySim.spawn(EnemySim.new(Config, {}), kind, 0, 0, 0, 1) ~= nil,
+					kind .. " on: spawns"
+				)
+			end
+			local rng = Rng.new(9)
+			local function rand(): number
+				return rng:next()
+			end
+			for _ = 1, 50 do
+				for _, row in EnemyVariety.squad(Config, { { kind = "WindupToy", n = 6 } }, 40, rand) do
+					check(row.kind == "WindupToy", "a toy squad stays toys")
+				end
+			end
+			local rend = fs.readFile("src/client/Controllers/EnemyRenderer.luau")
+			check(string.find(rend, "body.windKey", 1, true) ~= nil, "the renderer draws the key")
+			local G = Config.Enemies.WindupGiant
+			check(
+				G.elite and G.miniBoss and G.body.height > 2 * Config.Enemies.WindupToy.body.height,
+				"a giant elite"
+			)
+			check(Config.Enemies.WindupToy.body.small == true, "the toys are knee-high")
+			for _, lv in { 5, 20, 50 } do
+				local elite = 0
+				for _, kind in Config.Enemies.order do
+					local cfg = Config.Enemies[kind]
+					if cfg.elite and not cfg.fake and kind ~= "WindupGiant" then
+						elite = math.max(elite, robotDps(kind, lv))
+					end
+				end
+				local d = robotDps("WindupGiant", lv)
+				check(
+					d > 0.5 * elite and d <= elite,
+					string.format("L%d the giant %.1f is boss-lite: up to the elites' %.1f", lv, d, elite)
+				)
+			end
+		end
+	)
+
+	for _, lead in SIDES do
+		local mate = if lead == "hero" then "villain" else "hero"
+		local label = if lead == "villain" then "the Syndicate" else "the Vigil"
+		test(
+			"Lore 11 Suburbs: Wind-Up Lane as " .. label .. ": all 8 steps co-op with the other side",
+			function()
+				local a, b = afterSafehouse(), afterSafehouse()
+				check(SideQuestPlan.accept(Config, a, W, 6, lead, false), "the lead takes it from Scoops")
+				check(SideQuestPlan.accept(Config, b, W, 6, mate, true), "the squadmate from the Journal")
+				local credits = { 0, 0 }
+				for i, step in W.steps do
+					check(
+						SideQuestPlan.stepOf(a, W) == i and SideQuestPlan.stepOf(b, W) == i,
+						"both on step " .. i
+					)
+					local g = SideQuestPlan.newGroup(W.id, i)
+					local ka, newA = SideQuestPlan.join(g, step, "lead", lead)
+					local kb, newB = SideQuestPlan.join(g, step, "mate", mate)
+					if SideQuestPlan.shared(step) then
+						check(
+							ka == "both" and kb == "both" and newA and not newB,
+							"step " .. i .. ": one shared goal"
+						)
+					else
+						check(
+							ka == lead and kb == mate and newA and newB,
+							"step " .. i .. ": a goal per side"
+						)
+					end
+					check(
+						SideQuestPlan.set(g, ka, g.sides[ka].need),
+						"step " .. i .. ": the lead's side finishes"
+					)
+					if ka ~= kb then
+						check(
+							SideQuestPlan.waiting(g, ka) and not SideQuestPlan.groupDone(g),
+							"step " .. i .. ": and waits for the other side"
+						)
+						check(
+							SideQuestPlan.set(g, kb, g.sides[kb].need),
+							"step " .. i .. ": the other side finishes"
+						)
+					end
+					check(SideQuestPlan.groupDone(g), "step " .. i .. ": done for the group")
+					local last = i == #W.steps
+					if last then
+						check(SideQuestPlan.card(W, i) ~= nil, "the Toymaker's name card at the finale")
+					end
+					for n, c in { a, b } do
+						credits[n] += SideQuestPlan.stepPay(Config, 6, last)
+						check(
+							SideQuestPlan.advance(c, W) == (if last then "done" else "next"),
+							"step " .. i .. " moves on"
+						)
+					end
+				end
+				for n, c in { a, b } do
+					check(
+						SideQuestPlan.isDone(c, W) and c.story.pinned == 0 and c.sq.at.WindUpLane == nil,
+						"done, untracked"
+					)
+					check(
+						credits[n] > 0 and SideQuestPlan.chainPay(Config, W, 6) > 0,
+						"steps and the end pay"
+					)
+					check(
+						not SideQuestPlan.accept(Config, c, W, 6, if n == 1 then lead else mate, false),
+						"once only"
+					)
+					check(
+						not SideQuestPlan.isDone(c, SideQuestPlan.chain(Config, "HeroAcademy")),
+						"the Hero Academy is untouched"
+					)
+				end
+			end
+		)
+	end
+
+	test("Lore 11 Suburbs: the reward is a chain title and one cosmetic; side rep pays every step", function()
+		local cos = SideQuestPlan.cosmetic(W)
+		local n = 0
+		for _ in cos do
+			n += 1
+		end
+		check(n == 2 and cos.title == "Unwound" and cos.style == "ClockworkPack", "a title and a style")
+		local bit = Config.Story.unlocks.titles.Unwound
+		check(type(bit) == "number" and bit < 100, "a story title")
+		check(GearMath.questStyle(Config, "ClockworkPack") ~= nil, "the Clockwork Pack is a gear style")
+		local styles = 0
+		for _, slot in Config.Gear.slotOrder do
+			local ns = {}
+			for _, row in Config.Gear.styles[slot] do
+				check(not ns[row.n], slot .. " style n " .. row.n .. " used once")
+				ns[row.n] = true
+				if row.quest == "ClockworkPack" then
+					styles += 1
+					check(row.tier == "Story" and row.price == nil, "never rolled, never sold")
+				end
+			end
+		end
+		check(styles == 1, "one Clockwork Pack")
+		for _, k in { "credits", "renown", "skillPoints", "loot", "gadget", "dust", "xp" } do
+			check(W.reward[k] == nil, "no " .. k)
+		end
+		-- lore step 12: every step a hero finishes fires StepPaid (any chain), and RepService pays side rep on it
+		local svc = fs.readFile("src/server/Services/SideQuestService.luau")
+		local at = string.find(svc, 'SideQuestService.StepPaid:Fire(player, res == "done")', 1, true)
+		check(at ~= nil, "the step's pay fires StepPaid")
+		local adv = string.find(svc, "local res = SideQuestPlan.advance(c, chain)", 1, true)
+		check(adv ~= nil and at and adv < at, "after the save moves on, for whatever chain it is")
+		check(string.find(svc, "WindUpLane", 1, true) == nil, "nothing chain-specific in the service")
+		local rep = fs.readFile("src/server/Services/RepService.luau")
+		check(string.find(rep, "SideQuestService.StepPaid:Connect", 1, true) ~= nil, "RepService listens")
+		local E = Config.Remembers.earn
+		check(E.sideStep > 0 and E.sideFinale > E.sideStep, "a step and the finale pay rep")
+	end)
+
+	test("Lore 11 Suburbs: no old names or Crane in the chain; the Dev panel covers it", function()
+		local ARC =
+			{ "Bellweather", "Mayor", "Pip", "Maribel", "Tamsin", "Quill", "Iron Dee", "IronDee", "Skye" }
+		local hits = {}
+		local function walk(v: any, path: string)
+			if type(v) == "string" then
+				local w = oldLore(v)
+				if w then
+					table.insert(hits, path .. ": " .. w)
+				end
+				for _, a in ARC do
+					if string.find(v, "%f[%w]" .. a .. "%f[%W]") then
+						table.insert(hits, path .. ": " .. a)
+					end
+				end
+				for _, a in { "Crane", "Halcyon", "Adrian Vale", "Null" } do
+					if string.find(v, "%f[%w]" .. a .. "%f[%W]") then
+						table.insert(hits, path .. ": " .. a .. " (standalone chain)")
+					end
+				end
+			elseif type(v) == "table" then
+				for k, x in v do
+					walk(x, path .. "." .. tostring(k))
+				end
+			end
+		end
+		walk(W, "WindUpLane")
+		walk(SQ.givers.Scoops, "Scoops")
+		walk(SQ.sites.ToyShop, "ToyShop")
+		walk(Config.Story.guides.speakers.toymaker, "toymaker")
+		walk(Config.Story.guides.speakers.benny, "benny")
+		for _, id in { "tickTockLane", "bennyStory", "windupGiant" } do
+			walk(Config.Cinema.scenes[id], id)
+		end
+		walk(Config.Cinema.comic.pages.bennyStory, "bennyStory page")
+		for _, kind in TOYS do
+			walk(Config.Enemies[kind], kind)
+		end
+		for _, h in hits do
+			check(false, "an old name: " .. h)
+		end
+		check(#hits == 0, "no old lore, retired arc names or main-story names")
+		local idx = table.find(SQ.chains, W) :: number
+		check(idx ~= nil and 300 + idx <= 1000, "the Dev panel's SQ chain button reaches it")
+		local dev = fs.readFile("src/client/Ui/DevPanel.luau")
+		check(
+			string.find(dev, "if not ch.dev then", 1, true) ~= nil,
+			"every real chain is on the SQ chain button"
+		)
+		check(#W.steps <= SQ.maxSteps, "every step fits SQ: start step")
+	end)
+end
+
+---------------------------------------------------------------------------
 -- Lore step 12: the city remembers (Config.Remembers, Shared.RepTiers, the side tier in EventPlan; RepService,
 -- EventService's side events, HqClient's dressing, CitizenRenderer's reactions, GuideClient's radio)
 ---------------------------------------------------------------------------

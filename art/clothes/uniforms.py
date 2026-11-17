@@ -1261,17 +1261,133 @@ def grappler(v):
     return s.im, p.im
 
 
+def key_plate(d, cx, cy, sc=1.0):
+    """The wind-up key's brass plate on a toy's back (the Toymaker's toys): a round plate, the shaft and two bows."""
+    r = int(16 * sc)
+    d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=(205, 160, 70), outline=DARK, width=2)
+    d.rectangle([cx - 3, cy - r - 14, cx + 3, cy], fill=(180, 135, 55), outline=DARK)
+    for k in (-1, 1):
+        bx = cx + k * int(13 * sc)
+        d.ellipse([bx - int(10 * sc), cy - r - 30, bx + int(10 * sc), cy - r - 10], fill=(225, 185, 85),
+                  outline=DARK, width=2)
+
+
+def windup_toy(v):
+    """Wind-Up Toy (lore step 11, the Suburbs chain): the Toymaker's clockwork toys, one toy per version.
+    Grunt: a tin soldier (red coat, white cross belts, brass buttons, navy trousers with a red stripe, black
+    boots). Veteran: a lawn gnome (blue smock, a white beard bib, brown belt, red mittens and boots). Elite: a
+    patchwork plush bear (tan fur, stitched patches, a light belly, a big red bow, paw pads). The key plate on
+    every back."""
+    s, p = T(), T()
+    fx, fy, fw, _ = s.front()
+    bx, by, bw, _ = s.back()
+    if v == "Grunt":
+        coat, gold = (200, 40, 50), GOLD
+        s.torso(coat)
+        s.limbs(coat, 0, HAND)
+        s.limb_band(gold, HAND - 6, HAND)  # gold cuffs
+        s.limbs(WHITE, HAND, 128, 1.0, 0.9)  # white gloves
+        for a, b in (((fx + 8, fy), (fx + 120, fy + 100)), ((fx + 120, fy), (fx + 8, fy + 100))):
+            s.d.line([a, b], fill=WHITE, width=12)  # the cross belts
+        for k in range(4):
+            s.d.ellipse([fx + 60, fy + 12 + k * 22, fx + 68, fy + 20 + k * 22], fill=gold, outline=DARK)
+        s.d.rectangle([fx, fy + UT_PX - 10, fx + 127, fy + UT_PX], fill=DARK)
+        trousers = (30, 45, 120)
+        p.torso(trousers, UT_PX - 4, 128, 1.0, 0.85)
+        p.limbs(trousers, 0, HAND - 10)
+        p.outer_stripe(coat, 0, HAND - 10, 6)
+        p.limbs((24, 24, 28), HAND - 10, 128, 1.1, 0.8)  # black boots
+    elif v == "Veteran":
+        smock, red = (60, 110, 220), (220, 50, 50)
+        s.torso(smock)
+        s.limbs(smock, 0, HAND)
+        s.limbs(red, HAND, 128, 1.05, 0.9)  # red mittens
+        s.d.polygon([(fx + 22, fy), (fx + 106, fy), (fx + 96, fy + 46), (fx + 64, fy + 80), (fx + 32, fy + 46)],
+                    fill=WHITE, outline=shade(WHITE, 0.75))  # the beard bib
+        for k in range(5):
+            s.d.arc([fx + 30 + k * 14, fy + 30, fx + 44 + k * 14, fy + 44], 0, 180, fill=shade(WHITE, 0.8), width=2)
+        s.d.rectangle([fx, fy + 86, fx + 127, fy + 98], fill=(110, 70, 40))
+        s.d.rectangle([fx + 56, fy + 84, fx + 72, fy + 100], fill=GOLD, outline=DARK)
+        trousers = (110, 70, 40)
+        p.torso(trousers, UT_PX - 4, 128, 1.0, 0.85)
+        p.limbs(trousers, 0, HAND - 8)
+        p.limbs(red, HAND - 8, 128, 1.1, 0.8)  # red boots
+    else:
+        fur, belly = (170, 120, 70), (230, 200, 150)
+        s.torso(fur)
+        s.limbs(fur, 0, 128)
+        s.d.ellipse([fx + 24, fy + 30, fx + 104, fy + 110], fill=belly, outline=shade(fur, 0.6), width=2)
+        rng = random.Random(77)
+        areas = [TORSO["F"], TORSO["B"], RIGHT["F"], LEFT["F"], RIGHT["B"], LEFT["B"]]
+        for x, y, w, h in areas:  # stitched patches in bright fabric
+            for _ in range(2):
+                pw, ph = rng.randint(14, 22), rng.randint(14, 22)
+                px, py = x + rng.randint(4, w - pw - 4), y + rng.randint(4, h - ph - 4)
+                col = rng.choice([(90, 160, 220), (230, 110, 160), (120, 190, 90), (240, 200, 80)])
+                s.d.rectangle([px, py, px + pw, py + ph], fill=col)
+                for k in range(px, px + pw, 4):
+                    s.d.point((k, py - 2), fill=DARK)
+                    s.d.point((k, py + ph + 2), fill=DARK)
+        s.d.polygon([(fx + 64, fy + 10), (fx + 30, fy - 2 + 2), (fx + 30, fy + 22)], fill=(220, 40, 50))  # the bow
+        s.d.polygon([(fx + 64, fy + 10), (fx + 98, fy), (fx + 98, fy + 22)], fill=(220, 40, 50))
+        s.d.ellipse([fx + 58, fy + 4, fx + 70, fy + 16], fill=(180, 30, 40))
+        s.limbs(belly, HAND, 128, 1.0, 0.9)  # paw pads
+        p.torso(fur, UT_PX - 4, 128, 1.0, 0.85)
+        p.limbs(fur, 0, 128)
+        p.limbs(belly, HAND, 128, 1.0, 0.9)
+    key_plate(s.d, bx + 64, by + 70, 1.0)
+    return s.im, p.im
+
+
+def windup_giant(v):
+    """Wind-Up Giant (lore step 11, the Suburbs chain's finale): the Toymaker's giant clockwork tin soldier.
+    A dress coat with gold braid across the chest, two columns of brass buttons, a drum mark on the front,
+    white trousers with a stripe and black boots with a gold band; the big key plate on the back. Grunt red,
+    Veteran royal blue, Elite gold and white."""
+    coat, braid = {"Grunt": ((190, 35, 45), GOLD), "Veteran": ((40, 70, 170), GOLD),
+                   "Elite": ((235, 230, 215), (210, 160, 50))}[v]
+    s, p = T(), T()
+    fx, fy, fw, _ = s.front()
+    bx, by, bw, _ = s.back()
+    s.torso(coat)
+    s.limbs(coat, 0, HAND)
+    s.limb_band(braid, HAND - 8, HAND)
+    s.limbs(WHITE, HAND, 128, 1.0, 0.9)
+    for k in range(5):  # the braid
+        y = fy + 14 + k * 16
+        s.d.line([(fx + 14, y), (fx + 114, y)], fill=braid, width=4)
+    for x in (fx + 36, fx + 88):
+        for k in range(5):
+            s.d.ellipse([x - 5, fy + 9 + k * 16, x + 5, fy + 19 + k * 16], fill=braid, outline=DARK)
+    s.d.ellipse([fx + 44, fy + 90, fx + 84, fy + 118], fill=WHITE, outline=DARK, width=2)  # the drum mark
+    s.d.line([(fx + 48, fy + 96), (fx + 80, fy + 112)], fill=coat, width=2)
+    s.d.line([(fx + 80, fy + 96), (fx + 48, fy + 112)], fill=coat, width=2)
+    key_plate(s.d, bx + 64, by + 72, 1.4)
+    trousers = WHITE if v != "Elite" else (40, 40, 48)
+    p.torso(trousers, UT_PX - 4, 128, 1.0, 0.85)
+    p.limbs(trousers, 0, HAND - 12)
+    p.outer_stripe(coat if v != "Elite" else braid, 0, HAND - 12, 8)
+    p.limbs((24, 24, 28), HAND - 12, 128, 1.1, 0.8)
+    p.limb_band(braid, HAND - 12, HAND - 8)
+    if v == "Veteran":
+        scuff(s, 131, 50)
+    return s.im, p.im
+
+
 KINDS = {
     "SparkDrone": spark, "BurglarBot": burglar, "SneakBot": sneak, "BruteBot": brute, "Turret": sentry,
     "NullSentinel": null, "Diver": diver, "Anchor": anchor, "TorpedoSentry": torpedo,
     "ShieldBearer": shield_bearer, "Captain": captain, "Sniper": sniper, "Bomber": bomber, "MedicUnit": medic,
     "Swarmer": swarmer, "Mimic": mimic, "Interceptor": interceptor, "Grappler": grappler,
+    "WindupToy": windup_toy, "WindupGiant": windup_giant,
 }
 VERSIONS = ("Grunt", "Veteran", "Elite")
-# the preview pages: the first 9 kinds, then the 9 added with the new enemy types (one image each, so they stay
-# readable): art/preview/uniforms_templates.png and uniforms_templates_new.png, and the on-body renders
-# art/preview/uniforms.png and uniforms_new.png (clothed.py uniforms <Version> [new], then --stack)
-PAGES = {"": list(KINDS)[:9], "_new": list(KINDS)[9:]}
+# the preview pages: the first 9 kinds, then the 9 added with the new enemy types, then the Suburbs chain's
+# clockwork toys (one image each, so they stay readable): art/preview/uniforms_templates.png,
+# uniforms_templates_new.png and uniforms_templates_toys.png, and the on-body renders art/preview/uniforms.png
+# and uniforms_new.png (clothed.py uniforms <Version> [new], then --stack)
+# Run with --only Kind,Kind to draw just those kinds (and the pages they fill), leaving the others' files alone.
+PAGES = {"": list(KINDS)[:9], "_new": list(KINDS)[9:18], "_toys": list(KINDS)[18:]}
 
 
 def stack():
@@ -1296,13 +1412,18 @@ if __name__ == "__main__":
         stack()
         sys.exit(0)
     sheets = {}
+    only = sys.argv[sys.argv.index("--only") + 1].split(",") if "--only" in sys.argv else None
     for kind, fn in KINDS.items():
+        if only and kind not in only:
+            continue
         for v in VERSIONS:
             sh, pa = fn(v)
             sheets.setdefault(kind, []).append(save(kind, v, sh, pa))
     # preview: every uniform's template (shirt | pants), three versions a row, one sheet per page of kinds
     tw, th = 780, 373
     for suffix, kinds in PAGES.items():
+        if not all(k in sheets for k in kinds):
+            continue  # --only: a page whose kinds were not all drawn keeps its old preview
         sheet = Image.new("RGB", (tw * 3, th * len(kinds)), (120, 120, 120))
         for r, kind in enumerate(kinds):
             for c, im in enumerate(sheets[kind]):

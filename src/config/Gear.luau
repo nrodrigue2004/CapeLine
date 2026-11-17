@@ -548,6 +548,15 @@ return {
 				color = { 230, 180, 50 },
 			},
 			{ n = 3, name = "Jet Pack", shape = "jetpack", tier = "Uncommon", color = { 90, 90, 100 } },
+			-- side quest reward (lore step 11, Wind-Up Lane): the Toymaker's brass clockwork pack. Never rolled.
+			{
+				n = 24,
+				name = "Clockwork Pack",
+				shape = "jetpack",
+				tier = "Story",
+				quest = "ClockworkPack",
+				color = { 205, 160, 70 },
+			},
 			{ n = 4, name = "Light Wings", shape = "lightwings", tier = "Rare", color = { 255, 230, 140 } },
 			{
 				n = 30,
