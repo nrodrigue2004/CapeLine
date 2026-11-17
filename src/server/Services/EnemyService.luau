@@ -226,7 +226,10 @@ function EnemyService.spawnAround(pos: Vector3, n: number, kind: string?)
 		local ang = i / n * math.pi * 2
 		local x, z = pos.X + math.cos(ang) * 40, pos.Z + math.sin(ang) * 40
 		local y = math.max(pos.Y + 15, sim.heightAt(x, z) + 15)
-		EnemySim.spawn(sim, k, x, y, z, 1)
+		local e = EnemySim.spawn(sim, k, x, y, z, 1)
+		if e and kind then
+			EnemySim.company(sim, e, true) -- the Dev panel's Swarmers come as a pack, a Captain with its escort
+		end
 	end
 end
 
