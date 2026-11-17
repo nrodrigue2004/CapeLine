@@ -8,7 +8,7 @@
 --   sneak  (Sneak Bot) cloaks for 4 s, circles behind the hero and backstabs
 --   brute  (Brute Bot) walks in, plants, shows a 0.8 s warning ring, then slams
 --   sentry (Sentry) planted; turns 90 degrees/s, fires when lined up; its shield flickers every 6 s
---   guard  (Null Sentinel) blocks hits from the front; a flank hit breaks the guard and stuns it. The Shield
+--   guard  (Warden) blocks hits from the front; a flank hit breaks the guard and stuns it. The Shield
 --          Bearer is a guard too: its riot shield blocks every front hit and covers the robots behind it
 -- The nine new types (nate, 2026-11-17; each has `on` in Config.Enemies, a type with on = false never spawns):
 --   captain  (Captain) hangs back, fires a sidearm and rallies robots near it (harder hits, faster); when it

@@ -53,7 +53,7 @@ export type Bonus = {
 	faction: number?, -- faction rank
 	firstContract: boolean?, -- one of the first 5 contracts today
 	doublePass: boolean?, -- the 2x pass (earned Credits and Renown only)
-	renownMult: number?, -- Renown only, after the cap: the Comet Crater's +50% (M8)
+	renownMult: number?, -- Renown only, after the cap: the Crater's +50% (M8)
 }
 
 function Progress.multiplier(config: any, bonus: Bonus?): number

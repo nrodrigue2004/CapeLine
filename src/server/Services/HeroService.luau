@@ -33,7 +33,7 @@ export type Hero = {
 	bot: any?,
 	name: string,
 	level: number,
-	side: string, -- "hero" (League) or "villain" (Syndicate)
+	side: string, -- "hero" (the Vigil) or "villain" (the Dread Syndicate)
 	classId: string, -- the archetype (Elemental, Rogue, Powerhouse, Mystic)
 	mobility: string, -- flight, speed, leap, acrobat, swing (Config.Move.mobility)
 	formToken: number?,

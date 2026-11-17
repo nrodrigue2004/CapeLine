@@ -66,7 +66,7 @@ return {
 			clothes = { Grunt = 0, Veteran = 0, Elite = 0 },
 			hair = { "BlackPonytail", "BrownCharmer", "LongRed" },
 		},
-		-- Null Sentinel: the commander's long coat (black, purple, then white)
+		-- Warden (NullSentinel): the commander's long coat (black, purple, then white)
 		NullSentinel = {
 			clothes = { Grunt = 0, Veteran = 0, Elite = 0 },
 			hair = { "LavenderUpdo", "BlondeSpiked", "BlackPonytail" },

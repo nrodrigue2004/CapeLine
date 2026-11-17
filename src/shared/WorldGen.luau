@@ -10,7 +10,7 @@
 --   into 4 lots around their roads; the variant says what stands on each lot and the rotation turns that
 --   pattern a quarter turn at a time. Coast tiles are beaches, piers, lighthouses and dunes.
 -- * base: the ground, the coast sand, the ocean past the map edge and the long road strips.
--- * landmark: Comet Crater, Radio Hill and the Old Quarry, hand-placed on fixed tiles.
+-- * landmark: The Crater (id CometCrater), Radio Hill and the Old Quarry, hand-placed on fixed tiles.
 -- PLACEHOLDER ART: simple parts until the kit pass (M5). With Config.City.kit (overhaul step 5) the outskirts
 -- and hub filler are dressed after each lot is built (no random draws change): clapboard, plaster and brick
 -- fronts, clay-tiled roofs, paved filler sidewalks and asphalt roads, mailboxes and bushes by the houses,
@@ -1085,6 +1085,7 @@ function WorldGen.landmark(cityCfg: any, w: any, index: number): Landmark
 				{ ry = -math.deg(a) }
 			)
 		end
+		-- the glowing core left in the blown Crane lab's ruins (the "comet" glow colour; nate's lore 2026-11-17)
 		box(list, "glow", cx, gy + c.glowHeight / 2 + 4, cz, 30, 30, 30, "comet", { shape = "ball" })
 		for k = 0, 2 do
 			local a = k / 3 * 2 * math.pi

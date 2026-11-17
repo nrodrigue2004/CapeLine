@@ -4,7 +4,7 @@
 --   running events, each with a progress bar and the time left. An incident shows its current step's line
 --   (Config.Incidents); a contract its radar and clock; anything Heroic (Config.Heroic) is tagged HEROIC in
 --   the Heroic colour.
--- * Markers in the world: incidents (blue League, red Syndicate) within 450 studs, events and the boss.
+-- * Markers in the world: incidents (blue Vigil, red Syndicate) within 450 studs, events and the boss.
 -- * Boss: a countdown banner from T minus 60 s, then the shared HP bar with the phase marks, the time left
 --   and the hero's own tier and rank. The result card shows for 5 s (tap to close).
 -- PLACEHOLDER look until the UI pass (M10).
@@ -49,7 +49,7 @@ local TIER_NAME =
 	{ mvp = "MVP", contributor = "Contributor", participant = "Participant", floor = "Took part" }
 
 local function sideColor(side: string): Color3
-	return if side == "villain" then Kit.color.syndicate else Kit.color.league
+	return if side == "villain" then Kit.color.syndicate else Kit.color.vigil
 end
 
 local HC = Config.Heroic

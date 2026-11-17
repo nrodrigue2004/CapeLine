@@ -151,7 +151,7 @@ function ProfileSchema.newCharacter(side: string?, classId: string?): { [string]
 		-- story (M7): opening 1 once the playable disaster is done; missions: first clears (bit n - 1);
 		-- choices: option picked per Act 1 choice (0 = not yet); quests: per side quest arc, 0 not started,
 		-- 1 to 3 the current step, 4 done; pinned: 0 the story, 1 to 8 a side quest; menu: Maribel's pick;
-		-- perks: story perks (bit 1 Null Echo)
+		-- perks: story perks (bit 1 the Echo Drone; key NullEcho)
 		story = {
 			act = 1,
 			flags = words(ProfileSchema.SMALL_WORDS),

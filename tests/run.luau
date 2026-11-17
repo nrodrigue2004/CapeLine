@@ -5283,7 +5283,7 @@ test(
 		check(names["Frame Helm"] and names["Orb Badge"] and names["Wind Scarf"], "mission and quest pieces")
 		check(names["Spark Crest"] and names["Showboat"], "Fame ranks")
 		check(
-			names["Jet Boots"] and names["Reactor Core"] and names["Comet Trail"],
+			names["Jet Boots"] and names["Reactor Core"] and names["Meteor Trail"],
 			"Rustjaw Prime tiers 1 to 3"
 		)
 		check(not names["Moon Crest"], "the Lumen Maw not yet")
@@ -7241,7 +7241,7 @@ test(
 				check(n >= 1 and n <= #Config.Story.quests, p.name .. " side quest exists")
 			elseif src.kind == "rep" then
 				check(
-					(src.a == "league" or src.a == "syndicate" or src.a == "city")
+					(src.a == "vigil" or src.a == "syndicate" or src.a == "city")
 						and n >= 1
 						and n <= #Config.Story.rep.ranks,
 					p.name .. " reputation rank exists"
@@ -9253,6 +9253,214 @@ test(
 		)
 	end
 )
+
+---------------------------------------------------------------------------
+-- Lore step 1 (nate's lore, 2026-11-17): the old lore (the Shardfall comet, Null, the League, the Comet
+-- Crater) is gone from every player-visible text. The Story content that build plan steps 3 and 5 replace
+-- wholesale is excluded below: delete each exclusion when its step lands.
+local OLD_LORE = { "Shardfall", "Null", "League", "Comet" }
+local LORE_SKIP_CONFIG = {
+	["Story.cinematic"] = true, -- step 3 (the new opening)
+	["Story.opening"] = true, -- step 3
+	["Story.missions"] = true, -- step 5 (the new missions)
+	["Story.choices"] = true, -- step 5
+	["Story.quests"] = true, -- step 5 (the side quests)
+}
+local LORE_SKIP_FILES = {
+	["src/shared/OpeningPlan.luau"] = true, -- step 3
+	["src/shared/StoryPlan.luau"] = true, -- steps 3 and 5
+	["src/server/Services/OpeningService.luau"] = true, -- step 3
+	["src/server/Services/MissionService.luau"] = true, -- step 5
+	["src/server/Services/QuestService.luau"] = true, -- step 5
+	["src/client/Fx/StoryFx.luau"] = true, -- steps 3 and 5
+}
+
+-- The old-lore word in a piece of text, or nil. Whole words as players read them (Title or CAPS), so ids
+-- like CometCrater or NullSentinel that never reach the screen pass.
+local function oldLore(text: string): string?
+	for _, w in OLD_LORE do
+		if
+			string.find(text, "%f[%w]" .. w .. "%f[%W]")
+			or string.find(text, "%f[%w]" .. string.upper(w) .. "%f[%W]")
+		then
+			return w
+		end
+	end
+	return nil
+end
+
+test(
+	"Lore step 1: no Shardfall, Null, League or Comet in player-visible text (bar Story steps 3/5)",
+	function()
+		local hits = {}
+		local function walk(v: any, path: string, seen: { [any]: boolean })
+			if LORE_SKIP_CONFIG[path] then
+				return
+			end
+			if type(v) == "string" then
+				local w = oldLore(v)
+				if w then
+					table.insert(hits, path .. ": " .. w .. ' in "' .. v .. '"')
+				end
+			elseif type(v) == "table" and not seen[v] then
+				seen[v] = true
+				for k, x in v do
+					walk(x, path .. "." .. tostring(k), seen)
+				end
+			end
+		end
+		for name, mod in Config do
+			walk(mod, name, {})
+		end
+		-- the string literals in every other source file (config is checked as data above; comments stripped)
+		local fs = require("@lune/fs")
+		local files = 0
+		local function look(path: string, lit: string)
+			local w = oldLore(lit)
+			if w then
+				table.insert(hits, path .. ": " .. w .. " in " .. lit)
+			end
+		end
+		local function scan(dir: string)
+			for _, name in fs.readDir(dir) do
+				local path = dir .. "/" .. name
+				if fs.isDir(path) then
+					scan(path)
+				elseif
+					string.sub(name, -5) == ".luau"
+					and not LORE_SKIP_FILES[path]
+					and not string.find(path, "^src/config/")
+				then
+					files += 1
+					local src = string.gsub(fs.readFile(path), "%-%-%[(=*)%[.-%]%1%]", "")
+					for line in string.gmatch(src .. "\n", "([^\n]*)\n") do
+						line = string.gsub(line, '"[^"]*"', function(lit)
+							look(path, lit)
+							return '""'
+						end)
+						local cut = string.find(line, "--", 1, true)
+						local code = if cut then string.sub(line, 1, cut - 1) else line
+						for lit in string.gmatch(code, "`[^`]*`") do
+							look(path, lit)
+						end
+					end
+				end
+			end
+		end
+		scan("src")
+		check(files > 100, "the scan read the source files")
+		for _, h in hits do
+			check(false, "old lore: " .. h)
+		end
+		-- the scanner itself
+		check(
+			oldLore("Join the League") == "League" and oldLore("COMET CRATER") == "Comet",
+			"the scan finds the words"
+		)
+		check(oldLore("CometCrater") == nil and oldLore("NullSentinel") == nil, "ids pass")
+		-- the renames players read
+		local W = Config.World
+		check(
+			W.landmarks[1].name == "The Crater" and W.safehouses[6].name == "Gantry Yard",
+			"The Crater, Gantry Yard"
+		)
+		check(Config.Boss.bosses.NullWarFrame.name == "The War-Frame", "the War-Frame")
+		check(Config.Story.perks.NullEcho.name == "Echo Drone", "the Echo Drone perk")
+	end
+)
+
+test("Lore step 1: each robot's display name lives in one place (Config.Enemies.<Kind>.name)", function()
+	local fs = require("@lune/fs")
+	local E = Config.Enemies
+	for _, kind in E.order do
+		check(type(E[kind].name) == "string" and #E[kind].name > 0, kind .. " has a display name")
+	end
+	-- activity text names robots with a "{Kind}" token (Config init fills it in), never by hand
+	for _, mod in { "Incidents", "Contracts", "Events", "Deep", "Boss", "World" } do
+		local src = fs.readFile("src/config/" .. mod .. ".luau")
+		for line in string.gmatch(src .. "\n", "([^\n]*)\n") do
+			for lit in string.gmatch(line, '"([^"]*)"') do
+				for _, kind in E.order do
+					local name = E[kind].name
+					local plain = string.gsub(lit, "{%w+}", "")
+					if lit ~= kind and lit ~= name and string.find(plain, "%f[%w]" .. name .. "%f[%W]") then
+						check(
+							false,
+							mod .. ': "' .. lit .. '" names ' .. kind .. " by hand: use {" .. kind .. "}"
+						)
+					end
+				end
+			end
+		end
+		local function walk(t: any, seen: { [any]: boolean })
+			seen[t] = true
+			for _, v in t do
+				if type(v) == "string" then
+					check(not string.find(v, "{%w+}"), mod .. ": every robot token is filled: " .. v)
+				elseif type(v) == "table" and not seen[v] then
+					walk(v, seen)
+				end
+			end
+		end
+		walk(Config[mod], {})
+	end
+	check(
+		Config.Contracts.types.DroneSweep.text == "Defeat 3 " .. E.SparkDrone.name .. " squads",
+		"filled in"
+	)
+	check(
+		Config.Incidents.templates.MedicConvoy.steps[1].text == "Stop the " .. E.MedicUnit.name .. "s",
+		"plural"
+	)
+	check(E.NullSentinel.name == "Warden", "the Null Sentinel is the Warden now")
+end)
+
+test("Lore step 1: League rep is Vigil Trust, Syndicate rep is Fear; old saves keep their points", function()
+	local StoryPlan = require("../src/shared/StoryPlan")
+	local R = Config.Story.rep
+	check(
+		R.order[1] == "vigil" and R.order[2] == "syndicate" and R.order[3] == "city",
+		"vigil, syndicate, city"
+	)
+	check(R.labels.vigil == "Vigil Trust" and R.labels.syndicate == "Syndicate Fear", "Trust and Fear labels")
+	check(StoryPlan.repIndex(Config, "vigil") == 1, "Vigil Trust is the save's first rep slot")
+	-- a version 9 save from before the rename: rep is a list in track order, so nothing moves
+	local old = ProfileSchema.default()
+	old.version = 9
+	old.characters[1].rep = { 900, 40, 300 }
+	old.characters[2] = ProfileSchema.newCharacter("villain")
+	old.characters[2].rep = { 0, 1000, 120 }
+	local back = ProfileSchema.load(serde.decode("json", serde.encode("json", old)))
+	local h, v = back.characters[1], back.characters[2]
+	check(back.version == ProfileSchema.VERSION, "loads at the current version")
+	check(
+		h.rep[1] == 900 and h.rep[2] == 40 and h.rep[3] == 300,
+		"a hero's old League points are its Vigil Trust"
+	)
+	check(StoryPlan.repRank(Config, h.rep[StoryPlan.repIndex(Config, "vigil")]) == 3, "rank 3 Trust")
+	check(v.rep[2] == 1000 and StoryPlan.repRank(Config, v.rep[2]) == 4, "a villain's Fear rank 4 intact")
+	-- the hero's own-side rep from a choice goes to the Vigil
+	local story = ProfileSchema.newCharacter("hero").story
+	local _, fx = StoryPlan.pick(Config, story, 1, 2, "hero")
+	check(fx.rep[1] == "vigil", "a hero's own-side rep is Vigil Trust")
+	-- every creator unlock names a real track
+	local unlocks = 0
+	local function walk(t: any)
+		for _, v in t do
+			if type(v) == "string" and string.sub(v, 1, 4) == "rep:" then
+				unlocks += 1
+				check(
+					table.find(R.order, string.match(v, "^rep:(%a+):")) ~= nil,
+					"unlock " .. v .. " names a track"
+				)
+			elseif type(v) == "table" then
+				walk(v)
+			end
+		end
+	end
+	walk(Config.Creator)
+	check(unlocks >= 30, "the rep unlocks were found")
+end)
 
 print(string.format("\n%d passed, %d failed", passed, failed))
 if failed > 0 then

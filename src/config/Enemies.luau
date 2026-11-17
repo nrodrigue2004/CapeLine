@@ -162,7 +162,7 @@ return {
 	},
 	NullSentinel = {
 		typeId = 6,
-		name = "Null Sentinel",
+		name = "Warden", -- a guard android with a front shield (was "Null Sentinel" before nate's lore)
 		ai = "guard",
 		hp = 900,
 		speed = 14,

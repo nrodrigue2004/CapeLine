@@ -1,8 +1,8 @@
 -- WorldFx: the world boss on screen and the events' looks (spec: World boss; Random events; Juice: boss
 -- landing, phase change, defeat). The server's BossSim is the truth; this draws it.
 -- * The boss model follows Boss.State (eased between the 2 Hz updates): Rustjaw Prime, a 110-stud scrap
---   robot with glowing core and knee weak points and two shoulder cannons; the Lumen Maw, a shard-powered
---   machine beast with three crystals on its back and shard generators around its pit. Broken objectives
+--   robot with glowing core and knee weak points and two shoulder cannons; the Lumen Maw, a crystal-powered
+--   machine beast with three crystals on its back and crystal generators around its pit. Broken objectives
 --   go dark. Machines only: defeats are sparks, bolts and plates, never anything else.
 -- * Telegraphs from Boss.Attack: red ground markers that fill over the warning (ring, cone, circles, lines,
 --   the gravity pull's wide ring); the strike flashes, shakes the camera near it, and the pull drags this
@@ -160,7 +160,7 @@ local function rustjaw(m: Model): { BasePart }
 	return cannons
 end
 
--- The Null War-Frame (mission 6): a tall humanoid war machine with 2 shoulder cannons, a glowing back
+-- The War-Frame (mission 6): a tall humanoid war machine with 2 shoulder cannons, a glowing back
 -- core (the phase 2 shield's weak point) and knee joints. PLACEHOLDER ART: parts until the mesh pass.
 local function warframe(m: Model): { BasePart }
 	local plate = Color3.fromRGB(48, 50, 62)
@@ -248,7 +248,7 @@ local function maw(m: Model)
 	end
 end
 
--- The Leviathan Engine (underwater at launch): a serpent-shaped Null war submarine. A segmented hull runs
+-- The Leviathan Engine (underwater at launch): a serpent-shaped war submarine. A segmented hull runs
 -- back under the surface, the neck and armoured head rise out of the water facing -z, two eyes and a
 -- reactor glow (weak points), and two torpedo bays on its back are the objectives. Feet (y 0) are the
 -- water's surface. PLACEHOLDER ART: parts until the mesh pass.

@@ -4,7 +4,7 @@
 -- Flag per hero and one Ledger per server and ask these functions; nothing here touches Roblox, so Lune runs
 -- every rule in tests.
 -- * Flag: off by default, on at once (at most every 5 s, level 10+, not in a safe area), off only after 60 s
---   with no PvP damage and never inside the Comet Crater. The Crater forces PvP after a 5 s warning.
+--   with no PvP damage and never inside the Crater. The Crater forces PvP after a 5 s warning.
 -- * Hits: both flags are read at the moment of the hit, safe areas block both ways, spawn protection (5 s,
 --   ended by attacking) blocks the target, allies never hit each other.
 -- * Support: an unflagged player cannot heal, shield or buff a flagged player who is in PvP combat.
@@ -103,7 +103,7 @@ function PvpRules.inPvpCombat(config: any, f: Flag, now: number): boolean
 	return now - f.pvpAt < P(config).flag.combat
 end
 
--- The Comet Crater: a 400 x 400 square around the landmark's centre
+-- The Crater (id CometCrater, the ruins of a Crane lab): a 400 x 400 square around the landmark's centre
 function PvpRules.inCrater(centre: { x: number, z: number }, size: number, x: number, z: number): boolean
 	local h = size / 2
 	return math.abs(x - centre.x) <= h and math.abs(z - centre.z) <= h

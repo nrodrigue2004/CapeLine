@@ -25,14 +25,13 @@ local gui: ScreenGui
 local stack: Frame
 local MAX = 4
 
-local REP_NAMES = { league = "LEAGUE", syndicate = "SYNDICATE", city = "CITY" }
 local UNLOCK_NAMES: { [string]: string } = {
 	MayorsSash = "Mayor's Sash style",
 	DockCoat = "Dock Coat style",
 	PhotoFrame = "Photo frame",
 	CafeSign = "Cafe sign for your HQ",
 	Salute = "Salute emote",
-	NullEcho = "Null Echo, your drone buddy",
+	NullEcho = "Echo Drone, your drone buddy",
 }
 local M9_REASONS: { [string]: string } = {
 	combat = "Not during a fight",
@@ -63,7 +62,7 @@ local PVP_REASONS: { [string]: string } = {
 	rate = "Wait a moment before switching again",
 	safe = "Step out of the safe area to switch PvP on",
 	combat = "PvP can switch off 60 s after the last PvP hit",
-	crater = "Leave the Comet Crater to switch PvP off",
+	crater = "Leave the Crater to switch PvP off",
 }
 
 local MISSION_REASONS: { [string]: string } = {
@@ -259,7 +258,7 @@ function Toasts.show(data: { [string]: any })
 	elseif id == "contractRefused" then
 		push(ContractBoard.REASONS[data.reason or ""] or "You cannot take that contract", Kit.color.paper)
 	elseif id == "photo" then
-		push("SNAP! Sneak Bot photographed", Kit.color.volt)
+		push("SNAP! " .. Config.Enemies.SneakBot.name .. " photographed", Kit.color.volt)
 	-- 2026-11-17: the new activities' moments (fixed lines)
 	elseif id == "beat" then
 		local b = Config.Incidents.beats[data.beat or ""]
@@ -329,7 +328,11 @@ function Toasts.show(data: { [string]: any })
 		)
 	elseif id == "repRank" then
 		push(
-			string.format("%s REPUTATION RANK %d", REP_NAMES[data.track] or "", data.rank or 1),
+			string.format(
+				"%s RANK %d",
+				string.upper(Config.Story.rep.labels[data.track] or ""),
+				data.rank or 1
+			),
 			Kit.color.gold,
 			true,
 			4.5
@@ -365,7 +368,7 @@ function Toasts.show(data: { [string]: any })
 			push(text, Kit.color.paper)
 		end
 	elseif id == "craterIn" then
-		push("COMET CRATER: PVP ZONE, +50% RENOWN", Color3.fromRGB(255, 120, 110), true)
+		push("THE CRATER: PVP ZONE, +50% RENOWN", Color3.fromRGB(255, 120, 110), true)
 	elseif id == "revived" then
 		push(
 			string.format("You revived %s  +%d Renown", data.name or "", data.renown or 0),

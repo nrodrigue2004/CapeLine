@@ -31,7 +31,7 @@ return {
 			num = 1,
 			name = "Drone sweep",
 			side = "both",
-			text = "Defeat 3 Spark Trooper squads",
+			text = "Defeat 3 {SparkDrone} squads",
 			goal = 3,
 			squad = { "SparkDrone", 3 },
 			credits = { 40, 4 },
@@ -48,9 +48,9 @@ return {
 		},
 		ShardRecovery = {
 			num = 3,
-			name = "Shard recovery",
+			name = "Core recovery",
 			side = "both",
-			text = "Find 3 shards with the radar",
+			text = "Find 3 lost power cores with the radar",
 			goal = 3,
 			credits = { 50, 4 },
 			pickup = 8, -- touch range
@@ -82,7 +82,7 @@ return {
 			num = 6,
 			name = "Stakeout",
 			side = "hero",
-			text = "Photograph 3 Sneak Bots",
+			text = "Photograph 3 {SneakBot}s",
 			goal = 3,
 			photoRange = 40,
 			photoTime = 2, -- seconds in view to get the photo

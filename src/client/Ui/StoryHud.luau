@@ -135,7 +135,7 @@ local function playCinematic()
 	local p2 = panel(layer, Color3.fromRGB(26, 22, 54))
 	shape(p2, Color3.fromRGB(10, 10, 18), UDim2.fromScale(0.2, 0.86), UDim2.fromScale(0.34, 0.3))
 	shape(p2, Color3.fromRGB(10, 10, 18), UDim2.fromScale(0.8, 0.84), UDim2.fromScale(0.34, 0.34))
-	shape(p2, rgb(U.colors.league), UDim2.fromScale(0.2, 0.62), UDim2.fromOffset(18, 46), 6)
+	shape(p2, rgb(U.colors.vigil), UDim2.fromScale(0.2, 0.62), UDim2.fromOffset(18, 46), 6)
 	shape(p2, rgb(U.colors.syndicate), UDim2.fromScale(0.8, 0.6), UDim2.fromOffset(18, 46), 6)
 	local shards = {}
 	for i = 1, 6 do
@@ -327,7 +327,7 @@ local function refreshChoice()
 			Text = string.upper(label),
 			Size = UDim2.new(1 / #c.labels, -12, 1, 0),
 			LayoutOrder = i,
-			BackgroundColor3 = if i == 1 then rgb(U.colors.league) else rgb(U.colors.syndicate),
+			BackgroundColor3 = if i == 1 then rgb(U.colors.vigil) else rgb(U.colors.syndicate),
 			TextColor3 = Kit.color.paper,
 			maxText = 34,
 		}, function()
@@ -416,7 +416,17 @@ local function showResult(r: { [string]: any })
 			table.insert(lines, { string.format("+%d SKILL POINT", r.skillPoints), Kit.color.gold, 18 })
 		end
 		if r.rep then
-			table.insert(lines, { string.format("+%d REPUTATION", r.rep), Kit.color.paper, 16 })
+			table.insert(lines, {
+				string.format(
+					"+%d %s",
+					r.rep,
+					string.upper(
+						Config.Story.rep.words[if State.hero.side == "villain" then "syndicate" else "vigil"]
+					)
+				),
+				Kit.color.paper,
+				16,
+			})
 		end
 		if r.epic then
 			table.insert(lines, { "THE EPIC CRATE OPENED!", Color3.fromRGB(200, 120, 255), 20 })

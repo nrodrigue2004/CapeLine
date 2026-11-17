@@ -66,7 +66,7 @@ return {
 	},
 	combatLog = { window = 15, linger = 10 }, -- leaving within 15 s of PvP damage: 10 s in the world, a defeat
 
-	-- Rings: blue League, red Syndicate (heroes and villains)
+	-- Rings: blue Vigil, red Dread Syndicate (heroes and villains)
 	ring = { hero = { 70, 140, 255 }, villain = { 235, 60, 60 } },
 
 	-- Fame (heroes) and Infamy (villains): one bar, the same numbers (spec: Fame and Infamy)

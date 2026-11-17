@@ -48,7 +48,7 @@ return {
 		height = { min = 40, max = 190, towerChance = 0.18, towerMin = 400, towerMax = 600 },
 		rooftop = { ledgeChance = 0.5, waterTowerChance = 0.25, antennaChance = 0.3 },
 		plaza = { size = 140 }, -- the open square around the Beacon Tower, where new heroes land
-		beacon = { height = 640, width = 46 }, -- Beacon Tower HQ (League side), the Downtown landmark, the tallest there
+		beacon = { height = 640, width = 46 }, -- Beacon Tower HQ (the Vigil's side), the Downtown landmark, the tallest there
 		seed = 20261116, -- fixed: the hub is handcrafted in the spec, so it never changes with the weekly seed
 		core = CORE, -- the first 700 x 700: its blocks keep their draws, so its buildings never move
 		grow = GROW,

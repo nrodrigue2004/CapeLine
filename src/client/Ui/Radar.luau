@@ -109,7 +109,7 @@ local function draw()
 		for _, inc in WorldClient.incidents do
 			if inc.state == WorldClient.ACTIVE and inc.pos then
 				n += 1
-				local col = if inc.side == "villain" then Kit.color.syndicate else Kit.color.league
+				local col = if inc.side == "villain" then Kit.color.syndicate else Kit.color.vigil
 				place(n, inc.pos, origin, -yaw, "circle", col, 12)
 			end
 		end

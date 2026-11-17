@@ -161,7 +161,7 @@ function StoryPlan.pick(
 	if o.rep then
 		local track = o.rep[1]
 		if track == "side" then
-			track = if side == "villain" then "syndicate" else "league"
+			track = if side == "villain" then "syndicate" else "vigil"
 		end
 		fx.rep = { track, o.rep[2] }
 	end

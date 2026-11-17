@@ -1897,7 +1897,7 @@ add(106, "GiantStride", {
 		{ name = "Long Stride", mul = { forward = 1.3 } },
 		{ name = "Heavy Step", mul = { radius = 1.3 } },
 	},
-	cap = { name = "Seven League", set = { recasts = 2 } },
+	cap = { name = "Seven Strides", set = { recasts = 2 } },
 })
 add(107, "Grow", {
 	set = "Colossus",

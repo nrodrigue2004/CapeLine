@@ -388,7 +388,7 @@ return {
 			{ n = 4, name = "Light Wings", shape = "lightwings", tier = "Rare", color = { 255, 230, 140 } },
 			{
 				n = 30,
-				name = "Maw Shard Fins",
+				name = "Maw Crystal Fins",
 				shape = "lightwings",
 				tier = "Boss",
 				boss = "LumenMaw",
@@ -396,7 +396,7 @@ return {
 			},
 			{
 				n = 31,
-				name = "Shiny Maw Shard Fins",
+				name = "Shiny Maw Crystal Fins",
 				shape = "lightwings",
 				tier = "Boss",
 				boss = "LumenMaw",

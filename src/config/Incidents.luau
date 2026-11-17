@@ -105,7 +105,7 @@ return {
 			side = "hero",
 			where = "street",
 			time = 90,
-			text = "Stop the Burglar Bots",
+			text = "Stop the {BurglarBot}s",
 			steps = { { kind = "defeat", enemies = { { "BurglarBot", 4, 8 } } } },
 		},
 		TowerFire = {
@@ -149,7 +149,7 @@ return {
 			where = "roof",
 			time = 60,
 			text = "Catch the Velvet Paw bot",
-			villainText = "Catch the League courier bot",
+			villainText = "Catch the Vigil courier bot",
 			steps = { { kind = "runner", enemy = "SneakBot", hops = 6, speed = 26 } },
 		},
 		CatOnCrane = {
@@ -188,7 +188,7 @@ return {
 		},
 		ShardCrate = {
 			num = 9,
-			name = "Shard crate",
+			name = "Tech crate",
 			side = "villain",
 			where = "any",
 			time = 90,
@@ -204,7 +204,7 @@ return {
 			side = "villain",
 			where = "any",
 			time = 75,
-			text = "Wreck the League relay before the timer",
+			text = "Wreck the Vigil relay before the timer",
 			steps = {
 				{ kind = "defeat", enemies = { { "SparkDrone", 2, 3 } } },
 				{ kind = "object", hits = 10, label = "Relay" },
@@ -213,7 +213,7 @@ return {
 		-- 2026-11-17: more activities (each of the nine new robot types gets a job of its own)
 		SniperNest = {
 			num = 11,
-			name = "Sniper nest",
+			name = "{Sniper} nest",
 			villainName = "Rooftop nest",
 			side = "both",
 			where = "nest",
@@ -237,8 +237,8 @@ return {
 			where = "street",
 			time = 110,
 			requires = { "MedicUnit" },
-			text = "Stop the Medic Units before they reach the squad",
-			villainText = "Stop the Medic Units fixing a rival squad",
+			text = "Stop the {MedicUnit}s before they reach the squad",
+			villainText = "Stop the {MedicUnit}s fixing a rival squad",
 			steps = {
 				{
 					kind = "convoy",
@@ -246,7 +246,7 @@ return {
 					n = 2,
 					speed = 9,
 					legs = 6,
-					text = "Stop the Medic Units",
+					text = "Stop the {MedicUnit}s",
 				},
 				{
 					kind = "defeat",
@@ -263,38 +263,40 @@ return {
 			where = "street",
 			time = 110,
 			requires = { "Captain" },
-			text = "Break the warband: down its Captain",
+			text = "Break the warband: down its {Captain}",
 			steps = {
 				{
 					kind = "leader",
 					leader = "Captain",
 					enemies = { { "BurglarBot", 2, 3 }, { "SparkDrone", 1, 2 } },
-					text = "Down the Captain",
+					text = "Down the {Captain}",
 				},
 			},
 		},
 		MimicCrowd = {
 			num = 14,
-			name = "Mimic in the crowd",
+			name = "{Mimic} in the crowd",
 			villainName = "Copycat",
 			side = "both",
 			where = "street",
 			time = 90,
 			requires = { "Mimic" },
-			text = "A Mimic hides in the crowd: find it",
-			villainText = "A Mimic is copying your crew: find it",
-			steps = { { kind = "find", enemies = { { "Mimic", 1, 1 } }, crowd = 6, text = "Find the Mimic" } },
+			text = "A {Mimic} hides in the crowd: find it",
+			villainText = "A {Mimic} is copying your crew: find it",
+			steps = {
+				{ kind = "find", enemies = { { "Mimic", 1, 1 } }, crowd = 6, text = "Find the {Mimic}" },
+			},
 		},
 		BomberBarrage = {
 			num = 15,
-			name = "Bomber barrage",
+			name = "{Bomber} barrage",
 			villainName = "Shell storm",
 			side = "both",
 			where = "street",
 			time = 100,
 			requires = { "Bomber" },
-			text = "Shield the citizens from the Bomber barrage",
-			villainText = "Shield your crew from the Bomber barrage",
+			text = "Shield the citizens from the {Bomber} barrage",
+			villainText = "Shield your crew from the {Bomber} barrage",
 			steps = {
 				{
 					kind = "barrage",
@@ -311,21 +313,21 @@ return {
 		},
 		GrapplerTow = {
 			num = 16,
-			name = "Grappler tow",
+			name = "{Grappler} tow",
 			villainName = "Tow job",
 			side = "both",
 			where = "street",
 			time = 80,
 			requires = { "Grappler" },
-			text = "A Grappler is hauling a car away: stop it",
-			villainText = "A Grappler is hauling off your getaway car",
+			text = "A {Grappler} is hauling a car away: stop it",
+			villainText = "A {Grappler} is hauling off your getaway car",
 			steps = {
 				{
 					kind = "tug",
 					enemies = { { "Grappler", 1, 1 } },
 					speed = 2.5,
 					dist = 110,
-					text = "Down the Grappler",
+					text = "Down the {Grappler}",
 				},
 				{ kind = "rescue", count = 1, text = "Get the driver out" },
 			},
@@ -423,7 +425,7 @@ return {
 			side = "both",
 			where = "any",
 			time = 80,
-			text = "Interceptors are hunting flyers: beat them",
+			text = "{Interceptor}s are hunting flyers: beat them",
 			steps = {
 				{
 					kind = "defeat",
@@ -460,7 +462,7 @@ return {
 			side = "villain",
 			where = "nest",
 			time = 100,
-			text = "Take the League rooftop relay",
+			text = "Take the Vigil rooftop relay",
 			steps = {
 				{
 					kind = "nest",

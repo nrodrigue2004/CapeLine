@@ -3,8 +3,8 @@
 -- * STORY: Act 1's 6 missions with their state, a START (or REPLAY) button, the choices picked so far, and
 --   a PIN button for the story.
 -- * QUESTS: the 8 side quest arcs: who gives them and where, the current step, PIN.
--- * REP: the League, Syndicate and City tracks with their rank (ranks at 100, 300, 600, 1,000, 1,500).
--- * PERKS: the story perks unlocked by choices (Null Echo).
+-- * REP: Vigil Trust, Syndicate Fear and City Reputation with their rank (ranks at 100, 300, 600, 1,000, 1,500).
+-- * PERKS: the story perks unlocked by choices (the Echo Drone).
 -- Opened with the JOURNAL button or J. PLACEHOLDER look until the UI pass (M10).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -173,9 +173,7 @@ local function drawQuests(j: any)
 end
 
 local function drawRep(j: any)
-	local names = { league = "THE LEAGUE", syndicate = "THE SYNDICATE", city = "THE CITY" }
-	local colors =
-		{ league = rgb(U.colors.league), syndicate = rgb(U.colors.syndicate), city = Kit.color.gold }
+	local colors = { vigil = rgb(U.colors.vigil), syndicate = rgb(U.colors.syndicate), city = Kit.color.gold }
 	for i, track in S.rep.order do
 		local pts = j.rep[i] or 0
 		local rank = StoryPlan.repRank(Config, pts)
@@ -183,7 +181,7 @@ local function drawRep(j: any)
 		local r = row(i, 70)
 		text(
 			r,
-			string.format("%s   RANK %d", names[track], rank),
+			string.format("%s   RANK %d", string.upper(S.rep.labels[track]), rank),
 			UDim2.fromOffset(10, 4),
 			UDim2.new(1, -20, 0, 26),
 			colors[track],

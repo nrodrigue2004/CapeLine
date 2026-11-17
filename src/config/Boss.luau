@@ -1,7 +1,7 @@
 -- World boss (spec: Schedulers > World boss; Opening and story > World boss; Boss.State, Boss.Contribution,
 -- Boss.Result). Two launch bosses alternate: Rustjaw Prime lands in Downtown, the Lumen Maw rises from the
--- Old Quarry. Both are machines (a scrap robot and a shard-powered machine beast). The third, the Leviathan
--- Engine (underwater at launch, nate 2026-11-16), surfaces over the Trench: a serpent-shaped Null war
+-- Old Quarry. Both are machines (a scrap robot and a crystal-powered machine beast). The third, the Leviathan
+-- Engine (underwater at launch, nate 2026-11-16), surfaces over the Trench: a serpent-shaped war
 -- submarine. Heroes fight it from the water, from Frost ice rafts and from the air. (tune)
 -- * Schedule: 20 to 30 minutes after the last one ended; a server with a player who has never seen a boss
 --   clamps the wait to 6 minutes. A banner and siren at T minus 60 s. Raid prep incidents run in the last
@@ -135,7 +135,7 @@ return {
 				{ id = "crystalB", at = { 0, 62, 16 }, r = 5, weak = true },
 				{ id = "crystalC", at = { 12, 58, 8 }, r = 5, weak = true },
 			},
-			-- objectives: shard generators around the pit that heal it while they stand
+			-- objectives: crystal generators around the pit that heal it while they stand
 			objectives = {
 				kind = "generator",
 				hits = 30,
@@ -250,13 +250,13 @@ return {
 				},
 			},
 		},
-		-- Mission 6 (Story): Null's War-Frame. Not in `order`, so the world scheduler never picks it. 3 phases:
+		-- Mission 6 (Story): the War-Frame (a famous fake's battle form from build plan step 5). Not in `order`, so the world scheduler never picks it. 3 phases:
 		-- rockets and a ground sweep while its 2 shoulder cannons stand; at 66% it calls 6 Spark Drones and
 		-- raises a shield that only 3 hits on the back weak point break; at 33% a floor-fire sweep and a
 		-- charged laser that the arena's pillars block. It never retreats (a wipe just retries).
 		NullWarFrame = {
 			num = 3,
-			name = "Null War-Frame",
+			name = "The War-Frame",
 			mission = true,
 			arenaRadius = 180,
 			height = 60,

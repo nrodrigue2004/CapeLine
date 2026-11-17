@@ -530,7 +530,7 @@ function CityLayout.downtown(cityCfg: any, worldCfg: any?): Layout
 				dashes(boxes, t, kit, minX, minZ, gy, bx < lastX, bz < lastZ)
 			end
 			if bx == midX and bz == midZ then
-				-- the plaza and Beacon Tower (League HQ): where new heroes land
+				-- the plaza and Beacon Tower (the Vigil's HQ): where new heroes land
 				box(boxes, "plaza", bcx, gy + 0.6, bcz, t.block, 1, t.block, "sidewalk")
 				local bw = t.beacon.width
 				box(

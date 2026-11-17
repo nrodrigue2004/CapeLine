@@ -269,17 +269,21 @@ return {
 			},
 		},
 	},
-	perks = { NullEcho = { bit = 1, name = "Null Echo", text = "A little drone buddy follows you" } },
+	perks = { NullEcho = { bit = 1, name = "Echo Drone", text = "A little drone buddy follows you" } },
 
-	-- Reputation tracks (spec: Faction reputation): ranks at 100, 300, 600, 1,000 and 1,500
+	-- Reputation tracks (spec: Faction reputation): ranks at 100, 300, 600, 1,000 and 1,500. The save keeps
+	-- the points as a list in this order (vigil was "league" before nate's lore, 2026-11-17: same slot).
+	-- labels: what players read (Vigil rep is Trust, Syndicate rep is Fear); word: the short form.
 	rep = {
-		order = { "league", "syndicate", "city" },
+		order = { "vigil", "syndicate", "city" },
+		labels = { vigil = "Vigil Trust", syndicate = "Syndicate Fear", city = "City Reputation" },
+		words = { vigil = "Trust", syndicate = "Fear", city = "Reputation" },
 		ranks = { 100, 300, 600, 1000, 1500 },
 		rescue = 5,
 		mission = 50,
 	},
 
-	-- The Null War-Frame (mission 6): 36,000 HP at level 20, scaled by the party's median level. A BossSim
+	-- The War-Frame (mission 6): 36,000 HP at level 20, scaled by the party's median level. A BossSim
 	-- boss with a back shield in phase 2 and pillars that block its laser in phase 3.
 	warframe = {
 		hp = 36000,

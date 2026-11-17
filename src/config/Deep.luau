@@ -4,7 +4,7 @@
 -- Areas:
 --   The Sunken Line  a flooded subway under the Docks, reached from the harbour basin's floor
 --   Coral Shelf      the shallow sea off the south beach: reef, shipwrecks, sunken cargo caches
---   The Trench       the deep sea past the shelf: a sunken Null factory (the Act 2 mission pocket) and the
+--   The Trench       the deep sea past the shelf: a sunken factory (the Act 2 mission pocket) and the
 --                    Leviathan Engine's arena
 -- Coordinates: the map runs -2,400 to 2,400 (City.mapSize); the water surface is World.coast.waterY.
 return {

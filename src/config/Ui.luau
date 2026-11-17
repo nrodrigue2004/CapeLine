@@ -39,7 +39,7 @@ return {
 		healthLow = { 240, 80, 70 },
 		stamina = { 255, 210, 90 },
 		cooldown = { 0, 0, 0 },
-		league = { 70, 150, 255 },
+		vigil = { 70, 150, 255 }, -- the Vigil (heroes)
 		syndicate = { 235, 70, 70 },
 		muted = { 140, 146, 160 },
 	},

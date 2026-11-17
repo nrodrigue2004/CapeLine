@@ -1,8 +1,8 @@
--- PvpHud: PvP and death on screen (spec: The PvP flag; Comet Crater; Defeat and death; juice rows Downed and
+-- PvpHud: PvP and death on screen (spec: The PvP flag; the Crater; Defeat and death; juice rows Downed and
 -- PvP flag on). Buttons carry verbs only.
 -- * PVP button (level 10+): OFF or ON in the side colour; while it may not turn off it shows the seconds
 --   left; a protection badge shows the 5 s spawn shield.
--- * The Comet Crater: a red border warning with a 5 s count and a LEAVE button, then "PVP ZONE" while
+-- * The Crater: a red border warning with a 5 s count and a LEAVE button, then "PVP ZONE" while
 --   inside (with the +50% Renown note).
 -- * Downed: a grey edge with a heartbeat pulse, the seconds left, GIVE UP, a HELP ping button and who is
 --   reviving you. Defeated: the respawn picker (nearest, or any visited safehouse) and the count.
@@ -469,7 +469,7 @@ local function frame()
 		local left = math.max(0, (f.warnLeft or 0) - since)
 		craterText.Text = if (State.hero.level or 1) >= Config.Pvp.minLevel
 			then ("PVP ZONE IN " .. math.ceil(left))
-			else "COMET CRATER: PVP ZONE"
+			else "THE CRATER: PVP ZONE"
 		craterLeave.Visible = true
 	elseif f.crater == "in" then
 		craterBar.Visible = true

@@ -1,6 +1,6 @@
 -- PvpFx: what PvP and death look like in the world, drawn on this device (spec: The PvP flag "Visible";
 -- Defeat and death; the juice table rows Downed, Revive, PvP flag on).
--- * Rings: a flagged player stands in a ring, blue and round for the League, red and square for the
+-- * Rings: a flagged player stands in a ring, blue and round for the Vigil, red and square for the
 --   Syndicate (colorblind-safe); it grows in
 --   when the flag turns on and is faint while spawn protection lasts.
 -- * Downed: a grey pulse ring under the kneeling hero.
@@ -59,7 +59,7 @@ local function step(now: number)
 		local root = rootOf(p)
 		local want = p:GetAttribute("Pvp") == true and root ~= nil
 		local r = rings[p]
-		-- colorblind-safe: League rings are round, Syndicate rings are square (spec: Accessibility)
+		-- colorblind-safe: Vigil rings are round, Syndicate rings are square (spec: Accessibility)
 		local square = p:GetAttribute("PvpSide") == "villain"
 		if r and (r :: any).square ~= square then
 			r.part:Destroy()

@@ -83,6 +83,15 @@ What nate does:
 ## Studio test list (needs nate's PC)
 Start: `rojo serve`, connect the Rojo plugin, press Play (or Test > Clients and Servers with 2 players). The DEV button (top right, Studio only) has the test tools.
 
+### Lore step 1: renames (2026-11-17)
+nate's lore and build plan step 1 (https://claude.ai/artifact/9F2uydBzqv4KhcPG1aFdp5): display names only; ids and saves are unchanged. The opening, missions, choices and side quests still carry the old text until steps 3 and 5.
+1. Creator SIDE tab: Hero reads "Join The Vigil: earn Trust ..."; Villain "Join The Dread Syndicate: earn Fear ...". A piece locked by rep says "Vigil Trust rank 2" or "Syndicate Fear rank 2".
+2. Journal REP tab: VIGIL TRUST, SYNDICATE FEAR and CITY REPUTATION with their ranks. An old hero (DEV: one made before this update) keeps the same points and ranks.
+3. Rank up a rep track (DEV: give rep or play a mission): the toast says VIGIL TRUST RANK n (or SYNDICATE FEAR, CITY REPUTATION). A mission result card says +n TRUST for a hero, +n FEAR for a villain.
+4. Map (M): the landmark reads THE CRATER; the Docks safehouse reads Gantry Yard. Fly into the Crater: the bar reads THE CRATER: PVP ZONE and the toasts say the Crater.
+5. Boss bar and banners on mission 6 read THE WAR-FRAME. The guard robot reads Warden (DEV > robot button). Story perk toast: UNLOCKED: ECHO DRONE, YOUR DRONE BUDDY.
+6. Activities: incident, event and contract text names robots as before (Spark Trooper, Medic Units, Captain ...): the names now come from Config.Enemies, filled in at start. The villain events and incidents say the Vigil; Shard recovery is Core recovery, Shard crate is Tech crate; the Lumen Maw fins are Maw Crystal Fins; the creator's comet pieces are Meteor Cape, Meteor Trail and Meteor Tee, and the name wheel has Meteor where Comet was.
+
 ### New robot types: review fixes (2026-11-17)
 The review's fixes (Decisions.md, 2026-11-17 robots review). DEV > robot button cycles the types.
 1. Sniper: let it start its laser on you, then stun it (any stun power): the red laser, the red screen edge and the lock sound all stop, and no round comes. Do the same with a Pull: no round right after the pull ends.

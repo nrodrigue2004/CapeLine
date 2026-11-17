@@ -128,7 +128,7 @@ function PvpClient.position(id: number): Vector3?
 	return nil
 end
 
--- The ring colour for a side (blue League, red Syndicate)
+-- The ring colour for a side (blue Vigil, red Syndicate)
 function PvpClient.ringColor(side: string?): Color3
 	local c = if side == "villain" then Config.Pvp.ring.villain else Config.Pvp.ring.hero
 	return Color3.fromRGB(c[1], c[2], c[3])

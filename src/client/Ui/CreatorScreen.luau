@@ -183,9 +183,7 @@ local function sourceText(p: CreatorRules.Piece): string
 	if k == "lvl" then
 		return "Level " .. (s.n or 0)
 	elseif k == "rep" then
-		return (if s.a == "league" then "League" elseif s.a == "syndicate" then "Syndicate" else "City")
-			.. " rank "
-			.. (s.n or 0)
+		return (Config.Story.rep.labels[s.a :: string] or "City Reputation") .. " rank " .. (s.n or 0)
 	elseif k == "fame" then
 		return "Fame rank " .. (s.n or 0)
 	elseif k == "boss" then
@@ -516,8 +514,8 @@ end
 
 ----------------------------------------------------------------------------------------------- SIDE
 local SIDES = {
-	{ "Hero", "Earn League reputation, protect the city. Bright skies." },
-	{ "Villain", "Earn Syndicate reputation, rule the city. Storm-red skies." },
+	{ "Hero", "Join The Vigil: earn Trust, protect the city. Bright skies." },
+	{ "Villain", "Join The Dread Syndicate: earn Fear, rule the city. Storm-red skies." },
 }
 local function drawSide()
 	preview.focus("full")

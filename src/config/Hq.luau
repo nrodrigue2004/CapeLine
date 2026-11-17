@@ -1,5 +1,5 @@
 -- Hq: the Hero HQ and the Hall of Legends (spec: Hero HQ (Beacon Tower or the Foundry); Legacy rebirth).
--- One HQ per side: the League's Beacon Tower and the Syndicate's Foundry, entered by their doors in the city. A visit is
+-- One HQ per side: the Vigil's Beacon Tower and the Dread Syndicate's Foundry, entered by their doors in the city. A visit is
 -- solo (friend visits come in Update 2): each visitor gets their own sealed cell far above the map, the
 -- server builds its floor and walls, and the device builds the rooms. PLACEHOLDER ART: greybox rooms.
 return {

@@ -3,7 +3,7 @@
 -- comes back as FlagState plus the Pvp and PvpSide player attributes that everyone's rings and name plates
 -- read.
 -- * Switch: on at once from level 10 (not in a safe area), at most every 5 s; off only after 60 s with no
---   PvP damage dealt or taken, and never inside the Comet Crater.
+--   PvP damage dealt or taken, and never inside the Crater.
 -- * The Crater: walking in starts a 5 s warning ring (and a Leave button); staying forces PvP for level 10+;
 --   +50% Renown inside (the InCrater attribute, read by EconomyService).
 -- * Targets: targetsFor(attacker) lists the flagged heroes an attacker may hit (combat ids PVP_BASE + slot),
