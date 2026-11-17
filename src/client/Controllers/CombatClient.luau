@@ -164,6 +164,9 @@ local function aim(range: number, origin: Vector3): (Vector3, number, Vector3?)
 	return point, 0, nil
 end
 
+-- H3: ThrowClient aims a throw the same way (auto-aim on pads and phones, the crosshair on PC)
+CombatClient.aimAt = aim
+
 local function rayDist(from: Vector3, dir: Vector3, max: number): number
 	rayParams.FilterDescendantsInstances = skipList()
 	local hit = Workspace:Raycast(from, dir * max, rayParams)

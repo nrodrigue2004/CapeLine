@@ -46,6 +46,7 @@ local NAMES = {
 	"NpcLooks",
 	"Weapons",
 	"Guard", -- H1: block, breaker, interrupt (Hero MMO features)
+	"Throw", -- H3: pick up and throw (Hero MMO features)
 }
 
 local Config: { [string]: any } = {}

@@ -77,6 +77,7 @@ export type Hero = {
 	gadget: string?,
 	luckyCount: number, -- Lucky Strike: every 8th hit
 	traveling: boolean, -- on a fast-travel flight: untargetable (BeaconService)
+	carry: any?, -- H3: what the hero holds overhead (ThrowService)
 	safehouse: number?, -- the safehouse the hero stands in (SafehouseService)
 	secondWindAt: number, -- Second Wind ready again (os.clock)
 	scene: string?, -- "opening" or "mission": in a story scene (no incidents, contracts or world events)

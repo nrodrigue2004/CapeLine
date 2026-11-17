@@ -25,9 +25,11 @@ phones or Studio go on the Studio test list below.
 |---|---|---|---|
 | H1 | Block, breaker, interrupt, perfect block, robot blocks and tells | GuardMath tests: each side of the triangle, Guard drain and refill, perfect block window, PvP compression | Code-complete 2026-11-17 |
 | H2 | Charge-up powers: 24 skills (1 or 2 a path) charge 1x to 2.2x damage and up to 1.5x size over 1.2 s; full is a breaker; slowed to 60% while charging; interrupts cancel | ChargeRules tests: 24 rows, every archetype, scaling, full breaks a block, other skills keep the modest charge, interrupt refund | Code-complete 2026-11-17 |
+| H3 | Pick up and throw: light, medium, heavy things; cars for Powerhouse or Awakened; Titan's Lift and Throw lifts any weight | ThrowMath tests: weights, who lifts what, arcs and landing hits, no citizens or heroes, PvP flag rule, timers, prop spots | Code-complete 2026-11-17 |
 
 Waiting on others:
 - H1: the Sneak Bot's lunge wind-up (spec: "Sneak Bots charge a lunge") needs a short wind-up before its stab in EnemySim's sneak brain, which the enemy thread is reworking; interrupts already cancel any robot wind-up, so it works once the sneak sets `windupUntil`. The War-Frame's timed block waits for the same reason (BossSim and the mission's War-Frame); add `WarFrame` to Config.Guard.robotBlocks once it has a facing and a block window.
+- H3: downed robots as medium throwables (spec) need a robot body that stays after a defeat; EnemyService and EnemyRenderer belong to the enemy thread. Add a `downedBot` kind to Config.Throw.kinds and register the wreck with ThrowService once a defeated robot leaves a wreck. The analytics funnel steps (first block, first throw) come with the H7 counters.
 
 ## Placeholder art and animation (replace before launch)
 - City: Downtown greybox boxes, window bands and rooftop props (CityBuilder). PLACEHOLDER ART.
@@ -60,6 +62,7 @@ Waiting on others:
 - Creator, Robux shop, HQ panels (M9): Kit placeholder look, text tiles, no piece icons; the preview is a ViewportFrame copy of the hero (CreatorScreen, ShopHud, HqHud, Preview). PLACEHOLDER ART until M10.
 - HUD: Kit placeholder look (M10 restyles).
 - Block (H1): the hero's shield is a flat neon disc held out in front, a robot's block is a blue ForceField ball, the shatter and perfect flashes are neon balls, and the comic words are Bangers text (GuardFx); no block pose yet (HeroAnimator keeps the walk). PLACEHOLDER ART.
+- Throwables (H3): benches, bins, mailboxes, signs, rubble, lamp posts, dumpsters, vending machines and slabs are single plain parts (ThrowService, Config.Throw.kinds); the lift is a tween of the weld, with no carry or throw pose (HeroAnimator keeps the walk); dust and chips are plain parts (ThrowFx); the prompt is a Bangers billboard. PLACEHOLDER ART.
 - M11 sounds: every juice sound is one of Roblox's built-in client sounds (rbxasset://sounds: swoosh, jump land, falling, get up, ping, button, click) pitched per action; music loops and voice clips are silent (asset 0) (Config.Audio, Config.Shop.voiceSounds). PLACEHOLDER SOUND until nate picks licence-checked Creator Store ids.
 - M11 juice visuals: coin burst, medal and NEW stamps, the level badge, tier beams, fireworks, confetti, the shield ring and dazed stars are neon parts and Kit frames (JuiceFx); Photo Mode backdrops are Kit frames and colour grades (PhotoMode); the photo poses are joint angles (EmoteFx). PLACEHOLDER ART until the art pass.
 - M10 screens: Settings, the squad list, panel and invite card, the radar (Kit shapes and glyphs: circle, diamond, triangle, square, star), the ping wheel, the settings gear and the main menu are Kit placeholder looks (SettingsMenu, SquadHud, Radar, Shapes, Hud, MainMenu). PLACEHOLDER ART until the art pass. The squad emblem is a text glyph.
@@ -310,6 +313,17 @@ The Output at boot says build mmo-h2 charge (2026-11-17).
 4. Others: a second player sees your glow and hears the full-charge ping near you.
 5. One per archetype at least: try Ground Slam (Titan, the ring grows), Trick Shot (Gunslinger), Repulse (Pulse) and Telekinesis (Mind, the throw charges).
 6. Holding Block cancels a charge; you cannot start one while blocking.
+
+### H3 Pick up and throw (2026-11-17)
+The Output at boot says build mmo-h3 throw (2026-11-17).
+1. Downtown sidewalks (the north-south streets): plain-part benches, bins, mailboxes, signs, rubble, lamp posts, dumpsters, vending machines and grey slabs stand on the pavement, none inside a wall, a lamp or a planter, none on a roof.
+2. Walk up to a bench as any hero: GRAB [B] floats over it within 10 studs (on a phone it says GRAB: tap it; on a controller press B while on the ground). It rises overhead in about 0.3 s with a thump and a puff, you walk at 80% and Boost is off; skills and Block do nothing.
+3. Click (or the attack button): it flies along your aim on an arc and lands with a crash and a dust ring; robots there take the hit (BLOCK numbers on a Brute Bot's block for a bench), nearby props tip over. A second player sees the same flight.
+4. Dumpster into a wall: a small crack blast. As a Powerhouse (or any hero while Awakened): GRAB shows on cars and trucks too; throw a car into a wall: wall panels break, a heavy shake, robots in 12 studs are hit (a breaker: it shatters a Brute Bot's block); the car lands on its roof and drives home with the usual reset in 30 s. Trams never show GRAB. Non-Powerhouse heroes see no GRAB on cars until Awakened.
+5. Press B again while holding: it is set down in front of you. Hold it 8 s: it is set down by itself. Get stunned, Downed or start a fast travel while holding: it drops.
+6. Thrown props stay where they landed (you can pick them up again); about 60 s after landing, once nobody is within 120 studs, they are back home with a small shine.
+7. Titan: Lift and Throw with no robot in reach (20 studs) throws the nearest thing of any weight, with a bigger landing ring.
+8. PvP: a thrown thing hurts a player only while you are flagged against each other; citizens and heroes never show GRAB.
 
 ### Hold to aim and charge (2026-11-17)
 The Output at boot says build aim-charge (2026-11-17).

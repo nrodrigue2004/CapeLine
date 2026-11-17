@@ -92,7 +92,7 @@ end
 local function setBlock(hero: any, on: boolean)
 	local st = BlockService.state(hero)
 	local now = os.clock()
-	if on and (not hero.alive or HeroService.disabled(hero) or hero.channel) then
+	if on and (not hero.alive or HeroService.disabled(hero) or hero.channel or hero.carry) then -- H3: hands full
 		send(hero, { reply = true })
 		return
 	end

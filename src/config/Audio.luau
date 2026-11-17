@@ -56,6 +56,8 @@ return {
 		{ id = "shatter", visual = "GuardFx" }, -- glass crunch; orange shards; SHATTER! and a 0.12 s shake
 		{ id = "interrupt", visual = "GuardFx" }, -- snip; green flash; CUT OFF!
 		{ id = "chargeFull", visual = "ChargeFx" }, -- rising ping; white flash on the glowing hero (H2)
+		{ id = "grab", visual = "ThrowFx" }, -- grunt thump; dust at the feet as it goes overhead (H3)
+		{ id = "throwLand", visual = "ThrowFx" }, -- crash; dust ring and chips where it lands, a shake for heavy (H3)
 	},
 	-- the spec's own juice table is the first 31 rows above; the rest came with the Hero MMO features
 	juiceSpec = 31,
@@ -98,6 +100,8 @@ return {
 		shatter = s("action_jump_land.mp3", 0.9, 1.25, { range = 160 }),
 		interrupt = s("clickfast.wav", 0.8, 0.8, { range = 120 }),
 		chargeFull = s("electronicpingshort.wav", 0.7, 2.7, { range = 110 }),
+		grab = s("action_get_up.mp3", 0.6, 1.4, { range = 90, vary = 0.08 }),
+		throwLand = s("action_jump_land.mp3", 1, 0.7, { range = 220, vary = 0.1 }),
 		ui = s("button.wav", 0.35, 1), -- every button tap
 	},
 
@@ -132,6 +136,7 @@ return {
 		collapse = 0.4,
 		shatter = 0.6,
 		perfectBlock = 0.4,
+		throwLand = 0.45,
 	},
 
 	pool = 24, -- 3D sounds alive at once (the oldest is reused)

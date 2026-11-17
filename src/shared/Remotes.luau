@@ -240,6 +240,15 @@ local Remotes: { [string]: RemoteDef } = {
 	CombatBlock = { dir = "C2S", schema = { { t = "boolean" } }, rate = 10, burst = 10 },
 	GuardState = { dir = "S2C" },
 	GuardEvent = { dir = "S2C" },
+	-- H3: pick up and throw (spec: World.Grab {id} and World.Throw {aim} 4/s). WorldGrab: the item id
+	-- (0 = set down what you hold); WorldThrow: the aim point. ThrowState to your own hero: { id (0 = hands
+	-- free), kind, since }; ThrowFly to everyone: item id, from, to, flight time, arc peak, thrower's user id
+	-- (each client flies the thing on the same arc); ThrowBack: item id (a thrown prop is home again)
+	WorldGrab = { dir = "C2S", schema = { n(0, 65535) }, rate = 4, burst = 4 },
+	WorldThrow = { dir = "C2S", schema = { V3 }, rate = 4, burst = 4 },
+	ThrowState = { dir = "S2C" },
+	ThrowFly = { dir = "S2C" },
+	ThrowBack = { dir = "S2C" },
 }
 
 return Remotes

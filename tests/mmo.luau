@@ -344,4 +344,171 @@ return function(T: any)
 		)
 	end)
 
+	---------------------------------------------------------------------------
+	-- H3: pick up and throw
+	---------------------------------------------------------------------------
+	local ThrowMath = require("../src/shared/ThrowMath")
+	local TW = Config.Throw
+
+	test("H3: weights, who lifts what, never citizens or heroes", function()
+		check(
+			TW.reach == 10 and TW.liftTime == 0.3 and TW.carrySpeed == 0.8 and TW.carryMax == 8,
+			"spec numbers"
+		)
+		check(TW.respawn == 60 and TW.titan.reach == 20, "props back in 60 s; Titan reaches 20")
+		local W = TW.weights
+		check(W.light.coeff == 0.8 and W.medium.coeff == 1.6 and W.heavy.coeff == 3.0, "0.8, 1.6, 3.0")
+		check(W.heavy.breaker and not W.light.breaker and not W.medium.breaker, "only heavy is a breaker")
+		for kind, want in
+			{
+				bench = "light",
+				trashCan = "light",
+				mailbox = "light",
+				sign = "light",
+				rubble = "light",
+				lampPost = "medium",
+				dumpster = "medium",
+				vending = "medium",
+				car = "heavy",
+				truck = "heavy",
+				slab = "heavy",
+			}
+		do
+			check(ThrowMath.weight(TW, kind) == want, kind .. " is " .. want)
+		end
+		for _, cls in Config.Classes.order do
+			check(ThrowMath.canLift(TW, "bench", cls, false), cls .. " lifts a bench")
+			check(ThrowMath.canLift(TW, "dumpster", cls, false), cls .. " lifts a dumpster")
+			check(
+				ThrowMath.canLift(TW, "car", cls, false) == (cls == "Powerhouse"),
+				cls .. ": cars only for Powerhouse"
+			)
+			check(ThrowMath.canLift(TW, "car", cls, true), cls .. " lifts a car while Awakened")
+		end
+		check(ThrowMath.canLift(TW, "slab", "Mystic", false, true), "Lift and Throw lifts any weight")
+		for _, kind in { "citizen", "hero", "player", "tram", "nothing" } do
+			check(not ThrowMath.canLift(TW, kind, "Powerhouse", true, true), kind .. " is never lifted")
+		end
+	end)
+
+	test("H3: the nearest liftable in reach, busy ones skipped", function()
+		local items = {
+			{ id = 1, kind = "bench", x = 5, y = 0, z = 0 },
+			{ id = 2, kind = "car", x = 3, y = 0, z = 0 },
+			{ id = 3, kind = "trashCan", x = 2, y = 0, z = 0, busy = true },
+			{ id = 4, kind = "mailbox", x = 11, y = 0, z = 0 },
+			{ id = 5, kind = "sign", x = 1, y = 30, z = 0 },
+		}
+		local function rogue(kind: string)
+			return ThrowMath.canLift(TW, kind, "Rogue", false)
+		end
+		local function titan(kind: string)
+			return ThrowMath.canLift(TW, kind, "Powerhouse", false)
+		end
+		check(
+			ThrowMath.nearest(items, 0, 0, 0, TW.reach, rogue) == 1,
+			"a Rogue gets the bench (no car, no busy bin)"
+		)
+		check(ThrowMath.nearest(items, 0, 0, 0, TW.reach, titan) == 2, "a Powerhouse gets the nearer car")
+		check(ThrowMath.nearest(items, 20, 0, 0, TW.reach, rogue) == 4, "the mailbox from the other side")
+		check(ThrowMath.nearest(items, 40, 0, 0, TW.reach, rogue) == nil, "nothing in reach")
+		check(
+			ThrowMath.nearest(items, 30, 0, 0, TW.titan.reach, rogue) == 4,
+			"19 studs is inside Lift and Throw's 20"
+		)
+	end)
+
+	test("H3: arcs: range per weight, the same parabola everywhere, landing hits", function()
+		local tx, ty, tz, time, peak = ThrowMath.arc(TW, "light", 0, 10, 0, 0, 10, -500)
+		near(tz, -TW.weights.light.range, 1e-6, "a long aim is cut to the weight's range")
+		check(tx == 0 and ty == 10, "along the aim")
+		near(time, TW.weights.light.range / TW.weights.light.speed, 1e-6, "flight time from the speed")
+		near(peak, TW.weights.light.range * TW.weights.light.arc, 1e-6, "peak from the distance")
+		local _, _, hz = ThrowMath.arc(TW, "heavy", 0, 10, 0, 0, 10, -500)
+		check(-hz < -tz, "heavy things fly shorter")
+		local _, _, _, short = ThrowMath.arc(TW, "medium", 0, 0, 0, 1, 0, 0)
+		check(short == TW.minFlight, "never shorter than the minimum flight")
+		local x0, y0, z0 = ThrowMath.arcPoint(0, 10, 0, 0, 0, -40, 8, 0)
+		local x1, y1, z1 = ThrowMath.arcPoint(0, 10, 0, 0, 0, -40, 8, 1)
+		local _, ym = ThrowMath.arcPoint(0, 10, 0, 0, 0, -40, 8, 0.5)
+		check(
+			x0 == 0 and y0 == 10 and z0 == 0 and x1 == 0 and y1 == 0 and z1 == -40,
+			"starts at the hand, ends where it lands"
+		)
+		near(ym, 5 + 8, 1e-6, "the peak rides on the middle of the line")
+		local light, heavy = ThrowMath.hit(TW, "light"), ThrowMath.hit(TW, "heavy")
+		check(
+			light.coeff == 0.8 and light.structDmg == nil and not light.breaker,
+			"light: 0.8, small knock, no blast"
+		)
+		check(
+			heavy.coeff == 3.0 and heavy.breaker and heavy.structDmg >= Config.Destruction.structure.chunkCost,
+			"heavy breaks wall panels"
+		)
+		check(ThrowMath.hit(TW, "medium").structKind == 2, "medium: a small blast on walls")
+		check(
+			GuardMath.isBreaker(G, { coeff = heavy.coeff, breaker = heavy.breaker }),
+			"a heavy throw breaks a block"
+		)
+		check(not GuardMath.isBreaker(G, { coeff = light.coeff }), "a light one is blocked")
+		near(
+			ThrowMath.hit(TW, "heavy", true).radius,
+			heavy.radius * TW.titan.radiusMult,
+			1e-6,
+			"Lift and Throw: a bigger nova"
+		)
+	end)
+
+	test("H3: carry, lift and respawn timers; props stand on Downtown's sidewalks", function()
+		check(not ThrowMath.lifted(TW, 10, 10.2) and ThrowMath.lifted(TW, 10, 10.3), "no throw before 0.3 s")
+		check(not ThrowMath.carryOver(TW, 0, 7.9) and ThrowMath.carryOver(TW, 0, 8), "set down after 8 s")
+		check(not ThrowMath.respawnReady(TW, 0, 59, 500), "not before 60 s")
+		check(not ThrowMath.respawnReady(TW, 0, 120, 50), "not while someone is looking")
+		check(ThrowMath.respawnReady(TW, 0, 61, 500), "back once nobody is near")
+		local spots = ThrowMath.place(TW, Config)
+		local again = ThrowMath.place(TW, Config)
+		check(
+			#spots >= 40 and #spots == #again,
+			string.format("about 80 props (%d), the same every time", #spots)
+		)
+		local kinds, d, same = {}, Config.City.districts.Downtown, true
+		for i, s in spots do
+			kinds[s.kind] = true
+			same = same and again[i].kind == s.kind and again[i].x == s.x and again[i].z == s.z
+			check(s.x > d.minX and s.x < d.maxX and s.z > d.minZ and s.z < d.maxZ, "inside Downtown")
+			check(TW.kinds[s.kind] ~= nil and not TW.kinds[s.kind].vehicle, "a prop kind")
+		end
+		check(same, "a fixed seed: every server matches")
+		check(kinds.bench and kinds.dumpster and kinds.slab, "light, medium and heavy props all show up")
+	end)
+
+	test("H3: wiring: remotes, flag rule, cars through the reset, no casting while carrying", function()
+		local R = require("../src/shared/Remotes")
+		check(R.WorldGrab.rate == 4 and R.WorldThrow.rate == 4, "4 a second")
+		local combat = source("src/server/Services/CombatService.luau")
+		check(
+			string.find(combat, "function CombatService.thrown", 1, true) ~= nil,
+			"the landing hits through CombatService"
+		)
+		check(
+			string.find(combat, "hitArea(hero, eff, r, land, hit.radius, hit.coeff)", 1, true) ~= nil,
+			"hitArea's cands: only heroes flagged against the thrower"
+		)
+		check(string.find(combat, "or hero.carry then", 1, true) ~= nil, "no casting with your hands full")
+		local throw = source("src/server/Services/ThrowService.luau")
+		check(string.find(throw, "VehicleService.drop(", 1, true) ~= nil, "cars land through VehicleService")
+		check(string.find(throw, "HeroService.speedHooks.carry", 1, true) ~= nil, "80% while carrying")
+		check(
+			string.find(throw, "CombatService.titanLift = titanLift", 1, true) ~= nil,
+			"Lift and Throw lifts world things"
+		)
+		local client = source("src/client/Controllers/ThrowClient.luau")
+		check(
+			string.find(client, 'setScale("carry"', 1, true) ~= nil,
+			"the client slows too (no boost below 1)"
+		)
+		local block = source("src/server/Services/BlockService.luau")
+		check(string.find(block, "hero.carry) then", 1, true) ~= nil, "no block with your hands full")
+	end)
+
 end

@@ -44,6 +44,8 @@ local GadgetClient = require(Controllers.GadgetClient)
 local BlockClient = require(Controllers.BlockClient) -- H1: block, breaker, interrupt
 local GuardFx = require(Fx.GuardFx)
 local ChargeFx = require(Fx.ChargeFx) -- H2: charge-up powers
+local ThrowClient = require(Controllers.ThrowClient) -- H3: pick up and throw
+local ThrowFx = require(Fx.ThrowFx)
 local TravelClient = require(Controllers.TravelClient)
 local Hud = require(Ui.Hud)
 local LoadoutScreen = require(Ui.LoadoutScreen)
@@ -97,6 +99,8 @@ CombatClient.init()
 BlockClient.init()
 GuardFx.init()
 ChargeFx.init()
+ThrowClient.init() -- after BlockClient: it wraps CombatClient.blocked
+ThrowFx.init()
 HeroAnimator.init()
 HqClient.init()
 EmoteFx.init()

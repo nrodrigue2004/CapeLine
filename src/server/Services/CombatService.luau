@@ -1075,6 +1075,10 @@ local function resolve(
 		r.dur = plan.delay
 		if plan.thrown then
 			EnemyService.applyStatus(plan.thrown, "float", plan.delay or 0.5)
+		elseif CombatService.titanLift and CombatService.titanLift(hero, origin, land, plan.delay or 0.5) then
+			-- H3: no robot to lift, so the Titan throws the nearest world thing (any weight), a bigger nova
+			r.x = -1 -- clients draw the glow trail; ThrowFx flies the thing itself
+			plan.radius = (plan.radius or 8) * Config.Throw.titan.radiusMult
 		end
 		after(plan.delay or 0.5, function()
 			if plan.thrown then
@@ -1270,7 +1274,7 @@ function CombatService.use(
 	charge: number?
 ): boolean
 	local row = A.byNum[num]
-	if not row or not hero.alive or HeroService.disabled(hero) or BlockService.blocking(hero) then
+	if not row or not hero.alive or HeroService.disabled(hero) or BlockService.blocking(hero) or hero.carry then
 		return false -- H1: no casting while blocking
 	end
 	local slot = slotOf(hero, row.id)
@@ -1639,6 +1643,36 @@ function CombatService.chargeEnded(hero: any)
 	end
 	HeroService.applyWalkSpeed(hero)
 end
+
+-- H3 pick up and throw: a thrown thing lands (ThrowService). It hits robots, and heroes only when they may
+-- fight the thrower (cands: FlagService.targetsFor), drawn like Lift and Throw's landing; a heavy one is a
+-- breaker and blasts the Structure grid. hit: ThrowMath.hit. Returns how many it hit.
+function CombatService.thrown(hero: any, land: Vector3, from: Vector3, hit: any): number
+	local row = A.list.LiftAndThrow
+	local basic = A.list[hero.loadout.basic or "ZapBolt"]
+	local eff = {
+		set = basic.set,
+		slot = "skill",
+		coeff = hit.coeff,
+		knock = hit.knock,
+		status = hit.status,
+		statusDur = hit.statusDur,
+		breaker = hit.breaker or nil,
+		structDmg = hit.structDmg,
+		thrownObject = true,
+	}
+	local r = record(hero, row.num, 0, K.LAND, from, flatDir(land - from))
+	r.c, r.r = land, hit.radius
+	local n = hitArea(hero, eff, r, land, hit.radius, hit.coeff)
+	gainFor(hero, eff, n)
+	if hit.structDmg then
+		structural(eff, land, hit.radius, hit.structKind or 2)
+	end
+	return n
+end
+-- ThrowService sets this: Lift and Throw with no robot in its grip lifts the nearest world thing (any weight,
+-- Config.Throw.titan.reach) and flies it to the landing; returns true when it took one
+CombatService.titanLift = nil :: ((any, Vector3, Vector3, number) -> boolean)?
 
 function CombatService.fieldCount(): number
 	return #fields

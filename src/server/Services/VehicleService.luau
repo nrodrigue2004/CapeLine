@@ -124,6 +124,33 @@ function VehicleService.hit(center: Vector3, radius: number): number
 	return n
 end
 
+-- H3 pick up and throw (ThrowService): a hero lifts a car or truck. free() says it stands at home and
+-- nobody holds it; take() marks it held (no flips, no reset) and returns its model; drop() poses it where it
+-- landed and the usual reset brings it home `resetAfter` seconds later (VehicleReset).
+function VehicleService.free(id: number): boolean
+	return list[id] ~= nil and not flipped[id]
+end
+
+function VehicleService.take(id: number): Model?
+	if not VehicleService.free(id) then
+		return nil
+	end
+	flipped[id] = math.huge
+	return models[id]
+end
+
+function VehicleService.drop(id: number, root: CFrame)
+	if not list[id] then
+		return
+	end
+	VehicleService.pose(models[id], root)
+	flipped[id] = os.clock() + V.resetAfter
+end
+
+function VehicleService.model(id: number): Model?
+	return models[id]
+end
+
 function VehicleService.resetAll()
 	for id in flipped do
 		flipped[id] = 0
