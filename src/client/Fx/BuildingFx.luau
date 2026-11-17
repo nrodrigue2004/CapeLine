@@ -116,13 +116,15 @@ local function bodyLook(model: Model?): (Color3, Enum.Material, string)
 	return Color3.fromRGB(170, 160, 150), Enum.Material.Concrete, ""
 end
 
--- Hide the real body on this device; hidden, it also stops colliding here so the holes are real
-local function setHidden(model: Model?, hidden: boolean)
+-- Hide the real body on this device; hidden, it also stops colliding here so the holes are real. keepCrown: a
+-- skyscraper's crown parts (attribute Crown: setbacks, spire, lantern) stay while its top storey stands
+local function setHidden(model: Model?, hiddenAll: boolean, keepCrown: boolean?)
 	if not model then
 		return
 	end
 	for _, p in model:GetDescendants() do
 		if p:IsA("BasePart") then
+			local hidden = hiddenAll and not (keepCrown and p:GetAttribute("Crown") == true)
 			p.LocalTransparencyModifier = if hidden then 1 else 0
 			if hidden then
 				if not bodyFlags[p] then
@@ -397,6 +399,15 @@ local function apply(id: number, live: boolean, fresh: { [number]: number }?)
 		elseif live and knocked > 0 and nearMe(rec.x, rec.z, 120) then
 			CameraController.shake(0.15, 0.25)
 		end
+		-- a skyscraper keeps its crown up while every piece of the shaft's top storey stands
+		local topStands = true
+		for i in g do
+			if grid.pieces[i] and grid.pieces[i].storey == grid.storeys then
+				topStands = false
+				break
+			end
+		end
+		setHidden(model, true, topStands)
 		return
 	end
 	-- Collapsed

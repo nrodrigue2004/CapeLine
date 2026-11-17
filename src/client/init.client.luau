@@ -13,6 +13,7 @@ local Fx = script.Fx
 local Ui = script.Ui
 
 local QualityController = require(Controllers.QualityController)
+local CityProps = require(Controllers.CityProps)
 local InputController = require(Controllers.InputController)
 local MoveController = require(Controllers.MoveController)
 local GroundGuard = require(Controllers.GroundGuard)
@@ -69,6 +70,7 @@ local DevPanel = require(Ui.DevPanel)
 
 State.init()
 QualityController.init()
+CityProps.init() -- the city kit's street props near the camera, within the preset's budget
 InputController.init()
 MoveController.init()
 GroundGuard.init() -- holds the hero still until the ground under a spawn or a server move has streamed in

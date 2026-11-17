@@ -1,31 +1,129 @@
--- block.luau: writes the city kit block (Config.City.kit) as JSON for art/blender/block.py's preview, straight
--- from the game's own Downtown layout, so the render is the block players see.
--- Run: lune run art/city/block.luau   (writes art/export/city/block.json)
+-- block.luau: writes a piece of the dressed city (Config.City.kit) as JSON for art/blender/block.py's preview,
+-- straight from the game's own layout (WorldMap.build), so the render is what players see once nate has
+-- uploaded the textures and imported Art.Street.
+-- Run: lune run art/city/block.luau [area]   (area: Downtown (default, the kit's preview block), DowntownWide (the
+-- whole grown Downtown), Uptown, Docks, OldTown, Suburbs; writes art/export/city/<area>.json, Downtown as
+-- block.json)
 local fs = require("@lune/fs")
+local process = require("@lune/process")
 local serde = require("@lune/serde")
 local Config = require("../../src/config")
-local CityLayout = require("../../src/shared/CityLayout")
+local WorldMap = require("../../src/shared/WorldMap")
 
-local layout = CityLayout.downtown(Config.City, Config.World)
-local t = Config.City.downtown
-local d = Config.City.districts.Downtown
+local area = process.args[1] or "Downtown"
+local world = WorldMap.build(Config, 202647, { props = true })
+local C = Config.City
+local gy = C.ground.y
+
+-- each area: the window (x0, z0, x1, z1) and the cameras (from, to, lens) in Roblox (x, y, z)
+local t = C.downtown
+local d = C.districts.Downtown
 local pitch = t.block + t.street
 local nx = math.floor((d.maxX - d.minX) / pitch)
 local nz = math.floor((d.maxZ - d.minZ) / pitch)
-local o = Config.City.kit.blocks[1]
+local o = C.kit.previewBlock
 local bx, bz = math.ceil(nx / 2) + o[1], math.ceil(nz / 2) + o[2]
 local minX = d.minX + t.street / 2 + (bx - 1) * pitch
 local minZ = d.minZ + t.street / 2 + (bz - 1) * pitch
-local pad = t.street + 40
-local out = { block = { minX = minX, minZ = minZ, size = t.block, street = t.street }, boxes = {}, props = {} }
-for _, b in layout.boxes do
-	local inside = b.cx > minX - pad and b.cx < minX + t.block + pad and b.cz > minZ - pad and b.cz < minZ + t.block + pad
-	if inside and b.kind ~= "road" and not b.plain then
-		table.insert(out.boxes, b)
+local b = C.docks.basin
+local u = C.districts.Uptown
+local AREAS = {
+	Downtown = {
+		window = { minX - 180, minZ - 180, minX + t.block + 180, minZ + t.block + 180 },
+		cams = {
+			street = {
+				{ minX - t.street * 0.35, gy + 6.5, minZ - t.street * 0.55 },
+				{ minX + t.block * 0.55, gy + 22, minZ + 6 },
+				24,
+			},
+			air = {
+				{ minX + t.block * 0.5 - 260, gy + 400, minZ - 280 },
+				{ minX + t.block * 0.5, gy + 10, minZ + t.block * 0.5 },
+				30,
+			},
+		},
+		file = "block",
+	},
+	Docks = {
+		window = { 250, 380, 640, 800 },
+		cams = {
+			street = { { 437, gy + 6, 592 }, { 330, gy + 14, 546 }, 22 },
+			air = { { 520, gy + 80, 660 }, { 380, gy + 12, 545 }, 26 },
+		},
+	},
+	OldTown = {
+		window = { 100, -600, 450, -250 },
+		cams = {
+			street = { { 196, gy + 6, -553 }, { 300, gy + 15, -528 }, 22 },
+			air = { { 160, gy + 170, -620 }, { 290, gy + 10, -440 }, 30 },
+		},
+	},
+	-- the whole grown Downtown and its skyline from the north-east, the north open square in front (2026-11-17)
+	DowntownWide = {
+		window = { d.minX - 40, d.minZ - 40, d.maxX + 40, d.maxZ + 40 },
+		cams = {
+			air = { { 40, gy + 560, -1080 }, { -470, gy + 120, -160 }, 30 },
+		},
+	},
+	-- Uptown (PLACEHOLDER NAME), the second business district north of the hub
+	Uptown = {
+		window = { u.minX - 60, u.minZ - 60, u.maxX + 60, u.maxZ + 60 },
+		cams = {
+			street = { { -403, gy + 6, -905 }, { -360, gy + 16, -1060 }, 22 },
+			air = { { -980, gy + 460, -560 }, { -380, gy + 170, -1120 }, 28 },
+			green = { { -380, gy + 30, -1120 }, { -282, gy + 22, -1222 }, 24 },
+		},
+	},
+	Suburbs = {
+		window = { -1400, -300, -900, 200 },
+		cams = {
+			street = { { -1142, gy + 6, -150 }, { -1185, gy + 9, -60 }, 22 },
+			air = { { -1250, gy + 170, -260 }, { -1150, gy, -40 }, 30 },
+		},
+	},
+}
+local a = AREAS[area]
+assert(a, "unknown area " .. area)
+local w = a.window
+local function inside(x: number, z: number, pad: number): boolean
+	return x > w[1] - pad and x < w[3] + pad and z > w[2] - pad and z < w[4] + pad
+end
+
+local out = { area = area, window = w, cams = a.cams, boxes = {}, props = {}, ground = gy }
+local function add(list: { any })
+	for _, bx2 in list do
+		if inside(bx2.cx, bx2.cz, math.max(bx2.sx, bx2.sz) / 2) and not (bx2.plain and bx2.kit == nil) then
+			table.insert(out.boxes, bx2)
+		end
 	end
 end
-for _, p in layout.props do
-	table.insert(out.props, p)
+add(world.hubBoxes)
+for _, plan in world.tilePlans do
+	add(plan.boxes)
 end
-fs.writeFile("art/export/city/block.json", serde.encode("json", out))
-print(#out.boxes, "boxes", #out.props, "props")
+for _, bb in world.baseBoxes do
+	if bb.kind == "road" and inside(bb.cx, bb.cz, math.max(bb.sx, bb.sz) / 2) then
+		table.insert(out.boxes, bb)
+	end
+end
+for _, p in world.props do
+	if inside(p.x, p.z, 0) then
+		table.insert(out.props, p)
+	end
+end
+if area == "Docks" then
+	out.water = { b.minX, b.minZ, b.maxX, b.maxZ }
+end
+-- what the render needs from Config: palette, prop looks, tinted fronts and tile sizes
+out.palette = C.palette
+out.looks = {}
+for name, def in C.kit.props do
+	out.looks[name] = def.pieces
+end
+out.tinted = {}
+for name, v in C.kit.tinted do
+	out.tinted[name] = v ~= nil
+end
+out.studsPerTile = C.kit.studsPerTile
+fs.writeFile("art/export/city/" .. (a.file or area) .. ".json", serde.encode("json", out))
+print(area, #out.boxes, "boxes", #out.props, "props")

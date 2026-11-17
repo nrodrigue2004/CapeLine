@@ -253,10 +253,18 @@ test("M1: flight auto-levels into a hover and turns at 120 degrees/s at speed", 
 	check(ang <= 61 and ang >= 50, string.format("turn limited to 120 degrees/s (turned %.1f)", ang))
 end)
 
-test("M1: the ceiling pushes back above 560 and never lets a hero past 600", function()
-	local _, _, _, _, y =
-		flyFor(20, { wishX = 0, wishY = 1, wishZ = 0, vertical = 1, boost = true }, 0, 0, 0, 100, 500)
+test("M1: the ceiling pushes back above the soft line and never lets a hero past the hard one", function()
+	local _, _, _, _, y = flyFor(
+		20,
+		{ wishX = 0, wishY = 1, wishZ = 0, vertical = 1, boost = true },
+		0,
+		0,
+		0,
+		100,
+		M.ceiling.soft - 60
+	)
 	check(y <= M.ceiling.hard + 1, string.format("ends below the hard ceiling (y = %.1f)", y))
+	check(y > M.ceiling.soft - 20, string.format("climbs up to the soft ceiling (y = %.1f)", y))
 end)
 
 test("M1: stamina regenerates 15/s on the ground and 8/s in the air", function()
@@ -2585,6 +2593,18 @@ test("M4: zones: hub 16 to 31, suburbs then farmland, a 2-tile coast, 3 landmark
 	local counts = {}
 	local outside = 0
 	local ringsOk, roadsOk = true, true
+	-- a district past the hub's tiles (Uptown, the second downtown, and the grown Downtown's west edge) stands on
+	-- hub tiles of its own
+	local function inDistrict(tx: number, tz: number): boolean
+		local x0, z0 = WorldGen.tileOrigin(Config.City, tx, tz)
+		local s = Config.City.tile
+		for _, d in Config.City.districts do
+			if x0 < d.maxX and x0 + s > d.minX and z0 < d.maxZ and z0 + s > d.minZ then
+				return true
+			end
+		end
+		return false
+	end
 	for tz = 0, W.tiles - 1 do
 		for tx = 0, W.tiles - 1 do
 			local t = WorldGen.get(W, world.tiles, tx, tz)
@@ -2599,7 +2619,16 @@ test("M4: zones: hub 16 to 31, suburbs then farmland, a 2-tile coast, 3 landmark
 			if ring >= 15 and t.zone ~= Z.coast then
 				ringsOk = false
 			end
-			if ring >= 1 and ring <= 6 and t.zone ~= Z.suburbs and t.zone ~= Z.landmark then
+			if ring > 0 and (t.zone == Z.hub) ~= inDistrict(tx, tz) then
+				ringsOk = false
+			end
+			if
+				ring >= 1
+				and ring <= 6
+				and t.zone ~= Z.suburbs
+				and t.zone ~= Z.landmark
+				and not inDistrict(tx, tz)
+			then
 				ringsOk = false
 			end
 			if ring >= 9 and ring <= 14 and t.zone ~= Z.farmland and t.zone ~= Z.landmark then
@@ -2870,10 +2899,19 @@ local DS = Config.Destruction
 
 test("M5: 220 wreckable hub buildings, ids 1 to 220, HP by size class", function()
 	local list = world.buildings
-	check(#list == DS.hubBuildings, "220 buildings (got " .. #list .. ")")
+	-- the first 220 are the first Downtown, the Docks and Old Town; the grown Downtown and Uptown come after
+	local extra = #world.uptown.buildings
+	for _, b in world.downtown.buildings do
+		extra += if b.grown then 1 else 0
+	end
+	check(#list == DS.hubBuildings + extra, "220 buildings and the new ones (got " .. #list .. ")")
+	for i = 1, DS.hubBuildings do
+		local d = list[i] and list[i].district
+		check(d == "Downtown" or d == "Docks" or d == "OldTown", "ids 1 to 220 are the first hub")
+	end
 	local per: { [string]: number } = {}
 	for i, b in list do
-		check(b.id == i, "ids run 1 to 220")
+		check(b.id == i, "ids run 1 to " .. #list)
 		local h = b.top - b.base
 		local want = if h <= DS.smallMax then "small" elseif h <= DS.mediumMax then "medium" else "tower"
 		check(b.size == want and b.hp == DS.hp[want], "building " .. i .. " has the HP of its size")
@@ -7358,14 +7396,19 @@ test("City kit block: textured fronts, street dressing, and the rest of Downtown
 		local k = layout.buildings[i]
 		check(k.x == b.x and k.z == b.z and k.h == b.h, "building " .. i .. " unchanged")
 	end
-	local kits, bands, marks, kerbs = {}, 0, 0, 0
+	check(#plain.props == 0, "no props without the kit")
+	local kits, bands, marks, kerbs, blocks = {}, 0, 0, 0, 0
 	for _, b in layout.boxes do
-		if b.kit then
+		-- a skyscraper's setback tiers wear its body's front too; count each building's body once
+		if b.kit and not b.crown then
 			check(K.baseMaterial[b.kit] ~= nil and K.studsPerTile[b.kit] ~= nil, b.kit .. " is a kit texture")
 			kits[b.kit] = (kits[b.kit] or 0) + 1
 		end
 		if b.plain then
-			check(b.kind == "band", "only window bands give way to the kit fronts")
+			check(
+				b.kind == "band" and K.baseMaterial[b.plain] ~= nil,
+				"only window bands give way to a kit front"
+			)
 			bands += 1
 		end
 		if b.kind == "mark" then
@@ -7374,29 +7417,1025 @@ test("City kit block: textured fronts, street dressing, and the rest of Downtown
 		if b.color == "kerb" and b.kind == "sidewalk" then
 			kerbs += 1
 		end
+		if b.kind == "sidewalk" and b.color == "sidewalk" then
+			blocks += 1
+		end
 	end
-	check(kits.Paving == 1 and kits.Asphalt == 1, "one paved block, the road textured")
-	local fronts = (kits.Brick or 0) + (kits.Office or 0) + (kits.Curtain or 0) + (kits.Stone or 0)
-	check(fronts >= 3 and fronts <= 4, string.format("%d textured fronts on the block", fronts))
-	check(bands > 0 and marks > 0 and kerbs == 4, "bands to replace, lane dashes and four kerbs")
-	-- props: on the block's sidewalk, each a known prop with its pieces in StreetArt
+	-- 33 blocks of lots (24 in the first Downtown, 9 grown) and 2 open squares, all paved
+	local dressed = blocks + #layout.open
+	check(
+		kits.Paving == dressed and blocks == 33 and #layout.open == 2 and kits.Asphalt == 1,
+		string.format("every block paved, the road textured (%d blocks, %d squares)", blocks, #layout.open)
+	)
+	local fronts = 0
+	for _, name in { "Brick", "Office", "Curtain", "Stone", "Deco", "Panel" } do
+		fronts += kits[name] or 0
+		check((kits[name] or 0) > 0, name .. " fronts in Downtown")
+	end
+	check(
+		fronts == #layout.buildings - 1,
+		string.format("%d textured fronts (every building but the Beacon)", fronts)
+	)
+	check(
+		bands > 0 and marks > 0 and kerbs == 4 * dressed,
+		"bands to replace, lane dashes and four kerbs a block"
+	)
+	-- every street between two blocks gets its dashes once: no two dashes in one place
+	local seen, dup = {}, 0
+	for _, b in layout.boxes do
+		if b.kind == "mark" then
+			local key = string.format("%.1f,%.1f", b.cx, b.cz)
+			if seen[key] then
+				dup += 1
+			end
+			seen[key] = true
+		end
+	end
+	check(dup == 0, "no doubled lane dashes")
+	-- props: each a known prop with its pieces in StreetArt, on a block's sidewalk
 	local counts = {}
 	for _, pr in layout.props do
 		counts[pr.name] = (counts[pr.name] or 0) + 1
-		local pieces = K.props[pr.name]
-		check(pieces ~= nil, pr.name .. " is a kit prop")
-		for piece in pieces do
+		local def = K.props[pr.name]
+		check(def ~= nil, pr.name .. " is a kit prop")
+		for piece in def.pieces do
 			check(Config.StreetArt[pr.name][piece] ~= nil, piece .. " has a mesh size")
 		end
 		check(math.abs(pr.y - (Config.City.ground.y + 0.9)) < 1e-6, "props stand on the sidewalk")
 	end
-	check((counts.StreetLamp or 0) >= 8 and (counts.Planter or 0) >= 4, "lamps and trees line the block")
 	check(
-		counts.Bench == 4 and counts.Bin == 4 and counts.Hydrant == 4 and counts.TrafficLight == 2,
-		"one of each a side"
+		(counts.StreetLamp or 0) >= 8 * dressed and (counts.Planter or 0) >= 4 * dressed,
+		"lamps and trees line every block"
+	)
+	check(
+		counts.TrafficLight == 2 * dressed and (counts.Hydrant or 0) == 4 * dressed,
+		"lights on two corners, a hydrant a side"
+	)
+	check(
+		(counts.BusStop or 0) > 0 and (counts.BikeRack or 0) > 0 and (counts.Bench or 0) > blocks,
+		"the sides vary: bus stops, bike racks, benches"
 	)
 	check(layout.parts <= Config.City.partBudget.downtown, "still within the Downtown part budget")
 end)
+
+test(
+	"City kit: every district dressed, deterministic, within budget, nothing in buildings or roads",
+	function()
+		local fs = require("@lune/fs")
+		local Districts = require("../src/shared/Districts")
+		local CityKit = require("../src/shared/CityKit")
+		local K = Config.City.kit
+		local C = Config.City
+		local gy = C.ground.y
+		local seed = 202647
+		local a = WorldMap.build(Config, seed)
+		local b = WorldMap.build(Config, seed, { props = true })
+		-- deterministic: the same props in the same order (a device builds the same list as the tests)
+		local same = #a.props == #b.props
+		for i, p in a.props do
+			local q = b.props[i]
+			if
+				not (
+					q
+					and q.name == p.name
+					and q.x == p.x
+					and q.y == p.y
+					and q.z == p.z
+					and q.ry == p.ry
+					and q.d == p.d
+				)
+			then
+				same = false
+			end
+		end
+		check(same and #a.props > 5000, string.format("same seed, same %d props", #a.props))
+
+		-- the kit changes no random draw: without it the world is the same, box for box
+		local bareCfg = table.clone(Config)
+		bareCfg.City = table.clone(Config.City)
+		bareCfg.City.kit = nil
+		local p0 = WorldMap.build(bareCfg, seed)
+		check(p0.hash == a.hash and #p0.props == 0, "same tile hash, no props without the kit")
+		local bOk = #p0.buildings == #a.buildings
+		for i, x in p0.buildings do
+			local y = a.buildings[i]
+			bOk = bOk and y.x == x.x and y.z == x.z and y.sx == x.sx and y.base == x.base and y.top == x.top
+		end
+		check(bOk, "the same wreckable buildings, ids and sizes")
+		local FIELDS =
+			{ "kind", "cx", "cy", "cz", "sx", "sy", "sz", "color", "shape", "ry", "grp", "bid", "tag", "ref" }
+		local function sameBoxes(x: { any }, y: { any }, what: string)
+			local ys = {}
+			for _, bx in y do
+				if not bx.dress then
+					table.insert(ys, bx)
+				end
+			end
+			local ok = #x == #ys
+			for i, bx in x do
+				local by = ys[i]
+				if not by then
+					ok = false
+					break
+				end
+				for _, f in FIELDS do
+					if bx[f] ~= by[f] then
+						ok = false
+					end
+				end
+			end
+			check(ok, what .. ": every box as before (the kit only adds kerbs, lines and cornices)")
+		end
+		sameBoxes(p0.hubBoxes, a.hubBoxes, "hub")
+		sameBoxes(p0.baseBoxes, a.baseBoxes, "base")
+		local plansOk = #p0.tilePlans == #a.tilePlans
+		for i, plan in p0.tilePlans do
+			local other = a.tilePlans[i]
+			if not other or #other.boxes ~= #plan.boxes then
+				plansOk = false
+			else
+				for k, bx in plan.boxes do
+					for _, f in FIELDS do
+						if other.boxes[k][f] ~= bx[f] then
+							plansOk = false
+						end
+					end
+				end
+			end
+		end
+		check(plansOk, "outskirts tiles: every box as before")
+
+		-- every kit texture has its files, a base material and a tile size; every tint is a palette colour
+		local used = {}
+		local function scanKit(list: { any })
+			for _, bx in list do
+				if bx.kit then
+					used[bx.kit] = true
+				end
+				if bx.tint then
+					check(C.palette[bx.tint] ~= nil, bx.tint .. " is a palette colour")
+					check(K.tinted[bx.kit] ~= nil, bx.kit .. " is a tinted texture")
+				end
+				if bx.plain then
+					check(bx.kind == "band", "only window bands are plain")
+				end
+			end
+		end
+		scanKit(a.hubBoxes)
+		scanKit(a.baseBoxes)
+		for _, plan in a.tilePlans do
+			scanKit(plan.boxes)
+		end
+		for name in K.baseMaterial do
+			check(used[name] == true, name .. " is used somewhere in the city")
+			check(K.studsPerTile[name] ~= nil, name .. " has a tile size")
+			for _, map in { "Color", "Normal", "Roughness" } do
+				check(
+					fs.isFile("art/export/city/" .. name .. "_" .. map .. ".png"),
+					name .. "_" .. map .. ".png exists"
+				)
+			end
+		end
+		for name in used do
+			check(K.baseMaterial[name] ~= nil, name .. " has a base material")
+		end
+		for _, list in K.tinted do
+			if type(list) == "table" then
+				for _, key in list do
+					check(C.palette[key] ~= nil, key .. " tint is in the palette")
+				end
+			end
+		end
+
+		-- budgets per district: props, their mesh parts, and the server-built dressing boxes
+		local per = {}
+		for _, p in a.props do
+			local def = K.props[p.name]
+			check(
+				def ~= nil and def.tier >= 1 and def.tier <= 3 and #def.foot == 3,
+				p.name .. " is a kit prop"
+			)
+			for piece in def.pieces do
+				check(
+					Config.StreetArt[p.name] ~= nil and Config.StreetArt[p.name][piece] ~= nil,
+					piece .. " has a mesh"
+				)
+			end
+			local d = per[p.d] or { props = 0, parts = 0, boxes = 0, tier1 = 0 }
+			per[p.d] = d
+			d.props += 1
+			d.parts += CityKit.parts(K, p.name)
+			if def.tier == 1 then
+				d.tier1 += CityKit.parts(K, p.name)
+			end
+		end
+		local function districtOf(x: number, z: number): string
+			for name, r in C.districts do
+				if x >= r.minX and x <= r.maxX and z >= r.minZ and z <= r.maxZ then
+					return name
+				end
+			end
+			return "Hub"
+		end
+		for _, bx in a.hubBoxes do
+			if bx.dress then
+				local d = per[districtOf(bx.cx, bx.cz)]
+				d.boxes += 1
+			end
+		end
+		local lines = {}
+		for _, name in { "Downtown", "Uptown", "Docks", "OldTown", "Hub", "Outskirts" } do
+			local d = per[name]
+			local cap = K.budget[name]
+			check(d ~= nil and d.props > 0, name .. " has props")
+			if d then
+				check(
+					d.props <= cap.props and d.parts <= cap.parts and d.boxes <= cap.boxes,
+					string.format(
+						"%s within budget: %d props, %d parts, %d boxes",
+						name,
+						d.props,
+						d.parts,
+						d.boxes
+					)
+				)
+				check(d.tier1 < d.parts, name .. ": a phone (tier 1) builds fewer")
+				table.insert(lines, string.format("%s %d/%d/%d", name, d.props, d.parts, d.boxes))
+			end
+		end
+		print("  city kit (props/parts/boxes): " .. table.concat(lines, ", "))
+		-- device presets: phones get the fewest, nearest first
+		local P = Config.Presets
+		for i, name in P.order do
+			local pr = P[name].props
+			check(pr ~= nil and pr.tier == i, name .. " builds props up to tier " .. i)
+			if i > 1 then
+				local lo = P[P.order[i - 1]].props
+				check(
+					pr.radius > lo.radius and pr.parts > lo.parts,
+					name .. " builds more than " .. P.order[i - 1]
+				)
+			end
+		end
+		check(C.partBudget.downtown >= a.downtown.parts, "Downtown within its part budget")
+		local docks = Districts.docks(C, {})
+		local old = Districts.oldTown(C, {})
+		check(
+			docks.parts <= C.partBudget.docks and old.parts <= C.partBudget.oldTown,
+			"Docks and Old Town part budgets"
+		)
+
+		-- placement: no ground prop inside anything solid (buildings, walls, props, trees, terminals, water),
+		-- a parked vehicle, the harbour or another prop; independent of the layout's own check
+		local cell = 20
+		local grid = {}
+		local function addRect(r: any, what: string)
+			for ix = math.floor(r.x0 / cell), math.floor(r.x1 / cell) do
+				for iz = math.floor(r.z0 / cell), math.floor(r.z1 / cell) do
+					local k = ix * 100000 + iz
+					grid[k] = grid[k] or {}
+					table.insert(grid[k], { r = r, what = what })
+				end
+			end
+		end
+		local function hit(r: any): string?
+			for ix = math.floor(r.x0 / cell), math.floor(r.x1 / cell) do
+				for iz = math.floor(r.z0 / cell), math.floor(r.z1 / cell) do
+					for _, o in grid[ix * 100000 + iz] or {} do
+						local q = o.r
+						if
+							r.x0 < q.x1 - 1e-6
+							and q.x0 < r.x1 - 1e-6
+							and r.z0 < q.z1 - 1e-6
+							and q.z0 < r.z1 - 1e-6
+						then
+							return o.what
+						end
+					end
+				end
+			end
+			return nil
+		end
+		local SOLIDS = {
+			building = true,
+			prop = true,
+			roof = true,
+			ledge = true,
+			beacon = true,
+			terminal = true,
+			water = true,
+		}
+		local function addSolids(list: { any })
+			for _, bx in list do
+				local bottom, top = bx.cy - bx.sy / 2, bx.cy + bx.sy / 2
+				if SOLIDS[bx.kind] and bottom < gy + 7 and top > gy + 0.5 and bx.sx < 400 and bx.sz < 400 then
+					local fx, fz = BoxKit.footprint(bx)
+					addRect(
+						{ x0 = bx.cx - fx / 2, z0 = bx.cz - fz / 2, x1 = bx.cx + fx / 2, z1 = bx.cz + fz / 2 },
+						bx.kind
+					)
+				end
+			end
+		end
+		addSolids(a.hubBoxes)
+		for _, plan in a.tilePlans do
+			addSolids(plan.boxes)
+		end
+		for _, v in Vehicles.place(Config) do
+			local fx, fz = v.sx, v.sz
+			if v.ry % 180 == 90 then
+				fx, fz = fz, fx
+			end
+			addRect({ x0 = v.x - fx / 2, z0 = v.z - fz / 2, x1 = v.x + fx / 2, z1 = v.z + fz / 2 }, "vehicle")
+		end
+		local bs = C.docks.basin
+		addRect({ x0 = bs.minX, z0 = bs.minZ, x1 = bs.maxX, z1 = bs.maxZ }, "harbour")
+		local lane = C.docks.lane
+		addRect({ x0 = lane.minX, z0 = lane.minZ, x1 = lane.maxX, z1 = lane.maxZ }, "truck lane")
+		-- the roads where cars drive: Downtown's and Old Town's streets (everything off a block), the outskirts
+		-- road strips and the filler tiles' street ring
+		local function blockRects(r: any, block: number, street: number): { any }
+			local out = {}
+			local pitch = block + street
+			for bx = 1, math.floor((r.maxX - r.minX) / pitch) do
+				for bz = 1, math.floor((r.maxZ - r.minZ) / pitch) do
+					local x0 = r.minX + street / 2 + (bx - 1) * pitch
+					local z0 = r.minZ + street / 2 + (bz - 1) * pitch
+					table.insert(out, { x0 = x0, z0 = z0, x1 = x0 + block, z1 = z0 + block })
+				end
+			end
+			return out
+		end
+		local onBlock = {
+			Downtown = blockRects(C.districts.Downtown, C.downtown.block, C.downtown.street),
+			Uptown = blockRects(C.districts.Uptown, C.uptown.block, C.uptown.street),
+			OldTown = blockRects(C.districts.OldTown, C.oldTown.block, C.oldTown.street),
+		}
+		do -- Clock Square spans its 2 x 2 blocks and the streets between them (no cars there)
+			local o, ot = C.districts.OldTown, C.oldTown
+			local x0 = o.minX + ot.street / 2 + (ot.square[1] - 1) * (ot.block + ot.street)
+			local z0 = o.minZ + ot.street / 2 + (ot.square[1] - 1) * (ot.block + ot.street)
+			local size = 2 * ot.block + ot.street
+			table.insert(onBlock.OldTown, { x0 = x0, z0 = z0, x1 = x0 + size, z1 = z0 + size })
+		end
+		local function within(r: any, list: { any }): boolean
+			for _, q in list do
+				if
+					r.x0 >= q.x0 - 1e-6
+					and r.x1 <= q.x1 + 1e-6
+					and r.z0 >= q.z0 - 1e-6
+					and r.z1 <= q.z1 + 1e-6
+				then
+					return true
+				end
+			end
+			return false
+		end
+		local roads = {}
+		for _, bx in a.baseBoxes do
+			if bx.kind == "road" then
+				table.insert(roads, {
+					x0 = bx.cx - bx.sx / 2,
+					z0 = bx.cz - bx.sz / 2,
+					x1 = bx.cx + bx.sx / 2,
+					z1 = bx.cz + bx.sz / 2,
+				})
+			end
+		end
+		local bad: { [string]: number } = {}
+		local function fail(why: string)
+			bad[why] = (bad[why] or 0) + 1
+		end
+		local stacked = 0
+		local hubFill = C.hubFill.street
+		for _, p in a.props do
+			local r = CityKit.footprint(K, p)
+			local ground = p.y <= gy + 1
+			if not ground then
+				-- only crates stack, square on a crate below
+				local under = false
+				for _, q in a.props do
+					if
+						q ~= p
+						and q.name == "Crate"
+						and q.x == p.x
+						and q.z == p.z
+						and math.abs(q.y + 3 - p.y) < 1e-6
+					then
+						under = true
+					end
+				end
+				if not (p.name == "Crate" and under) then
+					fail("a raised prop not on a crate")
+				end
+				stacked += 1
+				continue
+			end
+			local what = hit(r)
+			if what then
+				fail(p.d .. " " .. p.name .. " in a " .. what)
+			end
+			if p.d == "Downtown" or p.d == "OldTown" or p.d == "Uptown" then
+				if not within(r, onBlock[p.d]) then
+					fail(p.d .. " " .. p.name .. " in the street")
+				end
+			elseif p.d == "Hub" or p.d == "Outskirts" then
+				for _, q in roads do
+					if r.x0 < q.x1 and q.x0 < r.x1 and r.z0 < q.z1 and q.z0 < r.z1 then
+						fail(p.d .. " " .. p.name .. " on a road")
+						break
+					end
+				end
+				if p.d == "Hub" then
+					local tx, tz = WorldGen.tileOf(C, p.x, p.z)
+					local x0, z0 = WorldGen.tileOrigin(C, tx, tz)
+					local inner = {
+						{
+							x0 = x0 + hubFill,
+							z0 = z0 + hubFill,
+							x1 = x0 + C.tile - hubFill,
+							z1 = z0 + C.tile - hubFill,
+						},
+					}
+					if not within(r, inner) then
+						fail("Hub " .. p.name .. " in the filler street")
+					end
+				end
+			end
+			addRect(r, "prop " .. p.name)
+		end
+		local msgs = {}
+		for why, n in bad do
+			table.insert(msgs, why .. " x" .. n)
+		end
+		table.sort(msgs)
+		check(
+			#msgs == 0,
+			"every prop clear of buildings, roads, water, vehicles and other props: "
+				.. table.concat(msgs, "; ")
+		)
+		check(stacked > 0, "some crates are stacked")
+
+		-- variety: fronts and tints differ along a street
+		local frontKinds: { [string]: { [string]: boolean } } = {}
+		for _, bx in a.hubBoxes do
+			if bx.kind == "building" and bx.kit then
+				local d = districtOf(bx.cx, bx.cz)
+				frontKinds[d] = frontKinds[d] or {}
+				frontKinds[d][bx.kit .. ":" .. (bx.tint or "")] = true
+			end
+		end
+		local function count(t: { [string]: boolean }?): number
+			local n = 0
+			for _ in t or {} do
+				n += 1
+			end
+			return n
+		end
+		check(count(frontKinds.Downtown) >= 6, "Downtown has at least 6 fronts")
+		check(count(frontKinds.OldTown) >= 8, "Old Town has at least 8 front and colour mixes")
+		check(count(frontKinds.Docks) >= 3, "the Docks have at least 3 fronts")
+		check(count(frontKinds.Uptown) >= 8, "Uptown has at least 8 front and colour mixes")
+		local own, all = 0, 0
+		for _, bx in a.hubBoxes do
+			if bx.kind == "building" and bx.kit and districtOf(bx.cx, bx.cz) == "Uptown" then
+				all += 1
+				if bx.kit == "Ribbon" or bx.kit == "Prism" then
+					own += 1
+				end
+			end
+		end
+		check(
+			all > 0 and own >= all * 0.7,
+			"Uptown wears mostly its own fronts (Ribbon, Prism), not Downtown's"
+		)
+		local houses = {}
+		for _, plan in a.tilePlans do
+			for _, bx in plan.boxes do
+				if bx.kind == "building" and bx.kit then
+					houses[bx.kit .. ":" .. (bx.tint or "")] = true
+				end
+			end
+		end
+		check(count(houses) >= 8, "the outskirts have at least 8 front and colour mixes")
+		for _, name in { "Downtown", "Uptown", "Docks", "OldTown", "Hub", "Outskirts" } do
+			local kinds = {}
+			for _, p in a.props do
+				if p.d == name then
+					kinds[p.name] = true
+				end
+			end
+			check(count(kinds) >= 3, name .. " has at least 3 kinds of prop")
+		end
+	end
+)
+
+test(
+	"Bigger Downtown and Uptown: the first Downtown unchanged, nothing overlaps, everything reachable",
+	function()
+		local IncidentSpots = require("../src/shared/IncidentSpots")
+		local C = Config.City
+		local gy = C.ground.y
+		local seed = 202647
+		local wd = world -- WorldMap.build(Config, 202647) above
+		local t = C.downtown
+		local core = t.core
+		local pitch = t.block + t.street
+
+		-- the size is config: the district is the core grown by whole blocks, and the core is the first 700 x 700
+		local d = C.districts.Downtown
+		check(
+			d.minX == core.minX - t.grow.west * pitch
+				and d.maxX == core.maxX + t.grow.east * pitch
+				and d.minZ == core.minZ - t.grow.north * pitch
+				and d.maxZ == core.maxZ + t.grow.south * pitch,
+			"Downtown is its core grown by whole blocks"
+		)
+		check(
+			core.maxX - core.minX == 700 and core.maxZ - core.minZ == 700,
+			"the core is the first 700 x 700"
+		)
+		check((d.maxX - d.minX) * (d.maxZ - d.minZ) >= 1.3 * 700 * 700, "Downtown is at least 1.3x as big")
+
+		-- the core is built exactly as before growing: same buildings, safehouse lots and Beacon Tower
+		local small = table.clone(C)
+		small.districts = table.clone(C.districts)
+		small.districts.Downtown = table.clone(core)
+		small.downtown = table.clone(t)
+		small.downtown.grow = { north = 0, south = 0, west = 0, east = 0 }
+		small.downtown.open = {}
+		local before = CityLayout.downtown(small, W)
+		local after = CityLayout.downtown(C, W)
+		local same = true
+		for i, b in before.buildings do
+			local k = after.buildings[i]
+			if not (k and k.x == b.x and k.z == b.z and k.h == b.h and k.sx == b.sx and k.grp == b.grp) then
+				same = false
+			end
+			if k and k.grown then
+				same = false
+			end
+		end
+		check(same, string.format("the first %d Downtown buildings are where they were", #before.buildings))
+		check(
+			after.beacon.x == before.beacon.x and after.beacon.z == before.beacon.z,
+			"the Beacon Tower and the plaza did not move"
+		)
+		for id, s in before.safehouseSpots do
+			local s2 = after.safehouseSpots[id]
+			check(s2 ~= nil and s2.x == s.x and s2.z == s.z, "safehouse " .. id .. " keeps its lot")
+		end
+		local grown = 0
+		for _, b in after.buildings do
+			if b.grown then
+				grown += 1
+			end
+		end
+		local newBlocks = ((d.maxX - d.minX) / pitch) * ((d.maxZ - d.minZ) / pitch) - 25
+		check(
+			grown == 4 * (newBlocks - #t.open),
+			string.format("%d buildings in %d new blocks (%d kept open)", grown, newBlocks, #t.open)
+		)
+		-- the same twice (deterministic)
+		local again = CityLayout.downtown(C, W)
+		local up1, up2 = CityLayout.uptown(C), CityLayout.uptown(C)
+		local twice = #again.boxes == #after.boxes and #up1.boxes == #up2.boxes
+		for i, b in up1.boxes do
+			local q = up2.boxes[i]
+			twice = twice
+				and q.cx == b.cx
+				and q.cy == b.cy
+				and q.cz == b.cz
+				and q.sy == b.sy
+				and q.color == b.color
+		end
+		check(twice, "Downtown and Uptown build the same twice")
+
+		-- wreckable ids: the first 220 as before, then the grown Downtown blocks and Uptown
+		local Districts = require("../src/shared/Districts")
+		local clear = {}
+		for _, s in wd.safehouses do
+			table.insert(clear, { x = s.x, z = s.z, r = W.safehouse.pad * 0.75 })
+		end
+		local first = WorldMap.pickBuildings(
+			Config,
+			CityLayout.downtown(small, W),
+			Districts.docks(C, clear),
+			Districts.oldTown(C, clear)
+		)
+		local idsOk = #first == Config.Destruction.hubBuildings
+		for i, b in first do
+			local k = wd.buildings[i]
+			idsOk = idsOk
+				and k ~= nil
+				and k.x == b.x
+				and k.z == b.z
+				and k.top == b.top
+				and k.district == b.district
+		end
+		check(idsOk, "the first 220 wreckable buildings keep their ids")
+		local up = wd.uptown
+		check(
+			#wd.buildings == Config.Destruction.hubBuildings + grown + #up.buildings,
+			string.format(
+				"%d wreckable: 220 + %d grown Downtown + %d Uptown",
+				#wd.buildings,
+				grown,
+				#up.buildings
+			)
+		)
+		for i = Config.Destruction.hubBuildings + 1, #wd.buildings do
+			local b = wd.buildings[i]
+			check(b.id == i and (b.district == "Downtown" or b.district == "Uptown"), "new wreckable " .. i)
+		end
+
+		-- districts never overlap each other, the outskirts safehouses, landmarks or the beacons outside them
+		local names = {}
+		for name in C.districts do
+			table.insert(names, name)
+		end
+		for i, an in names do
+			for j = i + 1, #names do
+				local ra, rb = C.districts[an], C.districts[names[j]]
+				check(
+					ra.maxX <= rb.minX or rb.maxX <= ra.minX or ra.maxZ <= rb.minZ or rb.maxZ <= ra.minZ,
+					an .. " and " .. names[j] .. " do not overlap"
+				)
+			end
+		end
+		local u = C.districts.Uptown
+		local half = C.mapSize / 2
+		check(u.maxX - u.minX >= 600 and u.maxZ - u.minZ >= 600, "Uptown is at least 600 x 600")
+		check(
+			u.minX > -half + 2 * C.tile and u.maxZ < half - 2 * C.tile,
+			"Uptown is on the map, clear of the coast"
+		)
+		check(
+			u.maxZ <= C.hub.min or u.minZ >= C.hub.max or u.maxX <= C.hub.min or u.minX >= C.hub.max,
+			"Uptown is out of the hub"
+		)
+		local function inside(r: any, x: number, z: number, pad: number): boolean
+			return x > r.minX - pad and x < r.maxX + pad and z > r.minZ - pad and z < r.maxZ + pad
+		end
+		for _, s in wd.safehouses do
+			for name, r in C.districts do
+				if s.district ~= name and s.district ~= "Downtown" then
+					check(not inside(r, s.x, s.z, W.safehouse.pad / 2), s.name .. " is not in " .. name)
+				end
+			end
+		end
+		for _, lm in wd.landmarks do
+			for name, r in C.districts do
+				local s = lm.size / 2
+				check(not inside(r, lm.centre.x, lm.centre.z, s), lm.id .. " is clear of " .. name)
+			end
+		end
+		-- Uptown's tiles are fixed (no roads, nothing seeded built in it); the rest of the outskirts as before
+		local noUp = table.clone(Config)
+		noUp.City = table.clone(C)
+		noUp.City.districts = table.clone(C.districts)
+		noUp.City.districts.Uptown = nil
+		local tilesA = WorldGen.tiles(C, W, seed)
+		local tilesB = WorldGen.tiles(noUp.City, W, seed)
+		local tilesOk, upTiles = true, 0
+		for tz = 0, W.tiles - 1 do
+			for tx = 0, W.tiles - 1 do
+				local x0, z0 = WorldGen.tileOrigin(C, tx, tz)
+				local touch = x0 < u.maxX and x0 + C.tile > u.minX and z0 < u.maxZ and z0 + C.tile > u.minZ
+				local ta, tb = WorldGen.get(W, tilesA, tx, tz), WorldGen.get(W, tilesB, tx, tz)
+				if touch then
+					upTiles += 1
+					tilesOk = tilesOk and ta.zone == W.zones.hub and not ta.roadNS and not ta.roadEW
+				else
+					tilesOk = tilesOk
+						and ta.zone == tb.zone
+						and ta.variant == tb.variant
+						and ta.rot == tb.rot
+						and ta.roadNS == tb.roadNS
+						and ta.roadEW == tb.roadEW
+				end
+			end
+		end
+		check(
+			tilesOk and upTiles == 36,
+			string.format("Uptown's %d tiles are fixed, every other tile as before", upTiles)
+		)
+		local intruders = 0
+		for _, plan in wd.tilePlans do
+			for _, b in plan.boxes do
+				for _, r in C.districts do
+					if inside(r, b.cx, b.cz, -0.5) and b.kind ~= "road" then
+						intruders += 1
+					end
+				end
+			end
+		end
+		for _, b in wd.baseBoxes do
+			if b.kind == "road" then
+				local x0, x1 = b.cx - b.sx / 2, b.cx + b.sx / 2
+				local z0, z1 = b.cz - b.sz / 2, b.cz + b.sz / 2
+				if x0 < u.maxX and x1 > u.minX and z0 < u.maxZ and z1 > u.minZ then
+					intruders += 1
+				end
+			end
+		end
+		check(intruders == 0, string.format("no tile, house or road built inside a district (%d)", intruders))
+
+		-- every Downtown and Uptown building stands in its district, no two overlap
+		local function overlaps(list: { any }): number
+			local n = 0
+			for i, a in list do
+				for j = i + 1, #list do
+					local b = list[j]
+					if
+						math.abs(a.x - b.x) < (a.sx + b.sx) / 2
+						and math.abs(a.z - b.z) < (a.sz + b.sz) / 2
+					then
+						n += 1
+					end
+				end
+			end
+			return n
+		end
+		for _, b in after.buildings do
+			check(inside(d, b.x, b.z, -b.sx / 2), "a Downtown building is in Downtown")
+		end
+		for _, b in up.buildings do
+			check(inside(u, b.x, b.z, -b.sx / 2), "an Uptown building is in Uptown")
+		end
+		check(overlaps(after.buildings) == 0 and overlaps(up.buildings) == 0, "no two buildings overlap")
+		check(
+			up.parts <= C.partBudget.uptown and after.parts <= C.partBudget.downtown,
+			string.format("part budgets: Downtown %d, Uptown %d", after.parts, up.parts)
+		)
+
+		-- the open squares and Uptown's green: open ground, nothing built on them, streets all round
+		check(#wd.open == #t.open and #wd.open >= 2, "the open squares are in the world")
+		local function clearSquare(x: number, z: number, size: number, what: string)
+			local blocked = 0
+			for _, b in wd.hubBoxes do
+				if
+					(b.kind == "building" or b.kind == "roof")
+					and math.abs(b.cx - x) < size / 2
+					and math.abs(b.cz - z) < size / 2
+				then
+					blocked += 1
+				end
+			end
+			check(blocked == 0, what .. ": nothing built on it")
+			for _, o in { { 0, 0 }, { -0.3, -0.3 }, { 0.3, 0.3 }, { -0.3, 0.3 } } do
+				local h = WorldMap.heightAt(wd, x + o[1] * size, z + o[2] * size)
+				check(h <= gy + 1.5, string.format("%s: open ground (%.1f)", what, h))
+			end
+			for _, s in { { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 } } do
+				local h = WorldMap.heightAt(wd, x + s[1] * (size / 2 + 8), z + s[2] * (size / 2 + 8))
+				check(h <= gy + 1.5, what .. ": a street on each side")
+			end
+		end
+		for _, o in wd.open do
+			check(inside(d, o.x, o.z, -o.size / 2), o.id .. " is in Downtown")
+			clearSquare(o.x, o.z, o.size - 30, o.id)
+		end
+		local f = C.uptown.fountain
+		local pk = up.park
+		for _, o in { { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 } } do
+			for _, r in { f.radius + 10, pk.size / 2 - 4 } do
+				local h = WorldMap.heightAt(wd, pk.x + o[1] * r, pk.z + o[2] * r)
+				check(h <= gy + 1.5, string.format("Uptown's green: its paths are open ground (%.1f)", h))
+			end
+		end
+		check(
+			WorldMap.heightAt(wd, pk.x, pk.z) <= gy + 1 + f.height + 0.5,
+			"the fountain is low enough to stand on its rim"
+		)
+
+		-- reachable: each Uptown and grown Downtown building has a street beside it, and incidents find spots
+		local streets = 0
+		for _, b in up.buildings do
+			local ok = false
+			for _, s in { { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 } } do
+				local px = b.x + s[1] * (b.sx / 2 + 14)
+				local pz = b.z + s[2] * (b.sz / 2 + 14)
+				if WorldMap.heightAt(wd, px, pz) <= gy + 1.5 then
+					ok = true
+				end
+			end
+			if ok then
+				streets += 1
+			end
+		end
+		check(streets == #up.buildings, "every Uptown building has open ground beside it")
+		local rng = Rng.new(5)
+		local kinds = IncidentSpots.kinds(Config, wd, pk.x, pk.z, 250)
+		check(
+			kinds.street and kinds.tower and kinds.sign and kinds.roof,
+			"Uptown has street, tower, sign and roof spots"
+		)
+		local spot = IncidentSpots.find(Config, wd, "tower", pk.x, pk.z, 0, 250, rng)
+		check(spot ~= nil and wd.buildings[spot.building].district == "Uptown", "a tower spot in Uptown")
+		local st = IncidentSpots.find(Config, wd, "street", pk.x, pk.z, 20, 200, rng)
+		check(st ~= nil and inside(u, st.x, st.z, 0), "a street spot in Uptown")
+		local o1 = wd.open[1]
+		check(
+			IncidentSpots.find(Config, wd, "street", o1.x, o1.z, 0, 60, rng) ~= nil,
+			"a street spot at a square"
+		)
+		-- zone levels: Uptown at the suburbs' floor, the grown Downtown in the hub's
+		check(ZoneLevel.area(Config, pk.x, pk.z, wd.tiles) == "Uptown", "Uptown is its own area")
+		check(ZoneLevel.at(Config, pk.x, pk.z, 1, wd.tiles) == W.zoneFloor.Uptown, "Uptown's floor")
+		check(ZoneLevel.area(Config, o1.x, o1.z, wd.tiles) == "hub", "the grown Downtown is the hub")
+		-- the beacons and the Beacon Tower roof are unchanged in number and stay under the ceiling
+		local tallest = 0
+		for _, b in up.boxes do
+			tallest = math.max(tallest, b.cy + b.sy / 2)
+		end
+		check(tallest < Config.Move.ceiling.soft, "Uptown is under the flight ceiling")
+		print(
+			string.format(
+				"  bigger city: Downtown %d buildings (%d new), %d parts; Uptown %d buildings, %d parts; hub boxes %d",
+				#after.buildings,
+				grown,
+				after.parts,
+				#up.buildings,
+				up.parts,
+				#wd.hubBoxes
+			)
+		)
+	end
+)
+
+test(
+	"Skyscrapers: towers of 400 to 600, an 820 landmark, under the ceiling, destructible, within budget",
+	function()
+		local Structure = require("../src/shared/Structure")
+		local C = Config.City
+		local D = Config.Destruction
+		local M = Config.Move
+		local gy = C.ground.y
+		local wd = world
+		local t, u = C.downtown, C.uptown
+		-- heights: towers 400 to 600 (Uptown 380 to 560) to the top of their crowns, varied silhouettes
+		local towers = { Downtown = 0, Uptown = 0 }
+		local styles = {}
+		local corePeak = 0
+		local core = t.core
+		for _, b in wd.buildings do
+			local peak = b.peak or b.top
+			local h = peak - b.base
+			if b.district == "Downtown" or b.district == "Uptown" then
+				local cfg = if b.district == "Downtown" then t.height else u.height
+				if h >= cfg.towerMin - 1 and b.crown ~= "landmark" then
+					towers[b.district] += 1
+					check(
+						h <= cfg.towerMax + 1,
+						string.format("a %s tower at most %d (%.0f)", b.district, cfg.towerMax, h)
+					)
+				end
+				if b.crown then
+					styles[b.crown] = true
+				end
+				if
+					b.district == "Downtown"
+					and b.x > core.minX
+					and b.x < core.maxX
+					and b.z > core.minZ
+					and b.z < core.maxZ
+				then
+					corePeak = math.max(corePeak, peak)
+				end
+			end
+		end
+		check(
+			towers.Downtown >= 15 and towers.Uptown >= 8,
+			string.format("a skyline: %d Downtown and %d Uptown towers", towers.Downtown, towers.Uptown)
+		)
+		local n = 0
+		for _ in styles do
+			n += 1
+		end
+		check(n >= 5, string.format("%d tower silhouettes (setback, spire, crown, mast, landmark)", n))
+		local bt = wd.downtown.beacon
+		check(
+			gy + 1 + bt.h > corePeak,
+			string.format("the Beacon Tower (%d) is the first Downtown's tallest (%.0f)", bt.h, corePeak)
+		)
+		local lm = wd.uptown.landmark
+		local tallest = 0
+		for _, b in wd.hubBoxes do
+			tallest = math.max(tallest, b.cy + b.sy / 2)
+		end
+		check(
+			math.abs(lm.peak - (gy + 0.9 + u.landmark.height)) < 1 and u.landmark.height >= 780,
+			"the landmark is about 800 studs"
+		)
+		check(
+			math.abs(tallest - lm.peak) < 1,
+			string.format("the landmark is the tallest thing in the city (%.0f)", tallest)
+		)
+		-- ceiling clearance: every roof and spire under the soft ceiling with room to fly over, the clouds above
+		check(
+			tallest + 60 <= M.ceiling.soft,
+			string.format(
+				"60 studs of sky over the tallest spire (%.0f, ceiling %d)",
+				tallest,
+				M.ceiling.soft
+			)
+		)
+		check(
+			C.ceilingCloudY > tallest and C.ceilingCloudY < M.ceiling.soft and M.ceiling.soft < M.ceiling.hard,
+			"clouds over the spires, under the ceiling"
+		)
+		for _, plan in wd.tilePlans do
+			for _, b in plan.boxes do
+				tallest = math.max(tallest, b.cy + b.sy / 2)
+			end
+		end
+		check(tallest + 60 <= M.ceiling.soft, "the outskirts too")
+		-- destructible: the shaft is the wreck box; every building's pieces fit the 256-bit pack, chunks and rubble
+		-- stay in their caps, and the crown sits on its own shaft
+		local maxPieces, maxStoreyH = 0, 0
+		for _, b in wd.buildings do
+			local g = Structure.build(D, b)
+			maxPieces = math.max(maxPieces, #g.pieces)
+			maxStoreyH = math.max(maxStoreyH, g.storeyH)
+			check(
+				#g.pieces <= 256 and g.storeys <= D.structure.maxStoreys,
+				"building " .. b.id .. " fits the piece pack"
+			)
+			local chunks = Chunker.split(D, b)
+			check(
+				#chunks >= D.chunks.min and #chunks <= D.chunks.max,
+				"building " .. b.id .. " chunks in 10 to 40"
+			)
+			local rubble = Chunker.rubble(D, b, b.id)
+			check(#rubble >= D.rubble.min and #rubble <= D.rubble.max, "building " .. b.id .. " rubble heap")
+		end
+		local byGrp = {}
+		for _, b in wd.buildings do
+			byGrp[b.grp] = b
+		end
+		local crownParts, bad = 0, 0
+		local perBuilding = {}
+		for _, bx in wd.hubBoxes do
+			if bx.grp then
+				perBuilding[bx.grp] = (perBuilding[bx.grp] or 0) + 1
+			end
+			if bx.crown then
+				crownParts += 1
+				local b = byGrp[bx.grp]
+				if
+					not b
+					or not b.crown
+					or bx.cy - bx.sy / 2 < b.top - 1.5
+					or math.abs(bx.cx - b.x) > b.sx / 2 + 1
+					or math.abs(bx.cz - b.z) > b.sz / 2 + 1
+				then
+					bad += 1
+				end
+			end
+		end
+		check(
+			crownParts > 0 and bad == 0,
+			string.format("%d crown parts, each on top of its own tower's shaft", crownParts)
+		)
+		for _, b in wd.buildings do
+			if b.crown then
+				check(b.peak ~= nil and b.peak > b.top, "a crowned tower's peak is over its shaft")
+			end
+		end
+		-- part budget: no building over 32 parts (window bands thin out high up), the districts in their budgets
+		local most = 0
+		for _, k in perBuilding do
+			most = math.max(most, k)
+		end
+		check(most <= 32, string.format("at most 32 parts a building (%d)", most))
+		check(
+			wd.downtown.parts <= C.partBudget.downtown and wd.uptown.parts <= C.partBudget.uptown,
+			"district part budgets"
+		)
+		-- beacons never on a crown; heights see the crowns
+		for _, b in wd.beacons do
+			for _, w in wd.buildings do
+				if w.crown and math.abs(b.x - w.x) < w.sx / 2 and math.abs(b.z - w.z) < w.sz / 2 then
+					check(false, b.name .. " is not on a skyscraper's crown")
+				end
+			end
+		end
+		check(WorldMap.heightAt(wd, lm.x, lm.z) >= lm.peak - 12, "the heightmap sees the landmark's spire")
+		print(
+			string.format(
+				"  skyline: %d Downtown and %d Uptown towers, Beacon %d, landmark %.0f, %d crown parts, max %d pieces, storeys up to %.0f studs",
+				towers.Downtown,
+				towers.Uptown,
+				bt.h,
+				lm.peak,
+				crownParts,
+				maxPieces,
+				maxStoreyH
+			)
+		)
+	end
+)
 
 print(string.format("\n%d passed, %d failed", passed, failed))
 if failed > 0 then

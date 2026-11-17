@@ -174,7 +174,7 @@ local function buildBase()
 	rect("Farmland", -farm, -farm, farm, farm, rgb(C.palette.crop))
 	rect("Suburbs", -suburbs, -suburbs, suburbs, suburbs, rgb(C.palette.grass))
 	rect("Hub", C.hub.min, C.hub.min, C.hub.max, C.hub.max, rgb(C.palette.sidewalk))
-	local names = { Downtown = "DOWNTOWN", Docks = "DOCKS", OldTown = "OLD TOWN" }
+	local names = { Downtown = "DOWNTOWN", Docks = "DOCKS", OldTown = "OLD TOWN", Uptown = "UPTOWN" } -- UPTOWN: PLACEHOLDER NAME
 	for id, d in C.districts do
 		rect(id, d.minX, d.minZ, d.maxX, d.maxZ, rgb(C.palette.slate), names[id])
 	end

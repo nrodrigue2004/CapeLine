@@ -5,6 +5,8 @@
 -- far ones pose (CitizenRenderer; their Roblox-look clothes are Textures, so fewer bodies is fewer
 -- Textures), Bloom and SunRays (Lighting), and FxLib's particle budget (Config.Fx.lib, by preset name).
 -- Medium and high keep what the game drew before the pass; only low draws less.
+-- props: the city kit's street props this device builds (CityProps): up to this tier (Config.City.kit.props),
+-- within this many studs of the camera, at most this many mesh parts (nearest first). Phones start on low.
 return {
 	order = { "low", "medium", "high" },
 	low = {
@@ -21,6 +23,7 @@ return {
 		citizenPoseEvery = 4, -- farther ones every this many frames
 		bloom = false,
 		sunRays = false,
+		props = { tier = 1, radius = 260, parts = 700 },
 	},
 	medium = {
 		streamRadius = 600,
@@ -36,6 +39,7 @@ return {
 		citizenPoseEvery = 3,
 		bloom = true,
 		sunRays = true,
+		props = { tier = 2, radius = 420, parts = 2000 },
 	},
 	high = {
 		streamRadius = 800,
@@ -51,6 +55,7 @@ return {
 		citizenPoseEvery = 3,
 		bloom = true,
 		sunRays = true,
+		props = { tier = 3, radius = 600, parts = 4000 },
 	},
 	-- the preset each device class starts on (QualityRules.device)
 	auto = { phone = "low", tablet = "medium", pc = "medium", console = "medium" },

@@ -24,6 +24,11 @@ export type Box = {
 	ghost: boolean?,
 	grp: string?, -- the building this part belongs to
 	bid: number?, -- its destructible building id
+	kit: string?, -- city kit texture (MaterialVariant "Kit" .. kit, Config.City.kit; CityKit)
+	tint: string?, -- the palette colour a tinted kit texture shows in
+	plain: string?, -- drawn only while this kit texture is missing (window bands on a textured front)
+	dress: boolean?, -- added by the kit (kerbs, lines, cornices): not part of the seeded layout
+	crown: boolean?, -- a skyscraper's top above its wreckable shaft (setbacks, spire, lantern, mast)
 }
 
 export type Opts = { shape: string?, ry: number?, tag: string?, ref: number?, ghost: boolean? }

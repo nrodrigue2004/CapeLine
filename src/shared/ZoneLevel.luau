@@ -9,7 +9,8 @@ local WorldGen = if script then require(script.Parent.WorldGen) else (require ::
 
 local ZoneLevel = {}
 
--- The area name at (x, z): a landmark id, "hub", "suburbs", "farmland" or "coast". tiles (optional) is
+-- The area name at (x, z): a landmark id, a district with its own floor (Uptown), "hub", "suburbs",
+-- "farmland" or "coast". tiles (optional) is
 -- the world's tile array; without it the ring rules decide.
 function ZoneLevel.area(Config: any, x: number, z: number, tiles: buffer?): string
 	local w = Config.World
@@ -19,6 +20,12 @@ function ZoneLevel.area(Config: any, x: number, z: number, tiles: buffer?): stri
 	local lm = WorldGen.landmarkAt(w, tx, tz)
 	if lm then
 		return w.landmarks[lm].id
+	end
+	-- a district with its own floor (Uptown, out of the hub among the suburbs)
+	for name, d in Config.City.districts do
+		if w.zoneFloor[name] and x >= d.minX and x < d.maxX and z >= d.minZ and z < d.maxZ then
+			return name
+		end
 	end
 	if tiles then
 		local zone = WorldGen.get(w, tiles, tx, tz).zone

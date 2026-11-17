@@ -39,7 +39,9 @@ return {
 		regenAir = 8, -- gliding or cruising
 		boostMin = 10, -- boost needs this much to start
 	},
-	ceiling = { soft = 560, hard = 600, push = 60 }, -- spec: cloud layer at 500, ceiling 600
+	-- spec: cloud layer at 500, ceiling 600; raised 2026-11-17 for the skyscrapers (nate: "taller buildings"):
+	-- the Uptown landmark's spire tops out at 820, so the clouds sit at 880 and the ceiling at 960
+	ceiling = { soft = 920, hard = 960, push = 60 },
 	fall = { terminal = 220 }, -- fastest legal fall (Roblox freefall from the ceiling)
 	-- Server caps per style (spec column "Server check"); position checks allow cap x tolerance
 	caps = {

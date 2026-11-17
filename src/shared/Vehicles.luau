@@ -78,11 +78,12 @@ function Vehicles.place(Config: any): { Vehicle }
 		local s = table.remove(slots, k) :: { number }
 		add("car", "Downtown", s[1], s[2], 0)
 	end
-	-- trams: two east-west lines, 4 trams each
-	local lines = { d.minZ + pitch * 2, d.minZ + pitch * 4 }
+	-- trams: two east-west lines through the first 700 x 700 (downtown.core), 4 trams each
+	local core = t.core or d
+	local lines = { core.minZ + pitch * 2, core.minZ + pitch * 4 }
 	for li, z in lines do
 		for k = 1, V.trams / #lines do
-			local x = d.minX + pitch / 2 + (k - 1) * pitch * 1.25 + li * 20
+			local x = core.minX + pitch / 2 + (k - 1) * pitch * 1.25 + li * 20
 			add("tram", "Downtown", x, z, 90, if li == 1 then "containerC" else "containerB")
 		end
 	end
