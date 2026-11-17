@@ -150,6 +150,11 @@ return {
 		[9] = { name = "Laugh" },
 		[10] = { name = "Cape Swish" },
 		[11] = { name = "Rookie Cheer", earned = true },
+		-- H6: each mentor's emote, the last part of their quest line (Config.Mentors)
+		[12] = { name = "Sharp Salute", earned = true },
+		[13] = { name = "Big Wave", earned = true },
+		[14] = { name = "Grand Bow", earned = true },
+		[15] = { name = "Shrug", earned = true },
 		[20] = { name = "Super Landing", earned = true, landing = true },
 		[21] = { name = "Kneel Landing", landing = true },
 		[22] = { name = "Spin Landing", landing = true },

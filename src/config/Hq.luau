@@ -55,6 +55,7 @@ return {
 		{ id = "repMax", name = "Reputation Rank 5" },
 		{ id = "pvp10", name = "10 PvP Wins" },
 		{ id = "styles50", name = "50 Styles" },
+		{ id = "mentorPride", name = "Mentor's Pride" }, -- H6: a mentor's quest line done
 	},
 
 	-- City reputation ranks unlock HQ props (profile.props bits; CafeSign = 1 is a side quest reward)

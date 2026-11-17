@@ -312,7 +312,7 @@ function TaskForceHud.init()
 			TaskForceHud.open()
 		end
 	end)
-	open.Parent = gui
+	Kit.dock(open, "TaskForce", 12) -- the top row (or its MORE drawer), after SETTINGS
 	-- the comic panel between legs
 	card = Kit.frame({
 		AnchorPoint = Vector2.new(0.5, 0.5),

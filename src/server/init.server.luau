@@ -58,6 +58,7 @@ local OpeningService = require(Services.OpeningService)
 local MissionService = require(Services.MissionService)
 local TaskForceService = require(Services.TaskForceService)
 local NemesisService = require(Services.NemesisService)
+local MentorService = require(Services.MentorService)
 local QuestService = require(Services.QuestService)
 local FlagService = require(Services.FlagService)
 local FameService = require(Services.FameService)
@@ -124,6 +125,7 @@ boot("OpeningService", OpeningService.init)
 boot("MissionService", MissionService.init)
 boot("TaskForceService", TaskForceService.init) -- H4: the Task Force board and quick join
 boot("NemesisService", NemesisService.init) -- H5: your nemesis
+boot("MentorService", MentorService.init) -- H6: mentors
 boot("QuestService", QuestService.init)
 boot("FlagService", FlagService.init)
 boot("FameService", FameService.init)

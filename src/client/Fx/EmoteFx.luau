@@ -90,6 +90,32 @@ local POSES: { [number]: Pose } = {
 		RightKnee = { -20, 0, 0 },
 		Neck = { 10, 0, 0 },
 	}, -- Float Down
+	-- H6: the mentors' emotes (Config.Mentors)
+	[12] = {
+		RightShoulder = { 0, 0, 160 },
+		RightElbow = { 0, 0, 125 },
+		Neck = { -8, 0, 0 },
+		LeftShoulder = { 0, 0, -10 },
+	}, -- Sharp Salute
+	[13] = {
+		RightShoulder = { 0, 0, 170 },
+		LeftShoulder = { 0, 0, -170 },
+		RightElbow = { 0, 0, 20 },
+		LeftElbow = { 0, 0, -20 },
+	}, -- Big Wave (both arms)
+	[14] = {
+		Waist = { -60, 0, 0 },
+		Neck = { -15, 0, 0 },
+		RightShoulder = { 40, 0, 20 },
+		LeftShoulder = { -50, 0, -20 },
+	}, -- Grand Bow (one arm across, one behind)
+	[15] = {
+		RightShoulder = { 0, 0, 40 },
+		LeftShoulder = { 0, 0, -40 },
+		RightElbow = { 0, 0, 90 },
+		LeftElbow = { 0, 0, -90 },
+		Neck = { 0, 0, 12 },
+	}, -- Shrug
 	-- Photo Mode's own poses (free, only on your screen while you take a photo; M11)
 	[101] = {
 		RightShoulder = { 80, 0, 20 },

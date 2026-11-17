@@ -929,4 +929,226 @@ return function(T: any)
 			"Dev: nemesis 0/1"
 		)
 	end)
+
+	---------------------------------------------------------------------------
+	-- H6: mentors
+	---------------------------------------------------------------------------
+	local MentorRules = require("../src/shared/MentorRules")
+	local MC = Config.Mentors
+
+	local function mentorSave(): any
+		return {
+			mentor = 0,
+			mentorSeen = 0,
+			mentorParts = { 0, 0, 0, 0 },
+			mentorCount = { 0, 0 },
+			mentorLook = 0,
+		}
+	end
+
+	test("H6: four mentors, two a side, a look and an emote each, never stats", function()
+		local names = {}
+		for _, m in MC.list do
+			names[m.name] = m.side
+		end
+		check(#MC.list == 4, "4 mentors")
+		check(names["Captain Meridian"] == "hero" and names["Old Beacon"] == "hero", "the hero mentors")
+		check(
+			names["The Margrave"] == "villain" and names["The Velvet Paw"] == "villain",
+			"the villain mentors"
+		)
+		check(#MentorRules.forSide(MC, "hero") == 2 and #MentorRules.forSide(MC, "villain") == 2, "2 a side")
+		local allowed =
+			{ id = 1, name = 1, initial = 1, side = 1, group = 1, blurb = 1, colors = 1, look = 1, emote = 1 }
+		local kinds = { trail = 0, aura = 0 }
+		for _, m in MC.list do
+			for k in m do
+				check(allowed[k] ~= nil, m.name .. " has only looks and guide fields (" .. k .. ")")
+			end
+			kinds[m.look.kind] += 1
+			local e = Config.Shop.emotes[m.emote]
+			check(e ~= nil and e.earned == true and not e.landing, m.name .. "'s emote is earned, not sold")
+			check(MC.lines[m.id] ~= nil, m.name .. " has panel lines")
+			for _, moment in
+				{ "pick", "firstBlock", "firstNemesis", "firstTaskForce", "level", "questDone", "ally" }
+			do
+				local line =
+					MentorRules.line(MC, MentorRules.indexOf(MC, m.id) :: number, moment, "Nova Kid", 15)
+				check(
+					line ~= nil and string.find(line, "{", 1, true) == nil,
+					m.name .. " " .. moment .. " line"
+				)
+			end
+		end
+		check(kinds.trail == 2 and kinds.aura == 2, "gold and violet trails, lantern and spark auras")
+		-- nate's lore (2026-11-17): the sides are the Vigil and the Dread Syndicate; Lodestar and Patch keep
+		-- their roles, and no mentor text uses the old names
+		local groups = {}
+		for _, m in MC.list do
+			groups[m.id] = m.group
+			check(type(m.blurb) == "string" and #m.blurb > 10, m.name .. " has a one-line blurb")
+			local texts = { m.blurb, m.group }
+			for _, l in MC.lines[m.id] do
+				table.insert(texts, l)
+			end
+			for _, t in texts do
+				for _, old in { "League", "Null", "Shardfall", "Lodestar", "Patch" } do
+					check(string.find(t, old, 1, true) == nil, m.name .. " text avoids " .. old)
+				end
+			end
+		end
+		check(groups.CaptainMeridian == "The Vigil", "Meridian flies with the Vigil")
+		check(groups.TheMargrave == "The Dread Syndicate", "the Margrave works for the Dread Syndicate")
+		local i = MentorRules.indexOf(MC, "OldBeacon") :: number
+		local l = MentorRules.line(MC, i, "level", "Nova Kid", 15) :: string
+		check(
+			string.find(l, "Nova Kid", 1, true) ~= nil and string.find(l, "15", 1, true) ~= nil,
+			"name and level"
+		)
+		for _, tf in Config.TaskForce.list do
+			local mi = MentorRules.indexOf(MC, tf.mentor)
+			check(mi ~= nil and MC.list[mi].side == tf.side, tf.id .. "'s mentor is of its side")
+		end
+	end)
+
+	test("H6: picking and changing a mentor", function()
+		local s = mentorSave()
+		local meridian = MentorRules.indexOf(MC, "CaptainMeridian") :: number
+		local beacon = MentorRules.indexOf(MC, "OldBeacon") :: number
+		local paw = MentorRules.indexOf(MC, "TheVelvetPaw") :: number
+		check(
+			not MentorRules.canPick(MC, s, meridian, "hero", false, false),
+			"not before the opening is done"
+		)
+		check(select(2, MentorRules.canPick(MC, s, paw, "hero", true, false)) == "side", "only your side's")
+		check(MentorRules.canPick(MC, s, meridian, "hero", true, false), "the first pick anywhere")
+		MentorRules.pick(MC, s, meridian)
+		check(s.mentor == meridian, "picked")
+		check(
+			select(2, MentorRules.canPick(MC, s, beacon, "hero", true, false)) == "safehouse",
+			"a change at a safehouse"
+		)
+		check(MentorRules.canPick(MC, s, beacon, "hero", true, true), "free at any safehouse")
+		check(not MentorRules.canPick(MC, s, meridian, "hero", true, true), "not the same one")
+		check(
+			MentorRules.fits(MC, s, "hero") and not MentorRules.fits(MC, s, "villain"),
+			"a side change asks again"
+		)
+		-- the moments
+		check(
+			MentorRules.firstTime(MC, s, "firstBlock") and not MentorRules.firstTime(MC, s, "firstBlock"),
+			"once"
+		)
+		check(MentorRules.firstTime(MC, s, "firstNemesis"), "each moment on its own")
+		local lv = MentorRules.levelPanels(MC, 4, 11)
+		check(#lv == 2 and lv[1] == 5 and lv[2] == 10, "a panel at every 5 levels")
+		check(#MentorRules.levelPanels(MC, 6, 9) == 0, "none between")
+	end)
+
+	test("H6: the 4-part quest line at levels 10, 20, 30 and 40; the reward", function()
+		check(#MC.quest == 4, "4 parts")
+		for i, lvl in { 10, 20, 30, 40 } do
+			check(MC.quest[i].level == lvl, "part " .. i .. " at level " .. lvl)
+			for _, g in MC.quest[i].goals do
+				check(MC.goalNames[g.kind] ~= nil and g.n >= 1, "a goal the game counts: " .. g.kind)
+			end
+		end
+		local s = mentorSave()
+		check(MentorRules.openPart(MC, s, 40) == nil, "no mentor, no quest")
+		local meridian = MentorRules.indexOf(MC, "CaptainMeridian") :: number
+		MentorRules.pick(MC, s, meridian)
+		check(
+			MentorRules.openPart(MC, s, 9) == nil and MentorRules.openPart(MC, s, 10) == 1,
+			"part 1 at level 10"
+		)
+		check(
+			MentorRules.count(MC, s, 9, "incident") == nil and s.mentorCount[1] == 0,
+			"nothing counts before"
+		)
+		check(MentorRules.count(MC, s, 12, "robot") == nil and s.mentorCount[1] == 0, "only its goals count")
+		MentorRules.count(MC, s, 12, "incident")
+		MentorRules.count(MC, s, 12, "incident")
+		check(s.mentorCount[1] == 2, "counting")
+		check(MentorRules.count(MC, s, 12, "incident") == 1, "part 1 done")
+		check(s.mentorParts[meridian] == 1 and s.mentorCount[1] == 0, "saved; counts start over")
+		check(MentorRules.openPart(MC, s, 19) == nil and MentorRules.openPart(MC, s, 20) == 2, "part 2 at 20")
+		check(MentorRules.count(MC, s, 20, "robot", 500) == 2, "part 2")
+		MentorRules.count(MC, s, 30, "contract", 3)
+		check(s.mentorParts[meridian] == 2, "part 3 needs both goals")
+		-- switching keeps finished parts, the open part starts over
+		local beacon = MentorRules.indexOf(MC, "OldBeacon") :: number
+		MentorRules.pick(MC, s, beacon)
+		check(s.mentorCount[1] == 0 and s.mentorParts[meridian] == 2 and s.mentorParts[beacon] == 0, "kept")
+		MentorRules.pick(MC, s, meridian)
+		check(
+			MentorRules.count(MC, s, 30, "contract", 3) == nil
+				and MentorRules.count(MC, s, 30, "mission") == 3,
+			"3"
+		)
+		check(
+			not MentorRules.lineDone(MC, s, meridian) and not MentorRules.canWear(MC, s, meridian),
+			"not yet"
+		)
+		MentorRules.count(MC, s, 40, "boss")
+		check(MentorRules.count(MC, s, 40, "mission", 2) == 4, "part 4")
+		check(
+			MentorRules.lineDone(MC, s, meridian) and MentorRules.canWear(MC, s, meridian),
+			"the look is yours"
+		)
+		check(MentorRules.openPart(MC, s, 40) == nil, "the line is done")
+		check(
+			MentorRules.canWear(MC, s, 0) and not MentorRules.canWear(MC, s, beacon),
+			"wear only what you earned"
+		)
+		local P = require("../src/shared/ProfileSchema")
+		local profile = P.default()
+		local HqRules = require("../src/shared/HqRules")
+		check(HqRules.trophies(Config, profile).mentorPride == false, "no Mentor's Pride yet")
+		profile.characters = { P.newCharacter() }
+		profile.characters[1].mmo.mentorParts = { 4, 0, 0, 0 }
+		check(HqRules.trophies(Config, profile).mentorPride == true, "Mentor's Pride on the HQ wall")
+		local found = false
+		for _, t in Config.Hq.trophies do
+			found = found or (t.id == MC.trophy and t.name == "Mentor's Pride")
+		end
+		check(found, "the trophy exists")
+	end)
+
+	test("H6: the save, the services and the ally", function()
+		local P = require("../src/shared/ProfileSchema")
+		local c = P.newCharacter()
+		check(c.mmo.mentor == 0 and c.mmo.mentorLook == 0 and #c.mmo.mentorParts == 4, "saved per character")
+		local bad = P.load({
+			version = P.VERSION,
+			characters = { { mmo = { mentor = 9, mentorParts = { 7, "x" }, mentorLook = -1 } } },
+		})
+		local m = bad.characters[1].mmo
+		check(
+			m.mentor == 4 and m.mentorLook == 0 and m.mentorParts[1] == 0 and #m.mentorParts == 4,
+			"repaired"
+		)
+		local src = source("src/server/Services/MentorService.luau")
+		check(string.find(src, "SafehouseService.at(pos) ~= nil", 1, true) ~= nil, "a change at a safehouse")
+		check(string.find(src, "run.leg >= run.m.legs", 1, true) ~= nil, "the ally joins the final leg")
+		check(string.find(src, "run.stage >= run.stages", 1, true) ~= nil, "on the final leg's last stage")
+		check(
+			string.find(src, "OpeningService.Finished:Connect", 1, true) ~= nil,
+			"the picker after the prologue"
+		)
+		check(MC.afterOpening > 0 and MC.afterOpening < 20, "a short wait after the title")
+		check(
+			string.find(src, "ProfileSchema.Bits.set(profile.emotes, mentor.emote)", 1, true) ~= nil,
+			"the emote"
+		)
+		for _, bad2 in { "HeroService.refresh", "setRaise", "statLevel", "addBuff", "Status." } do
+			check(string.find(src, bad2, 1, true) == nil, "mentors never touch stats (" .. bad2 .. ")")
+		end
+		local R = require("../src/shared/Remotes")
+		check(
+			R.MentorPick.dir == "C2S" and R.MentorWear.dir == "C2S" and R.MentorState.dir == "S2C",
+			"remotes"
+		)
+		local AS = require("../src/shared/AnalyticsSchema")
+		check(AS.EVENTS.mentor_pick ~= nil and AS.EVENTS.mentor_line_done ~= nil, "analytics")
+	end)
 end

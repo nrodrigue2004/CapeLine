@@ -60,6 +60,8 @@ return {
 		{ id = "throwLand", visual = "ThrowFx" }, -- crash; dust ring and chips where it lands, a shake for heavy (H3)
 		{ id = "nemesisArrive", visual = "NemesisFx" }, -- low horn sting; its name over its head (H5)
 		{ id = "nemesisEscape", visual = "NemesisFx" }, -- teleport zap; a white flash where it stood (H5)
+		{ id = "mentorPanel", visual = "MentorFx" }, -- page flip; the mentor's comic panel slides in (H6)
+		{ id = "mentorReward", visual = "MentorFx" }, -- bright chime; the new look bursts on (H6)
 	},
 	-- the spec's own juice table is the first 31 rows above; the rest came with the Hero MMO features
 	juiceSpec = 31,
@@ -113,6 +115,8 @@ return {
 		throwLand = s("action_jump_land.mp3", 1, 0.7, { range = 220, vary = 0.1 }),
 		nemesisArrive = s("swoosh.wav", 1, 0.45, { range = 260 }),
 		nemesisEscape = s("electronicpingshort.wav", 0.9, 0.5, { range = 220 }),
+		mentorPanel = s("swoosh.wav", 0.4, 1.6),
+		mentorReward = s("electronicpingshort.wav", 0.8, 1.9),
 		ui = s("button.wav", 0.35, 1), -- every button tap
 		-- the newer robots (not juice actions; CombatClient plays them with their CombatFx visuals)
 		aimLock = s("electronicpingshort.wav", 0.6, 2.6), -- a Sniper's laser locks on you

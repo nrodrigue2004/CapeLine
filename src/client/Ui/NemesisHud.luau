@@ -152,7 +152,7 @@ function NemesisHud.init()
 			NemesisHud.open()
 		end
 	end)
-	open.Parent = gui
+	Kit.dock(open, "Wanted", 13) -- the top row (or its MORE drawer), after SETTINGS
 	-- the comic panel taunt (top of the screen)
 	panel = Kit.frame({
 		AnchorPoint = Vector2.new(0.5, 0),

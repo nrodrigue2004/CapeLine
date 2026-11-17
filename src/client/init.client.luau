@@ -60,6 +60,8 @@ local ContractBoard = require(Ui.ContractBoard)
 local TaskForceHud = require(Ui.TaskForceHud) -- H4: the Task Force board
 local NemesisHud = require(Ui.NemesisHud) -- H5: the WANTED poster and taunts
 local NemesisFx = require(Fx.NemesisFx)
+local MentorHud = require(Ui.MentorHud) -- H6: the mentor card, picker and panels
+local MentorFx = require(Fx.MentorFx)
 local StoryHud = require(Ui.StoryHud)
 local Journal = require(Ui.Journal)
 local PvpHud = require(Ui.PvpHud)
@@ -121,6 +123,8 @@ ContractBoard.init()
 TaskForceHud.init()
 NemesisHud.init()
 NemesisFx.init()
+MentorHud.init()
+MentorFx.init()
 Toasts.init()
 MapScreen.init()
 WorldHud.init()

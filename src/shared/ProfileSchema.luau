@@ -182,6 +182,14 @@ function ProfileSchema.newCharacter(side: string?, classId: string?): { [string]
 			banes = {},
 			cores = 0,
 			heads = 0,
+			-- H6: mentor = index in Config.Mentors.list (0 = not picked), mentorSeen = panel moment bits,
+			-- mentorParts = quest parts finished per mentor, mentorCount = the open part's goal counts,
+			-- mentorLook = the mentor whose look you wear (0 = none)
+			mentor = 0,
+			mentorSeen = 0,
+			mentorParts = { 0, 0, 0, 0 },
+			mentorCount = { 0, 0 },
+			mentorLook = 0,
 		},
 	}
 end
@@ -479,6 +487,11 @@ local function repair(p: any): any
 				c.mmo.banes = cleanNumbers(c.mmo.banes, 8, 0, 2 ^ 32)
 				c.mmo.cores = num(c.mmo.cores, 0, 65535, 0)
 				c.mmo.heads = num(c.mmo.heads, 0, 65535, 0)
+				c.mmo.mentor = num(c.mmo.mentor, 0, 4, 0)
+				c.mmo.mentorSeen = num(c.mmo.mentorSeen, 0, 2 ^ 16, 0)
+				c.mmo.mentorParts = cleanNumbers(c.mmo.mentorParts, 4, 0, 4, true)
+				c.mmo.mentorCount = cleanNumbers(c.mmo.mentorCount, 2, 0, 1000, true)
+				c.mmo.mentorLook = num(c.mmo.mentorLook, 0, 4, 0)
 				local looks = {}
 				for _, l in c.looks do
 					if type(l) == "table" and #looks < 4 then

@@ -14,6 +14,7 @@ local ProfileSchema = if script
 	else (require :: any)("./ProfileSchema")
 local StoryPlan = if script then require(script.Parent.StoryPlan) else (require :: any)("./StoryPlan")
 local PvpRules = if script then require(script.Parent.PvpRules) else (require :: any)("./PvpRules")
+local MentorRules = if script then require(script.Parent.MentorRules) else (require :: any)("./MentorRules")
 local AbilityRules = if script
 	then require(script.Parent.AbilityRules)
 	else (require :: any)("./AbilityRules")
@@ -139,6 +140,7 @@ function HqRules.trophies(Config: any, profile: any): { [string]: boolean }
 	out.repMax = maxRep >= 5
 	out.pvp10 = (s.wins or 0) >= 10
 	out.styles50 = #Bits.list(profile.styles) >= 50
+	out.mentorPride = Config.Mentors ~= nil and MentorRules.pride(Config.Mentors, profile) -- H6
 	return out
 end
 

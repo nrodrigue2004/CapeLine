@@ -52,6 +52,7 @@ local NAMES = {
 	"Sidekick", -- H4: sidekicking, missions only
 	"TaskForce", -- H4: task forces
 	"Nemesis", -- H5: your nemesis
+	"Mentors", -- H6: mentors
 }
 
 local Config: { [string]: any } = {}

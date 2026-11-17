@@ -486,6 +486,13 @@ function Toasts.show(data: { [string]: any })
 			),
 			Kit.color.paper
 		)
+	elseif id == "mentorPart" then
+		-- H6: a part of your mentor's quest line done
+		push(
+			string.format("Mentor quest part %d of %d done", data.part or 0, data.of or 4),
+			Kit.color.gold,
+			true
+		)
 	elseif id == "saveDown" then
 		push(
 			"Saving is down right now: this session's progress will not be kept",

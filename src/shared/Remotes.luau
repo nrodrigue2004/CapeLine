@@ -269,6 +269,13 @@ local Remotes: { [string]: RemoteDef } = {
 	NemesisPoster = { dir = "C2S", schema = {}, rate = 1, burst = 3 },
 	NemesisShowdown = { dir = "C2S", schema = {}, rate = 1, burst = 2 },
 	NemesisState = { dir = "S2C" },
+	-- H6: mentors. MentorOpen: ask for your mentor card; MentorPick: pick mentor n (the first pick anywhere,
+	-- a change at a safehouse); MentorWear: wear mentor n's look (0 = none). MentorState: { k = card | pick |
+	-- panel | assist, ... }
+	MentorOpen = { dir = "C2S", schema = {}, rate = 1, burst = 3 },
+	MentorPick = { dir = "C2S", schema = { n(1, 4) }, rate = 1, burst = 2 },
+	MentorWear = { dir = "C2S", schema = { n(0, 4) }, rate = 1, burst = 2 },
+	MentorState = { dir = "S2C" },
 }
 
 return Remotes

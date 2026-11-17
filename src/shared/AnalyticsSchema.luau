@@ -64,6 +64,8 @@ AnalyticsSchema.EVENTS = {
 	nemesis_met = { "rank", "traits" }, -- value: encounters with this nemesis
 	nemesis_showdown_start = { "rank", "party" },
 	nemesis_showdown = { "rank" }, -- a Showdown won
+	mentor_pick = { "mentor", "kind" }, -- kind: first or change
+	mentor_line_done = { "mentor" },
 }
 
 AnalyticsSchema.FUNNELS = {
