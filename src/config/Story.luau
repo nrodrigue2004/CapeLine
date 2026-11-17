@@ -1124,7 +1124,7 @@ return {
 				idle = {
 					[2] = {
 						who = "patch",
-						hero = "Psst. Old Star's waiting at the safehouse. It's pinned in your Journal!",
+						hero = "Psst. Old Star's waiting under the plaza. The Safehouse is pinned in your Journal!",
 						villain = "Psst. Old Star's deal is still on the table. Safehouse, in your Journal.",
 					},
 					[3] = {
@@ -1155,7 +1155,7 @@ return {
 				},
 			},
 		},
-		-- Lodestar in person in the Vigil's HQ (the hero's HQ cell; he keeps away from the Foundry): a Talk
+		-- Lodestar in person in the Vigil's HQ, The Safehouse (the hero's HQ cell; he keeps away from the Foundry): a Talk
 		-- prompt `at` (x, z from the cell centre), each talk the next line of the rotation for the story so
 		-- far (the first tier whose `from` is at or under the next mission's number; 7 when Act 1 is done).
 		lodestar = {
@@ -1167,7 +1167,7 @@ return {
 				{
 					from = 1,
 					lines = {
-						"You made it out. Rest a minute, then meet me at the safehouse.",
+						"You found the Safehouse. Rest a minute. The tunnel run is in your Journal.",
 						"The kid talks a lot. Listen anyway. Patch is never wrong about Crane.",
 						"Your Spark woke up the hard way. Mine did too.",
 					},

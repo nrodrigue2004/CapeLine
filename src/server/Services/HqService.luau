@@ -1,7 +1,8 @@
 -- HqService: the Hero HQ, solo visits, upgrades, mannequins, training room, trophies, offline drones and the
 -- Hall of Legends (spec: Hero HQ (Beacon Tower or the Foundry); Legacy rebirth).
--- * The doors: a door at the foot of the Beacon Tower (the Vigil) and the Foundry door (the Dread Syndicate), your
---   side's only. Entering puts the hero in its own sealed cell far above the map (HqRules.cell by hero
+-- * The doors: the Vigil's maintenance stairwell at the Downtown plaza's edge (The Safehouse, the hideout under
+--   the plaza; nate's lore plan Q2: a locked service door to anyone else) and the Foundry door (the Dread
+--   Syndicate), your side's only. Entering puts the hero in its own sealed cell far above the map (HqRules.cell by hero
 --   slot): the server builds the floor, walls and roof; the device builds the rooms (HqClient). The hero
 --   is in a scene ("hq"): no PvP, no incidents, no events. Leaving puts it back outside the door.
 -- * Stations work by remote while inside: upgrades (Credits), mannequins (save and wear looks), the
@@ -511,6 +512,28 @@ end
 
 HqService.payDrones = drones
 
+local function hookPrompt(p: BasePart, side: string, objectText: string, actionText: string)
+	local prompt = Instance.new("ProximityPrompt")
+	prompt.ActionText = actionText
+	prompt.ObjectText = objectText
+	prompt.KeyboardKeyCode = Enum.KeyCode.B -- E is Skill 2
+	prompt.HoldDuration = 0.3
+	prompt.MaxActivationDistance = H.doorRange
+	prompt.RequiresLineOfSight = false
+	prompt.Parent = p
+	prompt.Triggered:Connect(function(player)
+		local ok, why = HqService.enter(player, side)
+		if not ok then
+			-- the Vigil's door is just a locked service door to anyone else: it never names the HQ
+			if side == "hero" and why == "side" then
+				Net.fire("Toast", player, { id = "hqRefused", reason = "serviceLocked" })
+			else
+				Net.fire("Toast", player, { id = "hqRefused", reason = why, name = H.names[side] })
+			end
+		end
+	end)
+end
+
 local function makeDoor(side: string, cf: CFrame)
 	local p = Instance.new("Part")
 	p.Name = "HqDoor_" .. side
@@ -522,21 +545,86 @@ local function makeDoor(side: string, cf: CFrame)
 	p.Material = Enum.Material.Neon
 	p.Transparency = 0.35
 	p.Parent = folder
-	local prompt = Instance.new("ProximityPrompt")
-	prompt.ActionText = "Enter"
-	prompt.ObjectText = H.names[side]
-	prompt.KeyboardKeyCode = Enum.KeyCode.B -- E is Skill 2
-	prompt.HoldDuration = 0.3
-	prompt.MaxActivationDistance = H.doorRange
-	prompt.RequiresLineOfSight = false
-	prompt.Parent = p
-	prompt.Triggered:Connect(function(player)
-		local ok, why = HqService.enter(player, side)
-		if not ok then
-			Net.fire("Toast", player, { id = "hqRefused", reason = why, name = H.names[side] })
-		end
-	end)
+	hookPrompt(p, side, H.names[side], "Enter")
 	doors[side] = cf + Vector3.new(0, 3, 0)
+end
+
+-- The Vigil's way in (nate's lore plan Q2): a maintenance stairwell head at the plaza's edge, a plain concrete
+-- box with a steel service door facing the plaza (`cf` at its foot, looking out of the door). Everyone sees a
+-- locked "Service Door"; a Vigil device swaps in the HQ's name and a marker (HqClient). PLACEHOLDER ART.
+local function makeServiceDoor(cf: CFrame)
+	local D = H.door
+	local w, h, d = D.size[1], D.size[2], D.size[3]
+	local palette = Config.City.palette
+	local function rgb(key: string): Color3
+		local c = palette[key] or { 255, 0, 255 }
+		return Color3.fromRGB(c[1], c[2], c[3])
+	end
+	local model = Instance.new("Model")
+	model.Name = "VigilStairwell"
+	local function block(name: string, size: Vector3, at: CFrame, color: string, mat: Enum.Material): Part
+		local p = Instance.new("Part")
+		p.Name = name
+		p.Anchored = true
+		p.CanTouch = false
+		p.Size = size
+		p.CFrame = at
+		p.Color = rgb(color)
+		p.Material = mat
+		p.TopSurface = Enum.SurfaceType.Smooth
+		p.BottomSurface = Enum.SurfaceType.Smooth
+		p.Parent = model
+		return p
+	end
+	-- the head: walls round a stair going down, its door on the plaza side (local -z), a flat roof
+	block("Head", Vector3.new(w, h, d), cf * CFrame.new(0, h / 2, d / 2), "concrete", Enum.Material.Concrete)
+	block(
+		"Roof",
+		Vector3.new(w + 1, 0.6, d + 1),
+		cf * CFrame.new(0, h + 0.3, d / 2),
+		"tunnel",
+		Enum.Material.Concrete
+	)
+	block("Frame", Vector3.new(5.6, 8.6, 0.3), cf * CFrame.new(0, 4.3, -0.1), "tunnel", Enum.Material.Metal)
+	block(
+		"Stripe",
+		Vector3.new(w, 0.6, 0.2),
+		cf * CFrame.new(0, 0.9, -0.05),
+		H.hideout.colors.stripe,
+		Enum.Material.SmoothPlastic
+	)
+	local plate = block(
+		"Plate",
+		Vector3.new(4, 0.8, 0.1),
+		cf * CFrame.new(0, 9.1, -0.3),
+		"white",
+		Enum.Material.SmoothPlastic
+	)
+	plate.CanCollide = false
+	local lamp = block(
+		"Lamp",
+		Vector3.new(1.4, 0.5, 0.8),
+		cf * CFrame.new(0, 9.9, -0.5),
+		H.hideout.colors.lamp,
+		Enum.Material.Neon
+	)
+	lamp.CanCollide = false
+	local light = Instance.new("PointLight")
+	light.Range = 10
+	light.Brightness = 0.8
+	light.Color = lamp.Color
+	light.Parent = lamp
+	local door = block(
+		"HqDoor_hero",
+		Vector3.new(5, 8, 0.4),
+		cf * CFrame.new(0, 4, -0.3),
+		"steel",
+		Enum.Material.Metal
+	)
+	door.CanCollide = false
+	model.Parent = folder
+	hookPrompt(door, "hero", D.object, D.locked)
+	doors.hero = cf * CFrame.new(0, 3, -4)
 end
 
 function HqService.init()
@@ -544,10 +632,13 @@ function HqService.init()
 	folder.Name = "Hq"
 	folder.Parent = Workspace
 	local world = CityBuilder.world
-	local bt = world.downtown.beacon
-	local dz = bt.z - 18
-	local gy = CityBuilder.heightAt(bt.x, dz)
-	makeDoor("hero", CFrame.lookAt(Vector3.new(bt.x, gy, dz), Vector3.new(bt.x, gy, dz - 10)))
+	-- the Vigil's stairwell at the plaza's edge (the Beacon Tower is Crane's Hero Hall now: no door there)
+	local hd = HqRules.heroDoor(Config, world)
+	if hd then
+		local gy = CityBuilder.heightAt(hd.x, hd.z)
+		local at = Vector3.new(hd.x, gy, hd.z)
+		makeServiceDoor(CFrame.lookAt(at, at + Vector3.new(hd.fx, 0, hd.fz)))
+	end
 	local fd = world.spots.foundryDoor
 	if fd then
 		local y = CityBuilder.heightAt(fd.x, fd.z)

@@ -48,7 +48,7 @@ return {
 		height = { min = 40, max = 190, towerChance = 0.18, towerMin = 400, towerMax = 600 },
 		rooftop = { ledgeChance = 0.5, waterTowerChance = 0.25, antennaChance = 0.3 },
 		plaza = { size = 140 }, -- the open square around the Beacon Tower, where new heroes land
-		beacon = { height = 640, width = 46 }, -- Beacon Tower HQ (the Vigil's side), the Downtown landmark, the tallest there
+		beacon = { height = 640, width = 46 }, -- the Beacon Tower: Crane's Hero Hall (lore Q1), the Downtown landmark, the tallest there
 		seed = 20261116, -- fixed: the hub is handcrafted in the spec, so it never changes with the weekly seed
 		core = CORE, -- the first 700 x 700: its blocks keep their draws, so its buildings never move
 		grow = GROW,
@@ -458,6 +458,7 @@ return {
 		rust = { 140, 80, 50 },
 		seabed = { 170, 160, 130 },
 		tunnel = { 88, 92, 98 },
+		workLamp = { 255, 206, 130 }, -- the Vigil hideout's work lamps (Config.Hq.hideout)
 		trainCar = { 170, 175, 185 },
 		trainStripe = { 220, 70, 60 },
 		cargo = { 230, 180, 60 },

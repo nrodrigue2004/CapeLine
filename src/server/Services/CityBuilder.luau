@@ -21,6 +21,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local WorldMap = require(Shared:WaitForChild("WorldMap"))
 local WorldGen = require(Shared:WaitForChild("WorldGen"))
 local DeepLayout = require(Shared:WaitForChild("DeepLayout"))
+local HqRules = require(Shared:WaitForChild("HqRules"))
 local Signal = require(Shared:WaitForChild("Util"):WaitForChild("Signal"))
 
 local CityBuilder = {}
@@ -403,9 +404,10 @@ function CityBuilder.publishInfo(world: any)
 	for _, b in world.buildings do
 		table.insert(info.buildings, { b.id, b.x, b.z, b.sx, b.sz, b.base, b.top })
 	end
-	local bt = world.downtown.beacon
+	-- the Vigil's HQ is its stairwell at the plaza's edge (HqRules.heroDoor; the map shows it to the Vigil only)
+	local hd = HqRules.heroDoor(Config, world) or { x = world.downtown.beacon.x, z = world.downtown.beacon.z }
 	info.hq = {
-		{ side = "hero", x = bt.x, z = bt.z },
+		{ side = "hero", x = hd.x, z = hd.z },
 		{ side = "villain", x = world.spots.foundry.x, z = world.spots.foundry.z },
 	}
 	local value = ReplicatedStorage:FindFirstChild("WorldInfo") or Instance.new("StringValue")

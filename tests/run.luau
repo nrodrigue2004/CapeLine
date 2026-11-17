@@ -11484,6 +11484,272 @@ test("Weighty hits: flash, sound, sparks, knockback, shake and freeze on every h
 	)
 end)
 
+test(
+	"Vigil HQ: The Safehouse under the plaza, its stairwell door, the hideout cell, no Beacon Tower text",
+	function()
+		local HqRules = require("../src/shared/HqRules")
+		local ContestRules = require("../src/shared/ContestRules")
+		local fs = require("@lune/fs")
+		local H = Config.Hq
+		-- names: the Vigil's HQ is The Safehouse (save key "hero"); the Foundry keeps its name
+		check(
+			H.names.hero == "The Safehouse" and H.names.villain == "The Foundry",
+			"The Safehouse and The Foundry"
+		)
+		check(Config.World.beacons[1].name == "Crane's Hero Hall", "the plaza beacon is Crane's Hero Hall")
+		-- no "Beacon Tower" in any string a player can read (string literals outside comments, every source)
+		local function literals(line: string): { string }
+			local out, i, q, start = {}, 1, nil :: string?, 0
+			while i <= #line do
+				local ch = string.sub(line, i, i)
+				if q then
+					if ch == "\\" then
+						i += 1
+					elseif ch == q then
+						table.insert(out, string.sub(line, start, i - 1))
+						q = nil
+					end
+				elseif ch == '"' or ch == "'" then
+					q, start = ch, i + 1
+				elseif string.sub(line, i, i + 1) == "--" then
+					break
+				end
+				i += 1
+			end
+			return out
+		end
+		local hits = {}
+		local function walk(dir: string)
+			for _, name in fs.readDir(dir) do
+				local path = dir .. "/" .. name
+				if fs.isDir(path) then
+					walk(path)
+				elseif string.sub(name, -5) == ".luau" then
+					for n, line in string.split(fs.readFile(path), "\n") do
+						for _, s in literals(line) do
+							if string.find(s, "Beacon Tower", 1, true) then
+								table.insert(hits, path .. ":" .. n)
+							end
+						end
+					end
+				end
+			end
+		end
+		walk("src")
+		check(#hits == 0, "no Beacon Tower in player text: " .. table.concat(hits, ", "))
+
+		-- the door: at the plaza's edge, outside the Hall, the open squares, the ceremony and the chase row
+		local L = world.downtown
+		local bt = L.beacon
+		local hd = HqRules.heroDoor(Config, world) :: any
+		check(hd ~= nil, "the Vigil door exists")
+		if hd then
+			local half = Config.City.downtown.block / 2
+			local edge = math.max(math.abs(hd.x - bt.x), math.abs(hd.z - bt.z))
+			check(
+				edge <= half and edge >= half - 15,
+				string.format("at the plaza's edge (%.0f of %.0f)", edge, half)
+			)
+			local d = H.door.size[3]
+			-- the stairwell head's footprint: from the door back toward the edge
+			local fx, fz = hd.x - hd.fx * d / 2, hd.z - hd.fz * d / 2
+			local w2 = math.max(H.door.size[1], d) / 2
+			local hall = Config.City.downtown.beacon.width / 2
+			check(
+				math.abs(fx - bt.x) > hall + w2 + 10 or math.abs(fz - bt.z) > hall + w2 + 10,
+				"outside Crane's Hero Hall"
+			)
+			check(
+				math.abs(fx - bt.x) + w2 <= half and math.abs(fz - bt.z) + w2 <= half,
+				"on the plaza, not the street"
+			)
+			for _, o in L.open do
+				check(
+					math.abs(hd.x - o.x) > o.size / 2 + 20 or math.abs(hd.z - o.z) > o.size / 2 + 20,
+					"clear of " .. o.id
+				)
+			end
+			for i, r in L.row do
+				check(
+					math.abs(hd.x - r.x) > r.sx / 2 + 40 or math.abs(hd.z - r.z) > r.sz / 2 + 40,
+					"clear of chase roof " .. i
+				)
+			end
+			for _, b in world.buildings do
+				check(
+					math.abs(fx - b.x) >= b.sx / 2 + w2 or math.abs(fz - b.z) >= b.sz / 2 + w2,
+					"no building on the stairwell"
+				)
+			end
+			local door = { hd.x, 0, hd.z }
+			for k = 1, 6 do
+				local r = OpeningPlan.route(Config, world, Rng.new(k))
+				check(r ~= nil, "the prologue route")
+				if r then
+					check(flat(door, r.stage) > 45, "clear of the ceremony stage")
+					local nearest = math.huge
+					for _, p in r.crowd do
+						nearest = math.min(nearest, flat(door, p))
+					end
+					check(nearest > 30, string.format("clear of the ceremony crowd (%.0f)", nearest))
+					for _, p in { r.start, r.spark, r.kid, r.entrance, r.landing } do
+						check(flat(door, p) > 25, "clear of the prologue's points")
+					end
+					for _, p in r.roofs do
+						check(flat(door, p) > 60, "clear of the chase")
+					end
+				end
+			end
+			local cx, cz = ContestRules.stage(Config.Contest, bt.x, bt.z)
+			check(flat(door, { cx, 0, cz }) > 40, "clear of the contest stage")
+			local spawnClear = true
+			for _, s in world.spawns or {} do
+				if math.abs(s.x - hd.x) < 10 and math.abs(s.z - hd.z) < 10 then
+					spawnClear = false
+				end
+			end
+			check(spawnClear, "clear of the hero spawns")
+		end
+		check(H.doorRange == 14, "same door range")
+
+		-- the cell: the same stations, rooms, levels and size; the hideout look underground, no windows
+		local S = H.stations
+		local want = {
+			command = { 0, -36 },
+			gizmo = { -36, -12 },
+			mannequins = { 36, -12 },
+			training = { -30, 30 },
+			trophies = { 30, 30 },
+			legends = { 0, 44 },
+			scanner = { -36, 12 },
+			exit = { 0, -54 },
+		}
+		for k, v in want do
+			check(S[k] and S[k][1] == v[1] and S[k][2] == v[2], "station " .. k .. " unchanged")
+		end
+		check(H.cell.size == 120 and H.cell.wall == 40 and H.stationRange == 12, "same cell")
+		check(H.levels.drones == 5 and H.levels.bossSim == 3 and H.legacy.statues == 20, "same levels")
+		local pieces = HqRules.hideout(Config)
+		local count = {}
+		local half = H.cell.size / 2
+		for _, p in pieces do
+			count[p.name] = (count[p.name] or 0) + 1
+			local n = string.lower(p.name)
+			check(
+				not string.find(n, "window") and not string.find(n, "sky") and not string.find(n, "glass"),
+				"no window parts: " .. p.name
+			)
+			check(p.mat ~= "Glass" and p.color ~= "glass" and p.color ~= "window", "no glass: " .. p.name)
+			check(Config.City.palette[p.color] ~= nil, "palette colour " .. p.color)
+			check(
+				p.mat == nil
+					or p.mat == "Concrete"
+					or p.mat == "Metal"
+					or p.mat == "DiamondPlate"
+					or p.mat == "Neon",
+				"material " .. tostring(p.mat)
+			)
+			check(
+				math.abs(p.x) <= half + 1.5
+					and math.abs(p.z) <= half + 1.5
+					and p.y + p.sy / 2 <= H.cell.wall + 1,
+				"inside the cell: " .. p.name
+			)
+			-- nothing low stands on a station pad or where Lodestar waits
+			if p.name ~= "floor" and p.y - p.sy / 2 < 6 then
+				local spots = { Config.Story.guides.lodestar.at }
+				for _, v in S do
+					table.insert(spots, v)
+				end
+				for _, s in spots do
+					check(
+						math.abs(p.x - s[1]) >= p.sx / 2 + 4 or math.abs(p.z - s[2]) >= p.sz / 2 + 4,
+						p.name .. " is clear of the pads"
+					)
+				end
+			end
+		end
+		check((count.wall or 0) == 4 and (count.ceiling or 0) >= 1, "concrete walls and a ceiling")
+		check(
+			(count.pillar or 0) >= 2 and (count.pilaster or 0) >= 4 and (count.beam or 0) >= 1,
+			"pillars and beams"
+		)
+		check((count.pipe or 0) >= 8 and (count.cableTray or 0) >= 8, "pipes and cable trays on every wall")
+		check((count.workLamp or 0) >= 10 and (count.monitorScreen or 0) >= 6, "work lamps and monitors")
+		check((count.mapScreen or 0) == 1 and (count.mapDistrict or 0) == 9, "the city map wall")
+		local ceiling = 0
+		for _, p in pieces do
+			if p.name == "ceiling" then
+				ceiling += p.sx * p.sz
+			end
+		end
+		check(
+			ceiling >= H.cell.size ^ 2 * 0.95 and ceiling < H.cell.size ^ 2,
+			"a ceiling, open only over the stair"
+		)
+		-- the stair arrives from above at the entrance: its foot beside the Exit, its top at the ceiling
+		local foot, top = math.huge, 0
+		for _, p in pieces do
+			if p.name == "stairStep" then
+				foot = math.min(foot, math.sqrt((p.x - S.exit[1]) ^ 2 + (p.z - S.exit[2]) ^ 2))
+				top = math.max(top, p.y + p.sy / 2)
+			end
+		end
+		check(
+			(count.stairStep or 0) == 12 and foot < 16,
+			string.format("the stair's foot is at the Exit (%.0f)", foot)
+		)
+		check(
+			math.abs(top - H.hideout.height) < 0.01 and (count.shaft or 0) == 5,
+			"the stair climbs up a shaft"
+		)
+
+		-- mission 2's Safehouse pocket wears the same look: the hideout's walls and wall kit
+		local dungeon = PocketLayout.build(Config, 2, "dungeon")
+		local kit = HqRules.wallKit(Config, 376)
+		local decor, wallC = 0, 0
+		for _, b in dungeon.boxes do
+			if b.tag == "decor" then
+				decor += 1
+				check(b.ghost == true, "decor is walk-through")
+			elseif b.kind == "building" and b.color == H.hideout.colors.wall then
+				wallC += 1
+			end
+		end
+		check(decor == #kit * 2, "the wall kit on both tunnel walls")
+		check(wallC >= 7, "the tunnels have the hideout's walls")
+		local room = dungeon.lists.rooms[3]
+		near(
+			PocketLayout.heightAt(dungeon, room[1], dungeon.cz + 56),
+			dungeon.floorY,
+			0.01,
+			"robots never stand on pipes"
+		)
+
+		-- wiring: the cell draws the hideout for the Vigil and the Foundry as ever; the stairwell replaces the tower door
+		local hc = readFile("src/client/Controllers/HqClient.luau")
+		check(string.find(hc, "HqRules.hideout(Config)", 1, true) ~= nil, "HqClient draws the hideout")
+		check(
+			string.find(hc, 'if state.side == "villain" then\n\t\tbuildRoom(f, colors)', 1, true) ~= nil,
+			"the Foundry as ever"
+		)
+		check(string.find(hc, "H.door.marker", 1, true) ~= nil, "the Vigil-only marker")
+		local hs = readFile("src/server/Services/HqService.luau")
+		check(
+			string.find(hs, "HqRules.heroDoor(Config, world)", 1, true) ~= nil,
+			"the service door at the plaza edge"
+		)
+		check(string.find(hs, 'makeDoor("villain"', 1, true) ~= nil, "the Foundry door unchanged")
+		check(string.find(hs, "bt.z - 18", 1, true) == nil, "no door at the Hall's foot")
+		check(world.spots.foundryDoor ~= nil, "the Foundry door spot")
+		local cb = readFile("src/server/Services/CityBuilder.luau")
+		check(
+			string.find(cb, "HqRules.heroDoor(Config, world)", 1, true) ~= nil,
+			"the map's Safehouse is the stairwell"
+		)
+	end
+)
+
 print(string.format("\n%d passed, %d failed", passed, failed))
 if failed > 0 then
 	process.exit(1)

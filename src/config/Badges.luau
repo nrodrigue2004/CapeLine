@@ -48,7 +48,7 @@ return {
 				b("height150", "Rooftop Hopper", "height", 150, "Get 150 studs up"),
 				b("height300", "Skyline Sitter", "height", 300, "Get 300 studs up"),
 				b("height500", "Cloud Kisser", "height", 500, "Get 500 studs up"),
-				b("height640", "Beacon Topper", "height", 640, "Get as high as the Beacon Tower's top"),
+				b("height640", "Beacon Topper", "height", 640, "Get as high as the top of Crane's Hero Hall"),
 				b("height800", "Top of the World", "height", 800, "Reach the top of the tallest tower"),
 				b("safe4", "Safe Bet", "safehouses", 4, "Find 4 safehouses"),
 				b("safe8", "Safe Keeper", "safehouses", 8, "Find 8 safehouses"),

@@ -1,6 +1,6 @@
 -- MapScreen: the city map and fast travel (spec: Screens and UI > Map "Hub and outskirts, beacons,
 -- safehouses, incidents, boss, the Crater, party; tap a marker to auto-fly; fast travel to beacons").
--- M4 shows the zones, districts, landmarks, both HQs, the 16 safehouses (bright once visited), the 12
+-- M4 shows the zones, districts, landmarks, the HQs (the Safehouse to the Vigil only), the 16 safehouses (bright once visited), the 12
 -- beacons (gold once discovered, a tap flies there) and you. M6 adds the incidents near you (blue Vigil,
 -- red Syndicate), running events (gold) and the world boss (big red). M10: your squad (squares in their
 -- slot colours), colorblind-safe shapes (circle incident, star event, diamond boss), and a tap on an
@@ -35,6 +35,7 @@ local map: Frame
 local you: Frame
 local status: TextLabel
 local markers: { [string]: GuiObject } = {}
+local hqDots: { [string]: GuiObject } = {}
 local info: any = nil
 
 local function rgb(t: { number }): Color3
@@ -105,6 +106,10 @@ local function draw()
 		m:Destroy()
 	end
 	table.clear(markers)
+	-- the Vigil's Safehouse is a hideout: only the Vigil have it on their map (nate's lore plan Q2)
+	if hqDots.hero then
+		hqDots.hero.Visible = State.hero.side ~= "villain"
+	end
 	local profile = State.profile
 	for _, s in info.safehouses do
 		local visited = Travel.has(profile.safehouses or 0, s.id)
@@ -192,14 +197,21 @@ local function buildBase()
 		Kit.round(f, 6)
 	end
 	for _, hq in info.hq do
-		local d = dot(
-			"HQ_" .. hq.side,
-			hq.x,
-			hq.z,
-			18,
-			if hq.side == "hero" then Kit.color.vigil else Kit.color.syndicate
-		)
+		local color = if hq.side == "hero" then Kit.color.vigil else Kit.color.syndicate
+		local d = dot("HQ_" .. hq.side, hq.x, hq.z, 18, color)
 		d.Rotation = 0
+		local l = Kit.label({
+			Text = string.upper(Config.Hq.names[hq.side] or ""),
+			AnchorPoint = Vector2.new(0.5, 0),
+			Size = UDim2.fromOffset(120, 16),
+			Position = UDim2.new(0.5, 0, 1, 2),
+			TextColor3 = color,
+			TextStrokeTransparency = 0.2,
+			Font = Kit.bodyFont,
+			maxText = 12,
+		})
+		l.Parent = d
+		hqDots[hq.side] = d
 	end
 	you = Kit.frame({
 		Name = "You",

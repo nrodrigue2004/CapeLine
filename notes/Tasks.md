@@ -44,6 +44,7 @@ Waiting on others:
 - H8 (lore thread): the episodes' panel lines and step texts are drafts (PLACEHOLDER CONTENT in Config.Episodes); the launch episodes use the existing task forces and missions as their 4th step, so a new mission or task force leg each week waits on the lore thread's content. Config.Pass.startWeek (2970 = Monday 2026-11-30) is a guess: set it to the launch Monday.
 
 ## Placeholder art and animation (replace before launch)
+- Vigil HQ (nate's lore plan Q2): the Safehouse hideout (concrete walls, pillars, pipes, cable trays, work lamps, monitors, the city map wall, the stair; Shared.HqRules.hideout, also on mission 2's tunnels) and the plaza stairwell head with its service door (HqService) are plain parts in the city palette. PLACEHOLDER ART.
 - Lore step 6 guides: the portraits (Lodestar, Patch, Crane, the insider, Radiant, Bulwark, the copy) are drawn from UI frames in GuideHud, and each speaker's blip is a built-in clip (Config.Audio sounds radio, guideLodestar, guideCrane, guideInsider, guideFake). PLACEHOLDER ART and PLACEHOLDER SOUND until the art pass and real voice lines.
 - H8: travel styles are engine Trails and ParticleEmitters with default textures; the PASS panel, intro panels and XP cards are Kit frames; the Opening Night costume set reuses existing kits (Tuxedo, Feather Cape, Fox Mask, Loafers) and needs its own pieces in the art pass; the 4 pass HQ props are 3-stud blocks; pass emotes and the landing pose are joint angles. PLACEHOLDER ART until the effects, UI and Blender passes.
 - H7: the Badge Book, contest banner and vote card are Kit frames; the collection finds are glowing neon balls with engine sparkles; the contest stage, pads, podium and spotlight are plain parts; the 12 collection HQ props are 3-stud blocks; accolade auras are engine motes and plate trims a UIStroke. PLACEHOLDER ART until the UI and Blender passes.
@@ -122,6 +123,17 @@ What nate does:
    (`bash art/store/make.sh twist`).
 
 ## Studio test list (needs nate's PC)
+
+### Vigil HQ under the plaza (2026-11-17, nate's lore plan Q1/Q2)
+The Vigil's HQ is The Safehouse, the hideout under the plaza; the Beacon Tower is Crane's Hero Hall. Start: `rojo serve`, Play.
+1. As the Vigil, stand on the Downtown plaza: at its west edge, north of the middle, a small concrete stairwell head with a steel door, a yellow stripe and a lamp; over it a small blue "V THE SAFEHOUSE" marker (gone past about 70 studs). Nothing is at the foot of Crane's Hero Hall.
+2. Walk up: the prompt reads "Go down / The Safehouse" (B); you arrive in the HQ beside the Exit, with the stair coming down from a shaft in the ceiling behind it.
+3. Inside: concrete walls and pillars, pipes and cable trays under a concrete ceiling, warm work lamps, monitors on the side walls and a glowing city map behind the command table; no sky or windows anywhere. Every station pad, the Hall of Legends, the dummies, trophies and props are where they were; Lodestar stands near the command table with his Talk prompt. Exit puts you back outside the stairwell.
+4. Switch to a Syndicate hero (or a second player): the same door reads "Locked / Service Door", no marker; B shows "Locked tight. Just a maintenance stair" and nothing else. The map (M) has no Safehouse dot for them; the Vigil see a blue dot labelled THE SAFEHOUSE at the stairwell.
+5. The Syndicate's Foundry door in the Docks and the Foundry inside look exactly as before.
+6. DEV > "Prologue: Vigil": the ceremony crowd, the stage and the rooftop chase never reach the stairwell; the fast-travel beacon on the Hall reads "Crane's Hero Hall" on the map.
+7. Play mission 2 (Safehouse): the tunnels have the same concrete colour, pipes, cable trays and lamps as the HQ; robots never stand on the pipes; it reads as the same place.
+
 
 ### Lore step 6: guides (2026-11-17)
 nate's lore, build plan step 6: Lodestar in person, Patch on the radio, Crane's broadcast voice; subtitles with a blip now, real voice lines later. Start: `rojo serve`, Play; the DEV button has the tools.

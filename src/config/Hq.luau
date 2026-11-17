@@ -1,11 +1,44 @@
 -- Hq: the Hero HQ and the Hall of Legends (spec: Hero HQ (Beacon Tower or the Foundry); Legacy rebirth).
--- One HQ per side: the Vigil's Beacon Tower and the Dread Syndicate's Foundry, entered by their doors in the city. A visit is
--- solo (friend visits come in Update 2): each visitor gets their own sealed cell far above the map, the
--- server builds its floor and walls, and the device builds the rooms. PLACEHOLDER ART: greybox rooms.
+-- One HQ per side: the Vigil's Safehouse and the Dread Syndicate's Foundry, entered by their doors in the city.
+-- nate's lore plan Q1/Q2 (2026-11-17): the Beacon Tower is Crane's Hero Hall now, and the Vigil are hunted, so
+-- their HQ is the hideout under the Downtown plaza (the safehouse from mission 2). A visit is solo (friend
+-- visits come in Update 2): each visitor gets their own sealed cell far above the map, the server builds its
+-- floor and walls, and the device builds the rooms. PLACEHOLDER ART: greybox rooms.
 return {
-	names = { hero = "Beacon Tower", villain = "The Foundry" },
-	-- the way in: the door at the foot of the Beacon Tower (Downtown) or the Foundry door (the Docks), your
-	-- side's only; leaving puts you back outside it
+	names = { hero = "The Safehouse", villain = "The Foundry" }, -- the save key stays "hero"
+	-- the way in: the Vigil's maintenance stairwell at the plaza's edge (Shared.HqRules.heroDoor) or the
+	-- Foundry door (the Docks), your side's only; leaving puts you back outside it
+	door = {
+		-- the plaza edge it stands on (west: the Ceremony stage faces the rooftop row, east), `along` studs
+		-- north along it from its middle (clear of the corner spawns, the contest corner and the quest NPCs),
+		-- `inset` studs in from the plaza block's edge; the stairwell head is `size` (width, height, depth)
+		edge = { -1, 0 },
+		along = 24,
+		inset = 10,
+		size = { 10, 11, 8 },
+		object = "Service Door", -- what everyone reads; a Vigil device swaps in the HQ's name
+		locked = "Locked", -- the Syndicate's prompt: a locked service door
+		enter = "Go down", -- the Vigil's prompt
+		marker = "THE SAFEHOUSE", -- the small marker only the Vigil see
+		markerRange = 70,
+	},
+	-- the Vigil's hideout look, shared by the HQ cell (HqClient) and mission 2's Safehouse pocket
+	-- (PocketLayout): City palette keys, the wall height, a lamp every `lampEvery` studs along a wall
+	hideout = {
+		colors = {
+			wall = "tunnel",
+			pillar = "concrete",
+			floor = "slate",
+			pipe = "rust",
+			pipeB = "steel",
+			tray = "steel",
+			lamp = "workLamp",
+			screen = "beaconGlow",
+			stripe = "containerC",
+		},
+		height = 30,
+		lampEvery = 24,
+	},
 	doorRange = 14,
 	-- the solo cells: one per hero slot (HeroService pvpSlot), on a grid at y 4,500 (safe: no PvP, no
 	-- schedulers, out of every streaming range)

@@ -2,6 +2,8 @@
 -- HqRules: the Hero HQ, offline drones, trophies and Legacy rebirth (spec: Hero HQ; Legacy rebirth;
 -- Economy > Sinks "HQ levels"). Pure, so Lune tests it.
 -- * cell(slot): where a hero's solo HQ cell is (one per hero slot, far above the map).
+-- * heroDoor(world): the Vigil's stairwell at the plaza's edge; hideout() and wallKit(length): the Vigil HQ's
+--   underground look (the cell and mission 2's Safehouse pocket share the wall kit).
 -- * upgradeCost(level), and what each level opens (mannequins, dummies, boss sim, trophies, drones).
 -- * drones(level, awaySeconds): offline Credits, 8 hours at most.
 -- * trophies(profile): the trophies this account has earned (shown on the wall, 3 or 12 picked).
@@ -45,6 +47,247 @@ function HqRules.cellAt(Config: any, x: number, y: number, z: number): number?
 		return nil
 	end
 	return row * c.perRow + col + 1
+end
+
+-- The Vigil's way in (nate's lore plan Q2, 2026-11-17): a maintenance stairwell at the edge of the Downtown plaza
+-- (Config.Hq.door), never in Crane's Hero Hall. Its foot (x, z) and the way its door faces (into the plaza), or
+-- nil for a world without a Downtown.
+function HqRules.heroDoor(Config: any, world: any): { x: number, z: number, fx: number, fz: number }?
+	local bt = world and world.downtown and world.downtown.beacon
+	if not bt then
+		return nil
+	end
+	local D = Config.Hq.door
+	local ex, ez = D.edge[1], D.edge[2]
+	local sx, sz = -ez, ex -- along the edge
+	local out = Config.City.downtown.block / 2 - D.inset
+	return {
+		x = bt.x + ex * out + sx * D.along,
+		z = bt.z + ez * out + sz * D.along,
+		fx = -ex,
+		fz = -ez,
+	}
+end
+
+-- One piece of the Vigil hideout's look: a box at (x, y, z) (y from the floor) in some frame, a City palette
+-- key, an optional Material name, a turn about z in degrees (rz), a lit face (glow) and a light's range.
+export type Piece = {
+	name: string,
+	x: number,
+	y: number,
+	z: number,
+	sx: number,
+	sy: number,
+	sz: number,
+	color: string,
+	mat: string?,
+	rz: number?,
+	glow: boolean?,
+	light: number?,
+}
+
+local function piece(list: { Piece }, name: string, x, y, z, sx, sy, sz, color: string, mat: string?): Piece
+	local p: Piece = {
+		name = name,
+		x = x,
+		y = y,
+		z = z,
+		sx = sx,
+		sy = sy,
+		sz = sz,
+		color = color,
+		mat = mat,
+	}
+	table.insert(list, p)
+	return p
+end
+
+-- The hideout's wall dressing, shared by the HQ cell and mission 2's Safehouse pocket so they read as one
+-- place: two pipes and a cable tray under the ceiling, work lamps (every other one lit), a hazard stripe at
+-- the foot. In the wall's own frame: x along the wall (-length/2 to length/2), z out from its face into the
+-- room, y up from the floor.
+function HqRules.wallKit(Config: any, length: number): { Piece }
+	local K = Config.Hq.hideout
+	local C, h = K.colors, K.height
+	local out = {}
+	piece(out, "pipe", 0, h - 3.5, 1.2, length, 1.4, 1.4, C.pipe, "Metal")
+	piece(out, "pipe", 0, h - 5.5, 1.1, length, 0.9, 0.9, C.pipeB, "Metal")
+	piece(out, "cableTray", 0, h - 8, 2.4, length, 0.25, 2.4, C.tray, "DiamondPlate")
+	piece(out, "cableTray", 0, h - 7.6, 3.6, length, 0.8, 0.2, C.tray, "DiamondPlate")
+	piece(out, "stripe", 0, 1.2, 0.2, length, 0.6, 0.3, C.stripe)
+	local n = math.max(1, math.floor(length / K.lampEvery))
+	for i = 1, n do
+		local x = -length / 2 + (i - 0.5) * (length / n)
+		piece(out, "lampHousing", x, h - 11, 0.8, 2.4, 1.4, 1.6, C.tray, "Metal")
+		local face = piece(out, "workLamp", x, h - 11.4, 1.65, 1.8, 0.7, 0.1, C.lamp, "Neon")
+		face.glow = true
+		face.light = if i % 2 == 1 then 26 else nil
+	end
+	return out
+end
+
+-- Pieces of a wall kit moved into a room frame: the wall's middle at (ox, oz), running along (ux, uz) with the
+-- room on the (nx, nz) side (axis-aligned walls only)
+function HqRules.placeKit(
+	list: { Piece },
+	kit: { Piece },
+	ox: number,
+	oz: number,
+	ux: number,
+	uz: number,
+	nx: number,
+	nz: number
+)
+	local alongX = ux ~= 0
+	for _, p in kit do
+		local q = table.clone(p)
+		q.x = ox + ux * p.x + nx * p.z
+		q.z = oz + uz * p.x + nz * p.z
+		q.sx = if alongX then p.sx else p.sz
+		q.sz = if alongX then p.sz else p.sx
+		table.insert(list, q)
+	end
+end
+
+-- The Vigil's HQ cell drawn as the hideout under the plaza (nate's lore plan Q2): concrete walls, pillars and
+-- beams, a ceiling, the wall kit, monitors and a city map wall where the old sky windows were, and the service
+-- stair arriving from above at the entrance (beside the Exit, up through a shaft in the ceiling). Offsets from
+-- the cell centre, y from the floor; the stations, rooms and budgets are the same as ever.
+function HqRules.hideout(Config: any): { Piece }
+	local K = Config.Hq.hideout
+	local C, h = K.colors, K.height
+	local s = Config.Hq.cell.size
+	local half = s / 2
+	local out = {}
+	piece(out, "floor", 0, 0.15, 0, s - 4, 0.2, s - 4, C.floor, "Concrete")
+	-- the walls
+	for _, k in { -1, 1 } do
+		piece(out, "wall", 0, h / 2, k * half, s, h, 2, C.wall, "Concrete")
+		piece(out, "wall", k * half, h / 2, 0, 2, h, s, C.wall, "Concrete")
+	end
+	-- the stair (12 steps up along the north wall from beside the Exit) and its shaft through the ceiling
+	local steps, run, rise = 12, 3, h / 12
+	local x0, sz = 10, 8
+	local zc = -half + 1 + sz / 2
+	for i = 1, steps do
+		local x = x0 + (i - 0.5) * run
+		piece(out, "stairStep", x, i * rise / 2, zc, run, i * rise, sz, C.pillar, "Concrete")
+		piece(out, "stairNosing", x - run / 2 + 0.25, i * rise + 0.05, zc, 0.5, 0.15, sz, C.stripe)
+	end
+	local len = math.sqrt((steps * run) ^ 2 + h ^ 2)
+	local rail = piece(
+		out,
+		"stairRail",
+		x0 + steps * run / 2,
+		h / 2 + 3.4,
+		zc + sz / 2 + 0.4,
+		len,
+		0.3,
+		0.3,
+		C.tray,
+		"Metal"
+	)
+	rail.rz = math.deg(math.atan2(h, steps * run))
+	for i = 3, steps, 3 do
+		piece(
+			out,
+			"stairPost",
+			x0 + (i - 0.5) * run,
+			i * rise + 1.7,
+			zc + sz / 2 + 0.4,
+			0.3,
+			3.4,
+			0.3,
+			C.tray,
+			"Metal"
+		)
+	end
+	-- the ceiling, open over the stair's top (hole: hx0..hx1 by the stair's depth)
+	local hx0, hx1 = x0 + steps * run - 12, x0 + steps * run + 2
+	local hz1 = -half + 1 + sz + 1
+	local rest = s - (hz1 + half)
+	piece(out, "ceiling", 0, h + 0.5, hz1 + rest / 2, s, 1, rest, C.wall, "Concrete")
+	piece(
+		out,
+		"ceiling",
+		(-half + hx0) / 2,
+		h + 0.5,
+		(-half + hz1) / 2,
+		hx0 + half,
+		1,
+		hz1 + half,
+		C.wall,
+		"Concrete"
+	)
+	piece(
+		out,
+		"ceiling",
+		(hx1 + half) / 2,
+		h + 0.5,
+		(-half + hz1) / 2,
+		half - hx1,
+		1,
+		hz1 + half,
+		C.wall,
+		"Concrete"
+	)
+	local sh, hw, hd = 10, hx1 - hx0, hz1 + half
+	local hcx, hcz = (hx0 + hx1) / 2, (-half + hz1) / 2
+	piece(out, "shaft", hx0, h + sh / 2, hcz, 1, sh, hd, C.wall, "Concrete")
+	piece(out, "shaft", hx1, h + sh / 2, hcz, 1, sh, hd, C.wall, "Concrete")
+	piece(out, "shaft", hcx, h + sh / 2, hz1, hw, sh, 1, C.wall, "Concrete")
+	piece(out, "shaft", hcx, h + sh / 2, -half, hw, sh, 1, C.wall, "Concrete")
+	piece(out, "shaft", hcx, h + sh, hcz, hw + 1, 1, hd + 1, C.wall, "Concrete")
+	local shaftLamp = piece(out, "workLamp", hcx, h + sh - 1, hcz, 1.8, 0.4, 1.8, C.lamp, "Neon")
+	shaftLamp.glow = true
+	shaftLamp.light = 18
+	-- pillars, pilasters and beams
+	for _, k in { -1, 1 } do
+		piece(out, "pillar", k * 20, h / 2, 0, 4, h, 4, C.pillar, "Concrete")
+		for _, z in { -48, -24, 24, 48 } do
+			piece(out, "pilaster", k * (half - 2.5), h / 2, z, 3, h, 4, C.pillar, "Concrete")
+		end
+		piece(out, "pilaster", k * 24, h / 2, half - 2.5, 4, h, 3, C.pillar, "Concrete")
+	end
+	for _, z in { 0, 30 } do
+		piece(out, "beam", 0, h - 1, z, s - 2, 2, 3, C.pillar, "Concrete")
+	end
+	-- the wall kit along the east, west and south walls, and the north wall's open end (the stair takes the rest)
+	local inner = half - 1
+	HqRules.placeKit(out, HqRules.wallKit(Config, s - 2), -inner, 0, 0, 1, 1, 0)
+	HqRules.placeKit(out, HqRules.wallKit(Config, s - 2), inner, 0, 0, 1, -1, 0)
+	HqRules.placeKit(out, HqRules.wallKit(Config, s - 2), 0, inner, 1, 0, 0, -1)
+	local northLen = x0 + half - 1
+	HqRules.placeKit(out, HqRules.wallKit(Config, northLen), -half + 1 + northLen / 2, -inner, 1, 0, 0, 1)
+	-- the city map wall behind the command table: a dark board, the districts lit on it, a frame
+	local mx, my, mz, mw, mh = -24, 11, -inner + 0.3, 34, 12
+	piece(out, "mapBoard", mx, my, mz, mw + 1.6, mh + 1.6, 0.4, C.tray, "Metal")
+	piece(out, "mapScreen", mx, my, mz + 0.3, mw, mh, 0.2, "road")
+	for i = 0, 8 do
+		local col, row = i % 3, i // 3
+		local d = piece(
+			out,
+			"mapDistrict",
+			mx + (col - 1) * (mw / 3),
+			my + (1 - row) * (mh / 3),
+			mz + 0.45,
+			mw / 3 - 2,
+			mh / 3 - 1.6,
+			0.1,
+			C.screen,
+			"Neon"
+		)
+		d.glow = true
+	end
+	-- monitor banks on the east and west walls (three screens each, over the side-wall props)
+	for _, k in { -1, 1 } do
+		for _, z in { -8, 0, 8 } do
+			piece(out, "monitorBezel", k * (inner - 0.6), 12, z, 0.6, 4.4, 6.4, "roof", "Metal")
+			local sc = piece(out, "monitorScreen", k * (inner - 1), 12, z, 0.2, 3.6, 5.6, C.screen, "Neon")
+			sc.glow = true
+		end
+	end
+	return out
 end
 
 HqRules.MAX_LEVEL = 6

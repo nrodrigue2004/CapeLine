@@ -67,7 +67,7 @@ return {
 	-- beacon on the tallest roof within 60 studs of (x, z); "safehouse" on that safehouse's roof; a landmark
 	-- id on that landmark's high point.
 	beacons = {
-		{ id = 1, name = "Beacon Tower", at = "plaza" },
+		{ id = 1, name = "Crane's Hero Hall", at = "plaza" }, -- the Beacon Tower (lore Q1: Crane's Hero Hall)
 		{ id = 2, name = "Downtown East", at = "roof", x = -150, z = 150 },
 		{ id = 3, name = "Harbor Gantry", at = "crane" },
 		{ id = 4, name = "Clock Tower", at = "clock" },

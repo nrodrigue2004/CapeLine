@@ -8,6 +8,7 @@
 -- PLACEHOLDER ART: every pocket is greybox parts until the art pass.
 
 local BoxKit = if script then require(script.Parent.BoxKit) else (require :: any)("./BoxKit")
+local HqRules = if script then require(script.Parent.HqRules) else (require :: any)("./HqRules")
 
 local PocketLayout = {}
 
@@ -169,17 +170,38 @@ function BUILD.rooftops(l: Layout)
 end
 
 -- Safehouse (mission 2): the old tunnels under the plaza, three rooms in a row, the old security line in the
--- middle and the Vigil's safehouse door at the end (the Syndicate smashes the scanner relays on the way)
-function BUILD.dungeon(l: Layout)
-	local wallH = 30
-	box(l, "building", 0, wallH + 1, 0, 400, 2, 400, "foundry", { tag = "ceiling" }) -- the ceiling (robots never stand on it)
+-- middle and the Vigil's safehouse door at the end (the Syndicate smashes the scanner relays on the way). The
+-- Safehouse is the Vigil's HQ (nate's lore plan Q2), so the tunnels wear its look: the hideout's wall colour and
+-- its wall kit (pipes, cable trays, work lamps; Shared.HqRules.wallKit) along both long walls, as walk-through
+-- decoration robots never stand on.
+function BUILD.dungeon(l: Layout, Config: any)
+	local K = Config.Hq.hideout
+	local wallH = K.height
+	local wallC = K.colors.wall
+	box(l, "building", 0, wallH + 1, 0, 400, 2, 400, wallC, { tag = "ceiling" }) -- the ceiling (robots never stand on it)
 	for k = -1, 1, 2 do
-		box(l, "building", 0, wallH / 2, k * 60, 380, wallH, 4, "foundry")
+		box(l, "building", 0, wallH / 2, k * 60, 380, wallH, 4, wallC)
+		local kit: { any } = {}
+		HqRules.placeKit(kit, HqRules.wallKit(Config, 376), 0, k * 58, 1, 0, 0, -k)
+		for _, p in kit do
+			BoxKit.box(
+				l.boxes,
+				if p.glow then "glow" else "prop",
+				l.cx + p.x,
+				l.cy + p.y,
+				l.cz + p.z,
+				p.sx,
+				p.sy,
+				p.sz,
+				p.color,
+				{ tag = "decor", ghost = true }
+			)
+		end
 	end
 	-- dividing walls with doors between the 3 rooms
 	for _, x in { -60, 60 } do
-		box(l, "building", x, wallH / 2, -38, 4, wallH, 40, "foundry")
-		box(l, "building", x, wallH / 2, 38, 4, wallH, 40, "foundry")
+		box(l, "building", x, wallH / 2, -38, 4, wallH, 40, wallC)
+		box(l, "building", x, wallH / 2, 38, 4, wallH, 40, wallC)
 	end
 	add(l, "rooms", -130, 0.5, 0)
 	add(l, "rooms", 0, 0.5, 0)
@@ -353,7 +375,7 @@ end
 function PocketLayout.heights(l: Layout)
 	local cells = {}
 	for _, b in l.boxes do
-		if b.tag ~= "ceiling" and b.kind ~= "glow" and b.kind ~= "band" then
+		if b.tag ~= "ceiling" and b.tag ~= "decor" and b.kind ~= "glow" and b.kind ~= "band" then
 			local hx, hz = b.sx / 2, b.sz / 2
 			if b.shape == "cylinder" then
 				hx, hz = b.sx / 2, b.sx / 2

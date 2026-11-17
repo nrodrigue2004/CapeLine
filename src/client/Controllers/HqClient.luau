@@ -1,6 +1,9 @@
--- HqClient: your base (spec: Hero HQ "a personal solo instance ... stations"; nate's Beacon Tower for heroes
--- and The Foundry for villains). The server holds you in an invisible cell high above the city and runs
--- the dummies and the boss sim; this device draws the rooms from HqState:
+-- HqClient: your base (spec: Hero HQ "a personal solo instance ... stations"; The Safehouse under the plaza for
+-- heroes, nate's lore plan Q2, and The Foundry for villains). The server holds you in an invisible cell high above
+-- the city and runs the dummies and the boss sim; this device draws the rooms from HqState:
+-- * The Safehouse is drawn as the hideout (Shared.HqRules.hideout: concrete, pipes, lamps, monitors, the city
+--   map wall, the stair down from the plaza); its service door in the city gets its name and a marker on Vigil
+--   devices only.
 -- * The floor trim, walls and lights in your side's colours, and one pad per station with a sign and a
 --   B-key prompt (E is Skill 2): Command Table, Gizmo's Bench, Mannequins, Training Room, Trophy Wall,
 --   Hall of Legends and the Exit.
@@ -23,6 +26,8 @@ local LookKit = require(Shared:WaitForChild("LookKit"))
 local RigMath = require(Shared:WaitForChild("RigMath"))
 local NpcRig = require(Shared:WaitForChild("NpcRig"))
 local BodyShape = require(Shared:WaitForChild("BodyShape"))
+local HqRules = require(Shared:WaitForChild("HqRules"))
+local State = require(script.Parent.Parent.State)
 
 local CombatClient = require(script.Parent.CombatClient)
 local Preview = require(script.Parent.Parent.Ui.Preview)
@@ -35,6 +40,10 @@ HqClient.Dps = Signal.new() -- (packet) the training room meter, 2 Hz
 
 local H = Config.Hq
 local GOLD = Color3.fromRGB(255, 200, 60)
+local function paletteColor(key: string): Color3
+	local rgb = Config.City.palette[key] or { 255, 0, 255 }
+	return Color3.fromRGB(rgb[1], rgb[2], rgb[3])
+end
 local SIDE_COLORS = {
 	hero = { main = Color3.fromRGB(70, 140, 255), trim = Color3.fromRGB(240, 244, 255) },
 	villain = { main = Color3.fromRGB(210, 60, 60), trim = Color3.fromRGB(40, 36, 44) },
@@ -123,13 +132,22 @@ local function clear()
 	dummies = {}
 end
 
+local function titleSign(f: Folder, colors: { main: Color3, trim: Color3 })
+	local c = centre()
+	local size = H.cell.size
+	local title =
+		part(f, Vector3.new(1, 1, 1), CFrame.new(c + Vector3.new(0, 24, -size / 2 + 5)), colors.main)
+	title.Transparency = 1
+	sign(title, string.upper(state.name or ""), "HQ level " .. (state.level or 1), 0)
+end
+
 local function buildRoom(f: Folder, colors: { main: Color3, trim: Color3 })
 	local c = centre()
 	local size = H.cell.size
 	-- the floor's trim ring and rug (the server's floor holds you up)
 	part(f, Vector3.new(size - 8, 0.2, size - 8), CFrame.new(c + Vector3.new(0, 0.15, 0)), colors.trim)
 	part(f, Vector3.new(size - 24, 0.25, size - 24), CFrame.new(c + Vector3.new(0, 0.2, 0)), colors.main)
-	-- the walls (drawn, the server's are invisible), with a window band of city sky
+	-- the walls (drawn, the server's are invisible), with a glowing band in the side's colour
 	for i = 0, 3 do
 		local a = i * math.pi / 2
 		local out = CFrame.Angles(0, a, 0) * CFrame.new(0, 0, -size / 2)
@@ -150,10 +168,44 @@ local function buildRoom(f: Folder, colors: { main: Color3, trim: Color3 })
 	pl.Parent = light
 	part(f, Vector3.new(24, 0.6, 6), CFrame.new(c + Vector3.new(0, 26, -size / 2 + 4)), colors.main).Material =
 		Enum.Material.Neon
-	local title =
-		part(f, Vector3.new(1, 1, 1), CFrame.new(c + Vector3.new(0, 24, -size / 2 + 5)), colors.main)
-	title.Transparency = 1
-	sign(title, string.upper(state.name or ""), "HQ level " .. (state.level or 1), 0)
+	titleSign(f, colors)
+end
+
+-- The Vigil's HQ: the hideout under the plaza (nate's lore plan Q2; Shared.HqRules.hideout): concrete, pipes,
+-- cable trays, work lamps, monitors and the city map wall, the service stair down from the plaza, no sky. The
+-- side's colours stay on the rug, the pads and the title.
+local function buildHideout(f: Folder, colors: { main: Color3, trim: Color3 })
+	local c = centre()
+	local size = H.cell.size
+	part(f, Vector3.new(size - 24, 0.25, size - 24), CFrame.new(c + Vector3.new(0, 0.3, 0)), colors.main).Transparency =
+		0.35
+	for _, p in HqRules.hideout(Config) do
+		local cf = CFrame.new(c + Vector3.new(p.x, p.y, p.z))
+		if p.rz then
+			cf *= CFrame.Angles(0, 0, math.rad(p.rz))
+		end
+		local made = part(f, Vector3.new(p.sx, p.sy, p.sz), cf, paletteColor(p.color))
+		local mat = p.mat and (Enum.Material :: any)[p.mat]
+		if mat then
+			made.Material = mat
+		end
+		if p.light then
+			local l = Instance.new("PointLight")
+			l.Range = p.light
+			l.Brightness = 1.1
+			l.Color = made.Color
+			l.Parent = made
+		end
+	end
+	-- a soft fill so the room's middle is never dark
+	local fill = part(f, Vector3.new(4, 1, 4), CFrame.new(c + Vector3.new(0, 26, 0)), Color3.new(1, 1, 1))
+	fill.Transparency = 1
+	local pl = Instance.new("PointLight")
+	pl.Range = 60
+	pl.Brightness = 1.1
+	pl.Color = paletteColor(H.hideout.colors.lamp)
+	pl.Parent = fill
+	titleSign(f, colors)
 end
 
 local function stationPad(f: Folder, name: string, colors: { main: Color3, trim: Color3 })
@@ -348,7 +400,11 @@ local function draw()
 	f.Parent = Workspace
 	folder = f
 	local colors = SIDE_COLORS[state.side] or SIDE_COLORS.hero
-	buildRoom(f, colors)
+	if state.side == "villain" then
+		buildRoom(f, colors) -- The Foundry, as ever
+	else
+		buildHideout(f, colors) -- The Safehouse, under the plaza
+	end
 	for name in H.stations do
 		stationPad(f, name, colors)
 	end
@@ -413,7 +469,64 @@ function HqClient.inside(): boolean
 	return state.on == true
 end
 
+-- The Vigil's service door at the plaza's edge: the server builds a plain locked service door for everyone; on a
+-- Vigil device its prompt reads the HQ's name and a small marker shows over it (the Syndicate never see either)
+local doorPart: BasePart? = nil
+local doorSide: string? = nil
+local function serviceDoor()
+	local side = if State.hero.side == "villain" then "villain" else "hero"
+	local p = doorPart
+	if not p or not p.Parent or (side == doorSide) then
+		return
+	end
+	doorSide = side
+	local prompt = p:FindFirstChildOfClass("ProximityPrompt")
+	local vigil = side == "hero"
+	if prompt then
+		prompt.ObjectText = if vigil then H.names.hero else H.door.object
+		prompt.ActionText = if vigil then H.door.enter else H.door.locked
+	end
+	local old = p:FindFirstChild("VigilMarker")
+	if old then
+		old:Destroy()
+	end
+	if vigil then
+		local bb = Instance.new("BillboardGui")
+		bb.Name = "VigilMarker"
+		bb.Size = UDim2.fromOffset(150, 34)
+		bb.StudsOffset = Vector3.new(0, 7.5, 0)
+		bb.MaxDistance = H.door.markerRange
+		bb.LightInfluence = 0
+		bb.Parent = p
+		local l = Instance.new("TextLabel")
+		l.BackgroundTransparency = 1
+		l.Size = UDim2.fromScale(1, 1)
+		l.Font = Enum.Font.Bangers
+		l.TextScaled = true
+		l.TextColor3 = SIDE_COLORS.hero.main
+		l.TextStrokeTransparency = 0.1
+		l.Text = "V  " .. H.door.marker
+		l.Parent = bb
+	end
+end
+
+local function watchDoor(p: Instance)
+	if p.Name == "HqDoor_hero" and p:IsA("BasePart") then
+		doorPart = p
+		doorSide = nil
+		serviceDoor()
+	end
+end
+
 function HqClient.init()
+	task.spawn(function()
+		local hq = Workspace:WaitForChild("Hq")
+		hq.DescendantAdded:Connect(watchDoor)
+		for _, d in hq:GetDescendants() do
+			watchDoor(d)
+		end
+	end)
+	State.Changed:Connect(serviceDoor)
 	Net.listen("HqState", function(data)
 		local was = state.on
 		state = data

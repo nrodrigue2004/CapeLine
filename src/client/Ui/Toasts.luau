@@ -38,6 +38,7 @@ local M9_REASONS: { [string]: string } = {
 	scene = "Finish what you are doing first",
 	busy = "Finish what you are doing first",
 	side = "That is the other side's base",
+	serviceLocked = "Locked tight. Just a maintenance stair",
 	safehouse = "Switch heroes at your HQ or a safehouse",
 	slot = "Buy that hero slot in the shop first",
 	locked = "Buy that hero slot in the shop first",
