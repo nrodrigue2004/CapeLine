@@ -354,6 +354,112 @@ function BUILD.subway(l: Layout, Config: any)
 	end
 end
 
+-- Halo Academy (lore step 11, side quest chain The Hero Academy): the inside of an existing Downtown building.
+-- The school stands on a deck DECK studs up: the entrance hall with Halo's statue (the spawn), two classrooms
+-- with desks and blackboards (rooms 1 and 2) either side of the training hall (mats, dummies, hoops; `hall`),
+-- and the back wall's hidden door (`hiddenDoor`) to a stairwell down. Under the school's floor (its ceiling
+-- tagged so robots never stand on it) is Crane's copier workshop: four Spark scanner pods (`pods`), an
+-- assembly line of copy robots and the foreman's spot (`boss`); `workshop` is the foot of the stairs.
+-- PLACEHOLDER ART: greybox parts in the city palette, like every pocket.
+local DECK = 24
+function BUILD.academy(l: Layout, _Config: any)
+	local D = DECK
+	local deco = { tag = "decor", ghost = true }
+	-- the school's floor: a deck over the south of the pocket, with a wood skin
+	box(l, "building", 0, D / 2, 80, 396, D, 232, "sand")
+	box(l, "plaza", 0, D + 0.1, 80, 396, 0.2, 232, "wood")
+	point(l, "spawn", 0, D + 3, 172)
+	-- the entrance hall: Halo's statue on a plinth, a gold halo over it, the school crest on the front wall
+	box(l, "prop", 0, D + 2, 146, 12, 4, 12, "white")
+	box(l, "prop", 0, D + 8, 146, 4, 8, 3, "white", deco)
+	box(
+		l,
+		"glow",
+		0,
+		D + 14,
+		146,
+		7,
+		0.6,
+		7,
+		"beaconGlow",
+		{ shape = "cylinder", ghost = true, tag = "decor" }
+	)
+	box(l, "glow", 0, D + 16, 195, 80, 6, 1, "beaconGlow", deco)
+	-- the classrooms: west (room 1) and east (room 2), each with a door onto the hall
+	for k = -1, 1, 2 do
+		local wx = k * 90 -- the inner wall, a door gap in its middle
+		box(l, "building", wx, D + 11, 26, 4, 22, 32, "white")
+		box(l, "building", wx, D + 11, 104, 4, 22, 32, "white")
+		box(l, "building", k * 143, D + 11, 10, 106, 22, 4, "white")
+		box(l, "building", k * 143, D + 11, 120, 106, 22, 4, "white")
+		box(l, "prop", k * 195, D + 9, 65, 1, 10, 34, "slate", deco) -- the blackboard
+		for r = 0, 2 do
+			for c = 0, 3 do
+				box(l, "prop", k * (110 + c * 20), D + 1.5, 40 + r * 24, 6, 3, 4, "wood", deco)
+			end
+		end
+		add(l, "rooms", k * 143, D + 0.5, 65)
+	end
+	-- the training hall: mats, dummies and hoops
+	box(l, "plaza", 0, D + 0.25, 50, 120, 0.3, 110, "roofBlue")
+	for i, p in { { -50, 10 }, { 50, 10 }, { -50, 90 }, { 50, 90 } } do
+		box(l, "prop", p[1], D + 3, p[2], 1.5, 6, 1.5, "steel", deco)
+		box(l, "prop", p[1], D + 7, p[2], 3, 3, 3, if i % 2 == 0 then "roofRed" else "white", deco)
+	end
+	for _, x in { -70, 70 } do
+		box(l, "prop", x, D + 9, -20, 1, 18, 1, "steel", deco)
+		box(
+			l,
+			"glow",
+			x,
+			D + 18,
+			-18,
+			6,
+			0.5,
+			6,
+			"beaconGlow",
+			{ shape = "cylinder", ghost = true, tag = "decor" }
+		)
+	end
+	point(l, "hall", 0, D + 0.5, 50)
+	-- the back wall and its hidden door (a bookcase slid aside)
+	box(l, "building", -107, D + 18, -34, 178, 36, 4, "white")
+	box(l, "building", 107, D + 18, -34, 178, 36, 4, "white")
+	box(l, "prop", 26, D + 7, -30, 14, 14, 3, "wood", deco)
+	point(l, "hiddenDoor", 0, D + 0.5, -28)
+	-- the stairwell down: 11 steps of 2 studs from the deck to the workshop floor, walled both sides
+	for i = 1, 11 do
+		local top = D - 2 * i
+		box(l, "building", 0, top / 2, -39 - (i - 1) * 6, 32, top, 6, "concrete")
+	end
+	for k = -1, 1, 2 do
+		box(l, "building", k * 18, 22, -70, 4, 44, 68, "tunnel")
+	end
+	point(l, "workshop", 0, 0.5, -112)
+	-- Crane's copier workshop under the school: its ceiling is the school's floor (robots never stand on it)
+	local ceil = { tag = "ceiling" }
+	box(l, "building", -109, D + 2, -117, 178, 4, 162, "tunnel", ceil)
+	box(l, "building", 109, D + 2, -117, 178, 4, 162, "tunnel", ceil)
+	box(l, "building", 0, D + 2, -152, 40, 4, 92, "tunnel", ceil)
+	for _, p in { { -120, -80 }, { -120, -150 }, { 120, -80 }, { 120, -150 } } do
+		add(l, "pods", p[1], 0.5, p[2])
+		box(l, "glow", p[1], 4, p[2] - 7, 5, 8, 0.6, "nullGlow", deco) -- the pod's scanner light
+		box(l, "prop", p[1], 0.5, p[2], 9, 1, 9, "steel", deco)
+	end
+	-- the assembly line: a conveyor of half-built copy robots, work lamps under the ceiling
+	box(l, "prop", 0, 1.5, -185, 300, 3, 10, "steel", deco)
+	for i = -3, 3 do
+		box(l, "prop", i * 40, 6, -185, 4, 7, 3, "nullMetal", deco)
+		box(l, "glow", i * 40, 9.2, -183.4, 2, 0.6, 0.4, "nullGlow", deco)
+	end
+	for _, x in { -150, -60, 60, 150 } do
+		box(l, "glow", x, D - 0.6, -117, 10, 0.6, 3, "workLamp", deco)
+	end
+	box(l, "glow", -197, 10, -117, 1, 4, 140, "foundryGlow", deco)
+	box(l, "glow", 197, 10, -117, 1, 4, 140, "foundryGlow", deco)
+	point(l, "boss", 0, 0.5, -160)
+end
+
 -- Is this a pocket layout name? (lore step 10: side quest pocket steps are checked against it)
 function PocketLayout.known(layout: any): boolean
 	return type(layout) == "string" and BUILD[layout] ~= nil

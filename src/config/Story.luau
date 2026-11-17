@@ -1057,6 +1057,34 @@ return {
 					extras = { "visor" },
 				},
 			},
+			-- the side quest chains' own cast (lore step 11; the givers speak from Config.SideQuests.givers)
+			-- The Hero Academy: Headmaster Halo on the school speakers and in person, and Wren, the runaway student
+			halo = {
+				name = "HEADMASTER HALO",
+				color = { 120, 200, 255 },
+				style = "broadcast",
+				blip = "guideFake",
+				portrait = {
+					bg = { 30, 60, 100 },
+					skin = { 245, 214, 186 },
+					hair = { 205, 210, 220 },
+					shape = "slick",
+					extras = { "mask" },
+				},
+			},
+			wren = {
+				name = "WREN",
+				color = { 255, 170, 120 },
+				style = "person",
+				blip = "guideInsider",
+				portrait = {
+					bg = { 90, 50, 40 },
+					skin = { 160, 110, 80 },
+					hair = { 40, 28, 24 },
+					shape = "messy",
+					extras = { "cap" },
+				},
+			},
 		},
 		-- the three guides: each has its own blip and portrait
 		guides = { "lodestar", "patch", "crane" },
@@ -1245,6 +1273,7 @@ return {
 			Headliner = 3,
 			["Big Deal"] = 4,
 			["Living Legend"] = 5,
+			["Class Dismissed"] = 6, -- side quest chain: The Hero Academy (lore step 11)
 			GoldTrim = 100,
 		},
 	},

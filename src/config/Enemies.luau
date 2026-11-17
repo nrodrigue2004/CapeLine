@@ -37,6 +37,8 @@ return {
 		"Bulwark",
 		"Skylance",
 		"EvilTwin",
+		-- side quest mini villains that are famous fakes (nate's lore, build plan step 11)
+		"HeadmasterHalo",
 	},
 	scale = { hpPerLevel = 0.1, dmgBase = 20, dmgPerLevel = 4 },
 	SparkDrone = {
@@ -752,6 +754,75 @@ return {
 			suit = { 60, 160, 230 },
 			trim = { 245, 245, 245 },
 			spear = true, -- PLACEHOLDER ART: a plain-part spear in the right hand
+		},
+	},
+	-- Headmaster Halo (nate's lore, build plan step 11: Downtown's chain, The Hero Academy): a famous fake who
+	-- runs Halo Academy, a free "hero school" that finds kids with Sparks for Crane's copier workshop under it.
+	-- The finale's mini villain (boss-lite, Config.SideQuests.finale): Radiant's flyer brain (bolts from the
+	-- air and a dive, "pop quiz"), less health, and the step 4 face crack. Never in the ambient mix or swaps.
+	HeadmasterHalo = {
+		typeId = 23,
+		on = true,
+		name = "Headmaster Halo",
+		fake = {
+			title = "The Hero Teacher",
+			path = "Mind",
+			look = {
+				gender = 1,
+				build = 2,
+				height = 4,
+				skin = 1,
+				hair = 19, -- silver
+				colors = { 18, 33, 4 }, -- white, azure, gold
+				pieces = {
+					suit = "Split Tone",
+					back = "High Collar Cape",
+					hands = "Gloves",
+					feet = "Boots",
+					emblem = "Peak",
+					hair = "Slicked Back",
+					beard = "Pencil Mustache",
+					hat = "Halo",
+					shoulders = "Mantle",
+					neck = "Medal",
+					belt = "Sash",
+					visage = "Hero Face",
+				},
+				tints = { back = { 33, 4, 0 } }, -- an azure cape with gold trim
+				mats = {},
+			},
+		},
+		ai = "flyer",
+		hp = 2000,
+		flies = true,
+		speed = 30,
+		hover = { min = 14, max = 32 },
+		aggro = 110,
+		attackRange = 66,
+		orbit = { min = 24, max = 40 },
+		burst = { shots = 3, gap = 0.2, every = 3 },
+		coeff = 0.46,
+		shotSpeed = 120,
+		shotRadius = 4,
+		shotStyle = 4, -- a power path's shot (CombatFx.pathShot in fake.path's look)
+		-- the pop quiz: every 8 s a ring shows under its hero for 1.2 s (a beat longer than Radiant's), then
+		-- it dives there; damage a second in the fakes' band (tests: between the elites and the world bosses)
+		dive = { every = 8, windup = 1.2, radius = 11, coeff = 2.2 },
+		fleeBelow = 0,
+		fleeTime = 0,
+		mitigation = 0.1,
+		ccResist = 0.5,
+		radius = 3,
+		elite = true,
+		miniBoss = true,
+		body = {
+			build = "normal",
+			gender = 1,
+			height = 5.8,
+			metal = { 190, 195, 210 },
+			eye = { 120, 200, 255 },
+			suit = { 245, 245, 245 },
+			trim = { 60, 150, 230 },
 		},
 	},
 	-- The evil twin: a fake that beat a real hero and copies them: it wears that player's exact look (their

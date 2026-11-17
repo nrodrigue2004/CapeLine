@@ -223,7 +223,7 @@ local function drawQuests(j: any)
 					)
 				end
 				local giver = Config.SideQuests.givers[chain.giver]
-				local f = row(li * 1000 + r.bit, 78)
+				local f = row(li * 1000 + r.bit, if chain.blurb then 100 else 78)
 				text(
 					f,
 					string.upper(chain.name),
@@ -233,6 +233,11 @@ local function drawQuests(j: any)
 					20
 				)
 				local where = giver and (WHERE[giver.anchor] or giver.anchor) or ""
+				local site = giver and giver.anchor == "site" and Config.SideQuests.sites[giver.site]
+				if site then
+					-- lore step 11: a giver at a site's door (HALO ACADEMY, Downtown)
+					where = site.name .. ", " .. (WHERE[site.district] or site.district)
+				end
 				local line
 				if r.state == "done" then
 					line = "DONE"
@@ -270,6 +275,19 @@ local function drawQuests(j: any)
 					15,
 					Kit.bodyFont
 				)
+				-- lore step 11: the chain's page line (fixed text, the reader's side)
+				local blurb = chain.blurb and chain.blurb[if j.side == "villain" then "villain" else "hero"]
+				if blurb then
+					text(
+						f,
+						blurb,
+						UDim2.fromOffset(10, 72),
+						UDim2.new(0.58, 0, 0, 24),
+						Kit.color.ink,
+						13,
+						Kit.bodyFont
+					)
+				end
 				if r.state == "active" then
 					if j.pinned == r.bit then
 						pinButton(f, r.bit, true)

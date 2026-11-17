@@ -177,6 +177,16 @@ function SideQuestPlan.text(goal: any, side: string): string
 	return goal.text or ""
 end
 
+-- The mini villain's name card for a step (the finale's: the chain's villain name and title), or nil
+function SideQuestPlan.card(chain: any, idx: number): { name: string, title: string }?
+	local step = chain.steps and chain.steps[idx]
+	local g = step and SideQuestPlan.goal(step, "hero")
+	if not g or g.kind ~= "finale" or type(chain.villain) ~= "table" then
+		return nil
+	end
+	return { name = chain.villain.name, title = chain.villain.title }
+end
+
 function SideQuestPlan.need(goal: any): number
 	local k = SideQuestPlan.KINDS[goal.kind]
 	return if k then math.max(1, k.need(goal) or 1) else 1
@@ -729,8 +739,11 @@ local function checkGoal(
 		local PocketLayout = if script
 			then require((script :: any).Parent.PocketLayout)
 			else (require :: any)("./PocketLayout")
+		local layout = nil
 		if not PocketLayout.known(goal.layout) then
 			no("unknown pocket layout " .. tostring(goal.layout))
+		else
+			layout = PocketLayout.build(Config, 1, goal.layout)
 		end
 		local m = SQ.pocketMinutes
 		if type(goal.minutes) ~= "number" or goal.minutes < m[1] or goal.minutes > m[2] then
@@ -757,6 +770,38 @@ local function checkGoal(
 			for _, row in st.squads or {} do
 				if not enemyKnown(Config, row[1]) then
 					no(w .. " squad " .. tostring(row[1]))
+				end
+			end
+			if st.adds and not enemyKnown(Config, st.adds[1]) then
+				no(w .. " adds " .. tostring(st.adds[1]))
+			end
+			if st.kind == "defeat" and (type(st.squads) ~= "table" or #st.squads == 0) then
+				no(w .. " defeat needs squads")
+			end
+			if st.kind == "hold" and (type(st.seconds) ~= "number" or type(st.radius) ~= "number") then
+				no(w .. " hold needs seconds and radius")
+			end
+			if st.kind == "break" and type(st.hits) ~= "number" then
+				no(w .. " break needs hits")
+			end
+			if st.kind == "reach" and not st.at then
+				no(w .. " reach needs a point")
+			end
+			-- lore step 11: the step's places are in its pocket (a point, a room, or a list long enough)
+			if layout then
+				if st.at and not layout.points[st.at] then
+					no(w .. " point " .. tostring(st.at) .. " is not in " .. goal.layout)
+				end
+				if st.room and not (layout.lists.rooms and layout.lists.rooms[st.room]) then
+					no(w .. " room " .. tostring(st.room) .. " is not in " .. goal.layout)
+				end
+				local list = if st.list
+					then st.list
+					elseif st.kind == "hold" and not st.at then "stations"
+					elseif st.kind == "break" and not st.at then "crates"
+					else nil
+				if list and #(layout.lists[list] or {}) < (st.points or 1) then
+					no(w .. " " .. list .. " in " .. goal.layout .. " are too few")
 				end
 			end
 		end
@@ -808,9 +853,13 @@ local function checkReward(Config: any, r: any, where: string, bad: { string })
 		end
 	end
 	local U = Config.Story.unlocks
-	local n = 0
+	local n, titles = 0, 0
 	for k, v in SideQuestPlan.cosmetic({ reward = r }) do
-		n += 1
+		if k == "title" then
+			titles += 1
+		else
+			n += 1
+		end
 		if k == "style" and not GearMath.questStyle(Config, v) then
 			no("style " .. v)
 		elseif k == "emote" then
@@ -823,8 +872,9 @@ local function checkReward(Config: any, r: any, where: string, bad: { string })
 			no(k .. " " .. v)
 		end
 	end
-	if n ~= 1 then
-		no("one cosmetic or title at the end (has " .. n .. ")")
+	-- lore step 11: a chain title and/or one cosmetic (never two cosmetics, never nothing)
+	if n > 1 or n + titles == 0 then
+		no("one cosmetic or title at the end, or one of each (has " .. n .. " cosmetics)")
 	end
 end
 
@@ -899,6 +949,18 @@ function SideQuestPlan.checkChain(Config: any, chain: any, ids: { [string]: any 
 				end
 				seen[at] = true
 				at = at.unlock and at.unlock.after and ids[at.unlock.after]
+			end
+		end
+	end
+	if chain.site ~= nil and not (SQ.sites and SQ.sites[chain.site]) then
+		no("site " .. tostring(chain.site))
+	end
+	-- the Journal page's line (optional): fixed text per side
+	if chain.blurb ~= nil then
+		for _, side in SQ.sides do
+			local bb = fixedText(type(chain.blurb) == "table" and chain.blurb[side], 90)
+			if bb then
+				no(side .. " blurb: " .. bb)
 			end
 		end
 	end
@@ -980,11 +1042,36 @@ function SideQuestPlan.validate(Config: any): { string }
 		if g.style ~= "person" and g.style ~= "radio" then
 			table.insert(bad, "giver " .. id .. ": style")
 		end
-		if g.anchor ~= "plaza" and g.anchor ~= "hq" and not Config.City.districts[g.anchor] then
+		local siteOk = g.anchor == "site" and SQ.sites and SQ.sites[g.site] ~= nil
+		if
+			g.anchor ~= "plaza"
+			and g.anchor ~= "hq"
+			and not Config.City.districts[g.anchor]
+			and not siteOk
+		then
 			table.insert(bad, "giver " .. id .. ": anchor " .. tostring(g.anchor))
 		end
 		if Config.Story.guides.speakers[id] then
 			table.insert(bad, "giver " .. id .. ": a guide already has that id")
+		end
+	end
+	-- lore step 11: the sites inside existing buildings (Shared.SideQuestSites picks the building)
+	for id, st in SQ.sites or {} do
+		local w = "site " .. id
+		if fixedText(st.name, 24) then
+			table.insert(bad, w .. ": name")
+		end
+		if not table.find(SQ.districts, st.district) or not Config.City.districts[st.district] then
+			table.insert(bad, w .. ": district " .. tostring(st.district))
+		end
+		if type(st.near) ~= "table" or type(st.height) ~= "table" or st.height[1] > st.height[2] then
+			table.insert(bad, w .. ": near and height")
+		end
+		local a = st.away or {}
+		for _, k in { "plaza", "row", "door", "open" } do
+			if type(a[k]) ~= "number" or a[k] < 0 then
+				table.insert(bad, w .. ": away." .. k)
+			end
 		end
 	end
 	for i, g in SQ.devKinds do

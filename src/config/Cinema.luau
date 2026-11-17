@@ -57,6 +57,68 @@ return {
 		},
 		-- the comic-panel flashback sample (Dev panel only): "The old heroes' last stand"
 		lastStand = { bit = 5, client = true, seconds = 16, comic = "lastStand" },
+		-- The Hero Academy (side quest chain, lore step 11): the gates on step 1, Wren's story as a comic page
+		-- on step 5, and the bell before Headmaster Halo's finale
+		academyGates = {
+			bit = 6,
+			client = true,
+			seconds = 10,
+			shots = {
+				{
+					kind = "orbit",
+					t0 = 0,
+					t1 = 4,
+					radius = 20,
+					height = 5,
+					yaw0 = -0.4,
+					yaw1 = 0.8,
+					lift = 2,
+				},
+				{
+					kind = "dolly",
+					t0 = 4,
+					t1 = 10,
+					from = { 0, 6, 26 },
+					to = { 0, 30, 44 },
+					at = { 0, 4, 0 },
+					at2 = { 0, 40, -40 },
+				},
+			},
+			lines = {
+				{
+					at = 0.4,
+					who = "halo",
+					text = "Welcome to Halo Academy, where every Spark shines! Enrol today!",
+				},
+				{
+					at = 5,
+					who = "Gus",
+					text = "Same speech every morning. Then the honours class goes downstairs.",
+				},
+			},
+		},
+		wrenStory = { bit = 7, client = true, seconds = 14, comic = "wrenStory" },
+		haloBell = {
+			bit = 8,
+			client = true,
+			seconds = 8,
+			shots = {
+				{ kind = "cut", t0 = 0, t1 = 3, from = { 14, 4, 14 }, at = { 0, 5, 0 } },
+				{ kind = "orbit", t0 = 3, t1 = 8, radius = 16, height = 4, yaw0 = 0.6, yaw1 = 2.2, lift = 4 },
+			},
+			lines = {
+				{
+					at = 0.3,
+					who = "halo",
+					text = "Ding-dong! That's the bell, children. Time for your final exam!",
+				},
+				{
+					at = 4,
+					who = "patch",
+					text = "That's Halo himself. Every screen is on him. Make it count!",
+				},
+			},
+		},
 	},
 	missionBits = { base = 16, perMission = 8, missions = 13 }, -- bits 16 to 119
 
@@ -181,6 +243,45 @@ return {
 						scene = "crater",
 						caption = "When the dust settled, the old heroes were gone. Only the Crater was left.",
 						at = 10,
+					},
+				},
+			},
+			-- Wren's story (The Hero Academy, step 5): how the honours class works
+			wrenStory = {
+				title = "WREN'S FIRST WEEK AT HALO ACADEMY",
+				panels = {
+					{
+						rect = { 0.03, 0.12, 0.45, 0.4 },
+						sky = { 150, 210, 255 },
+						ground = { 90, 110, 80 },
+						scene = "school",
+						caption = "Halo Academy said I was special. Free lessons for kids with Sparks.",
+						at = 0,
+					},
+					{
+						rect = { 0.52, 0.12, 0.45, 0.4 },
+						sky = { 255, 230, 160 },
+						ground = { 70, 70, 90 },
+						scene = "stand",
+						caption = "Headmaster Halo picked me for the honours class. Everyone clapped.",
+						at = 3.5,
+					},
+					{
+						rect = { 0.03, 0.56, 0.45, 0.38 },
+						sky = { 40, 50, 70 },
+						ground = { 30, 30, 40 },
+						scene = "scan",
+						caption = "Downstairs, a machine measured my Spark. A robot stood up... with MY powers.",
+						word = "ZZZAP!",
+						at = 7,
+					},
+					{
+						rect = { 0.52, 0.56, 0.45, 0.38 },
+						sky = { 255, 140, 90 },
+						ground = { 60, 50, 60 },
+						scene = "city",
+						caption = "So I ran. And I kept running until I found you.",
+						at = 10.5,
 					},
 				},
 			},

@@ -192,6 +192,27 @@ local function picture(parent: Frame, p: any)
 		core.AnchorPoint = Vector2.new(0.5, 0.5)
 		Kit.round(core, 200)
 		Kit.stroke(core, ink, 3)
+	elseif kind == "school" then
+		-- Halo Academy (The Hero Academy): a wide school front, its windows, a door and a gold halo over it
+		local front = box(parent, 0.12, 0.34, 0.76, 0.38, Color3.fromRGB(235, 235, 240), 62)
+		Kit.stroke(front, ink, 2)
+		for i = 0, 4 do
+			box(front, 0.06 + i * 0.19, 0.18, 0.11, 0.22, Color3.fromRGB(120, 190, 255), 63)
+		end
+		box(front, 0.42, 0.6, 0.16, 0.4, Color3.fromRGB(70, 110, 170), 63)
+		local halo = box(parent, 0.5, 0.24, 0.3, 0.08, Color3.fromRGB(255, 220, 90), 63)
+		halo.AnchorPoint = Vector2.new(0.5, 0.5)
+		Kit.round(halo, 200)
+		Kit.stroke(halo, ink, 2)
+	elseif kind == "scan" then
+		-- the copier workshop: a kid in a scanner pod, a green beam, the copy robot standing up
+		local pod = box(parent, 0.16, 0.3, 0.22, 0.42, Color3.fromRGB(160, 230, 255), 62)
+		pod.BackgroundTransparency = 0.4
+		Kit.stroke(pod, ink, 3)
+		figure(parent, 0.22, Color3.fromRGB(255, 170, 120), false)
+		local beam = box(parent, 0.38, 0.5, 0.3, 0.04, Color3.fromRGB(120, 255, 160), 63)
+		beam.AnchorPoint = Vector2.new(0, 0.5)
+		figure(parent, 0.72, Color3.fromRGB(150, 150, 160), true)
 	elseif kind == "crater" then
 		-- the empty crater under a still sky, broken stubs at its rim
 		local pit = box(parent, 0.5, 0.78, 0.8, 0.22, ink, 63)
