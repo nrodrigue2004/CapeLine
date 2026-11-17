@@ -50,6 +50,9 @@ local EVENT_RANGE = 220
 -- Event kinds on the wire (arrays keep the payload small)
 EnemyService.SHOT, EnemyService.HERO_HIT, EnemyService.DIE = 1, 2, 3
 EnemyService.WARN, EnemyService.SLAM, EnemyService.SWING, EnemyService.BLOCKED = 4, 5, 6, 7
+-- the nine new robot types (see EnemySim.EXTRA for the matching wire flags)
+EnemyService.AIM, EnemyService.RALLY, EnemyService.LOB, EnemyService.ZONE = 8, 9, 10, 11
+EnemyService.MEND, EnemyService.REVEAL, EnemyService.BOOM = 12, 13, 14
 
 function EnemyService.candidates(): { any }
 	local list = EnemySim.candidates(sim)

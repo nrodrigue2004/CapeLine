@@ -1,16 +1,17 @@
 --!strict
 -- EnemyBuffer: the Enemy.Delta packet (10 Hz, unreliable). The spec's remote list has no enemy replication
 -- line; this is it (Decisions.md, 2026-11-16). Each player gets only the enemies within Net.enemyRelevance.
--- Header 10 bytes: u32 sequence, f32 server time, u16 count. Then 12 bytes per enemy: id u16, x/y/z as
+-- Header 10 bytes: u32 sequence, f32 server time, u16 count. Then 13 bytes per enemy: id u16, x/y/z as
 -- signed 16-bit in 0.1 stud steps (covers -3,276 to 3,276, so the whole map and the mission pockets at
 -- y = 3,000), health fraction u8, packed u8 = state (3 bits) + typeId (5 bits), flags u8 (Status.BITS:
--- stun, root, slow, lifted, cloak, windup, shield, guard broken), yaw u8 (256 steps, for the robot bodies).
+-- stun, root, slow, lifted, cloak, windup, shield, guard broken), yaw u8 (256 steps, for the robot bodies),
+-- extra u8 (EnemySim.EXTRA: aim, rally, disguise, mend, lunge, hooked; 13 bytes each since the 9 new types).
 -- The whole relevant list goes every packet, so a lost packet costs nothing.
 
 local EnemyBuffer = {}
 
 local HEADER = 10
-local PER = 12
+local PER = 13
 EnemyBuffer.HEADER = HEADER
 EnemyBuffer.PER = PER
 
@@ -65,6 +66,7 @@ function EnemyBuffer.encodeFor(
 		buffer.writeu8(b, offset + 9, (e.state % 8) + (e.typeId % 32) * 8)
 		buffer.writeu8(b, offset + 10, (e.flags or 0) % 256)
 		buffer.writeu8(b, offset + 11, math.floor(((e.yaw or 0) % (2 * math.pi)) / (2 * math.pi) * 256) % 256)
+		buffer.writeu8(b, offset + 12, (e.extra or 0) % 256)
 		offset += PER
 	end
 	return b
@@ -80,6 +82,7 @@ export type Row = {
 	typeId: number,
 	flags: number,
 	yaw: number,
+	extra: number,
 }
 
 function EnemyBuffer.decode(b: buffer): (number, number, { Row })
@@ -105,6 +108,7 @@ function EnemyBuffer.decode(b: buffer): (number, number, { Row })
 			typeId = (packed // 8) % 32,
 			flags = buffer.readu8(b, offset + 10),
 			yaw = buffer.readu8(b, offset + 11) / 256 * 2 * math.pi,
+			extra = buffer.readu8(b, offset + 12),
 		})
 		offset += PER
 	end

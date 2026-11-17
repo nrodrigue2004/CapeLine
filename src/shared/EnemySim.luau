@@ -22,6 +22,15 @@ local EnemySim = {}
 
 EnemySim.PATROL, EnemySim.CHASE, EnemySim.ATTACK, EnemySim.FLEE, EnemySim.DEAD = 1, 2, 3, 4, 5
 
+-- The second flags byte on the wire (EnemyBuffer `extra`): what the new robot types are doing
+--   aim      a Sniper's laser is on a hero (the AIM event names the hero)
+--   rally    a Captain's rally is on this robot (hits harder, moves faster)
+--   disguise a Mimic still dressed as a citizen (not a hit target, no health bar)
+--   mend     a Medic Unit is repairing a robot (the MEND event names it)
+--   lunge    a Swarmer is lunging
+--   hooked   a Grappler's hook is out
+EnemySim.EXTRA = { aim = 1, rally = 2, disguise = 4, mend = 8, lunge = 16, hooked = 32 }
+
 -- Hit flags returned by damage (sent to clients so a blocked hit reads)
 EnemySim.HIT, EnemySim.BLOCKED, EnemySim.BROKE = 0, 1, 2
 

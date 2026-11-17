@@ -1524,14 +1524,14 @@ test(
 	end
 )
 
-test("M2: Enemy.Delta carries status flags and facing (12 bytes each)", function()
+test("M2: Enemy.Delta carries status flags, facing and the new types' extra flags (13 bytes each)", function()
 	local sim = robotSim()
 	local e = EnemySim.spawn(sim, "NullSentinel", -60, 0, 0, 1) :: any
 	e.yaw = 1.0
 	EnemySim.applyStatus(sim, e.id, "slow", 2, { value = 0.5 })
 	run(sim, {}, 0, 0.2)
 	local b = EnemyBuffer.encodeFor(1, 0, sim.enemies, -60, 0, 0, 100, 60)
-	check(buffer.len(b) == EnemyBuffer.HEADER + 12, "12 bytes")
+	check(buffer.len(b) == EnemyBuffer.HEADER + 13, "13 bytes")
 	local _, _, rows = EnemyBuffer.decode(b)
 	local r = rows[1]
 	check(bit32.band(r.flags, Status.BITS.slow) ~= 0, "slow flag")
