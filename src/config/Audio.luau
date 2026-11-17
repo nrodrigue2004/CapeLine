@@ -88,6 +88,114 @@ return {
 		ui = s("button.wav", 0.35, 1), -- every button tap
 	},
 
+	-- every path's own sound layer (overhaul plan step 6), played with the slot's cast sound above (Juice.path):
+	-- cast (skills), super, hit (your hits, once per use) and charge (a skill starts charging). PLACEHOLDER
+	-- SOUND: built-in clips pitched per path until nate picks licence-checked ids (Launch Checklist).
+	paths = {
+		Volt = {
+			cast = s("electronicpingshort.wav", 0.3, 2.4, { range = 100, vary = 0.08 }),
+			super = s("electronicpingshort.wav", 0.6, 0.7, { range = 220 }),
+			hit = s("electronicpingshort.wav", 0.25, 2.8, { range = 80, vary = 0.1 }),
+			charge = s("electronicpingshort.wav", 0.3, 3, { range = 60 }),
+		},
+		Frost = {
+			cast = s("clickfast.wav", 0.45, 1.6, { range = 100, vary = 0.08 }),
+			super = s("swoosh.wav", 0.8, 0.5, { range = 220 }),
+			hit = s("clickfast.wav", 0.4, 2.2, { range = 80, vary = 0.1 }),
+			charge = s("clickfast.wav", 0.3, 2.6, { range = 60 }),
+		},
+		Fire = {
+			cast = s("swoosh.wav", 0.5, 0.75, { range = 100, vary = 0.08 }),
+			super = s("action_jump_land.mp3", 0.9, 0.4, { range = 240 }),
+			hit = s("swoosh.wav", 0.4, 0.6, { range = 80, vary = 0.1 }),
+			charge = s("action_falling.mp3", 0.3, 1.4, { range = 60 }),
+		},
+		Earth = {
+			cast = s("action_jump_land.mp3", 0.5, 0.65, { range = 100, vary = 0.08 }),
+			super = s("action_jump_land.mp3", 0.9, 0.35, { range = 240 }),
+			hit = s("action_jump_land.mp3", 0.4, 0.9, { range = 80, vary = 0.1 }),
+			charge = s("action_get_up.mp3", 0.3, 0.6, { range = 60 }),
+		},
+		Tide = {
+			cast = s("action_swim.mp3", 0.5, 1.1, { range = 100, vary = 0.08 }),
+			super = s("impact_water.mp3", 1, 0.55, { range = 240 }),
+			hit = s("impact_water.mp3", 0.45, 1.4, { range = 80, vary = 0.1 }),
+			charge = s("action_swim.mp3", 0.3, 1.5, { range = 60 }),
+		},
+		Blade = {
+			cast = s("swoosh.wav", 0.5, 1.9, { range = 100, vary = 0.08 }),
+			super = s("swoosh.wav", 0.9, 0.9, { range = 220 }),
+			hit = s("clickfast.wav", 0.4, 1.7, { range = 80, vary = 0.1 }),
+			charge = s("clickfast.wav", 0.3, 1.2, { range = 60 }),
+		},
+		Gunslinger = {
+			cast = s("clickfast.wav", 0.55, 0.8, { range = 120, vary = 0.08 }),
+			super = s("action_jump_land.mp3", 0.9, 0.8, { range = 240 }),
+			hit = s("electronicpingshort.wav", 0.3, 1.9, { range = 80, vary = 0.12 }),
+			charge = s("button.wav", 0.4, 0.8, { range = 60 }),
+		},
+		Gadgeteer = {
+			cast = s("button.wav", 0.45, 1.5, { range = 100, vary = 0.08 }),
+			super = s("electronicpingshort.wav", 0.7, 0.5, { range = 220 }),
+			hit = s("button.wav", 0.35, 2, { range = 80, vary = 0.1 }),
+			charge = s("electronicpingshort.wav", 0.25, 1.3, { range = 60 }),
+		},
+		Shadow = {
+			cast = s("swoosh.wav", 0.45, 1.45, { range = 90, vary = 0.08 }),
+			super = s("action_falling.mp3", 0.8, 0.35, { range = 220 }),
+			hit = s("swoosh.wav", 0.35, 2.2, { range = 70, vary = 0.1 }),
+			charge = s("action_falling.mp3", 0.25, 0.8, { range = 60 }),
+		},
+		Titan = {
+			cast = s("action_jump_land.mp3", 0.55, 0.8, { range = 120, vary = 0.08 }),
+			super = s("action_jump_land.mp3", 1, 0.3, { range = 260 }),
+			hit = s("action_jump_land.mp3", 0.5, 1.1, { range = 90, vary = 0.1 }),
+			charge = s("action_get_up.mp3", 0.3, 0.8, { range = 60 }),
+		},
+		Martial = {
+			cast = s("swoosh.wav", 0.5, 1.3, { range = 100, vary = 0.08 }),
+			super = s("action_falling.mp3", 0.9, 0.6, { range = 240 }),
+			hit = s("action_jump_land.mp3", 0.4, 1.6, { range = 80, vary = 0.1 }),
+			charge = s("action_falling.mp3", 0.3, 1.8, { range = 60 }),
+		},
+		Juggernaut = {
+			cast = s("action_jump_land.mp3", 0.55, 0.55, { range = 120, vary = 0.08 }),
+			super = s("action_jump_land.mp3", 1, 0.25, { range = 260 }),
+			hit = s("clickfast.wav", 0.45, 0.7, { range = 90, vary = 0.1 }),
+			charge = s("action_falling.mp3", 0.3, 0.5, { range = 60 }),
+		},
+		Colossus = {
+			cast = s("action_jump_land.mp3", 0.6, 0.45, { range = 140, vary = 0.08 }),
+			super = s("action_jump_land.mp3", 1, 0.2, { range = 300 }),
+			hit = s("action_jump_land.mp3", 0.5, 0.75, { range = 100, vary = 0.1 }),
+			charge = s("action_get_up.mp3", 0.35, 0.45, { range = 60 }),
+		},
+		Pulse = {
+			cast = s("action_falling.mp3", 0.45, 0.6, { range = 100, vary = 0.08 }),
+			super = s("action_falling.mp3", 0.9, 0.25, { range = 240 }),
+			hit = s("electronicpingshort.wav", 0.3, 0.6, { range = 80, vary = 0.1 }),
+			charge = s("action_falling.mp3", 0.3, 1.1, { range = 60 }),
+		},
+		Mind = {
+			cast = s("electronicpingshort.wav", 0.35, 0.9, { range = 100, vary = 0.08 }),
+			super = s("action_falling.mp3", 0.8, 0.45, { range = 220 }),
+			hit = s("electronicpingshort.wav", 0.3, 1.15, { range = 80, vary = 0.1 }),
+			charge = s("electronicpingshort.wav", 0.25, 0.75, { range = 60 }),
+		},
+		Spirit = {
+			cast = s("action_get_up.mp3", 0.45, 1.3, { range = 100, vary = 0.08 }),
+			super = s("action_get_up.mp3", 0.9, 0.6, { range = 240 }),
+			hit = s("swoosh.wav", 0.35, 1.6, { range = 80, vary = 0.1 }),
+			charge = s("action_get_up.mp3", 0.3, 1.6, { range = 60 }),
+		},
+		Light = {
+			cast = s("electronicpingshort.wav", 0.35, 1.7, { range = 100, vary = 0.08 }),
+			super = s("electronicpingshort.wav", 0.8, 1.2, { range = 260 }),
+			hit = s("electronicpingshort.wav", 0.3, 2.4, { range = 80, vary = 0.1 }),
+			charge = s("electronicpingshort.wav", 0.25, 2, { range = 60 }),
+		},
+	},
+
 	-- per-tier gear chimes (pitch rises with the tier; Legendary plays a second chime 0.25 s later)
 	tierPitch = { 1.2, 1.4, 1.6, 1.85, 2.1 },
 

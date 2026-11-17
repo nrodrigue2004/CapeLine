@@ -5,9 +5,14 @@
 --   line   a strip from you along the aim (bolts, lines, chains, dashes, leaps, rides)
 --   cone   a fan of rays (cones and arcs)
 -- A charge grows it (ChargeRules.apply's size) and brightens it; at full charge it pulses white.
+-- While a skill charges (or a super is aimed) the path's own charge motes orbit the hand, closing in and
+-- growing as the charge fills, with the element's charge particles (overhaul plan step 6; Config.Fx.paths).
 -- PLACEHOLDER ART: neon parts until the effects textures are uploaded.
 
 local Workspace = game:GetService("Workspace")
+
+local CombatFx = require(script.Parent.CombatFx)
+local FxLib = require(script.Parent.FxLib)
 
 local AimPreview = {}
 
@@ -17,6 +22,17 @@ local strip: Part? = nil
 local rays: { Part } = {}
 local RAYS = 5
 local WHITE = Color3.new(1, 1, 1)
+local moteList: { CombatFx.Mote } = {}
+local moteSet: string? = nil
+local nextCharge = 0
+
+local function dropMotes()
+	if #moteList > 0 then
+		CombatFx.dropMotes(moteList)
+	end
+	moteList = {}
+	moteSet = nil
+end
 
 local function make(shape: Enum.PartType?): Part
 	local p = Instance.new("Part")
@@ -90,7 +106,8 @@ function AimPreview.draw(
 	feet: Vector3,
 	point: Vector3,
 	color: Color3,
-	level: number
+	level: number,
+	style: string?
 )
 	parts()
 	hideAll()
@@ -141,10 +158,29 @@ function AimPreview.draw(
 			r.Transparency = alpha
 		end
 	end
+	-- the path's charge motes around the hand while it charges (a super's aim holds them half-gathered)
+	local gather = if level > 0 then level elseif eff.slot == "super" then 0.6 else 0
+	if gather > 0 then
+		if moteSet ~= eff.set then
+			dropMotes()
+			moteList = CombatFx.motes(eff.set, style or "Comic", color)
+			moteSet = eff.set
+		end
+		local hand = origin + dir.Unit * 1.5
+		CombatFx.placeMotes(moteList, eff.set, hand, gather, os.clock())
+		local now = os.clock()
+		if now >= nextCharge then
+			nextCharge = now + 0.25
+			FxLib.charge(hand, eff.set, color)
+		end
+	elseif #moteList > 0 then
+		dropMotes()
+	end
 end
 
 function AimPreview.hide()
 	hideAll()
+	dropMotes()
 end
 
 return AimPreview

@@ -75,6 +75,15 @@ function Juice.fire(id: string, at: Vector3?, data: { [string]: any }?)
 	end
 end
 
+-- A path's own sound layer (Config.Audio.paths; overhaul plan step 6), on top of the slot's cast sound:
+-- moment is "cast", "super", "hit" or "charge". Weapon moves and unknown sets have none.
+function Juice.path(set: string?, moment: string, at: Vector3?)
+	local row = set and A.paths[set]
+	if row and row[moment] then
+		AudioController.playSpec(row[moment], at)
+	end
+end
+
 -- Held sounds: the flight wind (volume follows speed) and the Downed heartbeat
 function Juice.hold(id: string, on: boolean, volume: number?)
 	AudioController.loop(id, on, volume)

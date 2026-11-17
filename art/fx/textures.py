@@ -1,7 +1,8 @@
 """Capeline effects library textures (overhaul plan step 3).
 
 Draws every particle texture Config.Fx.lib names (the `file` fields) as white-on-transparent PNGs, so the
-game tints them per element: art/export/fx/<file>. Sheets named *_4x4 are 4x4 flipbooks (16 frames, left to
+game tints them per element: art/export/fx/<file>. The second row of the preview (overhaul plan step 6) is
+each path's own shape: snowflake, bubble, stone, leaf, sigil, crescent cut, twinkle, hex plate, ink blot. Sheets named *_4x4 are 4x4 flipbooks (16 frames, left to
 right, top to bottom) for ParticleEmitter.FlipbookLayout Grid4x4. Original procedural art, no source images.
 Also writes a contact sheet to art/preview/fx.png (on a dark background).
 
@@ -192,6 +193,164 @@ def electric_sheet(cell=128):
     return sheet(frames, cell)
 
 
+# ---------------------------------------------------------------------------
+# the other paths (overhaul plan step 6): each path's own particle shape
+# ---------------------------------------------------------------------------
+
+
+def flake(size=128):
+    # a six-armed snowflake with side branches (Frost)
+    img = Image.new("L", (size, size), 0)
+    d = ImageDraw.Draw(img)
+    c = size / 2
+    arm = size * 0.44
+    for k in range(6):
+        a = k * math.pi / 3
+        ex, ey = c + math.cos(a) * arm, c + math.sin(a) * arm
+        d.line([(c, c), (ex, ey)], fill=255, width=max(2, size // 32))
+        for t, blen in ((0.45, 0.22), (0.72, 0.15)):
+            bx, by = c + math.cos(a) * arm * t, c + math.sin(a) * arm * t
+            for side in (-1, 1):
+                b = a + side * math.pi / 4
+                d.line([(bx, by), (bx + math.cos(b) * arm * blen, by + math.sin(b) * arm * blen)], fill=255, width=max(1, size // 48))
+    img = img.filter(ImageFilter.GaussianBlur(0.8))
+    a = np.asarray(img, np.float32) / 255
+    x, y = grid(size)
+    r = np.sqrt(x * x + y * y)
+    return to_image(np.clip(a * 1.3 + np.exp(-(r**2) * 30) * 0.8, 0, 1))
+
+
+def bubble(size=128):
+    # a thin rim with a bright highlight and a faint inside (Tide)
+    x, y = grid(size)
+    r = np.sqrt(x * x + y * y)
+    rim = np.exp(-((r - 0.82) ** 2) / 0.004)
+    inside = np.clip(1 - r / 0.85, 0, 1) * 0.12 * (r < 0.85)
+    hx, hy = x + 0.35, y + 0.35
+    hl = np.exp(-(hx**2 * 18 + hy**2 * 40)) * 0.9
+    return to_image(np.clip(rim + inside + hl, 0, 1))
+
+
+def rock(size=128):
+    # a chunky faceted stone silhouette with some shading (Earth, Colossus, Titan)
+    r = random.Random(31)
+    img = Image.new("L", (size, size), 0)
+    d = ImageDraw.Draw(img)
+    c = size / 2
+    pts = []
+    n = 7
+    for k in range(n):
+        a = k / n * math.tau + r.uniform(-0.25, 0.25)
+        rad = size * r.uniform(0.32, 0.45)
+        pts.append((c + math.cos(a) * rad, c + math.sin(a) * rad))
+    d.polygon(pts, fill=255)
+    a = np.asarray(img.filter(ImageFilter.GaussianBlur(1.0)), np.float32) / 255
+    x, y = grid(size)
+    shade = 0.75 + 0.25 * np.clip(-(x + y) * 0.7, -1, 1)
+    grain = 0.85 + 0.3 * noise(size, 8, 5)
+    return to_image(np.clip(a * shade * grain, 0, 1))
+
+
+def leaf(size=128):
+    # a pointed leaf with a centre vein (Earth's vines)
+    x, y = grid(size)
+    # rotate 35 degrees so the leaf sits diagonally
+    a = math.radians(35)
+    u = x * math.cos(a) + y * math.sin(a)
+    v = -x * math.sin(a) + y * math.cos(a)
+    width = 0.42 * np.clip(1 - u**2 / 0.8, 0, 1) ** 0.8
+    body = np.clip(1 - np.abs(v) / np.maximum(width, 1e-3), 0, 1) ** 0.5 * (np.abs(u) < 0.9)
+    vein = np.exp(-(v**2) / 0.0012) * (np.abs(u) < 0.85) * 0.5
+    return to_image(np.clip(body * 0.85 - vein + 0.15 * body, 0, 1))
+
+
+def glyph(size=256):
+    # an original sigil (Mind, Spirit): an outer ring with twelve ticks, an inner ring, one triangle with a
+    # small ring at each corner, and a little eye ring at the heart. Plain geometry, no real-world symbol.
+    img = Image.new("L", (size, size), 0)
+    d = ImageDraw.Draw(img)
+    c = size / 2
+    w = max(2, size // 90)
+
+    def circle(cx, cy, R, fill=255, width=w):
+        d.ellipse([cx - R, cy - R, cx + R, cy + R], outline=fill, width=width)
+
+    circle(c, c, 0.46 * size)
+    circle(c, c, 0.34 * size, 200)
+    for k in range(12):
+        a = k * math.tau / 12
+        r0, r1 = (0.40 if k % 3 else 0.37) * size, 0.46 * size
+        d.line([(c + math.cos(a) * r0, c + math.sin(a) * r0), (c + math.cos(a) * r1, c + math.sin(a) * r1)], fill=255, width=w)
+    R = 0.34 * size
+    pts = [(c + math.cos(-math.pi / 2 + k * math.tau / 3) * R, c + math.sin(-math.pi / 2 + k * math.tau / 3) * R) for k in range(3)]
+    d.line(pts + [pts[0]], fill=230, width=w)
+    for px, py in pts:
+        circle(px, py, 0.05 * size)
+    circle(c, c, 0.08 * size, 255, w + 1)
+    img = img.filter(ImageFilter.GaussianBlur(1.0))
+    a = np.asarray(img, np.float32) / 255
+    x, y = grid(size)
+    r = np.sqrt(x * x + y * y)
+    return to_image(np.clip(a * 1.2 + np.exp(-(r**2) * 20) * 0.4, 0, 1))
+
+
+def slash(size=256):
+    # a thin crescent cut, bright at the middle and tapering at both tips (Blade)
+    x, y = grid(size)
+    r = np.sqrt((x + 0.25) ** 2 + y * y)
+    ang = np.arctan2(y, x + 0.25)
+    span = np.clip(1 - np.abs(ang) / 1.3, 0, 1)
+    band = np.exp(-((r - 0.85) ** 2) / (0.0006 + 0.004 * span))
+    return to_image(np.clip(band * span**0.6 * 1.4, 0, 1))
+
+
+def star(size=128):
+    # a four-point twinkle with a soft core (Light, Martial, Gunslinger, Titan)
+    x, y = grid(size)
+    r = np.sqrt(x * x + y * y)
+    ax = np.exp(-np.abs(y) * 40) * np.clip(1 - np.abs(x), 0, 1) ** 2
+    ay = np.exp(-np.abs(x) * 40) * np.clip(1 - np.abs(y), 0, 1) ** 2
+    d1 = np.exp(-np.abs(x - y) * 60) * np.clip(1 - r * 1.6, 0, 1)
+    d2 = np.exp(-np.abs(x + y) * 60) * np.clip(1 - r * 1.6, 0, 1)
+    core = np.exp(-(r**2) * 40)
+    return to_image(np.clip(ax + ay + (d1 + d2) * 0.5 + core, 0, 1))
+
+
+def hexplate(size=128):
+    # a hexagon plate with a bright rim (Gadgeteer)
+    img = Image.new("L", (size, size), 0)
+    d = ImageDraw.Draw(img)
+    c = size / 2
+    for rad, fill in ((0.44, 255), (0.34, 90)):
+        pts = [(c + math.cos(k * math.pi / 3) * rad * size, c + math.sin(k * math.pi / 3) * rad * size) for k in range(6)]
+        d.polygon(pts, fill=fill)
+    img = img.filter(ImageFilter.GaussianBlur(0.8))
+    return to_image(np.asarray(img, np.float32) / 255)
+
+
+def ink(size=128):
+    # an ink blot: a lumpy splat with drops around it (Shadow)
+    r = random.Random(77)
+    img = Image.new("L", (size, size), 0)
+    d = ImageDraw.Draw(img)
+    c = size / 2
+    for _ in range(9):
+        a = r.uniform(0, math.tau)
+        dist = r.uniform(0, 0.16) * size
+        rad = r.uniform(0.12, 0.22) * size
+        x0, y0 = c + math.cos(a) * dist, c + math.sin(a) * dist
+        d.ellipse([x0 - rad, y0 - rad, x0 + rad, y0 + rad], fill=255)
+    for _ in range(7):
+        a = r.uniform(0, math.tau)
+        dist = r.uniform(0.3, 0.42) * size
+        rad = r.uniform(0.025, 0.06) * size
+        x0, y0 = c + math.cos(a) * dist, c + math.sin(a) * dist
+        d.ellipse([x0 - rad, y0 - rad, x0 + rad, y0 + rad], fill=255)
+    img = img.filter(ImageFilter.GaussianBlur(1.5))
+    a = np.asarray(img, np.float32) / 255
+    return to_image(np.clip((a - 0.3) * 2.2, 0, 1))
+
+
 def main():
     os.makedirs(OUT, exist_ok=True)
     os.makedirs(os.path.dirname(PREVIEW), exist_ok=True)
@@ -206,13 +365,24 @@ def main():
         "smoke_4x4.png": smoke_sheet(),
         "fire_4x4.png": fire_sheet(),
         "electric_4x4.png": electric_sheet(),
+        "flake.png": flake(),
+        "bubble.png": bubble(),
+        "rock.png": rock(),
+        "leaf.png": leaf(),
+        "glyph.png": glyph(),
+        "slash.png": slash(),
+        "star.png": star(),
+        "hex.png": hexplate(),
+        "ink.png": ink(),
     }
     for name, img in made.items():
         img.save(os.path.join(OUT, name))
     # contact sheet: each texture on a dark tile, tinted like in game
-    tints = [(120, 210, 255), (255, 255, 255), (255, 170, 80), (120, 210, 255), (190, 120, 255), (255, 120, 40), (110, 255, 230), (200, 200, 205), (255, 120, 40), (120, 210, 255)]
+    tints = [(120, 210, 255), (255, 255, 255), (255, 170, 80), (120, 210, 255), (190, 120, 255), (255, 120, 40), (110, 255, 230), (200, 200, 205), (255, 120, 40), (120, 210, 255),
+             (190, 235, 255), (40, 150, 255), (150, 115, 70), (120, 190, 90), (255, 110, 210), (255, 70, 90), (255, 250, 200), (90, 230, 160), (120, 80, 200)]
     tile = 256
-    prev = Image.new("RGB", (tile * 5, tile * 2), (18, 20, 28))
+    rows = (len(made) + 4) // 5
+    prev = Image.new("RGB", (tile * 5, tile * rows), (18, 20, 28))
     for i, (name, img) in enumerate(made.items()):
         t = img.resize((tile, tile), Image.LANCZOS)
         col = Image.new("RGBA", (tile, tile), tints[i] + (255,))
