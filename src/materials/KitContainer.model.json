@@ -1,0 +1,12 @@
+{
+  "className": "MaterialVariant",
+  "properties": {
+    "BaseMaterial": "DiamondPlate",
+    "StudsPerTile": 8.0,
+    "MaterialPattern": "Regular",
+    "ColorMap": "rbxassetid://83811704091603",
+    "NormalMap": "rbxassetid://86948471485729",
+    "RoughnessMap": "rbxassetid://71901045566790",
+    "MetalnessMap": "rbxassetid://114831935657518"
+  }
+}

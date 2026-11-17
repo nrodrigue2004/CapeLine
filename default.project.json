@@ -18,6 +18,75 @@
     "ServerScriptService": {
       "Server": { "$path": "src/server" }
     },
+    "MaterialService": {
+      "$className": "MaterialService",
+      "KitAsphalt": {
+        "$path": "src/materials/KitAsphalt.model.json"
+      },
+      "KitBrick": {
+        "$path": "src/materials/KitBrick.model.json"
+      },
+      "KitCobble": {
+        "$path": "src/materials/KitCobble.model.json"
+      },
+      "KitContainer": {
+        "$path": "src/materials/KitContainer.model.json"
+      },
+      "KitCurtain": {
+        "$path": "src/materials/KitCurtain.model.json"
+      },
+      "KitDeco": {
+        "$path": "src/materials/KitDeco.model.json"
+      },
+      "KitDockBrick": {
+        "$path": "src/materials/KitDockBrick.model.json"
+      },
+      "KitFlagstone": {
+        "$path": "src/materials/KitFlagstone.model.json"
+      },
+      "KitOffice": {
+        "$path": "src/materials/KitOffice.model.json"
+      },
+      "KitOldBrick": {
+        "$path": "src/materials/KitOldBrick.model.json"
+      },
+      "KitPanel": {
+        "$path": "src/materials/KitPanel.model.json"
+      },
+      "KitPaving": {
+        "$path": "src/materials/KitPaving.model.json"
+      },
+      "KitPlaster": {
+        "$path": "src/materials/KitPlaster.model.json"
+      },
+      "KitPrism": {
+        "$path": "src/materials/KitPrism.model.json"
+      },
+      "KitQuay": {
+        "$path": "src/materials/KitQuay.model.json"
+      },
+      "KitRibbon": {
+        "$path": "src/materials/KitRibbon.model.json"
+      },
+      "KitRoofTile": {
+        "$path": "src/materials/KitRoofTile.model.json"
+      },
+      "KitSiding": {
+        "$path": "src/materials/KitSiding.model.json"
+      },
+      "KitStone": {
+        "$path": "src/materials/KitStone.model.json"
+      },
+      "KitTerrazzo": {
+        "$path": "src/materials/KitTerrazzo.model.json"
+      },
+      "KitTimber": {
+        "$path": "src/materials/KitTimber.model.json"
+      },
+      "KitWarehouse": {
+        "$path": "src/materials/KitWarehouse.model.json"
+      }
+    },
     "Players": {
       "$properties": {
         "CharacterAutoLoads": false

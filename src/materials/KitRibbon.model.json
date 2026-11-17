@@ -1,0 +1,11 @@
+{
+  "className": "MaterialVariant",
+  "properties": {
+    "BaseMaterial": "SmoothPlastic",
+    "StudsPerTile": 12.0,
+    "MaterialPattern": "Regular",
+    "ColorMap": "rbxassetid://70781791024658",
+    "NormalMap": "rbxassetid://107772748412852",
+    "RoughnessMap": "rbxassetid://133067506527082"
+  }
+}

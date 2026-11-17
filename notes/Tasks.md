@@ -83,6 +83,15 @@ What nate does:
 5. Re-render thumb_boss once the bosses' lore look is final (`bash art/store/make.sh boss`).
 
 ## Studio test list (needs nate's PC)
+
+### Uploaded art (2026-11-17, build playtest-art)
+nate uploaded all 191 images (art/upload); their image ids are in NpcLooks, Creator and Fx, and the 22 city textures are MaterialVariants in MaterialService (src/materials). Open build/Capeline.rbxl (project files capeline/Capeline-playtest-art-2026-11-17.rbxl), press Play:
+1. Output shows "playtest-art (2026-11-17)" at boot and no "Failed to load" image warnings (a few right after upload can mean Roblox is still checking the images; wait 10 minutes and retry).
+2. Creator: shirts and pants show their printed designs (tee, hoodie, flannel, jeans, cargo and the rest), not plain colour blocks.
+3. Robots in the street wear their uniforms (each kind its own; veterans and elites differ) and have drawn faces; a robot's face turns when it gets hit hard; a famous fake (Dev panel) shows the cracked metal face at half health.
+4. Powers: sparks, smoke, shockwaves and the rest look like the new drawn sheets, not the old built-in Roblox particles.
+5. City: building fronts show brick, office, glass, stone and panel textures with windows (no flat window bands), sidewalks and roads are textured, Docks warehouses are corrugated in colours, Old Town is cobbled with tiled roofs, Uptown has ribbon and prism glass. Smash a building: the falling panels keep their texture.
+6. Phone emulator on Low: the city still runs smoothly (frame time in the Dev panel close to before).
 Start: `rojo serve`, connect the Rojo plugin, press Play (or Test > Clients and Servers with 2 players). The DEV button (top right, Studio only) has the test tools.
 
 ### Lore step 4: famous fakes and your twin (2026-11-17)

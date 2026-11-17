@@ -1,0 +1,12 @@
+{
+  "className": "MaterialVariant",
+  "properties": {
+    "BaseMaterial": "CorrodedMetal",
+    "StudsPerTile": 12.0,
+    "MaterialPattern": "Regular",
+    "ColorMap": "rbxassetid://110958374119646",
+    "NormalMap": "rbxassetid://106860081739701",
+    "RoughnessMap": "rbxassetid://110577680924627",
+    "MetalnessMap": "rbxassetid://121009294383655"
+  }
+}

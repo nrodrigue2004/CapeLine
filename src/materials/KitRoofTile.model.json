@@ -1,0 +1,11 @@
+{
+  "className": "MaterialVariant",
+  "properties": {
+    "BaseMaterial": "ClayRoofTiles",
+    "StudsPerTile": 6.0,
+    "MaterialPattern": "Regular",
+    "ColorMap": "rbxassetid://96470923168547",
+    "NormalMap": "rbxassetid://114333486834638",
+    "RoughnessMap": "rbxassetid://98398983766700"
+  }
+}

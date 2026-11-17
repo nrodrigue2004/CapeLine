@@ -1,0 +1,11 @@
+{
+  "className": "MaterialVariant",
+  "properties": {
+    "BaseMaterial": "Pavement",
+    "StudsPerTile": 8.0,
+    "MaterialPattern": "Regular",
+    "ColorMap": "rbxassetid://135264508669021",
+    "NormalMap": "rbxassetid://95648156353171",
+    "RoughnessMap": "rbxassetid://111290779738712"
+  }
+}
