@@ -28,7 +28,68 @@ return {
 		{ id = "RadioHill", name = "Radio Hill", tx = 4, tz = 22, size = 4 }, -- west
 		{ id = "OldQuarry", name = "Old Quarry", tx = 22, tz = 38, size = 4 }, -- south
 	},
-	crater = { rimHeight = 26, rimWidth = 30, floorDepth = 0, glowHeight = 24 },
+	-- The Crater (nate's lore, build plan step 9): where a Crane Industries research lab blew up in the battle where
+	-- the old heroes fell. The blast ring (rim) and floor stay as they were (zone bounds, the beacon on the south
+	-- rim, the PvP square); the floor is dressed as the lab's ruins and the battle's wreckage (WorldGen.landmark).
+	-- Offsets are studs from the Crater's centre (x east, z north); heights from the floor. Everything stays
+	-- under `maxTop` (the rim is 26) and nothing over `openTop` stands within `openRadius` of the centre, so
+	-- fliers see across the whole bowl and the middle is an open fighting floor. `parts` caps the landmark.
+	-- PLACEHOLDER ART: plain parts (the lab's walls and towers take the kit's white Panel texture once it is in).
+	crater = {
+		rimHeight = 26,
+		rimWidth = 30,
+		floorDepth = 0,
+		parts = 90, -- the landmark's part cap (was 21: floor, 16 rim rocks, the old glow core and 3 glow posts)
+		maxTop = 22,
+		openRadius = 30,
+		openTop = 3,
+		-- the lab's scorched foundation (a slab, top 1.8 above the floor); its walls stand on its edges
+		foundation = { w = 120, d = 84, h = 1.2 },
+		-- broken wall stretches: centre x, z, length, height, along ("x" or "z"); jag = a stub on top
+		-- { dx, length, height } that leaves the top ragged. `logo` puts the Crane C on its outward face.
+		walls = {
+			{ x = -45, z = 42, len = 26, h = 14, along = "x", jag = { -6, 9, 4 } },
+			{ x = -14, z = 42, len = 16, h = 7, along = "x", jag = { 3, 6, 3 } },
+			{ x = 30, z = 42, len = 30, h = 12, along = "x", jag = { 9, 8, 5 }, logo = 1 },
+			{ x = -38, z = -42, len = 24, h = 10, along = "x", jag = { 5, 8, 3 } },
+			{ x = 26, z = -42, len = 22, h = 13, along = "x", jag = { -5, 7, 4 }, logo = -1 },
+			{ x = -60, z = 10, len = 30, h = 12, along = "z", jag = { -7, 9, 4 } },
+			{ x = 60, z = -14, len = 24, h = 9, along = "z", jag = { 6, 7, 3 } },
+		},
+		wallThick = 2,
+		-- the Crane Industries C mark (original): a navy plate with a white C, `size` studs, its centre `at` up
+		logo = { size = 8, at = 7, bar = 1.4 },
+		-- cracked containment tanks on the foundation: a broken glass shell, the faint Spark glow left inside and a
+		-- shard of the shell on the floor beside it
+		tanks = {
+			{ x = -34, z = 24, r = 4.5, h = 7, glow = 9, shard = { 5, -2, 40 } },
+			{ x = -10, z = 34, r = 5, h = 5, glow = 8, shard = { -4, 2, -20 } },
+			{ x = 18, z = 31, r = 4, h = 8, glow = 10, shard = { 4, 3, 70 } },
+		},
+		-- toppled lab towers, blown over outward (ry points the top away from the lab): a shaft (w x h x length) on
+		-- the floor, its crown broken off past the top and its mast lying beside it
+		towers = {
+			{ x = -80, z = -50, ry = -122, w = 16, h = 12, len = 70 },
+			{ x = 84, z = 56, ry = 56, w = 14, h = 11, len = 56 },
+		},
+		-- burn scars radiating from the blast: `n` dark strips from `from` to `to` studs out
+		scars = { n = 10, from = 48, to = 160, width = 5 },
+		-- robot husks from the battle (angle in degrees, distance out, ry): a torso lying down and its head
+		husks = {
+			{ a = 20, d = 92, ry = 30 },
+			{ a = 115, d = 128, ry = -50 },
+			{ a = 200, d = 104, ry = 80 },
+			{ a = 255, d = 138, ry = 10 },
+			{ a = 320, d = 84, ry = -15 },
+		},
+		-- the old heroes' relics where they made their stand, west of the lab (original designs): a torn red cape
+		-- on a bent rebar, a cracked blue shield emblem with a gold chevron, a dented gold helmet half buried
+		relics = {
+			cape = { x = -76, z = 22, rebar = 12 },
+			shield = { x = -70, z = 2, w = 8, d = 6, ry = 25 },
+			helmet = { x = -84, z = -14, size = 5 },
+		},
+	},
 	radioHill = { steps = 6, stepHeight = 14, mastHeight = 120, rings = 6 },
 	quarry = { wallHeight = 60, terraces = 3, terraceWidth = 24 },
 	coast = { sandWidth = 200, oceanWidth = 2000, waterY = -1 },

@@ -341,4 +341,14 @@ function CinemaPlan.nameCard(Config: any, bossId: string): (string, string)
 	return name, Config.Cinema.nameCard.titles[bossId] or ""
 end
 
+-- A place's or an event's card (lore step 9; group "places" or "events"): its two lines and slash colour, or nil
+function CinemaPlan.card(Config: any, group: string, id: string): (string?, string?, { number }?)
+	local list = Config.Cinema.nameCard[group]
+	local c = list and list[id]
+	if not c then
+		return nil, nil, nil
+	end
+	return c.name, c.title, c.color
+end
+
 return CinemaPlan

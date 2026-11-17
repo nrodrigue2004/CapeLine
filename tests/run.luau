@@ -12976,6 +12976,397 @@ do
 	end)
 end
 
+---------------------------------------------------------------------------
+-- Lore step 9: the Crater as a blasted Crane lab, and your double as a rare world event (nate's lore, 2026-11-17)
+---------------------------------------------------------------------------
+
+test("Lore 9: the Crater is a blasted Crane lab: bounds, spawn, sight lines and part budget kept", function()
+	local C = W.crater
+	local gy = Config.City.ground.y
+	local lm = world.landmarks[1]
+	check(lm.id == "CometCrater" and lm.id == Config.Pvp.crater.id, "the Crater is still the PvP landmark")
+	-- the zone: the same 4 x 4 tiles, so PvpRules.inCrater's square is where it was
+	local def = W.landmarks[1]
+	local x0, z0 = WorldGen.tileOrigin(Config.City, def.tx, def.tz)
+	check(
+		lm.size == 400 and lm.centre.x == x0 + 200 and lm.centre.z == z0 + 200,
+		"same bounds (400 x 400 on the same tiles)"
+	)
+	local r = lm.size / 2 - C.rimWidth
+	check(
+		lm.spot.x == lm.centre.x and lm.spot.z == lm.centre.z - r and lm.spot.y == gy + C.rimHeight + 0.5,
+		"the beacon's spot on the south rim is unchanged"
+	)
+	-- the part budget (was 21: the floor, 16 rim rocks, the old glow core and 3 posts)
+	check(#lm.boxes <= C.parts, string.format("%d parts within %d (%+d)", #lm.boxes, C.parts, #lm.boxes - 21))
+	local by: { [string]: number } = {}
+	local rim, tallest, inside, open = 0, 0, true, true
+	for _, b in lm.boxes do
+		by[b.color] = (by[b.color] or 0) + 1
+		local top = b.cy + (if b.shape == "ball" then math.max(b.sx, b.sy, b.sz) else b.sy) / 2
+		local reach = math.sqrt((b.cx - lm.centre.x) ^ 2 + (b.cz - lm.centre.z) ^ 2)
+		local half = math.max(b.sx, b.sz) / 2
+		if b.kind == "rock" then
+			rim += 1
+		elseif b.kind ~= "field" then
+			tallest = math.max(tallest, top - gy)
+			if reach + half > r - 5 then
+				inside = false
+			end
+			if reach - half < C.openRadius and top > gy + C.openTop then
+				open = false
+			end
+		end
+		check(
+			not string.find(string.lower(b.color), "comet", 1, true)
+				and not string.find(string.lower(b.color), "meteor", 1, true),
+			"no comet or meteor dressing: " .. b.color
+		)
+		if b.kit then
+			check(Config.City.kit.baseMaterial[b.kit] ~= nil, "a real kit texture: " .. b.kit)
+		end
+	end
+	check(rim == 16, "the blast ring's 16 rim rocks stay")
+	check(
+		tallest <= C.maxTop and tallest < C.rimHeight,
+		string.format("nothing over %d studs (%.1f)", C.maxTop, tallest)
+	)
+	check(inside, "the ruins stay on the floor inside the rim")
+	check(open, "an open fighting floor in the middle (sight lines across the bowl)")
+	check(Config.City.palette.comet == nil, "the old comet glow colour is gone")
+	-- what it is dressed as
+	check((by.labWall or 0) >= 2 * #C.walls + #C.towers, "broken lab walls and toppled towers")
+	check((by.craneNavy or 0) >= 2 and (by.white or 0) >= 6, "the Crane C on two walls")
+	check(
+		(by.sparkGlow or 0) == #C.tanks and (by.glass or 0) >= 2 * #C.tanks,
+		"cracked tanks with a Spark glow"
+	)
+	check((by.husk or 0) == #C.husks and (by.rust or 0) == #C.husks, "robot husks from the battle")
+	check(
+		(by.relicRed or 0) == 2 and (by.relicBlue or 0) == 1 and (by.relicGold or 0) == 2,
+		"the old heroes' relics: a torn cape, a cracked shield emblem, a dented helmet"
+	)
+	check((by.scorch or 0) >= C.scars.n + 1, "burn scars and a scorched foundation")
+	-- the flag rules are the M8 tests' (unchanged); the beacon and rim height tests too
+	check(Config.Pvp.crater.warn == 5 and Config.Pvp.minLevel == 10, "the Crater's PvP numbers unchanged")
+	-- no comet, meteor or Shardfall in the Crater's player text
+	local BAD = { "comet", "meteor", "shardfall" }
+	local function clean(text: string): boolean
+		local low = string.lower(text)
+		for _, w in BAD do
+			if string.find(low, w, 1, true) then
+				return false
+			end
+		end
+		return true
+	end
+	local card = Config.Cinema.nameCard.places.crater
+	check(card.name == "THE CRATER" and card.title == "WHERE THE OLD HEROES FELL", "the Crater's card")
+	check(clean(def.name) and clean(card.name) and clean(card.title), "config text")
+	for _, path in
+		{
+			"src/client/Ui/Toasts.luau",
+			"src/client/Ui/PvpHud.luau",
+			"src/client/Ui/MapScreen.luau",
+			"src/client/Ui/NewsHud.luau",
+			"src/server/Services/FlagService.luau",
+		}
+	do
+		for lit in string.gmatch(readFile(path), '"([^"\n]*)"') do
+			if string.find(string.lower(lit), "crater", 1, true) and lit ~= Config.Pvp.crater.id then
+				check(clean(lit), path .. ": " .. lit)
+			end
+		end
+	end
+	local nh = readFile("src/client/Ui/NewsHud.luau")
+	check(
+		string.find(nh, 'player:GetAttribute("InCrater") == true', 1, true) ~= nil
+			and string.find(nh, "craterCard = true", 1, true) ~= nil,
+		"the card shows the first time a session a hero walks in"
+	)
+	check(
+		string.find(readFile("src/shared/WorldGen.luau"), "PLACEHOLDER ART: plain parts; the walls", 1, true)
+			~= nil,
+		"placeholder art labelled"
+	)
+end)
+
+test("Lore 9: your double is a rare event: the scheduler's rare tier, its odds and cooldowns", function()
+	local EV = Config.Events
+	local R = EV.scheduler.rare
+	local D = EV.events.YourDouble
+	check(
+		table.find(EV.rare, "YourDouble") ~= nil and table.find(EV.order, "YourDouble") == nil,
+		"rare, not in the mix"
+	)
+	check(table.find(EventPlan.GOALS, D.goal) ~= nil and D.goal == "twin", "a goal the server builds")
+	check(R.gap >= 3600 and R.chance <= 0.1 and R.firstAfter >= 600, "the rare tier is rare")
+	-- 48 hours of a server where someone may always get it
+	local st = EventPlan.new(EV, 0)
+	local rng = Rng.new(91)
+	local rares, all, lastRare, lastAny, most = {}, 0, nil, nil, 0
+	for t = 0, 172800 do
+		local id = EventPlan.due(EV, st, t, rng, nil, function()
+			return true
+		end)
+		most = math.max(most, EventPlan.activeCount(st))
+		if id then
+			all += 1
+			if lastAny then
+				check(t - lastAny >= 240 - 1e-6, "slots stay 4 to 6 minutes apart")
+			end
+			lastAny = t
+			if id == "YourDouble" then
+				check(t >= R.firstAfter, "never in the server's first 20 minutes")
+				if lastRare then
+					check(t - lastRare >= R.gap, "at most one rare event an hour")
+				end
+				lastRare = t
+				table.insert(rares, t)
+			end
+		end
+	end
+	check(most <= EV.scheduler.maxActive, "never more than 2 at once")
+	check(#rares >= 8 and #rares <= 48, string.format("%d doubles in 48 h of a busy server", #rares))
+	check(#rares / all <= 0.1, string.format("%.1f%% of events are rare", #rares / all * 100))
+	-- no eligible hero, or no rare predicate (the old call): never
+	local st2, st3 = EventPlan.new(EV, 0), EventPlan.new(EV, 0)
+	local r2, r3 = Rng.new(5), Rng.new(5)
+	local none = 0
+	for t = 0, 36000 do
+		if EventPlan.due(EV, st2, t, r2, nil, function()
+			return false
+		end) == "YourDouble" then
+			none += 1
+		end
+		if EventPlan.due(EV, st3, t, r3) == "YourDouble" then
+			none += 1
+		end
+	end
+	check(none == 0, "nobody eligible: no double; the old call never rolls the rare tier")
+	-- one hero: at most once per 3 hours of play
+	local info = {
+		level = 20,
+		copyDone = true,
+		prologue = false,
+		mission = false,
+		y = 10,
+		crater = false,
+		busy = false,
+		still = 0,
+		played = 0,
+		lastAt = nil :: number?,
+	}
+	local st4 = EventPlan.new(EV, 0)
+	local r4 = Rng.new(17)
+	local mine, prev = 0, nil
+	for t = 0, 108000 do -- 30 hours played in one long session
+		info.played = t
+		local id = EventPlan.due(EV, st4, t, r4, nil, function()
+			return EventPlan.doubleOk(EV, info)
+		end)
+		if id == "YourDouble" then
+			mine += 1
+			if prev then
+				check(t - prev >= D.playerGap, "3 hours of play between one hero's doubles")
+			end
+			prev = t
+			info.lastAt = t
+		end
+	end
+	check(
+		D.playerGap >= 10800 and mine >= 2 and mine <= 10,
+		string.format("%d doubles for one hero in 30 h", mine)
+	)
+	-- pays like a rare event
+	local c, rn = EventPlan.rarePay(EV, 100, 51)
+	check(c == 100 * R.pay and rn == math.floor(51 * R.pay + 0.5) and R.pay >= 2, "rare pay")
+	-- the save keeps the last one's play time
+	local p = ProfileSchema.default()
+	check(p.stats.doubleAt == 0, "a new save has never had one")
+	p.stats.doubleAt = "junk"
+	check(ProfileSchema.load(p).stats.doubleAt == 0, "junk repairs to 0")
+end)
+
+test(
+	"Lore 9: who may meet their double: level, The Copy, the open city, not AFK, never the prologue",
+	function()
+		local EV = Config.Events
+		local D = EV.events.YourDouble
+		local function base(): EventPlan.DoubleInfo
+			return {
+				level = 20,
+				copyDone = true,
+				prologue = false,
+				mission = false,
+				y = 10,
+				crater = false,
+				busy = false,
+				still = 5,
+				played = 50000,
+				lastAt = nil,
+			}
+		end
+		check(EventPlan.doubleOk(EV, base()), "an eligible hero")
+		check(D.mission == 4 and Config.Story.missions[4].name == "The Copy", "past The Copy (mission 4)")
+		check(D.minLevel >= Config.Story.missions[4].minLevel, "level at least The Copy's")
+		local cases: { { any } } = {
+			{
+				"level",
+				function(i)
+					i.level = D.minLevel - 1
+				end,
+			},
+			{
+				"copy",
+				function(i)
+					i.copyDone = false
+				end,
+			},
+			{
+				"prologue",
+				function(i)
+					i.prologue = true
+				end,
+			},
+			{
+				"mission",
+				function(i)
+					i.mission = true
+				end,
+			},
+			{
+				"pocket",
+				function(i)
+					i.y = EV.scheduler.pocketY + 10
+				end,
+			},
+			{
+				"crater",
+				function(i)
+					i.crater = true
+				end,
+			},
+			{
+				"busy",
+				function(i)
+					i.busy = true
+				end,
+			},
+			{
+				"afk",
+				function(i)
+					i.still = D.afk
+				end,
+			},
+			{
+				"cooldown",
+				function(i)
+					i.lastAt = i.played - D.playerGap + 1
+				end,
+			},
+		}
+		for _, c in cases do
+			local i = base()
+			c[2](i)
+			local ok, why = EventPlan.doubleOk(EV, i)
+			check(not ok and why == c[1], "not when: " .. c[1] .. " (" .. tostring(why) .. ")")
+		end
+		local i = base()
+		i.lastAt = i.played - D.playerGap
+		check(EventPlan.doubleOk(EV, i), "again after 3 hours of play")
+		-- the prologue wins over everything (a new hero is low level too)
+		local pro = base()
+		pro.prologue, pro.level, pro.copyDone = true, 1, false
+		check(select(2, EventPlan.doubleOk(EV, pro)) == "prologue", "never during the prologue")
+		-- the pick: only eligible heroes, the same one for the same seed
+		local list = { [3] = base(), [7] = base(), [9] = base() }
+		list[7].crater = true
+		list[9].still = 999
+		for s = 1, 20 do
+			check(EventPlan.doublePick(EV, list, Rng.new(s)) == 3, "only the eligible hero")
+		end
+		list[3].mission = true
+		check(EventPlan.doublePick(EV, list, Rng.new(1)) == nil, "nobody eligible")
+		local two = { [4] = base(), [2] = base() }
+		check(
+			EventPlan.doublePick(EV, two, Rng.new(8)) == EventPlan.doublePick(EV, two, Rng.new(8)),
+			"a seed picks the same hero"
+		)
+		-- the event's pieces: the twin, co-op credit, the news flash, the name card and Patch's line
+		local es = readFile("src/server/Services/EventService.luau")
+		for _, needle in
+			{
+				"EnemyService.spawnTwin(player, spot",
+				"helpers = { [h.id] = true }",
+				'NewsService.post("double", player)',
+				'NewsService.post("doubleDown", ev.target)',
+				"EventPlan.rarePay(EC, credits, renown)",
+				"PassRules.eventWeights(Config, os.time()), rareAllowed)",
+				"player.Idled:Connect",
+				"OpeningService.running(player)",
+				"MissionService.runOf(player) ~= nil",
+				'player:GetAttribute("InCrater") == true',
+			}
+		do
+			check(string.find(es, needle, 1, true) ~= nil, "EventService: " .. needle)
+		end
+		local NewsPlan = require("../src/shared/NewsPlan")
+		local CinemaPlan = require("../src/shared/CinemaPlan")
+		local GuidePlan = require("../src/shared/GuidePlan")
+		local fact = { k = NewsPlan.CODE.double }
+		check(
+			NewsPlan.text(Config, fact, "Captain Spark")
+					== "BREAKING: A FAKE OF CAPTAIN SPARK IS LOOSE IN THE CITY"
+				and NewsPlan.flash(Config, fact),
+			"a news flash for everyone"
+		)
+		check(
+			NewsPlan.text(Config, { k = NewsPlan.CODE.doubleDown }, nil) == "A HERO CRACKS THEIR OWN DOUBLE",
+			"and when it is cracked"
+		)
+		local nm, title = CinemaPlan.card(Config, "events", "YourDouble")
+		check(nm == "DOUBLE TROUBLE" and title == "A FAKE WEARING YOUR FACE", "the name card")
+		local hero = GuidePlan.worldLine(Config, "double", "hero")
+		local villain = GuidePlan.worldLine(Config, "double", "villain")
+		check(
+			hero ~= nil and villain ~= nil and hero.who == "patch" and hero.text ~= villain.text,
+			"Patch's line, by side"
+		)
+		local radio = GuidePlan.radio()
+		GuidePlan.radioMark(radio, 100, "firstIncident")
+		check(
+			GuidePlan.radioOk(Config, radio, 101, "double", { on = true, busy = false }),
+			"it skips the radio gap"
+		)
+		check(
+			not GuidePlan.radioOk(Config, radio, 101, "double", { on = false, busy = false }),
+			"the Guide radio setting turns it off"
+		)
+		check(
+			not GuidePlan.radioOk(Config, radio, 101, "double", { on = true, busy = true }),
+			"never in a mission"
+		)
+		check(#GuidePlan.validate(Config) == 0, "every guide line still valid")
+		-- Dev panel: teleport to the Crater, its card, force the double on yourself
+		local dev = clientSources()["src/client/Ui/DevPanel.luau"]
+		for _, needle in
+			{ '"DevCommand", "crater"', '"DevCommand", "double"', 'NewsHud.card("places", "crater")' }
+		do
+			check(string.find(dev, needle, 1, true) ~= nil, "Dev: " .. needle)
+		end
+		check(
+			string.find(
+				readFile("src/server/Services/DevService.luau"),
+				"EventService.forceDouble(player)",
+				1,
+				true
+			) ~= nil,
+			"DevService"
+		)
+	end
+)
+
 print(string.format("\n%d passed, %d failed", passed, failed))
 if failed > 0 then
 	process.exit(1)

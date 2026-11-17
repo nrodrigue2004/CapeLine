@@ -492,7 +492,16 @@ return {
 		leaf = { 70, 120, 60 },
 		rock = { 120, 112, 104 },
 		crater = { 60, 54, 60 },
-		comet = { 140, 220, 255 },
+		-- the Crater, a blasted Crane lab (lore step 9): scorch, the lab's white walls, Crane navy, the faint Spark
+		-- glow in the cracked tanks, robot husks and the old heroes' relics
+		scorch = { 38, 34, 36 },
+		labWall = { 214, 212, 206 },
+		craneNavy = { 30, 44, 92 },
+		sparkGlow = { 110, 200, 225 },
+		husk = { 78, 82, 92 },
+		relicRed = { 196, 52, 60 },
+		relicBlue = { 52, 92, 176 },
+		relicGold = { 222, 178, 70 },
 		foundry = { 62, 58, 60 },
 		foundryGlow = { 255, 90, 60 },
 		containerA = { 196, 82, 58 },

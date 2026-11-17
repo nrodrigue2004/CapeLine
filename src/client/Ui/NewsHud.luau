@@ -9,6 +9,8 @@
 --   now and then. It stays off in the prologue, missions and cutscenes.
 -- * Boss entrances (K2): a 3 s name card (CinemaHud) for each hero who arrives at a boss fight, the world
 --   bosses and the fakes' battle forms in Live alike.
+-- * Lore step 9: the same card for the Crater ("WHERE THE OLD HEROES FELL") the first time a session a hero walks
+--   in, and for Your double on the copied hero's device.
 -- PLACEHOLDER ART: the TV and the screens are plain frames and text until the art pass.
 
 local Players = game:GetService("Players")
@@ -25,6 +27,7 @@ local CinemaPlan = require(Shared:WaitForChild("CinemaPlan"))
 local CreatorRules = require(Shared:WaitForChild("CreatorRules"))
 
 local Kit = require(script.Parent.Kit)
+local State = require(script.Parent.Parent.State)
 local Toasts = require(script.Parent.Toasts)
 local GuideHud = require(script.Parent.GuideHud)
 local CinemaHud = require(script.Parent.CinemaHud)
@@ -328,9 +331,27 @@ local function bossCheck(now: number)
 	end
 end
 
+-- Lore step 9: a card from Config.Cinema.nameCard places / events
+local function showCard(group: string, id: string)
+	local name, title, color = CinemaPlan.card(Config, group, id)
+	if name and title then
+		CinemaHud.card(name, title, color)
+	end
+end
+
+-- The Crater's card the first time a session this hero walks in (the server's InCrater attribute)
+local craterCard = false
+local function craterCheck()
+	if not craterCard and player:GetAttribute("InCrater") == true then
+		craterCard = true
+		showCard("places", "crater")
+	end
+end
+
 local function frame()
 	local now = os.clock()
 	bossCheck(now)
+	craterCheck()
 	refreshScreens(now)
 	scroll(now)
 	if tv.Visible and (now >= tvUntil or (tvMode ~= "flash" and not quiet())) then
@@ -354,9 +375,25 @@ function NewsHud.nameCard(bossId: string)
 	CinemaHud.nameCard(bossId)
 end
 
+-- Dev panel: a place's or an event's card now (lore step 9)
+function NewsHud.card(group: string, id: string)
+	showCard(group, id)
+end
+
 function NewsHud.init()
 	buildTv()
 	Net.listen("NewsFact", onFacts)
+	-- lore step 9: Your double's card on the copied hero's device (its start toast carries mine)
+	State.Toast:Connect(function(data)
+		if
+			type(data) == "table"
+			and data.id == "event"
+			and data.mine
+			and data.num == Config.Events.events.YourDouble.num
+		then
+			showCard("events", "YourDouble")
+		end
+	end)
 	task.spawn(function()
 		local folder = Workspace:WaitForChild("NewsScreens", 120)
 		if not folder then

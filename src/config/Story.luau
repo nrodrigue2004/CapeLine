@@ -1148,6 +1148,12 @@ return {
 						villain = "Bulwark's show is tonight. Live is in your Journal. Bring a crowbar.",
 					},
 				},
+				-- lore step 9: the rare Your double world event starts on this hero (it skips the gap; GuidePlan.URGENT)
+				double = {
+					who = "patch",
+					hero = "Uh oh. There are TWO of you on my scanner. A fake copied you again. Crack its face!",
+					villain = "Two of you on my scanner? A fake stole your face. Nobody steals from you. Smash it!",
+				},
 				afterAct1 = {
 					who = "patch",
 					hero = "Public enemy number one? Old Star says that means we're winning. Lie low, hero.",

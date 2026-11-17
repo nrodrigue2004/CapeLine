@@ -4,7 +4,8 @@
 --   by side, branches too; a late join skips them.
 -- * Patch on the open-world radio: the first incident and the first world boss of a session, a level-up that
 --   opens a story mission, a hint when the hero stands still with a story mission pinned, and a line after
---   Act 1's ending broadcast; side-flavoured, at most one a Config.Story.guides.radio.gap, never in a mission
+--   Act 1's ending broadcast, and the rare Your double event on this hero (lore step 9, it skips the gap);
+--   side-flavoured, at most one a Config.Story.guides.radio.gap, never in a mission
 --   or the prologue, all off with the "Guide radio" setting.
 -- * Lodestar in person: in the Vigil's HQ (the hero's HQ cell) with a Talk prompt (a fixed rotation of lines
 --   that change with the story); he keeps away from the Dread Syndicate's Foundry. The Dev panel can spawn him
@@ -236,6 +237,10 @@ function GuideClient.init()
 	end)
 	State.Toast:Connect(function(data)
 		local s = story()
+		-- lore step 9: Your double starts on this hero (its start toast carries mine)
+		if data.id == "event" and data.mine and data.num == Config.Events.events.YourDouble.num then
+			say("double", "double")
+		end
 		if data.id == "levelUp" and s and type(data.level) == "number" then
 			local n = GuidePlan.unlockAt(Config, s, data.level)
 			if n then

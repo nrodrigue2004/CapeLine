@@ -245,6 +245,7 @@ function ProfileSchema.default(): { [string]: any }
 			drops = 0,
 			contracts = 0,
 			mvps = 0,
+			doubleAt = 0, -- lore step 9: playSeconds at this account's last Your double event (0 never)
 		},
 		guard = { kicks = 0, reviewed = 0 }, -- M8: safety kicks on this account (review queue after 2); never a ban
 		-- Hero MMO features on the account (H7): badges = 256 badge bits, counts = the counters badges read
@@ -682,6 +683,7 @@ local function repair(p: any): any
 	ep.intro = num(ep.intro, 0, 2 ^ 31, 0)
 	p.stats.contracts = num(p.stats.contracts, 0, 2 ^ 31, 0)
 	p.stats.mvps = num(p.stats.mvps, 0, 2 ^ 31, 0)
+	p.stats.doubleAt = num(p.stats.doubleAt, 0, 2 ^ 40, 0)
 	local receipts = {}
 	for _, r in p.purchases.receipts do
 		if type(r) == "string" and #r <= 64 then

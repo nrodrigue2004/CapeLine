@@ -16,7 +16,19 @@
 local NewsPlan = {}
 
 -- Fact kinds on the wire (NewsFact k)
-NewsPlan.KINDS = { "boss", "bossDown", "bossAway", "unmask", "streak", "heist", "heistVillain", "act1" }
+-- (only add at the end: the codes go on the wire; "double" and "doubleDown" are lore step 9's Your double event)
+NewsPlan.KINDS = {
+	"boss",
+	"bossDown",
+	"bossAway",
+	"unmask",
+	"streak",
+	"heist",
+	"heistVillain",
+	"act1",
+	"double",
+	"doubleDown",
+}
 NewsPlan.CODE = {} :: { [string]: number }
 for i, k in NewsPlan.KINDS do
 	NewsPlan.CODE[k] = i

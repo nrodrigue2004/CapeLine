@@ -391,10 +391,15 @@ function CinemaHud.nameCard(bossId: string, ownName: string?, ownTitle: string?)
 	if ownName then
 		name, title = ownName, ownTitle or ""
 	end
+	local art = Config.BossArt[bossId]
+	CinemaHud.card(name, title, if ownName then nil else art and art.theme)
+end
+
+-- Any card in the boss card's style (lore step 9: the Crater's and Your double's, Config.Cinema.nameCard places
+-- and events): two fixed lines and the slash colour ({ r, g, b }, red when nil)
+function CinemaHud.card(name: string, title: string, theme: { number }?)
 	cardName.Text = name
 	cardTitle.Text = title
-	local art = Config.BossArt[bossId]
-	local theme = art and art.theme
 	cardSlash.BackgroundColor3 = if theme
 		then Color3.fromRGB(theme[1], theme[2], theme[3])
 		else Color3.fromRGB(235, 70, 70)
