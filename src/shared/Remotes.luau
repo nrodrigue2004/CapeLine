@@ -257,6 +257,12 @@ local Remotes: { [string]: RemoteDef } = {
 	TaskForceJoin = { dir = "C2S", schema = { n(1, 6), n(0, 65535) }, rate = 1, burst = 3 },
 	TaskForceLook = { dir = "C2S", schema = { { t = "boolean" } }, rate = 1, burst = 3 },
 	TaskForceBoard = { dir = "S2C" },
+	-- H5: your nemesis (spec: Nemesis.State S2C). NemesisPoster: ask for your WANTED poster; NemesisShowdown:
+	-- start the Showdown (3 Intel). NemesisState: { k = poster | taunt | spawn | sig | cloak | escape | gloat |
+	-- leave, seed, rank, traits, name, side, ... } (taunt lines are fixed lists filled with your hero name)
+	NemesisPoster = { dir = "C2S", schema = {}, rate = 1, burst = 3 },
+	NemesisShowdown = { dir = "C2S", schema = {}, rate = 1, burst = 2 },
+	NemesisState = { dir = "S2C" },
 }
 
 return Remotes

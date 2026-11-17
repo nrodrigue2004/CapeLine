@@ -10,6 +10,7 @@
 -- M9: creator (open the creator to remake this hero), hq (enter your HQ), hqlevel n, away n (offline drones
 -- for n hours away), pieces (unlock every creator piece), buy n (test-purchase shop item n with a fixed
 -- receipt id: the second time grants nothing), legacy (level 40 and retire at HQ next).
+-- Hero MMO: nemesis 0/1 (your nemesis ambushes you now / your Intel is full: the Showdown opens).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -34,6 +35,7 @@ local ClockService = require(script.Parent.ClockService)
 local StoryService = require(script.Parent.StoryService)
 local OpeningService = require(script.Parent.OpeningService)
 local MissionService = require(script.Parent.MissionService)
+local NemesisService = require(script.Parent.NemesisService)
 local QuestService = require(script.Parent.QuestService)
 local FlagService = require(script.Parent.FlagService)
 local DeathService = require(script.Parent.DeathService)
@@ -325,6 +327,9 @@ local commands: { [string]: (player: Player, hero: any, value: number) -> () } =
 	end,
 	legacy = function(_, hero)
 		HeroService.setLevel(hero, 40)
+	end,
+	nemesis = function(player, _, what)
+		NemesisService.dev(player, what)
 	end,
 }
 

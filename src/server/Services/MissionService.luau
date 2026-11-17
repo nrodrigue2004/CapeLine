@@ -750,6 +750,9 @@ local function pay(run: Run, player: Player): { [string]: any }
 	MissionService.Cleared:Fire(player, run.num, { mentor = mentor, sidekick = sidekick, taskForce = run.tf })
 	if run.tf then
 		return MissionService.payTaskForce and MissionService.payTaskForce(run, player, out, own) or out
+	elseif run.m.custom then
+		-- H5: a Showdown (or any other run made outside Config.Story) pays through its own hook
+		return if run.m.pay then run.m.pay(run, player, out, own) else out
 	end
 	-- first-clear rewards only for a member on this mission in their own story (a helper replaying it, or
 	-- ahead of it, gets the clear pay above)
@@ -998,8 +1001,17 @@ end
 -- H4: start a task force for a squad (TaskForceService checks who may come); the leader first
 function MissionService.enterTaskForce(players: { Player }, tf: number): (boolean, string?)
 	local leg = TaskForcePlan.leg(Config.TaskForce, tf, 1)
+	if not leg then
+		return false, "none"
+	end
+	return MissionService.enterCustom(players, leg, tf)
+end
+
+-- H4/H5: a run made outside Config.Story (a task force leg, a Nemesis Showdown): m is mission-shaped
+-- (layout, minLevel, minutes, steps, num; custom = true with an optional pay hook). The leader first.
+function MissionService.enterCustom(players: { Player }, leg: any, tf: number?): (boolean, string?)
 	local leader = players[1]
-	if not leg or not leader then
+	if not leader then
 		return false, "none"
 	end
 	local pocket = freePocket()

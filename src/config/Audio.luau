@@ -58,6 +58,8 @@ return {
 		{ id = "chargeFull", visual = "ChargeFx" }, -- rising ping; white flash on the glowing hero (H2)
 		{ id = "grab", visual = "ThrowFx" }, -- grunt thump; dust at the feet as it goes overhead (H3)
 		{ id = "throwLand", visual = "ThrowFx" }, -- crash; dust ring and chips where it lands, a shake for heavy (H3)
+		{ id = "nemesisArrive", visual = "NemesisFx" }, -- low horn sting; its name over its head (H5)
+		{ id = "nemesisEscape", visual = "NemesisFx" }, -- teleport zap; a white flash where it stood (H5)
 	},
 	-- the spec's own juice table is the first 31 rows above; the rest came with the Hero MMO features
 	juiceSpec = 31,
@@ -102,6 +104,8 @@ return {
 		chargeFull = s("electronicpingshort.wav", 0.7, 2.7, { range = 110 }),
 		grab = s("action_get_up.mp3", 0.6, 1.4, { range = 90, vary = 0.08 }),
 		throwLand = s("action_jump_land.mp3", 1, 0.7, { range = 220, vary = 0.1 }),
+		nemesisArrive = s("swoosh.wav", 1, 0.45, { range = 260 }),
+		nemesisEscape = s("electronicpingshort.wav", 0.9, 0.5, { range = 220 }),
 		ui = s("button.wav", 0.35, 1), -- every button tap
 	},
 

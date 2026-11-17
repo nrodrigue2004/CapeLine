@@ -298,6 +298,13 @@ function DevPanel.init()
 	add("Level 40", function()
 		Net.send("DevCommand", "legacy")
 	end)
+	-- Hero MMO
+	add("Nemesis now", function()
+		Net.send("DevCommand", "nemesis", 0)
+	end)
+	add("Nemesis Intel", function()
+		Net.send("DevCommand", "nemesis", 1)
+	end)
 	-- M10: settings and accessibility
 	add("Reset settings", function()
 		for _, k in Config.Settings.keys do

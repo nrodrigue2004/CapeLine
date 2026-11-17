@@ -457,7 +457,7 @@ local function applyHit(
 		status2 = eff.status2,
 		from = from,
 	})
-	dmg *= gmult
+	dmg *= gmult * BlockService.robotMult(hero, cand.id, from) -- H5: the nemesis's plates, cloak, weak point
 	if gblocked then
 		noStatus = true -- a blocked hit pushes nothing
 	end
@@ -1274,7 +1274,13 @@ function CombatService.use(
 	charge: number?
 ): boolean
 	local row = A.byNum[num]
-	if not row or not hero.alive or HeroService.disabled(hero) or BlockService.blocking(hero) or hero.carry then
+	if
+		not row
+		or not hero.alive
+		or HeroService.disabled(hero)
+		or BlockService.blocking(hero)
+		or hero.carry
+	then
 		return false -- H1: no casting while blocking
 	end
 	local slot = slotOf(hero, row.id)

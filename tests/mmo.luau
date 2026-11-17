@@ -494,7 +494,10 @@ return function(T: any)
 			string.find(combat, "hitArea(hero, eff, r, land, hit.radius, hit.coeff)", 1, true) ~= nil,
 			"hitArea's cands: only heroes flagged against the thrower"
 		)
-		check(string.find(combat, "or hero.carry then", 1, true) ~= nil, "no casting with your hands full")
+		check(
+			string.find(combat, "BlockService%.blocking%(hero%)%s+or hero%.carry%s+then") ~= nil,
+			"no casting with your hands full"
+		)
 		local throw = source("src/server/Services/ThrowService.luau")
 		check(string.find(throw, "VehicleService.drop(", 1, true) ~= nil, "cars land through VehicleService")
 		check(string.find(throw, "HeroService.speedHooks.carry", 1, true) ~= nil, "80% while carrying")
@@ -687,6 +690,246 @@ return function(T: any)
 		check(
 			string.find(ms, "PLACEHOLDER CONTENT: lore thread to fill", 1, true) ~= nil,
 			"leg panels wait on lore"
+		)
+	end)
+
+	---------------------------------------------------------------------------
+	-- H5: Nemesis
+	---------------------------------------------------------------------------
+	local NemesisMath = require("../src/shared/NemesisMath")
+	local NM = Config.Nemesis
+
+	test("H5: the same nemesis from the same seed; names from fixed lists; a hunter for villains", function()
+		local a = NemesisMath.make(NM, 123456, 1, "hero")
+		local b = NemesisMath.make(NM, 123456, 1, "hero")
+		check(
+			a.seed == b.seed and a.name == b.name and a.build == b.build and a.signature == b.signature,
+			"same every server"
+		)
+		check(
+			a.colors == b.colors and a.head == b.head and a.cape == b.cape and a.pitch == b.pitch,
+			"same look"
+		)
+		local c = NemesisMath.make(NM, 123457, 1, "hero")
+		check(c.seed ~= a.seed, "another player, another nemesis")
+		check(NemesisMath.make(NM, 123456, 2, "hero").seed ~= a.seed, "a new one each rank")
+		local v = NemesisMath.make(NM, 123456, 1, "villain")
+		check(
+			string.sub(v.name, 1, #NM.hunterWord) == NM.hunterWord,
+			"a villain's nemesis is a League hunter"
+		)
+		local names, sigs = {}, {}
+		for uid = 1, 300 do
+			local w = NemesisMath.make(NM, uid * 7919, 1, "hero")
+			local first, second = string.match(w.name, "^(%S+) (%S+)$")
+			check(
+				first ~= nil and table.find(NM.first, first) ~= nil and table.find(NM.second, second) ~= nil,
+				"two words from the lists"
+			)
+			check(first ~= second, "never the same word twice")
+			names[w.name] = true
+			sigs[w.signature] = true
+			check(
+				table.find(NM.builds, w.build) ~= nil
+					and NM.colors[w.colors] ~= nil
+					and table.find(NM.heads, w.head) ~= nil,
+				"a look from the parts"
+			)
+			check(w.pitch >= NM.pitch[1] and w.pitch <= NM.pitch[2], "a voice pitch")
+			local seen = {}
+			for _, t in w.order do
+				seen[t] = true
+			end
+			check(
+				#w.order == 5 and seen[1] and seen[2] and seen[3] and seen[4] and seen[5],
+				"every trait in its order"
+			)
+		end
+		local n = 0
+		for _ in names do
+			n += 1
+		end
+		check(n > 150, "plenty of different names")
+		for _, s in NM.signatureOrder do
+			check(sigs[s] == true, s .. " shows up")
+		end
+		check(
+			#NM.signatureOrder == 6 and #NM.builds == 4 and #NM.traits == 5,
+			"6 signatures, 4 builds, 5 traits"
+		)
+		check(#NM.taunts + #NM.gloats + #NM.escapes == 40, "40 fixed lines")
+		local line = NemesisMath.line(NM, "taunt", a.seed, 1, "Storm Falcon")
+		check(
+			string.find(line, "Storm Falcon", 1, true) ~= nil and string.find(line, "{hero}", 1, true) == nil,
+			"filled with your hero name"
+		)
+	end)
+
+	test("H5: spawn rules", function()
+		local ok = {
+			level = 8,
+			session = 15 * 60,
+			since = math.huge,
+			now = 1000,
+			readyAt = 0,
+			intel = 0,
+			inPocket = false,
+			inSafehouse = false,
+			inCrater = false,
+			bossFight = false,
+		}
+		check(NemesisMath.canAppear(NM, ok), "level 8, 15 minutes in: it may show up")
+		local function with(k: string, v: any): boolean
+			local w = table.clone(ok)
+			w[k] = v
+			return (NemesisMath.canAppear(NM, w :: any))
+		end
+		check(not with("level", 7), "not below level 8")
+		check(not with("session", 14 * 60), "not in the first 15 minutes of a session")
+		check(not with("since", 29 * 60), "at most once per 30 minutes")
+		check(with("since", 30 * 60), "after 30 minutes again")
+		check(not with("inPocket", true), "never in a mission pocket")
+		check(not with("inSafehouse", true), "never in a safehouse")
+		check(not with("inCrater", true), "never in the Crater")
+		check(not with("bossFight", true), "never during a world boss")
+		check(not with("readyAt", 2000), "a new one waits a day after a Showdown")
+		check(not with("intel", 3), "with 3 Intel it waits for the Showdown")
+	end)
+
+	test("H5: it grows to 5 traits, Intel opens the Showdown, rank up after a win", function()
+		local who = NemesisMath.make(NM, 42, 1, "hero")
+		local st = NemesisMath.fresh(NM, 42, "hero")
+		check(st.seed == who.seed and st.rank == 1 and st.traits == 0 and st.intel == 0, "a fresh one")
+		check(
+			NemesisMath.escapes(NM, 1) and NemesisMath.escapes(NM, 3) and not NemesisMath.escapes(NM, 4),
+			"escapes in encounters 1 to 3"
+		)
+		local t1 = NemesisMath.escaped(NM, who, st)
+		check(
+			t1 == who.order[1] and st.intel == 1 and NemesisMath.traitCount(st.traits) == 1,
+			"an escape: a trait and an Intel"
+		)
+		check(not NemesisMath.showdownOpen(NM, st), "not yet")
+		NemesisMath.grow(NM, who, st) -- it Downs you
+		check(NemesisMath.traitCount(st.traits) == 2 and st.intel == 1, "a Down: a trait, no Intel")
+		NemesisMath.escaped(NM, who, st)
+		NemesisMath.escaped(NM, who, st)
+		check(st.intel == 3 and NemesisMath.showdownOpen(NM, st), "3 Intel open the Showdown")
+		NemesisMath.grow(NM, who, st)
+		check(NemesisMath.traitCount(st.traits) == 5, "5 traits")
+		check(
+			NemesisMath.grow(NM, who, st) == nil and NemesisMath.traitCount(st.traits) == 5,
+			"never more than 5"
+		)
+		NemesisMath.escaped(NM, who, st)
+		check(st.intel == 3, "Intel stops at 3")
+		local sigs = NemesisMath.signatures(NM, who, st.traits)
+		check(
+			#sigs == 2 and sigs[1] == who.signature and sigs[2] ~= sigs[1],
+			"the Second Signature trait adds one"
+		)
+		check(#NemesisMath.signatures(NM, who, 0) == 1, "one signature at first")
+		local nextOne = NemesisMath.afterWin(NM, st, 42, "hero", 5000)
+		check(
+			nextOne.rank == 2 and nextOne.traits == 0 and nextOne.intel == 0 and nextOne.met == 0,
+			"one rank tougher, fresh"
+		)
+		check(
+			nextOne.readyAt == 5000 + NM.rankUpWait
+				and nextOne.seed == NemesisMath.make(NM, 42, 2, "hero").seed,
+			"a day later, a new one"
+		)
+		local top = NemesisMath.afterWin(
+			NM,
+			{ seed = 1, rank = 5, traits = 0, met = 0, intel = 3, readyAt = 0 },
+			42,
+			"hero",
+			0
+		)
+		check(top.rank == 5, "ranks go up to 5")
+		near(NemesisMath.hpMult(NM, false, 1) * 600, 12 * 100, 1e-6, "12x a Spark Trooper solo")
+		near(NemesisMath.hpMult(NM, true, 1) * 600, 18 * 100, 1e-6, "18x in a squad")
+		check(
+			Config.Enemies[NM.body].hp == 600 and Config.Enemies.SparkDrone.hp == 100,
+			"the multipliers' base health"
+		)
+		check(NemesisMath.hpMult(NM, false, 3) > NemesisMath.hpMult(NM, false, 1), "tougher each rank")
+		check(
+			NM.payMult == 3 and NM.escapeAt == 0.3 and NM.weakMult == 2,
+			"3x an incident, 30%, double on the weak point"
+		)
+	end)
+
+	test("H5: signature areas, the Showdown and the saved record", function()
+		local line = NemesisMath.areas(NM, "sniperLine", 0, 0, 0, -50, 1)[1]
+		check(
+			NemesisMath.inArea(line, 0, -40) and not NemesisMath.inArea(line, 0, 10),
+			"a line toward the target, not behind"
+		)
+		check(not NemesisMath.inArea(line, 5, -40), "and narrow")
+		local nova = NemesisMath.areas(NM, "groundSlam", 0, 0, 30, 0, 1)[1]
+		check(NemesisMath.inArea(nova, 10, 0) and not NemesisMath.inArea(nova, 20, 0), "a slam around it")
+		local cone = NemesisMath.areas(NM, "shieldWall", 0, 0, 0, -20, 1)[1]
+		check(NemesisMath.inArea(cone, 0, -10) and not NemesisMath.inArea(cone, 0, 10), "a cone in front")
+		local mines = NemesisMath.areas(NM, "mineField", 0, 0, 40, 40, 9)
+		check(#mines == NM.signatures.mineField.count, "mines around the target")
+		check(
+			#NemesisMath.areas(NM, "mineField", 0, 0, 40, 40, 9) == #mines,
+			"the same mines from the same seed"
+		)
+		check(NemesisMath.areas(NM, "droneSwarm", 0, 0, 30, 0, 1)[1].x == 30, "drones swarm the target")
+		local P = require("../src/shared/ProfileSchema")
+		local c = P.newCharacter()
+		check(
+			c.mmo.nemesis.seed == 0 and c.mmo.nemesis.rank == 1 and c.mmo.cores == 0 and c.mmo.heads == 0,
+			"saved record"
+		)
+		local bad = P.load({
+			version = P.VERSION,
+			characters = { { mmo = { nemesis = { rank = 99, intel = -4 }, banes = { 1, "x" } } } },
+		})
+		local m = bad.characters[1].mmo
+		check(m.nemesis.rank == 5 and m.nemesis.intel == 0 and #m.banes == 1, "bad saves are repaired")
+		check(
+			NM.showdown.num > Config.TaskForce.numBase + #Config.TaskForce.list,
+			"a Showdown has its own mission number"
+		)
+		local src = source("src/server/Services/NemesisService.luau")
+		check(
+			string.find(src, "MissionService.enterCustom(players, m)", 1, true) ~= nil,
+			"the Showdown is a pocket mission (sidekicking applies)"
+		)
+		check(
+			string.find(src, "GearService.grantPiece(player, tier, own)", 1, true) ~= nil,
+			"a Rare or better roll at your level"
+		)
+		check(string.find(src, "BlockService.robotMults", 1, true) ~= nil, "plates, cloak and the weak point")
+		local R = require("../src/shared/Remotes")
+		check(R.NemesisState.dir == "S2C" and R.NemesisShowdown.rate == 1, "remotes")
+	end)
+
+	test("H5: analytics events for task forces and the nemesis; a Studio command", function()
+		local AS = require("../src/shared/AnalyticsSchema")
+		for _, e in
+			{
+				"taskforce_open",
+				"taskforce_start",
+				"taskforce_done",
+				"nemesis_met",
+				"nemesis_showdown_start",
+				"nemesis_showdown",
+			}
+		do
+			check(AS.EVENTS[e] ~= nil and #AS.EVENTS[e] <= 3, "the schema has " .. e)
+		end
+		check(
+			string.find(
+				source("src/server/Services/DevService.luau"),
+				"NemesisService.dev(player, what)",
+				1,
+				true
+			) ~= nil,
+			"Dev: nemesis 0/1"
 		)
 	end)
 end

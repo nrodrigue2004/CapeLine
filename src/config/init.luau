@@ -49,6 +49,7 @@ local NAMES = {
 	"Throw", -- H3: pick up and throw (Hero MMO features)
 	"Sidekick", -- H4: sidekicking, missions only
 	"TaskForce", -- H4: task forces
+	"Nemesis", -- H5: your nemesis
 }
 
 local Config: { [string]: any } = {}

@@ -165,6 +165,12 @@ function ProfileSchema.newCharacter(side: string?, classId: string?): { [string]
 		-- clear, for the weekly double Renown
 		mmo = {
 			tfWeek = { 0, 0, 0, 0 },
+			-- H5: the current nemesis (seed 0 = not made yet), banes = seeds of the ones you beat (titles,
+			-- the newest 8), cores = Nemesis Cores (a collection item), heads = trophies for the HQ wall
+			nemesis = { seed = 0, rank = 1, traits = 0, met = 0, intel = 0, readyAt = 0 },
+			banes = {},
+			cores = 0,
+			heads = 0,
 		},
 	}
 end
@@ -434,6 +440,16 @@ local function repair(p: any): any
 				c.hq.droneAt = num(c.hq.droneAt, 0, 2 ^ 40, 0)
 				c.hq.trophies = cleanNumbers(c.hq.trophies, 12, 1, 64)
 				c.mmo.tfWeek = cleanNumbers(c.mmo.tfWeek, 4, 0, 2 ^ 20, true)
+				local nm = c.mmo.nemesis
+				nm.seed = num(nm.seed, 0, 2 ^ 32, 0)
+				nm.rank = num(nm.rank, 1, 5, 1)
+				nm.traits = num(nm.traits, 0, 31, 0)
+				nm.met = num(nm.met, 0, 255, 0)
+				nm.intel = num(nm.intel, 0, 3, 0)
+				nm.readyAt = num(nm.readyAt, 0, 2 ^ 40, 0)
+				c.mmo.banes = cleanNumbers(c.mmo.banes, 8, 0, 2 ^ 32)
+				c.mmo.cores = num(c.mmo.cores, 0, 65535, 0)
+				c.mmo.heads = num(c.mmo.heads, 0, 65535, 0)
 				local looks = {}
 				for _, l in c.looks do
 					if type(l) == "table" and #looks < 4 then

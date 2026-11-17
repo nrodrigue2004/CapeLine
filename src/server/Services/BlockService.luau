@@ -275,6 +275,15 @@ end
 -- A hero's hit about to land on a robot. info: { coeff, charged, grab, breaker, status, status2, from }.
 -- Returns the damage multiplier and the hit flag (0 hit, 1 blocked, 2 broke) for the result record, and
 -- whether the hit is blocked (no knockback).
+-- H5: per-robot damage-taken hooks (the nemesis: armour plates, the cloak, its weak point). Each returns a
+-- multiplier for one hit from `from`; CombatService applies them after the block rules.
+BlockService.robotMults = {} :: { [number]: (any, Vector3?) -> number }
+
+function BlockService.robotMult(hero: any, id: number, from: Vector3?): number
+	local fn = BlockService.robotMults[id]
+	return if fn then fn(hero, from) else 1
+end
+
 function BlockService.robotHit(hero: any, id: number, info: any): (number, number?, boolean)
 	local e = EnemyService.get(id)
 	if not e or not e.alive then

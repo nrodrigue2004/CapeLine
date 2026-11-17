@@ -52,6 +52,13 @@ AnalyticsSchema.EVENTS = {
 	photo = { "backdrop" },
 	setting_change = { "key", "value" },
 	idle_wait = { "reason" }, -- value: seconds (the M11 gate)
+	-- Hero MMO features (H4 task forces, H5 nemesis)
+	taskforce_open = { "taskforce" },
+	taskforce_start = { "taskforce", "party" },
+	taskforce_done = { "taskforce", "party" }, -- value: seconds
+	nemesis_met = { "rank", "traits" }, -- value: encounters with this nemesis
+	nemesis_showdown_start = { "rank", "party" },
+	nemesis_showdown = { "rank" }, -- a Showdown won
 }
 
 AnalyticsSchema.FUNNELS = {

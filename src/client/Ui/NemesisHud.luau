@@ -1,0 +1,182 @@
+-- NemesisHud: your nemesis on screen (spec: Hero MMO features > Nemesis; H5). The WANTED poster (the
+-- WANTED button under TASK FORCE): its name, rank, traits, Intel and the SHOWDOWN button once your Intel is
+-- complete. When it ambushes you a comic panel pops with its taunt (fixed lines with your hero name), and
+-- again when it escapes or gloats.
+-- PLACEHOLDER look until the UI pass; the poster on the HQ board waits on the HQ art pass (Tasks).
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Config = require(ReplicatedStorage:WaitForChild("Config"))
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local NemesisMath = require(Shared:WaitForChild("NemesisMath"))
+local Net = require(Shared:WaitForChild("Net"))
+
+local Kit = require(script.Parent.Kit)
+
+local NemesisHud = {}
+
+local N = Config.Nemesis
+local T = Config.Ui.touchTarget
+local gui: ScreenGui
+local poster: Frame
+local nameL: TextLabel
+local rankL: TextLabel
+local traitsL: TextLabel
+local intelL: TextLabel
+local noteL: TextLabel
+local showdown: TextButton
+local panel: Frame
+local panelName: TextLabel
+local panelLine: TextLabel
+local panelSeq = 0
+
+local function label(
+	parent: Instance,
+	text: string,
+	y: number,
+	h: number,
+	size: number,
+	color: Color3?,
+	body: boolean?
+): TextLabel
+	local l = Kit.label({
+		Text = text,
+		Size = UDim2.new(1, -24, 0, h),
+		Position = UDim2.fromOffset(12, y),
+		TextColor3 = color or Kit.color.ink,
+		Font = if body then Kit.bodyFont else Kit.font,
+		maxText = size,
+	})
+	l.Parent = parent
+	return l
+end
+
+local function traitNames(bits: number): string
+	local out = {}
+	for i, t in N.traits do
+		if NemesisMath.hasTrait(bits, i) then
+			table.insert(out, t.name)
+		end
+	end
+	return if #out > 0 then table.concat(out, ", ") else "None yet"
+end
+
+local function render(d: { [string]: any })
+	nameL.Text = string.upper(d.name or "")
+	rankL.Text = "RANK " .. (d.rank or 1) .. "  " .. string.rep("★", d.rank or 1)
+	traitsL.Text = "Traits: " .. traitNames(d.traits or 0)
+	intelL.Text = string.format("Intel %d / %d", d.intel or 0, N.intelForShowdown)
+	showdown.Visible = d.showdown == true
+	if d.locked then
+		noteL.Text = "Your nemesis finds you from level " .. N.minLevel
+	elseif (d.readyIn or 0) > 0 then
+		noteL.Text = "A new one is on its way: " .. Kit.time(d.readyIn)
+	elseif d.showdown then
+		noteL.Text = "Its weak point is known: its back. Take it down."
+	else
+		noteL.Text = "It hunts you in the city. Each escape leaves Intel."
+	end
+end
+
+local function comic(name: string, line: string)
+	panelSeq += 1
+	local seq = panelSeq
+	panelName.Text = string.upper(name)
+	panelLine.Text = line
+	panel.Visible = true
+	task.delay(N.panelTime, function()
+		if panelSeq == seq then
+			panel.Visible = false
+		end
+	end)
+end
+
+function NemesisHud.open()
+	poster.Visible = true
+	Net.send("NemesisPoster")
+end
+
+function NemesisHud.close()
+	poster.Visible = false
+end
+
+function NemesisHud.init()
+	gui = Kit.screen("NemesisHud", 6)
+	poster = Kit.frame({
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.5),
+		Size = UDim2.fromOffset(340, 400),
+		BackgroundColor3 = Color3.fromRGB(236, 220, 180),
+		Visible = false,
+	})
+	Kit.stroke(poster, Kit.color.ink, 4)
+	poster.Parent = gui
+	label(poster, "WANTED", 10, 56, 56, Color3.fromRGB(150, 30, 30))
+	nameL = label(poster, "", 76, 44, 36)
+	rankL = label(poster, "", 124, 28, 22)
+	traitsL = label(poster, "", 168, 60, 15, nil, true)
+	traitsL.TextWrapped = true
+	intelL = label(poster, "", 236, 26, 20)
+	noteL = label(poster, "", 268, 44, 14, nil, true)
+	noteL.TextWrapped = true
+	showdown = Kit.button({
+		pending = true,
+		Text = "SHOWDOWN",
+		AnchorPoint = Vector2.new(0.5, 1),
+		Position = UDim2.new(0.5, 0, 1, -14),
+		Size = UDim2.fromOffset(T * 4, T),
+		BackgroundColor3 = Kit.color.gold,
+		Visible = false,
+	}, function()
+		Net.send("NemesisShowdown")
+		NemesisHud.close()
+	end)
+	showdown.Parent = poster
+	local close = Kit.button({
+		Text = "X",
+		Size = UDim2.fromOffset(T, T - 10),
+		Position = UDim2.new(1, -T - 8, 0, 6),
+		BackgroundColor3 = Kit.color.paper,
+	}, NemesisHud.close)
+	close.Parent = poster
+	local open = Kit.button({
+		Name = "WantedButton",
+		Text = "WANTED",
+		Size = UDim2.fromOffset(T * 2 + 20, T - 10),
+		Position = UDim2.fromOffset(Config.Ui.safe + 258, Config.Ui.safe + T * 2 - 4),
+		BackgroundColor3 = Kit.color.paper,
+	}, function()
+		if poster.Visible then
+			NemesisHud.close()
+		else
+			NemesisHud.open()
+		end
+	end)
+	open.Parent = gui
+	-- the comic panel taunt (top of the screen)
+	panel = Kit.frame({
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0, 90),
+		Size = UDim2.fromOffset(460, 110),
+		BackgroundColor3 = Color3.fromRGB(255, 250, 235),
+		Visible = false,
+	})
+	Kit.stroke(panel, Kit.color.ink, 4)
+	panel.Parent = gui
+	panelName = label(panel, "", 6, 36, 30, Color3.fromRGB(180, 30, 30))
+	panelLine = label(panel, "", 44, 56, 22)
+	panelLine.TextWrapped = true
+
+	Net.listen("NemesisState", function(d: any)
+		if type(d) ~= "table" then
+			return
+		end
+		if d.k == "poster" then
+			render(d)
+		elseif (d.k == "taunt" or d.k == "escape" or d.k == "gloat") and d.line then
+			comic(d.name or "", d.line)
+		end
+	end)
+end
+
+return NemesisHud
