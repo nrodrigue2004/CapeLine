@@ -15,14 +15,10 @@ local FrameProf =
 	require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("FrameProf"))
 local Workspace = game:GetService("Workspace")
 
-local Config = require(game:GetService("ReplicatedStorage"):WaitForChild("Config"))
-local StoryPlan =
-	require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("StoryPlan"))
 local NpcRig = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("NpcRig"))
 
 local State = require(script.Parent.Parent.State)
 local StoryClient = require(script.Parent.Parent.Controllers.StoryClient)
-local AudioController = require(script.Parent.Parent.Controllers.AudioController)
 local CombatFx = require(script.Parent.CombatFx)
 local PrologueFx = require(script.Parent.PrologueFx)
 
@@ -130,7 +126,7 @@ end
 
 local player = Players.LocalPlayer
 local sceneCam = false
-local shot: { step: any, from: Vector3, at: Vector3, blips: number }? = nil
+local shot: { step: any, from: Vector3, at: Vector3 }? = nil
 local lodestar: any = nil
 
 local function heroRoot(): BasePart?
@@ -195,9 +191,9 @@ local function sceneStep()
 		local back = if flat.Magnitude > 1 then flat.Unit else Vector3.new(0, 0, 1)
 		local dist = math.clamp(flat.Magnitude * 0.6 + 26, 30, 70)
 		local side = back:Cross(Vector3.new(0, 1, 0)) * 10
-		shot = { step = st, from = at + back * dist + side + Vector3.new(0, 14, 0), at = at, blips = 0 }
+		shot = { step = st, from = at + back * dist + side + Vector3.new(0, 14, 0), at = at }
 	end
-	local sh = shot :: { step: any, from: Vector3, at: Vector3, blips: number }
+	local sh = shot :: { step: any, from: Vector3, at: Vector3 }
 	if not sceneCam then
 		cam.CameraType = Enum.CameraType.Scriptable
 		r.Anchored = true -- the hero holds still for the beat on this device (the server still moves it)
@@ -207,16 +203,7 @@ local function sceneStep()
 	local e = k * k * (3 - 2 * k)
 	local from = sh.from:Lerp(sh.at, 0.22 * e) -- a slow push in
 	cam.CFrame = CFrame.lookAt(from, sh.at)
-	-- a radio blip as each radio line starts
-	local lines = StoryPlan.sceneLines(st, m.side or "hero")
-	local nxt = lines[sh.blips + 1]
-	if nxt and t >= nxt.at then
-		sh.blips += 1
-		local who = Config.Story.opening.speakers[nxt.who]
-		if t - nxt.at < 1 then
-			AudioController.play(if who and who.radio then "radio" else "ui")
-		end
-	end
+	-- (lore step 6: each line's blip is the guide line queue's, Ui.GuideHud)
 end
 
 function StoryFx.init()

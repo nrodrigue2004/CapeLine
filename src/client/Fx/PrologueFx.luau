@@ -998,21 +998,7 @@ local function buildBoard(o: { [string]: any })
 	text(O.slogan, 0.65, 0.34, Color3.fromRGB(245, 245, 245))
 end
 
--- Patch talks on the radio: a blip as each of his lines starts (the subtitle is StoryHud's)
-local blip = { step = "", list = {} :: { any }, said = 0 }
-local function radio(step: string, side: string, t: number)
-	if blip.step ~= step then
-		blip.step, blip.list, blip.said = step, OpeningPlan.lines(Config, step, side), 0
-	end
-	local nxt = blip.list[blip.said + 1]
-	if nxt and t >= nxt.at then
-		blip.said += 1
-		if t - nxt.at < 1 then
-			local who = O.speakers[nxt.who]
-			AudioController.play(if who and who.radio then "radio" else "ui")
-		end
-	end
-end
+-- (lore step 6: each line's blip is the guide line queue's, Ui.GuideHud, with the speaker's own sound)
 
 ---------------------------------------------------------------------------
 -- Each beat and each frame
@@ -1104,9 +1090,6 @@ local function frame(dt: number)
 	local now = os.clock()
 	if cameraOn then
 		runCamera(if o.hold then 0 else t)
-	end
-	if not o.hold then
-		radio(step, o.side or "hero", t)
 	end
 	if step == "ceremony" then
 		for _, n in crowd do

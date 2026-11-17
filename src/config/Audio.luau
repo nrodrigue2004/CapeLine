@@ -144,6 +144,12 @@ return {
 		unmask = s("clickfast.wav", 1, 0.45, { range = 200 }),
 		-- lore step 3: Patch's radio blip as each of his lines starts (PLACEHOLDER SOUND)
 		radio = s("electronicpingshort.wav", 0.45, 3.4),
+		-- lore step 6: each guide's own blip as a line starts (Config.Story.guides.speakers[who].blip; Patch keeps
+		-- radio above). PLACEHOLDER SOUND: built-in clips until real voice lines (nate: voices later)
+		guideLodestar = s("clickfast.wav", 0.45, 0.75), -- a low, steady tap: in person
+		guideCrane = s("button.wav", 0.5, 0.6), -- a mic thump: the stage and TV
+		guideInsider = s("electronicpingshort.wav", 0.4, 2.2), -- a lower radio blip
+		guideFake = s("clickfast.wav", 0.4, 1.6), -- the famous fakes and the copy
 	},
 
 	-- every path's own sound layer (overhaul plan step 6), played with the slot's cast sound above (Juice.path):

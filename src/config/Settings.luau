@@ -48,6 +48,8 @@ return {
 			default = 100,
 			unit = "%",
 		},
+		-- lore step 6: Patch's open-world radio lines (story lines in missions and the prologue always play)
+		{ id = "guideRadio", name = "Guide radio", kind = "toggle", default = 1 },
 	},
 	maxMutes = 50, -- muted players kept on the save (user ids)
 	sendDelay = 0.6, -- seconds the device waits after the last change before sending (a slider drag sends once)

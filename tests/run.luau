@@ -10292,7 +10292,10 @@ test("Lore 3: every beat in order for both sides; the side's own Spark and lines
 					type(l.text) == "string" and #l.text > 0 and #l.text <= 90,
 					step .. " line text (" .. side .. ")"
 				)
-				check(OP.speakers[l.who] ~= nil, step .. ": a known speaker " .. tostring(l.who))
+				check(
+					Config.Story.guides.speakers[l.who] ~= nil,
+					step .. ": a known speaker " .. tostring(l.who)
+				)
 				check(
 					l.at >= 0 and l.at < OpeningPlan.limit(Config, step),
 					step .. " line comes inside its beat"
@@ -10314,7 +10317,11 @@ test("Lore 3: every beat in order for both sides; the side's own Spark and lines
 		local a, b = OpeningPlan.lines(Config, step, "hero"), OpeningPlan.lines(Config, step, "villain")
 		check(#a == #b and a[1].text ~= b[1].text, step .. ": a side-flavoured line")
 	end
-	check(OP.speakers.patch.radio == true and not OP.speakers.lodestar.radio, "Patch is a radio voice")
+	check(
+		Config.Story.guides.speakers.patch.style == "radio"
+			and Config.Story.guides.speakers.lodestar.style == "person",
+		"Patch is a radio voice"
+	)
 	check(
 		OP.chase.fake == "Skylance" and Config.Enemies.Skylance.fake ~= nil,
 		"Skylance chases (a famous fake)"
@@ -10599,7 +10606,7 @@ do
 				where .. ": a 5 to 20 s beat with lines"
 			)
 			for _, line in lines do
-				check(S.opening.speakers[line.who] ~= nil, where .. ": speaker " .. line.who)
+				check(S.guides.speakers[line.who] ~= nil, where .. ": speaker " .. line.who)
 				check(line.at < st.seconds, where .. ": each line starts inside the beat")
 			end
 		end
@@ -10839,7 +10846,7 @@ do
 		check(string.find(e.enemy, "PUBLIC ENEMY", 1, true) ~= nil, "public enemy number 1")
 		check(e.enemyAt < e.seconds and #e.lines >= 2, "Crane's lines, then the card")
 		for _, l in e.lines do
-			check(S.opening.speakers[l.who] ~= nil and l.at < e.enemyAt, "a known speaker before the card")
+			check(S.guides.speakers[l.who] ~= nil and l.at < e.enemyAt, "a known speaker before the card")
 		end
 		local svc = readFile("src/server/Services/MissionService.luau")
 		check(string.find(svc, 'Net.fire("StoryBroadcast"', 1, true) ~= nil, "the server sends it")
@@ -11023,6 +11030,413 @@ do
 				string.find(ds, "missionas = function", 1, true) ~= nil
 					and string.find(ds, "MissionService.jumpStage", 1, true) ~= nil,
 				"DevService"
+			)
+		end
+	)
+end
+
+---------------------------------------------------------------------------
+-- Lore step 6: the guides (nate's lore doc: a veteran Vigil hero in person, a hacker kid on the radio).
+-- One line queue for every line (GuidePlan, GuideHud), Lodestar in the Vigil's HQ, Patch's open-world radio
+---------------------------------------------------------------------------
+
+do
+	local GuidePlan = require("../src/shared/GuidePlan")
+	local StoryPlan = require("../src/shared/StoryPlan")
+	local SettingsRules = require("../src/shared/SettingsRules")
+	local TouchLayout = require("../src/shared/TouchLayout")
+	local S = Config.Story
+	local Gd = S.guides
+
+	test(
+		"Lore 6: every guide line has a known speaker, both sides, the phone length cap, no free text",
+		function()
+			local bad = GuidePlan.validate(Config)
+			for _, b in bad do
+				check(false, b)
+			end
+			check(#bad == 0, "every line is valid")
+			local lines = GuidePlan.lines(Config)
+			check(
+				#lines >= 120,
+				"the prologue, the missions, the radio and the talk (" .. #lines .. " lines)"
+			)
+			check(Gd.maxChars <= 120, "short enough for a phone's subtitle box")
+			-- the three guides: their own portrait, name colour and blip (different blips)
+			local blips = {}
+			for _, who in { "lodestar", "patch", "crane" } do
+				check(table.find(Gd.guides, who) ~= nil, who .. " is a guide")
+				local sp = Gd.speakers[who]
+				check(sp and sp.portrait and sp.portrait.bg and sp.portrait.skin, who .. ": a portrait")
+				check(Config.Audio.sounds[sp.blip] ~= nil, who .. ": a blip sound")
+				check(blips[sp.blip] == nil, who .. ": a blip of their own")
+				blips[sp.blip] = true
+			end
+			check(Gd.speakers.patch.style == "radio", "Patch on the radio")
+			check(Gd.speakers.lodestar.style == "person", "Lodestar in person")
+			check(Gd.speakers.crane.style == "broadcast", "Crane's broadcast voice")
+			check(Gd.tags.radio ~= nil and Gd.tags.broadcast ~= nil, "RADIO and ON AIR tags")
+			for who, sp in Gd.speakers do
+				check(Config.Audio.sounds[sp.blip] ~= nil, who .. ": its blip exists")
+			end
+			check(S.opening.speakers == nil, "one speaker table (guides.speakers)")
+			-- no old names in any guide line
+			local OLD = { "War-Frame", "War Frame", "Signal Tower", "The Informant", "Under the Docks" }
+			for _, e in lines do
+				for _, side in SIDES do
+					local t = GuidePlan.lineText(e.line, side) or ""
+					check(oldLore(t) == nil, e.where .. ": no old lore")
+					for _, w in OLD do
+						check(not string.find(t, w, 1, true), e.where .. ": no " .. w)
+					end
+				end
+			end
+			-- no free text: the guide code has no text box, and the radio and stage lines come from GuidePlan
+			local src = clientSources()
+			local hud = src["src/client/Ui/GuideHud.luau"]
+			local cli = src["src/client/Controllers/GuideClient.luau"]
+			check(
+				not string.find(hud, "TextBox", 1, true) and not string.find(cli, "TextBox", 1, true),
+				"no text box"
+			)
+			for call in string.gmatch(cli, "GuideHud%.say%(([^,]+,[^,]+),") do
+				check(call == "l.who, l.text", "GuideClient says only fixed lines: " .. call)
+			end
+		end
+	)
+
+	test("Lore 6: the line queue never overlaps, skips cleanly and waits for camera beats", function()
+		local Q = GuidePlan.queue()
+		local t = 0
+		check(GuidePlan.push(Q, { who = "patch", text = "One." }, t), "a story line")
+		check(GuidePlan.push(Q, { who = "lodestar", text = "Two." }, t), "another story line waits")
+		local a = GuidePlan.tick(Config, Q, t, false)
+		check(a and a.text == "One." and Q.current == a, "the first starts")
+		check(GuidePlan.tick(Config, Q, t + 0.5, false) == nil, "never two at once")
+		local d = GuidePlan.duration(Config, "One.")
+		check(d >= Gd.queue.min and d <= Gd.queue.max, "a sensible time on screen")
+		check(GuidePlan.duration(Config, string.rep("x", 120)) == Gd.queue.max, "long lines cap out")
+		-- skip: the next starts at once
+		GuidePlan.skip(Q)
+		local b = GuidePlan.tick(Config, Q, t + 1, false)
+		check(b and b.text == "Two.", "a skip moves to the next line")
+		check(
+			GuidePlan.tick(Config, Q, t + 1 + d + 0.1, false) == nil and Q.current == nil,
+			"then the box clears"
+		)
+		-- open-world lines wait while a camera beat runs, and only one waits
+		check(GuidePlan.push(Q, { who = "patch", text = "World.", world = true }, 20), "a radio line")
+		check(not GuidePlan.push(Q, { who = "patch", text = "Again.", world = true }, 20), "only one waits")
+		check(GuidePlan.tick(Config, Q, 20, true) == nil, "paused for the camera beat")
+		local w = GuidePlan.tick(Config, Q, 21, false)
+		check(w and w.world, "it plays after the beat")
+		-- a story line queued after the radio line goes before later radio lines; a beat cuts a radio line
+		check(
+			GuidePlan.tick(Config, Q, 21.5, true) == nil and Q.current == nil,
+			"a camera beat cuts a radio line"
+		)
+		GuidePlan.push(Q, { who = "patch", text = "Late.", world = true }, 30)
+		GuidePlan.push(Q, { who = "lodestar", text = "Story." }, 30)
+		local s1 = GuidePlan.tick(Config, Q, 30, false)
+		check(s1 and s1.text == "Story.", "story lines go before open-world ones")
+		-- stale radio lines are dropped
+		GuidePlan.skip(Q)
+		check(GuidePlan.tick(Config, Q, 30 + Gd.queue.ttl + 1, false) == nil, "a stale radio line is dropped")
+		-- a camera beat's timed line takes the box at once, and the beat's end drops it
+		GuidePlan.push(Q, { who = "patch", text = "Long story line." }, 40)
+		GuidePlan.tick(Config, Q, 40, false)
+		GuidePlan.push(Q, { who = "crane", text = "Cut!", cut = true, hold = 3, tag = "beat1" }, 41)
+		local c = GuidePlan.tick(Config, Q, 41, false)
+		check(c and c.text == "Cut!" and Q.untilT == 44, "a timed line takes the box for its hold")
+		GuidePlan.cancel(Q, "beat1")
+		check(Q.current == nil, "the beat's end drops its line")
+		-- due: the line for the moment, until the next (at most hold); a late join skips passed lines
+		local list = { { at = 0.5, who = "patch", text = "a" }, { at = 4, who = "patch", text = "b" } }
+		local i1, h1 = GuidePlan.due(Config, list, 0.6, 0)
+		check(i1 == 1 and h1 and math.abs(h1 - 3.4) < 1e-6, "the first line until the second")
+		check(GuidePlan.due(Config, list, 1, 1) == nil, "nothing new until the next")
+		local i2, h2 = GuidePlan.due(Config, list, 4.2, 1)
+		check(i2 == 2 and h2 and math.abs(h2 - (Gd.queue.hold - 0.2)) < 1e-6, "the last line holds")
+		local i3, h3 = GuidePlan.due(Config, list, 30, 0)
+		check(i3 == 2 and h3 == nil, "a late join shows nothing stale")
+	end)
+
+	test(
+		"Lore 6: Patch's open-world radio: one line a 45 s at most, once-a-session lines, the setting",
+		function()
+			local R = GuidePlan.radio()
+			local on = { on = true, busy = false }
+			check(Gd.radio.gap >= 45, "never more than one line a ~45 s")
+			check(GuidePlan.radioOk(Config, R, 100, "firstIncident", on), "the first incident")
+			GuidePlan.radioMark(R, 100, "firstIncident")
+			check(not GuidePlan.radioOk(Config, R, 120, "firstBoss", on), "too soon after the last line")
+			check(GuidePlan.radioOk(Config, R, 100 + Gd.radio.gap, "firstBoss", on), "after the gap")
+			check(
+				not GuidePlan.radioOk(Config, R, 1000, "firstIncident", on),
+				"the first incident once a session"
+			)
+			check(
+				not GuidePlan.radioOk(Config, R, 1000, "firstBoss", { on = true, busy = true }),
+				"never in a mission"
+			)
+			check(
+				not GuidePlan.radioOk(Config, R, 1000, "firstBoss", { on = false, busy = false }),
+				"the setting off"
+			)
+			GuidePlan.radioMark(R, 1000, "idle")
+			check(
+				not GuidePlan.radioOk(Config, R, 1000 + Gd.radio.gap, "idle", on),
+				"the idle hint waits its repeat"
+			)
+			check(GuidePlan.radioOk(Config, R, 1000 + Gd.radio.idleRepeat, "idle", on), "then hints again")
+			check(GuidePlan.radioOk(Config, R, 1000 + Gd.radio.gap, "unlock3", on), "a level-up line")
+			GuidePlan.radioMark(R, 2000, "unlock3")
+			check(not GuidePlan.radioOk(Config, R, 9000, "unlock3", on), "each unlock once")
+			-- every trigger has a side-flavoured line
+			for _, key in { "firstIncident", "firstBoss", "afterAct1" } do
+				local h, v =
+					GuidePlan.worldLine(Config, key, "hero"), GuidePlan.worldLine(Config, key, "villain")
+				check(h and v and h.who == "patch" and h.text ~= v.text, key .. ": Patch, by side")
+			end
+			for num = 2, #S.missions do
+				for _, key in { "unlock", "idle" } do
+					local h, v =
+						GuidePlan.worldLine(Config, key, "hero", num),
+						GuidePlan.worldLine(Config, key, "villain", num)
+					check(h and v and h.text ~= v.text, key .. " " .. num .. ": a line per side")
+				end
+			end
+			-- level-ups at story levels: the level that opens the next mission, and only when it opens
+			local story = { missions = StoryPlan.setBit(StoryPlan.setBit(0, 1), 2), pinned = 0 }
+			check(GuidePlan.unlockAt(Config, story, S.missions[3].minLevel) == 3, "Framed opens at its level")
+			check(
+				GuidePlan.unlockAt(Config, story, S.missions[4].minLevel) == nil,
+				"The Copy waits for Framed"
+			)
+			check(GuidePlan.unlockAt(Config, story, 7) == nil, "no line at a level that opens nothing")
+			check(GuidePlan.idleMission(Config, story, 1) == nil, "no idle hint below the mission's level")
+			check(GuidePlan.idleMission(Config, story, 10) == 3, "an idle hint for the pinned mission")
+			check(
+				GuidePlan.idleMission(Config, { missions = story.missions, pinned = 2 }, 10) == nil,
+				"not with a side quest pinned"
+			)
+			-- the Settings switch
+			local key, idx = nil, 0
+			for i, k in Config.Settings.keys do
+				if k.id == "guideRadio" then
+					key, idx = k, i
+				end
+			end
+			check(
+				key and key.name == "Guide radio" and key.kind == "toggle" and key.default == 1,
+				"Guide radio, on by default"
+			)
+			check(idx == #Config.Settings.keys and idx <= 16, "the newest key, inside Settings.Set's range")
+			check(SettingsRules.defaults(Config).guideRadio == 1, "the save's default")
+			local cli = clientSources()["src/client/Controllers/GuideClient.luau"]
+			check(
+				string.find(cli, 'SettingsClient.on("guideRadio")', 1, true) ~= nil,
+				"the radio reads the switch"
+			)
+		end
+	)
+
+	test(
+		"Lore 6: Lodestar's look validates; his talk follows the story and keeps away from the Syndicate",
+		function()
+			local CreatorRules = require("../src/shared/CreatorRules")
+			local profile = ProfileSchema.default()
+			for _, p in CreatorRules.index(Config).list do
+				if p.source.kind ~= "pack" and p.source.kind ~= "starter" then
+					CreatorRules.grant(profile, p)
+				end
+			end
+			local look = FakeRules.lookFrom(Config, S.opening.lodestar.look, "Lodestar")
+			local ok, why = CreatorRules.validate(Config, profile, look)
+			check(ok, "Lodestar's look validates through CreatorRules (" .. tostring(why) .. ")")
+			local fresh = { missions = StoryPlan.setBit(0, 1), pinned = 0 }
+			local a1 = GuidePlan.talk(Config, fresh, "hero", 1)
+			local a2 = GuidePlan.talk(Config, fresh, "hero", 2)
+			local a4 = GuidePlan.talk(Config, fresh, "hero", 1 + #Gd.lodestar.talk[1].lines)
+			check(a1 and a2 and a1.who == "lodestar" and a1.text ~= a2.text, "a rotation of lines")
+			check(a4 and a4.text == a1.text, "a short fixed rotation")
+			local all = 0
+			for n = 1, #S.missions do
+				all = StoryPlan.setBit(all, n)
+			end
+			local done = GuidePlan.talk(Config, { missions = all, pinned = 0 }, "hero", 1)
+			check(done and done.text ~= a1.text, "the lines change with the story (Act 1 done)")
+			local tiers = {}
+			for n = 1, #S.missions do
+				local m = 0
+				for k = 1, n do
+					m = StoryPlan.setBit(m, k)
+				end
+				tiers[(GuidePlan.talk(Config, { missions = m, pinned = 0 }, "hero", 1) :: any).text] = true
+			end
+			local count = 0
+			for _ in tiers do
+				count += 1
+			end
+			check(count >= 3, "at least three stages of the story")
+			check(GuidePlan.talk(Config, fresh, "villain", 1) == nil, "no HQ talk for the Dread Syndicate")
+			local cli = clientSources()["src/client/Controllers/GuideClient.luau"]
+			check(string.find(cli, 'state.side ~= "villain"', 1, true) ~= nil, "he keeps out of the Foundry")
+			check(string.find(cli, "PrologueFx.lodestarRig", 1, true) ~= nil, "the one reusable figure")
+			check(string.find(cli, "ProximityPrompt", 1, true) ~= nil, "a Talk prompt")
+			-- where the doc puts him: the prologue's rescue and the safehouse (where the Syndicate's deal is offered)
+			check(
+				table.find(Gd.appears.lodestar, 1) and table.find(Gd.appears.lodestar, 2),
+				"the prologue and Safehouse"
+			)
+			local offer = S.missions[2].villain[5]
+			check(offer.kind == "scene" and offer.lodestar ~= nil, "he stands where the deal is offered")
+		end
+	)
+
+	test(
+		"Lore 6: every mission and the prologue has its guide lines per side (Patch, and Lodestar where the doc puts him)",
+		function()
+			for num, m in S.missions do
+				for _, side in SIDES do
+					local c = GuidePlan.coverage(Config, num, side)
+					check((c.patch or 0) >= 1, m.id .. " " .. side .. ": Patch speaks")
+					if table.find(Gd.appears.lodestar, num) then
+						check((c.lodestar or 0) >= 1, m.id .. " " .. side .. ": Lodestar speaks")
+					end
+				end
+			end
+			for _, num in Gd.appears.patch do
+				check(S.missions[num] ~= nil, "Patch's missions exist")
+			end
+			-- key beats: every playable stage (and branch) has a guide line for each side as it starts
+			local PLAY = { scene = false, choice = false, branch = false, none = false }
+			for _, m in S.missions do
+				for _, side in SIDES do
+					local key = StoryPlan.sideKey(side)
+					local steps = table.clone(m[key] or {})
+					for _, b in (m.branches and m.branches[key]) or {} do
+						table.insert(steps, b)
+					end
+					for i, st in steps do
+						if PLAY[st.kind] == nil then
+							check(
+								#GuidePlan.stageLines(st, side) >= 1,
+								string.format("%s %s step %d (%s): a line", m.id, side, i, st.kind)
+							)
+						end
+					end
+				end
+			end
+			-- the client finds a stage from its MissionState, branches too
+			local st = GuidePlan.stageFor(
+				Config,
+				{ num = 3, step = 6, side = "hero", kind = "chase", text = "Chase Radiant down" }
+			)
+			check(st ~= nil and st.radio ~= nil, "a branch stage")
+			check(
+				GuidePlan.stageFor(Config, { num = 2, step = 2, side = "villain", kind = "break" })
+					== S.missions[2].villain[2],
+				"a side's stage"
+			)
+			check(
+				GuidePlan.stageFor(Config, { num = 2, step = 2, side = "villain", kind = "defeat" }) == nil,
+				"a mismatch is nothing"
+			)
+			check(
+				GuidePlan.stageFor(Config, { num = 150, step = 1, side = "hero", kind = "defeat" }) == nil,
+				"custom runs have none"
+			)
+		end
+	)
+
+	test("Lore 6: the line box stays clear of the phone controls", function()
+		local devices = {
+			{ "iPhone SE", 667, 375, true },
+			{ "big phone", 844, 390, true },
+			{ "small phone", 568, 320, true },
+			{ "tablet", 1024, 768, true },
+			{ "PC", 1280, 720, false },
+			{ "PC wide", 1920, 1080, false },
+		}
+		for _, d in devices do
+			for _, left in { false, true } do
+				local opts = { touch = d[4], leftHanded = left, user = 1, present = { Block = true } }
+				local b = GuidePlan.box(Config, d[2], d[3], opts, false)
+				local where = d[1] .. (if left then " left-handed" else "")
+				for _, o in GuidePlan.obstacles(Config, d[2], d[3], opts) do
+					check(
+						not GuidePlan.overlaps(b, o),
+						where .. ": clear of the buttons, status corner and top row"
+					)
+				end
+				check(
+					b.x >= 0 and b.y >= 0 and b.x + b.w <= d[2] and b.y + b.h <= d[3],
+					where .. ": on screen"
+				)
+				check(b.w >= 200, where .. ": wide enough to read")
+				if d[4] and b.tap then
+					local mode = if left then "left" else "default"
+					check(
+						not GuidePlan.overlaps(b, TouchLayout.stickZone(d[2], d[3], mode)),
+						where .. ": taps never steal the stick"
+					)
+				end
+				-- a tracker to keep clear of
+				local extra = { { x = d[2] / 2 - 150, y = 60, w = 300, h = 64 } }
+				local b2 = GuidePlan.box(Config, d[2], d[3], opts, false, extra)
+				if b2.w >= Gd.box.minW then
+					check(not GuidePlan.overlaps(b2, extra[1]), where .. ": clear of the story tracker")
+				end
+			end
+			local c = GuidePlan.box(Config, d[2], d[3], { touch = d[4] }, true)
+			check(
+				c.y >= d[3] * Gd.box.letterbox and c.w <= Gd.box.maxW,
+				d[1] .. ": under the letterbox on a beat"
+			)
+		end
+	end)
+
+	test(
+		"Lore 6: wiring: StoryHud feeds the queue, blips per speaker, reduce flashing, Dev panel, init",
+		function()
+			local src = clientSources()
+			local hud = src["src/client/Ui/GuideHud.luau"]
+			local story = src["src/client/Ui/StoryHud.luau"]
+			check(
+				string.find(story, "GuideHud.timeline(lineCache, lineCache.list, t)", 1, true) ~= nil,
+				"the beats' lines go to the queue"
+			)
+			check(string.find(story, "GuideHud.setScene(", 1, true) ~= nil, "camera beats pause the radio")
+			check(string.find(story, "GuideHud.keepClear(tracker)", 1, true) ~= nil, "clear of the tracker")
+			check(not string.find(story, "Subtitle", 1, true), "the old subtitle box is gone")
+			check(string.find(hud, "AudioController.play(sp.blip)", 1, true) ~= nil, "each speaker's blip")
+			check(string.find(hud, 'SettingsClient.on("reduceFlashing")', 1, true) ~= nil, "reduce flashing")
+			check(string.find(hud, "PLACEHOLDER ART", 1, true) ~= nil, "placeholder portraits are labelled")
+			check(string.find(hud, "GuidePlan.box(", 1, true) ~= nil, "the box follows the phone layout")
+			for _, path in { "src/client/Fx/PrologueFx.luau", "src/client/Fx/StoryFx.luau" } do
+				check(
+					not string.find(src[path], '"radio" else "ui"', 1, true),
+					path .. ": no ad hoc blip left"
+				)
+			end
+			local dev = src["src/client/Ui/DevPanel.luau"]
+			check(string.find(dev, "GuideHud.sample(", 1, true) ~= nil, "Dev: a sample line per speaker")
+			check(string.find(dev, "GuideClient.spawnLodestar()", 1, true) ~= nil, "Dev: Lodestar near you")
+			local boot = src["src/client/init.client.luau"]
+			check(
+				string.find(boot, "GuideHud.init()", 1, true) ~= nil
+					and string.find(boot, "GuideClient.init()", 1, true) ~= nil,
+				"both start"
+			)
+			check(
+				string.find(
+					readFile("src/config/Audio.luau"),
+					"PLACEHOLDER SOUND: built-in clips until real voice",
+					1,
+					true
+				) ~= nil,
+				"placeholder blips are labelled"
 			)
 		end
 	)

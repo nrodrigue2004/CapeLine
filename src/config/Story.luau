@@ -8,8 +8,10 @@
 -- beat, one goal for the whole party, with each side's own objective text: `text` and `villainText`), and a
 -- stage with two different entries runs both at once in the same pocket, each side on its own job. The party
 -- moves on when every side present has finished the stage. Camera beats (kind "scene") are short in-engine
--- moments with fixed subtitled lines: `who` names a speaker in opening.speakers; a line with `hero` and
+-- moments with fixed subtitled lines: `who` names a speaker in guides.speakers; a line with `hero` and
 -- `villain` texts reads by the side (nothing free-typed).
+-- Guide lines (lore step 6): a stage's `radio` lines play through the guide line queue as the stage starts
+-- (Patch on the radio, Lodestar in person where he stands), the same line shape without `at`.
 
 -- Shared stages (the same table in both lists)
 local SAFEHOUSE_TUNNELS = {
@@ -36,8 +38,22 @@ local SAFEHOUSE_GAUNTLET = {
 	turrets = 4,
 	room = 2,
 	text = "Get past the old security line",
+	radio = {
+		{ who = "lodestar", text = "Old turrets. They track heat, not faces. Keep moving and stay low." },
+	},
 }
-local SAFEHOUSE_DOOR = { kind = "reach", at = "door", text = "Reach the safehouse door" }
+local SAFEHOUSE_DOOR = {
+	kind = "reach",
+	at = "door",
+	text = "Reach the safehouse door",
+	radio = {
+		{
+			who = "patch",
+			hero = "Door's just ahead! I left the lights on for you.",
+			villain = "Door's just ahead. Wipe your feet. And your record.",
+		},
+	},
+}
 local SAFEHOUSE_OFFER = {
 	kind = "scene",
 	seconds = 17,
@@ -82,6 +98,13 @@ local FRAMED_FAKE = {
 	dmg = 0.6,
 	text = "Crack Radiant's face on camera",
 	villainText = "Knock Radiant down for its data core",
+	radio = {
+		{
+			who = "patch",
+			hero = "Radiant's coming down! Hit hard and crack that golden face on camera!",
+			villain = "Radiant's coming down. Knock it flat. That core is worth a fortune.",
+		},
+	},
 }
 local FRAMED_PROOF = {
 	kind = "scene",
@@ -135,6 +158,13 @@ local COPY_TWIN = {
 	at = "copy",
 	text = "Beat your evil twin across the rooftops",
 	villainText = "Beat the copy wearing your face",
+	radio = {
+		{
+			who = "patch",
+			hero = "It fights like you, so think like you! Find the move it hasn't copied yet!",
+			villain = "It fights like you and cheats like you. So cheat harder!",
+		},
+	},
 }
 local COPY_AFTER = {
 	kind = "scene",
@@ -151,7 +181,18 @@ local COPY_AFTER = {
 	},
 }
 
-local SIGNAL_CLIMB = { kind = "reach", at = "top", text = "Climb Crane Tower" }
+local SIGNAL_CLIMB = {
+	kind = "reach",
+	at = "top",
+	text = "Climb Crane Tower",
+	radio = {
+		{
+			who = "patch",
+			hero = "Crane Tower. Biggest mast in town. Climb, and smile for nobody.",
+			villain = "Crane Tower. Every screen in town runs through that mast. Climb.",
+		},
+	},
+}
 local SIGNAL_INSIDER = {
 	kind = "scene",
 	seconds = 13,
@@ -177,6 +218,13 @@ local SIGNAL_WARDEN = {
 	hpMult = 8,
 	adds = { "SparkDrone", 3 },
 	text = "Beat the tower's Warden",
+	radio = {
+		{
+			who = "patch",
+			hero = "The tower's Warden! Big, slow and angry. Hit it while it turns!",
+			villain = "The tower's Warden. Big, slow, and guarding our payday. Smash it.",
+		},
+	},
 }
 local SIGNAL_ON_AIR = {
 	kind = "scene",
@@ -220,6 +268,13 @@ local LIVE_FAKE = {
 	news = "unmask", -- the crack goes out on every screen in the server (a news flash for everyone)
 	text = "Crack Bulwark's face live on every screen",
 	villainText = "Crack Bulwark's face for the whole city",
+	radio = {
+		{
+			who = "patch",
+			hero = "Bulwark's on stage. Crack that face for the whole city to see!",
+			villain = "Bulwark's on stage. Break it on live TV and the city will fear us.",
+		},
+	},
 }
 local LIVE_UNMASKED = {
 	kind = "scene",
@@ -234,6 +289,13 @@ local LIVE_BATTLE = {
 	kind = "warframe",
 	text = "Bring down Bulwark's battle form",
 	villainText = "Wreck Bulwark's battle form",
+	radio = {
+		{
+			who = "patch",
+			hero = "Battle form! Hit the glowing spot on its back, and duck behind the pillars!",
+			villain = "Battle form! Its back is the weak spot, and the pillars stop its laser.",
+		},
+	},
 }
 
 return {
@@ -337,18 +399,7 @@ return {
 				mats = {},
 			},
 		},
-		-- the voices: Crane on the stage (and the plaza speakers), Patch on the radio (subtitles and a radio
-		-- blip; no voice acting), Lodestar in person
-		speakers = {
-			crane = { name = "SILAS CRANE", color = { 255, 210, 60 } },
-			patch = { name = "PATCH", color = { 120, 230, 255 }, radio = true },
-			lodestar = { name = "LODESTAR", color = { 150, 190, 255 } },
-			-- Act 1's missions (lore step 5): the insider is a voice on the radio; the fakes speak in person
-			insider = { name = "CRANE INSIDER", color = { 230, 160, 255 }, radio = true },
-			radiant = { name = "RADIANT", color = { 255, 220, 120 } },
-			bulwark = { name = "BULWARK", color = { 200, 205, 215 } },
-			copy = { name = "THE COPY", color = { 255, 110, 110 } },
-		},
+		-- the voices are Config.Story.guides.speakers (lore step 6: one guide system for every line)
 		-- subtitled lines by beat: `at` seconds into the beat
 		lines = {
 			ceremony = {
@@ -490,6 +541,12 @@ return {
 					squads = { { "SparkDrone", 3 }, { "BurglarBot", 2 } },
 					room = 1,
 					text = "Clear the scanner drones from the tunnel",
+					radio = {
+						{
+							who = "patch",
+							text = "Scanner drones! If they see your Spark, Crane sees it too. Knock them out!",
+						},
+					},
 				},
 				SAFEHOUSE_GAUNTLET,
 				SAFEHOUSE_DOOR,
@@ -503,6 +560,12 @@ return {
 					hits = 12,
 					list = "relays",
 					text = "Smash Crane's scanner relays",
+					radio = {
+						{
+							who = "patch",
+							text = "Those relays feed Crane's scanners. Smash them and we all go dark.",
+						},
+					},
 				},
 				SAFEHOUSE_GAUNTLET,
 				SAFEHOUSE_DOOR,
@@ -529,6 +592,12 @@ return {
 					waves = { { "SparkDrone", 4 }, { "SparkDrone", 5 }, { "BurglarBot", 3 } },
 					waveGap = 14,
 					text = "Get the people off the bridge",
+					radio = {
+						{
+							who = "patch",
+							text = "People are stuck on the deck! Stand in each ring till they're safe.",
+						},
+					},
 				},
 				FRAMED_FAKE,
 				FRAMED_PROOF,
@@ -544,6 +613,12 @@ return {
 					hits = 14,
 					guards = { "Turret", 2 },
 					text = "Loot the armored trucks in the chaos",
+					radio = {
+						{
+							who = "patch",
+							text = "Armored trucks, no drivers, total chaos. You didn't hear it from me.",
+						},
+					},
 				},
 				FRAMED_FAKE,
 				FRAMED_PROOF,
@@ -560,6 +635,12 @@ return {
 						hits = 30,
 						train = true,
 						text = "Stop the runaway train before the gap",
+						radio = {
+							{
+								who = "patch",
+								text = "Runaway train heading for the gap! Hit it till it stops!",
+							},
+						},
 					},
 					{
 						kind = "chase",
@@ -568,6 +649,12 @@ return {
 						hops = 7,
 						speed = 24,
 						text = "Chase Radiant down",
+						radio = {
+							{
+								who = "patch",
+								text = "Radiant's running! Don't lose it over the towers!",
+							},
+						},
 					},
 				},
 				villain = {
@@ -578,6 +665,12 @@ return {
 						hops = 7,
 						speed = 24,
 						text = "Run Radiant down and rip out its data core",
+						radio = {
+							{
+								who = "patch",
+								text = "Radiant's running off with that core. Run it down!",
+							},
+						},
 					},
 					{
 						kind = "break",
@@ -585,6 +678,12 @@ return {
 						hits = 30,
 						at = "van",
 						text = "Crack the armored cash van",
+						radio = {
+							{
+								who = "patch",
+								text = "Cash van, locked tight. Crack it before the real cops show up.",
+							},
+						},
 					},
 				},
 			},
@@ -599,14 +698,34 @@ return {
 			rep = 120, -- own-side reputation on the first clear
 			blurb = "A fake copies your look and powers. Fight your evil twin.",
 			hero = {
-				{ kind = "reach", at = "contact", text = "Answer the rooftop alarm" },
+				{
+					kind = "reach",
+					at = "contact",
+					text = "Answer the rooftop alarm",
+					radio = {
+						{
+							who = "patch",
+							text = "A rooftop alarm with your name on it. Weird. Go check it out.",
+						},
+					},
+				},
 				COPY_SCAN,
 				COPY_TWIN,
 				{ kind = "choice", choice = 3, text = "Your twin's core" },
 				COPY_AFTER,
 			},
 			villain = {
-				{ kind = "reach", at = "contact", text = "Meet the fence on the rooftop" },
+				{
+					kind = "reach",
+					at = "contact",
+					text = "Meet the fence on the rooftop",
+					radio = {
+						{
+							who = "patch",
+							text = "Your fence wants a rooftop meet. Sounds legit. Totally. Go.",
+						},
+					},
+				},
 				COPY_SCAN,
 				COPY_TWIN,
 				{ kind = "choice", choice = 3, text = "Your twin's core" },
@@ -636,6 +755,12 @@ return {
 					waves = { { "SparkDrone", 3 }, { "BurglarBot", 3 } },
 					waveGap = 12,
 					text = "Guard Patch's uplink at the mast",
+					radio = {
+						{
+							who = "patch",
+							text = "I'm patching into the mast! Keep the bots off me for twenty seconds!",
+						},
+					},
 				},
 				SIGNAL_WARDEN,
 				SIGNAL_ON_AIR,
@@ -654,6 +779,12 @@ return {
 					waves = { { "BurglarBot", 3 }, { "SparkDrone", 3 } },
 					waveGap = 12,
 					text = "Plant the Syndicate feed on the relay",
+					radio = {
+						{
+							who = "patch",
+							text = "Plant the feed on the relay and hold it. I'll make it look pretty.",
+						},
+					},
 				},
 				SIGNAL_WARDEN,
 				SIGNAL_ON_AIR,
@@ -666,6 +797,12 @@ return {
 						squads = { { "BurglarBot", 4 }, { "SparkDrone", 2 } },
 						at = "top", -- on the tower's deck, where the party stands
 						text = "Testing her tipped off the guards: beat them",
+						radio = {
+							{
+								who = "patch",
+								text = "Testing her tipped off the guards! Told you it could be a trap!",
+							},
+						},
 					},
 				},
 				villain = { { kind = "none" }, { kind = "none" } },
@@ -693,6 +830,12 @@ return {
 					waves = { { "SparkDrone", 3 }, { "BurglarBot", 2 } },
 					waveGap = 16,
 					text = "Set up the cameras around the stage",
+					radio = {
+						{
+							who = "patch",
+							text = "Set the cameras on their marks. I need every angle of that stage!",
+						},
+					},
 				},
 				LIVE_EVENT,
 				LIVE_FAKE,
@@ -707,6 +850,12 @@ return {
 					list = "screens",
 					guards = { "Turret", 1 },
 					text = "Hijack the stage screens",
+					radio = {
+						{
+							who = "patch",
+							text = "Hijack the stage screens. When Bulwark cracks, it's our show.",
+						},
+					},
 				},
 				LIVE_EVENT,
 				LIVE_FAKE,
@@ -802,6 +951,252 @@ return {
 			enemyAt = 13, -- seconds: the PUBLIC ENEMY #1 card slams in
 			enemy = "PUBLIC ENEMY #1",
 			sign = "TO BE CONTINUED",
+		},
+	},
+	-- The guides (nate's lore, build plan step 6): Lodestar, the veteran Vigil hero, in person (Patch calls him
+	-- "Old Star"); Patch, the hacker kid, on the radio; Silas Crane's broadcast voice. Every line in the game
+	-- (the prologue, the missions' camera beats and stage lines, the open-world radio, Lodestar's talk) plays
+	-- through one line queue on the device (Ui.GuideHud, Shared.GuidePlan): one line at a time with its
+	-- speaker's portrait, name colour and blip. Subtitles and a blip now, real voice lines later (nate). All
+	-- text is fixed here; a line with `hero` and `villain` texts reads by the side (nothing free-typed).
+	guides = {
+		-- style: "person" (in person), "radio" (a RADIO tag, a static flicker on the portrait) or "broadcast"
+		-- (Crane on the stage, the plaza speakers and TV: an ON AIR tag). blip: a Config.Audio.sounds key,
+		-- played as each line starts. portrait: drawn from frames on the device (PLACEHOLDER ART until the art
+		-- pass): bg, skin and hair colours, a hair shape and extras.
+		speakers = {
+			lodestar = {
+				name = "LODESTAR",
+				color = { 150, 190, 255 },
+				style = "person",
+				blip = "guideLodestar",
+				portrait = {
+					bg = { 30, 42, 86 },
+					skin = { 214, 160, 120 },
+					hair = { 205, 210, 220 },
+					shape = "slick",
+					extras = { "beard", "scar", "star" },
+				},
+			},
+			patch = {
+				name = "PATCH",
+				color = { 120, 230, 255 },
+				style = "radio",
+				blip = "radio",
+				portrait = {
+					bg = { 18, 60, 72 },
+					skin = { 241, 194, 160 },
+					hair = { 120, 78, 40 },
+					shape = "messy",
+					extras = { "cap", "headset" },
+				},
+			},
+			crane = {
+				name = "SILAS CRANE",
+				color = { 255, 210, 60 },
+				style = "broadcast",
+				blip = "guideCrane",
+				portrait = {
+					bg = { 64, 50, 18 },
+					skin = { 232, 190, 160 },
+					hair = { 70, 64, 58 },
+					shape = "slick",
+					extras = { "tie" },
+				},
+			},
+			-- Act 1's cast (lore step 5): the insider is a voice on the radio; the fakes speak in person
+			insider = {
+				name = "CRANE INSIDER",
+				color = { 230, 160, 255 },
+				style = "radio",
+				blip = "guideInsider",
+				portrait = {
+					bg = { 50, 30, 70 },
+					skin = { 200, 150, 120 },
+					hair = { 30, 30, 36 },
+					shape = "hood",
+					extras = {},
+				},
+			},
+			radiant = {
+				name = "RADIANT",
+				color = { 255, 220, 120 },
+				style = "person",
+				blip = "guideFake",
+				portrait = {
+					bg = { 96, 74, 20 },
+					skin = { 255, 222, 176 },
+					hair = { 255, 214, 90 },
+					shape = "slick",
+					extras = { "mask" },
+				},
+			},
+			bulwark = {
+				name = "BULWARK",
+				color = { 200, 205, 215 },
+				style = "person",
+				blip = "guideFake",
+				portrait = {
+					bg = { 60, 62, 72 },
+					skin = { 200, 182, 160 },
+					hair = { 150, 156, 170 },
+					shape = "helmet",
+					extras = { "visor" },
+				},
+			},
+			copy = {
+				name = "THE COPY",
+				color = { 255, 110, 110 },
+				style = "person",
+				blip = "guideFake",
+				portrait = {
+					bg = { 80, 20, 24 },
+					skin = { 150, 152, 162 },
+					hair = { 40, 40, 44 },
+					shape = "messy",
+					extras = { "visor" },
+				},
+			},
+		},
+		-- the three guides: each has its own blip and portrait
+		guides = { "lodestar", "patch", "crane" },
+		tags = { radio = "RADIO", broadcast = "ON AIR" },
+		maxChars = 120, -- a line fits a phone's subtitle box (3 to 4 short rows)
+		-- the queue: a line shows base + chars * perChar seconds (min to max); a camera beat's lines stay until
+		-- the next (at most `hold`); open-world lines wait while a camera beat runs, and go stale after `ttl`
+		queue = { base = 1.2, perChar = 0.055, min = 3, max = 7, hold = 6, ttl = 25, catchUp = 6 },
+		-- the box: centred under the letterbox on a camera beat; in play, the widest free spot clear of the
+		-- action buttons, the HUD's status corner and the top row (Shared.GuidePlan.box)
+		box = { maxW = 560, minW = 250, h = 84, hCompact = 78, portrait = 56, letterbox = 0.1 },
+		-- where the lore doc puts each guide (mission numbers): Lodestar pulls you out in the prologue and runs
+		-- the safehouse; Patch is on the radio in every mission
+		appears = { lodestar = { 1, 2 }, patch = { 1, 2, 3, 4, 5, 6 } },
+		-- Patch on the radio in the open world (outside missions and the prologue; the "Guide radio" setting
+		-- turns it off): at most one line every `gap` seconds; firstIncident and firstBoss once a session;
+		-- unlock[n] when a level-up opens mission n; idle[n] when the hero stands still `idle` seconds with
+		-- mission n pinned in the Journal (again after `idleRepeat`); afterAct1 `afterAct` seconds after the
+		-- ending broadcast. A stage line in a mission plays only if the stage began under `stageLate` s ago.
+		radio = {
+			gap = 45,
+			idle = 75,
+			idleRepeat = 300,
+			idleMove = 8, -- studs: moving less than this counts as standing still
+			afterAct = 3,
+			stageLate = 8,
+			lines = {
+				firstIncident = {
+					who = "patch",
+					hero = "Trouble on the radar! Somebody needs a hand. Go be a hero!",
+					villain = "Trouble on the radar. Messy, loud and profitable. Your kind of thing.",
+				},
+				firstBoss = {
+					who = "patch",
+					hero = "Something HUGE just landed! Not one of Crane's, I think. Team up!",
+					villain = "Something huge just landed. Big things drop big loot. Just saying.",
+				},
+				unlock = {
+					[2] = {
+						who = "patch",
+						hero = "Old Star's waiting under the plaza. The Safehouse mission is open!",
+						villain = "Old Star wants a word under the plaza. The Safehouse mission is open.",
+					},
+					[3] = {
+						who = "patch",
+						hero = "Level up! Something's wrong at the bridge. Framed is in your Journal.",
+						villain = "Level up! A bridge, a fake and armored trucks. Framed is in your Journal.",
+					},
+					[4] = {
+						who = "patch",
+						hero = "Level up! A rooftop alarm keeps pinging your name. The Copy is open.",
+						villain = "Level up! A fence wants a rooftop meet. The Copy is open.",
+					},
+					[5] = {
+						who = "patch",
+						hero = "Level up! Crane Tower's mast is calling. The Signal is open.",
+						villain = "Level up! Crane Tower runs every screen in town. The Signal is open.",
+					},
+					[6] = {
+						who = "patch",
+						hero = "Level up! Bulwark's big show is coming. Live is open. Time to crack a face.",
+						villain = "Level up! Bulwark's big show is coming. Live is open. Let's ruin it.",
+					},
+				},
+				idle = {
+					[2] = {
+						who = "patch",
+						hero = "Psst. Old Star's waiting at the safehouse. It's pinned in your Journal!",
+						villain = "Psst. Old Star's deal is still on the table. Safehouse, in your Journal.",
+					},
+					[3] = {
+						who = "patch",
+						hero = "Radiant's up to something at the bridge. Framed is pinned in your Journal.",
+						villain = "Those armored trucks won't loot themselves. Framed is in your Journal.",
+					},
+					[4] = {
+						who = "patch",
+						hero = "That rooftop alarm is still going off. The Copy is in your Journal.",
+						villain = "Your fence is still waiting on that roof. The Copy is in your Journal.",
+					},
+					[5] = {
+						who = "patch",
+						hero = "Crane Tower's mast won't hack itself. The Signal is in your Journal.",
+						villain = "Every screen in town, for a price. The Signal is in your Journal.",
+					},
+					[6] = {
+						who = "patch",
+						hero = "Bulwark's show is tonight. Live is pinned in your Journal. Let's go!",
+						villain = "Bulwark's show is tonight. Live is in your Journal. Bring a crowbar.",
+					},
+				},
+				afterAct1 = {
+					who = "patch",
+					hero = "Public enemy number one? Old Star says that means we're winning. Lie low, hero.",
+					villain = "Public enemy number one! The Syndicate is throwing you a party. Probably.",
+				},
+			},
+		},
+		-- Lodestar in person in the Vigil's HQ (the hero's HQ cell; he keeps away from the Foundry): a Talk
+		-- prompt `at` (x, z from the cell centre), each talk the next line of the rotation for the story so
+		-- far (the first tier whose `from` is at or under the next mission's number; 7 when Act 1 is done).
+		lodestar = {
+			at = { 14, -30 },
+			range = 12,
+			prompt = "Talk",
+			spawnFor = 60, -- seconds the Dev panel's Lodestar stays
+			talk = {
+				{
+					from = 1,
+					lines = {
+						"You made it out. Rest a minute, then meet me at the safehouse.",
+						"The kid talks a lot. Listen anyway. Patch is never wrong about Crane.",
+						"Your Spark woke up the hard way. Mine did too.",
+					},
+				},
+				{
+					from = 3,
+					lines = {
+						"Crane's fakes stage the disasters, then take the bows. Watch for the cracks.",
+						"Save people first. Footage second. Pride never.",
+						"Patch made you a badge? Wear it. It means a lot to the kid.",
+					},
+				},
+				{
+					from = 5,
+					lines = {
+						"If the city won't believe us, we show them. Every screen at once.",
+						"I once fought a fake wearing a friend's face. Don't let it stop your swing.",
+						"Old Star. The kid thinks I don't know about that name.",
+					},
+				},
+				{
+					from = 7,
+					lines = {
+						"Public enemy number one. Welcome to the Vigil, for real this time.",
+						"A new law changes nothing. We protect this city anyway.",
+						"Crane's next move is coming. Rest while you can, rookie.",
+					},
+				},
+			},
 		},
 	},
 	-- Every-screen news flashes (a toast for everyone in the server); %s is the fake's name

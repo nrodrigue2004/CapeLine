@@ -44,6 +44,7 @@ Waiting on others:
 - H8 (lore thread): the episodes' panel lines and step texts are drafts (PLACEHOLDER CONTENT in Config.Episodes); the launch episodes use the existing task forces and missions as their 4th step, so a new mission or task force leg each week waits on the lore thread's content. Config.Pass.startWeek (2970 = Monday 2026-11-30) is a guess: set it to the launch Monday.
 
 ## Placeholder art and animation (replace before launch)
+- Lore step 6 guides: the portraits (Lodestar, Patch, Crane, the insider, Radiant, Bulwark, the copy) are drawn from UI frames in GuideHud, and each speaker's blip is a built-in clip (Config.Audio sounds radio, guideLodestar, guideCrane, guideInsider, guideFake). PLACEHOLDER ART and PLACEHOLDER SOUND until the art pass and real voice lines.
 - H8: travel styles are engine Trails and ParticleEmitters with default textures; the PASS panel, intro panels and XP cards are Kit frames; the Opening Night costume set reuses existing kits (Tuxedo, Feather Cape, Fox Mask, Loafers) and needs its own pieces in the art pass; the 4 pass HQ props are 3-stud blocks; pass emotes and the landing pose are joint angles. PLACEHOLDER ART until the effects, UI and Blender passes.
 - H7: the Badge Book, contest banner and vote card are Kit frames; the collection finds are glowing neon balls with engine sparkles; the contest stage, pads, podium and spotlight are plain parts; the 12 collection HQ props are 3-stud blocks; accolade auras are engine motes and plate trims a UIStroke. PLACEHOLDER ART until the UI and Blender passes.
 - H6 mentors: the portrait is a colour block with an initial (MentorHud) and the ally is the blocky R15 body in the mentor's two colours (MentorService). PLACEHOLDER ART until the Blender pass.
@@ -121,6 +122,19 @@ What nate does:
    (`bash art/store/make.sh twist`).
 
 ## Studio test list (needs nate's PC)
+
+### Lore step 6: guides (2026-11-17)
+nate's lore, build plan step 6: Lodestar in person, Patch on the radio, Crane's broadcast voice; subtitles with a blip now, real voice lines later. Start: `rojo serve`, Play; the DEV button has the tools.
+1. DEV > "Guide: lodestar", then tap it again for patch and crane: a box with the speaker's portrait (Lodestar silver hair, beard, star; Patch cap and headset with faint static bars; Crane slick hair and tie), the name in their colour, RADIO on Patch and ON AIR on Crane, and a different blip for each.
+2. Tap or click the box while a line shows: the next line starts at once (nothing overlaps); with no next line the box goes away.
+3. DEV > "Prologue: Vigil": every line of the prologue shows in the same box (under the letterbox on camera beats, in play on the roofs and in the tunnel), the same text as before, one at a time, with each speaker's blip. Repeat as the Syndicate.
+4. DEV > each mission as each side: on each stage start a short Patch line (Lodestar's in the safehouse gauntlet); the camera beats' lines as before, in the box. Join a mission late (second player): the old stage's line does not play.
+5. Phone emulator (iPhone SE, then a big phone, left-handed on and off): in play the box never covers an action button, the status card or radar, or the top row; on the SE it sits on the left under the status card; it never blocks the move stick (it does not take taps there).
+6. Open world, Guide radio on: Patch speaks on your first incident, the first world boss landing (DEV > boss now), a level-up that opens a mission (DEV > level, e.g. to 4 after Safehouse), after 75 s standing still with the next mission pinned, and a few seconds after Act 1's broadcast. Never two lines within 45 s; none while a mission or the prologue runs. Each line differs as the Syndicate.
+7. Settings > Guide radio off: none of step 6 plays; mission and prologue lines still do.
+8. Settings > Reduce flashing on: no pop on the box and no flicker on Patch's static.
+9. As the Vigil: enter your HQ: Lodestar stands near the command table; B (or tap Talk) gives a line, again for the next (3 lines, then they repeat); the lines change after Safehouse, after The Copy and after Live. As the Syndicate: The Foundry has no Lodestar; he only appears where the Safehouse deal is offered.
+10. DEV > "Spawn Lodestar": he stands 8 studs in front of you facing you with a Talk prompt, gone after a minute.
 
 ### Weighty hits (2026-11-17, build playtest-hits)
 nate: "Make hits weighty" (flash, white, sound, particles, knockback, shake and freeze). Numbers in Config.Combat.weight (tune there).

@@ -4,7 +4,7 @@
 -- beacons, wreck here, repair city, flip cars, save, wipe, and (M6) incident by template, clear incidents,
 -- event by type, boss now, boss to 1 HP, finish contract, clock phase, hero or villain side, and (M7) the
 -- Ceremony prologue as the Vigil or the Syndicate and a jump to each of its beats (lore step 3), each Act 1 mission as each side and a jump to each of its stages (lore step 5), finish the step, leave, start a side quest, clear
--- Act 1 and reset the story, and (M9) the creator, enter HQ, HQ level, 8 h away, all pieces, a test buy
+-- Act 1 and reset the story, a sample line per guide and Lodestar beside you (lore step 6), and (M9) the creator, enter HQ, HQ level, 8 h away, all pieces, a test buy
 -- (twice grants once) and the level cap, and (2026-11-17) the next incident, event or contract to try (the
 -- "Inc:", "Ev:" and "Con:" buttons start the one named, "next" picks another), and a Heroic switch for them.
 -- The stats line shows the server frame, script time per service, enemies, bots, send
@@ -27,6 +27,8 @@ local Telemetry = require(script.Parent.Parent.Controllers.Telemetry)
 local SettingsClient = require(script.Parent.Parent.Controllers.SettingsClient)
 local EnemyRenderer = require(script.Parent.Parent.Controllers.EnemyRenderer)
 local StoryClient = require(script.Parent.Parent.Controllers.StoryClient)
+local GuideClient = require(script.Parent.Parent.Controllers.GuideClient)
+local GuideHud = require(script.Parent.GuideHud)
 
 local DevPanel = {}
 
@@ -319,6 +321,17 @@ function DevPanel.init()
 	end)
 	add("Leave mission", function()
 		Net.send("DevCommand", "leavemission")
+	end)
+	-- lore step 6: a sample line per guide (tap again for the next speaker), and Lodestar beside you
+	local guideIdx = 1
+	local guides = Config.Story.guides.guides
+	add("Guide: " .. guides[1], function(b)
+		GuideHud.sample(guides[guideIdx])
+		guideIdx = guideIdx % #guides + 1
+		b.Text = "Guide: " .. guides[guideIdx]
+	end)
+	add("Spawn Lodestar", function()
+		GuideClient.spawnLodestar()
 	end)
 	local questIdx = 1
 	add("Quest: " .. Config.Story.quests[1].id, function(b)

@@ -68,6 +68,8 @@ local CollectClient = require(Controllers.CollectClient) -- H7: collection spark
 local PassHud = require(Ui.PassHud) -- H8: the Hero Pass, the episode and travel styles
 local TravelStyleFx = require(Fx.TravelStyleFx) -- H8: travel styles on every screen
 local StoryHud = require(Ui.StoryHud)
+local GuideHud = require(Ui.GuideHud) -- lore step 6: the guides' line box
+local GuideClient = require(Controllers.GuideClient) -- lore step 6: stage lines, Patch's radio, Lodestar
 local Journal = require(Ui.Journal)
 local PvpHud = require(Ui.PvpHud)
 local Plates = require(Ui.Plates)
@@ -140,7 +142,9 @@ MapScreen.init()
 WorldHud.init()
 CreatorScreen.init()
 WeaponRack.init()
+GuideHud.init()
 StoryHud.init()
+GuideClient.init()
 Journal.init()
 PvpHud.init()
 Plates.init()

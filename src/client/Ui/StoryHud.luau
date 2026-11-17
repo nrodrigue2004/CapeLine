@@ -1,6 +1,7 @@
 -- StoryHud: the story on screen (spec: The opening; First 30 seconds; Suit up; Act 1; Side quests).
 -- * The Ceremony prologue (lore step 3): letterbox bars on the camera beats, the subtitles (Crane on the stage,
---   Patch on the radio, Lodestar; fixed lines from Config.Story.opening.lines by side), SPARK DETECTED, the
+--   Patch on the radio, Lodestar; fixed lines from Config.Story.opening.lines by side, shown by the guide line
+--   queue, Ui.GuideHud, since lore step 6), SPARK DETECTED, the
 --   SKIP button (camera beats, replays only), the CAPELINE title card, and a quick fade on each cut. The HUD
 --   shows only the beat's verb buttons (Hud.setFocus); a marker shows where to go; other screens stay hidden.
 --   The world side (stage, crowd, camera, effects) is PrologueFx.
@@ -29,6 +30,7 @@ local OpeningPlan = require(Shared:WaitForChild("OpeningPlan"))
 
 local Kit = require(script.Parent.Kit)
 local Hud = require(script.Parent.Hud)
+local GuideHud = require(script.Parent.GuideHud)
 local State = require(script.Parent.Parent.State)
 local StoryClient = require(script.Parent.Parent.Controllers.StoryClient)
 local InputController = require(script.Parent.Parent.Controllers.InputController)
@@ -55,10 +57,6 @@ local questText: TextLabel
 local questFill: Frame
 local skipBeat: TextButton
 local bars: { Frame } = {}
-local subtitle: Frame
-local subName: TextLabel
-local subText: TextLabel
-local radioTag: TextLabel
 local detected: TextLabel
 local titleCard: Frame
 local markerPart: Part
@@ -91,54 +89,6 @@ local function buildPrologue()
 		bar.Parent = gui
 		table.insert(bars, bar)
 	end
-	subtitle = Kit.frame({
-		Name = "Subtitle",
-		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0.11, 6),
-		Size = UDim2.new(0.7, 0, 0, 66),
-		BackgroundColor3 = Kit.color.ink,
-		BackgroundTransparency = 0.25,
-		Visible = false,
-		ZIndex = 32,
-	})
-	local slimit = Instance.new("UISizeConstraint")
-	slimit.MaxSize = Vector2.new(600, 66)
-	slimit.Parent = subtitle
-	subtitle.Parent = gui
-	subName = Kit.label({
-		Name = "Speaker",
-		Size = UDim2.new(1, -90, 0, 22),
-		Position = UDim2.fromOffset(10, 4),
-		TextXAlignment = Enum.TextXAlignment.Left,
-		TextColor3 = Kit.color.gold,
-		maxText = 18,
-		ZIndex = 33,
-	})
-	subName.Parent = subtitle
-	radioTag = Kit.label({
-		Name = "Radio",
-		Text = "RADIO",
-		AnchorPoint = Vector2.new(1, 0),
-		Position = UDim2.new(1, -10, 0, 4),
-		Size = UDim2.fromOffset(70, 20),
-		TextColor3 = Color3.fromRGB(120, 230, 255),
-		maxText = 14,
-		Visible = false,
-		ZIndex = 33,
-	})
-	radioTag.Parent = subtitle
-	subText = Kit.label({
-		Name = "Line",
-		Size = UDim2.new(1, -20, 0, 36),
-		Position = UDim2.fromOffset(10, 27),
-		TextXAlignment = Enum.TextXAlignment.Left,
-		TextColor3 = Kit.color.paper,
-		Font = Kit.bodyFont,
-		TextWrapped = true,
-		maxText = 16,
-		ZIndex = 33,
-	})
-	subText.Parent = subtitle
 	detected = Kit.label({
 		Name = "Detected",
 		Text = S.opening.detected,
@@ -180,38 +130,20 @@ local function cut()
 	TweenService:Create(fade, TweenInfo.new(0.7), { BackgroundTransparency = 1 }):Play()
 end
 
--- The subtitle for this moment of the beat (each line stays until the next, or 6 s). `beat` keys the cache:
--- a prologue beat's name, or a mission's camera beat (its step table).
+-- The subtitles (lore step 6): the beat's timed lines go to the guide line queue (GuideHud), which shows
+-- each until the next (at most Config.Story.guides.queue.hold) with its speaker's portrait and blip. The
+-- cache's table keys the beat: a prologue beat's name, or a mission's camera beat (its step table).
 local lineCache: { step: any, side: string?, list: { any } } = { step = nil, side = nil, list = {} }
-local function showLine(list: { any }, t: number)
-	local show = nil
-	for i, l in list do
-		local nxt = list[i + 1]
-		local until_ = if nxt then math.min(nxt.at, l.at + 6) else l.at + 6
-		if t >= l.at and t < until_ then
-			show = l
-		end
-	end
-	subtitle.Visible = show ~= nil
-	if show then
-		local who = S.opening.speakers[show.who] or S.opening.speakers.crane
-		subName.Text = who.name
-		subName.TextColor3 = rgb(who.color)
-		radioTag.Visible = who.radio == true
-		subText.Text = show.text
-	end
-end
-
 local function sceneText(st: any, side: string, t: number)
 	if lineCache.step ~= st or lineCache.side ~= side then
 		lineCache = { step = st, side = side, list = StoryPlan.sceneLines(st, side) }
 	end
-	showLine(lineCache.list, t)
+	GuideHud.timeline(lineCache, lineCache.list, t)
 end
 
 local function prologueText(step: string?, t: number)
 	if not step then
-		subtitle.Visible = false
+		GuideHud.timeline(nil, nil, 0)
 		return
 	end
 	local beat = step :: string
@@ -219,7 +151,7 @@ local function prologueText(step: string?, t: number)
 	if lineCache.step ~= beat or lineCache.side ~= side then
 		lineCache = { step = beat, side = side, list = OpeningPlan.lines(Config, beat, side) }
 	end
-	showLine(lineCache.list, t)
+	GuideHud.timeline(lineCache, lineCache.list, t)
 end
 
 ---------------------------------------------------------------------------
@@ -516,7 +448,7 @@ local function buildBroadcast()
 		AnchorPoint = Vector2.new(0.5, 0),
 		Position = UDim2.fromScale(0.5, 0.33),
 		Size = UDim2.fromScale(0.7, 0.06),
-		TextColor3 = rgb(S.opening.speakers.crane.color),
+		TextColor3 = rgb(S.guides.speakers.crane.color),
 		maxText = 20,
 	}).Parent =
 		news
@@ -631,7 +563,7 @@ local function broadcastFrame(now: number)
 	newsParts.Speaker.Visible = show ~= nil
 	newsParts.Line.Visible = show ~= nil
 	if show then
-		local who = S.opening.speakers[show.who] or S.opening.speakers.crane
+		local who = S.guides.speakers[show.who] or S.guides.speakers.crane
 		newsParts.Speaker.Text = who.name
 		newsParts.Line.Text = show.text
 	end
@@ -676,7 +608,6 @@ local function refreshOpening()
 	if not step then
 		titleCard.Visible = false
 		detected.Visible = false
-		subtitle.Visible = false
 	end
 	lastStep = step or ""
 end
@@ -760,6 +691,11 @@ local function frame()
 		prologueText(if o.hold then nil else step, t)
 	end
 	broadcastFrame(now)
+	-- the guide line box: under the letterbox on a camera beat; open-world lines wait while the prologue, a
+	-- mission or the broadcast is on; the box steps away from the full-screen broadcast
+	local cinematic = (step ~= nil and OpeningPlan.CUT[step] == true and not o.hold)
+		or (scene ~= nil and not step)
+	GuideHud.setScene(cinematic, step ~= nil or StoryClient.inMission() or newsOn ~= nil, newsOn ~= nil)
 	detected.Visible = step == "scan" and t >= S.opening.beats.scan * 0.42
 	local showTitle = step == "title" and t >= S.opening.beats.title * 0.55
 	if showTitle and not titleCard.Visible then
@@ -812,6 +748,10 @@ function StoryHud.init()
 	trackTitle.Size = UDim2.new(1, -106, 0, 22)
 	trackText.Size = UDim2.new(1, -106, 0, 18)
 	questPanel, questTitle, questText, questFill = buildTracker("Quest", 136)
+	-- the guide line box keeps clear of the trackers and the choice card (lore step 6)
+	GuideHud.keepClear(tracker)
+	GuideHud.keepClear(questPanel)
+	GuideHud.keepClear(choiceCard)
 	resultCard = Kit.frame({
 		Name = "Result",
 		AnchorPoint = Vector2.new(0.5, 0.5),
