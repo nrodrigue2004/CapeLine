@@ -20,6 +20,7 @@ local DeepLayout = require(Shared:WaitForChild("DeepLayout"))
 local Signal = require(Shared:WaitForChild("Util"):WaitForChild("Signal"))
 
 local HeroService = require(script.Parent.HeroService)
+local MoveGuard = require(script.Parent.MoveGuard)
 local PerfMonitor = require(script.Parent.PerfMonitor)
 
 local EnemyService = {}
@@ -95,6 +96,30 @@ function EnemyService.spawnAt(
 	e.tag = tag
 	e.scripted = scripted
 	return e.id
+end
+
+-- A robot and the company it brings (a Swarmer's pack; a Captain's escort only when `escort` is true, since
+-- a site's squad already gives it a squad): returns every id. A type that is switched off spawns nothing.
+function EnemyService.spawnGroup(
+	kind: string,
+	pos: Vector3,
+	level: number,
+	tag: number?,
+	escort: boolean?
+): { number }
+	local ids = {}
+	local e = EnemySim.spawn(sim, kind, pos.X, pos.Y, pos.Z, level)
+	if not e then
+		return ids
+	end
+	e.tag = tag
+	table.insert(ids, e.id)
+	if e.cfg.pack or (escort and e.cfg.escort) then
+		for _, o in EnemySim.company(sim, e, escort == true) do
+			table.insert(ids, o.id)
+		end
+	end
+	return ids
 end
 
 -- Story robots: a health multiplier (mission bosses), a damage multiplier (0 never attacks back) and a
@@ -265,9 +290,12 @@ local function handleEvents()
 	for _, ev in EnemySim.drainEvents(sim) do
 		if ev.k == "shot" then
 			local row = { EnemyService.SHOT, ev.e, ev.x, ev.y, ev.z, ev.vx, ev.vy, ev.vz }
-			if ev.home then -- a torpedo: the hero it turns after and its turn rate
-				table.insert(row, ev.home)
-				table.insert(row, ev.turn)
+			if ev.home or ev.style then -- a torpedo: the hero it turns after and its turn rate (0 when not)
+				table.insert(row, ev.home or 0)
+				table.insert(row, ev.turn or 0)
+			end
+			if ev.style then -- 1 a sniper round, 2 a net, 3 a grappling hook
+				table.insert(row, ev.style)
 			end
 			table.insert(out, row)
 		elseif ev.k == "hit" then
@@ -278,6 +306,28 @@ local function handleEvents()
 				local dmg = math.floor(taken + 0.5)
 				if pos then
 					table.insert(out, { EnemyService.HERO_HIT, ev.hero, pos.X, pos.Y, pos.Z, dmg })
+				end
+				if hero.alive and not hero.downed then
+					if ev.cc then
+						-- the new types' crowd control (a net, a hook's hold, a shield bash): the same rules as PvP's
+						-- (stuns and roots shorten on repeats, Resolve shortens them)
+						HeroService.cc(hero, ev.cc, ev.ccTime or 0.5, ev.ccValue)
+					end
+					local pull = ev.pull
+					if pull and pos and hero.player then
+						-- a Grappler's hook: pulled toward it (and down to it), stopping `reel` studs short
+						local to = Vector3.new(pull.x, pull.y, pull.z) - pos
+						local flat = Vector3.new(to.X, 0, to.Z)
+						local len = math.max(0, flat.Magnitude - pull.reel)
+						local move = if flat.Magnitude > 0.1 then flat.Unit * len else Vector3.zero
+						local drop = math.min(0, to.Y)
+						MoveGuard.grant(hero, move.Magnitude + math.abs(drop) + 10)
+						Net.fire(
+							"HeroKnock",
+							hero.player,
+							{ x = move.X, y = 3, z = move.Z, time = pull.time, drop = drop }
+						)
+					end
 				end
 			end
 		elseif ev.k == "die" then
@@ -301,6 +351,20 @@ local function handleEvents()
 			end
 		elseif ev.k == "blocked" then
 			table.insert(out, { EnemyService.BLOCKED, 0, ev.x, ev.y, ev.z })
+		elseif ev.k == "aim" then
+			table.insert(out, { EnemyService.AIM, ev.e, ev.x, ev.y, ev.z, ev.hero, ev.t, ev.lock })
+		elseif ev.k == "rally" then
+			table.insert(out, { EnemyService.RALLY, ev.e, ev.x, ev.y, ev.z, ev.r })
+		elseif ev.k == "lob" then
+			table.insert(out, { EnemyService.LOB, ev.e, ev.x, ev.y, ev.z, ev.tx, ev.ty, ev.tz, ev.t })
+		elseif ev.k == "zone" then
+			table.insert(out, { EnemyService.ZONE, ev.e, ev.x, ev.y, ev.z, ev.r, ev.t })
+		elseif ev.k == "mend" then
+			table.insert(out, { EnemyService.MEND, ev.e, ev.x, ev.y, ev.z, ev.patient, ev.t })
+		elseif ev.k == "reveal" then
+			table.insert(out, { EnemyService.REVEAL, ev.e, ev.x, ev.y, ev.z })
+		elseif ev.k == "boom" then
+			table.insert(out, { EnemyService.BOOM, ev.e, ev.x, ev.y, ev.z, ev.r })
 		end
 	end
 	return out

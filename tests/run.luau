@@ -1540,6 +1540,444 @@ test("M2: Enemy.Delta carries status flags, facing and the new types' extra flag
 	check(r.typeId == 6, "type")
 end)
 
+local NEW_KINDS = {
+	"ShieldBearer",
+	"Captain",
+	"Sniper",
+	"Bomber",
+	"MedicUnit",
+	"Swarmer",
+	"Mimic",
+	"Interceptor",
+	"Grappler",
+}
+
+test(
+	"New robot types: all 9 in the game, each with its own switch; a switched-off type never spawns",
+	function()
+		local EnemyVariety = require("../src/shared/EnemyVariety")
+		for _, kind in NEW_KINDS do
+			local cfg = Config.Enemies[kind]
+			check(cfg ~= nil and cfg.on == true, kind .. " is on")
+			check(table.find(Config.Enemies.order, kind) ~= nil, kind .. " is in the order")
+			check(cfg.typeId >= 10 and cfg.typeId <= 31, kind .. " typeId fits the wire")
+			check(cfg.body ~= nil and cfg.name ~= nil, kind .. " has a body and a name")
+		end
+		-- switch every new type off: nothing spawns, populate never picks one, squads never swap one in
+		for _, kind in NEW_KINDS do
+			Config.Enemies[kind].on = false
+		end
+		local ok, err = pcall(function()
+			local sim = robotSim()
+			for _, kind in NEW_KINDS do
+				check(EnemySim.spawn(sim, kind, -50, 0, 0, 1) == nil, kind .. " off: never spawns")
+				check(not EnemySim.enabled(Config, kind), kind .. " off: not enabled")
+			end
+			local heroes = {}
+			for i = 1, 8 do
+				table.insert(heroes, { id = i, x = -200 - i * 40, y = 3, z = 0, alive = true })
+			end
+			for t = 1, 120 do
+				EnemySim.populate(sim, heroes, t)
+			end
+			for _, e in sim.enemies do
+				check(table.find(NEW_KINDS, e.kind) == nil, "populate never brings a switched-off type")
+			end
+			local rng = Rng.new(5)
+			for _ = 1, 200 do
+				for _, row in
+					EnemyVariety.squad(
+						Config,
+						{ { kind = "BurglarBot", n = 6 }, { kind = "SparkDrone", n = 4 } },
+						40,
+						function()
+							return Rng.next(rng)
+						end
+					)
+				do
+					check(table.find(NEW_KINDS, row.kind) == nil, "squads never swap in a switched-off type")
+				end
+			end
+		end)
+		for _, kind in NEW_KINDS do
+			Config.Enemies[kind].on = true
+		end
+		check(ok, "switches test ran: " .. tostring(err))
+	end
+)
+
+test("New robot types: squads gain them by level, at most `max` each, story squads untouched", function()
+	local EnemyVariety = require("../src/shared/EnemyVariety")
+	local rng = Rng.new(11)
+	local function rand()
+		return Rng.next(rng)
+	end
+	local squad =
+		{ { kind = "BurglarBot", n = 4 }, { kind = "SparkDrone", n = 3 }, { kind = "BruteBot", n = 1 } }
+	-- level 1: the first fights stay the classic robots
+	for _ = 1, 100 do
+		for _, row in EnemyVariety.squad(Config, squad, 1, rand) do
+			check(table.find(NEW_KINDS, row.kind) == nil, "level 1 squads keep the classic robots")
+		end
+	end
+	check(#EnemyVariety.unlocked(Config, 1) == 0, "nothing new unlocked at level 1")
+	check(#EnemyVariety.unlocked(Config, 40) == 9, "all 9 by the level cap")
+	local seen: { [string]: number } = {}
+	for _ = 1, 400 do
+		local out = EnemyVariety.squad(Config, squad, 30, rand)
+		local count, per = 0, {}
+		for _, row in out do
+			count += row.n
+			per[row.kind] = (per[row.kind] or 0) + row.n
+		end
+		check(count == 8, "a swap keeps the squad size")
+		for _, sw in Config.Enemies.variety.swaps do
+			check((per[sw.kind] or 0) <= sw.max, sw.kind .. " at most " .. sw.max)
+			if per[sw.kind] then
+				seen[sw.kind] = (seen[sw.kind] or 0) + 1
+			end
+		end
+	end
+	for _, kind in NEW_KINDS do
+		check((seen[kind] or 0) > 0, kind .. " shows up in level 30 squads")
+	end
+	-- a small squad never gets a Captain (min 4)
+	for _ = 1, 200 do
+		for _, row in EnemyVariety.squad(Config, { { kind = "BurglarBot", n = 2 } }, 40, rand) do
+			check(row.kind ~= "Captain", "no Captain in a squad of 2")
+		end
+	end
+end)
+
+test("New robot types: Shield Bearer blocks the front, covers robots behind it, bashes and slows", function()
+	local sim = robotSim()
+	local b = EnemySim.spawn(sim, "ShieldBearer", -60, 0, 0, 1) :: any
+	b.yaw = 0 -- facing -Z
+	local _, _, front, f1 = EnemySim.damage(sim, b.id, 100, 1, -60, -30)
+	check(f1 == EnemySim.BLOCKED and front == 0, "front hits do nothing")
+	-- a Burglar Bot right behind the shield (on +Z), hit from the front (-Z)
+	local behind = EnemySim.spawn(sim, "BurglarBot", -60, 0, 6, 1) :: any
+	local _, _, cut, f2 = EnemySim.damage(sim, behind.id, 100, 1, -60, -30)
+	check(f2 == EnemySim.BLOCKED, "covered by the shield")
+	near(cut, 100 * (1 - Config.Enemies.ShieldBearer.cover.cut), 1e-6, "takes 60% less")
+	local _, _, open = EnemySim.damage(sim, behind.id, 100, 1, -30, 6)
+	near(open, 100, 1e-6, "a hit from the side is not covered")
+	local _, _, side, f3 = EnemySim.damage(sim, b.id, 100, 1, -30, 0)
+	check(f3 == EnemySim.BROKE and side == 100, "a flank hit knocks the shield aside")
+	local _, _, cut2 = EnemySim.damage(sim, behind.id, 100, 1, -60, -30)
+	near(cut2, 100, 1e-6, "no cover while the shield is down")
+	-- the bash slows
+	local s2 = robotSim()
+	local b2 = EnemySim.spawn(s2, "ShieldBearer", -60, 0, 0, 1) :: any
+	local hero = { id = 1, x = -60, y = 3.5, z = -5, alive = true }
+	local bashed
+	run(s2, { hero }, 0, 6, function(ev)
+		if ev.k == "hit" and ev.cc then
+			bashed = ev
+		end
+	end)
+	check(bashed ~= nil and bashed.cc == "slow" and bashed.ccValue == 0.5, "the bash slows the hero")
+	check(b2.alive, "still standing")
+end)
+
+test("New robot types: Captain rallies robots near it (harder, faster); its fall slows them", function()
+	local sim = robotSim()
+	local cap = EnemySim.spawn(sim, "Captain", -60, 0, 0, 1) :: any
+	local grunt = EnemySim.spawn(sim, "BurglarBot", -60, 0, 10, 1) :: any
+	local far = EnemySim.spawn(sim, "BurglarBot", -60, 0, 200, 1) :: any
+	cap.nextSpecial = 0
+	local hero = { id = 1, x = -60, y = 3, z = -30, alive = true }
+	local rally
+	run(sim, { hero }, 0, 2, function(ev)
+		if ev.k == "rally" then
+			rally = ev
+		end
+	end)
+	check(rally ~= nil and rally.r == Config.Enemies.Captain.rally.radius, "a rally goes out")
+	check(grunt.rallyUntil > sim.now and grunt.rallyBy == cap.id, "the robot near it is rallied")
+	check(far.rallyUntil == 0, "a far one is not")
+	check(bit32.band(grunt.extra, EnemySim.EXTRA.rally) ~= 0, "the rally shows on the wire")
+	EnemySim.damage(sim, cap.id, math.huge, 1)
+	check(grunt.rallyUntil == 0, "the rally ends with the Captain")
+	check(Status.has(grunt.status, "slow", sim.now), "and its robots falter")
+	-- an ambient Captain brings an escort; a site squad's does not
+	local s2 = robotSim()
+	local c2 = EnemySim.spawn(s2, "Captain", -60, 0, 0, 1) :: any
+	check(#EnemySim.company(s2, c2) == Config.Enemies.Captain.escort.n, "the escort")
+	check(#EnemySim.company(s2, c2, false) == 0, "no escort for a squad's Captain")
+end)
+
+test("New robot types: Sniper's laser locks before the shot; moving then dodges it", function()
+	local function duel(dodge: boolean): (number, any)
+		local sim = robotSim()
+		local sn = EnemySim.spawn(sim, "Sniper", -60, 0, 0, 1) :: any
+		sn.nextSpecial = 0
+		local hero = { id = 1, x = -60, y = 3, z = -80, alive = true }
+		local hits, aim = 0, nil
+		local cfg = Config.Enemies.Sniper
+		local t = 0
+		while t < cfg.aim.time + 1.5 do
+			t += 0.05
+			if dodge and aim and t >= aim.at + cfg.aim.time - cfg.aim.lock + 0.05 then
+				hero.x = -45 -- side-step once the aim locks
+			end
+			EnemySim.step(sim, t, { hero })
+			for _, ev in EnemySim.drainEvents(sim) do
+				if ev.k == "aim" then
+					aim = { at = t, ev = ev }
+				elseif ev.k == "hit" then
+					hits += ev.damage
+				end
+			end
+		end
+		return hits, aim
+	end
+	local hit, aim = duel(false)
+	check(
+		aim ~= nil and aim.ev.hero == 1 and aim.ev.t == Config.Enemies.Sniper.aim.time,
+		"the laser names its hero"
+	)
+	local cfg = Config.Enemies.Sniper
+	near(
+		hit,
+		Formulas.enemyDamage(Config, "Sniper", 1) * cfg.fire.coeff,
+		1e-6,
+		"standing still: one heavy round"
+	)
+	local dodged = duel(true)
+	check(dodged == 0, "moving after the lock dodges it")
+	-- a stun cancels the aim
+	local sim = robotSim()
+	local sn = EnemySim.spawn(sim, "Sniper", -60, 0, 0, 1) :: any
+	sn.nextSpecial = 0
+	run(sim, { { id = 1, x = -60, y = 3, z = -80, alive = true } }, 0, 0.3)
+	check(sn.aimUntil > 0, "aiming")
+	EnemySim.applyStatus(sim, sn.id, "stun", 1)
+	check(sn.aimUntil == 0, "a stun breaks the aim")
+	-- it backs away from a hero too close
+	local s3 = robotSim()
+	local sn3 = EnemySim.spawn(s3, "Sniper", -60, 0, 0, 1) :: any
+	run(s3, { { id = 1, x = -60, y = 3, z = -20, alive = true } }, 0, 1)
+	check(sn3.z > 0.5, "backs off from a close hero")
+end)
+
+test("New robot types: Bomber's grenade lands on the ring, then the ground burns", function()
+	local sim = robotSim()
+	local bm = EnemySim.spawn(sim, "Bomber", -60, 0, 0, 1) :: any
+	bm.nextSpecial = 0
+	local cfg = Config.Enemies.Bomber
+	local hero = { id = 1, x = -60, y = 3, z = -30, alive = true }
+	local lob, warn, boom, zone
+	local hits = 0
+	run(sim, { hero }, 0, 0.2, function(ev)
+		if ev.k == "lob" then
+			lob = ev
+		elseif ev.k == "warn" then
+			warn = ev
+		end
+	end)
+	check(lob ~= nil and warn ~= nil, "a lob and a ring")
+	near(warn.t, cfg.grenade.flight, 1e-6, "the ring shows for the flight")
+	check(
+		math.sqrt((warn.x - hero.x) ^ 2 + (warn.z - hero.z) ^ 2) <= cfg.grenade.spread * 1.5,
+		"aimed at the hero's spot"
+	)
+	run(sim, { hero }, 0.2, 2.5, function(ev)
+		if ev.k == "boom" then
+			boom = ev
+		elseif ev.k == "zone" then
+			zone = ev
+		elseif ev.k == "hit" then
+			hits += 1
+		end
+	end)
+	check(boom ~= nil and zone ~= nil, "the blast and the burning patch")
+	check(hits >= 2, "standing in it: the blast and the burn")
+	-- a hero who walked away is not hit
+	local s2 = robotSim()
+	local b2 = EnemySim.spawn(s2, "Bomber", -60, 0, 0, 1) :: any
+	b2.nextSpecial = 0
+	local h2 = { id = 1, x = -60, y = 3, z = -30, alive = true }
+	local got = 0
+	run(s2, { h2 }, 0, 0.2)
+	h2.z = -60
+	run(s2, { h2 }, 0.2, 2, function(ev)
+		if ev.k == "hit" then
+			got += 1
+		end
+	end)
+	check(got == 0, "out of the ring: no hit")
+end)
+
+test("New robot types: Medic Unit repairs the most damaged robot, never another Medic", function()
+	local sim = robotSim()
+	local med = EnemySim.spawn(sim, "MedicUnit", -60, 0, 0, 1) :: any
+	local hurt = EnemySim.spawn(sim, "BruteBot", -60, 0, 12, 1) :: any
+	local med2 = EnemySim.spawn(sim, "MedicUnit", -70, 0, 0, 1) :: any
+	hurt.health = hurt.maxHealth * 0.4
+	med2.health = med2.maxHealth * 0.2
+	local mend
+	local hero = { id = 1, x = -60, y = 3, z = 60, alive = true }
+	run(sim, { hero }, 0, 3, function(ev)
+		if ev.k == "mend" and ev.e == med.id then
+			mend = ev
+		end
+	end)
+	check(mend ~= nil and mend.patient == hurt.id, "repairs the Brute Bot")
+	check(hurt.health > hurt.maxHealth * 0.5, "health comes back")
+	check(med2.health <= med2.maxHealth * 0.2 + 1e-6, "never repairs another Medic")
+	check(bit32.band(med.extra, EnemySim.EXTRA.mend) ~= 0, "the beam shows on the wire")
+end)
+
+test("New robot types: Swarmers come in packs, surround, lunge and nip (a third of a robot each)", function()
+	local sim = robotSim()
+	local lead = EnemySim.spawn(sim, "Swarmer", -60, 0, 0, 1) :: any
+	local pack = EnemySim.company(sim, lead)
+	check(#pack + 1 == Config.Enemies.Swarmer.pack, "a pack of 6")
+	-- 6 Burglar Bots already on one hero: Swarmers still join (each counts a third)
+	local hero = { id = 1, x = -60, y = 3, z = -25, alive = true }
+	local s2 = robotSim()
+	for i = 1, 4 do
+		local o = EnemySim.spawn(s2, "BurglarBot", -40 - i * 3, 0, -25, 1) :: any
+		o.target, o.state = 1, EnemySim.CHASE
+	end
+	local sw = EnemySim.spawn(s2, "Swarmer", -60, 0, 0, 1) :: any
+	local mates = EnemySim.company(s2, sw)
+	local lunged, bites = false, 0
+	run(s2, { hero }, 0, 4, function(ev)
+		if ev.k == "hit" and ev.melee then
+			bites += 1
+		end
+	end)
+	for _, m in mates do
+		if m.lungeUntil > 0 then
+			lunged = true
+		end
+	end
+	check(lunged or sw.lungeUntil > 0, "they lunge")
+	check(bites >= 3, string.format("the pack nips (%d bites)", bites))
+	-- they spread round the hero
+	local minX, maxX = math.huge, -math.huge
+	for _, m in mates do
+		minX, maxX = math.min(minX, m.x), math.max(maxX, m.x)
+	end
+	check(maxX - minX > 2, "the pack spreads out")
+end)
+
+test("New robot types: Mimic passes for a citizen until a hero is close, then ambushes", function()
+	local sim = robotSim()
+	local m = EnemySim.spawn(sim, "Mimic", -60, 0, 0, 1) :: any
+	check(m.disguised, "dressed as a citizen")
+	run(sim, {}, 0, 0.2)
+	check(bit32.band(m.extra, EnemySim.EXTRA.disguise) ~= 0, "the disguise shows on the wire")
+	local seen = false
+	for _, c in EnemySim.candidates(sim) do
+		if c.id == m.id then
+			seen = true
+		end
+	end
+	check(not seen, "not a hit target while disguised")
+	local hero = { id = 1, x = -60, y = 3, z = -40, alive = true }
+	local revealed
+	local first
+	run(sim, { hero }, 0.2, 20, function(ev)
+		if ev.k == "reveal" then
+			revealed = ev
+		elseif ev.k == "hit" and not first then
+			first = ev
+		end
+	end)
+	check(revealed ~= nil, "it walks up and shows itself")
+	check(not m.disguised, "no longer disguised")
+	check(first ~= nil, "then strikes")
+	near(
+		first.damage,
+		(Config.Enemies.scale.dmgBase + Config.Enemies.scale.dmgPerLevel) * Config.Enemies.Mimic.ambush.coeff,
+		1e-6,
+		"the ambush strike hits hard"
+	)
+	-- a hit (an area power) also gives it away
+	local s2 = robotSim()
+	local m2 = EnemySim.spawn(s2, "Mimic", -60, 0, 0, 1) :: any
+	EnemySim.damage(s2, m2.id, 10, 1, -60, -20)
+	check(not m2.disguised, "a hit reveals it")
+end)
+
+test("New robot types: Interceptor hunts only fliers, its net holds them", function()
+	local sim = robotSim()
+	local it = EnemySim.spawn(sim, "Interceptor", -60, 40, 0, 1) :: any
+	local walker = { id = 1, x = -60, y = 3, z = -20, alive = true }
+	run(sim, { walker }, 0, 1)
+	check(it.target == nil, "ignores a hero on the ground")
+	local flier = { id = 2, x = -60, y = 50, z = -40, alive = true }
+	local net
+	it.nextSpecial = 0
+	run(sim, { walker, flier }, 1, 6, function(ev)
+		if ev.k == "hit" and ev.cc then
+			net = ev
+		end
+	end)
+	check(it.target == 2, "goes after the flier")
+	check(net ~= nil and net.cc == "root" and net.hero == 2, "the net holds the flier")
+	-- it lets the hero go a while after it lands
+	flier.y = 3
+	run(sim, { walker, flier }, 6, 9.5)
+	check(it.target == nil, "lets a landed hero go")
+end)
+
+test("New robot types: Grappler's hook pulls a hero down to it, then it punches", function()
+	local sim = robotSim()
+	local g = EnemySim.spawn(sim, "Grappler", -60, 0, 0, 1) :: any
+	g.nextSpecial = 0
+	local flier = { id = 1, x = -60, y = 30, z = -25, alive = true }
+	local hook, shot
+	run(sim, { flier }, 0, 2, function(ev)
+		if ev.k == "shot" and ev.style == 3 then
+			shot = ev
+		elseif ev.k == "hit" and ev.pull then
+			hook = ev
+		end
+	end)
+	check(shot ~= nil, "fires the hook")
+	check(
+		hook ~= nil and hook.cc == "root" and hook.ccTime == Config.Enemies.Grappler.hook.hold,
+		"hooked and held"
+	)
+	check(
+		hook.pull.reel == Config.Enemies.Grappler.hook.reel and math.abs(hook.pull.x - g.x) < 1e-6,
+		"pulled to the Grappler"
+	)
+	-- up close it punches
+	local s2 = robotSim()
+	EnemySim.spawn(s2, "Grappler", -60, 0, 0, 1)
+	local punches = 0
+	run(s2, { { id = 1, x = -60, y = 3.5, z = -4, alive = true } }, 0, 4, function(ev)
+		if ev.k == "hit" and ev.melee then
+			punches += 1
+		end
+	end)
+	check(punches >= 2, "punches up close")
+end)
+
+test("New robot types: fast shots never pass through a hero between steps", function()
+	local sim = robotSim()
+	local sn = EnemySim.spawn(sim, "Sniper", -60, 0, 0, 1) :: any
+	sn.nextSpecial = 0
+	local hero = { id = 1, x = -60, y = 3, z = -90, alive = true }
+	local hit = false
+	local t = 0
+	while t < 3 do
+		t += 0.2 -- a slow server frame: the round moves 48 studs a step
+		EnemySim.step(sim, t, { hero })
+		for _, ev in EnemySim.drainEvents(sim) do
+			if ev.k == "hit" then
+				hit = true
+			end
+		end
+	end
+	check(hit, "the round still hits")
+end)
+
 test("M2: populate mixes the robot kinds and keeps ground robots on streets", function()
 	local sim = robotSim()
 	local heroes = {}
