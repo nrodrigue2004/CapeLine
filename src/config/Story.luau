@@ -254,7 +254,7 @@ return {
 			run = 45,
 			spark = 12,
 			leap = 45,
-			chase = 60,
+			chase = 90, -- six roofs (five Leaps): long enough to run, and a hero who stands still is moved on
 			descend = 50,
 			tunnel = 75,
 			fight = 100,
@@ -269,7 +269,17 @@ return {
 		},
 		run = { minD = 60, maxD = 110 }, -- the spark point: open ground this far from the start, away from the stage
 		spark = { reach = 18, auto = 6, after = 3, blast = 70 }, -- fires on Basic (or by itself); the shove flies 70
-		roofs = { count = 3, minH = 18, maxH = 200, near = { 20, 160 }, gap = { 30, 75 }, climb = 12 },
+		-- the chase: the first `count` roofs of the rooftop row (Config.City.downtown.row, nate 2026-11-17); if
+		-- the row is missing, a chain of `fallback` ordinary Downtown roofs near the spark point
+		roofs = {
+			count = 6,
+			fallback = 3,
+			minH = 18,
+			maxH = 200,
+			near = { 20, 160 },
+			gap = { 30, 75 },
+			climb = 12,
+		},
 		chase = { fake = "Skylance", behind = 26, throwEvery = 3.2, warn = 0.7 }, -- harmless telegraphed spears
 		suit = { pieceGap = 0.16 }, -- the suit snaps on piece by piece this fast
 		entrance = { minD = 20, maxD = 80 }, -- the subway steps: open ground below the last roof
@@ -387,6 +397,18 @@ return {
 					villain = "You sent that guy flying. Noted. Now Skylance is on your tail!",
 				},
 				{ at = 7, who = "patch", text = "Keep jumping! His spears never miss twice!" },
+				{
+					at = 14,
+					who = "patch",
+					hero = "Roof to roof, over the street! Don't look down!",
+					villain = "Roof to roof! Don't let the Silver Streak catch you!",
+				},
+				{
+					at = 22,
+					who = "patch",
+					hero = "Almost clear! I'm finding you a way off these roofs!",
+					villain = "Almost clear! I'm finding you somewhere to vanish!",
+				},
 			},
 			suit = {
 				{ at = 0.4, who = "patch", text = "Whoa. Is your Spark making you a suit? That is SO cool." },

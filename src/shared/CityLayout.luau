@@ -61,6 +61,8 @@ export type Layout = {
 	parts: number,
 	props: { Prop },
 	open: { { id: string, x: number, z: number, size: number } }, -- open squares kept for the lore thread
+	-- the rooftop row (Config.City.downtown.row) in running order: each roof's centre, top and footprint
+	row: { { x: number, z: number, top: number, sx: number, sz: number, grp: string } },
 }
 
 local function box(
@@ -209,6 +211,8 @@ type Ctx = {
 	style: any, -- dressBlock's props
 	grown: boolean, -- buildings outside the first Downtown (WorldMap ids them after the first 220)
 	skyline: any?, -- Config.City.skyline: tower silhouettes and band spacing
+	row: { [string]: number }?, -- the rooftop row's blocks ("bx,bz" -> its place in downtown.row.blocks)
+	rowOut: { any }?, -- the row's roofs as they are built (Layout.row)
 }
 
 local DOWNTOWN_STYLE = { planter = "Planter" }
@@ -304,6 +308,96 @@ local function bands(c: Ctx, x: number, z: number, sx: number, sz: number, heigh
 	end
 end
 
+-- The rooftop row's dressing on one roof, in its own frame: u along the row, v across it (v < 0 is the street
+-- side of the strip). The middle of every roof stays clear for landing; what stands is solid and low (AC
+-- units, tanks, skylights, a hatch, the posts) and what is only decoration is walk-through (the billboard's
+-- face, the washing line). PLACEHOLDER ART: plain boxes in the city palette until the kit gets rooftop meshes.
+local ROW_DRESS: { [string]: { { any } } } = {
+	-- { kind, u, u studs, v, du, dy, dv, y (its foot above the roof), color, shape?, ghost? }: u and v are -1
+	-- to 1 across the roof's free half width and half depth (u plus a stud offset); sizes in studs, and a
+	-- negative du is the roof's width less that much
+	ac = {
+		{ "prop", -1, 0, 1, 4, 3, 5, 0, "steel" },
+		{ "prop", -1, 5, 1, 4, 3, 5, 0, "steel" },
+	},
+	hatch = { { "prop", 1, 0, -1, 4, 2.5, 4, 0, "roof" } },
+	tank = {
+		{ "prop", -1, 0, 1, 8, 2, 8, 0, "steel" },
+		{ "prop", -1, -0.5, 1, 7, 10, 7, 2, "wood", "cylinder" },
+	},
+	billboard = {
+		{ "prop", -1, 3, -1, 1, 15, 1, 0, "steel" },
+		{ "prop", 1, -3, -1, 1, 15, 1, 0, "steel" },
+		{ "prop", 0, 0, -1, -2, 9, 0.6, 5.5, "white", nil, true },
+	},
+	skylights = {
+		{ "prop", -0.5, 0, 0.5, 6, 1.2, 8, 0, "glass" },
+		{ "prop", 0.5, 0, 0.5, 6, 1.2, 8, 0, "glass" },
+	},
+	laundry = {
+		{ "prop", -1, 2, 0.82, 0.6, 7, 0.6, 0, "steel" },
+		{ "prop", 1, -2, 0.82, 0.6, 7, 0.6, 0, "steel" },
+		{ "prop", 0, 0, 0.82, -6.6, 0.2, 0.2, 6.6, "white", nil, true },
+		{ "prop", -0.45, 0, 0.82, 2.4, 3, 0.2, 3.6, "white", nil, true },
+		{ "prop", 0, 0, 0.82, 2.4, 3, 0.2, 3.6, "roofRed", nil, true },
+		{ "prop", 0.45, 0, 0.82, 2.4, 3, 0.2, 3.6, "roofBlue", nil, true },
+	},
+}
+
+-- The rooftop row (Config.City.downtown.row) in one of its blocks: `k` is the block's place in row.blocks, so
+-- its roofs are row.roofs[(k - 1) * #row.at + 1 ...]. Designed numbers, no draws: the same city every time.
+-- Each roof is a real building (a group, a kit front, a cornice, a drone spot), so it wrecks and repairs.
+local function rooftopRow(c: Ctx, k: number, minX: number, minZ: number)
+	local boxes, t, kit, gy = c.boxes, c.t, c.kit, c.gy
+	local R = t.row
+	local inner = t.block - 2 * t.sidewalk
+	local lot = (inner - t.lotGap * (t.lotsPerSide - 1)) / t.lotsPerSide
+	local z = minZ + t.sidewalk + (R.strip - 1) * (lot + t.lotGap) + lot / 2
+	for j, along in R.at do
+		local i = (k - 1) * #R.at + j
+		local r = R.roofs[i]
+		if not r then
+			continue
+		end
+		local x = minX + t.block / 2 + along
+		local top = gy + 0.9 + r.h
+		local first = #boxes + 1
+		box(boxes, "building", x, gy + 0.9 + r.h / 2, z, r.w, r.h, r.d, r.color)
+		bands(c, x, z, r.w, r.d, r.h)
+		if kit then
+			local front = CityKit.front(kit, boxes[first], kit.fronts[c.group], r.color) or "Office"
+			for n = first + 1, #boxes do
+				boxes[n].plain = front
+			end
+			box(boxes, "ledge", x, top - kit.cornice / 2 + 0.05, z, r.w + 1, kit.cornice, r.d + 1, "cornice")
+			boxes[#boxes].dress = true
+		end
+		for _, name in r.dress or {} do
+			local list: { { any } } = ROW_DRESS[name] or {}
+			for _, d in list do
+				local du = if d[5] < 0 then r.w + d[5] else d[5]
+				local dv = d[7]
+				local u = d[2] * (r.w / 2 - du / 2 - 1) + d[3]
+				local v = d[4] * (r.d / 2 - dv / 2 - 1)
+				box(boxes, d[1], x + u, top + d[8] + d[6] / 2, z + v, du, d[6], dv, d[9], d[10])
+				boxes[#boxes].ghost = if d[11] then true else nil
+			end
+		end
+		local grp = c.prefix .. (#c.buildings + 1)
+		for n = first, #boxes do
+			boxes[n].grp = grp
+		end
+		table.insert(
+			c.buildings,
+			{ x = x, z = z, sx = r.w, sz = r.d, h = r.h + 0.9, grp = grp, base = gy + 0.9 }
+		)
+		table.insert(c.droneSpots, { x = x, y = top + 18, z = z })
+		if c.rowOut then
+			c.rowOut[i] = { x = x, z = z, top = top, sx = r.w, sz = r.d, grp = grp }
+		end
+	end
+end
+
 -- One block of 2 x 2 lots (or a reserved safehouse lot), its sidewalk and, with the kit, its dressing. The
 -- draws per lot are always the same eight in the same order, so a reserved lot never moves the others.
 local function lotBlock(c: Ctx, rng: any, bx: number, bz: number, minX: number, minZ: number)
@@ -319,6 +413,7 @@ local function lotBlock(c: Ctx, rng: any, bx: number, bz: number, minX: number, 
 	local inner = t.block - 2 * t.sidewalk
 	local lot = (inner - t.lotGap * (t.lotsPerSide - 1)) / t.lotsPerSide
 	local roofProp = t.rooftop.waterTowerChance or t.rooftop.gardenChance
+	local rowAt = c.row and c.row[bx .. "," .. bz]
 	for lx = 1, t.lotsPerSide do
 		for lz = 1, t.lotsPerSide do
 			local lcx = minX + t.sidewalk + (lx - 1) * (lot + t.lotGap) + lot / 2
@@ -338,6 +433,9 @@ local function lotBlock(c: Ctx, rng: any, bx: number, bz: number, minX: number, 
 			if reservedId then
 				c.safehouseSpots[reservedId] = { x = lcx, z = lcz }
 				continue
+			end
+			if rowAt and lz == t.row.strip then
+				continue -- the rooftop row stands here (its draws were taken, so nothing else moves)
 			end
 			local first = #boxes + 1
 			-- a tower's silhouette, by a hash of its spot (never a draw): its shaft is the wreckable box
@@ -414,6 +512,9 @@ local function lotBlock(c: Ctx, rng: any, bx: number, bz: number, minX: number, 
 			})
 			table.insert(c.droneSpots, { x = lcx, y = top + 18, z = lcz })
 		end
+	end
+	if rowAt then
+		rooftopRow(c, rowAt, minX, minZ)
 	end
 	if kit then
 		-- the block's props stay clear of its buildings and of each other
@@ -492,7 +593,16 @@ function CityLayout.downtown(cityCfg: any, worldCfg: any?): Layout
 		style = DOWNTOWN_STYLE,
 		grown = false,
 		skyline = cityCfg.skyline,
+		row = nil,
+		rowOut = {},
 	}
+	if t.row then
+		local rowBlocks = {}
+		for k, b in t.row.blocks do
+			rowBlocks[b[1] .. "," .. b[2]] = k
+		end
+		c.row = rowBlocks
+	end
 
 	-- Downtown asphalt base (the kit's road texture covers it all: it is one part)
 	local w, h = d.maxX - d.minX, d.maxZ - d.minZ
@@ -641,6 +751,7 @@ function CityLayout.downtown(cityCfg: any, worldCfg: any?): Layout
 		parts = parts,
 		props = props,
 		open = openSquares,
+		row = c.rowOut or {},
 	}
 end
 

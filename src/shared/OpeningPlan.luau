@@ -3,8 +3,9 @@
 -- world data, so Lune checks every point is real for any weekly seed and both sides' beats.
 -- * route: where it all happens for one new hero: Crane's Hero Hall (the Beacon Tower) and the stage before it
 --   (Silas Crane, the three famous fakes, the scanner), the crowd on the street, the hero's start among them,
---   the spark point down the street (the kid or the shover), a chain of rooftops one Leap apart for the chase,
---   the subway steps below the last roof, the billboard for the last shot and where the hero lands after.
+--   the spark point down the street (the kid or the shover), the rooftop row's roofs one Leap apart for the
+--   chase (Config.City.downtown.row; a chain of ordinary roofs if the row is missing), the subway steps below
+--   the last roof, the billboard for the last shot and where the hero lands after.
 -- * lane: one prologue's tunnel in the subway pocket (PocketLayout.lane): start, collapses, fight chamber.
 -- * STEPS: the beats in order. CUT beats are camera beats (letterbox, no control); TIMED beats move on by
 --   the clock; every other beat moves on by itself after Config.Story.opening.stuck seconds.
@@ -208,6 +209,33 @@ local function groundY(Config: any, world: any, x: number, z: number): number
 	return math.max(gy + 0.2, HeightMap.at(world.heights, x, z))
 end
 
+-- The rooftop row's first `count` roofs (CityLayout's Layout.row), when every hop is one Leap and no higher
+-- than a Leap climbs; nil if the row is missing or short (the route then picks a chain of ordinary roofs)
+local function rowRoofs(Config: any, world: any, count: number): { any }?
+	local row = world.downtown and world.downtown.row
+	if not row or #row < count then
+		return nil
+	end
+	local R = Config.Story.opening.roofs
+	local reach = math.min(R.gap[2], Config.Move.leap.range)
+	local list = {}
+	for i = 1, count do
+		local b = row[i]
+		if not b then
+			return nil
+		end
+		local cur = list[#list]
+		if cur then
+			local gap = dist(b.x, b.z, cur.x, cur.z)
+			if gap < R.gap[1] or gap > reach or b.top > cur.top + R.climb then
+				return nil
+			end
+		end
+		table.insert(list, b)
+	end
+	return list
+end
+
 -- A chain of `count` roofs from `first`, each one Leap from the last and no higher than a Leap climbs (in a
 -- Downtown block of 2 x 2 lots, the three tallest in falling order always make one)
 local function roofChain(Config: any, world: any, first: any, count: number, rng: any): { any }?
@@ -264,6 +292,19 @@ function OpeningPlan.route(Config: any, world: any, rng: any): Route?
 	-- the stage's side of the Hall: one of the four, picked by the seed, whose crowd stands on open ground
 	local dirs = { { 0, 1 }, { 1, 0 }, { 0, -1 }, { -1, 0 } }
 	local first = rng:int(1, 4)
+	-- with the rooftop row, the stage faces it (so the chase starts across the street from the crowd)
+	local lineRoofs = rowRoofs(Config, world, O.roofs.count)
+	if lineRoofs then
+		local rx, rz = lineRoofs[1].x - hx, lineRoofs[1].z - hz
+		local along = math.abs(rx) >= math.abs(rz)
+		local wx = if along then math.sign(rx) else 0
+		local wz = if along then 0 else math.sign(rz)
+		for k, d in dirs do
+			if d[1] == wx and d[2] == wz then
+				first = k
+			end
+		end
+	end
 	local face, crowd = nil, nil
 	for k = 0, 3 do
 		local d = dirs[(first + k - 1) % 4 + 1]
@@ -308,15 +349,22 @@ function OpeningPlan.route(Config: any, world: any, rng: any): Route?
 	local front = half + P.stage.gap + P.stage.depth
 	local sx0, sz0 = hx + fx * (front + P.start), hz + fz * (front + P.start)
 	local start = { sx0, groundY(Config, world, sx0, sz0), sz0 }
-	-- the spark point: open ground down the street, never back toward the stage
+	-- the spark point: open ground down the street, never back toward the stage (with the rooftop row, the
+	-- spot of a few nearest its first roof, so the chase starts close by)
 	local spark = nil
+	local best = math.huge
 	for _ = 1, 24 do
 		local s = IncidentSpots.find(Config, world, "street", start[1], start[3], O.run.minD, O.run.maxD, rng)
 		if s then
 			local away = (s.x - hx) * fx + (s.z - hz) * fz
 			if away >= front and dist(s.x, s.z, hx, hz) >= front + 20 then
-				spark = s
-				break
+				local d = if lineRoofs then dist(s.x, s.z, lineRoofs[1].x, lineRoofs[1].z) else 0
+				if d < best then
+					spark, best = s, d
+				end
+				if not lineRoofs then
+					break
+				end
 			end
 		end
 	end
@@ -326,24 +374,31 @@ function OpeningPlan.route(Config: any, world: any, rng: any): Route?
 	-- the kid (or the shover) a few studs further on, between the hero and the spark point's far side
 	local kx, kz = spark.x + fx * P.kid, spark.z + fz * P.kid
 	local kid = { kx, groundY(Config, world, kx, kz), kz }
-	-- the rooftop chase: a low roof near the spark point, then one Leap at a time, away from the plaza
+	-- the rooftop chase: the rooftop row; without it, a low roof near the spark point, then one Leap at a time
 	local R = O.roofs
+	local chain = lineRoofs
 	local climbs = {}
 	for _, b in world.buildings do
 		local h = b.top - gy
 		local d = dist(b.x, b.z, spark.x, spark.z)
-		if b.district == "Downtown" and h >= R.minH and h <= R.maxH and d >= R.near[1] and d <= R.near[2] then
+		if
+			not chain
+			and b.district == "Downtown"
+			and h >= R.minH
+			and h <= R.maxH
+			and d >= R.near[1]
+			and d <= R.near[2]
+		then
 			table.insert(climbs, b)
 		end
 	end
 	table.sort(climbs, function(a, b)
 		return a.id < b.id
 	end)
-	local chain = nil
-	local nc = #climbs
+	local nc = if chain then 0 else #climbs
 	local offset = if nc > 0 then rng:int(1, nc) else 1
 	for k = 0, nc - 1 do
-		chain = roofChain(Config, world, climbs[(offset + k - 1) % nc + 1], R.count, rng)
+		chain = roofChain(Config, world, climbs[(offset + k - 1) % nc + 1], R.fallback, rng)
 		if chain then
 			break
 		end

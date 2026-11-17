@@ -10141,6 +10141,102 @@ test("Lore 3: the prologue's whole route is real for any weekly seed", function(
 	end
 end)
 
+test(
+	"Lore 3: the rooftop row: in the layout, clear of the squares and the Hall, wreckable, the chase's roofs",
+	function()
+		local gy = Config.City.ground.y
+		local T = Config.City.downtown
+		local R = OP.roofs
+		local L = world.downtown
+		check(#L.row == #T.row.roofs and #L.row >= R.count, #L.row .. " roofs in the row")
+		local function overlaps(ax, az, asx, asz, bx, bz, bsx, bsz): boolean
+			return math.abs(ax - bx) < (asx + bsx) / 2 and math.abs(az - bz) < (asz + bsz) / 2
+		end
+		local hall = L.beacon
+		local heights = {}
+		for i, r in L.row do
+			heights[r.top] = true
+			for _, o in L.open do
+				check(
+					not overlaps(r.x, r.z, r.sx, r.sz, o.x, o.z, o.size, o.size),
+					"roof " .. i .. " is off " .. o.id
+				)
+			end
+			check(
+				not overlaps(r.x, r.z, r.sx, r.sz, hall.x, hall.z, T.block, T.block),
+				"roof " .. i .. " is off the Hall's plaza"
+			)
+			for id, s in L.safehouseSpots do
+				check(
+					not overlaps(r.x, r.z, r.sx, r.sz, s.x, s.z, 20, 20),
+					"roof " .. i .. " is off safehouse " .. id
+				)
+			end
+			-- a real building: alone on its lot, wreckable like any other
+			local mine, others = 0, 0
+			for _, b in L.buildings do
+				if b.grp == r.grp then
+					mine += 1
+				elseif overlaps(r.x, r.z, r.sx, r.sz, b.x, b.z, b.sx, b.sz) then
+					others += 1
+				end
+			end
+			check(mine == 1 and others == 0, "roof " .. i .. " stands alone")
+			local wreck = nil
+			for _, b in world.buildings do
+				if b.grp == r.grp then
+					wreck = b
+				end
+			end
+			check(
+				wreck ~= nil and wreck.district == "Downtown" and math.abs(wreck.top - r.top) < 0.01,
+				"roof " .. i .. " can be wrecked and repaired"
+			)
+			-- the middle stays clear to land on: anything solid near it is a low skylight
+			for _, b in L.boxes do
+				if b.grp == r.grp and b.kind == "prop" and not b.ghost then
+					local near = math.abs(b.cx - r.x) < b.sx / 2 + 4 and math.abs(b.cz - r.z) < b.sz / 2 + 4
+					check(
+						not near or b.cy + b.sy / 2 <= r.top + 1.5,
+						"roof " .. i .. "'s middle is clear to land"
+					)
+				end
+			end
+			if i > 1 then
+				local p = L.row[i - 1]
+				local gap = math.sqrt((r.x - p.x) ^ 2 + (r.z - p.z) ^ 2)
+				check(
+					gap >= 35 and gap <= 65 and gap <= Config.Move.leap.range,
+					"hop " .. i .. " is a short Leap"
+				)
+				check(r.top <= p.top + R.climb, "hop " .. i .. " rises no more than a Leap climbs")
+				check(r.top - gy >= R.minH, "roof " .. i .. " is a real roof")
+			end
+		end
+		local n = 0
+		for _ in heights do
+			n += 1
+		end
+		check(n >= 4, "the roofs have varied heights")
+		-- the chase runs the row (for any seed) and falls back to ordinary roofs without it
+		for k = 1, 4 do
+			local r = OpeningPlan.route(Config, world, Rng.new(k))
+			check(r ~= nil and #r.roofs == R.count, "the chase has " .. R.count .. " roofs")
+			if r then
+				for i, p in r.roofs do
+					check(p[1] == L.row[i].x and p[3] == L.row[i].z, "chase roof " .. i .. " is the row's")
+				end
+				check(flat(r.spark, r.roofs[1]) <= 80, "the spark point is at the foot of the row")
+			end
+		end
+		local bare = table.clone(world)
+		bare.downtown = table.clone(world.downtown)
+		bare.downtown.row = {}
+		local fb = OpeningPlan.route(Config, bare, Rng.new(5))
+		check(fb ~= nil and #fb.roofs == R.fallback, "without the row, " .. R.fallback .. " ordinary roofs")
+	end
+)
+
 test("Lore 3: the subway pocket: a lane per prologue, collapses on a timer, a fight chamber", function()
 	local S = OP.subway
 	local idx = PocketLayout.subwayIndex(Config)
