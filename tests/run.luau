@@ -6292,6 +6292,81 @@ test(
 	end
 )
 
+test("Effects library: every set has an element, every kind a texture, budgets and plans hold", function()
+	local FxPlan = require("../src/shared/FxPlan")
+	local fsx = require("@lune/fs")
+	local L = Config.Fx.lib
+	for set in Config.Abilities.setColor do
+		check(L.setElement[set] ~= nil and L.elements[L.setElement[set]] ~= nil, set .. " has an element")
+	end
+	check(L.setElement.Weapon ~= nil, "weapon moves have an element")
+	for name, k in L.kinds do
+		check(L.textures[k.tex] ~= nil, name .. " has a texture")
+		check(
+			k.size[1] >= 0 and k.size[2] >= 0 and k.life[1] > 0 and k.life[2] >= k.life[1],
+			name .. " sizes and life"
+		)
+		check(
+			k.speed[2] >= k.speed[1] and k.light >= 0 and k.light <= 1 and k.alpha >= 0 and k.alpha < 1,
+			name .. " ranges"
+		)
+	end
+	for name, t in L.textures do
+		check(
+			string.find(t.builtin, "rbxasset://textures/particles/", 1, true) == 1,
+			name .. " has a built-in fallback"
+		)
+		check(fsx.isFile("art/export/fx/" .. t.file), name .. " sheet " .. t.file .. " is generated")
+		check(t.id == 0 or t.id > 0, name .. " id is a number")
+	end
+	for el, e in L.elements do
+		for _, moment in { "impact", "trail", "burst" } do
+			check(e[moment] ~= nil, el .. " has a " .. moment)
+			for kind, n in e[moment] or {} do
+				check(L.kinds[kind] ~= nil and n >= 1, el .. "." .. moment .. "." .. kind .. " is a kind")
+			end
+		end
+	end
+	-- the presets' shares and budgets exist for every device preset
+	for _, name in Config.Presets.order do
+		check(L.budget[name] ~= nil and L.scale[name] ~= nil, name .. " has an effects budget")
+	end
+	check(L.budget.low < L.budget.medium and L.budget.medium < L.budget.high, "budgets grow with the preset")
+	-- plans: one-offs always show, the rest scale and never vanish
+	local hi = FxPlan.plan(L, "electric", "impact", 1, 1)
+	local lo = FxPlan.plan(L, "electric", "impact", 0.4, 1)
+	local function count(plan, kind)
+		for _, e in plan do
+			if e.kind == kind then
+				return e.count
+			end
+		end
+		return 0
+	end
+	check(count(hi, "spark") == L.elements.electric.impact.spark, "high preset draws the full count")
+	check(count(lo, "spark") < count(hi, "spark") and count(lo, "spark") >= 1, "low preset draws fewer")
+	check(count(lo, "glow") == 1, "a single glow always shows")
+	check(FxPlan.plan(L, "nope", "impact", 1, 1)[1] ~= nil, "an unknown element falls back")
+	-- the budget refills over a second and trims a burst over it
+	local b = FxPlan.newBudget(100, 0)
+	check(FxPlan.take(b, 80, 0) == 80 and FxPlan.take(b, 80, 0) == 20, "the budget trims")
+	check(FxPlan.take(b, 10, 0) == 0, "an empty budget draws nothing")
+	check(FxPlan.take(b, 60, 0.5) == 50, "half a second refills half")
+	check(FxPlan.take(b, 500, 10) == 100, "it never stores more than a second")
+	-- rings, trails, textures
+	check(FxPlan.shockRadius(L, 13) == 12 and FxPlan.shockRadius(L, 400) == 50, "rings snap to a size")
+	local pts = FxPlan.trailPoints(L, 1000)
+	check(#pts == L.trailMax and pts[1] > 0 and pts[#pts] < 1, "long trails cap their points")
+	check(#FxPlan.trailPoints(L, 2) == 1, "short trails emit once")
+	local tex = FxPlan.textureOf(L, "spark")
+	check(tex == L.textures.spark.builtin, "no upload yet: the built-in image")
+	local saved = L.textures.smoke.id
+	L.textures.smoke.id = 12345
+	local t2, flip = FxPlan.textureOf(L, "smoke")
+	check(t2 == "rbxassetid://12345" and flip == 4, "an uploaded sheet is used with its grid")
+	L.textures.smoke.id = saved
+end)
+
 print(string.format("\n%d passed, %d failed", passed, failed))
 if failed > 0 then
 	process.exit(1)

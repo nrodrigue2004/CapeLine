@@ -166,6 +166,7 @@ local function hitPause(time: number)
 	if CameraController.reduceMotion then
 		return
 	end
+	HeroAnimator.freeze(time)
 	local char = player.Character
 	local hum = char and char:FindFirstChildOfClass("Humanoid")
 	local animator = hum and hum:FindFirstChildOfClass("Animator")
@@ -283,10 +284,10 @@ function CombatClient.fire(id: string): boolean
 		HeroAnimator.cast(player, row, step)
 	end
 	if eff.cast and eff.cast > 0 then
-		CombatFx.windup(myChest, eff.cast, style, color)
+		CombatFx.windup(myChest, eff.cast, style, color, eff.set)
 	elseif shape == "bolt" and not eff.channel then
 		local to = targetPos or (origin + dir * math.min(range, (point - origin).Magnitude))
-		CombatFx.bolt(origin, to, style, color)
+		CombatFx.bolt(origin, to, style, color, eff.set)
 	elseif shape == "bolt" and eff.channel then
 		local tid = hint
 		channel = { seq = seq, id = id, untilT = now + eff.channel * (eff.tick or 0.25) }
@@ -297,21 +298,22 @@ function CombatClient.fire(id: string): boolean
 					return nil
 				end
 				return EnemyRenderer.position(tid) or PvpClient.position(tid) or sourcePosition(tid)
-			end, eff.channel * (eff.tick or 0.25), style, color)
+			end, eff.channel * (eff.tick or 0.25), style, color, eff.set)
 		end
 	elseif shape == "chain" then
 		CombatFx.chain(
 			{ origin, targetPos or (origin + dir * math.min(range, (point - origin).Magnitude)) },
 			style,
-			color
+			color,
+			eff.set
 		)
 	elseif shape == "dash" then
 		local d = math.max(0, rayDist(origin, dir, eff.range) - 3)
-		CombatFx.dash(origin, origin + dir * d, style, color)
+		CombatFx.dash(origin, origin + dir * d, style, color, eff.set)
 		MoveController.dash(dir, d, eff.time or 0.18)
 		CameraController.punch(0.05)
 	elseif shape == "cone" then
-		CombatFx.cone(origin, dir, eff.range, eff.cone or 40, style, color)
+		CombatFx.cone(origin, dir, eff.range, eff.cone or 40, style, color, eff.set)
 	elseif shape == "arc" then
 		CombatFx.arc(
 			origin,
@@ -322,7 +324,8 @@ function CombatClient.fire(id: string): boolean
 			color,
 			step,
 			(eff.set == "Blade" or eff.sword == true),
-			id == "RisingBlade"
+			id == "RisingBlade",
+			eff.set
 		)
 		if eff.channel then
 			channel = { seq = seq, id = id, untilT = now + eff.channel * (eff.tick or 0.15) }
@@ -339,11 +342,11 @@ function CombatClient.fire(id: string): boolean
 				MoveController.dash(Vector3.new(0, -1, 0), down - 3, 0.2)
 			end
 			task.delay(if down > 6 then 0.2 else 0, function()
-				CombatFx.nova(ground, eff.radius, style, color, true)
+				CombatFx.nova(ground, eff.radius, style, color, true, eff.set)
 				CameraController.shake(0.25, 0.6)
 			end)
 		else
-			CombatFx.nova(origin, eff.radius, style, color, slot == "super")
+			CombatFx.nova(origin, eff.radius, style, color, slot == "super", eff.set)
 			CameraController.shake(0.1, 0.3)
 		end
 	elseif shape == "line" then
@@ -360,7 +363,8 @@ function CombatClient.fire(id: string): boolean
 			style,
 			color,
 			eff.ground,
-			(eff.set == "Blade" or eff.sword == true)
+			(eff.set == "Blade" or eff.sword == true),
+			eff.set
 		)
 		if slot == "super" then
 			CameraController.shake(0.2, 0.5)
@@ -428,7 +432,7 @@ local function drawHits(r: any, row: any, style: string, mine: boolean)
 		anyCrit = anyCrit or crit
 		EnemyRenderer.flash(h[1])
 		if r.k ~= K.TICK or crit then
-			CombatFx.impact(pos, crit, style, mine, color)
+			CombatFx.impact(pos, crit, style, mine, color, row and row.set)
 		end
 		CombatFx.number(pos + Vector3.new(0, 2, 0), h[2], crit, style, mine, h[8])
 		if
@@ -453,6 +457,10 @@ local function drawHits(r: any, row: any, style: string, mine: boolean)
 		hitPause(if anyCrit or heavy then C.critPause else C.hitPause)
 		if heavy and r.k ~= K.TICK then
 			CameraController.shake(0.15, 0.45)
+		end
+		-- the camera punch: a small FOV kick on crits and heavy hits, smaller on the rest (never on ticks)
+		if r.k ~= K.TICK then
+			CameraController.punch(if anyCrit or heavy then C.punchHeavy else C.punchHit)
 		end
 		CombatClient.HitConfirm:Fire(anyCrit)
 	end
@@ -484,7 +492,7 @@ local function onResult(list: { any })
 						table.insert(points, EnemyRenderer.position(h[1]) or Vector3.new(h[5], h[6], h[7]))
 					end
 					if #points > 1 then
-						CombatFx.chain(points, style, color)
+						CombatFx.chain(points, style, color, row.set)
 					end
 				elseif not predicted and not (mine and row.shape == "leap") then
 					local data: CombatFx.CastData = {
@@ -545,11 +553,11 @@ local function onResult(list: { any })
 						end, r.dur or row.decoy, style, color)
 					end
 					if row.shape == "leap" and r.e then
-						CombatFx.dash(r.o, r.e, style, color) -- others see the leap's streak
+						CombatFx.dash(r.o, r.e, style, color, row.set) -- others see the leap's streak
 					end
 				end
 			elseif kind == K.WINDUP and not mine then
-				CombatFx.windup(casterPos(r.a, r.o), r.dur or 1, style, color)
+				CombatFx.windup(casterPos(r.a, r.o), r.dur or 1, style, color, row.set)
 				HeroAnimator.windup(HeroAnimator.byUserId(r.a), r.dur or 1)
 			elseif kind == K.LAND or kind == K.END then
 				if r.c then
@@ -563,7 +571,7 @@ local function onResult(list: { any })
 				end
 			elseif kind == K.ECHO then
 				if r.c then
-					CombatFx.nova(r.c, r.r or 10, style, color, false)
+					CombatFx.nova(r.c, r.r or 10, style, color, false, row.set)
 				elseif r.e then
 					CombatFx.line(
 						r.o,
@@ -572,7 +580,8 @@ local function onResult(list: { any })
 						style,
 						color,
 						row.ground,
-						(row.set == "Blade" or row.sword == true)
+						(row.set == "Blade" or row.sword == true),
+						row.set
 					)
 				end
 			elseif kind == K.CLASH then

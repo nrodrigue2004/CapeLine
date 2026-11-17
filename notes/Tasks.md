@@ -24,7 +24,7 @@ phones or Studio go on the Studio test list below.
 - World (M4): the Docks, Old Town, hub filler blocks, all 32 outskirts tile variants (houses, shops, parks, farms, coast), the 3 landmarks, safehouses, beacons, the sand and the ocean are simple parts (Districts, WorldGen, WorldMap). Balls stand in for leaves, domes and dunes. PLACEHOLDER ART until the M5 kit.
 - Map screen: flat coloured squares for zones, districts and landmarks; no tile detail (MapScreen). Fast-travel flight is a camera sweep with the hero left standing (TravelClient). PLACEHOLDER ART until M10.
 - Robot bodies: Blender meshes since 2026-11-16 (art/models/Robots.rbxm); the walk, aim and windup poses are still code-driven. PLACEHOLDER animation until real animations.
-- Ability visuals for all 40 powers: neon parts, beams and rings (CombatFx, AuraFx). PLACEHOLDER ART until particle textures and the icon set.
+- Ability visuals for all powers: neon parts, beams and rings (CombatFx, AuraFx) with the effects library's particles under them (FxLib, 2026-11-17) on Roblox's built-in particle images until the generated sheets in art/export/fx are uploaded (Launch Checklist). PLACEHOLDER ART until then and the icon set.
 - Snow Wall pieces, the Ice Slide ramp and the thrown crate in Lift and Throw: plain parts (CombatService). PLACEHOLDER ART.
 - Ability buttons show short names, not icons (Hud, LoadoutScreen). PLACEHOLDER ART.
 - Hero animations (2026-11-17): flight, hover, glide, leaps, dashes, slides, swings, wall runs, rides, swimming, the Downed kneel, every cast, each weapon family's combo, the windup and the flinch are hand-keyed code poses (Shared.HeroAnim, HeroAnimator); the ground walk, run, idle and jump are Roblox's default Animate. PLACEHOLDER ANIMATION until real animations are made and uploaded.
@@ -219,6 +219,14 @@ nate's plan: https://claude.ai/artifact/VeuJPWz6kKE6gGsUBmqQC9. Use a fresh hero
 8. Weapon Rack: the grey fifth terminal at a safehouse (hold B): every weapon by family; BUY one for Credits (Credits go down, it says it's yours), CARRY it (the hand shows it on 2), CUSTOMIZE opens the creator on the weapon step. Exotic ones show their Robux price; the Boomerang bought in the shop (test purchase) can be carried.
 9. Body sizes and doors: as a Titan and as a Small hero, walk through a safehouse shelter, a doorway and under a low ledge: both fit the same places a Medium hero does (one standard collider), and nobody falls through the floor or sinks into it.
 10. Old heroes: a hero made before this update keeps its look (no missing pieces), has Bare Fists on 2 and Male Medium Average.
+
+### Effects library (2026-11-17)
+The Output at boot says build fx-lib (2026-11-17). Uses Roblox's built-in particle images (art/export/fx holds the generated sheets to upload later).
+1. Volt (the slice to judge): the basic bolt crackles along its path with blue-white sparks and a hand flash; hits throw sparks and a short lightning crackle; Chain Lightning sparks at each hop; a nova leaves a flat electric shockwave ring on the floor with a spark burst; the beam channel crackles along the beam the whole time. Say yes or no on the look.
+2. Other elements, one power each: Fire leaves flames and embers, Frost and Tide throw shards, Earth and Colossus kick up dust, Shadow trails smoke and wisps, Mind and Pulse swirl a vortex, Spirit and Light leave wisps and sparkles, weapons spark like steel. Comic draws a little less than Anime.
+3. Feel: each of your hits holds the pose for a blink (hit-stop) with a small camera kick; crits and heavy hits kick harder. Other heroes' hits draw smaller.
+4. Settings: Reduce flashing removes the bright flashes (glow, core, crackle) but keeps sparks and smoke. The Low preset draws clearly fewer particles; with 4 heroes spamming novas the frame stays smooth (FrameProf in the Dev panel) and nothing errors.
+5. Robot deaths: a flash, sparks and a puff of smoke on top of the flying plates. Enemy slams kick up a ring of dust.
 
 ### Hero animations (2026-11-17)
 The Output at boot says build hero-anim (2026-11-17). Best with a second player (Studio Test > 2 players) to see the poses on another device too.

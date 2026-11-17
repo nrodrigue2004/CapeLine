@@ -18,6 +18,7 @@ local InputController = require(script.Parent.InputController)
 local CameraController = require(script.Parent.CameraController)
 local PvpClient = require(script.Parent.PvpClient)
 local CombatFx = require(script.Parent.Parent.Fx.CombatFx)
+local FxLib = require(script.Parent.Parent.Fx.FxLib)
 local Kit = require(script.Parent.Parent.Ui.Kit)
 
 local SettingsClient = {}
@@ -68,6 +69,7 @@ local function apply(id: string)
 	elseif id == "reduceFlashing" then
 		local on = v == 1
 		CombatFx.reduceFlashing = on
+		FxLib.reduceFlashing = on
 		CameraController.reduceMotion = on
 		Kit.flashLevel = if on then 0.35 else 1
 	elseif id == "leftHanded" or id == "oneHand" then

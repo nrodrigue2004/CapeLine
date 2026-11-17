@@ -11,6 +11,8 @@ return {
 	reachSlack = 6, -- studs added to every range check for lag
 	hitPause = 0.03,
 	critPause = 0.05,
+	punchHit = 0.012, -- camera FOV kick on your hits (CameraController.punch; clash uses its own)
+	punchHeavy = 0.03,
 	numbers = { stackTime = 0.35 }, -- Client: damage numbers on one target merge for this long
 	outOfCombat = 5, -- seconds since the last hit or cast: loadouts can change (until safehouses in M4)
 	echoDelay = 0.5, -- Aftershock, Shockwave and other echo capstones land this long after

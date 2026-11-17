@@ -29,7 +29,7 @@ local player = Players.LocalPlayer
 local IDENTITY = CFrame.identity
 local RAD = math.rad
 
-type Action = { clip: string, start: number, dur: number }
+type Action = { clip: string, start: number, dur: number, holdUntil: number?, holdT: number? }
 type Rig = {
 	char: Model,
 	root: BasePart,
@@ -150,6 +150,17 @@ function HeroAnimator.hit(p: Player?)
 	HeroAnimator.play(p, "flinch")
 end
 
+-- the hit-stop: your own action clip holds still for a moment (CombatClient pauses the Animator too)
+function HeroAnimator.freeze(seconds: number)
+	local r = rigs[player]
+	local a = r and r.action
+	if a then
+		local now = os.clock()
+		a.holdT = a.holdT or (now - a.start)
+		a.holdUntil = now + seconds
+	end
+end
+
 function HeroAnimator.byUserId(id: number?): Player?
 	return if id then Players:GetPlayerByUserId(id) else nil
 end
@@ -169,6 +180,13 @@ local function step(r: Rig, p: Player, now: number)
 	local act, wAct = nil, 0
 	local a = r.action
 	if a then
+		if a.holdUntil then
+			if now < a.holdUntil then
+				a.start = now - (a.holdT or 0) -- held: the clip's clock stops
+			else
+				a.holdUntil, a.holdT = nil, nil
+			end
+		end
 		local t = now - a.start
 		wAct = HeroAnim.actionWeight(t, a.dur)
 		if wAct <= 0 and t >= a.dur then

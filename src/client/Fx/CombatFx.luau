@@ -6,7 +6,8 @@
 --          impact frame on crits and supers, sharp numbers
 -- One function per ability shape (bolt, chain, dash, cone, arc, nova, line, field, beam, throw, leap,
 -- buff, wall, ramp), coloured by the power set, so all 40 abilities have both looks. CombatFx.cast picks
--- the right one from the ability row. Built-in parts and tweens only; nothing downloaded.
+-- the right one from the ability row. Built-in parts and tweens, with FxLib's textured particles (sparks,
+-- crackle, smoke, embers, shards, shockwave rings) under them per element: the optional `set` argument picks it.
 -- PLACEHOLDER ART until the VFX pass (Tasks.md).
 
 local Debris = game:GetService("Debris")
@@ -23,6 +24,7 @@ local EnemySim = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("
 
 local QualityController = require(script.Parent.Parent.Controllers.QualityController)
 local DebrisBudget = require(script.Parent.DebrisBudget)
+local FxLib = require(script.Parent.FxLib)
 
 local CombatFx = {}
 CombatFx.reduceFlashing = false
@@ -240,8 +242,10 @@ end
 -- Shapes
 ---------------------------------------------------------------------------
 
-function CombatFx.bolt(from: Vector3, to: Vector3, style: string, color: Color3?)
+function CombatFx.bolt(from: Vector3, to: Vector3, style: string, color: Color3?, set: string?)
 	local c = color or SET_COLOR.Volt
+	FxLib.trail(from, to, set, c)
+	FxLib.emit("glow", c, from, 1)
 	if style == "Anime" then
 		beam(from, to, F.bolt.width * 0.6, WHITE, F.bolt.life)
 		beam(from, to, F.bolt.width * 1.4, c, F.bolt.life * 1.6) -- afterimage glow
@@ -252,11 +256,13 @@ function CombatFx.bolt(from: Vector3, to: Vector3, style: string, color: Color3?
 end
 
 -- Jagged lightning through a list of points (Chain Lightning)
-function CombatFx.chain(points: { Vector3 }, style: string, color: Color3?)
+function CombatFx.chain(points: { Vector3 }, style: string, color: Color3?, set: string?)
 	local c = F.chain
 	local col = color or SET_COLOR.Volt
 	for i = 1, #points - 1 do
 		local a, b = points[i], points[i + 1]
+		FxLib.trail(a, b, set, col)
+		FxLib.impact(b, set, col, 0.6, nil, style)
 		local prev = a
 		for s = 1, c.segments do
 			local t = s / c.segments
@@ -272,8 +278,9 @@ function CombatFx.chain(points: { Vector3 }, style: string, color: Color3?)
 end
 
 -- A streak along a dash path
-function CombatFx.dash(from: Vector3, to: Vector3, style: string, color: Color3?)
+function CombatFx.dash(from: Vector3, to: Vector3, style: string, color: Color3?, set: string?)
 	local c = color or SET_COLOR.Volt
+	FxLib.trail(from, to, set, c)
 	if style == "Anime" then
 		for k = 0, 2 do
 			local off = Vector3.new(0, (k - 1) * 0.8, 0)
@@ -293,9 +300,11 @@ function CombatFx.cone(
 	range: number,
 	coneDeg: number,
 	style: string,
-	color: Color3
+	color: Color3,
+	set: string?
 )
 	local f = dir.Unit
+	FxLib.impact(origin + f * range * 0.5, set, color, 0.8, f, style)
 	local rays = if style == "Anime" then 7 else 5
 	local half = math.rad(coneDeg / 2)
 	local up = Vector3.new(0, 1, 0)
@@ -337,9 +346,11 @@ function CombatFx.arc(
 	color: Color3,
 	step: number?,
 	sword: boolean?,
-	rising: boolean?
+	rising: boolean?,
+	set: string?
 )
 	local f = flatLook(dir)
+	FxLib.impact(origin + f * range * 0.7, set, color, 0.5, f, style)
 	local st = step or 1
 	local tilt = if rising then 80 elseif st == 2 then -25 elseif st == 3 then 0 else 25
 	local base = CFrame.lookAt(origin, origin + f) * CFrame.Angles(0, 0, math.rad(tilt))
@@ -375,8 +386,16 @@ function CombatFx.arc(
 end
 
 -- A burst around a point (novas, slams, landings)
-function CombatFx.nova(center: Vector3, radius: number, style: string, color: Color3, big: boolean?)
+function CombatFx.nova(
+	center: Vector3,
+	radius: number,
+	style: string,
+	color: Color3,
+	big: boolean?,
+	set: string?
+)
 	local floor = center - Vector3.new(0, 1.2, 0)
+	FxLib.burst(center, radius, set, color, big)
 	if style == "Anime" then
 		ring(floor, radius, WHITE, 0.3, 0.15)
 		ring(floor, radius * 0.8, color, 0.45, 0.4)
@@ -414,12 +433,17 @@ function CombatFx.line(
 	style: string,
 	color: Color3,
 	ground: boolean?,
-	blade: boolean?
+	blade: boolean?,
+	set: string?
 )
 	local d = to - from
 	local len = d.Magnitude
 	if len < 0.5 then
 		return
+	end
+	FxLib.trail(from, to, set, color)
+	if ground then
+		FxLib.dust(to, width, nil)
 	end
 	local steps = math.clamp(math.floor(len / 6), 3, 14)
 	for i = 1, steps do
@@ -816,9 +840,11 @@ function CombatFx.beamHold(
 	to: () -> Vector3?,
 	duration: number,
 	style: string,
-	color: Color3
+	color: Color3,
+	set: string?
 )
 	local core = part(Vector3.new(0.3, 0.3, 1), CFrame.new(), WHITE)
+	local nextFx = 0
 	local glow = part(Vector3.new(1.4, 1.4, 1), CFrame.new(), color)
 	glow.Transparency = if style == "Anime" then 0.6 else 0.25
 	local start = os.clock()
@@ -840,12 +866,22 @@ function CombatFx.beamHold(
 		core.CFrame = cf
 		glow.Size = Vector3.new(w * 4 * wobble, w * 4 * wobble, len)
 		glow.CFrame = cf
+		local now = os.clock()
+		if now >= nextFx then
+			nextFx = now + 0.15
+			FxLib.trail(a, b, set, color)
+			FxLib.impact(b, set, color, 0.5, -d, style)
+		end
 	end))
 end
 
 -- A gathering glow on the caster during a windup (Haymaker, Crush, Heaven Splitter)
-function CombatFx.windup(at: () -> Vector3?, duration: number, style: string, color: Color3)
+function CombatFx.windup(at: () -> Vector3?, duration: number, style: string, color: Color3, set: string?)
 	local orb = part(Vector3.one * 0.5, CFrame.new(), color, Enum.PartType.Ball)
+	local p0 = at()
+	if p0 then
+		FxLib.gather(p0, set, color)
+	end
 	orb.Transparency = 0.2
 	local start = os.clock()
 	local conn
@@ -942,9 +978,17 @@ end
 -- Impacts and numbers
 ---------------------------------------------------------------------------
 
-function CombatFx.impact(pos: Vector3, crit: boolean, style: string, mine: boolean, color: Color3?)
+function CombatFx.impact(
+	pos: Vector3,
+	crit: boolean,
+	style: string,
+	mine: boolean,
+	color: Color3?,
+	set: string?
+)
 	local c = color or SET_COLOR.Volt
 	local scale = if crit then 1.5 else 1
+	FxLib.impact(pos, set, c, scale * (if mine then 1 else 0.6), nil, style)
 	if style == "Anime" then
 		local flash = part(Vector3.one * 2.5 * scale, CFrame.new(pos), WHITE, Enum.PartType.Ball)
 		fade(flash, 0.12, { Size = Vector3.one * 5 * scale })
@@ -1111,6 +1155,7 @@ function CombatFx.warn(center: Vector3, radius: number, time: number, arc: numbe
 end
 
 function CombatFx.slam(center: Vector3, radius: number)
+	FxLib.dust(center + Vector3.new(0, 0.3, 0), radius)
 	ring(center + Vector3.new(0, 0.3, 0), radius * 1.2, Color3.fromRGB(150, 130, 110), 0.4, 0.8)
 	ring(center + Vector3.new(0, 0.3, 0), radius, WARN, 0.25, 0.3)
 end
@@ -1123,6 +1168,7 @@ end
 -- Enemy defeated: bolts and plates fly, sparks fade in 2 s (spec juice row; machines only, no gore).
 -- Shares the device debris budget (DebrisBudget).
 function CombatFx.burst(pos: Vector3, style: string, metal: Color3?)
+	FxLib.wreck(pos)
 	local n = DebrisBudget.lease(F.enemyDeath.parts, F.enemyDeath.life)
 	for _ = 1, n do
 		local size =
@@ -1193,30 +1239,52 @@ function CombatFx.cast(row: any, style: string, data: CastData)
 				return o
 			end, data.target or function()
 				return data.e
-			end, data.dur or row.channel * (row.tick or 0.25), style, color)
+			end, data.dur or row.channel * (row.tick or 0.25), style, color, row.set)
 		else
-			CombatFx.bolt(o, data.e or (o + d * row.range), style, color)
+			CombatFx.bolt(o, data.e or (o + d * row.range), style, color, row.set)
 		end
 	elseif shape == "chain" then
-		CombatFx.chain({ o, data.e or (o + d * row.range) }, style, color)
+		CombatFx.chain({ o, data.e or (o + d * row.range) }, style, color, row.set)
 	elseif shape == "dash" then
-		CombatFx.dash(o, data.e or (o + d * row.range), style, color)
+		CombatFx.dash(o, data.e or (o + d * row.range), style, color, row.set)
 	elseif shape == "cone" then
-		CombatFx.cone(o, d, row.range, row.cone or 40, style, color)
+		CombatFx.cone(o, d, row.range, row.cone or 40, style, color, row.set)
 	elseif shape == "arc" then
 		local sword = (row.set == "Blade" or row.sword == true)
-		CombatFx.arc(o, d, row.range, row.cone or 90, style, color, data.step, sword, row.id == "RisingBlade")
+		CombatFx.arc(
+			o,
+			d,
+			row.range,
+			row.cone or 90,
+			style,
+			color,
+			data.step,
+			sword,
+			row.id == "RisingBlade",
+			row.set
+		)
 		if row.channel then
 			-- a flurry: more slashes over the channel
 			local n = row.channel
 			for i = 1, n - 1 do
 				task.delay(i * (row.tick or 0.15), function()
-					CombatFx.arc(o, d, row.range, row.cone or 90, style, color, (i % 3) + 1, sword)
+					CombatFx.arc(
+						o,
+						d,
+						row.range,
+						row.cone or 90,
+						style,
+						color,
+						(i % 3) + 1,
+						sword,
+						false,
+						row.set
+					)
 				end)
 			end
 		end
 	elseif shape == "nova" then
-		CombatFx.nova(data.c or o, data.r or row.radius, style, color, big)
+		CombatFx.nova(data.c or o, data.r or row.radius, style, color, big, row.set)
 	elseif shape == "line" then
 		local width = row.width or 5
 		CombatFx.line(
@@ -1226,7 +1294,8 @@ function CombatFx.cast(row: any, style: string, data: CastData)
 			style,
 			color,
 			row.ground,
-			(row.set == "Blade" or row.sword == true)
+			(row.set == "Blade" or row.sword == true),
+			row.set
 		)
 		if data.t then
 			CombatFx.line(
@@ -1236,18 +1305,19 @@ function CombatFx.cast(row: any, style: string, data: CastData)
 				style,
 				color,
 				row.ground,
-				(row.set == "Blade" or row.sword == true)
+				(row.set == "Blade" or row.sword == true),
+				row.set
 			)
 		end
 		if big then
-			CombatFx.nova(data.e or o, width, style, color, true)
+			CombatFx.nova(data.e or o, width, style, color, true, row.set)
 		end
 	elseif shape == "ride" then
 		CombatFx.ride(row.set, data.caster or function()
 			return o
 		end, data.dur or row.duration or 4, style, color)
 		if data.c and (row.coeff or 0) > 0 then
-			CombatFx.nova(data.c, data.r or row.radius or 8, style, color, false)
+			CombatFx.nova(data.c, data.r or row.radius or 8, style, color, false, row.set)
 		end
 	elseif shape == "launch" then
 		CombatFx.launch(row, o, style, color)
@@ -1259,7 +1329,7 @@ function CombatFx.cast(row: any, style: string, data: CastData)
 			end, data.dur or row.decoy or 5, style, color)
 		end
 	elseif shape == "field" and row.summon == "mech" then
-		CombatFx.nova(o, 10, style, color, true) -- the mech is the hero's own form (the Form attribute)
+		CombatFx.nova(o, 10, style, color, true, row.set) -- the mech is the hero's own form (the Form attribute)
 	elseif shape == "field" and row.summon then
 		local c = data.c or o
 		CombatFx.summon(row.summon, data.follow or function()
@@ -1300,7 +1370,7 @@ function CombatFx.area(
 	userId: number?
 )
 	local color = CombatFx.colorOf(row.set, userId)
-	CombatFx.nova(center, radius, style, color, row.slot == "super" and mine)
+	CombatFx.nova(center, radius, style, color, row.slot == "super" and mine, row.set)
 	if style ~= "Anime" then
 		CombatFx.word(center, row.set, color, row.slot == "super")
 	end
