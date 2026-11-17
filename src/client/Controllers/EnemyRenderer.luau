@@ -83,6 +83,7 @@ type Body = {
 	flashUntil: number,
 	lastFlags: number,
 	swingUntil: number,
+	look: string?,
 }
 
 local live: { [number]: Body } = {}
@@ -103,6 +104,10 @@ local TIES: { [string]: { string } } = {
 	Hair = { "Head" },
 	Emblem = { "UpperTorso" },
 	Belt = { "LowerTorso" },
+	PadL = { "LeftUpperArm" },
+	PadR = { "RightUpperArm" },
+	Pack = { "UpperTorso" },
+	Lamp = { "UpperTorso" },
 }
 
 -- The Blender robot meshes, found once. A piece takes the mesh named after it, else its unsided name (UpperL
@@ -177,6 +182,18 @@ local function newPart(
 	return p
 end
 
+-- A remade robot's extra pieces (shoulder pads, the back pack) from its shell set, Art[look], with textures
+local function lookMesh(look: string, name: string): BasePart?
+	local f = artFolder and artFolder:FindFirstChild(look)
+	local found = f and f:FindFirstChild(name, true)
+	if not (found and found:IsA("MeshPart")) then
+		return nil
+	end
+	local p = found:Clone()
+	NpcRig.keepLook(p)
+	return p
+end
+
 -- Each robot kind's rig: the creator build for its body build, scaled so the body is its height
 local layouts: { [number]: RigMath.Layout } = {}
 local function layoutFor(typeId: number, body: any): RigMath.Layout
@@ -223,7 +240,12 @@ local function makeRobot(typeId: number): Body
 		colors[s .. "Foot"] = trim
 	end
 	local set = BodyShape.setKey(Config, { gender = 1, build = LOOK.builds[body.build] or 2 })
-	local rig = NpcRig.build(layout, cfg.name, colors, SKIN, nil, set)
+	-- a remade robot (overhaul plan step 3): its armoured shell set once imported, else the plain shell
+	local look: string? = if body.art and NpcRig.meshes(set, body.art) then body.art else nil
+	if look then
+		colors.Head = suit -- a helmet, not a face (the colour shows only where the texture lets it)
+	end
+	local rig = NpcRig.build(layout, cfg.name, colors, SKIN, nil, set, look)
 	local model = rig.model
 	local parts, names, cols, trans, byName, index = {}, {}, {}, {}, {}, {}
 	local function register(name: string, p: BasePart)
@@ -337,34 +359,82 @@ local function makeRobot(typeId: number): Body
 		)
 		add("Foot" .. sl, s .. "Foot", I, foot * 0.7, metal, M)
 	end
-	-- the shell's extras
-	add("Belt", "LowerTorso", CFrame.new(0, LT.Y * 0.3, 0), LT * Vector3.new(1.03, 0.45, 1.03), trim, SKIN)
-	add(
-		"Emblem",
-		"UpperTorso",
-		CFrame.new(0, UT.Y * 0.18, -UT.Z * 0.5 - 0.03) * CFrame.Angles(0, 0, math.rad(45)),
-		Vector3.new(UT.X * 0.24, UT.X * 0.24, 0.06),
-		trim,
-		SKIN
-	)
-	add(
-		"Hair",
-		"Head",
-		CFrame.new(0, HD.Y * HAIR[1], HD.Z * HAIR[2]),
-		HD * Vector3.new(1.06, 0.3, 1.06),
-		rgb(LOOK.hair[1]),
-		SKIN
-	)
-	local glow = eye:Lerp(Color3.new(1, 1, 1), 0.35)
-	for _, side in SIDES do
+	-- the shell's extras (a remade robot's armour has its own belt; its chest mark is a glowing core lamp)
+	if look then
 		add(
-			"Eye" .. side[2],
-			"Head",
-			CFrame.new(side[3] * HD.X * 0.2, HD.Y * 0.06, -HD.Z * 0.5 - 0.02),
-			Vector3.new(HD.X * 0.22, HD.Y * 0.09, 0.05),
-			glow,
-			N
+			"Lamp",
+			"UpperTorso",
+			CFrame.new(0, UT.Y * 0.156, -UT.Z * 0.5 - 0.01) * CFrame.Angles(0, math.rad(90), 0),
+			Vector3.new(0.06, UT.X * 0.13, UT.X * 0.13),
+			eye:Lerp(Color3.new(1, 1, 1), 0.2),
+			N,
+			Enum.PartType.Cylinder
 		)
+	else
+		add(
+			"Belt",
+			"LowerTorso",
+			CFrame.new(0, LT.Y * 0.3, 0),
+			LT * Vector3.new(1.03, 0.45, 1.03),
+			trim,
+			SKIN
+		)
+		add(
+			"Emblem",
+			"UpperTorso",
+			CFrame.new(0, UT.Y * 0.18, -UT.Z * 0.5 - 0.03) * CFrame.Angles(0, 0, math.rad(45)),
+			Vector3.new(UT.X * 0.24, UT.X * 0.24, 0.06),
+			trim,
+			SKIN
+		)
+	end
+	local glow = eye:Lerp(Color3.new(1, 1, 1), 0.35)
+	if look then
+		-- the helmet: the eyes are one glowing slit across the visor (two halves, so the windup still reddens
+		-- them), the shoulder pads and the back thruster are the set's extras (Config.TrooperArt)
+		for _, side in SIDES do
+			add(
+				"Eye" .. side[2],
+				"Head",
+				CFrame.new(side[3] * HD.X * 0.19, HD.Y * 0.01, -HD.Z * 0.5 - 0.02),
+				Vector3.new(HD.X * 0.36, HD.Y * 0.07, 0.05),
+				glow,
+				N
+			)
+		end
+		for xname, x in Config.TrooperArt.extras do
+			local p = lookMesh(look, xname)
+			if p then
+				local ps = size(x.parent)
+				local o, sz = x.offset, x.size
+				p.Name = xname
+				p.Size = ps * Vector3.new(sz[1], sz[2], sz[3])
+				p.Color = suit
+				p.Material = SKIN
+				p.CastShadow = false
+				NpcRig.fix(rig, x.parent, p, CFrame.new(ps * Vector3.new(o[1], o[2], o[3])))
+				register(xname, p)
+			end
+		end
+	else
+		add(
+			"Hair",
+			"Head",
+			CFrame.new(0, HD.Y * HAIR[1], HD.Z * HAIR[2]),
+			HD * Vector3.new(1.06, 0.3, 1.06),
+			rgb(LOOK.hair[1]),
+			SKIN
+		)
+		for _, side in SIDES do
+			add(
+				"Eye" .. side[2],
+				"Head",
+				CFrame.new(side[3] * HD.X * 0.2, HD.Y * 0.06, -HD.Z * 0.5 - 0.02),
+				Vector3.new(HD.X * 0.22, HD.Y * 0.09, 0.05),
+				glow,
+				N
+			)
+		end
 	end
 	if body.cape then
 		local capeH = (UT.Y + LT.Y) * 1.25
@@ -576,6 +646,7 @@ local function makeRobot(typeId: number): Body
 		flashUntil = 0,
 		lastFlags = -1,
 		swingUntil = 0,
+		look = look,
 	}
 end
 
@@ -588,7 +659,8 @@ local function assign(body: Body, id: number)
 	local h = Rng.hash(id, 3301)
 	local skin = rgb(LOOK.skins[h % #LOOK.skins + 1])
 	local hair = rgb(LOOK.hair[(h // 7) % #LOOK.hair + 1])
-	for name, color in { Head = skin, Hair = hair } do
+	-- a remade robot wears a helmet: no skin or hair to pick
+	for name, color in if body.look then {} else { Head = skin, Hair = hair } do
 		local i = body.index[name]
 		if i then
 			body.baseColors[i] = color
@@ -620,6 +692,7 @@ end
 
 local ICE = Color3.fromRGB(170, 225, 255)
 local NEON_KEEP = {
+	Lamp = true,
 	Eyes = true,
 	EyeL = true,
 	EyeR = true,

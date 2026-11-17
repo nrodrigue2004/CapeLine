@@ -6426,6 +6426,29 @@ test("Hold to aim and charge: what charges, how much, and the server's cap", fun
 	check(last ~= nil and last.optional == true and last.max == 100, "CombatUse takes an optional charge")
 end)
 
+test("Remade robot (Spark Trooper): its shell set and extras", function()
+	local T = Config.TrooperArt
+	local RigMath = require("../src/shared/RigMath")
+	check(T.triangles > 0 and T.triangles <= 8000, "the whole robot is under the 8,000 triangle budget")
+	local parts = {}
+	for _, j in RigMath.JOINTS do
+		parts[j[3]] = true
+	end
+	local n = 0
+	for name, x in T.extras do
+		n += 1
+		check(parts[x.parent] == true, name .. " sits on an R15 part")
+		for k = 1, 3 do
+			check(x.size[k] > 0.1 and x.size[k] < 3, name .. " is a sensible size against its part")
+			check(math.abs(x.offset[k]) < 1.5, name .. " stays near its part")
+		end
+	end
+	check(n == 3, "two shoulder pads and the back pack")
+	check(T.extras.PadL.offset[1] == -T.extras.PadR.offset[1], "the pads mirror")
+	check(T.extras.Pack.offset[3] > 0.3, "the pack is on the back (+Z in Roblox)")
+	check(Config.Enemies.SparkDrone.body.art == "Trooper", "the Spark Trooper uses the remade set")
+end)
+
 print(string.format("\n%d passed, %d failed", passed, failed))
 if failed > 0 then
 	process.exit(1)

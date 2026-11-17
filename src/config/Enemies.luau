@@ -51,6 +51,9 @@ return {
 			suit = { 40, 70, 140 },
 			trim = { 255, 170, 60 },
 			jets = true,
+			-- the remade look (overhaul plan step 3): armoured shell meshes and textures from
+			-- ReplicatedStorage.Art.Trooper (art/blender/trooper.py), else the plain shell
+			art = "Trooper",
 		},
 	},
 	BurglarBot = {

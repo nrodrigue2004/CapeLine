@@ -33,14 +33,33 @@ end
 -- The imported meshes by part name for one body set (BodyShape.setKey; nil is the hero body, "MaleMedium"):
 -- each part from ReplicatedStorage.Art.Bodies["<set>_<part>"] when the set reshapes it, else the hero's own
 -- part from Art.Hero. Nil while any of the 15 hero parts is missing (plain blocks then). Found once per set.
+-- `look` names a whole shell set instead (ReplicatedStorage.Art[look], e.g. "Trooper": a remade robot's
+-- armour, its 15 parts filling the same boxes); nil while it is not imported, and the caller falls back.
 local meshCache: { [string]: { [string]: MeshPart } | false } = {}
-function NpcRig.meshes(set: string?): { [string]: MeshPart }?
-	local key = set or "MaleMedium"
+function NpcRig.meshes(set: string?, look: string?): { [string]: MeshPart }?
+	local key = if look then "look:" .. look else set or "MaleMedium"
 	local cached = meshCache[key]
 	if cached ~= nil then
 		return cached or nil
 	end
 	local art = ReplicatedStorage:FindFirstChild("Art")
+	if look then
+		local lf = art and art:FindFirstChild(look)
+		local out = {}
+		local ok = lf ~= nil
+		if lf then
+			for _, j in RigMath.JOINTS do
+				local found = lf:FindFirstChild(j[3], true)
+				if found and found:IsA("MeshPart") then
+					out[j[3]] = found
+				else
+					ok = false
+				end
+			end
+		end
+		meshCache[key] = if ok then out else false
+		return if ok then out else nil
+	end
 	local folder = art and art:FindFirstChild("Hero")
 	local bodies = art and art:FindFirstChild("Bodies")
 	local out = {}
@@ -80,17 +99,31 @@ local function quiet(p: BasePart)
 	p.Massless = true
 end
 
+-- Keep a mesh's textures (its SurfaceAppearance) and drop the importer's other children. The colour map's
+-- alpha lets the part's own Color show through (Overlay), so tints and hit flashes still work.
+function NpcRig.keepLook(p: BasePart)
+	for _, c in p:GetChildren() do
+		if c:IsA("SurfaceAppearance") then
+			c.AlphaMode = Enum.AlphaMode.Overlay
+		else
+			c:Destroy()
+		end
+	end
+end
+
 -- A rig for one body. `colors` paints each of the 15 parts by name (a missing name stays grey); `set` picks the
--- body set's meshes (BodyShape.setKey: use the gender and build the layout's factors came from).
+-- body set's meshes (BodyShape.setKey: use the gender and build the layout's factors came from); `look` a
+-- whole shell set (NpcRig.meshes), when imported.
 function NpcRig.build(
 	layout: RigMath.Layout,
 	name: string,
 	colors: { [string]: Color3 },
 	material: Enum.Material?,
 	shadows: boolean?,
-	set: string?
+	set: string?,
+	look: string?
 ): Rig
-	local meshes = NpcRig.meshes(set)
+	local meshes = (look and NpcRig.meshes(set, look)) or NpcRig.meshes(set)
 	local model = Instance.new("Model")
 	model.Name = name
 	local root = Instance.new("Part")
@@ -109,9 +142,7 @@ function NpcRig.build(
 		local p: BasePart
 		if mesh then
 			p = mesh:Clone()
-			for _, c in p:GetChildren() do
-				c:Destroy() -- the importer's own children; the rig's attachments replace them
-			end
+			NpcRig.keepLook(p) -- the importer's own children go; the rig's attachments replace them
 		else
 			local part = Instance.new("Part")
 			part.TopSurface = Enum.SurfaceType.Smooth

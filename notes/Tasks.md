@@ -220,6 +220,19 @@ nate's plan: https://claude.ai/artifact/VeuJPWz6kKE6gGsUBmqQC9. Use a fresh hero
 9. Body sizes and doors: as a Titan and as a Small hero, walk through a safehouse shelter, a doorway and under a low ledge: both fit the same places a Medium hero does (one standard collider), and nobody falls through the floor or sinks into it.
 10. Old heroes: a hero made before this update keeps its look (no missing pieces), has Bare Fists on 2 and Male Medium Average.
 
+### Remade Spark Trooper (2026-11-17)
+The first robot to the new look (overhaul plan step 3): armour on the blocky R15 body, one baked texture set (art/blender/trooper.py; preview art/preview/trooper.png). Until it is imported the Spark Trooper keeps today's look, so nothing breaks.
+Import (Claude can do it on your PC when you say so, like the robot meshes):
+1. Studio: Home > Import 3D, pick `art/export/Trooper.fbx` (project files: capeline/art/trooper/Trooper.fbx). Turn OFF "Import as a single mesh". The textures are inside the file; the importer should give each part a SurfaceAppearance.
+2. A model with 18 MeshParts appears (Head, UpperTorso ... RightFoot, PadL, PadR, Pack). Rename it `Trooper` and drag it into ReplicatedStorage.Art.
+3. If the parts come in white with no textures: import the four PNGs next to it (Trooper_Color, _Normal, _Roughness, _Metalness), set them on one SurfaceAppearance and copy it into every part.
+4. Claude then pulls the model into the repo (art/models/Trooper.rbxm, mapped by Rojo) so every build has it.
+Checks (DEV panel "3x" until a Spark Trooper comes up):
+5. It wears the armour: white plates with orange trim over the blue suit, a helmet with a glowing visor slit, a glowing chest lamp, shoulder pads and a back thruster. Nothing floats or sits inside the body; it faces the way it flies.
+6. Hits: the white flash still shows on the blue suit; the ice tint shows when slowed.
+7. Damage: the armour still breaks off part by part (the pads with the upper arms, the pack and lamp with the chest), showing the metal skeleton.
+8. Performance: about 6,600 triangles a robot; 60 on PC (High) and 20 on a phone (Low) hold the frame rate.
+
 ### Hold to aim and charge (2026-11-17)
 The Output at boot says build aim-charge (2026-11-17).
 1. Tap Z, X, C or V: the skill goes off on release, as quick as before. The basic (click) still fires on press and on hold.
