@@ -36,6 +36,6 @@ Read this first. Keep it short. Quality comes first; efficiency never means lowe
 1. Extend what exists. Do not re-implement or restyle working systems, and do not revert nate's work.
 2. Shipped-game quality. Placeholder art is labelled PLACEHOLDER ART in code and listed in Tasks.
 3. Verify before saying done: lint clean, tests pass, place builds. Anything only Studio can prove goes on the Studio test list.
-4. Design pillars and north star (reach and revenue) apply to every decision. Cartoon combat, no blood, machines-only enemies, no free text, nothing sold changes stats.
+4. Design pillars and north star (reach and revenue) apply to every decision. Cartoon combat, no blood, machine enemies (plus cartoon creature bosses nate chose, like Lumen Maw: light bursts, never blood), no free text, nothing sold changes stats.
 5. Downloads are allowed (nate, 2026-11-16) with licenses checked and noted in Tools.md; never spend money or publish without nate's OK. Original characters, powers and symbols only: anime-inspired, never copied from a real show.
 6. Moderation leans hard toward not punishing players: no automatic bans; speed fails only pull the hero back.
