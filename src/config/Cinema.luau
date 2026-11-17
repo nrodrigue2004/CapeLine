@@ -119,6 +119,105 @@ return {
 				},
 			},
 		},
+		-- The Gala Heist (side quest chain 2, lore step 11): the gala's red carpet on step 1, the bank alarm in
+		-- Uptown on step 6, and the curtain call before Redline and Madame Masque-a-rade's finale
+		galaNight = {
+			bit = 9,
+			client = true,
+			seconds = 10,
+			shots = {
+				{
+					kind = "dolly",
+					t0 = 0,
+					t1 = 5,
+					from = { 0, 4, 30 },
+					to = { 0, 8, 12 },
+					at = { 0, 6, 0 },
+					at2 = { 0, 10, -20 },
+				},
+				{
+					kind = "orbit",
+					t0 = 5,
+					t1 = 10,
+					radius = 22,
+					height = 8,
+					yaw0 = 0.3,
+					yaw1 = 1.4,
+					lift = 6,
+				},
+			},
+			lines = {
+				{
+					at = 0.4,
+					who = "masque",
+					text = "Bonsoir, Brightharbor! Such lovely jewels. Such lovely, unguarded jewels.",
+				},
+				{
+					at = 5.5,
+					who = "Benny",
+					text = "Masks at the gala, racers on the roofs. Something's going down tonight.",
+				},
+			},
+		},
+		bankJob = {
+			bit = 10,
+			client = true,
+			seconds = 8,
+			shots = {
+				{ kind = "cut", t0 = 0, t1 = 3, from = { 16, 5, 16 }, at = { 0, 6, 0 } },
+				{
+					kind = "dolly",
+					t0 = 3,
+					t1 = 8,
+					from = { 0, 8, 24 },
+					to = { 0, 40, 40 },
+					at = { 0, 6, 0 },
+					at2 = { 0, 60, -30 },
+				},
+			},
+			lines = {
+				{
+					at = 0.3,
+					who = "redline",
+					text = "Engines are warm, Madame. Roof to roof, all the way to the meet.",
+				},
+				{
+					at = 4,
+					who = "patch",
+					text = "Alarms all over Uptown! The crew's inside the bank!",
+				},
+			},
+		},
+		curtainCall = {
+			bit = 11,
+			client = true,
+			seconds = 8,
+			shots = {
+				{ kind = "cut", t0 = 0, t1 = 3, from = { -14, 4, 14 }, at = { 0, 5, 0 } },
+				{
+					kind = "orbit",
+					t0 = 3,
+					t1 = 8,
+					radius = 18,
+					height = 5,
+					yaw0 = -0.6,
+					yaw1 = 1.0,
+					lift = 4,
+				},
+			},
+			lines = {
+				{
+					at = 0.3,
+					who = "redline",
+					text = "You followed us all the way here? Fine. Last lap. Winner takes all.",
+				},
+				{
+					at = 4,
+					who = "masque",
+					text = "And for the grand finale, darlings: me!",
+				},
+			},
+		},
 	},
 	missionBits = { base = 16, perMission = 8, missions = 13 }, -- bits 16 to 119
 

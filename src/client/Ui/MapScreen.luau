@@ -360,8 +360,11 @@ local function drawWorld()
 		local live = {}
 		for _, r in j.sq or {} do
 			local chain = SideQuestPlan.byBit(Config, r.bit)
-			if chain and chain.site and (r.state == "open" or r.state == "active") then
-				live[chain.site] = true
+			if chain and (r.state == "open" or r.state == "active") then
+				-- every site the chain uses (chain 2: the gala, the racers' meet and the bank)
+				for _, id in SideQuestPlan.sites(chain) do
+					live[id] = true
+				end
 			end
 		end
 		for id in live do

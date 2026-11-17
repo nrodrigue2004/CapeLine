@@ -206,6 +206,15 @@ return {
 				quest = "CrackedHalo",
 				color = { 200, 170, 90 },
 			},
+			-- side quest reward (lore step 11, chain 2, The Gala Heist): Madame Masque-a-rade's own mask. Never rolled.
+			{
+				n = 22,
+				name = "Masquerade Mask",
+				shape = "mask",
+				tier = "Story",
+				quest = "MasqueradeMask",
+				color = { 120, 50, 170 },
+			},
 			-- Fame and Infamy rank rewards (M8): never rolled by loot (tier "Fame")
 			{
 				n = 21,

@@ -137,8 +137,9 @@ SideQuestPlan.KINDS = {
 	},
 	finale = {
 		fields = { "enemy", "hpMult" },
-		need = function(_g)
-			return 1
+		need = function(g)
+			-- lore step 11, chain 2: an encore villain lands when the first falls (two to beat)
+			return if g.encore then 2 else 1
 		end,
 	},
 } :: { [string]: { fields: { string }, need: (any) -> number } }
@@ -177,14 +178,42 @@ function SideQuestPlan.text(goal: any, side: string): string
 	return goal.text or ""
 end
 
--- The mini villain's name card for a step (the finale's: the chain's villain name and title), or nil
-function SideQuestPlan.card(chain: any, idx: number): { name: string, title: string }?
+-- The mini villain's name card for a step (the finale's: the chain's villain name and title), or nil.
+-- phase (lore step 11, chain 2): a finale with an encore shows its first villain's own `card` in phase 1 and
+-- the chain's villain (the last one standing) in phase 2.
+function SideQuestPlan.card(chain: any, idx: number, phase: number?): { name: string, title: string }?
 	local step = chain.steps and chain.steps[idx]
 	local g = step and SideQuestPlan.goal(step, "hero")
 	if not g or g.kind ~= "finale" or type(chain.villain) ~= "table" then
 		return nil
 	end
+	if g.encore and (phase or 1) < 2 and type(g.card) == "table" then
+		return { name = g.card.name, title = g.card.title }
+	end
 	return { name = chain.villain.name, title = chain.villain.title }
+end
+
+-- The finale's villain for a phase (1 the first, 2 the encore): { enemy, hpMult, adds }
+function SideQuestPlan.finaleFoe(goal: any, phase: number): any
+	if phase >= 2 and goal.encore then
+		return goal.encore
+	end
+	return goal
+end
+
+-- Every site a chain uses (its own and its steps' `at`), each once in step order, for the map's markers
+function SideQuestPlan.sites(chain: any): { string }
+	local out = {}
+	local function put(id: any)
+		if type(id) == "string" and not table.find(out, id) then
+			table.insert(out, id)
+		end
+	end
+	put(chain.site)
+	for _, step in chain.steps or {} do
+		put(step.at)
+	end
+	return out
 end
 
 function SideQuestPlan.need(goal: any): number
@@ -694,8 +723,20 @@ local function checkGoal(
 		return
 	end
 	for _, f in kind.fields do
-		if goal[f] == nil then
+		-- a race on a rooftop course takes its rings from the course, not a gap (lore step 11, chain 2)
+		if goal[f] == nil and not (f == "gap" and goal.course) then
 			no(goal.kind .. " needs " .. f)
+		end
+	end
+	-- lore step 11, chain 2: a race or chase over a rooftop course (Config.SideQuests.courses)
+	if goal.course ~= nil then
+		local cs = SQ.courses and SQ.courses[goal.course]
+		if goal.kind ~= "race" and goal.kind ~= "chase" then
+			no("a course is for a race or a chase")
+		elseif type(cs) ~= "table" or not (SQ.sites and SQ.sites[cs.from]) then
+			no("unknown course " .. tostring(goal.course))
+		elseif (if goal.kind == "race" then goal.checkpoints else goal.hops) ~= cs.count then
+			no("course " .. goal.course .. " has " .. cs.count .. " roofs")
 		end
 	end
 	local bad1 = fixedText(SideQuestPlan.text(goal, side), SQ.maxText)
@@ -816,6 +857,32 @@ local function checkGoal(
 		local h = SQ.finale.hpMult
 		if type(goal.hpMult) ~= "number" or goal.hpMult < h[1] or goal.hpMult > h[2] then
 			no("finale health")
+		end
+		-- lore step 11, chain 2: an encore villain after the first, each with a name card
+		local en = goal.encore
+		if en ~= nil then
+			if
+				type(en) ~= "table"
+				or not table.find(SQ.finale.enemies, en.enemy)
+				or not enemyKnown(Config, en.enemy)
+			then
+				no("encore robot " .. tostring(type(en) == "table" and en.enemy))
+			elseif type(en.hpMult) ~= "number" or en.hpMult < h[1] or en.hpMult > h[2] then
+				no("encore health")
+			elseif en.enemy == goal.enemy then
+				no("the encore is someone else")
+			end
+			for _, row in (type(en) == "table" and en.adds) or {} do
+				if not enemyKnown(Config, row[1]) or (row[2] or 0) < 1 then
+					no("encore adds " .. tostring(row[1]))
+				end
+			end
+			local c = goal.card
+			if type(c) ~= "table" or fixedText(c.name, 32) or fixedText(c.title, 32) then
+				no("an encore finale names its first villain (card)")
+			end
+		elseif goal.card ~= nil then
+			no("a finale card is for an encore finale (the chain's villain is the card)")
 		end
 	end
 	if goal.range and (type(goal.range) ~= "table" or goal.range[1] > goal.range[2]) then
@@ -1006,6 +1073,9 @@ function SideQuestPlan.checkChain(Config: any, chain: any, ids: { [string]: any 
 		for j, line in step.lines or {} do
 			checkLine(Config, line, string.format("%s line %d", w, j), bad)
 		end
+		if step.at ~= nil and not (SQ.sites and SQ.sites[step.at]) then
+			table.insert(bad, w .. ": at an unknown site " .. tostring(step.at))
+		end
 		if step.scene then
 			local sc = Config.Cinema.scenes[step.scene]
 			if not sc or not sc.client then
@@ -1064,13 +1134,55 @@ function SideQuestPlan.validate(Config: any): { string }
 		if not table.find(SQ.districts, st.district) or not Config.City.districts[st.district] then
 			table.insert(bad, w .. ": district " .. tostring(st.district))
 		end
-		if type(st.near) ~= "table" or type(st.height) ~= "table" or st.height[1] > st.height[2] then
-			table.insert(bad, w .. ": near and height")
+		if st.square ~= nil then
+			-- lore step 11, chain 2: a site in one of Downtown's open squares, with its set piece
+			local found = nil
+			for _, o in Config.City.downtown.open or {} do
+				if o.id == st.square then
+					found = o
+				end
+			end
+			local SideQuestSets = if script
+				then require((script :: any).Parent.SideQuestSets)
+				else (require :: any)("./SideQuestSets")
+			if not found or st.district ~= "Downtown" then
+				table.insert(bad, w .. ": square " .. tostring(st.square))
+			end
+			if st.set ~= nil and not SideQuestSets.known(st.set) then
+				table.insert(bad, w .. ": set " .. tostring(st.set))
+			end
+			local half = Config.City.downtown.block / 2
+			local s = st.spot or { 0, 0 }
+			if type(s) ~= "table" or math.abs(s[1]) > half or math.abs(s[2]) > half then
+				table.insert(bad, w .. ": spot")
+			end
+		else
+			if type(st.near) ~= "table" or type(st.height) ~= "table" or st.height[1] > st.height[2] then
+				table.insert(bad, w .. ": near and height")
+			end
+			local a = st.away or {}
+			local keys = if st.district == "Uptown"
+				then { "landmark" }
+				else { "plaza", "row", "door", "open" }
+			for _, k in keys do
+				if type(a[k]) ~= "number" or a[k] < 0 then
+					table.insert(bad, w .. ": away." .. k)
+				end
+			end
 		end
-		local a = st.away or {}
-		for _, k in { "plaza", "row", "door", "open" } do
-			if type(a[k]) ~= "number" or a[k] < 0 then
-				table.insert(bad, w .. ": away." .. k)
+	end
+	-- lore step 11, chain 2: the rooftop courses
+	for id, cs in SQ.courses or {} do
+		if type(cs) == "table" then
+			if not (SQ.sites and SQ.sites[cs.from]) then
+				table.insert(bad, "course " .. id .. ": from " .. tostring(cs.from))
+			end
+			local t = cs.toward
+			if not ((type(t) == "string" and SQ.sites[t]) or (type(t) == "table" and #t == 2)) then
+				table.insert(bad, "course " .. id .. ": toward")
+			end
+			if type(cs.count) ~= "number" or cs.count < 3 or cs.count > 12 then
+				table.insert(bad, "course " .. id .. ": count")
 			end
 		end
 	end

@@ -1085,6 +1085,34 @@ return {
 					extras = { "cap" },
 				},
 			},
+			-- The Gala Heist (chain 2): Madame Masque-a-rade in person (a gold masquerade mask), and Redline on
+			-- the racers' radio (a red visor)
+			masque = {
+				name = "MADAME MASQUE-A-RADE",
+				color = { 200, 120, 255 },
+				style = "person",
+				blip = "guideFake",
+				portrait = {
+					bg = { 60, 24, 80 },
+					skin = { 241, 194, 160 },
+					hair = { 70, 20, 110 },
+					shape = "slick",
+					extras = { "mask" },
+				},
+			},
+			redline = {
+				name = "REDLINE",
+				color = { 255, 80, 60 },
+				style = "radio",
+				blip = "guideInsider",
+				portrait = {
+					bg = { 90, 20, 20 },
+					skin = { 160, 105, 70 },
+					hair = { 220, 40, 40 },
+					shape = "helmet",
+					extras = { "visor" },
+				},
+			},
 		},
 		-- the three guides: each has its own blip and portrait
 		guides = { "lodestar", "patch", "crane" },
@@ -1280,6 +1308,7 @@ return {
 			["Big Deal"] = 4,
 			["Living Legend"] = 5,
 			["Class Dismissed"] = 6, -- side quest chain: The Hero Academy (lore step 11)
+			["Curtain Call"] = 7, -- side quest chain: The Gala Heist (lore step 11, chain 2)
 			GoldTrim = 100,
 		},
 	},
