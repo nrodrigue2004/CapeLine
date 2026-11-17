@@ -30,6 +30,7 @@ local MoveController = require(script.Parent.MoveController)
 local CameraController = require(script.Parent.CameraController)
 local EnemyRenderer = require(script.Parent.EnemyRenderer)
 local PvpClient = require(script.Parent.PvpClient)
+local HeroAnimator = require(script.Parent.HeroAnimator)
 local State = require(script.Parent.Parent.State)
 local CombatFx = require(script.Parent.Parent.Fx.CombatFx)
 local Juice = require(script.Parent.Parent.Fx.Juice)
@@ -275,6 +276,12 @@ function CombatClient.fire(id: string): boolean
 		combo.at, combo.step = now, step
 	end
 
+	-- the hero's own pose at once (others see it when the server's result reaches them)
+	if eff.cast and eff.cast > 0 then
+		HeroAnimator.windup(player, eff.cast)
+	else
+		HeroAnimator.cast(player, row, step)
+	end
 	if eff.cast and eff.cast > 0 then
 		CombatFx.windup(myChest, eff.cast, style, color)
 	elseif shape == "bolt" and not eff.channel then
@@ -462,6 +469,9 @@ local function onResult(list: { any })
 			if kind == K.CAST and not mine then
 				Juice.fire(castSound(row.slot), r.o, { mine = false, userId = r.a })
 			end
+			if kind == K.CAST and (not mine or (row.cast and row.cast > 0)) then
+				HeroAnimator.cast(HeroAnimator.byUserId(r.a), row, r.m) -- yours after a windup, others' always
+			end
 			if kind == K.CAST then
 				local predicted = mine
 					and PREDICTED[row.shape]
@@ -540,6 +550,7 @@ local function onResult(list: { any })
 				end
 			elseif kind == K.WINDUP and not mine then
 				CombatFx.windup(casterPos(r.a, r.o), r.dur or 1, style, color)
+				HeroAnimator.windup(HeroAnimator.byUserId(r.a), r.dur or 1)
 			elseif kind == K.LAND or kind == K.END then
 				if r.c then
 					CombatFx.area(row, style, r.c, r.r or 10, mine, r.a)
@@ -614,6 +625,9 @@ local function onEvents(list: { any })
 				CombatFx.enemyShot(Vector3.new(ev[3], ev[4], ev[5]), Vector3.new(ev[6], ev[7], ev[8]))
 			end
 		elseif kind == HERO_HIT then
+			if ev[6] and ev[6] > 0 then
+				HeroAnimator.hit(HeroAnimator.byUserId(ev[2]))
+			end
 			if ev[2] == player.UserId then
 				if ev[6] and ev[6] > 0 then
 					CombatFx.hurt()

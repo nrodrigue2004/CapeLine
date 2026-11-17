@@ -6167,6 +6167,131 @@ test("Creator plan: all 36 weapons have an M1 and Z X C V, held with key 2, open
 	check(Config.City.palette.weapons ~= nil, "the Rack has its colour")
 end)
 
+test(
+	"Hero animations: every mode has its pose, every cast and weapon move has a clip, clips are clean",
+	function()
+		local HeroAnim = require("../src/shared/HeroAnim")
+		local RigMath = require("../src/shared/RigMath")
+		local fsx = require("@lune/fs")
+		-- every mode MoveController sets is one HeroAnim knows (the MoveMode index other devices read)
+		local src = fsx.readFile("src/client/Controllers/MoveController.luau")
+		local seen = 0
+		for m in string.gmatch(src, 'setMode%("(%a+)"%)') do
+			seen += 1
+			check(HeroAnim.modeIndex[m] ~= nil, "mode " .. m .. " is in HeroAnim.MODES")
+		end
+		for m in string.gmatch(src, 'enterWall%([^\n]-"(%a+)"') do
+			check(HeroAnim.modeIndex[m] ~= nil, "wall mode " .. m .. " is in HeroAnim.MODES")
+		end
+		check(seen >= 10, "found MoveController's modes")
+		check(Remotes.MoveMode.schema[1].max == #HeroAnim.MODES, "MoveMode takes every mode index")
+		for _, m in HeroAnim.MODES do
+			local clip = HeroAnim.modeClip(m, 30, false, nil)
+			check(
+				m == "ground" and clip == nil or clip ~= nil and HeroAnim.CLIPS[clip] ~= nil,
+				m .. " has a pose"
+			)
+		end
+		-- hover and fly switch with a margin
+		check(HeroAnim.modeClip("fly", 5, false, nil) == "hover", "slow flight hovers")
+		check(HeroAnim.modeClip("fly", 40, false, nil) == "fly", "fast flight flies")
+		check(
+			HeroAnim.modeClip("fly", HeroAnim.hoverSpeed + 2, false, "hover") == "hover",
+			"hover holds past the line"
+		)
+		check(
+			HeroAnim.modeClip("fly", HeroAnim.hoverSpeed - 2, false, "fly") == "fly",
+			"fly holds past the line"
+		)
+		check(HeroAnim.modeClip("fly", 0, true, nil) == "downed", "Downed wins over flight")
+		-- clips: real R15 joints, keys in order inside the clip, loops end where they start, sane angles
+		local joints = { Root = true }
+		for _, j in RigMath.JOINTS do
+			joints[j[1]] = true
+		end
+		for name, clip in HeroAnim.CLIPS do
+			check(clip.dur > 0 and clip.dur <= 3, name .. " length")
+			for joint, keys in clip.joints do
+				check(joints[joint] == true, name .. "." .. joint .. " is an R15 joint")
+				check(#keys >= 1 and keys[1][1] == 0, name .. "." .. joint .. " starts at 0")
+				for i, k in keys do
+					check(#k == 5, name .. "." .. joint .. " key has 5 numbers")
+					check(k[1] <= clip.dur + 1e-6, name .. "." .. joint .. " key inside the clip")
+					if i > 1 then
+						check(k[1] > keys[i - 1][1], name .. "." .. joint .. " keys in order")
+					end
+					for a = 2, 4 do
+						check(math.abs(k[a]) <= 360, name .. "." .. joint .. " angle")
+					end
+					check(
+						k[5] == 0 or joint == "Root",
+						name .. "." .. joint .. " only Root moves up and down"
+					)
+				end
+				if clip.loop and #keys > 1 then
+					local a, b = keys[1], keys[#keys]
+					check(
+						b[1] == clip.dur and a[2] == b[2] and a[3] == b[3] and a[4] == b[4],
+						name .. "." .. joint .. " loops without a pop"
+					)
+				end
+			end
+		end
+		-- every power and weapon move picks a clip that exists; combos change hands or swings
+		local fam = {}
+		for _, w in Config.Weapons.list do
+			fam[w[1]] = w[2]
+		end
+		local count = 0
+		for _, row in Config.Abilities.list do
+			count += 1
+			local c = HeroAnim.castClip(row, row.weapon and fam[row.weapon], 1)
+			check(HeroAnim.CLIPS[c] ~= nil, row.id .. " plays " .. tostring(c))
+		end
+		check(count >= 136 + 36 * 5, "checked every power and weapon move")
+		for wid = 1, 36 do
+			local m1 = Config.Abilities.list["W" .. wid .. "M1"]
+			if m1 then
+				local a = HeroAnim.castClip(m1, fam[wid], 1)
+				local c = HeroAnim.castClip(m1, fam[wid], 3)
+				check(
+					HeroAnim.CLIPS[a] ~= nil and HeroAnim.CLIPS[c] ~= nil,
+					"weapon " .. wid .. " combo clips"
+				)
+			end
+		end
+		check(
+			HeroAnim.castClip(Config.Abilities.list.W1M1, "fists", 1)
+				~= HeroAnim.castClip(Config.Abilities.list.W1M1, "fists", 2),
+			"fists alternate hands"
+		)
+		-- sampling
+		local keys = { { 0, 0, 0, 0, 0 }, { 1, 90, 0, -30, 0 } }
+		local s0, s1, sh =
+			HeroAnim.sampleKeys(keys, 0, 1, false),
+			HeroAnim.sampleKeys(keys, 1, 1, false),
+			HeroAnim.sampleKeys(keys, 0.5, 1, false)
+		check(s0[1] == 0 and s1[1] == 90 and s1[3] == -30, "keys hit exactly")
+		check(math.abs(sh[1] - 45) < 1e-6, "halfway is half (smoothstep is symmetric)")
+		local w = HeroAnim.sampleKeys(keys, 1.5, 1, true)
+		check(math.abs(w[1] - 45) < 1e-6, "loops wrap")
+		-- mirror
+		local m = HeroAnim.mirror(HeroAnim.CLIPS.punch)
+		check(m.joints.LeftShoulder ~= nil and m.joints.RightShoulder ~= nil, "mirror swaps sides")
+		check(
+			m.joints.LeftShoulder[2][2] == HeroAnim.CLIPS.punch.joints.RightShoulder[2][2],
+			"mirror keeps x"
+		)
+		check(m.joints.Waist[2][3] == -HeroAnim.CLIPS.punch.joints.Waist[2][3], "mirror flips y")
+		-- action weights fade in and out
+		check(
+			HeroAnim.actionWeight(0, 0.5) == 0 and HeroAnim.actionWeight(0.25, 0.5) == 1,
+			"fades in, then full"
+		)
+		check(HeroAnim.actionWeight(0.5, 0.5) == 0, "over at the end")
+	end
+)
+
 print(string.format("\n%d passed, %d failed", passed, failed))
 if failed > 0 then
 	process.exit(1)

@@ -27,7 +27,7 @@ phones or Studio go on the Studio test list below.
 - Ability visuals for all 40 powers: neon parts, beams and rings (CombatFx, AuraFx). PLACEHOLDER ART until particle textures and the icon set.
 - Snow Wall pieces, the Ice Slide ramp and the thrown crate in Lift and Throw: plain parts (CombatService). PLACEHOLDER ART.
 - Ability buttons show short names, not icons (Hud, LoadoutScreen). PLACEHOLDER ART.
-- Cast poses: no arm or body animation on the hero when casting yet.
+- Hero animations (2026-11-17): flight, hover, glide, leaps, dashes, slides, swings, wall runs, rides, swimming, the Downed kneel, every cast, each weapon family's combo, the windup and the flinch are hand-keyed code poses (Shared.HeroAnim, HeroAnimator); the ground walk, run, idle and jump are Roblox's default Animate. PLACEHOLDER ANIMATION until real animations are made and uploaded.
 - Gear looks: all 31 gear styles (plus 5 set looks and the gilded Legendary look per slot) are blocks, balls, wedges and cylinders welded to the body (LookService). PLACEHOLDER ART until the M9 accessory meshes.
 - Gear, loot and toast screens: Kit placeholder look, text-only piece cards, no item icons (GearScreen, Toasts). PLACEHOLDER ART.
 - Gadget effects: smoke, decoy and shield drone are a plain disc or pop (GadgetClient); the decoy has no body. PLACEHOLDER ART.
@@ -39,10 +39,10 @@ phones or Studio go on the Studio test list below.
 - World markers, the tracker, the boss bar, the result card and the Contract Board: Kit placeholder look with a "!" icon (WorldHud, ContractBoard). PLACEHOLDER ART until M10.
 - Load bot bodies (LoadBots, Studio only).
 - Landing crack: dark disc instead of a crack decal (MoveFx).
-- Flight, leap and glide poses: the default avatar tilted along the travel direction; no custom animations yet (MoveController).
+- Flight, leap and glide: the body tilts along the travel direction (MoveController) and HeroAnimator poses the limbs (see Hero animations above).
 - Loading screen: title on a gradient (LoadingScreen).
 - Story (M7): the cinematic is 4 flat comic panels (StoryHud); the opening's tram car, shard, trapped citizen and beams are plain parts (StoryFx); mission pockets are greybox boxes (PocketLayout); the War-Frame is a part-built mech (WorldFx); quest NPCs are blocky figures with a name tag and a marker (QuestService); the Null Echo buddy is a ball with an eye; the Journal, Suit Up, choice card, trackers and result card use the Kit placeholder look. PLACEHOLDER ART.
-- PvP and death (M8): flag rings and the Downed ring are flat neon discs, the PvP defeat is a CombatFx spark burst, Help/Here/Danger pings are text markers (PvpFx); name plates, the plate menu, the PVP button, the Crater bar, the Downed and Defeated screens and the PvP card use the Kit placeholder look (Plates, PvpHud). The Downed hero has no kneel or crawl animation yet (the humanoid just walks slowly). PLACEHOLDER ART.
+- PvP and death (M8): flag rings and the Downed ring are flat neon discs, the PvP defeat is a CombatFx spark burst, Help/Here/Danger pings are text markers (PvpFx); name plates, the plate menu, the PVP button, the Crater bar, the Downed and Defeated screens and the PvP card use the Kit placeholder look (Plates, PvpHud). The Downed hero kneels when still and slumps while crawling (HeroAnimator). PLACEHOLDER ART.
 - Creator pieces (M9): all 146 suits, capes, coats, scarves, masks, gloves, wraps, boots, hair, eyes, auras and trails are blocks, wedges, balls and neon parts welded to the body; emblems are a glyph on a SurfaceGui; auras are the engine's default particle (LookKit). PLACEHOLDER ART until accessory meshes.
 - Voice packs (M9): the 4 voice choices have sound ids 0 (Config.Shop.voiceSounds). PLACEHOLDER until free-licensed clips (M11).
 - Emotes and landing poses (M9): joint angles tweened on the rig (EmoteFx). PLACEHOLDER ART until real animations (M11).
@@ -219,6 +219,15 @@ nate's plan: https://claude.ai/artifact/VeuJPWz6kKE6gGsUBmqQC9. Use a fresh hero
 8. Weapon Rack: the grey fifth terminal at a safehouse (hold B): every weapon by family; BUY one for Credits (Credits go down, it says it's yours), CARRY it (the hand shows it on 2), CUSTOMIZE opens the creator on the weapon step. Exotic ones show their Robux price; the Boomerang bought in the shop (test purchase) can be carried.
 9. Body sizes and doors: as a Titan and as a Small hero, walk through a safehouse shelter, a doorway and under a low ledge: both fit the same places a Medium hero does (one standard collider), and nobody falls through the floor or sinks into it.
 10. Old heroes: a hero made before this update keeps its look (no missing pieces), has Bare Fists on 2 and Male Medium Average.
+
+### Hero animations (2026-11-17)
+The Output at boot says build hero-anim (2026-11-17). Best with a second player (Studio Test > 2 players) to see the poses on another device too.
+1. Fly fast: one fist leads overhead, the other arm trails, legs together with a soft kick. Slow down: it changes to a hover (arms out, legs dangling, a gentle bob) without flickering at the edge. Glide: arms spread like wings. Leap and fall: a tuck. Super-speed dash, slide, swing (one arm up on the line), wall climb and wall run, a ride (surf stance), swimming (front crawl), and a Leaping ground pound (fists overhead) each have their pose. Landing goes straight back to the normal walk and idle.
+2. Casts: Volt's basic alternates left and right palm blasts; a beam channel holds the arm out until it ends; a nova flings the arms out; an area slam brings both fists down; buffs and summons flex; dashes lunge; a super pushes both hands forward. A cast with a cast time shows the drawn-back windup first. Casting while flying keeps the flight legs.
+3. Weapons, M1 three times each: Fists punch left, right, then kick; a Sword goes slash, backhand, overhead; a Greatsword sweeps wide and slow, then overhead; Twin Blades alternate hands, then spin; a shield bashes; a Spear thrusts; a Bow draws and looses; Throwing Stars and the Boomerang throw; a Chain Whip lashes. The weapon stays in the hand.
+4. Getting hit makes a short flinch (not during a cast). Downed: kneel on one knee when still, slumped while crawling.
+5. On the second player's screen, the first player's poses match (flight, hover, casts, flinch, Downed). Nothing jitters or snaps when two things overlap, and emotes and Photo Mode poses still work.
+6. Dev panel FrameProf: HeroAnimator stays well under 1 ms a frame with 30 heroes nearby (load bots are not players, so this needs a real server or a quick read of the per-frame cost with 2 to 4 players).
 
 ### Creator pieces to 503 (2026-11-17)
 The Output at boot says build creator-503 (2026-11-17). Open the creator (Create First or the HQ mirror). DEV: the Dev panel's "pieces" command unlocks every piece.

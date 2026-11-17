@@ -26,8 +26,8 @@
 -- M8: PvP crowd control on you (State.status.cc): stuns and roots stop movement and the leap and flight
 -- buttons, slows cut speed, and a Downed hero (the Downed attribute) can only crawl. HeroKnock (a PvP
 -- knockback, pull or knockup) plays as a short arc the server already allowed.
--- PLACEHOLDER ANIMATION: the flying pose is the body tilted along the travel direction; real leap, glide and
--- fly animations come with the animation pass (Tasks.md).
+-- The flying pose is the body tilted along the travel direction; HeroAnimator poses the limbs for every mode
+-- (Shared.HeroAnim clips, PLACEHOLDER ANIMATION until real animations).
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")

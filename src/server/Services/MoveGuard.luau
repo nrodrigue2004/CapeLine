@@ -156,6 +156,10 @@ local function correct(hero: any, t: Track)
 end
 
 function MoveGuard.init()
+	-- looks only (HeroAnimator poses the hero on other devices); the speed checks never trust it
+	Net.on("MoveMode", function(player, mode: number)
+		player:SetAttribute("Move", mode)
+	end)
 	Net.on("MoveBoost", function(player, on: boolean)
 		local hero = HeroService.get(player)
 		if hero then
