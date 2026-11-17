@@ -220,6 +220,15 @@ nate's plan: https://claude.ai/artifact/VeuJPWz6kKE6gGsUBmqQC9. Use a fresh hero
 9. Body sizes and doors: as a Titan and as a Small hero, walk through a safehouse shelter, a doorway and under a low ledge: both fit the same places a Medium hero does (one standard collider), and nobody falls through the floor or sinks into it.
 10. Old heroes: a hero made before this update keeps its look (no missing pieces), has Bare Fists on 2 and Male Medium Average.
 
+### Hold to aim and charge (2026-11-17)
+The Output at boot says build aim-charge (2026-11-17).
+1. Tap Z, X, C or V: the skill goes off on release, as quick as before. The basic (click) still fires on press and on hold.
+2. Hold a skill: its aim shows in the power's colour (a strip for bolts, lines, chains and dashes, a fan for cones and arcs, a ring around you for novas, a ring at the aim point for fields and placed things) and follows the camera; release casts where it shows.
+3. Hold a damaging skill (a bolt, line, chain, cone, arc or nova) past a quarter second: the charging pose starts and the aim grows and brightens; at 1.2 s it is full (a gather flash and a chime) and the aim pulses. The hit is clearly bigger (up to +20% damage, +15% size). Supers, buffs, fields, summons, dashes and channels aim but never charge.
+4. Holding past 4 s casts by itself. Pressing a running channel's key still stops it at once. Holding one key then pressing another fires the first.
+5. Phone: hold a skill button, drag the camera to aim, lift to cast. Controller: the same with the skill buttons.
+6. Server check: in the Dev panel's damage numbers, a full charge hits about 20% harder than a tap; nothing errors when spamming taps.
+
 ### Effects library (2026-11-17)
 The Output at boot says build fx-lib (2026-11-17). Uses Roblox's built-in particle images (art/export/fx holds the generated sheets to upload later).
 1. Volt (the slice to judge): the basic bolt crackles along its path with blue-white sparks and a hand flash; hits throw sparks and a short lightning crackle; Chain Lightning sparks at each hop; a nova leaves a flat electric shockwave ring on the floor with a spark burst; the beam channel crackles along the beam the whole time. Say yes or no on the look.

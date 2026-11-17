@@ -6367,6 +6367,65 @@ test("Effects library: every set has an element, every kind a texture, budgets a
 	L.textures.smoke.id = saved
 end)
 
+test("Hold to aim and charge: what charges, how much, and the server's cap", function()
+	local ChargeRules = require("../src/shared/ChargeRules")
+	local CC = Config.Combat
+	local ch = CC.charge
+	check(ch.start > 0 and ch.full > ch.start and ch.maxHold > ch.full, "charge timings in order")
+	check(
+		ch.damage > 0 and ch.damage <= 0.25 and ch.size > 0 and ch.size <= 0.2,
+		"a full charge is a modest boost"
+	)
+	-- what charges
+	local charged, aimOnly = 0, 0
+	for _, row in Config.Abilities.list do
+		if ChargeRules.chargeable(row) then
+			charged += 1
+			check(
+				row.slot == "skill" and not row.channel and (row.coeff or 0) > 0,
+				row.id .. " is a damaging skill"
+			)
+		end
+		if row.slot == "super" then
+			check(not ChargeRules.chargeable(row), row.id .. " (super) aims but never charges")
+			check(ChargeRules.aimable(row), row.id .. " aims")
+		end
+		if row.slot == "basic" then
+			check(not ChargeRules.aimable(row), row.id .. " (basic) fires at once")
+		end
+		if ChargeRules.aimable(row) and not ChargeRules.chargeable(row) then
+			aimOnly += 1
+		end
+	end
+	check(charged >= 40 and aimOnly >= 40, "many skills charge and many only aim")
+	-- levels
+	check(ChargeRules.level(CC, 0.1) == 0, "a tap does not charge")
+	check(ChargeRules.level(CC, ch.full) == 1 and ChargeRules.level(CC, 10) == 1, "full at full")
+	near(ChargeRules.level(CC, (ch.start + ch.full) / 2), 0.5, 1e-6, "halfway is half")
+	-- the server's cap: no press recorded, no charge; claims cannot beat the timed hold
+	check(ChargeRules.allowed(CC, 100, nil, 10, 0.1) == 0, "no press, no charge")
+	check(ChargeRules.allowed(CC, 100, 10, 10.05, 0) == 0, "a claim right after the press is cut to 0")
+	check(ChargeRules.allowed(CC, 100, 10, 10 + ch.full, 0) == 1, "a real full hold counts")
+	near(ChargeRules.allowed(CC, 40, 10, 15, 0), 0.4, 1e-6, "a lower claim is kept")
+	check(ChargeRules.allowed(CC, 0, 10, 15, 0) == 0, "a tap claim is a tap")
+	-- applying
+	local eff = { coeff = 2, radius = 10, range = 40, width = 4, cone = 160 }
+	ChargeRules.apply(CC, eff, 1)
+	near(eff.coeff, 2 * (1 + ch.damage), 1e-6, "damage grows")
+	near(eff.radius, 10 * (1 + ch.size), 1e-6, "size grows")
+	check(eff.cone <= 170, "a cone never wraps round")
+	local same = { coeff = 2, radius = 10 }
+	ChargeRules.apply(CC, same, 0)
+	check(same.coeff == 2 and same.radius == 10 and same.charged == nil, "no charge changes nothing")
+	-- the remotes
+	check(
+		Remotes.CombatCharge.dir == "C2S" and Remotes.CombatCharge.rate ~= nil,
+		"CombatCharge is rate-limited"
+	)
+	local last = Remotes.CombatUse.schema[5]
+	check(last ~= nil and last.optional == true and last.max == 100, "CombatUse takes an optional charge")
+end)
+
 print(string.format("\n%d passed, %d failed", passed, failed))
 if failed > 0 then
 	process.exit(1)

@@ -22,6 +22,7 @@ local Net = require(Shared:WaitForChild("Net"))
 local Formulas = require(Shared:WaitForChild("Formulas"))
 local Cooldowns = require(Shared:WaitForChild("Cooldowns"))
 local AbilityRules = require(Shared:WaitForChild("AbilityRules"))
+local ChargeRules = require(Shared:WaitForChild("ChargeRules"))
 local WeaponRules = require(Shared:WaitForChild("WeaponRules"))
 local Signal = require(Shared:WaitForChild("Util"):WaitForChild("Signal"))
 
@@ -34,6 +35,8 @@ local HeroAnimator = require(script.Parent.HeroAnimator)
 local State = require(script.Parent.Parent.State)
 local CombatFx = require(script.Parent.Parent.Fx.CombatFx)
 local Juice = require(script.Parent.Parent.Fx.Juice)
+local AimPreview = require(script.Parent.Parent.Fx.AimPreview)
+local FxLib = require(script.Parent.Parent.Fx.FxLib)
 
 -- The juice sound for a cast by its slot (basic, super, or any skill)
 local function castSound(slot: string?): string
@@ -51,6 +54,9 @@ CombatClient.Cast = Signal.new() -- (abilityId)
 local book = Cooldowns.new()
 local recast: AbilityRules.RecastState = {}
 local combo = { at = 0, step = 0 }
+local startHold: (string, string) -> ()
+local releaseHold: () -> ()
+local updateHold: () -> ()
 local seq = 0
 local channel: { seq: number, id: string, untilT: number }? = nil
 local CHEST = Vector3.new(0, 1.5, 0)
@@ -213,7 +219,8 @@ local function myChest(): Vector3?
 	return root and root.Position + CHEST
 end
 
-function CombatClient.fire(id: string): boolean
+-- charge: how far a held skill charged (0 to 1, ChargeRules.level); the server caps it by its own timing
+function CombatClient.fire(id: string, charge: number?): boolean
 	local row = A.list[id]
 	local char = player.Character
 	local root = char and char:FindFirstChild("HumanoidRootPart") :: BasePart?
@@ -246,6 +253,8 @@ function CombatClient.fire(id: string): boolean
 		return false
 	end
 	local eff = State.effective(id)
+	local chargeLevel = if charge and ChargeRules.chargeable(row) then charge else 0
+	ChargeRules.apply(C, eff, chargeLevel)
 	local awake = State.awakened()
 	local origin = root.Position + CHEST
 	local range = rangeOf(eff)
@@ -399,7 +408,7 @@ function CombatClient.fire(id: string): boolean
 		MoveController.launchTo(target, eff.time or 0.5, math.max(4, up * 0.25))
 	end
 	Juice.fire(castSound(slot), origin, { mine = true })
-	Net.send("CombatUse", eff.num, dir, hint, seq)
+	Net.send("CombatUse", eff.num, dir, hint, seq, math.floor(chargeLevel * 100 + 0.5))
 	CombatClient.Cast:Fire(id)
 	return true
 end
@@ -671,6 +680,78 @@ local function onEvents(list: { any })
 	end
 end
 
+-- Hold to aim and charge (overhaul plan step 3; Config.Combat.charge, Shared.ChargeRules): a skill or super key
+-- shows its aim while held (AimPreview) and casts on release; damaging skills also charge (the server times
+-- the hold from CombatCharge). Pressing a running channel's key still stops it at once.
+type Hold = { action: string, id: string, t0: number, charge: boolean, posed: boolean, full: boolean }
+local holding: Hold? = nil
+
+releaseHold = function()
+	local h = holding
+	holding = nil
+	AimPreview.hide()
+	if not h then
+		return
+	end
+	local level = if h.charge then ChargeRules.level(C, os.clock() - h.t0) else 0
+	CombatClient.fire(h.id, level)
+end
+
+startHold = function(action: string, id: string)
+	local row = A.list[id]
+	if not row then
+		return
+	end
+	if channel and channel.id == id and os.clock() < channel.untilT then
+		CombatClient.fire(id) -- stops the channel
+		return
+	end
+	if not ChargeRules.aimable(row) then
+		CombatClient.fire(id)
+		return
+	end
+	if holding then
+		releaseHold() -- a second key: the first one goes off
+	end
+	local charge = ChargeRules.chargeable(row)
+	holding = { action = action, id = id, t0 = os.clock(), charge = charge, posed = false, full = false }
+	if charge then
+		Net.send("CombatCharge", row.num)
+	end
+end
+
+updateHold = function()
+	local h = holding
+	if not h then
+		return
+	end
+	local held = os.clock() - h.t0
+	if held >= C.charge.maxHold then
+		releaseHold()
+		return
+	end
+	local char = player.Character
+	local root = char and char:FindFirstChild("HumanoidRootPart") :: BasePart?
+	if not root or held < 0.12 then
+		return
+	end
+	local level = if h.charge then ChargeRules.level(C, held) else 0
+	local eff = ChargeRules.apply(C, State.effective(h.id), level)
+	local origin = root.Position + CHEST
+	local point = aim(rangeOf(eff), origin)
+	local color = CombatFx.colorOf(eff.set, player.UserId)
+	AimPreview.draw(eff, origin, root.Position - Vector3.new(0, 3, 0), point, color, level)
+	if h.charge and level > 0 and not h.posed then
+		h.posed = true
+		HeroAnimator.windup(player, C.charge.maxHold) -- the charging pose until release
+	end
+	if level >= 1 and not h.full then
+		h.full = true
+		FxLib.gather(origin, eff.set, color) -- fully charged
+		Juice.fire("skillRank", origin, { mine = true })
+	end
+end
+
 function CombatClient.init()
 	Net.listen("CombatResult", onResult)
 	Net.listen("CombatEvents", onEvents)
@@ -682,7 +763,7 @@ function CombatClient.init()
 			end
 		elseif action == "Super" then
 			if kit.super then
-				CombatClient.fire(kit.super)
+				startHold(action, kit.super)
 			end
 		elseif action == "Awaken" then
 			Net.send("Awaken")
@@ -704,12 +785,19 @@ function CombatClient.init()
 						text = string.format("Mastery %d opens %s", Config.Weapons.mastery.skills[key], key),
 					})
 				else
-					CombatClient.fire(id)
+					startHold(action, id)
 				end
 			end
 		end
 	end)
+	InputController.Released:Connect(function(action)
+		local h = holding
+		if h and h.action == action then
+			releaseHold()
+		end
+	end)
 	RunService.Heartbeat:Connect(FrameProf.wrap("CombatClient", function()
+		updateHold()
 		if InputController.isDown("Basic") then
 			local basic = State.kit().basic
 			if basic then
@@ -718,6 +806,8 @@ function CombatClient.init()
 		end
 	end))
 	player.CharacterAdded:Connect(function()
+		holding = nil
+		AimPreview.hide()
 		Cooldowns.clear(book)
 		table.clear(recast)
 		channel = nil

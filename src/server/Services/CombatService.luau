@@ -31,6 +31,7 @@ local HitQuery = require(Shared:WaitForChild("HitQuery"))
 local CastPlan = require(Shared:WaitForChild("CastPlan"))
 local DeepLayout = require(Shared:WaitForChild("DeepLayout"))
 local AbilityRules = require(Shared:WaitForChild("AbilityRules"))
+local ChargeRules = require(Shared:WaitForChild("ChargeRules"))
 local WeaponRules = require(Shared:WaitForChild("WeaponRules"))
 local Awakening = require(Shared:WaitForChild("Awakening"))
 local ClashRules = require(Shared:WaitForChild("ClashRules"))
@@ -1224,7 +1225,8 @@ function CombatService.use(
 	aim: Vector3,
 	hint: number,
 	seq: number,
-	latency: number
+	latency: number,
+	charge: number?
 ): boolean
 	local row = A.byNum[num]
 	if not row or not hero.alive or HeroService.disabled(hero) then
@@ -1250,6 +1252,14 @@ function CombatService.use(
 		return false
 	end
 	local eff = HeroService.effective(hero, row.id)
+	-- hold to charge: capped by the hold the server timed from the key press (CombatCharge)
+	local pressed = hero.chargeAt and hero.chargeAt[num]
+	if hero.chargeAt then
+		hero.chargeAt[num] = nil
+	end
+	if ChargeRules.chargeable(row) then
+		ChargeRules.apply(C, eff, ChargeRules.allowed(C, charge, pressed, now, latency))
+	end
 	local awake = HeroService.awakened(hero)
 	if slot == "super" and awake then
 		local aw = A.awakening
@@ -1565,14 +1575,26 @@ function CombatService.init()
 	partsFolder.Parent = Workspace
 	local city = Workspace:WaitForChild("City")
 	losParams.FilterDescendantsInstances = { city }
-	Net.on("CombatUse", function(player, num: number, aim: Vector3, hint: number, seq: number)
-		local hero = HeroService.get(player)
-		if not hero then
-			return
+	Net.on(
+		"CombatUse",
+		function(player, num: number, aim: Vector3, hint: number, seq: number, charge: number?)
+			local hero = HeroService.get(player)
+			if not hero then
+				return
+			end
+			local t0 = os.clock()
+			CombatService.use(hero, num, aim, hint, seq, player:GetNetworkPing(), charge)
+			PerfMonitor.add("combat", (os.clock() - t0) * 1000)
 		end
-		local t0 = os.clock()
-		CombatService.use(hero, num, aim, hint, seq, player:GetNetworkPing())
-		PerfMonitor.add("combat", (os.clock() - t0) * 1000)
+	)
+	-- hold to charge: the server times the hold from the press
+	Net.on("CombatCharge", function(player, num: number)
+		local hero = HeroService.get(player)
+		local row = A.byNum[num]
+		if hero and row and ChargeRules.chargeable(row) and slotOf(hero, row.id) then
+			hero.chargeAt = hero.chargeAt or {}
+			hero.chargeAt[num] = os.clock()
+		end
 	end)
 	-- Leaping (nate 2026-11-16): the ground pound lands as a burst; the server checks the mobility, the
 	-- cooldown and that the hero really fell (MoveGuard.dropped)

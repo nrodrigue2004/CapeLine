@@ -13,6 +13,11 @@ return {
 	critPause = 0.05,
 	punchHit = 0.012, -- camera FOV kick on your hits (CameraController.punch; clash uses its own)
 	punchHeavy = 0.03,
+	-- Hold to aim and charge (overhaul plan step 3; Shared.ChargeRules). A skill or super key shows its aim
+	-- while held and casts on release. Damaging skills (not channels, buffs, summons, dashes or supers) also
+	-- charge: from `start` to `full` seconds held, up to +damage and +size. The server times the hold itself
+	-- (CombatCharge at the press), so a client can claim no more than it held.
+	charge = { start = 0.25, full = 1.2, damage = 0.2, size = 0.15, maxHold = 4, leeway = 0.15 },
 	numbers = { stackTime = 0.35 }, -- Client: damage numbers on one target merge for this long
 	outOfCombat = 5, -- seconds since the last hit or cast: loadouts can change (until safehouses in M4)
 	echoDelay = 0.5, -- Aftershock, Shockwave and other echo capstones land this long after

@@ -68,13 +68,13 @@ local function rigOf(p: Player): Rig?
 	if not (root and root:IsA("BasePart")) then
 		return nil
 	end
-	local motors = motorsOf(char)
+	local motors = motorsOf(char :: Model)
 	if not motors.Waist then
 		return nil -- not an R15 rig (yet)
 	end
 	r = {
-		char = char,
-		root = root,
+		char = char :: Model,
+		root = root :: BasePart,
 		motors = motors,
 		written = {},
 		modeFrom = nil,
@@ -108,7 +108,7 @@ function HeroAnimator.play(p: Player?, clip: string, dur: number?)
 	if not p or not HeroAnim.CLIPS[clip] then
 		return
 	end
-	local r = rigOf(p)
+	local r = rigOf(p :: Player)
 	if not r then
 		return
 	end
@@ -142,7 +142,7 @@ function HeroAnimator.hit(p: Player?)
 	if not p then
 		return
 	end
-	local r = rigOf(p)
+	local r = rigOf(p :: Player)
 	local a = r and r.action
 	if a and os.clock() - a.start < a.dur and a.clip ~= "flinch" then
 		return

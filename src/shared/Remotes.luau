@@ -22,7 +22,14 @@ local V3 = { t = "Vector3" }
 local Remotes: { [string]: RemoteDef } = {
 	-- Combat (spec: Hit resolution). abilityNum, aimDir, targetHint (enemy id or 0), seq, the hero's own
 	-- position as the client saw it (used only to pick the rewind time, never trusted for range)
-	CombatUse = { dir = "C2S", schema = { n(1, 1023), V3, n(0, 65535), n(0, 2 ^ 31) }, rate = 12, burst = 12 },
+	-- (5th, optional: the charge claimed, 0-100; the server caps it by the hold it timed from CombatCharge)
+	CombatUse = {
+		dir = "C2S",
+		schema = { n(1, 1023), V3, n(0, 65535), n(0, 2 ^ 31), n(0, 100, true) },
+		rate = 12,
+		burst = 12,
+	},
+	CombatCharge = { dir = "C2S", schema = { n(1, 1023) }, rate = 12, burst = 12 }, -- a skill key went down
 	CombatResult = { dir = "S2C" }, -- batched hits, 10 Hz, to players within 150 studs
 	CombatEvents = { dir = "S2C" }, -- enemy shots, deaths and hero hits for the effects, 10 Hz batches
 
