@@ -7055,6 +7055,88 @@ test("Remade robot (Spark Trooper): its superhero shell set and hair", function(
 	check(Config.Enemies.SparkDrone.body.art == "Trooper", "the Spark Trooper uses the remade set")
 end)
 
+test("Remade bosses: every boss has its meshes, weak points inside their hit spheres", function()
+	local A = Config.BossArt
+	local ROLES = { hull = true, shed2 = true, shed3 = true, glow = true, weak = true }
+	check(A.texture > 0 and A.texture <= 1024, "one phone-friendly texture set a boss (1024 px at most)")
+	check(#A.weakColor == 2 and A.pulse > 0, "the weak points pulse between two golds")
+	check(#A.objectiveColor == 3, "the objective lamps have a colour")
+	local n = 0
+	for id, def in Config.Boss.bosses do
+		local art = A[id]
+		check(art ~= nil, id .. " has remade art")
+		if not art then
+			continue
+		end
+		n += 1
+		check(art.triangles > 0 and art.triangles <= 16000, id .. " is under the 16,000 triangle boss budget")
+		check(#art.glow == 3, id .. " has an accent colour for each phase")
+		local roles = {}
+		for name, row in art.pieces do
+			check(ROLES[row.role] == true, id .. "_" .. name .. " has a body role")
+			roles[row.role] = true
+			for k = 1, 3 do
+				check(
+					row.size[k] > 0 and row.size[k] <= def.arenaRadius,
+					id .. "_" .. name .. " fits its arena"
+				)
+				check(
+					math.abs(row.offset[k]) <= def.arenaRadius / 2,
+					id .. "_" .. name .. " sits on the boss"
+				)
+			end
+			check(
+				row.offset[2] - row.size[2] / 2 > -def.height,
+				id .. "_" .. name .. " is not far underground"
+			)
+		end
+		check(roles.hull and roles.weak and roles.glow, id .. " has a hull, accents and weak points")
+		check(roles.shed2 and roles.shed3, id .. " sheds plates at phases 2 and 3")
+		-- every weak point has a lamp inside its hit sphere (hit boxes stay Config.Boss's), and no lamp is a fake
+		for _, t in def.targets do
+			if t.weak then
+				local at = art.weak[t.id]
+				check(at ~= nil, id .. " " .. t.id .. " has a lamp")
+				if at then
+					local d = math.sqrt((at[1] - t.at[1]) ^ 2 + (at[2] - t.at[2]) ^ 2 + (at[3] - t.at[3]) ^ 2)
+					check(d <= t.r, id .. " " .. t.id .. "'s lamp is inside its hit sphere")
+				end
+			end
+		end
+		for tid in art.weak do
+			local real = false
+			for _, t in def.targets do
+				real = real or (t.id == tid and t.weak == true)
+			end
+			check(real, id .. " " .. tid .. " is a real weak point")
+		end
+		-- one objective body and one lamp, set at each objective; the lamp inside the objective's 5-stud hit sphere
+		-- (on the body at the objective's point; a generator's is 8 studs over its foot, BossSim)
+		local bodies, lamps = 0, 0
+		local up = if def.objectives.list[1].ring then 8 else 0
+		for name, row in art.objective do
+			if row.role == "objective" then
+				bodies += 1
+			elseif row.role == "objectiveGlow" then
+				lamps += 1
+				local o = row.offset
+				local d = math.sqrt(o[1] ^ 2 + (o[2] - up) ^ 2 + o[3] ^ 2)
+				check(d <= 5, id .. " " .. name .. " sits inside its objective's hit sphere")
+			end
+			check(row.size[1] > 0 and row.size[2] > 0 and row.size[3] > 0, id .. " " .. name .. " has a size")
+		end
+		check(bodies == 1 and lamps == 1, id .. " has one objective body and one lamp")
+	end
+	check(
+		n == 4,
+		"all four bosses (Rustjaw Prime, the Lumen Maw, the Leviathan Engine, the War-Frame) are remade"
+	)
+	-- only the look changes: the bosses' hit spheres and numbers are the ones the fight was tuned with
+	check(Config.Boss.bosses.RustjawPrime.targets[5].id == "core", "Rustjaw's core target is unchanged")
+	check(Config.Boss.bosses.RustjawPrime.targets[5].r == 6, "Rustjaw's core radius is unchanged")
+	check(Config.Boss.weakMult == 2, "weak points still take double damage")
+end)
+
 test(
 	"Heroes in our own clothes: avatar off, the classic clothes and faces, and the avatar rules kept",
 	function()

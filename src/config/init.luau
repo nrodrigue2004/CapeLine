@@ -43,6 +43,7 @@ local NAMES = {
 	"HeroRig",
 	"TrooperArt",
 	"StreetArt",
+	"BossArt",
 	"NpcLooks",
 	"Weapons",
 }
