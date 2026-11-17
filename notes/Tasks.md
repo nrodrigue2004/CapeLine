@@ -55,8 +55,29 @@ phones or Studio go on the Studio test list below.
 - 17 paths (2026-11-16): the 96 new abilities use the existing neon parts, beams and rings; summons (turret, drone, clones, totem, guardian, mines, holo decoy) and rides (jets, rock, board, platform, rail) are a few parts each; size forms just scale the hero (CombatFx, CombatClient). Swing lines are a thin part (MoveController). PLACEHOLDER ART.
 - Underwater (2026-11-16): the basin walls, the Sunken Line tunnel, station and train cars, reef, kelp, wrecks, caches and the sunken factory are plain parts; the seabed and rock walls are Terrain sand and rock (DeepLayout, CityBuilder); commuters are blocky figures in a glass bubble, cache markers are labels (DeepClient); Diver helmets and tanks are parts (EnemyRenderer); torpedoes are a box with ball bubbles (CombatFx); the Leviathan Engine is a part-built serpent sub (WorldFx). PLACEHOLDER ART.
 - New robot types (2026-11-17): the riot shield, officer's cap, rifle, visor, bandolier, medic backpack, jet wings and hook launcher are plain parts (EnemyRenderer); the aim laser, tracer, net, hook and cable, grenade, burning patch, repair beam, rally ring and the Mimic's glitch burst are neon parts and the effects library's particles (CombatFx); their sounds are pitched built-in sounds (Config.Audio aimLock, grenadeBoom, rally, reveal). PLACEHOLDER ART until meshes and effect sheets.
-- Store page (M12): no icon, thumbnails or concept art yet; briefs in notes/Store Page.md (generated and hand-cleaned, nate approves each).
+- Store page (M12): candidate icons and thumbnails made 2026-11-17 (art/export/store, see "Store art candidates" below); thumbnail 3 shows Rustjaw Prime's PLACEHOLDER LOOK (re-render it with `bash art/store/make.sh boss` once the boss lore look is final). No concept art yet.
 - Hero creator first slice (2026-11-16): the 121 new pieces (beards, faces, makeup, hats, ears, shoulders, neck, arms, wrists, belts, legs, back bling, 10 hair styles) are blocks, wedges, balls and cylinders welded to the body (PieceKits); all 36 weapons are part-built (WeaponKit); body builds and heights scale the blocky rig and the 8 Blender body sets (art/blender/bodies.py, 2026-11-17) reshape it once Bodies.fbx is imported; weapon moves reuse the power visuals in a steel colour with no swing animation. PLACEHOLDER ART.
+
+## Store art candidates (2026-11-17)
+Rendered with our Blender pipeline from notes/Store Page.md (scripts art/store/*.py; regenerate all with
+`bash art/store/make.sh`, or one with `bash art/store/make.sh <flight|clash|smash|fly|build|boss>`).
+- Icons (512 x 512, no text): `icon_flight.png` (Comic hero flying through Volt lightning over the towers),
+  `icon_clash.png` (Anime hero with a gold aura against a Spark Trooper, shockwave ring), `icon_smash.png`
+  (Comic hero punching a Spark Trooper through a cracking tower wall).
+- Thumbnails (1920 x 1080): `thumb_fly.png` ("FLY. FIGHT. SAVE.": banking between towers at sunset as one
+  collapses), `thumb_build.png` ("HERO OR VILLAIN?": Bruiser, Blaster, Speedster and Controller, two Comic
+  and two Anime, with Titan, Volt, Pulse plus a Blade, and Frost; the Controller in the horned villain look), `thumb_boss.png` ("GIANT WORLD
+  BOSS": ten heroes around Rustjaw Prime with the boss bar and fireworks).
+- Files: art/export/store/*.png (also copied to the project files, capeline/art/store/); contact sheet
+  art/preview/store_candidates.png shows each icon at 150 and 50 px as a phone shows it.
+
+What nate does:
+1. Look at art/preview/store_candidates.png and the full-size files; pick 2 or 3 icons and 2 or 3 thumbnails
+   (or ask for changes).
+2. Run the Playtest Kit check #42 (name and look) on the picks.
+3. Upload them himself in the Creator Dashboard (Places > Configure: icon and thumbnails). Nothing was uploaded.
+4. A/B test them with the Dashboard's icon and thumbnail tests and the launch ads; keep the best click-through.
+5. Re-render thumb_boss once the bosses' lore look is final (`bash art/store/make.sh boss`).
 
 ## Studio test list (needs nate's PC)
 Start: `rojo serve`, connect the Rojo plugin, press Play (or Test > Clients and Servers with 2 players). The DEV button (top right, Studio only) has the test tools.
