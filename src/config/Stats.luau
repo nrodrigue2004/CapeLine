@@ -5,7 +5,9 @@ return {
 	focus = { k = 400, cap = 0.40 }, -- cooldown reduction = Focus / (Focus + 400)
 	precision = { k = 600, cap = 0.50, critBonus = 0.5 },
 	resolve = { k = 500, floor = 0.5 },
-	levelCap = 40,
+	-- the level cap: the ONE source of truth (nate, 2026-11-17: 40 -> 50). Zone levels, item levels, PvP
+	-- compression, Legacy, the save repair and the HUD all read it.
+	levelCap = 50,
 	-- Out-of-combat regen. Not in the spec (it has no PvE healing outside abilities); without it a solo hero
 	-- slowly runs out of health between incidents. Logged in Decisions.md. (tune)
 	regen = { delay = 6, perSecond = 0.04 },

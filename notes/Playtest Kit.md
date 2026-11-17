@@ -75,7 +75,7 @@ Where: **Auto** = the Lune tests already check it every build; **Studio** = the 
 
 ## Reading the analytics after the week
 Creator Dashboard > Analytics:
-- **Funnels > Onboarding (Opening)**: 12 steps from session_start to d1_return. The pillar: 85% reach first_blast. A big drop at one step names the step to fix.
+- **Funnels > Onboarding (Opening)**: 12 steps from session_start to d1_return. The pillar: 85% reach first_spark. A big drop at one step names the step to fix.
 - **Funnels > Combat, PvP, Story, Purchase**: drop-offs between steps.
 - **Custom events**: perf_sample (median fps by device; phone median 30+), idle_wait (should be near zero), leave (state shows where people quit), anti_exploit_flag and report_player (safety).
 - In Studio, every event also prints as `[Analytics] name value fields` in the Output, so a Studio session proves the wiring before the week.

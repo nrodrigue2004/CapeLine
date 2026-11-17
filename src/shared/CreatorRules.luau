@@ -9,6 +9,9 @@
 -- * earned(profile): the play-unlocked pieces this account has now earned (levels, reputation, Fame,
 --   bosses, missions, side quests, Legacy) but not yet got; dropPick rolls a "drop" piece.
 -- * randomize: a whole random look and name from what the account owns (the creator's Randomize button).
+-- * Origins (lore step 2): originOk, originPiece (the origin's crest, worn free by a hero of that origin and
+--   unlocked for the account once any hero has the origin); nothing about an origin touches a stat.
+-- * streetLook: the street outfit (plain classic clothes, the hero's own face and hair, nothing else).
 
 local LookCodec = if script then require(script.Parent.LookCodec) else (require :: any)("./LookCodec")
 local ProfileSchema = if script
@@ -59,8 +62,8 @@ function CreatorRules.parse(s: string): Source
 	local kind = parts[1]
 	if kind == "lvl" or kind == "fame" or kind == "mission" or kind == "quest" or kind == "legacy" then
 		return { kind = kind, n = tonumber(parts[2]) }
-	elseif kind == "pack" then
-		return { kind = "pack", n = tonumber(parts[2]) }
+	elseif kind == "pack" or kind == "origin" then
+		return { kind = kind, n = tonumber(parts[2]) }
 	elseif kind == "rep" then
 		return { kind = "rep", a = parts[2], n = tonumber(parts[3]) }
 	elseif kind == "boss" then
@@ -172,7 +175,28 @@ function CreatorRules.lookOf(Config: any, char: any): Look
 	return LookCodec.read(char and char.look) or CreatorRules.defaultLook(Config)
 end
 
-function CreatorRules.validate(Config: any, profile: any, look: Look): (boolean, string?)
+-- Is this an origin a hero may pick (1 to #Config.Creator.origins)?
+function CreatorRules.originOk(Config: any, origin: number?): boolean
+	return type(origin) == "number" and Config.Creator.origins[origin] ~= nil
+end
+
+-- The origin's crest (the one look piece an origin gives)
+function CreatorRules.originPiece(Config: any, origin: number): Piece?
+	for _, p in CreatorRules.index(Config).list do
+		if p.source.kind == "origin" and p.source.n == origin then
+			return p
+		end
+	end
+	return nil
+end
+
+-- May a hero of this origin wear the piece? Owned, or the hero's own origin crest (before the sweep unlocks it)
+function CreatorRules.wearable(Config: any, profile: any, p: Piece, origin: number?): boolean
+	return CreatorRules.owned(Config, profile, p) or (p.source.kind == "origin" and p.source.n == origin)
+end
+
+-- origin (optional): the hero's origin, whose crest it may wear before the account has unlocked it
+function CreatorRules.validate(Config: any, profile: any, look: Look, origin: number?): (boolean, string?)
 	local C = Config.Creator
 	for _, slot in LookCodec.ALL do
 		local i = look.pieces[slot] or 0
@@ -181,7 +205,7 @@ function CreatorRules.validate(Config: any, profile: any, look: Look): (boolean,
 			if not p then
 				return false, "piece"
 			end
-			if not CreatorRules.owned(Config, profile, p) then
+			if not CreatorRules.wearable(Config, profile, p :: Piece, origin) then
 				return false, "locked"
 			end
 		end
@@ -238,8 +262,11 @@ end
 
 -- What the account has done, across every character (unlocks are account-wide)
 local function best(Config: any, profile: any)
-	local b = { level = 0, legacy = 0, fame = 0, rep = { 0, 0, 0 }, missions = 0, quests = {} }
+	local b = { level = 0, legacy = 0, fame = 0, rep = { 0, 0, 0 }, missions = 0, quests = {}, origins = {} }
 	for _, c in profile.characters do
+		if type(c.origin) == "number" and c.origin > 0 then
+			b.origins[c.origin] = true
+		end
 		b.level = math.max(b.level, c.level or 1)
 		b.legacy = math.max(b.legacy, c.legacy or 0)
 		b.fame = math.max(b.fame, PvpRules.fameRank(Config, c.fame or 0))
@@ -277,6 +304,8 @@ local function earnedBy(Config: any, profile: any, b: any, s: Source): boolean
 		return StoryPlan.cleared({ missions = b.missions }, n)
 	elseif k == "quest" then
 		return b.quests[n] == true
+	elseif k == "origin" then
+		return b.origins[n] == true
 	elseif k == "boss" then
 		local i = table.find(Config.Boss.order, s.a)
 		return i ~= nil and (profile.bosses[i] or 0) >= n
@@ -377,6 +406,47 @@ function CreatorRules.randomize(Config: any, profile: any, rng: any): (Look, num
 		end
 	end
 	return look, t, w
+end
+
+-- The street outfit (lore step 2): the prologue starts in it and the suit snaps on mid-chase. Our own classic
+-- Shirt and Pants (Config.Creator.street, free pieces in plain colours) and the slots in street.keep (the
+-- hero's own face, hair, flight trail and voice) with their own tints and materials; every other slot is empty
+-- (no suit, cape, mask, emblem or aura). The hero's skin, hair and eye colours and Comic or Anime pick stay.
+-- A new table: the look passed in is not changed.
+function CreatorRules.streetLook(Config: any, look: Look): Look
+	local S = Config.Creator.street
+	local out: Look = {
+		pieces = {},
+		colors = table.clone(look.colors),
+		hair = look.hair,
+		skin = look.skin,
+		anime = look.anime,
+		gender = look.gender,
+		build = look.build,
+		height = look.height,
+		eyeColor = look.eyeColor,
+		tints = {},
+		mats = {},
+	}
+	local tints: { [string]: { number } } = look.tints or {}
+	local mats: { [string]: number } = look.mats or {}
+	for _, slot in LookCodec.ALL do
+		out.pieces[slot] = 0
+	end
+	for _, slot in S.keep do
+		out.pieces[slot] = look.pieces[slot] or 0
+		if tints[slot] then
+			out.tints[slot] = table.clone(tints[slot])
+		end
+		if mats[slot] then
+			out.mats[slot] = mats[slot]
+		end
+	end
+	out.pieces.shirt = S.shirt
+	out.pieces.pants = S.pants
+	out.tints.shirt = { S.shirtColor, 0, 0 }
+	out.tints.pants = { S.pantsColor, 0, 0 }
+	return out
 end
 
 -- Hero.Create's other picks: the archetype, one of its paths (with its abilities built) and a mobility

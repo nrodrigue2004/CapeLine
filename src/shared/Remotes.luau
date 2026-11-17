@@ -66,6 +66,8 @@ local Remotes: { [string]: RemoteDef } = {
 
 	-- Enemies (not in the spec's list; see EnemyBuffer and Decisions.md)
 	EnemyDelta = { dir = "S2C", unreliable = true },
+	-- lore step 4: who an evil twin copies ({ id, userId, words, path, name, title }; { id } when it is gone)
+	EnemyIdentity = { dir = "S2C" },
 
 	-- Hero state the HUD needs that attributes do not carry well
 	HeroState = { dir = "S2C" }, -- { level, classId, power, maxHealth, styles, loadout }
@@ -141,12 +143,14 @@ local Remotes: { [string]: RemoteDef } = {
 	StoryPin = { dir = "C2S", schema = { n(0, 8) }, rate = 2, burst = 3 }, -- 0 the story, 1 to 8 a side quest
 	ChoicePrompt = { dir = "S2C" }, -- { id, labels }: the two (or three) big verb buttons
 	ChoicePick = { dir = "C2S", schema = { n(0, 4), n(1, 3) }, rate = 1, burst = 2 }, -- choice id, option
-	OpeningState = { dir = "S2C" }, -- { step, target = { x, y, z }, side, left }: the playable disaster
-	OpeningAct = { dir = "C2S", schema = { n(1, 3) }, rate = 2, burst = 3 }, -- 1 Catch, 2 skip the flight, 3 Create First
+	OpeningState = { dir = "S2C" }, -- { step, t, target, side, left, the scene's points }: the Ceremony prologue
+	-- 1 the Spark fires, 2 skip a camera beat (replays only), 3 Create First, 4 play the prologue (main menu)
+	OpeningAct = { dir = "C2S", schema = { n(1, 4) }, rate = 2, burst = 3 },
 	MissionEnter = { dir = "C2S", schema = { n(2, 6), n(0, 1000000, true) }, rate = 0.2, burst = 2 },
 	MissionLeave = { dir = "C2S", schema = {}, rate = 0.5, burst = 2 },
-	MissionState = { dir = "S2C" }, -- { num, step, steps, kind, have, need, left, points, target }, 2 Hz
-	MissionResult = { dir = "S2C" }, -- { num, first, credits, renown, drops, skillPoints, rep, epic }
+	MissionState = { dir = "S2C" }, -- { num, step, steps, side, kind, text, have, need, t, points, target, focus }, 2 Hz
+	MissionResult = { dir = "S2C" }, -- { num, first, credits, renown, drops, skillPoints, rep, ending }
+	StoryBroadcast = { dir = "S2C" }, -- { id }: an act's ending broadcast (lore step 5: after Live, back in the city)
 	QuestTalk = { dir = "S2C" }, -- { num, line, npc }: the NPC's speech bubble (fixed lines, no free text)
 	QuestState = { dir = "S2C" }, -- { num, step, have, need, left, target, area }: the pinned quest, 2 Hz
 
@@ -169,7 +173,8 @@ local Remotes: { [string]: RemoteDef } = {
 	-- Creator, HQ, shops and passes (M9; spec: Hero.Create {side, classId, setId, look, colors, titleId,
 	-- nounId} 1/10s, Hero.Select {slot} 1/5s). The look is one 128-byte LookCodec buffer.
 	-- HeroCreate: look, side (1 hero, 2 villain), archetype (1-4), path in the archetype (1-5), title, noun,
-	-- mobility (1-5, Move.mobilityOrder), weapon (a 12-byte WeaponRules look: id, style, finish, colours, ...)
+	-- mobility (1-5, Move.mobilityOrder), weapon (a 12-byte WeaponRules look: id, style, finish, colours, ...),
+	-- origin (1-5, Creator.origins; lore step 2)
 	HeroCreate = {
 		dir = "C2S",
 		schema = {
@@ -181,12 +186,13 @@ local Remotes: { [string]: RemoteDef } = {
 			n(1, 16),
 			n(1, 5),
 			{ t = "buffer", len = { 12 }, optional = true },
+			n(1, 5, true),
 		},
 		rate = 0.1,
 		burst = 2,
 	},
 	HeroSelect = { dir = "C2S", schema = { n(1, 4) }, rate = 0.2, burst = 2 }, -- a character slot (new = create)
-	CreatorOpen = { dir = "S2C" }, -- { mode = "create" | "edit" | "first", side, classIdx, hq }: open the creator
+	CreatorOpen = { dir = "S2C" }, -- { mode = "create" | "edit" | "first", side, classIdx, hq, origin }: open it
 	CreatorResult = { dir = "S2C" }, -- { ok, reason }
 	LookSave = { dir = "C2S", schema = { n(1, 4) }, rate = 1, burst = 2 }, -- save the look on mannequin n (HQ)
 	LookWear = { dir = "C2S", schema = { n(1, 4) }, rate = 1, burst = 2 }, -- wear mannequin n's look (HQ)
@@ -212,7 +218,7 @@ local Remotes: { [string]: RemoteDef } = {
 	DronesReady = { dir = "S2C" }, -- { credits, minutes }: the COLLECT card
 	HqBossSim = { dir = "C2S", schema = {}, rate = 0.2, burst = 2 }, -- start the 60 s boss sim (HQ level 3)
 	HqDps = { dir = "S2C" }, -- { dps, total, sim = { left, hp, max } }: the training room meter, 2 Hz
-	HqRetire = { dir = "C2S", schema = {}, rate = 0.1, burst = 1 }, -- Legacy at level 40 (Hall of Legends)
+	HqRetire = { dir = "C2S", schema = {}, rate = 0.1, burst = 1 }, -- Legacy at the level cap (Hall of Legends)
 	GizmoBuy = { dir = "C2S", schema = { n(1, 511) }, rate = 2, burst = 3 }, -- a base style id, Credits only
 	ShopBuy = { dir = "C2S", schema = { n(1, 64) }, rate = 1, burst = 3 }, -- an item (ShopRules.keys order)
 	ShopResult = { dir = "S2C" }, -- { ok, key, kind, pieces, reason }: after a purchase lands (or not)

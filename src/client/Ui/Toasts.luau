@@ -25,14 +25,13 @@ local gui: ScreenGui
 local stack: Frame
 local MAX = 4
 
-local REP_NAMES = { league = "LEAGUE", syndicate = "SYNDICATE", city = "CITY" }
 local UNLOCK_NAMES: { [string]: string } = {
 	MayorsSash = "Mayor's Sash style",
 	DockCoat = "Dock Coat style",
 	PhotoFrame = "Photo frame",
 	CafeSign = "Cafe sign for your HQ",
 	Salute = "Salute emote",
-	NullEcho = "Null Echo, your drone buddy",
+	NullEcho = "Echo Drone, your drone buddy",
 }
 local M9_REASONS: { [string]: string } = {
 	combat = "Not during a fight",
@@ -63,7 +62,7 @@ local PVP_REASONS: { [string]: string } = {
 	rate = "Wait a moment before switching again",
 	safe = "Step out of the safe area to switch PvP on",
 	combat = "PvP can switch off 60 s after the last PvP hit",
-	crater = "Leave the Comet Crater to switch PvP off",
+	crater = "Leave the Crater to switch PvP off",
 }
 
 local MISSION_REASONS: { [string]: string } = {
@@ -126,9 +125,15 @@ local function juice(data: { [string]: any })
 		Juice.fire("gearDrop", nil, { tier = GearMath.tierName(Config, data.piece) })
 	elseif id == "incident" then
 		Juice.fire("incidentClear", nil, { medal = data.medal })
+	elseif id == "beat" then
+		local b = Config.Incidents.beats[data.beat or ""]
+		if b then
+			local at = if data.x then Vector3.new(data.x, data.y, data.z) else nil
+			Juice.fire(b.juice, at, { mine = false })
+		end
 	elseif id == "contract" then
 		Juice.fire("contractDone", nil, { name = data.name })
-	elseif id == "revived" or id == "revivedBy" then
+	elseif id == "revived" or id == "revivedBy" or id == "defused" or id == "photoRecon" then
 		local char = Players.LocalPlayer.Character
 		local root = char and char:FindFirstChild("HumanoidRootPart") :: BasePart?
 		Juice.fire("revive", root and root.Position)
@@ -164,7 +169,7 @@ function Toasts.show(data: { [string]: any })
 		return
 	end
 	if id == "levelUp" then
-		local unlock = Progress.UNLOCKS[data.level]
+		local unlock = Progress.unlockAt(Config, data.level)
 		push(string.format("LEVEL %d!", data.level), Kit.color.gold, true, 4.5)
 		if unlock then
 			push("Unlocked: " .. unlock, Kit.color.paper, false, 5)
@@ -227,7 +232,12 @@ function Toasts.show(data: { [string]: any })
 	elseif id == "incident" then
 		local medal = string.upper(data.medal or "")
 		push(
-			string.format("%s CLEARED!  %s", string.upper(data.name or "Incident"), medal),
+			string.format(
+				"%s%s CLEARED!  %s",
+				if data.heroic then Config.Heroic.tag .. " " else "",
+				string.upper(data.name or "Incident"),
+				medal
+			),
 			Kit.color.gold,
 			true,
 			3.5
@@ -248,9 +258,51 @@ function Toasts.show(data: { [string]: any })
 	elseif id == "contractRefused" then
 		push(ContractBoard.REASONS[data.reason or ""] or "You cannot take that contract", Kit.color.paper)
 	elseif id == "photo" then
-		push("SNAP! Sneak Bot photographed", Kit.color.volt)
+		push("SNAP! " .. Config.Enemies.SneakBot.name .. " photographed", Kit.color.volt)
+	-- 2026-11-17: the new activities' moments (fixed lines)
+	elseif id == "beat" then
+		local b = Config.Incidents.beats[data.beat or ""]
+		if b then
+			local heroicBeat = data.beat == "heroic"
+			push(
+				b.text,
+				if heroicBeat
+					then Color3.fromRGB(
+						Config.Heroic.color[1],
+						Config.Heroic.color[2],
+						Config.Heroic.color[3]
+					)
+					else Kit.color.gold,
+				heroicBeat or string.upper(b.text) == b.text,
+				3
+			)
+		end
+	elseif id == "photoRecon" then
+		push("SNAP! Lookout photographed", Kit.color.volt)
+	elseif id == "courier" then
+		push(string.format("PARCEL! %d s to make every drop", data.left or 0), Kit.color.gold, true, 3)
+	elseif id == "courierLate" then
+		push("Too slow: the parcel is back on its roof", Kit.color.paper)
+	elseif id == "fuse" then
+		push(
+			string.format("A charge is armed: %d s on the fuse", data.left or 0),
+			Color3.fromRGB(255, 120, 90)
+		)
+	elseif id == "defused" then
+		push("CHARGE DEFUSED!", Kit.color.gold, true, 3)
+	elseif id == "fizzled" then
+		push("The charge popped: the robots planted another one", Kit.color.paper)
 	elseif id == "event" then
-		push(string.format("EVENT: %s!", string.upper(data.name or "")), Kit.color.gold, true, 5)
+		push(
+			string.format(
+				"%sEVENT: %s!",
+				if data.heroic then Config.Heroic.tag .. " " else "",
+				string.upper(data.name or "")
+			),
+			Kit.color.gold,
+			true,
+			5
+		)
 		if data.text then
 			push(data.text, Kit.color.paper, false, 5)
 		end
@@ -276,7 +328,11 @@ function Toasts.show(data: { [string]: any })
 		)
 	elseif id == "repRank" then
 		push(
-			string.format("%s REPUTATION RANK %d", REP_NAMES[data.track] or "", data.rank or 1),
+			string.format(
+				"%s RANK %d",
+				string.upper(Config.Story.rep.labels[data.track] or ""),
+				data.rank or 1
+			),
 			Kit.color.gold,
 			true,
 			4.5
@@ -284,6 +340,17 @@ function Toasts.show(data: { [string]: any })
 	elseif id == "unlock" then
 		local name = UNLOCK_NAMES[data.name or ""] or data.name or ""
 		push(string.format("UNLOCKED: %s", string.upper(name)), Kit.color.gold, true, 4.5)
+	elseif id == "news" then
+		-- lore step 5: a fake unmasked live goes out on every screen in the server (fixed text)
+		local text = Config.Story.news[data.key or ""]
+		if text then
+			push(
+				string.format(text, string.upper(tostring(data.name or ""))),
+				Color3.fromRGB(255, 90, 90),
+				true,
+				5
+			)
+		end
 	elseif id == "choiceKept" then
 		push("Your first choice stands on a replay", Kit.color.paper)
 	elseif id == "missionRefused" then
@@ -312,7 +379,7 @@ function Toasts.show(data: { [string]: any })
 			push(text, Kit.color.paper)
 		end
 	elseif id == "craterIn" then
-		push("COMET CRATER: PVP ZONE, +50% RENOWN", Color3.fromRGB(255, 120, 110), true)
+		push("THE CRATER: PVP ZONE, +50% RENOWN", Color3.fromRGB(255, 120, 110), true)
 	elseif id == "revived" then
 		push(
 			string.format("You revived %s  +%d Renown", data.name or "", data.renown or 0),
@@ -363,7 +430,7 @@ function Toasts.show(data: { [string]: any })
 	elseif id == "hqLocked" then
 		push(string.format("Opens at HQ level %d", data.level or 1), Kit.color.paper)
 	elseif id == "retireLevel" then
-		push("Retiring opens at level 40", Kit.color.paper)
+		push(string.format("Retiring opens at level %d", Config.Stats.levelCap), Kit.color.paper)
 	elseif id == "legacy" then
 		push(string.format("LEGACY RANK %d!", data.rank or 1), Kit.color.gold, true, 5)
 		push("Your statue stands in the Hall of Legends", Kit.color.paper, false, 5)

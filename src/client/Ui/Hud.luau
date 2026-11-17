@@ -8,6 +8,10 @@
 -- On PC and gamepad the same buttons show their key; they are drawn smaller.
 -- PLACEHOLDER look until the UI pass (M10): the radar, world clock and boss countdown arrive with their
 -- systems (M4, M6).
+-- Phone pass (overhaul step 8): every button's place and size comes from Shared.TouchLayout for the screen
+-- (sized to fit under the top row, out of the move stick's zone, the Button size setting on top); the
+-- screen buttons go in Kit's top row (MORE holds what does not fit on a phone); held skill buttons aim by
+-- dragging and show their charge; cooldowns show the seconds left; controllers see their button names.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -16,8 +20,12 @@ local FrameProf =
 	require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("FrameProf"))
 local TweenService = game:GetService("TweenService")
 
+local GuiService = game:GetService("GuiService")
+
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Progress = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Progress"))
+local TouchLayout = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("TouchLayout"))
+local ChargeRules = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("ChargeRules"))
 local WeaponRules = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("WeaponRules"))
 local Signal = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Util"):WaitForChild("Signal"))
 
@@ -42,7 +50,20 @@ local staminaDots: { Frame } = {}
 local guardDots: { Frame } = {} -- H1: the Guard ring round the shield button
 local infoText: TextLabel
 local crosshair: Frame
-local buttons: { [string]: { button: TextButton, sweep: Frame?, hint: TextLabel } } = {}
+type Entry = {
+	button: TextButton,
+	sweep: Frame?,
+	hint: TextLabel,
+	pad: UIPadding,
+	corner: UICorner,
+	cooldown: TextLabel,
+	charge: UIStroke,
+}
+local buttons: { [string]: Entry } = {}
+local statusCard: Frame
+-- the buttons a held touch aims with (drag to turn the camera)
+local AIMS = { Basic = true, Skill1 = true, Skill2 = true, Skill3 = true, Skill4 = true, Super = true }
+local holdStart: { [string]: number } = {} -- when each held skill went down (the charge ring)
 local shieldFill: Frame
 local meterFill: Frame
 local meterText: TextLabel
@@ -54,7 +75,6 @@ local cluster: Frame
 local stickRing: Frame
 local stickKnob: Frame
 local mirrored = false
-local original: { [GuiObject]: UDim2 } = {}
 local SLOT_ACTIONS = { "Skill1", "Skill2", "Skill3", "Skill4" }
 local ShortName: { [string]: string } = {}
 for id, row in A do
@@ -89,12 +109,32 @@ local function actionButton(
 	b.Position = pos
 	Kit.round(b, size // 2)
 	Kit.stroke(b, Kit.color.ink, 2)
+	local corner = b:FindFirstChildOfClass("UICorner") :: UICorner
 	local pad = Instance.new("UIPadding")
 	pad.PaddingTop = UDim.new(0, 10)
 	pad.PaddingBottom = UDim.new(0, 10)
 	pad.PaddingLeft = UDim.new(0, 6)
 	pad.PaddingRight = UDim.new(0, 6)
 	pad.Parent = b
+	-- the charge ring: thickens while a chargeable skill is held (Shared.ChargeRules)
+	local charge = Instance.new("UIStroke")
+	charge.Name = "Charge"
+	charge.Color = Kit.color.gold
+	charge.Thickness = 0
+	charge.Enabled = false
+	charge.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	charge.Parent = b
+	-- seconds left on the cooldown, big and outlined so it reads over the sweep
+	local cooldown = Kit.label({
+		Name = "Cooldown",
+		Text = "",
+		Size = UDim2.fromScale(1, 1),
+		TextColor3 = Kit.color.paper,
+		TextStrokeTransparency = 0,
+		ZIndex = 4,
+		maxText = 40,
+	})
+	cooldown.Parent = b
 	local sweep = Instance.new("Frame")
 	sweep.Name = "Sweep"
 	sweep.BackgroundColor3 = Color3.new(0, 0, 0)
@@ -121,6 +161,10 @@ local function actionButton(
 		local t = input.UserInputType
 		if t == Enum.UserInputType.Touch or t == Enum.UserInputType.MouseButton1 then
 			InputController.set(action, true)
+			if t == Enum.UserInputType.Touch then
+				-- let go wherever the finger lifts; a held skill aims by dragging its button
+				InputController.holdTouch(input, action, AIMS[action] == true)
+			end
 			Kit.bounce(b)
 		end
 	end)
@@ -131,7 +175,15 @@ local function actionButton(
 		end
 	end)
 	b.Parent = parent
-	buttons[action] = { button = b, sweep = sweep, hint = hint }
+	buttons[action] = {
+		button = b,
+		sweep = sweep,
+		hint = hint,
+		pad = pad,
+		corner = corner,
+		cooldown = cooldown,
+		charge = charge,
+	}
 	return b
 end
 
@@ -233,6 +285,7 @@ local function buildTopLeft()
 	})
 	renownText.Parent = renown
 	card.Parent = gui
+	statusCard = card
 	buffRow = Instance.new("Frame")
 	buffRow.Name = "Buffs"
 	buffRow.BackgroundTransparency = 1
@@ -299,6 +352,10 @@ local function buildGuardRing(around: GuiObject)
 		table.insert(guardDots, d)
 	end
 end
+
+-- The top row's order (lower stays in the row longest; Radar docks PING 5 and SQUAD 8, PvpHud PVP 6,
+-- PhotoMode PHOTO 10)
+local DOCK_ORDER = { Loadout = 1, Gear = 2, Map = 3, Shop = 4, Journal = 7, Emote = 9 }
 
 local function buildCluster()
 	cluster = Instance.new("Frame")
@@ -459,6 +516,14 @@ local function buildCluster()
 		UDim2.new(1, -big - s * 2.5 - 64, 1, -big - s * 1.5 - 34),
 		Color3.fromRGB(170, 200, 255)
 	)
+	-- phone pass: the screen buttons join Kit's top row (other modules add PING, SQUAD, PVP and PHOTO)
+	for action, order in DOCK_ORDER do
+		local entry = buttons[action]
+		if entry then
+			Kit.dock(entry.button, action, order)
+		end
+	end
+	Kit.dock(settings, "Settings", 11)
 end
 
 local function refreshInfo()
@@ -477,7 +542,7 @@ local function refreshInfo()
 	else
 		local need = Progress.xpToNext(Config, h.level)
 		renownFill.Size = UDim2.fromScale(math.clamp((h.xp or 0) / need, 0, 1), 1)
-		local at, what = Progress.nextUnlock(h.level)
+		local at, what = Progress.nextUnlock(Config, h.level)
 		renownText.Text = string.format("RENOWN %d / %d", h.xp or 0, need)
 			.. (if at and what then string.format("  NEXT LV %d: %s", at, what) else "")
 	end
@@ -555,12 +620,17 @@ end
 
 local function applyDevice(device: string)
 	local touch = device == "touch"
-	for _, entry in buttons do
-		entry.hint.Visible = not touch
+	local pad = device == "gamepad"
+	for action, entry in buttons do
+		-- key names for keyboards, button names for controllers (none for touch)
+		local hint = if pad then InputController.padHints[action] else InputController.hints[action]
+		entry.hint.Text = hint or ""
+		entry.hint.Visible = not touch and hint ~= nil
 		entry.button.BackgroundTransparency = if touch then 0.1 else 0.35
 	end
 	-- the mouse aims, so the crosshair only shows for touch and gamepad aiming
 	crosshair.Visible = device ~= "mouse"
+	Kit.setHudOpts({ touch = touch })
 end
 
 -- Story focus (the opening's first 3 minutes): only these verb buttons show and pulse, nothing else on the
@@ -585,6 +655,7 @@ function Hud.setFocus(actions: { string }?)
 			child.Visible = focus == nil
 		end
 	end
+	Kit.dockShown(focus == nil) -- the top row too
 	if not focus then
 		refreshInfo()
 		applyDevice(InputController.device)
@@ -616,24 +687,90 @@ end
 
 Hud.OpenSettings = Signal.new() -- the gear button (SettingsMenu listens)
 
+-- A button's cooldown sweep at f (0 to 1): a dark fill rising over the whole button, padding included
+local function setSweep(entry: Entry, f: number)
+	local sweep = entry.sweep
+	if not sweep then
+		return
+	end
+	local p = entry.pad
+	local px = p.PaddingLeft.Offset + p.PaddingRight.Offset
+	local py = p.PaddingTop.Offset + p.PaddingBottom.Offset
+	sweep.Position = UDim2.new(0, -p.PaddingLeft.Offset, 1, p.PaddingBottom.Offset)
+	sweep.Size = UDim2.new(1, px, f, if f > 0 then py * f else 0)
+end
+
+-- Place every action button and the display parts for this screen (Shared.TouchLayout): on rotation, a
+-- resize, the device changing, left-handed and the Button size setting
+local function layout()
+	if not cluster then
+		return
+	end
+	local a = Kit.area()
+	local opts = Kit.hudOptions()
+	opts.present = { Block = buttons.Block ~= nil }
+	local placed = TouchLayout.cluster(Config, a.X, a.Y, opts :: any)
+	cluster.AnchorPoint = Vector2.zero
+	cluster.Position = UDim2.new()
+	cluster.Size = UDim2.fromScale(1, 1)
+	for action, p in placed do
+		local entry = buttons[action]
+		if entry and entry.button.Parent == cluster then
+			local size = math.floor(p.size + 0.5)
+			local b = entry.button
+			b.AnchorPoint = Vector2.new(0.5, 0.5)
+			b.Position = UDim2.fromOffset(math.floor(p.x + 0.5), math.floor(p.y + 0.5))
+			b.Size = UDim2.fromOffset(size, size)
+			entry.corner.CornerRadius = UDim.new(0, size // 2)
+			local py, px = math.floor(size * 0.18), math.floor(size * 0.1)
+			entry.pad.PaddingTop = UDim.new(0, py)
+			entry.pad.PaddingBottom = UDim.new(0, py)
+			entry.pad.PaddingLeft = UDim.new(0, px)
+			entry.pad.PaddingRight = UDim.new(0, px)
+			local sweepCorner = entry.sweep and entry.sweep:FindFirstChildOfClass("UICorner")
+			if sweepCorner then
+				sweepCorner.CornerRadius = UDim.new(0, size // 2)
+			end
+			setSweep(entry, 0)
+			-- the key or pad hint sits in the top padding (below the button it would land on the next one)
+			entry.hint.Position = UDim2.fromOffset(0, -py + 1)
+			entry.hint.Size = UDim2.new(1, 0, 0, py + 3)
+			entry.hint.ZIndex = b.ZIndex + 1
+		end
+	end
+	-- the stamina dots ring the Boost button
+	local boost = buttons.Boost
+	if boost then
+		local r = boost.button.Size.X.Offset / 2 + TouchLayout.RING * 0.8
+		local n = #staminaDots
+		for i, d in staminaDots do
+			local ang = (i - 1) / n * math.pi * 2 - math.pi / 2
+			d.Position = UDim2.new(0.5, math.cos(ang) * r, 0.5, math.sin(ang) * r)
+		end
+	end
+	-- the display parts and the top row's span
+	local hb = Kit.hudBoxes()
+	statusCard.Position = UDim2.fromOffset(hb.status.x, hb.status.y)
+	statusCard.Size = UDim2.fromOffset(hb.status.w, hb.status.h)
+	buffRow.Position = UDim2.fromOffset(hb.buffs.x, hb.buffs.y)
+	buffRow.Size = UDim2.fromOffset(hb.buffs.w, hb.buffs.h)
+	walletText.AnchorPoint = Vector2.zero
+	walletText.Position = UDim2.fromOffset(hb.wallet.x, hb.wallet.y)
+	walletText.Size = UDim2.fromOffset(hb.wallet.w, hb.wallet.h)
+	walletText.TextXAlignment = if hb.compact then Enum.TextXAlignment.Left else Enum.TextXAlignment.Right
+	Kit.dockSpan(hb.dockLo, hb.dockHi, hb.dockFromLo)
+end
+Hud.layout = layout
+
 -- Left-handed layout (spec: "left-handed mirror"): the action cluster moves to the bottom left, every
--- button mirrored inside it, so the right thumb gets the move stick (InputController.setStick)
+-- button mirrored, so the right thumb gets the move stick (InputController.setStick); on a phone the
+-- status corner moves right (TouchLayout.hud)
 function Hud.setLeftHanded(on: boolean)
-	if on == mirrored or not cluster then
+	if on == mirrored then
 		return
 	end
 	mirrored = on
-	cluster.AnchorPoint = if on then Vector2.new(0, 1) else Vector2.new(1, 1)
-	cluster.Position = if on then UDim2.new(0, U.safe, 1, -96) else UDim2.new(1, -U.safe, 1, -96)
-	for _, c in cluster:GetChildren() do
-		if c:IsA("GuiObject") then
-			if not original[c] then
-				original[c] = c.Position
-			end
-			local p = original[c]
-			c.Position = if on then UDim2.new(1 - p.X.Scale, -p.X.Offset, p.Y.Scale, p.Y.Offset) else p
-		end
-	end
+	Kit.setHudOpts({ leftHanded = on })
 end
 
 -- The right-side move stick's ring (left-handed and one-hand modes)
@@ -671,6 +808,24 @@ function Hud.init()
 	RunService.RenderStepped:Connect(FrameProf.wrap("Hud", drawStick))
 	refreshInfo()
 	applyDevice(InputController.device)
+	layout()
+	Kit.LayoutChanged:Connect(layout)
+	InputController.Pressed:Connect(function(action)
+		if AIMS[action] then
+			holdStart[action] = os.clock()
+		elseif action == "Menu" then
+			-- gamepad Select: into the top row (and its drawer) for the D-pad, or back out
+			if GuiService.SelectedObject then
+				GuiService.SelectedObject = nil
+				Kit.dockDrawer(false)
+			elseif not focus then
+				GuiService.SelectedObject = Kit.dockSelect()
+			end
+		end
+	end)
+	InputController.Released:Connect(function(action)
+		holdStart[action] = nil
+	end)
 	State.Changed:Connect(refreshInfo)
 	State.StatusChanged:Connect(refreshBuffs)
 	local function refreshWallet()
@@ -742,18 +897,33 @@ function Hud.init()
 			local entry = buttons[action]
 			if entry and entry.sweep and id then
 				local f = CombatClient.cooldownFraction(id)
-				entry.sweep.Size = UDim2.new(1, 12, f, if f > 0 then 20 * f else 0)
+				setSweep(entry, f)
+				-- whole seconds left, shown from 1 s up (a basic's short cooldown stays a sweep)
+				local left = if f > 0 then CombatClient.cooldownLeft(id) else 0
+				entry.cooldown.Text = if left >= 1 then tostring(math.ceil(left)) else ""
+				-- the charge ring while held (chargeable damaging skills only)
+				local held = holdStart[action]
+				local row = A[id]
+				local level = if held
+						and row
+						and ChargeRules.chargeable(row)
+					then ChargeRules.level(Config.Combat, os.clock() - held)
+					else 0
+				entry.charge.Enabled = level > 0
+				entry.charge.Thickness = 2 + 4 * level
+				entry.charge.Color = if level >= 1 then Color3.new(1, 1, 1) else Kit.color.gold
+			elseif entry then
+				entry.cooldown.Text = ""
+				entry.charge.Enabled = false
 			end
 		end
 		local gadget = buttons.Gadget
 		if gadget and gadget.sweep then
-			local f = GadgetClient.fraction()
-			gadget.sweep.Size = UDim2.new(1, 12, f, if f > 0 then 20 * f else 0)
+			setSweep(gadget, GadgetClient.fraction())
 		end
 		local leap = buttons.Leap
 		if leap and leap.sweep then
-			local f = 1 - MoveController.leapReady()
-			leap.sweep.Size = UDim2.new(1, 12, f, if f > 0 then 20 * f else 0)
+			setSweep(leap, 1 - MoveController.leapReady())
 		end
 		-- the movement buttons follow the hero's mobility and what they are doing (MoveController.labels)
 		local labels = MoveController.labels()
@@ -780,7 +950,9 @@ function Hud.init()
 			local entry = buttons[action]
 			if entry then
 				local fill = entry.button:FindFirstChild("ChargeFill") :: Frame?
-				local on = heldId ~= nil and charges and skills[table.find(SLOT_ACTIONS, action) or 0] == heldId
+				local on = heldId ~= nil
+					and charges
+					and skills[table.find(SLOT_ACTIONS, action) or 0] == heldId
 				if on and not fill then
 					local f = Instance.new("Frame")
 					f.Name = "ChargeFill"

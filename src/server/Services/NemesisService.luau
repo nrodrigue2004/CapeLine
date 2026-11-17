@@ -1,5 +1,5 @@
 -- NemesisService: your nemesis (spec: Hero MMO features > Nemesis; H5). From level 8 every hero has one
--- robot villain made for them (a League hunter robot for a villain), the same on every server (Shared.
+-- robot villain made for them (a hunter robot for a villain), the same on every server (Shared.
 -- NemesisMath from the user id and rank). At most once per 30 minutes of play, and only 15 minutes into a
 -- session, it ambushes you out in the city (never in a pocket, a safehouse, the Crater or a world boss
 -- fight): a comic panel taunt, 6 robots of its kind, then the nemesis. Squadmates near you help and all get
@@ -520,6 +520,7 @@ local function startShowdown(player: Player)
 	local m = {
 		custom = true,
 		showdown = true,
+		id = "Showdown", -- analytics: mission_start and mission_done
 		owner = player.UserId,
 		num = SD.num,
 		name = who.name,
@@ -546,7 +547,7 @@ local function startShowdown(player: Player)
 		Net.fire("Toast", player, { id = "missionRefused", reason = why })
 		return
 	end
-	-- the boss step registers once its robot spawns (MissionService's run.bossId)
+	-- the boss step registers once its robot spawns (MissionService.bossOf)
 	local e: Enc = {
 		owner = player,
 		who = who,
@@ -570,15 +571,16 @@ local function startShowdown(player: Player)
 			if not run or run.done or run.m ~= m then
 				return
 			end
-			if run.bossId and EnemyService.alive(run.bossId) then
-				e.id = run.bossId
+			local bossId = MissionService.bossOf(run)
+			if bossId and EnemyService.alive(bossId) then
+				e.id = bossId
 				e.level = run.level
-				e.robots[run.bossId] = true
-				BlockService.robotMults[run.bossId] = takenHook(e)
+				e.robots[bossId] = true
+				BlockService.robotMults[bossId] = takenHook(e)
 				encs[player] = e
 				tell(e, {
 					k = "spawn",
-					id = run.bossId,
+					id = bossId,
 					build = who.build,
 					colors = who.colors,
 					head = who.head,

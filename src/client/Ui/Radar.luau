@@ -109,7 +109,7 @@ local function draw()
 		for _, inc in WorldClient.incidents do
 			if inc.state == WorldClient.ACTIVE and inc.pos then
 				n += 1
-				local col = if inc.side == "villain" then Kit.color.syndicate else Kit.color.league
+				local col = if inc.side == "villain" then Kit.color.syndicate else Kit.color.vigil
 				place(n, inc.pos, origin, -yaw, "circle", col, 12)
 			end
 		end
@@ -251,10 +251,10 @@ function Radar.init()
 		Text = "▲",
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromScale(0.5, 0.5),
-		Size = UDim2.fromOffset(14, 14),
+		Size = UDim2.fromOffset(18, 18), -- phone pass: still readable on the 88 px phone radar
 		TextColor3 = Kit.color.gold,
 		ZIndex = 4,
-		maxText = 14,
+		maxText = 18,
 	})
 	you.Parent = disc
 	clockText = Kit.label({
@@ -310,6 +310,38 @@ function Radar.init()
 	end)
 	squad.Parent = gui
 	buildWheel()
+	-- phone pass: PING and SQUAD join the top row; the radar and its lines take their box from the HUD plan
+	-- (smaller on a phone, where it sits over the move stick and so does not take taps: MAP opens the map)
+	Kit.dock(ping, "Ping", 5)
+	Kit.dock(squad, "Squad", 8)
+	local fit = Instance.new("UIScale")
+	fit.Name = "Fit"
+	fit.Parent = disc
+	local function place()
+		local hb = Kit.hudBoxes()
+		local r, t = hb.radar, hb.radarText
+		disc.Position = UDim2.fromOffset(r.x, r.y)
+		fit.Scale = r.w / SIZE
+		disc:SetAttribute("FitScale", fit.Scale)
+		disc.Interactable = hb.radarTaps
+		disc.Active = hb.radarTaps
+		for i, l in { clockText, bossText, boostText } do
+			l.Position = UDim2.fromOffset(t.x, t.y + (i - 1) * t.h)
+			l.Size = UDim2.fromOffset(t.w + (if i == 1 then 0 else 40), t.h)
+		end
+		-- the ping wheel opens beside the radar; on a phone under the top row's middle, clear of the stick
+		if hb.compact then
+			local a = Kit.area()
+			wheel.Position = UDim2.fromOffset(
+				math.floor(a.X * 0.5 - wheel.Size.X.Offset / 2),
+				U.safe + Config.Ui.phone.rowCompact + Config.Ui.phone.gap
+			)
+		else
+			wheel.Position = UDim2.fromOffset(r.x + r.w + 12, r.y)
+		end
+	end
+	place()
+	Kit.LayoutChanged:Connect(place)
 	PvpClient.Ping:Connect(function(p)
 		if p.kind == 3 then
 			table.insert(dangers, { pos = Vector3.new(p.x, p.y, p.z), untilT = os.clock() + (p.life or 8) })

@@ -250,8 +250,9 @@ local function card(id: string, order: number): Frame
 		local rb = Kit.button({
 			pending = true,
 			Text = label,
-			Size = UDim2.new(0.5, -9, 0, 30),
-			Position = UDim2.new(0, 6, 1, -36),
+			Size = UDim2.new(0.5, -9, 0, 40), -- phone pass: a 40 px tap target, two lines
+			Position = UDim2.new(0, 6, 1, -44),
+			TextWrapped = true,
 			BackgroundColor3 = if ok then Kit.color.gold else Color3.fromRGB(190, 190, 195),
 			maxText = 14,
 		}, function()
@@ -264,8 +265,8 @@ local function card(id: string, order: number): Frame
 		rb.Parent = f
 		local eb = Kit.button({
 			Text = if rank > 0 then "EQUIP" else "-",
-			Size = UDim2.new(0.5, -9, 0, 30),
-			Position = UDim2.new(0.5, 3, 1, -36),
+			Size = UDim2.new(0.5, -9, 0, 40),
+			Position = UDim2.new(0.5, 3, 1, -44),
 			BackgroundColor3 = if rank > 0 then rgb(A.setColor[row.set]) else Color3.fromRGB(190, 190, 195),
 			maxText = 14,
 		}, function()
@@ -323,13 +324,15 @@ buildTabs = function()
 	end
 	table.clear(tabButtons)
 	for _, set in AbilityRules.paths(Config, classId) do
-		local b = Kit.button(
-			{ Text = string.upper(A.setName[set] or set), Size = UDim2.new(0.2, -6, 1, 0), maxText = 18 },
-			function()
-				viewSet = set
-				refresh()
-			end
-		)
+		local b = Kit.button({
+			Text = string.upper(A.setName[set] or set),
+			Size = UDim2.new(0.2, -6, 1, 0),
+			TextWrapped = true, -- phone pass: two lines on a narrow tab
+			maxText = 18,
+		}, function()
+			viewSet = set
+			refresh()
+		end)
 		b.Parent = tabsFrame
 		tabButtons[set] = b
 	end
@@ -524,29 +527,35 @@ function LoadoutScreen.init()
 	rl.Parent = row
 	row.Parent = bottom
 	for i = 1, 4 do
-		local b = Kit.button(
-			{ Text = "+", Size = UDim2.new(0.18, -6, 1, 0), BackgroundColor3 = Kit.color.paper, maxText = 14 },
-			function()
-				if selectedSlot == i and draft.skills[i] then
-					table.remove(draft.skills, i) -- a second tap clears the slot
-				end
-				selectedSlot = i
-				refresh()
+		local b = Kit.button({
+			Text = "+",
+			Size = UDim2.new(0.18, -6, 1, 0),
+			BackgroundColor3 = Kit.color.paper,
+			TextWrapped = true,
+			maxText = 14,
+		}, function()
+			if selectedSlot == i and draft.skills[i] then
+				table.remove(draft.skills, i) -- a second tap clears the slot
 			end
-		)
+			selectedSlot = i
+			refresh()
+		end)
 		b.Parent = row
 		slotButtons[i] = b
 	end
-	superButton = Kit.button(
-		{ Text = "+", Size = UDim2.new(0.22, -6, 1, 0), BackgroundColor3 = Kit.color.paper, maxText = 14 },
-		function()
-			if selectedSlot == 5 and draft.super then
-				draft.super = nil
-			end
-			selectedSlot = 5
-			refresh()
+	superButton = Kit.button({
+		Text = "+",
+		Size = UDim2.new(0.22, -6, 1, 0),
+		BackgroundColor3 = Kit.color.paper,
+		TextWrapped = true,
+		maxText = 14,
+	}, function()
+		if selectedSlot == 5 and draft.super then
+			draft.super = nil
 		end
-	)
+		selectedSlot = 5
+		refresh()
+	end)
 	superButton.Parent = row
 	noticeLabel = Kit.label({
 		Text = "Tap a slot, then EQUIP a power. Skills come from any unlocked set.",
@@ -593,6 +602,56 @@ function LoadoutScreen.init()
 		maxText = 18,
 	}, save)
 	saveB.Parent = bottom
+
+	-- phone pass: the panel fits the screen (Kit.fit); on a phone the loadout row becomes a column on the
+	-- right so the cards keep the height to scroll, and every button stays a thumb's size
+	budget.TextWrapped = true
+	noticeLabel.TextWrapped = true
+	Kit.fit(panel, 600, 286, 980, 720)
+	local function place()
+		local compact = Kit.compact()
+		for i, b in loadoutTabs do
+			b.Size = if compact then UDim2.new(0.5, -3, 0, 40) else UDim2.fromOffset(170, 40)
+			b.Position = if compact
+				then UDim2.new((i - 1) * 0.5, (i - 1) * 3, 0, 38)
+				else UDim2.new(1, -350 + (i - 1) * 176, 0, 0)
+		end
+		for _, b in slotButtons do
+			b.Size = if compact then UDim2.new(0.2, -5, 1, 0) else UDim2.new(0.18, -6, 1, 0)
+		end
+		superButton.Size = if compact then UDim2.new(0.2, -5, 1, 0) else UDim2.new(0.22, -6, 1, 0)
+		if compact then
+			tabs.Size = UDim2.new(1, -330, 0, 40)
+			grid.Size = UDim2.new(1, -330, 1, -100)
+			bottom.Position = UDim2.new(1, -310, 0, 48)
+			bottom.Size = UDim2.new(0, 300, 1, -54)
+			budget.Size = UDim2.new(1, 0, 0, 34)
+			row.Position = UDim2.fromOffset(0, 82)
+			row.Size = UDim2.new(1, 0, 0, 48)
+			noticeLabel.Position = UDim2.fromOffset(0, 134)
+			noticeLabel.Size = UDim2.new(1, 0, 0, 40)
+			respecButton.Size = UDim2.new(0.5, -3, 0, 44)
+			respecButton.Position = UDim2.new(0, 0, 1, -44)
+			saveB.Size = UDim2.new(0.5, -3, 0, 44)
+			saveB.Position = UDim2.new(0.5, 3, 1, -44)
+		else
+			tabs.Size = UDim2.new(1, -20, 0, 40)
+			grid.Size = UDim2.new(1, -20, 1, -250)
+			bottom.Position = UDim2.new(0, 10, 1, -152)
+			bottom.Size = UDim2.new(1, -20, 0, 150)
+			budget.Size = UDim2.new(1, -360, 0, 36)
+			row.Position = UDim2.fromOffset(0, 40)
+			row.Size = UDim2.new(1, 0, 0, 50)
+			noticeLabel.Position = UDim2.fromOffset(0, 96)
+			noticeLabel.Size = UDim2.new(0.6, 0, 0, 50)
+			respecButton.Size = UDim2.fromOffset(150, 44)
+			respecButton.Position = UDim2.new(1, -312, 1, -46)
+			saveB.Size = UDim2.fromOffset(150, 44)
+			saveB.Position = UDim2.new(1, -154, 1, -46)
+		end
+	end
+	place()
+	Kit.LayoutChanged:Connect(place)
 
 	InputController.Pressed:Connect(function(action)
 		if action == "Loadout" then

@@ -13,6 +13,7 @@ return {
 	rejoin = 180, -- seconds a member who left or dropped keeps their place
 	numBase = 100, -- MissionState num for a task force run: numBase + its index
 	panelTime = 4, -- seconds on the comic panel between legs
+	legMinutes = 8, -- a leg's expected length (25 to 40 minutes a run)
 	epicTier = "Epic", -- the guaranteed roll at the end, at your own level
 	weeklyRenownMult = 2, -- the first clear each week (per task force) pays double Renown
 	listRate = 1, -- TaskForceList / TaskForceJoin / TaskForceLook per second (Remotes)
@@ -102,7 +103,7 @@ return {
 				{
 					layout = "arena",
 					panel = "LongNight5",
-					steps = { { kind = "warframe", text = "The War-Frame rematch" } },
+					steps = { { kind = "warframe", text = "Beat the battle form again" } },
 				},
 			},
 		},

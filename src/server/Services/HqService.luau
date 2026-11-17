@@ -1,12 +1,12 @@
 -- HqService: the Hero HQ, solo visits, upgrades, mannequins, training room, trophies, offline drones and the
 -- Hall of Legends (spec: Hero HQ (Beacon Tower or the Foundry); Legacy rebirth).
--- * The doors: a door at the foot of the Beacon Tower (League) and the Foundry door (Syndicate), your
+-- * The doors: a door at the foot of the Beacon Tower (the Vigil) and the Foundry door (the Dread Syndicate), your
 --   side's only. Entering puts the hero in its own sealed cell far above the map (HqRules.cell by hero
 --   slot): the server builds the floor, walls and roof; the device builds the rooms (HqClient). The hero
 --   is in a scene ("hq"): no PvP, no incidents, no events. Leaving puts it back outside the door.
 -- * Stations work by remote while inside: upgrades (Credits), mannequins (save and wear looks), the
 --   training room (dummies with a DPS meter; 4 dummies and the 60 s boss sim at level 3), the trophy wall
---   (3, or 12 at level 4), the Hall of Legends (Retire at level 40). The command table and Gizmo's shop use
+--   (3, or 12 at level 4), the Hall of Legends (Retire at the level cap). The command table and Gizmo's shop use
 --   the Contract Board, Journal and ShopService. Respec, class change and loadout swaps are allowed here.
 -- * Offline drones (level 5+): the minutes away since the last leave pay banked Credits on the next join.
 -- * City reputation ranks unlock HQ props.

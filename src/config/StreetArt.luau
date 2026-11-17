@@ -2,20 +2,79 @@
 -- The city kit's street props (ReplicatedStorage.Art.Street): each piece's size and its centre from the prop's
 -- foot point, in studs (x, up, back; a prop faces -z, toward the street). Colours: Config.City.kit.props.
 return {
+	Barrel = {
+		Barrel = { size = { 2.000, 3.280, 1.970 }, offset = { 0.000, 1.498, -0.000 } }, -- 324 tris
+	},
 	Bench = {
 		BenchFrame = { size = { 4.840, 2.905, 1.840 }, offset = { 0.000, 1.447, 0.420 } }, -- 352 tris
 		BenchSeat = { size = { 5.200, 1.770, 1.920 }, offset = { 0.000, 2.315, 0.500 } }, -- 308 tris
 	},
+	BikeRack = {
+		BikeRack = { size = { 5.200, 2.587, 2.400 }, offset = { 0.000, 1.293, -0.000 } }, -- 408 tris
+	},
 	Bin = {
 		Bin = { size = { 2.120, 3.300, 2.120 }, offset = { 0.000, 1.650, -0.000 } }, -- 552 tris
 	},
+	Bollard = {
+		Bollard = { size = { 0.760, 3.040, 0.741 }, offset = { 0.000, 1.463, -0.000 } }, -- 112 tris
+	},
+	BusStop = {
+		ShelterFrame = { size = { 7.200, 7.200, 2.120 }, offset = { 0.000, 3.600, 0.050 } }, -- 264 tris
+		ShelterGlass = { size = { 6.740, 6.200, 1.740 }, offset = { -0.070, 3.900, 0.170 } }, -- 24 tris
+		ShelterRoof = { size = { 7.800, 0.350, 2.900 }, offset = { 0.000, 7.400, 0.050 } }, -- 108 tris
+		ShelterSeat = { size = { 4.400, 1.640, 0.900 }, offset = { 0.000, 0.870, 0.450 } }, -- 132 tris
+	},
+	Bush = {
+		Bush = { size = { 4.862, 3.575, 4.430 }, offset = { -0.023, 1.787, -0.000 } }, -- 1780 tris
+	},
+	CafeSet = {
+		CafeChairs = { size = { 5.580, 3.200, 1.300 }, offset = { 0.000, 1.600, -0.000 } }, -- 528 tris
+		CafeTable = { size = { 2.560, 7.700, 2.600 }, offset = { 0.000, 3.850, -0.000 } }, -- 160 tris
+		Umbrella = { size = { 6.000, 1.973, 6.000 }, offset = { 0.000, 6.836, -0.000 } }, -- 64 tris
+	},
+	Crate = {
+		Crate = { size = { 3.110, 3.000, 3.240 }, offset = { 0.000, 1.500, -0.000 } }, -- 484 tris
+	},
+	DockLight = {
+		DockLamps = { size = { 4.400, 0.976, 0.783 }, offset = { 0.000, 20.900, -0.750 } }, -- 132 tris
+		DockMast = { size = { 4.600, 21.000, 1.800 }, offset = { 0.000, 10.500, -0.000 } }, -- 92 tris
+	},
+	FlowerTub = {
+		Tub = { size = { 2.600, 1.635, 2.600 }, offset = { 0.000, 0.683, -0.000 } }, -- 112 tris
+		TubBlooms = { size = { 1.519, 0.680, 1.735 }, offset = { -0.109, 2.350, 0.108 } }, -- 576 tris
+		TubLeaves = { size = { 2.484, 1.555, 2.400 }, offset = { -0.024, 1.643, -0.000 } }, -- 500 tris
+	},
 	Hydrant = {
 		Hydrant = { size = { 1.300, 3.293, 1.345 }, offset = { 0.000, 1.554, -0.053 } }, -- 348 tris
+	},
+	JibCrane = {
+		CraneCab = { size = { 5.000, 5.400, 6.000 }, offset = { 0.000, 24.000, 0.800 } }, -- 108 tris
+		CraneHook = { size = { 1.173, 10.861, 0.800 }, offset = { 0.004, 22.669, -21.400 } }, -- 154 tris
+		CraneJib = { size = { 4.200, 10.021, 27.870 }, offset = { 0.000, 27.111, -8.135 } }, -- 360 tris
+		CranePedestal = { size = { 6.800, 22.040, 6.800 }, offset = { 0.000, 10.510, -0.000 } }, -- 192 tris
+	},
+	Mailbox = {
+		MailBox = { size = { 1.050, 1.300, 1.650 }, offset = { 0.025, 3.750, -0.000 } }, -- 80 tris
+		MailPost = { size = { 0.400, 3.400, 0.400 }, offset = { 0.000, 1.700, -0.000 } }, -- 12 tris
+	},
+	MooringBollard = {
+		MooringBollard = { size = { 2.000, 2.625, 1.970 }, offset = { 0.000, 1.162, -0.000 } }, -- 252 tris
+	},
+	OldLamp = {
+		OldGlow = { size = { 1.200, 1.365, 1.200 }, offset = { 0.000, 10.958, -0.000 } }, -- 16 tris
+		OldLantern = { size = { 1.700, 2.575, 1.700 }, offset = { 0.000, 11.325, -0.000 } }, -- 96 tris
+		OldPost = { size = { 1.800, 10.238, 1.240 }, offset = { 0.000, 5.026, -0.000 } }, -- 204 tris
+	},
+	Pallet = {
+		Pallet = { size = { 4.000, 0.900, 4.000 }, offset = { 0.000, 0.450, -0.000 } }, -- 484 tris
 	},
 	Planter = {
 		Crown = { size = { 6.362, 5.708, 6.210 }, offset = { 0.002, 11.201, -0.000 } }, -- 2570 tris
 		PlanterBox = { size = { 3.400, 1.400, 3.400 }, offset = { 0.000, 0.700, -0.000 } }, -- 108 tris
 		Trunk = { size = { 0.785, 8.626, 0.800 }, offset = { 0.012, 5.701, -0.000 } }, -- 80 tris
+	},
+	PowerPole = {
+		PowerPole = { size = { 6.400, 24.000, 1.850 }, offset = { 0.000, 12.000, -0.425 } }, -- 220 tris
 	},
 	StreetLamp = {
 		Bulb = { size = { 0.480, 0.169, 1.000 }, offset = { 0.000, 13.171, -3.400 } }, -- 64 tris

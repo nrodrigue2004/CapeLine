@@ -21,6 +21,7 @@ local Config = require(game:GetService("ReplicatedStorage"):WaitForChild("Config
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Net = require(Shared:WaitForChild("Net"))
 local AnalyticsSchema = require(Shared:WaitForChild("AnalyticsSchema"))
+local Signal = require(Shared:WaitForChild("Util"):WaitForChild("Signal"))
 
 local DataService = require(script.Parent.DataService)
 
@@ -28,6 +29,7 @@ local Analytics = {}
 
 Analytics.logToOutput = RunService:IsStudio() -- Studio playtests print each event to the Output
 Analytics.count = 0 -- events sent this server (Dev panel)
+Analytics.Photo = Signal.new() -- (player) the device took a Photo Mode shot (the Photo recon contract)
 Analytics.dropped = 0 -- events skipped by the per-minute budget (Dev panel)
 local minuteAt, minuteCount = 0, 0
 
@@ -218,6 +220,7 @@ local function onTelemetry(player: Player, kind: number, value: number, a: numbe
 		Analytics.step(player, "Purchase", "shop_view_item")
 	elseif kind == 4 then
 		Analytics.event(player, "photo", 1, { BACKDROPS[a] or "none" })
+		Analytics.Photo:Fire(player)
 	elseif kind == 5 then
 		-- the hello: which kind of device (once a session)
 		if not devices[player] then

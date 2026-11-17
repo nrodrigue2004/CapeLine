@@ -714,10 +714,7 @@ return function(T: any)
 		check(c.seed ~= a.seed, "another player, another nemesis")
 		check(NemesisMath.make(NM, 123456, 2, "hero").seed ~= a.seed, "a new one each rank")
 		local v = NemesisMath.make(NM, 123456, 1, "villain")
-		check(
-			string.sub(v.name, 1, #NM.hunterWord) == NM.hunterWord,
-			"a villain's nemesis is a League hunter"
-		)
+		check(string.sub(v.name, 1, #NM.hunterWord) == NM.hunterWord, "a villain's nemesis is a hunter robot")
 		local names, sigs = {}, {}
 		for uid = 1, 300 do
 			local w = NemesisMath.make(NM, uid * 7919, 1, "hero")

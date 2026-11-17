@@ -19,7 +19,12 @@ local EnemyBuffer = require(Shared:WaitForChild("EnemyBuffer"))
 local DeepLayout = require(Shared:WaitForChild("DeepLayout"))
 local Signal = require(Shared:WaitForChild("Util"):WaitForChild("Signal"))
 
+local LookCodec = require(Shared:WaitForChild("LookCodec"))
+local ProfileSchema = require(Shared:WaitForChild("ProfileSchema"))
+
 local HeroService = require(script.Parent.HeroService)
+local DataService = require(script.Parent.DataService)
+local MoveGuard = require(script.Parent.MoveGuard)
 local PerfMonitor = require(script.Parent.PerfMonitor)
 
 local EnemyService = {}
@@ -53,6 +58,11 @@ EnemyService.WARN, EnemyService.SLAM, EnemyService.SWING, EnemyService.BLOCKED =
 -- the nine new robot types (see EnemySim.EXTRA for the matching wire flags)
 EnemyService.AIM, EnemyService.RALLY, EnemyService.LOB, EnemyService.ZONE = 8, 9, 10, 11
 EnemyService.MEND, EnemyService.REVEAL, EnemyService.BOOM = 12, 13, 14
+-- the famous fakes and the evil twin (lore step 4): a dive, charge or dash; a face cracking
+EnemyService.DASH, EnemyService.UNMASK = 15, 16
+
+-- Evil twins alive now and who they copy (EnemyIdentity: the look, path, name and title every device draws)
+local idents: { [number]: { [string]: any } } = {}
 
 function EnemyService.candidates(): { any }
 	local list = EnemySim.candidates(sim)
@@ -97,6 +107,30 @@ function EnemyService.spawnAt(
 	return e.id
 end
 
+-- A robot and the company it brings (a Swarmer's pack; a Captain's escort only when `escort` is true, since
+-- a site's squad already gives it a squad): returns every id. A type that is switched off spawns nothing.
+function EnemyService.spawnGroup(
+	kind: string,
+	pos: Vector3,
+	level: number,
+	tag: number?,
+	escort: boolean?
+): { number }
+	local ids = {}
+	local e = EnemySim.spawn(sim, kind, pos.X, pos.Y, pos.Z, level)
+	if not e then
+		return ids
+	end
+	e.tag = tag
+	table.insert(ids, e.id)
+	if e.cfg.pack or (escort and e.cfg.escort) then
+		for _, o in EnemySim.company(sim, e, escort == true) do
+			table.insert(ids, o.id)
+		end
+	end
+	return ids
+end
+
 -- Story robots: a health multiplier (mission bosses), a damage multiplier (0 never attacks back) and a
 -- set number of hits to defeat (the opening's drones: 2 and 4)
 function EnemyService.tune(id: number, opts: { hpMult: number?, dmgMult: number?, hits: number? })
@@ -111,8 +145,53 @@ function EnemyService.tune(id: number, opts: { hpMult: number?, dmgMult: number?
 	end
 end
 
+local function forgetIdent(id: number)
+	if idents[id] then
+		idents[id] = nil
+		Net.fireAll("EnemyIdentity", { id = id })
+	end
+end
+
 function EnemyService.remove(id: number)
 	EnemySim.remove(sim, id)
+	forgetIdent(id)
+end
+
+-- An evil twin of `player` (nate's lore, build plan step 4): a fake that beat this hero wears their exact look
+-- (the active character's LookCodec record) and fights with moves from their own power path; its plate reads
+-- their hero name (and origin title) until its face cracks. Story missions (step 5) and a rare world event
+-- (step 9) call this. Returns the robot id, or nil (the twin is switched off, the server is full, no profile).
+function EnemyService.spawnTwin(player: Player, pos: Vector3, level: number, tag: number?): number?
+	local profile = DataService.get(player)
+	local char = profile and ProfileSchema.active(profile)
+	local hero = HeroService.get(player)
+	if not char then
+		return nil
+	end
+	local path = if hero then hero.startSet else char.startSet
+	local e = EnemySim.spawnTwin(sim, path, pos.X, pos.Y, pos.Z, level)
+	if not e then
+		return nil
+	end
+	e.tag = tag
+	local name = player:GetAttribute("HeroName")
+	local title = player:GetAttribute("OriginTitle")
+	local ident = {
+		id = e.id,
+		userId = player.UserId,
+		words = LookCodec.toWords(LookCodec.fromWords(char.look)), -- the exact record (v1 saves read as v2)
+		path = e.path,
+		name = if typeof(name) == "string" and name ~= "" then name else player.DisplayName,
+		title = if typeof(title) == "string" then title else "",
+	}
+	idents[e.id] = ident
+	Net.fireAll("EnemyIdentity", ident)
+	return e.id
+end
+
+-- Who an evil twin copies (nil for any other robot): { userId, words, path, name, title }
+function EnemyService.identity(id: number): { [string]: any }?
+	return idents[id]
 end
 
 function EnemyService.alive(id: number): boolean
@@ -201,7 +280,10 @@ function EnemyService.spawnAround(pos: Vector3, n: number, kind: string?)
 		local ang = i / n * math.pi * 2
 		local x, z = pos.X + math.cos(ang) * 40, pos.Z + math.sin(ang) * 40
 		local y = math.max(pos.Y + 15, sim.heightAt(x, z) + 15)
-		EnemySim.spawn(sim, k, x, y, z, 1)
+		local e = EnemySim.spawn(sim, k, x, y, z, 1)
+		if e and kind then
+			EnemySim.company(sim, e, true) -- the Dev panel's Swarmers come as a pack, a Captain with its escort
+		end
 	end
 end
 
@@ -265,9 +347,12 @@ local function handleEvents()
 	for _, ev in EnemySim.drainEvents(sim) do
 		if ev.k == "shot" then
 			local row = { EnemyService.SHOT, ev.e, ev.x, ev.y, ev.z, ev.vx, ev.vy, ev.vz }
-			if ev.home then -- a torpedo: the hero it turns after and its turn rate
-				table.insert(row, ev.home)
-				table.insert(row, ev.turn)
+			if ev.home or ev.style then -- a torpedo: the hero it turns after and its turn rate (0 when not)
+				table.insert(row, ev.home or 0)
+				table.insert(row, ev.turn or 0)
+			end
+			if ev.style then -- 1 a sniper round, 2 a net, 3 a grappling hook
+				table.insert(row, ev.style)
 			end
 			table.insert(out, row)
 		elseif ev.k == "hit" then
@@ -279,6 +364,25 @@ local function handleEvents()
 				if pos then
 					table.insert(out, { EnemyService.HERO_HIT, ev.hero, pos.X, pos.Y, pos.Z, dmg })
 				end
+				if hero.alive and not hero.downed then
+					if ev.cc then
+						-- the new types' crowd control (a net, a hook's hold, a shield bash): the same rules as PvP's
+						-- (stuns and roots shorten on repeats, Resolve shortens them)
+						HeroService.cc(hero, ev.cc, ev.ccTime or 0.5, ev.ccValue)
+					end
+					local pull = ev.pull
+					if pull and pos and hero.player then
+						-- a Grappler's hook: pulled toward it (and down to it), stopping `reel` studs short; only the
+						-- flat travel is granted (the drop is a fall, free in MoveCheck)
+						local mx, mz, drop, grant = EnemySim.hookPull(pull, pos.X, pos.Y, pos.Z)
+						MoveGuard.grant(hero, grant)
+						Net.fire(
+							"HeroKnock",
+							hero.player,
+							{ x = mx, y = 3, z = mz, time = pull.time, drop = drop }
+						)
+					end
+				end
 			end
 		elseif ev.k == "die" then
 			local cfg = Config.Enemies[ev.kind]
@@ -287,6 +391,7 @@ local function handleEvents()
 				{ EnemyService.DIE, ev.e, ev.x, ev.y, ev.z, cfg and cfg.typeId or 1, ev.by or 0 }
 			)
 			EnemyService.Killed:Fire(ev.kind, ev.by, Vector3.new(ev.x, ev.y, ev.z), ev.e)
+			forgetIdent(ev.e)
 		elseif ev.k == "warn" then
 			table.insert(
 				out,
@@ -301,6 +406,24 @@ local function handleEvents()
 			end
 		elseif ev.k == "blocked" then
 			table.insert(out, { EnemyService.BLOCKED, 0, ev.x, ev.y, ev.z })
+		elseif ev.k == "aim" then
+			table.insert(out, { EnemyService.AIM, ev.e, ev.x, ev.y, ev.z, ev.hero, ev.t, ev.lock })
+		elseif ev.k == "rally" then
+			table.insert(out, { EnemyService.RALLY, ev.e, ev.x, ev.y, ev.z, ev.r })
+		elseif ev.k == "lob" then
+			table.insert(out, { EnemyService.LOB, ev.e, ev.x, ev.y, ev.z, ev.tx, ev.ty, ev.tz, ev.t })
+		elseif ev.k == "zone" then
+			table.insert(out, { EnemyService.ZONE, ev.e, ev.x, ev.y, ev.z, ev.r, ev.t })
+		elseif ev.k == "mend" then
+			table.insert(out, { EnemyService.MEND, ev.e, ev.x, ev.y, ev.z, ev.patient, ev.t })
+		elseif ev.k == "reveal" then
+			table.insert(out, { EnemyService.REVEAL, ev.e, ev.x, ev.y, ev.z })
+		elseif ev.k == "boom" then
+			table.insert(out, { EnemyService.BOOM, ev.e, ev.x, ev.y, ev.z, ev.r })
+		elseif ev.k == "dash" then
+			table.insert(out, { EnemyService.DASH, ev.e, ev.x, ev.y, ev.z, ev.tx, ev.ty, ev.tz })
+		elseif ev.k == "unmask" then
+			table.insert(out, { EnemyService.UNMASK, ev.e, ev.x, ev.y, ev.z })
 		end
 	end
 	return out
@@ -355,6 +478,13 @@ function EnemyService.init(heightAt: (number, number) -> number)
 	HeroService.Removed:Connect(function(hero)
 		EnemySim.forgetHero(sim, hero.id)
 	end)
+	-- a player who joins sees the twins already out
+	Players.PlayerAdded:Connect(function(player)
+		for _, ident in idents do
+			Net.fire("EnemyIdentity", player, ident)
+		end
+	end)
+
 	PerfMonitor.watch("enemies", function()
 		return EnemySim.count(sim)
 	end)

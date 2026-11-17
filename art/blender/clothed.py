@@ -4,7 +4,9 @@
 # head and the hair accessory. Uses the textures art/clothes/<robot>.py draws into art/export/clothes.
 # Run: python art/blender/clothed.py [Trooper]   (with the `bpy` module) -> art/preview/clothed_<robot>.png
 #      python art/blender/clothed.py uniforms Grunt   -> art/preview/uniforms_grunt.png (every robot kind in that
-#      version of its uniform, art/clothes/uniforms.py)
+#      version of its uniform, art/clothes/uniforms.py); python art/blender/clothed.py uniforms Grunt new ->
+#      art/preview/uniforms_new_grunt.png (the 9 kinds added with the new enemy types); then
+#      python3 art/clothes/uniforms.py --stack makes art/preview/uniforms.png and uniforms_new.png
 import math
 import os
 import sys
@@ -259,8 +261,15 @@ if ROBOT == "heroes":
     kit.render(os.path.join(kit.ROOT, "preview", "hero_clothes.png" if page == 1 else "hero_clothes_%d.png" % page))
 elif ROBOT == "uniforms":
     # every robot kind in one version of its uniform, with mixed skins, faces and hair (art/clothes/uniforms.py)
-    kinds = ["SparkDrone", "BurglarBot", "SneakBot", "BruteBot", "Turret", "NullSentinel", "Diver", "Anchor",
-             "TorpedoSentry"]
+    # `uniforms <Version> new`: the 9 kinds added with the new enemy types, into uniforms_new_<version>.png
+    # (python3 art/clothes/uniforms.py --stack then stacks each page's three versions)
+    page = ARGS[2] if len(ARGS) > 2 else ""
+    if page == "new":
+        kinds = ["ShieldBearer", "Captain", "Sniper", "Bomber", "MedicUnit", "Swarmer", "Mimic", "Interceptor",
+                 "Grappler"]
+    else:
+        kinds = ["SparkDrone", "BurglarBot", "SneakBot", "BruteBot", "Turret", "NullSentinel", "Diver", "Anchor",
+                 "TorpedoSentry"]
     skins = [(240, 190, 150), (141, 95, 64), (224, 172, 130), (198, 140, 96), (92, 62, 44), (250, 210, 180),
              (170, 120, 84), (120, 80, 56), (232, 180, 140)]
     hairs = [(70, 46, 30), (30, 26, 24), (160, 120, 60), (20, 20, 22), (120, 50, 30), (200, 170, 110),
@@ -273,7 +282,7 @@ elif ROBOT == "uniforms":
     floor = kit.cyl("floor", 24, 24, 0.2, at=(0, 0, -0.1), segs=48)
     floor.data.materials.append(kit.material("floor", (60, 64, 72), rough=0.8))
     kit.camera((0, 44.0, 4.2), (0, 0, 2.3), lens=37)
-    kit.render(os.path.join(kit.ROOT, "preview", "uniforms_%s.png" % VERSION.lower()))
+    kit.render(os.path.join(kit.ROOT, "preview", "uniforms_%s%s.png" % (page + "_" if page else "", VERSION.lower())))
 else:
     kit.studio(res=(1800, 1000), samples=64)
     figure((7.6, 0, 0), 0, (240, 190, 150), (70, 46, 30), face="Hero")

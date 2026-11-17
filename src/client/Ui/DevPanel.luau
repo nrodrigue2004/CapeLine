@@ -2,10 +2,12 @@
 -- in a live game. Buttons: 30 load bots, clear bots, 5 drones, clear drones, spawner, god, class, level,
 -- Comic/Anime style, robots, levels, skill points, Awakening, loot by source, Renown, Credits, Dust, find all
 -- beacons, wreck here, repair city, flip cars, save, wipe, and (M6) incident by template, clear incidents,
--- event by type, boss now, boss to 1 HP, finish contract, clock phase, hero or villain side, and (M7) replay
--- the opening, jump to an opening step, enter a mission, finish the step, leave, start a side quest, clear
+-- event by type, boss now, boss to 1 HP, finish contract, clock phase, hero or villain side, and (M7) the
+-- Ceremony prologue as the Vigil or the Syndicate and a jump to each of its beats (lore step 3), each Act 1 mission as each side and a jump to each of its stages (lore step 5), finish the step, leave, start a side quest, clear
 -- Act 1 and reset the story, and (M9) the creator, enter HQ, HQ level, 8 h away, all pieces, a test buy
--- (twice grants once) and level 40. The stats line shows the server frame, script time per service, enemies, bots, send
+-- (twice grants once) and the level cap, and (2026-11-17) the next incident, event or contract to try (the
+-- "Inc:", "Ev:" and "Con:" buttons start the one named, "next" picks another), and a Heroic switch for them.
+-- The stats line shows the server frame, script time per service, enemies, bots, send
 -- rate and memory, plus the client fps and preset.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -15,6 +17,8 @@ local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local AbilityRules = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("AbilityRules"))
 local Net = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Net"))
 local ShopRules = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("ShopRules"))
+local EnemySim = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("EnemySim"))
+local OpeningPlan = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("OpeningPlan"))
 
 local Kit = require(script.Parent.Kit)
 local State = require(script.Parent.Parent.State)
@@ -22,6 +26,7 @@ local QualityController = require(script.Parent.Parent.Controllers.QualityContro
 local Telemetry = require(script.Parent.Parent.Controllers.Telemetry)
 local SettingsClient = require(script.Parent.Parent.Controllers.SettingsClient)
 local EnemyRenderer = require(script.Parent.Parent.Controllers.EnemyRenderer)
+local StoryClient = require(script.Parent.Parent.Controllers.StoryClient)
 
 local DevPanel = {}
 
@@ -31,7 +36,7 @@ function DevPanel.init()
 	end
 	local gui = Kit.screen("DevPanel", 20)
 	local panel = Kit.frame({
-		Size = UDim2.fromOffset(300, 815),
+		Size = UDim2.fromOffset(300, 885),
 		AnchorPoint = Vector2.new(1, 0),
 		Position = UDim2.new(1, -16, 0, 60),
 		BackgroundColor3 = Kit.color.night,
@@ -55,19 +60,20 @@ function DevPanel.init()
 	grid.SortOrder = Enum.SortOrder.LayoutOrder
 	local holder = Instance.new("Frame")
 	holder.BackgroundTransparency = 1
-	holder.Size = UDim2.new(1, -16, 0, 680)
+	holder.Size = UDim2.new(1, -16, 0, 750)
 	holder.Position = UDim2.fromOffset(8, 8)
 	grid.Parent = holder
 	holder.Parent = panel
 
 	local spawner, god, anime = false, false, false
-	local function add(text: string, fn: (TextButton) -> ())
+	local function add(text: string, fn: (TextButton) -> ()): TextButton
 		local b: TextButton
 		b = Kit.button({ Text = text, maxText = 18 }, function()
 			fn(b)
 		end)
 		b.LayoutOrder = #holder:GetChildren()
 		b.Parent = holder
+		return b
 	end
 	add("30 bots", function()
 		Net.send("DevCommand", "bots", Config.Dev.loadBots.max)
@@ -121,12 +127,34 @@ function DevPanel.init()
 	add("Heal", function()
 		Net.send("DevCommand", "heal")
 	end)
-	local robotIdx = 1
-	add("3x " .. Config.Enemies[Config.Enemies.order[1]].name, function(b)
+	-- cycles the robot types that are switched on (Config.Enemies.<Kind>.on), by their index in the order; the
+	-- famous fakes and the twin have their own buttons below
+	local function nextRobot(i: number): number
+		local n = EnemySim.nextEnabled(Config, i)
+		for _ = 1, #Config.Enemies.order do
+			if not Config.Enemies[Config.Enemies.order[n]].fake then
+				break
+			end
+			n = EnemySim.nextEnabled(Config, n)
+		end
+		return n
+	end
+	local robotIdx = nextRobot(0)
+	add("3x " .. Config.Enemies[Config.Enemies.order[robotIdx]].name, function(b)
 		Net.send("DevCommand", "robot", robotIdx)
-		robotIdx = robotIdx % #Config.Enemies.order + 1
+		robotIdx = nextRobot(robotIdx)
 		b.Text = "3x " .. Config.Enemies[Config.Enemies.order[robotIdx]].name
 	end)
+	-- lore step 4: each famous fake, and an evil twin of your own hero (25 studs in front, at your level)
+	for i, kind in { "Radiant", "Bulwark", "Skylance" } do
+		add("Fake: " .. Config.Enemies[kind].name, function()
+			Net.send("DevCommand", "fake", i)
+		end)
+	end
+	add("My evil twin", function()
+		Net.send("DevCommand", "twin")
+	end)
+
 	-- the robots' look, to compare the two styles live (nate, 2026-11-17): Auto, Roblox (classic clothes and
 	-- catalog hair), Shell (the Blender superhero meshes), Plain
 	local STYLES = { "auto", "roblox", "shell", "plain" }
@@ -137,7 +165,7 @@ function DevPanel.init()
 		styleIdx = styleIdx % #STYLES + 1
 		b.Text = LABEL[EnemyRenderer.setStyle(STYLES[styleIdx])]
 	end)
-	add("Level 40", function()
+	add("Level " .. Config.Stats.levelCap, function()
 		Net.send("DevCommand", "level", Config.Stats.levelCap)
 	end)
 	add("+10 Skill Pts", function()
@@ -181,19 +209,43 @@ function DevPanel.init()
 	end)
 	-- M6: world activity
 	local incIdx = 1
-	add("Inc: " .. Config.Incidents.order[1], function(b)
+	local incButton = add("Inc: " .. Config.Incidents.order[1], function(b)
 		Net.send("DevCommand", "incident", incIdx)
 		incIdx = incIdx % #Config.Incidents.order + 1
 		b.Text = "Inc: " .. Config.Incidents.order[incIdx]
+	end)
+	add("Inc next", function()
+		incIdx = incIdx % #Config.Incidents.order + 1
+		incButton.Text = "Inc: " .. Config.Incidents.order[incIdx]
 	end)
 	add("Clear incidents", function()
 		Net.send("DevCommand", "clearincidents")
 	end)
 	local evIdx = 1
-	add("Ev: " .. Config.Events.order[1], function(b)
+	local evButton = add("Ev: " .. Config.Events.order[1], function(b)
 		Net.send("DevCommand", "event", evIdx)
 		evIdx = evIdx % #Config.Events.order + 1
 		b.Text = "Ev: " .. Config.Events.order[evIdx]
+	end)
+	add("Ev next", function()
+		evIdx = evIdx % #Config.Events.order + 1
+		evButton.Text = "Ev: " .. Config.Events.order[evIdx]
+	end)
+	local conIdx = 1
+	local conButton = add("Con: " .. Config.Contracts.order[1], function(b)
+		Net.send("DevCommand", "contractstart", conIdx)
+		conIdx = conIdx % #Config.Contracts.order + 1
+		b.Text = "Con: " .. Config.Contracts.order[conIdx]
+	end)
+	add("Con next", function()
+		conIdx = conIdx % #Config.Contracts.order + 1
+		conButton.Text = "Con: " .. Config.Contracts.order[conIdx]
+	end)
+	local heroic = false
+	add("Heroic OFF", function(b)
+		heroic = not heroic
+		b.Text = if heroic then "Heroic ON" else "Heroic OFF"
+		Net.send("DevCommand", "heroic", if heroic then 1 else 0)
 	end)
 	add("Boss now", function()
 		Net.send("DevCommand", "boss")
@@ -217,22 +269,50 @@ function DevPanel.init()
 		Net.send("DevCommand", "side", if villain then 1 else 0)
 	end)
 	-- M7: the story
-	add("Opening", function()
-		Net.send("DevCommand", "opening", 0)
+	-- lore step 3: the Ceremony prologue as either side, and a jump to each beat (tap again for the next)
+	add("Prologue: Vigil", function()
+		Net.send("DevCommand", "prologue", 0)
 	end)
-	local openStep = 1
-	add("Open step: leap", function(b)
-		openStep = openStep % 9 + 1
-		local names = { "leap", "glide", "catch", "blast", "choice", "save", "grab", "suitup", "flight" }
-		b.Text = "Open step: " .. names[openStep]
-		Net.send("DevCommand", "opening", openStep)
+	add("Prologue: Syndicate", function()
+		Net.send("DevCommand", "prologue", 1)
 	end)
-	local missionIdx = 2
-	add("Mission 2", function(b)
-		Net.send("DevCommand", "mission", missionIdx)
-		missionIdx = missionIdx % 6 + 1
-		missionIdx = math.max(2, missionIdx)
-		b.Text = "Mission " .. missionIdx
+	local beat = 0
+	add("Beat: ceremony", function(b)
+		beat = beat % #OpeningPlan.STEPS + 1
+		Net.send("DevCommand", "opening", beat)
+		b.Text = "Beat: " .. OpeningPlan.STEPS[beat % #OpeningPlan.STEPS + 1]
+	end)
+	-- lore step 5: each Act 1 mission as each side (tap again for the next), and a jump to each of its stages
+	local runs = {}
+	for n = 2, #Config.Story.missions do
+		table.insert(runs, { n, 0 })
+		table.insert(runs, { n, 1 })
+	end
+	local runIdx = 1
+	local function runName(i: number): string
+		local r = runs[i]
+		return string.format(
+			"%s: %s",
+			Config.Story.missions[r[1]].name,
+			if r[2] == 1 then "Syndicate" else "Vigil"
+		)
+	end
+	add(runName(1), function(b)
+		local r = runs[runIdx]
+		Net.send("DevCommand", "missionas", r[1] * 10 + r[2])
+		runIdx = runIdx % #runs + 1
+		b.Text = runName(runIdx)
+	end)
+	local stageIdx = 1
+	add("Mission stage 1", function(b)
+		Net.send("DevCommand", "missionstep", stageIdx)
+		local m = StoryClient.mission
+		local count = 1
+		if (m.num or 0) > 0 then
+			count = m.steps or 1
+		end
+		stageIdx = stageIdx % math.max(1, count) + 1
+		b.Text = "Mission stage " .. stageIdx
 	end)
 	add("Finish step", function()
 		Net.send("DevCommand", "finishstep")
@@ -272,6 +352,12 @@ function DevPanel.init()
 	add("Creator", function()
 		Net.send("DevCommand", "creator")
 	end)
+	local street = false
+	add("Street outfit: off", function(b)
+		street = not street
+		b.Text = if street then "Street outfit: on" else "Street outfit: off"
+		Net.send("DevCommand", "street", if street then 1 else 0)
+	end)
 	add("Enter HQ", function()
 		Net.send("DevCommand", "hq")
 	end)
@@ -295,7 +381,7 @@ function DevPanel.init()
 		buyIdx = buyIdx % #keys + 1
 		b.Text = "Buy " .. keys[buyIdx]
 	end)
-	add("Level 40", function()
+	add("Level " .. Config.Stats.levelCap, function()
 		Net.send("DevCommand", "legacy")
 	end)
 	-- Hero MMO
@@ -318,7 +404,7 @@ function DevPanel.init()
 	local stats = Kit.label({
 		Text = "waiting for server stats",
 		Size = UDim2.new(1, -16, 0, 100),
-		Position = UDim2.fromOffset(8, 693),
+		Position = UDim2.fromOffset(8, 763),
 		TextXAlignment = Enum.TextXAlignment.Left,
 		TextYAlignment = Enum.TextYAlignment.Top,
 		TextColor3 = Kit.color.paper,

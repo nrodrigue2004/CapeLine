@@ -1,8 +1,10 @@
 -- WorldHud: what the city is doing, on screen (spec: Screens and UI > HUD "incident tracker"; World boss
 -- "shared bar"; Juice: boss banner, result card). Reads WorldClient.
 -- * Tracker (right side): the 3 nearest incidents, accepted contracts (Shard recovery shows its radar) and
---   running events, each with a progress bar and the time left.
--- * Markers in the world: incidents (blue League, red Syndicate) within 450 studs, events and the boss.
+--   running events, each with a progress bar and the time left. An incident shows its current step's line
+--   (Config.Incidents); a contract its radar and clock; anything Heroic (Config.Heroic) is tagged HEROIC in
+--   the Heroic colour.
+-- * Markers in the world: incidents (blue Vigil, red Syndicate) within 450 studs, events and the boss.
 -- * Boss: a countdown banner from T minus 60 s, then the shared HP bar with the phase marks, the time left
 --   and the hero's own tier and rank. The result card shows for 5 s (tap to close).
 -- PLACEHOLDER look until the UI pass (M10).
@@ -17,6 +19,7 @@ local TweenService = game:GetService("TweenService")
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local IncidentPlan = require(Shared:WaitForChild("IncidentPlan"))
+local ContractPlan = require(Shared:WaitForChild("ContractPlan"))
 
 local Kit = require(script.Parent.Kit)
 local Shapes = require(script.Parent.Shapes)
@@ -41,11 +44,26 @@ local markers: { [string]: BillboardGui } = {}
 local resultCard: Frame? = nil
 
 local MAX_ROWS = 6
+local shownRows = MAX_ROWS -- the rows that fit this screen (Kit.hudBoxes)
 local TIER_NAME =
 	{ mvp = "MVP", contributor = "Contributor", participant = "Participant", floor = "Took part" }
 
 local function sideColor(side: string): Color3
-	return if side == "villain" then Kit.color.syndicate else Kit.color.league
+	return if side == "villain" then Kit.color.syndicate else Kit.color.vigil
+end
+
+local HC = Config.Heroic
+local HEROIC_COLOR = Color3.fromRGB(HC.color[1], HC.color[2], HC.color[3])
+local ready = ContractPlan.readyFor(Config)
+
+-- "HEROIC " in front of a title when it is Heroic (fixed text)
+local function heroicTitle(title: string, heroic: boolean?): string
+	return if heroic then HC.tag .. " " .. title else title
+end
+
+local function enemyName(kind: string): string
+	local e = Config.Enemies[kind]
+	return e and e.name or kind
 end
 
 local function myPos(): Vector3?
@@ -129,7 +147,7 @@ local function refreshTracker()
 	local n = 0
 	-- events first: they are server-wide
 	for _, ev in WorldClient.events do
-		if n < MAX_ROWS and ev.state == 0 and ev.id then
+		if n < shownRows and ev.state == 0 and ev.id then
 			n += 1
 			local def = Config.Events.events[ev.id]
 			local villain = State.hero.side == "villain"
@@ -137,7 +155,7 @@ local function refreshTracker()
 			local dist = if pos then math.floor((Vector3.new(ev.x, pos.Y, ev.z) - pos).Magnitude) else 0
 			setRow(
 				rows[n],
-				"EVENT: " .. string.upper(name),
+				heroicTitle("EVENT: " .. string.upper(name), ev.heroic),
 				string.format(
 					"%s / %s   %s   %d studs",
 					tostring(ev.have),
@@ -146,28 +164,49 @@ local function refreshTracker()
 					dist
 				),
 				if ev.need > 0 then ev.have / ev.need else 0,
-				Kit.color.gold
+				if ev.heroic then HEROIC_COLOR else Kit.color.gold
 			)
 		end
 	end
 	for _, c in WorldClient.contracts do
-		if n < MAX_ROWS then
+		if n < shownRows then
 			n += 1
 			local id = WorldClient.contractByNum[c[1]]
 			local def = id and Config.Contracts.types[id]
 			local sub = string.format("%d / %d", c[2], c[3])
 			if id == "Escort" then
 				sub = string.format("%d%% of the route", math.floor(c[2] / math.max(1, c[3]) * 100))
+			elseif id == "GeneratorHold" then
+				sub = string.format("%d / %d s held", c[2], c[3])
+			end
+			if c[9] and c[9] > 0 then
+				sub ..= string.format("   %s left", Kit.time(c[9]))
 			end
 			if c[4] and c[4] > 0 then
-				sub ..= string.format("   shard %d studs %s", c[4], compass(c[5], c[6]))
+				sub ..= string.format(
+					"   %s %d studs %s",
+					if id == "ShardRecovery" then "shard" else "next",
+					c[4],
+					compass(c[5], c[6])
+				)
 			end
+			local title = "?"
+			if def and id then
+				title = ContractPlan.title(
+					Config.Contracts,
+					{ type = id, seed = 0, level = 1, got = 0, pick = c[8] },
+					State.hero.side,
+					enemyName,
+					ready
+				)
+			end
+			local heroic = c[7] == 1
 			setRow(
 				rows[n],
-				"CONTRACT: " .. string.upper(if def then def.name else "?"),
+				heroicTitle("CONTRACT: " .. string.upper(title), heroic),
 				sub,
 				c[2] / math.max(1, c[3]),
-				Color3.fromRGB(255, 150, 70)
+				if heroic then HEROIC_COLOR else Color3.fromRGB(255, 150, 70)
 			)
 		end
 	end
@@ -186,15 +225,25 @@ local function refreshTracker()
 		return a.d < b.d
 	end)
 	for i = 1, math.min(3, #list) do
-		if n < MAX_ROWS then
+		if n < shownRows then
 			n += 1
 			local inc, d = list[i].inc, list[i].d
 			local name = IncidentPlan.title(IC, inc.tid, inc.side)
 			local sub = string.format("%s   %d studs", Kit.time(inc.deadline - now), math.floor(d))
-			if inc.steps > 1 then
-				sub = string.format("Step %d/%d   ", inc.step, inc.steps) .. sub
+			local line = IncidentPlan.stepText(IC, inc.tid, inc.step, inc.side)
+			if line ~= "" then
+				sub = line .. "   " .. sub
 			end
-			setRow(rows[n], string.upper(name), sub, inc.frac, sideColor(inc.side))
+			if inc.steps > 1 then
+				sub = string.format("%d/%d ", inc.step, inc.steps) .. sub
+			end
+			setRow(
+				rows[n],
+				heroicTitle(string.upper(name), inc.heroic),
+				sub,
+				inc.frac,
+				if inc.heroic then HEROIC_COLOR else sideColor(inc.side)
+			)
 		end
 	end
 	for i = n + 1, MAX_ROWS do
@@ -283,8 +332,8 @@ local function refreshMarkers()
 			marker(
 				key,
 				inc.pos,
-				string.format("%s  %dm", name, d),
-				sideColor(inc.side),
+				string.format("%s  %dm", heroicTitle(name, inc.heroic), d),
+				if inc.heroic then HEROIC_COLOR else sideColor(inc.side),
 				IC.spawner.sendRadius
 			)
 		end
@@ -295,7 +344,14 @@ local function refreshMarkers()
 			keep[key] = true
 			local def = Config.Events.events[ev.id]
 			local at = Vector3.new(ev.x, Config.City.ground.y + 2, ev.z)
-			local b = marker(key, at, string.upper(def.name), Kit.color.gold, 3000, "star")
+			local b = marker(
+				key,
+				at,
+				heroicTitle(string.upper(def.name), ev.heroic),
+				if ev.heroic then HEROIC_COLOR else Kit.color.gold,
+				3000,
+				"star"
+			)
 			b.StudsOffsetWorldSpace = Vector3.new(0, 30, 0)
 		end
 	end
@@ -492,6 +548,21 @@ function WorldHud.init()
 	for i = 1, MAX_ROWS do
 		rows[i] = makeRow(i)
 	end
+	-- phone pass: the tracker's box and how many rows fit come from the HUD plan (on a phone, 2 rows in the
+	-- top-left corner; elsewhere the rows that fit above the action buttons)
+	local function place()
+		local hb = Kit.hudBoxes()
+		local t = hb.tracker
+		tracker.AnchorPoint = Vector2.zero
+		tracker.Position = UDim2.fromOffset(t.x, t.y)
+		tracker.Size = UDim2.fromOffset(t.w, math.max(t.h, 0))
+		shownRows = math.clamp(hb.trackerRows, 0, MAX_ROWS)
+		for i = shownRows + 1, MAX_ROWS do
+			rows[i].Visible = false
+		end
+	end
+	place()
+	Kit.LayoutChanged:Connect(place)
 
 	bossPanel = Kit.frame({
 		Name = "Boss",

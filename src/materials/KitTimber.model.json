@@ -1,0 +1,11 @@
+{
+  "className": "MaterialVariant",
+  "properties": {
+    "BaseMaterial": "WoodPlanks",
+    "StudsPerTile": 12.0,
+    "MaterialPattern": "Regular",
+    "ColorMap": "rbxassetid://108831821642375",
+    "NormalMap": "rbxassetid://135547490619305",
+    "RoughnessMap": "rbxassetid://75112151729699"
+  }
+}

@@ -24,6 +24,7 @@ local Workspace = game:GetService("Workspace")
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local RigMath = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("RigMath"))
 local NpcRig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("NpcRig"))
+local EnemyVariety = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("EnemyVariety"))
 
 local HeroService = require(script.Parent.HeroService)
 local EnemyService = require(script.Parent.EnemyService)
@@ -31,6 +32,7 @@ local EnemyService = require(script.Parent.EnemyService)
 local SiteKit = {}
 
 local IC = Config.Incidents
+local varietyRng = Random.new()
 local folder: Folder? = nil
 
 local function root(): Folder
@@ -106,26 +108,32 @@ function SiteKit.squad(
 	tag: number,
 	ring: number?
 ): { number }
+	-- the new robot types swap in as heroes level (Shared.EnemyVariety; each type's switch in Config.Enemies)
+	local rows = EnemyVariety.squad(Config, list, level, function()
+		return varietyRng:NextNumber()
+	end)
 	local ids = {}
 	local total = 0
-	for _, row in list do
+	for _, row in rows do
 		total += row.n
 	end
 	local k = 0
-	for _, row in list do
+	for _, row in rows do
 		local cfg = Config.Enemies[row.kind]
 		for _ = 1, row.n do
 			k += 1
 			local a = k / math.max(total, 1) * math.pi * 2
 			local r = (ring or 16) + (k % 3) * 4
 			local y = pos.Y + (if cfg and cfg.flies then (cfg.hover and cfg.hover.min or 14) else 0)
-			local id = EnemyService.spawnAt(
-				row.kind,
-				Vector3.new(pos.X + math.cos(a) * r, y, pos.Z + math.sin(a) * r),
-				level,
-				tag
-			)
-			if id then
+			-- a Swarmer brings its pack and a Captain its escort: every robot counts for the site
+			for _, id in
+				EnemyService.spawnGroup(
+					row.kind,
+					Vector3.new(pos.X + math.cos(a) * r, y, pos.Z + math.sin(a) * r),
+					level,
+					tag
+				)
+			do
 				table.insert(ids, id)
 			end
 		end
@@ -206,6 +214,14 @@ local function citizenModel(pos: Vector3, cat: boolean?): (Model, BasePart)
 	end
 	m.PrimaryPart = body
 	return m, body
+end
+
+-- A citizen who only stands there (a crowd at an incident, a huddle under a barrage): no prompt, nothing to
+-- carry (they wave like the stranded ones and run off when the step ends). Cleared with clear().
+function SiteKit.bystander(pos: Vector3): Model
+	local m = citizenModel(pos, false)
+	m.Name = "Bystander"
+	return m
 end
 
 -- A stranded citizen at pos. onSafe(hero, pad) when carried into a pad (or a safehouse when anySafehouse).

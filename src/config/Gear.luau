@@ -35,7 +35,7 @@ return {
 	-- the rest. A Common piece (no bonus stats) puts its whole budget in the main stat (Decisions.md).
 	budget = { perIlvl = 1.5, mainShare = 0.70 },
 	ilvlSpread = 2, -- item level = zone level at drop +- 2
-	ilvlMax = 42,
+	-- item levels top out at the level cap + ilvlSpread (GearMath.ilvlMax; 52 with the cap at 50)
 	equipSlack = 5, -- a hero can wear gear up to item level = hero level + 5
 
 	-- Upgrade +1 to +10: +4% budget per step; step n costs round(12 x n^1.5 x tier mult) Lumen Dust.
@@ -388,7 +388,7 @@ return {
 			{ n = 4, name = "Light Wings", shape = "lightwings", tier = "Rare", color = { 255, 230, 140 } },
 			{
 				n = 30,
-				name = "Maw Shard Fins",
+				name = "Maw Crystal Fins",
 				shape = "lightwings",
 				tier = "Boss",
 				boss = "LumenMaw",
@@ -396,7 +396,7 @@ return {
 			},
 			{
 				n = 31,
-				name = "Shiny Maw Shard Fins",
+				name = "Shiny Maw Crystal Fins",
 				shape = "lightwings",
 				tier = "Boss",
 				boss = "LumenMaw",

@@ -192,7 +192,7 @@ function AnalyticsHooks.init()
 	end)
 
 	StoryService.Picked:Connect(function(player, id, option)
-		Analytics.event(player, "choice_pick", 1, { id, option })
+		Analytics.event(player, "choice_pick", 1, { id, option, StoryService.side(player) })
 		Analytics.step(player, "Story", "choice_pick")
 	end)
 

@@ -1,5 +1,5 @@
 -- Nemesis (spec: Hero MMO features > Nemesis; H5). Pure data, tuned in the playtest and the economy sim.
--- From level 8 every hero has one robot villain made for them (a villain hero gets a League hunter robot),
+-- From level 8 every hero has one robot villain made for them (a villain hero gets a hunter robot),
 -- built from their user id and rank so it is the same on every server. Rules: Shared.NemesisMath; the
 -- server: NemesisService; the client: NemesisHud (WANTED poster, taunt panel) and NemesisFx (its look).
 -- Standalone from the main story (nate 2026-11-17): no story characters; names and taunts are fixed lists.
@@ -70,7 +70,7 @@ return {
 		"Clamp",
 		"Drill",
 	},
-	-- a villain hero's nemesis is a League hunter robot: same lists, this word in front of the title
+	-- a villain hero's nemesis is a hunter robot: same lists, this word in front of the title
 	hunterWord = "Hunter",
 	builds = { "lanky", "bulky", "squat", "spiked" },
 	colors = {

@@ -4,7 +4,7 @@
 -- * choices: ask() puts big verb buttons in front of a player (ChoicePrompt) and ChoicePick answers the one
 --   that is open; only an open prompt can be answered, so a client cannot pick a choice it was not asked.
 --   Act choices go through StoryPlan.pick (once only) and pay their effects here.
--- * rewards: Skill Points (the hero's bonus points), reputation (League, Syndicate, City), quest styles,
+-- * rewards: Skill Points (the hero's bonus points), reputation (Vigil Trust, Syndicate Fear, City), quest styles,
 --   emotes, Photo Mode frames, HQ props, the Decoy gadget, loot and Credits.
 -- * the Journal: StoryState after every change; StoryPin pins a side quest step (or the story).
 -- * a citizen carried to safety anywhere adds City reputation.
@@ -112,14 +112,14 @@ function StoryService.addSkillPoints(player: Player, n: number)
 	Net.fire("Toast", player, { id = "skillPoint", n = n })
 end
 
--- track: "league", "syndicate", "city", or "side" (the hero's own: League or Syndicate)
+-- track: "vigil", "syndicate", "city", or "side" (the hero's own: Vigil or Syndicate)
 function StoryService.addRep(player: Player, track: string, amount: number)
 	local c = StoryService.char(player)
 	if not c or amount <= 0 then
 		return
 	end
 	if track == "side" then
-		track = if StoryService.side(player) == "villain" then "syndicate" else "league"
+		track = if StoryService.side(player) == "villain" then "syndicate" else "vigil"
 	end
 	local i = StoryPlan.repIndex(Config, track)
 	local before = StoryPlan.repRank(Config, c.rep[i])
@@ -194,11 +194,14 @@ function StoryService.choose(player: Player, choiceNum: number, option: number):
 	if not ok or not fx then
 		return false
 	end
+	-- lore step 5: a choice pays its Skill Points, reputation and story flag (the pick itself, saved), and a
+	-- cosmetic perk for a few options; nothing that changes stats
 	StoryService.addSkillPoints(player, fx.skillPoints)
 	if fx.rep then
 		StoryService.addRep(player, fx.rep[1], fx.rep[2])
 	end
-	StoryService.pay(player, { credits = fx.credits, renown = fx.renown, gadget = fx.gadget }, hero.level)
+	DataService.changed(player)
+	DataService.saveSoon(player)
 	if fx.perk then
 		Net.fire("Toast", player, { id = "unlock", kind = "perks", name = fx.perk })
 	end
@@ -217,7 +220,7 @@ function StoryService.send(player: Player)
 		return
 	end
 	local story = c.story
-	-- story perks others can see (Null Echo, the drone buddy)
+	-- story perks others can see (the Echo Drone, a drone buddy)
 	player:SetAttribute("NullEcho", StoryPlan.bit(story.perks, S.perks.NullEcho.bit) or nil)
 	local states = {}
 	for num in S.missions do

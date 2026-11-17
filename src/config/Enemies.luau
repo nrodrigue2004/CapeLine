@@ -32,11 +32,16 @@ return {
 		"Mimic",
 		"Interceptor",
 		"Grappler",
+		-- the famous fakes and the evil twin (nate's lore, build plan step 4)
+		"Radiant",
+		"Bulwark",
+		"Skylance",
+		"EvilTwin",
 	},
 	scale = { hpPerLevel = 0.1, dmgBase = 20, dmgPerLevel = 4 },
 	SparkDrone = {
 		typeId = 1,
-		name = "Spark Trooper", -- a jet-boot android (was a drone; id kept so saves and data stay put)
+		name = "Crane Trooper", -- a jet-boot android (was "Spark Trooper" before nate's lore; id SparkDrone kept so saves and data stay put)
 		ai = "flyer",
 		hp = 100,
 		flies = true,
@@ -162,7 +167,7 @@ return {
 	},
 	NullSentinel = {
 		typeId = 6,
-		name = "Null Sentinel",
+		name = "Warden", -- a guard android with a front shield (was "Null Sentinel" before nate's lore)
 		ai = "guard",
 		hp = 900,
 		speed = 14,
@@ -433,7 +438,7 @@ return {
 		attackRange = 3.5,
 		lunge = { range = 14, speed = 70, time = 0.3, every = 3 },
 		bite = { every = 0.8 },
-		coeff = 0.22,
+		coeff = 0.16, -- a pack of 6 all nipping is about one Sentry
 		attackWeight = 0.34, -- three Swarmers count as one robot for the 6-on-one-hero cap
 		fleeBelow = 0,
 		radius = 1.3,
@@ -456,11 +461,12 @@ return {
 		speed = 24,
 		aggro = 70,
 		attackRange = 6,
-		-- shows itself 12 studs from a hero; near a fight for 5 s, it walks up to one at a citizen's pace
-		disguise = { reveal = 12, stalk = 5, walk = 6 },
+		-- shows itself 12 studs from a hero; near a fight for 5 s, it walks up to one at a citizen's pace; a
+		-- site's Mimic with no robot of its fight left within `alone` studs shows itself (so the site can finish)
+		disguise = { reveal = 12, stalk = 5, walk = 6, alone = 150 },
 		ambush = { delay = 0.35, coeff = 1.8 }, -- the first strike after it shows itself
 		stab = { cooldown = 1.2 },
-		coeff = 1,
+		coeff = 0.7,
 		fleeBelow = 0,
 		radius = 2.2,
 		body = {
@@ -518,9 +524,19 @@ return {
 		aggro = 90,
 		attackRange = 6,
 		-- the hook: 10 to 50 studs, every 6 s; a hero it hits is pulled to 6 studs and held 0.9 s
-		hook = { min = 10, range = 50, every = 6, shotSpeed = 95, shotRadius = 3.5, reel = 6, time = 0.5, hold = 0.9, coeff = 0.5 },
+		hook = {
+			min = 10,
+			range = 50,
+			every = 6,
+			shotSpeed = 95,
+			shotRadius = 3.5,
+			reel = 6,
+			time = 0.5,
+			hold = 0.9,
+			coeff = 0.5,
+		},
 		punch = { every = 1.4 },
-		coeff = 1.1,
+		coeff = 0.9,
 		mitigation = 0.1,
 		ccResist = 0.3,
 		fleeBelow = 0,
@@ -534,6 +550,346 @@ return {
 			trim = { 200, 120, 50 },
 			hookArm = true,
 		},
+	},
+	-- The famous fakes (nate's lore, build plan step 4): Silas Crane's robots in place of the city's famous solo
+	-- heroes. The public knows them as heroes with their own names and looks and never ties them to Crane, so a
+	-- fake wears a full hero look built from the hero creator's own pieces (`fake.look`: piece names per slot,
+	-- palette colours; Shared.FakeRules turns it into a LookCodec look, and CreatorRules validates it) and its
+	-- plate shows its hero name and title, with no robot tag. As its health falls to `fakes.crack`, its face
+	-- cracks to show metal and a glowing eye (unmasked: the plate turns to FAKE in red), then the rest of the
+	-- shell breaks off like any robot's. Its attacks are drawn in one power path's own look (fake.path).
+	-- Mini-boss tier: HP well above the elites, damage per second between the elite robots and the hardest-hitting
+	-- world boss (tests/balance_enemies.luau). Never in the ambient mix or the open-world swaps: story missions
+	-- (step 5) and world events (step 9) place them.
+	Radiant = {
+		typeId = 19,
+		on = true,
+		name = "Radiant", -- the golden flyer: light bolts from the air, then a dive
+		fake = {
+			title = "The Golden Dawn",
+			path = "Light",
+			look = {
+				gender = 1,
+				build = 2,
+				height = 4,
+				skin = 2,
+				hair = 4, -- gold
+				colors = { 4, 18, 47 }, -- gold, white, electric yellow
+				pieces = {
+					suit = "Chevron Suit",
+					back = "Long Cape",
+					hands = "Long Cuffs",
+					feet = "Winged Boots",
+					emblem = "Burst",
+					hair = "Hero Quiff",
+					hat = "Halo",
+					shoulders = "Epaulettes",
+					belt = "Sash",
+					trail = "Sparkle Trail",
+					visage = "Hero Face",
+				},
+				tints = { back = { 18, 4, 0 }, belt = { 18, 0, 0 } }, -- a white cape with gold trim, a white sash
+				mats = { shoulders = "Metal" },
+			},
+		},
+		ai = "flyer",
+		hp = 2600,
+		flies = true,
+		speed = 36,
+		hover = { min = 18, max = 40 },
+		aggro = 110,
+		attackRange = 70,
+		orbit = { min = 28, max = 44 },
+		burst = { shots = 3, gap = 0.2, every = 3 },
+		coeff = 0.46,
+		shotSpeed = 130,
+		shotRadius = 4,
+		shotStyle = 4, -- a power path's shot (CombatFx.pathShot in fake.path's look)
+		-- every 8 s a ring shows under its hero for 1.1 s, then it dives there: heroes within 11 studs are hit
+		dive = { every = 8, windup = 1.1, radius = 11, coeff = 2.2 },
+		fleeBelow = 0,
+		fleeTime = 0,
+		mitigation = 0.1,
+		ccResist = 0.5,
+		radius = 3,
+		elite = true,
+		miniBoss = true,
+		body = {
+			build = "normal",
+			gender = 1,
+			height = 5.8,
+			metal = { 200, 180, 120 },
+			eye = { 255, 220, 120 },
+			suit = { 255, 210, 60 },
+			trim = { 245, 245, 245 },
+		},
+	},
+	Bulwark = {
+		typeId = 20,
+		on = true,
+		name = "Bulwark", -- the giant tank: a tower shield in front, slams, charges and shockwaves
+		fake = {
+			title = "The Unbreakable",
+			path = "Colossus",
+			look = {
+				gender = 1,
+				build = 4, -- Titan
+				height = 5,
+				skin = 4,
+				hair = 22, -- black
+				colors = { 10, 19, 47 }, -- blue, silver, electric yellow
+				pieces = {
+					suit = "Plated Suit",
+					hands = "Armored Gauntlets",
+					feet = "Combat Boots",
+					shoulders = "Great Pauldrons",
+					belt = "Champion Belt",
+					arms = "Arm Plates",
+					emblem = "Hex Badge",
+					hair = "Buzz Cut",
+					visage = "Stern Face",
+				},
+				tints = { shoulders = { 19, 10, 0 } },
+				mats = { suit = "Metal", shoulders = "Metal" },
+			},
+		},
+		ai = "brute",
+		hp = 4200,
+		speed = 15,
+		aggro = 100,
+		attackRange = 10, -- starts the shield slam this close
+		slam = { radius = 10, windup = 0.8, every = 3 },
+		coeff = 2.8,
+		-- every 3rd slam is a shockwave instead: a wide ring (1.3 s warning) that misses heroes 4+ studs up
+		shockwave = { nth = 3, radius = 24, windup = 1.3, coeff = 2.5, height = 4 },
+		-- a hero 16 to 45 studs off: a lane shows for 0.9 s, then it charges 40 studs down it; a hero in its
+		-- path (5 studs wide) is hit and stunned 0.4 s. Every 7 s at most.
+		charge = {
+			min = 16,
+			range = 45,
+			every = 7,
+			windup = 0.9,
+			dist = 40,
+			width = 5,
+			coeff = 2.3,
+			stun = 0.4,
+		},
+		-- its tower shield: front hits lose half; a hit from the side or back breaks the guard and stuns it
+		guard = { front = 110, block = 0.5, breakTime = 3, breakStun = 0.8 },
+		mitigation = 0.15,
+		ccResist = 0.6,
+		immune = { "knockup", "float" },
+		fleeBelow = 0,
+		radius = 5,
+		elite = true,
+		miniBoss = true,
+		body = {
+			build = "titan",
+			gender = 1,
+			height = 9.5,
+			metal = { 90, 100, 120 },
+			eye = { 120, 200, 255 },
+			suit = { 40, 110, 220 },
+			trim = { 175, 180, 190 },
+			riot = true,
+		},
+	},
+	Skylance = {
+		typeId = 21,
+		on = true,
+		name = "Skylance", -- the fast spear thrower: sights a hero, throws, then dashes aside
+		fake = {
+			title = "The Silver Streak",
+			path = "Blade",
+			look = {
+				gender = 2,
+				build = 1, -- Small
+				height = 4,
+				skin = 3,
+				hair = 12, -- violet
+				colors = { 33, 18, 46 }, -- azure, white, cyan glow
+				pieces = {
+					suit = "Racer Stripe",
+					back = "Wind Scarf",
+					hands = "Fingerless Gloves",
+					feet = "Tall Boots",
+					emblem = "Ring Star",
+					hair = "High Ponytail",
+					shoulders = "Wingtips",
+					arms = "Bracers",
+					trail = "Streak Trail",
+					visage = "Sharp Face",
+				},
+				tints = { back = { 18, 33, 0 } },
+				mats = {},
+			},
+		},
+		ai = "sniper",
+		hp = 2300,
+		speed = 26,
+		aggro = 130,
+		attackRange = 100,
+		keep = { min = 28, max = 70 },
+		turnRate = 360,
+		-- a short sighting line (0.8 s, the last 0.25 s locked), a spear, and again 1.4 s later
+		aim = { time = 0.8, lock = 0.25, every = 1.4 },
+		fire = { shotSpeed = 190, shotRadius = 3.5, coeff = 2.1 },
+		shotStyle = 4,
+		dash = { dist = 16 }, -- after each throw it dashes 16 studs to one side
+		coeff = 0.8,
+		mitigation = 0.05,
+		ccResist = 0.4,
+		fleeBelow = 0,
+		radius = 2.6,
+		elite = true,
+		miniBoss = true,
+		body = {
+			build = "slim",
+			gender = 2,
+			height = 5.6,
+			metal = { 170, 185, 200 },
+			eye = { 80, 255, 255 },
+			suit = { 60, 160, 230 },
+			trim = { 245, 245, 245 },
+			spear = true, -- PLACEHOLDER ART: a plain-part spear in the right hand
+		},
+	},
+	-- The evil twin: a fake that beat a real hero and copies them: it wears that player's exact look (their
+	-- LookCodec record) and fights with moves from their own power path (twin.paths: each path's fighting
+	-- style; twin.styles the brain and moves it takes). EnemyService.spawnTwin(player, pos, level) makes one
+	-- for story missions (step 5) and a rare world event (step 9); its plate reads the player's hero name until
+	-- it is unmasked. Spawned plainly (Dev, tests) it fights as twin.default with a default hero look.
+	EvilTwin = {
+		typeId = 22,
+		on = true,
+		name = "Evil Twin", -- never shown before it is unmasked: its plate reads the hero it copies
+		fake = { title = "", path = "Volt" },
+		twin = {
+			default = "Volt",
+			paths = {
+				Volt = "blaster",
+				Frost = "blaster",
+				Fire = "blaster",
+				Tide = "blaster",
+				Earth = "lobber",
+				Blade = "duelist",
+				Gunslinger = "gunner",
+				Gadgeteer = "lobber",
+				Shadow = "striker",
+				Titan = "smasher",
+				Martial = "smasher",
+				Juggernaut = "smasher",
+				Colossus = "smasher",
+				Pulse = "blaster",
+				Mind = "blaster",
+				Spirit = "blaster",
+				Light = "blaster",
+			},
+			-- each style's fields go over the ones below (the blaster's are the base)
+			styles = {
+				blaster = {},
+				gunner = {
+					ai = "sniper",
+					flies = false,
+					speed = 22,
+					aggro = 120,
+					attackRange = 100,
+					keep = { min = 26, max = 70 },
+					turnRate = 360,
+					aim = { time = 0.7, lock = 0.25, every = 1.5 },
+					fire = { shotSpeed = 210, shotRadius = 3, coeff = 2.1 },
+					dash = { dist = 14 },
+					coeff = 0.8,
+				},
+				lobber = {
+					ai = "bomber",
+					flies = false,
+					speed = 18,
+					aggro = 100,
+					attackRange = 60,
+					keep = { min = 20, max = 45 },
+					turnRate = 240,
+					grenade = { every = 3, flight = 1, radius = 8, coeff = 1.2, spread = 3 },
+					zone = { radius = 6, time = 3, tick = 0.5, coeff = 0.2 },
+					coeff = 1,
+				},
+				striker = {
+					ai = "sneak",
+					flies = false,
+					speed = 30,
+					aggro = 110,
+					attackRange = 6,
+					cloak = { time = 2.5, every = 7 },
+					stab = { cooldown = 2, backCoeff = 1.4, frontCoeff = 1, behindAngle = 70 },
+					coeff = 1,
+				},
+				duelist = {
+					ai = "sneak",
+					flies = false,
+					speed = 30,
+					aggro = 110,
+					attackRange = 6,
+					cloak = false, -- a sword fighter walks straight in
+					stab = { cooldown = 1.5, backCoeff = 1.1, frontCoeff = 1.1, behindAngle = 70 },
+					coeff = 1,
+				},
+				smasher = {
+					ai = "brute",
+					flies = false,
+					speed = 20,
+					aggro = 100,
+					attackRange = 9,
+					slam = { radius = 9, windup = 0.8, every = 3 },
+					coeff = 2.8,
+					shockwave = { nth = 3, radius = 20, windup = 1.2, coeff = 2.5, height = 4 },
+					charge = {
+						min = 14,
+						range = 40,
+						every = 8,
+						windup = 0.9,
+						dist = 36,
+						width = 5,
+						coeff = 2.3,
+						stun = 0.4,
+					},
+					mitigation = 0.1,
+				},
+			},
+		},
+		ai = "flyer",
+		hp = 2800,
+		flies = true,
+		speed = 32,
+		hover = { min = 14, max = 34 },
+		aggro = 110,
+		attackRange = 60,
+		orbit = { min = 24, max = 40 },
+		burst = { shots = 3, gap = 0.2, every = 2.6 },
+		coeff = 0.6,
+		shotSpeed = 120,
+		shotRadius = 3.5,
+		shotStyle = 4,
+		fleeBelow = 0,
+		fleeTime = 0,
+		mitigation = 0.05,
+		ccResist = 0.4,
+		radius = 2.6,
+		elite = true,
+		miniBoss = true,
+		body = {
+			build = "normal",
+			height = 5.3,
+			metal = { 120, 120, 135 },
+			eye = { 255, 60, 60 },
+			suit = { 40, 110, 220 },
+			trim = { 235, 60, 60 },
+		},
+	},
+	-- shared by the fakes and the twin (Shared.FakeRules)
+	fakes = {
+		crack = 0.5, -- the face cracks (unmasked) once half its health is gone; the shell breaks off after that
+		word = "FAKE", -- the plate once unmasked, in red
+		plateRange = 160, -- studs: its name plate shows this far, like a hero's
 	},
 	-- The look every robot shares (nate, 2026-11-16: "more humanoid, Terminator style ... look like a
 	-- superhuman race but robotic internals that show as they take more damage"). Each robot is an original
@@ -552,7 +908,7 @@ return {
 		endo = { 168, 172, 182 }, -- endoskeleton chrome, tinted toward each robot's metal
 		-- every robot is on the blocky R15 rig (nate, 2026-11-16: "literally everyone should be r15"): its
 		-- build uses the creator's body build with this index (Config.Creator.body.builds) for its proportions
-		builds = { slim = 1, normal = 2, heavy = 3 },
+		builds = { slim = 1, normal = 2, heavy = 3, titan = 4 },
 		-- break tiers, by R15 part (the shell) plus the hair and cape: lower goes earlier
 		tiers = {
 			LeftUpperArm = 1,
@@ -622,15 +978,71 @@ return {
 	variety = {
 		on = true,
 		swaps = {
-			{ kind = "Swarmer", from = { "SneakBot", "BurglarBot" }, chance = 0.15, max = 1, level = 3, minSquad = 2 },
-			{ kind = "ShieldBearer", from = { "BurglarBot", "BruteBot", "SparkDrone" }, chance = 0.2, max = 1, level = 4, minSquad = 3 },
+			{
+				kind = "Swarmer",
+				from = { "SneakBot", "BurglarBot" },
+				chance = 0.15,
+				max = 1,
+				level = 3,
+				minSquad = 2,
+			},
+			{
+				kind = "ShieldBearer",
+				from = { "BurglarBot", "BruteBot", "SparkDrone" },
+				chance = 0.2,
+				max = 1,
+				level = 4,
+				minSquad = 3,
+			},
 			{ kind = "Interceptor", from = { "SparkDrone" }, chance = 0.3, max = 2, level = 4, minSquad = 2 },
-			{ kind = "Bomber", from = { "BruteBot", "BurglarBot" }, chance = 0.2, max = 1, level = 5, minSquad = 3 },
-			{ kind = "Sniper", from = { "SparkDrone", "BurglarBot", "Turret" }, chance = 0.15, max = 1, level = 6, minSquad = 3 },
-			{ kind = "MedicUnit", from = { "BurglarBot", "SneakBot", "SparkDrone" }, chance = 0.2, max = 1, level = 6, minSquad = 3 },
-			{ kind = "Grappler", from = { "BruteBot", "BurglarBot" }, chance = 0.18, max = 1, level = 7, minSquad = 3 },
-			{ kind = "Captain", from = { "BurglarBot", "SparkDrone", "SneakBot" }, chance = 0.25, max = 1, level = 8, minSquad = 4 },
-			{ kind = "Mimic", from = { "SneakBot", "BurglarBot" }, chance = 0.12, max = 1, level = 9, minSquad = 3 },
+			{
+				kind = "Bomber",
+				from = { "BruteBot", "BurglarBot" },
+				chance = 0.2,
+				max = 1,
+				level = 5,
+				minSquad = 3,
+			},
+			{
+				kind = "Sniper",
+				from = { "SparkDrone", "BurglarBot", "Turret" },
+				chance = 0.15,
+				max = 1,
+				level = 6,
+				minSquad = 3,
+			},
+			{
+				kind = "MedicUnit",
+				from = { "BurglarBot", "SneakBot", "SparkDrone" },
+				chance = 0.2,
+				max = 1,
+				level = 6,
+				minSquad = 3,
+			},
+			{
+				kind = "Grappler",
+				from = { "BruteBot", "BurglarBot" },
+				chance = 0.18,
+				max = 1,
+				level = 7,
+				minSquad = 3,
+			},
+			{
+				kind = "Captain",
+				from = { "BurglarBot", "SparkDrone", "SneakBot" },
+				chance = 0.25,
+				max = 1,
+				level = 8,
+				minSquad = 4,
+			},
+			{
+				kind = "Mimic",
+				from = { "SneakBot", "BurglarBot" },
+				chance = 0.12,
+				max = 1,
+				level = 9,
+				minSquad = 3,
+			},
 		},
 	},
 	melee = { reach = 2 }, -- added to a melee radius to cover the hero's body

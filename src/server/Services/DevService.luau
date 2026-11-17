@@ -2,14 +2,23 @@
 -- servers never run them. Commands: bots n, clearbots, drones n, robot 1-6 (3 of that kind), cleardrones,
 -- spawner 0/1, god 0/1, class 1-4, level n, heal, style 0/1 (Comic/Anime), points n (bonus Skill Points),
 -- meter (fill Awakening), respec (no cooldown), loot 1-8 (roll a drop source at the hero's level), renown n,
--- credits n, dust n, save (save now), map (every beacon and safehouse found), wipe (start over as a new player: the opening then the creator), wreck n (structure damage
+-- credits n, dust n, save (save now), map (every beacon and safehouse found), wipe (start over as a new player: the creator then the opening), wreck n (structure damage
 -- around the hero, default 3000), repair (every building back), flip (every vehicle near the hero),
--- incident 1-10 (that template next to the hero), clearincidents, event 1-6, boss (land the next world
+-- incident 1-24 (that template next to the hero), clearincidents, event 1-12, boss (land the next world
 -- boss in 3 s), bosskill (the boss to 1 HP), contract (finish the first accepted contract), clock 0-3
 -- (day, dusk, night, dawn), side 0/1 (hero or villain, for this session only).
+-- 2026-11-17: heroic 0/1 (the incidents, events and contracts the Dev panel starts are Heroic), contractstart
+-- 1-12 (take that contract type here, no board).
 -- M9: creator (open the creator to remake this hero), hq (enter your HQ), hqlevel n, away n (offline drones
 -- for n hours away), pieces (unlock every creator piece), buy n (test-purchase shop item n with a fixed
--- receipt id: the second time grants nothing), legacy (level 40 and retire at HQ next).
+-- receipt id: the second time grants nothing), legacy (the level cap and retire at HQ next).
+-- Lore step 2: street 0/1 (the street outfit off or on, CreatorService.streetOutfit).
+-- Lore step 3: prologue 0/1 (the Ceremony prologue from its first beat as the Vigil or the Syndicate), opening n
+-- (0 replays it; 1 to 13 jumps to that beat).
+-- Lore step 4: fake 1-3 (Radiant, Bulwark or Skylance 25 studs in front of the hero, at the hero's level), twin
+-- (an evil twin of your own hero there).
+-- Lore step 5: missionas n (mission n // 10 as the Vigil, n % 10 = 0, or the Syndicate, 1; the missions before it
+-- cleared and its level met), missionstep n (jump to stage n of the running mission).
 -- Hero MMO: nemesis 0/1 (your nemesis ambushes you now / your Intel is full: the Showdown opens).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -49,8 +58,11 @@ local ShopRules = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild(
 local CreatorRules = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("CreatorRules"))
 local ProfileSchema = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("ProfileSchema"))
 local OpeningPlan = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("OpeningPlan"))
+local StoryPlan = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("StoryPlan"))
 
 local DevService = {}
+
+local forceHeroic = false -- the Dev panel's Heroic switch for what it starts
 
 local commands: { [string]: (player: Player, hero: any, value: number) -> () } = {
 	bots = function(_, _, n)
@@ -70,6 +82,20 @@ local commands: { [string]: (player: Player, hero: any, value: number) -> () } =
 		local pos = HeroService.position(hero)
 		if kind and pos then
 			EnemyService.spawnAround(pos, 3, kind)
+		end
+	end,
+	fake = function(_, hero, index)
+		local kind = ({ "Radiant", "Bulwark", "Skylance" })[index]
+		local pos = HeroService.position(hero)
+		if kind and pos then
+			local cfg = Config.Enemies[kind]
+			EnemyService.spawnAt(kind, pos + Vector3.new(0, if cfg.flies then 14 else 0, -25), hero.level)
+		end
+	end,
+	twin = function(player, hero)
+		local pos = HeroService.position(hero)
+		if pos then
+			EnemyService.spawnTwin(player, pos + Vector3.new(0, 14, -25), hero.level)
 		end
 	end,
 	points = function(_, hero, n)
@@ -158,8 +184,8 @@ local commands: { [string]: (player: Player, hero: any, value: number) -> () } =
 			HeroService.applyProfile(hero, profile.characters[1], profile.currency)
 			GearService.refresh(player)
 		end
-		-- a brand new player: the opening (the tutorial) runs now and ends in Suit Up, the creator
-		task.delay(0.5, OpeningService.start, player)
+		-- a brand new player: the creator first, then the opening (lore step 2)
+		task.delay(0.5, CreatorService.createFirst, player)
 	end,
 	heal = function(_, hero)
 		hero.health = hero.maxHealth
@@ -184,14 +210,20 @@ local commands: { [string]: (player: Player, hero: any, value: number) -> () } =
 	incident = function(_, hero, n)
 		local tid = Config.Incidents.order[n]
 		if tid then
-			print("[Dev] incident", tid, IncidentService.force(hero, tid))
+			print("[Dev] incident", tid, IncidentService.force(hero, tid, forceHeroic))
 		end
 	end,
 	clearincidents = function()
 		IncidentService.clearAll()
 	end,
 	event = function(_, _, n)
-		print("[Dev] event", n, EventService.force(n))
+		print("[Dev] event", n, EventService.force(n, forceHeroic))
+	end,
+	heroic = function(_, _, on)
+		forceHeroic = on ~= 0
+	end,
+	contractstart = function(player, _, n)
+		print("[Dev] contract", Config.Contracts.order[n], ContractService.forceStart(player, n, forceHeroic))
 	end,
 	boss = function()
 		BossService.startNow()
@@ -210,7 +242,7 @@ local commands: { [string]: (player: Player, hero: any, value: number) -> () } =
 	end,
 	-- M7: the story
 	opening = function(player, _, stepNum)
-		-- 0 replays the opening from the start; 1 to 9 jumps to that step of a running one
+		-- 0 replays the Ceremony prologue from the start; 1 to 13 jumps to that beat of a running one
 		if stepNum == 0 or not OpeningService.running(player) then
 			OpeningService.start(player, true)
 		end
@@ -219,9 +251,45 @@ local commands: { [string]: (player: Player, hero: any, value: number) -> () } =
 			OpeningService.jump(player, name)
 		end
 	end,
+	-- lore step 3: the prologue from its first beat as the Vigil (0) or the Dread Syndicate (1)
+	prologue = function(player, hero, villain)
+		local side = if villain ~= 0 then "villain" else "hero"
+		OpeningService.stop(player)
+		hero.side = side
+		StoryService.setSide(player, side)
+		OpeningService.start(player, true)
+	end,
 	mission = function(player, _, num)
 		local ok, why = MissionService.enter(player, num)
 		print("[Dev] mission", num, ok, why)
+	end,
+	-- lore step 5: start mission n as a side (value n * 10 + 0 the Vigil, 1 the Syndicate), the missions before
+	-- it cleared and the level met, and jump to stage n of the running mission
+	missionas = function(player, hero, value)
+		local num, villain = value // 10, value % 10
+		local m = Config.Story.missions[num]
+		local story = StoryService.story(player)
+		if not m or m.opening or not story then
+			return
+		end
+		MissionService.leave(player)
+		local side = if villain ~= 0 then "villain" else "hero"
+		StoryService.setSide(player, side)
+		story.opening = 1
+		for n = 1, num - 1 do
+			StoryPlan.clear(story, n)
+		end
+		if hero.level < m.minLevel then
+			HeroService.setLevel(hero, m.minLevel)
+		end
+		StoryService.changed(player)
+		task.delay(1.2, function()
+			local ok, why = MissionService.enter(player, num)
+			print("[Dev] mission", num, side, ok, why)
+		end)
+	end,
+	missionstep = function(player, _, n)
+		MissionService.jumpStage(player, n)
 	end,
 	finishstep = function(player)
 		MissionService.skipStep(player)
@@ -285,6 +353,9 @@ local commands: { [string]: (player: Player, hero: any, value: number) -> () } =
 		HeroService.setFxStyle(hero, if anime ~= 0 then "Anime" else "Comic")
 	end,
 	-- M9
+	street = function(player, _, on)
+		CreatorService.streetOutfit(player, on ~= 0)
+	end,
 	creator = function(player)
 		local profile = DataService.get(player)
 		if profile then
@@ -326,7 +397,7 @@ local commands: { [string]: (player: Player, hero: any, value: number) -> () } =
 		end
 	end,
 	legacy = function(_, hero)
-		HeroService.setLevel(hero, 40)
+		HeroService.setLevel(hero, Config.Stats.levelCap)
 	end,
 	nemesis = function(player, _, what)
 		NemesisService.dev(player, what)

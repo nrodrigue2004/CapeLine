@@ -24,11 +24,13 @@ local Cooldowns = require(Shared:WaitForChild("Cooldowns"))
 local AbilityRules = require(Shared:WaitForChild("AbilityRules"))
 local ChargeRules = require(Shared:WaitForChild("ChargeRules"))
 local WeaponRules = require(Shared:WaitForChild("WeaponRules"))
+local EnemySim = require(Shared:WaitForChild("EnemySim"))
 local Signal = require(Shared:WaitForChild("Util"):WaitForChild("Signal"))
 
 local InputController = require(script.Parent.InputController)
 local MoveController = require(script.Parent.MoveController)
 local CameraController = require(script.Parent.CameraController)
+local AudioController = require(script.Parent.AudioController)
 local EnemyRenderer = require(script.Parent.EnemyRenderer)
 local PvpClient = require(script.Parent.PvpClient)
 local HeroAnimator = require(script.Parent.HeroAnimator)
@@ -67,6 +69,21 @@ local CHEST = Vector3.new(0, 1.5, 0)
 local K = { CAST = 1, WINDUP = 2, TICK = 3, LAND = 4, ECHO = 5, END = 6, COMBO = 7, RIPOSTE = 8, CLASH = 9 }
 -- CombatEvents kinds (EnemyService)
 local SHOT, HERO_HIT, DIE, WARN, SLAM, SWING, BLOCKED = 1, 2, 3, 4, 5, 6, 7
+-- the nine newer robot types (EnemyService.AIM ... BOOM; the robots' own flags are EnemySim.EXTRA)
+local AIM, RALLY, LOB, ZONE, MEND, REVEAL, BOOM = 8, 9, 10, 11, 12, 13, 14
+-- the famous fakes and the evil twin (lore step 4): a dive, charge or dash; a face cracking
+local DASH, UNMASK = 15, 16
+local PATH_SHOT = 4 -- shot style 4: a power path's shot (CombatFx.pathShot)
+local HOOKED = EnemySim.EXTRA.hooked
+
+-- While robot e's EXTRA bit holds (after a short grace for the next Enemy.Delta): a stun breaks a Sniper's
+-- aim and a Medic's beam on the server, and these let the client's laser and beam end with them
+local function holds(e: number, bit: number): () -> boolean
+	local t0 = os.clock()
+	return function()
+		return os.clock() - t0 < 0.3 or bit32.band(EnemyRenderer.extra(e), bit) ~= 0
+	end
+end
 
 local PREDICTED =
 	{ bolt = true, chain = true, dash = true, cone = true, arc = true, nova = true, line = true, buff = true }
@@ -412,6 +429,18 @@ function CombatClient.fire(id: string, charge: number?): boolean
 		local target = root.Position + f * math.max(0, fwd - 2) + Vector3.new(0, up, 0)
 		MoveController.launchTo(target, eff.time or 0.5, math.max(4, up * 0.25))
 	end
+	-- every path's own look and sound (overhaul plan step 6): the flourish, the super's moment, the sound layer
+	if slot ~= "basic" then
+		CombatFx.castFlourish(eff, style, origin, dir, player.UserId)
+		Juice.path(eff.set, if slot == "super" then "super" else "cast", origin)
+	end
+	if slot == "super" and PREDICTED[shape] and not (eff.cast and eff.cast > 0) and not eff.channel then
+		CombatFx.superMoment(
+			eff,
+			style,
+			{ o = origin, d = dir, c = origin, r = eff.radius, a = player.UserId, aw = awake }
+		)
+	end
 	Juice.fire(castSound(slot), origin, { mine = true })
 	Net.send("CombatUse", eff.num, dir, hint, seq, math.floor(chargeLevel * 100 + 0.5))
 	CombatClient.Cast:Fire(id)
@@ -435,18 +464,34 @@ local function casterPos(userId: number, fallback: Vector3): () -> Vector3?
 	end
 end
 
+local IMPACT = Config.Audio.impact
+local lastThud = 0
+
 local function drawHits(r: any, row: any, style: string, mine: boolean)
 	local hits = r.h or {}
 	local color = CombatFx.colorOf(row and row.set, r.a)
 	local anyCrit = false
 	local wordDone = false
+	local tick = r.k == K.TICK
+	local heavyRow = row ~= nil and (row.coeff or 0) >= C.heavyCoeff
 	for _, h in hits do
 		local pos = EnemyRenderer.position(h[1]) or Vector3.new(h[5], h[6], h[7])
 		local crit = h[3] == 1
 		anyCrit = anyCrit or crit
 		EnemyRenderer.flash(h[1])
-		if r.k ~= K.TICK or crit then
+		if not tick or crit then
 			CombatFx.impact(pos, crit, style, mine, color, row and row.set)
+		end
+		-- weighty hits (Config.Combat.weight): the robot freezes with you, then recoils; sparks spray out
+		if not tick and h[4] ~= 1 then
+			local big = crit or heavyRow
+			local from = r.o or (Workspace.CurrentCamera and Workspace.CurrentCamera.CFrame.Position) or pos
+			local dir = pos - from
+			local freeze = if mine and not CameraController.reduceMotion
+				then (if big then C.critPause else C.hitPause)
+				else 0
+			EnemyRenderer.impact(h[1], dir, big, freeze)
+			CombatFx.hitSparks(pos, if dir.Magnitude > 1e-3 then dir.Unit else Vector3.yAxis, color, big)
 		end
 		CombatFx.number(pos + Vector3.new(0, 2, 0), h[2], crit, style, mine, h[8])
 		if
@@ -467,14 +512,30 @@ local function drawHits(r: any, row: any, style: string, mine: boolean)
 		)
 	end
 	if mine and #hits > 0 then
-		local heavy = row and (row.coeff or 0) >= C.heavyCoeff
+		local heavy = heavyRow
 		hitPause(if anyCrit or heavy then C.critPause else C.hitPause)
-		if heavy and r.k ~= K.TICK then
-			CameraController.shake(0.15, 0.45)
+		if not tick then
+			-- weighty hits: every hit you land shakes the camera and thuds; heavy and crit hits harder
+			local W = C.weight
+			local sh = if anyCrit or heavy then W.shakeHeavy else W.shake
+			CameraController.shake(sh[1], sh[2])
+			local now = os.clock()
+			if now - lastThud >= W.thudGap then
+				lastThud = now
+				local at = EnemyRenderer.position(hits[1][1])
+					or Vector3.new(hits[1][5], hits[1][6], hits[1][7])
+				AudioController.playSpec(if anyCrit or heavy then IMPACT.heavy else IMPACT.hit, at)
+				AudioController.playSpec(IMPACT.clank, at)
+			end
 		end
 		-- the camera punch: a small FOV kick on crits and heavy hits, smaller on the rest (never on ticks)
 		if r.k ~= K.TICK then
 			CameraController.punch(if anyCrit or heavy then C.punchHeavy else C.punchHit)
+			Juice.path(
+				row and row.set,
+				"hit",
+				EnemyRenderer.position(hits[1][1]) or Vector3.new(hits[1][5], hits[1][6], hits[1][7])
+			)
 		end
 		CombatClient.HitConfirm:Fire(anyCrit)
 	end
@@ -490,6 +551,9 @@ local function onResult(list: { any })
 			local kind = r.k
 			if kind == K.CAST and not mine then
 				Juice.fire(castSound(row.slot), r.o, { mine = false, userId = r.a })
+				if row.slot ~= "basic" then
+					Juice.path(row.set, if row.slot == "super" then "super" else "cast", r.o)
+				end
 			end
 			if kind == K.CAST and (not mine or (row.cast and row.cast > 0)) then
 				HeroAnimator.cast(HeroAnimator.byUserId(r.a), row, r.m) -- yours after a windup, others' always
@@ -556,7 +620,8 @@ local function onResult(list: { any })
 							function()
 								return EnemyRenderer.position(tid)
 							end,
-							false
+							false,
+							row.set
 						)
 					end
 					-- decoys (Tide Mirror, Holo Decoy, Spirit Swap): a copy the robots chase
@@ -581,7 +646,7 @@ local function onResult(list: { any })
 					end
 				end
 				if kind == K.LAND and r.dur then
-					CombatFx.field(r.c, row.radius * 0.6, r.dur, style, color, false, nil, false)
+					CombatFx.field(r.c, row.radius * 0.6, r.dur, style, color, false, nil, false, row.set)
 				end
 			elseif kind == K.ECHO then
 				if r.c then
@@ -633,19 +698,58 @@ local function onResult(list: { any })
 	end
 end
 
+-- A robot's piece now (its rifle tip, its hand), else its body plus `up`; nil once it is gone
+local function robotAt(e: number, piece: string, up: Vector3): () -> Vector3?
+	return function()
+		local p = EnemyRenderer.point(e, piece)
+		if p then
+			return p
+		end
+		local pos = EnemyRenderer.position(e)
+		return pos and pos + up
+	end
+end
+
+-- A hero's chest by user id (players only: load-test bots have no Player, so they get nil)
+local function heroChest(userId: number): () -> Vector3?
+	return function()
+		local p = Players:GetPlayerByUserId(userId)
+		local char = p and p.Character
+		local root = char and char:FindFirstChild("HumanoidRootPart") :: BasePart?
+		return root and root.Position + CHEST
+	end
+end
+
+local function near(pos: Vector3, range: number): boolean
+	local p = myChest()
+	return p ~= nil and (p - pos).Magnitude < range
+end
+
+-- A famous fake's or an evil twin's attacks take its power path's look (lore step 4): the path, the effect
+-- style to draw in (yours) and the colour (a twin's: the effect tint of the player it copies)
+local function fakeLook(e: number): (string?, string, Color3)
+	local set, userId = EnemyRenderer.pathOf(e)
+	return set, styleOf(player.UserId), CombatFx.colorOf(set, userId)
+end
+
 local function onEvents(list: { any })
 	for _, ev in list do
 		local kind = ev[1]
 		if kind == SHOT then
-			if ev[9] then
-				CombatFx.torpedo(
-					Vector3.new(ev[3], ev[4], ev[5]),
-					Vector3.new(ev[6], ev[7], ev[8]),
-					ev[9],
-					ev[10]
-				)
+			local pos, vel = Vector3.new(ev[3], ev[4], ev[5]), Vector3.new(ev[6], ev[7], ev[8])
+			if ev[11] == PATH_SHOT then
+				local set, style, color = fakeLook(ev[2])
+				CombatFx.pathShot(pos, vel, set, style, color)
+				Juice.path(set, "cast", pos)
+			elseif ev[9] and ev[9] ~= 0 then
+				CombatFx.torpedo(pos, vel, ev[9], ev[10])
+			elseif ev[11] == 3 then
+				local e = ev[2]
+				CombatFx.hook(robotAt(e, "Claw", Vector3.new(0, 1, 0)), pos, vel, function()
+					return bit32.band(EnemyRenderer.extra(e), HOOKED) ~= 0
+				end)
 			else
-				CombatFx.enemyShot(Vector3.new(ev[3], ev[4], ev[5]), Vector3.new(ev[6], ev[7], ev[8]))
+				CombatFx.enemyShot(pos, vel, ev[11])
 			end
 		elseif kind == HERO_HIT then
 			if ev[6] and ev[6] > 0 then
@@ -673,14 +777,99 @@ local function onEvents(list: { any })
 			CombatFx.warn(Vector3.new(ev[3], ev[4], ev[5]), ev[6], ev[7], ev[8], ev[9])
 		elseif kind == SLAM then
 			CombatFx.slam(Vector3.new(ev[3], ev[4], ev[5]), ev[6])
+			local set, style, color = fakeLook(ev[2])
+			if set then
+				-- a fake's slam, shockwave or dive lands in its path's look (Colossus' quake, Light's prism...)
+				CombatFx.nova(Vector3.new(ev[3], ev[4] + 1.2, ev[5]), ev[6], style, color, ev[6] >= 18, set)
+				Juice.path(set, "hit", Vector3.new(ev[3], ev[4], ev[5]))
+			end
 			local p = myChest()
 			if p and (p - Vector3.new(ev[3], ev[4], ev[5])).Magnitude < 40 then
 				CameraController.shake(0.2, 0.4)
 			end
 		elseif kind == SWING then
 			EnemyRenderer.swing(ev[2])
+			local set, style, color = fakeLook(ev[2])
+			local f = EnemyRenderer.facing(ev[2])
+			if set and f then
+				-- an evil twin's strike: its path's cut or blow in front of it
+				CombatFx.arc(Vector3.new(ev[3], ev[4], ev[5]), f, 7, 110, style, color, 1, true, false, set)
+			end
 		elseif kind == BLOCKED then
 			CombatFx.blocked(Vector3.new(ev[3], ev[4], ev[5]))
+		elseif kind == AIM then
+			-- {8, e, x,y,z, heroUserId, time, lock}: a Sniper's laser on a hero (bots have no body to aim at)
+			local to = heroChest(ev[6])
+			local aiming = holds(ev[2], EnemySim.EXTRA.aim)
+			if to() then
+				CombatFx.aimLaser(
+					robotAt(ev[2], "RifleTip", Vector3.new(0, 1.5, 0)),
+					to,
+					ev[7],
+					ev[8],
+					aiming
+				)
+			end
+			if ev[6] == player.UserId then
+				CombatFx.targeted(ev[7], ev[8], aiming)
+				task.delay(math.max(0, ev[7] - ev[8]), function()
+					if aiming() then -- no lock sound for an aim a stun already broke
+						Juice.fire("aimLock", nil, { mine = true })
+					end
+				end)
+			end
+		elseif kind == RALLY then
+			local at = EnemyRenderer.position(ev[2]) or Vector3.new(ev[3], ev[4], ev[5])
+			CombatFx.rally(at, ev[6])
+			Juice.fire("rally", at, { mine = false })
+		elseif kind == LOB then
+			EnemyRenderer.swing(ev[2]) -- the throw
+			CombatFx.lob(Vector3.new(ev[3], ev[4], ev[5]), Vector3.new(ev[6], ev[7], ev[8]), ev[9])
+		elseif kind == ZONE then
+			CombatFx.zone(Vector3.new(ev[3], ev[4], ev[5]), ev[6], ev[7])
+		elseif kind == MEND then
+			-- {12, e, x,y,z, patientId, time}: both ends follow their robots
+			local patient = ev[6]
+			CombatFx.mend(robotAt(ev[2], "RightHand", Vector3.new(0, 1, 0)), function()
+				return EnemyRenderer.position(patient)
+			end, ev[7], holds(ev[2], EnemySim.EXTRA.mend))
+		elseif kind == REVEAL then
+			local at = EnemyRenderer.position(ev[2]) or Vector3.new(ev[3], ev[4], ev[5])
+			CombatFx.reveal(at)
+			Juice.fire("reveal", at, { mine = false })
+		elseif kind == BOOM then
+			local at = Vector3.new(ev[3], ev[4], ev[5])
+			local set, style, color = fakeLook(ev[2])
+			if set then
+				CombatFx.nova(at + Vector3.new(0, 1.2, 0), ev[6], style, color, false, set) -- a twin's blast
+			else
+				CombatFx.boom(at, ev[6])
+			end
+			Juice.fire("grenadeBoom", at, { mine = false })
+			if near(at, Config.Fx.robots.boom.shake) then
+				CameraController.shake(0.2, 0.45)
+			end
+		elseif kind == DASH then
+			-- {15, e, x,y,z, tx,ty,tz}: a fake's dive, charge or dash, a streak in its path's look
+			local set, style, color = fakeLook(ev[2])
+			CombatFx.dash(
+				Vector3.new(ev[3], ev[4], ev[5]),
+				Vector3.new(ev[6], ev[7], ev[8]),
+				style,
+				color,
+				set
+			)
+		elseif kind == UNMASK then
+			-- {16, e, x,y,z}: a famous fake's face cracks to show metal: sound, flash, and a short hit-stop
+			-- and camera punch when it is near you
+			local at = EnemyRenderer.position(ev[2]) or Vector3.new(ev[3], ev[4], ev[5])
+			local close = near(at, Config.Fx.fakes.unmaskNear)
+			Juice.fire("unmask", at + Vector3.new(0, 2, 0), { mine = close, near = close })
+			if close then
+				hitPause(Config.Fx.fakes.unmaskPause)
+				CameraController.punch(C.punchHeavy)
+				CameraController.shake(0.15, 0.3)
+			end
 		end
 	end
 end
@@ -749,9 +938,18 @@ updateHold = function()
 	local origin = root.Position + CHEST
 	local point = aim(rangeOf(eff), origin)
 	local color = CombatFx.colorOf(eff.set, player.UserId)
-	AimPreview.draw(eff, origin, root.Position - Vector3.new(0, 3, 0), point, color, level)
+	AimPreview.draw(
+		eff,
+		origin,
+		root.Position - Vector3.new(0, 3, 0),
+		point,
+		color,
+		level,
+		State.hero.fxStyle
+	)
 	if h.charge and level > 0 and not h.posed then
 		h.posed = true
+		Juice.path(eff.set, "charge", origin)
 		HeroAnimator.windup(player, C.charge.maxHold) -- the charging pose until release
 	end
 	if level >= 1 and not h.full then

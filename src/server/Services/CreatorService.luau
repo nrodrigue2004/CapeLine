@@ -1,9 +1,12 @@
 -- CreatorService: the hero creator, character slots and creator unlocks (spec: Hero creator; Character slots;
 -- Faction reputation "a style unlock"; Hero.Create {side, classId, setId, look, colors, titleId, nounId}
 -- 1/10s; Hero.Select {slot} 1/5s).
--- * The creator opens in three modes: "create" on the opening's Suit Up step (a new hero: side, class,
---   starting set, look and name), "first" once for a hero made before the creator (name and look), and
---   "edit" at HQ or a safehouse (look and name; the class changes only at HQ, the side and set never).
+-- * The creator opens in three modes: "create" for a brand-new character before any story (nate's lore,
+--   build plan step 2: creator first; side, origin, class, starting set, look and name; Done starts the
+--   opening), "first" once for a hero made before the creator (name and look), and "edit" at HQ or a
+--   safehouse (look, name and origin; the class changes only at HQ, the side and set never).
+-- * Origins (lore step 2): picked in the creator, changed there free; a title and one look piece (the
+--   origin's crest), never a stat. The street outfit (streetOutfit) is the prologue's plain clothes.
 -- * HeroCreate checks everything on the server: every piece is unlocked, colours are on the palette, the
 --   name pair is on the wheels and not blocked. The look is saved as 8 words; the hero's Comic or Anime pick
 --   is the look's flag. Others see the look on the body (LookService) and the name on the plate.
@@ -48,6 +51,7 @@ CreatorService.leaveHq = function(_player: Player) end
 
 local rng = Rng.new(os.time() % 100000 + 17)
 local firstAsked: { [Player]: boolean } = {}
+local createAsked: { [Player]: boolean } = {}
 
 local function charOf(player: Player): (any?, any?)
 	local profile = DataService.get(player)
@@ -62,6 +66,9 @@ function CreatorService.showName(player: Player)
 	end
 	player:SetAttribute("HeroName", CreatorRules.heroName(Config, c.titleId, c.nounId) or "")
 	player:SetAttribute("Legacy", c.legacy)
+	-- lore step 2: the origin's title ("Lab-Born") under the hero's name
+	local origin = Config.Creator.origins[c.origin or 0]
+	player:SetAttribute("OriginTitle", if origin and c.created == 1 then origin.title else nil)
 	player:SetAttribute("FxTint", if c.tint > 0 then c.tint else nil)
 	player:SetAttribute("Landing", if c.landing > 0 then c.landing else nil)
 	-- M11: the voice pack every device plays this hero's lines from (Config.Shop.voiceSounds)
@@ -106,8 +113,13 @@ local function where(hero: any): string?
 end
 
 -- What the creator may change right now: "create", "first", "edit", or nil (and why)
-local function modeOf(player: Player, hero: any, c: any): (string?, string?)
-	if OpeningService.atSuitUp(player) then
+-- A brand-new character (no creator yet, no opening yet) makes its hero first, before any story
+local function isNew(c: any): boolean
+	return c.created == 0 and c.story.opening == 0
+end
+
+local function modeOf(_player: Player, hero: any, c: any): (string?, string?)
+	if isNew(c) then
 		return "create", nil
 	end
 	if c.created == 0 and c.story.opening == 1 then
@@ -134,7 +146,8 @@ local function onCreate(
 	titleId: number,
 	nounId: number,
 	mobilityIdx: number?,
-	weaponBuf: buffer?
+	weaponBuf: buffer?,
+	originIdx: number?
 )
 	local profile, c = charOf(player)
 	local hero = HeroService.get(player)
@@ -151,7 +164,13 @@ local function onCreate(
 		result(player, false, "look")
 		return
 	end
-	local ok, reason = CreatorRules.validate(Config, profile, look)
+	-- the origin: a new hero picks one; anyone else may change theirs free (no pick keeps the saved one)
+	local origin = if originIdx ~= nil then originIdx else c.origin
+	if not CreatorRules.originOk(Config, origin) then
+		result(player, false, "origin")
+		return
+	end
+	local ok, reason = CreatorRules.validate(Config, profile, look, origin)
 	if not ok then
 		result(player, false, reason)
 		return
@@ -195,6 +214,11 @@ local function onCreate(
 		WeaponRules.setLook(profile, weaponLook)
 		c.weapon = weaponLook.id
 	end
+	-- the origin (a title and one look piece; never a stat)
+	if origin ~= c.origin or mode == "create" then
+		Analytics.event(player, "origin_pick", hero.level, { Config.Creator.origins[origin].id, mode })
+	end
+	c.origin = origin
 	-- the look, the name and the effect style
 	c.look = LookCodec.toWords(buf)
 	c.titleId, c.nounId = titleId, nounId
@@ -207,14 +231,20 @@ local function onCreate(
 	end
 	local pathMoved = classId ~= hero.classId or setId ~= hero.startSet
 	if mode == "create" then
-		-- a new hero: its archetype and main path, open from level 1 with the path's starters learned
+		-- a new hero (creator first): its side, archetype and main path, open from level 1 with the path's
+		-- starters learned; then the opening plays with this side (its Suit Up only finishes the run now)
 		c.created = 1
+		StoryService.setSide(player, side)
 		Analytics.event(player, "creator_done", Analytics.since(player), { classId, side, setId })
 		Analytics.step(player, "Opening", "creator_done")
-		OpeningService.suitUp(player, classId, side)
 		if pathMoved then
 			CreatorService.setPath(player, hero, c, classId, setId, false)
 		end
+		if hero.scene == "creator" then
+			hero.scene = nil
+		end
+		createAsked[player] = nil
+		task.defer(OpeningService.start, player)
 	else
 		c.created = 1
 		-- a hero made before the creator picks freely once; otherwise one free change before level 10
@@ -236,6 +266,7 @@ local function onCreate(
 	DataService.saveSoon(player)
 	result(player, true, nil)
 	Net.fire("Toast", player, { id = "heroSaved", name = CreatorRules.heroName(Config, titleId, nounId) })
+	CreatorService.sweep(player) -- the origin's crest, unlocked for the account
 	CreatorService.Saved:Fire(player)
 end
 
@@ -283,9 +314,39 @@ function CreatorService.open(player: Player, mode: string)
 		side = c.side,
 		classIdx = table.find(Config.Classes.order, c.classId) or 1,
 		hq = mode == "edit" and CreatorService.inHq(HeroService.get(player)),
+		origin = c.origin,
 		-- the archetype and path may change in this creator (a new or first-time hero, or the free change)
 		pathOpen = mode ~= "edit" or CreatorRules.pathChangeOk(Config, c.level, c.pathChanged),
 	})
+end
+
+-- Creator first (lore step 2): a brand-new character opens the creator before any story. The hero waits in
+-- the "creator" scene (no incidents, events or robots find it) until Done starts the opening.
+function CreatorService.createFirst(player: Player)
+	local _, c = charOf(player)
+	local hero = HeroService.get(player)
+	if not c or not hero or not hero.loaded or not isNew(c) or createAsked[player] then
+		return
+	end
+	if hero.scene and hero.scene ~= "creator" then
+		return
+	end
+	createAsked[player] = true
+	hero.scene = "creator"
+	Analytics.step(player, "Opening", "creator_open")
+	CreatorService.open(player, "create")
+end
+
+-- The street outfit (lore step 2; the prologue in step 3 starts in it and the suit snaps on mid-chase): on
+-- puts the hero in plain classic clothes with its own face and hair (Shared.CreatorRules.streetLook: no suit,
+-- cape, gear look or weapon); off puts the designed look back. It survives a respawn and ends on a character
+-- switch or leaving. Looks only: stats, gear and the weapon in play are unchanged.
+function CreatorService.streetOutfit(player: Player, on: boolean)
+	GearService.setStreet(player, on)
+end
+
+function CreatorService.inStreetOutfit(player: Player): boolean
+	return GearService.street(player)
 end
 
 -- A hero made before the creator meets it once, a few seconds after joining (out of any scene)
@@ -348,6 +409,8 @@ local function onSelect(player: Player, slot: number)
 	end
 	profile.active = slot
 	firstAsked[player] = nil
+	createAsked[player] = nil
+	GearService.setStreet(player, false)
 	-- every service takes the new character as if it had just loaded
 	DataService.Loaded:Fire(player, profile)
 	CreatorService.showName(player)
@@ -363,6 +426,7 @@ function CreatorService.init()
 		CreatorService.showName(player)
 		CreatorService.sweep(player)
 		task.delay(4, maybeFirst, player)
+		task.delay(1.5, CreatorService.createFirst, player)
 	end)
 	HeroService.Leveled:Connect(function(hero)
 		if hero.player then
@@ -389,10 +453,13 @@ function CreatorService.init()
 	HeroService.Spawned:Connect(function(hero)
 		if hero.player then
 			task.delay(6, maybeFirst, hero.player)
+			task.delay(1.5, CreatorService.createFirst, hero.player) -- a first body that loaded late
 		end
 	end)
 	Players.PlayerRemoving:Connect(function(player)
 		firstAsked[player] = nil
+		createAsked[player] = nil
+		GearService.setStreet(player, false)
 	end)
 end
 

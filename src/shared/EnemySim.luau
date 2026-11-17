@@ -8,7 +8,28 @@
 --   sneak  (Sneak Bot) cloaks for 4 s, circles behind the hero and backstabs
 --   brute  (Brute Bot) walks in, plants, shows a 0.8 s warning ring, then slams
 --   sentry (Sentry) planted; turns 90 degrees/s, fires when lined up; its shield flickers every 6 s
---   guard  (Null Sentinel) blocks hits from the front; a flank hit breaks the guard and stuns it
+--   guard  (Warden) blocks hits from the front; a flank hit breaks the guard and stuns it. The Shield
+--          Bearer is a guard too: its riot shield blocks every front hit and covers the robots behind it
+-- The nine new types (nate, 2026-11-17; each has `on` in Config.Enemies, a type with on = false never spawns):
+--   captain  (Captain) hangs back, fires a sidearm and rallies robots near it (harder hits, faster); when it
+--            falls, the robots it rallied are slowed
+--   sniper   (Sniper) keeps far, shows a laser on its hero, locks the aim, then fires one heavy round
+--   bomber   (Bomber) lobs grenades at the hero's spot (a ring shows where), the blast leaves a burning patch
+--   medic    (Medic Unit) repairs the most damaged robot near it with a beam, standing behind it
+--   swarm    (Swarmer) small fast robots in packs that surround a hero, lunge and nip
+--   mimic    (Mimic) dressed as a citizen (no hit target) until a hero is close, then an ambush strike
+--   grappler (Grappler) hooks a hero (a flier too) and pulls it down to itself, then punches
+--   the Interceptor is a flyer that hunts only heroes in the air and fires a net that drops them
+-- The famous fakes and the evil twin (nate's lore, build plan step 4; Config.Enemies `fake`, Shared.FakeRules):
+-- robots in a famous hero's look, mini-boss tier, on the brains above with a few added moves:
+--   Radiant  (flyer) light bolts in bursts, and a dive: a ring under its hero, then it drops there and strikes
+--   Bulwark  (brute) a tower shield (guard), the shield slam, every 3rd slam a wide shockwave, and a charge
+--            down a lane at a hero farther off
+--   Skylance (sniper) a short sighting line, a thrown spear, then a dash to one side
+--   the evil twin takes its hero's path's style (FakeRules.twinCfg): blaster (flyer), gunner (sniper with
+--   dashes), lobber (bomber), striker (sneak), duelist (sneak with no cloak) or smasher (brute with the charge
+--   and shockwave). A fake's face cracks (an "unmask" event, EXTRA.unmasked) once its health falls to
+--   Config.Enemies.fakes.crack.
 -- Status effects from heroes (Status): stun, root, slow, knockup, float, pull, blind, taunt.
 -- States on the wire: 1 Patrol, 2 Chase, 3 Attack, 4 Flee, 5 Dead.
 -- Enemies are machines only and never hurt citizens (spec: Choices baked in).
@@ -17,6 +38,7 @@
 
 local Formulas = if script then require(script.Parent.Formulas) else (require :: any)("./Formulas")
 local Status = if script then require(script.Parent.Status) else (require :: any)("./Status")
+local FakeRules = if script then require(script.Parent.FakeRules) else (require :: any)("./FakeRules")
 
 local EnemySim = {}
 
@@ -29,7 +51,8 @@ EnemySim.PATROL, EnemySim.CHASE, EnemySim.ATTACK, EnemySim.FLEE, EnemySim.DEAD =
 --   mend     a Medic Unit is repairing a robot (the MEND event names it)
 --   lunge    a Swarmer is lunging
 --   hooked   a Grappler's hook is out
-EnemySim.EXTRA = { aim = 1, rally = 2, disguise = 4, mend = 8, lunge = 16, hooked = 32 }
+--   unmasked a famous fake's or an evil twin's face has cracked (lore step 4)
+EnemySim.EXTRA = { aim = 1, rally = 2, disguise = 4, mend = 8, lunge = 16, hooked = 32, unmasked = 64 }
 
 -- Hit flags returned by damage (sent to clients so a blocked hit reads)
 EnemySim.HIT, EnemySim.BLOCKED, EnemySim.BROKE = 0, 1, 2
@@ -91,6 +114,32 @@ export type Enemy = {
 	dmgMult: number?, -- the opening's drones: 0 never attacks back, 0.35 a weak one
 	hitLife: number?, -- the opening's drones: any hit takes this share of its health (2 hits, 4 hits)
 	tag: number?, -- the incident, contract site or event that spawned it
+	-- the nine new types
+	extra: number, -- EnemySim.EXTRA bits on the wire
+	nextSpecial: number, -- the next rally, aim, grenade, hook, net or lunge
+	rallyUntil: number, -- a Captain's rally is on this robot until then
+	rallyBy: number?, -- which Captain
+	aimUntil: number, -- a Sniper's laser is on aimHero until then (0: not aiming)
+	aimHero: number?,
+	lockX: number?, -- the locked aim point
+	lockY: number?,
+	lockZ: number?,
+	disguised: boolean, -- a Mimic still dressed as a citizen
+	stalkSince: number, -- when a disguised Mimic first saw a hero
+	ambush: boolean, -- the Mimic's first strike is still to come
+	lungeUntil: number, -- a Swarmer's lunge
+	lungeX: number,
+	lungeZ: number,
+	mendUntil: number, -- a Medic's beam is on (the patient) until then
+	patient: number?,
+	nextMendEvent: number,
+	hookUntil: number, -- a Grappler's hook is out
+	airSeen: number, -- an Interceptor: the last moment its hero was in the air
+	-- the famous fakes and the evil twin (lore step 4)
+	move: string?, -- the move its windup ends in: "slam", "shock", "charge" or "dive"
+	slams: number, -- slams so far (every Nth is a shockwave)
+	unmasked: boolean, -- its face has cracked
+	path: string?, -- an evil twin's power path
 }
 
 export type Shot = {
@@ -106,9 +155,38 @@ export type Shot = {
 	radius: number,
 	home: number?, -- a torpedo: the hero it turns after
 	turn: number?, -- radians per second it can turn
+	style: number?, -- drawn as: 1 a sniper round, 2 a net, 3 a grappling hook, 4 a power path's shot (a fake's)
+	cc: string?, -- a crowd control the hit puts on the hero (the Interceptor's net)
+	ccTime: number?,
+	ccValue: number?,
+	pull: { x: number, y: number, z: number, reel: number, time: number }?, -- a Grappler's hook
 }
 
 export type Blocker = { x: number, y: number, z: number, r: number, untilT: number }
+
+-- A Bomber's grenade in the air (lands at `at`) and the burning patch it leaves
+export type Bomb = {
+	x: number,
+	y: number,
+	z: number,
+	at: number,
+	r: number,
+	damage: number,
+	enemyId: number,
+	zone: any?,
+	zoneDamage: number,
+}
+export type Zone = {
+	x: number,
+	y: number,
+	z: number,
+	r: number,
+	untilT: number,
+	nextTick: number,
+	tick: number,
+	damage: number,
+	enemyId: number,
+}
 
 export type Sim = {
 	config: any,
@@ -116,6 +194,8 @@ export type Sim = {
 	byId: { [number]: Enemy },
 	shots: { Shot },
 	blockers: { Blocker },
+	bombs: { Bomb },
+	zones: { Zone },
 	events: { any },
 	nextId: number,
 	cursor: number,
@@ -166,6 +246,8 @@ function EnemySim.new(config: any, opts: { [string]: any }?): Sim
 		byId = {},
 		shots = {},
 		blockers = {},
+		bombs = {},
+		zones = {},
 		events = {},
 		nextId = 1,
 		cursor = 1,
@@ -206,9 +288,24 @@ local function halfHeight(cfg: any): number
 end
 EnemySim.halfHeight = halfHeight
 
-function EnemySim.spawn(sim: Sim, kind: string, x: number, y: number, z: number, level: number?): Enemy?
-	local cfg = sim.config.Enemies[kind]
-	assert(cfg, "unknown enemy " .. kind)
+-- A robot type that is in the game (its switch in Config.Enemies is not off)
+function EnemySim.enabled(config: any, kind: string): boolean
+	local cfg = config.Enemies[kind]
+	return cfg ~= nil and cfg.on ~= false
+end
+
+local function spawnWith(
+	sim: Sim,
+	kind: string,
+	cfg: any,
+	x: number,
+	y: number,
+	z: number,
+	level: number?
+): Enemy?
+	if cfg.on == false then
+		return nil -- a type nate cut never shows up
+	end
 	if #sim.enemies >= sim.config.Enemies.caps.perServer then
 		return nil
 	end
@@ -269,11 +366,45 @@ function EnemySim.spawn(sim: Sim, kind: string, x: number, y: number, z: number,
 		corneredUntil = 0,
 		lastX = x,
 		lastZ = z,
+		extra = 0,
+		nextSpecial = now + (if cfg.lunge then sim.rngNext() * 0.5 else 1.5 + sim.rngNext() * 2),
+		rallyUntil = 0,
+		rallyBy = nil,
+		aimUntil = 0,
+		disguised = cfg.disguise ~= nil,
+		stalkSince = 0,
+		ambush = cfg.ambush ~= nil,
+		lungeUntil = 0,
+		lungeX = 0,
+		lungeZ = 0,
+		mendUntil = 0,
+		patient = nil,
+		nextMendEvent = 0,
+		hookUntil = 0,
+		airSeen = 0,
+		move = nil,
+		slams = 0,
+		unmasked = false,
+		path = if cfg.fake then cfg.fake.path else nil,
 	}
 	table.insert(sim.enemies, e)
 	sim.byId[e.id] = e
 	table.insert(sim.events, { k = "spawn", e = e.id })
 	return e
+end
+
+function EnemySim.spawn(sim: Sim, kind: string, x: number, y: number, z: number, level: number?): Enemy?
+	local cfg = sim.config.Enemies[kind]
+	assert(cfg, "unknown enemy " .. kind)
+	if cfg.twin then
+		cfg = FakeRules.twinCfg(sim.config, cfg.twin.default) -- a twin with no hero: the default path's style
+	end
+	return spawnWith(sim, kind, cfg, x, y, z, level)
+end
+
+-- An evil twin that fights with a power path's moves (FakeRules.twinCfg); nil when the twin is switched off
+function EnemySim.spawnTwin(sim: Sim, path: string?, x: number, y: number, z: number, level: number?): Enemy?
+	return spawnWith(sim, "EvilTwin", FakeRules.twinCfg(sim.config, path), x, y, z, level)
 end
 
 local function removeAt(sim: Sim, index: number)
@@ -291,6 +422,68 @@ end
 
 local function guardUp(sim: Sim, e: Enemy): boolean
 	return e.cfg.guard ~= nil and sim.now >= e.guardBrokenUntil
+end
+
+-- A Shield Bearer whose raised shield stands between robot `e` and a hit from (fromX, fromZ): the bearer is
+-- within its cover radius of e, faces the attacker, and sits on the line from e toward the attacker
+local function coverFor(sim: Sim, e: Enemy, fromX: number, fromZ: number): Enemy?
+	local ax, az = fromX - e.x, fromZ - e.z
+	local al = math.sqrt(ax * ax + az * az)
+	if al < 1 then
+		return nil
+	end
+	ax, az = ax / al, az / al
+	for _, b in sim.enemies do
+		local cover = b.cfg.cover
+		if cover and b ~= e and b.alive and guardUp(sim, b) then
+			local bx, bz = b.x - e.x, b.z - e.z
+			local along = bx * ax + bz * az
+			local across = math.abs(bx * az - bz * ax)
+			if along > 0 and along < math.min(cover.radius, al) and across <= cover.width then
+				local fx, fz = yawDir(b.yaw)
+				if fx * ax + fz * az >= math.cos(math.rad(b.cfg.guard.front / 2)) then
+					return b -- the bearer faces the attacker: the hit meets its shield
+				end
+			end
+		end
+	end
+	return nil
+end
+
+-- The rally on a robot: (damage, speed) multipliers
+local function rallied(sim: Sim, e: Enemy): (number, number)
+	if e.rallyUntil > sim.now and e.rallyBy then
+		local cap = sim.byId[e.rallyBy]
+		local r = if cap then cap.cfg.rally else nil
+		if r then
+			return r.damage, r.speed
+		end
+	end
+	return 1, 1
+end
+
+-- A Mimic drops its disguise
+local function reveal(sim: Sim, e: Enemy)
+	if e.disguised then
+		e.disguised = false
+		e.nextMelee = sim.now + e.cfg.ambush.delay
+		table.insert(sim.events, { k = "reveal", e = e.id, x = e.x, y = e.y, z = e.z })
+	end
+end
+
+-- A Grappler's hook comes back: the cable in flight is cut (it pulls nobody) and the hooked bit clears. A
+-- stun or the Grappler's fall does this, so a hook never yanks a hero toward a robot that is down or gone.
+local function cutHook(sim: Sim, e: Enemy)
+	if e.cfg.hook == nil then
+		return
+	end
+	e.hookUntil = 0
+	for i = #sim.shots, 1, -1 do
+		local s = sim.shots[i]
+		if s.enemyId == e.id and s.pull then
+			table.remove(sim.shots, i)
+		end
+	end
 end
 
 -- Damage from the Combat service. fromX/fromZ: where the hit came from (the Sentinel's guard checks it).
@@ -331,15 +524,32 @@ function EnemySim.damage(
 			flag = EnemySim.BROKE
 		end
 	end
+	if flag == EnemySim.HIT and fromX and fromZ and dealt > 0 and dealt ~= math.huge then
+		local bearer = coverFor(sim, e, fromX, fromZ)
+		if bearer then
+			dealt *= 1 - bearer.cfg.cover.cut -- behind a Shield Bearer's raised shield
+			flag = EnemySim.BLOCKED
+		end
+	end
 	if e.ai == "sneak" and e.cloakUntil > sim.now then
 		e.cloakUntil = sim.now -- a hit reveals it
 	end
+	reveal(sim, e)
 	if e.hitLife and dealt > 0 and dealt ~= math.huge then
 		dealt = e.maxHealth / e.hitLife -- a story robot that takes a set number of hits
 	end
 	e.health -= dealt
 	if attacker and not e.target then
 		e.target = attacker -- getting hit draws aggro
+	end
+	if
+		cfg.fake
+		and not e.unmasked
+		and e.health > 0
+		and FakeRules.cracked(sim.config, e.health / e.maxHealth)
+	then
+		e.unmasked = true -- the hero face cracks to show metal
+		table.insert(sim.events, { k = "unmask", e = e.id, x = e.x, y = e.y, z = e.z })
 	end
 	if e.health <= 0 then
 		e.health = 0
@@ -349,6 +559,18 @@ function EnemySim.damage(
 			sim.events,
 			{ k = "die", e = e.id, x = e.x, y = e.y, z = e.z, by = attacker, kind = e.kind }
 		)
+		cutHook(sim, e)
+		local fall = cfg.leaderless
+		if fall then
+			-- the Captain fell: the robots it rallied falter
+			for _, o in sim.enemies do
+				if o.alive and o.rallyBy == e.id and o.rallyUntil > sim.now then
+					o.rallyUntil = 0
+					o.rallyBy = nil
+					Status.apply(o.status, "slow", fall.time, sim.now, { value = fall.slow })
+				end
+			end
+		end
 		for i, other in sim.enemies do
 			if other == e then
 				removeAt(sim, i)
@@ -384,6 +606,9 @@ function EnemySim.applyStatus(
 		if kind == "stun" or kind == "knockup" or kind == "float" then
 			e.windupUntil = 0 -- crowd control interrupts a slam or sweep
 			e.burstLeft = 0
+			e.aimUntil = 0 -- and a Sniper's aim
+			e.mendUntil = 0 -- and a Medic's beam
+			cutHook(sim, e) -- and a Grappler's hook
 		end
 	end
 	return dur
@@ -537,6 +762,13 @@ local function separate(sim: Sim, e: Enemy)
 	end
 end
 
+-- A robot's shot damage before its coefficient: Formulas.enemyDamage from its own config (an evil twin's
+-- config is its path's style, not Config.Enemies.EvilTwin's)
+local function shotDamage(sim: Sim, e: Enemy): number
+	local s = sim.config.Enemies.scale
+	return (s.dmgBase + s.dmgPerLevel * e.level) * e.cfg.coeff
+end
+
 -- Fire a shot from the enemy toward a point (or along a direction for the sentry)
 local function shoot(
 	sim: Sim,
@@ -549,15 +781,16 @@ local function shoot(
 	range: number,
 	coeff: number?,
 	home: number?,
-	turn: number?
-)
+	turn: number?,
+	special: { [string]: any }? -- style, cc, ccTime, ccValue, pull (the new types' special shots)
+): Shot?
 	if e.dmgMult == 0 then
-		return -- a harmless robot (the opening's first drone) never fires
+		return nil -- a harmless robot (the opening's first drone) never fires
 	end
 	local dx, dy, dz = tx - e.x, ty - e.y, tz - e.z
 	local d = math.sqrt(dx * dx + dy * dy + dz * dz)
 	if d < 1e-3 then
-		return
+		return nil
 	end
 	dx, dy, dz = dx / d, dy / d, dz / d
 	if Status.has(e.status, "blind", sim.now) then
@@ -566,8 +799,10 @@ local function shoot(
 		dx, dz = dx * math.cos(a) - dz * math.sin(a), dx * math.sin(a) + dz * math.cos(a)
 		dy += (sim.rngNext() - 0.5) * 0.4
 	end
-	local damage = Formulas.enemyDamage(sim.config, e.kind, e.level) * (coeff or 1) * (e.dmgMult or 1)
+	local rallyDmg = rallied(sim, e)
+	local damage = shotDamage(sim, e) * (coeff or 1) * (e.dmgMult or 1) * rallyDmg
 	local muzzle = 1.2
+	local sp: { [string]: any } = special or {}
 	local shot: Shot = {
 		x = e.x + dx * muzzle,
 		y = e.y + 0.8,
@@ -581,6 +816,11 @@ local function shoot(
 		radius = radius,
 		home = home,
 		turn = turn,
+		style = sp.style,
+		cc = sp.cc,
+		ccTime = sp.ccTime,
+		ccValue = sp.ccValue,
+		pull = sp.pull,
 	}
 	table.insert(sim.shots, shot)
 	table.insert(sim.events, {
@@ -594,20 +834,34 @@ local function shoot(
 		vz = shot.vz,
 		home = home,
 		turn = turn,
+		style = sp.style,
 	})
+	return shot
 end
 
-local function melee(sim: Sim, e: Enemy, h: Hero, coeff: number)
+-- cc: an optional crowd control the hit puts on the hero ({ cc, time, value }: the Shield Bearer's bash)
+local function melee(sim: Sim, e: Enemy, h: Hero, coeff: number, cc: { [string]: any }?)
 	if e.dmgMult == 0 then
 		return
 	end
 	local damage = (sim.config.Enemies.scale.dmgBase + sim.config.Enemies.scale.dmgPerLevel * e.level)
 		* coeff
 		* (e.dmgMult or 1)
-	table.insert(sim.events, { k = "hit", hero = h.id, damage = damage, e = e.id, melee = true })
+		* (rallied(sim, e))
+	table.insert(sim.events, {
+		k = "hit",
+		hero = h.id,
+		damage = damage,
+		e = e.id,
+		melee = true,
+		cc = if cc then cc.cc else nil,
+		ccTime = if cc then cc.time else nil,
+		ccValue = if cc then cc.value else nil,
+	})
 end
 
 local function attackersOf(sim: Sim, heroId: number, except: Enemy): number
+	-- robots already after this hero (weighted: a small Swarmer counts a third)
 	local n = 0
 	for _, o in sim.enemies do
 		if
@@ -616,7 +870,7 @@ local function attackersOf(sim: Sim, heroId: number, except: Enemy): number
 			and o.target == heroId
 			and (o.state == EnemySim.ATTACK or o.state == EnemySim.CHASE)
 		then
-			n += 1
+			n += o.cfg.attackWeight or 1 -- three Swarmers count as one robot
 		end
 	end
 	return n
@@ -632,6 +886,11 @@ local function nearestHeroDist(e: Enemy, heroes: { Hero }): number
 	return best
 end
 
+-- A hero at least `over` studs above the ground or roof under it (an Interceptor's prey)
+local function airborne(sim: Sim, h: Hero, over: number): boolean
+	return h.y - sim.heightAt(h.x, h.z, h.y) >= over
+end
+
 -- Keep, drop or pick a target. Taunts force one; blind stops new picks.
 local function upkeepTarget(sim: Sim, e: Enemy, heroes: { Hero }): Hero?
 	local cfg = e.cfg
@@ -645,6 +904,18 @@ local function upkeepTarget(sim: Sim, e: Enemy, heroes: { Hero }): Hero?
 		end
 	end
 	local target = findHero(heroes, e.target)
+	-- an Interceptor hunts only heroes in the air (it lets one go once it has been down a moment)
+	local function inAir(h: Hero): boolean
+		return airborne(sim, h, cfg.airborne)
+	end
+	if target and cfg.hunter then
+		if inAir(target) then
+			e.airSeen = now
+		elseif now - e.airSeen > 2 then
+			target = nil
+			e.target = nil
+		end
+	end
 	if
 		target and (not target.alive or dist3(e.x, e.y, e.z, target.x, target.y, target.z) > cfg.aggro * 1.6)
 	then
@@ -655,7 +926,7 @@ local function upkeepTarget(sim: Sim, e: Enemy, heroes: { Hero }): Hero?
 		local caps = sim.config.Enemies.caps
 		local best, bestD = nil, cfg.aggro
 		for _, h in heroes do
-			if h.alive then
+			if h.alive and (not cfg.hunter or inAir(h)) then
 				local d = dist3(e.x, e.y, e.z, h.x, h.y, h.z)
 				if d < bestD and attackersOf(sim, h.id, e) < caps.attackingOneHero then
 					best, bestD = h, d
@@ -664,6 +935,9 @@ local function upkeepTarget(sim: Sim, e: Enemy, heroes: { Hero }): Hero?
 		end
 		target = best
 		e.target = if best then best.id else nil
+		if best then
+			e.airSeen = now
+		end
 	end
 	return target
 end
@@ -700,9 +974,40 @@ end
 -- Brains
 ---------------------------------------------------------------------------
 
-local function thinkFlyer(sim: Sim, e: Enemy, target: Hero?, speed: number, canMove: boolean, dt: number)
+local function thinkFlyer(
+	sim: Sim,
+	e: Enemy,
+	target: Hero?,
+	speed: number,
+	canMove: boolean,
+	dt: number,
+	heroes: { Hero }
+)
 	local cfg = e.cfg
 	local now = sim.now
+	local dive = cfg.dive
+	-- Radiant's dive: the ring showed for the windup; now it drops to the spot and strikes (even if its hero left)
+	if dive and e.windupUntil > 0 then
+		e.state = EnemySim.ATTACK
+		if now >= e.windupUntil then
+			e.windupUntil = 0
+			local lx, ly, lz = e.lockX :: number, e.lockY :: number, e.lockZ :: number
+			table.insert(
+				sim.events,
+				{ k = "dash", e = e.id, x = e.x, y = e.y, z = e.z, tx = lx, ty = ly, tz = lz }
+			)
+			e.x, e.y, e.z = lx, ly + 1, lz
+			for _, h in heroes do
+				if h.alive and dist3(lx, ly, lz, h.x, h.y, h.z) <= dive.radius then
+					melee(sim, e, h, dive.coeff)
+				end
+			end
+			local floor = sim.heightAt(lx, lz, ly)
+			table.insert(sim.events, { k = "slam", e = e.id, x = lx, y = floor, z = lz, r = dive.radius })
+			e.nextSpecial = now + dive.every
+		end
+		return
+	end
 	if not e.fled and e.health / e.maxHealth < cfg.fleeBelow and target then
 		e.fled = true
 		e.fleeUntil = now + cfg.fleeTime
@@ -748,15 +1053,63 @@ local function thinkFlyer(sim: Sim, e: Enemy, target: Hero?, speed: number, canM
 		moveToward(sim, e, px, math.max(target.y + 6, floor + 6), pz, speed, dt)
 	end
 	e.yaw = yawTo(target.x - e.x, target.z - e.z)
+	if dive and now >= e.nextSpecial and e.burstLeft <= 0 and e.dmgMult ~= 0 then
+		-- the dive: a ring under the hero (on the ground, or around a flier) for the windup
+		e.windupUntil = now + dive.windup
+		e.lockX, e.lockY, e.lockZ = target.x, target.y, target.z
+		table.insert(sim.events, {
+			k = "warn",
+			e = e.id,
+			x = target.x,
+			y = math.min(target.y, floor + 0.2),
+			z = target.z,
+			r = dive.radius,
+			t = dive.windup,
+		})
+		return
+	end
 	if e.burstLeft <= 0 and now >= e.nextBurst then
 		e.burstLeft = cfg.burst.shots
 		e.nextShot = now
 		e.nextBurst = now + cfg.burst.every
 	end
 	if e.burstLeft > 0 and now >= e.nextShot then
-		shoot(sim, e, target.x, target.y + 1.5, target.z, cfg.shotSpeed, cfg.shotRadius, cfg.attackRange)
+		shoot(
+			sim,
+			e,
+			target.x,
+			target.y + 1.5,
+			target.z,
+			cfg.shotSpeed,
+			cfg.shotRadius,
+			cfg.attackRange,
+			nil,
+			nil,
+			nil,
+			if cfg.shotStyle then { style = cfg.shotStyle } else nil
+		)
 		e.burstLeft -= 1
 		e.nextShot = now + cfg.burst.gap
+	end
+	local net = cfg.net
+	-- (only at a hero still in the air: in the moment it keeps a landed hero, it shoots but never nets)
+	if net and now >= e.nextSpecial and (not cfg.hunter or airborne(sim, target, cfg.airborne)) then
+		-- the Interceptor's net: holds a flier a moment, so it drops out of flight
+		shoot(
+			sim,
+			e,
+			target.x,
+			target.y + 1.5,
+			target.z,
+			net.shotSpeed,
+			net.shotRadius,
+			cfg.attackRange,
+			0.2,
+			nil,
+			nil,
+			{ style = 2, cc = net.cc, ccTime = net.time }
+		)
+		e.nextSpecial = now + net.every
 	end
 end
 
@@ -826,7 +1179,7 @@ local function thinkSneak(sim: Sim, e: Enemy, target: Hero?, speed: number, canM
 		end
 		return
 	end
-	if now >= e.nextCloak then
+	if cfg.cloak and now >= e.nextCloak then
 		e.cloakUntil = now + cfg.cloak.time
 		e.nextCloak = now + cfg.cloak.every
 	end
@@ -867,6 +1220,42 @@ local function thinkSneak(sim: Sim, e: Enemy, target: Hero?, speed: number, canM
 	end
 end
 
+-- The flat distance from (px, pz) to the segment a..b
+local function segDist2(px: number, pz: number, ax: number, az: number, bx: number, bz: number): number
+	local vx, vz = bx - ax, bz - az
+	local l2 = vx * vx + vz * vz
+	local t = if l2 > 1e-9 then math.clamp(((px - ax) * vx + (pz - az) * vz) / l2, 0, 1) else 0
+	return dist2(px, pz, ax + vx * t, az + vz * t)
+end
+
+-- A ground robot's flat step to (nx, nz) is clear: no wall (a roof more than a step up) and no water
+local function clearStep(sim: Sim, e: Enemy, nx: number, nz: number): boolean
+	return sim.heightAt(nx, nz, e.y) <= e.y - halfHeight(e.cfg) + 2.5
+		and not sim.water(nx, sim.waterTop + 1, nz)
+end
+
+-- Bulwark's charge (lore step 4): straight down the lane it showed, up to `dist` studs or the first wall; a hero
+-- in the lane is hit and stunned
+local function charge(sim: Sim, e: Enemy, heroes: { Hero })
+	local ch = e.cfg.charge
+	local fx, fz = yawDir(e.yaw)
+	local sx, sy, sz = e.x, e.y, e.z
+	local go = 0
+	while go + 2 <= ch.dist and clearStep(sim, e, sx + fx * (go + 2), sz + fz * (go + 2)) do
+		go += 2
+	end
+	local ex, ez = sx + fx * go, sz + fz * go
+	local reach = ch.width + sim.config.Enemies.melee.reach
+	for _, h in heroes do
+		if h.alive and math.abs(h.y - sy) <= 7 and segDist2(h.x, h.z, sx, sz, ex, ez) <= reach then
+			melee(sim, e, h, ch.coeff, { cc = "stun", time = ch.stun })
+		end
+	end
+	e.x, e.z = ex, ez
+	e.y = sim.heightAt(ex, ez, sy) + halfHeight(e.cfg)
+	table.insert(sim.events, { k = "dash", e = e.id, x = sx, y = sy, z = sz, tx = ex, ty = e.y, tz = ez })
+end
+
 local function thinkBrute(
 	sim: Sim,
 	e: Enemy,
@@ -878,21 +1267,44 @@ local function thinkBrute(
 )
 	local cfg = e.cfg
 	local now = sim.now
-	-- a slam on the way finishes even if the target left
+	-- a slam (or a fake's shockwave or charge) on the way finishes even if the target left
 	if e.windupUntil > 0 then
 		if now >= e.windupUntil then
 			e.windupUntil = 0
-			local reach = cfg.slam.radius + sim.config.Enemies.melee.reach
-			for _, h in heroes do
-				if h.alive and dist2(e.x, e.z, h.x, h.z) <= reach and math.abs(h.y - e.y) <= 7 then
-					melee(sim, e, h, cfg.coeff)
+			local move = e.move or "slam"
+			e.move = nil
+			local floor = e.y - halfHeight(cfg)
+			if move == "charge" then
+				charge(sim, e, heroes)
+			elseif move == "shock" then
+				-- a wide ring along the ground: a hero standing in it is hit; one in the air (a jump) is not
+				local w = cfg.shockwave
+				local reach = w.radius + sim.config.Enemies.melee.reach
+				for _, h in heroes do
+					if
+						h.alive
+						and dist2(e.x, e.z, h.x, h.z) <= reach
+						and math.abs(h.y - e.y) <= 10
+						and not airborne(sim, h, w.height + 3)
+					then
+						melee(sim, e, h, w.coeff)
+					end
 				end
+				table.insert(sim.events, { k = "slam", e = e.id, x = e.x, y = floor, z = e.z, r = w.radius })
+				e.nextMelee = now + cfg.slam.every
+			else
+				local reach = cfg.slam.radius + sim.config.Enemies.melee.reach
+				for _, h in heroes do
+					if h.alive and dist2(e.x, e.z, h.x, h.z) <= reach and math.abs(h.y - e.y) <= 7 then
+						melee(sim, e, h, cfg.coeff)
+					end
+				end
+				table.insert(
+					sim.events,
+					{ k = "slam", e = e.id, x = e.x, y = floor, z = e.z, r = cfg.slam.radius }
+				)
+				e.nextMelee = now + cfg.slam.every
 			end
-			table.insert(
-				sim.events,
-				{ k = "slam", e = e.id, x = e.x, y = e.y - halfHeight(cfg), z = e.z, r = cfg.slam.radius }
-			)
-			e.nextMelee = now + cfg.slam.every
 		end
 		e.state = EnemySim.ATTACK
 		return
@@ -905,6 +1317,34 @@ local function thinkBrute(
 		return
 	end
 	local d = dist2(e.x, e.z, target.x, target.z)
+	local ch = cfg.charge
+	if
+		ch
+		and now >= e.nextSpecial
+		and d >= ch.min
+		and d <= ch.range
+		and math.abs(target.y - e.y) <= 10
+		and e.dmgMult ~= 0
+	then
+		-- a fake's charge: a lane shows in front of it for the windup, then it runs down it
+		e.state = EnemySim.ATTACK
+		e.yaw = yawTo(target.x - e.x, target.z - e.z)
+		e.windupUntil = now + ch.windup
+		e.move = "charge"
+		e.nextSpecial = now + ch.every
+		table.insert(sim.events, {
+			k = "warn",
+			e = e.id,
+			x = e.x,
+			y = e.y - halfHeight(cfg),
+			z = e.z,
+			r = ch.dist,
+			t = ch.windup,
+			arc = math.deg(2 * math.atan(ch.width / ch.dist)) * 2,
+			yaw = e.yaw,
+		})
+		return
+	end
 	if d > cfg.attackRange or math.abs(target.y - e.y) > 10 then
 		e.state = EnemySim.CHASE
 		if canMove then
@@ -915,15 +1355,22 @@ local function thinkBrute(
 	e.state = EnemySim.ATTACK
 	e.yaw = yawTo(target.x - e.x, target.z - e.z)
 	if now >= e.nextMelee then
-		e.windupUntil = now + cfg.slam.windup
+		-- every Nth slam of a fake's is a shockwave: wider, with a longer warning
+		local w = cfg.shockwave
+		e.slams += 1
+		local shock = w ~= nil and e.slams % w.nth == 0
+		e.move = if shock then "shock" else "slam"
+		local r = if shock then w.radius else cfg.slam.radius
+		local t = if shock then w.windup else cfg.slam.windup
+		e.windupUntil = now + t
 		table.insert(sim.events, {
 			k = "warn",
 			e = e.id,
 			x = e.x,
 			y = e.y - halfHeight(cfg),
 			z = e.z,
-			r = cfg.slam.radius,
-			t = cfg.slam.windup,
+			r = r,
+			t = t,
 		})
 	end
 end
@@ -991,7 +1438,7 @@ local function thinkGuard(
 					and math.abs(h.y - e.y) <= 7
 					and (l < 1 or (fx * dx + fz * dz) / l >= half)
 				then
-					melee(sim, e, h, cfg.coeff)
+					melee(sim, e, h, cfg.coeff, cfg.bash) -- a Shield Bearer's bash also slows
 				end
 			end
 			table.insert(sim.events, { k = "swing", e = e.id })
@@ -1036,6 +1483,489 @@ local function thinkGuard(
 	end
 end
 
+-- Ground robots that keep a range from their hero: back off inside `min`, close in past `max`. Returns the
+-- flat distance.
+local function keepRange(
+	sim: Sim,
+	e: Enemy,
+	target: Hero,
+	min: number,
+	max: number,
+	speed: number,
+	canMove: boolean,
+	dt: number
+): number
+	local d = dist2(e.x, e.z, target.x, target.z)
+	if canMove then
+		if d < min then
+			local dx, dz = e.x - target.x, e.z - target.z
+			local l = math.max(1, math.sqrt(dx * dx + dz * dz))
+			walk(sim, e, e.x + dx / l * 20, e.z + dz / l * 20, speed, dt)
+		elseif d > max then
+			walk(sim, e, target.x, target.z, speed, dt)
+		end
+	end
+	return d
+end
+
+local function rangeState(d: number, min: number, max: number): number
+	return if d < min then EnemySim.FLEE elseif d > max then EnemySim.CHASE else EnemySim.ATTACK
+end
+
+-- Captain: hangs back behind its squad, fires a sidearm, and every so often raises an arm and rallies the
+-- robots near it
+local function thinkCaptain(sim: Sim, e: Enemy, target: Hero?, speed: number, canMove: boolean, dt: number)
+	local cfg = e.cfg
+	local now = sim.now
+	local r = cfg.rally
+	if e.windupUntil > 0 then
+		e.state = EnemySim.ATTACK
+		if now >= e.windupUntil then
+			e.windupUntil = 0
+			for _, o in sim.enemies do
+				if o.alive and dist3(e.x, e.y, e.z, o.x, o.y, o.z) <= r.radius then
+					o.rallyUntil = now + r.time
+					o.rallyBy = e.id
+				end
+			end
+			table.insert(sim.events, { k = "rally", e = e.id, x = e.x, y = e.y, z = e.z, r = r.radius })
+			e.nextSpecial = now + r.every
+		end
+		return
+	end
+	if not target then
+		e.state = EnemySim.PATROL
+		if canMove then
+			wander(sim, e, speed * 0.4, dt, 25)
+		end
+		return
+	end
+	local d = keepRange(sim, e, target, cfg.keep.min, cfg.keep.max, speed, canMove, dt)
+	e.state = rangeState(d, cfg.keep.min, cfg.keep.max)
+	e.yaw = yawTo(target.x - e.x, target.z - e.z)
+	if now >= e.nextSpecial and e.dmgMult ~= 0 then
+		e.windupUntil = now + r.windup -- the arm goes up: the rally comes at the end
+		return
+	end
+	if d <= cfg.attackRange and now >= e.nextShot then
+		shoot(
+			sim,
+			e,
+			target.x,
+			target.y + 1.5,
+			target.z,
+			cfg.fire.shotSpeed,
+			cfg.fire.shotRadius,
+			cfg.attackRange
+		)
+		e.nextShot = now + cfg.fire.every
+	end
+end
+
+-- Skylance's dash (lore step 4): after a throw, a quick dash to one side of its hero (the other side next
+-- time); it stays put if both sides are a wall or the water
+local function dashAside(sim: Sim, e: Enemy, target: Hero)
+	local dist = e.cfg.dash.dist
+	local dx, dz = target.x - e.x, target.z - e.z
+	local l = math.max(1e-3, math.sqrt(dx * dx + dz * dz))
+	local sx, sz = -dz / l, dx / l
+	e.orbitDir = -e.orbitDir
+	for _, sign in { e.orbitDir, -e.orbitDir } do
+		local mx, mz = e.x + sx * sign * dist * 0.5, e.z + sz * sign * dist * 0.5
+		local nx, nz = e.x + sx * sign * dist, e.z + sz * sign * dist
+		if clearStep(sim, e, mx, mz) and clearStep(sim, e, nx, nz) then
+			local fx, fy, fz = e.x, e.y, e.z
+			e.x, e.z = nx, nz
+			e.y = sim.heightAt(nx, nz, fy) + halfHeight(e.cfg)
+			table.insert(
+				sim.events,
+				{ k = "dash", e = e.id, x = fx, y = fy, z = fz, tx = nx, ty = e.y, tz = nz }
+			)
+			return
+		end
+	end
+end
+
+-- Sniper: keeps far, puts a laser on its hero, locks the aim for the last moment, then one heavy round
+local function thinkSniper(sim: Sim, e: Enemy, target: Hero?, speed: number, canMove: boolean, dt: number)
+	local cfg = e.cfg
+	local now = sim.now
+	local aim = cfg.aim
+	if e.aimUntil > 0 then
+		if not target or target.id ~= e.aimHero then
+			e.aimUntil = 0 -- lost its hero
+		else
+			e.state = EnemySim.ATTACK
+			if now < e.aimUntil - aim.lock then
+				e.lockX, e.lockY, e.lockZ = target.x, target.y + 1.5, target.z -- still following
+			end
+			e.yaw = yawTo((e.lockX :: number) - e.x, (e.lockZ :: number) - e.z)
+			if now >= e.aimUntil then
+				shoot(
+					sim,
+					e,
+					e.lockX :: number,
+					e.lockY :: number,
+					e.lockZ :: number,
+					cfg.fire.shotSpeed,
+					cfg.fire.shotRadius,
+					cfg.attackRange,
+					cfg.fire.coeff,
+					nil,
+					nil,
+					{ style = cfg.shotStyle or 1 }
+				)
+				e.aimUntil = 0
+				e.nextSpecial = now + aim.every
+				if cfg.dash then
+					dashAside(sim, e, target)
+				end
+			end
+			return
+		end
+	end
+	if not target then
+		e.state = EnemySim.PATROL
+		if canMove then
+			wander(sim, e, speed * 0.35, dt, 20)
+		end
+		return
+	end
+	local d = keepRange(sim, e, target, cfg.keep.min, cfg.keep.max, speed, canMove, dt)
+	e.state = rangeState(d, cfg.keep.min, cfg.keep.max)
+	if e.state ~= EnemySim.FLEE then
+		turnToward(e, target.x, target.z, cfg.turnRate, dt)
+	end
+	local full = dist3(e.x, e.y, e.z, target.x, target.y, target.z)
+	if e.state == EnemySim.ATTACK and full <= cfg.attackRange and now >= e.nextSpecial and e.dmgMult ~= 0 then
+		e.aimUntil = now + aim.time
+		e.aimHero = target.id
+		e.lockX, e.lockY, e.lockZ = target.x, target.y + 1.5, target.z
+		table.insert(sim.events, {
+			k = "aim",
+			e = e.id,
+			hero = target.id,
+			t = aim.time,
+			lock = aim.lock,
+			x = e.x,
+			y = e.y,
+			z = e.z,
+		})
+	end
+end
+
+-- Bomber: lobs a grenade at the hero's spot (a ring shows where it lands); the blast leaves a burning patch
+local function thinkBomber(sim: Sim, e: Enemy, target: Hero?, speed: number, canMove: boolean, dt: number)
+	local cfg = e.cfg
+	local now = sim.now
+	if not target then
+		e.state = EnemySim.PATROL
+		if canMove then
+			wander(sim, e, speed * 0.4, dt, 20)
+		end
+		return
+	end
+	local d = keepRange(sim, e, target, cfg.keep.min, cfg.keep.max, speed, canMove, dt)
+	e.state = rangeState(d, cfg.keep.min, cfg.keep.max)
+	turnToward(e, target.x, target.z, cfg.turnRate, dt)
+	local g = cfg.grenade
+	local floor = sim.heightAt(target.x, target.z, target.y)
+	-- grenades are for heroes on the ground or a roof: a flier is left to the others
+	if d <= cfg.attackRange and now >= e.nextSpecial and target.y - floor < 8 and e.dmgMult ~= 0 then
+		local tx = target.x + (sim.rngNext() - 0.5) * 2 * g.spread
+		local tz = target.z + (sim.rngNext() - 0.5) * 2 * g.spread
+		local ty = sim.heightAt(tx, tz, target.y)
+		local base = shotDamage(sim, e) * (e.dmgMult or 1) * (rallied(sim, e))
+		table.insert(sim.bombs, {
+			x = tx,
+			y = ty,
+			z = tz,
+			at = now + g.flight,
+			r = g.radius,
+			damage = base * g.coeff,
+			enemyId = e.id,
+			zone = cfg.zone,
+			zoneDamage = if cfg.zone then base * cfg.zone.coeff else 0,
+		})
+		table.insert(
+			sim.events,
+			{ k = "lob", e = e.id, x = e.x, y = e.y + 1, z = e.z, tx = tx, ty = ty, tz = tz, t = g.flight }
+		)
+		table.insert(sim.events, { k = "swing", e = e.id })
+		e.nextSpecial = now + g.every
+	end
+end
+
+-- The robot a Medic Unit should repair: the most damaged one in reach (never another Medic, a disguised
+-- Mimic or a story robot that takes a set number of hits)
+local function patientFor(sim: Sim, e: Enemy): Enemy?
+	local m = e.cfg.mend
+	local best, bestF = nil, m.below
+	for _, o in sim.enemies do
+		if o ~= e and o.alive and o.ai ~= "medic" and not o.disguised and not o.hitLife then
+			local f = o.health / o.maxHealth
+			if f < bestF and dist3(e.x, e.y, e.z, o.x, o.y, o.z) <= m.range * 1.5 then
+				best, bestF = o, f
+			end
+		end
+	end
+	return best
+end
+
+-- Medic Unit: stands behind its patient (away from the hero) and repairs it with a beam; with nobody to
+-- repair it keeps its distance and plinks with a sidearm
+local function thinkMedic(sim: Sim, e: Enemy, target: Hero?, speed: number, canMove: boolean, dt: number)
+	local cfg = e.cfg
+	local now = sim.now
+	local m = cfg.mend
+	local p = patientFor(sim, e)
+	if p then
+		local gx, gz = p.x, p.z
+		if target then
+			local dx, dz = p.x - target.x, p.z - target.z
+			local l = math.max(1, math.sqrt(dx * dx + dz * dz))
+			gx, gz = p.x + dx / l * cfg.keep.behind, p.z + dz / l * cfg.keep.behind
+		end
+		if canMove and dist2(e.x, e.z, gx, gz) > 3 then
+			walk(sim, e, gx, gz, speed, dt)
+		end
+		if dist3(e.x, e.y, e.z, p.x, p.y, p.z) <= m.range then
+			e.state = EnemySim.ATTACK
+			e.yaw = yawTo(p.x - e.x, p.z - e.z)
+			p.health = math.min(p.maxHealth, p.health + p.maxHealth * m.perSecond * dt)
+			if e.patient ~= p.id or now >= e.nextMendEvent then
+				e.patient = p.id
+				e.nextMendEvent = now + m.every
+				table.insert(
+					sim.events,
+					{ k = "mend", e = e.id, x = e.x, y = e.y, z = e.z, patient = p.id, t = m.every + 0.15 }
+				)
+			end
+			e.mendUntil = now + 0.3
+		else
+			e.state = EnemySim.CHASE
+			e.mendUntil = 0
+		end
+		return
+	end
+	e.mendUntil = 0
+	e.patient = nil
+	if not target then
+		e.state = EnemySim.PATROL
+		if canMove then
+			wander(sim, e, speed * 0.4, dt, 20)
+		end
+		return
+	end
+	local d = keepRange(sim, e, target, cfg.keep.min, cfg.attackRange, speed, canMove, dt)
+	e.state = rangeState(d, cfg.keep.min, cfg.attackRange)
+	e.yaw = yawTo(target.x - e.x, target.z - e.z)
+	if d <= cfg.attackRange and now >= e.nextShot then
+		shoot(
+			sim,
+			e,
+			target.x,
+			target.y + 1.5,
+			target.z,
+			cfg.fire.shotSpeed,
+			cfg.fire.shotRadius,
+			cfg.attackRange
+		)
+		e.nextShot = now + cfg.fire.every
+	end
+end
+
+-- Swarmer: each one runs for its own spot around the hero (so a pack surrounds it), lunges in, and nips
+local function thinkSwarm(sim: Sim, e: Enemy, target: Hero?, speed: number, canMove: boolean, dt: number)
+	local cfg = e.cfg
+	local now = sim.now
+	local lunging = e.lungeUntil > now
+	if lunging and canMove then
+		walk(sim, e, e.lungeX, e.lungeZ, cfg.lunge.speed, dt)
+	end
+	if not target then
+		e.state = EnemySim.PATROL
+		if canMove and not lunging then
+			wander(sim, e, speed * 0.4, dt, 20)
+		end
+		return
+	end
+	local d = dist2(e.x, e.z, target.x, target.z)
+	local dy = math.abs(target.y - e.y)
+	local a = e.id * 2.39996 -- the golden angle: a pack spreads round the hero
+	if not lunging then
+		if dy > 10 then
+			-- a flier or a roof: mill around underneath
+			e.state = EnemySim.CHASE
+			if canMove then
+				walk(sim, e, target.x + math.cos(a) * 6, target.z + math.sin(a) * 6, speed * 0.6, dt)
+			end
+			return
+		end
+		if d > cfg.attackRange then
+			e.state = EnemySim.CHASE
+			local ring = if d > 10 then 3 else 0
+			if canMove then
+				walk(sim, e, target.x + math.cos(a) * ring, target.z + math.sin(a) * ring, speed, dt)
+			end
+			if d <= cfg.lunge.range and d > cfg.attackRange + 2 and now >= e.nextSpecial then
+				e.lungeUntil = now + cfg.lunge.time
+				e.lungeX, e.lungeZ = target.x, target.z
+				e.nextSpecial = now + cfg.lunge.every
+			end
+		else
+			e.state = EnemySim.ATTACK
+		end
+	else
+		e.state = EnemySim.ATTACK
+	end
+	if d <= cfg.attackRange + 1 and dy < 6 and now >= e.nextMelee then
+		e.yaw = yawTo(target.x - e.x, target.z - e.z)
+		melee(sim, e, target, cfg.coeff)
+		table.insert(sim.events, { k = "swing", e = e.id })
+		e.nextMelee = now + cfg.bite.every
+	end
+end
+
+-- Mimic: dressed as a citizen it strolls (no hit target); near a fight a while, it walks up to a hero at a
+-- citizen's pace; a hero this close (or a hit) and it shows itself, then strikes hard once and fights on
+-- A site's robot (tagged) with another robot of its fight still standing near it (a disguised Mimic does not
+-- count: it hides among them)
+local function squadNear(sim: Sim, e: Enemy, radius: number): boolean
+	local r2 = radius * radius
+	for _, o in sim.enemies do
+		if o ~= e and o.alive and o.tag == e.tag and not o.disguised then
+			local dx, dy, dz = o.x - e.x, o.y - e.y, o.z - e.z
+			if dx * dx + dy * dy + dz * dz <= r2 then
+				return true
+			end
+		end
+	end
+	return false
+end
+
+local function thinkMimic(sim: Sim, e: Enemy, target: Hero?, speed: number, canMove: boolean, dt: number)
+	local cfg = e.cfg
+	local now = sim.now
+	local dg = cfg.disguise
+	if e.disguised and e.tag ~= nil and not squadNear(sim, e, dg.alone) then
+		-- the last of its site's squad shows itself, so the site can always be finished (a hero hanging back
+		-- or hovering over it would never give it away, and it is no hit target while disguised)
+		reveal(sim, e)
+	end
+	if e.disguised then
+		e.state = EnemySim.PATROL
+		if not target then
+			e.stalkSince = 0
+			if canMove then
+				wander(sim, e, dg.walk * 0.6, dt, 20)
+			end
+			return
+		end
+		if dist3(e.x, e.y, e.z, target.x, target.y, target.z) <= dg.reveal then
+			reveal(sim, e)
+		else
+			if e.stalkSince == 0 then
+				e.stalkSince = now
+			end
+			if canMove then
+				if now - e.stalkSince >= dg.stalk then
+					walk(sim, e, target.x, target.z, dg.walk, dt)
+				else
+					wander(sim, e, dg.walk * 0.6, dt, 12)
+				end
+			end
+			return
+		end
+	end
+	if not target then
+		e.state = EnemySim.PATROL
+		if canMove then
+			wander(sim, e, speed * 0.4, dt, 25)
+		end
+		return
+	end
+	local d = dist2(e.x, e.z, target.x, target.z)
+	if d > cfg.attackRange then
+		e.state = EnemySim.CHASE
+		if canMove then
+			walk(sim, e, target.x, target.z, speed, dt)
+		end
+		return
+	end
+	e.state = EnemySim.ATTACK
+	e.yaw = yawTo(target.x - e.x, target.z - e.z)
+	if now >= e.nextMelee and math.abs(target.y - e.y) < 8 then
+		local coeff = if e.ambush then cfg.ambush.coeff else cfg.coeff
+		e.ambush = false
+		melee(sim, e, target, coeff)
+		table.insert(sim.events, { k = "swing", e = e.id })
+		e.nextMelee = now + cfg.stab.cooldown
+	end
+end
+
+-- Grappler: fires its hook at a hero 10 to 50 studs away (a flier too); a hooked hero is pulled down to it
+-- and held a moment; up close it punches
+local function thinkGrappler(sim: Sim, e: Enemy, target: Hero?, speed: number, canMove: boolean, dt: number)
+	local cfg = e.cfg
+	local now = sim.now
+	local hk = cfg.hook
+	if not target then
+		e.state = EnemySim.PATROL
+		if canMove then
+			wander(sim, e, speed * 0.4, dt, 20)
+		end
+		return
+	end
+	e.yaw = yawTo(target.x - e.x, target.z - e.z)
+	if e.hookUntil > now then
+		e.state = EnemySim.ATTACK -- stands still while the hook is out
+		return
+	end
+	local d = dist3(e.x, e.y, e.z, target.x, target.y, target.z)
+	if d >= hk.min and d <= hk.range and now >= e.nextSpecial then
+		local shot = shoot(
+			sim,
+			e,
+			target.x,
+			target.y + 1.5,
+			target.z,
+			hk.shotSpeed,
+			hk.shotRadius,
+			hk.range / 1.6, -- the cable is `range` long
+			hk.coeff,
+			nil,
+			nil,
+			{
+				style = 3,
+				cc = "root",
+				ccTime = hk.hold,
+				pull = { x = e.x, y = e.y, z = e.z, reel = hk.reel, time = hk.time },
+			}
+		)
+		if shot then
+			e.hookUntil = now + shot.life
+		end
+		e.nextSpecial = now + hk.every
+		e.state = EnemySim.ATTACK
+		return
+	end
+	local flat = dist2(e.x, e.z, target.x, target.z)
+	if flat > cfg.attackRange or math.abs(target.y - e.y) > 8 then
+		e.state = EnemySim.CHASE
+		if canMove then
+			walk(sim, e, target.x, target.z, speed, dt)
+		end
+		return
+	end
+	e.state = EnemySim.ATTACK
+	if now >= e.nextMelee then
+		melee(sim, e, target, cfg.coeff)
+		table.insert(sim.events, { k = "swing", e = e.id })
+		e.nextMelee = now + cfg.punch.every
+	end
+end
+
 local function updateFlags(sim: Sim, e: Enemy)
 	local now = sim.now
 	local f = Status.flags(e.status, now)
@@ -1053,6 +1983,30 @@ local function updateFlags(sim: Sim, e: Enemy)
 		f += B.guardBroken
 	end
 	e.flags = f
+	local X = EnemySim.EXTRA
+	local x = 0
+	if e.aimUntil > now then
+		x += X.aim
+	end
+	if e.rallyUntil > now then
+		x += X.rally
+	end
+	if e.disguised then
+		x += X.disguise
+	end
+	if e.mendUntil > now then
+		x += X.mend
+	end
+	if e.lungeUntil > now then
+		x += X.lunge
+	end
+	if e.hookUntil > now then
+		x += X.hooked
+	end
+	if e.unmasked then
+		x += X.unmasked
+	end
+	e.extra = x
 end
 
 -- Sea robots stay in the water (a Diver keeps under the surface); land robots that walk never step into it
@@ -1112,6 +2066,7 @@ local function think(sim: Sim, e: Enemy, heroes: { Hero }, dt: number)
 			end
 		end
 		e.windupUntil = 0
+		e.aimUntil = 0 -- a Sniper being dragged loses its aim (no round without a fresh laser)
 		return
 	end
 
@@ -1121,11 +2076,12 @@ local function think(sim: Sim, e: Enemy, heroes: { Hero }, dt: number)
 	end
 
 	local canMove = Status.canMove(st, now)
-	local speed = (e.cfg.speed or 0) * Status.speedMult(st, now)
+	local _, rallySpeed = rallied(sim, e)
+	local speed = (e.cfg.speed or 0) * Status.speedMult(st, now) * rallySpeed
 	local target = upkeepTarget(sim, e, heroes)
 	local ai = e.ai
 	if ai == "flyer" then
-		thinkFlyer(sim, e, target, speed, canMove, dt)
+		thinkFlyer(sim, e, target, speed, canMove, dt, heroes)
 	elseif ai == "thief" then
 		thinkThief(sim, e, target, speed, canMove, dt)
 	elseif ai == "sneak" then
@@ -1136,6 +2092,20 @@ local function think(sim: Sim, e: Enemy, heroes: { Hero }, dt: number)
 		thinkSentry(sim, e, target, dt)
 	elseif ai == "guard" then
 		thinkGuard(sim, e, target, speed, canMove, dt, heroes)
+	elseif ai == "captain" then
+		thinkCaptain(sim, e, target, speed, canMove, dt)
+	elseif ai == "sniper" then
+		thinkSniper(sim, e, target, speed, canMove, dt)
+	elseif ai == "bomber" then
+		thinkBomber(sim, e, target, speed, canMove, dt)
+	elseif ai == "medic" then
+		thinkMedic(sim, e, target, speed, canMove, dt)
+	elseif ai == "swarm" then
+		thinkSwarm(sim, e, target, speed, canMove, dt)
+	elseif ai == "mimic" then
+		thinkMimic(sim, e, target, speed, canMove, dt)
+	elseif ai == "grappler" then
+		thinkGrappler(sim, e, target, speed, canMove, dt)
 	end
 end
 
@@ -1182,6 +2152,77 @@ function EnemySim.steer(s: any, heroes: { any }, dt: number)
 	s.vx, s.vy, s.vz = nx / nl * speed, ny / nl * speed, nz / nl * speed
 end
 
+-- The distance from a point to the segment a..b (a fast shot is tested along the whole step it moved)
+local function segDist(
+	px: number,
+	py: number,
+	pz: number,
+	ax: number,
+	ay: number,
+	az: number,
+	bx: number,
+	by: number,
+	bz: number
+): number
+	local vx, vy, vz = bx - ax, by - ay, bz - az
+	local l2 = vx * vx + vy * vy + vz * vz
+	local t = if l2 > 1e-9
+		then math.clamp(((px - ax) * vx + (py - ay) * vy + (pz - az) * vz) / l2, 0, 1)
+		else 0
+	return dist3(px, py, pz, ax + vx * t, ay + vy * t, az + vz * t)
+end
+
+-- Grenades that land this step, then the burning patches they leave
+local function stepBombs(sim: Sim, heroes: { Hero })
+	local now = sim.now
+	local i = 1
+	while i <= #sim.bombs do
+		local b = sim.bombs[i]
+		if now >= b.at then
+			for _, h in heroes do
+				if h.alive and dist2(b.x, b.z, h.x, h.z) <= b.r and math.abs(h.y - b.y) <= b.r then
+					table.insert(sim.events, { k = "hit", hero = h.id, damage = b.damage, e = b.enemyId })
+				end
+			end
+			table.insert(sim.events, { k = "boom", e = b.enemyId, x = b.x, y = b.y, z = b.z, r = b.r })
+			local zc = b.zone
+			if zc then
+				table.insert(sim.zones, {
+					x = b.x,
+					y = b.y,
+					z = b.z,
+					r = zc.radius,
+					untilT = now + zc.time,
+					nextTick = now + zc.tick,
+					tick = zc.tick,
+					damage = b.zoneDamage,
+					enemyId = b.enemyId,
+				})
+				table.insert(
+					sim.events,
+					{ k = "zone", e = b.enemyId, x = b.x, y = b.y, z = b.z, r = zc.radius, t = zc.time }
+				)
+			end
+			table.remove(sim.bombs, i)
+		else
+			i += 1
+		end
+	end
+	for j = #sim.zones, 1, -1 do
+		local z = sim.zones[j]
+		if now >= z.untilT then
+			table.remove(sim.zones, j)
+		elseif now >= z.nextTick then
+			z.nextTick += z.tick
+			for _, h in heroes do
+				if h.alive and dist2(z.x, z.z, h.x, h.z) <= z.r and math.abs(h.y - z.y) <= 6 then
+					table.insert(sim.events, { k = "hit", hero = h.id, damage = z.damage, e = z.enemyId })
+				end
+			end
+		end
+	end
+end
+
 local function stepShots(sim: Sim, heroes: { Hero }, dt: number)
 	local now = sim.now
 	for i = #sim.blockers, 1, -1 do
@@ -1195,6 +2236,7 @@ local function stepShots(sim: Sim, heroes: { Hero }, dt: number)
 		if s.home and s.turn then
 			EnemySim.steer(s, heroes, dt)
 		end
+		local ox, oy, oz = s.x, s.y, s.z
 		s.x += s.vx * dt
 		s.y += s.vy * dt
 		s.z += s.vz * dt
@@ -1211,8 +2253,23 @@ local function stepShots(sim: Sim, heroes: { Hero }, dt: number)
 		end
 		if not done then
 			for _, h in heroes do
-				if h.alive and dist3(s.x, s.y, s.z, h.x, h.y + 1.5, h.z) <= s.radius then
-					table.insert(sim.events, { k = "hit", hero = h.id, damage = s.damage, e = s.enemyId })
+				if h.alive and segDist(h.x, h.y + 1.5, h.z, ox, oy, oz, s.x, s.y, s.z) <= s.radius then
+					table.insert(sim.events, {
+						k = "hit",
+						hero = h.id,
+						damage = s.damage,
+						e = s.enemyId,
+						cc = s.cc,
+						ccTime = s.ccTime,
+						ccValue = s.ccValue,
+						pull = s.pull,
+					})
+					if s.pull then
+						local g = sim.byId[s.enemyId]
+						if g then
+							g.hookUntil = sim.now + s.pull.time -- reeling in
+						end
+					end
 					done = true
 					break
 				end
@@ -1235,6 +2292,7 @@ function EnemySim.step(sim: Sim, now: number, heroes: { Hero }, maxTicks: number
 	sim.lastStep = now
 	sim.now = now
 	stepShots(sim, heroes, dt)
+	stepBombs(sim, heroes)
 	local budget = maxTicks or sim.config.Enemies.caps.aiTicksPerFrame
 	local interval = 1 / sim.config.Enemies.tickRate
 	local n = #sim.enemies
@@ -1269,7 +2327,7 @@ end
 function EnemySim.candidates(sim: Sim): { any }
 	local out = table.create(#sim.enemies)
 	for _, e in sim.enemies do
-		if e.alive then
+		if e.alive and not e.disguised then -- a disguised Mimic is a citizen until it shows itself
 			table.insert(
 				out,
 				{ id = e.id, x = e.x, y = e.y, z = e.z, r = e.cfg.radius or 2.5, flags = e.flags }
@@ -1316,14 +2374,17 @@ local function spotFor(sim: Sim, cfg: any, x: number, z: number, y: number?): (n
 end
 
 local function pickKind(sim: Sim, mix: { [string]: number }): string
+	local function weight(kind: string): number
+		return if EnemySim.enabled(sim.config, kind) then mix[kind] or 0 else 0 -- a cut type is never picked
+	end
 	local total = 0
 	for _, kind in sim.config.Enemies.order do
-		total += mix[kind] or 0
+		total += weight(kind)
 	end
 	local r = sim.rngNext() * total
 	for _, kind in sim.config.Enemies.order do
-		r -= mix[kind] or 0
-		if r <= 0 and (mix[kind] or 0) > 0 then
+		r -= weight(kind)
+		if r <= 0 and weight(kind) > 0 then
 			return kind
 		end
 	end
@@ -1357,7 +2418,9 @@ function EnemySim.populate(sim: Sim, heroes: { Hero }, now: number, kind: string
 				local ang = sim.rngNext() * math.pi * 2
 				local r = cfg.minDistance + sim.rngNext() * (cfg.radius - cfg.minDistance)
 				local x, y, z = spotFor(sim, ecfg, h.x + math.cos(ang) * r, h.z + math.sin(ang) * r, h.y)
-				if x and y and z and EnemySim.spawn(sim, enemyKind, x, y, z, 1) then
+				local first = if x and y and z then EnemySim.spawn(sim, enemyKind, x, y, z, 1) else nil
+				if first then
+					EnemySim.company(sim, first)
 					meta.nextSpawn = now + cfg.respawn / cfg.count
 				else
 					meta.nextSpawn = now + 0.5
@@ -1372,6 +2435,78 @@ function EnemySim.populate(sim: Sim, heroes: { Hero }, now: number, kind: string
 			removeAt(sim, i)
 		end
 	end
+end
+
+-- The robots a spawn brings along: a Swarmer's pack (pack - 1 more) and a Captain's escort. Returns them
+-- (each with the leader's level and tag set by the caller).
+function EnemySim.company(sim: Sim, lead: Enemy, escort: boolean?): { Enemy }
+	local cfg = lead.cfg
+	local out = {}
+	local function near(kind: string, k: number, n: number)
+		local kc = sim.config.Enemies[kind]
+		local a = k / n * math.pi * 2
+		local r = if cfg.pack then 3 else 6
+		local x, z = lead.x + math.cos(a) * r, lead.z + math.sin(a) * r
+		local y = if kc.ai == "flyer" then lead.y + (kc.hover and kc.hover.min or 14) else lead.y
+		if
+			kc.ai ~= "flyer"
+			and (
+				sim.heightAt(x, z, lead.y) > lead.y - halfHeight(lead.cfg) + 2.5
+				or (not kc.sea and sim.water(x, sim.waterTop + 1, z))
+			)
+		then
+			-- that spot is a building (spawn would stand it on the roof) or the water: start on the leader's
+			-- own spot (a hair apart, so separate() can spread them)
+			x, z = lead.x + math.cos(a) * 0.1, lead.z + math.sin(a) * 0.1
+		end
+		local e = EnemySim.spawn(sim, kind, x, y, z, lead.level)
+		if e then
+			e.tag = lead.tag
+			table.insert(out, e)
+		end
+	end
+	if cfg.pack then
+		for k = 1, cfg.pack - 1 do
+			near(lead.kind, k, cfg.pack - 1)
+		end
+	end
+	if cfg.escort and escort ~= false then
+		for k = 1, cfg.escort.n do
+			local kind = cfg.escort.kinds[(k - 1) % #cfg.escort.kinds + 1]
+			if EnemySim.enabled(sim.config, kind) then
+				near(kind, k, cfg.escort.n)
+			end
+		end
+	end
+	return out
+end
+
+-- A Grappler's hook on a hero at (px, py, pz): the flat move (to `reel` studs short of the Grappler), the drop
+-- down to it, and the travel MoveGuard grants for it. The drop is not granted: falling is free in MoveCheck
+-- up to terminal speed, so granting it would only bank budget an exploiter could spend elsewhere.
+function EnemySim.hookPull(pull: any, px: number, py: number, pz: number): (number, number, number, number)
+	local tx, ty, tz = pull.x - px, pull.y - py, pull.z - pz
+	local flat = math.sqrt(tx * tx + tz * tz)
+	local len = math.max(0, flat - pull.reel)
+	local mx, mz = 0, 0
+	if flat > 0.1 then
+		mx, mz = tx / flat * len, tz / flat * len
+	else
+		len = 0
+	end
+	return mx, mz, math.min(0, ty), len + 10 -- + the arc's 3-stud lift and some slack
+end
+
+-- The next robot type after order index `index` whose switch is on (wraps; the Dev panel's robot button)
+function EnemySim.nextEnabled(config: any, index: number): number
+	local order = config.Enemies.order
+	for k = 1, #order do
+		local i = (index + k - 1) % #order + 1
+		if EnemySim.enabled(config, order[i]) then
+			return i
+		end
+	end
+	return 1
 end
 
 -- Take an enemy away without a defeat (its incident ended)

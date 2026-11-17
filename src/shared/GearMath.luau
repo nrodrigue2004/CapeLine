@@ -103,10 +103,15 @@ function GearMath.stats(config: any, piece: Piece): { [string]: number }
 	return out
 end
 
+-- The highest item level a drop can have: the level cap plus the spread (52 with the cap at 50)
+function GearMath.ilvlMax(config: any): number
+	return config.Stats.levelCap + G(config).ilvlSpread
+end
+
 -- Item level for a drop: zone level +- spread, at least 1
 function GearMath.itemLevel(config: any, rng: RngLike, zoneLevel: number): number
 	local g = G(config)
-	return math.clamp(zoneLevel + rng:int(-g.ilvlSpread, g.ilvlSpread), 1, g.ilvlMax)
+	return math.clamp(zoneLevel + rng:int(-g.ilvlSpread, g.ilvlSpread), 1, GearMath.ilvlMax(config))
 end
 
 -- The style a new piece shows: a set's look, a Legendary look, or one from the slot's pool for its tier

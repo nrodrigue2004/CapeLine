@@ -290,6 +290,7 @@ function PhotoMode.init()
 		maxText = 16,
 	}, PhotoMode.open)
 	openButton.Parent = gui
+	Kit.dock(openButton, "Photo", 10) -- phone pass: in the top row (or its MORE drawer)
 	overlay = Instance.new("Frame")
 	overlay.Name = "Backdrop"
 	overlay.BackgroundTransparency = 1

@@ -1,15 +1,22 @@
 -- WorldFx: the world boss on screen and the events' looks (spec: World boss; Random events; Juice: boss
 -- landing, phase change, defeat). The server's BossSim is the truth; this draws it.
 -- * The boss model follows Boss.State (eased between the 2 Hz updates): Rustjaw Prime, a 110-stud scrap
---   robot with glowing core and knee weak points and two shoulder cannons; the Lumen Maw, a shard-powered
---   machine beast with three crystals on its back and shard generators around its pit. Broken objectives
+--   robot with glowing core and knee weak points and two shoulder cannons; the Lumen Maw, a crystal-powered
+--   machine beast with three crystals on its back and crystal generators around its pit. Broken objectives
 --   go dark. Machines only: defeats are sparks, bolts and plates, never anything else.
 -- * Telegraphs from Boss.Attack: red ground markers that fill over the warning (ring, cone, circles, lines,
 --   the gravity pull's wide ring); the strike flashes, shakes the camera near it, and the pull drags this
 --   hero toward the Maw while it warns.
 -- * Events: the Tidal surge raises the water over the Docks, the Blackout dims Old Town for whoever stands
 --   in it.
--- PLACEHOLDER ART: both bosses are plain parts until the art pass (M11; Tasks.md).
+-- * Remade bosses (overhaul plan step 4; art/blender/bosses.py, Config.BossArt): once ReplicatedStorage.Art.Bosses
+--   holds every mesh of a boss, it is drawn from them: a textured hull, armour plates that break off at phases 2
+--   and 3, Neon accents in the phase colour, weak points in one pulsing gold, and the objectives' bodies with their
+--   red lamps. Hit boxes stay Config.Boss's targets either way.
+-- PLACEHOLDER LOOK: boss lore pending. The world and event bosses stand apart from the main story (nate,
+-- 2026-11-17), so the remade meshes are generic neutral machines (no faction emblems, no text, no story looks).
+-- PLACEHOLDER ART: until those meshes are imported every boss is the plain parts below, unchanged (Tasks.md
+-- "Remade bosses").
 
 local Lighting = game:GetService("Lighting")
 local Players = game:GetService("Players")
@@ -52,6 +59,9 @@ type Shown = {
 	tyaw: number,
 	lift: number, -- landing / rising / leaving offset
 	state: number,
+	art: boolean, -- drawn from the remade meshes (Config.BossArt)
+	phase: number, -- the phase its look shows (art only; 0 before the first state)
+	weak: { BasePart }, -- the pulsing weak-point lamps (art only)
 }
 local shown: Shown? = nil
 
@@ -150,7 +160,7 @@ local function rustjaw(m: Model): { BasePart }
 	return cannons
 end
 
--- The Null War-Frame (mission 6): a tall humanoid war machine with 2 shoulder cannons, a glowing back
+-- The War-Frame (mission 6): a tall humanoid war machine with 2 shoulder cannons, a glowing back
 -- core (the phase 2 shield's weak point) and knee joints. PLACEHOLDER ART: parts until the mesh pass.
 local function warframe(m: Model): { BasePart }
 	local plate = Color3.fromRGB(48, 50, 62)
@@ -238,7 +248,7 @@ local function maw(m: Model)
 	end
 end
 
--- The Leviathan Engine (underwater at launch): a serpent-shaped Null war submarine. A segmented hull runs
+-- The Leviathan Engine (underwater at launch): a serpent-shaped war submarine. A segmented hull runs
 -- back under the surface, the neck and armoured head rise out of the water facing -z, two eyes and a
 -- reactor glow (weak points), and two torpedo bays on its back are the objectives. Feet (y 0) are the
 -- water's surface. PLACEHOLDER ART: parts until the mesh pass.
@@ -351,6 +361,139 @@ local function generators(cx: number, cy: number, cz: number): { BasePart }
 	return out
 end
 
+---------------------------------------------------------------------------
+-- The remade bosses (art/blender/bosses.py): meshes from ReplicatedStorage.Art.Bosses placed from Config.BossArt.
+-- PLACEHOLDER LOOK: boss lore pending (generic neutral machines until each boss's story is decided)
+---------------------------------------------------------------------------
+
+local ART = Config.BossArt
+local LIT = { glow = true, weak = true, objectiveGlow = true }
+
+local function rgb(t: { number }): Color3
+	return Color3.fromRGB(t[1], t[2], t[3])
+end
+
+-- Every imported mesh of one boss by piece name ("<Boss>_<Piece>"), or nil while any is missing (then the boss
+-- keeps its plain parts)
+local function bossMeshes(id: string): { [string]: MeshPart }?
+	local fit = ART[id]
+	local art = ReplicatedStorage:FindFirstChild("Art")
+	local lib = art and art:FindFirstChild("Bosses")
+	if not (fit and lib) then
+		return nil
+	end
+	local out = {}
+	for _, group in { fit.pieces, fit.objective } do
+		for name in group do
+			local found = lib:FindFirstChild(id .. "_" .. name, true)
+			if not (found and found:IsA("MeshPart")) then
+				return nil
+			end
+			out[name] = found
+		end
+	end
+	return out
+end
+
+-- One placed copy of an imported piece: textured roles keep their SurfaceAppearance, lit roles are plain Neon
+local function meshPiece(
+	src: MeshPart,
+	name: string,
+	row: { [string]: any },
+	at: CFrame,
+	parent: Instance
+): MeshPart
+	local p = src:Clone()
+	local lit = LIT[row.role] == true
+	for _, c in p:GetChildren() do
+		if lit or not c:IsA("SurfaceAppearance") then
+			c:Destroy()
+		end
+	end
+	p.Name = name
+	p.Anchored = true
+	p.CanCollide = false
+	p.CanQuery = false
+	p.CanTouch = false
+	p.CastShadow = not lit
+	p.Size = Vector3.new(row.size[1], row.size[2], row.size[3])
+	p.CFrame = at * CFrame.new(row.offset[1], row.offset[2], row.offset[3])
+	p.Material = if lit then Enum.Material.Neon else Enum.Material.Metal
+	p.Color = if row.role == "weak" then rgb(ART.weakColor[1]) else Color3.fromRGB(200, 200, 200)
+	p:SetAttribute("Role", row.role)
+	p.Parent = parent
+	return p
+end
+
+-- The whole boss from its meshes (around the origin, like the parts), and its objectives in list order: shoulder
+-- cannons and torpedo bays on the body, the Maw's generators standing round its pit in the world
+local function meshBoss(
+	m: Model,
+	id: string,
+	meshes: { [string]: MeshPart },
+	s: { [string]: any }
+): { BasePart }
+	local fit = ART[id]
+	local def = B.bosses[id]
+	for name, row in fit.pieces do
+		meshPiece(meshes[name], name, row, CFrame.new(), m)
+	end
+	local glows = {}
+	for _, row in def.objectives.list do
+		local at, parent: Instance = CFrame.new(), m
+		if row.at then
+			at = CFrame.new(row.at[1], row.at[2], row.at[3])
+		else
+			local a = math.rad(row.ring)
+			local r = def.arenaRadius * 0.75
+			at = CFrame.new(s.x + math.cos(a) * r, s.y, s.z + math.sin(a) * r)
+			parent = folder
+		end
+		for name, prow in fit.objective do
+			local p = meshPiece(meshes[name], name, prow, at, parent)
+			if prow.role == "objectiveGlow" then
+				p.Name = "ObjectiveGlow"
+				p.Color = rgb(ART.objectiveColor)
+				table.insert(glows, p)
+			elseif parent == folder then
+				p:SetAttribute("Boss", true)
+			end
+		end
+	end
+	return glows
+end
+
+-- The look of a phase (art only): accents take the phase colour, and the plates for this phase break off (they
+-- fall and fade with a burst of sparks; joining mid-fight just leaves them off)
+local function showPhase(sh: Shown, phase: number)
+	local animate = sh.phase > 0
+	sh.phase = phase
+	local fit = ART[sh.id]
+	local glow = rgb(fit.glow[math.clamp(phase, 1, #fit.glow)])
+	for _, p in sh.model:GetChildren() do
+		if not p:IsA("BasePart") then
+			continue
+		end
+		local role = p:GetAttribute("Role")
+		if role == "glow" then
+			p.Color = glow
+		elseif (role == "shed2" and phase >= 2) or (role == "shed3" and phase >= 3) then
+			if animate then
+				CombatFx.burst(p.Position, State.hero.fxStyle, SCRAP)
+				p.Parent = folder
+				local spin = CFrame.Angles(math.rad(math.random(-40, 40)), 0, math.rad(math.random(-40, 40)))
+				TweenService:Create(p, TweenInfo.new(1.6, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+					CFrame = (p.CFrame - Vector3.new(0, 40, 0)) * spin,
+					Transparency = 1,
+				}):Play()
+				Debris:AddItem(p, 1.7)
+			else
+				p:Destroy()
+			end
+		end
+	end
+end
+
 local function build(id: string, s: { [string]: any }): Shown
 	local m = Instance.new("Model")
 	m.Name = id
@@ -359,7 +502,16 @@ local function build(id: string, s: { [string]: any }): Shown
 	root.Name = "Root"
 	m.PrimaryPart = root
 	local objectives = {}
-	if id == "RustjawPrime" then
+	local meshes = bossMeshes(id)
+	local weak = {}
+	if meshes then
+		objectives = meshBoss(m, id, meshes, s)
+		for _, p in m:GetChildren() do
+			if p:GetAttribute("Role") == "weak" then
+				table.insert(weak, p :: BasePart)
+			end
+		end
+	elseif id == "RustjawPrime" then
 		objectives = rustjaw(m)
 	elseif id == "NullWarFrame" then
 		objectives = warframe(m)
@@ -384,6 +536,9 @@ local function build(id: string, s: { [string]: any }): Shown
 		tyaw = s.yaw or 0,
 		lift = if id == "RustjawPrime" then 260 elseif id == "NullWarFrame" then 120 else -B.bosses[id].height,
 		state = s.state,
+		art = meshes ~= nil,
+		phase = 0,
+		weak = weak,
 	}
 end
 
@@ -424,6 +579,9 @@ local function onState()
 	local sh = shown :: Shown
 	sh.tx, sh.ty, sh.tz, sh.tyaw = s.x, s.y, s.z, s.yaw or 0
 	sh.state = s.state
+	if sh.art and (s.phase or 1) ~= sh.phase then
+		showPhase(sh, s.phase or 1)
+	end
 	-- the War-Frame's phase 2 shield: a bubble until 3 hits on the back core break it
 	local bubble = sh.model:FindFirstChild("Shield") :: BasePart?
 	if (s.shield or 0) > 0 and not bubble then
@@ -471,6 +629,14 @@ local function frame(dt: number)
 		sh.lift += dt * 40
 	end
 	sh.model:PivotTo(CFrame.new(sh.x, sh.y + sh.lift, sh.z) * CFrame.Angles(0, sh.yaw, 0))
+	if #sh.weak > 0 then
+		-- the weak points pulse gold, the same on every boss ("hit the gold")
+		local f = 0.5 + 0.5 * math.sin(os.clock() * ART.pulse * 2 * math.pi)
+		local c = rgb(ART.weakColor[1]):Lerp(rgb(ART.weakColor[2]), f)
+		for _, p in sh.weak do
+			p.Color = c
+		end
+	end
 end
 
 ---------------------------------------------------------------------------

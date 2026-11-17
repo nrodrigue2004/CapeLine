@@ -29,6 +29,9 @@ export type Result = {
 	p90: number,
 	creditsPer30At: { [number]: number }, -- the mean Credits a typical hero earns in 30 minutes at a level
 	buildHours: number, -- mean hours of play to earn a fully ranked 5-skill build (the Sinks table)
+	-- the median hours of play to reach each level (math.huge when fewer than half the heroes got there),
+	-- up to Config.Stats.levelCap: hoursTo[Config.Stats.levelCap] is the hours to the cap
+	hoursTo: { [number]: number },
 }
 
 -- Credits for a fully ranked build of 5 skills and a super (the Sinks table's "about 35,000")
@@ -48,7 +51,7 @@ end
 -- One 30 minute block at a level. Returns credits, renown.
 local function block(Config: any, rng: any, h: any, dayContracts: number): (number, number, number)
 	local S = Config.Economy.sim
-	local L = math.min(h.level, 40)
+	local L = math.min(h.level, Config.Stats.levelCap)
 	local bonus = { friends = h.friends, legacy = 0, doublePass = h.pass }
 	local credits, renown = 0, 0
 	local function add(c: number, r: number)
@@ -150,6 +153,11 @@ function EconomySim.run(Config: any, heroes: number, hours: number, seed: number
 	local per30: { [number]: { number } } = {}
 	local buildCost = EconomySim.buildCost(Config)
 	local buildSum, buildN = 0, 0
+	local cap = Config.Stats.levelCap
+	local reached: { [number]: { number } } = {}
+	for lv = 1, cap do
+		reached[lv] = {}
+	end
 	for _ = 1, heroes do
 		local h = {
 			level = 1,
@@ -165,6 +173,9 @@ function EconomySim.run(Config: any, heroes: number, hours: number, seed: number
 			styles = 0,
 		}
 		h.level, h.xp = Progress.addRenown(Config, 1, 0, Progress.totalTo(Config, 3))
+		for lv = 1, h.level do
+			table.insert(reached[lv], 0)
+		end
 		local total, dayContracts, buildAt = 0, 0, nil
 		for b = 1, hours * 2 do
 			if (b - 1) % (S.sessionHours * 2) == 0 then
@@ -179,7 +190,11 @@ function EconomySim.run(Config: any, heroes: number, hours: number, seed: number
 			end
 			total += c
 			h.credits += c
+			local was = h.level
 			h.level, h.xp = Progress.addRenown(Config, h.level, h.xp, r)
+			for lv = was + 1, h.level do
+				table.insert(reached[lv], b / 2)
+			end
 			spend(Config, h, spent)
 			if not buildAt and total >= buildCost then
 				buildAt = b / 2
@@ -204,7 +219,15 @@ function EconomySim.run(Config: any, heroes: number, hours: number, seed: number
 		end
 		means[lv] = sum / #list
 	end
+	local hoursTo: { [number]: number } = {}
+	for lv = 1, cap do
+		local list = reached[lv]
+		table.sort(list)
+		-- heroes who never got there count as slower than every one who did
+		hoursTo[lv] = if #list >= math.ceil(heroes / 2) then list[math.ceil(heroes / 2)] else math.huge
+	end
 	return {
+		hoursTo = hoursTo,
 		levels = levels,
 		earned = earned,
 		spent = spent,

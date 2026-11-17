@@ -1,5 +1,5 @@
 -- Hq: the Hero HQ and the Hall of Legends (spec: Hero HQ (Beacon Tower or the Foundry); Legacy rebirth).
--- One HQ per side: the League's Beacon Tower and the Syndicate's Foundry, entered by their doors in the city. A visit is
+-- One HQ per side: the Vigil's Beacon Tower and the Dread Syndicate's Foundry, entered by their doors in the city. A visit is
 -- solo (friend visits come in Update 2): each visitor gets their own sealed cell far above the map, the
 -- server builds its floor and walls, and the device builds the rooms. PLACEHOLDER ART: greybox rooms.
 return {
@@ -17,7 +17,7 @@ return {
 		mannequins = { 36, -12 }, -- saved looks
 		training = { -30, 30 }, -- dummies with a DPS meter
 		trophies = { 30, 30 }, -- the trophy wall
-		legends = { 0, 44 }, -- the Hall of Legends (statues, Retire at level 40)
+		legends = { 0, 44 }, -- the Hall of Legends (statues, Retire at the level cap)
 		exit = { 0, -54 },
 	},
 	stationRange = 12,
@@ -74,8 +74,9 @@ return {
 		[6] = "Key to the City",
 	},
 
-	-- Legacy rebirth (spec: at level 40 retire to the Hall of Legends: a statue; the slot restarts at level 1
-	-- and keeps every unlock and reputation; +10% Renown and a plate frame per rank, up to 5)
-	legacy = { level = 40, maxRanks = 5, statues = 20 },
+	-- Legacy rebirth (spec: at the level cap, 50 since 2026-11-17, retire to the Hall of Legends: a statue;
+	-- the slot restarts at level 1 and keeps every unlock and reputation; +10% Renown and a plate frame per
+	-- rank, up to 5)
+	legacy = { maxRanks = 5, statues = 20 }, -- retiring opens at the level cap (Config.Stats.levelCap)
 	classChange = true, -- respec and class change are free at HQ
 }

@@ -24,7 +24,7 @@ return {
 	buildBudget = 20, -- seconds the whole outskirts may take
 	-- Landmarks at fixed tiles (4 x 4 tiles each). The Crater is the forced PvP zone in M8.
 	landmarks = {
-		{ id = "CometCrater", name = "Comet Crater", tx = 36, tz = 6, size = 4 }, -- northeast
+		{ id = "CometCrater", name = "The Crater", tx = 36, tz = 6, size = 4 }, -- northeast
 		{ id = "RadioHill", name = "Radio Hill", tx = 4, tz = 22, size = 4 }, -- west
 		{ id = "OldQuarry", name = "Old Quarry", tx = 22, tz = 38, size = 4 }, -- south
 	},
@@ -42,7 +42,7 @@ return {
 		{ id = 3, name = "Ledger Street", district = "Downtown", lot = { 2, 1, 2, 2 } },
 		{ id = 4, name = "Glass Mile", district = "Downtown", lot = { 4, 5, 1, 2 } },
 		{ id = 5, name = "Quay Gate", district = "Docks", x = 60, z = 360 },
-		{ id = 6, name = "Crane Yard", district = "Docks", x = 520, z = 380 },
+		{ id = 6, name = "Gantry Yard", district = "Docks", x = 520, z = 380 },
 		{ id = 7, name = "Foundry Lane", district = "Docks", x = 380, z = 740 },
 		{ id = 8, name = "Clock Square", district = "OldTown", x = 300, z = -400 },
 		{ id = 9, name = "Lantern Row", district = "OldTown", x = 600, z = -200 },
@@ -69,9 +69,9 @@ return {
 	beacons = {
 		{ id = 1, name = "Beacon Tower", at = "plaza" },
 		{ id = 2, name = "Downtown East", at = "roof", x = -150, z = 150 },
-		{ id = 3, name = "Harbor Crane", at = "crane" },
+		{ id = 3, name = "Harbor Gantry", at = "crane" },
 		{ id = 4, name = "Clock Tower", at = "clock" },
-		{ id = 5, name = "Comet Crater", at = "CometCrater" },
+		{ id = 5, name = "The Crater", at = "CometCrater" },
 		{ id = 6, name = "Radio Hill", at = "RadioHill" },
 		{ id = 7, name = "Old Quarry", at = "OldQuarry" },
 		{ id = 8, name = "Northgate", at = "safehouse", safehouse = 13 },
@@ -101,7 +101,7 @@ return {
 	},
 	-- Zone level (M6, see Decisions): what an incident, contract or event pays and how strong its robots are.
 	-- It is the level of the hero it spawned for, raised to the area's floor, so the outskirts and the
-	-- landmarks are tougher and a level 40 helping a level 5 earns level 5 rewards.
+	-- landmarks are tougher and a level 50 helping a level 5 earns level 5 rewards. Capped at Stats.levelCap.
 	zoneFloor = {
 		hub = 1,
 		hubFill = 1,
@@ -111,6 +111,6 @@ return {
 		CometCrater = 10,
 		RadioHill = 1,
 		OldQuarry = 20,
+		Uptown = 5, -- the second business district sits among the first suburbs, so it starts at their floor
 	},
-	maxLevel = 40,
 }

@@ -4,7 +4,7 @@
 -- Areas:
 --   The Sunken Line  a flooded subway under the Docks, reached from the harbour basin's floor
 --   Coral Shelf      the shallow sea off the south beach: reef, shipwrecks, sunken cargo caches
---   The Trench       the deep sea past the shelf: a sunken Null factory (the Act 2 mission pocket) and the
+--   The Trench       the deep sea past the shelf: a sunken factory (the Act 2 mission pocket) and the
 --                    Leviathan Engine's arena
 -- Coordinates: the map runs -2,400 to 2,400 (City.mapSize); the water surface is World.coast.waterY.
 return {
@@ -38,6 +38,7 @@ return {
 		minZ = 3000,
 		maxZ = 3600,
 		floor = -240,
+		deepBelow = -160, -- below this y the Trench's depths run at zoneFloor.trenchDeep
 		wall = 12,
 		factory = { x = 0, z = 3430, sx = 180, sy = 70, sz = 110, chimneys = 4 },
 		arena = { x = 0, z = 3260, radius = 240 }, -- where the Leviathan Engine surfaces
@@ -57,7 +58,8 @@ return {
 		quay = { x = 470, z = 545, reach = 18 }, -- swim the commuter here (pay: Economy.earn.deepRescue)
 	},
 	-- zone level floors underwater (ZoneLevel: rewards follow the area, not the hero)
-	zoneFloor = { basin = 3, line = 6, shelf = 12, sea = 10, trench = 25 },
+	-- (trenchDeep: the Trench below trench.deepBelow, added with the level cap at 50 on 2026-11-17)
+	zoneFloor = { basin = 3, line = 6, shelf = 12, sea = 10, trench = 25, trenchDeep = 35 },
 	-- underwater robots spawn only around heroes who are underwater (EnemySim.populate); weights
 	mix = { Diver = 5, Anchor = 2, TorpedoSentry = 1.5 },
 	-- element reactions in water (a hero casting while underwater)

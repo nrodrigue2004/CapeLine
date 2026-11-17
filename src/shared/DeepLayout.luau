@@ -2,7 +2,7 @@
 -- DeepLayout: the underwater world as plain data (nate 2026-11-16: underwater at launch). Config.Deep gives the
 -- areas; this turns them into:
 --   * boxes    parts (CityLayout boxes): basin walls, the Sunken Line's tunnel, station and train cars, the
---              reef, shipwrecks, kelp, cargo caches and the sunken Null factory
+--              reef, shipwrecks, kelp, cargo caches and the sunken factory
 --   * terrain  Terrain fills { material, centre, size }: water, the sand seabed and rock walls that keep the
 --              water closed in (under the land and the far sea surface there is nothing)
 --   * caches, rescues and the boss arena, as points
@@ -139,7 +139,10 @@ end
 function DeepLayout.zoneLevel(Config: any, x: number, y: number, z: number, heroLevel: number): number
 	local area = DeepLayout.area(Config, x, z, y) or "sea"
 	local floor = Config.Deep.zoneFloor[area] or 1
-	return math.clamp(math.max(math.floor(heroLevel), floor), 1, Config.World.maxLevel)
+	if area == "trench" and y < Config.Deep.trench.deepBelow then
+		floor = Config.Deep.zoneFloor.trenchDeep -- the Trench's depths, the hardest water in the game
+	end
+	return math.clamp(math.max(math.floor(heroLevel), floor), 1, Config.Stats.levelCap)
 end
 
 DeepLayout.NAMES = {
@@ -207,7 +210,7 @@ local function trench(
 	-- the cliff under the ring's floor where the shelf drops into the trench
 	local ringBottom = ringFloor(Config, Config.Deep.ring.width) - 6
 	fill(terrain, "rock", t.minX - w, t.floor, t.minZ - w, t.maxX + w, ringBottom, t.minZ)
-	-- the sunken Null factory: a long hall, a sloped roof, chimneys, pipes and glowing vents
+	-- the sunken factory: a long hall, a sloped roof, chimneys, pipes and glowing vents
 	local f = t.factory
 	local fy = t.floor
 	box(boxes, "building", f.x, fy + f.sy / 2, f.z, f.sx, f.sy, f.sz, "nullMetal")

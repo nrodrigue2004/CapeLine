@@ -45,9 +45,9 @@ local function syncCredits(player: Player, profile: any)
 	end
 end
 
--- The hero's own side's reputation rank (League for heroes, Syndicate for villains)
+-- The hero's own side's reputation rank (Vigil Trust for heroes, Syndicate Fear for villains)
 local function factionRank(char: any): number
-	local track = if char.side == "villain" then "syndicate" else "league"
+	local track = if char.side == "villain" then "syndicate" else "vigil"
 	return StoryPlan.repRank(Config, char.rep[StoryPlan.repIndex(Config, track)] or 0)
 end
 

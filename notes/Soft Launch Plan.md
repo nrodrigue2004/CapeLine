@@ -11,7 +11,7 @@ How Capeline goes from the playtest week to public, what we watch, and when we s
 ## Where each KPI comes from
 | KPI | Target (starting guess, revise with real data) | Where to read it |
 |---|---|---|
-| Opening completion (first_blast within 30 s) | 85% | Onboarding funnel: session_start to first_blast; first_blast's value is seconds since join |
+| Opening completion (first_spark within 60 s of the prologue starting) | 85% | Onboarding funnel: session_start to first_spark (the Ceremony prologue's first power, about 50 s in); first_spark's value is seconds since join |
 | Creator completion | 90% of those who open it | Onboarding funnel: creator_open to creator_done |
 | Day-1 retention | 25% or more | Dashboard Retention; Onboarding funnel's d1_return step |
 | Day-7 retention | 8% or more | Dashboard Retention |

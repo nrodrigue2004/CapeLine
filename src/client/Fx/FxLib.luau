@@ -212,6 +212,32 @@ function FxLib.gather(pos: Vector3, set: string?, color: Color3)
 	end
 end
 
+-- the element's own motes while a skill charges or a windup builds (overhaul plan step 6)
+function FxLib.charge(pos: Vector3, set: string?, color: Color3)
+	local element = FxPlan.elementOf(L, set)
+	run(FxPlan.plan(L, element, "charge", share(), 1), color, pos, nil)
+end
+
+-- a super's big moment: the element's own super particles on top of its burst
+function FxLib.super(pos: Vector3, set: string?, color: Color3)
+	local element = FxPlan.elementOf(L, set)
+	run(FxPlan.plan(L, element, "super", share(), 1), color, pos, nil)
+end
+
+-- the path pieces (CombatFx's part-built heads, marks and motes) share their own budget a second per preset;
+-- returns how many of n may be drawn now (FxPlan.pieces scales n by the preset first)
+local partBudget: FxPlan.Budget? = nil
+local partPreset = ""
+function FxLib.pieces(n: number, scale: number?): number
+	local name = QualityController.name
+	local now = os.clock()
+	if not partBudget or partPreset ~= name then
+		partBudget = FxPlan.newBudget(L.partBudget[name] or L.partBudget.medium, now)
+		partPreset = name
+	end
+	return FxPlan.take(partBudget :: FxPlan.Budget, FxPlan.pieces(L, name, n, scale), now)
+end
+
 -- ground dust (slams, landings, robot stomps)
 function FxLib.dust(at: Vector3, radius: number, color: Color3?)
 	local c = color or Color3.fromRGB(170, 155, 135)

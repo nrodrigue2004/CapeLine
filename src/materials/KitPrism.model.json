@@ -1,0 +1,12 @@
+{
+  "className": "MaterialVariant",
+  "properties": {
+    "BaseMaterial": "Glass",
+    "StudsPerTile": 12.0,
+    "MaterialPattern": "Regular",
+    "ColorMap": "rbxassetid://122475571860567",
+    "NormalMap": "rbxassetid://114783245410950",
+    "RoughnessMap": "rbxassetid://102619683139301",
+    "MetalnessMap": "rbxassetid://136054198228065"
+  }
+}

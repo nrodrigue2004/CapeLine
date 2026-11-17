@@ -253,10 +253,18 @@ test("M1: flight auto-levels into a hover and turns at 120 degrees/s at speed", 
 	check(ang <= 61 and ang >= 50, string.format("turn limited to 120 degrees/s (turned %.1f)", ang))
 end)
 
-test("M1: the ceiling pushes back above 560 and never lets a hero past 600", function()
-	local _, _, _, _, y =
-		flyFor(20, { wishX = 0, wishY = 1, wishZ = 0, vertical = 1, boost = true }, 0, 0, 0, 100, 500)
+test("M1: the ceiling pushes back above the soft line and never lets a hero past the hard one", function()
+	local _, _, _, _, y = flyFor(
+		20,
+		{ wishX = 0, wishY = 1, wishZ = 0, vertical = 1, boost = true },
+		0,
+		0,
+		0,
+		100,
+		M.ceiling.soft - 60
+	)
 	check(y <= M.ceiling.hard + 1, string.format("ends below the hard ceiling (y = %.1f)", y))
+	check(y > M.ceiling.soft - 20, string.format("climbs up to the soft ceiling (y = %.1f)", y))
 end)
 
 test("M1: stamina regenerates 15/s on the ground and 8/s in the air", function()
@@ -1540,6 +1548,607 @@ test("M2: Enemy.Delta carries status flags, facing and the new types' extra flag
 	check(r.typeId == 6, "type")
 end)
 
+local NEW_KINDS = {
+	"ShieldBearer",
+	"Captain",
+	"Sniper",
+	"Bomber",
+	"MedicUnit",
+	"Swarmer",
+	"Mimic",
+	"Interceptor",
+	"Grappler",
+}
+
+test(
+	"New robot types: all 9 in the game, each with its own switch; a switched-off type never spawns",
+	function()
+		local EnemyVariety = require("../src/shared/EnemyVariety")
+		for _, kind in NEW_KINDS do
+			local cfg = Config.Enemies[kind]
+			check(cfg ~= nil and cfg.on == true, kind .. " is on")
+			check(table.find(Config.Enemies.order, kind) ~= nil, kind .. " is in the order")
+			check(cfg.typeId >= 10 and cfg.typeId <= 31, kind .. " typeId fits the wire")
+			check(cfg.body ~= nil and cfg.name ~= nil, kind .. " has a body and a name")
+		end
+		-- switch every new type off: nothing spawns, populate never picks one, squads never swap one in
+		for _, kind in NEW_KINDS do
+			Config.Enemies[kind].on = false
+		end
+		local ok, err = pcall(function()
+			local sim = robotSim()
+			for _, kind in NEW_KINDS do
+				check(EnemySim.spawn(sim, kind, -50, 0, 0, 1) == nil, kind .. " off: never spawns")
+				check(not EnemySim.enabled(Config, kind), kind .. " off: not enabled")
+			end
+			local heroes = {}
+			for i = 1, 8 do
+				table.insert(heroes, { id = i, x = -200 - i * 40, y = 3, z = 0, alive = true })
+			end
+			for t = 1, 120 do
+				EnemySim.populate(sim, heroes, t)
+			end
+			for _, e in sim.enemies do
+				check(table.find(NEW_KINDS, e.kind) == nil, "populate never brings a switched-off type")
+			end
+			local rng = Rng.new(5)
+			for _ = 1, 200 do
+				for _, row in
+					EnemyVariety.squad(
+						Config,
+						{ { kind = "BurglarBot", n = 6 }, { kind = "SparkDrone", n = 4 } },
+						40,
+						function()
+							return Rng.next(rng)
+						end
+					)
+				do
+					check(table.find(NEW_KINDS, row.kind) == nil, "squads never swap in a switched-off type")
+				end
+			end
+		end)
+		for _, kind in NEW_KINDS do
+			Config.Enemies[kind].on = true
+		end
+		check(ok, "switches test ran: " .. tostring(err))
+	end
+)
+
+test("New robot types: squads gain them by level, at most `max` each, story squads untouched", function()
+	local EnemyVariety = require("../src/shared/EnemyVariety")
+	local rng = Rng.new(11)
+	local function rand()
+		return Rng.next(rng)
+	end
+	local squad =
+		{ { kind = "BurglarBot", n = 4 }, { kind = "SparkDrone", n = 3 }, { kind = "BruteBot", n = 1 } }
+	-- level 1: the first fights stay the classic robots
+	for _ = 1, 100 do
+		for _, row in EnemyVariety.squad(Config, squad, 1, rand) do
+			check(table.find(NEW_KINDS, row.kind) == nil, "level 1 squads keep the classic robots")
+		end
+	end
+	check(#EnemyVariety.unlocked(Config, 1) == 0, "nothing new unlocked at level 1")
+	check(#EnemyVariety.unlocked(Config, 40) == 9, "all 9 by the level cap")
+	local seen: { [string]: number } = {}
+	for _ = 1, 400 do
+		local out = EnemyVariety.squad(Config, squad, 30, rand)
+		local count, per = 0, {}
+		for _, row in out do
+			count += row.n
+			per[row.kind] = (per[row.kind] or 0) + row.n
+		end
+		check(count == 8, "a swap keeps the squad size")
+		for _, sw in Config.Enemies.variety.swaps do
+			check((per[sw.kind] or 0) <= sw.max, sw.kind .. " at most " .. sw.max)
+			if per[sw.kind] then
+				seen[sw.kind] = (seen[sw.kind] or 0) + 1
+			end
+		end
+	end
+	for _, kind in NEW_KINDS do
+		check((seen[kind] or 0) > 0, kind .. " shows up in level 30 squads")
+	end
+	-- a small squad never gets a Captain (min 4)
+	for _ = 1, 200 do
+		for _, row in EnemyVariety.squad(Config, { { kind = "BurglarBot", n = 2 } }, 40, rand) do
+			check(row.kind ~= "Captain", "no Captain in a squad of 2")
+		end
+	end
+end)
+
+test("New robot types: Shield Bearer blocks the front, covers robots behind it, bashes and slows", function()
+	local sim = robotSim()
+	local b = EnemySim.spawn(sim, "ShieldBearer", -60, 0, 0, 1) :: any
+	b.yaw = 0 -- facing -Z
+	local _, _, front, f1 = EnemySim.damage(sim, b.id, 100, 1, -60, -30)
+	check(f1 == EnemySim.BLOCKED and front == 0, "front hits do nothing")
+	-- a Burglar Bot right behind the shield (on +Z), hit from the front (-Z)
+	local behind = EnemySim.spawn(sim, "BurglarBot", -60, 0, 6, 1) :: any
+	local _, _, cut, f2 = EnemySim.damage(sim, behind.id, 100, 1, -60, -30)
+	check(f2 == EnemySim.BLOCKED, "covered by the shield")
+	near(cut, 100 * (1 - Config.Enemies.ShieldBearer.cover.cut), 1e-6, "takes 60% less")
+	local _, _, open = EnemySim.damage(sim, behind.id, 100, 1, -30, 6)
+	near(open, 100, 1e-6, "a hit from the side is not covered")
+	local _, _, side, f3 = EnemySim.damage(sim, b.id, 100, 1, -30, 0)
+	check(f3 == EnemySim.BROKE and side == 100, "a flank hit knocks the shield aside")
+	local _, _, cut2 = EnemySim.damage(sim, behind.id, 100, 1, -60, -30)
+	near(cut2, 100, 1e-6, "no cover while the shield is down")
+	-- the bash slows
+	local s2 = robotSim()
+	local b2 = EnemySim.spawn(s2, "ShieldBearer", -60, 0, 0, 1) :: any
+	local hero = { id = 1, x = -60, y = 3.5, z = -5, alive = true }
+	local bashed
+	run(s2, { hero }, 0, 6, function(ev)
+		if ev.k == "hit" and ev.cc then
+			bashed = ev
+		end
+	end)
+	check(bashed ~= nil and bashed.cc == "slow" and bashed.ccValue == 0.5, "the bash slows the hero")
+	check(b2.alive, "still standing")
+end)
+
+test("New robot types: Captain rallies robots near it (harder, faster); its fall slows them", function()
+	local sim = robotSim()
+	local cap = EnemySim.spawn(sim, "Captain", -60, 0, 0, 1) :: any
+	local grunt = EnemySim.spawn(sim, "BurglarBot", -60, 0, 10, 1) :: any
+	local far = EnemySim.spawn(sim, "BurglarBot", -60, 0, 200, 1) :: any
+	cap.nextSpecial = 0
+	local hero = { id = 1, x = -60, y = 3, z = -30, alive = true }
+	local rally
+	run(sim, { hero }, 0, 2, function(ev)
+		if ev.k == "rally" then
+			rally = ev
+		end
+	end)
+	check(rally ~= nil and rally.r == Config.Enemies.Captain.rally.radius, "a rally goes out")
+	check(grunt.rallyUntil > sim.now and grunt.rallyBy == cap.id, "the robot near it is rallied")
+	check(far.rallyUntil == 0, "a far one is not")
+	check(bit32.band(grunt.extra, EnemySim.EXTRA.rally) ~= 0, "the rally shows on the wire")
+	EnemySim.damage(sim, cap.id, math.huge, 1)
+	check(grunt.rallyUntil == 0, "the rally ends with the Captain")
+	check(Status.has(grunt.status, "slow", sim.now), "and its robots falter")
+	-- an ambient Captain brings an escort; a site squad's does not
+	local s2 = robotSim()
+	local c2 = EnemySim.spawn(s2, "Captain", -60, 0, 0, 1) :: any
+	check(#EnemySim.company(s2, c2) == Config.Enemies.Captain.escort.n, "the escort")
+	check(#EnemySim.company(s2, c2, false) == 0, "no escort for a squad's Captain")
+end)
+
+test("New robot types: Sniper's laser locks before the shot; moving then dodges it", function()
+	local function duel(dodge: boolean): (number, any)
+		local sim = robotSim()
+		local sn = EnemySim.spawn(sim, "Sniper", -60, 0, 0, 1) :: any
+		sn.nextSpecial = 0
+		local hero = { id = 1, x = -60, y = 3, z = -80, alive = true }
+		local hits, aim = 0, nil
+		local cfg = Config.Enemies.Sniper
+		local t = 0
+		while t < cfg.aim.time + 1.5 do
+			t += 0.05
+			if dodge and aim and t >= aim.at + cfg.aim.time - cfg.aim.lock + 0.05 then
+				hero.x = -45 -- side-step once the aim locks
+			end
+			EnemySim.step(sim, t, { hero })
+			for _, ev in EnemySim.drainEvents(sim) do
+				if ev.k == "aim" then
+					aim = { at = t, ev = ev }
+				elseif ev.k == "hit" then
+					hits += ev.damage
+				end
+			end
+		end
+		return hits, aim
+	end
+	local hit, aim = duel(false)
+	check(
+		aim ~= nil and aim.ev.hero == 1 and aim.ev.t == Config.Enemies.Sniper.aim.time,
+		"the laser names its hero"
+	)
+	local cfg = Config.Enemies.Sniper
+	near(
+		hit,
+		Formulas.enemyDamage(Config, "Sniper", 1) * cfg.fire.coeff,
+		1e-6,
+		"standing still: one heavy round"
+	)
+	local dodged = duel(true)
+	check(dodged == 0, "moving after the lock dodges it")
+	-- a stun cancels the aim
+	local sim = robotSim()
+	local sn = EnemySim.spawn(sim, "Sniper", -60, 0, 0, 1) :: any
+	sn.nextSpecial = 0
+	run(sim, { { id = 1, x = -60, y = 3, z = -80, alive = true } }, 0, 0.3)
+	check(sn.aimUntil > 0, "aiming")
+	EnemySim.applyStatus(sim, sn.id, "stun", 1)
+	check(sn.aimUntil == 0, "a stun breaks the aim")
+	-- it backs away from a hero too close
+	local s3 = robotSim()
+	local sn3 = EnemySim.spawn(s3, "Sniper", -60, 0, 0, 1) :: any
+	run(s3, { { id = 1, x = -60, y = 3, z = -20, alive = true } }, 0, 1)
+	check(sn3.z > 0.5, "backs off from a close hero")
+end)
+
+test("New robot types: Bomber's grenade lands on the ring, then the ground burns", function()
+	local sim = robotSim()
+	local bm = EnemySim.spawn(sim, "Bomber", -60, 0, 0, 1) :: any
+	bm.nextSpecial = 0
+	local cfg = Config.Enemies.Bomber
+	local hero = { id = 1, x = -60, y = 3, z = -30, alive = true }
+	local lob, boom, zone
+	local hits = 0
+	run(sim, { hero }, 0, 0.2, function(ev)
+		if ev.k == "lob" then
+			lob = ev
+		end
+	end)
+	check(lob ~= nil, "a lob (the client draws the landing ring from it)")
+	near(lob.t, cfg.grenade.flight, 1e-6, "the ring shows for the flight")
+	check(
+		math.sqrt((lob.tx - hero.x) ^ 2 + (lob.tz - hero.z) ^ 2) <= cfg.grenade.spread * 1.5,
+		"aimed at the hero's spot"
+	)
+	run(sim, { hero }, 0.2, 2.5, function(ev)
+		if ev.k == "boom" then
+			boom = ev
+		elseif ev.k == "zone" then
+			zone = ev
+		elseif ev.k == "hit" then
+			hits += 1
+		end
+	end)
+	check(boom ~= nil and zone ~= nil, "the blast and the burning patch")
+	check(hits >= 2, "standing in it: the blast and the burn")
+	-- a hero who walked away is not hit
+	local s2 = robotSim()
+	local b2 = EnemySim.spawn(s2, "Bomber", -60, 0, 0, 1) :: any
+	b2.nextSpecial = 0
+	local h2 = { id = 1, x = -60, y = 3, z = -30, alive = true }
+	local got = 0
+	run(s2, { h2 }, 0, 0.2)
+	h2.z = -60
+	run(s2, { h2 }, 0.2, 2, function(ev)
+		if ev.k == "hit" then
+			got += 1
+		end
+	end)
+	check(got == 0, "out of the ring: no hit")
+end)
+
+test("New robot types: Medic Unit repairs the most damaged robot, never another Medic", function()
+	local sim = robotSim()
+	local med = EnemySim.spawn(sim, "MedicUnit", -60, 0, 0, 1) :: any
+	local hurt = EnemySim.spawn(sim, "BruteBot", -60, 0, 12, 1) :: any
+	local med2 = EnemySim.spawn(sim, "MedicUnit", -70, 0, 0, 1) :: any
+	hurt.health = hurt.maxHealth * 0.4
+	med2.health = med2.maxHealth * 0.2
+	local mend
+	local hero = { id = 1, x = -60, y = 3, z = 60, alive = true }
+	run(sim, { hero }, 0, 3, function(ev)
+		if ev.k == "mend" and ev.e == med.id then
+			mend = ev
+		end
+	end)
+	check(mend ~= nil and mend.patient == hurt.id, "repairs the Brute Bot")
+	check(hurt.health > hurt.maxHealth * 0.5, "health comes back")
+	check(med2.health <= med2.maxHealth * 0.2 + 1e-6, "never repairs another Medic")
+	check(bit32.band(med.extra, EnemySim.EXTRA.mend) ~= 0, "the beam shows on the wire")
+end)
+
+test("New robot types: Swarmers come in packs, surround, lunge and nip (a third of a robot each)", function()
+	local sim = robotSim()
+	local lead = EnemySim.spawn(sim, "Swarmer", -60, 0, 0, 1) :: any
+	local pack = EnemySim.company(sim, lead)
+	check(#pack + 1 == Config.Enemies.Swarmer.pack, "a pack of 6")
+	-- 6 Burglar Bots already on one hero: Swarmers still join (each counts a third)
+	local hero = { id = 1, x = -60, y = 3, z = -25, alive = true }
+	local s2 = robotSim()
+	for i = 1, 4 do
+		local o = EnemySim.spawn(s2, "BurglarBot", -40 - i * 3, 0, -25, 1) :: any
+		o.target, o.state = 1, EnemySim.CHASE
+	end
+	local sw = EnemySim.spawn(s2, "Swarmer", -60, 0, 0, 1) :: any
+	local mates = EnemySim.company(s2, sw)
+	local lunged, bites = false, 0
+	run(s2, { hero }, 0, 4, function(ev)
+		if ev.k == "hit" and ev.melee then
+			bites += 1
+		end
+	end)
+	for _, m in mates do
+		if m.lungeUntil > 0 then
+			lunged = true
+		end
+	end
+	check(lunged or sw.lungeUntil > 0, "they lunge")
+	check(bites >= 3, string.format("the pack nips (%d bites)", bites))
+	-- they spread round the hero
+	local minX, maxX = math.huge, -math.huge
+	for _, m in mates do
+		minX, maxX = math.min(minX, m.x), math.max(maxX, m.x)
+	end
+	check(maxX - minX > 2, "the pack spreads out")
+end)
+
+test("New robot types: Mimic passes for a citizen until a hero is close, then ambushes", function()
+	local sim = robotSim()
+	local m = EnemySim.spawn(sim, "Mimic", -60, 0, 0, 1) :: any
+	check(m.disguised, "dressed as a citizen")
+	run(sim, {}, 0, 0.2)
+	check(bit32.band(m.extra, EnemySim.EXTRA.disguise) ~= 0, "the disguise shows on the wire")
+	local seen = false
+	for _, c in EnemySim.candidates(sim) do
+		if c.id == m.id then
+			seen = true
+		end
+	end
+	check(not seen, "not a hit target while disguised")
+	local hero = { id = 1, x = -60, y = 3, z = -40, alive = true }
+	local revealed
+	local first
+	run(sim, { hero }, 0.2, 20, function(ev)
+		if ev.k == "reveal" then
+			revealed = ev
+		elseif ev.k == "hit" and not first then
+			first = ev
+		end
+	end)
+	check(revealed ~= nil, "it walks up and shows itself")
+	check(not m.disguised, "no longer disguised")
+	check(first ~= nil, "then strikes")
+	near(
+		first.damage,
+		(Config.Enemies.scale.dmgBase + Config.Enemies.scale.dmgPerLevel) * Config.Enemies.Mimic.ambush.coeff,
+		1e-6,
+		"the ambush strike hits hard"
+	)
+	-- a hit (an area power) also gives it away
+	local s2 = robotSim()
+	local m2 = EnemySim.spawn(s2, "Mimic", -60, 0, 0, 1) :: any
+	EnemySim.damage(s2, m2.id, 10, 1, -60, -20)
+	check(not m2.disguised, "a hit reveals it")
+end)
+
+test("New robot types: Interceptor hunts only fliers, its net holds them", function()
+	local sim = robotSim()
+	local it = EnemySim.spawn(sim, "Interceptor", -60, 40, 0, 1) :: any
+	local walker = { id = 1, x = -60, y = 3, z = -20, alive = true }
+	run(sim, { walker }, 0, 1)
+	check(it.target == nil, "ignores a hero on the ground")
+	local flier = { id = 2, x = -60, y = 50, z = -40, alive = true }
+	local net
+	it.nextSpecial = 0
+	run(sim, { walker, flier }, 1, 6, function(ev)
+		if ev.k == "hit" and ev.cc then
+			net = ev
+		end
+	end)
+	check(it.target == 2, "goes after the flier")
+	check(net ~= nil and net.cc == "root" and net.hero == 2, "the net holds the flier")
+	-- it lets the hero go a while after it lands
+	flier.y = 3
+	run(sim, { walker, flier }, 6, 9.5)
+	check(it.target == nil, "lets a landed hero go")
+end)
+
+test("New robot types: Grappler's hook pulls a hero down to it, then it punches", function()
+	local sim = robotSim()
+	local g = EnemySim.spawn(sim, "Grappler", -60, 0, 0, 1) :: any
+	g.nextSpecial = 0
+	local flier = { id = 1, x = -60, y = 30, z = -25, alive = true }
+	local hook, shot
+	run(sim, { flier }, 0, 2, function(ev)
+		if ev.k == "shot" and ev.style == 3 then
+			shot = ev
+		elseif ev.k == "hit" and ev.pull then
+			hook = ev
+		end
+	end)
+	check(shot ~= nil, "fires the hook")
+	check(
+		hook ~= nil and hook.cc == "root" and hook.ccTime == Config.Enemies.Grappler.hook.hold,
+		"hooked and held"
+	)
+	check(
+		hook.pull.reel == Config.Enemies.Grappler.hook.reel and math.abs(hook.pull.x - g.x) < 1e-6,
+		"pulled to the Grappler"
+	)
+	-- up close it punches
+	local s2 = robotSim()
+	EnemySim.spawn(s2, "Grappler", -60, 0, 0, 1)
+	local punches = 0
+	run(s2, { { id = 1, x = -60, y = 3.5, z = -4, alive = true } }, 0, 4, function(ev)
+		if ev.k == "hit" and ev.melee then
+			punches += 1
+		end
+	end)
+	check(punches >= 2, "punches up close")
+end)
+
+test("New robot types: fast shots never pass through a hero between steps", function()
+	local sim = robotSim()
+	local sn = EnemySim.spawn(sim, "Sniper", -60, 0, 0, 1) :: any
+	sn.nextSpecial = 0
+	local hero = { id = 1, x = -60, y = 3, z = -90, alive = true }
+	local hit = false
+	local t = 0
+	while t < 3 do
+		t += 0.2 -- a slow server frame: the round moves 48 studs a step
+		EnemySim.step(sim, t, { hero })
+		for _, ev in EnemySim.drainEvents(sim) do
+			if ev.k == "hit" then
+				hit = true
+			end
+		end
+	end
+	check(hit, "the round still hits")
+end)
+
+test("New robot types (review): a pull breaks a Sniper's aim, so no round comes without a laser", function()
+	local sim = robotSim()
+	local sn = EnemySim.spawn(sim, "Sniper", -60, 0, 0, 1) :: any
+	sn.nextSpecial = 0
+	local hero = { id = 1, x = -60, y = 3, z = -80, alive = true }
+	local t = run(sim, { hero }, 0, 0.3)
+	check(sn.aimUntil > 0, "aiming")
+	-- a Pull longer than the aim drags it 10 studs toward the hero
+	EnemySim.applyStatus(sim, sn.id, "pull", 2, { x = -60, y = 3, z = -10, speed = 5 })
+	local shots = 0
+	run(sim, { hero }, t, t + 2.4, function(ev)
+		if ev.k == "shot" then
+			shots += 1
+		end
+	end)
+	check(shots == 0, string.format("no round right after the pull (%d)", shots))
+	check(bit32.band(sn.extra, EnemySim.EXTRA.aim) == 0 or sn.aimUntil > sim.now, "no stale aim bit")
+end)
+
+test("New robot types (review): a Grappler that falls or is stunned cuts its hook", function()
+	local function fired(stun: boolean): (number, any, any)
+		local sim = robotSim()
+		local g = EnemySim.spawn(sim, "Grappler", -60, 0, 0, 1) :: any
+		g.nextSpecial = 0
+		local hero = { id = 1, x = -60, y = 3, z = -40, alive = true }
+		local t, shot = 0, false
+		while not shot and t < 2 do
+			t += 0.05
+			EnemySim.step(sim, t, { hero })
+			for _, ev in EnemySim.drainEvents(sim) do
+				if ev.k == "shot" and ev.style == 3 then
+					shot = true
+				end
+			end
+		end
+		check(shot, "the hook is out")
+		if stun then
+			EnemySim.applyStatus(sim, g.id, "stun", 1)
+		else
+			EnemySim.damage(sim, g.id, math.huge, 1)
+		end
+		local pulls = 0
+		run(sim, { hero }, t, t + 1.5, function(ev)
+			if ev.k == "hit" and ev.pull then
+				pulls += 1
+			end
+		end)
+		return pulls, g, sim
+	end
+	local pulls = fired(false)
+	check(pulls == 0, "a fallen Grappler's hook pulls nobody")
+	local p2, g2, s2 = fired(true)
+	check(p2 == 0, "a stun cuts the cable")
+	check(
+		g2.hookUntil <= s2.now and bit32.band(g2.extra, EnemySim.EXTRA.hooked) == 0,
+		"the hooked bit clears"
+	)
+	for _, s in s2.shots do
+		check(s.enemyId ~= g2.id or not s.pull, "no hook left in flight")
+	end
+end)
+
+test("New robot types (review): a site's Mimic shows itself once the rest of its squad is gone", function()
+	local sim = robotSim()
+	local m = EnemySim.spawn(sim, "Mimic", -60, 0, 0, 5) :: any
+	local mate = EnemySim.spawn(sim, "BurglarBot", -60, 0, 20, 5) :: any
+	m.tag, mate.tag = 7, 7
+	-- the hero hangs back out of its sight (or hovers over it): nothing would ever give it away
+	local hero = { id = 1, x = -60, y = 3, z = -150, alive = true }
+	local t = run(sim, { hero }, 0, 1)
+	check(m.disguised, "disguised while its squad fights")
+	EnemySim.damage(sim, mate.id, math.huge, 1)
+	local revealed = false
+	t = run(sim, { hero }, t, t + 1, function(ev)
+		if ev.k == "reveal" and ev.e == m.id then
+			revealed = true
+		end
+	end)
+	check(revealed and not m.disguised, "the last of its squad: it shows itself")
+	local seen = false
+	for _, c in EnemySim.candidates(sim) do
+		seen = seen or c.id == m.id
+	end
+	check(seen, "and can be hit, so the site can finish")
+	-- an untagged one (the Dev panel, the stand-in spawner) keeps its disguise alone
+	local s2 = robotSim()
+	local m2 = EnemySim.spawn(s2, "Mimic", -60, 0, 0, 5) :: any
+	run(s2, { hero }, 0, 1)
+	check(m2.disguised, "an ambient Mimic stays disguised")
+end)
+
+test("New robot types (review): an Interceptor never nets a hero who has landed", function()
+	local sim = robotSim()
+	local it = EnemySim.spawn(sim, "Interceptor", -60, 40, 0, 1) :: any
+	local flier = { id = 2, x = -60, y = 50, z = -30, alive = true }
+	local t = run(sim, { flier }, 0, 1)
+	check(it.target == 2, "after the flier")
+	flier.y = 3 -- lands; the Interceptor keeps it 2 s
+	it.nextSpecial = 0
+	local nets = 0
+	run(sim, { flier }, t, t + 1.8, function(ev)
+		if ev.k == "shot" and ev.style == 2 then
+			nets += 1
+		end
+	end)
+	check(nets == 0, string.format("no net at a grounded hero (%d)", nets))
+end)
+
+test("New robot types (review): a pack or escort never spawns inside a building", function()
+	local sim = robotSim()
+	-- the street ends at x = 20, where a 30-stud building starts
+	local lead = EnemySim.spawn(sim, "Swarmer", 17, 0, 0, 1) :: any
+	local cap = EnemySim.spawn(sim, "Captain", 15, 0, 50, 1) :: any
+	local all = EnemySim.company(sim, lead)
+	for _, o in EnemySim.company(sim, cap) do
+		table.insert(all, o)
+	end
+	check(#all == 7, "the pack and the escort")
+	for _, o in all do
+		if o.ai ~= "flyer" then
+			check(cityHeight(o.x, o.z) <= 1, o.kind .. " on the street")
+			near(o.y, EnemySim.halfHeight(o.cfg), 1e-6, o.kind .. " on the ground, not a roof")
+		end
+	end
+end)
+
+test(
+	"New robot types (review): a hook's pull is granted its flat travel only (the drop is a free fall)",
+	function()
+		local pull = { x = 0, y = 3.5, z = 0, reel = 6, time = 0.5 }
+		local hx, hy, hz = 0, 45, 30 -- a flier 30 studs out and 41.5 up
+		local mx, mz, drop, grant = EnemySim.hookPull(pull, hx, hy, hz)
+		near(math.sqrt(mx * mx + mz * mz), 24, 1e-6, "pulled to `reel` studs short")
+		near(drop, 3.5 - 45, 1e-6, "and down to it")
+		check(grant <= 24 + 12, string.format("grant %.1f has no drop in it", grant))
+		-- the client's arc (MoveController.arcTo, height 3) passes the speed check with that grant
+		local st = MoveCheck.new(hx, hy, hz, 0)
+		MoveCheck.grant(st, grant)
+		local tx, ty, tz = hx + mx, hy + drop, hz + mz
+		local ok = true
+		for i = 1, 5 do
+			local u = i / 5
+			local x = hx + (tx - hx) * u
+			local y = hy + (ty - hy) * u + 3 * 4 * u * (1 - u)
+			local z = hz + (tz - hz) * u
+			local pass =
+				MoveCheck.sample(st, x, y, z, i * 0.1, Config.Move.caps.run, Config.Move, Config.Safety)
+			ok = ok and pass
+		end
+		check(ok, "the pull is never pulled back")
+	end
+)
+
+test("New robot types (review): the Dev panel's robot button skips switched-off types", function()
+	local order = Config.Enemies.order
+	local sniper = table.find(order, "Sniper") :: number
+	Config.Enemies.Sniper.on = false
+	local nextIdx = EnemySim.nextEnabled(Config, sniper - 1)
+	local wrap = EnemySim.nextEnabled(Config, #order)
+	Config.Enemies.Sniper.on = true
+	check(order[nextIdx] == "Bomber", "Sniper off: Captain then Bomber")
+	check(wrap == 1, "wraps to the first")
+	check(order[EnemySim.nextEnabled(Config, sniper - 1)] == "Sniper", "on again: back in the cycle")
+end)
+
 test("M2: populate mixes the robot kinds and keeps ground robots on streets", function()
 	local sim = robotSim()
 	local heroes = {}
@@ -1869,16 +2478,19 @@ test("M3: level gates: Epic from 20, Legendary from 30; fixed story rewards skip
 	)
 end)
 
-test("M3: levels: xpToNext, cumulative 68,400 to 40, level ups and the cap", function()
+test("M3: levels: xpToNext, cumulative 68,400 to 40, level ups and the cap (Stats.levelCap)", function()
 	check(Progress.xpToNext(Config, 1) == 100 and Progress.xpToNext(Config, 2) == 112, "100, 112")
 	local total = Progress.totalTo(Config, 40)
 	near(total, 68400, 68400 * 0.01, string.format("level 40 takes %d Renown", total))
 	local lv, xp, gained = Progress.addRenown(Config, 1, 0, 250)
 	check(lv == 3 and xp == 38 and gained == 2, "250 Renown: level 3 with 38 over")
-	local cap, capXp = Progress.addRenown(Config, 39, 0, 1e7)
-	check(cap == 40 and capXp == 0, "stops at 40")
-	check(select(1, Progress.nextUnlock(1)) == 3, "next unlock after 1 is Flight at 3")
-	check(Progress.nextUnlock(40) == nil, "nothing after 40")
+	local CAP = Config.Stats.levelCap
+	local cap, capXp = Progress.addRenown(Config, CAP - 1, 0, 1e7)
+	check(cap == CAP and capXp == 0, "stops at the cap")
+	check(select(1, Progress.nextUnlock(Config, 1)) == 3, "next unlock after 1 is Flight at 3")
+	local at, what = Progress.nextUnlock(Config, 40)
+	check(at == CAP and what == Progress.CAP_UNLOCK, "after 40 the next unlock is the cap and Legacy")
+	check(Progress.nextUnlock(Config, CAP) == nil, "nothing after the cap")
 end)
 
 test("M3: earnings: zone level formulas, bonuses multiply, the stack caps at x4", function()
@@ -1949,7 +2561,7 @@ test("M3: profile: defaults, migrations, repair of bad data, size under 60 KB", 
 		r.currency.credits == 0 and r.currency.banked == 0 and r.currency.dust == 0,
 		"bad wallet values fixed"
 	)
-	check(r.characters[1].level == 40 and r.characters[1].ranks.ZapBolt == 5, "clamped")
+	check(r.characters[1].level == Config.Stats.levelCap and r.characters[1].ranks.ZapBolt == 5, "clamped")
 	check(r.characters[1].ranks[5] == nil, "junk rank keys dropped")
 	check(
 		r.characters[1].equipment[1] == 0 and #r.characters[1].equipment == 8,
@@ -2146,6 +2758,18 @@ test("M4: zones: hub 16 to 31, suburbs then farmland, a 2-tile coast, 3 landmark
 	local counts = {}
 	local outside = 0
 	local ringsOk, roadsOk = true, true
+	-- a district past the hub's tiles (Uptown, the second downtown, and the grown Downtown's west edge) stands on
+	-- hub tiles of its own
+	local function inDistrict(tx: number, tz: number): boolean
+		local x0, z0 = WorldGen.tileOrigin(Config.City, tx, tz)
+		local s = Config.City.tile
+		for _, d in Config.City.districts do
+			if x0 < d.maxX and x0 + s > d.minX and z0 < d.maxZ and z0 + s > d.minZ then
+				return true
+			end
+		end
+		return false
+	end
 	for tz = 0, W.tiles - 1 do
 		for tx = 0, W.tiles - 1 do
 			local t = WorldGen.get(W, world.tiles, tx, tz)
@@ -2160,7 +2784,16 @@ test("M4: zones: hub 16 to 31, suburbs then farmland, a 2-tile coast, 3 landmark
 			if ring >= 15 and t.zone ~= Z.coast then
 				ringsOk = false
 			end
-			if ring >= 1 and ring <= 6 and t.zone ~= Z.suburbs and t.zone ~= Z.landmark then
+			if ring > 0 and (t.zone == Z.hub) ~= inDistrict(tx, tz) then
+				ringsOk = false
+			end
+			if
+				ring >= 1
+				and ring <= 6
+				and t.zone ~= Z.suburbs
+				and t.zone ~= Z.landmark
+				and not inDistrict(tx, tz)
+			then
 				ringsOk = false
 			end
 			if ring >= 9 and ring <= 14 and t.zone ~= Z.farmland and t.zone ~= Z.landmark then
@@ -2431,10 +3064,19 @@ local DS = Config.Destruction
 
 test("M5: 220 wreckable hub buildings, ids 1 to 220, HP by size class", function()
 	local list = world.buildings
-	check(#list == DS.hubBuildings, "220 buildings (got " .. #list .. ")")
+	-- the first 220 are the first Downtown, the Docks and Old Town; the grown Downtown and Uptown come after
+	local extra = #world.uptown.buildings
+	for _, b in world.downtown.buildings do
+		extra += if b.grown then 1 else 0
+	end
+	check(#list == DS.hubBuildings + extra, "220 buildings and the new ones (got " .. #list .. ")")
+	for i = 1, DS.hubBuildings do
+		local d = list[i] and list[i].district
+		check(d == "Downtown" or d == "Docks" or d == "OldTown", "ids 1 to 220 are the first hub")
+	end
 	local per: { [string]: number } = {}
 	for i, b in list do
-		check(b.id == i, "ids run 1 to 220")
+		check(b.id == i, "ids run 1 to " .. #list)
 		local h = b.top - b.base
 		local want = if h <= DS.smallMax then "small" elseif h <= DS.mediumMax then "medium" else "tower"
 		check(b.size == want and b.hp == DS.hp[want], "building " .. i .. " has the HP of its size")
@@ -2757,7 +3399,7 @@ end)
 -- M6: incidents, contracts, events, world boss
 ---------------------------------------------------------------------------
 
-test("M6: zone level is the hero's level raised to the area floor, capped at 40", function()
+test("M6: zone level is the hero's level raised to the area floor, capped at the level cap", function()
 	check(ZoneLevel.area(Config, 0, 0, world.tiles) == "hub", "the plaza is hub")
 	check(ZoneLevel.at(Config, 0, 0, 3, world.tiles) == 3, "hub: the hero's own level")
 	local sx = -Config.City.mapSize / 2 + (Config.World.hubFirst - 3) * Config.City.tile + 50
@@ -2769,7 +3411,7 @@ test("M6: zone level is the hero's level raised to the area floor, capped at 40"
 	local cz = -Config.City.mapSize / 2 + (cr.tz + 2) * Config.City.tile
 	check(ZoneLevel.area(Config, cx, cz, world.tiles) == "CometCrater", "the crater is its own area")
 	check(ZoneLevel.at(Config, cx, cz, 2, world.tiles) == 10, "crater floor 10")
-	check(ZoneLevel.at(Config, 0, 0, 99) == 40, "capped at 40")
+	check(ZoneLevel.at(Config, 0, 0, 99) == Config.Stats.levelCap, "capped at the level cap")
 	check(ZoneLevel.area(Config, 2300, 2300) == "coast", "the map corner is coast without tiles too")
 	check(
 		ZoneLevel.median({ 4, 20, 9 }) == 9 and ZoneLevel.median({ 2, 4 }) == 3 and ZoneLevel.median({}) == 1,
@@ -2794,14 +3436,18 @@ test("M6: the world clock runs 24 minutes: 16 day, 3 dusk, 4 night, 1 dawn", fun
 end)
 
 local IC = Config.Incidents
-local ALL_WHERE = { street = true, tower = true, tram = true, sign = true, roof = true, crane = true }
+local ALL_WHERE =
+	{ street = true, tower = true, tram = true, sign = true, roof = true, crane = true, nest = true }
 
-test("M6: 10 incident templates; each side gets its own and the shared ones", function()
-	check(#IC.order == 10, "10 templates")
+test("M6: 24 incident templates; each side gets its own and the shared ones", function()
+	check(#IC.order == 24, "24 templates (10 at M6, 14 more on 2026-11-17)")
 	local nums = {}
 	for _, tid in IC.order do
 		local t = IC.templates[tid]
-		check(t ~= nil and not nums[t.num] and t.num >= 1 and t.num <= 10, tid .. " has a unique number")
+		check(
+			t ~= nil and not nums[t.num] and t.num >= 1 and t.num <= #IC.order,
+			tid .. " has a unique number"
+		)
 		nums[t.num] = true
 		check(t.time >= 30 and t.time <= 120, tid .. " takes 30 s to 2 min")
 		check(#t.steps >= 1, tid .. " has steps")
@@ -2812,12 +3458,12 @@ test("M6: 10 incident templates; each side gets its own and the shared ones", fu
 	local hero = IncidentPlan.choices(IC, "hero", ALL_WHERE, false)
 	local villain = IncidentPlan.choices(IC, "villain", ALL_WHERE, false)
 	check(
-		#hero == 6 and table.find(hero, "RobotHeist") and not table.find(hero, "VaultBreach"),
-		"hero: 6 without a boss"
+		#hero == 18 and table.find(hero, "RobotHeist") and not table.find(hero, "VaultBreach"),
+		"hero: 18 without a boss"
 	)
 	check(
-		#villain == 8 and table.find(villain, "ShardCrate") and not table.find(villain, "RobotHeist"),
-		"villain: 8"
+		#villain == 21 and table.find(villain, "ShardCrate") and not table.find(villain, "RobotHeist"),
+		"villain: 21"
 	)
 	check(not table.find(hero, "RaidPrep"), "Raid prep only while a boss counts down")
 	local bare = IncidentPlan.choices(IC, "hero", { street = true }, false)
@@ -2892,19 +3538,19 @@ end)
 
 local CC = Config.Contracts
 
-test("M6: contract boards offer 3 for your side, the same until they change; max 3 accepted", function()
-	check(#CC.order == 6, "6 contract types")
+test("M6: contract boards offer 4 for your side, the same until they change; max 3 accepted", function()
+	check(#CC.order == 12, "12 contract types (6 at M6, 6 more on 2026-11-17)")
 	for w = 1, 60 do
 		local h = ContractPlan.offers(CC, 7, "hero", w, 10)
 		local v = ContractPlan.offers(CC, 7, "villain", w, 10)
-		check(#h == 3 and #v == 3, "3 offers")
+		check(#h == CC.board.offers and #v == CC.board.offers and CC.board.offers == 4, "4 offers")
 		local seen = {}
 		for _, o in h do
 			check(o.type ~= "VaultJob" and not seen[o.type], "heroes never see the Vault job; no repeats")
 			seen[o.type] = true
 		end
 		for _, o in v do
-			check(o.type ~= "Stakeout", "villains never see the Stakeout")
+			check(o.type ~= "Stakeout" and o.type ~= "Defusal", "villains never see the hero-only jobs")
 		end
 	end
 	local a, b = ContractPlan.offers(CC, 7, "hero", 5, 10), ContractPlan.offers(CC, 7, "hero", 5, 10)
@@ -2947,39 +3593,486 @@ test("M6: contract pay follows the table, the first 5 each day pay double", func
 	check(rn2 == round((60 + 5 * 10) * sc.renown), "types without their own Renown use the contract row")
 	local fixed = ContractPlan.repair(
 		CC,
-		{ { type = "Escort", got = 9999, level = 99 }, { type = "Escort" }, { type = "Nope" }, 5 }
+		{ { type = "Escort", got = 9999, level = 99 }, { type = "Escort" }, { type = "Nope" }, 5 },
+		Config.Stats.levelCap
 	)
-	check(#fixed == 1 and fixed[1].got == 600 and fixed[1].level == 40, "repair clamps and drops junk")
-	check(#ContractPlan.repair(CC, "bad") == 0, "repair of junk is empty")
+	check(
+		#fixed == 1 and fixed[1].got == 600 and fixed[1].level == Config.Stats.levelCap,
+		"repair clamps and drops junk"
+	)
+	check(#ContractPlan.repair(CC, "bad", Config.Stats.levelCap) == 0, "repair of junk is empty")
 end)
 
-test("M6: random events every 4 to 6 minutes, max 2, never the same twice in a row, all 6 turn up", function()
-	local EV = Config.Events
-	check(#EV.order == 6, "6 events")
-	local st = EventPlan.new(EV, 0)
-	local rng = Rng.new(21)
-	local last, starts, seen, lastStart = nil, 0, {}, nil
-	for t = 0, 7200, 1 do
-		local id = EventPlan.due(EV, st, t, rng)
-		check(EventPlan.activeCount(st) <= 2, "never more than 2 at once")
-		if id then
-			check(id ~= last, "never the same type twice in a row")
-			if lastStart then
-				check(t - lastStart >= 240 - 1e-6 and t - lastStart <= 360 + 1, "4 to 6 minutes apart")
-			else
-				check(t == EV.scheduler.firstAfter, "the first comes 90 s after boot")
+test(
+	"M6: random events every 4 to 6 minutes, max 2, never the same twice in a row, all 12 turn up",
+	function()
+		local EV = Config.Events
+		check(#EV.order == 12, "12 events (6 at M6, 6 more on 2026-11-17)")
+		local st = EventPlan.new(EV, 0)
+		local rng = Rng.new(21)
+		local last, starts, seen, lastStart = nil, 0, {}, nil
+		for t = 0, 14400, 1 do
+			local id = EventPlan.due(EV, st, t, rng)
+			check(EventPlan.activeCount(st) <= 2, "never more than 2 at once")
+			if id then
+				check(id ~= last, "never the same type twice in a row")
+				if lastStart then
+					check(t - lastStart >= 240 - 1e-6 and t - lastStart <= 360 + 1, "4 to 6 minutes apart")
+				else
+					check(t == EV.scheduler.firstAfter, "the first comes 90 s after boot")
+				end
+				last, lastStart = id, t
+				starts += 1
+				seen[id] = true
 			end
-			last, lastStart = id, t
-			starts += 1
-			seen[id] = true
+		end
+		local kinds = 0
+		for _ in seen do
+			kinds += 1
+		end
+		check(
+			starts >= 38 and kinds == 12,
+			string.format("about one every 5 minutes (%d), all 12 kinds", starts)
+		)
+		check(
+			EventPlan.inPocket(EV, 3000) and not EventPlan.inPocket(EV, 100),
+			"no events in mission pockets"
+		)
+	end
+)
+
+---------------------------------------------------------------------------
+-- More activities (2026-11-17): 24 incidents, 12 events, 12 contracts, the Heroic tier
+---------------------------------------------------------------------------
+
+local HeroicRules = require("../src/shared/HeroicRules")
+local EnemyVariety = require("../src/shared/EnemyVariety")
+
+-- A copy of Config with some robot types switched off (the real Config is never changed)
+local function configWithOff(off: { string }): any
+	local c = table.clone(Config)
+	c.Enemies = table.clone(Config.Enemies)
+	for _, kind in off do
+		c.Enemies[kind] = table.clone(Config.Enemies[kind])
+		c.Enemies[kind].on = false
+	end
+	return c
+end
+
+local NEW_TYPES = {
+	"ShieldBearer",
+	"MedicUnit",
+	"Sniper",
+	"Swarmer",
+	"Mimic",
+	"Interceptor",
+	"Bomber",
+	"Captain",
+	"Grappler",
+}
+
+test("Activities: every incident template is valid (robots exist, step kinds handled, fixed text)", function()
+	local kinds = {}
+	for _, k in IncidentPlan.KINDS do
+		kinds[k] = true
+		check(IC.kinds[k] ~= nil and IC.kinds[k].text ~= "", k .. " has a tracker line")
+	end
+	for k in IC.kinds do
+		check(kinds[k] == true, k .. " is a kind the server builds")
+	end
+	local where = {
+		street = true,
+		tower = true,
+		tram = true,
+		sign = true,
+		roof = true,
+		crane = true,
+		nest = true,
+		any = true,
+	}
+	local featured = {}
+	local function enemy(kind: any, tid: string)
+		check(
+			type(kind) == "string" and Config.Enemies[kind] ~= nil,
+			tid .. ": robot " .. tostring(kind) .. " exists"
+		)
+		featured[kind] = true
+	end
+	for _, tid in IC.order do
+		local t = IC.templates[tid]
+		check(where[t.where] == true, tid .. " has a known spot kind")
+		for _, kind in t.requires or {} do
+			enemy(kind, tid)
+			check(
+				IncidentPlan.levelFor(IC, Config, tid) >= IncidentPlan.unlockLevel(Config, kind),
+				tid .. " waits for " .. kind
+			)
+		end
+		for i, row in t.steps do
+			check(kinds[row.kind] == true, tid .. " step " .. i .. " kind " .. row.kind .. " is handled")
+			check(IncidentPlan.stepText(IC, tid, i, "hero") ~= "", tid .. " step " .. i .. " has a line")
+			for _, e in row.enemies or {} do
+				enemy(e[1], tid)
+				check(e[2] >= 0 and e[3] >= e[2], tid .. " row counts")
+				if e[4] then
+					enemy(e[4], tid)
+					check(
+						IncidentPlan.unlockLevel(Config, e[4]) <= IncidentPlan.unlockLevel(Config, e[1]),
+						tid .. " fallback unlocks no later"
+					)
+				end
+			end
+			if row.leader then
+				enemy(row.leader, tid)
+			end
+			if row.enemy then
+				enemy(row.enemy, tid)
+			end
+			if row.prop then
+				check(table.find(IC.props, row.prop) ~= nil, tid .. " prop is built")
+			end
+			if row.kind == "object" then
+				check(
+					row.label == nil or table.find(IC.objects, row.label) ~= nil,
+					tid .. " object model is built"
+				)
+			end
+			if row.kind == "barrage" then
+				check(row.blocks >= 1 and row.misses >= 0 and row.every > row.warn, tid .. " barrage timing")
+			end
 		end
 	end
-	local kinds = 0
-	for _ in seen do
-		kinds += 1
+	for _, kind in NEW_TYPES do
+		check(featured[kind] == true, kind .. " has an incident of its own")
 	end
-	check(starts >= 19 and kinds == 6, string.format("about one every 5 minutes (%d), all 6 kinds", starts))
-	check(EventPlan.inPocket(EV, 3000) and not EventPlan.inPocket(EV, 100), "no events in mission pockets")
+	for key, b in IC.beats do
+		check(Config.Audio.sounds[b.juice] ~= nil and b.text ~= "", key .. " beat has a sound and a line")
+	end
+	check(#IncidentPlan.KINDS == 11, "6 new step kinds on top of the first 5")
+end)
+
+test("Activities: switched-off or locked robot types skip a template or fall back", function()
+	local lvl50 = IncidentPlan.choices(IC, "hero", ALL_WHERE, false, Config, 50)
+	check(#lvl50 == 18, "every hero template at level 50 with every type on (" .. #lvl50 .. ")")
+	local lvl1 = IncidentPlan.choices(IC, "hero", ALL_WHERE, false, Config, 1)
+	check(
+		not table.find(lvl1, "SniperNest") and not table.find(lvl1, "MimicCrowd"),
+		"new types wait for their level"
+	)
+	check(
+		table.find(lvl1, "DroneSwarm") ~= nil and table.find(lvl1, "ShieldWall") ~= nil,
+		"fallback templates run early"
+	)
+	check(
+		not IncidentPlan.available(IC, Config, "MimicCrowd", 8)
+			and IncidentPlan.available(IC, Config, "MimicCrowd", 9),
+		"the Mimic unlocks at 9"
+	)
+	local off = configWithOff({ "Sniper", "Captain" })
+	local list = IncidentPlan.choices(IC, "villain", ALL_WHERE, false, off, 50)
+	check(
+		not table.find(list, "SniperNest") and not table.find(list, "CaptainWarband"),
+		"a switched-off type's template is skipped"
+	)
+	check(table.find(list, "SignalJam") ~= nil, "a template that only features it stays")
+	local rng = Rng.new(5)
+	local jam = IncidentPlan.new(IC, rng, "SignalJam", 50, 0, { config = off })
+	for _, r in jam.steps[1].spawn :: any do
+		check(r.kind ~= "Sniper", "the Sniper falls back")
+	end
+	check((jam.steps[1].spawn :: any)[1].kind == "Turret", "to a Turret")
+	local swarm = IncidentPlan.new(IC, rng, "DroneSwarm", 1, 0, { config = Config })
+	for _, r in swarm.steps[1].spawn :: any do
+		check(r.kind == "SparkDrone", "level 1: the swarm is Spark Drones")
+	end
+	local all = configWithOff(NEW_TYPES)
+	for _ = 1, 300 do
+		local tid = IncidentPlan.pick(IC, rng, "hero", ALL_WHERE, nil, false, false, nil, all, 50)
+		check(tid ~= nil, "something to do with every new type off")
+		for _, row in IC.templates[tid :: string].steps do
+			check(
+				row.kind ~= "leader"
+					and row.kind ~= "find"
+					and row.kind ~= "convoy"
+					and row.kind ~= "barrage"
+					and row.kind ~= "tug",
+				"no template that needs a cut type"
+			)
+		end
+		local inc = IncidentPlan.new(IC, rng, tid :: string, 50, 0, { config = all })
+		for _, st in inc.steps do
+			for _, r in st.spawn or {} do
+				check(EnemyVariety.enabled(all, r.kind), "never a switched-off robot")
+			end
+		end
+	end
+end)
+
+test("Activities: the scheduler picks the new templates", function()
+	local rng = Rng.new(17)
+	local seen = {}
+	for _ = 1, 6000 do
+		local tid = IncidentPlan.pick(IC, rng, "hero", ALL_WHERE, nil, false, false, nil, Config, 50)
+		seen[tid :: string] = true
+	end
+	for _, tid in IncidentPlan.choices(IC, "hero", ALL_WHERE, false, Config, 50) do
+		check(seen[tid] == true, tid .. " turns up")
+	end
+	check(seen.SniperNest and seen.BomberBarrage and seen.GrapplerTow, "new ones among them")
+end)
+
+test("Activities: the new step kinds count right (leader, find, convoy, barrage, tug, nest)", function()
+	local rng = Rng.new(23)
+	local war = IncidentPlan.new(IC, rng, "CaptainWarband", 30, 0, { config = Config })
+	local s = war.steps[1]
+	check(
+		s.kind == "leader" and s.need == 1 and s.leader == "Captain" and #(s.spawn :: any) >= 1,
+		"one Captain to down, an escort"
+	)
+	check(IncidentPlan.advance(war, "leader", 1) == "done", "the Captain falls: done")
+	local mimic = IncidentPlan.new(IC, rng, "MimicCrowd", 30, 0, { config = Config })
+	check(mimic.steps[1].need == 1 and (mimic.steps[1].spawn :: any)[1].kind == "Mimic", "one Mimic to find")
+	local convoy = IncidentPlan.new(IC, rng, "MedicConvoy", 30, 0, { config = Config })
+	check(
+		convoy.steps[1].need == 2 and (convoy.steps[1].spawn :: any)[1].kind == "MedicUnit",
+		"2 Medic Units, then the squad"
+	)
+	check(
+		IncidentPlan.advance(convoy, "convoy", 2) == "step" and convoy.steps[2].kind == "defeat",
+		"convoy stopped: the squad"
+	)
+	local b = IncidentPlan.new(IC, rng, "BomberBarrage", 30, 0, { config = Config })
+	local row = IC.templates.BomberBarrage.steps[1]
+	check(b.steps[1].need == row.blocks, "blocks to make")
+	check(IncidentPlan.shell(b, true) == nil and b.steps[1].have == 1, "a block counts")
+	for _ = 1, row.misses do
+		check(IncidentPlan.shell(b, false) == nil, "misses up to the limit are allowed")
+	end
+	check(IncidentPlan.shell(b, false) == "failed" and b.failed, "one more fails it")
+	local b2 = IncidentPlan.new(IC, rng, "BomberBarrage", 30, 0, { config = Config })
+	check(IncidentPlan.endBarrage(b2) == "done" and b2.done, "every Bomber down ends the barrage")
+	local tow = IncidentPlan.new(IC, rng, "GrapplerTow", 30, 0, { config = Config })
+	check(
+		tow.steps[1].need == 1 and #tow.steps == 2 and tow.steps[2].kind == "rescue",
+		"down the Grappler, then the driver"
+	)
+	local nest = IncidentPlan.new(IC, rng, "SniperNest", 30, 0, { config = Config })
+	check(nest.steps[1].need >= 3, "2 Snipers and drones on the roof")
+	check(
+		IncidentPlan.stepText(IC, "WaterMain", 2, "hero") == "Carry the soaked citizens out",
+		"step lines come from config"
+	)
+end)
+
+test("Activities: Heroic rules (level 40+, tougher robots, one more each squad, x1.5 pay)", function()
+	local H = Config.Heroic
+	check(
+		H.minLevel == 40 and not HeroicRules.eligible(Config, 39) and HeroicRules.eligible(Config, 40),
+		"from level 40"
+	)
+	local rng = Rng.new(31)
+	local n = 0
+	for _ = 1, 4000 do
+		if HeroicRules.roll(Config, "incident", 45, rng) then
+			n += 1
+		end
+		check(not HeroicRules.roll(Config, "incident", 39, rng), "never under 40")
+	end
+	near(n / 4000, H.chance.incident, 0.03, "rolls at its chance")
+	check(
+		HeroicRules.robotLevel(Config, 45, true) == 50 and HeroicRules.robotLevel(Config, 45, false) == 45,
+		"robots 5 levels up"
+	)
+	local rows = { { kind = "BurglarBot", n = 2 }, { kind = "SparkDrone", n = 1 } }
+	local more = HeroicRules.squad(Config, rows, true)
+	check(more[1].n == 3 and more[2].n == 1 and rows[1].n == 2, "one more robot, template untouched")
+	local c, r = HeroicRules.pay(Config, 100, 41, true)
+	check(c == 150 and r == 62, "x1.5 pay, rounded")
+	check(HeroicRules.gearLevel(Config, 50, true) == Config.Stats.levelCap, "gear capped at the level cap")
+	check(HeroicRules.time(Config, 100, true) == 115, "15% more time")
+	local inc = IncidentPlan.new(IC, rng, "RobotHeist", 45, 0, { config = Config, heroic = true })
+	local plain = IncidentPlan.new(IC, Rng.new(1), "RobotHeist", 45, 0, { config = Config })
+	check(
+		inc.heroic and inc.steps[1].need >= 5 and plain.steps[1].need >= 4,
+		"a Heroic squad has the extra robot"
+	)
+	check(inc.deadline == HeroicRules.time(Config, 90, true) and inc.deadline >= 103, "and 15% more time")
+	check(
+		not IncidentPlan.canHeroic(IC, "TowerFire") and IncidentPlan.canHeroic(IC, "WaterMain"),
+		"only robots or objects get tougher"
+	)
+	-- the economy check (Decisions 2026-11-17): the bump over the play model stays small
+	local bc, br = HeroicRules.incomeBump(Config, 45)
+	print(
+		string.format("  [Heroic] level 45 income bump: Credits +%.1f%%, Renown +%.1f%%", bc * 100, br * 100)
+	)
+	check(bc > 0.02 and bc < 0.12 and br > 0.02 and br < 0.12, "Heroic adds a few percent, never a new pace")
+	local zc, zr = HeroicRules.incomeBump(Config, 39)
+	check(zc == 0 and zr == 0, "nothing under 40")
+end)
+
+test("Activities: 12 events, each a known goal, placed by district name (a second downtown joins)", function()
+	local EV = Config.Events
+	local goals = {}
+	for _, g in EventPlan.GOALS do
+		goals[g] = true
+	end
+	local nums, used = {}, {}
+	for _, id in EV.order do
+		local d = EV.events[id]
+		check(goals[d.goal] == true, id .. " has a goal the server builds")
+		check(not nums[d.num], id .. " has its own number")
+		nums[d.num] = true
+		if d.where ~= "hub" and d.where ~= "anchor" then
+			local areas = EventPlan.areas(Config, d.where)
+			check(#areas >= 1, id .. " finds its district")
+			for _, a in areas do
+				used[a.name] = true
+			end
+		end
+		for _, w in d.waves or {} do
+			check(Config.Enemies[w[1]] ~= nil and w[2] >= 1, id .. " wave robot " .. w[1])
+			check(w[3] == nil or Config.Enemies[w[3]] ~= nil, id .. " wave fallback")
+		end
+		for _, g in EventPlan.guardRows(d) do
+			check(Config.Enemies[g[1]] ~= nil, id .. " guard robot " .. g[1])
+		end
+	end
+	check(
+		used.Downtown and used.Docks and used.OldTown,
+		"events spread over Downtown, the Docks and Old Town"
+	)
+	local rng = Rng.new(3)
+	local x, z, name = EventPlan.place(Config, EV.events.HarbourFog, rng)
+	local docks = Config.City.districts.Docks
+	check(
+		name == "Docks" and x >= docks.minX and x <= docks.maxX and z >= docks.minZ and z <= docks.maxZ,
+		"inside the Docks"
+	)
+	check(
+		EventPlan.place(Config, EV.events.RobotRampage, rng) == nil,
+		"anchor events are placed by the server"
+	)
+	-- a bigger city: Uptown (and any "Downtown" district) joins the downtown events
+	local big = table.clone(Config)
+	big.City = table.clone(Config.City)
+	big.City.districts = table.clone(Config.City.districts)
+	big.City.districts.Uptown = { minX = -1600, maxX = -900, minZ = -350, maxZ = 350 }
+	big.City.districts.DowntownEast = { minX = 900, maxX = 1200, minZ = 0, maxZ = 300 }
+	local names = {}
+	for _, a in EventPlan.areas(big, "downtown") do
+		names[a.name] = true
+	end
+	check(
+		names.Downtown and names.Uptown and names.DowntownEast and not names.Docks,
+		"every downtown, by name"
+	)
+	local lm = EventPlan.areas(Config, { "CometCrater" })
+	check(#lm == 1 and lm[1].hx == 200, "landmarks by id")
+	local off = configWithOff({ "Mimic" })
+	local function ready(kind: string, level: number): boolean
+		return IncidentPlan.kindReady(off, kind, level)
+	end
+	local row = EventPlan.row(off, { "Mimic", 2, "SneakBot" }, 50, false, ready)
+	check(row ~= nil and row.kind == "SneakBot" and row.n == 2, "a cut type uses the fallback")
+	local hrow = EventPlan.row(Config, { "BurglarBot", 4 }, 45, true, ready)
+	check(hrow ~= nil and hrow.n == 5, "Heroic adds one")
+	check(EventPlan.row(off, { "Mimic", 2 }, 50, false, ready) == nil, "no fallback: dropped")
+end)
+
+test("Activities: 12 contracts: bounty names, Heroic offers and pay, timers, repair", function()
+	local B = CC.types.Bounty
+	check(#B.names == 12, "12 fixed bounty names")
+	for _, kind in B.targets do
+		check(Config.Enemies[kind] ~= nil, "bounty target " .. kind .. " exists")
+	end
+	for _, id in CC.order do
+		local t = CC.types[id]
+		for _, key in { "squad", "guards", "ambush", "escort" } do
+			local g = t[key]
+			if g then
+				for _, r in (if type(g[1]) == "string" then { g } else g) do
+					check(Config.Enemies[r[1]] ~= nil, id .. " robot " .. r[1])
+				end
+			end
+		end
+		for _, w in t.waves or {} do
+			check(Config.Enemies[w[1]] ~= nil, id .. " wave robot " .. w[1])
+		end
+	end
+	local ready = ContractPlan.readyFor(Config)
+	local who, kind = ContractPlan.bounty(CC, 1, 50, ready)
+	check(who == "Rust Baron" and kind == "Captain", "pick 1: the first name, the first ready type")
+	local _, early = ContractPlan.bounty(CC, 1, 4, ready)
+	check(early == "ShieldBearer", "at level 4 only unlocked types are hunted")
+	local offReady =
+		ContractPlan.readyFor(configWithOff({ "Captain", "Grappler", "ShieldBearer", "Bomber", "Sniper" }))
+	local _, last = ContractPlan.bounty(CC, 3, 50, offReady)
+	check(last == "BruteBot", "everything cut: a Brute Bot")
+	local enemyName = function(k: string): string
+		return Config.Enemies[k].name
+	end
+	local title, text = ContractPlan.title(
+		CC,
+		{ type = "Bounty", seed = 1, level = 50, got = 0, pick = 2 },
+		"hero",
+		enemyName,
+		ready
+	)
+	check(
+		title == "Bounty: Iron Widow" and string.find(text, "Iron Widow", 1, true) ~= nil,
+		"the bounty's name on the board"
+	)
+	local gt = ContractPlan.title(
+		CC,
+		{ type = "GeneratorHold", seed = 1, level = 5, got = 0 },
+		"villain",
+		enemyName,
+		ready
+	)
+	check(gt == "Power tap", "villains see their name")
+	local heroic, plain = 0, 0
+	for w = 1, 400 do
+		for _, o in ContractPlan.offers(CC, 9, "hero", w, 45, false, nil, Config) do
+			if o.heroic then
+				heroic += 1
+			else
+				plain += 1
+			end
+			if o.type == "Bounty" then
+				check(o.pick ~= nil and o.pick >= 1 and o.pick <= 12, "a bounty offer has a name")
+			end
+		end
+		for _, o in ContractPlan.offers(CC, 9, "hero", w, 30, false, nil, Config) do
+			check(not o.heroic, "no Heroic offers under 40")
+		end
+	end
+	near(heroic / (heroic + plain), Config.Heroic.chance.contract, 0.04, "Heroic offers at their chance")
+	local c1, r1 = ContractPlan.pay(Config, "Demolition", 45, 9)
+	local c2, r2 = ContractPlan.pay(Config, "Demolition", 45, 9, true)
+	check(c2 == math.floor(c1 * 1.5 + 0.5) and r2 == math.floor(r1 * 1.5 + 0.5), "Heroic pays x1.5")
+	local fixed = ContractPlan.repair(
+		CC,
+		{ { type = "Bounty", pick = 99, heroic = true, got = 3 }, { type = "Escort", pick = 4 } },
+		50
+	)
+	check(
+		fixed[1].pick == 12 and fixed[1].heroic == true and fixed[1].got == 1,
+		"repair keeps Heroic and clamps the pick"
+	)
+	check(fixed[2].pick == nil and fixed[2].heroic == nil, "no pick on other types")
+	near(ContractPlan.holdTick(CC, 10, true, 1), 11, 1e-9, "holding fills")
+	near(ContractPlan.holdTick(CC, 10, false, 2), 9, 1e-9, "an empty ring drains")
+	check(
+		ContractPlan.holdTick(CC, 0.2, false, 2) == 0 and ContractPlan.holdTick(CC, 44.9, true, 1) == 45,
+		"clamped"
+	)
+	check(
+		ContractPlan.courierLeft(CC, nil, 5) == nil and ContractPlan.courierLeft(CC, 0, 30) == 45,
+		"the courier's clock"
+	)
+	check(ContractPlan.courierLeft(CC, 0, 99) == 0, "late")
+	check(ContractPlan.fuseLeft(CC, 10, 70) == 0 and ContractPlan.fuseLeft(CC, 10, 20) == 40, "the fuse")
 end)
 
 test("M6: boss HP scales with heroes and the median level, minus Raid prep (at most 15%)", function()
@@ -3300,31 +4393,34 @@ end)
 test("M7: choices pick once, pay once, and change one step of a mission", function()
 	local StoryPlan = require("../src/shared/StoryPlan")
 	local story = ProfileSchema.newCharacter().story
-	local before = StoryPlan.steps(Config, 2, "hero", story.choices)
-	check(#before == 2, "the branch waits for its choice")
-	check(StoryPlan.pendingBranch(Config, 2, "hero", 3) == 1, "step 3 is choice 1's branch")
+	-- Framed (mission 3): stage 6 is choice 1's branch
+	local before = StoryPlan.steps(Config, 3, "hero", story.choices)
+	check(#before == StoryPlan.stages(Config, 3) - 1, "the branch waits for its choice")
+	check(StoryPlan.pendingBranch(Config, 3, "hero", 6) == 1, "stage 6 is choice 1's branch")
 	local ok, fx = StoryPlan.pick(Config, story, 1, 1, "hero")
-	check(ok and fx.skillPoints == 2 and fx.rep[1] == "city" and fx.gadget == "Decoy", "Save the Train")
+	check(ok and fx.skillPoints == 2 and fx.rep[1] == "city" and fx.flag == "bridgeSaved", "Save the Bridge")
 	check(not StoryPlan.pick(Config, story, 1, 2, "hero"), "a choice is picked only once")
-	local after = StoryPlan.steps(Config, 2, "hero", story.choices)
-	check(#after == 3 and after[3].train, "the train branch goes in")
+	local after = StoryPlan.stage(Config, 3, 6, "hero", story.choices)
+	check(after ~= nil and after.train, "the train branch goes in")
 	local villain = ProfileSchema.newCharacter("villain").story
 	local _, vfx = StoryPlan.pick(Config, villain, 1, 2, "villain")
-	check(vfx.rep[1] == "syndicate" and vfx.credits == 600, "a villain's own-side rep is the Syndicate")
-	check(StoryPlan.labels(Config, 1, "villain")[2] == "Chase the Rival", "villain button labels")
-	-- Trust Her: the mission 5 gauntlet loses 2 turrets; Test Her: an ambush step in mission 4
+	check(
+		vfx.rep[1] == "syndicate" and vfx.flag == "cashGrabbed",
+		"a villain's own-side rep is the Syndicate"
+	)
+	check(StoryPlan.labels(Config, 1, "villain")[2] == "Grab the Cash", "villain button labels")
+	check(StoryPlan.stage(Config, 3, 6, "villain", villain.choices).at == "van", "the cash van branch")
+	-- The Signal: Test Her puts in an ambush; Trust Her goes straight on
 	local trust = ProfileSchema.newCharacter().story
 	StoryPlan.pick(Config, trust, 2, 1, "hero")
-	local m5 = StoryPlan.steps(Config, 5, "hero", trust.choices)
-	check(m5[2].turrets == 2, "a shortcut through the gauntlet")
-	check(#StoryPlan.steps(Config, 4, "hero", trust.choices) == 3, "trust: no ambush")
+	check(StoryPlan.stage(Config, 5, 4, "hero", trust.choices) == nil, "trust: no ambush")
 	local test2 = ProfileSchema.newCharacter().story
 	StoryPlan.pick(Config, test2, 2, 2, "hero")
-	check(#StoryPlan.steps(Config, 4, "hero", test2.choices) == 4, "test: an ambush")
-	check(StoryPlan.steps(Config, 5, "hero", test2.choices)[2].turrets == 4, "no shortcut")
-	local spare = ProfileSchema.newCharacter().story
-	StoryPlan.pick(Config, spare, 3, 1, "hero")
-	check(StoryPlan.bit(spare.perks, 1), "Spare the Core unlocks Null Echo")
+	check(StoryPlan.stage(Config, 5, 4, "hero", test2.choices).kind == "defeat", "test: an ambush")
+	-- The Copy: a villain who reprograms the twin's core gets the Echo Drone (cosmetic)
+	local minion = ProfileSchema.newCharacter("villain").story
+	StoryPlan.pick(Config, minion, 3, 1, "villain")
+	check(StoryPlan.bit(minion.perks, 1), "Reprogram It unlocks the Echo Drone")
 end)
 
 test("M7: 8 side quest arcs of 3 steps; steps advance to done; the journal pins one step", function()
@@ -3348,7 +4444,10 @@ test("M7: 8 side quest arcs of 3 steps; steps advance to done; the journal pins 
 	check(StoryPlan.advanceQuest(story, 2) == "done" and story.quests[2] == 4, "then done")
 	check(StoryPlan.advanceQuest(story, 2) == nil, "a done arc stays done")
 	story.pinned = 0
-	check(StoryPlan.pinnedText(Config, story, "villain") == "Mission 1: Shardfall", "else the next mission")
+	check(
+		StoryPlan.pinnedText(Config, story, "villain") == "Mission 1: The Ceremony",
+		"else the next mission"
+	)
 	check(StoryPlan.npcName(Config, 4, "villain") == "The Velvet Paw", "villains train with the Velvet Paw")
 	check(
 		GearMath.questStyle(Config, "MayorsSash") ~= nil and GearMath.questStyle(Config, "DockCoat") ~= nil,
@@ -3377,7 +4476,7 @@ test("M7: save version 3: returning heroes skip the opening; story numbers are r
 	)
 end)
 
-test("M7: the opening's drones: the first never fires and falls in 2 hits; the second hits weakly", function()
+test("M7: story robots: a harmless one never fires and falls in 2 hits; a weak one takes 4", function()
 	local sim = EnemySim.new(Config, {
 		random = function()
 			return 0.5
@@ -3386,7 +4485,7 @@ test("M7: the opening's drones: the first never fires and falls in 2 hits; the s
 	local a = EnemySim.spawn(sim, "SparkDrone", 0, 20, 0, 1) :: any
 	local b = EnemySim.spawn(sim, "SparkDrone", 10, 20, 0, 1) :: any
 	a.dmgMult, a.hitLife = 0, 2
-	b.dmgMult, b.hitLife = Config.Story.opening.secondDamage, 4
+	b.dmgMult, b.hitLife = 0.35, 4
 	local killed = EnemySim.damage(sim, a.id, 1, 1)
 	check(not killed and a.health > 0, "1 hit: still up")
 	killed = EnemySim.damage(sim, a.id, 1, 1)
@@ -3411,58 +4510,6 @@ test("M7: the opening's drones: the first never fires and falls in 2 hits; the s
 	check(shots == 0, "the first drone never attacks back")
 end)
 
-test(
-	"M7: the opening route is real for every seed: roofs within one Leap, a tram, the shard, a pad, the Docks",
-	function()
-		local OpeningPlan = require("../src/shared/OpeningPlan")
-		local O = Config.Story.opening
-		local gy = Config.City.ground.y
-		for _, seed in { 202647, 11, 777, 31337 } do
-			local w = if seed == 202647 then world else WorldMap.build(Config, seed)
-			for k = 1, 5 do
-				local r = OpeningPlan.route(Config, w, Rng.new(seed + k))
-				check(r ~= nil, "a route for seed " .. seed)
-				if r then
-					local h = r.start[2] - gy
-					check(h >= O.startRoof.minH and h <= O.startRoof.maxH + 2, "start roof height " .. h)
-					local px, pz = OpeningPlan.plaza(w)
-					check(
-						math.sqrt((r.start[1] - px) ^ 2 + (r.start[3] - pz) ^ 2) <= O.startRoof.near,
-						"near the plaza"
-					)
-					local gap = math.sqrt((r.leap[1] - r.start[1]) ^ 2 + (r.leap[3] - r.start[3]) ^ 2)
-					check(
-						gap >= O.leapRoof.minGap and gap <= Config.Move.leap.range,
-						"the next roof is one Leap away"
-					)
-					check(r.leap[2] <= r.start[2] + 12, "not higher than a Leap climbs")
-					check(
-						HeightMap.at(w.heights, r.tram[1], r.tram[3]) <= gy + 1.5,
-						"the tram is on the street"
-					)
-					check(
-						HeightMap.at(w.heights, r.shard[1], r.shard[3]) <= gy + 1.5,
-						"the shard is on open ground"
-					)
-					local pg = math.sqrt((r.pad[1] - r.shard[1]) ^ 2 + (r.pad[3] - r.shard[3]) ^ 2)
-					check(pg >= O.rescueGap[1] and pg <= O.rescueGap[2], "the rescue pad gap")
-					local eg = math.sqrt((r.escape[1] - r.shard[1]) ^ 2 + (r.escape[3] - r.shard[3]) ^ 2)
-					check(eg >= O.escape[1] and eg <= O.escape[2], "the escape run")
-					check(r.beacon > 0 and w.beacons[r.beacon] ~= nil, "a first beacon")
-					check(
-						OpeningPlan.at(Config, r.leap, r.leap[1] + 5, r.leap[2], r.leap[3]),
-						"standing on the roof counts"
-					)
-					check(
-						not OpeningPlan.at(Config, r.leap, r.leap[1], r.leap[2] - 30, r.leap[3]),
-						"the street below does not"
-					)
-				end
-			end
-		end
-	end
-)
-
 test("M7: 7 sealed pockets at y 3,000; every layout has its points", function()
 	local PocketLayout = require("../src/shared/PocketLayout")
 	local S = Config.Story
@@ -3484,11 +4531,17 @@ test("M7: 7 sealed pockets at y 3,000; every layout has its points", function()
 	end
 	check(PocketLayout.at(Config, 0, 50, 0) == nil, "the city is not a pocket")
 	local need = {
-		station = { points = { "spawn", "trainStart" }, lists = { stations = 3, crates = 3, path = 3 } },
-		tower = { points = { "spawn", "top", "mast", "boss" }, lists = {} },
-		rooftops = { points = { "spawn", "contact" }, lists = { path = 8 } },
-		dungeon = { points = { "spawn", "gauntletEnd", "boss" }, lists = { rooms = 3, turrets = 4 } },
-		arena = { points = { "spawn", "boss" }, lists = { pillars = 6 } },
+		bridge = {
+			points = { "spawn", "trainStart", "trainDir", "van", "boss" },
+			lists = { stations = 3, crates = 3, path = 3 },
+		},
+		tower = { points = { "spawn", "top", "mast", "relay", "boss" }, lists = {} },
+		rooftops = { points = { "spawn", "contact", "copy" }, lists = { path = 8 } },
+		dungeon = {
+			points = { "spawn", "gauntletEnd", "door", "boss" },
+			lists = { rooms = 3, turrets = 4, relays = 3 },
+		},
+		arena = { points = { "spawn", "boss" }, lists = { pillars = 6, cams = 3, screens = 3 } },
 	}
 	for n = 2, 6 do
 		local m = S.missions[n]
@@ -3508,13 +4561,13 @@ test("M7: 7 sealed pockets at y 3,000; every layout has its points", function()
 		local sp = l.points.spawn
 		check(PocketLayout.at(Config, sp[1], sp[2], sp[3]) == n, m.layout .. " spawn is inside its pocket")
 	end
-	check(seen.station and seen.tower and seen.rooftops and seen.dungeon and seen.arena, "5 layouts")
+	check(seen.bridge and seen.tower and seen.rooftops and seen.dungeon and seen.arena, "5 layouts")
 	-- robots stand on the pocket's own boxes: the tower top, a roof, the floor, never the dungeon ceiling
 	local tower = PocketLayout.build(Config, 3, "tower")
 	local top = tower.points.top
 	near(PocketLayout.heightAt(tower, top[1], top[3]), top[2] - 1, 1.5, "the tower deck")
 	near(PocketLayout.heightAt(tower, tower.cx + 150, tower.cz + 150), tower.floorY, 0.01, "the pocket floor")
-	local dungeon = PocketLayout.build(Config, 5, "dungeon")
+	local dungeon = PocketLayout.build(Config, 2, "dungeon")
 	local room = dungeon.lists.rooms[2]
 	near(PocketLayout.heightAt(dungeon, room[1], room[3]), dungeon.floorY, 0.01, "not the ceiling")
 	check(
@@ -3689,7 +4742,8 @@ test("M8: stat compression: best gear is about 10% stronger; supers 60%; perks o
 	near(PvpRules.power(Config, 30, 0), base, 0.01, "no gear: the baseline")
 	near(PvpRules.power(Config, 30, base * 5), base * 1.1, 0.01, "huge gear: +10% at most")
 	near(PvpRules.power(Config, 30, base * 0.5), base * 1.05, 0.01, "half the baseline in gear: +5%")
-	near(PvpRules.power(Config, 55, 0), PvpRules.power(Config, 40, 0), 0.01, "level capped at 40")
+	local CAP = Config.Stats.levelCap
+	near(PvpRules.power(Config, CAP + 15, 0), PvpRules.power(Config, CAP, 0), 0.01, "level capped at the cap")
 	local hp0 = PvpRules.health(Config, 30, 0, "Powerhouse")
 	near(PvpRules.health(Config, 30, 4000, "Powerhouse"), hp0 * 1.1, 0.01, "health compresses too")
 	-- a geared target dies in as many hits as its compressed health takes
@@ -3950,7 +5004,13 @@ test(
 				elseif k == "pack" then
 					check(Config.Shop.packs[p.source.n or 0] ~= nil, p.name .. " pack")
 				else
-					check(k == "free" or k == "drop" or k == "starter", p.name .. " source " .. k)
+					check(
+						k == "free"
+							or k == "drop"
+							or k == "starter"
+							or (k == "origin" and Config.Creator.origins[p.source.n or 0] ~= nil),
+						p.name .. " source " .. k
+					)
 				end
 				if tab.id == "emblem" then
 					check(C.shapes[string.split(p.kit, ":")[1]] ~= nil, p.name .. " shape")
@@ -4189,7 +5249,7 @@ test(
 		check(names["Frame Helm"] and names["Orb Badge"] and names["Wind Scarf"], "mission and quest pieces")
 		check(names["Spark Crest"] and names["Showboat"], "Fame ranks")
 		check(
-			names["Jet Boots"] and names["Reactor Core"] and names["Comet Trail"],
+			names["Jet Boots"] and names["Reactor Core"] and names["Meteor Trail"],
 			"Rustjaw Prime tiers 1 to 3"
 		)
 		check(not names["Moon Crest"], "the Lumen Maw not yet")
@@ -4369,15 +5429,18 @@ test("M9: HQ: solo cells, upgrade costs, what each level opens, offline drones c
 end)
 
 test(
-	"M9: Legacy at level 40: a statue, back to level 1, keeps unlocks and reputation, +10% Renown a rank",
+	"M9: Legacy at the level cap: a statue, back to level 1, keeps unlocks and reputation, +10% Renown a rank",
 	function()
 		local HqRules = require("../src/shared/HqRules")
 		local ProfileSchema = require("../src/shared/ProfileSchema")
 		local profile = ProfileSchema.default()
 		local c = profile.characters[1]
-		c.level = 39
-		check(select(2, HqRules.canRetire(Config, c)) == "level", "not before 40")
+		local CAP = Config.Stats.levelCap
+		c.level = CAP - 1
+		check(select(2, HqRules.canRetire(Config, c)) == "level", "not before the cap")
 		c.level = 40
+		check(select(2, HqRules.canRetire(Config, c)) == "level", "not at the old cap of 40 either")
+		c.level = CAP
 		c.rep = { 900, 0, 300 }
 		c.titleId, c.nounId = 3, 1
 		c.fame = 5000
@@ -4386,7 +5449,7 @@ test(
 		c.equipment[1] = 0
 		ProfileSchema.Bits.set(profile.styles, 70)
 		local statue = HqRules.retire(Config, profile, 1, 1000)
-		check(statue ~= nil and statue.rank == 1 and statue.level == 40, "a statue in the Hall of Legends")
+		check(statue ~= nil and statue.rank == 1 and statue.level == CAP, "a statue in the Hall of Legends")
 		local n = profile.characters[1]
 		check(n.level == 1 and n.xp == 0 and n.legacy == 1, "the slot restarts at level 1, Legacy rank 1")
 		check(
@@ -4404,7 +5467,7 @@ test(
 		)
 		check(Config.Gear.equipSlack == 5, "old gear is wearable again at item level minus 5")
 		for _ = 1, 30 do
-			profile.characters[1].level = 40
+			profile.characters[1].level = CAP
 			HqRules.retire(Config, profile, 1, 2000)
 		end
 		check(#profile.legends == Config.Hq.legacy.statues, "the hall keeps the last 20 statues")
@@ -4456,6 +5519,153 @@ test("M9: 1,000 heroes over 10 hours reach level 20 to 28 and spend within 15% o
 	local A = Config.Abilities
 	check(A.rankCredits[5] == 3200 and A.superRankCredits[3] == 2400, "rank prices from the Sinks table")
 	check(r.spent.ranks > 0 and r.spent.hq > 0 and r.spent.styles > 0, "heroes spend on ranks, HQ and styles")
+end)
+
+test("Level cap 50: Renown, stats, zones, gear, bosses, PvP, Legacy and saves all work to the cap", function()
+	local PvpRules = require("../src/shared/PvpRules")
+	local HqRules = require("../src/shared/HqRules")
+	local CAP = Config.Stats.levelCap
+	check(CAP == 50, "the level cap is 50 (nate, 2026-11-17)")
+	check(ProfileSchema.LEVEL_CAP == CAP, "the save repairs levels to the same cap")
+	-- Renown: every step to the cap is positive and bigger than the one before; 1 to 40 is unchanged
+	local prev = 0
+	for L = 1, CAP - 1 do
+		local need = Progress.xpToNext(Config, L)
+		check(
+			need > 0 and need > prev,
+			string.format("level %d to %d takes more than the step before", L, L + 1)
+		)
+		prev = need
+	end
+	near(Progress.totalTo(Config, 40), 68400, 684, "levels 1 to 40 keep the old curve")
+	local band = Progress.totalTo(Config, CAP) - Progress.totalTo(Config, 40)
+	check(band > 0, string.format("40 to the cap takes %d more Renown", band))
+	local lv, xp, gained = Progress.addRenown(Config, 1, 0, Progress.totalTo(Config, CAP) + 5000)
+	check(lv == CAP and xp == 0 and gained == CAP - 1, "enough Renown reaches the cap and no further")
+	local lv2, xp2, gained2 = Progress.addRenown(Config, CAP, 0, 1e7)
+	check(lv2 == CAP and xp2 == 0 and gained2 == 0, "the cap holds")
+	local lv3 = Progress.addRenown(Config, 40, 0, Progress.xpToNext(Config, 40))
+	check(lv3 == 41, "a level 40 hero now goes on to 41")
+	check(
+		select(2, Progress.nextUnlock(Config, CAP - 1)) == Progress.CAP_UNLOCK
+			and Progress.unlockAt(Config, CAP) == Progress.CAP_UNLOCK,
+		"the cap's unlock line is at the cap"
+	)
+	-- stats keep growing to the cap
+	for L = 41, CAP do
+		check(Formulas.power(Config, L) > Formulas.power(Config, L - 1), "Power grows at level " .. L)
+		check(
+			Formulas.health(Config, L, 0, "Elemental") > Formulas.health(Config, L - 1, 0, "Elemental"),
+			"Health grows at level " .. L
+		)
+	end
+	-- zones: a hero from 41 to the cap meets their own level everywhere, the hardest water has a floor too
+	for L = 41, CAP do
+		check(ZoneLevel.at(Config, 0, 0, L, world.tiles) == L, "the hub runs at level " .. L)
+		check(DeepLayout.zoneLevel(Config, 0, -100, 3300, L) == L, "the Trench runs at level " .. L)
+	end
+	check(ZoneLevel.at(Config, 0, 0, CAP + 9, world.tiles) == CAP, "zone levels stop at the cap")
+	local D = Config.Deep
+	check(
+		DeepLayout.zoneLevel(Config, 0, D.trench.floor + 4, 3300, 1) == D.zoneFloor.trenchDeep
+			and DeepLayout.zoneLevel(Config, 0, D.trench.deepBelow + 10, 3300, 1) == D.zoneFloor.trench,
+		"the Trench's depths are the hardest floor"
+	)
+	check(D.zoneFloor.trenchDeep > D.zoneFloor.trench and D.zoneFloor.trenchDeep < CAP, "and below the cap")
+	-- gear: item levels for the 41 to 50 band, wearable, stronger, every tier open
+	local rng = Rng.new(50)
+	local lo, hi = 99, 0
+	for _ = 1, 500 do
+		local il = GearMath.itemLevel(Config, rng, CAP)
+		lo, hi = math.min(lo, il), math.max(hi, il)
+	end
+	local spread = Config.Gear.ilvlSpread
+	check(GearMath.ilvlMax(Config) == CAP + spread, "item levels top out at the cap + the spread")
+	check(
+		lo == CAP - spread and hi == CAP + spread,
+		string.format("a level cap zone drops ilvl %d to %d", lo, hi)
+	)
+	for L = 41, CAP do
+		local piece = GearMath.roll(Config, rng, "Legendary", L, { slot = "hands" })
+		check(
+			piece.ilvl == L and GearMath.canWear(Config, L, piece),
+			"a Legendary at ilvl " .. L .. " is wearable"
+		)
+		check(
+			GearMath.baseBudget(Config, "hands", "Legendary", L)
+				> GearMath.baseBudget(Config, "hands", "Legendary", L - 1),
+			"gear budget grows at ilvl " .. L
+		)
+		check(LootTable.gate(Config, "Legendary", L) == "Legendary", "Legendary drops at level " .. L)
+	end
+	check(
+		GearMath.canWear(Config, CAP, GearMath.roll(Config, rng, "Epic", CAP + spread, { slot = "head" })),
+		"the cap wears the top item level"
+	)
+	-- robots and world bosses scale on past 40
+	check(
+		Formulas.enemyHealth(Config, "BurglarBot", CAP) > Formulas.enemyHealth(Config, "BurglarBot", 40),
+		"robots at the cap are tougher than at 40"
+	)
+	check(BossMath.maxHp(Config, 10, CAP, 0) > BossMath.maxHp(Config, 10, 40, 0), "so are world bosses")
+	-- PvP compression uses the cap; Legacy opens at the cap
+	check(
+		PvpRules.level(Config, 45) == 45 and PvpRules.level(Config, CAP + 5) == CAP,
+		"PvP levels to the cap"
+	)
+	local profile = ProfileSchema.default()
+	profile.characters[1].level = 40
+	check(not HqRules.canRetire(Config, profile.characters[1]), "no Legacy at 40")
+	profile.characters[1].level = CAP
+	check(HqRules.canRetire(Config, profile.characters[1]), "Legacy at the cap")
+	-- saves: a level 45 hero survives a save and load, a level 40 hero from the old cap loads as it was,
+	-- nonsense repairs to the cap
+	local old = ProfileSchema.default()
+	old.characters[1].level = 40
+	old.characters[2] = ProfileSchema.newCharacter()
+	old.characters[2].level = 45
+	old.characters[2].xp = 1234
+	old.characters[3] = ProfileSchema.newCharacter()
+	old.characters[3].level = 99
+	old.legends = { { look = {}, level = 40, rank = 1 } }
+	local p = ProfileSchema.load(serde.decode("json", serde.encode("json", old)))
+	check(p.characters[1].level == 40, "an old level 40 hero keeps level 40")
+	check(p.characters[2].level == 45 and p.characters[2].xp == 1234, "level 45 and its Renown are kept")
+	check(p.characters[3].level == CAP, "a broken level repairs to the cap")
+	check(p.legends[1].level == 40, "an old level 40 statue keeps its level")
+	local fixed = ContractPlan.repair(Config.Contracts, { { type = "Escort", level = 47 } }, CAP)
+	check(fixed[1].level == 47, "a saved level 47 contract keeps its level")
+	-- analytics: the Progress funnel has a stage at the cap, after level 40 and before the first Legacy
+	local at40, atCap, atLegacy
+	for i, st in FunnelDef.stages do
+		if st.name == "Level 40" then
+			at40 = i
+		elseif st.name == "Level " .. CAP then
+			atCap = i
+		elseif st.name == "First legacy" then
+			atLegacy = i
+		end
+	end
+	check(at40 and atCap and atLegacy and at40 < atCap and atCap < atLegacy, "the funnel has the cap stage")
+end)
+
+test("Level cap 50: pacing sim: 1 to 40 keeps its hours, 41 to 50 adds about 35 to 55 hours", function()
+	local EconomySim = require("../src/shared/EconomySim")
+	local CAP = Config.Stats.levelCap
+	local r = EconomySim.run(Config, 1000, 130, 2026)
+	local to40, toCap = r.hoursTo[40], r.hoursTo[CAP]
+	check(
+		to40 >= 40 and to40 <= 55,
+		string.format("median hours to 40: %.1f (about 46 before the cap moved)", to40)
+	)
+	check(toCap < math.huge, "most heroes reach the cap in 130 hours")
+	check(
+		toCap - to40 >= 35 and toCap - to40 <= 55,
+		string.format("41 to %d adds %.1f hours (%.1f to the cap)", CAP, toCap - to40, toCap)
+	)
+	for L = 41, CAP do
+		check(r.hoursTo[L] > r.hoursTo[L - 1], string.format("level %d comes after level %d", L, L - 1))
+	end
 end)
 
 ---------------------------------------------------------------------------
@@ -4582,6 +5792,9 @@ test("M10: colorblind markers: every marker kind has its own shape", function()
 		check(string.find(src, shape, 1, true) ~= nil, "the radar uses " .. shape)
 	end
 end)
+
+-- Overhaul step 8, the phone pass: touch layout, presets, Button size, and every screen run headless
+require("./phone_test")(test, check, Config, process.args[1])
 
 ---------------------------------------------------------------------------
 -- M11: juice, audio and wait fillers
@@ -4746,9 +5959,9 @@ end
 test("M12: every spec event and funnel step is in the schema, and each one is logged somewhere", function()
 	local spec = {
 		"session_start",
-		"first_leap",
-		"first_catch",
-		"first_blast",
+		"spark_detected",
+		"first_spark",
+		"fake_cracked",
 		"choice_made",
 		"choice_pick",
 		"creator_done",
@@ -4826,7 +6039,7 @@ test("M12: events are checked: unknown names refused, fields cut to short safe c
 	local _, g = AnalyticsSchema.check("choice_pick", { "a b<script>", string.rep("x", 50) })
 	check(g[1] == "abscript", "spaces and symbols removed")
 	check(#g[2] == 32, "cut to 32 characters")
-	ok = AnalyticsSchema.check("first_leap", nil)
+	ok = AnalyticsSchema.check("spark_detected", nil)
 	check(ok, "no fields is fine")
 	local A = Config.Analytics
 	check(A.castSample > 0 and A.castSample <= 0.2, "skill casts are sampled at 20% or less (spec)")
@@ -5894,7 +7107,7 @@ test("Creator plan: save v9 pads looks and pieces, keeps weapons, repairs junk",
 	old.characters[1].look = LookCodec.toWords(v1)
 	old.characters[1].weapon = "x"
 	local p = ProfileSchema.load(serde.decode("json", serde.encode("json", old)))
-	check(p.version == 9, "version 9")
+	check(p.version == ProfileSchema.VERSION and p.version >= 9, "version 9 or later")
 	check(
 		#p.pieces == ProfileSchema.PIECE_WORDS and p.pieces[8] == 8 and p.pieces[9] == 0,
 		"the unlock set pads to its full size, keeping bits"
@@ -5977,8 +7190,9 @@ test(
 		end
 		-- 121 in the first slice, then 2026-11-17's head area: 20 hair, 7 facial hair, 15 faces, 12 makeup,
 		-- 4 ears, 14 eyes and 20 emblems; then 10 headwear and 14 masks; then 30 tops, 10 shoulders and 7 neck; then 7 arms, 8 gloves, 14 boots, 6 wrist, 7 belts, 18 legs, 10 back bling and 3 capes (73)
-		-- and the classic clothes and faces (2026-11-17): 18 shirts, 12 pants, 6 faces
-		check(count == 121 + 92 + 24 + 47 + 73 + 36, "393 pieces beyond the first 146 (539 in all)")
+		-- and the classic clothes and faces (2026-11-17): 18 shirts, 12 pants, 6 faces; and the 5 origin crests
+		-- (lore step 2)
+		check(count == 121 + 92 + 24 + 47 + 73 + 36 + 5, "398 pieces beyond the first 146 (544 in all)")
 		-- every piece's unlock can actually be earned
 		for _, p in idx.list do
 			local src, n = p.source, p.source.n
@@ -5994,7 +7208,7 @@ test(
 				check(n >= 1 and n <= #Config.Story.quests, p.name .. " side quest exists")
 			elseif src.kind == "rep" then
 				check(
-					(src.a == "league" or src.a == "syndicate" or src.a == "city")
+					(src.a == "vigil" or src.a == "syndicate" or src.a == "city")
 						and n >= 1
 						and n <= #Config.Story.rep.ranks,
 					p.name .. " reputation rank exists"
@@ -6365,14 +7579,222 @@ test("Effects library: every set has an element, every kind a texture, budgets a
 	local pts = FxPlan.trailPoints(L, 1000)
 	check(#pts == L.trailMax and pts[1] > 0 and pts[#pts] < 1, "long trails cap their points")
 	check(#FxPlan.trailPoints(L, 2) == 1, "short trails emit once")
+	local savedSpark = L.textures.spark.id
+	L.textures.spark.id = 0
 	local tex = FxPlan.textureOf(L, "spark")
 	check(tex == L.textures.spark.builtin, "no upload yet: the built-in image")
+	L.textures.spark.id = savedSpark
 	local saved = L.textures.smoke.id
 	L.textures.smoke.id = 12345
 	local t2, flip = FxPlan.textureOf(L, "smoke")
 	check(t2 == "rbxassetid://12345" and flip == 4, "an uploaded sheet is used with its grid")
 	L.textures.smoke.id = saved
 end)
+
+test(
+	"All power paths: every path has its own look in both styles, every element every moment, and the budget holds",
+	function()
+		local FxPlan = require("../src/shared/FxPlan")
+		local F = Config.Fx
+		local L = F.lib
+		local A = Config.Abilities
+		local function has(list, name)
+			return table.find(list, name) ~= nil
+		end
+		local function rgbOk(t)
+			return type(t) == "table" and #t == 3 and t[1] >= 0 and t[1] <= 255 and t[2] >= 0 and t[3] <= 255
+		end
+		-- which shapes each path has (heads are needed where something flies)
+		local shapes: { [string]: { [string]: boolean } } = {}
+		local superOf: { [string]: any } = {}
+		for _, row in A.list do
+			if row.set ~= "Weapon" then
+				shapes[row.set] = shapes[row.set] or {}
+				shapes[row.set][row.shape] = true
+				if row.slot == "super" then
+					superOf[row.set] = row
+				end
+			end
+		end
+		-- every super look draws from what its shape gives it (a line's end, a cone's fan, an area's centre)
+		local LOOK_SHAPE = {
+			icecrown = "field",
+			sunfall = "field",
+			overgrowth = "field",
+			tsunami = "line",
+			splitter = "line",
+			highnoon = "cone",
+			mechdrop = "field",
+			eclipse = "nova",
+			meteor = "leap",
+			heavenfall = "line",
+			siege = "field",
+			titanrise = "field",
+			singularity = "field",
+			psistorm = "field",
+			ascend = "field",
+			dawn = "nova",
+		}
+		local paths, elements, tuples, looks = 0, {}, {}, {}
+		for set in A.setColor do
+			paths += 1
+			local p = F.paths[set]
+			check(p ~= nil, set .. " has a look row")
+			if p then
+				check(rgbOk(p.accent) and rgbOk(p.super.tint), set .. " accent and tint are colours")
+				check(has(FxPlan.HEADS, p.head), set .. " head " .. tostring(p.head))
+				check(has(FxPlan.MARKS, p.mark), set .. " mark " .. tostring(p.mark))
+				check(has(FxPlan.CASTS, p.cast), set .. " cast " .. tostring(p.cast))
+				check(has(FxPlan.DASHES, p.dash), set .. " dash " .. tostring(p.dash))
+				check(has(FxPlan.PIECES, p.piece), set .. " piece " .. tostring(p.piece))
+				check(
+					has(FxPlan.PIECES, p.field.piece) and has(FxPlan.MOTIONS, p.field.motion),
+					set .. " field"
+				)
+				check(
+					has(FxPlan.PIECES, p.charge.piece) and p.charge.piece ~= "none" and p.charge.n >= 1,
+					set .. " charge motes"
+				)
+				check(
+					p.charge.n <= 8 and p.charge.radius > 0 and p.charge.spin > 0,
+					set .. " charge motes stay small"
+				)
+				check(has(FxPlan.SUPERS, p.super.look), set .. " super " .. tostring(p.super.look))
+				check(F.words[set] ~= nil and #F.words[set] == 3, set .. " has its Comic sound words")
+				local sounds = Config.Audio.paths[set]
+				check(sounds ~= nil, set .. " has its sound layer")
+				for _, moment in { "cast", "super", "hit", "charge" } do
+					local s = sounds and sounds[moment]
+					check(s ~= nil and (s.asset > 0 or s.fallback ~= nil), set .. " " .. moment .. " sound")
+				end
+				local el = L.setElement[set]
+				check(el ~= nil and not elements[el], set .. " has its own element (" .. tostring(el) .. ")")
+				elements[el] = true
+				if set == "Volt" then
+					-- the slice nate OKed keeps its look: nothing of the path section draws over it
+					check(
+						p.head == "none"
+							and p.mark == "none"
+							and p.cast == "none"
+							and p.dash == "none"
+							and p.piece == "none"
+							and p.field.piece == "none"
+							and p.super.look == "none",
+						"Volt keeps the slice's look"
+					)
+					check(L.setElement.Volt == "electric", "Volt stays electric")
+				else
+					check(
+						p.mark ~= "none" and p.cast ~= "none" and p.piece ~= "none",
+						set .. " has a mark, flourish, piece"
+					)
+					check(
+						p.super.look ~= "none" and not looks[p.super.look],
+						set .. " has its own super moment"
+					)
+					looks[p.super.look] = true
+					local key = p.mark .. "/" .. p.cast .. "/" .. p.head
+					check(not tuples[key], set .. " does not share its look with another path")
+					tuples[key] = true
+					local sh = shapes[set] or {}
+					if sh.bolt or sh.chain then
+						check(p.head ~= "none", set .. " has a head for what it throws")
+					end
+					if sh.dash then
+						check(p.dash ~= "none", set .. " has a dash trail")
+					end
+					local sup = superOf[set]
+					check(sup ~= nil, set .. " has a super")
+					if sup then
+						check(
+							LOOK_SHAPE[p.super.look] == sup.shape,
+							set .. " super look " .. p.super.look .. " suits its " .. sup.shape
+						)
+					end
+				end
+			end
+		end
+		check(paths == 17, "17 paths")
+		-- CombatFx draws every name the rows may use
+		local src = clientSources()["src/client/Fx/CombatFx.luau"]
+		local function drawn(prefix, list)
+			for _, name in list do
+				if not (prefix == "PIECE" and name == "none") then
+					check(
+						string.find(src, prefix .. "." .. name .. " = function", 1, true) ~= nil,
+						"CombatFx draws " .. prefix .. "." .. name
+					)
+				end
+			end
+		end
+		drawn("HEAD", FxPlan.HEADS)
+		drawn("MARK", FxPlan.MARKS)
+		drawn("CAST", FxPlan.CASTS)
+		drawn("DASH", FxPlan.DASHES)
+		drawn("MOTION", FxPlan.MOTIONS)
+		drawn("PIECE", FxPlan.PIECES)
+		drawn("SUPER", FxPlan.SUPERS)
+		-- every element has all five moments, each a real kind
+		for el, e in L.elements do
+			for _, moment in { "impact", "trail", "burst", "charge", "super" } do
+				check(e[moment] ~= nil, el .. " has a " .. moment)
+				for kind, n in e[moment] or {} do
+					check(L.kinds[kind] ~= nil and n >= 1, el .. "." .. moment .. "." .. kind .. " is a kind")
+					check(kind ~= "shock", el .. "." .. moment .. " leaves shock rings to FxLib.shock")
+				end
+			end
+		end
+		-- the budget: a whole super (burst, its own particles, crits on six robots) fits every preset, phones fewer
+		for el in L.elements do
+			local prev = -1
+			for _, name in Config.Presets.order do
+				local cost = FxPlan.superCost(L, el, L.scale[name])
+				check(
+					cost <= L.budget[name] * L.superShare,
+					string.format("%s super on %s: %d of %d", el, name, cost, L.budget[name])
+				)
+				check(cost > prev, el .. " draws more on bigger presets")
+				prev = cost
+			end
+		end
+		check(
+			L.partBudget.low < L.partBudget.medium and L.partBudget.medium < L.partBudget.high,
+			"path pieces: phones fewer"
+		)
+		check(
+			FxPlan.pieces(L, "low", 10) < FxPlan.pieces(L, "high", 10) and FxPlan.pieces(L, "low", 1) == 1,
+			"piece counts scale by preset and never vanish"
+		)
+		-- charge motes close in and grow as the charge fills
+		local ch = F.paths.Frost.charge
+		local x0, y0, z0, s0 = FxPlan.orbit(ch, 0, 0.3, 1)
+		local x1, y1, z1, s1 = FxPlan.orbit(ch, 1, 0.3, 1)
+		check(
+			math.sqrt(x1 * x1 + y1 * y1 + z1 * z1) < math.sqrt(x0 * x0 + y0 * y0 + z0 * z0),
+			"motes close in at full charge"
+		)
+		check(s1 > s0, "motes grow at full charge")
+		local ax, _, az = FxPlan.orbit(ch, 0.5, 0, 1)
+		local bx, _, bz = FxPlan.orbit(ch, 0.5, 0, 2)
+		check(math.abs(ax - bx) + math.abs(az - bz) > 0.5, "motes spread around the hand")
+		check(
+			FxPlan.pathOf(F, "Weapon") == nil and FxPlan.pathOf(F, nil) == nil,
+			"weapon moves keep their shapes"
+		)
+		-- the client plays the path's sound layer for casts, supers, hits and charges
+		local cc = clientSources()["src/client/Controllers/CombatClient.luau"]
+		check(
+			string.find(cc, 'Juice.path(eff.set, if slot == "super" then "super" else "cast"', 1, true) ~= nil,
+			"cast sound"
+		)
+		check(
+			string.find(cc, '"hit",', 1, true) ~= nil and string.find(cc, '"charge", origin', 1, true) ~= nil,
+			"hit and charge sounds"
+		)
+		check(string.find(cc, "CombatFx.castFlourish(", 1, true) ~= nil, "your own flourish")
+		check(string.find(cc, "CombatFx.superMoment(", 1, true) ~= nil, "your predicted super's moment")
+	end
+)
 
 test("Hold to aim and charge: what charges, how much, and the server's cap", function()
 	local ChargeRules = require("../src/shared/ChargeRules")
@@ -6456,6 +7878,88 @@ test("Remade robot (Spark Trooper): its superhero shell set and hair", function(
 	check(T.extras.Hair.offset[2] > 0, "the hair is on top of the head")
 	check(T.extras.Hair.size[1] >= 1 and T.extras.Hair.size[1] < 1.3, "the hair is just wider than the head")
 	check(Config.Enemies.SparkDrone.body.art == "Trooper", "the Spark Trooper uses the remade set")
+end)
+
+test("Remade bosses: every boss has its meshes, weak points inside their hit spheres", function()
+	local A = Config.BossArt
+	local ROLES = { hull = true, shed2 = true, shed3 = true, glow = true, weak = true }
+	check(A.texture > 0 and A.texture <= 1024, "one phone-friendly texture set a boss (1024 px at most)")
+	check(#A.weakColor == 2 and A.pulse > 0, "the weak points pulse between two golds")
+	check(#A.objectiveColor == 3, "the objective lamps have a colour")
+	local n = 0
+	for id, def in Config.Boss.bosses do
+		local art = A[id]
+		check(art ~= nil, id .. " has remade art")
+		if not art then
+			continue
+		end
+		n += 1
+		check(art.triangles > 0 and art.triangles <= 16000, id .. " is under the 16,000 triangle boss budget")
+		check(#art.glow == 3, id .. " has an accent colour for each phase")
+		local roles = {}
+		for name, row in art.pieces do
+			check(ROLES[row.role] == true, id .. "_" .. name .. " has a body role")
+			roles[row.role] = true
+			for k = 1, 3 do
+				check(
+					row.size[k] > 0 and row.size[k] <= def.arenaRadius,
+					id .. "_" .. name .. " fits its arena"
+				)
+				check(
+					math.abs(row.offset[k]) <= def.arenaRadius / 2,
+					id .. "_" .. name .. " sits on the boss"
+				)
+			end
+			check(
+				row.offset[2] - row.size[2] / 2 > -def.height,
+				id .. "_" .. name .. " is not far underground"
+			)
+		end
+		check(roles.hull and roles.weak and roles.glow, id .. " has a hull, accents and weak points")
+		check(roles.shed2 and roles.shed3, id .. " sheds plates at phases 2 and 3")
+		-- every weak point has a lamp inside its hit sphere (hit boxes stay Config.Boss's), and no lamp is a fake
+		for _, t in def.targets do
+			if t.weak then
+				local at = art.weak[t.id]
+				check(at ~= nil, id .. " " .. t.id .. " has a lamp")
+				if at then
+					local d = math.sqrt((at[1] - t.at[1]) ^ 2 + (at[2] - t.at[2]) ^ 2 + (at[3] - t.at[3]) ^ 2)
+					check(d <= t.r, id .. " " .. t.id .. "'s lamp is inside its hit sphere")
+				end
+			end
+		end
+		for tid in art.weak do
+			local real = false
+			for _, t in def.targets do
+				real = real or (t.id == tid and t.weak == true)
+			end
+			check(real, id .. " " .. tid .. " is a real weak point")
+		end
+		-- one objective body and one lamp, set at each objective; the lamp inside the objective's 5-stud hit sphere
+		-- (on the body at the objective's point; a generator's is 8 studs over its foot, BossSim)
+		local bodies, lamps = 0, 0
+		local up = if def.objectives.list[1].ring then 8 else 0
+		for name, row in art.objective do
+			if row.role == "objective" then
+				bodies += 1
+			elseif row.role == "objectiveGlow" then
+				lamps += 1
+				local o = row.offset
+				local d = math.sqrt(o[1] ^ 2 + (o[2] - up) ^ 2 + o[3] ^ 2)
+				check(d <= 5, id .. " " .. name .. " sits inside its objective's hit sphere")
+			end
+			check(row.size[1] > 0 and row.size[2] > 0 and row.size[3] > 0, id .. " " .. name .. " has a size")
+		end
+		check(bodies == 1 and lamps == 1, id .. " has one objective body and one lamp")
+	end
+	check(
+		n == 4,
+		"all four bosses (Rustjaw Prime, the Lumen Maw, the Leviathan Engine, the War-Frame) are remade"
+	)
+	-- only the look changes: the bosses' hit spheres and numbers are the ones the fight was tuned with
+	check(Config.Boss.bosses.RustjawPrime.targets[5].id == "core", "Rustjaw's core target is unchanged")
+	check(Config.Boss.bosses.RustjawPrime.targets[5].r == 6, "Rustjaw's core radius is unchanged")
+	check(Config.Boss.weakMult == 2, "weak points still take double damage")
 end)
 
 test(
@@ -6652,7 +8156,10 @@ test("Roblox look: classic clothes map onto the R15 body, robots' recipes and Ro
 	-- every robot kind has its three uniform versions, so no kind is left in the plain look
 	check(#NL.versions == 3, "three uniform versions")
 	for _, kind in Config.Enemies.order do
-		check(NL.robots[kind] ~= nil, kind .. " has a Roblox-look uniform")
+		-- (the famous fakes and the twin wear a hero look instead: lore step 4)
+		if not Config.Enemies[kind].fake then
+			check(NL.robots[kind] ~= nil, kind .. " has a Roblox-look uniform")
+		end
 	end
 	for kind, r in NL.robots do
 		check(Config.Enemies[kind] ~= nil and Config.Enemies[kind].typeId ~= nil, kind .. " is a robot")
@@ -6679,14 +8186,19 @@ test("City kit block: textured fronts, street dressing, and the rest of Downtown
 		local k = layout.buildings[i]
 		check(k.x == b.x and k.z == b.z and k.h == b.h, "building " .. i .. " unchanged")
 	end
-	local kits, bands, marks, kerbs = {}, 0, 0, 0
+	check(#plain.props == 0, "no props without the kit")
+	local kits, bands, marks, kerbs, blocks = {}, 0, 0, 0, 0
 	for _, b in layout.boxes do
-		if b.kit then
+		-- a skyscraper's setback tiers wear its body's front too; count each building's body once
+		if b.kit and not b.crown then
 			check(K.baseMaterial[b.kit] ~= nil and K.studsPerTile[b.kit] ~= nil, b.kit .. " is a kit texture")
 			kits[b.kit] = (kits[b.kit] or 0) + 1
 		end
 		if b.plain then
-			check(b.kind == "band", "only window bands give way to the kit fronts")
+			check(
+				b.kind == "band" and K.baseMaterial[b.plain] ~= nil,
+				"only window bands give way to a kit front"
+			)
 			bands += 1
 		end
 		if b.kind == "mark" then
@@ -6695,30 +8207,2863 @@ test("City kit block: textured fronts, street dressing, and the rest of Downtown
 		if b.color == "kerb" and b.kind == "sidewalk" then
 			kerbs += 1
 		end
+		if b.kind == "sidewalk" and b.color == "sidewalk" then
+			blocks += 1
+		end
 	end
-	check(kits.Paving == 1 and kits.Asphalt == 1, "one paved block, the road textured")
-	local fronts = (kits.Brick or 0) + (kits.Office or 0) + (kits.Curtain or 0) + (kits.Stone or 0)
-	check(fronts >= 3 and fronts <= 4, string.format("%d textured fronts on the block", fronts))
-	check(bands > 0 and marks > 0 and kerbs == 4, "bands to replace, lane dashes and four kerbs")
-	-- props: on the block's sidewalk, each a known prop with its pieces in StreetArt
+	-- 33 blocks of lots (24 in the first Downtown, 9 grown) and 2 open squares, all paved
+	local dressed = blocks + #layout.open
+	check(
+		kits.Paving == dressed and blocks == 33 and #layout.open == 2 and kits.Asphalt == 1,
+		string.format("every block paved, the road textured (%d blocks, %d squares)", blocks, #layout.open)
+	)
+	local fronts = 0
+	for _, name in { "Brick", "Office", "Curtain", "Stone", "Deco", "Panel" } do
+		fronts += kits[name] or 0
+		check((kits[name] or 0) > 0, name .. " fronts in Downtown")
+	end
+	check(
+		fronts == #layout.buildings - 1,
+		string.format("%d textured fronts (every building but the Beacon)", fronts)
+	)
+	check(
+		bands > 0 and marks > 0 and kerbs == 4 * dressed,
+		"bands to replace, lane dashes and four kerbs a block"
+	)
+	-- every street between two blocks gets its dashes once: no two dashes in one place
+	local seen, dup = {}, 0
+	for _, b in layout.boxes do
+		if b.kind == "mark" then
+			local key = string.format("%.1f,%.1f", b.cx, b.cz)
+			if seen[key] then
+				dup += 1
+			end
+			seen[key] = true
+		end
+	end
+	check(dup == 0, "no doubled lane dashes")
+	-- props: each a known prop with its pieces in StreetArt, on a block's sidewalk
 	local counts = {}
 	for _, pr in layout.props do
 		counts[pr.name] = (counts[pr.name] or 0) + 1
-		local pieces = K.props[pr.name]
-		check(pieces ~= nil, pr.name .. " is a kit prop")
-		for piece in pieces do
+		local def = K.props[pr.name]
+		check(def ~= nil, pr.name .. " is a kit prop")
+		for piece in def.pieces do
 			check(Config.StreetArt[pr.name][piece] ~= nil, piece .. " has a mesh size")
 		end
 		check(math.abs(pr.y - (Config.City.ground.y + 0.9)) < 1e-6, "props stand on the sidewalk")
 	end
-	check((counts.StreetLamp or 0) >= 8 and (counts.Planter or 0) >= 4, "lamps and trees line the block")
 	check(
-		counts.Bench == 4 and counts.Bin == 4 and counts.Hydrant == 4 and counts.TrafficLight == 2,
-		"one of each a side"
+		(counts.StreetLamp or 0) >= 8 * dressed and (counts.Planter or 0) >= 4 * dressed,
+		"lamps and trees line every block"
+	)
+	check(
+		counts.TrafficLight == 2 * dressed and (counts.Hydrant or 0) == 4 * dressed,
+		"lights on two corners, a hydrant a side"
+	)
+	check(
+		(counts.BusStop or 0) > 0 and (counts.BikeRack or 0) > 0 and (counts.Bench or 0) > blocks,
+		"the sides vary: bus stops, bike racks, benches"
 	)
 	check(layout.parts <= Config.City.partBudget.downtown, "still within the Downtown part budget")
 end); -- Hero MMO features (H1 to H8) live in their own file so this one merges easily
 (require :: any)("./mmo")({ test = test, check = check, near = near, Config = Config })
+
+test(
+	"City kit: every district dressed, deterministic, within budget, nothing in buildings or roads",
+	function()
+		local fs = require("@lune/fs")
+		local Districts = require("../src/shared/Districts")
+		local CityKit = require("../src/shared/CityKit")
+		local K = Config.City.kit
+		local C = Config.City
+		local gy = C.ground.y
+		local seed = 202647
+		local a = WorldMap.build(Config, seed)
+		local b = WorldMap.build(Config, seed, { props = true })
+		-- deterministic: the same props in the same order (a device builds the same list as the tests)
+		local same = #a.props == #b.props
+		for i, p in a.props do
+			local q = b.props[i]
+			if
+				not (
+					q
+					and q.name == p.name
+					and q.x == p.x
+					and q.y == p.y
+					and q.z == p.z
+					and q.ry == p.ry
+					and q.d == p.d
+				)
+			then
+				same = false
+			end
+		end
+		check(same and #a.props > 5000, string.format("same seed, same %d props", #a.props))
+
+		-- the kit changes no random draw: without it the world is the same, box for box
+		local bareCfg = table.clone(Config)
+		bareCfg.City = table.clone(Config.City)
+		bareCfg.City.kit = nil
+		local p0 = WorldMap.build(bareCfg, seed)
+		check(p0.hash == a.hash and #p0.props == 0, "same tile hash, no props without the kit")
+		local bOk = #p0.buildings == #a.buildings
+		for i, x in p0.buildings do
+			local y = a.buildings[i]
+			bOk = bOk and y.x == x.x and y.z == x.z and y.sx == x.sx and y.base == x.base and y.top == x.top
+		end
+		check(bOk, "the same wreckable buildings, ids and sizes")
+		local FIELDS =
+			{ "kind", "cx", "cy", "cz", "sx", "sy", "sz", "color", "shape", "ry", "grp", "bid", "tag", "ref" }
+		local function sameBoxes(x: { any }, y: { any }, what: string)
+			local ys = {}
+			for _, bx in y do
+				if not bx.dress then
+					table.insert(ys, bx)
+				end
+			end
+			local ok = #x == #ys
+			for i, bx in x do
+				local by = ys[i]
+				if not by then
+					ok = false
+					break
+				end
+				for _, f in FIELDS do
+					if bx[f] ~= by[f] then
+						ok = false
+					end
+				end
+			end
+			check(ok, what .. ": every box as before (the kit only adds kerbs, lines and cornices)")
+		end
+		sameBoxes(p0.hubBoxes, a.hubBoxes, "hub")
+		sameBoxes(p0.baseBoxes, a.baseBoxes, "base")
+		local plansOk = #p0.tilePlans == #a.tilePlans
+		for i, plan in p0.tilePlans do
+			local other = a.tilePlans[i]
+			if not other or #other.boxes ~= #plan.boxes then
+				plansOk = false
+			else
+				for k, bx in plan.boxes do
+					for _, f in FIELDS do
+						if other.boxes[k][f] ~= bx[f] then
+							plansOk = false
+						end
+					end
+				end
+			end
+		end
+		check(plansOk, "outskirts tiles: every box as before")
+
+		-- every kit texture has its files, a base material and a tile size; every tint is a palette colour
+		local used = {}
+		local function scanKit(list: { any })
+			for _, bx in list do
+				if bx.kit then
+					used[bx.kit] = true
+				end
+				if bx.tint then
+					check(C.palette[bx.tint] ~= nil, bx.tint .. " is a palette colour")
+					check(K.tinted[bx.kit] ~= nil, bx.kit .. " is a tinted texture")
+				end
+				if bx.plain then
+					check(bx.kind == "band", "only window bands are plain")
+				end
+			end
+		end
+		scanKit(a.hubBoxes)
+		scanKit(a.baseBoxes)
+		for _, plan in a.tilePlans do
+			scanKit(plan.boxes)
+		end
+		for name in K.baseMaterial do
+			check(used[name] == true, name .. " is used somewhere in the city")
+			check(K.studsPerTile[name] ~= nil, name .. " has a tile size")
+			for _, map in { "Color", "Normal", "Roughness" } do
+				check(
+					fs.isFile("art/export/city/" .. name .. "_" .. map .. ".png"),
+					name .. "_" .. map .. ".png exists"
+				)
+			end
+		end
+		for name in used do
+			check(K.baseMaterial[name] ~= nil, name .. " has a base material")
+		end
+		for _, list in K.tinted do
+			if type(list) == "table" then
+				for _, key in list do
+					check(C.palette[key] ~= nil, key .. " tint is in the palette")
+				end
+			end
+		end
+
+		-- budgets per district: props, their mesh parts, and the server-built dressing boxes
+		local per = {}
+		for _, p in a.props do
+			local def = K.props[p.name]
+			check(
+				def ~= nil and def.tier >= 1 and def.tier <= 3 and #def.foot == 3,
+				p.name .. " is a kit prop"
+			)
+			for piece in def.pieces do
+				check(
+					Config.StreetArt[p.name] ~= nil and Config.StreetArt[p.name][piece] ~= nil,
+					piece .. " has a mesh"
+				)
+			end
+			local d = per[p.d] or { props = 0, parts = 0, boxes = 0, tier1 = 0 }
+			per[p.d] = d
+			d.props += 1
+			d.parts += CityKit.parts(K, p.name)
+			if def.tier == 1 then
+				d.tier1 += CityKit.parts(K, p.name)
+			end
+		end
+		local function districtOf(x: number, z: number): string
+			for name, r in C.districts do
+				if x >= r.minX and x <= r.maxX and z >= r.minZ and z <= r.maxZ then
+					return name
+				end
+			end
+			return "Hub"
+		end
+		for _, bx in a.hubBoxes do
+			if bx.dress then
+				local d = per[districtOf(bx.cx, bx.cz)]
+				d.boxes += 1
+			end
+		end
+		local lines = {}
+		for _, name in { "Downtown", "Uptown", "Docks", "OldTown", "Hub", "Outskirts" } do
+			local d = per[name]
+			local cap = K.budget[name]
+			check(d ~= nil and d.props > 0, name .. " has props")
+			if d then
+				check(
+					d.props <= cap.props and d.parts <= cap.parts and d.boxes <= cap.boxes,
+					string.format(
+						"%s within budget: %d props, %d parts, %d boxes",
+						name,
+						d.props,
+						d.parts,
+						d.boxes
+					)
+				)
+				check(d.tier1 < d.parts, name .. ": a phone (tier 1) builds fewer")
+				table.insert(lines, string.format("%s %d/%d/%d", name, d.props, d.parts, d.boxes))
+			end
+		end
+		print("  city kit (props/parts/boxes): " .. table.concat(lines, ", "))
+		-- device presets: phones get the fewest, nearest first
+		local P = Config.Presets
+		for i, name in P.order do
+			local pr = P[name].props
+			check(pr ~= nil and pr.tier == i, name .. " builds props up to tier " .. i)
+			if i > 1 then
+				local lo = P[P.order[i - 1]].props
+				check(
+					pr.radius > lo.radius and pr.parts > lo.parts,
+					name .. " builds more than " .. P.order[i - 1]
+				)
+			end
+		end
+		check(C.partBudget.downtown >= a.downtown.parts, "Downtown within its part budget")
+		local docks = Districts.docks(C, {})
+		local old = Districts.oldTown(C, {})
+		check(
+			docks.parts <= C.partBudget.docks and old.parts <= C.partBudget.oldTown,
+			"Docks and Old Town part budgets"
+		)
+
+		-- placement: no ground prop inside anything solid (buildings, walls, props, trees, terminals, water),
+		-- a parked vehicle, the harbour or another prop; independent of the layout's own check
+		local cell = 20
+		local grid = {}
+		local function addRect(r: any, what: string)
+			for ix = math.floor(r.x0 / cell), math.floor(r.x1 / cell) do
+				for iz = math.floor(r.z0 / cell), math.floor(r.z1 / cell) do
+					local k = ix * 100000 + iz
+					grid[k] = grid[k] or {}
+					table.insert(grid[k], { r = r, what = what })
+				end
+			end
+		end
+		local function hit(r: any): string?
+			for ix = math.floor(r.x0 / cell), math.floor(r.x1 / cell) do
+				for iz = math.floor(r.z0 / cell), math.floor(r.z1 / cell) do
+					for _, o in grid[ix * 100000 + iz] or {} do
+						local q = o.r
+						if
+							r.x0 < q.x1 - 1e-6
+							and q.x0 < r.x1 - 1e-6
+							and r.z0 < q.z1 - 1e-6
+							and q.z0 < r.z1 - 1e-6
+						then
+							return o.what
+						end
+					end
+				end
+			end
+			return nil
+		end
+		local SOLIDS = {
+			building = true,
+			prop = true,
+			roof = true,
+			ledge = true,
+			beacon = true,
+			terminal = true,
+			water = true,
+		}
+		local function addSolids(list: { any })
+			for _, bx in list do
+				local bottom, top = bx.cy - bx.sy / 2, bx.cy + bx.sy / 2
+				if SOLIDS[bx.kind] and bottom < gy + 7 and top > gy + 0.5 and bx.sx < 400 and bx.sz < 400 then
+					local fx, fz = BoxKit.footprint(bx)
+					addRect(
+						{ x0 = bx.cx - fx / 2, z0 = bx.cz - fz / 2, x1 = bx.cx + fx / 2, z1 = bx.cz + fz / 2 },
+						bx.kind
+					)
+				end
+			end
+		end
+		addSolids(a.hubBoxes)
+		for _, plan in a.tilePlans do
+			addSolids(plan.boxes)
+		end
+		for _, v in Vehicles.place(Config) do
+			local fx, fz = v.sx, v.sz
+			if v.ry % 180 == 90 then
+				fx, fz = fz, fx
+			end
+			addRect({ x0 = v.x - fx / 2, z0 = v.z - fz / 2, x1 = v.x + fx / 2, z1 = v.z + fz / 2 }, "vehicle")
+		end
+		local bs = C.docks.basin
+		addRect({ x0 = bs.minX, z0 = bs.minZ, x1 = bs.maxX, z1 = bs.maxZ }, "harbour")
+		local lane = C.docks.lane
+		addRect({ x0 = lane.minX, z0 = lane.minZ, x1 = lane.maxX, z1 = lane.maxZ }, "truck lane")
+		-- the roads where cars drive: Downtown's and Old Town's streets (everything off a block), the outskirts
+		-- road strips and the filler tiles' street ring
+		local function blockRects(r: any, block: number, street: number): { any }
+			local out = {}
+			local pitch = block + street
+			for bx = 1, math.floor((r.maxX - r.minX) / pitch) do
+				for bz = 1, math.floor((r.maxZ - r.minZ) / pitch) do
+					local x0 = r.minX + street / 2 + (bx - 1) * pitch
+					local z0 = r.minZ + street / 2 + (bz - 1) * pitch
+					table.insert(out, { x0 = x0, z0 = z0, x1 = x0 + block, z1 = z0 + block })
+				end
+			end
+			return out
+		end
+		local onBlock = {
+			Downtown = blockRects(C.districts.Downtown, C.downtown.block, C.downtown.street),
+			Uptown = blockRects(C.districts.Uptown, C.uptown.block, C.uptown.street),
+			OldTown = blockRects(C.districts.OldTown, C.oldTown.block, C.oldTown.street),
+		}
+		do -- Clock Square spans its 2 x 2 blocks and the streets between them (no cars there)
+			local o, ot = C.districts.OldTown, C.oldTown
+			local x0 = o.minX + ot.street / 2 + (ot.square[1] - 1) * (ot.block + ot.street)
+			local z0 = o.minZ + ot.street / 2 + (ot.square[1] - 1) * (ot.block + ot.street)
+			local size = 2 * ot.block + ot.street
+			table.insert(onBlock.OldTown, { x0 = x0, z0 = z0, x1 = x0 + size, z1 = z0 + size })
+		end
+		local function within(r: any, list: { any }): boolean
+			for _, q in list do
+				if
+					r.x0 >= q.x0 - 1e-6
+					and r.x1 <= q.x1 + 1e-6
+					and r.z0 >= q.z0 - 1e-6
+					and r.z1 <= q.z1 + 1e-6
+				then
+					return true
+				end
+			end
+			return false
+		end
+		local roads = {}
+		for _, bx in a.baseBoxes do
+			if bx.kind == "road" then
+				table.insert(roads, {
+					x0 = bx.cx - bx.sx / 2,
+					z0 = bx.cz - bx.sz / 2,
+					x1 = bx.cx + bx.sx / 2,
+					z1 = bx.cz + bx.sz / 2,
+				})
+			end
+		end
+		local bad: { [string]: number } = {}
+		local function fail(why: string)
+			bad[why] = (bad[why] or 0) + 1
+		end
+		local stacked = 0
+		local hubFill = C.hubFill.street
+		for _, p in a.props do
+			local r = CityKit.footprint(K, p)
+			local ground = p.y <= gy + 1
+			if not ground then
+				-- only crates stack, square on a crate below
+				local under = false
+				for _, q in a.props do
+					if
+						q ~= p
+						and q.name == "Crate"
+						and q.x == p.x
+						and q.z == p.z
+						and math.abs(q.y + 3 - p.y) < 1e-6
+					then
+						under = true
+					end
+				end
+				if not (p.name == "Crate" and under) then
+					fail("a raised prop not on a crate")
+				end
+				stacked += 1
+				continue
+			end
+			local what = hit(r)
+			if what then
+				fail(p.d .. " " .. p.name .. " in a " .. what)
+			end
+			if p.d == "Downtown" or p.d == "OldTown" or p.d == "Uptown" then
+				if not within(r, onBlock[p.d]) then
+					fail(p.d .. " " .. p.name .. " in the street")
+				end
+			elseif p.d == "Hub" or p.d == "Outskirts" then
+				for _, q in roads do
+					if r.x0 < q.x1 and q.x0 < r.x1 and r.z0 < q.z1 and q.z0 < r.z1 then
+						fail(p.d .. " " .. p.name .. " on a road")
+						break
+					end
+				end
+				if p.d == "Hub" then
+					local tx, tz = WorldGen.tileOf(C, p.x, p.z)
+					local x0, z0 = WorldGen.tileOrigin(C, tx, tz)
+					local inner = {
+						{
+							x0 = x0 + hubFill,
+							z0 = z0 + hubFill,
+							x1 = x0 + C.tile - hubFill,
+							z1 = z0 + C.tile - hubFill,
+						},
+					}
+					if not within(r, inner) then
+						fail("Hub " .. p.name .. " in the filler street")
+					end
+				end
+			end
+			addRect(r, "prop " .. p.name)
+		end
+		local msgs = {}
+		for why, n in bad do
+			table.insert(msgs, why .. " x" .. n)
+		end
+		table.sort(msgs)
+		check(
+			#msgs == 0,
+			"every prop clear of buildings, roads, water, vehicles and other props: "
+				.. table.concat(msgs, "; ")
+		)
+		check(stacked > 0, "some crates are stacked")
+
+		-- variety: fronts and tints differ along a street
+		local frontKinds: { [string]: { [string]: boolean } } = {}
+		for _, bx in a.hubBoxes do
+			if bx.kind == "building" and bx.kit then
+				local d = districtOf(bx.cx, bx.cz)
+				frontKinds[d] = frontKinds[d] or {}
+				frontKinds[d][bx.kit .. ":" .. (bx.tint or "")] = true
+			end
+		end
+		local function count(t: { [string]: boolean }?): number
+			local n = 0
+			for _ in t or {} do
+				n += 1
+			end
+			return n
+		end
+		check(count(frontKinds.Downtown) >= 6, "Downtown has at least 6 fronts")
+		check(count(frontKinds.OldTown) >= 8, "Old Town has at least 8 front and colour mixes")
+		check(count(frontKinds.Docks) >= 3, "the Docks have at least 3 fronts")
+		check(count(frontKinds.Uptown) >= 8, "Uptown has at least 8 front and colour mixes")
+		local own, all = 0, 0
+		for _, bx in a.hubBoxes do
+			if bx.kind == "building" and bx.kit and districtOf(bx.cx, bx.cz) == "Uptown" then
+				all += 1
+				if bx.kit == "Ribbon" or bx.kit == "Prism" then
+					own += 1
+				end
+			end
+		end
+		check(
+			all > 0 and own >= all * 0.7,
+			"Uptown wears mostly its own fronts (Ribbon, Prism), not Downtown's"
+		)
+		local houses = {}
+		for _, plan in a.tilePlans do
+			for _, bx in plan.boxes do
+				if bx.kind == "building" and bx.kit then
+					houses[bx.kit .. ":" .. (bx.tint or "")] = true
+				end
+			end
+		end
+		check(count(houses) >= 8, "the outskirts have at least 8 front and colour mixes")
+		for _, name in { "Downtown", "Uptown", "Docks", "OldTown", "Hub", "Outskirts" } do
+			local kinds = {}
+			for _, p in a.props do
+				if p.d == name then
+					kinds[p.name] = true
+				end
+			end
+			check(count(kinds) >= 3, name .. " has at least 3 kinds of prop")
+		end
+	end
+)
+
+test(
+	"Bigger Downtown and Uptown: the first Downtown unchanged, nothing overlaps, everything reachable",
+	function()
+		local IncidentSpots = require("../src/shared/IncidentSpots")
+		local C = Config.City
+		local gy = C.ground.y
+		local seed = 202647
+		local wd = world -- WorldMap.build(Config, 202647) above
+		local t = C.downtown
+		local core = t.core
+		local pitch = t.block + t.street
+
+		-- the size is config: the district is the core grown by whole blocks, and the core is the first 700 x 700
+		local d = C.districts.Downtown
+		check(
+			d.minX == core.minX - t.grow.west * pitch
+				and d.maxX == core.maxX + t.grow.east * pitch
+				and d.minZ == core.minZ - t.grow.north * pitch
+				and d.maxZ == core.maxZ + t.grow.south * pitch,
+			"Downtown is its core grown by whole blocks"
+		)
+		check(
+			core.maxX - core.minX == 700 and core.maxZ - core.minZ == 700,
+			"the core is the first 700 x 700"
+		)
+		check((d.maxX - d.minX) * (d.maxZ - d.minZ) >= 1.3 * 700 * 700, "Downtown is at least 1.3x as big")
+
+		-- the core is built exactly as before growing: same buildings, safehouse lots and Beacon Tower
+		local small = table.clone(C)
+		small.districts = table.clone(C.districts)
+		small.districts.Downtown = table.clone(core)
+		small.downtown = table.clone(t)
+		small.downtown.grow = { north = 0, south = 0, west = 0, east = 0 }
+		small.downtown.open = {}
+		local before = CityLayout.downtown(small, W)
+		local after = CityLayout.downtown(C, W)
+		local same = true
+		for i, b in before.buildings do
+			local k = after.buildings[i]
+			if not (k and k.x == b.x and k.z == b.z and k.h == b.h and k.sx == b.sx and k.grp == b.grp) then
+				same = false
+			end
+			if k and k.grown then
+				same = false
+			end
+		end
+		check(same, string.format("the first %d Downtown buildings are where they were", #before.buildings))
+		check(
+			after.beacon.x == before.beacon.x and after.beacon.z == before.beacon.z,
+			"the Beacon Tower and the plaza did not move"
+		)
+		for id, s in before.safehouseSpots do
+			local s2 = after.safehouseSpots[id]
+			check(s2 ~= nil and s2.x == s.x and s2.z == s.z, "safehouse " .. id .. " keeps its lot")
+		end
+		local grown = 0
+		for _, b in after.buildings do
+			if b.grown then
+				grown += 1
+			end
+		end
+		local newBlocks = ((d.maxX - d.minX) / pitch) * ((d.maxZ - d.minZ) / pitch) - 25
+		check(
+			grown == 4 * (newBlocks - #t.open),
+			string.format("%d buildings in %d new blocks (%d kept open)", grown, newBlocks, #t.open)
+		)
+		-- the same twice (deterministic)
+		local again = CityLayout.downtown(C, W)
+		local up1, up2 = CityLayout.uptown(C), CityLayout.uptown(C)
+		local twice = #again.boxes == #after.boxes and #up1.boxes == #up2.boxes
+		for i, b in up1.boxes do
+			local q = up2.boxes[i]
+			twice = twice
+				and q.cx == b.cx
+				and q.cy == b.cy
+				and q.cz == b.cz
+				and q.sy == b.sy
+				and q.color == b.color
+		end
+		check(twice, "Downtown and Uptown build the same twice")
+
+		-- wreckable ids: the first 220 as before, then the grown Downtown blocks and Uptown
+		local Districts = require("../src/shared/Districts")
+		local clear = {}
+		for _, s in wd.safehouses do
+			table.insert(clear, { x = s.x, z = s.z, r = W.safehouse.pad * 0.75 })
+		end
+		local first = WorldMap.pickBuildings(
+			Config,
+			CityLayout.downtown(small, W),
+			Districts.docks(C, clear),
+			Districts.oldTown(C, clear)
+		)
+		local idsOk = #first == Config.Destruction.hubBuildings
+		for i, b in first do
+			local k = wd.buildings[i]
+			idsOk = idsOk
+				and k ~= nil
+				and k.x == b.x
+				and k.z == b.z
+				and k.top == b.top
+				and k.district == b.district
+		end
+		check(idsOk, "the first 220 wreckable buildings keep their ids")
+		local up = wd.uptown
+		check(
+			#wd.buildings == Config.Destruction.hubBuildings + grown + #up.buildings,
+			string.format(
+				"%d wreckable: 220 + %d grown Downtown + %d Uptown",
+				#wd.buildings,
+				grown,
+				#up.buildings
+			)
+		)
+		for i = Config.Destruction.hubBuildings + 1, #wd.buildings do
+			local b = wd.buildings[i]
+			check(b.id == i and (b.district == "Downtown" or b.district == "Uptown"), "new wreckable " .. i)
+		end
+
+		-- districts never overlap each other, the outskirts safehouses, landmarks or the beacons outside them
+		local names = {}
+		for name in C.districts do
+			table.insert(names, name)
+		end
+		for i, an in names do
+			for j = i + 1, #names do
+				local ra, rb = C.districts[an], C.districts[names[j]]
+				check(
+					ra.maxX <= rb.minX or rb.maxX <= ra.minX or ra.maxZ <= rb.minZ or rb.maxZ <= ra.minZ,
+					an .. " and " .. names[j] .. " do not overlap"
+				)
+			end
+		end
+		local u = C.districts.Uptown
+		local half = C.mapSize / 2
+		check(u.maxX - u.minX >= 600 and u.maxZ - u.minZ >= 600, "Uptown is at least 600 x 600")
+		check(
+			u.minX > -half + 2 * C.tile and u.maxZ < half - 2 * C.tile,
+			"Uptown is on the map, clear of the coast"
+		)
+		check(
+			u.maxZ <= C.hub.min or u.minZ >= C.hub.max or u.maxX <= C.hub.min or u.minX >= C.hub.max,
+			"Uptown is out of the hub"
+		)
+		local function inside(r: any, x: number, z: number, pad: number): boolean
+			return x > r.minX - pad and x < r.maxX + pad and z > r.minZ - pad and z < r.maxZ + pad
+		end
+		for _, s in wd.safehouses do
+			for name, r in C.districts do
+				if s.district ~= name and s.district ~= "Downtown" then
+					check(not inside(r, s.x, s.z, W.safehouse.pad / 2), s.name .. " is not in " .. name)
+				end
+			end
+		end
+		for _, lm in wd.landmarks do
+			for name, r in C.districts do
+				local s = lm.size / 2
+				check(not inside(r, lm.centre.x, lm.centre.z, s), lm.id .. " is clear of " .. name)
+			end
+		end
+		-- Uptown's tiles are fixed (no roads, nothing seeded built in it); the rest of the outskirts as before
+		local noUp = table.clone(Config)
+		noUp.City = table.clone(C)
+		noUp.City.districts = table.clone(C.districts)
+		noUp.City.districts.Uptown = nil
+		local tilesA = WorldGen.tiles(C, W, seed)
+		local tilesB = WorldGen.tiles(noUp.City, W, seed)
+		local tilesOk, upTiles = true, 0
+		for tz = 0, W.tiles - 1 do
+			for tx = 0, W.tiles - 1 do
+				local x0, z0 = WorldGen.tileOrigin(C, tx, tz)
+				local touch = x0 < u.maxX and x0 + C.tile > u.minX and z0 < u.maxZ and z0 + C.tile > u.minZ
+				local ta, tb = WorldGen.get(W, tilesA, tx, tz), WorldGen.get(W, tilesB, tx, tz)
+				if touch then
+					upTiles += 1
+					tilesOk = tilesOk and ta.zone == W.zones.hub and not ta.roadNS and not ta.roadEW
+				else
+					tilesOk = tilesOk
+						and ta.zone == tb.zone
+						and ta.variant == tb.variant
+						and ta.rot == tb.rot
+						and ta.roadNS == tb.roadNS
+						and ta.roadEW == tb.roadEW
+				end
+			end
+		end
+		check(
+			tilesOk and upTiles == 36,
+			string.format("Uptown's %d tiles are fixed, every other tile as before", upTiles)
+		)
+		local intruders = 0
+		for _, plan in wd.tilePlans do
+			for _, b in plan.boxes do
+				for _, r in C.districts do
+					if inside(r, b.cx, b.cz, -0.5) and b.kind ~= "road" then
+						intruders += 1
+					end
+				end
+			end
+		end
+		for _, b in wd.baseBoxes do
+			if b.kind == "road" then
+				local x0, x1 = b.cx - b.sx / 2, b.cx + b.sx / 2
+				local z0, z1 = b.cz - b.sz / 2, b.cz + b.sz / 2
+				if x0 < u.maxX and x1 > u.minX and z0 < u.maxZ and z1 > u.minZ then
+					intruders += 1
+				end
+			end
+		end
+		check(intruders == 0, string.format("no tile, house or road built inside a district (%d)", intruders))
+
+		-- every Downtown and Uptown building stands in its district, no two overlap
+		local function overlaps(list: { any }): number
+			local n = 0
+			for i, a in list do
+				for j = i + 1, #list do
+					local b = list[j]
+					if
+						math.abs(a.x - b.x) < (a.sx + b.sx) / 2
+						and math.abs(a.z - b.z) < (a.sz + b.sz) / 2
+					then
+						n += 1
+					end
+				end
+			end
+			return n
+		end
+		for _, b in after.buildings do
+			check(inside(d, b.x, b.z, -b.sx / 2), "a Downtown building is in Downtown")
+		end
+		for _, b in up.buildings do
+			check(inside(u, b.x, b.z, -b.sx / 2), "an Uptown building is in Uptown")
+		end
+		check(overlaps(after.buildings) == 0 and overlaps(up.buildings) == 0, "no two buildings overlap")
+		check(
+			up.parts <= C.partBudget.uptown and after.parts <= C.partBudget.downtown,
+			string.format("part budgets: Downtown %d, Uptown %d", after.parts, up.parts)
+		)
+
+		-- the open squares and Uptown's green: open ground, nothing built on them, streets all round
+		check(#wd.open == #t.open and #wd.open >= 2, "the open squares are in the world")
+		local function clearSquare(x: number, z: number, size: number, what: string)
+			local blocked = 0
+			for _, b in wd.hubBoxes do
+				if
+					(b.kind == "building" or b.kind == "roof")
+					and math.abs(b.cx - x) < size / 2
+					and math.abs(b.cz - z) < size / 2
+				then
+					blocked += 1
+				end
+			end
+			check(blocked == 0, what .. ": nothing built on it")
+			for _, o in { { 0, 0 }, { -0.3, -0.3 }, { 0.3, 0.3 }, { -0.3, 0.3 } } do
+				local h = WorldMap.heightAt(wd, x + o[1] * size, z + o[2] * size)
+				check(h <= gy + 1.5, string.format("%s: open ground (%.1f)", what, h))
+			end
+			for _, s in { { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 } } do
+				local h = WorldMap.heightAt(wd, x + s[1] * (size / 2 + 8), z + s[2] * (size / 2 + 8))
+				check(h <= gy + 1.5, what .. ": a street on each side")
+			end
+		end
+		for _, o in wd.open do
+			check(inside(d, o.x, o.z, -o.size / 2), o.id .. " is in Downtown")
+			clearSquare(o.x, o.z, o.size - 30, o.id)
+		end
+		local f = C.uptown.fountain
+		local pk = up.park
+		for _, o in { { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 } } do
+			for _, r in { f.radius + 10, pk.size / 2 - 4 } do
+				local h = WorldMap.heightAt(wd, pk.x + o[1] * r, pk.z + o[2] * r)
+				check(h <= gy + 1.5, string.format("Uptown's green: its paths are open ground (%.1f)", h))
+			end
+		end
+		check(
+			WorldMap.heightAt(wd, pk.x, pk.z) <= gy + 1 + f.height + 0.5,
+			"the fountain is low enough to stand on its rim"
+		)
+
+		-- reachable: each Uptown and grown Downtown building has a street beside it, and incidents find spots
+		local streets = 0
+		for _, b in up.buildings do
+			local ok = false
+			for _, s in { { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 } } do
+				local px = b.x + s[1] * (b.sx / 2 + 14)
+				local pz = b.z + s[2] * (b.sz / 2 + 14)
+				if WorldMap.heightAt(wd, px, pz) <= gy + 1.5 then
+					ok = true
+				end
+			end
+			if ok then
+				streets += 1
+			end
+		end
+		check(streets == #up.buildings, "every Uptown building has open ground beside it")
+		local rng = Rng.new(5)
+		local kinds = IncidentSpots.kinds(Config, wd, pk.x, pk.z, 250)
+		check(
+			kinds.street and kinds.tower and kinds.sign and kinds.roof,
+			"Uptown has street, tower, sign and roof spots"
+		)
+		local spot = IncidentSpots.find(Config, wd, "tower", pk.x, pk.z, 0, 250, rng)
+		check(spot ~= nil and wd.buildings[spot.building].district == "Uptown", "a tower spot in Uptown")
+		local st = IncidentSpots.find(Config, wd, "street", pk.x, pk.z, 20, 200, rng)
+		check(st ~= nil and inside(u, st.x, st.z, 0), "a street spot in Uptown")
+		local o1 = wd.open[1]
+		check(
+			IncidentSpots.find(Config, wd, "street", o1.x, o1.z, 0, 60, rng) ~= nil,
+			"a street spot at a square"
+		)
+		-- zone levels: Uptown at the suburbs' floor, the grown Downtown in the hub's
+		check(ZoneLevel.area(Config, pk.x, pk.z, wd.tiles) == "Uptown", "Uptown is its own area")
+		check(ZoneLevel.at(Config, pk.x, pk.z, 1, wd.tiles) == W.zoneFloor.Uptown, "Uptown's floor")
+		check(ZoneLevel.area(Config, o1.x, o1.z, wd.tiles) == "hub", "the grown Downtown is the hub")
+		-- the beacons and the Beacon Tower roof are unchanged in number and stay under the ceiling
+		local tallest = 0
+		for _, b in up.boxes do
+			tallest = math.max(tallest, b.cy + b.sy / 2)
+		end
+		check(tallest < Config.Move.ceiling.soft, "Uptown is under the flight ceiling")
+		print(
+			string.format(
+				"  bigger city: Downtown %d buildings (%d new), %d parts; Uptown %d buildings, %d parts; hub boxes %d",
+				#after.buildings,
+				grown,
+				after.parts,
+				#up.buildings,
+				up.parts,
+				#wd.hubBoxes
+			)
+		)
+	end
+)
+
+test(
+	"Skyscrapers: towers of 400 to 600, an 820 landmark, under the ceiling, destructible, within budget",
+	function()
+		local Structure = require("../src/shared/Structure")
+		local C = Config.City
+		local D = Config.Destruction
+		local M = Config.Move
+		local gy = C.ground.y
+		local wd = world
+		local t, u = C.downtown, C.uptown
+		-- heights: towers 400 to 600 (Uptown 380 to 560) to the top of their crowns, varied silhouettes
+		local towers = { Downtown = 0, Uptown = 0 }
+		local styles = {}
+		local corePeak = 0
+		local core = t.core
+		for _, b in wd.buildings do
+			local peak = b.peak or b.top
+			local h = peak - b.base
+			if b.district == "Downtown" or b.district == "Uptown" then
+				local cfg = if b.district == "Downtown" then t.height else u.height
+				if h >= cfg.towerMin - 1 and b.crown ~= "landmark" then
+					towers[b.district] += 1
+					check(
+						h <= cfg.towerMax + 1,
+						string.format("a %s tower at most %d (%.0f)", b.district, cfg.towerMax, h)
+					)
+				end
+				if b.crown then
+					styles[b.crown] = true
+				end
+				if
+					b.district == "Downtown"
+					and b.x > core.minX
+					and b.x < core.maxX
+					and b.z > core.minZ
+					and b.z < core.maxZ
+				then
+					corePeak = math.max(corePeak, peak)
+				end
+			end
+		end
+		check(
+			towers.Downtown >= 15 and towers.Uptown >= 8,
+			string.format("a skyline: %d Downtown and %d Uptown towers", towers.Downtown, towers.Uptown)
+		)
+		local n = 0
+		for _ in styles do
+			n += 1
+		end
+		check(n >= 5, string.format("%d tower silhouettes (setback, spire, crown, mast, landmark)", n))
+		local bt = wd.downtown.beacon
+		check(
+			gy + 1 + bt.h > corePeak,
+			string.format("the Beacon Tower (%d) is the first Downtown's tallest (%.0f)", bt.h, corePeak)
+		)
+		local lm = wd.uptown.landmark
+		local tallest = 0
+		for _, b in wd.hubBoxes do
+			tallest = math.max(tallest, b.cy + b.sy / 2)
+		end
+		check(
+			math.abs(lm.peak - (gy + 0.9 + u.landmark.height)) < 1 and u.landmark.height >= 780,
+			"the landmark is about 800 studs"
+		)
+		check(
+			math.abs(tallest - lm.peak) < 1,
+			string.format("the landmark is the tallest thing in the city (%.0f)", tallest)
+		)
+		-- ceiling clearance: every roof and spire under the soft ceiling with room to fly over, the clouds above
+		check(
+			tallest + 60 <= M.ceiling.soft,
+			string.format(
+				"60 studs of sky over the tallest spire (%.0f, ceiling %d)",
+				tallest,
+				M.ceiling.soft
+			)
+		)
+		check(
+			C.ceilingCloudY > tallest and C.ceilingCloudY < M.ceiling.soft and M.ceiling.soft < M.ceiling.hard,
+			"clouds over the spires, under the ceiling"
+		)
+		for _, plan in wd.tilePlans do
+			for _, b in plan.boxes do
+				tallest = math.max(tallest, b.cy + b.sy / 2)
+			end
+		end
+		check(tallest + 60 <= M.ceiling.soft, "the outskirts too")
+		-- destructible: the shaft is the wreck box; every building's pieces fit the 256-bit pack, chunks and rubble
+		-- stay in their caps, and the crown sits on its own shaft
+		local maxPieces, maxStoreyH = 0, 0
+		for _, b in wd.buildings do
+			local g = Structure.build(D, b)
+			maxPieces = math.max(maxPieces, #g.pieces)
+			maxStoreyH = math.max(maxStoreyH, g.storeyH)
+			check(
+				#g.pieces <= 256 and g.storeys <= D.structure.maxStoreys,
+				"building " .. b.id .. " fits the piece pack"
+			)
+			local chunks = Chunker.split(D, b)
+			check(
+				#chunks >= D.chunks.min and #chunks <= D.chunks.max,
+				"building " .. b.id .. " chunks in 10 to 40"
+			)
+			local rubble = Chunker.rubble(D, b, b.id)
+			check(#rubble >= D.rubble.min and #rubble <= D.rubble.max, "building " .. b.id .. " rubble heap")
+		end
+		local byGrp = {}
+		for _, b in wd.buildings do
+			byGrp[b.grp] = b
+		end
+		local crownParts, bad = 0, 0
+		local perBuilding = {}
+		for _, bx in wd.hubBoxes do
+			if bx.grp then
+				perBuilding[bx.grp] = (perBuilding[bx.grp] or 0) + 1
+			end
+			if bx.crown then
+				crownParts += 1
+				local b = byGrp[bx.grp]
+				if
+					not b
+					or not b.crown
+					or bx.cy - bx.sy / 2 < b.top - 1.5
+					or math.abs(bx.cx - b.x) > b.sx / 2 + 1
+					or math.abs(bx.cz - b.z) > b.sz / 2 + 1
+				then
+					bad += 1
+				end
+			end
+		end
+		check(
+			crownParts > 0 and bad == 0,
+			string.format("%d crown parts, each on top of its own tower's shaft", crownParts)
+		)
+		for _, b in wd.buildings do
+			if b.crown then
+				check(b.peak ~= nil and b.peak > b.top, "a crowned tower's peak is over its shaft")
+			end
+		end
+		-- part budget: no building over 32 parts (window bands thin out high up), the districts in their budgets
+		local most = 0
+		for _, k in perBuilding do
+			most = math.max(most, k)
+		end
+		check(most <= 32, string.format("at most 32 parts a building (%d)", most))
+		check(
+			wd.downtown.parts <= C.partBudget.downtown and wd.uptown.parts <= C.partBudget.uptown,
+			"district part budgets"
+		)
+		-- beacons never on a crown; heights see the crowns
+		for _, b in wd.beacons do
+			for _, w in wd.buildings do
+				if w.crown and math.abs(b.x - w.x) < w.sx / 2 and math.abs(b.z - w.z) < w.sz / 2 then
+					check(false, b.name .. " is not on a skyscraper's crown")
+				end
+			end
+		end
+		check(WorldMap.heightAt(wd, lm.x, lm.z) >= lm.peak - 12, "the heightmap sees the landmark's spire")
+		print(
+			string.format(
+				"  skyline: %d Downtown and %d Uptown towers, Beacon %d, landmark %.0f, %d crown parts, max %d pieces, storeys up to %.0f studs",
+				towers.Downtown,
+				towers.Uptown,
+				bt.h,
+				lm.peak,
+				crownParts,
+				maxPieces,
+				maxStoreyH
+			)
+		)
+	end
+)
+
+---------------------------------------------------------------------------
+-- Lore step 1 (nate's lore, 2026-11-17): the old lore (the Shardfall comet, Null, the League, the Comet
+-- Crater) is gone from every player-visible text. The Story content that build plan steps 3 and 5 replace
+-- wholesale is excluded below: delete each exclusion when its step lands.
+local OLD_LORE = { "Shardfall", "Null", "League", "Comet" }
+local LORE_SKIP_CONFIG = {
+	["Story.quests"] = true, -- step 10 (the side quests)
+}
+local LORE_SKIP_FILES = {
+	["src/server/Services/QuestService.luau"] = true, -- step 10
+}
+
+-- The old-lore word in a piece of text, or nil. Whole words as players read them (Title or CAPS), so ids
+-- like CometCrater or NullSentinel that never reach the screen pass.
+local function oldLore(text: string): string?
+	for _, w in OLD_LORE do
+		if
+			string.find(text, "%f[%w]" .. w .. "%f[%W]")
+			or string.find(text, "%f[%w]" .. string.upper(w) .. "%f[%W]")
+		then
+			return w
+		end
+	end
+	return nil
+end
+
+test(
+	"Lore step 1: no Shardfall, Null, League or Comet in player-visible text (bar Story steps 3/5)",
+	function()
+		local hits = {}
+		local function walk(v: any, path: string, seen: { [any]: boolean })
+			if LORE_SKIP_CONFIG[path] then
+				return
+			end
+			if type(v) == "string" then
+				local w = oldLore(v)
+				if w then
+					table.insert(hits, path .. ": " .. w .. ' in "' .. v .. '"')
+				end
+			elseif type(v) == "table" and not seen[v] then
+				seen[v] = true
+				for k, x in v do
+					walk(x, path .. "." .. tostring(k), seen)
+				end
+			end
+		end
+		for name, mod in Config do
+			walk(mod, name, {})
+		end
+		-- the string literals in every other source file (config is checked as data above; comments stripped)
+		local fs = require("@lune/fs")
+		local files = 0
+		local function look(path: string, lit: string)
+			local w = oldLore(lit)
+			if w then
+				table.insert(hits, path .. ": " .. w .. " in " .. lit)
+			end
+		end
+		local function scan(dir: string)
+			for _, name in fs.readDir(dir) do
+				local path = dir .. "/" .. name
+				if fs.isDir(path) then
+					scan(path)
+				elseif
+					string.sub(name, -5) == ".luau"
+					and not LORE_SKIP_FILES[path]
+					and not string.find(path, "^src/config/")
+				then
+					files += 1
+					local src = string.gsub(fs.readFile(path), "%-%-%[(=*)%[.-%]%1%]", "")
+					for line in string.gmatch(src .. "\n", "([^\n]*)\n") do
+						line = string.gsub(line, '"[^"]*"', function(lit)
+							look(path, lit)
+							return '""'
+						end)
+						local cut = string.find(line, "--", 1, true)
+						local code = if cut then string.sub(line, 1, cut - 1) else line
+						for lit in string.gmatch(code, "`[^`]*`") do
+							look(path, lit)
+						end
+					end
+				end
+			end
+		end
+		scan("src")
+		check(files > 100, "the scan read the source files")
+		for _, h in hits do
+			check(false, "old lore: " .. h)
+		end
+		-- the scanner itself
+		check(
+			oldLore("Join the League") == "League" and oldLore("COMET CRATER") == "Comet",
+			"the scan finds the words"
+		)
+		check(oldLore("CometCrater") == nil and oldLore("NullSentinel") == nil, "ids pass")
+		-- the renames players read
+		local W = Config.World
+		check(
+			W.landmarks[1].name == "The Crater" and W.safehouses[6].name == "Gantry Yard",
+			"The Crater, Gantry Yard"
+		)
+		check(
+			Config.Boss.bosses.NullWarFrame.name == "Bulwark's Battle Form",
+			"Bulwark's battle form (lore step 5)"
+		)
+		check(Config.Story.perks.NullEcho.name == "Echo Drone", "the Echo Drone perk")
+	end
+)
+
+test("Lore step 1: each robot's display name lives in one place (Config.Enemies.<Kind>.name)", function()
+	local fs = require("@lune/fs")
+	local E = Config.Enemies
+	for _, kind in E.order do
+		check(type(E[kind].name) == "string" and #E[kind].name > 0, kind .. " has a display name")
+	end
+	-- activity text names robots with a "{Kind}" token (Config init fills it in), never by hand
+	for _, mod in { "Incidents", "Contracts", "Events", "Deep", "Boss", "World" } do
+		local src = fs.readFile("src/config/" .. mod .. ".luau")
+		for line in string.gmatch(src .. "\n", "([^\n]*)\n") do
+			for lit in string.gmatch(line, '"([^"]*)"') do
+				for _, kind in E.order do
+					local name = E[kind].name
+					local plain = string.gsub(lit, "{%w+}", "")
+					if lit ~= kind and lit ~= name and string.find(plain, "%f[%w]" .. name .. "%f[%W]") then
+						check(
+							false,
+							mod .. ': "' .. lit .. '" names ' .. kind .. " by hand: use {" .. kind .. "}"
+						)
+					end
+				end
+			end
+		end
+		local function walk(t: any, seen: { [any]: boolean })
+			seen[t] = true
+			for _, v in t do
+				if type(v) == "string" then
+					check(not string.find(v, "{%w+}"), mod .. ": every robot token is filled: " .. v)
+				elseif type(v) == "table" and not seen[v] then
+					walk(v, seen)
+				end
+			end
+		end
+		walk(Config[mod], {})
+	end
+	check(
+		Config.Contracts.types.DroneSweep.text == "Defeat 3 " .. E.SparkDrone.name .. " squads",
+		"filled in"
+	)
+	check(
+		Config.Incidents.templates.MedicConvoy.steps[1].text == "Stop the " .. E.MedicUnit.name .. "s",
+		"plural"
+	)
+	check(E.NullSentinel.name == "Warden", "the Null Sentinel is the Warden now")
+end)
+
+test("Lore step 1: League rep is Vigil Trust, Syndicate rep is Fear; old saves keep their points", function()
+	local StoryPlan = require("../src/shared/StoryPlan")
+	local R = Config.Story.rep
+	check(
+		R.order[1] == "vigil" and R.order[2] == "syndicate" and R.order[3] == "city",
+		"vigil, syndicate, city"
+	)
+	check(R.labels.vigil == "Vigil Trust" and R.labels.syndicate == "Syndicate Fear", "Trust and Fear labels")
+	check(StoryPlan.repIndex(Config, "vigil") == 1, "Vigil Trust is the save's first rep slot")
+	-- a version 9 save from before the rename: rep is a list in track order, so nothing moves
+	local old = ProfileSchema.default()
+	old.version = 9
+	old.characters[1].rep = { 900, 40, 300 }
+	old.characters[2] = ProfileSchema.newCharacter("villain")
+	old.characters[2].rep = { 0, 1000, 120 }
+	local back = ProfileSchema.load(serde.decode("json", serde.encode("json", old)))
+	local h, v = back.characters[1], back.characters[2]
+	check(back.version == ProfileSchema.VERSION, "loads at the current version")
+	check(
+		h.rep[1] == 900 and h.rep[2] == 40 and h.rep[3] == 300,
+		"a hero's old League points are its Vigil Trust"
+	)
+	check(StoryPlan.repRank(Config, h.rep[StoryPlan.repIndex(Config, "vigil")]) == 3, "rank 3 Trust")
+	check(v.rep[2] == 1000 and StoryPlan.repRank(Config, v.rep[2]) == 4, "a villain's Fear rank 4 intact")
+	-- the hero's own-side rep from a choice goes to the Vigil
+	local story = ProfileSchema.newCharacter("hero").story
+	local _, fx = StoryPlan.pick(Config, story, 1, 2, "hero")
+	check(fx.rep[1] == "vigil", "a hero's own-side rep is Vigil Trust")
+	-- every creator unlock names a real track
+	local unlocks = 0
+	local function walk(t: any)
+		for _, v in t do
+			if type(v) == "string" and string.sub(v, 1, 4) == "rep:" then
+				unlocks += 1
+				check(
+					table.find(R.order, string.match(v, "^rep:(%a+):")) ~= nil,
+					"unlock " .. v .. " names a track"
+				)
+			elseif type(v) == "table" then
+				walk(v)
+			end
+		end
+	end
+	walk(Config.Creator)
+	check(unlocks >= 30, "the rep unlocks were found")
+end)
+
+test(
+	"Lore step 2: origins are a title and one crest, never a stat; saves v9 load with a default origin",
+	function()
+		local CreatorRules = require("../src/shared/CreatorRules")
+		local C = Config.Creator
+		check(#C.origins == 5, "five origins")
+		local want = { "Lab accident", "Alien blood", "Magic relic", "Tech suit", "Training" }
+		for i, o in C.origins do
+			check(o.name == want[i], "origin " .. i .. " is " .. want[i])
+			check(type(o.title) == "string" and o.title ~= "", o.name .. " has a title")
+			check(
+				type(o.line) == "string" and #o.line > 10 and #o.line <= 80,
+				o.name .. " has one short fixed line"
+			)
+			-- looks only: an origin row holds words, never a number a fight could read
+			for k, v in o do
+				check(type(v) == "string", o.name .. "." .. k .. " is text, not a stat")
+			end
+			local crest = CreatorRules.originPiece(Config, i)
+			check(crest ~= nil and crest.tab == "emblem", o.name .. " has its crest in the Emblems tab")
+			if crest then
+				check(C.shapes[string.split(crest.kit, ":")[1]] ~= nil, crest.name .. " has a shape")
+			end
+		end
+		check(CreatorRules.originOk(Config, 1) and CreatorRules.originOk(Config, 5), "1 to 5 are origins")
+		check(
+			not CreatorRules.originOk(Config, 0) and not CreatorRules.originOk(Config, 6),
+			"0 and 6 are not"
+		)
+		check(C.origins[C.originDefault] ~= nil, "the default origin exists")
+		-- the crest: worn free by a hero of that origin, refused for another, unlocked once any hero has it
+		local profile = ProfileSchema.default()
+		local look = CreatorRules.defaultLook(Config)
+		local lab = CreatorRules.originPiece(Config, 1) :: any
+		look.pieces.emblem = lab.index
+		check(not (CreatorRules.validate(Config, profile, look)), "the Lab crest is locked with no origin")
+		check(CreatorRules.validate(Config, profile, look, 1), "a Lab-accident hero may wear it")
+		check(not (CreatorRules.validate(Config, profile, look, 2)), "an Alien-blood hero may not")
+		profile.characters[1].origin = 1
+		local earned = CreatorRules.earned(Config, profile)
+		local got = false
+		for _, p in earned do
+			got = got or p.id == lab.id
+		end
+		check(got, "a Lab-accident hero earns the Lab crest for the account")
+		CreatorRules.grant(profile, lab)
+		check(CreatorRules.validate(Config, profile, look, 3), "once unlocked, any hero may wear it")
+		-- the save: v10, a new character has no origin yet, an old one gets the default, bad values are fixed
+		check(ProfileSchema.VERSION == 10, "save version 10")
+		check(ProfileSchema.newCharacter().origin == 0, "a new character has not picked an origin")
+		local old = ProfileSchema.default()
+		old.version = 9
+		old.characters[1].origin = nil
+		old.characters[1].created = 1
+		old.characters[1].level = 12
+		old.characters[2] = ProfileSchema.newCharacter("villain")
+		old.characters[2].origin = nil
+		local back = ProfileSchema.load(serde.decode("json", serde.encode("json", old)))
+		check(back.version == 10, "a v9 save loads at v10")
+		check(back.characters[1].origin == C.originDefault, "an old hero gets the default origin")
+		check(back.characters[2].origin == C.originDefault, "every old character does")
+		check(back.characters[1].level == 12, "nothing else moved")
+		local bad = ProfileSchema.default()
+		bad.characters[1].origin = 99
+		check(ProfileSchema.load(bad).characters[1].origin == 0, "an origin out of range is cleared")
+		local made = ProfileSchema.default()
+		made.characters[1].created = 1
+		made.characters[1].origin = 0
+		check(ProfileSchema.load(made).characters[1].origin == C.originDefault, "a made hero always has one")
+		local view = ProfileSchema.clientView(back)
+		check(
+			view.origin == C.originDefault and view.roster[1].origin == C.originDefault,
+			"the client sees it"
+		)
+		-- Hero.Create carries the origin (optional, last)
+		local hc = Remotes.HeroCreate.schema
+		local last = hc[#hc]
+		check(
+			last.optional == true and last.min == 1 and last.max == #C.origins,
+			"HeroCreate's last arg is the origin"
+		)
+	end
+)
+
+test("Lore step 2: the street outfit is plain classic clothes and the hero's own face and hair", function()
+	local CreatorRules = require("../src/shared/CreatorRules")
+	local LookCodec = require("../src/shared/LookCodec")
+	local C = Config.Creator
+	local S = C.street
+	local profile = ProfileSchema.default()
+	local rng = Rng.new(77)
+	for n = 1, 40 do
+		local look = CreatorRules.randomize(Config, profile, rng)
+		look.pieces.suit = 1
+		look.pieces.back = 2
+		look.pieces.hair = 2
+		look.tints.suit = { 3, 4, 5 }
+		look.tints.hair = { 6, 0, 0 }
+		look.mats.suit = 3
+		local before = LookCodec.copy(look)
+		local st = CreatorRules.streetLook(Config, look)
+		for _, slot in LookCodec.ALL do
+			local keep = table.find(S.keep, slot) ~= nil
+			if slot == "shirt" then
+				check(st.pieces.shirt == S.shirt, "street shirt " .. n)
+			elseif slot == "pants" then
+				check(st.pieces.pants == S.pants, "street pants " .. n)
+			elseif keep then
+				check(st.pieces[slot] == (look.pieces[slot] or 0), slot .. " is the hero's own " .. n)
+			else
+				check(st.pieces[slot] == 0, slot .. " is off in the street " .. n)
+			end
+		end
+		check(st.pieces.suit == 0 and st.pieces.back == 0 and st.pieces.head == 0, "no suit, cape or mask")
+		check(st.pieces.emblem == 0 and st.pieces.aura == 0, "no emblem or aura")
+		check(st.tints.suit == nil and st.mats.suit == nil, "the suit's colours and material are gone")
+		check(st.tints.hair ~= nil and st.tints.hair[1] == 6, "the hair keeps its colour")
+		check(st.tints.shirt[1] == S.shirtColor and st.tints.pants[1] == S.pantsColor, "plain colours")
+		check(
+			st.skin == look.skin and st.hair == look.hair and st.anime == look.anime,
+			"skin and hair colour"
+		)
+		check(
+			buffer.tostring(LookCodec.encode(look)) == buffer.tostring(LookCodec.encode(before)),
+			"the designed look is not changed"
+		)
+		check(CreatorRules.validate(Config, profile, st), "the street outfit is always wearable " .. n)
+		check(LookCodec.decode(LookCodec.encode(st)) ~= nil, "it encodes " .. n)
+	end
+	local shirt = CreatorRules.piece(Config, "shirt", S.shirt)
+	local pants = CreatorRules.piece(Config, "pants", S.pants)
+	check(shirt ~= nil and shirt.source.kind == "free", "the street shirt is one of our free shirts")
+	check(pants ~= nil and pants.source.kind == "free", "the street pants are free")
+	check(C.palette[S.shirtColor] ~= nil and C.palette[S.pantsColor] ~= nil, "street colours on the palette")
+	check(C.avatar.on == false, "nothing from the player's own avatar")
+end)
+
+test("Lore step 2: creator first: the Opening funnel starts with the creator", function()
+	local AnalyticsSchema = require("../src/shared/AnalyticsSchema")
+	local F = AnalyticsSchema.FUNNELS.Opening
+	check(
+		F[1] == "session_start" and F[2] == "creator_open" and F[3] == "creator_done",
+		"creator steps first"
+	)
+	check(F[4] == "spark_detected" and F[7] == "opening_done", "then the prologue")
+	check(AnalyticsSchema.EVENTS.origin_pick ~= nil, "origin picks are logged")
+end)
+
+---------------------------------------------------------------------------
+-- Lore step 4: the famous fakes and the evil twin (Config.Enemies `fake`, Shared.FakeRules)
+---------------------------------------------------------------------------
+
+local FakeRules = require("../src/shared/FakeRules")
+local function readFile(path: string): string
+	return require("@lune/fs").readFile(path)
+end
+local FAKES = { "Radiant", "Bulwark", "Skylance" }
+
+test("Lore 4: each famous fake wears a full hero look that validates through CreatorRules", function()
+	local CreatorRules = require("../src/shared/CreatorRules")
+	local LookCodec = require("../src/shared/LookCodec")
+	local ProfileSchema = require("../src/shared/ProfileSchema")
+	-- an account that has earned everything a player can earn (every piece but the Robux packs')
+	local profile = ProfileSchema.default()
+	for _, p in CreatorRules.index(Config).list do
+		if p.source.kind ~= "pack" and p.source.kind ~= "starter" then
+			CreatorRules.grant(profile, p)
+		end
+	end
+	local L = Config.Enemies.look
+	local names = {}
+	for _, kind in FAKES do
+		local cfg = Config.Enemies[kind]
+		check(cfg.fake ~= nil and cfg.fake.look ~= nil, kind .. " has a hero look")
+		check(type(cfg.fake.title) == "string" and cfg.fake.title ~= "", kind .. " has a title")
+		check(Config.Abilities.setName[cfg.fake.path] ~= nil, kind .. "'s attacks take a real path's look")
+		local look = FakeRules.look(Config, kind)
+		local ok, why = CreatorRules.validate(Config, profile, look)
+		check(ok, kind .. " look validates (" .. tostring(why) .. ")")
+		for slot, i in look.pieces do
+			if i > 0 then
+				local p = CreatorRules.piece(Config, slot, i)
+				check(
+					p ~= nil and p.source.kind ~= "pack",
+					kind .. " " .. slot .. " is earnable, never a Robux piece"
+				)
+			end
+		end
+		-- a full hero: a suit, a face, hair, an emblem and its colours
+		for _, slot in { "suit", "visage", "hair", "emblem" } do
+			check((look.pieces[slot] or 0) > 0, kind .. " wears a " .. slot)
+		end
+		-- the record survives the codec byte for byte
+		local again = LookCodec.decode(LookCodec.encode(look :: any)) :: any
+		check(
+			again ~= nil
+				and buffer.tostring(LookCodec.encode(again))
+					== buffer.tostring(LookCodec.encode(look :: any)),
+			kind .. " look round-trips"
+		)
+		-- drawn on the build and gender its look has
+		check(L.builds[cfg.body.build] == look.build, kind .. " robot build matches its hero build")
+		check((cfg.body.gender or 1) == look.gender, kind .. " robot gender matches its look")
+		check(not names[cfg.name], kind .. " has its own name")
+		names[cfg.name] = true
+		check(cfg.elite and cfg.miniBoss, kind .. " is mini-boss tier")
+		check(cfg.hp >= 4 * Config.Enemies.NullSentinel.hp / 2, kind .. " HP is mini-boss tier")
+		check(Config.Enemies.mix[kind] == nil, kind .. " never spawns in the ambient mix")
+	end
+	check(Config.Enemies.Bulwark.body.height > 1.5 * Config.Enemies.Radiant.body.height, "Bulwark is a giant")
+	check(FakeRules.look(Config, "Bulwark").build == 4, "Bulwark has the Titan build")
+	-- the twin with no hero yet wears the default look
+	local d = FakeRules.look(Config, "EvilTwin")
+	check(CreatorRules.validate(Config, profile, d), "the twin's stand-in look is the default look")
+end)
+
+test(
+	"Lore 4: fakes and the twin respect their switches; nothing new in the ambient mix or the swaps",
+	function()
+		for _, kind in { "Radiant", "Bulwark", "Skylance", "EvilTwin" } do
+			local cfg = Config.Enemies[kind]
+			check(cfg.on == true, kind .. " has an on switch (on)")
+			local off = table.clone(Config)
+			off.Enemies = table.clone(Config.Enemies)
+			off.Enemies[kind] = table.clone(cfg)
+			off.Enemies[kind].on = false
+			local sim = EnemySim.new(off, {})
+			check(EnemySim.spawn(sim, kind, 0, 20, 0, 5) == nil, kind .. " off: never spawns")
+			check(not EnemySim.enabled(off, kind), kind .. " off: not enabled")
+			if kind == "EvilTwin" then
+				check(EnemySim.spawnTwin(sim, "Fire", 0, 20, 0, 5) == nil, "twin off: no twin of anyone")
+			end
+			local on = EnemySim.new(Config, {})
+			check(EnemySim.spawn(on, kind, 0, 20, 0, 5) ~= nil, kind .. " on: spawns")
+			for _, sw in Config.Enemies.variety.swaps do
+				check(sw.kind ~= kind and not table.find(sw.from, kind), kind .. " is not an open-world swap")
+			end
+		end
+	end
+)
+
+test("Lore 4: the face cracks at the threshold, once, and the shell only breaks after it", function()
+	local RobotDamage = require("../src/shared/RobotDamage")
+	local crack = FakeRules.crackAt(Config)
+	check(crack > 0 and crack < 1, "a crack threshold")
+	check(not FakeRules.cracked(Config, crack + 0.01) and FakeRules.cracked(Config, crack), "cracked at it")
+	for _, kind in FAKES do
+		local sim = EnemySim.new(Config, {})
+		local e = EnemySim.spawn(sim, kind, 0, 20, 0, 10) :: any
+		EnemySim.drainEvents(sim)
+		local max = e.maxHealth
+		-- (mitigation cuts each hit, so hit by what lands)
+		local cut = 1 - (e.cfg.mitigation or 0)
+		EnemySim.damage(sim, e.id, (max * (1 - crack) - 5) / cut, 1)
+		local unmasks = 0
+		for _, ev in EnemySim.drainEvents(sim) do
+			if ev.k == "unmask" then
+				unmasks += 1
+			end
+		end
+		EnemySim.step(sim, 1, {})
+		check(unmasks == 0 and not e.unmasked, kind .. " still a hero just above the crack")
+		check(bit32.band(e.extra, EnemySim.EXTRA.unmasked) == 0, kind .. " no unmasked bit yet")
+		local h = e.health / max
+		check(FakeRules.shellHealth(Config, h, false) == 1, kind .. " shell whole before the crack")
+		check(
+			RobotDamage.count(FakeRules.shellHealth(Config, h, false), 17, Config.Enemies.look.stripBy) == 0,
+			"no piece off"
+		)
+		EnemySim.damage(sim, e.id, 10 / cut, 1)
+		EnemySim.damage(sim, e.id, 10 / cut, 1)
+		for _, ev in EnemySim.drainEvents(sim) do
+			if ev.k == "unmask" then
+				unmasks += 1
+				check(ev.e == e.id, "the event names the fake")
+			end
+		end
+		EnemySim.step(sim, 2, {})
+		check(unmasks == 1 and e.unmasked, kind .. " unmasked once, at the crack")
+		check(bit32.band(e.extra, EnemySim.EXTRA.unmasked) ~= 0, kind .. " unmasked bit on the wire")
+		near(
+			FakeRules.shellHealth(Config, crack * 0.5, true),
+			0.5,
+			1e-9,
+			"half the shell health left at half the crack"
+		)
+		check(FakeRules.shellHealth(Config, 0, true) == 0, "all metal at the end")
+	end
+	-- a plain robot never unmasks
+	local sim = EnemySim.new(Config, {})
+	local w = EnemySim.spawn(sim, "BruteBot", 0, 0, 0, 1) :: any
+	EnemySim.damage(sim, w.id, w.maxHealth * 0.8, 1)
+	for _, ev in EnemySim.drainEvents(sim) do
+		check(ev.k ~= "unmask", "robots without a hero look have no face to crack")
+	end
+end)
+
+test("Lore 4: plates read the hero name and title, no robot tag, then FAKE in red", function()
+	for _, kind in FAKES do
+		local cfg = Config.Enemies[kind]
+		local p = FakeRules.plate(Config, kind, false)
+		check(
+			p.name == string.upper(cfg.name) and p.sub == cfg.fake.title and not p.red,
+			kind .. " hero plate"
+		)
+		local lower = string.lower(p.name .. " " .. p.sub)
+		for _, word in { "robot", "bot", "fake", "crane", "android" } do
+			check(not string.find(lower, word, 1, true), kind .. " plate has no robot tag: " .. word)
+		end
+		local u = FakeRules.plate(Config, kind, true)
+		check(
+			u.name == "FAKE" and u.red and u.sub == string.upper(cfg.name),
+			kind .. " unmasked: FAKE in red"
+		)
+	end
+	local ident = { name = "Iron Comet", title = "Lab-Born" }
+	local t = FakeRules.plate(Config, "EvilTwin", false, ident)
+	check(t.name == "IRON COMET" and t.sub == "Lab-Born" and not t.red, "the twin's plate reads its hero")
+	local tu = FakeRules.plate(Config, "EvilTwin", true, ident)
+	check(tu.name == "FAKE" and tu.red and tu.sub == "IRON COMET", "the twin unmasked")
+	-- the client builds the plate and turns it on the unmasked bit
+	local src = clientSources()["src/client/Controllers/EnemyRenderer.luau"]
+	check(string.find(src, "FakeRules.plate(", 1, true) ~= nil, "EnemyRenderer draws plates from FakeRules")
+	check(string.find(src, "EXTRA.unmasked", 1, true) ~= nil, "and reads the unmasked bit")
+end)
+
+test("Lore 4: the evil twin copies its hero's look bytes and fights with its path's style", function()
+	local LookCodec = require("../src/shared/LookCodec")
+	local CreatorRules = require("../src/shared/CreatorRules")
+	-- the server sends the active character's words as they are; the client reads the same look back
+	local rng = Rng.new(44)
+	local look = CreatorRules.randomize(Config, nil, rng)
+	look.tints.suit = { 3, 7, 0 }
+	look.mats.back = 2
+	local words = LookCodec.write(look)
+	local sent = LookCodec.toWords(LookCodec.fromWords(words))
+	check(#sent == #words, "same word count")
+	local same = true
+	for i, w in words do
+		same = same and sent[i] == w
+	end
+	check(same, "the twin carries the exact look record")
+	local back = LookCodec.read(sent) :: any
+	check(
+		buffer.tostring(LookCodec.encode(back)) == buffer.tostring(LookCodec.encode(look)),
+		"and draws the exact look"
+	)
+	-- every one of the 17 paths maps to a style its brain knows, drawn in that path's look
+	local brains = {
+		blaster = "flyer",
+		gunner = "sniper",
+		lobber = "bomber",
+		striker = "sneak",
+		duelist = "sneak",
+		smasher = "brute",
+	}
+	local n = 0
+	for _, arch in Config.Classes.order do
+		for _, path in Config.Classes[arch].paths do
+			n += 1
+			local style = FakeRules.styleOf(Config, path)
+			local cfg = FakeRules.twinCfg(Config, path)
+			check(brains[style] ~= nil and cfg.ai == brains[style], path .. " -> " .. tostring(style))
+			check(cfg.fake.path == path, path .. " twin draws its attacks in its path's look")
+			local sim = EnemySim.new(Config, {})
+			local e = EnemySim.spawnTwin(sim, path, 0, 20, 0, 12) :: any
+			check(
+				e ~= nil and e.kind == "EvilTwin" and e.path == path and e.ai == cfg.ai,
+				path .. " twin spawns"
+			)
+			check(e.maxHealth == Formulas.enemyHealth(Config, "EvilTwin", 12), path .. " twin HP")
+		end
+	end
+	check(n == 17, "all 17 paths")
+	check(
+		FakeRules.styleOf(Config, "Titan") == "smasher" and FakeRules.styleOf(Config, "Shadow") == "striker",
+		"melee paths"
+	)
+	check(FakeRules.twinCfg(Config, "Blade").cloak == false, "a sword twin walks straight in (no cloak)")
+	check(
+		FakeRules.twinCfg(Config, "nope").fake.path == Config.Enemies.EvilTwin.twin.default,
+		"unknown path: default"
+	)
+	-- the server's API and its wire
+	local svc = readFile("src/server/Services/EnemyService.luau")
+	check(
+		string.find(
+			svc,
+			"function EnemyService.spawnTwin(player: Player, pos: Vector3, level: number",
+			1,
+			true
+		) ~= nil,
+		"EnemyService.spawnTwin(player, pos, level)"
+	)
+	check(
+		string.find(svc, '"EnemyIdentity"', 1, true) ~= nil and Remotes.EnemyIdentity ~= nil,
+		"who a twin copies goes to every device"
+	)
+end)
+
+test(
+	"Lore 4: the fakes' moves: Radiant's dive, Bulwark's guard, charge and shockwave, Skylance's spear and dash",
+	function()
+		-- Radiant: a warning ring under the hero, then the dive lands on it
+		local sim = EnemySim.new(Config, {})
+		local r = EnemySim.spawn(sim, "Radiant", 0, 30, 0, 10) :: any
+		local hero = { id = 1, x = 0, y = 3, z = -30, alive = true }
+		local warned, dived, hit, pathShots = false, false, 0, 0
+		run(sim, { hero }, 0, 14, function(ev)
+			if ev.k == "warn" and ev.e == r.id then
+				warned = true
+			elseif ev.k == "dash" and ev.e == r.id then
+				dived = true
+			elseif ev.k == "hit" and ev.melee then
+				hit += 1
+			elseif ev.k == "shot" and ev.style == 4 then
+				pathShots += 1
+			end
+		end)
+		check(warned and dived and hit >= 1, "Radiant warns, dives and strikes")
+		check(pathShots >= 3, "Radiant's bolts are path shots")
+		-- Bulwark: the shield takes front hits; a charge down a lane at a hero farther off; every 3rd slam a shockwave
+		sim = EnemySim.new(Config, {})
+		local b = EnemySim.spawn(sim, "Bulwark", 0, 0, 0, 10) :: any
+		b.yaw = 0
+		local fx, fz = -math.sin(0), -math.cos(0)
+		local _, _, _, flag = EnemySim.damage(sim, b.id, 100, 1, b.x + fx * 10, b.z + fz * 10)
+		check(flag == EnemySim.BLOCKED, "a front hit meets the tower shield")
+		local far = { id = 1, x = 0, y = 3, z = -35, alive = true }
+		b.nextSpecial = 0 -- the charge is ready
+		local charged, stunned, lane = false, false, false
+		run(sim, { far }, 0, 6, function(ev)
+			if ev.k == "warn" and ev.e == b.id and ev.arc and ev.arc < 90 then
+				lane = true
+			elseif ev.k == "dash" and ev.e == b.id then
+				charged = true
+			elseif ev.k == "hit" and ev.cc == "stun" then
+				stunned = true
+			end
+		end)
+		check(lane and charged and stunned, "Bulwark shows a lane, charges and stuns the hero in it")
+		sim = EnemySim.new(Config, {})
+		b = EnemySim.spawn(sim, "Bulwark", 0, 0, 0, 10) :: any
+		b.nextSpecial = math.huge -- slams only
+		local close = { id = 1, x = 0, y = 3, z = -6, alive = true }
+		local radii = {}
+		run(sim, { close }, 0, 14, function(ev)
+			if ev.k == "slam" and ev.e == b.id then
+				table.insert(radii, ev.r)
+			end
+		end)
+		check(
+			#radii >= 3 and radii[3] == Config.Enemies.Bulwark.shockwave.radius,
+			"every 3rd slam is a shockwave"
+		)
+		check(radii[1] == Config.Enemies.Bulwark.slam.radius, "the others the shield slam")
+		-- a hero in the air (a jump) clears the shockwave
+		sim = EnemySim.new(Config, {})
+		b = EnemySim.spawn(sim, "Bulwark", 0, 0, 0, 10) :: any
+		b.nextSpecial = math.huge
+		b.slams = 2
+		local jumper = { id = 1, x = 0, y = 9, z = -6, alive = true }
+		local hits = 0
+		run(sim, { jumper }, 0, 2.5, function(ev)
+			if ev.k == "hit" then
+				hits += 1
+			end
+		end)
+		check(hits == 0, "jumping clears the shockwave")
+		-- Skylance: a sighting line, a path spear, a dash to one side
+		sim = EnemySim.new(Config, {})
+		local s = EnemySim.spawn(sim, "Skylance", 0, 0, 0, 10) :: any
+		local target = { id = 1, x = 0, y = 3, z = -50, alive = true }
+		local aimed, spear, dashed = false, false, false
+		run(sim, { target }, 0, 8, function(ev)
+			if ev.k == "aim" and ev.e == s.id then
+				aimed = true
+			elseif ev.k == "shot" and ev.e == s.id and ev.style == 4 then
+				spear = true
+			elseif ev.k == "dash" and ev.e == s.id then
+				dashed = true
+			end
+		end)
+		check(aimed and spear and dashed, "Skylance sights, throws a spear and dashes aside")
+		-- the dive, charge and dash and the face crack reach every device
+		local svc = readFile("src/server/Services/EnemyService.luau")
+		check(
+			string.find(svc, 'ev.k == "dash"', 1, true) ~= nil
+				and string.find(svc, 'ev.k == "unmask"', 1, true) ~= nil,
+			"DASH and UNMASK on the wire"
+		)
+		local cc = clientSources()["src/client/Controllers/CombatClient.luau"]
+		check(string.find(cc, "CombatFx.pathShot(", 1, true) ~= nil, "path shots drawn in the path's look")
+		check(
+			string.find(cc, 'Juice.fire("unmask"', 1, true) ~= nil
+				and string.find(cc, "hitPause(Config.Fx.fakes.unmaskPause)", 1, true) ~= nil,
+			"the crack: sound, flash and hit-stop"
+		)
+		check(Config.Audio.sounds.unmask ~= nil, "the crack has a sound")
+	end
+)
+
+-- damage a second on a hero standing 30 studs off (80 for a Sniper), from one robot over 60 s, per (20 + 4L)
+local function robotDps(kind: string, level: number, path: string?): number
+	local sim = EnemySim.new(Config, {})
+	local e = if path
+		then EnemySim.spawnTwin(sim, path, 0, 30, 0, level) :: any
+		else EnemySim.spawn(sim, kind, 0, 30, 0, level) :: any
+	if e.ai ~= "flyer" then
+		e.y = EnemySim.halfHeight(e.cfg)
+	end
+	local dist = if e.ai == "sniper" and not e.cfg.dash then 80 else 30
+	local hero = { id = 1, x = 0, y = 3, z = -dist, alive = true, lx = 0, lz = 1 }
+	local total, t = 0, 0
+	while t < 60 do
+		t += 1 / 30
+		EnemySim.step(sim, t, { hero })
+		for _, ev in EnemySim.drainEvents(sim) do
+			if ev.k == "hit" and ev.hero == 1 then
+				total += ev.damage
+			end
+		end
+	end
+	return total / 60
+end
+
+local function bossDps(id: string, level: number): number
+	local sim = BossSim.new(Config, id, 0, 0, 0, 1e9, level, 0, Rng.new(5))
+	BossSim.step(sim, 6, {})
+	local hero = { id = 1, x = 0, y = 3, z = -30, alive = true }
+	local total, t = 0, 6
+	while t < 66 do
+		t += 0.1
+		BossSim.step(sim, t, { hero })
+		for _, ev in BossSim.drain(sim) do
+			if ev.k == "strike" then
+				for _, h in ev.hits do
+					total += h[2]
+				end
+			end
+		end
+	end
+	return total / 60
+end
+
+test(
+	"Lore 4: a fake's damage a second sits between the elite robots and the hardest-hitting world boss",
+	function()
+		local twinPaths = {}
+		local seen = {}
+		for path, style in Config.Enemies.EvilTwin.twin.paths do
+			if not seen[style] then
+				seen[style] = true
+				table.insert(twinPaths, path)
+			end
+		end
+		table.sort(twinPaths)
+		for _, lv in { 5, 20, 40, 50 } do
+			local elite = 0
+			for _, kind in Config.Enemies.order do
+				local cfg = Config.Enemies[kind]
+				if cfg.elite and not cfg.fake then
+					elite = math.max(elite, robotDps(kind, lv))
+				end
+			end
+			local boss = 0
+			for id in Config.Boss.bosses do
+				boss = math.max(boss, bossDps(id, lv))
+			end
+			check(elite > 0 and boss > elite, "L" .. lv .. " a band to fit in")
+			for _, kind in FAKES do
+				local d = robotDps(kind, lv)
+				check(
+					d > elite and d < boss,
+					string.format("L%d %s %.1f between elite %.1f and boss %.1f", lv, kind, d, elite, boss)
+				)
+			end
+			for _, path in twinPaths do
+				local d = robotDps("EvilTwin", lv, path)
+				check(
+					d > elite and d < boss,
+					string.format(
+						"L%d twin of %s (%s) %.1f between %.1f and %.1f",
+						lv,
+						path,
+						FakeRules.styleOf(Config, path),
+						d,
+						elite,
+						boss
+					)
+				)
+			end
+		end
+	end
+)
+
+test("Lore 4: the cracked faces and the Dev panel buttons", function()
+	local NL = Config.NpcLooks
+	for _, fname in NL.faceOrder do
+		check(type(NL.faces[fname].cracked) == "number", fname .. " has a cracked face id (0 until uploaded)")
+	end
+	local dev = clientSources()["src/client/Ui/DevPanel.luau"]
+	check(
+		string.find(dev, '"fake", i', 1, true) ~= nil and string.find(dev, '"twin"', 1, true) ~= nil,
+		"Dev: each fake and your twin"
+	)
+	local ds = readFile("src/server/Services/DevService.luau")
+	check(
+		string.find(ds, "fake = function", 1, true) ~= nil
+			and string.find(ds, "EnemyService.spawnTwin(player", 1, true) ~= nil,
+		"DevService spawns them"
+	)
+end)
+
+---------------------------------------------------------------------------
+-- Lore step 3: the Ceremony prologue (Config.Story.opening, Shared.OpeningPlan, OpeningService, PrologueFx)
+---------------------------------------------------------------------------
+
+local OpeningPlan = require("../src/shared/OpeningPlan")
+local PocketLayout = require("../src/shared/PocketLayout")
+local OP = Config.Story.opening
+local SIDES = { "hero", "villain" }
+
+local function flat(a: { number }, b: { number }): number
+	return math.sqrt((a[1] - b[1]) ^ 2 + (a[3] - b[3]) ^ 2)
+end
+
+test("Lore 3: the prologue's whole route is real for any weekly seed", function()
+	local gy = Config.City.ground.y
+	local R = OP.roofs
+	local half = Config.City.downtown.beacon.width / 2
+	local front = half + OP.plaza.stage.gap + OP.plaza.stage.depth
+	for _, seed in { 202647, 11, 777, 31337, 2026, 99991 } do
+		local w = if seed == 202647 then world else WorldMap.build(Config, seed)
+		for k = 1, 6 do
+			local r = OpeningPlan.route(Config, w, Rng.new(seed * 7 + k))
+			check(r ~= nil, "a route for seed " .. seed .. " #" .. k)
+			if r then
+				local tag = " (seed " .. seed .. ")"
+				local hx, hz = OpeningPlan.plaza(w)
+				check(r.hall[1] == hx and r.hall[3] == hz, "the stage is at Crane's Hero Hall" .. tag)
+				check(
+					#r.crowd == OP.plaza.crowd.count and #r.fakes == 3,
+					"a full crowd and the three fakes" .. tag
+				)
+				for _, c in r.crowd do
+					check(
+						HeightMap.at(w.heights, c[1], c[3]) <= gy + 1.5,
+						"the crowd stands on open ground" .. tag
+					)
+				end
+				check(
+					HeightMap.at(w.heights, r.start[1], r.start[3]) <= gy + 1.5,
+					"the hero starts on the ground"
+				)
+				check(flat(r.stage, r.hall) <= front, "the stage stands before the Hall" .. tag)
+				local away = (r.spark[1] - hx) * r.face[1] + (r.spark[3] - hz) * r.face[3]
+				check(away >= front, "the run goes away from the stage" .. tag)
+				local run = flat(r.spark, r.start)
+				check(
+					run >= OP.run.minD - 1 and run <= OP.run.maxD + 1,
+					"the run is " .. math.floor(run) .. tag
+				)
+				check(
+					HeightMap.at(w.heights, r.spark[1], r.spark[3]) <= gy + 1.5,
+					"the spark point is open ground"
+				)
+				check(#r.roofs == R.count, R.count .. " roofs for the chase" .. tag)
+				for i = 2, #r.roofs do
+					local a, b = r.roofs[i - 1], r.roofs[i]
+					local gap = flat(a, b)
+					check(
+						gap >= R.gap[1] and gap <= Config.Move.leap.range,
+						"roof " .. i .. " is one Leap away" .. tag
+					)
+					check(b[2] <= a[2] + R.climb, "no higher than a Leap climbs" .. tag)
+					check(b[2] - gy >= R.minH, "a real roof" .. tag)
+				end
+				check(
+					HeightMap.at(w.heights, r.entrance[1], r.entrance[3]) <= gy + 1.5,
+					"the subway steps are on the street" .. tag
+				)
+				local eg = flat(r.entrance, r.roofs[#r.roofs])
+				check(
+					eg >= OP.entrance.minD and eg <= OP.entrance.maxD + 1,
+					"the steps are below the last roof"
+				)
+				check(
+					r.billboard[2] - gy >= 20 and (r.billboard[4] ~= 0 or r.billboard[5] ~= 0),
+					"a billboard"
+				)
+				check(flat(r.landing, r.hall) <= 120, "the hero lands back in the plaza" .. tag)
+				-- every beat has a place to start from, in the city or the subway, on both sides
+				local lane = OpeningPlan.lane(Config, (k - 1) % OP.subway.lanes + 1)
+				for _, step in OpeningPlan.STEPS do
+					local p = OpeningPlan.startPoint(r, lane, step)
+					local inPocket = PocketLayout.at(Config, p[1], p[2], p[3])
+						== PocketLayout.subwayIndex(Config)
+					check(
+						inPocket == (OpeningPlan.CITY[step] ~= true),
+						step .. " starts in the right place" .. tag
+					)
+					check(
+						OpeningPlan.startPoint(r, nil, step) ~= nil,
+						step .. " has a place with every lane busy"
+					)
+				end
+			end
+		end
+	end
+end)
+
+test(
+	"Lore 3: the rooftop row: in the layout, clear of the squares and the Hall, wreckable, the chase's roofs",
+	function()
+		local gy = Config.City.ground.y
+		local T = Config.City.downtown
+		local R = OP.roofs
+		local L = world.downtown
+		check(#L.row == #T.row.roofs and #L.row >= R.count, #L.row .. " roofs in the row")
+		local function overlaps(ax, az, asx, asz, bx, bz, bsx, bsz): boolean
+			return math.abs(ax - bx) < (asx + bsx) / 2 and math.abs(az - bz) < (asz + bsz) / 2
+		end
+		local hall = L.beacon
+		local heights = {}
+		for i, r in L.row do
+			heights[r.top] = true
+			for _, o in L.open do
+				check(
+					not overlaps(r.x, r.z, r.sx, r.sz, o.x, o.z, o.size, o.size),
+					"roof " .. i .. " is off " .. o.id
+				)
+			end
+			check(
+				not overlaps(r.x, r.z, r.sx, r.sz, hall.x, hall.z, T.block, T.block),
+				"roof " .. i .. " is off the Hall's plaza"
+			)
+			for id, s in L.safehouseSpots do
+				check(
+					not overlaps(r.x, r.z, r.sx, r.sz, s.x, s.z, 20, 20),
+					"roof " .. i .. " is off safehouse " .. id
+				)
+			end
+			-- a real building: alone on its lot, wreckable like any other
+			local mine, others = 0, 0
+			for _, b in L.buildings do
+				if b.grp == r.grp then
+					mine += 1
+				elseif overlaps(r.x, r.z, r.sx, r.sz, b.x, b.z, b.sx, b.sz) then
+					others += 1
+				end
+			end
+			check(mine == 1 and others == 0, "roof " .. i .. " stands alone")
+			local wreck = nil
+			for _, b in world.buildings do
+				if b.grp == r.grp then
+					wreck = b
+				end
+			end
+			check(
+				wreck ~= nil and wreck.district == "Downtown" and math.abs(wreck.top - r.top) < 0.01,
+				"roof " .. i .. " can be wrecked and repaired"
+			)
+			-- the middle stays clear to land on: anything solid near it is a low skylight
+			for _, b in L.boxes do
+				if b.grp == r.grp and b.kind == "prop" and not b.ghost then
+					local near = math.abs(b.cx - r.x) < b.sx / 2 + 4 and math.abs(b.cz - r.z) < b.sz / 2 + 4
+					check(
+						not near or b.cy + b.sy / 2 <= r.top + 1.5,
+						"roof " .. i .. "'s middle is clear to land"
+					)
+				end
+			end
+			if i > 1 then
+				local p = L.row[i - 1]
+				local gap = math.sqrt((r.x - p.x) ^ 2 + (r.z - p.z) ^ 2)
+				check(
+					gap >= 35 and gap <= 65 and gap <= Config.Move.leap.range,
+					"hop " .. i .. " is a short Leap"
+				)
+				check(r.top <= p.top + R.climb, "hop " .. i .. " rises no more than a Leap climbs")
+				check(r.top - gy >= R.minH, "roof " .. i .. " is a real roof")
+			end
+		end
+		local n = 0
+		for _ in heights do
+			n += 1
+		end
+		check(n >= 4, "the roofs have varied heights")
+		-- the chase runs the row (for any seed) and falls back to ordinary roofs without it
+		for k = 1, 4 do
+			local r = OpeningPlan.route(Config, world, Rng.new(k))
+			check(r ~= nil and #r.roofs == R.count, "the chase has " .. R.count .. " roofs")
+			if r then
+				for i, p in r.roofs do
+					check(p[1] == L.row[i].x and p[3] == L.row[i].z, "chase roof " .. i .. " is the row's")
+				end
+				check(flat(r.spark, r.roofs[1]) <= 80, "the spark point is at the foot of the row")
+			end
+		end
+		local bare = table.clone(world)
+		bare.downtown = table.clone(world.downtown)
+		bare.downtown.row = {}
+		local fb = OpeningPlan.route(Config, bare, Rng.new(5))
+		check(fb ~= nil and #fb.roofs == R.fallback, "without the row, " .. R.fallback .. " ordinary roofs")
+	end
+)
+
+test("Lore 3: the subway pocket: a lane per prologue, collapses on a timer, a fight chamber", function()
+	local S = OP.subway
+	local idx = PocketLayout.subwayIndex(Config)
+	check(idx == Config.Story.pockets.count + 1, "the subway is its own pocket (missions never take it)")
+	local l = PocketLayout.build(Config, idx, "subway")
+	check(#l.boxes > 10 and #(l.lists.lanes or {}) == S.lanes, "the tunnels are built, one a lane")
+	local seen = {}
+	for i = 1, S.lanes do
+		local ln = OpeningPlan.lane(Config, i)
+		check(
+			PocketLayout.at(Config, ln.start[1], ln.start[2], ln.start[3]) == idx,
+			"lane " .. i .. " start inside"
+		)
+		check(
+			PocketLayout.at(Config, ln.fight[1], ln.fight[2], ln.fight[3]) == idx,
+			"lane " .. i .. " chamber inside"
+		)
+		check(ln.start[3] > ln.z1 and ln.fight[3] < ln.z1, "the chamber is past the tunnel")
+		local last = 0
+		for _, c in ln.collapses do
+			check(c.z < ln.start[3] and c.z > ln.z1, "each slab falls inside the tunnel")
+			check(c.t > last, "the slabs fall in order")
+			last = c.t
+		end
+		check(#ln.collapses >= 3, "the tunnel collapses as timed obstacles")
+		check(not seen[ln.x], "lanes do not overlap")
+		seen[ln.x] = true
+	end
+	check(S.pitch >= S.chamber + 4, "chambers fit side by side")
+	check(S.rubble < Config.Move.leap.range, "the rubble can be leapt")
+end)
+
+test("Lore 3: every beat in order for both sides; the side's own Spark and lines", function()
+	check(#OpeningPlan.STEPS == 13 and OpeningPlan.STEPS[1] == "ceremony", "13 beats, the ceremony first")
+	check(OpeningPlan.STEPS[#OpeningPlan.STEPS] == "title", "the title card last")
+	for i, step in OpeningPlan.STEPS do
+		check(OpeningPlan.CODE[step] == i, step .. " has its code")
+		check(OpeningPlan.limit(Config, step) > 0, step .. " moves on by itself")
+	end
+	check(OpeningPlan.sparkBeat("hero") == "shield", "the Vigil's Spark shields the kid")
+	check(OpeningPlan.sparkBeat("villain") == "blast", "the Syndicate's Spark blasts the shover")
+	local patchFrom = OpeningPlan.CODE.leap
+	for _, side in SIDES do
+		for _, step in OpeningPlan.STEPS do
+			for _, l in OpeningPlan.lines(Config, step, side) do
+				check(
+					type(l.text) == "string" and #l.text > 0 and #l.text <= 90,
+					step .. " line text (" .. side .. ")"
+				)
+				check(OP.speakers[l.who] ~= nil, step .. ": a known speaker " .. tostring(l.who))
+				check(
+					l.at >= 0 and l.at < OpeningPlan.limit(Config, step),
+					step .. " line comes inside its beat"
+				)
+				if l.who == "patch" then
+					check(OpeningPlan.CODE[step] >= patchFrom, "Patch is on the radio from the chase on")
+				end
+			end
+		end
+		check(#OpeningPlan.lines(Config, "ceremony", side) >= 4, "Crane's stage speech")
+		local rescue = OpeningPlan.lines(Config, "rescue", side)
+		local lodestar = false
+		for _, l in rescue do
+			lodestar = lodestar or l.who == "lodestar"
+		end
+		check(lodestar, "Lodestar speaks at the rescue")
+	end
+	for _, step in { "spark", "chase", "rescue" } do
+		local a, b = OpeningPlan.lines(Config, step, "hero"), OpeningPlan.lines(Config, step, "villain")
+		check(#a == #b and a[1].text ~= b[1].text, step .. ": a side-flavoured line")
+	end
+	check(OP.speakers.patch.radio == true and not OP.speakers.lodestar.radio, "Patch is a radio voice")
+	check(
+		OP.chase.fake == "Skylance" and Config.Enemies.Skylance.fake ~= nil,
+		"Skylance chases (a famous fake)"
+	)
+	check(OP.fight.fake == "Skylance", "the fight is with the chaser")
+	local sum = 0
+	for _, step in OpeningPlan.STEPS do
+		if OpeningPlan.timed(Config, step) then
+			sum += OpeningPlan.limit(Config, step)
+		end
+	end
+	check(sum >= 50 and sum <= 90, "about a minute of camera beats in about 4 minutes")
+end)
+
+test("Lore 3: stuck beats move on, the prologue finishes itself, skips only on a replay", function()
+	-- a hero who never does anything still reaches the end, every beat once, in order
+	local step: string? = OpeningPlan.STEPS[1]
+	local t, seen = 0, {}
+	while step do
+		table.insert(seen, step)
+		t += OpeningPlan.limit(Config, step)
+		step = OpeningPlan.next(step)
+	end
+	check(#seen == #OpeningPlan.STEPS, "every beat once")
+	check(OP.timeout < t, "the whole-prologue timeout cuts a stuck run short (" .. math.floor(t) .. " s)")
+	check(OP.timeout >= 240, "but never a played one (about 4 minutes)")
+	for _, step in OpeningPlan.STEPS do
+		check(not OpeningPlan.canSkip(step, false), step .. ": no skip the first time")
+		check(
+			OpeningPlan.canSkip(step, true) == (OpeningPlan.CUT[step] == true),
+			step .. ": skip on a replay"
+		)
+	end
+	check(
+		OP.spark.auto < OpeningPlan.limit(Config, "spark"),
+		"the Spark fires by itself before its beat ends"
+	)
+	-- the server: the safety, the hold for a returning account, Create First and skips
+	local src = readFile("src/server/Services/OpeningService.luau")
+	for _, needle in
+		{
+			"O.timeout",
+			"OpeningPlan.limit(Config, s)",
+			"OpeningPlan.canSkip(r.step, r.replay)",
+			"act == 3 and r.hold",
+			"act == 4 and r.hold",
+			"hero.floor",
+			"OpeningService.Finished",
+		}
+	do
+		check(string.find(src, needle, 1, true) ~= nil, "OpeningService: " .. needle)
+	end
+end)
+
+test(
+	"Lore 3: returning players skip it; old saves never replay it; a save mid-opening restarts it",
+	function()
+		check(not OpeningPlan.due(ProfileSchema.newCharacter()), "a hero not made yet waits for its creator")
+		local v10 = ProfileSchema.load({
+			version = 10,
+			characters = {
+				{ created = 1, level = 1, story = { opening = 0 } },
+				{ created = 1, story = { opening = 1 } },
+			},
+		})
+		check(
+			OpeningPlan.due(v10.characters[1]),
+			"a v10 save that stopped mid-opening starts the new prologue"
+		)
+		check(not OpeningPlan.due(v10.characters[2]), "anyone past the old opening is never sent back")
+		local old = ProfileSchema.load({ version = 2, characters = { { level = 7, xp = 10 } } })
+		check(not OpeningPlan.due(old.characters[1]), "an old played hero skips it")
+		check(
+			Config.Story.missions[1].opening and Config.Story.missions[1].name == "The Ceremony",
+			"mission 1"
+		)
+		check(Config.Story.missions[OP.next] ~= nil, "the hook: the next mission")
+		local menu = clientSources()["src/client/Ui/MainMenu.luau"]
+		check(
+			string.find(menu, "StoryClient.createFirst()", 1, true) ~= nil
+				and string.find(menu, "StoryClient.playPrologue()", 1, true) ~= nil,
+			"the main menu's Create First and PLAY THE PROLOGUE"
+		)
+		check(Config.Story.cinematic == nil, "the old cinematic is gone")
+	end
+)
+
+test("Lore 3: no old opening names in the prologue's player text", function()
+	local OLD = { "shardfall", "tram", "comet", "save her", "grab it" }
+	local hits = {}
+	local function look(where: string, text: string)
+		local low = string.lower(text)
+		for _, w in OLD do
+			if string.find(low, "%f[%w]" .. w .. "%f[%W]") then
+				table.insert(hits, where .. ": " .. w .. " in " .. text)
+			end
+		end
+	end
+	local function walk(v: any, path: string)
+		if type(v) == "string" then
+			look(path, v)
+		elseif type(v) == "table" then
+			for k, x in v do
+				walk(x, path .. "." .. tostring(k))
+			end
+		end
+	end
+	walk(OP, "Story.opening")
+	walk(Config.Story.missions[1], "Story.missions[1]")
+	for _, path in
+		{
+			"src/shared/OpeningPlan.luau",
+			"src/server/Services/OpeningService.luau",
+			"src/client/Fx/PrologueFx.luau",
+			"src/client/Fx/StoryFx.luau",
+			"src/client/Ui/StoryHud.luau",
+			"src/client/Controllers/StoryClient.luau",
+			"src/client/Ui/MainMenu.luau",
+		}
+	do
+		local src = readFile(path)
+		for line in string.gmatch(src .. "\n", "([^\n]*)\n") do
+			local cut = string.find(line, "--", 1, true)
+			local code = if cut then string.sub(line, 1, cut - 1) else line
+			for lit in string.gmatch(code, '"[^"]*"') do
+				if lit ~= '"Catch"' then -- the HUD's interact button id (Hud), not text
+					look(path, lit)
+				end
+			end
+		end
+	end
+	check(#hits == 0, "old opening names left: " .. table.concat(hits, "; "))
+end)
+
+test("Lore 3: Lodestar's look, the street outfit, the funnel and the Dev panel", function()
+	local CreatorRules = require("../src/shared/CreatorRules")
+	local profile = ProfileSchema.default()
+	for _, p in CreatorRules.index(Config).list do
+		if p.source.kind ~= "pack" and p.source.kind ~= "starter" then
+			CreatorRules.grant(profile, p)
+		end
+	end
+	local look = FakeRules.lookFrom(Config, OP.lodestar.look, "Lodestar")
+	local ok, why = CreatorRules.validate(Config, profile, look)
+	check(ok, "Lodestar's hero look validates (" .. tostring(why) .. ")")
+	check(look.pieces.suit > 0 and look.pieces.back > 0 and look.pieces.emblem > 0, "a full hero look")
+	local src = readFile("src/server/Services/OpeningService.luau")
+	check(
+		string.find(src, "GearService.setStreet(r.player, true)", 1, true) ~= nil
+			and string.find(src, "GearService.setStreet(r.player, false)", 1, true) ~= nil,
+		"the street outfit on at the ceremony, off for the suit"
+	)
+	local AnalyticsSchema = require("../src/shared/AnalyticsSchema")
+	local F = AnalyticsSchema.FUNNELS.Opening
+	check(#F == 12, "the funnel keeps its shape")
+	check(
+		F[4] == "spark_detected"
+			and F[5] == "first_spark"
+			and F[6] == "fake_cracked"
+			and F[7] == "opening_done",
+		"the prologue's beats in the funnel"
+	)
+	for _, name in { "spark_detected", "first_spark", "fake_cracked" } do
+		check(string.find(src, '"' .. name .. '"', 1, true) ~= nil, name .. " is logged by the prologue")
+	end
+	local dev = clientSources()["src/client/Ui/DevPanel.luau"]
+	check(
+		string.find(dev, '"prologue", 0', 1, true) ~= nil
+			and string.find(dev, '"prologue", 1', 1, true) ~= nil
+			and string.find(dev, '"opening", beat', 1, true) ~= nil,
+		"Dev: the prologue as each side and a jump to each beat"
+	)
+	check(
+		string.find(readFile("src/server/Services/DevService.luau"), "prologue = function", 1, true) ~= nil,
+		"DevService"
+	)
+	local hud = clientSources()["src/client/Ui/StoryHud.luau"]
+	check(string.find(hud, "OpeningPlan.canSkip", 1, true) ~= nil, "the SKIP button follows canSkip")
+	local fx = clientSources()["src/client/Fx/PrologueFx.luau"]
+	check(
+		string.find(fx, "CombatFx.reduceFlashing", 1, true) ~= nil,
+		"reduce flashing softens the slow motion"
+	)
+	check(string.find(fx, "PLACEHOLDER ART", 1, true) ~= nil, "placeholder art is labelled")
+	check(string.find(fx, 'QualityController.name == "low"', 1, true) ~= nil, "a smaller crowd on phones")
+end)
+
+---------------------------------------------------------------------------
+-- Lore step 5: Act 1 rewritten (nate's lore doc A3/A4): Safehouse, Framed, The Copy, The Signal, Live, co-op
+-- with each side's own goals, the 3 choices per side, the ending broadcast, the old saves mapped by index
+---------------------------------------------------------------------------
+
+do
+	local StoryPlan = require("../src/shared/StoryPlan")
+	local PocketLayout = require("../src/shared/PocketLayout")
+	local S = Config.Story
+	local NAMES = { "The Ceremony", "Safehouse", "Framed", "The Copy", "The Signal", "Live" }
+	local KINDS = {
+		hold = true,
+		["break"] = true,
+		chase = true,
+		reach = true,
+		boss = true,
+		defeat = true,
+		fake = true,
+		twin = true,
+		scene = true,
+		choice = true,
+		warframe = true,
+	}
+
+	-- Every step a side can meet in a mission, with both picks of every choice (each branch at least once)
+	local function allSteps(num: number, side: string): { any }
+		local out = {}
+		for pick = 0, 2 do
+			local choices = { pick, pick, pick }
+			for i = 1, StoryPlan.stages(Config, num) do
+				local st = StoryPlan.stage(Config, num, i, side, choices)
+				if st and not table.find(out, st) then
+					table.insert(out, st)
+				end
+			end
+		end
+		return out
+	end
+
+	-- Can this step be played in the layout? (its points, lists, robots and lines all exist)
+	local function playable(l: any, st: any, side: string, where: string)
+		check(KINDS[st.kind] == true, where .. ": a known step kind (" .. tostring(st.kind) .. ")")
+		check(StoryPlan.need(st) >= 1, where .. ": needs something")
+		if st.kind ~= "scene" and st.kind ~= "choice" then
+			local text = StoryPlan.text(st, side)
+			check(#text > 4, where .. ": objective text")
+		end
+		for _, key in { "at", "focus", "lodestar" } do
+			if type(st[key]) == "string" and st[key] ~= "fake" then
+				check(l.points[st[key]] ~= nil, where .. ": the pocket has " .. st[key])
+			end
+		end
+		if st.list then
+			check(
+				l.lists[st.list] and #l.lists[st.list] >= (st.points or 1),
+				where .. ": the pocket has " .. st.list
+			)
+		end
+		if st.kind == "hold" and not st.at and not st.list then
+			check(#(l.lists.stations or {}) >= st.points, where .. ": stations")
+		end
+		if st.kind == "break" and not st.at and not st.list and not st.train then
+			check(#(l.lists.crates or {}) >= st.points, where .. ": crates")
+		end
+		if st.train then
+			check(l.points.trainStart and l.points.trainDir, where .. ": the train line")
+		end
+		if st.room then
+			check(l.lists.rooms and l.lists.rooms[st.room], where .. ": room " .. st.room)
+		end
+		if st.kind == "chase" then
+			check(#(l.lists.path or {}) >= 3, where .. ": a chase path")
+		end
+		if st.kind == "warframe" then
+			check(#(l.lists.pillars or {}) >= 6 and l.points.boss, where .. ": the arena")
+		end
+		for _, kind in { st.enemy, st.guards and st.guards[1], st.adds and st.adds[1] } do
+			if kind then
+				check(Config.Enemies[kind] ~= nil, where .. ": robot " .. kind)
+			end
+		end
+		for _, row in st.squads or {} do
+			check(Config.Enemies[row[1]] ~= nil, where .. ": squad " .. row[1])
+		end
+		for _, row in st.waves or {} do
+			check(Config.Enemies[row[1]] ~= nil, where .. ": wave " .. row[1])
+		end
+		if st.kind == "fake" then
+			check(Config.Enemies[st.enemy].fake ~= nil, where .. ": " .. st.enemy .. " is a famous fake")
+		end
+		if st.kind == "scene" then
+			local lines = StoryPlan.sceneLines(st, side)
+			check(
+				#lines >= 2 and st.seconds >= 5 and st.seconds <= 20,
+				where .. ": a 5 to 20 s beat with lines"
+			)
+			for _, line in lines do
+				check(S.opening.speakers[line.who] ~= nil, where .. ": speaker " .. line.who)
+				check(line.at < st.seconds, where .. ": each line starts inside the beat")
+			end
+		end
+		if st.kind == "choice" then
+			check(
+				S.choices[st.choice] ~= nil and S.choices[st.choice].mission == l.num,
+				where .. ": its choice"
+			)
+		end
+	end
+
+	test(
+		"Lore 5: Act 1 is the 6 missions of nate's lore doc, in order, at the old levels and rewards",
+		function()
+			check(#S.missions == 6, "6 missions")
+			for n, name in NAMES do
+				check(
+					S.missions[n].name == name and S.missions[n].num == n,
+					"mission " .. n .. " is " .. name
+				)
+			end
+			check(S.missions[1].opening and S.opening.next == 2, "1 is the Ceremony prologue; it leads to 2")
+			-- pacing and rewards by index, exactly the old Act 1's (so totals do not move)
+			local OLD = {
+				{ minLevel = 1, skillPoints = 1 },
+				{ minLevel = 3, minutes = 8, loot = "story" },
+				{ minLevel = 4, minutes = 8, loot = "story", renown = 600 },
+				{ minLevel = 5, minutes = 7, rep = 120 },
+				{ minLevel = 6, minutes = 10, loot = "story" },
+				{ minLevel = 8, minutes = 12, loot = "storyFinale", skillPoints = 1 },
+			}
+			for n, old in OLD do
+				local m = S.missions[n]
+				for _, k in { "minLevel", "minutes", "loot", "renown", "rep", "skillPoints" } do
+					check(m[k] == old[k], m.id .. " keeps the old " .. k)
+				end
+			end
+			check(StoryPlan.actSkillPoints(Config) == 8, "Act 1 still grants 8 Skill Points")
+			check(S.missions[6].finale and S.missions[6].ending == "act1", "Live ends the act")
+		end
+	)
+
+	-- one test per mission and side: playable in its pocket, and in a mixed party both sides play at once
+	for n = 2, 6 do
+		for _, side in { "hero", "villain" } do
+			local m = S.missions[n]
+			local label = if side == "villain" then "the Syndicate" else "the Vigil"
+			test(
+				string.format("Lore 5: %s as %s: every stage plays in its pocket, co-op", m.name, label),
+				function()
+					local l = PocketLayout.build(Config, 1, m.layout)
+					l.num = n
+					check(
+						#m.hero == #m.villain and #m.hero == StoryPlan.stages(Config, n),
+						"both lists, one per stage"
+					)
+					local steps = allSteps(n, side)
+					check(#steps >= 4, "at least 4 steps")
+					for i, st in steps do
+						playable(l, st, side, string.format("%s %s step %d", m.id, side, i))
+					end
+					-- a mixed party: each stage gives both sides something, or one shared step; split stages differ
+					local split, kinds = 0, {}
+					for i = 1, StoryPlan.stages(Config, n) do
+						local plan =
+							StoryPlan.tracks(Config, n, i, { hero = { 1, 1, 1 }, villain = { 2, 2, 2 } })
+						if plan.both then
+							check(
+								plan.hero == nil and plan.villain == nil,
+								"a shared stage is one step for all"
+							)
+							kinds[plan.both.kind] = true
+						else
+							check(
+								plan.hero ~= nil and plan.villain ~= nil,
+								"a split stage has a track per side"
+							)
+							local h, v = plan.hero, plan.villain
+							if h and v and h.kind ~= "choice" then
+								split += 1
+								check(
+									StoryPlan.text(h, "hero") ~= StoryPlan.text(v, "villain"),
+									"each side's own goal"
+								)
+							end
+						end
+						-- a solo player of this side gets only their own track
+						local solo = StoryPlan.tracks(Config, n, i, { [side] = { 1, 1, 1 } })
+						local other = if side == "hero" then "villain" else "hero"
+						check(solo[other] == nil, "no track for a side that is not there")
+					end
+					check(split >= 1, "at least one stage where the sides do different jobs at once")
+					check(kinds.scene == true, "at least one camera beat")
+					-- shared steps word the goal per side
+					for i = 1, StoryPlan.stages(Config, n) do
+						local st = m.hero[i]
+						if StoryPlan.shared(Config, n, i) and st.kind ~= "scene" and st.villainText then
+							check(
+								st.villainText ~= st.text,
+								m.id .. " stage " .. i .. ": the Syndicate reads its own goal"
+							)
+						end
+					end
+				end
+			)
+		end
+	end
+
+	test(
+		"Lore 5: the beats follow the doc (Lodestar and Patch, the bridge, the twin, the tower, the unmask)",
+		function()
+			local function has(n: number, kind: string, field: string?, value: any?): boolean
+				for _, side in { "hero", "villain" } do
+					for _, st in allSteps(n, side) do
+						if st.kind == kind and (not field or st[field] == value) then
+							return true
+						end
+					end
+				end
+				return false
+			end
+			local function speaks(n: number, who: string): boolean
+				for _, st in S.missions[n].hero do
+					for _, l in st.lines or {} do
+						if l.who == who then
+							return true
+						end
+					end
+				end
+				return false
+			end
+			check(
+				S.missions[2].layout == "dungeon" and speaks(2, "lodestar") and speaks(2, "patch"),
+				"Safehouse"
+			)
+			check(has(2, "scene", "lodestar", "door"), "Lodestar stands in the safehouse")
+			local offer = S.missions[2].hero[5]
+			check(
+				offer.kind == "scene" and offer.lines[2].hero ~= offer.lines[2].villain,
+				"recruited, or a deal"
+			)
+			check(S.missions[3].layout == "bridge" and has(3, "fake", "enemy", "Radiant"), "Framed: Radiant")
+			check(has(3, "hold") and has(3, "break"), "Vigil saves people while the Syndicate loots")
+			check(has(4, "twin"), "The Copy: the evil twin")
+			check(
+				S.missions[5].layout == "tower" and speaks(5, "insider"),
+				"The Signal: the tower and the insider"
+			)
+			check(
+				has(5, "hold", "at", "mast") and has(5, "hold", "at", "relay"),
+				"guard Patch / plant the feed"
+			)
+			check(
+				has(6, "fake", "enemy", "Bulwark") and has(6, "warframe"),
+				"Live: Bulwark, then its battle form"
+			)
+			check(
+				has(6, "fake", "news", "unmask") and S.news.unmask ~= nil,
+				"the unmask goes out on every screen"
+			)
+			check(Config.Boss.bosses.NullWarFrame.name == "Bulwark's Battle Form", "the battle form's name")
+		end
+	)
+
+	test(
+		"Lore 5: each side's 3 choices record their flag and pay only Skill Points, rep and cosmetics",
+		function()
+			local ALLOWED = { label = true, flag = true, rep = true, perk = true, arena = true }
+			local flags = {}
+			check(#S.choices == 3, "3 choices")
+			local missions = {}
+			for n, c in S.choices do
+				missions[c.mission] = true
+				for _, side in { "hero", "villain" } do
+					local key = StoryPlan.sideKey(side)
+					check(#c[key] == 2, string.format("choice %d: 2 options for the %s", n, side))
+					for o, opt in c[key] do
+						for k in opt do
+							check(
+								ALLOWED[k] == true,
+								string.format("choice %d %s %d: %s changes no stats", n, side, o, k)
+							)
+						end
+						check(not flags[opt.flag], "flag " .. opt.flag .. " is its own")
+						flags[opt.flag] = true
+						local story = ProfileSchema.newCharacter(side).story
+						local ok, fx = StoryPlan.pick(Config, story, n, o, side)
+						check(
+							ok and fx.flag == opt.flag and fx.skillPoints == 2,
+							opt.label .. ": picked, flag, 2 points"
+						)
+						check(story.choices[n] == o, opt.label .. ": saved in its slot")
+						check(
+							StoryPlan.flag(Config, story, side, opt.flag),
+							opt.label .. ": the flag reads back"
+						)
+						local other = c[key][3 - o]
+						check(
+							not StoryPlan.flag(Config, story, side, other.flag),
+							opt.label .. ": not the other flag"
+						)
+						local track = fx.rep and fx.rep[1]
+						check(
+							track == "city" or track == (if side == "villain" then "syndicate" else "vigil"),
+							"rep track"
+						)
+						check(
+							fx.credits == nil and fx.gadget == nil and fx.renown == nil,
+							"no Credits, gear or Renown"
+						)
+						check(not StoryPlan.pick(Config, story, n, 3 - o, side), opt.label .. ": once only")
+					end
+					check(#StoryPlan.labels(Config, n, side) == 2, "2 buttons")
+				end
+			end
+			check(
+				missions[3] and missions[4] and missions[5],
+				"one choice each in Framed, The Copy and The Signal"
+			)
+			-- the flags each mission's choice step asks for match the doc
+			check(StoryPlan.labels(Config, 1, "hero")[1] == "Save the Bridge", "Framed: save the bridge")
+			check(StoryPlan.labels(Config, 1, "villain")[1] == "Grab the Data Core", "Framed: the data core")
+			check(StoryPlan.labels(Config, 3, "hero")[1] == "Spare the Core", "The Copy: spare the core")
+			check(StoryPlan.labels(Config, 3, "villain")[1] == "Reprogram It", "The Copy: a minion")
+			check(StoryPlan.labels(Config, 2, "hero")[2] == "Test Her", "The Signal: test the insider")
+			check(StoryPlan.labels(Config, 2, "villain")[2] == "Hold It for Ransom", "The Signal: the ransom")
+		end
+	)
+
+	test("Lore 5: the ending broadcast plays after Live (registration law, public enemy number 1)", function()
+		for n = 1, 5 do
+			check(StoryPlan.ending(Config, n) == nil, "no broadcast after mission " .. n)
+		end
+		check(StoryPlan.ending(Config, 6) == "act1", "the broadcast after Live")
+		local e = S.ending.act1
+		check(string.find(e.headline, "REGISTRATION", 1, true) ~= nil, "the registration law passes")
+		check(string.find(e.enemy, "PUBLIC ENEMY", 1, true) ~= nil, "public enemy number 1")
+		check(e.enemyAt < e.seconds and #e.lines >= 2, "Crane's lines, then the card")
+		for _, l in e.lines do
+			check(S.opening.speakers[l.who] ~= nil and l.at < e.enemyAt, "a known speaker before the card")
+		end
+		local svc = readFile("src/server/Services/MissionService.luau")
+		check(string.find(svc, 'Net.fire("StoryBroadcast"', 1, true) ~= nil, "the server sends it")
+		check(
+			string.find(svc, "StoryPlan.ending(Config, run.num)", 1, true) ~= nil,
+			"after the act's ending mission"
+		)
+		check(require("../src/shared/Remotes").StoryBroadcast ~= nil, "its remote")
+		local hud = clientSources()["src/client/Ui/StoryHud.luau"]
+		check(
+			string.find(hud, "StoryClient.Broadcast:Connect(showBroadcast)", 1, true) ~= nil,
+			"the HUD shows it"
+		)
+		check(string.find(hud, 'GetAttribute("HeroName")', 1, true) ~= nil, "under the hero's own name")
+	end)
+
+	test("Lore 5: no old Act 1 names in player text", function()
+		local OLD = {
+			"Shardfall",
+			"War-Frame",
+			"War Frame",
+			"Hold the Line",
+			"Signal Tower",
+			"The Informant",
+			"Under the Docks",
+			"Smash and Grab",
+		}
+		local hits = {}
+		local function look(where: string, text: string)
+			for _, w in OLD do
+				if string.find(string.lower(text), string.lower(w), 1, true) then
+					table.insert(hits, where .. ": " .. w .. " in " .. text)
+				end
+			end
+			if string.find(text, "%f[%w]Null%f[%W]") or string.find(text, "%f[%w]NULL%f[%W]") then
+				table.insert(hits, where .. ": Null in " .. text)
+			end
+		end
+		local function walk(v: any, path: string, seen: { [any]: boolean })
+			if path == "Story.quests" then
+				return -- the side quests (build plan step 10 retires them)
+			end
+			if type(v) == "string" then
+				look(path, v)
+			elseif type(v) == "table" and not seen[v] then
+				seen[v] = true
+				for k, x in v do
+					walk(x, path .. "." .. tostring(k), seen)
+				end
+			end
+		end
+		for name, mod in Config do
+			walk(mod, name, {})
+		end
+		local fs = require("@lune/fs")
+		local function scan(dir: string)
+			for _, name in fs.readDir(dir) do
+				local path = dir .. "/" .. name
+				if fs.isDir(path) then
+					scan(path)
+				elseif
+					string.sub(name, -5) == ".luau"
+					and not string.find(path, "^src/config/")
+					and path ~= "src/server/Services/QuestService.luau"
+				then
+					for line in string.gmatch(fs.readFile(path) .. "\n", "([^\n]*)\n") do
+						line = string.gsub(line, '"[^"]*"', function(lit)
+							look(path, lit)
+							return '""'
+						end)
+					end
+				end
+			end
+		end
+		scan("src")
+		for _, h in hits do
+			check(false, "old Act 1 name: " .. h)
+		end
+		check(#hits == 0, "the new Act 1 only")
+	end)
+
+	test(
+		"Lore 5: an old save mid-Act 1 lands on the new mission at the same index and keeps its rewards",
+		function()
+			local StoryPlan2 = StoryPlan
+			-- a hero who cleared the old opening, Hold the Line and Signal Tower and picked twice (train, trust)
+			local old = ProfileSchema.default()
+			old.version = ProfileSchema.VERSION - 1
+			local c = old.characters[1]
+			c.created, c.level, c.bonusPoints = 1, 6, 5
+			c.story.opening = 1
+			c.story.missions = 7 -- 1, 2 and 3
+			c.story.choices = { 1, 1, 0 }
+			c.story.perks = 1 -- the old Echo Drone (spared the old core in a replay save)
+			c.rep = { 250, 0, 120 }
+			local back = ProfileSchema.load(serde.decode("json", serde.encode("json", old)))
+			local st = back.characters[1].story
+			check(
+				st.missions == 7 and st.choices[1] == 1 and st.choices[2] == 1,
+				"the bits and picks are kept"
+			)
+			check(StoryPlan2.nextMission(Config, st) == 4, "next up: mission 4, now The Copy")
+			check(StoryPlan2.state(Config, st, 6, 4) == "open", "open at the same level")
+			check(
+				StoryPlan2.state(Config, st, 6, 3) == "done",
+				"Framed counts as cleared (no second first-clear)"
+			)
+			check(not StoryPlan2.clear(st, 3), "a cleared index never pays its first clear again")
+			check(back.characters[1].bonusPoints == 5, "Skill Points already earned stay")
+			check(back.characters[1].rep[1] == 250 and back.characters[1].rep[3] == 120, "reputation stays")
+			check(StoryPlan2.bit(st.perks, 1), "the Echo Drone stays")
+			-- the old picks keep their meaning in the new slots: 1 the first mission choice, 2 the trust test
+			check(
+				StoryPlan2.flag(Config, st, "hero", "bridgeSaved"),
+				"Save the Train reads as Save the Bridge"
+			)
+			check(StoryPlan2.flag(Config, st, "hero", "insiderTrusted"), "Trust Her stays Trust Her")
+			-- the choice already made is not asked (or paid) again in its new mission
+			check(not StoryPlan2.pick(Config, st, 1, 2, "hero"), "no second pick, no second Skill Points")
+			check(
+				st.choices[3] == 0 and StoryPlan2.pick(Config, st, 3, 1, "hero"),
+				"the new Copy choice is open"
+			)
+			-- a hero who finished the old Act 1 has finished the new one
+			local done = ProfileSchema.newCharacter().story
+			done.missions = 63
+			check(StoryPlan2.nextMission(Config, done) == nil, "all 6 cleared")
+			check(StoryPlan2.canEnter(Config, done, 8, 6), "and Live can be replayed")
+		end
+	)
+
+	test(
+		"Lore 5: the Journal, markers, phone controls, safety, analytics and the Dev panel carry over",
+		function()
+			local svc = readFile("src/server/Services/MissionService.luau")
+			check(
+				string.find(svc, "run.m.minutes * 60 * 2 + 300", 1, true) ~= nil,
+				"an abandoned run ends itself"
+			)
+			check(string.find(svc, '"mission_start"', 1, true) ~= nil, "mission_start is logged on entry")
+			check(
+				string.find(svc, '{ run.m.id, #run.members, run.sides[player] or "hero" }', 1, true) ~= nil,
+				"mission events carry the new mission id and the side"
+			)
+			check(
+				string.find(svc, 'Analytics.step(player, "Story", "act_done")', 1, true) ~= nil,
+				"the funnel's end"
+			)
+			local AS = require("../src/shared/AnalyticsSchema")
+			check(
+				#AS.FUNNELS.Story == 4 and AS.FUNNELS.Story[4] == "act_done",
+				"the Story funnel keeps its shape"
+			)
+			check(
+				AS.EVENTS.mission_done[3] == "side" and AS.EVENTS.choice_pick[3] == "side",
+				"events by side"
+			)
+			check(
+				string.find(svc, "out.target = stepTarget(run, track, player)", 1, true) ~= nil,
+				"each side's marker"
+			)
+			local hud = clientSources()["src/client/Ui/StoryHud.luau"]
+			check(
+				string.find(hud, "Hud.setFocus(if sceneFocus then {} else nil)", 1, true) ~= nil,
+				"buttons step aside"
+			)
+			check(string.find(hud, "sceneText(scene", 1, true) ~= nil, "the beat's subtitles")
+			local fx = clientSources()["src/client/Fx/StoryFx.luau"]
+			check(string.find(fx, "Reduce flashing", 1, true) ~= nil, "no flashes in a camera beat")
+			check(string.find(fx, "PLACEHOLDER ART", 1, true) ~= nil, "placeholder art is labelled")
+			local journal = clientSources()["src/client/Ui/Journal.luau"]
+			check(string.find(journal, "(PROLOGUE)", 1, true) ~= nil, "the Journal marks mission 1")
+			local dev = clientSources()["src/client/Ui/DevPanel.luau"]
+			check(
+				string.find(dev, '"missionas"', 1, true) ~= nil
+					and string.find(dev, '"missionstep"', 1, true) ~= nil,
+				"Dev: each mission as each side, and each stage"
+			)
+			local ds = readFile("src/server/Services/DevService.luau")
+			check(
+				string.find(ds, "missionas = function", 1, true) ~= nil
+					and string.find(ds, "MissionService.jumpStage", 1, true) ~= nil,
+				"DevService"
+			)
+		end
+	)
+end
+
+test("Weighty hits: flash, sound, sparks, knockback, shake and freeze on every hit you land", function()
+	local W = Config.Combat.weight
+	check(Config.Fx.hitFlash >= 0.1, "the robot turns white for at least 0.1 s")
+	check(
+		Config.Combat.hitPause >= 0.05 and Config.Combat.critPause > Config.Combat.hitPause,
+		"a real hit-stop, bigger on crits"
+	)
+	check(W.knock > 0 and W.knockHeavy > W.knock, "knockback, more on heavy hits")
+	check(
+		W.shake[2] > 0 and W.shakeHeavy[2] > W.shake[2] and W.shakeHeavy[1] >= W.shake[1],
+		"shake, more on heavy hits"
+	)
+	check(
+		W.flinchHeavy > W.flinchStuds and W.flinch > 0 and W.sparks > 0 and W.thudGap > 0,
+		"recoil and sparks"
+	)
+	local I = Config.Audio.impact
+	check(I and I.hit and I.heavy and I.clank and I.hit.fallback ~= nil, "the impact thud has sounds")
+	-- the server shove moves a robot by the configured distance on open ground
+	local sim = robotSim()
+	local e = EnemySim.spawn(sim, "BurglarBot", -40, 0, 0, 1) :: any
+	local x0 = e.x
+	EnemySim.knock(sim, e.id, -1, 0, W.knock)
+	check(math.abs((x0 - e.x) - W.knock) < 1e-6, "a normal hit shoves it")
+	-- wiring
+	local svc = readFile("src/server/Services/CombatService.luau")
+	check(
+		string.find(svc, "W.knockHeavy else W.knock", 1, true) ~= nil
+			and string.find(svc, "r.k ~= K.TICK", 1, true) ~= nil,
+		"the server shoves on hits, not ticks"
+	)
+	local cc = clientSources()["src/client/Controllers/CombatClient.luau"]
+	check(string.find(cc, "EnemyRenderer.impact(", 1, true) ~= nil, "the robot freezes and recoils")
+	check(string.find(cc, "CombatFx.hitSparks(", 1, true) ~= nil, "sparks spray out")
+	check(string.find(cc, "IMPACT.heavy else IMPACT.hit", 1, true) ~= nil, "the thud plays")
+	check(string.find(cc, "W.shakeHeavy else W.shake", 1, true) ~= nil, "the camera shakes")
+	check(
+		string.find(cc, "not CameraController.reduceMotion", 1, true) ~= nil,
+		"reduce flashing turns off the freeze"
+	)
+end)
 
 print(string.format("\n%d passed, %d failed", passed, failed))
 if failed > 0 then

@@ -28,6 +28,7 @@ local NAMES = {
 	"Incidents",
 	"Contracts",
 	"Events",
+	"Heroic",
 	"Boss",
 	"Story",
 	"Pvp",
@@ -43,6 +44,7 @@ local NAMES = {
 	"HeroRig",
 	"TrooperArt",
 	"StreetArt",
+	"BossArt",
 	"NpcLooks",
 	"Weapons",
 	"Guard", -- H1: block, breaker, interrupt (Hero MMO features)
@@ -78,6 +80,29 @@ do
 			A.list[row.id] = row
 			A.byNum[row.num] = row
 		end
+	end
+end
+
+-- Robot names in activity text come from ONE place: a "{Kind}" token in a text string is the robot's
+-- Config.Enemies[Kind].name, so renaming a robot is one line in Enemies (nate's lore, 2026-11-17).
+local NAMED_TEXT = { "Incidents", "Contracts", "Events", "Deep", "Boss", "World" }
+do
+	local E = Config.Enemies
+	local function fill(t: { [any]: any }, seen: { [any]: boolean })
+		seen[t] = true
+		for k, v in t do
+			if type(v) == "string" and string.find(v, "{", 1, true) then
+				t[k] = string.gsub(v, "{(%w+)}", function(kind: string): string
+					local e = E[kind]
+					return if type(e) == "table" and e.name then e.name else "{" .. kind .. "}"
+				end)
+			elseif type(v) == "table" and not seen[v] then
+				fill(v, seen)
+			end
+		end
+	end
+	for _, name in NAMED_TEXT do
+		fill(Config[name], {})
 	end
 end
 

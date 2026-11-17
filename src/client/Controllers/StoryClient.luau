@@ -1,8 +1,8 @@
 -- StoryClient: the client's view of the story (spec: Opening; Act 1; Side quests; Story.State, Mission.State
 -- 2 Hz, Choice.Pick). Screens and effects read these tables and listen to Changed; nothing is trusted.
 -- * journal: the latest StoryState (missions, choices, quests, pin, perks, reputation, mission states)
--- * opening: the playable disaster's step and its points; while it runs the HUD shows only the step's verb
---   button and the sky holds at dusk
+-- * opening: the Ceremony prologue's beat, its clock and the scene's points (lore step 3); while it runs the HUD
+--   shows only the beat's verb buttons and the sky holds at a bright afternoon
 -- * choice: the open choice prompt (its id and verb labels)
 -- * mission: the latest MissionState; result: the last MissionResult
 -- * quest: the pinned side quest's step (QuestState) and the last NPC line (QuestTalk)
@@ -23,24 +23,32 @@ StoryClient.Changed = Signal.new() -- (what) "journal", "opening", "choice", "mi
 StoryClient.Result = Signal.new() -- (result) a mission's result card
 StoryClient.Talk = Signal.new() -- (num, line, side) an NPC speaks
 StoryClient.Fade = Signal.new() -- () a mission trip: fade out and back in
+StoryClient.Broadcast = Signal.new() -- (id) an act's ending broadcast (lore step 5)
+
+StoryClient.missionAt = 0 -- os.clock() when the mission's current step began on the server (from its `t`)
 
 StoryClient.journal = nil :: { [string]: any }?
 StoryClient.opening = { step = 0 } :: { [string]: any }
+StoryClient.openingAt = 0 -- os.clock() when the current beat began on the server (from its `t`)
 StoryClient.choice = nil :: { id: number, labels: { string } }?
 StoryClient.mission = { num = 0 } :: { [string]: any }
 StoryClient.quest = nil :: { [string]: any }?
 
--- The verb button(s) each opening step pulses (Hud.setFocus)
+-- The verb button(s) each prologue beat pulses (Hud.setFocus); the camera beats show none
 StoryClient.VERBS = {
+	ceremony = {},
+	scan = {},
+	run = { "Leap" },
+	spark = { "Basic" }, -- the Spark fires from the attack button
 	leap = { "Leap" },
-	glide = { "Leap" }, -- the Leap button reads GLIDE in the air
-	catch = { "Catch" },
-	blast = { "Basic" },
-	choice = { "Leap", "Basic" },
-	save = { "Leap" },
-	grab = { "Leap" },
-	suitup = {},
-	flight = nil, -- the full HUD is back for the guided flight
+	chase = { "Leap" }, -- the Leap button reads GLIDE in the air
+	suit = { "Leap" },
+	descend = { "Leap" },
+	tunnel = { "Leap" },
+	fight = { "Basic", "Skill1", "Skill2", "Leap" },
+	swarm = { "Basic", "Skill1", "Skill2", "Leap" },
+	rescue = {},
+	title = {},
 }
 
 function StoryClient.openingStep(): string?
@@ -48,12 +56,31 @@ function StoryClient.openingStep(): string?
 end
 
 function StoryClient.inOpening(): boolean
-	local s = StoryClient.openingStep()
-	return s ~= nil and s ~= "flight"
+	return StoryClient.openingStep() ~= nil
+end
+
+-- Seconds into the current beat
+function StoryClient.beatTime(): number
+	return os.clock() - StoryClient.openingAt
 end
 
 function StoryClient.inMission(): boolean
 	return (StoryClient.mission.num or 0) > 0
+end
+
+-- The mission's camera beat right now (lore step 5): its step from Config and seconds into it, or nil
+function StoryClient.missionScene(): (any?, number)
+	local m = StoryClient.mission
+	local def = Config.Story.missions[m.num or 0]
+	if m.kind ~= "scene" or m.done or not def or not def.hero then
+		return nil, 0
+	end
+	local list = if m.side == "villain" then def.villain else def.hero
+	local st = list and list[m.step or 0]
+	if not st or st.kind ~= "scene" then
+		return nil, 0
+	end
+	return st, os.clock() - StoryClient.missionAt
 end
 
 function StoryClient.pick(option: number)
@@ -65,12 +92,21 @@ function StoryClient.pick(option: number)
 	end
 end
 
-function StoryClient.catch()
+-- The prologue's acts: the Spark fires, skip a camera beat (replays), Create First, play the prologue
+function StoryClient.spark()
 	Net.send("OpeningAct", 1)
 end
 
-function StoryClient.skipFlight()
+function StoryClient.skipBeat()
 	Net.send("OpeningAct", 2)
+end
+
+function StoryClient.createFirst()
+	Net.send("OpeningAct", 3)
+end
+
+function StoryClient.playPrologue()
+	Net.send("OpeningAct", 4)
 end
 
 function StoryClient.enter(num: number)
@@ -92,6 +128,7 @@ function StoryClient.init()
 	end)
 	Net.listen("OpeningState", function(s)
 		StoryClient.opening = s
+		StoryClient.openingAt = os.clock() - (tonumber(s.t) or 0)
 		WorldClient.clockOverride = if StoryClient.inOpening() then Config.Story.opening.clockTime else nil
 		StoryClient.Changed:Fire("opening")
 	end)
@@ -105,10 +142,18 @@ function StoryClient.init()
 			return
 		end
 		StoryClient.mission = m
+		if m.t then
+			StoryClient.missionAt = os.clock() - (tonumber(m.t) or 0)
+		end
 		StoryClient.Changed:Fire("mission")
 	end)
 	Net.listen("MissionResult", function(r)
 		StoryClient.Result:Fire(r)
+	end)
+	Net.listen("StoryBroadcast", function(b)
+		if type(b) == "table" and type(b.id) == "string" and Config.Story.ending[b.id] then
+			StoryClient.Broadcast:Fire(b.id)
+		end
 	end)
 	Net.listen("QuestState", function(q)
 		q.received = os.clock()

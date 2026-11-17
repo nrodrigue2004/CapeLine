@@ -2,8 +2,10 @@
 -- currency (Credits), one progression track (Renown), one crafting material (Lumen Dust). No trading.
 -- All numbers are tuning guesses (Balance.Economy in the spec).
 return {
-	-- xpToNext(L) = round(100 x 1.12^(L - 1)); cumulative to level 40 is about 68,400
-	levels = { base = 100, growth = 1.12 },
+	-- xpToNext(L) = round(100 x 1.12^(L - 1)) up to level 40 (cumulative about 68,400, unchanged); from 40 to
+	-- the cap (Stats.levelCap) each step is lateGrowth x the one before, so the endgame band keeps about the same
+	-- hours a level as the late 30s instead of 12% more each (40 to 50 is about 87,600 more Renown; EconomySim)
+	levels = { base = 100, growth = 1.12, lateFrom = 40, lateGrowth = 1.03 },
 	-- Earn formulas (L = zone level): value = base + perLevel x L
 	earn = {
 		incident = { credits = { 20, 1.5 }, renown = { 25, 2 } },

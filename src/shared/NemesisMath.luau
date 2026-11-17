@@ -27,7 +27,7 @@ function NemesisMath.seed(userId: number, rank: number, side: string): number
 	return Rng.hash(userId, rank, if side == "villain" then 2 else 1, 7331)
 end
 
--- Its name from the two word lists (a villain's is a League hunter: "Hunter" in front)
+-- Its name from the two word lists (a villain's is a hunter robot: "Hunter" in front)
 function NemesisMath.name(N: any, seed: number, side: string): string
 	local rng = Rng.new(Rng.hash(seed, 1))
 	local a = N.first[rng:int(1, #N.first)]

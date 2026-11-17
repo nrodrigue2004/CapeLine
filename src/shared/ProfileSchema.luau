@@ -7,9 +7,17 @@
 -- Every save change bumps VERSION and adds a function to MIGRATIONS[newVersion].
 -- Arrays never hold nil (DataStores store JSON): empty equipment and style slots are 0.
 
+local Config = if script
+	then require(script.Parent.Parent:WaitForChild("Config"))
+	else (require :: any)("../config")
+
 local ProfileSchema = {}
 
-ProfileSchema.VERSION = 9
+-- The level cap a saved level is repaired to (Config.Stats.levelCap, 50 since 2026-11-17). A save from the
+-- 40 cap is already in range, so raising the cap needs no migration.
+ProfileSchema.LEVEL_CAP = Config.Stats.levelCap
+
+ProfileSchema.VERSION = 10
 ProfileSchema.BOSSES = 3 -- #Config.Boss.order (a test checks they match)
 ProfileSchema.SLOTS = 8
 ProfileSchema.STYLE_WORDS = 16 -- 512 bits
@@ -134,6 +142,9 @@ function ProfileSchema.newCharacter(side: string?, classId: string?): { [string]
 		mobility = "flight", -- swapped free at any safehouse
 		weapon = 0, -- the carried weapon (Config.Weapons id), 0 = Bare Fists
 		pathChanged = 0, -- 1 once the free archetype or path change (before level 10) is used
+		-- lore step 2: how the Spark woke (Config.Creator.origins index, 0 = not picked yet; picked in the
+		-- creator, changed there free); a title and one look piece, never a stat
+		origin = 0,
 		tint = 0, -- an owned effect colour (Config.Shop.tints), 0 = the set's own
 		landing = 0, -- an owned landing pose (emote bit 20 to 31), 0 = none
 		fame = 0,
@@ -143,7 +154,7 @@ function ProfileSchema.newCharacter(side: string?, classId: string?): { [string]
 		-- story (M7): opening 1 once the playable disaster is done; missions: first clears (bit n - 1);
 		-- choices: option picked per Act 1 choice (0 = not yet); quests: per side quest arc, 0 not started,
 		-- 1 to 3 the current step, 4 done; pinned: 0 the story, 1 to 8 a side quest; menu: Maribel's pick;
-		-- perks: story perks (bit 1 Null Echo)
+		-- perks: story perks (bit 1 the Echo Drone; key NullEcho)
 		story = {
 			act = 1,
 			flags = words(ProfileSchema.SMALL_WORDS),
@@ -293,6 +304,17 @@ local MIGRATIONS: { [number]: (any) -> () } = {
 		-- the hero creator plan (2026-11-16): looks grow to 32 words (old 8-word looks still read), the piece
 		-- bitset to 32 words, weapons owned and each weapon's mastery and look; repair() pads and fills them
 	end,
+	[10] = function(p)
+		-- nate's lore, build plan step 2: every character has an origin; a hero saved before origins gets the
+		-- default (Config.Creator.originDefault) and may pick another in the creator for free
+		if type(p.characters) == "table" then
+			for _, c in p.characters do
+				if type(c) == "table" and (tonumber(c.origin) or 0) == 0 then
+					c.origin = Config.Creator.originDefault
+				end
+			end
+		end
+	end,
 }
 ProfileSchema.MIGRATIONS = MIGRATIONS
 
@@ -397,7 +419,7 @@ local function repair(p: any): any
 		for _, c in chars do
 			if type(c) == "table" and #cleanChars < 4 then
 				fill(c, ProfileSchema.newCharacter())
-				c.level = num(c.level, 1, 40, 1)
+				c.level = num(c.level, 1, ProfileSchema.LEVEL_CAP, 1)
 				c.xp = num(c.xp, 0, 2 ^ 31, 0)
 				c.loadoutIndex = num(c.loadoutIndex, 1, 2, 1)
 				c.lastSafehouse = num(c.lastSafehouse, 0, 16, 0)
@@ -435,6 +457,13 @@ local function repair(p: any): any
 					c.mobility = "flight"
 				end
 				c.pathChanged = num(c.pathChanged, 0, 1, 0)
+				c.origin = num(c.origin, 0, 1e6, 0)
+				if not Config.Creator.origins[c.origin] then
+					c.origin = 0 -- not an origin: not picked yet
+				end
+				if c.origin == 0 and c.created == 1 then
+					c.origin = Config.Creator.originDefault -- a made hero always has one
+				end
 				c.weapon = num(c.weapon, 0, 64, 0)
 				c.hq.level = num(c.hq.level, 1, 6, 1)
 				c.hq.droneAt = num(c.hq.droneAt, 0, 2 ^ 40, 0)
@@ -549,7 +578,7 @@ local function repair(p: any): any
 				nounId = num(l.nounId, 0, 64, 0),
 				classId = if type(l.classId) == "string" then string.sub(l.classId, 1, 24) else "Elemental",
 				side = if l.side == "villain" then "villain" else "hero",
-				level = num(l.level, 1, 40, 40),
+				level = num(l.level, 1, ProfileSchema.LEVEL_CAP, ProfileSchema.LEVEL_CAP),
 				rank = num(l.rank, 1, 255, 1),
 				at = num(l.at, 0, 2 ^ 40, 0),
 			})
@@ -625,6 +654,7 @@ function ProfileSchema.roster(profile: any): { any }
 			legacy = c.legacy,
 			created = c.created,
 			look = c.look,
+			origin = c.origin,
 		}
 	end
 	return out
@@ -670,6 +700,7 @@ function ProfileSchema.clientView(profile: any, walletOnly: boolean?): { [string
 		startSet = c.startSet,
 		mobility = c.mobility,
 		pathChanged = c.pathChanged,
+		origin = c.origin,
 		tint = c.tint,
 		landing = c.landing,
 		legacy = c.legacy,

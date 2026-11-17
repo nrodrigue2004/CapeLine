@@ -34,7 +34,7 @@ export type Hero = {
 	bot: any?,
 	name: string,
 	level: number,
-	side: string, -- "hero" (League) or "villain" (Syndicate)
+	side: string, -- "hero" (the Vigil) or "villain" (the Dread Syndicate)
 	classId: string, -- the archetype (Elemental, Rogue, Powerhouse, Mystic)
 	mobility: string, -- flight, speed, leap, acrobat, swing (Config.Move.mobility)
 	formToken: number?,
@@ -82,6 +82,7 @@ export type Hero = {
 	carry: any?, -- H3: what the hero holds overhead (ThrowService)
 	safehouse: number?, -- the safehouse the hero stands in (SafehouseService)
 	secondWindAt: number, -- Second Wind ready again (os.clock)
+	floor: number?, -- lore step 3: the prologue's fight never takes health below this share
 	scene: string?, -- "opening" or "mission": in a story scene (no incidents, contracts or world events)
 	downed: boolean?, -- M8: Downed (PvE health hit 0): crawling, waiting for a revive
 	pvpSlot: number, -- M8: combat id PVP_BASE + slot when flagged heroes are targets
@@ -606,6 +607,9 @@ function HeroService.damage(hero: Hero, amount: number, source: any?)
 	Awakening.hurt(Config, hero.meter, amount / math.max(1, hero.maxHealth), now)
 	hero.meterDirty = true
 	hero.health = math.max(0, hero.health - amount)
+	if hero.floor and hero.health < hero.maxHealth * hero.floor then
+		hero.health = math.ceil(hero.maxHealth * hero.floor) -- a story beat that never defeats its hero
+	end
 	local hum = humanoidOf(hero)
 	if hum and hero.health > 0 then
 		hum.Health = hero.health

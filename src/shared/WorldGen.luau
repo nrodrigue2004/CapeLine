@@ -10,11 +10,15 @@
 --   into 4 lots around their roads; the variant says what stands on each lot and the rotation turns that
 --   pattern a quarter turn at a time. Coast tiles are beaches, piers, lighthouses and dunes.
 -- * base: the ground, the coast sand, the ocean past the map edge and the long road strips.
--- * landmark: Comet Crater, Radio Hill and the Old Quarry, hand-placed on fixed tiles.
--- PLACEHOLDER ART: simple parts until the kit pass (M5).
+-- * landmark: The Crater (id CometCrater), Radio Hill and the Old Quarry, hand-placed on fixed tiles.
+-- PLACEHOLDER ART: simple parts until the kit pass (M5). With Config.City.kit (overhaul step 5) the outskirts
+-- and hub filler are dressed after each lot is built (no random draws change): clapboard, plaster and brick
+-- fronts, clay-tiled roofs, paved filler sidewalks and asphalt roads, mailboxes and bushes by the houses,
+-- benches and bins by the shops, lamps on the filler blocks and power poles along the country roads.
 
 local Rng = if script then require(script.Parent.Rng) else (require :: any)("./Rng")
 local BoxKit = if script then require(script.Parent.BoxKit) else (require :: any)("./BoxKit")
+local CityKit = if script then require(script.Parent.CityKit) else (require :: any)("./CityKit")
 
 local WorldGen = {}
 
@@ -163,7 +167,10 @@ function WorldGen.tiles(cityCfg: any, w: any, seed: number): buffer
 			local ring = WorldGen.ring(w, tx, tz)
 			local zone, variant, rot, flags = 0, 0, 0, 0
 			local lm = WorldGen.landmarkAt(w, tx, tz)
-			if ring == 0 then
+			if ring > 0 and touchesDistrict(cityCfg, tx, tz) then
+				-- a district out of the hub (Uptown): fixed like the hub, built by its own layout, no roads
+				zone = Z.hub
+			elseif ring == 0 then
 				-- the hub is fixed: districts, or a filler tile from the hub's own seed
 				if not touchesDistrict(cityCfg, tx, tz) then
 					local h = Rng.hash(cityCfg.hubFill.seed, tx, tz)
@@ -532,6 +539,62 @@ local function lotRects(
 	}
 end
 
+-- The kit's dressing for one built lot (after its random draws): its building's front and tint, tiled roofs,
+-- and a few props by what stands there (all placed from the building's own box, so they stay in its yard)
+local FRONT_GROUP = { house = "house", bighouse = "house", shop = "shop", apt = "apt", barn = "barn" }
+
+local function dressLot(
+	kit: any,
+	props: { CityKit.Prop },
+	list: { Box },
+	first: number,
+	kind: string,
+	r: { number },
+	gy: number
+)
+	local body: Box? = nil
+	for k = first, #list do
+		local b = list[k]
+		if b.kind == "building" and b.shape == nil and body == nil then
+			body = b
+		end
+		CityKit.roof(kit, b)
+	end
+	local group = FRONT_GROUP[kind]
+	if body and group then
+		local front = CityKit.front(kit, body, kit.fronts[group], body.color)
+		if kind == "barn" and front then
+			body.tint = kit.barnTint
+		end
+		if kind == "apt" and front then
+			for k = first, #list do
+				if list[k].kind == "band" then
+					list[k].plain = front
+				end
+			end
+		end
+	end
+	local function put(name: string, x: number, z: number, ry: number)
+		CityKit.put(props, name, x, gy, z, ry)
+	end
+	if body and (kind == "house" or kind == "bighouse") then
+		-- a mailbox by the front path and a bush at each side (houses face +z)
+		local front = body.cz + body.sz / 2
+		put("Mailbox", body.cx + 3.6, front + 2.4, 180)
+		put("Bush", body.cx - body.sx / 2 - 2.6, body.cz + body.sz / 4, 0)
+		if CityKit.roll(kit, body.cx, body.cz, 51) < 0.6 then
+			put("Bush", body.cx + body.sx / 2 + 2.6, body.cz - body.sz / 4, 0)
+		end
+	elseif body and kind == "shop" then
+		local front = body.cz + body.sz / 2
+		put("Bench", body.cx - body.sx / 4, front + 1.8, 180)
+		put("Bin", body.cx + body.sx / 2 - 1.6, front + 1.8, 180)
+	elseif kind == "park" then
+		put("Bush", r[1] + 3.2, r[2] + 3.2, 0)
+		put("Bush", r[3] - 3.2, r[4] - 3.2, 0)
+	end
+end
+
 local function lots(
 	list: { Box },
 	rng: Rng.Rng,
@@ -539,7 +602,9 @@ local function lots(
 	kinds: { string },
 	rot: number,
 	gy: number,
-	clear: { BoxKit.Circle }
+	clear: { BoxKit.Circle },
+	kit: any?,
+	props: { CityKit.Prop }?
 )
 	for i = 1, 4 do
 		local r = rects[i]
@@ -547,9 +612,46 @@ local function lots(
 		local sub = Rng.new(rng:nextInt32())
 		local cx, cz = (r[1] + r[3]) / 2, (r[2] + r[4]) / 2
 		if not BoxKit.hitsAny(clear, cx, cz, r[3] - r[1], r[4] - r[2]) then
+			local first = #list + 1
 			LOTS[kind](list, sub, r[1], r[2], r[3], r[4], gy)
+			if kit and props then
+				dressLot(kit, props, list, first, kind, r, gy)
+			end
 		end
 	end
+end
+
+-- Power poles beside a tile's country roads (one a tile on each road, off the tarmac, clear of the crossing)
+local function poles(
+	props: { CityKit.Prop },
+	w: any,
+	t: Tile,
+	x0: number,
+	z0: number,
+	size: number,
+	gy: number
+)
+	local roads = w.roads
+	local mx, mz = x0 + size / 2, z0 + size / 2
+	if t.roadNS then
+		local half = (if t.hwyNS then roads.highwayWidth else roads.localWidth) / 2
+		CityKit.put(props, "PowerPole", mx - half - 1.6, gy, z0 + size * 0.25, -90)
+	end
+	if t.roadEW then
+		local half = (if t.hwyEW then roads.highwayWidth else roads.localWidth) / 2
+		CityKit.put(props, "PowerPole", x0 + size * 0.75, gy, mz - half - 1.6, 180)
+	end
+end
+
+-- The safehouse pads near a tile as keep-out squares for props
+local function padRects(clear: { BoxKit.Circle }, x0: number, z0: number, size: number): { CityKit.Rect }
+	local out = {}
+	for _, c in clear do
+		if c.x + c.r > x0 and c.x - c.r < x0 + size and c.z + c.r > z0 and c.z - c.r < z0 + size then
+			table.insert(out, { x0 = c.x - c.r, z0 = c.z - c.r, x1 = c.x + c.r, z1 = c.z + c.r })
+		end
+	end
+	return out
 end
 
 -----------------------------------------------------------------------------------------------------------
@@ -681,7 +783,8 @@ end
 WorldGen.windmill = { height = 48, blade = 52 }
 
 -- The boxes for one tile. Hub district tiles and the non-corner landmark tiles return nothing (the districts
--- and landmarks are built whole). clear: safehouse pads.
+-- and landmarks are built whole). clear: safehouse pads. props (optional): with Config.City.kit, the tile's
+-- street props are added to it (kept clear of its buildings, pads and roads).
 function WorldGen.tilePlan(
 	cityCfg: any,
 	w: any,
@@ -689,9 +792,12 @@ function WorldGen.tilePlan(
 	seed: number,
 	tx: number,
 	tz: number,
-	clear: { BoxKit.Circle }
+	clear: { BoxKit.Circle },
+	props: { CityKit.Prop }?
 ): { Box }
 	local list: { Box } = {}
+	local kit = if props then cityCfg.kit else nil
+	local propsFrom = if props then #props + 1 else 0
 	local t = WorldGen.get(w, tiles, tx, tz)
 	local Z = w.zones
 	local size = cityCfg.tile
@@ -717,7 +823,22 @@ function WorldGen.tilePlan(
 			size - street * 2,
 			if park then "grass" else "sidewalk"
 		)
-		lots(list, rng, lotRects(w, x0, z0, size, nil, street + 2), kinds, t.rot, gy + 0.8, clear)
+		if kit and not park then
+			list[#list].kit = kit.ground.Hub.sidewalk
+		end
+		lots(list, rng, lotRects(w, x0, z0, size, nil, street + 2), kinds, t.rot, gy + 0.8, clear, kit, props)
+		if kit and props then
+			-- lamps on the block's four corners, facing out
+			for _, side in CityKit.sides(x0 + street, z0 + street, size - street * 2) do
+				CityKit.onSide(props, "StreetLamp", side, -(size / 2 - street - 1), 1, gy + 0.8)
+			end
+			CityKit.keep(
+				kit,
+				props,
+				propsFrom,
+				CityKit.obstacles(list, gy + 0.8, padRects(clear, x0, z0, size), 50)
+			)
+		end
 		return list
 	end
 	local rng = Rng.new(Rng.hash(seed, tx, tz, 3))
@@ -762,7 +883,11 @@ function WorldGen.tilePlan(
 	local kinds = if t.zone == Z.suburbs
 		then VARIANTS.suburbs[t.variant + 1]
 		else VARIANTS.farmland[t.variant + 1]
-	lots(list, rng, lotRects(w, x0, z0, size, t, 3), kinds, t.rot, gy, clear)
+	lots(list, rng, lotRects(w, x0, z0, size, t, 3), kinds, t.rot, gy, clear, kit, props)
+	if kit and props then
+		poles(props, w, t, x0, z0, size, gy)
+		CityKit.keep(kit, props, propsFrom, CityKit.obstacles(list, gy, padRects(clear, x0, z0, size), 50))
+	end
 	return list
 end
 
@@ -909,6 +1034,13 @@ function WorldGen.base(cityCfg: any, w: any, tiles: buffer, deep: any?): { Box }
 	end
 	runs(true)
 	runs(false)
+	if cityCfg.kit then
+		for _, b in list do
+			if b.kind == "road" then
+				b.kit = cityCfg.kit.ground.Outskirts.road
+			end
+		end
+	end
 	return list
 end
 
@@ -953,6 +1085,7 @@ function WorldGen.landmark(cityCfg: any, w: any, index: number): Landmark
 				{ ry = -math.deg(a) }
 			)
 		end
+		-- the glowing core left in the blown Crane lab's ruins (the "comet" glow colour; nate's lore 2026-11-17)
 		box(list, "glow", cx, gy + c.glowHeight / 2 + 4, cz, 30, 30, 30, "comet", { shape = "ball" })
 		for k = 0, 2 do
 			local a = k / 3 * 2 * math.pi

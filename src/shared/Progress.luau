@@ -1,6 +1,7 @@
 --!strict
 -- Progress: levels, Renown and earnings (spec: Levels; Earn formulas; Currencies). Pure.
---   xpToNext(L) = round(100 x 1.12^(L - 1)), so level 40 takes about 68,400 Renown in all.
+--   xpToNext(L) = round(100 x 1.12^(L - 1)), so level 40 takes about 68,400 Renown in all; from 40 to the
+--   cap (Config.Stats.levelCap, 50) each step grows by Economy.levels.lateGrowth (3%), about 156,000 in all.
 --   earn(config, action, zoneLevel, bonus) -> credits, renown (bonuses multiply, capped at x4)
 --   spend(currency, cost) takes Credits on hand first, then banked; false when short.
 
@@ -8,6 +9,12 @@ local Progress = {}
 
 function Progress.xpToNext(config: any, level: number): number
 	local lv = config.Economy.levels
+	if lv.lateFrom and level >= lv.lateFrom then
+		-- the endgame band (40 to the cap): each step is lateGrowth x the step before (levels 39 to 40)
+		return math.floor(
+			lv.base * lv.growth ^ (lv.lateFrom - 2) * lv.lateGrowth ^ (level - lv.lateFrom + 1) + 0.5
+		)
+	end
 	return math.floor(lv.base * lv.growth ^ (level - 1) + 0.5)
 end
 
@@ -46,7 +53,7 @@ export type Bonus = {
 	faction: number?, -- faction rank
 	firstContract: boolean?, -- one of the first 5 contracts today
 	doublePass: boolean?, -- the 2x pass (earned Credits and Renown only)
-	renownMult: number?, -- Renown only, after the cap: the Comet Crater's +50% (M8)
+	renownMult: number?, -- Renown only, after the cap: the Crater's +50% (M8)
 }
 
 function Progress.multiplier(config: any, bonus: Bonus?): number
@@ -64,7 +71,7 @@ function Progress.multiplier(config: any, bonus: Bonus?): number
 	return math.min(b.cap, m)
 end
 
--- Credits and Renown for an action at a zone level. Rewards follow the zone, not the hero, so a level 40
+-- Credits and Renown for an action at a zone level. Rewards follow the zone, not the hero, so a level 50
 -- in a level 5 area earns level 5 rewards.
 function Progress.earn(config: any, action: string, zoneLevel: number, bonus: Bonus?): (number, number)
 	local row = config.Economy.earn[action]
@@ -114,12 +121,21 @@ Progress.UNLOCKS = {
 	[18] = "Blade powers",
 	[20] = "Super slot, Epic gear",
 	[30] = "Legendary gear",
-	[40] = "Level cap, Legacy",
+	[40] = "Level 40 trophy",
 }
+Progress.CAP_UNLOCK = "Level cap, Legacy" -- at Config.Stats.levelCap (50 since 2026-11-17)
 
-function Progress.nextUnlock(level: number): (number?, string?)
-	for l = level + 1, 40 do
-		local text = Progress.UNLOCKS[l]
+-- What a level unlocks (the cap's line comes from the config), or nil
+function Progress.unlockAt(config: any, level: number): string?
+	if level == config.Stats.levelCap then
+		return Progress.CAP_UNLOCK
+	end
+	return Progress.UNLOCKS[level]
+end
+
+function Progress.nextUnlock(config: any, level: number): (number?, string?)
+	for l = level + 1, config.Stats.levelCap do
+		local text = Progress.unlockAt(config, l)
 		if text then
 			return l, text
 		end

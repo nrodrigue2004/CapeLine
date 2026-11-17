@@ -1,0 +1,11 @@
+{
+  "className": "MaterialVariant",
+  "properties": {
+    "BaseMaterial": "Limestone",
+    "StudsPerTile": 12.0,
+    "MaterialPattern": "Regular",
+    "ColorMap": "rbxassetid://122339236915217",
+    "NormalMap": "rbxassetid://115276469087416",
+    "RoughnessMap": "rbxassetid://111526576677375"
+  }
+}

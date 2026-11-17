@@ -36,6 +36,18 @@ return {
 		{ id = "music", name = "Music", kind = "range", lo = 0, hi = 10, step = 1, default = 7 },
 		{ id = "sfx", name = "Sound effects", kind = "range", lo = 0, hi = 10, step = 1, default = 8 },
 		{ id = "damageNumbers", name = "Damage numbers", kind = "toggle", default = 1 },
+		-- phone pass (2026-11-17): the touch buttons' size on top of the fit to the screen (new keys go last:
+		-- the index is the Settings.Set key number)
+		{
+			id = "buttonSize",
+			name = "Button size (touch)",
+			kind = "range",
+			lo = 80,
+			hi = 130,
+			step = 10,
+			default = 100,
+			unit = "%",
+		},
 	},
 	maxMutes = 50, -- muted players kept on the save (user ids)
 	sendDelay = 0.6, -- seconds the device waits after the last change before sending (a slider drag sends once)

@@ -118,6 +118,7 @@ function TaskForcePlan.leg(TF: any, index: number, legIndex: number): any?
 		waves = l.waves,
 		waveGap = l.waveGap or 14,
 		minLevel = TF.floor,
+		minutes = l.minutes or TF.legMinutes, -- an abandoned leg frees its pocket after twice this plus 5 min
 		panel = l.panel,
 		steps = l.steps,
 		taskForce = index,

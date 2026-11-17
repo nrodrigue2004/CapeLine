@@ -3,7 +3,6 @@
 -- (tune)
 return {
 	minLevel = 10, -- the flag button appears and the Crater can force PvP from this level
-	levelCap = 40, -- PvP uses the level capped here
 
 	flag = {
 		setEvery = 5, -- the client can ask at most once per 5 s
@@ -67,7 +66,7 @@ return {
 	},
 	combatLog = { window = 15, linger = 10 }, -- leaving within 15 s of PvP damage: 10 s in the world, a defeat
 
-	-- Rings: blue League, red Syndicate (heroes and villains)
+	-- Rings: blue Vigil, red Dread Syndicate (heroes and villains)
 	ring = { hero = { 70, 140, 255 }, villain = { 235, 60, 60 } },
 
 	-- Fame (heroes) and Infamy (villains): one bar, the same numbers (spec: Fame and Infamy)

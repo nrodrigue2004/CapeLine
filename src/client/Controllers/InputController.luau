@@ -3,17 +3,22 @@
 -- Actions: Leap (hold in the air to glide; climbs while flying), Fly (toggle), Boost (hold), Down (hold),
 -- Basic (hold to keep firing), Skill1 to Skill4, Super, Awaken, Loadout (opens the loadout screen), Gear (the
 -- gear screen), Gadget (the gadget slot's active), Map (the map and fast travel), HoldPower, HoldWeapon and
--- Swap (what M1 and the skills cast: the power or the carried weapon). H1: Block (hold).
+-- Swap (what M1 and the skills cast: the power or the carried weapon), Menu (gamepad Select: the top row).
+-- H1: Block (hold).
+-- Phone pass (overhaul step 8): a HUD button's touch is let go wherever the finger lifts, and dragging a
+-- held Basic, skill or super button turns the camera to aim (holdTouch).
 -- M10 (spec: Accessibility "left-handed layout ... one-hand flight mode (right thumb only with auto-turn)"):
 -- on touch, the left-handed layout and one-hand flight swap Roblox's left thumbstick for this module's own
 -- stick on the right side (the HUD buttons move left for left-handed). In one-hand mode the stick's sideways
 -- push turns the camera (auto-turn) and up and down fly forward and back. autoAim turns touch aim assist off.
 
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Signal = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Util"):WaitForChild("Signal"))
 
 local InputController = {}
@@ -78,8 +83,35 @@ local KEYS: { [Enum.KeyCode]: string } = {
 	[Enum.KeyCode.DPadDown] = "Skill4",
 	[Enum.KeyCode.DPadUp] = "Super",
 	[Enum.KeyCode.DPadRight] = "Awaken",
-	[Enum.KeyCode.ButtonSelect] = "Gear",
+	-- phone pass: Select opens the top row and its MORE drawer for the D-pad (GEAR, MAP, JOURNAL, SHOP,
+	-- POWERS; H1 moved d-pad down to Skill 4)
+	[Enum.KeyCode.ButtonSelect] = "Menu",
 	[Enum.KeyCode.ButtonR3] = "Gadget",
+}
+
+-- Gamepad keys that also fire a second action: X catches in the opening's catch step (StoryHud only
+-- listens then), so a controller can finish the opening
+local ALSO: { [Enum.KeyCode]: string } = {
+	[Enum.KeyCode.ButtonX] = "Catch",
+}
+
+-- Button labels shown on the HUD for controller players
+InputController.padHints = {
+	Leap = "A",
+	Fly = "Y",
+	Boost = "LT",
+	Down = "B",
+	Basic = "RT",
+	Skill1 = "X",
+	Skill2 = "RB",
+	Skill3 = "LB",
+	Skill4 = "◀",
+	Super = "▲",
+	Awaken = "▶",
+	Swap = "LS",
+	Gadget = "RS",
+	Loadout = "▼",
+	Catch = "X",
 }
 
 -- Key hints shown on the HUD buttons for keyboard players
@@ -232,6 +264,43 @@ function InputController.stickState(): (Vector2?, Vector2)
 	return if stick.id then stick.origin else nil, stick.vec
 end
 
+-- Phone pass: a touch that pressed a HUD button. Its action is let go when that finger lifts anywhere (a
+-- thumb that slides off the button still releases it), and with aim on, dragging it turns the camera, so a
+-- held skill aims by dragging its own button (the aim preview follows the screen centre).
+local touchHolds: { [InputObject]: { action: string, last: Vector2, aim: boolean } } = {}
+local aimYaw, aimPitch = 0, 0
+function InputController.holdTouch(input: InputObject, action: string, aim: boolean)
+	touchHolds[input] = { action = action, last = Vector2.new(input.Position.X, input.Position.Y), aim = aim }
+end
+
+-- Apply the drag to the camera before Roblox's camera runs (as CameraController's one-hand auto-turn does)
+local function applyAimDrag()
+	if aimYaw == 0 and aimPitch == 0 then
+		return
+	end
+	local yaw, pitch = aimYaw, aimPitch
+	aimYaw, aimPitch = 0, 0
+	local cam = Workspace.CurrentCamera
+	local char = Players.LocalPlayer.Character
+	local root = char and char:FindFirstChild("HumanoidRootPart") :: BasePart?
+	if not (cam and root) then
+		return
+	end
+	local A = Config.Ui.phone.aimDrag
+	local pivot = root.Position
+	local cf = CFrame.new(pivot) * CFrame.Angles(0, -yaw, 0) * CFrame.new(-pivot) * cam.CFrame
+	-- pitch about the camera's right axis, kept inside maxPitch
+	local look = cf.LookVector
+	local now = math.asin(math.clamp(look.Y, -1, 1))
+	local limit = math.rad(A.maxPitch)
+	local want = math.clamp(now - pitch, -limit, limit)
+	local d = want - now
+	if math.abs(d) > 1e-4 then
+		cf = CFrame.new(pivot) * CFrame.fromAxisAngle(cf.RightVector, d) * CFrame.new(-pivot) * cf
+	end
+	cam.CFrame = cf
+end
+
 -- Where the player is aiming: the mouse on PC, the screen centre on touch and gamepad
 function InputController.aimRay(): Ray
 	local cam = Workspace.CurrentCamera
@@ -279,8 +348,23 @@ function InputController.init()
 		if action then
 			InputController.set(action, true)
 		end
+		local also = ALSO[input.KeyCode]
+		if also then
+			InputController.set(also, true)
+		end
 	end)
 	UserInputService.InputChanged:Connect(function(input)
+		local hold = touchHolds[input]
+		if hold then
+			local p = Vector2.new(input.Position.X, input.Position.Y)
+			if hold.aim then
+				local d = p - hold.last
+				local A = Config.Ui.phone.aimDrag
+				aimYaw += d.X * A.yaw
+				aimPitch += d.Y * A.pitch
+			end
+			hold.last = p
+		end
 		if stick.id == input then
 			local d = Vector2.new(input.Position.X, input.Position.Y) - stick.origin
 			if d.Magnitude > STICK_RADIUS then
@@ -290,6 +374,11 @@ function InputController.init()
 		end
 	end)
 	UserInputService.InputEnded:Connect(function(input)
+		local hold = touchHolds[input]
+		if hold then
+			touchHolds[input] = nil
+			InputController.set(hold.action, false)
+		end
 		if stick.id == input then
 			stick.id, stick.vec = nil, Vector2.zero
 			return
@@ -302,8 +391,14 @@ function InputController.init()
 		if action then
 			InputController.set(action, false)
 		end
+		local also = ALSO[input.KeyCode]
+		if also then
+			InputController.set(also, false)
+		end
 	end)
+	RunService:BindToRenderStep("CapelineAimDrag", Enum.RenderPriority.Camera.Value - 2, applyAimDrag)
 	UserInputService.WindowFocusReleased:Connect(function()
+		table.clear(touchHolds)
 		for action in down do
 			InputController.set(action, false)
 		end

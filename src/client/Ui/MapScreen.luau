@@ -1,7 +1,7 @@
 -- MapScreen: the city map and fast travel (spec: Screens and UI > Map "Hub and outskirts, beacons,
--- safehouses, incidents, boss, Comet Crater, party; tap a marker to auto-fly; fast travel to beacons").
+-- safehouses, incidents, boss, the Crater, party; tap a marker to auto-fly; fast travel to beacons").
 -- M4 shows the zones, districts, landmarks, both HQs, the 16 safehouses (bright once visited), the 12
--- beacons (gold once discovered, a tap flies there) and you. M6 adds the incidents near you (blue League,
+-- beacons (gold once discovered, a tap flies there) and you. M6 adds the incidents near you (blue Vigil,
 -- red Syndicate), running events (gold) and the world boss (big red). M10: your squad (squares in their
 -- slot colours), colorblind-safe shapes (circle incident, star event, diamond boss), and a tap on an
 -- incident, event or the boss auto-flies you there (Settings: tap to fly; needs flight). Opens with M, the
@@ -174,11 +174,11 @@ local function buildBase()
 	rect("Farmland", -farm, -farm, farm, farm, rgb(C.palette.crop))
 	rect("Suburbs", -suburbs, -suburbs, suburbs, suburbs, rgb(C.palette.grass))
 	rect("Hub", C.hub.min, C.hub.min, C.hub.max, C.hub.max, rgb(C.palette.sidewalk))
-	local names = { Downtown = "DOWNTOWN", Docks = "DOCKS", OldTown = "OLD TOWN" }
+	local names = { Downtown = "DOWNTOWN", Docks = "DOCKS", OldTown = "OLD TOWN", Uptown = "UPTOWN" } -- UPTOWN: PLACEHOLDER NAME
 	for id, d in C.districts do
 		rect(id, d.minX, d.minZ, d.maxX, d.maxZ, rgb(C.palette.slate), names[id])
 	end
-	local lmNames = { CometCrater = "COMET CRATER", RadioHill = "RADIO HILL", OldQuarry = "OLD QUARRY" }
+	local lmNames = { CometCrater = "THE CRATER", RadioHill = "RADIO HILL", OldQuarry = "OLD QUARRY" }
 	for _, lm in info.landmarks do
 		local f = rect(
 			lm.id,
@@ -197,7 +197,7 @@ local function buildBase()
 			hq.x,
 			hq.z,
 			18,
-			if hq.side == "hero" then Kit.color.league else Kit.color.syndicate
+			if hq.side == "hero" then Kit.color.vigil else Kit.color.syndicate
 		)
 		d.Rotation = 0
 	end
@@ -256,7 +256,7 @@ local function drawWorld()
 				inc.pos.X,
 				inc.pos.Z,
 				14,
-				if inc.side == "villain" then Kit.color.syndicate else Kit.color.league
+				if inc.side == "villain" then Kit.color.syndicate else Kit.color.vigil
 			)
 			flyable(d, inc.pos, "the incident")
 			table.insert(worldMarks, d)
