@@ -78,8 +78,17 @@ local MISSION_REASONS: { [string]: string } = {
 	mission = "That mission cannot be started here",
 }
 
-local SQ_IDS =
-	{ sqStart = 1, sqStep = 1, sqDone = 1, sqHold = 1, sqWait = 1, sqLocked = 1, sqTest = 1, sqRetired = 1 }
+local SQ_IDS = {
+	sqStart = 1,
+	sqStep = 1,
+	sqDone = 1,
+	sqHold = 1,
+	sqWait = 1,
+	sqLocked = 1,
+	sqTest = 1,
+	sqRetired = 1,
+	sqEncore = 1,
+}
 -- Why a side quest chain could not be taken from the Journal (SideQuestPlan.accept reasons)
 local SQ_LOCKED = {
 	level = "You need a higher level for that side quest",
@@ -424,6 +433,9 @@ function Toasts.show(data: { [string]: any })
 			push("SIDE QUEST DONE: " .. name, Kit.color.gold, true, 4.5)
 		elseif id == "sqHold" then
 			push(name .. " is on hold. Resume it from the Journal", Kit.color.paper)
+		elseif id == "sqEncore" then
+			-- lore step 11, chain 2: the finale's first villain is down and the second lands
+			push("ENCORE! The real villain takes the stage", Kit.color.gold, true)
 		elseif id == "sqWait" then
 			push("Your part is done. Help the others finish theirs", Kit.color.paper)
 		elseif id == "sqLocked" then
