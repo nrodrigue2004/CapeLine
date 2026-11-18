@@ -1200,7 +1200,7 @@ return {
 				},
 			},
 			dace = {
-				name = "MARLO",
+				name = "DACE",
 				color = { 240, 170, 40 },
 				style = "person",
 				blip = "guideInsider",
