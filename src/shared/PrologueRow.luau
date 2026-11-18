@@ -9,6 +9,10 @@
 -- * holds(Config, step): does this beat hold the row?
 -- * sync(held, want, ids, pin): one run's hold: pin the ids when it starts holding, unpin them when it stops;
 --   returns the run's new held list (nil when not holding)
+-- * mend(Config, ids, state, repair): put the row's wrecked buildings back whole before a prologue reaches
+--   them, when it starts and as its hold begins (Config.Destruction.repair.prologueRow; interim pick
+--   2026-11-18, nate to OK). state(id): a building's state (0 whole); repair(id): BuildingService.repair, the
+--   drones' own repair. Returns the ids repaired.
 
 local PrologueRow = {}
 
@@ -54,6 +58,25 @@ function PrologueRow.sync(
 		return nil
 	end
 	return held
+end
+
+function PrologueRow.mend(
+	Config: any,
+	ids: { number },
+	state: (id: number) -> number,
+	repair: (id: number) -> any
+): { number }
+	local out = {}
+	if Config.Destruction.repair.prologueRow ~= true then
+		return out
+	end
+	for _, id in ids do
+		if state(id) ~= 0 then
+			repair(id)
+			table.insert(out, id)
+		end
+	end
+	return out
 end
 
 return PrologueRow

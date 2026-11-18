@@ -132,9 +132,23 @@ local function freeLane(r: Run)
 	end
 end
 
+-- Put the row's wrecked buildings back whole (Config.Destruction.repair.prologueRow, interim pick: nate to OK)
+-- through BuildingService's repair, so the roofs the leap and the chase hop are standing when the hero gets there
+local function mendRow(route: OpeningPlan.Route)
+	PrologueRow.mend(
+		Config,
+		PrologueRow.ids(CityBuilder.world, route.roofs),
+		BuildingService.state,
+		BuildingService.repair
+	)
+end
+
 -- Hold the rooftop row whole while this run is on its beats (want), or let it go; holders count, so the row
 -- stays whole while any prologue is on it (the side quest roof goals' rule: BuildingService.pin)
 local function holdRow(r: Run, want: boolean)
+	if want and not r.row then
+		mendRow(r.route) -- anything wrecked since the start is put back as the hold begins
+	end
 	r.row = PrologueRow.sync(r.row, want, function()
 		return PrologueRow.ids(CityBuilder.world, r.route.roofs)
 	end, BuildingService.pin)
@@ -480,6 +494,7 @@ function OpeningService.start(player: Player, force: boolean?): boolean
 		pay(player, hero, StoryService.side(player))
 		return false
 	end
+	mendRow(route) -- the prologue starts: the chase row's wrecked roofs go back up before its beats
 	local returning = OpeningService.returning(player)
 	local r: Run = {
 		player = player,

@@ -94,6 +94,10 @@ AnalyticsSchema.EVENTS = {
 	-- WP12: a visit to a friend's HQ started (Shared.VisitRules.event): the owner's side, same or cross side,
 	-- visitors in that HQ now; value: the owner's HQ level. At most one a minute per visitor
 	hq_visit = { "side", "cross", "visitors" },
+	-- WP3 follow-up (interim pick 2026-11-18, nate to OK): a Rogues File page filled for the first time on the
+	-- account (RoguesFile.event): page kind (robots, fakes, villains, bosses), gold 0/1; value: pages filled.
+	-- Once per page per account: at most 48 in an account's life (45 pages, 3 gold)
+	rogues_page = { "page_kind", "gold" },
 }
 
 AnalyticsSchema.FUNNELS = {

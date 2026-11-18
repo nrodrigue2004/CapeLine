@@ -1,0 +1,980 @@
+[
+ [
+  {
+   "name": "suits/preview/plain",
+   "kit": "plain",
+   "paint": [
+    [
+     40,
+     110,
+     220
+    ],
+    [
+     40,
+     110,
+     220
+    ],
+    [
+     235,
+     60,
+     60
+    ]
+   ]
+  },
+  {
+   "name": "suits/preview/stripe",
+   "kit": "stripe",
+   "paint": [
+    [
+     235,
+     60,
+     60
+    ],
+    [
+     235,
+     60,
+     60
+    ],
+    [
+     30,
+     45,
+     120
+    ]
+   ]
+  },
+  {
+   "name": "suits/preview/split",
+   "kit": "split",
+   "paint": [
+    [
+     40,
+     150,
+     80
+    ],
+    [
+     24,
+     24,
+     28
+    ],
+    [
+     24,
+     24,
+     28
+    ]
+   ]
+  },
+  {
+   "name": "suits/preview/chevron",
+   "kit": "chevron",
+   "paint": [
+    [
+     120,
+     80,
+     220
+    ],
+    [
+     120,
+     80,
+     220
+    ],
+    [
+     120,
+     80,
+     220
+    ]
+   ]
+  },
+  {
+   "name": "suits/preview/jacket",
+   "kit": "jacket",
+   "paint": [
+    [
+     30,
+     45,
+     120
+    ],
+    [
+     255,
+     140,
+     40
+    ],
+    [
+     34,
+     38,
+     52
+    ]
+   ]
+  },
+  {
+   "name": "suits/preview/armor",
+   "kit": "armor",
+   "paint": [
+    [
+     40,
+     190,
+     170
+    ],
+    [
+     245,
+     245,
+     245
+    ],
+    [
+     245,
+     245,
+     245
+    ]
+   ]
+  },
+  {
+   "name": "suits/preview/core",
+   "kit": "core",
+   "paint": [
+    [
+     30,
+     45,
+     120
+    ],
+    [
+     30,
+     45,
+     120
+    ],
+    [
+     175,
+     180,
+     190
+    ]
+   ]
+  },
+  {
+   "name": "suits/preview/circuit",
+   "kit": "circuit",
+   "paint": [
+    [
+     34,
+     38,
+     52
+    ],
+    [
+     34,
+     38,
+     52
+    ],
+    [
+     34,
+     38,
+     52
+    ]
+   ]
+  }
+ ],
+ [
+  {
+   "name": "suits/preview/sash",
+   "kit": "sash",
+   "paint": [
+    [
+     40,
+     110,
+     220
+    ],
+    [
+     40,
+     110,
+     220
+    ],
+    [
+     235,
+     60,
+     60
+    ]
+   ]
+  },
+  {
+   "name": "suits/preview/ribs",
+   "kit": "ribs",
+   "paint": [
+    [
+     34,
+     38,
+     52
+    ],
+    [
+     235,
+     60,
+     60
+    ],
+    [
+     34,
+     38,
+     52
+    ]
+   ]
+  },
+  {
+   "name": "suits/preview/panel",
+   "kit": "panel",
+   "paint": [
+    [
+     40,
+     150,
+     80
+    ],
+    [
+     24,
+     24,
+     28
+    ],
+    [
+     40,
+     150,
+     80
+    ]
+   ]
+  },
+  {
+   "name": "suits/preview/bolt",
+   "kit": "bolt",
+   "paint": [
+    [
+     120,
+     80,
+     220
+    ],
+    [
+     55,
+     58,
+     66
+    ],
+    [
+     120,
+     80,
+     220
+    ]
+   ]
+  },
+  {
+   "name": "suits/preview/bulwark",
+   "kit": "bulwark",
+   "paint": [
+    [
+     30,
+     45,
+     120
+    ],
+    [
+     255,
+     140,
+     40
+    ],
+    [
+     30,
+     45,
+     120
+    ]
+   ]
+  },
+  {
+   "name": "suits/preview/neon",
+   "kit": "neon",
+   "paint": [
+    [
+     34,
+     38,
+     52
+    ],
+    [
+     34,
+     38,
+     52
+    ],
+    [
+     34,
+     38,
+     52
+    ]
+   ]
+  },
+  {
+   "name": "suits/preview/chrome",
+   "kit": "chrome",
+   "paint": [
+    [
+     30,
+     45,
+     120
+    ],
+    [
+     30,
+     45,
+     120
+    ],
+    [
+     30,
+     45,
+     120
+    ]
+   ]
+  },
+  {
+   "name": "suits/preview/tee",
+   "kit": "tee",
+   "paint": [
+    [
+     240,
+     110,
+     190
+    ],
+    [
+     224,
+     172,
+     130
+    ],
+    [
+     70,
+     20,
+     110
+    ]
+   ]
+  }
+ ],
+ [
+  {
+   "name": "suits/preview/tank",
+   "kit": "tank",
+   "paint": [
+    [
+     40,
+     110,
+     220
+    ],
+    [
+     224,
+     172,
+     130
+    ],
+    [
+     235,
+     60,
+     60
+    ]
+   ]
+  },
+  {
+   "name": "suits/preview/hoodie",
+   "kit": "hoodie",
+   "paint": [
+    [
+     235,
+     60,
+     60
+    ],
+    [
+     235,
+     60,
+     60
+    ],
+    [
+     30,
+     45,
+     120
+    ]
+   ]
+  },
+  {
+   "name": "suits/preview/tracksuit",
+   "kit": "tracksuit",
+   "paint": [
+    [
+     40,
+     150,
+     80
+    ],
+    [
+     40,
+     150,
+     80
+    ],
+    [
+     40,
+     150,
+     80
+    ]
+   ]
+  },
+  {
+   "name": "suits/preview/sweater",
+   "kit": "sweater",
+   "paint": [
+    [
+     120,
+     80,
+     220
+    ],
+    [
+     120,
+     80,
+     220
+    ],
+    [
+     55,
+     58,
+     66
+    ]
+   ]
+  },
+  {
+   "name": "suits/preview/jersey",
+   "kit": "jersey",
+   "paint": [
+    [
+     255,
+     140,
+     40
+    ],
+    [
+     255,
+     140,
+     40
+    ],
+    [
+     30,
+     45,
+     120
+    ]
+   ]
+  },
+  {
+   "name": "suits/preview/varsity",
+   "kit": "varsity",
+   "paint": [
+    [
+     40,
+     190,
+     170
+    ],
+    [
+     245,
+     245,
+     245
+    ],
+    [
+     245,
+     245,
+     245
+    ]
+   ]
+  },
+  {
+   "name": "suits/preview/puffer",
+   "kit": "puffer",
+   "paint": [
+    [
+     30,
+     45,
+     120
+    ],
+    [
+     30,
+     45,
+     120
+    ],
+    [
+     175,
+     180,
+     190
+    ]
+   ]
+  },
+  {
+   "name": "suits/preview/overalls",
+   "kit": "overalls",
+   "paint": [
+    [
+     240,
+     110,
+     190
+    ],
+    [
+     240,
+     110,
+     190
+    ],
+    [
+     70,
+     20,
+     110
+    ]
+   ]
+  }
+ ],
+ [
+  {
+   "name": "suits/preview/bomber",
+   "kit": "bomber",
+   "paint": [
+    [
+     235,
+     60,
+     60
+    ],
+    [
+     235,
+     60,
+     60
+    ],
+    [
+     34,
+     38,
+     52
+    ]
+   ]
+  },
+  {
+   "name": "suits/preview/vest",
+   "kit": "vest",
+   "paint": [
+    [
+     235,
+     60,
+     60
+    ],
+    [
+     224,
+     172,
+     130
+    ],
+    [
+     30,
+     45,
+     120
+    ]
+   ]
+  },
+  {
+   "name": "suits/preview/trench",
+   "kit": "trench",
+   "paint": [
+    [
+     24,
+     24,
+     28
+    ],
+    [
+     24,
+     24,
+     28
+    ],
+    [
+     34,
+     38,
+     52
+    ]
+   ]
+  },
+  {
+   "name": "suits/preview/gi",
+   "kit": "gi",
+   "paint": [
+    [
+     240,
+     240,
+     245
+    ],
+    [
+     240,
+     240,
+     245
+    ],
+    [
+     240,
+     240,
+     245
+    ]
+   ]
+  },
+  {
+   "name": "suits/preview/labcoat",
+   "kit": "labcoat",
+   "paint": [
+    [
+     240,
+     240,
+     245
+    ],
+    [
+     240,
+     240,
+     245
+    ],
+    [
+     34,
+     38,
+     52
+    ]
+   ]
+  },
+  {
+   "name": "suits/preview/fatigues",
+   "kit": "fatigues",
+   "paint": [
+    [
+     245,
+     245,
+     245
+    ],
+    [
+     245,
+     245,
+     245
+    ],
+    [
+     245,
+     245,
+     245
+    ]
+   ]
+  },
+  {
+   "name": "suits/preview/racing",
+   "kit": "racing",
+   "paint": [
+    [
+     30,
+     45,
+     120
+    ],
+    [
+     175,
+     180,
+     190
+    ],
+    [
+     30,
+     45,
+     120
+    ]
+   ]
+  },
+  {
+   "name": "suits/preview/wetsuit",
+   "kit": "wetsuit",
+   "paint": [
+    [
+     34,
+     38,
+     52
+    ],
+    [
+     34,
+     38,
+     52
+    ],
+    [
+     34,
+     38,
+     52
+    ]
+   ]
+  }
+ ],
+ [
+  {
+   "name": "suits/preview/kimono",
+   "kit": "kimono",
+   "paint": [
+    [
+     40,
+     110,
+     220
+    ],
+    [
+     40,
+     110,
+     220
+    ],
+    [
+     40,
+     110,
+     220
+    ]
+   ]
+  },
+  {
+   "name": "suits/preview/shinobi",
+   "kit": "shinobi",
+   "paint": [
+    [
+     34,
+     38,
+     52
+    ],
+    [
+     34,
+     38,
+     52
+    ],
+    [
+     34,
+     38,
+     52
+    ]
+   ]
+  },
+  {
+   "name": "suits/preview/ranger",
+   "kit": "ranger",
+   "paint": [
+    [
+     24,
+     24,
+     28
+    ],
+    [
+     24,
+     24,
+     28
+    ],
+    [
+     34,
+     38,
+     52
+    ]
+   ]
+  },
+  {
+   "name": "suits/preview/tux",
+   "kit": "tux",
+   "paint": [
+    [
+     34,
+     38,
+     52
+    ],
+    [
+     34,
+     38,
+     52
+    ],
+    [
+     34,
+     38,
+     52
+    ]
+   ]
+  },
+  {
+   "name": "suits/preview/spacesuit",
+   "kit": "spacesuit",
+   "paint": [
+    [
+     240,
+     240,
+     245
+    ],
+    [
+     240,
+     240,
+     245
+    ],
+    [
+     240,
+     240,
+     245
+    ]
+   ]
+  },
+  {
+   "name": "suits/preview/plate",
+   "kit": "plate",
+   "paint": [
+    [
+     245,
+     245,
+     245
+    ],
+    [
+     245,
+     245,
+     245
+    ],
+    [
+     245,
+     245,
+     245
+    ]
+   ]
+  },
+  {
+   "name": "suits/preview/exo",
+   "kit": "exo",
+   "paint": [
+    [
+     34,
+     38,
+     52
+    ],
+    [
+     34,
+     38,
+     52
+    ],
+    [
+     34,
+     38,
+     52
+    ]
+   ]
+  },
+  {
+   "name": "suits/preview/cyber",
+   "kit": "cyber",
+   "paint": [
+    [
+     34,
+     38,
+     52
+    ],
+    [
+     34,
+     38,
+     52
+    ],
+    [
+     34,
+     38,
+     52
+    ]
+   ]
+  }
+ ],
+ [
+  {
+   "name": "suits/preview/robe",
+   "kit": "robe",
+   "paint": [
+    [
+     40,
+     110,
+     220
+    ],
+    [
+     40,
+     110,
+     220
+    ],
+    [
+     40,
+     110,
+     220
+    ]
+   ]
+  },
+  {
+   "name": "suits/preview/royal",
+   "kit": "royal",
+   "paint": [
+    [
+     235,
+     60,
+     60
+    ],
+    [
+     235,
+     60,
+     60
+    ],
+    [
+     30,
+     45,
+     120
+    ]
+   ]
+  },
+  {
+   "name": "suits/preview/magma",
+   "kit": "magma",
+   "paint": [
+    [
+     34,
+     38,
+     52
+    ],
+    [
+     34,
+     38,
+     52
+    ],
+    [
+     34,
+     38,
+     52
+    ]
+   ]
+  },
+  {
+   "name": "suits/preview/frost",
+   "kit": "frost",
+   "paint": [
+    [
+     240,
+     240,
+     245
+    ],
+    [
+     240,
+     240,
+     245
+    ],
+    [
+     240,
+     240,
+     245
+    ]
+   ]
+  },
+  {
+   "name": "suits/preview/starfield",
+   "kit": "starfield",
+   "paint": [
+    [
+     34,
+     38,
+     52
+    ],
+    [
+     34,
+     38,
+     52
+    ],
+    [
+     34,
+     38,
+     52
+    ]
+   ]
+  },
+  {
+   "name": "suits/preview/nightTux",
+   "kit": "nightTux",
+   "paint": [
+    [
+     34,
+     38,
+     52
+    ],
+    [
+     34,
+     38,
+     52
+    ],
+    [
+     34,
+     38,
+     52
+    ]
+   ]
+  }
+ ]
+]
