@@ -223,12 +223,43 @@ function SideQuestSites.outskirtsFits(
 	return true
 end
 
+-- picks per world, kept once found: CityBuilder drops world.tilePlans after building, so a site read later
+-- (a giver met an hour in) uses the pick made while the plans were there (SideQuestSites.warm)
+local outskirtsCache: { [any]: { [string]: any } } = setmetatable({}, { __mode = "k" }) :: any
+
 -- The outskirts building a site is in, or nil: { x, z, sx, sz, h, top, tx, tz, lot }
 function SideQuestSites.outskirts(Config: any, world: any, id: string): any?
 	local st = Config.SideQuests.sites[id]
-	if not SideQuestSites.isOutskirts(st) or not world or not world.tiles or not world.tilePlans then
+	if not SideQuestSites.isOutskirts(st) or not world or not world.tiles then
 		return nil
 	end
+	local byWorld = outskirtsCache[world]
+	if byWorld and byWorld[id] ~= nil then
+		return byWorld[id] or nil
+	end
+	if not world.tilePlans or #world.tilePlans == 0 then
+		return nil
+	end
+	local best = SideQuestSites.pickOutskirts(Config, world, id, st)
+	if not byWorld then
+		byWorld = {}
+		outskirtsCache[world] = byWorld
+	end
+	byWorld[id] = best or false
+	return best
+end
+
+-- Every outskirts site's pick, made now while world.tilePlans still holds the tiles' boxes
+function SideQuestSites.warm(Config: any, world: any)
+	for id, st in Config.SideQuests.sites do
+		if SideQuestSites.isOutskirts(st) then
+			SideQuestSites.outskirts(Config, world, id)
+		end
+	end
+end
+
+-- The search behind SideQuestSites.outskirts (no cache)
+function SideQuestSites.pickOutskirts(Config: any, world: any, id: string, st: any): any?
 	local w = Config.World
 	local plans: { [number]: any } = {}
 	for _, plan in world.tilePlans do

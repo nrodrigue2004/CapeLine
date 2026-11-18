@@ -22,6 +22,7 @@ local WorldMap = require(Shared:WaitForChild("WorldMap"))
 local WorldGen = require(Shared:WaitForChild("WorldGen"))
 local DeepLayout = require(Shared:WaitForChild("DeepLayout"))
 local HqRules = require(Shared:WaitForChild("HqRules"))
+local SideQuestSites = require(Shared:WaitForChild("SideQuestSites"))
 local Signal = require(Shared:WaitForChild("Util"):WaitForChild("Signal"))
 
 local CityBuilder = {}
@@ -271,7 +272,9 @@ local function buildOutskirts(world: any, folder: Folder)
 			RunService.Heartbeat:Wait()
 		end
 	end
-	-- the plans are no longer needed once built (the heightmap stays)
+	-- the plans are no longer needed once built (the heightmap stays); the side quests' outskirts sites are
+	-- picked from them first
+	SideQuestSites.warm(Config, world)
 	world.tilePlans = {}
 	local took = os.clock() - t0
 	CityBuilder.ready = true

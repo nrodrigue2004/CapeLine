@@ -16885,6 +16885,29 @@ do
 	end)
 end
 
+do
+	local SideQuestSites = require("../src/shared/SideQuestSites")
+	local fs = require("@lune/fs")
+	test("Side quests: outskirts sites stay put after CityBuilder drops the tile plans", function()
+		local seed = 202733
+		local wd = WorldMap.build(Config, seed)
+		SideQuestSites.warm(Config, wd)
+		local b = SideQuestSites.place(Config, wd, "ToyShop")
+		check(b ~= nil, "a shop is picked while the plans are there")
+		wd.tilePlans = {}
+		local again = SideQuestSites.place(Config, wd, "ToyShop")
+		check(again ~= nil and b ~= nil and again.x == b.x and again.z == b.z, "the same shop after they go")
+		-- a world whose plans went before any pick finds nothing (why CityBuilder warms first)
+		local cold = WorldMap.build(Config, seed)
+		cold.tilePlans = {}
+		check(SideQuestSites.place(Config, cold, "ToyShop") == nil, "no plans, no pick")
+		local cb = fs.readFile("src/server/Services/CityBuilder.luau")
+		local w = string.find(cb, "SideQuestSites.warm(Config, world)", 1, true)
+		local c = string.find(cb, "world.tilePlans = {}", 1, true)
+		check(w ~= nil and c ~= nil and w < c, "CityBuilder warms the picks before dropping the plans")
+	end)
+end
+
 print(string.format("\n%d passed, %d failed", passed, failed))
 if failed > 0 then
 	process.exit(1)
