@@ -14,6 +14,8 @@ return function(T: any)
 	local ProfileSchema = require("../src/shared/ProfileSchema")
 	local Rng = require("../src/shared/Rng")
 	local Sim = require("./onboarding_sim")
+	local PrologueRow = require("../src/shared/PrologueRow")
+	local BuildingState = require("../src/shared/BuildingState")
 
 	local O = Config.Story.opening
 	local P = Config.Ui.prologue
@@ -178,13 +180,13 @@ return function(T: any)
 					)
 				end
 				-- the suit beat (3.5 s) cuts its line short; it plays again at the start of the descent
-			for _, l in OpeningPlan.lines(Config, "suit", side) do
-				check(
-					(tl.heard[l.text] or 0) >= P.heard * GuidePlan.duration(Config, l.text),
-					"heard after the suit: " .. string.sub(l.text, 1, 30)
-				)
-			end
-			-- and the carry never pushes a beat's own first line more than one carried pair later
+				for _, l in OpeningPlan.lines(Config, "suit", side) do
+					check(
+						(tl.heard[l.text] or 0) >= P.heard * GuidePlan.duration(Config, l.text),
+						"heard after the suit: " .. string.sub(l.text, 1, 30)
+					)
+				end
+				-- and the carry never pushes a beat's own first line more than one carried pair later
 				for _, r in tl.rows do
 					if r.kind == "play" and r.lines then
 						local own = OpeningPlan.lines(Config, r.name, side)[1]
@@ -407,5 +409,59 @@ return function(T: any)
 			has("src/server/Services/HeroService.luau", 'SetAttribute("HeroLoaded", true)'),
 			"HeroService sets it once the save is on the hero"
 		)
+	end)
+
+	test("Onboarding: the chase row is held whole only while a prologue is on it", function()
+		local DS = Config.Destruction
+		local route = nil
+		for k = 1, 20 do
+			route = route or OpeningPlan.route(Config, world, Rng.new(k * 17))
+		end
+		check(route ~= nil, "a route")
+		local r = route :: any
+		local ids = PrologueRow.ids(world, r.roofs)
+		check(
+			#ids == #r.roofs,
+			"every roof of the chase is a building (" .. #ids .. " of " .. #r.roofs .. ")"
+		)
+		check(#ids == O.roofs.count, "the rooftop row's six roofs")
+		-- the beats that hold it: the leap, the chase and the suit on the last roof; never the plaza or the subway
+		for _, step in OpeningPlan.STEPS do
+			local want = step == "leap" or step == "chase" or step == "suit"
+			check(PrologueRow.holds(Config, step) == want, step .. ": holds the row " .. tostring(want))
+		end
+		-- two heroes' prologues on one server, through the same pin rule as the side quest roofs
+		local book = BuildingState.new(DS, world.buildings)
+		local function pin(id: number, on: boolean)
+			BuildingState.pin(book, id, on)
+		end
+		local function idsFn()
+			return PrologueRow.ids(world, r.roofs)
+		end
+		local a = PrologueRow.sync(nil, PrologueRow.holds(Config, "leap"), idsFn, pin) -- A reaches the roofs
+		local b = PrologueRow.sync(nil, PrologueRow.holds(Config, "chase"), idsFn, pin) -- B too
+		local first = ids[1]
+		check(BuildingState.pinned(book, first), "held while a prologue is on the row")
+		local st = BuildingState.hit(DS, book, first, 1e9, 10)
+		check(st == BuildingState.INTACT, "a huge hit knocks nothing out of a held roof")
+		a = PrologueRow.sync(a, PrologueRow.holds(Config, "chase"), idsFn, pin) -- A stays: no second pin
+		check(book.pins[first] == 2, "one hold per run, not per beat")
+		a = PrologueRow.sync(a, PrologueRow.holds(Config, "descend"), idsFn, pin) -- A goes down to the subway
+		check(a == nil and BuildingState.pinned(book, first), "still held while B is on it")
+		b = PrologueRow.sync(b, false, idsFn, pin) -- B finishes (or leaves)
+		check(b == nil and not BuildingState.pinned(book, first), "released once no prologue is on it")
+		local after = BuildingState.hit(DS, book, first, 1e9, 20)
+		check(after ~= BuildingState.INTACT, "and breakable again")
+		-- the server lets go on every way out
+		local server = src("src/server/Services/OpeningService.luau")
+		check(
+			select(2, string.gsub(server, "holdRow%(r, false%)", "")) >= 3,
+			"OpeningService releases it in finish, stop and on leaving"
+		)
+		check(
+			string.find(server, "holdRow(r, PrologueRow.holds(Config, step))", 1, true) ~= nil,
+			"and follows each beat"
+		)
+		check(string.find(server, "BuildingService.pin", 1, true) ~= nil, "through BuildingService.pin")
 	end)
 end

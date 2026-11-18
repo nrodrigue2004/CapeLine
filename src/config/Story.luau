@@ -330,6 +330,9 @@ return {
 		-- a returning account's held ceremony (the main menu's CREATE FIRST or PLAY THE PROLOGUE) waits at most
 		-- this long, then takes the Create First path (the rewards, straight to the city), so it never soft-locks
 		holdMax = 120,
+		-- the beats on the rooftop row: while any prologue is on one, the row's buildings are held whole (other
+		-- players' fights cannot knock out a roof a new hero is about to land on); released as each run moves on
+		holdRow = { leap = true, chase = true, suit = true },
 		-- the plaza: the stage in front of Crane's Hero Hall, the crowd on the street before it
 		plaza = {
 			stage = { gap = 4, depth = 14, width = 44, height = 4 }, -- from the Hall's face, studs

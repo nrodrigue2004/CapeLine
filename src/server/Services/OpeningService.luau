@@ -38,7 +38,9 @@ local StoryPlan = require(Shared:WaitForChild("StoryPlan"))
 local Progress = require(Shared:WaitForChild("Progress"))
 local ProfileSchema = require(Shared:WaitForChild("ProfileSchema"))
 local MissionRules = require(Shared:WaitForChild("MissionRules"))
+local PrologueRow = require(Shared:WaitForChild("PrologueRow"))
 
+local BuildingService = require(script.Parent.BuildingService)
 local CityBuilder = require(script.Parent.CityBuilder)
 local DataService = require(script.Parent.DataService)
 local HeroService = require(script.Parent.HeroService)
@@ -75,6 +77,7 @@ type Run = {
 	hold: boolean, -- a returning account's ceremony waits for the main menu's pick
 	heldAt: number, -- when that wait began (Config.Story.opening.holdMax caps it)
 	fellAt: number?, -- when the hero dropped below the roofs in the leap or the chase (fall recovery)
+	row: { number }?, -- the rooftop row's buildings this run holds whole (PrologueRow; nil when not holding)
 	enemies: { [number]: boolean },
 	fakeId: number?,
 	hop: number,
@@ -127,6 +130,14 @@ local function freeLane(r: Run)
 	if lane and laneOf[lane.index] == r then
 		laneOf[lane.index] = nil
 	end
+end
+
+-- Hold the rooftop row whole while this run is on its beats (want), or let it go; holders count, so the row
+-- stays whole while any prologue is on it (the side quest roof goals' rule: BuildingService.pin)
+local function holdRow(r: Run, want: boolean)
+	r.row = PrologueRow.sync(r.row, want, function()
+		return PrologueRow.ids(CityBuilder.world, r.route.roofs)
+	end, BuildingService.pin)
 end
 
 -- A returning account (another hero on it already did the opening) may skip: Create First on the main menu
@@ -404,6 +415,7 @@ setStep = function(r: Run, step: string)
 	end
 	r.step = step
 	r.stepAt = os.clock()
+	holdRow(r, PrologueRow.holds(Config, step))
 	enter(r, step)
 	if runs[r.player] == r and r.step == step then
 		send(r)
@@ -420,6 +432,7 @@ function OpeningService.finish(player: Player)
 	end
 	clearEnemies(r)
 	freeLane(r)
+	holdRow(r, false)
 	StoryService.cancelAsk(player)
 	reward(r)
 	GearService.setStreet(player, false)
@@ -438,6 +451,7 @@ function OpeningService.stop(player: Player)
 	end
 	clearEnemies(r)
 	freeLane(r)
+	holdRow(r, false)
 	GearService.setStreet(player, false)
 	runs[player] = nil
 	r.hero.scene = nil
@@ -480,6 +494,7 @@ function OpeningService.start(player: Player, force: boolean?): boolean
 		hold = returning and not force,
 		heldAt = os.clock(),
 		fellAt = nil,
+		row = nil,
 		enemies = {},
 		fakeId = nil,
 		hop = 3,
@@ -731,6 +746,7 @@ function OpeningService.init()
 		if r then
 			clearEnemies(r)
 			freeLane(r)
+			holdRow(r, false)
 			runs[player] = nil
 		end
 	end)

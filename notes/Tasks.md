@@ -147,6 +147,21 @@ What nate does:
 
 ## Studio test list (needs nate's PC)
 
+### Onboarding: the first 60 seconds (2026-11-18)
+Fixes from the onboarding check (tests: ONLY="Onboarding"; ONBOARD_PRINT=1 prints the timeline). Use a fresh account or Dev Wipe, on PC, a phone (device emulator) and a controller.
+1. Join as a new player: the loading screen reads LOADING THE CITY, then LOADING YOUR HERO, and goes away about a second before the creator opens (no bare HUD in between). On a controller the creator's first button is selected; press Select and it goes back into the creator, not the top row.
+2. Make the hero and press DONE: the ceremony is about 22 s (was 30), every Crane line is readable, and the scan's two lines and SPARK DETECTED fit its 7.5 s. Control comes about 30 s after DONE.
+3. Run beat: the gold marker reads RUN; spark beat SPARK (press the attack button or wait 6 s); leap LEAP; chase LEAP; descent SUBWAY; tunnel RUN. No word on the camera beats.
+4. Leap at once in the leap beat: Patch's "Hey! You, the one glowing..." and "I'm Patch. I hacked your phone..." both still play (at the start of the chase), and the chase's own first line follows them. The suit's "Whoa..." line plays again at the start of the descent.
+5. In the chase, miss a hop on purpose and land in the street: within about 1.2 s you are back on the last roof you reached, facing the next one. Reset (Esc > Reset) mid-chase: you respawn on the last roof reached, not the second one.
+6. Two players: start a prologue on one; on the other, hit the rooftop row's buildings (east of the Hall) with supers while the first is on the leap, chase or suit beats: nothing breaks. Once that prologue goes down to the subway (or finishes), the same hits break them again.
+7. At the title: the mentor picker does not pop over the title card. Back in the plaza: the DAILY card shows about 4 s later; the mentor picker comes only after you close the daily card (one card at a time).
+8. Rejoin in the middle of the prologue: it starts again from the ceremony with no PLAY / SHOP / SETTINGS menu over it. On an account with another finished hero, make a new hero, leave mid-prologue and rejoin: CREATE FIRST and PLAY THE PROLOGUE show; leave the menu alone for 2 minutes and the hero goes to the city with the prologue's rewards (level 3, Flight, the Skill Point).
+9. Controller: on the main menu the first button is selected; on a camera beat you have seen before, SKIP reads SKIP (B) and B skips it (the rewards still land at the title).
+10. A top-10 player from last week joining: the TOP 10 card waits until the main menu is closed and the daily card is dealt with, then shows.
+11. All subway lanes busy (Dev: start 7 prologues with bots, or set Config.Story.opening.subway.lanes = 0 in a test place): the fight happens at the subway steps, not back in the plaza.
+12. Analytics output: first_spark's value is the seconds since the prologue started (about 35), not since joining.
+
 ### Travel audit: underwater, vehicles, citizens, travel (2026-11-18)
 Fixes from the overnight audit (tests: ONLY="Travel audit"). Use the Dev panel and Studio's network emulation.
 1. Fast travel to each of the 12 beacons (MAP): you land beside the post on its roof, standing, never inside the post, a wall or the roof; walk off and nothing snags.
