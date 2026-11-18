@@ -218,7 +218,7 @@ return function(
 					check(Pr[name][k] ~= nil, name .. "." .. k)
 				end
 			end
-			local fewerIsMore = { citizenPoseEvery = true } -- a frame count between poses: low waits longer
+			local fewerIsMore = { citizenPoseEvery = true, enemyPoseEvery = true } -- frames between poses: low waits longer
 			for k, v in Pr.low do
 				if type(v) == "number" then
 					local lo, mid, hi = v, Pr.medium[k], Pr.high[k]

@@ -6,7 +6,7 @@
 -- beacons, the base (ground, sand, ocean, roads) and a heightmap of everything. The server builds parts
 -- from it (the hub at once, the outskirts 40 tiles a frame); the tests check it in Lune. With Config.City.kit
 -- it also lists every street prop (props, each with its district), which each device builds near its camera
--- (CityProps): the client calls build(Config, seed, { props = true }) and skips the heightmap.
+-- (CityProps): the client runs propsJob/propsStep over a few frames, which give the same list without the rest.
 
 local CityLayout = if script then require(script.Parent.CityLayout) else (require :: any)("./CityLayout")
 local Districts = if script then require(script.Parent.Districts) else (require :: any)("./Districts")
@@ -171,14 +171,14 @@ local function tallestNear(buildings: { any }, x: number, z: number, r: number, 
 	return best, grp
 end
 
--- opts.props: only what the street props need (no heightmap), for a device building them
-function WorldMap.build(Config: any, seed: number, opts: { props: boolean? }?): World
-	local city = Config.City
-	local w = Config.World
+-- Where each safehouse stands (Downtown's reserved lots, an outskirts tile's middle or its fixed point) and the
+-- keep-out circles round their pads (no lot, prop or district building goes there)
+local function safehouseSpots(
+	city: any,
+	w: any,
+	downtown: any
+): ({ [number]: { x: number, z: number, gy: number } }, { BoxKit.Circle })
 	local gy = city.ground.y
-
-	-- the hub: Downtown first (its reserved lots decide where its safehouses stand)
-	local downtown = CityLayout.downtown(city, w)
 	local safeSpots: { [number]: { x: number, z: number, gy: number } } = {}
 	for _, s in w.safehouses do
 		if s.lot then
@@ -195,6 +195,18 @@ function WorldMap.build(Config: any, seed: number, opts: { props: boolean? }?): 
 	for _, spot in safeSpots do
 		table.insert(clear, { x = spot.x, z = spot.z, r = w.safehouse.pad * 0.75 })
 	end
+	return safeSpots, clear
+end
+
+-- opts.props: only what the street props need (no heightmap), for a device building them
+function WorldMap.build(Config: any, seed: number, opts: { props: boolean? }?): World
+	local city = Config.City
+	local w = Config.World
+	local gy = city.ground.y
+
+	-- the hub: Downtown first (its reserved lots decide where its safehouses stand)
+	local downtown = CityLayout.downtown(city, w)
+	local safeSpots, clear = safehouseSpots(city, w, downtown)
 	local docks = Districts.docks(city, clear)
 	local oldTown = Districts.oldTown(city, clear)
 	local uptown = CityLayout.uptown(city)
@@ -357,6 +369,109 @@ function WorldMap.build(Config: any, seed: number, opts: { props: boolean? }?): 
 		},
 		props = props,
 	}
+end
+
+-- The street props alone, a piece at a time (perf pass 2026-11-18): a device needs only build().props, and
+-- the whole build costs about 77 ms and 25 MB at once (a phone froze for several hundred ms). A job lays out
+-- each district, then the outskirts tile by tile, keeps the props and drops every box as it goes, so a device
+-- can run a few steps a frame (propsStep) and hold little but the props. The list is build().props exactly:
+-- the same draws in the same order (tests/perf.luau checks three seeds).
+export type PropsJob = {
+	Config: any,
+	seed: number,
+	props: { CityKit.Prop },
+	stage: number, -- 1 Downtown, 2 the Docks, 3 Old Town, 4 Uptown, 5 the tile array, 6 the tiles, 7 done
+	clear: { BoxKit.Circle },
+	tiles: buffer?,
+	next: number, -- the next tile, tz * n + tx
+	done: boolean,
+}
+
+function WorldMap.propsJob(Config: any, seed: number): PropsJob
+	return {
+		Config = Config,
+		seed = seed,
+		props = {},
+		stage = if Config.City.kit then 1 else 7,
+		clear = {},
+		tiles = nil,
+		next = 0,
+		done = Config.City.kit == nil,
+	}
+end
+
+local function tagged(into: { CityKit.Prop }, list: { CityKit.Prop }, from: number, district: string)
+	for i = from, #list do
+		list[i].d = district
+		if list ~= into then
+			table.insert(into, list[i])
+		end
+	end
+end
+
+-- One piece of the job: a district, the tile array, or up to `tiles` outskirts tiles (default 1). Returns true
+-- once the list is whole.
+function WorldMap.propsStep(job: PropsJob, tiles: number?): boolean
+	if job.done then
+		return true
+	end
+	local Config = job.Config
+	local city = Config.City
+	local w = Config.World
+	local stage = job.stage
+	if stage == 1 then
+		local downtown = CityLayout.downtown(city, w)
+		local _, clear = safehouseSpots(city, w, downtown)
+		job.clear = clear
+		tagged(job.props, downtown.props, 1, "Downtown")
+	elseif stage == 2 then
+		tagged(job.props, Districts.docks(city, job.clear).props, 1, "Docks")
+	elseif stage == 3 then
+		tagged(job.props, Districts.oldTown(city, job.clear).props, 1, "OldTown")
+	elseif stage == 4 then
+		tagged(job.props, CityLayout.uptown(city).props, 1, "Uptown")
+	elseif stage == 5 then
+		job.tiles = WorldGen.tiles(city, w, job.seed)
+	elseif stage == 6 then
+		local n = w.tiles
+		local Z = w.zones
+		local grid = job.tiles :: buffer
+		local props = job.props
+		local left = tiles or 1
+		while left > 0 and job.next < n * n do
+			local tx, tz = job.next % n, job.next // n
+			job.next += 1
+			-- tilePlan's own early outs: these tiles have no props, so their boxes are never laid out
+			local t = WorldGen.get(w, grid, tx, tz)
+			local none = t.zone == Z.hub
+				or t.zone == Z.landmark
+				or t.zone == Z.coast
+				or (t.zone ~= Z.hubFill and t.variant == w.special)
+			if not none then
+				local from = #props + 1
+				WorldGen.tilePlan(city, w, grid, job.seed, tx, tz, job.clear, props)
+				tagged(props, props, from, if WorldGen.ring(w, tx, tz) == 0 then "Hub" else "Outskirts")
+				left -= 1
+			end
+		end
+		if job.next < n * n then
+			return false
+		end
+		job.tiles = nil
+	end
+	job.stage = stage + 1
+	job.done = job.stage >= 7
+	return job.done
+end
+
+-- Every street prop for a seed at once (Lune, tests): build(Config, seed).props without the rest of the world
+function WorldMap.props(Config: any, seed: number): { CityKit.Prop }
+	local job = WorldMap.propsJob(Config, seed)
+	local done = false
+	repeat
+		done = WorldMap.propsStep(job, 1e9)
+	until done
+	return job.props
 end
 
 -- The wreckable buildings: all of the first Downtown, the Docks warehouses, then Old Town houses picked by a

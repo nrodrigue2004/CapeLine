@@ -110,6 +110,41 @@ function ClothesMap.rect(part: string, face: string, single: boolean?): Rect?
 	return { r[1] + x, r[2] + rows[1], r[3], rows[2] - rows[1] }
 end
 
+-- Perf pass (2026-11-18): the faces the blocky body hides at rest, which a rig draws only up close: the hip
+-- squares under the lower torso and the torso's own underside, the soles and the palms' ends, the legs'
+-- inner sides (they stand against each other), the arms' inner sides and the upper torso's sides (arm against
+-- torso). A dressed rig has 66 clothes Textures; 21 are tucked. From farther off a tucked face shows the
+-- part's colour, which matches its clothes.
+function ClothesMap.tucked(part: string, face: string): boolean
+	local s = short(part)
+	if face == "Top" then
+		return s == "UpperLeg"
+	elseif face == "Bottom" then
+		return s == "LowerTorso" or s == "Foot" or s == "Hand"
+	elseif s == "UpperTorso" then
+		return face == "Left" or face == "Right"
+	elseif s == "LowerTorso" then
+		return false
+	end
+	-- a left limb's inner side faces +x (Right), a right limb's faces -x (Left)
+	local inner = if part:sub(1, 4) == "Left" then "Right" else "Left"
+	return face == inner
+end
+
+-- How much of a rig's clothes to draw `dist` studs from the camera (perf pass 2026-11-18; near and far from
+-- the preset: Config.Presets clothesNear and clothesFar): 2 every face, 1 all but the tucked ones, 0 none (the
+-- body colours match the clothes from that far). `now`, the level drawn now, is kept 10% past its edge so a
+-- rig standing on one never flickers.
+function ClothesMap.level(dist: number, near: number, far: number, now: number?): number
+	local held = now or 0
+	if dist <= near * (if held >= 2 then 1.1 else 1) then
+		return 2
+	elseif dist <= far * (if held >= 1 then 1.1 else 1) then
+		return 1
+	end
+	return 0
+end
+
 -- A face's size in studs on a part of `size` (Vector3 as x, y, z): Front and Back show x by y, the sides z by
 -- y, Top and Bottom x by z
 function ClothesMap.faceSize(size: { number }, face: string): (number, number)

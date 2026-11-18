@@ -6,7 +6,11 @@
 # Lore step 4: a cracked version of each (a famous fake unmasked: half the face torn away to a riveted metal
 # plate with a glowing eye, cracks running out across the skin). PLACEHOLDER ART until nate uploads them.
 # Output: art/export/clothes/faces/Face_<Name>.png, Face_<Name>_Turned.png and Face_<Name>_Cracked.png
-# (1024 px), and art/preview/faces.png (human on two skin tones, turned, cracked).
+# (256 px, PX), and art/preview/faces.png (human on two skin tones, turned, cracked).
+# 2026-11-18 (perf pass): the decals are saved at 256 px, not 1024: a face sits on a 1-stud head, so it is never
+# more than a couple of hundred pixels on screen, and a 1024 one cost 16 times the texture memory (35 faces). The
+# drawing is unchanged (drawn at 2048 and scaled down once). FACE_PX=1024 python3 art/clothes/faces.py writes the
+# big ones again for a close-up store render; never upload those.
 # 2026-11-18 (the side quests' people, art/clothes/people.py): optional extras on a face's dict, all off by default
 # so the six shared faces are unchanged: wrinkles (0 to 1: forehead lines, crow's feet, smile folds, under-eye
 # bags), glasses (frame colour: round spectacles), plaster (a sticking plaster across the nose), stone (quarry
@@ -23,7 +27,8 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(ROOT, "export", "clothes", "faces")
 os.makedirs(OUT, exist_ok=True)
 
-S = 2048  # drawn at 2x, saved at 1024 (smooth edges)
+S = 2048  # drawn at 2048 and scaled down (smooth edges)
+PX = int(os.environ.get("FACE_PX", "256"))  # the saved decal's size (perf pass 2026-11-18)
 INK = (38, 26, 22)
 SHADE = (70, 38, 30)
 
@@ -286,6 +291,11 @@ def face(f, turned, cracked=False):
     return im.resize((1024, 1024), Image.LANCZOS)
 
 
+def small(im):
+    """A face as it is saved and uploaded: PX by PX."""
+    return im.resize((PX, PX), Image.LANCZOS)
+
+
 def machine(im, f):
     """A guardian machine's face below the sockets: plate seams, rivets, a nose ridge and a grille mouth."""
     d = ImageDraw.Draw(im)
@@ -375,7 +385,7 @@ if __name__ == "__main__":
     tiles = []
     for name, f in FACES.items():
         for version in ("", "_Turned", "_Cracked"):
-            im = face(f, version == "_Turned", version == "_Cracked")
+            im = small(face(f, version == "_Turned", version == "_Cracked"))
             path = os.path.join(OUT, "Face_%s%s.png" % (name, version))
             im.save(path)
             tiles.append((name, version, im))
@@ -388,7 +398,7 @@ if __name__ == "__main__":
         cracked = [t[2] for t in tiles if t[0] == name and t[1] == "_Cracked"][0]
         rows = (((240, 190, 150), human), ((141, 95, 64), human), ((224, 172, 130), turned), ((240, 190, 150), cracked))
         for row, (skin, im) in enumerate(rows):
-            tile = Image.new("RGBA", (1024, 1024), (*skin, 255))
+            tile = Image.new("RGBA", im.size, (*skin, 255))
             tile.alpha_composite(im)
             sheet.paste(tile.resize((T - 8, T - 8), Image.LANCZOS), (i * T + 4, row * T + 4))
     prev = os.path.join(ROOT, "preview", "faces.png")

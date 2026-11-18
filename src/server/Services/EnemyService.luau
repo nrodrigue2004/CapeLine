@@ -22,11 +22,13 @@ local Signal = require(Shared:WaitForChild("Util"):WaitForChild("Signal"))
 local LookCodec = require(Shared:WaitForChild("LookCodec"))
 local ProfileSchema = require(Shared:WaitForChild("ProfileSchema"))
 local FakeRules = require(Shared:WaitForChild("FakeRules"))
+local QualityRules = require(Shared:WaitForChild("QualityRules"))
 
 local HeroService = require(script.Parent.HeroService)
 local DataService = require(script.Parent.DataService)
 local MoveGuard = require(script.Parent.MoveGuard)
 local PerfMonitor = require(script.Parent.PerfMonitor)
+local Analytics = require(script.Parent.Analytics)
 
 local EnemyService = {}
 EnemyService.Killed = Signal.new() -- (enemyKind, attackerHeroId, position, enemyId)
@@ -475,13 +477,21 @@ local function handleEvents()
 	return out
 end
 
+-- Each player gets the robots its device draws (perf pass 2026-11-18: a phone was sent the high preset's 60
+-- and drew 20): by its saved Graphics setting, else its device class (QualityRules.enemiesFor); EnemyBuffer
+-- never packs past the 900-byte unreliable limit
+local function drawnFor(player: Player): number
+	local profile = DataService.get(player)
+	local chosen = profile and profile.settings and profile.settings.preset
+	return QualityRules.enemiesFor(Config.Presets, Analytics.device(player), chosen, Config.Net.enemySpare)
+end
+
 local function sendDeltas()
 	seq += 1
 	local now = Workspace:GetServerTimeNow()
 	local radius = Config.Net.enemyRelevance
-	local maxDrawn = Config.Presets.high.enemiesDrawn
 	for player, pos in playerPositions() do
-		local b = EnemyBuffer.encodeFor(seq, now, sim.enemies, pos.X, pos.Y, pos.Z, radius, maxDrawn)
+		local b = EnemyBuffer.encodeFor(seq, now, sim.enemies, pos.X, pos.Y, pos.Z, radius, drawnFor(player))
 		Net.fire("EnemyDelta", player, b)
 	end
 end

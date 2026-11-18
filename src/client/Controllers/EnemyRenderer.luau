@@ -138,6 +138,8 @@ type Body = {
 	-- decal and its two images, and the hair handles it can show (one picked per robot)
 	mode: string,
 	clothes: { [string]: { Texture } }?,
+	shown: number, -- how much of its clothes (and a Mimic's street clothes) is drawn: ClothesMap.level
+	idleSince: number, -- when it went back to the pool (os.clock), for the pool trim
 	faceDecal: Decal?,
 	faces: { string }?,
 	hairs: { string },
@@ -1405,6 +1407,8 @@ local function makeRobot(typeId: number, ident: { [string]: any }?): Body
 		turned = false,
 		mode = mode,
 		clothes = clothes,
+		shown = 2,
+		idleSince = 0,
 		faceDecal = faceDecal,
 		faces = nil,
 		hairs = hairs,
@@ -1590,8 +1594,27 @@ local function release(body: Body)
 	if body.light then
 		body.light.Enabled = false
 	end
+	body.idleSince = os.clock()
 	pool[body.typeId] = pool[body.typeId] or {}
 	table.insert(pool[body.typeId], body)
+end
+
+-- Perf pass (2026-11-18): the pool kept every body it was ever given (a busy fight leaves dozens of rigs of a
+-- kind, each about 90 parts and up to 66 clothes Textures, in memory for the whole session). Every few seconds
+-- each kind keeps its newest few (Config.Presets <preset>.enemyPool.keep) and destroys the rest once they have
+-- been idle that long (.idle seconds). The oldest are at the front: release appends.
+local lastTrim = 0
+local function trimPool(now: number)
+	if now - lastTrim < 5 then
+		return
+	end
+	lastTrim = now
+	local P = QualityController.preset.enemyPool or Config.Presets.low.enemyPool
+	for _, list in pool do
+		while #list > P.keep and now - list[1].idleSince >= P.idle do
+			table.remove(list, 1).model:Destroy()
+		end
+	end
 end
 
 local ICE = Color3.fromRGB(170, 225, 255)
@@ -2258,12 +2281,24 @@ local function pose(
 	end
 end
 
+-- Scratch kept across frames (perf pass 2026-11-18: render made about 130 tables a frame): the ids in
+-- reach with their distances, the ones drawn, and the BulkMoveTo lists
+local scratchIds: { number } = {}
+local scratchDist: { [number]: number } = {}
+local scratchKeep: { [number]: boolean } = {}
+local scratchRoots: { BasePart } = {}
+local scratchFrames: { CFrame } = {}
+local function nearer(x: number, y: number): boolean
+	return scratchDist[x] < scratchDist[y]
+end
+
 local lastRender = os.clock()
 local function render()
 	local now = os.clock()
 	local dt = math.min(0.1, now - lastRender)
 	lastRender = now
 	frame += 1
+	trimPool(now)
 	local n = #snapshots
 	if n == 0 then
 		return
@@ -2279,22 +2314,27 @@ local function render()
 	local alpha = if b.t > a.t then math.clamp((renderT - a.t) / (b.t - a.t), 0, 1.2) else 1
 	local newest = snapshots[n].rows
 	local cam = Workspace.CurrentCamera.CFrame.Position
-	local limit = QualityController.preset.enemiesDrawn
+	local Q = QualityController.preset
+	local limit = Q.enemiesDrawn
+	-- robot poses and clothes by preset (phones pose fewer every frame; Config.Presets)
+	local poseNear = Q.enemyPoseNear or LOOK.poseNear
+	local poseEvery = Q.enemyPoseEvery or LOOK.poseEvery
+	local clothesNear, clothesFar = Q.clothesNear or 25, Q.clothesFar or 80
 
 	-- pick the nearest `limit` ids from the newest snapshot
-	local ids = {}
+	local ids, dists, keep = scratchIds, scratchDist, scratchKeep
+	table.clear(ids)
+	table.clear(dists)
+	table.clear(keep)
 	for id, r in newest do
-		local d = (Vector3.new(r.x, r.y, r.z) - cam).Magnitude
-		table.insert(ids, { id = id, d = d })
+		dists[id] = (Vector3.new(r.x, r.y, r.z) - cam).Magnitude
+		table.insert(ids, id)
 	end
 	if #ids > limit then
-		table.sort(ids, function(x, y)
-			return x.d < y.d
-		end)
+		table.sort(ids, nearer)
 	end
-	local keep = {}
 	for i = 1, math.min(#ids, limit) do
-		keep[ids[i].id] = true
+		keep[ids[i]] = true
 	end
 	for id, body in live do
 		if not keep[id] then
@@ -2303,7 +2343,9 @@ local function render()
 		end
 	end
 
-	local roots, cframes = {}, {}
+	local roots, cframes = scratchRoots, scratchFrames
+	table.clear(roots)
+	table.clear(cframes)
 	for id in keep do
 		local rb = b.rows[id] or newest[id]
 		local ra = a.rows[id] or rb
@@ -2328,31 +2370,33 @@ local function render()
 		body.pos = pos
 		body.yaw =
 			lerpAngle(body.yaw, lerpAngle(ra.yaw, rb.yaw, math.clamp(alpha, 0, 1)), math.min(1, dt * 12))
+		if rb.health ~= body.health then
+			body.fill.Size = UDim2.fromScale(rb.health, 1) -- the bar only when the health moves (every frame before)
+		end
 		body.health = rb.health
 		body.state = rb.state
 		body.flags = rb.flags
 		body.extra = rb.extra or 0
-		body.fill.Size = UDim2.fromScale(rb.health, 1)
 		if body.flashUntil > 0 and now >= body.flashUntil then
 			body.flashUntil = 0
 			body.lastFlags = -1
 		end
 		local dist = (pos - cam).Magnitude
+		if body.clothes or body.streetClothes then
+			local level = ClothesMap.level(dist, clothesNear, clothesFar, body.shown)
+			if level ~= body.shown then
+				body.shown = level
+				NpcRig.showClothes(body.rig, body.clothes, level)
+				NpcRig.showClothes(body.rig, body.streetClothes, level)
+			end
+		end
 		updateShell(body, dist < LOOK.chipRange)
 		applyFlags(body)
 		edges(body, dist < LOOK.chipRange)
-		if body.medLight and bit32.band(body.extra, EXTRA.mend) ~= 0 and dist < LOOK.poseNear then
+		if body.medLight and bit32.band(body.extra, EXTRA.mend) ~= 0 and dist < poseNear then
 			pulse(body, now)
 		end
-		pose(
-			body,
-			id,
-			now,
-			bodyDt,
-			roots,
-			cframes,
-			dist < LOOK.poseNear or (frame + id) % LOOK.poseEvery == 0
-		)
+		pose(body, id, now, bodyDt, roots, cframes, dist < poseNear or (frame + id) % poseEvery == 0)
 	end
 	if #roots > 0 then
 		Workspace:BulkMoveTo(roots, cframes, Enum.BulkMoveMode.FireCFrameChanged)
