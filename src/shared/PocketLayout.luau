@@ -26,7 +26,7 @@ export type Lane = {
 	floorY: number,
 	start: { number },
 	fight: { number }, -- the chamber's centre
-	collapses: { { z: number, t: number } }, -- where each slab falls (its centre z) and when (s into the tunnel)
+	collapses: { { z: number } }, -- where each slab falls (its centre z), once the hero is past it
 }
 
 export type Layout = {
@@ -326,7 +326,7 @@ function PocketLayout.lane(Config: any, i: number): Lane
 	local z1 = z0 - S.length
 	local collapses = {}
 	for _, c in S.collapses do
-		table.insert(collapses, { z = z0 - c.at, t = c.t })
+		table.insert(collapses, { z = z0 - c.at })
 	end
 	return {
 		index = i,

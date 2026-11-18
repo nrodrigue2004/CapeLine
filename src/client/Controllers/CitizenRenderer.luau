@@ -32,6 +32,7 @@ local Players = game:GetService("Players")
 local QualityController = require(script.Parent.QualityController)
 
 local CitizenRenderer = {}
+CitizenRenderer.hidden = false -- PrologueFx: true while the hero is in the prologue
 
 local C = Config.Destruction.citizens
 local FLEE, PAUSE = 2, 1
@@ -301,7 +302,9 @@ local function render()
 	local newest = snapshots[n].rows
 	local cam = Workspace.CurrentCamera.CFrame.Position
 	local Q = QualityController.preset
-	local drawn = QualityRules.nearest(newest, cam.X, cam.Z, Q.citizensDrawn or C.max, live)
+	-- the prologue's quiet world (PrologueFx): its own crowd only, no city citizens wandering through the story
+	local most = if CitizenRenderer.hidden then 0 else Q.citizensDrawn or C.max
+	local drawn = QualityRules.nearest(newest, cam.X, cam.Z, most, live)
 	for id, body in live do
 		local row = drawn[id]
 		if not row or row.color ~= body.color then

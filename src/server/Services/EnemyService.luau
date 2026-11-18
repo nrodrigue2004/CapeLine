@@ -71,6 +71,24 @@ EnemyService.LUNGE = 17
 -- Evil twins alive now and who they copy (EnemyIdentity: the look, path, name and title every device draws)
 local idents: { [number]: { [string]: any } } = {}
 
+-- The prologue's solo key for a hero (nate's playtest 2026-11-18): a hero in the prologue is alone with its
+-- own story's robots (EnemySim's solo rule), nil for everyone else
+function EnemyService.soloKey(hero: any): number?
+	return if hero and hero.scene == "opening" then hero.id else nil
+end
+
+-- Make a robot one hero's alone (the prologue's): it sees only that hero and only that hero can hurt it.
+-- bounds: a room it never leaves, { x0, x1, z0, z1, yMax? } (nil: anywhere)
+function EnemyService.solo(id: number, heroId: number?, bounds: { number }?)
+	local e = sim.byId[id]
+	if e then
+		e.solo = heroId
+		e.bounds = bounds
+		e.target = nil
+		EnemySim.keepIn(e)
+	end
+end
+
 function EnemyService.candidates(): { any }
 	local list = EnemySim.candidates(sim)
 	for id, t in targets do
@@ -262,6 +280,13 @@ function EnemyService.damage(
 		end
 		return finished, { x = t.x, y = t.y, z = t.z, kind = "Target", target = true }, dealt, EnemySim.HIT
 	end
+	-- the prologue's solo rule: its robots are hurt only by their own hero, and that hero hurts nothing else
+	if attackerId then
+		local attacker = HeroService.byId(attackerId)
+		if attacker and not EnemySim.sees(sim.byId[id], { solo = EnemyService.soloKey(attacker) }) then
+			return false, nil, 0, EnemySim.HIT
+		end
+	end
 	local killed, e, dealt, flag =
 		EnemySim.damage(sim, id, amount, attackerId, from and from.X, from and from.Z)
 	if e and dealt > 0 and attackerId then
@@ -402,6 +427,11 @@ local function handleEvents()
 			table.insert(out, row)
 		elseif ev.k == "hit" then
 			local hero = HeroService.byId(ev.hero)
+			-- the prologue's solo rule: a stray shot or blast from the live world never reaches a hero in their own
+			-- story scene, and the story's robots never hurt anyone else
+			if hero and not EnemySim.sees(sim.byId[ev.e], { solo = EnemyService.soloKey(hero) }) then
+				hero = nil
+			end
 			if hero then
 				local taken = HeroService.damage(
 					hero,

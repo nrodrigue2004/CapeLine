@@ -281,7 +281,21 @@ function MoveController.leapReady(): number
 	return math.clamp((os.clock() - lastLeap) / cd, 0, 1)
 end
 
+-- A guided Leap (the prologue's roof hops, kid-proof: nate's playtest 2026-11-18): when set and it returns a
+-- spot, a Leap from the ground is a set arc there (target, time, height) instead of a free jump
+MoveController.hopAssist = nil :: (() -> (Vector3?, number, number))?
+
 local function launch(frac: number)
+	local assist = MoveController.hopAssist
+	if assist and root then
+		local to, time, height = assist()
+		if to then
+			lastLeap = os.clock()
+			MoveController.arcTo(to, time, height)
+			MoveController.Leaped:Fire(root.Position)
+			return
+		end
+	end
 	local flat = wishDirs()
 	local vx, vy, vz = MoveMath.leapLaunch(if mobility() == "leap" then LEAP_CFG else M, flat.X, flat.Z, frac)
 	lastLeap = os.clock()

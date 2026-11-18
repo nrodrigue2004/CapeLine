@@ -19,6 +19,12 @@
 -- Safety: a beat that does not finish moves on by itself (Config.Story.opening.stuck) and the whole prologue
 -- finishes itself after Config.Story.opening.timeout. Camera beats are skippable on a replay, for a
 -- returning account, or once this save has seen that beat (lore step 7, CinemaService's seen set). The hero is in a scene: no incidents, events or ambient robots find it.
+-- Kid-proof (nate's playtest 2026-11-18: "it runs in the real world so events and spawns happen during cutscenes
+-- and mid mission"): the hero is ALONE with its story. Its robots are solo (EnemyService.solo): they see and hurt
+-- only this hero, only this hero can hurt them, and no other robot, shot or blast in the city can touch it
+-- (EnemySim's solo rule); the device hides the live world for the whole prologue (PrologueFx). The hops are
+-- guided (one Leap press is a set arc to the next roof, granted here), the tunnel caves in behind the hero,
+-- and Skylance and the swarm never leave the subway chamber (Enemy.bounds).
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -48,6 +54,7 @@ local EnemyService = require(script.Parent.EnemyService)
 local EconomyService = require(script.Parent.EconomyService)
 local GearService = require(script.Parent.GearService)
 local SafehouseService = require(script.Parent.SafehouseService)
+local MoveGuard = require(script.Parent.MoveGuard)
 local StoryService = require(script.Parent.StoryService)
 local Analytics = require(script.Parent.Analytics)
 local CinemaService = require(script.Parent.CinemaService)
@@ -82,7 +89,6 @@ type Run = {
 	fakeId: number?,
 	hop: number,
 	fired: number, -- when the spark fired (0: not yet)
-	fell: { [number]: boolean }, -- the tunnel's slabs that came down
 	rewarded: boolean,
 }
 
@@ -222,6 +228,14 @@ local function send(r: Run)
 		entrance = route.entrance,
 		billboard = route.billboard,
 		lane = r.lane,
+		-- the story's own robots: the only ones this device draws while the prologue runs (the quiet world)
+		mine = (function()
+			local ids = {}
+			for id in r.enemies do
+				table.insert(ids, id)
+			end
+			return ids
+		end)(),
 	})
 end
 
@@ -233,12 +247,27 @@ local function clearEnemies(r: Run)
 	r.fakeId = nil
 end
 
-local function spawn(r: Run, kind: string, pos: Vector3, scripted: boolean?): number?
+-- The subway chamber as a room for this run's robots (nil without a lane: the fight by the subway steps)
+local function room(r: Run): { number }?
+	return if r.lane then OpeningPlan.chamber(Config, r.lane) else nil
+end
+
+local function spawn(r: Run, kind: string, pos: Vector3, scripted: boolean?, bounds: { number }?): number?
 	local id = EnemyService.spawnAt(kind, pos, r.hero.level, TAG, scripted)
 	if id then
 		r.enemies[id] = true
+		EnemyService.solo(id, r.hero.id, bounds) -- this hero's alone, nobody else's to see or hit
 	end
 	return id
+end
+
+-- A guided hop is coming (OpeningPlan.HOPS): grant the travel to the beat's target so MoveGuard accepts the arc
+local function grantHop(r: Run)
+	local to = target(r)
+	local pos = HeroService.position(r.hero)
+	if to and pos then
+		MoveGuard.grant(r.hero, (v3(to) - pos).Magnitude + O.hop.grant)
+	end
 end
 
 -- Where a beat starts for this run: OpeningPlan's point, except that with every subway lane busy the fight
@@ -367,14 +396,13 @@ local function enter(r: Run, step: string)
 			setStep(r, "fight")
 			return
 		end
-		table.clear(r.fell)
 		placeFor(r, step, true)
 	elseif step == "fight" then
 		GearService.setStreet(r.player, false)
 		clearEnemies(r)
 		placeFor(r, step)
 		local at = v3(startAt(r, "fight"), 0) + Vector3.new(0, 0, -14)
-		local id = spawn(r, O.fight.fake, at)
+		local id = spawn(r, O.fight.fake, at, nil, room(r))
 		if id then
 			EnemyService.tune(id, { hpMult = O.fight.hpMult, dmgMult = O.fight.dmg })
 			r.fakeId = id
@@ -397,7 +425,7 @@ local function enter(r: Run, step: string)
 				local x, z = PocketLayout.chamberPoint(Config, r.lane, at.X, at.Z, S.margin)
 				at = Vector3.new(x, at.Y, z)
 			end
-			local id = spawn(r, S.kind, at)
+			local id = spawn(r, S.kind, at, nil, room(r))
 			if id then
 				EnemyService.tune(id, { dmgMult = S.dmg })
 			end
@@ -439,6 +467,9 @@ setStep = function(r: Run, step: string)
 	holdRow(r, PrologueRow.holds(Config, step))
 	enter(r, step)
 	if runs[r.player] == r and r.step == step then
+		if OpeningPlan.HOPS[step] then
+			grantHop(r)
+		end
 		send(r)
 	end
 end
@@ -521,7 +552,6 @@ function OpeningService.start(player: Player, force: boolean?): boolean
 		fakeId = nil,
 		hop = 3,
 		fired = 0,
-		fell = {},
 		rewarded = false,
 	}
 	runs[player] = r
@@ -570,25 +600,12 @@ local function moveFake(r: Run, pos: Vector3, dt: number)
 	EnemyService.place(id, if d.Magnitude > 0.1 then cur + d.Unit * stepLen else goal)
 end
 
-local function tunnelTick(r: Run, pos: Vector3, now: number)
+local function tunnelTick(r: Run, pos: Vector3)
 	local lane = r.lane
 	if not lane then
 		return
 	end
-	local S = O.subway
-	for k, c in lane.collapses do
-		if not r.fell[k] and now - r.stepAt >= c.t then
-			r.fell[k] = true
-			if math.abs(pos.Z - c.z) <= S.slab / 2 + 3 and math.abs(pos.X - lane.x) <= S.width / 2 + 2 then
-				-- under the slab: knocked back toward the steps (cartoon; no damage)
-				local back = CFrame.lookAt(
-					Vector3.new(lane.x, lane.floorY + 3, c.z + S.slab / 2 + S.push),
-					Vector3.new(lane.x, lane.floorY + 3, c.z)
-				)
-				task.spawn(SafehouseService.place, r.hero, back)
-			end
-		end
-	end
+	-- (the tunnel caves in behind the hero on its device: OpeningPlan.slabFalls; nothing here can be hit)
 	if pos.Z <= lane.z1 - 4 then
 		setStep(r, "fight")
 	end
@@ -650,6 +667,7 @@ local function step(r: Run, now: number, dt: number)
 				setStep(r, "suit")
 			else
 				r.hop += 1
+				grantHop(r)
 				send(r)
 			end
 		end
@@ -679,7 +697,7 @@ local function step(r: Run, now: number, dt: number)
 			setStep(r, "tunnel")
 		end
 	elseif s == "tunnel" then
-		tunnelTick(r, pos, now)
+		tunnelTick(r, pos)
 	elseif s == "fight" then
 		local fake = r.fakeId and EnemyService.get(r.fakeId)
 		local cracked = not fake

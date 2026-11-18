@@ -562,8 +562,17 @@ local function drawHits(r: any, row: any, style: string, mine: boolean)
 	end
 end
 
+-- The prologue's quiet world (kid-proof, nate's playtest 2026-11-18; PrologueFx sets these): other heroes'
+-- casts and the live world's robots' shots, blasts and hits are not drawn while the hero is in its own story
+CombatClient.hideCaster = nil :: ((userId: number) -> boolean)?
+CombatClient.hideEnemy = nil :: ((enemyId: number) -> boolean)?
+
 local function onResult(list: { any })
+	local hideCaster = CombatClient.hideCaster
 	for _, r in list do
+		if hideCaster and r.a ~= player.UserId and hideCaster(r.a) then
+			continue
+		end
 		local mine = r.a == player.UserId
 		local row = A.byNum[r.n]
 		local style = styleOf(r.a)
@@ -754,8 +763,19 @@ local function fakeLook(e: number): (string?, string, Color3)
 end
 
 local function onEvents(list: { any })
+	local hideEnemy = CombatClient.hideEnemy
 	for _, ev in list do
 		local kind = ev[1]
+		if hideEnemy then
+			-- a hit on another hero, or anything a hidden robot does (BLOCKED carries no robot: the hero's own)
+			if kind == HERO_HIT then
+				if ev[2] ~= player.UserId then
+					continue
+				end
+			elseif kind ~= BLOCKED and hideEnemy(ev[2]) then
+				continue
+			end
+		end
 		if kind == SHOT then
 			local pos, vel = Vector3.new(ev[3], ev[4], ev[5]), Vector3.new(ev[6], ev[7], ev[8])
 			if ev[11] == PATH_SHOT then

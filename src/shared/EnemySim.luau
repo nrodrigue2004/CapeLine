@@ -63,8 +63,18 @@ EnemySim.WINDUP_BIT = Status.BITS.windup
 -- Hit flags returned by damage (sent to clients so a blocked hit reads)
 EnemySim.HIT, EnemySim.BLOCKED, EnemySim.BROKE = 0, 1, 2
 
--- lx, lz: the hero's facing (for backstabs). Optional for old callers.
-export type Hero = { id: number, x: number, y: number, z: number, alive: boolean, lx: number?, lz: number? }
+-- lx, lz: the hero's facing (for backstabs). Optional for old callers. solo: a hero alone in a story scene of
+-- its own (the prologue: its own hero id): only robots with the same solo key see it, and it sees only them.
+export type Hero = {
+	id: number,
+	x: number,
+	y: number,
+	z: number,
+	alive: boolean,
+	lx: number?,
+	lz: number?,
+	solo: number?,
+}
 
 export type Enemy = {
 	id: number,
@@ -120,6 +130,13 @@ export type Enemy = {
 	dmgMult: number?, -- the opening's drones: 0 never attacks back, 0.35 a weak one
 	hitLife: number?, -- the opening's drones: any hit takes this share of its health (2 hits, 4 hits)
 	tag: number?, -- the incident, contract site or event that spawned it
+	-- the prologue (nate's playtest 2026-11-18: kid-proof, nothing from the live world): a solo robot belongs to
+	-- one hero's story scene; it targets only heroes with the same solo key, and ordinary robots never target
+	-- a solo hero (EnemySim.step hands each robot only the heroes it may see)
+	solo: number?,
+	-- a room it may never leave, { x0, x1, z0, z1, yMax? } (the prologue's subway chamber: no dashing or flying
+	-- through its walls); clamped after every think
+	bounds: { number }?,
 	-- the nine new types
 	extra: number, -- EnemySim.EXTRA bits on the wire
 	nextSpecial: number, -- the next rally, aim, grenade, hook, net or lunge
@@ -2538,12 +2555,57 @@ local function stepShots(sim: Sim, heroes: { Hero }, dt: number)
 end
 
 -- Advance to `now`. Shots move every call; at most `maxTicks` enemies think this call, each at 10 Hz.
+local NOBODY: { Hero } = table.freeze({}) :: any
+
+-- Keep a robot inside its room (Enemy.bounds), if it has one
+function EnemySim.keepIn(e: Enemy)
+	local b = e.bounds
+	if b then
+		e.x = math.clamp(e.x, b[1], b[2])
+		e.z = math.clamp(e.z, b[3], b[4])
+		if b[5] and e.y > b[5] then
+			e.y = b[5]
+			e.vy = math.min(e.vy, 0)
+		end
+	end
+end
+
+-- May this robot see (target, hit) this hero? (the prologue's solo rule; nil keys match nil keys)
+function EnemySim.sees(e: { solo: number? }?, h: { solo: number? }): boolean
+	return (if e then e.solo else nil) == h.solo
+end
+
 function EnemySim.step(sim: Sim, now: number, heroes: { Hero }, maxTicks: number?)
 	local dt = math.clamp(now - sim.lastStep, 0, 0.25)
 	sim.lastStep = now
 	sim.now = now
 	stepShots(sim, heroes, dt)
 	stepBombs(sim, heroes)
+	-- who each robot may see: a solo hero (the prologue) only by its own story's robots, and those robots only
+	-- by it (no new tables unless some hero or robot is solo)
+	local open = heroes
+	local soloOf: { [number]: { Hero } }? = nil
+	for _, h in heroes do
+		if h.solo then
+			open, soloOf = {}, {}
+			break
+		end
+	end
+	if soloOf then
+		for _, h in heroes do
+			local key = h.solo
+			if key then
+				local list = soloOf[key]
+				if not list then
+					list = {}
+					soloOf[key] = list
+				end
+				table.insert(list, h)
+			else
+				table.insert(open, h)
+			end
+		end
+	end
 	local budget = maxTicks or sim.config.Enemies.caps.aiTicksPerFrame
 	local interval = 1 / sim.config.Enemies.tickRate
 	local n = #sim.enemies
@@ -2563,9 +2625,14 @@ function EnemySim.step(sim: Sim, now: number, heroes: { Hero }, maxTicks: number
 			if not e.scripted then -- a scripted robot (an incident runner) is moved by its incident
 				local px, py, pz = e.x, e.y, e.z
 				local wasWet = e.cfg.sea and sim.water(px, py, pz)
-				think(sim, e, heroes, edt)
+				local seen = open
+				if e.solo then
+					seen = if soloOf then soloOf[e.solo] or NOBODY else NOBODY
+				end
+				think(sim, e, seen, edt)
 				separate(sim, e)
 				keepMedium(sim, e, px, py, pz, wasWet)
+				EnemySim.keepIn(e)
 			end
 			updateFlags(sim, e)
 			ticks += 1
@@ -2579,10 +2646,15 @@ function EnemySim.candidates(sim: Sim): { any }
 	local out = table.create(#sim.enemies)
 	for _, e in sim.enemies do
 		if e.alive and not e.disguised then -- a disguised Mimic is a citizen until it shows itself
-			table.insert(
-				out,
-				{ id = e.id, x = e.x, y = e.y, z = e.z, r = e.cfg.radius or 2.5, flags = e.flags }
-			)
+			table.insert(out, {
+				id = e.id,
+				x = e.x,
+				y = e.y,
+				z = e.z,
+				r = e.cfg.radius or 2.5,
+				flags = e.flags,
+				solo = e.solo,
+			})
 		end
 	end
 	return out
