@@ -21793,6 +21793,149 @@ do
 	end)
 end
 
+-- The side quests' people and finale models (2026-11-18 art pass): every giver, named helper and finale villain
+-- has an outfit row, the drawn images are there to upload, and the finale models' config is sound
+do
+	local PeopleLooks = require("../src/shared/PeopleLooks")
+	local fs = require("@lune/fs")
+	local SideQuestPlan = require("../src/shared/SideQuestPlan")
+	local NL = Config.NpcLooks
+	local SQ = Config.SideQuests
+
+	test("Art pass: the people and helper tables are sound", function()
+		local problems = PeopleLooks.problems(Config)
+		check(#problems == 0, "PeopleLooks problems: " .. table.concat(problems, "; "))
+		for id, g in SQ.givers do
+			if not g.dev and not g.relay and id ~= "LodestarGiver" then
+				check(NL.people[id] ~= nil, "giver " .. id .. " has an outfit row")
+			end
+		end
+		local villains = 0
+		for _, ch in SQ.chains do
+			for _, step in ch.steps do
+				for _, side in { "hero", "villain" } do
+					local g = SideQuestPlan.goal(step, side)
+					if g and g.kind == "finale" then
+						for phase = 1, 2 do
+							local foe = SideQuestPlan.finaleFoe(g, phase)
+							local who = PeopleLooks.villain(foe.dress, foe.enemy) :: string
+							villains += 1
+							check(
+								NL.people[who] ~= nil or (NL.robots and NL.robots[who] ~= nil),
+								ch.id .. "'s finale villain " .. who .. " has an outfit row"
+							)
+						end
+					end
+				end
+			end
+		end
+		check(villains >= 32, "every chain's finale was checked")
+	end)
+
+	test("Art pass: outfits fall back at 0 and strip only the drawn slots", function()
+		for id in NL.people do
+			check(PeopleLooks.outfit(Config, id) == nil, id .. " shows today's look until uploaded")
+		end
+		check(
+			PeopleLooks.outfit(Config, "Nobody") == nil and PeopleLooks.outfit(Config, nil) == nil,
+			"unknown ids"
+		)
+		local patched = { NpcLooks = { people = { Vesper = { clothes = 123, face = 0, cracked = 456 } } } }
+		local fit = PeopleLooks.outfit(patched, "Vesper") :: any
+		check(fit.clothes == "rbxassetid://123" and fit.face == nil, "an uploaded outfit's image")
+		check(fit.cracked == "rbxassetid://456", "a famous fake's cracked face")
+		local look = { pieces = { suit = 3, shirt = 1, pants = 2, legs = 4, hat = 5, hair = 6 } }
+		local bare = PeopleLooks.strip(look)
+		check(
+			bare.pieces.suit == nil and bare.pieces.shirt == nil and bare.pieces.pants == nil,
+			"drawn slots off"
+		)
+		check(
+			bare.pieces.legs == nil and bare.pieces.hat == 5 and bare.pieces.hair == 6,
+			"hats and hair stay"
+		)
+		check(look.pieces.suit == 3 and look.pieces.legs == 4, "the look itself is unchanged")
+		check(PeopleLooks.villain("Pitboss", "Bramblebeast") == "Pitboss", "a dress names the villain")
+		check(PeopleLooks.villain(nil, "WindupGiant") == "WindupGiant", "else the kind")
+		local id, h = PeopleLooks.helperAt(Config, "HeroAcademy", 4, "hero")
+		check(id == "Wren" and h and h.speaker == "wren", "Wren stands in at the academy's step 4")
+		check(PeopleLooks.helperAt(Config, "HeroAcademy", 4, "villain") == nil, "only on her side")
+		check(PeopleLooks.helperAt(Config, "HeroAcademy", 1, "both") == nil, "only at her step")
+	end)
+
+	test("Art pass: every outfit and face is drawn, and the finale models' config is sound", function()
+		for id, p in NL.people do
+			check(fs.isFile("art/export/clothes/people/" .. id .. ".png"), id .. "'s outfit is drawn")
+			if p.cracked ~= nil then
+				check(
+					fs.isFile("art/export/clothes/people/Face_" .. id .. "_Cracked.png"),
+					id .. "'s cracked face"
+				)
+			end
+		end
+		local R15 = {}
+		for _, n in
+			{
+				"Head",
+				"UpperTorso",
+				"LowerTorso",
+				"LeftUpperArm",
+				"LeftLowerArm",
+				"LeftHand",
+				"RightUpperArm",
+				"RightLowerArm",
+				"RightHand",
+				"LeftUpperLeg",
+				"LeftLowerLeg",
+				"LeftFoot",
+				"RightUpperLeg",
+				"RightLowerLeg",
+				"RightFoot",
+			}
+		do
+			R15[n] = true
+		end
+		local finales = {}
+		for _, ch in SQ.chains do
+			for _, step in ch.steps do
+				local g = SideQuestPlan.goal(step, "hero")
+				if g and g.kind == "finale" then
+					for phase = 1, 2 do
+						local foe = SideQuestPlan.finaleFoe(g, phase)
+						finales[PeopleLooks.villain(foe.dress, foe.enemy) :: string] = true
+					end
+				end
+			end
+		end
+		local n, names = 0, {}
+		for name, fa in Config.FinaleArt do
+			n += 1
+			check(finales[name] == true, name .. " is a side quest finale villain")
+			check(type(fa.tint) == "table" and #fa.tint == 3, name .. " has a tint")
+			check(fa.triangles > 0 and fa.triangles <= 12000, name .. " is in the triangle budget")
+			check(fs.isFile("art/export/finales/" .. name .. ".fbx"), name .. "'s model is exported")
+			for xname, x in fa.extras do
+				check(names[xname] == nil and R15[xname] == nil, xname .. " is a unique extra")
+				names[xname] = true
+				check(R15[x.parent] == true, xname .. " sits on an R15 part")
+				check(#x.offset == 3 and #x.size == 3, xname .. " has an offset and size")
+				for _, s in x.size do
+					check(s > 0, xname .. " has a positive size")
+				end
+			end
+		end
+		check(n == 3 and Config.FinaleArt.Bramblebeast and Config.FinaleArt.Voidhound, "three finale models")
+		check(Config.FinaleArt.WindupGiant ~= nil, "the Wind-Up Giant's model")
+		local er = readFile("src/client/Controllers/EnemyRenderer.luau")
+		check(string.find(er, "Config.FinaleArt[who]", 1, true) ~= nil, "the renderer reads a finale's model")
+		check(string.find(er, "NpcRig.meshes(nil, who)", 1, true) ~= nil, "only once it is imported")
+		check(string.find(er, "PeopleLooks.outfit(Config, who)", 1, true) ~= nil, "a villain's own outfit")
+		local sq = readFile("src/server/Services/SideQuestService.luau")
+		check(string.find(sq, "PeopleLooks.outfit(Config, id)", 1, true) ~= nil, "givers wear their outfit")
+		check(string.find(sq, "PeopleLooks.helperAt(", 1, true) ~= nil, "named helpers stand in")
+	end)
+end
+
 print(string.format("\n%d passed, %d failed", passed, failed))
 if failed > 0 then
 	process.exit(1)

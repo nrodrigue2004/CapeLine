@@ -5,11 +5,12 @@
 UPLOAD_DIR holds manifest.json (make_package.py) and ids.json (upload.ps1: file -> Decal id).
 IMAGE_IDS_FILE is what resolve_ids.lua printed in Studio ("decal=image,decal=image,..."): the image id
 inside each decal, which is what clothes, faces, particles and MaterialVariant maps need. Writes:
-  src/config/NpcLooks.luau   robots.<robot>.clothes.<version>, faces.<face>.<which>
+  src/config/NpcLooks.luau   robots.<robot>.clothes.<version>, faces.<face>.<which>, people.<id>.<which>
   src/config/Creator.luau    clothes.shirts|pants.<name>
   src/config/Fx.luau         lib.textures.<name>.id
   src/materials/Kit<Name>.model.json and the MaterialService entries in default.project.json (the city kit)
-Safe to run again: every id is set, not added.
+Safe to run again: every id is set, not added. A batch without city maps leaves the city materials as they are;
+a batch with some merges them into the ones already there.
 """
 
 import json
@@ -88,6 +89,7 @@ def main():
     fx = read("src/config/Fx.luau")
     robots_at = npc.index("\trobots = {")
     faces_at = npc.index("\tfaces = {")
+    people_at = npc.index("\tpeople = {")
     clothes_at = creator.index("\tclothes = {\n\t\ton = ")
     tex_at = fx.index("\t\ttextures = {")
     maps = {}
@@ -103,6 +105,8 @@ def main():
             npc = set_key(npc, cl, t["version"], i)
         elif k == "npc_face":
             npc = set_key(npc, block(npc, faces_at, r"^\t\t" + t["face"] + r" = \{"), t["which"], i)
+        elif k == "npc_person":
+            npc = set_key(npc, block(npc, people_at, r"^\t\t" + t["id"] + r" = \{"), t["which"], i)
         elif k == "hero_clothes":
             grp = block(creator, clothes_at, r"^\t\t" + t["group"] + r" = \{")
             creator = set_key(creator, grp, t["name"], i)
@@ -116,14 +120,24 @@ def main():
     write("src/config/NpcLooks.luau", npc)
     write("src/config/Creator.luau", creator)
     write("src/config/Fx.luau", fx)
+    if not maps:
+        print(done, "ids set; city materials unchanged")
+        return
 
     # the city kit: one MaterialVariant per texture set, on its base material and tile size (Config.City.kit)
     city = read("src/config/City.luau")
     tiles = lua_table(city, "studsPerTile")
     bases = lua_table(city, "baseMaterial")
     os.makedirs(path("src/materials"), exist_ok=True)
+    # keep the maps an earlier batch set (an incremental batch must not wipe the others), then rewrite them all
     for f in os.listdir(path("src/materials")):
         if f.startswith("Kit") and f.endswith(".model.json"):
+            props = json.load(open(path("src/materials/" + f), encoding="utf-8"))["properties"]
+            old = maps.setdefault(f[3 : -len(".model.json")], {})
+            for kind in ("Color", "Normal", "Roughness", "Metalness"):
+                m = re.search(r"(\d+)$", props.get(kind + "Map", ""))
+                if m and kind not in old:
+                    old[kind] = m.group(1)
             os.remove(path("src/materials/" + f))
     ms = {"$className": "MaterialService"}
     for name in sorted(maps):

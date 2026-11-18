@@ -159,4 +159,117 @@ return {
 			hair = { "BlackPonytail", "LongRed", "Pal" },
 		},
 	},
+	-- The side quests' people (2026-11-18 art pass, PLACEHOLDER ART until nate approves): each giver, named
+	-- helper and finale villain in a classic outfit of their own (art/clothes/people.py: the Shirt and Pants
+	-- side by side, like the robots' uniforms) and, where the six shared faces do not fit (the old, the kids,
+	-- a machine, a famous face), a face of their own (Face_<Name>.png; `cracked` for a famous fake's unmasked
+	-- face). Keys: a Config.SideQuests giver, a Config.SideQuests.dress row, a finale villain's Config.Enemies
+	-- kind, or a helper below. Shared.PeopleLooks reads it: a person with a clothes id wears it in place of the
+	-- suit, shirt, pants and legs pieces of their look (hats, coats, gloves and boots stay); a face id replaces
+	-- their visage's face. 0 until nate uploads art/export/clothes/people/<Name>.png: then today's look shows.
+	people = {
+		-- the givers
+		Gus = { clothes = 0, face = 0 }, -- the janitor's grey-blue work shirt, name patch, knee-padded work trousers
+		Benny = { clothes = 0, face = 0 }, -- a crimson valet jacket with gold buttons and braid, a bow tie
+		Scoops = { clothes = 0, face = 0 }, -- a pink and mint striped apron over a white tee, the cone badge
+		Dot = { clothes = 0, face = 0 }, -- a patched denim overall bib over an olive plaid shirt
+		Nell = { clothes = 0, face = 0 }, -- a navy cable-knit fisherman's sweater, oilskin trousers, the ferry badge
+		Pearl = { clothes = 0, face = 0 }, -- a teal wetsuit with coral side panels and the Reef Station patch
+		Brick = { clothes = 0, face = 0 }, -- an old champion's faded gym tank, track pants, hand wraps
+		Vanta = { clothes = 0, face = 0 }, -- a deep purple velvet gown with gold damask and a brooch
+		Nora = { clothes = 0, face = 0 }, -- a tan belted trench coat, a press pass, dark slacks
+		Okafor = { clothes = 0, face = 0 }, -- a lab coat over a teal blouse, the Ashgrove badge (struck through)
+		Ruth = { clothes = 0, face = 0 }, -- a mustard radio-wave cardigan, brown corduroys
+		Moth = { clothes = 0, face = 0 }, -- a plum tunic with embroidered moths, a long patterned skirt
+		Tess = { clothes = 0, face = 0 }, -- an orange mechanic's coverall, rolled sleeves, grease, the gear patch
+		Kiko = { clothes = 0, face = 0 }, -- a white student's gi with red trim
+		-- the named helpers (helpers below)
+		Wren = { clothes = 0, face = 0 }, -- Halo Academy's navy blazer with the crest, a grey skirt
+		Toby = { clothes = 0, face = 0 }, -- a rocket tee and denim dungaree shorts
+		Flint = { clothes = 0, face = 0 }, -- a young fighter's red training top with tape, fight shorts
+		Finn = { clothes = 0, face = 0 }, -- a deckhand's striped jersey under an orange life vest
+		Dace = { clothes = 0, face = 0 }, -- a salvage diver's orange and black drysuit with a harness
+		Ambrose = { clothes = 0, face = 0 }, -- a faded midnight tailcoat sewn with stars, a gold waistcoat
+		Hoshi = { clothes = 0, face = 0 }, -- a master's grey-blue gi over dark hakama
+		-- the finale villains
+		HeadmasterHalo = { clothes = 0, face = 0 }, -- an academic gown with the gold halo crest
+		Redline = { clothes = 0, face = 0 }, -- a red racing suit with checker stripes and flames
+		MasqueARade = { clothes = 0, face = 0 }, -- a purple and gold harlequin bodice and tights
+		HarvestKing = { clothes = 0, face = 0 }, -- mustard thresher overalls over a forest shirt, the wheat crown
+		Bramblebeast = { clothes = 0, face = 0 }, -- bark and vine skin with pumpkin rind plates (a creature)
+		CaptainBrine = { clothes = 0, face = 0 }, -- a riveted brass diving rig under a pirate coat's cuffs
+		Pitboss = { clothes = 0, face = 0 }, -- a maroon pinstripe tuxedo, gold lapels, a cummerbund
+		Tidewright = { clothes = 0, face = 0 }, -- a bronze and teal plated guardian's robe grown with coral
+		Vesper = { clothes = 0, face = 0, cracked = 0 }, -- a night-sky starfield bodysuit, the evening star
+		Catchpole = { clothes = 0, face = 0 }, -- an olive ranger's harness, net pattern, pouches
+		Scorch = { clothes = 0, face = 0 }, -- a charcoal suit cracked with glowing magma veins
+		Censor = { clothes = 0, face = 0 }, -- a black tuxedo crossed with white redaction bars
+		Holloway = { clothes = 0, face = 0 }, -- a director's lab coat with steel plates, indigo shirt and tie
+		Voidhound = { clothes = 0, face = 0 }, -- a starfield machine shell with ultraviolet seams
+		Morrow = { clothes = 0, face = 0 }, -- a stage tuxedo lined in violet, mirror shards and card suits
+		Clawback = { clothes = 0, face = 0 }, -- a mustard repo jumpsuit, charcoal panels, the hook mark
+		Gale = { clothes = 0, face = 0 }, -- a teal fighter's sash top with wind swirls, black hakama
+	},
+	-- The named helpers a side quest step draws (who stands in for a `find` step's witness, or the one carried in
+	-- a `carry` step): chain id, step number and side; `speaker` is their Config.Story.guides.speakers card (its
+	-- portrait's skin and hair); shirt and pants colour them until their outfit is uploaded. Tests check each row
+	-- still points at a witness or carry step.
+	helpers = {
+		Wren = {
+			chain = "HeroAcademy",
+			step = 4,
+			side = "hero",
+			speaker = "wren",
+			shirt = { 30, 45, 100 },
+			pants = { 120, 124, 132 },
+		},
+		Toby = {
+			chain = "WindUpLane",
+			step = 3,
+			side = "hero",
+			speaker = "toby",
+			shirt = { 90, 170, 230 },
+			pants = { 60, 90, 150 },
+		},
+		Flint = {
+			chain = "ThePit",
+			step = 2,
+			side = "hero",
+			speaker = "flint",
+			shirt = { 200, 50, 45 },
+			pants = { 40, 40, 46 },
+		},
+		Finn = {
+			chain = "SaltDogs",
+			step = 6,
+			side = "hero",
+			speaker = "finn",
+			shirt = { 250, 130, 40 },
+			pants = { 190, 175, 140 },
+		},
+		Dace = {
+			chain = "SunkenCity",
+			step = 3,
+			side = "hero",
+			speaker = "dace",
+			shirt = { 240, 120, 30 },
+			pants = { 30, 30, 36 },
+		},
+		Ambrose = {
+			chain = "LastOwner",
+			step = 2,
+			side = "hero",
+			speaker = "ambrose",
+			shirt = { 30, 34, 80 },
+			pants = { 24, 24, 30 },
+		},
+		Hoshi = {
+			chain = "TakenMaster",
+			step = 5,
+			side = "hero",
+			speaker = "hoshi",
+			shirt = { 120, 140, 160 },
+			pants = { 30, 32, 44 },
+		},
+	},
 }

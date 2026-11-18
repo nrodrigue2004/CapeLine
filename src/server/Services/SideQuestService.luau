@@ -53,6 +53,7 @@ local SideQuestSites = require(Shared:WaitForChild("SideQuestSites"))
 local FakeRules = require(Shared:WaitForChild("FakeRules"))
 local BodyShape = require(Shared:WaitForChild("BodyShape"))
 local LookKit = require(Shared:WaitForChild("LookKit"))
+local PeopleLooks = require(Shared:WaitForChild("PeopleLooks"))
 local SideQuestSets = require(Shared:WaitForChild("SideQuestSets"))
 local IncidentPlan = require(Shared:WaitForChild("IncidentPlan"))
 local DeepLayout = require(Shared:WaitForChild("DeepLayout"))
@@ -172,6 +173,11 @@ end
 local npcLayout = RigMath.layout(Config.HeroRig, nil, 1)
 local function lookRig(id: string, def: any): any
 	local look = FakeRules.lookFrom(Config, def, id)
+	-- the 2026-11-18 art pass: the giver's own outfit and face once uploaded (Shared.PeopleLooks)
+	local fit = PeopleLooks.outfit(Config, id)
+	if fit and fit.clothes then
+		look = PeopleLooks.strip(look)
+	end
 	local factors =
 		BodyShape.factors(Config, { gender = look.gender, build = look.build, height = look.height })
 	local layout = RigMath.layout(Config.HeroRig, factors, 1)
@@ -191,6 +197,31 @@ local function lookRig(id: string, def: any): any
 	local ok, err = pcall(LookKit.build, rig.model, look)
 	if not ok then
 		warn("[SideQuestService] giver look", id, err)
+	end
+	if fit then
+		NpcRig.wearOutfit(rig, fit, Config.NpcLooks.offsetSign)
+	end
+	return rig
+end
+
+-- A named helper (Config.NpcLooks.helpers: Toby, Finn, Master Hoshi...) as a person on the rig: their speaker
+-- card's skin and hair, plain shirt and pants colours, and their own outfit and face once uploaded
+local function helperRig(id: string, h: any): any
+	local sp = Config.Story.guides.speakers[h.speaker]
+	local pt = sp and sp.portrait
+	local skin = if pt
+		then Color3.fromRGB(pt.skin[1], pt.skin[2], pt.skin[3])
+		else Color3.fromRGB(235, 200, 160)
+	local hair = if pt then Color3.fromRGB(pt.hair[1], pt.hair[2], pt.hair[3]) else Color3.fromRGB(70, 46, 30)
+	local fit = PeopleLooks.outfit(Config, id)
+	local shirt = Color3.fromRGB(h.shirt[1], h.shirt[2], h.shirt[3])
+	local pants = Color3.fromRGB(h.pants[1], h.pants[2], h.pants[3])
+	if fit and fit.clothes then
+		shirt, pants = skin, skin -- the outfit covers the body; skin shows where it is clear
+	end
+	local rig = NpcRig.person(npcLayout, id, shirt, pants, skin, hair)
+	if fit then
+		NpcRig.wearOutfit(rig, fit, Config.NpcLooks.offsetSign)
 	end
 	return rig
 end
@@ -579,11 +610,19 @@ local function build(g: Group, key: string, st: any): Goal
 			else home + Vector3.new(4, 1, 0)
 		local pad = SiteKit.pad(padAt)
 		table.insert(goal.things, pad)
+		local hid, h = PeopleLooks.helperAt(Config, g.chain.id, g.idx, key)
+		local carried = if hid
+			then function()
+				return helperRig(hid :: string, h)
+			end
+			else nil
 		table.insert(
 			goal.things,
 			SiteKit.citizen(who, {
 				pads = { pad },
 				who = mine,
+				-- a named one to carry (Config.NpcLooks.helpers: Finn, Master Hoshi) in their own look
+				person = carried,
 				onSafe = function()
 					setHave(g, goal, goal.need)
 				end,
@@ -653,14 +692,18 @@ local function build(g: Group, key: string, st: any): Goal
 		goal.target = at -- not sent: the heroes only see the search circle
 		local prop = SiteKit.prop(if st.witness then "Witness" else "LostCrate", function(m)
 			if st.witness then
-				local rig = NpcRig.person(
-					npcLayout,
-					"Witness",
-					Color3.fromRGB(200, 160, 90),
-					Color3.fromRGB(60, 64, 80),
-					Color3.fromRGB(235, 200, 160),
-					Color3.fromRGB(30, 26, 24)
-				)
+				-- a named witness (Config.NpcLooks.helpers: Wren, Toby, Flint...) in their own look
+				local hid, h = PeopleLooks.helperAt(Config, g.chain.id, g.idx, key)
+				local rig = if hid
+					then helperRig(hid, h)
+					else NpcRig.person(
+						npcLayout,
+						"Witness",
+						Color3.fromRGB(200, 160, 90),
+						Color3.fromRGB(60, 64, 80),
+						Color3.fromRGB(235, 200, 160),
+						Color3.fromRGB(30, 26, 24)
+					)
 				NpcRig.place(rig, CFrame.new())
 				rig.model.Parent = m
 			else

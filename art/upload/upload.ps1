@@ -1,7 +1,8 @@
 # Capeline art upload (runs on nate's PC only; the key never leaves it).
 # Started by upload.bat. Reads the Open Cloud key file (line 1 = the API key, line 2 = nate's Roblox user id), uploads every file in
 # manifest.json as a Decal on his account (not for sale, not listed anywhere), and writes ids.json
-# (file name -> decal asset id). Safe to run again: files already in ids.json are skipped.
+# (file name -> decal asset id) and resolve_ids.txt (the Studio command bar step for this batch's decals).
+# Safe to run again: files already in ids.json are skipped.
 #   powershell -ExecutionPolicy Bypass -File upload.ps1 [-KeyFile <path>]
 param([string]$KeyFile = "")
 
@@ -77,3 +78,10 @@ foreach ($item in $manifest.items) {
 Save-Ids
 Write-Host "uploaded $($ids.Count) of $($manifest.items.Count); failed: $($failed.Count)"
 $failed | ForEach-Object { Write-Host "FAILED $_" }
+# the Studio command-bar step for this batch: resolve_ids.txt reads each new decal's image id
+$template = Join-Path $here "resolve_ids.template.lua"
+if (Test-Path $template) {
+	$list = @($manifest.items | Where-Object { $ids.ContainsKey($_.file) } | ForEach-Object { [string]$ids[$_.file] })
+	(Get-Content -Raw -Path $template).Replace("__IDS__", ($list -join ",")) | Set-Content -Path (Join-Path $here "resolve_ids.txt") -Encoding ASCII
+	Write-Host "wrote resolve_ids.txt ($($list.Count) decals)"
+}

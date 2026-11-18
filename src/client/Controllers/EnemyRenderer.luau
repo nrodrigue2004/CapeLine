@@ -54,6 +54,7 @@ local FakeRules = require(Shared:WaitForChild("FakeRules"))
 local LookCodec = require(Shared:WaitForChild("LookCodec"))
 local LookKit = require(Shared:WaitForChild("LookKit"))
 local CreatorRules = require(Shared:WaitForChild("CreatorRules"))
+local PeopleLooks = require(Shared:WaitForChild("PeopleLooks"))
 
 local QualityController = require(script.Parent.QualityController)
 local DebrisBudget = require(script.Parent.Parent.Fx.DebrisBudget)
@@ -240,6 +241,12 @@ local TIES: { [string]: { string } } = {
 	CrackLine2 = { "Head" },
 	CrackLine3 = { "Head" },
 }
+-- a side quest finale model's extras go with their R15 part (Config.FinaleArt, art/blender/finales.py)
+for _, fa in Config.FinaleArt do
+	for xname, x in fa.extras or {} do
+		TIES[xname] = TIES[xname] or { x.parent }
+	end
+end
 local CRACK = { CrackPlate = true, CrackEye = true, CrackLine1 = true, CrackLine2 = true, CrackLine3 = true }
 local FAKE_RED = Color3.fromRGB(255, 70, 60)
 -- who each evil twin copies (EnemyIdentity): { userId, words, path, name, title }; or a dressed side quest
@@ -375,6 +382,15 @@ local function makeRobot(typeId: number, ident: { [string]: any }?): Body
 	if fake then
 		heroLook = (ident and LookCodec.read(ident.words)) or FakeRules.look(Config, kind)
 	end
+	-- the 2026-11-18 art pass: a side quest finale's own model (Config.FinaleArt: ReplicatedStorage.Art.<Name>
+	-- once nate imports art/export/finales/<Name>.fbx; until then today's look) and a finale villain's own
+	-- outfit and face (Shared.PeopleLooks, once uploaded). Both PLACEHOLDER ART until nate approves them.
+	local who = PeopleLooks.villain(ident and ident.dress, kind)
+	local artCfg = who and Config.FinaleArt[who]
+	if artCfg and not NpcRig.meshes(nil, who) then
+		artCfg = nil
+	end
+	local fit = if fake and not artCfg then PeopleLooks.outfit(Config, who) else nil
 	local body = cfg.body
 	if fake and ident and ident.dress and type(ident.body) == "table" then
 		-- lore step 11, chain 6: a dressed finale villain's own robot colours (Shared.FakeRules.dress)
@@ -428,14 +444,20 @@ local function makeRobot(typeId: number, ident: { [string]: any }?): Body
 	local hasShell = body.art ~= nil and NpcRig.meshes(set, body.art) ~= nil
 	local mode = if fake
 		then "fake" -- a hero look, whatever the robots' style
+		elseif artCfg and style ~= "plain" then "shell" -- a finale's own model wins over its clothes
 		elseif style == "roblox" then (if hasRoblox then "roblox" else "plain")
 		elseif style == "shell" then (if hasShell then "shell" else "plain")
 		elseif style == "plain" then "plain"
 		elseif hasRoblox then "roblox"
 		elseif hasShell then "shell"
 		else "plain"
-	local look: string? = if mode == "shell" then body.art else nil
-	if mode == "roblox" then
+	local look: string? = if artCfg then who elseif mode == "shell" then body.art else nil
+	if artCfg then
+		-- the model's colour map shows its own paint; its see-through parts take this one colour
+		for pname in colors do
+			colors[pname] = rgb(artCfg.tint)
+		end
+	elseif mode == "roblox" then
 		-- skin everywhere: the clothes image covers the body, the skin shows on the head and where it is clear
 		for pname in colors do
 			colors[pname] = skin
@@ -447,9 +469,12 @@ local function makeRobot(typeId: number, ident: { [string]: any }?): Body
 	local lookParts: { { p: BasePart, owner: string, t: number } } = {}
 	local heroFace: Decal? = nil
 	local humanFace, crackFace = CLASSIC_FACE, nil
-	if heroLook then
+	local fakeClothes: { [string]: { Texture } }? = nil
+	if heroLook and not artCfg then
 		heroFace = NpcRig.face(rig, CLASSIC_FACE)
-		local ok, err = pcall(LookKit.build, model, heroLook)
+		-- a villain's own outfit draws the suit, shirt, pants and legs (PeopleLooks.strip)
+		local built = if fit and fit.clothes then PeopleLooks.strip(heroLook) else heroLook
+		local ok, err = pcall(LookKit.build, model, built)
 		if not ok then
 			warn("[EnemyRenderer] fake look", kind, err)
 		end
@@ -461,11 +486,17 @@ local function makeRobot(typeId: number, ident: { [string]: any }?): Body
 				table.insert(lookParts, { p = d, owner = owner, t = d.Transparency })
 			end
 		end
+		if fit then
+			fakeClothes = NpcRig.wearOutfit(rig, fit, NL.offsetSign)
+		end
 		humanFace = (heroFace :: Decal).Texture
-		-- the cracked face image for its visage (Config.NpcLooks.faces; 0 until nate uploads it)
+		-- the cracked face image for its visage (Config.NpcLooks.faces; 0 until nate uploads it), or the
+		-- villain's own cracked face
 		local vp = CreatorRules.piece(Config, "visage", heroLook.pieces.visage or 0)
 		local fr = vp and NL.faces[vp.kit]
-		if fr and (fr.cracked or 0) ~= 0 then
+		if fit and fit.cracked then
+			crackFace = fit.cracked
+		elseif fr and (fr.cracked or 0) ~= 0 then
 			crackFace = "rbxassetid://" .. fr.cracked
 		end
 	end
@@ -622,19 +653,19 @@ local function makeRobot(typeId: number, ident: { [string]: any }?): Body
 		hairMesh = #hairs > 0
 	end
 	if look then
-		for xname, x in Config.TrooperArt.extras do
+		for xname, x in if artCfg then artCfg.extras else Config.TrooperArt.extras do
 			local p = lookMesh(look, xname)
 			if p then
 				local ps = size(x.parent)
 				local o, sz = x.offset, x.size
 				p.Name = xname
 				p.Size = ps * Vector3.new(sz[1], sz[2], sz[3])
-				p.Color = rgb(LOOK.hair[1])
+				p.Color = if artCfg then rgb(artCfg.tint) else rgb(LOOK.hair[1])
 				p.Material = SKIN
 				p.CastShadow = false
 				NpcRig.fix(rig, x.parent, p, CFrame.new(ps * Vector3.new(o[1], o[2], o[3])))
 				register(xname, p)
-				hairMesh = hairMesh or xname == "Hair"
+				hairMesh = hairMesh or xname == "Hair" or artCfg ~= nil
 			end
 		end
 	end
@@ -651,13 +682,14 @@ local function makeRobot(typeId: number, ident: { [string]: any }?): Body
 	-- the face: a Roblox-look robot wears a face decal (swapped to the turned face in applyFlags); the others
 	-- get human eyes (the remade face's brows sit just above them): the white and an iris that glows once the
 	-- robot turns
-	local clothes: { [string]: { Texture } }? = nil
+	local clothes: { [string]: { Texture } }? = fakeClothes
 	local faceDecal: Decal? = nil
 	if mode == "roblox" and recipe then
 		clothes = NpcRig.dress(rig, outfits[1], NL.offsetSign) -- assign picks this robot's uniform version
 		faceDecal = NpcRig.face(rig, upFaces[1][1]) -- assign picks this robot's face
 	end
-	local eyeSides: { any } = if mode == "roblox" or fake then {} else SIDES
+	-- (a finale's own model has its face modelled and painted)
+	local eyeSides: { any } = if mode == "roblox" or fake or artCfg then {} else SIDES
 	for _, side in eyeSides do
 		local at = CFrame.new(side[3] * HD.X * 0.2, HD.Y * 0.06, -HD.Z * 0.5 - 0.02)
 		add("Eye" .. side[2], "Head", at, Vector3.new(HD.X * 0.22, HD.Y * 0.09, 0.05), rgb(LOOK.sclera), SKIN)
@@ -733,7 +765,7 @@ local function makeRobot(typeId: number, ident: { [string]: any }?): Body
 			N
 		)
 	end
-	if body.windKey then
+	if body.windKey and not artCfg then
 		-- the Toymaker's toys (lore step 11, the Suburbs chain): a brass wind-up key in the back, its shaft out of
 		-- the upper torso and two round bows across the top (PLACEHOLDER ART)
 		local brass = Color3.fromRGB(215, 170, 70)

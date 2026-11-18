@@ -310,6 +310,26 @@ function NpcRig.dressPair(rig: Rig, shirt: string, pants: string, sign: number?)
 	return out
 end
 
+-- A side quest person's own outfit (Shared.PeopleLooks.outfit): its clothes image on the body (NpcRig.dress) and
+-- its face on the head's face decal (a new decal when the head has none). Either may be missing. Returns the
+-- clothes Textures by part (nil without a clothes image).
+function NpcRig.wearOutfit(
+	rig: Rig,
+	fit: { clothes: string?, face: string? },
+	sign: number?
+): { [string]: { Texture } }?
+	local clothes = if fit.clothes then NpcRig.dress(rig, fit.clothes, sign) else nil
+	if fit.face then
+		local d = rig.parts.Head:FindFirstChild("face")
+		if d and d:IsA("Decal") then
+			d.Texture = fit.face
+		else
+			NpcRig.face(rig, fit.face)
+		end
+	end
+	return clothes
+end
+
 -- A face decal on the head (a Roblox face; swap its Texture to change the face)
 function NpcRig.face(rig: Rig, image: string): Decal
 	local d = Instance.new("Decal")

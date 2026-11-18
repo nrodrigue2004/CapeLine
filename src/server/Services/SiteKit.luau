@@ -168,7 +168,8 @@ local SHIRTS = Config.Destruction.citizens.colors
 local HAIR = Config.Destruction.citizens.hair
 local personLayout = RigMath.layout(Config.HeroRig, nil, 1)
 
-local function citizenModel(pos: Vector3, cat: boolean?): (Model, BasePart)
+-- person (optional): makes the rig instead of a random citizen (a side quest's named helper, PeopleLooks)
+local function citizenModel(pos: Vector3, cat: boolean?, person: (() -> any)?): (Model, BasePart)
 	local m = SiteKit.model(if cat then "Cat" else "StrandedCitizen")
 	local body: BasePart
 	if cat then
@@ -203,7 +204,10 @@ local function citizenModel(pos: Vector3, cat: boolean?): (Model, BasePart)
 		-- arms up, waving for help; the root is the body that is carried
 		local set = SHIRTS[math.random(1, #SHIRTS)]
 		local hair = HAIR[math.random(1, #HAIR)]
-		local rig = NpcRig.person(personLayout, m.Name, rgb(set[1]), rgb(set[2]), rgb(set[3]), rgb(hair))
+		local rig = if person
+			then person()
+			else NpcRig.person(personLayout, m.Name, rgb(set[1]), rgb(set[2]), rgb(set[3]), rgb(hair))
+		rig.model.Name = m.Name
 		rig.model.Parent = m.Parent
 		m:Destroy()
 		m = rig.model
@@ -234,9 +238,10 @@ function SiteKit.citizen(
 		anySafehouse: boolean?,
 		cat: boolean?,
 		who: ((any) -> boolean)?, -- only these heroes may pick them up (a story scene's own citizen)
+		person: (() -> any)?, -- makes the rig (a side quest's named helper in their own look)
 	}
 ): Citizen
-	local m, body = citizenModel(pos, opts.cat)
+	local m, body = citizenModel(pos, opts.cat, opts.person)
 	local prompt = Instance.new("ProximityPrompt")
 	prompt.ActionText = if opts.cat then "Rescue the cat" else "Rescue"
 	prompt.ObjectText = if opts.cat then "Cat" else "Citizen"

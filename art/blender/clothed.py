@@ -90,7 +90,10 @@ FACES_DIR = os.path.join(CLOTHES, "faces")
 
 
 def face_img(name, turned):
-    img = bpy.data.images.load(os.path.join(FACES_DIR, "Face_%s%s.png" % (name, "_Turned" if turned else "")))
+    # a name with a folder ("people/Face_Gus") is that file under art/export/clothes (the side quests' people)
+    path = (os.path.join(CLOTHES, name + ".png") if "/" in name
+            else os.path.join(FACES_DIR, "Face_%s%s.png" % (name, "_Turned" if turned else "")))
+    img = bpy.data.images.load(path)
     img.alpha_mode = "STRAIGHT"
     return img
 
@@ -259,6 +262,21 @@ if ROBOT == "heroes":
     floor.data.materials.append(kit.material("floor", (60, 64, 72), rough=0.8))
     kit.camera((0, 40.0, 4.2), (0, 0, 2.3), lens=37)
     kit.render(os.path.join(kit.ROOT, "preview", "hero_clothes.png" if page == 1 else "hero_clothes_%d.png" % page))
+elif ROBOT == "people":
+    # the side quests' people in their own outfits and faces (art/clothes/people.py writes preview.json): one page
+    # of 8 (`people 1` .. `people 5`) into art/preview/people_<page>.png
+    import json
+    page = int(VERSION) if VERSION.isdigit() else 1
+    rows = json.load(open(os.path.join(CLOTHES, "people", "preview.json")))[page - 1]
+    kit.studio(res=(2400, 760), samples=48)
+    n = len(rows)
+    for i, r in enumerate(rows):
+        figure((((n - 1) / 2 - i) * 4.4, 0, 0), (i % 3 - 1) * 12, tuple(r["skin"]), tuple(r["hair"]), face=r["face"],
+               outfit="people/" + r["name"])
+    floor = kit.cyl("floor", 24, 24, 0.2, at=(0, 0, -0.1), segs=48)
+    floor.data.materials.append(kit.material("floor", (60, 64, 72), rough=0.8))
+    kit.camera((0, 40.0, 4.2), (0, 0, 2.3), lens=37)
+    kit.render(os.path.join(kit.ROOT, "preview", "people_%d.png" % page))
 elif ROBOT == "uniforms":
     # every robot kind in one version of its uniform, with mixed skins, faces and hair (art/clothes/uniforms.py)
     # `uniforms <Version> new`: the 9 kinds added with the new enemy types, into uniforms_new_<version>.png

@@ -1,0 +1,544 @@
+[
+ [
+  {
+   "name": "Gus",
+   "skin": [
+    198,
+    140,
+    100
+   ],
+   "hair": [
+    190,
+    192,
+    200
+   ],
+   "face": "people/Face_Gus"
+  },
+  {
+   "name": "Benny",
+   "skin": [
+    160,
+    105,
+    70
+   ],
+   "hair": [
+    24,
+    24,
+    28
+   ],
+   "face": "faces/Face_Hero"
+  },
+  {
+   "name": "Scoops",
+   "skin": [
+    160,
+    105,
+    70
+   ],
+   "hair": [
+    80,
+    50,
+    30
+   ],
+   "face": "faces/Face_Rookie"
+  },
+  {
+   "name": "Dot",
+   "skin": [
+    224,
+    172,
+    130
+   ],
+   "hair": [
+    80,
+    50,
+    30
+   ],
+   "face": "faces/Face_Hero"
+  },
+  {
+   "name": "Nell",
+   "skin": [
+    198,
+    140,
+    100
+   ],
+   "hair": [
+    240,
+    240,
+    240
+   ],
+   "face": "people/Face_Nell"
+  },
+  {
+   "name": "Pearl",
+   "skin": [
+    120,
+    78,
+    52
+   ],
+   "hair": [
+    24,
+    24,
+    28
+   ],
+   "face": "faces/Face_Hero"
+  },
+  {
+   "name": "Brick",
+   "skin": [
+    120,
+    78,
+    52
+   ],
+   "hair": [
+    190,
+    192,
+    200
+   ],
+   "face": "people/Face_Brick"
+  },
+  {
+   "name": "Vanta",
+   "skin": [
+    160,
+    105,
+    70
+   ],
+   "hair": [
+    190,
+    192,
+    200
+   ],
+   "face": "faces/Face_Cold"
+  }
+ ],
+ [
+  {
+   "name": "Nora",
+   "skin": [
+    198,
+    140,
+    100
+   ],
+   "hair": [
+    80,
+    50,
+    30
+   ],
+   "face": "faces/Face_Hero"
+  },
+  {
+   "name": "Okafor",
+   "skin": [
+    86,
+    56,
+    38
+   ],
+   "hair": [
+    24,
+    24,
+    28
+   ],
+   "face": "faces/Face_Hero"
+  },
+  {
+   "name": "Ruth",
+   "skin": [
+    241,
+    194,
+    160
+   ],
+   "hair": [
+    240,
+    240,
+    240
+   ],
+   "face": "people/Face_Ruth"
+  },
+  {
+   "name": "Moth",
+   "skin": [
+    198,
+    140,
+    100
+   ],
+   "hair": [
+    190,
+    192,
+    200
+   ],
+   "face": "people/Face_Moth"
+  },
+  {
+   "name": "Tess",
+   "skin": [
+    160,
+    105,
+    70
+   ],
+   "hair": [
+    24,
+    24,
+    28
+   ],
+   "face": "faces/Face_Rookie"
+  },
+  {
+   "name": "Kiko",
+   "skin": [
+    250,
+    214,
+    186
+   ],
+   "hair": [
+    24,
+    24,
+    28
+   ],
+   "face": "people/Face_Kiko"
+  },
+  {
+   "name": "Wren",
+   "skin": [
+    160,
+    110,
+    80
+   ],
+   "hair": [
+    40,
+    28,
+    24
+   ],
+   "face": "people/Face_Wren"
+  },
+  {
+   "name": "Toby",
+   "skin": [
+    255,
+    224,
+    196
+   ],
+   "hair": [
+    230,
+    170,
+    70
+   ],
+   "face": "people/Face_Toby"
+  }
+ ],
+ [
+  {
+   "name": "Flint",
+   "skin": [
+    224,
+    172,
+    130
+   ],
+   "hair": [
+    200,
+    90,
+    40
+   ],
+   "face": "people/Face_Flint"
+  },
+  {
+   "name": "Finn",
+   "skin": [
+    198,
+    140,
+    100
+   ],
+   "hair": [
+    80,
+    50,
+    30
+   ],
+   "face": "people/Face_Finn"
+  },
+  {
+   "name": "Dace",
+   "skin": [
+    160,
+    105,
+    70
+   ],
+   "hair": [
+    24,
+    24,
+    28
+   ],
+   "face": "faces/Face_Hero"
+  },
+  {
+   "name": "Ambrose",
+   "skin": [
+    224,
+    172,
+    130
+   ],
+   "hair": [
+    240,
+    240,
+    240
+   ],
+   "face": "people/Face_Ambrose"
+  },
+  {
+   "name": "Hoshi",
+   "skin": [
+    241,
+    194,
+    160
+   ],
+   "hair": [
+    190,
+    192,
+    200
+   ],
+   "face": "people/Face_Hoshi"
+  },
+  {
+   "name": "HeadmasterHalo",
+   "skin": [
+    224,
+    172,
+    130
+   ],
+   "hair": [
+    200,
+    170,
+    90
+   ],
+   "face": "faces/Face_Stern"
+  },
+  {
+   "name": "Redline",
+   "skin": [
+    160,
+    105,
+    70
+   ],
+   "hair": [
+    200,
+    40,
+    40
+   ],
+   "face": "faces/Face_Sharp"
+  },
+  {
+   "name": "MasqueARade",
+   "skin": [
+    241,
+    194,
+    160
+   ],
+   "hair": [
+    90,
+    30,
+    120
+   ],
+   "face": "faces/Face_Sharp"
+  }
+ ],
+ [
+  {
+   "name": "HarvestKing",
+   "skin": [
+    198,
+    140,
+    100
+   ],
+   "hair": [
+    190,
+    192,
+    200
+   ],
+   "face": "faces/Face_Stern"
+  },
+  {
+   "name": "Bramblebeast",
+   "skin": [
+    255,
+    170,
+    60
+   ],
+   "hair": [
+    60,
+    140,
+    60
+   ],
+   "face": "faces/Face_Sharp"
+  },
+  {
+   "name": "CaptainBrine",
+   "skin": [
+    224,
+    172,
+    130
+   ],
+   "hair": [
+    240,
+    240,
+    240
+   ],
+   "face": "faces/Face_Scarred"
+  },
+  {
+   "name": "Pitboss",
+   "skin": [
+    150,
+    140,
+    130
+   ],
+   "hair": [
+    24,
+    24,
+    28
+   ],
+   "face": "people/Face_Pitboss"
+  },
+  {
+   "name": "Tidewright",
+   "skin": [
+    170,
+    175,
+    185
+   ],
+   "hair": [
+    160,
+    230,
+    210
+   ],
+   "face": "people/Face_Tidewright"
+  },
+  {
+   "name": "Vesper",
+   "skin": [
+    250,
+    214,
+    186
+   ],
+   "hair": [
+    240,
+    240,
+    240
+   ],
+   "face": "people/Face_Vesper"
+  },
+  {
+   "name": "Catchpole",
+   "skin": [
+    198,
+    140,
+    100
+   ],
+   "hair": [
+    80,
+    50,
+    30
+   ],
+   "face": "faces/Face_Sharp"
+  },
+  {
+   "name": "Scorch",
+   "skin": [
+    224,
+    172,
+    130
+   ],
+   "hair": [
+    230,
+    70,
+    30
+   ],
+   "face": "faces/Face_Scarred"
+  }
+ ],
+ [
+  {
+   "name": "Censor",
+   "skin": [
+    255,
+    236,
+    220
+   ],
+   "hair": [
+    24,
+    24,
+    28
+   ],
+   "face": "faces/Face_Cold"
+  },
+  {
+   "name": "Holloway",
+   "skin": [
+    241,
+    194,
+    160
+   ],
+   "hair": [
+    190,
+    192,
+    200
+   ],
+   "face": "people/Face_Holloway"
+  },
+  {
+   "name": "Voidhound",
+   "skin": [
+    170,
+    175,
+    185
+   ],
+   "hair": [
+    40,
+    44,
+    60
+   ],
+   "face": "faces/Face_Cold"
+  },
+  {
+   "name": "Morrow",
+   "skin": [
+    255,
+    236,
+    220
+   ],
+   "hair": [
+    24,
+    24,
+    28
+   ],
+   "face": "faces/Face_Sharp"
+  },
+  {
+   "name": "Clawback",
+   "skin": [
+    198,
+    140,
+    100
+   ],
+   "hair": [
+    80,
+    50,
+    30
+   ],
+   "face": "faces/Face_Scarred"
+  },
+  {
+   "name": "Gale",
+   "skin": [
+    224,
+    172,
+    130
+   ],
+   "hair": [
+    55,
+    58,
+    66
+   ],
+   "face": "faces/Face_Sharp"
+  }
+ ]
+]

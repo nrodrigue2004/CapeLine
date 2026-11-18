@@ -1,16 +1,21 @@
 """Build the upload package: every image the game waits on, a manifest saying where each id goes,
 and the scripts nate's PC runs with his Open Cloud key (the key never leaves his PC).
 
-    python3 art/upload/make_package.py OUT_DIR
+    python3 art/upload/make_package.py OUT_DIR [--all]
 
-OUT_DIR gets files/<name>.png, manifest.json, upload.bat, upload.ps1 and README.txt. nate double-clicks
-upload.bat; it writes ids.json (file -> Decal id), which comes back to Claude to fill the configs.
+OUT_DIR gets files/<name>.png, manifest.json, upload.bat, upload.ps1, resolve_ids.template.lua and README.txt.
+nate double-clicks upload.bat; it writes ids.json (file -> Decal id) and resolve_ids.txt (the Studio command bar
+step that reads each decal's image id), which come back to Claude to fill the configs.
+By default only the images whose id is still 0 in the configs go in (the next batch); --all packages everything.
 Targets (manifest "target"):
   npc_clothes  Config.NpcLooks.robots.<robot>.clothes.<version>
   npc_face     Config.NpcLooks.faces.<face>.<human|turned|cracked>
   hero_clothes Config.Creator.clothes.<shirts|pants>.<name>
   fx_texture   Config.Fx.lib.textures.<name>.id
   city_map     MaterialVariant "Kit"<name> in MaterialService (<map>: Color, Normal, Roughness, Metalness)
+  npc_person   Config.NpcLooks.people.<id>.<clothes|face|cracked> (the side quests' givers, helpers and finale
+               villains: art/clothes/people.py)
+The finale models (art/export/finales/<Name>.fbx) are not images: nate imports them in Studio (Tasks.md).
 """
 
 import json
@@ -22,6 +27,8 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 EXPORT = os.path.join(ROOT, "art", "export")
 HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)
+from apply_ids import block  # noqa: E402
 
 
 def read(path):
@@ -70,26 +77,77 @@ def entries():
         m = re.match(r"([A-Za-z]+)_(Color|Normal|Roughness|Metalness)\.png$", f)
         if m:
             add(f"city/{f}", f"Kit{m.group(1)}_{m.group(2)}", {"kind": "city_map", "name": m.group(1), "map": m.group(2)})
+    # the side quests' people: clothes, their own face, a famous fake's cracked face
+    at = npc.index("\tpeople = {")
+    people = npc[at : block(npc, at, r"^\tpeople = \{")[1]]
+    for pid in re.findall(r"^\t\t([A-Za-z]+) = \{ clothes = \d+", people, re.M):
+        add(f"clothes/people/{pid}.png", f"Person_{pid}", {"kind": "npc_person", "id": pid, "which": "clothes"})
+        for suffix, which in (("", "face"), ("_Cracked", "cracked")):
+            src = f"clothes/people/Face_{pid}{suffix}.png"
+            if os.path.isfile(os.path.join(EXPORT, src)):
+                add(src, f"PersonFace_{pid}{suffix}", {"kind": "npc_person", "id": pid, "which": which})
     names = [e["file"] for e in out]
     assert len(names) == len(set(names)), "duplicate upload names"
     return out
 
 
+def current(e, texts):
+    """The id the configs hold now for this item (0 or None: still waiting on an upload)."""
+    t = e["target"]
+    k = t["kind"]
+
+    def key_in(text, span, key):
+        m = re.search(r"\b" + key + r" = (\d+)", text[span[0] : span[1]])
+        return int(m.group(1)) if m else None
+
+    npc, creator, fx = texts["npc"], texts["creator"], texts["fx"]
+    if k == "npc_clothes":
+        rb = block(npc, npc.index("\trobots = {"), r"^\t\t" + t["robot"] + r" = \{")
+        return key_in(npc, block(npc, rb[0], r"clothes = \{"), t["version"])
+    if k == "npc_face":
+        return key_in(npc, block(npc, npc.index("\tfaces = {"), r"^\t\t" + t["face"] + r" = \{"), t["which"])
+    if k == "npc_person":
+        return key_in(npc, block(npc, npc.index("\tpeople = {"), r"^\t\t" + t["id"] + r" = \{"), t["which"])
+    if k == "hero_clothes":
+        grp = block(creator, creator.index("\tclothes = {\n\t\ton = "), r"^\t\t" + t["group"] + r" = \{")
+        return key_in(creator, grp, t["name"])
+    if k == "fx_texture":
+        return key_in(fx, block(fx, fx.index("\t\ttextures = {"), r"^\t\t\t" + t["name"] + r" = \{"), "id")
+    if k == "city_map":
+        mf = os.path.join(ROOT, "src", "materials", "Kit" + t["name"] + ".model.json")
+        if not os.path.isfile(mf):
+            return None
+        props = json.load(open(mf, encoding="utf-8"))["properties"]
+        m = re.search(r"(\d+)$", props.get(t["map"] + "Map", ""))
+        return int(m.group(1)) if m else None
+    raise SystemExit("unknown target " + k)
+
+
+def pending(items):
+    texts = {"npc": read("src/config/NpcLooks.luau"), "creator": read("src/config/Creator.luau"),
+             "fx": read("src/config/Fx.luau")}
+    return [e for e in items if not current(e, texts)]
+
+
 def main():
-    if len(sys.argv) != 2:
+    args = [a for a in sys.argv[1:] if a != "--all"]
+    if len(args) != 1:
         raise SystemExit(__doc__)
-    out_dir = sys.argv[1]
+    out_dir = args[0]
     files = os.path.join(out_dir, "files")
     os.makedirs(files, exist_ok=True)
     items = entries()
+    if "--all" not in sys.argv:
+        items = pending(items)
     for e in items:
         shutil.copyfile(os.path.join(EXPORT, e["src"]), os.path.join(files, e["file"]))
     with open(os.path.join(out_dir, "manifest.json"), "w", encoding="utf-8") as f:
         json.dump({"items": items}, f, indent=1)
     for name in ("upload.bat", "upload.ps1", "README.txt"):
         shutil.copyfile(os.path.join(HERE, name), os.path.join(out_dir, name))
-    # the Studio command-bar step that reads each decal's image id (apply_ids.py takes its output)
-    shutil.copyfile(os.path.join(HERE, "resolve_ids.lua"), os.path.join(out_dir, "resolve_ids.txt"))
+    # the Studio command-bar step that reads each decal's image id (apply_ids.py takes its output): upload.ps1
+    # fills in this batch's decal ids and writes resolve_ids.txt
+    shutil.copyfile(os.path.join(HERE, "resolve_ids.lua"), os.path.join(out_dir, "resolve_ids.template.lua"))
     counts = {}
     for e in items:
         counts[e["target"]["kind"]] = counts.get(e["target"]["kind"], 0) + 1

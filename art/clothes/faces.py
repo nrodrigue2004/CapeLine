@@ -7,6 +7,12 @@
 # plate with a glowing eye, cracks running out across the skin). PLACEHOLDER ART until nate uploads them.
 # Output: art/export/clothes/faces/Face_<Name>.png, Face_<Name>_Turned.png and Face_<Name>_Cracked.png
 # (1024 px), and art/preview/faces.png (human on two skin tones, turned, cracked).
+# 2026-11-18 (the side quests' people, art/clothes/people.py): optional extras on a face's dict, all off by default
+# so the six shared faces are unchanged: wrinkles (0 to 1: forehead lines, crow's feet, smile folds, under-eye
+# bags), glasses (frame colour: round spectacles), plaster (a sticking plaster across the nose), stone (quarry
+# stone cracks and grain over the skin), lashes (longer upper lashes), mole (a beauty mark), bump (a broken
+# nose's kink) and machine (a guardian machine's face: bronze plates and rivets, dark sockets for its glowing eye
+# piece, a grille for a mouth).
 # Run: python3 art/clothes/faces.py   (PIL only)
 import math
 import os
@@ -184,6 +190,11 @@ def face(f, turned, cracked=False):
             d.line([(x, y + 14), (x + s * 34, y + 14 + thick * 0.4)], fill=(90, 66, 56, 140), width=5)
         # the eye: almond, tilted, the lid crease above
         cy = 930
+        if f.get("machine"):
+            d.ellipse([cx - 190, cy - 110, cx + 190, cy + 110], fill=(14, 16, 20, 235))
+            d.ellipse([cx - 190, cy - 110, cx + 190, cy + 110], outline=(*INK, 255), width=18)
+            d.arc([cx - 170, cy - 92, cx + 170, cy + 92], 200, 330, fill=(220, 180, 110, 150), width=10)
+            continue
         inner_c, outer_c = (cx - s * ew, cy + 6), (cx + s * ew, cy - 4 - etilt)
         upper = bez(inner_c, (cx - s * 90, cy - eh - 10 + lid * 0.4), (cx + s * 80, cy - eh - 18 + lid), outer_c, 30)
         lower = bez(outer_c, (cx + s * 90, cy + eh - 10), (cx - s * 80, cy + eh), inner_c, 30)
@@ -241,6 +252,11 @@ def face(f, turned, cracked=False):
                 x = S // 2 + s * rnd.uniform(180, 480)
                 y = rnd.uniform(1100, 1260)
                 d.ellipse([x, y, x + 14, y + 12], fill=(*SHADE, 110))
+    if f.get("machine"):
+        machine(im, f)
+        if cracked:
+            im = crack(im)
+        return im.resize((1024, 1024), Image.LANCZOS)
     # nose: the bridge line on one side, the tip and nostrils
     d.line(bez((1080, 900), (1100, 1050), (1110, 1180), (1120, 1260), 16), fill=(*SHADE, 150), width=9, joint="curve")
     d.line(bez((930, 1290), (960, 1335), (1000, 1340), (1024, 1330), 12), fill=(*SHADE, 200), width=10, joint="curve")
@@ -264,9 +280,95 @@ def face(f, turned, cracked=False):
     d.line([(1000, 1370), (995, 1490)], fill=(*SHADE, 70), width=6)
     d.line([(1048, 1370), (1053, 1490)], fill=(*SHADE, 70), width=6)
     d.line(bez((930, 1880), (990, 1910), (1060, 1910), (1120, 1880), 12), fill=(*SHADE, 120), width=8, joint="curve")
+    detail(im, f)
     if cracked:
         im = crack(im)
     return im.resize((1024, 1024), Image.LANCZOS)
+
+
+def machine(im, f):
+    """A guardian machine's face below the sockets: plate seams, rivets, a nose ridge and a grille mouth."""
+    d = ImageDraw.Draw(im)
+    metal = f.get("machine")
+    for pts in ([(1024, 380), (1024, 820)], [(1024, 1060), (1024, 1420)], [(260, 1180), (720, 1230)],
+                [(1788, 1180), (1328, 1230)], [(330, 640), (1718, 640)]):
+        d.line(pts, fill=(*INK, 200), width=12)
+        d.line([(x + 8, y + 8) for x, y in pts], fill=(*metal, 120), width=5)
+    for x, y in ((420, 560), (1628, 560), (360, 1300), (1688, 1300), (600, 1820), (1448, 1820), (1024, 470)):
+        d.ellipse([x - 26, y - 26, x + 26, y + 26], fill=(*INK, 220))
+        d.ellipse([x - 15, y - 19, x + 9, y + 3], fill=(*metal, 230))
+    d.polygon([(990, 1080), (1058, 1080), (1090, 1300), (958, 1300)], fill=(0, 0, 0, 70))
+    gx0, gx1, gy0, gy1 = 760, 1288, 1500, 1690
+    d.rounded_rectangle([gx0, gy0, gx1, gy1], 40, fill=(14, 16, 20, 230), outline=(*INK, 255), width=16)
+    for k in range(1, 8):
+        x = gx0 + (gx1 - gx0) * k / 8
+        d.line([(x, gy0 + 14), (x, gy1 - 14)], fill=(*metal, 210), width=12)
+    lay = Image.new("RGBA", (S, S), (0, 0, 0, 0))
+    ImageDraw.Draw(lay).rounded_rectangle([gx0 + 30, gy0 + 40, gx1 - 30, gy1 - 40], 30, fill=(*f.get("glow", (120, 255, 230)), 120))
+    im.alpha_composite(lay.filter(ImageFilter.GaussianBlur(22)))
+
+
+def detail(im, f):
+    """The extras a person's face may have (all off on the six shared faces)."""
+    d = ImageDraw.Draw(im)
+    w = f.get("wrinkles", 0)
+    if w:
+        a = int(170 * w)
+        for k, y in enumerate((470, 540, 610)[: 1 + int(w * 2.4)]):
+            d.line(bez((640 + k * 30, y + 20), (850, y - 10), (1200, y - 10), (1408 - k * 30, y + 20), 20),
+                   fill=(*SHADE, a), width=8, joint="curve")
+        for s in (-1, 1):
+            cx = S // 2 + s * 400
+            for j in range(3):  # crow's feet
+                y = 900 + j * 40
+                d.line([(cx + s * 200, y), (cx + s * 270, y - 30 + j * 30)], fill=(*SHADE, a), width=7)
+            # under-eye bags and the smile folds from the nose to the mouth's corners
+            d.line(bez((cx - s * 120, 1030), (cx - s * 40, 1075), (cx + s * 80, 1075), (cx + s * 160, 1030), 16),
+                   fill=(*SHADE, a), width=7, joint="curve")
+            d.line(bez((S // 2 + s * 150, 1260), (S // 2 + s * 260, 1380), (S // 2 + s * 290, 1480),
+                       (S // 2 + s * 280, 1600), 18), fill=(*SHADE, int(a * 1.1)), width=9, joint="curve")
+    if f.get("lashes"):
+        for s in (-1, 1):
+            cx = S // 2 + s * 400
+            for j in range(4):
+                x = cx + s * (40 + j * 40)
+                d.line([(x, 860 - j * 4), (x + s * 26, 812 - j * 6)], fill=(*INK, 255), width=9)
+    if f.get("mole"):
+        d.ellipse([1300, 1440, 1336, 1476], fill=(*INK, 210))
+    if f.get("bump"):
+        d.line([(1066, 980), (1110, 1030), (1090, 1080)], fill=(*SHADE, 190), width=11)
+        d.line([(1000, 1040), (1050, 1070)], fill=(150, 80, 70, 150), width=10)
+    if f.get("plaster"):
+        lay = Image.new("RGBA", (S, S), (0, 0, 0, 0))
+        ld = ImageDraw.Draw(lay)
+        ld.rounded_rectangle([820, 1030, 1228, 1120], 30, fill=(236, 200, 160, 255), outline=(*INK, 255), width=10)
+        ld.rectangle([960, 1040, 1088, 1110], fill=(250, 236, 214, 255))
+        for x in range(860, 1200, 40):
+            if not 950 < x < 1100:
+                ld.ellipse([x, 1068, x + 12, 1080], fill=(180, 140, 110, 255))
+        im.alpha_composite(lay.rotate(-8, center=(1024, 1075)))
+    if f.get("stone"):
+        import random
+        rnd = random.Random(31)
+        for _ in range(900):  # the grain
+            x, y = rnd.uniform(80, 1968), rnd.uniform(300, 2040)
+            d.ellipse([x, y, x + 8, y + 8], fill=(40, 36, 34, 60))
+        for x0, y0, a0 in ((300, 560, 0.6), (1700, 700, 2.4), (420, 1600, -0.5), (1560, 1720, 3.6), (1180, 420, 1.9)):
+            pts, x, y = [(x0, y0)], x0, y0
+            for _ in range(5):
+                x += math.cos(a0) * rnd.uniform(50, 90) + rnd.uniform(-30, 30)
+                y += math.sin(a0) * rnd.uniform(50, 90) + rnd.uniform(-30, 30)
+                pts.append((x, y))
+            d.line(pts, fill=(*INK, 190), width=10, joint="curve")
+            d.line([(px + 6, py + 6) for px, py in pts], fill=(220, 214, 206, 70), width=4)
+    g = f.get("glasses")
+    if g:
+        for s in (-1, 1):
+            cx = S // 2 + s * 400
+            d.ellipse([cx - 230, 780, cx + 230, 1090], outline=(*g, 255), width=26)
+            d.arc([cx - 190, 810, cx + 150, 1000], 200, 260, fill=(255, 255, 255, 150), width=12)
+            d.line([(cx + s * 230, 920), (cx + s * 420, 880)], fill=(*g, 255), width=22)
+        d.arc([920, 860, 1128, 1000], 200, 340, fill=(*g, 255), width=22)
 
 
 if __name__ == "__main__":
