@@ -145,6 +145,21 @@ What nate does:
    (`bash art/store/make.sh boss`), thumb_twist once Radiant's cracked face decal and look are final in game
    (`bash art/store/make.sh twist`).
 
+## Store art refresh (2026-11-18)
+A second set with the newer villains and bosses (notes/Store Page.md "Store art refresh"; scripts art/store/store2.py,
+cast.py, post2.py; regenerate with `bash art/store/make2.sh [name]`, renders under nice). Icons `icon_maw.png`
+(recommended), `icon_fake.png`, `icon_titan.png`; thumbnails `thumb_maw.png`, `thumb_deep.png`, `thumb_fakes.png`,
+`thumb_giant.png` in art/export/store2; previews art/export/store2/preview_sheet.png and preview_small.png
+(also art/preview/store2_sheet.png).
+
+What nate does:
+1. Look at art/export/store2/preview_sheet.png and preview_small.png (or ask for changes).
+2. Import art/export/finales/*.fbx and art/export/Bosses.fbx first if not done, so the images match the game; if
+   the bosses' or finales' looks change, re-render (`bash art/store/make2.sh`).
+3. Run the Playtest Kit check #42 (name and look) on the ones you pick.
+4. Upload them yourself (Creator Dashboard); pick 2 or 3 icons or thumbnails per test and keep the best CTR
+   (aim 2.5%). Nothing was uploaded.
+
 ## Studio test list (needs nate's PC)
 
 ### Text pass: wording, spelling and old names (2026-11-18)
