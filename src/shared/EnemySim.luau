@@ -227,6 +227,9 @@ export type Sim = {
 	lastStep: number,
 	heightAt: (x: number, z: number, y: number?) -> number, -- y: the asker's height (mission pockets)
 	water: (x: number, y: number, z: number) -> boolean, -- underwater play space (Shared.DeepLayout)
+	-- the underside of a roof over (x, z) above height y, or nil for open sky (a tunnel's or a room's ceiling
+	-- in a pocket: fliers stay under it, so a tunnel wall is a wall to them too)
+	ceilingAt: (x: number, z: number, y: number) -> number?,
 	waterTop: number, -- sea robots keep below this
 	heroMeta: { [number]: { nextSpawn: number } },
 	rngNext: () -> number,
@@ -256,7 +259,8 @@ local function yawDir(yaw: number): (number, number)
 	return -math.sin(yaw), -math.cos(yaw)
 end
 
--- opts.heightAt(x, z): roof or ground height there (the city), opts.random(): 0..1 (seeded in tests)
+-- opts.heightAt(x, z): roof or ground height there (the city), opts.random(): 0..1 (seeded in tests),
+-- opts.ceilingAt(x, z, y): the ceiling over a spot in a pocket (nil: open sky)
 function EnemySim.new(config: any, opts: { [string]: any }?): Sim
 	local o = opts or {}
 	local seed = 12345
@@ -282,6 +286,9 @@ function EnemySim.new(config: any, opts: { [string]: any }?): Sim
 		end,
 		water = o.water or function()
 			return false
+		end,
+		ceilingAt = o.ceilingAt or function(): number?
+			return nil
 		end,
 		waterTop = (if config.World then config.World.coast.waterY else 0) - 3,
 		heroMeta = {},
@@ -311,6 +318,106 @@ local function halfHeight(cfg: any): number
 	return if cfg.body then cfg.body.height * 0.5 else 2.5
 end
 EnemySim.halfHeight = halfHeight
+
+-- Walls (nate's playtest 2026-11-18: "enemies just go through walls"). A wall is any column taller than the
+-- robot may step (ground robots) or rise (fliers) onto. Moves are checked a stud apart all the way to the
+-- body's edge, so a thin wall (a 2-stud tunnel wall in a pocket) is never stepped over in one tick, however
+-- fast the robot goes or however long the tick.
+local STEP_UP = 2.5 -- a ground robot steps up at most this (a kerb), never onto a roof
+local FLY_FLOOR = 4 -- a flier's centre keeps this far above the roof or ground under it
+local FLY_HEAD = 3 -- and this far below a ceiling
+local FLY_CLIMB = 3 -- a flier rises onto a roof at most this far above its centre in one move; more is a wall
+
+local function bodyRadius(e: Enemy): number
+	return e.cfg.radius or 2.5
+end
+
+-- A ground robot's flat move from where it stands, along the unit (ux, uz) for len studs, is clear: every stud
+-- of it, out to its body's edge past the end, is no higher than a step up
+local function groundClear(sim: Sim, e: Enemy, ux: number, uz: number, len: number): boolean
+	local top = e.y - halfHeight(e.cfg) + STEP_UP
+	local reach = len + bodyRadius(e)
+	local n = math.ceil(reach)
+	for i = 1, n do
+		local s = math.min(i, reach)
+		if sim.heightAt(e.x + ux * s, e.z + uz * s, e.y) > top then
+			return false
+		end
+	end
+	return true
+end
+EnemySim.groundClear = groundClear
+
+-- A flier's move by (mx, mz) at its height y is clear: no roof or wall on the way it could not rise onto, and
+-- no lower ceiling than it flies at
+local function flyClear(sim: Sim, e: Enemy, mx: number, mz: number, y: number): boolean
+	local len = math.sqrt(mx * mx + mz * mz)
+	if len < 1e-4 then
+		return true
+	end
+	local ux, uz = mx / len, mz / len
+	local reach = len + bodyRadius(e)
+	local n = math.ceil(reach)
+	for i = 1, n do
+		local s = math.min(i, reach)
+		local px, pz = e.x + ux * s, e.z + uz * s
+		if sim.heightAt(px, pz, y) + FLY_FLOOR > y + FLY_CLIMB then
+			return false
+		end
+		local c = sim.ceilingAt(px, pz, y)
+		if c and c - FLY_HEAD < y - 0.5 then
+			return false
+		end
+	end
+	return true
+end
+EnemySim.flyClear = flyClear
+
+-- A flier's flat shift by (mx, mz): the whole of it, else what it can slide along a wall (x or z alone), else
+-- nothing. Returns whether the full shift was blocked.
+local function flyShift(sim: Sim, e: Enemy, mx: number, mz: number): boolean
+	if flyClear(sim, e, mx, mz, e.y) then
+		e.x += mx
+		e.z += mz
+		return false
+	end
+	if math.abs(mx) >= math.abs(mz) then
+		if flyClear(sim, e, mx, 0, e.y) then
+			e.x += mx
+			e.vz = 0
+		elseif flyClear(sim, e, 0, mz, e.y) then
+			e.z += mz
+			e.vx = 0
+		else
+			e.vx, e.vz = 0, 0
+		end
+	else
+		if flyClear(sim, e, 0, mz, e.y) then
+			e.z += mz
+			e.vx = 0
+		elseif flyClear(sim, e, mx, 0, e.y) then
+			e.x += mx
+			e.vz = 0
+		else
+			e.vx, e.vz = 0, 0
+		end
+	end
+	return true
+end
+
+-- A flier's height after a move: above the roof under it, below the ceiling over it
+local function flyBounds(sim: Sim, e: Enemy)
+	local c = sim.ceilingAt(e.x, e.z, e.y)
+	if c and e.y > c - FLY_HEAD then
+		e.y = c - FLY_HEAD
+		e.vy = math.min(0, e.vy)
+	end
+	local floor = sim.heightAt(e.x, e.z, e.y) + FLY_FLOOR
+	if e.y < floor then
+		e.y = floor
+		e.vy = math.max(0, e.vy)
+	end
+end
 
 -- A robot type that is in the game (its switch in Config.Enemies is not off)
 function EnemySim.enabled(config: any, kind: string): boolean
@@ -650,11 +757,17 @@ function EnemySim.push(sim: Sim, id: number, dx: number, dy: number, dz: number)
 		if e.cfg.immune and table.find(e.cfg.immune, "knockback") then
 			return
 		end
-		e.x += dx
-		e.z += dz
+		-- never through a wall: a flier slides along it, a ground robot stays put
 		if e.ai == "flyer" then
+			flyShift(sim, e, dx, dz)
 			e.y = math.max(sim.heightAt(e.x, e.z, e.y) + 3, e.y + dy)
+			flyBounds(sim, e)
 		else
+			local l = math.sqrt(dx * dx + dz * dz)
+			if l > 1e-4 and groundClear(sim, e, dx / l, dz / l, l) then
+				e.x += dx
+				e.z += dz
+			end
 			e.y = sim.heightAt(e.x, e.z, e.y) + halfHeight(e.cfg)
 		end
 	end
@@ -677,13 +790,18 @@ function EnemySim.knock(sim: Sim, id: number, dx: number, dz: number, distance: 
 	dx, dz = dx / l, dz / l
 	local moved = 0
 	local floorY = e.y - (if e.ai == "flyer" then 2 else halfHeight(e.cfg))
+	local r = bodyRadius(e)
+	-- a stud at a time, looking out to the body's edge: a thin wall stops it too (never knocked through)
 	while moved < distance do
-		local step = math.min(2, distance - moved)
-		local nx, nz = e.x + dx * step, e.z + dz * step
-		if sim.heightAt(nx, nz, e.y) > floorY + 3 then
+		local step = math.min(1, distance - moved)
+		if sim.heightAt(e.x + dx * (step + r), e.z + dz * (step + r), e.y) > floorY + 3 then
 			return true
 		end
-		e.x, e.z = nx, nz
+		local c = e.ai == "flyer" and sim.ceilingAt(e.x + dx * step, e.z + dz * step, e.y)
+		if c and c - FLY_HEAD < e.y - 0.5 then
+			return true
+		end
+		e.x, e.z = e.x + dx * step, e.z + dz * step
 		moved += step
 	end
 	if e.ai ~= "flyer" then
@@ -722,14 +840,18 @@ local function moveToward(sim: Sim, e: Enemy, tx: number, ty: number, tz: number
 	e.vx += (wantX - e.vx) * k
 	e.vy += (wantY - e.vy) * k
 	e.vz += (wantZ - e.vz) * k
-	e.x += e.vx * dt
 	e.y += e.vy * dt
-	e.z += e.vz * dt
-	local floor = sim.heightAt(e.x, e.z, e.y) + 4
-	if e.y < floor then
-		e.y = floor
-		e.vy = math.max(0, e.vy)
+	flyBounds(sim, e)
+	-- a building's face or a tunnel wall stops it (it slides along); under open sky it climbs over instead of
+	-- popping up onto the roof
+	if flyShift(sim, e, e.vx * dt, e.vz * dt) then
+		local c = sim.ceilingAt(e.x, e.z, e.y)
+		if not c or e.y < c - FLY_HEAD - 0.5 then
+			e.y += math.max(speed, 20) * dt
+			e.vy = math.max(e.vy, 0)
+		end
 	end
+	flyBounds(sim, e)
 	if e.vx * e.vx + e.vz * e.vz > 4 then
 		e.yaw = yawTo(e.vx, e.vz)
 	end
@@ -746,14 +868,11 @@ local function walk(sim: Sim, e: Enemy, tx: number, tz: number, speed: number, d
 		return 0
 	end
 	local step = math.min(speed * dt, d)
-	local floorY = e.y - halfHeight(e.cfg)
 	local base = math.atan2(dz, dx)
 	for _, turn in TURNS do
 		local a = base + math.rad(turn)
 		local ux, uz = math.cos(a), math.sin(a)
-		local probe = math.max(step, 3)
-		local h = sim.heightAt(e.x + ux * probe, e.z + uz * probe, e.y)
-		if h <= floorY + 2.5 then
+		if groundClear(sim, e, ux, uz, step) then
 			e.x += ux * step
 			e.z += uz * step
 			e.vx, e.vz = ux * speed, uz * speed
@@ -779,12 +898,12 @@ local function separate(sim: Sim, e: Enemy)
 			if d2 < min * min and d2 > 1e-4 then
 				local d = math.sqrt(d2)
 				local push = (min - d) * 0.5
-				local nx, nz = e.x + dx / d * push, e.z + dz / d * push
 				if flyer then
-					e.x, e.z = nx, nz
+					flyShift(sim, e, dx / d * push, dz / d * push)
 					e.y += dy / d * push
-				elseif sim.heightAt(nx, nz, e.y) <= e.y - halfHeight(e.cfg) + 2.5 then
-					e.x, e.z = nx, nz
+					flyBounds(sim, e)
+				elseif groundClear(sim, e, dx / d, dz / d, push) then
+					e.x, e.z = e.x + dx / d * push, e.z + dz / d * push
 				end
 			end
 		end
@@ -1347,8 +1466,9 @@ local function charge(sim: Sim, e: Enemy, heroes: { Hero })
 	local fx, fz = yawDir(e.yaw)
 	local sx, sy, sz = e.x, e.y, e.z
 	local go = 0
-	while go + 2 <= ch.dist and clearStep(sim, e, sx + fx * (go + 2), sz + fz * (go + 2)) do
-		go += 2
+	local r = bodyRadius(e)
+	while go + 1 <= ch.dist and clearStep(sim, e, sx + fx * (go + 1 + r), sz + fz * (go + 1 + r)) do
+		go += 1
 	end
 	local ex, ez = sx + fx * go, sz + fz * go
 	local reach = ch.width + sim.config.Enemies.melee.reach
@@ -1600,21 +1720,26 @@ local function keepRange(
 	speed: number,
 	canMove: boolean,
 	dt: number
-): number
+): (number, boolean)
 	local d = dist2(e.x, e.z, target.x, target.z)
+	local cornered = false
 	if canMove then
 		if d < min then
 			local dx, dz = e.x - target.x, e.z - target.z
 			local l = math.max(1, math.sqrt(dx * dx + dz * dz))
-			walk(sim, e, e.x + dx / l * 20, e.z + dz / l * 20, speed, dt)
+			-- backed into a wall (a small room, a tunnel's end): it stands and fights instead of pawing the wall
+			cornered = walk(sim, e, e.x + dx / l * 20, e.z + dz / l * 20, speed, dt) < speed * dt * 0.25
 		elseif d > max then
 			walk(sim, e, target.x, target.z, speed, dt)
 		end
 	end
-	return d
+	return d, cornered
 end
 
-local function rangeState(d: number, min: number, max: number): number
+local function rangeState(d: number, min: number, max: number, cornered: boolean?): number
+	if cornered and d < min then
+		return EnemySim.ATTACK
+	end
 	return if d < min then EnemySim.FLEE elseif d > max then EnemySim.CHASE else EnemySim.ATTACK
 end
 
@@ -1646,8 +1771,8 @@ local function thinkCaptain(sim: Sim, e: Enemy, target: Hero?, speed: number, ca
 		end
 		return
 	end
-	local d = keepRange(sim, e, target, cfg.keep.min, cfg.keep.max, speed, canMove, dt)
-	e.state = rangeState(d, cfg.keep.min, cfg.keep.max)
+	local d, cornered = keepRange(sim, e, target, cfg.keep.min, cfg.keep.max, speed, canMove, dt)
+	e.state = rangeState(d, cfg.keep.min, cfg.keep.max, cornered)
 	e.yaw = yawTo(target.x - e.x, target.z - e.z)
 	if now >= e.nextSpecial and e.dmgMult ~= 0 then
 		e.windupUntil = now + r.windup -- the arm goes up: the rally comes at the end
@@ -1677,9 +1802,9 @@ local function dashAside(sim: Sim, e: Enemy, target: Hero)
 	local sx, sz = -dz / l, dx / l
 	e.orbitDir = -e.orbitDir
 	for _, sign in { e.orbitDir, -e.orbitDir } do
-		local mx, mz = e.x + sx * sign * dist * 0.5, e.z + sz * sign * dist * 0.5
 		local nx, nz = e.x + sx * sign * dist, e.z + sz * sign * dist
-		if clearStep(sim, e, mx, mz) and clearStep(sim, e, nx, nz) then
+		-- every stud of the dash out to the body's edge (a thin wall between is a wall), and no water there
+		if groundClear(sim, e, sx * sign, sz * sign, dist) and clearStep(sim, e, nx, nz) then
 			local fx, fy, fz = e.x, e.y, e.z
 			e.x, e.z = nx, nz
 			e.y = sim.heightAt(nx, nz, fy) + halfHeight(e.cfg)
@@ -1737,8 +1862,8 @@ local function thinkSniper(sim: Sim, e: Enemy, target: Hero?, speed: number, can
 		end
 		return
 	end
-	local d = keepRange(sim, e, target, cfg.keep.min, cfg.keep.max, speed, canMove, dt)
-	e.state = rangeState(d, cfg.keep.min, cfg.keep.max)
+	local d, cornered = keepRange(sim, e, target, cfg.keep.min, cfg.keep.max, speed, canMove, dt)
+	e.state = rangeState(d, cfg.keep.min, cfg.keep.max, cornered)
 	if e.state ~= EnemySim.FLEE then
 		turnToward(e, target.x, target.z, cfg.turnRate, dt)
 	end
@@ -1771,8 +1896,8 @@ local function thinkBomber(sim: Sim, e: Enemy, target: Hero?, speed: number, can
 		end
 		return
 	end
-	local d = keepRange(sim, e, target, cfg.keep.min, cfg.keep.max, speed, canMove, dt)
-	e.state = rangeState(d, cfg.keep.min, cfg.keep.max)
+	local d, cornered = keepRange(sim, e, target, cfg.keep.min, cfg.keep.max, speed, canMove, dt)
+	e.state = rangeState(d, cfg.keep.min, cfg.keep.max, cornered)
 	turnToward(e, target.x, target.z, cfg.turnRate, dt)
 	local g = cfg.grenade
 	local floor = sim.heightAt(target.x, target.z, target.y)
@@ -1863,8 +1988,8 @@ local function thinkMedic(sim: Sim, e: Enemy, target: Hero?, speed: number, canM
 		end
 		return
 	end
-	local d = keepRange(sim, e, target, cfg.keep.min, cfg.attackRange, speed, canMove, dt)
-	e.state = rangeState(d, cfg.keep.min, cfg.attackRange)
+	local d, cornered = keepRange(sim, e, target, cfg.keep.min, cfg.attackRange, speed, canMove, dt)
+	e.state = rangeState(d, cfg.keep.min, cfg.attackRange, cornered)
 	e.yaw = yawTo(target.x - e.x, target.z - e.z)
 	if d <= cfg.attackRange and now >= e.nextShot then
 		shoot(
@@ -2171,10 +2296,13 @@ local function think(sim: Sim, e: Enemy, heroes: { Hero }, dt: number)
 		if d > 4 then
 			local s = math.min((pull.speed or kn.pullSpeed) * dt, d - 4)
 			local nx, nz = e.x + (px - e.x) / d * s, e.z + (pz - e.z) / d * s
+			local fx, fz = nx - e.x, nz - e.z
+			local fl = math.sqrt(fx * fx + fz * fz)
 			if e.ai == "flyer" then
-				e.x, e.z = nx, nz
 				e.y += (py - e.y) / d * s
-			elseif sim.heightAt(nx, nz, e.y) <= e.y - halfHeight(e.cfg) + 2.5 then
+				flyShift(sim, e, fx, fz) -- pulled along a wall, never through it
+				flyBounds(sim, e)
+			elseif fl < 1e-4 or groundClear(sim, e, fx / fl, fz / fl, fl) then
 				e.x, e.z = nx, nz
 				e.y = sim.heightAt(nx, nz, e.y) + halfHeight(e.cfg)
 			end
@@ -2362,6 +2490,23 @@ local function stepShots(sim: Sim, heroes: { Hero }, dt: number)
 		s.z += s.vz * dt
 		s.life -= dt
 		local done = s.life <= 0
+		-- a wall on the way stops it there, before any hero past the wall is checked (a thin tunnel wall
+		-- too: the path is looked at every 1.5 studs, not only where the shot ends up)
+		local wall = false
+		do
+			local mx, my, mz = s.x - ox, s.y - oy, s.z - oz
+			local len = math.sqrt(mx * mx + my * my + mz * mz)
+			local n = math.min(math.ceil(len / 1.5), 40)
+			for k = 1, n do
+				local t = k / n
+				local qx, qy, qz = ox + mx * t, oy + my * t, oz + mz * t
+				if qy < sim.heightAt(qx, qz, qy) then
+					s.x, s.y, s.z = qx, qy, qz
+					wall = true
+					break
+				end
+			end
+		end
 		if not done then
 			for _, b in sim.blockers do
 				if dist3(s.x, s.y, s.z, b.x, b.y, b.z) <= b.r + s.radius * 0.5 then
@@ -2395,8 +2540,8 @@ local function stepShots(sim: Sim, heroes: { Hero }, dt: number)
 				end
 			end
 		end
-		if not done and s.y < sim.heightAt(s.x, s.z, s.y) then
-			done = true -- hit a building or the street
+		if not done and (wall or s.y < sim.heightAt(s.x, s.z, s.y)) then
+			done = true -- hit a building, a wall or the street
 		end
 		if not done and s.sea and EnemySim.torpedoDone(sim.config, s.y) then
 			done = true -- a torpedo pops at the surface (the device's drawing ends there too)
