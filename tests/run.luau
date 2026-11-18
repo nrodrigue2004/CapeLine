@@ -21631,6 +21631,168 @@ do
 	)
 end
 
+---------------------------------------------------------------------------
+-- Story fixes (2026-11-18): task force legs one at a time, full servers in missions, the last task force
+-- member home, the prologue's seen ceremony and timeout, squadmates, party levels, newer saves.
+-- The services' wiring is on the Studio list ("Story fixes").
+---------------------------------------------------------------------------
+
+do
+	local MissionRules = require("../src/shared/MissionRules")
+	local SidekickRules = require("../src/shared/SidekickRules")
+
+	test("Story fixes: a run with no tracks, or a task force panel up, never moves on", function()
+		check(not MissionRules.advance({}, nil), "no tracks (the fade in, between legs) is waiting")
+		check(not MissionRules.advance({ both = { done = true } }, true), "never while the panel is up")
+		check(MissionRules.advance({ both = { done = true } }, nil), "every track done: the next stage")
+		check(
+			not MissionRules.advance({ hero = { done = true }, villain = { done = false } }, nil),
+			"a side still on its step holds the stage"
+		)
+		-- the old bug: a 3-leg task force at 10 Hz through its 4 s panels. Model the loop: a panel leaves no
+		-- tracks; each advance past the last stage pays a leg.
+		local legs, paid, leg, stage, stages = 3, 0, 1, 1, 2
+		local tracks: { [string]: { done: boolean } } = { both = { done = true } }
+		local panel, panelUntil = false, 0
+		for tick = 1, 200 do -- 20 s
+			local now = tick * 0.1
+			if panel and now >= panelUntil then
+				panel, stage, tracks = false, 1, { both = { done = true } }
+			end
+			if MissionRules.advance(tracks, panel) then
+				stage += 1
+				tracks = { both = { done = true } }
+				if stage > stages then
+					paid += 1
+					tracks = {}
+					if leg < legs then
+						leg += 1
+						panel, panelUntil = true, now + Config.TaskForce.panelTime
+					end
+				end
+			end
+		end
+		check(paid == legs and leg == legs, "each leg paid once, in order (got " .. paid .. " pays)")
+	end)
+
+	test("Story fixes: a full server makes a boss, chase or defeat step wait, never skip", function()
+		local sim = EnemySim.new(Config, {})
+		for _ = 1, Config.Enemies.caps.perServer do
+			EnemySim.spawn(sim, "NullSentinel", 0, 0, 0, 10)
+		end
+		local e = EnemySim.spawn(sim, "NullSentinel", 0, 0, 0, 10)
+		check(e == nil, "the cap builds no more robots")
+		local on = EnemySim.enabled(Config, "NullSentinel")
+		check(on and MissionRules.afterSpawn(0, on) == "wait", "an enabled type at the cap waits and retries")
+		check(MissionRules.afterSpawn(1, on) == "go", "a boss that came: fight it")
+		check(MissionRules.afterSpawn(3, on) == "go", "a defeat step fights the 3 that came")
+		local off = { Enemies = { Cut = { on = false } } }
+		check(
+			MissionRules.afterSpawn(0, EnemySim.enabled(off, "Cut")) == "skip",
+			"a switched-off type lets the story move on"
+		)
+		local svc = readFile("src/server/Services/MissionService.luau")
+		for _, needle in
+			{
+				"MissionRules.afterSpawn(got, enabled)",
+				"track.need = got",
+				"robots(run, track) -- a full server",
+				"MissionRules.advance(run.tracks, run.panel)",
+				"run.panel = true",
+			}
+		do
+			check(string.find(svc, needle, 1, true) ~= nil, "MissionService: " .. needle)
+		end
+	end)
+
+	test("Story fixes: the last task force member goes home before the pocket goes", function()
+		local svc = readFile("src/server/Services/MissionService.luau")
+		local a = string.find(svc, "function MissionService.leaveTaskForce", 1, true) :: number
+		local b = string.find(svc, "function MissionService.leave(", a, true) :: number
+		local body = string.sub(svc, a, b)
+		local last = string.find(body, "#run.members <= 1", 1, true) :: number
+		local fin = string.find(body, "finishRun(run, false)", last, true) :: number
+		check(last ~= nil and fin ~= nil, "the last member ends the run")
+		check(
+			string.find(string.sub(body, last, fin), "releaseMember", 1, true) == nil,
+			"still a member when finishRun sends everyone home"
+		)
+	end)
+
+	test(
+		"Story fixes: squadmates come only loaded, standing and free; pay counts members still in",
+		function()
+			local ok = { loaded = true, alive = true }
+			check(MissionRules.canJoin(ok, false, false, false), "a free hero comes")
+			check(not MissionRules.canJoin({ alive = true }, false, false, false), "not loaded")
+			check(
+				not MissionRules.canJoin({ loaded = true, alive = false, downed = true }, false, false, false),
+				"Downed"
+			)
+			check(
+				not MissionRules.canJoin(
+					{ loaded = true, alive = true, scene = "opening" },
+					false,
+					false,
+					false
+				),
+				"a scene"
+			)
+			check(
+				not MissionRules.canJoin(
+					{ loaded = true, alive = true, traveling = true },
+					false,
+					false,
+					false
+				),
+				"a trip"
+			)
+			check(not MissionRules.canJoin(ok, true, false, false), "another run")
+			check(not MissionRules.canJoin(ok, false, true, false), "in combat")
+			check(not MissionRules.canJoin(ok, false, false, true), "a beacon trip")
+			local a, b, gone = {}, {}, {}
+			local levels = { [a] = 20, [b] = 18, [gone] = 40 }
+			local list = MissionRules.partyLevels({ a, b }, levels)
+			check(#list == 2 and table.find(list, 40) == nil, "a member who left is not counted")
+			local multIn = SidekickRules.renown(Config.Sidekick, 20, list)
+			local multOld = SidekickRules.renown(Config.Sidekick, 20, { 20, 18, 40 })
+			check(
+				multIn == 1 and multOld > 1,
+				"so the top member is no longer paid as a sidekick of someone gone"
+			)
+		end
+	)
+
+	test("Story fixes: the ceremony is seen only once it ends; the timeout starts at PLAY", function()
+		check(
+			not MissionRules.markSeen("ceremony", "ceremony", true, false),
+			"starting the ceremony is not seeing it"
+		)
+		check(MissionRules.markSeen("ceremony", "scan", true, false), "moving off it is")
+		check(not MissionRules.markSeen("ceremony", "scan", true, true), "never while the main menu holds it")
+		check(not MissionRules.markSeen("run", "spark", false, false), "only camera beats")
+		local src = readFile("src/server/Services/OpeningService.luau")
+		local a = string.find(src, "act == 4 and r.hold", 1, true) :: number
+		local b = string.find(src, "local function maybeStart", a, true) :: number
+		check(
+			string.find(string.sub(src, a, b), "r.startedAt = r.stepAt", 1, true) ~= nil,
+			"PLAY THE PROLOGUE restarts the 330 s clock"
+		)
+		check(
+			string.find(src, 'hero.scene = "opening"\n\thero.floor = FLOOR', 1, true) ~= nil,
+			"the prologue's floor from its first beat"
+		)
+	end)
+
+	test("Story fixes: a save from a newer version keeps its version", function()
+		local newer = ProfileSchema.load({ version = ProfileSchema.VERSION + 1 })
+		check(newer.version == ProfileSchema.VERSION + 1, "a rollback never writes an older version on it")
+		local old = ProfileSchema.load({ version = ProfileSchema.VERSION - 1 })
+		check(old.version == ProfileSchema.VERSION, "an older save still migrates up")
+		check(ProfileSchema.load({}).version == ProfileSchema.VERSION, "no version migrates from 0")
+	end)
+end
+
 print(string.format("\n%d passed, %d failed", passed, failed))
 if failed > 0 then
 	process.exit(1)

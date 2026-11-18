@@ -49,6 +49,8 @@ local BossMath = require(Shared:WaitForChild("BossMath"))
 local FakeRules = require(Shared:WaitForChild("FakeRules"))
 local SidekickRules = require(Shared:WaitForChild("SidekickRules"))
 local TaskForcePlan = require(Shared:WaitForChild("TaskForcePlan"))
+local MissionRules = require(Shared:WaitForChild("MissionRules"))
+local EnemySim = require(Shared:WaitForChild("EnemySim"))
 local Signal = require(Shared:WaitForChild("Util"):WaitForChild("Signal"))
 
 local CityBuilder = require(script.Parent.CityBuilder)
@@ -98,6 +100,7 @@ type Track = {
 	asked: boolean,
 	done: boolean,
 	endAt: number,
+	retry: boolean, -- the server was full when its robots came: startStep tries again each tick
 }
 
 type Run = {
@@ -126,6 +129,7 @@ type Run = {
 	leg: number?,
 	legAt: number?,
 	away: { [number]: number }?, -- H4: user id -> when they left (rejoin within Config.TaskForce.rejoin)
+	panel: boolean?, -- H4: the comic panel between task force legs is up (no stage starts, nothing is paid)
 }
 
 local busy: { [number]: Run } = {} -- pocket index -> its run
@@ -208,14 +212,18 @@ local function spawn(
 	return id
 end
 
-local function squad(run: Run, track: Track, kind: string, n: number, at: Vector3, ring: number?)
+local function squad(run: Run, track: Track, kind: string, n: number, at: Vector3, ring: number?): number
+	local got = 0
 	for i = 1, n do
 		local a = i / n * math.pi * 2 + rng:range(0, 0.5)
 		local r = (ring or 18) + (i % 3) * 4
 		local cfg = Config.Enemies[kind]
 		local up = if cfg and cfg.flies then 14 else 0
-		spawn(run, track, kind, at + Vector3.new(math.cos(a) * r, up, math.sin(a) * r))
+		if spawn(run, track, kind, at + Vector3.new(math.cos(a) * r, up, math.sin(a) * r)) then
+			got += 1
+		end
 	end
+	return got
 end
 
 local function dropKept(run: Run)
@@ -297,6 +305,7 @@ local function newTrack(key: string, lead: Player, st: any?): Track
 		asked = false,
 		done = st == nil,
 		endAt = 0,
+		retry = false,
 	}
 end
 
@@ -348,6 +357,55 @@ local function warframeArena(run: Run, track: Track)
 	end
 	track.wf = { sim = sim, targets = {}, over = false }
 	fireAll(run, "BossAttack", { k = "land", num = sim.cfg.num, x = b[1], y = b[2], z = b[3] })
+end
+
+-- The chase, boss and defeat steps' robots. A full server (Enemies.caps.perServer) builds none: the step
+-- waits (track.retry) and tickTrack tries again each tick, so a boss or a chase never skips; a defeat step
+-- fights the robots that came (need is how many). A switched-off type lets the story move on.
+local function robots(run: Run, track: Track)
+	local st = track.st
+	local l = run.layout
+	local k = st.kind
+	local got, enabled = 0, false
+	if k == "chase" then
+		local path = l.lists.path
+		local id = spawn(run, track, st.enemy, v3(path[1], 2), { scripted = true, hpMult = st.hpMult or 0.3 })
+		if id then
+			got = 1
+			track.chase = { id = id, path = path, at = 0, leg = 1, speed = st.speed }
+			if st.fake then
+				EnemyService.get(id).unmasked = true -- the fake already cracked: it flees showing metal
+			end
+		end
+		enabled = EnemySim.enabled(Config, st.enemy)
+	elseif k == "boss" then
+		local at = v3(l.points.boss)
+		track.bossId = spawn(run, track, st.enemy, at, { hpMult = st.hpMult })
+		if track.bossId then
+			got = 1
+			if st.adds then
+				squad(run, track, st.adds[1], st.adds[2], at, 22)
+			end
+		end
+		enabled = EnemySim.enabled(Config, st.enemy)
+	elseif k == "defeat" then
+		local at = if st.room
+			then v3(l.lists.rooms[st.room])
+			elseif st.at then v3(l.points[st.at])
+			else v3(l.points.spawn)
+		for _, row in st.squads do
+			got += squad(run, track, row[1], row[2], at, 20)
+			enabled = enabled or EnemySim.enabled(Config, row[1])
+		end
+		if got > 0 then
+			track.need = got -- the robots the server could build are the squad to beat
+		end
+	end
+	local next_ = MissionRules.afterSpawn(got, enabled)
+	track.retry = next_ == "wait"
+	if next_ == "skip" then
+		track.have = track.need
+	end
 end
 
 local function startStep(run: Run, track: Track)
@@ -450,27 +508,14 @@ local function startStep(run: Run, track: Track)
 				end
 			end
 		end
-	elseif k == "chase" then
-		local path = l.lists.path
-		local id = spawn(run, track, st.enemy, v3(path[1], 2), { scripted = true, hpMult = st.hpMult or 0.3 })
-		if id then
-			track.chase = { id = id, path = path, at = 0, leg = 1, speed = st.speed }
-			if st.fake then
-				EnemyService.get(id).unmasked = true -- the fake already cracked: it flees showing metal
-			end
-		end
+	elseif k == "chase" or k == "boss" or k == "defeat" then
+		robots(run, track)
 	elseif k == "reach" then
 		for i = 1, st.turrets or 0 do
 			local p = l.lists.turrets and l.lists.turrets[i]
 			if p then
 				spawn(run, track, "Turret", v3(p))
 			end
-		end
-	elseif k == "boss" then
-		local at = v3(l.points.boss)
-		track.bossId = spawn(run, track, st.enemy, at, { hpMult = st.hpMult })
-		if st.adds then
-			squad(run, track, st.adds[1], st.adds[2], at, 22)
 		end
 	elseif k == "fake" then
 		track.fakeId = spawn(
@@ -504,14 +549,6 @@ local function startStep(run: Run, track: Track)
 		if n == 0 then
 			track.have = 1 -- the twin is switched off: the story moves on
 		end
-	elseif k == "defeat" then
-		local at = if st.room
-			then v3(l.lists.rooms[st.room])
-			elseif st.at then v3(l.points[st.at])
-			else v3(l.points.spawn)
-		for _, row in st.squads do
-			squad(run, track, row[1], row[2], at, 20)
-		end
 	elseif k == "warframe" then
 		warframeArena(run, track)
 	end
@@ -520,6 +557,9 @@ end
 
 -- The next stage: one shared track, or one per side present with that side's step
 startStage = function(run: Run)
+	if run.panel then
+		return -- H4: the panel between legs is up; its own timer starts the next leg (paid once)
+	end
 	cleanStage(run)
 	run.tracks = {}
 	if run.stage > run.stages then
@@ -706,6 +746,12 @@ local function tickTrack(run: Run, track: Track, dt: number, now: number)
 	if track.done or not st then
 		return
 	end
+	if track.retry then
+		robots(run, track) -- a full server: try the step's robots again
+		if track.retry then
+			return
+		end
+	end
 	local k = st.kind
 	if k == "hold" then
 		holdStep(run, track, st, dt, now)
@@ -763,15 +809,14 @@ local function tick(run: Run, dt: number, now: number)
 	if run.done then
 		return
 	end
-	local all = true
 	for _, t in run.tracks do
 		tickTrack(run, t, dt, now)
-		all = all and t.done
 	end
 	if run.done then
 		return
 	end
-	if all then
+	-- no tracks yet (the fade in, a task force's panel between legs) is waiting, never "all done"
+	if MissionRules.advance(run.tracks, run.panel) then
 		run.stage += 1
 		startStage(run)
 	end
@@ -1003,10 +1048,7 @@ local function pay(run: Run, player: Player): { [string]: any }
 	local own = run.levels[player] or run.level
 	local credits, renown = EconomyService.reward(player, "mission", own)
 	out.credits, out.renown = credits, renown
-	local levels = {}
-	for _, l in run.levels do
-		table.insert(levels, l)
-	end
+	local levels = MissionRules.partyLevels(run.members, run.levels) -- members who left no longer count
 	local mult, mentor, sidekick = SidekickRules.renown(Config.Sidekick, own, levels)
 	if mult > 1 and renown > 0 then
 		local extra = math.floor(renown * (mult - 1) + 0.5)
@@ -1226,6 +1268,7 @@ nextLeg = function(run: Run)
 		return
 	end
 	run.leg = leg.leg
+	run.panel = true
 	-- PLACEHOLDER CONTENT: lore thread to fill (the panel id names the comic panel between legs)
 	for _, p in run.members do
 		if p.Parent then
@@ -1235,6 +1278,7 @@ nextLeg = function(run: Run)
 		end
 	end
 	task.delay(Config.TaskForce.panelTime, function()
+		run.panel = nil
 		if run.done or busy[run.pocket] ~= run then
 			return
 		end
@@ -1395,7 +1439,14 @@ function MissionService.enter(player: Player, num: number): (boolean, string?)
 	for _, mate in (if MissionService.partyOf then MissionService.partyOf(player) else {}) do
 		local h = HeroService.get(mate)
 		local r = h and HeroService.rootPart(h)
-		if h and r and not runs[mate] and not h.scene and h.alive and #members < Config.Squad.max then
+		local free = h
+			and MissionRules.canJoin(
+				h,
+				runs[mate] ~= nil,
+				HeroService.inCombat(h),
+				BeaconService.traveling(h)
+			)
+		if free and r and #members < Config.Squad.max then
 			table.insert(members, mate)
 			heroes[mate] = h
 			entries[mate] = r.CFrame + Vector3.new(0, 2, 0)
@@ -1422,7 +1473,7 @@ function MissionService.leaveTaskForce(run: Run, player: Player)
 		end
 	end
 	if #run.members <= 1 then
-		releaseMember(run, player)
+		-- the last one: finishRun takes them home (still a member) and frees the pocket once they are out
 		finishRun(run, false)
 		return
 	end

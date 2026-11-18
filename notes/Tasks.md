@@ -139,6 +139,18 @@ What nate does:
 
 ## Studio test list (needs nate's PC)
 
+### Story fixes: missions and the prologue (2026-11-18)
+Soft-locks and pay bugs fixed in MissionService and OpeningService (rules in Shared.MissionRules; tests: ONLY="Story fixes").
+1. Task force: start one with a squad of two. Each leg plays all its stages, the comic panel shows for 4 s between legs, and each member gets one result card per leg (not every leg in half a second, not a burst of pay at the start).
+2. First stage: enter any Act 1 mission (Dev "<mission>: Vigil"). Its stage 1 plays after the fade in (the run used to skip it during the 0.6 s fade).
+3. Full server: Dev robot spawns up to the 90-robot cap, then Dev-jump a mission to a boss, chase and defeat stage. Nothing comes yet and the tracker waits; clear some robots and the boss, runner or squad appears within a second. A defeat stage counts only the robots that came.
+4. Last one out: in a task force, every other member leaves, then the last presses Leave. They fade back to where they entered, in the city, and never fall from the pocket at y 3,000.
+5. Squadmates: a squadmate who is Downed, mid fast-travel, or hit in the last few seconds stays behind when the leader enters a mission; a free one comes along.
+6. Party pay: a level 40 member leaves a run with a level 20 and an 18; on the clear the level 20 reads no SIDEKICK bonus.
+7. Prologue, first time: on a new character the ceremony shows no SKIP. Dev "Prologue: Vigil" again (a replay) shows SKIP as before.
+8. Prologue, returning account: wait 2 minutes on the main menu, then PLAY THE PROLOGUE. The whole prologue plays (its 330 s clock starts at PLAY, not at the menu).
+9. Prologue safety: during the ceremony, let a city robot reach and hit the hero: health never drops below about 18%, and the hero is never Downed in the prologue.
+
 ### Side quest server fixes (2026-11-18)
 Seven soft-locks in SideQuestService fixed (tests: ONLY="SQ fixes"). Use the Dev panel's side quest jumps (300 + chain, then 100 + step) to reach each step.
 1. Finale: beat a chain's finale villain 10 times (DEV jump to the last step each time): every kill finishes the chain; the villain never stands up again at full HP after its fall. A chain with an encore (The Gala Heist): beating the first villain always brings the encore.

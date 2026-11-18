@@ -37,6 +37,7 @@ local FakeRules = require(Shared:WaitForChild("FakeRules"))
 local StoryPlan = require(Shared:WaitForChild("StoryPlan"))
 local Progress = require(Shared:WaitForChild("Progress"))
 local ProfileSchema = require(Shared:WaitForChild("ProfileSchema"))
+local MissionRules = require(Shared:WaitForChild("MissionRules"))
 
 local CityBuilder = require(script.Parent.CityBuilder)
 local DataService = require(script.Parent.DataService)
@@ -57,6 +58,9 @@ OpeningService.Finished = Signal.new()
 local O = Config.Story.opening
 local CODE = OpeningPlan.CODE
 local TAG = -7000 -- robots of the prologue (never an incident's)
+-- the prologue never defeats its hero: from the ceremony on (city robots near the plaza can still pick a hero
+-- in a scene as a target), and the fight and swarm read lowHealth above it
+local FLOOR = O.fight.lowHealth * 0.6
 
 type Run = {
 	player: Player,
@@ -324,7 +328,7 @@ local function enter(r: Run, step: string)
 			EnemyService.tune(id, { hpMult = O.fight.hpMult, dmgMult = O.fight.dmg })
 			r.fakeId = id
 		end
-		r.hero.floor = O.fight.lowHealth * 0.6 -- the prologue never defeats its hero
+		r.hero.floor = FLOOR -- the prologue never defeats its hero
 	elseif step == "swarm" then
 		track(r, "fake_cracked")
 		local fake = r.fakeId and EnemyService.get(r.fakeId)
@@ -341,7 +345,7 @@ local function enter(r: Run, step: string)
 				EnemyService.tune(id, { dmgMult = S.dmg })
 			end
 		end
-		r.hero.floor = O.fight.lowHealth * 0.6
+		r.hero.floor = FLOOR
 	elseif step == "rescue" then
 		-- Lodestar lands: every robot is blown back, then gone
 		local pos = HeroService.position(r.hero)
@@ -361,7 +365,6 @@ local function enter(r: Run, step: string)
 		HeroService.refresh(r.hero)
 	elseif step == "title" then
 		clearEnemies(r)
-		r.hero.floor = nil
 		GearService.setStreet(r.player, false)
 		freeLane(r)
 		reward(r)
@@ -370,7 +373,8 @@ local function enter(r: Run, step: string)
 end
 
 setStep = function(r: Run, step: string)
-	if OpeningPlan.CUT[r.step] and not r.hold then
+	-- a camera beat is seen once the prologue moves off it (start() enters the ceremony on itself: not seen)
+	if MissionRules.markSeen(r.step, step, OpeningPlan.CUT[r.step] == true, r.hold) then
 		CinemaService.markScene(r.player, r.step) -- lore step 7: a camera beat seen once may be skipped later
 	end
 	r.step = step
@@ -458,6 +462,7 @@ function OpeningService.start(player: Player, force: boolean?): boolean
 	}
 	runs[player] = r
 	hero.scene = "opening"
+	hero.floor = FLOOR -- OpeningService.finish (or stop) clears it
 	task.spawn(function()
 		local t0 = os.clock()
 		while not player.Character and os.clock() - t0 < 10 do
@@ -632,9 +637,10 @@ local function onAct(player: Player, act: number)
 		-- Create First (a returning account): straight to the city with the rewards
 		OpeningService.finish(player)
 	elseif act == 4 and r.hold then
-		-- PLAY THE PROLOGUE: the ceremony starts now
+		-- PLAY THE PROLOGUE: the ceremony starts now, and so does the whole prologue's timeout
 		r.hold = false
 		r.stepAt = os.clock()
+		r.startedAt = r.stepAt
 		send(r)
 	end
 end

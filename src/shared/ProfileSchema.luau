@@ -781,7 +781,11 @@ function ProfileSchema.load(raw: any): { [string]: any }
 			fn(raw)
 		end
 	end
-	return repair(raw)
+	local p = repair(raw)
+	if v > ProfileSchema.VERSION then
+		p.version = v -- a newer save keeps its version, so the newer build never runs its migrations twice
+	end
+	return p
 end
 
 function ProfileSchema.active(profile: any): any
