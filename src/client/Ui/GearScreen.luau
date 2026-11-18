@@ -392,6 +392,7 @@ local function refresh()
 end
 
 function GearScreen.open()
+	Kit.opening("GearScreen", panel, GearScreen.close, true)
 	panel.Visible = true
 	refresh()
 end

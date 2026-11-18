@@ -35,6 +35,7 @@ local card: Frame
 local cardTitle: TextLabel
 local cardSub: TextLabel
 local board: { [string]: any } = {}
+local asked = 0 -- each TaskForceList ask; the board's answer clears it (0: none waiting)
 
 local function clear()
 	for _, c in body:GetChildren() do
@@ -219,9 +220,32 @@ local function render()
 	footer.Text = "Sidekicking: lower levels are raised to the top level minus 1 inside the run"
 end
 
-function TaskForceHud.open()
-	panel.Visible = true
+-- Ask for the board: the last board shows meanwhile, or the loading note; no answer in 5 s shows the error
+-- note with RETRY (spec: every screen has its loading and error states)
+local function ask()
+	asked += 1
+	local mine = asked
+	if next(board) == nil then
+		clear()
+		Kit.stateNote(body, "loading", "Finding task forces...")
+		footer.Text = ""
+	end
 	Net.send("TaskForceList")
+	task.delay(5, function()
+		if asked == mine and panel.Visible and next(board) == nil then
+			clear()
+			Kit.stateNote(body, "error", "The board did not answer. Try again in a moment.", ask)
+		end
+	end)
+end
+
+function TaskForceHud.open()
+	Kit.opening("TaskForceHud", panel, TaskForceHud.close, true)
+	panel.Visible = true
+	if next(board) ~= nil then
+		render()
+	end
+	ask()
 end
 
 function TaskForceHud.close()
@@ -345,7 +369,9 @@ function TaskForceHud.init()
 			return
 		end
 		board = data
-		if data.open then
+		asked = 0
+		if data.open and not panel.Visible then
+			Kit.opening("TaskForceHud", panel, TaskForceHud.close, true)
 			panel.Visible = true
 		end
 		if panel.Visible then

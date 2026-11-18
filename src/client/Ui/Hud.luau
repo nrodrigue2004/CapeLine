@@ -631,6 +631,7 @@ local function applyDevice(device: string)
 	-- the mouse aims, so the crosshair only shows for touch and gamepad aiming
 	crosshair.Visible = device ~= "mouse"
 	Kit.setHudOpts({ touch = touch })
+	Kit.padUi = pad -- an opened panel selects its first button for the D-pad (Kit.opening)
 end
 
 -- Story focus (the opening's first 3 minutes): only these verb buttons show and pulse, nothing else on the
@@ -789,6 +790,7 @@ function Hud.init()
 	buildCrosshair()
 	buildCluster()
 	stickRing = Kit.frame({
+		Name = "StickRing",
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Size = UDim2.fromOffset(140, 140),
 		BackgroundColor3 = Kit.color.paper,

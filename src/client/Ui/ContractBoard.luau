@@ -207,6 +207,7 @@ local function render(board: { [string]: any })
 end
 
 function ContractBoard.open(board: { [string]: any })
+	Kit.opening("ContractBoard", panel, ContractBoard.close, true)
 	panel.Visible = true
 	render(board)
 end

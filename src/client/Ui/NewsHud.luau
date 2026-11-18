@@ -170,12 +170,15 @@ local function screenLabel(
 	return l
 end
 
+local attached: { [BasePart]: boolean } = setmetatable({}, { __mode = "k" }) :: any
 local function attach(part: BasePart)
-	if part:FindFirstChild("News") then
-		return
+	if attached[part] then
+		return -- its SurfaceGui lives in PlayerGui, not under the part
 	end
+	attached[part] = true
 	local sg = Instance.new("SurfaceGui")
 	sg.Name = "News"
+	sg.ResetOnSpawn = false -- it sits in PlayerGui: a respawn must not wipe every news screen
 	sg.Face = Enum.NormalId.Front
 	sg.LightInfluence = 0
 	sg.Brightness = 1.6
@@ -251,8 +254,15 @@ local function scroll(now: number)
 	lastScroll = now
 	local cam = Workspace.CurrentCamera
 	local eye = cam and cam.CFrame.Position
+	for i = #screens, 1, -1 do
+		if screens[i].part.Parent == nil then
+			screens[i].gui:Destroy() -- its screen part is gone (a rebuilt city): drop the gui with it
+			attached[screens[i].part] = nil -- streamed back in, it is attached again (ChildAdded)
+			table.remove(screens, i)
+		end
+	end
 	for _, s in screens do
-		local on = s.part.Parent ~= nil and s.part:GetAttribute("Down") ~= true
+		local on = s.part:GetAttribute("Down") ~= true
 		s.gui.Enabled = on
 		if on and eye and (s.part.Position - eye).Magnitude < 600 then
 			s.offset = (s.offset + dt * N.tickerSpeed) % 1

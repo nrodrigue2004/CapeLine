@@ -28,11 +28,21 @@ local muteButton: TextButton
 local squadButton: TextButton
 local reasonRow: Frame
 local menuFor: Player? = nil
+local reportButton: TextButton
 local plates: { [Player]: { bb: BillboardGui, name: TextLabel, who: TextLabel, tag: TextLabel } } = {}
+
+-- The report reasons take the place of REPORT, MUTE and INVITE inside the menu (under it, the row was off a
+-- phone's screen)
+local function showReasons(on: boolean)
+	reasonRow.Visible = on
+	reportButton.Visible = not on
+	muteButton.Visible = not on
+	squadButton.Visible = not on
+end
 
 local function closeMenu()
 	menu.Visible = false
-	reasonRow.Visible = false
+	showReasons(false)
 	menuFor = nil
 end
 
@@ -46,7 +56,7 @@ local function openMenu(p: Player)
 		elseif p:GetAttribute("Squad") then "IN A SQUAD"
 		else "INVITE TO SQUAD"
 	squadButton.AutoButtonColor = not mate and p:GetAttribute("Squad") == nil
-	reasonRow.Visible = false
+	showReasons(false)
 	menu.Visible = true
 	Kit.bounce(menu)
 end
@@ -258,15 +268,15 @@ local function build()
 		BackgroundColor3 = Kit.color.paper,
 	}, closeMenu)
 	close.Parent = menu
-	local report = Kit.button({
+	reportButton = Kit.button({
 		Text = "REPORT",
 		Size = UDim2.fromOffset(150, U.touchTarget),
 		Position = UDim2.fromOffset(12, 56),
 		BackgroundColor3 = Color3.fromRGB(240, 110, 90),
 	}, function()
-		reasonRow.Visible = not reasonRow.Visible
+		showReasons(true)
 	end)
-	report.Parent = menu
+	reportButton.Parent = menu
 	muteButton = Kit.button({
 		Text = "MUTE",
 		Size = UDim2.fromOffset(150, U.touchTarget),
@@ -294,12 +304,13 @@ local function build()
 		end
 	end)
 	squadButton.Parent = menu
-	-- the preset reasons (no typed text)
+	-- the preset reasons (no typed text), in the menu under its title
 	reasonRow = Kit.frame({
+		Name = "Reasons",
 		AnchorPoint = Vector2.new(0.5, 0),
-		Size = UDim2.fromOffset(340, U.touchTarget * 2 + 12),
-		Position = UDim2.new(0.5, 0, 1, 8),
-		BackgroundColor3 = Kit.color.night,
+		Size = UDim2.new(1, 0, 0, U.touchTarget * 2 + 12),
+		Position = UDim2.new(0.5, 0, 0, 48),
+		BackgroundTransparency = 1,
 		Visible = false,
 	})
 	reasonRow.Parent = menu

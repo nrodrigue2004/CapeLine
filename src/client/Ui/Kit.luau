@@ -1,6 +1,7 @@
 -- Kit: the one UI kit (spec: Screens and UI; shared with Mossbell Stand). Comic display font, one palette,
 -- rounded cards, 56 px touch targets (48 minimum), safe-area aware screens. PLACEHOLDER look until M10.
 
+local GuiService = game:GetService("GuiService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
@@ -364,6 +365,100 @@ function Kit.screen(name: string, order: number?): ScreenGui
 	return gui
 end
 
+---------------------------------------------------------------------------
+-- Panels: one main panel at a time. Every panel calls Kit.opening as it opens. A main panel (POWERS, GEAR,
+-- MAP, JOURNAL, the boards ...) closes any other open main panel, so two never draw on top of each other;
+-- an overlay (the shop, settings) opens on top and closes nothing. Going Downed closes them all
+-- (Kit.closePanels). On a gamepad an opened panel's first button is selected, so the D-pad reaches its
+-- buttons.
+---------------------------------------------------------------------------
+type PanelEntry = { root: Instance, close: () -> (), main: boolean }
+local panels: { [string]: PanelEntry } = {}
+Kit.padUi = false -- a gamepad is the input (the Hud sets it from InputController's device)
+
+local function panelOpen(p: PanelEntry): boolean
+	local root = p.root
+	if root:IsA("LayerCollector") then
+		return (root :: any).Enabled == true
+	end
+	return (root :: any).Visible == true and (root :: any).Parent ~= nil
+end
+
+-- Is this object drawn (it and every GuiObject above it visible, its screen enabled)?
+local function shown(inst: Instance): boolean
+	local n: Instance? = inst
+	while n do
+		if n:IsA("GuiObject") and not (n :: GuiObject).Visible then
+			return false
+		elseif n:IsA("LayerCollector") then
+			return (n :: any).Enabled == true
+		end
+		n = n.Parent
+	end
+	return false
+end
+
+-- The panel's first drawn button, top to bottom then left to right
+function Kit.firstButton(root: Instance): GuiButton?
+	local best: GuiButton? = nil
+	local by, bx = math.huge, math.huge
+	for _, d in root:GetDescendants() do
+		if d:IsA("GuiButton") and d.Selectable and shown(d) then
+			local p = d.AbsolutePosition
+			if p.Y < by - 0.5 or (math.abs(p.Y - by) <= 0.5 and p.X < bx) then
+				best, by, bx = d, p.Y, p.X
+			end
+		end
+	end
+	return best
+end
+
+-- Call as a panel opens, before it shows. root is what shows it (a GuiObject's Visible, or a ScreenGui's
+-- Enabled) and close the panel's own close. A main panel closes the other main panels.
+function Kit.opening(id: string, root: Instance, close: () -> (), main: boolean?)
+	local me: PanelEntry = { root = root, close = close, main = main == true }
+	if not panels[id] or panels[id].root ~= root then
+		-- closing it lets go of a gamepad selection inside it (the D-pad goes back to the game)
+		root:GetPropertyChangedSignal(if root:IsA("LayerCollector") then "Enabled" else "Visible")
+			:Connect(function()
+				local sel = GuiService.SelectedObject
+				if sel and not panelOpen(me) and sel:IsDescendantOf(root) then
+					GuiService.SelectedObject = nil
+				end
+			end)
+	end
+	panels[id] = me
+	if panelOpen(me) then
+		return -- already open (an open that redraws it): nothing to close, the selection stays
+	end
+	if me.main then
+		for other, p in panels do
+			if other ~= id and p.main and panelOpen(p) then
+				p.close()
+			end
+		end
+	end
+	if Kit.padUi then
+		task.defer(function()
+			if panelOpen(me) then
+				local b = Kit.firstButton(me.root)
+				if b then
+					GuiService.SelectedObject = b
+				end
+			end
+		end)
+	end
+end
+
+-- Close every open registered panel (going Downed: nothing may cover the Downed screen)
+function Kit.closePanels()
+	for _, p in panels do
+		if panelOpen(p) then
+			p.close()
+		end
+	end
+end
+
 function Kit.round(inst: GuiObject, radius: number?)
 	local c = Instance.new("UICorner")
 	c.CornerRadius = UDim.new(0, radius or Config.Ui.corner)
@@ -450,20 +545,29 @@ end
 -- Pending state (spec: "every remote call has a pending state under 150 ms"): the button shows "..." at
 -- once and takes no more taps until the server answers (any profile sync, notice or toast settles it, and
 -- most screens redraw). No answer in 5 s shows TRY AGAIN, the error state.
-local pendingButtons: { [TextButton]: string } = setmetatable({}, { __mode = "k" }) :: any
+-- Each wait is tagged with its own number, so an earlier tap's timer (settled, then tapped again) never
+-- shows TRY AGAIN or unlocks the button before the new tap's answer.
+local pendingButtons: { [TextButton]: { text: string, tag: number } } = setmetatable({}, { __mode = "k" }) :: any
+local pendingTag = 0
 function Kit.pending(b: TextButton, timeout: number?)
 	if pendingButtons[b] then
 		return
 	end
-	pendingButtons[b] = b.Text
+	pendingTag += 1
+	local tag = pendingTag
+	local text = b.Text
+	pendingButtons[b] = { text = text, tag = tag }
 	b:SetAttribute("Pending", true)
 	b.Text = "..."
+	local function mine(): boolean
+		local p = pendingButtons[b]
+		return p ~= nil and p.tag == tag and b.Parent ~= nil
+	end
 	task.delay(timeout or 5, function()
-		local text = pendingButtons[b]
-		if text and b.Parent then
+		if mine() then
 			b.Text = "TRY AGAIN"
 			task.delay(1.6, function()
-				if pendingButtons[b] and b.Parent then
+				if mine() then
 					b.Text = text
 					b:SetAttribute("Pending", nil)
 					pendingButtons[b] = nil
@@ -475,9 +579,9 @@ end
 
 -- The server answered: every pending button goes back to normal
 function Kit.settle()
-	for b, text in pendingButtons do
+	for b, p in pendingButtons do
 		if b.Parent then
-			b.Text = text
+			b.Text = p.text
 			b:SetAttribute("Pending", nil)
 		end
 	end

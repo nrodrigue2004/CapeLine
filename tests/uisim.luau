@@ -13,6 +13,8 @@
 --   local Hud = sim:require("Client.Ui.Hud")    -- a path under StarterPlayerScripts (or "Shared.X")
 --   sim:boxes()                                 -- every visible GuiObject with its box
 --   sim:issues(opts)                            -- off-screen, overlap, tiny tap targets and tiny text
+--   sim:deepIssues(screen, opts, skip)          -- the same for every hidden part of a screen, one at a time
+--   sim:advance(seconds)                        -- time passes: task.delay callbacks that come due run
 
 local luau = require("@lune/luau")
 local roblox = require("@lune/roblox")
@@ -632,6 +634,8 @@ function UiSim.new(place: any, device: { [string]: any })
 	self.loading = {}
 	self.errors = {}
 	self.yields = {}
+	self.now = 0 -- the sim's clock (sim:advance) and its task.delay callbacks
+	self.timers = {}
 	UiSim.active = self
 	self:_services()
 	return self
@@ -903,8 +907,12 @@ function UiSim:_env(script: any): { [string]: any }
 			return co
 		end,
 		defer = nil :: any,
-		delay = function()
-			return nil -- time does not pass in the sim
+		delay = function(t, f, ...)
+			-- time passes only when a test calls sim:advance
+			if type(f) == "function" then
+				table.insert(sim.timers, { at = sim.now + (tonumber(t) or 0), f = f, args = table.pack(...) })
+			end
+			return nil
 		end,
 		wait = function()
 			if coroutine.isyieldable() then
@@ -1078,6 +1086,29 @@ function UiSim:require(path: string): any
 end
 
 -- Run fn as the game would (in a coroutine, so a wait pauses it rather than failing). Returns ok, err.
+-- Move the sim's clock on: every task.delay callback due by then runs, earliest first (one a callback
+-- schedules runs too if it comes due in the same span)
+function UiSim:advance(seconds: number)
+	local stop = self.now + seconds
+	while true do
+		local best, at = nil, math.huge
+		for i, t in self.timers do
+			if t.at <= stop and t.at < at then
+				best, at = i, t.at
+			end
+		end
+		if not best then
+			break
+		end
+		local t = table.remove(self.timers, best)
+		self.now = t.at
+		self:run("task.delay", function()
+			t.f(table.unpack(t.args, 1, t.args.n))
+		end)
+	end
+	self.now = stop
+end
+
 function UiSim:run(label: string, fn: () -> ()): (boolean, string?)
 	local co = coroutine.create(fn)
 	local ok, err = coroutine.resume(co)
@@ -1741,8 +1772,8 @@ function UiSim:issues(opts: { [string]: any }): { string }
 			end
 		end
 	end
-	-- buttons on top of buttons
-	for i = 1, #taps do
+	-- buttons on top of buttons (overlap = false skips it: a deep walk shows parts that never show together)
+	for i = 1, if opts.overlap == false then 0 else #taps do
 		for j = i + 1, #taps do
 			local a, b = taps[i], taps[j]
 			if not related(a.inst, b.inst) then
@@ -1772,6 +1803,65 @@ function UiSim:issues(opts: { [string]: any }): { string }
 			end
 		end
 	end
+	return out
+end
+
+-- Every hidden GuiObject under a screen (the cards, rows, sub-panels and states a module shows later),
+-- shown one at a time with its hidden ancestors and checked against the screen and its safe area: off
+-- screen, under the top bar or in the notch, outside its panel, too small to tap, too small to read.
+-- Overlaps are not checked (parts that take turns, like a menu's buttons and its report reasons, would
+-- show together). skip lists name patterns ("Line%d+") of parts placed only while they show (a stick ring
+-- at the finger, a scrolling ticker); a part under a skipped one is skipped too.
+function UiSim:deepIssues(screen: any, opts: { [string]: any }, skip: { string }?): { string }
+	local out, seen = {}, {}
+	local ignore = {}
+	for _, c in screen:GetDescendants() do
+		for _, pattern in skip or {} do
+			if string.match(c.Name, "^" .. pattern .. "$") then
+				ignore[c.Name] = true
+			end
+		end
+	end
+	local o = table.clone(opts)
+	o.only = { [screen.Name] = true }
+	o.overlap = false
+	o.textOverlap = false
+	o.ignore = ignore
+	local function skipped(c: any): boolean
+		local n = c
+		while n and n ~= screen do
+			if ignore[n.Name] then
+				return true
+			end
+			n = n._parent
+		end
+		return false
+	end
+	local was = screen.Enabled
+	screen.Enabled = true
+	for _, c in screen:GetDescendants() do
+		if c:IsA("GuiObject") and not c.Visible and not skipped(c) then
+			local chain = {}
+			local n = c
+			while n and n ~= screen do
+				if n:IsA("GuiObject") and not n.Visible then
+					table.insert(chain, n)
+					n.Visible = true
+				end
+				n = n._parent
+			end
+			for _, issue in self:issues(o) do
+				if not seen[issue] then
+					seen[issue] = true
+					table.insert(out, c.Name .. " shown: " .. issue)
+				end
+			end
+			for _, x in chain do
+				x.Visible = false
+			end
+		end
+	end
+	screen.Enabled = was
 	return out
 end
 

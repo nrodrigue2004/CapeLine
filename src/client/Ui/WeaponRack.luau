@@ -170,6 +170,7 @@ local function render()
 end
 
 function WeaponRack.open()
+	Kit.opening("WeaponRack", panel, WeaponRack.close, true)
 	panel.Visible = true
 	render()
 end
