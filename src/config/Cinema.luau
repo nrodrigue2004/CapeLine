@@ -2,7 +2,8 @@
 -- Pure data; Shared.CinemaPlan and Shared.NewsPlan hold the rules, the client plays them.
 -- * scenes: every cutscene the player plays (camera shots, letterbox, subtitles through the guide line box).
 --   `bit` is the scene's place in the save's seen set (profile.seen, ProfileSchema.SMALL_WORDS bits): a
---   scene may be skipped once that bit is set. Bits 0 to 15 are the named scenes; missions use
+--   scene may be skipped once that bit is set. Bits 0 to 15 are the named scenes (then extraBits, 120 to
+--   127, once 0 to 15 were full); missions use
 --   missionBits (base + (mission - 1) * perMission + (stage - 1)). Never reuse or move a bit.
 --   `beat`: a prologue camera beat (OpeningPlan.CUT; its length is Config.Story.opening.beats). `client`: the
 --   device starts it (it then sends SceneSeen). Scenes run 5 to 20 s (`length`); the Ceremony beat keeps
@@ -218,8 +219,81 @@ return {
 				},
 			},
 		},
+		-- Wind-Up Lane (the Suburbs' side quest chain, lore step 11): the Lane outside Tick-Tock Toys on step 1,
+		-- Toby's story as a comic page on step 5, and the Toymaker winding his giant before the finale. Bits 13
+		-- to 15 (the top of the named range, clear of the Downtown chains')
+		tickTockLane = {
+			bit = 13,
+			client = true,
+			seconds = 10,
+			shots = {
+				{
+					kind = "dolly",
+					t0 = 0,
+					t1 = 5,
+					from = { -30, 24, 40 },
+					to = { 10, 10, 24 },
+					at = { 0, 4, 0 },
+					at2 = { 0, 3, 0 },
+				},
+				{
+					kind = "orbit",
+					t0 = 5,
+					t1 = 10,
+					radius = 18,
+					height = 4,
+					yaw0 = 0.3,
+					yaw1 = 1.4,
+					lift = 2,
+				},
+			},
+			lines = {
+				{
+					at = 0.4,
+					who = "toymaker",
+					text = "Tick-Tock Toys! Toys that play all by themselves! Don't cry, little ones. Not yet.",
+				},
+				{
+					at = 5.5,
+					who = "Scoops",
+					text = "That's the Toymaker. Sweet old man. Real sweet. Too sweet.",
+				},
+			},
+		},
+		tobyStory = { bit = 14, client = true, seconds = 14, comic = "tobyStory" },
+		windupGiant = {
+			bit = 15,
+			client = true,
+			seconds = 8,
+			shots = {
+				{ kind = "cut", t0 = 0, t1 = 3, from = { -16, 3, 16 }, at = { 0, 9, 0 } },
+				{
+					kind = "orbit",
+					t0 = 3,
+					t1 = 8,
+					radius = 22,
+					height = 6,
+					yaw0 = -0.4,
+					yaw1 = 1.2,
+					lift = 6,
+				},
+			},
+			lines = {
+				{
+					at = 0.3,
+					who = "toymaker",
+					text = "Behold my masterpiece! Wound up by hand, by me. Who needs a crying child?",
+				},
+				{
+					at = 4,
+					who = "patch",
+					text = "That's a giant toy soldier. Of course it is. Knock it over!",
+				},
+			},
+		},
 		-- The Harvest King (side quest chain 4, lore step 11, Farmland): dusk over Furrow Farm on step 1, the
-		-- Harvest King's comic page on step 5, and the beast waking at the King's Acre before the finale
+		-- Harvest King's comic page on step 5, and the beast waking at the King's Acre before the finale. Bit 12
+		-- (the last free named bit), then 120 and 121 (Cinema.extraBits: the named range was full)
 		farmDusk = {
 			bit = 12,
 			client = true,
@@ -258,9 +332,9 @@ return {
 				},
 			},
 		},
-		kingStory = { bit = 13, client = true, seconds = 14, comic = "kingStory" },
+		kingStory = { bit = 120, client = true, seconds = 14, comic = "kingStory" },
 		kingsHarvest = {
-			bit = 14,
+			bit = 121,
 			client = true,
 			seconds = 8,
 			shots = {
@@ -291,6 +365,9 @@ return {
 		},
 	},
 	missionBits = { base = 16, perMission = 8, missions = 13 }, -- bits 16 to 119
+	-- More named scenes once bits 0 to 15 were full (lore step 11, chain 4): the seen set's last 8 bits,
+	-- above the missions' (CinemaPlan.namedBit)
+	extraBits = { from = 120, to = 127 },
 
 	safe = {
 		quietSeconds = 6, -- no hit taken for this long
@@ -490,6 +567,46 @@ return {
 						ground = { 60, 50, 60 },
 						scene = "city",
 						caption = "So I ran. And I kept running until I found you.",
+						at = 10.5,
+					},
+				},
+			},
+			-- Toby's story (Wind-Up Lane, step 5): how the Toymaker uses him
+			tobyStory = {
+				title = "TOBY AND THE WIND-UP BEAR",
+				panels = {
+					{
+						rect = { 0.03, 0.12, 0.45, 0.4 },
+						sky = { 170, 220, 255 },
+						ground = { 110, 170, 90 },
+						scene = "toyshop",
+						caption = "Tick-Tock Toys was my favourite shop. The Toymaker said I was special.",
+						at = 0,
+					},
+					{
+						rect = { 0.52, 0.12, 0.45, 0.4 },
+						sky = { 255, 220, 170 },
+						ground = { 110, 170, 90 },
+						scene = "gnome",
+						caption = "He gave me a wind-up bear. When I cried, every toy on the street woke up!",
+						word = "TICK-TICK!",
+						at = 3.5,
+					},
+					{
+						rect = { 0.03, 0.56, 0.45, 0.38 },
+						sky = { 90, 80, 120 },
+						ground = { 70, 60, 70 },
+						scene = "tantrum",
+						caption = "Then he broke my toys on purpose. Every day. So I would keep crying.",
+						at = 7,
+					},
+					{
+						rect = { 0.52, 0.56, 0.45, 0.38 },
+						sky = { 40, 40, 60 },
+						ground = { 30, 30, 40 },
+						scene = "tap",
+						caption = "His machine in the basement drinks it all up. He calls it the Tantrum Tap.",
+						word = "GLUG!",
 						at = 10.5,
 					},
 				},

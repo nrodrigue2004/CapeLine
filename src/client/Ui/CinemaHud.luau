@@ -213,6 +213,79 @@ local function picture(parent: Frame, p: any)
 		local beam = box(parent, 0.38, 0.5, 0.3, 0.04, Color3.fromRGB(120, 255, 160), 63)
 		beam.AnchorPoint = Vector2.new(0, 0.5)
 		figure(parent, 0.72, Color3.fromRGB(150, 150, 160), true)
+	elseif kind == "toyshop" then
+		-- Tick-Tock Toys (Wind-Up Lane): a shop front with a striped awning, a window of toys and a round clock sign
+		local front = box(parent, 0.14, 0.36, 0.72, 0.36, Color3.fromRGB(245, 225, 190), 62)
+		Kit.stroke(front, ink, 2)
+		for i = 0, 5 do
+			box(
+				parent,
+				0.12 + i * 0.127,
+				0.3,
+				0.127,
+				0.08,
+				if i % 2 == 0 then Color3.fromRGB(230, 70, 80) else Color3.fromRGB(250, 250, 250),
+				63
+			)
+		end
+		local window = box(front, 0.08, 0.3, 0.5, 0.45, Color3.fromRGB(150, 210, 255), 63)
+		Kit.stroke(window, ink, 2)
+		for i = 0, 2 do
+			local toy = box(
+				window,
+				0.1 + i * 0.3,
+				0.5,
+				0.18,
+				0.4,
+				Color3.fromRGB(220, 60, 60):Lerp(Color3.fromRGB(90, 140, 230), i / 2),
+				64
+			)
+			Kit.round(toy, 6)
+		end
+		box(front, 0.7, 0.4, 0.2, 0.6, Color3.fromRGB(120, 80, 50), 63)
+		local clock = box(parent, 0.5, 0.2, 0.16, 0.16, Color3.fromRGB(255, 220, 90), 63)
+		clock.AnchorPoint = Vector2.new(0.5, 0.5)
+		Kit.round(clock, 200)
+		Kit.stroke(clock, ink, 2)
+	elseif kind == "gnome" then
+		-- a lawn gnome waking: a red cone hat, a white beard, a wind-up key turning in its back; a small kid
+		local hat = box(parent, 0.58, 0.32, 0.12, 0.18, Color3.fromRGB(220, 50, 50), 63)
+		hat.Rotation = 8
+		Kit.stroke(hat, ink, 2)
+		box(parent, 0.57, 0.48, 0.14, 0.1, Color3.fromRGB(250, 250, 250), 63)
+		local smock = box(parent, 0.56, 0.56, 0.16, 0.16, Color3.fromRGB(60, 110, 220), 63)
+		Kit.stroke(smock, ink, 2)
+		local key = box(parent, 0.74, 0.5, 0.1, 0.03, Color3.fromRGB(215, 170, 70), 64)
+		key.Rotation = 35
+		figure(parent, 0.22, Color3.fromRGB(120, 200, 255), false)
+	elseif kind == "tantrum" then
+		-- the Toymaker looming over a crying kid and a snapped toy (tears in blue drops)
+		figure(parent, 0.3, Color3.fromRGB(120, 200, 255), false)
+		for i = 0, 2 do
+			local tear =
+				box(parent, 0.27 + i * 0.03, 0.5 + i * 0.05, 0.02, 0.04, Color3.fromRGB(110, 180, 255), 64)
+			Kit.round(tear, 20)
+		end
+		figure(parent, 0.66, Color3.fromRGB(150, 110, 80), false)
+		local half = box(parent, 0.44, 0.66, 0.08, 0.05, Color3.fromRGB(220, 60, 60), 63)
+		half.Rotation = -20
+		local other = box(parent, 0.52, 0.67, 0.07, 0.05, Color3.fromRGB(220, 60, 60), 63)
+		other.Rotation = 25
+	elseif kind == "tap" then
+		-- the Tantrum Tap: a brass tank with a funnel, pipes off to the sides and a gauge
+		local tank = box(parent, 0.36, 0.3, 0.28, 0.42, Color3.fromRGB(205, 160, 70), 62)
+		Kit.stroke(tank, ink, 3)
+		box(parent, 0.42, 0.2, 0.16, 0.1, Color3.fromRGB(180, 140, 60), 62)
+		for k = -1, 1, 2 do
+			box(parent, 0.5 + k * 0.3 - 0.08, 0.5, 0.16, 0.04, Color3.fromRGB(160, 160, 170), 63)
+		end
+		local gauge = box(tank, 0.5, 0.35, 0.4, 0.25, Color3.fromRGB(250, 250, 240), 63)
+		gauge.AnchorPoint = Vector2.new(0.5, 0.5)
+		Kit.round(gauge, 200)
+		Kit.stroke(gauge, ink, 2)
+		local needle = box(gauge, 0.5, 0.5, 0.4, 0.06, Color3.fromRGB(220, 40, 40), 64)
+		needle.AnchorPoint = Vector2.new(0, 0.5)
+		needle.Rotation = -40
 	elseif kind == "farm" then
 		-- a red barn and a silo by the fields (The Harvest King)
 		local barn = box(parent, 0.14, 0.4, 0.36, 0.32, Color3.fromRGB(190, 50, 40), 62)

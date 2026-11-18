@@ -1135,11 +1135,14 @@ function SideQuestPlan.validate(Config: any): { string }
 		if fixedText(st.name, 24) then
 			table.insert(bad, w .. ": name")
 		end
-		-- lore step 11, chain 4: a Farmland site lives on the outskirts tiles, not in a city district
+		-- an outskirts site (a `lot` kind on the seeded Suburbs tiles, Shared.SideQuestSites.outskirts) or a
+		-- Downtown building; lore step 11, chain 4: a Farmland site (`farm` or `road`) on the Farmland tiles
+		local outskirts = st.lot ~= nil
 		local farmSite = st.farm ~= nil or st.road ~= nil
 		if
 			not table.find(SQ.districts, st.district)
-			or (not farmSite and not Config.City.districts[st.district])
+			or (not outskirts and not farmSite and not Config.City.districts[st.district])
+			or (outskirts and st.district ~= "Suburbs")
 		then
 			table.insert(bad, w .. ": district " .. tostring(st.district))
 		end
@@ -1209,9 +1212,35 @@ function SideQuestPlan.validate(Config: any): { string }
 			if type(st.near) ~= "table" or type(st.height) ~= "table" or st.height[1] > st.height[2] then
 				table.insert(bad, w .. ": near and height")
 			end
+			if outskirts then
+				local WorldGen = if script
+					then require((script :: any).Parent.WorldGen)
+					else (require :: any)("./WorldGen")
+				local known = false
+				for _, kinds in WorldGen.VARIANTS.suburbs do
+					if table.find(kinds, st.lot) then
+						known = true
+					end
+				end
+				if not known then
+					table.insert(bad, w .. ": lot " .. tostring(st.lot) .. " is not a Suburbs lot")
+				end
+				local r = st.rings
+				if
+					type(r) ~= "table"
+					or type(r[1]) ~= "number"
+					or type(r[2]) ~= "number"
+					or r[1] < 1
+					or r[1] > r[2]
+					or r[2] > Config.World.rings.suburbsTo
+				then
+					table.insert(bad, w .. ": rings inside the Suburbs")
+				end
+			end
 			local a = st.away or {}
-			local keys = if st.district == "Uptown"
-				then { "landmark" }
+			local keys: { string } = if outskirts
+				then { "pad", "beacon", "landmark", "district", "site" }
+				elseif st.district == "Uptown" then { "landmark" }
 				else { "plaza", "row", "door", "open" }
 			for _, k in keys do
 				if type(a[k]) ~= "number" or a[k] < 0 then

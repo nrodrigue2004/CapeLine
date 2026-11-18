@@ -68,6 +68,7 @@ return {
 			-- The Gala Heist's costumed villains in their powered suits (lore step 11, chain 2)
 			"Redline",
 			"MasqueARade",
+			"WindupGiant", -- the Toymaker's giant clockwork soldier (Wind-Up Lane)
 			-- The Harvest King's chain (lore step 11, chain 4): his crop beast, then the King in his thresher suit
 			"Bramblebeast",
 			"HarvestKing",
@@ -137,6 +138,21 @@ return {
 			near = { 150, 0 },
 			height = { 60, 170 },
 			away = { landmark = 90 },
+		},
+		-- The Suburbs chain (Wind-Up Lane): Tick-Tock Toys, the Toymaker's shop, is an existing outskirts shop lot
+		-- (a Suburbs tile's "shop", with its clapboard front, mailboxes and power poles around it). The outskirts
+		-- are seeded weekly, so the pick is a rule (Shared.SideQuestSites.outskirts): of the shop lots on Suburbs
+		-- tiles in `rings` (tiles out from the hub edge), the one nearest `near` (map studs, x and z) that keeps
+		-- `away` studs from every safehouse pad, beacon, landmark, city district and other chain site. Same seed,
+		-- same shop. Inside it is the "toyshop" pocket (Shared.PocketLayout).
+		ToyShop = {
+			name = "TICK-TOCK TOYS",
+			district = "Suburbs",
+			lot = "shop",
+			near = { 1150, 450 }, -- east of the hub, between Eastfield and the Southmoor road
+			rings = { 2, 5 },
+			height = { 10, 20 }, -- a one-storey shop front
+			away = { pad = 150, beacon = 150, landmark = 300, district = 200, site = 400 },
 		},
 		-- The Harvest King (chain 4, Farmland; nate's lore, build plan step 11): sites on the Farmland outskirts
 		-- tiles, picked by rule from this week's seeded tiles (Shared.SideQuestSites.farm). `farm` names the lot:
@@ -293,6 +309,43 @@ return {
 				mats = {},
 			},
 		},
+		-- Wind-Up Lane's giver: Scoops, who drives the Suburbs' ice cream truck and parks outside Tick-Tock Toys every
+		-- afternoon. She knows every kid on the street and has seen the toys walk. She wants the kids safe (the
+		-- Vigil), or a cut of the Toymaker's gold clockwork with her truck as the getaway (the Dread Syndicate).
+		Scoops = {
+			name = "SCOOPS",
+			anchor = "site",
+			site = "ToyShop",
+			color = { 240, 110, 190 },
+			style = "person",
+			blip = "guideInsider",
+			portrait = {
+				bg = { 90, 40, 70 },
+				skin = { 160, 105, 70 },
+				hair = { 80, 50, 30 },
+				shape = "messy",
+				extras = { "cap" },
+			},
+			look = {
+				gender = 2,
+				build = 2,
+				height = 3,
+				skin = 5,
+				hair = 39, -- chocolate
+				colors = { 14, 31, 18 }, -- pink, mint, white
+				pieces = {
+					shirt = "Polo",
+					pants = "Chinos",
+					visage = "Rookie Face",
+					hair = "Space Buns",
+					hat = "Ball Cap",
+					neck = "Kerchief",
+					feet = "Boots",
+				},
+				tints = {},
+				mats = {},
+			},
+		},
 		-- The Harvest King's giver (chain 4, Farmland): the Harvest King's neighbour, whose corn field and tractor
 		-- the beast ate. She wants the farms safe (the Vigil), or the King ruined and his seed vault emptied, she
 		-- doesn't much care by whom (the Dread Syndicate).
@@ -331,6 +384,7 @@ return {
 				mats = {},
 			},
 		},
+		-- PLACEHOLDER (Dev only): the framework sample's giver
 		-- PLACEHOLDER (Dev only): the framework sample's giver
 		SampleGiver = {
 			name = "TEST GIVER",
@@ -949,6 +1003,279 @@ return {
 						{
 							who = "masque",
 							text = "Bravo! Bravo! Now for my favourite part of the show. The curtain call!",
+						},
+					},
+				},
+			},
+		},
+
+		-- Suburbs chain (nate's lore, build plan step 11): Wind-Up Lane. nate's draft: "A powered kid's tantrums are
+		-- bringing toys and lawn gnomes to life across the neighborhood. The Toymaker, an old inventor using the
+		-- kid." 8 quests (the draft's count). Toby's Spark makes clockwork run when he is upset; the Toymaker, who
+		-- runs Tick-Tock Toys, gave him a wind-up bear, keeps him crying and drinks the winding through a machine in
+		-- his basement (the Tantrum Tap) to power a clockwork army. The Vigil stop the toys, find Toby, get the
+		-- kids home, shield him inside the shop, smash the Tap and help him calm down; the Dread Syndicate grab
+		-- the gold mainsprings, steal the basement key, fence the springs, rip out the Tap's gold and lift the
+		-- blueprints. Both topple the Toymaker's giant at the end. Standalone: no Crane in it.
+		{
+			id = "WindUpLane",
+			bit = 4,
+			name = "Wind-Up Lane",
+			layer = "district",
+			district = "Suburbs",
+			giver = "Scoops",
+			site = "ToyShop",
+			unlock = { story = 2, level = 5 }, -- after Act 1's Safehouse, at the Suburbs' level floor
+			villain = { name = "THE TOYMAKER", title = "THE OLD INVENTOR" },
+			reward = { share = 3, title = "Unwound", style = "ClockworkPack" },
+			blurb = {
+				hero = "Toys and lawn gnomes are coming alive in the Suburbs. A crying kid is always nearby.",
+				villain = "An old toymaker found a way to power clockwork with a kid's Spark. Steal it all.",
+			},
+			lines = {
+				offer = {
+					hero = "Toys are walking on this street, hero. And every time, little Toby is crying nearby. Help?",
+					villain = "The old toymaker's basement is full of gold clockwork. My truck's fast. Want in?",
+				},
+				resume = {
+					hero = "Back again? The toys are still winding up out there. Let's go.",
+					villain = "Back for more gold? The Toymaker's still got plenty.",
+				},
+				done = {
+					hero = "Toby's laughing again and the gnomes are just gnomes. Ice cream's on me, hero.",
+					villain = "Gold, blueprints and a whole toy army. And free ice cream. Best job ever.",
+				},
+			},
+			steps = {
+				-- 1. Afternoon on the Lane: Scoops's story outside Tick-Tock Toys
+				{
+					hero = { kind = "talk", text = "Hear Scoops out at Tick-Tock Toys" },
+					villain = { kind = "talk", text = "Get Scoops's tip at Tick-Tock Toys" },
+					scene = "tickTockLane",
+					lines = {
+						{
+							who = "Scoops",
+							hero = "Gnomes walking. Toy soldiers marching. And little Toby is always crying nearby. It's not right.",
+							villain = "Tick-Tock Toys has a basement full of gold clockwork, and the old man is up to something.",
+						},
+						{
+							who = "patch",
+							hero = "Toys coming alive in the Suburbs? Okay. That's either a Spark or I need more sleep.",
+							villain = "Clockwork that walks on its own? Somebody's going to sell that tech. Make it us.",
+						},
+					},
+				},
+				-- 2. The toy stampede / the gold mainsprings
+				{
+					hero = {
+						kind = "fight",
+						squads = { { "WindupToy", 6 } },
+						range = { 60, 150 },
+						text = "Stop the wind-up toys stampeding the street",
+					},
+					villain = {
+						kind = "fetch",
+						count = 3,
+						range = { 60, 180 },
+						guards = { "WindupToy", 3 },
+						text = "Grab the gold mainsprings from the toy crates",
+					},
+					lines = {
+						{
+							who = "patch",
+							hero = "Tin soldiers, lawn gnomes and a plush bear with a bad attitude. Stop them before they reach the kids!",
+							villain = "Every one of those toys runs on a gold mainspring. Actual gold! Grab the crates.",
+						},
+					},
+				},
+				-- 3. The boy who ran off / the runaway toy with the basement key
+				{
+					hero = {
+						kind = "find",
+						range = { 100, 250 },
+						witness = true,
+						text = "Find Toby, the boy who ran off crying",
+					},
+					villain = {
+						kind = "chase",
+						enemy = "WindupToy",
+						hops = 5,
+						speed = 20,
+						text = "Catch the wind-up toy with the basement key",
+					},
+					lines = {
+						{
+							who = "Scoops",
+							hero = "The Toymaker gave Toby another present, and it broke. Again. He ran off crying.",
+							villain = "One of those toys carries the key to the Toymaker's basement. Don't let it get home!",
+						},
+						{
+							who = "patch",
+							hero = "Every time Toby cries, the toys wind up harder. Find him and the street calms down.",
+							villain = "It hops when it's scared. Ha. Same as you when Lodestar shows up.",
+						},
+					},
+				},
+				-- 4. Toby's story begins; the kids home / fence the springs
+				{
+					hero = {
+						kind = "escort",
+						goal = 160,
+						speed = 9,
+						near = 40,
+						text = "Get Scoops's truck of kids home safe",
+					},
+					villain = {
+						kind = "deliver",
+						range = { 150, 300 },
+						text = "Fence the gold mainsprings at the drop",
+					},
+					lines = {
+						{
+							who = "toby",
+							hero = "I didn't mean to! When I get sad, the toys just... wake up. All of them.",
+							villain = "Are you bad guys? You don't look like bad guys. You look like cool guys.",
+						},
+						{
+							who = "lodestar",
+							hero = "Toys are swarming the bus stop. Stay with that truck, kid. I'll watch the street.",
+							villain = "Selling toy parts, are we? Fine. Just keep those things away from the kids.",
+						},
+					},
+				},
+				-- 5. Inside Tick-Tock Toys: the aisles, the playroom and the basement workshop under it
+				{
+					hero = {
+						kind = "pocket",
+						layout = "toyshop",
+						minutes = 12,
+						text = "Get inside Tick-Tock Toys",
+						villainText = "Break into Tick-Tock Toys",
+						steps = {
+							{
+								kind = "defeat",
+								room = 1,
+								squads = { { "WindupToy", 6 } },
+								text = "Clear the toy soldiers from the aisles",
+								villainText = "Scrap the toy guards in the aisles",
+							},
+							{
+								kind = "hold",
+								at = "playroom",
+								points = 1,
+								seconds = 20,
+								radius = 16,
+								waves = { { "WindupToy", 4 } },
+								waveGap = 10,
+								text = "Shield Toby in the playroom",
+								villainText = "Hold the playroom while the till cracks",
+							},
+							{
+								kind = "reach",
+								at = "workshop",
+								text = "Take the trapdoor under the counter",
+								villainText = "Follow the trapdoor to the gold",
+							},
+							{
+								kind = "break",
+								list = "winders",
+								points = 4,
+								hits = 3,
+								text = "Smash the Tantrum Tap's winders",
+								villainText = "Rip the gold out of the Tantrum Tap",
+							},
+							{
+								kind = "boss",
+								enemy = "WindupToy",
+								hpMult = 8,
+								adds = { "WindupToy", 3 },
+								text = "Beat the Toymaker's nutcracker captain",
+								villainText = "Scrap the nutcracker captain for parts",
+							},
+						},
+					},
+					villain = "same",
+					scene = "tobyStory",
+					lines = {
+						{
+							who = "toby",
+							hero = "He gave me a bear that winds up when I cry. Then he MAKES me cry. The machine is downstairs!",
+							villain = "You want the gold? It's downstairs, in the crying machine. Break it too? Please?",
+						},
+					},
+				},
+				-- 6. Out of the shop: a scared kid / the springs to the truck; the Toymaker on his music box
+				{
+					hero = {
+						kind = "carry",
+						range = { 80, 160 },
+						text = "Fly a scared kid out of the toy stampede",
+					},
+					villain = {
+						kind = "race",
+						checkpoints = 4,
+						gap = 60,
+						time = 45,
+						text = "Rush the gold springs to Scoops's truck",
+					},
+					lines = {
+						{
+							who = "toymaker",
+							text = "Who's been stomping in my shop? Naughty, naughty! My toys will tuck you in!",
+						},
+						{
+							who = "lodestar",
+							hero = "A grown man making a kid cry for power. That's low. Even for this city.",
+							villain = "That old man's machine runs on a kid's tears. Take his gold. Then end it.",
+						},
+					},
+				},
+				-- 7. Toby calms down / the Toymaker's blueprints
+				{
+					hero = {
+						kind = "hold",
+						seconds = 20,
+						radius = 10,
+						text = "Stay with Toby while he calms down",
+					},
+					villain = {
+						kind = "fetch",
+						count = 3,
+						range = { 60, 160 },
+						guards = { "WindupToy", 2 },
+						text = "Swipe the Toymaker's toy army blueprints",
+					},
+					lines = {
+						{
+							who = "toby",
+							hero = "Deep breaths, like Mom says. In... and out. Hey, look! The gnomes stopped moving!",
+							villain = "You took his drawings? Good. Then nobody can make me cry for a machine again.",
+						},
+						{
+							who = "patch",
+							hero = "It's working! Toby's calm and the toys are winding down all over the street!",
+							villain = "Those blueprints show a toy army on every street in the city. Don't tell Toby.",
+						},
+					},
+				},
+				-- 8. The finale: the Toymaker winds up his giant himself
+				{
+					hero = {
+						kind = "finale",
+						enemy = "WindupGiant",
+						hpMult = 3,
+						adds = { { "WindupToy", 4 } },
+						range = { 60, 140 },
+						text = "Topple the Wind-Up Giant. Game over, Toymaker!",
+						villainText = "Topple the Toymaker and take his toy army",
+					},
+					villain = "same",
+					scene = "windupGiant",
+					lines = {
+						{
+							who = "toymaker",
+							hero = "You took my little power source? Then I'll wind up the BIG one myself!",
+							villain = "Thieves in MY toy box? Time for a play date with my biggest toy!",
 						},
 					},
 				},

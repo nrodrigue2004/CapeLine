@@ -42,6 +42,9 @@ return {
 		-- The Gala Heist's costumed villains in powered suits (lore step 11, chain 2)
 		"Redline",
 		"MasqueARade",
+		-- the Suburbs chain's clockwork toys (nate's lore, build plan step 11: Wind-Up Lane, the Toymaker)
+		"WindupToy",
+		"WindupGiant",
 		-- The Harvest King's chain (lore step 11, chain 4): his crop beast and the King in his thresher suit
 		"Bramblebeast",
 		"HarvestKing",
@@ -962,6 +965,82 @@ return {
 			eye = { 200, 120, 255 },
 			suit = { 80, 30, 120 },
 			trim = { 230, 190, 60 },
+		},
+	},
+	-- The Toymaker's clockwork toys (nate's lore, build plan step 11: the Suburbs chain, Wind-Up Lane). Machines
+	-- an old inventor built: tin soldiers, lawn gnomes and patchwork plush bears with a key in the back, wound up
+	-- by a powered kid's tantrums (his Spark makes clockwork run). They burst into springs and gears like any
+	-- robot. Side quest only: never in the ambient mix or the open-world swaps. Comic, never scary: they march,
+	-- hop and nip. The three uniform versions are the three toys (Config.NpcLooks: Grunt a tin soldier, Veteran a
+	-- lawn gnome, Elite a plush bear). PLACEHOLDER ART: the wind-up key on the back is plain parts.
+	WindupToy = {
+		typeId = 30,
+		on = true,
+		name = "Wind-Up Toy", -- a knee-high clockwork toy: marches up, hops in and nips
+		ai = "swarm",
+		hp = 45,
+		speed = 22,
+		aggro = 80,
+		attackRange = 3.5,
+		lunge = { range = 12, speed = 55, time = 0.3, every = 3.5 }, -- a wind-up hop
+		bite = { every = 0.9 },
+		coeff = 0.18,
+		attackWeight = 0.34, -- three toys count as one robot for the 6-on-one-hero cap
+		fleeBelow = 0,
+		radius = 1.4,
+		body = {
+			build = "slim",
+			height = 3.4,
+			metal = { 190, 150, 70 }, -- brass clockwork
+			eye = { 120, 220, 255 },
+			suit = { 200, 40, 50 }, -- a tin soldier's red coat
+			trim = { 240, 200, 80 },
+			small = true,
+			windKey = true,
+		},
+	},
+	-- The Toymaker's masterpiece (the Suburbs chain's finale, boss-lite: Config.SideQuests.finale): a giant
+	-- clockwork tin soldier he winds up himself and rides into the fight. The brute brain: a stomp with a warning
+	-- ring, every 3rd stomp a wide ground wave, and a wind-up charge down a lane. Its damage a second stays at or
+	-- under the elite robots' (tests: a boss-lite, not a world boss); its health is the finale's hpMult.
+	WindupGiant = {
+		typeId = 31,
+		on = true,
+		name = "Wind-Up Giant",
+		ai = "brute",
+		hp = 1800,
+		speed = 13,
+		aggro = 100,
+		attackRange = 10,
+		slam = { radius = 10, windup = 0.9, every = 3.4 },
+		coeff = 2.2,
+		shockwave = { nth = 3, radius = 22, windup = 1.4, coeff = 2.0, height = 4 },
+		charge = {
+			min = 16,
+			range = 45,
+			every = 8,
+			windup = 1.1, -- the key winds round twice before it rolls
+			dist = 40,
+			width = 5,
+			coeff = 2.0,
+			stun = 0.3,
+		},
+		mitigation = 0.15,
+		ccResist = 0.6,
+		immune = { "knockup", "float" },
+		fleeBelow = 0,
+		radius = 5,
+		elite = true,
+		miniBoss = true,
+		body = {
+			build = "titan",
+			gender = 1,
+			height = 10,
+			metal = { 190, 150, 70 },
+			eye = { 255, 220, 120 },
+			suit = { 190, 35, 45 },
+			trim = { 240, 200, 80 },
+			windKey = true,
 		},
 	},
 	-- The Harvest King's chain (nate's lore, build plan step 11, chain 4: Farmland). Not Crane's. They wear a

@@ -1113,6 +1113,34 @@ return {
 					extras = { "visor" },
 				},
 			},
+			-- Wind-Up Lane (the Suburbs): the Toymaker, an old inventor, on his shop's music-box speakers and in
+			-- person, and Toby, the boy whose Spark winds clockwork when he is upset
+			toymaker = {
+				name = "THE TOYMAKER",
+				color = { 230, 190, 90 },
+				style = "broadcast",
+				blip = "guideCrane",
+				portrait = {
+					bg = { 70, 40, 30 },
+					skin = { 241, 194, 160 },
+					hair = { 235, 235, 240 },
+					shape = "messy",
+					extras = { "beard", "visor" },
+				},
+			},
+			toby = {
+				name = "TOBY",
+				color = { 120, 200, 255 },
+				style = "person",
+				blip = "guideInsider",
+				portrait = {
+					bg = { 40, 70, 110 },
+					skin = { 255, 224, 196 },
+					hair = { 230, 170, 70 },
+					shape = "messy",
+					extras = {},
+				},
+			},
 			-- The Harvest King (chain 4, Farmland): the farmer in person, a crown of wheat on a grey shock of hair
 			harvest = {
 				name = "THE HARVEST KING",
@@ -1323,6 +1351,7 @@ return {
 			["Living Legend"] = 5,
 			["Class Dismissed"] = 6, -- side quest chain: The Hero Academy (lore step 11)
 			["Curtain Call"] = 7, -- side quest chain: The Gala Heist (lore step 11, chain 2)
+			Unwound = 8, -- side quest chain: Wind-Up Lane (lore step 11)
 			Uprooted = 9, -- side quest chain: The Harvest King (lore step 11, chain 4)
 			GoldTrim = 100,
 		},

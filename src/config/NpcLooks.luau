@@ -135,5 +135,19 @@ return {
 			clothes = { Grunt = 87725495385541, Veteran = 85792580044149, Elite = 112233440624940 },
 			hair = { "Pal", "LongRed", "BrownCharmer" },
 		},
+		-- The Toymaker's clockwork toys (lore step 11, the Suburbs chain): each version is its own toy, a tin
+		-- soldier (red coat, white cross belts, brass buttons), a lawn gnome (blue smock, brown belt, red boots)
+		-- and a patchwork plush bear (stitched patches, a big bow), each with the wind-up key on its back.
+		-- 0 until nate uploads art/export/clothes/uniforms/WindupToy_<Version>.png (PLACEHOLDER ART until then)
+		WindupToy = {
+			clothes = { Grunt = 0, Veteran = 0, Elite = 0 },
+			hair = { "BlondeSpiked", "Pal", "BrownCharmer" },
+		},
+		-- The Wind-Up Giant: a giant tin soldier's dress coat with brass buttons and gold braid, a drum on the
+		-- chest, the key plate on the back (Grunt red, Veteran blue, Elite gold). 0 until uploaded
+		WindupGiant = {
+			clothes = { Grunt = 0, Veteran = 0, Elite = 0 },
+			hair = { "Pal", "BrownCharmer", "BlackPonytail" },
+		},
 	},
 }
