@@ -1801,7 +1801,7 @@ return {
 						{
 							who = "lodestar",
 							hero = "That workshop copies kids' Sparks. That's Crane's work. I'd bet my cape on it.",
-							villain = "Crane's copier cores, in your hands. I don't like it. Just keep them away from kids.",
+							villain = "Copier cores, in your hands. I don't like it. Just keep them away from kids.",
 						},
 					},
 				},
