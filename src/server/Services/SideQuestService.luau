@@ -55,6 +55,7 @@ local BodyShape = require(Shared:WaitForChild("BodyShape"))
 local LookKit = require(Shared:WaitForChild("LookKit"))
 local PeopleLooks = require(Shared:WaitForChild("PeopleLooks"))
 local SideQuestSets = require(Shared:WaitForChild("SideQuestSets"))
+local SetPieceKit = require(Shared:WaitForChild("SetPieceKit"))
 local IncidentPlan = require(Shared:WaitForChild("IncidentPlan"))
 local DeepLayout = require(Shared:WaitForChild("DeepLayout"))
 
@@ -65,6 +66,7 @@ local EnemyService = require(script.Parent.EnemyService)
 local IncidentService = require(script.Parent.IncidentService)
 local MissionService = require(script.Parent.MissionService)
 local SiteKit = require(script.Parent.SiteKit)
+local SetPieceMeshes = require(script.Parent.SetPieceMeshes)
 local SquadService = require(script.Parent.SquadService)
 local StoryService = require(script.Parent.StoryService)
 
@@ -591,9 +593,20 @@ local function build(g: Group, key: string, st: any): Goal
 			rng,
 			road
 		)
+		-- the chain's own truck look (Shared.SetPieceKit.TRUCKS) once Art.SetPieces is imported: the boxes stay,
+		-- hidden, and the mesh rides with them, nose to the drive (-z)
+		local look = SetPieceKit.truck(g.chain.id)
+		local dressed = look ~= nil and SetPieceMeshes.ready(look)
 		local truck = SiteKit.prop("Motorcade", function(m)
-			SiteKit.part(m, Vector3.new(7, 4, 14), CFrame.new(0, 2.5, 0), Color3.fromRGB(30, 30, 40))
-			SiteKit.part(m, Vector3.new(6.6, 2.4, 6), CFrame.new(0, 5.6, -2), Color3.fromRGB(90, 70, 160))
+			local body =
+				SiteKit.part(m, Vector3.new(7, 4, 14), CFrame.new(0, 2.5, 0), Color3.fromRGB(30, 30, 40))
+			local cab =
+				SiteKit.part(m, Vector3.new(6.6, 2.4, 6), CFrame.new(0, 5.6, -2), Color3.fromRGB(90, 70, 160))
+			if dressed then
+				SetPieceMeshes.hide(body)
+				SetPieceMeshes.hide(cab)
+				SetPieceMeshes.add(m, { look = look :: string, x = 0, y = 0, z = 0 }, CFrame.new())
+			end
 		end)
 		setNeed(g, goal, math.min(st.goal, math.floor(length))) -- never more than the truck can drive
 		goal.truck = { model = truck, path = path, at = 0, length = length }
@@ -1451,8 +1464,9 @@ local function writeSign(board: BasePart, text: string, color: Color3)
 	end
 end
 
--- One box of a set piece (Shared.SideQuestSets), at cf. PLACEHOLDER ART: plain parts.
-local function setPart(parent: Instance, b: any, cf: CFrame): BasePart
+-- One box of a set piece (Shared.SideQuestSets), at cf. PLACEHOLDER ART: plain parts until Art.SetPieces is
+-- imported; `hidden` (its look drawn as meshes): unseen, still colliding and in its piece as before.
+local function setPart(parent: Instance, b: any, cf: CFrame, hidden: boolean?): BasePart
 	local at = cf
 	if b.upright then
 		at *= CFrame.Angles(0, 0, math.rad(90))
@@ -1482,7 +1496,20 @@ local function setPart(parent: Instance, b: any, cf: CFrame): BasePart
 	if b.sign then
 		writeSign(p, b.sign, Color3.fromRGB(150, 30, 50))
 	end
+	if hidden then
+		SetPieceMeshes.hide(p)
+	end
 	return p
+end
+
+-- The looks of a set drawn as meshes (Shared.SetPieceKit): those of one breakable piece (pid) or of the solid
+-- set (nil), with `at` the set's origin as a CFrame (a piece's model: its centre's offset)
+local function setLooks(parent: Instance, set: any, drawn: { [number]: boolean }, pid: string?, at: CFrame)
+	for i, pl in set.art or {} do
+		if drawn[i] and pl.piece == pid then
+			SetPieceMeshes.add(parent, pl, at * CFrame.new(pl.x, pl.y, pl.z) * SetPieceMeshes.yaw(pl))
+		end
+	end
 end
 
 -- A broken piece bursts into loose chunks that tumble for a moment (cartoon: no harm, they are gone in 3 s)
@@ -1526,11 +1553,13 @@ local function setPiece(set: any, pid: string, origin: Vector3)
 		pc.r,
 		hp,
 		function(m)
+			local drawn = SetPieceMeshes.drawn(set.art)
 			for _, b in set.boxes do
 				if b.piece == pid then
-					setPart(m, b, CFrame.new(b.x - pc.x, b.y - pc.y, b.z - pc.z))
+					setPart(m, b, CFrame.new(b.x - pc.x, b.y - pc.y, b.z - pc.z), SetPieceKit.hides(b, drawn))
 				end
 			end
+			setLooks(m, set, drawn, pid, CFrame.new(-pc.x, -pc.y, -pc.z))
 		end,
 		nil,
 		function()
@@ -1553,11 +1582,13 @@ local function buildSet(id: string, square: any)
 	local set = SideQuestSets.build(id)
 	local origin = Vector3.new(square.x, gy() + 0.9, square.z) -- on the square's paving
 	local m = SiteKit.model("Set_" .. id)
+	local drawn = SetPieceMeshes.drawn(set.art)
 	for _, b in set.boxes do
 		if not b.piece then
-			setPart(m, b, CFrame.new(origin + Vector3.new(b.x, b.y, b.z)))
+			setPart(m, b, CFrame.new(origin + Vector3.new(b.x, b.y, b.z)), SetPieceKit.hides(b, drawn))
 		end
 	end
+	setLooks(m, set, drawn, nil, CFrame.new(origin))
 	for pid in set.pieces do
 		setPiece(set, pid, origin)
 	end
