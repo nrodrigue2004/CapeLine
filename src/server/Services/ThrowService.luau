@@ -53,6 +53,7 @@ type It = {
 	landedAt: number?,
 	welds: { Instance }?,
 	collide: { [BasePart]: boolean }?,
+	query: { [BasePart]: boolean }?, -- each part's CanQuery before the carry (a vehicle's look meshes take none)
 	wreck: boolean?, -- a downed robot's wreck (WP6): it never goes home, it falls apart at endsAt
 	born: number?,
 	endsAt: number?,
@@ -110,9 +111,11 @@ local function attach(it: It, root: BasePart)
 	local main = it.model.PrimaryPart :: BasePart
 	local welds: { Instance } = {}
 	local collide: { [BasePart]: boolean } = {}
+	local query: { [BasePart]: boolean } = {}
 	for _, p in it.model:GetDescendants() do
 		if p:IsA("BasePart") then
 			collide[p] = p.CanCollide
+			query[p] = p.CanQuery
 			p.CanCollide = false
 			p.CanQuery = false
 			p.Massless = true
@@ -139,7 +142,7 @@ local function attach(it: It, root: BasePart)
 	TweenService:Create(weld, TweenInfo.new(T.liftTime, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
 		C0 = CFrame.new(0, T.overhead + h / 2, 0),
 	}):Play()
-	it.welds, it.collide = welds, collide
+	it.welds, it.collide, it.query = welds, collide, query
 end
 
 local function detach(it: It)
@@ -153,10 +156,10 @@ local function detach(it: It)
 			p.Anchored = true
 			p.Massless = false
 			p.CanCollide = c
-			p.CanQuery = true
+			p.CanQuery = if it.query then it.query[p] ~= false else true
 		end
 	end
-	it.welds, it.collide = nil, nil
+	it.welds, it.collide, it.query = nil, nil, nil
 end
 
 -- Put a prop down at a spot (upright or knocked over), or a vehicle through VehicleService

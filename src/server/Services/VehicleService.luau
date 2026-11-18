@@ -4,7 +4,11 @@
 -- The server builds the vehicles (anchored, a few parts each), and on a heavy hit sets the landed pose at
 -- once and tells clients (VehicleFlip), who play the 1 s arc locally from the same VehiclePose.flip. After
 -- 30 s it puts the vehicle back (VehicleReset), once no hero stands in its home spot (Vehicles.occupied), so
--- a car never comes back on top of someone. PLACEHOLDER ART: boxes and wheel cylinders.
+-- a car never comes back on top of someone. The parts are boxes and wheel cylinders (Shared.VehicleKit.parts);
+-- once nate imports art/blender/vehicles.py's meshes as ReplicatedStorage.Art.Vehicles, each vehicle wears its
+-- look (VehicleKit.look: Downtown's hatch, sedan and taxi, Old Town's bubble car, the tram, the Docks truck) in
+-- its own paint, and its parts stay, hidden, for the collision, flips, throws and queries exactly as before (the
+-- meshes take the same Offset, so every pose moves them too). PLACEHOLDER ART until the import (Tasks.md).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
@@ -14,8 +18,10 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Net = require(Shared:WaitForChild("Net"))
 local Vehicles = require(Shared:WaitForChild("Vehicles"))
 local VehiclePose = require(Shared:WaitForChild("VehiclePose"))
+local VehicleKit = require(Shared:WaitForChild("VehicleKit"))
 
 local HeroService = require(script.Parent.HeroService)
+local SetPieceMeshes = require(script.Parent.SetPieceMeshes)
 
 local VehicleService = {}
 
@@ -53,35 +59,29 @@ local function build(v: any): Model
 	local m = Instance.new("Model")
 	m.Name = string.format("Vehicle_%d_%s", v.id, v.kind)
 	m:SetAttribute("VehicleId", v.id)
-	local body = color(v.color)
-	local dark = Color3.fromRGB(30, 32, 38)
-	local glass = color("glass")
-	local root = part(m, Vector3.new(v.sx, v.sy * 0.55, v.sz), CFrame.new(0, v.sy * 0.275 + 1, 0), body)
-	root.Name = "Body"
-	m.PrimaryPart = root
-	if v.kind == "car" then
-		part(m, Vector3.new(v.sx * 0.9, v.sy * 0.4, v.sz * 0.5), CFrame.new(0, v.sy * 0.75 + 1, -0.5), glass)
-	elseif v.kind == "truck" then
-		part(m, Vector3.new(v.sx, v.sy * 0.6, v.sz * 0.3), CFrame.new(0, v.sy * 0.6 + 1, -v.sz * 0.35), glass)
-		part(
+	local tones = { body = color(v.color), glass = color("glass"), dark = Color3.fromRGB(30, 32, 38) }
+	local place = VehicleKit.place(Config, v)
+	local dressed = SetPieceMeshes.ready(place.look)
+	for i, b in VehicleKit.parts(v) do
+		local p = part(
 			m,
-			Vector3.new(v.sx * 0.95, v.sy * 0.8, v.sz * 0.6),
-			CFrame.new(0, v.sy * 0.6 + 1, v.sz * 0.18),
-			body
+			Vector3.new(b.size[1], b.size[2], b.size[3]),
+			CFrame.new(b.at[1], b.at[2], b.at[3]),
+			tones[b.tone] or tones.dark,
+			if b.wheel then Enum.PartType.Cylinder else nil
 		)
-	else
-		part(m, Vector3.new(v.sx * 0.98, v.sy * 0.35, v.sz * 0.96), CFrame.new(0, v.sy * 0.72 + 1, 0), glass)
-		part(m, Vector3.new(v.sx * 0.6, 0.6, v.sz * 0.9), CFrame.new(0, v.sy + 1.3, 0), dark)
+		if i == 1 then
+			p.Name = "Body"
+			m.PrimaryPart = p
+		end
+		if dressed then
+			SetPieceMeshes.hide(p)
+		end
 	end
-	local wheel = math.min(2.6, v.sy * 0.45)
-	for _, s in { { 1, 1 }, { 1, -1 }, { -1, 1 }, { -1, -1 } } do
-		part(
-			m,
-			Vector3.new(1.2, wheel, wheel),
-			CFrame.new(s[1] * (v.sx / 2 - 0.4), wheel / 2, s[2] * (v.sz / 2 - wheel)),
-			dark,
-			Enum.PartType.Cylinder
-		)
+	if dressed then
+		for _, mesh in SetPieceMeshes.add(m, place, CFrame.new()) do
+			mesh:SetAttribute("Offset", mesh.CFrame)
+		end
 	end
 	return m
 end
