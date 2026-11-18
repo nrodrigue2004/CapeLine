@@ -158,7 +158,12 @@ local function offerCard(player: Player)
 		local waited = 0
 		while player.Parent == Players and not free(player) and waited < D.ui.freeWait do
 			task.wait(2)
-			waited += 2
+			-- the creator and the prologue are a new hero's first minutes, not a busy hero: they never use up
+			-- the wait, so a slow creator plus the prologue still ends with the day's card (onboarding check)
+			local hero = HeroService.get(player)
+			if not (hero and (hero.scene == "creator" or hero.scene == "opening")) then
+				waited += 2
+			end
 		end
 		if player.Parent ~= Players or not free(player) then
 			return

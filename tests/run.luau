@@ -22707,7 +22707,9 @@ end
 -- the side quest juice pass and the beacon roof fix (2026-11-18); ONLY="SQ juice" or ONLY="Beacon roofs"
 (require :: any)("./polish_test")({ test = test, check = check, Config = Config, world = world });
 -- the text pass (2026-11-18, own file): old names, fixed typos and term casing; ONLY="Text pass" runs these
-(require :: any)("./text_test")({ test = test, check = check, Config = Config })
+(require :: any)("./text_test")({ test = test, check = check, Config = Config });
+-- the onboarding check (overnight item 8, 2026-11-18, own file); ONLY="Onboarding" runs just these
+(require :: any)("./onboarding_test")({ test = test, check = check, Config = Config, world = world })
 
 print(string.format("\n%d passed, %d failed", passed, failed))
 if failed > 0 then

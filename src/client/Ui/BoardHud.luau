@@ -19,6 +19,7 @@ local Net = require(Shared:WaitForChild("Net"))
 
 local Juice = require(script.Parent.Parent.Fx.Juice)
 local Kit = require(script.Parent.Kit)
+local PopupGate = require(script.Parent.PopupGate)
 local BadgeHud = require(script.Parent.BadgeHud)
 
 local BoardHud = {}
@@ -404,6 +405,9 @@ local function buildCard()
 	end)
 	ok.Parent = card
 	Kit.fit(card, 340, 168, 420, 168) -- centred, and scaled down on a short phone
+	PopupGate.card("board", function()
+		return card.Visible
+	end)
 end
 
 -- A BoardData answer (also the phone test's way in)
@@ -424,10 +428,18 @@ function BoardHud.receive(d: any)
 	end
 end
 
--- A BoardReward: a weekly title earned
+-- A BoardReward: a weekly title earned. It comes on join, so the card waits for the loading screen, the main
+-- menu, the creator, the prologue, a cutscene and the other join cards (PopupGate); the title is saved already.
+local queued: { any } = {}
 function BoardHud.reward(d: any)
 	if type(d) == "table" and type(d.rank) == "number" then
-		showReward(d)
+		table.insert(queued, d)
+		PopupGate.later("board", function()
+			for _, q in queued do
+				showReward(q)
+			end
+			table.clear(queued)
+		end)
 	end
 end
 

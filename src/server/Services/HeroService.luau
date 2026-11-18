@@ -736,6 +736,9 @@ function HeroService.applyProfile(hero: Hero, char: any, currency: any)
 	hero.respecAt = os.clock() + math.max(0, char.respecAt - os.time())
 	hero.credits = currency.credits + currency.banked
 	hero.loaded = true
+	if hero.player then
+		hero.player:SetAttribute("HeroLoaded", true) -- the loading screen waits for it (ReplicatedFirst)
+	end
 	HeroService.refresh(hero)
 	HeroService.applyWalkSpeed(hero)
 end

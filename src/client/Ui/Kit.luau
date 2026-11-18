@@ -450,6 +450,39 @@ function Kit.opening(id: string, root: Instance, close: () -> (), main: boolean?
 	end
 end
 
+-- A pick that is not a registered panel (the main menu, the hero creator: never closed by another panel or by
+-- going Downed; the cards that pop by themselves): gamepad Select (Kit.modalButton) goes into it instead of
+-- the top row while it shows, and unless select is false its first button is selected as it shows (a card
+-- that pops mid-play passes false, so the stick keeps moving the hero) (onboarding check)
+local modals: { Instance } = {}
+function Kit.padFocus(root: Instance, select: boolean?)
+	if not table.find(modals, root) then
+		table.insert(modals, root)
+	end
+	if Kit.padUi and select ~= false then
+		task.defer(function()
+			local b = if shown(root) then Kit.firstButton(root) else nil
+			if b then
+				GuiService.SelectedObject = b
+			end
+		end)
+	end
+end
+
+-- The first button of the topmost open modal pick, or nil
+function Kit.modalButton(): GuiButton?
+	for i = #modals, 1, -1 do
+		local root = modals[i]
+		if shown(root) then
+			local b = Kit.firstButton(root)
+			if b then
+				return b
+			end
+		end
+	end
+	return nil
+end
+
 -- Close every open registered panel (going Downed: nothing may cover the Downed screen)
 function Kit.closePanels()
 	for _, p in panels do

@@ -138,16 +138,39 @@ local function sceneText(st: any, side: string, t: number)
 	GuideHud.timeline(lineCache, lineCache.list, t)
 end
 
+-- (onboarding check 2026-11-18) a beat a quick player leaves early (or the short suit beat) hands its unheard
+-- lines to the next player-paced beat (at most Config.Ui.prologue.carry), so Patch's first words are never lost
+-- to a fast Leap; camera and timed beats keep their own timing and take nothing.
+local prologueLast: { step: string?, t: number } = { step = nil, t = 0 }
 local function prologueText(step: string?, t: number)
 	if not step then
 		GuideHud.timeline(nil, nil, 0)
+		prologueLast.step, prologueLast.t = nil, 0
 		return
 	end
 	local beat = step :: string
 	local side = StoryClient.opening.side or "hero"
 	if lineCache.step ~= beat or lineCache.side ~= side then
-		lineCache = { step = beat, side = side, list = OpeningPlan.lines(Config, beat, side) }
+		local list = OpeningPlan.lines(Config, beat, side)
+		if not OpeningPlan.CUT[beat] and not OpeningPlan.timed(Config, beat) then
+			local prev = prologueLast.step
+			local carried = if prev
+					and prev ~= beat
+					and not OpeningPlan.CUT[prev]
+					and lineCache.step == prev
+				then GuidePlan.unheard(
+					Config,
+					lineCache.list,
+					prologueLast.t,
+					U.prologue.heard,
+					U.prologue.carry
+				)
+				else {}
+			list = GuidePlan.withCarry(Config, carried, list)
+		end
+		lineCache = { step = beat, side = side, list = list }
 	end
+	prologueLast.step, prologueLast.t = beat, t
 	GuideHud.timeline(lineCache, lineCache.list, t)
 end
 
@@ -204,7 +227,7 @@ local function buildMarker()
 	areaPart.Parent = Workspace
 end
 
-local function setMarker(t: { number }?, showDistance: boolean)
+local function setMarker(t: { number }?, showDistance: boolean, label: string?)
 	if not t then
 		markerGui.Enabled = false
 		return
@@ -217,7 +240,7 @@ local function setMarker(t: { number }?, showDistance: boolean)
 		markerText.Text =
 			string.format("%d studs", math.floor((root.Position - markerPart.Position).Magnitude))
 	else
-		markerText.Text = ""
+		markerText.Text = label or "" -- the prologue's goal word (Config.Ui.prologue.goals)
 	end
 end
 
@@ -744,7 +767,7 @@ local function frame()
 	local q = StoryClient.quest
 	-- the marker: the prologue's beat, else the mission's, else the pinned quest's
 	if step then
-		setMarker(if OpeningPlan.CUT[step] then nil else o.target, false)
+		setMarker(if OpeningPlan.CUT[step] then nil else o.target, false, U.prologue.goals[step])
 	elseif (m.num or 0) > 0 and not m.done then
 		setMarker(m.target, true)
 	elseif q and q.target then

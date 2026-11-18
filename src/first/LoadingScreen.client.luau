@@ -1,5 +1,7 @@
--- LoadingScreen (ReplicatedFirst): the Capeline title card over loading. The opening cinematic plays here
--- from M7 (spec: The opening). Removed once the game and the hero are loaded, or after 12 s.
+-- LoadingScreen (ReplicatedFirst): the Capeline title card over loading. Removed once the game, the body and
+-- the saved hero are loaded (the server's HeroLoaded attribute: a new player's creator opens about a second
+-- later, so there is no wait on a bare HUD in between), or after 12 s. A fixed status line under the spark
+-- says what is loading (onboarding check 2026-11-18).
 -- PLACEHOLDER ART: a title on a night sky gradient.
 
 local Players = game:GetService("Players")
@@ -46,6 +48,21 @@ spark.BorderSizePixel = 0
 spark.Rotation = 45
 spark.Parent = bg
 
+local status = Instance.new("TextLabel")
+status.BackgroundTransparency = 1
+status.AnchorPoint = Vector2.new(0.5, 0)
+status.Position = UDim2.fromScale(0.5, 0.67)
+status.Size = UDim2.fromScale(0.6, 0.05)
+status.Font = Enum.Font.GothamBold
+status.Text = "LOADING THE CITY"
+status.TextScaled = true
+status.TextColor3 = Color3.fromRGB(200, 214, 245)
+status.Parent = bg
+local limit = Instance.new("UITextSizeConstraint")
+limit.MaxTextSize = 22
+limit.MinTextSize = 10
+limit.Parent = status
+
 gui.Parent = player:WaitForChild("PlayerGui")
 TweenService:Create(
 	spark,
@@ -58,6 +75,10 @@ if not game:IsLoaded() then
 	game.Loaded:Wait()
 end
 while not player.Character and os.clock() - start < 12 do
+	task.wait(0.1)
+end
+status.Text = "LOADING YOUR HERO"
+while player:GetAttribute("HeroLoaded") ~= true and os.clock() - start < 12 do
 	task.wait(0.1)
 end
 -- Studio only: if the server hit an error, show it in a red box (tap to close) instead of an empty sky
@@ -97,5 +118,6 @@ end
 TweenService:Create(bg, TweenInfo.new(0.4), { BackgroundTransparency = 1 }):Play()
 TweenService:Create(title, TweenInfo.new(0.4), { TextTransparency = 1, TextStrokeTransparency = 1 }):Play()
 spark.Visible = false
+status.Visible = false
 task.wait(0.45)
 gui:Destroy()

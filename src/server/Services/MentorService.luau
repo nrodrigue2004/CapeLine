@@ -193,6 +193,11 @@ local function maybeAsk(player: Player)
 	if not s or asked[player] or not openingDone(player) then
 		return
 	end
+	-- the prologue pays level 3 at its title's start (a Leveled while the title card still plays): the picker
+	-- waits for OpeningService.Finished and Config.Mentors.afterOpening instead (onboarding check 2026-11-18)
+	if OpeningService.running(player) then
+		return
+	end
 	local side = StoryService.side(player)
 	if s.mentor ~= 0 and not MentorRules.fits(M, s, side) then
 		s.mentor = 0 -- a side change: pick again (earned looks stay wearable on either side)
