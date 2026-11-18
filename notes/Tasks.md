@@ -1543,3 +1543,9 @@ Play a new hero's prologue on a server with a second player (Studio Test > 2 pla
 4. Tunnel: just run. Each slab falls behind you with a shake and blocks the way back; none falls on you.
 5. Fight: Skylance stays inside the chamber (never through a wall) and the fight can be won with Basic alone.
 6. Swarm and rescue play as before; the title card ends it. Patch says "Security bots", Crane says "Guardians of Brightharbor!".
+
+## Studio list: walls, speed jump, power animations (2026-11-18)
+- [ ] Prologue subway fight: Skylance stays in the chamber or its tunnel, keeps throwing, fights when cornered; the 7 troopers start in the room and stay under the ceiling.
+- [ ] A mission pocket and the city: robots never walk or fly through a wall; fliers rise over buildings smoothly (no pop onto a roof); shots stop at walls.
+- [ ] Super-speed: sprint (hold Boost), tap Leap: a low fast hop at full speed. Hold Leap: hop after hop with no slowdown. Let go: land at full run. Watch for any speed pull-back.
+- [ ] Cast one skill from each path standing still and running: the whole body moves (stance, wind-up, release); nothing pops or twists oddly; Martial's spin kick turns cleanly.
