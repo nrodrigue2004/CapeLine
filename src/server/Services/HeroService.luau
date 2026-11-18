@@ -111,6 +111,9 @@ end
 
 -- DeathService: called when a player's health hits 0 from a PvE hit; returns true when it took over (Downed)
 HeroService.downHandler = nil :: ((Hero, any?) -> boolean)?
+-- DeathService: called when a player's humanoid dies outside the game's rules (Reset, the void); returns true
+-- when it took over (Reset while Downed is Give Up, a Reset mid PvP fight is that defeat)
+HeroService.resetHandler = nil :: ((Hero) -> boolean)?
 
 HeroService.Spawned = Signal.new() -- (hero) a player's character spawned or respawned
 HeroService.Defeated = Signal.new() -- (hero, source)
@@ -900,6 +903,9 @@ local function onCharacter(player: Player, char: Model)
 	hum.JumpPower = 0 -- Leap replaces the jump; this also hides the default touch jump button
 	hum.BreakJointsOnDeath = false
 	hum.Died:Connect(function()
+		if player.Character == char and HeroService.resetHandler and HeroService.resetHandler(hero) then
+			return -- DeathService settled it (Give Up, or the PvP defeat)
+		end
 		if hero.alive then
 			hero.alive = false
 			hero.health = 0

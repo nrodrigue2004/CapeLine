@@ -251,6 +251,11 @@ local function nameOf(heroId: number): string
 	return if player then player.DisplayName else "Hero"
 end
 
+-- Heroes still on the server (bots included): the ones who left give up their tier slot
+local function stillHere(heroId: number): boolean
+	return HeroService.byId(heroId) ~= nil
+end
+
 local function rewardHero(
 	f: Fight,
 	heroId: number,
@@ -273,7 +278,9 @@ local function rewardHero(
 		renown = if defeated then math.floor(renown * r.share + 0.5) else 0
 		EconomyService.addCredits(player, credits)
 		EconomyService.addRenown(player, renown)
-		EconomyService.Earned:Fire(player, r.earn) -- Fame or Infamy for the tier (M8)
+		if r.fame then
+			EconomyService.Earned:Fire(player, r.earn) -- Fame or Infamy for the tier (M8); a retreat pays none
+		end
 	end
 	local drops = 0
 	for _, src in r.drops do
@@ -332,14 +339,18 @@ local function finish(f: Fight, defeated: boolean)
 	end
 	f.over = true
 	clearTargets(f)
-	local scores = BossMath.scores(Config, f.ledger)
+	local scores = BossMath.scores(Config, BossMath.present(f.ledger, stillHere))
 	local tiers, ranked = BossMath.tiers(Config, scores)
 	local mvps = {}
 	for i = 1, math.min(B.contribution.mvp, #ranked) do
 		table.insert(mvps, nameOf(ranked[i]))
 	end
+	-- one hero's reward (or a Rewarded listener) failing must not stop the others' pay or the fight's end
 	for rank, heroId in ranked do
-		rewardHero(f, heroId, tiers[heroId], rank, defeated, mvps)
+		local ok, err = pcall(rewardHero, f, heroId, tiers[heroId], rank, defeated, mvps)
+		if not ok then
+			warn("[BossService] reward for hero " .. tostring(heroId) .. " failed: " .. tostring(err))
+		end
 	end
 	phase = "result"
 	resultUntil = os.clock() + SCHED.resultTime
@@ -449,7 +460,7 @@ local function statePacket(now: number): { [string]: any }
 end
 
 local function sendContribution(f: Fight)
-	local scores = BossMath.scores(Config, f.ledger)
+	local scores = BossMath.scores(Config, BossMath.present(f.ledger, stillHere))
 	local tiers, ranked = BossMath.tiers(Config, scores)
 	local rankOf = {}
 	for i, id in ranked do
@@ -497,10 +508,11 @@ function BossService.status(): string
 	return phase
 end
 
--- Is this hero inside a live world boss fight? (PvP rewards there are halved, M8)
+-- Is this hero inside a live world boss fight? (PvP rewards there are halved, M8.) Not once it is over:
+-- the result phase keeps `fight` for its timer, but PvP there pays in full (2026-11-18 fix)
 function BossService.inFight(hero: any): boolean
 	local f = fight
-	return f ~= nil and inArena(f, hero)
+	return f ~= nil and not f.over and inArena(f, hero)
 end
 
 function BossService.init()

@@ -21793,6 +21793,145 @@ do
 	end)
 end
 
+---------------------------------------------------------------------------
+-- World fixes (2026-11-18): the boss's string tiers, leavers' tier slots, no Fame on a retreat, the drain
+-- gap for bounties and Your double, a rampage cut short by the server cap, Reset while Downed or mid PvP.
+-- The services' own wiring is on the Studio list.
+---------------------------------------------------------------------------
+
+do
+	local PvpRules = require("../src/shared/PvpRules")
+	local Signal = require("../src/shared/Util/Signal")
+
+	test("World fixes: boss tiers are strings; tookPart reads them without throwing", function()
+		for _, t in { "mvp", "contributor", "participant", "floor" } do
+			check(BossMath.tookPart(t), t .. " took part")
+		end
+		for _, t: any in { "", 1, 3, false } do
+			check(not BossMath.tookPart(t), "not a tier: " .. tostring(t))
+		end
+		check(not BossMath.tookPart(nil), "no tier")
+		local tier: any = "mvp"
+		check(not pcall(function()
+			return tier >= 1
+		end), "the old check (a string >= 1) throws, as the review found")
+	end)
+
+	test("World fixes: one throwing reward listener no longer stops the other heroes' pay", function()
+		local rewarded = Signal.new()
+		rewarded:Connect(function(_player: any, tier: any)
+			if tier == "mvp" then
+				error("a listener's bug")
+			end
+		end)
+		local paid = {}
+		rewarded:Connect(function(player: any)
+			table.insert(paid, player)
+		end)
+		local scores = BossMath.scores(Config, {
+			[1] = { damage = 900, support = 0, objectives = 0 },
+			[2] = { damage = 500, support = 0, objectives = 0 },
+			[3] = { damage = 300, support = 0, objectives = 0 },
+			[4] = { damage = 100, support = 0, objectives = 0 },
+		})
+		local tiers, ranked = BossMath.tiers(Config, scores)
+		local ended = false
+		-- BossService.finish's loop: each hero's reward under its own pcall, then the result phase
+		for _, heroId in ranked do
+			pcall(function()
+				rewarded:Fire(heroId, tiers[heroId])
+			end)
+		end
+		ended = true
+		check(ended, "the fight reaches its result phase")
+		check(#paid == 1 and paid[1] == 4, "the hero after the MVPs still got the rest of their reward")
+	end)
+
+	test("World fixes: heroes who left give up their MVP and Contributor slots", function()
+		local ledger = {}
+		for id = 1, 6 do
+			ledger[id] = { damage = 1000 * (7 - id), support = 0, objectives = 0 } -- 1 is the top hitter
+		end
+		local gone = { [1] = true, [3] = true }
+		local here = BossMath.present(ledger, function(id)
+			return not gone[id]
+		end)
+		local tiers, ranked = BossMath.tiers(Config, BossMath.scores(Config, here))
+		check(#ranked == 4 and tiers[1] == nil and tiers[3] == nil, "the two who left get no tier")
+		check(tiers[2] == "mvp" and tiers[4] == "mvp" and tiers[5] == "mvp", "the next three are the MVPs")
+		check(ranked[1] == 2, "the top hitter still here ranks first")
+		check(next(BossMath.present(ledger, function()
+			return false
+		end)) == nil, "nobody here: an empty ledger")
+	end)
+
+	test("World fixes: a retreat pays its Credits consolation but no Fame; a win pays Fame", function()
+		for _, t in { "mvp", "contributor", "participant", "floor" } do
+			check(BossMath.reward(Config, t, true).fame, t .. ": a defeated boss pays the tier's Fame")
+			local r = BossMath.reward(Config, t, false)
+			check(not r.fame and #r.drops == 0 and not r.style, t .. ": a retreat pays no Fame")
+		end
+		check(BossMath.reward(Config, "mvp", false).share == Config.Boss.rewards.consolation, "the 25% stays")
+	end)
+
+	test(
+		"World fixes: a robot beaten in the drain gap is not gone, so bounties and Your double wait",
+		function()
+			local sim = EnemySim.new(Config, {})
+			local e = EnemySim.spawn(sim, "BruteBot", 0, 0, 0, 10) :: any
+			check(e ~= nil and not EnemySim.gone(sim, e.id), "a live robot is not gone")
+			check(EnemySim.damage(sim, e.id, math.huge, 1), "it falls")
+			-- the bounty's 5 Hz tick and the event's tick run here, before the 10 Hz drain fires Killed
+			check(
+				not EnemySim.gone(sim, e.id),
+				"killed, Killed not fired yet: not gone (no respawn, no fail)"
+			)
+			EnemySim.drainEvents(sim)
+			check(EnemySim.gone(sim, e.id), "after the drain it is gone")
+			local f = EnemySim.spawn(sim, "BruteBot", 0, 0, 0, 10) :: any
+			EnemySim.remove(sim, f.id)
+			check(
+				EnemySim.gone(sim, f.id),
+				"removed some other way: gone (the bounty respawns, the double ends)"
+			)
+		end
+	)
+
+	test("World fixes: a robot rampage cut short by the server cap can still be won", function()
+		local d = Config.Events.events.RobotRampage
+		local planned = 0
+		for _, w in d.waves do
+			planned += w[2]
+		end
+		local need = planned
+		local got = { d.waves[1][2], 1, 0, d.waves[4][2] } -- wave 2 got 1, wave 3 none
+		for i, w in d.waves do
+			need = EventPlan.shortNeed(need, w[2], got[i])
+		end
+		local spawned = 0
+		for _, n in got do
+			spawned += n
+		end
+		check(need == spawned, "the goal is the robots that came: " .. need .. " of " .. planned)
+		check(EventPlan.shortNeed(14, 3, 6) == 14, "a Swarmer's extra pack never raises the goal")
+		check(EventPlan.shortNeed(3, 4, 0) == 1, "never below 1")
+	end)
+
+	test("World fixes: Reset while Downed is Give Up; a Reset mid PvP fight is that defeat", function()
+		check(PvpRules.resetOutcome(true, false, nil) == "giveUp", "Downed: Give Up")
+		check(
+			PvpRules.resetOutcome(true, false, 77) == "giveUp",
+			"Downed with a recent PvP hit: still Give Up"
+		)
+		check(
+			PvpRules.resetOutcome(false, true, 77) == "pvp",
+			"standing, hit in PvP inside 15 s: that defeat"
+		)
+		check(PvpRules.resetOutcome(false, true, nil) == "plain", "standing, no PvP: a plain defeat")
+		check(PvpRules.resetOutcome(false, false, 77) == "plain", "already defeated: nothing more")
+	end)
+end
+
 print(string.format("\n%d passed, %d failed", passed, failed))
 if failed > 0 then
 	process.exit(1)

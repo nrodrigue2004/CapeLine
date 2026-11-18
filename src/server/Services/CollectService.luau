@@ -164,7 +164,7 @@ function CollectService.init()
 			CollectService.give(player, bit)
 		end
 	end)
-	BossService.Rewarded:Connect(function(player: Player, bossId: any, _tier: number, defeated: boolean)
+	BossService.Rewarded:Connect(function(player: Player, bossId: any, _tier: string, defeated: boolean)
 		local w = words(player)
 		if defeated and w and rng:chance(C.plateChance) then
 			CollectService.give(player, CollectPlan.bossPlate(C, w, tostring(bossId)))

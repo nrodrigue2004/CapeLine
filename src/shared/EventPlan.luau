@@ -266,6 +266,13 @@ function EventPlan.row(
 	return { kind = kind, n = n }
 end
 
+-- A robots event's goal after a wave the server cap cut short (planned robots, got spawned): it drops by
+-- the ones that never came, never below 1; a Swarmer's extra pack never raises it (2026-11-18 fix: at the
+-- cap a rampage could not be won)
+function EventPlan.shortNeed(need: number, planned: number, got: number): number
+	return math.max(1, need - math.max(0, planned - got))
+end
+
 -- An event's guard rows as a list (old events give one row { kind, n })
 function EventPlan.guardRows(def: any): { { any } }
 	local g = def.guards

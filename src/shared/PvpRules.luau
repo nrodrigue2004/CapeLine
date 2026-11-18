@@ -384,6 +384,20 @@ function PvpRules.reviveTime(config: any, classId: string): number
 	return if classId == "Mystic" then d.reviveWarden else d.reviveTime
 end
 
+-- What a Roblox Reset (the character dies outside the game's own rules) counts as (2026-11-18):
+-- * Downed: Give Up, with Give Up's costs only (none past the defeat itself)
+-- * standing, PvP damage taken within the combat-log window (attacker set): that PvP defeat, the same as
+--   leaving then, so a Reset never dodges a lost fight
+-- * otherwise: a plain defeat, as before
+function PvpRules.resetOutcome(downed: boolean, alive: boolean, attacker: number?): string
+	if downed then
+		return "giveUp"
+	elseif alive and attacker ~= nil then
+		return "pvp"
+	end
+	return "plain"
+end
+
 ---------------------------------------------------------------------------
 -- Fame and Infamy
 ---------------------------------------------------------------------------

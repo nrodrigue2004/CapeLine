@@ -139,8 +139,9 @@ local function down(hero: any, source: any?)
 	end
 end
 
--- Defeated: quick = Give Up (respawn now), else the normal 5 s respawn
-local function defeat(hero: any, quick: boolean)
+-- Defeated: quick = Give Up (respawn now), else the normal 5 s respawn. dead: the humanoid already died
+-- (a Reset while Downed): Roblox brings the character back on its own respawn timer
+local function defeat(hero: any, quick: boolean, dead: boolean?)
 	local d = downs[hero.id]
 	downs[hero.id] = nil
 	hero.downed = nil
@@ -153,10 +154,12 @@ local function defeat(hero: any, quick: boolean)
 	HeroService.Defeated:Fire(hero, d and d.source)
 	sendDown(hero, {
 		defeated = true,
-		respawnIn = if quick then 0 else Config.Pvp.respawn.pve,
+		respawnIn = if dead then Players.RespawnTime elseif quick then 0 else Config.Pvp.respawn.pve,
 		safehouses = if quick then nil else visitedList(hero),
 	})
-	if quick and player and player.Parent == Players then
+	if dead then
+		return
+	elseif quick and player and player.Parent == Players then
 		player:LoadCharacter()
 	else
 		local hum = HeroService.humanoid(hero)
@@ -319,6 +322,8 @@ local function settle(
 end
 
 local function pvpDefeat(loser: any, winner: any)
+	-- this fight is paid now: leaving within the combat-log window must not pay it again (2026-11-18 fix)
+	FlagService.clearAttacker(loser)
 	loser.alive = false
 	loser.health = 0
 	loser.channel = nil
@@ -369,6 +374,28 @@ local function onZero(hero: any, source: any?): boolean
 		down(hero, source)
 	end
 	return true
+end
+
+-- A Reset (the humanoid died outside these rules): Downed is Give Up, a standing hero inside the combat-log
+-- window loses that PvP fight (as leaving would), else HeroService's plain defeat (PvpRules.resetOutcome)
+local function onReset(hero: any): boolean
+	if not hero.player then
+		return false
+	end
+	local attackerId = FlagService.lastAttacker(hero, Config.Pvp.combatLog.window)
+	local winner = attackerId and HeroService.byId(attackerId)
+	if winner == hero or (winner and not winner.player) then
+		winner = nil
+	end
+	local outcome = PvpRules.resetOutcome(downs[hero.id] ~= nil, hero.alive == true, winner and winner.id)
+	if outcome == "giveUp" then
+		defeat(hero, true, true)
+		return true
+	elseif outcome == "pvp" and winner then
+		pvpDefeat(hero, winner)
+		return true
+	end
+	return false
 end
 
 -- Combat logging: a player who leaves within 15 s of PvP damage loses that fight, and the body stays 10 s
@@ -422,6 +449,7 @@ end
 
 function DeathService.init()
 	HeroService.downHandler = onZero
+	HeroService.resetHandler = onReset
 	-- Dawnburst (Light): every Downed ally within the radius stands up (allowed allies only)
 	local CombatService = require(script.Parent.CombatService) :: any
 	CombatService.reviveHook = function(helper: any, pos: Vector3, radius: number)
@@ -458,6 +486,11 @@ function DeathService.init()
 	DataService.Leaving:Connect(onLeaving)
 	HeroService.Spawned:Connect(function(hero)
 		downs[hero.id] = nil
+		-- a new character is never Downed: the attribute drives the crawl and the flight lock on the client
+		-- (a Reset while Downed left it set, 2026-11-18 fix)
+		if hero.player then
+			hero.player:SetAttribute("Downed", nil)
+		end
 		sendDown(hero, { respawned = true })
 	end)
 	HeroService.Removed:Connect(function(hero)

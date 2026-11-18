@@ -150,6 +150,18 @@ Soft-locks and pay bugs fixed in MissionService and OpeningService (rules in Sha
 7. Prologue, first time: on a new character the ceremony shows no SKIP. Dev "Prologue: Vigil" again (a replay) shows SKIP as before.
 8. Prologue, returning account: wait 2 minutes on the main menu, then PLAY THE PROLOGUE. The whole prologue plays (its 330 s clock starts at PLAY, not at the menu).
 9. Prologue safety: during the ceremony, let a city robot reach and hit the hero: health never drops below about 18%, and the hero is never Downed in the prologue.
+### Open-world fixes (2026-11-18)
+Boss, contract, event, incident and Downed fixes (tests: ONLY="World fixes"). Two players (Studio Test > 2 players) where it says so.
+1. Boss pay: DEV start the boss with 4 or more heroes (bots from the load test are fine), DEV weaken it and finish it: every hero gets the result card and pay, the Hero Pass XP lands, the Output shows no BossService error, and the next boss timer starts after the result.
+2. Boss leaver: player 2 does the most damage, then leaves before the end: player 1's card shows them as MVP #1 and the MVP names never show the leaver.
+3. Boss retreat: let a boss time out (8 minutes): the card pays 25% Credits only, and the Fame bar does not move.
+4. Boss result PvP: both players flagged in the arena; land a PvP defeat in the few seconds after the boss falls: the winner's PvP card pays in full (not the halved boss-fight pay).
+5. Bounty: take a Bounty contract and beat the elite 10 times (DEV re-take it each time): every kill counts on the tracker; a new elite never stands up where the beaten one fell.
+6. Your double: DEV start Your double and beat the twin 5 times: it always ends as a win and pays.
+7. Robot rampage: DEV spawn robots to near the 90 cap, then DEV start Robot rampage: the tracker asks only for the robots that came, and beating them all wins and pays.
+8. Incident at the cap: DEV spawn robots up to the cap, then take an incident whose first step is a fight: nothing there yet; clear a few robots and the squad appears within about 3 s, and the step finishes.
+9. Reset while Downed: get Downed by robots, then press Esc > Reset: you respawn standing, can fly, and do not crawl.
+10. Reset mid PvP: two flagged players; player 2 hits player 1, then player 1 Resets within 15 s: player 2 gets the PvP win card once. Player 1 leaves within 15 s of a PvP defeat: player 2 is not paid a second time.
 
 ### Side quest server fixes (2026-11-18)
 Seven soft-locks in SideQuestService fixed (tests: ONLY="SQ fixes"). Use the Dev panel's side quest jumps (300 + chain, then 100 + step) to reach each step.
