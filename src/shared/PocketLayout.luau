@@ -7,8 +7,12 @@
 -- are made by CityBuilder's part maker.
 -- PLACEHOLDER ART: every pocket is greybox parts until the art pass.
 -- (lore step 11, the character lines: "pound", the Spark Pound, Catchpole's Docks warehouse.)
+-- (overnight queue item 10: the side quests' pockets list their Blender looks, Layout.art: Shared.SetPieceKit
+-- placements in world studs over the decor boxes that carry their index as `art`; MissionService draws the
+-- meshes once nate imports ReplicatedStorage.Art.SetPieces and hides those boxes, else the boxes are drawn.)
 
 local BoxKit = if script then require(script.Parent.BoxKit) else (require :: any)("./BoxKit")
+local SetPieceKit = if script then require(script.Parent.SetPieceKit) else (require :: any)("./SetPieceKit")
 local HqRules = if script then require(script.Parent.HqRules) else (require :: any)("./HqRules")
 
 local PocketLayout = {}
@@ -35,6 +39,7 @@ export type Layout = {
 	lists: { [string]: { { number } } }, -- stations, crates, path, turrets, pillars, rooms
 	floorY: number,
 	cells: { [number]: { BoxKit.Box } }?, -- heights(): boxes by 25-stud cell
+	art: { SetPieceKit.Place }, -- the Blender looks over its boxes (Shared.SetPieceKit)
 }
 
 -- The centre of pocket i (1 to count)
@@ -75,8 +80,26 @@ local function box(
 	color: string,
 	opts: any?
 )
-	BoxKit.box(l.boxes, kind, l.cx + x, l.cy + y, l.cz + z, sx, sy, sz, color, opts)
+	local b = BoxKit.box(l.boxes, kind, l.cx + x, l.cy + y, l.cz + z, sx, sy, sz, color, opts)
+	if opts and opts.art then
+		(b :: any).art = opts.art
+	end
 end
+
+-- A Blender look (Shared.SetPieceKit) at x, y, z in the pocket's own studs, turned ry degrees; returns its index
+local function look(l: Layout, name: string, x: number, y: number, z: number, ry: number?, tint: any?): number
+	return SetPieceKit.place(l.art, name, l.cx + x, l.cy + y, l.cz + z, ry, nil, tint)
+end
+
+-- The options for a decor box a look stands over (no collision, as every pocket decor box)
+local function art(i: number, shape: string?): any
+	return { tag = "decor", ghost = true, art = i, shape = shape }
+end
+
+-- Bright toy and coral colours a look's copies take (SetPieceKit tints)
+local TOY =
+	{ red = { 228, 62, 56 }, blue = { 60, 124, 226 }, white = { 246, 242, 232 }, gold = { 250, 200, 60 } }
+local CORAL = { { 255, 120, 120 }, { 255, 180, 90 }, { 190, 120, 230 }, { 90, 210, 190 } }
 
 local function point(l: Layout, name: string, x: number, y: number, z: number)
 	l.points[name] = { l.cx + x, l.cy + y, l.cz + z }
@@ -478,42 +501,57 @@ function BUILD.toyshop(l: Layout, _Config: any)
 	box(l, "plaza", 0, D + 0.1, 80, 396, 0.2, 232, "wood")
 	point(l, "spawn", 0, D + 3, 172)
 	-- the front: the big clock sign over the door, the shop window's glow
-	box(l, "glow", 0, D + 22, 195, 16, 16, 1, "beaconGlow", deco)
-	box(l, "prop", 0, D + 22, 194.2, 1, 6, 0.4, "steel", deco) -- the clock's hands
-	box(l, "prop", 2, D + 22, 194.2, 4, 1, 0.4, "steel", deco)
+	local clock = look(l, "ToyClock", 0, D + 22, 195)
+	box(l, "glow", 0, D + 22, 195, 16, 16, 1, "beaconGlow", art(clock))
+	box(l, "prop", 0, D + 22, 194.2, 1, 6, 0.4, "steel", art(clock)) -- the clock's hands
+	box(l, "prop", 2, D + 22, 194.2, 4, 1, 0.4, "steel", art(clock))
 	box(l, "glow", 0, D + 9, 196, 160, 10, 1, "window", deco)
 	-- the aisles: tall toy shelves in rows, west (room 1) and east (room 2), toys on every shelf
 	for k = -1, 1, 2 do
 		for r = 0, 2 do
 			local z = 40 + r * 36
-			box(l, "prop", k * 130, D + 6, z, 70, 12, 4, "wood", deco)
+			local tint = {}
+			for c = 0, 4 do
+				local m = (r + c) % 3
+				tint["ShelfToy" .. (c + 1)] = if m == 0 then TOY.red elseif m == 1 then TOY.blue else TOY.white
+			end
+			-- (the far shelf turned round, so its toys run the same way along it)
+			local shelf = look(l, "ToyShelf", k * 130, D, z, if k == 1 then 0 else 180, tint)
+			box(l, "prop", k * 130, D + 6, z, 70, 12, 4, "wood", art(shelf))
 			for c = 0, 4 do
 				local col = if (r + c) % 3 == 0
 					then "roofRed"
 					elseif (r + c) % 3 == 1 then "roofBlue"
 					else "white"
-				box(l, "prop", k * (100 + c * 14), D + 13.5, z, 4, 3, 3, col, deco)
+				box(l, "prop", k * (100 + c * 14), D + 13.5, z, 4, 3, 3, col, art(shelf))
 			end
 		end
 		add(l, "rooms", k * 130, D + 0.5, 58)
 	end
 	-- the playroom: a round rug, a toy train ring, giant blocks and the music box that plays the Toymaker's tune
 	box(l, "plaza", 0, D + 0.25, 60, 64, 0.3, 64, "roofRed", { shape = "cylinder" })
+	local train = look(l, "ToyTrain", 0, D, 60)
 	for i = 0, 7 do
 		local a = i * math.pi / 4
-		box(l, "prop", math.cos(a) * 26, D + 1, 60 + math.sin(a) * 26, 5, 2, 3, "steel", deco)
+		box(l, "prop", math.cos(a) * 26, D + 1, 60 + math.sin(a) * 26, 5, 2, 3, "steel", art(train))
 	end
 	for i, p in { { -20, 30 }, { 22, 34 }, { -24, 92 } } do
-		box(l, "prop", p[1], D + 2.5, p[2], 5, 5, 5, if i == 2 then "roofBlue" else "white", deco)
+		local blk = look(l, "ToyBlock", p[1], D, p[2], (i - 1) * 25, {
+			ToyBlockBody = if i == 2 then TOY.blue else TOY.white,
+			ToyBlockMarks = if i == 2 then TOY.gold else TOY.red,
+		})
+		box(l, "prop", p[1], D + 2.5, p[2], 5, 5, 5, if i == 2 then "roofBlue" else "white", art(blk))
 	end
-	box(l, "prop", 18, D + 4, 88, 10, 8, 8, "wood", deco) -- the music box
-	box(l, "glow", 18, D + 8.5, 88, 6, 0.6, 6, "beaconGlow", deco)
+	local music = look(l, "MusicBox", 18, D, 88)
+	box(l, "prop", 18, D + 4, 88, 10, 8, 8, "wood", art(music)) -- the music box
+	box(l, "glow", 18, D + 8.5, 88, 6, 0.6, 6, "beaconGlow", art(music))
 	point(l, "playroom", 0, D + 0.5, 60)
 	-- the back wall, the counter and the trapdoor behind it
 	box(l, "building", -107, D + 15, -34, 178, 30, 4, "white")
 	box(l, "building", 107, D + 15, -34, 178, 30, 4, "white")
-	box(l, "prop", 0, D + 2, -14, 50, 4, 6, "wood", deco) -- the counter
-	box(l, "prop", -16, D + 5, -14, 4, 3, 3, "steel", deco) -- the till
+	local counter = look(l, "ShopCounter", 0, D, -14)
+	box(l, "prop", 0, D + 2, -14, 50, 4, 6, "wood", art(counter)) -- the counter
+	box(l, "prop", -16, D + 5, -14, 4, 3, 3, "steel", art(counter)) -- the till
 	point(l, "trapdoor", 0, D + 0.5, -28)
 	-- the stairwell down: 9 steps of 2 studs from the shop floor to the basement floor, walled both sides
 	for i = 1, 9 do
@@ -532,19 +570,23 @@ function BUILD.toyshop(l: Layout, _Config: any)
 	-- the four winders: big brass keys turning on plinths, piped to the Tap
 	for _, p in { { -120, -80 }, { -120, -150 }, { 120, -80 }, { 120, -150 } } do
 		add(l, "winders", p[1], 0.5, p[2])
-		box(l, "prop", p[1], 0.5, p[2], 9, 1, 9, "steel", deco)
-		box(l, "prop", p[1], 5, p[2], 2, 8, 2, "roof", deco)
-		box(l, "prop", p[1], 9, p[2], 8, 3, 1, "roof", deco)
-		box(l, "prop", p[1] / 2, 14, p[2], math.abs(p[1]), 1.5, 1.5, "steel", deco) -- its pipe to the middle
+		-- (the key's pipe runs along its look's +x to the middle: the east keys are turned round)
+		local key = look(l, "WindKey", p[1], 0, p[2], if p[1] < 0 then 0 else 180)
+		box(l, "prop", p[1], 0.5, p[2], 9, 1, 9, "steel", art(key))
+		box(l, "prop", p[1], 5, p[2], 2, 8, 2, "roof", art(key))
+		box(l, "prop", p[1], 9, p[2], 8, 3, 1, "roof", art(key))
+		box(l, "prop", p[1] / 2, 14, p[2], math.abs(p[1]), 1.5, 1.5, "steel", art(key)) -- its pipe to the middle
 	end
 	-- the Tantrum Tap: a brass tank fed by the main pipe, its gauge glowing, and the toy soldier benches either side
-	box(l, "prop", 0, 14, -127.5, 1.5, 1.5, 95, "steel", deco)
-	box(l, "prop", 0, 9, -178, 26, 18, 26, "roof", { shape = "cylinder", tag = "decor", ghost = true })
-	box(l, "glow", 0, 12, -164.6, 8, 4, 0.4, "nullGlow", deco)
+	local tap = look(l, "TantrumTap", 0, 0, -178)
+	box(l, "prop", 0, 14, -127.5, 1.5, 1.5, 95, "steel", art(tap))
+	box(l, "prop", 0, 9, -178, 26, 18, 26, "roof", art(tap, "cylinder"))
+	box(l, "glow", 0, 12, -164.6, 8, 4, 0.4, "nullGlow", art(tap))
 	for k = -1, 1, 2 do
-		box(l, "prop", k * 60, 1.5, -190, 60, 3, 8, "wood", deco)
+		local bench = look(l, "SoldierBench", k * 60, 0, -190, if k == 1 then 0 else 180)
+		box(l, "prop", k * 60, 1.5, -190, 60, 3, 8, "wood", art(bench))
 		for i = 0, 3 do
-			box(l, "prop", k * (40 + i * 12), 5, -190, 3, 5, 3, "roofRed", deco)
+			box(l, "prop", k * (40 + i * 12), 5, -190, 3, 5, 3, "roofRed", art(bench))
 		end
 	end
 	for _, x in { -150, -60, 60, 150 } do
@@ -581,21 +623,28 @@ function BUILD.seacave(l: Layout, _Config: any)
 	for k = -1, 1, 2 do
 		box(l, "glow", k * 130, D + 0.25, 58, 60, 0.3, 50, "water", deco)
 		for i = 0, 3 do
-			box(l, "prop", k * (100 + i * 20), D + 2.5, 30 + (i % 2) * 56, 8, 5, 7, "rock", deco)
-			box(l, "prop", k * (108 + i * 14), D + 1.5, 82, 3, 3, 3, corals[i + 1], deco)
+			local rx, rz = k * (100 + i * 20), 30 + (i % 2) * 56
+			local rock = look(l, "CaveRock", rx, D, rz, (i + (k + 1) * 2) * 90)
+			box(l, "prop", rx, D + 2.5, rz, 8, 5, 7, "rock", art(rock))
+			local cx = k * (108 + i * 14)
+			local coral = look(l, "Coral", cx, D, 82, i * 70 + k * 20, { CoralBranch = CORAL[i + 1] })
+			box(l, "prop", cx, D + 1.5, 82, 3, 3, 3, corals[i + 1], art(coral))
 		end
 		add(l, "rooms", k * 130, D + 0.5, 58)
 	end
 	-- the wharf: a plank landing, four mooring posts, a rowboat and Finn's cage
 	box(l, "plaza", 0, D + 0.25, 60, 60, 0.3, 50, "wood")
-	for _, p in { { -28, 36 }, { 28, 36 }, { -28, 84 }, { 28, 84 } } do
-		box(l, "prop", p[1], D + 2.5, p[2], 2, 5, 2, "wood", deco)
+	for i, p in { { -28, 36 }, { 28, 36 }, { -28, 84 }, { 28, 84 } } do
+		local post = look(l, "MooringPost", p[1], D, p[2], i * 90)
+		box(l, "prop", p[1], D + 2.5, p[2], 2, 5, 2, "wood", art(post))
 	end
-	box(l, "prop", 20, D + 1, 42, 6, 2, 14, "wreck", deco)
+	local boat = look(l, "Rowboat", 20, D, 42)
+	box(l, "prop", 20, D + 1, 42, 6, 2, 14, "wreck", art(boat))
+	local cage = look(l, "FinnCage", 0, D, 88)
 	for _, p in { { -5, 83 }, { 5, 83 }, { -5, 93 }, { 5, 93 } } do
-		box(l, "prop", p[1], D + 4, p[2], 0.6, 8, 0.6, "steel", deco)
+		box(l, "prop", p[1], D + 4, p[2], 0.6, 8, 0.6, "steel", art(cage))
 	end
-	box(l, "prop", 0, D + 8.2, 88, 11, 0.4, 11, "steel", deco)
+	box(l, "prop", 0, D + 8.2, 88, 11, 0.4, 11, "steel", art(cage))
 	point(l, "wharf", 0, D + 0.5, 60)
 	-- the back wall, its lanterns and the rock steps behind it
 	box(l, "building", -107, D + 15, -34, 178, 30, 4, "rock")
@@ -620,24 +669,28 @@ function BUILD.seacave(l: Layout, _Config: any)
 	box(l, "building", 0, D + 2, -152, 40, 4, 92, "rock", ceil)
 	-- the Drowned Gull in its sea pool: hull, deck, mast, the hologram sails and the lens that throws them
 	box(l, "glow", 80, 0.25, -150, 90, 0.3, 80, "sea", deco)
-	box(l, "prop", 80, 2.5, -150, 22, 5, 60, "wreck", deco)
-	box(l, "prop", 80, 5.2, -150, 20, 0.4, 56, "wood", deco)
-	box(l, "prop", 80, 11, -150, 1.6, 12, 1.6, "wood", deco)
+	local ship = look(l, "DrownedGull", 80, 0, -150)
+	box(l, "prop", 80, 2.5, -150, 22, 5, 60, "wreck", art(ship))
+	box(l, "prop", 80, 5.2, -150, 20, 0.4, 56, "wood", art(ship))
+	box(l, "prop", 80, 11, -150, 1.6, 12, 1.6, "wood", art(ship))
 	for _, z in { -138, -162 } do
-		box(l, "glow", 80, 12, z, 0.4, 8, 18, "water", deco)
+		box(l, "glow", 80, 12, z, 0.4, 8, 18, "water", art(ship))
 	end
-	box(l, "glow", 80, 17.5, -150, 2, 2, 2, "sparkGlow", { tag = "decor", ghost = true, shape = "ball" })
+	box(l, "glow", 80, 17.5, -150, 2, 2, 2, "sparkGlow", art(ship, "ball"))
 	-- the four projector rigs that throw the ghost ship: a plinth, a post and a glowing lens each
 	for _, p in { { -140, -80 }, { -140, -160 }, { 140, -80 }, { 140, -180 } } do
 		add(l, "projectors", p[1], 0.5, p[2])
-		box(l, "prop", p[1], 0.5, p[2], 7, 1, 7, "steel", deco)
-		box(l, "prop", p[1], 4, p[2], 1.5, 6, 1.5, "steel", deco)
-		box(l, "glow", p[1], 7.5, p[2], 3, 3, 3, "sparkGlow", { tag = "decor", ghost = true, shape = "ball" })
+		-- (each rig's lamp faces the ship's pool in the middle)
+		local rig = look(l, "Projector", p[1], 0, p[2], if p[1] < 0 then 0 else 180)
+		box(l, "prop", p[1], 0.5, p[2], 7, 1, 7, "steel", art(rig))
+		box(l, "prop", p[1], 4, p[2], 1.5, 6, 1.5, "steel", art(rig))
+		box(l, "glow", p[1], 7.5, p[2], 3, 3, 3, "sparkGlow", art(rig, "ball"))
 	end
 	-- the treasure along the back: chests with gold heaped on them
 	for i = -2, 2 do
-		box(l, "prop", i * 24, 1.5, -192, 8, 3, 5, "wood", deco)
-		box(l, "prop", i * 24, 3.3, -192, 6, 0.6, 3, "cargo", deco)
+		local chest = look(l, "TreasureChest", i * 24, 0, -192)
+		box(l, "prop", i * 24, 1.5, -192, 8, 3, 5, "wood", art(chest))
+		box(l, "prop", i * 24, 3.3, -192, 6, 0.6, 3, "cargo", art(chest))
 	end
 	for _, x in { -150, -60, 60, 150 } do
 		box(l, "glow", x, D - 0.6, -117, 10, 0.6, 3, "workLamp", deco)
@@ -663,32 +716,40 @@ function BUILD.velmara(l: Layout, _Config: any)
 	box(l, "plaza", 0, D + 0.1, 80, 396, 0.2, 232, "sand")
 	point(l, "spawn", 0, D + 3, 172)
 	-- the drowned gate: two bronze pillars and a lintel with glowing runes, the sea held back beyond it
+	local gate = look(l, "DrownedGate", 0, D, 186)
 	for k = -1, 1, 2 do
-		box(l, "prop", k * 26, D + 18, 186, 10, 36, 10, "rust", deco)
+		box(l, "prop", k * 26, D + 18, 186, 10, 36, 10, "rust", art(gate))
 		box(l, "prop", k * 120, D + 20, 190, 180, 40, 12, "rock", deco)
 	end
-	box(l, "prop", 0, D + 39, 186, 64, 6, 10, "rust", deco)
-	box(l, "glow", 0, D + 39, 180.8, 40, 1.5, 0.4, "sparkGlow", deco)
+	box(l, "prop", 0, D + 39, 186, 64, 6, 10, "rust", art(gate))
+	box(l, "glow", 0, D + 39, 180.8, 40, 1.5, 0.4, "sparkGlow", art(gate))
 	box(l, "glow", 0, D + 18, 196, 200, 36, 1, "water", deco)
 	-- the market streets, west (room 1) and east (room 2): stall counters, broken columns and coral
 	local corals = { "coralA", "coralB", "coralC", "coralD" }
 	for k = -1, 1, 2 do
 		for i = 0, 2 do
-			box(l, "prop", k * 130, D + 2, 28 + i * 30, 18, 4, 6, "cargo", deco)
-			box(l, "prop", k * (96 + i * 34), D + 7 - i * 2, 98, 4, 14 - i * 4, 4, "white", deco)
+			local stall = look(l, "MarketStall", k * 130, D, 28 + i * 30, if k == 1 then 0 else 180)
+			box(l, "prop", k * 130, D + 2, 28 + i * 30, 18, 4, 6, "cargo", art(stall))
+			local column = ({ "ColumnTall", "ColumnMid", "ColumnStub" })[i + 1]
+			local col = look(l, column, k * (96 + i * 34), D, 98, (i + 1) * k * 40)
+			box(l, "prop", k * (96 + i * 34), D + 7 - i * 2, 98, 4, 14 - i * 4, 4, "white", art(col))
 		end
 		for i = 0, 3 do
-			box(l, "prop", k * (100 + i * 22), D + 1.5, 12 + (i % 2) * 90, 3, 3, 3, corals[i + 1], deco)
+			local cx, cz = k * (100 + i * 22), 12 + (i % 2) * 90
+			local coral = look(l, "Coral", cx, D, cz, i * 80 + k * 30, { CoralBranch = CORAL[i + 1] })
+			box(l, "prop", cx, D + 1.5, cz, 3, 3, 3, corals[i + 1], art(coral))
 		end
 		box(l, "crop", k * 170, D + 6, 60, 0.8, 12, 0.8, "kelp", deco)
 		add(l, "rooms", k * 130, D + 0.5, 58)
 	end
 	-- the old fountain: a basin round a bronze statue of the Tidewright, its eyes still glowing
-	box(l, "plaza", 0, D + 0.6, 60, 34, 1.2, 34, "white")
+	-- (the basin stays solid under its look: only its colour gives way to the stone rim)
+	local fountain = look(l, "Fountain", 0, D, 60)
+	box(l, "plaza", 0, D + 0.6, 60, 34, 1.2, 34, "white", { art = fountain })
 	box(l, "glow", 0, D + 1.3, 60, 30, 0.3, 30, "sea", deco)
-	box(l, "prop", 0, D + 6, 60, 5, 10, 5, "rust", deco)
-	box(l, "prop", 0, D + 13, 60, 4, 4, 4, "rust", { tag = "decor", ghost = true, shape = "ball" })
-	box(l, "glow", 0, D + 13.4, 58, 2.4, 0.5, 0.4, "sparkGlow", deco)
+	box(l, "prop", 0, D + 6, 60, 5, 10, 5, "rust", art(fountain))
+	box(l, "prop", 0, D + 13, 60, 4, 4, 4, "rust", art(fountain, "ball"))
+	box(l, "glow", 0, D + 13.4, 58, 2.4, 0.5, 0.4, "sparkGlow", art(fountain))
 	point(l, "fountain", 0, D + 1.5, 60)
 	-- the back wall, its rune lamps and the great stair behind it
 	box(l, "building", -107, D + 15, -34, 178, 30, 4, "slate")
@@ -714,19 +775,23 @@ function BUILD.velmara(l: Layout, _Config: any)
 	-- the four tide engines: a plinth, a bronze drum and a glowing core each
 	for _, p in { { -140, -80 }, { -140, -160 }, { 140, -80 }, { 140, -170 } } do
 		add(l, "pumps", p[1], 0.5, p[2])
-		box(l, "prop", p[1], 0.5, p[2], 9, 1, 9, "slate", deco)
-		box(l, "prop", p[1], 5, p[2], 6, 8, 6, "rust", { tag = "decor", ghost = true, shape = "cylinder" })
-		box(l, "glow", p[1], 10, p[2], 3, 3, 3, "sparkGlow", { tag = "decor", ghost = true, shape = "ball" })
+		local engine = look(l, "TideEngine", p[1], 0, p[2], if p[1] < 0 then 0 else 180)
+		box(l, "prop", p[1], 0.5, p[2], 9, 1, 9, "slate", art(engine))
+		box(l, "prop", p[1], 5, p[2], 6, 8, 6, "rust", art(engine, "cylinder"))
+		box(l, "glow", p[1], 10, p[2], 3, 3, 3, "sparkGlow", art(engine, "ball"))
 	end
 	-- the great sea valve along the back: a wheel on a wall of bronze pipes, sea water glowing behind a grille
+	local valve = look(l, "SeaValve", 0, 0, -194)
 	for i = -3, 3 do
-		box(l, "prop", i * 18, 8, -194, 4, 16, 4, "rust", { tag = "decor", ghost = true, shape = "cylinder" })
+		box(l, "prop", i * 18, 8, -194, 4, 16, 4, "rust", art(valve, "cylinder"))
 	end
 	box(l, "glow", 0, 9, -197, 140, 14, 1, "water", deco)
-	box(l, "prop", 0, 10, -190, 14, 14, 1.5, "rust", { tag = "decor", ghost = true, shape = "cylinder" })
+	box(l, "prop", 0, 10, -190, 14, 14, 1.5, "rust", art(valve, "cylinder"))
 	-- coral grown over the hall's floor and kelp up its pillars
 	for i = 0, 5 do
-		box(l, "prop", -100 + i * 40, 1, -120 + (i % 2) * 30, 3, 2, 3, corals[i % 4 + 1], deco)
+		local cx, cz = -100 + i * 40, -120 + (i % 2) * 30
+		local coral = look(l, "Coral", cx, 0, cz, i * 60, { CoralBranch = CORAL[i % 4 + 1] })
+		box(l, "prop", cx, 1, cz, 3, 2, 3, corals[i % 4 + 1], art(coral))
 	end
 	for _, x in { -150, -60, 60, 150 } do
 		box(l, "glow", x, D - 0.6, -117, 10, 0.6, 3, "sparkGlow", deco)
@@ -753,37 +818,41 @@ function BUILD.pit(l: Layout, _Config: any)
 	box(l, "plaza", 0, D + 0.1, 80, 396, 0.2, 232, "sand")
 	point(l, "spawn", 0, D + 3, 172)
 	-- the mine lift: a steel cage on four rails, its winding frame and a work lamp
+	local lift = look(l, "MineLift", 0, D, 189)
 	for _, p in { { -10, 182 }, { 10, 182 }, { -10, 196 }, { 10, 196 } } do
-		box(l, "prop", p[1], D + 9, p[2], 1, 18, 1, "steel", deco)
+		box(l, "prop", p[1], D + 9, p[2], 1, 18, 1, "steel", art(lift))
 	end
-	box(l, "prop", 0, D + 18.5, 189, 22, 1, 16, "steel", deco)
-	box(l, "prop", 0, D + 26, 196, 2, 14, 2, "steel", deco)
-	box(l, "prop", 0, D + 32, 196, 14, 2, 2, "steel", deco)
+	box(l, "prop", 0, D + 18.5, 189, 22, 1, 16, "steel", art(lift))
+	box(l, "prop", 0, D + 26, 196, 2, 14, 2, "steel", art(lift))
+	box(l, "prop", 0, D + 32, 196, 14, 2, 2, "steel", art(lift))
 	box(l, "glow", 0, D + 17.4, 189, 6, 0.6, 6, "workLamp", deco)
 	-- the mine tunnel, west (room 1): timber props in pairs under a beam, cart rails and an old mine cart
 	for i = 0, 3 do
 		local z = 20 + i * 36
+		local timber = look(l, "MineTimber", -130, D, z, i * 180)
 		for k = -1, 1, 2 do
-			box(l, "prop", -130 + k * 32, D + 10, z, 3, 20, 3, "wood", deco)
+			box(l, "prop", -130 + k * 32, D + 10, z, 3, 20, 3, "wood", art(timber))
 		end
-		box(l, "prop", -130, D + 20.5, z, 70, 2, 3, "wood", deco)
+		box(l, "prop", -130, D + 20.5, z, 70, 2, 3, "wood", art(timber))
 	end
 	for k = -1, 1, 2 do
 		box(l, "prop", -130 + k * 4, D + 0.4, 74, 1, 0.6, 140, "steel", deco)
 	end
-	box(l, "prop", -130, D + 2.5, 44, 8, 4, 12, "rust", deco)
+	local cart = look(l, "MineCart", -130, D, 44)
+	box(l, "prop", -130, D + 2.5, 44, 8, 4, 12, "rust", art(cart))
 	box(l, "glow", -130, D + 19.2, 74, 4, 0.6, 4, "workLamp", deco)
 	add(l, "rooms", -130, D + 0.5, 74)
 	-- the bookies' corner, east (room 2): stacked crates of cash bags under a lamp
 	for i = 0, 5 do
 		local x, z = 110 + (i % 3) * 20, 50 + (i // 3) * 40
-		box(l, "prop", x, D + 3, z, 10, 6, 10, "wood", deco)
-		box(l, "prop", x, D + 6.6, z, 6, 1.2, 6, "cargo", deco)
+		local crate = look(l, "CashCrate", x, D, z, i * 90)
+		box(l, "prop", x, D + 3, z, 10, 6, 10, "wood", art(crate))
+		box(l, "prop", x, D + 6.6, z, 6, 1.2, 6, "cargo", art(crate))
 	end
 	box(l, "glow", 130, D + 19.2, 74, 4, 0.6, 4, "workLamp", deco)
 	add(l, "rooms", 130, D + 0.5, 74)
 	-- the betting hall: the bookies' counter under the odds board (three dark rows of odds on a glowing board)
-	box(l, "prop", 0, D + 2, 124, 60, 4, 6, "wood", deco)
+	box(l, "prop", 0, D + 2, 124, 60, 4, 6, "wood", art(look(l, "BookieCounter", 0, D, 124)))
 	box(l, "glow", 0, D + 18, 134, 70, 14, 1, "window", deco)
 	for r = 0, 2 do
 		box(l, "prop", 0, D + 14 + r * 4, 133.3, 60, 0.6, 0.4, "scorch", deco)
@@ -792,9 +861,10 @@ function BUILD.pit(l: Layout, _Config: any)
 	-- the four rigged odds machines along the hall: a red cabinet, its glowing gold dial and a lever
 	for _, x in { -75, -25, 25, 75 } do
 		add(l, "odds", x, D + 0.5, 30)
-		box(l, "prop", x, D + 4, 30, 6, 8, 4, "relicRed", deco)
-		box(l, "glow", x, D + 6, 27.8, 4, 3, 0.4, "bank", deco)
-		box(l, "prop", x + 3.6, D + 5, 30, 0.6, 4, 0.6, "steel", deco)
+		local odds = look(l, "OddsMachine", x, D, 30)
+		box(l, "prop", x, D + 4, 30, 6, 8, 4, "relicRed", art(odds))
+		box(l, "glow", x, D + 6, 27.8, 4, 3, 0.4, "bank", art(odds))
+		box(l, "prop", x + 3.6, D + 5, 30, 0.6, 4, 0.6, "steel", art(odds))
 	end
 	-- the gallery's rail over the Pit (waist high, a gap for the steps) and lamps along it
 	box(l, "prop", -107, D + 1.5, -34, 178, 3, 1, "steel", deco)
@@ -814,22 +884,37 @@ function BUILD.pit(l: Layout, _Config: any)
 	local R, S = RING.size, RING.stage
 	box(l, "building", 0, S / 2, RING.z, R, S, R, "roofBlue")
 	box(l, "plaza", 0, S + 0.05, RING.z, R - 4, 0.1, R - 4, "white")
+	local ropes = look(l, "RingRopes", 0, S, RING.z)
 	for _, c in { { -1, -1 }, { 1, -1 }, { 1, 1 }, { -1, 1 } } do
-		box(l, "prop", c[1] * (R / 2 - 1), S + 4, RING.z + c[2] * (R / 2 - 1), 1.2, 8, 1.2, "steel", deco)
+		box(
+			l,
+			"prop",
+			c[1] * (R / 2 - 1),
+			S + 4,
+			RING.z + c[2] * (R / 2 - 1),
+			1.2,
+			8,
+			1.2,
+			"steel",
+			art(ropes)
+		)
 	end
 	for _, y in { 3, 5.5, 8 } do
 		for k = -1, 1, 2 do
-			box(l, "glow", k * (R / 2 - 1), S + y, RING.z, 0.4, 0.4, R - 2, "relicRed", deco)
-			box(l, "glow", 0, S + y, RING.z + k * (R / 2 - 1), R - 2, 0.4, 0.4, "relicRed", deco)
+			box(l, "glow", k * (R / 2 - 1), S + y, RING.z, 0.4, 0.4, R - 2, "relicRed", art(ropes))
+			box(l, "glow", 0, S + y, RING.z + k * (R / 2 - 1), R - 2, 0.4, 0.4, "relicRed", art(ropes))
 		end
 	end
 	point(l, "ring", 0, S + 0.5, RING.z + 8)
 	point(l, "boss", 0, S + 0.5, RING.z - 6)
 	-- four floodlights on tall poles at the ring's corners, their lamps over the canvas
+	-- (each lamp hangs toward the ring: the look's lamp is at its -x, -z, turned to each corner)
+	local FLOOD_TURN = { [-1] = { [-1] = 180, [1] = -90 }, [1] = { [-1] = 90, [1] = 0 } }
 	for _, c in { { -1, -1 }, { 1, -1 }, { 1, 1 }, { -1, 1 } } do
 		local x, z = c[1] * (R / 2 + 10), RING.z + c[2] * (R / 2 + 10)
-		box(l, "prop", x, 15, z, 1.5, 30, 1.5, "steel", deco)
-		box(l, "glow", x - c[1] * 3, 30, z - c[2] * 3, 6, 2, 6, "beaconLight", deco)
+		local flood = look(l, "PitFlood", x, 0, z, FLOOD_TURN[c[1]][c[2]])
+		box(l, "prop", x, 15, z, 1.5, 30, 1.5, "steel", art(flood))
+		box(l, "glow", x - c[1] * 3, 30, z - c[2] * 3, 6, 2, 6, "beaconLight", art(flood))
 	end
 	-- the crowd's rock benches, three tiers round the west, east and north sides, and the family's box seat
 	for t = 1, 3 do
@@ -841,14 +926,19 @@ function BUILD.pit(l: Layout, _Config: any)
 		box(l, "building", 0, hgt / 2, -194 + (t - 1) * 12, 2 * inset, hgt, 12, "rock")
 	end
 	box(l, "building", 0, 4, -188, 30, 8, 10, "rock")
-	box(l, "prop", 0, 10, -188, 8, 4, 6, "bank", deco) -- the Pitboss's gold chair
-	box(l, "prop", 0, 13.5, -190.5, 8, 5, 1, "bank", deco)
-	-- the crowd: cardboard-cutout fans on the benches (PLACEHOLDER ART until the art pass)
+	local throne = look(l, "GoldThrone", 0, 8, -188)
+	box(l, "prop", 0, 10, -188, 8, 4, 6, "bank", art(throne)) -- the Pitboss's gold chair
+	box(l, "prop", 0, 13.5, -190.5, 8, 5, 1, "bank", art(throne))
+	-- the crowd: cheering fans on the benches, facing the ring (PLACEHOLDER ART until Art.SetPieces is imported)
+	local SHIRTS = { TOY.red, TOY.blue, TOY.gold, { 90, 200, 110 }, { 240, 120, 40 }, { 160, 90, 220 } }
 	for i = 0, 11 do
 		local k = if i % 2 == 0 then -1 else 1
 		local t = (i // 2) % 3 + 1
 		local z = -170 + (i // 6) * 60
-		box(l, "prop", k * (120 - (t - 1) * 12 + 6), t * 2 + 2.5, z, 2, 3, 1.5, "scorch", deco)
+		local x = k * (120 - (t - 1) * 12 + 6)
+		local fan =
+			look(l, "CrowdFan", x, t * 2, z, if k == 1 then 90 else -90, { FanShirt = SHIRTS[i % 6 + 1] })
+		box(l, "prop", x, t * 2 + 2.5, z, 2, 3, 1.5, "scorch", art(fan))
 	end
 end
 
@@ -1121,8 +1211,18 @@ end
 
 function PocketLayout.build(Config: any, index: number, layout: string): Layout
 	local cx, cy, cz = PocketLayout.centre(Config, index)
-	local l: Layout =
-		{ index = index, cx = cx, cy = cy, cz = cz, boxes = {}, points = {}, lists = {}, floorY = cy }
+	local l: Layout = {
+		index = index,
+		cx = cx,
+		cy = cy,
+		cz = cz,
+		boxes = {},
+		points = {},
+		lists = {},
+		floorY = cy,
+		art = {},
+	}
+
 	shell(l, Config)
 	local fn = BUILD[layout]
 	assert(fn, "unknown pocket layout " .. layout)

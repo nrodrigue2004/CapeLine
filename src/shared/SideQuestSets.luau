@@ -13,7 +13,12 @@
 --   the seats, the start line, the podium) and lists (exhibits, cars).
 -- * check(Config, id, size): the boxes stay inside the square's paved middle (inner) so the square's
 --   own dressing (CityLayout openBlock: benches and planters at block / 2 - 16, lamps at the kerb) is untouched.
--- PLACEHOLDER ART: plain parts in the city palette until the art pass.
+-- * art: the Blender looks over the boxes (Shared.SetPieceKit placements; a box's `art` is its placement's
+--   index): drawn as meshes once nate imports ReplicatedStorage.Art.SetPieces, the boxes then hidden but kept
+--   (they still collide and make up the breakable pieces); until then the boxes are drawn as below.
+-- PLACEHOLDER ART: plain parts in the city palette until nate imports Art.SetPieces (art/blender/setpieces.py).
+
+local SetPieceKit = if script then require(script.Parent.SetPieceKit) else (require :: any)("./SetPieceKit")
 
 local SideQuestSets = {}
 
@@ -33,6 +38,7 @@ export type Box = {
 	upright: boolean?,
 	sign: string?,
 	piece: string?,
+	art: number?,
 }
 
 export type Set = {
@@ -40,6 +46,7 @@ export type Set = {
 	pieces: { [string]: { x: number, y: number, z: number, r: number } },
 	points: { [string]: { number } },
 	lists: { [string]: { { number } } },
+	art: { SetPieceKit.Place },
 }
 
 -- the palette (the city's own colours)
@@ -75,6 +82,20 @@ local function add(s: Set, x, y, z, sx, sy, sz, color, opts: { [string]: any }?)
 	table.insert(s.boxes, b)
 end
 
+-- A Blender look standing over the boxes that take its index as `art` (Shared.SetPieceKit)
+local function look(
+	s: Set,
+	name: string,
+	x: number,
+	y: number,
+	z: number,
+	ry: number?,
+	piece: string?,
+	tint: { [string]: { number } }?
+): number
+	return SetPieceKit.place(s.art, name, x, y, z, ry, piece, tint)
+end
+
 local BUILD: { [string]: (s: Set) -> () } = {}
 
 -- The Museum Gala (OpenNorth): the City Museum's treasures under a striped marquee and, at the back, the
@@ -82,23 +103,28 @@ local BUILD: { [string]: (s: Set) -> () } = {}
 function BUILD.gala(s: Set)
 	-- the red carpet and the entrance sign
 	add(s, 0, 0.1, 16, 6, 0.2, 30, C.crimson, { mat = "Fabric", ghost = true })
-	add(s, -8, 6, 31, 1, 12, 1, C.gold)
-	add(s, 8, 6, 31, 1, 12, 1, C.gold)
+	local arch = look(s, "GalaArch", 0, 0, 31)
+	add(s, -8, 6, 31, 1, 12, 1, C.gold, { art = arch })
+	add(s, 8, 6, 31, 1, 12, 1, C.gold, { art = arch })
 	add(s, 0, 11, 31, 16, 3.4, 0.6, C.cream, { sign = "THE MUSEUM GALA" })
 	-- the opera stage: a deck, its gold trim and steps, the proscenium, the curtains and the backdrop
-	add(s, 0, 2, -26, 40, 4, 12, C.wood, { mat = "Wood" })
-	add(s, 0, 3.9, -19.9, 40, 0.4, 0.4, C.gold, { mat = "Neon" })
-	add(s, 0, 1, -18.5, 10, 2, 3, C.wood, { mat = "Wood" })
-	add(s, -20, 10, -31, 3, 16, 3, C.cream)
-	add(s, 20, 10, -31, 3, 16, 3, C.cream)
-	add(s, 0, 19.5, -31, 43, 3, 3, C.gold)
-	add(s, -13, 12, -30, 10, 12, 1, C.crimson, { mat = "Fabric", piece = "curtainL" })
-	add(s, 13, 12, -30, 10, 12, 1, C.crimson, { mat = "Fabric", piece = "curtainR" })
-	add(s, 0, 12, -32.6, 37, 16, 0.6, C.navy, { mat = "Fabric" })
+	local stage = look(s, "GalaStage", 0, 0, -26)
+	add(s, 0, 2, -26, 40, 4, 12, C.wood, { mat = "Wood", art = stage })
+	add(s, 0, 3.9, -19.9, 40, 0.4, 0.4, C.gold, { mat = "Neon", art = stage })
+	add(s, 0, 1, -18.5, 10, 2, 3, C.wood, { mat = "Wood", art = stage })
+	add(s, -20, 10, -31, 3, 16, 3, C.cream, { art = stage })
+	add(s, 20, 10, -31, 3, 16, 3, C.cream, { art = stage })
+	add(s, 0, 19.5, -31, 43, 3, 3, C.gold, { art = stage })
+	local cl = look(s, "GalaCurtain", -13, 6, -30, 0, "curtainL")
+	local cr = look(s, "GalaCurtain", 13, 6, -30, 180, "curtainR")
+	add(s, -13, 12, -30, 10, 12, 1, C.crimson, { mat = "Fabric", piece = "curtainL", art = cl })
+	add(s, 13, 12, -30, 10, 12, 1, C.crimson, { mat = "Fabric", piece = "curtainR", art = cr })
+	add(s, 0, 12, -32.6, 37, 16, 0.6, C.navy, { mat = "Fabric", art = stage })
 	-- the marquee: four poles, a striped canopy, a gold ridge and a valance over the way in
 	for _, p in { { -24, -14 }, { 24, -14 }, { -24, 24 }, { 24, 24 } } do
-		add(s, p[1], 8, p[2], 1, 16, 1, C.white)
+		add(s, p[1], 8, p[2], 1, 16, 1, C.white, { art = look(s, "MarqueePole", p[1], 0, p[2]) })
 	end
+	local canopy = look(s, "GalaCanopy", 0, 15, 5, 0, "canopy")
 	for i, x in { -18, -6, 6, 18 } do
 		add(
 			s,
@@ -109,22 +135,45 @@ function BUILD.gala(s: Set)
 			0.6,
 			40,
 			if i % 2 == 1 then C.crimson else C.cream,
-			{ mat = "Fabric", piece = "canopy" }
+			{ mat = "Fabric", piece = "canopy", art = canopy }
 		)
 	end
-	add(s, 0, 16.8, 5, 49, 0.6, 1, C.gold, { piece = "canopy" })
-	add(s, 0, 15, 25, 48, 2, 0.4, C.gold, { mat = "Fabric", piece = "canopy" })
+	add(s, 0, 16.8, 5, 49, 0.6, 1, C.gold, { piece = "canopy", art = canopy })
+	add(s, 0, 15, 25, 48, 2, 0.4, C.gold, { mat = "Fabric", piece = "canopy", art = canopy })
 	-- the chandelier under the canopy
-	add(s, 0, 15, 5, 0.3, 2, 0.3, C.gold, { piece = "chandelier" })
-	add(s, 0, 13.6, 5, 0.6, 8, 8, C.gold, { shape = "cylinder", upright = true, piece = "chandelier" })
-	add(s, 0, 12.6, 5, 2.4, 2.4, 2.4, C.gem, { shape = "ball", mat = "Neon", piece = "chandelier" })
-	add(s, 0, 11.4, 5, 1.2, 1.2, 1.2, C.gem, { shape = "ball", mat = "Neon", piece = "chandelier" })
+	local ch = look(s, "GalaChandelier", 0, 10.8, 5, 0, "chandelier")
+	add(s, 0, 15, 5, 0.3, 2, 0.3, C.gold, { piece = "chandelier", art = ch })
+	add(
+		s,
+		0,
+		13.6,
+		5,
+		0.6,
+		8,
+		8,
+		C.gold,
+		{ shape = "cylinder", upright = true, piece = "chandelier", art = ch }
+	)
+	add(s, 0, 12.6, 5, 2.4, 2.4, 2.4, C.gem, { shape = "ball", mat = "Neon", piece = "chandelier", art = ch })
+	add(s, 0, 11.4, 5, 1.2, 1.2, 1.2, C.gem, { shape = "ball", mat = "Neon", piece = "chandelier", art = ch })
 	-- the museum's treasures: four plinths with glass cases and a jewel in each
 	s.lists.exhibits = {}
 	for i, p in { { -16, -2 }, { 16, -2 }, { -16, 14 }, { 16, 14 } } do
 		local id = "case" .. i
-		add(s, p[1], 1.5, p[2], 4, 3, 4, C.marble, { mat = "Marble", piece = id })
-		add(s, p[1], 4.6, p[2], 3.6, 3.2, 3.6, C.glass, { mat = "Glass", alpha = 0.55, piece = id })
+		local jewel = if i % 2 == 0 then C.ruby else C.gem
+		local case = look(s, "ExhibitCase", p[1], 0, p[2], 0, id, { CaseJewel = jewel })
+		add(s, p[1], 1.5, p[2], 4, 3, 4, C.marble, { mat = "Marble", piece = id, art = case })
+		add(
+			s,
+			p[1],
+			4.6,
+			p[2],
+			3.6,
+			3.2,
+			3.6,
+			C.glass,
+			{ mat = "Glass", alpha = 0.55, piece = id, art = case }
+		)
 		add(
 			s,
 			p[1],
@@ -133,20 +182,21 @@ function BUILD.gala(s: Set)
 			1.4,
 			1.4,
 			1.4,
-			if i % 2 == 0 then C.ruby else C.gem,
-			{ shape = "ball", mat = "Neon", piece = id }
+			jewel,
+			{ shape = "ball", mat = "Neon", piece = id, art = case }
 		)
 		table.insert(s.lists.exhibits, { p[1], 0, p[2] })
 	end
 	-- the opera's seats (velvet benches) facing the stage
 	for _, z in { -12, -6, 0 } do
-		add(s, 0, 1, z, 18, 2, 2, C.crimson, { mat = "Fabric" })
+		add(s, 0, 1, z, 18, 2, 2, C.crimson, { mat = "Fabric", art = look(s, "VelvetBench", 0, 0, z) })
 	end
 	-- the spotlights at the stage's corners
 	for k, x in { -24, 24 } do
 		local id = if k == 1 then "spotL" else "spotR"
-		add(s, x, 5, -21, 1, 10, 1, C.charcoal, { piece = id })
-		add(s, x, 10.5, -21, 2.5, 2, 3, C.cream, { mat = "Neon", piece = id })
+		local spot = look(s, "GalaSpot", x, 0, -21, if k == 1 then 0 else 180, id)
+		add(s, x, 5, -21, 1, 10, 1, C.charcoal, { piece = id, art = spot })
+		add(s, x, 10.5, -21, 2.5, 2, 3, C.cream, { mat = "Neon", piece = id, art = spot })
 	end
 	s.points.stage = { 0, 4, -26 }
 	s.points.seats = { 0, 0, -6 }
@@ -161,25 +211,49 @@ function BUILD.meet(s: Set)
 		add(s, -14 + i * 4, 0.1, 0, 4, 0.2, 4, if i % 2 == 0 then C.black else C.white, { ghost = true })
 	end
 	-- the gantry over it: two pylons, the beam, the banner and the start lights
-	add(s, -18, 9, 0, 3, 18, 3, C.charcoal)
-	add(s, 18, 9, 0, 3, 18, 3, C.charcoal)
-	add(s, 0, 19.5, 0, 39, 3, 3, C.red)
+	local gantry = look(s, "StartGantry", 0, 0, 0)
+	add(s, -18, 9, 0, 3, 18, 3, C.charcoal, { art = gantry })
+	add(s, 18, 9, 0, 3, 18, 3, C.charcoal, { art = gantry })
+	add(s, 0, 19.5, 0, 39, 3, 3, C.red, { art = gantry })
 	add(s, 0, 19.5, 1.8, 24, 2.6, 0.4, C.white, { sign = "THE RACERS' MEET" })
+	local lights = look(s, "StartLights", 0, 17, 0, 0, "lights")
 	for i, col in { C.red, C.amber, C.green } do
-		add(s, -6 + (i - 1) * 6, 17, 0, 2, 2, 2, col, { shape = "ball", mat = "Neon", piece = "lights" })
+		add(
+			s,
+			-6 + (i - 1) * 6,
+			17,
+			0,
+			2,
+			2,
+			2,
+			col,
+			{ shape = "ball", mat = "Neon", piece = "lights", art = lights }
+		)
 	end
 	-- three parked racers: a body, a cockpit and a spoiler
 	s.lists.cars = {}
 	for i, p in { { -20, 18, C.red }, { 0, 21, C.blue }, { 20, 18, C.yellow } } do
 		local id = "car" .. i
-		add(s, p[1], 1.5, p[2], 6, 2, 11, p[3], { piece = id })
-		add(s, p[1], 3.2, p[2] - 0.5, 4, 1.6, 4, C.black, { mat = "Glass", alpha = 0.2, piece = id })
-		add(s, p[1], 4.3, p[2] + 5, 6, 0.4, 1.6, C.black, { piece = id })
+		local car = look(s, "Racer", p[1], 0, p[2], 0, id, { RacerBody = p[3] })
+		add(s, p[1], 1.5, p[2], 6, 2, 11, p[3], { piece = id, art = car })
+		add(
+			s,
+			p[1],
+			3.2,
+			p[2] - 0.5,
+			4,
+			1.6,
+			4,
+			C.black,
+			{ mat = "Glass", alpha = 0.2, piece = id, art = car }
+		)
+		add(s, p[1], 4.3, p[2] + 5, 6, 0.4, 1.6, C.black, { piece = id, art = car })
 		table.insert(s.lists.cars, { p[1], 0, p[2] })
 	end
 	-- tyre stacks
 	for i, p in { { -28, -18 }, { 28, -18 }, { -28, 30 } } do
 		local id = "tyres" .. i
+		local stack = look(s, "TyreStack", p[1], 0, p[2], 0, id)
 		for k = 0, 1 do
 			add(
 				s,
@@ -190,28 +264,42 @@ function BUILD.meet(s: Set)
 				4.5,
 				4.5,
 				C.tyre,
-				{ shape = "cylinder", upright = true, piece = id }
+				{ shape = "cylinder", upright = true, piece = id, art = stack }
 			)
 		end
 	end
 	-- fuel drums
 	for _, p in { { 24, -27 }, { 27.5, -25 }, { 24, -23 }, { 27.5, -29 } } do
-		add(s, p[1], 1.5, p[2], 3, 3.2, 3.2, C.fuel, { shape = "cylinder", upright = true, piece = "drums" })
+		local drum = look(s, "FuelDrum", p[1], 0, p[2], 0, "drums")
+		add(
+			s,
+			p[1],
+			1.5,
+			p[2],
+			3,
+			3.2,
+			3.2,
+			C.fuel,
+			{ shape = "cylinder", upright = true, piece = "drums", art = drum }
+		)
 	end
 	-- the DJ booth: a desk, two speakers and a neon strip
-	add(s, 0, 2, -24, 10, 4, 4, C.charcoal, { piece = "booth" })
-	add(s, -8, 3, -24, 3, 6, 3, C.black, { piece = "booth" })
-	add(s, 8, 3, -24, 3, 6, 3, C.black, { piece = "booth" })
-	add(s, 0, 2.2, -21.9, 10, 0.4, 0.2, C.pink, { mat = "Neon", piece = "booth" })
+	local booth = look(s, "DJBooth", 0, 0, -24, 0, "booth")
+	add(s, 0, 2, -24, 10, 4, 4, C.charcoal, { piece = "booth", art = booth })
+	add(s, -8, 3, -24, 3, 6, 3, C.black, { piece = "booth", art = booth })
+	add(s, 8, 3, -24, 3, 6, 3, C.black, { piece = "booth", art = booth })
+	add(s, 0, 2.2, -21.9, 10, 0.4, 0.2, C.pink, { mat = "Neon", piece = "booth", art = booth })
 	-- floodlights at the street corners of the square's middle
 	for k, x in { -30, 30 } do
 		local id = if k == 1 then "floodL" else "floodR"
-		add(s, x, 10, 30, 1, 20, 1, C.steel, { piece = id })
-		add(s, x, 20.5, 29, 4, 2, 2, C.white, { mat = "Neon", piece = id })
+		local flood = look(s, "Floodlight", x, 0, 30, 0, id)
+		add(s, x, 10, 30, 1, 20, 1, C.steel, { piece = id, art = flood })
+		add(s, x, 20.5, 29, 4, 2, 2, C.white, { mat = "Neon", piece = id, art = flood })
 	end
 	-- the kicker ramp the racers launch off (solid: it is for jumping, not breaking)
-	add(s, 22, 1, 2, 10, 2, 6, C.steel, { mat = "DiamondPlate" })
-	add(s, 22, 2.6, -6, 10, 1, 12, C.yellow, { mat = "DiamondPlate", tilt = 18 })
+	local ramp = look(s, "KickerRamp", 22, 0, 0)
+	add(s, 22, 1, 2, 10, 2, 6, C.steel, { mat = "DiamondPlate", art = ramp })
+	add(s, 22, 2.6, -6, 10, 1, 12, C.yellow, { mat = "DiamondPlate", tilt = 18, art = ramp })
 	s.points.start = { 0, 0, 0 }
 	s.points.podium = { 0, 0, 10 }
 	s.points.booth = { 0, 0, -24 }
@@ -230,7 +318,8 @@ function SideQuestSets.build(id: string): Set
 	if hit then
 		return hit
 	end
-	local s: Set = { boxes = {}, pieces = {}, points = {}, lists = {} }
+	local s: Set = { boxes = {}, pieces = {}, points = {}, lists = {}, art = {} }
+
 	BUILD[id](s)
 	-- each piece's hit sphere: round the middle of its boxes, out to their far corners
 	local sums: { [string]: { number } } = {}

@@ -66,6 +66,9 @@ local function test(name: string, fn: () -> ())
 		return
 	end
 	current = name
+	if process.env.TRACE then
+		print("> " .. name)
+	end
 	local ok, err = pcall(fn)
 	if not ok then
 		failed += 1
@@ -22741,6 +22744,8 @@ end
 (require :: any)("./perf")({ test = test, check = check, near = near, Config = Config });
 -- the city and destruction audit (2026-11-18, own file, merges easily); ONLY="City audit" runs just these
 (require :: any)("./city_audit_test")({ test = test, check = check, Config = Config, world = world });
+-- the side quests' set piece meshes (2026-11-18, own file); ONLY="Set piece art" runs just these
+(require :: any)("./setpieces_test")({ test = test, check = check, Config = Config });
 -- the side quest juice pass and the beacon roof fix (2026-11-18); ONLY="SQ juice" or ONLY="Beacon roofs"
 (require :: any)("./polish_test")({ test = test, check = check, Config = Config, world = world });
 -- the text pass (2026-11-18, own file): old names, fixed typos and term casing; ONLY="Text pass" runs these

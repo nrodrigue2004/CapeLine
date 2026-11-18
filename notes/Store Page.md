@@ -41,3 +41,22 @@ Old Beacon on the Beacon Tower roof at dusk; the Velvet Paw on a crane at the Do
 - [ ] nate picks the art tool and approves each image.
 - [ ] The leaked-name and look check (Playtest Kit #42) passes for every image.
 - [ ] The numbers in captions match the live config.
+
+## Store art refresh (2026-11-18, overnight queue item 13)
+New icon variants and ad thumbnails with the newer villains and bosses, made the same way as the 2026-11-17 picks (the game's own Blender meshes posed for a poster, ink outlines on the figures, the effects library's cards, then the same grade, speed lines and caption style). Files: `art/export/store2/` (upload sizes), renders before the finish in `art/export/store2/raw/`, previews `art/export/store2/preview_sheet.png` (each icon at 400, 150 and 50 px) and `preview_small.png` (each thumbnail at 480 and 240 px wide). Rebuild with `bash art/store/make2.sh` (one image: `bash art/store/make2.sh icon_maw`; `--draft` for a quick half-size pass). Nothing was uploaded.
+
+Icons (512 x 512, no text): three hooks for the icon A/B test (target CTR 2.5% or better, Paid Ads Playbook).
+- `icon_maw.png` (recommended first): the Anime hero (white spikes, gold aura, red jacket) punching a gold blast into the Lumen Maw's glowing jaws at night. A hero in action (nate's icon rule), one focal point, gold against cyan and navy, reads at 50 px.
+- `icon_fake.png`: the twist up close: the Comic hero's red fist landing on Radiant's face, cracked half open to the metal plate and a red eye. The strongest small-size read (one face, one red dot); test it against icon_maw.
+- `icon_titan.png`: the boss hook (icon brief 3): the Comic hero rising at the camera, Volt crackling round his fist, in front of Rustjaw Prime nearly in silhouette against a red sunset, its eyes burning red. Busier at 50 px; the third arm of the test.
+
+Thumbnails (1920 x 1080, 3 words each):
+- `thumb_maw.png`, "GIANT WORLD BOSSES": the Comic hero's Volt lightning into the Lumen Maw's jaws over the Old Quarry (its arena) at night, a squad diving in, the boss bar. For the boss arm of the ad test (with or instead of thumb_boss).
+- `thumb_deep.png`, "FROM THE DEEP": the Leviathan Engine rearing out of the sea at the Trench (its arena, at the water's surface), spray and foam, the hero's lightning on its head, the boss bar. Sells the sea and the underwater side.
+- `thumb_fakes.png`, "SPOT THE FAKE": the famous fakes posing as heroes on a Downtown roof at sunset, Radiant in front with its face cracked to the plate and a red eye, Bulwark and Skylance behind. The fake-hero twist arm (with or instead of thumb_twist).
+- `thumb_giant.png`, "TOPPLE THE GIANT": Wind-Up Lane's finale in the Suburbs: the Wind-Up Giant stomping down the street (its 10-stud body), the hero punching in, the Bramblebeast and the Voidhound (the other finale creatures) behind. Sells the side quests.
+
+Before upload (adds to the list above):
+- [ ] The finale creatures (art/export/finales/*.fbx) and the world bosses (art/export/Bosses.fbx) are imported and showing in the game, so the images only show what players will see; re-render after any change to those looks (`bash art/store/make2.sh`).
+- [ ] Bulwark's and Skylance's store looks are close stand-ins for their creator pieces (Plated Suit, Great Pauldrons, Wind Scarf, High Ponytail) drawn on the blocky body; compare them with the game once and say if anything should change.
+- [ ] Pick 2 or 3 per test; the old picks (art/export/store) stay valid.
