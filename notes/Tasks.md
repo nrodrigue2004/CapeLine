@@ -1529,3 +1529,8 @@ DEV panel (M6 row): Inc (cycles the 10 templates, spawns that one next to you), 
 10. Clock: DEV > Clock steps day, dusk, night, dawn; the sky glides there and night is darker blue but readable. At night more red Syndicate incidents show up (with Side: villain).
 11. MAP shows incident dots, event diamonds and the boss.
 12. Gate: with 30 bots plus you, the Dev panel's "schedulers" and "boss" times stay low and the server frame holds; nothing idles more than 5 s (an incident is always within reach).
+
+### Enemy motion (2026-11-18)
+- Robots walking near you use the normal Roblox walk and run, feet not sliding; they stand idle (breathing) when still.
+- Rifle robots still aim, shield robots hold the shield, Sneak Bots crouch, Swarmers run low.
+- Flyers, turrets, lunges and knock-ups look as before. No Output errors about animations.
