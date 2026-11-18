@@ -117,10 +117,11 @@ end
 -- A once-per-account step of a lifetime funnel (WP4: the MMO firsts). mask: the steps already logged, one bit
 -- each (step i is bit i - 1). Returns the step number and the mask with it set, or nil (unknown, or logged).
 function AnalyticsSchema.first(mask: number, funnel: string, step: string): (number?, number)
-	local i = AnalyticsSchema.stepOf(funnel, step)
-	if not i or i > 16 then
+	local found = AnalyticsSchema.stepOf(funnel, step)
+	if not found or found > 16 then
 		return nil, mask
 	end
+	local i = found :: number
 	local bit = bit32.lshift(1, i - 1)
 	if bit32.band(mask, bit) ~= 0 then
 		return nil, mask

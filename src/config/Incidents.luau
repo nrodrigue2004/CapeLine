@@ -536,7 +536,7 @@ return {
 	dress = {
 		Gleam = {
 			suit = "Radiant", -- a Light flyer's dives and bursts
-			name = "Captain Gleam",
+			name = "Gleamheart",
 			title = "Hero of the Hour",
 			creature = false,
 			famous = true,

@@ -148,7 +148,7 @@ return function(T: any)
 		check(has(call, "PromptSetFavorite"), "inside a pcall")
 		check(
 			(string.find(client, 'Net.send("FavoriteShown")', 1, true) or 1e9)
-				< (string.find(client, "PromptSetFavorite(game", 1, true) or 0),
+				< (string.find(client, "service:PromptSetFavorite(game", 1, true) or 0),
 			"the flag is saved before the prompt opens"
 		)
 		local server = source("src/server/Services/FavoriteService.luau")

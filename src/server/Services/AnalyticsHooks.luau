@@ -117,12 +117,13 @@ end
 local waiting: { [Player]: { [string]: boolean } } = {}
 
 function AnalyticsHooks.first(player: Player?, step: string)
-	if not player then
+	local p = player :: Player
+	if not p then
 		return
 	end
-	if not Analytics.first(player, "MMO", step) then
-		local mine = waiting[player] or {}
-		waiting[player] = mine
+	if not Analytics.first(p, "MMO", step) then
+		local mine = waiting[p] or {}
+		waiting[p] = mine
 		mine[step] = true
 	end
 end
