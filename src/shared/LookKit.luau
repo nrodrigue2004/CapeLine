@@ -7,11 +7,13 @@
 -- * build(char, folder, look): body colours from the suit, then every piece as small welded parts,
 --   the emblem as a glyph on the chest, the aura as one emitter, the flight trail as one Trail.
 -- Parts are massless and never collide, touch or block raycasts. Works on R15 and R6 bodies.
--- Drawn art (2026-11-18) stands in once nate uploads or imports it: the suits' Shirt and Pants (suitClothes),
--- the emblem set (emblem), the flat masks' head decals (maskDecals) and the cape meshes (capeMeshes); each keeps
--- its parts below until then; round 2 (2026-11-18) added the head pieces', gloves', boots', coats' and scarves'
--- meshes (pieceMeshes) and the auras' and flight trails' effects-library textures (aura, trail). PLACEHOLDER ART:
--- the other pieces are blocks, wedges, balls and cylinders until accessory meshes and cape sway (M11) replace them.
+-- Drawn art (2026-11-18) stands in once nate uploads or imports it: the suits' Shirt and Pants (suitClothes), the
+-- emblem set (emblem), the flat masks' head decals (maskDecals) and the cape meshes (capeMeshes); each keeps its
+-- parts below until then; round 2 (2026-11-18) added the head pieces', gloves', boots', coats' and scarves' meshes
+-- (pieceMeshes) and the auras' and flight trails' effects-library textures (aura, trail); round 3 (2026-11-18) the
+-- belts', shoulders', back bling's, headwear's, hair styles' and eye shapes' meshes (pieceMeshes too). PLACEHOLDER
+-- ART: the other pieces are blocks, wedges, balls and cylinders until accessory meshes and cape sway (M11) replace
+-- them.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -1110,6 +1112,8 @@ local function emblem(char: Model, folder: Instance, kit: string, colors: Colors
 	plate.Parent = folder
 end
 
+-- (defined with the worn meshes below; the eyes wear their glow meshes through it too)
+local pieceMeshes: (Model, Instance, string, string, Colors, Enum.Material?, string?) -> (boolean, any)
 local function eyes(char: Model, folder: Instance, kit: string, colors: Colors)
 	local head = bodyPart(char, "head")
 	if not head then
@@ -1124,6 +1128,12 @@ local function eyes(char: Model, folder: Instance, kit: string, colors: Colors)
 	local right = if tone == "prism" then colors.p else left
 	if colors.eyeOverride then
 		left, right = colors.eyeOverride, colors.eyeOverride
+	end
+	-- the eye shape's glow meshes (round 3, Config.EyeArt, art/blender/eyes.py) once imported, else neon parts
+	local shapeName = if #bits > 1 and EYE_SHAPES[bits[1]] then bits[1] else "bar"
+	local glow = { eye1 = left, eye2 = right, p = left } :: any
+	if pieceMeshes(char, folder, "eyes", shapeName, glow, nil, "Eye") then
+		return
 	end
 	local size, x, y, tilt, form, single = shape[1], shape[2], shape[3], shape[4], shape[5], shape[6]
 	for i, sx in (if single then { 0 } else { -1, 1 }) do
@@ -1383,26 +1393,40 @@ local function capeMeshes(
 	return true
 end
 
--- The worn meshes of creator art round 2 (2026-11-18): the head pieces (Config.HeadArt, art/blender/heads.py), gloves
--- (GloveArt, hands.py), boots (BootArt, feet.py), and coats and scarves (CoatArt, coats.py), once nate has imported
--- their FBX as ReplicatedStorage.Art.Heads, .Gloves, .Boots and .Coats. Each piece is cloned, welded to its own
--- body part (a role in ATTACH) at its fitted box, sized with that part and coloured by its role (glow pieces
--- Neon, a lens stays Glass, the slot's material over the rest). The same fall-back rule as the capes: nothing is
--- made unless every piece's mesh and body part is there (then the part-built kit stays). Returns true and the
--- kit's fit when the meshes stand in for the kit's parts.
+-- The worn meshes of creator art round 2 (2026-11-18): the head pieces (Config.HeadArt, art/blender/heads.py),
+-- gloves (GloveArt, hands.py), boots (BootArt, feet.py), and coats and scarves (CoatArt, coats.py), once nate has
+-- imported their FBX as ReplicatedStorage.Art.Heads, .Gloves, .Boots and .Coats; round 3 (2026-11-18) the belts
+-- (BeltArt, belts.py), shoulders (ShoulderArt, shoulders.py), back bling (BackArt, backs.py) and headwear (HatArt,
+-- hats.py) as .Belts, .Shoulders, .Backs and .Hats, the hair styles (HairArt, hair.py) as .Hair and the glowing eye
+-- shapes (EyeArt, eyes.py) as .Eyes. Each piece is cloned, welded to its own body part (a role in ATTACH) at its
+-- fitted box, sized with that part and coloured by its role (glow pieces Neon, a lens stays Glass, the slot's
+-- material over the rest). The same fall-back rule as the capes: nothing is made unless every piece's mesh and body
+-- part is there (then the part-built kit stays). Returns true and the kit's fit when the meshes stand in for the
+-- kit's parts.
 local MESH_LIBS: { [string]: { string } } = {
 	head = { "Heads", "HeadArt" },
 	hands = { "Gloves", "GloveArt" },
 	feet = { "Boots", "BootArt" },
 	back = { "Coats", "CoatArt" },
+	belt = { "Belts", "BeltArt" },
+	shoulders = { "Shoulders", "ShoulderArt" },
+	backpack = { "Backs", "BackArt" },
+	hat = { "Hats", "HatArt" },
+	hair = { "Hair", "HairArt" },
+	eyes = { "Eyes", "EyeArt" },
+	ears = { "Ears", "EarArt" },
+	neck = { "Necks", "NeckArt" },
+	wrist = { "Wrists", "WristArt" },
+	arms = { "Arms", "ArmArt" },
 }
-local function pieceMeshes(
+function pieceMeshes(
 	char: Model,
 	folder: Instance,
 	tab: string,
 	kit: string,
 	colors: Colors,
-	mat: Enum.Material?
+	mat: Enum.Material?,
+	name: string?
 ): (boolean, any)
 	local lib = MESH_LIBS[tab]
 	local fits = lib and (Config :: any)[lib[2]]
@@ -1432,7 +1456,7 @@ local function pieceMeshes(
 		for _, c in p:GetChildren() do
 			c:Destroy()
 		end
-		p.Name = tab
+		p.Name = name or tab
 		p.Size = Vector3.new(row.size[1], row.size[2], row.size[3]) * f
 		p.Color = colors[row.role] or colors.p
 		local own = if row.mat then (Enum.Material :: any)[row.mat] else nil
@@ -1780,7 +1804,10 @@ function LookKit.build(char: Model, look: any, weapon: any?): Folder
 	local hidesFace = hatKit ~= nil and PieceKits.hatHidesFace[hatKit] == true
 	local hairKit = kitOf("hair")
 	if hairKit and not hidesHair then
-		addSpecs(char, folder, "Hair", KITS.hair[hairKit] or PieceKits.hair[hairKit], colors)
+		-- the hair meshes (round 3, Config.HairArt, art/blender/hair.py) stand in for its parts once imported
+		if not pieceMeshes(char, folder, "hair", hairKit, colors, nil, "Hair") then
+			addSpecs(char, folder, "Hair", KITS.hair[hairKit] or PieceKits.hair[hairKit], colors)
+		end
 	end
 	local eyeKit = kitOf("eyes")
 	for _, slot in NEW_SLOTS do
@@ -1788,15 +1815,18 @@ function LookKit.build(char: Model, look: any, weapon: any?): Folder
 		local covered = hidesFace and (slot == "face" or slot == "makeup" or slot == "beard")
 		if kit and not covered then
 			local c, m = slotColors(colors, look, slot)
-			addSpecs(
-				char,
-				folder,
-				slot,
-				(PieceKits :: any)[slot][kit],
-				c,
-				m,
-				slot == "face" and eyeKit ~= nil
-			)
+			-- the round 3 meshes (belts, shoulders, back bling, headwear) stand in for their parts once imported
+			if not pieceMeshes(char, folder, slot, kit, c, m) then
+				addSpecs(
+					char,
+					folder,
+					slot,
+					(PieceKits :: any)[slot][kit],
+					c,
+					m,
+					slot == "face" and eyeKit ~= nil
+				)
+			end
 		end
 	end
 	-- the default face decal steps aside for a Face piece or a closed helm; on the player's own avatar, every

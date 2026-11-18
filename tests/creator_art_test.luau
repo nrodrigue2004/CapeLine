@@ -3,7 +3,8 @@
 -- art/clothes/masks.py) and the cape meshes (Config.CapeArt, art/blender/capes.py). Every row names a real piece's
 -- kit, every image and the FBX are on disk for nate's upload and import, the colour roles are ones LookKit has,
 -- and the pieces themselves (ids, kits, unlocks) are unchanged so saved looks keep working. Round 2 (2026-11-18): the
--- worn meshes (HeadArt, GloveArt, BootArt, CoatArt), the auras on the effects library and the trail strips.
+-- worn meshes (HeadArt, GloveArt, BootArt, CoatArt), the auras on the effects library and the trail strips. Round 3
+-- (2026-11-18): the belts', shoulders', back bling's and headwear's meshes (BeltArt, ShoulderArt, BackArt, HatArt).
 -- Called from tests/run.luau: require("./creator_art_test")({ test = test, check = check, Config = Config })
 -- ONLY="Creator art" runs just these.
 
@@ -178,6 +179,41 @@ return function(T: any)
 		{ art = "GloveArt", fbx = "Gloves", tab = "hands", prefix = "Glove_", budget = 1600, n = 19 },
 		{ art = "BootArt", fbx = "Boots", tab = "feet", prefix = "Boot_", budget = 1800, n = 21 },
 		{ art = "CoatArt", fbx = "Coats", tab = "back", prefix = "Coat_", budget = 2600, n = 8 },
+		-- round 3 (2026-11-18): belts, shoulders, back bling and headwear (art/blender/belts.py, shoulders.py,
+		-- backs.py, hats.py)
+		{ art = "BeltArt", fbx = "Belts", tab = "belt", prefix = "Belt_", budget = 2400, n = 15 },
+		{
+			art = "ShoulderArt",
+			fbx = "Shoulders",
+			tab = "shoulders",
+			prefix = "Shoulder_",
+			budget = 3000,
+			n = 20,
+		},
+		{ art = "BackArt", fbx = "Backs", tab = "backpack", prefix = "Back_", budget = 3000, n = 22 },
+		{ art = "HatArt", fbx = "Hats", tab = "hat", prefix = "Hat_", budget = 2400, n = 25 },
+		-- our own hair (nate, 2026-11-17: heroes keep nothing from their avatar), art/blender/hair.py
+		{ art = "HairArt", fbx = "Hair", tab = "hair", prefix = "Hair_", budget = 2400, n = 40 },
+		-- the small worn pieces (art/blender/trinkets.py)
+		{ art = "EarArt", fbx = "Ears", tab = "ears", prefix = "Ear_", budget = 2000, n = 10 },
+		{ art = "NeckArt", fbx = "Necks", tab = "neck", prefix = "Neck_", budget = 2000, n = 15 },
+		{ art = "WristArt", fbx = "Wrists", tab = "wrist", prefix = "Wrist_", budget = 2000, n = 12 },
+		{ art = "ArmArt", fbx = "Arms", tab = "arms", prefix = "Arm_", budget = 2000, n = 15 },
+	}
+	-- the body parts that come in a left and right pair: a piece on one is a left or right mesh
+	local SIDED = {
+		luarm = true,
+		ruarm = true,
+		llarm = true,
+		rlarm = true,
+		lhand = true,
+		rhand = true,
+		lthigh = true,
+		rthigh = true,
+		lshin = true,
+		rshin = true,
+		lfoot = true,
+		rfoot = true,
 	}
 	for _, set in SETS do
 		test("Creator art: " .. set.art .. " rows are real kits with fitted meshes", function()
@@ -203,25 +239,30 @@ return function(T: any)
 						ATTACH[p.at],
 						p.mesh .. ": on a body part LookKit attaches to (" .. tostring(p.at) .. ")"
 					)
-					check(ROLES[p.role], p.mesh .. ": colour role")
+					-- (hair takes the look's hair colour, which LookKit.colors holds as well)
+					check(
+						ROLES[p.role] or (set.tab == "hair" and p.role == "hair"),
+						p.mesh .. ": colour role"
+					)
 					check(type(p.glow) == "boolean", p.mesh .. ": glow flag")
 					check(p.mat == nil or MATS[p.mat], p.mesh .. ": material")
 					check(p.alpha == nil or (p.alpha > 0 and p.alpha < 1), p.mesh .. ": transparency")
 					check(p.size[1] > 0 and p.size[2] > 0 and p.size[3] > 0, p.mesh .. ": size")
 					for k = 1, 3 do
-						-- (the shoulder coat drapes over both arms: 4.4 studs wide on the 4-stud-wide rig)
+						-- (the shoulder coat drapes over both arms: 4.4 studs wide on the 4-stud-wide rig; back
+						-- bling reaches further: the bat wings span 4.6 studs and the banner's finial tops its pole)
+						local roomy = set.tab == "backpack"
 						check(
-							math.abs(p.offset[k]) < 1.6 and p.size[k] < 4.6,
+							math.abs(p.offset[k]) < (if roomy then 2.0 else 1.6)
+								and p.size[k] < (if roomy then 5.0 else 4.6),
 							p.mesh .. ": fits its body part"
 						)
 					end
-					if set.tab ~= "back" then
+					if set.tab ~= "back" and SIDED[p.at] then
 						-- a pair is two meshes (a MeshPart cannot be mirrored): one each side
 						local side = string.sub(p.mesh, -1)
-						if p.at ~= "head" then
-							check(side == "L" or side == "R", p.mesh .. ": a left or right piece")
-							check(string.sub(p.at, 1, 1) == string.lower(side), p.mesh .. ": on its own side")
-						end
+						check(side == "L" or side == "R", p.mesh .. ": a left or right piece")
+						check(string.sub(p.at, 1, 1) == string.lower(side), p.mesh .. ": on its own side")
 					end
 				end
 			end
@@ -256,6 +297,107 @@ return function(T: any)
 		for _, kit in { "visor", "goalie", "fox", "oni" } do
 			check(Config.HeadArt[kit].hair ~= false, kit .. " keeps the hair")
 		end
+	end)
+
+	test(
+		"Creator art: every belt, shoulder, back bling, headwear, hair, ear, neck, wrist and arm piece has its meshes",
+		function()
+			local luau = require("@lune/luau")
+			local roblox = require("@lune/roblox")
+			local PieceKits = luau.load(fs.readFile("src/shared/PieceKits.luau"), {
+				debugName = "PieceKits",
+				environment = { Vector3 = roblox.Vector3, CFrame = roblox.CFrame, Enum = roblox.Enum },
+			})()
+			for _, set in
+				{
+					{ "belt", "BeltArt" },
+					{ "shoulders", "ShoulderArt" },
+					{ "backpack", "BackArt" },
+					{ "hat", "HatArt" },
+					{ "hair", "HairArt" },
+					{ "ears", "EarArt" },
+					{ "neck", "NeckArt" },
+					{ "wrist", "WristArt" },
+					{ "arms", "ArmArt" },
+				}
+			do
+				for kit in kitsOf(set[1]) do
+					check(Config[set[2]][kit] ~= nil, set[1] .. " " .. kit .. ": meshes")
+				end
+			end
+			-- a hat mesh hides the same hair as its part-built kit (LookKit reads PieceKits.hatHidesHair for both)
+			for kit, row in Config.HatArt do
+				check(type(row.hair) == "boolean", "hat " .. kit .. ": hair flag")
+				check(
+					row.hair == not PieceKits.hatHidesHair[kit],
+					"hat " .. kit .. ": hides the hair like its parts"
+				)
+			end
+			-- the pair rule: both shoulders get a pad unless the kit is one-sided (the single pauldron, the plume)
+			for kit, row in Config.ShoulderArt do
+				local l, r = 0, 0
+				for _, p in row.pieces do
+					if p.at == "luarm" then
+						l += 1
+					elseif p.at == "ruarm" then
+						r += 1
+					end
+				end
+				if kit == "single" or kit == "plume" then
+					check(l > 0 and r == 0, kit .. ": the left shoulder only")
+				else
+					check(l == r, kit .. ": a left and right piece for each")
+				end
+			end
+		end
+	)
+
+	test("Creator art: every eye shape has its glow meshes", function()
+		local A = Config.EyeArt
+		check(A ~= nil, "Config.EyeArt")
+		check(fs.isFile("art/export/Eyes.fbx"), "art/export/Eyes.fbx")
+		-- the shapes the Eyes pieces name ("shape:tone"; a bare tone is the bar)
+		local shapes = {}
+		for kit in kitsOf("eyes") do
+			local bits = string.split(kit, ":")
+			shapes[if #bits > 1 then bits[1] else "bar"] = true
+		end
+		local n = 0
+		for shape in shapes do
+			n += 1
+			local row = A[shape]
+			check(row ~= nil, "EyeArt " .. shape)
+			if row then
+				check(row.triangles > 0 and row.triangles <= 400, shape .. ": triangle budget")
+				check(
+					#row.pieces == (if shape == "visor" then 1 else 2),
+					shape .. ": one glow an eye (the visor one band)"
+				)
+				for i, p in row.pieces do
+					check(p.at == "head" and p.glow == true, p.mesh .. ": a glow on the head")
+					check(
+						p.role == (if i == 1 then "eye1" else "eye2"),
+						p.mesh .. ": the left eye, then the right"
+					)
+					check(
+						string.sub(p.mesh, 1, #("Eye_" .. shape .. "_")) == "Eye_" .. shape .. "_",
+						p.mesh .. ": name"
+					)
+					-- on the face: in front of the head, at the eyes' height
+					check(
+						p.offset[3] < -0.55 and math.abs(p.offset[2] - 0.12) < 0.06,
+						p.mesh .. ": on the face"
+					)
+				end
+			end
+		end
+		check(n == 7, "7 eye shapes (" .. n .. ")")
+		local src = fs.readFile("src/shared/LookKit.luau")
+		check(string.find(src, 'eyes = { "Eyes", "EyeArt" }', 1, true) ~= nil, "LookKit reads Art.Eyes")
+		check(
+			string.find(src, 'pieceMeshes(char, folder, "eyes", shapeName, glow, nil, "Eye")', 1, true) ~= nil,
+			"LookKit wears them"
+		)
 	end)
 
 	test("Creator art: auras use the effects library's textures, under the cap", function()
@@ -324,11 +466,23 @@ return function(T: any)
 				"capeMeshes(char, folder, kit, c, m)",
 				"maskDecals(char, kit, c)",
 				"EA.shapes[bits[1]]",
-				"local function pieceMeshes(",
+				"local pieceMeshes: (Model, Instance, string, string, Colors, Enum.Material?, string?)",
+				"\nfunction pieceMeshes(",
 				'head = { "Heads", "HeadArt" }',
 				'hands = { "Gloves", "GloveArt" }',
 				'feet = { "Boots", "BootArt" }',
 				'back = { "Coats", "CoatArt" }',
+				'belt = { "Belts", "BeltArt" }',
+				'shoulders = { "Shoulders", "ShoulderArt" }',
+				'backpack = { "Backs", "BackArt" }',
+				'hat = { "Hats", "HatArt" }',
+				'hair = { "Hair", "HairArt" }',
+				'ears = { "Ears", "EarArt" }',
+				'neck = { "Necks", "NeckArt" }',
+				'wrist = { "Wrists", "WristArt" }',
+				'arms = { "Arms", "ArmArt" }',
+				'pieceMeshes(char, folder, "hair", hairKit, colors, nil, "Hair")',
+				"if not pieceMeshes(char, folder, slot, kit, c, m) then",
 				"pieceMeshes(char, folder, tab, kit, c, m)",
 				"local function auraLayers(",
 				"C.auraFx",
@@ -346,7 +500,25 @@ return function(T: any)
 			"apply_ids fills the trail ids"
 		)
 		local init = fs.readFile("src/config/init.luau")
-		for _, name in { "CapeArt", "HeadArt", "GloveArt", "BootArt", "CoatArt" } do
+		for _, name in
+			{
+				"CapeArt",
+				"HeadArt",
+				"GloveArt",
+				"BootArt",
+				"CoatArt",
+				"BeltArt",
+				"ShoulderArt",
+				"BackArt",
+				"HatArt",
+				"HairArt",
+				"EyeArt",
+				"EarArt",
+				"NeckArt",
+				"WristArt",
+				"ArmArt",
+			}
+		do
 			check(string.find(init, '"' .. name .. '"', 1, true) ~= nil, "Config indexes " .. name)
 		end
 	end)
@@ -364,6 +536,17 @@ return function(T: any)
 			feet = { 23, 1457297585 },
 			aura = { 6, 1812636889 },
 			trail = { 8, 1275196596 },
+			-- round 3's tabs (2026-11-18, as they stood on enemies9 at 15d72ee)
+			belt = { 15, 1609015023 },
+			shoulders = { 20, 1924804490 },
+			backpack = { 22, 311582161 },
+			hat = { 25, 537220423 },
+			hair = { 40, 309821413 },
+			eyes = { 20, 1835763561 },
+			ears = { 10, 1147272169 },
+			neck = { 15, 1460762146 },
+			wrist = { 12, 1371282101 },
+			arms = { 15, 373027507 },
 		}
 		local total = 0
 		for tab, want in BEFORE do
@@ -381,6 +564,6 @@ return function(T: any)
 			check(n >= want[1], tab .. ": no piece removed (" .. n .. ")")
 			check(h == want[2], tab .. ": the pieces' fingerprint (" .. n .. " pieces, " .. h .. ")")
 		end
-		check(total >= 224, "224 pieces or more in the eight tabs (" .. total .. ")")
+		check(total >= 418, "418 pieces or more in the eighteen tabs (" .. total .. ")")
 	end)
 end

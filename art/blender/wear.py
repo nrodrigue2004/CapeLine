@@ -35,11 +35,12 @@ PARTS = {
 }
 MIRROR = {"lhand": "rhand", "llarm": "rlarm", "luarm": "ruarm", "lfoot": "rfoot", "lshin": "rshin",
           "lthigh": "rthigh"}
-ROLES = ("p", "s", "a", "dark", "white", "gold", "ice", "glowRed", "skin", "hair")
+ROLES = ("p", "s", "a", "dark", "white", "gold", "ice", "glowRed", "skin", "hair", "eye1", "eye2")
 MATS = ("SmoothPlastic", "Metal", "Fabric", "Leather", "Glass", "Rubber", "Wood", "Foil", "Ice")
 
 FIXED = {"dark": (34, 38, 52), "white": (240, 240, 245), "gold": (255, 210, 70), "ice": (200, 245, 255),
-         "glowRed": (255, 80, 40), "skin": (224, 172, 130), "hair": (60, 40, 30)}
+         "glowRed": (255, 80, 40), "skin": (224, 172, 130), "hair": (60, 40, 30), "eye1": (80, 255, 255),
+         "eye2": (255, 90, 200)}
 # bright sample slot colours (main, trim, accent) for the previews
 SAMPLES = [((40, 110, 220), (235, 60, 60), (255, 210, 60)), ((235, 60, 60), (255, 210, 60), (245, 245, 245)),
            ((120, 80, 220), (245, 245, 245), (80, 255, 255)), ((40, 150, 80), (250, 240, 150), (255, 210, 60)),
@@ -359,3 +360,220 @@ def grid_preview(built, out, dress, cols=5, cell=2.8, px=320, focus=4.65, yaw_fr
                     ",".join(names)], check=True)
     for p in tmp:
         os.remove(p)
+
+
+# ---------------------------------------------------------------- round 3 shapes (2026-11-18)
+# Shared by belts.py, shoulders.py, backs.py and hats.py: rings round a vertical axis (belts, pads, hat crowns),
+# rounded boxes, balls, rods, flat outlines and strips, each one a plain mesh ready for a Piece.
+PI = math.pi
+
+
+def spt(a, rx, ry, power):
+    """A point on a superellipse at angle a (0 the front, +y; positive a turns toward +x)."""
+    s, c = math.sin(a), math.cos(a)
+    return (rx * math.copysign(abs(s) ** (2 / power), s), ry * math.copysign(abs(c) ** (2 / power), c))
+
+
+def ring(name, rows, power=10.0, na=40, cx=0.0, cy=0.0, a0=-PI, a1=PI, hole=None, wave=None, thick=0.04,
+         angle=50):
+    """A surface round the vertical axis through (cx, cy): rows [(z, rx, ry)] bottom to top (a radius of 0 closes
+    a dome). a0..a1 the angles it spans (a full turn closes the seam); hole(a, z) leaves a face out; wave(a, z)
+    adds radius. Solidified `thick` about the surface (0: one sheet, faces pointing away from the axis)."""
+    import bmesh
+    full = a1 - a0 >= 2 * PI - 1e-6
+    ncol = na if full else na + 1
+    bm = bmesh.new()
+    grid = []
+    for z, rx, ry in rows:
+        row = []
+        for i in range(ncol):
+            a = a0 + (a1 - a0) * i / na
+            w = wave(a, z) if (wave and max(rx, ry) > 1e-4) else 0.0
+            x, y = spt(a, rx + w, ry + w, power)
+            row.append(bm.verts.new((cx + x, cy + y, z)))
+        grid.append(row)
+    for j in range(len(rows) - 1):
+        for i in range(na):
+            i2 = (i + 1) % ncol
+            am = a0 + (a1 - a0) * (i + 0.5) / na
+            zm = (rows[j][0] + rows[j + 1][0]) / 2
+            if hole and hole(am, zm):
+                continue
+            q = [grid[j][i], grid[j][i2], grid[j + 1][i2], grid[j + 1][i]]
+            if len(set(q)) == 4:
+                bm.faces.new(q)
+    bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-5)
+    bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context="VERTS")
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    ob = kit._obj(name, bm)
+    if thick > 0:
+        solid(ob, thick, 0.0)
+    else:
+        me = ob.data
+        s = sum(p.normal.dot(Vector((p.center.x - cx, p.center.y - cy, 0))) for p in me.polygons)
+        if s < 0:
+            me.flip_normals()
+    kit.shade_auto(ob, angle)
+    return ob
+
+
+def dome_rows(z0, z1, rx, ry, top=None, n=6, base=None):
+    """Rows for `ring`: straight from z0 to z1 at (rx, ry), then a rounded dome closing at `top`."""
+    top = top if top is not None else z1 + min(rx, ry) * 0.6
+    out = [(z0, rx, ry)] if base is None else [(z0, base[0], base[1])]
+    out.append((z1, rx, ry))
+    for k in range(1, n + 1):
+        t = k / n * PI / 2
+        f = math.cos(t) if k < n else 0.0
+        out.append((z1 + (top - z1) * math.sin(t), rx * f, ry * f))
+    return out
+
+
+def rbox(name, sx, sy, sz, at=(0, 0, 0), bev=0.03, segs=2):
+    ob = kit.box(name, sx, sy, sz, at=at)
+    if bev > 0:
+        m = ob.modifiers.new("B", "BEVEL")
+        m.width = min(bev, min(sx, sy, sz) * 0.45)
+        m.segments = segs
+        kit.apply_all(ob)
+    kit.shade_auto(ob, 40)
+    return ob
+
+
+def ball(name, r, at, scale=(1, 1, 1), segs=14, rings=8):
+    ob = kit.sphere(name, r, at=at, scale=scale, segs=segs, rings=rings)
+    kit.shade_auto(ob, 80)
+    return ob
+
+
+def rod(name, pts, radii, segs=8, angle=60):
+    if not isinstance(radii, (list, tuple)):
+        radii = [radii] * len(pts)
+    ob = kit.tube_along(name, [Vector(p) for p in pts], list(radii), segs=segs)
+    kit.shade_auto(ob, angle)
+    return ob
+
+
+def cone(name, r1, r2, h, at, segs=8, axis=(0, 0, 1)):
+    """A cone (or a frustum) from `at` along `axis` (a direction), base radius r1, tip r2."""
+    ob = kit.cyl(name, r1, r2, h, at=(0, 0, h / 2), segs=segs)
+    d = Vector(axis).normalized()
+    q = Vector((0, 0, 1)).rotation_difference(d)
+    ob.data.transform(Matrix.Translation(Vector(at)) @ q.to_matrix().to_4x4())
+    kit.shade_auto(ob, 40)
+    return ob
+
+
+def joined(name, obs, angle=50):
+    for o in obs:
+        kit.apply_all(o)
+        bake(o)
+    ob = kit.join(name, obs, shade=False)
+    kit.shade_auto(ob, angle)
+    return ob
+
+
+def outline(name, pts, depth, at=(0, 0, 0), axis="Y", bev=0.0):
+    """A flat outline pts [(u, v)] extruded `depth` thick, centred at `at`: across Y (u = x, v = z), X (u = y,
+    v = z) or Z (u = x, v = y)."""
+    import bmesh
+    bm = bmesh.new()
+    vs = []
+    for u, v in pts:
+        if axis == "Y":
+            vs.append(bm.verts.new((at[0] + u, at[1], at[2] + v)))
+        elif axis == "X":
+            vs.append(bm.verts.new((at[0], at[1] + u, at[2] + v)))
+        else:
+            vs.append(bm.verts.new((at[0] + u, at[1] + v, at[2])))
+    bm.faces.new(vs)
+    if len(vs) > 4:
+        bmesh.ops.triangulate(bm, faces=bm.faces[:])
+    ob = kit._obj(name, bm)
+    solid(ob, depth, 0.0)
+    if bev:
+        m = ob.modifiers.new("B", "BEVEL")
+        m.width = bev
+        m.segments = 1
+        m.limit_method = "ANGLE"
+        kit.apply_all(ob)
+    kit.shade_auto(ob, 35)
+    return ob
+
+
+def strip(name, pts, widths, up=(0, 0, 1), thick=0.035, angle=60):
+    """A flat strip through pts (a ribbon, a strap, a flag), widths across it, lying across `up` x the run."""
+    import bmesh
+    bm = bmesh.new()
+    rows = []
+    for k, p in enumerate(pts):
+        p = Vector(p)
+        d = (Vector(pts[min(k + 1, len(pts) - 1)]) - Vector(pts[max(k - 1, 0)])).normalized()
+        u = Vector(up(k) if callable(up) else up)
+        side = u - d * d.dot(u)
+        side = side.normalized() if side.length > 1e-4 else Vector((1, 0, 0))
+        w = (widths[k] if isinstance(widths, (list, tuple)) else widths) / 2
+        rows.append((bm.verts.new(p - side * w), bm.verts.new(p + side * w)))
+    for k in range(len(rows) - 1):
+        a, b = rows[k], rows[k + 1]
+        bm.faces.new([a[0], a[1], b[1], b[0]])
+    ob = kit._obj(name, bm)
+    solid(ob, thick, 0.0)
+    kit.shade_auto(ob, angle)
+    return ob
+
+
+def loop_path(rx, ry, z, n, power=10.0, cx=0.0, cy=0.0, a0=-PI, a1=PI):
+    """n points round a superellipse, evenly spaced along it (a path for rods, studs and chains). A high power
+    bunches the angle steps at the corners, so the curve is walked finely and resampled by length."""
+    full = a1 - a0 >= 2 * PI - 1e-6
+    dense = []
+    m = 2000
+    for i in range(m + 1):
+        x, y = spt(a0 + (a1 - a0) * i / m, rx, ry, power)
+        dense.append((cx + x, cy + y))
+    lens = [0.0]
+    for i in range(1, len(dense)):
+        lens.append(lens[-1] + math.dist(dense[i], dense[i - 1]))
+    total = lens[-1]
+    out, j = [], 0
+    for k in range(n):
+        t = total * k / (n if full else n - 1)
+        while j < len(lens) - 2 and lens[j + 1] < t:
+            j += 1
+        f = (t - lens[j]) / max(lens[j + 1] - lens[j], 1e-9)
+        x = dense[j][0] + (dense[j + 1][0] - dense[j][0]) * f
+        y = dense[j][1] + (dense[j + 1][1] - dense[j][1]) * f
+        out.append((x, y, z))
+    return out
+
+
+def gear(name, r, teeth, depth, at, axis="Y", hole=0.0, tooth=0.12):
+    """A flat gear: `teeth` square teeth round a disc of radius r, `depth` thick, facing along axis."""
+    pts = []
+    for k in range(teeth * 4):
+        a = 2 * PI * k / (teeth * 4)
+        rr = r + (tooth if (k % 4) in (1, 2) else 0.0)
+        pts.append((rr * math.cos(a), rr * math.sin(a)))
+    return outline(name, pts, depth, at=at, axis=axis)
+
+
+def star_pts(r1, r2, n=5, rot=PI / 2):
+    out = []
+    for k in range(n * 2):
+        a = rot + PI * k / n
+        r = r1 if k % 2 == 0 else r2
+        out.append((r * math.cos(a), r * math.sin(a)))
+    return out
+
+
+def rrect_pts(w, h, r, n=4):
+    """A rounded rectangle outline, w x h, corner radius r."""
+    out = []
+    for cx, cy, a0 in ((w / 2 - r, h / 2 - r, 0), (-w / 2 + r, h / 2 - r, PI / 2), (-w / 2 + r, -h / 2 + r, PI),
+                       (w / 2 - r, -h / 2 + r, 1.5 * PI)):
+        for k in range(n + 1):
+            a = a0 + PI / 2 * k / n
+            out.append((cx + r * math.cos(a), cy + r * math.sin(a)))
+    return out
+
