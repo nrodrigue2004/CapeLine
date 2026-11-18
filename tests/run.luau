@@ -21864,9 +21864,14 @@ do
 		check(villains >= 32, "every chain's finale was checked")
 	end)
 
-	test("Art pass: outfits fall back at 0 and strip only the drawn slots", function()
+	test("Art pass: uploaded outfits show, and strip only the drawn slots", function()
+		-- every outfit is uploaded (2026-11-18, Open Cloud): each person wears its drawn suit
 		for id in NL.people do
-			check(PeopleLooks.outfit(Config, id) == nil, id .. " shows today's look until uploaded")
+			local fit = PeopleLooks.outfit(Config, id) :: any
+			check(
+				fit ~= nil and string.find(fit.clothes or "", "^rbxassetid://%d+$") ~= nil,
+				id .. " wears its uploaded outfit"
+			)
 		end
 		check(
 			PeopleLooks.outfit(Config, "Nobody") == nil and PeopleLooks.outfit(Config, nil) == nil,
