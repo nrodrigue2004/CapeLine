@@ -708,6 +708,237 @@ C.punchL = HeroAnim.mirror(C.punch)
 C.blastL = HeroAnim.mirror(C.blast)
 C.slashL = HeroAnim.mirror(C.slash)
 
+-- The power paths' signature casts (nate's playtest 2026-11-18: "animations for all attacks/powers... my character
+-- should have an animation"). Every one moves the whole body: a set stance (hips and knees), an anticipation
+-- before the release, the release itself, then a follow-through. HeroAnim.castClip picks them by path and shape.
+C.palmPush = { -- Pulse, Tide: both palms driven forward from the hip
+	dur = 0.55,
+	joints = {
+		RightShoulder = {
+			K(0, 10, 0, 30),
+			K(0.14, -10, 0, 40),
+			K(0.24, 90, 0, 8),
+			K(0.42, 88, 0, 8),
+			K(0.55, 30, 0, 20),
+		},
+		LeftShoulder = {
+			K(0, 10, 0, -30),
+			K(0.14, -10, 0, -40),
+			K(0.24, 90, 0, -8),
+			K(0.42, 88, 0, -8),
+			K(0.55, 30, 0, -20),
+		},
+		RightElbow = { K(0, 60), K(0.14, 110), K(0.24, 0), K(0.55, 30) },
+		LeftElbow = { K(0, 60), K(0.14, 110), K(0.24, 0), K(0.55, 30) },
+		RightWrist = { K(0, 0), K(0.24, 70), K(0.55, 0) },
+		LeftWrist = { K(0, 0), K(0.24, 70), K(0.55, 0) },
+		Waist = { K(0, 0), K(0.14, 14), K(0.24, -16), K(0.55, 0) },
+		RightHip = { K(0, 0), K(0.24, -24), K(0.55, 0) },
+		LeftHip = { K(0, 0), K(0.24, 34), K(0.55, 0) },
+		LeftKnee = { K(0, 0), K(0.24, -30), K(0.55, 0) },
+		RightKnee = { K(0, 0), K(0.24, -16), K(0.55, 0) },
+		Root = { K(0, 0, 0, 0, 0), K(0.24, 0, 0, 0, -0.35), K(0.55, 0, 0, 0, 0) },
+	},
+}
+C.hurl = { -- Fire, Volt, Gadgeteer: a pitcher's wind-up and throw, the off arm pointing at the target
+	dur = 0.55,
+	joints = {
+		RightShoulder = { K(0, 0, 0, 20), K(0.16, 160, 0, 40), K(0.28, 70, 0, 4), K(0.55, 20, 0, 16) },
+		RightElbow = { K(0, 30), K(0.16, 90), K(0.28, 0), K(0.55, 30) },
+		LeftShoulder = { K(0, 20, 0, -10), K(0.16, 88, 0, -6), K(0.28, 30, 0, -30), K(0.55, 10, 0, -14) },
+		Waist = { K(0, 0), K(0.16, 10, 36), K(0.28, -18, -30), K(0.55, 0, 0) },
+		Neck = { K(0, 0), K(0.16, 0, -30), K(0.28, 0, 20), K(0.55, 0, 0) },
+		LeftHip = { K(0, 0), K(0.16, 50), K(0.28, 30), K(0.55, 0) },
+		LeftKnee = { K(0, 0), K(0.16, -60), K(0.28, -20), K(0.55, 0) },
+		RightHip = { K(0, 0), K(0.28, -30), K(0.55, 0) },
+		Root = { K(0, 0, 0, 0, 0), K(0.28, 0, 0, 0, -0.3), K(0.55, 0, 0, 0, 0) },
+	},
+}
+C.stomp = { -- Earth, Titan, Colossus: knee up high, then the foot and both fists come down together
+	dur = 0.6,
+	joints = {
+		RightHip = { K(0, 0), K(0.2, 100, 0, 10), K(0.32, 10, 0, 14), K(0.6, 0) },
+		RightKnee = { K(0, 0), K(0.2, -100), K(0.32, -10), K(0.6, 0) },
+		LeftKnee = { K(0, 0), K(0.2, -10), K(0.32, -50), K(0.6, 0) },
+		LeftHip = { K(0, 0), K(0.32, 40), K(0.6, 0) },
+		RightShoulder = { K(0, 20, 0, 20), K(0.2, 150, 0, 30), K(0.32, -10, 0, 40), K(0.6, 10, 0, 20) },
+		LeftShoulder = { K(0, 20, 0, -20), K(0.2, 150, 0, -30), K(0.32, -10, 0, -40), K(0.6, 10, 0, -20) },
+		RightElbow = { K(0, 40), K(0.2, 60), K(0.32, 10), K(0.6, 30) },
+		LeftElbow = { K(0, 40), K(0.2, 60), K(0.32, 10), K(0.6, 30) },
+		Waist = { K(0, 0), K(0.2, 16), K(0.32, -30), K(0.6, 0) },
+		Root = { K(0, 0, 0, 0, 0), K(0.2, 0, 0, 0, 0.4), K(0.32, 0, 0, 0, -0.8), K(0.6, 0, 0, 0, 0) },
+	},
+}
+C.sweep = { -- Frost, Spirit: a wide arm sweep from one side to the other, turning the whole body
+	dur = 0.6,
+	joints = {
+		RightShoulder = { K(0, 30, 0, 20), K(0.16, 70, 0, 90), K(0.4, 80, 0, -10), K(0.6, 20, 0, 20) },
+		RightElbow = { K(0, 60), K(0.16, 10), K(0.4, 10), K(0.6, 40) },
+		LeftShoulder = { K(0, 20, 0, -20), K(0.16, 40, 0, -10), K(0.4, 60, 0, -80), K(0.6, 10, 0, -20) },
+		LeftElbow = { K(0, 40), K(0.4, 10), K(0.6, 40) },
+		Waist = { K(0, 0), K(0.16, 0, -40), K(0.4, -8, 40), K(0.6, 0, 0) },
+		Neck = { K(0, 0), K(0.16, 0, 20), K(0.4, 0, -20), K(0.6, 0, 0) },
+		RightHip = { K(0, 0), K(0.4, -20, 0, 14), K(0.6, 0) },
+		LeftHip = { K(0, 0), K(0.4, 26, 0, -14), K(0.6, 0) },
+		LeftKnee = { K(0, 0), K(0.4, -34), K(0.6, 0) },
+		Root = { K(0, 0, 0, 0, 0), K(0.4, 0, 0, 0, -0.4), K(0.6, 0, 0, 0, 0) },
+	},
+}
+C.quickDraw = { -- Gunslinger: the hand snaps to the hip, up and fires, with a recoil kick and a step back
+	dur = 0.45,
+	joints = {
+		RightShoulder = {
+			K(0, 0, 0, 10),
+			K(0.08, -10, 0, 20),
+			K(0.16, 92, 0, 0),
+			K(0.24, 110, 0, 0),
+			K(0.45, 40, 0, 12),
+		},
+		RightElbow = { K(0, 30), K(0.08, 90), K(0.16, 0), K(0.24, 20), K(0.45, 40) },
+		LeftShoulder = { K(0, 20), K(0.16, 84, 0, 10), K(0.45, 20) },
+		LeftElbow = { K(0, 60), K(0.16, 40), K(0.45, 60) },
+		Waist = { K(0, 0), K(0.16, 0, -30), K(0.24, 10, -30), K(0.45, 0, 0) },
+		Neck = { K(0, 0), K(0.16, 0, 26), K(0.45, 0, 0) },
+		RightHip = { K(0, 0), K(0.16, -26), K(0.45, 0) },
+		LeftHip = { K(0, 0), K(0.16, 20), K(0.45, 0) },
+		LeftKnee = { K(0, 0), K(0.16, -24), K(0.45, 0) },
+	},
+}
+C.vanish = { -- Shadow: a low crouch, the cloak arm across the face, then a spring up and out
+	dur = 0.6,
+	joints = {
+		RightShoulder = { K(0, 20), K(0.2, 100, 0, -40), K(0.4, 60, 0, 60), K(0.6, 20, 0, 20) },
+		RightElbow = { K(0, 40), K(0.2, 120), K(0.4, 10), K(0.6, 40) },
+		LeftShoulder = { K(0, 20), K(0.2, -30, 0, -30), K(0.4, 40, 0, -70), K(0.6, 20, 0, -20) },
+		Waist = { K(0, 0), K(0.2, -30), K(0.4, 6), K(0.6, 0) },
+		Neck = { K(0, 0), K(0.2, -14), K(0.6, 0) },
+		RightHip = { K(0, 0), K(0.2, 60), K(0.4, 10), K(0.6, 0) },
+		LeftHip = { K(0, 0), K(0.2, 40), K(0.4, -10), K(0.6, 0) },
+		RightKnee = { K(0, 0), K(0.2, -90), K(0.4, -10), K(0.6, 0) },
+		LeftKnee = { K(0, 0), K(0.2, -80), K(0.4, -10), K(0.6, 0) },
+		Root = { K(0, 0, 0, 0, 0), K(0.2, 0, 0, 0, -1.1), K(0.4, 0, 0, 0, 0.2), K(0.6, 0, 0, 0, 0) },
+	},
+}
+C.combo3 = { -- Martial: jab, cross, and a spinning back kick
+	dur = 0.75,
+	joints = {
+		LeftShoulder = { K(0, 50, 0, -10), K(0.08, 92, 0, -4), K(0.16, 50, 0, -10), K(0.75, 40, 0, -14) },
+		LeftElbow = { K(0, 100), K(0.08, 4), K(0.16, 100), K(0.75, 90) },
+		RightShoulder = {
+			K(0, 50, 0, 10),
+			K(0.16, 50, 0, 10),
+			K(0.24, 92, 0, 4),
+			K(0.34, 40, 0, 30),
+			K(0.75, 30, 0, 20),
+		},
+		RightElbow = { K(0, 100), K(0.24, 4), K(0.34, 90), K(0.75, 90) },
+		Waist = { K(0, 0, 10), K(0.08, 0, 20), K(0.24, -6, -26), K(0.4, 0, 60), K(0.75, 0, 0) },
+		RightHip = { K(0, 0), K(0.4, 20), K(0.52, 90, 0, 30), K(0.62, 80, 0, 30), K(0.75, 0) },
+		RightKnee = { K(0, 0), K(0.4, -60), K(0.52, -4), K(0.75, 0) },
+		LeftKnee = { K(0, -10), K(0.52, -24), K(0.75, 0) },
+		Root = { K(0, 0, 0, 0, 0), K(0.34, 0, 0, 0, 0), K(0.62, 0, -180, 0, 0), K(0.75, 0, -360, 0, 0) },
+	},
+}
+C.charge2 = { -- Juggernaut: the shoulder dropped, a heavy run-in step and a ram
+	dur = 0.55,
+	joints = {
+		Waist = { K(0, 0), K(0.16, -34, 20), K(0.34, -30, 30), K(0.55, 0, 0) },
+		RightShoulder = { K(0, 20, 0, 10), K(0.16, 40, 0, 50), K(0.34, 60, 0, 70), K(0.55, 20, 0, 20) },
+		RightElbow = { K(0, 60), K(0.16, 100), K(0.55, 60) },
+		LeftShoulder = { K(0, 20, 0, -10), K(0.16, -30, 0, -20), K(0.55, 10, 0, -14) },
+		LeftElbow = hold(90),
+		RightHip = { K(0, 0), K(0.16, 50), K(0.34, -30), K(0.55, 0) },
+		LeftHip = { K(0, 0), K(0.16, -30), K(0.34, 50), K(0.55, 0) },
+		RightKnee = { K(0, 0), K(0.16, -50), K(0.34, -10), K(0.55, 0) },
+		LeftKnee = { K(0, 0), K(0.16, -10), K(0.34, -60), K(0.55, 0) },
+		Root = { K(0, 0, 0, 0, 0), K(0.16, 0, 0, 0, -0.4), K(0.55, 0, 0, 0, 0) },
+	},
+}
+C.temple = { -- Mind: two fingers to the temple, then the other hand thrust out at the target
+	dur = 0.65,
+	joints = {
+		RightShoulder = { K(0, 20, 0, 20), K(0.18, 120, 0, 60), K(0.65, 30, 0, 20) },
+		RightElbow = { K(0, 40), K(0.18, 140), K(0.5, 140), K(0.65, 40) },
+		LeftShoulder = {
+			K(0, 20, 0, -20),
+			K(0.18, 30, 0, -30),
+			K(0.3, 92, 0, -4),
+			K(0.52, 92, 0, -4),
+			K(0.65, 20, 0, -20),
+		},
+		LeftElbow = { K(0, 40), K(0.18, 90), K(0.3, 0), K(0.65, 40) },
+		LeftWrist = { K(0, 0), K(0.3, 60), K(0.65, 0) },
+		Waist = { K(0, 0), K(0.18, 10, -10), K(0.3, -6, 20), K(0.65, 0, 0) },
+		Neck = { K(0, 0), K(0.18, -20), K(0.3, 10), K(0.65, 0) },
+		LeftHip = { K(0, 0), K(0.3, 24), K(0.65, 0) },
+		LeftKnee = { K(0, 0), K(0.3, -20), K(0.65, 0) },
+	},
+}
+C.raise =
+	{ -- Light, Spirit's supers and every Mystic buff: arms rise overhead, the chest lifts, up on the toes
+		dur = 0.75,
+		joints = {
+			RightShoulder = {
+				K(0, 10, 0, 20),
+				K(0.25, 70, 0, 60),
+				K(0.45, 170, 0, 20),
+				K(0.62, 170, 0, 20),
+				K(0.75, 20, 0, 20),
+			},
+			LeftShoulder = {
+				K(0, 10, 0, -20),
+				K(0.25, 70, 0, -60),
+				K(0.45, 170, 0, -20),
+				K(0.62, 170, 0, -20),
+				K(0.75, 20, 0, -20),
+			},
+			RightElbow = { K(0, 30), K(0.45, 10), K(0.75, 30) },
+			LeftElbow = { K(0, 30), K(0.45, 10), K(0.75, 30) },
+			Waist = { K(0, 0), K(0.25, -10), K(0.45, 18), K(0.75, 0) },
+			Neck = { K(0, 0), K(0.45, 26), K(0.75, 0) },
+			RightHip = { K(0, 0), K(0.25, 20), K(0.45, -6), K(0.75, 0) },
+			LeftHip = { K(0, 0), K(0.25, 20), K(0.45, -6), K(0.75, 0) },
+			RightKnee = { K(0, 0), K(0.25, -40), K(0.45, 0), K(0.75, 0) },
+			LeftKnee = { K(0, 0), K(0.25, -40), K(0.45, 0), K(0.75, 0) },
+			Root = {
+				K(0, 0, 0, 0, 0),
+				K(0.25, 0, 0, 0, -0.4),
+				K(0.45, 0, 0, 0, 0.5),
+				K(0.62, 0, 0, 0, 0.5),
+				K(0.75, 0, 0, 0, 0),
+			},
+		},
+	}
+C.ground = { -- Earth, Tide and Colossus areas: a crouch, both palms slapped to the ground
+	dur = 0.6,
+	joints = {
+		RightShoulder = { K(0, 20, 0, 20), K(0.2, 150, 0, 20), K(0.34, 60, 0, 30), K(0.6, 20, 0, 20) },
+		LeftShoulder = { K(0, 20, 0, -20), K(0.2, 150, 0, -20), K(0.34, 60, 0, -30), K(0.6, 20, 0, -20) },
+		RightElbow = { K(0, 30), K(0.34, 0), K(0.6, 30) },
+		LeftElbow = { K(0, 30), K(0.34, 0), K(0.6, 30) },
+		Waist = { K(0, 0), K(0.2, 10), K(0.34, -50), K(0.6, 0) },
+		RightHip = { K(0, 0), K(0.34, 70), K(0.6, 0) },
+		LeftHip = { K(0, 0), K(0.34, 20, 0, -20), K(0.6, 0) },
+		RightKnee = { K(0, 0), K(0.34, -100), K(0.6, 0) },
+		LeftKnee = { K(0, 0), K(0.34, -60), K(0.6, 0) },
+		Root = { K(0, 0, 0, 0, 0), K(0.34, 0, 0, 0, -1.3), K(0.6, 0, 0, 0, 0) },
+	},
+}
+
+-- The standing brace under any cast that leaves the legs alone (HeroAnimator adds it only while the hero
+-- stands: a running hero's legs stay the Animator's): feet set apart, knees soft, a small dip
+C.brace = {
+	dur = 1,
+	loop = true,
+	joints = {
+		RightHip = hold(-16, 0, 8),
+		LeftHip = hold(22, 0, -8),
+		RightKnee = hold(-14),
+		LeftKnee = hold(-26),
+		Root = hold(0, 0, 0, -0.3),
+	},
+}
+
 HeroAnim.CLIPS = C
 
 -- the mode pose for a hero: nil means the Animator's own (ground walk, idle and jump). current: the pose it
@@ -818,6 +1049,59 @@ local SHAPE_CLIPS: { [string]: string } = {
 }
 HeroAnim.SHAPE_CLIPS = SHAPE_CLIPS
 
+-- Shapes in four groups for the paths' own moves: aimed (at a target), around (an area round the hero),
+-- self (a buff, a field, a summon) and move (a dash, a leap)
+local SHAPE_GROUP: { [string]: string } = {
+	bolt = "aimed",
+	line = "aimed",
+	chain = "aimed",
+	cone = "aimed",
+	arc = "aimed",
+	throw = "aimed",
+	launch = "aimed",
+	nova = "around",
+	area = "around",
+	wall = "around",
+	ramp = "around",
+	field = "self",
+	buff = "self",
+	summon = "self",
+	place = "self",
+	decoy = "self",
+	ride = "self",
+	dash = "move",
+	leap = "move",
+}
+HeroAnim.SHAPE_GROUP = SHAPE_GROUP
+
+-- Each path's signature moves by shape group (nate's playtest 2026-11-18); "other" covers the rest. Blade keeps
+-- its sword swings (castClip below) and weapons their own sets.
+local PATH_CLIPS: { [string]: { [string]: string } } = {
+	Volt = { aimed = "hurl", around = "nova", self = "raise", move = "lunge" },
+	Frost = { aimed = "sweep", around = "ground", self = "raise", move = "lunge" },
+	Fire = { aimed = "hurl", around = "nova", self = "raise", move = "lunge" },
+	Earth = { aimed = "stomp", around = "ground", self = "raise", move = "charge2" },
+	Tide = { aimed = "palmPush", around = "ground", self = "sweep", move = "lunge" },
+	Gunslinger = { aimed = "quickDraw", around = "spin", self = "quickDraw", move = "lunge" },
+	Gadgeteer = { aimed = "hurl", around = "throw", self = "buff", move = "lunge" },
+	Shadow = { aimed = "vanish", around = "spin", self = "vanish", move = "vanish" },
+	Titan = { aimed = "uppercut", around = "stomp", self = "buff", move = "charge2" },
+	Martial = { aimed = "combo3", around = "kick", self = "buff", move = "lunge" },
+	Juggernaut = { aimed = "charge2", around = "slam", self = "buff", move = "charge2" },
+	Colossus = { aimed = "stomp", around = "ground", self = "buff", move = "charge2" },
+	Pulse = { aimed = "palmPush", around = "nova", self = "raise", move = "lunge" },
+	Mind = { aimed = "temple", around = "nova", self = "raise", move = "lunge" },
+	Spirit = { aimed = "sweep", around = "raise", self = "raise", move = "lunge" },
+	Light = { aimed = "blast2", around = "raise", self = "raise", move = "lunge" },
+}
+HeroAnim.PATH_CLIPS = PATH_CLIPS
+
+-- Whether a clip moves the legs itself (else HeroAnimator sets the standing brace under it)
+function HeroAnim.movesLegs(name: string): boolean
+	local clip = C[name]
+	return clip ~= nil and (clip.joints.RightHip ~= nil or clip.joints.LeftHip ~= nil)
+end
+
 -- The clip an ability row plays when cast. row: a Config.Abilities row (shape, slot, set, sword, channel,
 -- weapon); family: the weapon's family id when row.weapon is set; step: the combo step (1, 2, 3...).
 function HeroAnim.castClip(row: any, family: string?, step: number?): string
@@ -843,6 +1127,14 @@ function HeroAnim.castClip(row: any, family: string?, step: number?): string
 			return if family == "shield" then "block" else "buff"
 		end
 		return per[3]
+	end
+	-- the power path's own move for its skills and supers (the basic attack keeps its quick combo)
+	local sig = PATH_CLIPS[row.set or ""]
+	if sig and row.slot ~= "basic" then
+		local pick = sig[SHAPE_GROUP[shape] or "other"] or sig.other
+		if pick then
+			return pick
+		end
 	end
 	if row.slot == "super" then
 		return if shape == "bolt"

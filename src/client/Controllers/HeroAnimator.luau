@@ -249,13 +249,22 @@ local function step(r: Rig, p: Player, now: number)
 			act = HeroAnim.sample(a.clip, t)
 		end
 	end
+	-- a cast that leaves the legs alone, cast standing still: the feet set and the knees bend under it, so the
+	-- whole body moves (a running hero keeps the Animator's stride)
+	local brace = if act
+			and not r.modeTo
+			and speed < 4
+			and not HeroAnim.movesLegs((a :: Action).clip)
+		then HeroAnim.sample("brace", 0)
+		else nil
 	for name, motor in r.motors do
 		local f = from and from[name]
 		local tt = to and to[name]
 		local ac = act and act[name]
 		local hd = hold and hold[name]
+		local br = brace and brace[name]
 		local last = r.written[motor]
-		if f or tt or ac or hd then
+		if f or tt or ac or hd or br then
 			-- what the Animator set this frame, or rest if it left our last pose in place
 			local base = motor.Transform
 			if last and base == last then
@@ -270,6 +279,9 @@ local function step(r: Rig, p: Player, now: number)
 			end
 			if hd then
 				out = out:Lerp(toCFrame(hd), wHold)
+			end
+			if br then
+				out = out:Lerp(toCFrame(br), wAct)
 			end
 			if ac then
 				out = out:Lerp(toCFrame(ac), wAct)

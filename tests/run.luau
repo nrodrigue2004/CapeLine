@@ -22872,6 +22872,8 @@ end
 (require :: any)("./walls_test")({ test = test, check = check, Config = Config });
 -- Super-speed's running jump (nate's playtest 2026-11-18); ONLY="Speed hop" runs these
 (require :: any)("./hop_test")({ test = test, check = check, Config = Config });
+-- every power path's own hero moves (nate's playtest 2026-11-18); ONLY="Power anims" runs these
+(require :: any)("./anim_test")({ test = test, check = check, Config = Config });
 -- the enemy motion pass (2026-11-18, own file); ONLY="Enemy motion" runs just these
 (require :: any)("./motion_test")({ test = test, check = check, Config = Config })
 
