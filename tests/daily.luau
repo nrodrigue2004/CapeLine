@@ -456,7 +456,7 @@ return function(T: any)
 				"SideQuestService.StepPaid",
 				"EventService.Paid",
 				"ThrowService.Thrown",
-				"DeathService.PvpDefeat",
+				"DeathService.PvpWon", -- a paid win only (review 2026-11-18)
 				"DataService.Loaded",
 			}
 		do

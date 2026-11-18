@@ -39,6 +39,9 @@ return {
 	topCount = 50, -- rows shown
 	friendsMax = 200, -- Roblox friends read once a session
 	plazaCount = 10, -- rows on the plaza board
+	-- board_open analytics: at most one per board and filter per player in this many seconds (review
+	-- 2026-11-18: BoardOpen's own rate, 1 a second, let one device spend the server's event budget)
+	logEvery = 60,
 
 	reward = {
 		top = 10, -- the top 10 of each board earn its title

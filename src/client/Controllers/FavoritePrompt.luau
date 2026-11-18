@@ -3,7 +3,8 @@
 -- nothing locked behind it (Roblox's rules forbid rewarding a favorite).
 -- * The server sends FavoriteAsk after a first boss win on an account that has never seen it (FavoriteService
 --   keeps the flag in the save). This device waits for a quiet moment (the result card gone, no scene, not
---   Downed, no hit taken for a few seconds), says FavoriteShown so the flag is saved, then opens the prompt.
+--   Downed, no hit taken for a few seconds, and none of the cards Ui.PopupGate holds up: the same boss win
+--   pops the starter offer), says FavoriteShown so the flag is saved, then opens the prompt.
 -- * The call is AvatarEditorService:PromptSetFavorite(game.PlaceId, Enum.AvatarItemType.Asset, true): a place
 --   is an asset, so its place id favorites the experience. Wrapped in pcall (Studio and some devices refuse).
 -- * No quiet moment within Config.Analytics.favorite.giveUp seconds: nothing is shown and the flag stays
@@ -31,6 +32,13 @@ function FavoritePrompt.quiet(now: number): boolean
 		return false -- the boss result card is still up
 	end
 	if CinemaClient.playing() or player:GetAttribute("Downed") == true then
+		return false
+	end
+	-- Roblox's prompt never lands on top of a card the game popped (the starter offer, the daily card, the
+	-- episode's panels; review 2026-11-18). Required here, not at the top: Ui.PopupGate reads the main menu,
+	-- which reads the shop
+	local PopupGate = require(script.Parent.Parent.Ui.PopupGate) :: any
+	if not PopupGate.free() then
 		return false
 	end
 	return now - (CinemaClient.lastHit or 0) >= F.calm

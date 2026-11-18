@@ -13,7 +13,8 @@
 -- medium throwable with the usual carry rules, for Config.Throw.wreck.life seconds (a few seconds once thrown
 -- or set down), then it falls apart (WreckGone: sparks and a pop on every screen, ThrowFx). At most
 -- wreck.max at once: a new one clears the oldest nobody holds. Never fakes, twins, creatures, sea robots or
--- the small pack robots (Shared.ThrowMath.canWreck). PLACEHOLDER ART: the wreck is plain parts in its colours.
+-- the small pack robots (Shared.ThrowMath.canWreck), nor a dressed villain (EnemyService.identity dress).
+-- PLACEHOLDER ART: the wreck is plain parts in its colours.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -693,8 +694,11 @@ function ThrowService.init()
 		end
 	end
 	-- WP6: a robot a hero beat leaves its wreck (a kill with nobody behind it, a clear, leaves none)
-	EnemyService.Killed:Connect(function(kind: string, by: number?, pos: Vector3)
-		if by and typeof(pos) == "Vector3" then
+	EnemyService.Killed:Connect(function(kind: string, by: number?, pos: Vector3, enemyId: number?)
+		-- a dressed villain (a side quest finale's, WP5's Suspicious Hero costumes) is a person in its suit
+		-- kind's rig: it leaves no robot wreck (review 2026-11-18; the Rogues File skips it the same way)
+		local ident = enemyId and EnemyService.identity(enemyId)
+		if by and typeof(pos) == "Vector3" and not (ident and ident.dress) then
 			spawnWreck(kind, pos)
 		end
 	end)

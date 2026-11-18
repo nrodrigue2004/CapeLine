@@ -36,6 +36,9 @@ local downedAt: { [number]: number } = {} -- hero id -> os.clock when Downed
 local pvpHit: { [Player]: boolean } = {} -- the pvp_hit event logged this session (the funnel step is per flag)
 local paidWin: { [number]: number } = {} -- winner hero id -> the loser of the PvP win that just paid (PvpWon)
 local idledAt: { [Player]: number } = {} -- os.clock of the last Player.Idled (Roblox: 2 minutes idle)
+-- players whose session started this join: DataService.Loaded fires again on a slot switch and a Legacy retire
+-- (every service takes the new character), which is not a new session (review 2026-11-18)
+local sessionOn: { [Player]: boolean } = {}
 
 local IDLE_WINDOW = 150 -- a quit this soon after Player.Idled counts as "idle"
 local CHECK_EVERY = 5 -- seconds between funnel stage checks
@@ -51,6 +54,12 @@ end
 -- load (a blank profile that never saves) logs only the device: the funnels and firsts would count a
 -- returning player as new (Audit 2026-11-18).
 local function joined(player: Player, profile: any)
+	-- a slot switch or a Legacy retire fires Loaded again: the session goes on (FunnelKit.join would count a
+	-- second session and drop the play time so far; session_device and the session clock would restart)
+	if sessionOn[player] then
+		return
+	end
+	sessionOn[player] = true
 	if not DataService.isSaving(player) then
 		Analytics.session(player, "nosave", sideOf)
 		return
@@ -337,6 +346,7 @@ function AnalyticsHooks.init()
 	Players.PlayerRemoving:Connect(function(p)
 		pvpHit[p] = nil
 		waiting[p] = nil
+		sessionOn[p] = nil
 	end)
 end
 

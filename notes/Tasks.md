@@ -176,6 +176,16 @@ Blender looks for the 6 side quest escorts still in the motorcade box and the hu
 8. At night: the show van's bulbs and headlights and the parts truck's beacon glow (Neon); nothing else looks lit.
 9. Remove one mesh (e.g. TramGear) from ReplicatedStorage.Art.Vehicles and restart: every tram is its boxes again (never half a look) and the cars are still dressed, with no errors in the output. Remove the whole model: everything is today's parts.
 10. Performance (Dev panel, phone emulation): the frame time on a Downtown street and during an escort is about what it was with the boxes.
+### Seams review: travel, wrecks, popups, analytics, HQ visits (2026-11-18)
+Fixes where tonight's packages meet (Decisions 2026-11-18, "review"). Tests: ONLY="Review", ONLY="Audit analytics".
+1. Fast travel from a scene: enter your HQ (the Vigil's stairwell), open MAP and tap a gold beacon: it reads "Head back out to the city first" and you stay. The same in a mission pocket and while visiting a friend's HQ (2 Studio clients: VISIT, ACCEPT, then MAP). Out in the city fast travel works as before.
+2. Wrecks: beat ordinary robots: their wrecks fall as before. Play a side quest finale (DEV > a chain's finale) and beat the villain: no robot heap is left where they fell. The same for a Suspicious Hero incident's costumed fake.
+3. Join cards: with a fresh account (Dev Wipe) on a Monday-reset week, join: the episode's three comic panels never show over the loading screen, the creator or the prologue; they come after the prologue, one card at a time with the daily card (whichever is first, the other after it closes).
+4. First world boss win on a fresh account: the starter pack card shows; Roblox's favorite prompt waits until you close it (NO THANKS), then opens a few seconds later.
+5. Boards: open BOARDS and flip every tab and filter fast for a minute with Studio's Output open: at most one "[Analytics] board_open" line per board and filter.
+6. Analytics hold: in Studio set Config.Analytics.budget.base to 2 and perPlayer to 0, join, and do a few things (a level up, a daily quest): some events wait and print a few seconds later instead of never.
+7. Slot switch: switch hero slots and retire a hero at level 50 (Legacy): the Output shows no second session_start or session_device for that join.
+8. HQ visit: 2 clients; client B visits A's HQ. Before B visits, A sets DEV > Level 7. While B is there, A earns level 8 in the city (an incident or a few robots): B's WANTED poster opens. Then A wins a Showdown (DEV > Nemesis 1, then the Showdown): B's copy shows the next nemesis and a new head without leaving.
 
 ### Hero creator art: suits, emblems, masks and capes (2026-11-18, overnight item 12)
 The most visible creator pieces have real art waiting for nate (tests: ONLY="Creator art"). Until each image is uploaded or the capes are imported, that piece keeps today's part-built look, so nothing changes in a build before then. No piece id, kit, slot or unlock changed, so saved looks keep working. Previews: art/preview/suit_templates.png, suits_1..6.png (all 46 suits on the blocky body, front and back), emblems.png, masks.png and capes.png.

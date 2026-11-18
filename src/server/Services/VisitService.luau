@@ -7,7 +7,8 @@
 --   no teleport): the server builds the cell's floor and walls (HqService.buildCell) and sends the visitor a
 --   read-only copy of the owner's HQ from the owner's save (VisitRules.readOnly over HqService.view: rooms,
 --   trophy wall, statues, props, dressing, the WANTED poster and heads). The copy redraws when the owner's HQ
---   changes (HqService.ownerChanged).
+--   changes (HqService.ownerChanged), and when what it shows changes out in the city: a level (the poster opens
+--   at level 8), the story (the city's props), a nemesis met or beaten (the poster, a new head).
 -- * Visitors are in a scene ("hqVisit"): no PvP, robots, incidents, events, loot or finds; HqService's station
 --   remotes only answer the owner in their own cell, so a visitor cannot use a station, change anything or
 --   start the boss sim. LEAVE HQ or the exit (HqVisitLeave) puts the visitor back where they were.
@@ -358,6 +359,19 @@ function VisitService.init()
 	DataService.Loaded:Connect(function(player)
 		redraw(player)
 	end)
+	-- review 2026-11-18: what the copy shows also changes while the owner is out in the city (HqService only
+	-- tells ownerChanged from inside the owner's own HQ): a level, the story's props, the WANTED poster and
+	-- heads. Required here: the Nemesis and Story services are booted by now. Only owners with visitors redraw.
+	local NemesisService = require(script.Parent.NemesisService) :: any
+	local StoryService = require(script.Parent.StoryService) :: any
+	HeroService.Leveled:Connect(function(hero)
+		if hero.player then
+			redraw(hero.player)
+		end
+	end)
+	StoryService.Changed:Connect(redraw)
+	NemesisService.Met:Connect(redraw)
+	NemesisService.Won:Connect(redraw)
 	-- a respawn inside (a reset) puts the visitor back in the pocket
 	HeroService.Spawned:Connect(function(hero)
 		local trip = hero.player and trips[hero.player]

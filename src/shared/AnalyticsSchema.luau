@@ -213,6 +213,32 @@ function AnalyticsSchema.force(b: Budget, cfg: any, now: number, players: number
 	return b.n <= AnalyticsSchema.cap(cfg, players)
 end
 
+-- Review 2026-11-18: a rare event (not Config.Analytics.lowPriority) the budget had no room for waits here, per
+-- player, and goes with the next flush (AnalyticsHooks: every 5 s), oldest first. A server filling up sends 8
+-- join events a player since tonight's packages (the session's device and balance, the streak's day and a late
+-- claim, the group piece, a settled week's board titles) on top of a hard fight's sampled casts: more than one
+-- minute holds, and the once-per-account ones were lost. At most HELD_MAX wait per player (then "full").
+AnalyticsSchema.HELD_MAX = 24
+
+-- Keep one refused event to send later: false when this player's queue is full
+function AnalyticsSchema.hold(queue: { any }, item: any): boolean
+	if #queue >= AnalyticsSchema.HELD_MAX then
+		return false
+	end
+	table.insert(queue, item)
+	return true
+end
+
+-- Send the waiting events, oldest first, while take() finds a budget slot. Returns how many went.
+function AnalyticsSchema.release(queue: { any }, take: () -> boolean, send: (any) -> ()): number
+	local n = 0
+	while #queue > 0 and take() do
+		send(table.remove(queue, 1))
+		n += 1
+	end
+	return n
+end
+
 -- Device facts (the Telemetry remote) are paced per player and kind (Config.Analytics.devicePace: the
 -- fewest seconds between two), so one device can never spend the server's budget: the remote's own rate
 -- (1 a second) would let 30 devices send 1,800 a minute. last: { [kind] = os.clock of the last one kept }

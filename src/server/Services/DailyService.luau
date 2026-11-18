@@ -11,8 +11,8 @@
 -- * The card: shown once the hero is free (made, the prologue done, no story scene), a few seconds later.
 -- * Daily quests: 3 a day from the day's seed, counted from the signals players already make: incidents
 --   cleared, citizens rescued (street, events, the Sunken Line), contracts, robots defeated, a world boss hit,
---   side quest steps, city events, throws, and PvP wins only while Config.Daily.pvp is on (those quests also
---   count a non-PvP way). Each quest pays once when it finishes, the all-done bonus once.
+--   side quest steps, city events, throws, and PvP wins that paid (DeathService.PvpWon) only while
+--   Config.Daily.pvp is on (those quests also count a non-PvP way). Each quest pays once when it finishes, the all-done bonus once.
 -- * Analytics: daily_login, daily_claim, daily_quest, daily_all_done (fields from DailyRules).
 -- * Studio (DevService "daily"): a day passes, skip a day (the grace), finish today's quests, start over.
 
@@ -336,7 +336,9 @@ function DailyService.init()
 	ThrowService.Thrown:Connect(function(hero: any)
 		DailyService.count(hero and hero.player, "throw")
 	end)
-	DeathService.PvpDefeat:Connect(function(_loser: any, winner: any)
+	-- only a PvP win that paid (past the anti-farming ledger, like the weekly PvP board): two friends trading
+	-- defeats never finish a PvP quest (review 2026-11-18; was every PvP defeat)
+	DeathService.PvpWon:Connect(function(winner: any)
 		DailyService.count(winner and winner.player, "pvpWin")
 	end)
 	-- 00:00 UTC for everyone still on: count the new day and offer its card
