@@ -302,7 +302,7 @@ return {
 	-- The Ceremony prologue (nate's lore, build plan step 3; mission 1): about 4 minutes, right after the creator.
 	-- Silas Crane hands out medals at Crane's Hero Hall in the Downtown plaza; his scanner finds the new hero's
 	-- Spark; a run through the panic, a rooftop chase by Skylance, a subway full of falling tunnel, a fight that
-	-- cracks the fake's face to metal, a swarm of Crane robots, and Lodestar's rescue. Then the billboard and the
+	-- cracks the fake's face to metal, a swarm of security robots, and Lodestar's rescue. Then the billboard and the
 	-- CAPELINE title card. Every line is fixed text here (nothing free-typed); a line with `hero` and `villain`
 	-- texts reads by the side picked in the creator. OpeningPlan.STEPS is the beat order.
 	opening = {
@@ -353,6 +353,10 @@ return {
 			gap = { 30, 75 },
 			climb = 12,
 		},
+		-- the guided hops (kid-proof, nate's playtest 2026-11-18; OpeningPlan.HOPS): a Leap press on a roof is a set
+		-- arc to the beat's target. Its time is flat / speed + drop / fall (clamped to `time`), its height above
+		-- the higher end flat * lift (clamped to `height`); the server grants the travel (MoveGuard)
+		hop = { speed = 62, fall = 160, time = { 0.8, 2.2 }, lift = 0.22, height = { 8, 22 }, grant = 30 },
 		chase = { fake = "Skylance", behind = 26, throwEvery = 3.2, warn = 0.7 }, -- harmless telegraphed spears
 		suit = { pieceGap = 0.16 }, -- the suit snaps on piece by piece this fast
 		entrance = { minD = 20, maxD = 80 }, -- the subway steps: open ground below the last roof
@@ -364,18 +368,18 @@ return {
 			height = 24,
 			length = 300, -- start to the fight chamber
 			chamber = 56, -- the chamber at the end, square
-			-- tunnel collapses: a slab falls across the lane `at` studs in, `t` seconds after the tunnel starts,
-			-- with a warning ring `warn` seconds before; a hero under it is knocked back `push` studs (no damage)
+			-- tunnel collapses (kid-proof, nate's playtest 2026-11-18): the tunnel caves in BEHIND the hero, never
+			-- on them: a slab falls across the lane `at` studs in once the hero is `behind` studs past its far edge,
+			-- so every run plays the same chase-by-rubble and nothing blocks or knocks the hero back
 			collapses = {
-				{ at = 60, t = 4 },
-				{ at = 120, t = 9 },
-				{ at = 180, t = 14 },
-				{ at = 240, t = 19 },
+				{ at = 60 },
+				{ at = 120 },
+				{ at = 180 },
+				{ at = 240 },
 			},
-			warn = 1.2,
+			behind = 6,
 			slab = 10, -- studs deep
-			rubble = 4, -- the pile left behind is this tall (Leap over it)
-			push = 22,
+			rubble = 4, -- the pile left behind is this tall (it shuts the way back)
 		},
 		fight = { fake = "Skylance", hpMult = 0.55, dmg = 0.35, lowHealth = 0.3 }, -- ends at the face crack
 		swarm = { kind = "SparkDrone", count = 7, ring = 22, dmg = 0.12, lowHealth = 0.35 }, -- the Crane Troopers
@@ -497,7 +501,7 @@ return {
 				{
 					at = 5,
 					who = "patch",
-					text = "Crane robots, a whole squad! Hang on, I'm calling Old Star!",
+					text = "Security bots, a whole squad! Hang on, I'm calling Old Star!",
 				},
 			},
 			rescue = {

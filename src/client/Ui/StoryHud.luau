@@ -69,6 +69,7 @@ local questTitle: TextLabel
 local questText: TextLabel
 local questFill: Frame
 local detected: TextLabel
+local hintLabel: TextLabel -- the prologue's one plain instruction (kid-proof, nate's playtest 2026-11-18)
 local titleCard: Frame
 local markerPart: Part
 local markerGui: BillboardGui
@@ -99,6 +100,19 @@ local function buildPrologue()
 		ZIndex = 34,
 	})
 	detected.Parent = gui
+	hintLabel = Kit.label({
+		Name = "PrologueHint",
+		Text = "",
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.fromScale(0.5, 0.08),
+		Size = UDim2.fromScale(0.7, 0.07),
+		TextColor3 = Kit.color.gold,
+		TextStrokeTransparency = 0,
+		maxText = 40,
+		Visible = false,
+		ZIndex = 33,
+	})
+	hintLabel.Parent = gui
 	titleCard = Kit.frame({
 		Name = "TitleCard",
 		Size = UDim2.fromScale(1, 1),
@@ -759,10 +773,29 @@ local function refreshOpening()
 end
 
 local sceneFocus = false
+-- {Action} in a prologue hint, the way this device shows it: the key, the controller button, or the HUD button
+local function keyOf(action: string): string
+	local dev = InputController.device
+	if dev == "touch" then
+		return "the " .. string.upper(action == "Basic" and "attack" or action) .. " button"
+	end
+	local k = if dev == "gamepad" then InputController.padHints[action] else InputController.hints[action]
+	return if k then string.upper(k) else string.upper(action)
+end
+
 local function frame()
 	local now = os.clock()
 	local o = StoryClient.opening
 	local step = StoryClient.openingStep()
+	-- the beat's plain instruction stays on screen until the beat is done (never on the camera beats)
+	local hint = step
+		and not OpeningPlan.CUT[step]
+		and not o.hold
+		and OpeningPlan.hint(Config, step, o.side or "hero", keyOf)
+	hintLabel.Visible = hint ~= nil and hint ~= false and not CinemaClient.playing()
+	if hint then
+		hintLabel.Text = hint
+	end
 	local m = StoryClient.mission
 	local q = StoryClient.quest
 	-- the marker: the prologue's beat, else the mission's, else the pinned quest's

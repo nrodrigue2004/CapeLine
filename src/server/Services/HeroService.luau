@@ -882,6 +882,8 @@ function HeroService.simHeroes(): { any }
 			e.alive = hero.alive and not hero.traveling and not Status.has(hero.status, "hidden", now)
 			e.lx, e.lz = lx, lz
 			e.scene = hero.scene -- the opening or a mission: no ambient robots spawn around them
+			-- the prologue: alone with its own story's robots (EnemySim's solo rule)
+			e.solo = if hero.scene == "opening" then hero.id else nil
 		end
 	end
 	for i = #decoys, 1, -1 do

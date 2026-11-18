@@ -10352,7 +10352,7 @@ test(
 	end
 )
 
-test("Lore 3: the subway pocket: a lane per prologue, collapses on a timer, a fight chamber", function()
+test("Lore 3: the subway pocket: a lane per prologue, collapses behind the hero, a fight chamber", function()
 	local S = OP.subway
 	local idx = PocketLayout.subwayIndex(Config)
 	check(idx == Config.Story.pockets.count + 1, "the subway is its own pocket (missions never take it)")
@@ -10370,18 +10370,73 @@ test("Lore 3: the subway pocket: a lane per prologue, collapses on a timer, a fi
 			"lane " .. i .. " chamber inside"
 		)
 		check(ln.start[3] > ln.z1 and ln.fight[3] < ln.z1, "the chamber is past the tunnel")
-		local last = 0
-		for _, c in ln.collapses do
+		local last = math.huge
+		for k, c in ln.collapses do
 			check(c.z < ln.start[3] and c.z > ln.z1, "each slab falls inside the tunnel")
-			check(c.t > last, "the slabs fall in order")
-			last = c.t
+			check(c.z < last, "the slabs fall in order down the tunnel")
+			last = c.z
+			-- kid-proof: never on the hero, only once it is past the slab's far edge
+			check(
+				not OpeningPlan.slabFalls(Config, ln, k, c.z + S.slab / 2),
+				"no slab falls on a hero under it"
+			)
+			check(not OpeningPlan.slabFalls(Config, ln, k, c.z - S.slab / 2), "nor on one at its edge")
+			check(OpeningPlan.slabFalls(Config, ln, k, c.z - S.slab / 2 - S.behind - 1), "it falls behind")
 		end
-		check(#ln.collapses >= 3, "the tunnel collapses as timed obstacles")
+		check(#ln.collapses >= 3, "the tunnel caves in behind the hero")
+		local b = OpeningPlan.chamber(Config, ln)
+		check(
+			b[1] < ln.fight[1] and ln.fight[1] < b[2] and b[3] < ln.fight[3] and ln.fight[3] < b[4],
+			"room holds the fight"
+		)
+		check(
+			b[2] - b[1] < S.chamber and b[4] - b[3] < S.chamber and b[3] > ln.z1 - S.chamber,
+			"room inside walls"
+		)
 		check(not seen[ln.x], "lanes do not overlap")
 		seen[ln.x] = true
 	end
 	check(S.pitch >= S.chamber + 4, "chambers fit side by side")
 	check(S.rubble < Config.Move.leap.range, "the rubble can be leapt")
+end)
+
+test("Kid-proof prologue: solo robots, guided hops, a hint on every played beat", function()
+	-- the solo rule: a prologue hero sees only its own robots, and they only it
+	local sim = EnemySim.new(Config, { seed = 7 })
+	local e = EnemySim.spawn(sim, "SparkDrone", 0, 5, 0, 1)
+	check(e ~= nil, "a robot")
+	local city = { id = 1, x = 4, y = 5, z = 0, alive = true }
+	local solo = { id = 2, x = 3, y = 5, z = 0, alive = true, solo = 2 }
+	check(EnemySim.sees(e, city) and not EnemySim.sees(e, solo), "a city robot never sees a prologue hero");
+	(e :: any).solo = 2
+	check(EnemySim.sees(e, solo) and not EnemySim.sees(e, city), "a prologue robot sees only its hero")
+	EnemySim.step(sim, 1, { city, solo })
+	check((e :: any).target == nil or (e :: any).target == 2, "it never picks the city hero");
+	(e :: any).bounds = { -2, 2, -2, 2, 6 };
+	(e :: any).x, (e :: any).z, (e :: any).y = 50, -50, 30
+	EnemySim.keepIn(e :: any)
+	check((e :: any).x == 2 and (e :: any).z == -2 and (e :: any).y == 6, "a robot never leaves its room")
+	-- guided hops: sane arcs for any roof gap and the long drop to the subway
+	for _, d in { { 30, 0 }, { 75, 12 }, { 60, -200 } } do
+		local t, h = OpeningPlan.hopArc(Config, { 0, 100, 0 }, { d[1], 100 + d[2], 0 })
+		check(t >= OP.hop.time[1] and t <= OP.hop.time[2] and h >= OP.hop.height[1], "hop arc " .. d[1])
+	end
+	for _, step in OpeningPlan.STEPS do
+		if not OpeningPlan.CUT[step] and not OpeningPlan.timed(Config, step) then
+			for _, side in { "hero", "villain" } do
+				local h = OpeningPlan.hint(Config, step, side, function(a)
+					return "[" .. a .. "]"
+				end)
+				check(
+					type(h) == "string" and #h <= 60 and not string.find(h, "{"),
+					step .. " hint for " .. side
+				)
+			end
+		end
+	end
+	for _, step in { "leap", "chase", "descend" } do
+		check(OpeningPlan.HOPS[step] and Config.Ui.prologue.hints[step], step .. " is a guided hop")
+	end
 end)
 
 test("Lore 3: every beat in order for both sides; the side's own Spark and lines", function()

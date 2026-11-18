@@ -117,6 +117,15 @@ local PVP_BASE = HeroService.PVP_BASE
 -- What this hero's abilities can hit: robots and targets, plus flagged heroes when it may fight them
 local function cands(hero: any): { any }
 	local list = EnemyService.candidates()
+	-- the prologue's solo rule (nate's playtest 2026-11-18): a hero in its own story scene aims only at its own
+	-- story's robots, and nobody else's casts land on them
+	local key = EnemyService.soloKey(hero)
+	for i = #list, 1, -1 do
+		if list[i].solo ~= key then
+			list[i] = list[#list]
+			list[#list] = nil
+		end
+	end
 	for _, c in FlagService.targetsFor(hero) do
 		table.insert(list, c)
 	end

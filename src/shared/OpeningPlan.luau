@@ -49,7 +49,7 @@ export type Lane = {
 	floorY: number,
 	start: { number },
 	fight: { number },
-	collapses: { { z: number, t: number } },
+	collapses: { { z: number } },
 }
 
 local function dist(ax: number, az: number, bx: number, bz: number): number
@@ -159,6 +159,56 @@ end
 -- The prologue's subway lane i (1 to lanes) in the subway pocket
 function OpeningPlan.lane(Config: any, i: number): Lane
 	return PocketLayout.lane(Config, i)
+end
+
+-- Kid-proof (nate's playtest 2026-11-18): the tunnel caves in behind the hero. Does slab k fall now, with the
+-- hero at z? (the lane runs toward lower z: the slab falls once the hero is Config's `behind` studs past it)
+function OpeningPlan.slabFalls(Config: any, lane: Lane, k: number, z: number): boolean
+	local c = lane.collapses[k]
+	local S = Config.Story.opening.subway
+	return c ~= nil and z <= c.z - S.slab / 2 - S.behind
+end
+
+-- The fight chamber's floor as a room its robots never leave: { x0, x1, z0, z1, yMax } (`pad` studs in from the
+-- walls; yMax keeps a flyer under the ceiling, in reach)
+function OpeningPlan.chamber(Config: any, lane: Lane, pad: number?): { number }
+	local S = Config.Story.opening.subway
+	local p = pad or 3
+	local half = S.chamber / 2 - p
+	return {
+		lane.x - half,
+		lane.x + half,
+		lane.z1 - S.chamber + p,
+		lane.z1 - p,
+		lane.floorY + math.min(S.height - 6, 10),
+	}
+end
+
+-- The beats whose hops are guided (kid-proof): one Leap press on a roof sends the hero on a set arc straight to
+-- the next roof (or, from the last roof, down to the subway steps), so no hop can be missed
+OpeningPlan.HOPS = { leap = true, chase = true, descend = true }
+
+-- The guided hop from `from` to the beat's target: its time and its arc's height over the higher end
+function OpeningPlan.hopArc(Config: any, from: { number }, to: { number }): (number, number)
+	local H = Config.Story.opening.hop
+	local flat = dist(from[1], from[3], to[1], to[3])
+	local drop = math.max(0, from[2] - to[2])
+	local time = math.clamp(flat / H.speed + drop / H.fall, H.time[1], H.time[2])
+	local height = math.clamp(flat * H.lift, H.height[1], H.height[2])
+	return time, height
+end
+
+-- The one plain instruction a beat shows (Config.Ui.prologue.hints; a beat's text, or its `hero` and `villain`
+-- texts), with each {Action} named the way this device shows it (keyOf: "SPACE", "the LEAP button", "A")
+function OpeningPlan.hint(Config: any, step: string, side: string, keyOf: (string) -> string): string?
+	local h = Config.Ui.prologue.hints[step]
+	if type(h) == "table" then
+		h = h[if side == "villain" then "villain" else "hero"]
+	end
+	if type(h) ~= "string" then
+		return nil
+	end
+	return (string.gsub(h, "{(%w+)}", keyOf))
 end
 
 -- Where the hero is put when a beat starts away from its place (a stuck beat moving on, a dev jump, a respawn)

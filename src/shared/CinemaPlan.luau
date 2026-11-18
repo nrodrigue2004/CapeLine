@@ -241,7 +241,9 @@ function CinemaPlan.safe(Config: any, ctx: { [string]: any }): (boolean, string?
 		return true, nil
 	end
 	local S = Config.Cinema.safe
-	if ctx.downed then
+	if ctx.story then
+		return false, "story" -- the prologue: no other scene cuts into it
+	elseif ctx.downed then
 		return false, "downed"
 	elseif ctx.pvp then
 		return false, "pvp"
