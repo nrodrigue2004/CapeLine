@@ -21,10 +21,13 @@
 --   course (Shared.SideQuestSites.course); a finale may have an encore villain (its own name card).
 -- * Chain 4 (The Harvest King): Farmland sites on this week's outskirts tiles (a barn, the silos, a field, a
 --   farm road: Shared.SideQuestSites.farm); an escort with `road` drives down the farm road toward town.
+-- * Chain 6 (The Pit): sites on the Old Quarry landmark (its gate, spots on its floor:
+--   Shared.SideQuestSites.quarry); a finale villain with a `dress` wears its own look, name and title over an
+--   existing costumed suit (EnemyService.dress), so a chain villain needs no robot type of its own.
 -- * lore step 11, the Underwater chain: a deep site on the sea floor (Shared.SideQuestSites.deep): its giver and
 --   sign stand on the seabed, and a step built there puts its goals in the open water round it (deepSpot and
---   deepPath: no streets, roofs or roads under the sea); a finale's `guise` dresses its reused robot type as
---   the villain (EnemyService.dress).
+--   deepPath: no streets, roofs or roads under the sea); a finale's dress may go over a sea robot
+--   (Config.SideQuests.dress `robot`), with its damage lift (`dmgMult`).
 -- PLACEHOLDER ART: givers without a `look` are R15 people in plain colours; a giver with one wears its fixed
 -- hero look (earnable creator pieces, LookKit); crates, rings, site signs, set pieces and the motorcade are
 -- plain parts.
@@ -627,15 +630,15 @@ local function spawnBoss(g: Group, goal: Goal)
 	local foe = SideQuestPlan.finaleFoe(goal.st, goal.phase or 1)
 	local id = EnemyService.spawnAt(foe.enemy, goal.bossAt or g.home, g.level, TAG)
 	if id then
-		-- lore step 11, the Underwater chain: a villain in a guise wears its own look and plate, and its damage
-		-- lift (Config.SideQuests.finale.guises)
-		local gs = foe.guise and SQ.finale.guises[foe.guise]
+		-- lore step 11, the Underwater chain: a dress's damage lift (Config.SideQuests.dress `dmgMult`)
+		local dr = foe.dress and SQ.dress and SQ.dress[foe.dress]
 		EnemyService.tune(id, {
 			hpMult = math.clamp(foe.hpMult, SQ.finale.hpMult[1], SQ.finale.hpMult[2]),
-			dmgMult = gs and gs.dmgMult or nil,
+			dmgMult = dr and dr.dmgMult or nil,
 		})
-		if gs then
-			EnemyService.dress(id, foe.guise)
+		if foe.dress then
+			-- lore step 11, chain 6: the villain's own look, name and title over a costumed suit
+			EnemyService.dress(id, foe.dress)
 		end
 		goal.boss = id
 	end

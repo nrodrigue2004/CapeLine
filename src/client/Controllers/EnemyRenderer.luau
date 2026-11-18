@@ -242,7 +242,8 @@ local TIES: { [string]: { string } } = {
 }
 local CRACK = { CrackPlate = true, CrackEye = true, CrackLine1 = true, CrackLine2 = true, CrackLine3 = true }
 local FAKE_RED = Color3.fromRGB(255, 70, 60)
--- who each evil twin copies (EnemyIdentity): { userId, words, path, name, title }
+-- who each evil twin copies (EnemyIdentity): { userId, words, path, name, title }; or a dressed side quest
+-- finale villain's dress (lore step 11, chain 6: { words, name, title, dress, creature, body })
 local idents: { [number]: { [string]: any } } = {}
 
 -- The Blender robot meshes, found once. A piece takes the mesh named after it, else its unsided name (UpperL
@@ -362,13 +363,11 @@ local function makeRobot(typeId: number, ident: { [string]: any }?): Body
 	if cfg.twin then
 		cfg = FakeRules.twinCfg(Config, ident and ident.path) -- the path's fighting style (pose and moves)
 	end
-	-- a side quest villain in a guise (lore step 11, the Underwater chain; Config.SideQuests.finale.guises): a
-	-- reused robot type drawn in the villain's fixed look, body and costume (it never cracks or reads FAKE)
-	local guise = ident and type(ident.guise) == "string" and Config.SideQuests.finale.guises[ident.guise]
-	if guise then
+	-- a dress over a plain robot (lore step 11, the Underwater chain: Config.SideQuests.dress `robot`): drawn
+	-- like a costumed villain (it never cracks or reads FAKE) in its dress's path look
+	if ident and ident.dress and ident.robot and not cfg.fake then
 		cfg = table.clone(cfg)
-		cfg.body = guise.body
-		cfg.fake = { costumed = guise.costumed == true, path = guise.path, title = guise.title }
+		cfg.fake = { costumed = true, path = ident.path }
 	end
 	local fake = cfg.fake ~= nil
 	-- a fake's hero look: its fixed one, or the look of the player a twin copies
@@ -377,6 +376,23 @@ local function makeRobot(typeId: number, ident: { [string]: any }?): Body
 		heroLook = (ident and LookCodec.read(ident.words)) or FakeRules.look(Config, kind)
 	end
 	local body = cfg.body
+	if fake and ident and ident.dress and type(ident.body) == "table" then
+		-- lore step 11, chain 6: a dressed finale villain's own robot colours (Shared.FakeRules.dress)
+		body = table.clone(body)
+		for _, k in FakeRules.DRESS_BODY do
+			local c = ident.body[k]
+			if type(c) == "table" and #c == 3 then
+				body[k] = c
+			end
+		end
+		-- lore step 11, the Underwater chain: the dress's height and the Tidewright's trident
+		if type(ident.height) == "number" then
+			body.height = ident.height
+		end
+		if ident.trident then
+			body.trident = true
+		end
+	end
 	local h = body.height
 	local metal = rgb(LOOK.endo):Lerp(rgb(body.metal), 0.35)
 	local dark = rgb(body.metal):Lerp(Color3.new(0, 0, 0), 0.45)
@@ -1375,7 +1391,9 @@ local function makeRobot(typeId: number, ident: { [string]: any }?): Body
 		streetFace = streetFace,
 		fake = fake,
 		costumed = fake and cfg.fake.costumed == true,
-		creature = fake and cfg.fake.creature == true,
+		-- a dressed finale villain (lore step 11, chain 6) is a creature only if its dress says so
+		creature = fake
+			and (if ident and ident.dress then ident.creature == true else cfg.fake.creature == true),
 		kind = kind,
 		ident = ident,
 		lookParts = lookParts,
@@ -1515,8 +1533,9 @@ end
 local function acquire(typeId: number, id: number): Body
 	local base = byType[typeId]
 	local body: Body
-	if (base and base.twin) or idents[id] then
-		-- an evil twin wears its own hero's look, a villain in a guise its own (lore step 11): never pooled
+	if (base and base.twin) or (base and base.fake and idents[id]) or (idents[id] and idents[id].robot) then
+		-- an evil twin wears its own hero's look, a dressed finale villain its dress (lore step 11, chain 6; the
+		-- Underwater chain: a dress over a sea robot too): never pooled
 		body = makeRobot(typeId, idents[id])
 	else
 		local list = pool[typeId]

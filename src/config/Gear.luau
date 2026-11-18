@@ -673,6 +673,16 @@ return {
 				quest = "GoldSash",
 				color = { 230, 190, 70 },
 			},
+			-- side quest reward (lore step 11, chain 6, The Pit): the Pit's title belt, a big gold buckle won off the
+			-- Pitboss. Never rolled, never sold.
+			{
+				n = 29,
+				name = "Undisputed Belt",
+				shape = "buckle",
+				tier = "Story",
+				quest = "UndisputedBelt",
+				color = { 240, 196, 64 },
+			},
 		},
 		gadget = {},
 	},

@@ -191,28 +191,30 @@ function EnemyService.spawnTwin(player: Player, pos: Vector3, level: number, tag
 	return e.id
 end
 
--- A side quest villain in a guise (lore step 11, the Underwater chain): a reused robot type that every device
--- draws in the villain's fixed look, body and plate (Config.SideQuests.finale.guises[guiseId]); EnemyIdentity
--- carries it like a twin's, and it is forgotten when the robot goes
-function EnemyService.dress(id: number, guiseId: string)
-	local gs = Config.SideQuests.finale.guises[guiseId]
+-- Dress a costumed villain in a side quest finale's own look, name and title (lore step 11, chain 6:
+-- Shared.FakeRules.dress, Config.SideQuests.dress[dressId]): sent as its EnemyIdentity, like a twin's, so every
+-- device (and a player who joins later) draws it that way. Returns false when the robot or the dress is unknown.
+function EnemyService.dress(id: number, dressId: string): boolean
 	local e = sim.byId[id]
-	if not (gs and e and e.alive) then
-		return
+	local cfg = e and e.cfg
+	local d = FakeRules.dress(Config, dressId)
+	-- (lore step 11, the Underwater chain: a dress with `robot` goes over a plain robot)
+	if
+		not e
+		or not e.alive
+		or not d
+		or not ((cfg.fake and cfg.fake.costumed) or (d.robot and not cfg.fake))
+	then
+		return false
 	end
-	local ident = {
-		id = id,
-		guise = guiseId,
-		words = LookCodec.write(FakeRules.lookFrom(Config, gs.look, guiseId) :: any),
-		path = gs.path,
-		name = gs.name,
-		title = gs.title,
-	}
-	idents[id] = ident
-	Net.fireAll("EnemyIdentity", ident)
+	d.id = id
+	idents[id] = d
+	Net.fireAll("EnemyIdentity", d)
+	return true
 end
 
--- Who an evil twin copies (nil for any other robot): { userId, words, path, name, title }
+-- Who an evil twin copies, or what a dressed finale villain wears (nil for any other robot): { userId, words,
+-- path, name, title } (a dress: { words, name, title, dress, creature, body })
 function EnemyService.identity(id: number): { [string]: any }?
 	return idents[id]
 end

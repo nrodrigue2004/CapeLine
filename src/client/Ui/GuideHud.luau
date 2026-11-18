@@ -171,6 +171,22 @@ local function buildPortrait(who: string, sp: any): Frame
 			piece(frame, 0.5, 0.3, 0.86, 0.07, straw, 0.5)
 			piece(frame, 0.5, 0.22, 0.46, 0.14, straw, 0.4)
 			piece(frame, 0.5, 0.27, 0.46, 0.04, Color3.fromRGB(170, 50, 40))
+		elseif extra == "tophat" then
+			-- the Pitboss's showman's top hat (chain 6): a black brim, a tall crown and a red band
+			local black = Color3.fromRGB(24, 24, 28)
+			piece(frame, 0.5, 0.27, 0.72, 0.06, black, 0.5)
+			piece(frame, 0.5, 0.14, 0.44, 0.22, black, 0.1)
+			piece(frame, 0.5, 0.22, 0.44, 0.05, Color3.fromRGB(190, 40, 40))
+		elseif extra == "moustache" then
+			-- a handlebar moustache in the hair colour (chain 6: the Pitboss)
+			for i = -1, 1, 2 do
+				local m = piece(frame, 0.5 + i * 0.09, 0.68, 0.16, 0.05, hair, 0.5)
+				m.Rotation = i * -12
+			end
+		elseif extra == "bandage" then
+			-- a fighter's plaster across the nose (chain 6: Flint)
+			local tape = piece(frame, 0.5, 0.61, 0.2, 0.05, Color3.fromRGB(240, 220, 190), 0.3)
+			tape.Rotation = -8
 		end
 	end
 	-- a radio voice's static: faint bars over the portrait (they flicker unless Reduce flashing is on)

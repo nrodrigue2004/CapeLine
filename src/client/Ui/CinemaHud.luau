@@ -404,6 +404,47 @@ local function picture(parent: Frame, p: any)
 			local coin = box(parent, 0.32 + i * 0.08, 0.7, 0.05, 0.04, Color3.fromRGB(255, 215, 80), 64)
 			Kit.round(coin, 20)
 		end
+	elseif kind == "quarry" then
+		-- the Old Quarry's stepped walls, the old mine lift's frame and a CLOSED sign on the gate (The Pit)
+		local rock = Color3.fromRGB(150, 135, 115)
+		for i = 0, 2 do
+			box(parent, i * 0.1, 0.3 + i * 0.16, 0.12, 0.7 - i * 0.16, rock:Lerp(ink, i * 0.15), 62)
+			box(parent, 0.88 - i * 0.1, 0.3 + i * 0.16, 0.12, 0.7 - i * 0.16, rock:Lerp(ink, i * 0.15), 62)
+		end
+		local frame = box(parent, 0.44, 0.34, 0.12, 0.44, Color3.fromRGB(110, 115, 125), 63)
+		Kit.stroke(frame, ink, 2)
+		box(parent, 0.47, 0.4, 0.06, 0.3, ink, 64)
+		local sign = box(parent, 0.62, 0.56, 0.16, 0.08, Color3.fromRGB(200, 50, 45), 64)
+		sign.Rotation = -8
+		Kit.stroke(sign, ink, 2)
+	elseif kind == "stone" then
+		-- a fist turning to grey stone, cracks running up the arm
+		figure(parent, 0.26, Color3.fromRGB(150, 60, 50), false)
+		local fist = box(parent, 0.58, 0.36, 0.24, 0.24, Color3.fromRGB(150, 140, 130), 63)
+		Kit.round(fist, 20)
+		Kit.stroke(fist, ink, 3)
+		box(parent, 0.42, 0.44, 0.18, 0.08, Color3.fromRGB(150, 140, 130), 62)
+		for i = 0, 2 do
+			local c = box(parent, 0.62 + i * 0.05, 0.4 + (i % 2) * 0.06, 0.02, 0.1, ink, 64)
+			c.Rotation = if i % 2 == 0 then 25 else -25
+		end
+	elseif kind == "ring" then
+		-- the fighting ring under a floodlight: canvas, red ropes, two fighters and the crowd's heads
+		local canvas = box(parent, 0.14, 0.66, 0.72, 0.12, Color3.fromRGB(70, 90, 160), 62)
+		Kit.stroke(canvas, ink, 2)
+		for i = 0, 2 do
+			box(parent, 0.14, 0.42 + i * 0.08, 0.72, 0.02, Color3.fromRGB(210, 50, 50), 64)
+		end
+		box(parent, 0.14, 0.38, 0.03, 0.3, Color3.fromRGB(200, 200, 210), 64)
+		box(parent, 0.83, 0.38, 0.03, 0.3, Color3.fromRGB(200, 200, 210), 64)
+		figure(parent, 0.36, Color3.fromRGB(150, 140, 130), false)
+		figure(parent, 0.6, Color3.fromRGB(255, 150, 60), false)
+		local lamp = box(parent, 0.44, 0.04, 0.12, 0.06, Color3.fromRGB(255, 240, 170), 63)
+		Kit.round(lamp, 40)
+		for i = 0, 6 do
+			local h = box(parent, 0.04 + i * 0.14, 0.84, 0.07, 0.07, ink, 63)
+			Kit.round(h, 200)
+		end
 	elseif kind == "velmara" then
 		-- Velmara in the sun (The Sunken City): bronze towers with domed tops by a calm bay
 		local bronze = Color3.fromRGB(205, 150, 80)

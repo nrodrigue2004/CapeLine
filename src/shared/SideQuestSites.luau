@@ -37,6 +37,10 @@
 --   edge), every reef, kelp stand and wreck (away.reef, the layout's boxes) and the deep sites before it by id
 --   (away.site): { x, y (the seabed), z, area, depth }. Its way in faces the shore. deepSpot and deepPath pick
 --   a side quest goal's spots in the open water round it.
+-- * quarry(Config, world, id) (lore step 11, chain 6: The Pit): a spot on the Old Quarry landmark, read from the
+--   landmark's own boxes (WorldGen.landmark; hand-placed, so fixed every week): `quarry` "gate" (the gap in its
+--   north wall) or "floor" (the open floor point nearest `spot` that keeps `clear` studs from every wall,
+--   terrace and boulder): { kind, x, z, sx, sz, top, door }. quarryPlan holds the landmark's floor, walls and gate.
 
 local HqRules = if script then require(script.Parent.HqRules) else (require :: any)("./HqRules")
 local DeepLayout = if script then require(script.Parent.DeepLayout) else (require :: any)("./DeepLayout")
@@ -88,7 +92,15 @@ end
 -- The building a site is in, or nil (no such district, a square site, or nothing fits)
 function SideQuestSites.building(Config: any, world: any, id: string): any?
 	local st = Config.SideQuests.sites[id]
-	if not st or st.square or SideQuestSites.isOutskirts(st) or st.farm or st.road or st.deep then
+	if
+		not st
+		or st.square
+		or SideQuestSites.isOutskirts(st)
+		or st.farm
+		or st.road
+		or st.quarry
+		or st.deep
+	then
 		return nil
 	end
 	local L, ox, oz
@@ -436,6 +448,14 @@ function SideQuestSites.place(Config: any, world: any, id: string): (any?, Door?
 		end
 		local s = st.spot or { 0, 0 }
 		return o, { x = o.x + s[1], z = o.z + s[2], fx = 0, fz = if s[2] < 0 then -1 else 1 }
+	end
+	if st.quarry then
+		-- lore step 11, chain 6: a spot on the Old Quarry landmark (its gate or its floor)
+		local q = SideQuestSites.quarry(Config, world, id)
+		if not q then
+			return nil, nil
+		end
+		return q, q.door
 	end
 	if st.farm or st.road then
 		-- lore step 11, chain 4: a Farmland site on the outskirts tiles
@@ -1153,6 +1173,157 @@ function SideQuestSites.roadPath(
 		return nil
 	end
 	return path
+end
+
+---------------------------------------------------------------------------
+-- The Old Quarry (lore step 11, chain 6: The Pit)
+---------------------------------------------------------------------------
+
+SideQuestSites.QUARRY_KINDS = { gate = true, floor = true }
+SideQuestSites.QUARRY = "OldQuarry" -- the Config.World.landmarks id the quarry sites stand on
+
+local planCache: { [any]: any } = setmetatable({}, { __mode = "k" }) :: any
+local quarryCache: { [any]: { [any]: any } } = setmetatable({}, { __mode = "k" }) :: any
+
+-- The Old Quarry's own plan: the very boxes CityBuilder stands up for the landmark (WorldGen.landmark; it is
+-- hand-placed on fixed tiles, so it never moves with the weekly seed and needs no tile plans): { centre, size,
+-- floor (the pit floor's box), walls (its four rock walls, the north one in two pieces round the gate), solid
+-- (every box that rises off the floor: walls, terraces, boulders), gate { x, z, width, outer } }, or nil.
+function SideQuestSites.quarryPlan(Config: any): any?
+	local hit = planCache[Config]
+	if hit ~= nil then
+		return if hit then hit else nil
+	end
+	local W = Config.World
+	local index = nil
+	for i, lm in W.landmarks do
+		if lm.id == SideQuestSites.QUARRY then
+			index = i
+		end
+	end
+	if not index then
+		planCache[Config] = false
+		return nil
+	end
+	local lm = WorldGen.landmark(Config.City, W, index)
+	local wallH = W.quarry.wallHeight
+	local floor, walls, solid = nil, {}, {}
+	for _, b in lm.boxes do
+		if b.kind == "field" then
+			floor = b
+		else
+			table.insert(solid, b)
+			if b.kind == "rock" and math.abs(b.sy - wallH) < 0.01 then
+				table.insert(walls, b)
+			end
+		end
+	end
+	-- the gate: the gap between the two wall pieces on the north side (-z), the side that faces town
+	local north = {}
+	for _, b in walls do
+		if b.sx > b.sz and b.cz < lm.centre.z then -- an east-west wall piece on the north half
+			table.insert(north, b)
+		end
+	end
+	table.sort(north, function(p, q)
+		return p.cx < q.cx
+	end)
+	local gate = nil
+	if #north == 2 then
+		local a, b = north[1], north[2]
+		local x0, x1 = a.cx + a.sx / 2, b.cx - b.sx / 2
+		gate = { x = (x0 + x1) / 2, z = a.cz, width = x1 - x0, outer = a.cz - a.sz / 2 }
+	end
+	if not floor or not gate then
+		planCache[Config] = false
+		return nil
+	end
+	local plan =
+		{ centre = lm.centre, size = lm.size, floor = floor, walls = walls, solid = solid, gate = gate }
+	planCache[Config] = plan
+	return plan
+end
+
+-- How far a floor point is from the nearest thing standing on the quarry floor (a wall, a terrace, a boulder)
+local function clearance(plan: any, x: number, z: number): number
+	local best = math.huge
+	for _, b in plan.solid do
+		local r =
+			{ minX = b.cx - b.sx / 2, maxX = b.cx + b.sx / 2, minZ = b.cz - b.sz / 2, maxZ = b.cz + b.sz / 2 }
+		best = math.min(best, toRect(x, z, r))
+	end
+	return best
+end
+
+-- The same, for a point anywhere on the quarry floor (tests; 0 when the quarry is missing)
+function SideQuestSites.quarryClearance(Config: any, x: number, z: number): number
+	local plan = SideQuestSites.quarryPlan(Config)
+	return if plan then clearance(plan, x, z) else 0
+end
+
+-- A quarry site (Config.SideQuests.sites with `quarry`), read from the landmark's own plan, or nil:
+-- * "gate": the middle of the gate in the north wall (the way out faces north, toward town);
+-- * "floor": of the open floor points (a 4-stud grid over the pit floor, each `clear` studs from every wall,
+--   terrace and boulder), the one nearest `spot` (studs from the quarry's middle, x east and z south).
+-- The record is { kind, x, z, sx, sz, top, door }; the world is not needed (the landmark is fixed), so every
+-- server and every week agree.
+function SideQuestSites.quarry(Config: any, _world: any, id: string): any?
+	local st = Config.SideQuests.sites[id]
+	if not st or not SideQuestSites.QUARRY_KINDS[st.quarry] then
+		return nil
+	end
+	local byConfig = quarryCache[Config]
+	if not byConfig then
+		byConfig = {}
+		quarryCache[Config] = byConfig
+	end
+	local hit = byConfig[st]
+	if hit ~= nil then
+		return if hit then hit else nil
+	end
+	local plan = SideQuestSites.quarryPlan(Config)
+	local found = nil
+	if plan then
+		local top = plan.floor.cy + plan.floor.sy / 2
+		if st.quarry == "gate" then
+			local g = plan.gate
+			found = {
+				kind = "gate",
+				x = g.x,
+				z = g.z,
+				sx = g.width,
+				sz = g.z - g.outer,
+				top = top,
+				door = { x = g.x, z = g.z, fx = 0, fz = -1 },
+			}
+		elseif type(st.spot) == "table" then
+			local f = plan.floor
+			local tx, tz = plan.centre.x + st.spot[1], plan.centre.z + st.spot[2]
+			local need = st.clear or 0
+			local bestD = math.huge
+			local x0, z0 = f.cx - f.sx / 2, f.cz - f.sz / 2
+			for ix = 0, math.floor(f.sx / 4) do
+				for iz = 0, math.floor(f.sz / 4) do
+					local x, z = x0 + ix * 4, z0 + iz * 4
+					local d = flat(x, z, tx, tz)
+					if d < bestD and clearance(plan, x, z) >= need then
+						bestD = d
+						found = {
+							kind = "floor",
+							x = x,
+							z = z,
+							sx = need * 2,
+							sz = need * 2,
+							top = top,
+							door = { x = x, z = z, fx = 0, fz = -1 },
+						}
+					end
+				end
+			end
+		end
+	end
+	byConfig[st] = found or false
+	return found
 end
 
 return SideQuestSites

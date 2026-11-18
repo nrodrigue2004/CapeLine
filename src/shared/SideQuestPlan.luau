@@ -862,15 +862,6 @@ local function checkGoal(
 		if type(goal.hpMult) ~= "number" or goal.hpMult < h[1] or goal.hpMult > h[2] then
 			no("finale health")
 		end
-		-- lore step 11, the Underwater chain: a villain in a guise (a reused type with its own look and plate)
-		if goal.guise ~= nil then
-			local gs = SQ.finale.guises and SQ.finale.guises[goal.guise]
-			if type(gs) ~= "table" then
-				no("unknown guise " .. tostring(goal.guise))
-			elseif gs.base ~= goal.enemy then
-				no("guise " .. goal.guise .. " is worn by " .. tostring(gs.base))
-			end
-		end
 		-- lore step 11, chain 2: an encore villain after the first, each with a name card
 		local en = goal.encore
 		if en ~= nil then
@@ -896,6 +887,22 @@ local function checkGoal(
 			end
 		elseif goal.card ~= nil then
 			no("a finale card is for an encore finale (the chain's villain is the card)")
+		end
+		-- lore step 11, chain 6: a finale villain may wear a dress (Config.SideQuests.dress: a fixed look, name
+		-- and title) over an existing costumed villain's suit, so a chain needs no robot type of its own
+		for _, foe in { goal, goal.encore } do
+			if type(foe) == "table" and foe.dress ~= nil then
+				local d = SQ.dress and SQ.dress[foe.dress]
+				local cfg = if enemyKnown(Config, foe.enemy) then Config.Enemies[foe.enemy] else nil
+				if type(d) ~= "table" then
+					no("dress " .. tostring(foe.dress))
+				elseif
+					not (cfg and ((cfg.fake and cfg.fake.costumed) or (d.robot == true and cfg.fake == nil)))
+				then
+					-- (lore step 11, the Underwater chain: or, with `robot`, over a plain robot)
+					no("a dress goes on a costumed villain's suit (" .. tostring(foe.enemy) .. ")")
+				end
+			end
 		end
 	end
 	if goal.range and (type(goal.range) ~= "table" or goal.range[1] > goal.range[2]) then
@@ -1175,11 +1182,14 @@ function SideQuestPlan.validate(Config: any): { string }
 		local shore = st.shore ~= nil
 		local outskirts = st.lot ~= nil or shore
 		local farmSite = st.farm ~= nil or st.road ~= nil
+		-- (lore step 11, chain 6: or a spot on the Old Quarry landmark, `quarry`)
+		local quarrySite = st.quarry ~= nil
 		local deepSite = st.deep ~= nil -- lore step 11, the Underwater chain: a spot on the sea floor
 		if
 			not table.find(SQ.districts, st.district)
-			or (not outskirts and not farmSite and not deepSite and not Config.City.districts[st.district])
+			or (not outskirts and not farmSite and not quarrySite and not deepSite and not Config.City.districts[st.district])
 			or (outskirts and st.district ~= (if shore then "Coast" else "Suburbs"))
+			or (quarrySite and st.district ~= "OldQuarry")
 			or (deepSite and st.district ~= "Underwater")
 		then
 			table.insert(bad, w .. ": district " .. tostring(st.district))
@@ -1213,6 +1223,43 @@ function SideQuestPlan.validate(Config: any): { string }
 			end
 			if st.lot or st.shore or st.farm or st.road or st.square then
 				table.insert(bad, w .. ": a deep site is only on the sea floor")
+			end
+		elseif quarrySite then
+			-- the gate or an open floor spot, read from the landmark's own boxes (Shared.SideQuestSites.quarry)
+			local SideQuestSites = if script
+				then require((script :: any).Parent.SideQuestSites)
+				else (require :: any)("./SideQuestSites")
+			if outskirts or farmSite or st.square ~= nil then
+				table.insert(bad, w .. ": a quarry site is only a quarry site")
+			end
+			if not SideQuestSites.QUARRY_KINDS[st.quarry] then
+				table.insert(bad, w .. ": quarry " .. tostring(st.quarry))
+			elseif st.quarry == "floor" then
+				local half = 0
+				for _, lm in Config.World.landmarks do
+					if lm.id == SideQuestSites.QUARRY then
+						half = lm.size * Config.City.tile / 2
+					end
+				end
+				local sp = st.spot
+				if
+					type(sp) ~= "table"
+					or type(sp[1]) ~= "number"
+					or type(sp[2]) ~= "number"
+					or math.abs(sp[1]) > half
+					or math.abs(sp[2]) > half
+				then
+					table.insert(bad, w .. ": spot on the quarry floor")
+				end
+				if type(st.clear) ~= "number" or st.clear < 0 then
+					table.insert(bad, w .. ": clear")
+				end
+			end
+			if st.sign ~= nil and type(st.sign) ~= "boolean" then
+				table.insert(bad, w .. ": sign")
+			end
+			if SideQuestSites.QUARRY_KINDS[st.quarry] and not SideQuestSites.quarry(Config, nil, id) then
+				table.insert(bad, w .. ": no spot on the quarry fits")
 			end
 		elseif farmSite then
 			local SideQuestSites = if script
@@ -1345,6 +1392,52 @@ function SideQuestPlan.validate(Config: any): { string }
 			end
 		end
 	end
+	-- lore step 11, chain 6: the finale dresses (a fixed look, name and title worn over a costumed villain's suit)
+	for id, d in SQ.dress or {} do
+		local w = "dress " .. id
+		if type(d) ~= "table" or fixedText(d.name, 32) or fixedText(d.title, 32) then
+			table.insert(bad, w .. ": name and title")
+		elseif type(d.look) ~= "table" then
+			table.insert(bad, w .. ": look")
+		else
+			local FakeRules = if script
+				then require((script :: any).Parent.FakeRules)
+				else (require :: any)("./FakeRules")
+			local ok, err = pcall(FakeRules.lookFrom, Config, d.look, w)
+			if not ok then
+				table.insert(bad, w .. ": " .. tostring(err))
+			end
+			for k, c in d.body or {} do
+				if
+					not table.find(FakeRules.DRESS_BODY, k)
+					or type(c) ~= "table"
+					or #c ~= 3
+					or type(c[1]) ~= "number"
+				then
+					table.insert(bad, w .. ": body " .. tostring(k))
+				end
+			end
+			if d.creature ~= nil and type(d.creature) ~= "boolean" then
+				table.insert(bad, w .. ": creature")
+			end
+			-- lore step 11, the Underwater chain: a dress over a plain robot, its path, height, prop and damage
+			if d.robot ~= nil and type(d.robot) ~= "boolean" then
+				table.insert(bad, w .. ": robot")
+			end
+			if d.robot and not table.find(ProfileSchema.PATHS, d.path) then
+				table.insert(bad, w .. ": path " .. tostring(d.path))
+			end
+			if d.height ~= nil and (type(d.height) ~= "number" or d.height < 4 or d.height > 12) then
+				table.insert(bad, w .. ": height 4 to 12")
+			end
+			if d.trident ~= nil and type(d.trident) ~= "boolean" then
+				table.insert(bad, w .. ": trident")
+			end
+			if d.dmgMult ~= nil and (type(d.dmgMult) ~= "number" or d.dmgMult < 1 or d.dmgMult > 2) then
+				table.insert(bad, w .. ": dmgMult 1 to 2")
+			end
+		end
+	end
 	-- lore step 11, chain 2: the rooftop courses
 	for id, cs in SQ.courses or {} do
 		if type(cs) == "table" then
@@ -1357,32 +1450,6 @@ function SideQuestPlan.validate(Config: any): { string }
 			end
 			if type(cs.count) ~= "number" or cs.count < 3 or cs.count > 12 then
 				table.insert(bad, "course " .. id .. ": count")
-			end
-		end
-	end
-	-- lore step 11, the Underwater chain: villains in a guise (a reused type: its base is on the finale list)
-	for id, gs in SQ.finale.guises or {} do
-		local w = "guise " .. id
-		if type(gs) ~= "table" then
-			table.insert(bad, w)
-		else
-			if not table.find(SQ.finale.enemies, gs.base) or not enemyKnown(Config, gs.base) then
-				table.insert(bad, w .. ": base " .. tostring(gs.base) .. " (a finale robot)")
-			end
-			if fixedText(gs.name, 32) or fixedText(gs.title, 32) then
-				table.insert(bad, w .. ": name and title")
-			end
-			if not table.find(ProfileSchema.PATHS, gs.path) then
-				table.insert(bad, w .. ": path " .. tostring(gs.path))
-			end
-			if type(gs.look) ~= "table" or type(gs.look.pieces) ~= "table" then
-				table.insert(bad, w .. ": a fixed look")
-			end
-			if type(gs.body) ~= "table" or type(gs.body.height) ~= "number" then
-				table.insert(bad, w .. ": its body")
-			end
-			if gs.dmgMult ~= nil and (type(gs.dmgMult) ~= "number" or gs.dmgMult < 1 or gs.dmgMult > 2) then
-				table.insert(bad, w .. ": dmgMult 1 to 2")
 			end
 		end
 	end
