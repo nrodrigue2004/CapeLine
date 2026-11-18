@@ -2,7 +2,8 @@
 -- WANTED button under TASK FORCE): its name, rank, traits, Intel and the SHOWDOWN button once your Intel is
 -- complete. When it ambushes you a comic panel pops with its taunt (fixed lines with your hero name), and
 -- again when it escapes or gloats.
--- PLACEHOLDER look until the UI pass; the poster on the HQ board waits on the HQ art pass (Tasks).
+-- PLACEHOLDER look until the UI pass. WP9: the HQ's east wall has the printed poster and the heads
+-- (HqClient, Shared.WantedRules); its prompt opens this panel.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 

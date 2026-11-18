@@ -20,7 +20,8 @@
 -- Lore step 5: missionas n (mission n // 10 as the Vigil, n % 10 = 0, or the Syndicate, 1; the missions before it
 -- cleared and its level met), missionstep n (jump to stage n of the running mission).
 -- Lore step 12: reptier 0-5 (your own side's reputation tier), sideevent 1-3 (a side-vs-side event now).
--- Hero MMO: nemesis 0/1 (your nemesis ambushes you now / your Intel is full: the Showdown opens).
+-- Hero MMO: nemesis 0/1 (your nemesis ambushes you now / your Intel is full: the Showdown opens); nemesis 2
+-- (WP9: a Showdown win is counted: the HQ wall gets its head and the next nemesis comes at once).
 -- WP2: boardrows (40 test heroes on every weekly board and you at #6), boardroll (end the board week now).
 -- WP1: daily 1-4 (a day passes, two days pass, finish today's quests, start the streak over).
 
@@ -429,6 +430,7 @@ local commands: { [string]: (player: Player, hero: any, value: number) -> () } =
 	end,
 	nemesis = function(player, _, what)
 		NemesisService.dev(player, what)
+		HqService.redraw(player) -- WP9: the poster and heads, if you are in your HQ
 	end,
 	-- lore step 7: a sample news fact as you (1 boss flash, 2 boss down, 3 fake unmasked, 4 streak, 5 heist,
 	-- 6 Act 1 mission)

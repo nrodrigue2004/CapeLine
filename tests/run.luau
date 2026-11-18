@@ -8265,7 +8265,9 @@ end); -- Hero MMO features (H1 to H8) live in their own file so this one merges 
 (require :: any)("./robots")({ test = test, check = check, near = near, Config = Config });
 -- WP4 and WP5 (the gap check's funnel, favorite, rematch and Suspicious Hero) live in their own file too
 (require :: any)("./hooks")({ test = test, check = check, near = near, Config = Config }); -- the Rogues File and the Journal's Badge Book, Mentor and Showdown tabs (own file, merges easily)
-(require :: any)("./rogues_test")({ test = test, check = check, Config = Config, placePath = process.args[1] })
+(require :: any)("./rogues_test")({ test = test, check = check, Config = Config, placePath = process.args[1] });
+-- WP9: the HQ's WANTED poster and nemesis heads (own file, merges easily)
+(require :: any)("./wanted_test")({ test = test, check = check, Config = Config })
 
 test(
 	"City kit: every district dressed, deterministic, within budget, nothing in buildings or roads",

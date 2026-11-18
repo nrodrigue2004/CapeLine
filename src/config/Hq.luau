@@ -92,6 +92,21 @@ return {
 		{ id = "mentorPride", name = "Mentor's Pride" }, -- H6: a mentor's quest line done
 	},
 
+	-- WP9 (gap G5, spec H5): the WANTED poster of your current nemesis and a head trophy per nemesis rank you
+	-- have beaten, on the east wall between the pilasters at z 24 and 48, by the Trophy Wall (Shared.
+	-- WantedRules). The same spot in the Safehouse and the Foundry: below the Foundry's light band (y 15) and
+	-- above the floor props (3 studs tall, 6 studs out). `wall` is the wall's face (cell offsets) and the way
+	-- it faces into the room; the poster and the heads' row are measured along it from the viewer's left to
+	-- right (u), up from the floor (y) and out from the face (d). PLACEHOLDER ART: parts and a Kit-style
+	-- SurfaceGui until the HQ art pass.
+	wanted = {
+		wall = { x = 59, z = 36, nx = -1, nz = 0 },
+		poster = { u = 0, y = 6.3, w = 7, h = 8, board = 0.4 }, -- board: the wooden backing's margin
+		pixels = 50, -- the poster's SurfaceGui pixels per stud (7 x 8 studs = 350 x 400)
+		heads = { y = 12.6, step = 3.8, mount = { 3, 2.6 }, plate = { 3.4, 0.7 } },
+		prompt = { object = "Wanted Poster", action = "Read" },
+	},
+
 	-- City reputation ranks unlock HQ props (profile.props bits; CafeSign = 1 is a side quest reward)
 	cityProps = {
 		{ rank = 1, prop = 2, name = "Potted Fern" },
