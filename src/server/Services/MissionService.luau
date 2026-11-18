@@ -44,6 +44,7 @@ local Net = require(Shared:WaitForChild("Net"))
 local Rng = require(Shared:WaitForChild("Rng"))
 local StoryPlan = require(Shared:WaitForChild("StoryPlan"))
 local PocketLayout = require(Shared:WaitForChild("PocketLayout"))
+local SetPieceKit = require(Shared:WaitForChild("SetPieceKit"))
 local BossSim = require(Shared:WaitForChild("BossSim"))
 local BossMath = require(Shared:WaitForChild("BossMath"))
 local FakeRules = require(Shared:WaitForChild("FakeRules"))
@@ -64,6 +65,7 @@ local BeaconService = require(script.Parent.BeaconService)
 local BossService = require(script.Parent.BossService)
 local BlockService = require(script.Parent.BlockService)
 local SiteKit = require(script.Parent.SiteKit)
+local SetPieceMeshes = require(script.Parent.SetPieceMeshes)
 local StoryService = require(script.Parent.StoryService)
 local Analytics = require(script.Parent.Analytics)
 local CinemaService = require(script.Parent.CinemaService)
@@ -160,13 +162,24 @@ local function buildPocket(index: number, layout: string): (PocketLayout.Layout,
 	PocketLayout.heights(l)
 	local m = Instance.new("Model")
 	m.Name = "Pocket" .. index
+	-- the side quests' pockets' Blender looks (Layout.art) once Art.SetPieces is imported: the boxes they stand
+	-- over stay (hidden, colliding as before); before the import every box shows (PLACEHOLDER ART)
+	local drawn = SetPieceMeshes.drawn(l.art)
 	for _, b in l.boxes do
 		local p = CityBuilder.part(b)
 		if b.tag == "pocketWall" then
 			p.Transparency = 0.85
 			p.CastShadow = false
 		end
+		if SetPieceKit.hides(b, drawn) then
+			SetPieceMeshes.hide(p)
+		end
 		p.Parent = m
+	end
+	for i, pl in l.art do
+		if drawn[i] then
+			SetPieceMeshes.add(m, pl, CFrame.new(pl.x, pl.y, pl.z) * SetPieceMeshes.yaw(pl))
+		end
 	end
 	m.Parent = root()
 	return l, m
