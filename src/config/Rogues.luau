@@ -17,7 +17,11 @@
 --   a beaten boss whose fight was at `gold.level` or higher, as a Contributor or the MVP.
 -- * Milestones: at `n` pages (or all of them) the account gets one existing earnable creator piece (a
 --   "drop" piece, so it is also found in Epic and Legendary drops). Looks only; nothing is sold.
--- PLACEHOLDER ART: the portraits are Kit shapes in the robots' own colours until the UI art pass.
+-- * Portraits (art pass 2026-11-18): `portraits` holds each page's uploaded image id (a case-file card drawn from
+--   the game's own look: art/blender/rogues.py then art/rogues/portraits.py, art/export/rogues/Rogue_<Id>.png
+--   and Rogue_<Boss>_Gold.png). 0 until nate uploads it; until then the page draws the Kit shapes in the robot's
+--   own colours. An unbeaten page always keeps the black silhouette. PLACEHOLDER ART until nate approves the
+--   cards (Tasks "Placeholder art").
 return {
 	-- a page's beaten count stops here (the page shows "999+" past 999)
 	countMax = 65535,
@@ -352,6 +356,69 @@ return {
 		{ n = 10, bit = 124, piece = "Antenna Helm" },
 		{ n = 25, bit = 125, piece = "Circuit Suit" },
 		{ all = true, bit = 126, piece = "Ember Aura" },
+	},
+	-- each page's portrait image id by group and page id (its Config.Enemies kind, villain id or boss id); gold:
+	-- a world boss's gold page card. 0 = not uploaded yet (art/upload/make_package.py packs art/export/rogues,
+	-- apply_ids.py fills these)
+	portraits = {
+		robots = {
+			SparkDrone = 0,
+			BurglarBot = 0,
+			SneakBot = 0,
+			BruteBot = 0,
+			Turret = 0,
+			NullSentinel = 0,
+			Diver = 0,
+			Anchor = 0,
+			TorpedoSentry = 0,
+			ShieldBearer = 0,
+			Captain = 0,
+			Sniper = 0,
+			Bomber = 0,
+			MedicUnit = 0,
+			Swarmer = 0,
+			Mimic = 0,
+			Interceptor = 0,
+			Grappler = 0,
+			WindupToy = 0,
+			SaltDog = 0,
+		},
+		fakes = {
+			Radiant = 0,
+			Bulwark = 0,
+			Skylance = 0,
+			EvilTwin = 0,
+		},
+		villains = {
+			HeadmasterHalo = 0,
+			Redline = 0,
+			MasqueARade = 0,
+			Toymaker = 0,
+			Bramblebeast = 0,
+			HarvestKing = 0,
+			CaptainBrine = 0,
+			Pitboss = 0,
+			Tidewright = 0,
+			Vesper = 0,
+			Catchpole = 0,
+			Scorch = 0,
+			Censor = 0,
+			Holloway = 0,
+			Voidhound = 0,
+			Morrow = 0,
+			Clawback = 0,
+			Gale = 0,
+		},
+		bosses = {
+			RustjawPrime = 0,
+			LumenMaw = 0,
+			LeviathanEngine = 0,
+		},
+		gold = {
+			RustjawPrime = 0,
+			LumenMaw = 0,
+			LeviathanEngine = 0,
+		},
 	},
 	firstBit = { robots = 16, fakes = 48, villains = 64, bosses = 1, gold = 9, milestones = 120 },
 	lastBit = { robots = 47, fakes = 63, villains = 119, bosses = 7, gold = 15, milestones = 127 },

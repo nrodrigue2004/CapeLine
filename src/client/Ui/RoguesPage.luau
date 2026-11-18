@@ -2,13 +2,15 @@
 -- File; Config.Rogues, Shared.RoguesFile). Every robot kind, famous fake, side quest finale villain and world
 -- boss in one book:
 -- * the count beaten, the gold pages and the next collection reward at the top;
--- * a beaten one's page: its portrait in its own colours, name, title, the fixed blurb, how many times you
---   beat it and when (the day and your level the first time); a boss beaten at the gold level gets a gold
---   page (gold frame, GOLD PAGE);
+-- * a beaten one's page: its portrait (its case-file card once uploaded, Config.Rogues.portraits; else Kit
+--   shapes in its own colours), name, title, the fixed blurb, how many times you beat it and when (the day and
+--   your level the first time); a boss beaten at the gold level gets a gold page (gold frame, GOLD PAGE, its
+--   gold card);
 -- * one not beaten yet: a black silhouette, "???" and a hint where to meet it (never hidden, so there is
 --   always a next one to find).
 -- The server fills the pages (RoguesService); a new page stamps on screen (Juice "roguePage").
--- PLACEHOLDER ART: the portraits are Kit shapes until the UI art pass.
+-- PLACEHOLDER ART: the portrait cards (art/rogues/portraits.py) until nate approves them; the Kit shapes show
+-- while a card's id is 0.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -65,8 +67,22 @@ local function has(bit: number?): boolean
 	return bit ~= nil and data ~= nil and data.bits[bit] == true
 end
 
--- The portrait: a head, eyes and shoulders in the robot's own colours, or a black silhouette with "?"
-local function portrait(parent: Instance, e: RoguesFile.Entry, beaten: boolean)
+-- The portrait: its uploaded case-file card (the gold card on a gold page), else a head, eyes and shoulders in
+-- the robot's own colours; not beaten yet: a black silhouette with "?"
+local function portrait(parent: Instance, e: RoguesFile.Entry, beaten: boolean, gold: boolean)
+	local id = if beaten then RoguesFile.portrait(e, gold) else 0
+	if id > 0 then
+		local img = Instance.new("ImageLabel")
+		img.Name = "Portrait"
+		img.Size = UDim2.fromOffset(56, 56)
+		img.Position = UDim2.fromOffset(8, 10)
+		img.BackgroundTransparency = 1
+		img.BorderSizePixel = 0
+		img.ScaleType = Enum.ScaleType.Fit
+		img.Image = "rbxassetid://" .. id
+		img.Parent = parent
+		return
+	end
 	local box = Kit.frame({
 		Size = UDim2.fromOffset(56, 56),
 		Position = UDim2.fromOffset(8, 10),
@@ -152,7 +168,7 @@ local function pageRow(body: Instance, order: number, e: RoguesFile.Entry)
 		Kit.stroke(row, OUTLINE, 2)
 	end
 	row.Parent = body
-	portrait(row, e, beaten)
+	portrait(row, e, beaten, gold == true)
 	local ink = if beaten then Kit.color.ink else Color3.fromRGB(170, 170, 180)
 	if not beaten then
 		label(row, "???", 74, 6, -84, 26, 22, ink, Kit.font)

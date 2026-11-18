@@ -84,6 +84,81 @@ return function(T: any)
 		end
 	)
 
+	test(
+		"Rogues File: every page has a portrait card file and an id slot (gold cards for the bosses)",
+		function()
+			-- the cards art/rogues/portraits.py draws (512 x 512 PNGs) and the ids art/upload/apply_ids.py fills
+			local function png(path: string): (number?, number?)
+				if not fs.isFile(path) then
+					return nil, nil
+				end
+				local b = fs.readFile(path)
+				if string.sub(b, 2, 4) ~= "PNG" then
+					return nil, nil
+				end
+				return string.unpack(">I4I4", b, 17)
+			end
+			local slots = 0
+			for _, e in RoguesFile.list(Config) do
+				local w, h = png("art/export/rogues/Rogue_" .. e.id .. ".png")
+				check(
+					w == 512 and h == 512,
+					e.id .. ": art/export/rogues/Rogue_" .. e.id .. ".png, 512 x 512"
+				)
+				local id = R.portraits[e.group] and R.portraits[e.group][e.id]
+				check(
+					type(id) == "number" and id >= 0 and id % 1 == 0,
+					e.id .. ": an id slot in portraits." .. e.group
+				)
+				check(e.portrait == id, e.id .. ": the page carries its portrait id")
+				slots += 1
+				if e.gold then
+					local gw, gh = png("art/export/rogues/Rogue_" .. e.id .. "_Gold.png")
+					check(gw == 512 and gh == 512, e.id .. ": its gold card Rogue_" .. e.id .. "_Gold.png")
+					local gid = R.portraits.gold[e.id]
+					check(type(gid) == "number" and gid >= 0, e.id .. ": a gold id slot")
+					check(e.goldPortrait == gid, e.id .. ": the page carries its gold portrait id")
+					slots += 1
+				end
+			end
+			check(slots == 48, "48 portrait slots: 45 pages and 3 gold pages (" .. slots .. ")")
+			-- no slot without a page (a renamed page would leave an orphan upload)
+			local n = 0
+			for _, ids in R.portraits do
+				for _ in ids do
+					n += 1
+				end
+			end
+			check(n == slots, "every portraits slot is a page")
+			-- the page's image: its card, the gold card on a gold page, 0 (the Kit shapes) until uploaded
+			local e = RoguesFile.forBoss(Config, "RustjawPrime") :: any
+			local fake = table.clone(e)
+			fake.portrait, fake.goldPortrait = 0, 0
+			check(
+				RoguesFile.portrait(fake, false) == 0 and RoguesFile.portrait(fake, true) == 0,
+				"0 until uploaded"
+			)
+			fake.portrait = 11
+			check(RoguesFile.portrait(fake, true) == 11, "a gold page without its gold card shows the card")
+			fake.goldPortrait = 22
+			check(
+				RoguesFile.portrait(fake, true) == 22 and RoguesFile.portrait(fake, false) == 11,
+				"gold card on gold"
+			)
+			-- the upload package covers every card (one rogue_portrait target per slot)
+			local mp = fs.readFile("art/upload/make_package.py")
+			check(
+				string.find(mp, "rogue_portrait", 1, true) ~= nil,
+				"make_package.py packs the portrait cards"
+			)
+			local ai = fs.readFile("art/upload/apply_ids.py")
+			check(
+				string.find(ai, "rogue_portrait", 1, true) ~= nil,
+				"apply_ids.py fills Config.Rogues.portraits"
+			)
+		end
+	)
+
 	test("Rogues File: names and titles come from the game's own data", function()
 		local function page(id: string): any
 			for _, e in RoguesFile.list(Config) do

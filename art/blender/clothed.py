@@ -325,7 +325,9 @@ def figure(at, yaw, skin, hair_rgb, turned=False, arm_up=False, face="Hero", out
         ob.matrix_world = Y @ ob.matrix_world
 
 
-if ROBOT == "heroes":
+if __name__ != "__main__":
+    pass  # imported (art/blender/rogues.py uses figure() and the helpers): no preview
+elif ROBOT == "heroes":
     # heroes in our own Roblox-style clothes (art/clothes/heroes.py), with our faces
     skins = [(240, 190, 150), (141, 95, 64), (224, 172, 130), (198, 140, 96), (92, 62, 44), (250, 210, 180),
              (170, 120, 84), (232, 180, 140)]
