@@ -9,8 +9,9 @@
 -- Parts are massless and never collide, touch or block raycasts. Works on R15 and R6 bodies.
 -- Drawn art (2026-11-18) stands in once nate uploads or imports it: the suits' Shirt and Pants (suitClothes),
 -- the emblem set (emblem), the flat masks' head decals (maskDecals) and the cape meshes (capeMeshes); each keeps
--- its parts below until then. PLACEHOLDER ART: the other pieces are blocks, wedges, balls and cylinders until
--- accessory meshes and cape sway (M11) replace them.
+-- its parts below until then; round 2 (2026-11-18) added the head pieces', gloves', boots', coats' and scarves'
+-- meshes (pieceMeshes) and the auras' and flight trails' effects-library textures (aura, trail). PLACEHOLDER ART:
+-- the other pieces are blocks, wedges, balls and cylinders until accessory meshes and cape sway (M11) replace them.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -1137,9 +1138,70 @@ local function eyes(char: Model, folder: Instance, kit: string, colors: Colors)
 	end
 end
 
+-- An aura's effects-library layers (Config.Creator.auraFx, creator art round 2): one emitter a layer, each on its
+-- own see-through box welded to the root (at the feet for a low layer) so it emits through that volume, each with
+-- its library texture and flipbook. The boxes live in the look's folder, so clear() takes them away.
+local function auraLayers(root: BasePart, folder: Instance, layers: { any }, colors: Colors)
+	local tex = (Config :: any).Fx.lib.textures
+	for i, l in layers do
+		local box = Instance.new("Part")
+		box.Name = "AuraBox"
+		box.Size = Vector3.new(l.box[1], l.box[2], l.box[3])
+		box.Transparency = 1
+		box.Massless = true
+		box.CanCollide = false
+		box.CanTouch = false
+		box.CanQuery = false
+		box.CastShadow = false
+		box.CFrame = root.CFrame * CFrame.new(0, if l.low then -2.6 else 0, 0)
+		local weld = Instance.new("WeldConstraint")
+		weld.Part0 = root
+		weld.Part1 = box
+		weld.Parent = box
+		box.Parent = folder
+		local e = Instance.new("ParticleEmitter")
+		e.Name = "CreatorAura" .. i
+		local t = tex[l.tex]
+		local uploaded = t and t.id and t.id > 0
+		e.Texture = if uploaded then "rbxassetid://" .. tostring(t.id) else (t and t.builtin or "")
+		if uploaded and t.flip == 4 then
+			e.FlipbookLayout = Enum.ParticleFlipbookLayout.Grid4x4
+			e.FlipbookMode = Enum.ParticleFlipbookMode.Loop
+		end
+		e.Rate = l.rate
+		e.Lifetime = NumberRange.new(l.life[1], l.life[2])
+		e.Speed = NumberRange.new(l.speed[1], l.speed[2])
+		e.SpreadAngle = Vector2.new(l.spread, l.spread)
+		e.Acceleration = Vector3.new(0, l.rise, 0)
+		e.EmissionDirection = Enum.NormalId.Top
+		e.LightEmission = l.light
+		e.Size = NumberSequence.new(l.size[1], l.size[2])
+		e.Transparency = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 1),
+			NumberSequenceKeypoint.new(0.15, l.alpha),
+			NumberSequenceKeypoint.new(1, 1),
+		})
+		e.RotSpeed = NumberRange.new(-l.spin, l.spin)
+		e.Rotation = NumberRange.new(0, 360)
+		e.Color = ColorSequence.new(colors[l.colors[1]] or colors.a, colors[l.colors[2]] or colors.white)
+		if l.streak then
+			e.Orientation = Enum.ParticleOrientation.VelocityParallel
+		end
+		e.Shape = Enum.ParticleEmitterShape.Box
+		e.ShapeStyle = Enum.ParticleEmitterShapeStyle.Volume
+		e.Parent = box
+	end
+end
+
 local function aura(char: Model, folder: Instance, kit: string, colors: Colors)
 	local root = char:FindFirstChild("HumanoidRootPart") :: BasePart?
 	local a = AURAS[kit]
+	local fx = C.auraFx
+	local layers = fx and fx.on == true and fx.kits[kit]
+	if root and layers then
+		auraLayers(root, folder, layers, colors)
+		return
+	end
 	if not root or not a then
 		return
 	end
@@ -1200,6 +1262,15 @@ local function trail(char: Model, folder: Instance, kit: string, colors: Colors)
 		local c0 = if t.grey then Color3.fromRGB(150, 150, 160) else colors.a
 		local c1 = if t.grey then Color3.fromRGB(90, 90, 100) else colors.p
 		tr.Color = ColorSequence.new(c0, c1)
+		-- the trail's own strip from the effects textures (Config.Creator.trailFx), once uploaded
+		local tf = C.trailFx
+		local tex = tf and tf.on == true and tf.kits[kit]
+		if tex and tex.id ~= 0 then
+			tr.Texture = "rbxassetid://" .. tostring(tex.id)
+			tr.TextureMode = if tex.mode == "Wrap" then Enum.TextureMode.Wrap else Enum.TextureMode.Stretch
+			tr.TextureLength = tex.length or 1
+			tr.Transparency = NumberSequence.new(0, 1)
+		end
 		tr.Parent = part
 		for _, inst in { a0, a1 } do
 			local tag = Instance.new("ObjectValue")
@@ -1310,6 +1381,80 @@ local function capeMeshes(
 		p.Parent = folder
 	end
 	return true
+end
+
+-- The worn meshes of creator art round 2 (2026-11-18): the head pieces (Config.HeadArt, art/blender/heads.py), gloves
+-- (GloveArt, hands.py), boots (BootArt, feet.py), and coats and scarves (CoatArt, coats.py), once nate has imported
+-- their FBX as ReplicatedStorage.Art.Heads, .Gloves, .Boots and .Coats. Each piece is cloned, welded to its own
+-- body part (a role in ATTACH) at its fitted box, sized with that part and coloured by its role (glow pieces
+-- Neon, a lens stays Glass, the slot's material over the rest). The same fall-back rule as the capes: nothing is
+-- made unless every piece's mesh and body part is there (then the part-built kit stays). Returns true and the
+-- kit's fit when the meshes stand in for the kit's parts.
+local MESH_LIBS: { [string]: { string } } = {
+	head = { "Heads", "HeadArt" },
+	hands = { "Gloves", "GloveArt" },
+	feet = { "Boots", "BootArt" },
+	back = { "Coats", "CoatArt" },
+}
+local function pieceMeshes(
+	char: Model,
+	folder: Instance,
+	tab: string,
+	kit: string,
+	colors: Colors,
+	mat: Enum.Material?
+): (boolean, any)
+	local lib = MESH_LIBS[tab]
+	local fits = lib and (Config :: any)[lib[2]]
+	local fit = fits and fits[kit]
+	local art = ReplicatedStorage:FindFirstChild("Art")
+	local src = art and lib and art:FindFirstChild(lib[1])
+	if not (fit and src) then
+		return false, nil
+	end
+	local srcs: { MeshPart } = {}
+	local parts: { BasePart } = {}
+	for i, row in fit.pieces do
+		local found = src:FindFirstChild(row.mesh, true)
+		local a = ATTACH[row.at]
+		local part = a and char:FindFirstChild(a[1])
+		if not (found and found:IsA("MeshPart") and part and part:IsA("BasePart")) then
+			return false, nil
+		end
+		srcs[i] = found
+		parts[i] = part
+	end
+	for i, row in fit.pieces do
+		local part = parts[i]
+		local ref = RIG_SIZE[part.Name]
+		local f = if ref then part.Size / ref else Vector3.one
+		local p = srcs[i]:Clone()
+		for _, c in p:GetChildren() do
+			c:Destroy()
+		end
+		p.Name = tab
+		p.Size = Vector3.new(row.size[1], row.size[2], row.size[3]) * f
+		p.Color = colors[row.role] or colors.p
+		local own = if row.mat then (Enum.Material :: any)[row.mat] else nil
+		p.Material = if row.glow
+			then Enum.Material.Neon
+			elseif row.mat == "Glass" then Enum.Material.Glass
+			else (mat or own or Enum.Material.SmoothPlastic)
+		p.Transparency = row.alpha or 0
+		p.Anchored = false
+		p.Massless = true
+		p.CanCollide = false
+		p.CanTouch = false
+		p.CanQuery = false
+		p.CastShadow = false
+		p.CFrame = part.CFrame * CFrame.new(Vector3.new(row.offset[1], row.offset[2], row.offset[3]) * f)
+		local weld = Instance.new("WeldConstraint")
+		weld.Part0 = part
+		weld.Part1 = p
+		weld.Parent = p
+		p.Parent = folder
+	end
+	return true, fit
 end
 
 -- Remove a look built by build() (the folder and the emitters and trails it made on body parts, and a mask's
@@ -1598,17 +1743,25 @@ function LookKit.build(char: Model, look: any, weapon: any?): Folder
 			end
 		end
 	end
+	local headFit: any = nil
 	for _, tab in { "back", "head", "hands", "feet" } do
 		local kit = kitOf(tab)
 		local c, m = slotColors(colors, look, tab)
 		-- the slot's own kits, then the 2026-11-17 extras in PieceKits
 		local extra = PieceKits[tab]
-		-- a flat mask's uploaded decals and a cape's imported meshes stand in for their boxes
+		-- a flat mask's uploaded decals, a cape's imported meshes and the worn meshes stand in for their boxes
 		local drawn = kit ~= nil
 			and (
 				(tab == "head" and maskDecals(char, kit, c))
 				or (tab == "back" and capeMeshes(char, folder, kit, c, m))
 			)
+		if not drawn and kit then
+			local fit
+			drawn, fit = pieceMeshes(char, folder, tab, kit, c, m)
+			if drawn and tab == "head" then
+				headFit = fit
+			end
+		end
 		if not drawn then
 			addSpecs(char, folder, tab, kit and (KITS[tab][kit] or (extra and extra[kit])), c, m)
 		end
@@ -1619,8 +1772,11 @@ function LookKit.build(char: Model, look: any, weapon: any?): Folder
 	-- headwear and masks may hide the hair (and a closed helm the face)
 	local headKit = kitOf("head")
 	local hatKit = kitOf("hat")
-	local hidesHair = (headKit and (HIDES_HAIR[headKit] or PieceKits.maskHidesHair[headKit]))
-		or (hatKit and PieceKits.hatHidesHair[hatKit])
+	-- a head mesh says itself whether it covers the hair (HeadArt hair = false)
+	local headHides = if headFit
+		then headFit.hair == false
+		else (headKit and (HIDES_HAIR[headKit] or PieceKits.maskHidesHair[headKit]))
+	local hidesHair = headHides or (hatKit and PieceKits.hatHidesHair[hatKit])
 	local hidesFace = hatKit ~= nil and PieceKits.hatHidesFace[hatKit] == true
 	local hairKit = kitOf("hair")
 	if hairKit and not hidesHair then

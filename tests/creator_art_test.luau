@@ -2,7 +2,8 @@
 -- art/clothes/suits.py), the emblem set (emblemArt, art/clothes/emblems.py), the flat masks' head decals (maskArt,
 -- art/clothes/masks.py) and the cape meshes (Config.CapeArt, art/blender/capes.py). Every row names a real piece's
 -- kit, every image and the FBX are on disk for nate's upload and import, the colour roles are ones LookKit has,
--- and the pieces themselves (ids, kits, unlocks) are unchanged so saved looks keep working.
+-- and the pieces themselves (ids, kits, unlocks) are unchanged so saved looks keep working. Round 2 (2026-11-18): the
+-- worn meshes (HeadArt, GloveArt, BootArt, CoatArt), the auras on the effects library and the trail strips.
 -- Called from tests/run.luau: require("./creator_art_test")({ test = test, check = check, Config = Config })
 -- ONLY="Creator art" runs just these.
 
@@ -151,6 +152,167 @@ return function(T: any)
 		check(n == 12, "12 capes")
 	end)
 
+	-- Round 2 (2026-11-18): the head pieces, gloves, boots, coats and scarves as worn meshes (art/blender/heads.py,
+	-- hands.py, feet.py, coats.py into Config.HeadArt, GloveArt, BootArt and CoatArt). Each row is a real kit of its
+	-- tab, each piece sits on a body part LookKit attaches to, near that part, with a colour role LookKit has.
+	local ATTACH = {
+		head = true,
+		torso = true,
+		waist = true,
+		luarm = true,
+		ruarm = true,
+		llarm = true,
+		rlarm = true,
+		lhand = true,
+		rhand = true,
+		lthigh = true,
+		rthigh = true,
+		lshin = true,
+		rshin = true,
+		lfoot = true,
+		rfoot = true,
+	}
+	local MATS = { Metal = true, Glass = true, Fabric = true, Leather = true, Rubber = true, Wood = true }
+	local SETS = {
+		{ art = "HeadArt", fbx = "Heads", tab = "head", prefix = "Head_", budget = 2400, n = 19 },
+		{ art = "GloveArt", fbx = "Gloves", tab = "hands", prefix = "Glove_", budget = 1600, n = 19 },
+		{ art = "BootArt", fbx = "Boots", tab = "feet", prefix = "Boot_", budget = 1800, n = 21 },
+		{ art = "CoatArt", fbx = "Coats", tab = "back", prefix = "Coat_", budget = 2600, n = 8 },
+	}
+	for _, set in SETS do
+		test("Creator art: " .. set.art .. " rows are real kits with fitted meshes", function()
+			local A = Config[set.art]
+			check(A ~= nil, "Config." .. set.art)
+			check(fs.isFile("art/export/" .. set.fbx .. ".fbx"), "art/export/" .. set.fbx .. ".fbx")
+			local kits = kitsOf(set.tab)
+			local n, names = 0, {}
+			for kit, row in A do
+				n += 1
+				check(kits[kit], set.art .. " " .. kit .. " is a " .. set.tab .. " piece's kit")
+				check(row.triangles > 0 and row.triangles <= set.budget, kit .. ": triangle budget")
+				check(#row.pieces >= 1, kit .. ": has pieces")
+				if row.hair ~= nil then
+					check(type(row.hair) == "boolean", kit .. ": hair flag")
+				end
+				local front = set.prefix .. string.gsub(kit, ":", "_") .. "_"
+				for _, p in row.pieces do
+					check(string.sub(p.mesh, 1, #front) == front, p.mesh .. ": name")
+					check(names[p.mesh] == nil, p.mesh .. ": one mesh per name")
+					names[p.mesh] = true
+					check(
+						ATTACH[p.at],
+						p.mesh .. ": on a body part LookKit attaches to (" .. tostring(p.at) .. ")"
+					)
+					check(ROLES[p.role], p.mesh .. ": colour role")
+					check(type(p.glow) == "boolean", p.mesh .. ": glow flag")
+					check(p.mat == nil or MATS[p.mat], p.mesh .. ": material")
+					check(p.alpha == nil or (p.alpha > 0 and p.alpha < 1), p.mesh .. ": transparency")
+					check(p.size[1] > 0 and p.size[2] > 0 and p.size[3] > 0, p.mesh .. ": size")
+					for k = 1, 3 do
+						-- (the shoulder coat drapes over both arms: 4.4 studs wide on the 4-stud-wide rig)
+						check(
+							math.abs(p.offset[k]) < 1.6 and p.size[k] < 4.6,
+							p.mesh .. ": fits its body part"
+						)
+					end
+					if set.tab ~= "back" then
+						-- a pair is two meshes (a MeshPart cannot be mirrored): one each side
+						local side = string.sub(p.mesh, -1)
+						if p.at ~= "head" then
+							check(side == "L" or side == "R", p.mesh .. ": a left or right piece")
+							check(string.sub(p.at, 1, 1) == string.lower(side), p.mesh .. ": on its own side")
+						end
+					end
+				end
+			end
+			check(n == set.n, set.art .. ": " .. set.n .. " kits (" .. n .. ")")
+		end)
+	end
+
+	test("Creator art: every mask, glove, boot and back piece has its art", function()
+		for kit in kitsOf("head") do
+			check(
+				Config.HeadArt[kit] ~= nil or C.maskArt.kits[kit] ~= nil,
+				"head " .. kit .. ": a mesh or decals"
+			)
+		end
+		for kit in kitsOf("hands") do
+			check(Config.GloveArt[kit] ~= nil, "hands " .. kit .. ": meshes")
+		end
+		for kit in kitsOf("feet") do
+			check(Config.BootArt[kit] ~= nil, "feet " .. kit .. ": meshes")
+		end
+		for kit in kitsOf("back") do
+			local cape = string.match(kit, "^cape:(.+)$")
+			check(
+				(cape ~= nil and Config.CapeArt[cape] ~= nil) or Config.CoatArt[kit] ~= nil,
+				"back " .. kit .. ": meshes"
+			)
+		end
+		-- helmets and hoods hide the hair; open masks keep it
+		for _, kit in { "helm", "crest", "horns", "antenna", "hood", "frame", "monovisor" } do
+			check(Config.HeadArt[kit].hair == false, kit .. " hides the hair")
+		end
+		for _, kit in { "visor", "goalie", "fox", "oni" } do
+			check(Config.HeadArt[kit].hair ~= false, kit .. " keeps the hair")
+		end
+	end)
+
+	test("Creator art: auras use the effects library's textures, under the cap", function()
+		local A = C.auraFx
+		check(A ~= nil and A.on == true, "auraFx is on")
+		check(A.cap > 0 and A.cap <= 30, "a hero's aura cap")
+		local tex = Config.Fx.lib.textures
+		local FX_ROLES =
+			{ a = true, p = true, s = true, ice = true, white = true, gold = true, glowRed = true }
+		local n = 0
+		for kit in kitsOf("aura") do
+			n += 1
+			local layers = A.kits[kit]
+			check(layers ~= nil and #layers >= 1, "auraFx for " .. kit)
+			local rate = 0
+			for i, l in layers or {} do
+				local tag = kit .. " layer " .. i
+				check(tex[l.tex] ~= nil, tag .. ": the library texture " .. tostring(l.tex))
+				check(l.rate > 0, tag .. ": rate")
+				rate += l.rate
+				check(l.life[1] > 0 and l.life[1] <= l.life[2], tag .. ": life")
+				check(l.speed[1] <= l.speed[2], tag .. ": speed")
+				check(l.size[1] >= 0 and l.size[2] >= 0, tag .. ": size")
+				check(l.alpha >= 0 and l.alpha < 1, tag .. ": alpha")
+				check(l.light >= 0 and l.light <= 1, tag .. ": light")
+				check(#l.colors == 2 and FX_ROLES[l.colors[1]] and FX_ROLES[l.colors[2]], tag .. ": colours")
+				check(#l.box == 3, tag .. ": box")
+			end
+			check(rate <= A.cap, kit .. ": " .. rate .. " particles a second, cap " .. A.cap)
+		end
+		check(n == 6, "6 auras")
+		for kit in A.kits do
+			check(kitsOf("aura")[kit], "auraFx " .. kit .. " is an aura piece's kit")
+		end
+	end)
+
+	test("Creator art: every flight trail has its strip", function()
+		local A = C.trailFx
+		check(A ~= nil and A.on == true, "trailFx is on")
+		local n = 0
+		for kit in kitsOf("trail") do
+			n += 1
+			local row = A.kits[kit]
+			check(row ~= nil, "trailFx for " .. kit)
+			if row then
+				check(type(row.id) == "number", kit .. ": id")
+				check(row.mode == "Stretch" or row.mode == "Wrap", kit .. ": mode")
+				check(row.mode ~= "Wrap" or (row.length or 0) > 0, kit .. ": wrap length")
+				check(fs.isFile("art/export/fx/" .. row.file), "art/export/fx/" .. row.file)
+			end
+		end
+		check(n == 8, "8 trails")
+		for kit in A.kits do
+			check(kitsOf("trail")[kit], "trailFx " .. kit .. " is a trail piece's kit")
+		end
+	end)
+
 	test("Creator art: LookKit wears the art and keeps the parts as the fallback", function()
 		local src = fs.readFile("src/shared/LookKit.luau")
 		for _, needle in
@@ -162,18 +324,31 @@ return function(T: any)
 				"capeMeshes(char, folder, kit, c, m)",
 				"maskDecals(char, kit, c)",
 				"EA.shapes[bits[1]]",
+				"local function pieceMeshes(",
+				'head = { "Heads", "HeadArt" }',
+				'hands = { "Gloves", "GloveArt" }',
+				'feet = { "Boots", "BootArt" }',
+				'back = { "Coats", "CoatArt" }',
+				"pieceMeshes(char, folder, tab, kit, c, m)",
+				"local function auraLayers(",
+				"C.auraFx",
+				"C.trailFx",
 			}
 		do
 			check(string.find(src, needle, 1, true) ~= nil, "LookKit: " .. needle)
 		end
 		local pkg = fs.readFile("art/upload/make_package.py")
-		for _, kind in { "creator_suit", "creator_emblem", "creator_mask" } do
+		for _, kind in { "creator_suit", "creator_emblem", "creator_mask", "creator_trail" } do
 			check(string.find(pkg, kind, 1, true) ~= nil, "the upload package lists " .. kind)
 		end
 		check(
-			string.find(fs.readFile("src/config/init.luau"), '"CapeArt"', 1, true) ~= nil,
-			"Config indexes CapeArt"
+			string.find(fs.readFile("art/upload/apply_ids.py"), "creator_trail", 1, true) ~= nil,
+			"apply_ids fills the trail ids"
 		)
+		local init = fs.readFile("src/config/init.luau")
+		for _, name in { "CapeArt", "HeadArt", "GloveArt", "BootArt", "CoatArt" } do
+			check(string.find(init, '"' .. name .. '"', 1, true) ~= nil, "Config indexes " .. name)
+		end
 	end)
 
 	test("Creator art: piece ids, kits and unlocks are unchanged", function()
@@ -184,6 +359,11 @@ return function(T: any)
 			back = { 25, 19384452 },
 			head = { 31, 1220518570 },
 			emblem = { 65, 1528379958 },
+			-- round 2's tabs (2026-11-18, as they stood on enemies9 at cafb358)
+			hands = { 20, 874172715 },
+			feet = { 23, 1457297585 },
+			aura = { 6, 1812636889 },
+			trail = { 8, 1275196596 },
 		}
 		local total = 0
 		for tab, want in BEFORE do
@@ -201,6 +381,6 @@ return function(T: any)
 			check(n >= want[1], tab .. ": no piece removed (" .. n .. ")")
 			check(h == want[2], tab .. ": the pieces' fingerprint (" .. n .. " pieces, " .. h .. ")")
 		end
-		check(total >= 167, "167 pieces or more in the four tabs (" .. total .. ")")
+		check(total >= 224, "224 pieces or more in the eight tabs (" .. total .. ")")
 	end)
 end
