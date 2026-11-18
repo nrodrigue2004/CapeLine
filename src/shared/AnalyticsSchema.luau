@@ -79,6 +79,11 @@ AnalyticsSchema.EVENTS = {
 	-- WP2: the weekly boards
 	board_open = { "board", "filter" }, -- value: your rank (0 = not ranked)
 	board_reward = { "board", "place" }, -- value: the final rank that earned the week's title
+	-- WP1: the daily streak and quests (Shared.DailyRules builds each one)
+	daily_login = { "track_day", "kind" }, -- value: the streak; kind: new, next, grace or reset
+	daily_claim = { "track_day", "reward", "late" }, -- value: the streak; late 1: paid on the next day's login
+	daily_quest = { "quest", "slot" }, -- value: quests done today
+	daily_all_done = { "track_day" }, -- value: the streak
 }
 
 AnalyticsSchema.FUNNELS = {

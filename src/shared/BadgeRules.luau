@@ -10,6 +10,7 @@
 --   titles (profile.titles bits), titleBase + bit = a badge's name, baneBase + i = "Bane of <nemesis>",
 --   Config.Remembers.titleBase + track x 10 + tier = a reputation tier's title (lore step 12, Shared.RepTiers).
 --   Config.Boards.titleBase + board = a weekly board's top-10 title (WP2, Shared.BoardKeys).
+--   Config.Daily.titleBase + n = a daily streak title (WP1, the day 7 reward).
 --   All fixed text from the lists; nothing typed.
 
 local Bits = if script
@@ -208,6 +209,16 @@ function BadgeRules.titles(Config: any, profile: any, char: any): { { id: number
 		for i, b in BD.boards do
 			if (boardBits // 2 ^ (i - 1)) % 2 == 1 then
 				table.insert(out, { id = BD.titleBase + i, name = b.title })
+			end
+		end
+	end
+	-- WP1: the daily streak's day 7 titles (profile.daily.titles bits, Config.Daily.titles), kept forever
+	local D = Config.Daily
+	local dl = profile.daily
+	if D and type(dl) == "table" and type(dl.titles) == "number" then
+		for n, name in D.titles do
+			if bit32.btest(dl.titles, bit32.lshift(1, n - 1)) then
+				table.insert(out, { id = D.titleBase + n, name = name })
 			end
 		end
 	end

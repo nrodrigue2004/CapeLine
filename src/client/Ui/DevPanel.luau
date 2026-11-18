@@ -5,7 +5,8 @@
 -- event by type, boss now, boss to 1 HP, finish contract, clock phase, hero or villain side, and (M7) the
 -- Ceremony prologue as the Vigil or the Syndicate and a jump to each of its beats (lore step 3), each Act 1 mission as each side and a jump to each of its stages (lore step 5), finish the step, leave, the side quest framework (lore step 10: give the sample chain, start, restart and finish steps, finish the chain, forget it, try each step kind alone), clear
 -- Act 1 and reset the story, a sample line per guide and Lodestar beside you (lore step 6), and (M9) the creator, enter HQ, HQ level, 8 h away, all pieces, a test buy
--- (twice grants once) and the level cap, and (2026-11-17) the next incident, event or contract to try (the
+-- (twice grants once) and the level cap, the daily streak (a day passes, skip a day, finish the quests, start
+-- over; WP1), and (2026-11-17) the next incident, event or contract to try (the
 -- "Inc:", "Ev:" and "Con:" buttons start the one named, "next" picks another), and a Heroic switch for them.
 -- The stats line shows the server frame, script time per service, enemies, bots, send
 -- rate and memory, plus the client fps and preset.
@@ -477,6 +478,19 @@ function DevPanel.init()
 	end)
 	add("Nemesis Intel", function()
 		Net.send("DevCommand", "nemesis", 1)
+	end)
+	-- WP1: the daily streak and quests
+	add("Daily: next day", function()
+		Net.send("DevCommand", "daily", 1)
+	end)
+	add("Daily: skip a day", function()
+		Net.send("DevCommand", "daily", 2)
+	end)
+	add("Daily: finish quests", function()
+		Net.send("DevCommand", "daily", 3)
+	end)
+	add("Daily: start over", function()
+		Net.send("DevCommand", "daily", 4)
 	end)
 	-- M10: settings and accessibility
 	add("Reset settings", function()

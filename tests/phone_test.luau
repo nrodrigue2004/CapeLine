@@ -364,7 +364,20 @@ return function(
 				"CinemaHud",
 				"NewsHud",
 				"BoardHud", -- WP2
+				"DailyHud",
 			}
+			-- WP1: the daily card with a full week and 3 quests (a reward ready, day 7's title on the track)
+			local DailyRules = require("../src/shared/DailyRules")
+			local ProfileSchema = require("../src/shared/ProfileSchema")
+			local daily = ProfileSchema.default().daily
+			for day = 20400, 20405 do
+				DailyRules.visit(Config, daily, day)
+				DailyRules.claim(Config, daily, 30)
+			end
+			DailyRules.visit(Config, daily, 20406)
+			DailyRules.roll(Config, daily, 20406, 30)
+			DailyRules.bump(Config, daily, (DailyRules.quest(Config, daily.quests[1]) :: any).key, 1)
+			local dailyState = DailyRules.view(Config, daily, 20406, 30, 20406 * 86400 + 4000)
 			-- the panels a player opens, their ScreenGui and what open() takes
 			local PANELS = {
 				{ "LoadoutScreen", "Loadout" },
@@ -385,6 +398,7 @@ return function(
 				{ "BadgeHud", "BadgeHud" },
 				{ "PassHud", "PassHud" },
 				{ "BoardHud", "BoardHud" }, -- WP2: the weekly boards
+				{ "DailyHud", "Daily", dailyState },
 			}
 			-- the cards and banners the game shows on its own (each shown alone)
 			local CARDS = {
@@ -397,6 +411,8 @@ return function(
 				"Plates",
 				"Squad",
 				"BoardReward",
+				"Daily",
+				"DailyTracker",
 			}
 			-- parts placed only while they show, which a deep walk sees unplaced: the move stick's ring (at the
 			-- finger), the guide's speaker tag (laid out with its line), the news ticker (scrolls past its TV's
@@ -538,6 +554,18 @@ return function(
 					d.name .. ": the reward card draws"
 				)
 				report("BoardReward card", { only = { BoardReward = true } })
+				-- WP1: the daily tracker held open over the whole HUD: clear of the buttons, the corner and the stick
+				sim:run("DailyHud.pin", function()
+					M.DailyHud.pin(true)
+				end)
+				report("HUD with the daily tracker open", {
+					thumb = if d.touch
+						then (if d.leftHanded then { 0.55, 0.4, 1, 1 } else { 0, 1 / 3, 0.4, 1 })
+						else nil,
+				})
+				sim:run("DailyHud.unpin", function()
+					M.DailyHud.pin(false)
+				end)
 				sim:run("drawer", function()
 					sim:require("Client.Ui.Kit").dockDrawer(true)
 				end)

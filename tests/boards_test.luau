@@ -64,6 +64,11 @@ return function(test: (string, () -> ()) -> (), check: (boolean, string) -> (), 
 			B.titleBase > maxRep and B.titleBase + #B.boards < 65535,
 			"title ids above the rep titles, under TitleSet's cap"
 		)
+		local D = Config.Daily
+		check(
+			not D or B.titleBase > D.titleBase + #D.titles or B.titleBase + #B.boards < D.titleBase,
+			"board title ids never overlap the daily streak titles"
+		)
 		-- the board titles never reuse another title's name
 		local others = {}
 		for name in Config.Story.unlocks.titles do
@@ -79,6 +84,9 @@ return function(test: (string, () -> ()) -> (), check: (boolean, string) -> (), 
 			for _, t in list do
 				others[t] = true
 			end
+		end
+		for _, t in (if D then D.titles else {}) do
+			others[t] = true
 		end
 		for _, b in B.boards do
 			check(not others[b.title], "a title of its own: " .. b.title)

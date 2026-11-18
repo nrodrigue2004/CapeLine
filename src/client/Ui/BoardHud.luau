@@ -571,7 +571,7 @@ function BoardHud.init()
 			BoardHud.open()
 		end
 	end)
-	Kit.dock(open, "Boards", 17) -- the top row (or its MORE drawer), after PASS
+	Kit.dock(open, "Boards", 18) -- the top row (or its MORE drawer), after PASS and DAILY
 	buildCard()
 	Net.listen("BoardData", BoardHud.receive)
 	Net.listen("BoardReward", BoardHud.reward)

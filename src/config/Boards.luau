@@ -22,7 +22,7 @@ return {
 		{ id = "Rescues", name = "RESCUES", unit = "RESCUE", units = "RESCUES", title = "City Saver" },
 		{ id = "PvpWins", name = "PVP WINS", unit = "WIN", units = "WINS", title = "Crater Champion" },
 	},
-	titleBase = 5000, -- a board title's id in the title list (Config.Remembers' 4000s sit below)
+	titleBase = 6000, -- a board title's id in the title list (Config.Remembers 4000s and Config.Daily 5000s sit below)
 
 	writeEvery = 60, -- seconds: at most one write per stat per player in this window
 	keyGap = 6, -- seconds: Roblox's own floor between writes to one key (a leave flush waits for it)

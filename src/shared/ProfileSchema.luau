@@ -17,7 +17,7 @@ local ProfileSchema = {}
 -- 40 cap is already in range, so raising the cap needs no migration.
 ProfileSchema.LEVEL_CAP = Config.Stats.levelCap
 
-ProfileSchema.VERSION = 12
+ProfileSchema.VERSION = 13
 ProfileSchema.BOSSES = 3 -- #Config.Boss.order (a test checks they match)
 ProfileSchema.SLOTS = 8
 ProfileSchema.STYLE_WORDS = 16 -- 512 bits
@@ -237,7 +237,26 @@ function ProfileSchema.default(): { [string]: any }
 		-- the studio-wide FunnelKit's numbers (FunnelKit.blank(): sessions, furthest stage, times, play time);
 		-- server only, never in the client view
 		funnel = { sessions = 0, stage = 0, firstAt = 0, lastAt = 0, sessionAt = 0, hopAt = 0, played = 0 },
-		daily = { day = 0, contractsDone = 0 },
+		-- the UTC day's contract count (day, contractsDone: rollDay); since save v13 (WP1, Shared.DailyRules) the
+		-- account's login streak (streak, best, last = the last UTC day counted, graceAt = the day the weekly
+		-- grace was last used, owed = the streak number whose reward waits for CLAIM, titles = daily title bits)
+		-- and today's daily quests (qday = their UTC day, quests = 3 Config.Daily ids, "" = none, have = counts,
+		-- paid = slot bits paid, bonus = 1 once the all-done bonus paid)
+		daily = {
+			day = 0,
+			contractsDone = 0,
+			streak = 0,
+			best = 0,
+			last = 0,
+			graceAt = 0,
+			owed = 0,
+			titles = 0,
+			qday = 0,
+			quests = { "", "", "" },
+			have = { 0, 0, 0 },
+			paid = 0,
+			bonus = 0,
+		},
 		seen = words(ProfileSchema.SEEN_WORDS),
 		stats = {
 			playSeconds = 0,
@@ -402,6 +421,26 @@ local MIGRATIONS: { [number]: (any) -> () } = {
 			end
 			p.seen = out
 		end
+	end,
+	[13] = function(p)
+		-- WP1 (2026-11-18): the daily login streak and daily quests join the daily block. The day's contract count
+		-- is kept as it is; a returning account starts its streak at day 1 on this load (repair() fills the rest)
+		local d = if type(p.daily) == "table" then p.daily else {}
+		p.daily = {
+			day = tonumber(d.day) or 0,
+			contractsDone = tonumber(d.contractsDone) or 0,
+			streak = 0,
+			best = 0,
+			last = 0,
+			graceAt = 0,
+			owed = 0,
+			titles = 0,
+			qday = 0,
+			quests = { "", "", "" },
+			have = { 0, 0, 0 },
+			paid = 0,
+			bonus = 0,
+		}
 	end,
 }
 ProfileSchema.MIGRATIONS = MIGRATIONS
@@ -698,6 +737,33 @@ local function repair(p: any): any
 	ep.steps = num(ep.steps, 0, 15, 0)
 	ep.counts = cleanNumbers(ep.counts, 4, 0, 100000, true)
 	ep.intro = num(ep.intro, 0, 2 ^ 31, 0)
+	-- WP1: the daily streak and quests (an unknown quest id, from a config change, rolls the day's quests again)
+	local dl = p.daily
+	dl.day = num(dl.day, 0, 2 ^ 31, 0)
+	dl.contractsDone = num(dl.contractsDone, 0, 1000, 0)
+	dl.streak = num(dl.streak, 0, 1e6, 0)
+	dl.best = math.max(num(dl.best, 0, 1e6, 0), dl.streak)
+	dl.last = num(dl.last, 0, 2 ^ 31, 0)
+	dl.graceAt = num(dl.graceAt, 0, 2 ^ 31, 0)
+	dl.owed = num(dl.owed, 0, dl.streak, 0)
+	dl.titles = num(dl.titles, 0, 2 ^ math.min(#Config.Daily.titles, 16) - 1, 0)
+	dl.qday = num(dl.qday, 0, 2 ^ 31, 0)
+	local known = {}
+	for _, q in Config.Daily.quests do
+		known[q.id] = q.n
+	end
+	local quests, have = {}, {}
+	for i = 1, 3 do
+		local id = dl.quests[i]
+		if id ~= "" and (type(id) ~= "string" or not known[id]) then
+			dl.qday = 0 -- a quest this build does not know: today's quests roll again
+		end
+		quests[i] = if type(id) == "string" and known[id] then id else ""
+		have[i] = num(dl.have[i], 0, known[quests[i]] or 0, 0)
+	end
+	dl.quests, dl.have = quests, have
+	dl.paid = num(dl.paid, 0, 7, 0)
+	dl.bonus = num(dl.bonus, 0, 1, 0)
 	p.stats.contracts = num(p.stats.contracts, 0, 2 ^ 31, 0)
 	p.stats.mvps = num(p.stats.mvps, 0, 2 ^ 31, 0)
 	p.stats.doubleAt = num(p.stats.doubleAt, 0, 2 ^ 40, 0)
