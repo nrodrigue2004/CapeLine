@@ -56,6 +56,7 @@ local NAMES = {
 	"Mentors", -- H6: mentors
 	"Badges", -- H7: badges, titles and accolades
 	"Collect", -- H7: collections
+	"Rogues", -- the Rogues File: every robot, fake, villain and boss beaten (the Journal's ROGUES tab)
 	"Contest", -- H7: costume contests
 	"TravelStyles", -- H8: travel power styles
 	"Episodes", -- H8: the weekly episodes

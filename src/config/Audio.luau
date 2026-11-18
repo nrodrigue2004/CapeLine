@@ -66,6 +66,7 @@ return {
 		{ id = "collectFind", visual = "JuiceFx" }, -- sparkle ping; a ring and the set count pop (H7)
 		{ id = "contestCall", visual = "JuiceFx" }, -- fanfare swoosh; the CONTEST! stamp (H7)
 		{ id = "contestWin", visual = "JuiceFx" }, -- cheer ping; confetti, WINNER! on the winner's screen (H7)
+		{ id = "roguePage", visual = "JuiceFx" }, -- page ping; the NEW PAGE! or GOLD PAGE! stamp (Rogues File)
 		{ id = "passTier", visual = "PassHud" }, -- rising chime; the TIER UP card slides in (H8)
 		{ id = "passClaim", visual = "PassHud" }, -- coin ping; the reward pops on its tier (H8)
 		{ id = "episodeIntro", visual = "PassHud" }, -- page flip; the episode's 3 comic panels (H8)
@@ -132,6 +133,7 @@ return {
 		collectNear = s("clickfast.wav", 0.25, 2.4, { range = 40 }), -- the soft chime near a find (not a juice row)
 		contestCall = s("swoosh.wav", 0.6, 1.2),
 		contestWin = s("electronicpingshort.wav", 0.8, 1.3),
+		roguePage = s("electronicpingshort.wav", 0.75, 1.15), -- the Rogues File (PLACEHOLDER SOUND)
 		passTier = s("electronicpingshort.wav", 0.8, 1.7),
 		passClaim = s("electronicpingshort.wav", 0.6, 2.1),
 		episodeIntro = s("swoosh.wav", 0.5, 1.4),

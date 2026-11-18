@@ -10,10 +10,14 @@ local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local NemesisMath = require(Shared:WaitForChild("NemesisMath"))
 local Net = require(Shared:WaitForChild("Net"))
+local Signal = require(Shared:WaitForChild("Util"):WaitForChild("Signal"))
 
 local Kit = require(script.Parent.Kit)
 
 local NemesisHud = {}
+-- WP7: the Journal's SHOWDOWN tab draws this poster (drawInto) and redraws when a new poster arrives
+NemesisHud.Changed = Signal.new()
+local last: { [string]: any }? = nil
 
 local N = Config.Nemesis
 local T = Config.Ui.touchTarget
@@ -61,21 +65,85 @@ local function traitNames(bits: number): string
 	return if #out > 0 then table.concat(out, ", ") else "None yet"
 end
 
+-- The poster's note line
+local function noteFor(d: { [string]: any }): string
+	if d.locked then
+		return "Your nemesis finds you from level " .. N.minLevel
+	elseif (d.readyIn or 0) > 0 then
+		return "A new one is on its way: " .. Kit.time(d.readyIn)
+	elseif d.showdown then
+		return "Its weak point is known: its back. Take it down."
+	end
+	return "It hunts you in the city. Each escape leaves Intel."
+end
+
 local function render(d: { [string]: any })
+	last = d
 	nameL.Text = string.upper(d.name or "")
 	rankL.Text = "RANK " .. (d.rank or 1) .. "  " .. string.rep("★", d.rank or 1)
 	traitsL.Text = "Traits: " .. traitNames(d.traits or 0)
 	intelL.Text = string.format("Intel %d / %d", d.intel or 0, N.intelForShowdown)
 	showdown.Visible = d.showdown == true
-	if d.locked then
-		noteL.Text = "Your nemesis finds you from level " .. N.minLevel
-	elseif (d.readyIn or 0) > 0 then
-		noteL.Text = "A new one is on its way: " .. Kit.time(d.readyIn)
-	elseif d.showdown then
-		noteL.Text = "Its weak point is known: its back. Take it down."
-	else
-		noteL.Text = "It hunts you in the city. Each escape leaves Intel."
+	noteL.Text = noteFor(d)
+end
+
+-- WP7: the WANTED poster in another screen's list (the Journal's SHOWDOWN tab, spec H5: "a mission in a
+-- pocket, started from the Journal"); the caller cleared it. SHOWDOWN starts the fight and calls onStart
+-- (the Journal closes). The poster's own panel is left as it is.
+function NemesisHud.drawInto(container: Instance, onStart: (() -> ())?)
+	local d = last
+	if not d then
+		Kit.stateNote(container, "loading", "Pinning up the poster...")
+		return
 	end
+	local card = Kit.frame({
+		Name = "Wanted",
+		Size = UDim2.new(1, -8, 0, if d.showdown then 280 else 216),
+		LayoutOrder = 1,
+		BackgroundColor3 = Color3.fromRGB(236, 220, 180),
+	})
+	Kit.stroke(card, Kit.color.ink, 3)
+	card.Parent = container
+	label(card, "WANTED", 6, 44, 40, Color3.fromRGB(150, 30, 30))
+	label(card, string.upper(d.name or ""), 50, 34, 30)
+	label(card, "RANK " .. (d.rank or 1) .. "  " .. string.rep("★", d.rank or 1), 86, 24, 20)
+	local traits = label(card, "Traits: " .. traitNames(d.traits or 0), 112, 34, 14, nil, true)
+	traits.TextWrapped = true
+	label(card, string.format("Intel %d / %d", d.intel or 0, N.intelForShowdown), 148, 22, 18)
+	local note = label(card, noteFor(d), 172, 36, 14, nil, true)
+	note.TextWrapped = true
+	if d.showdown then
+		local b = Kit.button({
+			pending = true,
+			Text = "SHOWDOWN",
+			AnchorPoint = Vector2.new(0.5, 1),
+			Position = UDim2.new(0.5, 0, 1, -8),
+			Size = UDim2.fromOffset(T * 4, T),
+			BackgroundColor3 = Kit.color.gold,
+		}, function()
+			Net.send("NemesisShowdown")
+			if onStart then
+				onStart()
+			end
+		end)
+		b.Parent = card
+	end
+	if (d.banes or 0) > 0 then
+		local banes = Kit.label({
+			Text = string.format("Nemeses beaten: %d", d.banes),
+			Size = UDim2.new(1, -8, 0, 24),
+			LayoutOrder = 2,
+			TextColor3 = Kit.color.paper,
+			Font = Kit.bodyFont,
+			maxText = 15,
+		})
+		banes.Parent = container
+	end
+end
+
+-- Ask the server for the poster (NemesisState answers)
+function NemesisHud.request()
+	Net.send("NemesisPoster")
 end
 
 local function comic(name: string, line: string)
@@ -179,6 +247,7 @@ function NemesisHud.init()
 		end
 		if d.k == "poster" then
 			render(d)
+			NemesisHud.Changed:Fire()
 		elseif (d.k == "taunt" or d.k == "escape" or d.k == "gloat") and d.line then
 			comic(d.name or "", d.line)
 		end

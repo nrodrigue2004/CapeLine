@@ -8261,7 +8261,8 @@ end); -- Hero MMO features (H1 to H8) live in their own file so this one merges 
 (require :: any)("./daily")({ test = test, check = check, Config = Config }); -- WP6: robot combat depth
 (require :: any)("./robots")({ test = test, check = check, near = near, Config = Config });
 -- WP4 and WP5 (the gap check's funnel, favorite, rematch and Suspicious Hero) live in their own file too
-(require :: any)("./hooks")({ test = test, check = check, near = near, Config = Config })
+(require :: any)("./hooks")({ test = test, check = check, near = near, Config = Config }); -- the Rogues File and the Journal's Badge Book, Mentor and Showdown tabs (own file, merges easily)
+(require :: any)("./rogues_test")({ test = test, check = check, Config = Config, placePath = process.args[1] })
 
 test(
 	"City kit: every district dressed, deterministic, within budget, nothing in buildings or roads",
@@ -14942,7 +14943,8 @@ do
 		end
 		-- lore step 12: every step a hero finishes fires StepPaid (any chain), and RepService pays side rep on it
 		local svc = fs.readFile("src/server/Services/SideQuestService.luau")
-		local at = string.find(svc, 'SideQuestService.StepPaid:Fire(player, res == "done")', 1, true)
+		local at =
+			string.find(svc, 'SideQuestService.StepPaid:Fire(player, res == "done", chain.id)', 1, true)
 		check(at ~= nil, "the step's pay fires StepPaid")
 		local adv = string.find(svc, "local res = SideQuestPlan.advance(c, chain)", 1, true)
 		check(adv ~= nil and at and adv < at, "after the save moves on, for whatever chain it is")
@@ -15662,7 +15664,8 @@ do
 		local svc = fs.readFile("src/server/Services/SideQuestService.luau")
 		check(string.find(svc, "SaltDogs", 1, true) == nil, "nothing chain-specific in the service")
 		check(
-			string.find(svc, 'SideQuestService.StepPaid:Fire(player, res == "done")', 1, true) ~= nil,
+			string.find(svc, 'SideQuestService.StepPaid:Fire(player, res == "done", chain.id)', 1, true)
+				~= nil,
 			"every step fires StepPaid (side rep)"
 		)
 	end)
@@ -15818,7 +15821,7 @@ do
 			check(
 				string.find(
 					readFile("src/server/Services/SideQuestService.luau"),
-					'SideQuestService.StepPaid:Fire(player, res == "done")',
+					'SideQuestService.StepPaid:Fire(player, res == "done", chain.id)',
 					1,
 					true
 				) ~= nil,

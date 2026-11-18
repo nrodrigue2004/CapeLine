@@ -10,11 +10,14 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Net = require(Shared:WaitForChild("Net"))
+local Signal = require(Shared:WaitForChild("Util"):WaitForChild("Signal"))
 
 local Juice = require(script.Parent.Parent.Fx.Juice)
 local Kit = require(script.Parent.Kit)
 
 local MentorHud = {}
+-- WP7: the Journal's MENTOR tab draws this card (drawInto) and redraws when a new card arrives
+MentorHud.Changed = Signal.new()
 
 local M = Config.Mentors
 local T = Config.Ui.touchTarget
@@ -316,6 +319,25 @@ local function comic(mentor: number, line: string)
 	end)
 end
 
+-- WP7: the mentor card in another screen's list (the Journal's MENTOR tab); the caller cleared it. The
+-- card's own panel is left as it is.
+function MentorHud.drawInto(container: Instance)
+	local d = last
+	if not d then
+		Kit.stateNote(container, "loading", "Finding your mentor...")
+		return
+	end
+	local keep = cardBody
+	cardBody = container :: any
+	render(d)
+	cardBody = keep
+end
+
+-- Ask the server for the mentor card (MentorState answers)
+function MentorHud.request()
+	Net.send("MentorOpen")
+end
+
 function MentorHud.open()
 	Kit.opening("MentorHud", cardFrame, MentorHud.close, true)
 	cardFrame.Visible = true
@@ -448,6 +470,7 @@ function MentorHud.init()
 		end
 		if d.k == "card" then
 			render(d)
+			MentorHud.Changed:Fire()
 		elseif d.k == "pick" then
 			showPicker(d)
 		elseif d.k == "panel" and d.line then

@@ -299,6 +299,11 @@ local Remotes: { [string]: RemoteDef } = {
 	AccoladeWear = { dir = "C2S", schema = { n(1, 2), n(0, 131) }, rate = 1, burst = 3 }, -- 100+n: pass trim n
 	BadgeBook = { dir = "S2C" },
 	BadgeEarned = { dir = "S2C" },
+	-- The Rogues File (the Journal's ROGUES tab): RoguesOpen asks for the pages; RoguesFile = { bits, log };
+	-- RoguesNew = { bit, gold } a page just filled (the stamp)
+	RoguesOpen = { dir = "C2S", schema = {}, rate = 1, burst = 3 },
+	RoguesFile = { dir = "S2C" },
+	RoguesNew = { dir = "S2C" },
 	-- H7: collections. CollectOpen: ask for the spots and finds; CollectScanner: buy the HQ Scanner (at HQ).
 	CollectOpen = { dir = "C2S", schema = {}, rate = 1, burst = 3 },
 	CollectScanner = { dir = "C2S", schema = {}, rate = 1, burst = 2 },

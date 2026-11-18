@@ -386,6 +386,25 @@ function JuiceFx.badgeEarned(_at: Vector3?, data: { [string]: any }?)
 	confetti(24)
 end
 
+-- The Rogues File: a page filled (NEW PAGE! with the rogue's name), a gold boss page (gold, confetti) or a
+-- collection milestone (the page count and the look piece it gave)
+function JuiceFx.roguePage(_at: Vector3?, data: { [string]: any }?)
+	local d = data or {}
+	if d.milestone then
+		stamp(
+			string.format("%d PAGES!", d.milestone),
+			GOLD,
+			d.piece and string.upper(d.piece) or "ROGUES FILE"
+		)
+		confetti(30)
+	elseif d.gold then
+		stamp("GOLD PAGE!", GOLD, d.name and string.upper(d.name) or "ROGUES FILE")
+		confetti(30)
+	else
+		stamp("NEW PAGE!", Kit.color.paper, d.name and string.upper(d.name) or "ROGUES FILE")
+	end
+end
+
 -- WP1: the daily streak reward claimed: the DAY N! stamp (the title's name on day 7) and confetti
 function JuiceFx.dailyClaim(_at: Vector3?, data: { [string]: any }?)
 	local d = data or {}
