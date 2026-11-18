@@ -1183,6 +1183,35 @@ return {
 					extras = { "cap" },
 				},
 			},
+			-- The Sunken City (the Underwater chain): the Tidewright, Velmara's guardian machine, its voice carried
+			-- through the water (a bronze helm with glowing eyes and a crown), and Marlo, the salvage diver whose
+			-- dredger cracked the city's seal
+			tidewright = {
+				name = "THE TIDEWRIGHT",
+				color = { 60, 200, 190 },
+				style = "person",
+				blip = "guideFake",
+				portrait = {
+					bg = { 10, 40, 60 },
+					skin = { 170, 120, 70 },
+					hair = { 170, 255, 200 },
+					shape = "helmet",
+					extras = { "beard", "crown" },
+				},
+			},
+			marlo = {
+				name = "MARLO",
+				color = { 240, 170, 40 },
+				style = "person",
+				blip = "guideInsider",
+				portrait = {
+					bg = { 30, 70, 100 },
+					skin = { 160, 105, 70 },
+					hair = { 30, 26, 24 },
+					shape = "slick",
+					extras = { "goggles" },
+				},
+			},
 		},
 		-- the three guides: each has its own blip and portrait
 		guides = { "lodestar", "patch", "crane" },
@@ -1382,6 +1411,7 @@ return {
 			Unwound = 8, -- side quest chain: Wind-Up Lane (lore step 11)
 			Uprooted = 9, -- side quest chain: The Harvest King (lore step 11, chain 4)
 			Brinebreaker = 10, -- side quest chain: The Salt Dogs (lore step 11, the Coast)
+			["Tide Turner"] = 12, -- side quest chain: The Sunken City (lore step 11, the Underwater chain)
 			GoldTrim = 100,
 		},
 	},

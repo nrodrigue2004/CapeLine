@@ -28,6 +28,10 @@
 --   falls; the chain's `villain` card is the last one standing).
 -- * (lore step 11, chain 4) Farmland sites on this week's outskirts tiles (sites with `farm` or `road`), and an
 --   escort's `road`: the truck drives down a real farm road toward town (Shared.SideQuestSites.roadPath).
+-- * (lore step 11, the Underwater chain) deep sites on the sea floor (sites with `deep`, picked from
+--   Shared.DeepLayout): a chain at a deep site builds its goals in the open water round it (`deep` below lists
+--   the kinds that work there), and a finale's `guise` dresses a reused robot type as the villain (finale.guises:
+--   a fixed look, name and title; the 5-bit typeId on the wire is full, so a new villain needs no new type).
 -- No free text anywhere: every string is fixed, with no format holes.
 return {
 	range = 12, -- talk range to a giver (the Talk prompt)
@@ -73,7 +77,88 @@ return {
 			"Bramblebeast",
 			"HarvestKing",
 			"CaptainBrine", -- the Coast chain's pirate captain in his powered diving rig (The Salt Dogs)
+			-- the Underwater chain (The Sunken City): the sea's heavy seabed brute, only ever in a guise below
+			"Anchor",
 		},
+		-- A villain in a guise (lore step 11, the Underwater chain): a reused robot type (`base`, its brain, health
+		-- and moves, kept in the water if it is a sea robot) wearing a fixed hero look from earnable creator
+		-- pieces (Shared.FakeRules.lookFrom, validated by CreatorRules), with its own plate (name and title) and
+		-- power path look, sent to every device through EnemyIdentity (EnemyService.dress). `costumed`: a suit or
+		-- shell that never cracks or reads FAKE. `body` replaces the base's drawing (height, colours, the extras
+		-- EnemyRenderer draws). `dmgMult` (1 to 2) lifts a grunt brain into the boss-lite band. A finale names its
+		-- guise with `guise`; its `enemy` must be the guise's base.
+		guises = {
+			-- The Tidewright: Velmara's last guardian, an ancient machine of bronze and coral that walks the sea
+			-- floor on the Anchor's brain (the seabed brute's slam), with a trident (PLACEHOLDER ART) and the Tide
+			-- path's look.
+			Tidewright = {
+				base = "Anchor",
+				name = "The Tidewright",
+				title = "Last Guardian of Velmara",
+				path = "Tide",
+				costumed = true,
+				dmgMult = 1.6,
+				look = {
+					gender = 1,
+					build = 3, -- Heavy: an ancient guardian machine
+					height = 5,
+					skin = 26, -- the Metal skin: no person inside, a machine all through
+					hair = 31, -- sea foam
+					colors = { 32, 27, 31 }, -- deep teal, bronze, sea foam
+					pieces = {
+						suit = "Plated Suit",
+						back = "Long Cape",
+						hat = "Iron Crown",
+						hands = "Armored Gauntlets",
+						feet = "Armored Boots",
+						shoulders = "Shell Pads",
+						arms = "Scale Guards",
+						ears = "Fin Ears",
+						eyes = "Ice Glow",
+						emblem = "Orb Crest",
+						hair = "Long Straight",
+						beard = "Full Beard",
+						visage = "Stern Face",
+					},
+					tints = { back = { 31, 27, 0 } }, -- a sea-foam cape with bronze trim
+					mats = { suit = "Metal" },
+				},
+				body = {
+					build = "heavy",
+					gender = 1,
+					height = 9,
+					metal = { 170, 120, 70 },
+					eye = { 120, 255, 230 },
+					suit = { 30, 110, 120 },
+					trim = { 190, 140, 60 },
+					trident = true,
+				},
+			},
+		},
+	},
+	-- Goals at a deep site (lore step 11, the Underwater chain): built in the open water round it
+	-- (Shared.SideQuestSites.deepSpot and deepPath), never on the streets. `kinds`: the step kinds that work
+	-- under the sea (no trucks, roofs, beacons, incidents or Sneak Bot photos); `arena`: studs every goal keeps
+	-- from the Leviathan Engine's arena; `lift`: a swim's rings and legs sit this share of the way up from the
+	-- seabed to the surface.
+	deep = {
+		kinds = {
+			"talk",
+			"fight",
+			"fetch",
+			"hold",
+			"carry",
+			"race",
+			"reach",
+			"deliver",
+			"find",
+			"chase",
+			"pocket",
+			"finale",
+		},
+		areas = { "shelf" }, -- where a deep site may be (the Coral Shelf: its zone floor is the chain's)
+		arena = 60,
+		lift = 0.5,
 	},
 	pay = {
 		contract = "DroneSweep", -- the yard stick: this contract's pay at the hero's level
@@ -221,6 +306,45 @@ return {
 			near = { -2350, 450 }, -- the west shore, south of Radio Hill
 			rings = { 16, 16 }, -- piers stand on the edge ring only (their deck runs out over the sea)
 			away = { pad = 150, beacon = 150, landmark = 300, district = 200, site = 400 },
+		},
+		-- The Underwater chain (The Sunken City): three spots on the Coral Shelf's sea floor, picked by rule from
+		-- Shared.DeepLayout (Shared.SideQuestSites.deep; the underwater world is fixed, so they never move): on a
+		-- `grid` within `reach` of `near` (map studs), the seabed spot nearest it in the `deep` area with water
+		-- `depth` studs deep, `away`.edge from the area's sides and clear of every sunken cache, Sunken Line
+		-- rescue, the Leviathan Engine's arena (past its edge), every reef, kelp stand and wreck, and the other deep
+		-- sites. West of the Trench, away from the Leviathan Engine; the shelf's zone floor (12) is the chain's.
+		-- Doc Pearl's reef station in the shallows off the south beach, where the giver stands
+		ReefStation = {
+			name = "REEF STATION",
+			district = "Underwater",
+			deep = "shelf",
+			near = { -760, 2470 },
+			reach = 400,
+			grid = 8,
+			depth = { 8, 14 }, -- the shallows: the first band off the beach
+			away = { cache = 90, rescue = 90, arena = 200, reef = 14, edge = 30, site = 0 },
+		},
+		-- the drowned gate where the shelf drops away, Velmara's way in (the "velmara" pocket)
+		DrownedGate = {
+			name = "THE DROWNED GATE",
+			district = "Underwater",
+			deep = "shelf",
+			near = { -620, 2930 },
+			reach = 400,
+			grid = 8,
+			depth = { 36, 46 }, -- the shelf's deepest band, over the city
+			away = { cache = 90, rescue = 90, arena = 200, reef = 14, edge = 30, site = 300 },
+		},
+		-- the tide engine's spire east along the drop, where the Tidewright rises for the finale
+		TideSpire = {
+			name = "THE TIDE SPIRE",
+			district = "Underwater",
+			deep = "shelf",
+			near = { -1080, 2850 },
+			reach = 400,
+			grid = 8,
+			depth = { 28, 46 },
+			away = { cache = 90, rescue = 90, arena = 200, reef = 14, edge = 30, site = 300 },
 		},
 	},
 
@@ -435,6 +559,44 @@ return {
 					neck = "Whistle",
 					back = "Field Coat",
 					feet = "Boots",
+				},
+				tints = {},
+				mats = {},
+			},
+		},
+		-- The Sunken City's giver: Doc Pearl, the marine biologist who runs the Reef Station on the Coral Shelf. She
+		-- heard the reef hum, then saw Velmara's lights come on. She wants the coast safe and the guardian
+		-- stopped (the Vigil), or she will trade her maps of the drowned city's vaults for a cut of its gold to
+		-- fund her station (the Dread Syndicate). She stands on the sea floor in her dive gear.
+		Pearl = {
+			name = "DOC PEARL",
+			anchor = "site",
+			site = "ReefStation",
+			color = { 60, 200, 220 },
+			style = "person",
+			blip = "guideInsider",
+			portrait = {
+				bg = { 20, 70, 100 },
+				skin = { 120, 80, 55 },
+				hair = { 30, 26, 24 },
+				shape = "messy",
+				extras = { "goggles" },
+			},
+			look = {
+				gender = 2,
+				build = 2,
+				height = 3,
+				skin = 6,
+				hair = 22, -- black
+				colors = { 8, 26, 18 }, -- teal, peach, white
+				pieces = {
+					suit = "Wetsuit",
+					hat = "Flight Goggles",
+					backpack = "Air Tanks",
+					feet = "Flippers",
+					hands = "Gloves",
+					hair = "Curly Top",
+					visage = "Hero Face",
 				},
 				tints = {},
 				mats = {},
@@ -1868,6 +2030,289 @@ return {
 							who = "brine",
 							hero = "You freed my prisoner AND broke my ghost? Then face the real thing: Captain Brine himself!",
 							villain = "Thieves robbing a pirate? Bold! Now taste the tide, you barnacles!",
+						},
+					},
+				},
+			},
+		},
+		-- Underwater chain (nate's lore, build plan step 11): The Sunken City. nate's draft: "An ancient sunken city
+		-- wakes up, and its guardian wants the surface gone. The Tidewright, the city's last guardian." 8 quests (the
+		-- district drafts' count). Velmara, a city of bronze towers, drowned in a great storm long ago; its people
+		-- swam for the shore and never came back, leaving the Tidewright, a guardian machine, to keep it safe. A
+		-- salvage dredger's drill cracked the city's seal last week; the Tidewright woke, took the surface for the
+		-- enemy and is turning Velmara's tide engines on to raise a wave that washes the shore away. Its sentries are
+		-- the sea's own robots (Divers, Anchors, Torpedo Sentries: machines only). The Vigil drive the sentries off
+		-- the reef, find the salvage diver Marlo, plant Doc Pearl's scanner at the drowned gate, jam the tide engines
+		-- inside Velmara, swim a reef keeper clear of the first surge and hold the Tide Spire while Patch jams it; the
+		-- Dread Syndicate grab the reef's relics, catch the sentry with the gate key, crack the gate, loot the city's
+		-- vaults and the engines' cores, run the gold past the surge and find the guardian's treasury. Both stop the
+		-- Tidewright at the end. Every step is on the Coral Shelf's sea floor (deep sites). Standalone: no Crane.
+		{
+			id = "SunkenCity",
+			bit = 8,
+			name = "The Sunken City",
+			layer = "district",
+			district = "Underwater",
+			giver = "Pearl",
+			site = "ReefStation",
+			unlock = { story = 2, level = 12 }, -- after Act 1's Safehouse, at the Coral Shelf's level floor
+			villain = { name = "THE TIDEWRIGHT", title = "LAST GUARDIAN OF VELMARA" },
+			reward = { share = 3, title = "Tide Turner", style = "CoralCrest" },
+			blurb = {
+				hero = "A drowned city is waking under the reef, and its guardian wants to wash the shore away.",
+				villain = "A lost city of bronze and gold, sealed for a thousand years. Its doors just opened.",
+			},
+			lines = {
+				offer = {
+					hero = "The reef's humming, the sea floor split, and something under it wants the shore gone. Help me?",
+					villain = "I've mapped a drowned city's vaults. You crack them, I fund my station. Deal?",
+				},
+				resume = {
+					hero = "Back in the water? Good. The tide's rising a little more every hour.",
+					villain = "Back for the gold? Velmara's vaults aren't going anywhere. Its guardian might.",
+				},
+				done = {
+					hero = "The tide's down, the shore is safe and Velmara can sleep. The reef thanks you. So do I.",
+					villain = "A guardian beaten and a city's gold in your pockets. My station's funded for years. Pleasure.",
+				},
+			},
+			steps = {
+				-- 1. Lights under the reef: Doc Pearl's story at the Reef Station
+				{
+					hero = { kind = "talk", text = "Hear Doc Pearl out at the Reef Station" },
+					villain = { kind = "talk", text = "Get Doc Pearl's tip at the Reef Station" },
+					scene = "velmaraLights",
+					lines = {
+						{
+							who = "Pearl",
+							hero = "Three nights the reef hummed. Then the sea floor cracked open and a whole city lit up under it.",
+							villain = "There's a city under this reef. Sealed a thousand years, vaults and all. I have the maps.",
+						},
+						{
+							who = "patch",
+							hero = "A city under the sea? On it. And hey, you swim, I'll stay dry. That's teamwork.",
+							villain = "Sunken treasure AND a lost city? Okay, I'm listening. I'm listening very hard.",
+						},
+					},
+				},
+				-- 2. The sentries wake on the reef / the reef's relics
+				{
+					hero = {
+						kind = "fight",
+						squads = { { "Diver", 4 }, { "Anchor", 1 } },
+						range = { 60, 150 },
+						text = "Drive off the sentries swarming the reef",
+					},
+					villain = {
+						kind = "fetch",
+						count = 3,
+						range = { 60, 180 },
+						guards = { "Diver", 2 },
+						text = "Grab the glowing relics off the reef",
+					},
+					lines = {
+						{
+							who = "tidewright",
+							text = "Surface-dwellers. You broke the seal of Velmara. My sentries will see you off the reef.",
+						},
+						{
+							who = "patch",
+							hero = "Those sea bots are old. Like, older-than-the-city-above-you old. And they're angry.",
+							villain = "The relics are glowing on the reef. Glowing means valuable. Probably. Grab them!",
+						},
+					},
+				},
+				-- 3. Marlo, the salvage diver / the sentry with the gate key
+				{
+					hero = {
+						kind = "find",
+						range = { 100, 250 },
+						witness = true,
+						text = "Find the salvage diver lost in the kelp",
+					},
+					villain = {
+						kind = "chase",
+						enemy = "Diver",
+						hops = 5,
+						speed = 18,
+						text = "Catch the sentry carrying the gate key",
+					},
+					lines = {
+						{
+							who = "Pearl",
+							hero = "A salvage crew was drilling here when it all began. One of their divers never came up.",
+							villain = "One sentry swims with a bronze key on its back. That key opens Velmara's gate. Catch it!",
+						},
+						{
+							who = "lodestar",
+							hero = "Kelp and silt hide a lot. Search low and slow, kid.",
+							villain = "Chasing a robot for its key. Just don't lose the robot in the kelp, kid.",
+						},
+					},
+				},
+				-- 4. The drowned gate: Doc Pearl's scanner / cracking the gate
+				{
+					at = "DrownedGate",
+					hero = {
+						kind = "deliver",
+						range = { 40, 100 },
+						text = "Plant Doc Pearl's scanner by the drowned gate",
+					},
+					villain = {
+						kind = "hold",
+						home = true,
+						seconds = 25,
+						radius = 12,
+						text = "Hold the drowned gate while the key turns",
+					},
+					lines = {
+						{
+							who = "marlo",
+							hero = "We only drilled for scrap! Then the reef split open and the lights came on. Something woke up.",
+							villain = "Our drill cracked that gate. Whatever's behind it is old, gold and very, very big.",
+						},
+						{
+							who = "tidewright",
+							text = "The gate of Velmara stays shut. Turn back, or the sea will turn you back.",
+						},
+					},
+				},
+				-- 5. Inside Velmara under its air dome: the market, the fountain, the great stair and the engine hall
+				{
+					at = "DrownedGate",
+					hero = {
+						kind = "pocket",
+						layout = "velmara",
+						minutes = 12,
+						text = "Swim into the drowned city of Velmara",
+						villainText = "Loot the drowned city of Velmara",
+						steps = {
+							{
+								kind = "defeat",
+								room = 1,
+								squads = { { "Anchor", 2 }, { "TorpedoSentry", 2 } },
+								text = "Beat the sentries in Velmara's market",
+								villainText = "Scrap the sentries guarding the market",
+							},
+							{
+								kind = "hold",
+								at = "fountain",
+								points = 1,
+								seconds = 20,
+								radius = 16,
+								waves = { { "Anchor", 2 } },
+								waveGap = 10,
+								text = "Hold the old fountain while Patch maps the city",
+								villainText = "Hold the fountain while the vault lock drills",
+							},
+							{
+								kind = "reach",
+								at = "engines",
+								text = "Take the great stair down to the engine hall",
+								villainText = "Follow the great stair down to the vaults",
+							},
+							{
+								kind = "break",
+								list = "pumps",
+								points = 4,
+								hits = 3,
+								text = "Jam the four tide engines",
+								villainText = "Rip the glowing cores out of the tide engines",
+							},
+							{
+								kind = "boss",
+								enemy = "Anchor",
+								hpMult = 8,
+								adds = { "TorpedoSentry", 2 },
+								text = "Beat Velmara's iron gate warden",
+								villainText = "Scrap the gate warden for its bronze",
+							},
+						},
+					},
+					villain = "same",
+					scene = "tidewrightTale",
+					lines = {
+						{
+							who = "Pearl",
+							hero = "The city's air dome still holds. Breathe easy in there, and stop those tide engines.",
+							villain = "Vaults on the top floor, engine cores at the bottom. Take your time. Not too much time.",
+						},
+					},
+				},
+				-- 6. The first surge: a reef keeper caught in it / the gold past the surge
+				{
+					hero = {
+						kind = "carry",
+						range = { 80, 160 },
+						text = "Swim a stranded reef keeper back to the station",
+					},
+					villain = {
+						kind = "race",
+						checkpoints = 4,
+						gap = 60,
+						time = 45,
+						text = "Race Velmara's gold past the first surge",
+					},
+					lines = {
+						{
+							who = "tidewright",
+							text = "You stopped four engines. Velmara has forty. The tide will rise, and the shore will be sea.",
+						},
+						{
+							who = "Pearl",
+							hero = "The first surge hit the reef! One of my keepers is stuck out there. Bring her home!",
+							villain = "The surge is coming in fast. Get that gold past it before the current takes it!",
+						},
+					},
+				},
+				-- 7. The Tide Spire, the engine that drives the wave / the guardian's treasury
+				{
+					at = "TideSpire",
+					hero = {
+						kind = "hold",
+						home = true,
+						seconds = 25,
+						radius = 12,
+						text = "Hold the Tide Spire while Patch jams it",
+					},
+					villain = {
+						kind = "find",
+						range = { 60, 160 },
+						text = "Find the Tidewright's sunken treasury",
+					},
+					lines = {
+						{
+							who = "patch",
+							hero = "This spire drives the whole wave. Keep the sentries off me while I scramble it!",
+							villain = "Every guardian guards something. Find what this one keeps under its spire.",
+						},
+						{
+							who = "lodestar",
+							hero = "It isn't evil, kid. It's lonely, and it's scared. Stop it anyway.",
+							villain = "You're robbing a thousand-year-old guardian. Make sure it's asleep first.",
+						},
+					},
+				},
+				-- 8. The finale: the Tidewright rises from the spire
+				{
+					at = "TideSpire",
+					hero = {
+						kind = "finale",
+						enemy = "Anchor",
+						guise = "Tidewright",
+						hpMult = 10,
+						adds = { { "Diver", 4 } },
+						range = { 40, 100 },
+						text = "Stop the Tidewright before the wave rises",
+						villainText = "Beat the Tidewright and claim Velmara's crown",
+					},
+					villain = "same",
+					scene = "tidewrightRises",
+					lines = {
+						{
+							who = "tidewright",
+							hero = "You jammed my spire. Then I will raise the tide myself. Velmara will not drown twice!",
+							villain = "Thieves in my treasury. The last guardian of Velmara will not let you leave.",
 						},
 					},
 				},

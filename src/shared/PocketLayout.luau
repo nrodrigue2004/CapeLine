@@ -644,6 +644,95 @@ function BUILD.seacave(l: Layout, _Config: any)
 	point(l, "boss", -40, 0.5, -140)
 end
 
+-- Velmara, the drowned city (lore step 11, the Underwater chain The Sunken City), under its old air dome so
+-- heroes walk its halls. The upper terrace is a deck over the south of the pocket: the drowned gate with the sea
+-- held back behind it (the spawn), the market streets west (room 1) and east (room 2) with their stalls,
+-- broken columns and coral, the old fountain in the middle (`fountain`: a basin round a bronze statue of the
+-- Tidewright) and the back wall with the great stair down behind it (`stairhead`). Under the terrace (its
+-- ceiling tagged so robots never stand on it) is the engine hall: the four tide engines that raise the wave
+-- (`pumps`: a plinth, a drum and a glowing core each), the great sea valve along the back and the boss spot
+-- (`boss`); `engines` is the foot of the stair.
+-- PLACEHOLDER ART: greybox parts in the city palette, like every pocket.
+local CITY_TERRACE = 20
+function BUILD.velmara(l: Layout, _Config: any)
+	local D = CITY_TERRACE
+	local deco = { tag = "decor", ghost = true }
+	-- the terrace: a stone deck over the south of the pocket, paved in sand-coloured flags
+	box(l, "building", 0, D / 2, 80, 396, D, 232, "slate")
+	box(l, "plaza", 0, D + 0.1, 80, 396, 0.2, 232, "sand")
+	point(l, "spawn", 0, D + 3, 172)
+	-- the drowned gate: two bronze pillars and a lintel with glowing runes, the sea held back beyond it
+	for k = -1, 1, 2 do
+		box(l, "prop", k * 26, D + 18, 186, 10, 36, 10, "rust", deco)
+		box(l, "prop", k * 120, D + 20, 190, 180, 40, 12, "rock", deco)
+	end
+	box(l, "prop", 0, D + 39, 186, 64, 6, 10, "rust", deco)
+	box(l, "glow", 0, D + 39, 180.8, 40, 1.5, 0.4, "sparkGlow", deco)
+	box(l, "glow", 0, D + 18, 196, 200, 36, 1, "water", deco)
+	-- the market streets, west (room 1) and east (room 2): stall counters, broken columns and coral
+	local corals = { "coralA", "coralB", "coralC", "coralD" }
+	for k = -1, 1, 2 do
+		for i = 0, 2 do
+			box(l, "prop", k * 130, D + 2, 28 + i * 30, 18, 4, 6, "cargo", deco)
+			box(l, "prop", k * (96 + i * 34), D + 7 - i * 2, 98, 4, 14 - i * 4, 4, "white", deco)
+		end
+		for i = 0, 3 do
+			box(l, "prop", k * (100 + i * 22), D + 1.5, 12 + (i % 2) * 90, 3, 3, 3, corals[i + 1], deco)
+		end
+		box(l, "crop", k * 170, D + 6, 60, 0.8, 12, 0.8, "kelp", deco)
+		add(l, "rooms", k * 130, D + 0.5, 58)
+	end
+	-- the old fountain: a basin round a bronze statue of the Tidewright, its eyes still glowing
+	box(l, "plaza", 0, D + 0.6, 60, 34, 1.2, 34, "white")
+	box(l, "glow", 0, D + 1.3, 60, 30, 0.3, 30, "sea", deco)
+	box(l, "prop", 0, D + 6, 60, 5, 10, 5, "rust", deco)
+	box(l, "prop", 0, D + 13, 60, 4, 4, 4, "rust", { tag = "decor", ghost = true, shape = "ball" })
+	box(l, "glow", 0, D + 13.4, 58, 2.4, 0.5, 0.4, "sparkGlow", deco)
+	point(l, "fountain", 0, D + 1.5, 60)
+	-- the back wall, its rune lamps and the great stair behind it
+	box(l, "building", -107, D + 15, -34, 178, 30, 4, "slate")
+	box(l, "building", 107, D + 15, -34, 178, 30, 4, "slate")
+	for k = -1, 1, 2 do
+		box(l, "glow", k * 60, D + 12, -31.5, 3, 4, 1, "sparkGlow", deco)
+	end
+	point(l, "stairhead", 0, D + 0.5, -28)
+	-- the great stair: 9 steps of 2 studs from the terrace to the engine hall, stone walls both sides
+	for i = 1, 9 do
+		local top = D - 2 * i
+		box(l, "building", 0, top / 2, -39 - (i - 1) * 6, 32, top, 6, "slate")
+	end
+	for k = -1, 1, 2 do
+		box(l, "building", k * 18, 18, -64, 4, 36, 56, "slate")
+	end
+	point(l, "engines", 0, 0.5, -100)
+	-- the engine hall under the terrace: its ceiling is the terrace's level (robots never stand on it)
+	local ceil = { tag = "ceiling" }
+	box(l, "building", -109, D + 2, -117, 178, 4, 162, "slate", ceil)
+	box(l, "building", 109, D + 2, -117, 178, 4, 162, "slate", ceil)
+	box(l, "building", 0, D + 2, -152, 40, 4, 92, "slate", ceil)
+	-- the four tide engines: a plinth, a bronze drum and a glowing core each
+	for _, p in { { -140, -80 }, { -140, -160 }, { 140, -80 }, { 140, -170 } } do
+		add(l, "pumps", p[1], 0.5, p[2])
+		box(l, "prop", p[1], 0.5, p[2], 9, 1, 9, "slate", deco)
+		box(l, "prop", p[1], 5, p[2], 6, 8, 6, "rust", { tag = "decor", ghost = true, shape = "cylinder" })
+		box(l, "glow", p[1], 10, p[2], 3, 3, 3, "sparkGlow", { tag = "decor", ghost = true, shape = "ball" })
+	end
+	-- the great sea valve along the back: a wheel on a wall of bronze pipes, sea water glowing behind a grille
+	for i = -3, 3 do
+		box(l, "prop", i * 18, 8, -194, 4, 16, 4, "rust", { tag = "decor", ghost = true, shape = "cylinder" })
+	end
+	box(l, "glow", 0, 9, -197, 140, 14, 1, "water", deco)
+	box(l, "prop", 0, 10, -190, 14, 14, 1.5, "rust", { tag = "decor", ghost = true, shape = "cylinder" })
+	-- coral grown over the hall's floor and kelp up its pillars
+	for i = 0, 5 do
+		box(l, "prop", -100 + i * 40, 1, -120 + (i % 2) * 30, 3, 2, 3, corals[i % 4 + 1], deco)
+	end
+	for _, x in { -150, -60, 60, 150 } do
+		box(l, "glow", x, D - 0.6, -117, 10, 0.6, 3, "sparkGlow", deco)
+	end
+	point(l, "boss", 40, 0.5, -140)
+end
+
 -- Is this a pocket layout name? (lore step 10: side quest pocket steps are checked against it)
 function PocketLayout.known(layout: any): boolean
 	return type(layout) == "string" and BUILD[layout] ~= nil

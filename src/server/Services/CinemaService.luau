@@ -29,7 +29,7 @@ end
 -- Set a scene's bit on the save (the client view carries it, so the device's SKIP follows)
 function CinemaService.mark(player: Player, bit: number?)
 	local profile = DataService.get(player)
-	if not profile or bit == nil or bit < 0 or bit >= ProfileSchema.SMALL_WORDS * 32 then
+	if not profile or bit == nil or bit < 0 or bit >= ProfileSchema.SEEN_WORDS * 32 then
 		return
 	end
 	if not Bits.get(profile.seen, bit) then

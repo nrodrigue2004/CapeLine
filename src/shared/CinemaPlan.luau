@@ -176,8 +176,8 @@ function CinemaPlan.bit(Config: any, id: string): number?
 	return s and s.bit
 end
 
--- Is this bit in a named scene's range? 0 up to the missions' base, then Cinema.extraBits (the seen
--- set's last bits, above the missions')
+-- Is this bit in a named scene's range? 0 up to the missions' base, then Cinema.extraBits (120 to 127, above
+-- the missions') and Cinema.wideBits (128 to 255, the seen set's second half since save v12)
 function CinemaPlan.namedBit(Config: any, bit: number): boolean
 	local C = Config.Cinema
 	if type(bit) ~= "number" or bit % 1 ~= 0 then
@@ -186,8 +186,12 @@ function CinemaPlan.namedBit(Config: any, bit: number): boolean
 	if bit >= 0 and bit < C.missionBits.base then
 		return true
 	end
-	local x = C.extraBits
-	return x ~= nil and bit >= x.from and bit <= x.to
+	for _, x in { C.extraBits, C.wideBits } do
+		if x ~= nil and bit >= x.from and bit <= x.to then
+			return true
+		end
+	end
+	return false
 end
 
 -- The bit of a mission stage's camera beat, or nil outside the range

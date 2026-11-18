@@ -159,6 +159,12 @@ local function buildPortrait(who: string, sp: any): Frame
 				local pt = piece(frame, 0.5 + i * 0.17, 0.17, 0.08, 0.1, gold)
 				pt.Rotation = 45
 			end
+		elseif extra == "goggles" then
+			-- a diver's mask (the Underwater chain: Doc Pearl and Marlo): a glass band over the eyes, its strap
+			local glass = Color3.fromRGB(150, 220, 255)
+			piece(frame, 0.5, 0.52, 0.6, 0.06, dark, 0.5)
+			piece(frame, 0.4, 0.54, 0.16, 0.13, glass, 0.4)
+			piece(frame, 0.6, 0.54, 0.16, 0.13, glass, 0.4)
 		elseif extra == "strawhat" then
 			-- Farmer Dot's straw hat (chain 4): a wide brim and a crown with a band
 			local straw = Color3.fromRGB(230, 200, 120)

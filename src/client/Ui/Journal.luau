@@ -39,6 +39,7 @@ local WHERE = {
 	Docks = "the Docks",
 	Suburbs = "the Suburbs", -- lore step 11: Wind-Up Lane's toy shop
 	Coast = "the Coast", -- lore step 11: The Salt Dogs' pier
+	Underwater = "the Coral Shelf", -- lore step 11: The Sunken City, on the sea floor
 }
 local STATE_TEXT = { done = "CLEARED", open = "READY", level = "LEVEL %d", locked = "LOCKED" }
 

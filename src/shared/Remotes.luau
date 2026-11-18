@@ -153,7 +153,7 @@ local Remotes: { [string]: RemoteDef } = {
 	StoryBroadcast = { dir = "S2C" }, -- { id }: an act's ending broadcast (lore step 5: after Live, back in the city)
 	-- lore step 7 (the cinematic layer): a device-started scene was seen (its Config.Cinema bit); skip a
 	-- mission's camera beat (only when every hero on that stage has seen it); the news (facts and flashes)
-	SceneSeen = { dir = "C2S", schema = { n(0, 127) }, rate = 0.5, burst = 3 },
+	SceneSeen = { dir = "C2S", schema = { n(0, 255) }, rate = 0.5, burst = 3 },
 	SceneSkip = { dir = "C2S", schema = {}, rate = 1, burst = 2 },
 	NewsFact = { dir = "S2C" }, -- { list = { { k, t, n, a } } }: NewsPlan facts (fixed templates, safe names)
 	-- lore step 10 (side quest chains; givers use ProximityPrompts, the server's own range check):

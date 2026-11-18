@@ -17,11 +17,14 @@ local ProfileSchema = {}
 -- 40 cap is already in range, so raising the cap needs no migration.
 ProfileSchema.LEVEL_CAP = Config.Stats.levelCap
 
-ProfileSchema.VERSION = 11
+ProfileSchema.VERSION = 12
 ProfileSchema.BOSSES = 3 -- #Config.Boss.order (a test checks they match)
 ProfileSchema.SLOTS = 8
 ProfileSchema.STYLE_WORDS = 16 -- 512 bits
-ProfileSchema.SMALL_WORDS = 4 -- 128 bits for emotes, titles, Rogues File pages, seen flags
+ProfileSchema.SMALL_WORDS = 4 -- 128 bits for emotes, titles, Rogues File pages
+-- the seen scenes (Config.Cinema bits): their own 8 words, 256 bits, since save v12 (2026-11-18: 0 to 127 were
+-- full); a v11 save's 4 words keep every bit and pad with 0
+ProfileSchema.SEEN_WORDS = 8
 ProfileSchema.PIECE_WORDS = 40 -- 1,280 bits: creator pieces unlocked (M9; 32 since the 2026-11-16 creator plan, 40 since the
 -- 2026-11-17 classic clothes and faces; repair pads an older save with 0)
 ProfileSchema.LOOK_WORDS = 32 -- a 128-byte look record (LookCodec v2; an 8-word v1 record pads with 0 and still reads)
@@ -235,7 +238,7 @@ function ProfileSchema.default(): { [string]: any }
 		-- server only, never in the client view
 		funnel = { sessions = 0, stage = 0, firstAt = 0, lastAt = 0, sessionAt = 0, hopAt = 0, played = 0 },
 		daily = { day = 0, contractsDone = 0 },
-		seen = words(ProfileSchema.SMALL_WORDS),
+		seen = words(ProfileSchema.SEEN_WORDS),
 		stats = {
 			playSeconds = 0,
 			bossesJoined = 0,
@@ -384,6 +387,20 @@ local MIGRATIONS: { [number]: (any) -> () } = {
 					c.sq = { at = {}, retired = retired, owed = owed, settled = 0 }
 				end
 			end
+		end
+	end,
+	[12] = function(p)
+		-- 2026-11-18: the seen scene set gets its own 8 words (256 bits) instead of sharing SMALL_WORDS with
+		-- titles and emotes: the old 4 words keep every bit (0 to 127), the new ones start at 0
+		if type(p.seen) == "table" then
+			local out = table.create(ProfileSchema.SEEN_WORDS, 0)
+			for i = 1, ProfileSchema.SEEN_WORDS do
+				local w = p.seen[i]
+				if type(w) == "number" then
+					out[i] = w
+				end
+			end
+			p.seen = out
 		end
 	end,
 }
@@ -730,6 +747,8 @@ local function repair(p: any): any
 		p.purchases.receipts = keep
 	end
 	p.mutes = cleanNumbers(p.mutes, 50, 1, 2 ^ 53)
+	-- the seen scenes: exactly SEEN_WORDS 32-bit words (a short or broken list pads with 0, bits in place)
+	p.seen = cleanNumbers(p.seen, ProfileSchema.SEEN_WORDS, 0, 2 ^ 32 - 1, true)
 	local an = if type(p.analytics) == "table" then p.analytics else {}
 	p.analytics = {
 		onboard = num(an.onboard, 0, 32, 0),

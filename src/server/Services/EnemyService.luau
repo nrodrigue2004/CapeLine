@@ -21,6 +21,7 @@ local Signal = require(Shared:WaitForChild("Util"):WaitForChild("Signal"))
 
 local LookCodec = require(Shared:WaitForChild("LookCodec"))
 local ProfileSchema = require(Shared:WaitForChild("ProfileSchema"))
+local FakeRules = require(Shared:WaitForChild("FakeRules"))
 
 local HeroService = require(script.Parent.HeroService)
 local DataService = require(script.Parent.DataService)
@@ -188,6 +189,27 @@ function EnemyService.spawnTwin(player: Player, pos: Vector3, level: number, tag
 	idents[e.id] = ident
 	Net.fireAll("EnemyIdentity", ident)
 	return e.id
+end
+
+-- A side quest villain in a guise (lore step 11, the Underwater chain): a reused robot type that every device
+-- draws in the villain's fixed look, body and plate (Config.SideQuests.finale.guises[guiseId]); EnemyIdentity
+-- carries it like a twin's, and it is forgotten when the robot goes
+function EnemyService.dress(id: number, guiseId: string)
+	local gs = Config.SideQuests.finale.guises[guiseId]
+	local e = sim.byId[id]
+	if not (gs and e and e.alive) then
+		return
+	end
+	local ident = {
+		id = id,
+		guise = guiseId,
+		words = LookCodec.write(FakeRules.lookFrom(Config, gs.look, guiseId) :: any),
+		path = gs.path,
+		name = gs.name,
+		title = gs.title,
+	}
+	idents[id] = ident
+	Net.fireAll("EnemyIdentity", ident)
 end
 
 -- Who an evil twin copies (nil for any other robot): { userId, words, path, name, title }

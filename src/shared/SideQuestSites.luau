@@ -29,14 +29,24 @@
 -- * shore(Config, world, id): a site on the seeded coast (a site with `shore`, the Coast chain's Gull Point
 --   Pier): of the coast tiles with that feature in `rings`, the pier whose foot is nearest `near` and keeps the
 --   same `away` distances; its way in is the sand at the pier's foot, facing inland. Weekly like the shop.
+-- * deep(Config, id) (lore step 11, the Underwater chain): a site on the sea floor (a site with `deep`, a
+--   Shared.DeepLayout area), picked by rule from the underwater world, which is fixed (never seeded, so it never
+--   moves and needs no tile plans): on a `grid` of seabed spots within `reach` of `near`, the one nearest it in
+--   that area whose water is `depth` studs deep, `away`.edge from the area's sides and clear of every sunken
+--   cache (away.cache), Sunken Line rescue (away.rescue), the Leviathan Engine's arena (away.arena past its
+--   edge), every reef, kelp stand and wreck (away.reef, the layout's boxes) and the deep sites before it by id
+--   (away.site): { x, y (the seabed), z, area, depth }. Its way in faces the shore. deepSpot and deepPath pick
+--   a side quest goal's spots in the open water round it.
 
 local HqRules = if script then require(script.Parent.HqRules) else (require :: any)("./HqRules")
+local DeepLayout = if script then require(script.Parent.DeepLayout) else (require :: any)("./DeepLayout")
 local WorldGen = if script then require(script.Parent.WorldGen) else (require :: any)("./WorldGen")
 local WorldMap = if script then require(script.Parent.WorldMap) else (require :: any)("./WorldMap")
 
 local SideQuestSites = {}
 
-export type Door = { x: number, z: number, fx: number, fz: number }
+-- y: a deep site's seabed (lore step 11, the Underwater chain); a site on land stands on the ground
+export type Door = { x: number, z: number, fx: number, fz: number, y: number? }
 
 local function flat(ax: number, az: number, bx: number, bz: number): number
 	return math.sqrt((ax - bx) ^ 2 + (az - bz) ^ 2)
@@ -78,7 +88,7 @@ end
 -- The building a site is in, or nil (no such district, a square site, or nothing fits)
 function SideQuestSites.building(Config: any, world: any, id: string): any?
 	local st = Config.SideQuests.sites[id]
-	if not st or st.square or SideQuestSites.isOutskirts(st) or st.farm or st.road then
+	if not st or st.square or SideQuestSites.isOutskirts(st) or st.farm or st.road or st.deep then
 		return nil
 	end
 	local L, ox, oz
@@ -181,7 +191,8 @@ end
 local function otherSites(Config: any, world: any, id: string): { { number } }
 	local out = {}
 	for other, st in Config.SideQuests.sites do
-		if other ~= id then
+		-- (a deep site under the sea keeps apart from the other deep sites only: SideQuestSites.deep)
+		if other ~= id and not SideQuestSites.isDeep(st) then
 			local b = nil
 			if not SideQuestSites.isOutskirts(st) then
 				b = SideQuestSites.place(Config, world, other)
@@ -410,6 +421,14 @@ function SideQuestSites.place(Config: any, world: any, id: string): (any?, Door?
 		end
 		return b, outskirtsDoor(st, b)
 	end
+	if SideQuestSites.isDeep(st) then
+		-- lore step 11, the Underwater chain: a spot on the sea floor (the underwater world never changes)
+		local d = SideQuestSites.deep(Config, id)
+		if not d then
+			return nil, nil
+		end
+		return d, SideQuestSites.deepDoor(d)
+	end
 	if st.square then
 		local o = SideQuestSites.square(Config, world, id)
 		if not o then
@@ -444,6 +463,226 @@ function SideQuestSites.spot(Config: any, world: any, id: string): (number?, num
 		return nil, nil
 	end
 	return door.x, door.z
+end
+
+---------------------------------------------------------------------------
+-- Deep sites (lore step 11, the Underwater chain: The Sunken City)
+---------------------------------------------------------------------------
+
+-- Is this site on the sea floor (a `deep` area of Shared.DeepLayout)?
+function SideQuestSites.isDeep(st: any): boolean
+	return type(st) == "table" and st.deep ~= nil
+end
+
+-- The underwater world, built once per Config (DeepLayout is fixed: the same layout on every server)
+local deepCache: { [any]: any } = setmetatable({}, { __mode = "k" }) :: any
+local function deepWorld(Config: any): any
+	local hit = deepCache[Config]
+	if not hit then
+		hit = { layout = DeepLayout.build(Config), picks = {} }
+		deepCache[Config] = hit
+	end
+	return hit
+end
+
+-- The open sea a goal or a site may use: the Coral Shelf or the open sea ring (never the harbour basin or the
+-- Sunken Line, which hold the commuter rescues, nor the Trench, whose depths run at the hardest zone floor)
+local OPEN = { shelf = true, sea = true }
+
+-- How far (x, z) is inside its ring area's sides: the land's edge, the ring's outer wall and, on the shelf,
+-- its east and west ends (0 or less outside)
+local function inside(Config: any, area: string, x: number, z: number): number
+	local half = Config.City.mapSize / 2
+	local D = Config.Deep
+	local d = math.max(math.abs(x), math.abs(z)) - half
+	local m = math.min(d, D.ring.width - d)
+	if area == "shelf" then
+		m = math.min(m, x - D.shelf.minX, D.shelf.maxX - x)
+	end
+	return m
+end
+
+-- Does a spot on the sea floor keep a deep site's distances? (all but the other sites)
+function SideQuestSites.deepFits(Config: any, st: any, x: number, z: number): boolean
+	local a = st.away
+	if DeepLayout.area(Config, x, z, nil) ~= st.deep then
+		return false
+	end
+	local floor = DeepLayout.floorAt(Config, x, z, nil)
+	if not floor then
+		return false
+	end
+	local depth = Config.World.coast.waterY - floor
+	if depth < st.depth[1] or depth > st.depth[2] then
+		return false
+	end
+	if inside(Config, st.deep, x, z) < a.edge then
+		return false
+	end
+	local L = deepWorld(Config).layout
+	local ar = L.arena
+	if flat(x, z, ar.x, ar.z) - ar.radius < a.arena then
+		return false
+	end
+	for _, c in L.caches do
+		if flat(x, z, c.x, c.z) < a.cache then
+			return false
+		end
+	end
+	for _, r in L.rescues do
+		if flat(x, z, r.x, r.z) < a.rescue then
+			return false
+		end
+	end
+	-- reefs, kelp and wrecks: clear of every box's footprint (its longest side, so a turned box counts too)
+	for _, b in L.boxes do
+		local r = math.max(b.sx, b.sz) / 2 + a.reef
+		if math.abs(b.cx - x) < r and math.abs(b.cz - z) < r and flat(x, z, b.cx, b.cz) < r then
+			return false
+		end
+	end
+	return true
+end
+
+-- A deep site's spot on the sea floor, or nil (no such site, or nothing fits): { x, y, z, area, depth }
+function SideQuestSites.deep(Config: any, id: string): any?
+	local st = Config.SideQuests.sites[id]
+	if not SideQuestSites.isDeep(st) then
+		return nil
+	end
+	local dw = deepWorld(Config)
+	if dw.picks[id] ~= nil then
+		return dw.picks[id] or nil
+	end
+	-- the deep sites before this one by id (each keeps away.site from them)
+	local others = {}
+	for other, o in Config.SideQuests.sites do
+		if other < id and SideQuestSites.isDeep(o) then
+			local p = SideQuestSites.deep(Config, other)
+			if p then
+				table.insert(others, p)
+			end
+		end
+	end
+	local g = st.grid
+	local n = math.floor(st.reach / g)
+	local best, bestD = nil, math.huge
+	for i = -n, n do
+		for j = -n, n do
+			local x, z = st.near[1] + i * g, st.near[2] + j * g
+			local d = flat(x, z, st.near[1], st.near[2])
+			if d <= st.reach and d < bestD and SideQuestSites.deepFits(Config, st, x, z) then
+				local ok = true
+				for _, o in others do
+					if flat(x, z, o.x, o.z) < st.away.site then
+						ok = false
+					end
+				end
+				if ok then
+					best, bestD = { x = x, z = z }, d
+				end
+			end
+		end
+	end
+	if best then
+		local floor = DeepLayout.floorAt(Config, best.x, best.z, nil) :: number
+		best = {
+			x = best.x,
+			y = floor,
+			z = best.z,
+			area = st.deep,
+			depth = Config.World.coast.waterY - floor,
+			sx = 8,
+			sz = 8,
+		}
+	end
+	dw.picks[id] = best or false
+	return best
+end
+
+-- A deep site's way in: the spot itself on the seabed, facing the shore (the nearer map edge)
+function SideQuestSites.deepDoor(d: any): Door
+	local fx, fz = 0, -1
+	if math.abs(d.x) > math.abs(d.z) then
+		fx, fz = if d.x > 0 then -1 else 1, 0
+	elseif d.z < 0 then
+		fz = 1
+	end
+	return { x = d.x, z = d.z, fx = fx, fz = fz, y = d.y }
+end
+
+-- Is (x, y, z) open sea a deep goal may use: underwater play space on the shelf or the open ring, clear of the
+-- Leviathan Engine's arena by `arena` studs?
+function SideQuestSites.openSea(Config: any, x: number, y: number, z: number, arena: number): boolean
+	local area = DeepLayout.area(Config, x, z, y)
+	if not area or not OPEN[area] or not DeepLayout.underwater(Config, x, y, z) then
+		return false
+	end
+	local ar = deepWorld(Config).layout.arena
+	return flat(x, z, ar.x, ar.z) - ar.radius >= arena and inside(Config, area, x, z) >= 10
+end
+
+-- A goal's spot on the sea floor r0 to r1 studs from (x, z) (lore step 11, the Underwater chain): a random
+-- open-sea spot (rnd() in [0, 1)), 2 studs over the seabed; nil when none fits
+function SideQuestSites.deepSpot(
+	Config: any,
+	x: number,
+	z: number,
+	r0: number,
+	r1: number,
+	rnd: () -> number
+): { number }?
+	local arena = Config.SideQuests.deep.arena
+	for _ = 1, 40 do
+		local a = rnd() * math.pi * 2
+		local r = r0 + rnd() * math.max(0, r1 - r0)
+		local px, pz = x + math.cos(a) * r, z + math.sin(a) * r
+		local floor = DeepLayout.floorAt(Config, px, pz, nil)
+		if floor and SideQuestSites.openSea(Config, px, floor + 2, pz, arena) then
+			return { px, floor + 2, pz }
+		end
+	end
+	return nil
+end
+
+-- A swim through open water from (x, z) (a deep race's rings, a deep chase's legs): n points `gap` apart, each
+-- turned a little from the last (rnd() in [0, 1)), at mid depth (`lift` share of the way from the seabed to the
+-- surface, at least 4 under it); a turn that would leave the open sea bends back. At least 2 points, or nil.
+function SideQuestSites.deepPath(
+	Config: any,
+	x: number,
+	z: number,
+	n: number,
+	gap: number,
+	lift: number,
+	rnd: () -> number
+): { { number } }?
+	local arena = Config.SideQuests.deep.arena
+	local wy = Config.World.coast.waterY
+	local path = {}
+	local px, pz = x, z
+	local heading = rnd() * math.pi * 2
+	for _ = 1, n do
+		local placed = false
+		for t = 0, 11 do
+			local a = heading + (rnd() - 0.5) * 1.2 + t * math.pi / 6
+			local qx, qz = px + math.cos(a) * gap, pz + math.sin(a) * gap
+			local floor = DeepLayout.floorAt(Config, qx, qz, nil)
+			if floor then
+				local y = math.min(floor + (wy - floor) * lift, wy - 4)
+				if SideQuestSites.openSea(Config, qx, y, qz, arena) then
+					table.insert(path, { qx, y, qz })
+					px, pz, heading = qx, qz, a
+					placed = true
+					break
+				end
+			end
+		end
+		if not placed then
+			break
+		end
+	end
+	return if #path >= 2 then path else nil
 end
 
 ---------------------------------------------------------------------------

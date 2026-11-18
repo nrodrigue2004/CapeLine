@@ -21,6 +21,10 @@
 --   course (Shared.SideQuestSites.course); a finale may have an encore villain (its own name card).
 -- * Chain 4 (The Harvest King): Farmland sites on this week's outskirts tiles (a barn, the silos, a field, a
 --   farm road: Shared.SideQuestSites.farm); an escort with `road` drives down the farm road toward town.
+-- * lore step 11, the Underwater chain: a deep site on the sea floor (Shared.SideQuestSites.deep): its giver and
+--   sign stand on the seabed, and a step built there puts its goals in the open water round it (deepSpot and
+--   deepPath: no streets, roofs or roads under the sea); a finale's `guise` dresses its reused robot type as
+--   the villain (EnemyService.dress).
 -- PLACEHOLDER ART: givers without a `look` are R15 people in plain colours; a giver with one wears its fixed
 -- hero look (earnable creator pieces, LookKit); crates, rings, site signs, set pieces and the motorcade are
 -- plain parts.
@@ -48,6 +52,7 @@ local BodyShape = require(Shared:WaitForChild("BodyShape"))
 local LookKit = require(Shared:WaitForChild("LookKit"))
 local SideQuestSets = require(Shared:WaitForChild("SideQuestSets"))
 local IncidentPlan = require(Shared:WaitForChild("IncidentPlan"))
+local DeepLayout = require(Shared:WaitForChild("DeepLayout"))
 
 local CityBuilder = require(script.Parent.CityBuilder)
 local DataService = require(script.Parent.DataService)
@@ -89,6 +94,7 @@ type Goal = {
 	bossAt: Vector3?,
 	phase: number?, -- the finale's villain: 1, then 2 for an encore (lore step 11, chain 2)
 	pocketAt: number?, -- os.clock() of the last pocket try (a short wait between tries)
+	deep: boolean?, -- built under the sea (lore step 11, the Underwater chain)
 	done: boolean,
 }
 
@@ -102,6 +108,7 @@ type Group = {
 	home: Vector3,
 	level: number,
 	test: number?, -- Dev: a kind test (Config.SideQuests.devKinds index); nothing is saved
+	deep: boolean, -- its home is under the sea (a deep site): goals go in the open water round it
 	finished: boolean,
 }
 
@@ -122,13 +129,18 @@ local function devOn(): boolean
 	return StoryService.devChains()
 end
 
+local function rnd(): number
+	return rng:next()
+end
+
 ---------------------------------------------------------------------------
 -- Givers
 ---------------------------------------------------------------------------
 
-local function anchor(g: any): (number, number)
+local function anchor(g: any): (number, number, number?)
 	local world = CityBuilder.world
 	local x, z
+	local y: number? = nil
 	if g.anchor == "plaza" then
 		x, z = OpeningPlan.plaza(world)
 	elseif g.anchor == "hq" then
@@ -139,6 +151,7 @@ local function anchor(g: any): (number, number)
 		local _, door = SideQuestSites.place(Config, world, g.site)
 		if door then
 			x, z = door.x, door.z
+			y = door.y -- a deep site's giver stands on the seabed (lore step 11, the Underwater chain)
 		else
 			x, z = OpeningPlan.plaza(world)
 		end
@@ -146,7 +159,7 @@ local function anchor(g: any): (number, number)
 		local d = Config.City.districts[g.anchor]
 		x, z = (d.minX + d.maxX) / 2, (d.minZ + d.maxZ) / 2
 	end
-	return x + (g.dx or 0), z + (g.dz or 0)
+	return x + (g.dx or 0), z + (g.dz or 0), y
 end
 
 -- A giver: a person on the heroes' blocky R15 rig in the giver's colour (or, with a `look`, its fixed hero
@@ -238,6 +251,17 @@ local function streetSpot(at: Vector3, range: { number }): Vector3
 	end
 	local x, y, z = IncidentSpots.groundNear(Config, CityBuilder.world, at.X, at.Z, range[2], rng)
 	return Vector3.new(x, y, z)
+end
+
+-- A goal's spot under the sea (lore step 11, the Underwater chain): open water on the seabed round `at`
+local function deepSpot(at: Vector3, range: { number }): Vector3
+	local p = SideQuestSites.deepSpot(Config, at.X, at.Z, range[1], range[2], rnd)
+	return if p then Vector3.new(p[1], p[2], p[3]) else at
+end
+
+-- A goal's spot: in the open water round a deep group's home, else on a street
+local function spotFor(g: Group, at: Vector3, range: { number }): Vector3
+	return if g.deep then deepSpot(at, range) else streetSpot(at, range)
 end
 
 local function roofSpot(at: Vector3, minH: number, range: { number }): Vector3?
@@ -334,6 +358,7 @@ local function build(g: Group, key: string, st: any): Goal
 		bossAt = nil,
 		phase = 1,
 		pocketAt = nil,
+		deep = g.deep,
 		done = false,
 	}
 	local k = st.kind
@@ -344,7 +369,7 @@ local function build(g: Group, key: string, st: any): Goal
 		local giver = givers[st.giver or g.chain.giver]
 		goal.target = if giver then giver.pos else home
 	elseif k == "fight" then
-		local at = if st.home then home + Vector3.new(0, 0, 20) else streetSpot(home, st.range or { 60, 150 })
+		local at = if st.home then home + Vector3.new(0, 0, 20) else spotFor(g, home, st.range or { 60, 150 })
 		setNeed(g, goal, squad(goal, g.level, st.squads, at))
 		goal.target = at
 	elseif k == "incident" then
@@ -357,7 +382,7 @@ local function build(g: Group, key: string, st: any): Goal
 		end
 	elseif k == "fetch" then
 		for i = 1, st.count or 1 do
-			local at = streetSpot(home, st.range)
+			local at = spotFor(g, home, st.range)
 			table.insert(
 				goal.things,
 				SiteKit.pickup(at, 8, Color3.fromRGB(120, 220, 255), function()
@@ -376,7 +401,7 @@ local function build(g: Group, key: string, st: any): Goal
 		if st.high then
 			at = roofSpot(home, 30, { 40, 200 }) or home
 		elseif not st.home then
-			at = streetSpot(home, { 40, 120 })
+			at = spotFor(g, home, { 40, 120 })
 		end
 		goal.target = at
 		table.insert(goal.things, SiteKit.ring(at, st.radius))
@@ -399,12 +424,19 @@ local function build(g: Group, key: string, st: any): Goal
 		table.insert(goal.things, truck)
 		goal.target = v3(path[1])
 	elseif k == "carry" then
-		local padAt = roofSpot(home, 20, st.range) or streetSpot(home, st.range)
+		-- under the sea (lore step 11, the Underwater chain) the one to rescue is out in the water and the pad is
+		-- at the group's home (the giver's station)
+		local padAt = if g.deep
+			then deepSpot(home, { 10, 24 })
+			else roofSpot(home, 20, st.range) or streetSpot(home, st.range)
+		local who = if g.deep
+			then deepSpot(home, st.range) + Vector3.new(0, 1, 0)
+			else home + Vector3.new(4, 1, 0)
 		local pad = SiteKit.pad(padAt)
 		table.insert(goal.things, pad)
 		table.insert(
 			goal.things,
-			SiteKit.citizen(home + Vector3.new(4, 1, 0), {
+			SiteKit.citizen(who, {
 				pads = { pad },
 				who = mine,
 				onSafe = function()
@@ -412,11 +444,29 @@ local function build(g: Group, key: string, st: any): Goal
 				end,
 			})
 		)
-		goal.target = padAt
+		goal.target = if g.deep then who else padAt
 	elseif k == "race" then
 		local rings = {}
 		local roofs = st.course and courseRoofs(st.course)
-		if roofs then
+		local swim = g.deep
+			and SideQuestSites.deepPath(
+				Config,
+				home.X,
+				home.Z,
+				st.checkpoints,
+				st.gap or 60,
+				SQ.deep.lift,
+				rnd
+			)
+		if swim then
+			-- lore step 11, the Underwater chain: rings through the open water at mid depth
+			for _, q in swim do
+				local p = Vector3.new(q[1], q[2], q[3])
+				table.insert(rings, p)
+				table.insert(goal.things, SiteKit.ring(p, 10, Color3.fromRGB(90, 230, 220)))
+			end
+			setNeed(g, goal, #rings)
+		elseif roofs then
 			-- lore step 11, chain 2: a rooftop course, a ring over each roof (the first is where the run starts)
 			local up = SQ.courses.ringUp
 			for i, b in roofs do
@@ -439,16 +489,19 @@ local function build(g: Group, key: string, st: any): Goal
 		end
 		goal.rings = rings
 		goal.target = rings[1]
+	elseif k == "reach" and g.deep then
+		-- lore step 11, the Underwater chain: swim down to a spot on the sea floor
+		goal.target = deepSpot(home, st.range or { 80, 200 })
 	elseif k == "reach" then
 		goal.target = roofSpot(home, st.high or 40, st.range or { 80, 200 })
 			or roofSpot(home, 20, { 40, 300 })
 			or home
 	elseif k == "deliver" then
-		local at = streetSpot(home, st.range)
+		local at = spotFor(g, home, st.range)
 		table.insert(goal.things, SiteKit.pad(at))
 		goal.target = at
 	elseif k == "find" then
-		local at = streetSpot(home, st.range)
+		local at = spotFor(g, home, st.range)
 		local off = rng:range(0, 50)
 		local a = rng:range(0, math.pi * 2)
 		goal.area = { at.X + math.cos(a) * off, at.Z + math.sin(a) * off, 70 }
@@ -478,6 +531,15 @@ local function build(g: Group, key: string, st: any): Goal
 			table.insert(path, { b.x, b.top + 1, b.z })
 		end
 		local id = EnemyService.spawnAt(st.enemy, v3(path[1], 2), g.level, TAG, true)
+		if id then
+			goal.enemies[id] = true
+			goal.chase = { id = id, path = path, leg = 1, at = 0, speed = st.speed }
+		end
+	elseif k == "chase" and g.deep then
+		-- lore step 11, the Underwater chain: the runner swims a loop of legs through the open water
+		local path = SideQuestSites.deepPath(Config, home.X, home.Z, st.hops, 45, SQ.deep.lift, rnd)
+			or { { home.X, home.Y + 6, home.Z }, { home.X + 30, home.Y + 6, home.Z } }
+		local id = EnemyService.spawnAt(st.enemy, v3(path[1]), g.level, TAG, true)
 		if id then
 			goal.enemies[id] = true
 			goal.chase = { id = id, path = path, leg = 1, at = 0, speed = st.speed }
@@ -514,7 +576,7 @@ local function build(g: Group, key: string, st: any): Goal
 			table.insert(goal.things, SiteKit.ring(goal.target :: Vector3, 10, Color3.fromRGB(110, 160, 255)))
 		end
 	elseif k == "photo" then
-		local at = streetSpot(home, st.range)
+		local at = spotFor(g, home, st.range)
 		goal.photos = {}
 		for _ = 1, st.count + 1 do
 			local a = rng:range(0, math.pi * 2)
@@ -537,7 +599,7 @@ local function build(g: Group, key: string, st: any): Goal
 		goal.target = at
 		table.insert(goal.things, SiteKit.ring(at, 10, Color3.fromRGB(170, 110, 255)))
 	elseif k == "finale" then
-		local at = streetSpot(home, st.range or { 80, 180 })
+		local at = spotFor(g, home, st.range or { 80, 180 })
 		goal.bossAt = at
 		goal.target = at
 		if st.adds then
@@ -565,7 +627,16 @@ local function spawnBoss(g: Group, goal: Goal)
 	local foe = SideQuestPlan.finaleFoe(goal.st, goal.phase or 1)
 	local id = EnemyService.spawnAt(foe.enemy, goal.bossAt or g.home, g.level, TAG)
 	if id then
-		EnemyService.tune(id, { hpMult = math.clamp(foe.hpMult, SQ.finale.hpMult[1], SQ.finale.hpMult[2]) })
+		-- lore step 11, the Underwater chain: a villain in a guise wears its own look and plate, and its damage
+		-- lift (Config.SideQuests.finale.guises)
+		local gs = foe.guise and SQ.finale.guises[foe.guise]
+		EnemyService.tune(id, {
+			hpMult = math.clamp(foe.hpMult, SQ.finale.hpMult[1], SQ.finale.hpMult[2]),
+			dmgMult = gs and gs.dmgMult or nil,
+		})
+		if gs then
+			EnemyService.dress(id, foe.guise)
+		end
 		goal.boss = id
 	end
 end
@@ -683,7 +754,7 @@ local function siteHome(id: string): Vector3?
 	if st.square then
 		return Vector3.new(spot.x, gy() + 1, spot.z)
 	end
-	return Vector3.new(door.x, gy() + 1, door.z)
+	return Vector3.new(door.x, (door.y or gy()) + 1, door.z)
 end
 
 local function newGroup(chain: any, idx: number, hero: any, test: number?): Group
@@ -701,6 +772,7 @@ local function newGroup(chain: any, idx: number, hero: any, test: number?): Grou
 		home = home,
 		level = hero.level,
 		test = test,
+		deep = DeepLayout.underwater(Config, home.X, home.Y, home.Z),
 		finished = false,
 	}
 	groups[g] = true
@@ -911,6 +983,11 @@ local function tickGoal(g: Group, goal: Goal, dt: number)
 				Net.fire("Toast", p, { id = "raceReset" })
 			end
 		end
+	elseif k == "reach" and goal.target and goal.deep then
+		-- under the sea: swim within 20 studs of the spot
+		if anyNear(goal.target, 20) then
+			have = 1
+		end
 	elseif k == "reach" and goal.target then
 		local t = goal.target
 		for _, e in list do
@@ -939,7 +1016,9 @@ local function tickGoal(g: Group, goal: Goal, dt: number)
 				c.at = 0
 				c.leg = c.leg % #c.path + 1
 			end
-			local p = pa:Lerp(pb, c.at) + Vector3.new(0, math.sin(c.at * math.pi) * 10, 0)
+			-- a hop over the street (never under the sea, where the runner swims straight)
+			local hop = if goal.deep then 0 else math.sin(c.at * math.pi) * 10
+			local p = pa:Lerp(pb, c.at) + Vector3.new(0, hop, 0)
 			EnemyService.place(c.id, p)
 			goal.target = p
 		end
@@ -1090,8 +1169,8 @@ local function siteSign(name: string, door: any)
 			gui.Parent = board
 		end
 	end)
-	-- beside the door, facing the street
-	local at = Vector3.new(door.x + door.fz * 12, gy(), door.z - door.fx * 12)
+	-- beside the door, facing the street (a deep site's on the seabed)
+	local at = Vector3.new(door.x + door.fz * 12, door.y or gy(), door.z - door.fx * 12)
 	SiteKit.place(m, at, math.atan2(-door.fx, -door.fz))
 end
 
@@ -1253,9 +1332,12 @@ local function placeGivers()
 	ReplicatedStorage:SetAttribute("SideQuestSites", HttpService:JSONEncode(placeSites()))
 	for id, gv in SQ.givers do
 		if not gv.dev or RunService:IsStudio() then
-			local x, z = anchor(gv)
-			local px, py, pz =
-				IncidentSpots.groundNear(Config, world, x, z, if gv.anchor == "site" then 6 else 40, rng)
+			local x, z, y = anchor(gv)
+			local px, py, pz = x, y, z
+			if y == nil then
+				px, py, pz =
+					IncidentSpots.groundNear(Config, world, x, z, if gv.anchor == "site" then 6 else 40, rng)
+			end
 			local pos = Vector3.new(px, py, pz)
 			local _, body = npcModel(gv.name, gv.color, pos, if gv.look then id else nil, gv.look)
 			local prompt = Instance.new("ProximityPrompt")

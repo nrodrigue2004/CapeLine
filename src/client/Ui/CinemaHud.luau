@@ -404,6 +404,95 @@ local function picture(parent: Frame, p: any)
 			local coin = box(parent, 0.32 + i * 0.08, 0.7, 0.05, 0.04, Color3.fromRGB(255, 215, 80), 64)
 			Kit.round(coin, 20)
 		end
+	elseif kind == "velmara" then
+		-- Velmara in the sun (The Sunken City): bronze towers with domed tops by a calm bay
+		local bronze = Color3.fromRGB(205, 150, 80)
+		box(parent, 0, 0.78, 1, 0.22, Color3.fromRGB(70, 150, 200), 62)
+		for i = 0, 4 do
+			local h = 0.22 + (i % 3) * 0.1
+			local tower = box(parent, 0.08 + i * 0.18, 0.72 - h, 0.12, h, bronze, 63)
+			Kit.stroke(tower, ink, 2)
+			local dome = box(
+				parent,
+				0.08 + i * 0.18,
+				0.72 - h - 0.06,
+				0.12,
+				0.1,
+				bronze:Lerp(Color3.new(1, 1, 1), 0.3),
+				63
+			)
+			Kit.round(dome, 200)
+			Kit.stroke(dome, ink, 2)
+		end
+		local sun = box(parent, 0.82, 0.08, 0.12, 0.16, Color3.fromRGB(255, 230, 120), 62)
+		Kit.round(sun, 200)
+	elseif kind == "flood" then
+		-- the great storm: a wave curling over the towers, rain streaks across the panel
+		local bronze = Color3.fromRGB(150, 110, 60)
+		for i = 0, 3 do
+			local tower = box(parent, 0.12 + i * 0.22, 0.42, 0.1, 0.3, bronze, 62)
+			Kit.stroke(tower, ink, 2)
+		end
+		local wave = box(parent, -0.1, 0.18, 0.9, 0.5, Color3.fromRGB(60, 140, 200), 63)
+		Kit.round(wave, 200)
+		Kit.stroke(wave, ink, 3)
+		local foam = box(parent, 0.5, 0.18, 0.3, 0.12, Color3.fromRGB(230, 245, 255), 64)
+		Kit.round(foam, 200)
+		for i = 0, 5 do
+			local rain = box(
+				parent,
+				0.1 + i * 0.15,
+				0.04 + (i % 2) * 0.06,
+				0.012,
+				0.12,
+				Color3.fromRGB(200, 220, 240),
+				65
+			)
+			rain.Rotation = 20
+		end
+	elseif kind == "guardian" then
+		-- the Tidewright on guard in the dark water: a tall bronze figure with glowing eyes and a trident
+		local bronze = Color3.fromRGB(180, 130, 70)
+		local glow = Color3.fromRGB(120, 255, 230)
+		local body = box(parent, 0.42, 0.34, 0.16, 0.4, bronze, 63)
+		Kit.stroke(body, ink, 2)
+		local head = box(parent, 0.44, 0.18, 0.12, 0.14, bronze, 64)
+		Kit.round(head, 60)
+		Kit.stroke(head, ink, 2)
+		for i = -1, 1, 2 do
+			box(parent, 0.5 + i * 0.025 - 0.012, 0.23, 0.024, 0.03, glow, 65)
+		end
+		box(parent, 0.64, 0.12, 0.018, 0.62, Color3.fromRGB(90, 70, 50), 63)
+		for i = -1, 1 do
+			box(parent, 0.64 + i * 0.03 - 0.006, 0.08, 0.012, 0.08, glow, 64)
+		end
+		for i = 0, 6 do
+			local bubble = box(
+				parent,
+				0.12 + i * 0.12,
+				0.12 + (i % 3) * 0.12,
+				0.025,
+				0.04,
+				Color3.fromRGB(200, 235, 255),
+				65
+			)
+			Kit.round(bubble, 20)
+		end
+	elseif kind == "dredger" then
+		-- a salvage dredger's drill punching into the reef, light spilling out of the crack it makes
+		box(parent, 0, 0.78, 1, 0.22, Color3.fromRGB(170, 160, 130), 62)
+		local hull = box(parent, 0.1, 0.04, 0.5, 0.12, Color3.fromRGB(230, 170, 40), 63)
+		Kit.stroke(hull, ink, 2)
+		box(parent, 0.33, 0.16, 0.03, 0.52, Color3.fromRGB(120, 120, 130), 63)
+		local bit = box(parent, 0.315, 0.66, 0.06, 0.08, Color3.fromRGB(90, 90, 100), 64)
+		bit.Rotation = 45
+		local crack = box(parent, 0.3, 0.76, 0.4, 0.04, Color3.fromRGB(120, 255, 230), 64)
+		Kit.round(crack, 40)
+		for i = 0, 2 do
+			local ray = box(parent, 0.36 + i * 0.1, 0.5, 0.02, 0.26, Color3.fromRGB(170, 255, 240), 63)
+			ray.BackgroundTransparency = 0.4
+			ray.Rotation = -20 + i * 20
+		end
 	elseif kind == "crater" then
 		-- the empty crater under a still sky, broken stubs at its rim
 		local pit = box(parent, 0.5, 0.78, 0.8, 0.22, ink, 63)

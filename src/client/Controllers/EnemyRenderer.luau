@@ -362,6 +362,14 @@ local function makeRobot(typeId: number, ident: { [string]: any }?): Body
 	if cfg.twin then
 		cfg = FakeRules.twinCfg(Config, ident and ident.path) -- the path's fighting style (pose and moves)
 	end
+	-- a side quest villain in a guise (lore step 11, the Underwater chain; Config.SideQuests.finale.guises): a
+	-- reused robot type drawn in the villain's fixed look, body and costume (it never cracks or reads FAKE)
+	local guise = ident and type(ident.guise) == "string" and Config.SideQuests.finale.guises[ident.guise]
+	if guise then
+		cfg = table.clone(cfg)
+		cfg.body = guise.body
+		cfg.fake = { costumed = guise.costumed == true, path = guise.path, title = guise.title }
+	end
 	local fake = cfg.fake ~= nil
 	-- a fake's hero look: its fixed one, or the look of the player a twin copies
 	local heroLook: any = nil
@@ -809,6 +817,39 @@ local function makeRobot(typeId: number, ident: { [string]: any }?): Body
 			M,
 			Enum.PartType.Cylinder
 		)
+	end
+	if body.trident then
+		-- the Tidewright's trident, held upright in the right hand: a bronze shaft, a crossbar and three prongs
+		-- (PLACEHOLDER ART)
+		local bronze = rgb(body.trim or body.metal)
+		local len = h * 0.7
+		add(
+			"TridentShaft",
+			"RightHand",
+			CFrame.new(0, len * 0.15, 0),
+			Vector3.new(0.45, len, 0.45),
+			bronze,
+			M
+		)
+		add(
+			"TridentBar",
+			"RightHand",
+			CFrame.new(0, len * 0.62, 0),
+			Vector3.new(len * 0.32, 0.4, 0.4),
+			bronze,
+			M
+		)
+		for s = -1, 1 do
+			add(
+				"TridentProng" .. (s + 2),
+				"RightHand",
+				CFrame.new(s * len * 0.14, len * (if s == 0 then 0.8 else 0.74), 0),
+				Vector3.new(0.35, len * (if s == 0 then 0.32 else 0.22), 0.35),
+				bronze,
+				M
+			)
+		end
+		add("TridentGlow", "RightHand", CFrame.new(0, len * 0.62, -0.25), Vector3.new(0.5, 0.5, 0.1), eye, N)
 	end
 	if body.cape then
 		local capeH = (UT.Y + LT.Y) * 1.25
@@ -1474,8 +1515,9 @@ end
 local function acquire(typeId: number, id: number): Body
 	local base = byType[typeId]
 	local body: Body
-	if base and base.twin then
-		body = makeRobot(typeId, idents[id]) -- an evil twin wears its own hero's look: never pooled
+	if (base and base.twin) or idents[id] then
+		-- an evil twin wears its own hero's look, a villain in a guise its own (lore step 11): never pooled
+		body = makeRobot(typeId, idents[id])
 	else
 		local list = pool[typeId]
 		body = (list and table.remove(list)) or makeRobot(typeId)

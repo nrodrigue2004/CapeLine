@@ -1,9 +1,9 @@
 -- Cinema (nate's lore, build plan step 7: the cinematic layer; "bright world, serious story, anime fights").
 -- Pure data; Shared.CinemaPlan and Shared.NewsPlan hold the rules, the client plays them.
 -- * scenes: every cutscene the player plays (camera shots, letterbox, subtitles through the guide line box).
---   `bit` is the scene's place in the save's seen set (profile.seen, ProfileSchema.SMALL_WORDS bits): a
+--   `bit` is the scene's place in the save's seen set (profile.seen, ProfileSchema.SEEN_WORDS words): a
 --   scene may be skipped once that bit is set. Bits 0 to 15 are the named scenes (then extraBits, 120 to
---   127, once 0 to 15 were full); missions use
+--   127, once 0 to 15 were full, and wideBits, 128 to 255, since save v12); missions use
 --   missionBits (base + (mission - 1) * perMission + (stage - 1)). Never reuse or move a bit.
 --   `beat`: a prologue camera beat (OpeningPlan.CUT; its length is Config.Story.opening.beats). `client`: the
 --   device starts it (it then sends SceneSeen). Scenes run 5 to 20 s (`length`); the Ceremony beat keeps
@@ -435,11 +435,87 @@ return {
 				},
 			},
 		},
+		-- The Sunken City (the Underwater side quest chain, lore step 11): Velmara's lights waking under the reef
+		-- on step 1, the Tidewright's tale as a comic page on step 5, and the Tidewright rising before the
+		-- finale. Bits 128 to 130: the first of Cinema.wideBits (save v12's second half of the seen set)
+		velmaraLights = {
+			bit = 128,
+			client = true,
+			seconds = 10,
+			shots = {
+				{
+					kind = "dolly",
+					t0 = 0,
+					t1 = 5,
+					from = { 0, 14, 40 },
+					to = { 0, 4, 16 },
+					at = { 0, -6, -30 },
+					at2 = { 0, -10, -40 },
+				},
+				{
+					kind = "orbit",
+					t0 = 5,
+					t1 = 10,
+					radius = 22,
+					height = 4,
+					yaw0 = -0.6,
+					yaw1 = 0.6,
+					lift = 2,
+				},
+			},
+			lines = {
+				{
+					at = 0.4,
+					who = "Pearl",
+					text = "There, under the reef. Lights that have been dark for a thousand years, all switching on.",
+				},
+				{
+					at = 5.5,
+					who = "tidewright",
+					text = "Velmara wakes. Velmara remembers. Surface-dwellers, your time on the shore is over.",
+				},
+			},
+		},
+		tidewrightTale = { bit = 129, client = true, seconds = 14, comic = "tidewrightTale" },
+		tidewrightRises = {
+			bit = 130,
+			client = true,
+			seconds = 8,
+			shots = {
+				{ kind = "cut", t0 = 0, t1 = 3, from = { -16, -2, 20 }, at = { 0, 6, 0 } },
+				{
+					kind = "orbit",
+					t0 = 3,
+					t1 = 8,
+					radius = 24,
+					height = 3,
+					yaw0 = 0.3,
+					yaw1 = 1.9,
+					lift = 6,
+				},
+			},
+			lines = {
+				{
+					at = 0.3,
+					who = "tidewright",
+					text = "I kept Velmara a thousand years. I will keep it from you. Let the tide rise!",
+				},
+				{
+					at = 4,
+					who = "patch",
+					text = "That's not a robot someone built last week. That's the city's guardian. And it's HUGE.",
+				},
+			},
+		},
 	},
 	missionBits = { base = 16, perMission = 8, missions = 13 }, -- bits 16 to 119
 	-- More named scenes once bits 0 to 15 were full (lore step 11, chain 4): the seen set's last 8 bits,
 	-- above the missions' (CinemaPlan.namedBit)
 	extraBits = { from = 120, to = 127 },
+	-- (2026-11-18) the seen set's second half once 0 to 127 were full: save v12 gives profile.seen its own 8
+	-- words (ProfileSchema.SEEN_WORDS), so named scenes may use 128 to 255 too (the Underwater chain first,
+	-- then the character and origin lines). CinemaPlan.namedBit accepts both ranges.
+	wideBits = { from = 128, to = 255 },
 
 	safe = {
 		quietSeconds = 6, -- no hit taken for this long
@@ -760,6 +836,47 @@ return {
 						scene = "seacave",
 						caption = "Every crate goes to his sea cave. Nobody who went looking ever found it.",
 						word = "SPLASH!",
+						at = 10.5,
+					},
+				},
+			},
+			-- The Sunken City (the Underwater chain, step 5): the tale of Velmara and its guardian, from the
+			-- mosaics in the drowned city's halls
+			tidewrightTale = {
+				title = "THE LAST GUARDIAN OF VELMARA",
+				panels = {
+					{
+						rect = { 0.03, 0.12, 0.45, 0.4 },
+						sky = { 150, 210, 240 },
+						ground = { 210, 190, 140 },
+						scene = "velmara",
+						caption = "Long ago Velmara stood in the sun, a city of bronze towers by the bay.",
+						at = 0,
+					},
+					{
+						rect = { 0.52, 0.12, 0.45, 0.4 },
+						sky = { 50, 60, 90 },
+						ground = { 30, 70, 110 },
+						scene = "flood",
+						caption = "Then a great storm drowned it. Its people swam for the shore and never came back.",
+						word = "WHOOSH!",
+						at = 3.5,
+					},
+					{
+						rect = { 0.03, 0.56, 0.45, 0.38 },
+						sky = { 20, 50, 80 },
+						ground = { 20, 40, 60 },
+						scene = "guardian",
+						caption = "They left the Tidewright to keep the city safe. It waited, and waited, and slept.",
+						at = 7,
+					},
+					{
+						rect = { 0.52, 0.56, 0.45, 0.38 },
+						sky = { 25, 40, 60 },
+						ground = { 20, 35, 50 },
+						scene = "dredger",
+						caption = "Last week a salvage drill cracked the seal. The guardian woke up angry.",
+						word = "KRAK!",
 						at = 10.5,
 					},
 				},

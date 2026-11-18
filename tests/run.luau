@@ -11734,18 +11734,95 @@ do
 	local Ci = Config.Cinema
 	local OPB = Config.Story.opening.beats
 
-	test("Lore 7: named scene bits are 0 to 15 and the extra 120 to 127, never a mission's", function()
-		local M, X = Ci.missionBits, Ci.extraBits
+	test(
+		"Lore 7: named scene bits are 0 to 15, the extra 120 to 127 and 128 to 255, never a mission's",
+		function()
+			local M, X, W = Ci.missionBits, Ci.extraBits, Ci.wideBits
+			check(
+				X ~= nil and X.from == M.base + M.missions * M.perMission and X.to == 127,
+				"the extra bits sit above the missions'"
+			)
+			check(
+				W ~= nil and W.from == X.to + 1 and W.to == 255,
+				"the wide bits are the seen set's second half"
+			)
+			check(W.to < ProfileSchema.SEEN_WORDS * 32, "and fit the save's seen set")
+			for _, b in { 0, 15, 120, 127, 128, 200, 255 } do
+				check(CinemaPlan.namedBit(Config, b), b .. " is named")
+			end
+			for _, b in { -1, 16, 119, 256, 12.5, 130.5 } do
+				check(not CinemaPlan.namedBit(Config, b), b .. " is not named")
+			end
+		end
+	)
+
+	test("Save v12: the seen set gets its own 8 words; a v11 save keeps every bit", function()
+		local serde = require("@lune/serde")
+		local Bits = ProfileSchema.Bits
+		check(ProfileSchema.VERSION >= 12, "save version 12 or later")
+		check(ProfileSchema.SEEN_WORDS == 8 and ProfileSchema.SMALL_WORDS == 4, "8 seen words; titles keep 4")
+		local fresh = ProfileSchema.default()
+		check(#fresh.seen == ProfileSchema.SEEN_WORDS, "a new save has 256 seen bits")
 		check(
-			X ~= nil and X.from == M.base + M.missions * M.perMission and X.to == 127,
-			"the extra bits sit above the missions'"
+			#fresh.titles == ProfileSchema.SMALL_WORDS and #fresh.emotes == ProfileSchema.SMALL_WORDS,
+			"titles and emotes unchanged"
 		)
-		for _, b in { 0, 15, 120, 127 } do
-			check(CinemaPlan.namedBit(Config, b), b .. " is named")
+		-- a v11 save with 4 words and bits all over them (a named, a mission, the extra range's last)
+		local old = ProfileSchema.default()
+		old.version = 11
+		old.seen = { 0, 0, 0, 0 }
+		local bits = { 0, 5, 15, 16, 63, 64, 100, 119, 120, 124, 127 }
+		for _, b in bits do
+			Bits.set(old.seen, b, true)
 		end
-		for _, b in { -1, 16, 119, 128, 12.5 } do
-			check(not CinemaPlan.namedBit(Config, b), b .. " is not named")
+		old.titles = { 7, 0, 0, 0 }
+		local p = ProfileSchema.load(serde.decode("json", serde.encode("json", old)))
+		check(p.version == ProfileSchema.VERSION, "loads at the current version")
+		check(#p.seen == ProfileSchema.SEEN_WORDS, "padded to 8 words")
+		for _, b in bits do
+			check(Bits.get(p.seen, b), "bit " .. b .. " is kept")
 		end
+		check(#Bits.list(p.seen) == #bits, "and no bit appears")
+		for k = 5, 8 do
+			check(p.seen[k] == 0, "word " .. k .. " starts empty")
+		end
+		check(p.titles[1] == 7 and #p.titles == ProfileSchema.SMALL_WORDS, "titles are untouched")
+		-- a bit above 127 round-trips through the save and the client view
+		Bits.set(p.seen, 128, true)
+		Bits.set(p.seen, 200, true)
+		Bits.set(p.seen, 255, true)
+		local back = ProfileSchema.load(serde.decode("json", serde.encode("json", p)))
+		for _, b in { 128, 200, 255, 127, 0 } do
+			check(Bits.get(back.seen, b), "bit " .. b .. " round-trips")
+		end
+		local view = ProfileSchema.clientView(back)
+		for _, b in { 128, 200, 255 } do
+			check(CinemaPlan.seen(view.seen, b), "the client view carries bit " .. b)
+		end
+		-- repair: short, broken or missing seen lists
+		local r = ProfileSchema.default()
+		r.seen = { 3 }
+		local rr = ProfileSchema.load(serde.decode("json", serde.encode("json", r)))
+		check(#rr.seen == 8 and rr.seen[1] == 3 and rr.seen[8] == 0, "a short list pads with 0")
+		local r2 = ProfileSchema.default()
+		r2.seen = { -4, "x", 1.5, 2 ^ 40, 9, 0, 0, 0, 0, 0, 77 }
+		local rr2 = ProfileSchema.load(r2)
+		check(
+			#rr2.seen == 8 and rr2.seen[1] == 0 and rr2.seen[3] == 1 and rr2.seen[5] == 9,
+			"bad words clean in place"
+		)
+		check(rr2.seen[4] == 0, "a word past 32 bits is dropped")
+		local r3 = ProfileSchema.default()
+		r3.seen = nil
+		check(#ProfileSchema.load(r3).seen == 8, "a missing list comes back empty")
+		local r4 = ProfileSchema.default()
+		r4.version = 11
+		r4.seen = "bad"
+		check(#ProfileSchema.load(r4).seen == 8, "a broken v11 set repairs")
+		-- the device may send a scene's bit up to 255
+		local R = require("../src/shared/Remotes")
+		local sch = R.SceneSeen.schema[1]
+		check(sch.max == 255, "SceneSeen takes bits to 255")
 	end)
 
 	test("Lore 7: every scene is well formed, 5 to 20 s, with a bit of its own in the save", function()
@@ -11812,7 +11889,7 @@ do
 		)
 		local maxBit =
 			CinemaPlan.missionBit(Config, Ci.missionBits.missions, Ci.missionBits.perMission) :: number
-		check(maxBit < ProfileSchema.SMALL_WORDS * 32, "every bit fits the save's seen set")
+		check(maxBit < ProfileSchema.SEEN_WORDS * 32, "every bit fits the save's seen set")
 		-- a bad scene is caught
 		check(not CinemaPlan.check(Config, { seconds = 3 }), "too short")
 		check(not CinemaPlan.check(Config, { seconds = 25 }), "too long")
@@ -12834,7 +12911,7 @@ do
 			},
 		}
 		local p = ProfileSchema.load(serde.decode("json", serde.encode("json", old)))
-		check(p.version == ProfileSchema.VERSION and ProfileSchema.VERSION == 11, "save version 11")
+		check(p.version == ProfileSchema.VERSION and ProfileSchema.VERSION >= 11, "save version 11 or later")
 		local c = p.characters[1]
 		check(
 			c.story.quests == nil and c.story.menu == nil and c.story.pinned == 0,
@@ -17619,6 +17696,809 @@ do
 		local w = string.find(cb, "SideQuestSites.warm(Config, world)", 1, true)
 		local c = string.find(cb, "world.tilePlans = {}", 1, true)
 		check(w ~= nil and c ~= nil and w < c, "CityBuilder warms the picks before dropping the plans")
+	end)
+end
+
+---------------------------------------------------------------------------
+-- Lore step 11, the Underwater chain: The Sunken City. Config.SideQuests (the chain, Doc Pearl, the deep sites
+-- ReefStation, DrownedGate and TideSpire, the Tidewright's guise), Shared.SideQuestSites.deep (sites on the sea
+-- floor, picked by rule from Shared.DeepLayout), deepSpot and deepPath (goals in the open water), PocketLayout
+-- "velmara" (the drowned city under its air dome), the scenes on the wide seen bits, the reward, the Dev panel.
+---------------------------------------------------------------------------
+
+do
+	local SideQuestPlan = require("../src/shared/SideQuestPlan")
+	local SideQuestSites = require("../src/shared/SideQuestSites")
+	local CreatorRules = require("../src/shared/CreatorRules")
+	local CinemaPlan = require("../src/shared/CinemaPlan")
+	local StoryPlan = require("../src/shared/StoryPlan")
+	local DeepLayout = require("../src/shared/DeepLayout")
+	local LookCodec = require("../src/shared/LookCodec")
+	local fs = require("@lune/fs")
+	local SQ = Config.SideQuests
+	local S = SideQuestPlan.chain(Config, "SunkenCity") :: any
+	local SIDES = { "hero", "villain" }
+	local SEA = { "Diver", "Anchor", "TorpedoSentry" }
+	local SITES = { "ReefStation", "DrownedGate", "TideSpire" }
+	local GS = SQ.finale.guises.Tidewright
+
+	local function flat(ax: number, az: number, bx: number, bz: number): number
+		return math.sqrt((ax - bx) ^ 2 + (az - bz) ^ 2)
+	end
+
+	local function afterSafehouse(): any
+		local c = ProfileSchema.newCharacter()
+		c.story.missions = StoryPlan.setBit(StoryPlan.setBit(0, 1), 2)
+		return c
+	end
+
+	local function deepCopy(v: any): any
+		if type(v) ~= "table" then
+			return v
+		end
+		local out = {}
+		for k, x in v do
+			out[k] = deepCopy(x)
+		end
+		return out
+	end
+
+	-- the validator's problems with an edited copy of Config.SideQuests
+	local function problems(edit: (any) -> ()): string
+		local sq = deepCopy(SQ)
+		edit(sq)
+		local C = setmetatable({ SideQuests = sq }, { __index = Config })
+		return table.concat(SideQuestPlan.validate(C), " | ")
+	end
+
+	test(
+		"Lore 11 Underwater: The Sunken City validates: 8 Underwater quests, each side's flavour, the Tidewright",
+		function()
+			local bad = SideQuestPlan.validate(Config)
+			for _, b in bad do
+				check(false, b)
+			end
+			check(#bad == 0, "the chain validator passes")
+			check(S ~= nil and not S.dev, "a real chain")
+			check(
+				#S.steps == 8 and S.layer == "district" and S.district == "Underwater",
+				"8 Underwater quests"
+			)
+			local pl = SQ.givers.Pearl
+			check(S.giver == "Pearl" and not pl.dev and pl.anchor == "site", "Doc Pearl gives it at a site")
+			check(S.site == "ReefStation" and pl.site == "ReefStation", "at the Reef Station")
+			check(S.bit == 8, "chain save bit 8")
+			for _, other in SQ.chains do
+				check(other == S or other.bit ~= S.bit, "its own save bit (" .. tostring(other.id) .. ")")
+			end
+			local last = S.steps[#S.steps]
+			local fin = SideQuestPlan.goal(last, "hero") :: any
+			check(
+				SideQuestPlan.shared(last)
+					and fin.kind == "finale"
+					and fin.enemy == "Anchor"
+					and fin.guise == "Tidewright",
+				"the Tidewright (a sea brute in his guise), both sides together"
+			)
+			check(table.find(SQ.finale.enemies, "Anchor") ~= nil, "the sea brute is on the finale list")
+			check(GS.base == "Anchor", "the guise is worn over the sea brute")
+			local kinds = { hero = {}, villain = {} }
+			local split = 0
+			for i, step in S.steps do
+				check(
+					SideQuestSites.isDeep(SQ.sites[step.at or S.site]),
+					"step " .. i .. " is on the sea floor"
+				)
+				for _, side in SIDES do
+					local g = SideQuestPlan.goal(step, side) :: any
+					kinds[side][g.kind] = true
+					check(
+						table.find(SQ.deep.kinds, g.kind) ~= nil,
+						"step " .. i .. ": " .. g.kind .. " works underwater"
+					)
+				end
+				if SideQuestPlan.shared(step) then
+					local g = SideQuestPlan.goal(step, "hero") :: any
+					check(
+						type(g.villainText) == "string" and g.villainText ~= g.text,
+						"step " .. i .. ": the Syndicate reads its own goal"
+					)
+				else
+					split += 1
+					check(
+						SideQuestPlan.text(SideQuestPlan.goal(step, "hero"), "hero")
+							~= SideQuestPlan.text(SideQuestPlan.goal(step, "villain"), "villain"),
+						"step " .. i .. ": each side's own job"
+					)
+				end
+			end
+			check(split >= 5, "most steps give each side its own job (" .. split .. ")")
+			-- the Vigil rescue and protect the shore; the Dread Syndicate loot the drowned city
+			for _, k in { "fight", "find", "deliver", "carry", "hold" } do
+				check(kinds.hero[k] == true, "the Vigil: " .. k)
+			end
+			for _, k in { "fetch", "chase", "hold", "race", "find" } do
+				check(kinds.villain[k] == true, "the Syndicate: " .. k)
+			end
+			check(kinds.hero.pocket and kinds.villain.pocket, "inside Velmara, both sides")
+			-- every robot is a sea robot, and no diver in the air dome (a sea flyer stays in the water)
+			local seaOnly, dry = true, true
+			local function row(kind: string, inPocket: boolean)
+				seaOnly = seaOnly and table.find(SEA, kind) ~= nil
+				if inPocket and kind == "Diver" then
+					dry = false
+				end
+			end
+			for _, step in S.steps do
+				for _, side in SIDES do
+					local g = SideQuestPlan.goal(step, side) :: any
+					for _, r in g.squads or {} do
+						row(r[1], false)
+					end
+					for _, r in g.adds or {} do
+						row(r[1], false)
+					end
+					if g.guards then
+						row(g.guards[1], false)
+					end
+					if g.kind == "chase" or g.kind == "finale" then
+						row(g.enemy, false)
+					end
+					for _, s in g.steps or {} do
+						for _, r in s.squads or {} do
+							row(r[1], true)
+						end
+						for _, r in s.waves or {} do
+							row(r[1], true)
+						end
+						if s.adds then
+							row(s.adds[1], true)
+						end
+						if s.enemy then
+							row(s.enemy, true)
+						end
+					end
+					check(g.kind ~= "photo" and g.kind ~= "escort", "no street-only kind")
+				end
+			end
+			check(seaOnly, "every robot in the chain is a sea robot (Diver, Anchor, Torpedo Sentry)")
+			check(dry, "no Diver inside the air dome")
+			for _, k in SEA do
+				check(
+					Config.Enemies[k].sea == true and Config.Enemies[k].typeId < 32,
+					k .. ": an existing sea type"
+				)
+			end
+			local who = {}
+			for _, step in S.steps do
+				for _, l in step.lines or {} do
+					who[l.who] = true
+				end
+			end
+			for _, w in { "Pearl", "patch", "lodestar", "tidewright", "marlo" } do
+				check(who[w] == true, "speaks: " .. w)
+			end
+			for _, w in { "tidewright", "marlo" } do
+				local sp = Config.Story.guides.speakers[w]
+				check(
+					sp ~= nil and sp.portrait ~= nil and Config.Audio.sounds[sp.blip] ~= nil,
+					w .. ": a guide speaker with a portrait and a blip"
+				)
+			end
+		end
+	)
+
+	test("Lore 11 Underwater: three scenes on the wide seen bits 128 up; the comic page draws", function()
+		local wb = Config.Cinema.wideBits
+		check(wb.from == 128 and wb.to == 255, "the wide range is 128 to 255")
+		check(wb.to < ProfileSchema.SEEN_WORDS * 32, "it fits the seen words")
+		local want = { velmaraLights = 128, tidewrightTale = 129, tidewrightRises = 130 }
+		local used = {}
+		for _, step in S.steps do
+			if step.scene then
+				used[step.scene] = true
+				local s = Config.Cinema.scenes[step.scene]
+				check(s ~= nil and s.client == true, step.scene .. ": a device scene")
+				check(s and CinemaPlan.check(Config, s), step.scene .. ": 5 to 20 s")
+				check(s and s.bit == want[step.scene], step.scene .. ": its bit")
+				check(
+					s and CinemaPlan.namedBit(Config, s.bit) and CinemaPlan.clientBit(Config, s.bit),
+					step.scene .. ": a named bit a device may send"
+				)
+				for _, l in (s and s.lines) or {} do
+					check(
+						Config.Story.guides.speakers[l.who] ~= nil or SQ.givers[l.who] ~= nil,
+						step.scene .. ": speaker " .. tostring(l.who)
+					)
+				end
+			end
+		end
+		for id in want do
+			check(used[id] == true, id .. " plays in the chain")
+		end
+		check(S.steps[#S.steps].scene ~= nil, "a scene before the Tidewright's finale")
+		local seenBits = {}
+		for id, s in Config.Cinema.scenes do
+			check(not seenBits[s.bit], "scene bit " .. s.bit .. " used once (" .. id .. ")")
+			seenBits[s.bit] = true
+		end
+		local page = Config.Cinema.comic.pages.tidewrightTale
+		check(page ~= nil and #page.panels == 4, "the last guardian's tale is a comic page")
+		local hud = fs.readFile("src/client/Ui/CinemaHud.luau")
+		for _, p in page.panels do
+			check(
+				string.find(hud, 'kind == "' .. p.scene .. '"', 1, true) ~= nil,
+				"the comic draws " .. p.scene
+			)
+		end
+	end)
+
+	test("Lore 11 Underwater: the finale's name card: THE TIDEWRIGHT on the last step only", function()
+		for i = 1, #S.steps - 1 do
+			check(SideQuestPlan.card(S, i) == nil, "no card on step " .. i)
+		end
+		local card = SideQuestPlan.card(S, #S.steps) :: any
+		check(card ~= nil and card.name == "THE TIDEWRIGHT", "the finale's card names the Tidewright")
+		check(card and card.title == "LAST GUARDIAN OF VELMARA", "and his title")
+		check(
+			SideQuestPlan.fixedText(card.name, 32) == nil and SideQuestPlan.fixedText(card.title, 32) == nil,
+			"fixed text that fits the card"
+		)
+	end)
+
+	test(
+		"Lore 11 Underwater: it opens after the Safehouse at the Coral Shelf's level for both sides; Pearl offers it",
+		function()
+			local shelf = Config.Deep.zoneFloor.shelf
+			check(
+				S.unlock.level == shelf and S.unlock.story == 2,
+				"the Safehouse and the shelf's level floor"
+			)
+			for _, side in SIDES do
+				local c = ProfileSchema.newCharacter()
+				c.story.missions = StoryPlan.setBit(0, 1)
+				local st, why, n = SideQuestPlan.state(Config, c, S, 30, side)
+				check(st == "locked" and why == "story" and n == 2, side .. ": waits for the Safehouse")
+				local d = afterSafehouse()
+				local st2, why2, lv = SideQuestPlan.state(Config, d, S, shelf - 1, side)
+				check(
+					st2 == "locked" and why2 == "level" and lv == shelf,
+					side .. ": and the shelf's level floor"
+				)
+				check(
+					SideQuestPlan.state(Config, d, S, shelf, side) == "open",
+					side .. ": open at level " .. shelf
+				)
+				local pick, kind = SideQuestPlan.talkPick(Config, d, "Pearl", shelf, side, false)
+				check(pick == S and kind == "offer", side .. ": Pearl offers it")
+				check(SideQuestPlan.fixedText(S.blurb[side], 90) == nil, side .. ": the page's line")
+				check(SideQuestPlan.fixedText(S.lines.offer[side], 120) == nil, side .. ": Pearl's offer")
+				check(
+					SideQuestPlan.talkPick(Config, d, "Nell", shelf + 10, side, false) ~= S,
+					side .. ": Nell never offers it"
+				)
+			end
+			local J = fs.readFile("src/client/Ui/Journal.luau")
+			check(
+				string.find(J, 'Underwater = "the Coral Shelf"', 1, true) ~= nil,
+				"the Journal names the shelf"
+			)
+		end
+	)
+
+	test(
+		"Lore 11 Underwater: the deep sites are on the Coral Shelf, picked by rule, clear of the sea's spots",
+		function()
+			local L = DeepLayout.build(Config)
+			local wy = Config.World.coast.waterY
+			local picks = {}
+			for _, id in SITES do
+				local st = SQ.sites[id]
+				check(SideQuestSites.isDeep(st) and st.deep == "shelf", id .. ": a deep site on the shelf")
+				check(not SideQuestSites.isDeep(SQ.sites.GullPier), "a pier is not a deep site")
+				local b, door = SideQuestSites.place(Config, world, id)
+				check(b ~= nil and door ~= nil, id .. ": a spot fits")
+				if b and door then
+					picks[id] = b
+					check(
+						b.area == "shelf" and DeepLayout.area(Config, b.x, b.z, nil) == "shelf",
+						id .. ": on the shelf"
+					)
+					local floor = DeepLayout.floorAt(Config, b.x, b.z, nil) :: number
+					near(b.y, floor, 1e-6, id .. ": on the seabed")
+					check(DeepLayout.underwater(Config, b.x, b.y + 2, b.z), id .. ": under the sea")
+					local depth = wy - floor
+					check(depth >= st.depth[1] and depth <= st.depth[2], id .. ": " .. depth .. " studs deep")
+					check(flat(b.x, b.z, st.near[1], st.near[2]) <= st.reach, id .. ": near its spot")
+					local a = st.away
+					for _, c in L.caches do
+						check(flat(b.x, b.z, c.x, c.z) >= a.cache, id .. ": clear of a cache")
+					end
+					for _, r in L.rescues do
+						check(flat(b.x, b.z, r.x, r.z) >= a.rescue, id .. ": clear of a rescue")
+					end
+					check(
+						flat(b.x, b.z, L.arena.x, L.arena.z) - L.arena.radius >= a.arena,
+						id .. ": clear of the Leviathan Engine's arena"
+					)
+					local clear = true
+					for _, x in L.boxes do
+						if flat(b.x, b.z, x.cx, x.cz) < math.max(x.sx, x.sz) / 2 + a.reef then
+							clear = false
+						end
+					end
+					check(clear, id .. ": clear of every reef, kelp stand and wreck")
+					check(door.y == b.y and door.x == b.x and door.z == b.z, id .. ": the way in is the spot")
+					check(math.abs(door.fx) + math.abs(door.fz) == 1, id .. ": facing along an axis")
+					-- the same world for every seed (the underwater world is never seeded)
+					local wd = WorldMap.build(Config, 202720)
+					local again = SideQuestSites.place(Config, wd, id)
+					check(
+						again and again.x == b.x and again.z == b.z,
+						id .. ": the same spot on every server"
+					)
+				end
+			end
+			for i, a in SITES do
+				for j, b in SITES do
+					if i < j and picks[a] and picks[b] then
+						check(
+							flat(picks[a].x, picks[a].z, picks[b].x, picks[b].z) >= SQ.sites[b].away.site
+								or SQ.sites[b].away.site == 0,
+							a .. " and " .. b .. " are apart"
+						)
+					end
+				end
+			end
+			local gate, spire = picks.DrownedGate, picks.TideSpire
+			check(
+				gate and spire and flat(gate.x, gate.z, spire.x, spire.z) >= 300,
+				"the gate and the spire are apart"
+			)
+			-- land sites never pick a deep site's spot as one to keep from, and keep their own picks
+			check(SideQuestSites.building(Config, world, "ReefStation") == nil, "never a Downtown building")
+		end
+	)
+
+	test("Lore 11 Underwater: goals under the sea are in the open water: deepSpot and deepPath", function()
+		local rng = Rng.new(77)
+		local function rnd(): number
+			return rng:next()
+		end
+		local arena = SQ.deep.arena
+		for _, id in SITES do
+			local b = SideQuestSites.place(Config, world, id) :: any
+			for _ = 1, 40 do
+				local p = SideQuestSites.deepSpot(Config, b.x, b.z, 40, 120, rnd)
+				check(p ~= nil, id .. ": a spot fits")
+				if p then
+					local d = flat(p[1], p[3], b.x, b.z)
+					check(d >= 40 - 1e-6 and d <= 120 + 1e-6, id .. ": in range")
+					local floor = DeepLayout.floorAt(Config, p[1], p[3], nil) :: number
+					near(p[2], floor + 2, 1e-6, id .. ": just over the seabed")
+					check(SideQuestSites.openSea(Config, p[1], p[2], p[3], arena), id .. ": open sea")
+				end
+			end
+			for _ = 1, 10 do
+				local path = SideQuestSites.deepPath(Config, b.x, b.z, 5, 60, SQ.deep.lift, rnd)
+				check(path ~= nil and #path >= 4, id .. ": a swim of rings")
+				local px, pz = b.x, b.z
+				for _, q in path or {} do
+					near(flat(q[1], q[3], px, pz), 60, 1e-6, id .. ": rings 60 apart")
+					check(
+						SideQuestSites.openSea(Config, q[1], q[2], q[3], arena),
+						id .. ": a ring in open sea"
+					)
+					local floor = DeepLayout.floorAt(Config, q[1], q[3], nil) :: number
+					check(q[2] > floor + 1 and q[2] <= Config.World.coast.waterY - 4, id .. ": at mid depth")
+					px, pz = q[1], q[3]
+				end
+			end
+		end
+		check(not SideQuestSites.openSea(Config, 0, 5, 0, arena), "the city is not open sea")
+		local ar = DeepLayout.build(Config).arena
+		local fl = DeepLayout.floorAt(Config, ar.x, ar.z, nil) or -100
+		check(
+			not SideQuestSites.openSea(Config, ar.x, fl + 2, ar.z, arena),
+			"nor the Leviathan Engine's arena"
+		)
+		local svc = fs.readFile("src/server/Services/SideQuestService.luau")
+		for _, s in { "SideQuestSites.deepSpot(", "SideQuestSites.deepPath(", "DeepLayout.underwater(" } do
+			check(string.find(svc, s, 1, true) ~= nil, "the service builds deep goals with " .. s)
+		end
+		check(string.find(svc, "EnemyService.dress(", 1, true) ~= nil, "and dresses a guise")
+	end)
+
+	test("Lore 11 Underwater: the validator checks deep sites, deep kinds and guises", function()
+		check(problems(function() end) == "", "the copy is clean")
+		local function has(edit: (any) -> (), want: string, label: string)
+			local p = problems(edit)
+			check(string.find(p, want, 1, true) ~= nil, label .. " (" .. p .. ")")
+		end
+		has(function(sq)
+			sq.sites.ReefStation.district = "Coast"
+		end, "ReefStation: district Coast", "a deep site is Underwater")
+		has(function(sq)
+			sq.sites.ReefStation.away.cache = nil
+		end, "away.cache", "a deep site keeps from the caches")
+		has(function(sq)
+			sq.sites.ReefStation.deep = "trench"
+		end, "trench", "only an open area")
+		has(function(sq)
+			sq.sites.ReefStation.lot = "corner"
+		end, "only on the sea floor", "no city lot under the sea")
+		has(function(sq)
+			for _, c in sq.chains do
+				if c.id == "SunkenCity" then
+					c.steps[2].hero.kind = "photo"
+				end
+			end
+		end, "photo", "a kind that needs streets is refused under the sea")
+		has(function(sq)
+			for _, c in sq.chains do
+				if c.id == "SunkenCity" then
+					c.steps[8].hero.guise = "Nobody"
+				end
+			end
+		end, "guise", "an unknown guise")
+		has(function(sq)
+			sq.finale.guises.Tidewright.base = "Diver"
+		end, "guise", "a guise over another type")
+		has(function(sq)
+			sq.finale.guises.Tidewright.dmgMult = 3
+		end, "dmgMult", "a guise's damage lift is capped")
+		has(function(sq)
+			sq.finale.guises.Tidewright.path = "Nope"
+		end, "path", "a guise's path is a power path")
+	end)
+
+	test(
+		"Lore 11 Underwater: Velmara: the terrace, the fountain, the stair and the engine hall under it",
+		function()
+			check(PocketLayout.known("velmara"), "a pocket layout")
+			local l = PocketLayout.build(Config, 1, "velmara")
+			check(#l.boxes < 400, "under 400 parts (" .. #l.boxes .. ")")
+			local sp = l.points.spawn
+			check(PocketLayout.at(Config, sp[1], sp[2], sp[3]) == 1, "the spawn is inside its pocket")
+			check(#(l.lists.rooms or {}) >= 2, "two market streets")
+			check(#(l.lists.pumps or {}) >= 4, "four tide engines")
+			for _, p in { "fountain", "stairhead", "engines", "boss" } do
+				check(l.points[p] ~= nil, "has " .. p)
+			end
+			local terrace = PocketLayout.heightAt(l, sp[1], sp[3])
+			check(terrace > l.floorY + 15, "the terrace stands over the engine hall")
+			for i, r in l.lists.rooms do
+				near(
+					PocketLayout.heightAt(l, r[1], r[3]),
+					terrace,
+					0.5,
+					"street " .. i .. " is on the terrace"
+				)
+			end
+			local f = l.points.fountain
+			check(PocketLayout.heightAt(l, f[1], f[3]) >= terrace - 0.01, "the fountain is on the terrace")
+			for _, name in { "engines", "boss" } do
+				local p = l.points[name]
+				near(PocketLayout.heightAt(l, p[1], p[3]), l.floorY, 0.01, name .. " is on the hall floor")
+			end
+			for i, p in l.lists.pumps do
+				near(
+					PocketLayout.heightAt(l, p[1], p[3]),
+					l.floorY,
+					0.01,
+					"engine " .. i .. " is on the floor"
+				)
+			end
+			local b = l.points.boss
+			local over = false
+			for _, x in l.boxes do
+				if
+					x.tag == "ceiling"
+					and math.abs(x.cx - b[1]) <= x.sx / 2
+					and math.abs(x.cz - b[3]) <= x.sz / 2
+					and x.cy > l.floorY + 15
+				then
+					over = true
+				end
+			end
+			check(over, "the engine hall is under the terrace")
+			local from, to = l.points.stairhead, l.points.engines
+			local prev = PocketLayout.heightAt(l, from[1], from[3])
+			local ok = true
+			for z = from[3], to[3], -1 do
+				local h = PocketLayout.heightAt(l, from[1], z)
+				if h > prev + 1e-6 or prev - h > 2.5 then
+					ok = false
+				end
+				prev = h
+			end
+			check(ok and math.abs(prev - l.floorY) < 0.01, "the great stair walks down to the hall")
+			local pocket = SideQuestPlan.goal(S.steps[5], "hero") :: any
+			check(pocket.kind == "pocket" and pocket.layout == "velmara", "step 5 is inside Velmara")
+			local used = {}
+			for _, s in pocket.steps do
+				used[s.kind] = true
+				if s.at then
+					check(l.points[s.at] ~= nil, s.kind .. " at " .. s.at)
+				end
+				if s.room then
+					check(l.lists.rooms[s.room] ~= nil, s.kind .. " in street " .. s.room)
+				end
+				if s.list then
+					check(#(l.lists[s.list] or {}) >= (s.points or 1), s.kind .. " on " .. s.list)
+				end
+			end
+			check(
+				used.defeat and used.hold and used.reach and used["break"] and used.boss,
+				"streets, fountain, stair, engines, warden"
+			)
+		end
+	)
+
+	test(
+		"Lore 11 Underwater: the Tidewright's guise: his look, his plate, a boss-lite, no new type",
+		function()
+			local profile = ProfileSchema.default()
+			for _, p in CreatorRules.index(Config).list do
+				if p.source.kind ~= "pack" and p.source.kind ~= "starter" then
+					CreatorRules.grant(profile, p)
+				end
+			end
+			local function lookOk(look: any, label: string)
+				local ok, why = CreatorRules.validate(Config, profile, look)
+				check(ok, label .. "'s look validates (" .. tostring(why) .. ")")
+				for slot, i in look.pieces do
+					if i > 0 then
+						local p = CreatorRules.piece(Config, slot, i)
+						check(
+							p ~= nil and p.source.kind ~= "pack",
+							label .. " " .. slot .. " is never a Robux piece"
+						)
+					end
+				end
+			end
+			lookOk(FakeRules.lookFrom(Config, SQ.givers.Pearl.look, "Pearl"), "Doc Pearl")
+			local look = FakeRules.lookFrom(Config, GS.look, "Tidewright")
+			lookOk(look, "The Tidewright")
+			check(Config.Enemies.look.builds[GS.body.build] == look.build, "his robot build matches his look")
+			local words = LookCodec.write(look :: any)
+			local back = LookCodec.read(words) :: any
+			check(
+				back ~= nil and back.build == look.build and back.hair == look.hair,
+				"his look rides EnemyIdentity's words"
+			)
+			-- no new type: typeIds 1 to 31 are full, so the guise reuses the sea brute
+			local ids = {}
+			for _, kind in Config.Enemies.order do
+				local t = Config.Enemies[kind].typeId
+				check(not ids[t], "typeId " .. t .. " used once")
+				ids[t] = true
+				check(t >= 1 and t <= 31, kind .. " fits 5 bits")
+			end
+			for _, kind in Config.Enemies.order do
+				check(Config.Enemies[kind].name ~= "The Tidewright", "no robot type named the Tidewright")
+			end
+			local plate = FakeRules.plate(Config, "Anchor", false, { name = GS.name, title = GS.title })
+			check(plate.name == "THE TIDEWRIGHT" and plate.sub == GS.title and not plate.red, "his plate")
+			check(GS.costumed == true, "a guardian, not a fake: never cracks or reads FAKE")
+			check(
+				table.find(ProfileSchema.PATHS, GS.path) ~= nil,
+				"his attacks are drawn in a power path's look"
+			)
+			check(GS.body.trident == true and GS.body.height == 9, "a tall guardian with a trident")
+			-- health and damage: the other chains' boss-lites (Brine: 2200 x 3)
+			local fin = SideQuestPlan.goal(S.steps[8], "hero") :: any
+			local hp = Config.Enemies.Anchor.hp * fin.hpMult
+			check(
+				hp >= Config.Enemies.CaptainBrine.hp * 2 and hp <= Config.Enemies.CaptainBrine.hp * 4,
+				"boss-lite health (" .. hp .. ")"
+			)
+			for _, lv in { 12, 20, 50 } do
+				local elite = 0
+				for _, kind in Config.Enemies.order do
+					local cfg = Config.Enemies[kind]
+					if cfg.elite and not cfg.fake then
+						elite = math.max(elite, robotDps(kind, lv))
+					end
+				end
+				local boss = 0
+				for id in Config.Boss.bosses do
+					boss = math.max(boss, bossDps(id, lv))
+				end
+				local d = robotDps("Anchor", lv) * GS.dmgMult
+				check(
+					d > elite and d < boss,
+					string.format(
+						"L%d the Tidewright %.1f between elite %.1f and boss %.1f",
+						lv,
+						d,
+						elite,
+						boss
+					)
+				)
+			end
+			local rend = fs.readFile("src/client/Controllers/EnemyRenderer.luau")
+			check(string.find(rend, "finale.guises[ident.guise]", 1, true) ~= nil, "devices draw the guise")
+			check(string.find(rend, "body.trident", 1, true) ~= nil, "and his trident")
+			local es = fs.readFile("src/server/Services/EnemyService.luau")
+			check(
+				string.find(es, "function EnemyService.dress(", 1, true) ~= nil,
+				"the server dresses the robot"
+			)
+		end
+	)
+
+	for _, lead in SIDES do
+		local mate = if lead == "hero" then "villain" else "hero"
+		local label = if lead == "villain" then "the Syndicate" else "the Vigil"
+		test(
+			"Lore 11 Underwater: The Sunken City as " .. label .. ": all 8 steps co-op with the other side",
+			function()
+				local a, b = afterSafehouse(), afterSafehouse()
+				check(SideQuestPlan.accept(Config, a, S, 14, lead, false), "the lead takes it from Pearl")
+				check(SideQuestPlan.accept(Config, b, S, 14, mate, true), "the squadmate from the Journal")
+				for i, step in S.steps do
+					check(
+						SideQuestPlan.stepOf(a, S) == i and SideQuestPlan.stepOf(b, S) == i,
+						"both on step " .. i
+					)
+					local g = SideQuestPlan.newGroup(S.id, i)
+					local ka, newA = SideQuestPlan.join(g, step, "lead", lead)
+					local kb, newB = SideQuestPlan.join(g, step, "mate", mate)
+					if SideQuestPlan.shared(step) then
+						check(
+							ka == "both" and kb == "both" and newA and not newB,
+							"step " .. i .. ": one shared goal"
+						)
+					else
+						check(
+							ka == lead and kb == mate and newA and newB,
+							"step " .. i .. ": a goal per side"
+						)
+					end
+					check(
+						SideQuestPlan.set(g, ka, g.sides[ka].need),
+						"step " .. i .. ": the lead's side finishes"
+					)
+					if ka ~= kb then
+						check(
+							SideQuestPlan.waiting(g, ka) and not SideQuestPlan.groupDone(g),
+							"step " .. i .. ": and waits for the other side"
+						)
+						check(
+							SideQuestPlan.set(g, kb, g.sides[kb].need),
+							"step " .. i .. ": the other side finishes"
+						)
+					end
+					check(SideQuestPlan.groupDone(g), "step " .. i .. ": done for the group")
+					local last = i == #S.steps
+					for _, c in { a, b } do
+						check(
+							SideQuestPlan.advance(c, S) == (if last then "done" else "next"),
+							"step " .. i .. " moves on"
+						)
+					end
+				end
+				for n, c in { a, b } do
+					check(
+						SideQuestPlan.isDone(c, S) and c.story.pinned == 0 and c.sq.at.SunkenCity == nil,
+						"done, untracked"
+					)
+					check(SideQuestPlan.chainPay(Config, S, 14) > 0, "the end pay")
+					check(
+						not SideQuestPlan.accept(Config, c, S, 14, if n == 1 then lead else mate, false),
+						"once only"
+					)
+					check(
+						not SideQuestPlan.isDone(c, SideQuestPlan.chain(Config, "SaltDogs")),
+						"the Salt Dogs are untouched"
+					)
+				end
+			end
+		)
+	end
+
+	test(
+		"Lore 11 Underwater: the reward is Tide Turner and the Coral Crest; nothing chain-specific",
+		function()
+			local cos = SideQuestPlan.cosmetic(S)
+			local n = 0
+			for _ in cos do
+				n += 1
+			end
+			check(n == 2 and cos.title == "Tide Turner" and cos.style == "CoralCrest", "a title and a style")
+			check(Config.Story.unlocks.titles["Tide Turner"] == 12, "a story title (bit 12)")
+			local tb = {}
+			for name, tbit in Config.Story.unlocks.titles do
+				check(not tb[tbit], "title bit " .. tbit .. " used once (" .. name .. ")")
+				tb[tbit] = true
+			end
+			check(GearMath.questStyle(Config, "CoralCrest") ~= nil, "the Coral Crest is a gear style")
+			local styles = 0
+			for _, slot in Config.Gear.slotOrder do
+				local ns = {}
+				for _, row in Config.Gear.styles[slot] do
+					check(not ns[row.n], slot .. " style n " .. row.n .. " used once")
+					ns[row.n] = true
+					if row.quest == "CoralCrest" then
+						styles += 1
+						check(row.tier == "Story" and row.price == nil, "never rolled, never sold")
+					end
+				end
+			end
+			check(styles == 1, "one Coral Crest")
+			for _, k in { "credits", "renown", "skillPoints", "loot", "gadget", "dust", "xp" } do
+				check(S.reward[k] == nil, "no " .. k)
+			end
+			for _, f in
+				{
+					"src/server/Services/SideQuestService.luau",
+					"src/server/Services/EnemyService.luau",
+					"src/client/Controllers/EnemyRenderer.luau",
+					"src/shared/SideQuestSites.luau",
+				}
+			do
+				local src = fs.readFile(f)
+				for _, w in { "SunkenCity", "Tidewright", "ReefStation", "TideSpire", "DrownedGate" } do
+					check(
+						string.find(src, '"' .. w .. '"', 1, true) == nil,
+						f .. ": nothing chain-specific (" .. w .. ")"
+					)
+				end
+			end
+		end
+	)
+
+	test("Lore 11 Underwater: no old names or main-story names; the Dev panel covers it", function()
+		local ARC =
+			{ "Bellweather", "Mayor", "Pip", "Maribel", "Tamsin", "Quill", "Iron Dee", "IronDee", "Skye" }
+		local hits = {}
+		local function walk(v: any, path: string)
+			if type(v) == "string" then
+				local w = oldLore(v)
+				if w then
+					table.insert(hits, path .. ": " .. w)
+				end
+				for _, a in ARC do
+					if string.find(v, "%f[%w]" .. a .. "%f[%W]") then
+						table.insert(hits, path .. ": " .. a)
+					end
+				end
+				for _, a in { "Crane", "Halcyon", "Adrian Vale", "Null" } do
+					if string.find(v, "%f[%w]" .. a .. "%f[%W]") then
+						table.insert(hits, path .. ": " .. a .. " (standalone chain)")
+					end
+				end
+			elseif type(v) == "table" then
+				for k, x in v do
+					walk(x, path .. "." .. tostring(k))
+				end
+			end
+		end
+		walk(S, "SunkenCity")
+		walk(SQ.givers.Pearl, "Pearl")
+		walk(GS, "Tidewright guise")
+		for _, id in SITES do
+			walk(SQ.sites[id], id)
+		end
+		walk(Config.Story.guides.speakers.tidewright, "tidewright")
+		walk(Config.Story.guides.speakers.marlo, "marlo")
+		for _, id in { "velmaraLights", "tidewrightTale", "tidewrightRises" } do
+			walk(Config.Cinema.scenes[id], id)
+		end
+		walk(Config.Cinema.comic.pages.tidewrightTale, "tidewrightTale page")
+		for _, h in hits do
+			check(false, "an old name: " .. h)
+		end
+		check(#hits == 0, "no old lore, retired arc names or main-story names")
+		local idx = table.find(SQ.chains, S) :: number
+		check(idx ~= nil and 300 + idx <= 1000, "the Dev panel's SQ chain button reaches it")
+		local dev = fs.readFile("src/client/Ui/DevPanel.luau")
+		check(
+			string.find(dev, "if not ch.dev then", 1, true) ~= nil,
+			"every real chain is on the SQ chain button"
+		)
+		check(#S.steps <= SQ.maxSteps, "every step fits SQ: start step")
 	end)
 end
 

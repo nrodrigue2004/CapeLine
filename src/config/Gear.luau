@@ -262,6 +262,16 @@ return {
 				quest = "HarvestCrown",
 				color = { 225, 185, 70 },
 			},
+			-- side quest reward (lore step 11, The Sunken City): a crest of coral fins from Velmara's guardian. Never
+			-- rolled, never sold.
+			{
+				n = 27,
+				name = "Coral Crest",
+				shape = "fin",
+				tier = "Story",
+				quest = "CoralCrest",
+				color = { 255, 130, 120 },
+			},
 			-- Fame and Infamy rank rewards (M8): never rolled by loot (tier "Fame")
 			{
 				n = 21,
