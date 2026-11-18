@@ -119,7 +119,7 @@ return {
 		},
 		CoolingKill = {
 			name = "Cooling Kill",
-			text = "A kill refunds 20% of your super's cooldown",
+			text = "Each defeat refunds 20% of your super's cooldown",
 			refund = 0.20,
 			pvp = "half",
 		},

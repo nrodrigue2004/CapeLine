@@ -121,7 +121,7 @@ return {
 	signatureOrder = { "droneSwarm", "chainHook", "mineField", "groundSlam", "sniperLine", "shieldWall" },
 	-- traits it gains (each shows on its body): bit order is the list order
 	traits = {
-		{ id = "plates", name = "Armour Plates", taken = 0.75 }, -- takes 25% less
+		{ id = "plates", name = "Armor Plates", taken = 0.75 }, -- takes 25% less
 		{ id = "second", name = "Second Signature" }, -- a second signature attack
 		{ id = "healDrone", name = "Heal Drone", heal = 0.015 }, -- heals 1.5% health a second in a fight
 		{ id = "cloak", name = "Cloak", every = 15, time = 3, taken = 0.5 }, -- flickers out: half damage

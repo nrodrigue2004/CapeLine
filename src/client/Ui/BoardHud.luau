@@ -154,7 +154,7 @@ local function draw()
 	drawInfo(d)
 	drawYou(d)
 	if not d then
-		Kit.stateNote(body, "loading", "Reading the board")
+		Kit.stateNote(body, "loading", "Reading the board...")
 		return
 	end
 	if d.error then
