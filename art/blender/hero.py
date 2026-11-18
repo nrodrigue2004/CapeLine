@@ -13,6 +13,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(__file__))
 import kit  # noqa: E402
+import template_uv  # noqa: E402
 import bpy  # noqa: E402
 from mathutils import Vector  # noqa: E402
 
@@ -57,6 +58,8 @@ def block(name, x0, x1, z0, z1, y0=-0.5, y1=0.5, bevel=BEVEL):
     m.width = bevel
     m.segments = 3
     m.limit_method = "NONE"
+    kit.apply_all(ob)
+    template_uv.apply(ob, name)  # classic Shirt and Pants need the template UVs (template_uv.py)
     return done(ob)
 
 

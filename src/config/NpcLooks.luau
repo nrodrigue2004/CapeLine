@@ -142,7 +142,7 @@ return {
 		-- art/export/clothes/uniforms/WindupToy_<Version>.png, and until then the toys wear the plain look in
 		-- their toy colours (PLACEHOLDER ART)
 		WindupToy = {
-			clothes = { Grunt = 0, Veteran = 0, Elite = 0 },
+			clothes = { Grunt = 125338535543008, Veteran = 94901321309103, Elite = 137346260559470 },
 			hair = { "BlondeSpiked", "Pal", "BrownCharmer" },
 		},
 		-- The Wind-Up Giant: the giant tin soldier as the toy band's drummer (2026-11-18 art pass): its chest a toy
@@ -151,7 +151,7 @@ return {
 		-- tin soldiers it leads. 0 until nate uploads WindupGiant_<Version>.png (its imported finale model,
 		-- Config.FinaleArt, wins over the clothes once it is in)
 		WindupGiant = {
-			clothes = { Grunt = 0, Veteran = 0, Elite = 0 },
+			clothes = { Grunt = 116267858023319, Veteran = 133930944910258, Elite = 89355233489116 },
 			hair = { "Pal", "BrownCharmer", "BlackPonytail" },
 		},
 		-- Captain Brine's Salt Dogs (lore step 11, the Coast chain): each version a rank of the robot crew, a
@@ -162,7 +162,7 @@ return {
 		-- 0 until nate uploads art/export/clothes/uniforms/SaltDog_<Version>.png, the plain look until then
 		-- (PLACEHOLDER ART)
 		SaltDog = {
-			clothes = { Grunt = 0, Veteran = 0, Elite = 0 },
+			clothes = { Grunt = 122780860811722, Veteran = 84435688682067, Elite = 81909675312609 },
 			hair = { "BlackPonytail", "LongRed", "Pal" },
 		},
 	},
@@ -176,53 +176,53 @@ return {
 	-- their visage's face. 0 until nate uploads art/export/clothes/people/<Name>.png: then today's look shows.
 	people = {
 		-- the givers
-		Gus = { clothes = 0, face = 0 }, -- the janitor's grey-blue work shirt, name patch, knee-padded work trousers
-		Benny = { clothes = 0, face = 0 }, -- a crimson valet jacket with gold buttons and braid, a bow tie
-		Scoops = { clothes = 0, face = 0 }, -- a pink and mint striped apron over a white tee, the cone badge
-		Dot = { clothes = 0, face = 0 }, -- a patched denim overall bib over an olive plaid shirt
-		Nell = { clothes = 0, face = 0 }, -- a navy cable-knit fisherman's sweater, oilskin trousers, the ferry badge
-		Pearl = { clothes = 0, face = 0 }, -- a teal wetsuit with coral side panels and the Reef Station patch
-		Brick = { clothes = 0, face = 0 }, -- an old champion's faded gym tank, track pants, hand wraps
-		Vanta = { clothes = 0, face = 0 }, -- a deep purple velvet gown with gold damask and a brooch
-		Nora = { clothes = 0, face = 0 }, -- a tan belted trench coat, a press pass, dark slacks
-		Okafor = { clothes = 0, face = 0 }, -- a lab coat over a teal blouse, the Ashgrove badge (struck through)
-		Ruth = { clothes = 0, face = 0 }, -- a mustard radio-wave cardigan, brown corduroys
-		Moth = { clothes = 0, face = 0 }, -- a plum tunic with embroidered moths, a long patterned skirt
-		Tess = { clothes = 0, face = 0 }, -- an orange mechanic's coverall, rolled sleeves, grease, the gear patch
-		Kiko = { clothes = 0, face = 0 }, -- a white student's gi with red trim
+		Gus = { clothes = 90835372619189, face = 128011914556574 }, -- the janitor's grey-blue work shirt, name patch, knee-padded work trousers
+		Benny = { clothes = 77647909642570, face = 0 }, -- a crimson valet jacket with gold buttons and braid, a bow tie
+		Scoops = { clothes = 82546057607636, face = 0 }, -- a pink and mint striped apron over a white tee, the cone badge
+		Dot = { clothes = 94130935264159, face = 0 }, -- a patched denim overall bib over an olive plaid shirt
+		Nell = { clothes = 118792768088018, face = 99065613077192 }, -- a navy cable-knit fisherman's sweater, oilskin trousers, the ferry badge
+		Pearl = { clothes = 89614858893997, face = 0 }, -- a teal wetsuit with coral side panels and the Reef Station patch
+		Brick = { clothes = 89934186422139, face = 134476856538221 }, -- an old champion's faded gym tank, track pants, hand wraps
+		Vanta = { clothes = 77552251176771, face = 0 }, -- a deep purple velvet gown with gold damask and a brooch
+		Nora = { clothes = 119652152249492, face = 0 }, -- a tan belted trench coat, a press pass, dark slacks
+		Okafor = { clothes = 84163299196364, face = 0 }, -- a lab coat over a teal blouse, the Ashgrove badge (struck through)
+		Ruth = { clothes = 125426921158688, face = 108844421504161 }, -- a mustard radio-wave cardigan, brown corduroys
+		Moth = { clothes = 85006947184834, face = 102562165830329 }, -- a plum tunic with embroidered moths, a long patterned skirt
+		Tess = { clothes = 123985374881711, face = 0 }, -- an orange mechanic's coverall, rolled sleeves, grease, the gear patch
+		Kiko = { clothes = 121345005850958, face = 118870206618802 }, -- a white student's gi with red trim
 		-- the named helpers (helpers below)
-		Wren = { clothes = 0, face = 0 }, -- Halo Academy's navy blazer with the crest, a grey skirt
-		Toby = { clothes = 0, face = 0 }, -- a rocket tee and denim dungaree shorts
-		Flint = { clothes = 0, face = 0 }, -- a young fighter's red training top with tape, fight shorts
-		Finn = { clothes = 0, face = 0 }, -- a deckhand's striped jersey under an orange life vest
-		Dace = { clothes = 0, face = 0 }, -- a salvage diver's orange and black drysuit with a harness
-		Ambrose = { clothes = 0, face = 0 }, -- a faded midnight tailcoat sewn with stars, a gold waistcoat
-		Hoshi = { clothes = 0, face = 0 }, -- a master's grey-blue gi over dark hakama
+		Wren = { clothes = 120770462105211, face = 80053424284031 }, -- Halo Academy's navy blazer with the crest, a grey skirt
+		Toby = { clothes = 109459450455037, face = 99017455954019 }, -- a rocket tee and denim dungaree shorts
+		Flint = { clothes = 101651817037827, face = 104664739780211 }, -- a young fighter's red training top with tape, fight shorts
+		Finn = { clothes = 85243876151673, face = 93652943274966 }, -- a deckhand's striped jersey under an orange life vest
+		Dace = { clothes = 105970090962187, face = 0 }, -- a salvage diver's orange and black drysuit with a harness
+		Ambrose = { clothes = 80795628424941, face = 120870507467317 }, -- a faded midnight tailcoat sewn with stars, a gold waistcoat
+		Hoshi = { clothes = 89076211480009, face = 71993929343764 }, -- a master's grey-blue gi over dark hakama
 		-- the finale villains
-		HeadmasterHalo = { clothes = 0, face = 0 }, -- an academic gown with the gold halo crest
-		Redline = { clothes = 0, face = 0 }, -- a red racing suit with checker stripes and flames
-		MasqueARade = { clothes = 0, face = 0 }, -- a purple and gold harlequin bodice and tights
-		HarvestKing = { clothes = 0, face = 0 }, -- mustard thresher overalls over a forest shirt, the wheat crown
-		Bramblebeast = { clothes = 0, face = 0 }, -- bark and vine skin with pumpkin rind plates (a creature)
-		CaptainBrine = { clothes = 0, face = 0 }, -- a riveted brass diving rig under a pirate coat's cuffs
-		Pitboss = { clothes = 0, face = 0 }, -- a maroon pinstripe tuxedo, gold lapels, a cummerbund
-		Tidewright = { clothes = 0, face = 0 }, -- a bronze and teal plated guardian's robe grown with coral
-		Vesper = { clothes = 0, face = 0, cracked = 0 }, -- a night-sky starfield bodysuit, the evening star
-		Catchpole = { clothes = 0, face = 0 }, -- an olive ranger's harness, net pattern, pouches
-		Scorch = { clothes = 0, face = 0 }, -- a charcoal suit cracked with glowing magma veins
-		Censor = { clothes = 0, face = 0 }, -- a black tuxedo crossed with white redaction bars
-		Holloway = { clothes = 0, face = 0 }, -- a director's lab coat with steel plates, indigo shirt and tie
-		Voidhound = { clothes = 0, face = 0 }, -- a starfield machine shell with ultraviolet seams
-		Morrow = { clothes = 0, face = 0 }, -- a stage tuxedo lined in violet, mirror shards and card suits
-		Clawback = { clothes = 0, face = 0 }, -- a mustard repo jumpsuit, charcoal panels, the hook mark
-		Gale = { clothes = 0, face = 0 }, -- a teal fighter's sash top with wind swirls, black hakama
+		HeadmasterHalo = { clothes = 119362793722129, face = 0 }, -- an academic gown with the gold halo crest
+		Redline = { clothes = 137315512930413, face = 0 }, -- a red racing suit with checker stripes and flames
+		MasqueARade = { clothes = 135724181224991, face = 0 }, -- a purple and gold harlequin bodice and tights
+		HarvestKing = { clothes = 88230514152184, face = 0 }, -- mustard thresher overalls over a forest shirt, the wheat crown
+		Bramblebeast = { clothes = 124844408639153, face = 0 }, -- bark and vine skin with pumpkin rind plates (a creature)
+		CaptainBrine = { clothes = 73940003834451, face = 0 }, -- a riveted brass diving rig under a pirate coat's cuffs
+		Pitboss = { clothes = 130674751567319, face = 113644132018382 }, -- a maroon pinstripe tuxedo, gold lapels, a cummerbund
+		Tidewright = { clothes = 80385625640032, face = 139965967699019 }, -- a bronze and teal plated guardian's robe grown with coral
+		Vesper = { clothes = 123283726201797, face = 139460377829042, cracked = 71995160895460 }, -- a night-sky starfield bodysuit, the evening star
+		Catchpole = { clothes = 91345650758578, face = 0 }, -- an olive ranger's harness, net pattern, pouches
+		Scorch = { clothes = 87879659440939, face = 0 }, -- a charcoal suit cracked with glowing magma veins
+		Censor = { clothes = 77509575101532, face = 0 }, -- a black tuxedo crossed with white redaction bars
+		Holloway = { clothes = 103073226710624, face = 132445003909609 }, -- a director's lab coat with steel plates, indigo shirt and tie
+		Voidhound = { clothes = 72605441879492, face = 0 }, -- a starfield machine shell with ultraviolet seams
+		Morrow = { clothes = 124073096104760, face = 0 }, -- a stage tuxedo lined in violet, mirror shards and card suits
+		Clawback = { clothes = 118389979001189, face = 0 }, -- a mustard repo jumpsuit, charcoal panels, the hook mark
+		Gale = { clothes = 93321209543915, face = 0 }, -- a teal fighter's sash top with wind swirls, black hakama
 		-- the famous fakes (lore step 4; finale villains too): a hero suit each in place of the creator suit (its
 		-- cape, gloves, boots, shoulders, belt and chest emblem stay; the chest leaves the emblem's spot as a
 		-- field), a famous face of its own and that face cracked to the metal for the unmask. Preview
 		-- art/preview/people_6.png (front and back).
-		Radiant = { clothes = 0, face = 0, cracked = 0 }, -- gold, a white dawn yoke, sunrise rays; a rising sun on the back
-		Bulwark = { clothes = 0, face = 0, cracked = 0 }, -- royal blue armour, a yellow-edged silver chest plate, a hex back
-		Skylance = { clothes = 0, face = 0, cracked = 0 }, -- azure, three white streaks edged in cyan; chevrons on the back
+		Radiant = { clothes = 98068500967035, face = 106699728660409, cracked = 137005297509723 }, -- gold, a white dawn yoke, sunrise rays; a rising sun on the back
+		Bulwark = { clothes = 116363104603810, face = 129527751609547, cracked = 140144429385939 }, -- royal blue armour, a yellow-edged silver chest plate, a hex back
+		Skylance = { clothes = 88797281558131, face = 75221313254249, cracked = 130978478789779 }, -- azure, three white streaks edged in cyan; chevrons on the back
 	},
 	-- The named helpers a side quest step draws (who stands in for a `find` step's witness, or the one carried in
 	-- a `carry` step): chain id, step number and side; `speaker` is their Config.Story.guides.speakers card (its
