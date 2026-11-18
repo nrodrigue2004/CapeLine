@@ -1115,7 +1115,7 @@ function finishRun(run: Run, ok: boolean)
 					{ run.m.id, #members, run.sides[player] or "hero" }
 				)
 				Analytics.step(player, "Story", "mission_done")
-				if run.num == #S.missions then
+				if StoryPlan.actOf(Config, run.num) == 1 and StoryPlan.actLast(Config, run.num) then -- WP11: Act 1's last
 					Analytics.step(player, "Story", "act_done")
 				end
 				Net.fire("MissionResult", player, pay(run, player))

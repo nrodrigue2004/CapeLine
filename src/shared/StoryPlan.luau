@@ -1,10 +1,13 @@
 --!strict
--- StoryPlan: Act 1 rules on the saved story table (spec: Act 1; Act 1 choices; Faction reputation; nate's
+-- StoryPlan: the story's rules on the saved story table (spec: Act 1; Act 1 choices; Faction reputation; nate's
 -- lore, build plan step 5). Pure, so Lune checks the gates, the stages, the choices, the flags, the Skill
 -- Point total and the step counts. MissionService and StoryService do the world side (side quests:
 -- Shared.SideQuestPlan, lore step 10).
--- * Missions open in order (mission n needs mission n - 1 cleared) at their minimum level; cleared ones
---   can be replayed, and only the first clear pays.
+-- * Acts (WP11, gap G14; Config.Story.acts): every mission and choice names its act (Act 1 is everything
+--   built). An act marked soon is a locked "Act N: coming soon" row: none of its missions can be entered,
+--   pinned or counted, so a future act is data only (its missions, choices and ending, then drop soon).
+-- * Missions open in play order (a mission needs the one before it cleared, across acts too) at their minimum
+--   level; cleared ones can be replayed, and only the first clear pays.
 -- * Every mission is co-op in stages: stage() is a side's step with its branch in place; shared() says the whole
 --   party plays one step (a boss, a camera beat), else each side does its own job at the same time.
 -- * A choice is picked once (later replays keep the first pick) and grants its Skill Points once; each side
@@ -34,16 +37,198 @@ function StoryPlan.cleared(story: any, num: number): boolean
 	return bit(story.missions, num)
 end
 
+---------------------------------------------------------------------------
+-- Acts (WP11)
+---------------------------------------------------------------------------
+
+-- The act a mission belongs to (a mission without one is Act 1's)
+function StoryPlan.actOf(Config: any, num: number): number
+	local m = Config.Story.missions[num]
+	return m and m.act or 1
+end
+
+-- Is the act a locked "coming soon" row (marked soon, or not in the list)?
+function StoryPlan.soon(Config: any, act: number): boolean
+	local a = Config.Story.acts[act]
+	return a == nil or a.soon == true
+end
+
+-- The act's missions in play order (mission numbers)
+function StoryPlan.actMissions(Config: any, act: number): { number }
+	local out = {}
+	for num, m in Config.Story.missions do
+		if (m.act or 1) == act then
+			table.insert(out, num)
+		end
+	end
+	return out
+end
+
+-- The act's choices (save slots), in their missions' order
+function StoryPlan.actChoices(Config: any, act: number): { number }
+	local out = {}
+	for n, c in Config.Story.choices do
+		if (c.act or 1) == act then
+			table.insert(out, n)
+		end
+	end
+	table.sort(out, function(a, b)
+		local ma, mb = Config.Story.choices[a].mission, Config.Story.choices[b].mission
+		return if ma == mb then a < b else ma < mb
+	end)
+	return out
+end
+
+-- A mission's place in its own act (1 for its act's first): the number players read
+function StoryPlan.missionIndex(Config: any, num: number): number
+	return table.find(StoryPlan.actMissions(Config, StoryPlan.actOf(Config, num)), num) or num
+end
+
+-- The mission played just before this one (the last of the act before, for an act's first), or nil
+function StoryPlan.prevMission(Config: any, num: number): number?
+	local act = StoryPlan.actOf(Config, num)
+	local list = StoryPlan.actMissions(Config, act)
+	local i = table.find(list, num)
+	if i and i > 1 then
+		return list[i - 1]
+	end
+	for a = act - 1, 1, -1 do
+		local before = StoryPlan.actMissions(Config, a)
+		if #before > 0 then
+			return before[#before]
+		end
+	end
+	return nil
+end
+
+-- Has every mission of the act a first clear? (a coming-soon or empty act is never done)
+function StoryPlan.actDone(Config: any, story: any, act: number): boolean
+	if StoryPlan.soon(Config, act) then
+		return false
+	end
+	local list = StoryPlan.actMissions(Config, act)
+	for _, num in list do
+		if not StoryPlan.cleared(story, num) then
+			return false
+		end
+	end
+	return #list > 0
+end
+
+-- Is this the last mission of its act (the one whose first clear finishes the act)?
+function StoryPlan.actLast(Config: any, num: number): boolean
+	local list = StoryPlan.actMissions(Config, StoryPlan.actOf(Config, num))
+	return list[#list] == num
+end
+
+-- "soon" (a locked coming-soon row), "locked" (an act before it is not done), "open" or "done"
+function StoryPlan.actState(Config: any, story: any, act: number): string
+	if StoryPlan.soon(Config, act) or #StoryPlan.actMissions(Config, act) == 0 then
+		return "soon"
+	end
+	if StoryPlan.actDone(Config, story, act) then
+		return "done"
+	end
+	for a = 1, act - 1 do
+		if not StoryPlan.actDone(Config, story, a) then
+			return "locked"
+		end
+	end
+	return "open"
+end
+
+-- The act the hero is on (saved as story.act): the first act not done yet, else the last one out. While
+-- Act 2 is coming soon this is always 1.
+function StoryPlan.currentAct(Config: any, story: any): number
+	local cur = 1
+	for a in Config.Story.acts do
+		local st = StoryPlan.actState(Config, story, a)
+		if st == "open" or st == "locked" then
+			return a
+		elseif st == "done" then
+			cur = a
+		else
+			break -- a coming-soon act: nothing after it is out
+		end
+	end
+	return cur
+end
+
+-- Problems with the act data (an empty list is good): every mission and choice in a listed act, missions
+-- grouped in act order, nothing in a coming-soon act and no act out after one, a choice in its mission's
+-- act, and the save's room
+function StoryPlan.validate(Config: any): { string }
+	local S = Config.Story
+	local out = {}
+	local function no(msg: string)
+		table.insert(out, msg)
+	end
+	local soonSeen = false
+	for a, def in S.acts do
+		if def.num ~= a then
+			no("act " .. a .. " has num " .. tostring(def.num))
+		end
+		if def.soon then
+			soonSeen = true
+		elseif soonSeen then
+			no("act " .. a .. " is out after a coming-soon act")
+		end
+	end
+	local last = 1
+	for num, m in S.missions do
+		local a = m.act
+		if type(a) ~= "number" or not S.acts[a] then
+			no("mission " .. num .. " names no listed act")
+		else
+			if a < last then
+				no("mission " .. num .. " (act " .. a .. ") comes after act " .. last .. "'s missions")
+			end
+			last = math.max(last, a)
+			if S.acts[a].soon then
+				no("mission " .. num .. " is in coming-soon act " .. a)
+			end
+		end
+		if m.num ~= num then
+			no("mission " .. num .. " has num " .. tostring(m.num))
+		end
+	end
+	for n, c in S.choices do
+		if type(c.act) ~= "number" or not S.acts[c.act] then
+			no("choice " .. n .. " names no listed act")
+		elseif S.acts[c.act].soon then
+			no("choice " .. n .. " is in coming-soon act " .. c.act)
+		elseif StoryPlan.actOf(Config, c.mission) ~= c.act then
+			no("choice " .. n .. " is in act " .. c.act .. " but its mission is not")
+		end
+	end
+	for a in S.acts do
+		if not StoryPlan.soon(Config, a) and #StoryPlan.actMissions(Config, a) == 0 then
+			no("act " .. a .. " is out with no missions")
+		end
+	end
+	if #S.missions > S.saveRoom.missions then
+		no("more missions than the save's " .. S.saveRoom.missions .. " bits")
+	end
+	if #S.choices > S.saveRoom.choices then
+		no("more choices than the save's " .. S.saveRoom.choices .. " slots")
+	end
+	return out
+end
+
 -- "done", "open", "level" (open but the hero is too low) or "locked" (the one before is not cleared)
 function StoryPlan.state(Config: any, story: any, level: number, num: number): string
 	local m = Config.Story.missions[num]
 	if not m then
 		return "locked"
 	end
+	if StoryPlan.soon(Config, m.act or 1) then
+		return "locked" -- a coming-soon act's (WP11): never entered
+	end
 	if StoryPlan.cleared(story, num) then
 		return "done"
 	end
-	if num > 1 and not StoryPlan.cleared(story, num - 1) then
+	local prev = StoryPlan.prevMission(Config, num)
+	if prev and not StoryPlan.cleared(story, prev) then
 		return "locked"
 	end
 	if level < m.minLevel then
@@ -65,10 +250,11 @@ function StoryPlan.canEnter(Config: any, story: any, level: number, num: number)
 	return false, st
 end
 
--- The next mission to play (the pinned story step), or nil when Act 1 is done
+-- The next mission to play (the pinned story step), or nil when every act that is out is done (a
+-- coming-soon act's missions are never next)
 function StoryPlan.nextMission(Config: any, story: any): number?
-	for num in Config.Story.missions do
-		if not StoryPlan.cleared(story, num) then
+	for num, m in Config.Story.missions do
+		if not StoryPlan.soon(Config, m.act or 1) and not StoryPlan.cleared(story, num) then
 			return num
 		end
 	end
@@ -233,8 +419,11 @@ function StoryPlan.pick(
 	if not c or not o then
 		return false, nil
 	end
-	if story.choices[choiceNum] ~= 0 then
-		return false, nil -- already picked
+	if (story.choices[choiceNum] or 0) ~= 0 then
+		return false, nil -- already picked (a slot a later act added reads as not yet)
+	end
+	if StoryPlan.soon(Config, c.act or 1) then
+		return false, nil
 	end
 	story.choices[choiceNum] = option
 	local fx: { [string]: any } = {
@@ -280,14 +469,20 @@ end
 function StoryPlan.flag(Config: any, story: any, side: string, name: string): boolean
 	return StoryPlan.flags(Config, story, side)[name] == true
 end
--- Skill Points Act 1 grants in all: every choice plus the missions that give one (spec: 8)
-function StoryPlan.actSkillPoints(Config: any): number
+-- Skill Points an act grants in all (Act 1 when act is left out): its choices plus its missions that give
+-- one (spec: 8 for Act 1)
+function StoryPlan.actSkillPoints(Config: any, act: number?): number
+	local a = act or 1
 	local n = 0
 	for _, c in Config.Story.choices do
-		n += c.skillPoints
+		if (c.act or 1) == a then
+			n += c.skillPoints
+		end
 	end
 	for _, m in Config.Story.missions do
-		n += m.skillPoints or 0
+		if (m.act or 1) == a then
+			n += m.skillPoints or 0
+		end
 	end
 	return n
 end
@@ -316,13 +511,21 @@ function StoryPlan.repIndex(Config: any, track: string): number
 	return table.find(Config.Story.rep.order, track) or 3
 end
 
--- What the journal pins when no side quest chain is tracked: the next story mission
+-- What the journal pins when no side quest chain is tracked: the next story mission (nil once every act that
+-- is out is done: a coming-soon act is never pinned). Act 1 reads "Mission 3: Framed"; a later act names
+-- itself and counts its missions from 1.
 function StoryPlan.pinnedText(Config: any, story: any, _side: string): string?
-	local num = StoryPlan.nextMission(Config, story)
-	if not num then
+	local next = StoryPlan.nextMission(Config, story)
+	if not next then
 		return nil
 	end
-	return string.format("Mission %d: %s", num, Config.Story.missions[num].name)
+	local num = next :: number
+	local name = Config.Story.missions[num].name
+	local act = StoryPlan.actOf(Config, num)
+	if act == 1 then
+		return string.format("Mission %d: %s", num, name)
+	end
+	return string.format("Act %d, Mission %d: %s", act, StoryPlan.missionIndex(Config, num), name)
 end
 
 return StoryPlan

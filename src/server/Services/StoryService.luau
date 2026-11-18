@@ -236,8 +236,15 @@ function StoryService.send(player: Player)
 	for num in S.missions do
 		states[num] = StoryPlan.state(Config, story, hero.level, num)
 	end
+	-- WP11: the act the hero is on, saved (1 while Act 2 is coming soon); the Journal opens its STORY page on it
+	local act = StoryPlan.currentAct(Config, story)
+	if story.act ~= act then
+		story.act = act
+		DataService.changed(player)
+	end
 	Net.fire("StoryState", player, {
 		side = StoryService.side(player),
+		act = act,
 		opening = story.opening,
 		missions = story.missions,
 		choices = story.choices,

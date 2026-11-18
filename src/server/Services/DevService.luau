@@ -333,7 +333,9 @@ local commands: { [string]: (player: Player, hero: any, value: number) -> () } =
 		local story = StoryService.story(player)
 		if story then
 			story.opening = 1
-			story.missions = 2 ^ #Config.Story.missions - 1
+			for _, n in StoryPlan.actMissions(Config, 1) do -- WP11: Act 1's, whatever acts come after
+				StoryPlan.clear(story, n)
+			end
 			if hero.level < 8 then
 				HeroService.setLevel(hero, 8)
 			end

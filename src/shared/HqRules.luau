@@ -359,7 +359,7 @@ function HqRules.trophies(Config: any, profile: any): { [string]: boolean }
 			maxRep = math.max(maxRep, StoryPlan.repRank(Config, c.rep[i] or 0))
 		end
 		quests = quests or SideQuestPlan.allDone(Config, c) -- lore step 10: every chain (or every retired arc)
-		if StoryPlan.cleared(c.story, #Config.Story.missions) then
+		if StoryPlan.actDone(Config, c.story, 1) then -- WP11: Act 1 itself, whatever acts come after
 			act1 = true
 		end
 	end

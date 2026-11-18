@@ -39,7 +39,7 @@ local friends: { [string]: boolean } = {} -- "a:b" -> friends (IsFriendsWith yie
 
 local function act1Done(player: Player): boolean
 	local story = StoryService.story(player)
-	return story ~= nil and StoryPlan.cleared(story, #Config.Story.missions)
+	return story ~= nil and StoryPlan.actDone(Config, story, 1) -- WP11: Act 1 itself, whatever acts come after
 end
 
 local function isFriend(player: Player, other: number): boolean
