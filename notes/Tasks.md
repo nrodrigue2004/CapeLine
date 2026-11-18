@@ -165,6 +165,23 @@ What nate does:
 
 ## Studio test list (needs nate's PC)
 
+### Playtest art2: start here (2026-11-18, build playtest-art2)
+The first session on the overnight build (enemies9 635709a, 326,146 checks). Open project files capeline/Capeline-playtest-art2-2026-11-18.rbxl in Studio. It runs as is (every new look falls back to today's parts); the art package (project files capeline/upload/START HERE.txt: 265 images, 26 models) can be done before or after. About 45 minutes; each step names the full list it samples.
+1. Press Play. The Output shows "playtest-art2 (2026-11-18)" at boot, no red error box, no "Failed to load" warnings.
+2. Fresh hero (Dev Wipe): the first 60 seconds read right: LOADING THE CITY, the creator, the ceremony about 22 s, control about 30 s after DONE ("Onboarding" 1 to 3).
+3. Play the prologue to the title: the 6-roof chase, a missed hop puts you back on the last roof in about 1.2 s ("Onboarding" 5).
+4. Plaza: the DAILY card about 4 s after the title, then the mentor picker, one card at a time ("WP1", "Onboarding" 7).
+5. Creator, every tab once: suits, emblems, masks, capes, helmets, gloves, boots, coats, belts, shoulders, back bling, hats, 40 hair styles, eyes, small slots. Nothing floats or pokes through ("Hero creator art" rounds 1 to 3).
+6. Creator > Weapon: all 36, held in a ready stance (no T-pose arms), blades up and forward, shields on the left forearm ("Weapon meshes and holds" 3 and 5).
+7. Fight a robot group with a sword, then the twin blasters, then a shield: combos, block and shots play, the arms return to the stance ("Weapon meshes and holds" 5 and 6; "WP6").
+8. Robots: their uniforms and faces vary (grunt, veteran, elite), a face turns when hit hard ("Uploaded art" 3, "Robot looks").
+9. HQ: go down the stairwell at the plaza's west edge; stations, Trophy Wall, WANTED wall and dummies are there and usable ("HQ meshes", "WP9").
+10. Journal: the Rogues File tab shows a card per page you have met ("Rogues File portraits", "Rogues File and Journal tabs").
+11. Side quests: start The Hero Academy and The Gala Heist (Dev jump to step 1 is fine); the givers wear their own outfits and the gala set stands in the OpenNorth square ("Side quest people", "Set piece meshes" 3).
+12. Phone: Studio device emulator, a small phone, Low preset: buttons fit, the city runs smoothly, frame time in the Dev panel close to PC Low ("Phone pass", "Perf fixes").
+13. After the art package (Part B), repeat 5, 6, 9 and 11: each look is now its Blender mesh, never half a look, with no errors in the Output.
+Write what broke or felt bad in the chat (or one line in notes/Build Log.md).
+
 ### Rogues File portraits (2026-11-18, art pass)
 Each of the Rogues File's 45 pages gets a comic case-file portrait card drawn from the game's own look (a bold ink outline, a flat bright backdrop per group: robots sky blue, famous fakes pink, villains violet, world bosses orange; rays and halftone dots; a black frame with a folded corner), and the 3 world bosses a gold card for their gold page. Contact sheet: art/preview/rogues.png (each card large and at the Journal's 56 px). Tests: ONLY="Rogues File". Until the upload nothing changes in game (every page keeps its Kit shapes).
 1. Make the upload package: `python3 art/upload/make_package.py <folder>`. It now also holds the 48 cards (Rogue_<Id>.png and Rogue_<Boss>_Gold.png, 512 x 512, target rogue_portrait). Copy the folder to Documents (a fresh folder), double-click upload.bat, paste resolve_ids.txt into Studio's Command Bar, save Workspace > CapelineImageIds as image_ids.txt, and attach ids.json and image_ids.txt in the chat. Claude runs art/upload/apply_ids.py, which fills Config.Rogues.portraits.

@@ -1,0 +1,32 @@
+CAPELINE ART PACKAGE (built by art/upload/make_full.py). Nothing here holds a key.
+__NIMG__ images to upload, __NFBX__ models to import, plus the store art. Do it in any number of sittings.
+
+0. Copy this whole folder to Documents\capeline-art (anywhere in Documents is fine, never the ApexMMA folder).
+
+PART A: IMAGES (about 10 minutes, mostly waiting)
+1. Open the "images" folder and double-click upload.bat. If any say FAILED at the end, double-click it again.
+2. Open Studio (any place), View > Command Bar, paste all of images\resolve_ids.txt, press Enter.
+   When it prints "Capeline ids done", select all the text of the script it opens and save it as
+   images\image_ids.txt.
+
+PART B: MODELS (about 2 minutes each)
+3. In Studio open the playtest place (Capeline-playtest-art2-2026-11-18.rbxl from project files capeline).
+4. For each file below, in this order (the first ones change the most on screen):
+   Home > Import 3D, pick the file from the "fbx" folder, turn OFF "Import as a single mesh", Import.
+   Leave the colours alone, the game paints every piece. Each one lands in Workspace.
+__FBX__
+   The bosses, the three finales and the Trooper have their textures inside the file. If one comes in plain
+   white, tell Claude; its four texture maps are in fbx\textures.
+5. After a sitting: View > Command Bar, paste all of fbx\sort_art.txt, press Enter. It moves every imported model
+   into ReplicatedStorage.Art with the right name and selects them. If it prints "Not recognised", rename that
+   model in the Explorer to its file name (for example Weapons) and paste it again.
+6. Right-click any selected model in the Explorer > Save to File..., save it in this folder as
+   CapelineArt.rbxm (next sitting: CapelineArt2.rbxm, and so on). Then select all the text of the
+   CapelineMeshIds script it opened and save it as mesh_ids.txt (mesh_ids2.txt, ...). Save the place too.
+
+PART C: SEND IT BACK
+7. Attach images\ids.json, images\image_ids.txt, mesh_ids.txt and CapelineArt.rbxm in the Capeline chat (or just say
+   "art done" and Claude reads them from Documents\capeline-art). Claude puts every id in the game and
+   builds the next playtest place.
+
+The "store" folder is the store page art (icons and thumbnails). Nothing to do with it until launch.
