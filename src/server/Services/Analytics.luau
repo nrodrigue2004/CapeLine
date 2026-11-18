@@ -81,23 +81,25 @@ local function unsaved(player: Player): boolean
 end
 Analytics.unsaved = unsaved
 
--- One custom event. Never throws. A refused or unsaved event takes no budget slot.
-function Analytics.event(player: Player, name: string, value: number?, fields: { any }?)
+-- One custom event. Never throws. A refused or unsaved event takes no budget slot. Returns "sent", "full"
+-- (the per-minute budget had no room: a caller that must not lose it may try again later) or "refused" (gone
+-- for good: a player who left, a bad event or a save that did not load); callers may ignore it.
+function Analytics.event(player: Player, name: string, value: number?, fields: { any }?): string
 	if player.Parent ~= Players then
-		return
+		return "refused"
 	end
 	local ok, clean = AnalyticsSchema.check(name, fields)
 	if not ok then
 		if RunService:IsStudio() then
 			warn("[Analytics] refused event " .. tostring(name))
 		end
-		return
+		return "refused"
 	end
 	if not AnalyticsSchema.NOSAVE[name] and unsaved(player) then
-		return
+		return "refused"
 	end
 	if not takeBudget(Config.Analytics.lowPriority[name] == true) then
-		return
+		return "full"
 	end
 	local custom: { [string]: string } = {}
 	for i, v in clean do
@@ -113,6 +115,7 @@ function Analytics.event(player: Player, name: string, value: number?, fields: {
 			(s :: any):LogCustomEvent(player, name, value or 1, custom) -- newer than the type definitions
 		end)
 	end
+	return "sent"
 end
 
 local function sendStep(player: Player, funnel: string, sessionId: string, step: number, stepName: string)

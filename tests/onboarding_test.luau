@@ -464,4 +464,70 @@ return function(T: any)
 		)
 		check(string.find(server, "BuildingService.pin", 1, true) ~= nil, "through BuildingService.pin")
 	end)
+
+	test("Onboarding: a prologue's start repairs the chase row's wrecked buildings (interim pick)", function()
+		local DS = Config.Destruction
+		check(DS.repair.prologueRow == true, "on (Config.Destruction.repair.prologueRow)")
+		local route = nil
+		for k = 1, 20 do
+			route = route or OpeningPlan.route(Config, world, Rng.new(k * 17))
+		end
+		check(route ~= nil, "a route")
+		local r = route :: any
+		local ids = PrologueRow.ids(world, r.roofs)
+		check(#ids == O.roofs.count, "the six roofs")
+		-- another player's fight collapsed one roof and damaged another before this prologue began
+		local book = BuildingState.new(DS, world.buildings)
+		BuildingState.hit(DS, book, ids[2], 1e9, 5)
+		BuildingState.hit(DS, book, ids[4], book.maxHp[ids[4]] * (DS.damagedAt + 0.05), 5)
+		check(book.state[ids[2]] == BuildingState.COLLAPSED, "roof 2 collapsed")
+		check(book.state[ids[4]] == BuildingState.DAMAGED, "roof 4 damaged")
+		local function state(id: number): number
+			return book.state[id] or 0
+		end
+		local function repair(id: number)
+			BuildingState.repair(book, id)
+		end
+		-- the switch off: drones only, as before
+		local off = table.clone(Config)
+		off.Destruction = table.clone(DS)
+		off.Destruction.repair = table.clone(DS.repair)
+		off.Destruction.repair.prologueRow = false
+		check(#PrologueRow.mend(off, ids, state, repair) == 0, "off: nothing repaired")
+		check(book.state[ids[2]] == BuildingState.COLLAPSED, "off: still rubble")
+		-- on: both are whole again (through the drones' repair: full HP, sent to devices as fixed), the rest untouched
+		local fixed = PrologueRow.mend(Config, ids, state, repair)
+		check(
+			#fixed == 2 and table.find(fixed, ids[2]) and table.find(fixed, ids[4]),
+			"the two wrecked roofs"
+		)
+		for _, id in ids do
+			check(book.state[id] == BuildingState.INTACT, "roof building " .. id .. " whole")
+			check(book.hp[id] == book.maxHp[id], "roof building " .. id .. " at full health")
+		end
+		local sent = BuildingState.takeFixed(book)
+		check(#sent == 2, "devices hear of both repairs")
+		check(#PrologueRow.mend(Config, ids, state, repair) == 0, "a whole row needs nothing")
+		-- the server: on start (before the run exists, so before any beat) and as the hold begins (the leap)
+		local server = src("src/server/Services/OpeningService.luau")
+		local startAt = string.find(server, "function OpeningService.start", 1, true) or 0
+		local mendAt = string.find(server, "mendRow(route)", startAt, true)
+		local runAt = string.find(server, "runs[player] = r", startAt, true)
+		check(
+			mendAt ~= nil and runAt ~= nil and mendAt < runAt,
+			"start() mends the row before the run begins"
+		)
+		check(
+			string.find(server, "if want and not r.row then\n\t\tmendRow(r.route)", 1, true) ~= nil,
+			"and again as the hold begins"
+		)
+		check(string.find(server, "BuildingService.repair", 1, true) ~= nil, "through BuildingService.repair")
+		local bs = src("src/server/Services/BuildingService.luau")
+		local fn = string.match(bs, "function BuildingService%.repair%(.-\nend") or ""
+		check(
+			string.find(fn, "BuildingState.repair(book, id)", 1, true) ~= nil
+				and string.find(fn, "setWrecked(id, false)", 1, true) ~= nil,
+			"BuildingService.repair is the drones' path (state and the server's collision)"
+		)
+	end)
 end

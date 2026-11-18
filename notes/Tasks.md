@@ -147,6 +147,14 @@ What nate does:
 
 ## Studio test list (needs nate's PC)
 
+### Calls batch: chase row repair, two renames, rogues_page (2026-11-18, interim picks for nate to OK)
+Three small picks made while nate was away, each undone by one Config switch or one line (Decisions 2026-11-18, "calls batch"). Tests: ONLY="Onboarding", ONLY="Text pass", ONLY="Rogues File".
+1. Chase row: Play, stand on a roof of the prologue's rooftop row (its six roofs, where the leap and chase go) and DEV > Wreck (a big number) until it collapses. Then DEV > Opening 0 (replay the prologue). The rubble is gone and the roof stands whole at once; the leap and the chase land on it. Do it again, but wreck the roof during the ceremony beat (a second player, or 2 Studio clients): the roof goes back up as the leap begins.
+2. With no prologue running, wreck a row roof: it stays wrecked until a drone repairs it (the row is still ordinary city).
+3. Badges: swim to the Trench floor. The stamp and the badge book read "Deep Diver" (same badge: an account that had Bottom Toucher keeps it, now named Deep Diver).
+4. Perks: DEV > Level 50, loot until a Legendary with the perk: GEAR reads "Cooling Down: Each defeat refunds 20% of your super's cooldown"; a piece that had Cooling Kill before shows Cooling Down and still works. Check the name fits on iPhone SE.
+5. rogues_page: with a fresh account (Dev Wipe), beat any robot. The Output shows one "[Analytics] rogues_page 1 robots 0". Beat another: no second line. Rejoin, beat one again: no line. Beat a new robot kind: "rogues_page 2 robots 0". A world boss won at level 40+ as Contributor or MVP prints a "bosses 0" and a "bosses 1" line.
+
 ### Text pass: wording, spelling and old names (2026-11-18)
 The overnight text pass (tests: ONLY="Text pass"). Each line is a wording you can check on a phone-size window (Studio's device emulator, iPhone SE).
 1. Contract Board: take a Core recovery contract. The tracker row reads "core 120 studs N" (it said "shard").
@@ -835,7 +843,7 @@ Saves need a published place with Game Settings > Security > "Enable Studio Acce
 9. STYLES: pick a slot tab; unlocked styles light up, locked ones say "Loot a piece with this style". Show any unlocked style over any gear in that slot; SHOW MY GEAR'S OWN LOOK goes back. (Done-when check: a tester wears any look over any gear.)
 10. LOOT INFO lists every source's odds, the pity rules and your own pity counters.
 11. Sets: wear 2 Epic pieces of one set (Stormcaller etc.): that power set hits 8% harder. 4 pieces: the ability change (Chain Lightning hits 5, Frost Nova shields allies, Ground Slam leaves a shockwave, Float heals allies near the target, Parry ripostes heal).
-12. Perks (DEV > Level 50, then Loot: bossMvp until a Legendary): Quakeheel shockwave on a 30+ stud landing; Cooling Kill takes 20% off the super's cooldown sweep on a kill; Second Wind saves you once per 5 minutes (God OFF); Echo Trail hurts robots you fly fast past; Lucky Strike crits every 8th hit; Shared Spark raises a nearby ally's Power (2 players).
+12. Perks (DEV > Level 50, then Loot: bossMvp until a Legendary): Quakeheel shockwave on a 30+ stud landing; Cooling Down (was Cooling Kill) takes 20% off the super's cooldown sweep on a kill; Second Wind saves you once per 5 minutes (God OFF); Echo Trail hurts robots you fly fast past; Lucky Strike crits every 8th hit; Shared Spark raises a nearby ally's Power (2 players).
 13. Gadgets: loot until a gadget drops (about 1 in 16), equip it in Gadget; a GADGET button (Z, R3) appears with its cooldown sweep. Grappling Hook pulls you to what the camera points at within 90 studs (never snaps back); Smoke Bomb makes nearby robots lose you; Shield Drone gives a shield bar; Decoy pulls robots off you for 5 s.
 14. POWERS: RANK UP shows points and Credits; with no Credits it says "Not enough Credits". RESPEC refunds the Credits (they show as banked in GEAR).
 15. Rejoin (published place with API access): level, Renown, Credits, Dust, stash, worn gear, styles shown, ranks, mods, loadouts, Comic/Anime choice and the respec timer all come back. (Done-when check.)

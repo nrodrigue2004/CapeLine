@@ -43,7 +43,7 @@ return {
 				b("shelf", "Reef Reader", "deep:shelf", 1, "Swim over the Coral Shelf"),
 				b("trench", "Trench Peeker", "deep:trench", 1, "Swim over the Trench"),
 				b("sea", "Open Water", "deep:sea", 1, "Swim out into the open sea"),
-				b("trenchfloor", "Bottom Toucher", "trenchFloor", 1, "Touch the Trench floor"),
+				b("trenchfloor", "Deep Diver", "trenchFloor", 1, "Touch the Trench floor"),
 				b("height60", "Off the Ground", "height", 60, "Get 60 studs up"),
 				b("height150", "Rooftop Hopper", "height", 150, "Get 150 studs up"),
 				b("height300", "Skyline Sitter", "height", 300, "Get 300 studs up"),
