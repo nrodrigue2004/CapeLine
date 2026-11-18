@@ -70,6 +70,8 @@ return {
 		{ id = "passClaim", visual = "PassHud" }, -- coin ping; the reward pops on its tier (H8)
 		{ id = "episodeIntro", visual = "PassHud" }, -- page flip; the episode's 3 comic panels (H8)
 		{ id = "styleBurst", visual = "TravelStyleFx" }, -- whoosh; the travel style's take-off burst (H8)
+		{ id = "dailyClaim", visual = "JuiceFx" }, -- coin chime; the DAY N! stamp and confetti, more on day 7 (WP1)
+		{ id = "dailyQuest", visual = "JuiceFx" }, -- bright ping; the DAILY! stamp with the quest's line (WP1)
 	},
 	-- the spec's own juice table is the first 31 rows above; the rest came with the Hero MMO features
 	juiceSpec = 31,
@@ -134,6 +136,8 @@ return {
 		passClaim = s("electronicpingshort.wav", 0.6, 2.1),
 		episodeIntro = s("swoosh.wav", 0.5, 1.4),
 		styleBurst = s("swoosh.wav", 0.5, 1.1, { range = 120, vary = 0.08 }),
+		dailyClaim = s("electronicpingshort.wav", 0.8, 1.6),
+		dailyQuest = s("electronicpingshort.wav", 0.7, 1.15),
 		ui = s("button.wav", 0.35, 1), -- every button tap
 		-- the newer robots (not juice actions; CombatClient plays them with their CombatFx visuals)
 		aimLock = s("electronicpingshort.wav", 0.6, 2.6), -- a Sniper's laser locks on you

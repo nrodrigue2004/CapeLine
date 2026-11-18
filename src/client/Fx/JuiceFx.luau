@@ -386,6 +386,25 @@ function JuiceFx.badgeEarned(_at: Vector3?, data: { [string]: any }?)
 	confetti(24)
 end
 
+-- WP1: the daily streak reward claimed: the DAY N! stamp (the title's name on day 7) and confetti
+function JuiceFx.dailyClaim(_at: Vector3?, data: { [string]: any }?)
+	local d = data or {}
+	local sub = if d.title
+		then "NEW TITLE: " .. string.upper(d.title)
+		else string.format("STREAK %d", d.streak or 1)
+	stamp(string.format("DAY %d!", d.day or 1), GOLD, sub)
+	confetti(if d.title then 60 else 24)
+end
+
+-- WP1: a daily quest done: the DAILY! stamp with its line; all three done adds confetti
+function JuiceFx.dailyQuest(_at: Vector3?, data: { [string]: any }?)
+	local d = data or {}
+	stamp(if d.all then "ALL DONE!" else "DAILY!", Kit.color.health, d.text and string.upper(d.text) or nil)
+	if d.all then
+		confetti(40)
+	end
+end
+
 -- H7: a collection find: a sparkle burst where it lay and a "2 / 8" pop with the set's name
 function JuiceFx.collectFind(at: Vector3?, data: { [string]: any }?)
 	local where = at or (myRoot() and (myRoot() :: BasePart).Position)

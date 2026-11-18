@@ -318,6 +318,13 @@ local Remotes: { [string]: RemoteDef } = {
 	PassXp = { dir = "S2C" },
 	-- H8: travel power styles. TravelStyleSet: mobility index (Config.Move.mobilityOrder), slot (0 plain)
 	TravelStyleSet = { dir = "C2S", schema = { n(1, 5), n(0, 6) }, rate = 2, burst = 4 },
+	-- WP1: the daily streak and quests. DailyOpen: ask for the state; DailyClaim: take today's streak reward
+	-- (once a day, the server decides); DailyState (the card, the track, the 3 quests) / DailyProgress (a quest
+	-- moved or finished, a reward paid): S2C.
+	DailyOpen = { dir = "C2S", schema = {}, rate = 1, burst = 3 },
+	DailyClaim = { dir = "C2S", schema = {}, rate = 1, burst = 2 },
+	DailyState = { dir = "S2C" },
+	DailyProgress = { dir = "S2C" },
 }
 
 return Remotes
