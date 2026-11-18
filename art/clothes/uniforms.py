@@ -1321,13 +1321,14 @@ def windup_toy(v):
         areas = [TORSO["F"], TORSO["B"], RIGHT["F"], LEFT["F"], RIGHT["B"], LEFT["B"]]
         for x, y, w, h in areas:  # stitched patches in bright fabric
             for _ in range(2):
-                pw, ph = rng.randint(14, 22), rng.randint(14, 22)
+                pw, ph = rng.randint(20, 30), rng.randint(20, 30)
                 px, py = x + rng.randint(4, w - pw - 4), y + rng.randint(4, h - ph - 4)
                 col = rng.choice([(90, 160, 220), (230, 110, 160), (120, 190, 90), (240, 200, 80)])
-                s.d.rectangle([px, py, px + pw, py + ph], fill=col)
-                for k in range(px, px + pw, 4):
-                    s.d.point((k, py - 2), fill=DARK)
-                    s.d.point((k, py + ph + 2), fill=DARK)
+                s.d.rectangle([px, py, px + pw, py + ph], fill=col, outline=shade(col, 0.7))
+                for k in range(px + 2, px + pw - 1, 5):  # cross stitches along the top and bottom
+                    for yy in (py, py + ph):
+                        s.d.line([(k - 2, yy - 2), (k + 2, yy + 2)], fill=DARK, width=1)
+                        s.d.line([(k + 2, yy - 2), (k - 2, yy + 2)], fill=DARK, width=1)
         s.d.polygon([(fx + 64, fy + 10), (fx + 30, fy - 2 + 2), (fx + 30, fy + 22)], fill=(220, 40, 50))  # the bow
         s.d.polygon([(fx + 64, fy + 10), (fx + 98, fy), (fx + 98, fy + 22)], fill=(220, 40, 50))
         s.d.ellipse([fx + 58, fy + 4, fx + 70, fy + 16], fill=(180, 30, 40))
@@ -1339,13 +1340,32 @@ def windup_toy(v):
     return s.im, p.im
 
 
+def toy_drum(d, x, y, w, h, shell, cord, rim):
+    """A toy drum filling a face: brass-studded rims top and bottom, the shell between them laced with a zigzag
+    cord (the Wind-Up Giant's chest is its drum)."""
+    d.rectangle([x, y, x + w - 1, y + h - 1], fill=shell)
+    rh = max(8, h // 9)
+    for yy in (y, y + h - rh):
+        d.rectangle([x, yy, x + w - 1, yy + rh - 1], fill=rim, outline=DARK)
+        for k in range(x + 6, x + w - 4, 14):
+            d.ellipse([k - 2, yy + rh // 2 - 2, k + 2, yy + rh // 2 + 2], fill=shade(rim, 1.25))
+    top, bot = y + rh, y + h - rh
+    n = max(3, w // 16)  # many laces, so it reads as a drum and not as letters
+    pts = []
+    for i in range(n * 2 + 1):
+        pts.append((x + w * i / (n * 2), top if i % 2 == 0 else bot))
+    d.line(pts, fill=cord, width=6, joint="curve")
+    d.line([(px, py + (2 if py == top else -2)) for px, py in pts], fill=shade(cord, 0.7), width=1)
+
+
 def windup_giant(v):
-    """Wind-Up Giant (lore step 11, the Suburbs chain's finale): the Toymaker's giant clockwork tin soldier.
-    A dress coat with gold braid across the chest, two columns of brass buttons, a drum mark on the front,
-    white trousers with a stripe and black boots with a gold band; the big key plate on the back. Grunt red,
-    Veteran royal blue, Elite gold and white."""
-    coat, braid = {"Grunt": ((190, 35, 45), GOLD), "Veteran": ((40, 70, 170), GOLD),
-                   "Elite": ((235, 230, 215), (210, 160, 50))}[v]
+    """Wind-Up Giant (lore step 11, the Suburbs chain's finale): the Toymaker's giant clockwork drummer, so it never
+    reads as one of its own tin soldiers. Its chest is a toy drum (a white shell laced with a zigzag cord between
+    brass-studded rims) under gold fringed epaulettes, the coat colour on the sleeves and sides with gold cuffs and
+    white gloves, two drumsticks crossed over the big key plate on the back, white (or black) trousers with a
+    stripe and black boots with a gold band. Grunt red, Veteran royal blue (worn), Elite white and gold."""
+    coat, braid, cord = {"Grunt": ((190, 35, 45), GOLD, (190, 35, 45)), "Veteran": ((40, 70, 170), GOLD, (220, 40, 50)),
+                         "Elite": ((235, 230, 215), (210, 160, 50), (30, 50, 140))}[v]
     s, p = T(), T()
     fx, fy, fw, _ = s.front()
     bx, by, bw, _ = s.back()
@@ -1353,15 +1373,23 @@ def windup_giant(v):
     s.limbs(coat, 0, HAND)
     s.limb_band(braid, HAND - 8, HAND)
     s.limbs(WHITE, HAND, 128, 1.0, 0.9)
-    for k in range(5):  # the braid
-        y = fy + 14 + k * 16
-        s.d.line([(fx + 14, y), (fx + 114, y)], fill=braid, width=4)
-    for x in (fx + 36, fx + 88):
-        for k in range(5):
-            s.d.ellipse([x - 5, fy + 9 + k * 16, x + 5, fy + 19 + k * 16], fill=braid, outline=DARK)
-    s.d.ellipse([fx + 44, fy + 90, fx + 84, fy + 118], fill=WHITE, outline=DARK, width=2)  # the drum mark
-    s.d.line([(fx + 48, fy + 96), (fx + 80, fy + 112)], fill=coat, width=2)
-    s.d.line([(fx + 80, fy + 96), (fx + 48, fy + 112)], fill=coat, width=2)
+    shell = WHITE if v != "Elite" else (250, 250, 245)
+    toy_drum(s.d, fx + 6, fy + 18, fw - 12, 76, shell, cord, braid)
+    # the drum's strap over the shoulders and the gold fringed epaulettes
+    for x in (fx + 22, fx + 98):
+        s.d.rectangle([x, fy, x + 8, fy + 18], fill=braid, outline=DARK)
+    for slots in (RIGHT, LEFT):
+        ux, uy, uw, uh = slots["U"]
+        s.d.rectangle([ux, uy, ux + uw - 1, uy + uh - 1], fill=braid)
+        for sd in SIDES4:
+            x, y, w, _ = slots[sd]
+            s.d.rectangle([x, y, x + w - 1, y + 8], fill=braid)
+            for k in range(x + 2, x + w - 2, 6):
+                s.d.line([(k, y + 8), (k, y + 16)], fill=shade(braid, 0.85), width=3)
+    # the back: two drumsticks crossed over the big key plate
+    for a, b in (((bx + 22, by + 20), (bx + 104, by + 100)), ((bx + 104, by + 20), (bx + 22, by + 100))):
+        s.d.line([a, b], fill=(225, 205, 160), width=8)
+        s.d.ellipse([b[0] - 8, b[1] - 8, b[0] + 8, b[1] + 8], fill=(240, 230, 210), outline=DARK)
     key_plate(s.d, bx + 64, by + 72, 1.4)
     trousers = WHITE if v != "Elite" else (40, 40, 48)
     p.torso(trousers, UT_PX - 4, 128, 1.0, 0.85)
@@ -1385,15 +1413,26 @@ def em_crossed_hooks(d, cx, cy, c, sc=1.0):
               0 if k > 0 else 180, 180 if k > 0 else 360, fill=c, width=int(5 * s))
 
 
+def neckerchief(d, fx, fy, c):
+    """The Salt Dogs' red neckerchief: a triangle hanging from the collar with its knot (the crew's mark, with the
+    red bandana on the head)."""
+    d.polygon([(fx + 38, fy), (fx + 90, fy), (fx + 64, fy + 34)], fill=c, outline=shade(c, 0.65))
+    d.line([(fx + 50, fy + 6), (fx + 64, fy + 26), (fx + 78, fy + 6)], fill=shade(c, 0.75), width=2)
+    d.ellipse([fx + 57, fy + 2, fx + 71, fy + 14], fill=shade(c, 0.85), outline=shade(c, 0.6))
+
+
 def salt_dog(v):
-    """Salt Dog (lore step 11, the Coast chain): Captain Brine's robot crew, one rank per version. Grunt: a
-    deckhand's striped jersey (navy and white) with a rope belt and rolled canvas trousers. Veteran: a gunner's
-    navy pea coat, two rows of brass buttons, grey trousers. Elite: the bosun's red coat with gold braid at the
-    cuffs, a whistle chain and black trousers. The crossed-hooks patch on every back, rust on the veterans."""
+    """Salt Dog (lore step 11, the Coast chain): Captain Brine's robot crew, one rank per version, each with the
+    crew's red neckerchief (Grunt and Veteran) and the crossed-hooks patch on the back. Grunt: a deckhand's striped
+    jersey (navy and white) with a rope belt and rolled canvas trousers. Veteran: a gunner's navy pea coat, two rows
+    of brass buttons, a leather cutlass strap across the chest and a wide belt with a big brass buckle, grey
+    trousers, worn. Elite: the bosun's long red coat worn open over the crew's striped jersey, gold braid at the
+    cuffs and on the coat's edges, the whistle chain, black trousers with a gold stripe. Rust on the veterans."""
     s, p = T(), T()
     fx, fy, fw, _ = s.front()
     bx, by, bw, _ = s.back()
-    navy, rope = (30, 45, 100), (200, 170, 110)
+    navy, rope, kerchief = (30, 45, 100), (200, 170, 110), (205, 40, 40)
+    leather = (110, 70, 40)
     if v == "Grunt":
         s.torso(WHITE)
         s.limbs(WHITE, 0, LOWER)
@@ -1401,6 +1440,7 @@ def salt_dog(v):
         s.d.rectangle([fx, fy + UT_PX - 12, fx + 127, fy + UT_PX - 2], fill=rope)  # the rope belt
         for k in range(0, 128, 8):
             s.d.line([(fx + k, fy + UT_PX - 12), (fx + k + 6, fy + UT_PX - 2)], fill=shade(rope, 0.7), width=2)
+        neckerchief(s.d, fx, fy, kerchief)
         trousers = (190, 175, 140)
         p.torso(trousers, UT_PX - 4, 128, 1.0, 0.85)
         p.limbs(trousers, 0, HAND - 14)
@@ -1410,10 +1450,19 @@ def salt_dog(v):
     elif v == "Veteran":
         s.torso(navy)
         s.limbs(navy, 0, HAND)
+        s.d.polygon([(fx + 30, fy), (fx + 64, fy + 30), (fx + 98, fy)], fill=shade(navy, 1.4))  # the lapels
+        neckerchief(s.d, fx, fy, kerchief)
         for x in (fx + 40, fx + 88):
             for k in range(4):
-                s.d.ellipse([x - 5, fy + 16 + k * 22, x + 5, fy + 26 + k * 22], fill=GOLD, outline=DARK)
-        s.d.polygon([(fx + 30, fy), (fx + 64, fy + 30), (fx + 98, fy)], fill=shade(navy, 1.4))  # the lapels
+                s.d.ellipse([x - 5, fy + 30 + k * 16, x + 5, fy + 40 + k * 16], fill=GOLD, outline=DARK)
+        s.d.line([(fx + 6, fy + 4), (fx + 118, fy + 84)], fill=leather, width=10)  # the cutlass strap
+        s.d.line([(fx + 6, fy + 4), (fx + 118, fy + 84)], fill=shade(leather, 0.7), width=1)
+        for sd in SIDES4:  # the wide belt, its big brass buckle at the front
+            x, y, w, _ = TORSO[sd]
+            s.d.rectangle([x, y + UT_PX - 14, x + w - 1, y + UT_PX - 2], fill=leather)
+        s.d.rectangle([fx + 52, fy + UT_PX - 17, fx + 76, fy + UT_PX + 1], outline=GOLD, width=4)
+        s.d.line([(bx + 6, by + 84), (bx + 118, by + 4)], fill=leather, width=10)  # the strap over the back
+        s.limb_band(shade(navy, 1.3), HAND - 10, HAND)  # turned-back cuffs
         trousers = (90, 95, 105)
         p.torso(trousers, UT_PX - 4, 128, 1.0, 0.85)
         p.limbs(trousers, 0, HAND - 10)
@@ -1425,12 +1474,18 @@ def salt_dog(v):
         s.torso(red)
         s.limbs(red, 0, HAND)
         s.limb_band(GOLD, HAND - 10, HAND)  # gold braid at the cuffs
+        # the coat worn open over the striped jersey, gold braid down both front edges
+        s.d.rectangle([fx + 34, fy, fx + 94, fy + 127], fill=WHITE)
+        for yy in range(0, 128, 16):
+            s.d.rectangle([fx + 34, fy + yy, fx + 94, fy + yy + 6], fill=navy)
+        for x in (fx + 30, fx + 94):
+            s.d.rectangle([x, fy, x + 4, fy + 127], fill=GOLD)
         for k in range(3):
             y = fy + 20 + k * 14
-            s.d.line([(fx + 20, y), (fx + 44, y)], fill=GOLD, width=3)
-            s.d.line([(fx + 84, y), (fx + 108, y)], fill=GOLD, width=3)
-        chain(s.d, (fx + 30, fy + 30), (fx + 78, fy + 78), STEEL, 8)  # the bosun's whistle chain
-        s.d.rectangle([fx + 74, fy + 74, fx + 92, fy + 82], fill=(200, 205, 215), outline=DARK)
+            s.d.line([(fx + 6, y), (fx + 26, y)], fill=GOLD, width=3)
+            s.d.line([(fx + 102, y), (fx + 122, y)], fill=GOLD, width=3)
+        chain(s.d, (fx + 40, fy + 24), (fx + 80, fy + 70), STEEL, 8)  # the bosun's whistle chain
+        s.d.rectangle([fx + 76, fy + 66, fx + 94, fy + 74], fill=(200, 205, 215), outline=DARK)
         p.torso((30, 30, 36), UT_PX - 4, 128, 1.0, 0.85)
         p.limbs((30, 30, 36), 0, HAND - 10)
         p.outer_stripe(GOLD, 0, HAND - 10, 4)
@@ -1461,6 +1516,9 @@ PAGES = {
     "_new": list(KINDS)[9:18],
     "_toys": ["WindupToy", "WindupGiant"],
     "_saltdogs": ["SaltDog"],
+    # the side quest chains' kinds together, for the on-body render (clothed.py uniforms <Version> chains, then
+    # --stack: art/preview/uniforms_chains.png)
+    "_chains": ["WindupToy", "WindupGiant", "SaltDog"],
 }
 
 

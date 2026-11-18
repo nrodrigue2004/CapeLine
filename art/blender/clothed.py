@@ -5,7 +5,8 @@
 # Run: python art/blender/clothed.py [Trooper]   (with the `bpy` module) -> art/preview/clothed_<robot>.png
 #      python art/blender/clothed.py uniforms Grunt   -> art/preview/uniforms_grunt.png (every robot kind in that
 #      version of its uniform, art/clothes/uniforms.py); python art/blender/clothed.py uniforms Grunt new ->
-#      art/preview/uniforms_new_grunt.png (the 9 kinds added with the new enemy types); then
+#      art/preview/uniforms_new_grunt.png (the 9 kinds added with the new enemy types; `chains`: the side quest
+#      chains' Wind-Up Toy, Wind-Up Giant and Salt Dog, front and back, into uniforms_chains_<version>.png); then
 #      python3 art/clothes/uniforms.py --stack makes art/preview/uniforms.png and uniforms_new.png
 import math
 import os
@@ -269,13 +270,17 @@ elif ROBOT == "people":
     page = int(VERSION) if VERSION.isdigit() else 1
     rows = json.load(open(os.path.join(CLOTHES, "people", "preview.json")))[page - 1]
     kit.studio(res=(2400, 760), samples=48)
+    # a short page (the famous fakes, page 6) shows each person from the front and from the back, closer up
+    if len(rows) <= 4:
+        rows = [dict(r, back=b) for r in rows for b in (False, True)]
     n = len(rows)
     for i, r in enumerate(rows):
-        figure((((n - 1) / 2 - i) * 4.4, 0, 0), (i % 3 - 1) * 12, tuple(r["skin"]), tuple(r["hair"]), face=r["face"],
+        yaw = 180 + 15 if r.get("back") else (i % 3 - 1) * 12
+        figure((((n - 1) / 2 - i) * 4.4, 0, 0), yaw, tuple(r["skin"]), tuple(r["hair"]), face=r["face"],
                outfit="people/" + r["name"])
     floor = kit.cyl("floor", 24, 24, 0.2, at=(0, 0, -0.1), segs=48)
     floor.data.materials.append(kit.material("floor", (60, 64, 72), rough=0.8))
-    kit.camera((0, 40.0, 4.2), (0, 0, 2.3), lens=37)
+    kit.camera((0, 40.0 * max(n, 6) / 8, 4.2), (0, 0, 2.3), lens=37)
     kit.render(os.path.join(kit.ROOT, "preview", "people_%d.png" % page))
 elif ROBOT == "uniforms":
     # every robot kind in one version of its uniform, with mixed skins, faces and hair (art/clothes/uniforms.py)
@@ -285,6 +290,10 @@ elif ROBOT == "uniforms":
     if page == "new":
         kinds = ["ShieldBearer", "Captain", "Sniper", "Bomber", "MedicUnit", "Swarmer", "Mimic", "Interceptor",
                  "Grappler"]
+    elif page == "chains":
+        # the side quest chains' robot kinds (lore step 11): the Toymaker's toys and giant, Captain Brine's crew,
+        # each from the front and the back
+        kinds = ["WindupToy", "WindupToy", "WindupGiant", "WindupGiant", "SaltDog", "SaltDog"]
     else:
         kinds = ["SparkDrone", "BurglarBot", "SneakBot", "BruteBot", "Turret", "NullSentinel", "Diver", "Anchor",
                  "TorpedoSentry"]
@@ -294,12 +303,15 @@ elif ROBOT == "uniforms":
              (60, 40, 28), (40, 34, 30), (150, 140, 170)]
     faces = ["Hero", "Stern", "Sharp", "Scarred", "Rookie", "Cold"]
     kit.studio(res=(2600, 760), samples=48)
+    n = len(kinds)
     for i, k in enumerate(kinds):
-        figure(((4 - i) * 4.4, 0, 0), (i % 3 - 1) * 12, skins[i], hairs[i], turned=(i == 3),
+        back = page == "chains" and i % 2 == 1
+        yaw = 195 if back else (i % 3 - 1) * 12
+        figure((((n - 1) / 2 - i) * 4.4, 0, 0), yaw, skins[i], hairs[i], turned=(i == 3 and not page == "chains"),
                face=faces[i % len(faces)], outfit="uniforms/%s_%s" % (k, VERSION))
     floor = kit.cyl("floor", 24, 24, 0.2, at=(0, 0, -0.1), segs=48)
     floor.data.materials.append(kit.material("floor", (60, 64, 72), rough=0.8))
-    kit.camera((0, 44.0, 4.2), (0, 0, 2.3), lens=37)
+    kit.camera((0, 44.0 * max(n, 6) / 9, 4.2), (0, 0, 2.3), lens=37)
     kit.render(os.path.join(kit.ROOT, "preview", "uniforms_%s%s.png" % (page + "_" if page else "", VERSION.lower())))
 else:
     kit.studio(res=(1800, 1000), samples=64)

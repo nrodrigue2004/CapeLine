@@ -369,7 +369,7 @@ return function(T: any)
 			end
 		end
 		check(
-			n == 35 and #bad == 0,
+			n == 41 and #bad == 0, -- 18 shared, 17 people, the famous fakes' 3 faces and 3 cracked faces
 			string.format("%d faces, %d not 256 px %s", n, #bad, table.concat(bad, ", "))
 		)
 	end)

@@ -137,23 +137,30 @@ return {
 		},
 		-- The Toymaker's clockwork toys (lore step 11, the Suburbs chain): each version is its own toy, a tin
 		-- soldier (red coat, white cross belts, brass buttons), a lawn gnome (blue smock, brown belt, red boots)
-		-- and a patchwork plush bear (stitched patches, a big bow), each with the wind-up key on its back.
-		-- 0 until nate uploads art/export/clothes/uniforms/WindupToy_<Version>.png (PLACEHOLDER ART until then)
+		-- and a patchwork plush bear (big cross-stitched patches, a big bow), each with the wind-up key on its back.
+		-- The art is final (preview art/preview/uniforms_chains.png); 0 until nate uploads
+		-- art/export/clothes/uniforms/WindupToy_<Version>.png, and until then the toys wear the plain look in
+		-- their toy colours (PLACEHOLDER ART)
 		WindupToy = {
 			clothes = { Grunt = 0, Veteran = 0, Elite = 0 },
 			hair = { "BlondeSpiked", "Pal", "BrownCharmer" },
 		},
-		-- The Wind-Up Giant: a giant tin soldier's dress coat with brass buttons and gold braid, a drum on the
-		-- chest, the key plate on the back (Grunt red, Veteran blue, Elite gold). 0 until uploaded
+		-- The Wind-Up Giant: the giant tin soldier as the toy band's drummer (2026-11-18 art pass): its chest a toy
+		-- drum laced with a zigzag cord between brass rims, gold fringed epaulettes, two drumsticks crossed over the
+		-- big key plate on the back (Grunt red, Veteran blue, Elite white and gold), so it never reads as one of the
+		-- tin soldiers it leads. 0 until nate uploads WindupGiant_<Version>.png (its imported finale model,
+		-- Config.FinaleArt, wins over the clothes once it is in)
 		WindupGiant = {
 			clothes = { Grunt = 0, Veteran = 0, Elite = 0 },
 			hair = { "Pal", "BrownCharmer", "BlackPonytail" },
 		},
 		-- Captain Brine's Salt Dogs (lore step 11, the Coast chain): each version a rank of the robot crew, a
-		-- striped deckhand's jersey with a rope belt (Grunt), a gunner's navy pea coat with brass buttons
-		-- (Veteran) and the bosun's red coat with gold braid and a whistle chain (Elite), each with the crew's
-		-- crossed-hooks patch. 0 until nate uploads art/export/clothes/uniforms/SaltDog_<Version>.png (PLACEHOLDER
-		-- ART until then)
+		-- striped deckhand's jersey with a rope belt and the crew's red neckerchief (Grunt), a gunner's navy pea
+		-- coat with brass buttons, the neckerchief, a cutlass strap and a big buckled belt (Veteran) and the
+		-- bosun's long red coat worn open over the crew's striped jersey, gold braid and a whistle chain (Elite),
+		-- each with the crew's crossed-hooks patch on the back. The art is final (art/preview/uniforms_chains.png);
+		-- 0 until nate uploads art/export/clothes/uniforms/SaltDog_<Version>.png, the plain look until then
+		-- (PLACEHOLDER ART)
 		SaltDog = {
 			clothes = { Grunt = 0, Veteran = 0, Elite = 0 },
 			hair = { "BlackPonytail", "LongRed", "Pal" },
@@ -209,6 +216,13 @@ return {
 		Morrow = { clothes = 0, face = 0 }, -- a stage tuxedo lined in violet, mirror shards and card suits
 		Clawback = { clothes = 0, face = 0 }, -- a mustard repo jumpsuit, charcoal panels, the hook mark
 		Gale = { clothes = 0, face = 0 }, -- a teal fighter's sash top with wind swirls, black hakama
+		-- the famous fakes (lore step 4; finale villains too): a hero suit each in place of the creator suit (its
+		-- cape, gloves, boots, shoulders, belt and chest emblem stay; the chest leaves the emblem's spot as a
+		-- field), a famous face of its own and that face cracked to the metal for the unmask. Preview
+		-- art/preview/people_6.png (front and back).
+		Radiant = { clothes = 0, face = 0, cracked = 0 }, -- gold, a white dawn yoke, sunrise rays; a rising sun on the back
+		Bulwark = { clothes = 0, face = 0, cracked = 0 }, -- royal blue armour, a yellow-edged silver chest plate, a hex back
+		Skylance = { clothes = 0, face = 0, cracked = 0 }, -- azure, three white streaks edged in cyan; chevrons on the back
 	},
 	-- The named helpers a side quest step draws (who stands in for a `find` step's witness, or the one carried in
 	-- a `carry` step): chain id, step number and side; `speaker` is their Config.Story.guides.speakers card (its

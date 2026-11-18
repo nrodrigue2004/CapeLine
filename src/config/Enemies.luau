@@ -587,6 +587,9 @@ return {
 	-- plate shows its hero name and title, with no robot tag. As its health falls to `fakes.crack`, its face
 	-- cracks to show metal and a glowing eye (unmasked: the plate turns to FAKE in red), then the rest of the
 	-- shell breaks off like any robot's. Its attacks are drawn in one power path's own look (fake.path).
+	-- 2026-11-18 art: each fake also has a hero suit and a famous face of its own (Config.NpcLooks.people Radiant,
+	-- Bulwark, Skylance; art/clothes/people.py, Shared.PeopleLooks), worn in place of the look's suit once nate
+	-- uploads them, with its own cracked face for the unmask; the look's cape, gloves, boots and emblem stay.
 	-- Mini-boss tier: HP well above the elites, damage per second between the elite robots and the hardest-hitting
 	-- world boss (tests/balance_enemies.luau). Never in the ambient mix or the open-world swaps: story missions
 	-- (step 5) and world events (step 9) place them.
@@ -1018,9 +1021,11 @@ return {
 		},
 	},
 	-- The Toymaker's masterpiece (the Suburbs chain's finale, boss-lite: Config.SideQuests.finale): a giant
-	-- clockwork tin soldier he winds up himself and rides into the fight. The brute brain: a stomp with a warning
-	-- ring, every 3rd stomp a wide ground wave, and a wind-up charge down a lane. Its damage a second stays at or
-	-- under the elite robots' (tests: a boss-lite, not a world boss); its health is the finale's hpMult.
+	-- clockwork tin soldier he winds up himself and rides into the fight (dressed as the toy band's drummer: its
+	-- chest is a toy drum, Config.NpcLooks, so it never reads as one of its own tin soldiers). The brute brain: a
+	-- stomp with a warning ring, every 3rd stomp a wide ground wave, and a wind-up charge down a lane. Its damage
+	-- a second stays at or under the elite robots' (tests: a boss-lite, not a world boss); its health is the
+	-- finale's hpMult.
 	WindupGiant = {
 		typeId = 31,
 		on = true,
@@ -1202,7 +1207,8 @@ return {
 	-- bandana round the dome. They board in a rush, leap in and swipe; they burst into sparks, bolts and a
 	-- splash of sea water like any robot. Side quest only: never in the ambient mix or the open-world swaps.
 	-- The three uniform versions are the crew's ranks (Config.NpcLooks: Grunt a striped deckhand, Veteran a
-	-- gunner's navy coat, Elite the bosun's red coat). PLACEHOLDER ART: the hook and bandana are plain parts.
+	-- gunner's navy coat, Elite the bosun's red coat), each with the crew's red neckerchief or the striped jersey.
+	-- PLACEHOLDER ART: the hook and bandana are plain parts (the bandana breaks off with the head's shell).
 	SaltDog = {
 		typeId = 28,
 		on = true,
