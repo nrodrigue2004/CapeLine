@@ -84,6 +84,7 @@ local DailyService = require(Services.DailyService) -- WP1: the daily login stre
 local Analytics = require(Services.Analytics)
 local AnalyticsHooks = require(Services.AnalyticsHooks)
 local FavoriteService = require(Services.FavoriteService) -- WP4: the favorite prompt, once per account
+local BoardService = require(Services.BoardService) -- WP2: the weekly boards
 local LoadBots = require(Services.LoadBots)
 local DevService = require(Services.DevService)
 
@@ -162,6 +163,7 @@ boot("DailyService", DailyService.init) -- WP1: before DataService (a loaded pro
 boot("Analytics", Analytics.init)
 boot("AnalyticsHooks", AnalyticsHooks.init)
 boot("FavoriteService", FavoriteService.init)
+boot("BoardService", BoardService.init) -- WP2: the weekly boards (before DataService: the claim on join)
 boot("DataService", DataService.init) -- last of the game services: profile loads fire into the handlers above
 boot("LoadBots", LoadBots.init)
 boot("DevService", DevService.init)

@@ -39,6 +39,7 @@ local DeathService = {}
 DeathService.Downed = Signal.new() -- (hero)
 DeathService.Revived = Signal.new() -- (hero, helper)
 DeathService.PvpDefeat = Signal.new() -- (loser, winner)
+DeathService.PvpWon = Signal.new() -- (winner, loser id) a PvP win that paid (past the anti-farming ledger)
 
 local D = Config.Pvp.downed
 local PING_KIND = { help = 1, here = 2, danger = 3 }
@@ -306,6 +307,7 @@ local function settle(
 			if wp then
 				wp.stats.wins += 1 -- a PvP win that paid (the trophy wall, M9)
 			end
+			DeathService.PvpWon:Fire(winner, loserId) -- WP2: the weekly PvP board
 		end
 		Net.fire("PvpResult", winner.player, {
 			won = true,

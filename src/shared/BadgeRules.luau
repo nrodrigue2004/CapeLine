@@ -9,6 +9,7 @@
 -- * titles: one shown at a time, from one id space: 0 = your origin's title, 1 to 255 = the story and Fame
 --   titles (profile.titles bits), titleBase + bit = a badge's name, baneBase + i = "Bane of <nemesis>",
 --   Config.Remembers.titleBase + track x 10 + tier = a reputation tier's title (lore step 12, Shared.RepTiers).
+--   Config.Boards.titleBase + board = a weekly board's top-10 title (WP2, Shared.BoardKeys).
 --   Config.Daily.titleBase + n = a daily streak title (WP1, the day 7 reward).
 --   All fixed text from the lists; nothing typed.
 
@@ -197,6 +198,17 @@ function BadgeRules.titles(Config: any, profile: any, char: any): { { id: number
 		for _, n in Bits.list(profile.pass.titles) do
 			if P.titles[n] then
 				table.insert(out, { id = P.titleBase + n, name = P.titles[n] })
+			end
+		end
+	end
+	-- WP2: the weekly board titles, earned in a week's top 10 (Config.Boards; the bits live in
+	-- profile.mmo.counts["board.titles"], Shared.BoardKeys.titles reads them the same way)
+	local BD = Config.Boards
+	local boardBits = BD and profile.mmo and profile.mmo.counts and profile.mmo.counts["board.titles"]
+	if type(boardBits) == "number" then
+		for i, b in BD.boards do
+			if (boardBits // 2 ^ (i - 1)) % 2 == 1 then
+				table.insert(out, { id = BD.titleBase + i, name = b.title })
 			end
 		end
 	end

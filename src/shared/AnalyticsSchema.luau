@@ -76,6 +76,9 @@ AnalyticsSchema.EVENTS = {
 	episode_step = { "episode" }, -- value: the step
 	episode_done = { "episode" },
 	travel_style = { "mobility" }, -- value: the style id worn (0 = plain)
+	-- WP2: the weekly boards
+	board_open = { "board", "filter" }, -- value: your rank (0 = not ranked)
+	board_reward = { "board", "place" }, -- value: the final rank that earned the week's title
 	-- WP1: the daily streak and quests (Shared.DailyRules builds each one)
 	daily_login = { "track_day", "kind" }, -- value: the streak; kind: new, next, grace or reset
 	daily_claim = { "track_day", "reward", "late" }, -- value: the streak; late 1: paid on the next day's login

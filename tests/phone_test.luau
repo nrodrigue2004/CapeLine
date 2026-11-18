@@ -363,6 +363,7 @@ return function(
 				"GuideHud",
 				"CinemaHud",
 				"NewsHud",
+				"BoardHud", -- WP2
 				"DailyHud",
 			}
 			-- WP1: the daily card with a full week and 3 quests (a reward ready, day 7's title on the track)
@@ -396,6 +397,7 @@ return function(
 				{ "MentorHud", "MentorHud" },
 				{ "BadgeHud", "BadgeHud" },
 				{ "PassHud", "PassHud" },
+				{ "BoardHud", "BoardHud" }, -- WP2: the weekly boards
 				{ "DailyHud", "Daily", dailyState },
 			}
 			-- the cards and banners the game shows on its own (each shown alone)
@@ -408,6 +410,7 @@ return function(
 				"Toasts",
 				"Plates",
 				"Squad",
+				"BoardReward",
 				"Daily",
 				"DailyTracker",
 			}
@@ -501,6 +504,60 @@ return function(
 						end
 						g.Enabled = was
 					end
+				end
+				-- WP2: the boards screen full (50 rows, 20-character display names, you pinned), empty and
+				-- in its error state, and the reward card
+				local boardRows = {}
+				for i = 1, 50 do
+					table.insert(boardRows, {
+						rank = i,
+						name = string.sub("WWWWWWWWWWWWWWWWWW" .. i, 1, 20),
+						value = 1000 * (60 - i),
+						me = i == 7,
+						friend = i % 5 == 0,
+					})
+				end
+				local boardStates = {
+					{
+						"rows",
+						{
+							rows = boardRows,
+							mine = { rank = 7, value = 123456 },
+							endsIn = 300000,
+							owned = true,
+						},
+					},
+					{ "empty", { rows = {}, endsIn = 100 } },
+					{ "error", { error = true } },
+				}
+				for _, st in boardStates do
+					local ok = sim:run("BoardHud " .. st[1], function()
+						M.BoardHud.open(1)
+						local d = table.clone(st[2])
+						d.board, d.filter = 1, 0
+						M.BoardHud.receive(d)
+					end)
+					check(ok, d.name .. ": the boards screen draws " .. st[1])
+					report("BoardHud " .. st[1], { minList = 90, minOrder = 6 })
+				end
+				sim:run("BoardHud.close", M.BoardHud.close)
+				check(
+					sim:run("BoardHud reward", function()
+						M.BoardHud.reward({ board = "BossMvp", rank = 3, title = "Boss Breaker", new = true })
+						M.BoardHud.reward({
+							board = "PvpWins",
+							rank = 10,
+							title = "Crater Champion",
+							new = true,
+						})
+					end),
+					d.name .. ": the reward card draws"
+				)
+				report("BoardReward card", { only = { BoardReward = true } })
+				-- put the card away (as NICE! does) so the later HUD checks see the HUD alone
+				local boardCard = sim.playerGui:FindFirstChild("BoardReward")
+				if boardCard and boardCard:FindFirstChild("Card") then
+					boardCard.Card.Visible = false
 				end
 				-- WP1: the daily tracker held open over the whole HUD: clear of the buttons, the corner and the stick
 				sim:run("DailyHud.pin", function()

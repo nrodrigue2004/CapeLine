@@ -71,6 +71,7 @@ return {
 		{ id = "passClaim", visual = "PassHud" }, -- coin ping; the reward pops on its tier (H8)
 		{ id = "episodeIntro", visual = "PassHud" }, -- page flip; the episode's 3 comic panels (H8)
 		{ id = "styleBurst", visual = "TravelStyleFx" }, -- whoosh; the travel style's take-off burst (H8)
+		{ id = "boardReward", visual = "BoardHud" }, -- fanfare ping; the TOP 10 card with the week's title (WP2)
 		{ id = "dailyClaim", visual = "JuiceFx" }, -- coin chime; the DAY N! stamp and confetti, more on day 7 (WP1)
 		{ id = "dailyQuest", visual = "JuiceFx" }, -- bright ping; the DAILY! stamp with the quest's line (WP1)
 	},
@@ -138,6 +139,7 @@ return {
 		passClaim = s("electronicpingshort.wav", 0.6, 2.1),
 		episodeIntro = s("swoosh.wav", 0.5, 1.4),
 		styleBurst = s("swoosh.wav", 0.5, 1.1, { range = 120, vary = 0.08 }),
+		boardReward = s("electronicpingshort.wav", 0.8, 1.3), -- WP2: a weekly board title
 		dailyClaim = s("electronicpingshort.wav", 0.8, 1.6),
 		dailyQuest = s("electronicpingshort.wav", 0.7, 1.15),
 		ui = s("button.wav", 0.35, 1), -- every button tap
