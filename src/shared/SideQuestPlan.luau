@@ -183,7 +183,8 @@ end
 -- the chain's villain (the last one standing) in phase 2.
 function SideQuestPlan.card(chain: any, idx: number, phase: number?): { name: string, title: string }?
 	local step = chain.steps and chain.steps[idx]
-	local g = step and SideQuestPlan.goal(step, "hero")
+	-- (a villain-only line keeps its finale on the villain's key: lore step 11, the character lines)
+	local g = step and (SideQuestPlan.goal(step, "hero") or SideQuestPlan.goal(step, "villain"))
 	if not g or g.kind ~= "finale" or type(chain.villain) ~= "table" then
 		return nil
 	end
@@ -897,9 +898,17 @@ local function checkGoal(
 				if type(d) ~= "table" then
 					no("dress " .. tostring(foe.dress))
 				elseif
-					not (cfg and ((cfg.fake and cfg.fake.costumed) or (d.robot == true and cfg.fake == nil)))
+					not (
+						cfg
+						and (
+							(cfg.fake and cfg.fake.costumed and d.famous ~= true)
+							or (d.robot == true and cfg.fake == nil)
+							or (d.famous == true and cfg.fake and not cfg.fake.costumed and not cfg.twin)
+						)
+					)
 				then
-					-- (lore step 11, the Underwater chain: or, with `robot`, over a plain robot)
+					-- (lore step 11, the Underwater chain: or, with `robot`, over a plain robot; the character
+					-- lines: or, with `famous`, over a famous fake, so it cracks and reads FAKE like one)
 					no("a dress goes on a costumed villain's suit (" .. tostring(foe.enemy) .. ")")
 				end
 			end
@@ -910,11 +919,11 @@ local function checkGoal(
 	end
 end
 
-local function checkLine(Config: any, line: any, where: string, bad: { string })
+local function checkLine(Config: any, line: any, where: string, bad: { string }, sides: { string }?)
 	if not speakerKnown(Config, line.who) then
 		table.insert(bad, where .. ": unknown speaker " .. tostring(line.who))
 	end
-	for _, side in Q(Config).sides do
+	for _, side in sides or Q(Config).sides do
 		local t = line.text or line[side]
 		local b = fixedText(t, Config.Story.guides.maxChars)
 		if b then
@@ -963,6 +972,16 @@ local function checkReward(Config: any, r: any, where: string, bad: { string })
 	if n > 1 or n + titles == 0 then
 		no("one cosmetic or title at the end, or one of each (has " .. n .. " cosmetics)")
 	end
+end
+
+-- The sides a chain is for: its unlock.side alone (lore step 11: the Syndicate boss's line is villain only), or
+-- both
+function SideQuestPlan.sidesOf(Config: any, chain: any): { string }
+	local u = chain.unlock or {}
+	if u.side == "hero" or u.side == "villain" then
+		return { u.side }
+	end
+	return Q(Config).sides
 end
 
 -- Problems with one chain (empty when it is fine); ids: chain id -> chain, for `after`
@@ -1043,8 +1062,10 @@ function SideQuestPlan.checkChain(Config: any, chain: any, ids: { [string]: any 
 		no("site " .. tostring(chain.site))
 	end
 	-- the Journal page's line (optional): fixed text per side
+	-- lore step 11, the character lines: a line for one side only (unlock.side) has goals and text for that side
+	local sides = SideQuestPlan.sidesOf(Config, chain)
 	if chain.blurb ~= nil then
-		for _, side in SQ.sides do
+		for _, side in sides do
 			local bb = fixedText(type(chain.blurb) == "table" and chain.blurb[side], 90)
 			if bb then
 				no(side .. " blurb: " .. bb)
@@ -1065,7 +1086,8 @@ function SideQuestPlan.checkChain(Config: any, chain: any, ids: { [string]: any 
 				Config,
 				{ who = chain.giver, text = l.text, hero = l.hero, villain = l.villain },
 				where .. " " .. key,
-				bad
+				bad,
+				sides
 			)
 		end
 	end
@@ -1101,7 +1123,7 @@ function SideQuestPlan.checkChain(Config: any, chain: any, ids: { [string]: any 
 	for i, step in steps do
 		local w = string.format("%s step %d", where, i)
 		local last = i == #steps
-		for _, side in SQ.sides do
+		for _, side in sides do
 			local g = SideQuestPlan.goal(step, side)
 			if not g then
 				table.insert(bad, w .. ": no " .. side .. " goal")
@@ -1110,13 +1132,15 @@ function SideQuestPlan.checkChain(Config: any, chain: any, ids: { [string]: any 
 			end
 		end
 		if last then
-			local gh, gv = SideQuestPlan.goal(step, "hero"), SideQuestPlan.goal(step, "villain")
-			if not gh or gh.kind ~= "finale" or not gv or gv.kind ~= "finale" then
-				table.insert(bad, w .. ": the last step is the finale")
+			for _, side in sides do
+				local gl = SideQuestPlan.goal(step, side)
+				if not gl or gl.kind ~= "finale" then
+					table.insert(bad, w .. ": the last step is the finale")
+				end
 			end
 		end
 		for j, line in step.lines or {} do
-			checkLine(Config, line, string.format("%s line %d", w, j), bad)
+			checkLine(Config, line, string.format("%s line %d", w, j), bad, sides)
 		end
 		if step.at ~= nil and not (SQ.sites and SQ.sites[step.at]) then
 			table.insert(bad, w .. ": at an unknown site " .. tostring(step.at))
@@ -1156,6 +1180,21 @@ function SideQuestPlan.validate(Config: any): { string }
 		end
 		if g.style ~= "person" and g.style ~= "radio" then
 			table.insert(bad, "giver " .. id .. ": style")
+		end
+		-- lore step 11, the character lines: a `relay` giver is a radio voice heard through a relay box (Patch),
+		-- so it is a radio giver and wears no look
+		if g.relay ~= nil and (g.relay ~= true or g.style ~= "radio" or g.look ~= nil) then
+			table.insert(bad, "giver " .. id .. ": a relay is a radio voice with no look")
+		end
+		-- (and a giver's own `none` line: fixed text, or one per side)
+		if g.none ~= nil then
+			local lines = if type(g.none) == "table" then { g.none.hero, g.none.villain } else { g.none }
+			for _, t in lines do
+				local b = fixedText(t, Config.Story.guides.maxChars)
+				if b then
+					table.insert(bad, "giver " .. id .. " none line: " .. b)
+				end
+			end
 		end
 		local siteOk = g.anchor == "site" and SQ.sites and SQ.sites[g.site] ~= nil
 		if
@@ -1381,14 +1420,20 @@ function SideQuestPlan.validate(Config: any): { string }
 				end
 			end
 			local a = st.away or {}
+			-- (lore step 11, the character lines: a Docks or Old Town building keeps clear of the safehouse pads
+			-- and both HQ doors; any city building may also keep away.site from the other city sites)
 			local keys: { string } = if outskirts
 				then { "pad", "beacon", "landmark", "district", "site" }
 				elseif st.district == "Uptown" then { "landmark" }
+				elseif st.district == "Docks" or st.district == "OldTown" then { "pad", "door" }
 				else { "plaza", "row", "door", "open" }
 			for _, k in keys do
 				if type(a[k]) ~= "number" or a[k] < 0 then
 					table.insert(bad, w .. ": away." .. k)
 				end
+			end
+			if not outskirts and a.site ~= nil and (type(a.site) ~= "number" or a.site < 0) then
+				table.insert(bad, w .. ": away.site")
 			end
 		end
 	end
@@ -1423,6 +1468,11 @@ function SideQuestPlan.validate(Config: any): { string }
 			-- lore step 11, the Underwater chain: a dress over a plain robot, its path, height, prop and damage
 			if d.robot ~= nil and type(d.robot) ~= "boolean" then
 				table.insert(bad, w .. ": robot")
+			end
+			-- lore step 11, the character lines: a dress over a famous fake (`famous`) is a robot fake in a hero's
+			-- face, never a creature or a plain robot
+			if d.famous ~= nil and (d.famous ~= true or d.robot or d.creature) then
+				table.insert(bad, w .. ": famous (a fake's dress, no robot or creature)")
 			end
 			if d.robot and not table.find(ProfileSchema.PATHS, d.path) then
 				table.insert(bad, w .. ": path " .. tostring(d.path))

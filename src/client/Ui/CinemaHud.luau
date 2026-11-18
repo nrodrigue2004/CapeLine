@@ -534,6 +534,134 @@ local function picture(parent: Frame, p: any)
 			ray.BackgroundTransparency = 0.4
 			ray.Rotation = -20 + i * 20
 		end
+	elseif kind == "twostars" then
+		-- two heroes flying side by side over the night skyline, a star over each (The Last Partner)
+		for i = 0, 5 do
+			local h = 0.18 + ((i * 29) % 4) * 0.05
+			box(parent, i * 0.17, 0.72 - h, 0.14, h, ground:Lerp(ink, 0.4), 62)
+		end
+		figure(parent, 0.3, Color3.fromRGB(70, 110, 220), false)
+		figure(parent, 0.56, Color3.fromRGB(200, 120, 230), false)
+		for _, x in { 0.32, 0.58 } do
+			local star = box(parent, x, 0.3, 0.05, 0.05, Color3.fromRGB(255, 235, 140), 64)
+			star.Rotation = 45
+			Kit.stroke(star, ink, 2)
+		end
+	elseif kind == "diner" then
+		-- the Night Owl diner at night: a long front, a lit window, a booth and two coffee cups, a neon owl sign
+		local front = box(parent, 0.08, 0.34, 0.84, 0.38, Color3.fromRGB(70, 60, 80), 62)
+		Kit.stroke(front, ink, 2)
+		local window = box(front, 0.06, 0.2, 0.62, 0.5, Color3.fromRGB(255, 220, 150), 63)
+		Kit.stroke(window, ink, 2)
+		box(window, 0.1, 0.62, 0.8, 0.12, Color3.fromRGB(190, 50, 60), 64)
+		for i = 0, 1 do
+			local cup = box(window, 0.36 + i * 0.18, 0.46, 0.08, 0.16, Color3.fromRGB(250, 250, 250), 65)
+			Kit.stroke(cup, ink, 1)
+		end
+		box(front, 0.74, 0.3, 0.18, 0.7, Color3.fromRGB(120, 80, 60), 63)
+		local sign = box(parent, 0.3, 0.2, 0.3, 0.1, Color3.fromRGB(120, 230, 255), 63)
+		Kit.round(sign, 20)
+		Kit.stroke(sign, ink, 2)
+	elseif kind == "sisters" then
+		-- a big sister and her kid brother on a rooftop under a radio aerial (Finding Lark)
+		box(parent, 0, 0.66, 1, 0.06, ground:Lerp(ink, 0.3), 62)
+		box(parent, 0.78, 0.2, 0.015, 0.46, Color3.fromRGB(160, 165, 175), 62)
+		for i = 0, 2 do
+			box(
+				parent,
+				0.74 + i * 0.02,
+				0.24 + i * 0.07,
+				0.09 - i * 0.02,
+				0.012,
+				Color3.fromRGB(160, 165, 175),
+				62
+			)
+		end
+		figure(parent, 0.34, Color3.fromRGB(240, 180, 60), false)
+		local kid = box(parent, 0.5, 0.6, 0.05, 0.12, Color3.fromRGB(90, 200, 230), 64)
+		Kit.stroke(kid, ink, 2)
+		local head = box(parent, 0.505, 0.54, 0.04, 0.06, Color3.fromRGB(241, 194, 160), 64)
+		Kit.round(head, 40)
+		Kit.stroke(head, ink, 2)
+	elseif kind == "van" then
+		-- a boxy van with a dish or a net launcher on its roof (Finding Lark's net vans, The Scoop's news van)
+		local body = box(parent, 0.16, 0.44, 0.62, 0.24, Color3.fromRGB(235, 235, 240), 63)
+		Kit.stroke(body, ink, 2)
+		local cab = box(parent, 0.78, 0.5, 0.12, 0.18, Color3.fromRGB(235, 235, 240), 63)
+		Kit.stroke(cab, ink, 2)
+		box(cab, 0.15, 0.1, 0.7, 0.4, Color3.fromRGB(150, 210, 255), 64)
+		box(body, 0, 0.45, 1, 0.12, Color3.fromRGB(220, 60, 50), 64)
+		for _, x in { 0.24, 0.66 } do
+			local wheel = box(parent, x, 0.64, 0.1, 0.12, ink, 64)
+			Kit.round(wheel, 200)
+		end
+		local dish = box(parent, 0.36, 0.34, 0.14, 0.1, Color3.fromRGB(200, 205, 215), 64)
+		Kit.round(dish, 200)
+		Kit.stroke(dish, ink, 2)
+	elseif kind == "cage" then
+		-- a row of cages in a warehouse, a collar glowing on the figure in each (Finding Lark's pound)
+		for i = 0, 2 do
+			local x = 0.08 + i * 0.3
+			figure(parent, x + 0.08, Color3.fromRGB(200, 170, 150), false)
+			box(parent, x + 0.07, 0.535, 0.08, 0.02, Color3.fromRGB(120, 230, 255), 65)
+			for b = 0, 4 do
+				box(parent, x + b * 0.06, 0.32, 0.012, 0.4, Color3.fromRGB(120, 125, 135), 66)
+			end
+			box(parent, x, 0.32, 0.25, 0.02, Color3.fromRGB(120, 125, 135), 66)
+		end
+	elseif kind == "garage" then
+		-- an Old Town garage with its door half up, a tow truck and a flame painted on the sign (Hostile Takeover)
+		local front = box(parent, 0.1, 0.3, 0.8, 0.42, Color3.fromRGB(150, 110, 90), 62)
+		Kit.stroke(front, ink, 2)
+		local door = box(front, 0.1, 0.4, 0.5, 0.6, Color3.fromRGB(110, 115, 125), 63)
+		Kit.stroke(door, ink, 2)
+		box(front, 0.1, 0.4, 0.5, 0.3, ink, 64)
+		local sign = box(parent, 0.3, 0.18, 0.4, 0.1, Color3.fromRGB(40, 36, 40), 63)
+		Kit.stroke(sign, ink, 2)
+		local flame = box(sign, 0.4, 0.15, 0.2, 0.7, Color3.fromRGB(255, 120, 40), 64)
+		Kit.round(flame, 40)
+		local truck = box(parent, 0.66, 0.56, 0.2, 0.12, Color3.fromRGB(230, 70, 50), 64)
+		Kit.stroke(truck, ink, 2)
+	elseif kind == "club" then
+		-- the Opal Room: red curtains, a small stage, a chandelier and the Duchess's booth (Hostile Takeover)
+		for i = 0, 1 do
+			box(parent, i * 0.82, 0, 0.18, 0.72, Color3.fromRGB(150, 30, 50), 62)
+		end
+		local stage = box(parent, 0.18, 0.58, 0.64, 0.14, Color3.fromRGB(110, 70, 40), 62)
+		Kit.stroke(stage, ink, 2)
+		local lamp = box(parent, 0.42, 0.06, 0.16, 0.1, Color3.fromRGB(255, 240, 190), 63)
+		Kit.round(lamp, 40)
+		Kit.stroke(lamp, ink, 2)
+		figure(parent, 0.47, Color3.fromRGB(70, 50, 120), false)
+		local pearl = box(parent, 0.475, 0.53, 0.04, 0.02, Color3.fromRGB(245, 240, 230), 65)
+		Kit.round(pearl, 40)
+	elseif kind == "tv" or kind == "blackout" then
+		-- a TV set on a stand: a news anchor on it (tv), or a black screen cut mid-story (blackout: The Scoop)
+		local set = box(parent, 0.22, 0.2, 0.56, 0.44, Color3.fromRGB(60, 56, 64), 62)
+		Kit.round(set, 8)
+		Kit.stroke(set, ink, 3)
+		local screen = box(
+			set,
+			0.07,
+			0.1,
+			0.86,
+			0.8,
+			if kind == "tv" then Color3.fromRGB(120, 190, 255) else Color3.fromRGB(14, 14, 18),
+			63
+		)
+		if kind == "tv" then
+			box(screen, 0.4, 0.3, 0.2, 0.7, Color3.fromRGB(230, 70, 60), 64)
+			local head = box(screen, 0.43, 0.08, 0.14, 0.24, Color3.fromRGB(224, 172, 130), 64)
+			Kit.round(head, 40)
+			box(screen, 0, 0.78, 1, 0.22, Color3.fromRGB(230, 60, 50), 65)
+		else
+			for i = 0, 2 do
+				local bar =
+					box(screen, 0.1 + i * 0.3, 0.2 + i * 0.2, 0.22, 0.04, Color3.fromRGB(90, 90, 100), 64)
+				bar.BackgroundTransparency = 0.3
+			end
+		end
+		box(parent, 0.47, 0.64, 0.06, 0.08, Color3.fromRGB(60, 56, 64), 62)
 	elseif kind == "crater" then
 		-- the empty crater under a still sky, broken stubs at its rim
 		local pit = box(parent, 0.5, 0.78, 0.8, 0.22, ink, 63)

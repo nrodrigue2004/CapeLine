@@ -17,6 +17,8 @@
 -- * dress (lore step 11, chain 6: The Pit's Pitboss): a side quest finale may dress an existing costumed type in
 --   its own fixed look, name and title (Config.SideQuests.dress), sent as the robot's EnemyIdentity like an evil
 --   twin's, so a chain villain needs no robot type of its own (Enemy.Delta's typeId has 5 bits, all used).
+--   (lore step 11, the character lines: with `famous`, over a famous fake instead: Lodestar's partner Vesper,
+--   whose face cracks to metal and whose plate turns FAKE over her own name.)
 
 local LookCodec = if script then require(script.Parent.LookCodec) else (require :: any)("./LookCodec")
 local CreatorRules = if script
@@ -209,6 +211,8 @@ function FakeRules.dress(Config: any, id: string): { [string]: any }?
 		path = d.path,
 		height = d.height,
 		trident = d.trident == true,
+		-- lore step 11, the character lines: a dress over a famous fake cracks and reads FAKE like one
+		famous = d.famous == true,
 	}
 end
 

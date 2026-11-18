@@ -358,8 +358,14 @@ local function showTalk(t: { [string]: any })
 	local chain = SideQuestPlan.byBit(Config, t.bit or 0)
 	if t.kind == "none" then
 		local who = t.giver
-		if type(who) == "string" and Config.SideQuests.givers[who] then
-			GuideHud.say(who, Config.SideQuests.none, { tag = "sideQuest" })
+		local gv = type(who) == "string" and Config.SideQuests.givers[who]
+		if gv then
+			-- (lore step 11, the character lines: a giver's own `none` line, by side)
+			local own = if type(gv.none) == "string"
+				then gv.none
+				elseif type(gv.none) == "table" then GuidePlan.lineText(gv.none, side)
+				else nil
+			GuideHud.say(who, own or Config.SideQuests.none, { tag = "sideQuest" })
 		end
 		return
 	end

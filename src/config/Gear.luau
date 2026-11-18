@@ -299,6 +299,16 @@ return {
 				shiny = true,
 				color = { 255, 214, 90 },
 			},
+			-- side quest reward (lore step 11, Finding Lark): a visor wired with Patch's relay aerial. Never rolled,
+			-- never sold.
+			{
+				n = 38,
+				name = "Relay Visor",
+				shape = "visor",
+				tier = "Story",
+				quest = "RelayVisor",
+				color = { 120, 230, 255 },
+			},
 		},
 		chest = {
 			-- lore step 12 (the city remembers): side styles at Gizmo's bench, Credits only, opened by your own
@@ -369,6 +379,16 @@ return {
 				quest = "DockCoat",
 				color = { 60, 140, 140 },
 			},
+			-- side quest reward (lore step 11, The Scoop): a reporter's blue PRESS vest from Nora Bright. Never
+			-- rolled, never sold.
+			{
+				n = 36,
+				name = "Press Vest",
+				shape = "vest",
+				tier = "Story",
+				quest = "PressVest",
+				color = { 70, 130, 220 },
+			},
 		},
 		hands = {
 			-- lore step 12 (the city remembers): side styles at Gizmo's bench, Credits only, opened by your own
@@ -437,6 +457,16 @@ return {
 				boss = "LeviathanEngine",
 				shiny = true,
 				color = { 150, 255, 230 },
+			},
+			-- side quest reward (lore step 11, Hostile Takeover): Sal Scorch's own heat-black gauntlets. Never
+			-- rolled, never sold.
+			{
+				n = 37,
+				name = "Scorchproof Gauntlets",
+				shape = "gauntlet",
+				tier = "Story",
+				quest = "ScorchproofGauntlets",
+				color = { 255, 120, 40 },
 			},
 		},
 		legs = {
@@ -612,6 +642,16 @@ return {
 				boss = "LumenMaw",
 				shiny = true,
 				color = { 255, 250, 210 },
+			},
+			-- side quest reward (lore step 11, The Last Partner): a long night-blue cape with two stars, Lodestar's
+			-- and Vesper's. Never rolled, never sold.
+			{
+				n = 39,
+				name = "Twin Star Cape",
+				shape = "longcape",
+				tier = "Story",
+				quest = "TwinStarCape",
+				color = { 200, 150, 255 },
 			},
 		},
 		belt = {

@@ -243,6 +243,82 @@ local function npcModel(
 	return m, rig.root
 end
 
+-- A relay giver (lore step 11, the character lines: Patch, a voice on the radio): a little relay box on a post
+-- with a blinking aerial instead of a person; talking to it is talking to the voice. PLACEHOLDER ART: plain
+-- parts.
+local function relayModel(name: string, color: { number }, pos: Vector3): (Model, BasePart)
+	local m = SiteKit.model("Giver" .. name)
+	local tint = Color3.fromRGB(color[1], color[2], color[3])
+	local steel = Color3.fromRGB(70, 74, 86)
+	SiteKit.part(
+		m,
+		Vector3.new(0.5, 4, 0.5),
+		CFrame.new(pos + Vector3.new(0, 2, 0)),
+		steel,
+		Enum.Material.Metal
+	)
+	local box = SiteKit.part(
+		m,
+		Vector3.new(2.2, 1.6, 1.4),
+		CFrame.new(pos + Vector3.new(0, 4.6, 0)),
+		Color3.fromRGB(40, 44, 54),
+		Enum.Material.Metal
+	)
+	box.CanQuery = true
+	SiteKit.part(
+		m,
+		Vector3.new(1.4, 0.5, 0.1),
+		CFrame.new(pos + Vector3.new(0, 4.7, -0.72)),
+		tint,
+		Enum.Material.Neon
+	)
+	SiteKit.part(
+		m,
+		Vector3.new(0.12, 2.6, 0.12),
+		CFrame.new(pos + Vector3.new(0.7, 6.7, 0)),
+		steel,
+		Enum.Material.Metal
+	)
+	local blink = SiteKit.part(
+		m,
+		Vector3.new(0.4, 0.4, 0.4),
+		CFrame.new(pos + Vector3.new(0.7, 8.1, 0)),
+		tint,
+		Enum.Material.Neon,
+		Enum.PartType.Ball
+	)
+	task.spawn(function()
+		while blink.Parent do
+			blink.Transparency = if blink.Transparency > 0.5 then 0 else 0.8
+			task.wait(0.8)
+		end
+	end)
+	local mark = SiteKit.part(
+		m,
+		Vector3.new(0.8, 1.6, 0.8),
+		CFrame.new(pos + Vector3.new(0, 10, 0)),
+		Color3.fromRGB(255, 210, 60),
+		Enum.Material.Neon
+	)
+	mark.Name = "Marker"
+	local tag = Instance.new("BillboardGui")
+	tag.Size = UDim2.fromOffset(160, 26)
+	tag.StudsOffset = Vector3.new(0, 3.2, 0)
+	tag.MaxDistance = 80
+	tag.AlwaysOnTop = true
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.fromScale(1, 1)
+	label.BackgroundTransparency = 1
+	label.Font = Enum.Font.GothamBold
+	label.TextScaled = true
+	label.TextColor3 = Color3.new(1, 1, 1)
+	label.TextStrokeTransparency = 0.4
+	label.Text = name -- a fixed giver name from Config.SideQuests
+	label.Parent = tag
+	tag.Parent = box
+	return m, box
+end
+
 ---------------------------------------------------------------------------
 -- Building a goal
 ---------------------------------------------------------------------------
@@ -864,6 +940,9 @@ local function refresh(player: Player)
 	end
 	waiting[player] = nil
 	local side = StoryService.side(player)
+	if not SideQuestPlan.goal(chain.steps[idx], side) then
+		return -- a line for the other side only (lore step 11: a Dev panel jump can pin one)
+	end
 	join(groupToJoin(player, chain, idx) or newGroup(chain, idx, hero), player, side)
 end
 
@@ -1342,7 +1421,14 @@ local function placeGivers()
 					IncidentSpots.groundNear(Config, world, x, z, if gv.anchor == "site" then 6 else 40, rng)
 			end
 			local pos = Vector3.new(px, py, pz)
-			local _, body = npcModel(gv.name, gv.color, pos, if gv.look then id else nil, gv.look)
+			local body: any
+			if gv.relay then
+				local _, b = relayModel(gv.name, gv.color, pos)
+				body = b
+			else
+				local _, b = npcModel(gv.name, gv.color, pos, if gv.look then id else nil, gv.look)
+				body = b
+			end
 			local prompt = Instance.new("ProximityPrompt")
 			prompt.ActionText = "Talk"
 			prompt.ObjectText = gv.name

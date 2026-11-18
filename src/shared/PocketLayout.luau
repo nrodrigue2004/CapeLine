@@ -6,6 +6,7 @@
 -- and the gauntlet, the arena and its pillars). A pocket is a floor with walls and a sky dome feel; parts
 -- are made by CityBuilder's part maker.
 -- PLACEHOLDER ART: every pocket is greybox parts until the art pass.
+-- (lore step 11, the character lines: "pound", the Spark Pound, Catchpole's Docks warehouse.)
 
 local BoxKit = if script then require(script.Parent.BoxKit) else (require :: any)("./BoxKit")
 local HqRules = if script then require(script.Parent.HqRules) else (require :: any)("./HqRules")
@@ -852,6 +853,78 @@ function BUILD.pit(l: Layout, _Config: any)
 end
 
 -- Is this a pocket layout name? (lore step 10: side quest pocket steps are checked against it)
+-- The Spark Pound (lore step 11, the character line Finding Lark): the Spark catcher Catchpole's pound in a Docks
+-- warehouse, one floor under a steel roof. The loading dock and its roll door at the south (the spawn), the
+-- intake office west (room 1: the desks and the scanner arch every caught Spark walks through), the kennel hall
+-- in the middle (six cages either side of the aisle: the hold), four collar scanners on posts across the hall
+-- (the break list), the warden's floor, and Lark's cell at the north end under a red lamp. PLACEHOLDER ART:
+-- greybox parts, cages of thin bars.
+function BUILD.pound(l: Layout, _Config: any)
+	local deco = { tag = "decor", ghost = true }
+	local H = 28
+	-- the warehouse: a concrete floor skin, a steel roof (robots never stand on it) and the north wall
+	box(l, "plaza", 0, 0.1, 0, 396, 0.2, 396, "concrete")
+	box(l, "building", 0, H + 1, 0, 400, 2, 400, "steel", { tag = "ceiling" })
+	box(l, "building", 0, H / 2, -186, 396, H, 4, "tunnel")
+	-- the loading dock: the roll door (glowing slats), a dock edge and two stacked crates
+	box(l, "glow", 0, 9, 196, 40, 18, 1, "window", deco)
+	for r = 0, 4 do
+		box(l, "prop", 0, 2 + r * 3.5, 195.2, 40, 0.5, 0.4, "steel", deco)
+	end
+	for _, x in { -40, 40 } do
+		box(l, "prop", x, 3, 176, 10, 6, 10, "cargo", deco)
+	end
+	-- the intake office, west (room 1): two desks with screens and the scanner arch
+	for i = 0, 1 do
+		local z = 70 + i * 40
+		box(l, "prop", -130, 2, z, 16, 4, 6, "wood", deco)
+		box(l, "glow", -130, 6, z - 2, 6, 4, 0.4, "beaconGlow", deco)
+	end
+	for k = -1, 1, 2 do
+		box(l, "prop", -90 + k * 6, 7, 90, 1.5, 14, 1.5, "steel", deco)
+	end
+	box(l, "glow", -90, 14.5, 90, 13.5, 1, 1.5, "relicRed", deco)
+	add(l, "rooms", -130, 0.5, 90)
+	-- the partition between the dock and the hall, with a wide gap in the middle
+	for k = -1, 1, 2 do
+		box(l, "building", k * 118, H / 2, 40, 160, H, 3, "tunnel")
+	end
+	-- the kennel hall: six cages either side of the aisle (four corner bars, a top and three front bars each)
+	for side = -1, 1, 2 do
+		for i = 0, 5 do
+			local x, z = side * (40 + (i % 3) * 36), -20 - (i // 3) * 40
+			for _, c in { { -1, -1 }, { 1, -1 }, { 1, 1 }, { -1, 1 } } do
+				box(l, "prop", x + c[1] * 14, 7, z + c[2] * 14, 0.8, 14, 0.8, "steel", deco)
+			end
+			box(l, "prop", x, 14.2, z, 29, 0.4, 29, "steel", deco)
+			for b = -1, 1 do
+				box(l, "prop", x + b * 7, 7, z + 14, 0.4, 14, 0.4, "steel", deco)
+			end
+		end
+	end
+	box(l, "glow", 0, H - 0.6, -40, 6, 0.6, 120, "workLamp", deco) -- the aisle's strip light
+	point(l, "kennels", 0, 0.5, -30)
+	-- the four collar scanners across the hall: a post, its glowing ring and a red lamp on top
+	for _, x in { -150, -100, 100, 150 } do
+		add(l, "collars", x, 0.5, 20)
+		box(l, "prop", x, 4, 20, 2, 8, 2, "steel", deco)
+		box(l, "glow", x, 8.6, 20, 5, 1.2, 5, "beaconGlow", deco)
+		box(l, "glow", x, 9.6, 20, 1, 1, 1, "relicRed", deco)
+	end
+	-- the warden's floor before Lark's cell, and the cell itself: a big cage on a low step under a red lamp
+	point(l, "boss", 0, 0.5, -112)
+	box(l, "building", 0, 0.5, -160, 44, 1, 30, "slate")
+	for _, c in { { -1, -1 }, { 1, -1 }, { 1, 1 }, { -1, 1 } } do
+		box(l, "prop", c[1] * 20, 9, -160 + c[2] * 13, 1, 16, 1, "steel", deco)
+	end
+	for b = -3, 3 do
+		box(l, "prop", b * 5, 9, -147, 0.5, 16, 0.5, "steel", deco)
+	end
+	box(l, "prop", 0, 17.2, -160, 42, 0.4, 28, "steel", deco)
+	box(l, "glow", 0, H - 0.6, -160, 4, 0.6, 4, "relicRed", deco)
+	point(l, "cell", 0, 1.5, -150)
+end
+
 function PocketLayout.known(layout: any): boolean
 	return type(layout) == "string" and BUILD[layout] ~= nil
 end

@@ -1241,6 +1241,75 @@ return {
 					extras = { "bandage" },
 				},
 			},
+			-- The character lines (lore step 11): Vesper, Lodestar's old partner, or the famous stranger wearing her
+			-- face (silver-white hair, a star at the brow); Lark, Patch's big sister, on her old radio from the
+			-- pound (a cap like her brother's); Catchpole the Spark catcher (a hood and goggles); Sal Scorch of
+			-- the Torch Crew (a scar and a flame-red crop); and the Censor, a black bar where his eyes should be
+			vesper = {
+				name = "VESPER",
+				color = { 220, 150, 255 },
+				style = "broadcast",
+				blip = "guideFake",
+				portrait = {
+					bg = { 50, 30, 80 },
+					skin = { 236, 196, 170 },
+					hair = { 235, 235, 245 },
+					shape = "slick",
+					extras = { "star" },
+				},
+			},
+			lark = {
+				name = "LARK",
+				color = { 255, 200, 80 },
+				style = "radio",
+				blip = "radio",
+				portrait = {
+					bg = { 70, 50, 30 },
+					skin = { 241, 194, 160 },
+					hair = { 120, 78, 40 },
+					shape = "messy",
+					extras = { "cap", "bandage" },
+				},
+			},
+			catchpole = {
+				name = "CATCHPOLE",
+				color = { 150, 200, 90 },
+				style = "person",
+				blip = "guideFake",
+				portrait = {
+					bg = { 40, 50, 36 },
+					skin = { 198, 150, 110 },
+					hair = { 90, 70, 50 },
+					shape = "hood",
+					extras = { "goggles", "beard" },
+				},
+			},
+			scorch = {
+				name = "SAL SCORCH",
+				color = { 255, 120, 40 },
+				style = "person",
+				blip = "guideFake",
+				portrait = {
+					bg = { 80, 30, 20 },
+					skin = { 214, 160, 120 },
+					hair = { 230, 70, 30 },
+					shape = "messy",
+					extras = { "scar" },
+				},
+			},
+			censor = {
+				name = "THE CENSOR",
+				color = { 200, 200, 210 },
+				style = "broadcast",
+				blip = "guideFake",
+				portrait = {
+					bg = { 20, 20, 26 },
+					skin = { 210, 200, 196 },
+					hair = { 40, 40, 46 },
+					shape = "slick",
+					extras = { "tie", "blackbar" },
+				},
+			},
 		},
 		-- the three guides: each has its own blip and portrait
 		guides = { "lodestar", "patch", "crane" },
@@ -1442,6 +1511,10 @@ return {
 			Brinebreaker = 10, -- side quest chain: The Salt Dogs (lore step 11, the Coast)
 			Undisputed = 11, -- side quest chain: The Pit (lore step 11, chain 6, the Old Quarry)
 			["Tide Turner"] = 12, -- side quest chain: The Sunken City (lore step 11, the Underwater chain)
+			["True North"] = 13, -- side quest chain: The Last Partner (lore step 11, Lodestar's character line)
+			["Found Family"] = 14, -- side quest chain: Finding Lark (lore step 11, Patch's character line)
+			Fireproof = 15, -- side quest chain: Hostile Takeover (lore step 11, the Syndicate boss's line)
+			["Front Page"] = 16, -- side quest chain: The Scoop (lore step 11, the reporter's character line)
 			GoldTrim = 100,
 		},
 	},

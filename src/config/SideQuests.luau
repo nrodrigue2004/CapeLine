@@ -34,6 +34,10 @@
 -- * (lore step 11, the Underwater chain) deep sites on the sea floor (sites with `deep`, picked from
 --   Shared.DeepLayout): a chain at a deep site builds its goals in the open water round it (`deep` below lists
 --   the kinds that work there), and a finale's dress may go over a plain sea robot (dress `robot`).
+-- * (lore step 11, the character lines) chains with layer "character" and npc unlocks, at Docks and Old Town
+--   buildings too (sites keep `away.site` from each other); a line for one side only (unlock.side) keeps its
+--   goals on that side's key alone; a dress with `famous` goes over a famous fake (it cracks and reads FAKE);
+--   a giver may be a relay box (`relay`) and have its own `none` line.
 -- No free text anywhere: every string is fixed, with no format holes.
 return {
 	range = 12, -- talk range to a giver (the Talk prompt)
@@ -319,6 +323,69 @@ return {
 			clear = 14,
 			sign = false,
 		},
+		-- The character lines (nate's lore, build plan step 11: one chain per character, "about 5 quests each"):
+		-- existing city buildings picked by the same rules as the academy's and the bank's, each `away.site` studs
+		-- from every other chain's building or square (Shared.SideQuestSites). A Docks or Old Town building: of
+		-- that district's buildings in the height range, the one nearest `near` (studs from the district's middle,
+		-- x east and z south) at least away.pad from every safehouse pad and away.door from both HQ doors (the
+		-- Safehouse's and the Foundry's), with a street door (the face whose ground is open, nearest the middle).
+		-- The Last Partner (Lodestar's line): the Night Owl, the all-night diner where Lodestar and his partner met
+		-- after every patrol, a low Downtown block south-east of the plaza
+		NightOwl = {
+			name = "THE NIGHT OWL DINER",
+			district = "Downtown",
+			near = { 150, 260 },
+			height = { 24, 80 }, -- a low block with the diner on its ground floor
+			away = { plaza = 200, row = 150, door = 180, open = 80, site = 250 },
+		},
+		-- Vesper's penthouse: a tall Uptown tower, the famous stranger's home
+		Penthouse = {
+			name = "VESPER'S PENTHOUSE",
+			district = "Uptown",
+			near = { -140, -200 },
+			height = { 100, 520 },
+			away = { landmark = 120, site = 250 },
+		},
+		-- Finding Lark (Patch's line): the Old Town flat over a shop where Patch and his sister Lark grew up
+		LarkFlat = {
+			name = "LARK'S OLD FLAT",
+			district = "OldTown",
+			near = { -150, 150 },
+			height = { 18, 44 },
+			away = { pad = 60, door = 120, site = 200 },
+		},
+		-- the Spark Pound: Catchpole's Docks warehouse (inside it, the "pound" pocket: Shared.PocketLayout)
+		Pound = {
+			name = "THE SPARK POUND",
+			district = "Docks",
+			near = { 200, 100 },
+			height = { 20, 40 },
+			away = { pad = 60, door = 120, site = 200 },
+		},
+		-- Hostile Takeover (the Syndicate boss's line, villains only): Duchess Vanta's club in Old Town, and the
+		-- Torch Crew's garage across the district
+		OpalRoom = {
+			name = "THE OPAL ROOM",
+			district = "OldTown",
+			near = { 150, -150 },
+			height = { 24, 44 },
+			away = { pad = 60, door = 120, site = 200 },
+		},
+		TorchGarage = {
+			name = "THE TORCH CREW GARAGE",
+			district = "OldTown",
+			near = { -150, -200 },
+			height = { 18, 44 },
+			away = { pad = 60, door = 120, site = 200 },
+		},
+		-- The Scoop (the reporter's line): BHN 24's studio tower, Downtown, its uplink on the roof
+		Studio = {
+			name = "BHN 24 STUDIOS",
+			district = "Downtown",
+			near = { 270, -300 },
+			height = { 90, 200 },
+			away = { plaza = 200, row = 150, door = 180, open = 80, site = 250 },
+		},
 	},
 
 	-- Rooftop race courses (chain 2: Rooftop Racers over both skylines, nate): Shared.SideQuestSites.course
@@ -438,12 +505,156 @@ return {
 				mats = { suit = "Metal" },
 			},
 		},
+		-- The Last Partner's finale (Lodestar's line): the famous stranger who came back wearing Vesper's face, in
+		-- a starfield suit and a star cape, white hair and a star at the brow. `famous`: the dress goes over a
+		-- famous fake (Radiant's suit and brain: a Light flyer's dives and bursts), so her face cracks to metal
+		-- and her plate turns FAKE over her own name like any famous fake's. Not news: the Unmasked headline names
+		-- the suit's fake, so a dressed fake skips it (EnemyService).
+		Vesper = {
+			name = "Vesper",
+			title = "The Evening Star",
+			creature = false,
+			famous = true,
+			body = {
+				metal = { 150, 150, 170 },
+				eye = { 220, 150, 255 },
+				suit = { 70, 20, 110 },
+				trim = { 240, 240, 250 },
+			},
+			look = {
+				gender = 2,
+				build = 2, -- Normal: the suit's build (Radiant's frame)
+				height = 4,
+				skin = 10,
+				hair = 18, -- white
+				colors = { 35, 13, 18 }, -- deep purple, lilac, white
+				pieces = {
+					suit = "Starfield Suit",
+					back = "Star Cape",
+					hands = "Gloves",
+					feet = "Tall Boots",
+					emblem = "Star Crest",
+					hair = "Long Straight",
+					visage = "Hero Face",
+					makeup = "Star Mark",
+				},
+				tints = {},
+				mats = {},
+			},
+		},
+		-- Finding Lark's finale (Patch's line): Catchpole the Spark catcher in his powered catcher's rig, a big
+		-- man in a ranger harness, a duster coat and a tracker lens, nets slung from the rig. The suit and brain
+		-- are the Harvest King's (a heavy lobber: his throws are Catchpole's nets), as a machine that sparks apart.
+		Catchpole = {
+			name = "Catchpole",
+			title = "The Spark Catcher",
+			creature = false,
+			body = {
+				metal = { 110, 105, 90 },
+				eye = { 170, 255, 90 },
+				suit = { 90, 110, 40 },
+				trim = { 120, 75, 45 },
+			},
+			look = {
+				gender = 1,
+				build = 3, -- Heavy: the suit's build (the Harvest King's frame)
+				height = 4,
+				skin = 4,
+				hair = 39, -- chocolate
+				colors = { 29, 16, 4 }, -- olive, brown, yellow
+				pieces = {
+					suit = "Ranger Harness",
+					back = "Duster Coat",
+					hat = "Tracker Lens",
+					hands = "Work Gloves",
+					feet = "Combat Boots",
+					belt = "Tool Belt",
+					hair = "Shaggy",
+					beard = "Stubble",
+					visage = "Sharp Face",
+				},
+				tints = {},
+				mats = { hands = "Leather" },
+			},
+		},
+		-- Hostile Takeover's finale (the Syndicate boss's line): Sal Scorch, boss of the Torch Crew, in a suit of
+		-- glowing magma veins with flame gloves and flame hair. The suit and brain are Redline's (a slim Fire
+		-- racer: his dashes leave fire), as a machine that sparks apart.
+		Scorch = {
+			name = "Sal Scorch",
+			title = "Boss of the Torch Crew",
+			creature = false,
+			body = {
+				metal = { 90, 80, 80 },
+				eye = { 255, 160, 40 },
+				suit = { 200, 60, 20 },
+				trim = { 30, 30, 34 },
+			},
+			look = {
+				gender = 1,
+				build = 1, -- Slim: the suit's build (Redline's frame)
+				height = 3,
+				skin = 3,
+				hair = 24, -- orange-red
+				colors = { 24, 22, 4 }, -- orange-red, black, yellow
+				pieces = {
+					suit = "Magma Veins",
+					hands = "Flame Gloves",
+					shoulders = "Flame Pads",
+					feet = "Combat Boots",
+					belt = "Chain Belt",
+					neck = "Chain",
+					hair = "Flame Hair",
+					beard = "Goatee",
+					visage = "Scarred Face",
+				},
+				tints = {},
+				mats = {},
+			},
+		},
+		-- The Scoop's finale (the reporter's line): the Censor, a man in a black tuxedo and a long black cape with
+		-- a mono visor like a black bar over his eyes. The suit and brain are Masque-a-Rade's (a Shadow floater:
+		-- his darkness is the Censor's blackouts), as a machine that sparks apart.
+		Censor = {
+			name = "The Censor",
+			title = "He Decides What You See",
+			creature = false,
+			body = {
+				metal = { 60, 60, 70 },
+				eye = { 240, 240, 250 },
+				suit = { 24, 24, 28 },
+				trim = { 200, 200, 210 },
+			},
+			look = {
+				gender = 1,
+				build = 2, -- Normal: the suit's build (Masque-a-Rade's frame)
+				height = 4,
+				skin = 9,
+				hair = 22, -- black
+				colors = { 22, 18, 20 }, -- black, white, grey
+				pieces = {
+					suit = "Tuxedo",
+					back = "Long Cape",
+					head = "Mono Visor",
+					hands = "Gloves",
+					feet = "Loafers",
+					neck = "High Collar",
+					hair = "Side Part",
+					visage = "Cold Face",
+				},
+				tints = { head = { 22, 22, 0 }, back = { 22, 20, 0 } }, -- an all-black visor (the bar), a black cape
+				mats = {},
+			},
+		},
 	},
 
 	-- Who gives chains: a person on the R15 rig at an anchor ("plaza", "hq", a Config.City district, or "site"
 	-- with `site`: a row in sites) plus an offset; also a guide speaker (GuideHud lines). `look` (optional): a
 	-- fixed hero look from earnable creator pieces (Shared.FakeRules.lookFrom, validated by CreatorRules) drawn
-	-- by LookKit; without one, plain colours (PLACEHOLDER ART until the art pass).
+	-- by LookKit; without one, plain colours (PLACEHOLDER ART until the art pass). Lore step 11, the character
+	-- lines: `relay` (true, a "radio" giver with no look) is a voice heard through a relay box SideQuestService
+	-- draws instead of a person (Patch); `none` (optional, a fixed line or one per side) is what this giver says
+	-- instead of the shared `none` line when it has nothing for the hero (Vanta to a Vigil hero).
 	givers = {
 		-- The Hero Academy's giver: the academy's grumpy night janitor, who found the stairs nobody uses. He wants
 		-- the kids safe (the Vigil) and his three years of back pay out of Halo's vault (the Dread Syndicate).
@@ -706,6 +917,146 @@ return {
 					hands = "Hand Wraps",
 					neck = "Whistle",
 					feet = "High Tops",
+				},
+				tints = {},
+				mats = {},
+			},
+		},
+		-- The Last Partner's giver (Lodestar's line): Lodestar himself, in his booth at the Night Owl diner, in his
+		-- fixed look (Config.Story.opening.lodestar.look; tested to match) and his guide portrait. His partner of
+		-- twelve years, Vesper, died in the harbour fire last winter; last month she came back, famous, and
+		-- doesn't know his name. He wants the stranger unmasked (the Vigil), or will pay a Syndicate crook with
+		-- everything in her penthouse to do it (the Dread Syndicate).
+		LodestarGiver = {
+			name = "LODESTAR",
+			anchor = "site",
+			site = "NightOwl",
+			color = { 150, 190, 255 },
+			style = "person",
+			blip = "guideLodestar",
+			portrait = {
+				bg = { 30, 42, 86 },
+				skin = { 214, 160, 120 },
+				hair = { 205, 210, 220 },
+				shape = "slick",
+				extras = { "beard", "scar", "star" },
+			},
+			look = {
+				gender = 1,
+				build = 3,
+				height = 5,
+				skin = 4,
+				hair = 19, -- silver
+				colors = { 11, 19, 4 }, -- navy, silver, gold
+				pieces = {
+					suit = "Split Tone",
+					back = "Classic Cape",
+					hands = "Gloves",
+					feet = "Tall Boots",
+					emblem = "Star",
+					hair = "Slicked Back",
+					beard = "Full Beard",
+					shoulders = "Mantle",
+					belt = "Utility Belt",
+					visage = "Scarred Face",
+				},
+				tints = { back = { 11, 4, 0 } },
+				mats = {},
+			},
+		},
+		-- Finding Lark's giver (Patch's line): Patch is a voice on the radio, so his giver is a relay box he wired
+		-- to a lamp post outside his sister's old flat (`relay`: SideQuestService draws the box, PLACEHOLDER ART).
+		-- His big sister Lark, a flier, raised him alone until a Spark catcher's net van took her a year ago.
+		PatchRelay = {
+			name = "PATCH'S RELAY",
+			anchor = "site",
+			site = "LarkFlat",
+			color = { 120, 230, 255 },
+			style = "radio",
+			relay = true,
+			blip = "radio",
+			portrait = {
+				bg = { 18, 60, 72 },
+				skin = { 241, 194, 160 },
+				hair = { 120, 78, 40 },
+				shape = "messy",
+				extras = { "cap", "headset" },
+			},
+		},
+		-- Hostile Takeover's giver (the Syndicate boss's line, villains only): Duchess Vanta, who has run Old Town's
+		-- rackets from the Opal Room for twenty years without one fire. Sal Scorch's Torch Crew burns the shops
+		-- that pay her. She wants him gone, by a face nobody in Old Town knows. A Vigil hero gets her `none` line.
+		Vanta = {
+			name = "DUCHESS VANTA",
+			anchor = "site",
+			site = "OpalRoom",
+			color = { 190, 110, 240 },
+			style = "person",
+			blip = "guideInsider",
+			none = {
+				hero = "A hero in the Opal Room? You're lost, darling. The door is right behind you.",
+				villain = "Not yet, darling. Make a name for yourself first. Then come and see me.",
+			},
+			portrait = {
+				bg = { 50, 20, 60 },
+				skin = { 160, 105, 70 },
+				hair = { 175, 180, 190 },
+				shape = "slick",
+				extras = { "pearls" },
+			},
+			look = {
+				gender = 2,
+				build = 2,
+				height = 4,
+				skin = 5,
+				hair = 19, -- silver
+				colors = { 35, 28, 22 }, -- deep purple, gold, black
+				pieces = {
+					suit = "Royal Coat",
+					neck = "Bead Necklace",
+					wrist = "Gem Ring",
+					ears = "Gem Studs",
+					hair = "Crown Braid",
+					visage = "Cold Face",
+					makeup = "Lipstick",
+					feet = "Loafers",
+				},
+				tints = { neck = { 18, 18, 0 } }, -- white beads: her pearls
+				mats = {},
+			},
+		},
+		-- The Scoop's giver (the reporter's line): Nora Bright, BHN 24's night reporter, whose stories keep getting
+		-- cut mid-sentence. She wants the truth on air (the Vigil), or will trade every secret she never got to
+		-- air for help getting it out (the Dread Syndicate). Her hand mic is on her portrait.
+		Nora = {
+			name = "NORA BRIGHT",
+			anchor = "site",
+			site = "Studio",
+			color = { 90, 170, 255 },
+			style = "person",
+			blip = "guideInsider",
+			portrait = {
+				bg = { 30, 50, 90 },
+				skin = { 198, 140, 100 },
+				hair = { 80, 50, 30 },
+				shape = "messy",
+				extras = { "mic" },
+			},
+			look = {
+				gender = 2,
+				build = 2,
+				height = 3,
+				skin = 4,
+				hair = 39, -- chocolate
+				colors = { 10, 18, 1 }, -- blue, white, red
+				pieces = {
+					suit = "Trench Coat",
+					hair = "Bob Cut",
+					ears = "Comms Earpiece",
+					neck = "Pendant",
+					feet = "Sneakers",
+					visage = "Hero Face",
+					makeup = "Freckles",
 				},
 				tints = {},
 				mats = {},
@@ -2713,6 +3064,803 @@ return {
 							who = "tidewright",
 							hero = "You jammed my spire. Then I will raise the tide myself. Velmara will not drown twice!",
 							villain = "Thieves in my treasury. The last guardian of Velmara will not let you leave.",
+						},
+					},
+				},
+			},
+		},
+		-- Character line (nate's lore, build plan step 11): The Last Partner. nate's draft: "the veteran's last
+		-- partner was replaced by a fake." Lodestar flew with Vesper, the Evening Star, for twelve years. Last
+		-- winter she flew into the harbour fire for the last family and never came out; last month she came back,
+		-- rich and famous, and walked right past him. The Vigil photograph her escort drones, find the fire crew
+		-- captain who saw her fall, light the old two-star signal and scrap the drones she sends; the Dread
+		-- Syndicate rob her trophy van, catch the courier with her key card, race it to her penthouse and run her
+		-- memory chip to Lodestar. Both crack the fake's face at the end (a famous fake under her dress). Lines
+		-- for both sides, from Lodestar's diner and her Uptown tower. Standalone: who built her is left open.
+		{
+			id = "LastPartner",
+			bit = 9,
+			name = "The Last Partner",
+			layer = "character",
+			giver = "LodestarGiver",
+			site = "NightOwl",
+			unlock = { story = 4, level = 8, npc = true }, -- after Act 1's fourth mission; only from Lodestar
+			villain = { name = "VESPER", title = "THE EVENING STAR" },
+			reward = { share = 3, title = "True North", style = "TwinStarCape" },
+			blurb = {
+				hero = "Lodestar's partner died last winter. Now she's back, famous, and doesn't know his name.",
+				villain = "A famous hero wears a dead woman's face. Lodestar will pay to see her unmasked.",
+			},
+			lines = {
+				offer = {
+					hero = "Vesper was my partner for twelve years. She died in a fire. Now she's on every screen, and she doesn't know me.",
+					villain = "I don't work with your kind. But she's no hero. Unmask her, and everything in her penthouse is yours.",
+				},
+				resume = {
+					hero = "Back, kid? Good. Let's find out who is wearing my partner's face.",
+					villain = "Still interested? Her penthouse is still full. Let's go.",
+				},
+				done = {
+					hero = "That thing was never her. Vesper went down saving a family, and now the whole city knows it. Thank you, kid.",
+					villain = "Her penthouse is empty and that fake is scrap. We're square. Don't let me catch you on a bad night.",
+				},
+			},
+			steps = {
+				-- 1. The Night Owl diner: Lodestar's booth, two coffees
+				{
+					hero = { kind = "talk", text = "Meet Lodestar at the Night Owl diner" },
+					villain = { kind = "talk", text = "Hear Lodestar's offer at the Night Owl" },
+					at = "NightOwl",
+					scene = "nightOwl",
+					lines = {
+						{
+							who = "lodestar",
+							hero = "The harbour fire. She went in for the last family and the roof came down. I got the family out. Not her.",
+							villain = "Twelve years we flew together. Last month she stepped out of a limo and smiled at me like a stranger.",
+						},
+						{
+							who = "patch",
+							hero = "Vesper's on every billboard in Uptown. And her escort drones follow her everywhere she goes.",
+							villain = "Vesper's penthouse is full of awards. Gold ones. Just saying.",
+						},
+					},
+				},
+				-- 2. Uptown: her escort drones on camera / her trophy van
+				{
+					hero = {
+						kind = "photo",
+						count = 3,
+						range = { 30, 120 },
+						text = "Photograph Vesper's escort drones over Uptown",
+					},
+					villain = {
+						kind = "fetch",
+						count = 3,
+						range = { 40, 140 },
+						guards = { "ShieldBearer", 1 },
+						text = "Grab the gold awards off Vesper's trophy van",
+					},
+					at = "Penthouse",
+					lines = {
+						{
+							who = "vesper",
+							text = "Smile for the drones, Uptown! Every photo of me is a memory you get to keep.",
+						},
+						{
+							who = "patch",
+							hero = "Those drones were built, not bought. Somebody made them. Get pictures and I'll trace the parts.",
+							villain = "Her trophy van's parked out front. Solid gold awards. Who even gives a hero gold?",
+						},
+					},
+				},
+				-- 3. The fire crew captain who saw her fall / the courier with her key card
+				{
+					hero = {
+						kind = "find",
+						range = { 40, 140 },
+						witness = true,
+						text = "Find the fire captain who saw Vesper fall",
+					},
+					villain = {
+						kind = "chase",
+						enemy = "SneakBot",
+						hops = 5,
+						speed = 22,
+						text = "Catch the courier bot with her key card",
+					},
+					at = "NightOwl",
+					lines = {
+						{
+							who = "lodestar",
+							hero = "The fire crew's captain was there that night. Nobody ever asked him what he saw.",
+							villain = "Her courier bot carries the key card to the penthouse. It runs past here every night.",
+						},
+						{
+							who = "patch",
+							hero = "Found him in the old fire report. He retired near here. Go talk to him!",
+							villain = "That courier bot is quick. Don't let it reach Uptown!",
+						},
+					},
+				},
+				-- 4. The two-star signal on the diner's roof / the key card over the roofs
+				{
+					hero = {
+						kind = "hold",
+						seconds = 20,
+						radius = 10,
+						high = true,
+						text = "Light Lodestar's old two-star signal",
+					},
+					villain = {
+						kind = "race",
+						checkpoints = 4,
+						gap = 60,
+						time = 45,
+						text = "Race the key card over the roofs",
+					},
+					at = "NightOwl",
+					lines = {
+						{
+							who = "lodestar",
+							hero = "Our signal. Two stars on the clouds. The real Vesper always came. Let's see what does.",
+							villain = "Get that card into her tower before she cancels it. Roofs are faster than roads.",
+						},
+					},
+				},
+				-- 5. Uptown: her drones come for the signal-lighters / the memory chip; her story as a comic page
+				{
+					hero = {
+						kind = "fight",
+						squads = { { "SparkDrone", 4 }, { "ShieldBearer", 1 } },
+						range = { 60, 150 },
+						text = "Scrap the drones guarding Vesper's tower",
+					},
+					villain = {
+						kind = "deliver",
+						range = { 150, 300 },
+						text = "Run Vesper's memory chip to Lodestar",
+					},
+					at = "Penthouse",
+					scene = "vesperStory",
+					lines = {
+						{
+							who = "vesper",
+							text = "Somebody lit that dusty old signal. How rude. Drones? Make them go away.",
+						},
+						{
+							who = "lodestar",
+							hero = "She came, and she sent drones in first. Vesper never once sent anyone in ahead of her.",
+							villain = "Her memory chip. If she's a machine, it's all in there. Bring it to me.",
+						},
+					},
+				},
+				-- 6. The finale outside her tower: the fake Vesper, cracked to metal
+				{
+					hero = {
+						kind = "finale",
+						enemy = "Radiant", -- a famous fake's suit and brain; Vesper's look, name and title: dress
+						dress = "Vesper",
+						hpMult = 3,
+						adds = { { "SparkDrone", 3 } },
+						range = { 20, 60 },
+						text = "Crack the fake Vesper's face for the city",
+						villainText = "Unmask the fake Vesper and rob her blind",
+					},
+					villain = "same",
+					at = "Penthouse",
+					scene = "twoStars",
+					lines = {
+						{
+							who = "vesper",
+							hero = "Lodestar sent you? How sweet. Tell him the old Vesper isn't coming back.",
+							villain = "Robbing my penthouse? I'm a HERO, darling. Heroes always win on camera.",
+						},
+						{
+							who = "lodestar",
+							hero = "Same light, same moves. But she always led with her left. Watch for the cracks.",
+							villain = "Hit it till it cracks. Whatever's in there isn't her.",
+						},
+					},
+				},
+			},
+		},
+		-- Character line (nate's lore, build plan step 11): Finding Lark. nate's draft: "the hacker kid is hunting
+		-- for a missing sister." Patch's big sister Lark, a flier, raised him alone; a year ago she stopped a
+		-- mugging on camera, and two days later Catchpole the Spark catcher's net van took her. Tonight her old
+		-- radio said one word: pound. The Vigil find the neighbour who saw the van, photograph the vans at the
+		-- Spark Pound (a Docks warehouse), clear its gate, break in and open every cage, fly the weakest to the
+		-- medics; the Dread Syndicate, paid with everything Patch has, steal the bounty files, catch the catcher
+		-- bot with the gate code, hold the gate while Patch jams the cameras, rob the pound's safe and run the
+		-- bounty money out. Both open Lark's cell and stop Catchpole. Patch's giver is a relay box (he's radio only).
+		{
+			id = "FindingLark",
+			bit = 10,
+			name = "Finding Lark",
+			layer = "character",
+			giver = "PatchRelay",
+			site = "LarkFlat",
+			unlock = { story = 3, level = 6, npc = true }, -- after Act 1's third mission; only from Patch's relay
+			villain = { name = "CATCHPOLE", title = "THE SPARK CATCHER" },
+			reward = { share = 3, title = "Found Family", style = "RelayVisor" },
+			blurb = {
+				hero = "Patch's big sister Lark vanished a year ago. Tonight her old radio said one word: pound.",
+				villain = "A Spark catcher keeps a pound full of bounties. Patch will pay anything to free Lark.",
+			},
+			lines = {
+				offer = {
+					hero = "I never ask for stuff. I'm asking. My sister Lark is alive, and I know where she is. Sort of.",
+					villain = "I know you're not a good guy. I don't care. My sister's in a cage. I'll pay everything I have.",
+				},
+				resume = {
+					hero = "You came back! Okay. Okay. Let's keep going. Lark's still in there.",
+					villain = "You came back. I'm still paying. Let's get her out.",
+				},
+				done = {
+					hero = "She's home. She's eating all my cereal. Best night of my whole life. I owe you forever.",
+					villain = "Lark's home and Catchpole's broke. You kept your end. Here's mine. Thank you. Really.",
+				},
+			},
+			steps = {
+				-- 1. Lark's old flat in Old Town: her jacket on the hook, her radio waking up
+				{
+					hero = { kind = "talk", text = "Answer Patch's relay at Lark's old flat" },
+					villain = { kind = "talk", text = "Hear Patch's offer at Lark's old flat" },
+					at = "LarkFlat",
+					scene = "larkFlat",
+					lines = {
+						{
+							who = "patch",
+							hero = "She stopped a mugging with her Spark, on camera. Two days later a van with a net on top took her.",
+							villain = "A net van took her. A Spark catcher. He sells Sparks like they're stray dogs.",
+						},
+						{
+							who = "lark",
+							text = "Patch? If you can hear this... the pound. The Docks. Hurry.",
+						},
+					},
+				},
+				-- 2. Old Town: the neighbour who saw the van / the bounty files
+				{
+					hero = {
+						kind = "find",
+						range = { 40, 140 },
+						witness = true,
+						text = "Find the neighbour who saw the net van",
+					},
+					villain = {
+						kind = "fetch",
+						count = 3,
+						range = { 40, 140 },
+						guards = { "BurglarBot", 2 },
+						text = "Steal the bounty files off the catcher's bots",
+					},
+					at = "LarkFlat",
+					lines = {
+						{
+							who = "catchpole",
+							text = "Another Spark seen in Old Town? Mark it. Net it. Bag it. The bounty's good this week.",
+						},
+						{
+							who = "patch",
+							hero = "The old lady downstairs sees everything. If anybody saw that van, it's her.",
+							villain = "His bots collect tips all over Old Town. Their files say where the pound is.",
+						},
+					},
+				},
+				-- 3. The Spark Pound in the Docks: the net vans on camera / the catcher bot with the gate code
+				{
+					hero = {
+						kind = "photo",
+						count = 3,
+						range = { 30, 120 },
+						text = "Photograph the net vans at the Spark Pound",
+					},
+					villain = {
+						kind = "chase",
+						enemy = "SneakBot",
+						hops = 5,
+						speed = 22,
+						text = "Catch the catcher bot with the gate code",
+					},
+					at = "Pound",
+					lines = {
+						{
+							who = "patch",
+							hero = "That's the pound. A real warehouse, right in the Docks. Get the vans on camera. Proof!",
+							villain = "His catcher bot knows the gate code. Grab it and we're in.",
+						},
+						{
+							who = "catchpole",
+							text = "Who's snooping round my pound? Every Spark in there is paid for. Fair and square.",
+						},
+					},
+				},
+				-- 4. The pound's gate: its guard bots / the gate held while Patch jams the cameras
+				{
+					hero = {
+						kind = "fight",
+						home = true,
+						squads = { { "BurglarBot", 3 }, { "Bomber", 1 } },
+						text = "Scrap the guard bots at the pound's gate",
+					},
+					villain = {
+						kind = "hold",
+						seconds = 20,
+						radius = 12,
+						text = "Hold the gate while Patch jams the cameras",
+					},
+					at = "Pound",
+					lines = {
+						{
+							who = "patch",
+							hero = "They saw us. Guard bots at the gate. Clear them and the way in is open.",
+							villain = "Hold there, I'm jamming the cameras. Twenty seconds. Don't let them near the gate box!",
+						},
+					},
+				},
+				-- 5. Inside the Spark Pound: the intake office, the kennel hall, the collar scanners, Lark's cell.
+				-- Lark's story as a comic page.
+				{
+					hero = {
+						kind = "pocket",
+						layout = "pound",
+						minutes = 12,
+						text = "Break into the Spark Pound",
+						villainText = "Break into the Spark Pound and rob it",
+						steps = {
+							{
+								kind = "defeat",
+								room = 1,
+								squads = { { "BurglarBot", 3 }, { "ShieldBearer", 1 } },
+								text = "Clear the guard bots out of the intake office",
+								villainText = "Scrap the guard bots in the intake office",
+							},
+							{
+								kind = "hold",
+								at = "kennels",
+								points = 1,
+								seconds = 20,
+								radius = 16,
+								waves = { { "SparkDrone", 3 } },
+								waveGap = 10,
+								text = "Hold the kennel hall while the cages open",
+								villainText = "Hold the kennel hall while the safe cracks",
+							},
+							{
+								kind = "break",
+								list = "collars",
+								points = 4,
+								hits = 3,
+								text = "Smash the four collar scanners",
+								villainText = "Smash the scanners and grab the bounty chips",
+							},
+							{
+								kind = "reach",
+								at = "cell",
+								text = "Reach Lark's cell at the end of the hall",
+								villainText = "Reach the last cell, and Lark",
+							},
+							{
+								kind = "boss",
+								enemy = "Grappler",
+								hpMult = 4,
+								adds = { "SparkDrone", 2 },
+								text = "Beat the pound's warden bot",
+								villainText = "Scrap the warden bot and take its keys",
+							},
+						},
+					},
+					villain = "same",
+					at = "Pound",
+					scene = "larkStory",
+					lines = {
+						{
+							who = "patch",
+							hero = "Every cage has a Spark in it. Twelve of them. Get them all out. Lark's at the end.",
+							villain = "The bounty money's in the office safe. Take it. But Lark's in the last cell. Please.",
+						},
+					},
+				},
+				-- 6. Out of the pound: the weakest Spark to the medics / the bounty money over the roofs
+				{
+					hero = {
+						kind = "carry",
+						range = { 60, 160 },
+						text = "Fly a freed Spark to the medics",
+					},
+					villain = {
+						kind = "race",
+						checkpoints = 4,
+						gap = 60,
+						time = 45,
+						text = "Run the bounty money out over the Docks",
+					},
+					at = "Pound",
+					lines = {
+						{
+							who = "lark",
+							text = "I'm out! Patch, I'm OUT! But Catchpole's van is coming back. Move!",
+						},
+						{
+							who = "patch",
+							hero = "Some of them can barely stand after a year in a collar. The medics are a block away.",
+							villain = "Catchpole's back early! Get the money clear, I'll steer you.",
+						},
+					},
+				},
+				-- 7. The finale outside the pound: Catchpole in his catcher's rig
+				{
+					hero = {
+						kind = "finale",
+						enemy = "HarvestKing", -- the suit and brain (a heavy lobber); Catchpole's look, name and title: dress
+						dress = "Catchpole",
+						hpMult = 2,
+						adds = { { "BurglarBot", 3 } },
+						range = { 20, 60 },
+						text = "Stop Catchpole before he nets Lark again",
+						villainText = "Beat Catchpole and take his bounty book",
+					},
+					villain = "same",
+					at = "Pound",
+					scene = "netGun",
+					lines = {
+						{
+							who = "catchpole",
+							hero = "That girl's my best bounty all year. You don't get to keep her, hero.",
+							villain = "A crook robbing a crook? Nothing's free, thief. There's a bounty on you now too.",
+						},
+						{
+							who = "lark",
+							text = "He fires nets, then reels you in. Keep moving. I'll call the shots from up here!",
+						},
+					},
+				},
+			},
+		},
+		-- Character line (nate's lore, build plan step 11): Hostile Takeover, for the Dread Syndicate only. nate's
+		-- draft: "a Syndicate boss wants a rival removed (villain side only)." Duchess Vanta has run Old Town's
+		-- rackets from the Opal Room for twenty years without one fire; Sal Scorch's Torch Crew now burns the shops
+		-- that pay her. Villains steal back the protection money, catch the Crew's bookkeeper bot, plant its
+		-- ledger on Scorch's own lieutenant so the Crew turns on itself, hit the garage and beat Scorch in front
+		-- of his crew. Every goal and line sits on the villain key (unlock.side "villain"; a Vigil hero is locked
+		-- out and gets Vanta's `none` line). "Removed": beaten and run out of town, cartoon style.
+		{
+			id = "HostileTakeover",
+			bit = 11,
+			name = "Hostile Takeover",
+			layer = "character",
+			giver = "Vanta",
+			site = "OpalRoom",
+			unlock = { story = 2, level = 6, side = "villain", npc = true }, -- after Act 1's Safehouse; villains
+			villain = { name = "SAL SCORCH", title = "BOSS OF THE TORCH CREW" },
+			reward = { share = 3, title = "Fireproof", style = "ScorchproofGauntlets" },
+			blurb = {
+				villain = "The Torch Crew burns Old Town shop by shop. Duchess Vanta wants their boss gone.",
+			},
+			lines = {
+				offer = {
+					text = "You're new, so nobody knows your face. Perfect. Sal Scorch wants my Old Town. I want him gone.",
+				},
+				resume = {
+					text = "Back, darling? Sal is still in business. Let's change that.",
+				},
+				done = {
+					text = "The Torch Crew is finished and Old Town is mine again. Your booth at the Opal Room is always waiting.",
+				},
+			},
+			steps = {
+				-- 1. The Opal Room: the Duchess's booth, the Torch Crew's threat
+				{
+					villain = { kind = "talk", text = "Meet Duchess Vanta at the Opal Room" },
+					at = "OpalRoom",
+					scene = "opalRoom",
+					lines = {
+						{
+							who = "Vanta",
+							text = "Old Town pays me to keep it quiet. Scorch burns the shops that pay me, and laughs.",
+						},
+						{
+							who = "patch",
+							text = "Duchess Vanta runs half of Old Town. If she wants Scorch gone, he's a big deal.",
+						},
+					},
+				},
+				-- 2. The Torch Crew's garage: the protection money
+				{
+					villain = {
+						kind = "fetch",
+						count = 3,
+						range = { 40, 140 },
+						guards = { "BurglarBot", 2 },
+						text = "Take back the Torch Crew's protection money",
+					},
+					at = "TorchGarage",
+					lines = {
+						{
+							who = "Vanta",
+							text = "Every shop in Old Town paid Scorch this week. Take it back. It was mine anyway.",
+						},
+						{
+							who = "scorch",
+							text = "Somebody's knocking over my collectors? Find them. Toast them.",
+						},
+					},
+				},
+				-- 3. The bookkeeper bot with the Crew's ledger
+				{
+					villain = {
+						kind = "chase",
+						enemy = "SneakBot",
+						hops = 5,
+						speed = 22,
+						text = "Catch the Torch Crew's bookkeeper bot",
+					},
+					at = "TorchGarage",
+					lines = {
+						{
+							who = "Vanta",
+							text = "His bookkeeper bot keeps the Crew's ledger. Every bribe, every fire. Get it.",
+						},
+						{
+							who = "patch",
+							text = "That bot's running for the Docks. Cut it off!",
+						},
+					},
+				},
+				-- 4. The ledger planted on Scorch's lieutenant; the Torch Crew's story as a comic page
+				{
+					villain = {
+						kind = "deliver",
+						range = { 150, 300 },
+						text = "Plant the ledger on Scorch's lieutenant",
+					},
+					at = "OpalRoom",
+					scene = "scorchStory",
+					lines = {
+						{
+							who = "Vanta",
+							text = "Slip his ledger into his lieutenant's car. Sal will think his best man sold him out.",
+						},
+						{
+							who = "scorch",
+							text = "Who took my ledger?! Somebody in my own crew? Nobody trusts nobody till I find out!",
+						},
+					},
+				},
+				-- 5. The garage while the Crew fights itself
+				{
+					villain = {
+						kind = "fight",
+						home = true,
+						squads = { { "BurglarBot", 3 }, { "Bomber", 2 } },
+						text = "Scrap the Torch Crew's bots at the garage",
+					},
+					at = "TorchGarage",
+					lines = {
+						{
+							who = "Vanta",
+							text = "His crew is turning on itself. Hit the garage now, while nobody is watching his back.",
+						},
+						{
+							who = "scorch",
+							text = "My own garage? In MY town? Crew, light them up!",
+						},
+					},
+				},
+				-- 6. The finale in front of the garage: Sal Scorch in his magma suit
+				{
+					villain = {
+						kind = "finale",
+						enemy = "Redline", -- the suit and brain (a slim Fire racer); Scorch's look, name and title: dress
+						dress = "Scorch",
+						hpMult = 3,
+						adds = { { "Bomber", 2 } },
+						range = { 20, 60 },
+						text = "Beat Sal Scorch in front of his own crew",
+					},
+					at = "TorchGarage",
+					scene = "torchOut",
+					lines = {
+						{
+							who = "scorch",
+							text = "You work for the Duchess? Then tell her Old Town burns tonight. Starting with you!",
+						},
+						{
+							who = "Vanta",
+							text = "Beat him in front of his own crew. Nobody follows a boss who lost.",
+						},
+					},
+				},
+			},
+		},
+		-- Character line (nate's lore, build plan step 11): The Scoop. nate's draft: "a news reporter tries to get
+		-- the truth out." Nora Bright, BHN 24's night reporter, keeps getting cut mid-sentence: a masked man in
+		-- the control room, the Censor, decides what Brightharbor sees, and his blackout drones jam every screen
+		-- that shows the rest. The Vigil find her vanished eyewitness, get her news van to the uplink and
+		-- photograph the drones; the Dread Syndicate, promised every secret she never aired, grab the cut tapes,
+		-- catch the bot with the control room key and sell a copy to a rival channel. Both hold the uplink on the
+		-- studio roof while the story goes out, and fight the Censor live on air. Standalone: who the Censor
+		-- works for is left open.
+		{
+			id = "TheScoop",
+			bit = 12,
+			name = "The Scoop",
+			layer = "character",
+			giver = "Nora",
+			site = "Studio",
+			unlock = { story = 6, level = 10, npc = true }, -- after Act 1's sixth mission; only from Nora
+			villain = { name = "THE CENSOR", title = "HE DECIDES WHAT YOU SEE" },
+			reward = { share = 3, title = "Front Page", style = "PressVest" },
+			blurb = {
+				hero = "Somebody cuts Brightharbor's news before it airs. Reporter Nora Bright wants it out.",
+				villain = "A masked man decides what BHN 24 airs. A reporter will trade her secrets for help.",
+			},
+			lines = {
+				offer = {
+					hero = "Nora Bright, BHN 24. My stories keep getting cut, live, mid-sentence. I need someone the Censor can't scare.",
+					villain = "You're not the kind I interview. But you get things done. Help me, and every secret I never aired is yours.",
+				},
+				resume = {
+					hero = "Back for the story? Good. The Censor hasn't stopped, and neither have we.",
+					villain = "Back? Good. The secrets are still yours once the story gets out.",
+				},
+				done = {
+					hero = "The whole city saw it, live. No more cuts. That's the best story I ever ran. Thank you.",
+					villain = "We're on air and the Censor's off it. A deal's a deal: every secret I never aired is yours.",
+				},
+			},
+			steps = {
+				-- 1. The BHN 24 news desk, the night a story goes black
+				{
+					hero = { kind = "talk", text = "Meet Nora Bright at BHN 24 Studios" },
+					villain = { kind = "talk", text = "Hear Nora Bright out at BHN 24 Studios" },
+					at = "Studio",
+					scene = "newsDesk",
+					lines = {
+						{
+							who = "Nora",
+							hero = "Every time a story makes someone powerful look bad, the screen goes black. Every single time.",
+							villain = "There's a man inside BHN 24 who decides what airs. He sits on a lot of secrets.",
+						},
+						{
+							who = "patch",
+							hero = "Wait, the news gets CUT? I thought my TV was just broken. Okay, I'm in.",
+							villain = "A guy who controls the news? That's not a crook. That's the boss level.",
+						},
+					},
+				},
+				-- 2. The eyewitness from the cut story / the cut tapes
+				{
+					hero = {
+						kind = "find",
+						range = { 40, 140 },
+						witness = true,
+						text = "Find the eyewitness from the story that got cut",
+					},
+					villain = {
+						kind = "fetch",
+						count = 3,
+						range = { 40, 140 },
+						guards = { "ShieldBearer", 1 },
+						text = "Grab the cut tapes off the courier bots",
+					},
+					at = "Studio",
+					lines = {
+						{
+							who = "censor",
+							text = "Some stories are too loud for Brightharbor. Turn them down.",
+						},
+						{
+							who = "Nora",
+							hero = "My eyewitness went quiet after the cut. Find her before someone else does.",
+							villain = "The cut tapes go out on courier bots, to be shredded. Three of them. Grab them.",
+						},
+					},
+				},
+				-- 3. The news van to the uplink / the control room key
+				{
+					hero = {
+						kind = "escort",
+						goal = 160,
+						speed = 9,
+						near = 40,
+						text = "Get Nora's news van to the uplink safely",
+					},
+					villain = {
+						kind = "chase",
+						enemy = "SneakBot",
+						hops = 5,
+						speed = 22,
+						text = "Catch the bot with the control room key",
+					},
+					at = "Studio",
+					lines = {
+						{
+							who = "censor",
+							text = "A news van? How quaint. Drones, cut its signal. And its tyres.",
+						},
+						{
+							who = "Nora",
+							hero = "My van has the one uplink he can't cut. Keep it in one piece till we're set up.",
+							villain = "The control room key rides on a runner bot. Catch it and we're inside.",
+						},
+					},
+				},
+				-- 4. The blackout drones on camera / a copy to a rival channel
+				{
+					hero = {
+						kind = "photo",
+						count = 3,
+						range = { 30, 120 },
+						text = "Photograph the blackout drones",
+					},
+					villain = {
+						kind = "deliver",
+						range = { 150, 300 },
+						text = "Sell a copy of the tapes to a rival channel",
+					},
+					at = "Studio",
+					lines = {
+						{
+							who = "Nora",
+							hero = "Those drones jam every screen on the block. Pictures, please. That's my proof.",
+							villain = "The rival channel across town will pay for these. Then they'll air them. Everyone wins.",
+						},
+						{
+							who = "patch",
+							text = "Blackout drones! So that's why my cartoons cut out last Tuesday!",
+						},
+					},
+				},
+				-- 5. The uplink on the studio roof (both sides); the cut stories as a comic page
+				{
+					hero = {
+						kind = "hold",
+						seconds = 25,
+						radius = 10,
+						high = true,
+						text = "Guard Nora's uplink on the studio roof",
+						villainText = "Guard the uplink while the story goes live",
+					},
+					villain = "same",
+					at = "Studio",
+					scene = "cutStory",
+					lines = {
+						{
+							who = "Nora",
+							text = "Uplink's on the roof. Twenty-five seconds to reach every screen in the city. Hold it!",
+						},
+						{
+							who = "censor",
+							text = "Turn that off. TURN IT OFF. Nothing airs without me!",
+						},
+					},
+				},
+				-- 6. The finale live on air: the Censor in his shadow suit
+				{
+					hero = {
+						kind = "finale",
+						enemy = "MasqueARade", -- the suit and brain (a Shadow floater); the Censor's look, name and title: dress
+						dress = "Censor",
+						hpMult = 3,
+						adds = { { "SparkDrone", 3 } },
+						range = { 20, 60 },
+						text = "Beat the Censor live on air",
+						villainText = "Beat the Censor and take his secret files",
+					},
+					villain = "same",
+					at = "Studio",
+					scene = "onAir",
+					lines = {
+						{
+							who = "censor",
+							hero = "You think people want the truth? They want quiet. I give them quiet.",
+							villain = "Secrets are worth more unseen. You of all people should know that.",
+						},
+						{
+							who = "Nora",
+							hero = "Camera's on you! Hit him hard, the whole city is watching!",
+							villain = "Camera's rolling. Make it a good show and the files are yours.",
 						},
 					},
 				},

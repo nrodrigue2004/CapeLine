@@ -6,7 +6,11 @@
 --   fit (a height in range, no skyscraper crown, `away` studs from the Beacon Tower's plaza, every roof of the
 --   prologue's chase row, the Vigil's stairwell and the open squares), the one nearest `near` (studs from the
 --   Beacon Tower). Uptown (chain 2's bank): the one nearest `near` from Uptown's landmark tower, `away`.landmark
---   from it. nate (2026-11-17): the Hero Academy is an existing building, not an open square.
+--   from it. nate (2026-11-17): the Hero Academy is an existing building, not an open square. The Docks and
+--   Old Town (lore step 11, the character lines): of that district's buildings (world.buildings, fixed every
+--   week) a height in range, `away` studs from every safehouse pad, the Vigil's stairwell and the Foundry door,
+--   with a way in on open ground (districtDoor), the one nearest `near` (studs from the district's middle). Any
+--   city site with `away.site` also keeps that far from every other city site (buildings and squares).
 -- * square(Config, world, id): a site in one of Downtown's open squares (`square`: a Config.City.downtown.open
 --   id; nate kept both for The Gala Heist): the square's record { id, x, z, size }.
 -- * door(world, b, ox?, oz?): the face of that building that opens on a street (a point 10 studs out is in no
@@ -56,8 +60,73 @@ local function flat(ax: number, az: number, bx: number, bz: number): number
 	return math.sqrt((ax - bx) ^ 2 + (az - bz) ^ 2)
 end
 
--- Does building b keep every distance site st asks for?
-function SideQuestSites.fits(Config: any, world: any, st: any, b: any): boolean
+local FACES = { { 0, 1 }, { 0, -1 }, { 1, 0 }, { -1, 0 } }
+
+-- The districts whose existing buildings a site may be in (lore step 11: the character lines add the Docks and
+-- Old Town to Downtown and Uptown)
+SideQuestSites.CITY = { Downtown = true, Uptown = true, Docks = true, OldTown = true }
+
+-- Is this a site inside an existing city building (not a square, an outskirts lot, a farm, the quarry or the
+-- deep)?
+function SideQuestSites.isBuilding(st: any): boolean
+	return type(st) == "table"
+		and SideQuestSites.CITY[st.district] == true
+		and not st.square
+		and not SideQuestSites.isOutskirts(st)
+		and not st.farm
+		and not st.road
+		and not st.quarry
+		and not st.deep
+end
+
+-- The middles of the other city sites (buildings and open squares) a site with `away.site` keeps clear of (lore
+-- step 11, the character lines): every one that keeps no such distance itself, and those earlier by id, so two
+-- sites never wait on each other
+-- (worked out once per world, Config and site: every candidate building checks the same list)
+local othersMemo: { [any]: any } = setmetatable({}, { __mode = "k" }) :: any
+local function cityOthers(Config: any, world: any, id: string): { { number } }
+	local byWorld = othersMemo[world]
+	if not byWorld then
+		byWorld = setmetatable({}, { __mode = "k" })
+		othersMemo[world] = byWorld
+	end
+	local byConfig = byWorld[Config]
+	if not byConfig then
+		byConfig = {}
+		byWorld[Config] = byConfig
+	end
+	if byConfig[id] then
+		return byConfig[id]
+	end
+	local out = {}
+	byConfig[id] = out
+	for other, o in Config.SideQuests.sites do
+		local waits = o.away and o.away.site ~= nil
+		if other ~= id and (SideQuestSites.isBuilding(o) or o.square) and (not waits or other < id) then
+			local b = SideQuestSites.place(Config, world, other)
+			if b then
+				table.insert(out, { b.x, b.z })
+			end
+		end
+	end
+	return out
+end
+
+local function clearOfSites(Config: any, world: any, st: any, id: string?, b: any): boolean
+	local gap = st.away and st.away.site
+	if not gap or not id then
+		return true
+	end
+	for _, o in cityOthers(Config, world, id) do
+		if flat(b.x, b.z, o[1], o[2]) < gap then
+			return false
+		end
+	end
+	return true
+end
+
+-- Does building b keep every distance site st asks for? (id: the site's own, for `away.site`)
+function SideQuestSites.fits(Config: any, world: any, st: any, b: any, id: string?): boolean
 	local a = st.away
 	if b.crown or b.h < st.height[1] or b.h > st.height[2] then
 		return false
@@ -65,7 +134,7 @@ function SideQuestSites.fits(Config: any, world: any, st: any, b: any): boolean
 	if st.district == "Uptown" then
 		-- chain 2's bank: clear of Uptown's landmark tower and the plaza round it
 		local lm = world.uptown.landmark
-		return flat(b.x, b.z, lm.x, lm.z) >= a.landmark
+		return flat(b.x, b.z, lm.x, lm.z) >= a.landmark and clearOfSites(Config, world, st, id, b)
 	end
 	local L = world.downtown
 	local bt = L.beacon
@@ -86,7 +155,93 @@ function SideQuestSites.fits(Config: any, world: any, st: any, b: any): boolean
 			return false
 		end
 	end
-	return true
+	return clearOfSites(Config, world, st, id, b)
+end
+
+-- The middle of a Config.City district's rectangle
+function SideQuestSites.districtMid(Config: any, district: string): (number, number)
+	local d = Config.City.districts[district]
+	return (d.minX + d.maxX) / 2, (d.minZ + d.maxZ) / 2
+end
+
+-- Is a point on open ground (no building, fence or prop on it in the heightmap)?
+local function openGround(Config: any, world: any, x: number, z: number): boolean
+	return not world.heights or WorldMap.heightAt(world, x, z) <= Config.City.ground.y + 1.5
+end
+
+-- The way into a Docks or Old Town building (lore step 11, the character lines): the face whose step-out
+-- points (6 and 10 studs) are open ground in the heightmap (those districts' buildings are not all in
+-- world.buildings), nearest the district's middle, or nil
+function SideQuestSites.districtDoor(Config: any, world: any, b: any, district: string): Door?
+	local mx, mz = SideQuestSites.districtMid(Config, district)
+	local best: Door? = nil
+	local bestD = math.huge
+	for _, f in FACES do
+		local half = if f[1] ~= 0 then b.sx / 2 else b.sz / 2
+		local ok = true
+		for _, out in { 6, 10, 14 } do
+			for _, side in { -3, 0, 3 } do
+				local px = b.x + f[1] * (half + out) + f[2] * side
+				local pz = b.z + f[2] * (half + out) + f[1] * side
+				if not openGround(Config, world, px, pz) then
+					ok = false
+				end
+			end
+		end
+		local x, z = b.x + f[1] * (half + 6), b.z + f[2] * (half + 6)
+		local d = flat(x, z, mx, mz)
+		if ok and d < bestD then
+			best, bestD = { x = x, z = z, fx = f[1], fz = f[2] }, d
+		end
+	end
+	return best
+end
+
+-- Does a Docks or Old Town building keep every distance its site asks for (lore step 11, the character lines)?
+-- `away`: pad (every safehouse), door (the Vigil's stairwell and the Foundry door), site (other city sites);
+-- its height (body top less base) in range, and a way in on open ground.
+function SideQuestSites.districtFits(Config: any, world: any, st: any, b: any, id: string?): boolean
+	local a = st.away
+	local h = b.top - b.base
+	if b.crown or h < st.height[1] or h > st.height[2] then
+		return false
+	end
+	for _, s in world.safehouses do
+		if flat(b.x, b.z, s.x, s.z) < a.pad then
+			return false
+		end
+	end
+	local hd = HqRules.heroDoor(Config, world)
+	local fd = world.spots and world.spots.foundryDoor
+	for _, dr in { hd, fd } do
+		if dr and flat(b.x, b.z, dr.x, dr.z) < a.door then
+			return false
+		end
+	end
+	if not SideQuestSites.districtDoor(Config, world, b, st.district) then
+		return false
+	end
+	return clearOfSites(Config, world, st, id, b)
+end
+
+-- The Docks or Old Town building a site is in: of that district's buildings in world.buildings (fixed: the hub
+-- never moves with the weekly seed) that fit, the one nearest `near` (studs from the district's middle)
+local function districtBuilding(Config: any, world: any, id: string, st: any): any?
+	if not world or not world.buildings then
+		return nil
+	end
+	local mx, mz = SideQuestSites.districtMid(Config, st.district)
+	local tx, tz = mx + st.near[1], mz + st.near[2]
+	local best, bestD = nil, math.huge
+	for _, b in world.buildings do
+		if b.district == st.district then
+			local d = flat(b.x, b.z, tx, tz)
+			if d < bestD and SideQuestSites.districtFits(Config, world, st, b, id) then
+				best, bestD = b, d
+			end
+		end
+	end
+	return best
 end
 
 -- The building a site is in, or nil (no such district, a square site, or nothing fits)
@@ -102,6 +257,9 @@ function SideQuestSites.building(Config: any, world: any, id: string): any?
 		or st.deep
 	then
 		return nil
+	end
+	if st.district == "Docks" or st.district == "OldTown" then
+		return districtBuilding(Config, world, id, st)
 	end
 	local L, ox, oz
 	if st.district == "Uptown" then
@@ -120,17 +278,13 @@ function SideQuestSites.building(Config: any, world: any, id: string): any?
 	local tx, tz = ox + st.near[1], oz + st.near[2]
 	local best, bestD = nil, math.huge
 	for _, b in L.buildings do
-		if SideQuestSites.fits(Config, world, st, b) then
-			local d = flat(b.x, b.z, tx, tz)
-			if d < bestD then
-				best, bestD = b, d
-			end
+		local d = flat(b.x, b.z, tx, tz)
+		if d < bestD and SideQuestSites.fits(Config, world, st, b, id) then
+			best, bestD = b, d
 		end
 	end
 	return best
 end
-
-local FACES = { { 0, 1 }, { 0, -1 }, { 1, 0 }, { -1, 0 } }
 
 -- The way in: the street-side face nearest the plaza (or the point ox, oz)
 function SideQuestSites.door(world: any, b: any, ox: number?, oz: number?): Door
@@ -472,6 +626,9 @@ function SideQuestSites.place(Config: any, world: any, id: string): (any?, Door?
 	if st.district == "Uptown" then
 		local lm = world.uptown.landmark
 		return b, SideQuestSites.door(world, b, lm.x, lm.z)
+	end
+	if st.district == "Docks" or st.district == "OldTown" then
+		return b, SideQuestSites.districtDoor(Config, world, b, st.district)
 	end
 	return b, SideQuestSites.door(world, b)
 end
