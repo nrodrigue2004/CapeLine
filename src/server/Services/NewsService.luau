@@ -189,6 +189,13 @@ function NewsService.init()
 			NewsService.post("unmask", p, e.typeId)
 		end
 	end)
+	-- WP5: a Suspicious Hero's mask cracked (the hero who cracked it, else the incident's own hero)
+	IncidentService.FakeUnmasked:Connect(function(inc: any, heroId: number?)
+		local p = heroPlayer(heroId) or heroPlayer(inc.owner)
+		if p then
+			NewsService.post(if inc.side == "villain" then "fakeSyndicate" else "fakeVigil", p, 0)
+		end
+	end)
 	IncidentService.Cleared:Connect(function(inc: any)
 		local p = heroPlayer(inc.owner)
 		if not p then

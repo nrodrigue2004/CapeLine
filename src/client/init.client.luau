@@ -29,6 +29,7 @@ local HqClient = require(Controllers.HqClient)
 local AudioController = require(Controllers.AudioController)
 local IdleWatch = require(Controllers.IdleWatch)
 local Telemetry = require(Controllers.Telemetry)
+local FavoritePrompt = require(Controllers.FavoritePrompt) -- WP4: the favorite prompt after a first boss win
 local JuiceFx = require(Fx.JuiceFx)
 local Juice = require(Fx.Juice)
 local CombatFx = require(Fx.CombatFx)
@@ -201,6 +202,7 @@ CinemaClient.context = function()
 	}
 end
 Telemetry.init()
+FavoritePrompt.init()
 DevPanel.init()
 
 -- the gear button opens Settings; left-handed mirrors the action buttons (one-hand keeps them right)

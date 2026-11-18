@@ -81,6 +81,7 @@ local SquadService = require(Services.SquadService)
 local WeaponService = require(Services.WeaponService)
 local Analytics = require(Services.Analytics)
 local AnalyticsHooks = require(Services.AnalyticsHooks)
+local FavoriteService = require(Services.FavoriteService) -- WP4: the favorite prompt, once per account
 local LoadBots = require(Services.LoadBots)
 local DevService = require(Services.DevService)
 
@@ -156,6 +157,7 @@ boot("SquadService", SquadService.init)
 boot("WeaponService", WeaponService.init)
 boot("Analytics", Analytics.init)
 boot("AnalyticsHooks", AnalyticsHooks.init)
+boot("FavoriteService", FavoriteService.init)
 boot("DataService", DataService.init) -- last of the game services: profile loads fire into the handlers above
 boot("LoadBots", LoadBots.init)
 boot("DevService", DevService.init)

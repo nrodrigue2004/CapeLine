@@ -69,6 +69,15 @@ local PVP_REASONS: { [string]: string } = {
 	crater = "Leave the Crater to switch PvP off",
 }
 
+-- WP4: why a REMATCH ping or ACCEPT did not go (fixed lines)
+local REMATCH_REASONS: { [string]: string } = {
+	none = "The rematch chance has passed",
+	flag = "Switch PvP on first, then tap again",
+	gone = "They have left the server",
+	wait = "You pinged them a moment ago",
+	late = "That rematch ping ran out",
+}
+
 local MISSION_REASONS: { [string]: string } = {
 	level = "Reach the mission's level first",
 	locked = "Finish the mission before it first",
@@ -163,7 +172,7 @@ local function juice(data: { [string]: any })
 		Juice.fire("revive", root and root.Position)
 	elseif id == "bought" or id == "styleBought" then
 		Juice.fire("purchase", nil, { name = data.name })
-	elseif id == "pvpOn" then
+	elseif id == "pvpOn" or id == "rematchOn" then
 		Juice.fire("pvpFlag")
 	end
 end
@@ -462,6 +471,19 @@ function Toasts.show(data: { [string]: any })
 		push("PvP off", Kit.color.paper)
 	elseif id == "pvpRefused" then
 		local text = PVP_REASONS[data.reason or ""]
+		if text then
+			push(text, Kit.color.paper)
+		end
+	elseif id == "rematchSent" then
+		push("Rematch ping sent to " .. tostring(data.name or "them"), Kit.color.paper)
+	elseif id == "rematchOn" then
+		push(
+			"REMATCH ON WITH " .. string.upper(tostring(data.name or "")) .. "!",
+			Color3.fromRGB(255, 120, 110),
+			true
+		)
+	elseif id == "rematchRefused" then
+		local text = REMATCH_REASONS[data.reason or ""]
 		if text then
 			push(text, Kit.color.paper)
 		end

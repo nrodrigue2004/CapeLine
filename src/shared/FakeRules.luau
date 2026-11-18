@@ -19,6 +19,7 @@
 --   twin's, so a chain villain needs no robot type of its own (Enemy.Delta's typeId has 5 bits, all used).
 --   (lore step 11, the character lines: with `famous`, over a famous fake instead: Lodestar's partner Vesper,
 --   whose face cracks to metal and whose plate turns FAKE over her own name.)
+--   (WP5: the Suspicious Hero incident's generic costumed fakes are dresses too, in Config.Incidents.dress.)
 
 local LookCodec = if script then require(script.Parent.LookCodec) else (require :: any)("./LookCodec")
 local CreatorRules = if script
@@ -189,6 +190,10 @@ FakeRules.DRESS_BODY = { "metal", "eye", "suit", "trim" }
 -- dress = true, creature (false: a machine that sparks apart), body (colour overrides) }, or nil.
 function FakeRules.dress(Config: any, id: string): { [string]: any }?
 	local d = Config.SideQuests.dress and Config.SideQuests.dress[id]
+	if d == nil then
+		-- WP5: the Suspicious Hero incident's costumed fakes (Config.Incidents.dress, ids apart from these)
+		d = Config.Incidents.dress and Config.Incidents.dress[id]
+	end
 	if type(d) ~= "table" or type(d.look) ~= "table" then
 		return nil
 	end

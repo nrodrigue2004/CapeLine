@@ -25,6 +25,7 @@ local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Net = require(Shared:WaitForChild("Net"))
 local ShopRules = require(Shared:WaitForChild("ShopRules"))
+local Signal = require(Shared:WaitForChild("Util"):WaitForChild("Signal"))
 
 local DataService = require(script.Parent.DataService)
 local HeroService = require(script.Parent.HeroService)
@@ -34,6 +35,7 @@ local CreatorService = require(script.Parent.CreatorService)
 local Analytics = require(script.Parent.Analytics)
 
 local PurchaseService = {}
+PurchaseService.Landed = Signal.new() -- (player, key, kind) a purchase was granted (WP4: the MMO funnel's pass_bought)
 
 local KEYS = ShopRules.keys(Config)
 local testSeq = 0
@@ -43,6 +45,7 @@ local function landed(player: Player, got: { [string]: any }?)
 		local row = ShopRules.item(Config, got.key)
 		Analytics.event(player, "purchase", if row then row.robux or 0 else 0, { got.key, got.kind or "-" })
 		Analytics.step(player, "Purchase", "shop_buy_ok")
+		PurchaseService.Landed:Fire(player, got.key, got.kind)
 	end
 	CreatorService.showName(player)
 	DataService.changed(player)

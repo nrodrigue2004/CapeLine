@@ -88,4 +88,10 @@ FunnelDef.stages = {
 
 FunnelDef.returns = { 1, 2, 3, 5, 10, 20 }
 
+-- WP4 (gap G6): the lifetime funnels besides Progress, logged on FunnelKit.LIFE_SESSION with each step once
+-- per account (Analytics.first; the steps are AnalyticsSchema.FUNNELS[name], the bits profile.analytics.mmo).
+-- "MMO" is the Hero MMO firsts: first block, throw, nemesis met, task force cleared, badge, Hero Pass bought.
+-- Unlike Progress they come in any order, so each step's count is read on its own in the dashboard.
+FunnelDef.lifetime = { MMO = true } :: { [string]: boolean }
+
 return FunnelDef

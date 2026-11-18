@@ -35,6 +35,9 @@ NewsPlan.KINDS = {
 	"sideVigil",
 	"sideSyndicate",
 	"sideDraw",
+	-- WP5: a Suspicious Hero unmasked in the street (the Vigil exposes it; the Syndicate spreads the panic)
+	"fakeVigil",
+	"fakeSyndicate",
 }
 NewsPlan.CODE = {} :: { [string]: number }
 for i, k in NewsPlan.KINDS do

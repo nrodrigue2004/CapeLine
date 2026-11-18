@@ -22,6 +22,12 @@ local DeathService = require(script.Parent.DeathService)
 local StoryService = require(script.Parent.StoryService)
 local IncidentService = require(script.Parent.IncidentService)
 local BossService = require(script.Parent.BossService)
+local BlockService = require(script.Parent.BlockService)
+local ThrowService = require(script.Parent.ThrowService)
+local NemesisService = require(script.Parent.NemesisService)
+local TaskForceService = require(script.Parent.TaskForceService)
+local BadgeService = require(script.Parent.BadgeService)
+local PurchaseService = require(script.Parent.PurchaseService)
 
 local AnalyticsHooks = {}
 
@@ -105,7 +111,66 @@ function AnalyticsHooks.pvpHit(attacker: any, target: any)
 	Analytics.step(p, "PvP", "first_pvp_hit")
 end
 
+-- WP4 (gap G6): the Hero MMO firsts, a lifetime funnel (AnalyticsSchema.FUNNELS.MMO): each step once per
+-- account (the bits in profile.analytics.mmo). A step the minute's budget refused waits here and is tried
+-- again with the funnel checks every few seconds, so it is never lost and never sent twice.
+local waiting: { [Player]: { [string]: boolean } } = {}
+
+function AnalyticsHooks.first(player: Player?, step: string)
+	if not player then
+		return
+	end
+	if not Analytics.first(player, "MMO", step) then
+		local mine = waiting[player] or {}
+		waiting[player] = mine
+		mine[step] = true
+	end
+end
+
+local function retryFirsts()
+	for player, steps in waiting do
+		if player.Parent ~= Players then
+			waiting[player] = nil
+		else
+			for step in steps do
+				if Analytics.first(player, "MMO", step) then
+					steps[step] = nil
+				end
+			end
+			if next(steps) == nil then
+				waiting[player] = nil
+			end
+		end
+	end
+end
+
+local function wireFirsts()
+	BlockService.Outcome:Connect(function(hero: any, outcome: string)
+		if outcome == "blocked" or outcome == "perfect" then
+			AnalyticsHooks.first(hero.player, "first_block")
+		end
+	end)
+	ThrowService.Thrown:Connect(function(hero: any)
+		AnalyticsHooks.first(hero.player, "first_throw")
+	end)
+	NemesisService.Met:Connect(function(player: Player)
+		AnalyticsHooks.first(player, "first_nemesis")
+	end)
+	TaskForceService.Done:Connect(function(player: Player)
+		AnalyticsHooks.first(player, "first_taskforce")
+	end)
+	BadgeService.Earned:Connect(function(player: Player)
+		AnalyticsHooks.first(player, "first_badge")
+	end)
+	PurchaseService.Landed:Connect(function(player: Player, _key: string, kind: string?)
+		if kind == "heroPass" then
+			AnalyticsHooks.first(player, "pass_bought")
+		end
+	end)
+end
+
 function AnalyticsHooks.init()
+	wireFirsts()
 	DataService.Loaded:Connect(joined)
 	DataService.Leaving:Connect(leaving)
 	-- the funnels: stage checks and the current activity every few seconds, idle quits, server shutdown
@@ -128,6 +193,7 @@ function AnalyticsHooks.init()
 					AnalyticsHooks.funnels:activity(p, activityOf(p))
 				end
 			end
+			retryFirsts()
 		end
 	end)
 	game:BindToClose(function()
@@ -230,6 +296,7 @@ function AnalyticsHooks.init()
 
 	Players.PlayerRemoving:Connect(function(p)
 		pvpHit[p] = nil
+		waiting[p] = nil
 	end)
 end
 

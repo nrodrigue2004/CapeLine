@@ -65,6 +65,10 @@ return {
 		altWindow = 3600, -- ... within 60 minutes: zero both ways, logged for review
 	},
 	combatLog = { window = 15, linger = 10 }, -- leaving within 15 s of PvP damage: 10 s in the world, a defeat
+	-- the REMATCH ping (spec: Social > Rivalry; WP4, gap G8): after a PvP defeat the loser may ping that winner
+	-- once within `offer` s; the winner sees a fixed "X wants a rematch" card for `answer` s; one ping per pair
+	-- every `pairGap` s. ACCEPT with both flagged tells both and shows each other's spot (no teleport).
+	rematch = { offer = 45, answer = 15, pairGap = 120, spotLife = 10 },
 
 	-- Rings: blue Vigil, red Dread Syndicate (heroes and villains)
 	ring = { hero = { 70, 140, 255 }, villain = { 235, 60, 60 } },

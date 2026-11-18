@@ -3439,8 +3439,8 @@ local IC = Config.Incidents
 local ALL_WHERE =
 	{ street = true, tower = true, tram = true, sign = true, roof = true, crane = true, nest = true }
 
-test("M6: 24 incident templates; each side gets its own and the shared ones", function()
-	check(#IC.order == 24, "24 templates (10 at M6, 14 more on 2026-11-17)")
+test("M6: 25 incident templates; each side gets its own and the shared ones", function()
+	check(#IC.order == 25, "25 templates (10 at M6, 14 more on 2026-11-17, the Suspicious Hero in WP5)")
 	local nums = {}
 	for _, tid in IC.order do
 		local t = IC.templates[tid]
@@ -3458,12 +3458,12 @@ test("M6: 24 incident templates; each side gets its own and the shared ones", fu
 	local hero = IncidentPlan.choices(IC, "hero", ALL_WHERE, false)
 	local villain = IncidentPlan.choices(IC, "villain", ALL_WHERE, false)
 	check(
-		#hero == 18 and table.find(hero, "RobotHeist") and not table.find(hero, "VaultBreach"),
-		"hero: 18 without a boss"
+		#hero == 19 and table.find(hero, "RobotHeist") and not table.find(hero, "VaultBreach"),
+		"hero: 19 without a boss"
 	)
 	check(
-		#villain == 21 and table.find(villain, "ShardCrate") and not table.find(villain, "RobotHeist"),
-		"villain: 21"
+		#villain == 22 and table.find(villain, "ShardCrate") and not table.find(villain, "RobotHeist"),
+		"villain: 22"
 	)
 	check(not table.find(hero, "RaidPrep"), "Raid prep only while a boss counts down")
 	local bare = IncidentPlan.choices(IC, "hero", { street = true }, false)
@@ -3710,7 +3710,10 @@ test("Activities: every incident template is valid (robots exist, step kinds han
 		end
 		for i, row in t.steps do
 			check(kinds[row.kind] == true, tid .. " step " .. i .. " kind " .. row.kind .. " is handled")
-			check(IncidentPlan.stepText(IC, tid, i, "hero") ~= "", tid .. " step " .. i .. " has a line")
+			-- (a row with `side` runs only for that side: its line is that side's step, WP5)
+			local side = row.side or "hero"
+			local at = table.find(IncidentPlan.rows(t, side), row) :: number
+			check(IncidentPlan.stepText(IC, tid, at, side) ~= "", tid .. " step " .. i .. " has a line")
 			for _, e in row.enemies or {} do
 				enemy(e[1], tid)
 				check(e[2] >= 0 and e[3] >= e[2], tid .. " row counts")
@@ -3748,12 +3751,12 @@ test("Activities: every incident template is valid (robots exist, step kinds han
 	for key, b in IC.beats do
 		check(Config.Audio.sounds[b.juice] ~= nil and b.text ~= "", key .. " beat has a sound and a line")
 	end
-	check(#IncidentPlan.KINDS == 11, "6 new step kinds on top of the first 5")
+	check(#IncidentPlan.KINDS == 12, "6 new step kinds on top of the first 5, and WP5's unmask")
 end)
 
 test("Activities: switched-off or locked robot types skip a template or fall back", function()
 	local lvl50 = IncidentPlan.choices(IC, "hero", ALL_WHERE, false, Config, 50)
-	check(#lvl50 == 18, "every hero template at level 50 with every type on (" .. #lvl50 .. ")")
+	check(#lvl50 == 19, "every hero template at level 50 with every type on (" .. #lvl50 .. ")")
 	local lvl1 = IncidentPlan.choices(IC, "hero", ALL_WHERE, false, Config, 1)
 	check(
 		not table.find(lvl1, "SniperNest") and not table.find(lvl1, "MimicCrowd"),
@@ -8254,7 +8257,9 @@ test("City kit block: textured fronts, street dressing, and the rest of Downtown
 	)
 	check(layout.parts <= Config.City.partBudget.downtown, "still within the Downtown part budget")
 end); -- Hero MMO features (H1 to H8) live in their own file so this one merges easily
-(require :: any)("./mmo")({ test = test, check = check, near = near, Config = Config })
+(require :: any)("./mmo")({ test = test, check = check, near = near, Config = Config });
+-- WP4 and WP5 (the gap check's funnel, favorite, rematch and Suspicious Hero) live in their own file too
+(require :: any)("./hooks")({ test = test, check = check, near = near, Config = Config })
 
 test(
 	"City kit: every district dressed, deterministic, within budget, nothing in buildings or roads",

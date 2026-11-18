@@ -21,6 +21,8 @@ local Config = require(game:GetService("ReplicatedStorage"):WaitForChild("Config
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Net = require(Shared:WaitForChild("Net"))
 local AnalyticsSchema = require(Shared:WaitForChild("AnalyticsSchema"))
+local FunnelKit = require(Shared:WaitForChild("FunnelKit"))
+local FunnelDef = require(Shared:WaitForChild("FunnelDef"))
 local Signal = require(Shared:WaitForChild("Util"):WaitForChild("Signal"))
 
 local DataService = require(script.Parent.DataService)
@@ -31,7 +33,7 @@ Analytics.logToOutput = RunService:IsStudio() -- Studio playtests print each eve
 Analytics.count = 0 -- events sent this server (Dev panel)
 Analytics.Photo = Signal.new() -- (player) the device took a Photo Mode shot (the Photo recon contract)
 Analytics.dropped = 0 -- events skipped by the per-minute budget (Dev panel)
-local minuteAt, minuteCount = 0, 0
+local budget = AnalyticsSchema.newBudget() -- this minute's sends (Shared.AnalyticsSchema.take)
 
 local service: AnalyticsService? = nil
 local sessions: { [Player]: { [string]: string } } = {}
@@ -57,18 +59,11 @@ end
 
 -- The per-minute budget: true takes a slot. Busy (low) sends give way first, so the funnels and rare
 -- events always get through.
+-- (the rule is Shared.AnalyticsSchema.take, so Lune tests it)
 local function takeBudget(low: boolean): boolean
-	local now = os.clock()
-	if now - minuteAt >= 60 then
-		minuteAt, minuteCount = now, 0
-	end
-	local cap = Config.Analytics.budget.base + Config.Analytics.budget.perPlayer * #Players:GetPlayers()
-	if minuteCount >= cap or (low and minuteCount >= cap * Config.Analytics.budget.lowShare) then
-		Analytics.dropped += 1
-		return false
-	end
-	minuteCount += 1
-	return true
+	local ok = AnalyticsSchema.take(budget, Config.Analytics.budget, os.clock(), #Players:GetPlayers(), low)
+	Analytics.dropped = budget.dropped
+	return ok
 end
 
 -- One custom event. Never throws.
@@ -137,6 +132,39 @@ function Analytics.step(player: Player, funnel: string, stepName: string)
 	end
 end
 
+-- A once-per-account step of a lifetime funnel (FunnelDef.lifetime; WP4: the Hero MMO firsts), on the
+-- lifetime session id like the Progress funnel. It takes a budget slot like any event; the bit is saved
+-- only once it went out. Returns false when the budget is full (AnalyticsHooks tries again later), true
+-- when it was sent, already logged or not a step.
+function Analytics.first(player: Player, funnel: string, stepName: string): boolean
+	if player.Parent ~= Players or not FunnelDef.lifetime[funnel] then
+		return true
+	end
+	local profile = DataService.get(player)
+	if not profile then
+		return false -- still loading: try again
+	end
+	local step, mask = AnalyticsSchema.first(profile.analytics.mmo, funnel, stepName)
+	if not step then
+		return true
+	end
+	if not takeBudget(false) then
+		return false
+	end
+	profile.analytics.mmo = mask
+	Analytics.count += 1
+	if Analytics.logToOutput then
+		print(string.format("[Funnel] %s step %d %s", funnel, step, stepName))
+	end
+	local s = analytics()
+	if s then
+		pcall(function()
+			(s :: AnalyticsService):LogFunnelStepEvent(player, funnel, FunnelKit.LIFE_SESSION, step, stepName)
+		end)
+	end
+	return true
+end
+
 -- The studio-wide FunnelKit's events (AnalyticsSchema has them, the same in every game)
 Analytics.FUNNEL_EVENTS = { "session_start", "stage_reached", "session_end", "first_session_end" }
 
@@ -159,7 +187,7 @@ Analytics.funnelSink = {
 		if player.Parent ~= Players or not table.find(Analytics.FUNNEL_EVENTS, name) then
 			return
 		end
-		minuteCount += 1 -- top priority: counts against the budget but is never dropped
+		budget.n += 1 -- top priority: counts against the budget but is never dropped
 		Analytics.count += 1
 		local custom: { [string]: string } = {}
 		for i, v in fields do

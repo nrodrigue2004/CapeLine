@@ -97,12 +97,52 @@ AnalyticsSchema.FUNNELS = {
 	PvP = { "flag_on", "first_pvp_hit", "pvp_win", "pvp_loss", "flag_off" },
 	Story = { "mission_start", "choice_pick", "mission_done", "act_done" },
 	Purchase = { "shop_open", "shop_view_item", "shop_buy_prompt", "shop_buy_ok" },
+	-- WP4 (spec: Hero MMO features, "each feature adds ... one funnel step": gap G6): the Hero MMO firsts. A
+	-- lifetime funnel (FunnelDef.lifetime): each step once per account, in whatever order the player finds
+	-- them (bit i of profile.analytics.mmo). Once live, only ADD steps at the end: the dashboard keys by number.
+	MMO = { "first_block", "first_throw", "first_nemesis", "first_taskforce", "first_badge", "pass_bought" },
 }
 
 -- The step number of a funnel step (nil if unknown)
 function AnalyticsSchema.stepOf(funnel: string, step: string): number?
 	local list = AnalyticsSchema.FUNNELS[funnel]
 	return list and table.find(list, step)
+end
+
+-- A once-per-account step of a lifetime funnel (WP4: the MMO firsts). mask: the steps already logged, one bit
+-- each (step i is bit i - 1). Returns the step number and the mask with it set, or nil (unknown, or logged).
+function AnalyticsSchema.first(mask: number, funnel: string, step: string): (number?, number)
+	local i = AnalyticsSchema.stepOf(funnel, step)
+	if not i or i > 16 then
+		return nil, mask
+	end
+	local bit = bit32.lshift(1, i - 1)
+	if bit32.band(mask, bit) ~= 0 then
+		return nil, mask
+	end
+	return i, bit32.bor(mask, bit)
+end
+
+-- The server's per-minute event budget (Config.Analytics.budget): base + perPlayer x players a minute, and
+-- busy (low) events stop at lowShare of it first, so funnels and rare events always get through.
+export type Budget = { at: number, n: number, dropped: number }
+
+function AnalyticsSchema.newBudget(): Budget
+	return { at = -math.huge, n = 0, dropped = 0 }
+end
+
+-- Take one slot at `now` (seconds) with `players` in the server: true when the event may go
+function AnalyticsSchema.take(b: Budget, cfg: any, now: number, players: number, low: boolean): boolean
+	if now - b.at >= 60 then
+		b.at, b.n = now, 0
+	end
+	local cap = cfg.base + cfg.perPlayer * players
+	if b.n >= cap or (low and b.n >= cap * cfg.lowShare) then
+		b.dropped += 1
+		return false
+	end
+	b.n += 1
+	return true
 end
 
 function AnalyticsSchema.cleanText(v: any): string
