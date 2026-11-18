@@ -226,7 +226,11 @@ end
 local hqModel: Model? = nil
 local hqCell: string? = nil
 local function onHq(state: { [string]: any })
-	local inside = state.on == true and state.side ~= "villain" and type(state.cell) == "table"
+	-- WP12: a visit copy of a friend's HQ has no Lodestar (she is the owner's guide, not a decoration)
+	local inside = state.on == true
+		and state.side ~= "villain"
+		and type(state.cell) == "table"
+		and not state.visit
 	local cellKey = if inside then table.concat(state.cell, ",") else nil
 	if hqModel and cellKey == hqCell then
 		return

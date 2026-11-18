@@ -8276,7 +8276,9 @@ end); -- Hero MMO features (H1 to H8) live in their own file so this one merges 
 (require :: any)("./acts_test")({ test = test, check = check, Config = Config, placePath = process.args[1] }); -- WP8: live tuning from Balance_v<N> (own file, merges easily)
 (require :: any)("./balance_test")({ test = test, check = check, Config = Config });
 -- WP9: the HQ's WANTED poster and nemesis heads (own file, merges easily)
-(require :: any)("./wanted_test")({ test = test, check = check, Config = Config })
+(require :: any)("./wanted_test")({ test = test, check = check, Config = Config });
+-- WP12: visit a friend's HQ on the same server (own file, merges easily)
+(require :: any)("./visit_test")({ test = test, check = check, Config = Config, placePath = process.args[1] })
 
 test(
 	"City kit: every district dressed, deterministic, within budget, nothing in buildings or roads",

@@ -107,6 +107,59 @@ return {
 		prompt = { object = "Wanted Poster", action = "Read" },
 	},
 
+	-- WP12 (gap G15, spec Update 2): visit a friend's HQ on the same server (Shared.VisitRules, VisitService).
+	-- VISIT on the SQUAD panel asks the owner; their card says ACCEPT or NO for askLife seconds. A yes puts the
+	-- visitor in a read-only copy of the owner's HQ built from their save (the rooms, trophy wall, statues,
+	-- props, dressing, the WANTED poster and heads, as the owner sees them), in a visit pocket of its own: no
+	-- teleport, same server. Visitors only look (and LEAVE back to where they were): no stations, no changes,
+	-- no loot, no boss sim. The owner sees visitors in SQUAD and can KICK them. Mutes, blocks and reports stop
+	-- asks. Fixed text only.
+	visit = {
+		-- one pocket per host on the HQ cells' grid (x0, z0, gap, perRow as Hq.cell) but 700 studs higher, so a
+		-- copy never meets a real cell (y 4,500), a mission pocket (y 3,000) or the city; count covers a full
+		-- server of hosts
+		pocket = { x0 = 9000, z0 = 9000, y = 5200, gap = 260, perRow = 25, count = 60 },
+		max = 4, -- visitors in one HQ at once (a squad's size)
+		askLife = 30, -- seconds a visit card waits for an answer
+		again = 60, -- after a NO, the same visitor waits this long before asking that owner again
+		kicked = 300, -- after a KICK, this long
+		logEvery = 60, -- hq_visit analytics: at most one a minute per visitor
+		-- the lines (%s: the other player's hero name or display name)
+		text = {
+			asked = "%s wants to visit your HQ",
+			sent = "Visit request sent to %s",
+			declined = "%s can't have visitors right now",
+			arrived = "%s is visiting your HQ",
+			left = "%s left your HQ",
+			welcome = "Visiting %s's HQ. Look around, LEAVE takes you back",
+			kicked = "Your visit to %s's HQ is over",
+			hostLeft = "%s left the server. Back you go",
+			station = "Owner only",
+			leave = "LEAVE HQ",
+			visit = "VISIT",
+			heading = "VISITING YOUR HQ",
+			visitingRow = "Visiting %s's HQ",
+			hint = "Friends can ask to visit your HQ with VISIT. You see who is in, and KICK shows them out.",
+			card = "ACCEPT",
+			no = "NO",
+			titleSub = "%s's HQ",
+		},
+		reasons = {
+			self = "That's your own HQ!",
+			visiting = "Leave this HQ first",
+			busy = "Finish what you are doing first",
+			new = "They don't have an HQ yet",
+			muted = "Unmute or unblock them first",
+			pending = "Request already sent",
+			asking = "You already asked someone. Wait for their answer",
+			wait = "Give them a moment before asking again",
+			full = "Their HQ is full (4 visitors)",
+			theirBusy = "They have another request open",
+			expired = "That request ran out",
+			gone = "They left the server",
+		},
+	},
+
 	-- City reputation ranks unlock HQ props (profile.props bits; CafeSign = 1 is a side quest reward)
 	cityProps = {
 		{ rank = 1, prop = 2, name = "Potted Fern" },

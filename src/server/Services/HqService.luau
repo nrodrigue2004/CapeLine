@@ -11,6 +11,8 @@
 --   the Contract Board, Journal and ShopService. Respec, class change and loadout swaps are allowed here.
 -- * Offline drones (level 5+): the minutes away since the last leave pay banked Credits on the next join.
 -- * City reputation ranks unlock HQ props.
+-- * WP12: view() builds the HqState packet from a save for any centre, so VisitService draws a friend's read-only
+--   copy from the same code; ownerChanged tells it when the owner's HQ may look different.
 -- * WP9: the WANTED poster of your current nemesis and its beaten ranks' heads (Shared.WantedRules), drawn by
 --   HqClient on the east wall; the poster's prompt opens the WANTED panel (NemesisHud).
 
@@ -88,13 +90,19 @@ local function station(v: Visit, name: string, up: number?): Vector3
 	return v.centre + Vector3.new(s[1], up or 3, s[2])
 end
 
-local function dummyPositions(v: Visit, n: number): { Vector3 }
+-- The dummies' spots in a cell centred at `centre` (the training room; a visit copy draws them as decor)
+local function dummySpots(centre: Vector3, n: number): { Vector3 }
 	local out = {}
-	local base = station(v, "training", 3)
+	local s = H.stations.training
+	local base = centre + Vector3.new(s[1], 3, s[2])
 	for i = 1, n do
 		table.insert(out, base + Vector3.new((i - 1) * 7 - (n - 1) * 3.5, 0, 6))
 	end
 	return out
+end
+
+local function dummyPositions(v: Visit, n: number): { Vector3 }
+	return dummySpots(v.centre, n)
 end
 
 local function clearDummies(v: Visit)
@@ -126,25 +134,24 @@ local function addDummies(v: Visit, level: number)
 	end
 end
 
-local function state(visit: Visit?, player: Player)
-	if not visit then
-		Net.fire("HqState", player, { on = false })
-		return
-	end
-	local v = visit :: Visit
+-- The HqState packet for `player`'s HQ drawn at `centre` (their own cell, or WP12's visit copy): the look,
+-- the levels, the trophies, statues, props, dressing, the WANTED poster and heads, the dummies' spots. The
+-- caller adds what is live (the dummies' target ids, the boss sim). nil when the save is not loaded.
+function HqService.view(player: Player, hero: any, centre: Vector3): { [string]: any }?
 	local profile, c = charOf(player)
-	local level = if c then c.hq.level else 1
+	if not profile or not c or not hero then
+		return nil
+	end
+	local level = c.hq.level
 	local earned = {}
-	if profile then
-		local got = HqRules.trophies(Config, profile)
-		for i, t in H.trophies do
-			if got[t.id] then
-				table.insert(earned, i)
-			end
+	local got = HqRules.trophies(Config, profile)
+	for i, t in H.trophies do
+		if got[t.id] then
+			table.insert(earned, i)
 		end
 	end
 	local statues = {}
-	for _, l in (if profile then profile.legends else {}) do
+	for _, l in profile.legends do
 		table.insert(statues, {
 			words = l.look,
 			name = CreatorRules.heroName(Config, l.titleId or 0, l.nounId or 0),
@@ -153,17 +160,16 @@ local function state(visit: Visit?, player: Player)
 			classId = l.classId,
 		})
 	end
-	local nside = if v.hero.side == "villain" then "villain" else "hero" -- as NemesisService (StoryService.side)
+	local nside = if hero.side == "villain" then "villain" else "hero" -- as NemesisService (StoryService.side)
 	local list = {}
-	for i, id in v.dummies do
-		local p = dummyPositions(v, #v.dummies)[i]
-		table.insert(list, { id = id, x = p.X, y = p.Y, z = p.Z })
+	for _, p in dummySpots(centre, HqRules.dummies(Config, level)) do
+		table.insert(list, { id = 0, x = p.X, y = p.Y, z = p.Z })
 	end
-	Net.fire("HqState", player, {
+	return {
 		on = true,
-		cell = { v.centre.X, v.centre.Y, v.centre.Z },
-		side = v.hero.side,
-		name = H.names[v.hero.side] or H.names.hero,
+		cell = { centre.X, centre.Y, centre.Z },
+		side = hero.side,
+		name = H.names[hero.side] or H.names.hero,
 		level = level,
 		upgrade = HqRules.upgradeCost(Config, level),
 		mannequins = HqRules.mannequins(Config, level),
@@ -173,12 +179,11 @@ local function state(visit: Visit?, player: Player)
 		drones = HqRules.dronesOn(Config, level),
 		dronesPerMinute = HqRules.dronePerMinute(Config, level),
 		dummies = list,
-		canRetire = c ~= nil and (HqRules.canRetire(Config, c)),
+		canRetire = (HqRules.canRetire(Config, c)),
 		earned = earned,
-		trophies = if c then c.hq.trophies else {},
+		trophies = c.hq.trophies,
 		statues = statues,
-		props = if profile then Bits.list(profile.props) else {},
-		sim = if v.sim then { x = v.sim.pos.X, y = v.sim.pos.Y, z = v.sim.pos.Z, id = v.sim.id } else nil,
+		props = Bits.list(profile.props),
 		-- lore step 12: your own side's reputation tier dresses the hideout (Shared.RepTiers.dressing)
 		repTier = if c then RepTiers.tier(Config, c) else 0,
 		-- WP9 (gap G5, spec H5): your nemesis's WANTED poster and a head per nemesis rank beaten, on the east
@@ -188,13 +193,50 @@ local function state(visit: Visit?, player: Player)
 				Config.Nemesis,
 				player.UserId,
 				nside,
-				v.hero.level or c.level or 1,
+				hero.level or c.level or 1,
 				c.mmo,
 				os.time()
 			)
 			else nil,
 		heads = if c then WantedRules.heads(Config.Nemesis, player.UserId, nside, c.mmo) else {},
-	})
+	}
+end
+
+-- WP12: called with the owner whenever their HQ may look different (a level, trophies, a new tier, a slot
+-- switch), so VisitService redraws their visitors' copies
+HqService.ownerChanged = nil :: ((Player) -> ())?
+
+local function changed(player: Player)
+	local hook = HqService.ownerChanged
+	if hook then
+		hook(player)
+	end
+end
+
+local function state(visit: Visit?, player: Player)
+	if not visit then
+		Net.fire("HqState", player, { on = false })
+		return
+	end
+	local v = visit :: Visit
+	local packet = HqService.view(player, v.hero, v.centre)
+	if not packet then
+		Net.fire(
+			"HqState",
+			player,
+			{ on = true, cell = { v.centre.X, v.centre.Y, v.centre.Z }, side = v.hero.side }
+		)
+		return
+	end
+	local list = {}
+	for i, id in v.dummies do
+		local p = dummyPositions(v, #v.dummies)[i]
+		table.insert(list, { id = id, x = p.X, y = p.Y, z = p.Z })
+	end
+	packet.dummies = list
+	packet.sim = if v.sim then { x = v.sim.pos.X, y = v.sim.pos.Y, z = v.sim.pos.Z, id = v.sim.id } else nil
+	Net.fire("HqState", player, packet)
+	changed(player)
 end
 
 -- Lore step 12: send the HQ again (a new reputation tier redresses the hideout while you are in it)
@@ -202,13 +244,16 @@ function HqService.redraw(player: Player)
 	local v = visits[player]
 	if v then
 		state(v, player)
+	else
+		changed(player) -- WP12: visitors' copies redraw even while the owner is out
 	end
 end
 
-local function buildCell(centre: Vector3, slot: number): Model
+-- The sealed cell's floor, walls and roof (the device draws the rooms); WP12's visit pockets use it too
+local function buildCell(centre: Vector3, name: string): Model
 	local c = H.cell
 	local m = Instance.new("Model")
-	m.Name = "Hq_" .. slot
+	m.Name = name
 	local function wall(size: Vector3, at: Vector3)
 		local p = Instance.new("Part")
 		p.Anchored = true
@@ -235,6 +280,14 @@ local function buildCell(centre: Vector3, slot: number): Model
 	return m
 end
 
+HqService.buildCell = buildCell
+
+-- WP12: where leaving your own HQ puts you (outside its door), or nil when you are not in it
+function HqService.backOf(player: Player): CFrame?
+	local v = visits[player]
+	return v and v.back
+end
+
 function HqService.enter(player: Player, side: string): (boolean, string?)
 	local hero = HeroService.get(player)
 	local _, c = charOf(player)
@@ -259,7 +312,7 @@ function HqService.enter(player: Player, side: string): (boolean, string?)
 		hero = hero,
 		slot = slot,
 		centre = centre,
-		model = buildCell(centre, slot),
+		model = buildCell(centre, "Hq_" .. slot),
 		back = (root and root.CFrame) or doors[side] or CFrame.new(0, 10, 0),
 		dummies = {},
 		hits = {},
@@ -369,6 +422,7 @@ local function trophies(player: Player, picks: { number })
 	c.hq.trophies = HqRules.pickTrophies(Config, profile, c.hq.level, picks)
 	DataService.changed(player)
 	DataService.saveSoon(player)
+	changed(player) -- WP12: visitors see the new picks on the wall
 end
 
 local function bossSim(player: Player)
