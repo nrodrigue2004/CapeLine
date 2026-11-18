@@ -19,6 +19,9 @@
 --   server's line of sight (shots go through its holes); a storey that fell lowers its height for robots.
 -- * Remotes: BuildingSnapshot (the packed 2-bit states, on request at join), BuildingDiff (2 Hz batches of
 --   changes and drone jobs), BuildingImpact.
+-- * Audit fixes (2026-11-18): a skyscraper's crown (its setbacks and spire, up to its peak) takes hits too, on its
+--   top storey; a building the collapse cap held up comes down once there is room (BuildingState.stepHeld);
+--   repairs go out with the diffs (r); ray() lets combat rays stop on a Damaged building's standing pieces.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -70,14 +73,6 @@ local function setWrecked(id: number, wrecked: boolean, open: boolean?)
 	if not wrecked and not open then
 		CityBuilder.tops[id] = nil
 	end
-end
-
--- Does a blast at center with radius touch building b?
-local function touches(b: any, center: Vector3, radius: number): boolean
-	local dx = math.max(math.abs(center.X - b.x) - b.sx / 2, 0)
-	local dz = math.max(math.abs(center.Z - b.z) - b.sz / 2, 0)
-	local dy = math.max(center.Y - (b.top + 10), b.base - center.Y, 0)
-	return dx * dx + dz * dz + dy * dy <= radius * radius
 end
 
 local function impact(center: Vector3, radius: number, kind: number)
@@ -137,9 +132,10 @@ function BuildingService.hit(center: Vector3, radius: number, dmg: number, kind:
 	local now = os.clock()
 	local n = 0
 	for id, b in records do
-		if touches(b, center, radius) then
+		if BuildingState.touches(b, center.X, center.Y, center.Z, radius) then
 			n += 1
-			settle(id, BuildingState.blast(D, book, id, center.X, center.Y, center.Z, radius, dmg, now))
+			local y = BuildingState.blastY(b, center.Y)
+			settle(id, BuildingState.blast(D, book, id, center.X, y, center.Z, radius, dmg, now))
 		end
 	end
 	if dmg >= D.structure.chunkCost then -- basic hits chip quietly (no crater, cracks or running citizens)
@@ -198,6 +194,16 @@ function BuildingService.clash(hero: any, at: Vector3, from: Vector3): Vector3?
 	return Vector3.new(b.x - at.X, 0, b.z - at.Z).Unit
 end
 
+-- Studs along a unit ray to the first standing piece of a Damaged building, or max (CombatService's rays:
+-- a Damaged building's real body no longer blocks on the server, its pieces do, so shots pass only its holes)
+function BuildingService.ray(origin: Vector3, dir: Vector3, max: number): number
+	local book = BuildingService.book
+	if not book or max <= 0 then
+		return max
+	end
+	return BuildingState.ray(D, book, origin.X, origin.Y, origin.Z, dir.X, dir.Y, dir.Z, max)
+end
+
 function BuildingService.state(id: number): number
 	return BuildingService.book and BuildingService.book.state[id] or 0
 end
@@ -215,12 +221,13 @@ end
 
 local function flush()
 	local book = BuildingService.book
+	local fixed = BuildingState.takeFixed(book)
 	local diffs = BuildingState.takeDiffs(book)
 	local removed = BuildingState.takeRemoved(book)
-	if #diffs == 0 and #droneJobs == 0 and #removed == 0 then
+	if #diffs == 0 and #droneJobs == 0 and #removed == 0 and #fixed == 0 then
 		return
 	end
-	Net.fireAll("BuildingDiff", { d = diffs, dr = droneJobs, c = removed })
+	Net.fireAll("BuildingDiff", { r = fixed, d = diffs, dr = droneJobs, c = removed })
 	droneJobs = {}
 end
 
@@ -260,6 +267,10 @@ function BuildingService.init()
 		while true do
 			task.wait(step)
 			droneClock += step
+			-- a building the collapse cap held up comes down once there is room
+			for _, h in BuildingState.stepHeld(D, book, os.clock()) do
+				settle(h.id, h.blast)
+			end
 			if droneClock >= 1 then
 				droneClock = 0
 				local repaired, started = BuildingState.stepDrones(D, book, os.clock())

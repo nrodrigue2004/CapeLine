@@ -111,7 +111,7 @@ local Remotes: { [string]: RemoteDef } = {
 	-- snapshot once its effects are ready, so it never misses the first diffs.
 	BuildingSync = { dir = "C2S", schema = {}, rate = 0.2, burst = 2 },
 	BuildingSnapshot = { dir = "S2C" }, -- { s = packed 2-bit states, n, dr = drone jobs }
-	BuildingDiff = { dir = "S2C" }, -- { d = { id, state, ... }, dr = { { drone, building, seconds } } }
+	BuildingDiff = { dir = "S2C" }, -- { r = repaired ids, d = { id, state, ... }, c = { id, piece, cause, ... }, dr = { { drone, building, seconds } } }
 	BuildingImpact = { dir = "S2C" }, -- center, radius, kind (1 crater, 2 cracks)
 	VehicleFlip = { dir = "S2C" }, -- vehicle id, push x, push z
 	VehicleReset = { dir = "S2C" }, -- vehicle id

@@ -8,6 +8,11 @@
 --   Collapsed for 240 s) and spend 20 s on it.
 -- * pack/unpack: 2 bits a building (0 Intact, 1 Damaged, 2 Collapsed); diffs batch the changes since the last
 --   send.
+-- * Audit fixes (2026-11-18): a building the collapse cap held up comes down once the cap has room (stepHeld);
+--   a repair is sent with the diffs (r) so a device clears the old holes even when the building is hit again in
+--   the same batch (applyDiff, applySnapshot: the device's copy, pure so Lune checks it matches); ray finds the
+--   standing pieces of Damaged buildings (their real body stops blocking on the server, so only the holes let
+--   shots through); abilityStruct and castStruct say which casts break buildings (every damaging one).
 
 -- * blast / punch (Red Faction-style, nate 2026-11-16): a hit knocks pieces out of the building's Structure
 --   grid and whatever loses its support falls. Damaged = any piece gone; Collapsed = the ground storey gave
@@ -42,6 +47,9 @@ export type Book = {
 	gone: { [number]: { [number]: boolean } }, -- id -> piece indexes knocked out or fallen
 	removed: { number }, -- flat { id, piece, cause } since the last send (cause 1 knocked out, 2 fell)
 	chip: { [number]: number }, -- id -> small hits' structure damage still under one piece's cost
+	open: { [number]: boolean }, -- ids Damaged now (ray looks only at these)
+	held: { [number]: boolean }, -- ids whose ground storey gave way while the collapse cap was full
+	fixed: { number }, -- ids repaired since the last send (sent first, so devices drop the old holes)
 }
 
 -- buildings: { id, hp, district } (WorldMap.buildings)
@@ -63,6 +71,9 @@ function BuildingState.new(cfg: any, buildings: { any }): Book
 		gone = {},
 		removed = {},
 		chip = {},
+		open = {},
+		held = {},
+		fixed = {},
 	}
 	local districts: { [string]: boolean } = {}
 	for _, b in buildings do
@@ -104,6 +115,12 @@ local function set(book: Book, id: number, state: number)
 	if book.state[id] ~= state then
 		book.state[id] = state
 		book.dirty[id] = true
+	end
+	if state == 1 then
+		book.open[id] = true
+	else
+		book.open[id] = nil
+		book.held[id] = nil
 	end
 end
 
@@ -175,7 +192,18 @@ function BuildingState.repair(book: Book, id: number)
 	book.warned[id] = false
 	book.gone[id] = nil
 	book.chip[id] = nil
+	book.held[id] = nil
 	set(book, id, 0)
+	table.insert(book.fixed, id)
+	-- pieces of it still waiting to be sent are from before the repair (the Dev panel's repair all)
+	local r = book.removed
+	for i = #r - 2, 1, -3 do
+		if r[i] == id then
+			table.remove(r, i + 2)
+			table.remove(r, i + 1)
+			table.remove(r, i)
+		end
+	end
 end
 
 -- The building's Structure grid (built once)
@@ -197,6 +225,21 @@ export type Blast = {
 	fell: { number }, -- pieces that lost their support
 	failed: number?, -- the lowest storey that gave way
 }
+
+-- Does a blast at (x, y, z) with radius touch building b (BuildingService.hit)? A skyscraper's crown
+-- (setbacks, spire, lantern, mast) stands above its shaft up to its peak, so it takes hits too.
+function BuildingState.touches(b: any, x: number, y: number, z: number, radius: number): boolean
+	local dx = math.max(math.abs(x - b.x) - b.sx / 2, 0)
+	local dz = math.max(math.abs(z - b.z) - b.sz / 2, 0)
+	local dy = math.max(y - ((b.peak or b.top) + 10), b.base - y, 0)
+	return dx * dx + dz * dz + dy * dy <= radius * radius
+end
+
+-- The height a hit lands at on building b: a hit on the crown lands on the shaft's top storey (the Structure
+-- grid ends at the roof), so its roof and top walls break and the crown goes with them (BuildingFx)
+function BuildingState.blastY(b: any, y: number): number
+	return math.min(y, b.top)
+end
 
 -- A hit at (x, y, z): pieces knocked out, then whatever lost its support falls (see Structure)
 function BuildingState.blast(
@@ -237,6 +280,9 @@ function BuildingState.blast(
 	local capped = recentCollapses(cfg, book, now) >= cfg.maxCollapses
 	out.fell, out.failed = Structure.settle(cfg, grid, gone, capped)
 	out.cut = capped and not Structure.stands(cfg, grid, gone, 1)
+	if out.cut then
+		book.held[id] = true -- it comes down once the cap has room (stepHeld)
+	end
 	local lost = Structure.lost(grid, gone)
 	book.hp[id] = math.max(1, math.floor(book.maxHp[id] * (1 - lost)))
 	if (lost >= cfg.structure.warnLost or out.failed) and not book.warned[id] then
@@ -278,6 +324,184 @@ function BuildingState.punch(
 ): Blast
 	local S = cfg.structure
 	return BuildingState.blast(cfg, book, id, x, y, z, cfg.clash.wallRange, S.clashPanels * S.chunkCost, now)
+end
+
+-- Buildings the collapse cap held up (their ground storey gave way while 3 others were coming down) come down
+-- once the cap has room, longest-held first, so no building is left standing on nothing. Returns { id, blast }.
+function BuildingState.stepHeld(cfg: any, book: Book, now: number): { { id: number, blast: Blast } }
+	local out = {}
+	local ids = {}
+	for id in book.held do
+		table.insert(ids, id)
+	end
+	table.sort(ids, function(a, b)
+		return book.lastHit[a] < book.lastHit[b] or (book.lastHit[a] == book.lastHit[b] and a < b)
+	end)
+	for _, id in ids do
+		local grid = BuildingState.grid(cfg, book, id)
+		local gone = book.gone[id]
+		if book.state[id] ~= 1 or not grid or not gone or Structure.stands(cfg, grid, gone, 1) then
+			book.held[id] = nil
+		elseif recentCollapses(cfg, book, now) < cfg.maxCollapses then
+			book.held[id] = nil
+			local fell = Structure.settle(cfg, grid, gone, false)
+			local warn = not book.warned[id]
+			book.warned[id] = true
+			book.hp[id] = 0
+			book.lastHit[id] = now -- the drones wait the full time after it fell
+			table.insert(book.collapses, now)
+			set(book, id, 2)
+			table.insert(out, {
+				id = id,
+				blast = {
+					state = 2,
+					changed = true,
+					cut = false,
+					warn = warn,
+					hit = {},
+					fell = fell,
+					failed = 1,
+				},
+			})
+		end
+	end
+	return out
+end
+
+-- Where a ray (unit direction dx, dy, dz) first meets a standing piece of a Damaged building, or max. A
+-- Damaged building's real body stops blocking shots on the server (setWrecked), so without this a bolt, a
+-- dash or a leap passed through every wall it still has and could never finish it off. A piece the ray
+-- starts inside is skipped (as a Roblox raycast does).
+local function enter(
+	cx: number,
+	cy: number,
+	cz: number,
+	hx: number,
+	hy: number,
+	hz: number,
+	ox: number,
+	oy: number,
+	oz: number,
+	dx: number,
+	dy: number,
+	dz: number,
+	max: number
+): number?
+	local t0, t1 = -math.huge, math.huge
+	for axis = 1, 3 do
+		local o, d, lo, hi
+		if axis == 1 then
+			o, d, lo, hi = ox, dx, cx - hx, cx + hx
+		elseif axis == 2 then
+			o, d, lo, hi = oy, dy, cy - hy, cy + hy
+		else
+			o, d, lo, hi = oz, dz, cz - hz, cz + hz
+		end
+		if math.abs(d) < 1e-9 then
+			if o < lo or o > hi then
+				return nil
+			end
+		else
+			local a, b = (lo - o) / d, (hi - o) / d
+			if a > b then
+				a, b = b, a
+			end
+			t0, t1 = math.max(t0, a), math.min(t1, b)
+			if t0 > t1 then
+				return nil
+			end
+		end
+	end
+	if t1 < 0 or t0 > max then
+		return nil
+	end
+	return t0 -- negative: the ray starts inside
+end
+
+function BuildingState.ray(
+	cfg: any,
+	book: Book,
+	ox: number,
+	oy: number,
+	oz: number,
+	dx: number,
+	dy: number,
+	dz: number,
+	max: number
+): number
+	local best = max
+	for id in book.open do
+		local b = book.boxes[id]
+		if
+			b
+			and b.sx
+			and enter(
+				b.x,
+				(b.base + b.top) / 2,
+				b.z,
+				b.sx / 2,
+				(b.top - b.base) / 2,
+				b.sz / 2,
+				ox,
+				oy,
+				oz,
+				dx,
+				dy,
+				dz,
+				best
+			)
+		then
+			local grid = BuildingState.grid(cfg, book, id)
+			local gone: { [number]: boolean } = book.gone[id] or {}
+			if grid then
+				for i, p in grid.pieces do
+					if not gone[i] then
+						local t = enter(
+							p.cx,
+							p.cy,
+							p.cz,
+							p.sx / 2,
+							p.sy / 2,
+							p.sz / 2,
+							ox,
+							oy,
+							oz,
+							dx,
+							dy,
+							dz,
+							best
+						)
+						if t and t >= 0 and t < best then
+							best = t
+						end
+					end
+				end
+			end
+		end
+	end
+	return best
+end
+
+-- An ability's structure damage (CombatService): its own structDmg, else supers cfg.superStruct, else a
+-- default by slot for anything that deals damage (nate 2026-11-16: every damaging ability breaks buildings)
+function BuildingState.abilityStruct(cfg: any, eff: any): number
+	if eff.structDmg then
+		return eff.structDmg
+	elseif eff.slot == "super" then
+		return cfg.superStruct
+	elseif (eff.coeff or 0) > 0 and not eff.allyHeal then
+		return cfg.slotStruct[eff.slot] or 0
+	end
+	return 0
+end
+
+-- Shapes whose cast hits buildings where it lands (leaps and throws hit when they land, CombatService). The
+-- area shapes (fields, rides, launches, placed things) hit at their centre, when the cast has one.
+local CAST = { bolt = true, chain = true, dash = true, cone = true, arc = true, nova = true, line = true }
+local AREA = { field = true, ride = true, launch = true, place = true }
+BuildingState.LANDS = { leap = true, throw = true }
+function BuildingState.castStruct(shape: string?, hasCentre: boolean): boolean
+	return shape ~= nil and (CAST[shape] == true or (AREA[shape] == true and hasCentre))
 end
 
 -- The pieces gone from every Damaged building: { { id, bits }, ... } (the snapshot)
@@ -363,6 +587,74 @@ function BuildingState.unpack(b: buffer, n: number): { number }
 		end
 	end
 	return out
+end
+
+-- The buildings repaired since the last call (sent as r, before the pieces and states)
+function BuildingState.takeFixed(book: Book): { number }
+	local list = book.fixed
+	book.fixed = {}
+	return list
+end
+
+-- The device's copy (BuildingFx): view = { state = { [id] = state }, gone = { [id] = { [piece] = true } } }.
+-- A snapshot replaces all of it; count(id) is the building's piece count, or nil when it is unknown.
+function BuildingState.applySnapshot(view: any, data: any, count: (number) -> number?)
+	table.clear(view.gone)
+	local list = BuildingState.unpack(data.s, math.clamp(tonumber(data.n) or 0, 0, 4096))
+	for id, s in list do
+		view.state[id] = s
+	end
+	for _, row in data.g or {} do
+		local id, bits = row[1], row[2]
+		local n = if type(id) == "number" then count(id) else nil
+		if n and type(bits) == "buffer" then
+			view.gone[id] = Structure.unpack(bits, n)
+		end
+	end
+end
+
+-- A diff batch onto the device's copy: repairs first (their old holes go), then the pieces, then the states.
+-- known(id): the device knows that building. Returns the buildings touched, the pieces that just went per
+-- building (piece -> 1 knocked out, 2 fell) and the buildings repaired in this batch (redraw them from scratch).
+function BuildingState.applyDiff(
+	view: any,
+	data: any,
+	known: (any) -> boolean
+): ({ [number]: boolean }, { [number]: { [number]: number } }, {
+	[number]: boolean,
+})
+	local touched: { [number]: boolean } = {}
+	local fresh: { [number]: { [number]: number } } = {}
+	local reset: { [number]: boolean } = {}
+	for _, id in data.r or {} do
+		if type(id) == "number" then
+			view.gone[id] = nil
+			view.state[id] = 0
+			touched[id] = true
+			reset[id] = true
+		end
+	end
+	local c = data.c or {}
+	for i = 1, #c - 2, 3 do
+		local id, piece, cause = c[i], c[i + 1], c[i + 2]
+		if known(id) and type(piece) == "number" then
+			local g = view.gone[id] or {}
+			view.gone[id] = g
+			g[piece] = true
+			fresh[id] = fresh[id] or {}
+			fresh[id][piece] = cause
+			touched[id] = true
+		end
+	end
+	local d = data.d or {}
+	for i = 1, #d - 1, 2 do
+		local id, s = d[i], d[i + 1]
+		if type(id) == "number" and type(s) == "number" and view.state[id] ~= s then
+			view.state[id] = s
+			touched[id] = true
+		end
+	end
+	return touched, fresh, reset
 end
 
 -- The changes since the last call, as a flat list { id, state, id, state, ... }

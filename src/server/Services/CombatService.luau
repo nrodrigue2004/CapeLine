@@ -35,6 +35,7 @@ local ChargeRules = require(Shared:WaitForChild("ChargeRules"))
 local WeaponRules = require(Shared:WaitForChild("WeaponRules"))
 local Awakening = require(Shared:WaitForChild("Awakening"))
 local ClashRules = require(Shared:WaitForChild("ClashRules"))
+local BuildingState = require(Shared:WaitForChild("BuildingState"))
 local Status = require(Shared:WaitForChild("Status"))
 local Signal = require(Shared:WaitForChild("Util"):WaitForChild("Signal"))
 
@@ -68,11 +69,18 @@ CombatService.KIND = K
 local losParams = RaycastParams.new()
 losParams.FilterType = Enum.RaycastFilterType.Include
 
+-- A Damaged building's real body stops blocking on the server (BuildingService), so each ray also stops on
+-- its standing Structure pieces (BuildingService.ray): shots pass only its holes, and a bolt, dash or leap
+-- still lands on what is left of it (audit 2026-11-18: they passed through and could never finish it off)
 local function los(ox: number, oy: number, oz: number, tx: number, ty: number, tz: number): boolean
 	local from = Vector3.new(ox, oy, oz)
 	local dir = Vector3.new(tx, ty, tz) - from
+	local len = dir.Magnitude
 	local hit = Workspace:Raycast(from, dir, losParams)
-	return hit == nil or (hit.Position - from).Magnitude >= dir.Magnitude - 3
+	if hit and (hit.Position - from).Magnitude < len - 3 then
+		return false
+	end
+	return len < 1e-3 or BuildingService.ray(from, dir / len, len) >= len - 3
 end
 
 local world: CastPlan.World = {
@@ -81,12 +89,17 @@ local world: CastPlan.World = {
 		if max <= 0 then
 			return 0
 		end
-		local hit = Workspace:Raycast(Vector3.new(ox, oy, oz), Vector3.new(dx, dy, dz) * max, losParams)
-		return if hit then (hit.Position - Vector3.new(ox, oy, oz)).Magnitude else max
+		local from, dir = Vector3.new(ox, oy, oz), Vector3.new(dx, dy, dz)
+		local hit = Workspace:Raycast(from, dir * max, losParams)
+		local d = if hit then (hit.Position - from).Magnitude else max
+		return if dir.Magnitude > 0.5 then BuildingService.ray(from, dir.Unit, d) else d
 	end,
 	groundY = function(x, y, z)
-		local hit = Workspace:Raycast(Vector3.new(x, y + 2, z), Vector3.new(0, -600, 0), losParams)
-		return if hit then hit.Position.Y else 0
+		local from = Vector3.new(x, y + 2, z)
+		local hit = Workspace:Raycast(from, Vector3.new(0, -600, 0), losParams)
+		local d = if hit then from.Y - hit.Position.Y else 600
+		local piece = BuildingService.ray(from, Vector3.new(0, -1, 0), d)
+		return if piece < d or hit then from.Y - piece else 0
 	end,
 }
 
@@ -293,18 +306,10 @@ end
 
 -- Structure damage where an ability lands (spec: Destruction "Ability field structDmg"). kind 1: a slam or
 -- landing (crater), 2: a blast (cracks).
-local STRUCT_SHAPES =
-	{ bolt = true, chain = true, dash = true, cone = true, arc = true, nova = true, line = true }
 -- An ability's structure damage: its own structDmg, else a default by slot for anything that deals damage
+-- (BuildingState.abilityStruct); which casts hit where they land: BuildingState.castStruct
 local function structOf(eff: any): number
-	if eff.structDmg then
-		return eff.structDmg
-	elseif eff.slot == "super" then
-		return DS.superStruct
-	elseif (eff.coeff or 0) > 0 and not eff.allyHeal then
-		return DS.slotStruct[eff.slot] or 0
-	end
-	return 0
+	return BuildingState.abilityStruct(DS, eff)
 end
 
 local function structural(eff: any, center: Vector3, radius: number, kind: number)
@@ -974,7 +979,7 @@ local function resolve(
 	end
 	gainFor(hero, eff, #plan.hits)
 	-- structure damage where it lands (leaps and throws land later, below)
-	if STRUCT_SHAPES[plan.shape] and structOf(eff) > 0 then
+	if BuildingState.castStruct(plan.shape, plan.cx ~= nil) and structOf(eff) > 0 then
 		local at = if plan.cx
 			then Vector3.new(plan.cx, plan.cy, plan.cz)
 			elseif plan.ex then Vector3.new(plan.ex, plan.ey, plan.ez)

@@ -145,6 +145,17 @@ What nate does:
 
 ## Studio test list (needs nate's PC)
 
+### City and destruction audit (2026-11-18)
+Fixes from the city audit (tests: ONLY="City audit"). Use the Dev panel's structure hit and "Repair all" where it helps.
+1. Hit a building once with a skill so it turns Damaged (a hole shows). Stand back and fire a bolt (or Zap Bolt) at a wall panel that still stands: the shot stops on that panel and knocks pieces out of it. Fire one through the hole: it flies inside and breaks the back wall. Keep going with bolts only: the building comes down.
+2. Leap onto the roof of a Damaged building: the landing breaks roof pieces (the hero lands on the roof, not on the street below). Robots behind a Damaged building's standing walls are not hit through them; through a hole they are.
+3. Cast a damaging field (a super like Blizzard Dome or Sunfall, or a skill like Static Field) against a building: pieces break at once where it lands. A healing field (Healing Rain) breaks nothing.
+4. Fly up to a skyscraper with a spire (the 400 to 640 stud towers) and hit the spire or setbacks with supers: the shaft's top storey breaks and the crown disappears with it.
+5. Bring down 4 buildings within a few seconds (Dev structure hit at each one's base): 3 collapse, the 4th stays standing with a broken ground floor, then comes down by itself about 6 s after the first; never more than 3 falling at once.
+6. Two players: player 2 watches a Damaged building while a drone repairs it; the moment it pops back whole, player 1 hits it once. Both screens show the same single new hole (no old holes come back). Player 2 rejoins: the same hole.
+7. On a phone (low preset), knock the middle storeys out of several tall towers within a few seconds: frame rate stays playable; some falling pieces just vanish in the dust. On a PC (high) the same scene shows every piece falling.
+8. Change the graphics preset in Settings while flying fast over Downtown: street props rebuild for the new preset with no leftovers (no high-tier props stay on low). Fly away from a Damaged building and back a few times: no errors in the Developer Console, and the stand-in redraws each time.
+
 ### WP10: group-join piece and creator codes (2026-11-18)
 Settings > REWARDS (tests: ONLY="WP10"; the UI sim draws the rows at phone, tablet and PC sizes). Both ship off; Studio has its own test codes. Turn on API services for saves (Launch Checklist).
 1. Fresh Studio play, open Settings (gear button): scroll to the bottom. With Config.Promo.group.id 0 there is no group row; in Studio a REWARDS block shows the code box (STUDIOTEST is live in Studio only).

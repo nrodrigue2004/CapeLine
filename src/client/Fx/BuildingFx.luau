@@ -15,6 +15,9 @@
 -- * BuildingImpact: a crater where a slam or landing hits the ground, facade cracks where a blast hits a wall
 --   (outskirts houses and the Foundry crack too but never fall). Craters and cracks share the device
 --   preset's crater count and last 30 s; loose chunks share the debris budget.
+-- * Audit fixes (2026-11-18): snapshots and diffs go through BuildingState.applySnapshot and applyDiff (a repair in
+--   a batch clears the old holes before that batch's new ones), at most the preset's `falling` pieces animate at
+--   once, and a building streaming out drops its saved collision flags.
 -- PLACEHOLDER ART: chunks, rubble and drones are plain boxes; cracks are thin dark bars. Dust uses the
 -- engine's built-in smoke texture.
 
@@ -66,6 +69,7 @@ local falls: { Fall } = {}
 local marks: { BasePart | Model } = {}
 local drones: { [number]: { model: Model, conn: RBXScriptConnection? } } = {}
 local liveDust = 0
+local liveFall = 0 -- pieces animating in falls now (the preset's `falling` cap)
 local grids: { [number]: Structure.Grid } = {}
 local gone: { [number]: { [number]: boolean } } = {} -- building id -> pieces knocked out or fallen
 local bodyFlags: { [BasePart]: { collide: boolean, query: boolean } } = {}
@@ -292,7 +296,14 @@ local function pancake(rec: Rec, list: { { part: BasePart, piece: Structure.Piec
 		lowest = math.min(lowest, e.piece.storey)
 	end
 	local floor = rec.base
+	local cap = QualityController.preset.falling or 600
 	for _, e in list do
+		if liveFall >= cap then
+			-- over the device's cap (many storeys falling at once): this piece just goes, in the dust
+			e.part:Destroy()
+			continue
+		end
+		liveFall += 1
 		e.part.CanCollide = false
 		e.part.CanQuery = false
 		local c = e.piece
@@ -466,6 +477,7 @@ local function stepFalls()
 		end
 		if f.done or t >= length then
 			table.remove(falls, i)
+			liveFall = math.max(0, liveFall - #f.parts)
 			if f.own then
 				f.own:Destroy()
 			elseif not f.done then
@@ -726,6 +738,12 @@ local function unregister(model: Instance)
 	if type(id) == "number" and models[id] == model then
 		models[id] = nil
 		clearDrawn(id)
+		-- streamed out: its parts go, and so do their saved flags (they come back as new parts)
+		for _, p in model:GetDescendants() do
+			if p:IsA("BasePart") then
+				bodyFlags[p] = nil
+			end
+		end
 	end
 end
 
@@ -754,22 +772,20 @@ function BuildingFx.init()
 	folder = Instance.new("Folder")
 	folder.Name = "CityFx"
 	folder.Parent = Workspace
+	local view = { state = state, gone = gone } -- this device's copy of the server's record (BuildingState)
+	local function pieceCount(id: number): number?
+		local rec = records[id]
+		return if rec then #gridOf(rec).pieces else nil
+	end
+	local function known(id: any): boolean
+		return type(id) == "number" and records[id] ~= nil
+	end
 	Net.listen("BuildingSnapshot", function(data: any)
 		if type(data) ~= "table" or type(data.s) ~= "buffer" then
 			return
 		end
-		local list = BuildingState.unpack(data.s, math.clamp(tonumber(data.n) or 0, 0, 1024))
-		for id, s in list do
-			state[id] = s
-		end
-		-- the pieces gone from each Damaged building
-		for _, row in data.g or {} do
-			local id, bits = row[1], row[2]
-			local rec = records[id]
-			if rec and type(bits) == "buffer" then
-				gone[id] = Structure.unpack(bits, #gridOf(rec).pieces)
-			end
-		end
+		-- the states and the pieces gone from each Damaged building; holes from earlier batches are dropped
+		BuildingState.applySnapshot(view, data, pieceCount)
 		for id in models do
 			clearDrawn(id) -- drawn again below from the snapshot
 		end
@@ -785,30 +801,11 @@ function BuildingFx.init()
 		if type(data) ~= "table" then
 			return
 		end
-		-- pieces first (so a building turning Damaged is drawn with its holes), then states
-		local fresh: { [number]: { [number]: number } } = {}
-		local c = data.c or {}
-		for i = 1, #c - 2, 3 do
-			local id, piece, cause = c[i], c[i + 1], c[i + 2]
-			if records[id] and type(piece) == "number" then
-				local g = gone[id] or {}
-				gone[id] = g
-				g[piece] = true
-				fresh[id] = fresh[id] or {}
-				fresh[id][piece] = cause
-			end
-		end
-		local touched: { [number]: boolean } = {}
-		local d = data.d or {}
-		for i = 1, #d - 1, 2 do
-			local id, s = d[i], d[i + 1]
-			if state[id] ~= s then
-				state[id] = s
-				touched[id] = true
-			end
-		end
-		for id in fresh do
-			touched[id] = true
+		-- repairs first (their old holes go, even when hit again in this batch), then pieces (so a building
+		-- turning Damaged is drawn with its holes), then states
+		local touched, fresh, reset = BuildingState.applyDiff(view, data, known)
+		for id in reset do
+			clearDrawn(id)
 		end
 		if synced then
 			for id in touched do

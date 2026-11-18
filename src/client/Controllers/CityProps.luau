@@ -124,13 +124,17 @@ local function clearCell(c: Cell)
 	end
 end
 
--- Build or drop cells around the camera: nearest first, up to the preset's tier, radius and part cap
+-- Build or drop cells around the camera: nearest first, up to the preset's tier, radius and part cap. A build
+-- yields between frames; when the preset changes meanwhile (generation), a cell built under the old budget is
+-- dropped and the pass ends, so no cell keeps the old preset's props (audit 2026-11-18)
 local building = false
+local generation = 0
 local function refresh()
 	if building or not folder then
 		return
 	end
 	building = true
+	local gen = generation
 	local budget = QualityController.preset.props or Config.Presets.low.props
 	local cam = Workspace.CurrentCamera
 	local focus = if cam then cam.Focus.Position else Vector3.zero
@@ -176,6 +180,11 @@ local function refresh()
 					end
 				end
 			end
+			if gen ~= generation then
+				m:Destroy() -- the preset changed while it was built
+				c.parts = 0
+				break
+			end
 			m.Parent = folder
 			c.model = m
 			CityProps.built += c.parts
@@ -183,10 +192,14 @@ local function refresh()
 		used += c.parts
 	end
 	building = false
+	if gen ~= generation then
+		task.spawn(refresh) -- build again under the new preset
+	end
 end
 
 -- A new preset: drop everything and build again under its budget
 local function rebuild()
+	generation += 1
 	for _, c in cells do
 		clearCell(c)
 	end

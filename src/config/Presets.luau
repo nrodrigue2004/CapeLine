@@ -16,6 +16,7 @@ return {
 		streamRadius = 400,
 		partBudget = 6000,
 		debris = 60,
+		falling = 240, -- building pieces in a falling storey or collapse animated at once (BuildingFx; the rest just go)
 		craters = 6,
 		enemiesDrawn = 20,
 		emitters = 3,
@@ -37,6 +38,7 @@ return {
 		streamRadius = 600,
 		partBudget = 12000,
 		debris = 150,
+		falling = 600,
 		craters = 12,
 		enemiesDrawn = 40,
 		emitters = 3,
@@ -58,6 +60,7 @@ return {
 		streamRadius = 800,
 		partBudget = 20000,
 		debris = 250,
+		falling = 1000,
 		craters = 20,
 		enemiesDrawn = 60,
 		emitters = 5,
