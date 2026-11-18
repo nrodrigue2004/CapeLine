@@ -140,6 +140,21 @@ What nate does:
 
 ## Studio test list (needs nate's PC)
 
+### UI fixes: panels, keys, phones (2026-11-18)
+Client UI bugs from the review (tests: ONLY="Phone"; the UI sim now loads every Ui module, opens the Hero MMO panels and walks every hidden part of every screen at 640 x 360 too). Use Test > Device for the phone steps.
+1. News screens: stand by a city news TV, reset your character (Esc > Reset) and respawn: every news screen still shows the channel and its ticker.
+2. Keys: K opens the Task Force board (and nothing else); N opens Photo Mode and N or B closes it. On a controller the HUD hints read: Skill 3 ◀, Skill 4 ▼, Super ▲, Awaken ▶, Block LB (the POWERS button shows no pad hint).
+3. Photo Mode refuses during a cutscene (play a story beat, press N: nothing) and while Downed; a cutscene starting, or going Downed, while in Photo Mode closes it and gives the camera back.
+4. iPhone SE: tap another hero's plate, REPORT: the four reasons show inside the menu in place of REPORT, MUTE and INVITE, all on screen.
+5. iPhone SE: WANTED opens the poster fitted to the screen (WANTED clear of X, SHOWDOWN on screen); the mentor picker (a new hero after the opening, or PICK MENTOR) fits with both mentors and LATER; BADGES shows its three tabs left of X; the mentor's comic panel sits above the screen's bottom.
+6. iPhone SE: get Defeated: DEFEATED, the respawn picks and CHOOSE LOADOUT all show on screen (the stack moves up from the bottom on a short screen).
+7. TASK FORCE on a fresh join: the board shows "Finding task forces..." until it loads; with a breakpoint held in TaskForceService's TaskForceList handler, after 5 s it shows the error note and RETRY (RETRY asks again).
+8. Pending buttons: tap a pending button (a shop buy), let the answer come, then tap it again within 5 s of the first tap: it keeps showing "..." until its own answer, never TRY AGAIN early.
+9. One panel at a time: open GEAR, then POWERS: GEAR closes. The same for MAP, JOURNAL, the Weapon Rack, the boards, WANTED, MENTOR, BADGES, the Hero Pass and the HQ stations. The shop and settings still open on top (the Hero Pass's BUY shows the shop over it).
+10. Downed with the shop or settings open: they close and the Downed screen shows on top (GIVE UP and HELP work).
+11. Map: tap MAP on and off quickly ten times, then leave it open: the YOU dot moves smoothly (one follow loop, not several).
+12. Controller: open each panel above with a pad: its first button is selected at once and the D-pad moves between its buttons; closing it gives the D-pad back to the game. Also check the I key (GEAR) does not zoom the camera in a way that bothers players (Roblox's camera uses I and O to zoom).
+
 ### Side quest people and finale models (2026-11-18, art pass)
 New outfits, faces and three finale models (PLACEHOLDER ART until nate approves; tests: ONLY="Art pass"). The upload package is in /mnt/project-files/capeline/upload/ (64 images: the 38 people outfits, 17 faces, 9 robot uniforms still at 0); the done first batch moved to /mnt/project-files/capeline/upload/done-2026-11-17/.
 1. Upload: copy the upload folder to Documents\capeline-upload-2 and double-click upload.bat. It writes ids.json and resolve_ids.txt.
@@ -1044,7 +1059,7 @@ Sounds are built-in placeholders (listen for each one, not for quality). Dev pan
 5. Rewards: a rescue shows a green ring and "+N RENOWN"; an incident clear slams a GOLD, SILVER or BRONZE stamp; a contract slams DONE!; a level up spins the level badge and lights NEXT AT n: the unlock; a gear drop shows a beam in the tier colour (Legendary and Mythic chime twice); a purchase slams NEW!; a skill rank or loadout save clicks.
 6. Death: Downed plays a slow heartbeat loop that stops when revived or respawned; a revive shows gold rings; a respawn shows a blue shield bubble for 5 s; on the Defeated screen CHOOSE LOADOUT opens POWERS right after you are back.
 7. Dazed: a PvP stun on you shows spinning stars over your head until it ends.
-8. Photo Mode: PHOTO (top left) or K: every other screen hides, the hero holds still, drag or the right stick orbits, scroll, pinch or the triggers zoom. POSE steps through Ready, Look Out, Take Off, Thinking and your owned emotes (a second player sees only the emotes). LOOK steps through NONE, COMIC (frame and name caption), SPEED (lines), SUNSET, NOIR, NEON. HIDE UI hides the bar until you tap. SNAP clicks and flashes (no flash with Reduce flashing). EXIT, K or B puts everything back. Nothing is saved.
+8. Photo Mode: PHOTO (top left) or N (was K; K is the Task Force board, 2026-11-18): every other screen hides, the hero holds still, drag or the right stick orbits, scroll, pinch or the triggers zoom. POSE steps through Ready, Look Out, Take Off, Thinking and your owned emotes (a second player sees only the emotes). LOOK steps through NONE, COMIC (frame and name caption), SPEED (lines), SUNSET, NOIR, NEON. HIDE UI hides the bar until you tap. SNAP clicks and flashes (no flash with Reduce flashing). EXIT, K or B puts everything back. Nothing is saved.
 9. Friend boost: join with a Roblox friend: both see "<name> is here! FRIEND BOOST +10% Renown" and FRIEND BOOST +10% under the radar; kill rewards show the bigger Renown. It goes away when the friend leaves.
 10. Offline drones: DEV > HQ level 5, Away 8 h, rejoin: a YOUR DRONES ARE BACK card with the Credits and COLLECT; tapping banks them ("Your drones brought back ..."). Leave without tapping and rejoin: the Credits were banked anyway.
 11. Reward cards: a boss result and a mission result count the Credits and Renown up in 1.5 s; the first tap finishes the count, the next tap closes the boss card.

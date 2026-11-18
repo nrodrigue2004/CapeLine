@@ -383,6 +383,7 @@ function ShopHud.open(which: string?)
 	if not gui.Enabled then
 		Telemetry.note("shop")
 	end
+	Kit.opening("ShopHud", gui, ShopHud.close)
 	gui.Enabled = true
 	status.Text = "Looks only: nothing here changes your stats"
 	preview.set(LookCodec.read(State.profile.look) or CreatorRules.defaultLook(Config))

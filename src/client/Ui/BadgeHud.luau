@@ -251,6 +251,7 @@ end
 
 function BadgeHud.open(which: string?)
 	tab = which or tab
+	Kit.opening("BadgeHud", panel, BadgeHud.close, true)
 	panel.Visible = true
 	draw()
 	Net.send("BadgeOpen")
@@ -285,17 +286,29 @@ function BadgeHud.init()
 		BackgroundColor3 = Kit.color.paper,
 	}, BadgeHud.close)
 	close.Parent = panel
+	-- the three tabs share the row left of X (at 0.3 of the width each, TITLES ran under X on a phone)
+	local tabRow = Instance.new("Frame")
+	tabRow.Name = "Tabs"
+	tabRow.BackgroundTransparency = 1
+	tabRow.Size = UDim2.new(1, -(T + 8) - 18, 0, T - 12)
+	tabRow.Position = UDim2.fromOffset(10, 8)
+	tabRow.Parent = panel
+	local tabList = Instance.new("UIListLayout")
+	tabList.FillDirection = Enum.FillDirection.Horizontal
+	tabList.Padding = UDim.new(0, 6)
+	tabList.SortOrder = Enum.SortOrder.LayoutOrder
+	tabList.Parent = tabRow
 	for i, row in { { "badges", "BADGES" }, { "collect", "COLLECTIONS" }, { "titles", "TITLES" } } do
 		local b = Kit.button({
 			Text = row[2],
-			Size = UDim2.new(0.3, -10, 0, T - 12),
-			Position = UDim2.new((i - 1) * 0.3, 10, 0, 8),
+			Size = UDim2.new(1 / 3, -4, 1, 0),
+			LayoutOrder = i,
 			BackgroundColor3 = Kit.color.paper,
 		}, function()
 			tab = row[1]
 			draw()
 		end)
-		b.Parent = panel
+		b.Parent = tabRow
 		tabButtons[row[1]] = b
 	end
 	local scroll = Instance.new("ScrollingFrame")

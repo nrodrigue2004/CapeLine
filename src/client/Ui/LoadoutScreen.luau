@@ -413,6 +413,7 @@ end
 
 function LoadoutScreen.open()
 	loadDraft(State.hero.loadoutIndex or 1)
+	Kit.opening("LoadoutScreen", panel, LoadoutScreen.close, true)
 	panel.Visible = true
 	refresh()
 end
