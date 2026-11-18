@@ -376,6 +376,7 @@ draw = function()
 end
 
 function HqHud.open(name: string)
+	Kit.opening("HqHud", panel, HqHud.close, true)
 	current = name
 	sub = nil
 	if name == "trophies" then

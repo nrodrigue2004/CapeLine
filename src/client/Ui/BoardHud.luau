@@ -205,6 +205,7 @@ function BoardHud.open(which: number?)
 	if which and B.boards[which] then
 		tab = which
 	end
+	Kit.opening("BoardHud", panel, BoardHud.close, true) -- a main panel: the others close
 	panel.Visible = true
 	draw()
 	BoardHud.refresh()

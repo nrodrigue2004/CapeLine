@@ -61,7 +61,7 @@ local KEYS: { [Enum.KeyCode]: string } = {
 	[Enum.KeyCode.Three] = "Gadget",
 	[Enum.KeyCode.M] = "Map",
 	[Enum.KeyCode.J] = "Journal",
-	[Enum.KeyCode.K] = "TaskForce", -- H4: the Task Force board
+	[Enum.KeyCode.K] = "TaskForce", -- H4: the Task Force board (Photo Mode moved to N: PhotoMode.KEY)
 	[Enum.KeyCode.B] = "Catch", -- the interact key (only the opening's catch step listens)
 	[Enum.KeyCode.P] = "Shop",
 	[Enum.KeyCode.H] = "Emote",
@@ -95,7 +95,8 @@ local ALSO: { [Enum.KeyCode]: string } = {
 	[Enum.KeyCode.ButtonX] = "Catch",
 }
 
--- Button labels shown on the HUD for controller players
+-- Button labels shown on the HUD for controller players (they follow KEYS: H1 moved Skill 3 and 4 to the
+-- d-pad and gave LB to Block; POWERS has no pad button, it opens from the top row with Select)
 InputController.padHints = {
 	Leap = "A",
 	Fly = "Y",
@@ -104,13 +105,13 @@ InputController.padHints = {
 	Basic = "RT",
 	Skill1 = "X",
 	Skill2 = "RB",
-	Skill3 = "LB",
-	Skill4 = "◀",
+	Skill3 = "◀",
+	Skill4 = "▼",
 	Super = "▲",
 	Awaken = "▶",
 	Swap = "LS",
 	Gadget = "RS",
-	Loadout = "▼",
+	Block = "LB",
 	Catch = "X",
 }
 

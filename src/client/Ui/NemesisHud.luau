@@ -92,6 +92,7 @@ local function comic(name: string, line: string)
 end
 
 function NemesisHud.open()
+	Kit.opening("NemesisHud", poster, NemesisHud.close, true)
 	poster.Visible = true
 	Net.send("NemesisPoster")
 end
@@ -110,20 +111,25 @@ function NemesisHud.init()
 		Visible = false,
 	})
 	Kit.stroke(poster, Kit.color.ink, 4)
+	-- phone pass: the poster's design size draws smaller on a phone (it was a fixed 340 x 400, past a 375 px
+	-- phone's safe area); its rows fit 370 px, SHOWDOWN at the bottom
+	Kit.fit(poster, 340, 370, 340, 400)
 	poster.Parent = gui
-	label(poster, "WANTED", 10, 56, 56, Color3.fromRGB(150, 30, 30))
-	nameL = label(poster, "", 76, 44, 36)
-	rankL = label(poster, "", 124, 28, 22)
-	traitsL = label(poster, "", 168, 60, 15, nil, true)
+	local wanted = label(poster, "WANTED", 8, 50, 56, Color3.fromRGB(150, 30, 30))
+	wanted.Size = UDim2.new(1, -2 * (T + 14), 0, 50) -- clear of X
+	wanted.Position = UDim2.fromOffset(T + 14, 8)
+	nameL = label(poster, "", 62, 40, 36)
+	rankL = label(poster, "", 104, 26, 22)
+	traitsL = label(poster, "", 136, 56, 15, nil, true)
 	traitsL.TextWrapped = true
-	intelL = label(poster, "", 236, 26, 20)
-	noteL = label(poster, "", 268, 44, 14, nil, true)
+	intelL = label(poster, "", 198, 24, 20)
+	noteL = label(poster, "", 226, 44, 14, nil, true)
 	noteL.TextWrapped = true
 	showdown = Kit.button({
 		pending = true,
 		Text = "SHOWDOWN",
 		AnchorPoint = Vector2.new(0.5, 1),
-		Position = UDim2.new(0.5, 0, 1, -14),
+		Position = UDim2.new(0.5, 0, 1, -10),
 		Size = UDim2.fromOffset(T * 4, T),
 		BackgroundColor3 = Kit.color.gold,
 		Visible = false,
@@ -134,7 +140,7 @@ function NemesisHud.init()
 	showdown.Parent = poster
 	local close = Kit.button({
 		Text = "X",
-		Size = UDim2.fromOffset(T, T - 10),
+		Size = UDim2.fromOffset(T, T - 6), -- still a full tap at the poster's phone scale
 		Position = UDim2.new(1, -T - 8, 0, 6),
 		BackgroundColor3 = Kit.color.paper,
 	}, NemesisHud.close)
