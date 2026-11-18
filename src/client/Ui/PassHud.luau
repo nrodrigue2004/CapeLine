@@ -6,8 +6,9 @@
 -- * EPISODE: this week's episode: its theme, the mentors' 3 panels, the 4 steps with counts, the reset time.
 -- * STYLES: the travel styles for each mobility (how each is earned, bought or found on the pass) with WEAR,
 --   and the pass's tints, landing pose and plate trims with EQUIP.
--- Moments: the episode's 3 comic panels the first time you log in each week (Juice "episodeIntro"), the TIER
--- UP card (Juice "passTier"), a claim pop (Juice "passClaim"), and after a mission or a world boss a small
+-- Moments: the episode's 3 comic panels the first time you log in each week (Juice "episodeIntro"; a join
+-- card, so it waits for Ui.PopupGate: never over the loading screen, menu, creator, prologue or another card),
+-- the TIER UP card (Juice "passTier"), a claim pop (Juice "passClaim"), and after a mission or a world boss a small
 -- card with the Pass XP it paid (the results screen hook).
 -- PLACEHOLDER ART: Kit frames until the UI pass.
 
@@ -22,6 +23,7 @@ local TravelStyleRules = require(Shared:WaitForChild("TravelStyleRules"))
 
 local Juice = require(script.Parent.Parent.Fx.Juice)
 local Kit = require(script.Parent.Kit)
+local PopupGate = require(script.Parent.PopupGate)
 local ShopHud = require(script.Parent.ShopHud)
 local State = require(script.Parent.Parent.State)
 
@@ -38,6 +40,7 @@ local state: { [string]: any }? = nil
 local order = 0
 local clockOffset = 0
 local introShown = false
+local introShade: Frame? = nil -- the panels while they are up (PopupGate's "episode" card)
 
 local function rgb(t: { number }): Color3
 	return Color3.fromRGB(t[1], t[2], t[3])
@@ -465,6 +468,7 @@ function PassHud.intro(force: boolean?)
 		round = false,
 	})
 	shade.Parent = gui
+	introShade = shade
 	local box = Kit.frame({
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromScale(0.5, 0.45),
@@ -504,6 +508,7 @@ function PassHud.intro(force: boolean?)
 		local p = ep.panels[i]
 		if not p then
 			shade:Destroy()
+			introShade = nil
 			Net.send("EpisodeSeen")
 			return
 		end
@@ -542,6 +547,9 @@ end
 
 function PassHud.init()
 	gui = Kit.screen("PassHud", 6)
+	PopupGate.card("episode", function()
+		return introShade ~= nil and introShade.Parent ~= nil
+	end)
 	panel = Kit.frame({
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromScale(0.5, 0.5),
@@ -617,7 +625,13 @@ function PassHud.init()
 		if panel.Visible then
 			draw()
 		end
-		PassHud.intro(false)
+		-- the week's panels come on join: a card the server pops by itself, so it waits its turn (review
+		-- 2026-11-18: they showed 6 s after joining, over the creator)
+		if d.episode and d.episode.intro and not introShown then
+			PopupGate.later("episode", function()
+				PassHud.intro(false)
+			end)
+		end
 	end)
 	Net.listen("PassXp", function(d: any)
 		if type(d) ~= "table" then

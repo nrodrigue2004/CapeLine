@@ -82,6 +82,7 @@ local function travel(player: Player, beaconId: number)
 		traveling = trips[player] ~= nil,
 		readyAt = readyAt[player] or 0,
 		now = now,
+		scene = hero.scene, -- review 2026-11-18: never out of the HQ, a visit copy, a pocket or the prologue
 	}, beaconId)
 	if not ok then
 		Net.fire(

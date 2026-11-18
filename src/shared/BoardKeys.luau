@@ -469,6 +469,29 @@ function BoardKeys.sweep(B: any, batch: Batch, now: number)
 	end
 end
 
+---------------------------------------------------------------------------
+-- Analytics
+---------------------------------------------------------------------------
+
+-- May a BoardOpen log board_open now? (review 2026-11-18) The remote allows one a second, so a device flipping
+-- tabs could spend a minute's analytics budget on its own. One event per board and filter per player every
+-- Config.Boards.logEvery seconds. last: { ["<board>:<filter>"] = os.clock of the last one logged }
+function BoardKeys.logOpen(
+	B: any,
+	last: { [string]: number },
+	board: number,
+	filter: number,
+	now: number
+): boolean
+	local key = tostring(board) .. ":" .. tostring(filter)
+	local at = last[key]
+	if at ~= nil and now - at < (B.logEvery or 0) then
+		return false
+	end
+	last[key] = now
+	return true
+end
+
 -- Unwritten totals left (shutdown waits for these)
 function BoardKeys.pending(batch: Batch): number
 	local n = 0

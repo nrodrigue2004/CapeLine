@@ -2,8 +2,9 @@
 -- Travel: the pure rules for safehouses and fast travel (spec: Movement kit > Fast travel; Defeat and death;
 -- Banking; Remote events Move.FastTravel, Bank.Deposit, Respawn.Choose). Servers and Lune tests share them.
 -- * Discovered beacons and visited safehouses are bit masks on the character (bit id - 1).
--- * canTravel: the beacon exists and is discovered, the hero is out of combat, not already travelling, and
---   the 20 s cooldown is over.
+-- * canTravel: the beacon exists and is discovered, the hero is out of combat, not already travelling, not in a
+--   scene (the HQ, a friend's HQ, a mission pocket, the prologue, the creator: each has its own way out, and a
+--   flight out of one left the hero in the city still in that scene), and the 20 s cooldown is over.
 -- * flightPath: the 3 s skippable flight's arc (the client animates it; the server moves the hero at the end).
 -- * deposit: every on-hand Credit goes to the bank (only on-hand Credits can move in PvP, M8).
 -- * respawnAt: a defeat respawns at the nearest visited safehouse; a join at the last chosen one.
@@ -36,6 +37,7 @@ export type TravelState = {
 	traveling: boolean,
 	readyAt: number, -- clock time the cooldown ends
 	now: number,
+	scene: string?, -- the hero's scene (hero.scene), nil out in the city
 }
 
 function Travel.canTravel(worldCfg: any, s: TravelState, beaconId: number): (boolean, string?)
@@ -53,6 +55,9 @@ function Travel.canTravel(worldCfg: any, s: TravelState, beaconId: number): (boo
 	end
 	if s.traveling then
 		return false, "traveling"
+	end
+	if s.scene ~= nil then
+		return false, "scene"
 	end
 	if s.inCombat then
 		return false, "combat"

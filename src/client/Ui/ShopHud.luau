@@ -429,7 +429,16 @@ function ShopHud.init()
 		end
 	end)
 	Net.listen("ShopOffer", function()
-		offer.Visible = true
+		-- a card the server pops by itself (after the first world boss): it waits its turn with the other such
+		-- cards (review 2026-11-18). Ui.PopupGate is required here, not at the top: it reads the main menu,
+		-- which reads this shop
+		local PopupGate = require(script.Parent.PopupGate) :: any
+		PopupGate.card("starter", function()
+			return offer.Visible
+		end)
+		PopupGate.later("starter", function()
+			offer.Visible = true
+		end)
 	end)
 	State.ProfileChanged:Connect(function()
 		if gui.Enabled then

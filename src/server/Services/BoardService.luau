@@ -44,6 +44,7 @@ local batch = BoardKeys.newBatch()
 local weekOffset = 0 -- Studio: forced week rolls
 local devSettled = false -- Studio: after a forced roll, the ended week counts at once
 local claiming: { [Player]: boolean } = {}
+local opened: { [Player]: { [string]: number } } = {} -- board_open's pacing (BoardKeys.logOpen)
 local plaza: { [string]: any }? = nil
 local plazaDigest = ""
 
@@ -191,7 +192,16 @@ local function onOpen(player: Player, index: number, filterNum: number)
 	base.cut = #entries >= B.readCount -- your rank past the top 100 is not known
 	if player.Parent == Players then
 		Net.fire("BoardData", player, base)
-		Analytics.event(player, "board_open", if mine and mine.rank then mine.rank else 0, { b.id, filter })
+		local last = opened[player] or {}
+		opened[player] = last
+		if BoardKeys.logOpen(B, last, index, filterNum, os.clock()) then
+			Analytics.event(
+				player,
+				"board_open",
+				if mine and mine.rank then mine.rank else 0,
+				{ b.id, filter }
+			)
+		end
 	end
 end
 
@@ -366,6 +376,7 @@ function BoardService.init()
 	end)
 	Players.PlayerRemoving:Connect(function(player)
 		claiming[player] = nil
+		opened[player] = nil
 	end)
 	-- the write pass
 	task.spawn(function()

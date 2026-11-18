@@ -105,7 +105,11 @@ return function(T: any)
 		local sent: { number } = {}
 		local lowSent: { number } = {}
 		local highWanted, highSent, lowWanted = 0, 0, 0
-		local function send(now: number, low: boolean)
+		-- review 2026-11-18: a rare event the budget had no room for waits per player (AnalyticsSchema.hold)
+		-- and goes with the next flush, every 5 s (AnalyticsSchema.release), as Analytics does
+		local held: { [number]: { any } } = {}
+		local heldLost = 0
+		local function send(now: number, low: boolean, p: number?)
 			if low then
 				lowWanted += 1
 			else
@@ -118,58 +122,118 @@ return function(T: any)
 				else
 					highSent += 1
 				end
+			elseif not low then
+				local q = held[p or 0] or {}
+				held[p or 0] = q
+				if not AnalyticsSchema.hold(q, now) then
+					heldLost += 1
+				end
+			end
+		end
+		local function flush(now: number)
+			for _, q in held do
+				AnalyticsSchema.release(q, function(): boolean
+					return AnalyticsSchema.take(b, B, now, players, false)
+				end, function()
+					table.insert(sent, now)
+					highSent += 1
+				end)
 			end
 		end
 		local rng = Rng.new(6)
 		local dt = 0.1
+		-- review 2026-11-18: every event a join can send since tonight's packages (each named, so a new one
+		-- has to be added here): the session's device and balance, the streak's day and yesterday's late claim,
+		-- the group piece paid on load, a settled week's three board titles, and the Opening step
+		local JOIN = {
+			"session_device",
+			"balance_live",
+			"daily_login",
+			"daily_claim",
+			"promo_claim",
+			"board_reward",
+			"board_reward",
+			"board_reward",
+		}
+		for _, name in JOIN do
+			check(
+				E[name] ~= nil and not Config.Analytics.lowPriority[name],
+				name .. ": a join event, not trimmed"
+			)
+		end
+		local BoardKeys = require("../src/shared/BoardKeys")
+		local boardLast: { [string]: number } = {}
 		for tick = 0, 1800 do -- 3 minutes
 			local now = tick * dt
+			if tick % 50 == 0 then
+				flush(now) -- AnalyticsHooks' 5 s pass
+			end
 			for p = 1, players do
 				-- the first 20 s: everyone joins (FunnelKit: session_start, Progress Joined, Returns) and the
-				-- join events (session_device, balance_live, daily_login, the Opening step) go out
+				-- join events above go out
 				if tick == p * 6 then
 					for _ = 1, 3 do
 						AnalyticsSchema.force(b, B, now, players)
 						table.insert(sent, now)
 					end
-					for _ = 1, 4 do
-						send(now, false)
+					for _ = 1, #JOIN + 1 do -- and the Opening funnel's step
+						send(now, false, p)
 					end
 				end
 				-- a hard fight: 3 casts a second a hero, skill_cast sampled (low priority)
 				if Rng.next(rng) < 3 * dt * Config.Analytics.castSample then
-					send(now, true)
+					send(now, true, p)
 				end
 				-- a gear drop every 10 s a hero in the boss fight (low), PvP hits (low)
 				if Rng.next(rng) < dt / 10 then
-					send(now, true)
+					send(now, true, p)
 				end
 				if Rng.next(rng) < dt / 5 then
-					send(now, true)
+					send(now, true, p)
 				end
 				-- rare events and funnel steps: level ups, incidents, boss join and done, missions, contracts,
 				-- dailies, gear upgrades, ladder steps: 8 a minute a hero (a very busy minute)
 				if Rng.next(rng) < dt * 8 / 60 then
-					send(now, false)
+					send(now, false, p)
 				end
 				-- perf samples: 10% of devices once a minute (low)
 				if p <= 3 and tick % 600 == p then
-					send(now, true)
+					send(now, true, p)
+				end
+				-- one device flips the weekly boards at BoardOpen's full rate (1 a second, every board and filter):
+				-- board_open is paced per board and filter (BoardKeys.logOpen; review 2026-11-18)
+				if p == 2 and tick % 10 == 0 then
+					local k = (tick // 10) % (2 * #Config.Boards.boards)
+					if BoardKeys.logOpen(Config.Boards, boardLast, k // 2 + 1, k % 2, now) then
+						send(now, false, p)
+					end
 				end
 				-- one misbehaving device sends shop_open at the remote's full rate (1 a second): paced
 				if p == 1 and tick % 10 == 0 then
 					paced[p] = paced[p] or {}
 					if AnalyticsSchema.pace(paced[p], Config.Analytics.devicePace, 2, now) then
-						send(now, false)
+						send(now, false, p)
 					end
 				end
 			end
 		end
 		table.sort(sent)
 		check(busiest(sent) <= cap, "every 60 s holds at most " .. cap .. " (got " .. busiest(sent) .. ")")
+		local waiting = 0
+		for _, q in held do
+			waiting += #q
+		end
 		check(
-			highSent == highWanted,
-			"no funnel step or rare event dropped (" .. highSent .. "/" .. highWanted .. ")"
+			highSent == highWanted and heldLost == 0 and waiting == 0,
+			"no funnel step or rare event lost: each went now or with a later flush ("
+				.. highSent
+				.. "/"
+				.. highWanted
+				.. ", "
+				.. waiting
+				.. " waiting, "
+				.. heldLost
+				.. " lost)"
 		)
 		check(busiest(lowSent) <= math.ceil(cap * B.lowShare), "busy events stay inside their share")
 		check(#lowSent > 0 and #lowSent < lowWanted, "busy events are trimmed, not silenced")

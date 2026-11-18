@@ -2,7 +2,8 @@
 -- KPIs), so the Creator Dashboard shows them with no outside service (ported from Ragdoll Rides). Every
 -- event is checked against AnalyticsSchema first: unknown names are dropped, fields are short codes or
 -- numbers, never names or text a player typed. Roblox hashes user ids and batches the sends.
--- * event(player, name, value?, fields?): one custom event (fields go to CustomField01 to 03).
+-- * event(player, name, value?, fields?): one custom event (fields go to CustomField01 to 03). A rare one the
+--   per-minute budget has no room for waits and goes with flush() (review 2026-11-18, AnalyticsSchema.hold).
 -- * step(player, funnel, stepName): a funnel step, counted as AnalyticsSchema.KINDS says (Audit 2026-11-18):
 --   Opening (Roblox's onboarding funnel) and the Combat and Story ladders once per account and in order,
 --   kept in the save; PvP and Purchase once per funnel session and in order, a session opened by step 1. A
@@ -43,6 +44,8 @@ local paced: { [Player]: { [number]: number } } = {} -- the last device fact kep
 local joinedAt: { [Player]: number } = {}
 local starting: { [Player]: { kind: string, side: (Player) -> string } } = {} -- waiting for the device hello
 local devices: { [Player]: string } = {}
+-- rare events the budget had no room for, waiting for flush(): { name, value, clean fields } (review 2026-11-18)
+local held: { [Player]: { { any } } } = {}
 
 local KEYS = {
 	Enum.AnalyticsCustomFieldKeys.CustomField01.Name,
@@ -81,26 +84,8 @@ local function unsaved(player: Player): boolean
 end
 Analytics.unsaved = unsaved
 
--- One custom event. Never throws. A refused or unsaved event takes no budget slot. Returns "sent", "full"
--- (the per-minute budget had no room: a caller that must not lose it may try again later) or "refused" (gone
--- for good: a player who left, a bad event or a save that did not load); callers may ignore it.
-function Analytics.event(player: Player, name: string, value: number?, fields: { any }?): string
-	if player.Parent ~= Players then
-		return "refused"
-	end
-	local ok, clean = AnalyticsSchema.check(name, fields)
-	if not ok then
-		if RunService:IsStudio() then
-			warn("[Analytics] refused event " .. tostring(name))
-		end
-		return "refused"
-	end
-	if not AnalyticsSchema.NOSAVE[name] and unsaved(player) then
-		return "refused"
-	end
-	if not takeBudget(Config.Analytics.lowPriority[name] == true) then
-		return "full"
-	end
+-- Send one checked event to Roblox (its budget slot is already taken)
+local function emit(player: Player, name: string, value: number?, clean: { string })
 	local custom: { [string]: string } = {}
 	for i, v in clean do
 		custom[KEYS[i]] = v
@@ -115,6 +100,39 @@ function Analytics.event(player: Player, name: string, value: number?, fields: {
 			(s :: any):LogCustomEvent(player, name, value or 1, custom) -- newer than the type definitions
 		end)
 	end
+end
+
+-- One custom event. Never throws. A refused or unsaved event takes no budget slot. Returns "sent", "held" (a
+-- rare event the per-minute budget had no room for: it waits and goes with flush(), review 2026-11-18), "full"
+-- (no room and nothing held: a busy event, or this player's waiting list is full; a caller that must not lose
+-- it may try again later) or "refused" (gone for good: a player who left, a bad event or a save that did not
+-- load); callers may ignore it.
+function Analytics.event(player: Player, name: string, value: number?, fields: { any }?): string
+	if player.Parent ~= Players then
+		return "refused"
+	end
+	local ok, clean = AnalyticsSchema.check(name, fields)
+	if not ok then
+		if RunService:IsStudio() then
+			warn("[Analytics] refused event " .. tostring(name))
+		end
+		return "refused"
+	end
+	if not AnalyticsSchema.NOSAVE[name] and unsaved(player) then
+		return "refused"
+	end
+	local low = Config.Analytics.lowPriority[name] == true
+	if not takeBudget(low) then
+		if not low then
+			local q = held[player] or {}
+			held[player] = q
+			if AnalyticsSchema.hold(q, { name, value, clean }) then
+				return "held"
+			end
+		end
+		return "full"
+	end
+	emit(player, name, value, clean)
 	return "sent"
 end
 
@@ -207,10 +225,21 @@ function Analytics.close(player: Player, funnel: string)
 	end
 end
 
--- Send any steps the budget held back (AnalyticsHooks calls it every few seconds)
+-- Send any steps and rare events the budget held back (AnalyticsHooks calls it every few seconds)
 function Analytics.flush(player: Player)
 	if player.Parent ~= Players then
 		return
+	end
+	local q = held[player]
+	if q then
+		AnalyticsSchema.release(q, function(): boolean
+			return takeBudget(false)
+		end, function(item: { any })
+			emit(player, item[1], item[2], item[3])
+		end)
+		if #q == 0 then
+			held[player] = nil
+		end
 	end
 	for funnel in AnalyticsSchema.SAVE do
 		ladder(player, funnel, nil)
@@ -388,6 +417,7 @@ function Analytics.init()
 			starting[p] = nil
 			devices[p] = nil
 			paced[p] = nil
+			held[p] = nil
 		end)
 	end)
 end

@@ -31,6 +31,7 @@ local REASONS = {
 	combat = "Not while fighting (wait a few seconds)",
 	cooldown = "Fast travel is cooling down",
 	traveling = "Already flying",
+	scene = "Head back out to the city first",
 }
 
 local gui: ScreenGui
