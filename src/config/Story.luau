@@ -1141,6 +1141,34 @@ return {
 					extras = {},
 				},
 			},
+			-- The Salt Dogs (the Coast): Captain Brine on his ship's loudhailer and buoy speakers and in person (a
+			-- diving helm portrait with his beard and scar), and Finn, Skipper Nell's deckhand grandson
+			brine = {
+				name = "CAPTAIN BRINE",
+				color = { 40, 190, 170 },
+				style = "broadcast",
+				blip = "guideCrane",
+				portrait = {
+					bg = { 20, 50, 60 },
+					skin = { 224, 172, 130 },
+					hair = { 240, 225, 200 },
+					shape = "helmet",
+					extras = { "beard", "scar" },
+				},
+			},
+			finn = {
+				name = "FINN",
+				color = { 255, 180, 90 },
+				style = "person",
+				blip = "guideInsider",
+				portrait = {
+					bg = { 40, 80, 110 },
+					skin = { 198, 140, 100 },
+					hair = { 80, 50, 30 },
+					shape = "messy",
+					extras = { "cap" },
+				},
+			},
 		},
 		-- the three guides: each has its own blip and portrait
 		guides = { "lodestar", "patch", "crane" },
@@ -1338,6 +1366,7 @@ return {
 			["Class Dismissed"] = 6, -- side quest chain: The Hero Academy (lore step 11)
 			["Curtain Call"] = 7, -- side quest chain: The Gala Heist (lore step 11, chain 2)
 			Unwound = 8, -- side quest chain: Wind-Up Lane (lore step 11)
+			Brinebreaker = 10, -- side quest chain: The Salt Dogs (lore step 11, the Coast)
 			GoldTrim = 100,
 		},
 	},

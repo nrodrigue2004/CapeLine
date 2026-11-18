@@ -1374,20 +1374,94 @@ def windup_giant(v):
     return s.im, p.im
 
 
+def em_crossed_hooks(d, cx, cy, c, sc=1.0):
+    """The Salt Dogs' crew patch (the Coast chain): two hooks crossed under a round porthole (an original mark)."""
+    s = sc
+    r = int(12 * s)
+    d.ellipse([cx - r, cy - 30 * s - r, cx + r, cy - 30 * s + r], outline=c, width=max(3, int(4 * s)))
+    for k in (-1, 1):
+        d.line([(cx - k * 18 * s, cy - 14 * s), (cx + k * 14 * s, cy + 16 * s)], fill=c, width=int(6 * s))
+        d.arc([cx + k * 14 * s - 9 * s, cy + 8 * s, cx + k * 14 * s + 9 * s, cy + 26 * s],
+              0 if k > 0 else 180, 180 if k > 0 else 360, fill=c, width=int(5 * s))
+
+
+def salt_dog(v):
+    """Salt Dog (lore step 11, the Coast chain): Captain Brine's robot crew, one rank per version. Grunt: a
+    deckhand's striped jersey (navy and white) with a rope belt and rolled canvas trousers. Veteran: a gunner's
+    navy pea coat, two rows of brass buttons, grey trousers. Elite: the bosun's red coat with gold braid at the
+    cuffs, a whistle chain and black trousers. The crossed-hooks patch on every back, rust on the veterans."""
+    s, p = T(), T()
+    fx, fy, fw, _ = s.front()
+    bx, by, bw, _ = s.back()
+    navy, rope = (30, 45, 100), (200, 170, 110)
+    if v == "Grunt":
+        s.torso(WHITE)
+        s.limbs(WHITE, 0, LOWER)
+        s.hstripes(navy, 0, UT_PX, period=16, wd=7, limbs_to=LOWER)
+        s.d.rectangle([fx, fy + UT_PX - 12, fx + 127, fy + UT_PX - 2], fill=rope)  # the rope belt
+        for k in range(0, 128, 8):
+            s.d.line([(fx + k, fy + UT_PX - 12), (fx + k + 6, fy + UT_PX - 2)], fill=shade(rope, 0.7), width=2)
+        trousers = (190, 175, 140)
+        p.torso(trousers, UT_PX - 4, 128, 1.0, 0.85)
+        p.limbs(trousers, 0, HAND - 14)
+        p.limb_band(shade(trousers, 0.8), HAND - 22, HAND - 14)  # rolled cuffs
+        p.limbs((60, 45, 35), HAND - 14, 128, 1.1, 0.8)  # sea boots
+        patch = navy
+    elif v == "Veteran":
+        s.torso(navy)
+        s.limbs(navy, 0, HAND)
+        for x in (fx + 40, fx + 88):
+            for k in range(4):
+                s.d.ellipse([x - 5, fy + 16 + k * 22, x + 5, fy + 26 + k * 22], fill=GOLD, outline=DARK)
+        s.d.polygon([(fx + 30, fy), (fx + 64, fy + 30), (fx + 98, fy)], fill=shade(navy, 1.4))  # the lapels
+        trousers = (90, 95, 105)
+        p.torso(trousers, UT_PX - 4, 128, 1.0, 0.85)
+        p.limbs(trousers, 0, HAND - 10)
+        p.limbs((24, 24, 28), HAND - 10, 128, 1.1, 0.8)
+        scuff(s, 211, 60)
+        patch = rope
+    else:
+        red = (190, 40, 45)
+        s.torso(red)
+        s.limbs(red, 0, HAND)
+        s.limb_band(GOLD, HAND - 10, HAND)  # gold braid at the cuffs
+        for k in range(3):
+            y = fy + 20 + k * 14
+            s.d.line([(fx + 20, y), (fx + 44, y)], fill=GOLD, width=3)
+            s.d.line([(fx + 84, y), (fx + 108, y)], fill=GOLD, width=3)
+        chain(s.d, (fx + 30, fy + 30), (fx + 78, fy + 78), STEEL, 8)  # the bosun's whistle chain
+        s.d.rectangle([fx + 74, fy + 74, fx + 92, fy + 82], fill=(200, 205, 215), outline=DARK)
+        p.torso((30, 30, 36), UT_PX - 4, 128, 1.0, 0.85)
+        p.limbs((30, 30, 36), 0, HAND - 10)
+        p.outer_stripe(GOLD, 0, HAND - 10, 4)
+        p.limbs((24, 24, 28), HAND - 10, 128, 1.1, 0.8)
+        patch = GOLD
+    s.d.ellipse([bx + 30, by + 30, bx + 98, by + 98], fill=shade(patch, 0.55), outline=DARK, width=2)
+    em_crossed_hooks(s.d, bx + 64, by + 70, patch, 1.0)
+    return s.im, p.im
+
+
 KINDS = {
     "SparkDrone": spark, "BurglarBot": burglar, "SneakBot": sneak, "BruteBot": brute, "Turret": sentry,
     "NullSentinel": null, "Diver": diver, "Anchor": anchor, "TorpedoSentry": torpedo,
     "ShieldBearer": shield_bearer, "Captain": captain, "Sniper": sniper, "Bomber": bomber, "MedicUnit": medic,
     "Swarmer": swarmer, "Mimic": mimic, "Interceptor": interceptor, "Grappler": grappler,
     "WindupToy": windup_toy, "WindupGiant": windup_giant,
+    "SaltDog": salt_dog,
 }
 VERSIONS = ("Grunt", "Veteran", "Elite")
 # the preview pages: the first 9 kinds, then the 9 added with the new enemy types, then the Suburbs chain's
-# clockwork toys (one image each, so they stay readable): art/preview/uniforms_templates.png,
-# uniforms_templates_new.png and uniforms_templates_toys.png, and the on-body renders art/preview/uniforms.png
-# and uniforms_new.png (clothed.py uniforms <Version> [new], then --stack)
+# clockwork toys, then the Coast chain's Salt Dogs (one image each, so they stay readable):
+# art/preview/uniforms_templates.png, uniforms_templates_new.png, uniforms_templates_toys.png and
+# uniforms_templates_saltdogs.png, and the on-body renders art/preview/uniforms.png and uniforms_new.png
+# (clothed.py uniforms <Version> [new], then --stack)
 # Run with --only Kind,Kind to draw just those kinds (and the pages they fill), leaving the others' files alone.
-PAGES = {"": list(KINDS)[:9], "_new": list(KINDS)[9:18], "_toys": list(KINDS)[18:]}
+PAGES = {
+    "": list(KINDS)[:9],
+    "_new": list(KINDS)[9:18],
+    "_toys": ["WindupToy", "WindupGiant"],
+    "_saltdogs": ["SaltDog"],
+}
 
 
 def stack():

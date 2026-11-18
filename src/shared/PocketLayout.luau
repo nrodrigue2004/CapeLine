@@ -552,6 +552,98 @@ function BUILD.toyshop(l: Layout, _Config: any)
 	point(l, "boss", 0, 0.5, -140)
 end
 
+-- Captain Brine's sea cave (lore step 11, the Coast chain The Salt Dogs). The cave's rock shelf is a deck over the
+-- south of the pocket: the cave mouth with the sea's daylight behind it (the spawn), the tide pools west (room
+-- 1) and east (room 2) with their rocks and coral, the wharf in the middle (`wharf`: a plank landing, mooring
+-- posts, a rowboat and the cage the Salt Dogs keep Finn in), and the back wall with the rock steps down behind
+-- it (`stairhead`). Under the shelf (its ceiling tagged so robots never stand on it) is the hidden grotto: the
+-- Drowned Gull, Brine's little ship, moored in a sea pool with its hologram "ghost" sails, the four projector
+-- rigs that throw the ghost ship (`projectors`), the treasure along the back and the boss spot (`boss`);
+-- `grotto` is the foot of the steps.
+-- PLACEHOLDER ART: greybox parts in the city palette, like every pocket.
+local CAVE_SHELF = 20
+function BUILD.seacave(l: Layout, _Config: any)
+	local D = CAVE_SHELF
+	local deco = { tag = "decor", ghost = true }
+	-- the rock shelf: a deck over the south of the pocket, its wet sand skin
+	box(l, "building", 0, D / 2, 80, 396, D, 232, "rock")
+	box(l, "plaza", 0, D + 0.1, 80, 396, 0.2, 232, "seabed")
+	point(l, "spawn", 0, D + 3, 172)
+	-- the cave mouth: rock either side and over the top, the sea's daylight beyond
+	for k = -1, 1, 2 do
+		box(l, "prop", k * 150, D + 20, 190, 100, 40, 12, "rock", deco)
+	end
+	box(l, "prop", 0, D + 44, 190, 400, 10, 12, "rock", deco)
+	box(l, "glow", 0, D + 16, 196, 200, 30, 1, "water", deco)
+	-- the tide pools, west (room 1) and east (room 2): a pool, rocks round it and coral at its edge
+	local corals = { "coralA", "coralB", "coralC", "coralD" }
+	for k = -1, 1, 2 do
+		box(l, "glow", k * 130, D + 0.25, 58, 60, 0.3, 50, "water", deco)
+		for i = 0, 3 do
+			box(l, "prop", k * (100 + i * 20), D + 2.5, 30 + (i % 2) * 56, 8, 5, 7, "rock", deco)
+			box(l, "prop", k * (108 + i * 14), D + 1.5, 82, 3, 3, 3, corals[i + 1], deco)
+		end
+		add(l, "rooms", k * 130, D + 0.5, 58)
+	end
+	-- the wharf: a plank landing, four mooring posts, a rowboat and Finn's cage
+	box(l, "plaza", 0, D + 0.25, 60, 60, 0.3, 50, "wood")
+	for _, p in { { -28, 36 }, { 28, 36 }, { -28, 84 }, { 28, 84 } } do
+		box(l, "prop", p[1], D + 2.5, p[2], 2, 5, 2, "wood", deco)
+	end
+	box(l, "prop", 20, D + 1, 42, 6, 2, 14, "wreck", deco)
+	for _, p in { { -5, 83 }, { 5, 83 }, { -5, 93 }, { 5, 93 } } do
+		box(l, "prop", p[1], D + 4, p[2], 0.6, 8, 0.6, "steel", deco)
+	end
+	box(l, "prop", 0, D + 8.2, 88, 11, 0.4, 11, "steel", deco)
+	point(l, "wharf", 0, D + 0.5, 60)
+	-- the back wall, its lanterns and the rock steps behind it
+	box(l, "building", -107, D + 15, -34, 178, 30, 4, "rock")
+	box(l, "building", 107, D + 15, -34, 178, 30, 4, "rock")
+	for k = -1, 1, 2 do
+		box(l, "glow", k * 60, D + 12, -31.5, 3, 4, 1, "workLamp", deco)
+	end
+	point(l, "stairhead", 0, D + 0.5, -28)
+	-- the steps down: 9 steps of 2 studs from the shelf to the grotto floor, rock walls both sides
+	for i = 1, 9 do
+		local top = D - 2 * i
+		box(l, "building", 0, top / 2, -39 - (i - 1) * 6, 32, top, 6, "rock")
+	end
+	for k = -1, 1, 2 do
+		box(l, "building", k * 18, 18, -64, 4, 36, 56, "rock")
+	end
+	point(l, "grotto", 0, 0.5, -100)
+	-- the grotto under the shelf: its ceiling is the shelf's level (robots never stand on it)
+	local ceil = { tag = "ceiling" }
+	box(l, "building", -109, D + 2, -117, 178, 4, 162, "rock", ceil)
+	box(l, "building", 109, D + 2, -117, 178, 4, 162, "rock", ceil)
+	box(l, "building", 0, D + 2, -152, 40, 4, 92, "rock", ceil)
+	-- the Drowned Gull in its sea pool: hull, deck, mast, the hologram sails and the lens that throws them
+	box(l, "glow", 80, 0.25, -150, 90, 0.3, 80, "sea", deco)
+	box(l, "prop", 80, 2.5, -150, 22, 5, 60, "wreck", deco)
+	box(l, "prop", 80, 5.2, -150, 20, 0.4, 56, "wood", deco)
+	box(l, "prop", 80, 11, -150, 1.6, 12, 1.6, "wood", deco)
+	for _, z in { -138, -162 } do
+		box(l, "glow", 80, 12, z, 0.4, 8, 18, "water", deco)
+	end
+	box(l, "glow", 80, 17.5, -150, 2, 2, 2, "sparkGlow", { tag = "decor", ghost = true, shape = "ball" })
+	-- the four projector rigs that throw the ghost ship: a plinth, a post and a glowing lens each
+	for _, p in { { -140, -80 }, { -140, -160 }, { 140, -80 }, { 140, -180 } } do
+		add(l, "projectors", p[1], 0.5, p[2])
+		box(l, "prop", p[1], 0.5, p[2], 7, 1, 7, "steel", deco)
+		box(l, "prop", p[1], 4, p[2], 1.5, 6, 1.5, "steel", deco)
+		box(l, "glow", p[1], 7.5, p[2], 3, 3, 3, "sparkGlow", { tag = "decor", ghost = true, shape = "ball" })
+	end
+	-- the treasure along the back: chests with gold heaped on them
+	for i = -2, 2 do
+		box(l, "prop", i * 24, 1.5, -192, 8, 3, 5, "wood", deco)
+		box(l, "prop", i * 24, 3.3, -192, 6, 0.6, 3, "cargo", deco)
+	end
+	for _, x in { -150, -60, 60, 150 } do
+		box(l, "glow", x, D - 0.6, -117, 10, 0.6, 3, "workLamp", deco)
+	end
+	point(l, "boss", -40, 0.5, -140)
+end
+
 -- Is this a pocket layout name? (lore step 10: side quest pocket steps are checked against it)
 function PocketLayout.known(layout: any): boolean
 	return type(layout) == "string" and BUILD[layout] ~= nil

@@ -3,7 +3,8 @@
 -- * scenes: every cutscene the player plays (camera shots, letterbox, subtitles through the guide line box).
 --   `bit` is the scene's place in the save's seen set (profile.seen, ProfileSchema.SMALL_WORDS bits): a
 --   scene may be skipped once that bit is set. Bits 0 to 15 are the named scenes; missions use
---   missionBits (base + (mission - 1) * perMission + (stage - 1)). Never reuse or move a bit.
+--   missionBits (base + (mission - 1) * perMission + (stage - 1)); side quest scenes past the named range use
+--   sideBits (120 to 127, after the missions'). Never reuse or move a bit.
 --   `beat`: a prologue camera beat (OpeningPlan.CUT; its length is Config.Story.opening.beats). `client`: the
 --   device starts it (it then sends SceneSeen). Scenes run 5 to 20 s (`length`); the Ceremony beat keeps
 --   nate's 30 s (4 shots of 4.5 to 9 s) and says so with `long`.
@@ -290,8 +291,82 @@ return {
 				},
 			},
 		},
+		-- The Salt Dogs (the Coast's side quest chain, lore step 11): fog over Gull Point Pier on step 1, the
+		-- legend of Captain Brine as a comic page on step 5, and Brine riding the tide in before the finale.
+		-- The named range (0 to 15) is full, so side quest scenes go above the missions' bits (sideBits)
+		gullPoint = {
+			bit = 125,
+			client = true,
+			seconds = 10,
+			shots = {
+				{
+					kind = "dolly",
+					t0 = 0,
+					t1 = 5,
+					from = { -40, 22, 30 },
+					to = { -6, 8, 18 },
+					at = { 0, 4, 0 },
+					at2 = { 0, 3, 0 },
+				},
+				{
+					kind = "orbit",
+					t0 = 5,
+					t1 = 10,
+					radius = 20,
+					height = 5,
+					yaw0 = -0.5,
+					yaw1 = 0.7,
+					lift = 3,
+				},
+			},
+			lines = {
+				{
+					at = 0.4,
+					who = "brine",
+					text = "Yo ho! Mind the fog, little ferries. The ghost ship of Captain Brine sails tonight!",
+				},
+				{
+					at = 5.5,
+					who = "Nell",
+					text = "Forty years on this pier, and I never believed in ghosts. Until the robots came with it.",
+				},
+			},
+		},
+		brineLegend = { bit = 126, client = true, seconds = 14, comic = "brineLegend" },
+		brineRig = {
+			bit = 127,
+			client = true,
+			seconds = 8,
+			shots = {
+				{ kind = "cut", t0 = 0, t1 = 3, from = { -18, 2, 18 }, at = { 0, 7, 0 } },
+				{
+					kind = "orbit",
+					t0 = 3,
+					t1 = 8,
+					radius = 20,
+					height = 5,
+					yaw0 = 0.4,
+					yaw1 = 1.8,
+					lift = 5,
+				},
+			},
+			lines = {
+				{
+					at = 0.3,
+					who = "brine",
+					text = "The tide answers to Captain Brine! Batten down, barnacles, here comes the big wave!",
+				},
+				{
+					at = 4,
+					who = "patch",
+					text = "A pirate in a powered diving suit, riding a wave. Sure. Why not. Sink him!",
+				},
+			},
+		},
 	},
 	missionBits = { base = 16, perMission = 8, missions = 13 }, -- bits 16 to 119
+	-- side quest chains' scenes once the named range filled up (lore step 11): bits 120 to 127, after the missions'
+	sideBits = { from = 120, to = 127 },
 
 	safe = {
 		quietSeconds = 6, -- no hit taken for this long
@@ -531,6 +606,47 @@ return {
 						scene = "tap",
 						caption = "His machine in the basement drinks it all up. He calls it the Tantrum Tap.",
 						word = "GLUG!",
+						at = 10.5,
+					},
+				},
+			},
+			-- The legend of Captain Brine (The Salt Dogs, step 5): Nell tells how the ghost ship works
+			brineLegend = {
+				title = "THE LEGEND OF CAPTAIN BRINE",
+				panels = {
+					{
+						rect = { 0.03, 0.12, 0.45, 0.4 },
+						sky = { 150, 200, 235 },
+						ground = { 60, 130, 180 },
+						scene = "pier",
+						caption = "Brine was a salvage diver off Gull Point. One day his Spark woke in the deep.",
+						at = 0,
+					},
+					{
+						rect = { 0.52, 0.12, 0.45, 0.4 },
+						sky = { 60, 70, 100 },
+						ground = { 30, 60, 90 },
+						scene = "salvage",
+						caption = "He pulled old diving robots off the sea floor and made them his crew.",
+						word = "CLANK!",
+						at = 3.5,
+					},
+					{
+						rect = { 0.03, 0.56, 0.45, 0.38 },
+						sky = { 40, 50, 70 },
+						ground = { 25, 50, 70 },
+						scene = "ghostship",
+						caption = "Then the ghost ship came out of the fog. Sailors jumped ship. Brine took the rest.",
+						word = "WOOOO!",
+						at = 7,
+					},
+					{
+						rect = { 0.52, 0.56, 0.45, 0.38 },
+						sky = { 30, 30, 40 },
+						ground = { 20, 30, 40 },
+						scene = "seacave",
+						caption = "Every crate goes to his sea cave. Nobody who went looking ever found it.",
+						word = "SPLASH!",
 						at = 10.5,
 					},
 				},

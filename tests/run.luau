@@ -11737,8 +11737,13 @@ do
 	test("Lore 7: every scene is well formed, 5 to 20 s, with a bit of its own in the save", function()
 		local bits = {}
 		for id, sc in Ci.scenes do
+			-- a named bit, or (lore step 11, once the named range filled) a side quest scene's sideBits bit
 			check(
-				type(sc.bit) == "number" and sc.bit >= 0 and sc.bit < Ci.missionBits.base,
+				type(sc.bit) == "number"
+					and (
+						(sc.bit >= 0 and sc.bit < Ci.missionBits.base)
+						or (sc.bit >= Ci.sideBits.from and sc.bit <= Ci.sideBits.to)
+					),
 				id .. ": a named bit"
 			)
 			check(not bits[sc.bit], id .. ": its bit is its own")
@@ -14656,6 +14661,720 @@ do
 end
 
 ---------------------------------------------------------------------------
+-- Lore step 11, the Coast chain: The Salt Dogs. Config.SideQuests (the chain, Skipper Nell, the GullPier
+-- site), Shared.SideQuestSites.shore (a seeded coast pier, WorldGen.pier), PocketLayout "seacave" (Brine's sea
+-- cave), Captain Brine's crew (Config.Enemies.SaltDog and CaptainBrine), the scenes, the reward, the Dev panel.
+---------------------------------------------------------------------------
+
+do
+	local SideQuestPlan = require("../src/shared/SideQuestPlan")
+	local SideQuestSites = require("../src/shared/SideQuestSites")
+	local CreatorRules = require("../src/shared/CreatorRules")
+	local CinemaPlan = require("../src/shared/CinemaPlan")
+	local StoryPlan = require("../src/shared/StoryPlan")
+	local EnemyVariety = require("../src/shared/EnemyVariety")
+	local fs = require("@lune/fs")
+	local SQ = Config.SideQuests
+	local S = SideQuestPlan.chain(Config, "SaltDogs") :: any
+	local SIDES = { "hero", "villain" }
+	local CREW = { "SaltDog", "CaptainBrine" }
+
+	local function flat(ax: number, az: number, bx: number, bz: number): number
+		return math.sqrt((ax - bx) ^ 2 + (az - bz) ^ 2)
+	end
+
+	-- a hero who has cleared Act 1's Ceremony and Safehouse
+	local function afterSafehouse(): any
+		local c = ProfileSchema.newCharacter()
+		c.story.missions = StoryPlan.setBit(StoryPlan.setBit(0, 1), 2)
+		return c
+	end
+
+	test(
+		"Lore 11 Coast: The Salt Dogs validates: 8 Coast quests, each side's flavour, Captain Brine",
+		function()
+			local bad = SideQuestPlan.validate(Config)
+			for _, b in bad do
+				check(false, b)
+			end
+			check(#bad == 0, "the chain validator passes")
+			check(S ~= nil and not S.dev, "a real chain")
+			check(#S.steps == 8 and S.layer == "district" and S.district == "Coast", "8 Coast quests")
+			local nl = SQ.givers.Nell
+			check(S.giver == "Nell" and not nl.dev and nl.anchor == "site", "Skipper Nell gives it at a site")
+			check(S.site == "GullPier" and nl.site == "GullPier", "Gull Point Pier")
+			for _, other in SQ.chains do
+				check(other == S or other.bit ~= S.bit, "its own save bit (" .. tostring(other.id) .. ")")
+			end
+			local last = S.steps[#S.steps]
+			local fin = SideQuestPlan.goal(last, "hero") :: any
+			check(
+				SideQuestPlan.shared(last) and fin.kind == "finale" and fin.enemy == "CaptainBrine",
+				"Captain Brine, both sides together"
+			)
+			check(table.find(SQ.finale.enemies, "CaptainBrine") ~= nil, "Brine is on the finale list")
+			local kinds = { hero = {}, villain = {} }
+			local split = 0
+			for i, step in S.steps do
+				for _, side in SIDES do
+					kinds[side][(SideQuestPlan.goal(step, side) :: any).kind] = true
+				end
+				if SideQuestPlan.shared(step) then
+					local g = SideQuestPlan.goal(step, "hero") :: any
+					check(
+						type(g.villainText) == "string" and g.villainText ~= g.text,
+						"step " .. i .. ": the Syndicate reads its own goal"
+					)
+				else
+					split += 1
+					check(
+						SideQuestPlan.text(SideQuestPlan.goal(step, "hero"), "hero")
+							~= SideQuestPlan.text(SideQuestPlan.goal(step, "villain"), "villain"),
+						"step " .. i .. ": each side's own job"
+					)
+				end
+			end
+			check(split >= 5, "most steps give each side its own job (" .. split .. ")")
+			-- the Vigil rescue, protect and expose the fake ghost ship; the Dread Syndicate heist and sabotage
+			for _, k in { "fight", "find", "escort", "carry", "hold" } do
+				check(kinds.hero[k] == true, "the Vigil: " .. k)
+			end
+			for _, k in { "fetch", "chase", "deliver", "race" } do
+				check(kinds.villain[k] == true, "the Syndicate: " .. k)
+			end
+			check(kinds.hero.pocket and kinds.villain.pocket, "inside the sea cave, both sides")
+			-- every robot in the chain is Brine's crew: machines only, standalone (no Crane robots)
+			local crewOnly = true
+			for _, step in S.steps do
+				for _, side in SIDES do
+					local g = SideQuestPlan.goal(step, side) :: any
+					for _, row in g.squads or {} do
+						crewOnly = crewOnly and table.find(CREW, row[1]) ~= nil
+					end
+					for _, row in g.adds or {} do
+						crewOnly = crewOnly and table.find(CREW, row[1]) ~= nil
+					end
+					if g.guards then
+						crewOnly = crewOnly and table.find(CREW, g.guards[1]) ~= nil
+					end
+					if g.kind == "chase" or g.kind == "finale" then
+						crewOnly = crewOnly and table.find(CREW, g.enemy) ~= nil
+					end
+					for _, s in g.steps or {} do
+						for _, row in s.squads or {} do
+							crewOnly = crewOnly and table.find(CREW, row[1]) ~= nil
+						end
+						for _, row in s.waves or {} do
+							crewOnly = crewOnly and table.find(CREW, row[1]) ~= nil
+						end
+						if s.enemy then
+							crewOnly = crewOnly and table.find(CREW, s.enemy) ~= nil
+						end
+					end
+					check(g.kind ~= "photo", "no photo step (it spawns Sneak Bots, not Salt Dogs)")
+				end
+			end
+			check(crewOnly, "every robot in the chain is one of Brine's Salt Dogs")
+			local who = {}
+			for _, step in S.steps do
+				for _, l in step.lines or {} do
+					who[l.who] = true
+				end
+			end
+			for _, w in { "Nell", "patch", "lodestar", "brine", "finn" } do
+				check(who[w] == true, "speaks: " .. w)
+			end
+			for _, w in { "brine", "finn" } do
+				local sp = Config.Story.guides.speakers[w]
+				check(
+					sp ~= nil and sp.portrait ~= nil and Config.Audio.sounds[sp.blip] ~= nil,
+					w .. ": a guide speaker with a portrait and a blip"
+				)
+			end
+			local sb = Config.Cinema.sideBits
+			local scenes = 0
+			for _, step in S.steps do
+				if step.scene then
+					scenes += 1
+					local s = Config.Cinema.scenes[step.scene]
+					check(s ~= nil and s.client == true, step.scene .. ": a device scene")
+					check(s and CinemaPlan.check(Config, s), step.scene .. ": 5 to 20 s")
+					check(
+						s and s.bit >= sb.from and s.bit <= sb.to and CinemaPlan.clientBit(Config, s.bit),
+						step.scene .. ": a side quest scene bit a device may send"
+					)
+					for _, l in (s and s.lines) or {} do
+						check(
+							Config.Story.guides.speakers[l.who] ~= nil or SQ.givers[l.who] ~= nil,
+							step.scene .. ": speaker " .. tostring(l.who)
+						)
+					end
+				end
+			end
+			check(scenes >= 1 and scenes <= 3, "1 to 3 short scenes (" .. scenes .. ")")
+			check(last.scene ~= nil, "a scene before Brine's finale")
+			check(
+				sb.from > 16 + 8 * Config.Cinema.missionBits.missions - 1 and sb.to < 128,
+				"past the missions' bits"
+			)
+			local seenBits = {}
+			for id, s in Config.Cinema.scenes do
+				check(not seenBits[s.bit], "scene bit " .. s.bit .. " used once (" .. id .. ")")
+				seenBits[s.bit] = true
+			end
+			local page = Config.Cinema.comic.pages.brineLegend
+			check(page ~= nil and #page.panels == 4, "the legend of Captain Brine is a comic page")
+			local hud = fs.readFile("src/client/Ui/CinemaHud.luau")
+			for _, p in page.panels do
+				check(
+					string.find(hud, 'kind == "' .. p.scene .. '"', 1, true) ~= nil,
+					"the comic draws " .. p.scene
+				)
+			end
+		end
+	)
+
+	test("Lore 11 Coast: the finale's name card: CAPTAIN BRINE on the last step only", function()
+		for i = 1, #S.steps - 1 do
+			check(SideQuestPlan.card(S, i) == nil, "no card on step " .. i)
+		end
+		local card = SideQuestPlan.card(S, #S.steps) :: any
+		check(card ~= nil and card.name == "CAPTAIN BRINE", "the finale's card names Captain Brine")
+		check(card and card.title == "CAPTAIN OF THE SALT DOGS", "and his title")
+		check(
+			SideQuestPlan.fixedText(card.name, 32) == nil and SideQuestPlan.fixedText(card.title, 32) == nil,
+			"fixed text that fits the card"
+		)
+	end)
+
+	test(
+		"Lore 11 Coast: it opens after the Safehouse at the coast's level for both sides; Nell offers it",
+		function()
+			for _, side in SIDES do
+				local c = ProfileSchema.newCharacter()
+				c.story.missions = StoryPlan.setBit(0, 1)
+				local st, why, n = SideQuestPlan.state(Config, c, S, 30, side)
+				check(st == "locked" and why == "story" and n == 2, side .. ": waits for the Safehouse")
+				check(
+					select(2, SideQuestPlan.talkPick(Config, c, "Nell", 30, side, false)) == "none",
+					side .. ": Nell has nothing yet"
+				)
+				local d = afterSafehouse()
+				local st2, why2, lv = SideQuestPlan.state(Config, d, S, 19, side)
+				check(
+					st2 == "locked" and why2 == "level" and lv == Config.World.zoneFloor.coast,
+					side .. ": and the coast's level floor"
+				)
+				check(SideQuestPlan.state(Config, d, S, 20, side) == "open", side .. ": open at level 20")
+				local pick, kind = SideQuestPlan.talkPick(Config, d, "Nell", 20, side, false)
+				check(pick == S and kind == "offer", side .. ": Nell offers it")
+				check(SideQuestPlan.fixedText(S.blurb[side], 90) == nil, side .. ": the page's line")
+				check(SideQuestPlan.fixedText(S.lines.offer[side], 120) == nil, side .. ": Nell's offer")
+				check(
+					SideQuestPlan.talkPick(Config, d, "Scoops", 20, side, false) ~= S,
+					side .. ": Scoops never offers it"
+				)
+			end
+			local J = fs.readFile("src/client/Ui/Journal.luau")
+			check(string.find(J, 'Coast = "the Coast"', 1, true) ~= nil, "the Journal names the Coast")
+		end
+	)
+
+	test("Lore 11 Coast: Gull Point Pier is a seeded coast pier, picked by rule every week", function()
+		local st = SQ.sites.GullPier
+		check(
+			SideQuestSites.isOutskirts(st)
+				and SideQuestSites.isShore(st)
+				and not SideQuestSites.isShore(SQ.sites.ToyShop),
+			"an outskirts site on the shore"
+		)
+		check(SideQuestSites.building(Config, world, "GullPier") == nil, "never a Downtown building")
+		local gy = Config.City.ground.y
+		local W = Config.World
+		local half = Config.City.mapSize / 2
+		for _, seed in { 202647, 202648, 202701, 202720, 202752 } do
+			local wd = if seed == 202647 then world else WorldMap.build(Config, seed)
+			local b, door = SideQuestSites.place(Config, wd, "GullPier")
+			check(b ~= nil and door ~= nil, seed .. ": a pier fits")
+			if b and door then
+				local t = WorldGen.get(W, wd.tiles, b.tx, b.tz)
+				check(
+					t.zone == W.zones.coast and WorldGen.COAST[t.variant + 1] == "pier",
+					seed .. ": on a coast pier tile"
+				)
+				local ring = WorldGen.ring(W, b.tx, b.tz)
+				check(ring >= st.rings[1] and ring <= st.rings[2], seed .. ": ring " .. ring .. " (the edge)")
+				check(b.tx == 0, seed .. ": on the west shore, far from the Docks and the south sea")
+				-- the pier is really built there: its harbour hut stands in that tile's plan at the deck's end
+				local p = b.pier
+				local hut = false
+				for _, plan in wd.tilePlans do
+					if plan.tx == b.tx and plan.tz == b.tz then
+						for _, x in plan.boxes do
+							if
+								x.kind == "building"
+								and math.abs(x.cx - p.hut[1]) < 1e-6
+								and math.abs(x.cz - p.hut[2]) < 1e-6
+							then
+								hut = true
+							end
+						end
+					end
+				end
+				check(hut, seed .. ": the pier's hut is built where WorldGen.pier says")
+				check(math.abs(p.hut[1]) > half, seed .. ": the deck runs out over the sea past the map edge")
+				local a = st.away
+				for _, s in wd.safehouses do
+					check(flat(b.x, b.z, s.x, s.z) >= a.pad, seed .. ": clear of safehouse " .. s.id)
+				end
+				for _, bc in wd.beacons do
+					check(flat(b.x, b.z, bc.x, bc.z) >= a.beacon, seed .. ": clear of beacon " .. bc.id)
+				end
+				for _, lm in W.landmarks do
+					local x0, z0 = WorldGen.tileOrigin(Config.City, lm.tx, lm.tz)
+					local hs = lm.size * Config.City.tile / 2
+					check(flat(b.x, b.z, x0 + hs, z0 + hs) >= a.landmark, seed .. ": clear of " .. lm.id)
+				end
+				for name, dr in Config.City.districts do
+					local cx, cz = math.clamp(b.x, dr.minX, dr.maxX), math.clamp(b.z, dr.minZ, dr.maxZ)
+					check(flat(b.x, b.z, cx, cz) >= a.district, seed .. ": clear of " .. name)
+				end
+				for _, other in { "Academy", "Bank", "ToyShop" } do
+					local ob = SideQuestSites.place(Config, wd, other)
+					check(ob ~= nil and flat(b.x, b.z, ob.x, ob.z) >= a.site, seed .. ": far from " .. other)
+				end
+				-- the way in: on the sand at the pier's foot, inside the map, facing inland
+				check(WorldMap.heightAt(wd, door.x, door.z) <= gy + 1.5, seed .. ": open sand at the foot")
+				check(math.abs(door.x) < half and math.abs(door.z) < half, seed .. ": inside the map")
+				check(door.fx == -p.ox and door.fz == -p.oz, seed .. ": facing inland")
+				local again = SideQuestSites.outskirts(Config, wd, "GullPier")
+				check(again and again.x == b.x and again.z == b.z, seed .. ": the same seed, the same pier")
+			end
+		end
+		-- piers only on the edge ring: an inner coast tile never has one
+		local inner = 0
+		for tz = 1, W.tiles - 2 do
+			for tx = 1, W.tiles - 2 do
+				if WorldGen.pier(Config.City, W, world.tiles, tx, tz) then
+					inner += 1
+				end
+			end
+		end
+		check(inner == 0, "no pier off the edge ring")
+		-- the framework checks a shore site's rules
+		local function deep(v: any): any
+			if type(v) ~= "table" then
+				return v
+			end
+			local out = {}
+			for k, x in v do
+				out[k] = deep(x)
+			end
+			return out
+		end
+		local function problems(edit: (any) -> ()): string
+			local sq = deep(SQ)
+			edit(sq.sites.GullPier)
+			local C = setmetatable({ SideQuests = sq }, { __index = Config })
+			return table.concat(SideQuestPlan.validate(C), " | ")
+		end
+		check(problems(function() end) == "", "the copy is clean")
+		check(string.find(
+			problems(function(s)
+				s.shore = "lighthouse"
+			end),
+			"shore lighthouse is not a coast pier",
+			1,
+			true
+		) ~= nil, "only a pier has a placing rule")
+		check(string.find(
+			problems(function(s)
+				s.rings = { 12, 16 }
+			end),
+			"rings on the coast",
+			1,
+			true
+		) ~= nil, "rings off the coast")
+		check(string.find(
+			problems(function(s)
+				s.away.site = nil
+			end),
+			"away.site",
+			1,
+			true
+		) ~= nil, "no distance from other sites")
+		check(string.find(
+			problems(function(s)
+				s.district = "Suburbs"
+			end),
+			"district Suburbs",
+			1,
+			true
+		) ~= nil, "a shore site is on the Coast")
+	end)
+
+	test("Lore 11 Coast: Brine's sea cave: the tide pools, the wharf and the grotto under it", function()
+		check(PocketLayout.known("seacave"), "a pocket layout")
+		local l = PocketLayout.build(Config, 1, "seacave")
+		check(#l.boxes < 400, "under 400 parts (" .. #l.boxes .. ")")
+		local sp = l.points.spawn
+		check(PocketLayout.at(Config, sp[1], sp[2], sp[3]) == 1, "the spawn is inside its pocket")
+		check(#(l.lists.rooms or {}) >= 2, "two tide pools")
+		check(#(l.lists.projectors or {}) >= 4, "four ghost projectors")
+		for _, p in { "wharf", "stairhead", "grotto", "boss" } do
+			check(l.points[p] ~= nil, "has " .. p)
+		end
+		local shelf = PocketLayout.heightAt(l, sp[1], sp[3])
+		check(shelf > l.floorY + 15, "the cave's shelf stands above the grotto")
+		for i, r in l.lists.rooms do
+			near(PocketLayout.heightAt(l, r[1], r[3]), shelf, 0.5, "tide pool " .. i .. " is on the shelf")
+		end
+		local wh = l.points.wharf
+		near(PocketLayout.heightAt(l, wh[1], wh[3]), shelf, 0.5, "the wharf")
+		for _, name in { "grotto", "boss" } do
+			local p = l.points[name]
+			near(PocketLayout.heightAt(l, p[1], p[3]), l.floorY, 0.01, name .. " is on the grotto floor")
+		end
+		for i, p in l.lists.projectors do
+			near(
+				PocketLayout.heightAt(l, p[1], p[3]),
+				l.floorY,
+				0.01,
+				"projector " .. i .. " is on the floor"
+			)
+		end
+		local b = l.points.boss
+		local over = false
+		for _, x in l.boxes do
+			if
+				x.tag == "ceiling"
+				and math.abs(x.cx - b[1]) <= x.sx / 2
+				and math.abs(x.cz - b[3]) <= x.sz / 2
+				and x.cy > l.floorY + 15
+			then
+				over = true
+			end
+		end
+		check(over, "the grotto is under the shelf")
+		local from, to = l.points.stairhead, l.points.grotto
+		local prev = PocketLayout.heightAt(l, from[1], from[3])
+		local ok = true
+		for z = from[3], to[3], -1 do
+			local h = PocketLayout.heightAt(l, from[1], z)
+			if h > prev + 1e-6 or prev - h > 2.5 then
+				ok = false
+			end
+			prev = h
+		end
+		check(ok and math.abs(prev - l.floorY) < 0.01, "the rock steps walk down to the grotto")
+		local pocket = SideQuestPlan.goal(S.steps[5], "hero") :: any
+		check(pocket.kind == "pocket" and pocket.layout == "seacave", "step 5 is inside the sea cave")
+		local used = {}
+		for _, s in pocket.steps do
+			used[s.kind] = true
+			if s.at then
+				check(l.points[s.at] ~= nil, s.kind .. " at " .. s.at)
+			end
+			if s.room then
+				check(l.lists.rooms[s.room] ~= nil, s.kind .. " in tide pool " .. s.room)
+			end
+			if s.list then
+				check(#(l.lists[s.list] or {}) >= (s.points or 1), s.kind .. " on " .. s.list)
+			end
+		end
+		check(
+			used.defeat and used.hold and used.reach and used["break"] and used.boss,
+			"tide pools, wharf, steps, projectors, bosun"
+		)
+	end)
+
+	test(
+		"Lore 11 Coast: the Salt Dogs and Captain Brine: switches, looks, never ambient, a boss-lite",
+		function()
+			local profile = ProfileSchema.default()
+			for _, p in CreatorRules.index(Config).list do
+				if p.source.kind ~= "pack" and p.source.kind ~= "starter" then
+					CreatorRules.grant(profile, p)
+				end
+			end
+			local function lookOk(look: any, label: string)
+				local ok, why = CreatorRules.validate(Config, profile, look)
+				check(ok, label .. "'s look validates (" .. tostring(why) .. ")")
+				for slot, i in look.pieces do
+					if i > 0 then
+						local p = CreatorRules.piece(Config, slot, i)
+						check(
+							p ~= nil and p.source.kind ~= "pack",
+							label .. " " .. slot .. " is never a Robux piece"
+						)
+					end
+				end
+			end
+			lookOk(FakeRules.lookFrom(Config, SQ.givers.Nell.look, "Nell"), "Nell")
+			local NL = Config.NpcLooks
+			for _, kind in CREW do
+				local cfg = Config.Enemies[kind]
+				check(cfg.on == true, kind .. ": an on switch")
+				check(
+					table.find(Config.Enemies.order, kind) ~= nil and cfg.typeId < 32,
+					kind .. " is in the order"
+				)
+				check(Config.Enemies.mix[kind] == nil, kind .. " never spawns in the ambient mix")
+				for _, sw in Config.Enemies.variety.swaps do
+					check(
+						sw.kind ~= kind and table.find(sw.from, kind) == nil,
+						kind .. " is never swapped in or out"
+					)
+				end
+				cfg.on = false
+				local gone = EnemySim.spawn(EnemySim.new(Config, {}), kind, 0, 20, 0, 1) == nil
+				cfg.on = true
+				check(gone, kind .. " off: never spawns")
+				check(
+					EnemySim.spawn(EnemySim.new(Config, {}), kind, 0, 20, 0, 1) ~= nil,
+					kind .. " on: spawns"
+				)
+			end
+			-- the Salt Dogs: machines with a hook and a bandana and three crew uniforms drawn for upload
+			local D = Config.Enemies.SaltDog
+			check(D.fake == nil and D.body.hook == true, "a Salt Dog is a robot with a hook")
+			check(NL.robots.SaltDog ~= nil, "the Salt Dogs have their three crew uniforms")
+			for _, v in NL.versions do
+				check(
+					fs.isFile("art/export/clothes/uniforms/SaltDog_" .. v .. ".png"),
+					"SaltDog " .. v .. " uniform is drawn for upload"
+				)
+			end
+			local rng = Rng.new(11)
+			local function rand(): number
+				return rng:next()
+			end
+			for _ = 1, 50 do
+				for _, row in EnemyVariety.squad(Config, { { kind = "SaltDog", n = 6 } }, 40, rand) do
+					check(row.kind == "SaltDog", "a Salt Dog squad stays Salt Dogs")
+				end
+			end
+			local rend = fs.readFile("src/client/Controllers/EnemyRenderer.luau")
+			check(string.find(rend, "body.hook", 1, true) ~= nil, "the renderer draws the hook")
+			check(string.find(rend, "body.anchor", 1, true) ~= nil, "and Brine's anchor")
+			-- Captain Brine: a costumed powered villain (a powered diving rig): no crack, no FAKE, a real look
+			local B = Config.Enemies.CaptainBrine
+			check(B.fake and B.fake.costumed == true and B.elite and B.miniBoss, "a costumed boss-lite")
+			check(B.hp >= 2 * Config.Enemies.NullSentinel.hp, "boss-lite health")
+			local look = FakeRules.look(Config, "CaptainBrine")
+			lookOk(look, "Captain Brine")
+			check(
+				Config.Enemies.look.builds[B.body.build] == look.build,
+				"Brine's robot build matches his look"
+			)
+			check((B.body.gender or 1) == look.gender, "and his gender")
+			local sim = EnemySim.new(Config, {})
+			local e = EnemySim.spawn(sim, "CaptainBrine", 0, 20, 0, 10) :: any
+			EnemySim.drainEvents(sim)
+			EnemySim.damage(sim, e.id, e.maxHealth * 0.8 / (1 - (B.mitigation or 0)), 1)
+			local unmasks = 0
+			for _, ev in EnemySim.drainEvents(sim) do
+				if ev.k == "unmask" then
+					unmasks += 1
+				end
+			end
+			check(unmasks == 0 and not e.unmasked, "no unmask: Brine is no fake")
+			check(FakeRules.plate(Config, "CaptainBrine", false).name == "CAPTAIN BRINE", "Brine's plate")
+			-- damage a second in the fakes' band: above the elite robots, below the hardest world boss
+			for _, lv in { 5, 20, 50 } do
+				local elite = 0
+				for _, kind in Config.Enemies.order do
+					local cfg = Config.Enemies[kind]
+					if cfg.elite and not cfg.fake then
+						elite = math.max(elite, robotDps(kind, lv))
+					end
+				end
+				local boss = 0
+				for id in Config.Boss.bosses do
+					boss = math.max(boss, bossDps(id, lv))
+				end
+				local d = robotDps("CaptainBrine", lv)
+				check(
+					d > elite and d < boss,
+					string.format("L%d Brine %.1f between elite %.1f and boss %.1f", lv, d, elite, boss)
+				)
+				local grunt = robotDps("SaltDog", lv)
+				check(grunt > 0 and grunt < elite, string.format("L%d a Salt Dog %.1f is a grunt", lv, grunt))
+			end
+		end
+	)
+
+	for _, lead in SIDES do
+		local mate = if lead == "hero" then "villain" else "hero"
+		local label = if lead == "villain" then "the Syndicate" else "the Vigil"
+		test(
+			"Lore 11 Coast: The Salt Dogs as " .. label .. ": all 8 steps co-op with the other side",
+			function()
+				local a, b = afterSafehouse(), afterSafehouse()
+				check(SideQuestPlan.accept(Config, a, S, 22, lead, false), "the lead takes it from Nell")
+				check(SideQuestPlan.accept(Config, b, S, 22, mate, true), "the squadmate from the Journal")
+				local credits = { 0, 0 }
+				for i, step in S.steps do
+					check(
+						SideQuestPlan.stepOf(a, S) == i and SideQuestPlan.stepOf(b, S) == i,
+						"both on step " .. i
+					)
+					local g = SideQuestPlan.newGroup(S.id, i)
+					local ka, newA = SideQuestPlan.join(g, step, "lead", lead)
+					local kb, newB = SideQuestPlan.join(g, step, "mate", mate)
+					if SideQuestPlan.shared(step) then
+						check(
+							ka == "both" and kb == "both" and newA and not newB,
+							"step " .. i .. ": one shared goal"
+						)
+					else
+						check(
+							ka == lead and kb == mate and newA and newB,
+							"step " .. i .. ": a goal per side"
+						)
+					end
+					check(
+						SideQuestPlan.set(g, ka, g.sides[ka].need),
+						"step " .. i .. ": the lead's side finishes"
+					)
+					if ka ~= kb then
+						check(
+							SideQuestPlan.waiting(g, ka) and not SideQuestPlan.groupDone(g),
+							"step " .. i .. ": and waits for the other side"
+						)
+						check(
+							SideQuestPlan.set(g, kb, g.sides[kb].need),
+							"step " .. i .. ": the other side finishes"
+						)
+					end
+					check(SideQuestPlan.groupDone(g), "step " .. i .. ": done for the group")
+					local last = i == #S.steps
+					if last then
+						check(SideQuestPlan.card(S, i) ~= nil, "Captain Brine's name card at the finale")
+					end
+					for n, c in { a, b } do
+						credits[n] += SideQuestPlan.stepPay(Config, 22, last)
+						check(
+							SideQuestPlan.advance(c, S) == (if last then "done" else "next"),
+							"step " .. i .. " moves on"
+						)
+					end
+				end
+				for n, c in { a, b } do
+					check(
+						SideQuestPlan.isDone(c, S) and c.story.pinned == 0 and c.sq.at.SaltDogs == nil,
+						"done, untracked"
+					)
+					check(
+						credits[n] > 0 and SideQuestPlan.chainPay(Config, S, 22) > 0,
+						"steps and the end pay"
+					)
+					check(
+						not SideQuestPlan.accept(Config, c, S, 22, if n == 1 then lead else mate, false),
+						"once only"
+					)
+					check(
+						not SideQuestPlan.isDone(c, SideQuestPlan.chain(Config, "WindUpLane")),
+						"Wind-Up Lane is untouched"
+					)
+				end
+			end
+		)
+	end
+
+	test("Lore 11 Coast: the reward is a chain title and one cosmetic; side rep pays every step", function()
+		local cos = SideQuestPlan.cosmetic(S)
+		local n = 0
+		for _ in cos do
+			n += 1
+		end
+		check(n == 2 and cos.title == "Brinebreaker" and cos.style == "TatteredSail", "a title and a style")
+		local bit = Config.Story.unlocks.titles.Brinebreaker
+		check(bit == 10, "a story title (bit 10)")
+		local tb = {}
+		for name, tbit in Config.Story.unlocks.titles do
+			check(not tb[tbit], "title bit " .. tbit .. " used once (" .. name .. ")")
+			tb[tbit] = true
+		end
+		check(GearMath.questStyle(Config, "TatteredSail") ~= nil, "the Tattered Sail is a gear style")
+		local styles = 0
+		for _, slot in Config.Gear.slotOrder do
+			local ns = {}
+			for _, row in Config.Gear.styles[slot] do
+				check(not ns[row.n], slot .. " style n " .. row.n .. " used once")
+				ns[row.n] = true
+				if row.quest == "TatteredSail" then
+					styles += 1
+					check(row.tier == "Story" and row.price == nil, "never rolled, never sold")
+				end
+			end
+		end
+		check(styles == 1, "one Tattered Sail")
+		for _, k in { "credits", "renown", "skillPoints", "loot", "gadget", "dust", "xp" } do
+			check(S.reward[k] == nil, "no " .. k)
+		end
+		local svc = fs.readFile("src/server/Services/SideQuestService.luau")
+		check(string.find(svc, "SaltDogs", 1, true) == nil, "nothing chain-specific in the service")
+		check(
+			string.find(svc, 'SideQuestService.StepPaid:Fire(player, res == "done")', 1, true) ~= nil,
+			"every step fires StepPaid (side rep)"
+		)
+	end)
+
+	test("Lore 11 Coast: no old names or Crane in the chain; the Dev panel covers it", function()
+		local ARC =
+			{ "Bellweather", "Mayor", "Pip", "Maribel", "Tamsin", "Quill", "Iron Dee", "IronDee", "Skye" }
+		local hits = {}
+		local function walk(v: any, path: string)
+			if type(v) == "string" then
+				local w = oldLore(v)
+				if w then
+					table.insert(hits, path .. ": " .. w)
+				end
+				for _, a in ARC do
+					if string.find(v, "%f[%w]" .. a .. "%f[%W]") then
+						table.insert(hits, path .. ": " .. a)
+					end
+				end
+				for _, a in { "Crane", "Halcyon", "Adrian Vale", "Null" } do
+					if string.find(v, "%f[%w]" .. a .. "%f[%W]") then
+						table.insert(hits, path .. ": " .. a .. " (standalone chain)")
+					end
+				end
+			elseif type(v) == "table" then
+				for k, x in v do
+					walk(x, path .. "." .. tostring(k))
+				end
+			end
+		end
+		walk(S, "SaltDogs")
+		walk(SQ.givers.Nell, "Nell")
+		walk(SQ.sites.GullPier, "GullPier")
+		walk(Config.Story.guides.speakers.brine, "brine")
+		walk(Config.Story.guides.speakers.finn, "finn")
+		for _, id in { "gullPoint", "brineLegend", "brineRig" } do
+			walk(Config.Cinema.scenes[id], id)
+		end
+		walk(Config.Cinema.comic.pages.brineLegend, "brineLegend page")
+		for _, kind in CREW do
+			walk(Config.Enemies[kind], kind)
+		end
+		for _, h in hits do
+			check(false, "an old name: " .. h)
+		end
+		check(#hits == 0, "no old lore, retired arc names or main-story names")
+		local idx = table.find(SQ.chains, S) :: number
+		check(idx ~= nil and 300 + idx <= 1000, "the Dev panel's SQ chain button reaches it")
+		local dev = fs.readFile("src/client/Ui/DevPanel.luau")
+		check(
+			string.find(dev, "if not ch.dev then", 1, true) ~= nil,
+			"every real chain is on the SQ chain button"
+		)
+		check(#S.steps <= SQ.maxSteps, "every step fits SQ: start step")
+	end)
+end
+
+---------------------------------------------------------------------------
 -- Lore step 12: the city remembers (Config.Remembers, Shared.RepTiers, the side tier in EventPlan; RepService,
 -- EventService's side events, HqClient's dressing, CitizenRenderer's reactions, GuideClient's radio)
 ---------------------------------------------------------------------------
@@ -15584,7 +16303,11 @@ do
 			for id, sc in Config.Cinema.scenes do
 				check(not bits[sc.bit], "scene bit " .. sc.bit .. " used once (" .. id .. ")")
 				bits[sc.bit] = true
-				check(sc.bit >= 0 and sc.bit < 16, id .. ": a named scene bit")
+				local sb = Config.Cinema.sideBits
+				check(
+					(sc.bit >= 0 and sc.bit < 16) or (sc.bit >= sb.from and sc.bit <= sb.to),
+					id .. ": a named scene bit (or a side quest scene's)"
+				)
 			end
 		end
 	)
