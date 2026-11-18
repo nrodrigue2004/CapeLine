@@ -225,7 +225,9 @@ local function refreshStash()
 		b.BackgroundColor3 = if worn then tierColor(worn) else Kit.color.paper
 		local stroke = b:FindFirstChildOfClass("UIStroke")
 		if stroke then
-			stroke.Thickness = if slotFilter == i then 3 else 0
+			-- the picked slot's ink outline turns gold (the comic look keeps every slot outlined)
+			stroke.Color = if slotFilter == i then Kit.color.gold else Kit.color.ink
+			stroke.Thickness = if slotFilter == i then 4 else Config.Ui.ink.stroke
 		end
 	end
 	clear(stashList)
@@ -501,7 +503,7 @@ function GearScreen.init()
 			slotFilter = i
 			refresh()
 		end)
-		Kit.stroke(b, Kit.color.gold, 0)
+		Kit.stroke(b, Kit.color.ink, Config.Ui.ink.stroke)
 		b.Parent = slots
 		slotButtons[i] = b
 	end

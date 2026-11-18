@@ -1138,6 +1138,7 @@ export type Box = {
 	text: number?, -- the estimated text size in pixels (text objects with text)
 	textFits: boolean?, -- false when the text spills out of its box
 	button: boolean,
+	deco: boolean?, -- in a Kit ink Folder (shadow, halftone): drawn, never checked
 }
 
 local function udim(u: any, size: number): number
@@ -1285,12 +1286,12 @@ local function baseSize(inst: any, pw: number, ph: number): (number, number)
 	return math.max(0, w), math.max(0, h)
 end
 
-function UiSim:_layoutChildren(parent: any, box: Box, out: { Box })
+function UiSim:_layoutChildren(parent: any, box: Box, out: { Box }, padFrom: any?)
 	local k = box.scale
-	-- content area (padding), in the parent's own unscaled pixels
+	-- content area (padding), in the parent's own unscaled pixels (a Folder's children: its GuiObject's)
 	local cw, ch = box.w / k, box.h / k
 	local ox, oy = 0, 0
-	local pad = childOf(parent, "UIPadding")
+	local pad = childOf(padFrom or parent, "UIPadding")
 	if pad then
 		local l, r = udim(pad.PaddingLeft, cw), udim(pad.PaddingRight, cw)
 		local t, b = udim(pad.PaddingTop, ch), udim(pad.PaddingBottom, ch)
@@ -1454,6 +1455,14 @@ function UiSim:_layoutChildren(parent: any, box: Box, out: { Box })
 			end
 			table.insert(out, cb)
 			self:_layoutChildren(c, cb, out)
+		elseif c._class == "Folder" and c._props.Name == "Ink" then
+			-- Kit's comic ink (drop shadow, halftone): Roblox draws a Folder's GuiObjects as the parent's
+			-- own, outside its UIListLayout; marked deco so the checks skip them (they only decorate)
+			local from = #out
+			self:_layoutChildren(c, box, out, parent)
+			for i = from + 1, #out do
+				out[i].deco = true
+			end
 		end
 	end
 end
@@ -1668,7 +1677,7 @@ function UiSim:issues(opts: { [string]: any }): { string }
 		return nil
 	end
 	for _, b in boxes do
-		if wanted(b) and draws(b) then
+		if wanted(b) and draws(b) and not b.deco then
 			local s = shownPart(b)
 			if s then
 				-- off the screen
@@ -1739,7 +1748,7 @@ function UiSim:issues(opts: { [string]: any }): { string }
 	if opts.textOverlap then
 		local texts = {}
 		for _, b in boxes do
-			if b.text and wanted(b) then
+			if b.text and wanted(b) and not b.deco then
 				local s = shownPart(b)
 				if s then
 					s.text = b.text

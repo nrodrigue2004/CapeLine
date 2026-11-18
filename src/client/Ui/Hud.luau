@@ -108,7 +108,9 @@ local function actionButton(
 	b.AnchorPoint = Vector2.new(0.5, 0.5)
 	b.Position = pos
 	Kit.round(b, size // 2)
-	Kit.stroke(b, Kit.color.ink, 2)
+	-- the comic ink: a heavy outline; a cluster button also gets its round drop shadow (below)
+	Kit.ink(b)
+	Kit.stroke(b, Kit.color.ink, if parent == cluster then 4 else 3)
 	local corner = b:FindFirstChildOfClass("UICorner") :: UICorner
 	local pad = Instance.new("UIPadding")
 	pad.PaddingTop = UDim.new(0, 10)
@@ -175,6 +177,9 @@ local function actionButton(
 		end
 	end)
 	b.Parent = parent
+	if parent == cluster then
+		Kit.discInk(b, action == "Super") -- its round shadow (Super: its starburst)
+	end
 	buttons[action] = {
 		button = b,
 		sweep = sweep,
@@ -192,36 +197,54 @@ local function rgb(t: { number }): Color3
 end
 
 local function buildTopLeft()
+	-- the comic status card (2026-11-18): cream paper with halftone, ink lettering, leaning a little
 	local card = Kit.frame({
 		Name = "Status",
 		Size = UDim2.fromOffset(250, 104),
 		Position = UDim2.fromOffset(U.safe, U.safe),
-		BackgroundColor3 = Kit.color.night,
-		BackgroundTransparency = 0.25,
+		BackgroundColor3 = Kit.color.paper,
+		Rotation = -U.ink.tilt * 0.7,
 	})
 	infoText = Kit.label({
 		Text = "",
 		Size = UDim2.new(1, -16, 0, 20),
 		Position = UDim2.fromOffset(8, 4),
 		TextXAlignment = Enum.TextXAlignment.Left,
-		TextColor3 = Kit.color.paper,
+		TextColor3 = Kit.color.ink,
 		maxText = 20,
 	})
 	infoText.Parent = card
+	local BAR = Color3.fromRGB(43, 43, 43) -- a bar's empty track
 	local back = Kit.frame({
 		Size = UDim2.new(1, -16, 0, 16),
 		Position = UDim2.fromOffset(8, 28),
-		BackgroundColor3 = Color3.fromRGB(40, 40, 50),
+		BackgroundColor3 = BAR,
 	})
 	back.Parent = card
-	healthFill = Kit.frame({ Size = UDim2.fromScale(1, 1), BackgroundColor3 = rgb(U.colors.health) })
+	healthFill = Kit.frame({
+		Size = UDim2.fromScale(1, 1),
+		BackgroundColor3 = rgb(U.colors.health),
+		ClipsDescendants = true,
+	})
 	healthFill.Parent = back
+	-- chunky comic stripes along the health fill (cut off where the fill ends)
+	for i = 0, 15 do
+		local stripe = Instance.new("Frame")
+		stripe.Name = "Stripe"
+		stripe.BackgroundColor3 = Color3.new(0, 0, 0)
+		stripe.BackgroundTransparency = 0.82 -- a darker band of whatever the fill's colour is (low health too)
+		stripe.BorderSizePixel = 0
+		stripe.Position = UDim2.fromOffset(i * 20 + 10, 0)
+		stripe.Size = UDim2.new(0, 10, 1, 0)
+		stripe.Parent = healthFill
+	end
 	shieldFill = Kit.frame({
 		Name = "Shield",
 		Size = UDim2.fromScale(0, 0.4),
 		Position = UDim2.fromScale(0, 0),
 		BackgroundColor3 = Color3.fromRGB(170, 225, 255),
 		ZIndex = 2,
+		ink = false,
 	})
 	shieldFill.Parent = back
 	healthText = Kit.label({
@@ -238,7 +261,7 @@ local function buildTopLeft()
 		Name = "StaminaBar",
 		Size = UDim2.new(1, -16, 0, 8),
 		Position = UDim2.fromOffset(8, 50),
-		BackgroundColor3 = Color3.fromRGB(40, 40, 50),
+		BackgroundColor3 = BAR,
 	})
 	stam.Parent = card
 	local fill =
@@ -249,7 +272,7 @@ local function buildTopLeft()
 		Name = "Awakening",
 		Size = UDim2.new(1, -16, 0, 14),
 		Position = UDim2.fromOffset(8, 64),
-		BackgroundColor3 = Color3.fromRGB(40, 36, 30),
+		BackgroundColor3 = BAR,
 	})
 	meter.Parent = card
 	meterFill = Kit.frame({ Size = UDim2.fromScale(0, 1), BackgroundColor3 = Color3.fromRGB(255, 220, 90) })
@@ -269,7 +292,7 @@ local function buildTopLeft()
 		Name = "Renown",
 		Size = UDim2.new(1, -16, 0, 16),
 		Position = UDim2.fromOffset(8, 82),
-		BackgroundColor3 = Color3.fromRGB(30, 34, 50),
+		BackgroundColor3 = BAR,
 	})
 	renown.Parent = card
 	renownFill = Kit.frame({ Size = UDim2.fromScale(0, 1), BackgroundColor3 = Color3.fromRGB(150, 120, 255) })
@@ -626,7 +649,7 @@ local function applyDevice(device: string)
 		local hint = if pad then InputController.padHints[action] else InputController.hints[action]
 		entry.hint.Text = hint or ""
 		entry.hint.Visible = not touch and hint ~= nil
-		entry.button.BackgroundTransparency = if touch then 0.1 else 0.35
+		entry.button.BackgroundTransparency = if touch then 0 else 0.15 -- comic: solid ink-lined buttons
 	end
 	-- the mouse aims, so the crosshair only shows for touch and gamepad aiming
 	crosshair.Visible = device ~= "mouse"

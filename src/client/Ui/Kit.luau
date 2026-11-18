@@ -1,5 +1,7 @@
 -- Kit: the one UI kit (spec: Screens and UI; shared with Mossbell Stand). Comic display font, one palette,
--- rounded cards, 56 px touch targets (48 minimum), safe-area aware screens. PLACEHOLDER look until M10.
+-- 56 px touch targets (48 minimum), safe-area aware screens. The bold comic look (nate's pick, 2026-11-18):
+-- every drawn panel and button gets a thick ink outline and a hard ink drop shadow (Kit.ink), paper panels
+-- faint halftone dots, light display text an ink outline, and the top row's tabs lean (Config.Ui.ink).
 
 local GuiService = game:GetService("GuiService")
 local Players = game:GetService("Players")
@@ -209,6 +211,7 @@ local function dockScreen(): ScreenGui
 	drawer.CanvasSize = UDim2.new()
 	drawer.Visible = false
 	Kit.round(drawer)
+	Kit.ink(drawer, { shadow = false }) -- it clips, so it would cut its own shadow off
 	local list = Instance.new("UIListLayout")
 	list.Padding = UDim.new(0, 6)
 	list.SortOrder = Enum.SortOrder.LayoutOrder
@@ -250,12 +253,21 @@ function layoutDock()
 		end
 	end
 	local plan = TouchLayout.dock(Config, items, dockSpan.lo, hi, a.X, a.Y, dockSpan.fromLo)
+	local xs = {}
 	for id, box in plan.row do
 		local e = byId[id]
 		e.slot.Parent = g
 		e.slot.Position = UDim2.fromOffset(box.x, box.y)
 		e.slot.Size = UDim2.fromOffset(box.w, box.h)
 		e.slot.Visible = true
+		table.insert(xs, { x = box.x, e = e })
+	end
+	-- the comic tabs lean alternately along the row (drawer rows sit straight)
+	table.sort(xs, function(p, q)
+		return p.x < q.x
+	end)
+	for i, p in xs do
+		p.e.button.Rotation = if i % 2 == 0 then Config.Ui.ink.tilt else -Config.Ui.ink.tilt
 	end
 	local drawer = dockDrawer :: ScrollingFrame
 	for i, id in plan.drawer do
@@ -264,9 +276,11 @@ function layoutDock()
 		e.slot.LayoutOrder = i
 		e.slot.Size = UDim2.new(1, 0, 0, plan.height)
 		e.slot.Visible = true
+		e.button.Rotation = 0
 	end
 	local more = dockMore :: TextButton
 	more.Visible = plan.more ~= nil
+	more.Rotation = Config.Ui.ink.tilt
 	if plan.more then
 		local m = plan.more
 		more.Position = UDim2.fromOffset(m.x, m.y)
@@ -297,6 +311,11 @@ function Kit.dock(button: GuiButton, id: string, order: number)
 	button.Position = UDim2.new()
 	button.Size = UDim2.fromScale(1, 1)
 	button.Parent = slot
+	-- a comic tab: square-ish corners, ink outline and hard shadow, whatever made the button
+	Kit.round(button)
+	if button:IsA("TextButton") then
+		Kit.ink(button, { force = true })
+	end
 	slot.Parent = dockGui
 	table.insert(dockEntries, { id = id, order = order, button = button, slot = slot })
 	button:GetPropertyChangedSignal("Visible"):Connect(queueDock)
@@ -492,13 +511,272 @@ function Kit.closePanels()
 	end
 end
 
-function Kit.round(inst: GuiObject, radius: number?)
-	local c = Instance.new("UICorner")
-	c.CornerRadius = UDim.new(0, radius or Config.Ui.corner)
-	c.Parent = inst
+---------------------------------------------------------------------------
+-- The comic ink (nate's bold comic pick, 2026-11-18; Config.Ui.ink). Kit.ink gives a drawn panel or button
+-- an ink outline (UIStroke "InkLine") and a hard drop shadow: two ink bars just past its bottom and right
+-- edges (with Sibling ZIndex a child always draws over its parent, so a shadow cannot sit under it), with
+-- paper and night panels' halftone dots, all in a Folder "Ink" so the object's UIListLayout or UIGridLayout
+-- never lays them out. It follows the fill: hidden on an invisible container (more transparent than
+-- showBelow), fading with it; no shadow on a bar's fill or a full-screen backdrop (sized to the parent's full
+-- height), a part under minShadow tall (thin outline only) or a circle or pill (rounder than maxRound: the
+-- owner draws that shadow, as the Hud does). Pass ink = false to Kit.frame, Kit.label or Kit.button to opt
+-- out; a label gets ink only when it is made with a fill, a square-cornered frame only with ink = true.
+---------------------------------------------------------------------------
+local INK = Config.Ui.ink
+local inkSync: { [Instance]: () -> () } = setmetatable({}, { __mode = "k" }) :: any
+local inkOpts: { [Instance]: { [string]: any } } = setmetatable({}, { __mode = "k" }) :: any
+local inkCustom: { [Instance]: boolean } = setmetatable({}, { __mode = "k" }) :: any -- Kit.stroke set its look
+
+local function luma(c: Color3): number
+	return 0.299 * c.R + 0.587 * c.G + 0.114 * c.B
+end
+Kit.luma = luma
+
+local function inkBar(name: string, parent: Instance): Frame
+	local f = Instance.new("Frame")
+	f.Name = name
+	f.BackgroundColor3 = Kit.color.ink
+	f.BorderSizePixel = 0
+	f.Active = false
+	f.Selectable = false
+	f.ZIndex = -100 -- under anything of the owner's that hangs past its edge
+	f.Parent = parent
+	return f
 end
 
+function Kit.ink(inst: GuiObject, opts: { [string]: any }?)
+	if inkSync[inst] then
+		for k, v in opts or {} do
+			inkOpts[inst][k] = v -- a second call changes its options (Kit.dock forces a tab's ink on)
+		end
+		inkSync[inst]()
+		return
+	end
+	local o = table.clone(opts or {})
+	inkOpts[inst] = o
+	local line = Instance.new("UIStroke")
+	line.Name = "InkLine"
+	line.Color = Kit.color.ink
+	line.Thickness = INK.stroke
+	line.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	line.LineJoinMode = Enum.LineJoinMode.Miter
+	line.Parent = inst
+	local deco = Instance.new("Folder")
+	deco.Name = "Ink"
+	deco.Parent = inst
+	local right = inkBar("ShadowR", deco)
+	local bottom = inkBar("ShadowB", deco)
+	local dots: ImageLabel? = nil
+	local dotsCorner: UICorner? = nil
+	if o.halftone and INK.halftone.image ~= "" then
+		local d = Instance.new("ImageLabel")
+		d.Name = "Halftone"
+		d.BackgroundTransparency = 1
+		d.Image = INK.halftone.image
+		d.ScaleType = Enum.ScaleType.Tile
+		d.TileSize = UDim2.fromOffset(INK.halftone.tile, INK.halftone.tile)
+		d.Active = false
+		d.Selectable = false
+		d.ZIndex = -100 -- under the panel's own content
+		d:SetAttribute("Halftone", true)
+		local c = Instance.new("UICorner")
+		c.Parent = d
+		d.Parent = deco
+		dots, dotsCorner = d, c
+	end
+	local function sync()
+		local t = inst.BackgroundTransparency
+		local size = inst.Size
+		local auto = inst.AutomaticSize == Enum.AutomaticSize.Y or inst.AutomaticSize == Enum.AutomaticSize.XY
+		local fill = size.Y.Scale >= 0.999 and not o.force -- a bar's fill, a backdrop
+		local shown = t <= INK.showBelow and not fill
+		local thin = not auto and size.Y.Scale == 0 and size.Y.Offset < INK.minShadow
+		local corner = inst:FindFirstChildOfClass("UICorner")
+		local r = if corner then corner.CornerRadius else UDim.new(0, 0)
+		local round = r.Scale >= 0.25 or r.Offset > INK.maxRound
+		if not inkCustom[inst] then
+			line.Thickness = if thin then INK.thin else INK.stroke
+		end
+		line.Enabled = shown
+		line.Transparency = t
+		local w = line.Thickness
+		local d = INK.shadow
+		-- the outline draws outside the box, so the shadow is the outlined shape moved d down-right; a
+		-- Folder's GuiObjects lay out in the owner's padded content box, so undo its UIPadding
+		local pad = if INK.padsFolder then inst:FindFirstChildOfClass("UIPadding") else nil
+		local pl, pt = if pad then pad.PaddingLeft.Offset else 0, if pad then pad.PaddingTop.Offset else 0
+		local pr, pb = if pad then pad.PaddingRight.Offset else 0, if pad then pad.PaddingBottom.Offset else 0
+		local cast = shown and not thin and not round and o.shadow ~= false
+		right.Visible = cast
+		bottom.Visible = cast
+		right.BackgroundTransparency = t
+		bottom.BackgroundTransparency = t
+		right.Position = UDim2.new(1, w + pr, 0, d - w - pt)
+		right.Size = UDim2.new(0, d, 1, 2 * w + pt + pb)
+		bottom.Position = UDim2.new(0, d - w - pl, 1, w + pb)
+		bottom.Size = UDim2.new(1, 2 * w - d + pl + pr, 0, d)
+		if dots then
+			local light = luma(inst.BackgroundColor3) > 0.6
+			local dark = luma(inst.BackgroundColor3) < 0.3
+			dots.Visible = shown and (light or dark) and not thin
+			dots.ImageColor3 = if dark then Kit.color.white else Kit.color.ink
+			local base = if dark then INK.halftone.darkTransparency else INK.halftone.transparency
+			dots.ImageTransparency = base + (1 - base) * t
+			dots.Position = UDim2.fromOffset(-pl, -pt)
+			dots.Size = UDim2.new(1, pl + pr, 1, pt + pb);
+			(dotsCorner :: UICorner).CornerRadius = r
+		end
+	end
+	inkSync[inst] = sync
+	for _, key in { "BackgroundTransparency", "BackgroundColor3", "Size", "AutomaticSize" } do
+		inst:GetPropertyChangedSignal(key):Connect(sync)
+	end
+	sync()
+end
+
+-- A round button's hard ink drop shadow (the comic look, 2026-11-18): a disc one outline wider, moved
+-- down-right, drawn as the button's sibling under it (a child would draw over it). burst also sits it on a red
+-- starburst: three turned squares whose crossings hide under the button. Both follow the button's place,
+-- anchor, size, fill and visibility, in the parent's Folder "Ink" (decoration: never laid out or tapped).
+-- Call once the button has its parent; the button keeps a ZIndex above 1 less than its own.
+function Kit.discInk(b: GuiObject, burst: boolean?)
+	local parent = b.Parent :: Instance
+	local folder = parent:FindFirstChild("Ink")
+	if not folder then
+		folder = Instance.new("Folder")
+		folder.Name = "Ink"
+		folder.Parent = parent
+	end
+	local function disc(name: string, color: Color3): Frame
+		local d = Instance.new("Frame")
+		d.Name = b.Name .. name
+		d.BackgroundColor3 = color
+		d.BorderSizePixel = 0
+		d.Active = false
+		d.Selectable = false
+		d.ZIndex = b.ZIndex - 1
+		d.Parent = folder
+		return d
+	end
+	local shadow = disc("Shadow", Kit.color.ink)
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0.5, 0)
+	corner.Parent = shadow
+	local rays: { Frame } = {}
+	if burst then
+		for i = 0, 2 do
+			local r = disc("Burst" .. i, Kit.color.red)
+			r.AnchorPoint = Vector2.new(0.5, 0.5)
+			r.Rotation = i * 30
+			Kit.stroke(r, Kit.color.ink, INK.stroke)
+			table.insert(rays, r)
+		end
+	end
+	local function sync()
+		local line = b:FindFirstChild("InkLine") :: UIStroke?
+		local w = if line then line.Thickness else INK.stroke
+		-- the button's UIScale (a phone's smaller radar, Kit.bounce) scales it about its anchor point
+		local us = b:FindFirstChildOfClass("UIScale")
+		local k = if us then us.Scale else 1
+		local p, a, size = b.Position, b.AnchorPoint, b.Size.X.Offset
+		local d = INK.shadow * k
+		shadow.AnchorPoint = a
+		shadow.Position = p + UDim2.fromOffset((2 * a.X - 1) * w * k + d, (2 * a.Y - 1) * w * k + d)
+		shadow.Size = UDim2.fromOffset((size + 2 * w) * k, (size + 2 * w) * k)
+		shadow.Visible = b.Visible and not burst -- the starburst stands in for Super's shadow
+		shadow.BackgroundTransparency = b.BackgroundTransparency
+		local side = math.floor(size * k * 0.93) -- the squares' crossings sit just inside the button's outline
+		for _, r in rays do
+			r.Position = p + UDim2.fromOffset((0.5 - a.X) * size * k, (0.5 - a.Y) * size * k)
+			r.Size = UDim2.fromOffset(side, side)
+			r.Visible = b.Visible
+		end
+	end
+	for _, key in { "Position", "AnchorPoint", "Size", "Visible", "BackgroundTransparency" } do
+		b:GetPropertyChangedSignal(key):Connect(sync)
+	end
+	local function watchScale(c: Instance)
+		if c:IsA("UIScale") then
+			c:GetPropertyChangedSignal("Scale"):Connect(sync)
+			sync()
+		end
+	end
+	for _, c in b:GetChildren() do
+		watchScale(c)
+	end
+	b.ChildAdded:Connect(watchScale)
+	sync()
+end
+
+-- Ink only once the object draws a fill (a container made invisible that lights up later still gets it)
+local function inkWhenDrawn(inst: GuiObject, opts: { [string]: any }?)
+	if inst.BackgroundTransparency <= INK.showBelow then
+		Kit.ink(inst, opts)
+		return
+	end
+	local conn: RBXScriptConnection? = nil
+	conn = inst:GetPropertyChangedSignal("BackgroundTransparency"):Connect(function()
+		if inst.BackgroundTransparency <= INK.showBelow then
+			(conn :: RBXScriptConnection):Disconnect()
+			Kit.ink(inst, opts)
+		end
+	end)
+end
+
+-- Light display text gets an ink outline (a thick one on big text), so it reads on any fill like a comic's
+-- lettering; dark text and body text stay plain. props that set the text stroke themselves keep theirs.
+local function inkText(t: TextLabel | TextButton, props: { [string]: any }, big: boolean)
+	if props.TextStrokeTransparency ~= nil or props.inkText == false then
+		return
+	end
+	local thick: UIStroke? = nil
+	if big and t.BackgroundTransparency >= 0.99 then
+		local s = Instance.new("UIStroke")
+		s.Name = "InkText"
+		s.Color = Kit.color.ink
+		s.Thickness = INK.thin
+		s.ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual
+		s.LineJoinMode = Enum.LineJoinMode.Round
+		s.Parent = t
+		thick = s
+	end
+	local set = 1
+	local function sync()
+		local light = t.Font == Kit.font and luma(t.TextColor3) > 0.55
+		if thick then
+			thick.Enabled = light
+		elseif t.TextStrokeTransparency == set then
+			set = if light then 0 else 1
+			t.TextStrokeColor3 = Kit.color.ink
+			t.TextStrokeTransparency = set
+		end
+	end
+	sync()
+	t:GetPropertyChangedSignal("TextColor3"):Connect(sync)
+end
+
+function Kit.round(inst: GuiObject, radius: number?)
+	local c = inst:FindFirstChildOfClass("UICorner") or Instance.new("UICorner")
+	c.CornerRadius = UDim.new(0, radius or Config.Ui.corner)
+	c.Parent = inst
+	local sync = inkSync[inst]
+	if sync then
+		sync() -- a circle or pill drops its bar shadow; the halftone follows the corner
+	end
+end
+
+-- An outline. On an inked object it restyles the ink outline (one UIStroke per object); an ink-coloured one
+-- is never thinner than the ink.
 function Kit.stroke(inst: GuiObject, color: Color3?, thickness: number?)
+	local line = if inkSync[inst] then inst:FindFirstChild("InkLine") :: UIStroke? else nil
+	if line then
+		inkCustom[inst] = true
+		local c = color or Kit.color.ink
+		line.Color = c
+		line.Thickness = if c == Kit.color.ink then math.max(thickness or 2, INK.stroke) else thickness or 2
+		inkSync[inst]()
+		return
+	end
 	local s = Instance.new("UIStroke")
 	s.Color = color or Kit.color.ink
 	s.Thickness = thickness or 2
@@ -511,12 +789,17 @@ function Kit.frame(props: { [string]: any }): Frame
 	f.BackgroundColor3 = Kit.color.paper
 	f.BorderSizePixel = 0
 	for k, v in props do
-		if k ~= "round" then
+		if k ~= "round" and k ~= "ink" and k ~= "halftone" then
 			(f :: any)[k] = v
 		end
 	end
 	if props.round ~= false then
 		Kit.round(f)
+	end
+	-- a square-cornered frame (round = false) is a shape (a letterbox bar, a speed line, a drawing's part):
+	-- inked only when asked (ink = true)
+	if props.ink == true or (props.ink ~= false and props.round ~= false) then
+		inkWhenDrawn(f, { halftone = props.halftone ~= false })
 	end
 	return f
 end
@@ -529,11 +812,15 @@ function Kit.label(props: { [string]: any }): TextLabel
 	l.TextScaled = true
 	l.Size = UDim2.fromOffset(100, 24)
 	for k, v in props do
-		if k ~= "maxText" then
+		if k ~= "maxText" and k ~= "ink" and k ~= "inkText" then
 			(l :: any)[k] = v
 		end
 	end
 	limitFor(l, props.maxText or 32)
+	if props.ink ~= false and l.BackgroundTransparency < 0.99 then
+		Kit.ink(l)
+	end
+	inkText(l, props, (props.maxText or 32) >= 24)
 	return l
 end
 
@@ -546,7 +833,7 @@ function Kit.button(props: { [string]: any }, onClick: (() -> ())?): TextButton
 	b.AutoButtonColor = true
 	b.Size = UDim2.fromOffset(Config.Ui.touchTarget * 2, Config.Ui.touchTarget)
 	for k, v in props do
-		if k ~= "maxText" and k ~= "pending" then
+		if k ~= "maxText" and k ~= "pending" and k ~= "ink" and k ~= "inkText" then
 			(b :: any)[k] = v
 		end
 	end
@@ -558,6 +845,10 @@ function Kit.button(props: { [string]: any }, onClick: (() -> ())?): TextButton
 	pad.PaddingRight = UDim.new(0, 8)
 	pad.Parent = b
 	limitFor(b, props.maxText or 28)
+	if props.ink ~= false then
+		inkWhenDrawn(b)
+	end
+	inkText(b, props, false)
 	if onClick then
 		local waits = props.pending == true
 		b.Activated:Connect(function()

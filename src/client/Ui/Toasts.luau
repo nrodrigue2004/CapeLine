@@ -122,24 +122,51 @@ local function push(text: string, color: Color3, big: boolean?, life: number?)
 		end)
 		kids[1]:Destroy()
 	end
+	-- a comic speech bubble (2026-11-18): the toast's colour fills it (plain lines are white), lettered in ink
+	-- (or white outlined in ink on a dark fill), ink outline and hard shadow, leaning alternately, and the
+	-- newest wears the bubble's tail
+	local fill = if color == Kit.color.paper then Kit.color.white else color
+	local dark = Kit.luma(fill) < 0.5
+	local order = math.floor(os.clock() * 100)
 	local l = Kit.label({
 		Text = text,
 		Size = UDim2.new(1, 0, 0, if big then 54 else 34),
-		BackgroundColor3 = Kit.color.night,
-		BackgroundTransparency = 0.2,
-		TextColor3 = color,
-		TextStrokeTransparency = 0.4,
-		LayoutOrder = math.floor(os.clock() * 100),
+		BackgroundColor3 = fill,
+		BackgroundTransparency = 0,
+		TextColor3 = if dark then Kit.color.white else Kit.color.ink,
+		TextStrokeColor3 = Kit.color.ink,
+		TextStrokeTransparency = if dark then 0 else 1,
+		LayoutOrder = order,
+		Rotation = if order % 2 == 0 then -Config.Ui.ink.tilt else Config.Ui.ink.tilt,
 		maxText = if big then 40 else 22,
 	})
-	Kit.round(l, 8)
-	Kit.stroke(l, color, if big then 3 else 2)
+	Kit.round(l, 12)
+	Kit.stroke(l, Kit.color.ink, if big then 4 else 3)
+	for _, c in stack:GetChildren() do
+		local old = c:FindFirstChild("Ink") and c.Ink:FindFirstChild("Tail")
+		if old then
+			old:Destroy()
+		end
+	end
+	local tail = Instance.new("TextLabel")
+	tail.Name = "Tail"
+	tail.BackgroundTransparency = 1
+	tail.Text = "▼"
+	tail.TextScaled = true
+	tail.TextColor3 = Kit.color.ink
+	tail.Size = UDim2.fromOffset(20, 16)
+	tail.Position = UDim2.new(0, 34, 1, 1)
+	tail.ZIndex = -100
+	tail.Parent = l:FindFirstChild("Ink")
 	l.Parent = stack
 	Kit.pulse(l, if big then 0.35 else 0.15)
 	task.delay(life or 3.5, function()
 		if l.Parent then
 			TweenService:Create(l, TweenInfo.new(0.3), { TextTransparency = 1, BackgroundTransparency = 1 })
 				:Play()
+			if tail.Parent then
+				TweenService:Create(tail, TweenInfo.new(0.3), { TextTransparency = 1 }):Play()
+			end
 			task.wait(0.3)
 			l:Destroy()
 		end

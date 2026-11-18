@@ -238,11 +238,13 @@ function Radar.init()
 	disc.Text = ""
 	disc.AutoButtonColor = false
 	disc.BackgroundColor3 = Kit.color.night
-	disc.BackgroundTransparency = 0.3
+	disc.BackgroundTransparency = 0.1
 	disc.Size = UDim2.fromOffset(SIZE, SIZE)
 	disc.Position = UDim2.fromOffset(U.safe, U.safe + 150)
 	Kit.round(disc, SIZE // 2)
-	Kit.stroke(disc, Kit.color.paper, 2)
+	-- the comic radar (2026-11-18): a heavy ink ring and a round drop shadow
+	Kit.ink(disc)
+	Kit.stroke(disc, Kit.color.ink, 4)
 	disc.Parent = gui
 	disc.Activated:Connect(function()
 		MapScreen.open()
@@ -317,6 +319,7 @@ function Radar.init()
 	local fit = Instance.new("UIScale")
 	fit.Name = "Fit"
 	fit.Parent = disc
+	Kit.discInk(disc) -- its round shadow, scaled with the fit
 	local function place()
 		local hb = Kit.hudBoxes()
 		local r, t = hb.radar, hb.radarText

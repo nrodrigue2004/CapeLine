@@ -513,6 +513,14 @@ Review 5 fixes in MoveGuard, MoveCheck, CastPlan, CombatService and GearService 
 6. Charge: hold a chargeable skill just short of the full glow and release: it is a partial charge at any ping, a full hold is full.
 7. No casting: during fast travel's flight and in the creator, the skill keys do nothing (no cast on the server, no error).
 8. Leaving: drop a field (Healing Rain, Ember Ring) and Soul Chains, then leave the game: the field stops at once on the other players' screens and no error shows. With 40 fields up (Dev panel or bots), a new field of yours replaces your own oldest one, not another player's.
+### Comic UI look (2026-11-18, branch quality-ui)
+The whole UI restyled to nate's bold comic mockup (project files capeline/ui/HUD mockup B; renders "comic UI after - *.png" there; `lune run tests/uishot.luau build/Capeline.rbxl out.json` + `python3 tests/uishot.py out.json dir` redraws them). Visuals only: Kit.ink outlines and shadows, cream paper, navy panels, halftone, tilted tabs and toasts.
+1. HUD at 1280 x 720 and iPhone SE: every panel and button has a thick ink outline and a hard ink shadow down-right; the round action buttons and the radar have round shadows under them; Super sits on a red starburst; no shadow or outline shows on an invisible container, a bar's fill or a full-screen backdrop.
+2. A padded button (any Kit button, e.g. SHOP, CLOSE): its shadow hugs the outline just outside the bottom and right edges. If the shadow sits inside the button or a few px off, set Config.Ui.ink.padsFolder = false (whether Roblox lays a Folder's GuiObjects out inside the owner's UIPadding). Lists still lay out exactly as before (UIListLayout and UIGridLayout ignore the shadow Folder).
+3. Halftone dots (image 89303571654854, uploaded 2026-11-18, may sit in review a while) show faintly on cream and navy panels, under their text and buttons, never over them; blank until review passes is fine.
+4. The top row's tabs lean left and right alternately, with square-ish corners; the MORE drawer's rows sit straight. Toasts are speech bubbles (white, or their colour) leaning alternately, the newest with a tail; they fade out cleanly (outline and shadow fade too).
+5. The status card is cream with ink lettering, its health bar striped (red when low), and taps, cooldown sweeps, charge rings and Kit.bounce still look right on the cluster (the round shadow scales with the bounce).
+
 ### UI fixes: panels, keys, phones (2026-11-18)
 Client UI bugs from the review (tests: ONLY="Phone"; the UI sim now loads every Ui module, opens the Hero MMO panels and walks every hidden part of every screen at 640 x 360 too). Use Test > Device for the phone steps.
 1. News screens: stand by a city news TV, reset your character (Esc > Reset) and respawn: every news screen still shows the channel and its ticker.

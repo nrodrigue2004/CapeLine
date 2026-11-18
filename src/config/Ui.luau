@@ -3,7 +3,28 @@
 return {
 	touchTarget = 56, -- at least 48 px
 	safe = 16,
-	corner = 10,
+	corner = 4, -- the comic look (2026-11-18): small square-ish corners; round buttons stay round
+	-- the comic ink (nate picked the bold comic mockup, 2026-11-18): Kit gives every drawn panel and button a
+	-- thick ink outline and a hard ink drop shadow down-right; paper panels get faint halftone dots
+	ink = {
+		stroke = 3, -- outline (UIStroke, outside the box)
+		thin = 2, -- the outline on a part under minShadow tall (a bar, a chip)
+		shadow = 4, -- drop shadow offset, down and right
+		minShadow = 22, -- parts shorter than this get no shadow (bars, chips)
+		maxRound = 12, -- a corner rounder than this (a circle, a pill) gets its shadow from its owner instead
+		showBelow = 0.6, -- the ink shows on a fill at most this transparent, and fades with it
+		-- a Folder's GuiObjects lay out inside the owner's UIPadding, so the shadow undoes it (Studio check:
+		-- if a padded button's shadow sits inside it, set false)
+		padsFolder = true,
+		tilt = 1.5, -- degrees: the top row's tabs and the toasts lean alternately
+		-- halftone dots over paper panels (art/ui/halftone.py, uploaded 2026-11-18; "" draws none)
+		halftone = {
+			image = "rbxassetid://89303571654854",
+			tile = 14,
+			transparency = 0.88,
+			darkTransparency = 0.93,
+		},
+	},
 	textScale = { min = 1.0, max = 1.6 },
 	-- overhaul plan step 8, the phone pass (Shared.TouchLayout): the HUD sizes itself to the screen
 	phone = {
@@ -81,17 +102,20 @@ return {
 	-- player is free (no loading screen, menu, creator, prologue, cutscene or other such card)
 	popups = { settle = 1.2, giveUp = 600 }, -- seconds of calm before one shows; the longest it waits
 	colors = {
-		ink = { 22, 24, 32 },
-		paper = { 244, 242, 236 },
-		night = { 18, 22, 34 },
-		gold = { 255, 200, 60 },
+		-- the comic palette (2026-11-18): flat print colours with one ink
+		ink = { 17, 17, 17 },
+		paper = { 255, 247, 224 }, -- cream comic paper
+		white = { 255, 255, 255 },
+		night = { 31, 42, 68 }, -- the deep comic navy of the big panels
+		gold = { 255, 210, 60 },
+		red = { 255, 77, 77 },
 		volt = { 120, 210, 255 },
-		health = { 90, 220, 120 },
+		health = { 75, 227, 122 },
 		healthLow = { 240, 80, 70 },
 		stamina = { 255, 210, 90 },
 		cooldown = { 0, 0, 0 },
-		vigil = { 70, 150, 255 }, -- the Vigil (heroes)
-		syndicate = { 235, 70, 70 },
+		vigil = { 59, 130, 246 }, -- the Vigil (heroes)
+		syndicate = { 255, 77, 77 },
 		muted = { 140, 146, 160 },
 	},
 }
