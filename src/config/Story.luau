@@ -1184,7 +1184,7 @@ return {
 				},
 			},
 			-- The Sunken City (the Underwater chain): the Tidewright, Velmara's guardian machine, its voice carried
-			-- through the water (a bronze helm with glowing eyes and a crown), and Marlo, the salvage diver whose
+			-- through the water (a bronze helm with glowing eyes and a crown), and Dace, the salvage diver whose
 			-- dredger cracked the city's seal
 			tidewright = {
 				name = "THE TIDEWRIGHT",
@@ -1199,7 +1199,7 @@ return {
 					extras = { "beard", "crown" },
 				},
 			},
-			marlo = {
+			dace = {
 				name = "MARLO",
 				color = { 240, 170, 40 },
 				style = "person",

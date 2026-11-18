@@ -17878,10 +17878,10 @@ do
 					who[l.who] = true
 				end
 			end
-			for _, w in { "Pearl", "patch", "lodestar", "tidewright", "marlo" } do
+			for _, w in { "Pearl", "patch", "lodestar", "tidewright", "dace" } do
 				check(who[w] == true, "speaks: " .. w)
 			end
-			for _, w in { "tidewright", "marlo" } do
+			for _, w in { "tidewright", "dace" } do
 				local sp = Config.Story.guides.speakers[w]
 				check(
 					sp ~= nil and sp.portrait ~= nil and Config.Audio.sounds[sp.blip] ~= nil,
@@ -18498,7 +18498,7 @@ do
 			walk(SQ.sites[id], id)
 		end
 		walk(Config.Story.guides.speakers.tidewright, "tidewright")
-		walk(Config.Story.guides.speakers.marlo, "marlo")
+		walk(Config.Story.guides.speakers.dace, "dace")
 		for _, id in { "velmaraLights", "tidewrightTale", "tidewrightRises" } do
 			walk(Config.Cinema.scenes[id], id)
 		end

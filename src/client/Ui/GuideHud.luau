@@ -160,7 +160,7 @@ local function buildPortrait(who: string, sp: any): Frame
 				pt.Rotation = 45
 			end
 		elseif extra == "goggles" then
-			-- a diver's mask (the Underwater chain: Doc Pearl and Marlo): a glass band over the eyes, its strap
+			-- a diver's mask (the Underwater chain: Doc Pearl and Dace): a glass band over the eyes, its strap
 			local glass = Color3.fromRGB(150, 220, 255)
 			piece(frame, 0.5, 0.52, 0.6, 0.06, dark, 0.5)
 			piece(frame, 0.4, 0.54, 0.16, 0.13, glass, 0.4)

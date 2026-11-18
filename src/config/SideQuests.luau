@@ -2442,7 +2442,7 @@ return {
 		-- salvage dredger's drill cracked the city's seal last week; the Tidewright woke, took the surface for the
 		-- enemy and is turning Velmara's tide engines on to raise a wave that washes the shore away. Its sentries are
 		-- the sea's own robots (Divers, Anchors, Torpedo Sentries: machines only). The Vigil drive the sentries off
-		-- the reef, find the salvage diver Marlo, plant Doc Pearl's scanner at the drowned gate, jam the tide engines
+		-- the reef, find the salvage diver Dace, plant Doc Pearl's scanner at the drowned gate, jam the tide engines
 		-- inside Velmara, swim a reef keeper clear of the first surge and hold the Tide Spire while Patch jams it; the
 		-- Dread Syndicate grab the reef's relics, catch the sentry with the gate key, crack the gate, loot the city's
 		-- vaults and the engines' cores, run the gold past the surge and find the guardian's treasury. Both stop the
@@ -2522,7 +2522,7 @@ return {
 						},
 					},
 				},
-				-- 3. Marlo, the salvage diver / the sentry with the gate key
+				-- 3. Dace, the salvage diver / the sentry with the gate key
 				{
 					hero = {
 						kind = "find",
@@ -2567,7 +2567,7 @@ return {
 					},
 					lines = {
 						{
-							who = "marlo",
+							who = "dace",
 							hero = "We only drilled for scrap! Then the reef split open and the lights came on. Something woke up.",
 							villain = "Our drill cracked that gate. Whatever's behind it is old, gold and very, very big.",
 						},
