@@ -395,6 +395,12 @@ function BadgeService.init()
 	IncidentService.Rescued:Connect(function(hero: any)
 		bumpHero(hero, "rescuesSeen") -- the fact reads profile.stats.rescues; this wakes the check
 	end)
+	-- WP5: a Suspicious Hero's mask cracked: everyone who hit it unmasked a fake
+	IncidentService.FakeUnmasked:Connect(function(inc: any)
+		for heroId in inc.helpers or {} do
+			bumpHero(HeroService.byId(heroId), "fakes")
+		end
+	end)
 	EconomyService.Earned:Connect(function(player: Player, action: string)
 		if action == "deepRescue" then
 			BadgeService.bump(player, "riders")

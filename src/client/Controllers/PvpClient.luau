@@ -6,6 +6,8 @@
 -- * targets: when you are flagged, the other flagged players your aim can lock (combat id PVP_BASE + slot is
 --   the server's; the client sends the player's user id hint only through the aim it already sends)
 -- * mutes: quick-mute hides a player's chat on this device (TextChatService), until you leave
+-- * rematch (WP4): after a PvP defeat, REMATCH pings that winner once (the server checks everything); a
+--   winner gets "X wants a rematch" (RematchAsk) to ACCEPT or say NO. Fixed buttons and lines only.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -27,6 +29,7 @@ PvpClient.Changed = Signal.new() -- (what) "flag", "down"
 PvpClient.Ping = Signal.new() -- (ping) a marker to draw
 PvpClient.Result = Signal.new() -- (result) a PvP win or defeat card
 PvpClient.MutesChanged = Signal.new()
+PvpClient.RematchAsked = Signal.new() -- (ask) { from, name, life }: a loser wants a rematch with you
 
 PvpClient.flag =
 	{ on = false, flagged = false, crater = "out", warnLeft = 0, offIn = 0, protectLeft = 0 } :: {
@@ -38,6 +41,8 @@ PvpClient.downAt = 0
 PvpClient.muted = {} :: { [number]: boolean }
 
 local lastAsk = -math.huge
+-- WP4: the last PvP defeat (os.clock and the winner's name) while its REMATCH ping may still go
+PvpClient.rematch = nil :: { at: number, name: string, sent: boolean }?
 
 function PvpClient.flagged(): boolean
 	return PvpClient.flag.flagged == true
@@ -95,6 +100,25 @@ function PvpClient.mute(userId: number, on: boolean, fromSave: boolean?)
 		Net.send("SettingsMute", userId, if on then 1 else 0) -- M10: the mute list is saved
 	end
 	PvpClient.MutesChanged:Fire()
+end
+
+-- WP4: may the REMATCH button show? (a PvP defeat within Config.Pvp.rematch.offer seconds, not yet pinged)
+function PvpClient.canRematch(now: number): boolean
+	local r = PvpClient.rematch
+	return r ~= nil and not r.sent and now - r.at <= Config.Pvp.rematch.offer
+end
+
+function PvpClient.askRematch()
+	local r = PvpClient.rematch
+	if r and not r.sent then
+		r.sent = true
+		Net.send("PvpRematch", 1)
+	end
+end
+
+-- The winner's answer to a ping: true ACCEPT, false NO
+function PvpClient.answerRematch(userId: number, accept: boolean)
+	Net.send("PvpRematch", if accept then 2 else 3, userId)
 end
 
 -- Other flagged players a flagged hero can aim at: their combat id (the PvpId attribute) and position
@@ -156,7 +180,20 @@ function PvpClient.init()
 		PvpClient.Ping:Fire(p)
 	end)
 	Net.listen("PvpResult", function(r)
+		if r.won == false then
+			PvpClient.rematch = { at = os.clock(), name = tostring(r.other or ""), sent = false }
+		end
 		PvpClient.Result:Fire(r)
+	end)
+	Net.listen("RematchAsk", function(a)
+		PvpClient.RematchAsked:Fire(a)
+	end)
+	State.Toast:Connect(function(t)
+		-- a refusal that leaves the offer open (switch PvP on first) lets REMATCH show again
+		local r = PvpClient.rematch
+		if t.id == "rematchRefused" and t.reason == "flag" and r then
+			r.sent = false
+		end
 	end)
 	-- quick-mute: muted players' chat is not shown on this device
 	task.spawn(function()

@@ -89,6 +89,8 @@ return {
 				b("rustjaw", "Jaw Breaker", "boss:RustjawPrime", 1, "Defeat Rustjaw Prime"),
 				b("lumenmaw", "Light Snuffer", "boss:LumenMaw", 1, "Defeat the Lumen Maw"),
 				b("leviathan", "Engine Stopper", "boss:LeviathanEngine", 1, "Defeat the Leviathan Engine"),
+				-- WP5: the Suspicious Hero incident (draft name: nate to OK)
+				b("fakes10", "Fake Spotter", "fakes", 10, "Unmask 10 fake heroes in the street"),
 			},
 		},
 		{

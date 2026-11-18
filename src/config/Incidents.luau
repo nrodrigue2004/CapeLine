@@ -14,6 +14,12 @@
 --           within `cover` of the ring to block a shell; block `blocks` (or beat the Bombers) before more
 --           than `misses` land
 --   tug     a robot (the Grappler) hauls a car `dist` studs at `speed`: beat it before the car is gone
+-- and (WP5, gap G13: the lore's "some heroes are secretly robots; players spot and unmask them")
+--   unmask  a costumed "hero" posing in a crowd of `crowd` citizens is one of the robot fakes: crack its mask
+--           (the fakes' 50% crack, Config.Enemies.fakes.crack). It wears one of the `dress` costumes (below)
+--           over a fake's suit (its fighting style), never a famous fake's own look; it poses until hit.
+-- A step row with `side` runs only for that side (a both-sides template's side-flavoured goal), and a defeat
+-- row with `keep` fights the fake the step before brought instead of spawning robots.
 -- A row { kind, min, max, fallbackKind, fallbackMin, fallbackMax } names a fallback used when its type is off
 -- (Config.Enemies.<Kind>.on) or not unlocked at the zone level yet (Config.Enemies.variety.swaps levels); a
 -- template's `requires` types must be on and unlocked or the template is skipped. `text` on a step is the
@@ -59,6 +65,7 @@ return {
 		convoy = { text = "Stop the convoy", squad = true },
 		barrage = { text = "Shield the citizens", squad = true },
 		tug = { text = "Stop the tow", squad = true },
+		unmask = { text = "Unmask the fake hero" },
 	},
 	-- beats: a step's big moments, each a toast line and an existing juice action (its sound, plus its
 	-- visual where Juice draws one); sent to the heroes within beatRadius
@@ -72,6 +79,10 @@ return {
 		shellMissed = { text = "A shell landed: the citizens scatter", juice = "grenadeBoom" },
 		barrageOver = { text = "BARRAGE OVER!", juice = "revive" },
 		towStopped = { text = "TOW CUT!", juice = "revive" },
+		-- WP5: the Suspicious Hero's moments
+		fakeCracked = { text = "THE MASK CRACKS: IT'S A ROBOT!", juice = "unmask" },
+		fakeScrapped = { text = "FAKE SCRAPPED! THE CROWD CHEERS!", juice = "revive" },
+		panicSpread = { text = "PANIC IN THE STREETS!", juice = "grenadeBoom" },
 	},
 	order = {
 		"RobotHeist",
@@ -98,6 +109,7 @@ return {
 		"SkyAmbush",
 		"DepotRaid",
 		"SignalJam",
+		"SuspiciousHero", -- WP5
 	},
 	templates = {
 		RobotHeist = {
@@ -474,6 +486,153 @@ return {
 					text = "Clear the roof",
 				},
 				{ kind = "object", hits = 8, label = "Relay", text = "Wreck the relay" },
+			},
+		},
+		-- WP5 (gap G13): a robot fake in a hero's costume works the crowd. The Vigil exposes it and scraps it;
+		-- the Syndicate cracks its mask for the crowd and holds the square while the panic spreads. Generic
+		-- costumed fakes only: the famous fakes stay in the story. (Draft text: nate to OK.)
+		SuspiciousHero = {
+			num = 25,
+			name = "Suspicious hero",
+			villainName = "Fake in the crowd",
+			side = "both",
+			where = "street",
+			time = 110,
+			minLevel = 6, -- after the opening's own fake, so players know what a crack means
+			text = "A hero in that crowd is too perfect: unmask the fake",
+			villainText = "A fake hero is working the crowd: crack its mask and let them panic",
+			steps = {
+				{
+					kind = "unmask",
+					crowd = 7,
+					dress = { "Gleam", "Steelvow", "Quickstep" }, -- one whose suit is switched on (below)
+					hpMult = 0.5, -- a fake of a street hero: half a famous fake's health
+					dmgMult = 0.8,
+					text = "Find the fake and crack its mask",
+					villainText = "Crack its mask in front of the crowd",
+				},
+				{
+					kind = "defeat",
+					side = "hero",
+					keep = true,
+					enemies = {},
+					text = "Scrap the fake before it slips away",
+				},
+				{
+					kind = "hold",
+					side = "villain",
+					seconds = 8,
+					radius = 14,
+					panic = 2.5, -- the crowd scatters again every 2.5 s while you hold
+					villainText = "Let the panic spread: hold the square",
+				},
+			},
+		},
+	},
+	-- WP5: the Suspicious Hero's costumes, each over a fake's suit (`suit`: its fighting style). Shared.FakeRules
+	-- reads these like a side quest's dress; `famous`, so the face cracks to metal and the plate turns FAKE
+	-- over its own name. Built from the creator's own pieces. Names and titles are drafts (PLACEHOLDER CONTENT
+	-- until nate OKs them). Ids must not repeat Config.SideQuests.dress ids (a test checks).
+	dress = {
+		Gleam = {
+			suit = "Radiant", -- a Light flyer's dives and bursts
+			name = "Gleamheart",
+			title = "Hero of the Hour",
+			creature = false,
+			famous = true,
+			body = {
+				metal = { 160, 160, 175 },
+				eye = { 255, 90, 60 },
+				suit = { 200, 50, 50 },
+				trim = { 245, 245, 245 },
+			},
+			look = {
+				gender = 1,
+				build = 2, -- the suit's frame (Radiant's)
+				height = 4,
+				skin = 3,
+				hair = 16, -- brown
+				colors = { 1, 18, 4 }, -- red, white, gold
+				pieces = {
+					suit = "Split Tone",
+					back = "Classic Cape",
+					hands = "Gloves",
+					feet = "Boots",
+					emblem = "Star Badge",
+					hair = "Side Part",
+					head = "Domino Mask",
+					visage = "Hero Face",
+				},
+				tints = {},
+				mats = {},
+			},
+		},
+		Steelvow = {
+			suit = "Bulwark", -- a tank's slams, charges and shockwaves
+			name = "Steelvow",
+			title = "The People's Shield",
+			creature = false,
+			famous = true,
+			body = {
+				metal = { 140, 140, 150 },
+				eye = { 255, 90, 60 },
+				suit = { 40, 150, 80 },
+				trim = { 255, 210, 60 },
+			},
+			look = {
+				gender = 2,
+				build = 4, -- the suit's frame (Bulwark's Titan)
+				height = 5,
+				skin = 8,
+				hair = 2, -- crimson
+				colors = { 7, 19, 4 }, -- green, silver, gold
+				pieces = {
+					suit = "Bastion Suit",
+					hands = "Knuckle Guards",
+					feet = "Armored Boots",
+					shoulders = "Riveted Pads",
+					belt = "Big Buckle",
+					emblem = "Heart Crest",
+					hair = "Short Crop",
+					head = "Half Mask",
+					visage = "Stern Face",
+				},
+				tints = {},
+				mats = { shoulders = "Metal" },
+			},
+		},
+		Quickstep = {
+			suit = "Skylance", -- a fast thrower's throws and side dashes
+			name = "Quickstep",
+			title = "Fastest Cape in Town",
+			creature = false,
+			famous = true,
+			body = {
+				metal = { 170, 170, 185 },
+				eye = { 255, 90, 60 },
+				suit = { 255, 140, 40 },
+				trim = { 24, 24, 28 },
+			},
+			look = {
+				gender = 1,
+				build = 1, -- the suit's frame (Skylance's Small)
+				height = 4,
+				skin = 12,
+				hair = 47, -- electric yellow
+				colors = { 3, 22, 47 }, -- orange, black, electric yellow
+				pieces = {
+					suit = "Racing Suit",
+					back = "Hero Scarf",
+					hands = "Fingerless Gloves",
+					feet = "Hover Boots",
+					emblem = "Spark",
+					hair = "Sky Spikes",
+					hat = "Flight Goggles",
+					trail = "Ribbon Trail",
+					visage = "Sharp Face",
+				},
+				tints = {},
+				mats = {},
 			},
 		},
 	},

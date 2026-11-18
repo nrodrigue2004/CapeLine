@@ -178,6 +178,13 @@ local Remotes: { [string]: RemoteDef } = {
 	ReportPlayer = { dir = "C2S", schema = { n(1, 2 ^ 52), n(1, 4) }, rate = 0.1, burst = 2 }, -- user id, reason
 	PvpResult = { dir = "S2C" }, -- { won, other, credits, fame, cut }: the win or defeat card
 	HeroKnock = { dir = "S2C" }, -- { x, y, z, time }: a PvP knockback, pull or knockup on your own hero
+	-- WP4 (spec: Social > Rivalry, gap G8): the REMATCH ping, fixed buttons only. PvpRematch { act, userId }:
+	-- 1 the loser pings their last winner (no id), 2 the winner accepts that loser's ping, 3 the winner says no
+	PvpRematch = { dir = "C2S", schema = { n(1, 3), n(1, 2 ^ 52, true) }, rate = 0.5, burst = 3 },
+	RematchAsk = { dir = "S2C" }, -- { from (user id), name (hero name), life }: "X wants a rematch" to the winner
+	-- WP4 (gap G7): the favorite prompt, once per account after a first world boss win (no reward)
+	FavoriteAsk = { dir = "S2C" }, -- the server asks this device to show Roblox's favorite prompt
+	FavoriteShown = { dir = "C2S", schema = {}, rate = 0.1, burst = 1 }, -- the device showed it: save the flag
 
 	-- Creator, HQ, shops and passes (M9; spec: Hero.Create {side, classId, setId, look, colors, titleId,
 	-- nounId} 1/10s, Hero.Select {slot} 1/5s). The look is one 128-byte LookCodec buffer.

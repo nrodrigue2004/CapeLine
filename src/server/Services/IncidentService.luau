@@ -51,6 +51,8 @@ local IC = Config.Incidents
 local S = IC.spawner
 IncidentService.Cleared = Signal.new() -- (incident) an incident was cleared (Raid prep weakens the boss)
 IncidentService.Rescued = Signal.new() -- (hero) a citizen reached safety (the boss counts it as support)
+-- WP5: (incident, heroId?) a Suspicious Hero's mask cracked (the news and the Fake Spotter badge count it)
+IncidentService.FakeUnmasked = Signal.new()
 IncidentService.prep = false -- a world boss is counting down: Raid prep incidents
 IncidentService.clockStart = 0 -- the world clock's cycle start (ClockService sets it)
 -- M10 squads set this: (helpers, position) adds squadmates near a cleared incident to its helpers
@@ -87,6 +89,9 @@ export type Live = {
 	barrage: { huddles: { Vector3 }, nextAt: number, shell: { at: Vector3, lands: number, ring: Model }? }?,
 	-- a fight step whose squad the server cap stopped completely: try again every few seconds
 	retry: { rows: { any }, at: Vector3, ring: number, nextAt: number }?,
+	-- WP5 (the Suspicious Hero): its costumed fake, who last hit it, a spawn retry, the next panic wave
+	fake: { id: number?, by: number?, retryAt: number, at: Vector3, awake: boolean, cracked: boolean }?,
+	panicAt: number?,
 }
 
 local live: { [number]: Live } = {}
@@ -419,6 +424,136 @@ local function retryLater(inc: Live, rows: { any }, at: Vector3, ring: number)
 	inc.retry = { rows = rows, at = at, ring = ring, nextAt = os.clock() + IC.capRetry }
 end
 
+---------------------------------------------------------------------------
+-- WP5: the Suspicious Hero (gap G13). A costumed fake (Config.Incidents.dress over a fake's suit) poses in
+-- a crowd until someone hits it; at the fakes' 50% crack its mask goes (the unmask step). Then the Vigil
+-- scraps it (a defeat row with `keep`) and the Syndicate holds the square while the panic spreads (a hold
+-- row with `panic`). Kept in these functions so the step code above stays as it was.
+---------------------------------------------------------------------------
+
+-- Put the fake out (false: the server cap or no costume; the step tries again)
+local function spawnFake(inc: Live, row: any, at: Vector3): boolean
+	local ids = IncidentPlan.dresses(Config, row, inc.plan.level)
+	if #ids == 0 then
+		return false
+	end
+	local dressId = ids[rng:int(1, #ids)]
+	local id = EnemyService.spawnAt(IC.dress[dressId].suit, at, robotLevel(inc), inc.id, true)
+	if not id then
+		return false
+	end
+	if not EnemyService.dress(id, dressId) then
+		EnemyService.remove(id) -- never a famous fake's own look out in the street
+		return false
+	end
+	EnemyService.tune(id, { hpMult = row.hpMult, dmgMult = row.dmgMult })
+	inc.enemies[id] = true
+	byEnemy[id] = inc.id
+	inc.targets[id] = true
+	table.insert(inc.things, id)
+	local f = inc.fake :: any
+	f.id = id
+	return true
+end
+
+-- The unmask step's crowd and fake, or the keep step's target (the same fake)
+local function startFake(inc: Live, step: IncidentPlan.Step, here: Vector3)
+	local row = step.def
+	if row.keep then
+		local id = inc.fake and inc.fake.id
+		if id and not EnemyService.gone(id) then
+			inc.targets[id] = true
+			step.need = 1
+		else
+			-- it fell with the blow that cracked it: nothing left to scrap
+			IncidentPlan.advance(inc.plan, step.kind, step.need)
+		end
+		return
+	end
+	for i = 1, row.crowd or 6 do
+		local a = i / (row.crowd or 6) * math.pi * 2 + rng:range(-0.3, 0.3)
+		local r = rng:range(5, 11)
+		table.insert(
+			inc.stepThings,
+			SiteKit.bystander(Vector3.new(here.X + math.cos(a) * r, here.Y, here.Z + math.sin(a) * r))
+		)
+	end
+	inc.fake = { id = nil, by = nil, retryAt = 0, at = here, awake = false, cracked = false }
+	if not spawnFake(inc, row, here) then
+		(inc.fake :: any).retryAt = os.clock() + IC.capRetry
+	end
+end
+
+-- The mask cracked (or the fake fell before the crack was seen): the step is done, the crowd runs
+local function fakeCracked(inc: Live, at: Vector3)
+	local f = inc.fake
+	if not f or f.cracked then
+		return
+	end
+	f.cracked = true
+	IncidentPlan.advance(inc.plan, "unmask", 1)
+	beat("fakeCracked", at)
+	CitizenService.danger(at.X, at.Z, 40, 5)
+	IncidentService.FakeUnmasked:Fire(inc, f.by)
+end
+
+-- Each tick of the unmask step: the spawn retry, and the crack (EnemySim marks it unmasked)
+local function stepFake(inc: Live, now: number)
+	local f = inc.fake
+	if not f then
+		return
+	end
+	if not f.id then
+		if now >= f.retryAt and not spawnFake(inc, (IncidentPlan.current(inc.plan) :: any).def, f.at) then
+			f.retryAt = now + IC.capRetry
+		end
+		return
+	end
+	local e = EnemyService.get(f.id)
+	if e and e.unmasked then
+		fakeCracked(inc, Vector3.new(e.x, e.y, e.z))
+	end
+end
+
+-- A hit on the fake: it stops posing and fights back; the hitter is who cracked it
+local function fakeHit(inc: Live, enemyId: number, heroId: number?)
+	local f = inc.fake
+	if not f or f.id ~= enemyId then
+		return
+	end
+	f.by = heroId or f.by
+	if not f.awake then
+		f.awake = true
+		local e = EnemyService.get(enemyId)
+		if e then
+			e.scripted = false
+		end
+	end
+end
+
+-- The fake fell: in the unmask step that is the crack too; in the keep step the fake is scrapped
+local function fakeFell(inc: Live, step: IncidentPlan.Step, by: number?, pos: Vector3)
+	local f = inc.fake :: any
+	f.by = by or f.by
+	if step.kind == "unmask" then
+		fakeCracked(inc, pos)
+	elseif step.kind == "defeat" and IncidentPlan.advance(inc.plan, "defeat", 1) then
+		beat("fakeScrapped", pos)
+	end
+end
+
+-- The Syndicate's hold: the crowd scatters again every few seconds while the square is held
+local function panicWave(inc: Live, step: IncidentPlan.Step, now: number)
+	local at = inc.stepPos or inc.pos
+	if inc.panicAt == nil then
+		beat("panicSpread", at)
+	elseif now < inc.panicAt then
+		return
+	end
+	inc.panicAt = now + step.def.panic
+	CitizenService.danger(at.X, at.Z, 45, 3)
+end
+
 local function startStep(inc: Live)
 	local step = IncidentPlan.current(inc.plan)
 	if not step then
@@ -435,7 +570,9 @@ local function startStep(inc: Live)
 	local sx, sy, sz = IncidentSpots.stepAt(Config, CityBuilder.world, inc.spot, row.at, rng)
 	local here = Vector3.new(sx, sy, sz)
 	inc.stepPos = here
-	if step.kind == "defeat" or step.kind == "nest" then
+	if step.kind == "unmask" or row.keep then
+		startFake(inc, step, here) -- WP5
+	elseif step.kind == "defeat" or step.kind == "nest" then
 		local ring = if tid == "ShardCrate" then 10 else 16
 		if step.kind == "nest" then
 			-- up on the roof: the ring fits inside it
@@ -711,7 +848,14 @@ local function newLive(hero: any, tid: string, spot: IncidentSpots.Spot, level: 
 		id = nextId,
 		owner = hero.id,
 		side = hero.side,
-		plan = IncidentPlan.new(IC, rng, tid, level, os.clock(), { config = Config, heroic = heroic }),
+		plan = IncidentPlan.new(
+			IC,
+			rng,
+			tid,
+			level,
+			os.clock(),
+			{ config = Config, heroic = heroic, side = hero.side }
+		),
 		pos = at,
 		spot = spot,
 		things = {},
@@ -984,7 +1128,12 @@ local function stepIncident(inc: Live, now: number, dt: number)
 			rt.nextAt = now + IC.capRetry
 		end
 	end
-	if step.kind == "hold" then
+	if step.kind == "unmask" then
+		stepFake(inc, now) -- WP5
+	elseif step.kind == "hold" then
+		if step.def.panic then
+			panicWave(inc, step, now) -- WP5
+		end
 		local radius = step.def.radius or 10
 		local inRing = SiteKit.heroesIn(inc.stepPos or inc.pos, radius + 3)
 		for _, h in inRing do
@@ -1056,7 +1205,9 @@ local function onKilled(_kind: string, by: number?, pos: Vector3, enemyId: numbe
 	end
 	inc.targets[id] = nil
 	local k = step.kind
-	if k == "leader" then
+	if inc.fake and id == inc.fake.id then
+		fakeFell(inc, step, by, pos) -- WP5
+	elseif k == "leader" then
 		if inc.leaderId == nil or id == inc.leaderId then
 			if IncidentPlan.advance(inc.plan, "leader", 1) and inc.leaderId then
 				beat("leaderDown", pos)
@@ -1088,6 +1239,9 @@ local function onHit(enemyId: number, heroId: number?)
 	local inc = incId and live[incId]
 	if inc and heroId then
 		inc.helpers[heroId] = true
+	end
+	if inc and inc.fake then
+		fakeHit(inc, enemyId, heroId) -- WP5
 	end
 end
 

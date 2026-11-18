@@ -9,6 +9,8 @@
 -- * REVIVE: a big button when a Downed player is next to you; hold your spot until the ring fills.
 -- * The PvP card: "You beat X" with the Credits and Fame (or why it paid less), or "X beat you" and the
 --   Credits lost. Gear is never lost, and the card says so.
+-- * WP4 REMATCH (spec: Social > Rivalry): after a PvP defeat a REMATCH button pings that winner once (45 s);
+--   the winner gets a fixed "X WANTS A REMATCH" card with ACCEPT and NO for 15 s. Fixed text only.
 -- PLACEHOLDER look until the UI pass (M10).
 
 local Players = game:GetService("Players")
@@ -53,6 +55,12 @@ local reviveFill: Frame
 local resultCard: Frame
 local resultTitle: TextLabel
 local resultText: TextLabel
+local rematchButton: TextButton
+local downStack: Frame -- the Downed and Defeated words and buttons (REMATCH joins it while Defeated)
+local askCard: Frame
+local askText: TextLabel
+local askBar: Frame
+local ask: { from: number, untilT: number, life: number }? = nil
 
 local reviving: { userId: number, startT: number, doneT: number }? = nil
 local nearDowned: Player? = nil
@@ -181,6 +189,7 @@ local function build()
 	stack.BackgroundTransparency = 1
 	stack.Size = UDim2.fromOffset(600, stackH)
 	stack.Parent = downLayer
+	downStack = stack
 	local function placeStack()
 		local a = Kit.area()
 		local margin = Config.Ui.phone.panelMargin
@@ -330,6 +339,114 @@ local function build()
 	resultText.Parent = resultCard
 end
 
+-- WP4: the REMATCH ping (the loser's button) and the winner's "X wants a rematch" card
+local function buildRematch()
+	local s = U.touchTarget
+	-- on the Downed screen's gui (25), so it shows over the Defeated screen and after respawn: while Defeated
+	-- it sits in the stack's GIVE UP and HELP row (hidden then), after respawn where REVIVE goes (frameRematch)
+	rematchButton = Kit.button({
+		Name = "Rematch",
+		Text = "REMATCH",
+		AnchorPoint = Vector2.new(0.5, 1),
+		Size = UDim2.fromOffset(s * 3, s),
+		Position = UDim2.new(0.5, 0, 1, -U.safe - 180),
+		BackgroundColor3 = Color3.fromRGB(255, 120, 110),
+		Visible = false,
+	}, function()
+		PvpClient.askRematch()
+		rematchButton.Visible = false
+	end)
+	Kit.stroke(rematchButton, Kit.color.ink, 3)
+	rematchButton.Parent = downGui
+	-- the winner's card takes the PvP result card's place (it fits a 360 px phone there)
+	askCard = Kit.frame({
+		AnchorPoint = Vector2.new(0.5, 0),
+		Size = UDim2.fromOffset(380, 118),
+		Position = UDim2.new(0.5, 0, 0, U.safe + 170),
+		BackgroundColor3 = Kit.color.night,
+		Visible = false,
+	})
+	Kit.stroke(askCard, Color3.fromRGB(255, 120, 110), 3)
+	askCard.Parent = gui
+	askText = Kit.label({
+		Size = UDim2.new(1, -20, 0, 40),
+		Position = UDim2.fromOffset(10, 6),
+		TextColor3 = Kit.color.paper,
+		maxText = 26,
+	})
+	askText.Parent = askCard
+	askBar = Kit.frame({
+		Size = UDim2.new(1, -20, 0, 4),
+		Position = UDim2.fromOffset(10, 50),
+		BackgroundColor3 = Color3.fromRGB(255, 120, 110),
+		round = false,
+	})
+	askBar.Parent = askCard
+	local function answer(yes: boolean)
+		local a = ask
+		ask = nil
+		askCard.Visible = false
+		if a then
+			PvpClient.answerRematch(a.from, yes)
+		end
+	end
+	local accept = Kit.button({
+		Text = "ACCEPT",
+		Size = UDim2.new(0.5, -15, 0, s - 10),
+		Position = UDim2.new(0, 10, 1, -s + 2),
+	}, function()
+		answer(true)
+	end)
+	accept.Parent = askCard
+	local no = Kit.button({
+		Text = "NO",
+		Size = UDim2.new(0.5, -15, 0, s - 10),
+		Position = UDim2.new(0.5, 5, 1, -s + 2),
+		BackgroundColor3 = Kit.color.paper,
+	}, function()
+		answer(false)
+	end)
+	no.Parent = askCard
+	PvpClient.RematchAsked:Connect(function(a)
+		local life = tonumber(a.life) or Config.Pvp.rematch.answer
+		ask = { from = tonumber(a.from) or 0, untilT = os.clock() + life, life = life }
+		askText.Text = string.upper(tostring(a.name or "A HERO")) .. " WANTS A REMATCH"
+		resultCard.Visible = false
+		askCard.Visible = true
+		Kit.bounce(askCard)
+		Juice.fire("rally")
+	end)
+end
+
+local function frameRematch(now: number)
+	local defeated = downLayer.Visible and not giveUpButton.Visible and not helpButton.Visible
+	local parent: Instance = if defeated then downStack else downGui
+	if rematchButton.Parent ~= parent then
+		rematchButton.Parent = parent
+		if defeated then
+			rematchButton.AnchorPoint = Vector2.new(0.5, 0)
+			rematchButton.Position = UDim2.new(0.5, 0, 0, 96)
+		else
+			rematchButton.AnchorPoint = Vector2.new(0.5, 1)
+			rematchButton.Position = UDim2.new(0.5, 0, 1, -U.safe - 180)
+		end
+	end
+	rematchButton.Visible = PvpClient.canRematch(now)
+		and not StoryClient.inOpening()
+		and (defeated or not reviveButton.Visible)
+	local a = ask
+	if a then
+		local left = a.untilT - now
+		if left <= 0 then
+			ask = nil
+			askCard.Visible = false
+		else
+			askBar.Size = UDim2.new(math.clamp(left / a.life, 0, 1), -20, 0, 4)
+			askCard.Visible = not resultCard.Visible -- the two cards share one place
+		end
+	end
+end
+
 -- The respawn picker: the nearest safehouse, or any one visited (names from the world map)
 local function fillPicker(list: { number })
 	for _, c in pickRow:GetChildren() do
@@ -390,7 +507,7 @@ local function showResult(r: any)
 			then ("-" .. Kit.comma(r.credits) .. " unbanked Credits. Gear is never lost.")
 			else "Nothing lost. Bank Credits at a safehouse to keep them safe."
 	end
-	resultCard.Visible = true
+	resultCard.Visible = true -- a newer fight's card covers a rematch ask; the ask comes back when it closes
 	Kit.bounce(resultCard)
 	task.delay(5, function()
 		resultCard.Visible = false
@@ -504,6 +621,7 @@ local function frame()
 		craterBar.Visible = false
 	end
 	refreshDown()
+	frameRematch(now)
 	-- revive: the button near a Downed player, and its fill while holding the spot
 	nearDowned = findDowned()
 	local r = reviving
@@ -524,6 +642,7 @@ end
 
 function PvpHud.init()
 	build()
+	buildRematch()
 	PvpClient.Changed:Connect(function(what)
 		local d = PvpClient.down
 		if what == "down" and d.safehouses then

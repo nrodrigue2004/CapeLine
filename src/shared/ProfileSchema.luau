@@ -232,8 +232,9 @@ function ProfileSchema.default(): { [string]: any }
 		settings = {}, -- M10: { [key id] = number } (SettingsRules.clean fills and fixes it on load)
 		mutes = {}, -- M10: muted user ids (the mute list), at most Config.Settings.maxMutes
 		-- M12 analytics: the furthest Opening funnel step logged (the onboarding funnel counts once per
-		-- account), the first join (os.time) and whether the day-1 return was logged
-		analytics = { onboard = 0, firstSeen = 0, d1 = 0 },
+		-- account), the first join (os.time) and whether the day-1 return was logged; WP4: mmo, the Hero MMO
+		-- firsts already logged (bits, AnalyticsSchema.FUNNELS.MMO), and fav, the favorite prompt was shown
+		analytics = { onboard = 0, firstSeen = 0, d1 = 0, mmo = 0, fav = 0 },
 		-- the studio-wide FunnelKit's numbers (FunnelKit.blank(): sessions, furthest stage, times, play time);
 		-- server only, never in the client view
 		funnel = { sessions = 0, stage = 0, firstAt = 0, lastAt = 0, sessionAt = 0, hopAt = 0, played = 0 },
@@ -820,6 +821,8 @@ local function repair(p: any): any
 		onboard = num(an.onboard, 0, 32, 0),
 		firstSeen = num(an.firstSeen, 0, 2 ^ 40, 0),
 		d1 = num(an.d1, 0, 1, 0),
+		mmo = num(an.mmo, 0, 2 ^ 16 - 1, 0), -- WP4 (no new save version: repair fills both)
+		fav = num(an.fav, 0, 1, 0),
 	}
 	local fu = if type(p.funnel) == "table" then p.funnel else {}
 	p.funnel = {

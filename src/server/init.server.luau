@@ -82,6 +82,7 @@ local WeaponService = require(Services.WeaponService)
 local DailyService = require(Services.DailyService) -- WP1: the daily login streak and daily quests
 local Analytics = require(Services.Analytics)
 local AnalyticsHooks = require(Services.AnalyticsHooks)
+local FavoriteService = require(Services.FavoriteService) -- WP4: the favorite prompt, once per account
 local LoadBots = require(Services.LoadBots)
 local DevService = require(Services.DevService)
 
@@ -158,6 +159,7 @@ boot("WeaponService", WeaponService.init)
 boot("DailyService", DailyService.init) -- WP1: before DataService (a loaded profile counts the day)
 boot("Analytics", Analytics.init)
 boot("AnalyticsHooks", AnalyticsHooks.init)
+boot("FavoriteService", FavoriteService.init)
 boot("DataService", DataService.init) -- last of the game services: profile loads fire into the handlers above
 boot("LoadBots", LoadBots.init)
 boot("DevService", DevService.init)

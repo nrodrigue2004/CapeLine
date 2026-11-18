@@ -1133,6 +1133,9 @@ return {
 			sideVigil = "%s AND THE VIGIL WIN THE %t",
 			sideSyndicate = "%s AND THE SYNDICATE TAKE THE %t",
 			sideDraw = "NO WINNER IN THE %t",
+			-- WP5: a Suspicious Hero's mask cracked in the street (no flash: it is everyday news; drafts)
+			fakeVigil = "%s UNMASKS A FAKE HERO: IT WAS A ROBOT ALL ALONG",
+			fakeSyndicate = "PANIC IN THE STREETS: %s CRACKS A HERO'S FACE AND FINDS METAL",
 		},
 		-- these also flash on every HUD (toast + corner TV)
 		flash = { boss = true, unmask = true, double = true, sideStart = true },

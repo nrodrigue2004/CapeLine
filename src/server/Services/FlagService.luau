@@ -23,10 +23,12 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Net = require(Shared:WaitForChild("Net"))
 local Signal = require(Shared:WaitForChild("Util"):WaitForChild("Signal"))
 local PvpRules = require(Shared:WaitForChild("PvpRules"))
+local RematchRules = require(Shared:WaitForChild("RematchRules"))
 
 local CityBuilder = require(script.Parent.CityBuilder)
 local HeroService = require(script.Parent.HeroService)
 local SafehouseService = require(script.Parent.SafehouseService)
+local DataService = require(script.Parent.DataService)
 
 local FlagService = {}
 FlagService.Changed = Signal.new() -- (hero, flagged) the hero's PvP state changed
@@ -262,6 +264,111 @@ local function onLeave(player: Player)
 	FlagService.send(hero, true)
 end
 
+---------------------------------------------------------------------------
+-- WP4 (spec: Social > Rivalry; gap G8): the REMATCH ping (Shared.RematchRules, Config.Pvp.rematch). Fixed
+-- buttons and fixed lines only: the loser's REMATCH, the winner's "X wants a rematch" card with ACCEPT and
+-- NO. ACCEPT with both flagged tells both and shows each other's spot; nobody is moved or flagged by it.
+---------------------------------------------------------------------------
+
+local rematch = RematchRules.new()
+
+-- A PvP defeat between two players gives the loser one ping at that winner (DeathService.PvpDefeat)
+function FlagService.rematchOffer(loser: any, winner: any)
+	if loser.player and winner.player then
+		RematchRules.defeat(P.rematch, rematch, loser.id, winner.id, os.clock())
+	end
+end
+
+local function rematchNo(player: Player, reason: string)
+	Net.fire("Toast", player, { id = "rematchRefused", reason = reason })
+end
+
+-- Each other's spot for a few seconds: a Here ping from the other hero (the PingShow marker)
+local function showSpot(to: Player, other: any)
+	local pos = HeroService.position(other)
+	if pos then
+		Net.fire("PingShow", to, {
+			kind = 2,
+			x = pos.X,
+			y = pos.Y,
+			z = pos.Z,
+			from = other.id,
+			name = other.name,
+			life = P.rematch.spotLife,
+		})
+	end
+end
+
+local function onRematch(player: Player, act: number, userId: number?)
+	local me = HeroService.get(player)
+	if not me then
+		return
+	end
+	local now = os.clock()
+	if act == 1 then
+		-- the loser pings their last winner
+		local o = rematch.offers[me.id]
+		local winnerPlayer = o and Players:GetPlayerByUserId(o.winner)
+		local winner = winnerPlayer and HeroService.get(winnerPlayer)
+		local winnerId, why = RematchRules.ask(P.rematch, rematch, me.id, now, {
+			flagged = FlagService.flagged(me),
+			here = winner ~= nil,
+		})
+		if not winnerId or not winner or not winnerPlayer then
+			rematchNo(player, why or "none")
+			return
+		end
+		Net.fire("Toast", player, { id = "rematchSent", name = winner.name })
+		-- a winner who muted this player never hears it (the loser is not told: muting stays private)
+		local profile = DataService.get(winnerPlayer)
+		if profile and table.find(profile.mutes, player.UserId) then
+			RematchRules.decline(rematch, winner.id, me.id)
+			return
+		end
+		Net.fire(
+			"RematchAsk",
+			winnerPlayer,
+			{ from = player.UserId, name = me.name, life = P.rematch.answer }
+		)
+	elseif userId then
+		local loserPlayer = Players:GetPlayerByUserId(userId)
+		local loser = loserPlayer and HeroService.get(loserPlayer)
+		if act == 3 or not loser or not loserPlayer then
+			RematchRules.decline(rematch, me.id, userId)
+			if act == 2 then
+				rematchNo(player, "gone")
+			end
+			return
+		end
+		local ok, why = RematchRules.accept(
+			P.rematch,
+			rematch,
+			me.id,
+			loser.id,
+			now,
+			FlagService.flagged(me) and FlagService.flagged(loser)
+		)
+		if not ok then
+			rematchNo(player, why or "late")
+			return
+		end
+		Net.fire("Toast", player, { id = "rematchOn", name = loser.name })
+		Net.fire("Toast", loserPlayer, { id = "rematchOn", name = me.name })
+		showSpot(player, loser)
+		showSpot(loserPlayer, me)
+	end
+end
+
+local function initRematch()
+	Net.on("PvpRematch", onRematch)
+	-- (required here, not at the top: DeathService requires this module)
+	local DeathService = require(script.Parent.DeathService) :: any
+	DeathService.PvpDefeat:Connect(FlagService.rematchOffer)
+	HeroService.Removed:Connect(function(hero)
+		RematchRules.forget(P.rematch, rematch, hero.id, os.clock())
+	end)
+end
+
 local function tick()
 	local now = os.clock()
 	local c = crater
@@ -293,6 +400,7 @@ function FlagService.init()
 	end
 	Net.on("FlagSet", onSet)
 	Net.on("CraterLeave", onLeave)
+	initRematch()
 	HeroService.Spawned:Connect(function(hero)
 		local f = FlagService.flag(hero)
 		PvpRules.protect(Config, f, os.clock())

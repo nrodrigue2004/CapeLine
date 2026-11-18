@@ -32,7 +32,33 @@ IncidentPlan.KINDS = {
 	"convoy",
 	"barrage",
 	"tug",
+	"unmask", -- WP5: the Suspicious Hero's costumed fake (crack its mask)
 }
+
+-- A template's step rows for one side (WP5): a row with `side` runs only for that side's incidents, so a
+-- both-sides template can end on a side-flavoured goal
+function IncidentPlan.rows(t: any, side: string?): { any }
+	local out = {}
+	for _, row in t.steps do
+		if row.side == nil or side == nil or row.side == side then
+			table.insert(out, row)
+		end
+	end
+	return out
+end
+
+-- WP5: the costumes an unmask row may wear at this level: its `dress` ids (Config.Incidents.dress) whose
+-- suit is switched on and unlocked
+function IncidentPlan.dresses(Config: any, row: any, level: number): { string }
+	local out = {}
+	for _, id in row.dress or {} do
+		local d = Config.Incidents.dress and Config.Incidents.dress[id]
+		if d and IncidentPlan.kindReady(Config, d.suit, level) then
+			table.insert(out, id)
+		end
+	end
+	return out
+end
 
 export type Step = {
 	kind: string,
@@ -85,6 +111,12 @@ function IncidentPlan.available(cfg: any, Config: any, tid: string, level: numbe
 	end
 	for _, kind in t.requires or {} do
 		if not IncidentPlan.kindReady(Config, kind, level) then
+			return false
+		end
+	end
+	-- WP5: an unmask step needs a costume whose suit is on
+	for _, row in t.steps do
+		if row.dress and #IncidentPlan.dresses(Config, row, level) == 0 then
 			return false
 		end
 	end
@@ -238,21 +270,22 @@ local function total(rows: { { kind: string, n: number } }): number
 	return n
 end
 
--- opts: Config (robot switches, unlock levels and Heroic need it) and heroic
+-- opts: Config (robot switches, unlock levels and Heroic need it), heroic, and side (the incident's side:
+-- rows for the other side are left out; nil keeps every row)
 function IncidentPlan.new(
 	cfg: any,
 	rng: any,
 	tid: string,
 	level: number,
 	now: number,
-	opts: { config: any?, heroic: boolean? }?
+	opts: { config: any?, heroic: boolean?, side: string? }?
 ): Incident
 	local t = cfg.templates[tid]
 	assert(t, "unknown incident " .. tid)
 	local Config = opts and opts.config
 	local heroic = (opts and opts.heroic) == true and Config ~= nil
 	local steps: { Step } = {}
-	for _, row in t.steps do
+	for _, row in IncidentPlan.rows(t, opts and opts.side) do
 		local step: Step = { kind = row.kind, need = 1, have = 0, spawn = nil, def = row }
 		local k = row.kind
 		if k == "defeat" or k == "nest" or k == "find" or k == "tug" then
@@ -406,10 +439,11 @@ function IncidentPlan.title(cfg: any, tid: string, side: string): (string, strin
 	return t.name, t.text
 end
 
--- The tracker's line for step `i` of a template (fixed text: the step's own, else its kind's)
+-- The tracker's line for step `i` of a template (fixed text: the step's own, else its kind's); `i` counts
+-- the side's own rows (IncidentPlan.rows)
 function IncidentPlan.stepText(cfg: any, tid: string, i: number, side: string): string
 	local t = cfg.templates[tid]
-	local row = t and t.steps[i]
+	local row = t and IncidentPlan.rows(t, side)[i]
 	if not row then
 		return ""
 	end

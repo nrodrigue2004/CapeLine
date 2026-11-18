@@ -11,4 +11,8 @@ return {
 	perfSample = 0.1, -- perf_sample: 10% of devices report
 	perfEvery = 60, -- seconds between a sampled device's perf reports
 	helloWait = 20, -- session_device waits this long for the device's hello (platform), then logs "unknown"
+	-- the favorite prompt (WP4, gap G7): once per account after the first world boss win, a plain ask with no
+	-- reward (Roblox's rules). The device waits `wait` s (the result card), then for `calm` s with no hit
+	-- taken, no scene and not Downed; with no such moment in `giveUp` s it asks again at the next boss win
+	favorite = { wait = 8, calm = 5, giveUp = 180 },
 }
