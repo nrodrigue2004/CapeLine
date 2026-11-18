@@ -470,33 +470,41 @@ local function check()
 	end
 end
 
+-- The owner's win: the bane, the Core, the head for the HQ wall (WP9 draws one per rank beaten, Shared.
+-- WantedRules) and a new nemesis one rank tougher, ready a day (Config.Nemesis.rankUpWait) after `from`
+-- (a Showdown passes now; the Dev panel passes a day ago, so the next one is ready at once)
+local function ownerWin(player: Player, from: number): boolean
+	local c = char(player)
+	local st = saved(player)
+	if not c or not st then
+		return false
+	end
+	local banes = c.mmo.banes
+	if #banes >= 8 then
+		table.remove(banes, 1)
+	end
+	table.insert(banes, st.seed)
+	c.mmo.cores += 1
+	c.mmo.heads += 1
+	local fresh = NemesisMath.afterWin(N, st, player.UserId, StoryService.side(player), from)
+	for k, v in fresh do
+		(st :: any)[k] = v
+	end
+	NemesisService.Won:Fire(player, st.rank - 1)
+	Analytics.event(player, "nemesis_showdown", 1, { st.rank - 1 })
+	DataService.saveSoon(player)
+	task.defer(sendPoster, player)
+	return true
+end
+
 -- The Showdown's pay (MissionService custom pay hook): the Rare or better roll for everyone; the owner also
 -- gets the Core, the head trophy and the Bane title, and a new nemesis one rank tougher a day later
 local function payShowdown(run: any, player: Player, out: { [string]: any }, own: number): { [string]: any }
 	local tier = if rng:next() < N.showdown.epicChance then "Epic" else N.showdown.gearTier
 	GearService.grantPiece(player, tier, own)
 	out.gear = tier
-	if player.UserId == run.m.owner then
-		local c = char(player)
-		local st = saved(player)
-		if c and st then
-			local banes = c.mmo.banes
-			if #banes >= 8 then
-				table.remove(banes, 1)
-			end
-			table.insert(banes, st.seed)
-			c.mmo.cores += 1
-			c.mmo.heads += 1
-			local fresh = NemesisMath.afterWin(N, st, player.UserId, StoryService.side(player), os.time())
-			for k, v in fresh do
-				(st :: any)[k] = v
-			end
-			out.bane = true
-			NemesisService.Won:Fire(player, st.rank - 1)
-			Analytics.event(player, "nemesis_showdown", 1, { st.rank - 1 })
-			DataService.saveSoon(player)
-			task.defer(sendPoster, player)
-		end
+	if player.UserId == run.m.owner and ownerWin(player, os.time()) then
+		out.bane = true
 	end
 	return out
 end
@@ -603,7 +611,8 @@ function NemesisService.state(player: Player): NemesisMath.Saved?
 	return saved(player)
 end
 
--- Studio only (DevService "nemesis"): 0 ambushes you now (skipping the time rules), 1 fills your Intel
+-- Studio only (DevService "nemesis"): 0 ambushes you now (skipping the time rules), 1 fills your Intel,
+-- 2 counts a Showdown win (WP9: the HQ wall's next head; the next nemesis comes at once, not a day later)
 function NemesisService.dev(player: Player, what: number)
 	local st = saved(player)
 	local hero = HeroService.get(player)
@@ -614,6 +623,8 @@ function NemesisService.dev(player: Player, what: number)
 	if what == 1 then
 		st.intel = N.intelForShowdown
 		sendPoster(player)
+	elseif what == 2 then
+		ownerWin(player, os.time() - N.rankUpWait)
 	elseif not encs[player] and not hero.scene then
 		st.readyAt = 0
 		startAmbush(player, st, pos + Vector3.new(30, 0, 0))

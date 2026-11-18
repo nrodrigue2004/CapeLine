@@ -11,6 +11,8 @@
 --   the Contract Board, Journal and ShopService. Respec, class change and loadout swaps are allowed here.
 -- * Offline drones (level 5+): the minutes away since the last leave pay banked Credits on the next join.
 -- * City reputation ranks unlock HQ props.
+-- * WP9: the WANTED poster of your current nemesis and its beaten ranks' heads (Shared.WantedRules), drawn by
+--   HqClient on the east wall; the poster's prompt opens the WANTED panel (NemesisHud).
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -27,6 +29,7 @@ local LookCodec = require(Shared:WaitForChild("LookCodec"))
 local CreatorRules = require(Shared:WaitForChild("CreatorRules"))
 local StoryPlan = require(Shared:WaitForChild("StoryPlan"))
 local RepTiers = require(Shared:WaitForChild("RepTiers")) -- lore step 12
+local WantedRules = require(Shared:WaitForChild("WantedRules")) -- WP9: the WANTED poster and nemesis heads
 local ProfileSchema = require(Shared:WaitForChild("ProfileSchema"))
 
 local CityBuilder = require(script.Parent.CityBuilder)
@@ -150,6 +153,7 @@ local function state(visit: Visit?, player: Player)
 			classId = l.classId,
 		})
 	end
+	local nside = if v.hero.side == "villain" then "villain" else "hero" -- as NemesisService (StoryService.side)
 	local list = {}
 	for i, id in v.dummies do
 		local p = dummyPositions(v, #v.dummies)[i]
@@ -177,6 +181,19 @@ local function state(visit: Visit?, player: Player)
 		sim = if v.sim then { x = v.sim.pos.X, y = v.sim.pos.Y, z = v.sim.pos.Z, id = v.sim.id } else nil,
 		-- lore step 12: your own side's reputation tier dresses the hideout (Shared.RepTiers.dressing)
 		repTier = if c then RepTiers.tier(Config, c) else 0,
+		-- WP9 (gap G5, spec H5): your nemesis's WANTED poster and a head per nemesis rank beaten, on the east
+		-- wall by the Trophy Wall (Shared.WantedRules; read from the save as it is, the same nemesis as WANTED)
+		wanted = if c
+			then WantedRules.poster(
+				Config.Nemesis,
+				player.UserId,
+				nside,
+				v.hero.level or c.level or 1,
+				c.mmo,
+				os.time()
+			)
+			else nil,
+		heads = if c then WantedRules.heads(Config.Nemesis, player.UserId, nside, c.mmo) else {},
 	})
 end
 

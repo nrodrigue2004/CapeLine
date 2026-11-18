@@ -8272,7 +8272,9 @@ end); -- Hero MMO features (H1 to H8) live in their own file so this one merges 
 -- WP10: the group-join piece and creator codes (own file, merges easily)
 (require :: any)("./promo_test")({ test = test, check = check, Config = Config, placePath = process.args[1] }); -- WP11: story acts (Act 1 today, Acts 2 and 3 coming soon), own file
 (require :: any)("./acts_test")({ test = test, check = check, Config = Config, placePath = process.args[1] }); -- WP8: live tuning from Balance_v<N> (own file, merges easily)
-(require :: any)("./balance_test")({ test = test, check = check, Config = Config })
+(require :: any)("./balance_test")({ test = test, check = check, Config = Config });
+-- WP9: the HQ's WANTED poster and nemesis heads (own file, merges easily)
+(require :: any)("./wanted_test")({ test = test, check = check, Config = Config })
 
 test(
 	"City kit: every district dressed, deterministic, within budget, nothing in buildings or roads",

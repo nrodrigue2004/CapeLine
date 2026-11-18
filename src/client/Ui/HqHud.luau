@@ -4,7 +4,8 @@
 -- * GIZMO'S BENCH: 40 base styles for Credits (never stats), GEAR (upgrade with Lumen Dust) and UPGRADE HQ.
 -- * MANNEQUINS: save the look you wear, wear a saved one, or EDIT LOOK (the creator, class changes too).
 -- * TRAINING ROOM: the damage-per-second meter, POWERS, and the 60 s boss sim (HQ level 3) with its timer.
--- * TROPHY WALL: pick which earned trophies show. HALL OF LEGENDS: Retire at the level cap, with a confirm.
+-- * TROPHY WALL: pick which earned trophies show; WP9: the nemesis heads' count and WANTED POSTER (the WANTED
+--   panel, as the poster's prompt on the wall). HALL OF LEGENDS: Retire at the level cap, with a confirm.
 -- PLACEHOLDER look until the UI pass (M10).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -16,6 +17,7 @@ local ShopRules = require(Shared:WaitForChild("ShopRules"))
 local CreatorRules = require(Shared:WaitForChild("CreatorRules"))
 local GearMath = require(Shared:WaitForChild("GearMath"))
 local RepTiers = require(Shared:WaitForChild("RepTiers")) -- lore step 12: the side styles
+local WantedRules = require(Shared:WaitForChild("WantedRules")) -- WP9: the nemesis heads' count
 
 local Kit = require(script.Parent.Kit)
 local State = require(script.Parent.Parent.State)
@@ -26,6 +28,7 @@ local Journal = require(script.Parent.Journal)
 local CreatorScreen = require(script.Parent.CreatorScreen)
 local ShopHud = require(script.Parent.ShopHud)
 local CollectClient = require(script.Parent.Parent.Controllers.CollectClient)
+local NemesisHud = require(script.Parent.NemesisHud) -- WP9: the poster on the wall opens the WANTED panel
 
 local HqHud = {}
 
@@ -295,6 +298,17 @@ local function drawTrophies()
 			Net.send("HqTrophies", picks)
 		end, Kit.color.gold, true)
 	end
+	-- WP9: the nemesis heads beside the WANTED poster (they take no trophy slot)
+	note(
+		string.format(
+			"Nemesis heads: %d / %d on the east wall. Beat your nemesis in its Showdown for the next.",
+			WantedRules.count(s.heads or {}),
+			Config.Nemesis.maxRank
+		)
+	)
+	row("WANTED POSTER", function()
+		NemesisHud.open()
+	end, Kit.color.paper)
 end
 
 local function drawLegends()
@@ -511,7 +525,9 @@ function HqHud.init()
 	build()
 	Net.listen("DronesReady", showDrones)
 	HqClient.Station:Connect(function(name)
-		if name then
+		if name == "wanted" then
+			NemesisHud.open() -- WP9: the WANTED poster on the wall (Kit.opening closes this panel)
+		elseif name then
 			HqHud.open(name)
 		else
 			HqHud.close()

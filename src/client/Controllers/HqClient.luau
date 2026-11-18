@@ -11,6 +11,9 @@
 --   rings (HqDps), statues of retired heroes in their own looks, the trophy plaques and the city's
 --   thank-you props.
 -- * Lore step 12: the dressing your own side's reputation tier has opened (Shared.RepTiers.dressing).
+-- * WP9 (gap G5, spec H5): the WANTED poster of your current nemesis (its bust in a ViewportFrame, name, rank,
+--   Intel and a stamp) and a mounted head per nemesis rank beaten, on the east wall by the Trophy Wall
+--   (Shared.WantedRules); the poster's B prompt opens the WANTED panel (HqHud passes it to NemesisHud).
 -- HqHud draws the station panels. PLACEHOLDER ART: every room piece is a box until the art pass (M10).
 
 local Players = game:GetService("Players")
@@ -29,6 +32,7 @@ local NpcRig = require(Shared:WaitForChild("NpcRig"))
 local BodyShape = require(Shared:WaitForChild("BodyShape"))
 local HqRules = require(Shared:WaitForChild("HqRules"))
 local RepTiers = require(Shared:WaitForChild("RepTiers")) -- lore step 12: the hideout's tiered dressing
+local WantedRules = require(Shared:WaitForChild("WantedRules")) -- WP9: the WANTED poster and nemesis heads
 local State = require(script.Parent.Parent.State)
 
 local CombatClient = require(script.Parent.CombatClient)
@@ -440,6 +444,225 @@ local function dressing(f: Folder)
 	end
 end
 
+-- WP9 (gap G5, spec H5): the WANTED poster and the nemesis heads on the east wall (Shared.WantedRules,
+-- Config.Hq.wanted). PLACEHOLDER ART: a paper part with a SurfaceGui (the nemesis's bust in a ViewportFrame,
+-- built from the same pieces NemesisFx puts on its body), wooden plaques and part-built heads.
+local W = H.wanted
+local PAPER = Color3.fromRGB(236, 220, 180)
+local INK = Color3.fromRGB(40, 30, 24)
+local WANTED_RED = Color3.fromRGB(150, 30, 30)
+local WOOD = Color3.fromRGB(120, 78, 44)
+local STAMPS: { [string]: { any } } = {
+	locked = { "LEVEL " .. Config.Nemesis.minLevel, Color3.fromRGB(70, 70, 80) },
+	waiting = { "ON ITS WAY", Color3.fromRGB(70, 70, 80) },
+	showdown = { "SHOWDOWN READY", Color3.fromRGB(200, 40, 40) },
+}
+-- the same notes as the WANTED panel (NemesisHud)
+local function wantedNote(st: string): string
+	if st == "locked" then
+		return "Your nemesis finds you from level " .. Config.Nemesis.minLevel
+	elseif st == "waiting" then
+		return "A new one is on its way, one rank tougher"
+	elseif st == "showdown" then
+		return "Its weak point is known: its back. Take it down."
+	end
+	return "It hunts you in the city. Each escape leaves Intel."
+end
+
+-- the wall's frame: its face's foot, looking into the room (WantedRules.layout's frame)
+local function wallFrame(): CFrame
+	local at = centre() + Vector3.new(W.wall.x, 0, W.wall.z)
+	return CFrame.lookAt(at, at + Vector3.new(W.wall.nx, 0, W.wall.nz))
+end
+
+local PART_SHAPES: { [string]: Enum.PartType } =
+	{ Ball = Enum.PartType.Ball, Cylinder = Enum.PartType.Cylinder }
+-- one WantedRules piece as a part in `frame`
+local function lookPart(parent: Instance, p: WantedRules.Piece, frame: CFrame): Part
+	local cf = frame
+		* CFrame.new(p.x, p.y, p.z)
+		* CFrame.Angles(0, p.ry or 0, 0)
+		* CFrame.Angles(0, 0, p.rz or 0)
+	local made = part(parent, Vector3.new(p.sx, p.sy, p.sz), cf, Color3.fromRGB(p.rgb[1], p.rgb[2], p.rgb[3]))
+	local mat = (Enum.Material :: any)[p.mat]
+	if mat then
+		made.Material = mat
+	end
+	local shape = p.shape and PART_SHAPES[p.shape]
+	if shape then
+		made.Shape = shape
+	end
+	if p.mat == "Glass" then
+		made.Transparency = 0.35
+	end
+	return made
+end
+
+local function words(
+	parent: Instance,
+	t: string,
+	y: number,
+	h: number,
+	color: Color3,
+	font: Enum.Font?
+): TextLabel
+	local l = Instance.new("TextLabel")
+	l.BackgroundTransparency = 1
+	l.Position = UDim2.new(0.04, 0, 0, y)
+	l.Size = UDim2.new(0.92, 0, 0, h)
+	l.Font = font or Enum.Font.Bangers
+	l.TextScaled = true
+	l.TextWrapped = true
+	l.TextColor3 = color
+	l.Text = t
+	l.Parent = parent
+	return l
+end
+
+local function surface(p: BasePart, pixels: number): SurfaceGui
+	local g = Instance.new("SurfaceGui")
+	g.Face = Enum.NormalId.Front
+	g.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	g.PixelsPerStud = pixels
+	g.LightInfluence = 0.4
+	g.MaxDistance = 120
+	g.Parent = p
+	return g
+end
+
+local function wantedPoster(f: Folder)
+	local d = state.wanted
+	if not d or not d.look then
+		return
+	end
+	local frame = wallFrame()
+	local L = WantedRules.layout(Config)
+	local b, s = L.board, L.poster
+	part(f, Vector3.new(b.sx, b.sy, b.sz), frame * CFrame.new(b.x, b.y, b.z), WOOD, Enum.Material.Wood)
+	local paper = part(f, Vector3.new(s.sx, s.sy, s.sz), frame * CFrame.new(s.x, s.y, s.z), PAPER)
+	paper.Material = Enum.Material.Fabric
+	for _, k in { -1, 1 } do -- two red pins at the top corners
+		local pin = part(
+			f,
+			Vector3.new(0.35, 0.35, 0.35),
+			frame * CFrame.new(s.x + k * (s.sx / 2 - 0.4), s.y + s.sy / 2 - 0.4, s.z - 0.1),
+			Color3.fromRGB(200, 40, 40)
+		)
+		pin.Shape = Enum.PartType.Ball
+	end
+	local g = surface(paper, W.pixels)
+	local h = s.sy * W.pixels
+	local back = Instance.new("Frame")
+	back.Size = UDim2.fromScale(1, 1)
+	back.BackgroundColor3 = PAPER
+	back.BorderSizePixel = 0
+	back.Parent = g
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = INK
+	stroke.Thickness = 6
+	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	stroke.Parent = back
+	words(back, "WANTED", 8, h * 0.15, WANTED_RED)
+	-- its bust (a black silhouette while it is locked or on its way)
+	local vp = Instance.new("ViewportFrame")
+	vp.BackgroundColor3 = Color3.fromRGB(214, 196, 156)
+	vp.BorderSizePixel = 0
+	vp.Position = UDim2.new(0.1, 0, 0, h * 0.17)
+	vp.Size = UDim2.new(0.8, 0, 0, h * 0.44)
+	vp.Ambient = Color3.fromRGB(150, 150, 160)
+	vp.LightColor = Color3.fromRGB(255, 245, 230)
+	vp.LightDirection = Vector3.new(-0.4, -1, 0.6)
+	vp.Parent = back
+	local cam = Instance.new("Camera")
+	cam.FieldOfView = 30
+	cam.CFrame = CFrame.lookAt(Vector3.new(0, 1.9, -17), Vector3.new(0, 1.6, 0)) -- the bust faces -z
+	cam.Parent = vp
+	vp.CurrentCamera = cam
+	for _, p in WantedRules.bust(Config.Nemesis, d.look) do
+		lookPart(vp, p, CFrame.new())
+	end
+	local hidden = d.state == "locked" or d.state == "waiting"
+	if hidden then
+		vp.ImageColor3 = Color3.new(0, 0, 0)
+	end
+	local rank = d.look.rank or 1
+	words(back, if d.state == "locked" then "???" else string.upper(d.look.name), h * 0.62, h * 0.1, INK)
+	words(back, "RANK " .. rank .. "  " .. string.rep("★", rank), h * 0.725, h * 0.065, INK)
+	local intel = if hidden
+		then ""
+		else string.format("INTEL %d / %d", d.intel or 0, d.need or Config.Nemesis.intelForShowdown)
+	words(back, intel, h * 0.795, h * 0.06, INK, Enum.Font.GothamBold)
+	words(back, wantedNote(d.state), h * 0.86, h * 0.11, INK, Enum.Font.GothamBold)
+	local stamp = STAMPS[d.state]
+	if stamp then
+		local l = words(back, stamp[1], h * 0.36, h * 0.12, stamp[2])
+		l.Rotation = -14
+		l.Position = UDim2.new(0.08, 0, 0, h * 0.36)
+		l.Size = UDim2.new(0.84, 0, 0, h * 0.12)
+		l.BackgroundTransparency = 0.25
+		l.BackgroundColor3 = PAPER
+		local box = Instance.new("UIStroke")
+		box.Color = stamp[2]
+		box.Thickness = 4
+		box.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		box.Parent = l
+	end
+	-- B (E is Skill 2) reads it: the WANTED panel, with SHOWDOWN once your Intel is full
+	local prompt = Instance.new("ProximityPrompt")
+	prompt.ObjectText = W.prompt.object
+	prompt.ActionText = W.prompt.action
+	prompt.KeyboardKeyCode = Enum.KeyCode.B
+	prompt.HoldDuration = 0
+	prompt.MaxActivationDistance = H.stationRange
+	prompt.RequiresLineOfSight = false
+	prompt.Parent = paper
+	prompt.Triggered:Connect(function()
+		HqClient.Station:Fire("wanted")
+	end)
+end
+
+-- the heads: a plaque per nemesis rank (rank 1 on the left), the head of each one beaten and a plate under it
+-- with its name and stars; an empty plaque shows "?"
+local function nemesisHeads(f: Folder)
+	local frame = wallFrame()
+	local L = WantedRules.layout(Config)
+	for r, entry in state.heads or {} do
+		local m, pl = L.mounts[r], L.plates[r]
+		if not m or not pl then
+			continue
+		end
+		local look = entry.look
+		local plaque = part(
+			f,
+			Vector3.new(m.sx, m.sy, m.sz),
+			frame * CFrame.new(m.x, m.y, m.z),
+			if look then WOOD else Color3.fromRGB(70, 58, 48),
+			Enum.Material.Wood
+		)
+		local plate = part(f, Vector3.new(pl.sx, pl.sy, pl.sz), frame * CFrame.new(pl.x, pl.y, pl.z), GOLD)
+		plate.Material = if look then Enum.Material.Foil else Enum.Material.SmoothPlastic
+		if not look then
+			plate.Color = Color3.fromRGB(110, 100, 90)
+		end
+		local label = words(surface(plate, 60), "", 0, 0, INK)
+		label.Position = UDim2.fromScale(0.03, 0)
+		label.Size = UDim2.fromScale(0.94, 1)
+		label.Text = if look
+			then string.upper(look.name) .. "  " .. string.rep("★", r)
+			else "RANK " .. r .. "  ?"
+		if look then
+			local hx, hy, hz = WantedRules.headAt(m)
+			for _, p in WantedRules.head(Config.Nemesis, look, hx, hy, hz) do
+				lookPart(f, p, frame)
+			end
+		else
+			local mark = words(surface(plaque, 40), "?", 0, 0, Color3.fromRGB(150, 130, 110))
+			mark.Position = UDim2.fromScale(0, 0)
+			mark.Size = UDim2.fromScale(1, 1)
+		end
+	end
+end
+
 local function draw()
 	clear()
 	if not state.on then
@@ -477,6 +700,8 @@ local function draw()
 		statue(f, entry, at)
 	end
 	trophyWall(f, colors)
+	wantedPoster(f) -- WP9
+	nemesisHeads(f)
 	props(f)
 	dressing(f)
 end
