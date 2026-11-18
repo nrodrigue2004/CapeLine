@@ -145,6 +145,17 @@ What nate does:
 
 ## Studio test list (needs nate's PC)
 
+### Audit: analytics and funnels (2026-11-18)
+The funnels now log each step once and in order, the budget is a sliding minute and devices are paced (tests: ONLY="Audit analytics"). Studio prints [Funnel] and [Analytics] lines in the Output.
+1. Fresh profile (Dev panel > Wipe profile), play the prologue to the end: the Output shows [Funnel] Opening steps 1 to 7 once each, in order, and no step 9 (level_3) yet even though the prologue paid level 3. Clear your first incident: steps 8 (first_incident) and 9 (level_3) print together, in that order.
+2. Cast a few skills: one [Funnel] Combat step 1 skill_cast, never again however many casts. Rank a skill: Combat step 2. Rejoin and cast: nothing more for Combat steps 1 and 2.
+3. Turn PvP on: [Funnel] PvP step 1 flag_on. Land a PvP hit on a second flagged test player: step 2 first_pvp_hit once (more hits print nothing). Beat them: step 3 pvp_fight and step 4 pvp_win; the loser's Output shows its own step 3 only if it hit first. Turn PvP off and on again: a new step 1.
+4. Open the shop: Purchase step 1 shop_open; tap items: step 2 once. Close and reopen within 5 s: no new step 1 (paced); after 5 s a new one.
+5. Rejoin on the same profile (Studio keeps the save in memory, or a published test place): no Opening, Combat, Story or MMO step prints again, and session_start says "returning". (A save that fails to load cannot be forced in Studio, where no API access means memory saves; the Lune tests cover it: only session_device "nosave" and device facts are logged.)
+6. Dev panel analytics line ("N sent, M over budget") with 2 players: stays at 0 over budget in normal play.
+7. Live dashboard (a day after testers, published): Funnels shows Onboarding, Combat, PvP (flag_on, first_pvp_hit, pvp_fight, pvp_win), Story, Purchase, MMO, Progress and Returns; no step's count is higher than the step before it in Onboarding, Combat, Story and PvP.
+8. Live dashboard: confirm Roblox's current limits against what we assume (Config.Analytics budget 120 + 20 a player a minute for all custom events and funnel steps together; 100 custom event names; 10 funnels besides onboarding; 3 custom fields; the distinct custom field values allowed per event, which we keep small). If the dashboard shows a field as "Other" or throttled, tell Claude the event's name.
+
 ### WP10: group-join piece and creator codes (2026-11-18)
 Settings > REWARDS (tests: ONLY="WP10"; the UI sim draws the rows at phone, tablet and PC sizes). Both ship off; Studio has its own test codes. Turn on API services for saves (Launch Checklist).
 1. Fresh Studio play, open Settings (gear button): scroll to the bottom. With Config.Promo.group.id 0 there is no group row; in Studio a REWARDS block shows the code box (STUDIOTEST is live in Studio only).

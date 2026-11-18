@@ -242,7 +242,21 @@ function ProfileSchema.default(): { [string]: any }
 		-- M12 analytics: the furthest Opening funnel step logged (the onboarding funnel counts once per
 		-- account), the first join (os.time) and whether the day-1 return was logged; WP4: mmo, the Hero MMO
 		-- firsts already logged (bits, AnalyticsSchema.FUNNELS.MMO), and fav, the favorite prompt was shown
-		analytics = { onboard = 0, firstSeen = 0, d1 = 0, mmo = 0, fav = 0 },
+		-- Audit 2026-11-18: onboardReach, the Opening steps reached (bits; a step reached early waits there
+		-- until the steps before it are logged), and the Combat and Story lifetime funnels the same way
+		-- (combat / story: steps logged in order, *Reach: reached bits; Shared.AnalyticsSchema gates)
+		analytics = {
+			onboard = 0,
+			onboardReach = 0,
+			firstSeen = 0,
+			d1 = 0,
+			mmo = 0,
+			fav = 0,
+			combat = 0,
+			combatReach = 0,
+			story = 0,
+			storyReach = 0,
+		},
 		-- the studio-wide FunnelKit's numbers (FunnelKit.blank(): sessions, furthest stage, times, play time);
 		-- server only, never in the client view
 		funnel = { sessions = 0, stage = 0, firstAt = 0, lastAt = 0, sessionAt = 0, hopAt = 0, played = 0 },
@@ -860,13 +874,23 @@ local function repair(p: any): any
 	-- the seen scenes: exactly SEEN_WORDS 32-bit words (a short or broken list pads with 0, bits in place)
 	p.seen = cleanNumbers(p.seen, ProfileSchema.SEEN_WORDS, 0, 2 ^ 32 - 1, true)
 	local an = if type(p.analytics) == "table" then p.analytics else {}
+	-- a funnel gate (Audit 2026-11-18, additive with no version bump): steps logged in order, and the reached
+	-- bits, which always hold the steps logged (an older save had only the steps logged)
+	local function gate(sentKey: string, reachKey: string, out: { [string]: number })
+		local sent = num(an[sentKey], 0, 31, 0)
+		local reach = num(an[reachKey], 0, 2 ^ 31 - 1, 0)
+		out[sentKey] = sent
+		out[reachKey] = bit32.bor(reach, bit32.lshift(1, sent) - 1)
+	end
 	p.analytics = {
-		onboard = num(an.onboard, 0, 32, 0),
 		firstSeen = num(an.firstSeen, 0, 2 ^ 40, 0),
 		d1 = num(an.d1, 0, 1, 0),
 		mmo = num(an.mmo, 0, 2 ^ 16 - 1, 0), -- WP4 (no new save version: repair fills both)
 		fav = num(an.fav, 0, 1, 0),
 	}
+	gate("onboard", "onboardReach", p.analytics)
+	gate("combat", "combatReach", p.analytics)
+	gate("story", "storyReach", p.analytics)
 	local fu = if type(p.funnel) == "table" then p.funnel else {}
 	p.funnel = {
 		sessions = num(fu.sessions, 0, 2 ^ 31, 0),

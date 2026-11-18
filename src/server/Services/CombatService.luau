@@ -1359,9 +1359,13 @@ function CombatService.use(
 	hero.channel = nil -- any new use ends a channel
 	hero.lastCast = now
 	FlagService.attacked(hero) -- attacking ends spawn protection
-	if hero.player and math.random() < Config.Analytics.castSample then
-		Analytics.event(hero.player, "skill_cast", 1, { row.id, slot })
+	if hero.player then
+		-- the Combat funnel's first step once per account (a ladder; a sent step returns at once), the event
+		-- sampled (Config.Analytics.castSample)
 		Analytics.step(hero.player, "Combat", "skill_cast")
+		if math.random() < Config.Analytics.castSample then
+			Analytics.event(hero.player, "skill_cast", 1, { row.id, slot })
+		end
 	end
 	local origin = root + CHEST
 	if eff.cast and eff.cast > 0 then
