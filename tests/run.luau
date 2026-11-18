@@ -13076,6 +13076,262 @@ do
 end
 
 ---------------------------------------------------------------------------
+-- 2026-11-18 side quest server fixes (SideQuestService): a finale kill in the Killed gap, escorts that could
+-- not finish, pockets that pulled a hero straight back, a side left waiting, photo steps, full servers and
+-- switched-off robot types, slot switches. The service's own wiring is on the Studio list.
+---------------------------------------------------------------------------
+
+do
+	local SideQuestPlan = require("../src/shared/SideQuestPlan")
+	local SideQuestSites = require("../src/shared/SideQuestSites")
+	local IncidentSpots = require("../src/shared/IncidentSpots")
+	local SQ = Config.SideQuests
+
+	test(
+		"SQ fixes: a beaten boss is dying until the event drain, so the finale waits for its Killed",
+		function()
+			local sim = EnemySim.new(Config, {})
+			local e = EnemySim.spawn(sim, "NullSentinel", 0, 0, 0, 10) :: any
+			check(e ~= nil and not EnemySim.dying(sim, e.id), "a live boss is not dying")
+			local killed = EnemySim.damage(sim, e.id, math.huge, 1)
+			check(killed, "the boss falls")
+			check(sim.byId[e.id] == nil, "EnemySim drops it at once (the gap the fix covers)")
+			-- the finale's rule: respawn only when not alive and not dying
+			local alive = sim.byId[e.id] ~= nil and sim.byId[e.id].alive
+			check(not alive and EnemySim.dying(sim, e.id), "gone but dying: the finale waits")
+			local sawDie = false
+			for _, ev in EnemySim.drainEvents(sim) do
+				if ev.k == "die" and ev.e == e.id then
+					sawDie = true
+				end
+			end
+			check(sawDie and not EnemySim.dying(sim, e.id), "after the drain (Killed fired) it is not dying")
+			-- a robot taken away without a defeat is never dying: that one comes back
+			local f = EnemySim.spawn(sim, "NullSentinel", 0, 0, 0, 10) :: any
+			EnemySim.remove(sim, f.id)
+			check(not EnemySim.dying(sim, f.id), "a removed robot is not dying")
+		end
+	)
+
+	-- where SideQuestService builds a step (newGroup): the step's site, else its chain giver's spot
+	local function stepHome(wd: any, chain: any, step: any, rng: any): (number?, number?)
+		if step.at then
+			local spot, door = SideQuestSites.place(Config, wd, step.at)
+			if spot and door then
+				if SQ.sites[step.at].square then
+					return spot.x, spot.z
+				end
+				return door.x, door.z
+			end
+		end
+		local gv = SQ.givers[chain.giver]
+		if not gv then
+			return nil, nil
+		end
+		local x, z
+		if gv.anchor == "site" then
+			local _, door = SideQuestSites.place(Config, wd, gv.site)
+			if door then
+				x, z = door.x, door.z
+			else
+				x, z = OpeningPlan.plaza(wd)
+			end
+		elseif gv.anchor == "plaza" then
+			x, z = OpeningPlan.plaza(wd)
+		elseif gv.anchor == "hq" then
+			local s = wd.safehouses[Config.World.safehouse.homeSafehouse]
+			x, z = s.x, s.z + 30
+		else
+			local d = Config.City.districts[gv.anchor]
+			x, z = (d.minX + d.maxX) / 2, (d.minZ + d.maxZ) / 2
+		end
+		x, z = x + (gv.dx or 0), z + (gv.dz or 0)
+		local px, _, pz =
+			IncidentSpots.groundNear(Config, wd, x, z, if gv.anchor == "site" then 6 else 40, rng)
+		return px, pz
+	end
+
+	test("SQ fixes: every escort (origin lines too) gets a drive as long as its goal, on any seed", function()
+		local escorts = {}
+		for _, chain in SQ.chains do
+			for i, step in chain.steps do
+				for _, side in SQ.sides do
+					local st = SideQuestPlan.goal(step, side)
+					if st and st.kind == "escort" and not table.find(escorts, st) then
+						table.insert(
+							escorts,
+							{ chain = chain, step = step, st = st, name = chain.id .. " " .. i }
+						)
+					end
+				end
+			end
+		end
+		check(#escorts >= 5, "the chains have escorts (" .. #escorts .. ")")
+		local runs, full, oldJams = 0, 0, 0
+		for _, seed in { 202647, 202649, 202655 } do
+			local wd = if seed == 202647 then world else WorldMap.build(Config, seed)
+			for _, ex in escorts do
+				local st = ex.st
+				for r = 1, 40 do
+					local rng = Rng.new(Rng.hash(seed, r))
+					local x, z = stepHome(wd, ex.chain, ex.step, rng)
+					if x and z then
+						local road = if st.road
+							then SideQuestSites.roadPath(Config, wd, x, z, st.goal * 1.15, 7)
+							else nil
+						-- the old way: the road, else one street path; need at least 30 studs
+						local old = road
+							or IncidentSpots.streetPath(
+								Config,
+								wd,
+								x,
+								z,
+								8,
+								st.goal / 7,
+								Rng.new(Rng.hash(seed, r, 2))
+							)
+						if IncidentSpots.pathLength(old) < math.min(st.goal, 30) then
+							oldJams += 1
+						end
+						local path, len =
+							IncidentSpots.drivePath(Config, wd, x, z, 8, st.goal / 7, st.goal, rng, road)
+						local need = math.max(1, math.min(st.goal, math.floor(len)))
+						runs += 1
+						check(
+							#path >= 2 and len >= need,
+							ex.name .. " seed " .. seed .. " #" .. r .. ": the truck can finish"
+						)
+						near(len, IncidentSpots.pathLength(path), 0.01, "the length returned is the path's")
+						if len >= st.goal then
+							full += 1
+						end
+						if road then
+							check(
+								path[1][1] == road[1][1] and path[1][3] == road[1][3],
+								"a farm road escort keeps its road"
+							)
+						end
+					end
+				end
+			end
+		end
+		check(runs > 0 and full == runs, string.format("every drive is the full goal (%d of %d)", full, runs))
+		print(string.format("  (escorts: %d drives; the old way jammed %d)", runs, oldJams))
+	end)
+
+	test("SQ fixes: a lone point still gets a drive; a short path goes there and back", function()
+		local y = Config.City.ground.y + 0.5
+		local two = { { 0, y, 0 }, { 20, y, 0 } }
+		local p, len = IncidentSpots.drivePath(Config, world, 0, 0, 8, 20, 100, Rng.new(3), two)
+		check(len >= 100 and #p > 2, "a 20-stud road is driven back and forth to 100")
+		for i = 2, #p do
+			local d = math.abs(p[i][1] - p[i - 1][1])
+			near(d, 20, 0.001, "each leg is a leg of the road")
+		end
+	end)
+
+	test("SQ fixes: robot types nate switches off give way to one that is on", function()
+		local enemies = setmetatable({}, { __index = Config.Enemies })
+		for _, k in { "BurglarBot", "SneakBot", "Diver", "SparkDrone" } do
+			local cfg = table.clone(Config.Enemies[k])
+			cfg.on = false
+			enemies[k] = cfg
+		end
+		local C = setmetatable({ Enemies = enemies }, { __index = Config })
+		check(SideQuestPlan.robotFor(Config, "BurglarBot") == "BurglarBot", "a type that is on is itself")
+		for _, k in { "BurglarBot", "SneakBot", "Diver", "SparkDrone" } do
+			local got = SideQuestPlan.robotFor(C, k)
+			local cfg = C.Enemies[got]
+			check(got ~= k and cfg.on ~= false and not cfg.fake and not cfg.twin, k .. " -> " .. got)
+			check((cfg.sea == true) == (Config.Enemies[k].sea == true), k .. ": the same medium")
+		end
+		check(
+			(C.Enemies[SideQuestPlan.robotFor(C, "SparkDrone")].ai or "flyer")
+				== (Config.Enemies.SparkDrone.ai or "flyer"),
+			"the same AI first (a flyer for a flyer)"
+		)
+		-- every robot a chain step spawns resolves to a type that is on
+		for _, chain in SQ.chains do
+			for i, step in chain.steps do
+				for _, side in SQ.sides do
+					local st = SideQuestPlan.goal(step, side)
+					local kinds = {}
+					if st then
+						for _, row in st.squads or {} do
+							table.insert(kinds, row[1])
+						end
+						for _, row in st.adds or {} do
+							table.insert(kinds, row[1])
+						end
+						if type(st.enemy) == "string" then
+							table.insert(kinds, st.enemy)
+						end
+						if st.kind == "photo" then
+							table.insert(kinds, "SneakBot")
+						end
+					end
+					for _, k in kinds do
+						local got = SideQuestPlan.robotFor(Config, k)
+						check(
+							EnemySim.enabled(Config, got),
+							chain.id .. " step " .. i .. ": " .. k .. " spawns"
+						)
+					end
+				end
+			end
+		end
+	end)
+
+	test("SQ fixes: fights never need more kills than robots; photos keep a spare", function()
+		check(SideQuestPlan.shortfall(6, 0, 0) == 6, "a squad the full server could not build is owed")
+		check(SideQuestPlan.shortfall(6, 2, 4) == 0, "nothing owed while the rest stand")
+		check(SideQuestPlan.shortfall(6, 2, 3) == 1, "one gone without a defeat comes back")
+		check(SideQuestPlan.shortfall(1, 1, 0) == 0, "a finished fight owes nothing")
+		-- a 2-photo step: 3 Sneak Bots; beat two before any photo and two more slip in
+		check(SideQuestPlan.photoSpawns(2, 0, 0) == 3, "count + 1 at the start")
+		check(SideQuestPlan.photoSpawns(2, 0, 1) == 2, "two beaten: two more")
+		check(SideQuestPlan.photoSpawns(2, 1, 2) == 0, "one photo, two standing: enough")
+		check(SideQuestPlan.photoSpawns(2, 1, 0) == 2, "one photo, none standing: a target and a spare")
+	end)
+
+	test("SQ fixes: a pocket's ring starts a run only on a fresh step in", function()
+		local inside = {}
+		local first = SideQuestPlan.ringEntries(inside, { a = true, b = false })
+		check(#first == 1 and first[1] == "a", "stepping in starts it")
+		check(#SideQuestPlan.ringEntries(inside, { a = true }) == 0, "standing in it does not start again")
+		check(#SideQuestPlan.ringEntries(inside, {}) == 0 and inside.a, "away in the pocket keeps the mark")
+		check(
+			#SideQuestPlan.ringEntries(inside, { a = true }) == 0,
+			"put back in the ring after a run: no pull"
+		)
+		check(#SideQuestPlan.ringEntries(inside, { a = false }) == 0, "stepping out")
+		local again = SideQuestPlan.ringEntries(inside, { a = true, b = true })
+		check(#again == 2, "then stepping in again starts it (and b's first step in)")
+	end)
+
+	test("SQ fixes: a side left waiting finishes when the other side leaves", function()
+		local split = {
+			hero = { kind = "talk", text = "x" },
+			villain = { kind = "fight", squads = { { "BruteBot", 2 } }, text = "y" },
+		}
+		local g = SideQuestPlan.newGroup("Sample", 2)
+		SideQuestPlan.join(g, split, "a", "hero")
+		SideQuestPlan.join(g, split, "b", "villain")
+		SideQuestPlan.set(g, "hero", 1)
+		check(SideQuestPlan.waiting(g, "hero"), "the Vigil wait on the Syndicate")
+		local dropped, empty, done = SideQuestPlan.leave(g, "b")
+		check(dropped == "villain" and not empty and done, "the Syndicate leave: the step is done")
+		local h = SideQuestPlan.newGroup("Sample", 2)
+		SideQuestPlan.join(h, split, "a", "hero")
+		SideQuestPlan.join(h, split, "b", "villain")
+		local _, _, notYet = SideQuestPlan.leave(h, "b")
+		check(not notYet, "a side still working is not done")
+		local _, gone, none = SideQuestPlan.leave(h, "a")
+		check(gone and not none, "an empty group completes nobody")
+	end)
+end
+
+---------------------------------------------------------------------------
 -- Lore step 9: the Crater as a blasted Crane lab, and your double as a rare world event (nate's lore, 2026-11-17)
 ---------------------------------------------------------------------------
 

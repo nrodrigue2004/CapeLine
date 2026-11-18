@@ -228,6 +228,12 @@ function EnemyService.alive(id: number): boolean
 	return e ~= nil and e.alive
 end
 
+-- Killed but its Killed signal not fired yet (it goes at the next 10 Hz event drain): a goal waits for it
+-- instead of calling the robot gone
+function EnemyService.dying(id: number): boolean
+	return EnemySim.dying(sim, id)
+end
+
 -- Returns killed, the enemy, damage dealt, and the hit flag (EnemySim.HIT, BLOCKED, BROKE)
 function EnemyService.damage(
 	id: number,

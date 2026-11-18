@@ -329,6 +329,84 @@ function IncidentSpots.streetPath(
 	return path
 end
 
+-- How far a path of { x, y, z } points runs
+function IncidentSpots.pathLength(path: { { number } }): number
+	local n = 0
+	for i = 2, #path do
+		local a, b = path[i - 1], path[i]
+		n += math.sqrt((b[1] - a[1]) ^ 2 + (b[2] - a[2]) ^ 2 + (b[3] - a[3]) ^ 2)
+	end
+	return n
+end
+
+-- A drive at least `want` studs long (a side quest escort's truck; 2026-11-18 fix: a street path can stop
+-- after 1 or 2 points, and a truck with nowhere to go jammed its step). `first` (a farm road) is kept when it
+-- has a leg; else the longest street path from (x, z) or a street spot near it. A path still short is driven
+-- back along itself until long enough, and a lone point gets a leg to the nearest open street spot.
+-- Returns the path and its length (more than 0 whenever any street is near).
+function IncidentSpots.drivePath(
+	Config: any,
+	world: any,
+	x: number,
+	z: number,
+	steps: number,
+	len: number,
+	want: number,
+	rng: any,
+	first: { { number } }?
+): ({ { number } }, number)
+	local best, bestLen = { { x, Config.City.ground.y + 0.5, z } }, 0
+	local function try(p: { { number } }?)
+		local l = if p then IncidentSpots.pathLength(p) else -1
+		if p and l > bestLen then
+			best, bestLen = p, l
+		end
+	end
+	if first and #first >= 2 then
+		try(first)
+	else
+		try(IncidentSpots.streetPath(Config, world, x, z, steps, len, rng))
+		for _ = 1, 6 do
+			if bestLen >= want then
+				break
+			end
+			local s = street(Config, world, x, z, 0, 80, rng)
+			if s then
+				try(IncidentSpots.streetPath(Config, world, s.x, s.z, steps, len, rng))
+			end
+		end
+	end
+	if #best < 2 then
+		-- a lone point: a leg to the nearest open street spot found round it
+		for _, r in { { 10, len }, { len, len * 3 } } do
+			local s = street(Config, world, best[1][1], best[1][3], r[1], r[2], rng)
+			if s then
+				best = { best[1], { s.x, best[1][2], s.z } }
+				bestLen = IncidentSpots.pathLength(best)
+				break
+			end
+		end
+	end
+	if #best >= 2 and bestLen > 0 and bestLen < want then
+		-- there and back along itself until long enough
+		local out = table.clone(best)
+		local back = #best - 1
+		local dir = -1
+		local total = bestLen
+		while total < want do
+			local a, b = out[#out], best[back]
+			total += math.sqrt((b[1] - a[1]) ^ 2 + (b[2] - a[2]) ^ 2 + (b[3] - a[3]) ^ 2)
+			table.insert(out, b)
+			if back == 1 or back == #best then
+				dir = -dir
+			end
+			back += dir
+		end
+		best, bestLen = out, total
+	end
+	return best, bestLen
+end
+
 -- Which spot kinds exist within radius of (x, z) (quick checks, no rng)
 function IncidentSpots.kinds(
 	Config: any,

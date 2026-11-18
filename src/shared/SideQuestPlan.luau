@@ -522,8 +522,9 @@ function SideQuestPlan.join(g: Group, step: any, id: any, side: string): (string
 end
 
 -- A member leaves; a side left with nobody drops its goal (nobody waits on it). Returns the dropped key (tear
--- its goal down) and whether the group is empty.
-function SideQuestPlan.leave(g: Group, id: any): (string?, boolean)
+-- its goal down), whether the group is empty, and whether the sides still there have all finished (2026-11-18
+-- fix: a side waiting on the one that left is done now; complete the step).
+function SideQuestPlan.leave(g: Group, id: any): (string?, boolean, boolean)
 	local key = g.members[id]
 	g.members[id] = nil
 	local dropped = nil
@@ -540,7 +541,8 @@ function SideQuestPlan.leave(g: Group, id: any): (string?, boolean)
 			dropped = key
 		end
 	end
-	return dropped, next(g.members) == nil
+	local empty = next(g.members) == nil
+	return dropped, empty, not empty and SideQuestPlan.groupDone(g)
 end
 
 -- A side's progress (absolute); returns true the moment that side's goal is met
@@ -578,6 +580,68 @@ end
 function SideQuestPlan.waiting(g: Group, key: string): boolean
 	local s = g.sides[key]
 	return s ~= nil and s.done and not SideQuestPlan.groupDone(g)
+end
+
+---------------------------------------------------------------------------
+-- A live goal's robots and rings (2026-11-18 fixes; SideQuestService runs them)
+---------------------------------------------------------------------------
+
+local function robotOn(Config: any, kind: string): boolean
+	local cfg = Config.Enemies[kind]
+	return type(cfg) == "table" and cfg.on ~= false
+end
+
+-- The robot type a goal spawns for `kind`: itself while its switch is on (Config.Enemies `on`), else the first
+-- type in Config.Enemies.order that is on and no fake or twin, the same AI and medium first (a step never
+-- waits on a type nate cut)
+function SideQuestPlan.robotFor(Config: any, kind: string): string
+	if robotOn(Config, kind) then
+		return kind
+	end
+	local want = Config.Enemies[kind]
+	local wantAi = if type(want) == "table" then want.ai or "flyer" else nil
+	local wantSea = type(want) == "table" and want.sea == true
+	for pass = 1, 3 do
+		for _, k in Config.Enemies.order do
+			local cfg = Config.Enemies[k]
+			if robotOn(Config, k) and not cfg.fake and not cfg.twin then
+				local sameSea = (cfg.sea == true) == wantSea
+				if
+					(pass == 1 and sameSea and (cfg.ai or "flyer") == wantAi)
+					or (pass == 2 and sameSea)
+					or pass == 3
+				then
+					return k
+				end
+			end
+		end
+	end
+	return kind
+end
+
+-- Robots a goal still has to put out: `need` beaten in all, `have` beaten so far, `standing` out now (alive or
+-- killed with the Killed signal still to come). A fight never needs more kills than it has robots.
+function SideQuestPlan.shortfall(need: number, have: number, standing: number): number
+	return math.max(0, math.ceil(need - have) - standing)
+end
+
+-- A photo step keeps one spare Sneak Bot over the shots it still needs (a beaten one is replaced)
+function SideQuestPlan.photoSpawns(count: number, have: number, standing: number): number
+	return SideQuestPlan.shortfall(count + 1, have, standing)
+end
+
+-- A ring that starts something (a pocket run's way in) fires only on a fresh step in: `inside` maps each hero
+-- to whether it stood in the ring on the last check (a hero away in a scene keeps its mark, so one put back in
+-- the ring after a run is not sent straight back). Updates `inside` and returns the heroes who just stepped in.
+function SideQuestPlan.ringEntries(inside: { [any]: boolean }, near: { [any]: boolean? }): { any }
+	local fresh = {}
+	for who, isNear in near do
+		if isNear and not inside[who] then
+			table.insert(fresh, who)
+		end
+		inside[who] = isNear == true
+	end
+	return fresh
 end
 
 ---------------------------------------------------------------------------

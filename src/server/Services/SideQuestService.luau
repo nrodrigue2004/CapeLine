@@ -91,12 +91,14 @@ type Goal = {
 	deadline: number?,
 	rings: { Vector3 }?,
 	truck: { model: Model, path: { { number } }, at: number, length: number }?,
-	chase: { id: number, path: { { number } }, leg: number, at: number, speed: number }?,
+	-- (id nil: no runner yet, the server was full; it tries again each tick)
+	chase: { id: number?, path: { { number } }, up: number, leg: number, at: number, speed: number }?,
 	photos: { [number]: number }?,
 	boss: number?,
 	bossAt: Vector3?,
 	phase: number?, -- the finale's villain: 1, then 2 for an encore (lore step 11, chain 2)
 	pocketAt: number?, -- os.clock() of the last pocket try (a short wait between tries)
+	inside: { [Player]: boolean }?, -- who stood in the pocket's ring last tick (a run starts on a fresh step in)
 	deep: boolean?, -- built under the sea (lore step 11, the Underwater chain)
 	done: boolean,
 }
@@ -398,7 +400,9 @@ end
 local function squad(goal: Goal, level: number, list: { any }, at: Vector3): number
 	local n = 0
 	for _, row in list do
-		for _, id in SiteKit.squad({ { kind = row[1], n = row[2] } }, at, level, TAG, 16) do
+		-- (a type whose switch is off gives way to one that is on: SideQuestPlan.robotFor)
+		local kind = SideQuestPlan.robotFor(Config, row[1])
+		for _, id in SiteKit.squad({ { kind = kind, n = row[2] } }, at, level, TAG, 16) do
 			goal.enemies[id] = true
 			n += 1
 		end
@@ -415,6 +419,58 @@ local function setNeed(g: Group, goal: Goal, need: number)
 end
 
 local setHave: (g: Group, goal: Goal, have: number) -> ()
+
+-- Robots of a goal still out: alive, or beaten with the Killed signal still to come (EnemyService.dying); ids
+-- gone any other way are forgotten
+local function standing(goal: Goal): number
+	local n = 0
+	for id in goal.enemies do
+		if EnemyService.alive(id) or EnemyService.dying(id) then
+			n += 1
+		else
+			goal.enemies[id] = nil
+		end
+	end
+	return n
+end
+
+-- A chase's runner on its path's first point (none while the server is at its robot cap: the next tick tries)
+local function runner(g: Group, goal: Goal)
+	local c = goal.chase
+	if not c or c.id then
+		return
+	end
+	local id = EnemyService.spawnAt(
+		SideQuestPlan.robotFor(Config, goal.st.enemy),
+		v3(c.path[1], c.up),
+		g.level,
+		TAG,
+		true
+	)
+	if id then
+		goal.enemies[id] = true
+		c.id = id
+	end
+end
+
+-- n more Sneak Bots round a photo step's spot
+local function photoBots(g: Group, goal: Goal, n: number)
+	local at = goal.target :: Vector3
+	local photos = goal.photos :: { [number]: number }
+	for _ = 1, n do
+		local a = rng:range(0, math.pi * 2)
+		local id = EnemyService.spawnAt(
+			SideQuestPlan.robotFor(Config, "SneakBot"),
+			at + Vector3.new(math.cos(a) * 25, 0, math.sin(a) * 25),
+			g.level,
+			TAG
+		)
+		if id then
+			goal.enemies[id] = true
+			photos[id] = 0
+		end
+	end
+end
 
 local function build(g: Group, key: string, st: any): Goal
 	local home = g.home
@@ -449,7 +505,9 @@ local function build(g: Group, key: string, st: any): Goal
 		goal.target = if giver then giver.pos else home
 	elseif k == "fight" then
 		local at = if st.home then home + Vector3.new(0, 0, 20) else spotFor(g, home, st.range or { 60, 150 })
-		setNeed(g, goal, squad(goal, g.level, st.squads, at))
+		-- (none built, the server full: the step keeps its planned count and tickGoal tops the squad up)
+		local n = squad(goal, g.level, st.squads, at)
+		setNeed(g, goal, if n > 0 then n else SideQuestPlan.need(st))
 		goal.target = at
 	elseif k == "incident" then
 		if st.template then
@@ -486,18 +544,26 @@ local function build(g: Group, key: string, st: any): Goal
 		table.insert(goal.things, SiteKit.ring(at, st.radius))
 	elseif k == "escort" then
 		-- lore step 11, chain 4: `road` drives the truck down a real farm road toward town
-		local path = (
-			st.road and SideQuestSites.roadPath(Config, CityBuilder.world, home.X, home.Z, st.goal * 1.15, 7)
-		) or IncidentSpots.streetPath(Config, CityBuilder.world, home.X, home.Z, 8, st.goal / 7, rng)
+		-- (2026-11-18: IncidentSpots.drivePath retries and grows a short path, so the truck always has its drive)
+		local road = if st.road
+			then SideQuestSites.roadPath(Config, CityBuilder.world, home.X, home.Z, st.goal * 1.15, 7)
+			else nil
+		local path, length = IncidentSpots.drivePath(
+			Config,
+			CityBuilder.world,
+			home.X,
+			home.Z,
+			8,
+			st.goal / 7,
+			st.goal,
+			rng,
+			road
+		)
 		local truck = SiteKit.prop("Motorcade", function(m)
 			SiteKit.part(m, Vector3.new(7, 4, 14), CFrame.new(0, 2.5, 0), Color3.fromRGB(30, 30, 40))
 			SiteKit.part(m, Vector3.new(6.6, 2.4, 6), CFrame.new(0, 5.6, -2), Color3.fromRGB(90, 70, 160))
 		end)
-		local length = 0
-		for i = 2, #path do
-			length += (v3(path[i]) - v3(path[i - 1])).Magnitude
-		end
-		setNeed(g, goal, math.min(st.goal, math.max(30, math.floor(length))))
+		setNeed(g, goal, math.min(st.goal, math.floor(length))) -- never more than the truck can drive
 		goal.truck = { model = truck, path = path, at = 0, length = length }
 		SiteKit.place(truck, v3(path[1]))
 		table.insert(goal.things, truck)
@@ -609,20 +675,14 @@ local function build(g: Group, key: string, st: any): Goal
 		for _, b in courseRoofs(st.course) :: { any } do
 			table.insert(path, { b.x, b.top + 1, b.z })
 		end
-		local id = EnemyService.spawnAt(st.enemy, v3(path[1], 2), g.level, TAG, true)
-		if id then
-			goal.enemies[id] = true
-			goal.chase = { id = id, path = path, leg = 1, at = 0, speed = st.speed }
-		end
+		goal.chase = { id = nil, path = path, up = 2, leg = 1, at = 0, speed = st.speed }
+		runner(g, goal)
 	elseif k == "chase" and g.deep then
 		-- lore step 11, the Underwater chain: the runner swims a loop of legs through the open water
 		local path = SideQuestSites.deepPath(Config, home.X, home.Z, st.hops, 45, SQ.deep.lift, rnd)
 			or { { home.X, home.Y + 6, home.Z }, { home.X + 30, home.Y + 6, home.Z } }
-		local id = EnemyService.spawnAt(st.enemy, v3(path[1]), g.level, TAG, true)
-		if id then
-			goal.enemies[id] = true
-			goal.chase = { id = id, path = path, leg = 1, at = 0, speed = st.speed }
-		end
+		goal.chase = { id = nil, path = path, up = 0, leg = 1, at = 0, speed = st.speed }
+		runner(g, goal)
 	elseif k == "chase" then
 		local spot = IncidentSpots.find(
 			Config,
@@ -637,11 +697,8 @@ local function build(g: Group, key: string, st: any): Goal
 		)
 		local path = spot and spot.points
 			or IncidentSpots.streetPath(Config, CityBuilder.world, home.X, home.Z, st.hops, 45, rng)
-		local id = EnemyService.spawnAt(st.enemy, v3(path[1], 2), g.level, TAG, true)
-		if id then
-			goal.enemies[id] = true
-			goal.chase = { id = id, path = path, leg = 1, at = 0, speed = st.speed }
-		end
+		goal.chase = { id = nil, path = path, up = 2, leg = 1, at = 0, speed = st.speed }
+		runner(g, goal)
 	elseif k == "beacon" then
 		local best, bestD = nil, math.huge
 		for _, b in CityBuilder.world.beacons do
@@ -657,21 +714,8 @@ local function build(g: Group, key: string, st: any): Goal
 	elseif k == "photo" then
 		local at = spotFor(g, home, st.range)
 		goal.photos = {}
-		for _ = 1, st.count + 1 do
-			local a = rng:range(0, math.pi * 2)
-			local id = EnemyService.spawnAt(
-				"SneakBot",
-				at + Vector3.new(math.cos(a) * 25, 0, math.sin(a) * 25),
-				g.level,
-				TAG
-			)
-			if id then
-				goal.enemies[id] = true
-				local photos = goal.photos :: { [number]: number }
-				photos[id] = 0
-			end
-		end
 		goal.target = at
+		photoBots(g, goal, SideQuestPlan.photoSpawns(st.count, 0, 0)) -- one spare; tickGoal replaces the beaten
 	elseif k == "pocket" then
 		-- the way in: a ring by the giver; standing in it takes the group's side into a mission pocket
 		local at = home + Vector3.new(8, 0, 8)
@@ -704,7 +748,8 @@ end
 -- (lore step 11, chain 2) the second villain once the first is beaten
 local function spawnBoss(g: Group, goal: Goal)
 	local foe = SideQuestPlan.finaleFoe(goal.st, goal.phase or 1)
-	local id = EnemyService.spawnAt(foe.enemy, goal.bossAt or g.home, g.level, TAG)
+	local id =
+		EnemyService.spawnAt(SideQuestPlan.robotFor(Config, foe.enemy), goal.bossAt or g.home, g.level, TAG)
 	if id then
 		-- lore step 11, the Underwater chain: a dress's damage lift (Config.SideQuests.dress `dmgMult`)
 		local dr = foe.dress and SQ.dress and SQ.dress[foe.dress]
@@ -765,6 +810,8 @@ local function clearGroup(g: Group)
 	groups[g] = nil
 end
 
+local complete: (g: Group) -> ()
+
 local function leave(player: Player)
 	local g = memberOf[player]
 	if not g then
@@ -772,18 +819,18 @@ local function leave(player: Player)
 	end
 	memberOf[player] = nil
 	g.members[player] = nil
-	local dropped, empty = SideQuestPlan.leave(g.plan, player)
+	local dropped, empty, done = SideQuestPlan.leave(g.plan, player)
 	if dropped and g.goals[dropped] then
 		clearGoal(g.goals[dropped])
 		g.goals[dropped] = nil
 	end
 	if empty then
 		clearGroup(g)
+	elseif done then
+		complete(g) -- the side still there finished and was waiting on the one that left
 	end
 	Net.fire("SideQuestState", player, { bit = 0 })
 end
-
-local complete: (g: Group) -> ()
 
 -- A goal's progress; the step is done once every side present has finished
 setHave = function(g: Group, goal: Goal, have: number)
@@ -928,7 +975,12 @@ local function refresh(player: Player)
 	if c then
 		chain, idx = SideQuestPlan.pinned(Config, c)
 	end
-	if g and not g.test and (g.chain ~= chain or g.idx ~= idx) then
+	-- (or a side that changed: another character slot on the same chain and step)
+	if
+		g
+		and not g.test
+		and (g.chain ~= chain or g.idx ~= idx or g.members[player] ~= StoryService.side(player))
+	then
 		leave(player)
 		g = nil
 	end
@@ -960,9 +1012,9 @@ end
 
 -- A side quest pocket run: the members of this goal near its ring go in together; the run's pay hook
 -- finishes the goal for the group
-local function startPocket(g: Group, goal: Goal, first: Player)
+local function startPocket(g: Group, goal: Goal, first: Player): boolean
 	if goal.pocketAt and os.clock() - goal.pocketAt < 5 then
-		return
+		return false
 	end
 	goal.pocketAt = os.clock()
 	local hero = HeroService.get(first)
@@ -999,6 +1051,7 @@ local function startPocket(g: Group, goal: Goal, first: Player)
 	if not ok then
 		Net.fire("Toast", first, { id = "missionRefused", reason = why })
 	end
+	return ok
 end
 
 local function tickGoal(g: Group, goal: Goal, dt: number)
@@ -1023,7 +1076,21 @@ local function tickGoal(g: Group, goal: Goal, dt: number)
 		return false
 	end
 	local have = goal.have
-	if k == "hold" or k == "beacon" then
+	if k == "fight" then
+		-- robots still to put out (a squad the full server could not build, or one gone without a defeat)
+		local short = SideQuestPlan.shortfall(goal.need, have, standing(goal))
+		if short > 0 and goal.target then
+			local rows = {}
+			for _, row in st.squads do
+				local n = math.min(row[2], short)
+				if n > 0 then
+					table.insert(rows, { row[1], n })
+					short -= n
+				end
+			end
+			squad(goal, g.level, rows, goal.target)
+		end
+	elseif k == "hold" or k == "beacon" then
 		local r = if k == "beacon" then 12 else st.radius
 		if goal.target and anyNear(goal.target, r + 3) then
 			have = math.min(goal.need, have + dt)
@@ -1088,7 +1155,9 @@ local function tickGoal(g: Group, goal: Goal, dt: number)
 		end
 	elseif k == "chase" and goal.chase then
 		local c = goal.chase
-		if not EnemyService.alive(c.id) then
+		if not c.id then
+			runner(g, goal) -- the server was full when the step was built
+		elseif not EnemyService.alive(c.id) then
 			have = 1
 		else
 			local a, b = c.path[c.leg], c.path[c.leg % #c.path + 1]
@@ -1101,10 +1170,19 @@ local function tickGoal(g: Group, goal: Goal, dt: number)
 			-- a hop over the street (never under the sea, where the runner swims straight)
 			local hop = if goal.deep then 0 else math.sin(c.at * math.pi) * 10
 			local p = pa:Lerp(pb, c.at) + Vector3.new(0, hop, 0)
-			EnemyService.place(c.id, p)
+			EnemyService.place(c.id :: number, p)
 			goal.target = p
 		end
 	elseif k == "photo" and goal.photos then
+		local alive = 0
+		for id in goal.photos do
+			if EnemyService.alive(id) then
+				alive += 1
+			else
+				goal.photos[id] = nil -- beaten (or gone) before its photo: another slips in below
+				goal.enemies[id] = nil
+			end
+		end
 		for id, seen in goal.photos do
 			local e = EnemyService.get(id)
 			if e and e.alive then
@@ -1124,18 +1202,33 @@ local function tickGoal(g: Group, goal: Goal, dt: number)
 						Net.fire("Toast", pl, { id = "photo" })
 					end
 					have += 1
+					alive -= 1
 				end
 			end
 		end
+		if have < goal.need then
+			photoBots(g, goal, SideQuestPlan.photoSpawns(st.count, have, alive))
+		end
 	elseif k == "pocket" and goal.target then
+		-- only a fresh step into the ring starts a run: a hero put back at the ring after a run (MissionService
+		-- returns them where they went in) must step out and in again
+		local inside = goal.inside or {}
+		goal.inside = inside
+		local near = {}
 		for _, e in list do
-			if (goal.target - e.pos).Magnitude <= 12 and e.hero.player then
-				startPocket(g, goal, e.hero.player)
-				break
+			if e.hero.player then
+				near[e.hero.player] = (goal.target - e.pos).Magnitude <= 12
 			end
 		end
+		for _, p in SideQuestPlan.ringEntries(inside, near) do
+			if startPocket(g, goal, p) then
+				break
+			end
+			inside[p] = false -- refused or too soon: tried again next tick
+		end
 	elseif k == "finale" then
-		if goal.boss and not EnemyService.alive(goal.boss) then
+		-- (a beaten one has left the sim before its Killed fires at the next event drain: dying waits for it)
+		if goal.boss and not EnemyService.alive(goal.boss) and not EnemyService.dying(goal.boss) then
 			goal.boss = nil -- gone without being beaten (Killed counts a win): it comes back
 			spawnBoss(g, goal)
 		elseif not goal.boss then
@@ -1521,6 +1614,11 @@ function SideQuestService.init()
 	Net.on("SideQuestAct", act)
 	StoryService.Changed:Connect(refresh)
 	DataService.Loaded:Connect(function(player)
+		-- a character slot switch loads another character: its own chain, step and side
+		if memberOf[player] then
+			leave(player)
+			waiting[player] = nil
+		end
 		-- what the retired arcs left (Credits for steps of arcs in progress, unlocks of finished ones), once
 		local profile = DataService.get(player)
 		if profile then

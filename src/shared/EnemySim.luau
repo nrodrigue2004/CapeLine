@@ -2535,6 +2535,17 @@ function EnemySim.forgetHero(sim: Sim, heroId: number)
 	end
 end
 
+-- A robot killed since the last drain: it has left byId already, but its "die" event (EnemyService's Killed)
+-- has not gone out yet (2026-11-18 fix: a side quest finale no longer takes that gap for a vanished boss)
+function EnemySim.dying(sim: Sim, id: number): boolean
+	for _, ev in sim.events do
+		if ev.k == "die" and ev.e == id then
+			return true
+		end
+	end
+	return false
+end
+
 function EnemySim.drainEvents(sim: Sim): { any }
 	local ev = sim.events
 	sim.events = {}

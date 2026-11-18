@@ -139,6 +139,16 @@ What nate does:
 
 ## Studio test list (needs nate's PC)
 
+### Side quest server fixes (2026-11-18)
+Seven soft-locks in SideQuestService fixed (tests: ONLY="SQ fixes"). Use the Dev panel's side quest jumps (300 + chain, then 100 + step) to reach each step.
+1. Finale: beat a chain's finale villain 10 times (DEV jump to the last step each time): every kill finishes the chain; the villain never stands up again at full HP after its fall. A chain with an encore (The Gala Heist): beating the first villain always brings the encore.
+2. Escort: try the escorts at Gull Point Pier (The Salt Dogs step 4), Tick-Tock Toys (Wind-Up Lane step 4) and the Academy (step 3) a few times each, on two weekly seeds: the truck always drives the whole way and the tracker reaches 160 of 160. Sometimes it drives back along its own street; it never stops short.
+3. Pocket: walk into a pocket step's purple ring, then Leave the run (or let it fail): you are back at the ring and are NOT pulled in again; step out and back in and the run starts again.
+4. Co-op: a Vigil hero and a Syndicate villain on a split step; the Vigil finish first ("waiting" toast), then the villain leaves the server (or abandons the chain in the Journal): the Vigil hero's step completes and pays at once.
+5. Photo: on a photo step beat two Sneak Bots before any photo: new ones slip in round the spot and the step can still be finished.
+6. Full server: DEV spawn robots up to the 90 cap, then start a fight, chase or photo step: nothing is there yet; clear some robots and the squad, runner or Sneak Bots appear within a second and the step finishes. A fight's tracker never asks for more kills than robots it puts out.
+7. Slot switch: two characters (one Vigil, one Syndicate) pinned on the same chain and step; switch slot at a safehouse: the old side's goal goes and the new character gets its own side's goal.
+
 ### Lore step 12: the city remembers (2026-11-17, nate's lore)
 Vigil Trust and Syndicate Fear now open their own styles, titles and hideout upgrades (5 ranks each, looks only), citizens and Patch react to high ranks, and three side-vs-side events run when both sides are on the server.
 1. As a Vigil hero: DEV "Rep tier: set 1" (each tap goes up one rank, "Rep tier: 0" resets). You get VIGIL TRUST RANK n, then "OPENED: <hideout upgrade>, TITLE "<title>", 2 NEW STYLES AT GIZMO'S", and Patch on the radio names you (side-flavoured; off with Settings "Guide radio").
