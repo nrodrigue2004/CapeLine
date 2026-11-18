@@ -225,6 +225,9 @@ function MoveMath.speedCap(cfg: any, styles: { [string]: boolean }, boosting: bo
 			if m.cap then
 				cap = math.max(cap, m.cap)
 			end
+			if m.hop then -- Super-speed's running jump: the top speed and the hop's lift together
+				cap = math.max(cap, math.sqrt(m.cap * m.cap + m.hop.up * m.hop.up))
+			end
 			if style == "leap" then
 				cap = math.max(cap, MoveMath.superLeapSpeed(cfg))
 			end
@@ -272,6 +275,52 @@ function MoveMath.superLeapSpeed(cfg: any): number
 end
 
 -- Super-speed: the sprint speed after dt of holding Boost (accelerates to the top speed)
+-- Super-speed's running jump: the run's own speed (never less than the sprint so far, never over the top
+-- speed) along the stick (or straight on), and the hop's lift
+function MoveMath.speedHop(
+	cfg: any,
+	vx: number,
+	vz: number,
+	wishX: number,
+	wishZ: number,
+	sprint: number
+): (number, number, number)
+	local m = cfg.mobility.speed
+	local flat = len2(vx, vz)
+	local speed = math.min(m.sprint, math.max(flat, sprint))
+	local dx, dz = wishX, wishZ
+	local wl = len2(dx, dz)
+	if wl < 0.3 then
+		dx, dz, wl = vx, vz, flat
+	end
+	if wl < 1e-3 then
+		return 0, m.hop.up, 0
+	end
+	return dx / wl * speed, m.hop.up, dz / wl * speed
+end
+
+-- One air step of the running jump's steering: the flat velocity turns toward the stick at hop.turnRate and
+-- keeps its speed (no air drag: the hop never loses the run)
+function MoveMath.hopSteer(
+	cfg: any,
+	vx: number,
+	vz: number,
+	wishX: number,
+	wishZ: number,
+	dt: number
+): (number, number)
+	local speed = len2(vx, vz)
+	if speed < 1e-3 or len2(wishX, wishZ) < 0.3 then
+		return vx, vz
+	end
+	local cur = math.atan2(vz, vx)
+	local want = math.atan2(wishZ, wishX)
+	local diff = (want - cur + math.pi) % (2 * math.pi) - math.pi
+	local maxTurn = math.rad(cfg.mobility.speed.hop.turnRate) * dt
+	local a = cur + math.clamp(diff, -maxTurn, maxTurn)
+	return math.cos(a) * speed, math.sin(a) * speed
+end
+
 function MoveMath.sprintStep(cfg: any, speed: number, holding: boolean, dt: number): number
 	local m = cfg.mobility.speed
 	if holding then

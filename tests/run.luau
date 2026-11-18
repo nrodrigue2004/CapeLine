@@ -22870,6 +22870,8 @@ end
 (require :: any)("./hqart_test")({ test = test, check = check, Config = Config });
 -- walls (nate's playtest 2026-11-18: robots walked through walls; the subway fight); ONLY="Walls" runs these
 (require :: any)("./walls_test")({ test = test, check = check, Config = Config });
+-- Super-speed's running jump (nate's playtest 2026-11-18); ONLY="Speed hop" runs these
+(require :: any)("./hop_test")({ test = test, check = check, Config = Config });
 -- the enemy motion pass (2026-11-18, own file); ONLY="Enemy motion" runs just these
 (require :: any)("./motion_test")({ test = test, check = check, Config = Config })
 

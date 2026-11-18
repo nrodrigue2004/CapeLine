@@ -85,6 +85,7 @@ local wallSpeed = 0
 local wallDrain = 0
 local wallUntil = 0
 local slideUntil = 0
+local hopping = false -- in a Super-speed running jump (keeps the run's speed; holding Leap hops again)
 local swingAnchor: Vector3? = nil
 local swingLen = 0
 local swingLine: Part? = nil
@@ -180,6 +181,9 @@ MoveController.runSpeed = runSpeed
 
 local function setMode(mode: string)
 	local old = MoveController.mode
+	if mode ~= "air" then
+		hopping = false -- a running jump ends in any other move (glide, flight, a dash, a wall, the ground)
+	end
 	if old ~= mode then
 		MoveController.mode = mode
 		MoveController.ModeChanged:Fire(mode, old)
@@ -219,7 +223,7 @@ local function enterAir(v: Vector3)
 	airSince = os.clock()
 end
 
-local function toGround(fallSpeed: number)
+local function toGround(fallSpeed: number, keepRun: boolean?)
 	if not hum or not lv or not ao or not root then
 		return
 	end
@@ -235,7 +239,14 @@ local function toGround(fallSpeed: number)
 		flat = Vector3.new(0, 0, -1)
 	end
 	root.CFrame = CFrame.lookAt(root.Position, root.Position + flat.Unit)
-	root.AssemblyLinearVelocity = Vector3.new(vel.X * 0.3, 0, vel.Z * 0.3)
+	-- a running jump lands at full run (the sprint carries on); any other landing sheds most of the speed
+	local keep = if keepRun then 1 else 0.3
+	root.AssemblyLinearVelocity = Vector3.new(vel.X * keep, 0, vel.Z * keep)
+	if keepRun then
+		sprint = math.max(sprint, math.min(M.mobility.speed.sprint, Vector3.new(vel.X, 0, vel.Z).Magnitude))
+		hum.WalkSpeed = runSpeed()
+	end
+	hopping = false
 	hum:ChangeState(Enum.HumanoidStateType.Landed)
 	vel = Vector3.zero
 	airJumps, bounces = 0, 0
@@ -636,10 +647,21 @@ local function step(dt: number)
 	end
 	if mode == "air" then
 		vel = Vector3.new(MoveMath.airStep(M, vel.X, vel.Y, vel.Z, dt))
-		-- light air control so a leap can be nudged
-		vel += flat * 30 * dt
-		if InputController.isDown("Leap") and vel.Y <= 0 then
-			setMode("glide")
+		if hopping then
+			-- Super-speed's running jump: steer without losing the run; holding Leap means "hop again", so it
+			-- only glides once it is really falling (off a roof)
+			local hx, hz = MoveMath.hopSteer(M, vel.X, vel.Z, flat.X, flat.Z, dt)
+			vel = Vector3.new(hx, vel.Y, hz)
+			if InputController.isDown("Leap") and vel.Y <= M.mobility.speed.hop.glideBelow then
+				hopping = false
+				setMode("glide")
+			end
+		else
+			-- light air control so a leap can be nudged
+			vel += flat * 30 * dt
+			if InputController.isDown("Leap") and vel.Y <= 0 then
+				setMode("glide")
+			end
 		end
 		MoveController.stamina = MoveMath.staminaStep(M, MoveController.stamina, false, false, dt)
 		if mobility() == "acrobat" and not held() and now - airSince > 0.2 then
@@ -875,8 +897,22 @@ local function step(dt: number)
 		local landing = (mode == "air" or mode == "glide" or mode == "swing") and vel.Y <= 0
 			or (mode == "fly" and (vel.Y < -2 or InputController.isDown("Down")) and pos.Y - groundY < 4.5)
 		if landing then
-			toGround(fallSpeed)
-			return
+			if
+				hopping
+				and mode == "air"
+				and InputController.isDown("Leap")
+				and not held()
+				and not downed()
+			then
+				-- holding Leap: straight into the next hop, same speed (no landing stop, no crouch)
+				local hx, hy, hz = MoveMath.speedHop(M, vel.X, vel.Z, flat.X, flat.Z, sprint)
+				vel = Vector3.new(hx, hy, hz)
+				airSince = now
+				MoveController.Leaped:Fire(pos)
+			else
+				toGround(fallSpeed, hopping and mode == "air")
+				return
+			end
 		end
 	end
 
@@ -893,7 +929,26 @@ local function onPressed(action: string)
 	local pick = mobility()
 	local air = mode ~= "ground" and mode ~= "charge"
 	if action == "Leap" then
-		if mode == "ground" and MoveController.leapReady() >= 1 then
+		local runFlat = if root
+			then Vector3.new(root.AssemblyLinearVelocity.X, 0, root.AssemblyLinearVelocity.Z)
+			else Vector3.zero
+		if
+			mode == "ground"
+			and pick == "speed"
+			and math.max(sprint, runFlat.Magnitude) >= M.mobility.speed.hop.from
+			and runFlat.Magnitude >= M.mobility.speed.hop.from * 0.5
+		then
+			-- Super-speed's running jump: no crouch, the run's speed carries into the air
+			local flat = wishDirs()
+			local hx, hy, hz = MoveMath.speedHop(M, runFlat.X, runFlat.Z, flat.X, flat.Z, sprint)
+			lastLeap = os.clock()
+			enterAir(Vector3.new(hx, hy, hz))
+			hopping = true
+			setMode("air")
+			if root then
+				MoveController.Leaped:Fire(root.Position)
+			end
+		elseif mode == "ground" and MoveController.leapReady() >= 1 then
 			chargeStart = os.clock()
 			hum.WalkSpeed = 6 -- the crouch
 			setMode("charge")

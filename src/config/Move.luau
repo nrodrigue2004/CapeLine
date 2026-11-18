@@ -80,6 +80,10 @@ return {
 			wallDrain = 12, -- stamina per second on a wall
 			waterRun = 45, -- the speed needed to run across water
 			slide = 1.0, -- seconds of slide (Down while sprinting): shots pass over
+			-- the running jump (nate's playtest 2026-11-18: "holding the jump without losing speed"): Leap while
+			-- running faster than `from` is an instant hop that keeps the run's speed (no crouch, no slowdown),
+			-- steers at turnRate in the air, and holding Leap hops again on every landing
+			hop = { from = 30, up = 45, turnRate = 160, glideBelow = -60 },
 			cap = 100,
 			swim = 60,
 			up = { trailLevel = 12, trailSpeed = 70, trailRadius = 7, trailCoeff = 0.25 }, -- level 12: the trail hurts robots
