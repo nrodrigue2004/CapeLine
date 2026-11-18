@@ -3,9 +3,11 @@
 -- event is checked against AnalyticsSchema first: unknown names are dropped, fields are short codes or
 -- numbers, never names or text a player typed. Roblox hashes user ids and batches the sends.
 -- * event(player, name, value?, fields?): one custom event (fields go to CustomField01 to 03).
--- * step(player, funnel, stepName): a funnel step. "Opening" is the onboarding funnel: each step counts
---   once per account, in order (the furthest step is kept in the save). The others start a new funnel
---   session at their first step.
+-- * step(player, funnel, stepName): a funnel step, counted as AnalyticsSchema.KINDS says (Audit 2026-11-18):
+--   Opening (Roblox's onboarding funnel) and the Combat and Story ladders once per account and in order,
+--   kept in the save; PvP and Purchase once per funnel session and in order, a session opened by step 1. A
+--   step reached before the one ahead of it waits and goes out as soon as the gap fills; every step takes a
+--   budget slot and one the budget refused is sent by flush() a few seconds later.
 -- * Facts only the device knows (its platform, perf samples, the shop and item views, photos) arrive on
 --   Telemetry; session_device waits up to 20 s for the device's hello.
 -- * funnelSink: where the studio-wide FunnelKit sends (AnalyticsHooks runs it): the Progress and Returns
@@ -33,10 +35,11 @@ Analytics.logToOutput = RunService:IsStudio() -- Studio playtests print each eve
 Analytics.count = 0 -- events sent this server (Dev panel)
 Analytics.Photo = Signal.new() -- (player) the device took a Photo Mode shot (the Photo recon contract)
 Analytics.dropped = 0 -- events skipped by the per-minute budget (Dev panel)
-local budget = AnalyticsSchema.newBudget() -- this minute's sends (Shared.AnalyticsSchema.take)
+local budget = AnalyticsSchema.newBudget() -- the last 60 s of sends (Shared.AnalyticsSchema.take)
 
 local service: AnalyticsService? = nil
-local sessions: { [Player]: { [string]: string } } = {}
+local sessions: { [Player]: { [string]: AnalyticsSchema.Gate } } = {} -- the open recurring funnel sessions
+local paced: { [Player]: { [number]: number } } = {} -- the last device fact kept, per kind (Telemetry)
 local joinedAt: { [Player]: number } = {}
 local starting: { [Player]: { kind: string, side: (Player) -> string } } = {} -- waiting for the device hello
 local devices: { [Player]: string } = {}
@@ -66,12 +69,21 @@ local function takeBudget(low: boolean): boolean
 	return ok
 end
 
--- One custom event. Never throws.
+-- The studio-wide FunnelKit's sends: never dropped, but counted in the same window
+local function forceBudget()
+	AnalyticsSchema.force(budget, Config.Analytics.budget, os.clock(), #Players:GetPlayers())
+end
+
+-- This session's save did not load (DataService could not read it): the profile is a blank default, so
+-- once-per-account facts would count again (Audit 2026-11-18). Before the load nothing is known yet.
+local function unsaved(player: Player): boolean
+	return DataService.get(player) ~= nil and not DataService.isSaving(player)
+end
+Analytics.unsaved = unsaved
+
+-- One custom event. Never throws. A refused or unsaved event takes no budget slot.
 function Analytics.event(player: Player, name: string, value: number?, fields: { any }?)
 	if player.Parent ~= Players then
-		return
-	end
-	if not takeBudget(Config.Analytics.lowPriority[name] == true) then
 		return
 	end
 	local ok, clean = AnalyticsSchema.check(name, fields)
@@ -79,6 +91,12 @@ function Analytics.event(player: Player, name: string, value: number?, fields: {
 		if RunService:IsStudio() then
 			warn("[Analytics] refused event " .. tostring(name))
 		end
+		return
+	end
+	if not AnalyticsSchema.NOSAVE[name] and unsaved(player) then
+		return
+	end
+	if not takeBudget(Config.Analytics.lowPriority[name] == true) then
 		return
 	end
 	local custom: { [string]: string } = {}
@@ -97,38 +115,105 @@ function Analytics.event(player: Player, name: string, value: number?, fields: {
 	end
 end
 
--- A funnel step (Opening counts once per account, in order)
-function Analytics.step(player: Player, funnel: string, stepName: string)
-	local step = AnalyticsSchema.stepOf(funnel, stepName)
-	if not step or player.Parent ~= Players then
-		return
+local function sendStep(player: Player, funnel: string, sessionId: string, step: number, stepName: string)
+	Analytics.count += 1
+	if Analytics.logToOutput then
+		print(string.format("[Funnel] %s step %d %s", funnel, step, stepName))
 	end
 	local s = analytics()
-	if funnel == "Opening" then
-		local profile = DataService.get(player)
-		if not profile or step <= profile.analytics.onboard then
-			return
-		end
-		profile.analytics.onboard = step
-		if s then
-			pcall(function()
-				(s :: AnalyticsService):LogOnboardingFunnelStepEvent(player, step, stepName)
-			end)
-		end
-		return
-	end
-	local mine = sessions[player]
-	if not mine then
-		mine = {}
-		sessions[player] = mine
-	end
-	if step == 1 or not mine[funnel] then
-		mine[funnel] = HttpService:GenerateGUID(false)
-	end
 	if s then
 		pcall(function()
-			(s :: AnalyticsService):LogFunnelStepEvent(player, funnel, mine[funnel], step, stepName)
+			if funnel == "Opening" then
+				(s :: AnalyticsService):LogOnboardingFunnelStepEvent(player, step, stepName)
+			else
+				(s :: AnalyticsService):LogFunnelStepEvent(player, funnel, sessionId, step, stepName)
+			end
 		end)
+	end
+end
+
+-- Send a gate's due steps in order while the budget has room (the rest wait for flush). True when any went.
+local function drain(player: Player, funnel: string, g: AnalyticsSchema.Gate, sessionId: string): boolean
+	local any = false
+	while true do
+		local step, stepName = AnalyticsSchema.due(g, funnel)
+		if not step or not takeBudget(false) then
+			return any
+		end
+		AnalyticsSchema.sent(g)
+		any = true
+		sendStep(player, funnel, sessionId, step, stepName :: string)
+	end
+end
+
+-- An onboarding or ladder funnel: its gate lives in profile.analytics (AnalyticsSchema.SAVE)
+local function ladder(player: Player, funnel: string, stepName: string?)
+	local keys = AnalyticsSchema.SAVE[funnel]
+	local profile = DataService.get(player)
+	if not keys or not profile or not DataService.isSaving(player) then
+		return -- loading, or a blank profile that never saves: logging would count the account again
+	end
+	local an = profile.analytics
+	local at = stepName and AnalyticsSchema.stepOf(funnel, stepName)
+	if at and at <= an[keys[1]] then
+		return -- sent long ago (every cast asks for skill_cast): nothing to do
+	end
+	local g = AnalyticsSchema.newGate(an[keys[1]], an[keys[2]])
+	local moved = if stepName then AnalyticsSchema.reach(g, funnel, stepName) else false
+	if drain(player, funnel, g, FunnelKit.LIFE_SESSION) or moved then
+		an[keys[1]], an[keys[2]] = g.sent, g.reach
+		DataService.saveSoon(player) -- a step sent is kept, so a crash and a rejoin never send it again
+	end
+end
+
+-- A funnel step (AnalyticsSchema.KINDS: once per account or per funnel session, always in order)
+function Analytics.step(player: Player, funnel: string, stepName: string)
+	local kind = AnalyticsSchema.KINDS[funnel]
+	if not kind or not AnalyticsSchema.stepOf(funnel, stepName) or player.Parent ~= Players then
+		return
+	end
+	if kind == "any" then
+		Analytics.first(player, funnel, stepName)
+	elseif kind == "session" then
+		local mine = sessions[player]
+		if not mine then
+			mine = {}
+			sessions[player] = mine
+		end
+		local g, opened = AnalyticsSchema.sessionGate(mine, funnel, stepName)
+		if not g then
+			return -- no session open: a step with no start is never logged
+		end
+		local gate = g :: AnalyticsSchema.Gate
+		if opened then
+			gate.id = HttpService:GenerateGUID(false)
+		end
+		if AnalyticsSchema.reach(gate, funnel, stepName) then
+			drain(player, funnel, gate, gate.id or FunnelKit.LIFE_SESSION)
+		end
+	else
+		ladder(player, funnel, stepName)
+	end
+end
+
+-- End a recurring funnel's session (PvP: the flag went off); later steps need a new step 1
+function Analytics.close(player: Player, funnel: string)
+	local mine = sessions[player]
+	if mine then
+		mine[funnel] = nil
+	end
+end
+
+-- Send any steps the budget held back (AnalyticsHooks calls it every few seconds)
+function Analytics.flush(player: Player)
+	if player.Parent ~= Players then
+		return
+	end
+	for funnel in AnalyticsSchema.SAVE do
+		ladder(player, funnel, nil)
+	end
+	for funnel, g in sessions[player] or {} do
+		drain(player, funnel, g, g.id or FunnelKit.LIFE_SESSION)
 	end
 end
 
@@ -143,6 +228,9 @@ function Analytics.first(player: Player, funnel: string, stepName: string): bool
 	local profile = DataService.get(player)
 	if not profile then
 		return false -- still loading: try again
+	end
+	if not DataService.isSaving(player) then
+		return true -- a blank profile that never saves (its bits are all 0): never sent, never retried
 	end
 	local step, mask = AnalyticsSchema.first(profile.analytics.mmo, funnel, stepName)
 	if not step then
@@ -173,6 +261,8 @@ Analytics.funnelSink = {
 		if player.Parent ~= Players then
 			return
 		end
+		forceBudget() -- top priority: counts in the window but is never dropped
+		Analytics.count += 1
 		if Analytics.logToOutput then
 			print(string.format("[Funnel] %s step %d %s", funnel, step, stepName))
 		end
@@ -187,7 +277,7 @@ Analytics.funnelSink = {
 		if player.Parent ~= Players or not table.find(Analytics.FUNNEL_EVENTS, name) then
 			return
 		end
-		budget.n += 1 -- top priority: counts against the budget but is never dropped
+		forceBudget() -- top priority: counts in the window but is never dropped
 		Analytics.count += 1
 		local custom: { [string]: string } = {}
 		for i, v in fields do
@@ -250,20 +340,27 @@ end
 local PRESETS = { "auto", "low", "medium", "high" }
 local BACKDROPS = { "none", "comic", "speed", "sunset", "noir", "neon" }
 local function onTelemetry(player: Player, kind: number, value: number, a: number, b: number)
-	if kind == 1 then
-		-- perf_sample: value median fps, a device, b preset; p5 fps rides in the value's thousands
+	-- each kind is paced per player (Config.Analytics.devicePace), so a device can never spend the
+	-- server's budget faster than an honest one reports
+	local mine = paced[player]
+	if not mine then
+		mine = {}
+		paced[player] = mine
+	end
+	local keep = AnalyticsSchema.pace(mine, Config.Analytics.devicePace, kind, os.clock())
+	if kind == 1 and keep then
+		-- perf_sample: value median fps, a device, b preset; p5 fps rides in the value's thousands (to 5s)
 		local median = value % 1000
-		local p5 = value // 1000
+		local p5 = AnalyticsSchema.fps(value // 1000)
 		Analytics.event(player, "perf_sample", median, { DEVICES[a] or "pc", PRESETS[b + 1] or "auto", p5 })
-	elseif kind == 2 or kind == 3 then
-		-- device-sent funnel steps (up to one a second a player) take a budget slot like any event, so a
-		-- device can never send past the per-minute cap
-		if takeBudget(false) then
-			Analytics.step(player, "Purchase", if kind == 2 then "shop_open" else "shop_view_item")
-		end
+	elseif (kind == 2 or kind == 3) and keep then
+		-- the Purchase funnel's first two steps (each takes its own budget slot in Analytics.step)
+		Analytics.step(player, "Purchase", if kind == 2 then "shop_open" else "shop_view_item")
 	elseif kind == 4 then
-		Analytics.event(player, "photo", 1, { BACKDROPS[a] or "none" })
-		Analytics.Photo:Fire(player)
+		if keep then
+			Analytics.event(player, "photo", 1, { BACKDROPS[a] or "none" })
+		end
+		Analytics.Photo:Fire(player) -- the Photo recon contract counts every shot
 	elseif kind == 5 then
 		-- the hello: which kind of device (once a session)
 		if not devices[player] then
@@ -287,6 +384,7 @@ function Analytics.init()
 			joinedAt[p] = nil
 			starting[p] = nil
 			devices[p] = nil
+			paced[p] = nil
 		end)
 	end)
 end

@@ -33,7 +33,8 @@ local AnalyticsHooks = {}
 
 local DAY = 86400
 local downedAt: { [number]: number } = {} -- hero id -> os.clock when Downed
-local pvpHit: { [Player]: boolean } = {} -- first PvP hit logged this session
+local pvpHit: { [Player]: boolean } = {} -- the pvp_hit event logged this session (the funnel step is per flag)
+local paidWin: { [number]: number } = {} -- winner hero id -> the loser of the PvP win that just paid (PvpWon)
 local idledAt: { [Player]: number } = {} -- os.clock of the last Player.Idled (Roblox: 2 minutes idle)
 
 local IDLE_WINDOW = 150 -- a quit this soon after Player.Idled counts as "idle"
@@ -46,8 +47,14 @@ local function sideOf(player: Player): string
 	return if hero then hero.side else "none"
 end
 
--- The session start: the first step of the Opening funnel, and the day-1 return check
+-- The session start: the first step of the Opening funnel, and the day-1 return check. A save that did not
+-- load (a blank profile that never saves) logs only the device: the funnels and firsts would count a
+-- returning player as new (Audit 2026-11-18).
 local function joined(player: Player, profile: any)
+	if not DataService.isSaving(player) then
+		Analytics.session(player, "nosave", sideOf)
+		return
+	end
 	local a = profile.analytics
 	local now = os.time()
 	local new = a.firstSeen == 0
@@ -73,7 +80,7 @@ local function activityOf(player: Player): string
 	elseif hero.downed then
 		return "Downed"
 	elseif hero.scene then
-		return "Scene " .. tostring(hero.scene)
+		return "Scene" -- no scene id: session_end's activity stays a handful of labels (Audit 2026-11-18)
 	elseif BossService.inFight(hero) then
 		return "Boss"
 	elseif FlagService.inPvpCombat(hero) then
@@ -99,16 +106,20 @@ local function leaving(player: Player, _profile: any, reason: Enum.PlayerExitRea
 	idledAt[player] = nil
 end
 
--- Called by FlagService on every PvP hit: logs the attacker's first one each session
+-- Called by FlagService on every PvP hit: the pvp_hit event for the attacker's first one each session, and
+-- the PvP funnel's first_pvp_hit once per flagged stretch (the funnel session keeps it to one)
 function AnalyticsHooks.pvpHit(attacker: any, target: any)
 	local p = attacker.player
-	if not p or pvpHit[p] then
+	if not p then
+		return
+	end
+	Analytics.step(p, "PvP", "first_pvp_hit")
+	if pvpHit[p] then
 		return
 	end
 	pvpHit[p] = true
 	local zone = if FlagService.flag(attacker).crater ~= "out" then "crater" else "city"
 	Analytics.event(p, "pvp_hit", 1, { attacker.level, target.level, zone })
-	Analytics.step(p, "PvP", "first_pvp_hit")
 end
 
 -- WP4 (gap G6): the Hero MMO firsts, a lifetime funnel (AnalyticsSchema.FUNNELS.MMO): each step once per
@@ -193,6 +204,7 @@ function AnalyticsHooks.init()
 					AnalyticsHooks.funnels:check(p, profile)
 					AnalyticsHooks.funnels:activity(p, activityOf(p))
 				end
+				Analytics.flush(p) -- funnel steps the budget held back
 			end
 			retryFirsts()
 		end
@@ -207,7 +219,12 @@ function AnalyticsHooks.init()
 		if not p then
 			return
 		end
-		Analytics.event(p, "level_up", Analytics.since(p), { hero.level, Analytics.since(p) // 60 })
+		Analytics.event(
+			p,
+			"level_up",
+			Analytics.since(p),
+			{ hero.level, FunnelKit.lengthBucket(Analytics.since(p)) }
+		)
 		if hero.level >= 3 then
 			Analytics.step(p, "Opening", "level_3")
 		end
@@ -245,16 +262,38 @@ function AnalyticsHooks.init()
 		end
 		local zone = if FlagService.flag(hero).crater ~= "out" then "crater" else "city"
 		Analytics.event(p, if flagged then "flag_on" else "flag_off", 1, { zone, hero.level })
-		Analytics.step(p, "PvP", if flagged then "flag_on" else "flag_off")
+		if flagged then
+			Analytics.step(p, "PvP", "flag_on") -- a new flagged stretch: a new PvP funnel session
+		else
+			Analytics.close(p, "PvP")
+		end
 	end)
 
+	-- PvpWon fires inside the defeat, just before PvpDefeat (signals run in order, at once), only for a win
+	-- that paid (past the ledger). A combat-log win has no PvpDefeat: the deferred clear drops it.
+	DeathService.PvpWon:Connect(function(winner, loserId)
+		paidWin[winner.id] = loserId
+		task.defer(function()
+			if paidWin[winner.id] == loserId then
+				paidWin[winner.id] = nil
+			end
+		end)
+	end)
 	DeathService.PvpDefeat:Connect(function(loser, winner)
+		local paid = paidWin[winner.id] == loser.id
+		paidWin[winner.id] = nil
 		if winner.player then
-			Analytics.event(winner.player, "pvp_win", 1, { winner.level, loser.level, "1" })
+			Analytics.event(
+				winner.player,
+				"pvp_win",
+				1,
+				{ winner.level, loser.level, if paid then "1" else "0" }
+			)
+			Analytics.step(winner.player, "PvP", "pvp_fight")
 			Analytics.step(winner.player, "PvP", "pvp_win")
 		end
 		if loser.player then
-			Analytics.step(loser.player, "PvP", "pvp_loss")
+			Analytics.step(loser.player, "PvP", "pvp_fight")
 		end
 	end)
 

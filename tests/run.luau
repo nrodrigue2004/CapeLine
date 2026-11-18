@@ -8267,7 +8267,9 @@ end); -- Hero MMO features (H1 to H8) live in their own file so this one merges 
 (require :: any)("./daily")({ test = test, check = check, Config = Config }); -- WP6: robot combat depth
 (require :: any)("./robots")({ test = test, check = check, near = near, Config = Config });
 -- WP4 and WP5 (the gap check's funnel, favorite, rematch and Suspicious Hero) live in their own file too
-(require :: any)("./hooks")({ test = test, check = check, near = near, Config = Config }); -- the Rogues File and the Journal's Badge Book, Mentor and Showdown tabs (own file, merges easily)
+(require :: any)("./hooks")({ test = test, check = check, near = near, Config = Config });
+-- Overnight item 6: the analytics and funnels audit (own file, merges easily)
+(require :: any)("./analytics_audit")({ test = test, check = check, Config = Config }); -- the Rogues File and the Journal's Badge Book, Mentor and Showdown tabs (own file, merges easily)
 (require :: any)("./rogues_test")({ test = test, check = check, Config = Config, placePath = process.args[1] });
 -- WP10: the group-join piece and creator codes (own file, merges easily)
 (require :: any)("./promo_test")({ test = test, check = check, Config = Config, placePath = process.args[1] }); -- WP11: story acts (Act 1 today, Acts 2 and 3 coming soon), own file
