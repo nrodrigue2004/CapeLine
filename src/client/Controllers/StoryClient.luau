@@ -35,22 +35,8 @@ StoryClient.choice = nil :: { id: number, labels: { string } }?
 StoryClient.mission = { num = 0 } :: { [string]: any }
 StoryClient.quest = nil :: { [string]: any }?
 
--- The verb button(s) each prologue beat pulses (Hud.setFocus); the camera beats show none
-StoryClient.VERBS = {
-	ceremony = {},
-	scan = {},
-	run = { "Leap" },
-	spark = { "Basic" }, -- the Spark fires from the attack button
-	leap = { "Leap" },
-	chase = { "Leap" }, -- the Leap button reads GLIDE in the air
-	suit = { "Leap" },
-	descend = { "Leap" },
-	tunnel = { "Leap" },
-	fight = { "Basic", "Skill1", "Skill2", "Leap" },
-	swarm = { "Basic", "Skill1", "Skill2", "Leap" },
-	rescue = {},
-	title = {},
-}
+-- The verb button(s) each prologue beat pulses (Hud.setFocus); the camera beats show none (Config.Ui.prologue)
+StoryClient.VERBS = Config.Ui.prologue.verbs
 
 function StoryClient.openingStep(): string?
 	return OpeningPlan.STEPS[StoryClient.opening.step or 0]

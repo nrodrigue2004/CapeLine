@@ -23,6 +23,7 @@ local CinemaPlan = require(Shared:WaitForChild("CinemaPlan"))
 local Kit = require(script.Parent.Kit)
 local GuideHud = require(script.Parent.GuideHud)
 local CinemaClient = require(script.Parent.Parent.Controllers.CinemaClient)
+local InputController = require(script.Parent.Parent.Controllers.InputController)
 
 local CinemaHud = {}
 
@@ -1167,6 +1168,8 @@ local function frame()
 	local s = CinemaClient.current
 	setBars(CinemaClient.letterboxed())
 	skip.Visible = s ~= nil and CinemaClient.skippable()
+	-- a controller cannot reach the button: B skips, and the button says so (onboarding check)
+	skip.Text = if InputController.device == "gamepad" then "SKIP (B)" else "SKIP"
 	-- a device-started scene's lines go to the guide line box
 	if s and s.lines then
 		GuideHud.timeline(s, s.lines, CinemaClient.time())
@@ -1212,6 +1215,12 @@ function CinemaHud.init()
 		skip.Parent = if scene and scene.comic then page else gui
 	end)
 	RunService.RenderStepped:Connect(FrameProf.wrap("CinemaHud", frame))
+	-- gamepad B (the Down action, idle in a cutscene) presses SKIP while it shows
+	InputController.Pressed:Connect(function(action)
+		if action == "Down" and InputController.device == "gamepad" and skip.Visible then
+			CinemaClient.skip()
+		end
+	end)
 end
 
 return CinemaHud

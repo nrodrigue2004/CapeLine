@@ -1412,6 +1412,7 @@ function CreatorScreen.open(opts: { [string]: any })
 	gui.Enabled = true
 	layout()
 	refresh()
+	Kit.padFocus(gui) -- a controller starts on the first button (onboarding check)
 end
 
 function CreatorScreen.close()
