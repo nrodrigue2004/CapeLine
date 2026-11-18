@@ -221,14 +221,22 @@ function BuildingService.pin(id: number, on: boolean)
 	end
 end
 
+-- Put building id back whole now if it is wrecked (Damaged or Collapsed), the drones' and the Dev panel's
+-- repair (devices drop its holes with the next diff). True when it was wrecked.
+function BuildingService.repair(id: number): boolean
+	local book = BuildingService.book
+	if not book or not records[id] or (book.state[id] or 0) == 0 then
+		return false
+	end
+	BuildingState.repair(book, id)
+	setWrecked(id, false)
+	return true
+end
+
 -- Studio: put every building back
 function BuildingService.repairAll()
-	local book = BuildingService.book
 	for id in records do
-		if book.state[id] ~= 0 then
-			BuildingState.repair(book, id)
-			setWrecked(id, false)
-		end
+		BuildingService.repair(id)
 	end
 end
 

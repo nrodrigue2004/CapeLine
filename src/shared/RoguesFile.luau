@@ -436,4 +436,34 @@ function RoguesFile.validate(Config: any): { string }
 	return errs
 end
 
+-- The rogues_page analytics event for a page just filled for the first time on this account (beat() said
+-- fresh; Config.Rogues.analytics, interim pick 2026-11-18, nate to OK). Fields: the page kind (its group:
+-- robots, fakes, villains or bosses) and gold (1 for a boss's gold page, else 0); value: the pages now
+-- filled (RoguesFile.count; gold pages are extra). Never a name or typed text. nil: off, or not a page bit.
+function RoguesFile.event(Config: any, words: { number }, bit: number): (number?, { string }?)
+	if Config.Rogues.analytics ~= true then
+		return nil, nil
+	end
+	for _, e in RoguesFile.list(Config) do
+		if e.bit == bit or e.gold == bit then
+			local filled = RoguesFile.count(Config, words)
+			return filled, { e.group, if e.gold == bit then "1" else "0" }
+		end
+	end
+	return nil, nil
+end
+
+-- Send the queued rogues_page events in order (send returns Analytics.event's "sent", "full" or "refused"):
+-- sent and refused ones leave the queue, and a full budget keeps that one and the rest for the next try, so
+-- each page's event goes at most once and is not lost to a busy minute while the player stays.
+function RoguesFile.drain(queue: { { any } }, send: (value: number, fields: { string }) -> string)
+	while #queue > 0 do
+		local q = queue[1]
+		if send(q[1], q[2]) == "full" then
+			return
+		end
+		table.remove(queue, 1)
+	end
+end
+
 return RoguesFile

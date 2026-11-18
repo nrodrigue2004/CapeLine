@@ -10,7 +10,12 @@
 -- A new page: RoguesNew (the stamp on the owner's screen) and a quick save; every beat counts on its log row.
 -- Milestones (10, 25, every page): one existing earnable creator piece each, once per account.
 -- RoguesOpen answers with the pages (RoguesFile) for the Journal's ROGUES tab.
+-- Analytics (interim pick 2026-11-18, nate to OK; Config.Rogues.analytics): rogues_page once per page per
+-- account, when beat() first fills it (the page kind, gold 0/1; RoguesFile.event). A page is new only once
+-- (its bit and log row are saved), so a rejoin or a server hop never sends it again; a full per-minute budget
+-- keeps it queued for this session and it goes with the next 5 s try (RoguesFile.drain).
 
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
@@ -20,6 +25,7 @@ local Net = require(Shared:WaitForChild("Net"))
 local ProfileSchema = require(Shared:WaitForChild("ProfileSchema"))
 local RoguesFile = require(Shared:WaitForChild("RoguesFile"))
 
+local Analytics = require(script.Parent.Analytics)
 local BossService = require(script.Parent.BossService)
 local DataService = require(script.Parent.DataService)
 local EnemyService = require(script.Parent.EnemyService)
@@ -29,6 +35,22 @@ local SideQuestService = require(script.Parent.SideQuestService)
 local RoguesService = {}
 
 local Bits = ProfileSchema.Bits
+
+-- rogues_page events the budget had no room for yet, per player: { value, fields }
+local pending: { [Player]: { { any } } } = {}
+
+local function logPages(player: Player)
+	local queue = pending[player]
+	if not queue then
+		return
+	end
+	RoguesFile.drain(queue, function(value: number, fields: { string }): string
+		return Analytics.event(player, "rogues_page", value, fields)
+	end)
+	if #queue == 0 then
+		pending[player] = nil
+	end
+end
 
 local function send(player: Player)
 	local profile = DataService.get(player)
@@ -68,8 +90,14 @@ local function beat(player: Player, bits: { number }, gold: boolean?)
 		if RoguesFile.beat(Config, profile.rogues, profile.roguesLog, bit, day, level) then
 			fresh = true
 			Net.fire("RoguesNew", player, { bit = bit, gold = gold == true })
+			local value, fields = RoguesFile.event(Config, profile.rogues, bit)
+			if value and fields then
+				pending[player] = pending[player] or {}
+				table.insert(pending[player], { value, fields })
+			end
 		end
 	end
+	logPages(player)
 	if fresh then
 		payMilestones(player, profile)
 		DataService.changed(player)
@@ -130,6 +158,18 @@ function RoguesService.init()
 		if payMilestones(player, profile) then
 			DataService.changed(player)
 			DataService.saveSoon(player)
+		end
+	end)
+	-- rogues_page events a full budget held back go with the next try (only while the player stays)
+	Players.PlayerRemoving:Connect(function(player: Player)
+		pending[player] = nil
+	end)
+	task.spawn(function()
+		while true do
+			task.wait(5)
+			for player in pending do
+				logPages(player)
+			end
 		end
 	end)
 end

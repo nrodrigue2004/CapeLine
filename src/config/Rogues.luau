@@ -21,6 +21,10 @@
 return {
 	-- a page's beaten count stops here (the page shows "999+" past 999)
 	countMax = 65535,
+	-- the rogues_page analytics event (Shared.AnalyticsSchema): once per page per account, the moment it is
+	-- first filled (the page kind and gold 0/1; value: pages filled). Interim pick 2026-11-18, nate to OK;
+	-- false: no event, as before
+	analytics = true,
 	groups = {
 		{ id = "robots", name = "ROBOTS" },
 		{ id = "fakes", name = "FAMOUS FAKES" },

@@ -118,7 +118,7 @@ return {
 			pvp = "off",
 		},
 		CoolingKill = {
-			name = "Cooling Kill",
+			name = "Cooling Down", -- display name only (key CoolingKill kept); interim pick 2026-11-18, nate to OK
 			text = "Each defeat refunds 20% of your super's cooldown",
 			refund = 0.20,
 			pvp = "half",

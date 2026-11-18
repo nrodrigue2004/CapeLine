@@ -32,6 +32,8 @@ local OLD_NAMES = {
 	"Maribel",
 	"Tamsin",
 	"Iron Dee",
+	"Bottom Toucher", -- the Trench floor badge is Deep Diver (id trenchfloor kept; interim pick, nate to OK)
+	"Cooling Kill", -- the perk is Cooling Down (key CoolingKill kept; interim pick, nate to OK)
 	"Mossbell", -- nate's other games
 	"Ragdoll",
 }
@@ -294,6 +296,37 @@ return function(T: any)
 		local lits = literals('local a = "one two" -- "not this"\n--[[ "nor this" ]]\nlocal b = `three {x}`')
 		check(#lits == 2 and lits[1] == "one two" and lits[2] == "three {x}", "literals skip comments")
 	end)
+
+	test(
+		"Text pass: Deep Diver and Cooling Down are display names only (ids, keys and unlocks kept)",
+		function()
+			local badge = nil
+			for _, g in Config.Badges.groups do
+				for _, b in g.badges do
+					if b.id == "trenchfloor" then
+						badge = b
+					end
+				end
+			end
+			check(badge ~= nil, "the Trench floor badge keeps its id trenchfloor")
+			if badge then
+				check(badge.name == "Deep Diver", "shown as Deep Diver")
+				check(badge.key == "trenchFloor" and badge.n == 1, "earned the same way (trenchFloor, 1)")
+			end
+			local perk = Config.Gear.perks.CoolingKill
+			check(perk ~= nil, "the perk keeps its key CoolingKill (gear saves name it)")
+			if perk then
+				check(perk.name == "Cooling Down", "shown as Cooling Down")
+				check(perk.refund == 0.20 and perk.pvp == "half", "the same perk (20% refund, half in PvP)")
+			end
+			local function banned(text: string, name: string): boolean
+				return table.find(problems(text, true, true), "old name " .. name) ~= nil
+			end
+			check(banned("You earned Bottom Toucher", "Bottom Toucher"), "the old badge name is banned")
+			check(banned("PERK: COOLING KILL", "Cooling Kill"), "the old perk name is banned, in CAPS too")
+			check(not banned("Deep Diver and Cooling Down", "Cooling Kill"), "the new names pass")
+		end
+	)
 
 	test("Text pass: no old names, fixed typos or lowercase terms in Config's text", function()
 		local hits = {}
