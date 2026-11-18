@@ -340,6 +340,21 @@ function PocketLayout.lane(Config: any, i: number): Lane
 	}
 end
 
+-- A point pulled inside a lane's fight chamber, `margin` studs clear of its walls (the prologue's swarm spawns
+-- in a ring round the hero: a ring point past a wall would leave a robot outside the room)
+function PocketLayout.chamberPoint(
+	Config: any,
+	lane: Lane,
+	x: number,
+	z: number,
+	margin: number
+): (number, number)
+	local c = Config.Story.opening.subway.chamber
+	local half = c / 2 - margin
+	local cz = lane.z1 - c / 2
+	return math.clamp(x, lane.x - half, lane.x + half), math.clamp(z, cz - half, cz + half)
+end
+
 -- The prologue's subway (lore step 3): one tunnel a lane (walls, a ceiling, rails, lamps), each ending in a
 -- square fight chamber. The falling slabs and rubble are drawn on the hero's device (PrologueFx).
 -- PLACEHOLDER ART: greybox like every pocket.
@@ -1274,6 +1289,31 @@ function PocketLayout.heightAt(l: Layout, x: number, z: number): number
 		end
 	end
 	return top
+end
+
+-- The underside of the lowest ceiling over (x, z) above height y in a pocket (a tunnel's or a room's roof, the
+-- boxes tagged "ceiling"), or nil for open sky. Fliers stay under it (Shared.EnemySim's ceilingAt).
+function PocketLayout.ceilingAt(l: Layout, x: number, z: number, y: number): number?
+	local list = (l :: any).ceilings
+	if not list then
+		list = {}
+		for _, b in l.boxes do
+			if b.tag == "ceiling" then
+				table.insert(list, b)
+			end
+		end
+		(l :: any).ceilings = list
+	end
+	local best: number? = nil
+	for _, b in list do
+		local under = b.cy - b.sy / 2
+		if under >= y and math.abs(x - b.cx) <= b.sx / 2 and math.abs(z - b.cz) <= b.sz / 2 then
+			if not best or under < best then
+				best = under
+			end
+		end
+	end
+	return best
 end
 
 return PocketLayout

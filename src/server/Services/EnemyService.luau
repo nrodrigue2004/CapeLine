@@ -17,6 +17,7 @@ local Net = require(Shared:WaitForChild("Net"))
 local EnemySim = require(Shared:WaitForChild("EnemySim"))
 local EnemyBuffer = require(Shared:WaitForChild("EnemyBuffer"))
 local DeepLayout = require(Shared:WaitForChild("DeepLayout"))
+local PocketLayout = require(Shared:WaitForChild("PocketLayout"))
 local Signal = require(Shared:WaitForChild("Util"):WaitForChild("Signal"))
 
 local LookCodec = require(Shared:WaitForChild("LookCodec"))
@@ -512,11 +513,35 @@ function EnemyService.setPocketHeight(fn: (number, number, number) -> number?)
 	pocketHeight = fn
 end
 
+-- Built pockets by index: robots in one stand on its boxes, are stopped by its walls and fly under its
+-- ceilings. The prologue's subway registers its layout here (nate's playtest 2026-11-18: Skylance walked
+-- through the subway's walls, the city answered a flat floor there); mission runs register theirs too.
+local pocketLayouts: { [number]: PocketLayout.Layout } = {}
+function EnemyService.usePocket(index: number, layout: PocketLayout.Layout?)
+	if layout then
+		PocketLayout.heights(layout)
+	end
+	pocketLayouts[index] = layout
+end
+
+local function pocketAt(x: number, z: number, y: number?): PocketLayout.Layout?
+	if not y or y < POCKET_Y then
+		return nil
+	end
+	local i = PocketLayout.at(Config, x, y, z)
+	return if i then pocketLayouts[i] else nil
+end
+EnemyService.pocketAt = pocketAt
+
 -- heightAt(x, z): the roof or ground height anywhere (CityBuilder.heightAt: the world and its wrecks)
 function EnemyService.init(heightAt: (number, number) -> number)
 	local rng = Random.new()
 	sim = EnemySim.new(Config, {
 		heightAt = function(x, z, y)
+			local pl = pocketAt(x, z, y)
+			if pl then
+				return PocketLayout.heightAt(pl, x, z)
+			end
 			if y and y >= POCKET_Y and pocketHeight then
 				local h = pocketHeight(x, z, y)
 				if h then
@@ -534,6 +559,10 @@ function EnemyService.init(heightAt: (number, number) -> number)
 		end,
 		water = function(x, y, z)
 			return DeepLayout.underwater(Config, x, y, z)
+		end,
+		ceilingAt = function(x, z, y)
+			local pl = pocketAt(x, z, y)
+			return if pl then PocketLayout.ceilingAt(pl, x, z, y) else nil
 		end,
 		random = function()
 			return rng:NextNumber()

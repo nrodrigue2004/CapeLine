@@ -112,6 +112,7 @@ local function buildSubway()
 	end
 	m.Parent = workspace
 	subway = m
+	EnemyService.usePocket(PocketLayout.subwayIndex(Config), l) -- robots down there know its walls
 end
 
 local function claimLane(r: Run): OpeningPlan.Lane?
@@ -390,7 +391,13 @@ local function enter(r: Run, step: string)
 		local S = O.swarm
 		for i = 1, S.count do
 			local a = i / S.count * math.pi * 2
-			local id = spawn(r, S.kind, pos + Vector3.new(math.cos(a) * S.ring, 0, math.sin(a) * S.ring))
+			local at = pos + Vector3.new(math.cos(a) * S.ring, 0, math.sin(a) * S.ring)
+			if r.lane then
+				-- in the subway every trooper starts inside the fight chamber, never past one of its walls
+				local x, z = PocketLayout.chamberPoint(Config, r.lane, at.X, at.Z, S.margin)
+				at = Vector3.new(x, at.Y, z)
+			end
+			local id = spawn(r, S.kind, at)
 			if id then
 				EnemyService.tune(id, { dmgMult = S.dmg })
 			end

@@ -378,7 +378,8 @@ return {
 			push = 22,
 		},
 		fight = { fake = "Skylance", hpMult = 0.55, dmg = 0.35, lowHealth = 0.3 }, -- ends at the face crack
-		swarm = { kind = "SparkDrone", count = 7, ring = 22, dmg = 0.12, lowHealth = 0.35 }, -- the Crane Troopers
+		-- the Crane Troopers; in the subway each starts at least `margin` studs inside the fight chamber's walls
+		swarm = { kind = "SparkDrone", count = 7, ring = 22, margin = 5, dmg = 0.12, lowHealth = 0.35 },
 		reward = { level = 3, skillPoints = 1 }, -- level 3 and Flight, as the old opening paid
 		next = 2, -- the hook: mission 2 (Safehouse, lore step 5) is what the Journal pins next
 		-- the billboard for the last shot: a tall building's face toward the plaza
