@@ -81,6 +81,7 @@ type Body = {
 	rig: NpcRig.Rig,
 	hair: BasePart,
 	clothes: { [string]: { Texture } }?, -- the Roblox look's Textures by part
+	shown: number, -- how much of them is drawn (ClothesMap.level)
 	face: Decal?,
 	color: number,
 	key: number,
@@ -140,6 +141,7 @@ local function newBody(color: number, bodyIndex: number): Body
 		phase = 0,
 		speed = 0,
 		state = 0,
+		shown = 2,
 	}
 end
 
@@ -328,7 +330,15 @@ local function render()
 		body.pos = pos
 		body.yaw = lerpAngle(body.yaw, rbb.yaw, math.min(1, dt * 10))
 		body.state = rb.state
-		local near = (pos - cam).Magnitude < (Q.citizenPoseNear or C.poseNear)
+		local dist = (pos - cam).Magnitude
+		if body.clothes then
+			local level = ClothesMap.level(dist, Q.clothesNear or 25, Q.clothesFar or 80, body.shown)
+			if level ~= body.shown then
+				body.shown = level
+				NpcRig.showClothes(body.rig, body.clothes, level)
+			end
+		end
+		local near = dist < (Q.citizenPoseNear or C.poseNear)
 		pose(body, dt, roots, cframes, near or (frame + id) % (Q.citizenPoseEvery or C.poseEvery) == 0)
 	end
 	if #roots > 0 then

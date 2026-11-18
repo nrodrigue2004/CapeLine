@@ -837,10 +837,29 @@ function HeroService.addDecoy(pos: Vector3, duration: number): number
 	return nextDecoy
 end
 
--- The list EnemySim reads every tick
+-- The list EnemySim reads every tick (every Heartbeat: its shots and bombs home on these positions each frame).
+-- Perf pass (2026-11-18): each hero's (and decoy's) entry is one table kept from frame to frame and written in
+-- place, by id, instead of 30 new tables a frame; an id gone this frame drops its entry. EnemySim keeps ids,
+-- never these tables.
 local simList = {}
+local simEntry: { [number]: { [string]: any } } = {}
+local simMark: { [number]: number } = {}
+local simStamp = 0
+local function entryFor(id: number): { [string]: any }
+	local e = simEntry[id]
+	if not e then
+		e = { id = id }
+		simEntry[id] = e
+	end
+	simMark[id] = simStamp
+	table.insert(simList, e)
+	return e
+end
+
 function HeroService.simHeroes(): { any }
 	table.clear(simList)
+	simStamp += 1
+	local now = os.clock()
 	for _, hero in heroes do
 		local pos = HeroService.position(hero)
 		if pos then
@@ -853,31 +872,28 @@ function HeroService.simHeroes(): { any }
 					lx, lz = look.X / l, look.Z / l
 				end
 			end
-			table.insert(simList, {
-				id = hero.id,
-				x = pos.X,
-				y = pos.Y,
-				z = pos.Z,
-				-- a hidden hero (Smoke Bomb, Shadow Step) is lost by every robot until it shows again
-				alive = hero.alive
-					and not hero.traveling
-					and not Status.has(hero.status, "hidden", os.clock()),
-				lx = lx,
-				lz = lz,
-				scene = hero.scene, -- the opening or a mission: no ambient robots spawn around them
-			})
+			local e = entryFor(hero.id)
+			e.x, e.y, e.z = pos.X, pos.Y, pos.Z
+			-- a hidden hero (Smoke Bomb, Shadow Step) is lost by every robot until it shows again
+			e.alive = hero.alive and not hero.traveling and not Status.has(hero.status, "hidden", now)
+			e.lx, e.lz = lx, lz
+			e.scene = hero.scene -- the opening or a mission: no ambient robots spawn around them
 		end
 	end
-	local now = os.clock()
 	for i = #decoys, 1, -1 do
 		local d = decoys[i]
 		if now >= d.untilT then
 			table.remove(decoys, i)
 		else
-			table.insert(
-				simList,
-				{ id = d.id, x = d.pos.X, y = d.pos.Y, z = d.pos.Z, alive = true, lx = 0, lz = -1 }
-			)
+			local e = entryFor(d.id)
+			e.x, e.y, e.z = d.pos.X, d.pos.Y, d.pos.Z
+			e.alive, e.lx, e.lz = true, 0, -1
+		end
+	end
+	for id, mark in simMark do
+		if mark ~= simStamp then
+			simMark[id] = nil
+			simEntry[id] = nil
 		end
 	end
 	return simList

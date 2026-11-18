@@ -51,20 +51,22 @@ function FrameProf.tick()
 	frames += 1
 end
 
+-- the end of a timed call: one shared function, so a wrapped call makes no closure (perf pass 2026-11-18: it
+-- made one every call, every frame, in every wrapped loop)
+local function finish<R...>(name: string, t0: number, ...: R...): R...
+	FrameProf.add(name, (os.clock() - t0) * 1000)
+	if profEnd then
+		profEnd()
+	end
+	return ...
+end
+
 function FrameProf.wrap<A..., R...>(name: string, fn: (A...) -> R...): (A...) -> R...
 	return function(...: A...): R...
 		if profBegin then
 			profBegin(name)
 		end
-		local t0 = os.clock()
-		local function finish(...: R...): R...
-			FrameProf.add(name, (os.clock() - t0) * 1000)
-			if profEnd then
-				profEnd()
-			end
-			return ...
-		end
-		return finish(fn(...))
+		return finish(name, os.clock(), fn(...))
 	end
 end
 

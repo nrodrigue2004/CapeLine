@@ -7,7 +7,8 @@
 # faces.py's face engine with the person's own numbers and extras. PLACEHOLDER ART until nate approves.
 # Config.NpcLooks.people holds the ids; Shared.PeopleLooks puts them on (a person's hats, coats, gloves, boots and
 # capes stay; the outfit draws the suit, shirt, pants and legs). Original designs only.
-# Output: art/export/clothes/people/<Name>.png (+ _Shirt, _Pants), Face_<Name>.png (Face_Vesper_Cracked.png), and
+# Output: art/export/clothes/people/<Name>.png (+ _Shirt, _Pants), Face_<Name>.png (Face_Vesper_Cracked.png; 256 px
+# like faces.py's, perf pass 2026-11-18), and
 # art/preview/people_templates.png and people_faces.png. On the body: art/blender/clothed.py people <page>.
 # Run: python3 art/clothes/people.py   (PIL only)
 import math
@@ -1327,10 +1328,10 @@ if __name__ == "__main__":
         sheets.append((name, save(name, sh, pa)))
     made = 0
     for name, f in FACES.items():
-        faces.face(f, False).save(os.path.join(OUT, "Face_%s.png" % name))
+        faces.small(faces.face(f, False)).save(os.path.join(OUT, "Face_%s.png" % name))
         made += 1
         if name in CRACKED:
-            faces.face(f, False, True).save(os.path.join(OUT, "Face_%s_Cracked.png" % name))
+            faces.small(faces.face(f, False, True)).save(os.path.join(OUT, "Face_%s_Cracked.png" % name))
             made += 1
     # the template sheet: every outfit (shirt | pants), four a row
     tw, th = 780, 373
@@ -1353,8 +1354,9 @@ if __name__ == "__main__":
     cols = 6
     fs = Image.new("RGB", (T_ * cols, T_ * ((len(names) + cols - 1) // cols)), (40, 42, 48))
     for i, n in enumerate(names):
-        tile = Image.new("RGBA", (1024, 1024), SKIN[n.split("_")[0]] + (255,))
-        tile.alpha_composite(Image.open(os.path.join(OUT, "Face_%s.png" % n)))
+        im = Image.open(os.path.join(OUT, "Face_%s.png" % n)).convert("RGBA")
+        tile = Image.new("RGBA", im.size, SKIN[n.split("_")[0]] + (255,))
+        tile.alpha_composite(im)
         fs.paste(tile.convert("RGB").resize((T_ - 8, T_ - 8)), ((i % cols) * T_ + 4, (i // cols) * T_ + 4))
     fs.save(os.path.join(ROOT, "preview", "people_faces.png"))
     # for art/blender/clothed.py people <page> (no PIL there): each page's people with skin, hair and face file

@@ -27,6 +27,9 @@ export type Rig = {
 
 local GRIP = CFrame.Angles(-math.pi / 2, 0, 0)
 
+-- the clothes Textures on a face the body hides at rest (ClothesMap.tucked), drawn only up close
+local tucked: { [Texture]: boolean } = setmetatable({}, { __mode = "k" }) :: any
+
 local function v3(t: { number }): Vector3
 	return Vector3.new(t[1], t[2], t[3])
 end
@@ -272,6 +275,9 @@ function NpcRig.dress(rig: Rig, image: string, sign: number?): { [string]: { Tex
 				t.OffsetStudsU = ou
 				t.OffsetStudsV = ov
 				t.Parent = p
+				if ClothesMap.tucked(pname, face) then
+					tucked[t] = true
+				end
 				table.insert(list, t)
 			end
 		end
@@ -302,12 +308,34 @@ function NpcRig.dressPair(rig: Rig, shirt: string, pants: string, sign: number?)
 				t.OffsetStudsU = ou
 				t.OffsetStudsV = ov
 				t.Parent = p
+				if ClothesMap.tucked(pname, face) then
+					tucked[t] = true
+				end
 				table.insert(list, t)
 			end
 		end
 		out[pname] = list
 	end
 	return out
+end
+
+-- Perf pass (2026-11-18): how much of a rig's clothes are drawn, by ClothesMap.level (2 every face, 1 all but
+-- the tucked faces, 0 none: the part colours under them match). A Texture is taken off its part (Parent nil)
+-- and put back, never remade, so re-dressing a pooled rig (Texture, Color3, Transparency) still works while it
+-- is off. `clothes` is what dress or dressPair returned (nil does nothing).
+function NpcRig.showClothes(rig: Rig, clothes: { [string]: { Texture } }?, level: number)
+	if not clothes then
+		return
+	end
+	for pname, list in clothes do
+		local p = rig.parts[pname]
+		for _, t in list do
+			local parent = if level >= 2 or (level == 1 and not tucked[t]) then p else nil
+			if t.Parent ~= parent then
+				t.Parent = parent
+			end
+		end
+	end
 end
 
 -- A side quest person's own outfit (Shared.PeopleLooks.outfit): its clothes image on the body (NpcRig.dress) and

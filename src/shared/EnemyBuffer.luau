@@ -19,7 +19,46 @@ local function i16(value: number): number
 	return math.clamp(math.floor(value * 10 + 0.5), -32768, 32767)
 end
 
--- enemies: EnemySim list. Only those within `radius` of (px, py, pz), nearest first, at most maxCount.
+-- An UnreliableRemoteEvent drops any send over 900 bytes (perf pass 2026-11-18). A packet keeps 40 bytes for
+-- the remote's own overhead, so it never holds more than MAX robots (65) whatever the caller asks for.
+EnemyBuffer.LIMIT = 900
+EnemyBuffer.MARGIN = 40
+EnemyBuffer.MAX = (EnemyBuffer.LIMIT - EnemyBuffer.MARGIN - HEADER) // PER
+
+-- Scratch kept across calls (perf pass 2026-11-18: 30 players at 10 Hz made a table per robot per player and
+-- a sort closure each): the robots in reach, their squared distances, and their order (indices into both).
+-- The output is byte for byte the old encoder's (tests/perf.luau).
+local inReach: { any } = {}
+local dist2: { number } = {}
+local order: { number } = {}
+local function closer(a: number, b: number): boolean
+	return dist2[a] < dist2[b]
+end
+-- the fast sort: the distances alone (a plain number sort, no comparator) and which robot has each one. With
+-- no two robots in reach at exactly the same distance the order is the only one there is, the old sort's
+-- too; on a tie the old comparator sort runs, so even then the bytes match.
+local keys: { number } = {}
+local owner: { [number]: number } = {}
+local function nearestFirst(n: number)
+	table.clear(keys)
+	table.clear(owner)
+	for i = 1, n do
+		local d = dist2[i]
+		if d ~= d or owner[d] then
+			table.sort(order, closer)
+			return
+		end
+		owner[d] = i
+		keys[i] = d
+	end
+	table.sort(keys)
+	for i = 1, n do
+		order[i] = owner[keys[i]]
+	end
+end
+
+-- enemies: EnemySim list. Only those within `radius` of (px, py, pz), nearest first, at most maxCount (and
+-- never more than MAX).
 function EnemyBuffer.encodeFor(
 	sequence: number,
 	time: number,
@@ -30,30 +69,33 @@ function EnemyBuffer.encodeFor(
 	radius: number,
 	maxCount: number
 ): buffer
-	local picked = {}
 	local r2 = radius * radius
+	local n = 0
+	table.clear(order)
 	for _, e in enemies do
 		if e.alive then
 			local dx, dy, dz = e.x - px, e.y - py, e.z - pz
 			local d2 = dx * dx + dy * dy + dz * dz
 			if d2 <= r2 then
-				table.insert(picked, { e = e, d2 = d2 })
+				n += 1
+				inReach[n] = e
+				dist2[n] = d2
+				order[n] = n
 			end
 		end
 	end
-	if #picked > maxCount then
-		table.sort(picked, function(a, b)
-			return a.d2 < b.d2
-		end)
+	local cap = math.min(maxCount, EnemyBuffer.MAX)
+	if n > cap then
+		nearestFirst(n)
 	end
-	local count = math.min(#picked, maxCount)
+	local count = math.min(n, cap)
 	local b = buffer.create(HEADER + PER * count)
 	buffer.writeu32(b, 0, sequence % 4294967296)
 	buffer.writef32(b, 4, time)
 	buffer.writeu16(b, 8, count)
 	local offset = HEADER
 	for i = 1, count do
-		local e = picked[i].e
+		local e = inReach[order[i]]
 		buffer.writeu16(b, offset, e.id)
 		buffer.writei16(b, offset + 2, i16(e.x))
 		buffer.writei16(b, offset + 4, i16(e.y))
@@ -68,6 +110,10 @@ function EnemyBuffer.encodeFor(
 		buffer.writeu8(b, offset + 11, math.floor(((e.yaw or 0) % (2 * math.pi)) / (2 * math.pi) * 256) % 256)
 		buffer.writeu8(b, offset + 12, (e.extra or 0) % 256)
 		offset += PER
+	end
+	-- drop the references so a removed robot is not held until the next call
+	for i = 1, n do
+		inReach[i] = nil
 	end
 	return b
 end

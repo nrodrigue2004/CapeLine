@@ -39,6 +39,25 @@ local function step(Presets: any, name: string, by: number): string
 	return Presets.order[math.clamp(idx + by, 1, #Presets.order)]
 end
 
+-- How many robots the server sends one player in Enemy.Delta (perf pass 2026-11-18: everyone got the high
+-- preset's 60 while a phone draws 20): the most that player's device can draw, plus `spare` so the robots
+-- nearest the camera (not the hero) are still in the packet. `chosen` is the saved Graphics setting (0 Auto,
+-- else Presets.order's index): a fixed preset draws its own count. On Auto it is the highest preset the
+-- device can reach by itself (its start, one step up only where frameTest.upFor allows it); a device that
+-- has not said what it is yet (nil) gets the highest preset's.
+function QualityRules.enemiesFor(Presets: any, device: string?, chosen: number?, spare: number?): number
+	local name = Presets.order[#Presets.order]
+	if chosen and chosen >= 1 and Presets.order[chosen] then
+		name = Presets.order[chosen]
+	elseif device then
+		name = QualityRules.auto(Presets, device)
+		if Presets.frameTest.upFor[device] then
+			name = step(Presets, name, 1)
+		end
+	end
+	return Presets[name].enemiesDrawn + (spare or 0)
+end
+
 -- The preset after the first frame test (average fps over frameTest.seconds)
 function QualityRules.frameStep(Presets: any, name: string, fps: number, device: string): string
 	local F = Presets.frameTest

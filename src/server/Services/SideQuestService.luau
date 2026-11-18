@@ -845,6 +845,45 @@ local function stateFor(g: Group?, player: Player): { [string]: any }
 	}
 end
 
+-- Perf pass (2026-11-18): the tracker state goes to a member when it changes, not every 0.5 s. The device
+-- counts `left` down from when it got it, so a running timer is sent again only when it moves more than a
+-- second off that count.
+local sent: { [Player]: { s: { [string]: any }, at: number } } = {}
+local function same3(a: { number }?, b: { number }?): boolean
+	if a == nil or b == nil then
+		return a == b
+	end
+	return a[1] == b[1] and a[2] == b[2] and a[3] == b[3]
+end
+local function unchanged(a: { [string]: any }, b: { [string]: any }, dt: number): boolean
+	if
+		a.bit ~= b.bit
+		or a.test ~= b.test
+		or a.step ~= b.step
+		or a.steps ~= b.steps
+		or a.have ~= b.have
+		or a.need ~= b.need
+		or a.wait ~= b.wait
+		or a.phase ~= b.phase
+		or not same3(a.target, b.target)
+		or not same3(a.area, b.area)
+	then
+		return false
+	end
+	if (a.left == nil) ~= (b.left == nil) or (a.left and math.abs(a.left - dt - b.left) > 1) then
+		return false
+	end
+	local ca, cb = a.card, b.card
+	if ca == nil or cb == nil then
+		return ca == cb
+	end
+	return ca.name == cb.name and ca.title == cb.title
+end
+local function pushState(player: Player, state: { [string]: any })
+	sent[player] = { s = state, at = os.clock() }
+	Net.fire("SideQuestState", player, state)
+end
+
 local function clearGroup(g: Group)
 	for _, goal in g.goals do
 		clearGoal(goal)
@@ -872,7 +911,7 @@ local function leave(player: Player)
 	elseif done then
 		complete(g) -- the side still there finished and was waiting on the one that left
 	end
-	Net.fire("SideQuestState", player, { bit = 0 })
+	pushState(player, { bit = 0 })
 end
 
 -- A goal's progress; the step is done once every side present has finished
@@ -909,7 +948,7 @@ local function join(g: Group, player: Player, side: string)
 	if not g.test then
 		Net.fire("SideQuestTalk", player, { bit = g.chain.bit, kind = "step", step = g.idx })
 	end
-	Net.fire("SideQuestState", player, stateFor(g, player))
+	pushState(player, stateFor(g, player))
 end
 
 -- Where a site's steps are built (lore step 11, chain 2): an open square's middle, or a building's door
@@ -982,7 +1021,7 @@ complete = function(g: Group)
 	local finale = g.idx == #chain.steps
 	for player in g.members do
 		memberOf[player] = nil
-		Net.fire("SideQuestState", player, { bit = 0 })
+		pushState(player, { bit = 0 })
 		local c = StoryService.char(player)
 		local hero = HeroService.get(player)
 		if g.test then
@@ -1726,6 +1765,7 @@ function SideQuestService.init()
 	Players.PlayerRemoving:Connect(function(player)
 		leave(player)
 		waiting[player] = nil
+		sent[player] = nil
 	end)
 	local acc, sendAcc, refreshAcc = 0, 0, 0
 	RunService.Heartbeat:Connect(FrameProf.wrap("SideQuestService", function(dt)
@@ -1754,8 +1794,13 @@ function SideQuestService.init()
 		end
 		if sendAcc >= 0.5 then
 			sendAcc = 0
+			local now = os.clock()
 			for player, g in memberOf do
-				Net.fire("SideQuestState", player, stateFor(g, player))
+				local state = stateFor(g, player)
+				local last = sent[player]
+				if not (last and unchanged(last.s, state, now - last.at)) then
+					pushState(player, state)
+				end
 			end
 		end
 	end))

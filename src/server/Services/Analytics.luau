@@ -207,6 +207,12 @@ Analytics.funnelSink = {
 	end,
 }
 
+-- The device class a player's device said it is (its Telemetry hello): "phone", "tablet", "pc" or "console",
+-- nil before the hello (EnemyService caps Enemy.Delta by it)
+function Analytics.device(player: Player): string?
+	return devices[player]
+end
+
 -- Seconds since this player joined
 function Analytics.since(player: Player): number
 	return math.floor(os.clock() - (joinedAt[player] or os.clock()))
