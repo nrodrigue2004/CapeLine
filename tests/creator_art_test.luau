@@ -322,7 +322,11 @@ return function(T: any)
 				}
 			do
 				for kit in kitsOf(set[1]) do
-					check(Config[set[2]][kit] ~= nil, set[1] .. " " .. kit .. ": meshes")
+					-- Roblox catalog hair (kit "cat:<id>") is loaded at boot, not drawn
+					check(
+						string.sub(kit, 1, 4) == "cat:" or Config[set[2]][kit] ~= nil,
+						set[1] .. " " .. kit .. ": meshes"
+					)
 				end
 			end
 			-- a hat mesh hides the same hair as its part-built kit (LookKit reads PieceKits.hatHidesHair for both)

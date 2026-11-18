@@ -95,7 +95,7 @@ function CreatorRules.index(Config: any): Index
 		}
 		table.insert(idx.list, p)
 		table.insert(list, p)
-		idx.byName[p.name] = p
+		idx.byName[p.name] = idx.byName[p.name] or p -- the first piece of a name keeps it (catalog faces repeat some)
 	end
 	for t, tab in Config.Creator.tabs do
 		idx.byTab[tab.id] = {}
@@ -113,6 +113,14 @@ function CreatorRules.index(Config: any): Index
 		if tab.extra then
 			for i, row in tab.extra.pieces do
 				add(t, tab, row, tab.extra.base + i)
+			end
+		end
+	end
+	-- then the catalog styles a tab adds (2026-11-18: tab.more, its own base)
+	for t, tab in Config.Creator.tabs do
+		if tab.more then
+			for i, row in tab.more.pieces do
+				add(t, tab, row, tab.more.base + i)
 			end
 		end
 	end
@@ -342,10 +350,56 @@ function CreatorRules.dropPick(Config: any, profile: any, rng: any): Piece?
 end
 
 -- Owned pieces of one tab (for the creator's grid and Randomize)
+-- Is this tab retired from the creator (Config.Creator tabs with hidden = true: our own eyes, face details,
+-- makeup and facial hair, nate 2026-11-18)? Its pieces stay for saved ids but are never worn or picked.
+function CreatorRules.hidden(Config: any, tab: string): boolean
+	for _, t in Config.Creator.tabs do
+		if t.id == tab then
+			return t.hidden == true
+		end
+	end
+	return false
+end
+
+-- May the creator offer this piece? Not in a retired tab; in a catalog tab (hair, faces) only the Roblox catalog
+-- styles (kit "cat:..."), the drawn ones stay for NPC looks and saved ids (nate, 2026-11-18)
+function CreatorRules.offered(Config: any, p: Piece): boolean
+	if CreatorRules.hidden(Config, p.tab) then
+		return false
+	end
+	local tab = Config.Creator.tabs[p.tabIndex]
+	if tab and tab.catalog then
+		return string.sub(p.kit, 1, 4) == "cat:"
+	end
+	return true
+end
+
+-- A hero's look with what the creator no longer offers taken off (retired tabs) or swapped for the first catalog
+-- style (a drawn face or hair from an older save), so DONE saves a look the creator can show
+function CreatorRules.offeredLook(Config: any, look: Look): Look
+	for _, slot in LookCodec.ALL do
+		local i = look.pieces[slot] or 0
+		local p = if i > 0 then CreatorRules.piece(Config, slot, i) else nil
+		if p and not CreatorRules.offered(Config, p) then
+			local first = 0
+			if not CreatorRules.hidden(Config, slot) then
+				for _, q in CreatorRules.index(Config).byTab[slot] do
+					if CreatorRules.offered(Config, q) then
+						first = q.index
+						break
+					end
+				end
+			end
+			look.pieces[slot] = first
+		end
+	end
+	return look
+end
+
 function CreatorRules.ownedIn(Config: any, profile: any, tab: string): { Piece }
 	local out = {}
 	for _, p in CreatorRules.index(Config).byTab[tab] or {} do
-		if CreatorRules.owned(Config, profile, p) then
+		if CreatorRules.owned(Config, profile, p) and CreatorRules.offered(Config, p) then
 			table.insert(out, p)
 		end
 	end

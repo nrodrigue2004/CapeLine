@@ -79,7 +79,8 @@ local SLOT_NAMES = {
 	backpack = "Back bling",
 	hat = "Headwear",
 }
-local FACE_SLOTS = { hair = true, beard = true, eyes = true, face = true, makeup = true, ears = true }
+local FACE_SLOTS =
+	{ visage = true, hair = true, beard = true, eyes = true, face = true, makeup = true, ears = true }
 local BACK_SLOTS = { back = true, backpack = true }
 -- slots with no NONE choice (every hero has a flight trail and a voice; a top too, unless heroes wear their
 -- own avatar, whose clothes show with no suit)
@@ -121,6 +122,7 @@ local REASONS = {
 	path = "Your archetype and path are set (one free change before level 10)",
 	look = "Something went wrong: try again",
 	scene = "Finish what you are doing first",
+	loading = "Your hero is still loading. Tap DONE again in a moment",
 	combat = "Not during a fight",
 	safehouse = "Change your look at your HQ or a safehouse",
 	weapon = "Get that weapon at a Weapon Rack first",
@@ -162,6 +164,7 @@ local weaponTarget = 1 -- the weapon colour being edited: 1 main, 2 trim, 3 glow
 local cardFor: (() -> ())? = nil -- redraws the card for the current pick (after a hover ends)
 local pending = false
 local saveSent = 0
+local statusHold = 0 -- a refusal stays on screen until then (os.clock)
 local rng = Rng.new(os.time() % 100000 + 3)
 
 -- the client's copy of the unlocks as a profile-shaped table (the server checks everything again)
@@ -257,26 +260,29 @@ local function weaponStatus(id: number): (boolean, string)
 	return false, Kit.comma(w.price or 0) .. " Credits at a Weapon Rack"
 end
 
-local function canFinish(): (boolean, string?)
+-- Can DONE save, and if not: why, and the step that fixes it (DONE jumps there; nate's playtest 2026-11-18,
+-- "the play/done button dont work sometimes": a grey DONE with a small line under it read as broken)
+local function canFinish(): (boolean, string?, string?)
 	if titleId == 0 or nounId == 0 then
-		return false, "Pick a Title and a Noun (PLAY)"
+		return false, "Pick a Title and a Noun for your hero name", "play"
 	end
 	if not CreatorRules.nameOk(Config, titleId, nounId) then
-		return false, REASONS.name
+		return false, REASONS.name, "play"
 	end
 	if not CreatorRules.originOk(Config, originIdx) then
-		return false, "Pick an origin (ORIGIN)"
+		return false, "Pick how your Spark woke (ORIGIN)", "origin"
 	end
 	if classIdx == 0 then
-		return false, "Pick an archetype (POWERS)"
+		return false, "Pick an archetype and a path (POWERS)", "powers"
 	end
 	local ok, why = weaponStatus(weaponLook.id)
 	if not ok then
 		local w = WeaponRules.get(Config, weaponLook.id)
 		return false,
-			(if w then w.name .. ": " else "") .. (if why ~= "" then why else "Pick a weapon (WEAPON)")
+			(if w then w.name .. ": " else "") .. (if why ~= "" then why else "Pick a weapon (WEAPON)"),
+			"weapon"
 	end
-	return true, nil
+	return true, nil, nil
 end
 
 local function clear(frame: Instance)
@@ -288,6 +294,7 @@ local function clear(frame: Instance)
 end
 
 local refresh: () -> ()
+local refuse: (why: string, fix: string?) -> ()
 
 -- the hero in the middle: the current look, or a look being hovered
 local function showPreview(l: any?, wl: any?)
@@ -840,7 +847,9 @@ local function drawSkin()
 	end
 end
 local function drawMatchAll()
-	local names = { "PRIMARY", "SECONDARY", "ACCENT", "HAIR", "EYES" }
+	-- catalog hair and faces carry their own colours (no HAIR or EYES tint since 2026-11-18)
+	local names = { "PRIMARY", "SECONDARY", "ACCENT" }
+	colorTarget = math.min(colorTarget, 3)
 	for i, n in names do
 		tile(n, nil, colorTarget == i, false, function()
 			colorTarget = i
@@ -889,6 +898,9 @@ local function drawPieces()
 		)
 	end
 	for _, p in CreatorRules.index(Config).byTab[slot] or {} do
+		if not CreatorRules.offered(Config, p) then
+			continue -- a drawn style kept for NPCs (catalog tabs) or a retired tab
+		end
 		local have = CreatorRules.wearable(Config, pv, p, originIdx)
 		tile(
 			p.name,
@@ -914,6 +926,9 @@ local function drawAppearance()
 	for _, area in AREAS do
 		header(area[1])
 		for _, id in area[2] do
+			if CreatorRules.hidden(Config, id) then
+				continue -- retired (our own eyes, face details, makeup, facial hair until catalog beards come)
+			end
 			row(slotName(id), nil, slot == id, false, function()
 				if slot ~= id then
 					colorTarget = 1
@@ -924,7 +939,12 @@ local function drawAppearance()
 		end
 	end
 	cardFor = function()
-		local count = #(CreatorRules.index(Config).byTab[slot] or {})
+		local count = 0
+		for _, q in CreatorRules.index(Config).byTab[slot] or {} do
+			if CreatorRules.offered(Config, q) then
+				count += 1
+			end
+		end
 		local sub = if slot == "skin"
 			then "24 tones and 6 fantasy skins"
 			elseif slot == "colors" then "Sets the whole hero; any slot can then have its own"
@@ -938,7 +958,7 @@ local function drawAppearance()
 		drawMatchAll()
 	else
 		drawPieces()
-		if slot ~= "voice" and slot ~= "aura" and slot ~= "trail" then
+		if slot ~= "voice" and slot ~= "aura" and slot ~= "trail" and slot ~= "hair" and slot ~= "visage" then
 			drawSlotColors()
 		end
 	end
@@ -1035,19 +1055,36 @@ refresh = function()
 	nameLabel.Text = string.upper(heroName())
 	local ok, why = canFinish()
 	local last = step == #STEPS
-	nextButton.Text = if last then "DONE" else "NEXT"
+	nextButton.Text = if pending then "SAVING..." elseif last then "DONE" else "NEXT"
 	nextButton.BackgroundColor3 = if not last or (ok and not pending) then Kit.color.gold else Kit.color.muted
 	backButton.Visible = step > 1
-	if not pending then
+	if not pending and os.clock() > statusHold then
 		status.Text = if ok or not last then "" else (why or "")
+		status.TextColor3 = Kit.color.paper
 	end
 	showPreview()
 end
 
+-- A DONE that cannot save yet: say why in gold, and open the step that fixes it
+refuse = function(why: string, fix: string?)
+	if fix then
+		for i, st in STEPS do
+			if st.id == fix and i ~= step then
+				step = i
+				refresh()
+			end
+		end
+	end
+	status.Text = why
+	status.TextColor3 = Kit.color.gold
+	statusHold = os.clock() + 4
+	Kit.bounce(status)
+end
+
 local function finish()
-	local ok, why = canFinish()
+	local ok, why, fix = canFinish()
 	if not ok then
-		status.Text = why or ""
+		refuse(why or "", fix)
 		return
 	end
 	if pending then
@@ -1071,11 +1108,11 @@ local function finish()
 	-- no answer: let them try again (spec: every remote call has an error state)
 	local sentAt = os.clock()
 	saveSent = sentAt
-	task.delay(8, function()
+	task.delay(6, function()
 		if pending and saveSent == sentAt and gui.Enabled then
 			pending = false
 			refresh()
-			status.Text = "Could not save. Try again"
+			refuse("Could not save. Tap DONE again", nil)
 		end
 	end)
 end
@@ -1247,6 +1284,33 @@ local function build()
 	ll.Parent = list
 	-- the hero (middle)
 	preview = Preview.new(panel, UDim2.fromScale(0.3, 0.6), UDim2.fromOffset(0, 0))
+	-- turn the hero (nate's playtest, 2026-11-18: "allow me to rotate character"): drag it, or tap these; a
+	-- controller's shoulder buttons turn it too
+	for i, dir in { -1, 1 } do
+		local b = Kit.button({
+			Name = if dir < 0 then "TurnLeft" else "TurnRight",
+			Text = if dir < 0 then "⟲" else "⟳",
+			AnchorPoint = Vector2.new(if dir < 0 then 0 else 1, 1),
+			Size = UDim2.fromOffset(T, T),
+			Position = UDim2.new(if dir < 0 then 0 else 1, if dir < 0 then 6 else -6, 1, -6),
+			BackgroundColor3 = Kit.color.paper,
+			LayoutOrder = i,
+			maxText = 26,
+		}, function()
+			preview.turn(dir * math.pi / 4)
+		end)
+		b.Parent = preview.frame
+	end
+	local hint = Kit.label({
+		Text = "Drag to turn",
+		AnchorPoint = Vector2.new(0.5, 1),
+		Size = UDim2.new(1, -2 * T - 24, 0, 18),
+		Position = UDim2.new(0.5, 0, 1, -10),
+		TextColor3 = Kit.color.muted,
+		Font = Kit.bodyFont,
+		maxText = 14,
+	})
+	hint.Parent = preview.frame
 	nameLabel = Kit.label({
 		Text = "",
 		TextColor3 = Kit.color.paper,
@@ -1323,11 +1387,12 @@ local function build()
 	status = Kit.label({
 		Text = "",
 		AnchorPoint = Vector2.new(0.5, 1),
-		Size = UDim2.new(0.5, 0, 0, 20),
+		Size = UDim2.new(0.6, 0, 0, 26),
 		Position = UDim2.new(0.5, 0, 1, -T - 30),
 		TextColor3 = Kit.color.paper,
+		TextStrokeTransparency = 0.4,
 		Font = Kit.bodyFont,
-		maxText = 16,
+		maxText = 20,
 	})
 	status.Parent = panel
 	backButton = Kit.button({
@@ -1382,9 +1447,14 @@ function CreatorScreen.open(opts: { [string]: any })
 	mode = opts.mode or "edit"
 	pending = false
 	local p = State.profile
-	look = LookCodec.read(p.look) or CreatorRules.defaultLook(Config)
+	look = CreatorRules.offeredLook(Config, LookCodec.read(p.look) or CreatorRules.defaultLook(Config))
 	look.anime = State.hero.fxStyle == "Anime"
 	titleId, nounId = p.titleId or 0, p.nounId or 0
+	if titleId == 0 or nounId == 0 or not CreatorRules.nameOk(Config, titleId, nounId) then
+		-- a new hero starts with a random name pair (changed any time on PLAY), so DONE never waits on it
+		local _, t, n = CreatorRules.randomize(Config, profileView(), rng)
+		titleId, nounId = t, n
+	end
 	sideIdx = if (opts.side or State.hero.side) == "villain" then 2 else 1
 	classIdx = if mode == "create"
 		then 0
@@ -1433,6 +1503,37 @@ end
 
 function CreatorScreen.init()
 	build()
+	-- catalog hair arrives a few seconds after boot (CatalogLookService): redraw the hero once it lands
+	task.spawn(function()
+		local lib = ReplicatedStorage:WaitForChild("CatalogLooks", 60)
+		if not lib then
+			return
+		end
+		local queued = false
+		lib.ChildAdded:Connect(function()
+			if queued then
+				return
+			end
+			queued = true
+			task.delay(0.5, function()
+				queued = false
+				if gui.Enabled and not pending then
+					showPreview()
+				end
+			end)
+		end)
+	end)
+	-- a controller's shoulder buttons turn the hero
+	game:GetService("UserInputService").InputBegan:Connect(function(input, _processed)
+		if not gui.Enabled then
+			return
+		end
+		if input.KeyCode == Enum.KeyCode.ButtonL1 then
+			preview.turn(-math.pi / 4)
+		elseif input.KeyCode == Enum.KeyCode.ButtonR1 then
+			preview.turn(math.pi / 4)
+		end
+	end)
 	Net.listen("CreatorOpen", function(data)
 		CreatorScreen.open(data)
 	end)
@@ -1442,7 +1543,7 @@ function CreatorScreen.init()
 			CreatorScreen.close()
 		else
 			refresh()
-			status.Text = REASONS[data.reason] or "Try again"
+			refuse(REASONS[data.reason] or "Try again", nil)
 		end
 	end)
 	State.ProfileChanged:Connect(function()

@@ -5046,7 +5046,8 @@ test(
 			"34 pieces in 5 packs; the anime pack has 8"
 		)
 		check(#C.palette == 48 and #C.skins == 30, "48 colours and 30 skins (24 natural, 6 fantasy)")
-		check(#C.titles == 12 and #C.nouns == 16, "12 titles and 16 nouns")
+		-- 2026-11-18 (nate: more naming options): 40 titles and 56 nouns, at most 64 each (the save's range)
+		check(#C.titles == 40 and #C.nouns == 56, "40 titles and 56 nouns")
 		for _, name in C.blockedNames do
 			local parts = string.split(name, " ")
 			check(
@@ -5188,7 +5189,7 @@ test(
 		check(CreatorRules.heroName(Config, 3, 1) == "Storm Falcon", "the name reads Title Noun")
 		check(not CreatorRules.nameOk(Config, 1, 1), "Captain Falcon is blocked")
 		check(
-			not CreatorRules.nameOk(Config, 0, 1) and not CreatorRules.nameOk(Config, 1, 17),
+			not CreatorRules.nameOk(Config, 0, 1) and not CreatorRules.nameOk(Config, 1, #Config.Creator.nouns + 1),
 			"both wheels needed"
 		)
 		local rng = Rng.new(9)
@@ -7275,6 +7276,16 @@ test(
 					local CC = Config.Creator.clothes
 					local ids = if p.tab == "shirt" then CC.shirts else CC.pants
 					check(type(ids[p.kit]) == "number", p.name .. " has a clothes image slot")
+				elseif string.sub(p.kit, 1, 4) == "cat:" then
+					-- a Roblox catalog face or hair (2026-11-18): a real face with its image, or a hair to load
+					local id = tonumber(string.sub(p.kit, 5))
+					local found = false
+					for _, row in
+						(if p.tab == "visage" then Config.CatalogLooks.faces else Config.CatalogLooks.hair)
+					do
+						found = found or (row[2] == id and (p.tab ~= "visage" or (row[3] or 0) > 0))
+					end
+					check(found, p.name .. " is a Config.CatalogLooks item")
 				elseif p.tab == "visage" then
 					check(Config.NpcLooks.faces[p.kit] ~= nil, p.name .. " is one of our faces")
 				else
@@ -7293,7 +7304,11 @@ test(
 		-- and the classic clothes and faces (2026-11-17): 18 shirts, 12 pants, 6 faces; and the 5 origin crests
 		-- (lore step 2)
 		-- and Hero Pass season 1's Opening Night set (H8: suit, cape, mask, boots)
-		check(count == 121 + 92 + 24 + 47 + 73 + 36 + 5 + 4, "402 pieces beyond the first 146 (548 in all)")
+		-- + 5 origin crests and 49 catalog hairs + 44 catalog faces (2026-11-18)
+		check(
+			count == 121 + 92 + 24 + 47 + 73 + 36 + 5 + 4 + 5 + 49 + 44,
+			"500 pieces beyond the first 146 (646 in all)"
+		)
 		-- every piece's unlock can actually be earned
 		for _, p in idx.list do
 			local src, n = p.source, p.source.n
@@ -7396,7 +7411,7 @@ test(
 			used["build" .. look.build] = true
 		end
 		check(
-			used.hat and used.legs and used.face and used.build4,
+			used.hat and used.legs and used.build4 and not used.face, -- face details retired 2026-11-18
 			"Randomize reaches the new slots and builds"
 		)
 	end
@@ -9549,8 +9564,19 @@ test(
 	function()
 		local CreatorRules = require("../src/shared/CreatorRules")
 		local C = Config.Creator
-		check(#C.origins == 5, "five origins")
-		local want = { "Lab accident", "Alien blood", "Magic relic", "Tech suit", "Training" }
+		check(#C.origins == 10, "ten origins (five more on 2026-11-18)")
+		local want = {
+			"Lab accident",
+			"Alien blood",
+			"Magic relic",
+			"Tech suit",
+			"Training",
+			"Born with it",
+			"Strange storm",
+			"Strange serum",
+			"Spirit bond",
+			"Family legacy",
+		}
 		for i, o in C.origins do
 			check(o.name == want[i], "origin " .. i .. " is " .. want[i])
 			check(type(o.title) == "string" and o.title ~= "", o.name .. " has a title")
@@ -9568,10 +9594,10 @@ test(
 				check(C.shapes[string.split(crest.kit, ":")[1]] ~= nil, crest.name .. " has a shape")
 			end
 		end
-		check(CreatorRules.originOk(Config, 1) and CreatorRules.originOk(Config, 5), "1 to 5 are origins")
+		check(CreatorRules.originOk(Config, 1) and CreatorRules.originOk(Config, 10), "1 to 10 are origins")
 		check(
-			not CreatorRules.originOk(Config, 0) and not CreatorRules.originOk(Config, 6),
-			"0 and 6 are not"
+			not CreatorRules.originOk(Config, 0) and not CreatorRules.originOk(Config, 11),
+			"0 and 11 are not"
 		)
 		check(C.origins[C.originDefault] ~= nil, "the default origin exists")
 		-- the crest: worn free by a hero of that origin, refused for another, unlocked once any hero has it
@@ -9622,7 +9648,7 @@ test(
 		local hc = Remotes.HeroCreate.schema
 		local last = hc[#hc]
 		check(
-			last.optional == true and last.min == 1 and last.max == #C.origins,
+			last.optional == true and last.min == 1 and last.max >= #C.origins,
 			"HeroCreate's last arg is the origin"
 		)
 	end
@@ -21075,7 +21101,7 @@ do
 					end
 				end
 			end
-			for i = 1, #Config.Creator.origins do
+			for i = 1, 5 do -- origins 6 to 10 (2026-11-18) have no quest line yet
 				check(origins[i] == 1, "one line for origin " .. i)
 			end
 		end

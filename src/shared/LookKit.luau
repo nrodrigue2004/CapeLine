@@ -1702,6 +1702,86 @@ local function suitClothes(char: Model, kit: string, colors: Colors, legsPiece: 
 	return art.shirt ~= 0 and art.parts == false
 end
 
+-- Roblox catalog items (nate, 2026-11-18: catalog faces, hair and facial hair, never our own). Faces are classic
+-- Face assets whose image id sits in Config.CatalogLooks; hair and beards are catalog accessories that
+-- CatalogLookService loads on the server into ReplicatedStorage.CatalogLooks (one Accessory per asset id), so
+-- every device clones the same item. Welded by its own attachment to the matching one on the body, the way
+-- Humanoid:AddAccessory fits it, so it sits exactly as on a Roblox avatar.
+local CATALOG_FACE: { [number]: number } = {}
+for _, row in Config.CatalogLooks.faces do
+	CATALOG_FACE[row[2]] = row[3]
+end
+local function catalogId(kit: string?): number?
+	if type(kit) ~= "string" or string.sub(kit, 1, 4) ~= "cat:" then
+		return nil
+	end
+	return tonumber(string.sub(kit, 5))
+end
+LookKit.catalogId = catalogId
+
+local function findAttachment(char: Model, name: string): Attachment?
+	for _, p in char:GetChildren() do
+		if p:IsA("BasePart") then
+			local a = p:FindFirstChild(name)
+			if a and a:IsA("Attachment") then
+				return a
+			end
+		end
+	end
+	return nil
+end
+
+local function catalogAccessory(char: Model, folder: Instance, id: number): boolean
+	local lib = ReplicatedStorage:FindFirstChild("CatalogLooks")
+	local src = lib and lib:FindFirstChild(tostring(id))
+	if not src or not src:IsA("Accessory") then
+		return false -- not loaded yet (CatalogLookService rebuilds every look once it is)
+	end
+	local acc = src:Clone()
+	local handle = acc:FindFirstChild("Handle")
+	if not handle or not handle:IsA("BasePart") then
+		acc:Destroy()
+		return false
+	end
+	local own: Attachment? = nil
+	for _, c in handle:GetChildren() do
+		if c:IsA("Attachment") then
+			own = c
+			break
+		end
+	end
+	local at = own and findAttachment(char, own.Name)
+	local head = char:FindFirstChild("Head")
+	local part = if at then at.Parent :: BasePart else head :: BasePart?
+	if not part then
+		acc:Destroy()
+		return false
+	end
+	for _, d in acc:GetDescendants() do
+		if d:IsA("Weld") or d:IsA("WeldConstraint") or d:IsA("LuaSourceContainer") then
+			d:Destroy()
+		end
+	end
+	handle.Anchored = false
+	handle.Massless = true
+	handle.CanCollide = false
+	handle.CanTouch = false
+	handle.CanQuery = false
+	if at and own then
+		handle.CFrame = at.WorldCFrame * own.CFrame:Inverse()
+	else
+		handle.CFrame = part.CFrame * CFrame.new(0, part.Size.Y / 2, 0)
+	end
+	local w = Instance.new("Weld")
+	w.Name = "AccessoryWeld"
+	w.Part0 = part
+	w.Part1 = handle
+	w.C0 = part.CFrame:ToObjectSpace(handle.CFrame)
+	w.Parent = handle
+	acc.Parent = folder
+	return true
+end
+
 -- Build a whole look (LookService adds the gear styles the look does not cover). Returns the folder.
 -- The body wears its body set and is shaped first (build, height, gender), so every piece is sized for it.
 local NEW_SLOTS =
@@ -1803,7 +1883,12 @@ function LookKit.build(char: Model, look: any, weapon: any?): Folder
 	local hidesHair = headHides or (hatKit and PieceKits.hatHidesHair[hatKit])
 	local hidesFace = hatKit ~= nil and PieceKits.hatHidesFace[hatKit] == true
 	local hairKit = kitOf("hair")
-	if hairKit and not hidesHair then
+	local hairCat = catalogId(hairKit)
+	if hairCat then
+		if not hidesHair then
+			catalogAccessory(char, folder, hairCat)
+		end
+	elseif hairKit and not hidesHair then
 		-- the hair meshes (round 3, Config.HairArt, art/blender/hair.py) stand in for its parts once imported
 		if not pieceMeshes(char, folder, "hair", hairKit, colors, nil, "Hair") then
 			addSpecs(char, folder, "Hair", KITS.hair[hairKit] or PieceKits.hair[hairKit], colors)
@@ -1813,7 +1898,12 @@ function LookKit.build(char: Model, look: any, weapon: any?): Folder
 	for _, slot in NEW_SLOTS do
 		local kit = kitOf(slot)
 		local covered = hidesFace and (slot == "face" or slot == "makeup" or slot == "beard")
-		if kit and not covered then
+		local cat = catalogId(kit)
+		if cat then
+			if not covered then
+				catalogAccessory(char, folder, cat)
+			end
+		elseif kit and not covered then
 			local c, m = slotColors(colors, look, slot)
 			-- the round 3 meshes (belts, shoulders, back bling, headwear) stand in for their parts once imported
 			if not pieceMeshes(char, folder, slot, kit, c, m) then
@@ -1837,10 +1927,13 @@ function LookKit.build(char: Model, look: any, weapon: any?): Folder
 		local head = char:FindFirstChild("Head")
 		local decal = head and head:FindFirstChild("face")
 		if decal and decal:IsA("Decal") then
-			-- one of our faces (Config.NpcLooks.faces, once uploaded), else Roblox's built-in face
-			local f = Config.NpcLooks.faces[kitOf("visage") or ""]
-			decal.Texture = if f and f.human ~= 0
-				then "rbxassetid://" .. f.human
+			-- a Roblox catalog face (Config.CatalogLooks), else an older save's shared face, else Roblox's own
+			local visage = kitOf("visage")
+			local img = CATALOG_FACE[catalogId(visage) or 0]
+			local f = Config.NpcLooks.faces[visage or ""]
+			decal.Texture = if img
+				then "rbxassetid://" .. img
+				elseif f and f.human ~= 0 then "rbxassetid://" .. f.human
 				else "rbxasset://textures/face.png"
 			decal.Transparency = if kitOf("face") or hidesFace then 1 else 0
 		end
