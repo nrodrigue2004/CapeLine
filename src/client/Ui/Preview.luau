@@ -5,6 +5,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 local FrameProf =
 	require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("FrameProf"))
 
@@ -18,6 +19,8 @@ export type Handle = {
 	set: (look: any, weapon: any?) -> (),
 	-- the creator plan's camera per step: "full", "face" (eyes, makeup), "back" (capes, back bling), "weapon"
 	focus: (kind: string) -> (),
+	-- turn the hero by this many radians (the creator's turn buttons); dragging the hero turns it too
+	turn: (radians: number) -> (),
 	destroy: () -> (),
 }
 
@@ -90,22 +93,90 @@ function Preview.new(parent: Instance, size: UDim2, position: UDim2): Handle
 	local model: Model? = nil
 	local yaw = 0
 	local spin = true
-	local conn = RunService.RenderStepped:Connect(FrameProf.wrap("Preview", function(dt)
-		if model and vp.Visible and model.PrimaryPart then
-			if spin then
-				yaw += dt * 0.6
-			else
-				-- ease back to facing the camera
-				yaw = yaw - math.sin(yaw) * math.min(1, dt * 6)
+	-- nate's playtest (2026-11-18): "allow me to rotate character". Drag the hero (mouse or finger) to turn it,
+	-- the wheel zooms; once turned by hand it stays where it was left (no auto spin) until the camera moves to
+	-- another focus. Turn buttons call handle.turn.
+	local manual = false
+	local zoom = 1
+	local dragging: InputObject? = nil
+	local lastX = 0
+	local conns: { RBXScriptConnection } = {}
+	local DRAG = 0.012 -- radians per pixel
+	table.insert(
+		conns,
+		RunService.RenderStepped:Connect(FrameProf.wrap("Preview", function(dt)
+			if model and vp.Visible and model.PrimaryPart then
+				-- turned by hand: it stays where the player left it
+				if not manual and spin then
+					yaw += dt * 0.6
+				elseif not manual then
+					-- ease back to facing the camera
+					yaw = yaw - math.sin(yaw) * math.min(1, dt * 6)
+				end
+				model:PivotTo(CFrame.Angles(0, yaw, 0))
 			end
-			model:PivotTo(CFrame.Angles(0, yaw, 0))
-		end
-	end))
+		end))
+	)
+	local function isPress(input: InputObject): boolean
+		return input.UserInputType == Enum.UserInputType.MouseButton1
+			or input.UserInputType == Enum.UserInputType.Touch
+	end
+	table.insert(
+		conns,
+		vp.InputBegan:Connect(function(input)
+			if isPress(input) and not dragging then
+				dragging = input
+				lastX = input.Position.X
+			end
+		end)
+	)
+	table.insert(
+		conns,
+		UserInputService.InputChanged:Connect(function(input)
+			local d = dragging
+			if not d then
+				return
+			end
+			local moved = (d.UserInputType == Enum.UserInputType.Touch and input == d)
+				or (
+					d.UserInputType == Enum.UserInputType.MouseButton1
+					and input.UserInputType == Enum.UserInputType.MouseMovement
+				)
+			if moved then
+				local dx = input.Position.X - lastX
+				lastX = input.Position.X
+				if math.abs(dx) > 0 then
+					manual = true
+					yaw += dx * DRAG
+				end
+			end
+		end)
+	)
+	table.insert(
+		conns,
+		UserInputService.InputEnded:Connect(function(input)
+			if dragging and (input == dragging or input.UserInputType == dragging.UserInputType) then
+				dragging = nil
+			end
+		end)
+	)
 	local function aim(kind: string)
 		local f = FOCUS[kind] or FOCUS.full
-		cam.CFrame = CFrame.lookAt(f[1], f[2])
+		local to = f[2]
+		local from = to + (f[1] - to) * zoom
+		cam.CFrame = CFrame.lookAt(from, to)
 		spin = f[3]
 	end
+	local focusKind = "full"
+	table.insert(
+		conns,
+		vp.InputChanged:Connect(function(input)
+			if input.UserInputType == Enum.UserInputType.MouseWheel then
+				zoom = math.clamp(zoom - input.Position.Z * 0.1, 0.55, 1.4)
+				aim(focusKind)
+			end
+		end)
+	)
 	local handle: Handle
 	handle = {
 		frame = vp,
@@ -116,6 +187,7 @@ function Preview.new(parent: Instance, size: UDim2, position: UDim2): Handle
 					model.PrimaryPart = model:FindFirstChild("HumanoidRootPart") :: BasePart?
 					model:PivotTo(CFrame.new())
 					model.Parent = world
+					focusKind = "full"
 					aim("full")
 				end
 			end
@@ -125,10 +197,28 @@ function Preview.new(parent: Instance, size: UDim2, position: UDim2): Handle
 			end
 		end,
 		focus = function(kind: string)
+			if kind ~= focusKind then
+				-- a new camera spot: back to its own turn (auto spin on the full view)
+				manual = false
+				zoom = 1
+				if kind ~= "full" then
+					yaw = yaw % (2 * math.pi)
+					if yaw > math.pi then
+						yaw -= 2 * math.pi
+					end
+				end
+			end
+			focusKind = kind
 			aim(kind)
 		end,
+		turn = function(radians: number)
+			manual = true
+			yaw += radians
+		end,
 		destroy = function()
-			conn:Disconnect()
+			for _, c in conns do
+				c:Disconnect()
+			end
 			vp:Destroy()
 		end,
 	}

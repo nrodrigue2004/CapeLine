@@ -7,11 +7,13 @@
 -- R15 animations, emotes and the creator's pieces (LookKit, by part name) all work on it.
 -- Until the meshes are imported nothing changes: heroes keep the player's own avatar body.
 
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local StarterPlayer = game:GetService("StarterPlayer")
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local NpcRig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("NpcRig"))
+local AvatarRules = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("AvatarRules"))
 
 local HeroBody = {}
 
@@ -83,7 +85,58 @@ function HeroBody.build(meshes: { [string]: MeshPart }): Model
 	return model
 end
 
+-- Roblox's own blocky R15 body (nate's playtest, 2026-11-18: "Clothes still dont look right ... none of them look
+-- or fit right", "the hair isnt fitting"). A blank HumanoidDescription at the classic scales gives the default
+-- blocky R15 character with Roblox's own meshes, which map classic Shirt and Pants exactly as on any avatar and
+-- carry the standard accessory attachments catalog hair and faces are made for. Config.Creator.robloxBody
+-- switches it; the Blender hero body (below) stays the fallback if the description cannot load.
+function HeroBody.robloxBody(): Model?
+	local desc = Instance.new("HumanoidDescription")
+	for field, value in AvatarRules.SCALES do
+		(desc :: any)[field] = value
+	end
+	local ok, model = pcall(function()
+		return Players:CreateHumanoidModelFromDescription(desc, Enum.HumanoidRigType.R15)
+	end)
+	desc:Destroy()
+	if not ok or not model then
+		warn("[HeroBody] Roblox's blocky body did not load:", model)
+		return nil
+	end
+	for _, d in model:GetDescendants() do
+		if
+			d:IsA("LuaSourceContainer")
+			or d:IsA("Accessory")
+			or d:IsA("Clothing")
+			or d:IsA("ShirtGraphic")
+			or d:IsA("BodyColors")
+		then
+			d:Destroy() -- the creator builds every look; Roblox's default scripts are added on spawn as before
+		end
+	end
+	for _, p in model:GetDescendants() do
+		if p:IsA("BasePart") then
+			p.CanCollide = SOLID[p.Name] == true
+		end
+	end
+	model.Name = "StarterCharacter"
+	return model
+end
+
 function HeroBody.init()
+	if Config.Creator.robloxBody then
+		local body = HeroBody.robloxBody()
+		if body then
+			local old = StarterPlayer:FindFirstChild("StarterCharacter")
+			if old then
+				old:Destroy()
+			end
+			body.Parent = StarterPlayer
+			StarterPlayer.LoadCharacterAppearance = false
+			print("[HeroBody] every hero uses Roblox's own blocky R15 body")
+			return
+		end
+	end
 	local meshes = HeroBody.meshes()
 	if not meshes then
 		print("[HeroBody] Art.Hero is not imported yet: heroes keep the player's own avatar body")

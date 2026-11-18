@@ -198,14 +198,16 @@ local Remotes: { [string]: RemoteDef } = {
 			n(1, 2),
 			n(1, 4),
 			n(1, 5),
-			n(1, 12),
-			n(1, 16),
+			n(1, 64), -- title (Config.Creator.titles; the save holds 64)
+			n(1, 64), -- noun
 			n(1, 5),
 			{ t = "buffer", len = { 12 }, optional = true },
-			n(1, 5, true),
+			n(1, 16, true), -- origin (10 since 2026-11-18)
 		},
-		rate = 0.1,
-		burst = 2,
+		-- one save every 5 s with 3 quick retries (was 1 per 10 s, burst 2: a refused tap plus two retries were
+		-- dropped with no answer, nate's "done button dont work sometimes", 2026-11-18)
+		rate = 0.2,
+		burst = 3,
 	},
 	HeroSelect = { dir = "C2S", schema = { n(1, 4) }, rate = 0.2, burst = 2 }, -- a character slot (new = create)
 	CreatorOpen = { dir = "S2C" }, -- { mode = "create" | "edit" | "first", side, classIdx, hq, origin }: open it

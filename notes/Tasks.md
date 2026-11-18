@@ -1534,3 +1534,12 @@ DEV panel (M6 row): Inc (cycles the 10 templates, spawns that one next to you), 
 - Robots walking near you use the normal Roblox walk and run, feet not sliding; they stand idle (breathing) when still.
 - Rifle robots still aim, shield robots hold the shield, Sneak Bots crouch, Swarmers run low.
 - Flyers, turrets, lunges and knock-ups look as before. No Output errors about animations.
+
+### Creator and looks fixes (2026-11-18, nate's playtest)
+- Boot Output says "[HeroBody] every hero uses Roblox's own blocky R15 body" and "[CatalogLooks] N of 49 catalog items loaded" (N near 49).
+- Your hero is the standard Roblox blocky body; every Shirt and Pants sits right (front on the front, sleeves on the arms, no stretched seams).
+- In the creator, Face and Hair list only Roblox catalog items; hair sits on the head like on a Roblox avatar; Eyes, Face details, Makeup and Facial hair no longer show.
+- Drag the hero to turn it, the turn buttons and L1/R1 turn it, the wheel zooms.
+- DONE with no origin picked opens ORIGIN and says why in gold; DONE always saves or says why within 6 s.
+- 40 titles and 56 nouns on PLAY; 10 origins, each with its crest.
+- Gloves, boots, masks, capes and weapons on the new body: check they still sit on the hands, feet, head and back.

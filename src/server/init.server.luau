@@ -51,6 +51,7 @@ local BuildingService = require(Services.BuildingService)
 local VehicleService = require(Services.VehicleService)
 local CitizenService = require(Services.CitizenService)
 local NpcLookService = require(Services.NpcLookService)
+local CatalogLookService = require(Services.CatalogLookService)
 local AvatarService = require(Services.AvatarService)
 local SiteKit = require(Services.SiteKit)
 local IncidentService = require(Services.IncidentService)
@@ -132,6 +133,14 @@ boot("VehicleService", VehicleService.init)
 boot("ThrowService", ThrowService.init) -- H3: pick up and throw (after the city and its vehicles)
 boot("CitizenService", CitizenService.init)
 boot("NpcLookService", NpcLookService.init) -- the robots' Roblox hair
+boot("CatalogLookService", function()
+	CatalogLookService.init() -- the heroes' Roblox catalog hair and facial hair
+	CatalogLookService.Loaded:Connect(function()
+		for _, player in game:GetService("Players"):GetPlayers() do
+			pcall(GearService.refresh, player) -- every look rebuilds with its catalog items in
+		end
+	end)
+end)
 boot("AvatarService", AvatarService.init) -- heroes wear the player's own avatar plus hero gear
 boot("SiteKit", SiteKit.init)
 boot("IncidentService", IncidentService.init)

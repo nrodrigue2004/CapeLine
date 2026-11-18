@@ -225,10 +225,60 @@ def m_dojo():
     return m
 
 
+def m_born():
+    m = mask()
+    d = draw(m)  # a birthmark: a sun with a spiral ring around a dot
+    d.polygon(star_pts(512, 512, 460, 330, n=7, rot=-90), fill=255)
+    d.ellipse([300, 300, 724, 724], fill=0)
+    d.ellipse([400, 400, 624, 624], fill=255)
+    return m
+
+
+def m_storm():
+    m = mask()
+    d = draw(m)  # a storm cloud with a bolt falling from it
+    for box in ([120, 260, 470, 560], [320, 140, 720, 520], [560, 260, 904, 560]):
+        d.ellipse(box, fill=255)
+    d.rounded_rectangle([150, 420, 874, 600], 80, fill=255)
+    d.polygon([(560, 560), (420, 760), (520, 760), (430, 960), (680, 700), (570, 700), (650, 560)], fill=255)
+    return m
+
+
+def m_serum():
+    m = mask()
+    d = draw(m)  # a vial on its side tilted up, a drop falling
+    d.rounded_rectangle([380, 90, 644, 170], 30, fill=255)
+    d.rounded_rectangle([410, 150, 614, 720], 100, fill=255)
+    d.ellipse([436, 780, 588, 932], fill=255)
+    d.polygon([(512, 720), (450, 840), (574, 840)], fill=255)
+    return m
+
+
+def m_spirit():
+    m = mask()
+    d = draw(m)  # a spirit flame: a teardrop with a curl
+    d.ellipse([230, 380, 794, 944], fill=255)
+    d.polygon([(250, 620), (512, 60), (774, 620)], fill=255)
+    d.ellipse([400, 560, 624, 784], fill=0)
+    return m
+
+
+def m_heir():
+    m = mask()
+    d = draw(m)  # an old key: a ring bow, a shaft and two teeth
+    d.ellipse([120, 120, 520, 520], fill=255)
+    d.ellipse([230, 230, 410, 410], fill=0)
+    d.polygon([(420, 360), (480, 300), (920, 740), (860, 800)], fill=255)
+    d.polygon([(720, 720), (780, 660), (880, 760), (820, 820)], fill=255)
+    d.polygon([(620, 620), (680, 560), (760, 640), (700, 700)], fill=255)
+    return m
+
+
 SHAPES = {"star": m_star, "spark": m_spark, "diamond": m_diamond, "orb": m_orb, "peak": m_peak, "heart": m_heart,
           "cross": m_cross, "moon": m_moon, "clover": m_clover, "flower": m_flower, "hex": m_hex,
           "ringstar": m_ringstar, "quad": m_quad, "burst": m_burst, "spade": m_spade, "lab": m_lab,
-          "alien": m_alien, "relic": m_relic, "tech": m_tech, "dojo": m_dojo}
+          "alien": m_alien, "relic": m_relic, "tech": m_tech, "dojo": m_dojo,
+          "born": m_born, "storm": m_storm, "serum": m_serum, "spirit": m_spirit, "heir": m_heir}
 
 
 def grow(m, width):

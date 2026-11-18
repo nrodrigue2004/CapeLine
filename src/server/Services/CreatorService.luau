@@ -152,6 +152,8 @@ local function onCreate(
 	local profile, c = charOf(player)
 	local hero = HeroService.get(player)
 	if not profile or not c or not hero or not hero.loaded then
+		-- always answer (nate's playtest, 2026-11-18: DONE "dont work sometimes" when a tap got no reply)
+		result(player, false, "loading")
 		return
 	end
 	local mode, why = modeOf(player, hero, c)
