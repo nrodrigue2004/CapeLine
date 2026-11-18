@@ -174,8 +174,8 @@ local COPY_AFTER = {
 		{
 			at = 0.5,
 			who = "patch",
-			hero = "If Crane can copy you, he can copy anyone. The city needs proof it can see.",
-			villain = "Crane copies anyone he likes. Someone should show the whole city, for a price.",
+			hero = "Whoever can copy you can copy anyone. The city needs proof it can see.",
+			villain = "Somebody out there copies anyone they like. Someone should show the whole city, for a price.",
 		},
 		{ at = 5, who = "patch", text = "Crane Tower has the biggest broadcast mast in town. Just saying." },
 	},
@@ -417,7 +417,7 @@ return {
 				{ at = 0.5, who = "crane", text = "Brightharbor! Thank you all for coming out today." },
 				{ at = 4.6, who = "crane", text = "Ten years ago, the Spark nearly tore this city apart." },
 				{ at = 8.8, who = "crane", text = "Today we honour the heroes who keep you safe. Radiant!" },
-				{ at = 13, who = "crane", text = "Bulwark! And Skylance! Built strong by Crane Industries." },
+				{ at = 13, who = "crane", text = "Bulwark! And Skylance! Guardians of Brightharbor!" },
 				{
 					at = 17.4,
 					who = "crane",
@@ -511,7 +511,7 @@ return {
 				{ at = 9.7, who = "lodestar", text = "Hold on tight. We're going underground." },
 			},
 			title = {
-				{ at = 0.8, who = "crane", text = "Crane Industries. Your heroes. Our promise." },
+				{ at = 0.8, who = "crane", text = "Crane Industries keeps Brightharbor bright." },
 			},
 		},
 		-- the scan's banner and the billboard (fixed text)
@@ -1569,7 +1569,7 @@ return {
 				{
 					from = 3,
 					lines = {
-						"Crane's fakes stage the disasters, then take the bows. Watch for the cracks.",
+						"The fakes stage the disasters, then take the bows. Watch for the cracks.",
 						"Save people first. Footage second. Pride never.",
 						"Patch made you a badge? Wear it. It means a lot to the kid.",
 					},
