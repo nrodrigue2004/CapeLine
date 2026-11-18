@@ -18,6 +18,9 @@ Targets (manifest "target"):
   creator_suit Config.Creator.suitArt.kits.<kit>.<shirt|pants> (the Suits tab's overlays: art/clothes/suits.py)
   creator_emblem Config.Creator.emblemArt.shapes.<shape> or .backings.<backing>.<face|rim> (art/clothes/emblems.py)
   creator_mask Config.Creator.maskArt.kits.<kit>.<front|side|back|top> (flat masks as head decals: art/clothes/masks.py)
+  creator_trail Config.Creator.trailFx.kits.<kit>.id (the flight trails' strips: art/fx/textures.py, round 2)
+The creator's worn meshes (art/export/Heads.fbx, Gloves.fbx, Boots.fbx, Coats.fbx, Capes.fbx) are not images: nate
+imports them in Studio (Tasks.md "Hero creator art"); the auras use the effects library's sheets (fx_texture).
 The finale models (art/export/finales/<Name>.fbx) are not images: nate imports them in Studio (Tasks.md).
 """
 
@@ -107,6 +110,12 @@ def entries():
             else:
                 t = {"kind": kind, "kit": m.group(2), "which": m.group(1).lower()}
             add(f"clothes/{sub}/{f}", "Creator" + f[:-4], t)
+    # the creator's flight trail strips (creator art round 2, 2026-11-18)
+    creator = read("src/config/Creator.luau")
+    at = creator.index("\ttrailFx = {")
+    trails = creator[at : block(creator, at, r"^\ttrailFx = \{")[1]]
+    for kit, file in re.findall(r"^\t\t\t([A-Za-z]+) = \{ id = \d+, file = \"(trail_[a-z]+\.png)\"", trails, re.M):
+        add(f"fx/{file}", "Creator" + file[:-4].title().replace("_", ""), {"kind": "creator_trail", "kit": kit})
     names = [e["file"] for e in out]
     assert len(names) == len(set(names)), "duplicate upload names"
     return out
@@ -135,6 +144,8 @@ def current(e, texts):
     if k in ("creator_suit", "creator_emblem", "creator_mask"):
         key = t["name"] if k == "creator_emblem" and t["which"] == "mark" else t["which"]
         return key_in(creator, creator_span(creator, t), key)
+    if k == "creator_trail":
+        return key_in(creator, creator_span(creator, t), "id")
     if k == "fx_texture":
         return key_in(fx, block(fx, fx.index("\t\ttextures = {"), r"^\t\t\t" + t["name"] + r" = \{"), "id")
     if k == "city_map":

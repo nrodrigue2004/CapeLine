@@ -4,12 +4,14 @@ Draws every particle texture Config.Fx.lib names (the `file` fields) as white-on
 game tints them per element: art/export/fx/<file>. The second row of the preview (overhaul plan step 6) is
 each path's own shape: snowflake, bubble, stone, leaf, sigil, crescent cut, twinkle, hex plate, ink blot. Sheets named *_4x4 are 4x4 flipbooks (16 frames, left to
 right, top to bottom) for ParticleEmitter.FlipbookLayout Grid4x4. Original procedural art, no source images.
-Also writes a contact sheet to art/preview/fx.png (on a dark background).
+Also writes a contact sheet to art/preview/fx.png (on a dark background). The creator's flight trails' strips
+(creator art round 2, 2026-11-18: trail_<kit>.png, Config.Creator.trailFx) go to the same folder with their own
+preview art/preview/fx_trails.png; `--trails` draws only those.
 
 nate uploads the PNGs (Studio Asset Manager, bulk import), then puts each id in Config.Fx.lib.textures.
 Until then the game uses Roblox's built-in particle images.
 
-    python3 art/fx/textures.py
+    python3 art/fx/textures.py [--trails]
 """
 
 import math
@@ -351,6 +353,143 @@ def ink(size=128):
     return to_image(np.clip((a - 0.3) * 2.2, 0, 1))
 
 
+# ---------------------------------------------------------------------------
+# the creator's flight trails (creator art round 2, 2026-11-18): strips for Roblox Trails, 512 x 128, u along
+# the trail (u = 0 the newest end), v across it; white on transparent so the trail's colours tint them
+# (Config.Creator.trailFx: Stretch strips fade along their length, Wrap strips repeat)
+# ---------------------------------------------------------------------------
+TW, TH = 512, 128
+
+
+def strip_grid():
+    v, u = np.mgrid[0:TH, 0:TW].astype(np.float32)
+    return u / (TW - 1), (v - (TH - 1) / 2) / ((TH - 1) / 2)
+
+
+def trail_ribbon():
+    # a soft band with two bright edges, fading toward its tail
+    u, v = strip_grid()
+    band = np.clip((0.92 - np.abs(v)) * 8, 0, 1)
+    edges = np.exp(-((np.abs(v) - 0.78) ** 2) * 300)
+    a = (0.55 * band + 0.6 * edges) * (1 - u) ** 0.8
+    return to_image(np.clip(a, 0, 1))
+
+
+def trail_streak():
+    # a thin white-hot core line with a soft glow, tapering to the tail
+    u, v = strip_grid()
+    w = 0.25 * (1 - u) + 0.03
+    core = np.exp(-(v / w) ** 2 * 6)
+    glow_ = np.exp(-(v / (w * 3)) ** 2 * 2) * 0.45
+    return to_image(np.clip((core + glow_) * (1 - u) ** 0.6, 0, 1))
+
+
+def trail_twin():
+    # a narrower ribbon for the hands: a bright core in a soft band
+    u, v = strip_grid()
+    a = np.exp(-(v**2) * 3) * 0.55 + np.exp(-(v**2) * 40) * 0.8
+    return to_image(np.clip(a * (1 - u) ** 0.9, 0, 1))
+
+
+def trail_sparkle():
+    # twinkles strewn along a faint band (Wrap: repeats along the trail)
+    img = np.zeros((TH, TW), np.float32)
+    u, v = strip_grid()
+    img += np.exp(-(v**2) * 4) * 0.18
+    r = random.Random(41)
+    st = np.asarray(star(64).getchannel("A"), np.float32) / 255
+    for _ in range(8):
+        s = r.choice((44, 60, 76, 96))
+        x = r.randint(0, TW - s)
+        y = r.randint(8, TH - s - 8) if s < TH - 16 else (TH - s) // 2
+        piece = np.asarray(Image.fromarray((st * 255).astype(np.uint8)).resize((s, s), Image.LANCZOS),
+                           np.float32) / 255
+        img[y:y + s, x:x + s] = np.maximum(img[y:y + s, x:x + s], piece)
+    return to_image(np.clip(img, 0, 1))
+
+
+def trail_comet():
+    # a blazing head, flame tongues streaming back and thinning out
+    u, v = strip_grid()
+    n = noise(TW, 6, 23)[:TH, :]
+    w = 0.95 * (1 - u) ** 0.7 + 0.05
+    body = np.clip(1 - np.abs(v) / w, 0, 1) ** 0.8
+    flick = np.clip(n * 1.6 - 0.3 + (1 - u) * 0.6, 0, 1)
+    head = np.exp(-(u / 0.08) ** 2) * np.exp(-(v**2) * 2)
+    return to_image(np.clip(body * flick * (1 - u) ** 0.5 + head, 0, 1))
+
+
+def trail_smoke():
+    # soft puffs along the trail (Wrap)
+    u, v = strip_grid()
+    n = noise(TW, 4, 61)[:TH, :]
+    n2 = noise(TW, 9, 62)[:TH, :]
+    a = np.clip((n * 0.8 + n2 * 0.4) * 1.5 - 0.45, 0, 1) * np.clip(1 - np.abs(v) ** 2, 0, 1)
+    a = 0.5 * (a + a[:, ::-1])  # the two ends match, so the strip repeats without a seam
+    return to_image(np.clip(a, 0, 1))
+
+
+def trail_storm():
+    # a crackling bolt running the trail's length inside a faint glow (Wrap)
+    img = Image.new("L", (TW, TH), 0)
+    d = ImageDraw.Draw(img)
+    r = random.Random(77)
+    for branch, width in ((0, 7), (1, 3), (2, 3)):
+        pts = []
+        y = TH / 2
+        for k in range(13):
+            y = min(TH * 0.85, max(TH * 0.15, y + r.uniform(-24, 24)))
+            pts.append((k * TW / 12, y if 0 < k < 12 else TH / 2))  # both ends mid-strip: no seam
+        d.line(pts, fill=255 if branch == 0 else 170, width=width)
+    blur = img.filter(ImageFilter.GaussianBlur(5))
+    u, v = strip_grid()
+    a = np.maximum(np.asarray(img, np.float32), np.asarray(blur, np.float32) * 1.4) / 255
+    a = a + np.exp(-(v**2) * 3) * 0.12
+    return to_image(np.clip(a, 0, 1))
+
+
+def trail_neon():
+    # a hard-edged bright band with chevrons running along it (Wrap)
+    u, v = strip_grid()
+    band = (np.abs(v) < 0.7).astype(np.float32) * 0.35 + (np.abs(np.abs(v) - 0.78) < 0.08).astype(np.float32)
+    phase = (u * 4) % 1.0
+    chev = (np.abs(phase - 0.5 - np.abs(v) * 0.25) < 0.08).astype(np.float32) * (np.abs(v) < 0.6)
+    img = Image.fromarray((np.clip(band + chev, 0, 1) * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(1))
+    return to_image(np.asarray(img, np.float32) / 255)
+
+
+TRAILS = {
+    "trail_ribbon.png": trail_ribbon, "trail_streak.png": trail_streak, "trail_twin.png": trail_twin,
+    "trail_sparkle.png": trail_sparkle, "trail_comet.png": trail_comet, "trail_smoke.png": trail_smoke,
+    "trail_storm.png": trail_storm, "trail_neon.png": trail_neon,
+}
+
+
+def trails_main():
+    """The trail strips into art/export/fx and a preview (each strip on a dark row, tinted, with its name)."""
+    from PIL import ImageFont
+    tints = [(80, 200, 255), (255, 255, 255), (255, 110, 200), (255, 230, 120), (255, 140, 50), (190, 190, 200),
+             (140, 170, 255), (90, 255, 160)]
+    pad, label = 10, 26
+    prev = Image.new("RGB", (TW + 2 * pad, len(TRAILS) * (TH + label + pad) + pad), (18, 20, 28))
+    d = ImageDraw.Draw(prev)
+    try:
+        font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 18)
+    except OSError:
+        font = ImageFont.load_default()
+    for i, (name, fn) in enumerate(TRAILS.items()):
+        img = fn()
+        img.save(os.path.join(OUT, name))
+        y = pad + i * (TH + label + pad)
+        d.text((pad, y), name[6:-4], fill=(235, 235, 240), font=font)
+        col = Image.new("RGBA", (TW, TH), tints[i] + (255,))
+        col.putalpha(img.getchannel("A"))
+        prev.paste(col, (pad, y + label), col)
+    path = os.path.join(ROOT, "art", "preview", "fx_trails.png")
+    prev.save(path)
+    print("wrote", len(TRAILS), "trail strips and", path)
+
+
 def main():
     os.makedirs(OUT, exist_ok=True)
     os.makedirs(os.path.dirname(PREVIEW), exist_ok=True)
@@ -393,4 +532,11 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    import sys
+
+    if "--trails" in sys.argv:  # only the creator's trail strips (the library sheets above stay as uploaded)
+        os.makedirs(OUT, exist_ok=True)
+        trails_main()
+    else:
+        main()
+        trails_main()
