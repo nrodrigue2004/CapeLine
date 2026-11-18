@@ -10,7 +10,7 @@
 -- * bust(...) and head(...): the look as boxes, balls and cylinders (the colours, head piece, build, cape and
 --   trait pieces NemesisFx puts on its Brute Bot body), in a frame whose front is -z.
 -- * layout(Config): where the poster and the five mounts go on the HQ wall (Config.Hq.wanted).
--- PLACEHOLDER ART: plain parts until the HQ art pass.
+-- PLACEHOLDER ART: plain parts until nate imports the HQ art pass (art/blender/hq.py; Shared.HqArtKit shapes them).
 
 local NemesisMath = if script then require(script.Parent.NemesisMath) else (require :: any)("./NemesisMath")
 

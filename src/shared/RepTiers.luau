@@ -166,7 +166,7 @@ function RepTiers.unlocks(
 end
 
 ---------------------------------------------------------------------------
--- The hideout's tiered dressing (PLACEHOLDER ART)
+-- The hideout's tiered dressing (PLACEHOLDER ART until nate imports Art.Hq; Shared.HqArtKit.DRESS draws it then)
 ---------------------------------------------------------------------------
 
 export type Piece = {
@@ -333,9 +333,10 @@ local function syndicatePieces(_Config: any): { Piece }
 		eye.glow = true
 	end
 	add(out, 3, "robotTorso", rx, 14.8, rz, 3.4, 4, 2, NAVY, "Metal")
-	-- the Crane C: three white bars on the chest plate
+	-- the Crane C: three white bars on the chest plate (the upright on +x: the robot faces -z, so +x is the
+	-- viewer's left and the C reads the right way round from the room; it read backwards before the art pass)
 	add(out, 3, "craneC", rx, 16.0, rz - 1.05, 1.6, 0.35, 0.1, { 245, 245, 250 })
-	add(out, 3, "craneC", rx - 0.65, 15.1, rz - 1.05, 0.35, 1.8, 0.1, { 245, 245, 250 })
+	add(out, 3, "craneC", rx + 0.65, 15.1, rz - 1.05, 0.35, 1.8, 0.1, { 245, 245, 250 })
 	add(out, 3, "craneC", rx, 14.2, rz - 1.05, 1.6, 0.35, 0.1, { 245, 245, 250 })
 	for _, s in { -1, 1 } do
 		add(out, 3, "robotArm", rx + s * 2.2, 14.3, rz, 1, 3.6, 1, NAVY, "Metal")

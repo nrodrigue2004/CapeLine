@@ -19,7 +19,15 @@
 --   draw but only the exit works (LEAVE HQ), the poster has no prompt, the dummies are decor. Also the visit
 --   asks (HqVisitAsked: SquadHud's card), the owner's visitors (HqVisitors: SquadHud's rows) and this device's
 --   Roblox block list for the server (GuardBlocks: a block stops visit asks).
--- HqHud draws the station panels. PLACEHOLDER ART: every room piece is a box until the art pass (M10).
+-- HqHud draws the station panels.
+-- The HQ art pass (2026-11-18): once nate imports art/blender/hq.py's meshes as ReplicatedStorage.Art.Hq, each
+-- piece below is drawn in its meshes over today's part, which is hidden but kept (its prompt, sign and
+-- SurfaceGuis work as before): the station consoles and pads, the Trophy Wall's frame, plaques and trophies, the
+-- WANTED board, head mounts, name plates and the nemesis pieces, the training dummies (base, target, visor and
+-- their own padded R15 body), the statues' plinths, every prop and the reputation dressing (Shared.HqArtKit,
+-- Fx.HqMeshes). A look shows only once all of its meshes are there. PLACEHOLDER ART until that import, and
+-- still for the room shells (the Foundry's box walls, the Safehouse's concrete), the title sign and the marble
+-- copies of the hero on the statues.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -39,10 +47,12 @@ local HqRules = require(Shared:WaitForChild("HqRules"))
 local RepTiers = require(Shared:WaitForChild("RepTiers")) -- lore step 12: the hideout's tiered dressing
 local WantedRules = require(Shared:WaitForChild("WantedRules")) -- WP9: the WANTED poster and nemesis heads
 local VisitRules = require(Shared:WaitForChild("VisitRules")) -- WP12: visits to a friend's HQ
+local HqArtKit = require(Shared:WaitForChild("HqArtKit")) -- the HQ art pass: where the meshes go
 local State = require(script.Parent.Parent.State)
 
 local CombatClient = require(script.Parent.CombatClient)
 local Preview = require(script.Parent.Parent.Ui.Preview)
+local HqMeshes = require(script.Parent.Parent.Fx.HqMeshes)
 
 local HqClient = {}
 
@@ -60,10 +70,17 @@ local function paletteColor(key: string): Color3
 	local rgb = Config.City.palette[key] or { 255, 0, 255 }
 	return Color3.fromRGB(rgb[1], rgb[2], rgb[3])
 end
+local function rgb3(c: { number }): Color3
+	return Color3.fromRGB(c[1], c[2], c[3])
+end
 local SIDE_COLORS = {
-	hero = { main = Color3.fromRGB(70, 140, 255), trim = Color3.fromRGB(240, 244, 255) },
-	villain = { main = Color3.fromRGB(210, 60, 60), trim = Color3.fromRGB(40, 36, 44) },
+	hero = { main = rgb3(HqArtKit.COLORS.hero.main), trim = rgb3(HqArtKit.COLORS.hero.trim) },
+	villain = { main = rgb3(HqArtKit.COLORS.villain.main), trim = rgb3(HqArtKit.COLORS.villain.trim) },
 }
+-- (Color3 -> { r, g, b } for a mesh's tint)
+local function tint(c: Color3): { number }
+	return { math.floor(c.R * 255 + 0.5), math.floor(c.G * 255 + 0.5), math.floor(c.B * 255 + 0.5) }
+end
 local STATION_NAMES = {
 	command = "Command Table",
 	gizmo = "Gizmo's Bench",
@@ -229,10 +246,23 @@ local function buildHideout(f: Folder, colors: { main: Color3, trim: Color3 })
 end
 
 local function stationPad(f: Folder, name: string, colors: { main: Color3, trim: Color3 })
-	local pos = stationAt(name, 0.4)
+	local pos = stationAt(name, HqArtKit.PAD.y)
 	local pad = part(f, Vector3.new(10, 0.4, 10), CFrame.new(pos), colors.main, Enum.Material.Neon)
 	pad.Transparency = 0.4
-	local post = part(f, Vector3.new(1.2, 3.2, 1.2), CFrame.new(pos + Vector3.new(0, 1.8, 0)), colors.trim)
+	local post =
+		part(f, Vector3.new(1.2, 3.2, 1.2), CFrame.new(stationAt(name, HqArtKit.POST.y)), colors.trim)
+	-- the art pass: the side's pad and this station's console over them (the post keeps its sign and prompt)
+	local foot = CFrame.new(stationAt(name, 0))
+	if HqMeshes.place(f, HqArtKit.pad(state.side), foot) then
+		pad.Transparency = 1
+	end
+	local console = HqArtKit.station(state.side, name)
+	if
+		console
+		and HqMeshes.place(f, console, foot * CFrame.Angles(0, math.rad(HqArtKit.FACING[name] or 0), 0))
+	then
+		HqMeshes.hide(post)
+	end
 	-- WP12: a visitor reads every station as the owner's; only the exit works (LEAVE HQ)
 	local visiting = state.visit ~= nil
 	if visiting and not VisitRules.allowed(name) then
@@ -258,27 +288,58 @@ local function stationPad(f: Folder, name: string, colors: { main: Color3, trim:
 	end)
 end
 
--- PLACEHOLDER ART: a training dummy robot on a plate: a bare metal robot on the heroes' blocky R15 rig (nate,
--- 2026-11-16: "literally everyone should be r15. enemies too"), glowing eye visor and a red target on the chest;
--- the big one has the creator's Large build at 2.6 times the size
+-- A training dummy robot on a plate: a metal robot on the heroes' blocky R15 rig (nate, 2026-11-16: "literally
+-- everyone should be r15. enemies too"), glowing eye visor and a red target on the chest; the big one has the
+-- creator's Large build at 2.6 times the size. Once Art.Hq is imported: a padded sparring bot (its own 15 R15
+-- meshes, NpcRig's `look` "Hq") in the side's colours, a weighted base with bolts, a bullseye and a curved
+-- visor (HqArtKit.SHAPES); until then the bare metal robot (PLACEHOLDER ART).
+local DUMMY_COLORS = {
+	hero = {
+		body = Color3.fromRGB(232, 236, 246),
+		limb = Color3.fromRGB(150, 176, 226),
+		ends = SIDE_COLORS.hero.main,
+	},
+	villain = {
+		body = Color3.fromRGB(78, 70, 88),
+		limb = Color3.fromRGB(120, 112, 128),
+		ends = SIDE_COLORS.villain.main,
+	},
+}
 local function dummy(f: Folder, pos: Vector3, big: boolean?)
 	local s = if big then 2.6 else 1
 	local base = pos - Vector3.new(0, 3 * s, 0)
 	local metal = Color3.fromRGB(150, 156, 170)
-	part(
+	local plate = part(
 		f,
 		Vector3.new(3 * s, 0.6, 3 * s),
 		CFrame.new(base + Vector3.new(0, 0.3, 0)),
 		Color3.fromRGB(60, 64, 76)
 	)
+	HqMeshes.cover(plate, "dummyBase")
 	local factors = if big then BodyShape.factors(Config, { gender = 1, build = 3, height = 3 }) else nil
 	local layout = RigMath.layout(Config.HeroRig, factors, s)
+	local padded = HqMeshes.ready(HqArtKit.BODY)
+	local side = DUMMY_COLORS[state.side] or DUMMY_COLORS.hero
 	local colors: { [string]: Color3 } = {}
 	for _, name in BodyShape.PARTS do
-		colors[name] = if big and string.find(name, "Arm") then Color3.fromRGB(90, 94, 110) else metal
+		if padded then
+			colors[name] = if string.find(name, "Torso") or name == "Head"
+				then side.body
+				elseif string.find(name, "Hand") or string.find(name, "Foot") then side.ends
+				else side.limb
+		else
+			colors[name] = if big and string.find(name, "Arm") then Color3.fromRGB(90, 94, 110) else metal
+		end
 	end
-	local rig =
-		NpcRig.build(layout, "Dummy", colors, Enum.Material.Metal, nil, if big then "MaleLarge" else nil)
+	local rig = NpcRig.build(
+		layout,
+		"Dummy",
+		colors,
+		Enum.Material.Metal,
+		nil,
+		if big then "MaleLarge" else nil,
+		if padded then HqArtKit.BODY_LOOK else nil
+	)
 	rig.model.Parent = f
 	NpcRig.place(rig, CFrame.new(base + Vector3.new(0, 0.6, 0)))
 	for _, name in { "Head", "UpperTorso", "LowerTorso" } do
@@ -292,6 +353,7 @@ local function dummy(f: Folder, pos: Vector3, big: boolean?)
 	eye.Material = Enum.Material.Neon
 	eye.CastShadow = false
 	NpcRig.fix(rig, "Head", eye, CFrame.new(0, head.Size.Y * 0.08, -head.Size.Z * 0.5))
+	HqMeshes.cover(eye, "dummyVisor")
 	local target = Instance.new("Part")
 	target.Name = "Target"
 	target.Shape = Enum.PartType.Cylinder
@@ -305,16 +367,20 @@ local function dummy(f: Folder, pos: Vector3, big: boolean?)
 		target,
 		CFrame.new(0, 0, -chest.Size.Z * 0.5 - 0.05) * CFrame.Angles(0, math.pi / 2, 0)
 	)
+	HqMeshes.cover(target, "dummyTarget")
 end
 
 local function statue(f: Folder, entry: { [string]: any }, at: CFrame)
-	part(
+	local base = part(
 		f,
 		Vector3.new(5, 2, 5),
-		at * CFrame.new(0, 1, 0),
+		at * CFrame.new(0, HqArtKit.PLINTH.y, 0),
 		Color3.fromRGB(120, 120, 130),
 		Enum.Material.Slate
 	)
+	if HqMeshes.place(f, HqArtKit.plinth(state.side), at) then
+		HqMeshes.hide(base)
+	end
 	local look = entry.words and LookCodec.read(entry.words)
 	local model = Preview.clone()
 	if model then
@@ -349,51 +415,43 @@ local function statue(f: Folder, entry: { [string]: any }, at: CFrame)
 end
 
 local function trophyWall(f: Folder, colors: { main: Color3, trim: Color3 })
-	local base = stationAt("trophies", 0) + Vector3.new(0, 0, 8)
+	local c = centre()
+	local bx, by, bz = HqArtKit.trophyBase(Config)
+	HqMeshes.place(f, HqArtKit.trophyWall(state.side), CFrame.new(c + Vector3.new(bx, by, bz))) -- its frame
 	local shown = state.trophies or {}
 	local slots = state.trophySlots or 3
+	local plaqueLook = HqArtKit.plaque(state.side)
 	for i = 1, slots do
-		local col, row = (i - 1) % 4, (i - 1) // 4
-		local at = base + Vector3.new((col - 1.5) * 4.2, 4 + row * 3.6, 0)
+		local x, y, z = HqArtKit.trophySpot(Config, i)
+		local at = c + Vector3.new(x, y, z)
 		local idx = shown[i]
 		local t = idx and H.trophies[idx]
 		local plaque =
 			part(f, Vector3.new(3.6, 3, 0.4), CFrame.new(at), if t then colors.main else colors.trim)
 		plaque.Material = if t then Enum.Material.Foil else Enum.Material.SmoothPlastic
+		-- the plaque in the side's colour when it holds a trophy, its trim when empty
+		local body = { [plaqueLook .. "Body"] = tint(if t then colors.main else colors.trim) }
+		if HqMeshes.place(f, plaqueLook, CFrame.new(at), body) then
+			HqMeshes.hide(plaque)
+		end
 		if t then
 			local cup = part(f, Vector3.new(1.2, 1.4, 1.2), CFrame.new(at + Vector3.new(0, 0, -0.6)), GOLD)
 			cup.Shape = Enum.PartType.Cylinder
 			cup.CFrame = CFrame.new(at + Vector3.new(0, 0.2, -0.6)) * CFrame.Angles(0, 0, math.pi / 2)
+			if HqMeshes.place(f, HqArtKit.trophy(idx), CFrame.new(at + Vector3.new(0, 0.2, -0.6))) then
+				HqMeshes.hide(cup)
+			end
 			sign(plaque, t.name, nil, 2)
 		end
 	end
 end
 
--- PLACEHOLDER ART: the city's thank-you gifts and the Cafe sign
-local PROP_SPOTS = {
-	[1] = { 22, -30 },
-	[2] = { -46, -40 },
-	[3] = { -16, -26 },
-	[4] = { 46, -40 },
-	[5] = { 16, -26 },
-	[6] = { 0, 20 },
-	-- H7: the collection set props (Config.Collect rewards) along the side walls
-	[7] = { -52, -28 },
-	[8] = { -52, -16 },
-	[9] = { -52, -4 },
-	[10] = { -52, 22 },
-	[11] = { -52, 34 },
-	[12] = { -52, 46 },
-	[13] = { 52, -28 },
-	[14] = { 52, -16 },
-	[15] = { 52, -4 },
-	[16] = { 52, 22 },
-	[17] = { 52, 34 },
-	[18] = { 52, 46 },
-}
+-- The city's thank-you gifts, the Cafe sign, the collection props and the Hero Pass props (HqArtKit.PROP_SPOTS;
+-- 19 to 22 had no spot before, so they never showed). A 3-stud block each (PLACEHOLDER ART) until Art.Hq is
+-- imported, then each its own mesh look, turned into the room.
 local function props(f: Folder)
 	for _, bit in state.props or {} do
-		local spot = PROP_SPOTS[bit]
+		local spot = HqArtKit.PROP_SPOTS[bit]
 		local name = H.props[bit]
 		if spot and name then
 			local at = centre() + Vector3.new(spot[1], 0, spot[2])
@@ -413,13 +471,20 @@ local function props(f: Folder)
 				p.Color = Color3.fromRGB(240, 140, 90)
 			end
 			sign(p, name, nil, 3)
+			local look = HqArtKit.PROPS[bit]
+			local ry = math.rad(HqArtKit.facing(spot[1], spot[2]))
+			if look and HqMeshes.place(f, look, CFrame.new(at) * CFrame.Angles(0, ry, 0)) then
+				HqMeshes.hide(p)
+			end
 		end
 	end
 end
 
 -- Lore step 12 (the city remembers): the hideout's dressing for your own side's reputation tier (Shared.RepTiers:
 -- the Safehouse's thank-you notes, Patch's hacking rig and the relic case; the Foundry's loot vault, trophy
--- screen and captured Crane robot). Purely visual; the stations stay where they are. PLACEHOLDER ART.
+-- screen and captured Crane robot). Purely visual; the stations stay where they are. Parts (PLACEHOLDER ART)
+-- until Art.Hq is imported; then the named pieces are drawn as meshes (HqArtKit.DRESS) and the glowing screens,
+-- LEDs, frames, note icons and the robot's eyes and chest bars stay parts.
 local SHAPES: { [string]: Enum.PartType } = {
 	Ball = Enum.PartType.Ball,
 	Cylinder = Enum.PartType.Cylinder,
@@ -427,7 +492,9 @@ local SHAPES: { [string]: Enum.PartType } = {
 }
 local function dressing(f: Folder)
 	local c = centre()
-	for _, p in RepTiers.dressing(Config, state.side, state.repTier or 0) do
+	local pieces = RepTiers.dressing(Config, state.side, state.repTier or 0)
+	local madeParts: { [number]: BasePart } = {}
+	for i, p in pieces do
 		local cf = CFrame.new(c + Vector3.new(p.x, p.y, p.z))
 		if p.ry then
 			cf *= CFrame.Angles(0, math.rad(p.ry), 0)
@@ -462,12 +529,27 @@ local function dressing(f: Folder)
 			l.Color = made.Color
 			l.Parent = made
 		end
+		madeParts[i] = made
+	end
+	local places, hides = HqArtKit.dressing(state.side, pieces)
+	local drawn: { [number]: boolean } = {}
+	for k, pl in places do
+		local cf = CFrame.new(c + Vector3.new(pl.x, pl.y, pl.z)) * CFrame.Angles(0, math.rad(pl.ry or 0), 0)
+		drawn[k] = HqMeshes.place(f, pl.look, cf)
+	end
+	for i, k in hides do
+		local p = madeParts[i]
+		if p and drawn[k] then
+			HqMeshes.hide(p)
+		end
 	end
 end
 
 -- WP9 (gap G5, spec H5): the WANTED poster and the nemesis heads on the east wall (Shared.WantedRules,
 -- Config.Hq.wanted). PLACEHOLDER ART: a paper part with a SurfaceGui (the nemesis's bust in a ViewportFrame,
--- built from the same pieces NemesisFx puts on its body), wooden plaques and part-built heads.
+-- built from the same pieces NemesisFx puts on its body), wooden plaques and part-built heads, until Art.Hq is
+-- imported; then the board, mounts and plates are meshes and the heads' and bust's pieces are shaped
+-- (HqArtKit.SHAPES), each in its own colours (the paper and its SurfaceGui stay a part).
 local W = H.wanted
 local PAPER = Color3.fromRGB(236, 220, 180)
 local INK = Color3.fromRGB(40, 30, 24)
@@ -559,17 +641,28 @@ local function wantedPoster(f: Folder)
 	local frame = wallFrame()
 	local L = WantedRules.layout(Config)
 	local b, s = L.board, L.poster
-	part(f, Vector3.new(b.sx, b.sy, b.sz), frame * CFrame.new(b.x, b.y, b.z), WOOD, Enum.Material.Wood)
+	local board =
+		part(f, Vector3.new(b.sx, b.sy, b.sz), frame * CFrame.new(b.x, b.y, b.z), WOOD, Enum.Material.Wood)
 	local paper = part(f, Vector3.new(s.sx, s.sy, s.sz), frame * CFrame.new(s.x, s.y, s.z), PAPER)
 	paper.Material = Enum.Material.Fabric
-	for _, k in { -1, 1 } do -- two red pins at the top corners
+	local pins = {}
+	for _, at in HqArtKit.pins(Config) do -- two red pins at the top corners
 		local pin = part(
 			f,
 			Vector3.new(0.35, 0.35, 0.35),
-			frame * CFrame.new(s.x + k * (s.sx / 2 - 0.4), s.y + s.sy / 2 - 0.4, s.z - 0.1),
+			frame * CFrame.new(at[1], at[2], at[3]),
 			Color3.fromRGB(200, 40, 40)
 		)
 		pin.Shape = Enum.PartType.Ball
+		table.insert(pins, pin)
+	end
+	-- the art pass: the side's board (a cork board in a wood frame, or a riveted steel plate) with its own pins;
+	-- the paper and its SurfaceGui stay the part
+	if HqMeshes.place(f, HqArtKit.board(state.side), frame * CFrame.new(b.x, b.y, b.z)) then
+		HqMeshes.hide(board)
+		for _, pin in pins do
+			HqMeshes.hide(pin)
+		end
 	end
 	local g = surface(paper, W.pixels)
 	local h = s.sy * W.pixels
@@ -600,7 +693,7 @@ local function wantedPoster(f: Folder)
 	cam.Parent = vp
 	vp.CurrentCamera = cam
 	for _, p in WantedRules.bust(Config.Nemesis, d.look) do
-		lookPart(vp, p, CFrame.new())
+		HqMeshes.cover(lookPart(vp, p, CFrame.new()), p.name) -- (the art pass: its shaped pieces)
 	end
 	local hidden = d.state == "locked" or d.state == "waiting"
 	if hidden then
@@ -669,6 +762,15 @@ local function nemesisHeads(f: Folder)
 		if not look then
 			plate.Color = Color3.fromRGB(110, 100, 90)
 		end
+		-- the art pass: the side's mount and a gold name plate (grey while empty); the "?" and the name are the
+		-- hidden parts' SurfaceGuis, drawn in front of the meshes
+		if HqMeshes.place(f, HqArtKit.mount(state.side), frame * CFrame.new(m.x, m.y, m.z)) then
+			HqMeshes.hide(plaque)
+		end
+		local plateTint = { [HqArtKit.NAMEPLATE .. "Body"] = tint(plate.Color) }
+		if HqMeshes.place(f, HqArtKit.NAMEPLATE, frame * CFrame.new(pl.x, pl.y, pl.z), plateTint) then
+			HqMeshes.hide(plate)
+		end
 		local label = words(surface(plate, 60), "", 0, 0, INK)
 		label.Position = UDim2.fromScale(0.03, 0)
 		label.Size = UDim2.fromScale(0.94, 1)
@@ -678,7 +780,7 @@ local function nemesisHeads(f: Folder)
 		if look then
 			local hx, hy, hz = WantedRules.headAt(m)
 			for _, p in WantedRules.head(Config.Nemesis, look, hx, hy, hz) do
-				lookPart(f, p, frame)
+				HqMeshes.cover(lookPart(f, p, frame), p.name)
 			end
 		else
 			local mark = words(surface(plaque, 40), "?", 0, 0, Color3.fromRGB(150, 130, 110))

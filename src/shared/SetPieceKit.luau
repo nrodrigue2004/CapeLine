@@ -15,7 +15,8 @@
 -- * check(Config, places, boxes): each placement a known look whose meshes sit over the boxes it hides.
 -- * fit(Config, look): a look's fit table, from Config.SetPieceArt (art/blender/setpieces.py, imported as
 --   Art.SetPieces) or Config.VehicleArt (art/blender/vehicles.py: the escorts and the hub's vehicles, imported as
---   Art.Vehicles); mesh names are unique across both, so one lookup serves every look.
+--   Art.Vehicles) or Config.HqArt (art/blender/hq.py: the HQ rooms' consoles, walls, props and dressing, imported
+--   as Art.Hq; Shared.HqArtKit); mesh names are unique across all three, so one lookup serves every look.
 
 local SetPieceKit = {}
 
@@ -57,7 +58,11 @@ function SetPieceKit.fit(Config: any, look: string): { [string]: any }?
 		return a
 	end
 	local b = Config.VehicleArt and Config.VehicleArt[look]
-	return if type(b) == "table" then b else nil
+	if type(b) == "table" then
+		return b
+	end
+	local c = Config.HqArt and Config.HqArt[look]
+	return if type(c) == "table" then c else nil
 end
 
 -- Add a placement to a list; returns its index (the boxes it stands in for take it as `art`)
@@ -206,6 +211,9 @@ function SetPieceKit.check(Config: any, places: { Place }?, boxes: { any }, slac
 		else
 			local blo = { math.huge, math.huge, math.huge }
 			local bhi = { -math.huge, -math.huge, -math.huge }
+			-- (a `beside` box is one the look stands in for from next to it, like an HQ console at its pad's
+			-- edge for the pad's post: it counts for the reach, not for the middle)
+			local clo, chi = { math.huge, math.huge, math.huge }, { -math.huge, -math.huge, -math.huge }
 			for _, b in mine do
 				if b.piece ~= pl.piece then
 					table.insert(bad, name .. ": a box of another piece")
@@ -217,11 +225,16 @@ function SetPieceKit.check(Config: any, places: { Place }?, boxes: { any }, slac
 				blo[1], bhi[1] = math.min(blo[1], x - hx), math.max(bhi[1], x + hx)
 				blo[2], bhi[2] = math.min(blo[2], y - hy), math.max(bhi[2], y + hy)
 				blo[3], bhi[3] = math.min(blo[3], z - hz), math.max(bhi[3], z + hz)
+				if not b.beside then
+					clo[1], chi[1] = math.min(clo[1], x - hx), math.max(chi[1], x + hx)
+					clo[2], chi[2] = math.min(clo[2], y - hy), math.max(chi[2], y + hy)
+					clo[3], chi[3] = math.min(clo[3], z - hz), math.max(chi[3], z + hz)
+				end
 			end
 			local mlo, mhi = SetPieceKit.bounds(Config, pl)
 			for k = 1, 3 do
-				local mid = (blo[k] + bhi[k]) / 2
-				if mid < mlo[k] - 1 or mid > mhi[k] + 1 then
+				local mid = (clo[k] + chi[k]) / 2
+				if clo[k] <= chi[k] and (mid < mlo[k] - 1 or mid > mhi[k] + 1) then
 					table.insert(
 						bad,
 						string.format("%s: its boxes' middle is off the meshes (axis %d)", name, k)

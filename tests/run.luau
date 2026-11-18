@@ -22757,7 +22757,9 @@ end
 -- the hero creator's art (overnight item 12, 2026-11-18, own file); ONLY="Creator art" runs just these
 (require :: any)("./creator_art_test")({ test = test, check = check, Config = Config });
 -- the seams review of tonight's packages (2026-11-18, own file); ONLY="Review" runs just these
-(require :: any)("./review_test")({ test = test, check = check, Config = Config })
+(require :: any)("./review_test")({ test = test, check = check, Config = Config });
+-- the HQ art pass (2026-11-18, own file); ONLY="HQ art" runs just these
+(require :: any)("./hqart_test")({ test = test, check = check, Config = Config })
 
 print(string.format("\n%d passed, %d failed", passed, failed))
 if failed > 0 then
