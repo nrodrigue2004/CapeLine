@@ -23,6 +23,7 @@
 -- Hero MMO: nemesis 0/1 (your nemesis ambushes you now / your Intel is full: the Showdown opens).
 -- WP2: boardrows (40 test heroes on every weekly board and you at #6), boardroll (end the board week now).
 -- WP1: daily 1-4 (a day passes, two days pass, finish today's quests, start the streak over).
+-- WP8: balance (print the live balance boot applied and refused, BalanceService.report).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -61,6 +62,7 @@ local NewsService = require(script.Parent.NewsService) -- lore step 7
 local RepService = require(script.Parent.RepService) -- lore step 12
 local BoardService = require(script.Parent.BoardService) -- WP2
 local DailyService = require(script.Parent.DailyService) -- WP1
+local BalanceService = require(script.Parent.BalanceService) -- WP8
 local ShopRules = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("ShopRules"))
 local CreatorRules = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("CreatorRules"))
 local ProfileSchema = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("ProfileSchema"))
@@ -446,6 +448,10 @@ local commands: { [string]: (player: Player, hero: any, value: number) -> () } =
 	-- quests; 4 start the streak over)
 	daily = function(player, _, what)
 		DailyService.dev(player, what)
+	end,
+	-- WP8: print the live balance (what boot set from Balance_v<N> and what it refused) to the Output
+	balance = function()
+		BalanceService.report()
 	end,
 }
 

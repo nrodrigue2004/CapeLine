@@ -6,7 +6,7 @@
 -- Ceremony prologue as the Vigil or the Syndicate and a jump to each of its beats (lore step 3), each Act 1 mission as each side and a jump to each of its stages (lore step 5), finish the step, leave, the side quest framework (lore step 10: give the sample chain, start, restart and finish steps, finish the chain, forget it, try each step kind alone), clear
 -- Act 1 and reset the story, a sample line per guide and Lodestar beside you (lore step 6), and (M9) the creator, enter HQ, HQ level, 8 h away, all pieces, a test buy
 -- (twice grants once) and the level cap, the daily streak (a day passes, skip a day, finish the quests, start
--- over; WP1), and (2026-11-17) the next incident, event or contract to try (the
+-- over; WP1), print the live balance (WP8), and (2026-11-17) the next incident, event or contract to try (the
 -- "Inc:", "Ev:" and "Con:" buttons start the one named, "next" picks another), and a Heroic switch for them.
 -- The stats line shows the server frame, script time per service, enemies, bots, send
 -- rate and memory, plus the client fps and preset.
@@ -491,6 +491,10 @@ function DevPanel.init()
 	end)
 	add("Daily: start over", function()
 		Net.send("DevCommand", "daily", 4)
+	end)
+	-- WP8: the live balance boot applied (printed by the server to the Output)
+	add("Balance: print", function()
+		Net.send("DevCommand", "balance")
 	end)
 	-- M10: settings and accessibility
 	add("Reset settings", function()

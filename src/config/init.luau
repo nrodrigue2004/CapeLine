@@ -66,6 +66,7 @@ local NAMES = {
 	"Remembers", -- lore step 12: the city remembers (reputation tiers, side rewards, side-vs-side events)
 	"Boards", -- WP2: the weekly leaderboards
 	"Daily", -- WP1: the daily login streak and daily quests
+	"Balance", -- WP8: live tuning (the Balance_v<N> whitelist; BalanceService)
 }
 
 local Config: { [string]: any } = {}

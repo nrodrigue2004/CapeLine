@@ -84,6 +84,8 @@ AnalyticsSchema.EVENTS = {
 	daily_claim = { "track_day", "reward", "late" }, -- value: the streak; late 1: paid on the next day's login
 	daily_quest = { "quest", "slot" }, -- value: quests done today
 	daily_all_done = { "track_day" }, -- value: the streak
+	-- WP8: the live balance this server runs (BalanceService), once per player session
+	balance_live = { "balance", "source", "refused" }, -- value: live numbers applied; balance "v<N>.<rev>"
 }
 
 AnalyticsSchema.FUNNELS = {

@@ -1,4 +1,5 @@
--- Capeline server boot (spec: Server lifecycle and Services). Order matters: the city first (the drone AI
+-- Capeline server boot (spec: Server lifecycle and Services). Order matters: the live balance before any
+-- service is required (WP8, BalanceService), then the city first (the drone AI
 -- reads its heights), then remotes, heroes, movement checks, enemies, combat, abilities, economy, gear and
 -- perks, safehouses and beacons, destruction (buildings, vehicles, citizens), world activity (sites,
 -- incidents, contracts, events, the world boss, the clock), the story (choices and rewards, the opening,
@@ -21,6 +22,11 @@ if RunService:IsStudio() then
 end
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
+-- WP8: live tuning first, before any other service is required, so every module reads the tuned numbers
+-- from its first line (Balance_v<N>; any trouble or no answer in Config.Balance.timeout s runs the bundled
+-- Config). Never throws.
+local BalanceService = require(script:WaitForChild("Services"):WaitForChild("BalanceService"))
+BalanceService.load()
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Net = require(Shared:WaitForChild("Net"))
 
@@ -88,7 +94,7 @@ local BoardService = require(Services.BoardService) -- WP2: the weekly boards
 local LoadBots = require(Services.LoadBots)
 local DevService = require(Services.DevService)
 
-print(string.format("[Capeline] boot, balance %d, build %s", Config.Version.balance, Config.Version.build))
+print(string.format("[Capeline] boot, balance %s, build %s", BalanceService.tag(), Config.Version.build))
 local t0 = os.clock()
 -- Each step runs on its own: one failing service is reported (in Studio, on screen) and the rest still
 -- start, so a single bug never leaves an empty world
@@ -162,6 +168,7 @@ boot("WeaponService", WeaponService.init)
 boot("DailyService", DailyService.init) -- WP1: before DataService (a loaded profile counts the day)
 boot("Analytics", Analytics.init)
 boot("AnalyticsHooks", AnalyticsHooks.init)
+boot("BalanceService", BalanceService.init) -- WP8: balance_live once per session (after Analytics)
 boot("FavoriteService", FavoriteService.init)
 boot("BoardService", BoardService.init) -- WP2: the weekly boards (before DataService: the claim on join)
 boot("DataService", DataService.init) -- last of the game services: profile loads fire into the handlers above
