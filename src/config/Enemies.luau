@@ -1438,7 +1438,9 @@ return {
 		spread = 1.5, -- seeded noise on the tiers below, so robots break differently
 		sparksBelow = 0.35, -- the exposed core sparks under 35% health
 		chipRange = 160, -- chips and sparks fly only for robots this close to the camera
-		poseNear = 120, -- robots this close to the camera pose every frame; farther ones every poseEvery frames
+		-- robots this close to the camera pose every frame; farther ones every poseEvery frames (per preset since
+		-- the perf pass: Config.Presets enemyPoseNear and enemyPoseEvery; these are the fallback)
+		poseNear = 120,
 		poseEvery = 3,
 		endo = { 168, 172, 182 }, -- endoskeleton chrome, tinted toward each robot's metal
 		-- every robot is on the blocky R15 rig (nate, 2026-11-16: "literally everyone should be r15"): its

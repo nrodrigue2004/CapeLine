@@ -22261,6 +22261,9 @@ do
 	end)
 end
 
+-- the perf pass's checks (fast paths against the slow ones they replace) live in their own file too
+(require :: any)("./perf")({ test = test, check = check, near = near, Config = Config })
+
 print(string.format("\n%d passed, %d failed", passed, failed))
 if failed > 0 then
 	process.exit(1)

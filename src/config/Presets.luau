@@ -7,6 +7,9 @@
 -- Medium and high keep what the game drew before the pass; only low draws less.
 -- props: the city kit's street props this device builds (CityProps): up to this tier (Config.City.kit.props),
 -- within this many studs of the camera, at most this many mesh parts (nearest first). Phones start on low.
+-- clothesNear and clothesFar (perf pass 2026-11-18): a robot's or citizen's Roblox-look clothes are 66 Textures
+-- a rig; inside clothesNear it draws them all, out to clothesFar all but the 21 faces the body hides at rest
+-- (Shared.ClothesMap.tucked), and past it none (NpcRig.showClothes).
 return {
 	order = { "low", "medium", "high" },
 	low = {
@@ -23,6 +26,11 @@ return {
 		citizenPoseEvery = 4, -- farther ones every this many frames
 		bloom = false,
 		sunRays = false,
+		enemyPoseNear = 60, -- robots this close pose every frame (Config.Enemies.look.poseNear before)
+		enemyPoseEvery = 4, -- farther ones every this many frames
+		enemyPool = { keep = 2, idle = 20 }, -- spare robot bodies kept a kind; the rest go after idle s
+		clothesNear = 20, -- dressed rigs this close draw every clothes face (the tucked ones too)
+		clothesFar = 60, -- past this a rig drops its clothes Textures (its part colours match them)
 		props = { tier = 1, radius = 260, parts = 700 },
 	},
 	medium = {
@@ -39,6 +47,11 @@ return {
 		citizenPoseEvery = 3,
 		bloom = true,
 		sunRays = true,
+		enemyPoseNear = 120, -- robots this close pose every frame (Config.Enemies.look.poseNear before)
+		enemyPoseEvery = 3, -- farther ones every this many frames
+		enemyPool = { keep = 4, idle = 30 }, -- spare robot bodies kept a kind; the rest go after idle s
+		clothesNear = 25, -- dressed rigs this close draw every clothes face (the tucked ones too)
+		clothesFar = 80, -- past this a rig drops its clothes Textures (its part colours match them)
 		props = { tier = 2, radius = 420, parts = 2000 },
 	},
 	high = {
@@ -55,6 +68,11 @@ return {
 		citizenPoseEvery = 3,
 		bloom = true,
 		sunRays = true,
+		enemyPoseNear = 120, -- robots this close pose every frame (Config.Enemies.look.poseNear before)
+		enemyPoseEvery = 3, -- farther ones every this many frames
+		enemyPool = { keep = 4, idle = 30 }, -- spare robot bodies kept a kind; the rest go after idle s
+		clothesNear = 30, -- dressed rigs this close draw every clothes face (the tucked ones too)
+		clothesFar = 100, -- past this a rig drops its clothes Textures (its part colours match them)
 		props = { tier = 3, radius = 600, parts = 4000 },
 	},
 	-- the preset each device class starts on (QualityRules.device)

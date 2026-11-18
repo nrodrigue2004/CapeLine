@@ -1,6 +1,6 @@
 -- CityProps: the city kit's street props on this device (overhaul plan step 5; Config.City.kit.props, meshes from
 -- ReplicatedStorage.Art.Street by art/blender/street.py). The server builds none: every device works out the same
--- list from the world seed (WorldMap.build with { props = true }, pure and seeded) and builds only what is near
+-- list from the world seed (WorldMap.propsJob, pure and seeded, a few tiles a frame) and builds only what is near
 -- its camera, within its preset's street-prop budget (Config.Presets <preset>.props: the highest tier, the
 -- radius and a mesh-part cap, nearest first), so phones get fewer. Props are dressing: they collide for this
 -- device's hero, and nothing on the server depends on them. None until Art.Street is imported (Tasks.md "City
@@ -19,6 +19,8 @@ local QualityController = require(script.Parent.QualityController)
 local KIT = Config.City.kit
 local CELL = 140 -- props are bucketed like the hub's chunks
 local PER_STEP = 40 -- props built per frame at most, so a district never hitches in
+local TILES_PER_STEP = 4 -- outskirts tiles laid out per WorldMap.propsStep (about 0.1 ms on a PC)
+local BUILD_SLICE = 0.002 -- seconds of each frame the prop list may take while it is worked out
 
 local CityProps = {}
 CityProps.built = 0 -- mesh parts built now (the Dev panel can show it)
@@ -217,8 +219,18 @@ function CityProps.init()
 		if not seed then
 			return
 		end
-		local world = WorldMap.build(Config, seed, { props = true })
-		for _, pr in world.props do
+		-- the props alone, a few tiles at a time under a small slice of each frame (the whole world at once
+		-- froze phones for several hundred ms); the list is WorldMap.build's props exactly
+		local job = WorldMap.propsJob(Config, seed)
+		local slice = os.clock()
+		while not WorldMap.propsStep(job, TILES_PER_STEP) do
+			if os.clock() - slice > BUILD_SLICE then
+				RunService.Heartbeat:Wait()
+				slice = os.clock()
+			end
+		end
+		local props = job.props
+		for _, pr in props do
 			local key = cellKey(pr.x, pr.z)
 			local c = cells[key]
 			if not c then
@@ -233,8 +245,7 @@ function CityProps.init()
 			end
 			table.insert(c.props, pr)
 		end
-		CityProps.total = #world.props
-		world = nil :: any
+		CityProps.total = #props
 		local f = Instance.new("Folder")
 		f.Name = "CityProps"
 		f.Parent = Workspace

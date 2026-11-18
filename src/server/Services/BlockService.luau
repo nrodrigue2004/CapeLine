@@ -25,6 +25,7 @@ local ChargeRules = require(Shared:WaitForChild("ChargeRules"))
 local Awakening = require(Shared:WaitForChild("Awakening"))
 local Status = require(Shared:WaitForChild("Status"))
 local Signal = require(Shared:WaitForChild("Util"):WaitForChild("Signal"))
+local FrameProf = require(Shared:WaitForChild("FrameProf"))
 
 local HeroService = require(script.Parent.HeroService)
 local EnemyService = require(script.Parent.EnemyService)
@@ -454,7 +455,7 @@ function BlockService.init()
 	end)
 	local acc = 0
 	local flushAcc = 0
-	RunService.Heartbeat:Connect(function(dt)
+	RunService.Heartbeat:Connect(FrameProf.wrap("BlockService", function(dt: number)
 		acc += dt
 		flushAcc += dt
 		local now = os.clock()
@@ -481,7 +482,7 @@ function BlockService.init()
 			flushAcc = 0
 			flushEvents()
 		end
-	end)
+	end))
 end
 
 return BlockService
