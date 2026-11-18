@@ -10,6 +10,7 @@ Read this first. Keep it short. Quality comes first; efficiency never means lowe
   - `rojo build default.project.json -o build/Capeline.rbxl` (the city place, Brightharbor)
   - `rojo serve` (live sync into Studio with the Rojo plugin)
   - `lune run tests/run.luau build/Capeline.rbxl` (unit and sim tests + place layout check; `ONLY=M1` in front runs only tests whose name has M1)
+  - `tests/run.sh build/Capeline.rbxl` runs the same suite one run at a time with a 300 s watchdog and retries; use it whenever more than one job shares the machine (Lune 0.8.9 can freeze with no output when several runs share the CPUs; alone the full suite takes under a minute)
   - `selene src tests` and `stylua src tests` (lint and format; run stylua twice)
   - `python3 tests/callcheck.py .` (every required-module call names a real function)
   - `rojo sourcemap default.project.json -o sourcemap.json` then `luau-lsp analyze --sourcemap=sourcemap.json --definitions=$HOME/tools/globalTypes.d.luau --platform=roblox src` (type check; read new errors in changed files, ignore optional-value noise)
