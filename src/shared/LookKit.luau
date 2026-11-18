@@ -1255,6 +1255,55 @@ local function maskDecals(char: Model, kit: string, colors: Colors): boolean
 	return true
 end
 
+-- A cape's meshes (Config.CapeArt, art/blender/capes.py), once nate has imported art/export/Capes.fbx as
+-- ReplicatedStorage.Art.Capes: every piece of the style ("cape:<style>") cloned, sized with the torso, welded to
+-- the UpperTorso at its fitted box and coloured by its role (glow pieces Neon). Nothing is made unless every
+-- piece's mesh is there (then the box cape stays). Returns true when the meshes stand in for the kit's parts.
+local function capeMeshes(char: Model, folder: Instance, kit: string, colors: Colors, mat: Enum.Material?): boolean
+	local style = string.match(kit, "^cape:(.+)$")
+	local fit = style and (Config :: any).CapeArt and (Config :: any).CapeArt[style]
+	local art = ReplicatedStorage:FindFirstChild("Art")
+	local lib = art and art:FindFirstChild("Capes")
+	local torso = char:FindFirstChild("UpperTorso")
+	if not (fit and lib and torso and torso:IsA("BasePart")) then
+		return false
+	end
+	local srcs = {}
+	for i, row in fit.pieces do
+		local found = lib:FindFirstChild(row.mesh, true)
+		if not (found and found:IsA("MeshPart")) then
+			return false
+		end
+		srcs[i] = found
+	end
+	local ref = RIG_SIZE.UpperTorso
+	local f = if ref then torso.Size / ref else Vector3.one
+	for i, row in fit.pieces do
+		local p = srcs[i]:Clone()
+		for _, c in p:GetChildren() do
+			c:Destroy()
+		end
+		p.Name = "back"
+		p.Size = Vector3.new(row.size[1], row.size[2], row.size[3]) * f
+		p.Color = colors[row.role] or colors.p
+		p.Material = if row.glow then Enum.Material.Neon else (mat or Enum.Material.SmoothPlastic)
+		p.Transparency = 0
+		p.Anchored = false
+		p.Massless = true
+		p.CanCollide = false
+		p.CanTouch = false
+		p.CanQuery = false
+		p.CastShadow = false
+		p.CFrame = torso.CFrame * CFrame.new(Vector3.new(row.offset[1], row.offset[2], row.offset[3]) * f)
+		local weld = Instance.new("WeldConstraint")
+		weld.Part0 = torso
+		weld.Part1 = p
+		weld.Parent = p
+		p.Parent = folder
+	end
+	return true
+end
+
 -- Remove a look built by build() (the folder and the emitters and trails it made on body parts, and a mask's
 -- decals on the head)
 function LookKit.clear(char: Model)
@@ -1546,8 +1595,13 @@ function LookKit.build(char: Model, look: any, weapon: any?): Folder
 		local c, m = slotColors(colors, look, tab)
 		-- the slot's own kits, then the 2026-11-17 extras in PieceKits
 		local extra = PieceKits[tab]
-		-- a flat mask's uploaded decals stand in for its boxes
-		if not (tab == "head" and kit and maskDecals(char, kit, c)) then
+		-- a flat mask's uploaded decals and a cape's imported meshes stand in for their boxes
+		local drawn = kit ~= nil
+			and (
+				(tab == "head" and maskDecals(char, kit, c))
+				or (tab == "back" and capeMeshes(char, folder, kit, c, m))
+			)
+		if not drawn then
 			addSpecs(char, folder, tab, kit and (KITS[tab][kit] or (extra and extra[kit])), c, m)
 		end
 	end
