@@ -234,6 +234,24 @@ function MoveMath.speedCap(cfg: any, styles: { [string]: boolean }, boosting: bo
 	return cap
 end
 
+-- MoveGuard's cap for one sample: the style cap, a ride's own speed, flight during Weightless (zeroG), then
+-- the run speed multipliers the client applies (MoveController.runSpeed): the class's moveSpeed and the
+-- "speed" buff (Weightless, Feather, the Mystic's +25% on allies, Tide Mirror, Glide Step...). Slows are left
+-- out on purpose: a slowed hero is never held to less (rule 6: speed fails only pull back, lean lenient).
+function MoveMath.guardCap(
+	cfg: any,
+	styles: { [string]: boolean },
+	boosting: boolean,
+	o: { ride: number?, zeroG: boolean?, speedBuff: number?, classSpeed: number? }
+): number
+	local cap = MoveMath.speedCap(cfg, styles, boosting)
+	cap = math.max(cap, o.ride or 0)
+	if o.zeroG then
+		cap = math.max(cap, cfg.caps.flight)
+	end
+	return cap * (1 + math.max(0, o.classSpeed or 0)) * (1 + math.max(0, o.speedBuff or 0))
+end
+
 -- The Leaping mobility's full leap (bigger than everyone's)
 function MoveMath.superLeapLaunch(
 	cfg: any,

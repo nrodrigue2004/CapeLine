@@ -154,6 +154,17 @@ The daily card, the 7-day track, 3 daily quests a UTC day (rules in Shared.Daily
 9. Studio with API access off (memory saves) works the same. On a published test place with saving down (Data fixes step 3's long keyPrefix): the card shows the error state ("Your save is offline...") with RETRY, and nothing is paid.
 10. In Studio the Output prints the analytics lines daily_login, daily_claim, daily_quest and daily_all_done, and no errors from DailyService or DailyHud.
 
+### Combat fixes: speed caps, leaps, PvP rules, cooldowns (2026-11-18)
+Review 5 fixes in MoveGuard, MoveCheck, CastPlan, CombatService and GearService (tests: ONLY="Combat fixes").
+1. Speed buffs: a Super-speed hero holds the sprint while a Mystic friend casts Weightless with Feather on them: 6 s at full sprint, no snap-back. Same with Tide Mirror and Glide Step. The Output has no "[MoveGuard] strike" line.
+2. Dashes: with Studio Settings > Network > Incoming Replication Lag at 0.2 s, use Shadow Step, Spirit Swap and Unstoppable 10 times each, then the Grappling Hook and Meteor Leap: no snap-back after any of them.
+3. Meteor Leap aimed 30 degrees up at a robot 90 studs away on flat street: the hero lands next to it and the landing burst hits it (it used to land 13 studs short). Phoenix Dive the same.
+4. PvP: two flagged heroes in the Crater. One Awakens: their hits on the other are about 10% stronger, not 20%. A super field (one standing in it) ticks at the 60% super rate. Opponents casting supers from paired paths side by side never trigger a team-up combo; two friends still do.
+5. Cooldowns: mash a 0.5 s skill (or tap a gadget) as fast as you can for 10 s: it fires about 20 times, never 24; a normal press when the sweep ends always fires.
+6. Charge: hold a chargeable skill just short of the full glow and release: it is a partial charge at any ping, a full hold is full.
+7. No casting: during fast travel's flight and in the creator, the skill keys do nothing (no cast on the server, no error).
+8. Leaving: drop a field (Healing Rain, Ember Ring) and Soul Chains, then leave the game: the field stops at once on the other players' screens and no error shows. With 40 fields up (Dev panel or bots), a new field of yours replaces your own oldest one, not another player's.
+
 ### Side quest people and finale models (2026-11-18, art pass)
 New outfits, faces and three finale models (PLACEHOLDER ART until nate approves; tests: ONLY="Art pass"). The upload package is in /mnt/project-files/capeline/upload/ (64 images: the 38 people outfits, 17 faces, 9 robot uniforms still at 0); the done first batch moved to /mnt/project-files/capeline/upload/done-2026-11-17/.
 1. Upload: copy the upload folder to Documents\capeline-upload-2 and double-click upload.bat. It writes ids.json and resolve_ids.txt.

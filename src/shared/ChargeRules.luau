@@ -5,7 +5,7 @@
 --   channels, buffs, fields, summons, dashes, leaps, rides and supers do not (their balance stays as it was).
 -- * level: 0 for a tap, rising to 1 between Config.Combat.charge.start and full seconds held.
 -- * apply: a charged cast hits harder and wider (+damage and +size at level 1).
--- * allowed: the server's cap on a claimed level, from the hold it timed itself (press to use).
+-- * allowed: the server's cap on a claimed level, from the hold it timed itself (press to use, plus leeway).
 -- * H2 charge-up powers (spec: Hero MMO features > Charge-up powers): about 24 rows in Config.Abilities carry
 --   charge = { max, mult, grow }: they charge over `max` seconds from 1x to `mult` damage and up to `grow`
 --   size, a full charge is a breaker (Shared.GuardMath), and charging slows the hero (Config.Combat.charge
@@ -43,19 +43,21 @@ function ChargeRules.level(C: any, held: number, row: any?): number
 	return math.clamp((held - ch.start) / math.max(0.05, full - ch.start), 0, 1)
 end
 
--- the claim the client sends (0 to 100) to a level, capped by what the server timed
+-- the claim the client sends (0 to 100) to a level, capped by what the server timed. The press and the
+-- release both cross the same network, so the hold between their arrivals is the real hold: latency is not
+-- added on top (with it, a 0.9 s hold at 150 ms claimed a full 1.2 s charge); only `leeway` covers jitter.
 function ChargeRules.allowed(
 	C: any,
 	claim: number?,
 	pressedAt: number?,
 	now: number,
-	latency: number,
+	_latency: number?,
 	row: any?
 ): number
 	if not claim or claim <= 0 or not pressedAt then
 		return 0
 	end
-	local held = now - (pressedAt :: number) + math.max(0, latency) + C.charge.leeway
+	local held = now - (pressedAt :: number) + C.charge.leeway
 	return math.min(math.clamp((claim :: number) / 100, 0, 1), ChargeRules.level(C, held, row))
 end
 
