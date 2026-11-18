@@ -20,6 +20,14 @@ function Cooldowns.start(book: Book, id: string, now: number, seconds: number)
 	book.length[id] = seconds
 end
 
+-- The server's start after a use it let in with `leeway`: the next cooldown runs from when this one was due
+-- (max(now, readyAt)), so the early-use leeway never shortens a cycle (spamming once gave 24 casts in 10 s
+-- of a 0.5 s cooldown instead of 20). A use after the cooldown ran out starts from now, as before.
+function Cooldowns.startNext(book: Book, id: string, now: number, seconds: number)
+	local at = book.readyAt[id]
+	Cooldowns.start(book, id, if at and at > now then at else now, seconds)
+end
+
 -- Seconds left (0 when ready)
 function Cooldowns.left(book: Book, id: string, now: number): number
 	local at = book.readyAt[id]

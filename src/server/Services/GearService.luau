@@ -241,7 +241,7 @@ local function useGadget(player: Player, aim: Vector3)
 		end
 		target = pos
 	end
-	Cooldowns.start(book, kind, now, row.cd)
+	Cooldowns.startNext(book, kind, now, row.cd) -- from when it was due (the leeway never shortens a cycle)
 	Net.fire("GadgetResult", player, { kind = kind, ok = true, target = target, cd = row.cd })
 	-- others see the smoke, drone and decoy as an ability burst
 	for _, other in Players:GetPlayers() do

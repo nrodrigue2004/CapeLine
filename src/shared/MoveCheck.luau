@@ -7,6 +7,9 @@
 -- A strike needs fresh evidence: after one, the samples for `strikeGrace` seconds still fail and pull back,
 -- but count no strike. Until MoveCorrect reaches the device (one lag spike can hold it up), every 10 Hz
 -- sample still sees the same stale far position, which once stacked 3 strikes in 0.2 s and kicked.
+-- Grants sit in their own pool (`extra`), spent first and gone `grantKeep` seconds after the last grant, so
+-- old dashes never bank a later jump. A fail that is not a strike waits one sample before it pulls back
+-- (`wait`): a dash's positions can reach the server before its CombatUse grant does.
 
 local MoveCheck = {}
 
@@ -18,24 +21,44 @@ export type State = {
 	budget: number,
 	strikes: { number },
 	quietUntil: number, -- no strike before this (the grace after the last one)
+	extra: number, -- granted travel not spent yet (dashes, leaps, knocks)
+	extraAt: number, -- when the last grant came
+	missAt: number?, -- the first of the fails in a row (nil after a pass)
 }
 
 function MoveCheck.new(x: number, y: number, z: number, t: number): State
-	return { x = x, y = y, z = z, t = t, budget = 0, strikes = {}, quietUntil = -math.huge }
+	return {
+		x = x,
+		y = y,
+		z = z,
+		t = t,
+		budget = 0,
+		strikes = {},
+		quietUntil = -math.huge,
+		extra = 0,
+		extraAt = -math.huge,
+		missAt = nil,
+	}
 end
 
 -- A legal teleport (fast travel, respawn, mission pocket): accept the new spot
 function MoveCheck.reset(state: State, x: number, y: number, z: number, t: number)
 	state.x, state.y, state.z, state.t = x, y, z, t
 	state.budget = 0
+	state.extra = 0
+	state.missAt = nil
 end
 
--- A server-approved burst (Dash Strike's 30 studs): extra distance allowed right away
-function MoveCheck.grant(state: State, distance: number)
-	state.budget += distance
+-- A server-approved burst (Dash Strike's 30 studs): extra distance allowed right away, for `grantKeep` s.
+-- now: when it was granted (defaults to the last sample's time)
+function MoveCheck.grant(state: State, distance: number, now: number?)
+	state.extra = math.max(0, state.extra) + math.max(0, distance)
+	state.extraAt = now or state.t
 end
 
--- Returns ok, strike. On a fail the accepted position stays where it was; the caller pulls the hero back.
+-- Returns ok, strike, wait. On a fail the accepted position stays where it was; the caller pulls the hero
+-- back unless `wait` (the first fail in a row that is no strike: the next sample measures again from the
+-- last good spot, with any grant that has arrived since).
 function MoveCheck.sample(
 	state: State,
 	x: number,
@@ -45,15 +68,19 @@ function MoveCheck.sample(
 	cap: number,
 	moveCfg: any,
 	safetyCfg: any
-): (boolean, boolean)
+): (boolean, boolean, boolean)
 	local dt = t - state.t
 	if dt <= 0 then
-		return true, false
+		return true, false, false
 	end
 	state.t = t
 	local rate = cap * moveCfg.tolerance
 	local bank = rate * safetyCfg.burstSeconds + safetyCfg.slack
 	state.budget = math.min(math.max(state.budget, 0) + rate * dt, math.max(bank, state.budget))
+	if t - state.extraAt > (safetyCfg.grantKeep or math.huge) then
+		state.extra = 0 -- an unspent grant does not last
+	end
+	local avail = state.budget + state.extra
 
 	local dx, dy, dz = x - state.x, y - state.y, z - state.z
 	local up = math.max(0, dy)
@@ -61,19 +88,28 @@ function MoveCheck.sample(
 	local extraDown = math.max(0, -dy - freeFall)
 	local used = math.sqrt(dx * dx + dz * dz + up * up) + extraDown
 
-	if used <= state.budget then
-		state.budget -= used
+	if used <= avail then
+		local fromExtra = math.min(state.extra, used)
+		state.extra -= fromExtra
+		state.budget -= used - fromExtra
 		state.x, state.y, state.z = x, y, z
-		return true, false
+		state.missAt = nil
+		return true, false, false
 	end
-	local strike = used > state.budget * safetyCfg.strikeFactor + safetyCfg.slack * 4
+	local strike = used > avail * safetyCfg.strikeFactor + safetyCfg.slack * 4
 	if strike then
+		state.missAt = state.missAt or t
 		if t < state.quietUntil then
-			return false, false -- the same jump again before the pull-back landed: pulled back, no strike
+			return false, false, false -- the same jump again before the pull-back landed: pulled back, no strike
 		end
 		state.quietUntil = t + (safetyCfg.strikeGrace or 0)
+		return false, true, false
 	end
-	return false, strike
+	if state.missAt == nil then
+		state.missAt = t
+		return false, false, true -- the first miss: wait one sample (a grant may still be on its way)
+	end
+	return false, false, false
 end
 
 -- Count a strike; returns true when the strike rule says kick (3 in 10 minutes)

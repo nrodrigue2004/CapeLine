@@ -272,9 +272,18 @@ function CastPlan.build(
 			)
 		end
 	elseif shape == "leap" then
-		local d = math.max(0, world.rayDist(ox, oy + 4, oz, dx, math.max(dy, -0.2), dz, range) - 3)
-		local tx, tz = ox + dx * d, oz + dz * d
-		local ty = world.groundY(tx, oy + dy * d + 20, tz) + 3
+		-- as the client flies it (CombatClient.fire): a unit ray along the aim (never steeper than -0.2 down)
+		-- finds how far, and the hero travels that far along the flat aim, landing on the floor below
+		local ry = math.max(dy, -0.2)
+		local rl = math.sqrt(dx * dx + ry * ry + dz * dz)
+		local rx, rz = dx, dz
+		if rl > 1e-4 then
+			rx, ry, rz = dx / rl, ry / rl, dz / rl
+		end
+		local d = math.max(0, world.rayDist(ox, oy + 4, oz, rx, ry, rz, range) - 3)
+		local fx, fz = flat(dx, dz)
+		local tx, tz = ox + fx * d, oz + fz * d
+		local ty = world.groundY(tx, oy + 20, tz) + 3
 		plan.ex, plan.ey, plan.ez = tx, ty, tz
 		plan.cx, plan.cy, plan.cz, plan.radius = tx, ty, tz, eff.radius
 		plan.moveHero = true
@@ -384,6 +393,35 @@ function CastPlan.build(
 		return nil
 	end
 	return plan
+end
+
+-- What one field tick hits with: the field's own coeff and status (or the row's), plus the row's slot and
+-- set, so a super's field keeps PvP's super rule (FlagService.damage) and the Epic set bonus on every tick.
+-- f: the live field ({ coeff, tick, status?, statusDur?, slow? })
+function CastPlan.tickEff(eff: any, f: any): any
+	local out = {
+		coeff = f.coeff,
+		status = if f.status ~= nil then f.status else eff.status,
+		statusDur = f.statusDur or math.max(eff.statusDur or 0, f.tick + 0.15),
+		slow = f.slow or eff.slow,
+		slot = eff.slot,
+		set = eff.set,
+	}
+	if out.status == "pull" then
+		out.statusDur = f.tick + 0.1
+	end
+	return out
+end
+
+-- Which field to drop when the server is at its field cap: the caster's own oldest, else the oldest of all
+-- (so one hero's spam never wipes another player's fields). list: oldest first, each with `hero`.
+function CastPlan.evictIndex(list: { any }, owner: any): number
+	for i, f in list do
+		if f.hero == owner then
+			return i
+		end
+	end
+	return 1
 end
 
 -- The hits of an area that lands later (leap, throw, echoes, field ticks)
