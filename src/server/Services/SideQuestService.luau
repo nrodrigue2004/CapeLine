@@ -21,6 +21,9 @@
 --   course (Shared.SideQuestSites.course); a finale may have an encore villain (its own name card).
 -- * Chain 4 (The Harvest King): Farmland sites on this week's outskirts tiles (a barn, the silos, a field, a
 --   farm road: Shared.SideQuestSites.farm); an escort with `road` drives down the farm road toward town.
+-- * Chain 6 (The Pit): sites on the Old Quarry landmark (its gate, spots on its floor:
+--   Shared.SideQuestSites.quarry); a finale villain with a `dress` wears its own look, name and title over an
+--   existing costumed suit (EnemyService.dress), so a chain villain needs no robot type of its own.
 -- PLACEHOLDER ART: givers without a `look` are R15 people in plain colours; a giver with one wears its fixed
 -- hero look (earnable creator pieces, LookKit); crates, rings, site signs, set pieces and the motorcade are
 -- plain parts.
@@ -566,6 +569,10 @@ local function spawnBoss(g: Group, goal: Goal)
 	local id = EnemyService.spawnAt(foe.enemy, goal.bossAt or g.home, g.level, TAG)
 	if id then
 		EnemyService.tune(id, { hpMult = math.clamp(foe.hpMult, SQ.finale.hpMult[1], SQ.finale.hpMult[2]) })
+		if foe.dress then
+			-- lore step 11, chain 6: the villain's own look, name and title over a costumed suit
+			EnemyService.dress(id, foe.dress)
+		end
 		goal.boss = id
 	end
 end

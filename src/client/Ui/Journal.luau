@@ -39,6 +39,7 @@ local WHERE = {
 	Docks = "the Docks",
 	Suburbs = "the Suburbs", -- lore step 11: Wind-Up Lane's toy shop
 	Coast = "the Coast", -- lore step 11: The Salt Dogs' pier
+	OldQuarry = "the Old Quarry", -- lore step 11, chain 6: The Pit
 }
 local STATE_TEXT = { done = "CLEARED", open = "READY", level = "LEVEL %d", locked = "LOCKED" }
 

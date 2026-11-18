@@ -17622,6 +17622,776 @@ do
 	end)
 end
 
+---------------------------------------------------------------------------
+-- Lore step 11, the Old Quarry chain: The Pit. Config.SideQuests (the chain, Brick, the quarry sites, the
+-- Pitboss's dress), Shared.SideQuestSites.quarry (sites read from the fixed landmark), PocketLayout "pit" (the
+-- fight club under the quarry), FakeRules.dress (a finale villain's own look over an existing costumed suit, so
+-- no new robot type), the scenes, the reward, the Dev panel.
+---------------------------------------------------------------------------
+
+do
+	local SideQuestPlan = require("../src/shared/SideQuestPlan")
+	local SideQuestSites = require("../src/shared/SideQuestSites")
+	local CreatorRules = require("../src/shared/CreatorRules")
+	local CinemaPlan = require("../src/shared/CinemaPlan")
+	local StoryPlan = require("../src/shared/StoryPlan")
+	local LookCodec = require("../src/shared/LookCodec")
+	local fs = require("@lune/fs")
+	local SQ = Config.SideQuests
+	local S = SideQuestPlan.chain(Config, "ThePit") :: any
+	local SIDES = { "hero", "villain" }
+	local SITES = { "QuarryGate", "MineLift", "QuarryRing" }
+	-- the chain's robots: existing machine types only (Enemy.Delta's typeId has 5 bits, all used)
+	local CREW = { "BurglarBot", "BruteBot", "SneakBot", "ShieldBearer", "Bramblebeast" }
+
+	local function flat(ax: number, az: number, bx: number, bz: number): number
+		return math.sqrt((ax - bx) ^ 2 + (az - bz) ^ 2)
+	end
+
+	local function afterSafehouse(): any
+		local c = ProfileSchema.newCharacter()
+		c.story.missions = StoryPlan.setBit(StoryPlan.setBit(0, 1), 2)
+		return c
+	end
+
+	local function deep(v: any): any
+		if type(v) ~= "table" then
+			return v
+		end
+		local out = {}
+		for k, x in v do
+			out[k] = deep(x)
+		end
+		return out
+	end
+
+	-- the validator's problems for a copy of Config.SideQuests changed by edit
+	local function problems(edit: (any) -> ()): string
+		local sq = deep(SQ)
+		edit(sq)
+		local C = setmetatable({ SideQuests = sq }, { __index = Config })
+		return table.concat(SideQuestPlan.validate(C), " | ")
+	end
+
+	local function pitOf(sq: any): any
+		for _, ch in sq.chains do
+			if ch.id == "ThePit" then
+				return ch
+			end
+		end
+		return nil
+	end
+
+	test(
+		"Lore 11 Old Quarry: The Pit validates: 8 quarry quests, each side's flavour, the Pitboss",
+		function()
+			local bad = SideQuestPlan.validate(Config)
+			for _, b in bad do
+				check(false, b)
+			end
+			check(#bad == 0, "the chain validator passes")
+			check(S ~= nil and not S.dev, "a real chain")
+			check(
+				#S.steps == 8 and S.layer == "district" and S.district == "OldQuarry",
+				"8 Old Quarry quests"
+			)
+			local br = SQ.givers.Brick
+			check(S.giver == "Brick" and not br.dev and br.anchor == "site", "Brick gives it at a site")
+			check(S.site == "QuarryGate" and br.site == "QuarryGate", "at the quarry gate")
+			for _, other in SQ.chains do
+				check(other == S or other.bit ~= S.bit, "its own save bit (" .. tostring(other.id) .. ")")
+			end
+			check(S.bit == 7, "save bit 7")
+			local used = SideQuestPlan.sites(S)
+			for _, id in SITES do
+				check(table.find(used, id) ~= nil, "uses " .. id)
+			end
+			local last = S.steps[#S.steps]
+			local fin = SideQuestPlan.goal(last, "hero") :: any
+			check(
+				SideQuestPlan.shared(last) and fin.kind == "finale" and fin.dress == "Pitboss",
+				"the Pitboss, both sides together"
+			)
+			check(table.find(SQ.finale.enemies, fin.enemy) ~= nil, "his suit is on the finale list")
+			local kinds = { hero = {}, villain = {} }
+			local split = 0
+			for i, step in S.steps do
+				for _, side in SIDES do
+					kinds[side][(SideQuestPlan.goal(step, side) :: any).kind] = true
+				end
+				if SideQuestPlan.shared(step) then
+					local g = SideQuestPlan.goal(step, "hero") :: any
+					check(
+						type(g.villainText) == "string" and g.villainText ~= g.text,
+						"step " .. i .. ": the Syndicate reads its own goal"
+					)
+				else
+					split += 1
+					check(
+						SideQuestPlan.text(SideQuestPlan.goal(step, "hero"), "hero")
+							~= SideQuestPlan.text(SideQuestPlan.goal(step, "villain"), "villain"),
+						"step " .. i .. ": each side's own job"
+					)
+				end
+			end
+			check(split >= 5, "most steps give each side its own job (" .. split .. ")")
+			-- the Vigil free the fighters and expose the fix; the Dread Syndicate rob the family
+			for _, k in { "find", "photo", "fight", "carry", "hold" } do
+				check(kinds.hero[k] == true, "the Vigil: " .. k)
+			end
+			for _, k in { "fetch", "chase", "deliver", "race" } do
+				check(kinds.villain[k] == true, "the Syndicate: " .. k)
+			end
+			check(kinds.hero.pocket and kinds.villain.pocket, "down in the Pit, both sides")
+			local crewOnly = true
+			local function crew(kind: any)
+				crewOnly = crewOnly and table.find(CREW, kind) ~= nil
+			end
+			for _, step in S.steps do
+				for _, side in SIDES do
+					local g = SideQuestPlan.goal(step, side) :: any
+					for _, row in g.squads or {} do
+						crew(row[1])
+					end
+					for _, row in g.adds or {} do
+						crew(row[1])
+					end
+					if g.guards then
+						crew(g.guards[1])
+					end
+					if g.kind == "chase" or g.kind == "finale" then
+						crew(g.enemy)
+					end
+					for _, s in g.steps or {} do
+						for _, row in s.squads or {} do
+							crew(row[1])
+						end
+						for _, row in s.waves or {} do
+							crew(row[1])
+						end
+						if s.enemy then
+							crew(s.enemy)
+						end
+						if s.adds then
+							crew(s.adds[1])
+						end
+					end
+				end
+			end
+			check(crewOnly, "every robot in the chain is an existing type")
+			local who = {}
+			for _, step in S.steps do
+				for _, l in step.lines or {} do
+					who[l.who] = true
+				end
+			end
+			for _, w in { "Brick", "patch", "lodestar", "pitboss", "flint" } do
+				check(who[w] == true, "speaks: " .. w)
+			end
+			local guide = fs.readFile("src/client/Ui/GuideHud.luau")
+			for _, w in { "pitboss", "flint" } do
+				local sp = Config.Story.guides.speakers[w]
+				check(
+					sp ~= nil and sp.portrait ~= nil and Config.Audio.sounds[sp.blip] ~= nil,
+					w .. ": a guide speaker with a portrait and a blip"
+				)
+				for _, e in (sp and sp.portrait.extras) or {} do
+					check(string.find(guide, '"' .. e .. '"', 1, true) ~= nil, w .. ": GuideHud draws " .. e)
+				end
+			end
+			for _, e in SQ.givers.Brick.portrait.extras or {} do
+				check(string.find(guide, '"' .. e .. '"', 1, true) ~= nil, "Brick: GuideHud draws " .. e)
+			end
+			local sb = Config.Cinema.extraBits
+			local scenes = 0
+			local mine = {}
+			for _, step in S.steps do
+				if step.scene then
+					scenes += 1
+					local s = Config.Cinema.scenes[step.scene]
+					check(s ~= nil and s.client == true, step.scene .. ": a device scene")
+					check(s and CinemaPlan.check(Config, s), step.scene .. ": 5 to 20 s")
+					check(
+						s and s.bit >= sb.from and s.bit <= sb.to and CinemaPlan.clientBit(Config, s.bit),
+						step.scene .. ": a side quest scene bit a device may send"
+					)
+					if s then
+						table.insert(mine, s.bit)
+					end
+					for _, l in (s and s.lines) or {} do
+						check(
+							Config.Story.guides.speakers[l.who] ~= nil or SQ.givers[l.who] ~= nil,
+							step.scene .. ": speaker " .. tostring(l.who)
+						)
+					end
+				end
+			end
+			table.sort(mine)
+			check(scenes >= 1 and scenes <= 3, "1 to 3 short scenes (" .. scenes .. ")")
+			check(#mine == 3 and mine[1] == 125 and mine[3] == 127, "scene bits 125 to 127")
+			check(last.scene ~= nil, "a scene before the Pitboss's finale")
+			local seenBits = {}
+			for id, s in Config.Cinema.scenes do
+				check(not seenBits[s.bit], "scene bit " .. s.bit .. " used once (" .. id .. ")")
+				seenBits[s.bit] = true
+			end
+			local page = Config.Cinema.comic.pages.pitStory
+			check(page ~= nil and #page.panels == 4, "the Pitboss's story is a comic page")
+			local hud = fs.readFile("src/client/Ui/CinemaHud.luau")
+			for _, p in page.panels do
+				check(SideQuestPlan.fixedText(p.caption, 90) == nil, "a short caption")
+				check(
+					string.find(hud, 'kind == "' .. p.scene .. '"', 1, true) ~= nil,
+					"the comic draws " .. p.scene
+				)
+			end
+		end
+	)
+
+	test("Lore 11 Old Quarry: the finale's name card: THE PITBOSS on the last step only", function()
+		for i = 1, #S.steps - 1 do
+			check(SideQuestPlan.card(S, i) == nil, "no card on step " .. i)
+		end
+		local card = SideQuestPlan.card(S, #S.steps) :: any
+		check(card ~= nil and card.name == "THE PITBOSS", "the finale's card names the Pitboss")
+		check(card and card.title == "HEAD OF THE GRAVEL FAMILY", "and his title")
+		check(
+			SideQuestPlan.fixedText(card.name, 32) == nil and SideQuestPlan.fixedText(card.title, 32) == nil,
+			"fixed text that fits the card"
+		)
+	end)
+
+	test(
+		"Lore 11 Old Quarry: it opens after the Safehouse at the quarry's level for both sides; Brick offers it",
+		function()
+			for _, side in SIDES do
+				local c = ProfileSchema.newCharacter()
+				c.story.missions = StoryPlan.setBit(0, 1)
+				local st, why, n = SideQuestPlan.state(Config, c, S, 30, side)
+				check(st == "locked" and why == "story" and n == 2, side .. ": waits for the Safehouse")
+				check(
+					select(2, SideQuestPlan.talkPick(Config, c, "Brick", 30, side, false)) == "none",
+					side .. ": Brick has nothing yet"
+				)
+				local d = afterSafehouse()
+				local st2, why2, lv = SideQuestPlan.state(Config, d, S, 19, side)
+				check(
+					st2 == "locked" and why2 == "level" and lv == Config.World.zoneFloor.OldQuarry,
+					side .. ": and the Old Quarry's level floor"
+				)
+				check(SideQuestPlan.state(Config, d, S, 20, side) == "open", side .. ": open at level 20")
+				local pick, kind = SideQuestPlan.talkPick(Config, d, "Brick", 20, side, false)
+				check(pick == S and kind == "offer", side .. ": Brick offers it")
+				check(SideQuestPlan.fixedText(S.blurb[side], 90) == nil, side .. ": the page's line")
+				check(SideQuestPlan.fixedText(S.lines.offer[side], 120) == nil, side .. ": Brick's offer")
+				check(
+					SideQuestPlan.talkPick(Config, d, "Nell", 20, side, false) ~= S,
+					side .. ": Nell never offers it"
+				)
+			end
+			local J = fs.readFile("src/client/Ui/Journal.luau")
+			check(
+				string.find(J, 'OldQuarry = "the Old Quarry"', 1, true) ~= nil,
+				"the Journal names the Old Quarry"
+			)
+		end
+	)
+
+	test(
+		"Lore 11 Old Quarry: the sites stand on the fixed quarry: the gate and two clear floor spots",
+		function()
+			local plan = SideQuestSites.quarryPlan(Config) :: any
+			check(plan ~= nil, "the quarry's plan")
+			local W = Config.World
+			local lm = nil
+			for _, x in W.landmarks do
+				if x.id == "OldQuarry" then
+					lm = x
+				end
+			end
+			check(lm ~= nil, "the Old Quarry landmark")
+			local x0, z0 = WorldGen.tileOrigin(Config.City, lm.tx, lm.tz)
+			local hs = lm.size * Config.City.tile / 2
+			local cx, cz = x0 + hs, z0 + hs
+			near(plan.centre.x, cx, 0.01, "the plan's middle is the landmark's (x)")
+			near(plan.centre.z, cz, 0.01, "and z")
+			for _, id in SITES do
+				local st = SQ.sites[id]
+				check(
+					st.district == "OldQuarry" and SideQuestSites.QUARRY_KINDS[st.quarry],
+					id .. ": a quarry site"
+				)
+				check(SideQuestSites.building(Config, world, id) == nil, id .. ": never a Downtown building")
+				local q = SideQuestSites.quarry(Config, world, id) :: any
+				check(q ~= nil, id .. ": a spot fits")
+				if q then
+					check(
+						math.abs(q.x - cx) < hs and math.abs(q.z - cz) < hs,
+						id .. ": inside the quarry (" .. q.x .. ", " .. q.z .. ")"
+					)
+					check(q.door.fx == 0 and q.door.fz == -1, id .. ": facing north, toward town")
+					if st.quarry == "floor" then
+						check(
+							SideQuestSites.quarryClearance(Config, q.x, q.z) >= st.clear,
+							id .. ": " .. st.clear .. " studs clear of the walls, terraces and boulders"
+						)
+						check(
+							WorldMap.heightAt(world, q.x, q.z) <= Config.City.ground.y + 1.5,
+							id .. ": on the open floor"
+						)
+					else
+						-- the gate: in the gap of the north wall, nothing standing in it
+						check(q.z < cz - hs + 40, "the gate is on the north wall")
+						check(
+							SideQuestSites.quarryClearance(Config, q.x, q.z) >= q.sx / 2 - 0.01,
+							"the gap is open"
+						)
+						check(q.sx >= 40, "a wide gate (" .. q.sx .. ")")
+					end
+					-- the landmark never moves with the seed: every week and every server agree, plans or none
+					for _, seed in { 202648, 202720 } do
+						local wd = WorldMap.build(Config, seed)
+						wd.tilePlans = {}
+						local again, door = SideQuestSites.place(Config, wd, id)
+						check(
+							again ~= nil and door ~= nil and again.x == q.x and again.z == q.z,
+							id .. ": the same spot in week " .. seed .. " with no tile plans"
+						)
+					end
+				end
+			end
+			local gate = SideQuestSites.quarry(Config, world, "QuarryGate") :: any
+			local lift = SideQuestSites.quarry(Config, world, "MineLift") :: any
+			local ring = SideQuestSites.quarry(Config, world, "QuarryRing") :: any
+			check(flat(lift.x, lift.z, ring.x, ring.z) >= 120, "the lift and the ring are far apart")
+			check(flat(gate.x, gate.z, ring.x, ring.z) >= 200, "the ring is deep in the quarry")
+			-- far from every other chain's sites, every week
+			for _, seed in { 202647, 202701, 202752 } do
+				local wd = if seed == 202647 then world else WorldMap.build(Config, seed)
+				SideQuestSites.warm(Config, wd)
+				for oid, ost in SQ.sites do
+					if not ost.quarry and not ost.dev then
+						local ob = SideQuestSites.place(Config, wd, oid)
+						if ob then
+							for _, id in SITES do
+								local q = SideQuestSites.quarry(Config, wd, id) :: any
+								check(
+									flat(q.x, q.z, ob.x, ob.z) >= 200,
+									seed .. ": " .. id .. " is far from " .. oid
+								)
+							end
+						end
+					end
+				end
+			end
+			-- the framework checks a quarry site's rules
+			check(problems(function() end) == "", "the copy is clean")
+			check(string.find(
+				problems(function(sq)
+					sq.sites.MineLift.quarry = "crater"
+				end),
+				"quarry crater",
+				1,
+				true
+			) ~= nil, "only a gate or a floor spot")
+			check(string.find(
+				problems(function(sq)
+					sq.sites.MineLift.spot = { 900, 0 }
+				end),
+				"spot on the quarry floor",
+				1,
+				true
+			) ~= nil, "a floor spot off the quarry")
+			check(string.find(
+				problems(function(sq)
+					sq.sites.QuarryRing.clear = 500
+				end),
+				"no spot on the quarry fits",
+				1,
+				true
+			) ~= nil, "no floor that clear")
+			check(string.find(
+				problems(function(sq)
+					sq.sites.QuarryGate.district = "Suburbs"
+				end),
+				"QuarryGate",
+				1,
+				true
+			) ~= nil, "a quarry site is in the Old Quarry")
+		end
+	)
+
+	test("Lore 11 Old Quarry: the Pit: the gallery, the betting hall, the odds machines, the ring", function()
+		check(PocketLayout.known("pit"), "a pocket layout")
+		local l = PocketLayout.build(Config, 1, "pit")
+		check(#l.boxes < 400, "under 400 parts (" .. #l.boxes .. ")")
+		local sp = l.points.spawn
+		check(PocketLayout.at(Config, sp[1], sp[2], sp[3]) == 1, "the spawn is inside its pocket")
+		check(#(l.lists.rooms or {}) >= 1, "the mine tunnel")
+		check(#(l.lists.odds or {}) >= 4, "four odds machines")
+		for _, p in { "bets", "stairhead", "pitfloor", "ring", "boss" } do
+			check(l.points[p] ~= nil, "has " .. p)
+		end
+		local deck = PocketLayout.heightAt(l, sp[1], sp[3])
+		check(deck > l.floorY + 15, "the gallery stands over the pit")
+		for i, r in l.lists.rooms do
+			near(PocketLayout.heightAt(l, r[1], r[3]), deck, 0.5, "room " .. i .. " is on the gallery")
+		end
+		for i, p in l.lists.odds do
+			near(
+				PocketLayout.heightAt(l, p[1], p[3]),
+				deck,
+				0.5,
+				"odds machine " .. i .. " is on the gallery"
+			)
+		end
+		local bets = l.points.bets
+		near(PocketLayout.heightAt(l, bets[1], bets[3]), deck, 0.5, "the betting hall")
+		local pf = l.points.pitfloor
+		check(PocketLayout.heightAt(l, pf[1], pf[3]) < l.floorY + 1, "the pit floor is at the bottom")
+		local ring, boss = l.points.ring, l.points.boss
+		local stage = PocketLayout.heightAt(l, ring[1], ring[3])
+		check(stage > l.floorY + 1 and stage < l.floorY + 4, "the ring stands on its stage")
+		near(PocketLayout.heightAt(l, boss[1], boss[3]), stage, 0.01, "the champion waits in the ring")
+		local from = l.points.stairhead
+		local prev = PocketLayout.heightAt(l, from[1], from[3])
+		local ok = true
+		for z = from[3], pf[3], -1 do
+			local h = PocketLayout.heightAt(l, from[1], z)
+			if h > prev + 1e-6 or prev - h > 2.5 then
+				ok = false
+			end
+			prev = h
+		end
+		check(ok and prev < l.floorY + 1, "the rock steps walk down from the gallery to the pit floor")
+		local pocket = SideQuestPlan.goal(S.steps[5], "hero") :: any
+		check(pocket.kind == "pocket" and pocket.layout == "pit", "step 5 is down in the Pit")
+		local used = {}
+		for _, s in pocket.steps do
+			used[s.kind] = true
+			if s.at then
+				check(l.points[s.at] ~= nil, s.kind .. " at " .. s.at)
+			end
+			if s.room then
+				check(l.lists.rooms[s.room] ~= nil, s.kind .. " in room " .. s.room)
+			end
+			if s.list then
+				check(#(l.lists[s.list] or {}) >= (s.points or 1), s.kind .. " on " .. s.list)
+			end
+		end
+		check(
+			used.defeat and used.hold and used.reach and used["break"] and used.boss,
+			"tunnel, betting hall, odds machines, ring, champion"
+		)
+		local src = fs.readFile("src/shared/PocketLayout.luau")
+		check(string.find(src, "PLACEHOLDER ART", 1, true) ~= nil, "the crowd is marked placeholder art")
+	end)
+
+	test(
+		"Lore 11 Old Quarry: the Pitboss is a dress over an existing costumed suit: no new robot type",
+		function()
+			local profile = ProfileSchema.default()
+			for _, p in CreatorRules.index(Config).list do
+				if p.source.kind ~= "pack" and p.source.kind ~= "starter" then
+					CreatorRules.grant(profile, p)
+				end
+			end
+			local function lookOk(look: any, label: string)
+				local ok, why = CreatorRules.validate(Config, profile, look)
+				check(ok, label .. "'s look validates (" .. tostring(why) .. ")")
+				for slot, i in look.pieces do
+					if i > 0 then
+						local p = CreatorRules.piece(Config, slot, i)
+						check(
+							p ~= nil and p.source.kind ~= "pack",
+							label .. " " .. slot .. " is never a Robux piece"
+						)
+					end
+				end
+			end
+			lookOk(FakeRules.lookFrom(Config, SQ.givers.Brick.look, "Brick"), "Brick")
+			local fin = SideQuestPlan.goal(S.steps[#S.steps], "hero") :: any
+			local suit = Config.Enemies[fin.enemy]
+			check(
+				suit and suit.on == true and suit.fake and suit.fake.costumed == true,
+				"a costumed suit, switched on"
+			)
+			check(suit.elite and suit.miniBoss, "a boss-lite")
+			-- every typeId is still one of the 31 Enemy.Delta can carry, each used once
+			local ids = {}
+			for _, kind in Config.Enemies.order do
+				local cfg = Config.Enemies[kind]
+				if cfg and cfg.typeId then
+					check(cfg.typeId >= 1 and cfg.typeId < 32, kind .. ": typeId fits 5 bits")
+					check(not ids[cfg.typeId], "typeId " .. cfg.typeId .. " used once (" .. kind .. ")")
+					ids[cfg.typeId] = true
+				end
+			end
+			check(Config.Enemies.Pitboss == nil, "no Pitboss robot type")
+			-- the dress: his own creator look, name and title, a machine that sparks apart
+			local d = FakeRules.dress(Config, "Pitboss") :: any
+			check(d ~= nil and d.dress == true, "a dress")
+			check(d.creature == false, "a machine: it sparks apart, never a light burst")
+			local look = LookCodec.read(d.words)
+			check(look ~= nil, "its look goes over the wire")
+			if look then
+				lookOk(look, "the Pitboss")
+				check(
+					Config.Enemies.look.builds[suit.body.build] == look.build,
+					"his build matches the suit's"
+				)
+			end
+			for _, k in FakeRules.DRESS_BODY do
+				check(type(d.body[k]) == "table" and #d.body[k] == 3, "his suit colour: " .. k)
+			end
+			local plate = FakeRules.plate(Config, fin.enemy, false, d)
+			check(plate.name == "THE PITBOSS" and plate.sub == SQ.dress.Pitboss.title, "his own name plate")
+			check(FakeRules.dress(Config, "Nobody") == nil, "an unknown dress is nil")
+			check(
+				FakeRules.plate(Config, fin.enemy, false).name == string.upper(suit.name),
+				"the Bramblebeast keeps its own plate"
+			)
+			-- the wire: EnemyService sends it as the robot's identity; every device draws it, never pooled
+			local es = fs.readFile("src/server/Services/EnemyService.luau")
+			check(string.find(es, "function EnemyService.dress(", 1, true) ~= nil, "EnemyService.dress")
+			check(string.find(es, 'Net.fireAll("EnemyIdentity", d)', 1, true) ~= nil, "sent to every device")
+			local svc = fs.readFile("src/server/Services/SideQuestService.luau")
+			check(
+				string.find(svc, "EnemyService.dress(id, foe.dress)", 1, true) ~= nil,
+				"the finale dresses it"
+			)
+			check(string.find(svc, "Pitboss", 1, true) == nil, "nothing chain-specific in the service")
+			local rend = fs.readFile("src/client/Controllers/EnemyRenderer.luau")
+			check(
+				string.find(rend, "FakeRules.DRESS_BODY", 1, true) ~= nil,
+				"the renderer takes the suit colours"
+			)
+			check(string.find(rend, "ident.dress", 1, true) ~= nil, "and the dress's creature rule")
+			check(
+				string.find(rend, "(base and base.fake and idents[id])", 1, true) ~= nil,
+				"a dressed suit is built for its dress"
+			)
+			-- the framework checks a dress
+			check(string.find(
+				problems(function(sq)
+					local f = pitOf(sq).steps[8].hero
+					f.dress = "Nobody"
+				end),
+				"dress Nobody",
+				1,
+				true
+			) ~= nil, "an unknown dress")
+			check(
+				string.find(
+					problems(function(sq)
+						local f = pitOf(sq).steps[8].hero
+						f.enemy = "BruteBot"
+						table.insert(sq.finale.enemies, "BruteBot")
+					end),
+					"a dress goes on a costumed villain's suit",
+					1,
+					true
+				) ~= nil,
+				"a dress needs a costumed suit"
+			)
+			check(string.find(
+				problems(function(sq)
+					sq.dress.Pitboss.look.pieces.hat = "No Such Hat"
+				end),
+				"dress Pitboss",
+				1,
+				true
+			) ~= nil, "a dress's pieces are the creator's own")
+			check(string.find(
+				problems(function(sq)
+					sq.dress.Pitboss.body.metal = { 1, 2 }
+				end),
+				"dress Pitboss: body metal",
+				1,
+				true
+			) ~= nil, "a dress's colours")
+			check(string.find(
+				problems(function(sq)
+					sq.dress.Pitboss.title = "THE BIGGEST, BADDEST CHAMPION OF THE WHOLE PIT"
+				end),
+				"dress Pitboss: name and title",
+				1,
+				true
+			) ~= nil, "a dress's title fits the plate")
+		end
+	)
+
+	for _, lead in SIDES do
+		local mate = if lead == "hero" then "villain" else "hero"
+		local label = if lead == "villain" then "the Syndicate" else "the Vigil"
+		test(
+			"Lore 11 Old Quarry: The Pit as " .. label .. ": all 8 steps co-op with the other side",
+			function()
+				local a, b = afterSafehouse(), afterSafehouse()
+				check(SideQuestPlan.accept(Config, a, S, 22, lead, false), "the lead takes it from Brick")
+				check(SideQuestPlan.accept(Config, b, S, 22, mate, true), "the squadmate from the Journal")
+				local credits = { 0, 0 }
+				for i, step in S.steps do
+					check(
+						SideQuestPlan.stepOf(a, S) == i and SideQuestPlan.stepOf(b, S) == i,
+						"both on step " .. i
+					)
+					local g = SideQuestPlan.newGroup(S.id, i)
+					local ka, newA = SideQuestPlan.join(g, step, "lead", lead)
+					local kb, newB = SideQuestPlan.join(g, step, "mate", mate)
+					if SideQuestPlan.shared(step) then
+						check(
+							ka == "both" and kb == "both" and newA and not newB,
+							"step " .. i .. ": one shared goal"
+						)
+					else
+						check(
+							ka == lead and kb == mate and newA and newB,
+							"step " .. i .. ": a goal per side"
+						)
+					end
+					check(
+						SideQuestPlan.set(g, ka, g.sides[ka].need),
+						"step " .. i .. ": the lead's side finishes"
+					)
+					if ka ~= kb then
+						check(
+							SideQuestPlan.waiting(g, ka) and not SideQuestPlan.groupDone(g),
+							"step " .. i .. ": and waits for the other side"
+						)
+						check(
+							SideQuestPlan.set(g, kb, g.sides[kb].need),
+							"step " .. i .. ": the other side finishes"
+						)
+					end
+					check(SideQuestPlan.groupDone(g), "step " .. i .. ": done for the group")
+					local last = i == #S.steps
+					if last then
+						check(SideQuestPlan.card(S, i) ~= nil, "the Pitboss's name card at the finale")
+					end
+					for n, c in { a, b } do
+						credits[n] += SideQuestPlan.stepPay(Config, 22, last)
+						check(
+							SideQuestPlan.advance(c, S) == (if last then "done" else "next"),
+							"step " .. i .. " moves on"
+						)
+					end
+				end
+				for n, c in { a, b } do
+					check(
+						SideQuestPlan.isDone(c, S) and c.story.pinned == 0 and c.sq.at.ThePit == nil,
+						"done, untracked"
+					)
+					check(
+						credits[n] > 0 and SideQuestPlan.chainPay(Config, S, 22) > 0,
+						"steps and the end pay"
+					)
+					check(
+						not SideQuestPlan.accept(Config, c, S, 22, if n == 1 then lead else mate, false),
+						"once only"
+					)
+					check(
+						not SideQuestPlan.isDone(c, SideQuestPlan.chain(Config, "SaltDogs")),
+						"the Salt Dogs are untouched"
+					)
+				end
+			end
+		)
+	end
+
+	test(
+		"Lore 11 Old Quarry: the reward is a chain title and one cosmetic; side rep pays every step",
+		function()
+			local cos = SideQuestPlan.cosmetic(S)
+			local n = 0
+			for _ in cos do
+				n += 1
+			end
+			check(
+				n == 2 and cos.title == "Undisputed" and cos.style == "UndisputedBelt",
+				"a title and a style"
+			)
+			check(Config.Story.unlocks.titles.Undisputed == 11, "a story title (bit 11)")
+			local tb = {}
+			for name, tbit in Config.Story.unlocks.titles do
+				check(not tb[tbit], "title bit " .. tbit .. " used once (" .. name .. ")")
+				tb[tbit] = true
+			end
+			check(GearMath.questStyle(Config, "UndisputedBelt") ~= nil, "the Undisputed Belt is a gear style")
+			local styles = 0
+			for _, slot in Config.Gear.slotOrder do
+				local ns = {}
+				for _, row in Config.Gear.styles[slot] do
+					check(not ns[row.n], slot .. " style n " .. row.n .. " used once")
+					ns[row.n] = true
+					if row.quest == "UndisputedBelt" then
+						styles += 1
+						check(row.tier == "Story" and row.price == nil, "never rolled, never sold")
+					end
+				end
+			end
+			check(styles == 1, "one Undisputed Belt")
+			for _, k in { "credits", "renown", "skillPoints", "loot", "gadget", "dust", "xp" } do
+				check(S.reward[k] == nil, "no " .. k)
+			end
+			local svc = fs.readFile("src/server/Services/SideQuestService.luau")
+			check(string.find(svc, "ThePit", 1, true) == nil, "nothing chain-specific in the service")
+		end
+	)
+
+	test("Lore 11 Old Quarry: no old names or Crane in the chain; the Dev panel covers it", function()
+		local ARC =
+			{ "Bellweather", "Mayor", "Pip", "Maribel", "Tamsin", "Quill", "Iron Dee", "IronDee", "Skye" }
+		local hits = {}
+		local function walk(v: any, path: string)
+			if type(v) == "string" then
+				local w = oldLore(v)
+				if w then
+					table.insert(hits, path .. ": " .. w)
+				end
+				for _, a in ARC do
+					if string.find(v, "%f[%w]" .. a .. "%f[%W]") then
+						table.insert(hits, path .. ": " .. a)
+					end
+				end
+				for _, a in { "Crane", "Halcyon", "Adrian Vale", "Null" } do
+					if string.find(v, "%f[%w]" .. a .. "%f[%W]") then
+						table.insert(hits, path .. ": " .. a .. " (standalone chain)")
+					end
+				end
+			elseif type(v) == "table" then
+				for k, x in v do
+					walk(x, path .. "." .. tostring(k))
+				end
+			end
+		end
+		walk(S, "ThePit")
+		walk(SQ.givers.Brick, "Brick")
+		walk(SQ.dress.Pitboss, "Pitboss dress")
+		for _, id in SITES do
+			walk(SQ.sites[id], id)
+		end
+		walk(Config.Story.guides.speakers.pitboss, "pitboss")
+		walk(Config.Story.guides.speakers.flint, "flint")
+		for _, id in { "quarryNight", "pitStory", "fightNight" } do
+			walk(Config.Cinema.scenes[id], id)
+		end
+		walk(Config.Cinema.comic.pages.pitStory, "pitStory page")
+		for _, h in hits do
+			check(false, "an old name: " .. h)
+		end
+		check(#hits == 0, "no old lore, retired arc names or main-story names")
+		local idx = table.find(SQ.chains, S) :: number
+		check(idx ~= nil and 300 + idx <= 1000, "the Dev panel's SQ chain button reaches it")
+		local dev = fs.readFile("src/client/Ui/DevPanel.luau")
+		check(
+			string.find(dev, "if not ch.dev then", 1, true) ~= nil,
+			"every real chain is on the SQ chain button"
+		)
+		check(#S.steps <= SQ.maxSteps, "every step fits SQ: start step")
+	end)
+end
+
 print(string.format("\n%d passed, %d failed", passed, failed))
 if failed > 0 then
 	process.exit(1)

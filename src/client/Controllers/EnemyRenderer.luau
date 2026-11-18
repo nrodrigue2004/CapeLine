@@ -242,7 +242,8 @@ local TIES: { [string]: { string } } = {
 }
 local CRACK = { CrackPlate = true, CrackEye = true, CrackLine1 = true, CrackLine2 = true, CrackLine3 = true }
 local FAKE_RED = Color3.fromRGB(255, 70, 60)
--- who each evil twin copies (EnemyIdentity): { userId, words, path, name, title }
+-- who each evil twin copies (EnemyIdentity): { userId, words, path, name, title }; or a dressed side quest
+-- finale villain's dress (lore step 11, chain 6: { words, name, title, dress, creature, body })
 local idents: { [number]: { [string]: any } } = {}
 
 -- The Blender robot meshes, found once. A piece takes the mesh named after it, else its unsided name (UpperL
@@ -369,6 +370,16 @@ local function makeRobot(typeId: number, ident: { [string]: any }?): Body
 		heroLook = (ident and LookCodec.read(ident.words)) or FakeRules.look(Config, kind)
 	end
 	local body = cfg.body
+	if fake and ident and ident.dress and type(ident.body) == "table" then
+		-- lore step 11, chain 6: a dressed finale villain's own robot colours (Shared.FakeRules.dress)
+		body = table.clone(body)
+		for _, k in FakeRules.DRESS_BODY do
+			local c = ident.body[k]
+			if type(c) == "table" and #c == 3 then
+				body[k] = c
+			end
+		end
+	end
 	local h = body.height
 	local metal = rgb(LOOK.endo):Lerp(rgb(body.metal), 0.35)
 	local dark = rgb(body.metal):Lerp(Color3.new(0, 0, 0), 0.45)
@@ -1334,7 +1345,9 @@ local function makeRobot(typeId: number, ident: { [string]: any }?): Body
 		streetFace = streetFace,
 		fake = fake,
 		costumed = fake and cfg.fake.costumed == true,
-		creature = fake and cfg.fake.creature == true,
+		-- a dressed finale villain (lore step 11, chain 6) is a creature only if its dress says so
+		creature = fake
+			and (if ident and ident.dress then ident.creature == true else cfg.fake.creature == true),
 		kind = kind,
 		ident = ident,
 		lookParts = lookParts,
@@ -1474,8 +1487,10 @@ end
 local function acquire(typeId: number, id: number): Body
 	local base = byType[typeId]
 	local body: Body
-	if base and base.twin then
-		body = makeRobot(typeId, idents[id]) -- an evil twin wears its own hero's look: never pooled
+	if (base and base.twin) or (base and base.fake and idents[id]) then
+		-- an evil twin wears its own hero's look, a dressed finale villain its dress (lore step 11, chain 6):
+		-- never pooled
+		body = makeRobot(typeId, idents[id])
 	else
 		local list = pool[typeId]
 		body = (list and table.remove(list)) or makeRobot(typeId)

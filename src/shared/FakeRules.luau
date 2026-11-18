@@ -14,6 +14,9 @@
 -- * fake.creature (lore step 11, chain 4: the Harvest King's Bramblebeast) with costumed: a cartoon creature,
 --   not a machine: the same never-cracking rules, but its body stays whole (no shell, no sparks) and it bursts
 --   into light when beaten (EnemyRenderer.lightBurst), never into metal parts.
+-- * dress (lore step 11, chain 6: The Pit's Pitboss): a side quest finale may dress an existing costumed type in
+--   its own fixed look, name and title (Config.SideQuests.dress), sent as the robot's EnemyIdentity like an evil
+--   twin's, so a chain villain needs no robot type of its own (Enemy.Delta's typeId has 5 bits, all used).
 
 local LookCodec = if script then require(script.Parent.LookCodec) else (require :: any)("./LookCodec")
 local CreatorRules = if script
@@ -173,6 +176,35 @@ function FakeRules.twinCfg(Config: any, path: string?): any
 	out.style = base.twin.paths[p]
 	cache[p] = out
 	return out
+end
+
+-- The robot colours a dress may change (cfg.body keys: the endoskeleton's metal, the eyes, suit and trim)
+FakeRules.DRESS_BODY = { "metal", "eye", "suit", "trim" }
+
+-- A side quest finale's dress (lore step 11, chain 6: Config.SideQuests.dress[id]): what EnemyService sends
+-- as the robot's EnemyIdentity so every device draws a costumed villain's suit (an existing type, fake.costumed)
+-- in this fixed look, with this name and title on its plate: { words (the LookCodec record), name, title,
+-- dress = true, creature (false: a machine that sparks apart), body (colour overrides) }, or nil.
+function FakeRules.dress(Config: any, id: string): { [string]: any }?
+	local d = Config.SideQuests.dress and Config.SideQuests.dress[id]
+	if type(d) ~= "table" or type(d.look) ~= "table" then
+		return nil
+	end
+	local body = {}
+	for _, k in FakeRules.DRESS_BODY do
+		local c = d.body and d.body[k]
+		if type(c) == "table" then
+			body[k] = table.clone(c)
+		end
+	end
+	return {
+		words = LookCodec.write(fromDef(Config, d.look, id) :: any),
+		name = d.name,
+		title = d.title,
+		dress = true,
+		creature = d.creature == true,
+		body = body,
+	}
 end
 
 return FakeRules

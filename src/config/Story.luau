@@ -1183,6 +1183,35 @@ return {
 					extras = { "cap" },
 				},
 			},
+			-- The Pit (chain 6, the Old Quarry): the Pitboss on the Pit's loudspeakers and in person (stone-grey skin,
+			-- slicked black hair, his showman's top hat and a handlebar moustache), and Flint, a young Spark fighter
+			-- the Gravel family keeps fighting off a debt (a plaster across the nose)
+			pitboss = {
+				name = "THE PITBOSS",
+				color = { 200, 60, 50 },
+				style = "broadcast",
+				blip = "guideFake",
+				portrait = {
+					bg = { 70, 26, 30 },
+					skin = { 150, 140, 130 },
+					hair = { 24, 24, 28 },
+					shape = "slick",
+					extras = { "tophat", "moustache" },
+				},
+			},
+			flint = {
+				name = "FLINT",
+				color = { 255, 150, 60 },
+				style = "person",
+				blip = "guideInsider",
+				portrait = {
+					bg = { 60, 50, 46 },
+					skin = { 224, 172, 130 },
+					hair = { 200, 90, 40 },
+					shape = "messy",
+					extras = { "bandage" },
+				},
+			},
 		},
 		-- the three guides: each has its own blip and portrait
 		guides = { "lodestar", "patch", "crane" },
@@ -1382,6 +1411,7 @@ return {
 			Unwound = 8, -- side quest chain: Wind-Up Lane (lore step 11)
 			Uprooted = 9, -- side quest chain: The Harvest King (lore step 11, chain 4)
 			Brinebreaker = 10, -- side quest chain: The Salt Dogs (lore step 11, the Coast)
+			Undisputed = 11, -- side quest chain: The Pit (lore step 11, chain 6, the Old Quarry)
 			GoldTrim = 100,
 		},
 	},

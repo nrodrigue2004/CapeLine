@@ -435,6 +435,78 @@ return {
 				},
 			},
 		},
+		-- The Pit (the Old Quarry's side quest chain 6, lore step 11): night over the quarry gate on step 1, the
+		-- Pitboss's story as a comic page on step 5, and the Pitboss stepping up for the finale. Bits 125 to 127
+		-- (Cinema.extraBits, after the Coast's)
+		quarryNight = {
+			bit = 125,
+			client = true,
+			seconds = 10,
+			shots = {
+				{
+					kind = "dolly",
+					t0 = 0,
+					t1 = 5,
+					from = { 0, 40, -60 },
+					to = { 0, 14, -16 },
+					at = { 0, 6, 0 },
+					at2 = { 0, 2, 60 },
+				},
+				{
+					kind = "orbit",
+					t0 = 5,
+					t1 = 10,
+					radius = 22,
+					height = 7,
+					yaw0 = -0.6,
+					yaw1 = 0.6,
+					lift = 4,
+				},
+			},
+			lines = {
+				{
+					at = 0.4,
+					who = "pitboss",
+					text = "Welcome to the Pit, folks! Two Sparks go in, one walks out, and the house always wins!",
+				},
+				{
+					at = 5.5,
+					who = "Brick",
+					text = "Hear that? It comes up through the quarry floor every night. I used to be the one in that ring.",
+				},
+			},
+		},
+		pitStory = { bit = 126, client = true, seconds = 14, comic = "pitStory" },
+		fightNight = {
+			bit = 127,
+			client = true,
+			seconds = 8,
+			shots = {
+				{ kind = "cut", t0 = 0, t1 = 3, from = { 14, 3, 18 }, at = { 0, 8, 0 } },
+				{
+					kind = "orbit",
+					t0 = 3,
+					t1 = 8,
+					radius = 22,
+					height = 6,
+					yaw0 = 0.3,
+					yaw1 = 1.7,
+					lift = 6,
+				},
+			},
+			lines = {
+				{
+					at = 0.3,
+					who = "pitboss",
+					text = "You busted my Pit and robbed my house. Fine. Main event: you against the champ. That's ME.",
+				},
+				{
+					at = 4,
+					who = "patch",
+					text = "His skin's solid stone and that rig punches like a truck. Hit the rig, not the rock!",
+				},
+			},
+		},
 	},
 	missionBits = { base = 16, perMission = 8, missions = 13 }, -- bits 16 to 119
 	-- More named scenes once bits 0 to 15 were full (lore step 11, chain 4): the seen set's last 8 bits,
@@ -760,6 +832,46 @@ return {
 						scene = "seacave",
 						caption = "Every crate goes to his sea cave. Nobody who went looking ever found it.",
 						word = "SPLASH!",
+						at = 10.5,
+					},
+				},
+			},
+			-- The Pitboss's story (The Pit, step 5): the old quarry, his stone Spark, the ring, the debts
+			pitStory = {
+				title = "THE BOSS OF THE PIT",
+				panels = {
+					{
+						rect = { 0.03, 0.12, 0.45, 0.4 },
+						sky = { 255, 170, 100 },
+						ground = { 150, 130, 110 },
+						scene = "quarry",
+						caption = "When the Old Quarry shut down, the Gravel family kept the mine tunnels under it.",
+						at = 0,
+					},
+					{
+						rect = { 0.52, 0.12, 0.45, 0.4 },
+						sky = { 90, 80, 110 },
+						ground = { 110, 100, 95 },
+						scene = "stone",
+						caption = "Then the eldest son's Spark woke up. His skin turned to quarry stone.",
+						word = "CRACK!",
+						at = 3.5,
+					},
+					{
+						rect = { 0.03, 0.56, 0.45, 0.38 },
+						sky = { 40, 34, 50 },
+						ground = { 120, 100, 80 },
+						scene = "ring",
+						caption = "He never lost a fight. So he dug a ring, sold tickets and took the bets.",
+						word = "DING DING!",
+						at = 7,
+					},
+					{
+						rect = { 0.52, 0.56, 0.45, 0.38 },
+						sky = { 70, 20, 24 },
+						ground = { 90, 70, 60 },
+						scene = "ring",
+						caption = "Lose in the Pit and you owe the family. So you fight again. Nobody walks out.",
 						at = 10.5,
 					},
 				},

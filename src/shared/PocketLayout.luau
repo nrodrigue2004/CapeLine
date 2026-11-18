@@ -644,6 +644,124 @@ function BUILD.seacave(l: Layout, _Config: any)
 	point(l, "boss", -40, 0.5, -140)
 end
 
+-- The Pit (lore step 11, chain 6 The Pit: the Old Quarry's underground fight club, run by the Gravel family).
+-- The gallery is a rock deck over the south of the pocket: the old mine lift's cage you ride down in (the
+-- spawn), the mine tunnel west (room 1) with its timber props, rails and a cart, the bookies' cash crates east
+-- (room 2), the betting hall in the middle (`bets`: the bookies' counter under the glowing odds board), the
+-- four rigged odds machines along it (`odds`) and the gallery's rail over the Pit with the steps down at its
+-- middle (`stairhead`). Below the gallery, open to the cavern, is the Pit itself: the ring on its low stage
+-- (`ring`, `boss`: canvas, corner posts and glowing ropes) under four floodlights, rock benches for the crowd
+-- round three sides and the family's box seat at the back; `pitfloor` is the foot of the steps.
+-- PLACEHOLDER ART: greybox parts in the city palette, like every pocket.
+local PIT_DECK = 20
+local RING = { z = -130, size = 40, stage = 2 }
+function BUILD.pit(l: Layout, _Config: any)
+	local D = PIT_DECK
+	local deco = { tag = "decor", ghost = true }
+	-- the gallery: a rock deck over the south of the pocket, its packed-sand skin
+	box(l, "building", 0, D / 2, 80, 396, D, 232, "rock")
+	box(l, "plaza", 0, D + 0.1, 80, 396, 0.2, 232, "sand")
+	point(l, "spawn", 0, D + 3, 172)
+	-- the mine lift: a steel cage on four rails, its winding frame and a work lamp
+	for _, p in { { -10, 182 }, { 10, 182 }, { -10, 196 }, { 10, 196 } } do
+		box(l, "prop", p[1], D + 9, p[2], 1, 18, 1, "steel", deco)
+	end
+	box(l, "prop", 0, D + 18.5, 189, 22, 1, 16, "steel", deco)
+	box(l, "prop", 0, D + 26, 196, 2, 14, 2, "steel", deco)
+	box(l, "prop", 0, D + 32, 196, 14, 2, 2, "steel", deco)
+	box(l, "glow", 0, D + 17.4, 189, 6, 0.6, 6, "workLamp", deco)
+	-- the mine tunnel, west (room 1): timber props in pairs under a beam, cart rails and an old mine cart
+	for i = 0, 3 do
+		local z = 20 + i * 36
+		for k = -1, 1, 2 do
+			box(l, "prop", -130 + k * 32, D + 10, z, 3, 20, 3, "wood", deco)
+		end
+		box(l, "prop", -130, D + 20.5, z, 70, 2, 3, "wood", deco)
+	end
+	for k = -1, 1, 2 do
+		box(l, "prop", -130 + k * 4, D + 0.4, 74, 1, 0.6, 140, "steel", deco)
+	end
+	box(l, "prop", -130, D + 2.5, 44, 8, 4, 12, "rust", deco)
+	box(l, "glow", -130, D + 19.2, 74, 4, 0.6, 4, "workLamp", deco)
+	add(l, "rooms", -130, D + 0.5, 74)
+	-- the bookies' corner, east (room 2): stacked crates of cash bags under a lamp
+	for i = 0, 5 do
+		local x, z = 110 + (i % 3) * 20, 50 + (i // 3) * 40
+		box(l, "prop", x, D + 3, z, 10, 6, 10, "wood", deco)
+		box(l, "prop", x, D + 6.6, z, 6, 1.2, 6, "cargo", deco)
+	end
+	box(l, "glow", 130, D + 19.2, 74, 4, 0.6, 4, "workLamp", deco)
+	add(l, "rooms", 130, D + 0.5, 74)
+	-- the betting hall: the bookies' counter under the odds board (three dark rows of odds on a glowing board)
+	box(l, "prop", 0, D + 2, 124, 60, 4, 6, "wood", deco)
+	box(l, "glow", 0, D + 18, 134, 70, 14, 1, "window", deco)
+	for r = 0, 2 do
+		box(l, "prop", 0, D + 14 + r * 4, 133.3, 60, 0.6, 0.4, "scorch", deco)
+	end
+	point(l, "bets", 0, D + 0.5, 80)
+	-- the four rigged odds machines along the hall: a red cabinet, its glowing gold dial and a lever
+	for _, x in { -75, -25, 25, 75 } do
+		add(l, "odds", x, D + 0.5, 30)
+		box(l, "prop", x, D + 4, 30, 6, 8, 4, "relicRed", deco)
+		box(l, "glow", x, D + 6, 27.8, 4, 3, 0.4, "bank", deco)
+		box(l, "prop", x + 3.6, D + 5, 30, 0.6, 4, 0.6, "steel", deco)
+	end
+	-- the gallery's rail over the Pit (waist high, a gap for the steps) and lamps along it
+	box(l, "prop", -107, D + 1.5, -34, 178, 3, 1, "steel", deco)
+	box(l, "prop", 107, D + 1.5, -34, 178, 3, 1, "steel", deco)
+	for _, x in { -150, -60, 60, 150 } do
+		box(l, "glow", x, D + 3.4, -34, 3, 0.6, 1.6, "workLamp", deco)
+	end
+	point(l, "stairhead", 0, D + 0.5, -28)
+	-- the steps down: 9 steps of 2 studs from the gallery to the Pit's floor, rough rock either side
+	for i = 1, 9 do
+		local top = D - 2 * i
+		box(l, "building", 0, top / 2, -39 - (i - 1) * 6, 32, top, 6, "rock")
+	end
+	point(l, "pitfloor", 0, 0.5, -100)
+	-- the Pit's floor (packed sand) and the ring on its low stage: canvas, four corner posts, glowing ropes
+	box(l, "plaza", 0, 0.1, -118, 396, 0.2, 160, "sand")
+	local R, S = RING.size, RING.stage
+	box(l, "building", 0, S / 2, RING.z, R, S, R, "roofBlue")
+	box(l, "plaza", 0, S + 0.05, RING.z, R - 4, 0.1, R - 4, "white")
+	for _, c in { { -1, -1 }, { 1, -1 }, { 1, 1 }, { -1, 1 } } do
+		box(l, "prop", c[1] * (R / 2 - 1), S + 4, RING.z + c[2] * (R / 2 - 1), 1.2, 8, 1.2, "steel", deco)
+	end
+	for _, y in { 3, 5.5, 8 } do
+		for k = -1, 1, 2 do
+			box(l, "glow", k * (R / 2 - 1), S + y, RING.z, 0.4, 0.4, R - 2, "relicRed", deco)
+			box(l, "glow", 0, S + y, RING.z + k * (R / 2 - 1), R - 2, 0.4, 0.4, "relicRed", deco)
+		end
+	end
+	point(l, "ring", 0, S + 0.5, RING.z + 8)
+	point(l, "boss", 0, S + 0.5, RING.z - 6)
+	-- four floodlights on tall poles at the ring's corners, their lamps over the canvas
+	for _, c in { { -1, -1 }, { 1, -1 }, { 1, 1 }, { -1, 1 } } do
+		local x, z = c[1] * (R / 2 + 10), RING.z + c[2] * (R / 2 + 10)
+		box(l, "prop", x, 15, z, 1.5, 30, 1.5, "steel", deco)
+		box(l, "glow", x - c[1] * 3, 30, z - c[2] * 3, 6, 2, 6, "beaconLight", deco)
+	end
+	-- the crowd's rock benches, three tiers round the west, east and north sides, and the family's box seat
+	for t = 1, 3 do
+		local hgt = t * 2
+		local inset = 120 - (t - 1) * 12
+		for k = -1, 1, 2 do
+			box(l, "building", k * (inset + 6), hgt / 2, -122, 12, hgt, 140, "rock")
+		end
+		box(l, "building", 0, hgt / 2, -194 + (t - 1) * 12, 2 * inset, hgt, 12, "rock")
+	end
+	box(l, "building", 0, 4, -188, 30, 8, 10, "rock")
+	box(l, "prop", 0, 10, -188, 8, 4, 6, "bank", deco) -- the Pitboss's gold chair
+	box(l, "prop", 0, 13.5, -190.5, 8, 5, 1, "bank", deco)
+	-- the crowd: cardboard-cutout fans on the benches (PLACEHOLDER ART until the art pass)
+	for i = 0, 11 do
+		local k = if i % 2 == 0 then -1 else 1
+		local t = (i // 2) % 3 + 1
+		local z = -170 + (i // 6) * 60
+		box(l, "prop", k * (120 - (t - 1) * 12 + 6), t * 2 + 2.5, z, 2, 3, 1.5, "scorch", deco)
+	end
+end
+
 -- Is this a pocket layout name? (lore step 10: side quest pocket steps are checked against it)
 function PocketLayout.known(layout: any): boolean
 	return type(layout) == "string" and BUILD[layout] ~= nil

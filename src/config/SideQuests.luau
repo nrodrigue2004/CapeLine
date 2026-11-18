@@ -28,6 +28,9 @@
 --   falls; the chain's `villain` card is the last one standing).
 -- * (lore step 11, chain 4) Farmland sites on this week's outskirts tiles (sites with `farm` or `road`), and an
 --   escort's `road`: the truck drives down a real farm road toward town (Shared.SideQuestSites.roadPath).
+-- * (lore step 11, chain 6) Old Quarry sites on the landmark itself (sites with `quarry`: its gate, or an open
+--   spot on its floor; Shared.SideQuestSites.quarry), and a finale villain's `dress` (dress: a fixed look, name
+--   and title worn over an existing costumed villain's suit, so a chain needs no robot type of its own).
 -- No free text anywhere: every string is fixed, with no format holes.
 return {
 	range = 12, -- talk range to a giver (the Talk prompt)
@@ -222,6 +225,32 @@ return {
 			rings = { 16, 16 }, -- piers stand on the edge ring only (their deck runs out over the sea)
 			away = { pad = 150, beacon = 150, landmark = 300, district = 200, site = 400 },
 		},
+		-- The Pit (chain 6, the Old Quarry; nate's lore, build plan step 11): spots on the Old Quarry landmark
+		-- itself, read from its own boxes (Shared.SideQuestSites.quarry; the landmark is hand-placed, so the spots
+		-- never move with the weekly seed). `quarry` "gate": the gap in its north wall, the way in from town;
+		-- "floor": of the open floor points `clear` studs from every wall, terrace and boulder, the one nearest
+		-- `spot` (studs from the quarry's middle, x east and z south). The fight club itself is underground: the
+		-- "pit" pocket (Shared.PocketLayout), reached by the old mine lift.
+		QuarryGate = {
+			name = "THE OLD QUARRY",
+			district = "OldQuarry",
+			quarry = "gate",
+		},
+		MineLift = {
+			name = "THE MINE LIFT",
+			district = "OldQuarry",
+			quarry = "floor",
+			spot = { -60, -110 }, -- the floor's north-west corner, inside the gate, clear of the boulders
+			clear = 10,
+		},
+		QuarryRing = {
+			name = "THE QUARRY FLOOR",
+			district = "OldQuarry",
+			quarry = "floor",
+			spot = { 0, 75 }, -- south of the boulders, in front of the terraces (the crowd's seats)
+			clear = 14,
+			sign = false,
+		},
 	},
 
 	-- Rooftop race courses (chain 2: Rooftop Racers over both skylines, nate): Shared.SideQuestSites.course
@@ -246,6 +275,53 @@ return {
 	-- parts one set may have (they stand all the time, on every device, so they count against the phone's
 	-- budget); `clear`: studs kept free inside the square's ring of benches and planters.
 	sets = { parts = 60, hits = 6, level = 15, rebuild = 45, clear = 3 },
+
+	-- Finale dresses (lore step 11, chain 6): a chain villain who needs no robot type of their own (Enemy.Delta
+	-- packs a type in 5 bits and all 32 are used): the finale's `enemy` is an existing costumed villain's
+	-- powered suit (Config.Enemies, fake.costumed) for its fighting brain and numbers, and `dress` names a row
+	-- here: the fixed creator look it wears (earnable pieces, Shared.FakeRules.lookFrom, validated by
+	-- CreatorRules), the name and title on its plate, `creature` (false: a machine that sparks apart) and `body`
+	-- (the robot colours under the costume: metal, eye, suit, trim). EnemyService.dress sends it as the robot's
+	-- EnemyIdentity, the evil twin's wire, so every device draws it.
+	dress = {
+		-- The Pit's finale (chain 6): the Pitboss in his powered prize-fighter rig, a big stone-skinned showman
+		-- in a maroon tuxedo, top hat and iron boxing gloves, wearing his own title belt. The suit and brain are
+		-- the Bramblebeast's (Bulwark's brute numbers without the shield: slams, a shockwave stomp, a charge),
+		-- as a machine: no light burst, it sparks apart like the other costumed villains.
+		Pitboss = {
+			name = "The Pitboss",
+			title = "Head of the Gravel Family",
+			creature = false,
+			body = {
+				metal = { 120, 125, 135 },
+				eye = { 255, 90, 60 },
+				suit = { 110, 20, 25 },
+				trim = { 240, 196, 64 },
+			},
+			look = {
+				gender = 1,
+				build = 4, -- Titan: the suit's build (the Bramblebeast's titan frame)
+				height = 5,
+				skin = 25, -- Stone: his Spark turned his skin to quarry stone
+				hair = 22, -- black
+				colors = { 38, 4, 22 }, -- maroon, gold, black
+				pieces = {
+					suit = "Tuxedo",
+					hat = "Top Hat",
+					hands = "Boxing Gloves",
+					shoulders = "Riveted Pads",
+					belt = "Champion Belt",
+					beard = "Handlebar",
+					hair = "Slicked Back",
+					visage = "Scarred Face",
+					neck = "Chain",
+					feet = "Armored Boots",
+				},
+				tints = { hat = { 22, 38, 0 } }, -- a black top hat with a maroon band
+				mats = { hands = "Metal", shoulders = "Metal" }, -- iron gloves and riveted pads: the rig
+			},
+		},
+	},
 
 	-- Who gives chains: a person on the R15 rig at an anchor ("plaza", "hq", a Config.City district, or "site"
 	-- with `site`: a row in sites) plus an offset; also a guide speaker (GuideHud lines). `look` (optional): a
@@ -441,6 +517,45 @@ return {
 			},
 		},
 		-- PLACEHOLDER (Dev only): the framework sample's giver
+		-- The Pit's giver (chain 6, the Old Quarry): Brick, the Pit's old champion, who would not throw a fight
+		-- and now walks the quarry at night as its watchman. He wants the young fighters out and the Pit shut (the
+		-- Vigil), or every purse the Pitboss cheated him out of back from the family's vault (the Dread Syndicate).
+		Brick = {
+			name = "BRICK",
+			anchor = "site",
+			site = "QuarryGate",
+			color = { 200, 70, 60 },
+			style = "person",
+			blip = "guideLodestar",
+			portrait = {
+				bg = { 60, 62, 70 },
+				skin = { 120, 78, 52 },
+				hair = { 175, 180, 190 },
+				shape = "messy",
+				extras = { "beard", "bandage" },
+			},
+			look = {
+				gender = 1,
+				build = 3,
+				height = 4,
+				skin = 6,
+				hair = 19, -- silver
+				colors = { 43, 1, 18 }, -- slate, red, white
+				pieces = {
+					shirt = "Tank",
+					pants = "Track Bottoms",
+					visage = "Stern Face",
+					hair = "Buzz Cut",
+					beard = "Boxed Beard",
+					hat = "Beanie",
+					hands = "Hand Wraps",
+					neck = "Whistle",
+					feet = "High Tops",
+				},
+				tints = {},
+				mats = {},
+			},
+		},
 		-- PLACEHOLDER (Dev only): the framework sample's giver
 		SampleGiver = {
 			name = "TEST GIVER",
@@ -1868,6 +1983,298 @@ return {
 							who = "brine",
 							hero = "You freed my prisoner AND broke my ghost? Then face the real thing: Captain Brine himself!",
 							villain = "Thieves robbing a pirate? Bold! Now taste the tide, you barnacles!",
+						},
+					},
+				},
+			},
+		},
+
+		-- The Old Quarry's chain (nate's lore, build plan step 11, chain 6): The Pit. nate's draft: "An underground
+		-- fight club for powered brawlers, run by a crime family. The Pitboss." 8 quests (the draft's count). When
+		-- the Old Quarry closed, the Gravel family kept the mine tunnels under it and dug the Pit: a ring where
+		-- powered fighters brawl for the crowd's bets. The family's eldest, the Pitboss, has a Spark that turned
+		-- his skin to quarry stone; he never loses, the fights are rigged, and a fighter who loses owes the family
+		-- and must fight again. The Vigil get the young fighters out, get the family's bouncer bots on camera and
+		-- smash the rigged odds machines; the Dread Syndicate rob the collectors, steal the betting book, crack the
+		-- odds machines and empty the family's vault. Both beat the Pitboss in his powered prize-fighter rig on the
+		-- quarry floor (a machine: Config.SideQuests.dress over an existing costumed suit, so no new robot type).
+		{
+			id = "ThePit",
+			bit = 7,
+			name = "The Pit",
+			layer = "district",
+			district = "OldQuarry",
+			giver = "Brick",
+			site = "QuarryGate",
+			unlock = { story = 2, level = 20 }, -- after Act 1's Safehouse, at the Old Quarry's level floor
+			villain = { name = "THE PITBOSS", title = "HEAD OF THE GRAVEL FAMILY" },
+			reward = { share = 3, title = "Undisputed", style = "UndisputedBelt" },
+			blurb = {
+				hero = "A crime family runs a fight club under the Old Quarry. Its young fighters can never leave.",
+				villain = "A crime family runs a fight club under the Old Quarry. All those bets go to one vault.",
+			},
+			lines = {
+				offer = {
+					hero = "There's a fight club under this quarry, hero. Kids with Sparks fight for a crime family. They never get out.",
+					villain = "The Pitboss cheated me out of every purse I ever won. His vault's under that quarry. Want half?",
+				},
+				resume = {
+					hero = "Back at the gate? Good. The Pit's still open tonight. Let's shut it for good.",
+					villain = "Back for the Pitboss's money? It's still down there. Let's go get it.",
+				},
+				done = {
+					hero = "The Pit's shut and every fighter walked out free. Nobody owes the Gravels a thing now. Thank you.",
+					villain = "The Pitboss is flat on the canvas and his vault is empty. Pleasure doing business, champ.",
+				},
+			},
+			steps = {
+				-- 1. Night at the Old Quarry: the Pit's crowd roars under the floor; Brick's story at the gate
+				{
+					hero = { kind = "talk", text = "Hear Brick out at the Old Quarry gate" },
+					villain = { kind = "talk", text = "Get Brick's tip at the Old Quarry gate" },
+					at = "QuarryGate",
+					scene = "quarryNight",
+					lines = {
+						{
+							who = "Brick",
+							hero = "Every night they fight down there. Kids with Sparks, owing the family money they can never pay back.",
+							villain = "The Gravel family runs the Pit, and the Pitboss runs the family. Every bet ends up in his vault.",
+						},
+						{
+							who = "patch",
+							hero = "An underground fight club for Sparks? Okay, that's illegal about nine different ways.",
+							villain = "A fight club with a betting vault? Somebody's sitting on a LOT of cash down there.",
+						},
+					},
+				},
+				-- 2. The fighter who ran / the collectors' cash bags
+				{
+					hero = {
+						kind = "find",
+						range = { 40, 140 },
+						witness = true,
+						text = "Find the young fighter who ran from the Pit",
+					},
+					villain = {
+						kind = "fetch",
+						count = 3,
+						range = { 40, 140 },
+						guards = { "BurglarBot", 2 },
+						text = "Grab the cash bags off the family's collector bots",
+					},
+					at = "QuarryGate",
+					lines = {
+						{
+							who = "pitboss",
+							text = "Flint! Back in the ring, kid. You still owe the house, and the house ALWAYS collects.",
+						},
+						{
+							who = "Brick",
+							hero = "That's Flint, the best young fighter they've got, and she just ran. Find her before the bouncers do!",
+							villain = "The family's collector bots haul tonight's take up the lift. Three bags. Grab them!",
+						},
+					},
+				},
+				-- 3. The mine lift: the Vigil get the bouncer bots on camera; the Syndicate catch the bookie's runner
+				{
+					hero = {
+						kind = "photo",
+						count = 3,
+						range = { 30, 120 },
+						text = "Photograph the bouncer bots guarding the mine lift",
+					},
+					villain = {
+						kind = "chase",
+						enemy = "SneakBot",
+						hops = 5,
+						speed = 22,
+						text = "Catch the bookie bot with the betting book",
+					},
+					at = "MineLift",
+					lines = {
+						{
+							who = "flint",
+							hero = "The lift goes down to the Pit. Get those bouncer bots on camera and the whole city sees it.",
+							villain = "You're not here to save me, are you? Fine. The bookie bot's book shows every fight is rigged.",
+						},
+						{
+							who = "patch",
+							hero = "Bouncer bots dragging fighters to a secret lift. That's a headline. Snap it!",
+							villain = "That runner bot carries the betting book. Every fix the family ever pulled is in there.",
+						},
+					},
+				},
+				-- 4. The family comes for Flint / sell the book to a rival
+				{
+					hero = {
+						kind = "fight",
+						home = true,
+						squads = { { "BurglarBot", 3 }, { "BruteBot", 1 } },
+						text = "Scrap the bouncer bots sent after Flint",
+					},
+					villain = {
+						kind = "deliver",
+						range = { 150, 300 },
+						text = "Sell the betting book to a rival bookie",
+					},
+					at = "QuarryGate",
+					lines = {
+						{
+							who = "pitboss",
+							text = "Nobody walks out on the Gravel family! Boys, bring her back. And whoever's helping her.",
+						},
+						{
+							who = "lodestar",
+							hero = "Bouncers coming for the girl. Stand your ground, kid. Nobody drags her back down there.",
+							villain = "Selling a crook's secrets to other crooks. Just don't let that girl get caught in it.",
+						},
+					},
+				},
+				-- 5. Down the mine lift into the Pit: the tunnel, the betting hall, the odds machines, the ring.
+				-- The Pitboss's comic page: the quarry, his stone Spark, the ring and the debts.
+				{
+					hero = {
+						kind = "pocket",
+						layout = "pit",
+						minutes = 12,
+						text = "Ride the mine lift down into the Pit",
+						villainText = "Ride the mine lift down and rob the Pit",
+						steps = {
+							{
+								kind = "defeat",
+								room = 1,
+								squads = { { "BruteBot", 2 }, { "BurglarBot", 3 } },
+								text = "Clear the bouncer bots out of the mine tunnel",
+								villainText = "Scrap the bouncer bots guarding the tunnel",
+							},
+							{
+								kind = "hold",
+								at = "bets",
+								points = 1,
+								seconds = 20,
+								radius = 16,
+								waves = { { "BurglarBot", 4 } },
+								waveGap = 10,
+								text = "Hold the betting hall while the fighters slip out",
+								villainText = "Hold the betting hall while the cash box cracks",
+							},
+							{
+								kind = "break",
+								list = "odds",
+								points = 4,
+								hits = 3,
+								text = "Smash the Pit's rigged odds machines",
+								villainText = "Crack the odds machines' cash drawers",
+							},
+							{
+								kind = "reach",
+								at = "ring",
+								text = "Take the steps down into the ring",
+								villainText = "Drop into the ring where the big money is",
+							},
+							{
+								kind = "boss",
+								enemy = "BruteBot",
+								hpMult = 8,
+								adds = { "BurglarBot", 3 },
+								text = "Beat the Pit's undefeated house champion bot",
+								villainText = "Scrap the house champion and take its winnings",
+							},
+						},
+					},
+					villain = "same",
+					at = "MineLift",
+					scene = "pitStory",
+					lines = {
+						{
+							who = "flint",
+							hero = "There are more fighters down there, locked in cages till their next fight. Please, get them out.",
+							villain = "The house cash is in the odds machines. Rob them blind. Just open the cages on your way past?",
+						},
+					},
+				},
+				-- 6. Up out of the Pit: the hurt fighters / the cash over the walls; the Pitboss on his speakers
+				{
+					hero = {
+						kind = "carry",
+						range = { 60, 160 },
+						text = "Fly a hurt fighter up to the medics",
+					},
+					villain = {
+						kind = "race",
+						checkpoints = 4,
+						gap = 60,
+						time = 45,
+						text = "Run the Pit's cash out over the quarry walls",
+					},
+					at = "QuarryGate",
+					lines = {
+						{
+							who = "pitboss",
+							text = "My Pit! My machines! My CHAMPION! You'll pay for that, every last coin, with interest!",
+						},
+						{
+							who = "Brick",
+							hero = "Some of these kids have fought every night for a year. Get the hurt ones to the medics first.",
+							villain = "The family's coming up the lift. Run the cash out over the walls, now!",
+						},
+					},
+				},
+				-- 7. The quarry floor: the freed fighters / the Pitboss's title belts; he comes up himself
+				{
+					hero = {
+						kind = "hold",
+						home = true,
+						seconds = 25,
+						radius = 14,
+						text = "Guard the freed fighters on the quarry floor",
+					},
+					villain = {
+						kind = "fetch",
+						count = 3,
+						range = { 30, 120 },
+						guards = { "ShieldBearer", 1 },
+						text = "Steal the Pitboss's gold title belts",
+					},
+					at = "QuarryRing",
+					lines = {
+						{
+							who = "flint",
+							hero = "We're all out! But he's coming up himself. Nobody's ever beaten him. Nobody.",
+							villain = "He keeps his title belts in crates by the lift. Solid gold. He loves them more than people.",
+						},
+						{
+							who = "lodestar",
+							hero = "Stone skin in a powered rig. Big, slow and proud. Make him come to you, kid.",
+							villain = "Taking a man's trophies right before he fights you. You've got nerve, I'll give you that.",
+						},
+					},
+				},
+				-- 8. The finale on the quarry floor: the Pitboss in his powered prize-fighter rig
+				{
+					hero = {
+						kind = "finale",
+						enemy = "Bramblebeast", -- the suit and brain; the Pitboss's own look, name and title: dress
+						dress = "Pitboss",
+						hpMult = 2,
+						adds = { { "BruteBot", 2 } },
+						range = { 10, 40 },
+						text = "Beat the Pitboss on the quarry floor",
+						villainText = "Knock out the Pitboss and empty the family vault",
+					},
+					villain = "same",
+					at = "QuarryRing",
+					scene = "fightNight",
+					lines = {
+						{
+							who = "pitboss",
+							hero = "A hero in MY quarry? The crowd's going to love this. Ding ding, little hero!",
+							villain = "Thieves in MY quarry? The house always wins. Ding ding, thief!",
+						},
+						{
+							who = "Brick",
+							hero = "Watch his right hand. Took me three years to learn that. You've got about three seconds.",
+							villain = "Watch his right hand. And when he's down, the vault key's on his belt.",
 						},
 					},
 				},
