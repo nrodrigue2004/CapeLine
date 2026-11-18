@@ -70,7 +70,8 @@ local StoryService = require(script.Parent.StoryService)
 
 local SideQuestService = {}
 
--- (player, finale) a member's chain step was paid (lore step 12: RepService pays own-side reputation)
+-- (player, finale, chainId) a member's chain step was paid (lore step 12: RepService pays own-side reputation;
+-- the Rogues File fills the finale's villain pages)
 SideQuestService.StepPaid = require(Shared:WaitForChild("Util"):WaitForChild("Signal")).new()
 
 local SQ = Config.SideQuests
@@ -1041,7 +1042,7 @@ complete = function(g: Group)
 				Net.fire("Toast", player, { id = "sqStep", bit = chain.bit, step = g.idx + 1 })
 				waiting[player] = os.clock() + SQ.gap
 			end
-			SideQuestService.StepPaid:Fire(player, res == "done")
+			SideQuestService.StepPaid:Fire(player, res == "done", chain.id)
 			StoryService.changed(player)
 		end
 	end

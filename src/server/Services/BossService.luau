@@ -50,7 +50,7 @@ local Bits = ProfileSchema.Bits
 
 local BossService = {}
 -- (player, bossId, tier, defeated) after a hero's boss reward is paid (M9: creator unlocks, the starter offer)
-BossService.Rewarded = Signal.new() -- (player, bossId, tier, defeated, contribution)
+BossService.Rewarded = Signal.new() -- (player, bossId, tier, defeated, contribution, fight level)
 BossService.Joined = Signal.new() -- (hero, bossId, heroes in the fight) a hero's first contribution to a fight
 -- lore step 7 (the news): a boss landed in the city; a fight ended (defeated or not, the top hero's id)
 BossService.Arrived = Signal.new() -- (bossId)
@@ -330,7 +330,7 @@ local function rewardHero(
 	})
 	local l = f.ledger[heroId]
 	local score = if l then math.floor(l.damage + l.support + l.objectives) else 0
-	BossService.Rewarded:Fire(player, f.id, tier, defeated, score)
+	BossService.Rewarded:Fire(player, f.id, tier, defeated, score, f.level)
 end
 
 local function finish(f: Fight, defeated: boolean)

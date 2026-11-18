@@ -214,6 +214,9 @@ function ProfileSchema.default(): { [string]: any }
 		emotes = words(ProfileSchema.SMALL_WORDS),
 		titles = words(ProfileSchema.SMALL_WORDS),
 		rogues = words(ProfileSchema.SMALL_WORDS),
+		-- the Rogues File's pages (Shared.RoguesFile): [bit as text] = { first UTC day, times beaten, level
+		-- first beaten at }; added 2026-11-18 without a version bump (repair fills and cleans it)
+		roguesLog = {},
 		frames = words(ProfileSchema.SMALL_WORDS), -- Photo Mode frames (M7 quest rewards, M11)
 		props = words(ProfileSchema.SMALL_WORDS), -- HQ props (M7 quest rewards, M9)
 		currency = { credits = 0, banked = 0, dust = 0 },
@@ -718,6 +721,26 @@ local function repair(p: any): any
 		end
 	end
 	p.mmo.counts = counts
+	-- the Rogues File's log: only rows of real page bits, three whole numbers each
+	local roguesLog = {}
+	for k, row in p.roguesLog do
+		local b = tonumber(k)
+		if
+			type(k) == "string"
+			and b
+			and b % 1 == 0
+			and b >= 0
+			and b < ProfileSchema.SMALL_WORDS * 32
+			and type(row) == "table"
+		then
+			roguesLog[tostring(b)] = {
+				num(row[1], 0, 2 ^ 31, 0),
+				num(row[2], 0, 65535, 0),
+				num(row[3], 0, ProfileSchema.LEVEL_CAP, 0),
+			}
+		end
+	end
+	p.roguesLog = roguesLog
 	p.mmo.scanner = num(p.mmo.scanner, 0, 1, 0)
 	p.mmo.contest.wins = num(p.mmo.contest.wins, 0, 2 ^ 31, 0)
 	p.mmo.contest.lastWin = num(p.mmo.contest.lastWin, 0, 2 ^ 40, 0)

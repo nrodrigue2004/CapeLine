@@ -7,6 +7,13 @@
 --   HOLD (abandon: the chain waits at its step) and the lock reason (level, a mission, another chain).
 -- * REP: Vigil Trust, Syndicate Fear and City Reputation with their rank (ranks at 100, 300, 600, 1,000, 1,500).
 -- * PERKS: the story perks unlocked by choices (the Echo Drone).
+-- * ROGUES: the Rogues File (Ui.RoguesPage): every robot, famous fake, side quest villain and world boss,
+--   silhouettes for the ones not beaten yet, gold pages for hard boss wins.
+-- * BADGES: the Badge Book, Collections and titles (BadgeHud's views; spec H7: "a Badge Book in the
+--   Journal", "the Collections page lives in the Journal next to the Badge Book").
+-- * MENTOR: your mentor's card (MentorHud's; spec H6: "the mentor shown in the Journal").
+-- * SHOWDOWN: your nemesis's WANTED poster and the Showdown start (NemesisHud's; spec H5: "started from the
+--   Journal"). The other screens stay as they are; the Journal is one main panel (Kit.opening).
 -- Opened with the JOURNAL button or J. PLACEHOLDER look until the UI pass (M10).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -19,6 +26,10 @@ local Kit = require(script.Parent.Kit)
 local State = require(script.Parent.Parent.State)
 local StoryClient = require(script.Parent.Parent.Controllers.StoryClient)
 local InputController = require(script.Parent.Parent.Controllers.InputController)
+local RoguesPage = require(script.Parent.RoguesPage)
+local BadgeHud = require(script.Parent.BadgeHud)
+local MentorHud = require(script.Parent.MentorHud)
+local NemesisHud = require(script.Parent.NemesisHud)
 
 local Journal = {}
 
@@ -28,7 +39,20 @@ local gui: ScreenGui
 local panel: Frame
 local body: ScrollingFrame
 local tab = "story"
+local badgeView = "badges" -- the BADGES tab's view: badges, collect or titles
 local tabButtons: { [string]: TextButton } = {}
+-- two rows of four (a phone fits four tabs a row)
+local TABS = {
+	{ { "story", "STORY" }, { "quests", "QUESTS" }, { "rep", "REP" }, { "perks", "PERKS" } },
+	{ { "rogues", "ROGUES" }, { "badges", "BADGES" }, { "mentor", "MENTOR" }, { "showdown", "SHOWDOWN" } },
+}
+-- the tabs drawn from another screen's data (each asks its server for it when it opens)
+local FEEDS = {
+	rogues = RoguesPage,
+	badges = BadgeHud,
+	mentor = MentorHud,
+	showdown = NemesisHud,
+}
 
 local WHERE = {
 	plaza = "the plaza",
@@ -392,11 +416,54 @@ local function drawPerks(j: any)
 	end
 end
 
+-- WP7: the BADGES tab: its three views (BadgeHud's), picked by a small row on top
+local function drawBadges()
+	local pick = Instance.new("Frame")
+	pick.Name = "BadgeViews"
+	pick.BackgroundTransparency = 1
+	pick.Size = UDim2.new(1, -8, 0, U.touchTarget - 12)
+	pick.LayoutOrder = -2
+	pick.Parent = body
+	local list = Instance.new("UIListLayout")
+	list.FillDirection = Enum.FillDirection.Horizontal
+	list.Padding = UDim.new(0, 6)
+	list.SortOrder = Enum.SortOrder.LayoutOrder
+	list.Parent = pick
+	for i, def in { { "badges", "BADGE BOOK" }, { "collect", "COLLECTIONS" }, { "titles", "TITLES" } } do
+		local b = Kit.button({
+			Text = def[2],
+			Size = UDim2.new(1 / 3, -4, 1, 0),
+			LayoutOrder = i,
+			BackgroundColor3 = if badgeView == def[1] then Kit.color.gold else Kit.color.muted,
+			maxText = 16,
+		}, function()
+			badgeView = def[1]
+			Journal.redraw()
+		end)
+		b.Parent = pick
+	end
+	BadgeHud.drawInto(body, badgeView)
+end
+
 local function draw()
 	local j = StoryClient.journal
 	clearBody()
 	for id, b in tabButtons do
 		b.BackgroundColor3 = if id == tab then Kit.color.gold else Kit.color.paper
+	end
+	-- WP7: the tabs drawn from other screens' views (their own data, no journal needed)
+	if tab == "rogues" then
+		RoguesPage.drawInto(body)
+		return
+	elseif tab == "badges" then
+		drawBadges()
+		return
+	elseif tab == "mentor" then
+		MentorHud.drawInto(body)
+		return
+	elseif tab == "showdown" then
+		NemesisHud.drawInto(body, Journal.close)
+		return
 	end
 	if not j then
 		-- the journal comes with the save; it is on its way (spec: every screen has a loading state)
@@ -414,13 +481,32 @@ local function draw()
 	end
 end
 
-function Journal.open()
+function Journal.redraw()
+	if panel.Visible then
+		draw()
+	end
+end
+
+-- Ask the server for a tab's data when it comes up (the drawn view shows loading until it lands)
+local function feed(id: string)
+	local f = FEEDS[id]
+	if f then
+		f.request()
+	end
+end
+
+-- Open on the tab shown last, or on `which` (story, quests, rep, perks, rogues, badges, mentor, showdown)
+function Journal.open(which: string?)
 	if StoryClient.inOpening() then
 		return
+	end
+	if which and tabButtons[which] then
+		tab = which
 	end
 	Kit.opening("Journal", panel, Journal.close, true)
 	panel.Visible = true
 	draw()
+	feed(tab)
 end
 
 function Journal.close()
@@ -446,15 +532,6 @@ function Journal.init()
 	limit.MaxSize = Vector2.new(640, 720)
 	limit.Parent = panel
 	panel.Parent = gui
-	local title = Kit.label({
-		Text = "JOURNAL",
-		Size = UDim2.new(0.5, 0, 0, 30),
-		Position = UDim2.fromOffset(14, 8),
-		TextXAlignment = Enum.TextXAlignment.Left,
-		TextColor3 = Kit.color.gold,
-		maxText = 28,
-	})
-	title.Parent = panel
 	local close = Kit.button({
 		Text = "X",
 		Size = UDim2.fromOffset(U.touchTarget, U.touchTarget - 10),
@@ -462,35 +539,44 @@ function Journal.init()
 		BackgroundColor3 = Kit.color.paper,
 	}, Journal.close)
 	close.Parent = panel
-	local tabs = Instance.new("Frame")
-	tabs.BackgroundTransparency = 1
-	tabs.Position = UDim2.fromOffset(10, 52)
-	tabs.Size = UDim2.new(1, -20, 0, U.touchTarget - 8)
-	tabs.Parent = panel
-	local list = Instance.new("UIListLayout")
-	list.FillDirection = Enum.FillDirection.Horizontal
-	list.Padding = UDim.new(0, 6)
-	list.SortOrder = Enum.SortOrder.LayoutOrder
-	list.Parent = tabs
-	for i, def in { { "story", "STORY" }, { "quests", "QUESTS" }, { "rep", "REP" }, { "perks", "PERKS" } } do
-		local b = Kit.button({
-			Text = def[2],
-			Size = UDim2.new(0.25, -5, 1, 0),
-			LayoutOrder = i,
-			BackgroundColor3 = Kit.color.paper,
-			maxText = 20,
-		}, function()
-			tab = def[1]
-			draw()
-		end)
-		b.Parent = tabs
-		tabButtons[def[1]] = b
+	-- WP7: eight tabs in two rows left of X (the JOURNAL title made way for the second row; the gold tab
+	-- names the page)
+	local tabH = U.touchTarget - 12
+	for r, rowTabs in TABS do
+		local tabs = Instance.new("Frame")
+		tabs.Name = "Tabs" .. r
+		tabs.BackgroundTransparency = 1
+		tabs.Position = UDim2.fromOffset(10, 8 + (r - 1) * (tabH + 6))
+		tabs.Size = UDim2.new(1, -(U.touchTarget + 8) - 18, 0, tabH)
+		tabs.Parent = panel
+		local list = Instance.new("UIListLayout")
+		list.FillDirection = Enum.FillDirection.Horizontal
+		list.Padding = UDim.new(0, 6)
+		list.SortOrder = Enum.SortOrder.LayoutOrder
+		list.Parent = tabs
+		for i, def in rowTabs do
+			local b = Kit.button({
+				Name = "Tab_" .. def[1],
+				Text = def[2],
+				Size = UDim2.new(0.25, -5, 1, 0),
+				LayoutOrder = i,
+				BackgroundColor3 = Kit.color.paper,
+				maxText = 20,
+			}, function()
+				tab = def[1]
+				draw()
+				feed(def[1])
+			end)
+			b.Parent = tabs
+			tabButtons[def[1]] = b
+		end
 	end
+	local top = 8 + #TABS * (tabH + 6) + 4
 	body = Instance.new("ScrollingFrame")
 	body.BackgroundTransparency = 1
 	body.BorderSizePixel = 0
-	body.Position = UDim2.fromOffset(10, 52 + U.touchTarget)
-	body.Size = UDim2.new(1, -20, 1, -(62 + U.touchTarget))
+	body.Position = UDim2.fromOffset(10, top)
+	body.Size = UDim2.new(1, -20, 1, -(top + 10))
 	body.AutomaticCanvasSize = Enum.AutomaticSize.Y
 	body.CanvasSize = UDim2.new()
 	body.ScrollBarThickness = 6
@@ -518,6 +604,15 @@ function Journal.init()
 			draw()
 		end
 	end)
+	-- WP7: a tab drawn from another screen redraws when that screen's data lands
+	RoguesPage.init()
+	for id, f in FEEDS do
+		f.Changed:Connect(function()
+			if panel.Visible and tab == id then
+				draw()
+			end
+		end)
+	end
 end
 
 return Journal

@@ -14,11 +14,14 @@ local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local BadgeRules = require(Shared:WaitForChild("BadgeRules"))
 local Net = require(Shared:WaitForChild("Net"))
+local Signal = require(Shared:WaitForChild("Util"):WaitForChild("Signal"))
 
 local Juice = require(script.Parent.Parent.Fx.Juice)
 local Kit = require(script.Parent.Kit)
 
 local BadgeHud = {}
+-- WP7: the Journal's BADGES tab draws this book's views (drawInto) and redraws when the book arrives
+BadgeHud.Changed = Signal.new()
 
 local B = Config.Badges
 local C = Config.Collect
@@ -249,6 +252,41 @@ local function draw()
 	end
 end
 
+-- WP7: one of the book's views ("badges", "collect" or "titles") in another screen's list (the Journal's
+-- BADGES tab); the caller cleared it. The book's own panel is left as it is.
+function BadgeHud.drawInto(container: Instance, which: string)
+	local keepBody, keepOrder = body, order
+	body, order = container :: any, 0
+	local d = last
+	if not d then
+		Kit.stateNote(body, "loading", "Opening the book")
+	elseif which == "collect" then
+		drawCollections(d)
+	elseif which == "titles" then
+		drawTitles(d)
+	else
+		drawBadges(d)
+	end
+	body, order = keepBody, keepOrder
+end
+
+-- Ask the server for the book (BadgeBook answers)
+function BadgeHud.request()
+	Net.send("BadgeOpen")
+end
+
+-- The book from the server (BadgeBook)
+function BadgeHud.apply(d: any)
+	if type(d) ~= "table" then
+		return
+	end
+	last = d
+	if panel.Visible then
+		draw()
+	end
+	BadgeHud.Changed:Fire()
+end
+
 function BadgeHud.open(which: string?)
 	tab = which or tab
 	Kit.opening("BadgeHud", panel, BadgeHud.close, true)
@@ -339,14 +377,7 @@ function BadgeHud.init()
 		end
 	end)
 	Kit.dock(open, "Badges", 15) -- the top row (or its MORE drawer), after MENTOR
-	Net.listen("BadgeBook", function(d: any)
-		if type(d) == "table" then
-			last = d
-			if panel.Visible then
-				draw()
-			end
-		end
-	end)
+	Net.listen("BadgeBook", BadgeHud.apply)
 	Net.listen("BadgeEarned", function(d: any)
 		if type(d) ~= "table" then
 			return
