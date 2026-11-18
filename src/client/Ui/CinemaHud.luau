@@ -286,6 +286,55 @@ local function picture(parent: Frame, p: any)
 		local needle = box(gauge, 0.5, 0.5, 0.4, 0.06, Color3.fromRGB(220, 40, 40), 64)
 		needle.AnchorPoint = Vector2.new(0, 0.5)
 		needle.Rotation = -40
+	elseif kind == "farm" then
+		-- a red barn and a silo by the fields (The Harvest King)
+		local barn = box(parent, 0.14, 0.4, 0.36, 0.32, Color3.fromRGB(190, 50, 40), 62)
+		Kit.stroke(barn, ink, 2)
+		local roof = box(parent, 0.32, 0.4, 0.3, 0.3, Color3.fromRGB(120, 40, 35), 62)
+		roof.AnchorPoint = Vector2.new(0.5, 0.5)
+		roof.Rotation = 45
+		box(barn, 0.36, 0.45, 0.28, 0.55, Color3.fromRGB(245, 235, 220), 63)
+		local silo = box(parent, 0.58, 0.2, 0.12, 0.52, Color3.fromRGB(190, 195, 205), 62)
+		Kit.stroke(silo, ink, 2)
+		local dome = box(parent, 0.58, 0.14, 0.12, 0.12, Color3.fromRGB(240, 240, 245), 63)
+		Kit.round(dome, 200)
+		for i = 0, 3 do
+			box(parent, 0.74 + i * 0.065, 0.62, 0.035, 0.1, Color3.fromRGB(230, 200, 90), 63)
+		end
+	elseif kind == "sprout" then
+		-- the farmer's hands glow and a sprout shoots up out of the dry ground
+		figure(parent, 0.22, Color3.fromRGB(200, 160, 60), false)
+		local glow = box(parent, 0.3, 0.6, 0.12, 0.12, Color3.fromRGB(180, 255, 120), 63)
+		glow.AnchorPoint = Vector2.new(0.5, 0.5)
+		Kit.round(glow, 200)
+		box(parent, 0.6, 0.3, 0.05, 0.42, Color3.fromRGB(70, 160, 60), 62)
+		for i = 0, 2 do
+			local leaf = box(
+				parent,
+				0.56 + (i % 2) * 0.08,
+				0.32 + i * 0.12,
+				0.12,
+				0.06,
+				Color3.fromRGB(110, 200, 80),
+				63
+			)
+			leaf.Rotation = if i % 2 == 0 then -25 else 25
+			Kit.round(leaf, 200)
+		end
+	elseif kind == "beast" then
+		-- the Bramblebeast towers over the barn: a vine giant with a glowing pumpkin face
+		local body = box(parent, 0.5, 0.42, 0.5, 0.6, Color3.fromRGB(50, 130, 60), 62)
+		body.AnchorPoint = Vector2.new(0.5, 0.5)
+		Kit.round(body, 40)
+		Kit.stroke(body, ink, 3)
+		local head = box(parent, 0.5, 0.2, 0.26, 0.2, Color3.fromRGB(255, 150, 40), 63)
+		head.AnchorPoint = Vector2.new(0.5, 0.5)
+		Kit.round(head, 200)
+		Kit.stroke(head, ink, 2)
+		for i = -1, 1, 2 do
+			box(parent, 0.5 + i * 0.06 - 0.02, 0.17, 0.04, 0.05, Color3.fromRGB(255, 250, 200), 64)
+		end
+		box(parent, 0.08, 0.56, 0.16, 0.16, Color3.fromRGB(190, 50, 40), 63)
 	elseif kind == "pier" then
 		-- Gull Point Pier (The Salt Dogs): a plank pier on posts over the sea, the harbour hut at its end, a diver
 		-- in a brass helmet climbing up the ladder

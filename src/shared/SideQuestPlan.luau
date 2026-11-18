@@ -739,6 +739,10 @@ local function checkGoal(
 			no("course " .. goal.course .. " has " .. cs.count .. " roofs")
 		end
 	end
+	-- lore step 11, chain 4: an escort down a real farm road (Shared.SideQuestSites.roadPath)
+	if goal.road ~= nil and (goal.kind ~= "escort" or goal.road ~= true) then
+		no("a road is for an escort (road = true)")
+	end
 	local bad1 = fixedText(SideQuestPlan.text(goal, side), SQ.maxText)
 	if bad1 then
 		no(side .. " text: " .. bad1)
@@ -1132,18 +1136,59 @@ function SideQuestPlan.validate(Config: any): { string }
 			table.insert(bad, w .. ": name")
 		end
 		-- an outskirts site (a `lot` kind on the seeded Suburbs tiles, Shared.SideQuestSites.outskirts) or a
-		-- Downtown building
+		-- Downtown building; lore step 11, chain 4: a Farmland site (`farm` or `road`) on the Farmland tiles
 		-- (lore step 11, the Coast chain: or a coast tile's feature with `shore`, out on the coast's rings)
 		local shore = st.shore ~= nil
 		local outskirts = st.lot ~= nil or shore
+		local farmSite = st.farm ~= nil or st.road ~= nil
 		if
 			not table.find(SQ.districts, st.district)
-			or (not outskirts and not Config.City.districts[st.district])
+			or (not outskirts and not farmSite and not Config.City.districts[st.district])
 			or (outskirts and st.district ~= (if shore then "Coast" else "Suburbs"))
 		then
 			table.insert(bad, w .. ": district " .. tostring(st.district))
 		end
-		if st.square ~= nil then
+		if farmSite then
+			local SideQuestSites = if script
+				then require((script :: any).Parent.SideQuestSites)
+				else (require :: any)("./SideQuestSites")
+			if st.district ~= "Farmland" then
+				table.insert(bad, w .. ": a farm site is in Farmland")
+			end
+			if st.road ~= nil and (st.road ~= true or st.farm ~= nil) then
+				table.insert(bad, w .. ": road is true, and a road site is no farm lot")
+			elseif st.farm ~= nil and not SideQuestSites.FARM_KINDS[st.farm] then
+				table.insert(bad, w .. ": farm " .. tostring(st.farm))
+			end
+			if st.from ~= nil then
+				local parent = SQ.sites[st.from]
+				if st.from == id or not parent or not (parent.farm or parent.road) then
+					table.insert(bad, w .. ": from " .. tostring(st.from))
+				end
+				local r = st.range
+				if type(r) ~= "table" or type(r[1]) ~= "number" or type(r[2]) ~= "number" or r[1] > r[2] then
+					table.insert(bad, w .. ": range")
+				end
+			elseif type(st.near) ~= "table" or #st.near ~= 2 then
+				table.insert(bad, w .. ": near or from")
+			end
+			for _, other in st.apart or {} do
+				if
+					other == id or not (SQ.sites[other] and (SQ.sites[other].farm or SQ.sites[other].road))
+				then
+					table.insert(bad, w .. ": apart " .. tostring(other))
+				end
+			end
+			local a = st.away or {}
+			for _, k in { "safehouse", "beacon", "landmark", "site" } do
+				if type(a[k]) ~= "number" or a[k] < 0 then
+					table.insert(bad, w .. ": away." .. k)
+				end
+			end
+			if st.sign ~= nil and type(st.sign) ~= "boolean" then
+				table.insert(bad, w .. ": sign")
+			end
+		elseif st.square ~= nil then
 			-- lore step 11, chain 2: a site in one of Downtown's open squares, with its set piece
 			local found = nil
 			for _, o in Config.City.downtown.open or {} do

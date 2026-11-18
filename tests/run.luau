@@ -11734,18 +11734,24 @@ do
 	local Ci = Config.Cinema
 	local OPB = Config.Story.opening.beats
 
+	test("Lore 7: named scene bits are 0 to 15 and the extra 120 to 127, never a mission's", function()
+		local M, X = Ci.missionBits, Ci.extraBits
+		check(
+			X ~= nil and X.from == M.base + M.missions * M.perMission and X.to == 127,
+			"the extra bits sit above the missions'"
+		)
+		for _, b in { 0, 15, 120, 127 } do
+			check(CinemaPlan.namedBit(Config, b), b .. " is named")
+		end
+		for _, b in { -1, 16, 119, 128, 12.5 } do
+			check(not CinemaPlan.namedBit(Config, b), b .. " is not named")
+		end
+	end)
+
 	test("Lore 7: every scene is well formed, 5 to 20 s, with a bit of its own in the save", function()
 		local bits = {}
 		for id, sc in Ci.scenes do
-			-- a named bit, or (lore step 11, once the named range filled) a side quest scene's sideBits bit
-			check(
-				type(sc.bit) == "number"
-					and (
-						(sc.bit >= 0 and sc.bit < Ci.missionBits.base)
-						or (sc.bit >= Ci.sideBits.from and sc.bit <= Ci.sideBits.to)
-					),
-				id .. ": a named bit"
-			)
+			check(type(sc.bit) == "number" and CinemaPlan.namedBit(Config, sc.bit), id .. ": a named bit")
 			check(not bits[sc.bit], id .. ": its bit is its own")
 			bits[sc.bit] = true
 			local secs = if sc.beat then OPB[sc.beat] else CinemaPlan.length(sc)
@@ -14791,7 +14797,7 @@ do
 					w .. ": a guide speaker with a portrait and a blip"
 				)
 			end
-			local sb = Config.Cinema.sideBits
+			local sb = Config.Cinema.extraBits
 			local scenes = 0
 			for _, step in S.steps do
 				if step.scene then
@@ -16303,10 +16309,9 @@ do
 			for id, sc in Config.Cinema.scenes do
 				check(not bits[sc.bit], "scene bit " .. sc.bit .. " used once (" .. id .. ")")
 				bits[sc.bit] = true
-				local sb = Config.Cinema.sideBits
 				check(
-					(sc.bit >= 0 and sc.bit < 16) or (sc.bit >= sb.from and sc.bit <= sb.to),
-					id .. ": a named scene bit (or a side quest scene's)"
+					require("../src/shared/CinemaPlan").namedBit(Config, sc.bit),
+					id .. ": a named scene bit"
 				)
 			end
 		end
@@ -16920,6 +16925,677 @@ do
 		)
 		local idx = table.find(SQ.chains, G) :: number
 		check(idx ~= nil and 300 + idx < 1000 and #G.steps <= SQ.maxSteps, "the Dev command reaches it")
+	end)
+end
+
+---------------------------------------------------------------------------
+-- Lore step 11, chain 4: The Harvest King (Farmland). Config.SideQuests (the chain, Farmer Dot, the Farmland
+-- sites), Shared.SideQuestSites (farm lots on this week's outskirts tiles, the farm road and the escort's way
+-- down it), the Bramblebeast (a cartoon creature) and the Harvest King (a costumed villain in a thresher suit),
+-- the encore finale, the scenes and the comic page.
+---------------------------------------------------------------------------
+
+do
+	local SideQuestPlan = require("../src/shared/SideQuestPlan")
+	local SideQuestSites = require("../src/shared/SideQuestSites")
+	local CreatorRules = require("../src/shared/CreatorRules")
+	local CinemaPlan = require("../src/shared/CinemaPlan")
+	local StoryPlan = require("../src/shared/StoryPlan")
+	local fs = require("@lune/fs")
+	local SQ = Config.SideQuests
+	local H = SideQuestPlan.chain(Config, "HarvestKing") :: any
+	local SIDES = { "hero", "villain" }
+	local VILLAINS = { "Bramblebeast", "HarvestKing" }
+	local FARM_SITES = { "Homestead", "Fields", "FarmRoad", "Silos", "KingsAcre" }
+
+	local function flat(ax: number, az: number, bx: number, bz: number): number
+		return math.sqrt((ax - bx) ^ 2 + (az - bz) ^ 2)
+	end
+
+	-- a level 12 hero who has cleared Act 1's Ceremony and Safehouse
+	local function ready(): any
+		local c = ProfileSchema.newCharacter()
+		c.story.missions = StoryPlan.setBit(StoryPlan.setBit(0, 1), 2)
+		return c
+	end
+
+	test(
+		"Lore 11 chain 4: The Harvest King validates: 8 Farmland quests, a barn, fields, silos, a road",
+		function()
+			local bad = SideQuestPlan.validate(Config)
+			for _, b in bad do
+				check(false, b)
+			end
+			check(#bad == 0, "the chain validator passes")
+			check(H ~= nil and not H.dev, "a real chain")
+			local bits = {}
+			for _, ch in SQ.chains do
+				check(not bits[ch.bit], "chain bit " .. ch.bit .. " once")
+				bits[ch.bit] = true
+			end
+			check(#H.steps == 8 and H.layer == "district" and H.district == "Farmland", "8 Farmland quests")
+			check(
+				H.giver == "Dot" and SQ.givers.Dot.anchor == "site" and SQ.givers.Dot.site == "Homestead",
+				"Dot"
+			)
+			local used = {}
+			for _, id in SideQuestPlan.sites(H) do
+				used[id] = true
+			end
+			for _, id in FARM_SITES do
+				check(used[id] == true, "the chain uses " .. id)
+				check(SQ.sites[id].district == "Farmland", id .. " is in Farmland")
+			end
+			check(H.steps[#H.steps].at == "KingsAcre", "the finale on the Harvest King's own farm")
+			-- each side's flavour: the Vigil find, escort, fight, rescue, shield and expose; the Syndicate heist
+			local kinds = { hero = {}, villain = {} }
+			for i, step in H.steps do
+				for _, side in SIDES do
+					kinds[side][(SideQuestPlan.goal(step, side) :: any).kind] = true
+				end
+				if SideQuestPlan.shared(step) then
+					local g = SideQuestPlan.goal(step, "hero") :: any
+					check(
+						type(g.villainText) == "string" and g.villainText ~= g.text,
+						"step " .. i .. ": the Syndicate reads its own goal"
+					)
+				else
+					check(
+						SideQuestPlan.text(SideQuestPlan.goal(step, "hero"), "hero")
+							~= SideQuestPlan.text(SideQuestPlan.goal(step, "villain"), "villain"),
+						"step " .. i .. ": each side's own job"
+					)
+				end
+			end
+			for _, k in { "find", "escort", "fight", "carry", "hold", "photo" } do
+				check(kinds.hero[k] == true, "the Vigil: " .. k)
+			end
+			for _, k in { "fetch", "chase", "deliver", "race" } do
+				check(kinds.villain[k] == true, "the Syndicate: " .. k)
+			end
+			local esc = SideQuestPlan.goal(H.steps[3], "hero") :: any
+			check(
+				esc.kind == "escort" and esc.road == true and H.steps[3].at == "FarmRoad",
+				"down the farm road"
+			)
+			-- who speaks: the guides and the chain's own cast
+			local who = {}
+			for _, step in H.steps do
+				for _, l in step.lines or {} do
+					who[l.who] = true
+				end
+			end
+			for _, w in { "Dot", "patch", "lodestar", "harvest" } do
+				check(who[w] == true, "speaks: " .. w)
+			end
+			local sp = Config.Story.guides.speakers.harvest
+			check(
+				sp ~= nil and sp.portrait ~= nil and Config.Audio.sounds[sp.blip] ~= nil,
+				"the Harvest King: a guide speaker with a portrait and a blip"
+			)
+			local gh = fs.readFile("src/client/Ui/GuideHud.luau")
+			for _, ex in { "crown", "strawhat" } do
+				check(string.find(gh, 'extra == "' .. ex .. '"', 1, true) ~= nil, "the portrait draws " .. ex)
+			end
+			-- 1 to 3 short device scenes, one before the finale; the Harvest King's story is a comic page
+			local scenes = 0
+			for _, step in H.steps do
+				if step.scene then
+					scenes += 1
+					local sc = Config.Cinema.scenes[step.scene]
+					check(sc ~= nil and sc.client == true, step.scene .. ": a device scene")
+					check(sc and CinemaPlan.check(Config, sc), step.scene .. ": 5 to 20 s")
+					for _, l in (sc and sc.lines) or {} do
+						check(
+							Config.Story.guides.speakers[l.who] ~= nil or SQ.givers[l.who] ~= nil,
+							step.scene .. ": speaker " .. tostring(l.who)
+						)
+						check(
+							SideQuestPlan.fixedText(l.text, Config.Story.guides.maxChars) == nil,
+							"a fixed line"
+						)
+					end
+				end
+			end
+			check(scenes >= 1 and scenes <= 3, "1 to 3 short scenes (" .. scenes .. ")")
+			check(H.steps[#H.steps].scene ~= nil, "a scene before the finale")
+			local page = Config.Cinema.comic.pages.kingStory
+			check(page ~= nil and #page.panels == 4, "the Harvest King's story is a 4-panel comic page")
+			local hud = fs.readFile("src/client/Ui/CinemaHud.luau")
+			for _, p in (page and page.panels) or {} do
+				check(SideQuestPlan.fixedText(p.caption, 90) == nil, "a fixed caption")
+				check(
+					string.find(hud, 'kind == "' .. p.scene .. '"', 1, true) ~= nil,
+					"the comic draws " .. p.scene
+				)
+			end
+			local seen = {}
+			for id, sc in Config.Cinema.scenes do
+				check(not seen[sc.bit], "scene bit " .. sc.bit .. " used once (" .. id .. ")")
+				seen[sc.bit] = true
+				check(
+					require("../src/shared/CinemaPlan").namedBit(Config, sc.bit),
+					id .. ": a named scene bit"
+				)
+			end
+		end
+	)
+
+	test("Lore 11 chain 4: the finale's two name cards: THE BRAMBLEBEAST, then THE HARVEST KING", function()
+		for i = 1, #H.steps - 1 do
+			check(SideQuestPlan.card(H, i) == nil, "no card on step " .. i)
+		end
+		local n = #H.steps
+		local fin = SideQuestPlan.goal(H.steps[n], "hero") :: any
+		check(SideQuestPlan.shared(H.steps[n]) and fin.kind == "finale", "both sides fight together")
+		check(fin.enemy == "Bramblebeast" and fin.encore.enemy == "HarvestKing", "the beast, then the King")
+		check(SideQuestPlan.need(fin) == 2, "two to beat")
+		local a, b = SideQuestPlan.card(H, n, 1) :: any, SideQuestPlan.card(H, n, 2) :: any
+		check(a and a.name == "THE BRAMBLEBEAST" and #a.title > 0, "phase 1: the beast's card")
+		check(b and b.name == "THE HARVEST KING" and b.title == H.villain.title, "phase 2: the King's")
+		check(SideQuestPlan.finaleFoe(fin, 2).enemy == "HarvestKing", "phase 2's foe")
+		for _, c in { a, b } do
+			check(
+				SideQuestPlan.fixedText(c.name, 32) == nil and SideQuestPlan.fixedText(c.title, 32) == nil,
+				"fixed text that fits the card"
+			)
+		end
+	end)
+
+	test(
+		"Lore 11 chain 4: it opens after the Safehouse at level 12 for both sides; Dot; the Journal",
+		function()
+			for _, side in SIDES do
+				local c = ProfileSchema.newCharacter()
+				c.story.missions = StoryPlan.setBit(0, 1)
+				local st, why = SideQuestPlan.state(Config, c, H, 20, side)
+				check(st == "locked" and why == "story", side .. ": waits for the Safehouse")
+				local d = ready()
+				local st2, why2, n2 = SideQuestPlan.state(Config, d, H, 11, side)
+				check(
+					st2 == "locked" and why2 == "level" and n2 == 12,
+					side .. ": level 12, Farmland's floor"
+				)
+				check(n2 == ZoneLevel.floor(Config, "farmland"), side .. ": the unlock is the area's floor")
+				check(SideQuestPlan.state(Config, d, H, 12, side) == "open", side .. ": open at level 12")
+				local pick, kind = SideQuestPlan.talkPick(Config, d, "Dot", 12, side, false)
+				check(pick == H and kind == "offer", side .. ": Dot offers it")
+				check(SideQuestPlan.fixedText(H.blurb[side], 90) == nil, side .. ": the page's line")
+				check(SideQuestPlan.fixedText(H.lines.offer[side], 120) == nil, side .. ": Dot's offer")
+			end
+			local d = ready()
+			for _, other in { "Gus", "Benny" } do
+				check(
+					SideQuestPlan.talkPick(Config, d, other, 12, "hero", false) ~= H,
+					other .. " keeps his own chain"
+				)
+			end
+		end
+	)
+
+	test(
+		"Lore 11 chain 4: Farmland sites on this week's tiles: a real barn, fields, silos and a road",
+		function()
+			local W = Config.World
+			check(SQ.sites.KingsAcre.away.site >= 300, "the King's farm is not Dot's")
+			for _, seed in { 202647, 202648, 202701, 202725, 202752 } do
+				local wd = if seed == 202647 then world else WorldMap.build(Config, seed)
+				local picks = {}
+				for _, id in FARM_SITES do
+					local st = SQ.sites[id]
+					local s, door = SideQuestSites.place(Config, wd, id)
+					check(s ~= nil and door ~= nil, seed .. " " .. id .. ": a site fits this week's tiles")
+					if s and door then
+						picks[id] = s
+						local tile = WorldGen.get(W, wd.tiles, s.tx, s.tz)
+						check(
+							tile.zone == W.zones.farmland and tile.variant ~= W.special,
+							seed .. " " .. id .. ": on a Farmland tile (not chain 3's Suburbs, not the hub)"
+						)
+						check(
+							ZoneLevel.area(Config, s.x, s.z, wd.tiles) == "farmland",
+							seed .. " " .. id .. ": in the farmland area"
+						)
+						check(
+							s.kind == (st.farm or "road"),
+							seed .. " " .. id .. ": a " .. tostring(st.farm or "road")
+						)
+						check(SideQuestSites.building(Config, wd, id) == nil, id .. ": no city building")
+						for _, sh in wd.safehouses do
+							check(
+								flat(s.x, s.z, sh.x, sh.z) >= st.away.safehouse,
+								id .. ": clear of safehouse " .. sh.id
+							)
+						end
+						for _, b in wd.beacons do
+							check(
+								flat(s.x, s.z, b.x, b.z) >= st.away.beacon,
+								id .. ": clear of beacon " .. b.id
+							)
+						end
+						for _, lm in W.landmarks do
+							local lx, lz = SideQuestSites.landmarkMid(Config, lm)
+							-- the Crater's 400 x 400 PvP square reaches 283 studs from its middle at the corners
+							check(flat(s.x, s.z, lx, lz) >= 300, id .. ": clear of " .. lm.id)
+						end
+						if st.from then
+							local p = SideQuestSites.farm(Config, wd, st.from) :: any
+							local d = flat(s.x, s.z, p.door.x, p.door.z)
+							check(
+								d >= st.range[1] and d <= st.range[2],
+								seed .. " " .. id .. ": near " .. st.from
+							)
+						end
+						check(
+							SideQuestSites.farm(Config, wd, id) == s,
+							id .. ": picked the same way every time"
+						)
+					end
+				end
+				local home, king = picks.Homestead, picks.KingsAcre
+				if home and king then
+					check(
+						flat(home.x, home.z, king.x, king.z) >= SQ.sites.KingsAcre.away.site,
+						seed .. ": two farms"
+					)
+				end
+				-- the barns are the tile's own red clapboard barns (the boxes CityBuilder stands up), the door outside
+				for _, id in { "Homestead", "KingsAcre" } do
+					local s = picks[id]
+					if s then
+						local found = false
+						for _, tp in wd.tilePlans do
+							if tp.tx == s.tx and tp.tz == s.tz then
+								for _, b in tp.boxes do
+									if
+										b.kind == "building"
+										and b.color == "roofRed"
+										and math.abs(b.cx - s.x) < 0.01
+										and math.abs(b.cz - s.z) < 0.01
+									then
+										found = true
+										check(b.tint == Config.City.kit.barnTint, id .. ": red clapboard")
+									end
+								end
+							end
+						end
+						check(found, seed .. " " .. id .. ": a real barn on its tile")
+						check(s.door.z >= s.z + s.sz / 2, id .. ": the door is in front of the barn")
+					end
+				end
+				-- the road spot is on a farm road's middle line, and the escort drives down it toward town
+				local road = picks.FarmRoad
+				if road then
+					local t = WorldGen.get(W, wd.tiles, road.tx, road.tz)
+					local x0, z0 = WorldGen.tileOrigin(Config.City, road.tx, road.tz)
+					local mid = Config.City.tile / 2
+					check(
+						(t.roadNS and math.abs(road.x - (x0 + mid)) < 0.01)
+							or (t.roadEW and math.abs(road.z - (z0 + mid)) < 0.01),
+						seed .. ": the road spot is on the road"
+					)
+					local g = SideQuestPlan.goal(H.steps[3], "hero") :: any
+					local path = SideQuestSites.roadPath(Config, wd, road.x, road.z, g.goal * 1.15, 7)
+					check(path ~= nil and #path >= 2, seed .. ": the truck has a road")
+					local len = 0
+					for i = 2, #(path or {}) do
+						local p, q = (path :: any)[i - 1], (path :: any)[i]
+						len += flat(p[1], p[3], q[1], q[3])
+						check(p[1] == q[1] or p[3] == q[3], "a straight road")
+						check(
+							flat(q[1], q[3], 0, 0) < flat(p[1], p[3], 0, 0),
+							seed .. ": leg " .. i .. " heads toward town"
+						)
+						local tx, tz = WorldGen.tileOf(Config.City, q[1], q[3])
+						local qt = WorldGen.get(W, wd.tiles, tx, tz)
+						check(
+							if p[1] == q[1] then qt.roadNS else qt.roadEW,
+							"leg " .. i .. " stays on the road"
+						)
+					end
+					check(len >= g.goal * 0.5, seed .. string.format(": %.0f studs of road", len))
+				end
+			end
+			-- the tile reader finds what the tile's plan stands up
+			local n, ok = 0, 0
+			for _, tp in world.tilePlans do
+				for _, l in SideQuestSites.tileLots(Config, world, tp.tx, tp.tz) do
+					if l.kind ~= "silo" then
+						n += 1
+						for _, b in tp.boxes do
+							if math.abs(b.cx - l.x) < 0.01 and math.abs(b.cz - l.z) < 0.01 then
+								ok += 1
+								break
+							end
+						end
+					end
+				end
+			end
+			check(
+				n > 100 and ok == n,
+				string.format("every barn and field read is on its tile (%d of %d)", ok, n)
+			)
+			check(SideQuestSites.farm(Config, { tiles = nil }, "Homestead") == nil, "no world, no farm")
+			local svc = fs.readFile("src/server/Services/SideQuestService.luau")
+			check(
+				string.find(svc, "SideQuestSites.roadPath(", 1, true) ~= nil,
+				"the escort drives the farm road"
+			)
+			check(string.find(svc, "st.sign ~= false", 1, true) ~= nil, "signs only where a site wants one")
+		end
+	)
+
+	test("Lore 11 chain 4: the Bramblebeast (a creature) and the Harvest King (a suit): boss-lite", function()
+		local profile = ProfileSchema.default()
+		for _, p in CreatorRules.index(Config).list do
+			if p.source.kind ~= "pack" and p.source.kind ~= "starter" then
+				CreatorRules.grant(profile, p)
+			end
+		end
+		local L = Config.Enemies.look
+		local ids = {}
+		for _, kind in Config.Enemies.order do
+			local t = Config.Enemies[kind].typeId
+			check(not ids[t], kind .. ": its own typeId")
+			ids[t] = true
+		end
+		for _, kind in VILLAINS do
+			local cfg = Config.Enemies[kind]
+			check(
+				cfg ~= nil and cfg.on == true and cfg.fake and cfg.fake.costumed == true,
+				kind .. ": costumed"
+			)
+			check(table.find(Config.Enemies.order, kind) ~= nil and cfg.typeId < 32, kind .. " in the order")
+			check(table.find(SQ.finale.enemies, kind) ~= nil, kind .. " may be a finale villain")
+			check(
+				cfg.elite and cfg.miniBoss and cfg.hp >= 2 * Config.Enemies.NullSentinel.hp,
+				kind .. " boss-lite"
+			)
+			check(Config.Enemies.mix[kind] == nil, kind .. " never in the ambient mix")
+			for _, sw in Config.Enemies.variety.swaps do
+				check(sw.kind ~= kind and not table.find(sw.from, kind), kind .. " is not an open-world swap")
+			end
+			local look = FakeRules.look(Config, kind)
+			local ok, why = CreatorRules.validate(Config, profile, look)
+			check(ok, kind .. "'s look validates (" .. tostring(why) .. ")")
+			for slot, i in look.pieces do
+				if i > 0 then
+					local p = CreatorRules.piece(Config, slot, i)
+					check(
+						p ~= nil and p.source.kind ~= "pack",
+						kind .. " " .. slot .. " is never a Robux piece"
+					)
+				end
+			end
+			check(L.builds[cfg.body.build] == look.build, kind .. " robot build matches its look")
+			check((cfg.body.gender or 1) == look.gender, kind .. " gender matches")
+			local sim = EnemySim.new(Config, {})
+			local e = EnemySim.spawn(sim, kind, 0, 20, 0, 12) :: any
+			check(e ~= nil, kind .. " spawns")
+			EnemySim.drainEvents(sim)
+			local cut = 1 - (e.cfg.mitigation or 0)
+			EnemySim.damage(sim, e.id, e.maxHealth * 0.8 / cut, 1)
+			local unmasks = 0
+			for _, ev in EnemySim.drainEvents(sim) do
+				if ev.k == "unmask" then
+					unmasks += 1
+				end
+			end
+			check(unmasks == 0 and not e.unmasked, kind .. ": no unmask (not one of Crane's fakes)")
+			check(FakeRules.plate(Config, kind, false).name == string.upper(cfg.name), kind .. "'s plate")
+			local off = table.clone(Config)
+			off.Enemies = table.clone(Config.Enemies)
+			off.Enemies[kind] = table.clone(cfg)
+			off.Enemies[kind].on = false
+			check(
+				EnemySim.spawn(EnemySim.new(off, {}), kind, 0, 20, 0, 5) == nil,
+				kind .. " off: never spawns"
+			)
+		end
+		-- the beast is a cartoon creature: no metal, it bursts into light; the King's suit is a machine
+		check(Config.Enemies.Bramblebeast.fake.creature == true, "the Bramblebeast is a creature")
+		check(
+			Config.Enemies.HarvestKing.fake.creature == nil,
+			"the Harvest King's thresher suit is a machine"
+		)
+		check(Config.Enemies.Bramblebeast.guard == nil, "no tower shield on a creature")
+		-- damage a second in the fakes' band: above the elite robots, below the hardest world boss
+		for _, lv in { 12, 20, 50 } do
+			local elite = 0
+			for _, kind in Config.Enemies.order do
+				local cfg = Config.Enemies[kind]
+				if cfg.elite and not cfg.fake then
+					elite = math.max(elite, robotDps(kind, lv))
+				end
+			end
+			local boss = 0
+			for id in Config.Boss.bosses do
+				boss = math.max(boss, bossDps(id, lv))
+			end
+			for _, kind in VILLAINS do
+				local d = robotDps(kind, lv)
+				check(
+					d > elite and d < boss,
+					string.format("L%d %s %.1f between elite %.1f and boss %.1f", lv, kind, d, elite, boss)
+				)
+			end
+		end
+		local rend = fs.readFile("src/client/Controllers/EnemyRenderer.luau")
+		check(string.find(rend, "if body.creature then", 1, true) ~= nil, "a creature keeps its body whole")
+		check(
+			string.find(rend, "function EnemyRenderer.lightBurst(", 1, true) ~= nil,
+			"and bursts into light"
+		)
+		local cc = fs.readFile("src/client/Controllers/CombatClient.luau")
+		check(string.find(cc, "EnemyRenderer.lightBurst(", 1, true) ~= nil, "on defeat, not metal parts")
+		local src = fs.readFile("src/config/Enemies.luau")
+		check(
+			string.find(src, "PLACEHOLDER ART: a creator look on the blocky rig", 1, true) ~= nil,
+			"labelled"
+		)
+	end)
+
+	-- one test per side: that side takes the chain from Dot, a squadmate of the other side joins from the
+	-- Journal, and they play all 8 steps together in one run (the finale's encore too)
+	for _, lead in SIDES do
+		local mate = if lead == "hero" then "villain" else "hero"
+		local label = if lead == "villain" then "the Syndicate" else "the Vigil"
+		test(
+			"Lore 11 chain 4: The Harvest King as " .. label .. ": all 8 steps co-op with the other side",
+			function()
+				local a, b = ready(), ready()
+				check(SideQuestPlan.accept(Config, a, H, 12, lead, false), "the lead takes it from Dot")
+				check(SideQuestPlan.accept(Config, b, H, 12, mate, true), "the squadmate from the Journal")
+				for i, step in H.steps do
+					check(
+						SideQuestPlan.stepOf(a, H) == i and SideQuestPlan.stepOf(b, H) == i,
+						"both on step " .. i
+					)
+					local g = SideQuestPlan.newGroup(H.id, i)
+					local ka, newA = SideQuestPlan.join(g, step, "lead", lead)
+					local kb, newB = SideQuestPlan.join(g, step, "mate", mate)
+					if SideQuestPlan.shared(step) then
+						check(
+							ka == "both" and kb == "both" and newA and not newB,
+							"step " .. i .. ": one shared goal"
+						)
+					else
+						check(
+							ka == lead and kb == mate and newA and newB,
+							"step " .. i .. ": a goal per side"
+						)
+					end
+					local last = i == #H.steps
+					if last then
+						check(g.sides[ka].need == 2, "the finale needs the beast and the King")
+						check(
+							not SideQuestPlan.set(g, ka, 1) and not SideQuestPlan.groupDone(g),
+							"the beast is a seed"
+						)
+						check(SideQuestPlan.card(H, i, 2) ~= nil, "the King's card for the encore")
+					end
+					check(
+						SideQuestPlan.set(g, ka, g.sides[ka].need),
+						"step " .. i .. ": the lead's side finishes"
+					)
+					if ka ~= kb then
+						check(
+							SideQuestPlan.waiting(g, ka) and not SideQuestPlan.groupDone(g),
+							"step " .. i .. ": waits"
+						)
+						check(
+							SideQuestPlan.set(g, kb, g.sides[kb].need),
+							"step " .. i .. ": the other side finishes"
+						)
+					end
+					check(SideQuestPlan.groupDone(g), "step " .. i .. ": done for the group")
+					for _, c in { a, b } do
+						check(
+							SideQuestPlan.advance(c, H) == (if last then "done" else "next"),
+							"step " .. i .. " on"
+						)
+					end
+				end
+				for n, c in { a, b } do
+					check(
+						SideQuestPlan.isDone(c, H) and c.story.pinned == 0 and c.sq.at.HarvestKing == nil,
+						"done"
+					)
+					check(SideQuestPlan.chainPay(Config, H, 12) > 0, "the end pays")
+					check(
+						not SideQuestPlan.accept(Config, c, H, 12, if n == 1 then lead else mate, false),
+						"once only"
+					)
+				end
+			end
+		)
+	end
+
+	test("Lore 11 chain 4: the reward is the title Uprooted and the Harvest Crown, earned only", function()
+		local cos = SideQuestPlan.cosmetic(H)
+		check(cos.title == "Uprooted" and cos.style == "HarvestCrown", "a title and a style")
+		check(Config.Story.unlocks.titles.Uprooted == 9, "story title bit 9")
+		local seen = {}
+		for name, b in Config.Story.unlocks.titles do
+			check(not seen[b], "title bit " .. b .. " used once (" .. name .. ")")
+			seen[b] = true
+		end
+		check(GearMath.questStyle(Config, "HarvestCrown") ~= nil, "the crown is a gear style")
+		local n, used = 0, {}
+		for _, row in Config.Gear.styles.head do
+			check(not used[row.n], "head style " .. row.n .. " once")
+			used[row.n] = true
+			if row.quest == "HarvestCrown" then
+				n += 1
+				check(row.tier == "Story" and row.price == nil, "never rolled, never sold")
+			end
+		end
+		check(n == 1, "one Harvest Crown")
+		check(H.reward.share > 0 and H.reward.share <= SQ.pay.maxShare, "the end's pay share in range")
+	end)
+
+	test("Lore 11 chain 4: the framework checks farm sites and the farm road", function()
+		local function deep(v: any): any
+			if type(v) ~= "table" then
+				return v
+			end
+			local out = {}
+			for k, x in v do
+				out[k] = deep(x)
+			end
+			return out
+		end
+		local function problems(edit: (any, any) -> ()): string
+			local sq = deep(SQ)
+			local C = setmetatable({ SideQuests = sq }, { __index = Config })
+			local chain = SideQuestPlan.chain(C, "HarvestKing") :: any
+			edit(chain, sq)
+			return table.concat(SideQuestPlan.validate(C), " | ")
+		end
+		local function fails(edit: (any, any) -> (), want: string, label: string)
+			local got = problems(edit)
+			check(string.find(got, want, 1, true) ~= nil, label .. " (wants: " .. want .. ")")
+		end
+		check(problems(function() end) == "", "the copy is clean")
+		fails(function(_, sq)
+			sq.sites.Silos.farm = "moon"
+		end, "site Silos: farm moon", "an unknown farm lot")
+		fails(function(_, sq)
+			sq.sites.Fields.from = "Gala"
+		end, "site Fields: from Gala", "from a site that is not a farm")
+		fails(function(_, sq)
+			sq.sites.Fields.range = nil
+		end, "site Fields: range", "from with no range")
+		fails(function(_, sq)
+			sq.sites.Homestead.near = nil
+		end, "site Homestead: near or from", "a farm with no place to be near")
+		fails(function(_, sq)
+			sq.sites.KingsAcre.away.landmark = nil
+		end, "site KingsAcre: away.landmark", "a farm with no landmark distance")
+		fails(function(_, sq)
+			sq.sites.KingsAcre.apart = { "Moon" }
+		end, "site KingsAcre: apart Moon", "apart from nowhere")
+		fails(function(_, sq)
+			sq.sites.Silos.district = "Downtown"
+		end, "site Silos: a farm site is in Farmland", "a farm out of Farmland")
+		fails(function(_, sq)
+			sq.sites.FarmRoad.farm = "barn"
+		end, "site FarmRoad: road is true", "a road that is a barn too")
+		fails(function(c)
+			c.steps[4].hero.road = true
+		end, "a road is for an escort", "a road on a fight")
+	end)
+
+	test("Lore 11 chain 4: no old names; the Dev panel starts it and jumps to each step", function()
+		local ARC =
+			{ "Bellweather", "Mayor", "Pip", "Maribel", "Tamsin", "Quill", "Iron Dee", "IronDee", "Skye" }
+		local hits = {}
+		local function walk(v: any, path: string)
+			if type(v) == "string" then
+				local w = oldLore(v)
+				if w then
+					table.insert(hits, path .. ": " .. w)
+				end
+				for _, a in ARC do
+					if string.find(v, "%f[%w]" .. a .. "%f[%W]") then
+						table.insert(hits, path .. ": " .. a)
+					end
+				end
+				for _, nm in { "Crane", "Halcyon", "Adrian Vale" } do
+					if string.find(v, nm, 1, true) then
+						table.insert(hits, path .. ": " .. nm .. " (standalone from the main story)")
+					end
+				end
+			elseif type(v) == "table" then
+				for k, x in v do
+					walk(x, path .. "." .. tostring(k))
+				end
+			end
+		end
+		walk(H, "HarvestKing")
+		walk(SQ.givers.Dot, "Dot")
+		for _, id in FARM_SITES do
+			walk(SQ.sites[id], id)
+		end
+		walk(Config.Story.guides.speakers.harvest, "harvest")
+		for _, id in { "farmDusk", "kingsHarvest" } do
+			walk(Config.Cinema.scenes[id], id)
+		end
+		walk(Config.Cinema.comic.pages.kingStory, "kingStory")
+		for _, kind in VILLAINS do
+			walk(Config.Enemies[kind], kind)
+		end
+		for _, h in hits do
+			check(false, "an old name: " .. h)
+		end
+		check(#hits == 0, "no old lore, retired arc or main story names")
+		local dev = fs.readFile("src/client/Ui/DevPanel.luau")
+		check(
+			string.find(dev, "for i, ch in Config.SideQuests.chains do", 1, true) ~= nil,
+			"Dev: every chain"
+		)
+		local idx = table.find(SQ.chains, H) :: number
+		check(idx ~= nil and 300 + idx < 1000 and #H.steps <= SQ.maxSteps, "the Dev command reaches it")
 	end)
 end
 

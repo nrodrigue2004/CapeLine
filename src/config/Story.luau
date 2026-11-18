@@ -1141,6 +1141,20 @@ return {
 					extras = {},
 				},
 			},
+			-- The Harvest King (chain 4, Farmland): the farmer in person, a crown of wheat on a grey shock of hair
+			harvest = {
+				name = "THE HARVEST KING",
+				color = { 230, 190, 60 },
+				style = "person",
+				blip = "guideFake",
+				portrait = {
+					bg = { 70, 90, 30 },
+					skin = { 198, 140, 100 },
+					hair = { 175, 180, 190 },
+					shape = "messy",
+					extras = { "beard", "crown" },
+				},
+			},
 			-- The Salt Dogs (the Coast): Captain Brine on his ship's loudhailer and buoy speakers and in person (a
 			-- diving helm portrait with his beard and scar), and Finn, Skipper Nell's deckhand grandson
 			brine = {
@@ -1366,6 +1380,7 @@ return {
 			["Class Dismissed"] = 6, -- side quest chain: The Hero Academy (lore step 11)
 			["Curtain Call"] = 7, -- side quest chain: The Gala Heist (lore step 11, chain 2)
 			Unwound = 8, -- side quest chain: Wind-Up Lane (lore step 11)
+			Uprooted = 9, -- side quest chain: The Harvest King (lore step 11, chain 4)
 			Brinebreaker = 10, -- side quest chain: The Salt Dogs (lore step 11, the Coast)
 			GoldTrim = 100,
 		},

@@ -2,9 +2,9 @@
 -- Pure data; Shared.CinemaPlan and Shared.NewsPlan hold the rules, the client plays them.
 -- * scenes: every cutscene the player plays (camera shots, letterbox, subtitles through the guide line box).
 --   `bit` is the scene's place in the save's seen set (profile.seen, ProfileSchema.SMALL_WORDS bits): a
---   scene may be skipped once that bit is set. Bits 0 to 15 are the named scenes; missions use
---   missionBits (base + (mission - 1) * perMission + (stage - 1)); side quest scenes past the named range use
---   sideBits (120 to 127, after the missions'). Never reuse or move a bit.
+--   scene may be skipped once that bit is set. Bits 0 to 15 are the named scenes (then extraBits, 120 to
+--   127, once 0 to 15 were full); missions use
+--   missionBits (base + (mission - 1) * perMission + (stage - 1)). Never reuse or move a bit.
 --   `beat`: a prologue camera beat (OpeningPlan.CUT; its length is Config.Story.opening.beats). `client`: the
 --   device starts it (it then sends SceneSeen). Scenes run 5 to 20 s (`length`); the Ceremony beat keeps
 --   nate's 30 s (4 shots of 4.5 to 9 s) and says so with `long`.
@@ -291,11 +291,83 @@ return {
 				},
 			},
 		},
+		-- The Harvest King (side quest chain 4, lore step 11, Farmland): dusk over Furrow Farm on step 1, the
+		-- Harvest King's comic page on step 5, and the beast waking at the King's Acre before the finale. Bit 12
+		-- (the last free named bit), then 120 and 121 (Cinema.extraBits: the named range was full)
+		farmDusk = {
+			bit = 12,
+			client = true,
+			seconds = 10,
+			shots = {
+				{
+					kind = "dolly",
+					t0 = 0,
+					t1 = 5,
+					from = { 0, 6, 34 },
+					to = { 0, 10, 16 },
+					at = { 0, 6, 0 },
+					at2 = { 0, 14, -40 },
+				},
+				{
+					kind = "orbit",
+					t0 = 5,
+					t1 = 10,
+					radius = 24,
+					height = 9,
+					yaw0 = -0.4,
+					yaw1 = 0.8,
+					lift = 6,
+				},
+			},
+			lines = {
+				{
+					at = 0.4,
+					who = "Dot",
+					text = "Every night at dusk the ground shakes. Then the corn just... disappears.",
+				},
+				{
+					at = 5.5,
+					who = "harvest",
+					text = "Eat up, my beauty. Every field from here to the sea is yours.",
+				},
+			},
+		},
+		kingStory = { bit = 120, client = true, seconds = 14, comic = "kingStory" },
+		kingsHarvest = {
+			bit = 121,
+			client = true,
+			seconds = 8,
+			shots = {
+				{ kind = "cut", t0 = 0, t1 = 3, from = { 16, 5, 16 }, at = { 0, 6, 0 } },
+				{
+					kind = "orbit",
+					t0 = 3,
+					t1 = 8,
+					radius = 20,
+					height = 6,
+					yaw0 = 0.4,
+					yaw1 = 1.8,
+					lift = 6,
+				},
+			},
+			lines = {
+				{
+					at = 0.3,
+					who = "harvest",
+					text = "You hurt my crops, my bots, my fields. You will NOT hurt my creation!",
+				},
+				{
+					at = 4,
+					who = "patch",
+					text = "The ground's moving! That's not a hill. That's the beast!",
+				},
+			},
+		},
 		-- The Salt Dogs (the Coast's side quest chain, lore step 11): fog over Gull Point Pier on step 1, the
 		-- legend of Captain Brine as a comic page on step 5, and Brine riding the tide in before the finale.
-		-- The named range (0 to 15) is full, so side quest scenes go above the missions' bits (sideBits)
+		-- Bits 122 to 124 (Cinema.extraBits, after chain 4's)
 		gullPoint = {
-			bit = 125,
+			bit = 122,
 			client = true,
 			seconds = 10,
 			shots = {
@@ -332,9 +404,9 @@ return {
 				},
 			},
 		},
-		brineLegend = { bit = 126, client = true, seconds = 14, comic = "brineLegend" },
+		brineLegend = { bit = 123, client = true, seconds = 14, comic = "brineLegend" },
 		brineRig = {
-			bit = 127,
+			bit = 124,
 			client = true,
 			seconds = 8,
 			shots = {
@@ -365,8 +437,9 @@ return {
 		},
 	},
 	missionBits = { base = 16, perMission = 8, missions = 13 }, -- bits 16 to 119
-	-- side quest chains' scenes once the named range filled up (lore step 11): bits 120 to 127, after the missions'
-	sideBits = { from = 120, to = 127 },
+	-- More named scenes once bits 0 to 15 were full (lore step 11, chain 4): the seen set's last 8 bits,
+	-- above the missions' (CinemaPlan.namedBit)
+	extraBits = { from = 120, to = 127 },
 
 	safe = {
 		quietSeconds = 6, -- no hit taken for this long
@@ -606,6 +679,46 @@ return {
 						scene = "tap",
 						caption = "His machine in the basement drinks it all up. He calls it the Tantrum Tap.",
 						word = "GLUG!",
+						at = 10.5,
+					},
+				},
+			},
+			-- The Harvest King's story (The Harvest King, step 5): the drought, his Spark, the beast he grew
+			kingStory = {
+				title = "THE SUMMER THE RAIN STOPPED",
+				panels = {
+					{
+						rect = { 0.03, 0.12, 0.45, 0.4 },
+						sky = { 255, 200, 110 },
+						ground = { 170, 130, 80 },
+						scene = "farm",
+						caption = "Three summers without rain. Every farm out here was drying up.",
+						at = 0,
+					},
+					{
+						rect = { 0.52, 0.12, 0.45, 0.4 },
+						sky = { 150, 210, 255 },
+						ground = { 90, 140, 60 },
+						scene = "sprout",
+						caption = "Then my Spark woke up. Anything I touched would grow. Anything!",
+						word = "SPROUT!",
+						at = 3.5,
+					},
+					{
+						rect = { 0.03, 0.56, 0.45, 0.38 },
+						sky = { 120, 160, 210 },
+						ground = { 60, 110, 50 },
+						scene = "beast",
+						caption = "So I grew a guardian to keep the crows off. It grew. And grew.",
+						word = "RUMBLE!",
+						at = 7,
+					},
+					{
+						rect = { 0.52, 0.56, 0.45, 0.38 },
+						sky = { 255, 140, 90 },
+						ground = { 70, 90, 50 },
+						scene = "farm",
+						caption = "Now it's always hungry. But it's MINE. Nobody hurts what I made.",
 						at = 10.5,
 					},
 				},

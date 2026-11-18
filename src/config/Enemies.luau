@@ -45,6 +45,9 @@ return {
 		-- the Suburbs chain's clockwork toys (nate's lore, build plan step 11: Wind-Up Lane, the Toymaker)
 		"WindupToy",
 		"WindupGiant",
+		-- The Harvest King's chain (lore step 11, chain 4): his crop beast and the King in his thresher suit
+		"Bramblebeast",
+		"HarvestKing",
 		-- the Coast chain's robot pirates and their captain (nate's lore, build plan step 11: The Salt Dogs)
 		"SaltDog",
 		"CaptainBrine",
@@ -1041,6 +1044,142 @@ return {
 			suit = { 190, 35, 45 },
 			trim = { 240, 200, 80 },
 			windKey = true,
+		},
+	},
+	-- The Harvest King's chain (nate's lore, build plan step 11, chain 4: Farmland). Not Crane's. They wear a
+	-- fixed creator look like the costumed villains (`fake` with costumed = true: never cracks, no FAKE plate).
+	-- Attack numbers are the famous fakes' (Bulwark's and the evil twin's lobber), so both sit in the fakes'
+	-- damage band. Never in the ambient mix or swaps.
+	-- The Bramblebeast: the giant crop beast the Harvest King grew with his Spark, vines and pumpkin rind round
+	-- a glowing core. A cartoon creature, not a machine (nate's rule: creatures burst into light, never blood):
+	-- `creature` keeps its body whole (no shell to break off, no sparks) and it bursts into golden light when
+	-- beaten, shrinking back into a seed. Bulwark's brute brain without the tower shield: vine slams, a
+	-- shockwave stomp and a charge. PLACEHOLDER ART: a creator look on the blocky rig until a creature mesh.
+	Bramblebeast = {
+		typeId = 26,
+		on = true,
+		name = "Bramblebeast",
+		fake = {
+			costumed = true,
+			creature = true,
+			title = "The Hungry Harvest",
+			path = "Earth",
+			look = {
+				gender = 1,
+				build = 4, -- Titan
+				height = 5,
+				skin = 28, -- the glowing Energy skin: a pumpkin's light inside the vines
+				hair = 7, -- green
+				colors = { 30, 6, 3 }, -- forest, lime, orange
+				pieces = {
+					suit = "Magma Veins",
+					hair = "Wild Mane",
+					hat = "Antlers",
+					shoulders = "Fur Trim",
+					hands = "Talon Gloves",
+					feet = "Fur Boots",
+					back = "Tattered Cape",
+					eyes = "Toxic Glow",
+					face = "Fangs",
+					visage = "Sharp Face",
+				},
+				tints = { back = { 30, 6, 0 }, hat = { 16, 29, 0 } }, -- a leafy cape, branch horns
+				mats = {},
+			},
+		},
+		ai = "brute",
+		hp = 3600,
+		speed = 15,
+		aggro = 100,
+		attackRange = 10,
+		slam = { radius = 10, windup = 0.8, every = 3 },
+		coeff = 2.8,
+		shockwave = { nth = 3, radius = 24, windup = 1.3, coeff = 2.5, height = 4 },
+		charge = {
+			min = 16,
+			range = 45,
+			every = 7,
+			windup = 0.9,
+			dist = 40,
+			width = 5,
+			coeff = 2.3,
+			stun = 0.4,
+		},
+		mitigation = 0.15,
+		ccResist = 0.6,
+		immune = { "knockup", "float" },
+		fleeBelow = 0,
+		radius = 5,
+		elite = true,
+		miniBoss = true,
+		body = {
+			build = "titan",
+			gender = 1,
+			height = 9.5,
+			metal = { 255, 200, 90 }, -- no metal inside: the golden light it bursts into
+			eye = { 140, 255, 90 },
+			suit = { 50, 130, 60 },
+			trim = { 255, 150, 40 },
+		},
+	},
+	-- The Harvest King: the farmer himself in his thresher suit (a powered suit rigged from a combine harvester:
+	-- a machine that sparks apart). The evil twin lobber's brain: he keeps his distance and lobs pumpkin bombs
+	-- that leave a patch of thorny vines (the bomber's burning patch).
+	HarvestKing = {
+		typeId = 27,
+		on = true,
+		name = "The Harvest King",
+		fake = {
+			costumed = true,
+			title = "Lord of the Fields",
+			path = "Earth",
+			look = {
+				gender = 1,
+				build = 3, -- Heavy: a big farmer in a bigger suit
+				height = 4,
+				skin = 4,
+				hair = 19, -- silver
+				colors = { 28, 30, 16 }, -- mustard, forest, brown
+				pieces = {
+					suit = "Overalls",
+					hat = "Iron Crown",
+					hair = "Shaggy",
+					beard = "Full Beard",
+					hands = "Work Gloves",
+					feet = "Boots",
+					shoulders = "Riveted Pads",
+					back = "Field Coat",
+					belt = "Rope Belt",
+					visage = "Stern Face",
+				},
+				tints = { hat = { 4, 28, 0 } }, -- the crown in wheat gold
+				mats = { shoulders = "Metal" },
+			},
+		},
+		ai = "bomber",
+		hp = 2200,
+		speed = 18,
+		aggro = 100,
+		attackRange = 60,
+		keep = { min = 20, max = 45 },
+		turnRate = 240,
+		grenade = { every = 3, flight = 1, radius = 8, coeff = 1.2, spread = 3 },
+		zone = { radius = 6, time = 3, tick = 0.5, coeff = 0.2 },
+		coeff = 1,
+		mitigation = 0.1,
+		ccResist = 0.5,
+		fleeBelow = 0,
+		radius = 3.2,
+		elite = true,
+		miniBoss = true,
+		body = {
+			build = "heavy",
+			gender = 1,
+			height = 6.6,
+			metal = { 150, 130, 90 },
+			eye = { 255, 220, 80 },
+			suit = { 200, 160, 50 },
+			trim = { 40, 100, 50 },
 		},
 	},
 	-- The Salt Dogs (nate's lore, build plan step 11: the Coast chain, Captain Brine's crew): old diving robots

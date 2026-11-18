@@ -36,6 +36,7 @@ local RunService = game:GetService("RunService")
 local FrameProf =
 	require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("FrameProf"))
 local Workspace = game:GetService("Workspace")
+local TweenService = game:GetService("TweenService")
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Shared = ReplicatedStorage:WaitForChild("Shared")
@@ -159,6 +160,7 @@ type Body = {
 	-- its plate, its face decal's human and cracked images, its path (for the attacks' look) and whom it copies
 	fake: boolean,
 	costumed: boolean, -- lore step 11, chain 2: a costumed villain's powered suit (never cracks or reads FAKE)
+	creature: boolean, -- lore step 11, chain 4: a cartoon creature (no shell to break, bursts into light)
 	kind: string,
 	ident: { [string]: any }?,
 	lookParts: { { p: BasePart, owner: string, t: number } },
@@ -1332,6 +1334,7 @@ local function makeRobot(typeId: number, ident: { [string]: any }?): Body
 		streetFace = streetFace,
 		fake = fake,
 		costumed = fake and cfg.fake.costumed == true,
+		creature = fake and cfg.fake.creature == true,
 		kind = kind,
 		ident = ident,
 		lookParts = lookParts,
@@ -1766,7 +1769,13 @@ local function updateShell(body: Body, near: boolean)
 			body.costumed or bit32.band(body.extra, EXTRA.unmasked) ~= 0
 		)
 		else body.health
-	if body.fake then
+	if body.creature then
+		-- a creature (lore step 11, chain 4) has no metal inside: its body stays whole and never sparks
+		shellHealth = 1
+		if body.sparks.Enabled then
+			body.sparks.Enabled = false
+		end
+	elseif body.fake then
 		local fakeSpark = shellHealth < LOOK.sparksBelow and bit32.band(body.flags, BITS.cloak) == 0
 		if body.sparks.Enabled ~= fakeSpark then
 			body.sparks.Enabled = fakeSpark
@@ -1839,20 +1848,86 @@ function EnemyRenderer.swing(id: number)
 	end
 end
 
--- Remove at once (death); returns the last drawn position and the body colour for the burst
-function EnemyRenderer.kill(id: number): (Vector3?, Color3?)
+-- Remove at once (death); returns the last drawn position, the body colour for the burst and whether it was
+-- a cartoon creature (lore step 11, chain 4: it bursts into light, never into metal parts)
+function EnemyRenderer.kill(id: number): (Vector3?, Color3?, boolean)
 	local body = live[id]
 	if not body then
-		return nil, nil
+		return nil, nil, false
 	end
 	live[id] = nil
 	local pos = body.pos
 	local color = body.metal
+	local creature = body.creature
 	release(body)
 	for _, snap in snapshots do
 		snap.rows[id] = nil
 	end
-	return pos, color
+	return pos, color, creature
+end
+
+-- A cartoon creature's defeat (nate's rule: creatures burst into light, never blood): a bright flash and a
+-- swirl of glowing motes in its light colour that drift up and fade, inside the debris budget, and one seed
+-- of light left on the ground for a moment (the Bramblebeast shrinks back into a seed)
+function EnemyRenderer.lightBurst(pos: Vector3, color: Color3?)
+	local c = color or Color3.fromRGB(255, 220, 120)
+	local function mote(size: number, cf: CFrame, shape: Enum.PartType): Part
+		local p = Instance.new("Part")
+		p.Shape = shape
+		p.Anchored = true
+		p.CanCollide = false
+		p.CanQuery = false
+		p.CanTouch = false
+		p.CastShadow = false
+		p.Material = Enum.Material.Neon
+		p.Color = c
+		p.Size = Vector3.one * size
+		p.CFrame = cf
+		p.Parent = folder
+		return p
+	end
+	local flash = mote(4, CFrame.new(pos), Enum.PartType.Ball)
+	flash.Transparency = 0.2
+	TweenService:Create(flash, TweenInfo.new(0.45), { Size = Vector3.one * 16, Transparency = 1 }):Play()
+	task.delay(0.5, function()
+		flash:Destroy()
+	end)
+	local n = DebrisBudget.lease(14, 1.6)
+	for k = 1, n do
+		local a = (k / math.max(n, 1)) * math.pi * 2
+		local r = 2 + math.random() * 3
+		local p = mote(
+			0.5 + math.random() * 0.6,
+			CFrame.new(pos + Vector3.new(math.cos(a) * r, 0, math.sin(a) * r)),
+			Enum.PartType.Ball
+		)
+		local rise = Vector3.new(
+			math.cos(a) * (4 + math.random() * 4),
+			8 + math.random() * 8,
+			math.sin(a) * (4 + math.random() * 4)
+		)
+		TweenService:Create(
+			p,
+			TweenInfo.new(1.2 + math.random() * 0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+			{ CFrame = p.CFrame + rise, Transparency = 1, Size = Vector3.one * 0.1 }
+		):Play()
+		task.delay(1.6, function()
+			p:Destroy()
+		end)
+	end
+	local ground = Workspace:Raycast(pos + Vector3.new(0, 2, 0), Vector3.new(0, -40, 0))
+	local seedAt = if ground then ground.Position + Vector3.new(0, 0.6, 0) else pos
+	local seed = mote(1.2, CFrame.new(seedAt), Enum.PartType.Ball)
+	TweenService
+		:Create(
+			seed,
+			TweenInfo.new(2.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+			{ Transparency = 1 }
+		)
+		:Play()
+	task.delay(2.6, function()
+		seed:Destroy()
+	end)
 end
 
 -- Switch the look every robot wears ("auto", "roblox", "shell", "plain"; the Dev panel compares them):

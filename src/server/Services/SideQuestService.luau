@@ -19,6 +19,8 @@
 --   gala marquee and stage, the racers' meet), built here for everyone, their breakable pieces combat targets
 --   that burst and stand again; a step's `at` builds it round its site; races and chases may run a rooftop
 --   course (Shared.SideQuestSites.course); a finale may have an encore villain (its own name card).
+-- * Chain 4 (The Harvest King): Farmland sites on this week's outskirts tiles (a barn, the silos, a field, a
+--   farm road: Shared.SideQuestSites.farm); an escort with `road` drives down the farm road toward town.
 -- PLACEHOLDER ART: givers without a `look` are R15 people in plain colours; a giver with one wears its fixed
 -- hero look (earnable creator pieces, LookKit); crates, rings, site signs, set pieces and the motorcade are
 -- plain parts.
@@ -379,7 +381,10 @@ local function build(g: Group, key: string, st: any): Goal
 		goal.target = at
 		table.insert(goal.things, SiteKit.ring(at, st.radius))
 	elseif k == "escort" then
-		local path = IncidentSpots.streetPath(Config, CityBuilder.world, home.X, home.Z, 8, st.goal / 7, rng)
+		-- lore step 11, chain 4: `road` drives the truck down a real farm road toward town
+		local path = (
+			st.road and SideQuestSites.roadPath(Config, CityBuilder.world, home.X, home.Z, st.goal * 1.15, 7)
+		) or IncidentSpots.streetPath(Config, CityBuilder.world, home.X, home.Z, 8, st.goal / 7, rng)
 		local truck = SiteKit.prop("Motorcade", function(m)
 			SiteKit.part(m, Vector3.new(7, 4, 14), CFrame.new(0, 2.5, 0), Color3.fromRGB(30, 30, 40))
 			SiteKit.part(m, Vector3.new(6.6, 2.4, 6), CFrame.new(0, 5.6, -2), Color3.fromRGB(90, 70, 160))
@@ -1231,7 +1236,7 @@ local function placeSites(): { [string]: { number } }
 				if st.set then
 					buildSet(st.set, b)
 				end
-			else
+			elseif st.sign ~= false then
 				siteSign(st.name, door)
 			end
 			out[id] = { math.floor(b.x), math.floor(b.z) }

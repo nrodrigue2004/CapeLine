@@ -11,6 +11,9 @@
 -- * fake.costumed (lore step 11, chain 2: The Gala Heist's villains): a costumed villain fighting in a powered
 --   suit wears its hero look the same way but is not one of Crane's fakes: its face never cracks (no unmask,
 --   no FAKE plate, no news); EnemyRenderer breaks its costume off over the health below the crack instead.
+-- * fake.creature (lore step 11, chain 4: the Harvest King's Bramblebeast) with costumed: a cartoon creature,
+--   not a machine: the same never-cracking rules, but its body stays whole (no shell, no sparks) and it bursts
+--   into light when beaten (EnemyRenderer.lightBurst), never into metal parts.
 
 local LookCodec = if script then require(script.Parent.LookCodec) else (require :: any)("./LookCodec")
 local CreatorRules = if script

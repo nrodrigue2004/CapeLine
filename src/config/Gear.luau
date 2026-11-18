@@ -253,6 +253,15 @@ return {
 				quest = "MasqueradeMask",
 				color = { 120, 50, 170 },
 			},
+			-- side quest reward (lore step 11, chain 4, The Harvest King): his crown of golden wheat. Never rolled.
+			{
+				n = 23,
+				name = "Harvest Crown",
+				shape = "halo",
+				tier = "Story",
+				quest = "HarvestCrown",
+				color = { 225, 185, 70 },
+			},
 			-- Fame and Infamy rank rewards (M8): never rolled by loot (tier "Fame")
 			{
 				n = 21,

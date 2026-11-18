@@ -16,6 +16,10 @@
 --   start site's district from the roof nearest it, heading toward `toward`, every hop inside the 6-roof chase
 --   row's rules (hopOk: at least the row's shortest gap apart, an edge-to-edge jump within one Leap, no rise
 --   past a Leap's climb), never on the row, a skyscraper or another chain's building.
+-- * farm(Config, world, id) (lore step 11, chain 4: The Harvest King): a Farmland site on this week's outskirts
+--   tiles (`farm`: a red clapboard barn, a pair of grain silos or a crop field, read from the tile's own plan;
+--   `road`: a spot on a farm road), clear of every safehouse, beacon and landmark: { kind, x, z, sx, sz, top,
+--   tx, tz, door }. tileLots lists one tile's lots; roadPath runs an escort down a farm road toward town.
 -- * outskirts(Config, world, id): a site out in the seeded Suburbs (a site with `lot`, the Suburbs chain's toy
 --   shop): of the lots of that kind on Suburbs tiles `rings` out from the hub edge, built with their building
 --   (a lot under a safehouse pad stays empty) and a height in range, the one nearest `near` (map studs) that
@@ -74,7 +78,7 @@ end
 -- The building a site is in, or nil (no such district, a square site, or nothing fits)
 function SideQuestSites.building(Config: any, world: any, id: string): any?
 	local st = Config.SideQuests.sites[id]
-	if not st or st.square or SideQuestSites.isOutskirts(st) then
+	if not st or st.square or SideQuestSites.isOutskirts(st) or st.farm or st.road then
 		return nil
 	end
 	local L, ox, oz
@@ -383,6 +387,14 @@ function SideQuestSites.place(Config: any, world: any, id: string): (any?, Door?
 		local s = st.spot or { 0, 0 }
 		return o, { x = o.x + s[1], z = o.z + s[2], fx = 0, fz = if s[2] < 0 then -1 else 1 }
 	end
+	if st.farm or st.road then
+		-- lore step 11, chain 4: a Farmland site on the outskirts tiles
+		local lot = SideQuestSites.farm(Config, world, id)
+		if not lot then
+			return nil, nil
+		end
+		return lot, lot.door
+	end
 	local b = SideQuestSites.building(Config, world, id)
 	if not b then
 		return nil, nil
@@ -568,6 +580,309 @@ function SideQuestSites.length(path: { any }): number
 		n += flat(path[i].x, path[i].z, path[i - 1].x, path[i - 1].z)
 	end
 	return n
+end
+
+---------------------------------------------------------------------------
+-- Farmland sites (lore step 11, chain 4: The Harvest King)
+---------------------------------------------------------------------------
+
+SideQuestSites.FARM_KINDS = { barn = true, silo = true, field = true }
+
+local lotCache: { [any]: { [number]: { any } } } = setmetatable({}, { __mode = "k" }) :: any
+local farmCache: { [any]: { [any]: any } } = setmetatable({}, { __mode = "k" }) :: any
+
+-- Is tile (tx, tz) one of this week's Farmland tiles (not a hand-placed safehouse or windmill tile)?
+local function farmTile(Config: any, world: any, tx: number, tz: number): any?
+	local W = Config.World
+	if not world or not world.tiles or tx < 0 or tz < 0 or tx >= W.tiles or tz >= W.tiles then
+		return nil
+	end
+	local t = WorldGen.get(W, world.tiles, tx, tz)
+	if t.zone ~= W.zones.farmland or t.variant == W.special then
+		return nil
+	end
+	return t
+end
+
+-- The farm lots on one Farmland tile, read from the tile's own plan for this week's seed (the very boxes
+-- CityBuilder stands up): barns (a red clapboard barn's body; its door is on the +z front, BoxKit.house), silo
+-- pairs (one lot between the two silos) and crop fields, each { kind, x, z, sx, sz, top, tx, tz }.
+function SideQuestSites.tileLots(Config: any, world: any, tx: number, tz: number): { any }
+	local byWorld = lotCache[world]
+	if not byWorld then
+		byWorld = {}
+		lotCache[world] = byWorld
+	end
+	local key = tz * Config.World.tiles + tx
+	local hit = byWorld[key]
+	if hit then
+		return hit
+	end
+	local out = {}
+	if farmTile(Config, world, tx, tz) then
+		local W = Config.World
+		local clear = {}
+		for _, sh in world.safehouses or {} do
+			table.insert(clear, { x = sh.x, z = sh.z, r = W.safehouse.pad * 0.75 })
+		end
+		local boxes = WorldGen.tilePlan(Config.City, W, world.tiles, world.seed, tx, tz, clear)
+		local silos = {}
+		for _, b in boxes do
+			local top = b.cy + b.sy / 2
+			if b.kind == "building" and b.color == "roofRed" and b.shape == nil then
+				table.insert(
+					out,
+					{ kind = "barn", x = b.cx, z = b.cz, sx = b.sx, sz = b.sz, top = top, tx = tx, tz = tz }
+				)
+			elseif b.kind == "prop" and b.color == "steel" and b.shape == "cylinder" and b.sx >= 10 then
+				table.insert(silos, b)
+			elseif b.kind == "field" and b.color == "soil" then
+				table.insert(
+					out,
+					{ kind = "field", x = b.cx, z = b.cz, sx = b.sx, sz = b.sz, top = top, tx = tx, tz = tz }
+				)
+			end
+		end
+		-- a silo lot stands two silos side by side on one line: one site between them
+		local used = {}
+		for i, a in silos do
+			if not used[i] then
+				for j = i + 1, #silos do
+					local b = silos[j]
+					if not used[j] and math.abs(a.cz - b.cz) < 1 and math.abs(a.cx - b.cx) <= 16 then
+						used[i], used[j] = true, true
+						table.insert(out, {
+							kind = "silo",
+							x = (a.cx + b.cx) / 2,
+							z = a.cz,
+							sx = math.abs(a.cx - b.cx) + a.sx,
+							sz = a.sz,
+							top = math.max(a.cy + a.sy / 2, b.cy + b.sy / 2),
+							tx = tx,
+							tz = tz,
+						})
+						break
+					end
+				end
+			end
+		end
+	end
+	byWorld[key] = out
+	return out
+end
+
+-- The middle of a landmark (Config.World.landmarks: its corner tile and size in tiles)
+function SideQuestSites.landmarkMid(Config: any, lm: any): (number, number)
+	local x0, z0 = WorldGen.tileOrigin(Config.City, lm.tx, lm.tz)
+	local half = lm.size * Config.City.tile / 2
+	return x0 + half, z0 + half
+end
+
+-- Is a farm spot clear of the city's safehouses, beacons and landmarks (the site's `away`)?
+local function clearOf(Config: any, world: any, st: any, x: number, z: number): boolean
+	local a = st.away or {}
+	for _, sh in world.safehouses or {} do
+		if flat(x, z, sh.x, sh.z) < (a.safehouse or 0) then
+			return false
+		end
+	end
+	for _, b in world.beacons or {} do
+		if flat(x, z, b.x, b.z) < (a.beacon or 0) then
+			return false
+		end
+	end
+	for _, lm in Config.World.landmarks do
+		local lx, lz = SideQuestSites.landmarkMid(Config, lm)
+		if flat(x, z, lx, lz) < (a.landmark or 0) then
+			return false
+		end
+	end
+	return true
+end
+
+-- A spot on a farm road: the middle line of a Farmland tile's road (a N-S road runs down the tile's middle in
+-- x, an E-W road in z), the point on it nearest (x, z) between r0 and r1 studs: { x, z, axis }, or nil
+local function roadNear(Config: any, world: any, st: any, x: number, z: number, r0: number, r1: number): any?
+	local C = Config.City
+	local cx, cz = WorldGen.tileOf(C, x, z)
+	local span = math.ceil(r1 / C.tile) + 1
+	local best, bestD = nil, math.huge
+	for tz = cz - span, cz + span do
+		for tx = cx - span, cx + span do
+			local t = farmTile(Config, world, tx, tz)
+			if t then
+				local x0, z0 = WorldGen.tileOrigin(C, tx, tz)
+				local cands = {}
+				if t.roadNS then
+					table.insert(
+						cands,
+						{ x = x0 + C.tile / 2, z = math.clamp(z, z0, z0 + C.tile), axis = "ns" }
+					)
+				end
+				if t.roadEW then
+					table.insert(
+						cands,
+						{ x = math.clamp(x, x0, x0 + C.tile), z = z0 + C.tile / 2, axis = "ew" }
+					)
+				end
+				for _, c in cands do
+					local d = flat(x, z, c.x, c.z)
+					if d >= r0 and d <= r1 and d < bestD and clearOf(Config, world, st, c.x, c.z) then
+						best, bestD = c, d
+					end
+				end
+			end
+		end
+	end
+	return best
+end
+
+-- A Farmland site (Config.SideQuests.sites with `farm` or `road`), or nil when none fits this week's tiles.
+-- `near`: the lot nearest that point (studs from the map's middle) within `reach`; `from`: the lot nearest that
+-- site's way in, inside `range`; never within away.site of a site in `apart`. The way in (door): a barn's
+-- front door (+z), a silo pair's front, a field's middle or the road spot, facing +z.
+function SideQuestSites.farm(Config: any, world: any, id: string, depth: number?): any?
+	local st = Config.SideQuests.sites[id]
+	if not st or not (st.farm or st.road) or not world or not world.tiles then
+		return nil
+	end
+	local byWorld = farmCache[world]
+	if not byWorld then
+		byWorld = {}
+		farmCache[world] = byWorld
+	end
+	local hit = byWorld[st]
+	if hit ~= nil then
+		return if hit then hit else nil
+	end
+	local level = depth or 0
+	if level > 4 then
+		return nil -- a loop of `from` links (the validator reports it)
+	end
+	local ox, oz, r0, r1
+	if st.from then
+		local parent = SideQuestSites.farm(Config, world, st.from, level + 1)
+		if not parent or type(st.range) ~= "table" then
+			byWorld[st] = false
+			return nil
+		end
+		ox, oz = parent.door.x, parent.door.z
+		r0, r1 = st.range[1], st.range[2]
+	elseif type(st.near) == "table" then
+		ox, oz = st.near[1], st.near[2]
+		r0, r1 = 0, st.reach or 600
+	else
+		return nil
+	end
+	local others = {}
+	for _, other in st.apart or {} do
+		local o = other ~= id and SideQuestSites.farm(Config, world, other, level + 1)
+		if o then
+			table.insert(others, o)
+		end
+	end
+	local gap = (st.away and st.away.site) or 0
+	local function apartOk(x: number, z: number): boolean
+		for _, o in others do
+			if flat(x, z, o.x, o.z) < gap then
+				return false
+			end
+		end
+		return true
+	end
+	local found = nil
+	if st.road then
+		local r = roadNear(Config, world, st, ox, oz, r0, r1)
+		if r and apartOk(r.x, r.z) then
+			local w = Config.World.roads.localWidth
+			local tx, tz = WorldGen.tileOf(Config.City, r.x, r.z)
+			found = {
+				kind = "road",
+				x = r.x,
+				z = r.z,
+				sx = w,
+				sz = w,
+				top = Config.City.ground.y,
+				tx = tx,
+				tz = tz,
+				axis = r.axis,
+				door = { x = r.x, z = r.z, fx = 0, fz = 1 },
+			}
+		end
+	else
+		local C = Config.City
+		local cx, cz = WorldGen.tileOf(C, ox, oz)
+		local span = math.ceil(r1 / C.tile) + 1
+		local bestD = math.huge
+		local lot = nil
+		for tz = cz - span, cz + span do
+			for tx = cx - span, cx + span do
+				for _, l in SideQuestSites.tileLots(Config, world, tx, tz) do
+					if l.kind == st.farm then
+						local d = flat(l.x, l.z, ox, oz)
+						if
+							d >= r0
+							and d <= r1
+							and d < bestD
+							and clearOf(Config, world, st, l.x, l.z)
+							and apartOk(l.x, l.z)
+						then
+							bestD, lot = d, l
+						end
+					end
+				end
+			end
+		end
+		if lot then
+			local front = if lot.kind == "field" then 0 else lot.sz / 2 + 6
+			found = table.clone(lot)
+			found.door = { x = lot.x, z = lot.z + front, fx = 0, fz = 1 }
+		end
+	end
+	byWorld[st] = found or false
+	return found
+end
+
+-- An escort's way down a farm road toward town (lore step 11, chain 4): from the road spot nearest (x, z),
+-- along that road toward the map's middle in `legs` even legs, `length` studs in all, stopping where the road
+-- ends (a tile with no road that way, the hub, a landmark or a hand-placed tile): { { x, y, z } }, or nil when
+-- no farm road is within 300 studs or fewer than two points fit.
+function SideQuestSites.roadPath(
+	Config: any,
+	world: any,
+	x: number,
+	z: number,
+	length: number,
+	legs: number
+): { { number } }?
+	local C, W = Config.City, Config.World
+	local spot = roadNear(Config, world, {}, x, z, 0, 300)
+	if not spot then
+		return nil
+	end
+	local ns = spot.axis == "ns"
+	local dir = if ns then (if spot.z > 0 then -1 else 1) else (if spot.x > 0 then -1 else 1)
+	local y = C.ground.y + 0.5
+	local path = {}
+	local step = length / math.max(1, legs)
+	for i = 0, legs do
+		local px = if ns then spot.x else spot.x + dir * step * i
+		local pz = if ns then spot.z + dir * step * i else spot.z
+		local tx, tz = WorldGen.tileOf(C, px, pz)
+		if tx < 0 or tz < 0 or tx >= W.tiles or tz >= W.tiles then
+			break
+		end
+		local t = WorldGen.get(W, world.tiles, tx, tz)
+		local outskirts = (t.zone == W.zones.farmland or t.zone == W.zones.suburbs) and t.variant ~= W.special
+		if not outskirts or not (if ns then t.roadNS else t.roadEW) then
+			break
+		end
+		table.insert(path, { px, y, pz })
+	end
+	if #path < 2 then
+		return nil
+	end
+	return path
 end
 
 return SideQuestSites

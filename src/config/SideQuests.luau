@@ -26,6 +26,8 @@
 --   or chase goal's `course`: a rooftop course (courses) instead of rings in the air or nearby roofs; a
 --   finale's `card` (its first villain's name card) and `encore` (a second villain who lands when the first
 --   falls; the chain's `villain` card is the last one standing).
+-- * (lore step 11, chain 4) Farmland sites on this week's outskirts tiles (sites with `farm` or `road`), and an
+--   escort's `road`: the truck drives down a real farm road toward town (Shared.SideQuestSites.roadPath).
 -- No free text anywhere: every string is fixed, with no format holes.
 return {
 	range = 12, -- talk range to a giver (the Talk prompt)
@@ -67,6 +69,9 @@ return {
 			"Redline",
 			"MasqueARade",
 			"WindupGiant", -- the Toymaker's giant clockwork soldier (Wind-Up Lane)
+			-- The Harvest King's chain (lore step 11, chain 4): his crop beast, then the King in his thresher suit
+			"Bramblebeast",
+			"HarvestKing",
 			"CaptainBrine", -- the Coast chain's pirate captain in his powered diving rig (The Salt Dogs)
 		},
 	},
@@ -149,6 +154,57 @@ return {
 			rings = { 2, 5 },
 			height = { 10, 20 }, -- a one-storey shop front
 			away = { pad = 150, beacon = 150, landmark = 300, district = 200, site = 400 },
+		},
+		-- The Harvest King (chain 4, Farmland; nate's lore, build plan step 11): sites on the Farmland outskirts
+		-- tiles, picked by rule from this week's seeded tiles (Shared.SideQuestSites.farm). `farm` names the lot:
+		-- "barn" (a red clapboard barn; the way in is its front door), "silo" (a pair of grain silos) or "field"
+		-- (a crop field); `road` (true) a spot on a farm road. Every pick is on a Farmland tile, `away` studs
+		-- from each safehouse, beacon and landmark (the Crater's PvP square with it) and from the sites in
+		-- `apart`: the one nearest `near` (studs from the map's middle, the hub's centre) within `reach`, or,
+		-- with `from`, the one nearest that site inside `range`. `sign` false: no sign (the map marks it anyway).
+		Homestead = {
+			name = "FURROW FARM",
+			district = "Farmland",
+			farm = "barn",
+			near = { 1700, 300 }, -- east of the hub, in the middle of the Farmland rings
+			reach = 700,
+			away = { safehouse = 160, beacon = 160, landmark = 450, site = 0 },
+		},
+		Fields = {
+			name = "THE CORN FIELDS",
+			district = "Farmland",
+			farm = "field",
+			from = "Homestead",
+			range = { 90, 360 },
+			sign = false,
+			away = { safehouse = 120, beacon = 120, landmark = 450, site = 0 },
+		},
+		FarmRoad = {
+			name = "THE FARM ROAD",
+			district = "Farmland",
+			road = true,
+			from = "Homestead",
+			range = { 0, 320 },
+			sign = false,
+			away = { safehouse = 120, beacon = 120, landmark = 450, site = 0 },
+		},
+		Silos = {
+			name = "FURROW SILOS",
+			district = "Farmland",
+			farm = "silo",
+			from = "Homestead",
+			range = { 60, 450 },
+			away = { safehouse = 120, beacon = 120, landmark = 450, site = 0 },
+		},
+		-- the Harvest King's own farm, further out toward the coast (never the giver's farm)
+		KingsAcre = {
+			name = "THE KING'S ACRE",
+			district = "Farmland",
+			farm = "barn",
+			near = { 2000, 800 },
+			reach = 700,
+			apart = { "Homestead" },
+			away = { safehouse = 160, beacon = 160, landmark = 450, site = 400 },
 		},
 		-- The Coast chain (The Salt Dogs): Gull Point Pier, the old ferry pier Captain Brine's crew raids, is an
 		-- existing coast tile's pier (Shared.WorldGen.COAST: a "pier" tile on the map's edge ring runs its deck
@@ -301,6 +357,44 @@ return {
 					hair = "Space Buns",
 					hat = "Ball Cap",
 					neck = "Kerchief",
+					feet = "Boots",
+				},
+				tints = {},
+				mats = {},
+			},
+		},
+		-- The Harvest King's giver (chain 4, Farmland): the Harvest King's neighbour, whose corn field and tractor
+		-- the beast ate. She wants the farms safe (the Vigil), or the King ruined and his seed vault emptied, she
+		-- doesn't much care by whom (the Dread Syndicate).
+		Dot = {
+			name = "FARMER DOT",
+			anchor = "site",
+			site = "Homestead",
+			color = { 120, 170, 70 },
+			style = "person",
+			blip = "guideLodestar",
+			portrait = {
+				bg = { 50, 80, 40 },
+				skin = { 224, 172, 130 },
+				hair = { 80, 50, 30 },
+				shape = "messy",
+				extras = { "strawhat" },
+			},
+			look = {
+				gender = 2,
+				build = 2,
+				height = 3,
+				skin = 3,
+				hair = 39, -- chocolate
+				colors = { 29, 16, 5 }, -- olive, brown, cream
+				pieces = {
+					shirt = "Flannel Shirt",
+					pants = "Denim Jeans",
+					visage = "Hero Face",
+					hair = "Braids",
+					hat = "Wide Brim",
+					neck = "Kerchief",
+					hands = "Work Gloves",
 					feet = "Boots",
 				},
 				tints = {},
@@ -1244,6 +1338,268 @@ return {
 			},
 		},
 
+		-- Farmland's chain (nate's lore, build plan step 11, chain 4): The Harvest King. nate's draft: "A giant
+		-- beast born from a crop-growing power is eating the farms. The Harvest King, a farmer who won't let anyone
+		-- hurt his creation." 8 quests (the draft's count). After three dry summers a farmer's Spark woke: anything
+		-- he touches grows. He grew a guardian for his fields, the Bramblebeast, a giant of vines and pumpkins,
+		-- and it never stops eating. He calls himself the Harvest King, rigs his old farm machines into scarecrow
+		-- bots and drives everyone else off the land. The Vigil save the farm folk and the town's grain; the Dread
+		-- Syndicate steal his prize crops and his Spark seeds. Both face the beast at his farm (a cartoon creature:
+		-- it bursts into light and shrinks back to a seed), then the King himself in his thresher suit (a machine).
+		-- Standalone: not Crane's.
+		{
+			id = "HarvestKing",
+			bit = 5,
+			name = "The Harvest King",
+			layer = "district",
+			district = "Farmland",
+			giver = "Dot",
+			site = "Homestead",
+			unlock = { story = 2, level = 12 }, -- after Act 1's Safehouse; level 12, Farmland's floor
+			villain = { name = "THE HARVEST KING", title = "LORD OF THE FIELDS" },
+			reward = { share = 3, title = "Uprooted", style = "HarvestCrown" },
+			blurb = {
+				hero = "A farmer's Spark grew a giant crop beast, and now it's eating every farm in sight.",
+				villain = "A farmer's Spark grows anything, even monsters. His seeds are worth a fortune.",
+			},
+			lines = {
+				offer = {
+					hero = "A hero? Thank goodness. Something big as a barn ate my corn last night. And my tractor.",
+					villain = "You look like you'd steal anything. Good. My neighbour grows gold out there. Take it all.",
+				},
+				resume = {
+					hero = "Back? The ground's still shaking out there. Let's go.",
+					villain = "Back for the rest of his harvest? It's ripe for the picking.",
+				},
+				done = {
+					hero = "The beast's a seed again and my corn's growing back. Thank you, hero.",
+					villain = "The King's off his throne and my fields are safe. I won't ask where his seeds went.",
+				},
+			},
+			steps = {
+				-- 1. Dusk at Furrow Farm: the beast's shadow over the fields, Dot's story
+				{
+					hero = { kind = "talk", text = "Hear Farmer Dot out at Furrow Farm" },
+					villain = { kind = "talk", text = "Get Farmer Dot's tip at Furrow Farm" },
+					at = "Homestead",
+					scene = "farmDusk",
+					lines = {
+						{
+							who = "Dot",
+							hero = "It came at dusk. Big as a barn, made of vines, and it ATE my corn. My neighbour grew it.",
+							villain = "My neighbour calls himself the Harvest King. His Spark grows anything. Even monsters.",
+						},
+						{
+							who = "patch",
+							hero = "A Spark that grows crops? That's a new one. Whatever he grew, it's hungry.",
+							villain = "A Spark that grows anything? Giant pumpkins sell for a LOT. Just saying.",
+						},
+					},
+				},
+				-- 2. The beast's trail: the Vigil find the farmhand who saw it; the Syndicate grab the prize crops
+				{
+					hero = {
+						kind = "find",
+						range = { 30, 120 },
+						witness = true,
+						text = "Find the farmhand who saw the beast",
+					},
+					villain = {
+						kind = "fetch",
+						count = 3,
+						range = { 30, 120 },
+						guards = { "BurglarBot", 2 },
+						text = "Grab the Harvest King's prize pumpkins",
+					},
+					at = "Fields",
+					lines = {
+						{
+							who = "harvest",
+							text = "Off my land! Every row out here belongs to the Harvest King!",
+						},
+						{
+							who = "patch",
+							hero = "A farmhand ran into the corn when it hit. Find him before it comes back!",
+							villain = "Those prize pumpkins win every fair in the state. His scarecrow bots guard them.",
+						},
+					},
+				},
+				-- 3. Down the farm road: the Vigil get the farm folk to town; the Syndicate catch the seed runner
+				{
+					hero = {
+						kind = "escort",
+						road = true,
+						goal = 160,
+						speed = 9,
+						near = 40,
+						text = "Get the farm folk's truck down the road to town",
+					},
+					villain = {
+						kind = "chase",
+						enemy = "SneakBot",
+						hops = 5,
+						speed = 22,
+						text = "Catch the King's seed runner bot",
+					},
+					at = "FarmRoad",
+					lines = {
+						{
+							who = "lodestar",
+							hero = "Farm folk are leaving with what's left. Keep that truck rolling. I'll watch the fields.",
+							villain = "That runner carries the King's seeds. Take them if you must. Leave the farm folk be.",
+						},
+						{
+							who = "patch",
+							hero = "The beast's tracks cross the farm road. Stay with the truck!",
+							villain = "His seed runner bot is making for the road. Grab its seed pouch!",
+						},
+					},
+				},
+				-- 4. The scarecrow bots raid Dot's farm / sell the haul
+				{
+					hero = {
+						kind = "fight",
+						home = true,
+						squads = { { "BurglarBot", 3 }, { "BruteBot", 1 } },
+						text = "Scrap the scarecrow bots raiding Furrow Farm",
+					},
+					villain = {
+						kind = "deliver",
+						range = { 150, 300 },
+						text = "Sell the pumpkins and seeds at the crossroads",
+					},
+					at = "Homestead",
+					lines = {
+						{
+							who = "harvest",
+							text = "My scarecrow bots will see you off. Nobody touches the King's crops!",
+						},
+						{
+							who = "Dot",
+							hero = "They're in my yard! He wants every last farmer gone!",
+							villain = "Buyer's waiting at the crossroads. Sell fast, before the King finds out.",
+						},
+					},
+				},
+				-- 5. The silo yard: the Vigil free a farmer from the vines; the Syndicate crack the seed vault.
+				-- The Harvest King's comic page: how the drought woke his Spark.
+				{
+					hero = {
+						kind = "carry",
+						range = { 60, 160 },
+						text = "Fly a farmer out of the beast's vines",
+					},
+					villain = {
+						kind = "fetch",
+						count = 3,
+						range = { 20, 90 },
+						guards = { "ShieldBearer", 1 },
+						text = "Crack the King's silo vault for his Spark seeds",
+					},
+					at = "Silos",
+					scene = "kingStory",
+					lines = {
+						{
+							who = "harvest",
+							text = "You don't understand! It's only hungry. I grew it to SAVE these farms!",
+						},
+						{
+							who = "patch",
+							hero = "Vines all over the silo yard, and somebody's caught in them. Fly him out!",
+							villain = "His seed vault's in the silos. Those seeds would grow anything we wanted.",
+						},
+					},
+				},
+				-- 6. The town's last silo: the Vigil hold off the beast; the Syndicate run the seeds to a fence
+				{
+					hero = {
+						kind = "hold",
+						home = true,
+						seconds = 25,
+						radius = 14,
+						text = "Shield the town's last silo from the beast",
+					},
+					villain = {
+						kind = "race",
+						checkpoints = 5,
+						gap = 60,
+						time = 50,
+						text = "Run the stolen seeds over the fields to your fence",
+					},
+					at = "Silos",
+					lines = {
+						{
+							who = "Dot",
+							hero = "That silo feeds half the city this winter. Don't let it get eaten!",
+							villain = "The beast's busy with the silo. Run the seeds now, while nobody's looking!",
+						},
+						{
+							who = "lodestar",
+							hero = "That's a living creature, kid, not a robot. Hold it off. It doesn't know any better.",
+							villain = "That thing's alive, not some robot. Get your seeds and stay out of its way.",
+						},
+					},
+				},
+				-- 7. The King's Acre: the Vigil get his bots on camera; the Syndicate wreck his harvester rigs
+				{
+					hero = {
+						kind = "photo",
+						count = 3,
+						range = { 40, 140 },
+						text = "Photograph the King's bots wrecking farms",
+					},
+					villain = {
+						kind = "fetch",
+						count = 3,
+						range = { 40, 140 },
+						guards = { "BruteBot", 1 },
+						text = "Steal the fuel cells from his harvester rigs",
+					},
+					at = "KingsAcre",
+					lines = {
+						{
+							who = "patch",
+							hero = "The news says the farms just had a bad year. Get proof on camera!",
+							villain = "No fuel, no harvester rigs. Pull the cells and his bots stop dead in the rows!",
+						},
+						{
+							who = "harvest",
+							text = "Thieves AND snoops on my acre? My beauty will deal with the lot of you!",
+						},
+					},
+				},
+				-- 8. The finale at the King's Acre: the Bramblebeast, then the Harvest King himself
+				{
+					hero = {
+						kind = "finale",
+						enemy = "Bramblebeast",
+						hpMult = 2,
+						card = { name = "THE BRAMBLEBEAST", title = "THE HUNGRY HARVEST" },
+						adds = { { "BurglarBot", 2 } },
+						encore = { enemy = "HarvestKing", hpMult = 3, adds = { { "BruteBot", 1 } } },
+						range = { 20, 60 },
+						text = "Calm the Bramblebeast, then topple the Harvest King",
+						villainText = "Beat the Bramblebeast and rob the Harvest King",
+					},
+					villain = "same",
+					at = "KingsAcre",
+					scene = "kingsHarvest",
+					lines = {
+						{
+							who = "harvest",
+							hero = "Wake up, my beauty! Supper's here, and it brought a hero!",
+							villain = "Wake up, my beauty! Supper's here, and it brought thieves!",
+						},
+						{
+							who = "Dot",
+							hero = "Careful! Hurt that beast and he'll come for you himself.",
+							villain = "Beat his beast and he'll come out to fight. Then his vault's wide open.",
+						},
+					},
+				},
+			},
+		},
+
 		-- Coast chain (nate's lore, build plan step 11): The Salt Dogs. nate's draft: "Powered pirates raid ships
 		-- and hide treasure in sea caves. Captain Brine and the Salt Dogs crew." 8 quests (the draft's count).
 		-- Captain Brine was a salvage diver whose Spark woke in the deep: he moves the tide. He fights in a powered
@@ -1256,7 +1612,7 @@ return {
 		-- end. Standalone: no Crane in it.
 		{
 			id = "SaltDogs",
-			bit = 10,
+			bit = 6,
 			name = "The Salt Dogs",
 			layer = "district",
 			district = "Coast",
