@@ -22869,7 +22869,9 @@ end
 -- the HQ art pass (2026-11-18, own file); ONLY="HQ art" runs just these
 (require :: any)("./hqart_test")({ test = test, check = check, Config = Config });
 -- walls (nate's playtest 2026-11-18: robots walked through walls; the subway fight); ONLY="Walls" runs these
-(require :: any)("./walls_test")({ test = test, check = check, Config = Config })
+(require :: any)("./walls_test")({ test = test, check = check, Config = Config });
+-- the enemy motion pass (2026-11-18, own file); ONLY="Enemy motion" runs just these
+(require :: any)("./motion_test")({ test = test, check = check, Config = Config })
 
 print(string.format("\n%d passed, %d failed", passed, failed))
 if failed > 0 then

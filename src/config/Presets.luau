@@ -29,6 +29,7 @@ return {
 		sunRays = false,
 		enemyPoseNear = 60, -- robots this close pose every frame (Config.Enemies.look.poseNear before)
 		enemyPoseEvery = 4, -- farther ones every this many frames
+		enemyAnimNear = 80, -- robots this close walk with Roblox's own animations (Config.Enemies.look.loco)
 		enemyPool = { keep = 2, idle = 20 }, -- spare robot bodies kept a kind; the rest go after idle s
 		clothesNear = 20, -- dressed rigs this close draw every clothes face (the tucked ones too)
 		clothesFar = 60, -- past this a rig drops its clothes Textures (its part colours match them)
@@ -51,6 +52,7 @@ return {
 		sunRays = true,
 		enemyPoseNear = 120, -- robots this close pose every frame (Config.Enemies.look.poseNear before)
 		enemyPoseEvery = 3, -- farther ones every this many frames
+		enemyAnimNear = 150, -- robots this close walk with Roblox's own animations (Config.Enemies.look.loco)
 		enemyPool = { keep = 4, idle = 30 }, -- spare robot bodies kept a kind; the rest go after idle s
 		clothesNear = 25, -- dressed rigs this close draw every clothes face (the tucked ones too)
 		clothesFar = 80, -- past this a rig drops its clothes Textures (its part colours match them)
@@ -73,6 +75,7 @@ return {
 		sunRays = true,
 		enemyPoseNear = 120, -- robots this close pose every frame (Config.Enemies.look.poseNear before)
 		enemyPoseEvery = 3, -- farther ones every this many frames
+		enemyAnimNear = 200, -- robots this close walk with Roblox's own animations (Config.Enemies.look.loco)
 		enemyPool = { keep = 4, idle = 30 }, -- spare robot bodies kept a kind; the rest go after idle s
 		clothesNear = 30, -- dressed rigs this close draw every clothes face (the tucked ones too)
 		clothesFar = 100, -- past this a rig drops its clothes Textures (its part colours match them)
