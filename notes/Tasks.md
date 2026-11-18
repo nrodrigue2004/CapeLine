@@ -145,6 +145,17 @@ What nate does:
 
 ## Studio test list (needs nate's PC)
 
+### Text pass: wording, spelling and old names (2026-11-18)
+The overnight text pass (tests: ONLY="Text pass"). Each line is a wording you can check on a phone-size window (Studio's device emulator, iPhone SE).
+1. Contract Board: take a Core recovery contract. The tracker row reads "core 120 studs N" (it said "shard").
+2. World boss: DEV > Boss to 1 HP, then hit it. The result card's style line reads "Boss style unlocked! (GEAR > STYLES)". Earn a new style from Gizmo: the toast reads "NEW STYLE! Equip it in GEAR > STYLES" and the GEAR screen has a STYLES tab.
+3. Missions: with every mission busy (or the gate test in M7), the toast reads "Too many missions running: try again in a minute", on the Journal and the Task Force board alike. Start a mission mid-fight: "Not during a fight".
+4. Side-vs-side events: let one end (Dev panel side event). The banner reads THE VIGIL WINS! or THE SYNDICATE WINS!
+5. Map: the Docks beacon reads "Harbour Gantry".
+6. Loading notes: open the Hero Pass, the weekly boards and the badge book on a slow connection: each shows its loading line with "..." ("Opening the badge book...").
+7. Creator: Waist and legs, the level 21 pants read "Genie Pants" (same piece, same saved looks). Mentors: Captain Meridian's card says "A Vigil flyer".
+8. Text fits: on iPhone SE, the toasts above and the Gear perk "Each defeat refunds 20% of your super's cooldown" fit on their lines.
+
 ### Travel audit: underwater, vehicles, citizens, travel (2026-11-18)
 Fixes from the overnight audit (tests: ONLY="Travel audit"). Use the Dev panel and Studio's network emulation.
 1. Fast travel to each of the 12 beacons (MAP): you land beside the post on its roof, standing, never inside the post, a wall or the roof; walk off and nothing snags.
@@ -1308,7 +1319,7 @@ DEV panel (M6 row): Inc (cycles the 10 templates, spawns that one next to you), 
 6. World boss: DEV > Boss now (or wait 10 minutes on a fresh server; a wiped profile pulls it to 6 minutes). At T minus 60 s a red banner counts down (Raid prep incidents start 5 minutes out; each clear takes 3% off its HP). Rustjaw Prime drops from the sky south of the plaza; the bar shows HP, phase marks, time left and your tier and rank. Its core and knees take double damage; the 2 shoulder cannons shell heroes until broken. Telegraphs: red rings and cones fill before each Stomp and Swipe; Scrap Rain circles in phase 2; Eye Laser lines in phase 3; a stomp next to a building damages it.
 7. Lumen Maw (next boss): rises in the Old Quarry; 3 generators around the pit heal it until broken; Gravity Pull drags you toward it in phase 3 while its ring warns.
 8. Contribution: a healer or shielder who never hits it still reaches Contributor in a 4-player fight; a player who arrives with 1 minute left still gets at least the floor. Heroes and villains (DEV > Side) hit the same bar.
-9. Result: DEV > Boss to 1 HP, then hit it: it falls apart in sparks and plates; the result card (5 s, tap to close) shows tier, rank, Credits, Renown, drops, a style unlock (GEAR > Styles) and the MVP names. Let it run 8 minutes instead: it flies off and the card says it got away (Credits only).
+9. Result: DEV > Boss to 1 HP, then hit it: it falls apart in sparks and plates; the result card (5 s, tap to close) shows tier, rank, Credits, Renown, drops, a style unlock (GEAR > STYLES) and the MVP names. Let it run 8 minutes instead: it flies off and the card says it got away (Credits only).
 10. Clock: DEV > Clock steps day, dusk, night, dawn; the sky glides there and night is darker blue but readable. At night more red Syndicate incidents show up (with Side: villain).
 11. MAP shows incident dots, event diamonds and the boss.
 12. Gate: with 30 bots plus you, the Dev panel's "schedulers" and "boss" times stay low and the server frame holds; nothing idles more than 5 s (an incident is always within reach).

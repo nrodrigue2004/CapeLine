@@ -384,7 +384,7 @@ local function draw()
 	end
 	local d = state
 	if not d then
-		Kit.stateNote(body, "loading", "Opening the Hero Pass")
+		Kit.stateNote(body, "loading", "Opening the Hero Pass...")
 		return
 	end
 	if tab == "pass" then

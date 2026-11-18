@@ -130,7 +130,7 @@ return {
 	beacons = {
 		{ id = 1, name = "Crane's Hero Hall", at = "plaza" }, -- the Beacon Tower (lore Q1: Crane's Hero Hall)
 		{ id = 2, name = "Downtown East", at = "roof", x = -150, z = 150 },
-		{ id = 3, name = "Harbor Gantry", at = "crane" },
+		{ id = 3, name = "Harbour Gantry", at = "crane" },
 		{ id = 4, name = "Clock Tower", at = "clock" },
 		{ id = 5, name = "The Crater", at = "CometCrater" },
 		{ id = 6, name = "Radio Hill", at = "RadioHill" },

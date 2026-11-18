@@ -73,17 +73,17 @@ local PVP_REASONS: { [string]: string } = {
 local REMATCH_REASONS: { [string]: string } = {
 	none = "The rematch chance has passed",
 	flag = "Switch PvP on first, then tap again",
-	gone = "They have left the server",
+	gone = "They left the server",
 	wait = "You pinged them a moment ago",
 	late = "That rematch ping ran out",
 }
 
 local MISSION_REASONS: { [string]: string } = {
 	level = "Reach the mission's level first",
-	locked = "Finish the mission before it first",
-	combat = "Leave combat first",
+	locked = "Finish the mission before this one first",
+	combat = "Not during a fight",
 	busy = "Finish what you are doing first",
-	full = "Every mission pocket is in use: try again in a minute",
+	full = "Too many missions running: try again in a minute",
 	loading = "Still loading",
 	mission = "That mission cannot be started here",
 }
@@ -103,7 +103,7 @@ local SQ_IDS = {
 local SQ_LOCKED = {
 	level = "You need a higher level for that side quest",
 	story = "Play further in the story first",
-	after = "Finish the chain before it first",
+	after = "Finish the chain before this one first",
 	npc = "Talk to its giver to take that one",
 	done = "You already finished that side quest",
 }
@@ -358,8 +358,8 @@ function Toasts.show(data: { [string]: any })
 				string.format(
 					"%s%s",
 					if data.winner == "hero"
-						then "THE VIGIL WIN!"
-						elseif data.winner == "villain" then "THE SYNDICATE WIN!"
+						then "THE VIGIL WINS!"
+						elseif data.winner == "villain" then "THE SYNDICATE WINS!"
 						else "NO WINNER THIS TIME",
 					if (data.rep or 0) > 0
 						then string.format(
@@ -557,7 +557,7 @@ function Toasts.show(data: { [string]: any })
 			push(M9_REASONS[data.reason or ""] or "You cannot buy that right now", Kit.color.paper)
 		end
 	elseif id == "styleBought" then
-		push("NEW STYLE! Equip it in GEAR > Show Style", Kit.color.gold, true, 4)
+		push("NEW STYLE! Equip it in GEAR > STYLES", Kit.color.gold, true, 4)
 	elseif id == "squadRefused" then
 		push(SQUAD_REASONS[data.reason or ""] or "Squad: try again", Kit.color.paper)
 	elseif id == "squadInvited" then

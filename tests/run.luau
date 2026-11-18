@@ -22701,7 +22701,9 @@ end
 -- the perf pass's checks (fast paths against the slow ones they replace) live in their own file too
 (require :: any)("./perf")({ test = test, check = check, near = near, Config = Config });
 -- the city and destruction audit (2026-11-18, own file, merges easily); ONLY="City audit" runs just these
-(require :: any)("./city_audit_test")({ test = test, check = check, Config = Config, world = world })
+(require :: any)("./city_audit_test")({ test = test, check = check, Config = Config, world = world });
+-- the text pass (2026-11-18, own file): old names, fixed typos and term casing; ONLY="Text pass" runs these
+(require :: any)("./text_test")({ test = test, check = check, Config = Config })
 
 print(string.format("\n%d passed, %d failed", passed, failed))
 if failed > 0 then

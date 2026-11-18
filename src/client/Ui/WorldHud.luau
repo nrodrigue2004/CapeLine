@@ -186,7 +186,7 @@ local function refreshTracker()
 			if c[4] and c[4] > 0 then
 				sub ..= string.format(
 					"   %s %d studs %s",
-					if id == "ShardRecovery" then "shard" else "next",
+					if id == "ShardRecovery" then "core" else "next",
 					c[4],
 					compass(c[5], c[6])
 				)
@@ -481,7 +481,7 @@ local function showResult(r: { [string]: any })
 	end
 	if (r.style or 0) > 0 then
 		table.insert(lines, {
-			if r.shiny then "SHINY BOSS STYLE UNLOCKED!" else "Boss style unlocked! (GEAR > Styles)",
+			if r.shiny then "SHINY BOSS STYLE UNLOCKED!" else "Boss style unlocked! (GEAR > STYLES)",
 			Color3.fromRGB(255, 120, 220),
 			20,
 		})

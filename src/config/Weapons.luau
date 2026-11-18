@@ -22,7 +22,7 @@ return {
 		{ 1, "fists", "Bare Fists", 1, "Fast punches, a grab and slam", "credits:0" },
 		{ 2, "fists", "Martial Arts", 3, "Kicks and counters, a parry window", "credits:1500" },
 		{ 3, "fists", "Power Gauntlets", 2, "Heavy punches with shockwaves, a ground pound", "credits:1500" },
-		{ 4, "fists", "Strikers", 2, "Kickboxing in armoured boots, a spinning launcher", "credits:1200" },
+		{ 4, "fists", "Strikers", 2, "Kickboxing in armored boots, a spinning launcher", "credits:1200" },
 		{ 5, "one", "Sword", 1, "Balanced slashes, a dash cut", "credits:800" },
 		{ 6, "one", "Katana", 3, "Quick-draw strikes, a sheathe counter", "credits:2500" },
 		{ 7, "one", "Hand Axe", 2, "Heavy chops, throw and recall", "credits:1500" },

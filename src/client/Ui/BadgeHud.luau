@@ -240,7 +240,7 @@ local function draw()
 	end
 	local d = last
 	if not d then
-		Kit.stateNote(body, "loading", "Opening the book")
+		Kit.stateNote(body, "loading", "Opening the badge book...")
 		return
 	end
 	if tab == "badges" then
@@ -259,7 +259,7 @@ function BadgeHud.drawInto(container: Instance, which: string)
 	body, order = container :: any, 0
 	local d = last
 	if not d then
-		Kit.stateNote(body, "loading", "Opening the book")
+		Kit.stateNote(body, "loading", "Opening the badge book...")
 	elseif which == "collect" then
 		drawCollections(d)
 	elseif which == "titles" then
