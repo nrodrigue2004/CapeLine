@@ -337,6 +337,15 @@ local Remotes: { [string]: RemoteDef } = {
 	DailyClaim = { dir = "C2S", schema = {}, rate = 1, burst = 2 },
 	DailyState = { dir = "S2C" },
 	DailyProgress = { dir = "S2C" },
+	-- WP10: the group piece and creator codes (Settings > REWARDS). PromoOpen: ask for the rows' state;
+	-- PromoRedeem: one code from the box (upper-case letters and digits; the server matches it against the
+	-- fixed list in Config.Promo only, and never sends it anywhere); PromoGroup: CHECK the group again.
+	-- PromoState (the rows) / PromoResult ({ kind, reason, piece }: never the typed text): S2C.
+	PromoOpen = { dir = "C2S", schema = {}, rate = 1, burst = 3 },
+	PromoRedeem = { dir = "C2S", schema = { { t = "string", max = 20 } }, rate = 0.5, burst = 3 },
+	PromoGroup = { dir = "C2S", schema = {}, rate = 0.2, burst = 2 },
+	PromoState = { dir = "S2C" },
+	PromoResult = { dir = "S2C" },
 }
 
 return Remotes

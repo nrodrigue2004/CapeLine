@@ -2,11 +2,19 @@
 -- size, left-handed, reduce flashing, mute list"). Opens from the gear button on the HUD or the main menu.
 -- Every row changes at once on this device and is kept on the account (SettingsClient). Muted players are
 -- listed with UNMUTE. PLACEHOLDER look until the art pass: Kit panels.
+-- WP10 (gap G12): the REWARDS rows at the bottom: the group piece (only while Config.Promo.group.id is set:
+-- CHECK asks the server) and the code box (only while a code is live). The box keeps upper-case letters and
+-- digits only, at most Config.Promo.maxLength, as you type; REDEEM (or Enter) sends it to the server, which
+-- matches it against the fixed list. The box lives on this screen only: it is never shown to anyone else,
+-- and the answer is one fixed line under the box (plus the usual NEW LOOK PIECE toast), never the text.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Net = require(Shared:WaitForChild("Net"))
+local PromoRules = require(Shared:WaitForChild("PromoRules"))
 
 local Kit = require(script.Parent.Kit)
 local SettingsClient = require(script.Parent.Parent.Controllers.SettingsClient)
@@ -19,6 +27,10 @@ local T = Config.Ui.touchTarget
 local gui: ScreenGui
 local body: ScrollingFrame
 local order = 0
+-- WP10: the REWARDS rows (PromoState from the server), the last answer's line and what is in the code box
+local promo: { [string]: any }? = nil
+local promoNote: { text: string, good: boolean }? = nil
+local typed = ""
 
 local function clear()
 	for _, c in body:GetChildren() do
@@ -168,6 +180,186 @@ local function muteRows()
 	end
 end
 
+-- WP10: every answer is one of these fixed lines (the typed text is never shown back)
+local CODE_NOTES: { [string]: string } = {
+	ok = "CODE ACCEPTED! NEW LOOK PIECE: %s",
+	owned = "Code accepted. You already own the %s.",
+	used = "You already used that code.",
+	unknown = "That is not one of our codes. Check the spelling.",
+	bad = "Codes are 3 to 12 letters and numbers.",
+	expired = "That code has ended.",
+	notyet = "That code is not live yet.",
+	wait = "Too many tries. Wait %s and try again.",
+	save = "Saving is down right now. Try again later.",
+	off = "Codes are off right now.",
+}
+local GROUP_NOTES: { [string]: string } = {
+	ok = "THANKS FOR JOINING! NEW LOOK PIECE: %s",
+	owned = "Thanks for joining! You already own the %s.",
+	claimed = "You already have the group reward.",
+	notMember = "Join %s from the game page, then tap CHECK.",
+	error = "Could not reach Roblox. Try again soon.",
+	wait = "Checked a moment ago. Try again in %s.",
+	save = "Saving is down right now. Try again later.",
+	off = "The group reward is off right now.",
+}
+
+local function noteFor(r: { [string]: any }): (string, boolean)
+	local notes = if r.kind == "group" then GROUP_NOTES else CODE_NOTES
+	local line = notes[r.reason or ""] or "Try again soon."
+	local good = r.reason == "ok" or r.reason == "owned"
+	if r.reason == "wait" then
+		return string.format(line, Kit.time(r.wait or 60)), false
+	elseif r.reason == "notMember" then
+		return string.format(line, (promo and promo.group and promo.group.name) or "the group"), false
+	end
+	if string.find(line, "%s", 1, true) then
+		line = string.format(line, string.upper(r.piece or "a look piece"))
+	end
+	return line, good
+end
+
+-- Send what is in the box (true when there was a code to send)
+local function sendCode(): boolean
+	local code = PromoRules.typed(Config, typed)
+	if #code == 0 then
+		return false
+	end
+	typed = ""
+	Net.send("PromoRedeem", code)
+	return true
+end
+
+local function promoRows()
+	local p = promo
+	if not p or not p.on or (not p.group and (p.codes or 0) == 0) then
+		return
+	end
+	order += 1
+	local h = Kit.label({
+		Name = "PromoHead",
+		Text = "REWARDS",
+		Size = UDim2.new(1, -8, 0, 30),
+		LayoutOrder = order,
+		TextColor3 = Kit.color.gold,
+		maxText = 24,
+	})
+	h.Parent = body
+	if p.group then
+		local f = rowFrame()
+		f.Name = "PromoGroup"
+		label(f, string.format("JOIN THE GROUP: FREE %s", string.upper(p.group.piece or "")))
+		local b = Kit.button({
+			Name = "Check",
+			Text = if p.group.claimed then "CLAIMED" else "CHECK",
+			AnchorPoint = Vector2.new(1, 0.5),
+			Size = UDim2.new(0.42, 0, 0, T - 8),
+			Position = UDim2.new(1, -6, 0.5, 0),
+			BackgroundColor3 = if p.group.claimed then Kit.color.paper else Kit.color.gold,
+			pending = not p.group.claimed,
+			maxText = 20,
+		}, function()
+			if not p.group.claimed then
+				Net.send("PromoGroup")
+			end
+		end)
+		b.Parent = f
+	end
+	if (p.codes or 0) > 0 then
+		local f = rowFrame()
+		f.Name = "PromoCode"
+		local box = Instance.new("TextBox")
+		box.Name = "CodeBox"
+		box.ClearTextOnFocus = false
+		box.Text = typed
+		box.PlaceholderText = "ENTER CODE"
+		box.PlaceholderColor3 = Color3.fromRGB(120, 120, 130)
+		box.Font = Kit.font
+		box.TextScaled = true
+		box.TextColor3 = Kit.color.ink
+		box.BackgroundColor3 = Kit.color.paper
+		box.BorderSizePixel = 0
+		box.TextXAlignment = Enum.TextXAlignment.Left
+		box.AnchorPoint = Vector2.new(0, 0.5)
+		box.Size = UDim2.new(0.55, -18, 0, T - 8)
+		box.Position = UDim2.new(0, 8, 0.5, 0)
+		Kit.round(box)
+		local pad = Instance.new("UIPadding")
+		pad.PaddingLeft = UDim.new(0, 10)
+		pad.PaddingRight = UDim.new(0, 10)
+		pad.PaddingTop = UDim.new(0, 6)
+		pad.PaddingBottom = UDim.new(0, 6)
+		pad.Parent = box
+		local limit = Instance.new("UITextSizeConstraint")
+		limit.MaxTextSize = math.max(1, math.floor(24 * Kit.textScale))
+		limit.Parent = box
+		box:GetPropertyChangedSignal("Text"):Connect(function()
+			-- only letters and digits, upper case, never longer than a code
+			local clean = PromoRules.typed(Config, box.Text)
+			if clean ~= box.Text then
+				box.Text = clean
+			end
+			typed = clean
+		end)
+		box.FocusLost:Connect(function(enter: boolean)
+			if enter then
+				sendCode()
+				box.Text = ""
+			end
+		end)
+		box.Parent = f
+		local b: TextButton
+		b = Kit.button({
+			Name = "Redeem",
+			Text = "REDEEM",
+			AnchorPoint = Vector2.new(1, 0.5),
+			Size = UDim2.new(0.42, 0, 0, T - 8),
+			Position = UDim2.new(1, -6, 0.5, 0),
+			maxText = 20,
+		}, function()
+			if b:GetAttribute("Pending") then
+				return -- one code at a time
+			end
+			if sendCode() then
+				Kit.pending(b) -- until the answer's line
+			end
+			box.Text = ""
+		end)
+		b.Parent = f
+	end
+	if promoNote then
+		order += 1
+		local n = Kit.label({
+			Name = "PromoNote",
+			Text = promoNote.text,
+			Size = UDim2.new(1, -8, 0, 30),
+			LayoutOrder = order,
+			TextColor3 = if promoNote.good then Kit.color.gold else Kit.color.paper,
+			Font = Kit.bodyFont,
+			TextWrapped = true,
+			maxText = 16,
+		})
+		n.Parent = body
+	end
+end
+
+-- WP10: the rows' state and answers (the Settings screen and the tests call these)
+function SettingsMenu.promoState(state: { [string]: any })
+	promo = state
+	if gui and gui.Enabled then
+		draw()
+	end
+end
+
+function SettingsMenu.promoResult(r: { [string]: any })
+	local text, good = noteFor(r)
+	promoNote = { text = text, good = good }
+	Kit.settle()
+	if gui and gui.Enabled then
+		draw()
+	end
+end
+
 draw = function()
 	if not gui.Enabled then
 		return
@@ -178,13 +370,16 @@ draw = function()
 		settingRow(k)
 	end
 	muteRows()
+	promoRows()
 	body.CanvasPosition = y
 end
 
 function SettingsMenu.open()
 	Kit.opening("SettingsMenu", gui, SettingsMenu.close)
 	gui.Enabled = true
+	promoNote = nil
 	draw()
+	Net.send("PromoOpen") -- WP10: the REWARDS rows (they draw when the answer comes)
 end
 
 function SettingsMenu.close()
@@ -240,6 +435,8 @@ function SettingsMenu.init()
 	list.Parent = body
 	QualityController.Changed:Connect(draw)
 	PvpClient.MutesChanged:Connect(draw)
+	Net.listen("PromoState", SettingsMenu.promoState)
+	Net.listen("PromoResult", SettingsMenu.promoResult)
 end
 
 return SettingsMenu

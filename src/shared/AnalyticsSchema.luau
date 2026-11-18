@@ -84,6 +84,9 @@ AnalyticsSchema.EVENTS = {
 	daily_claim = { "track_day", "reward", "late" }, -- value: the streak; late 1: paid on the next day's login
 	daily_quest = { "quest", "slot" }, -- value: quests done today
 	daily_all_done = { "track_day" }, -- value: the streak
+	-- WP10: a group piece or creator code paid (Shared.PromoRules.event): kind group or code, the code's tag
+	-- (from the fixed list in Config.Promo; never typed text). Rare: once per account each
+	promo_claim = { "kind", "code" },
 }
 
 AnalyticsSchema.FUNNELS = {

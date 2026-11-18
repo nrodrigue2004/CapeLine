@@ -10,6 +10,9 @@
 local Config = if script
 	then require(script.Parent.Parent:WaitForChild("Config"))
 	else (require :: any)("../config")
+local PromoRules = if script
+	then require(script.Parent:WaitForChild("PromoRules"))
+	else (require :: any)("./PromoRules")
 
 local ProfileSchema = {}
 
@@ -300,6 +303,9 @@ function ProfileSchema.default(): { [string]: any }
 		-- H8: this week's episode: week (PassRules.week), steps = done bits, counts per step, intro = the week
 		-- whose panels were shown
 		episode = { week = 0, steps = 0, counts = { 0, 0, 0, 0 }, intro = 0 },
+		-- WP10: the group-join piece (group = 1 once paid) and the creator codes claimed ([CODE] = UTC day),
+		-- account-wide (Shared.PromoRules); added 2026-11-18 without a version bump (repair fills and cleans it)
+		promo = { group = 0, codes = {} },
 	}
 end
 
@@ -857,6 +863,7 @@ local function repair(p: any): any
 		hopAt = num(fu.hopAt, 0, 2 ^ 40, 0),
 		played = num(fu.played, 0, 2 ^ 40, 0),
 	}
+	p.promo = PromoRules.clean(p.promo) -- WP10 (server only, never in the client view)
 	p.version = ProfileSchema.VERSION
 	return p
 end

@@ -492,6 +492,13 @@ function DevPanel.init()
 	add("Daily: start over", function()
 		Net.send("DevCommand", "daily", 4)
 	end)
+	-- WP10: the group piece and creator codes (Settings > REWARDS)
+	add("Promo: forget claims", function()
+		Net.send("DevCommand", "promo", 1)
+	end)
+	add("Promo: group member", function()
+		Net.send("DevCommand", "promo", 2)
+	end)
 	-- M10: settings and accessibility
 	add("Reset settings", function()
 		for _, k in Config.Settings.keys do

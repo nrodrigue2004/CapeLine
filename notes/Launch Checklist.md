@@ -43,3 +43,11 @@ Every paid push follows the shared playbook in project files `marketing/Paid Ads
 - [ ] Day 1: CTR per thumbnail in Ads Manager (aim for 2.5% or more). Day 2: turn off the weakest thumbnail, and read day 1's FunnelKit data.
 - [ ] Pause the campaign if more than 35% of first sessions end in under 1 minute (`first_session_end`, length "under 1m"), or under half of new players reach Opening done (Progress funnel; also the Opening funnel). Fix that step, then run ads again.
 - [ ] Log each campaign in the playbook's campaign log.
+
+## Group and creator codes (WP10, 2026-11-18)
+Both ship off. Set them in `src/config/Promo.luau`, then run Tasks.md "WP10: group-join piece and creator codes".
+- [ ] Make the Capeline community group (original name and emblem, no famous hero or anime look), put its id in Config.Promo.group.id (0 = off) and its name in Config.Promo.group.name (PLACEHOLDER NAME "the Capeline group" now). Link the group on the game page so players can find it.
+- [ ] OK the group reward: the Spark Badge (an earnable drop emblem, never sold, looks only), or pick another "drop" piece in Config.Promo.group.piece.
+- [ ] Creator codes: for each creator, append a row to Config.Promo.codes (code 3 to 12 of A-Z and 0-9, a "drop" piece, optional starts and ends as YYYY-MM-DD UTC, a short tag for analytics). Never reuse an old code for a new reward: a claimed code stays used on every save.
+- [ ] Re-check Roblox's current rules for group-join rewards and promo codes (free cosmetics only, no Robux or paid items, nothing that needs leaving Roblox) before turning them on.
+- [ ] Add promo_claim to the custom events checked against Roblox's AnalyticsService limits (Shared.AnalyticsSchema).

@@ -81,6 +81,7 @@ local SettingsService = require(Services.SettingsService)
 local SquadService = require(Services.SquadService)
 local WeaponService = require(Services.WeaponService)
 local DailyService = require(Services.DailyService) -- WP1: the daily login streak and daily quests
+local PromoService = require(Services.PromoService) -- WP10: the group-join piece and creator codes
 local Analytics = require(Services.Analytics)
 local AnalyticsHooks = require(Services.AnalyticsHooks)
 local FavoriteService = require(Services.FavoriteService) -- WP4: the favorite prompt, once per account
@@ -160,6 +161,7 @@ boot("SettingsService", SettingsService.init)
 boot("SquadService", SquadService.init)
 boot("WeaponService", WeaponService.init)
 boot("DailyService", DailyService.init) -- WP1: before DataService (a loaded profile counts the day)
+boot("PromoService", PromoService.init) -- WP10: before DataService (a loaded profile checks the group)
 boot("Analytics", Analytics.init)
 boot("AnalyticsHooks", AnalyticsHooks.init)
 boot("FavoriteService", FavoriteService.init)
