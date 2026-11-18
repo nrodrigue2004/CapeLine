@@ -67,6 +67,7 @@ local NAMES = {
 	"Boards", -- WP2: the weekly leaderboards
 	"Daily", -- WP1: the daily login streak and daily quests
 	"Promo", -- WP10: the group-join piece and creator codes
+	"Balance", -- WP8: live tuning (the Balance_v<N> whitelist; BalanceService)
 }
 
 local Config: { [string]: any } = {}

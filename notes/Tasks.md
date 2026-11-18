@@ -163,6 +163,15 @@ The story can hold more acts (Config.Story.acts; tests: ONLY="WP11"). Act 1 play
 4. Play mission 2 (Safehouse) from STORY: START, the mission, the reward and the next mission's READY all work as before; PIN still pins the story step to the tracker.
 5. A hero who has cleared all of Act 1 (Dev panel: "Act 1 done"): every mission says CLEARED and REPLAY works, nothing new is pinned, the Lodestar talk and Patch's radio read their after-Act-1 lines as before, and Act 2 stays "coming soon". Rejoin: the save loads with the same clears and choices.
 6. Developer Console shows no errors from Journal, StoryService or StoryClient while switching acts and tabs.
+### WP8: live tuning from Balance_v<N> (2026-11-18)
+The server lays a live key over the bundled Config at boot (tests: ONLY="WP8"). Only the numbers in Config.Balance.keys can change (pay, robot hp and hit size, the world boss's HP and wait). How to write the key: notes/Launch Checklist.md "Live tuning".
+1. Studio with Game Settings > Security > Enable Studio Access to API Services OFF: Play. The Output shows "[Balance] v1.0 studio (Balance_v1/live): 0 set, 0 refused" before "[Capeline] boot, balance v1.0", and the game runs as before (an unpublished file shows "unpublished" instead of "studio").
+2. Turn API access ON (a published place) with no key written: the line reads "v1.0 none". Open the DEV panel, press "Balance: print": the same line and "(the bundled Config, nothing changed)".
+3. Write the example key from the Launch Checklist into the Balance_v1 DataStore (key "live") with a DataStore editor plugin, then Play: "[Balance] v1.1 live (Balance_v1/live): 3 set, 0 refused". "Balance: print" lists each number old -> new. A Brute Bot (Dev panel) now has 500 HP instead of 600; an incident pays about 1.5 / 1.4 of before.
+4. Add a bad number to the key (for example "Economy.scale.credits": 40, or "Loot.sources.incident.chance": 0.9): Play. The good numbers still land; the line shows "1 refused" with a warning, and "Balance: print" shows "refused Economy.scale.credits (range)" or "(locked)".
+5. Analytics: with Studio's Output, each join prints "[Analytics] balance_live 3 v1.1 live 0" once (not again later in the session).
+6. Delete the key (or set Config.Balance.on = false): Play: "v1.0 none" (or "v1.0 off"); everything is back to the bundled numbers.
+7. On a phone, after step 3: the contract board's pay matches what the contract pays when finished (the board shows the server's numbers).
 
 ### WP6: robot combat depth (2026-11-18)
 The Warden's brace, the War-Frame's telegraphed block, the Sneak Bot's lunge and downed robots' wrecks (tests: ONLY="WP6"). Use the Dev panel to spawn robots (Sneak Bot, Warden, Brute Bot) near you.

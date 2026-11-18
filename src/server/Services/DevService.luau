@@ -24,6 +24,7 @@
 -- WP2: boardrows (40 test heroes on every weekly board and you at #6), boardroll (end the board week now).
 -- WP1: daily 1-4 (a day passes, two days pass, finish today's quests, start the streak over).
 -- WP10: promo 1-2 (forget this account's code and group claims; the group piece as if a member).
+-- WP8: balance (print the live balance boot applied and refused, BalanceService.report).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -63,6 +64,7 @@ local RepService = require(script.Parent.RepService) -- lore step 12
 local BoardService = require(script.Parent.BoardService) -- WP2
 local DailyService = require(script.Parent.DailyService) -- WP1
 local PromoService = require(script.Parent.PromoService) -- WP10
+local BalanceService = require(script.Parent.BalanceService) -- WP8
 local ShopRules = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("ShopRules"))
 local CreatorRules = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("CreatorRules"))
 local ProfileSchema = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("ProfileSchema"))
@@ -454,6 +456,10 @@ local commands: { [string]: (player: Player, hero: any, value: number) -> () } =
 	-- WP10: the group piece and creator codes (1 forget this account's claims, 2 the group piece as a member)
 	promo = function(player, _, what)
 		PromoService.dev(player, what)
+	end,
+	-- WP8: print the live balance (what boot set from Balance_v<N> and what it refused) to the Output
+	balance = function()
+		BalanceService.report()
 	end,
 }
 

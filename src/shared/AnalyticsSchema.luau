@@ -87,6 +87,8 @@ AnalyticsSchema.EVENTS = {
 	-- WP10: a group piece or creator code paid (Shared.PromoRules.event): kind group or code, the code's tag
 	-- (from the fixed list in Config.Promo; never typed text). Rare: once per account each
 	promo_claim = { "kind", "code" },
+	-- WP8: the live balance this server runs (BalanceService), once per player session
+	balance_live = { "balance", "source", "refused" }, -- value: live numbers applied; balance "v<N>.<rev>"
 }
 
 AnalyticsSchema.FUNNELS = {
