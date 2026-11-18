@@ -8,8 +8,9 @@
 -- * marking a page beaten: its bit, and its log row { first day (UTC day number), times beaten, the level
 --   it was first beaten at } in profile.roguesLog[tostring(bit)];
 -- * the counts, the milestone rewards due, the outline's hint and the first-beaten date;
+-- * the portrait image a page shows (its card, its gold card, or none yet: the Kit shapes);
 -- * validate(): unique bits inside their ranges and the save's words, every robot kind, finale and boss
---   covered (tests/rogues_test.luau).
+--   covered, every page with a portrait id slot (tests/rogues_test.luau).
 
 local Bits = if script
 	then require(script.Parent.ProfileSchema).Bits
@@ -34,7 +35,9 @@ export type Entry = {
 	phase: number?, -- a villain's finale phase (2 = the encore)
 	boss: string?, -- a boss's Config.Boss id
 	gold: number?, -- a boss's gold page bit
-	colors: { { number } }, -- the portrait: suit, trim, eye (PLACEHOLDER ART)
+	colors: { { number } }, -- the Kit-shape portrait (until its image is uploaded): suit, trim, eye
+	portrait: number, -- the portrait card's image id (Config.Rogues.portraits; 0 = not uploaded yet)
+	goldPortrait: number?, -- a boss's gold page card's image id (0 = not uploaded yet)
 }
 
 export type LogRow = { number } -- { first UTC day, times beaten, level first beaten at }
@@ -164,8 +167,27 @@ function RoguesFile.list(Config: any): { Entry }
 			colors = row.colors or GREY,
 		})
 	end
+	-- the portrait cards' image ids (Config.Rogues.portraits[group][id]; 0 until nate uploads them)
+	local P = R.portraits or {}
+	for _, e in out do
+		local g = P[e.group]
+		e.portrait = if g and type(g[e.id]) == "number" then g[e.id] else 0
+		if e.gold then
+			local gg = P.gold
+			e.goldPortrait = if gg and type(gg[e.id]) == "number" then gg[e.id] else 0
+		end
+	end
 	cache[Config] = out
 	return out
+end
+
+-- The portrait image a beaten page shows: its gold card on a filled gold page (else its card), its card, or 0
+-- (none uploaded yet: the Kit shapes)
+function RoguesFile.portrait(e: Entry, gold: boolean?): number
+	if gold and (e.goldPortrait or 0) > 0 then
+		return e.goldPortrait :: number
+	end
+	return e.portrait or 0
 end
 
 function RoguesFile.byBit(Config: any, bit: number): Entry?
@@ -396,6 +418,38 @@ function RoguesFile.validate(Config: any): { string }
 	end
 	for _, m in R.milestones do
 		take(m.bit, "milestone " .. tostring(m.n or "all"), "milestones")
+	end
+	-- every page has a portrait id slot (a whole number, 0 until uploaded), and no slot names a missing page
+	local P = R.portraits
+	if type(P) ~= "table" then
+		table.insert(errs, "Config.Rogues.portraits is missing")
+	else
+		local pagesBy: { [string]: { [string]: boolean } } = { gold = {} }
+		for _, e in RoguesFile.list(Config) do
+			pagesBy[e.group] = pagesBy[e.group] or {}
+			pagesBy[e.group][e.id] = true
+			local id = P[e.group] and P[e.group][e.id]
+			if type(id) ~= "number" or id < 0 or id % 1 ~= 0 then
+				table.insert(errs, e.id .. ": no portrait id slot in Config.Rogues.portraits." .. e.group)
+			end
+			if e.gold then
+				pagesBy.gold[e.id] = true
+				local gid = P.gold and P.gold[e.id]
+				if type(gid) ~= "number" or gid < 0 or gid % 1 ~= 0 then
+					table.insert(errs, e.id .. ": no gold portrait id slot in Config.Rogues.portraits.gold")
+				end
+			end
+		end
+		for group, slots in P do
+			for id in slots do
+				if not (pagesBy[group] and pagesBy[group][id]) then
+					table.insert(
+						errs,
+						"portraits." .. tostring(group) .. "." .. tostring(id) .. ": not a page"
+					)
+				end
+			end
+		end
 	end
 	-- every robot kind: its own page, or the finale foe of a villain page
 	local covered: { [string]: boolean } = {}

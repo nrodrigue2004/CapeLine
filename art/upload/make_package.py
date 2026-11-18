@@ -18,6 +18,8 @@ Targets (manifest "target"):
   creator_suit Config.Creator.suitArt.kits.<kit>.<shirt|pants> (the Suits tab's overlays: art/clothes/suits.py)
   creator_emblem Config.Creator.emblemArt.shapes.<shape> or .backings.<backing>.<face|rim> (art/clothes/emblems.py)
   creator_mask Config.Creator.maskArt.kits.<kit>.<front|side|back|top> (flat masks as head decals: art/clothes/masks.py)
+  rogue_portrait Config.Rogues.portraits.<group>.<page id> (the Rogues File's case-file cards: art/rogues/portraits.py;
+               group robots, fakes, villains, bosses, or gold for a world boss's gold page)
 The finale models (art/export/finales/<Name>.fbx) are not images: nate imports them in Studio (Tasks.md).
 """
 
@@ -31,7 +33,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 EXPORT = os.path.join(ROOT, "art", "export")
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-from apply_ids import block, creator_span  # noqa: E402
+from apply_ids import block, creator_span, rogue_span  # noqa: E402
 
 
 def read(path):
@@ -107,6 +109,13 @@ def entries():
             else:
                 t = {"kind": kind, "kit": m.group(2), "which": m.group(1).lower()}
             add(f"clothes/{sub}/{f}", "Creator" + f[:-4], t)
+    # the Rogues File's portrait cards (WP3 art pass, 2026-11-18): one per page, a gold card per world boss
+    rogues = read("src/config/Rogues.luau")
+    for group in ("robots", "fakes", "villains", "bosses", "gold"):
+        g = rogue_span(rogues, {"group": group})
+        for pid in re.findall(r"^\t\t\t([A-Za-z]+) = \d+", rogues[g[0] : g[1]], re.M):
+            name = "Rogue_" + pid + ("_Gold" if group == "gold" else "")
+            add(f"rogues/{name}.png", name, {"kind": "rogue_portrait", "group": group, "id": pid})
     names = [e["file"] for e in out]
     assert len(names) == len(set(names)), "duplicate upload names"
     return out
@@ -137,6 +146,8 @@ def current(e, texts):
         return key_in(creator, creator_span(creator, t), key)
     if k == "fx_texture":
         return key_in(fx, block(fx, fx.index("\t\ttextures = {"), r"^\t\t\t" + t["name"] + r" = \{"), "id")
+    if k == "rogue_portrait":
+        return key_in(texts["rogues"], rogue_span(texts["rogues"], t), t["id"])
     if k == "city_map":
         mf = os.path.join(ROOT, "src", "materials", "Kit" + t["name"] + ".model.json")
         if not os.path.isfile(mf):
@@ -149,7 +160,7 @@ def current(e, texts):
 
 def pending(items):
     texts = {"npc": read("src/config/NpcLooks.luau"), "creator": read("src/config/Creator.luau"),
-             "fx": read("src/config/Fx.luau")}
+             "fx": read("src/config/Fx.luau"), "rogues": read("src/config/Rogues.luau")}
     return [e for e in items if not current(e, texts)]
 
 

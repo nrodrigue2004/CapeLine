@@ -8,6 +8,7 @@ inside each decal, which is what clothes, faces, particles and MaterialVariant m
   src/config/NpcLooks.luau   robots.<robot>.clothes.<version>, faces.<face>.<which>, people.<id>.<which>
   src/config/Creator.luau    clothes.shirts|pants.<name>, suitArt.kits.<kit>, emblemArt, maskArt.kits.<kit>
   src/config/Fx.luau         lib.textures.<name>.id
+  src/config/Rogues.luau     portraits.<group>.<page id> (the Rogues File's portrait cards)
   src/materials/Kit<Name>.model.json and the MaterialService entries in default.project.json (the city kit)
 Safe to run again: every id is set, not added. A batch without city maps leaves the city materials as they are;
 a batch with some merges them into the ones already there.
@@ -73,6 +74,12 @@ def creator_span(text, t):
     return block(text, block(text, at, r"^\t\tbackings = \{")[0], r"^\t\t\t" + t["name"] + r" = \{")
 
 
+def rogue_span(text, t):
+    """The { } block of Config.Rogues.portraits that holds a rogue_portrait target's page id."""
+    at = block(text, text.index("\tportraits = {"), r"^\tportraits = \{")[0]
+    return block(text, at, r"^\t\t" + t["group"] + r" = \{")
+
+
 def lua_table(text, name):
     """{ key: value } of a flat `name = { Key = value, ... }` table (numbers and strings)."""
     a, b = block(text, 0, r"^\t\t" + name + r" = \{")
@@ -100,6 +107,7 @@ def main():
     npc = read("src/config/NpcLooks.luau")
     creator = read("src/config/Creator.luau")
     fx = read("src/config/Fx.luau")
+    rogues = read("src/config/Rogues.luau")
     robots_at = npc.index("\trobots = {")
     faces_at = npc.index("\tfaces = {")
     people_at = npc.index("\tpeople = {")
@@ -130,6 +138,8 @@ def main():
             creator = set_key(creator, creator_span(creator, t), key, i)
         elif k == "fx_texture":
             fx = set_key(fx, block(fx, tex_at, r"^\t\t\t" + t["name"] + r" = \{"), "id", i)
+        elif k == "rogue_portrait":
+            rogues = set_key(rogues, rogue_span(rogues, t), t["id"], i)
         elif k == "city_map":
             maps.setdefault(t["name"], {})[t["map"]] = i
         else:
@@ -138,6 +148,7 @@ def main():
     write("src/config/NpcLooks.luau", npc)
     write("src/config/Creator.luau", creator)
     write("src/config/Fx.luau", fx)
+    write("src/config/Rogues.luau", rogues)
     if not maps:
         print(done, "ids set; city materials unchanged")
         return

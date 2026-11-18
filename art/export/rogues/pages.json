@@ -1,0 +1,5577 @@
+[
+  {
+    "bit": 16,
+    "body": {
+      "art": "Trooper",
+      "build": "slim",
+      "eye": [
+        255,
+        120,
+        60
+      ],
+      "height": 5,
+      "jets": true,
+      "metal": [
+        120,
+        130,
+        145
+      ],
+      "suit": [
+        40,
+        70,
+        140
+      ],
+      "trim": [
+        255,
+        170,
+        60
+      ]
+    },
+    "colors": [
+      [
+        40,
+        70,
+        140
+      ],
+      [
+        255,
+        170,
+        60
+      ],
+      [
+        255,
+        120,
+        60
+      ]
+    ],
+    "group": "robots",
+    "id": "SparkDrone",
+    "kind": "SparkDrone",
+    "name": "Crane Trooper",
+    "title": ""
+  },
+  {
+    "bit": 17,
+    "body": {
+      "build": "normal",
+      "eye": [
+        255,
+        220,
+        80
+      ],
+      "height": 5.5,
+      "mask": true,
+      "metal": [
+        70,
+        70,
+        85
+      ],
+      "suit": [
+        62,
+        62,
+        72
+      ],
+      "trim": [
+        30,
+        30,
+        36
+      ]
+    },
+    "colors": [
+      [
+        62,
+        62,
+        72
+      ],
+      [
+        30,
+        30,
+        36
+      ],
+      [
+        255,
+        220,
+        80
+      ]
+    ],
+    "group": "robots",
+    "id": "BurglarBot",
+    "kind": "BurglarBot",
+    "name": "Burglar Bot",
+    "title": ""
+  },
+  {
+    "bit": 18,
+    "body": {
+      "build": "slim",
+      "eye": [
+        190,
+        90,
+        255
+      ],
+      "height": 5.5,
+      "metal": [
+        50,
+        45,
+        70
+      ],
+      "suit": [
+        45,
+        35,
+        70
+      ],
+      "trim": [
+        170,
+        90,
+        255
+      ]
+    },
+    "colors": [
+      [
+        45,
+        35,
+        70
+      ],
+      [
+        170,
+        90,
+        255
+      ],
+      [
+        190,
+        90,
+        255
+      ]
+    ],
+    "group": "robots",
+    "id": "SneakBot",
+    "kind": "SneakBot",
+    "name": "Sneak Bot",
+    "title": ""
+  },
+  {
+    "bit": 19,
+    "body": {
+      "build": "heavy",
+      "eye": [
+        255,
+        70,
+        50
+      ],
+      "height": 8,
+      "metal": [
+        150,
+        95,
+        60
+      ],
+      "suit": [
+        150,
+        45,
+        45
+      ],
+      "trim": [
+        240,
+        200,
+        80
+      ]
+    },
+    "colors": [
+      [
+        150,
+        45,
+        45
+      ],
+      [
+        240,
+        200,
+        80
+      ],
+      [
+        255,
+        70,
+        50
+      ]
+    ],
+    "group": "robots",
+    "id": "BruteBot",
+    "kind": "BruteBot",
+    "name": "Brute Bot",
+    "title": ""
+  },
+  {
+    "bit": 20,
+    "body": {
+      "build": "heavy",
+      "eye": [
+        80,
+        220,
+        255
+      ],
+      "height": 6.5,
+      "metal": [
+        95,
+        110,
+        120
+      ],
+      "planted": true,
+      "suit": [
+        60,
+        90,
+        112
+      ],
+      "trim": [
+        80,
+        220,
+        255
+      ]
+    },
+    "colors": [
+      [
+        60,
+        90,
+        112
+      ],
+      [
+        80,
+        220,
+        255
+      ],
+      [
+        80,
+        220,
+        255
+      ]
+    ],
+    "group": "robots",
+    "id": "Turret",
+    "kind": "Turret",
+    "name": "Sentry",
+    "title": ""
+  },
+  {
+    "bit": 21,
+    "body": {
+      "build": "heavy",
+      "cape": [
+        92,
+        40,
+        140
+      ],
+      "eye": [
+        255,
+        255,
+        255
+      ],
+      "height": 7.5,
+      "metal": [
+        35,
+        35,
+        45
+      ],
+      "shield": true,
+      "suit": [
+        30,
+        30,
+        42
+      ],
+      "trim": [
+        235,
+        235,
+        245
+      ]
+    },
+    "colors": [
+      [
+        30,
+        30,
+        42
+      ],
+      [
+        235,
+        235,
+        245
+      ],
+      [
+        255,
+        255,
+        255
+      ]
+    ],
+    "group": "robots",
+    "id": "NullSentinel",
+    "kind": "NullSentinel",
+    "name": "Warden",
+    "title": ""
+  },
+  {
+    "bit": 22,
+    "body": {
+      "build": "slim",
+      "eye": [
+        120,
+        255,
+        230
+      ],
+      "height": 5.5,
+      "helmet": true,
+      "jetColor": [
+        120,
+        220,
+        255
+      ],
+      "jets": true,
+      "metal": [
+        90,
+        130,
+        150
+      ],
+      "suit": [
+        30,
+        80,
+        100
+      ],
+      "tank": true,
+      "trim": [
+        255,
+        200,
+        60
+      ]
+    },
+    "colors": [
+      [
+        30,
+        80,
+        100
+      ],
+      [
+        255,
+        200,
+        60
+      ],
+      [
+        120,
+        255,
+        230
+      ]
+    ],
+    "group": "robots",
+    "id": "Diver",
+    "kind": "Diver",
+    "name": "Diver",
+    "title": ""
+  },
+  {
+    "bit": 23,
+    "body": {
+      "build": "heavy",
+      "eye": [
+        255,
+        160,
+        60
+      ],
+      "height": 8.5,
+      "helmet": true,
+      "metal": [
+        110,
+        100,
+        80
+      ],
+      "suit": [
+        90,
+        80,
+        60
+      ],
+      "trim": [
+        200,
+        150,
+        60
+      ]
+    },
+    "colors": [
+      [
+        90,
+        80,
+        60
+      ],
+      [
+        200,
+        150,
+        60
+      ],
+      [
+        255,
+        160,
+        60
+      ]
+    ],
+    "group": "robots",
+    "id": "Anchor",
+    "kind": "Anchor",
+    "name": "Anchor",
+    "title": ""
+  },
+  {
+    "bit": 24,
+    "body": {
+      "build": "heavy",
+      "eye": [
+        255,
+        90,
+        90
+      ],
+      "height": 6.5,
+      "metal": [
+        80,
+        100,
+        110
+      ],
+      "planted": true,
+      "suit": [
+        40,
+        70,
+        80
+      ],
+      "tank": true,
+      "trim": [
+        255,
+        90,
+        90
+      ]
+    },
+    "colors": [
+      [
+        40,
+        70,
+        80
+      ],
+      [
+        255,
+        90,
+        90
+      ],
+      [
+        255,
+        90,
+        90
+      ]
+    ],
+    "group": "robots",
+    "id": "TorpedoSentry",
+    "kind": "TorpedoSentry",
+    "name": "Torpedo Sentry",
+    "title": ""
+  },
+  {
+    "bit": 25,
+    "body": {
+      "build": "heavy",
+      "eye": [
+        255,
+        200,
+        70
+      ],
+      "height": 7,
+      "metal": [
+        120,
+        125,
+        135
+      ],
+      "riot": true,
+      "suit": [
+        52,
+        60,
+        78
+      ],
+      "trim": [
+        230,
+        190,
+        60
+      ]
+    },
+    "colors": [
+      [
+        52,
+        60,
+        78
+      ],
+      [
+        230,
+        190,
+        60
+      ],
+      [
+        255,
+        200,
+        70
+      ]
+    ],
+    "group": "robots",
+    "id": "ShieldBearer",
+    "kind": "ShieldBearer",
+    "name": "Shield Bearer",
+    "title": ""
+  },
+  {
+    "bit": 26,
+    "body": {
+      "build": "normal",
+      "cap": true,
+      "cape": [
+        70,
+        20,
+        30
+      ],
+      "eye": [
+        255,
+        215,
+        90
+      ],
+      "height": 6.5,
+      "metal": [
+        150,
+        140,
+        120
+      ],
+      "suit": [
+        110,
+        30,
+        40
+      ],
+      "trim": [
+        240,
+        200,
+        90
+      ]
+    },
+    "colors": [
+      [
+        110,
+        30,
+        40
+      ],
+      [
+        240,
+        200,
+        90
+      ],
+      [
+        255,
+        215,
+        90
+      ]
+    ],
+    "group": "robots",
+    "id": "Captain",
+    "kind": "Captain",
+    "name": "Captain",
+    "title": ""
+  },
+  {
+    "bit": 27,
+    "body": {
+      "build": "slim",
+      "eye": [
+        255,
+        60,
+        60
+      ],
+      "height": 6,
+      "metal": [
+        90,
+        100,
+        95
+      ],
+      "rifle": true,
+      "suit": [
+        60,
+        75,
+        55
+      ],
+      "trim": [
+        35,
+        40,
+        35
+      ],
+      "visor": true
+    },
+    "colors": [
+      [
+        60,
+        75,
+        55
+      ],
+      [
+        35,
+        40,
+        35
+      ],
+      [
+        255,
+        60,
+        60
+      ]
+    ],
+    "group": "robots",
+    "id": "Sniper",
+    "kind": "Sniper",
+    "name": "Sniper",
+    "title": ""
+  },
+  {
+    "bit": 28,
+    "body": {
+      "bandolier": true,
+      "build": "heavy",
+      "eye": [
+        255,
+        140,
+        40
+      ],
+      "height": 6.5,
+      "metal": [
+        130,
+        100,
+        70
+      ],
+      "suit": [
+        95,
+        75,
+        40
+      ],
+      "trim": [
+        255,
+        140,
+        40
+      ]
+    },
+    "colors": [
+      [
+        95,
+        75,
+        40
+      ],
+      [
+        255,
+        140,
+        40
+      ],
+      [
+        255,
+        140,
+        40
+      ]
+    ],
+    "group": "robots",
+    "id": "Bomber",
+    "kind": "Bomber",
+    "name": "Bomber",
+    "title": ""
+  },
+  {
+    "bit": 29,
+    "body": {
+      "build": "slim",
+      "eye": [
+        90,
+        255,
+        150
+      ],
+      "height": 5.5,
+      "medpack": true,
+      "metal": [
+        200,
+        205,
+        210
+      ],
+      "suit": [
+        225,
+        230,
+        235
+      ],
+      "trim": [
+        60,
+        200,
+        120
+      ]
+    },
+    "colors": [
+      [
+        225,
+        230,
+        235
+      ],
+      [
+        60,
+        200,
+        120
+      ],
+      [
+        90,
+        255,
+        150
+      ]
+    ],
+    "group": "robots",
+    "id": "MedicUnit",
+    "kind": "MedicUnit",
+    "name": "Medic Unit",
+    "title": ""
+  },
+  {
+    "bit": 30,
+    "body": {
+      "build": "slim",
+      "eye": [
+        200,
+        255,
+        60
+      ],
+      "height": 3,
+      "metal": [
+        110,
+        120,
+        60
+      ],
+      "small": true,
+      "suit": [
+        70,
+        90,
+        30
+      ],
+      "trim": [
+        200,
+        255,
+        60
+      ]
+    },
+    "colors": [
+      [
+        70,
+        90,
+        30
+      ],
+      [
+        200,
+        255,
+        60
+      ],
+      [
+        200,
+        255,
+        60
+      ]
+    ],
+    "group": "robots",
+    "id": "Swarmer",
+    "kind": "Swarmer",
+    "name": "Swarmer",
+    "title": ""
+  },
+  {
+    "bit": 31,
+    "body": {
+      "build": "normal",
+      "citizen": true,
+      "eye": [
+        255,
+        80,
+        200
+      ],
+      "height": 5.5,
+      "metal": [
+        100,
+        95,
+        110
+      ],
+      "suit": [
+        70,
+        110,
+        160
+      ],
+      "trim": [
+        60,
+        60,
+        70
+      ]
+    },
+    "colors": [
+      [
+        70,
+        110,
+        160
+      ],
+      [
+        60,
+        60,
+        70
+      ],
+      [
+        255,
+        80,
+        200
+      ]
+    ],
+    "group": "robots",
+    "id": "Mimic",
+    "kind": "Mimic",
+    "name": "Mimic",
+    "title": ""
+  },
+  {
+    "bit": 32,
+    "body": {
+      "build": "slim",
+      "eye": [
+        80,
+        200,
+        255
+      ],
+      "height": 5.5,
+      "jetColor": [
+        110,
+        200,
+        255
+      ],
+      "jets": true,
+      "metal": [
+        150,
+        160,
+        175
+      ],
+      "suit": [
+        200,
+        205,
+        215
+      ],
+      "trim": [
+        40,
+        120,
+        220
+      ],
+      "wings": true
+    },
+    "colors": [
+      [
+        200,
+        205,
+        215
+      ],
+      [
+        40,
+        120,
+        220
+      ],
+      [
+        80,
+        200,
+        255
+      ]
+    ],
+    "group": "robots",
+    "id": "Interceptor",
+    "kind": "Interceptor",
+    "name": "Interceptor",
+    "title": ""
+  },
+  {
+    "bit": 33,
+    "body": {
+      "build": "heavy",
+      "eye": [
+        255,
+        120,
+        60
+      ],
+      "height": 7,
+      "hookArm": true,
+      "metal": [
+        120,
+        110,
+        100
+      ],
+      "suit": [
+        70,
+        55,
+        45
+      ],
+      "trim": [
+        200,
+        120,
+        50
+      ]
+    },
+    "colors": [
+      [
+        70,
+        55,
+        45
+      ],
+      [
+        200,
+        120,
+        50
+      ],
+      [
+        255,
+        120,
+        60
+      ]
+    ],
+    "group": "robots",
+    "id": "Grappler",
+    "kind": "Grappler",
+    "name": "Grappler",
+    "title": ""
+  },
+  {
+    "bit": 34,
+    "body": {
+      "build": "slim",
+      "eye": [
+        120,
+        220,
+        255
+      ],
+      "height": 3.4,
+      "metal": [
+        190,
+        150,
+        70
+      ],
+      "small": true,
+      "suit": [
+        200,
+        40,
+        50
+      ],
+      "trim": [
+        240,
+        200,
+        80
+      ],
+      "windKey": true
+    },
+    "colors": [
+      [
+        200,
+        40,
+        50
+      ],
+      [
+        240,
+        200,
+        80
+      ],
+      [
+        120,
+        220,
+        255
+      ]
+    ],
+    "group": "robots",
+    "id": "WindupToy",
+    "kind": "WindupToy",
+    "name": "Wind-Up Toy",
+    "title": ""
+  },
+  {
+    "bit": 35,
+    "body": {
+      "build": "normal",
+      "eye": [
+        120,
+        230,
+        255
+      ],
+      "height": 5.2,
+      "hook": true,
+      "metal": [
+        140,
+        95,
+        65
+      ],
+      "suit": [
+        40,
+        60,
+        110
+      ],
+      "trim": [
+        230,
+        60,
+        50
+      ]
+    },
+    "colors": [
+      [
+        40,
+        60,
+        110
+      ],
+      [
+        230,
+        60,
+        50
+      ],
+      [
+        120,
+        230,
+        255
+      ]
+    ],
+    "group": "robots",
+    "id": "SaltDog",
+    "kind": "SaltDog",
+    "name": "Salt Dog",
+    "title": ""
+  },
+  {
+    "bit": 48,
+    "body": {
+      "build": "normal",
+      "eye": [
+        255,
+        220,
+        120
+      ],
+      "gender": 1,
+      "height": 5.8,
+      "metal": [
+        200,
+        180,
+        120
+      ],
+      "suit": [
+        255,
+        210,
+        60
+      ],
+      "trim": [
+        245,
+        245,
+        245
+      ]
+    },
+    "colors": [
+      [
+        255,
+        210,
+        60
+      ],
+      [
+        245,
+        245,
+        245
+      ],
+      [
+        255,
+        220,
+        120
+      ]
+    ],
+    "group": "fakes",
+    "id": "Radiant",
+    "kind": "Radiant",
+    "look": {
+      "build": 2,
+      "colors": [
+        4,
+        18,
+        47
+      ],
+      "gender": 1,
+      "hair": 4,
+      "height": 4,
+      "mats": {
+        "shoulders": "Metal"
+      },
+      "pieces": {
+        "back": "Long Cape",
+        "belt": "Sash",
+        "emblem": "Burst",
+        "feet": "Winged Boots",
+        "hair": "Hero Quiff",
+        "hands": "Long Cuffs",
+        "hat": "Halo",
+        "shoulders": "Epaulettes",
+        "suit": "Chevron Suit",
+        "trail": "Sparkle Trail",
+        "visage": "Hero Face"
+      },
+      "skin": 2,
+      "tints": {
+        "back": [
+          18,
+          4,
+          0
+        ],
+        "belt": [
+          18,
+          0,
+          0
+        ]
+      }
+    },
+    "name": "Radiant",
+    "person": "Radiant",
+    "rgb": [
+      [
+        255,
+        210,
+        60
+      ],
+      [
+        245,
+        245,
+        245
+      ],
+      [
+        255,
+        240,
+        80
+      ]
+    ],
+    "tints": {
+      "back": [
+        [
+          245,
+          245,
+          245
+        ],
+        [
+          255,
+          210,
+          60
+        ]
+      ],
+      "belt": [
+        [
+          245,
+          245,
+          245
+        ]
+      ]
+    },
+    "title": "The Golden Dawn"
+  },
+  {
+    "bit": 49,
+    "body": {
+      "build": "titan",
+      "eye": [
+        120,
+        200,
+        255
+      ],
+      "gender": 1,
+      "height": 9.5,
+      "metal": [
+        90,
+        100,
+        120
+      ],
+      "riot": true,
+      "suit": [
+        40,
+        110,
+        220
+      ],
+      "trim": [
+        175,
+        180,
+        190
+      ]
+    },
+    "colors": [
+      [
+        40,
+        110,
+        220
+      ],
+      [
+        175,
+        180,
+        190
+      ],
+      [
+        120,
+        200,
+        255
+      ]
+    ],
+    "group": "fakes",
+    "id": "Bulwark",
+    "kind": "Bulwark",
+    "look": {
+      "build": 4,
+      "colors": [
+        10,
+        19,
+        47
+      ],
+      "gender": 1,
+      "hair": 22,
+      "height": 5,
+      "mats": {
+        "shoulders": "Metal",
+        "suit": "Metal"
+      },
+      "pieces": {
+        "arms": "Arm Plates",
+        "belt": "Champion Belt",
+        "emblem": "Hex Badge",
+        "feet": "Combat Boots",
+        "hair": "Buzz Cut",
+        "hands": "Armored Gauntlets",
+        "shoulders": "Great Pauldrons",
+        "suit": "Plated Suit",
+        "visage": "Stern Face"
+      },
+      "skin": 4,
+      "tints": {
+        "shoulders": [
+          19,
+          10,
+          0
+        ]
+      }
+    },
+    "name": "Bulwark",
+    "person": "Bulwark",
+    "rgb": [
+      [
+        40,
+        110,
+        220
+      ],
+      [
+        175,
+        180,
+        190
+      ],
+      [
+        255,
+        240,
+        80
+      ]
+    ],
+    "tints": {
+      "shoulders": [
+        [
+          175,
+          180,
+          190
+        ],
+        [
+          40,
+          110,
+          220
+        ]
+      ]
+    },
+    "title": "The Unbreakable"
+  },
+  {
+    "bit": 50,
+    "body": {
+      "build": "slim",
+      "eye": [
+        80,
+        255,
+        255
+      ],
+      "gender": 2,
+      "height": 5.6,
+      "metal": [
+        170,
+        185,
+        200
+      ],
+      "spear": true,
+      "suit": [
+        60,
+        160,
+        230
+      ],
+      "trim": [
+        245,
+        245,
+        245
+      ]
+    },
+    "colors": [
+      [
+        60,
+        160,
+        230
+      ],
+      [
+        245,
+        245,
+        245
+      ],
+      [
+        80,
+        255,
+        255
+      ]
+    ],
+    "group": "fakes",
+    "id": "Skylance",
+    "kind": "Skylance",
+    "look": {
+      "build": 1,
+      "colors": [
+        33,
+        18,
+        46
+      ],
+      "gender": 2,
+      "hair": 12,
+      "height": 4,
+      "mats": {},
+      "pieces": {
+        "arms": "Bracers",
+        "back": "Wind Scarf",
+        "emblem": "Ring Star",
+        "feet": "Tall Boots",
+        "hair": "High Ponytail",
+        "hands": "Fingerless Gloves",
+        "shoulders": "Wingtips",
+        "suit": "Racer Stripe",
+        "trail": "Streak Trail",
+        "visage": "Sharp Face"
+      },
+      "skin": 3,
+      "tints": {
+        "back": [
+          18,
+          33,
+          0
+        ]
+      }
+    },
+    "name": "Skylance",
+    "person": "Skylance",
+    "rgb": [
+      [
+        60,
+        160,
+        230
+      ],
+      [
+        245,
+        245,
+        245
+      ],
+      [
+        80,
+        255,
+        255
+      ]
+    ],
+    "tints": {
+      "back": [
+        [
+          245,
+          245,
+          245
+        ],
+        [
+          60,
+          160,
+          230
+        ]
+      ]
+    },
+    "title": "The Silver Streak"
+  },
+  {
+    "bit": 51,
+    "body": {
+      "build": "normal",
+      "eye": [
+        255,
+        60,
+        60
+      ],
+      "height": 5.3,
+      "metal": [
+        120,
+        120,
+        135
+      ],
+      "suit": [
+        40,
+        110,
+        220
+      ],
+      "trim": [
+        235,
+        60,
+        60
+      ]
+    },
+    "colors": [
+      [
+        40,
+        110,
+        220
+      ],
+      [
+        235,
+        60,
+        60
+      ],
+      [
+        255,
+        60,
+        60
+      ]
+    ],
+    "group": "fakes",
+    "id": "EvilTwin",
+    "kind": "EvilTwin",
+    "name": "Evil Twin",
+    "title": "A FAKE WEARING YOUR FACE"
+  },
+  {
+    "bit": 64,
+    "body": {
+      "build": "normal",
+      "eye": [
+        120,
+        200,
+        255
+      ],
+      "gender": 1,
+      "height": 5.8,
+      "metal": [
+        190,
+        195,
+        210
+      ],
+      "suit": [
+        245,
+        245,
+        245
+      ],
+      "trim": [
+        60,
+        150,
+        230
+      ]
+    },
+    "colors": [
+      [
+        245,
+        245,
+        245
+      ],
+      [
+        60,
+        150,
+        230
+      ],
+      [
+        120,
+        200,
+        255
+      ]
+    ],
+    "group": "villains",
+    "id": "HeadmasterHalo",
+    "kind": "HeadmasterHalo",
+    "look": {
+      "build": 2,
+      "colors": [
+        18,
+        33,
+        4
+      ],
+      "gender": 1,
+      "hair": 19,
+      "height": 4,
+      "mats": {},
+      "pieces": {
+        "back": "High Collar Cape",
+        "beard": "Pencil Mustache",
+        "belt": "Sash",
+        "emblem": "Peak",
+        "feet": "Boots",
+        "hair": "Slicked Back",
+        "hands": "Gloves",
+        "hat": "Halo",
+        "neck": "Medal",
+        "shoulders": "Mantle",
+        "suit": "Split Tone",
+        "visage": "Hero Face"
+      },
+      "skin": 1,
+      "tints": {
+        "back": [
+          33,
+          4,
+          0
+        ]
+      }
+    },
+    "name": "HEADMASTER HALO",
+    "person": "HeadmasterHalo",
+    "rgb": [
+      [
+        245,
+        245,
+        245
+      ],
+      [
+        60,
+        160,
+        230
+      ],
+      [
+        255,
+        210,
+        60
+      ]
+    ],
+    "tints": {
+      "back": [
+        [
+          60,
+          160,
+          230
+        ],
+        [
+          255,
+          210,
+          60
+        ]
+      ]
+    },
+    "title": "THE FAKE TEACHER"
+  },
+  {
+    "bit": 65,
+    "body": {
+      "build": "slim",
+      "eye": [
+        255,
+        80,
+        40
+      ],
+      "gender": 1,
+      "height": 5.4,
+      "metal": [
+        120,
+        110,
+        110
+      ],
+      "suit": [
+        220,
+        40,
+        40
+      ],
+      "trim": [
+        30,
+        30,
+        34
+      ]
+    },
+    "colors": [
+      [
+        220,
+        40,
+        40
+      ],
+      [
+        30,
+        30,
+        34
+      ],
+      [
+        255,
+        80,
+        40
+      ]
+    ],
+    "group": "villains",
+    "id": "Redline",
+    "kind": "Redline",
+    "look": {
+      "build": 1,
+      "colors": [
+        1,
+        22,
+        24
+      ],
+      "gender": 1,
+      "hair": 1,
+      "height": 3,
+      "mats": {},
+      "pieces": {
+        "back": "Hero Scarf",
+        "emblem": "Spark",
+        "feet": "Jet Boots",
+        "hair": "Wolf Cut",
+        "hands": "Fingerless Gloves",
+        "hat": "Flight Goggles",
+        "head": "Visor Band",
+        "suit": "Racer Stripe",
+        "trail": "Streak Trail",
+        "visage": "Sharp Face"
+      },
+      "skin": 5,
+      "tints": {
+        "back": [
+          1,
+          22,
+          0
+        ]
+      }
+    },
+    "name": "REDLINE",
+    "person": "Redline",
+    "rgb": [
+      [
+        235,
+        60,
+        60
+      ],
+      [
+        24,
+        24,
+        28
+      ],
+      [
+        255,
+        90,
+        40
+      ]
+    ],
+    "tints": {
+      "back": [
+        [
+          235,
+          60,
+          60
+        ],
+        [
+          24,
+          24,
+          28
+        ]
+      ]
+    },
+    "title": "KING OF THE ROOFTOPS"
+  },
+  {
+    "bit": 66,
+    "body": {
+      "build": "normal",
+      "eye": [
+        200,
+        120,
+        255
+      ],
+      "gender": 2,
+      "height": 5.8,
+      "metal": [
+        150,
+        120,
+        170
+      ],
+      "suit": [
+        80,
+        30,
+        120
+      ],
+      "trim": [
+        230,
+        190,
+        60
+      ]
+    },
+    "colors": [
+      [
+        80,
+        30,
+        120
+      ],
+      [
+        230,
+        190,
+        60
+      ],
+      [
+        200,
+        120,
+        255
+      ]
+    ],
+    "group": "villains",
+    "id": "MasqueARade",
+    "kind": "MasqueARade",
+    "look": {
+      "build": 2,
+      "colors": [
+        35,
+        4,
+        48
+      ],
+      "gender": 2,
+      "hair": 35,
+      "height": 4,
+      "mats": {},
+      "pieces": {
+        "back": "High Collar Cape",
+        "emblem": "Diamond",
+        "feet": "Tall Boots",
+        "hair": "Long Straight",
+        "hands": "Long Cuffs",
+        "head": "Masquerade",
+        "neck": "Choker",
+        "shoulders": "Feather Pads",
+        "suit": "Split Tone",
+        "trail": "Ribbon Trail",
+        "visage": "Sharp Face"
+      },
+      "skin": 2,
+      "tints": {
+        "back": [
+          4,
+          35,
+          0
+        ]
+      }
+    },
+    "name": "MADAME MASQUE-A-RADE",
+    "person": "MasqueARade",
+    "rgb": [
+      [
+        70,
+        20,
+        110
+      ],
+      [
+        255,
+        210,
+        60
+      ],
+      [
+        190,
+        90,
+        255
+      ]
+    ],
+    "tints": {
+      "back": [
+        [
+          255,
+          210,
+          60
+        ],
+        [
+          70,
+          20,
+          110
+        ]
+      ]
+    },
+    "title": "THE MASKED THIEF"
+  },
+  {
+    "bit": 67,
+    "body": {
+      "build": "titan",
+      "eye": [
+        255,
+        220,
+        120
+      ],
+      "gender": 1,
+      "height": 10,
+      "metal": [
+        190,
+        150,
+        70
+      ],
+      "suit": [
+        190,
+        35,
+        45
+      ],
+      "trim": [
+        240,
+        200,
+        80
+      ],
+      "windKey": true
+    },
+    "colors": [
+      [
+        190,
+        35,
+        45
+      ],
+      [
+        240,
+        200,
+        80
+      ],
+      [
+        255,
+        220,
+        120
+      ]
+    ],
+    "finaleArt": {
+      "extras": {
+        "GiantKey": {
+          "offset": [
+            0,
+            0.062,
+            0.775
+          ],
+          "parent": "UpperTorso",
+          "size": [
+            0.56,
+            0.35,
+            0.57
+          ]
+        },
+        "GiantShako": {
+          "offset": [
+            0,
+            1.08,
+            -0.046
+          ],
+          "parent": "Head",
+          "size": [
+            1.067,
+            1.327,
+            1.158
+          ]
+        }
+      },
+      "machine": true,
+      "tint": [
+        190,
+        35,
+        45
+      ],
+      "triangles": 7396
+    },
+    "finaleName": "WindupGiant",
+    "group": "villains",
+    "id": "Toymaker",
+    "kind": "WindupGiant",
+    "name": "THE TOYMAKER",
+    "title": "THE OLD INVENTOR"
+  },
+  {
+    "bit": 68,
+    "body": {
+      "build": "titan",
+      "eye": [
+        140,
+        255,
+        90
+      ],
+      "gender": 1,
+      "height": 9.5,
+      "metal": [
+        255,
+        200,
+        90
+      ],
+      "suit": [
+        50,
+        130,
+        60
+      ],
+      "trim": [
+        255,
+        150,
+        40
+      ]
+    },
+    "colors": [
+      [
+        50,
+        130,
+        60
+      ],
+      [
+        255,
+        150,
+        40
+      ],
+      [
+        140,
+        255,
+        90
+      ]
+    ],
+    "finaleArt": {
+      "extras": {
+        "BrambleBack": {
+          "offset": [
+            0,
+            0.156,
+            0.685
+          ],
+          "parent": "UpperTorso",
+          "size": [
+            0.72,
+            0.675,
+            0.93
+          ]
+        },
+        "BrambleCrown": {
+          "offset": [
+            0,
+            0.865,
+            0.042
+          ],
+          "parent": "Head",
+          "size": [
+            1.696,
+            0.901,
+            0.244
+          ]
+        },
+        "BrambleMane": {
+          "offset": [
+            0,
+            0.512,
+            0
+          ],
+          "parent": "UpperTorso",
+          "size": [
+            0.738,
+            0.358,
+            1.107
+          ]
+        }
+      },
+      "machine": false,
+      "tint": [
+        60,
+        130,
+        60
+      ],
+      "triangles": 9506
+    },
+    "finaleName": "Bramblebeast",
+    "group": "villains",
+    "id": "Bramblebeast",
+    "kind": "Bramblebeast",
+    "look": {
+      "build": 4,
+      "colors": [
+        30,
+        6,
+        3
+      ],
+      "gender": 1,
+      "hair": 7,
+      "height": 5,
+      "mats": {},
+      "pieces": {
+        "back": "Tattered Cape",
+        "eyes": "Toxic Glow",
+        "face": "Fangs",
+        "feet": "Fur Boots",
+        "hair": "Wild Mane",
+        "hands": "Talon Gloves",
+        "hat": "Antlers",
+        "shoulders": "Fur Trim",
+        "suit": "Magma Veins",
+        "visage": "Sharp Face"
+      },
+      "skin": 28,
+      "tints": {
+        "back": [
+          30,
+          6,
+          0
+        ],
+        "hat": [
+          16,
+          29,
+          0
+        ]
+      }
+    },
+    "name": "THE BRAMBLEBEAST",
+    "person": "Bramblebeast",
+    "rgb": [
+      [
+        30,
+        90,
+        50
+      ],
+      [
+        140,
+        210,
+        70
+      ],
+      [
+        255,
+        140,
+        40
+      ]
+    ],
+    "tints": {
+      "back": [
+        [
+          30,
+          90,
+          50
+        ],
+        [
+          140,
+          210,
+          70
+        ]
+      ],
+      "hat": [
+        [
+          120,
+          75,
+          45
+        ],
+        [
+          90,
+          110,
+          40
+        ]
+      ]
+    },
+    "title": "THE HUNGRY HARVEST"
+  },
+  {
+    "bit": 69,
+    "body": {
+      "build": "heavy",
+      "eye": [
+        255,
+        220,
+        80
+      ],
+      "gender": 1,
+      "height": 6.6,
+      "metal": [
+        150,
+        130,
+        90
+      ],
+      "suit": [
+        200,
+        160,
+        50
+      ],
+      "trim": [
+        40,
+        100,
+        50
+      ]
+    },
+    "colors": [
+      [
+        200,
+        160,
+        50
+      ],
+      [
+        40,
+        100,
+        50
+      ],
+      [
+        255,
+        220,
+        80
+      ]
+    ],
+    "group": "villains",
+    "id": "HarvestKing",
+    "kind": "HarvestKing",
+    "look": {
+      "build": 3,
+      "colors": [
+        28,
+        30,
+        16
+      ],
+      "gender": 1,
+      "hair": 19,
+      "height": 4,
+      "mats": {
+        "shoulders": "Metal"
+      },
+      "pieces": {
+        "back": "Field Coat",
+        "beard": "Full Beard",
+        "belt": "Rope Belt",
+        "feet": "Boots",
+        "hair": "Shaggy",
+        "hands": "Work Gloves",
+        "hat": "Iron Crown",
+        "shoulders": "Riveted Pads",
+        "suit": "Overalls",
+        "visage": "Stern Face"
+      },
+      "skin": 4,
+      "tints": {
+        "hat": [
+          4,
+          28,
+          0
+        ]
+      }
+    },
+    "name": "THE HARVEST KING",
+    "person": "HarvestKing",
+    "rgb": [
+      [
+        230,
+        190,
+        60
+      ],
+      [
+        30,
+        90,
+        50
+      ],
+      [
+        120,
+        75,
+        45
+      ]
+    ],
+    "tints": {
+      "hat": [
+        [
+          255,
+          210,
+          60
+        ],
+        [
+          230,
+          190,
+          60
+        ]
+      ]
+    },
+    "title": "LORD OF THE FIELDS"
+  },
+  {
+    "bit": 70,
+    "body": {
+      "anchor": true,
+      "build": "heavy",
+      "eye": [
+        120,
+        230,
+        255
+      ],
+      "gender": 1,
+      "height": 7.5,
+      "metal": [
+        180,
+        130,
+        70
+      ],
+      "suit": [
+        20,
+        110,
+        120
+      ],
+      "trim": [
+        180,
+        120,
+        40
+      ]
+    },
+    "colors": [
+      [
+        20,
+        110,
+        120
+      ],
+      [
+        180,
+        120,
+        40
+      ],
+      [
+        120,
+        230,
+        255
+      ]
+    ],
+    "group": "villains",
+    "id": "CaptainBrine",
+    "kind": "CaptainBrine",
+    "look": {
+      "build": 3,
+      "colors": [
+        32,
+        27,
+        38
+      ],
+      "gender": 1,
+      "hair": 40,
+      "height": 4,
+      "mats": {
+        "suit": "Metal"
+      },
+      "pieces": {
+        "back": "Duster Coat",
+        "beard": "Full Beard",
+        "emblem": "Cross",
+        "feet": "Armored Boots",
+        "hair": "Slicked Back",
+        "hands": "Armored Gauntlets",
+        "hat": "Wide Brim",
+        "head": "Eye Patch",
+        "shoulders": "Epaulettes",
+        "suit": "Plated Suit",
+        "visage": "Scarred Face"
+      },
+      "skin": 3,
+      "tints": {
+        "back": [
+          38,
+          27,
+          0
+        ]
+      }
+    },
+    "name": "CAPTAIN BRINE",
+    "person": "CaptainBrine",
+    "rgb": [
+      [
+        20,
+        110,
+        120
+      ],
+      [
+        180,
+        120,
+        40
+      ],
+      [
+        110,
+        20,
+        25
+      ]
+    ],
+    "tints": {
+      "back": [
+        [
+          110,
+          20,
+          25
+        ],
+        [
+          180,
+          120,
+          40
+        ]
+      ]
+    },
+    "title": "CAPTAIN OF THE SALT DOGS"
+  },
+  {
+    "bit": 71,
+    "body": {
+      "build": "titan",
+      "eye": [
+        140,
+        255,
+        90
+      ],
+      "gender": 1,
+      "height": 9.5,
+      "metal": [
+        255,
+        200,
+        90
+      ],
+      "suit": [
+        50,
+        130,
+        60
+      ],
+      "trim": [
+        255,
+        150,
+        40
+      ]
+    },
+    "colors": [
+      [
+        110,
+        20,
+        25
+      ],
+      [
+        240,
+        196,
+        64
+      ],
+      [
+        255,
+        90,
+        60
+      ]
+    ],
+    "dress": "Pitboss",
+    "dressBody": {
+      "eye": [
+        255,
+        90,
+        60
+      ],
+      "metal": [
+        120,
+        125,
+        135
+      ],
+      "suit": [
+        110,
+        20,
+        25
+      ],
+      "trim": [
+        240,
+        196,
+        64
+      ]
+    },
+    "group": "villains",
+    "id": "Pitboss",
+    "kind": "Bramblebeast",
+    "look": {
+      "build": 4,
+      "colors": [
+        38,
+        4,
+        22
+      ],
+      "gender": 1,
+      "hair": 22,
+      "height": 5,
+      "mats": {
+        "hands": "Metal",
+        "shoulders": "Metal"
+      },
+      "pieces": {
+        "beard": "Handlebar",
+        "belt": "Champion Belt",
+        "feet": "Armored Boots",
+        "hair": "Slicked Back",
+        "hands": "Boxing Gloves",
+        "hat": "Top Hat",
+        "neck": "Chain",
+        "shoulders": "Riveted Pads",
+        "suit": "Tuxedo",
+        "visage": "Scarred Face"
+      },
+      "skin": 25,
+      "tints": {
+        "hat": [
+          22,
+          38,
+          0
+        ]
+      }
+    },
+    "name": "The Pitboss",
+    "person": "Pitboss",
+    "rgb": [
+      [
+        110,
+        20,
+        25
+      ],
+      [
+        255,
+        210,
+        60
+      ],
+      [
+        24,
+        24,
+        28
+      ]
+    ],
+    "tints": {
+      "hat": [
+        [
+          24,
+          24,
+          28
+        ],
+        [
+          110,
+          20,
+          25
+        ]
+      ]
+    },
+    "title": "Head of the Gravel Family"
+  },
+  {
+    "bit": 72,
+    "body": {
+      "build": "heavy",
+      "eye": [
+        255,
+        160,
+        60
+      ],
+      "height": 8.5,
+      "helmet": true,
+      "metal": [
+        110,
+        100,
+        80
+      ],
+      "suit": [
+        90,
+        80,
+        60
+      ],
+      "trim": [
+        200,
+        150,
+        60
+      ]
+    },
+    "colors": [
+      [
+        30,
+        110,
+        120
+      ],
+      [
+        190,
+        140,
+        60
+      ],
+      [
+        120,
+        255,
+        230
+      ]
+    ],
+    "dress": "Tidewright",
+    "dressBody": {
+      "eye": [
+        120,
+        255,
+        230
+      ],
+      "metal": [
+        170,
+        120,
+        70
+      ],
+      "suit": [
+        30,
+        110,
+        120
+      ],
+      "trim": [
+        190,
+        140,
+        60
+      ]
+    },
+    "group": "villains",
+    "height": 9,
+    "id": "Tidewright",
+    "kind": "Anchor",
+    "look": {
+      "build": 3,
+      "colors": [
+        32,
+        27,
+        31
+      ],
+      "gender": 1,
+      "hair": 31,
+      "height": 5,
+      "mats": {
+        "suit": "Metal"
+      },
+      "pieces": {
+        "arms": "Scale Guards",
+        "back": "Long Cape",
+        "beard": "Full Beard",
+        "ears": "Fin Ears",
+        "emblem": "Orb Crest",
+        "eyes": "Ice Glow",
+        "feet": "Armored Boots",
+        "hair": "Long Straight",
+        "hands": "Armored Gauntlets",
+        "hat": "Iron Crown",
+        "shoulders": "Shell Pads",
+        "suit": "Plated Suit",
+        "visage": "Stern Face"
+      },
+      "skin": 26,
+      "tints": {
+        "back": [
+          31,
+          27,
+          0
+        ]
+      }
+    },
+    "name": "The Tidewright",
+    "person": "Tidewright",
+    "rgb": [
+      [
+        20,
+        110,
+        120
+      ],
+      [
+        180,
+        120,
+        40
+      ],
+      [
+        170,
+        255,
+        200
+      ]
+    ],
+    "tints": {
+      "back": [
+        [
+          170,
+          255,
+          200
+        ],
+        [
+          180,
+          120,
+          40
+        ]
+      ]
+    },
+    "title": "Last Guardian of Velmara"
+  },
+  {
+    "bit": 73,
+    "body": {
+      "build": "normal",
+      "eye": [
+        255,
+        220,
+        120
+      ],
+      "gender": 1,
+      "height": 5.8,
+      "metal": [
+        200,
+        180,
+        120
+      ],
+      "suit": [
+        255,
+        210,
+        60
+      ],
+      "trim": [
+        245,
+        245,
+        245
+      ]
+    },
+    "colors": [
+      [
+        70,
+        20,
+        110
+      ],
+      [
+        240,
+        240,
+        250
+      ],
+      [
+        220,
+        150,
+        255
+      ]
+    ],
+    "dress": "Vesper",
+    "dressBody": {
+      "eye": [
+        220,
+        150,
+        255
+      ],
+      "metal": [
+        150,
+        150,
+        170
+      ],
+      "suit": [
+        70,
+        20,
+        110
+      ],
+      "trim": [
+        240,
+        240,
+        250
+      ]
+    },
+    "group": "villains",
+    "id": "Vesper",
+    "kind": "Radiant",
+    "look": {
+      "build": 2,
+      "colors": [
+        35,
+        13,
+        18
+      ],
+      "gender": 2,
+      "hair": 18,
+      "height": 4,
+      "mats": {},
+      "pieces": {
+        "back": "Star Cape",
+        "emblem": "Star Crest",
+        "feet": "Tall Boots",
+        "hair": "Long Straight",
+        "hands": "Gloves",
+        "makeup": "Star Mark",
+        "suit": "Starfield Suit",
+        "visage": "Hero Face"
+      },
+      "skin": 10,
+      "tints": {}
+    },
+    "name": "Vesper",
+    "person": "Vesper",
+    "rgb": [
+      [
+        70,
+        20,
+        110
+      ],
+      [
+        190,
+        110,
+        240
+      ],
+      [
+        245,
+        245,
+        245
+      ]
+    ],
+    "tints": {},
+    "title": "The Evening Star"
+  },
+  {
+    "bit": 74,
+    "body": {
+      "build": "heavy",
+      "eye": [
+        255,
+        220,
+        80
+      ],
+      "gender": 1,
+      "height": 6.6,
+      "metal": [
+        150,
+        130,
+        90
+      ],
+      "suit": [
+        200,
+        160,
+        50
+      ],
+      "trim": [
+        40,
+        100,
+        50
+      ]
+    },
+    "colors": [
+      [
+        90,
+        110,
+        40
+      ],
+      [
+        120,
+        75,
+        45
+      ],
+      [
+        170,
+        255,
+        90
+      ]
+    ],
+    "dress": "Catchpole",
+    "dressBody": {
+      "eye": [
+        170,
+        255,
+        90
+      ],
+      "metal": [
+        110,
+        105,
+        90
+      ],
+      "suit": [
+        90,
+        110,
+        40
+      ],
+      "trim": [
+        120,
+        75,
+        45
+      ]
+    },
+    "group": "villains",
+    "id": "Catchpole",
+    "kind": "HarvestKing",
+    "look": {
+      "build": 3,
+      "colors": [
+        29,
+        16,
+        4
+      ],
+      "gender": 1,
+      "hair": 39,
+      "height": 4,
+      "mats": {
+        "hands": "Leather"
+      },
+      "pieces": {
+        "back": "Duster Coat",
+        "beard": "Stubble",
+        "belt": "Tool Belt",
+        "feet": "Combat Boots",
+        "hair": "Shaggy",
+        "hands": "Work Gloves",
+        "hat": "Tracker Lens",
+        "suit": "Ranger Harness",
+        "visage": "Sharp Face"
+      },
+      "skin": 4,
+      "tints": {}
+    },
+    "name": "Catchpole",
+    "person": "Catchpole",
+    "rgb": [
+      [
+        90,
+        110,
+        40
+      ],
+      [
+        120,
+        75,
+        45
+      ],
+      [
+        255,
+        210,
+        60
+      ]
+    ],
+    "tints": {},
+    "title": "The Spark Catcher"
+  },
+  {
+    "bit": 75,
+    "body": {
+      "build": "slim",
+      "eye": [
+        255,
+        80,
+        40
+      ],
+      "gender": 1,
+      "height": 5.4,
+      "metal": [
+        120,
+        110,
+        110
+      ],
+      "suit": [
+        220,
+        40,
+        40
+      ],
+      "trim": [
+        30,
+        30,
+        34
+      ]
+    },
+    "colors": [
+      [
+        200,
+        60,
+        20
+      ],
+      [
+        30,
+        30,
+        34
+      ],
+      [
+        255,
+        160,
+        40
+      ]
+    ],
+    "dress": "Scorch",
+    "dressBody": {
+      "eye": [
+        255,
+        160,
+        40
+      ],
+      "metal": [
+        90,
+        80,
+        80
+      ],
+      "suit": [
+        200,
+        60,
+        20
+      ],
+      "trim": [
+        30,
+        30,
+        34
+      ]
+    },
+    "group": "villains",
+    "id": "Scorch",
+    "kind": "Redline",
+    "look": {
+      "build": 1,
+      "colors": [
+        24,
+        22,
+        4
+      ],
+      "gender": 1,
+      "hair": 24,
+      "height": 3,
+      "mats": {},
+      "pieces": {
+        "beard": "Goatee",
+        "belt": "Chain Belt",
+        "feet": "Combat Boots",
+        "hair": "Flame Hair",
+        "hands": "Flame Gloves",
+        "neck": "Chain",
+        "shoulders": "Flame Pads",
+        "suit": "Magma Veins",
+        "visage": "Scarred Face"
+      },
+      "skin": 3,
+      "tints": {}
+    },
+    "name": "Sal Scorch",
+    "person": "Scorch",
+    "rgb": [
+      [
+        255,
+        90,
+        40
+      ],
+      [
+        24,
+        24,
+        28
+      ],
+      [
+        255,
+        210,
+        60
+      ]
+    ],
+    "tints": {},
+    "title": "Boss of the Torch Crew"
+  },
+  {
+    "bit": 76,
+    "body": {
+      "build": "normal",
+      "eye": [
+        200,
+        120,
+        255
+      ],
+      "gender": 2,
+      "height": 5.8,
+      "metal": [
+        150,
+        120,
+        170
+      ],
+      "suit": [
+        80,
+        30,
+        120
+      ],
+      "trim": [
+        230,
+        190,
+        60
+      ]
+    },
+    "colors": [
+      [
+        24,
+        24,
+        28
+      ],
+      [
+        200,
+        200,
+        210
+      ],
+      [
+        240,
+        240,
+        250
+      ]
+    ],
+    "dress": "Censor",
+    "dressBody": {
+      "eye": [
+        240,
+        240,
+        250
+      ],
+      "metal": [
+        60,
+        60,
+        70
+      ],
+      "suit": [
+        24,
+        24,
+        28
+      ],
+      "trim": [
+        200,
+        200,
+        210
+      ]
+    },
+    "group": "villains",
+    "id": "Censor",
+    "kind": "MasqueARade",
+    "look": {
+      "build": 2,
+      "colors": [
+        22,
+        18,
+        20
+      ],
+      "gender": 1,
+      "hair": 22,
+      "height": 4,
+      "mats": {},
+      "pieces": {
+        "back": "Long Cape",
+        "feet": "Loafers",
+        "hair": "Side Part",
+        "hands": "Gloves",
+        "head": "Mono Visor",
+        "neck": "High Collar",
+        "suit": "Tuxedo",
+        "visage": "Cold Face"
+      },
+      "skin": 9,
+      "tints": {
+        "back": [
+          22,
+          20,
+          0
+        ],
+        "head": [
+          22,
+          22,
+          0
+        ]
+      }
+    },
+    "name": "The Censor",
+    "person": "Censor",
+    "rgb": [
+      [
+        24,
+        24,
+        28
+      ],
+      [
+        245,
+        245,
+        245
+      ],
+      [
+        110,
+        115,
+        125
+      ]
+    ],
+    "tints": {
+      "back": [
+        [
+          24,
+          24,
+          28
+        ],
+        [
+          110,
+          115,
+          125
+        ]
+      ],
+      "head": [
+        [
+          24,
+          24,
+          28
+        ],
+        [
+          24,
+          24,
+          28
+        ]
+      ]
+    },
+    "title": "He Decides What You See"
+  },
+  {
+    "bit": 77,
+    "body": {
+      "build": "heavy",
+      "cape": [
+        92,
+        40,
+        140
+      ],
+      "eye": [
+        255,
+        255,
+        255
+      ],
+      "height": 7.5,
+      "metal": [
+        35,
+        35,
+        45
+      ],
+      "shield": true,
+      "suit": [
+        30,
+        30,
+        42
+      ],
+      "trim": [
+        235,
+        235,
+        245
+      ]
+    },
+    "colors": [
+      [
+        245,
+        245,
+        245
+      ],
+      [
+        70,
+        60,
+        160
+      ],
+      [
+        80,
+        255,
+        255
+      ]
+    ],
+    "dress": "Holloway",
+    "dressBody": {
+      "eye": [
+        80,
+        255,
+        255
+      ],
+      "metal": [
+        200,
+        205,
+        215
+      ],
+      "suit": [
+        245,
+        245,
+        245
+      ],
+      "trim": [
+        70,
+        60,
+        160
+      ]
+    },
+    "group": "villains",
+    "height": 7,
+    "id": "Holloway",
+    "kind": "NullSentinel",
+    "look": {
+      "build": 3,
+      "colors": [
+        18,
+        34,
+        46
+      ],
+      "gender": 1,
+      "hair": 19,
+      "height": 4,
+      "mats": {
+        "backpack": "Metal",
+        "shoulders": "Metal"
+      },
+      "pieces": {
+        "backpack": "Cog Rig",
+        "feet": "Armored Boots",
+        "hair": "Slicked Back",
+        "hands": "Tech Gloves",
+        "head": "Mono Visor",
+        "shoulders": "Layered Plates",
+        "suit": "Lab Coat",
+        "visage": "Cold Face"
+      },
+      "skin": 2,
+      "tints": {}
+    },
+    "name": "Doctor Holloway",
+    "person": "Holloway",
+    "rgb": [
+      [
+        245,
+        245,
+        245
+      ],
+      [
+        70,
+        60,
+        160
+      ],
+      [
+        80,
+        255,
+        255
+      ]
+    ],
+    "tints": {},
+    "title": "Director of Ashgrove Labs"
+  },
+  {
+    "bit": 78,
+    "body": {
+      "build": "normal",
+      "cap": true,
+      "cape": [
+        70,
+        20,
+        30
+      ],
+      "eye": [
+        255,
+        215,
+        90
+      ],
+      "height": 6.5,
+      "metal": [
+        150,
+        140,
+        120
+      ],
+      "suit": [
+        110,
+        30,
+        40
+      ],
+      "trim": [
+        240,
+        200,
+        90
+      ]
+    },
+    "colors": [
+      [
+        40,
+        44,
+        60
+      ],
+      [
+        190,
+        90,
+        255
+      ],
+      [
+        190,
+        90,
+        255
+      ]
+    ],
+    "dress": "Voidhound",
+    "dressBody": {
+      "eye": [
+        190,
+        90,
+        255
+      ],
+      "metal": [
+        70,
+        60,
+        110
+      ],
+      "suit": [
+        40,
+        44,
+        60
+      ],
+      "trim": [
+        190,
+        90,
+        255
+      ]
+    },
+    "finaleArt": {
+      "extras": {
+        "HoundEars": {
+          "offset": [
+            0,
+            0.708,
+            0.244
+          ],
+          "parent": "Head",
+          "size": [
+            0.867,
+            0.75,
+            0.624
+          ]
+        },
+        "HoundSnout": {
+          "offset": [
+            0,
+            -0.294,
+            -0.729
+          ],
+          "parent": "Head",
+          "size": [
+            0.518,
+            0.411,
+            0.792
+          ]
+        },
+        "HoundSpines": {
+          "offset": [
+            0,
+            0.031,
+            0.494
+          ],
+          "parent": "UpperTorso",
+          "size": [
+            0.05,
+            0.938,
+            0.771
+          ]
+        },
+        "HoundTail": {
+          "offset": [
+            0,
+            -1.39,
+            1.026
+          ],
+          "parent": "LowerTorso",
+          "size": [
+            0.16,
+            3.528,
+            1.264
+          ]
+        }
+      },
+      "machine": true,
+      "tint": [
+        44,
+        48,
+        72
+      ],
+      "triangles": 6788
+    },
+    "finaleName": "Voidhound",
+    "group": "villains",
+    "height": 8,
+    "id": "Voidhound",
+    "kind": "Captain",
+    "look": {
+      "build": 2,
+      "colors": [
+        35,
+        44,
+        48
+      ],
+      "gender": 1,
+      "hair": 22,
+      "height": 5,
+      "mats": {
+        "suit": "Metal"
+      },
+      "pieces": {
+        "back": "Meteor Cape",
+        "eyes": "Cyclops Visor",
+        "feet": "Hover Boots",
+        "hands": "Talon Gloves",
+        "head": "Antenna Helm",
+        "shoulders": "Crystal Shards",
+        "suit": "Starfield Suit"
+      },
+      "skin": 26,
+      "tints": {}
+    },
+    "name": "The Voidhound",
+    "person": "Voidhound",
+    "rgb": [
+      [
+        70,
+        20,
+        110
+      ],
+      [
+        40,
+        44,
+        60
+      ],
+      [
+        190,
+        90,
+        255
+      ]
+    ],
+    "tints": {},
+    "title": "Hunter from the Stars"
+  },
+  {
+    "bit": 79,
+    "body": {
+      "build": "normal",
+      "eye": [
+        200,
+        120,
+        255
+      ],
+      "gender": 2,
+      "height": 5.8,
+      "metal": [
+        150,
+        120,
+        170
+      ],
+      "suit": [
+        80,
+        30,
+        120
+      ],
+      "trim": [
+        230,
+        190,
+        60
+      ]
+    },
+    "colors": [
+      [
+        24,
+        24,
+        28
+      ],
+      [
+        120,
+        80,
+        220
+      ],
+      [
+        190,
+        110,
+        240
+      ]
+    ],
+    "dress": "Morrow",
+    "dressBody": {
+      "eye": [
+        190,
+        110,
+        240
+      ],
+      "metal": [
+        175,
+        180,
+        190
+      ],
+      "suit": [
+        24,
+        24,
+        28
+      ],
+      "trim": [
+        120,
+        80,
+        220
+      ]
+    },
+    "group": "villains",
+    "id": "Morrow",
+    "kind": "MasqueARade",
+    "look": {
+      "build": 2,
+      "colors": [
+        22,
+        12,
+        19
+      ],
+      "gender": 1,
+      "hair": 22,
+      "height": 4,
+      "mats": {},
+      "pieces": {
+        "back": "High Collar Cape",
+        "beard": "Pencil Mustache",
+        "eyes": "Violet Glow",
+        "hair": "Slicked Back",
+        "hands": "Gloves",
+        "hat": "Top Hat",
+        "head": "Masquerade",
+        "suit": "Tuxedo"
+      },
+      "skin": 9,
+      "tints": {
+        "back": [
+          22,
+          12,
+          0
+        ]
+      }
+    },
+    "name": "Morrow the Mirage",
+    "person": "Morrow",
+    "rgb": [
+      [
+        24,
+        24,
+        28
+      ],
+      [
+        120,
+        80,
+        220
+      ],
+      [
+        175,
+        180,
+        190
+      ]
+    ],
+    "tints": {
+      "back": [
+        [
+          24,
+          24,
+          28
+        ],
+        [
+          120,
+          80,
+          220
+        ]
+      ]
+    },
+    "title": "The Jealous Illusionist"
+  },
+  {
+    "bit": 80,
+    "body": {
+      "build": "heavy",
+      "eye": [
+        255,
+        120,
+        60
+      ],
+      "height": 7,
+      "hookArm": true,
+      "metal": [
+        120,
+        110,
+        100
+      ],
+      "suit": [
+        70,
+        55,
+        45
+      ],
+      "trim": [
+        200,
+        120,
+        50
+      ]
+    },
+    "colors": [
+      [
+        230,
+        190,
+        60
+      ],
+      [
+        55,
+        58,
+        66
+      ],
+      [
+        255,
+        140,
+        40
+      ]
+    ],
+    "dress": "Clawback",
+    "dressBody": {
+      "eye": [
+        255,
+        140,
+        40
+      ],
+      "metal": [
+        110,
+        115,
+        125
+      ],
+      "suit": [
+        230,
+        190,
+        60
+      ],
+      "trim": [
+        55,
+        58,
+        66
+      ]
+    },
+    "group": "villains",
+    "height": 8,
+    "id": "Clawback",
+    "kind": "Grappler",
+    "look": {
+      "build": 3,
+      "colors": [
+        28,
+        21,
+        3
+      ],
+      "gender": 1,
+      "hair": 39,
+      "height": 5,
+      "mats": {
+        "hands": "Metal"
+      },
+      "pieces": {
+        "backpack": "Gear Rack",
+        "beard": "Horseshoe",
+        "belt": "Tool Belt",
+        "feet": "Armored Boots",
+        "hands": "Armored Gauntlets",
+        "hat": "Ball Cap",
+        "shoulders": "Gear Pads",
+        "suit": "Exo Frame",
+        "visage": "Scarred Face"
+      },
+      "skin": 4,
+      "tints": {}
+    },
+    "name": "Clawback",
+    "person": "Clawback",
+    "rgb": [
+      [
+        230,
+        190,
+        60
+      ],
+      [
+        55,
+        58,
+        66
+      ],
+      [
+        255,
+        140,
+        40
+      ]
+    ],
+    "tints": {},
+    "title": "The Repo King"
+  },
+  {
+    "bit": 81,
+    "body": {
+      "build": "slim",
+      "eye": [
+        255,
+        80,
+        40
+      ],
+      "gender": 1,
+      "height": 5.4,
+      "metal": [
+        120,
+        110,
+        110
+      ],
+      "suit": [
+        220,
+        40,
+        40
+      ],
+      "trim": [
+        30,
+        30,
+        34
+      ]
+    },
+    "colors": [
+      [
+        24,
+        24,
+        28
+      ],
+      [
+        40,
+        190,
+        170
+      ],
+      [
+        80,
+        255,
+        255
+      ]
+    ],
+    "dress": "Gale",
+    "dressBody": {
+      "eye": [
+        80,
+        255,
+        255
+      ],
+      "metal": [
+        85,
+        95,
+        110
+      ],
+      "suit": [
+        24,
+        24,
+        28
+      ],
+      "trim": [
+        40,
+        190,
+        170
+      ]
+    },
+    "group": "villains",
+    "id": "Gale",
+    "kind": "Redline",
+    "look": {
+      "build": 1,
+      "colors": [
+        8,
+        18,
+        22
+      ],
+      "gender": 1,
+      "hair": 21,
+      "height": 3,
+      "mats": {},
+      "pieces": {
+        "back": "Wind Scarf",
+        "eyes": "Ice Blades",
+        "feet": "Tabi Boots",
+        "hair": "Wild Mane",
+        "hands": "Fighter Wraps",
+        "hat": "Hachimaki",
+        "legs": "Hakama",
+        "suit": "Sash Fighter",
+        "visage": "Sharp Face"
+      },
+      "skin": 3,
+      "tints": {}
+    },
+    "name": "Gale",
+    "person": "Gale",
+    "rgb": [
+      [
+        40,
+        190,
+        170
+      ],
+      [
+        245,
+        245,
+        245
+      ],
+      [
+        24,
+        24,
+        28
+      ]
+    ],
+    "tints": {},
+    "title": "The Master's Fallen Student"
+  },
+  {
+    "bit": 1,
+    "boss": "RustjawPrime",
+    "bossArt": {
+      "debris": [
+        196,
+        98,
+        48
+      ],
+      "fx": {
+        "at": [
+          [
+            -18,
+            63.4,
+            -14.6
+          ],
+          [
+            18,
+            63.4,
+            -14.6
+          ],
+          [
+            -16,
+            75.6,
+            -15
+          ],
+          [
+            16,
+            75.6,
+            -15
+          ],
+          [
+            34,
+            30,
+            -4
+          ],
+          [
+            -12,
+            106,
+            20
+          ],
+          [
+            12,
+            100,
+            21
+          ]
+        ],
+        "every": 0.6,
+        "kind": "sparks"
+      },
+      "glow": [
+        [
+          200,
+          236,
+          255
+        ],
+        [
+          255,
+          140,
+          40
+        ],
+        [
+          255,
+          52,
+          48
+        ]
+      ],
+      "look": "the Junkyard Titan: a giant bolted together from wrecked cars",
+      "objective": {
+        "Cannon": {
+          "offset": [
+            0,
+            3.685,
+            -5.751
+          ],
+          "role": "objective",
+          "size": [
+            15.2,
+            16.374,
+            26.703
+          ]
+        },
+        "CannonGlow": {
+          "offset": [
+            0,
+            4,
+            2.4
+          ],
+          "role": "objectiveGlow",
+          "size": [
+            4.68,
+            4.8,
+            4.8
+          ]
+        }
+      },
+      "objectiveParts": [
+        {
+          "at": [
+            0,
+            -2.6,
+            0
+          ],
+          "color": [
+            40,
+            38,
+            44
+          ],
+          "mat": "SmoothPlastic",
+          "role": "objective",
+          "rot": [
+            0,
+            0,
+            90
+          ],
+          "shape": "Cylinder",
+          "size": [
+            4,
+            11,
+            11
+          ]
+        },
+        {
+          "at": [
+            0,
+            4.6,
+            -5.2
+          ],
+          "color": [
+            196,
+            202,
+            212
+          ],
+          "mat": "Metal",
+          "role": "objective",
+          "rot": [
+            0,
+            90,
+            66
+          ],
+          "shape": "Cylinder",
+          "size": [
+            16,
+            4.2,
+            4.2
+          ]
+        },
+        {
+          "at": [
+            0,
+            4,
+            2.4
+          ],
+          "role": "objectiveGlow",
+          "shape": "Ball",
+          "size": [
+            3.4,
+            3.4,
+            3.4
+          ]
+        }
+      ],
+      "parts": [
+        {
+          "at": [
+            -14,
+            4.6,
+            -2
+          ],
+          "color": [
+            62,
+            168,
+            178
+          ],
+          "mat": "SmoothPlastic",
+          "role": "body",
+          "shape": "Block",
+          "size": [
+            16,
+            9,
+            26
+          ]
+        },
+        {
+          "at": [
+            -14,
+            27,
+            0
+          ],
+          "color": [
+            238,
+            218,
+            168
+          ],
+          "mat": "SmoothPlastic",
+          "role": "body",
+          "shape": "Block",
+          "size": [
+            11,
+            38,
+            11
+          ]
+        },
+        {
+          "at": [
+            -14,
+            30,
+            -7.6
+          ],
+          "role": "weak",
+          "shape": "Ball",
+          "size": [
+            5,
+            5,
+            5
+          ]
+        },
+        {
+          "at": [
+            14,
+            4.6,
+            -2
+          ],
+          "color": [
+            214,
+            64,
+            52
+          ],
+          "mat": "SmoothPlastic",
+          "role": "body",
+          "shape": "Block",
+          "size": [
+            16,
+            9,
+            26
+          ]
+        },
+        {
+          "at": [
+            14,
+            27,
+            0
+          ],
+          "color": [
+            62,
+            168,
+            178
+          ],
+          "mat": "SmoothPlastic",
+          "role": "body",
+          "shape": "Block",
+          "size": [
+            11,
+            38,
+            11
+          ]
+        },
+        {
+          "at": [
+            14,
+            30,
+            -7.6
+          ],
+          "role": "weak",
+          "shape": "Ball",
+          "size": [
+            5,
+            5,
+            5
+          ]
+        },
+        {
+          "at": [
+            0,
+            68,
+            0
+          ],
+          "color": [
+            214,
+            64,
+            52
+          ],
+          "mat": "SmoothPlastic",
+          "role": "body",
+          "shape": "Block",
+          "size": [
+            48,
+            42,
+            28
+          ]
+        },
+        {
+          "at": [
+            0,
+            72,
+            -17.6
+          ],
+          "role": "weak",
+          "shape": "Ball",
+          "size": [
+            7,
+            7,
+            7
+          ]
+        },
+        {
+          "at": [
+            0,
+            99.5,
+            -2.6
+          ],
+          "color": [
+            62,
+            168,
+            178
+          ],
+          "mat": "SmoothPlastic",
+          "role": "body",
+          "shape": "Block",
+          "size": [
+            24,
+            13,
+            20
+          ]
+        },
+        {
+          "at": [
+            0,
+            89,
+            -9
+          ],
+          "color": [
+            196,
+            202,
+            212
+          ],
+          "mat": "Metal",
+          "role": "body",
+          "shape": "Block",
+          "size": [
+            30,
+            9,
+            23
+          ]
+        },
+        {
+          "at": [
+            -6.2,
+            99.6,
+            -13
+          ],
+          "role": "glow",
+          "rot": [
+            0,
+            90,
+            0
+          ],
+          "shape": "Cylinder",
+          "size": [
+            1,
+            5.6,
+            5.6
+          ]
+        },
+        {
+          "at": [
+            6.2,
+            99.6,
+            -13
+          ],
+          "role": "glow",
+          "rot": [
+            0,
+            90,
+            0
+          ],
+          "shape": "Cylinder",
+          "size": [
+            1,
+            5.6,
+            5.6
+          ]
+        },
+        {
+          "at": [
+            -31,
+            62,
+            -1
+          ],
+          "color": [
+            238,
+            218,
+            168
+          ],
+          "mat": "SmoothPlastic",
+          "role": "body",
+          "rot": [
+            0,
+            0,
+            -6
+          ],
+          "shape": "Block",
+          "size": [
+            10,
+            34,
+            10
+          ]
+        },
+        {
+          "at": [
+            -33,
+            32,
+            -1
+          ],
+          "color": [
+            62,
+            168,
+            178
+          ],
+          "mat": "SmoothPlastic",
+          "role": "body",
+          "shape": "Block",
+          "size": [
+            18,
+            16,
+            18
+          ]
+        },
+        {
+          "at": [
+            32,
+            61,
+            1
+          ],
+          "color": [
+            250,
+            196,
+            40
+          ],
+          "mat": "SmoothPlastic",
+          "role": "body",
+          "rot": [
+            0,
+            0,
+            5
+          ],
+          "shape": "Block",
+          "size": [
+            6,
+            44,
+            6
+          ]
+        },
+        {
+          "at": [
+            34,
+            34,
+            -1.5
+          ],
+          "color": [
+            40,
+            38,
+            44
+          ],
+          "mat": "SmoothPlastic",
+          "role": "body",
+          "shape": "Block",
+          "size": [
+            10,
+            12,
+            10
+          ]
+        },
+        {
+          "at": [
+            0,
+            92,
+            20
+          ],
+          "color": [
+            196,
+            202,
+            212
+          ],
+          "mat": "Metal",
+          "role": "body",
+          "rot": [
+            0,
+            0,
+            90
+          ],
+          "shape": "Cylinder",
+          "size": [
+            30,
+            5,
+            5
+          ]
+        }
+      ],
+      "pieces": {
+        "Glow": {
+          "offset": [
+            0,
+            91.31,
+            3.309
+          ],
+          "role": "glow",
+          "size": [
+            52.4,
+            59.18,
+            38.518
+          ]
+        },
+        "Hull": {
+          "offset": [
+            -0.668,
+            59.411,
+            1.149
+          ],
+          "role": "hull",
+          "size": [
+            83.463,
+            119.422,
+            44.699
+          ]
+        },
+        "Plates2": {
+          "offset": [
+            0,
+            36.75,
+            -10.9
+          ],
+          "role": "shed2",
+          "size": [
+            39.6,
+            51.5,
+            9.8
+          ]
+        },
+        "Plates3": {
+          "offset": [
+            -3.045,
+            66.373,
+            -6.1
+          ],
+          "role": "shed3",
+          "size": [
+            81.091,
+            46.181,
+            23.2
+          ]
+        },
+        "Weak": {
+          "offset": [
+            0,
+            51.9,
+            -13.25
+          ],
+          "role": "weak",
+          "size": [
+            34.4,
+            50.2,
+            16.9
+          ]
+        }
+      },
+      "theme": [
+        255,
+        170,
+        60
+      ],
+      "triangles": 13216,
+      "weak": {
+        "core": [
+          0,
+          72,
+          -18.6
+        ],
+        "kneeL": [
+          -14,
+          30,
+          -8
+        ],
+        "kneeR": [
+          14,
+          30,
+          -8
+        ]
+      }
+    },
+    "colors": [
+      [
+        150,
+        90,
+        50
+      ],
+      [
+        90,
+        90,
+        100
+      ],
+      [
+        255,
+        140,
+        40
+      ]
+    ],
+    "gold": 9,
+    "group": "bosses",
+    "id": "RustjawPrime",
+    "name": "Rustjaw Prime",
+    "title": "THE JUNKYARD TITAN",
+    "weakColor": [
+      255,
+      196,
+      40
+    ]
+  },
+  {
+    "bit": 2,
+    "boss": "LumenMaw",
+    "bossArt": {
+      "debris": [
+        150,
+        120,
+        230
+      ],
+      "fx": {
+        "at": [
+          [
+            0,
+            31,
+            -44
+          ]
+        ],
+        "dim": 0.22,
+        "every": 0.12,
+        "kind": "light",
+        "reach": 34
+      },
+      "glow": [
+        [
+          90,
+          240,
+          230
+        ],
+        [
+          186,
+          110,
+          255
+        ],
+        [
+          255,
+          70,
+          150
+        ]
+      ],
+      "look": "the Light Eater: a sleek night creature that swallows light",
+      "objective": {
+        "Generator": {
+          "offset": [
+            0,
+            8.033,
+            0
+          ],
+          "role": "objective",
+          "size": [
+            13,
+            16.067,
+            13
+          ]
+        },
+        "GeneratorCore": {
+          "offset": [
+            0,
+            12,
+            0
+          ],
+          "role": "objectiveGlow",
+          "size": [
+            6.24,
+            6.4,
+            6.4
+          ]
+        }
+      },
+      "objectiveParts": [
+        {
+          "at": [
+            0,
+            5,
+            0
+          ],
+          "color": [
+            20,
+            18,
+            42
+          ],
+          "mat": "SmoothPlastic",
+          "role": "objective",
+          "rot": [
+            0,
+            45,
+            0
+          ],
+          "shape": "Block",
+          "size": [
+            7,
+            10,
+            7
+          ]
+        },
+        {
+          "at": [
+            0,
+            12,
+            0
+          ],
+          "role": "objectiveGlow",
+          "shape": "Ball",
+          "size": [
+            5,
+            5,
+            5
+          ]
+        }
+      ],
+      "parts": [
+        {
+          "at": [
+            0,
+            34,
+            10
+          ],
+          "color": [
+            38,
+            32,
+            78
+          ],
+          "mat": "SmoothPlastic",
+          "role": "body",
+          "shape": "Block",
+          "size": [
+            32,
+            32,
+            60
+          ]
+        },
+        {
+          "at": [
+            0,
+            45,
+            -32
+          ],
+          "color": [
+            38,
+            32,
+            78
+          ],
+          "mat": "SmoothPlastic",
+          "role": "body",
+          "shape": "Block",
+          "size": [
+            32,
+            13,
+            28
+          ]
+        },
+        {
+          "at": [
+            0,
+            22.5,
+            -34
+          ],
+          "color": [
+            20,
+            18,
+            42
+          ],
+          "mat": "SmoothPlastic",
+          "role": "body",
+          "rot": [
+            -14,
+            0,
+            0
+          ],
+          "shape": "Block",
+          "size": [
+            28,
+            4,
+            24
+          ]
+        },
+        {
+          "at": [
+            0,
+            31,
+            -44
+          ],
+          "role": "glow",
+          "rot": [
+            0,
+            90,
+            0
+          ],
+          "shape": "Cylinder",
+          "size": [
+            1,
+            12,
+            12
+          ]
+        },
+        {
+          "at": [
+            0,
+            48.6,
+            -46
+          ],
+          "role": "glow",
+          "shape": "Block",
+          "size": [
+            16,
+            2,
+            1
+          ]
+        },
+        {
+          "at": [
+            0,
+            48.4,
+            10
+          ],
+          "role": "glow",
+          "shape": "Block",
+          "size": [
+            2,
+            1,
+            60
+          ]
+        },
+        {
+          "at": [
+            -16,
+            11,
+            -12
+          ],
+          "color": [
+            38,
+            32,
+            78
+          ],
+          "mat": "SmoothPlastic",
+          "role": "body",
+          "shape": "Block",
+          "size": [
+            7,
+            24,
+            7
+          ]
+        },
+        {
+          "at": [
+            -16,
+            11,
+            24
+          ],
+          "color": [
+            38,
+            32,
+            78
+          ],
+          "mat": "SmoothPlastic",
+          "role": "body",
+          "shape": "Block",
+          "size": [
+            7,
+            24,
+            7
+          ]
+        },
+        {
+          "at": [
+            16,
+            11,
+            -12
+          ],
+          "color": [
+            38,
+            32,
+            78
+          ],
+          "mat": "SmoothPlastic",
+          "role": "body",
+          "shape": "Block",
+          "size": [
+            7,
+            24,
+            7
+          ]
+        },
+        {
+          "at": [
+            16,
+            11,
+            24
+          ],
+          "color": [
+            38,
+            32,
+            78
+          ],
+          "mat": "SmoothPlastic",
+          "role": "body",
+          "shape": "Block",
+          "size": [
+            7,
+            24,
+            7
+          ]
+        },
+        {
+          "at": [
+            -12,
+            55,
+            8
+          ],
+          "role": "weak",
+          "rot": [
+            0,
+            0,
+            90
+          ],
+          "shape": "Cylinder",
+          "size": [
+            12,
+            5,
+            5
+          ]
+        },
+        {
+          "at": [
+            0,
+            58,
+            16
+          ],
+          "role": "weak",
+          "rot": [
+            0,
+            0,
+            90
+          ],
+          "shape": "Cylinder",
+          "size": [
+            16,
+            5,
+            5
+          ]
+        },
+        {
+          "at": [
+            12,
+            55,
+            8
+          ],
+          "role": "weak",
+          "rot": [
+            0,
+            0,
+            90
+          ],
+          "shape": "Cylinder",
+          "size": [
+            12,
+            5,
+            5
+          ]
+        }
+      ],
+      "pieces": {
+        "Glow": {
+          "offset": [
+            0.011,
+            30.263,
+            10.864
+          ],
+          "role": "glow",
+          "size": [
+            38.406,
+            44.854,
+            145.873
+          ]
+        },
+        "Hull": {
+          "offset": [
+            0,
+            29.45,
+            13.481
+          ],
+          "role": "hull",
+          "size": [
+            43.799,
+            58.9,
+            136.962
+          ]
+        },
+        "Plates2": {
+          "offset": [
+            0,
+            36,
+            4
+          ],
+          "role": "shed2",
+          "size": [
+            40,
+            17.818,
+            44
+          ]
+        },
+        "Plates3": {
+          "offset": [
+            0,
+            43.681,
+            -24.7
+          ],
+          "role": "shed3",
+          "size": [
+            46.675,
+            19.486,
+            38.6
+          ]
+        },
+        "Weak": {
+          "offset": [
+            0,
+            60,
+            12
+          ],
+          "role": "weak",
+          "size": [
+            30.529,
+            12.5,
+            14.697
+          ]
+        }
+      },
+      "theme": [
+        90,
+        240,
+        230
+      ],
+      "triangles": 9310,
+      "weak": {
+        "crystalA": [
+          -12,
+          58,
+          8
+        ],
+        "crystalB": [
+          0,
+          62,
+          16
+        ],
+        "crystalC": [
+          12,
+          58,
+          8
+        ]
+      }
+    },
+    "colors": [
+      [
+        40,
+        30,
+        70
+      ],
+      [
+        120,
+        90,
+        200
+      ],
+      [
+        255,
+        250,
+        200
+      ]
+    ],
+    "gold": 10,
+    "group": "bosses",
+    "id": "LumenMaw",
+    "name": "Lumen Maw",
+    "title": "THE LIGHT EATER",
+    "weakColor": [
+      255,
+      196,
+      40
+    ]
+  },
+  {
+    "bit": 3,
+    "boss": "LeviathanEngine",
+    "bossArt": {
+      "debris": [
+        204,
+        152,
+        64
+      ],
+      "fx": {
+        "at": [
+          [
+            0,
+            15,
+            -2
+          ],
+          [
+            -14,
+            18,
+            12
+          ],
+          [
+            14,
+            18,
+            12
+          ],
+          [
+            0,
+            64.5,
+            -30
+          ]
+        ],
+        "every": 0.5,
+        "kind": "tide"
+      },
+      "glow": [
+        [
+          80,
+          230,
+          255
+        ],
+        [
+          255,
+          172,
+          60
+        ],
+        [
+          255,
+          60,
+          48
+        ]
+      ],
+      "look": "the Deep Machine: an ancient brass-and-stone sea machine",
+      "objective": {
+        "Bay": {
+          "offset": [
+            0,
+            -2.05,
+            0
+          ],
+          "role": "objective",
+          "size": [
+            9.2,
+            9.9,
+            12.4
+          ]
+        },
+        "BayGlow": {
+          "offset": [
+            0,
+            2.2,
+            1.2
+          ],
+          "role": "objectiveGlow",
+          "size": [
+            3.12,
+            3.2,
+            3.2
+          ]
+        }
+      },
+      "objectiveParts": [
+        {
+          "at": [
+            0,
+            -3,
+            0
+          ],
+          "color": [
+            92,
+            108,
+            100
+          ],
+          "mat": "Slate",
+          "role": "objective",
+          "shape": "Block",
+          "size": [
+            9,
+            7,
+            12
+          ]
+        },
+        {
+          "at": [
+            0,
+            2.2,
+            1.2
+          ],
+          "role": "objectiveGlow",
+          "shape": "Ball",
+          "size": [
+            3.2,
+            3.2,
+            3.2
+          ]
+        }
+      ],
+      "parts": [
+        {
+          "at": [
+            0,
+            2,
+            8
+          ],
+          "color": [
+            92,
+            108,
+            100
+          ],
+          "mat": "Slate",
+          "role": "body",
+          "rot": [
+            -10,
+            0,
+            0
+          ],
+          "shape": "Block",
+          "size": [
+            30,
+            21.6,
+            24
+          ]
+        },
+        {
+          "at": [
+            0,
+            -3,
+            30
+          ],
+          "color": [
+            204,
+            152,
+            64
+          ],
+          "mat": "Metal",
+          "role": "body",
+          "rot": [
+            -10,
+            0,
+            0
+          ],
+          "shape": "Block",
+          "size": [
+            26.4,
+            19.008,
+            24
+          ]
+        },
+        {
+          "at": [
+            0,
+            -8,
+            52
+          ],
+          "color": [
+            92,
+            108,
+            100
+          ],
+          "mat": "Slate",
+          "role": "body",
+          "rot": [
+            -10,
+            0,
+            0
+          ],
+          "shape": "Block",
+          "size": [
+            22.8,
+            16.416,
+            24
+          ]
+        },
+        {
+          "at": [
+            0,
+            -13,
+            74
+          ],
+          "color": [
+            204,
+            152,
+            64
+          ],
+          "mat": "Metal",
+          "role": "body",
+          "rot": [
+            -10,
+            0,
+            0
+          ],
+          "shape": "Block",
+          "size": [
+            19.2,
+            13.824,
+            24
+          ]
+        },
+        {
+          "at": [
+            0,
+            -18,
+            96
+          ],
+          "color": [
+            92,
+            108,
+            100
+          ],
+          "mat": "Slate",
+          "role": "body",
+          "rot": [
+            -10,
+            0,
+            0
+          ],
+          "shape": "Block",
+          "size": [
+            15.6,
+            11.232,
+            24
+          ]
+        },
+        {
+          "at": [
+            0,
+            -23,
+            118
+          ],
+          "color": [
+            204,
+            152,
+            64
+          ],
+          "mat": "Metal",
+          "role": "body",
+          "rot": [
+            -10,
+            0,
+            0
+          ],
+          "shape": "Block",
+          "size": [
+            12,
+            8.64,
+            24
+          ]
+        },
+        {
+          "at": [
+            -16.4,
+            3,
+            16
+          ],
+          "color": [
+            204,
+            152,
+            64
+          ],
+          "mat": "Metal",
+          "role": "body",
+          "shape": "Cylinder",
+          "size": [
+            2.4,
+            15,
+            15
+          ]
+        },
+        {
+          "at": [
+            16.4,
+            3,
+            16
+          ],
+          "color": [
+            204,
+            152,
+            64
+          ],
+          "mat": "Metal",
+          "role": "body",
+          "shape": "Cylinder",
+          "size": [
+            2.4,
+            15,
+            15
+          ]
+        },
+        {
+          "at": [
+            0,
+            12.4,
+            2
+          ],
+          "color": [
+            204,
+            152,
+            64
+          ],
+          "mat": "Metal",
+          "role": "body",
+          "rot": [
+            0,
+            0,
+            90
+          ],
+          "shape": "Cylinder",
+          "size": [
+            2.4,
+            15,
+            15
+          ]
+        },
+        {
+          "at": [
+            0,
+            14.6,
+            2
+          ],
+          "role": "weak",
+          "shape": "Ball",
+          "size": [
+            6,
+            6,
+            6
+          ]
+        },
+        {
+          "at": [
+            0,
+            12,
+            -6
+          ],
+          "color": [
+            204,
+            152,
+            64
+          ],
+          "mat": "Metal",
+          "role": "body",
+          "rot": [
+            -35,
+            0,
+            0
+          ],
+          "shape": "Block",
+          "size": [
+            16,
+            14,
+            16
+          ]
+        },
+        {
+          "at": [
+            0,
+            23,
+            -15
+          ],
+          "color": [
+            86,
+            168,
+            148
+          ],
+          "mat": "Metal",
+          "role": "body",
+          "rot": [
+            -35,
+            0,
+            0
+          ],
+          "shape": "Block",
+          "size": [
+            15,
+            14,
+            15
+          ]
+        },
+        {
+          "at": [
+            0,
+            34,
+            -24
+          ],
+          "color": [
+            204,
+            152,
+            64
+          ],
+          "mat": "Metal",
+          "role": "body",
+          "rot": [
+            -35,
+            0,
+            0
+          ],
+          "shape": "Block",
+          "size": [
+            14,
+            14,
+            14
+          ]
+        },
+        {
+          "at": [
+            0,
+            47.5,
+            -38
+          ],
+          "color": [
+            204,
+            152,
+            64
+          ],
+          "mat": "Metal",
+          "role": "body",
+          "shape": "Block",
+          "size": [
+            24,
+            18,
+            30
+          ]
+        },
+        {
+          "at": [
+            0,
+            34.5,
+            -41
+          ],
+          "color": [
+            92,
+            108,
+            100
+          ],
+          "mat": "Slate",
+          "role": "body",
+          "shape": "Block",
+          "size": [
+            20,
+            5,
+            26
+          ]
+        },
+        {
+          "at": [
+            0,
+            38,
+            -54
+          ],
+          "role": "glow",
+          "shape": "Block",
+          "size": [
+            14,
+            4,
+            1
+          ]
+        },
+        {
+          "at": [
+            -8.8,
+            50,
+            -46.6
+          ],
+          "role": "weak",
+          "shape": "Ball",
+          "size": [
+            6,
+            6,
+            6
+          ]
+        },
+        {
+          "at": [
+            8.8,
+            50,
+            -46.6
+          ],
+          "role": "weak",
+          "shape": "Ball",
+          "size": [
+            6,
+            6,
+            6
+          ]
+        },
+        {
+          "at": [
+            -15.4,
+            3.5,
+            12
+          ],
+          "role": "glow",
+          "rot": [
+            -10,
+            0,
+            0
+          ],
+          "shape": "Block",
+          "size": [
+            1,
+            2,
+            26
+          ]
+        },
+        {
+          "at": [
+            15.4,
+            3.5,
+            12
+          ],
+          "role": "glow",
+          "rot": [
+            -10,
+            0,
+            0
+          ],
+          "shape": "Block",
+          "size": [
+            1,
+            2,
+            26
+          ]
+        },
+        {
+          "at": [
+            0,
+            58,
+            -33
+          ],
+          "color": [
+            92,
+            108,
+            100
+          ],
+          "mat": "Slate",
+          "role": "body",
+          "shape": "Block",
+          "size": [
+            2,
+            7,
+            26
+          ]
+        },
+        {
+          "at": [
+            0,
+            2,
+            -6
+          ],
+          "color": [
+            92,
+            108,
+            100
+          ],
+          "mat": "Slate",
+          "role": "body",
+          "shape": "Block",
+          "size": [
+            30,
+            2,
+            12
+          ]
+        },
+        {
+          "at": [
+            0,
+            -30,
+            142
+          ],
+          "color": [
+            204,
+            152,
+            64
+          ],
+          "mat": "Metal",
+          "role": "body",
+          "shape": "Block",
+          "size": [
+            2,
+            14,
+            10
+          ]
+        }
+      ],
+      "pieces": {
+        "Glow": {
+          "offset": [
+            0,
+            27.005,
+            14
+          ],
+          "role": "glow",
+          "size": [
+            32.848,
+            77.991,
+            129.2
+          ]
+        },
+        "Hull": {
+          "offset": [
+            0,
+            13.121,
+            40.476
+          ],
+          "role": "hull",
+          "size": [
+            60,
+            106.044,
+            204.953
+          ]
+        },
+        "Plates2": {
+          "offset": [
+            0,
+            44.749,
+            -27.098
+          ],
+          "role": "shed2",
+          "size": [
+            35.918,
+            13.477,
+            17.01
+          ]
+        },
+        "Plates3": {
+          "offset": [
+            0,
+            17.518,
+            -14.96
+          ],
+          "role": "shed3",
+          "size": [
+            23.1,
+            37.278,
+            32.734
+          ]
+        },
+        "Weak": {
+          "offset": [
+            0,
+            32.61,
+            -22.1
+          ],
+          "role": "weak",
+          "size": [
+            23.6,
+            40.78,
+            55
+          ]
+        }
+      },
+      "theme": [
+        80,
+        230,
+        255
+      ],
+      "triangles": 10348,
+      "weak": {
+        "eyeL": [
+          -8.8,
+          50,
+          -46.6
+        ],
+        "eyeR": [
+          8.8,
+          50,
+          -46.6
+        ],
+        "reactor": [
+          0,
+          14.6,
+          2
+        ]
+      }
+    },
+    "colors": [
+      [
+        150,
+        110,
+        50
+      ],
+      [
+        90,
+        120,
+        110
+      ],
+      [
+        120,
+        255,
+        230
+      ]
+    ],
+    "gold": 11,
+    "group": "bosses",
+    "id": "LeviathanEngine",
+    "name": "Leviathan Engine",
+    "title": "THE DEEP MACHINE",
+    "weakColor": [
+      255,
+      196,
+      40
+    ]
+  }
+]
