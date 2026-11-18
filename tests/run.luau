@@ -5189,7 +5189,8 @@ test(
 		check(CreatorRules.heroName(Config, 3, 1) == "Storm Falcon", "the name reads Title Noun")
 		check(not CreatorRules.nameOk(Config, 1, 1), "Captain Falcon is blocked")
 		check(
-			not CreatorRules.nameOk(Config, 0, 1) and not CreatorRules.nameOk(Config, 1, #Config.Creator.nouns + 1),
+			not CreatorRules.nameOk(Config, 0, 1)
+				and not CreatorRules.nameOk(Config, 1, #Config.Creator.nouns + 1),
 			"both wheels needed"
 		)
 		local rng = Rng.new(9)
