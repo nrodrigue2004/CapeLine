@@ -74,6 +74,49 @@ return {
 		{ id = "boardReward", visual = "BoardHud" }, -- fanfare ping; the TOP 10 card with the week's title (WP2)
 		{ id = "dailyClaim", visual = "JuiceFx" }, -- coin chime; the DAY N! stamp and confetti, more on day 7 (WP1)
 		{ id = "dailyQuest", visual = "JuiceFx" }, -- bright ping; the DAILY! stamp with the quest's line (WP1)
+		-- side quest chains (the juice pass, 2026-11-18): every moment of all 16 chains (sideQuest below)
+		{ id = "questAccept", visual = "JuiceFx" }, -- page swoosh; the NEW QUEST! stamp with the chain's name
+		{ id = "questStep", visual = "JuiceFx" }, -- bright chime; the step's word stamp (CAUGHT!, HELD!...), the pay pop
+		{ id = "questVillain", visual = "CinemaHud" }, -- low sting; the finale villain's name card slams in
+		{ id = "questEncore", visual = "JuiceFx" }, -- horn whoosh; the ENCORE! stamp with the second villain's name
+		{ id = "questFinale", visual = "JuiceFx" }, -- boom and chime; fireworks over the villain, the VICTORY! stamp
+		{ id = "questDone", visual = "StoryHud" }, -- fanfare and the victory sting; the result card and confetti
+		{ id = "questRetry", visual = "JuiceFx" }, -- soft low ping; the TRY AGAIN! stamp (Downed in a finale)
+	},
+	-- Side quest juice (the juice pass, 2026-11-18; Shared.QuestJuice reads it, StoryHud fires it): which juice
+	-- row each moment of a chain fires, and the stamp word for a step done by its kind (every kind in
+	-- Shared.SideQuestPlan.KINDS; tests check every step of all 16 chains maps to a row). A finale's win is
+	-- questFinale, then the chain's result card (questDone) after `doneDelay` seconds. Words are fixed UI words.
+	sideQuest = {
+		moments = {
+			accept = "questAccept", -- a chain taken (from its giver or the Journal)
+			step = "questStep", -- a step done (the whole group's)
+			wait = "questStep", -- your side's part done, the other side still working (no stamp)
+			villain = "questVillain", -- the finale's name card
+			encore = "questEncore", -- the first villain down, the encore lands
+			finale = "questFinale", -- the finale won (the villain beaten)
+			done = "questDone", -- the chain done: the result card with its title and cosmetic
+			retry = "questRetry", -- the finale lost (Downed while the villain stands)
+		},
+		kinds = {
+			talk = { juice = "questStep", word = "TALKED!" },
+			fight = { juice = "questStep", word = "CLEARED!" },
+			incident = { juice = "questStep", word = "HANDLED!" },
+			chase = { juice = "questStep", word = "CAUGHT!" },
+			deliver = { juice = "questStep", word = "DELIVERED!" },
+			fetch = { juice = "questStep", word = "COLLECTED!" },
+			hold = { juice = "questStep", word = "HELD!" },
+			escort = { juice = "questStep", word = "ARRIVED!" },
+			carry = { juice = "questStep", word = "CARRIED!" },
+			race = { juice = "questStep", word = "FINISHED!" },
+			reach = { juice = "questStep", word = "MADE IT!" },
+			find = { juice = "questStep", word = "FOUND!" },
+			photo = { juice = "questStep", word = "SNAPPED!" },
+			beacon = { juice = "questStep", word = "LIT UP!" },
+			pocket = { juice = "questStep", word = "CLEARED!" },
+			finale = { juice = "questFinale", word = "VICTORY!" },
+		},
+		doneDelay = 1.8,
 	},
 	-- the spec's own juice table is the first 31 rows above; the rest came with the Hero MMO features
 	juiceSpec = 31,
@@ -142,6 +185,14 @@ return {
 		boardReward = s("electronicpingshort.wav", 0.8, 1.3), -- WP2: a weekly board title
 		dailyClaim = s("electronicpingshort.wav", 0.8, 1.6),
 		dailyQuest = s("electronicpingshort.wav", 0.7, 1.15),
+		-- side quest chains (the juice pass). PLACEHOLDER SOUND: built-in clips until nate picks ids
+		questAccept = s("swoosh.wav", 0.6, 1.3),
+		questStep = s("electronicpingshort.wav", 0.75, 1.25),
+		questVillain = s("action_falling.mp3", 0.8, 0.4),
+		questEncore = s("swoosh.wav", 0.9, 0.5),
+		questFinale = s("action_jump_land.mp3", 0.9, 0.5),
+		questDone = s("electronicpingshort.wav", 1, 1.1, { sting = true }), -- with the music's victory sting
+		questRetry = s("electronicpingshort.wav", 0.5, 0.6),
 		ui = s("button.wav", 0.35, 1), -- every button tap
 		-- the newer robots (not juice actions; CombatClient plays them with their CombatFx visuals)
 		aimLock = s("electronicpingshort.wav", 0.6, 2.6), -- a Sniper's laser locks on you

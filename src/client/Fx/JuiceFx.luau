@@ -424,6 +424,87 @@ function JuiceFx.dailyQuest(_at: Vector3?, data: { [string]: any }?)
 	end
 end
 
+---------------------------------------------------------------------------
+-- Side quest chains (the juice pass, 2026-11-18; Config.Audio.sideQuest, StoryHud fires them). data: name (the
+-- chain's or villain's, from Config), word (the step's stamp word), sub, credits, wait
+---------------------------------------------------------------------------
+
+-- A chain taken: the NEW QUEST! stamp with its name and a little confetti
+function JuiceFx.questAccept(_at: Vector3?, data: { [string]: any }?)
+	local d = data or {}
+	stamp("NEW QUEST!", GOLD, d.name)
+	confetti(12)
+	local root = myRoot()
+	if root then
+		ring(root.Position - Vector3.new(0, 2.5, 0), 9, GOLD, 0.7)
+	end
+end
+
+-- A step done: the step's word stamp (CAUGHT!, HELD!...) with how far along the chain is, a ring round the hero
+-- and the pay pop; your part done while the other side works: the ring and the word pop only
+function JuiceFx.questStep(_at: Vector3?, data: { [string]: any }?)
+	local d = data or {}
+	local root = myRoot()
+	if root then
+		ring(root.Position - Vector3.new(0, 2.5, 0), if d.wait then 7 else 10, Kit.color.health, 0.7)
+	end
+	if d.wait then
+		if root then
+			pop(root.Position + Vector3.new(0, 4, 0), d.word or "DONE!", Kit.color.health)
+		end
+		return
+	end
+	stamp(d.word or "STEP DONE!", Kit.color.health, d.sub)
+	if root and (d.credits or 0) > 0 then
+		pop(root.Position + Vector3.new(0, 4, 0), "+" .. Kit.comma(d.credits) .. " CREDITS", GOLD)
+	end
+end
+
+-- The encore: the first villain is down and the second lands: the ENCORE! stamp and a burst where it lands
+function JuiceFx.questEncore(at: Vector3?, data: { [string]: any }?)
+	local d = data or {}
+	stamp("ENCORE!", Color3.fromRGB(255, 120, 90), d.name)
+	if at then
+		ring(at, 16, Color3.fromRGB(255, 120, 90), 0.8)
+	end
+end
+
+-- The finale won: fireworks over where the villain fell and the VICTORY! stamp with its name
+function JuiceFx.questFinale(at: Vector3?, data: { [string]: any }?)
+	local d = data or {}
+	local where = at or (myRoot() and (myRoot() :: BasePart).Position)
+	if where then
+		for i = 1, 4 do
+			task.delay(i * 0.2, function()
+				local sky = where
+					+ Vector3.new(math.random(-24, 24), 30 + math.random(0, 20), math.random(-24, 24))
+				local c = Color3.fromHSV(math.random(), 0.7, 1)
+				ring(sky, 10, c, 0.8)
+				local core = bit(Vector3.one * 2.5, CFrame.new(sky), c, Enum.PartType.Ball)
+				fadeOut(core, 0.7, { Size = Vector3.one * 8 })
+			end)
+		end
+		ring(where, 14, GOLD, 0.9)
+	end
+	stamp(d.word or "VICTORY!", GOLD, d.name and (d.name .. " DEFEATED") or nil)
+end
+
+-- The chain done: confetti over the result card (StoryHud draws the card) and a gold ring round the hero
+function JuiceFx.questDone()
+	confetti(60)
+	local root = myRoot()
+	if root then
+		ring(root.Position - Vector3.new(0, 2.5, 0), 12, GOLD, 1)
+		ring(root.Position, 8, GOLD, 1.2)
+	end
+end
+
+-- The finale lost (Downed while the villain stands): the TRY AGAIN! stamp with the villain's name
+function JuiceFx.questRetry(_at: Vector3?, data: { [string]: any }?)
+	local d = data or {}
+	stamp("TRY AGAIN!", Kit.color.paper, d.name)
+end
+
 -- H7: a collection find: a sparkle burst where it lay and a "2 / 8" pop with the set's name
 function JuiceFx.collectFind(at: Vector3?, data: { [string]: any }?)
 	local where = at or (myRoot() and (myRoot() :: BasePart).Position)

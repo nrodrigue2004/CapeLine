@@ -149,7 +149,7 @@ local Remotes: { [string]: RemoteDef } = {
 	MissionEnter = { dir = "C2S", schema = { n(2, 6), n(0, 1000000, true) }, rate = 0.2, burst = 2 },
 	MissionLeave = { dir = "C2S", schema = {}, rate = 0.5, burst = 2 },
 	MissionState = { dir = "S2C" }, -- { num, step, steps, side, kind, text, have, need, t, points, target, focus }, 2 Hz
-	MissionResult = { dir = "S2C" }, -- { num, first, credits, renown, drops, skillPoints, rep, ending }
+	MissionResult = { dir = "S2C" }, -- { num, first, credits, renown, drops, skillPoints, rep, ending, sq }
 	StoryBroadcast = { dir = "S2C" }, -- { id }: an act's ending broadcast (lore step 5: after Live, back in the city)
 	-- lore step 7 (the cinematic layer): a device-started scene was seen (its Config.Cinema bit); skip a
 	-- mission's camera beat (only when every hero on that stage has seen it); the news (facts and flashes)
