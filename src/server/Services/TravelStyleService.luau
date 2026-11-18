@@ -3,6 +3,7 @@
 -- plain look); the player attribute TravelStyle carries the style id for the hero's current mobility, and
 -- every device draws it (TravelStyleFx). Looks only: nothing here touches a speed or the speed checks.
 
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
@@ -16,6 +17,8 @@ local DataService = require(script.Parent.DataService)
 local HeroService = require(script.Parent.HeroService)
 
 local TravelStyleService = {}
+
+local watched: { [Player]: boolean } = {} -- players whose Mobility attribute is listened to
 
 local function show(player: Player)
 	local profile = DataService.get(player)
@@ -55,10 +58,18 @@ function TravelStyleService.init()
 		end
 	end)
 	DataService.Loaded:Connect(function(player: Player)
+		show(player) -- a slot switch fires Loaded again: the new hero's style
+		if watched[player] then
+			return -- one Mobility listener a player (Loaded fires again on every slot switch)
+		end
+		watched[player] = true
 		-- a mobility swap at a safehouse changes which style shows
 		player:GetAttributeChangedSignal("Mobility"):Connect(function()
 			show(player)
 		end)
+	end)
+	Players.PlayerRemoving:Connect(function(player)
+		watched[player] = nil
 	end)
 end
 

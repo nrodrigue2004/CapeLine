@@ -4900,7 +4900,7 @@ test("M8: strikes kick at 3 in 10 min (never ban); reports flag at 3 accounts in
 	for i = 1, 30 do
 		GuardRules.netDrop(Config, s3, 1000 + i * 0.1)
 	end
-	check(#s3.times == 3, "a flood counts strikes")
+	check(s3.kicking and #s3.times == 0, "a flood counts strikes up to one kick")
 	check(
 		not GuardRules.needsReview(Config, 1) and GuardRules.needsReview(Config, 2),
 		"repeated kicks go to review"
@@ -21819,6 +21819,8 @@ do
 
 	test("World fixes: one throwing reward listener no longer stops the other heroes' pay", function()
 		local rewarded = Signal.new()
+		local onError = Signal.onError
+		Signal.onError = function() end -- the listener's bug is expected here
 		rewarded:Connect(function(_player: any, tier: any)
 			if tier == "mvp" then
 				error("a listener's bug")
@@ -21843,8 +21845,10 @@ do
 			end)
 		end
 		ended = true
+		Signal.onError = onError
 		check(ended, "the fight reaches its result phase")
-		check(#paid == 1 and paid[1] == 4, "the hero after the MVPs still got the rest of their reward")
+		-- data fixes: Signal now isolates each handler, so the MVPs get the rest of their reward too
+		check(#paid == 4 and paid[4] == 4, "every hero, MVPs too, still got the rest of their reward")
 	end)
 
 	test("World fixes: heroes who left give up their MVP and Contributor slots", function()
@@ -21929,6 +21933,188 @@ do
 		)
 		check(PvpRules.resetOutcome(false, true, nil) == "plain", "standing, no PvP: a plain defeat")
 		check(PvpRules.resetOutcome(false, false, 77) == "plain", "already defeated: nothing more")
+	end)
+end
+
+---------------------------------------------------------------------------
+-- Data fixes (2026-11-18): receipts acknowledged only after a save that holds them, the Hero Pass on the
+-- live season, one kick per kick event, a strike needs fresh evidence, Legacy keeps who the hero is,
+-- Signal handlers isolated. The services' wiring is on the Studio list ("Data fixes").
+---------------------------------------------------------------------------
+do
+	local ShopRules = require("../src/shared/ShopRules")
+	local PassRules = require("../src/shared/PassRules")
+	local GuardRules = require("../src/shared/GuardRules")
+	local HqRules = require("../src/shared/HqRules")
+	local ProfileSchema = require("../src/shared/ProfileSchema")
+	local Signal = require("../src/shared/Util/Signal")
+
+	test("Data fixes: a receipt is acknowledged only once a save that holds it worked", function()
+		local profile = ProfileSchema.default()
+		local saves, works = 0, false
+		local function save()
+			saves += 1
+			return works
+		end
+		local answer, got = ShopRules.receipt(Config, profile, "pack2", "r1", 0, false, save)
+		check(answer == "notYet" and got == nil and saves == 0, "a session that cannot save grants nothing")
+		check(not ShopRules.hasReceipt(profile, "r1"), "and records nothing")
+		answer, got = ShopRules.receipt(Config, profile, "pack2", "r1", 0, true, save)
+		check(answer == "notYet" and got ~= nil and saves == 1, "granted, but the save failed: not yet")
+		check(ShopRules.hasReceipt(profile, "r1"), "the grant stays in memory for the retry")
+		-- Roblox asks again in the same session: the id is there, but it is still not on any save
+		answer, got = ShopRules.receipt(Config, profile, "pack2", "r1", 0, true, save)
+		check(
+			answer == "notYet" and got == nil and saves == 2,
+			"the retry saves again, never acknowledged unsaved"
+		)
+		works = true
+		answer, got = ShopRules.receipt(Config, profile, "pack2", "r1", 0, true, save)
+		check(
+			answer == "granted" and got == nil and saves == 3,
+			"acknowledged once a save holds it, no second grant"
+		)
+		answer, got = ShopRules.receipt(Config, profile, "pack3", "r2", 0, true, save)
+		check(answer == "granted" and got ~= nil and got.key == "pack3", "a fresh receipt that saves at once")
+	end)
+
+	test("Data fixes: a Hero Pass bought at a season boundary lands on the live season", function()
+		local P = Config.Pass
+		local C2 = table.clone(Config)
+		C2.Pass = table.clone(P)
+		C2.Pass.seasons = { P.seasons[1], P.seasons[1] } -- a written season 2
+		local inS2 = ((P.startWeek + P.weeks) * 7 - 3) * 86400 + 3600 -- an hour into season 2
+		check(PassRules.season(P, inS2) == 2, "the time is in season 2")
+		local profile = ProfileSchema.default()
+		PassRules.roll(profile.pass, 1)
+		profile.pass.xp = 500
+		check(ShopRules.available(C2, profile, "heroPass", inS2), "on sale in the live season")
+		check(profile.pass.season == 2 and profile.pass.xp == 0, "judged on the live season (rolled)")
+		profile.pass.season = 1 -- the stale season again (no roll since the boundary)
+		check(ShopRules.grant(C2, profile, "heroPass", "boundary", inS2), "the receipt grants")
+		check(profile.pass.season == 2 and profile.pass.paid, "set on the live season")
+		check(not PassRules.roll(profile.pass, 2) and profile.pass.paid, "the next roll keeps it")
+		-- no season 2 written: not sold off a stale season 1
+		local p2 = ProfileSchema.default()
+		PassRules.roll(p2.pass, 1)
+		check(not ShopRules.available(Config, p2, "heroPass", inS2), "an ended season is not sold")
+		check(ShopRules.available(Config, p2, "heroPass", inS2 - P.weeks * 7 * 86400), "a live one is")
+	end)
+
+	test("Data fixes: one kick event is one kick; strikes start over after it", function()
+		local s = GuardRules.newStrikes()
+		local kicks = 0
+		for i = 1, 30 do -- 10 Hz speed fails for 3 s
+			if GuardRules.strike(Config, s, "speed", i * 0.1) then
+				kicks += 1
+			end
+		end
+		check(kicks == 1, string.format("one kick, not %d", kicks))
+		check(
+			s.kicking and #s.times == 0 and s.kinds.speed == 3,
+			"the book is cleared, its kinds kept for the row"
+		)
+		check(
+			not GuardRules.netDrop(Config, s, 10) and s.net == 0,
+			"remote drops count nothing while kicking"
+		)
+		GuardRules.kickDone(s)
+		check(not s.kicking and next(s.kinds) == nil, "Studio's no-kick opens the book again")
+		check(not GuardRules.strike(Config, s, "speed", 20), "and counts from zero")
+		check(not GuardRules.needsReview(Config, kicks), "a first offender is not queued for review")
+	end)
+
+	test("Data fixes: a lag spike's stale positions are one strike, not three", function()
+		local S = Config.Safety
+		local cap = MoveMath.speedCap(M, { flight = true }, true)
+		local st = MoveCheck.new(0, 100, 0, 0)
+		MoveCheck.sample(st, 10, 100, 0, 0.1, cap, M, S)
+		-- the device was cut off and its positions land at once 400 studs on; until MoveCorrect reaches it,
+		-- every 10 Hz sample sees the same far spot
+		local strikes, fails = 0, 0
+		for i = 1, 20 do
+			local ok, strike = MoveCheck.sample(st, 410, 100, 0, 0.1 + i * 0.1, cap, M, S)
+			fails += if ok then 0 else 1
+			strikes += if strike then 1 else 0
+		end
+		check(fails == 20, "every sample still pulls back")
+		check(strikes == 1, string.format("one strike in 2 s (%d)", strikes))
+		check(S.strikeGrace >= 2 and S.strikeGrace < S.strikes.window / S.strikes.kickAt, "a short grace")
+		-- still far after the grace: that is fresh evidence
+		local _, again = MoveCheck.sample(st, 410, 100, 0, 0.1 + S.strikeGrace + 0.2, cap, M, S)
+		check(again, "still teleported after the grace: a new strike")
+		-- a teleport hack is still kicked inside the window, just not in one burst
+		local hack = MoveCheck.new(0, 10, 0, 0)
+		local book = GuardRules.newStrikes()
+		local kickedAt = nil
+		for i = 1, 200 do
+			local t = i * 0.1
+			local _, strike = MoveCheck.sample(hack, 1000 * i, 10, 0, t, cap, M, S)
+			if strike and GuardRules.strike(Config, book, "speed", t) and not kickedAt then
+				kickedAt = t
+			end
+		end
+		check(kickedAt ~= nil and kickedAt > 2 * S.strikeGrace, "a hack is kicked after fresh strikes")
+	end)
+
+	test("Data fixes: Legacy keeps origin, mobility, weapon, title, travel styles and chains", function()
+		local profile = ProfileSchema.default()
+		local c = profile.characters[1]
+		c.level = Config.Stats.levelCap
+		c.created = 1
+		c.origin = 3
+		c.mobility = "swing"
+		c.weapon = 7
+		c.pathChanged = 1
+		c.mmo.title = 12
+		c.mmo.aura = 2
+		c.mmo.trim = 101
+		c.mmo.travel = { 1, 0, 2, 0, 3 }
+		c.mmo.cores = 4
+		c.mmo.nemesis.rank = 3
+		ProfileSchema.Bits.set(c.sq.done, 1)
+		c.contracts = { { id = 1 } }
+		check(HqRules.retire(Config, profile, 1, 1000) ~= nil, "retired")
+		local loaded = ProfileSchema.load(serde.decode("json", serde.encode("json", profile)))
+		for _, n in { profile.characters[1], loaded.characters[1] } do
+			check(n.level == 1 and n.legacy == 1, "a new run")
+			check(
+				n.origin == 3,
+				"origin kept (was 0, then repaired to " .. Config.Creator.originDefault .. ")"
+			)
+			check(
+				n.mobility == "swing" and n.weapon == 7 and n.pathChanged == 1,
+				"mobility, weapon, path change"
+			)
+			check(n.mmo.title == 12 and n.mmo.aura == 2 and n.mmo.trim == 101, "worn title, aura and trim")
+			check(n.mmo.travel[3] == 2 and n.mmo.travel[5] == 3, "travel picks")
+			check(n.mmo.cores == 4 and n.mmo.nemesis.rank == 3, "the MMO record")
+			check(ProfileSchema.Bits.get(n.sq.done, 1), "finished chains")
+			check(#n.contracts == 0, "contracts start over (their pay is by level)")
+		end
+	end)
+
+	test("Data fixes: a Signal handler's error never stops the handlers after it", function()
+		local sig = Signal.new()
+		local order = {}
+		local errors = 0
+		local was = Signal.onError
+		Signal.onError = function()
+			errors += 1
+		end
+		sig:Connect(function(v)
+			table.insert(order, "a" .. v)
+		end)
+		sig:Connect(function()
+			error("boom")
+		end)
+		sig:Connect(function(v)
+			table.insert(order, "c" .. v)
+		end)
+		sig:Fire(1)
+		Signal.onError = was
+		check(errors == 1, "the error is reported")
+		check(#order == 2 and order[1] == "a1" and order[2] == "c1", "the rest run, in connect order")
 	end)
 end
 

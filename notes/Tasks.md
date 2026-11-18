@@ -139,6 +139,19 @@ What nate does:
 
 ## Studio test list (needs nate's PC)
 
+### Data fixes: saves, Robux, moderation, HQ (2026-11-18)
+Receipts, leave-saves, kicks and Legacy (rules in Shared.ShopRules, GuardRules, MoveCheck, HqRules; tests: ONLY="Data fixes"). Needs a published place with Studio API access on for steps 1 to 4.
+1. Leave-save: play a few minutes (earn Renown, rank a skill, change a loadout), wait under 2 minutes (no autosave), then leave. Rejoin: the Renown, the rank and the loadout are all there. Do it 3 times (the old order lost them on most leaves).
+2. Receipt: buy a pack with a test product id. It lands once, and the Output has no "[Purchase] ... not saved yet". Rejoin: still owned, and the same receipt never grants twice.
+3. Save down: for this test only, set Config.Data.keyPrefix to a 60-letter text (DataStore keys stop at 50, so every load fails) and join: after the load tries the "saving is down" toast shows. Open the Robux shop and press BUY: no Roblox prompt; it reads "Saving is down on this server. Rejoin to shop". Put keyPrefix back after step 4.
+4. Slot switch on that no-save session: earn some Renown, switch to slot 2 and back: the first hero keeps the Renown it had.
+5. Kick once: in a live test server (Studio never kicks) teleport with an exploit tool 3 times inside 10 minutes: one kick, the account's kick count goes up by 1 and no review row is written. In Studio the Output shows one "would kick" line, not several.
+6. Lag spike: Studio Settings > Network > Incoming Replication Lag 1.5 s, boost-fly in a straight line for 5 s: at most one "[MoveGuard] strike" line, never a kick.
+7. Legacy: a level 50 hero with origin Starborn, Web-swing mobility, a carried weapon, a worn title and travel styles retires: after it they are all the same (not Training, not Flight, not Bare Fists).
+8. Hero Pass at the boundary: set Config.Pass.startWeek so a season ended an hour ago, rejoin, buy the Hero Pass: the pass card shows the paid track on the new season, and it stays paid after a minute's roll.
+9. Slot switch travel style: two heroes with different travel styles on the same mobility; switch slots: the new hero's style shows at once, and swapping mobility at a safehouse many times never slows the server.
+10. Nemesis Showdown: start one while a squadmate is still loading in (no hero yet): the Showdown starts, no NemesisService error.
+
 ### Story fixes: missions and the prologue (2026-11-18)
 Soft-locks and pay bugs fixed in MissionService and OpeningService (rules in Shared.MissionRules; tests: ONLY="Story fixes").
 1. Task force: start one with a squad of two. Each leg plays all its stages, the comic panel shows for 4 s between legs, and each member gets one result card per leg (not every leg in half a second, not a burst of pay at the start).

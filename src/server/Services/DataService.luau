@@ -10,7 +10,11 @@
 --   server's lock stops saving for that player instead of overwriting.
 -- * DataStore down at load: the player plays on a fresh profile that is never saved, and is told so.
 -- * Studio without API access (or an unpublished place): profiles live in memory for the session.
--- Before every save the beforeSave hooks run (HeroService writes the live hero back into its character).
+-- Before every save the beforeSave hooks run (HeroService writes the live hero back into its character),
+-- also in a session that cannot save, so a slot switch never drops the old hero's live state.
+-- * Leaving: Roblox runs PlayerRemoving handlers in no set order, so the leave runs here in one order:
+--   Leaving, then the beforeSave hooks (they read the live hero), then Left (HeroService removes the hero
+--   there; it leaves a hero whose player DataService still holds), then the write.
 -- Clients only ever see ProfileSchema.clientView, sent on ProfileSync whenever something changes.
 
 local DataStoreService = game:GetService("DataStoreService")
@@ -29,6 +33,7 @@ local DataService = {}
 
 DataService.Loaded = Signal.new() -- (player, profile)
 DataService.Leaving = Signal.new() -- (player, profile, exitReason?): before the last save
+DataService.Left = Signal.new() -- (player): the leave-save's hooks have read the live state (heroes go now)
 
 type Session = {
 	profile: { [string]: any },
@@ -38,6 +43,7 @@ type Session = {
 	fullQueued: boolean, -- false: only the wallet changed (a small sync)
 	soonQueued: boolean,
 	released: boolean,
+	leaving: boolean,
 	playClock: number,
 	lastSave: number,
 }
@@ -168,17 +174,19 @@ function DataService.onBeforeSave(fn: (Player, any) -> ())
 	table.insert(beforeSave, fn)
 end
 
--- Save now. release = the player is leaving (drops the session lock).
-function DataService.save(player: Player, release: boolean?): boolean
-	local session = sessions[player]
-	if not session or not session.canSave or session.released then
-		return false
-	end
+local function runHooks(player: Player, session: Session)
 	for _, fn in beforeSave do
 		local ok, err = pcall(fn, player, session.profile)
 		if not ok then
 			warn("[DataService] beforeSave: " .. tostring(err))
 		end
+	end
+end
+
+-- Write the profile (the hooks already ran). release = the player is leaving (drops the session lock).
+local function write(player: Player, session: Session, release: boolean): boolean
+	if not session.canSave or session.released then
+		return false
 	end
 	addPlayTime(session)
 	session.lastSave = os.clock()
@@ -196,12 +204,23 @@ function DataService.save(player: Player, release: boolean?): boolean
 		return false
 	end
 	session.saving = true
-	local ok = saveToStore(player, session, release == true)
+	local ok = saveToStore(player, session, release)
 	session.saving = false
 	if release then
 		session.released = true
 	end
 	return ok
+end
+
+-- Save now. release = the player is leaving (drops the session lock). The hooks write live state into the
+-- profile even when this session cannot save (it still lives in memory, and a slot switch reads it).
+function DataService.save(player: Player, release: boolean?): boolean
+	local session = sessions[player]
+	if not session or session.released then
+		return false
+	end
+	runHooks(player, session)
+	return write(player, session, release == true)
 end
 
 -- Save shortly (level up, gear change, quest turn-in, choice, purchase). A burst becomes one write.
@@ -278,6 +297,13 @@ function DataService.isSaving(player: Player): boolean
 	return session ~= nil and session.canSave
 end
 
+-- A loaded player whose leave has not run yet: HeroService keeps their hero until Left, so the leave-save
+-- reads it whatever order Roblox runs the PlayerRemoving handlers in
+function DataService.holds(player: Player): boolean
+	local session = sessions[player]
+	return session ~= nil and not session.leaving
+end
+
 local function resume(player: Player)
 	local list = waiting[player]
 	waiting[player] = nil
@@ -297,6 +323,7 @@ local function newSession(profile: any, canSave: boolean): Session
 		fullQueued = false,
 		soonQueued = false,
 		released = false,
+		leaving = false,
 		playClock = os.clock(),
 		lastSave = os.clock(),
 	}
@@ -343,11 +370,20 @@ end
 local function onPlayerRemoving(player: Player, reason: Enum.PlayerExitReason?)
 	local session = sessions[player]
 	if session then
+		session.leaving = true
 		local ok, err = pcall(DataService.Leaving.Fire, DataService.Leaving, player, session.profile, reason)
 		if not ok then
 			warn("[DataService] leaving handler: " .. tostring(err))
 		end
-		DataService.save(player, true)
+		-- the hooks read the live hero now, before Left lets HeroService remove it; then the write
+		if not session.released then
+			runHooks(player, session)
+		end
+		local okLeft, errLeft = pcall(DataService.Left.Fire, DataService.Left, player)
+		if not okLeft then
+			warn("[DataService] left handler: " .. tostring(errLeft))
+		end
+		write(player, session, true)
 		sessions[player] = nil
 	end
 	resume(player)

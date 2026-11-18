@@ -47,6 +47,7 @@ local M9_REASONS: { [string]: string } = {
 	rep = "Your side's reputation rank opens that style", -- lore step 12
 	where = "Open the shop at your HQ, a safehouse or the menu",
 	soon = "Coming soon",
+	save = "Saving is down on this server. Rejoin to shop",
 	slot3 = "Buy slot 3 first",
 	owned = "You already own that",
 }

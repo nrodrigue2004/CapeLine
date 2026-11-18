@@ -40,6 +40,7 @@ local REASONS = {
 	slot3 = "Buy slot 3 first",
 	soon = "Coming soon",
 	item = "That is not for sale",
+	save = "Saving is down on this server. Rejoin to shop",
 }
 
 local gui: ScreenGui

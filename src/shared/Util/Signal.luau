@@ -1,5 +1,5 @@
 --!strict
--- Signal: a tiny synchronous event (connect, fire, disconnect).
+-- Signal: a tiny synchronous event (connect, fire, disconnect). A handler's error never stops the others.
 
 export type Connection = { Disconnect: (self: Connection) -> (), Connected: boolean }
 
@@ -29,16 +29,27 @@ end
 
 function Signal.Fire(self: Signal, ...: any)
 	-- Copy so handlers can disconnect while firing
-	local list = {}
+	local list: { { any } } = {}
 	for id, handler in self._handlers do
 		list[#list + 1] = { id, handler }
 	end
 	table.sort(list, function(a, b)
 		return a[1] < b[1]
 	end)
+	-- Each handler runs in turn under its own xpcall: one that errors is reported and the rest still run
+	-- (one bad Loaded handler used to stop every service after it). Order and timing are unchanged: still
+	-- synchronous, in connect order, and a handler that yields still holds the next one back.
 	for _, entry in list do
-		entry[2](...)
+		local ok, err = xpcall(entry[2], debug.traceback, ...)
+		if not ok then
+			Signal.onError(err)
+		end
 	end
+end
+
+-- Where a handler's error goes (warn in game; tests swap it to count them)
+function Signal.onError(err: any)
+	warn("[Signal] handler error: " .. tostring(err))
 end
 
 function Signal.DisconnectAll(self: Signal)

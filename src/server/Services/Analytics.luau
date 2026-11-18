@@ -55,23 +55,30 @@ local function analytics(): AnalyticsService?
 	return service
 end
 
--- One custom event. Never throws.
-function Analytics.event(player: Player, name: string, value: number?, fields: { any }?)
-	if player.Parent ~= Players then
-		return
-	end
-	-- the per-minute budget: busy events give way first, so the funnels and rare events always get through
+-- The per-minute budget: true takes a slot. Busy (low) sends give way first, so the funnels and rare
+-- events always get through.
+local function takeBudget(low: boolean): boolean
 	local now = os.clock()
 	if now - minuteAt >= 60 then
 		minuteAt, minuteCount = now, 0
 	end
 	local cap = Config.Analytics.budget.base + Config.Analytics.budget.perPlayer * #Players:GetPlayers()
-	local low = Config.Analytics.lowPriority[name]
 	if minuteCount >= cap or (low and minuteCount >= cap * Config.Analytics.budget.lowShare) then
 		Analytics.dropped += 1
-		return
+		return false
 	end
 	minuteCount += 1
+	return true
+end
+
+-- One custom event. Never throws.
+function Analytics.event(player: Player, name: string, value: number?, fields: { any }?)
+	if player.Parent ~= Players then
+		return
+	end
+	if not takeBudget(Config.Analytics.lowPriority[name] == true) then
+		return
+	end
 	local ok, clean = AnalyticsSchema.check(name, fields)
 	if not ok then
 		if RunService:IsStudio() then
@@ -214,10 +221,12 @@ local function onTelemetry(player: Player, kind: number, value: number, a: numbe
 		local median = value % 1000
 		local p5 = value // 1000
 		Analytics.event(player, "perf_sample", median, { DEVICES[a] or "pc", PRESETS[b + 1] or "auto", p5 })
-	elseif kind == 2 then
-		Analytics.step(player, "Purchase", "shop_open")
-	elseif kind == 3 then
-		Analytics.step(player, "Purchase", "shop_view_item")
+	elseif kind == 2 or kind == 3 then
+		-- device-sent funnel steps (up to one a second a player) take a budget slot like any event, so a
+		-- device can never send past the per-minute cap
+		if takeBudget(false) then
+			Analytics.step(player, "Purchase", if kind == 2 then "shop_open" else "shop_view_item")
+		end
 	elseif kind == 4 then
 		Analytics.event(player, "photo", 1, { BACKDROPS[a] or "none" })
 		Analytics.Photo:Fire(player)

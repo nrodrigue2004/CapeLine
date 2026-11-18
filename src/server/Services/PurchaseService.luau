@@ -6,8 +6,13 @@
 --   the Roblox prompt. While an item's id is 0 (not made on the Creator Dashboard yet) Studio grants it
 --   through the same path with a test receipt, and a live server says it is not on sale yet.
 -- * ProcessReceipt: one handler for every product. ShopRules.grant records the purchase id and grants once;
---   the answer is PurchaseGranted only once the save worked (or the id was already there), so a replay or
---   a retry never grants twice.
+--   the answer is PurchaseGranted only once a save that holds the receipt id worked (Roblox's rule). A
+--   receipt id already on the live profile is saved again first: an earlier grant whose save failed is only
+--   in memory, so Roblox's retry must not be acknowledged until it is written. A player not in this server,
+--   a profile still loading that never arrives, or a session that cannot save answers NotProcessedYet, and
+--   Roblox asks again (on their next join). The Hero Pass is set on the live season (ShopRules.livePass).
+-- * A session that cannot save (DataStore down at load, or another server took the profile) never opens a
+--   Robux prompt: the purchase could not be kept.
 -- * Game passes (Quick Swap, 2x Credits and Renown) are checked on join and after a pass purchase.
 -- * The starter pack offer shows once, after the first world boss, and is easy to dismiss.
 
@@ -55,7 +60,7 @@ function PurchaseService.grant(player: Player, key: string, receiptId: string): 
 	if not profile then
 		return false
 	end
-	local ok, got = ShopRules.grant(Config, profile, key, receiptId)
+	local ok, got = ShopRules.grant(Config, profile, key, receiptId, os.time())
 	if ok then
 		landed(player, got)
 		DataService.saveSoon(player)
@@ -67,23 +72,37 @@ local function processReceipt(receipt: any): Enum.ProductPurchaseDecision
 	local player = Players:GetPlayerByUserId(receipt.PlayerId)
 	local key = ShopRules.byProductId(Config, receipt.ProductId)
 	if not player or not key then
+		-- not in this server (Roblox asks again on their next join) or not one of our products
+		if player and not key then
+			warn(string.format("[Purchase] unknown product %s", tostring(receipt.ProductId)))
+		end
 		return Enum.ProductPurchaseDecision.NotProcessedYet
 	end
-	local profile = DataService.get(player)
+	-- a receipt can arrive while the profile is still loading: wait for it (nil if they leave first)
+	local profile = DataService.waitFor(player)
 	if not profile then
 		return Enum.ProductPurchaseDecision.NotProcessedYet
 	end
 	local id = tostring(receipt.PurchaseId)
-	if ShopRules.hasReceipt(profile, id) then
-		return Enum.ProductPurchaseDecision.PurchaseGranted -- already granted
+	-- acknowledged only once a save holding the receipt id worked (true in Studio's memory mode); a grant
+	-- whose save failed stays on the live profile, so Roblox's retry saves it without a second grant; a
+	-- session that cannot save grants nothing (the next server that can does)
+	local answer, got = ShopRules.receipt(
+		Config,
+		profile,
+		key,
+		id,
+		os.time(),
+		DataService.isSaving(player),
+		function()
+			return DataService.get(player) == profile and DataService.save(player, false)
+		end
+	)
+	if got then
+		landed(player, got)
 	end
-	local ok, got = ShopRules.grant(Config, profile, key, id)
-	if not ok then
-		warn(string.format("[Purchase] %s did not grant", key))
-	end
-	landed(player, got)
-	if not DataService.save(player, false) and not DataService.isMemoryMode() then
-		-- recorded in this session: Roblox asks again and the receipt id stops a second grant
+	if answer ~= "granted" then
+		warn(string.format("[Purchase] %s receipt %s not saved yet: Roblox will ask again", key, id))
 		return Enum.ProductPurchaseDecision.NotProcessedYet
 	end
 	return Enum.ProductPurchaseDecision.PurchaseGranted
@@ -134,13 +153,17 @@ local function buy(player: Player, index: number)
 	local function no(reason: string)
 		Net.fire("ShopResult", player, { ok = false, key = key, reason = reason })
 	end
+	if not DataService.isSaving(player) then
+		no("save") -- this session cannot save, so a purchase could not be kept
+		return
+	end
 	local lastCombat = math.max(hero.lastDamaged or -1e9, hero.lastCast or -1e9)
 	local open, why = ShopRules.canOpen(Config, whereOf(hero), lastCombat, os.clock())
 	if not open then
 		no(why :: string)
 		return
 	end
-	local can, reason = ShopRules.available(Config, profile, key)
+	local can, reason = ShopRules.available(Config, profile, key, os.time())
 	if not can then
 		no(reason :: string)
 		return
