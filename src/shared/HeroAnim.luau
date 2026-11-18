@@ -586,6 +586,123 @@ C.lash = { -- whips, rope darts, yo-yos: a wide fling from the shoulder
 	},
 }
 
+-- Weapon holds (2026-11-18, the weapon meshes): while the weapon is held (key 2) and the hero stands, runs or
+-- jumps with no action playing, the arms take the weapon's ready stance over the Animator's arm swing (the legs
+-- keep walking). Each weapon's meshes (art/blender/weapons.py, Config.WeaponArt) are posed for its stance and
+-- its swings: blades held up and forward, blasters and spears along the arm so they aim where the arm points,
+-- shields on the back of the forearm so they face forward with the forearm raised, the bow upright with the
+-- arm out. tests/weapon_art_test.luau poses the rig and checks every weapon clears the ground and the head.
+C.holdFists = { -- a boxer's guard
+	dur = 1,
+	loop = true,
+	joints = {
+		RightShoulder = hold(52, 0, -14),
+		RightElbow = hold(100),
+		LeftShoulder = hold(60, 0, 14),
+		LeftElbow = hold(108),
+	},
+}
+C.holdOne = { -- the blade up and forward, the free hand relaxed
+	dur = 1,
+	loop = true,
+	joints = {
+		RightShoulder = hold(14, 0, 6),
+		RightElbow = hold(48),
+		LeftShoulder = hold(10, 0, -8),
+		LeftElbow = hold(28),
+	},
+}
+C.holdTwo = { -- both hands forward on the hilt, the blade raised
+	dur = 1,
+	loop = true,
+	joints = {
+		RightShoulder = hold(30, 0, -16),
+		RightElbow = hold(46),
+		LeftShoulder = hold(36, 0, 22),
+		LeftElbow = hold(50),
+	},
+}
+C.holdDual = { -- a blade in each hand, both up and forward
+	dur = 1,
+	loop = true,
+	joints = {
+		RightShoulder = hold(14, 0, 8),
+		RightElbow = hold(48),
+		LeftShoulder = hold(14, 0, -8),
+		LeftElbow = hold(48),
+	},
+}
+C.holdShield = { -- the shield arm up in front of the chest (the shield faces forward), the sword arm ready
+	dur = 1,
+	loop = true,
+	joints = {
+		LeftShoulder = hold(35, 0, 20),
+		LeftElbow = hold(125),
+		RightShoulder = hold(14, 0, 6),
+		RightElbow = hold(48),
+	},
+}
+C.holdRanged = { -- low ready: the blaster forward and a little down
+	dur = 1,
+	loop = true,
+	joints = {
+		RightShoulder = hold(30, 0, -6),
+		RightElbow = hold(34),
+		LeftShoulder = hold(10, 0, -6),
+		LeftElbow = hold(20),
+	},
+}
+C.holdLong = { -- rifles and crossbows: low ready, the other hand forward under the barrel
+	dur = 1,
+	loop = true,
+	joints = {
+		RightShoulder = hold(30, 0, -10),
+		RightElbow = hold(34),
+		LeftShoulder = hold(40, 0, 26),
+		LeftElbow = hold(50),
+	},
+}
+C.holdTwin = { -- a blaster in each hand at low ready
+	dur = 1,
+	loop = true,
+	joints = {
+		RightShoulder = hold(30, 0, -6),
+		RightElbow = hold(34),
+		LeftShoulder = hold(30, 0, 6),
+		LeftElbow = hold(34),
+	},
+}
+C.holdBow = { -- the bow upright in the left hand, a little forward
+	dur = 1,
+	loop = true,
+	joints = {
+		LeftShoulder = hold(40, 0, -8),
+		LeftElbow = hold(30),
+		RightShoulder = hold(10, 0, 6),
+		RightElbow = hold(20),
+	},
+}
+C.holdPole = { -- spears and staffs levelled forward, the left hand back along the shaft
+	dur = 1,
+	loop = true,
+	joints = {
+		RightShoulder = hold(26, 0, 0),
+		RightElbow = hold(64),
+		LeftShoulder = hold(36, 0, 26),
+		LeftElbow = hold(54),
+	},
+}
+C.holdExotic = { -- whips, yo-yos and rope darts hang from the hand, held out a little
+	dur = 1,
+	loop = true,
+	joints = {
+		RightShoulder = hold(16, 0, 8),
+		RightElbow = hold(40),
+		LeftShoulder = hold(10, 0, -8),
+		LeftElbow = hold(28),
+	},
+}
+
 -- the left hand's versions
 C.punchL = HeroAnim.mirror(C.punch)
 C.blastL = HeroAnim.mirror(C.blast)
@@ -635,6 +752,47 @@ local WEAPON_CLIPS: { [number]: { string } } = {
 	[36] = { "throw", "throw", "throw" }, -- Boomerang
 }
 HeroAnim.WEAPON_CLIPS = WEAPON_CLIPS
+
+-- the held weapon's ready stance: by family, with the weapons that stand their own way (by weapon id)
+local HOLD_FAMILY: { [string]: string } = {
+	fists = "holdFists",
+	one = "holdOne",
+	two = "holdTwo",
+	dual = "holdDual",
+	shield = "holdShield",
+	ranged = "holdRanged",
+	exotic = "holdExotic",
+}
+local HOLD_WEAPON: { [number]: string } = {
+	[14] = "holdPole", -- Spear
+	[16] = "holdPole", -- Bo Staff
+	[26] = "holdTwin", -- Twin Blasters
+	[27] = "holdLong", -- Blaster Rifle
+	[28] = "holdBow", -- Bow
+	[29] = "holdLong", -- Crossbow
+	[31] = "holdOne", -- Throwing Stars
+	[33] = "holdOne", -- War Fan
+	[36] = "holdOne", -- Boomerang
+}
+HeroAnim.HOLD_FAMILY = HOLD_FAMILY
+HeroAnim.HOLD_WEAPON = HOLD_WEAPON
+
+-- the stance clip for a held weapon (nil: none), by its id and family
+function HeroAnim.holdClip(weaponId: number?, family: string?): string?
+	local own = weaponId and HOLD_WEAPON[weaponId]
+	if own then
+		return own
+	end
+	return if family then HOLD_FAMILY[family] else nil
+end
+
+-- the mode poses a weapon stance shows over: standing, running and jumping (the Animator's own poses, and
+-- the air pose); flying, gliding, swimming, wall runs, rides and the Downed poses keep their own arms
+function HeroAnim.holdsIn(modeClip: string?): boolean
+	return modeClip == nil or modeClip == "air"
+end
+HeroAnim.holdBlend = 0.18 -- the stance fades in and out this long (a swap to or from the weapon)
+HeroAnim.holdWeight = 0.92 -- and shows this much over the Animator's arm swing (a little sway stays)
 
 -- a power's skill or super by its shape
 local SHAPE_CLIPS: { [string]: string } = {

@@ -4,6 +4,9 @@
 -- * mode: the movement pose (fly, hover, glide, leap, dash, slide, swing, wall run, ride, swim, Downed),
 --   crossfaded on a change. Your own mode comes from MoveController; other heroes' from their "Move"
 --   attribute (you send yours with MoveMode, the server sets it) and their speed.
+-- * stance: while the weapon is held (the Held attribute) and the hero stands, runs or jumps, the arms take
+--   the weapon's ready stance (HeroAnim.holdClip, by the WeaponId on the look's Weapon folder), faded in and
+--   out, over the Animator's arm swing; an action plays over it.
 -- * action: one-shots (every cast, each weapon's combo and moves, the windup, the channel, the flinch).
 --   A clip moves only the joints it lists, so a cast in the air keeps the flight legs.
 -- Poses are written to Motor6D.Transform in PreSimulation, after the Animator, blended from what the Animator
@@ -40,6 +43,12 @@ type Rig = {
 	modeAt: number,
 	action: Action?,
 	frame: number,
+	-- the held weapon's ready stance (HeroAnim.holdClip): the clip, how much of it shows, the carried weapon's id
+	holdClip: string?,
+	holdW: number,
+	holdLast: number,
+	weaponId: number?,
+	weaponAt: number,
 }
 
 local rigs: { [Player]: Rig } = {}
@@ -82,6 +91,11 @@ local function rigOf(p: Player): Rig?
 		modeAt = 0,
 		action = nil,
 		frame = 0,
+		holdClip = nil,
+		holdW = 0,
+		holdLast = 0,
+		weaponId = nil,
+		weaponAt = -1,
 	}
 	rigs[p] = r
 	return r
@@ -113,6 +127,28 @@ function HeroAnimator.play(p: Player?, clip: string, dur: number?)
 		return
 	end
 	r.action = { clip = clip, start = os.clock(), dur = dur or HeroAnim.CLIPS[clip].dur }
+end
+
+-- the carried weapon's id on a hero's look (LookKit puts it on the look's Weapon folder; re-read twice a second)
+local function weaponOf(r: Rig, now: number): number?
+	if now - r.weaponAt > 0.5 then
+		r.weaponAt = now
+		local look = r.char:FindFirstChild("HeroLook")
+		local wf = look and look:FindFirstChild("Weapon")
+		local id = wf and wf:GetAttribute("WeaponId")
+		r.weaponId = if type(id) == "number" then id else nil
+	end
+	return r.weaponId
+end
+
+-- the weapon stance to show now (nil: none): the weapon held, standing, running or jumping
+local function stanceOf(r: Rig, p: Player, now: number): string?
+	if p:GetAttribute("Held") ~= "weapon" or not HeroAnim.holdsIn(r.modeTo) then
+		return nil
+	end
+	local id = weaponOf(r, now)
+	local w = id and Config.Weapons.list[id]
+	return if w then HeroAnim.holdClip(id, w[2]) else nil
 end
 
 local function familyOf(row: any): string?
@@ -184,6 +220,17 @@ local function step(r: Rig, p: Player, now: number)
 	local clipNow = now - modeLag
 	local from = if r.modeFrom then HeroAnim.sample(r.modeFrom, clipNow) else nil
 	local to = if r.modeTo then HeroAnim.sample(r.modeTo, clipNow) else nil
+	-- the weapon stance fades in and out (holdBlend), over the mode pose and under any action
+	local stance = stanceOf(r, p, now)
+	local dtHold = math.clamp(now - r.holdLast, 0, 0.1)
+	r.holdLast = now
+	if stance then
+		r.holdClip = stance
+	end
+	local fade = dtHold / HeroAnim.holdBlend
+	r.holdW = if stance then math.min(1, r.holdW + fade) else math.max(0, r.holdW - fade)
+	local hold = if r.holdW > 0 and r.holdClip then HeroAnim.sample(r.holdClip :: string, clipNow) else nil
+	local wHold = r.holdW * HeroAnim.holdWeight
 	local act, wAct = nil, 0
 	local a = r.action
 	if a then
@@ -206,8 +253,9 @@ local function step(r: Rig, p: Player, now: number)
 		local f = from and from[name]
 		local tt = to and to[name]
 		local ac = act and act[name]
+		local hd = hold and hold[name]
 		local last = r.written[motor]
-		if f or tt or ac then
+		if f or tt or ac or hd then
 			-- what the Animator set this frame, or rest if it left our last pose in place
 			local base = motor.Transform
 			if last and base == last then
@@ -219,6 +267,9 @@ local function step(r: Rig, p: Player, now: number)
 			end
 			if tt then
 				out = out:Lerp(toCFrame(tt), wTo)
+			end
+			if hd then
+				out = out:Lerp(toCFrame(hd), wHold)
 			end
 			if ac then
 				out = out:Lerp(toCFrame(ac), wAct)

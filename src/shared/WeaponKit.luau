@@ -6,11 +6,18 @@
 -- Flags on a spec: blade (takes the finish and the style's changes), glow (a glowing edge, shown by glow
 -- strength), emblem (where the hero's symbol will show: drawn with the weapon step's emblem pass). Styles: 1 Classic as written, 2 broader blades,
 -- 3 jagged teeth along the blades, 4 Energy (blades become glowing light).
--- PLACEHOLDER ART: blocks, balls and cylinders until the Blender weapon set replaces them.
+-- Meshes (2026-11-18): art/blender/weapons.py draws all 36 in Blender (Config.WeaponArt; Shared.WeaponMesh picks
+-- them per style). Once nate imports art/export/Weapons.fbx as ReplicatedStorage.Art.Weapons, a weapon whose
+-- every mesh is there is welded from its meshes; any missing mesh and that weapon keeps the parts below.
+-- Holds: the meshes are turned to sit in HeroAnim's weapon stances (blades up and forward, blasters and spears
+-- along the arm, shields on the back of the forearm, the bow upright), and the parts below are turned by the same
+-- hold (Config.WeaponArt[id].hold), so the fallback is held the same way.
+-- PLACEHOLDER ART: the parts are blocks, balls and cylinders until the meshes are imported.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
+local WeaponMesh = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("WeaponMesh"))
 
 local WeaponKit = {}
 
@@ -315,13 +322,131 @@ function WeaponKit.colors(look: any, heroColors: { [string]: Color3 }): { [strin
 	}
 end
 
--- Turn specs into parts with LookKit's maker: make(char, folder, name, spec, colors, mat)
+-- A spec turned by its weapon's hold on its body part (about the grip line, or a shield's forearm centre)
+local function held(id: number, s: Spec): Spec
+	local rx, ry, pivot = WeaponMesh.hold(Config, id, s.at)
+	if not (rx and ry and pivot) then
+		return s
+	end
+	local t = table.clone(s)
+	local pv = CF(pivot[1], pivot[2], pivot[3])
+	t.cf = pv * CFrame.Angles(math.rad(rx), math.rad(ry), 0) * pv:Inverse() * s.cf
+	return t
+end
+WeaponKit.held = held
+
+-- the standard blocky rig's part sizes (the fit's boxes are on these; a bigger body scales them)
+local RIG_SIZE: { [string]: Vector3 } = {}
+for name, def in Config.HeroRig.parts do
+	RIG_SIZE[name] = V(def.size[1], def.size[2], def.size[3])
+end
+
+-- The imported weapon meshes (ReplicatedStorage.Art.Weapons), or nil
+local function library(): Instance?
+	local art = ReplicatedStorage:FindFirstChild("Art")
+	return art and art:FindFirstChild("Weapons")
+end
+
+local function meshIn(lib: Instance, name: string): MeshPart?
+	local found = lib:FindFirstChild(name, true)
+	return if found and found:IsA("MeshPart") then found else nil
+end
+
+-- Does this weapon draw from its meshes (every one imported)?
+function WeaponKit.meshed(id: number): boolean
+	local lib = library()
+	return lib ~= nil
+		and WeaponMesh.ready(Config, id, function(n)
+			return meshIn(lib :: Instance, n) ~= nil
+		end)
+end
+
+-- The weapon from its meshes, welded to the body parts (bodyPart: LookKit's role to body part); false when a
+-- mesh or a body part is missing (then nothing is made and the parts are built instead)
+local function buildMeshes(
+	char: Model,
+	folder: Instance,
+	look: any,
+	colors: { [string]: Color3 },
+	bodyPart: (Model, string) -> (BasePart?, CFrame)
+): boolean
+	local lib = library()
+	if not lib or not WeaponKit.meshed(look.id) then
+		return false
+	end
+	local W = Config.Weapons
+	local finish = W.finishes[look.finish] or W.finishes[1]
+	local finishMat = (Enum.Material :: any)[finish.mat] or Enum.Material.Metal
+	local glow = math.clamp(look.glowLevel or 0, 0, W.glowLevels)
+	local mastered = look.mastered == true
+	local list = WeaponMesh.pieces(Config, look.id, look.style or 1)
+	local parts = {}
+	for i, p in list do
+		local part, offset = bodyPart(char, p.at)
+		if not part then
+			return false
+		end
+		parts[i] = { part, offset }
+	end
+	for i, p in list do
+		local src = meshIn(lib, p.mesh)
+		if not src then
+			return false
+		end
+		local neon, alpha, color = p.neon, 0, colors[p.role] or colors.p
+		local mat = if p.mat then (Enum.Material :: any)[p.mat] else Enum.Material.SmoothPlastic
+		if p.glow then
+			if glow == 0 and not mastered then
+				continue -- a glow piece shows only with a glow strength (or the Mastered glow)
+			end
+			neon, color = true, colors.a
+			alpha = if mastered then 0 else 0.6 - 0.2 * glow
+		elseif p.energy or (p.blade and finish.mat == "Neon") then
+			neon, color, alpha = true, colors.a, 0.15
+		elseif p.blade then
+			mat = finishMat
+		end
+		if neon then
+			color = colors.a
+		end
+		local part, offset = parts[i][1], parts[i][2]
+		local ref = RIG_SIZE[part.Name]
+		local f = if ref then part.Size / ref else Vector3.one
+		local m = src:Clone()
+		for _, c in m:GetChildren() do
+			c:Destroy()
+		end
+		m.Name = "Weapon"
+		m.Size = V(p.size[1], p.size[2], p.size[3]) * f
+		m.Color = color
+		m.Material = if neon then Enum.Material.Neon else mat
+		m.Transparency = alpha
+		m.Anchored = false
+		m.Massless = true
+		m.CanCollide = false
+		m.CanTouch = false
+		m.CanQuery = false
+		m.CastShadow = false
+		m.CFrame = part.CFrame * offset * CF(V(p.offset[1], p.offset[2], p.offset[3]) * f)
+		local weld = Instance.new("WeldConstraint")
+		weld.Part0 = part
+		weld.Part1 = m
+		weld.Parent = m
+		m.Parent = folder
+	end
+	return true
+end
+
+-- Build the weapon: from its meshes once imported (buildMeshes), else its specs as parts with LookKit's maker:
+-- make(char, folder, name, spec, colors, mat). Either way the folder carries the weapon's id (WeaponId: the
+-- stance HeroAnimator poses the arms in) and whether meshes drew it (Meshed).
 function WeaponKit.build(
 	char: Model,
 	folder: Instance,
 	look: any,
 	heroColors: { [string]: Color3 },
-	make: (Model, Instance, string, any, any, Enum.Material?) -> ()
+	make: (Model, Instance, string, any, any, Enum.Material?) -> (),
+	bodyPart: ((Model, string) -> (BasePart?, CFrame))?
 )
 	local W = Config.Weapons
 	local finish = W.finishes[look.finish] or W.finishes[1]
@@ -329,7 +454,14 @@ function WeaponKit.build(
 	local colors = WeaponKit.colors(look, heroColors)
 	local glow = math.clamp(look.glowLevel or 0, 0, W.glowLevels)
 	local mastered = look.mastered == true
-	for _, s in WeaponKit.specs(look.id, look.style or 1) do
+	folder:SetAttribute("WeaponId", look.id)
+	local meshed = bodyPart ~= nil and buildMeshes(char, folder, look, colors, bodyPart :: any)
+	folder:SetAttribute("Meshed", meshed)
+	if meshed then
+		return
+	end
+	for _, raw in WeaponKit.specs(look.id, look.style or 1) do
+		local s = held(look.id, raw)
 		local spec = s
 		if s.glow then
 			if glow == 0 and not mastered then
