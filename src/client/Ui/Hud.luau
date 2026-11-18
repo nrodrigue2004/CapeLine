@@ -817,9 +817,14 @@ function Hud.init()
 			holdStart[action] = os.clock()
 		elseif action == "Menu" then
 			-- gamepad Select: into the top row (and its drawer) for the D-pad, or back out
-			if GuiService.SelectedObject then
+			local modal = Kit.modalButton() -- the main menu or the creator is up: Select goes into it
+			if GuiService.SelectedObject and not modal then
 				GuiService.SelectedObject = nil
 				Kit.dockDrawer(false)
+			elseif modal then
+				if not GuiService.SelectedObject then
+					GuiService.SelectedObject = modal
+				end
 			elseif not focus then
 				GuiService.SelectedObject = Kit.dockSelect()
 			end

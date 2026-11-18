@@ -38,7 +38,9 @@ local StoryPlan = require(Shared:WaitForChild("StoryPlan"))
 local Progress = require(Shared:WaitForChild("Progress"))
 local ProfileSchema = require(Shared:WaitForChild("ProfileSchema"))
 local MissionRules = require(Shared:WaitForChild("MissionRules"))
+local PrologueRow = require(Shared:WaitForChild("PrologueRow"))
 
+local BuildingService = require(script.Parent.BuildingService)
 local CityBuilder = require(script.Parent.CityBuilder)
 local DataService = require(script.Parent.DataService)
 local HeroService = require(script.Parent.HeroService)
@@ -73,6 +75,9 @@ type Run = {
 	side: string,
 	replay: boolean,
 	hold: boolean, -- a returning account's ceremony waits for the main menu's pick
+	heldAt: number, -- when that wait began (Config.Story.opening.holdMax caps it)
+	fellAt: number?, -- when the hero dropped below the roofs in the leap or the chase (fall recovery)
+	row: { number }?, -- the rooftop row's buildings this run holds whole (PrologueRow; nil when not holding)
 	enemies: { [number]: boolean },
 	fakeId: number?,
 	hop: number,
@@ -125,6 +130,14 @@ local function freeLane(r: Run)
 	if lane and laneOf[lane.index] == r then
 		laneOf[lane.index] = nil
 	end
+end
+
+-- Hold the rooftop row whole while this run is on its beats (want), or let it go; holders count, so the row
+-- stays whole while any prologue is on it (the side quest roof goals' rule: BuildingService.pin)
+local function holdRow(r: Run, want: boolean)
+	r.row = PrologueRow.sync(r.row, want, function()
+		return PrologueRow.ids(CityBuilder.world, r.route.roofs)
+	end, BuildingService.pin)
 end
 
 -- A returning account (another hero on it already did the opening) may skip: Create First on the main menu
@@ -213,9 +226,30 @@ local function spawn(r: Run, kind: string, pos: Vector3, scripted: boolean?): nu
 	return id
 end
 
+-- Where a beat starts for this run: OpeningPlan's point, except that with every subway lane busy the fight
+-- and what follows happen by the subway steps (the plan's lane-less point is the plaza)
+local LANED = { tunnel = true, fight = true, swarm = true, rescue = true }
+local function startAt(r: Run, step: string): OpeningPlan.Point
+	if not r.lane and LANED[step] then
+		return r.route.entrance
+	end
+	return OpeningPlan.startPoint(r.route, r.lane, step)
+end
+
+-- The roof a hero in the leap or the chase last stood on (where a fall or a respawn puts them back), and the
+-- roof they are heading for
+local function lastRoof(r: Run): (OpeningPlan.Point, OpeningPlan.Point)
+	local roofs = r.route.roofs
+	if r.step == "leap" then
+		return roofs[1], roofs[2]
+	end
+	local i = math.clamp(r.hop - 1, 1, #roofs)
+	return roofs[i], roofs[math.min(i + 1, #roofs)]
+end
+
 -- Put the hero where a beat starts when it is not there already (a stuck beat moving on, a dev jump, a cut)
 local function placeFor(r: Run, step: string, force: boolean?)
-	local p = OpeningPlan.startPoint(r.route, r.lane, step)
+	local p = startAt(r, step)
 	local pos = HeroService.position(r.hero)
 	if not force and pos and (v3(p) - pos).Magnitude <= 60 then
 		return
@@ -236,9 +270,11 @@ local function placeFor(r: Run, step: string, force: boolean?)
 	task.spawn(SafehouseService.place, r.hero, cf)
 end
 
--- The funnel steps (Opening funnel, AnalyticsSchema): the spark seen, the Spark fired, the fake unmasked
+-- The funnel steps (Opening funnel, AnalyticsSchema): the spark seen, the Spark fired, the fake unmasked. The
+-- event's value is seconds into the prologue (the Soft Launch KPI is first_spark within 60 s of the prologue
+-- starting; seconds since joining would count the time spent in the creator too)
 local function track(r: Run, name: string)
-	Analytics.event(r.player, name, Analytics.since(r.player))
+	Analytics.event(r.player, name, math.floor(os.clock() - r.startedAt))
 	Analytics.step(r.player, "Opening", name)
 end
 
@@ -322,7 +358,7 @@ local function enter(r: Run, step: string)
 		GearService.setStreet(r.player, false)
 		clearEnemies(r)
 		placeFor(r, step)
-		local at = v3(OpeningPlan.startPoint(route, r.lane, "fight"), 0) + Vector3.new(0, 0, -14)
+		local at = v3(startAt(r, "fight"), 0) + Vector3.new(0, 0, -14)
 		local id = spawn(r, O.fight.fake, at)
 		if id then
 			EnemyService.tune(id, { hpMult = O.fight.hpMult, dmgMult = O.fight.dmg })
@@ -336,7 +372,7 @@ local function enter(r: Run, step: string)
 			fake.scripted = true -- the cracked fake stands and stares; the swarm comes in
 			fake.dmgMult = 0
 		end
-		local pos = HeroService.position(r.hero) or v3(OpeningPlan.startPoint(route, r.lane, step))
+		local pos = HeroService.position(r.hero) or v3(startAt(r, step))
 		local S = O.swarm
 		for i = 1, S.count do
 			local a = i / S.count * math.pi * 2
@@ -379,6 +415,7 @@ setStep = function(r: Run, step: string)
 	end
 	r.step = step
 	r.stepAt = os.clock()
+	holdRow(r, PrologueRow.holds(Config, step))
 	enter(r, step)
 	if runs[r.player] == r and r.step == step then
 		send(r)
@@ -395,6 +432,7 @@ function OpeningService.finish(player: Player)
 	end
 	clearEnemies(r)
 	freeLane(r)
+	holdRow(r, false)
 	StoryService.cancelAsk(player)
 	reward(r)
 	GearService.setStreet(player, false)
@@ -413,6 +451,7 @@ function OpeningService.stop(player: Player)
 	end
 	clearEnemies(r)
 	freeLane(r)
+	holdRow(r, false)
 	GearService.setStreet(player, false)
 	runs[player] = nil
 	r.hero.scene = nil
@@ -453,6 +492,9 @@ function OpeningService.start(player: Player, force: boolean?): boolean
 		side = StoryService.side(player),
 		replay = force == true or returning,
 		hold = returning and not force,
+		heldAt = os.clock(),
+		fellAt = nil,
+		row = nil,
 		enemies = {},
 		fakeId = nil,
 		hop = 3,
@@ -539,6 +581,11 @@ local function step(r: Run, now: number, dt: number)
 	local s = r.step
 	if r.hold then
 		r.stepAt = now
+		if now - r.heldAt > O.holdMax then
+			-- the main menu's pick never came (it did not show, or the player is away): the Create First path,
+			-- rewards included, so a held ceremony never keeps the hero in the letterbox for good
+			OpeningService.finish(r.player)
+		end
 		return
 	end
 	if now - r.startedAt > O.timeout and CODE[s] < CODE.title then
@@ -584,7 +631,24 @@ local function step(r: Run, now: number, dt: number)
 				send(r)
 			end
 		end
-	elseif s == "descend" then
+	end
+	if (s == "leap" or s == "chase") and r.step == s then
+		-- fall recovery: a missed hop lands in the street, below every roof of the row, where no Leap climbs back
+		local from, to = lastRoof(r)
+		if pos.Y < math.min(from[2], to[2]) - O.fall.drop then
+			r.fellAt = r.fellAt or now
+			if now - (r.fellAt :: number) >= O.fall.after then
+				r.fellAt = nil
+				local at = v3(from, 3)
+				local ahead = Vector3.new(to[1], at.Y, to[3])
+				local cf = if (ahead - at).Magnitude > 0.5 then CFrame.lookAt(at, ahead) else CFrame.new(at)
+				task.spawn(SafehouseService.place, hero, cf)
+			end
+		else
+			r.fellAt = nil
+		end
+	end
+	if s == "descend" then
 		local e = route.entrance
 		if
 			(Vector3.new(e[1], 0, e[3]) - Vector3.new(pos.X, 0, pos.Z)).Magnitude <= 24
@@ -664,7 +728,9 @@ function OpeningService.init()
 	SafehouseService.spawnOverride = function(hero)
 		local r = hero.player and runs[hero.player]
 		if r then
-			return CFrame.new(v3(OpeningPlan.startPoint(r.route, r.lane, r.step), 4))
+			-- the leap and the chase: back on the last roof reached, not the chase's first (a reset mid-chase)
+			local p = if r.step == "leap" or r.step == "chase" then lastRoof(r) else startAt(r, r.step)
+			return CFrame.new(v3(p, 4))
 		end
 		return if previous then previous(hero) else nil
 	end
@@ -680,6 +746,7 @@ function OpeningService.init()
 		if r then
 			clearEnemies(r)
 			freeLane(r)
+			holdRow(r, false)
 			runs[player] = nil
 		end
 	end)

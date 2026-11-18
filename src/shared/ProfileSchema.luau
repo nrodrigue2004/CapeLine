@@ -994,6 +994,7 @@ function ProfileSchema.clientView(profile: any, walletOnly: boolean?): { [string
 		titleId = c.titleId,
 		nounId = c.nounId,
 		created = c.created,
+		opening = if type(c.story) == "table" then c.story.opening else 1, -- 0 while this hero's prologue is still to finish (MainMenu, onboarding check)
 		startSet = c.startSet,
 		mobility = c.mobility,
 		pathChanged = c.pathChanged,

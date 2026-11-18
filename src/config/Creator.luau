@@ -701,7 +701,7 @@ return {
 				{ "Glow Leggings", "leggings", "lvl:13" },
 				{ "Camo Pants", "camo", "lvl:7" },
 				{ "Ski Pants", "ski", "lvl:18" },
-				{ "Harem Pants", "harem", "lvl:21" },
+				{ "Genie Pants", "harem", "lvl:21" },
 				{ "Chaps", "chaps", "lvl:29" },
 				{ "Shin Guards", "shinguards", "free" },
 				{ "Checkered Pants", "checkered", "lvl:31" },

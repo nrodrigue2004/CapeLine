@@ -14,6 +14,7 @@ local Signal = require(Shared:WaitForChild("Util"):WaitForChild("Signal"))
 
 local Juice = require(script.Parent.Parent.Fx.Juice)
 local Kit = require(script.Parent.Kit)
+local PopupGate = require(script.Parent.PopupGate)
 
 local MentorHud = {}
 -- WP7: the Journal's MENTOR tab draws this card (drawInto) and redraws when a new card arrives
@@ -397,6 +398,9 @@ function MentorHud.init()
 	-- on a phone (a fixed 340 px ran past a 375 px phone's safe area)
 	Kit.fit(picker, 400, 310, 480, 340)
 	picker.Parent = gui
+	PopupGate.card("mentorPick", function()
+		return picker.Visible and gui.Enabled
+	end)
 	pickBody = Kit.frame({
 		Size = UDim2.new(1, -28, 1, -20),
 		Position = UDim2.fromOffset(14, 10),
@@ -472,7 +476,11 @@ function MentorHud.init()
 			render(d)
 			MentorHud.Changed:Fire()
 		elseif d.k == "pick" then
-			showPicker(d)
+			-- after the prologue: one card at a time (the daily card first), never over a menu or a cutscene
+			PopupGate.later("mentorPick", function()
+				showPicker(d)
+				Kit.padFocus(picker, false)
+			end)
 		elseif d.k == "panel" and d.line then
 			comic(d.mentor or 0, d.line)
 		end

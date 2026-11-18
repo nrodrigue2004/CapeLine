@@ -23,7 +23,7 @@ local ACT = { open = 1, join = 2, leave = 3, start = 4, lock = 5, rejoin = 6 }
 local REASONS = {
 	level = "Task forces open at level " .. TF.floor .. " once Act 1 is done",
 	none = "No open squad for you right now: open one",
-	full = "Every mission pocket is busy: try again in a minute",
+	full = "Too many missions running: try again in a minute",
 	busy = "Finish what you are doing first",
 }
 

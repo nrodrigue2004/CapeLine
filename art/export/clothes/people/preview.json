@@ -540,5 +540,49 @@
    ],
    "face": "faces/Face_Sharp"
   }
+ ],
+ [
+  {
+   "name": "Radiant",
+   "skin": [
+    241,
+    194,
+    160
+   ],
+   "hair": [
+    235,
+    195,
+    80
+   ],
+   "face": "people/Face_Radiant"
+  },
+  {
+   "name": "Bulwark",
+   "skin": [
+    120,
+    78,
+    52
+   ],
+   "hair": [
+    24,
+    24,
+    28
+   ],
+   "face": "people/Face_Bulwark"
+  },
+  {
+   "name": "Skylance",
+   "skin": [
+    224,
+    172,
+    130
+   ],
+   "hair": [
+    150,
+    90,
+    210
+   ],
+   "face": "people/Face_Skylance"
+  }
  ]
 ]

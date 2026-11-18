@@ -20,7 +20,7 @@ return {
 			side = "hero",
 			group = "The Vigil",
 			-- spec: "leads the League"; the League is gone and Lodestar is the Vigil's veteran (lore)
-			blurb = "A Vigil flier who still runs every drill by the book.",
+			blurb = "A Vigil flyer who still runs every drill by the book.",
 			colors = { { 40, 70, 160 }, { 240, 200, 70 } }, -- suit, trim
 			look = {
 				kind = "trail",
@@ -137,7 +137,7 @@ return {
 		},
 		TheVelvetPaw = {
 			pick = "Oh, {hero}. Stay quick and stay curious.",
-			firstBlock = "Ooh, a block. Now dodge the next one, it looks cooler.",
+			firstBlock = "Ooh, a block. Now dodge the next one. It looks cooler.",
 			firstNemesis = "Someone has a fan. Lead it on a chase, {hero}.",
 			firstTaskForce = "A whole job, done. I am almost impressed.",
 			level = "Level {level}. Faster every day, {hero}.",

@@ -310,7 +310,9 @@ return {
 		timeout = 330, -- a stuck prologue finishes itself (straight to the title and the rewards) after this
 		reach = 14, -- studs from a target that count as there (missions use it too)
 		-- timed beats (seconds); the skip button shows on them only on a replay or for a returning account
-		beats = { ceremony = 30, scan = 8, suit = 3.5, rescue = 9, title = 10 },
+		-- (onboarding check 2026-11-18: ceremony 30 -> 22 and scan 8 -> 7.5 with the same lines re-timed to their
+		-- reading time, so the first control comes at 29.5 s, not 38; rescue 9 -> 13 so its three lines can be read)
+		beats = { ceremony = 22, scan = 7.5, suit = 3.5, rescue = 13, title = 10 },
 		-- a beat the hero has not finished in this long moves on by itself (the hero is placed at the next one)
 		stuck = {
 			run = 45,
@@ -322,6 +324,15 @@ return {
 			fight = 100,
 			swarm = 11,
 		},
+		-- a hero who misses a hop in the leap or the chase and lands this far below the roof they left is put back
+		-- on it after `after` seconds (no street wait until the beat's stuck timer)
+		fall = { drop = 10, after = 1.2 },
+		-- a returning account's held ceremony (the main menu's CREATE FIRST or PLAY THE PROLOGUE) waits at most
+		-- this long, then takes the Create First path (the rewards, straight to the city), so it never soft-locks
+		holdMax = 120,
+		-- the beats on the rooftop row: while any prologue is on one, the row's buildings are held whole (other
+		-- players' fights cannot knock out a roof a new hero is about to land on); released as each run moves on
+		holdRow = { leap = true, chase = true, suit = true },
 		-- the plaza: the stage in front of Crane's Hero Hall, the crowd on the street before it
 		plaza = {
 			stage = { gap = 4, depth = 14, width = 44, height = 4 }, -- from the Hall's face, studs
@@ -403,19 +414,19 @@ return {
 		-- subtitled lines by beat: `at` seconds into the beat
 		lines = {
 			ceremony = {
-				{ at = 1, who = "crane", text = "Brightharbor! Thank you all for coming out today." },
-				{ at = 6.5, who = "crane", text = "Ten years ago, the Spark nearly tore this city apart." },
-				{ at = 12, who = "crane", text = "Today we honour the heroes who keep you safe. Radiant!" },
-				{ at = 16, who = "crane", text = "Bulwark! And Skylance! Built strong by Crane Industries." },
+				{ at = 0.5, who = "crane", text = "Brightharbor! Thank you all for coming out today." },
+				{ at = 4.6, who = "crane", text = "Ten years ago, the Spark nearly tore this city apart." },
+				{ at = 8.8, who = "crane", text = "Today we honour the heroes who keep you safe. Radiant!" },
+				{ at = 13, who = "crane", text = "Bulwark! And Skylance! Built strong by Crane Industries." },
 				{
-					at = 22,
+					at = 17.4,
 					who = "crane",
 					text = "And with our new scanners, no rogue Spark will hurt you again.",
 				},
 			},
 			scan = {
-				{ at = 0.5, who = "crane", text = "Scanners on, everyone. Big smiles!" },
-				{ at = 4.5, who = "crane", text = "Well, well. It seems we have a guest. Officers?" },
+				{ at = 0.4, who = "crane", text = "Scanners on, everyone. Big smiles!" },
+				{ at = 3.6, who = "crane", text = "Well, well. It seems we have a guest. Officers?" },
 			},
 			run = {
 				{
@@ -496,8 +507,8 @@ return {
 					hero = "Easy, rookie. You fought like the Vigil. Let an old star take it from here.",
 					villain = "Mean little Spark you've got. Crane wants it. Tonight, he doesn't get it.",
 				},
-				{ at = 5.5, who = "patch", text = "Old Star! I knew you'd come!" },
-				{ at = 7, who = "lodestar", text = "Hold on tight. We're going underground." },
+				{ at = 6.6, who = "patch", text = "Old Star! I knew you'd come!" },
+				{ at = 9.7, who = "lodestar", text = "Hold on tight. We're going underground." },
 			},
 			title = {
 				{ at = 0.8, who = "crane", text = "Crane Industries. Your heroes. Our promise." },

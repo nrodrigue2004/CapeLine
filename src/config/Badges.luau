@@ -163,7 +163,7 @@ return {
 					"Car Trouble",
 					"carAtBoss",
 					1,
-					"Hit a world boss fight's robots with a thrown car"
+					"Hit a robot with a thrown car in a world boss fight"
 				),
 				b("awaken25", "Wide Awake", "awakens", 25, "Awaken 25 times"),
 				b("awaken100", "Always Awake", "awakens", 100, "Awaken 100 times"),

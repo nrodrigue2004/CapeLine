@@ -275,6 +275,53 @@ function GuidePlan.due(Config: any, list: { any }, t: number, said: number): (nu
 	return idx, left
 end
 
+-- How long a beat's timed line i stays up when the beat runs its full length (until the next, at most `hold`)
+function GuidePlan.span(Config: any, list: { any }, i: number): number
+	local hold = Config.Story.guides.queue.hold
+	local nxt = list[i + 1]
+	return if nxt then math.min(nxt.at - list[i].at, hold) else hold
+end
+
+-- The prologue's player-paced beats (onboarding check 2026-11-18): a beat that ended at `t` (a quick player
+-- moves on before its lines are said) leaves these lines unheard: never shown, or cut before `heard` of their
+-- reading time (a line that had its whole span counts as heard). At most `max`, in order.
+function GuidePlan.unheard(Config: any, list: { any }, t: number, heard: number, max: number): { Line }
+	local out = {}
+	for i, l in list do
+		local span = GuidePlan.span(Config, list, i)
+		local shown = math.clamp(t - l.at, 0, span)
+		if shown < span and shown < heard * GuidePlan.duration(Config, l.text) and #out < max then
+			table.insert(out, { who = l.who, text = l.text })
+		end
+	end
+	return out
+end
+
+-- A player-paced beat's timed lines with the last beat's unheard ones first: those from 0.3 s, one after
+-- another by reading time, then the beat's own, none starting before the one before it has had its reading
+-- time (so a carried line never cuts the beat's own short). Returns { at, who, text } in time order.
+function GuidePlan.withCarry(
+	Config: any,
+	carried: { Line },
+	list: { any }
+): { { at: number, who: string, text: string } }
+	local out = {}
+	local free = 0.3
+	for _, l in carried do
+		table.insert(out, { at = free, who = l.who, text = l.text })
+		free += GuidePlan.duration(Config, l.text)
+	end
+	if #carried == 0 then
+		free = -math.huge
+	end
+	for _, l in list do
+		local at = math.max(l.at, free)
+		table.insert(out, { at = at, who = l.who, text = l.text })
+		free = at + GuidePlan.duration(Config, l.text)
+	end
+	return out
+end
+
 ---------------------------------------------------------------------------
 -- The open-world radio (Patch)
 ---------------------------------------------------------------------------

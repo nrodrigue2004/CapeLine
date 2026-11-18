@@ -122,7 +122,7 @@ local REASONS = {
 	look = "Something went wrong: try again",
 	scene = "Finish what you are doing first",
 	combat = "Not during a fight",
-	safehouse = "Change your look at HQ or a safehouse",
+	safehouse = "Change your look at your HQ or a safehouse",
 	weapon = "Get that weapon at a Weapon Rack first",
 	style = "Pick one of the weapon's styles",
 	finish = "Pick a finish",
@@ -1412,6 +1412,7 @@ function CreatorScreen.open(opts: { [string]: any })
 	gui.Enabled = true
 	layout()
 	refresh()
+	Kit.padFocus(gui) -- a controller starts on the first button (onboarding check)
 end
 
 function CreatorScreen.close()

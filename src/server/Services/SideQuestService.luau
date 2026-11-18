@@ -59,6 +59,7 @@ local SetPieceKit = require(Shared:WaitForChild("SetPieceKit"))
 local IncidentPlan = require(Shared:WaitForChild("IncidentPlan"))
 local DeepLayout = require(Shared:WaitForChild("DeepLayout"))
 
+local BuildingService = require(script.Parent.BuildingService)
 local CityBuilder = require(script.Parent.CityBuilder)
 local DataService = require(script.Parent.DataService)
 local HeroService = require(script.Parent.HeroService)
@@ -104,6 +105,7 @@ type Goal = {
 	pocketAt: number?, -- os.clock() of the last pocket try (a short wait between tries)
 	inside: { [Player]: boolean }?, -- who stood in the pocket's ring last tick (a run starts on a fresh step in)
 	deep: boolean?, -- built under the sea (lore step 11, the Underwater chain)
+	pins: { number }, -- buildings held whole while this goal stands on their roofs (BuildingService.pin)
 	done: boolean,
 }
 
@@ -379,11 +381,24 @@ local function spotFor(g: Group, at: Vector3, range: { number }): Vector3
 	return if g.deep then deepSpot(at, range) else streetSpot(at, range)
 end
 
-local function roofSpot(at: Vector3, minH: number, range: { number }): Vector3?
+-- A goal's building under its roof spot is held whole while the goal stands (2026-11-18: nothing a side quest
+-- puts on a roof floats over rubble); clearGoal lets it go
+local function holdRoof(goal: any, id: number)
+	BuildingService.pin(id, true)
+	table.insert(goal.pins, id)
+end
+
+local function roofSpot(goal: any, at: Vector3, minH: number, range: { number }): Vector3?
 	local best = {}
 	for _, b in CityBuilder.world.buildings do
 		local d = math.sqrt((b.x - at.X) ^ 2 + (b.z - at.Z) ^ 2)
-		if d >= range[1] and d <= range[2] and b.top - gy() >= minH and b.top - gy() <= minH + 80 then
+		if
+			d >= range[1]
+			and d <= range[2]
+			and b.top - gy() >= minH
+			and b.top - gy() <= minH + 80
+			and BuildingService.state(b.id) == 0 -- a standing roof, never a wreck
+		then
 			table.insert(best, b)
 		end
 	end
@@ -391,6 +406,7 @@ local function roofSpot(at: Vector3, minH: number, range: { number }): Vector3?
 		return nil
 	end
 	local b = best[rng:int(1, #best)]
+	holdRoof(goal, b.id)
 	return Vector3.new(b.x, b.top + 1.5, b.z)
 end
 
@@ -528,6 +544,7 @@ local function build(g: Group, key: string, st: any): Goal
 		phase = 1,
 		pocketAt = nil,
 		deep = g.deep,
+		pins = {},
 		done = false,
 	}
 	local k = st.kind
@@ -570,7 +587,7 @@ local function build(g: Group, key: string, st: any): Goal
 	elseif k == "hold" then
 		local at = home
 		if st.high then
-			at = roofSpot(home, 30, { 40, 200 }) or home
+			at = roofSpot(goal, home, 30, { 40, 200 }) or home
 		elseif not st.home then
 			at = spotFor(g, home, { 40, 120 })
 		end
@@ -618,7 +635,7 @@ local function build(g: Group, key: string, st: any): Goal
 		-- at the group's home (the giver's station)
 		local padAt = if g.deep
 			then deepSpot(home, { 10, 24 })
-			else roofSpot(home, 20, st.range) or streetSpot(home, st.range)
+			else roofSpot(goal, home, 20, st.range) or streetSpot(home, st.range)
 		local who = if g.deep
 			then deepSpot(home, st.range) + Vector3.new(0, 1, 0)
 			else home + Vector3.new(4, 1, 0)
@@ -668,6 +685,7 @@ local function build(g: Group, key: string, st: any): Goal
 			-- lore step 11, chain 2: a rooftop course, a ring over each roof (the first is where the run starts)
 			local up = SQ.courses.ringUp
 			for i, b in roofs do
+				holdRoof(goal, b.id)
 				local p = Vector3.new(b.x, b.top + up, b.z)
 				table.insert(rings, p)
 				local col = if i == #roofs then Color3.fromRGB(255, 215, 80) else Color3.fromRGB(255, 90, 70)
@@ -691,8 +709,8 @@ local function build(g: Group, key: string, st: any): Goal
 		-- lore step 11, the Underwater chain: swim down to a spot on the sea floor
 		goal.target = deepSpot(home, st.range or { 80, 200 })
 	elseif k == "reach" then
-		goal.target = roofSpot(home, st.high or 40, st.range or { 80, 200 })
-			or roofSpot(home, 20, { 40, 300 })
+		goal.target = roofSpot(goal, home, st.high or 40, st.range or { 80, 200 })
+			or roofSpot(goal, home, 20, { 40, 300 })
 			or home
 	elseif k == "deliver" then
 		local at = spotFor(g, home, st.range)
@@ -730,6 +748,7 @@ local function build(g: Group, key: string, st: any): Goal
 		-- lore step 11, chain 2: the runner hops the course's roofs (it loops until caught)
 		local path = {}
 		for _, b in courseRoofs(st.course) :: { any } do
+			holdRoof(goal, b.id)
 			table.insert(path, { b.x, b.top + 1, b.z })
 		end
 		goal.chase = { id = nil, path = path, up = 2, leg = 1, at = 0, speed = st.speed }
@@ -799,6 +818,10 @@ local function clearGoal(goal: Goal)
 		goal.boss = nil
 	end
 	SiteKit.clear(goal.things)
+	for _, id in goal.pins do
+		BuildingService.pin(id, false)
+	end
+	table.clear(goal.pins)
 end
 
 -- The finale's mini villain (spawned, and spawned again if it is gone without being beaten); with an encore
@@ -1048,11 +1071,20 @@ complete = function(g: Group)
 				local reward = SideQuestPlan.cosmetic(chain) :: { [string]: any }
 				reward.credits, reward.renown = credits + cc, renown + cr
 				StoryService.pay(player, reward, hero.level)
-				Net.fire("Toast", player, { id = "sqDone", bit = chain.bit })
+				-- (the pay rides the toast for the chain's result card: the juice pass, 2026-11-18)
+				Net.fire(
+					"Toast",
+					player,
+					{ id = "sqDone", bit = chain.bit, credits = reward.credits, renown = reward.renown }
+				)
 				Net.fire("SideQuestTalk", player, { bit = chain.bit, kind = "done" })
 			else
 				StoryService.pay(player, { credits = credits, renown = renown }, hero.level)
-				Net.fire("Toast", player, { id = "sqStep", bit = chain.bit, step = g.idx + 1 })
+				Net.fire(
+					"Toast",
+					player,
+					{ id = "sqStep", bit = chain.bit, step = g.idx + 1, credits = credits, renown = renown }
+				)
 				waiting[player] = os.clock() + SQ.gap
 			end
 			SideQuestService.StepPaid:Fire(player, res == "done", chain.id)
@@ -1140,6 +1172,7 @@ local function startPocket(g: Group, goal: Goal, first: Player): boolean
 			if pg and pgoal and pgoal.st.kind == "pocket" then
 				setHave(pg, pgoal, pgoal.need)
 			end
+			out.sq = g.chain.bit -- the result card shows the chain's name (the juice pass)
 			return out
 		end,
 	}

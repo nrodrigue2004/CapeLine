@@ -57,7 +57,9 @@ function MainMenu.isOpen(): boolean
 end
 
 local function show(kind: string)
-	if shown then
+	-- at most once a session; a new hero's Create First may still replace the returning menu (a rejoin
+	-- mid-prologue on a returning account: its held ceremony waits for this pick)
+	if shown and not (kind == "createFirst" and mode == "returning") then
 		return
 	end
 	shown = true
@@ -83,6 +85,7 @@ local function show(kind: string)
 	end
 	add("SETTINGS", Kit.color.paper, 4, SettingsMenu.open)
 	gui.Enabled = true
+	Kit.padFocus(gui) -- a controller starts on the first button
 end
 
 -- Dev and tests: which menu showed ("" when none has)
@@ -138,8 +141,9 @@ function MainMenu.init()
 	list.SortOrder = Enum.SortOrder.LayoutOrder
 	list.Parent = buttons
 
-	-- a returning hero: the first full profile says it was created already (a hero made later this session,
-	-- in the creator, goes on to the opening instead)
+	-- a returning hero: the first full profile says it was created already and past its prologue (a hero made
+	-- later this session, in the creator, goes on to the opening instead; a rejoin mid-prologue goes back into
+	-- it, with no PLAY menu over its ceremony)
 	local decided = false
 	local function check()
 		local p = State.profile
@@ -147,7 +151,8 @@ function MainMenu.init()
 			return
 		end
 		decided = true
-		if p.created == true or (type(p.created) == "number" and p.created ~= 0) then
+		local made = p.created == true or (type(p.created) == "number" and p.created ~= 0)
+		if made and p.opening ~= 0 then
 			show("returning")
 		end
 	end

@@ -1236,6 +1236,195 @@ def gale():
     return s.im, p.im
 
 
+# ---------------------------------------------------------------- the famous fakes (lore step 4, 2026-11-18 art)
+# Radiant, Bulwark and Skylance are copies of the city's three famous heroes, so each wears a hero's suit of its
+# own design (original marks; no real hero's costume or logo). Their creator look keeps its cape, gloves, boots,
+# shoulders, belt and chest emblem as parts on top (Shared.PeopleLooks.strip), so each chest leaves the emblem's
+# spot (centre, a little above the middle) as a field the emblem sits in. Bold shapes in two or three colours so
+# each reads at a glance on a phone.
+EMBLEM_Y = 36  # the creator emblem's centre on the chest (LookKit: 0.25 studs over the upper torso's middle)
+
+
+def rays(d, cx, cy, r0, r1, n, a0, a1, c, wd=0.09):
+    """A fan of n tapered rays from radius r0 to r1 between angles a0 and a1 (radians, 0 = right, y down)."""
+    for i in range(n):
+        a = a0 + (a1 - a0) * (i + 0.5) / n
+        d.polygon([(cx + math.cos(a - wd) * r0, cy + math.sin(a - wd) * r0), (cx + math.cos(a) * r1, cy + math.sin(a) * r1),
+                   (cx + math.cos(a + wd) * r0, cy + math.sin(a + wd) * r0)], fill=c)
+
+
+def radiant():
+    """Radiant, the Golden Dawn (a famous fake, the Light path): a gold suit with a white dawn yoke across the
+    shoulders and a fan of sunrise rays round the chest emblem, white side panels with a gold seam, white forearms
+    banded in gold chevrons; on the back a white rising sun over a horizon line; white legs with gold sun-flare
+    stripes and gold boots."""
+    s, p = T(), T()
+    gold, pale, flare = (250, 196, 40), (255, 236, 150), (255, 246, 120)
+    suit(s, gold, HAND)
+    fx, fy, _, _ = front()
+    bx, by, _, _ = back()
+    # the dawn yoke: a white band over the shoulders, dipping to a point under the emblem
+    for sd in SIDES4:
+        x, y, w, _ = TORSO[sd]
+        s.d.rectangle([x, y, x + w - 1, y + 12], fill=WHITE)
+    s.d.polygon([(fx, fy), (fx + 127, fy), (fx + 127, fy + 14), (fx + 64, fy + 30), (fx, fy + 14)], fill=WHITE)
+    # sunrise rays fanning out round the emblem, a pale glow behind it
+    s.d.ellipse([fx + 30, fy + EMBLEM_Y - 34, fx + 98, fy + EMBLEM_Y + 34], fill=pale)
+    rays(s.d, fx + 64, fy + EMBLEM_Y, 32, 64, 9, math.radians(-200), math.radians(20), pale, 0.11)
+    s.d.ellipse([fx + 36, fy + EMBLEM_Y - 28, fx + 92, fy + EMBLEM_Y + 28], fill=WHITE, outline=shade(gold, 0.8), width=3)
+    # the horizon line under the sun and the gold waist band
+    s.d.rectangle([fx, fy + 72, fx + 127, fy + 77], fill=WHITE)
+    s.d.rectangle([fx, fy + 80, fx + 127, fy + 82], fill=shade(gold, 0.75))
+    # white side panels with a gold seam
+    s.torso_sides_stripe(WHITE, 0, 128, 30)
+    s.torso_sides_stripe(gold, 0, 128, 4)
+    # the back: a white rising sun with rays over the horizon line
+    rays(s.d, bx + 64, by + 74, 30, 62, 7, math.radians(-180), math.radians(0), WHITE, 0.12)
+    s.d.pieslice([bx + 34, by + 44, bx + 94, by + 104], 180, 360, fill=WHITE, outline=shade(gold, 0.8), width=3)
+    s.d.rectangle([bx, by + 74, bx + 127, by + 79], fill=WHITE)
+    # sleeves: gold upper arm, white forearm with gold chevrons, gold cuffs (Long Cuffs sit over them)
+    s.limbs(WHITE, LOWER, HAND, 1.04, 0.9)
+    for slots in (RIGHT, LEFT):
+        for sd in SIDES4:
+            x, y, w, _ = slots[sd]
+            for k in (LOWER + 10, LOWER + 30):
+                s.d.line([(x, y + k), (x + w // 2, y + k + 10), (x + w - 1, y + k)], fill=gold, width=6)
+    s.limb_band(gold, HAND - 4, HAND)
+    hands(s, WHITE)
+    # legs: gold over the hips, white legs with a gold sun-flare stripe widening down the outer side
+    legs(p, WHITE, HAND - 6)
+    p.torso(gold, UT_PX - 4, 128, 1.0, 0.86)
+    for slots, outer in ((RIGHT, "R"), (LEFT, "L")):
+        x, y, w, _ = slots[outer]
+        p.d.polygon([(x + w // 2 - 4, y), (x + w // 2 + 4, y), (x + w - 6, y + HAND - 6), (x + 6, y + HAND - 6)],
+                    fill=gold)
+        p.d.polygon([(x + w // 2 - 2, y + 20), (x + w // 2 + 2, y + 20), (x + w - 18, y + HAND - 6),
+                     (x + 18, y + HAND - 6)], fill=flare)
+    p.limb_line(gold, LOWER, 0.85, 3)
+    shoes(p, gold, HAND - 6, shade(gold, 0.6))
+    return s.im, p.im
+
+
+def bulwark():
+    """Bulwark, the Unbreakable (a famous fake, the Colossus path): a royal blue armoured suit with a silver chest
+    plate edged in yellow, rivets and segmented belly plates under it, silver armour rings on the upper arms and
+    plated forearms; on the back a silver backplate with a yellow hexagon over a spine ridge; blue legs with silver
+    thigh and knee plates, a yellow outer stripe and dark steel boots."""
+    s, p = T(), T()
+    blue, silver, yellow, steel = (36, 92, 205), (190, 196, 208), (255, 214, 40), (70, 76, 90)
+    suit(s, blue, HAND)
+    fx, fy, _, _ = front()
+    bx, by, _, _ = back()
+
+    def plate(d, pts, c=silver):
+        d.polygon(pts, fill=c, outline=yellow)
+        d.line(pts + [pts[0]], fill=yellow, width=4)
+
+    # the chest plate: a broad shield round the emblem, rivets at its corners
+    chest = [(fx + 10, fy + 4), (fx + 118, fy + 4), (fx + 112, fy + 54), (fx + 64, fy + 68), (fx + 16, fy + 54)]
+    plate(s.d, chest)
+    s.d.line([(fx + 64, fy + 6), (fx + 64, fy + 66)], fill=shade(silver, 0.8), width=2)
+    for x, y in ((fx + 18, fy + 12), (fx + 110, fy + 12), (fx + 22, fy + 46), (fx + 106, fy + 46)):
+        s.d.ellipse([x - 3, y - 3, x + 3, y + 3], fill=shade(silver, 0.6))
+    # segmented belly plates under it
+    for row in range(2):
+        for col in range(2):
+            x0 = fx + 30 + col * 36
+            y0 = fy + 72 + row * 15
+            s.d.rectangle([x0, y0, x0 + 30, y0 + 11], fill=shade(silver, 0.9), outline=shade(blue, 0.6), width=2)
+    # the collar ring and the yellow side seams
+    s.d.rectangle([fx + 40, fy, fx + 88, fy + 4], fill=steel)
+    s.torso_sides_stripe(yellow, 0, 128, 6)
+    # the back: a silver backplate, the yellow hexagon (the Hex Badge's shape, drawn big) and a spine ridge
+    plate(s.d, [(bx + 12, by + 4), (bx + 116, by + 4), (bx + 108, by + 84), (bx + 20, by + 84)])
+    hexa = [(bx + 64 + math.cos(math.radians(a)) * 26, by + 40 + math.sin(math.radians(a)) * 26)
+            for a in range(30, 390, 60)]
+    s.d.polygon(hexa, outline=yellow)
+    s.d.line(hexa + [hexa[0]], fill=yellow, width=6)
+    s.d.rectangle([bx + 60, by + 70, bx + 68, by + 100], fill=shade(silver, 0.75))
+    # arms: silver armour rings on the upper arm, plated silver forearms, steel gauntlet cuffs
+    for k in range(0, LOWER - 6, 12):
+        s.limb_band(silver, k + 2, k + 8)
+        s.limb_line(blue, k + 8, 0.6, 2)
+    s.limbs(silver, LOWER, HAND, 1.08, 0.86)
+    s.limb_line(steel, LOWER + 18, 1.0, 2)
+    s.limb_line(steel, LOWER + 36, 1.0, 2)
+    s.outer_stripe(yellow, LOWER, HAND, 4)
+    hands(s, steel)
+    # legs: blue, silver thigh plates and knee plates, a yellow outer stripe, steel boots
+    legs(p, blue, HAND - 8)
+    for slots in (RIGHT, LEFT):
+        x, y, w, _ = slots["F"]
+        p.d.rounded_rectangle([x + 8, y + 6, x + w - 9, y + 42], 6, fill=silver, outline=shade(silver, 0.6), width=2)
+        p.d.rounded_rectangle([x + 10, y + LOWER - 10, x + w - 11, y + LOWER + 14], 8, fill=silver,
+                              outline=yellow, width=3)
+        p.d.ellipse([x + w // 2 - 3, y + LOWER, x + w // 2 + 3, y + LOWER + 6], fill=shade(silver, 0.55))
+    p.outer_stripe(yellow, 0, HAND - 8, 6)
+    shoes(p, steel, HAND - 8, (30, 32, 38))
+    return s.im, p.im
+
+
+def skylance():
+    """Skylance, the Silver Streak (a famous fake, the Blade path): an azure speed suit swept by three white
+    streaks from the left shoulder to the right hip, each edged with a cyan glow line, a white collar, white
+    streaks down the outer sleeves ending in a forward chevron at each wrist; on the back a big white chevron
+    pointing up with cyan edges; azure legs with the streak carried on down the thighs and white boots."""
+    s, p = T(), T()
+    azure, cyan = (40, 140, 225), (90, 250, 255)
+    suit(s, azure, HAND)
+    fx, fy, _, _ = front()
+    bx, by, _, _ = back()
+
+    def streak(d, x, y, w, h, k, wd):
+        """A white band sweeping down-right across a face, at offset k, with a cyan line on its lower edge."""
+        a = (x + k - 40, y)
+        b = (x + k - 40 + wd, y)
+        c = (x + k + w * 0.9 + wd, y + h)
+        e = (x + k + w * 0.9, y + h)
+        d.polygon([a, b, c, e], fill=WHITE)
+        d.line([a, e], fill=cyan, width=3)
+
+    # three streaks across the front (cropped to the front face), widest in the middle
+    lay = T()
+    for k, wd in ((-20, 14), (14, 22), (52, 12)):
+        streak(lay.d, fx, fy, 128, 128, k, wd)
+    crop = lay.im.crop((fx, fy, fx + 128, fy + 128))
+    # leave the emblem's spot clear: a round azure field with a cyan ring
+    s.im.alpha_composite(crop, (fx, fy))
+    s.d.ellipse([fx + 36, fy + EMBLEM_Y - 28, fx + 92, fy + EMBLEM_Y + 28], fill=azure, outline=cyan, width=4)
+    # the white collar and the cyan waist line
+    s.d.rectangle([fx + 34, fy, fx + 94, fy + 5], fill=WHITE)
+    s.d.rectangle([fx, fy + 86, fx + 127, fy + 89], fill=cyan)
+    s.torso_sides_stripe(WHITE, 0, 128, 10)
+    # the back: two stacked upward chevrons (the streak's arrowhead), cyan edged, clear of the waist line
+    for y0, c in ((8, WHITE), (32, WHITE)):
+        pts = [(bx + 18, by + y0 + 34), (bx + 64, by + y0), (bx + 110, by + y0 + 34), (bx + 110, by + y0 + 50),
+               (bx + 64, by + y0 + 16), (bx + 18, by + y0 + 50)]
+        s.d.polygon(pts, fill=c)
+        s.d.line(pts + [pts[0]], fill=cyan, width=3)
+    s.d.rectangle([bx, by + 86, bx + 127, by + 89], fill=cyan)
+    # sleeves: a white streak down the outer side, a forward chevron at the wrist
+    for slots, outer in ((RIGHT, "R"), (LEFT, "L")):
+        x, y, w, _ = slots[outer]
+        s.d.polygon([(x + 18, y), (x + 46, y), (x + 38, y + HAND - 22), (x + 26, y + HAND - 22)], fill=WHITE)
+        s.d.line([(x + 18, y), (x + 26, y + HAND - 22)], fill=cyan, width=3)
+        fxl, fyl, fwl, _ = slots["F"]
+        s.d.line([(fxl + 6, fyl + HAND - 20), (fxl + fwl // 2, fyl + HAND - 6), (fxl + fwl - 7, fyl + HAND - 20)],
+                 fill=WHITE, width=6)
+    s.limb_line(cyan, HAND - 2, 1.0, 3)
+    hands(s, WHITE)
+    # legs: azure, the streak carried down the front of the thighs, a cyan outer line, white boots
+    legs(p, azure, HAND - 14)
+    for slots in (RIGHT, LEFT):
+        x, y, w, _ = slots["F"]
+        p.d.polygon([(x + 6, y), (x + 30, y), (x + w - 6, y + 46), (x + w - 22, y + 46)], fill=WHITE)
+        p.d.line([(x + 6, y), (x + w - 22, y + 46)], fill=cyan, width=3)
+    p.outer_stripe(cyan, 0, HAND - 14, 3)
+    p.limb_line(cyan, HAND - 14, 1.0, 3)
+    shoes(p, WHITE, HAND - 14, (150, 170, 190))
+    return s.im, p.im
+
+
 # ---------------------------------------------------------------- the people (Config.NpcLooks.people order)
 PEOPLE = {
     "Gus": gus, "Benny": benny, "Scoops": scoops, "Dot": dot, "Nell": nell, "Pearl": pearl, "Brick": brick,
@@ -1245,6 +1434,8 @@ PEOPLE = {
     "Bramblebeast": bramblebeast, "CaptainBrine": brine, "Pitboss": pitboss, "Tidewright": tidewright,
     "Vesper": vesper, "Catchpole": catchpole, "Scorch": scorch, "Censor": censor, "Holloway": holloway,
     "Voidhound": voidhound, "Morrow": morrow, "Clawback": clawback, "Gale": gale,
+    # the famous fakes (finale villains too: Config.SideQuests.finale.enemies)
+    "Radiant": radiant, "Bulwark": bulwark, "Skylance": skylance,
 }
 
 # Their faces (faces.py numbers: brow thickness, arch, tilt; eye half width, half height, tilt, lid, lash; iris;
@@ -1283,6 +1474,14 @@ FACES = {
                        machine=(200, 150, 80), glow=(120, 255, 230)),
     "Holloway": dict(BASE, brow=(56, 40, 22), eye=(170, 58, 10, 24, 46), iris=(150, 205, 230), mouth=(380, -10, 0, 0.6),
                      wrinkles=0.6, cheek=1.4),
+    # the famous fakes: a famous face each (the city knows them from posters), so a fake never looks like a grunt
+    # with the same shared face; each cracks to the metal under it once unmasked
+    "Radiant": dict(BASE, brow=(58, 80, -2), eye=(172, 70, 6, 8, 40), iris=(225, 160, 40), mouth=(470, 56, 24, 1.0),
+                    cheek=1.0),
+    "Bulwark": dict(BASE, brow=(104, 18, 22), eye=(160, 50, 0, 26, 26), iris=(80, 140, 210), mouth=(450, -6, 10, 1.1),
+                    stubble=True, cheek=1.5, bump=True),
+    "Skylance": dict(BASE, brow=(48, 96, 16), eye=(176, 76, 16, 4, 76), iris=(40, 210, 235), mouth=(360, 22, 44, 1.1),
+                     lashes=True, cheek=0.9),
 }
 # the on-body preview's skin, hair and face per person (their look's skin and hair; a stock face by its visage)
 K = [None, (255, 224, 196), (241, 194, 160), (224, 172, 130), (198, 140, 100), (160, 105, 70), (120, 78, 52),
@@ -1304,10 +1503,15 @@ PREVIEW = {
     "Vesper": (K[10], WHITEH, "Vesper"), "Catchpole": (K[4], CHOC, "Sharp"), "Scorch": (K[3], (230, 70, 30), "Scarred"),
     "Censor": (K[9], BLACKH, "Cold"), "Holloway": (K[2], SILVER, "Holloway"), "Voidhound": (METAL, (40, 44, 60), "Cold"),
     "Morrow": (K[9], BLACKH, "Sharp"), "Clawback": (K[4], CHOC, "Scarred"), "Gale": (K[3], (55, 58, 66), "Sharp"),
+    "Radiant": (K[2], (235, 195, 80), "Radiant"), "Bulwark": (K[6], BLACKH, "Bulwark"),
+    "Skylance": (K[3], (150, 90, 210), "Skylance"),
 }
-CRACKED = ("Vesper",)  # a famous fake: her unmasked face too
-# the on-body preview pages (art/blender/clothed.py people <page>): 8 a page
-PAGES = [list(PEOPLE)[i:i + 8] for i in range(0, len(PEOPLE), 8)]
+CRACKED = ("Vesper", "Radiant", "Bulwark", "Skylance")  # the famous fakes: their unmasked faces too
+FAKES = ["Radiant", "Bulwark", "Skylance"]
+# the on-body preview pages (art/blender/clothed.py people <page>): 8 a page, the famous fakes on a page of their
+# own (people 6)
+_rest = [n for n in PEOPLE if n not in FAKES]
+PAGES = [_rest[i:i + 8] for i in range(0, len(_rest), 8)] + [FAKES]
 
 
 def save(name, shirt, pants):
@@ -1348,8 +1552,9 @@ if __name__ == "__main__":
             "Moth": (198, 140, 100), "Ambrose": (224, 172, 130), "Hoshi": (241, 194, 160), "Wren": (160, 110, 80),
             "Toby": (255, 224, 196), "Finn": (198, 140, 100), "Flint": (224, 172, 130), "Kiko": (241, 194, 160),
             "Vesper": (236, 196, 170), "Pitboss": (150, 140, 130), "Tidewright": (170, 120, 70),
-            "Holloway": (241, 194, 160)}
-    names = list(FACES) + ["Vesper_Cracked"]
+            "Holloway": (241, 194, 160), "Radiant": (241, 194, 160), "Bulwark": (120, 78, 52),
+            "Skylance": (224, 172, 130)}
+    names = list(FACES) + [n + "_Cracked" for n in CRACKED]
     T_ = 300
     cols = 6
     fs = Image.new("RGB", (T_ * cols, T_ * ((len(names) + cols - 1) // cols)), (40, 42, 48))

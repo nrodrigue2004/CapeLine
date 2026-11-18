@@ -29,6 +29,42 @@ return {
 		-- hold a skill button and drag to aim (the camera turns with the finger)
 		aimDrag = { yaw = 0.011, pitch = 0.008, maxPitch = 70 }, -- radians per pixel; degrees
 	},
+	-- the Ceremony prologue's screen (onboarding check 2026-11-18; StoryClient and StoryHud read these)
+	prologue = {
+		-- the verb button(s) each beat shows and pulses (Hud.setFocus); the camera beats show none
+		verbs = {
+			ceremony = {},
+			scan = {},
+			run = { "Leap" },
+			spark = { "Basic" }, -- the Spark fires from the attack button
+			leap = { "Leap" },
+			chase = { "Leap" }, -- the Leap button reads GLIDE in the air
+			suit = { "Leap" },
+			descend = { "Leap" },
+			tunnel = { "Leap" },
+			fight = { "Basic", "Skill1", "Skill2", "Leap" },
+			swarm = { "Basic", "Skill1", "Skill2", "Leap" },
+			rescue = {},
+			title = {},
+		},
+		-- one fixed word under the gold marker on a beat that has a place to reach, so the goal reads at once
+		-- (the lines can come later or not at all for a quick player); the camera beats have no marker
+		goals = {
+			run = "RUN",
+			spark = "SPARK",
+			leap = "LEAP",
+			chase = "LEAP",
+			descend = "SUBWAY",
+			tunnel = "RUN",
+		},
+		-- a player-paced beat that ends before its lines are heard hands at most `carry` of them to the next
+		-- player-paced beat (a line is heard once it showed `heard` of its reading time); none into a camera beat
+		carry = 2,
+		heard = 0.7,
+	},
+	-- the cards the server pops by itself (daily claim, mentor picker, TOP 10): Ui.PopupGate holds each until the
+	-- player is free (no loading screen, menu, creator, prologue, cutscene or other such card)
+	popups = { settle = 1.2, giveUp = 600 }, -- seconds of calm before one shows; the longest it waits
 	colors = {
 		ink = { 22, 24, 32 },
 		paper = { 244, 242, 236 },

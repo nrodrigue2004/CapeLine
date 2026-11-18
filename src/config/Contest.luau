@@ -53,7 +53,7 @@ return {
 		"Mad Scientist",
 		"Sky Pirate",
 		"Speedster",
-		"Heavy Armour",
+		"Heavy Armor",
 		"Mystic",
 		"Big Hat Energy",
 		"Monochrome",

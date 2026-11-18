@@ -24,6 +24,7 @@ local TouchLayout = require(Shared:WaitForChild("TouchLayout"))
 
 local Juice = require(script.Parent.Parent.Fx.Juice)
 local Kit = require(script.Parent.Kit)
+local PopupGate = require(script.Parent.PopupGate)
 local CinemaClient = require(script.Parent.Parent.Controllers.CinemaClient)
 local StoryClient = require(script.Parent.Parent.Controllers.StoryClient)
 
@@ -463,6 +464,9 @@ function DailyHud.init()
 	})
 	panel.Parent = gui
 	Kit.fit(panel, 520, 300, 640, 560) -- phone pass: fits the safe area, scaled down a little at most
+	PopupGate.card("daily", function()
+		return panel.Visible
+	end)
 	local title = Kit.label({
 		Text = "DAILY",
 		Size = UDim2.new(1, -T - 30, 0, 34),
@@ -573,13 +577,22 @@ function DailyHud.init()
 			resetAt = os.clock() + d.resetIn
 		end
 		Kit.settle()
-		if d.show and d.owed then
-			panel.Visible = true -- the claim card on join (the server waited until the hero was free)
-			tracker.Visible = false
-			Kit.pulse(panel, 0.06)
-		end
 		draw()
 		drawTracker()
+		if d.show and d.owed then
+			-- the claim card on join (the server waited until the hero was free); on this device it also waits
+			-- for the loading screen, the main menu and any other card (PopupGate: one card at a time)
+			PopupGate.later("daily", function()
+				if state and state.owed then
+					panel.Visible = true
+					tracker.Visible = false
+					Kit.pulse(panel, 0.06)
+					Kit.padFocus(panel, false)
+					draw()
+					drawTracker()
+				end
+			end)
+		end
 	end)
 	Net.listen("DailyProgress", function(p: any)
 		if type(p) ~= "table" then
