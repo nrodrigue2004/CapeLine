@@ -6276,6 +6276,107 @@ if placePath then
 				)
 			end
 		end
+		-- every Blender set uploaded from the cloud (2026-11-18, art/upload/pull_models.py) is in the place, each
+		-- MeshPart carries its uploaded mesh, and every mesh name the game looks up is there
+		local RigMath = require("../src/shared/RigMath")
+		local function meshIn(set: any, name: string, label: string)
+			local m = set and set:FindFirstChild(name, true)
+			check(m ~= nil and m:IsA("MeshPart"), label .. " has " .. name)
+		end
+		local function meshFields(t: any, out: { string })
+			for k, v in t do
+				if k == "mesh" and type(v) == "string" then
+					table.insert(out, v)
+				elseif type(v) == "table" then
+					meshFields(v, out)
+				end
+			end
+			return out
+		end
+		local sets = {
+			Weapons = "WeaponArt",
+			Capes = "CapeArt",
+			Heads = "HeadArt",
+			Gloves = "GloveArt",
+			Boots = "BootArt",
+			Coats = "CoatArt",
+			Belts = "BeltArt",
+			Shoulders = "ShoulderArt",
+			Backs = "BackArt",
+			Hats = "HatArt",
+			Hair = "HairArt",
+			Eyes = "EyeArt",
+			Ears = "EarArt",
+			Necks = "NeckArt",
+			Wrists = "WristArt",
+			Arms = "ArmArt",
+			Street = "StreetArt",
+			SetPieces = "SetPieceArt",
+			Vehicles = "VehicleArt",
+			Hq = "HqArt",
+			Bosses = "BossArt",
+			Trooper = "TrooperArt",
+			Bramblebeast = "FinaleArt",
+			Voidhound = "FinaleArt",
+			WindupGiant = "FinaleArt",
+			Bodies = false,
+		}
+		for name, cfgName in sets do
+			local set = art and art:FindFirstChild(name)
+			check(set ~= nil, "ReplicatedStorage.Art." .. name)
+			if set == nil then
+				continue
+			end
+			local parts, bare = 0, 0
+			for _, d in set:GetDescendants() do
+				if d:IsA("MeshPart") then
+					parts += 1
+					if string.match(d.MeshId, "^rbxassetid://%d+$") == nil then
+						bare += 1
+					end
+				end
+			end
+			check(parts > 0 and bare == 0, name .. ": " .. parts .. " meshes, all uploaded")
+			local cfg = cfgName and (Config :: any)[cfgName]
+			if cfgName == "FinaleArt" or cfgName == "TrooperArt" then
+				local row = if cfgName == "FinaleArt" then cfg[name] else cfg
+				for _, j in RigMath.JOINTS do
+					meshIn(set, j[3], name)
+				end
+				for extra in row.extras or {} do
+					meshIn(set, extra, name)
+				end
+			elseif cfgName == "BossArt" then
+				for id, row in cfg do
+					if type(row) == "table" and row.pieces then
+						for _, group in { row.pieces, row.objective or {} } do
+							for piece in group do
+								meshIn(set, id .. "_" .. piece, name)
+							end
+						end
+					end
+				end
+			elseif
+				cfgName == "StreetArt"
+				or cfgName == "SetPieceArt"
+				or cfgName == "VehicleArt"
+				or cfgName == "HqArt"
+			then
+				for _, kit in cfg do
+					for mesh, row in kit do
+						if type(row) == "table" and row.size then
+							meshIn(set, mesh, name)
+						end
+					end
+				end
+			elseif cfg then
+				local list = meshFields(cfg, {})
+				check(#list > 0, name .. " names its meshes")
+				for _, mesh in list do
+					meshIn(set, mesh, name)
+				end
+			end
+		end
 		local shared = rs:FindFirstChild("Shared")
 		for _, name in
 			{
