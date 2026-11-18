@@ -1,6 +1,7 @@
 -- PhotoMode: take a picture of your hero (spec: Social table "Photo Mode | Pose button, hide-UI toggle,
 -- backdrop. Nothing is recorded"; juice row Photo "Shutter | Hero pose | Flash only if reduce flashing is
--- off"). PHOTO (top left, or K) opens it anywhere but the opening:
+-- off"). PHOTO (top left, or N; K is the Task Force board) opens it anywhere but the opening, a cutscene or
+-- Downed (and a cutscene or going Downed closes it):
 -- * the hero holds still and the camera orbits them: drag (or the right stick) to turn, scroll, pinch or
 --   the triggers to zoom;
 -- * POSE steps through the free photo poses (only on your screen) and the emotes you own (everyone sees);
@@ -30,10 +31,14 @@ local StoryClient = require(script.Parent.Parent.Controllers.StoryClient)
 local EmoteFx = require(script.Parent.Parent.Fx.EmoteFx)
 local Juice = require(script.Parent.Parent.Fx.Juice)
 local Telemetry = require(script.Parent.Parent.Controllers.Telemetry)
+local CinemaClient = require(script.Parent.Parent.Controllers.CinemaClient)
+local PvpClient = require(script.Parent.Parent.Controllers.PvpClient)
 
 local PhotoMode = {}
 
 PhotoMode.reduce = false -- Settings: reduce flashing (no SNAP flash)
+-- The keyboard key that opens and closes it (K was the Task Force board too: InputController)
+PhotoMode.KEY = Enum.KeyCode.N
 
 local U = Config.Ui
 local T = U.touchTarget
@@ -177,7 +182,15 @@ PhotoMode.close = close
 
 function PhotoMode.open()
 	local r = root()
-	if open or not r or StoryClient.inOpening() then
+	-- never during a cutscene (it owns the camera) or while Downed (the Downed screen must stay up)
+	if
+		open
+		or not r
+		or StoryClient.inOpening()
+		or CinemaClient.playing()
+		or PvpClient.downed()
+		or PvpClient.down.downed
+	then
 		return
 	end
 	open = true
@@ -339,14 +352,14 @@ function PhotoMode.init()
 		if not open then
 			if
 				not processed
-				and input.KeyCode == Enum.KeyCode.K
+				and input.KeyCode == PhotoMode.KEY
 				and not UserInputService:GetFocusedTextBox()
 			then
 				PhotoMode.open()
 			end
 			return
 		end
-		if input.KeyCode == Enum.KeyCode.K or input.KeyCode == Enum.KeyCode.ButtonB then
+		if input.KeyCode == PhotoMode.KEY or input.KeyCode == Enum.KeyCode.ButtonB then
 			close()
 			return
 		end
@@ -401,6 +414,17 @@ function PhotoMode.init()
 		openButton.Visible = not open and not StoryClient.inOpening()
 	end))
 	player.CharacterRemoving:Connect(close)
+	-- a cutscene takes the camera and Downed shows its own screen: either closes Photo Mode
+	CinemaClient.Changed:Connect(function(scene)
+		if scene then
+			close()
+		end
+	end)
+	PvpClient.Changed:Connect(function(what)
+		if what == "down" and (PvpClient.down.downed or PvpClient.downed()) then
+			close()
+		end
+	end)
 end
 
 return PhotoMode

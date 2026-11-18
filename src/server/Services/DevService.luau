@@ -21,6 +21,7 @@
 -- cleared and its level met), missionstep n (jump to stage n of the running mission).
 -- Lore step 12: reptier 0-5 (your own side's reputation tier), sideevent 1-3 (a side-vs-side event now).
 -- Hero MMO: nemesis 0/1 (your nemesis ambushes you now / your Intel is full: the Showdown opens).
+-- WP1: daily 1-4 (a day passes, two days pass, finish today's quests, start the streak over).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -57,6 +58,7 @@ local HqService = require(script.Parent.HqService)
 local PurchaseService = require(script.Parent.PurchaseService)
 local NewsService = require(script.Parent.NewsService) -- lore step 7
 local RepService = require(script.Parent.RepService) -- lore step 12
+local DailyService = require(script.Parent.DailyService) -- WP1
 local ShopRules = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("ShopRules"))
 local CreatorRules = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("CreatorRules"))
 local ProfileSchema = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("ProfileSchema"))
@@ -430,6 +432,11 @@ local commands: { [string]: (player: Player, hero: any, value: number) -> () } =
 	-- 6 Act 1 mission)
 	news = function(player, _, what)
 		NewsService.dev(player, what)
+	end,
+	-- WP1: the daily streak and quests (1 a day passes, 2 two days pass: one missed, the grace; 3 finish today's
+	-- quests; 4 start the streak over)
+	daily = function(player, _, what)
+		DailyService.dev(player, what)
 	end,
 }
 

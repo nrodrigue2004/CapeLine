@@ -76,6 +76,11 @@ AnalyticsSchema.EVENTS = {
 	episode_step = { "episode" }, -- value: the step
 	episode_done = { "episode" },
 	travel_style = { "mobility" }, -- value: the style id worn (0 = plain)
+	-- WP1: the daily streak and quests (Shared.DailyRules builds each one)
+	daily_login = { "track_day", "kind" }, -- value: the streak; kind: new, next, grace or reset
+	daily_claim = { "track_day", "reward", "late" }, -- value: the streak; late 1: paid on the next day's login
+	daily_quest = { "quest", "slot" }, -- value: quests done today
+	daily_all_done = { "track_day" }, -- value: the streak
 }
 
 AnalyticsSchema.FUNNELS = {

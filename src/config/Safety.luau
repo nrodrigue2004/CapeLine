@@ -10,5 +10,5 @@ return {
 	-- after a strike, fails in the next this many seconds only pull back (MoveCorrect has to reach the
 	-- device; a lag spike's stale positions are the same evidence, not new strikes)
 	strikeGrace = 3,
-	grantKeep = 1.0, -- seconds a granted dash allowance lasts
+	grantKeep = 2.0, -- seconds an unspent grant (dash, leap, knock) lasts after the last one (MoveCheck.extra)
 }

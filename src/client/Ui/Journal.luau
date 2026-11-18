@@ -418,6 +418,7 @@ function Journal.open()
 	if StoryClient.inOpening() then
 		return
 	end
+	Kit.opening("Journal", panel, Journal.close, true)
 	panel.Visible = true
 	draw()
 end

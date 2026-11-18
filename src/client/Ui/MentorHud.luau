@@ -317,6 +317,7 @@ local function comic(mentor: number, line: string)
 end
 
 function MentorHud.open()
+	Kit.opening("MentorHud", cardFrame, MentorHud.close, true)
 	cardFrame.Visible = true
 	Net.send("MentorOpen")
 	if last then
@@ -370,9 +371,9 @@ function MentorHud.init()
 		BackgroundTransparency = 0.05,
 		Visible = false,
 	})
-	local plimit = Instance.new("UISizeConstraint")
-	plimit.MaxSize = Vector2.new(480, 340)
-	plimit.Parent = picker
+	-- phone pass: the picker (title, two mentor rows, LATER: about 310 px) fits the screen, drawing smaller
+	-- on a phone (a fixed 340 px ran past a 375 px phone's safe area)
+	Kit.fit(picker, 400, 310, 480, 340)
 	picker.Parent = gui
 	pickBody = Kit.frame({
 		Size = UDim2.new(1, -28, 1, -20),
@@ -406,6 +407,13 @@ function MentorHud.init()
 	})
 	Kit.stroke(panel, Kit.color.ink, 4)
 	panel.Parent = gui
+	local function placePanel()
+		-- under the nemesis's panel, but never past the bottom of a short phone screen
+		local a = Kit.area()
+		panel.Position = UDim2.new(0.5, 0, 0, math.min(210, a.Y - 96 - Config.Ui.phone.panelMargin))
+	end
+	placePanel()
+	Kit.LayoutChanged:Connect(placePanel)
 	panelPortrait = Kit.label({
 		Text = "",
 		Size = UDim2.fromOffset(72, 72),

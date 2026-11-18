@@ -185,7 +185,7 @@ local function rollDamage(
 		-- Epic set, 2 pieces (half in PvP)
 		dmg *= 1 + hero.setDamage[eff.set] * (if pvp then Config.Pvp.setMult else 1)
 	end
-	dmg *= Awakening.damageMult(Config, hero.meter, os.clock())
+	dmg *= Awakening.damageMult(Config, hero.meter, os.clock(), pvp) -- PvP: Abilities.awakening.pvpDamage
 	return dmg, crit
 end
 
@@ -608,7 +608,7 @@ local function addField(
 	overrides: any?
 )
 	if #fields >= C.maxFields then
-		table.remove(fields, 1)
+		table.remove(fields, CastPlan.evictIndex(fields, hero)) -- this hero's oldest first, never others' first
 	end
 	local now = os.clock()
 	local f = {
@@ -818,6 +818,12 @@ local function gainFor(hero: any, eff: any, count: number)
 	HeroService.gainMeter(hero, kind, count)
 end
 
+-- Team-up combos pair friends, never two heroes who may fight each other right now (M8)
+local function comboPair(a: number, b: number): boolean
+	local ha, hb = HeroService.byId(a), HeroService.byId(b)
+	return not (ha and hb and FlagService.canHit(ha, hb))
+end
+
 local function comboCheck(hero: any, eff: any, pos: Vector3, num: number, seq: number)
 	local pair, other = Awakening.noteSuper(Config, combos, {
 		hero = hero.id,
@@ -826,7 +832,7 @@ local function comboCheck(hero: any, eff: any, pos: Vector3, num: number, seq: n
 		y = pos.Y,
 		z = pos.Z,
 		t = os.clock(),
-	})
+	}, comboPair)
 	if not pair or not other then
 		return
 	end
@@ -1288,6 +1294,8 @@ function CombatService.use(
 		not row
 		or not hero.alive
 		or HeroService.disabled(hero)
+		or hero.traveling -- fast travel's flight (BeaconService)
+		or hero.scene == "creator" -- in the creator (mission, HQ and the prologue's scenes have fights)
 		or BlockService.blocking(hero)
 		or hero.carry
 	then
@@ -1340,7 +1348,13 @@ function CombatService.use(
 		attackSpeed = Status.value(hero.status, "attackSpeed", now, 0),
 		awakened = awake,
 	})
-	Cooldowns.start(hero.cooldowns, row.id, now, AbilityRules.afterUse(hero.recast, row.id, eff, now, full))
+	-- from when it was due, not from now: the leeway lets a use in early, never shortens the cycle
+	Cooldowns.startNext(
+		hero.cooldowns,
+		row.id,
+		now,
+		AbilityRules.afterUse(hero.recast, row.id, eff, now, full)
+	)
 	hero.channel = nil -- any new use ends a channel
 	hero.lastCast = now
 	FlagService.attacked(hero) -- attacking ends spawn protection
@@ -1485,15 +1499,7 @@ local function stepFields(now: number)
 			f.nextTick = now + f.tick
 			local r = record(hero, f.num, 0, K.TICK, f.pos, Vector3.new(0, 1, 0))
 			r.c = f.pos
-			local fieldEff = {
-				coeff = f.coeff,
-				status = if f.status ~= nil then f.status else eff.status,
-				statusDur = f.statusDur or math.max(eff.statusDur or 0, f.tick + 0.15),
-				slow = f.slow or eff.slow,
-			}
-			if fieldEff.status == "pull" then
-				fieldEff.statusDur = f.tick + 0.1
-			end
+			local fieldEff = CastPlan.tickEff(eff, f)
 			local inside = if f.coeff > 0 or fieldEff.status
 				then CastPlan.area(f.pos.X, f.pos.Y, f.pos.Z, f.radius, cands(hero), nil)
 				else {}
@@ -1567,6 +1573,25 @@ local function stepFields(now: number)
 			end
 		else
 			i += 1
+		end
+	end
+end
+
+-- Ended Soul Chains links (their robots may never be hit again) and spent raft timers, every few seconds
+local sweepAt = 0
+local function sweepStale(now: number)
+	if now < sweepAt then
+		return
+	end
+	sweepAt = now + 5
+	for id, g in links do
+		if now > g.untilT then
+			links[id] = nil
+		end
+	end
+	for id, untilT in raftUntil do
+		if now >= untilT then
+			raftUntil[id] = nil
 		end
 	end
 end
@@ -1777,6 +1802,21 @@ function CombatService.init()
 	HeroService.Defeated:Connect(function(hero)
 		hero.channel = nil
 	end)
+	-- a hero who leaves takes their fields, links, raft and pound timer along (nothing ticks for a gone hero)
+	HeroService.Removed:Connect(function(hero)
+		for i = #fields, 1, -1 do
+			if fields[i].hero == hero then
+				table.remove(fields, i)
+			end
+		end
+		for id, g in links do
+			if g.hero == hero then
+				links[id] = nil
+			end
+		end
+		raftUntil[hero.id] = nil
+		poundAt[hero.id] = nil
+	end)
 	PerfMonitor.watch("fields", function()
 		return #fields
 	end)
@@ -1787,6 +1827,7 @@ function CombatService.init()
 		stepChannels(t0)
 		stepFields(t0)
 		stepTrails(t0)
+		sweepStale(t0)
 		PerfMonitor.add("combat", (os.clock() - t0) * 1000)
 		acc += dt
 		if acc >= 1 / C.resultRate then

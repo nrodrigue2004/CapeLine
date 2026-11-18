@@ -526,6 +526,7 @@ end
 
 function PassHud.open(which: string?)
 	tab = which or tab
+	Kit.opening("PassHud", panel, PassHud.close, true)
 	panel.Visible = true
 	draw()
 	Net.send("PassOpen")

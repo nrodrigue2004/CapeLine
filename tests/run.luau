@@ -8254,7 +8254,8 @@ test("City kit block: textured fronts, street dressing, and the rest of Downtown
 	)
 	check(layout.parts <= Config.City.partBudget.downtown, "still within the Downtown part budget")
 end); -- Hero MMO features (H1 to H8) live in their own file so this one merges easily
-(require :: any)("./mmo")({ test = test, check = check, near = near, Config = Config })
+(require :: any)("./mmo")({ test = test, check = check, near = near, Config = Config }); -- WP1: the daily login streak and daily quests
+(require :: any)("./daily")({ test = test, check = check, Config = Config })
 
 test(
 	"City kit: every district dressed, deterministic, within budget, nothing in buildings or roads",
@@ -22258,6 +22259,416 @@ do
 		Signal.onError = was
 		check(errors == 1, "the error is reported")
 		check(#order == 2 and order[1] == "a1" and order[2] == "c1", "the rest run, in connect order")
+	end)
+end
+
+---------------------------------------------------------------------------
+-- Combat fixes (review 5): speed caps, leaps, PvP rules, cooldowns, grants
+---------------------------------------------------------------------------
+do
+	local fs = require("@lune/fs")
+	local CastPlan = require("../src/shared/CastPlan")
+	local Awakening = require("../src/shared/Awakening")
+	local AbilityRules = require("../src/shared/AbilityRules")
+	local ChargeRules = require("../src/shared/ChargeRules")
+	local S = Config.Safety
+	local AB = Config.Abilities
+	local combatSrc = fs.readFile("src/server/Services/CombatService.luau")
+
+	-- 10 Hz samples of a hero moving at `speed` studs/s along x for `secs`; a pull-back puts it back on the
+	-- last good spot, as MoveCorrect does. Returns the pull-backs.
+	local function pullBacks(speed: number, secs: number, cap: number): number
+		local st = MoveCheck.new(0, 10, 0, 0)
+		local x, fails = 0, 0
+		for i = 1, math.floor(secs * 10 + 0.5) do
+			x += speed * 0.1
+			local ok, _, wait = MoveCheck.sample(st, x, 10, 0, i * 0.1, cap, M, S)
+			if not ok and not wait then
+				fails += 1
+				x = st.x
+			end
+		end
+		return fails
+	end
+
+	-- one move of `dist` studs over `time` s (a dash, a leap, a knock), sampled at 10 Hz from a standing
+	-- start; `grantAt` is the sample index the server's grant arrives after (0: before the first position)
+	local function movePulls(dist: number, time: number, grant: number, cap: number, grantAt: number): number
+		local st = MoveCheck.new(0, 10, 0, 0)
+		MoveCheck.sample(st, 0, 10, 0, 1, cap, M, S)
+		if grantAt == 0 then
+			MoveCheck.grant(st, grant, 1)
+		end
+		local fails = 0
+		for i = 1, 30 do
+			local t = i * 0.1
+			local x = dist * math.min(1, t / time)
+			local ok, strike, wait = MoveCheck.sample(st, x, 10, 0, 1 + t, cap, M, S)
+			if strike or (not ok and not wait) then
+				fails += 1
+			end
+			if i == grantAt then
+				MoveCheck.grant(st, grant, 1 + t)
+			end
+		end
+		return fails
+	end
+
+	test(
+		"Combat fixes: speed buffs raise MoveGuard's cap (Super-speed with Weightless, Feather, a Mystic's)",
+		function()
+			local styles = { speed = true }
+			local weightless = AB.list.Weightless
+			local feather = weightless.value + weightless.mods[1].add.value
+			local mystic = feather * (1 + Config.Classes.Mystic.supportBonus)
+			local sprint = M.mobility.speed.sprint
+			local oldCap = MoveMath.speedCap(M, styles, false)
+			check(
+				pullBacks(sprint * (1 + weightless.value), 6, oldCap) > 0,
+				"the old cap pulled the buffed sprint back"
+			)
+			for _, b in { weightless.value, feather, mystic, AB.list.TideMirror.value } do
+				local cap = MoveMath.guardCap(M, styles, false, { speedBuff = b })
+				local n = pullBacks(sprint * (1 + b), 6, cap)
+				check(
+					n == 0,
+					string.format(
+						"sprint at %.0f under a +%.0f%% buff: %d pull-backs",
+						sprint * (1 + b),
+						b * 100,
+						n
+					)
+				)
+			end
+			-- the buff scales every pick's run (Acrobat's, the walk) and leaves rides and Weightless flight intact
+			local acro = MoveMath.guardCap(M, { acrobat = true }, false, { speedBuff = mystic })
+			check(pullBacks(M.mobility.acrobat.run * (1 + mystic), 6, acro) == 0, "Acrobat's buffed run")
+			local zero = MoveMath.guardCap(M, {}, false, { zeroG = true })
+			check(zero == M.caps.flight, "Weightless lets anyone fly at the flight cap")
+			check(pullBacks(M.flight.boost, 6, zero) == 0, "and boost there")
+			check(
+				MoveMath.guardCap(M, {}, false, {}) == MoveMath.speedCap(M, {}, false),
+				"no buff: the old cap"
+			)
+			check(
+				MoveMath.guardCap(M, {}, false, { speedBuff = -0.5 }) == MoveMath.speedCap(M, {}, false),
+				"never less"
+			)
+			-- the buff ends on the device up to a ping later than on the server: the banked travel covers it
+			local st = MoveCheck.new(0, 10, 0, 0)
+			local x, fails = 0, 0
+			local fast = sprint * (1 + mystic)
+			for i = 1, 60 do
+				local t = i * 0.1
+				local serverBuff = if t <= 4 then mystic else 0
+				local speed = if t <= 4.3 then fast else sprint
+				x += speed * 0.1
+				local cap = MoveMath.guardCap(M, styles, false, { speedBuff = serverBuff })
+				local ok, _, wait = MoveCheck.sample(st, x, 10, 0, t, cap, M, S)
+				if not ok and not wait then
+					fails += 1
+					x = st.x
+				end
+			end
+			check(fails == 0, string.format("a 300 ms late end: %d pull-backs", fails))
+		end
+	)
+
+	test("Combat fixes: every other client speed source fits the server's budget", function()
+		-- every pick's top speed against its own cap, for 6 s
+		local tops = {
+			{ "speed", M.mobility.speed.sprint },
+			{ "speed", M.mobility.speed.wallRun },
+			{ "acrobat", M.mobility.acrobat.glideForward },
+			{ "acrobat", M.mobility.acrobat.wallRun },
+			{ "swing", M.mobility.swing.maxSpeed },
+			{ "swing", M.mobility.swing.zip },
+			{ "flight", M.mobility.flight.up.boost },
+			{ "leap", MoveMath.superLeapSpeed(M) },
+		}
+		for _, row in tops do
+			local cap = MoveMath.guardCap(M, { [row[1]] = true }, true, {})
+			local n = pullBacks(row[2], 6, cap)
+			check(n == 0, string.format("%s at %.0f: %d pull-backs", row[1], row[2], n))
+		end
+		-- travel styles ride at their own speed (the ride buff), with every mod
+		local runner = MoveMath.speedCap(M, {}, false)
+		local rides, dashes = 0, 0
+		for id, row in AB.list do
+			for mod = 0, #(row.mods or {}) do
+				local eff = AbilityRules.effective(Config, id, 1, if mod > 0 then mod else nil)
+				if eff.shape == "ride" then
+					rides += 1
+					local cap = MoveMath.guardCap(M, {}, false, { ride = eff.speed or 80 })
+					local n = pullBacks(eff.speed or 80, eff.duration or 4, cap)
+					check(n == 0, string.format("%s rides at %d: %d pull-backs", id, eff.speed or 80, n))
+				elseif eff.shape == "dash" then
+					-- dashes: the full range at the row's time, granted range + 10 as CombatService does,
+					-- whether the grant reaches the server before the first position or one sample after it
+					dashes += 1
+					local d = eff.range or 0
+					for _, at in { 0, 1 } do
+						local n = movePulls(d, eff.time or 0.18, d + 10, runner, at)
+						check(n == 0, string.format("%s (%d studs, grant after sample %d): %d", id, d, at, n))
+					end
+				end
+			end
+		end
+		check(rides >= 7 and dashes >= 30, string.format("%d rides and %d dashes checked", rides, dashes))
+		-- PvP knockback and thrown-car hits (capped at Pvp.knock.maxDistance in 0.35 s, granted + 10)
+		local K8 = Config.Pvp.knock
+		check(movePulls(K8.maxDistance, 0.35, K8.maxDistance + 10, runner, 1) == 0, "the biggest knockback")
+		-- Meteor Leap (+40) and the Grappling Hook (+12)
+		local meteor = AB.list.MeteorLeap
+		check(movePulls(meteor.range, meteor.time, meteor.range + 40, runner, 1) == 0, "Meteor Leap")
+		local hook = Config.Gear.gadgets.GrapplingHook
+		check(movePulls(hook.range, hook.time, hook.range + 12, runner, 1) == 0, "the Grappling Hook")
+	end)
+
+	test("Combat fixes: a leap lands where the client flies it (flat aim, unit ray)", function()
+		local world = {
+			rayDist = function(_ox, oy, _oz, dx, dy, dz, max)
+				local l = math.sqrt(dx * dx + dy * dy + dz * dz)
+				if dy < 0 then
+					local d = -oy / dy * l -- open ground at y = 0
+					if d < max * l then
+						return d
+					end
+				end
+				return max * l
+			end,
+			groundY = function()
+				return 0
+			end,
+		}
+		for _, id in { "MeteorLeap", "PhoenixDive" } do
+			local eff = AbilityRules.effective(Config, id, 1)
+			for _, pitch in { 30, 10, 0, -10, -30, -60 } do
+				local a = math.rad(pitch)
+				local dx, dy = math.cos(a), math.sin(a)
+				local plan = CastPlan.build(eff, 0, 60, 0, dx, dy, 0, 0, {}, world) :: any
+				-- CombatClient.fire: a unit ray along (dx, max(dy, -0.2), dz) from 4 up, then along the flat aim
+				local cy = math.max(dy, -0.2)
+				local l = math.sqrt(dx * dx + cy * cy)
+				local d = math.max(0, world.rayDist(0, 64, 0, dx / l, cy / l, 0, eff.range) - 3)
+				near(plan.cx, d, 0.01, string.format("%s at %d degrees lands with the client", id, pitch))
+				near(plan.cz, 0, 1e-6, "on the aim's line")
+				near(plan.cy, 3, 1e-6, "on the floor")
+			end
+			local up = CastPlan.build(eff, 0, 60, 0, math.cos(math.rad(30)), 0.5, 0, 0, {}, world) :: any
+			near(up.cx, eff.range - 3, 0.01, id .. " aimed up still goes its full range")
+		end
+	end)
+
+	test("Combat fixes: a super's field ticks keep PvP's super rule and the set bonus", function()
+		local eff = AbilityRules.effective(Config, "EmberRing", 1)
+		local super = { slot = "super", set = "Fire", status = "pull", statusDur = 0.2, slow = 0.5 }
+		local f = { coeff = 0.4, tick = 0.5 }
+		local t = CastPlan.tickEff(super, f)
+		check(
+			t.slot == "super" and t.set == "Fire",
+			"slot and set reach the tick (pvpHit's isSuper, the set bonus)"
+		)
+		near(t.statusDur, 0.6, 1e-9, "a pull lasts a tick")
+		check(t.coeff == 0.4 and t.slow == 0.5, "the field's own numbers")
+		local touch = CastPlan.tickEff(eff, { coeff = 0.2, tick = 0.5, status = false })
+		check(touch.status == false and touch.slot == eff.slot, "an override still wins")
+		local supers = 0
+		for id, row in AB.list do
+			if row.slot == "super" and row.shape == "field" then
+				supers += 1
+				check(
+					CastPlan.tickEff(row, { coeff = row.coeff, tick = row.tick or 0.5 }).slot == "super",
+					id
+				)
+			end
+		end
+		check(supers > 0, string.format("%d super fields", supers))
+		check(
+			string.find(combatSrc, "local fieldEff = CastPlan.tickEff(eff, f)", 1, true) ~= nil,
+			"stepFields uses it"
+		)
+	end)
+
+	test("Combat fixes: Awakening is +10% in PvP, +20% against robots", function()
+		local m = Awakening.new()
+		m.untilT = 100
+		near(Awakening.damageMult(Config, m, 1, true), 1 + AB.awakening.pvpDamage, 1e-9, "PvP")
+		near(Awakening.damageMult(Config, m, 1, false), 1 + AB.awakening.damage, 1e-9, "robots")
+		check(
+			string.find(combatSrc, "Awakening.damageMult(Config, hero.meter, os.clock(), pvp)", 1, true)
+				~= nil,
+			"rollDamage passes pvp"
+		)
+	end)
+
+	test("Combat fixes: spamming a skill never beats its cooldown (skills and gadgets)", function()
+		local leeway = Config.Combat.cooldownLeeway
+		local function spam(startFn: any, secs: number): number
+			local book = Cooldowns.new()
+			local casts, t = 0, 0
+			while t < secs do
+				if Cooldowns.ready(book, "B", t, leeway) then
+					startFn(book, "B", t, 0.5)
+					casts += 1
+				end
+				t += 1 / 12
+			end
+			return casts
+		end
+		check(spam(Cooldowns.start, 10) > 21, "the old start from now let a spammer in early every cycle")
+		local n10, n60 = spam(Cooldowns.startNext, 10), spam(Cooldowns.startNext, 60)
+		check(n10 <= 21, string.format("10 s of a 0.5 s cooldown: %d casts (20, +1 for the leeway)", n10))
+		check(n60 <= 121, string.format("60 s: %d casts", n60))
+		-- an honest use after the cooldown ran out starts from now
+		local book = Cooldowns.new()
+		Cooldowns.startNext(book, "B", 0, 2)
+		Cooldowns.startNext(book, "B", 5, 2)
+		near(book.readyAt.B, 7, 1e-9, "from now when it was already ready")
+		Cooldowns.startNext(book, "B", 6.95, 2)
+		near(book.readyAt.B, 9, 1e-9, "from when it was due when let in early")
+		local gear = fs.readFile("src/server/Services/GearService.luau")
+		check(
+			string.find(gear, "Cooldowns.startNext(book, kind, now, row.cd)", 1, true) ~= nil,
+			"gadgets too"
+		)
+		check(string.find(combatSrc, "Cooldowns.startNext(", 1, true) ~= nil, "and CombatService.use")
+	end)
+
+	test("Combat fixes: granted travel does not last (5 old grants never bank a 200 stud jump)", function()
+		local cap = MoveMath.speedCap(M, {}, false)
+		local st = MoveCheck.new(0, 0, 0, 0)
+		for _ = 1, 5 do
+			MoveCheck.grant(st, 40, 0)
+		end
+		local now = 0
+		for _ = 1, 300 do
+			now += 0.1
+			MoveCheck.sample(st, 0, 0, 0, now, cap, M, S)
+		end
+		now += 0.1
+		local ok = MoveCheck.sample(st, 200, 0, 0, now, cap, M, S)
+		check(not ok, "a 200 stud jump 30 s after five grants fails")
+		check(st.extra == 0, "the old grants are gone")
+		-- a grant still covers a move whose positions come late (inside grantKeep)
+		local late = MoveCheck.new(0, 10, 0, 0)
+		MoveCheck.sample(late, 0, 10, 0, 1, cap, M, S)
+		MoveCheck.grant(late, 150, 1)
+		local passed = MoveCheck.sample(late, 140, 10, 0, 1 + S.grantKeep - 0.1, cap, M, S)
+		check(passed, "a granted move seen late (lag) still passes")
+		-- an expired grant never strikes on its own: the biggest grant against the slowest cap
+		local big = AB.list.MeteorLeap.range + 40
+		local exp = MoveCheck.new(0, 10, 0, 0)
+		MoveCheck.sample(exp, 0, 10, 0, 1, cap, M, S)
+		MoveCheck.grant(exp, big, 1)
+		local _, strike = MoveCheck.sample(exp, big, 10, 0, 1 + S.grantKeep + 0.2, cap, M, S)
+		check(not strike, "a grant that ran out pulls back at most, never a strike")
+		check(S.grantKeep >= 1.5, "grants last past the longest move (Meteor Leap's 1.1 s) and a ping")
+	end)
+
+	test("Combat fixes: a dash's positions before its grant wait one sample, not a pull-back", function()
+		local cap = MoveMath.speedCap(M, {}, false)
+		local st = MoveCheck.new(0, 10, 0, 0)
+		MoveCheck.sample(st, 0, 10, 0, 1, cap, M, S)
+		-- a 100 stud burst (more than the banked budget) seen before its grant
+		local ok, strike, wait = MoveCheck.sample(st, 100, 10, 0, 1.1, cap, M, S)
+		check(not ok and not strike and wait, "the first miss waits")
+		MoveCheck.grant(st, 110, 1.15)
+		check(
+			(MoveCheck.sample(st, 100, 10, 0, 1.2, cap, M, S)),
+			"the grant lands: passes from the last good spot"
+		)
+		-- no grant comes: the second miss pulls back; a teleport still strikes at once
+		local hack = MoveCheck.new(0, 10, 0, 0)
+		MoveCheck.sample(hack, 0, 10, 0, 1, cap, M, S)
+		local _, _, w1 = MoveCheck.sample(hack, 100, 10, 0, 1.1, cap, M, S)
+		local ok2, _, w2 = MoveCheck.sample(hack, 115, 10, 0, 1.2, cap, M, S)
+		check(w1 and not ok2 and not w2, "a second miss in a row pulls back")
+		local tp = MoveCheck.new(0, 10, 0, 0)
+		MoveCheck.sample(tp, 0, 10, 0, 1, cap, M, S)
+		local okT, strikeT, waitT = MoveCheck.sample(tp, 600, 10, 0, 1.1, cap, M, S)
+		check(not okT and strikeT and not waitT, "a teleport is a strike on the first sample")
+	end)
+
+	test("Combat fixes: PvP opponents never form a team-up combo", function()
+		local pair = AB.combos.pairs[1]
+		local function use(hero: number, set: string, t: number): any
+			return { hero = hero, set = set, x = 0, y = 0, z = 0, t = t }
+		end
+		local book = Awakening.comboBook()
+		Awakening.noteSuper(Config, book, use(1, pair.sets[1], 0), function()
+			return false
+		end)
+		local p = Awakening.noteSuper(Config, book, use(2, pair.sets[2], 0.5), function()
+			return false
+		end)
+		check(p == nil, "canPair false: no combo")
+		local book2 = Awakening.comboBook()
+		Awakening.noteSuper(Config, book2, use(1, pair.sets[1], 0))
+		check(Awakening.noteSuper(Config, book2, use(2, pair.sets[2], 0.5)) == pair, "friends still pair")
+		check(string.find(combatSrc, "}, comboPair)", 1, true) ~= nil, "comboCheck passes canPair")
+		check(
+			string.find(combatSrc, "not (ha and hb and FlagService.canHit(ha, hb))", 1, true) ~= nil,
+			"from canHit"
+		)
+	end)
+
+	test("Combat fixes: the charge cap is the hold the server timed (no ping on top)", function()
+		local CC = Config.Combat
+		local ch = CC.charge
+		local early = 10 + ch.full - ch.leeway - 0.15 -- 0.15 s short of a full hold
+		check(ChargeRules.allowed(CC, 100, 10, early, 0.15) < 1, "a short hold at 150 ms ping is not full")
+		check(
+			ChargeRules.allowed(CC, 100, 10, 10 + ch.full, 0.3) == 1,
+			"a real full hold is full at any ping"
+		)
+		check(ChargeRules.allowed(CC, 100, 10, 10 + ch.full - ch.leeway, 0) > 0.999, "jitter: the leeway")
+	end)
+
+	test(
+		"Combat fixes: no casting in fast travel or the creator; fields, links and rafts are cleaned up",
+		function()
+			check(
+				string.find(combatSrc, "or hero.traveling -- fast travel", 1, true) ~= nil,
+				"use() checks traveling"
+			)
+			check(
+				string.find(combatSrc, 'or hero.scene == "creator"', 1, true) ~= nil,
+				"and the creator scene"
+			)
+			local removed =
+				string.match(combatSrc, "HeroService%.Removed:Connect%(function%(hero%)(.-)\n\tend%)")
+			check(removed ~= nil, "CombatService listens for heroes leaving")
+			if removed then
+				check(string.find(removed, "fields[i].hero == hero", 1, true) ~= nil, "their fields stop")
+				check(string.find(removed, "links[id] = nil", 1, true) ~= nil, "their links go")
+				check(
+					string.find(removed, "raftUntil[hero.id] = nil", 1, true) ~= nil,
+					"their raft timer goes"
+				)
+			end
+			local sweep = string.match(combatSrc, "local function sweepStale%(now: number%)(.-)\nend")
+			check(
+				sweep ~= nil and string.find(sweep, "now > g.untilT", 1, true) ~= nil,
+				"ended links are swept"
+			)
+			check(
+				sweep ~= nil and string.find(sweep, "raftUntil[id] = nil", 1, true) ~= nil,
+				"spent rafts too"
+			)
+			check(string.find(combatSrc, "sweepStale(t0)", 1, true) ~= nil, "every frame (every 5 s inside)")
+		end
+	)
+
+	test("Combat fixes: at the field cap a caster's own oldest field goes first", function()
+		local a, b = {}, {}
+		local list = { { hero = b }, { hero = b }, { hero = a }, { hero = b }, { hero = a } }
+		check(CastPlan.evictIndex(list, a) == 3, "the caster's oldest")
+		check(CastPlan.evictIndex(list, {}) == 1, "a caster with none: the oldest of all")
+		check(
+			string.find(combatSrc, "table.remove(fields, CastPlan.evictIndex(fields, hero))", 1, true) ~= nil,
+			"addField uses it"
+		)
 	end)
 end
 

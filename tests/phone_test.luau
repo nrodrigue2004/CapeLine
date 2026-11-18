@@ -289,6 +289,36 @@ return function(
 		check(1.3 <= P.maxScale and 0.8 >= P.minScale - 1e-9, "the cluster scale range holds the setting")
 	end)
 
+	test("Phone: every gui the client puts in PlayerGui survives a respawn (ResetOnSpawn off)", function()
+		-- a ScreenGui, SurfaceGui or BillboardGui in PlayerGui with ResetOnSpawn on is wiped by the first
+		-- respawn (the news screens were); the code makes them once, so each must turn it off
+		local fs = require("@lune/fs")
+		local n = 0
+		local function walk(dir: string)
+			for _, name in fs.readDir(dir) do
+				local path = dir .. "/" .. name
+				if fs.isDir(path) then
+					walk(path)
+				elseif string.match(name, "%.luau$") then
+					local src = fs.readFile(path)
+					for line in string.gmatch(src, "[^\n]+") do
+						local var = string.match(line, "^%s*([%w_]+)%.Parent = .*PlayerGui")
+						if var then
+							n += 1
+							check(
+								string.find(src, var .. ".ResetOnSpawn = false", 1, true) ~= nil,
+								path .. ": " .. var .. " goes in PlayerGui with ResetOnSpawn off"
+							)
+						end
+					end
+				end
+			end
+		end
+		walk("src/client")
+		walk("src/first")
+		check(n >= 8, "found the guis put in PlayerGui")
+	end)
+
 	if not placePath then
 		return
 	end
@@ -322,7 +352,31 @@ return function(
 				"Radar",
 				"MainMenu",
 				"PhotoMode",
+				-- the Hero MMO screens, the guide, the cutscene player and the news (every module in Ui but
+				-- Kit, the helpers Preview and Shapes, and the DevPanel)
+				"TaskForceHud",
+				"NemesisHud",
+				"MentorHud",
+				"BadgeHud",
+				"ContestHud",
+				"PassHud",
+				"GuideHud",
+				"CinemaHud",
+				"NewsHud",
+				"DailyHud",
 			}
+			-- WP1: the daily card with a full week and 3 quests (a reward ready, day 7's title on the track)
+			local DailyRules = require("../src/shared/DailyRules")
+			local ProfileSchema = require("../src/shared/ProfileSchema")
+			local daily = ProfileSchema.default().daily
+			for day = 20400, 20405 do
+				DailyRules.visit(Config, daily, day)
+				DailyRules.claim(Config, daily, 30)
+			end
+			DailyRules.visit(Config, daily, 20406)
+			DailyRules.roll(Config, daily, 20406, 30)
+			DailyRules.bump(Config, daily, (DailyRules.quest(Config, daily.quests[1]) :: any).key, 1)
+			local dailyState = DailyRules.view(Config, daily, 20406, 30, 20406 * 86400 + 4000)
 			-- the panels a player opens, their ScreenGui and what open() takes
 			local PANELS = {
 				{ "LoadoutScreen", "Loadout" },
@@ -337,10 +391,42 @@ return function(
 				{ "ContractBoard", "ContractBoard", { offers = {}, active = {} } },
 				{ "HqHud", "HqHud", "trophies" },
 				{ "CreatorScreen", "Creator", { mode = "create" } },
+				{ "TaskForceHud", "TaskForceHud" },
+				{ "NemesisHud", "NemesisHud" },
+				{ "MentorHud", "MentorHud" },
+				{ "BadgeHud", "BadgeHud" },
+				{ "PassHud", "PassHud" },
+				{ "DailyHud", "Daily", dailyState },
 			}
 			-- the cards and banners the game shows on its own (each shown alone)
-			local CARDS = { "MainMenu", "PvpHud", "StoryHud", "WorldHud", "Toasts", "Plates", "Squad" }
+			local CARDS = {
+				"MainMenu",
+				"PvpHud",
+				"Downed",
+				"StoryHud",
+				"WorldHud",
+				"Toasts",
+				"Plates",
+				"Squad",
+				"Daily",
+				"DailyTracker",
+			}
+			-- parts placed only while they show, which a deep walk sees unplaced: the move stick's ring (at the
+			-- finger), the guide's speaker tag (laid out with its line), the news ticker (scrolls past its TV's
+			-- edge), the finisher's speed lines (drawn from the centre outwards)
+			local DEEP_SKIP = { "StickRing", "Tag", "Ticker", "Line%d+" }
 			local runs = table.clone(DEVICES)
+			-- the smallest phone screen the reviewers check (a 640 x 360 Android)
+			table.insert(runs, {
+				name = "Android 640",
+				w = 640,
+				h = 360,
+				top = 58,
+				left = 0,
+				right = 0,
+				bottom = 0,
+				touch = true,
+			})
 			table.insert(runs, {
 				name = "iPhone 14 left-handed",
 				w = 844,
@@ -416,13 +502,156 @@ return function(
 						g.Enabled = was
 					end
 				end
+				-- WP1: the daily tracker held open over the whole HUD: clear of the buttons, the corner and the stick
+				sim:run("DailyHud.pin", function()
+					M.DailyHud.pin(true)
+				end)
+				report("HUD with the daily tracker open", {
+					thumb = if d.touch
+						then (if d.leftHanded then { 0.55, 0.4, 1, 1 } else { 0, 1 / 3, 0.4, 1 })
+						else nil,
+				})
+				sim:run("DailyHud.unpin", function()
+					M.DailyHud.pin(false)
+				end)
 				sim:run("drawer", function()
 					sim:require("Client.Ui.Kit").dockDrawer(true)
 				end)
 				report("MORE drawer", { only = { Dock = true } })
+				sim:run("drawer", function()
+					sim:require("Client.Ui.Kit").dockDrawer(false)
+				end)
+				-- every screen's hidden parts (cards, rows, sub-panels, loading and error notes), each shown with
+				-- its hidden parents, inside the screen and the safe area
+				if d.touch then
+					for _, g in sim.playerGui:GetChildren() do
+						if g:IsA("ScreenGui") and g.Name ~= "DevPanel" and g.Name ~= "KitArea" then
+							local deep = sim:deepIssues(
+								g,
+								{ minTap = P.minTap, minText = P.minText, safe = true },
+								DEEP_SKIP
+							)
+							for _, issue in deep do
+								check(false, d.name .. " deep " .. g.Name .. ": " .. issue)
+							end
+						end
+					end
+				end
 				for _, e in sim.errors do
 					check(false, d.name .. ": " .. tostring(e))
 				end
+			end
+		end
+	)
+
+	test(
+		"Phone: one main panel at a time, Downed on top, pending taps, Photo Mode's key and refusals",
+		function()
+			local fs = require("@lune/fs")
+			local roblox = require("@lune/roblox")
+			local UiSim = require("./uisim")
+			local Enum, Vector3 = roblox.Enum, roblox.Vector3
+			local trees = UiSim.load(roblox.deserializePlace(fs.readFile(placePath)))
+			local sim = UiSim.new(trees, DEVICES[1])
+			local M = {}
+			sim:run("InputController", sim:require("Client.Controllers.InputController").init)
+			for _, m in
+				{
+					"Hud",
+					"LoadoutScreen",
+					"GearScreen",
+					"MapScreen",
+					"Journal",
+					"PassHud",
+					"ShopHud",
+					"PvpHud",
+					"PhotoMode",
+				}
+			do
+				M[m] = sim:require("Client.Ui." .. m)
+				sim:run(m, M[m].init)
+			end
+			local Kit = sim:require("Client.Ui.Kit")
+			local function isOpen(m: string): boolean
+				if M[m].isOpen then
+					return M[m].isOpen()
+				end
+				return sim.playerGui:FindFirstChild("Loadout").Panel.Visible
+			end
+			-- GEAR and POWERS both sat at DisplayOrder 5: opening one closes the other
+			sim:run("gear", M.GearScreen.open)
+			sim:run("loadout", M.LoadoutScreen.open)
+			check(isOpen("LoadoutScreen") and not isOpen("GearScreen"), "POWERS closes GEAR")
+			sim:run("gear", M.GearScreen.open)
+			check(isOpen("GearScreen") and not isOpen("LoadoutScreen"), "GEAR closes POWERS")
+			sim:run("journal", M.Journal.open)
+			check(isOpen("Journal") and not isOpen("GearScreen"), "JOURNAL closes GEAR")
+			-- an overlay opens on top and closes nothing (the Hero Pass's BUY opens the shop)
+			sim:run("pass", M.PassHud.open)
+			sim:run("shop", M.ShopHud.open)
+			check(
+				isOpen("PassHud") and isOpen("ShopHud") and not isOpen("Journal"),
+				"the shop opens over the pass"
+			)
+			-- going Downed closes every panel, and the Downed screen draws over the shop and settings
+			sim:run("down", Kit.closePanels)
+			check(not isOpen("PassHud") and not isOpen("ShopHud"), "Downed closes the panels")
+			local downed = sim.playerGui:FindFirstChild("Downed")
+			check(downed ~= nil and downed.DisplayOrder > 22, "the Downed screen is over settings (22)")
+			-- a pending button: an earlier tap's 5 s timer leaves a later tap alone
+			local b
+			sim:run("button", function()
+				b = Kit.button({ Text = "BUY", pending = true }, function() end)
+				b.Parent = sim.playerGui:FindFirstChild("Shop")
+			end)
+			sim:tap(b)
+			check(b.Text == "..." and b:GetAttribute("Pending") == true, "a tap waits")
+			sim:advance(3)
+			sim:run("settle", Kit.settle)
+			check(b.Text == "BUY" and b:GetAttribute("Pending") == nil, "an answer settles it")
+			sim:tap(b)
+			sim:advance(2.5) -- the first tap's timer comes due here
+			check(
+				b.Text == "..." and b:GetAttribute("Pending") == true,
+				"the old timer leaves the new tap waiting"
+			)
+			sim:advance(3) -- the second tap's own 5 s
+			check(b.Text == "TRY AGAIN", "no answer in 5 s: TRY AGAIN")
+			sim:advance(2)
+			check(b.Text == "BUY" and b:GetAttribute("Pending") == nil, "then it can be tapped again")
+			-- Photo Mode: its own key (K is the Task Force board), never in a cutscene or while Downed
+			local char = UiSim.newInstance("Model")
+			local root = UiSim.newInstance("Part")
+			root.Name = "HumanoidRootPart"
+			root.Parent = char
+			sim.player.Character = char
+			check(M.PhotoMode.KEY ~= Enum.KeyCode.K, "Photo Mode is off K")
+			local uis = sim.service("UserInputService")
+			local function press(key: any)
+				sim:run("key", function()
+					uis.InputBegan:Fire({
+						KeyCode = key,
+						UserInputType = Enum.UserInputType.Keyboard,
+						Position = Vector3.zero,
+					}, false)
+				end)
+			end
+			press(Enum.KeyCode.K)
+			check(not M.PhotoMode.isOpen(), "K does not open Photo Mode")
+			local Cinema = sim:require("Client.Controllers.CinemaClient")
+			Cinema.current = { owner = "test", shots = {} }
+			press(M.PhotoMode.KEY)
+			check(not M.PhotoMode.isOpen(), "no Photo Mode during a cutscene")
+			Cinema.current = nil
+			sim.player:SetAttribute("Downed", true)
+			press(M.PhotoMode.KEY)
+			check(not M.PhotoMode.isOpen(), "no Photo Mode while Downed")
+			sim.player:SetAttribute("Downed", nil)
+			press(M.PhotoMode.KEY)
+			check(M.PhotoMode.isOpen(), "its key opens Photo Mode")
+			sim:run("photo close", M.PhotoMode.close)
+			for _, e in sim.errors do
+				check(false, tostring(e))
 			end
 		end
 	)

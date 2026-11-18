@@ -41,6 +41,7 @@ local protectBadge: TextLabel
 local craterBar: Frame
 local craterText: TextLabel
 local craterLeave: TextButton
+local downGui: ScreenGui
 local downLayer: Frame
 local downText: TextLabel
 local downSub: TextLabel
@@ -148,7 +149,9 @@ local function build()
 	end)
 	craterLeave.Parent = craterBar
 
-	-- Downed and Defeated
+	-- Downed and Defeated: their own screen over every panel (the shop at 18, the creator at 20, settings
+	-- at 22 drew over it), and going Downed closes the open panels (Kit.closePanels)
+	downGui = Kit.screen("Downed", 25)
 	downLayer = Kit.frame({
 		Name = "Downed",
 		Size = UDim2.fromScale(1, 1),
@@ -156,7 +159,7 @@ local function build()
 		round = false,
 		Visible = false,
 	})
-	downLayer.Parent = gui
+	downLayer.Parent = downGui
 	local edge = Instance.new("UIStroke")
 	edge.Thickness = 40
 	edge.Color = Color3.fromRGB(120, 120, 130)
@@ -170,42 +173,63 @@ local function build()
 	})
 	edge.Parent = edgeFrame
 	edgeFrame.Parent = downLayer
+	-- the words and buttons in one stack: 22% down the screen, or up from the bottom on a short phone
+	-- (CHOOSE LOADOUT, its last row, was off a 375 px phone's screen)
+	local stackH = 116 + 2 * s + (s - 8)
+	local stack = Instance.new("Frame")
+	stack.Name = "Stack"
+	stack.BackgroundTransparency = 1
+	stack.Size = UDim2.fromOffset(600, stackH)
+	stack.Parent = downLayer
+	local function placeStack()
+		local a = Kit.area()
+		local margin = Config.Ui.phone.panelMargin
+		if a.Y * 0.22 + stackH > a.Y - margin then
+			stack.AnchorPoint = Vector2.new(0.5, 1)
+			stack.Position = UDim2.new(0.5, 0, 1, -margin)
+		else
+			stack.AnchorPoint = Vector2.new(0.5, 0)
+			stack.Position = UDim2.fromScale(0.5, 0.22)
+		end
+	end
+	placeStack()
+	Kit.LayoutChanged:Connect(placeStack)
 	downText = Kit.label({
 		Text = "DOWNED",
 		AnchorPoint = Vector2.new(0.5, 0),
 		Size = UDim2.fromOffset(420, 52),
-		Position = UDim2.new(0.5, 0, 0.22, 0),
+		Position = UDim2.new(0.5, 0, 0, 0),
 		TextColor3 = Kit.color.paper,
 		TextStrokeTransparency = 0.1,
 		maxText = 48,
 	})
-	downText.Parent = downLayer
+	downText.Parent = stack
 	downSub = Kit.label({
 		Text = "",
 		AnchorPoint = Vector2.new(0.5, 0),
 		Size = UDim2.fromOffset(460, 26),
-		Position = UDim2.new(0.5, 0, 0.22, 56),
+		Position = UDim2.new(0.5, 0, 0, 56),
 		TextColor3 = Kit.color.paper,
 		TextStrokeTransparency = 0.2,
 		Font = Kit.bodyFont,
 		maxText = 18,
 	})
-	downSub.Parent = downLayer
+	downSub.Parent = stack
 	giveUpButton = Kit.button({
 		Text = "GIVE UP",
 		AnchorPoint = Vector2.new(0.5, 0),
 		Size = UDim2.fromOffset(s * 3, s),
-		Position = UDim2.new(0.5, -s * 1.6, 0.22, 96),
+		Position = UDim2.new(0.5, -s * 1.6, 0, 96),
 		BackgroundColor3 = Kit.color.paper,
 	}, function()
 		PvpClient.giveUp()
 	end)
-	giveUpButton.Parent = downLayer
+	giveUpButton.Parent = stack
 	helpButton = Kit.button({
 		Text = "HELP",
 		AnchorPoint = Vector2.new(0.5, 0),
 		Size = UDim2.fromOffset(s * 3, s),
-		Position = UDim2.new(0.5, s * 1.6, 0.22, 96),
+		Position = UDim2.new(0.5, s * 1.6, 0, 96),
 	}, function()
 		local char = player.Character
 		local root = char and char:FindFirstChild("HumanoidRootPart") :: BasePart?
@@ -213,11 +237,11 @@ local function build()
 			PvpClient.ping(1, root.Position)
 		end
 	end)
-	helpButton.Parent = downLayer
+	helpButton.Parent = stack
 	pickRow = Kit.frame({
 		AnchorPoint = Vector2.new(0.5, 0),
 		Size = UDim2.fromOffset(600, s),
-		Position = UDim2.new(0.5, 0, 0.22, 104 + s),
+		Position = UDim2.new(0.5, 0, 0, 104 + s),
 		BackgroundTransparency = 1,
 		round = false,
 		Visible = false,
@@ -232,14 +256,14 @@ local function build()
 		Text = "CHOOSE LOADOUT",
 		AnchorPoint = Vector2.new(0.5, 0),
 		Size = UDim2.fromOffset(240, s - 8),
-		Position = UDim2.new(0.5, 0, 0.22, 116 + 2 * s),
+		Position = UDim2.new(0.5, 0, 0, 116 + 2 * s),
 		Visible = false,
 		maxText = 20,
 	}, function()
 		loadoutAfter = true
 		loadoutButton.Text = "OPENS WHEN YOU ARE BACK"
 	end)
-	loadoutButton.Parent = downLayer
+	loadoutButton.Parent = stack
 	player.CharacterAdded:Connect(function()
 		loadoutButton.Text = "CHOOSE LOADOUT"
 		if loadoutAfter then
@@ -247,7 +271,7 @@ local function build()
 			task.delay(0.6, LoadoutScreen.open)
 		end
 	end)
-	pickRow.Parent = downLayer
+	pickRow.Parent = stack
 
 	-- REVIVE next to a Downed player
 	reviveButton = Kit.button({
@@ -381,6 +405,7 @@ local function refreshDown()
 	-- the muffled heartbeat while Downed (juice row Downed)
 	if d.downed and not wasDowned then
 		Juice.fire("downed", nil, { mine = true })
+		Kit.closePanels() -- nothing covers the Downed screen
 	end
 	wasDowned = d.downed == true
 	Juice.hold("downed", wasDowned)

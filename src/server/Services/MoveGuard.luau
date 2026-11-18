@@ -1,7 +1,7 @@
 -- MoveGuard: samples every hero's position (spec: Anti-exploit > Speed and teleport, Flight).
 -- * 30 Hz position history for the lag rewind in hit checks (PosHistory).
--- * 10 Hz speed check (MoveCheck) against the hero's style cap x 1.15. A fail pulls the hero back to the last
---   good spot (MoveCorrect). Only teleport-sized jumps count as strikes; 3 in 10 minutes kick with a
+-- * 10 Hz speed check (MoveCheck) against the hero's style cap (x speed buffs) x 1.15. A fail pulls the hero
+--   back to the last good spot (MoveCorrect), after one sample's wait for a grant still on its way. Only teleport-sized jumps count as strikes; 3 in 10 minutes kick with a
 --   generic message. Nothing is banned automatically (Config.Safety).
 -- * Boost drains stamina on the server too, so a client that never runs out still gets the cruise cap.
 
@@ -74,7 +74,7 @@ end
 function MoveGuard.grant(hero: any, distance: number)
 	local t = tracks[hero.id]
 	if t then
-		MoveCheck.grant(t.check, distance)
+		MoveCheck.grant(t.check, distance, os.clock())
 	end
 end
 
@@ -212,13 +212,16 @@ function MoveGuard.init()
 					if now < t.graceUntil then
 						MoveCheck.reset(t.check, pos.X, pos.Y, pos.Z, now)
 					else
-						local cap = MoveMath.speedCap(Config.Move, hero.styles, t.boosting)
-						-- travel powers: a ride's own speed; Weightless lets anyone fly for its time
-						cap = math.max(cap, Status.value(hero.status, "ride", now, 0))
-						if Status.has(hero.status, "zeroG", now) then
-							cap = math.max(cap, Config.Move.caps.flight)
-						end
-						local ok, strike = MoveCheck.sample(
+						-- travel powers: a ride's own speed; Weightless lets anyone fly for its time; speed buffs
+						-- (and a class's run bonus) scale the cap as they scale the client's run
+						local class = Config.Classes[hero.classId]
+						local cap = MoveMath.guardCap(Config.Move, hero.styles, t.boosting, {
+							ride = Status.value(hero.status, "ride", now, 0),
+							zeroG = Status.has(hero.status, "zeroG", now),
+							speedBuff = Status.value(hero.status, "speed", now, 0),
+							classSpeed = class and class.moveSpeed or 0,
+						})
+						local ok, strike, wait = MoveCheck.sample(
 							t.check,
 							pos.X,
 							pos.Y,
@@ -228,7 +231,7 @@ function MoveGuard.init()
 							Config.Move,
 							Config.Safety
 						)
-						if not ok then
+						if not ok and not wait then
 							correct(hero, t)
 							if strike then
 								warn(string.format("[MoveGuard] strike for %s (%d)", hero.name, hero.id))

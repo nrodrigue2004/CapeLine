@@ -420,6 +420,7 @@ local function drawWorld()
 	end
 end
 
+local openSeq = 0 -- each open's follow loop; a quick close and open (or a second open) ends the older one
 function MapScreen.open()
 	if not info and not loadInfo() then
 		-- the world is still being built (spec: every screen has an error state)
@@ -429,12 +430,15 @@ function MapScreen.open()
 	if not you then
 		buildBase()
 	end
+	Kit.opening("MapScreen", panel, MapScreen.close, true)
 	panel.Visible = true
 	draw()
 	drawWorld()
+	openSeq += 1
+	local seq = openSeq
 	task.spawn(function()
 		local tick = 0
-		while panel.Visible do
+		while panel.Visible and openSeq == seq do
 			tick += 1
 			if tick % 5 == 0 then
 				drawWorld()

@@ -182,6 +182,7 @@ draw = function()
 end
 
 function SettingsMenu.open()
+	Kit.opening("SettingsMenu", gui, SettingsMenu.close)
 	gui.Enabled = true
 	draw()
 end
