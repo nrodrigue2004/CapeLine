@@ -1,0 +1,68 @@
+[
+ {
+  "kit": "domino",
+  "tint": "white",
+  "faces": [
+   "front"
+  ]
+ },
+ {
+  "kit": "half",
+  "tint": "p",
+  "faces": [
+   "front",
+   "side"
+  ]
+ },
+ {
+  "kit": "bandana",
+  "tint": "s",
+  "faces": [
+   "back",
+   "front",
+   "side"
+  ]
+ },
+ {
+  "kit": "cowl",
+  "tint": "p",
+  "faces": [
+   "back",
+   "front",
+   "side",
+   "top"
+  ]
+ },
+ {
+  "kit": "eyepatch",
+  "tint": "white",
+  "faces": [
+   "front",
+   "side"
+  ]
+ },
+ {
+  "kit": "masquerade",
+  "tint": "p",
+  "faces": [
+   "front"
+  ]
+ },
+ {
+  "kit": "ninja",
+  "tint": "white",
+  "faces": [
+   "back",
+   "front",
+   "side",
+   "top"
+  ]
+ },
+ {
+  "kit": "skull",
+  "tint": "white",
+  "faces": [
+   "front"
+  ]
+ }
+]

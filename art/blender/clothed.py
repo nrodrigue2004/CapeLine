@@ -213,8 +213,76 @@ def face_plane(turned, name):
     return ob
 
 
-def figure(at, yaw, skin, hair_rgb, turned=False, arm_up=False, face="Hero", outfit=None, layered=False):
-    """outfit: the clothes image's name (under art/export/clothes), shirt and pants as <outfit>_Shirt/_Pants"""
+
+def projected_head_mat(skin, layers):
+    """The head's skin with decals projected onto it face by face, as Roblox draws a head's Decals (each image
+    flat across its face of the head's box, shown where the surface faces that way). layers: (path, tint, face),
+    bottom first (the face decal, then a mask)."""
+    m = bpy.data.materials.new("head_decals")
+    m.use_nodes = True
+    nt = m.node_tree
+    p = nt.nodes["Principled BSDF"]
+    p.inputs["Roughness"].default_value = 0.55
+    col = nt.nodes.new("ShaderNodeRGB")
+    col.outputs[0].default_value = (*(lin(c) for c in skin), 1)
+    last = col.outputs[0]
+    tc = nt.nodes.new("ShaderNodeTexCoord")
+    pos = nt.nodes.new("ShaderNodeSeparateXYZ")
+    nt.links.new(tc.outputs["Object"], pos.inputs[0])
+    nrm = nt.nodes.new("ShaderNodeSeparateXYZ")
+    nt.links.new(tc.outputs["Normal"], nrm.inputs[0])
+    # face -> (u from axis, u sign, normal axis, normal sign); v is always up (z), the head's centre z 4.6
+    axes = {"front": ("X", -1, "Y", 1), "back": ("X", 1, "Y", -1), "left": ("Y", -1, "X", -1),
+            "right": ("Y", 1, "X", 1), "top": ("X", -1, "Z", 1)}
+
+    def math_node(op, a, b=None, val=None):
+        n = nt.nodes.new("ShaderNodeMath")
+        n.operation = op
+        nt.links.new(a, n.inputs[0])
+        if b is not None:
+            nt.links.new(b, n.inputs[1])
+        elif val is not None:
+            n.inputs[1].default_value = val
+        return n.outputs[0]
+
+    for path, tint, face in layers:
+        ua, us, na, ns = axes[face]
+        u = math_node("ADD", math_node("MULTIPLY", pos.outputs[ua], val=us / 1.24), val=0.5)
+        if face == "top":
+            v = math_node("ADD", math_node("MULTIPLY", pos.outputs["Y"], val=-1 / 1.24), val=0.5)
+        else:
+            v = math_node("ADD", math_node("MULTIPLY", math_node("SUBTRACT", pos.outputs["Z"], val=4.6), val=1 / 1.2),
+                          val=0.5)
+        vec = nt.nodes.new("ShaderNodeCombineXYZ")
+        nt.links.new(u, vec.inputs[0])
+        nt.links.new(v, vec.inputs[1])
+        t = nt.nodes.new("ShaderNodeTexImage")
+        t.image = bpy.data.images.load(path, check_existing=True)
+        t.image.alpha_mode = "STRAIGHT"
+        t.extension = "CLIP"
+        nt.links.new(vec.outputs[0], t.inputs["Vector"])
+        facing = math_node("GREATER_THAN", math_node("MULTIPLY", nrm.outputs[na], val=ns), val=0.35)
+        fac = math_node("MULTIPLY", t.outputs["Alpha"], facing)
+        tinted_c = nt.nodes.new("ShaderNodeMix")
+        tinted_c.data_type = "RGBA"
+        tinted_c.blend_type = "MULTIPLY"
+        tinted_c.inputs["Factor"].default_value = 1.0
+        nt.links.new(t.outputs["Color"], tinted_c.inputs["A"])
+        tinted_c.inputs["B"].default_value = (*(lin(c) for c in tint), 1)
+        mix = nt.nodes.new("ShaderNodeMix")
+        mix.data_type = "RGBA"
+        nt.links.new(fac, mix.inputs["Factor"])
+        nt.links.new(last, mix.inputs["A"])
+        nt.links.new(tinted_c.outputs["Result"], mix.inputs["B"])
+        last = mix.outputs["Result"]
+    nt.links.new(last, p.inputs["Base Color"])
+    return m
+
+
+def figure(at, yaw, skin, hair_rgb, turned=False, arm_up=False, face="Hero", outfit=None, layered=False, paint=None,
+           decals=None, hair_on=True):
+    """outfit: the clothes image's name (under art/export/clothes), shirt and pants as <outfit>_Shirt/_Pants;
+    paint: the body's own part colours under the clothes (torso, arms, legs: a creator suit's paint), else skin"""
     outfit = outfit or ROBOT
     shirt_img, pants_img = image(outfit + "_Shirt"), image(outfit + "_Pants")
     Y = Matrix.Translation(Vector(at)) @ Matrix.Rotation(math.radians(yaw), 4, "Z")
@@ -227,7 +295,10 @@ def figure(at, yaw, skin, hair_rgb, turned=False, arm_up=False, face="Hero", out
         layers = [shirt_img] if short in ("UpperTorso", "UpperArm", "LowerArm", "Hand") else [pants_img]
         if layered and "Torso" in short:
             layers = [pants_img, shirt_img]  # a real Shirt and Pants on a Humanoid: the shirt over the pants
-        ob.data.materials.append(clothed_mat(name, skin, layers))
+        under = skin
+        if paint:
+            under = paint[0] if "Torso" in short else (paint[1] if short in ("UpperArm", "LowerArm", "Hand") else paint[2])
+        ob.data.materials.append(clothed_mat(name, under, layers))
         if arm_up and name in ("RightUpperArm", "RightLowerArm", "RightHand"):
             pivot = Vector((1.0, 0, 3.76))
             ob.data.transform(Matrix.Translation(pivot) @ Matrix.Rotation(math.radians(-125), 4, "Y")
@@ -235,13 +306,20 @@ def figure(at, yaw, skin, hair_rgb, turned=False, arm_up=False, face="Hero", out
         obs.append(ob)
     h = head()
     kit.shade_auto(h, 60)
-    h.data.materials.append(kit.material("skin%d" % len(bpy.data.materials), srgb(skin), rough=0.55))
-    obs.append(h)
-    obs.append(face_plane(turned, face))
-    hr = hair()
-    kit.shade_auto(hr, 40)
-    hr.data.materials.append(kit.material("hair%d" % len(bpy.data.materials), srgb(hair_rgb), rough=0.6))
-    obs.append(hr)
+    if decals is not None:
+        # a creator mask's head decals (art/clothes/masks.py) over the face, projected onto the head
+        fpath = os.path.join(FACES_DIR, "Face_%s.png" % face)
+        h.data.materials.append(projected_head_mat(skin, [(fpath, (255, 255, 255), "front")] + decals))
+        obs.append(h)
+    else:
+        h.data.materials.append(kit.material("skin%d" % len(bpy.data.materials), srgb(skin), rough=0.55))
+        obs.append(h)
+        obs.append(face_plane(turned, face))
+    if hair_on:
+        hr = hair()
+        kit.shade_auto(hr, 40)
+        hr.data.materials.append(kit.material("hair%d" % len(bpy.data.materials), srgb(hair_rgb), rough=0.6))
+        obs.append(hr)
     for ob in obs:
         ob.matrix_world = Y @ ob.matrix_world
 
@@ -277,6 +355,53 @@ elif ROBOT == "people":
     floor.data.materials.append(kit.material("floor", (60, 64, 72), rough=0.8))
     kit.camera((0, 40.0, 4.2), (0, 0, 2.3), lens=37)
     kit.render(os.path.join(kit.ROOT, "preview", "people_%d.png" % page))
+elif ROBOT == "masks":
+    # the creator's flat masks as head decals (art/clothes/masks.py writes preview.json), shoulders up: `masks`
+    # from the front into art/preview/masks_front.png, `masks back` turned round into masks_back.png
+    # (python3 art/clothes/masks.py --stack then makes art/preview/masks.png)
+    import json
+    rows = json.load(open(os.path.join(CLOTHES, "masks", "preview.json")))
+    tints = {"p": (40, 110, 220), "s": (235, 60, 60), "a": (255, 210, 60), "white": (255, 255, 255)}
+    skins = [(240, 190, 150), (141, 95, 64), (224, 172, 130), (198, 140, 96), (92, 62, 44), (250, 210, 180),
+             (170, 120, 84), (232, 180, 140)]
+    back = VERSION == "back"
+    kit.studio(res=(2400, 520), samples=40)
+    n = len(rows)
+    folder = os.path.join(CLOTHES, "masks")
+    for i, r in enumerate(rows):
+        tint = tints[r["tint"]]
+        decals = []
+        for side, name in (("front", "Front"), ("left", "Side"), ("right", "Side"), ("back", "Back"), ("top", "Top")):
+            f = os.path.join(folder, "Mask%s_%s.png" % (name, r["kit"]))
+            if side == "back" and not os.path.isfile(f):
+                f = os.path.join(folder, "MaskSide_%s.png" % r["kit"])
+            if os.path.isfile(f):
+                decals.append((f, tint, side))
+        yaw = (150 if back else 0) + (i % 3 - 1) * 22
+        figure((((n - 1) / 2 - i) * 2.9, 0, 0), yaw, skins[i], (40, 30, 26), face="Hero",
+               outfit="heroes/preview/Hero%d" % (i + 1), layered=True, decals=decals,
+               hair_on=r["kit"] not in ("cowl", "ninja"))
+    kit.camera((0, 24.0, 5.0), (0, 0, 4.3), lens=36)
+    kit.render(os.path.join(kit.ROOT, "preview", "masks_back.png" if back else "masks_front.png"))
+elif ROBOT == "suits":
+    # the creator's Suits tab as Shirt and Pants overlays over each suit's body paint (art/clothes/suits.py writes
+    # preview.json): one page of 8 (`suits 1` .. `suits 6`) into art/preview/suits_<page>.png
+    import json
+    page = int(VERSION) if VERSION.isdigit() else 1
+    rows = json.load(open(os.path.join(CLOTHES, "suits", "preview.json")))[page - 1]
+    skins = [(240, 190, 150), (141, 95, 64), (224, 172, 130), (198, 140, 96), (92, 62, 44), (250, 210, 180),
+             (170, 120, 84), (232, 180, 140)]
+    kit.studio(res=(2400, 760), samples=40)
+    n = len(rows)
+    for i, r in enumerate(rows):
+        paint = [tuple(c) for c in r["paint"]]
+        paint = [skins[i] if c == (224, 172, 130) else c for c in paint]
+        figure((((n - 1) / 2 - i) * 4.4, 0, 0), (i % 3 - 1) * 12, skins[i], (40, 30, 26), face="Hero",
+               outfit=r["name"], layered=True, paint=paint)
+    floor = kit.cyl("floor", 24, 24, 0.2, at=(0, 0, -0.1), segs=48)
+    floor.data.materials.append(kit.material("floor", (60, 64, 72), rough=0.8))
+    kit.camera((0, 40.0, 4.2), (0, 0, 2.3), lens=37)
+    kit.render(os.path.join(kit.ROOT, "preview", "suits_%d.png" % page))
 elif ROBOT == "uniforms":
     # every robot kind in one version of its uniform, with mixed skins, faces and hair (art/clothes/uniforms.py)
     # `uniforms <Version> new`: the 9 kinds added with the new enemy types, into uniforms_new_<version>.png

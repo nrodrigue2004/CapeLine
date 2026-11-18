@@ -15,6 +15,9 @@ Targets (manifest "target"):
   city_map     MaterialVariant "Kit"<name> in MaterialService (<map>: Color, Normal, Roughness, Metalness)
   npc_person   Config.NpcLooks.people.<id>.<clothes|face|cracked> (the side quests' givers, helpers and finale
                villains: art/clothes/people.py)
+  creator_suit Config.Creator.suitArt.kits.<kit>.<shirt|pants> (the Suits tab's overlays: art/clothes/suits.py)
+  creator_emblem Config.Creator.emblemArt.shapes.<shape> or .backings.<backing>.<face|rim> (art/clothes/emblems.py)
+  creator_mask Config.Creator.maskArt.kits.<kit>.<front|side|back|top> (flat masks as head decals: art/clothes/masks.py)
 The finale models (art/export/finales/<Name>.fbx) are not images: nate imports them in Studio (Tasks.md).
 """
 
@@ -28,7 +31,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 EXPORT = os.path.join(ROOT, "art", "export")
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-from apply_ids import block  # noqa: E402
+from apply_ids import block, creator_span  # noqa: E402
 
 
 def read(path):
@@ -86,6 +89,24 @@ def entries():
             src = f"clothes/people/Face_{pid}{suffix}.png"
             if os.path.isfile(os.path.join(EXPORT, src)):
                 add(src, f"PersonFace_{pid}{suffix}", {"kind": "npc_person", "id": pid, "which": which})
+    # the hero creator's suits, emblems and flat masks (overnight item 12, 2026-11-18)
+    for sub, pat, kind in (("suits", r"Suit(Shirt|Pants)_([A-Za-z]+)\.png$", "creator_suit"),
+                           ("emblems", r"Emblem(|Back|Rim)_([A-Za-z]+)\.png$", "creator_emblem"),
+                           ("masks", r"Mask(Front|Side|Back|Top)_([A-Za-z]+)\.png$", "creator_mask")):
+        folder = os.path.join(EXPORT, "clothes", sub)
+        if not os.path.isdir(folder):
+            continue
+        for f in sorted(os.listdir(folder)):
+            m = re.match(pat, f)
+            if not m:
+                continue
+            if kind == "creator_suit":
+                t = {"kind": kind, "kit": m.group(2), "which": "shirt" if m.group(1) == "Shirt" else "pants"}
+            elif kind == "creator_emblem":
+                t = {"kind": kind, "name": m.group(2), "which": {"": "mark", "Back": "face", "Rim": "rim"}[m.group(1)]}
+            else:
+                t = {"kind": kind, "kit": m.group(2), "which": m.group(1).lower()}
+            add(f"clothes/{sub}/{f}", "Creator" + f[:-4], t)
     names = [e["file"] for e in out]
     assert len(names) == len(set(names)), "duplicate upload names"
     return out
@@ -111,6 +132,9 @@ def current(e, texts):
     if k == "hero_clothes":
         grp = block(creator, creator.index("\tclothes = {\n\t\ton = "), r"^\t\t" + t["group"] + r" = \{")
         return key_in(creator, grp, t["name"])
+    if k in ("creator_suit", "creator_emblem", "creator_mask"):
+        key = t["name"] if k == "creator_emblem" and t["which"] == "mark" else t["which"]
+        return key_in(creator, creator_span(creator, t), key)
     if k == "fx_texture":
         return key_in(fx, block(fx, fx.index("\t\ttextures = {"), r"^\t\t\t" + t["name"] + r" = \{"), "id")
     if k == "city_map":

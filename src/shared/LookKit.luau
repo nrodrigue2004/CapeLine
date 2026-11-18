@@ -1031,6 +1031,12 @@ local function emblem(char: Model, folder: Instance, kit: string, colors: Colors
 	local bits = string.split(kit, ":")
 	local glyph = C.shapes[bits[1]] or "★"
 	local backing = bits[2] or "none"
+	-- the drawn set (Config.Creator.emblemArt), once its images are uploaded; else the glyph
+	local EA = C.emblemArt
+	local markId = if EA and EA.on == true then EA.shapes[bits[1]] or 0 else 0
+	local backArt = if EA and backing ~= "none" then EA.backings[backing] else nil
+	local drawn = markId ~= 0
+		and (backing == "none" or (backArt ~= nil and backArt.face ~= 0 and backArt.rim ~= 0))
 	local plate = Instance.new("Part")
 	plate.Name = "Emblem"
 	plate.Size = Vector3.new(0.9, 0.9, 0.05)
@@ -1049,6 +1055,28 @@ local function emblem(char: Model, folder: Instance, kit: string, colors: Colors
 	gui.CanvasSize = Vector2.new(100, 100)
 	gui.LightInfluence = 0.6
 	gui.Parent = plate
+	if drawn then
+		local function img(id: number, color: Color3, scale: number, z: number, dy: number?)
+			local l = Instance.new("ImageLabel")
+			l.BackgroundTransparency = 1
+			l.AnchorPoint = Vector2.new(0.5, 0.5)
+			l.Position = UDim2.fromScale(0.5, 0.5 + (dy or 0))
+			l.Size = UDim2.fromScale(scale, scale)
+			l.Image = "rbxassetid://" .. id
+			l.ImageColor3 = color
+			l.ZIndex = z
+			l.Parent = gui
+		end
+		if backArt and backing ~= "none" then
+			img(backArt.face, colors.s, 1, 1)
+			img(backArt.rim, colors.a, 1, 2)
+			img(markId, colors.a, 0.6, 3, if backing == "crest" then -0.03 else 0)
+		else
+			img(markId, colors.a, 1, 1)
+		end
+		plate.Parent = folder
+		return
+	end
 	if backing ~= "none" then
 		local back = Instance.new("Frame")
 		back.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -1186,8 +1214,58 @@ local function trail(char: Model, folder: Instance, kit: string, colors: Colors)
 	end
 end
 
--- Remove a look built by build() (the folder and the emitters and trails it made on body parts)
+-- A flat mask's head decals (Config.Creator.maskArt, art/clothes/masks.py), once every image its kit lists is
+-- uploaded: the front over the face decal, the side on the left and right, the back (or the side), the top,
+-- each tinted by its colour role. Returns true when the decals stand in for the kit's parts.
+local MASK_SIDES = { "front", "side", "back", "top" }
+local function maskDecals(char: Model, kit: string, colors: Colors): boolean
+	local MA = C.maskArt
+	local art = MA and MA.on == true and MA.kits[kit]
+	local head = char:FindFirstChild("Head")
+	if not (art and head and head:IsA("BasePart")) then
+		return false
+	end
+	for _, key in MASK_SIDES do
+		if art[key] == 0 then
+			return false
+		end
+	end
+	local tint = colors[art.tint or "p"] or colors.p
+	local function put(id: number, face: Enum.NormalId)
+		local d = Instance.new("Decal")
+		d.Name = "HeroMask"
+		d.Texture = "rbxassetid://" .. id
+		d.Face = face
+		d.Color3 = tint
+		d.ZIndex = 2 -- over the face decal
+		d.Parent = head
+	end
+	put(art.front, Enum.NormalId.Front)
+	if art.side then
+		put(art.side, Enum.NormalId.Left)
+		put(art.side, Enum.NormalId.Right)
+	end
+	local back = art.back or art.side
+	if back then
+		put(back, Enum.NormalId.Back)
+	end
+	if art.top then
+		put(art.top, Enum.NormalId.Top)
+	end
+	return true
+end
+
+-- Remove a look built by build() (the folder and the emitters and trails it made on body parts, and a mask's
+-- decals on the head)
 function LookKit.clear(char: Model)
+	local head = char:FindFirstChild("Head")
+	if head then
+		for _, d in head:GetChildren() do
+			if d.Name == "HeroMask" and d:IsA("Decal") then
+				d:Destroy()
+			end
+		end
+	end
 	local old = char:FindFirstChild("HeroLook")
 	if old then
 		for _, ref in old:GetChildren() do
@@ -1367,6 +1445,37 @@ local function classicClothes(
 	end
 end
 
+-- A suit's own classic Shirt and Pants overlay (Config.Creator.suitArt, art/clothes/suits.py) over its body paint:
+-- each template is tinted by its colour role from the suit slot's colours, on a Humanoid body only (classic
+-- clothing needs one), and only once uploaded (id 0: nothing, the part-built look as before). The pants step aside
+-- for a Legs piece. Returns true when the uploaded shirt draws what the kit's flat parts drew (parts = false).
+local function suitClothes(char: Model, kit: string, colors: Colors, legsPiece: boolean): boolean
+	local SA = C.suitArt
+	local art = SA and SA.on == true and SA.kits[kit]
+	if not art or not char:FindFirstChildOfClass("Humanoid") then
+		return false
+	end
+	local tints = art.tint or {}
+	local function tint(i: number): Color3
+		return colors[tints[i] or "a"] or colors.a
+	end
+	if art.shirt ~= 0 then
+		local sh = Instance.new("Shirt")
+		sh.Name = "HeroShirt"
+		sh.ShirtTemplate = "rbxassetid://" .. art.shirt
+		sh.Color3 = tint(1)
+		sh.Parent = char
+	end
+	if art.pants ~= 0 and not legsPiece then
+		local pa = Instance.new("Pants")
+		pa.Name = "HeroPants"
+		pa.PantsTemplate = "rbxassetid://" .. art.pants
+		pa.Color3 = tint(2)
+		pa.Parent = char
+	end
+	return art.shirt ~= 0 and art.parts == false
+end
+
 -- Build a whole look (LookService adds the gear styles the look does not cover). Returns the folder.
 -- The body wears its body set and is shaped first (build, height, gender), so every piece is sized for it.
 local NEW_SLOTS =
@@ -1419,7 +1528,11 @@ function LookKit.build(char: Model, look: any, weapon: any?): Folder
 	elseif suitKit or not avatar then
 		local suit = suitKit or "plain"
 		paintBody(char, suit, suitColors, skinMat, legPaint)
-		addSpecs(char, folder, "Suit", KITS.suit[suit] or PieceKits.suit[suit], suitColors, suitMat)
+		-- the suit's own Shirt and Pants overlay, once uploaded, may stand in for its flat parts
+		local drawn = suitKit ~= nil and suitClothes(char, suit, suitColors, legPaint ~= nil)
+		if not drawn then
+			addSpecs(char, folder, "Suit", KITS.suit[suit] or PieceKits.suit[suit], suitColors, suitMat)
+		end
 	elseif legPaint then
 		-- no suit (the avatar's own top shows): the legs piece paints only the legs
 		for _, p in char:GetChildren() do
@@ -1433,7 +1546,10 @@ function LookKit.build(char: Model, look: any, weapon: any?): Folder
 		local c, m = slotColors(colors, look, tab)
 		-- the slot's own kits, then the 2026-11-17 extras in PieceKits
 		local extra = PieceKits[tab]
-		addSpecs(char, folder, tab, kit and (KITS[tab][kit] or (extra and extra[kit])), c, m)
+		-- a flat mask's uploaded decals stand in for its boxes
+		if not (tab == "head" and kit and maskDecals(char, kit, c)) then
+			addSpecs(char, folder, tab, kit and (KITS[tab][kit] or (extra and extra[kit])), c, m)
+		end
 	end
 	if legDef then
 		addSpecs(char, folder, "legs", legDef.parts, legColors, legMat)

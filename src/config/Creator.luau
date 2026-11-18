@@ -844,12 +844,124 @@ return {
 			Sweatpants = 135708123305914,
 		},
 	},
+	-- The Suits tab's own classic Shirt and Pants overlays (overnight item 12, 2026-11-18: art/clothes/suits.py draws
+	-- art/export/clothes/suits/SuitShirt_<kit>.png and SuitPants_<kit>.png; preview art/preview/suits_<1-6>.png).
+	-- A suit still paints the body in its colour roles; the overlay is mostly clear and adds ink edges, cel shading,
+	-- seams, stripes and trims. tint: the colour role each template takes (Clothing.Color3: shirt, pants) from the
+	-- suit slot's colours ("a" accent, "s" trim, "p" main, or white, gold, ice, glowRed). parts = false: once the
+	-- shirt is uploaded the kit's flat part-built bits are left off (the overlay draws them); true keeps the parts
+	-- (sleeves, hoods, plates, cores, glow lines). 0 until nate uploads (until then the part-built look, as today);
+	-- a body with no Humanoid (an HQ mannequin) keeps the part-built look. A Legs piece's own look wins on the legs.
+	suitArt = {
+		on = true,
+		kits = {
+			plain = { shirt = 0, pants = 0, tint = { "a", "a" }, parts = false },
+			stripe = { shirt = 0, pants = 0, tint = { "a", "a" }, parts = false },
+			split = { shirt = 0, pants = 0, tint = { "a", "a" }, parts = false },
+			chevron = { shirt = 0, pants = 0, tint = { "a", "a" }, parts = false },
+			jacket = { shirt = 0, pants = 0, tint = { "p", "white" }, parts = false },
+			armor = { shirt = 0, pants = 0, tint = { "a", "a" }, parts = true },
+			core = { shirt = 0, pants = 0, tint = { "a", "a" }, parts = true },
+			circuit = { shirt = 0, pants = 0, tint = { "a", "a" }, parts = true },
+			sash = { shirt = 0, pants = 0, tint = { "a", "a" }, parts = false },
+			ribs = { shirt = 0, pants = 0, tint = { "white", "white" }, parts = false },
+			panel = { shirt = 0, pants = 0, tint = { "a", "a" }, parts = true },
+			bolt = { shirt = 0, pants = 0, tint = { "a", "a" }, parts = false },
+			bulwark = { shirt = 0, pants = 0, tint = { "a", "a" }, parts = true },
+			neon = { shirt = 0, pants = 0, tint = { "a", "a" }, parts = true },
+			chrome = { shirt = 0, pants = 0, tint = { "white", "white" }, parts = false },
+			tee = { shirt = 0, pants = 0, tint = { "a", "white" }, parts = true },
+			tank = { shirt = 0, pants = 0, tint = { "white", "white" }, parts = false },
+			hoodie = { shirt = 0, pants = 0, tint = { "a", "white" }, parts = true },
+			tracksuit = { shirt = 0, pants = 0, tint = { "white", "white" }, parts = false },
+			sweater = { shirt = 0, pants = 0, tint = { "a", "white" }, parts = false },
+			jersey = { shirt = 0, pants = 0, tint = { "a", "a" }, parts = false },
+			varsity = { shirt = 0, pants = 0, tint = { "white", "white" }, parts = false },
+			puffer = { shirt = 0, pants = 0, tint = { "white", "white" }, parts = true },
+			overalls = { shirt = 0, pants = 0, tint = { "s", "white" }, parts = false },
+			bomber = { shirt = 0, pants = 0, tint = { "white", "white" }, parts = false },
+			vest = { shirt = 0, pants = 0, tint = { "s", "white" }, parts = false },
+			trench = { shirt = 0, pants = 0, tint = { "white", "white" }, parts = true },
+			gi = { shirt = 0, pants = 0, tint = { "white", "white" }, parts = false },
+			labcoat = { shirt = 0, pants = 0, tint = { "a", "white" }, parts = true },
+			fatigues = { shirt = 0, pants = 0, tint = { "white", "white" }, parts = false },
+			racing = { shirt = 0, pants = 0, tint = { "a", "a" }, parts = false },
+			wetsuit = { shirt = 0, pants = 0, tint = { "a", "a" }, parts = false },
+			kimono = { shirt = 0, pants = 0, tint = { "s", "s" }, parts = true },
+			shinobi = { shirt = 0, pants = 0, tint = { "s", "s" }, parts = false },
+			ranger = { shirt = 0, pants = 0, tint = { "white", "white" }, parts = false },
+			tux = { shirt = 0, pants = 0, tint = { "white", "white" }, parts = false },
+			spacesuit = { shirt = 0, pants = 0, tint = { "a", "a" }, parts = true },
+			plate = { shirt = 0, pants = 0, tint = { "a", "a" }, parts = true },
+			exo = { shirt = 0, pants = 0, tint = { "a", "a" }, parts = true },
+			cyber = { shirt = 0, pants = 0, tint = { "a", "a" }, parts = true },
+			robe = { shirt = 0, pants = 0, tint = { "a", "a" }, parts = true },
+			royal = { shirt = 0, pants = 0, tint = { "gold", "gold" }, parts = false },
+			magma = { shirt = 0, pants = 0, tint = { "glowRed", "glowRed" }, parts = true },
+			frost = { shirt = 0, pants = 0, tint = { "ice", "ice" }, parts = true },
+			starfield = { shirt = 0, pants = 0, tint = { "white", "white" }, parts = true },
+			nightTux = { shirt = 0, pants = 0, tint = { "gold", "gold" }, parts = false },
+		},
+	},
 	-- gender, build and height (nate, 2026-11-17: removed; every hero is the standard blocky body). true brings
 	-- the creator's Body step back.
 	bodyStep = false,
 
-	-- Emblem shapes (PLACEHOLDER ART: a glyph on a backing until the generated, hand-cleaned emblem set;
-	-- review every emblem before each release so none resembles a famous symbol)
+	-- The emblem set (overnight item 12, 2026-11-18: art/clothes/emblems.py draws art/export/clothes/emblems, preview
+	-- art/preview/emblems.png): each shape's mark (Emblem_<shape>.png, tinted by the emblem slot's accent) and each
+	-- backing's face and rim (EmblemBack_ and EmblemRim_<backing>.png, tinted by its trim and accent), as ImageLabels
+	-- on the chest plate. 0 until nate uploads; an emblem whose images are not all in keeps its glyph (shapes below).
+	emblemArt = {
+		on = true,
+		shapes = {
+			star = 0,
+			spark = 0,
+			diamond = 0,
+			orb = 0,
+			peak = 0,
+			heart = 0,
+			cross = 0,
+			moon = 0,
+			clover = 0,
+			flower = 0,
+			hex = 0,
+			ringstar = 0,
+			quad = 0,
+			burst = 0,
+			spade = 0,
+			lab = 0,
+			alien = 0,
+			relic = 0,
+			tech = 0,
+			dojo = 0,
+		},
+		backings = {
+			badge = { face = 0, rim = 0 },
+			crest = { face = 0, rim = 0 },
+			gem = { face = 0, rim = 0 },
+		},
+	},
+	-- The flat masks as head decals (overnight item 12, 2026-11-18: art/clothes/masks.py draws
+	-- art/export/clothes/masks/Mask<Front|Side|Back|Top>_<kit>.png, preview art/preview/masks.png): each Masks kit
+	-- here wears its decals on the head's faces (side on the left and right, back falls back to side), over the face
+	-- decal, tinted by the mask slot's colour role (tint; "white" for a mask drawn in its own colours). Its eye holes
+	-- show the face's own eyes. Once every image a kit lists is uploaded the decals replace its part-built boxes;
+	-- 0 until nate uploads (today's parts until then).
+	maskArt = {
+		on = true,
+		kits = {
+			domino = { front = 0, tint = "white" },
+			half = { front = 0, side = 0, tint = "p" },
+			bandana = { front = 0, side = 0, back = 0, tint = "s" },
+			cowl = { front = 0, side = 0, back = 0, top = 0, tint = "p" },
+			eyepatch = { front = 0, side = 0, tint = "white" },
+			masquerade = { front = 0, tint = "p" },
+			ninja = { front = 0, side = 0, back = 0, top = 0, tint = "white" },
+			skull = { front = 0, tint = "white" },
+		},
+	},
+	-- Emblem glyphs: the fallback while an emblem's images (emblemArt above) are not uploaded (PLACEHOLDER ART
+	-- until then; review every emblem before each release so none resembles a famous symbol)
 	shapes = {
 		star = "★",
 		spark = "✦",
@@ -867,7 +979,7 @@ return {
 		quad = "❖",
 		burst = "✹",
 		spade = "♠",
-		-- lore step 2: the origin crests (PLACEHOLDER ART like every glyph here)
+		-- lore step 2: the origin crests (drawn in emblemArt: flask, falling star, medallion, cog, belt knot)
 		lab = "⚗",
 		alien = "☄",
 		relic = "❂",

@@ -6,7 +6,7 @@ UPLOAD_DIR holds manifest.json (make_package.py) and ids.json (upload.ps1: file 
 IMAGE_IDS_FILE is what resolve_ids.lua printed in Studio ("decal=image,decal=image,..."): the image id
 inside each decal, which is what clothes, faces, particles and MaterialVariant maps need. Writes:
   src/config/NpcLooks.luau   robots.<robot>.clothes.<version>, faces.<face>.<which>, people.<id>.<which>
-  src/config/Creator.luau    clothes.shirts|pants.<name>
+  src/config/Creator.luau    clothes.shirts|pants.<name>, suitArt.kits.<kit>, emblemArt, maskArt.kits.<kit>
   src/config/Fx.luau         lib.textures.<name>.id
   src/materials/Kit<Name>.model.json and the MaterialService entries in default.project.json (the city kit)
 Safe to run again: every id is set, not added. A batch without city maps leaves the city materials as they are;
@@ -60,6 +60,19 @@ def set_key(text, span, key, value):
     return text[:a] + inner + text[b:]
 
 
+def creator_span(text, t):
+    """The { } block of Config.Creator that holds a creator_suit, creator_emblem or creator_mask target's key."""
+    k = t["kind"]
+    if k == "creator_suit":
+        return block(text, text.index("\tsuitArt = {"), r"^\t\t\t" + t["kit"] + r" = \{")
+    if k == "creator_mask":
+        return block(text, text.index("\tmaskArt = {"), r"^\t\t\t" + t["kit"] + r" = \{")
+    at = text.index("\temblemArt = {")
+    if t["which"] == "mark":
+        return block(text, at, r"^\t\tshapes = \{")
+    return block(text, block(text, at, r"^\t\tbackings = \{")[0], r"^\t\t\t" + t["name"] + r" = \{")
+
+
 def lua_table(text, name):
     """{ key: value } of a flat `name = { Key = value, ... }` table (numbers and strings)."""
     a, b = block(text, 0, r"^\t\t" + name + r" = \{")
@@ -110,6 +123,11 @@ def main():
         elif k == "hero_clothes":
             grp = block(creator, clothes_at, r"^\t\t" + t["group"] + r" = \{")
             creator = set_key(creator, grp, t["name"], i)
+        elif k in ("creator_suit", "creator_mask"):
+            creator = set_key(creator, creator_span(creator, t), t["which"], i)
+        elif k == "creator_emblem":
+            key = t["name"] if t["which"] == "mark" else t["which"]
+            creator = set_key(creator, creator_span(creator, t), key, i)
         elif k == "fx_texture":
             fx = set_key(fx, block(fx, tex_at, r"^\t\t\t" + t["name"] + r" = \{"), "id", i)
         elif k == "city_map":
