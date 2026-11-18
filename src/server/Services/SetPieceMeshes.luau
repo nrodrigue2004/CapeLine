@@ -1,11 +1,13 @@
 --!strict
 -- SetPieceMeshes: the side quests' set pieces drawn with art/blender/setpieces.py's meshes once nate imports them
--- as ReplicatedStorage.Art.SetPieces (Tasks.md "Set piece meshes"). Shared.SetPieceKit says which placements are
--- drawn (every mesh of the look found) and Config.SetPieceArt how each mesh sits; this module finds and clones
--- them. Used by SideQuestService (the gala, the racers' meet, the farm truck) and MissionService (the toy shop,
--- sea cave, fight pit and Velmara pockets). The meshes never collide, take queries or touches: the boxes they
--- stand in for stay (hidden) and do all of that exactly as before. No Art.SetPieces: nothing is drawn and every
--- box shows as today (PLACEHOLDER ART until the import).
+-- as ReplicatedStorage.Art.SetPieces (Tasks.md "Set piece meshes"), and the escorts and the hub's vehicles with
+-- art/blender/vehicles.py's, imported as ReplicatedStorage.Art.Vehicles (Tasks.md "Vehicle meshes").
+-- Shared.SetPieceKit says which placements are drawn (every mesh of the look found) and Config.SetPieceArt or
+-- Config.VehicleArt how each mesh sits; this module finds and clones them. Used by SideQuestService (the gala, the
+-- racers' meet, the escort trucks), VehicleService (the hub's 40 cars, trams and trucks) and MissionService (the
+-- toy shop, sea cave, fight pit and Velmara pockets). The meshes never collide, take queries or touches: the boxes
+-- they stand in for stay (hidden) and do all of that exactly as before. Nothing imported: nothing is drawn and
+-- every box shows as today (PLACEHOLDER ART until the import).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -16,10 +18,18 @@ local SetPieceMeshes = {}
 
 local found: { [string]: MeshPart } = {}
 
--- The imported model, or nil (looked up each time until it is there, so a later import still counts)
-local function root(): Instance?
+-- The imported models (Art.SetPieces, Art.Vehicles), looked up each time until there, so a later import counts
+local ROOTS = { "SetPieces", "Vehicles" }
+local function roots(): { Instance }
+	local out = {}
 	local art = ReplicatedStorage:FindFirstChild("Art")
-	return art and art:FindFirstChild("SetPieces")
+	for _, name in ROOTS do
+		local r = art and art:FindFirstChild(name)
+		if r then
+			table.insert(out, r)
+		end
+	end
+	return out
 end
 
 -- The source MeshPart named `name`, or nil
@@ -28,14 +38,12 @@ local function source(name: string): MeshPart?
 	if hit and hit.Parent then
 		return hit
 	end
-	local r = root()
-	if not r then
-		return nil
-	end
-	local src = r:FindFirstChild(name, true)
-	if src and src:IsA("MeshPart") then
-		found[name] = src
-		return src
+	for _, r in roots() do
+		local src = r:FindFirstChild(name, true)
+		if src and src:IsA("MeshPart") then
+			found[name] = src
+			return src
+		end
 	end
 	return nil
 end

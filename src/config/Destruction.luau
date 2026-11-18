@@ -22,6 +22,10 @@ return {
 		damagedAfter = 180, -- quiet seconds before a Damaged building is repaired
 		collapsedAfter = 240,
 		each = 20, -- seconds a drone spends on one building
+		-- the Ceremony prologue's 6-roof chase row: a row building already wrecked is put back whole when a
+		-- prologue starts and again as its hold begins (the leap), so a new hero never hops onto rubble
+		-- (Shared.PrologueRow.mend). Interim pick 2026-11-18, nate to OK; false: drones only, as before
+		prologueRow = true,
 	},
 	diffRate = 2, -- Building.Diff batches per second
 	impactRate = 6, -- impact notices per second per server (cracks and craters on clients)

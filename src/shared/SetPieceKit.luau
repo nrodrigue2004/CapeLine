@@ -13,6 +13,9 @@
 -- * meshes(Config, place): the look's meshes for one placement (size, offset from the foot, colour, material,
 --   transparency), placed by SetPieceMeshes on the server.
 -- * check(Config, places, boxes): each placement a known look whose meshes sit over the boxes it hides.
+-- * fit(Config, look): a look's fit table, from Config.SetPieceArt (art/blender/setpieces.py, imported as
+--   Art.SetPieces) or Config.VehicleArt (art/blender/vehicles.py: the escorts and the hub's vehicles, imported as
+--   Art.Vehicles); mesh names are unique across both, so one lookup serves every look.
 
 local SetPieceKit = {}
 
@@ -35,11 +38,27 @@ export type Mesh = {
 	alpha: number,
 }
 
--- The side quest escort trucks that have their own look (Config.SideQuests chain id -> look); the others keep
--- the motorcade box
+-- The side quest escort trucks that have their own look (Config.SideQuests chain id -> look); the others (the
+-- Dev panel's sample chain) keep the motorcade box. Every look stands over the motorcade's two boxes, nose to -z.
 SetPieceKit.TRUCKS = {
 	HarvestKing = "FarmTruck", -- The Harvest King's farm folk's truck down the farm road (chain 4)
+	HeroAcademy = "FieldTripBus", -- the Halo Academy field trip bus (VehicleArt)
+	WindUpLane = "IceCreamTruck", -- Scoops's ice cream truck of kids
+	SaltDogs = "FerryVan", -- the Gull Point ferry crew's van
+	TheScoop = "NewsVan", -- Nora's news van to the uplink
+	LastOwner = "ShowVan", -- Ambrose the Astonishing's old show van out of Old Town
+	SuitRecall = "PartsTruck", -- Tinker Tess's parts truck
 } :: { [string]: string }
+
+-- A look's fit table (mesh name -> size, offset, colour, material), or nil for an unknown look
+function SetPieceKit.fit(Config: any, look: string): { [string]: any }?
+	local a = Config.SetPieceArt and Config.SetPieceArt[look]
+	if type(a) == "table" then
+		return a
+	end
+	local b = Config.VehicleArt and Config.VehicleArt[look]
+	return if type(b) == "table" then b else nil
+end
 
 -- Add a placement to a list; returns its index (the boxes it stands in for take it as `art`)
 function SetPieceKit.place(
@@ -58,8 +77,8 @@ end
 
 -- Is every mesh of this look found?
 function SetPieceKit.ready(Config: any, look: string, has: (string) -> boolean): boolean
-	local fit = Config.SetPieceArt and Config.SetPieceArt[look]
-	if type(fit) ~= "table" or next(fit) == nil then
+	local fit = SetPieceKit.fit(Config, look)
+	if fit == nil or next(fit) == nil then
 		return false
 	end
 	for name in fit do
@@ -96,8 +115,8 @@ end
 -- One placement's meshes, sorted by name (offsets from the placement's foot, before its turn)
 function SetPieceKit.meshes(Config: any, place: Place): { Mesh }
 	local out: { Mesh } = {}
-	local fit = Config.SetPieceArt and Config.SetPieceArt[place.look]
-	if type(fit) ~= "table" then
+	local fit = SetPieceKit.fit(Config, place.look)
+	if fit == nil then
 		return out
 	end
 	for name, f in fit do
@@ -178,9 +197,9 @@ function SetPieceKit.check(Config: any, places: { Place }?, boxes: { any }, slac
 	end
 	for i, pl in list do
 		local name = string.format("%d %s", i, tostring(pl.look))
-		local fit = Config.SetPieceArt and Config.SetPieceArt[pl.look]
+		local fit = SetPieceKit.fit(Config, pl.look)
 		local mine = own[i]
-		if type(fit) ~= "table" then
+		if fit == nil then
 			table.insert(bad, name .. ": unknown look")
 		elseif not mine then
 			table.insert(bad, name .. ": stands in for no box")

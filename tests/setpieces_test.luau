@@ -48,7 +48,7 @@ return function(T: any)
 		end
 		for chain, look in SetPieceKit.TRUCKS do
 			used[look] = true
-			check(FIT[look] ~= nil, chain .. "'s truck is in the fit table")
+			check(SetPieceKit.fit(Config, look) ~= nil, chain .. "'s truck is in a fit table")
 			local found = false
 			for _, ch in Config.SideQuests.chains do
 				found = found or ch.id == chain
@@ -185,7 +185,10 @@ return function(T: any)
 
 	test("Set piece art: the services draw the meshes over hidden boxes that keep their collision", function()
 		local kit = "src/server/Services/SetPieceMeshes.luau"
-		check(has(kit, 'FindFirstChild("SetPieces")'), "the meshes come from ReplicatedStorage.Art.SetPieces")
+		check(
+			has(kit, 'local ROOTS = { "SetPieces", "Vehicles" }'),
+			"the meshes come from ReplicatedStorage.Art.SetPieces (and Art.Vehicles)"
+		)
 		check(
 			has(kit, "SetPieceKit.drawn(Config, places, SetPieceMeshes.has)"),
 			"a look needs all its meshes"

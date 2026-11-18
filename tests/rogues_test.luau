@@ -227,6 +227,152 @@ return function(T: any)
 		)
 	end)
 
+	test("Rogues File: rogues_page fires once per page per account, never again after a rejoin", function()
+		local AnalyticsSchema = require("../src/shared/AnalyticsSchema")
+		check(R.analytics == true, "on (Config.Rogues.analytics, interim pick)")
+		local ok, clean = AnalyticsSchema.check("rogues_page", { "bosses", "1" })
+		check(ok and #clean == 2, "in AnalyticsSchema with its two fields")
+		check(AnalyticsSchema.NOSAVE.rogues_page == nil, "never sent for a save that did not load")
+		check(Config.Analytics.lowPriority.rogues_page == nil, "not a busy event (it gets the full budget)")
+		-- every page bit and gold bit, in book order (a gold page after its boss's)
+		local bits, gold = {}, {}
+		for _, e in RoguesFile.list(Config) do
+			table.insert(bits, e.bit)
+			if e.gold then
+				table.insert(bits, e.gold)
+				gold[e.gold] = true
+			end
+		end
+		-- RoguesService.beat's rule: an event only when RoguesFile.beat says the page is new
+		local function fill(profile: any, bit: number, sent: { { any } })
+			if RoguesFile.beat(Config, profile.rogues, profile.roguesLog, bit, 20775, 10) then
+				local value, fields = RoguesFile.event(Config, profile.rogues, bit)
+				if value and fields then
+					table.insert(sent, { bit, value, fields })
+				end
+			end
+		end
+		local profile = ProfileSchema.default()
+		local sent = {}
+		for _, bit in bits do
+			fill(profile, bit, sent)
+			fill(profile, bit, sent) -- beaten again at once: no second event
+		end
+		check(#sent == #bits, string.format("one event a page (%d of %d)", #sent, #bits))
+		local seen, n = {}, 0
+		for _, s in sent do
+			local bit, value, fields = s[1], s[2], s[3]
+			check(not seen[bit], "page " .. bit .. " once")
+			seen[bit] = true
+			local e = RoguesFile.byBit(Config, bit)
+			for _, x in RoguesFile.list(Config) do
+				if x.gold == bit then
+					e = x
+				end
+			end
+			check(e ~= nil and fields[1] == (e :: any).group, "page " .. bit .. ": its kind " .. fields[1])
+			check(fields[2] == (if gold[bit] then "1" else "0"), "page " .. bit .. ": gold " .. fields[2])
+			check(#fields == 2 and type(value) == "number", "two short fields and a number, no names")
+			if not gold[bit] then
+				n += 1
+			end
+			check(value == n, "value: pages filled so far (" .. value .. ")")
+		end
+		-- a rejoin (and a server hop: the same save) loads the pages back: nothing fires again
+		local back = ProfileSchema.load(serde.decode("json", serde.encode("json", profile)))
+		local again = {}
+		for _, bit in bits do
+			fill(back, bit, again)
+		end
+		check(#again == 0, "no event after a rejoin (" .. #again .. ")")
+		-- half way: the rest still fire once each after the rejoin, never the first half again
+		local half = ProfileSchema.default()
+		local first = {}
+		for i = 1, #bits // 2 do
+			fill(half, bits[i], first)
+		end
+		local half2 = ProfileSchema.load(serde.decode("json", serde.encode("json", half)))
+		local rest = {}
+		for _, bit in bits do
+			fill(half2, bit, rest)
+		end
+		check(#first + #rest == #bits and #rest == #bits - #bits // 2, "the rest once each after a rejoin")
+		-- the switch off: no event at all
+		local off = table.clone(Config)
+		off.Rogues = table.clone(R)
+		off.Rogues.analytics = false
+		check(RoguesFile.event(off, profile.rogues, bits[1]) == nil, "off: no event")
+		check(RoguesFile.event(Config, profile.rogues, 0) == nil, "not a page: no event")
+	end)
+
+	test(
+		"Rogues File: rogues_page stays inside the per-minute budget (sliding window, every send counts)",
+		function()
+			local AnalyticsSchema = require("../src/shared/AnalyticsSchema")
+			local cfg = Config.Analytics.budget
+			local players = 30
+			local cap = AnalyticsSchema.cap(cfg, players)
+			-- the biggest burst: a world boss beaten by 30 players at the gold level fills its page and its gold
+			-- page for every one at once (2 each), on a window the busy events already filled to their share
+			local b = AnalyticsSchema.newBudget()
+			local t = 0
+			while AnalyticsSchema.take(b, cfg, t, players, true) do
+				t += 0.01
+			end
+			local burst, ok = players * 2, 0
+			for _ = 1, burst do
+				if AnalyticsSchema.take(b, cfg, t, players, false) then
+					ok += 1
+				end
+			end
+			check(ok == burst, string.format("all %d fit beside the busy events (cap %d)", burst, cap))
+			-- a full window: the page waits (queued), takes no slot, and goes once the window has room
+			local full = AnalyticsSchema.newBudget()
+			for _ = 1, cap do
+				AnalyticsSchema.force(full, cfg, 0, players)
+			end
+			local queue = { { 1, { "robots", "0" } }, { 2, { "bosses", "0" } } }
+			local logged = 0
+			local function send(now: number): (number, { string }) -> string
+				return function(_v: number, _f: { string }): string
+					if AnalyticsSchema.take(full, cfg, now, players, false) then
+						logged += 1
+						return "sent"
+					end
+					return "full"
+				end
+			end
+			RoguesFile.drain(queue, send(30))
+			check(#queue == 2 and logged == 0 and full.n == cap, "a full window: both wait and spend nothing")
+			RoguesFile.drain(queue, send(61))
+			check(#queue == 0 and logged == 2, "the window moved on: both go, once each")
+			RoguesFile.drain(queue, send(62))
+			check(logged == 2, "never twice")
+			local gone = { { 1, { "robots", "0" } } }
+			RoguesFile.drain(gone, function()
+				return "refused"
+			end)
+			check(#gone == 0, "a refused one (left, or a save that did not load) is not retried")
+			-- the service: an event only in beat()'s fresh branch, through Analytics.event (the budget)
+			local svc = fs.readFile("src/server/Services/RoguesService.luau")
+			local freshAt = string.find(svc, "fresh = true", 1, true) or 0
+			local evAt = string.find(svc, "RoguesFile.event(Config, profile.rogues, bit)", 1, true) or 0
+			check(
+				freshAt > 0 and evAt > freshAt and evAt - freshAt < 200,
+				"fired only for a page just filled"
+			)
+			check(
+				string.find(svc, 'Analytics.event(player, "rogues_page", value, fields)', 1, true) ~= nil,
+				"through Analytics.event (the per-minute budget)"
+			)
+			local an = fs.readFile("src/server/Services/Analytics.luau")
+			check(
+				string.find(an, 'return "full"', 1, true) ~= nil,
+				"Analytics.event says when the budget was full"
+			)
+		end
+	)
+
 	test("Rogues File and Journal tabs: wired through signals and the Journal", function()
 		local svc = fs.readFile("src/server/Services/RoguesService.luau")
 		check(string.find(svc, "EnemyService.Killed:Connect", 1, true) ~= nil, "robot kills")
