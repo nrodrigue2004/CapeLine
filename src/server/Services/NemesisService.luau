@@ -510,8 +510,9 @@ local function startShowdown(player: Player)
 	local players = { player }
 	for _, p in SquadService.mates(player) do
 		local h = HeroService.get(p)
-		local a, b = HeroService.position(h :: any), HeroService.position(hero)
-		if h and a and b and (a - b).Magnitude <= N.near then
+		local a = h and HeroService.position(h)
+		local b = HeroService.position(hero)
+		if a and b and (a - b).Magnitude <= N.near then
 			table.insert(players, p)
 		end
 	end

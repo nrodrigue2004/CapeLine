@@ -7,14 +7,26 @@
 
 local GuardRules = {}
 
-export type Strikes = { times: { number }, kinds: { [string]: number }, net: number, netAt: number }
+-- kicking: a kick is under way (its save yields), so later strikes count nothing: one kick event is one
+-- kick, never several (speed checks run at 10 Hz)
+export type Strikes = {
+	times: { number },
+	kinds: { [string]: number },
+	net: number,
+	netAt: number,
+	kicking: boolean,
+}
 
 function GuardRules.newStrikes(): Strikes
-	return { times = {}, kinds = {}, net = 0, netAt = 0 }
+	return { times = {}, kinds = {}, net = 0, netAt = 0, kicking = false }
 end
 
--- Count a strike of a kind ("speed", "remote", ...). Returns true when the rule says kick.
+-- Count a strike of a kind ("speed", "remote", ...). Returns true when the rule says kick: true once, then
+-- the book is cleared and stays quiet while the kick runs (GuardRules.kickDone opens it again).
 function GuardRules.strike(config: any, s: Strikes, kind: string, now: number): boolean
+	if s.kicking then
+		return false
+	end
 	local c = config.Pvp.strikes
 	table.insert(s.times, now)
 	s.kinds[kind] = (s.kinds[kind] or 0) + 1
@@ -22,13 +34,29 @@ function GuardRules.strike(config: any, s: Strikes, kind: string, now: number): 
 	while #s.times > 0 and s.times[1] < cutoff do
 		table.remove(s.times, 1)
 	end
-	return #s.times >= c.kickAt
+	if #s.times >= c.kickAt then
+		s.kicking = true
+		table.clear(s.times)
+		return true
+	end
+	return false
+end
+
+-- The kick is done without the player leaving (Studio never kicks): strikes count from zero again
+function GuardRules.kickDone(s: Strikes)
+	s.kicking = false
+	table.clear(s.times)
+	table.clear(s.kinds)
+	s.net = 0
 end
 
 -- A dropped remote call. Honest lag drops one now and then, so only every netWeight drops inside a minute
 -- count one strike. Returns true when that strike says kick.
 function GuardRules.netDrop(config: any, s: Strikes, now: number): boolean
 	local c = config.Pvp.strikes
+	if s.kicking then
+		return false
+	end
 	if now - s.netAt > 60 then
 		s.net = 0
 	end

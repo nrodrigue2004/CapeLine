@@ -4,6 +4,9 @@
 -- jitter delivers positions in bursts), each hero has a travel budget that refills at cap x 1.15 per second
 -- and can bank `burstSeconds` of travel. Falling is free up to terminal speed. Dashes and other granted moves
 -- add budget; fast travel, respawn and mission entry reset the check.
+-- A strike needs fresh evidence: after one, the samples for `strikeGrace` seconds still fail and pull back,
+-- but count no strike. Until MoveCorrect reaches the device (one lag spike can hold it up), every 10 Hz
+-- sample still sees the same stale far position, which once stacked 3 strikes in 0.2 s and kicked.
 
 local MoveCheck = {}
 
@@ -14,10 +17,11 @@ export type State = {
 	t: number,
 	budget: number,
 	strikes: { number },
+	quietUntil: number, -- no strike before this (the grace after the last one)
 }
 
 function MoveCheck.new(x: number, y: number, z: number, t: number): State
-	return { x = x, y = y, z = z, t = t, budget = 0, strikes = {} }
+	return { x = x, y = y, z = z, t = t, budget = 0, strikes = {}, quietUntil = -math.huge }
 end
 
 -- A legal teleport (fast travel, respawn, mission pocket): accept the new spot
@@ -63,6 +67,12 @@ function MoveCheck.sample(
 		return true, false
 	end
 	local strike = used > state.budget * safetyCfg.strikeFactor + safetyCfg.slack * 4
+	if strike then
+		if t < state.quietUntil then
+			return false, false -- the same jump again before the pull-back landed: pulled back, no strike
+		end
+		state.quietUntil = t + (safetyCfg.strikeGrace or 0)
+	end
 	return false, strike
 end
 

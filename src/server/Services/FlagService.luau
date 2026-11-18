@@ -142,6 +142,11 @@ function FlagService.lastAttacker(hero: any, window: number): number?
 	return nil
 end
 
+-- That fight is settled (a PvP defeat paid it): leaving or resetting now must not pay it again
+function FlagService.clearAttacker(hero: any)
+	lastBy[hero.id] = nil
+end
+
 function FlagService.inPvpCombat(hero: any): boolean
 	return PvpRules.inPvpCombat(Config, FlagService.flag(hero), os.clock())
 end

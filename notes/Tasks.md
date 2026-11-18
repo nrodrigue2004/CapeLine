@@ -152,6 +152,19 @@ New outfits, faces and three finale models (PLACEHOLDER ART until nate approves;
 8. Models: The Harvest King's finale shows the Bramblebeast as the pumpkin-headed bramble creature with its antler crown, leaf mane and thorny back; hits flash it, it never sparks and bursts into light. Starblood Calling's finale shows the Voidhound (hound helm, one violet eye, snout, ears, back fins and tail); Wind-Up Lane's shows the tin soldier with his shako and key, and his key no longer doubles up. Shell pieces break off the two machines as they lose health (the extras go with their part).
 9. Remove one imported model from ReplicatedStorage.Art: that finale goes back to today's look with no errors in the output.
 
+### Data fixes: saves, Robux, moderation, HQ (2026-11-18)
+Receipts, leave-saves, kicks and Legacy (rules in Shared.ShopRules, GuardRules, MoveCheck, HqRules; tests: ONLY="Data fixes"). Needs a published place with Studio API access on for steps 1 to 4.
+1. Leave-save: play a few minutes (earn Renown, rank a skill, change a loadout), wait under 2 minutes (no autosave), then leave. Rejoin: the Renown, the rank and the loadout are all there. Do it 3 times (the old order lost them on most leaves).
+2. Receipt: buy a pack with a test product id. It lands once, and the Output has no "[Purchase] ... not saved yet". Rejoin: still owned, and the same receipt never grants twice.
+3. Save down: for this test only, set Config.Data.keyPrefix to a 60-letter text (DataStore keys stop at 50, so every load fails) and join: after the load tries the "saving is down" toast shows. Open the Robux shop and press BUY: no Roblox prompt; it reads "Saving is down on this server. Rejoin to shop". Put keyPrefix back after step 4.
+4. Slot switch on that no-save session: earn some Renown, switch to slot 2 and back: the first hero keeps the Renown it had.
+5. Kick once: in a live test server (Studio never kicks) teleport with an exploit tool 3 times inside 10 minutes: one kick, the account's kick count goes up by 1 and no review row is written. In Studio the Output shows one "would kick" line, not several.
+6. Lag spike: Studio Settings > Network > Incoming Replication Lag 1.5 s, boost-fly in a straight line for 5 s: at most one "[MoveGuard] strike" line, never a kick.
+7. Legacy: a level 50 hero with origin Starborn, Web-swing mobility, a carried weapon, a worn title and travel styles retires: after it they are all the same (not Training, not Flight, not Bare Fists).
+8. Hero Pass at the boundary: set Config.Pass.startWeek so a season ended an hour ago, rejoin, buy the Hero Pass: the pass card shows the paid track on the new season, and it stays paid after a minute's roll.
+9. Slot switch travel style: two heroes with different travel styles on the same mobility; switch slots: the new hero's style shows at once, and swapping mobility at a safehouse many times never slows the server.
+10. Nemesis Showdown: start one while a squadmate is still loading in (no hero yet): the Showdown starts, no NemesisService error.
+
 ### Story fixes: missions and the prologue (2026-11-18)
 Soft-locks and pay bugs fixed in MissionService and OpeningService (rules in Shared.MissionRules; tests: ONLY="Story fixes").
 1. Task force: start one with a squad of two. Each leg plays all its stages, the comic panel shows for 4 s between legs, and each member gets one result card per leg (not every leg in half a second, not a burst of pay at the start).
@@ -163,6 +176,18 @@ Soft-locks and pay bugs fixed in MissionService and OpeningService (rules in Sha
 7. Prologue, first time: on a new character the ceremony shows no SKIP. Dev "Prologue: Vigil" again (a replay) shows SKIP as before.
 8. Prologue, returning account: wait 2 minutes on the main menu, then PLAY THE PROLOGUE. The whole prologue plays (its 330 s clock starts at PLAY, not at the menu).
 9. Prologue safety: during the ceremony, let a city robot reach and hit the hero: health never drops below about 18%, and the hero is never Downed in the prologue.
+### Open-world fixes (2026-11-18)
+Boss, contract, event, incident and Downed fixes (tests: ONLY="World fixes"). Two players (Studio Test > 2 players) where it says so.
+1. Boss pay: DEV start the boss with 4 or more heroes (bots from the load test are fine), DEV weaken it and finish it: every hero gets the result card and pay, the Hero Pass XP lands, the Output shows no BossService error, and the next boss timer starts after the result.
+2. Boss leaver: player 2 does the most damage, then leaves before the end: player 1's card shows them as MVP #1 and the MVP names never show the leaver.
+3. Boss retreat: let a boss time out (8 minutes): the card pays 25% Credits only, and the Fame bar does not move.
+4. Boss result PvP: both players flagged in the arena; land a PvP defeat in the few seconds after the boss falls: the winner's PvP card pays in full (not the halved boss-fight pay).
+5. Bounty: take a Bounty contract and beat the elite 10 times (DEV re-take it each time): every kill counts on the tracker; a new elite never stands up where the beaten one fell.
+6. Your double: DEV start Your double and beat the twin 5 times: it always ends as a win and pays.
+7. Robot rampage: DEV spawn robots to near the 90 cap, then DEV start Robot rampage: the tracker asks only for the robots that came, and beating them all wins and pays.
+8. Incident at the cap: DEV spawn robots up to the cap, then take an incident whose first step is a fight: nothing there yet; clear a few robots and the squad appears within about 3 s, and the step finishes.
+9. Reset while Downed: get Downed by robots, then press Esc > Reset: you respawn standing, can fly, and do not crawl.
+10. Reset mid PvP: two flagged players; player 2 hits player 1, then player 1 Resets within 15 s: player 2 gets the PvP win card once. Player 1 leaves within 15 s of a PvP defeat: player 2 is not paid a second time.
 
 ### Side quest server fixes (2026-11-18)
 Seven soft-locks in SideQuestService fixed (tests: ONLY="SQ fixes"). Use the Dev panel's side quest jumps (300 + chain, then 100 + step) to reach each step.

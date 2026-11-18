@@ -25,6 +25,7 @@ local Awakening = require(Shared:WaitForChild("Awakening"))
 local AbilityRules = require(Shared:WaitForChild("AbilityRules"))
 
 local Analytics = require(script.Parent.Analytics)
+local DataService = require(script.Parent.DataService)
 
 local HeroService = {}
 
@@ -111,6 +112,9 @@ end
 
 -- DeathService: called when a player's health hits 0 from a PvE hit; returns true when it took over (Downed)
 HeroService.downHandler = nil :: ((Hero, any?) -> boolean)?
+-- DeathService: called when a player's humanoid dies outside the game's rules (Reset, the void); returns true
+-- when it took over (Reset while Downed is Give Up, a Reset mid PvP fight is that defeat)
+HeroService.resetHandler = nil :: ((Hero) -> boolean)?
 
 HeroService.Spawned = Signal.new() -- (hero) a player's character spawned or respawned
 HeroService.Defeated = Signal.new() -- (hero, source)
@@ -900,6 +904,9 @@ local function onCharacter(player: Player, char: Model)
 	hum.JumpPower = 0 -- Leap replaces the jump; this also hides the default touch jump button
 	hum.BreakJointsOnDeath = false
 	hum.Died:Connect(function()
+		if player.Character == char and HeroService.resetHandler and HeroService.resetHandler(hero) then
+			return -- DeathService settled it (Give Up, or the PvP defeat)
+		end
 		if hero.alive then
 			hero.alive = false
 			hero.health = 0
@@ -928,11 +935,22 @@ function HeroService.init()
 	for _, p in Players:GetPlayers() do
 		added(p)
 	end
-	Players.PlayerRemoving:Connect(function(player)
+	-- a leaving player's hero goes once DataService's leave-save has read it (DataService.Left): Roblox runs
+	-- PlayerRemoving handlers in no set order, and removing it first lost everything since the last save
+	local function gone(player: Player)
 		local hero = byPlayer[player]
 		if hero then
 			HeroService.remove(hero)
 		end
+	end
+	DataService.Left:Connect(gone)
+	Players.PlayerRemoving:Connect(function(player)
+		if not DataService.holds(player) then
+			gone(player) -- no loaded profile (or its leave already ran): nothing to save from the hero
+			return
+		end
+		-- a safety net: the hero never outlives its player if Left somehow never comes
+		task.delay(10, gone, player)
 	end)
 	-- Out-of-combat regen (Decisions.md, 2026-11-16) and the meter push (4 Hz at most)
 	task.spawn(function()

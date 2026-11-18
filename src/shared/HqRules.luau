@@ -438,7 +438,10 @@ function HqRules.retire(Config: any, profile: any, charIndex: number, now: numbe
 		table.remove(profile.legends, 1)
 	end
 	local fresh = ProfileSchema.newCharacter(c.side, c.classId)
-	-- kept: who the hero is, reputation, Fame, story, the map, HQ, looks, tint and landing pose
+	-- kept: who the hero is (origin, mobility, carried weapon, the free path change once used), reputation,
+	-- Fame, story and side quest chains, the map, HQ, looks, tint and landing pose, and the MMO record
+	-- (nemesis, banes, trophies, mentor, the worn title, aura, trim and travel styles, task force weeks).
+	-- A new run: level, XP, ranks, mods, loadouts, gear, contracts and the respec and Second Wind timers.
 	for _, key in
 		{
 			"side",
@@ -460,6 +463,12 @@ function HqRules.retire(Config: any, profile: any, charIndex: number, now: numbe
 			"tint",
 			"landing",
 			"created",
+			"origin",
+			"mobility",
+			"weapon",
+			"pathChanged",
+			"sq",
+			"mmo",
 		}
 	do
 		fresh[key] = c[key]

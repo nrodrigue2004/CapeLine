@@ -234,6 +234,11 @@ function EnemyService.dying(id: number): boolean
 	return EnemySim.dying(sim, id)
 end
 
+-- Not alive and not dying: a goal may respawn or fail this robot (EnemySim.gone)
+function EnemyService.gone(id: number): boolean
+	return EnemySim.gone(sim, id)
+end
+
 -- Returns killed, the enemy, damage dealt, and the hit flag (EnemySim.HIT, BLOCKED, BROKE)
 function EnemyService.damage(
 	id: number,

@@ -3,6 +3,8 @@
 -- * Strikes: a teleport-sized speed fail (MoveGuard) is one strike; dropped remote calls (Net) count one per
 --   10 inside a minute, so lag never adds up. 3 strikes in 10 minutes kick with a generic message and save
 --   the kick on the account. From the second kick the account lands in the review queue. Nothing here bans.
+--   One kick event counts once: while a kick's save runs, later strikes and kicks for that player do nothing
+--   (kicking, GuardRules' book), so a first offender is never counted twice and never queued for review.
 -- * Reports: every name plate has Report (preset reasons, no typed text). One per reporter per target every
 --   10 minutes; 3 from 3 accounts in 10 minutes put the target in the review queue.
 -- * The review queue is a DataStore list nate reads by hand (never read back by the game).
@@ -26,6 +28,7 @@ local GuardService = {}
 local strikes: { [Player]: GuardRules.Strikes } = {}
 local reports = GuardRules.newReports()
 local flagged: { [Player]: { [string]: boolean } } = {} -- analytics: kinds already logged this session
+local kicking: { [Player]: boolean } = {} -- a kick is under way (its save yields)
 local store: DataStore? = nil
 GuardService.queue = {} :: { any } -- this server's review rows (also written to the store)
 
@@ -49,6 +52,10 @@ function GuardService.review(userId: number, kind: string, detail: { [string]: a
 end
 
 local function kick(player: Player, kind: string)
+	if kicking[player] then
+		return
+	end
+	kicking[player] = true
 	local profile = DataService.get(player)
 	local kicks = 1
 	if profile then
@@ -62,7 +69,10 @@ local function kick(player: Player, kind: string)
 	end
 	if RunService:IsStudio() then
 		warn("[GuardService] would kick " .. player.Name .. " (" .. kind .. "); Studio does not kick")
-		strikes[player] = GuardRules.newStrikes()
+		if s then
+			GuardRules.kickDone(s)
+		end
+		kicking[player] = nil
 		return
 	end
 	DataService.save(player)
@@ -80,7 +90,7 @@ end
 
 -- Count a strike of a kind (speed, remote, ...)
 function GuardService.strike(player: Player, kind: string)
-	if player.Parent ~= Players then
+	if player.Parent ~= Players or kicking[player] then
 		return
 	end
 	local book = strikesOf(player)
@@ -123,6 +133,7 @@ function GuardService.init()
 	Players.PlayerRemoving:Connect(function(player)
 		strikes[player] = nil
 		flagged[player] = nil
+		kicking[player] = nil
 	end)
 end
 

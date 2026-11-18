@@ -5,6 +5,7 @@
 --   grants nothing (the last 50 receipt ids live on the profile). Packs unlock creator pieces, the
 --   starter pack its pieces and emote, slots a character slot, tints an effect colour, emotes an emote.
 --   Nothing touches a stat, gear, Dust, Credits, ranks or loot.
+-- * receipt(...): one ProcessReceipt answer: acknowledged only once a save holding the receipt id worked.
 -- * owned(profile, key): already has everything the item gives (the shop shows OWNED and will not prompt).
 -- * canOpen(where, lastCombat, now): only in HQ, safehouses and the menu, never mid-fight.
 -- * gizmo(): the 40 base styles and their Credit prices; gizmoBuy spends Credits and unlocks the style.
@@ -18,6 +19,7 @@ local CreatorRules = if script
 local GearMath = if script then require(script.Parent.GearMath) else (require :: any)("./GearMath")
 local Progress = if script then require(script.Parent.Progress) else (require :: any)("./Progress")
 local RepTiers = if script then require(script.Parent.RepTiers) else (require :: any)("./RepTiers")
+local PassRules = if script then require(script.Parent.PassRules) else (require :: any)("./PassRules")
 
 local Bits = ProfileSchema.Bits
 
@@ -109,11 +111,25 @@ function ShopRules.owned(Config: any, profile: any, key: string): boolean
 	return false
 end
 
--- Can this be bought now? Slot 4 needs slot 3; nothing owned is sold twice.
-function ShopRules.available(Config: any, profile: any, key: string): (boolean, string?)
+-- The Hero Pass is sold and granted on the live season: roll the profile's pass to the season at `now`
+-- first (a pass bought at a season boundary would otherwise land on the ended season, which the next roll
+-- clears). Returns true when it rolled.
+function ShopRules.livePass(Config: any, profile: any, now: number): boolean
+	if not profile.pass then
+		return false
+	end
+	return PassRules.roll(profile.pass, (PassRules.season(Config.Pass, now)))
+end
+
+-- Can this be bought now? Slot 4 needs slot 3; nothing owned is sold twice. now (the server's os.time):
+-- the Hero Pass is judged on the live season (the device's copy leaves it out).
+function ShopRules.available(Config: any, profile: any, key: string, now: number?): (boolean, string?)
 	local row, kind = ShopRules.item(Config, key)
 	if not row then
 		return false, "item"
+	end
+	if kind == "heroPass" and now then
+		ShopRules.livePass(Config, profile, now)
 	end
 	if ShopRules.owned(Config, profile, key) then
 		return false, "owned"
@@ -144,12 +160,14 @@ local function remember(profile: any, receiptId: string)
 	end
 end
 
--- Apply a developer product. Returns granted, what (a short summary for the toast).
+-- Apply a developer product. Returns granted, what (a short summary for the toast). now (os.time): the
+-- Hero Pass rolls to the live season before it is set (the server always passes it).
 function ShopRules.grant(
 	Config: any,
 	profile: any,
 	key: string,
-	receiptId: string
+	receiptId: string,
+	now: number?
 ): (boolean, { [string]: any }?)
 	if ShopRules.hasReceipt(profile, receiptId) then
 		return false, nil
@@ -185,12 +203,46 @@ function ShopRules.grant(
 		Bits.set(profile.mmo.travel, row.style)
 		got.style = row.style
 	elseif kind == "heroPass" then
-		-- the paid track of the season this profile is on (PassService rolls it to the live season first)
+		-- the paid track of the live season (rolled here when the server gives the time)
+		if now then
+			ShopRules.livePass(Config, profile, now)
+		end
 		profile.pass.paid = true
 		got.season = profile.pass.season
 	end
 	remember(profile, receiptId)
 	return true, got
+end
+
+-- One developer product receipt by Roblox's ProcessReceipt rules. canSave: this session can save at all;
+-- save(): writes the profile now, true once the write holds the receipt id. Returns "granted" (answer
+-- PurchaseGranted) only after such a save, else "notYet" (NotProcessedYet: Roblox asks again), and what
+-- landed this call (nil for a receipt already on the profile). A receipt id already there is still saved
+-- first: an earlier grant whose save failed lives only in memory, and acknowledging it would lose it.
+function ShopRules.receipt(
+	Config: any,
+	profile: any,
+	key: string,
+	receiptId: string,
+	now: number,
+	canSave: boolean,
+	save: () -> boolean
+): (string, { [string]: any }?)
+	if not canSave then
+		return "notYet", nil -- nothing granted: the next server that can save does it
+	end
+	local got: { [string]: any }? = nil
+	if not ShopRules.hasReceipt(profile, receiptId) then
+		local ok, g = ShopRules.grant(Config, profile, key, receiptId, now)
+		if not ok then
+			return "notYet", nil
+		end
+		got = g
+	end
+	if not save() then
+		return "notYet", got
+	end
+	return "granted", got
 end
 
 function ShopRules.grantPass(profile: any, key: string): boolean

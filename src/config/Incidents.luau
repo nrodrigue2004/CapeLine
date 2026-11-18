@@ -45,6 +45,7 @@ return {
 	convoyGap = 9, -- studs between convoy robots on their route
 	convoyLeg = 40, -- studs per leg of the convoy's street route
 	convoyWait = 0.25, -- the convoy's speed while no hero is within 120 studs (they floor it once spotted)
+	capRetry = 3, -- seconds between tries when the server cap left a fight step with no robots at all
 	-- the tracker's line for each step kind (a step's own `text` wins); squad: robots are its goal
 	kinds = {
 		defeat = { text = "Beat the robots", squad = true },
