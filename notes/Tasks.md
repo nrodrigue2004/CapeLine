@@ -1543,3 +1543,12 @@ DEV panel (M6 row): Inc (cycles the 10 templates, spawns that one next to you), 
 - DONE with no origin picked opens ORIGIN and says why in gold; DONE always saves or says why within 6 s.
 - 40 titles and 56 nouns on PLAY; 10 origins, each with its crest.
 - Gloves, boots, masks, capes and weapons on the new body: check they still sit on the hands, feet, head and back.
+
+## Studio list: kid-proof prologue (2026-11-18)
+Play a new hero's prologue on a server with a second player (Studio Test > 2 players) fighting robots near the plaza.
+1. From the ceremony to the title, the second player, their name plate, their powers, city robots and city citizens never show on the prologue hero's screen, and nothing hurts the prologue hero except Skylance and the swarm.
+2. Every beat you play shows one gold instruction at the top with the right key (keyboard, controller, phone).
+3. Leap, chase: one Leap press on each roof lands you on the next roof. Descend: one Leap press lands you at the subway steps.
+4. Tunnel: just run. Each slab falls behind you with a shake and blocks the way back; none falls on you.
+5. Fight: Skylance stays inside the chamber (never through a wall) and the fight can be won with Basic alone.
+6. Swarm and rescue play as before; the title card ends it. Patch says "Security bots", Crane says "Guardians of Brightharbor!".

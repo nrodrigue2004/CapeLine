@@ -26,7 +26,7 @@ export type Lane = {
 	floorY: number,
 	start: { number },
 	fight: { number }, -- the chamber's centre
-	collapses: { { z: number, t: number } }, -- where each slab falls (its centre z) and when (s into the tunnel)
+	collapses: { { z: number } }, -- where each slab falls (its centre z), once the hero is past it
 }
 
 export type Layout = {
@@ -326,7 +326,7 @@ function PocketLayout.lane(Config: any, i: number): Lane
 	local z1 = z0 - S.length
 	local collapses = {}
 	for _, c in S.collapses do
-		table.insert(collapses, { z = z0 - c.at, t = c.t })
+		table.insert(collapses, { z = z0 - c.at })
 	end
 	return {
 		index = i,
@@ -338,6 +338,21 @@ function PocketLayout.lane(Config: any, i: number): Lane
 		fight = { x, cy + 3, z1 - S.chamber / 2 },
 		collapses = collapses,
 	}
+end
+
+-- A point pulled inside a lane's fight chamber, `margin` studs clear of its walls (the prologue's swarm spawns
+-- in a ring round the hero: a ring point past a wall would leave a robot outside the room)
+function PocketLayout.chamberPoint(
+	Config: any,
+	lane: Lane,
+	x: number,
+	z: number,
+	margin: number
+): (number, number)
+	local c = Config.Story.opening.subway.chamber
+	local half = c / 2 - margin
+	local cz = lane.z1 - c / 2
+	return math.clamp(x, lane.x - half, lane.x + half), math.clamp(z, cz - half, cz + half)
 end
 
 -- The prologue's subway (lore step 3): one tunnel a lane (walls, a ceiling, rails, lamps), each ending in a
@@ -1274,6 +1289,31 @@ function PocketLayout.heightAt(l: Layout, x: number, z: number): number
 		end
 	end
 	return top
+end
+
+-- The underside of the lowest ceiling over (x, z) above height y in a pocket (a tunnel's or a room's roof, the
+-- boxes tagged "ceiling"), or nil for open sky. Fliers stay under it (Shared.EnemySim's ceilingAt).
+function PocketLayout.ceilingAt(l: Layout, x: number, z: number, y: number): number?
+	local list = (l :: any).ceilings
+	if not list then
+		list = {}
+		for _, b in l.boxes do
+			if b.tag == "ceiling" then
+				table.insert(list, b)
+			end
+		end
+		(l :: any).ceilings = list
+	end
+	local best: number? = nil
+	for _, b in list do
+		local under = b.cy - b.sy / 2
+		if under >= y and math.abs(x - b.cx) <= b.sx / 2 and math.abs(z - b.cz) <= b.sz / 2 then
+			if not best or under < best then
+				best = under
+			end
+		end
+	end
+	return best
 end
 
 return PocketLayout

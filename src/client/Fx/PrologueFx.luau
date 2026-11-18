@@ -41,6 +41,8 @@ local QualityController = require(script.Parent.Parent.Controllers.QualityContro
 local AudioController = require(script.Parent.Parent.Controllers.AudioController)
 local CombatFx = require(script.Parent.CombatFx)
 local CinemaClient = require(script.Parent.Parent.Controllers.CinemaClient)
+local CombatClient = require(script.Parent.Parent.Controllers.CombatClient)
+local CitizenRenderer = require(script.Parent.Parent.Controllers.CitizenRenderer)
 
 local PrologueFx = {}
 
@@ -847,17 +849,19 @@ local function suitStep(now: number)
 	end
 end
 
-local function tunnelStep(o: { [string]: any }, t: number)
+local function tunnelStep(o: { [string]: any })
 	local lane = o.lane
-	if not lane then
+	local r = root()
+	if not lane or not r then
 		return
 	end
 	ensureFolder()
 	local S = O.subway
 	for k, c in lane.collapses do
-		local ceil = Vector3.new(lane.x, lane.floorY + S.height - S.slab / 4, c.z)
-		local floor = Vector3.new(lane.x, lane.floorY, c.z)
-		if not slabs[k] and t >= c.t - S.warn then
+		-- kid-proof: the tunnel caves in BEHIND the hero (OpeningPlan.slabFalls), every run the same
+		if not slabs[k] and OpeningPlan.slabFalls(Config, lane, k, r.Position.Z) then
+			local ceil = Vector3.new(lane.x, lane.floorY + S.height - S.slab / 4, c.z)
+			local floor = Vector3.new(lane.x, lane.floorY, c.z)
 			local slab = part(
 				Vector3.new(S.width - 1, 3, S.slab),
 				CFrame.new(ceil),
@@ -865,25 +869,19 @@ local function tunnelStep(o: { [string]: any }, t: number)
 				Enum.Material.Slate
 			)
 			slabs[k] = slab
-			CombatFx.warn(floor, S.width / 2, math.max(0.1, c.t - t))
-			-- the ceiling cracks: a little dust, then it drops
-			task.delay(math.max(0, c.t - t), function()
+			TweenService:Create(slab, TweenInfo.new(0.22, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+				CFrame = CFrame.new(floor + Vector3.new(0, S.rubble / 2, 0)),
+				Size = Vector3.new(S.width - 1, S.rubble, S.slab),
+			}):Play()
+			task.delay(0.24, function()
 				if not slab.Parent then
 					return
 				end
-				TweenService
-					:Create(slab, TweenInfo.new(0.22, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
-						CFrame = CFrame.new(floor + Vector3.new(0, S.rubble / 2, 0)),
-						Size = Vector3.new(S.width - 1, S.rubble, S.slab),
-					})
-					:Play()
-				task.delay(0.24, function()
-					slab.CanCollide = true -- solid on this device: Leap over the pile
-					slab.CanQuery = true
-					CombatFx.burst(floor + Vector3.new(0, 2, 0), "Comic")
-					AudioController.play("collapse", floor)
-					CameraController.shake(0.35, 0.6)
-				end)
+				slab.CanCollide = true -- the way back is shut
+				slab.CanQuery = true
+				CombatFx.burst(floor + Vector3.new(0, 2, 0), "Comic")
+				AudioController.play("collapse", floor)
+				CameraController.shake(0.35, 0.6)
 			end)
 		end
 	end
@@ -1014,7 +1012,76 @@ end
 -- Each beat and each frame
 ---------------------------------------------------------------------------
 
+---------------------------------------------------------------------------
+-- The quiet world (kid-proof, nate's playtest 2026-11-18): while the prologue runs this device draws only the
+-- story: no other heroes (bodies, plates, casts), no city robots or their shots, no city citizens. The server
+-- keeps the same rule for hits (EnemySim's solo rule), so nothing unseen can touch the hero.
+---------------------------------------------------------------------------
+
+local quiet = false
+local mine: { [number]: boolean } = {}
+local veiled: { [Instance]: number } = {} -- parts and decals made invisible here, with their old modifier
+local nextVeil = 0
+
+local function veilOthers(on: boolean)
+	local pg = player:FindFirstChildOfClass("PlayerGui")
+	for _, p in Players:GetPlayers() do
+		if p ~= player then
+			local plate = pg and pg:FindFirstChild("Plate_" .. p.UserId)
+			if plate and plate:IsA("BillboardGui") then
+				plate.Enabled = not on
+			end
+			local char = p.Character
+			if on and char then
+				for _, d in char:GetDescendants() do
+					if (d:IsA("BasePart") or d:IsA("Decal")) and not veiled[d] then
+						veiled[d] = d.LocalTransparencyModifier
+						d.LocalTransparencyModifier = 1
+					end
+				end
+			end
+		end
+	end
+	if not on then
+		for d, was in veiled do
+			if d.Parent then
+				(d :: any).LocalTransparencyModifier = was
+			end
+		end
+		table.clear(veiled)
+	end
+end
+
+local function setQuiet(on: boolean)
+	table.clear(mine)
+	for _, id in (if on then StoryClient.opening.mine else nil) or {} do
+		mine[id] = true
+	end
+	if on == quiet then
+		return
+	end
+	quiet = on
+	CitizenRenderer.hidden = on
+	EnemyRenderer.only = if on
+		then function(id: number): boolean
+			return mine[id] == true
+		end
+		else nil
+	CombatClient.hideEnemy = if on
+		then function(id: number): boolean
+			return not mine[id]
+		end
+		else nil
+	CombatClient.hideCaster = if on
+		then function(_: number): boolean
+			return true
+		end
+		else nil
+	veilOthers(on)
+end
+
 local function onState()
+	setQuiet(StoryClient.openingStep() ~= nil)
 	local o = StoryClient.opening
 	local step = StoryClient.openingStep()
 	if not step then
@@ -1092,6 +1159,10 @@ local function frame(dt: number)
 	if not step then
 		return
 	end
+	if quiet and os.clock() >= nextVeil then
+		nextVeil = os.clock() + 0.5 -- heroes who join or respawn mid-prologue are veiled too
+		veilOthers(true)
+	end
 	local o = StoryClient.opening
 	local t = StoryClient.beatTime()
 	local now = os.clock()
@@ -1153,7 +1224,7 @@ local function frame(dt: number)
 	end
 	suitStep(now)
 	if step == "tunnel" then
-		tunnelStep(o, t)
+		tunnelStep(o)
 	end
 	if step == "rescue" then
 		rescueStep(t)
@@ -1175,6 +1246,20 @@ function PrologueFx.init()
 			onState()
 		end
 	end)
+	-- the guided hops (kid-proof): on the leap, the chase and the descend, a Leap from the ground is a set arc to
+	-- the beat's target (the next roof, or the subway steps from the last roof); the server granted the travel
+	MoveController.hopAssist = function(): (Vector3?, number, number)
+		local step = StoryClient.openingStep()
+		local o = StoryClient.opening
+		local r = root()
+		local to = o.target
+		if not step or not OpeningPlan.HOPS[step] or not to or not r then
+			return nil, 0, 0
+		end
+		local p = r.Position
+		local time, height = OpeningPlan.hopArc(Config, { p.X, p.Y, p.Z }, to)
+		return Vector3.new(to[1], to[2] + 3, to[3]), time, height
+	end
 	MoveController.Leaped:Connect(function()
 		if StoryClient.openingStep() == "leap" then
 			slowLeap(StoryClient.opening)

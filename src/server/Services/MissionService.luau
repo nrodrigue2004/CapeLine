@@ -1045,6 +1045,7 @@ local function release(run: Run)
 	dropKept(run)
 	if busy[run.pocket] == run then
 		busy[run.pocket] = nil
+		EnemyService.usePocket(run.pocket, nil)
 	end
 	run.model:Destroy()
 	for _, p in table.clone(run.members) do
@@ -1245,6 +1246,7 @@ local function begin(
 		away = if tf then {} else nil,
 	}
 	busy[pocket] = run
+	EnemyService.usePocket(pocket, run.layout) -- its walls and ceilings stop robots (and their fliers)
 	for i, p in members do
 		runs[p] = run
 		heroes[p].scene = "mission"

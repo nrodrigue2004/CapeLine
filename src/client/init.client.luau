@@ -203,6 +203,7 @@ CinemaClient.context = function()
 		downed = player:GetAttribute("Downed") == true,
 		pvp = player:GetAttribute("Pvp") == true,
 		boss = inBoss,
+		story = StoryClient.inOpening(), -- the prologue plays only its own story (nate's playtest 2026-11-18)
 	}
 end
 Telemetry.init()

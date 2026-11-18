@@ -57,6 +57,21 @@ return {
 			descend = "SUBWAY",
 			tunnel = "RUN",
 		},
+		-- kid-proof (nate's playtest 2026-11-18): one short instruction on screen for every beat the hero plays,
+		-- big and always there until the beat is done; {Action} is that action's key or button on this device
+		hints = {
+			run = "Run to the gold marker!",
+			spark = {
+				hero = "The kid is in danger! Press {Basic} to save them!",
+				villain = "That guy shoved you! Press {Basic} to fight back!",
+			},
+			leap = "Press {Leap} to jump to the next roof!",
+			chase = "Press {Leap} to jump! Keep going roof to roof!",
+			descend = "Press {Leap} to jump down to the subway!",
+			tunnel = "RUN! The tunnel is falling down!",
+			fight = "Fight Skylance! Press {Basic} to attack!",
+			swarm = "Keep fighting! Help is coming!",
+		},
 		-- a player-paced beat that ends before its lines are heard hands at most `carry` of them to the next
 		-- player-paced beat (a line is heard once it showed `heard` of its reading time); none into a camera beat
 		carry = 2,

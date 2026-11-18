@@ -2114,6 +2114,9 @@ end
 
 -- Drawn enemies for aiming and the target hint; cloaked Sneak Bots and disguised Mimics are left out of
 -- auto-aim
+-- Draw only the robots this says yes to (the prologue's quiet world: only its own story's robots; nil: all)
+EnemyRenderer.only = nil :: ((id: number) -> boolean)?
+
 function EnemyRenderer.each(): { [number]: Vector3 }
 	local out = {}
 	for id, body in live do
@@ -2408,9 +2411,12 @@ local function render()
 	table.clear(ids)
 	table.clear(dists)
 	table.clear(keep)
+	local only = EnemyRenderer.only
 	for id, r in newest do
-		dists[id] = (Vector3.new(r.x, r.y, r.z) - cam).Magnitude
-		table.insert(ids, id)
+		if not only or only(id) then
+			dists[id] = (Vector3.new(r.x, r.y, r.z) - cam).Magnitude
+			table.insert(ids, id)
+		end
 	end
 	if #ids > limit then
 		table.sort(ids, nearer)
