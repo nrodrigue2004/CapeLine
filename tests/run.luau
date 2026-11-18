@@ -21892,6 +21892,43 @@ do
 		check(PeopleLooks.helperAt(Config, "HeroAcademy", 1, "both") == nil, "only at her step")
 	end)
 
+	-- Robot looks (2026-11-18, overnight item 11): no robot type is left without a Roblox look of its own
+	test("Robot looks: every robot type has a drawn Roblox-look outfit", function()
+		local kinds = 0
+		for _, kind in Config.Enemies.order do
+			local cfg = Config.Enemies[kind]
+			kinds += 1
+			if cfg.twin then
+				-- the evil twin wears the exact look of the player it copies
+				check(cfg.fake ~= nil, "the twin is a fake")
+			elseif cfg.fake then
+				-- a famous fake or a costumed villain: its own hero suit, face and cracked face (Shared.PeopleLooks)
+				local p = NL.people[kind]
+				check(p ~= nil and p.clothes ~= nil, kind .. " has a suit of its own")
+				check(fs.isFile("art/export/clothes/people/" .. kind .. ".png"), kind .. "'s suit is drawn")
+			else
+				local r = NL.robots[kind]
+				check(r ~= nil, kind .. " has uniforms")
+				for _, v in NL.versions do
+					local file = if kind == "SparkDrone" and v == "Grunt"
+						then "art/export/clothes/Trooper_Clothes.png"
+						else "art/export/clothes/uniforms/" .. kind .. "_" .. v .. ".png"
+					check(fs.isFile(file), kind .. " " .. v .. " is drawn")
+				end
+			end
+		end
+		check(kinds == 31, "all 31 robot types checked")
+		for _, fake in { "Radiant", "Bulwark", "Skylance" } do
+			local p = NL.people[fake]
+			check(p and p.face ~= nil and p.cracked ~= nil, fake .. " has a famous face and its cracked face")
+			check(fs.isFile("art/export/clothes/people/Face_" .. fake .. ".png"), fake .. "'s face is drawn")
+			check(PeopleLooks.villain(nil, fake) == fake, fake .. " wears its own row")
+		end
+		-- a Salt Dog's bandana is cloth: it breaks off with the head's shell
+		local er = readFile("src/client/Controllers/EnemyRenderer.luau")
+		check(string.find(er, 'Bandana = { "Head" }', 1, true) ~= nil, "the bandana goes with the head")
+	end)
+
 	test("Art pass: every outfit and face is drawn, and the finale models' config is sound", function()
 		for id, p in NL.people do
 			check(fs.isFile("art/export/clothes/people/" .. id .. ".png"), id .. "'s outfit is drawn")

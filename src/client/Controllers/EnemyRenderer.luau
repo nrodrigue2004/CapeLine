@@ -242,6 +242,9 @@ local TIES: { [string]: { string } } = {
 	CrackLine1 = { "Head" },
 	CrackLine2 = { "Head" },
 	CrackLine3 = { "Head" },
+	-- a Salt Dog's bandana is cloth on the head's shell: it goes with the head
+	Bandana = { "Head" },
+	BandanaKnot = { "Head" },
 }
 -- a side quest finale model's extras go with their R15 part (Config.FinaleArt, art/blender/finales.py)
 for _, fa in Config.FinaleArt do
