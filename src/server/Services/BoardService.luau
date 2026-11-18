@@ -84,7 +84,7 @@ local function pass(all: boolean?)
 	BoardKeys.sweep(B, batch, os.clock())
 end
 
--- Count n on a board for this player (BoardKeys.STATS ids: BossMvp, Rescues, PvpWins)
+-- Count n on a board for this player (a Config.Boards id: BossMvp, Rescues, PvpWins)
 function BoardService.add(player: Player, id: string, n: number?)
 	local counts = countsOf(player)
 	if not counts or not BoardKeys.board(B, id) then

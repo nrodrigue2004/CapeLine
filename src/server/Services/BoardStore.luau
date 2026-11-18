@@ -30,6 +30,7 @@ type Read = { time: number, entries: { BoardKeys.Entry }, final: boolean }
 local stores: { [string]: OrderedDataStore } = {}
 local memory: { [string]: { [number]: number } } = {}
 local cache: { [string]: Read } = {}
+local reading: { [string]: boolean } = {} -- reads in flight
 local names: { [number]: string } = {}
 local friendSets: { [Player]: { [number]: boolean } } = {}
 
@@ -97,6 +98,16 @@ function BoardStore.read(week: number, board: string, count: number, final: bool
 	if hit and (hit.final or os.clock() - hit.time < B.cacheSeconds) then
 		return hit.entries
 	end
+	-- one read at a time per board: the others wait for it (many players opening at once cost one read)
+	local waitUntil = os.clock() + 10
+	while reading[key] and os.clock() < waitUntil do
+		task.wait(0.1)
+	end
+	hit = cache[key]
+	if hit and (hit.final or os.clock() - hit.time < B.cacheSeconds) then
+		return hit.entries
+	end
+	reading[key] = true
 	local entries: { BoardKeys.Entry }? = nil
 	if BoardStore.memoryMode() then
 		local list = {}
@@ -131,6 +142,7 @@ function BoardStore.read(week: number, board: string, count: number, final: bool
 			end
 		end
 	end
+	reading[key] = nil
 	if entries == nil then
 		return if hit then hit.entries else nil
 	end
