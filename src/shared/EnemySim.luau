@@ -2546,6 +2546,13 @@ function EnemySim.dying(sim: Sim, id: number): boolean
 	return false
 end
 
+-- Gone for good: not alive and not dying (its Killed is not on the way). A goal that respawns or fails a
+-- missing robot waits for this, so a kill in the drain gap still counts (2026-11-18: bounty, Your double)
+function EnemySim.gone(sim: Sim, id: number): boolean
+	local e = sim.byId[id]
+	return not (e and e.alive) and not EnemySim.dying(sim, id)
+end
+
 function EnemySim.drainEvents(sim: Sim): { any }
 	local ev = sim.events
 	sim.events = {}

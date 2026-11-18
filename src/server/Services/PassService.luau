@@ -18,6 +18,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Net = require(Shared:WaitForChild("Net"))
+local BossMath = require(Shared:WaitForChild("BossMath"))
 local PassRules = require(Shared:WaitForChild("PassRules"))
 local ProfileSchema = require(Shared:WaitForChild("ProfileSchema"))
 
@@ -248,8 +249,9 @@ function PassService.init()
 		PassService.xp(player, P.xp.taskForce, "taskForce", "mission")
 		PassService.count(player, "taskForce")
 	end)
-	BossService.Rewarded:Connect(function(player: Player, _bossId: any, tier: number, defeated: boolean)
-		if tier and tier >= 1 then
+	BossService.Rewarded:Connect(function(player: Player, _bossId: any, tier: string, defeated: boolean)
+		-- the tier is a string ("mvp" .. "floor"); comparing it with a number threw out of the boss's reward loop
+		if BossMath.tookPart(tier) then
 			PassService.xp(player, P.xp.boss, if defeated then "boss" else nil, "boss")
 			PassService.count(player, "boss")
 		end

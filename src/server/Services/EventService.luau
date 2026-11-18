@@ -190,11 +190,17 @@ local function addRobots(ev: Live, row: { any }, at: Vector3, ring: number?): { 
 	if not r then
 		return set
 	end
+	local got = 0
 	for _, id in SiteKit.squad({ r }, at, robotLevel(ev), ev.tag, ring) do
 		set[id] = true
 		ev.robots[id] = true
 		byRobot[id] = ev.id
 		table.insert(ev.things, id)
+		got += 1
+	end
+	if ev.goal == "robots" then
+		-- the server cap spawned fewer: the goal (every wave's robots) drops by the ones that never came
+		ev.need = EventPlan.shortNeed(ev.need, r.n, got)
 	end
 	return set
 end
@@ -1129,11 +1135,12 @@ local function stepEvent(ev: Live, now: number, dt: number)
 		end
 		ev.have = done
 	elseif goal == "twin" and ev.twin and ev.have < 1 then
-		-- the marker and the help radius follow the twin; a twin removed some other way ends it
+		-- the marker and the help radius follow the twin; a twin removed some other way ends it. A beaten
+		-- twin whose Killed has not fired yet is dying, not gone: that one is a win (2026-11-18 fix)
 		local e = EnemyService.get(ev.twin)
 		if e and e.alive then
 			ev.pos = Vector3.new(e.x, e.y, e.z)
-		else
+		elseif EnemyService.gone(ev.twin) then
 			finish(ev, false)
 			return
 		end

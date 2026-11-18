@@ -50,6 +50,18 @@ end
 
 export type Ledger = { [number]: { damage: number, support: number, objectives: number } }
 
+-- The ledger without heroes who left the server (here(id) false): they no longer take an MVP or Contributor
+-- slot, nor move the median, at the fight's end or in the live standings (2026-11-18 fix)
+function BossMath.present(ledger: Ledger, here: (number) -> boolean): Ledger
+	local out = {}
+	for id, l in ledger do
+		if here(id) then
+			out[id] = l
+		end
+	end
+	return out
+end
+
 -- Contribution scores: 50% damage share + 30% support share + 20% objective share
 function BossMath.scores(Config: any, ledger: Ledger): { [number]: number }
 	local w = Config.Boss.contribution
@@ -131,15 +143,22 @@ local EARN = {
 local DROP = { mvp = "bossMvp", contributor = "bossContributor", participant = "bossParticipant" }
 BossMath.EARN = EARN
 
+-- Did a hero with this tier take part? Tiers are strings ("mvp" .. "floor"); anything else (nil, "", a
+-- number) is no (2026-11-18 fix: PassService compared the string with 1 and threw out of the reward loop)
+function BossMath.tookPart(tier: any): boolean
+	return type(tier) == "string" and EARN[tier] ~= nil
+end
+
 export type Reward = {
 	earn: string, -- the Economy.earn row
 	share: number, -- how much of that row is paid
 	drops: { string }, -- Loot sources rolled (the MVP also rolls the Contributor pieces)
 	style: boolean, -- rolls for the boss's cosmetic
 	page: boolean, -- the Rogues File page
+	fame: boolean, -- the tier's Fame or Infamy (EconomyService.Earned); a retreat pays none
 }
 
--- What a tier earns. defeated = false: the boss retreated (Credits consolation only)
+-- What a tier earns. defeated = false: the boss retreated (Credits consolation only, no Fame)
 function BossMath.reward(Config: any, tier: string, defeated: boolean): Reward
 	local r = Config.Boss.rewards
 	if not defeated then
@@ -149,6 +168,7 @@ function BossMath.reward(Config: any, tier: string, defeated: boolean): Reward
 			drops = {},
 			style = false,
 			page = false,
+			fame = false,
 		}
 	end
 	if tier == "floor" then
@@ -158,13 +178,14 @@ function BossMath.reward(Config: any, tier: string, defeated: boolean): Reward
 			drops = {},
 			style = false,
 			page = true,
+			fame = true,
 		}
 	end
 	local drops = { DROP[tier] }
 	if tier == "mvp" then
 		table.insert(drops, 1, DROP.contributor)
 	end
-	return { earn = EARN[tier], share = 1, drops = drops, style = true, page = true }
+	return { earn = EARN[tier], share = 1, drops = drops, style = true, page = true, fame = true }
 end
 
 -- Does this tier get the boss's cosmetic, and is it the shiny one? (rng: :chance)

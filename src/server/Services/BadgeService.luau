@@ -371,7 +371,7 @@ function BadgeService.init()
 			end
 		end
 	end)
-	BossService.Rewarded:Connect(function(player: Player, bossId: any, _tier: number, defeated: boolean)
+	BossService.Rewarded:Connect(function(player: Player, bossId: any, _tier: string, defeated: boolean)
 		if defeated then
 			BadgeService.bump(player, "boss:" .. tostring(bossId))
 		end

@@ -85,6 +85,8 @@ export type Live = {
 	convoy: { ids: { number }, path: { Vector3 }, length: number, travelled: number }?,
 	tug: { car: Model, rope: BasePart, path: { Vector3 }, length: number, moved: number }?,
 	barrage: { huddles: { Vector3 }, nextAt: number, shell: { at: Vector3, lands: number, ring: Model }? }?,
+	-- a fight step whose squad the server cap stopped completely: try again every few seconds
+	retry: { rows: { any }, at: Vector3, ring: number, nextAt: number }?,
 }
 
 local live: { [number]: Live } = {}
@@ -408,6 +410,13 @@ local function endStep(inc: Live)
 	table.clear(inc.targets)
 	inc.convoy = nil
 	inc.barrage = nil
+	inc.retry = nil
+end
+
+-- A fight step that got no robots at all (the server cap): its goal comes when there is room, instead of
+-- the step waiting with nothing to beat until the deadline fails it (2026-11-18 fix)
+local function retryLater(inc: Live, rows: { any }, at: Vector3, ring: number)
+	inc.retry = { rows = rows, at = at, ring = ring, nextAt = os.clock() + IC.capRetry }
 end
 
 local function startStep(inc: Live)
@@ -436,6 +445,9 @@ local function startStep(inc: Live)
 		local ids = squad(inc, step.spawn :: any, here, ring, true)
 		-- the server cap may spawn fewer, a Swarmer brings its pack: every robot there counts
 		step.need = math.max(1, #ids)
+		if #ids == 0 then
+			retryLater(inc, step.spawn :: any, here, ring)
+		end
 		if tid == "VaultBreach" then
 			propAt(inc, "Vault")
 		elseif tid == "ShardCrate" then
@@ -456,6 +468,14 @@ local function startStep(inc: Live)
 				inc.targets[id] = true
 			end
 			step.need = math.max(1, #escort)
+			if #escort == 0 then
+				-- nobody came at all: the leader and the warband try again, every robot the goal
+				local rows = { { kind = step.leader :: string, n = 1 } }
+				for _, r in step.spawn :: any do
+					table.insert(rows, r)
+				end
+				retryLater(inc, rows, here, 16)
+			end
 		end
 	elseif step.kind == "find" then
 		-- the crowd: citizens standing about, the Mimic among them looking just like one
@@ -467,6 +487,9 @@ local function startStep(inc: Live)
 		end
 		local ids = squad(inc, step.spawn :: any, here, 7, true)
 		step.need = math.max(1, #ids)
+		if #ids == 0 then
+			retryLater(inc, step.spawn :: any, here, 7)
+		end
 	elseif step.kind == "convoy" then
 		local path, length = route(here.X, here.Z, row.legs or 6, IC.convoyLeg)
 		local spec = (step.spawn :: any)[1]
@@ -949,6 +972,16 @@ local function stepIncident(inc: Live, now: number, dt: number)
 		step = IncidentPlan.current(plan)
 		if not step or plan.failed or plan.done then
 			return
+		end
+	end
+	local rt = inc.retry
+	if rt and now >= rt.nextAt then
+		local ids = squad(inc, rt.rows, rt.at, rt.ring, true)
+		if #ids > 0 then
+			inc.retry = nil
+			step.need = #ids
+		else
+			rt.nextAt = now + IC.capRetry
 		end
 	end
 	if step.kind == "hold" then

@@ -897,8 +897,9 @@ local function stepRun(player: Player, r: Run, dt: number, pos: Vector3)
 			end
 		end
 	elseif t == "Bounty" and r.bountyAt then
-		-- keep the elite up until it falls (the server cap, or a respawn after a rejoin)
-		if (not r.bountyId or not EnemyService.alive(r.bountyId)) and now >= r.bountyRetry then
+		-- keep the elite up until it falls (the server cap, or a respawn after a rejoin); a beaten elite whose
+		-- Killed has not fired yet is dying, not gone: respawning it then lost the kill (2026-11-18 fix)
+		if (not r.bountyId or EnemyService.gone(r.bountyId)) and now >= r.bountyRetry then
 			r.bountyRetry = now + 5
 			local _, kind = ContractPlan.bounty(CC, r.saved.pick, r.saved.level, ready)
 			local id = EnemyService.spawnAt(kind, r.bountyAt, robotLevel(r) + def.elite.levelBonus, r.tag)
