@@ -236,6 +236,23 @@ return function(T: any)
 			string.find(svc, "ident.dress", 1, true) ~= nil,
 			"a dressed finale villain is not its suit's robot"
 		)
+		-- a dressed fake (a finale villain, or WP5's Suspicious Hero costumes in Config.Incidents.dress) never
+		-- counts as its suit's kind: every dress reads dress = true, and the identity is still there when Killed
+		-- fires (it is forgotten just after)
+		local FakeRules = require("../src/shared/FakeRules")
+		local dressed = 0
+		for _, set in { Config.SideQuests.dress or {}, (Config.Incidents :: any).dress or {} } do
+			for id in set do
+				local d = FakeRules.dress(Config, id)
+				check(d ~= nil and d.dress == true, id .. ": a dress reads dress = true")
+				dressed += 1
+			end
+		end
+		check(dressed > 0, "dresses were checked")
+		local es = fs.readFile("src/server/Services/EnemyService.luau")
+		local fire = string.find(es, "EnemyService.Killed:Fire(ev.kind, ev.by", 1, true)
+		local forget = fire and string.find(es, "forgetIdent(ev.e)", fire, true)
+		check(fire ~= nil and forget ~= nil, "the identity outlives the Killed signal")
 		check(string.find(svc, 'Net.on("RoguesOpen"', 1, true) ~= nil, "the tab asks for its pages")
 		local sq = fs.readFile("src/server/Services/SideQuestService.luau")
 		check(
