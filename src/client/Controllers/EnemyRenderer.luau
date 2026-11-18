@@ -735,6 +735,81 @@ local function makeRobot(typeId: number, ident: { [string]: any }?): Body
 			)
 		end
 	end
+	if body.hook then
+		-- Captain Brine's Salt Dogs (lore step 11, the Coast chain): a steel hook for the left hand and a red
+		-- bandana tied round the dome, its knot at the back (PLACEHOLDER ART)
+		local hand = size("LeftHand")
+		local steel = Color3.fromRGB(190, 195, 205)
+		add(
+			"HookShaft",
+			"LeftHand",
+			CFrame.new(0, -hand.Y * 0.9, 0),
+			Vector3.new(0.22, hand.Y * 1.2, 0.22),
+			steel,
+			M
+		)
+		add(
+			"HookCurve",
+			"LeftHand",
+			CFrame.new(0, -hand.Y * 1.5, -hand.Z * 0.35),
+			Vector3.new(0.2, 0.2, hand.Z * 0.9),
+			steel,
+			M
+		)
+		add(
+			"HookTip",
+			"LeftHand",
+			CFrame.new(0, -hand.Y * 1.3, -hand.Z * 0.8),
+			Vector3.new(0.2, hand.Y * 0.5, 0.2),
+			steel,
+			M
+		)
+		local red = Color3.fromRGB(210, 45, 45)
+		add("Bandana", "Head", CFrame.new(0, HD.Y * 0.3, 0), HD * Vector3.new(1.08, 0.2, 1.08), red, SKIN)
+		add(
+			"BandanaKnot",
+			"Head",
+			CFrame.new(0, HD.Y * 0.2, HD.Z * 0.6),
+			HD * Vector3.new(0.2, 0.28, 0.14),
+			red,
+			SKIN
+		)
+	end
+	if body.anchor then
+		-- Captain Brine's anchor, swung in the right hand: the shank, the stock across its top and the two flukes
+		-- at its foot (PLACEHOLDER ART)
+		local hand = size("RightHand")
+		local iron = Color3.fromRGB(70, 75, 85)
+		local len = h * 0.55
+		add("AnchorShank", "RightHand", CFrame.new(0, -len * 0.35, 0), Vector3.new(0.5, len, 0.5), iron, M)
+		add(
+			"AnchorStock",
+			"RightHand",
+			CFrame.new(0, len * 0.1, 0),
+			Vector3.new(len * 0.45, 0.4, 0.4),
+			iron,
+			M
+		)
+		for s = -1, 1, 2 do
+			add(
+				"AnchorFluke" .. (if s < 0 then "L" else "R"),
+				"RightHand",
+				CFrame.new(s * len * 0.2, -len * 0.8, 0) * CFrame.Angles(0, 0, math.rad(s * 40)),
+				Vector3.new(0.5, len * 0.35, 0.5),
+				iron,
+				M
+			)
+		end
+		add(
+			"AnchorRing",
+			"RightHand",
+			CFrame.new(0, len * 0.22, 0),
+			Vector3.new(0.3, hand.X * 1.2, hand.X * 1.2),
+			iron,
+			M,
+			Enum.PartType.Cylinder
+		)
+	end
 	if body.cape then
 		local capeH = (UT.Y + LT.Y) * 1.25
 		add(

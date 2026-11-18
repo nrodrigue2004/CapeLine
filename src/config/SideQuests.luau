@@ -72,6 +72,7 @@ return {
 			-- The Harvest King's chain (lore step 11, chain 4): his crop beast, then the King in his thresher suit
 			"Bramblebeast",
 			"HarvestKing",
+			"CaptainBrine", -- the Coast chain's pirate captain in his powered diving rig (The Salt Dogs)
 		},
 	},
 	pay = {
@@ -204,6 +205,22 @@ return {
 			reach = 700,
 			apart = { "Homestead" },
 			away = { safehouse = 160, beacon = 160, landmark = 450, site = 400 },
+		},
+		-- The Coast chain (The Salt Dogs): Gull Point Pier, the old ferry pier Captain Brine's crew raids, is an
+		-- existing coast tile's pier (Shared.WorldGen.COAST: a "pier" tile on the map's edge ring runs its deck
+		-- out over the sea, with the harbour hut at its end). The coast is seeded weekly too, so the pick is a rule
+		-- (Shared.SideQuestSites.outskirts with `shore`): of the coast tiles with that feature in `rings`, the one
+		-- nearest `near` (map studs) that keeps `away` studs from every safehouse pad, beacon, landmark, city
+		-- district and other chain site. The giver stands on the sand at the pier's foot. The west shore: far from
+		-- the Docks (the Syndicate's Foundry and the Spark crystal raid) and the south sea (the Coral Shelf, the
+		-- Trench). Inside Brine's sea cave is the "seacave" pocket (Shared.PocketLayout).
+		GullPier = {
+			name = "GULL POINT PIER",
+			district = "Coast",
+			shore = "pier",
+			near = { -2350, 450 }, -- the west shore, south of Radio Hill
+			rings = { 16, 16 }, -- piers stand on the edge ring only (their deck runs out over the sea)
+			away = { pad = 150, beacon = 150, landmark = 300, district = 200, site = 400 },
 		},
 	},
 
@@ -378,6 +395,45 @@ return {
 					hat = "Wide Brim",
 					neck = "Kerchief",
 					hands = "Work Gloves",
+					feet = "Boots",
+				},
+				tints = {},
+				mats = {},
+			},
+		},
+		-- The Salt Dogs' giver: Skipper Nell, who has run the Gull Point ferry for forty years. Captain Brine's crew
+		-- raided her ferry and carried off her deckhand grandson Finn. She wants Finn home and the ghost ship
+		-- stopped (the Vigil), or Brine's treasure split two ways with her ferry as the getaway boat (the Dread
+		-- Syndicate).
+		Nell = {
+			name = "SKIPPER NELL",
+			anchor = "site",
+			site = "GullPier",
+			color = { 90, 170, 220 },
+			style = "person",
+			blip = "guideInsider",
+			portrait = {
+				bg = { 30, 60, 90 },
+				skin = { 198, 140, 100 },
+				hair = { 225, 225, 230 },
+				shape = "slick",
+				extras = { "cap", "scar" },
+			},
+			look = {
+				gender = 2,
+				build = 2,
+				height = 2,
+				skin = 4,
+				hair = 40, -- bone white
+				colors = { 11, 18, 1 }, -- navy, white, red
+				pieces = {
+					shirt = "Knit Sweater",
+					pants = "Cargo Trousers",
+					visage = "Stern Face",
+					hair = "Braids",
+					hat = "Beanie",
+					neck = "Whistle",
+					back = "Field Coat",
 					feet = "Boots",
 				},
 				tints = {},
@@ -1538,6 +1594,280 @@ return {
 							who = "Dot",
 							hero = "Careful! Hurt that beast and he'll come for you himself.",
 							villain = "Beat his beast and he'll come out to fight. Then his vault's wide open.",
+						},
+					},
+				},
+			},
+		},
+
+		-- Coast chain (nate's lore, build plan step 11): The Salt Dogs. nate's draft: "Powered pirates raid ships
+		-- and hide treasure in sea caves. Captain Brine and the Salt Dogs crew." 8 quests (the draft's count).
+		-- Captain Brine was a salvage diver whose Spark woke in the deep: he moves the tide. He fights in a powered
+		-- brass diving rig and crews his ship with the Salt Dogs, old diving robots he patched up into pirates
+		-- (machines only). His "ghost ship" is a hologram projected off his mast so sailors panic and jump ship;
+		-- the plunder goes to his sea cave. The Vigil push the raiders off the pier, find the ferry's mate, get
+		-- the crew to safety, free Nell's grandson Finn from the cave, expose the ghost ship and guard the beach
+		-- while the ferries run; the Dread Syndicate grab the raided cargo, steal Brine's map, fence the haul, rob
+		-- his vault, run off with the ghost lights' crystals and dig up his buried caches. Both sink Brine at the
+		-- end. Standalone: no Crane in it.
+		{
+			id = "SaltDogs",
+			bit = 6,
+			name = "The Salt Dogs",
+			layer = "district",
+			district = "Coast",
+			giver = "Nell",
+			site = "GullPier",
+			unlock = { story = 2, level = 20 }, -- after Act 1's Safehouse, at the coast's level floor
+			villain = { name = "CAPTAIN BRINE", title = "CAPTAIN OF THE SALT DOGS" },
+			reward = { share = 3, title = "Brinebreaker", style = "TatteredSail" },
+			blurb = {
+				hero = "Robot pirates raid the ferries and a ghost ship sails out of the fog. A deckhand is gone.",
+				villain = "Captain Brine hides his plunder in a sea cave. A pirate's treasure, waiting for a thief.",
+			},
+			lines = {
+				offer = {
+					hero = "The Salt Dogs raided my ferry and took my grandson Finn. Every sailor's too scared to help. Will you?",
+					villain = "Brine's sea cave is full of other folks' plunder. My ferry's fast. Split it with me?",
+				},
+				resume = {
+					hero = "Back on the pier? Good. The tide won't wait, and neither will Finn.",
+					villain = "Back for the treasure? Brine hasn't moved it yet. Let's go.",
+				},
+				done = {
+					hero = "Finn's home, the ghost ship's a light show and Brine's rig is scrap. Free ferry rides, forever.",
+					villain = "Pirate gold, ghost lights and a sunk captain. You'd make a fine pirate. Don't tell Finn.",
+				},
+			},
+			steps = {
+				-- 1. Fog on Gull Point: Nell's story at the pier
+				{
+					hero = { kind = "talk", text = "Hear Skipper Nell out at Gull Point Pier" },
+					villain = { kind = "talk", text = "Get Skipper Nell's tip at Gull Point Pier" },
+					scene = "gullPoint",
+					lines = {
+						{
+							who = "Nell",
+							hero = "A ghost ship rolls out of the fog, and the Salt Dogs strip my ferry bare. Last night they took Finn.",
+							villain = "Captain Brine stashes every raided crate in his sea cave. I know which cave. You've got the muscle.",
+						},
+						{
+							who = "patch",
+							hero = "A ghost ship? Ghosts don't show up on radar, and this one does. Something very solid is out there.",
+							villain = "Pirates with a robot crew and a cave full of loot? Honestly the best tip all week.",
+						},
+					},
+				},
+				-- 2. The raid on the pier / the raided cargo
+				{
+					hero = {
+						kind = "fight",
+						squads = { { "SaltDog", 6 } },
+						range = { 60, 150 },
+						text = "Fight off the Salt Dogs raiding the pier",
+					},
+					villain = {
+						kind = "fetch",
+						count = 3,
+						range = { 60, 180 },
+						guards = { "SaltDog", 3 },
+						text = "Grab the raided cargo before the Salt Dogs do",
+					},
+					lines = {
+						{
+							who = "patch",
+							hero = "Salt Dogs: old diving robots patched up as pirates. Hooks, bandanas, zero manners. Push them back!",
+							villain = "Those crates came off Nell's ferry. Grab them before the robot pirates haul them out to sea.",
+						},
+					},
+				},
+				-- 3. The mate who swam ashore / the robot with Brine's map
+				{
+					hero = {
+						kind = "find",
+						range = { 100, 250 },
+						witness = true,
+						text = "Find the ferry's mate who swam ashore",
+					},
+					villain = {
+						kind = "chase",
+						enemy = "SaltDog",
+						hops = 5,
+						speed = 20,
+						text = "Catch the Salt Dog carrying Brine's map",
+					},
+					lines = {
+						{
+							who = "Nell",
+							hero = "My mate Rook jumped overboard when they boarded. He swam for the dunes. Find him, please.",
+							villain = "One of those tin sailors carries Brine's treasure map. Don't let it reach the water!",
+						},
+						{
+							who = "lodestar",
+							hero = "Cold water, long swim. Check the dunes and the driftwood first, kid.",
+							villain = "A map to a pirate's treasure. Of course that's the part you heard.",
+						},
+					},
+				},
+				-- 4. Brine on his loudhailer; the ferry crew to safety / fence the haul
+				{
+					hero = {
+						kind = "escort",
+						goal = 160,
+						speed = 9,
+						near = 40,
+						text = "Get the ferry crew's van to the coast road",
+					},
+					villain = {
+						kind = "deliver",
+						range = { 150, 300 },
+						text = "Fence the raided cargo at the drop",
+					},
+					lines = {
+						{
+							who = "brine",
+							text = "Ahoy, landlubbers! Every crate on this coast belongs to Captain Brine. Hands off my plunder!",
+						},
+						{
+							who = "patch",
+							hero = "That voice is coming off a buoy speaker. Classic pirate move: yell from very far away.",
+							villain = "The fence pays double for anything with Brine's mark on it. Pirates have a brand. Who knew?",
+						},
+					},
+				},
+				-- 5. Inside Brine's sea cave: the tide pools, the wharf and the hidden grotto under it
+				{
+					hero = {
+						kind = "pocket",
+						layout = "seacave",
+						minutes = 12,
+						text = "Sneak into Brine's sea cave",
+						villainText = "Raid Brine's treasure cave",
+						steps = {
+							{
+								kind = "defeat",
+								room = 1,
+								squads = { { "SaltDog", 6 } },
+								text = "Clear the Salt Dogs from the tide pools",
+								villainText = "Scrap the Salt Dog lookouts",
+							},
+							{
+								kind = "hold",
+								at = "wharf",
+								points = 1,
+								seconds = 20,
+								radius = 16,
+								waves = { { "SaltDog", 4 } },
+								waveGap = 10,
+								text = "Guard Finn on the wharf while Patch frees him",
+								villainText = "Hold the wharf while the vault lock drills",
+							},
+							{
+								kind = "reach",
+								at = "grotto",
+								text = "Climb down to Brine's hidden grotto",
+								villainText = "Follow the rock steps down to the treasure",
+							},
+							{
+								kind = "break",
+								list = "projectors",
+								points = 4,
+								hits = 3,
+								text = "Smash the ghost ship's hologram projectors",
+								villainText = "Rip the crystals out of the ghost projectors",
+							},
+							{
+								kind = "boss",
+								enemy = "SaltDog",
+								hpMult = 8,
+								adds = { "SaltDog", 3 },
+								text = "Beat the Salt Dogs' iron bosun",
+								villainText = "Scrap the iron bosun for parts",
+							},
+						},
+					},
+					villain = "same",
+					scene = "brineLegend",
+					lines = {
+						{
+							who = "Nell",
+							hero = "Finn's in that cave, I can hear him banging on a cage. Hold on, Finn. Help's coming.",
+							villain = "Brine's vault is at the back of the cave. Finn's in there too. Grab him on the way out?",
+						},
+					},
+				},
+				-- 6. Out of the cave: Finn home / the ghost lights' crystals; Finn tells the ghost ship's secret
+				{
+					hero = {
+						kind = "carry",
+						range = { 80, 160 },
+						text = "Fly Finn to the lifeboat station",
+					},
+					villain = {
+						kind = "race",
+						checkpoints = 4,
+						gap = 60,
+						time = 45,
+						text = "Race the stolen crystals past the tide",
+					},
+					lines = {
+						{
+							who = "finn",
+							hero = "The ghost ship? It's just lights! Brine shines it off his mast so sailors panic and jump ship.",
+							villain = "You smashed his ghost lights? Brine's going to be SO mad. Can I watch? From really far away?",
+						},
+						{
+							who = "brine",
+							text = "My ghost lights! My beautiful ghost lights! You'll be swimming with the crabs for that!",
+						},
+					},
+				},
+				-- 7. The ferries run for harbour / Brine's buried caches
+				{
+					hero = {
+						kind = "hold",
+						seconds = 20,
+						radius = 10,
+						text = "Hold the beach while the ferries get clear",
+					},
+					villain = {
+						kind = "fetch",
+						count = 3,
+						range = { 60, 160 },
+						guards = { "SaltDog", 2 },
+						text = "Dig up Brine's buried treasure caches",
+					},
+					lines = {
+						{
+							who = "Nell",
+							hero = "Every ferry on this coast is running for harbour. Keep the Salt Dogs off the beach till they're clear!",
+							villain = "Brine buries the best stuff in the sand. Three X marks. The man really commits to the bit.",
+						},
+						{
+							who = "lodestar",
+							hero = "The tide's turning. When Brine comes, he comes in with it. Be ready.",
+							villain = "You're robbing a pirate. Just remember who taught you to watch your back.",
+						},
+					},
+				},
+				-- 8. The finale: Captain Brine rides the tide in, in his powered diving rig
+				{
+					hero = {
+						kind = "finale",
+						enemy = "CaptainBrine",
+						hpMult = 3,
+						adds = { { "SaltDog", 4 } },
+						range = { 60, 140 },
+						text = "Sink Captain Brine's powered diving rig",
+						villainText = "Take down Captain Brine and claim his hoard",
+					},
+					villain = "same",
+					scene = "brineRig",
+					lines = {
+						{
+							who = "brine",
+							hero = "You freed my prisoner AND broke my ghost? Then face the real thing: Captain Brine himself!",
+							villain = "Thieves robbing a pirate? Bold! Now taste the tide, you barnacles!",
 						},
 					},
 				},

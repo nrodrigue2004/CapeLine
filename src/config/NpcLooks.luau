@@ -149,5 +149,14 @@ return {
 			clothes = { Grunt = 0, Veteran = 0, Elite = 0 },
 			hair = { "Pal", "BrownCharmer", "BlackPonytail" },
 		},
+		-- Captain Brine's Salt Dogs (lore step 11, the Coast chain): each version a rank of the robot crew, a
+		-- striped deckhand's jersey with a rope belt (Grunt), a gunner's navy pea coat with brass buttons
+		-- (Veteran) and the bosun's red coat with gold braid and a whistle chain (Elite), each with the crew's
+		-- crossed-hooks patch. 0 until nate uploads art/export/clothes/uniforms/SaltDog_<Version>.png (PLACEHOLDER
+		-- ART until then)
+		SaltDog = {
+			clothes = { Grunt = 0, Veteran = 0, Elite = 0 },
+			hair = { "BlackPonytail", "LongRed", "Pal" },
+		},
 	},
 }

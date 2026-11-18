@@ -692,6 +692,58 @@ local function outward(w: any, tx: number, tz: number): (number, number)
 	return 0, 1
 end
 
+-- The coast tiles' features by variant (0 to 3), so a side quest site can ask for one by name (lore step 11:
+-- The Salt Dogs' pier)
+WorldGen.COAST = { "beach", "pier", "lighthouse", "dunes" }
+
+-- A pier: its deck's centre and size, its length out over the sea, the way out (ox, oz), its foot (where the
+-- deck meets the sand) and the harbour hut at its far end
+export type Pier = {
+	x: number,
+	z: number,
+	sx: number,
+	sz: number,
+	len: number,
+	ox: number,
+	oz: number,
+	foot: { number },
+	hut: { number },
+}
+
+local PIER_LEN = 140
+
+-- A pier tile's pier (only the map's edge tiles have one; nil elsewhere)
+local function pierAt(w: any, tx: number, tz: number, x0: number, z0: number, size: number): Pier?
+	if not (tx == 0 or tz == 0 or tx == w.tiles - 1 or tz == w.tiles - 1) then
+		return nil
+	end
+	local cx, cz = x0 + size / 2, z0 + size / 2
+	local ox, oz = outward(w, tx, tz)
+	local len = PIER_LEN
+	local px, pz = cx + ox * (size / 2 + len / 2 - 30), cz + oz * (size / 2 + len / 2 - 30)
+	return {
+		x = px,
+		z = pz,
+		sx = if ox ~= 0 then len else 12,
+		sz = if oz ~= 0 then len else 12,
+		len = len,
+		ox = ox,
+		oz = oz,
+		foot = { px - ox * len / 2, pz - oz * len / 2 },
+		hut = { px + ox * len * 0.4, pz + oz * len * 0.4 },
+	}
+end
+
+-- The pier on tile (tx, tz) when that tile is a coast "pier" tile on the edge ring, else nil (lore step 11)
+function WorldGen.pier(cityCfg: any, w: any, tiles: buffer, tx: number, tz: number): Pier?
+	local t = WorldGen.get(w, tiles, tx, tz)
+	if t.zone ~= w.zones.coast or WorldGen.COAST[t.variant + 1] ~= "pier" then
+		return nil
+	end
+	local x0, z0 = WorldGen.tileOrigin(cityCfg, tx, tz)
+	return pierAt(w, tx, tz, x0, z0, cityCfg.tile)
+end
+
 local function coastTile(
 	list: { Box },
 	w: any,
@@ -733,15 +785,13 @@ local function coastTile(
 	elseif t.variant == 1 then
 		-- a pier out over the water on the edge tiles, a boardwalk inland
 		if edge then
-			local len = 140
-			local px, pz = cx + ox * (size / 2 + len / 2 - 30), cz + oz * (size / 2 + len / 2 - 30)
-			local sx = if ox ~= 0 then len else 12
-			local sz = if oz ~= 0 then len else 12
-			box(list, "prop", px, gy + 2, pz, sx, 1, sz, "wood")
+			local p = pierAt(w, tx, tz, x0, z0, size) :: Pier
+			local px, pz, len = p.x, p.z, p.len
+			box(list, "prop", px, gy + 2, pz, p.sx, 1, p.sz, "wood")
 			for k = -1, 1, 2 do
 				box(list, "prop", px + ox * k * len * 0.3, gy - 2, pz + oz * k * len * 0.3, 2, 8, 2, "wood")
 			end
-			box(list, "building", px + ox * len * 0.4, gy + 6, pz + oz * len * 0.4, 10, 8, 10, "white")
+			box(list, "building", p.hut[1], gy + 6, p.hut[2], 10, 8, 10, "white")
 		else
 			box(
 				list,

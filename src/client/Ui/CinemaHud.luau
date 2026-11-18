@@ -335,6 +335,75 @@ local function picture(parent: Frame, p: any)
 			box(parent, 0.5 + i * 0.06 - 0.02, 0.17, 0.04, 0.05, Color3.fromRGB(255, 250, 200), 64)
 		end
 		box(parent, 0.08, 0.56, 0.16, 0.16, Color3.fromRGB(190, 50, 40), 63)
+	elseif kind == "pier" then
+		-- Gull Point Pier (The Salt Dogs): a plank pier on posts over the sea, the harbour hut at its end, a diver
+		-- in a brass helmet climbing up the ladder
+		local wood = Color3.fromRGB(150, 105, 65)
+		local deck = box(parent, 0.08, 0.56, 0.84, 0.05, wood, 62)
+		Kit.stroke(deck, ink, 2)
+		for i = 0, 4 do
+			box(parent, 0.12 + i * 0.18, 0.61, 0.025, 0.3, wood:Lerp(ink, 0.3), 61)
+		end
+		local hut = box(parent, 0.66, 0.36, 0.2, 0.2, Color3.fromRGB(245, 245, 250), 62)
+		Kit.stroke(hut, ink, 2)
+		box(parent, 0.64, 0.32, 0.24, 0.05, Color3.fromRGB(210, 60, 50), 63)
+		local helm = box(parent, 0.3, 0.46, 0.1, 0.1, Color3.fromRGB(205, 160, 70), 64)
+		Kit.round(helm, 200)
+		Kit.stroke(helm, ink, 2)
+		local port = box(helm, 0.5, 0.5, 0.5, 0.5, Color3.fromRGB(150, 210, 255), 65)
+		port.AnchorPoint = Vector2.new(0.5, 0.5)
+		Kit.round(port, 200)
+	elseif kind == "salvage" then
+		-- the sea floor: three rusty diving robots standing up out of the sand, eyes lighting one by one
+		box(parent, 0, 0.82, 1, 0.18, Color3.fromRGB(170, 160, 130), 62)
+		for i = 0, 2 do
+			figure(parent, 0.22 + i * 0.28, Color3.fromRGB(140, 95, 65), true)
+		end
+		for i = 0, 5 do
+			local bubble = box(
+				parent,
+				0.15 + i * 0.13,
+				0.2 + (i % 3) * 0.08,
+				0.025,
+				0.04,
+				Color3.fromRGB(200, 235, 255),
+				65
+			)
+			Kit.round(bubble, 20)
+		end
+	elseif kind == "ghostship" then
+		-- the ghost ship in the fog: a glowing green-blue hull and sails, and on its mast the little projector
+		-- that makes it (the trick the Vigil expose)
+		local glow = Color3.fromRGB(120, 255, 220)
+		local hull = box(parent, 0.2, 0.52, 0.6, 0.14, glow, 62)
+		hull.BackgroundTransparency = 0.35
+		Kit.stroke(hull, glow, 2)
+		box(parent, 0.49, 0.14, 0.02, 0.38, Color3.fromRGB(90, 70, 50), 62)
+		for i = 0, 1 do
+			local sail = box(parent, 0.3 + i * 0.22, 0.18 + i * 0.04, 0.16, 0.26, glow, 61)
+			sail.BackgroundTransparency = 0.5
+		end
+		local lens = box(parent, 0.475, 0.1, 0.05, 0.05, Color3.fromRGB(255, 250, 200), 64)
+		Kit.round(lens, 200)
+		for i = 0, 3 do
+			local fog = box(parent, i * 0.26, 0.64, 0.3, 0.08, Color3.fromRGB(220, 230, 240), 63)
+			fog.BackgroundTransparency = 0.4
+			Kit.round(fog, 40)
+		end
+	elseif kind == "seacave" then
+		-- the sea cave's mouth over dark water, a treasure chest and gold on a rock shelf inside
+		local rock = Color3.fromRGB(90, 85, 80)
+		box(parent, 0, 0.1, 0.22, 0.9, rock, 62)
+		box(parent, 0.78, 0.1, 0.22, 0.9, rock, 62)
+		box(parent, 0, 0, 1, 0.16, rock, 62)
+		box(parent, 0.2, 0.78, 0.6, 0.22, Color3.fromRGB(30, 70, 100), 62)
+		local chest = box(parent, 0.4, 0.56, 0.2, 0.14, Color3.fromRGB(150, 100, 55), 63)
+		Kit.stroke(chest, ink, 2)
+		box(parent, 0.38, 0.5, 0.24, 0.07, Color3.fromRGB(130, 85, 45), 63)
+		for i = 0, 4 do
+			local coin = box(parent, 0.32 + i * 0.08, 0.7, 0.05, 0.04, Color3.fromRGB(255, 215, 80), 64)
+			Kit.round(coin, 20)
+		end
 	elseif kind == "crater" then
 		-- the empty crater under a still sky, broken stubs at its rim
 		local pit = box(parent, 0.5, 0.78, 0.8, 0.22, ink, 63)

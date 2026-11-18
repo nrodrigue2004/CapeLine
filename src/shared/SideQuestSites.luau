@@ -26,6 +26,9 @@
 --   keeps `away` studs from every safehouse, beacon, landmark centre, city district and every other chain site
 --   (Downtown ones, and outskirts ones earlier by id). The outskirts change weekly with the seed, so the shop
 --   does too; the same seed always picks the same shop. Its door is the front (outskirts buildings face +z).
+-- * shore(Config, world, id): a site on the seeded coast (a site with `shore`, the Coast chain's Gull Point
+--   Pier): of the coast tiles with that feature in `rings`, the pier whose foot is nearest `near` and keeps the
+--   same `away` distances; its way in is the sand at the pier's foot, facing inland. Weekly like the shop.
 
 local HqRules = if script then require(script.Parent.HqRules) else (require :: any)("./HqRules")
 local WorldGen = if script then require(script.Parent.WorldGen) else (require :: any)("./WorldGen")
@@ -138,9 +141,27 @@ end
 -- Outskirts sites (the seeded Suburbs)
 -----------------------------------------------------------------------------------------------------------
 
--- Is this site out in the outskirts (picked from a Suburbs lot) rather than in a Downtown building?
+-- Is this site out in the outskirts (picked from a Suburbs lot, or a coast tile's feature with `shore`) rather
+-- than in a Downtown building?
 function SideQuestSites.isOutskirts(st: any): boolean
-	return type(st) == "table" and st.lot ~= nil
+	return type(st) == "table" and (st.lot ~= nil or st.shore ~= nil)
+end
+
+-- Is this an outskirts site on the coast (a `shore` feature: The Salt Dogs' pier)?
+function SideQuestSites.isShore(st: any): boolean
+	return type(st) == "table" and st.shore ~= nil
+end
+
+-- A shore site's way in (lore step 11, the Coast chain): on the sand 14 studs in from the pier's foot (clear of
+-- the deck's 10-stud height cell), facing inland, where the giver stands
+function SideQuestSites.shoreDoor(b: any): Door
+	local p = b.pier
+	return { x = p.foot[1] - p.ox * 14, z = p.foot[2] - p.oz * 14, fx = -p.ox, fz = -p.oz }
+end
+
+-- A site's way in once its outskirts building (or pier) is known
+local function outskirtsDoor(st: any, b: any): Door
+	return if SideQuestSites.isShore(st) then SideQuestSites.shoreDoor(b) else SideQuestSites.frontDoor(b)
 end
 
 -- Distance from a point to a rectangle (0 inside it)
@@ -185,7 +206,8 @@ function SideQuestSites.outskirtsFits(
 ): boolean
 	local a = st.away
 	local gy = Config.City.ground.y
-	if b.h < st.height[1] or b.h > st.height[2] then
+	-- (a shore site's pier has no height rule: its deck is the beach's own)
+	if st.height and (b.h < st.height[1] or b.h > st.height[2]) then
 		return false
 	end
 	for _, s in world.safehouses do
@@ -215,8 +237,8 @@ function SideQuestSites.outskirtsFits(
 			return false
 		end
 	end
-	-- the way in is open ground (not a fence, a tree or the next lot's house)
-	local door = SideQuestSites.frontDoor(b)
+	-- the way in is open ground (not a fence, a tree or the next lot's house; for a pier, the sand at its foot)
+	local door = outskirtsDoor(st, b)
 	if world.heights and WorldMap.heightAt(world, door.x, door.z) > gy + 1.5 then
 		return false
 	end
@@ -232,6 +254,9 @@ function SideQuestSites.outskirts(Config: any, world: any, id: string): any?
 	local st = Config.SideQuests.sites[id]
 	if not SideQuestSites.isOutskirts(st) or not world or not world.tiles then
 		return nil
+	end
+	if SideQuestSites.isShore(st) then
+		return SideQuestSites.shore(Config, world, id) -- read from WorldGen, never the plans
 	end
 	local byWorld = outskirtsCache[world]
 	if byWorld and byWorld[id] ~= nil then
@@ -314,6 +339,47 @@ function SideQuestSites.pickOutskirts(Config: any, world: any, id: string, st: a
 	return best
 end
 
+-- A shore site's pier (lore step 11, the Coast chain: The Salt Dogs' Gull Point Pier), or nil: of the coast
+-- tiles in `rings` whose feature is `shore` (Shared.WorldGen.COAST; only "pier" has a placing rule), the one
+-- whose foot is nearest `near` and keeps every `away` distance (the same rule as a Suburbs lot). The record is
+-- { x, z (the pier's foot on the sand), sx, sz (its deck), h, top, tx, tz, pier }.
+function SideQuestSites.shore(Config: any, world: any, id: string): any?
+	local st = Config.SideQuests.sites[id]
+	if not SideQuestSites.isShore(st) or st.shore ~= "pier" or not world or not world.tiles then
+		return nil
+	end
+	local w = Config.World
+	local gy = Config.City.ground.y
+	local others = otherSites(Config, world, id)
+	local best, bestD = nil, math.huge
+	for tz = 0, w.tiles - 1 do
+		for tx = 0, w.tiles - 1 do
+			local ring = WorldGen.ring(w, tx, tz)
+			if ring >= st.rings[1] and ring <= st.rings[2] then
+				local p = WorldGen.pier(Config.City, w, world.tiles, tx, tz)
+				if p then
+					local b = {
+						x = p.foot[1],
+						z = p.foot[2],
+						sx = p.sx,
+						sz = p.sz,
+						h = 0,
+						top = gy + 2.5, -- the deck
+						tx = tx,
+						tz = tz,
+						pier = p,
+					}
+					local d = flat(b.x, b.z, st.near[1], st.near[2])
+					if d < bestD and SideQuestSites.outskirtsFits(Config, world, st, b, others) then
+						best, bestD = b, d
+					end
+				end
+			end
+		end
+	end
+	return best
+end
+
 -- A square site's open square (chain 2: The Gala Heist), or nil
 function SideQuestSites.square(Config: any, world: any, id: string): any?
 	local st = Config.SideQuests.sites[id]
@@ -342,7 +408,7 @@ function SideQuestSites.place(Config: any, world: any, id: string): (any?, Door?
 		if not b then
 			return nil, nil
 		end
-		return b, SideQuestSites.frontDoor(b)
+		return b, outskirtsDoor(st, b)
 	end
 	if st.square then
 		local o = SideQuestSites.square(Config, world, id)

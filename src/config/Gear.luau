@@ -575,6 +575,16 @@ return {
 				quest = "ClockworkPack",
 				color = { 205, 160, 70 },
 			},
+			-- side quest reward (lore step 11, The Salt Dogs): a long sea-worn cloak cut from the ghost ship's sail.
+			-- Never rolled.
+			{
+				n = 28,
+				name = "Tattered Sail",
+				shape = "longcape",
+				tier = "Story",
+				quest = "TatteredSail",
+				color = { 214, 206, 180 },
+			},
 			{ n = 4, name = "Light Wings", shape = "lightwings", tier = "Rare", color = { 255, 230, 140 } },
 			{
 				n = 30,

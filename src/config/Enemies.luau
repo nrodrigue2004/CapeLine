@@ -48,6 +48,9 @@ return {
 		-- The Harvest King's chain (lore step 11, chain 4): his crop beast and the King in his thresher suit
 		"Bramblebeast",
 		"HarvestKing",
+		-- the Coast chain's robot pirates and their captain (nate's lore, build plan step 11: The Salt Dogs)
+		"SaltDog",
+		"CaptainBrine",
 	},
 	scale = { hpPerLevel = 0.1, dmgBase = 20, dmgPerLevel = 4 },
 	SparkDrone = {
@@ -1177,6 +1180,113 @@ return {
 			eye = { 255, 220, 80 },
 			suit = { 200, 160, 50 },
 			trim = { 40, 100, 50 },
+		},
+	},
+	-- The Salt Dogs (nate's lore, build plan step 11: the Coast chain, Captain Brine's crew): old diving robots
+	-- Brine salvaged off the sea floor and patched up as pirate deckhands, with a steel hook for a hand and a red
+	-- bandana round the dome. They board in a rush, leap in and swipe; they burst into sparks, bolts and a
+	-- splash of sea water like any robot. Side quest only: never in the ambient mix or the open-world swaps.
+	-- The three uniform versions are the crew's ranks (Config.NpcLooks: Grunt a striped deckhand, Veteran a
+	-- gunner's navy coat, Elite the bosun's red coat). PLACEHOLDER ART: the hook and bandana are plain parts.
+	SaltDog = {
+		typeId = 28,
+		on = true,
+		name = "Salt Dog",
+		ai = "swarm",
+		hp = 90,
+		speed = 21,
+		aggro = 85,
+		attackRange = 4.5,
+		lunge = { range = 16, speed = 55, time = 0.35, every = 4 }, -- a boarding leap
+		bite = { every = 1.0 }, -- a hook swipe
+		coeff = 0.3,
+		attackWeight = 0.5, -- two deckhands count as one robot for the 6-on-one-hero cap
+		fleeBelow = 0,
+		radius = 2.2,
+		body = {
+			build = "normal",
+			height = 5.2,
+			metal = { 140, 95, 65 }, -- rusty diving-robot brass
+			eye = { 120, 230, 255 },
+			suit = { 40, 60, 110 },
+			trim = { 230, 60, 50 },
+			hook = true,
+		},
+	},
+	-- Captain Brine (the Coast chain's finale, boss-lite: Config.SideQuests.finale): a powered pirate, a salvage
+	-- diver whose Spark moves the tide, fighting in his powered brass diving rig (the machine-enemy rule, like
+	-- the Gala Heist's costumed villains: fake.costumed, so no face crack and no FAKE plate; the coat tears off
+	-- the rig over the last half of his health). The brute brain on Bulwark's attack numbers (the fakes' damage
+	-- band): his anchor slam with a warning ring, every 3rd slam a tide wave, and a charge riding a wave down a
+	-- lane. Never in the ambient mix or the swaps. PLACEHOLDER ART: the anchor he swings is plain parts.
+	CaptainBrine = {
+		typeId = 29,
+		on = true,
+		name = "Captain Brine",
+		fake = {
+			costumed = true,
+			title = "Captain of the Salt Dogs",
+			path = "Tide",
+			look = {
+				gender = 1,
+				build = 3, -- Heavy: the diving rig
+				height = 4,
+				skin = 3,
+				hair = 40, -- sea-salt white
+				colors = { 32, 27, 38 }, -- deep teal, bronze, maroon
+				pieces = {
+					suit = "Plated Suit",
+					back = "Duster Coat",
+					hat = "Wide Brim",
+					head = "Eye Patch",
+					beard = "Full Beard",
+					hands = "Armored Gauntlets",
+					feet = "Armored Boots",
+					shoulders = "Epaulettes",
+					emblem = "Cross",
+					hair = "Slicked Back",
+					visage = "Scarred Face",
+				},
+				tints = { back = { 38, 27, 0 } }, -- a maroon coat with bronze trim
+				mats = { suit = "Metal" },
+			},
+		},
+		ai = "brute",
+		hp = 2200,
+		speed = 15,
+		aggro = 100,
+		attackRange = 10, -- starts the anchor slam this close
+		slam = { radius = 10, windup = 0.8, every = 3 },
+		coeff = 2.8,
+		-- every 3rd slam is a tide wave instead: a wide ring (1.3 s warning) that misses heroes 4+ studs up
+		shockwave = { nth = 3, radius = 24, windup = 1.3, coeff = 2.5, height = 4 },
+		-- a hero 16 to 45 studs off: a lane shows for 0.9 s, then he rides a wave 40 studs down it
+		charge = {
+			min = 16,
+			range = 45,
+			every = 7,
+			windup = 0.9,
+			dist = 40,
+			width = 5,
+			coeff = 2.3,
+			stun = 0.4,
+		},
+		mitigation = 0.15,
+		ccResist = 0.6,
+		immune = { "knockup", "float" },
+		fleeBelow = 0,
+		radius = 4,
+		elite = true,
+		miniBoss = true,
+		body = {
+			build = "heavy",
+			gender = 1,
+			height = 7.5,
+			metal = { 180, 130, 70 },
+			eye = { 120, 230, 255 },
+			suit = { 20, 110, 120 },
+			trim = { 180, 120, 40 },
+			anchor = true,
 		},
 	},
 	-- The evil twin: a fake that beat a real hero and copies them: it wears that player's exact look (their

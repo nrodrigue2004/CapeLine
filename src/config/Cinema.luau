@@ -363,6 +363,78 @@ return {
 				},
 			},
 		},
+		-- The Salt Dogs (the Coast's side quest chain, lore step 11): fog over Gull Point Pier on step 1, the
+		-- legend of Captain Brine as a comic page on step 5, and Brine riding the tide in before the finale.
+		-- Bits 122 to 124 (Cinema.extraBits, after chain 4's)
+		gullPoint = {
+			bit = 122,
+			client = true,
+			seconds = 10,
+			shots = {
+				{
+					kind = "dolly",
+					t0 = 0,
+					t1 = 5,
+					from = { -40, 22, 30 },
+					to = { -6, 8, 18 },
+					at = { 0, 4, 0 },
+					at2 = { 0, 3, 0 },
+				},
+				{
+					kind = "orbit",
+					t0 = 5,
+					t1 = 10,
+					radius = 20,
+					height = 5,
+					yaw0 = -0.5,
+					yaw1 = 0.7,
+					lift = 3,
+				},
+			},
+			lines = {
+				{
+					at = 0.4,
+					who = "brine",
+					text = "Yo ho! Mind the fog, little ferries. The ghost ship of Captain Brine sails tonight!",
+				},
+				{
+					at = 5.5,
+					who = "Nell",
+					text = "Forty years on this pier, and I never believed in ghosts. Until the robots came with it.",
+				},
+			},
+		},
+		brineLegend = { bit = 123, client = true, seconds = 14, comic = "brineLegend" },
+		brineRig = {
+			bit = 124,
+			client = true,
+			seconds = 8,
+			shots = {
+				{ kind = "cut", t0 = 0, t1 = 3, from = { -18, 2, 18 }, at = { 0, 7, 0 } },
+				{
+					kind = "orbit",
+					t0 = 3,
+					t1 = 8,
+					radius = 20,
+					height = 5,
+					yaw0 = 0.4,
+					yaw1 = 1.8,
+					lift = 5,
+				},
+			},
+			lines = {
+				{
+					at = 0.3,
+					who = "brine",
+					text = "The tide answers to Captain Brine! Batten down, barnacles, here comes the big wave!",
+				},
+				{
+					at = 4,
+					who = "patch",
+					text = "A pirate in a powered diving suit, riding a wave. Sure. Why not. Sink him!",
+				},
+			},
+		},
 	},
 	missionBits = { base = 16, perMission = 8, missions = 13 }, -- bits 16 to 119
 	-- More named scenes once bits 0 to 15 were full (lore step 11, chain 4): the seen set's last 8 bits,
@@ -647,6 +719,47 @@ return {
 						ground = { 70, 90, 50 },
 						scene = "farm",
 						caption = "Now it's always hungry. But it's MINE. Nobody hurts what I made.",
+						at = 10.5,
+					},
+				},
+			},
+			-- The legend of Captain Brine (The Salt Dogs, step 5): Nell tells how the ghost ship works
+			brineLegend = {
+				title = "THE LEGEND OF CAPTAIN BRINE",
+				panels = {
+					{
+						rect = { 0.03, 0.12, 0.45, 0.4 },
+						sky = { 150, 200, 235 },
+						ground = { 60, 130, 180 },
+						scene = "pier",
+						caption = "Brine was a salvage diver off Gull Point. One day his Spark woke in the deep.",
+						at = 0,
+					},
+					{
+						rect = { 0.52, 0.12, 0.45, 0.4 },
+						sky = { 60, 70, 100 },
+						ground = { 30, 60, 90 },
+						scene = "salvage",
+						caption = "He pulled old diving robots off the sea floor and made them his crew.",
+						word = "CLANK!",
+						at = 3.5,
+					},
+					{
+						rect = { 0.03, 0.56, 0.45, 0.38 },
+						sky = { 40, 50, 70 },
+						ground = { 25, 50, 70 },
+						scene = "ghostship",
+						caption = "Then the ghost ship came out of the fog. Sailors jumped ship. Brine took the rest.",
+						word = "WOOOO!",
+						at = 7,
+					},
+					{
+						rect = { 0.52, 0.56, 0.45, 0.38 },
+						sky = { 30, 30, 40 },
+						ground = { 20, 30, 40 },
+						scene = "seacave",
+						caption = "Every crate goes to his sea cave. Nobody who went looking ever found it.",
+						word = "SPLASH!",
 						at = 10.5,
 					},
 				},

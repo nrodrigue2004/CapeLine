@@ -1137,12 +1137,14 @@ function SideQuestPlan.validate(Config: any): { string }
 		end
 		-- an outskirts site (a `lot` kind on the seeded Suburbs tiles, Shared.SideQuestSites.outskirts) or a
 		-- Downtown building; lore step 11, chain 4: a Farmland site (`farm` or `road`) on the Farmland tiles
-		local outskirts = st.lot ~= nil
+		-- (lore step 11, the Coast chain: or a coast tile's feature with `shore`, out on the coast's rings)
+		local shore = st.shore ~= nil
+		local outskirts = st.lot ~= nil or shore
 		local farmSite = st.farm ~= nil or st.road ~= nil
 		if
 			not table.find(SQ.districts, st.district)
 			or (not outskirts and not farmSite and not Config.City.districts[st.district])
-			or (outskirts and st.district ~= "Suburbs")
+			or (outskirts and st.district ~= (if shore then "Coast" else "Suburbs"))
 		then
 			table.insert(bad, w .. ": district " .. tostring(st.district))
 		end
@@ -1207,6 +1209,34 @@ function SideQuestPlan.validate(Config: any): { string }
 			local s = st.spot or { 0, 0 }
 			if type(s) ~= "table" or math.abs(s[1]) > half or math.abs(s[2]) > half then
 				table.insert(bad, w .. ": spot")
+			end
+		elseif shore then
+			-- a pier (the only coast feature with a placing rule, Shared.SideQuestSites.shore) on the coast's rings
+			local WorldGen = if script
+				then require((script :: any).Parent.WorldGen)
+				else (require :: any)("./WorldGen")
+			if type(st.near) ~= "table" or #st.near ~= 2 then
+				table.insert(bad, w .. ": near")
+			end
+			if st.shore ~= "pier" or not table.find(WorldGen.COAST, st.shore) then
+				table.insert(bad, w .. ": shore " .. tostring(st.shore) .. " is not a coast pier")
+			end
+			local r = st.rings
+			if
+				type(r) ~= "table"
+				or type(r[1]) ~= "number"
+				or type(r[2]) ~= "number"
+				or r[1] <= Config.World.rings.farmlandTo
+				or r[1] > r[2]
+				or r[2] > Config.World.hubFirst
+			then
+				table.insert(bad, w .. ": rings on the coast")
+			end
+			local a = st.away or {}
+			for _, k in { "pad", "beacon", "landmark", "district", "site" } do
+				if type(a[k]) ~= "number" or a[k] < 0 then
+					table.insert(bad, w .. ": away." .. k)
+				end
 			end
 		else
 			if type(st.near) ~= "table" or type(st.height) ~= "table" or st.height[1] > st.height[2] then
