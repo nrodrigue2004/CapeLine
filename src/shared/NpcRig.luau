@@ -23,6 +23,9 @@ export type Rig = {
 	motors: { [string]: Motor6D },
 	last: { [string]: CFrame },
 	layout: RigMath.Layout,
+	-- poses written over an Animator (NpcRig.over) and the Animator's own pose under each (NpcRig.animBase)
+	wrote: { [string]: CFrame },
+	base: { [string]: CFrame },
 }
 
 local GRIP = CFrame.Angles(-math.pi / 2, 0, 0)
@@ -178,7 +181,16 @@ function NpcRig.build(
 	end
 	local ac = Instance.new("AnimationController")
 	ac.Parent = model
-	return { model = model, root = root, parts = parts, motors = motors, last = {}, layout = layout }
+	return {
+		model = model,
+		root = root,
+		parts = parts,
+		motors = motors,
+		last = {},
+		layout = layout,
+		wrote = {},
+		base = {},
+	}
 end
 
 -- Fix an extra piece (a bone, a cape, a helmet) to one of the rig's parts, `c0` from that part's centre;
@@ -451,6 +463,43 @@ function NpcRig.rest(rig: Rig)
 		m.Transform = CFrame.identity
 		rig.last[joint] = CFrame.identity
 	end
+	table.clear(rig.wrote)
+	table.clear(rig.base)
+end
+
+-- Over an Animator (NpcLoco plays Roblox's own idle, walk and run on the rig; poses go on in PreSimulation,
+-- after the Animator): the joint's pose as the Animator set it this frame, or the last one it set when it
+-- left our own pose in place (so an offset on top never stacks up frame after frame)
+function NpcRig.animBase(rig: Rig, joint: string): CFrame
+	local m = rig.motors[joint]
+	if not m then
+		return CFrame.identity
+	end
+	local now = m.Transform
+	local wrote = rig.wrote[joint]
+	if wrote and now == wrote then
+		return rig.base[joint] or CFrame.identity
+	end
+	rig.base[joint] = now
+	return now
+end
+
+-- Write a joint's pose over the Animator: every frame (the Animator rewrites the joints it plays each frame,
+-- so NpcRig.turn's skip-if-unchanged would let its pose show through)
+function NpcRig.over(rig: Rig, joint: string, cf: CFrame)
+	local m = rig.motors[joint]
+	if m then
+		m.Transform = cf
+		rig.wrote[joint] = cf
+		rig.last[joint] = cf
+	end
+end
+
+-- The Animator stopped: forget what was written over it, so NpcRig.turn writes every joint again
+function NpcRig.overDone(rig: Rig)
+	table.clear(rig.wrote)
+	table.clear(rig.base)
+	table.clear(rig.last)
 end
 
 return NpcRig

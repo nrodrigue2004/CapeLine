@@ -1463,6 +1463,26 @@ return {
 		-- the perf pass: Config.Presets enemyPoseNear and enemyPoseEvery; these are the fallback)
 		poseNear = 120,
 		poseEvery = 3,
+		-- the ground walk (quality pass 2026-11-18, nate: "the enemies dont move properly"): robots on foot play
+		-- Roblox's own R15 idle, walk and run (made by Roblox, free in every experience; the clips Roblox's default
+		-- Animate gives every hero), blended by speed so the feet keep pace (Shared.LocoMath, Controllers.NpcLoco).
+		-- Aimed rifles, shield arms, crouches and the jaw and cape go on top; flyers, sentries, lunges, coils and
+		-- tumbles keep their code poses. Past `near` studs (per preset: Config.Presets enemyAnimNear) the cheaper
+		-- code walk plays, its stride matched to the speed too (LocoMath.phaseRate).
+		loco = {
+			on = true,
+			idle = "rbxassetid://507766388",
+			walk = "rbxassetid://913402848",
+			run = "rbxassetid://913376220",
+			still = 0.75, -- studs/s (per heightScale): slower is standing
+			walkAt = 6.4, -- the walk clip's own speed (Animate: 0.5 of 16 studs/s after its 1.25 root motion fix)
+			runAt = 12.8, -- the run clip's own speed
+			refLeg = 2, -- the standard R15 leg (Config.HeroRig at scale 1: soles to hips)
+			minWarp = 0.4,
+			maxWarp = 2.8, -- a Swarmer at 30 studs/s plays its run this fast at most
+			fade = 0.2,
+			near = 150,
+		},
 		endo = { 168, 172, 182 }, -- endoskeleton chrome, tinted toward each robot's metal
 		-- every robot is on the blocky R15 rig (nate, 2026-11-16: "literally everyone should be r15"): its
 		-- build uses the creator's body build with this index (Config.Creator.body.builds) for its proportions

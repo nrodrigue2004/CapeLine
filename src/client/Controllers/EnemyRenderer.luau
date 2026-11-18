@@ -9,6 +9,10 @@
 -- chips and sparks as health drops (Shared.RobotDamage: limbs, hands and feet, then the torso, the head
 -- last), the same on every device. Each robot's build (slim, normal, heavy) takes the creator's Small, Medium
 -- or Large proportions (BodyShape), scaled to its height.
+-- Robots on foot walk with Roblox's own R15 idle, walk and run animations (quality pass 2026-11-18, nate: "the
+-- enemies dont move properly"; Controllers.NpcLoco, Shared.LocoMath, Config.Enemies.look.loco), blended by
+-- speed so the feet keep pace with the ground; everything below goes on top of them, after the Animator, in
+-- PreSimulation (NpcRig.over), and flyers, sentries, lunges, coils, tumbles and far robots keep the code walk.
 -- The rig is posed in code on its R15 joints: walk cycles from speed, aiming arms while attacking, a raised
 -- slam on a windup (a Sneak Bot's low coil before its lunge, WP6), a tumble when knocked up, a wobble when stunned, and see-through while cloaked. Far
 -- robots pose every few frames. Status flags from the server tint and mark the body: ice blue when slowed or
@@ -23,7 +27,8 @@
 -- Art: the R15 parts use the hero meshes (ReplicatedStorage.Art.Hero) once imported; the endoskeleton and the
 -- extras use the Blender robot meshes in ReplicatedStorage.Art.Robots (art/blender/robots.py, uploaded by
 -- nate, art/models/Robots.rbxm mapped by Rojo), each a clone sized by Config.ArtFit; a piece with no mesh
--- stays a plain part. The animations are still posed in code (PLACEHOLDER until real R15 animations).
+-- stays a plain part. The ground walk is Roblox's own animations; the combat poses are still posed in code
+-- (PLACEHOLDER until real R15 attack animations).
 -- The famous fakes and the evil twin (nate's lore, build plan step 4; Config.Enemies `fake`, Shared.FakeRules)
 -- wear a full hero look on the same rig (LookKit: suit, cape, hair, face, emblem, colours; a twin the look of
 -- the player it copies, from EnemyIdentity) with a hero name plate (name and title, no robot tag). Once its
@@ -55,8 +60,10 @@ local LookCodec = require(Shared:WaitForChild("LookCodec"))
 local LookKit = require(Shared:WaitForChild("LookKit"))
 local CreatorRules = require(Shared:WaitForChild("CreatorRules"))
 local PeopleLooks = require(Shared:WaitForChild("PeopleLooks"))
+local LocoMath = require(Shared:WaitForChild("LocoMath"))
 
 local QualityController = require(script.Parent.QualityController)
+local NpcLoco = require(script.Parent.NpcLoco)
 local DebrisBudget = require(script.Parent.Parent.Fx.DebrisBudget)
 local Kit = require(script.Parent.Parent.Ui.Kit)
 
@@ -118,6 +125,9 @@ type Body = {
 	yaw: number,
 	speed: number,
 	phase: number,
+	-- Roblox's own idle, walk and run on this rig (NpcLoco), loaded the first time it walks near the camera
+	loco: NpcLoco.Loco?,
+	locoTried: boolean,
 	health: number,
 	flags: number,
 	state: number,
@@ -222,6 +232,7 @@ local function rgb(t: { number }): Color3
 end
 
 local LOOK = Config.Enemies.look
+local LOCO = LOOK.loco
 -- shell pieces that go with another piece (the eyes, mask and hair with the head, the chest mark with the
 -- upper torso, the belt with the lower torso)
 local TIES: { [string]: { string } } = {
@@ -1393,6 +1404,8 @@ local function makeRobot(typeId: number, ident: { [string]: any }?): Body
 		yaw = 0,
 		speed = 0,
 		phase = 0,
+		loco = nil,
+		locoTried = false,
 		health = 1,
 		flags = 0,
 		state = 1,
@@ -1589,6 +1602,10 @@ local function release(body: Body)
 	if body.ident or (byType[body.typeId] and byType[body.typeId].twin) then
 		body.model:Destroy()
 		return
+	end
+	if body.loco then
+		NpcLoco.stop(body.loco)
+		NpcRig.overDone(body.rig)
 	end
 	body.model.Parent = nil
 	body.bar.Enabled = false
@@ -2139,8 +2156,27 @@ local function lerpAngle(a: number, b: number, t: number): number
 	return a + d * t
 end
 
+-- A robot that walks with Roblox's own animations now (NpcLoco): on its feet, not a flyer or a sentry, not
+-- tumbling, lunging or coiled for a lunge (those keep their code poses)
+local function onFoot(body: Body): boolean
+	local ai = body.cfg.ai
+	if ai == "flyer" or ai == "sentry" then
+		return false
+	end
+	local flags = body.flags
+	if bit32.band(flags, BITS.lifted) ~= 0 then
+		return false
+	end
+	local sneak = ai == "sneak"
+	if (sneak or body.cfg.body.small == true) and bit32.band(body.extra, EXTRA.lunge) ~= 0 then
+		return false
+	end
+	return not (sneak and bit32.band(flags, BITS.windup) ~= 0)
+end
+
 -- Pose one robot: its root goes on the BulkMoveTo lists; its R15 joints turn when `joints` is true (near
--- robots every frame, far ones every few frames)
+-- robots every frame, far ones every few frames). `animated`: Roblox's walk plays on it (NpcLoco), so only
+-- the poses that differ from a plain walk are written, over the Animator, every frame.
 local function pose(
 	body: Body,
 	id: number,
@@ -2148,7 +2184,8 @@ local function pose(
 	dt: number,
 	roots: { BasePart },
 	cframes: { CFrame },
-	joints: boolean
+	joints: boolean,
+	animated: boolean
 )
 	local L = body.layout
 	local rig = body.rig
@@ -2168,8 +2205,11 @@ local function pose(
 	-- a Swarmer's lunge, or a Sneak Bot's (WP6); a Sneak Bot's wind-up is a low coil, arms swept back
 	local lunging = (small or sneak) and bit32.band(extra, EXTRA.lunge) ~= 0
 	local coiled = sneak and windup and not lunging
-	-- a Swarmer's short legs patter faster, and it runs crouched, leaning into it
-	body.phase += dt * math.clamp(speed, 0, 30) * (if small then 0.75 else 0.45)
+	-- the code walk's stride keeps pace with the ground (LocoMath.phaseRate; before, the feet skated at about
+	-- 40% of the speed); a Swarmer's short legs patter faster, and it runs crouched, leaning into it
+	local legLen = L.ground - L.hip
+	local swingMax = math.clamp(speed / 20, 0, 1) * math.rad(if small then 55 else 40)
+	body.phase += dt * LocoMath.phaseRate(math.clamp(speed, 0, 40), legLen, swingMax)
 	local lean = if small then math.clamp(speed / 25, 0, 1) else 0
 	-- e.y is the body centre for ground robots (the soles half its height below) and the hips for flyers
 	local root = CFrame.new(body.pos) * CFrame.Angles(0, body.yaw, 0)
@@ -2208,11 +2248,11 @@ local function pose(
 	if not joints then
 		return
 	end
-	local swingA = if flyer or lifted
-		then 0
-		else math.clamp(speed / 20, 0, 1) * math.rad(if small then 55 else 40)
+	local swingA = if flyer or lifted then 0 else swingMax
 	local s = math.sin(body.phase)
-	local waist = CFrame.identity
+	-- over Roblox's walk every changed joint is written each frame (the Animator rewrites the ones it plays)
+	local put = if animated then NpcRig.over else NpcRig.turn
+	local waist: CFrame? = nil
 	if coiled then
 		waist = CFrame.Angles(math.rad(-38), 0, 0) -- coiled over its knees, head down toward its hero
 	elseif sneak and not attacking then
@@ -2222,16 +2262,22 @@ local function pose(
 	elseif look.riot and body.riotUp then
 		waist = CFrame.Angles(math.rad(-8), 0, 0) -- braced behind the shield
 	end
-	NpcRig.turn(rig, "Waist", waist)
-	NpcRig.turn(rig, "Jaw", CFrame.new(0, if attacking or windup then -L.parts.Head.size[2] * 0.06 else 0, 0))
+	if animated then
+		if waist then
+			NpcRig.over(rig, "Waist", NpcRig.animBase(rig, "Waist") * waist) -- a lean on top of the walk's own
+		end
+	else
+		NpcRig.turn(rig, "Waist", waist or CFrame.identity)
+	end
+	put(rig, "Jaw", CFrame.new(0, if attacking or windup then -L.parts.Head.size[2] * 0.06 else 0, 0))
 	-- the cape sways with speed
-	NpcRig.turn(
+	put(
 		rig,
 		"Cape",
 		CFrame.Angles(math.rad(8 + math.clamp(speed, 0, 20) * 1.6 + math.sin(now * 2.2 + id) * 3), 0, 0)
 	)
 	if stunned then
-		NpcRig.turn(rig, "Stun", CFrame.Angles(0, now * 6, 0))
+		put(rig, "Stun", CFrame.Angles(0, now * 6, 0))
 	end
 	local aiming = look.rifle and (attacking or bit32.band(extra, EXTRA.aim) ~= 0)
 	local mending = look.medpack and bit32.band(extra, EXTRA.mend) ~= 0
@@ -2241,6 +2287,7 @@ local function pose(
 		-- arms: aiming forward when attacking, raised overhead on a windup; elbows bend forward. yawA swings a
 		-- forward arm in toward the middle (both hands on a rifle)
 		local upperA, elbowA, yawA = -s * sign * swingA * 0.8, math.rad(15), 0
+		local held = true -- an arm pose of its own (false: the plain walk swing, Roblox's walk when animated)
 		if look.riot and body.riotUp and sign < 0 then
 			upperA, elbowA = math.rad(75), math.rad(15) -- the shield arm held out in front
 		elseif look.rifle and not lifted then
@@ -2267,15 +2314,35 @@ local function pose(
 			upperA, elbowA = math.rad(-20), math.rad(25)
 		elseif small then
 			upperA, elbowA = math.rad(-35) - s * sign * swingA * 0.5, math.rad(40) -- arms swept back as it runs
+		else
+			held = false
 		end
-		NpcRig.turn(
-			rig,
-			name .. "Shoulder",
-			if yawA ~= 0
-				then CFrame.Angles(0, yawA, 0) * CFrame.Angles(upperA, 0, 0)
-				else CFrame.Angles(upperA, 0, 0)
-		)
-		NpcRig.turn(rig, name .. "Elbow", CFrame.Angles(elbowA, 0, 0))
+		if held or not animated then
+			put(
+				rig,
+				name .. "Shoulder",
+				if yawA ~= 0
+					then CFrame.Angles(0, yawA, 0) * CFrame.Angles(upperA, 0, 0)
+					else CFrame.Angles(upperA, 0, 0)
+			)
+			put(rig, name .. "Elbow", CFrame.Angles(elbowA, 0, 0))
+		end
+		if animated then
+			-- the legs are Roblox's walk; a Swarmer runs crouched on top of it
+			if small then
+				NpcRig.over(
+					rig,
+					name .. "Hip",
+					NpcRig.animBase(rig, name .. "Hip") * CFrame.Angles(math.rad(20), 0, 0)
+				)
+				NpcRig.over(
+					rig,
+					name .. "Knee",
+					NpcRig.animBase(rig, name .. "Knee") * CFrame.Angles(math.rad(-25), 0, 0)
+				)
+			end
+			continue
+		end
 		-- legs: knees bend back
 		local thighA = s * sign * swingA
 		local kneeA = math.max(0, -math.cos(body.phase) * sign) * swingA
@@ -2334,6 +2401,7 @@ local function render()
 	local poseNear = Q.enemyPoseNear or LOOK.poseNear
 	local poseEvery = Q.enemyPoseEvery or LOOK.poseEvery
 	local clothesNear, clothesFar = Q.clothesNear or 25, Q.clothesFar or 80
+	local animNear = Q.enemyAnimNear or LOCO.near
 
 	-- pick the nearest `limit` ids from the newest snapshot
 	local ids, dists, keep = scratchIds, scratchDist, scratchKeep
@@ -2379,8 +2447,16 @@ local function render()
 			pos = body.freezePos -- the hit-stop: it holds still with you (limbs too), then catches up
 			bodyDt = 0
 		end
-		local moved = Vector3.new(pos.X - body.pos.X, 0, pos.Z - body.pos.Z)
-		body.speed = body.speed + (moved.Magnitude / math.max(dt, 1e-3) - body.speed) * math.min(1, dt * 8)
+		-- its speed from the two snapshots it is drawn between (steady across the 10 Hz packets; the drawn
+		-- position's own frame-to-frame steps jumped at each packet), else from how far it was drawn to move
+		local span = b.t - a.t
+		local seen = if span > 1e-3 and ra ~= rb
+			then Vector3.new(rb.x - ra.x, 0, rb.z - ra.z).Magnitude / span
+			else Vector3.new(pos.X - body.pos.X, 0, pos.Z - body.pos.Z).Magnitude / math.max(dt, 1e-3)
+		if bodyDt == 0 then
+			seen = 0
+		end
+		body.speed = body.speed + (math.min(seen, 60) - body.speed) * math.min(1, dt * 10)
 		body.pos = pos
 		body.yaw =
 			lerpAngle(body.yaw, lerpAngle(ra.yaw, rb.yaw, math.clamp(alpha, 0, 1)), math.min(1, dt * 12))
@@ -2410,7 +2486,33 @@ local function render()
 		if body.medLight and bit32.band(body.extra, EXTRA.mend) ~= 0 and dist < poseNear then
 			pulse(body, now)
 		end
-		pose(body, id, now, bodyDt, roots, cframes, dist < poseNear or (frame + id) % poseEvery == 0)
+		-- Roblox's own walk near the camera (NpcLoco); the code walk farther out and for the poses it has none for
+		local wantWalk = LOCO.on and dist < animNear and onFoot(body)
+		if wantWalk and not body.loco and not body.locoTried then
+			body.locoTried = true
+			body.loco = NpcLoco.new(body.model, body.layout.ground, body.layout.hip, LOCO)
+		end
+		local animated = false
+		local loco = body.loco
+		if loco then
+			if wantWalk and (loco.on or NpcLoco.ready(loco)) then
+				NpcLoco.drive(loco, body.speed, bodyDt == 0, LOCO)
+				animated = true
+			elseif loco.on then
+				NpcLoco.stop(loco)
+				NpcRig.overDone(body.rig)
+			end
+		end
+		pose(
+			body,
+			id,
+			now,
+			bodyDt,
+			roots,
+			cframes,
+			animated or dist < poseNear or (frame + id) % poseEvery == 0,
+			animated
+		)
 	end
 	if #roots > 0 then
 		Workspace:BulkMoveTo(roots, cframes, Enum.BulkMoveMode.FireCFrameChanged)
@@ -2422,6 +2524,9 @@ function EnemyRenderer.init()
 	folder.Name = "Enemies"
 	folder.Parent = Workspace
 	Net.listen("EnemyDelta", onDelta)
+	if LOCO.on then
+		NpcLoco.preload(LOCO)
+	end
 	-- who an evil twin copies; a twin already drawn is rebuilt in its hero's look on the next frame
 	Net.listen("EnemyIdentity", function(msg: any)
 		if type(msg) ~= "table" or type(msg.id) ~= "number" then
@@ -2435,7 +2540,8 @@ function EnemyRenderer.init()
 		end
 	end)
 
-	RunService.RenderStepped:Connect(FrameProf.wrap("EnemyRenderer", render))
+	-- PreSimulation, after the Animator, so the poses written over Roblox's walk show (NpcLoco, like HeroAnimator)
+	RunService.PreSimulation:Connect(FrameProf.wrap("EnemyRenderer", render))
 end
 
 return EnemyRenderer
