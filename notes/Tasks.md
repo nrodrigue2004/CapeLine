@@ -166,7 +166,7 @@ What nate does:
 ## Studio test list (needs nate's PC)
 
 ### Playtest art2: start here (2026-11-18, build playtest-art2)
-The first session on the overnight build (enemies9 635709a, 326,146 checks). Open project files capeline/Capeline-playtest-art2-2026-11-18.rbxl in Studio. It runs as is (every new look falls back to today's parts); the art package (project files capeline/upload/START HERE.txt: 265 images, 26 models) can be done before or after. About 45 minutes; each step names the full list it samples.
+The first session on the overnight build (enemies9 6df22bc, 326,146 checks). Open project files capeline/Capeline-playtest-art2-2026-11-18.rbxl in Studio. It runs as is (every new look falls back to today's parts); the art package (project files capeline/upload/START HERE.txt: 265 images, 26 models) can be done before or after. About 45 minutes; each step names the full list it samples.
 1. Press Play. The Output shows "playtest-art2 (2026-11-18)" at boot, no red error box, no "Failed to load" warnings.
 2. Fresh hero (Dev Wipe): the first 60 seconds read right: LOADING THE CITY, the creator, the ceremony about 22 s, control about 30 s after DONE ("Onboarding" 1 to 3).
 3. Play the prologue to the title: the 6-roof chase, a missed hop puts you back on the last roof in about 1.2 s ("Onboarding" 5).
