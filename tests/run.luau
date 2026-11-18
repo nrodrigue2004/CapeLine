@@ -22698,7 +22698,9 @@ end
 -- the perf pass's checks (fast paths against the slow ones they replace) live in their own file too
 (require :: any)("./perf")({ test = test, check = check, near = near, Config = Config });
 -- the city and destruction audit (2026-11-18, own file, merges easily); ONLY="City audit" runs just these
-(require :: any)("./city_audit_test")({ test = test, check = check, Config = Config, world = world })
+(require :: any)("./city_audit_test")({ test = test, check = check, Config = Config, world = world });
+-- the side quest juice pass and the beacon roof fix (2026-11-18); ONLY="SQ juice" or ONLY="Beacon roofs"
+(require :: any)("./polish_test")({ test = test, check = check, Config = Config, world = world })
 
 print(string.format("\n%d passed, %d failed", passed, failed))
 if failed > 0 then

@@ -316,6 +316,14 @@ local function musicTick()
 	end
 end
 
+-- The victory sting (Config.Audio.music.victory) over the patrol music, as after a boss: a side quest chain's end
+-- (while the sting has no id yet the patrol music just keeps playing)
+function AudioController.victory()
+	if track("victory") then
+		switch("victory")
+	end
+end
+
 function AudioController.init()
 	holder = Instance.new("Folder")
 	holder.Name = "Sounds"

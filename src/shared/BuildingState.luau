@@ -13,6 +13,9 @@
 --   the same batch (applyDiff, applySnapshot: the device's copy, pure so Lune checks it matches); ray finds the
 --   standing pieces of Damaged buildings (their real body stops blocking on the server, so only the holes let
 --   shots through); abilityStruct and castStruct say which casts break buildings (every damaging one).
+-- * Pins (2026-11-18): a building that holds something up never breaks: a fast-travel beacon's host for good
+--   (WorldMap marks it `fixed`), and the roof a side quest goal stands on while that goal is live (pin/unpin,
+--   SideQuestService through BuildingService.pin). Hits on a pinned building knock nothing out.
 
 -- * blast / punch (Red Faction-style, nate 2026-11-16): a hit knocks pieces out of the building's Structure
 --   grid and whatever loses its support falls. Damaged = any piece gone; Collapsed = the ground storey gave
@@ -50,6 +53,8 @@ export type Book = {
 	open: { [number]: boolean }, -- ids Damaged now (ray looks only at these)
 	held: { [number]: boolean }, -- ids whose ground storey gave way while the collapse cap was full
 	fixed: { number }, -- ids repaired since the last send (sent first, so devices drop the old holes)
+	keep: { [number]: boolean }, -- ids that never break (a beacon's host: the building record's `fixed`)
+	pins: { [number]: number }, -- ids held whole for now, with how many holders (side quest roofs)
 }
 
 -- buildings: { id, hp, district } (WorldMap.buildings)
@@ -74,6 +79,8 @@ function BuildingState.new(cfg: any, buildings: { any }): Book
 		open = {},
 		held = {},
 		fixed = {},
+		keep = {},
+		pins = {},
 	}
 	local districts: { [string]: boolean } = {}
 	for _, b in buildings do
@@ -84,6 +91,9 @@ function BuildingState.new(cfg: any, buildings: { any }): Book
 		book.district[b.id] = b.district
 		book.warned[b.id] = false
 		book.boxes[b.id] = b
+		if b.fixed == true then
+			book.keep[b.id] = true
+		end
 		districts[b.district] = true
 	end
 	local names = {}
@@ -97,6 +107,24 @@ function BuildingState.new(cfg: any, buildings: { any }): Book
 		end
 	end
 	return book
+end
+
+-- Does building id never break right now (a beacon's host, or a roof a side quest goal stands on)?
+function BuildingState.pinned(book: Book, id: number): boolean
+	return book.keep[id] == true or (book.pins[id] or 0) > 0
+end
+
+-- Hold building id whole (on) or let it go (off); holders count, so two goals on one roof both hold it
+function BuildingState.pin(book: Book, id: number, on: boolean)
+	if book.state[id] == nil then
+		return
+	end
+	local n = math.max(0, (book.pins[id] or 0) + (if on then 1 else -1))
+	if n > 0 then
+		book.pins[id] = n
+	else
+		book.pins[id] = nil
+	end
 end
 
 local function recentCollapses(cfg: any, book: Book, now: number): number
@@ -134,7 +162,7 @@ function BuildingState.hit(
 	now: number
 ): (number, boolean, boolean, boolean)
 	local state = book.state[id]
-	if state == nil or state == 2 or dmg <= 0 then
+	if state == nil or state == 2 or dmg <= 0 or BuildingState.pinned(book, id) then
 		return state or 0, false, false, false
 	end
 	book.lastHit[id] = now
@@ -167,7 +195,7 @@ end
 
 -- A hero knocked through a wall: Damaged at once (HP drops to the Damaged line if it was above it)
 function BuildingState.force(cfg: any, book: Book, id: number, now: number): boolean
-	if book.state[id] ~= 0 then
+	if book.state[id] ~= 0 or BuildingState.pinned(book, id) then
 		book.lastHit[id] = now
 		return false
 	end
@@ -256,8 +284,11 @@ function BuildingState.blast(
 	local state = book.state[id]
 	local out: Blast =
 		{ state = state or 0, changed = false, cut = false, warn = false, hit = {}, fell = {}, failed = nil }
+	if state == nil or state == 2 or dmg <= 0 or BuildingState.pinned(book, id) then
+		return out
+	end
 	local grid = BuildingState.grid(cfg, book, id)
-	if state == nil or state == 2 or dmg <= 0 or not grid then
+	if not grid then
 		return out
 	end
 	book.lastHit[id] = now

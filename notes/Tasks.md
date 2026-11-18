@@ -43,6 +43,7 @@ Waiting on others:
 - H8 (lore thread): the episodes' panel lines and step texts are drafts (PLACEHOLDER CONTENT in Config.Episodes); the launch episodes use the existing task forces and missions as their 4th step, so a new mission or task force leg each week waits on the lore thread's content. Config.Pass.startWeek (2970 = Monday 2026-11-30) is a guess: set it to the launch Monday.
 
 ## Placeholder art and animation (replace before launch)
+- Side quest juice (2026-11-18): the seven side quest juice sounds (Config.Audio questAccept, questStep, questVillain, questEncore, questFinale, questDone, questRetry) are built-in clips pitched per moment, and the chain's victory sting is the silent music.victory (asset 0, the patrol music keeps playing until it has an id). The stamps, rings, fireworks and confetti are the shared JuiceFx parts. PLACEHOLDER SOUND until nate picks licence-checked ids (Launch Checklist).
 - WP6 robot combat (2026-11-18): a downed robot's wreck is 4 plain parts in its colours (the chassis on its side, the head with dark eyes, an arm; ThrowService wreckModel); its sparks, flicker and pop are plain neon parts (ThrowFx); the War-Frame's block is the same ForceField ball as the robots' (52 studs) over a plain blue ring (GuardFx); the Sneak Bot's lunge lane is plain neon parts (CombatFx.lane) and its coil and dash are code poses (EnemyRenderer). The whine, hum, spark and pop sounds are built-in clips (Config.Audio lungeWind, braceWarn, wreckSpark, wreckPop). PLACEHOLDER ART and PLACEHOLDER SOUND.
 - Rogues File (2026-11-18, WP3): each page's portrait is Kit shapes (a head with two eye dots on shoulders, in the robot's suit, trim and eye colours; a black silhouette with "?" for one not beaten), and the world bosses' portrait colours are hand-picked (Config.Rogues.bosses colors). PLACEHOLDER ART until the UI art pass draws real portraits. The page sound is the shared ping (Config.Audio roguePage, PLACEHOLDER SOUND).
 - Weekly boards (2026-11-18, WP2): the plaza board is a navy screen in a gold frame with a neon crest and two metal legs (BoardService.buildProp); the WEEKLY BOARDS screen, its rows and the TOP 10! card are Kit frames and text (BoardHud). PLACEHOLDER ART until the art pass.
@@ -144,6 +145,18 @@ What nate does:
    (`bash art/store/make.sh twist`).
 
 ## Studio test list (needs nate's PC)
+
+### Side quest juice and beacon roofs (2026-11-18)
+Every side quest moment now has a sound and a stamp or burst (tests: ONLY="SQ juice" and ONLY="Beacon roofs"). The sounds are placeholder clips. Turn on Config.Dev.sideQuestSample (or use the Dev panel's side quest buttons) to run chains fast.
+1. Take any chain from its giver: a swoosh, the NEW QUEST! stamp with the chain's name, a gold ring and a little confetti (the top toast still says NEW SIDE QUEST).
+2. Finish a step of each kind you can reach (the Dev panel's kind tests run every kind alone): a chime and the step's word stamp (TALKED!, CLEARED!, CAUGHT!, HELD!, FINISHED!, SNAPPED!, LIT UP! and the rest) with STEP n OF m under it, a green ring round you and a +Credits pop. The kind tests' stamps say KIND TEST under the word.
+3. In a squad with one hero and one villain on a shared chain, finish your side first: a soft chime, a small ring and the word pop over your head (no stamp); the big stamp comes when the other side finishes.
+4. A pocket step (a run in a mission pocket): the result card reads the chain's name then CLEAR! with the pay, not a blank mission name or a replay line.
+5. Walk toward a finale's villain: its name card slams in with a low sting. In The Gala Heist's finale, beat the first villain: a whoosh and the ENCORE! stamp with the second villain's name, a ring where it lands.
+6. Get Downed by a finale villain: TRY AGAIN! with the villain's name, over the Downed screen's heartbeat. It does not show when Downed anywhere else.
+7. Win a finale: fireworks over where the villain fell and VICTORY! with "<NAME> DEFEATED", then about 2 s later the result card: "<CHAIN> COMPLETE!", the pay counting up, NEW TITLE and NEW STYLE lines with their names (e.g. CLASS DISMISSED, CRACKED HALO), confetti and a gold ring. With reduce flashing on there is no confetti and the stamps do not spin.
+8. Beacon 2 (Downtown East, on the tall roof near -150, 150): hit its building with supers and the Dev structure hit: nothing breaks, the beacon pad stays on the roof. Its neighbours still break.
+9. Start a rooftop race or chase (Rooftop Racers, the Gala Heist's getaways) and hit a course roof with supers while it runs: it holds. After the step ends, the same roof breaks again. A "reach the roof" or "hold the roof" step never sits on a broken building and its roof holds while the step is on.
 
 ### City and destruction audit (2026-11-18)
 Fixes from the city audit (tests: ONLY="City audit"). Use the Dev panel's structure hit and "Repair all" where it helps.

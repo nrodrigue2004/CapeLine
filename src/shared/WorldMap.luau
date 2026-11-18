@@ -50,6 +50,7 @@ export type Building = {
 	hp: number,
 	crown: string?, -- a skyscraper's silhouette above its body (Config.City.skyline); nothing lands on its top
 	peak: number?, -- the top of that crown
+	fixed: boolean?, -- a fast-travel beacon stands on its roof: it never breaks (BuildingState keeps it whole)
 }
 
 export type World = {
@@ -302,6 +303,12 @@ function WorldMap.build(Config: any, seed: number, opts: { props: boolean? }?): 
 					if x.grp == grp and x.kind == "prop" and x.cy > p.y then
 						table.remove(hubBoxes, i)
 					end
+				end
+				-- (2026-11-18) the beacon's host never breaks, so its pad never floats over rubble (like the
+				-- safehouses' roofs, which are no wreckable building at all)
+				local host = byGrp[grp]
+				if host then
+					buildings[host].fixed = true
 				end
 			end
 		elseif b.at == "crane" or b.at == "clock" then
