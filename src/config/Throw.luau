@@ -64,6 +64,9 @@ return {
 			material = "SmoothPlastic",
 		},
 		slab = { weight = "heavy", size = { 8, 2.4, 6 }, color = { 128, 124, 118 }, material = "Concrete" },
+		-- a downed robot (WP6, gap G10; the spec's medium row): its wreck lies where it fell for a short window
+		-- (`wreck` below). Built by ThrowService in the robot's own colours. PLACEHOLDER ART: plain parts.
+		wreck = { weight = "medium", wreck = true },
 		car = { weight = "heavy", vehicle = true }, -- VehicleService's cars
 		truck = { weight = "heavy", vehicle = true }, -- VehicleService's trucks (the spec's van)
 		-- trams stay on their lines (34 studs long): they only flip
@@ -85,6 +88,27 @@ return {
 			{ "dumpster", 2 },
 			{ "vending", 2 },
 			{ "slab", 1 },
+		},
+	},
+	-- Downed robots (WP6, gap G10): a robot a hero beats leaves its wreck, a medium throwable with the usual
+	-- carry rules. NATE TO TUNE.
+	wreck = {
+		max = 6, -- wrecks at once on a server (perf); a new one clears the oldest that nobody holds or throws
+		life = 10, -- seconds a wreck lies there (the window to grab it), then it falls apart in sparks
+		after = 3, -- seconds after a throw lands or it is set down before it falls apart
+		blink = 2, -- it flickers on every screen for its last seconds
+		maxDrop = 80, -- a robot beaten higher than this above the ground (a flyer over a rooftop gap) leaves none
+		-- client look, inside the device's debris budget (DebrisBudget): a few sparks every `sparkEvery` s while
+		-- the camera is within `sparkRange`; a pop of `popChips` chips when it falls apart
+		sparkEvery = 0.6,
+		sparkRange = 120,
+		sparks = 2,
+		popChips = 6,
+		-- the heap's box as shares of the robot's height (x wide, y tall, z deep), by build
+		size = {
+			slim = { 0.42, 0.26, 0.34 },
+			normal = { 0.5, 0.3, 0.4 },
+			heavy = { 0.62, 0.34, 0.48 },
 		},
 	},
 	respawn = 60, -- a thrown prop comes back this long after landing, once no hero is within `viewRadius`

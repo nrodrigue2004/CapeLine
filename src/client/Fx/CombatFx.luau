@@ -2690,6 +2690,50 @@ function CombatFx.warn(center: Vector3, radius: number, time: number, arc: numbe
 	end
 end
 
+-- A charge or lunge is coming down a lane (WP6: a Sneak Bot's lunge wind-up): the warn marker's style along the
+-- ground from `from` to `to`, `width` wide: a red outline, and a fill that grows from the robot to the far end
+-- over `time`. live() (optional) says the wind-up still holds; when an interrupt cuts it, the lane fades out.
+function CombatFx.lane(from: Vector3, to: Vector3, width: number, time: number, live: (() -> boolean)?)
+	local flat = Vector3.new(to.X - from.X, 0, to.Z - from.Z)
+	local len = flat.Magnitude
+	if len < 0.5 then
+		return
+	end
+	local dir = flat.Unit
+	local y = math.max(from.Y, to.Y) + 0.15
+	local start = Vector3.new(from.X, y, from.Z)
+	local outline =
+		part(Vector3.new(width, 0.12, len), CFrame.lookAt(start + dir * len / 2, start + dir * len), WARN)
+	outline.Transparency = 0.5
+	outline.Material = Enum.Material.SmoothPlastic
+	local fill =
+		part(Vector3.new(width * 0.9, 0.14, 0.2), CFrame.lookAt(start + dir * 0.1, start + dir), WARN)
+	fill.Transparency = 0.35
+	local tip = part(
+		Vector3.new(width * 1.4, 0.16, 0.6),
+		CFrame.lookAt(start + dir * len, start + dir * (len + 1)),
+		WARN
+	)
+	tip.Transparency = 0.2
+	local t = 0
+	local conn: RBXScriptConnection
+	conn = RunService.RenderStepped:Connect(FrameProf.wrap("CombatFx", function(dt)
+		t += dt
+		if t >= time or (live and not live()) then
+			conn:Disconnect()
+			fade(outline, 0.15)
+			fade(fill, 0.15)
+			fade(tip, 0.15)
+			return
+		end
+		local k = math.clamp(t / time, 0, 1)
+		local l = math.max(0.2, len * k)
+		fill.Size = Vector3.new(width * 0.9, 0.14, l)
+		fill.CFrame = CFrame.lookAt(start + dir * l / 2, start + dir * (l + 1))
+		tip.Transparency = if CombatFx.reduceFlashing or math.floor(t * 8) % 2 == 0 then 0.2 else 0.6
+	end))
+end
+
 function CombatFx.slam(center: Vector3, radius: number)
 	FxLib.dust(center + Vector3.new(0, 0.3, 0), radius)
 	ring(center + Vector3.new(0, 0.3, 0), radius * 1.2, Color3.fromRGB(150, 130, 110), 0.4, 0.8)

@@ -9,6 +9,11 @@
 -- knocks props over and blasts the Structure grid for heavy things. Cars go home through VehicleService's
 -- reset; props come back after 60 s once nobody is near (ThrowBack).
 -- PLACEHOLDER ART: props are plain coloured parts (Config.Throw.kinds) until the street kit's meshes.
+-- Downed robots (WP6, gap G10): a robot a hero beats leaves its wreck where it fell (EnemyService.Killed), a
+-- medium throwable with the usual carry rules, for Config.Throw.wreck.life seconds (a few seconds once thrown
+-- or set down), then it falls apart (WreckGone: sparks and a pop on every screen, ThrowFx). At most
+-- wreck.max at once: a new one clears the oldest nobody holds. Never fakes, twins, creatures, sea robots or
+-- the small pack robots (Shared.ThrowMath.canWreck). PLACEHOLDER ART: the wreck is plain parts in its colours.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -23,6 +28,7 @@ local ThrowMath = require(Shared:WaitForChild("ThrowMath"))
 
 local BlockService = require(script.Parent.BlockService)
 local CombatService = require(script.Parent.CombatService)
+local EnemyService = require(script.Parent.EnemyService)
 local HeroService = require(script.Parent.HeroService)
 local VehicleService = require(script.Parent.VehicleService)
 
@@ -30,6 +36,8 @@ local ThrowService = {}
 
 local T = Config.Throw
 local VEH_BASE = 1000 -- item ids above this are VehicleService's vehicles (id - VEH_BASE)
+local WRECK_BASE = 3000 -- downed robots' wrecks take ids WRECK_BASE + 1 .. WRECK_BASE + 999 (WP6)
+local W = T.wreck
 
 type It = {
 	id: number,
@@ -45,10 +53,16 @@ type It = {
 	landedAt: number?,
 	welds: { Instance }?,
 	collide: { [BasePart]: boolean }?,
+	wreck: boolean?, -- a downed robot's wreck (WP6): it never goes home, it falls apart at endsAt
+	born: number?,
+	endsAt: number?,
 }
 
 local items: { [number]: It } = {}
 local folder: Folder
+local wreckTimer: (It, boolean) -> ()
+local removeWreck: (It) -> ()
+local wreckSeq = 0
 local rayParams = RaycastParams.new()
 rayParams.FilterType = Enum.RaycastFilterType.Exclude
 
@@ -171,6 +185,14 @@ local function place(it: It, at: Vector3, tumble: boolean, push: Vector3?)
 	it.x, it.y, it.z = at.X, at.Y, at.Z
 end
 
+-- A wreck's window: `life` once it falls, `after` once it was thrown or set down (WreckEnds is the server
+-- time it ends, for the flicker every screen shows near the end; none while it is held)
+wreckTimer = function(it: It, handled: boolean)
+	local now = os.clock()
+	it.endsAt = ThrowMath.wreckEnds(T, now, handled)
+	it.model:SetAttribute("WreckEnds", Workspace:GetServerTimeNow() + (it.endsAt :: number - now))
+end
+
 local function sendState(hero: any)
 	if hero.player then
 		local c = hero.carry
@@ -211,7 +233,9 @@ local function setDown(hero: any)
 	it.busy = false
 	place(it, at, false)
 	it.model:SetAttribute("ThrowBusy", nil)
-	if not it.vehicle then
+	if it.wreck then
+		wreckTimer(it, true)
+	elseif not it.vehicle then
 		it.landedAt = os.clock() -- out of place: it goes home later, once nobody is near
 	end
 	release(hero)
@@ -238,7 +262,9 @@ local function fly(
 		it.busy = false
 		it.model:SetAttribute("ThrowBusy", nil)
 		place(it, to, true, to - from)
-		if not it.vehicle then
+		if it.wreck then
+			wreckTimer(it, true)
+		elseif not it.vehicle then
 			it.landedAt = os.clock()
 		end
 		if landed then
@@ -324,6 +350,9 @@ local function grab(hero: any, id: number)
 	it.busy = true
 	it.landedAt = nil
 	it.model:SetAttribute("ThrowBusy", true)
+	if it.wreck then
+		it.model:SetAttribute("WreckEnds", nil) -- held: no flicker, it waits for its landing
+	end
 	attach(it, root)
 	hero.carry = { id = id, since = os.clock() }
 	HeroService.applyWalkSpeed(hero)
@@ -407,7 +436,11 @@ local function step()
 			local hp = it.home.Position
 			it.x, it.y, it.z = hp.X, hp.Y, hp.Z
 		end
-		if it.landedAt and not busy(it) then
+		if it.wreck then
+			if ThrowMath.wreckGone(it.endsAt or 0, now, busy(it)) then
+				removeWreck(it)
+			end
+		elseif it.landedAt and not busy(it) then
 			local near = math.huge
 			for _, pos in spots do
 				near = math.min(
@@ -425,6 +458,159 @@ local function step()
 			end
 		end
 	end
+end
+
+---------------------------------------------------------------------------
+-- Downed robots (WP6)
+---------------------------------------------------------------------------
+
+-- Falls apart: every screen pops it in sparks (WreckGone, ThrowFx) just before the parts go
+removeWreck = function(it: It)
+	items[it.id] = nil
+	local m = it.model
+	m:SetAttribute("WreckGone", true)
+	task.delay(0.15, function()
+		m:Destroy()
+	end)
+end
+
+local function rgbOf(t: { number }?, fallback: Color3): Color3
+	return if t then Color3.fromRGB(t[1], t[2], t[3]) else fallback
+end
+
+-- The heap: the chassis on its side in the suit colour, the head dropped beside it with its eyes dark, and an
+-- arm across the top in the trim colour. PLACEHOLDER ART: plain parts until a wreck mesh.
+local function wreckModel(kind: string, cfg: any, at: Vector3, yaw: number): Model
+	local body = cfg.body or {}
+	local sx, sy, sz = ThrowMath.wreckSize(T, cfg)
+	local metal = rgbOf(body.metal, Color3.fromRGB(90, 90, 100))
+	local function piece(
+		name: string,
+		size: Vector3,
+		cf: CFrame,
+		color: Color3,
+		material: Enum.Material
+	): Part
+		local p = Instance.new("Part")
+		p.Name = name
+		p.Anchored = true
+		p.CanTouch = false
+		p.CanCollide = name == "Body"
+		p.Size = size
+		p.Color = color
+		p.Material = material
+		p.TopSurface = Enum.SurfaceType.Smooth
+		p.BottomSurface = Enum.SurfaceType.Smooth
+		p.CFrame = cf
+		return p
+	end
+	local m = Instance.new("Model")
+	m.Name = "Throwable_wreck"
+	local base = CFrame.new(at) * CFrame.Angles(0, yaw, 0)
+	local main = piece(
+		"Body",
+		Vector3.new(sx, sy, sz),
+		base * CFrame.new(0, sy / 2, 0) * CFrame.Angles(0, 0, math.rad(8)),
+		rgbOf(body.suit, metal),
+		Enum.Material.Metal
+	)
+	main.Parent = m
+	local hs = math.max(0.9, sy * 0.8)
+	local head = piece(
+		"Head",
+		Vector3.new(hs, hs, hs),
+		base
+			* CFrame.new(sx * 0.55, hs / 2, -sz * 0.2)
+			* CFrame.Angles(math.rad(20), math.rad(35), math.rad(70)),
+		metal,
+		Enum.Material.Metal
+	)
+	head.Parent = m
+	local eye = piece(
+		"Eyes",
+		Vector3.new(hs * 0.7, hs * 0.18, 0.12),
+		head.CFrame * CFrame.new(0, hs * 0.1, -hs / 2 - 0.05),
+		rgbOf(body.eye, Color3.fromRGB(255, 220, 80)):Lerp(Color3.new(0.1, 0.1, 0.1), 0.6), -- powered down
+		Enum.Material.SmoothPlastic
+	)
+	eye.Parent = m
+	local arm = piece(
+		"Arm",
+		Vector3.new(sx * 0.9, math.max(0.5, sy * 0.3), math.max(0.5, sy * 0.3)),
+		base * CFrame.new(-sx * 0.1, sy + 0.2, sz * 0.15) * CFrame.Angles(0, math.rad(25), math.rad(-6)),
+		rgbOf(body.trim, metal),
+		Enum.Material.Metal
+	)
+	arm.Parent = m
+	m.PrimaryPart = main
+	m:SetAttribute("ThrowKind", "wreck")
+	m:SetAttribute("WreckOf", kind)
+	return m
+end
+
+-- A robot a hero beat leaves its wreck where it fell, if it is a kind that does and there is room
+local function spawnWreck(kind: string, pos: Vector3)
+	local cfg = Config.Enemies[kind]
+	if not ThrowMath.canWreck(cfg) or pos.Y < Config.World.coast.waterY then
+		return
+	end
+	local gy = ground(pos.X, pos.Y + 2, pos.Z, W.maxDrop)
+	if not gy then
+		return
+	end
+	local list = {}
+	for _, it in items do
+		if it.wreck then
+			table.insert(list, { id = it.id, busy = busy(it), born = it.born or 0 })
+		end
+	end
+	local ok, evict = ThrowMath.wreckRoom(list, W.max)
+	if not ok then
+		return
+	end
+	if evict and items[evict] then
+		removeWreck(items[evict])
+	end
+	local id = 0
+	for _ = 1, 999 do
+		wreckSeq = wreckSeq % 999 + 1
+		if not items[WRECK_BASE + wreckSeq] then
+			id = WRECK_BASE + wreckSeq
+			break
+		end
+	end
+	if id == 0 then
+		return
+	end
+	local at = Vector3.new(pos.X, gy, pos.Z)
+	local m = wreckModel(kind, cfg, at, math.rad((id * 137) % 360))
+	m:SetAttribute("ThrowId", id)
+	m.Parent = folder
+	local it: It = {
+		id = id,
+		kind = "wreck",
+		weight = T.kinds.wreck.weight,
+		x = at.X,
+		y = at.Y,
+		z = at.Z,
+		model = m,
+		home = m:GetPivot(),
+		wreck = true,
+		born = os.clock(),
+	}
+	items[id] = it
+	wreckTimer(it, false)
+end
+
+-- How many wrecks lie about now (tests and the Dev panel)
+function ThrowService.wreckCount(): number
+	local n = 0
+	for _, it in items do
+		if it.wreck then
+			n += 1
+		end
+	end
+	return n
 end
 
 local function buildProp(spot: ThrowMath.Spot, gy: number): It?
@@ -503,6 +689,12 @@ function ThrowService.init()
 			end
 		end
 	end
+	-- WP6: a robot a hero beat leaves its wreck (a kill with nobody behind it, a clear, leaves none)
+	EnemyService.Killed:Connect(function(kind: string, by: number?, pos: Vector3)
+		if by and typeof(pos) == "Vector3" then
+			spawnWreck(kind, pos)
+		end
+	end)
 	HeroService.speedHooks.carry = function(hero: any): number
 		return if hero.carry then T.carrySpeed else 1
 	end

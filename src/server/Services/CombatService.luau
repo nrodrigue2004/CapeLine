@@ -461,7 +461,8 @@ local function applyHit(
 	if gblocked then
 		noStatus = true -- a blocked hit pushes nothing
 	end
-	local killed, e, dealt, flag = EnemyService.damage(cand.id, dmg, hero.id, from)
+	-- (WP6: a timed block stands in for a guard's own front check, so a braced Warden is not also flanked)
+	local killed, e, dealt, flag = EnemyService.damage(cand.id, dmg, hero.id, if gblocked then nil else from)
 	if not e then
 		return false
 	end

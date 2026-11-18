@@ -8255,7 +8255,8 @@ test("City kit block: textured fronts, street dressing, and the rest of Downtown
 	check(layout.parts <= Config.City.partBudget.downtown, "still within the Downtown part budget")
 end); -- Hero MMO features (H1 to H8) live in their own file so this one merges easily
 (require :: any)("./mmo")({ test = test, check = check, near = near, Config = Config }); -- WP1: the daily login streak and daily quests
-(require :: any)("./daily")({ test = test, check = check, Config = Config })
+(require :: any)("./daily")({ test = test, check = check, Config = Config }); -- WP6: robot combat depth
+(require :: any)("./robots")({ test = test, check = check, near = near, Config = Config })
 
 test(
 	"City kit: every district dressed, deterministic, within budget, nothing in buildings or roads",

@@ -144,6 +144,13 @@ return {
 		grenadeBoom = s("action_jump_land.mp3", 0.9, 0.5, { range = 200, vary = 0.08 }), -- a Bomber's grenade
 		rally = s("electronicpingshort.wav", 0.6, 0.6, { range = 160 }), -- a Captain's rally
 		reveal = s("clickfast.wav", 0.7, 0.7, { range = 120 }), -- a Mimic shows itself
+		-- WP6 robot combat depth (PLACEHOLDER SOUND, built-in clips): a Sneak Bot's rising whine as it coils for
+		-- its lunge; the War-Frame's shield hum building before its block; a downed robot's wreck sparking and
+		-- popping apart when its window ends
+		lungeWind = s("swoosh.wav", 0.55, 1.9, { range = 110, vary = 0.06 }),
+		braceWarn = s("electronicpingshort.wav", 0.7, 0.55, { range = 260 }),
+		wreckSpark = s("clickfast.wav", 0.2, 2.4, { range = 50, vary = 0.2 }),
+		wreckPop = s("action_jump_land.mp3", 0.45, 1.7, { range = 100, vary = 0.1 }),
 		-- lore step 4: a famous fake's face cracks to show metal (with a white flash and a short hit-stop)
 		unmask = s("clickfast.wav", 1, 0.45, { range = 200 }),
 		-- lore step 3: Patch's radio blip as each of his lines starts (PLACEHOLDER SOUND)

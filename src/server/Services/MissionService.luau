@@ -62,6 +62,7 @@ local GearService = require(script.Parent.GearService)
 local SafehouseService = require(script.Parent.SafehouseService)
 local BeaconService = require(script.Parent.BeaconService)
 local BossService = require(script.Parent.BossService)
+local BlockService = require(script.Parent.BlockService)
 local SiteKit = require(script.Parent.SiteKit)
 local StoryService = require(script.Parent.StoryService)
 local Analytics = require(script.Parent.Analytics)
@@ -356,6 +357,7 @@ local function warframeArena(run: Run, track: Track)
 		table.insert(sim.cover, { p[1], p[3], S.warframe.pillarRadius })
 	end
 	track.wf = { sim = sim, targets = {}, over = false }
+	BlockService.watchBoss(sim, track.wf.targets) -- WP6: its timed block (Config.Guard.robotBlocks)
 	fireAll(run, "BossAttack", { k = "land", num = sim.cfg.num, x = b[1], y = b[2], z = b[3] })
 end
 

@@ -1,6 +1,8 @@
 -- GuardFx: the look of block, breaker and interrupt (spec: Hero MMO features > Block, breaker and interrupt;
 -- H1). A blue shield disc in front of every hero holding Block (the Blocking attribute), a blue shine round
--- robots holding a timed block (GuardEvent rup / rdown), and the comic words BLOCKED, PERFECT!, SHATTER! and
+-- robots holding a timed block (GuardEvent rup / rdown), the War-Frame's telegraph before its block (rwarn, WP6:
+-- the shine builds over a blue ground ring that fills, with a rising hum; a boss's shine is sized and placed by
+-- the event, `s` and `f`, not on a drawn robot), and the comic words BLOCKED, PERFECT!, SHATTER! and
 -- CUT OFF! where they happen, each with its juice row (sound, flash, shake). PLACEHOLDER ART: plain neon
 -- parts until the effects pass.
 
@@ -25,7 +27,8 @@ local G = Config.Guard
 local player = Players.LocalPlayer
 local folder: Folder
 local heroShields: { [Player]: BasePart } = {}
-local robotShields: { [number]: { part: BasePart, untilT: number } } = {}
+local robotShields: { [number]: { part: BasePart, untilT: number, fixed: Vector3? } } = {}
+local GUARD_BLUE = Color3.fromRGB(150, 200, 255)
 
 local function rgb(t: { number }): Color3
 	return Color3.fromRGB(t[1], t[2], t[3])
@@ -124,13 +127,46 @@ local function onEvent(ev: any)
 		pop("cut", pos)
 		burst(pos, rgb(G.colors.cut), 6)
 		Juice.fire("interrupt", pos, { mine = mine })
-	elseif ev.k == "rup" then
+	elseif ev.k == "rwarn" or ev.k == "rup" then
 		local s = robotShields[ev.a]
+		local size = Vector3.one * (ev.s or 9)
 		if not s then
-			s = { part = newPart(Enum.PartType.Ball, Vector3.one * 9), untilT = 0 }
+			s = { part = newPart(Enum.PartType.Ball, size), untilT = 0 }
 			robotShields[ev.a] = s
 		end
-		s.untilT = os.clock() + (ev.t or 2)
+		s.part.Size = size
+		s.fixed = if ev.f then Vector3.new(ev.x, ev.y, ev.z) else nil
+		if ev.k == "rwarn" then
+			-- the telegraph: the shine fades in over the warning and a blue ring fills on the ground under it
+			local t = ev.t or 1
+			s.untilT = os.clock() + t + 0.6 -- held until its rup (or rdown) arrives
+			s.part.Transparency = 1
+			TweenService:Create(s.part, TweenInfo.new(t, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+				Transparency = G.shield.transparency + 0.2,
+			}):Play()
+			local r = (ev.s or 9) * 0.6
+			local floor = Vector3.new(ev.x, ev.g or (ev.y - 3), ev.z) -- g: the ground under a boss
+			local cf = CFrame.new(floor + Vector3.new(0, 0.2, 0)) * CFrame.Angles(0, 0, math.rad(90))
+			local outline = newPart(Enum.PartType.Cylinder, Vector3.new(0.12, r * 2, r * 2))
+			outline.Material = Enum.Material.SmoothPlastic
+			outline.Color = GUARD_BLUE
+			outline.Transparency = 0.5
+			outline.CFrame = cf
+			local fill = newPart(Enum.PartType.Cylinder, Vector3.new(0.14, 0.5, 0.5))
+			fill.Material = Enum.Material.Neon
+			fill.Color = GUARD_BLUE
+			fill.Transparency = 0.35
+			fill.CFrame = cf
+			TweenService:Create(fill, TweenInfo.new(t, Enum.EasingStyle.Linear), {
+				Size = Vector3.new(0.14, r * 2, r * 2),
+			}):Play()
+			Debris:AddItem(outline, t + 0.05)
+			Debris:AddItem(fill, t + 0.05)
+			Juice.fire("braceWarn", pos, { mine = false })
+		else
+			s.part.Transparency = G.shield.transparency
+			s.untilT = os.clock() + (ev.t or 2)
+		end
 	elseif ev.k == "rdown" then
 		local s = robotShields[ev.a]
 		if s then
@@ -143,7 +179,7 @@ end
 local function step()
 	local now = os.clock()
 	for id, s in robotShields do
-		local pos = EnemyRenderer.position(id)
+		local pos = s.fixed or EnemyRenderer.position(id)
 		if not pos or now > s.untilT then
 			s.part:Destroy()
 			robotShields[id] = nil

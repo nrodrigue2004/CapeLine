@@ -64,6 +64,8 @@ EnemyService.AIM, EnemyService.RALLY, EnemyService.LOB, EnemyService.ZONE = 8, 9
 EnemyService.MEND, EnemyService.REVEAL, EnemyService.BOOM = 12, 13, 14
 -- the famous fakes and the evil twin (lore step 4): a dive, charge or dash; a face cracking
 EnemyService.DASH, EnemyService.UNMASK = 15, 16
+-- WP6: a Sneak Bot winds up its lunge (the lane to the spot it will dash to)
+EnemyService.LUNGE = 17
 
 -- Evil twins alive now and who they copy (EnemyIdentity: the look, path, name and title every device draws)
 local idents: { [number]: { [string]: any } } = {}
@@ -400,7 +402,11 @@ local function handleEvents()
 		elseif ev.k == "hit" then
 			local hero = HeroService.byId(ev.hero)
 			if hero then
-				local taken = HeroService.damage(hero, ev.damage, { enemy = ev.e, melee = ev.melee })
+				local taken = HeroService.damage(
+					hero,
+					ev.damage,
+					{ enemy = ev.e, melee = ev.melee, breaker = ev.breaker }
+				)
 				local pos = HeroService.position(hero)
 				local dmg = math.floor(taken + 0.5)
 				if pos then
@@ -464,6 +470,8 @@ local function handleEvents()
 			table.insert(out, { EnemyService.BOOM, ev.e, ev.x, ev.y, ev.z, ev.r })
 		elseif ev.k == "dash" then
 			table.insert(out, { EnemyService.DASH, ev.e, ev.x, ev.y, ev.z, ev.tx, ev.ty, ev.tz })
+		elseif ev.k == "lunge" then
+			table.insert(out, { EnemyService.LUNGE, ev.e, ev.x, ev.y, ev.z, ev.tx, ev.ty, ev.tz, ev.t, ev.w })
 		elseif ev.k == "unmask" then
 			-- (6th: who cracked it, for the slow-mo finisher; lore step 7)
 			table.insert(out, { EnemyService.UNMASK, ev.e, ev.x, ev.y, ev.z, ev.by or 0 })

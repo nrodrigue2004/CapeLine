@@ -5,7 +5,10 @@
 -- Every enemy is a humanoid robot (nate, 2026-11-16); `ai` in Config.Enemies picks its brain:
 --   flyer  (Spark Trooper) hovers, chases and strafes while firing 3-shot bursts
 --   thief  (Burglar Bot) runs from heroes between loot spots; cornered, it turns and fires a laser
---   sneak  (Sneak Bot) cloaks for 4 s, circles behind the hero and backstabs
+--   sneak  (Sneak Bot) cloaks for 4 s, circles behind the hero and backstabs; a little way off it winds up a
+--          lunge (WP6: it shows itself, a lane shows on the ground, red eyes), then dashes down the lane and
+--          strikes. The lunge is a breaker against a hero's block; a light hit, a stun or a knock in the
+--          wind-up (an interrupt) cuts it off
 --   brute  (Brute Bot) walks in, plants, shows a 0.8 s warning ring, then slams
 --   sentry (Sentry) planted; turns 90 degrees/s, fires when lined up; its shield flickers every 6 s
 --   guard  (Warden) blocks hits from the front; a flank hit breaks the guard and stuns it. The Shield
@@ -49,10 +52,13 @@ EnemySim.PATROL, EnemySim.CHASE, EnemySim.ATTACK, EnemySim.FLEE, EnemySim.DEAD =
 --   rally    a Captain's rally is on this robot (hits harder, moves faster)
 --   disguise a Mimic still dressed as a citizen (not a hit target, no health bar)
 --   mend     a Medic Unit is repairing a robot (the MEND event names it)
---   lunge    a Swarmer is lunging
+--   lunge    a Swarmer is lunging, or a Sneak Bot (WP6)
 --   hooked   a Grappler's hook is out
 --   unmasked a famous fake's or an evil twin's face has cracked (lore step 4)
 EnemySim.EXTRA = { aim = 1, rally = 2, disguise = 4, mend = 8, lunge = 16, hooked = 32, unmasked = 64 }
+
+-- The windup flag on the wire (Status.BITS.windup: red eyes and the rising whine), for the client's telegraphs
+EnemySim.WINDUP_BIT = Status.BITS.windup
 
 -- Hit flags returned by damage (sent to clients so a blocked hit reads)
 EnemySim.HIT, EnemySim.BLOCKED, EnemySim.BROKE = 0, 1, 2
@@ -127,7 +133,7 @@ export type Enemy = {
 	disguised: boolean, -- a Mimic still dressed as a citizen
 	stalkSince: number, -- when a disguised Mimic first saw a hero
 	ambush: boolean, -- the Mimic's first strike is still to come
-	lungeUntil: number, -- a Swarmer's lunge
+	lungeUntil: number, -- a Swarmer's or a Sneak Bot's lunge
 	lungeX: number,
 	lungeZ: number,
 	mendUntil: number, -- a Medic's beam is on (the patient) until then
@@ -136,7 +142,7 @@ export type Enemy = {
 	hookUntil: number, -- a Grappler's hook is out
 	airSeen: number, -- an Interceptor: the last moment its hero was in the air
 	-- the famous fakes and the evil twin (lore step 4)
-	move: string?, -- the move its windup ends in: "slam", "shock", "charge" or "dive"
+	move: string?, -- the move its windup ends in: "slam", "shock", "charge", "dive" or "lunge" (a Sneak Bot)
 	slams: number, -- slams so far (every Nth is a shockwave)
 	unmasked: boolean, -- its face has cracked
 	path: string?, -- an evil twin's power path
@@ -862,6 +868,7 @@ local function melee(sim: Sim, e: Enemy, h: Hero, coeff: number, cc: { [string]:
 		cc = if cc then cc.cc else nil,
 		ccTime = if cc then cc.time else nil,
 		ccValue = if cc then cc.value else nil,
+		breaker = if cc and cc.breaker then true else nil, -- WP6: a Sneak Bot's lunge breaks a hero's block
 	})
 end
 
@@ -1174,9 +1181,49 @@ local function behind(h: Hero, e: Enemy, maxAngle: number): boolean
 	return dot <= -math.cos(math.rad(maxAngle))
 end
 
+-- A Sneak Bot's lunge after its wind-up (WP6): down the lane to the locked spot at lunge speed; the hero it
+-- meets on the way (its target, still in the lane) takes one strike, a breaker against a block. Returns true
+-- while the wind-up or the lunge is running (the rest of the brain waits).
+local function sneakLunge(sim: Sim, e: Enemy, target: Hero?, canMove: boolean, dt: number): boolean
+	local L = e.cfg.lunge
+	local now = sim.now
+	if e.move == "lunge" then
+		if e.windupUntil == 0 then
+			e.move = nil -- cut off: a stun, a knock-up or a pull reset the wind-up (an interrupt)
+			return false
+		end
+		if now < e.windupUntil then
+			e.state = EnemySim.ATTACK
+			return true -- crouched, coiled, still
+		end
+		e.windupUntil = 0
+		e.move = nil
+		e.lungeUntil = now + L.time
+	end
+	if e.lungeUntil <= now then
+		return false
+	end
+	e.state = EnemySim.ATTACK
+	if canMove then
+		walk(sim, e, e.lungeX, e.lungeZ, L.speed, dt)
+	end
+	local reach = L.width + sim.config.Enemies.melee.reach
+	if target and dist2(e.x, e.z, target.x, target.z) <= reach and math.abs(target.y - e.y) < 6 then
+		local back = behind(target, e, e.cfg.stab.behindAngle)
+		melee(sim, e, target, L.coeff, { breaker = true })
+		table.insert(sim.events, { k = "swing", e = e.id, back = back })
+		e.lungeUntil = now -- one strike, then it stands
+		e.nextMelee = now + e.cfg.stab.cooldown
+	end
+	return true
+end
+
 local function thinkSneak(sim: Sim, e: Enemy, target: Hero?, speed: number, canMove: boolean, dt: number)
 	local cfg = e.cfg
 	local now = sim.now
+	if cfg.lunge and sneakLunge(sim, e, target, canMove, dt) then
+		return
+	end
 	if not target then
 		e.state = EnemySim.PATROL
 		if canMove then
@@ -1205,6 +1252,41 @@ local function thinkSneak(sim: Sim, e: Enemy, target: Hero?, speed: number, canM
 		if canMove then
 			walk(sim, e, gx, gz, speed, dt)
 		end
+		return
+	end
+	local L = cfg.lunge
+	if
+		L
+		and now >= e.nextSpecial
+		and d >= L.min
+		and d <= L.range
+		and math.abs(target.y - e.y) < 6
+		and e.dmgMult ~= 0
+	then
+		-- WP6: the lunge wind-up. It stops, shows itself and locks a spot a little past the hero; a lane shows
+		-- on the ground from it to that spot (the "lunge" event) while its eyes go red (the windup flag)
+		e.state = EnemySim.ATTACK
+		e.yaw = yawTo(target.x - e.x, target.z - e.z)
+		e.windupUntil = now + L.windup
+		e.move = "lunge"
+		e.nextSpecial = now + L.every
+		e.cloakUntil = now -- winding up shows it
+		local fx, fz = yawDir(e.yaw)
+		local reach = math.min(d + L.over, L.range + L.over)
+		e.lungeX, e.lungeZ = e.x + fx * reach, e.z + fz * reach
+		local floor = e.y - halfHeight(cfg)
+		table.insert(sim.events, {
+			k = "lunge",
+			e = e.id,
+			x = e.x,
+			y = floor,
+			z = e.z,
+			tx = e.lungeX,
+			ty = sim.heightAt(e.lungeX, e.lungeZ, e.y),
+			tz = e.lungeZ,
+			t = L.windup,
+			w = L.width,
+		})
 		return
 	end
 	if d > cfg.attackRange then

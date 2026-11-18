@@ -10,7 +10,7 @@
 -- last), the same on every device. Each robot's build (slim, normal, heavy) takes the creator's Small, Medium
 -- or Large proportions (BodyShape), scaled to its height.
 -- The rig is posed in code on its R15 joints: walk cycles from speed, aiming arms while attacking, a raised
--- slam on a windup, a tumble when knocked up, a wobble when stunned, and see-through while cloaked. Far
+-- slam on a windup (a Sneak Bot's low coil before its lunge, WP6), a tumble when knocked up, a wobble when stunned, and see-through while cloaked. Far
 -- robots pose every few frames. Status flags from the server tint and mark the body: ice blue when slowed or
 -- rooted, a spinning ring when stunned, a bubble or a guard plate when shielded.
 -- The nine newer kinds (Config.Enemies typeIds 10 to 18) add their own gear from their `body` flags: a riot
@@ -2161,7 +2161,10 @@ local function pose(
 	local look = cfg.body
 	local extra = body.extra
 	local small = look.small == true
-	local lunging = small and bit32.band(extra, EXTRA.lunge) ~= 0
+	local sneak = cfg.ai == "sneak"
+	-- a Swarmer's lunge, or a Sneak Bot's (WP6); a Sneak Bot's wind-up is a low coil, arms swept back
+	local lunging = (small or sneak) and bit32.band(extra, EXTRA.lunge) ~= 0
+	local coiled = sneak and windup and not lunging
 	-- a Swarmer's short legs patter faster, and it runs crouched, leaning into it
 	body.phase += dt * math.clamp(speed, 0, 30) * (if small then 0.75 else 0.45)
 	local lean = if small then math.clamp(speed / 25, 0, 1) else 0
@@ -2171,7 +2174,9 @@ local function pose(
 		root *= CFrame.new(0, math.sin(now * 3 + id) * 0.35, 0) * CFrame.Angles(math.rad(-12), 0, 0)
 	end
 	if lunging then
-		root *= CFrame.Angles(math.rad(-55), 0, 0) -- a Swarmer's lunge: flat out, reaching
+		root *= CFrame.Angles(math.rad(if small then -55 else -38), 0, 0) -- a lunge: flat out, reaching
+	elseif coiled then
+		root *= CFrame.new(0, -L.height * 0.12, 0) -- sunk low on bent knees, ready to spring
 	elseif lean > 0 then
 		root *= CFrame.Angles(math.rad(-16 * lean), 0, 0)
 	end
@@ -2205,7 +2210,9 @@ local function pose(
 		else math.clamp(speed / 20, 0, 1) * math.rad(if small then 55 else 40)
 	local s = math.sin(body.phase)
 	local waist = CFrame.identity
-	if cfg.ai == "sneak" and not attacking then
+	if coiled then
+		waist = CFrame.Angles(math.rad(-38), 0, 0) -- coiled over its knees, head down toward its hero
+	elseif sneak and not attacking then
 		waist = CFrame.Angles(math.rad(-18), 0, 0) -- crouched creep
 	elseif small and not lunging then
 		waist = CFrame.Angles(math.rad(-10 - 14 * lean), 0, 0) -- a Swarmer's crouched scuttle
@@ -2243,6 +2250,8 @@ local function pose(
 			yawA = if sign < 0 then math.rad(-30) else math.rad(8)
 		elseif lunging then
 			upperA, elbowA = math.rad(150), math.rad(10) -- reaching out ahead
+		elseif coiled then
+			upperA, elbowA = math.rad(-55), math.rad(35) -- blades swept back for the spring
 		elseif windup then
 			upperA, elbowA = math.rad(160), math.rad(20)
 		elseif swinging then
@@ -2273,6 +2282,8 @@ local function pose(
 			thighA, kneeA = math.rad(-20 * sign), math.rad(20)
 		elseif lunging then
 			thighA, kneeA = math.rad(-35 + 10 * sign), math.rad(15) -- legs stretched out behind
+		elseif coiled then
+			thighA, kneeA = math.rad(50 + 12 * sign), math.rad(80) -- deep in the knees
 		elseif small then
 			thighA, kneeA = thighA + math.rad(20), kneeA + math.rad(25) -- crouched
 		end
