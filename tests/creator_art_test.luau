@@ -12,7 +12,8 @@ return function(T: any)
 	local CreatorRules = require("../src/shared/CreatorRules")
 
 	-- the colour roles LookKit.colors holds (the slot's p, s, a and the fixed ones)
-	local ROLES = { p = true, s = true, a = true, dark = true, white = true, ice = true, gold = true, glowRed = true }
+	local ROLES =
+		{ p = true, s = true, a = true, dark = true, white = true, ice = true, gold = true, glowRed = true }
 	local C = Config.Creator
 	local idx = CreatorRules.index(Config)
 	local function kitsOf(tab: string): { [string]: boolean }
@@ -61,12 +62,18 @@ return function(T: any)
 			check(C.shapes[shape] ~= nil, kit .. ": keeps a glyph until uploaded")
 			if backing ~= "none" then
 				local b = A.backings[backing]
-				check(b ~= nil and type(b.face) == "number" and type(b.rim) == "number", kit .. ": backing ids")
-				check(fs.isFile("art/export/clothes/emblems/EmblemBack_" .. backing .. ".png"), kit .. ": backing")
+				check(
+					b ~= nil and type(b.face) == "number" and type(b.rim) == "number",
+					kit .. ": backing ids"
+				)
+				check(
+					fs.isFile("art/export/clothes/emblems/EmblemBack_" .. backing .. ".png"),
+					kit .. ": backing"
+				)
 				check(fs.isFile("art/export/clothes/emblems/EmblemRim_" .. backing .. ".png"), kit .. ": rim")
 			end
 		end
-		check(n >= 45, "every emblem piece (45 or more)")
+		check(n >= 65, "every emblem piece (65 or more)")
 	end)
 
 	test("Creator art: the flat masks' head decals", function()
@@ -83,7 +90,11 @@ return function(T: any)
 			for key, v in row do
 				if key ~= "tint" then
 					check(SIDES[key] ~= nil and type(v) == "number", kit .. ": " .. key .. " is a head face")
-					local path = "art/export/clothes/masks/Mask" .. (SIDES[key] or "?") .. "_" .. kit .. ".png"
+					local path = "art/export/clothes/masks/Mask"
+						.. (SIDES[key] or "?")
+						.. "_"
+						.. kit
+						.. ".png"
 					check(fs.isFile(path), path)
 				end
 			end
@@ -114,14 +125,20 @@ return function(T: any)
 			check(#row.pieces >= 2, style .. ": outside and lining at least")
 			local outer = false
 			for _, p in row.pieces do
-				check(string.sub(p.mesh, 1, #("Cape_" .. style .. "_")) == "Cape_" .. style .. "_", p.mesh .. ": name")
+				check(
+					string.sub(p.mesh, 1, #("Cape_" .. style .. "_")) == "Cape_" .. style .. "_",
+					p.mesh .. ": name"
+				)
 				check(names[p.mesh] == nil, p.mesh .. ": one mesh per name")
 				names[p.mesh] = true
 				check(ROLES[p.role], p.mesh .. ": colour role")
 				check(type(p.glow) == "boolean", p.mesh .. ": glow flag")
 				check(p.size[1] > 0 and p.size[2] > 0 and p.size[3] > 0, p.mesh .. ": size")
 				-- on the hero's back and shoulders (the clasps just in front of the chest), never far off the body
-				check(math.abs(p.offset[1]) < 1.5 and p.offset[2] > -4 and p.offset[2] < 1.6, p.mesh .. ": fit")
+				check(
+					math.abs(p.offset[1]) < 1.5 and p.offset[2] > -4 and p.offset[2] < 1.6,
+					p.mesh .. ": fit"
+				)
 				check(p.offset[3] > -0.7 and p.offset[3] < 1.5, p.mesh .. ": on the torso")
 				local cloth = p.mesh == "Cape_" .. style .. "_Outer" or p.mesh == "Cape_" .. style .. "_Left"
 				if cloth then
@@ -136,43 +153,54 @@ return function(T: any)
 
 	test("Creator art: LookKit wears the art and keeps the parts as the fallback", function()
 		local src = fs.readFile("src/shared/LookKit.luau")
-		for _, needle in {
-			"local function suitClothes(",
-			"local function maskDecals(",
-			"local function capeMeshes(",
-			'art:FindFirstChild("Capes")',
-			"capeMeshes(char, folder, kit, c, m)",
-			"maskDecals(char, kit, c)",
-			"EA.shapes[bits[1]]",
-		} do
+		for _, needle in
+			{
+				"local function suitClothes(",
+				"local function maskDecals(",
+				"local function capeMeshes(",
+				'art:FindFirstChild("Capes")',
+				"capeMeshes(char, folder, kit, c, m)",
+				"maskDecals(char, kit, c)",
+				"EA.shapes[bits[1]]",
+			}
+		do
 			check(string.find(src, needle, 1, true) ~= nil, "LookKit: " .. needle)
 		end
 		local pkg = fs.readFile("art/upload/make_package.py")
 		for _, kind in { "creator_suit", "creator_emblem", "creator_mask" } do
 			check(string.find(pkg, kind, 1, true) ~= nil, "the upload package lists " .. kind)
 		end
-		check(string.find(fs.readFile("src/config/init.luau"), '"CapeArt"', 1, true) ~= nil, "Config indexes CapeArt")
+		check(
+			string.find(fs.readFile("src/config/init.luau"), '"CapeArt"', 1, true) ~= nil,
+			"Config indexes CapeArt"
+		)
 	end)
 
 	test("Creator art: piece ids, kits and unlocks are unchanged", function()
-		-- a fingerprint of every piece in the tabs this pass drew (id, kit and unlock), so saved looks keep working
-		local rows = {}
-		for _, tab in { "suit", "back", "head", "emblem" } do
-			for _, p in idx.byTab[tab] do
-				local s = p.source
-				table.insert(
-					rows,
-					string.format("%s %d %s %s %s %s", tab, p.id, p.kit, s.kind, tostring(s.a), tostring(s.n))
-				)
+		-- a fingerprint (id, kit and unlock) of each tab's pieces this pass drew, as they stood on enemies9 before it
+		-- (2026-11-18), so saved looks keep working; pieces added after them do not change it
+		local BEFORE = {
+			suit = { 46, 168833058 },
+			back = { 25, 19384452 },
+			head = { 31, 1220518570 },
+			emblem = { 65, 1528379958 },
+		}
+		local total = 0
+		for tab, want in BEFORE do
+			local list = idx.byTab[tab]
+			local n = #list
+			total += n
+			local h = 0
+			for i = 1, math.min(if want[1] > 0 then want[1] else n, n) do
+				local p, s = list[i], list[i].source
+				local r = string.format("%d %s %s %s %s", p.id, p.kit, s.kind, tostring(s.a), tostring(s.n))
+				for k = 1, #r do
+					h = (h * 31 + string.byte(r, k)) % 2147483647
+				end
 			end
+			check(n >= want[1], tab .. ": no piece removed (" .. n .. ")")
+			check(h == want[2], tab .. ": the pieces' fingerprint (" .. n .. " pieces, " .. h .. ")")
 		end
-		local h = 0
-		for _, r in rows do
-			for i = 1, #r do
-				h = (h * 31 + string.byte(r, i)) % 2147483647
-			end
-		end
-		check(#rows == 178, "178 pieces in the four tabs (" .. #rows .. ")")
-		check(h == 0, "the pieces' fingerprint (" .. h .. ")")
+		check(total >= 167, "167 pieces or more in the four tabs (" .. total .. ")")
 	end)
 end

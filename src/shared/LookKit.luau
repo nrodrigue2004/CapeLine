@@ -7,8 +7,10 @@
 -- * build(char, folder, look): body colours from the suit, then every piece as small welded parts,
 --   the emblem as a glyph on the chest, the aura as one emitter, the flight trail as one Trail.
 -- Parts are massless and never collide, touch or block raycasts. Works on R15 and R6 bodies.
--- PLACEHOLDER ART: blocks, wedges, balls and cylinders until the accessory meshes, generated emblem
--- textures and cape sway (M11) replace them.
+-- Drawn art (2026-11-18) stands in once nate uploads or imports it: the suits' Shirt and Pants (suitClothes),
+-- the emblem set (emblem), the flat masks' head decals (maskDecals) and the cape meshes (capeMeshes); each keeps
+-- its parts below until then. PLACEHOLDER ART: the other pieces are blocks, wedges, balls and cylinders until
+-- accessory meshes and cape sway (M11) replace them.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -1259,7 +1261,13 @@ end
 -- ReplicatedStorage.Art.Capes: every piece of the style ("cape:<style>") cloned, sized with the torso, welded to
 -- the UpperTorso at its fitted box and coloured by its role (glow pieces Neon). Nothing is made unless every
 -- piece's mesh is there (then the box cape stays). Returns true when the meshes stand in for the kit's parts.
-local function capeMeshes(char: Model, folder: Instance, kit: string, colors: Colors, mat: Enum.Material?): boolean
+local function capeMeshes(
+	char: Model,
+	folder: Instance,
+	kit: string,
+	colors: Colors,
+	mat: Enum.Material?
+): boolean
 	local style = string.match(kit, "^cape:(.+)$")
 	local fit = style and (Config :: any).CapeArt and (Config :: any).CapeArt[style]
 	local art = ReplicatedStorage:FindFirstChild("Art")
