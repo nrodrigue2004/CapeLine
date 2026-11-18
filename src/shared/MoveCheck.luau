@@ -24,6 +24,7 @@ export type State = {
 	extra: number, -- granted travel not spent yet (dashes, leaps, knocks)
 	extraAt: number, -- when the last grant came
 	missAt: number?, -- the first of the fails in a row (nil after a pass)
+	expect: { x: number, y: number, z: number, from: number, untilT: number }?, -- a server move still landing
 }
 
 function MoveCheck.new(x: number, y: number, z: number, t: number): State
@@ -47,6 +48,14 @@ function MoveCheck.reset(state: State, x: number, y: number, z: number, t: numbe
 	state.budget = 0
 	state.extra = 0
 	state.missAt = nil
+end
+
+-- The server just moved the hero to (x, y, z) (fast travel, respawn, a pocket). Until untilT a sample that
+-- arrives there (or as far from there as the hero could legally have gone since) is that move landing late:
+-- accepted, measured from, and the expectation is spent. reset leaves it alone (MoveGuard's grace resets
+-- every sample, sometimes to the stale spot the device still reports).
+function MoveCheck.expect(state: State, x: number, y: number, z: number, untilT: number)
+	state.expect = { x = x, y = y, z = z, from = state.t, untilT = untilT }
 end
 
 -- A server-approved burst (Dash Strike's 30 studs): extra distance allowed right away, for `grantKeep` s.
@@ -81,6 +90,28 @@ function MoveCheck.sample(
 		state.extra = 0 -- an unspent grant does not last
 	end
 	local avail = state.budget + state.extra
+
+	local ex = state.expect
+	if ex then
+		if t > ex.untilT then
+			state.expect = nil
+		else
+			local reach = safetyCfg.slack * 2 + rate * math.max(0, t - ex.from)
+			local fx, fy, fz = x - ex.x, y - ex.y, z - ex.z
+			if fx * fx + fy * fy + fz * fz <= reach * reach then
+				local far = (x - state.x) ^ 2 + (z - state.z) ^ 2 > (safetyCfg.slack * 2) ^ 2
+				if far then
+					-- the move has landed on the device: measure from here on, and expect it no more
+					state.expect = nil
+					state.x, state.y, state.z = x, y, z
+					state.budget = 0
+					state.missAt = nil
+					return true, false, false
+				end
+				state.expect = nil -- it landed on time: an ordinary sample from here on
+			end
+		end
+	end
 
 	local dx, dy, dz = x - state.x, y - state.y, z - state.z
 	local up = math.max(0, dy)

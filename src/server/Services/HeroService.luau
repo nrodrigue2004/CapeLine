@@ -79,6 +79,7 @@ export type Hero = {
 	gadget: string?,
 	luckyCount: number, -- Lucky Strike: every 8th hit
 	traveling: boolean, -- on a fast-travel flight: untargetable (BeaconService)
+	placedAt: number?, -- when SafehouseService.place last moved the body (a fast travel in the air does not land)
 	raise: number?, -- H4: a sidekick's level inside a mission pocket (MissionService.setRaise)
 	carry: any?, -- H3: what the hero holds overhead (ThrowService)
 	safehouse: number?, -- the safehouse the hero stands in (SafehouseService)

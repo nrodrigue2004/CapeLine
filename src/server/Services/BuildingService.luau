@@ -22,6 +22,8 @@
 -- * Audit fixes (2026-11-18): a skyscraper's crown (its setbacks and spire, up to its peak) takes hits too, on its
 --   top storey; a building the collapse cap held up comes down once there is room (BuildingState.stepHeld);
 --   repairs go out with the diffs (r); ray() lets combat rays stop on a Damaged building's standing pieces.
+-- * Pins (2026-11-18): a beacon's host never breaks (WorldMap `fixed`), and pin(id, on) holds a roof whole while a
+--   side quest goal stands on it (BuildingState.pin); a knockback never picks a pinned wall.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -172,7 +174,11 @@ function BuildingService.clash(hero: any, at: Vector3, from: Vector3): Vector3?
 	away = away.Unit
 	local best, bestD = nil, D.clash.wallRange
 	for id, b in records do
-		if book.state[id] ~= BuildingState.COLLAPSED and at.Y < b.top + 4 then
+		if
+			book.state[id] ~= BuildingState.COLLAPSED
+			and at.Y < b.top + 4
+			and not BuildingState.pinned(book, id)
+		then
 			local dx = math.max(math.abs(at.X - b.x) - b.sx / 2, 0)
 			local dz = math.max(math.abs(at.Z - b.z) - b.sz / 2, 0)
 			local d = math.sqrt(dx * dx + dz * dz)
@@ -206,6 +212,13 @@ end
 
 function BuildingService.state(id: number): number
 	return BuildingService.book and BuildingService.book.state[id] or 0
+end
+
+-- Hold building id whole while something stands on its roof (on), or let it go (off; holders count)
+function BuildingService.pin(id: number, on: boolean)
+	if BuildingService.book then
+		BuildingState.pin(BuildingService.book, id, on)
+	end
 end
 
 -- Studio: put every building back

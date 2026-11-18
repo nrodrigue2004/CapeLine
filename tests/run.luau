@@ -3272,8 +3272,9 @@ test("M5: 40 vehicles on the streets, never inside a building, 6 flips a distric
 	local v = list[1]
 	local x0, y0, z0, r0 = Vehicles.flipPose(DS, v, 0, 1, 0)
 	check(x0 == 0 and y0 == 0 and z0 == 0 and r0 == 0, "the arc starts at home")
-	local x1, y1, _, r1 = Vehicles.flipPose(DS, v, 1, 1, 0)
-	near(x1, DS.vehicles.flipTravel, 1e-6, "it lands pushed away from the hit")
+	-- pushed along its street (a push toward the kerb stops at the road's edge: travel_test)
+	local _, y1, z1, r1 = Vehicles.flipPose(DS, v, 1, 0, 1)
+	near(z1, DS.vehicles.flipTravel, 1e-6, "it lands pushed away from the hit")
 	near(y1, 0, 1e-6, "it lands on the ground")
 	near(r1, math.pi, 1e-6, "on its roof")
 	local _, yMid = Vehicles.flipPose(DS, v, 0.5, 1, 0)
@@ -8276,7 +8277,11 @@ end); -- Hero MMO features (H1 to H8) live in their own file so this one merges 
 (require :: any)("./acts_test")({ test = test, check = check, Config = Config, placePath = process.args[1] }); -- WP8: live tuning from Balance_v<N> (own file, merges easily)
 (require :: any)("./balance_test")({ test = test, check = check, Config = Config });
 -- WP9: the HQ's WANTED poster and nemesis heads (own file, merges easily)
-(require :: any)("./wanted_test")({ test = test, check = check, Config = Config })
+(require :: any)("./wanted_test")({ test = test, check = check, Config = Config });
+-- Overnight queue item 5: the underwater, vehicles, citizens and travel audit (own file, merges easily)
+(require :: any)("./travel_test")({ test = test, check = check, Config = Config, world = world });
+-- WP12: visit a friend's HQ on the same server (own file, merges easily)
+(require :: any)("./visit_test")({ test = test, check = check, Config = Config, placePath = process.args[1] })
 
 test(
 	"City kit: every district dressed, deterministic, within budget, nothing in buildings or roads",
@@ -22699,6 +22704,8 @@ end
 (require :: any)("./perf")({ test = test, check = check, near = near, Config = Config });
 -- the city and destruction audit (2026-11-18, own file, merges easily); ONLY="City audit" runs just these
 (require :: any)("./city_audit_test")({ test = test, check = check, Config = Config, world = world });
+-- the side quest juice pass and the beacon roof fix (2026-11-18); ONLY="SQ juice" or ONLY="Beacon roofs"
+(require :: any)("./polish_test")({ test = test, check = check, Config = Config, world = world });
 -- the onboarding check (overnight item 8, 2026-11-18, own file); ONLY="Onboarding" runs just these
 (require :: any)("./onboarding_test")({ test = test, check = check, Config = Config, world = world })
 

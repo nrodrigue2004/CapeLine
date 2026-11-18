@@ -15,6 +15,10 @@
 --   Crane's lines, and PUBLIC ENEMY #1 over the hero's own name. Nothing flashes.
 -- * Side quests (lore step 10): the tracked chain's step tracker with its marker or search circle; giver and
 --   step lines through GuideHud, a step's scene through CinemaClient, the finale's name card (CinemaHud).
+-- * Side quest juice (the juice pass, 2026-11-18; Config.Audio.sideQuest, Shared.QuestJuice): every chain's
+--   accept (NEW QUEST!), each step done (its word stamp and pay), the finale's name card sting, the encore, the
+--   finale won (fireworks and VICTORY!), the chain done (the result card with its title and cosmetic, confetti
+--   and the victory sting) and the finale lost (TRY AGAIN! when Downed while the villain stands).
 -- PLACEHOLDER ART: the title card is the plain Kit title until the art pass.
 
 local Players = game:GetService("Players")
@@ -31,6 +35,8 @@ local StoryPlan = require(Shared:WaitForChild("StoryPlan"))
 local OpeningPlan = require(Shared:WaitForChild("OpeningPlan"))
 local SideQuestPlan = require(Shared:WaitForChild("SideQuestPlan"))
 local GuidePlan = require(Shared:WaitForChild("GuidePlan"))
+local Net = require(Shared:WaitForChild("Net"))
+local QuestJuice = require(Shared:WaitForChild("QuestJuice"))
 
 local Kit = require(script.Parent.Kit)
 local Hud = require(script.Parent.Hud)
@@ -40,6 +46,8 @@ local State = require(script.Parent.Parent.State)
 local StoryClient = require(script.Parent.Parent.Controllers.StoryClient)
 local InputController = require(script.Parent.Parent.Controllers.InputController)
 local CinemaClient = require(script.Parent.Parent.Controllers.CinemaClient)
+local PvpClient = require(script.Parent.Parent.Controllers.PvpClient)
+local Juice = require(script.Parent.Parent.Fx.Juice)
 
 local StoryHud = {}
 
@@ -314,11 +322,49 @@ local function missionName(num: number): string
 	return if m then m.name else ""
 end
 
-local function showResult(r: { [string]: any })
+-- The result card's lines: { text, colour, size, counts up (the pay line) }; it closes after 5.5 s
+local cardToken = 0
+local function fillCard(lines: { any }, credits: number, renown: number)
 	for _, c in resultCard:GetChildren() do
 		if c:IsA("TextLabel") then
 			c:Destroy()
 		end
+	end
+	for i, line in lines do
+		local l = Kit.label({
+			Text = line[1],
+			Size = UDim2.new(1, -20, 0, if i == 1 then 44 else 26),
+			LayoutOrder = i,
+			TextColor3 = line[2],
+			maxText = line[3],
+		})
+		l.Parent = resultCard
+		if line[4] then
+			Kit.countUp(l, 1.5, function(k)
+				return Kit.payLine(credits, renown, k)
+			end)
+		end
+	end
+	resultCard.Visible = true
+	Kit.pulse(resultCard, 0.2)
+	cardToken += 1
+	local token = cardToken
+	task.delay(5.5, function()
+		if token == cardToken then
+			resultCard.Visible = false
+		end
+	end)
+end
+
+local function showResult(r: { [string]: any })
+	-- a side quest's pocket run (r.sq: its chain's bit) carries the chain's name; the step's own juice follows
+	local sq = r.sq and SideQuestPlan.byBit(Config, r.sq)
+	if sq then
+		fillCard({
+			{ string.format("%s CLEAR!", string.upper(sq.name)), Kit.color.gold, 34 },
+			{ Kit.payLine(r.credits or 0, r.renown or 0, 1), Kit.color.paper, 20, true },
+		}, r.credits or 0, r.renown or 0)
+		return
 	end
 	local lines = {
 		{ string.format("%s CLEAR!", string.upper(missionName(r.num or 0))), Kit.color.gold, 34 },
@@ -352,26 +398,74 @@ local function showResult(r: { [string]: any })
 	else
 		table.insert(lines, { "Replay: first-clear rewards already earned", Kit.color.muted, 14 })
 	end
-	for i, line in lines do
-		local l = Kit.label({
-			Text = line[1],
-			Size = UDim2.new(1, -20, 0, if i == 1 then 44 else 26),
-			LayoutOrder = i,
-			TextColor3 = line[2],
-			maxText = line[3],
-		})
-		l.Parent = resultCard
-		if line[4] then
-			Kit.countUp(l, 1.5, function(k)
-				return Kit.payLine(r.credits or 0, r.renown or 0, k)
-			end)
-		end
+	fillCard(lines, r.credits or 0, r.renown or 0)
+end
+
+---------------------------------------------------------------------------
+-- Side quest juice (the juice pass): the toasts SideQuestService sends, the finale's card, Downed in a finale
+---------------------------------------------------------------------------
+
+-- the last finale this device tracked (where its villain stands and its card), for the win and the retry
+local finale: { bit: number, at: Vector3?, name: string? }? = nil
+
+local function sideOf(): string
+	return State.hero.side or "hero"
+end
+
+-- A chain done: the result card with its title, pay and each cosmetic it gives
+local function questResult(chain: any, credits: number?, renown: number?)
+	local r = QuestJuice.result(Config, chain, credits, renown)
+	local lines = {
+		{ r.title, Kit.color.gold, 34 },
+		{ Kit.payLine(r.credits, r.renown, 1), Kit.color.paper, 20, true },
+	}
+	for _, text in r.rewards do
+		table.insert(lines, { text, Kit.color.gold, 18 })
 	end
-	resultCard.Visible = true
-	Kit.pulse(resultCard, 0.2)
-	task.delay(5.5, function()
-		resultCard.Visible = false
-	end)
+	fillCard(lines, r.credits, r.renown)
+end
+
+local function questToast(data: { [string]: any })
+	local id = data.id
+	local chain = SideQuestPlan.byBit(Config, data.bit or 0)
+	local name = chain and string.upper(chain.name) or nil
+	if id == "sqStart" and chain then
+		Juice.fire("questAccept", nil, { name = name })
+	elseif id == "sqStep" and chain then
+		local idx = (data.step or 2) - 1 -- data.step is the step that comes next
+		local row = QuestJuice.step(Config, QuestJuice.kindOf(chain, idx, sideOf()))
+		Juice.fire("questStep", nil, {
+			word = row and row.word,
+			sub = string.format("STEP %d OF %d", idx, #chain.steps),
+			credits = data.credits,
+		})
+	elseif id == "sqWait" then
+		local q = StoryClient.quest
+		local qc = q and SideQuestPlan.byBit(Config, q.bit or 0)
+		local row = QuestJuice.step(Config, qc and QuestJuice.kindOf(qc, q and q.step or 0, sideOf()))
+		Juice.fire("questStep", nil, { wait = true, word = row and row.word })
+	elseif id == "sqTest" then
+		-- Dev: a kind test done gets its kind's stamp, so every kind's juice can be tried alone
+		local dk = Config.SideQuests.devKinds[data.n or 0]
+		local row = QuestJuice.step(Config, dk and dk.kind)
+		Juice.fire("questStep", nil, { word = row and row.word, sub = "KIND TEST" })
+	elseif id == "sqEncore" then
+		local q = StoryClient.quest
+		local qc = q and SideQuestPlan.byBit(Config, q.bit or 0)
+		local card = qc and SideQuestPlan.card(qc, q and q.step or 0, 2)
+		local at = q and q.target and Vector3.new(q.target[1], q.target[2], q.target[3]) or nil
+		Juice.fire("questEncore", at, { name = card and string.upper(card.name) or nil })
+	elseif id == "sqDone" and chain then
+		-- the finale won: fireworks where the villain fell, then the chain's result card
+		local f = if finale and finale.bit == chain.bit then finale else nil
+		local villain = if type(chain.villain) == "table" then string.upper(chain.villain.name) else nil
+		Juice.fire("questFinale", f and f.at, { name = villain, mine = true })
+		finale = nil
+		task.delay(Config.Audio.sideQuest.doneDelay, function()
+			Juice.fire("questDone", nil, { mine = true })
+			questResult(chain, data.credits, data.renown)
+		end)
+	end
 end
 
 -- A side quest giver or step speaks (lore step 10): fixed lines from Config.SideQuests through the guide line
@@ -729,11 +823,19 @@ local function frame()
 			string.format("%s:%s:%s", tostring(q.bit or q.test), tostring(q.step), tostring(q.phase or 1))
 		local char = player.Character
 		local root = char and char:FindFirstChild("HumanoidRootPart") :: BasePart?
+		if card and not q.test then
+			finale = {
+				bit = q.bit or 0,
+				at = if target then Vector3.new(target[1], target[2], target[3]) else nil,
+				name = string.upper(card.name),
+			}
+		end
 		if card and target and root and not cardShown[key] then
 			local d = (root.Position - Vector3.new(target[1], target[2], target[3])).Magnitude
 			if d <= Config.SideQuests.finale.reach then
 				cardShown[key] = true
 				CinemaHud.nameCard("", card.name, card.title)
+				Juice.fire("questVillain", nil, { mine = false })
 			end
 		end
 	else
@@ -846,6 +948,24 @@ function StoryHud.init()
 		end
 	end)
 	StoryClient.Result:Connect(showResult)
+	Net.listen("Toast", function(data: any)
+		if type(data) == "table" and type(data.id) == "string" and string.sub(data.id, 1, 2) == "sq" then
+			questToast(data)
+		end
+	end)
+	-- the finale lost: Downed while the tracked chain's villain still stands
+	local wasDown = false
+	PvpClient.Changed:Connect(function(what)
+		if what ~= "down" then
+			return
+		end
+		local down = PvpClient.down.downed == true
+		local q = StoryClient.quest
+		if down and not wasDown and q and q.card and not q.test and not StoryClient.inMission() then
+			Juice.fire("questRetry", nil, { name = string.upper(q.card.name), mine = false })
+		end
+		wasDown = down
+	end)
 	StoryClient.Broadcast:Connect(showBroadcast)
 	StoryClient.Talk:Connect(showTalk)
 	StoryClient.Fade:Connect(function()

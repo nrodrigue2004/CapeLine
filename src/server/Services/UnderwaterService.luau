@@ -5,7 +5,8 @@
 --   each cache once per Deep.caches.cooldown.
 -- * Commuters trapped in air pockets in the Sunken Line: swim close to pick one up (they hold on), then swim
 --   them up to the quay. Pays Economy.earn.deepRescue. The commuter waits again after Deep.rescues.respawn.
---   A hero who is downed, leaves or falls into a mission pocket lets go and the commuter goes back.
+--   A hero who is downed, leaves, fast travels or falls into a mission pocket lets go and the commuter goes
+--   back.
 -- Everything is checked from the server's own hero positions at 4 Hz: no client remote can claim a cache.
 
 local Players = game:GetService("Players")
@@ -108,7 +109,12 @@ local function step(now: number)
 	local q = D.rescues.quay
 	local wy = Config.World.coast.waterY
 	for _, hero in HeroService.all() do
-		local pos = if hero.player and hero.alive then HeroService.position(hero) else nil
+		-- a fast travel lets go too: the commuter is swum to the quay, never flown there (hero.traveling)
+		local pos = if hero.player
+				and hero.alive
+				and not hero.traveling
+			then HeroService.position(hero)
+			else nil
 		if not pos then
 			if carriers[hero.id] then
 				letGo(hero.id, now)

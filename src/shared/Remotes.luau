@@ -149,7 +149,7 @@ local Remotes: { [string]: RemoteDef } = {
 	MissionEnter = { dir = "C2S", schema = { n(2, 6), n(0, 1000000, true) }, rate = 0.2, burst = 2 },
 	MissionLeave = { dir = "C2S", schema = {}, rate = 0.5, burst = 2 },
 	MissionState = { dir = "S2C" }, -- { num, step, steps, side, kind, text, have, need, t, points, target, focus }, 2 Hz
-	MissionResult = { dir = "S2C" }, -- { num, first, credits, renown, drops, skillPoints, rep, ending }
+	MissionResult = { dir = "S2C" }, -- { num, first, credits, renown, drops, skillPoints, rep, ending, sq }
 	StoryBroadcast = { dir = "S2C" }, -- { id }: an act's ending broadcast (lore step 5: after Live, back in the city)
 	-- lore step 7 (the cinematic layer): a device-started scene was seen (its Config.Cinema bit); skip a
 	-- mission's camera beat (only when every hero on that stage has seen it); the news (facts and flashes)
@@ -235,6 +235,25 @@ local Remotes: { [string]: RemoteDef } = {
 	HqBossSim = { dir = "C2S", schema = {}, rate = 0.2, burst = 2 }, -- start the 60 s boss sim (HQ level 3)
 	HqDps = { dir = "S2C" }, -- { dps, total, sim = { left, hp, max } }: the training room meter, 2 Hz
 	HqRetire = { dir = "C2S", schema = {}, rate = 0.1, burst = 1 }, -- Legacy at the level cap (Hall of Legends)
+	-- WP12: visit a friend's HQ (Shared.VisitRules, VisitService). HqVisitAsk: VISIT (the owner's user id);
+	-- HqVisitAnswer: the owner's card (the asker's user id, 1 accept or 0 no); HqVisitLeave: LEAVE HQ or the
+	-- exit; HqVisitKick: the owner shows a visitor out. HqVisitAsked ({ from, name, life }: the card) and
+	-- HqVisitors ({ list = { { userId, name } }, visiting = { owner, name }? }) are S2C; the copy itself comes
+	-- as an HqState with `visit` set. Fixed text only: no strings travel either way.
+	HqVisitAsk = { dir = "C2S", schema = { n(1, 2 ^ 52) }, rate = 0.5, burst = 2 },
+	HqVisitAnswer = { dir = "C2S", schema = { n(1, 2 ^ 52), n(0, 1) }, rate = 1, burst = 3 },
+	HqVisitLeave = { dir = "C2S", schema = {}, rate = 0.5, burst = 2 },
+	HqVisitKick = { dir = "C2S", schema = { n(1, 2 ^ 52) }, rate = 1, burst = 3 },
+	HqVisitAsked = { dir = "S2C" },
+	HqVisitors = { dir = "S2C" },
+	-- WP12: the device's Roblox block list (StarterGui GetBlockedUserIds) so a block stops visit asks
+	-- (GuardService.shuns); { 0 } means none. Only ever narrows what reaches this player.
+	GuardBlocks = {
+		dir = "C2S",
+		schema = { { t = "intList", maxLen = 200, min = 0, max = 2 ^ 52 } },
+		rate = 0.2,
+		burst = 3,
+	},
 	GizmoBuy = { dir = "C2S", schema = { n(1, 511) }, rate = 2, burst = 3 }, -- a base style id, Credits only
 	ShopBuy = { dir = "C2S", schema = { n(1, 64) }, rate = 1, burst = 3 }, -- an item (ShopRules.keys order)
 	ShopResult = { dir = "S2C" }, -- { ok, key, kind, pieces, reason }: after a purchase lands (or not)

@@ -28,7 +28,14 @@ local BeaconService = {}
 local W = Config.World
 local B = W.beacon
 
-type Trip = { beacon: number, arriveAt: number, dest: CFrame, done: boolean, skipped: boolean? }
+type Trip = {
+	beacon: number,
+	started: number,
+	arriveAt: number,
+	dest: CFrame,
+	done: boolean,
+	skipped: boolean?,
+}
 local trips: { [Player]: Trip } = {}
 local readyAt: { [Player]: number } = {}
 
@@ -53,7 +60,8 @@ local function arrive(player: Player, trip: Trip)
 	if hero then
 		hero.traveling = false
 	end
-	if hero and model and model.Parent and hero.alive then
+	-- a hero something else moved during the flight (a mission pocket, the HQ) stays where they were put
+	if hero and model and model.Parent and hero.alive and Travel.landOk(trip, hero.placedAt) then
 		model:PivotTo(trip.dest)
 		MoveGuard.reset(hero)
 	end
@@ -85,11 +93,14 @@ local function travel(player: Player, beaconId: number)
 	end
 	local b = CityBuilder.world.beacons[beaconId]
 	local dest = Vector3.new(b.x, b.y + B.arriveAbove, b.z)
+	local lx, ly, lz = Travel.arrival(W, b)
+	local land = Vector3.new(lx, ly, lz)
 	readyAt[player] = now + B.cooldown
 	local trip = {
 		beacon = beaconId,
+		started = now,
 		arriveAt = now + B.travelTime,
-		dest = CFrame.new(dest + Vector3.new(4, 0, 4), dest + Vector3.new(4, 0, 14)),
+		dest = CFrame.new(land, land + Vector3.new(0, 0, 10)),
 		done = false,
 	}
 	trips[player] = trip

@@ -62,6 +62,11 @@ function Juice.fire(id: string, at: Vector3?, data: { [string]: any }?)
 	else
 		AudioController.play(id, at)
 	end
+	-- a row with `sting` also plays the music's victory sting (a side quest chain done)
+	local row = A.sounds[id]
+	if row and row.sting then
+		AudioController.victory()
+	end
 	local fx = (JuiceFx :: any)[id]
 	if type(fx) == "function" then
 		fx(at, d)

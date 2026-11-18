@@ -114,6 +114,7 @@ local function placeCharacter(hero: any, cf: CFrame)
 	local root = model:WaitForChild("HumanoidRootPart", 5)
 	if root and model.Parent then
 		model:PivotTo(cf)
+		hero.placedAt = os.clock() -- a fast travel still in the air does not land them back out (Travel.landOk)
 		MoveGuard.reset(hero)
 	end
 end

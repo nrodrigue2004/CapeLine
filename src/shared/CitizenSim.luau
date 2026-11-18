@@ -6,7 +6,11 @@
 --   sides and across the streets (crosswalks).
 -- * Walk: node to a random neighbour, sometimes pausing. Flee: when danger is called near them (a building
 --   about to collapse, a collapse, a big impact), they run along the graph to the nearest shelter that is
---   not inside the danger, then hide there for 20 to 40 s and come back out somewhere calm.
+--   not inside the danger, then hide there for 20 to 40 s and come back out somewhere calm. A citizen with no
+--   sidewalk route to any shelter ducks into the nearest doorway (hides at once) instead of cutting
+--   straight through the blocks.
+-- * blocked (CitizenSim.blocker over the world's parts): corners inside a part (the Clock Tower in Clock
+--   Square) and sidewalk links that pass through one are left out of the graph, so nobody walks through it.
 -- Nothing in the game can damage a citizen.
 
 local Rng = if script then require(script.Parent.Rng) else (require :: any)("./Rng")
@@ -145,13 +149,157 @@ local function nearestNode(nodes: { Node }, x: number, z: number): number
 end
 CitizenSim.nearestNode = nearestNode
 
--- shelters: points { x, z } (safehouses and HQ doors in Downtown and Old Town)
-function CitizenSim.new(Config: any, shelters: { { x: number, z: number } }, seed: number): Sim
+-- A test for the world's solid parts at a citizen's height (y0 to y1), for CitizenSim.new: (x, z, r) says
+-- whether a body of radius r there would be inside one. Pure: a 32-stud grid over the boxes.
+local CELL = 32
+function CitizenSim.blocker(world: any, Config: any): (number, number, number) -> boolean
+	local gy = Config.City.ground.y
+	local y0, y1 = gy + 2.4, gy + 6 -- above a sidewalk, a kerb or a low plaza; below a citizen's head
+	local cells: { [number]: { any } } = {}
+	for _, b in world.hubBoxes do
+		local solid = not b.ghost and b.kind ~= "band" and b.kind ~= "glow" and b.kind ~= "crop"
+		if solid and b.cy - b.sy / 2 < y1 and b.cy + b.sy / 2 > y0 then
+			local r = math.sqrt(b.sx * b.sx + b.sz * b.sz) / 2 + 2
+			for cx = math.floor((b.cx - r) / CELL), math.floor((b.cx + r) / CELL) do
+				for cz = math.floor((b.cz - r) / CELL), math.floor((b.cz + r) / CELL) do
+					local k = cx * 100000 + cz
+					cells[k] = cells[k] or {}
+					table.insert(cells[k], b)
+				end
+			end
+		end
+	end
+	return function(x: number, z: number, r: number): boolean
+		local list = cells[math.floor(x / CELL) * 100000 + math.floor(z / CELL)]
+		if not list then
+			return false
+		end
+		for _, b in list do
+			local a = math.rad(b.ry or 0)
+			local dx, dz = x - b.cx, z - b.cz
+			local lx = dx * math.cos(a) - dz * math.sin(a)
+			local lz = dx * math.sin(a) + dz * math.cos(a)
+			if math.abs(lx) < b.sx / 2 + r and math.abs(lz) < b.sz / 2 + r then
+				return true
+			end
+		end
+		return false
+	end
+end
+
+local BODY = 1 -- a citizen's half width (with a little room) for the graph's checks
+
+local function clearLine(blocked: (number, number, number) -> boolean, a: any, b: any): boolean
+	local len = math.sqrt((b.x - a.x) ^ 2 + (b.z - a.z) ^ 2)
+	local steps = math.max(1, math.ceil(len / 1))
+	for s = 0, steps do
+		local f = s / steps
+		if blocked(a.x + (b.x - a.x) * f, a.z + (b.z - a.z) * f, BODY) then
+			return false
+		end
+	end
+	return true
+end
+
+-- The graph without the corners inside parts, the links through them and the corners left with no link
+local function prune(nodes: { Node }, blocked: (number, number, number) -> boolean): { Node }
+	local keep: { [number]: number } = {}
+	local out: { Node } = {}
+	for i, n in nodes do
+		if not blocked(n.x, n.z, BODY) then
+			table.insert(out, { x = n.x, y = n.y, z = n.z, links = {} })
+			keep[i] = #out
+		end
+	end
+	for i, n in nodes do
+		local a = keep[i]
+		if a then
+			for _, m in n.links do
+				local b = keep[m]
+				if b and m > i and clearLine(blocked, n, nodes[m]) then
+					table.insert(out[a].links, b)
+					table.insert(out[b].links, a)
+				end
+			end
+		end
+	end
+	local final: { Node } = {}
+	local again: { [number]: number } = {}
+	for i, n in out do
+		if #n.links > 0 then
+			table.insert(final, n)
+			again[i] = #final
+		end
+	end
+	for _, n in final do
+		for k, m in n.links do
+			n.links[k] = again[m]
+		end
+	end
+	return final
+end
+
+-- No corner walks straight in to shelter s (its hut, or another lot, is in the way): the point on a sidewalk
+-- link nearest the shelter that does becomes a new node splitting that link (the safehouse's front door)
+local function doorNode(nodes: { Node }, blocked: (number, number, number) -> boolean, s: any): number?
+	local best: { i: number, j: number, x: number, z: number }? = nil
+	local bestD = 90 * 90
+	for i, n in nodes do
+		for _, j in n.links do
+			if j > i then
+				local o = nodes[j]
+				local ax, az = o.x - n.x, o.z - n.z
+				local l2 = ax * ax + az * az
+				for k = 0, 20 do
+					-- a few points along the link, nearest first matters less than a clear one
+					local f = if l2 > 0 then k / 20 else 0
+					local px, pz = n.x + ax * f, n.z + az * f
+					local d = (px - s.x) ^ 2 + (pz - s.z) ^ 2
+					if d < bestD and clearLine(blocked, { x = px, z = pz }, s) then
+						best, bestD = { i = i, j = j, x = px, z = pz }, d
+					end
+				end
+			end
+		end
+	end
+	if not best then
+		return nil
+	end
+	local door = best :: { i: number, j: number, x: number, z: number }
+	local a, b = nodes[door.i], nodes[door.j]
+	table.insert(nodes, { x = door.x, y = a.y, z = door.z, links = { door.i, door.j } })
+	local id = #nodes
+	a.links[table.find(a.links, door.j) :: number] = id
+	b.links[table.find(b.links, door.i) :: number] = id
+	return id
+end
+
+-- shelters: points { x, z } (safehouses and HQ doors in Downtown and Old Town). blocked (optional): the
+-- world's parts (CitizenSim.blocker); without it the whole grid is used (tests of the walking rules).
+function CitizenSim.new(
+	Config: any,
+	shelters: { { x: number, z: number } },
+	seed: number,
+	blocked: ((number, number, number) -> boolean)?
+): Sim
 	local nodes = CitizenSim.graph(Config)
+	if blocked then
+		nodes = prune(nodes, blocked)
+	end
 	local list: { Shelter } = {}
 	for _, s in shelters do
-		local node = nearestNode(nodes, s.x, s.z)
-		if (nodes[node].x - s.x) ^ 2 + (nodes[node].z - s.z) ^ 2 < 90 * 90 then
+		-- the nearest corner with a clear walk in (a safehouse's own hut stands between some corners and its pad)
+		local node, bestD = nil, 90 * 90
+		for i, n in nodes do
+			local d = (n.x - s.x) ^ 2 + (n.z - s.z) ^ 2
+			if d < bestD and (not blocked or clearLine(blocked, n, s)) then
+				node, bestD = i, d
+			end
+		end
+		if not node and blocked then
+			node = doorNode(nodes, blocked, s)
+		end
+		if node then
 			table.insert(list, { x = s.x, y = nodes[node].y, z = s.z, node = node })
 		end
 	end
@@ -213,8 +361,8 @@ function CitizenSim.populate(sim: Sim, count: number?)
 	end
 end
 
--- Breadth-first path along the graph
-local function route(sim: Sim, from: number, to: number): { number }
+-- Breadth-first path along the graph, or nil when `to` cannot be reached from `from`
+local function route(sim: Sim, from: number, to: number): { number }?
 	if from == to then
 		return {}
 	end
@@ -235,7 +383,7 @@ local function route(sim: Sim, from: number, to: number): { number }
 		end
 	end
 	if prev[to] == nil then
-		return {}
+		return nil
 	end
 	local path = {}
 	local n = to
@@ -251,21 +399,34 @@ function CitizenSim.danger(sim: Sim, x: number, z: number, r: number, duration: 
 	table.insert(sim.dangers, { x = x, z = z, r = r, untilT = sim.now + duration })
 	for _, c in sim.citizens do
 		if c.state ~= CitizenSim.HIDDEN and (c.x - x) ^ 2 + (c.z - z) ^ 2 < r * r then
-			local best, bestD = nil, math.huge
+			-- the nearest shelter outside the danger that the sidewalks reach
+			local options = {}
 			for _, s in sim.shelters do
 				if (s.x - x) ^ 2 + (s.z - z) ^ 2 >= r * r then
-					local dd = (s.x - c.x) ^ 2 + (s.z - c.z) ^ 2
-					if dd < bestD then
-						best, bestD = s, dd
-					end
+					table.insert(options, { s = s, d = (s.x - c.x) ^ 2 + (s.z - c.z) ^ 2 })
 				end
 			end
-			c.state = CitizenSim.FLEE
-			c.goal = best
-			if best then
-				c.path = route(sim, c.node, best.node)
+			table.sort(options, function(a, b)
+				return a.d < b.d
+			end)
+			local best, path = nil, nil
+			for _, o in options do
+				path = route(sim, c.node, o.s.node)
+				if path then
+					best = o.s
+					break
+				end
+			end
+			if best and path then
+				c.state = CitizenSim.FLEE
+				c.goal = best
+				c.path = path
 			else
+				-- nowhere to run along the sidewalks: duck into the nearest doorway
+				c.state = CitizenSim.HIDDEN
+				c.goal = nil
 				c.path = {}
+				c.untilT = sim.now + sim.rng:range(sim.cfg.hideFor[1], sim.cfg.hideFor[2])
 			end
 		end
 	end
