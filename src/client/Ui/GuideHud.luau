@@ -160,7 +160,7 @@ local function buildPortrait(who: string, sp: any): Frame
 				pt.Rotation = 45
 			end
 		elseif extra == "goggles" then
-			-- a diver's mask (the Underwater chain: Doc Pearl and Marlo): a glass band over the eyes, its strap
+			-- a diver's mask (the Underwater chain: Doc Pearl and Dace): a glass band over the eyes, its strap
 			local glass = Color3.fromRGB(150, 220, 255)
 			piece(frame, 0.5, 0.52, 0.6, 0.06, dark, 0.5)
 			piece(frame, 0.4, 0.54, 0.16, 0.13, glass, 0.4)
@@ -187,6 +187,27 @@ local function buildPortrait(who: string, sp: any): Frame
 			-- a fighter's plaster across the nose (chain 6: Flint)
 			local tape = piece(frame, 0.5, 0.61, 0.2, 0.05, Color3.fromRGB(240, 220, 190), 0.3)
 			tape.Rotation = -8
+		elseif extra == "pearls" then
+			-- a string of pearls at the collar (the character lines: Duchess Vanta)
+			for i = -3, 3 do
+				piece(
+					frame,
+					0.5 + i * 0.07,
+					0.9 - math.abs(i) * 0.018,
+					0.06,
+					0.06,
+					Color3.fromRGB(245, 240, 230),
+					1
+				)
+			end
+		elseif extra == "mic" then
+			-- a reporter's hand mic with a station flag on it (the character lines: Nora Bright)
+			piece(frame, 0.8, 0.86, 0.06, 0.2, Color3.fromRGB(40, 40, 46), 0.2)
+			piece(frame, 0.8, 0.74, 0.12, 0.12, Color3.fromRGB(70, 70, 80), 1)
+			piece(frame, 0.8, 0.84, 0.12, 0.05, Color3.fromRGB(230, 60, 50))
+		elseif extra == "blackbar" then
+			-- a censor's black bar across the eyes (the character lines: the Censor)
+			piece(frame, 0.5, 0.53, 0.74, 0.12, Color3.fromRGB(12, 12, 14))
 		elseif extra == "spectacles" then
 			-- round reading glasses over the eyes, a thin bridge between them (the origin lines: Dr. Okafor,
 			-- Doctor Holloway)

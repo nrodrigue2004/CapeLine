@@ -6,7 +6,11 @@
 --   fit (a height in range, no skyscraper crown, `away` studs from the Beacon Tower's plaza, every roof of the
 --   prologue's chase row, the Vigil's stairwell and the open squares), the one nearest `near` (studs from the
 --   Beacon Tower). Uptown (chain 2's bank): the one nearest `near` from Uptown's landmark tower, `away`.landmark
---   from it. nate (2026-11-17): the Hero Academy is an existing building, not an open square.
+--   from it. nate (2026-11-17): the Hero Academy is an existing building, not an open square. The Docks and
+--   Old Town (lore step 11, the character lines): of that district's buildings (world.buildings, fixed every
+--   week) a height in range, `away` studs from every safehouse pad, the Vigil's stairwell and the Foundry door,
+--   with a way in on open ground (districtDoor), the one nearest `near` (studs from the district's middle). Any
+--   city site with `away.site` also keeps that far from every other city site (buildings and squares).
 -- * square(Config, world, id): a site in one of Downtown's open squares (`square`: a Config.City.downtown.open
 --   id; nate kept both for The Gala Heist): the square's record { id, x, z, size }.
 -- * door(world, b, ox?, oz?): the face of that building that opens on a street (a point 10 studs out is in no
@@ -41,14 +45,9 @@
 --   landmark's own boxes (WorldGen.landmark; hand-placed, so fixed every week): `quarry` "gate" (the gap in its
 --   north wall) or "floor" (the open floor point nearest `spot` that keeps `clear` studs from every wall,
 --   terrace and boulder): { kind, x, z, sx, sz, top, door }. quarryPlan holds the landmark's floor, walls and gate.
--- * (lore step 11, the origin lines) a building site may keep `away`.site studs from the chains' other building
---   sites (those earlier by id, and every one with no away.site of its own, so the search never loops). An Old
---   Town site (district "OldTown") is one of Old Town's listed buildings nearest `near` (studs from Clock
---   Square's middle), `away` studs from the square (clock), every safehouse (pad) and beacon; its way in is the
---   face that opens on a street (open ground in the height map), nearest the square. A Radio Hill site (`hill`:
---   "terrace") stands on the hill's first terrace, read from the landmark's own boxes (hand-placed: fixed every
---   week), on the side facing town: hill(Config, world, id) gives { kind, x, z, sx, sz, top, door } (door.y the
---   terrace's top).
+-- * hill(Config, world, id) (lore step 11, the origin lines): a Radio Hill site (`hill`: "terrace") stands on
+--   the hill's first terrace, read from the landmark's own boxes (hand-placed: fixed every week), on the side
+--   facing town: { kind, x, z, sx, sz, top, door } (door.y the terrace's top).
 
 local HqRules = if script then require(script.Parent.HqRules) else (require :: any)("./HqRules")
 local DeepLayout = if script then require(script.Parent.DeepLayout) else (require :: any)("./DeepLayout")
@@ -66,40 +65,79 @@ end
 
 local FACES = { { 0, 1 }, { 0, -1 }, { 1, 0 }, { -1, 0 } }
 
--- Does building b keep every distance site st asks for? others: the centres of the other building sites it
--- keeps away.site from (lore step 11, the origin lines)
-function SideQuestSites.fits(Config: any, world: any, st: any, b: any, others: { { number } }?): boolean
+-- The districts whose existing buildings a site may be in (lore step 11: the character lines add the Docks and
+-- Old Town to Downtown and Uptown)
+SideQuestSites.CITY = { Downtown = true, Uptown = true, Docks = true, OldTown = true }
+
+-- Is this a site inside an existing city building (not a square, an outskirts lot, a farm, the quarry or the
+-- deep)?
+function SideQuestSites.isBuilding(st: any): boolean
+	return type(st) == "table"
+		and SideQuestSites.CITY[st.district] == true
+		and not st.square
+		and not SideQuestSites.isOutskirts(st)
+		and not st.farm
+		and not st.road
+		and not st.quarry
+		and not st.deep
+end
+
+-- The middles of the other city sites (buildings and open squares) a site with `away.site` keeps clear of (lore
+-- step 11, the character lines): every one that keeps no such distance itself, and those earlier by id, so two
+-- sites never wait on each other
+-- (worked out once per world, Config and site: every candidate building checks the same list)
+local othersMemo: { [any]: any } = setmetatable({}, { __mode = "k" }) :: any
+local function cityOthers(Config: any, world: any, id: string): { { number } }
+	local byWorld = othersMemo[world]
+	if not byWorld then
+		byWorld = setmetatable({}, { __mode = "k" })
+		othersMemo[world] = byWorld
+	end
+	local byConfig = byWorld[Config]
+	if not byConfig then
+		byConfig = {}
+		byWorld[Config] = byConfig
+	end
+	if byConfig[id] then
+		return byConfig[id]
+	end
+	local out = {}
+	byConfig[id] = out
+	for other, o in Config.SideQuests.sites do
+		local waits = o.away and o.away.site ~= nil
+		if other ~= id and (SideQuestSites.isBuilding(o) or o.square) and (not waits or other < id) then
+			local b = SideQuestSites.place(Config, world, other)
+			if b then
+				table.insert(out, { b.x, b.z })
+			end
+		end
+	end
+	return out
+end
+
+local function clearOfSites(Config: any, world: any, st: any, id: string?, b: any): boolean
+	local gap = st.away and st.away.site
+	if not gap or not id then
+		return true
+	end
+	for _, o in cityOthers(Config, world, id) do
+		if flat(b.x, b.z, o[1], o[2]) < gap then
+			return false
+		end
+	end
+	return true
+end
+
+-- Does building b keep every distance site st asks for? (id: the site's own, for `away.site`)
+function SideQuestSites.fits(Config: any, world: any, st: any, b: any, id: string?): boolean
 	local a = st.away
 	if b.crown or b.h < st.height[1] or b.h > st.height[2] then
 		return false
 	end
-	for _, o in others or {} do
-		if flat(b.x, b.z, o[1], o[2]) < (a.site or 0) then
-			return false
-		end
-	end
 	if st.district == "Uptown" then
 		-- chain 2's bank: clear of Uptown's landmark tower and the plaza round it
 		local lm = world.uptown.landmark
-		return flat(b.x, b.z, lm.x, lm.z) >= a.landmark
-	end
-	if st.district == "OldTown" then
-		-- lore step 11, the origin lines: clear of Clock Square, the safehouse pads and the beacons
-		local sq = SideQuestSites.clockSquare(Config)
-		if flat(b.x, b.z, sq[1], sq[2]) < a.clock then
-			return false
-		end
-		for _, s in world.safehouses or {} do
-			if flat(b.x, b.z, s.x, s.z) < a.pad then
-				return false
-			end
-		end
-		for _, bc in world.beacons or {} do
-			if flat(b.x, b.z, bc.x, bc.z) < a.beacon then
-				return false
-			end
-		end
-		return SideQuestSites.streetDoor(Config, world, b, sq[1], sq[2]) ~= nil
+		return flat(b.x, b.z, lm.x, lm.z) >= a.landmark and clearOfSites(Config, world, st, id, b)
 	end
 	local L = world.downtown
 	local bt = L.beacon
@@ -120,61 +158,90 @@ function SideQuestSites.fits(Config: any, world: any, st: any, b: any, others: {
 			return false
 		end
 	end
-	return true
+	return clearOfSites(Config, world, st, id, b)
 end
 
--- Is this a site in an existing hub building (Downtown, Uptown or Old Town), not a square, the outskirts, a farm,
--- the quarry, the sea floor or Radio Hill?
-function SideQuestSites.isBuildingSite(st: any): boolean
-	return type(st) == "table"
-		and st.square == nil
-		and not SideQuestSites.isOutskirts(st)
-		and st.farm == nil
-		and st.road == nil
-		and st.quarry == nil
-		and st.deep == nil
-		and st.hill == nil
+-- The middle of a Config.City district's rectangle
+function SideQuestSites.districtMid(Config: any, district: string): (number, number)
+	local d = Config.City.districts[district]
+	return (d.minX + d.maxX) / 2, (d.minZ + d.maxZ) / 2
 end
 
--- The middle of Old Town's Clock Square (Config.City.oldTown: the 2 x 2 blocks at `square`), map studs { x, z }
-function SideQuestSites.clockSquare(Config: any): { number }
-	local d = Config.City.districts.OldTown
-	local t = Config.City.oldTown
-	local pitch = t.block + t.street
-	local size = 2 * t.block + t.street
-	local s0 = t.square[1]
-	return {
-		d.minX + t.street / 2 + (s0 - 1) * pitch + size / 2,
-		d.minZ + t.street / 2 + (s0 - 1) * pitch + size / 2,
-	}
+-- Is a point on open ground (no building, fence or prop on it in the heightmap)?
+local function openGround(Config: any, world: any, x: number, z: number): boolean
+	return not world.heights or WorldMap.heightAt(world, x, z) <= Config.City.ground.y + 1.5
 end
 
--- The face of a building that opens on a street, read from the height map (lore step 11, the origin lines: Old
--- Town's houses stand in rows, so a face is a way in only when the ground 6 and 10 studs out is open: no wall,
--- no next-door house), nearest (ox, oz); nil when no face opens
-function SideQuestSites.streetDoor(Config: any, world: any, b: any, ox: number, oz: number): Door?
-	if not world or not world.heights then
-		return nil
-	end
-	local open = Config.City.ground.y + 1.5
+-- The way into a Docks or Old Town building (lore step 11, the character lines): the face whose step-out
+-- points (6 and 10 studs) are open ground in the heightmap (those districts' buildings are not all in
+-- world.buildings), nearest the district's middle, or nil
+function SideQuestSites.districtDoor(Config: any, world: any, b: any, district: string): Door?
+	local mx, mz = SideQuestSites.districtMid(Config, district)
 	local best: Door? = nil
 	local bestD = math.huge
 	for _, f in FACES do
 		local half = if f[1] ~= 0 then b.sx / 2 else b.sz / 2
-		local clear = true
-		for _, out in { 6, 10 } do
+		local ok = true
+		for _, out in { 6, 10, 14 } do
 			for _, side in { -3, 0, 3 } do
 				local px = b.x + f[1] * (half + out) + f[2] * side
 				local pz = b.z + f[2] * (half + out) + f[1] * side
-				if WorldMap.heightAt(world, px, pz) > open then
-					clear = false
+				if not openGround(Config, world, px, pz) then
+					ok = false
 				end
 			end
 		end
 		local x, z = b.x + f[1] * (half + 6), b.z + f[2] * (half + 6)
-		local d = flat(x, z, ox, oz)
-		if clear and d < bestD then
+		local d = flat(x, z, mx, mz)
+		if ok and d < bestD then
 			best, bestD = { x = x, z = z, fx = f[1], fz = f[2] }, d
+		end
+	end
+	return best
+end
+
+-- Does a Docks or Old Town building keep every distance its site asks for (lore step 11, the character lines)?
+-- `away`: pad (every safehouse), door (the Vigil's stairwell and the Foundry door), site (other city sites);
+-- its height (body top less base) in range, and a way in on open ground.
+function SideQuestSites.districtFits(Config: any, world: any, st: any, b: any, id: string?): boolean
+	local a = st.away
+	local h = b.top - b.base
+	if b.crown or h < st.height[1] or h > st.height[2] then
+		return false
+	end
+	for _, s in world.safehouses do
+		if flat(b.x, b.z, s.x, s.z) < a.pad then
+			return false
+		end
+	end
+	local hd = HqRules.heroDoor(Config, world)
+	local fd = world.spots and world.spots.foundryDoor
+	for _, dr in { hd, fd } do
+		if dr and flat(b.x, b.z, dr.x, dr.z) < a.door then
+			return false
+		end
+	end
+	if not SideQuestSites.districtDoor(Config, world, b, st.district) then
+		return false
+	end
+	return clearOfSites(Config, world, st, id, b)
+end
+
+-- The Docks or Old Town building a site is in: of that district's buildings in world.buildings (fixed: the hub
+-- never moves with the weekly seed) that fit, the one nearest `near` (studs from the district's middle)
+local function districtBuilding(Config: any, world: any, id: string, st: any): any?
+	if not world or not world.buildings then
+		return nil
+	end
+	local mx, mz = SideQuestSites.districtMid(Config, st.district)
+	local tx, tz = mx + st.near[1], mz + st.near[2]
+	local best, bestD = nil, math.huge
+	for _, b in world.buildings do
+		if b.district == st.district then
+			local d = flat(b.x, b.z, tx, tz)
+			if d < bestD and SideQuestSites.districtFits(Config, world, st, b, id) then
+				best, bestD = b, d
+			end
 		end
 	end
 	return best
@@ -195,51 +262,8 @@ function SideQuestSites.building(Config: any, world: any, id: string): any?
 	then
 		return nil
 	end
-	-- lore step 11, the origin lines: the other building sites this one keeps away.site from
-	local others: { { number } }? = nil
-	if st.away and st.away.site then
-		local list = {}
-		for other, ost in Config.SideQuests.sites do
-			if
-				other ~= id
-				and SideQuestSites.isBuildingSite(ost)
-				and (other < id or not (ost.away and ost.away.site))
-			then
-				local ob = SideQuestSites.building(Config, world, other)
-				if ob then
-					table.insert(list, { ob.x, ob.z })
-				end
-			end
-		end
-		others = list
-	end
-	if st.district == "OldTown" then
-		-- lore step 11, the origin lines: one of Old Town's listed buildings, nearest `near` from Clock Square
-		if not world or not world.buildings then
-			return nil
-		end
-		local sq = SideQuestSites.clockSquare(Config)
-		local tx, tz = sq[1] + st.near[1], sq[2] + st.near[2]
-		local best, bestD = nil, math.huge
-		for _, w in world.buildings do
-			if w.district == "OldTown" then
-				local b = {
-					x = w.x,
-					z = w.z,
-					sx = w.sx,
-					sz = w.sz,
-					h = w.top - w.base,
-					top = w.top,
-					base = w.base,
-					id = w.id,
-				}
-				local d = flat(b.x, b.z, tx, tz)
-				if d < bestD and SideQuestSites.fits(Config, world, st, b, others) then
-					best, bestD = b, d
-				end
-			end
-		end
-		return best
+	if st.district == "Docks" or st.district == "OldTown" then
+		return districtBuilding(Config, world, id, st)
 	end
 	local L, ox, oz
 	if st.district == "Uptown" then
@@ -258,16 +282,13 @@ function SideQuestSites.building(Config: any, world: any, id: string): any?
 	local tx, tz = ox + st.near[1], oz + st.near[2]
 	local best, bestD = nil, math.huge
 	for _, b in L.buildings do
-		if SideQuestSites.fits(Config, world, st, b, others) then
-			local d = flat(b.x, b.z, tx, tz)
-			if d < bestD then
-				best, bestD = b, d
-			end
+		local d = flat(b.x, b.z, tx, tz)
+		if d < bestD and SideQuestSites.fits(Config, world, st, b, id) then
+			best, bestD = b, d
 		end
 	end
 	return best
 end
-
 
 -- The way in: the street-side face nearest the plaza (or the point ox, oz)
 function SideQuestSites.door(world: any, b: any, ox: number?, oz: number?): Door
@@ -618,9 +639,8 @@ function SideQuestSites.place(Config: any, world: any, id: string): (any?, Door?
 		local lm = world.uptown.landmark
 		return b, SideQuestSites.door(world, b, lm.x, lm.z)
 	end
-	if st.district == "OldTown" then
-		local sq = SideQuestSites.clockSquare(Config)
-		return b, SideQuestSites.streetDoor(Config, world, b, sq[1], sq[2])
+	if st.district == "Docks" or st.district == "OldTown" then
+		return b, SideQuestSites.districtDoor(Config, world, b, st.district)
 	end
 	return b, SideQuestSites.door(world, b)
 end

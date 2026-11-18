@@ -275,7 +275,7 @@ return {
 			-- origin line reward (lore step 11, The Last Owner): a moonstone circlet from Ambrose's stage trunk. Never
 			-- rolled, never sold.
 			{
-				n = 36,
+				n = 32,
 				name = "Moonstone Circlet",
 				shape = "halo",
 				tier = "Story",
@@ -308,6 +308,16 @@ return {
 				boss = "RustjawPrime",
 				shiny = true,
 				color = { 255, 214, 90 },
+			},
+			-- side quest reward (lore step 11, Finding Lark): a visor wired with Patch's relay aerial. Never rolled,
+			-- never sold.
+			{
+				n = 38,
+				name = "Relay Visor",
+				shape = "visor",
+				tier = "Story",
+				quest = "RelayVisor",
+				color = { 120, 230, 255 },
 			},
 		},
 		chest = {
@@ -382,12 +392,22 @@ return {
 			-- origin line reward (lore step 11, The Ashgrove Test): a Kindler's core, cold and safe now, worn as a chest
 			-- plate. Never rolled, never sold.
 			{
-				n = 36,
+				n = 32,
 				name = "Kindling Core",
 				shape = "core",
 				tier = "Story",
 				quest = "KindlingCore",
 				color = { 80, 255, 255 },
+			},
+			-- side quest reward (lore step 11, The Scoop): a reporter's blue PRESS vest from Nora Bright. Never
+			-- rolled, never sold.
+			{
+				n = 36,
+				name = "Press Vest",
+				shape = "vest",
+				tier = "Story",
+				quest = "PressVest",
+				color = { 70, 130, 220 },
 			},
 		},
 		hands = {
@@ -461,12 +481,22 @@ return {
 			-- origin line reward (lore step 11, Suit Recall): one of Clawback's own repo gauntlets. Never rolled, never
 			-- sold.
 			{
-				n = 36,
+				n = 32,
 				name = "Clawback Gauntlet",
 				shape = "gauntlet",
 				tier = "Story",
 				quest = "ClawbackGauntlet",
 				color = { 230, 190, 60 },
+			},
+			-- side quest reward (lore step 11, Hostile Takeover): Sal Scorch's own heat-black gauntlets. Never
+			-- rolled, never sold.
+			{
+				n = 37,
+				name = "Scorchproof Gauntlets",
+				shape = "gauntlet",
+				tier = "Story",
+				quest = "ScorchproofGauntlets",
+				color = { 255, 120, 40 },
 			},
 		},
 		legs = {
@@ -628,7 +658,7 @@ return {
 			-- origin line reward (lore step 11, Starblood Calling): wings of starlight from the old pod's sail. Never
 			-- rolled, never sold.
 			{
-				n = 36,
+				n = 32,
 				name = "Starfall Wings",
 				shape = "lightwings",
 				tier = "Story",
@@ -652,6 +682,16 @@ return {
 				boss = "LumenMaw",
 				shiny = true,
 				color = { 255, 250, 210 },
+			},
+			-- side quest reward (lore step 11, The Last Partner): a long night-blue cape with two stars, Lodestar's
+			-- and Vesper's. Never rolled, never sold.
+			{
+				n = 39,
+				name = "Twin Star Cape",
+				shape = "longcape",
+				tier = "Story",
+				quest = "TwinStarCape",
+				color = { 200, 150, 255 },
 			},
 		},
 		belt = {
@@ -726,7 +766,7 @@ return {
 			-- origin line reward (lore step 11, The Taken Master): Master Hoshi's own black belt. Never rolled, never
 			-- sold.
 			{
-				n = 36,
+				n = 32,
 				name = "Master's Belt",
 				shape = "belt",
 				tier = "Story",

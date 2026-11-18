@@ -203,7 +203,11 @@ function EnemyService.dress(id: number, dressId: string): boolean
 		not e
 		or not e.alive
 		or not d
-		or not ((cfg.fake and cfg.fake.costumed) or (d.robot and not cfg.fake))
+		or not (
+			(cfg.fake and cfg.fake.costumed and not d.famous)
+			or (d.robot and not cfg.fake)
+			or (d.famous and cfg.fake and not cfg.fake.costumed and not cfg.twin)
+		)
 	then
 		return false
 	end
@@ -450,7 +454,11 @@ local function handleEvents()
 		elseif ev.k == "unmask" then
 			-- (6th: who cracked it, for the slow-mo finisher; lore step 7)
 			table.insert(out, { EnemyService.UNMASK, ev.e, ev.x, ev.y, ev.z, ev.by or 0 })
-			EnemyService.Unmasked:Fire(ev.kind, ev.by)
+			-- (a dressed fake is no news: its own name is not a news template's thing, and its suit's would be
+			-- wrong; lore step 11, the character lines)
+			if not (idents[ev.e] and idents[ev.e].dress) then
+				EnemyService.Unmasked:Fire(ev.kind, ev.by)
+			end
 		end
 	end
 	return out
