@@ -554,6 +554,11 @@ return function(
 					d.name .. ": the reward card draws"
 				)
 				report("BoardReward card", { only = { BoardReward = true } })
+				-- put the card away (as NICE! does) so the later HUD checks see the HUD alone
+				local boardCard = sim.playerGui:FindFirstChild("BoardReward")
+				if boardCard and boardCard:FindFirstChild("Card") then
+					boardCard.Card.Visible = false
+				end
 				-- WP1: the daily tracker held open over the whole HUD: clear of the buttons, the corner and the stick
 				sim:run("DailyHud.pin", function()
 					M.DailyHud.pin(true)
