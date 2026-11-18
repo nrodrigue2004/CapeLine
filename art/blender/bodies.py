@@ -16,6 +16,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(__file__))
 import kit  # noqa: E402
+import template_uv  # noqa: E402
 import bpy  # noqa: E402
 from mathutils import Matrix, Vector  # noqa: E402
 
@@ -102,6 +103,7 @@ def block(name, part, shape):
     m.segments = 3
     m.limit_method = "NONE"
     kit.apply_all(ob)
+    template_uv.apply(ob, part)  # classic Shirt and Pants need the template UVs, set before the taper bends the box
     if shape:
         top, bottom = shape[0], shape[1]
         chest = shape[2] if len(shape) > 2 else 0.0

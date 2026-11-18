@@ -165,8 +165,16 @@ What nate does:
 
 ## Studio test list (needs nate's PC)
 
-### Playtest art2: start here (2026-11-18, build playtest-art2)
-The first session on the overnight build (enemies9 with fix-crane-lines, 326,146 checks). Open project files capeline/Capeline-playtest-art2-2026-11-18.rbxl in Studio. It runs as is (every new look falls back to today's parts); the art package (project files capeline/upload/START HERE.txt: 265 images, 26 models) can be done before or after. About 45 minutes; each step names the full list it samples.
+### Playtest art3: start here (2026-11-18, build playtest-art5)
+Use Capeline-playtest-art5-2026-11-18.rbxl (Output "playtest-art5 (2026-11-18)": art4 plus the Act 1 Crane text fix; art4 is art3 plus the hero body fix: the hero and body set meshes now carry the classic clothing UVs, so shirts, pants and suits show on heroes; the Output shows "playtest-art4 (2026-11-18)"). The whole art package is done from the cloud: all 265 images uploaded (Image assets, ids in the configs) and all 26 FBX uploaded as Models and pulled into art/models (Rojo maps each under ReplicatedStorage.Art). Nothing to import. Open project files capeline/Capeline-playtest-art3-2026-11-18.rbxl. Follow "Playtest art2" steps 1 to 12 below on this build (the Output shows "playtest-art3 (2026-11-18)"), then also:
+1. The new images may still be in Roblox's review for a while after upload: a suit, face, emblem or Rogues card that shows blank or grey at first should fill in within the hour. Tell Claude if one stays blank (it may have been rejected).
+2. Each Blender set is its mesh look: weapons, creator pieces (every round), the hero body sets, street props, set pieces, vehicles, HQ pieces. Nothing faces backwards or sideways, nothing is tiny or huge (the cloud upload used the same scale as the Studio importer; sizes match the configs to the stud).
+3. Textured models: the three bosses and the War-Frame, the Bramblebeast, the Voidhound, the Wind-Up Giant and the Trooper show their painted textures, not plain white (their SurfaceAppearances came through the upload).
+4. No errors in the Output about meshes or SurfaceAppearance.
+5. Heroes: the creator's shirts, pants and suits show on the body (front print on the chest, sleeves on the arms, cuffs at the hands, jeans down the legs), on every body set (Male/Female, Small to Titan).
+
+### Playtest art2: the first-session list (2026-11-18)
+The first session on the overnight build. Use the playtest-art5 place above (the art package is done from the cloud, so skip step 13 and ignore START HERE.txt); steps 1 to 12 still apply, and step 1 now reads "playtest-art5 (2026-11-18)". About 45 minutes; each step names the full list it samples.
 1. Press Play. The Output shows "playtest-art2 (2026-11-18)" at boot, no red error box, no "Failed to load" warnings.
 2. Fresh hero (Dev Wipe): the first 60 seconds read right: LOADING THE CITY, the creator, the ceremony about 22 s, control about 30 s after DONE ("Onboarding" 1 to 3).
 3. Play the prologue to the title: the 6-roof chase, a missed hop puts you back on the last roof in about 1.2 s ("Onboarding" 5).
