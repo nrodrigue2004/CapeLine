@@ -40,7 +40,8 @@ function CitizenService.init()
 	end
 	local bt = world.downtown.beacon
 	table.insert(shelters, { x = bt.x, z = bt.z + 30 })
-	local sim = CitizenSim.new(Config, shelters, world.seed)
+	-- the sidewalk graph leaves out every corner and link inside a part (the Clock Tower in Clock Square)
+	local sim = CitizenSim.new(Config, shelters, world.seed, CitizenSim.blocker(world, Config))
 	CitizenService.sim = sim
 	CitizenSim.populate(sim)
 	BuildingService.Danger:Connect(CitizenService.danger)

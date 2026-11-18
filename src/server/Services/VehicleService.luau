@@ -3,7 +3,8 @@
 -- vehicles per district").
 -- The server builds the vehicles (anchored, a few parts each), and on a heavy hit sets the landed pose at
 -- once and tells clients (VehicleFlip), who play the 1 s arc locally from the same VehiclePose.flip. After
--- 30 s it puts the vehicle back (VehicleReset). PLACEHOLDER ART: boxes and wheel cylinders.
+-- 30 s it puts the vehicle back (VehicleReset), once no hero stands in its home spot (Vehicles.occupied), so
+-- a car never comes back on top of someone. PLACEHOLDER ART: boxes and wheel cylinders.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
@@ -13,6 +14,8 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Net = require(Shared:WaitForChild("Net"))
 local Vehicles = require(Shared:WaitForChild("Vehicles"))
 local VehiclePose = require(Shared:WaitForChild("VehiclePose"))
+
+local HeroService = require(script.Parent.HeroService)
 
 local VehicleService = {}
 
@@ -175,8 +178,27 @@ function VehicleService.init()
 		while true do
 			task.wait(1)
 			local now = os.clock()
+			local spots: { Vector3 } = {}
+			for _, hero in HeroService.all() do
+				local pos = HeroService.position(hero)
+				if pos then
+					table.insert(spots, pos)
+				end
+			end
 			for id, at in flipped do
+				local v = list[id]
+				local blocked = false
 				if now >= at then
+					for _, pos in spots do
+						if math.abs(pos.Y - v.y) < v.sy + 6 and Vehicles.occupied(v, pos.X, pos.Z) then
+							blocked = true
+							break
+						end
+					end
+				end
+				if blocked then
+					flipped[id] = now + 2 -- someone stands where it parks: try again in a moment
+				elseif now >= at then
 					flipped[id] = nil
 					VehicleService.pose(models[id], homes[id])
 					Net.fireAll("VehicleReset", id)

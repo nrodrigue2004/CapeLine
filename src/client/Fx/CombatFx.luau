@@ -2614,6 +2614,7 @@ function CombatFx.torpedo(pos: Vector3, vel: Vector3, home: number, turn: number
 	end
 	local body = part(Vector3.new(1.4, 1.4, 4), CFrame.lookAt(pos, pos + vel), ENEMY)
 	local life = math.min(4, 130 / speed)
+	local wet = not EnemySim.torpedoDone(Config, pos.Y) -- fired under the water: it pops at the surface
 	local shot =
 		{ x = pos.X, y = pos.Y, z = pos.Z, vx = vel.X, vy = vel.Y, vz = vel.Z, home = home, turn = turn }
 	local target = Players:GetPlayerByUserId(home)
@@ -2647,7 +2648,7 @@ function CombatFx.torpedo(pos: Vector3, vel: Vector3, home: number, turn: number
 				:Play()
 			Debris:AddItem(b, 0.6)
 		end
-		if t >= life or not body.Parent then
+		if t >= life or not body.Parent or (wet and EnemySim.torpedoDone(Config, shot.y)) then -- pops at the surface
 			conn:Disconnect()
 			body:Destroy()
 		end

@@ -63,6 +63,19 @@ function Travel.canTravel(worldCfg: any, s: TravelState, beaconId: number): (boo
 	return true, nil
 end
 
+-- Where a fast travel to beacon b sets the hero down (their root): beside the post, just above the disc, so the
+-- body never starts inside the post or the roof (BeaconService and the travel audit's test share it)
+function Travel.arrival(worldCfg: any, b: { x: number, y: number, z: number }): (number, number, number)
+	return b.x + 4, b.y + worldCfg.beacon.arriveAbove, b.z + 4
+end
+
+-- May a trip that started at trip.started still land? Not when something else moved the hero after it began
+-- (a mission pocket, the HQ, a contest pad: SafehouseService.place stamps hero.placedAt), so the landing
+-- never pulls a hero back out of where the game just put them.
+function Travel.landOk(trip: { started: number }, placedAt: number?): boolean
+	return placedAt == nil or placedAt <= trip.started
+end
+
 -- A point on the fast-travel flight at fraction t (0..1): up to a cruise height, across, then down
 function Travel.flightPath(
 	fromX: number,

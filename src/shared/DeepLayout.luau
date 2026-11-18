@@ -409,13 +409,28 @@ local function caches(Config: any, rng: any, out: { Spot }, factory: { x: number
 		local z = rng:range(half + 60, half + D.ring.width - 40)
 		table.insert(out, { id = i, x = x, y = ringFloor(Config, z - half) + 2, z = z, area = "shelf" })
 	end
+	-- the factory hall is solid: a cache the ring puts inside it moves out past its nearest wall (one of the
+	-- three sat inside the hall, out of reach, until the travel audit of 2026-11-18)
+	local f = D.trench.factory
+	local margin = c.reach
 	for k = 1, nTrench do
 		local a = (k - 1) / nTrench * math.pi * 2
+		local x = factory.x + math.cos(a) * 140
+		local z = factory.z - 30 + math.sin(a) * 60
+		local ox, oz = x - factory.x, z - factory.z
+		local hx, hz = f.sx / 2 + margin, f.sz / 2 + margin
+		if math.abs(ox) < hx and math.abs(oz) < hz then
+			if hx - math.abs(ox) <= hz - math.abs(oz) then
+				x = factory.x + (if ox < 0 then -hx else hx)
+			else
+				z = factory.z + (if oz < 0 then -hz else hz)
+			end
+		end
 		table.insert(out, {
 			id = c.count - nTrench + k,
-			x = factory.x + math.cos(a) * 140,
+			x = x,
 			y = D.trench.floor + 2,
-			z = factory.z - 30 + math.sin(a) * 60,
+			z = z,
 			area = "trench",
 		})
 	end

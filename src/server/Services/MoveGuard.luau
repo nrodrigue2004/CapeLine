@@ -60,12 +60,18 @@ end
 -- GuardService sets this: (player, kind) counts a strike (M8)
 MoveGuard.strikeHook = nil :: ((Player, string) -> ())?
 
+-- The check also expects the hero at the new spot for Safety.teleportKeep seconds, so a device whose lag
+-- outlasts the 1 s grace is not pulled back to where it came from when the move finally lands there.
 function MoveGuard.reset(hero: any)
+	if HeroService.byId(hero.id) ~= hero then
+		return -- left (or respawned as a new hero) while being moved: no track for a gone hero
+	end
 	local pos = HeroService.position(hero)
 	if pos then
 		local now = os.clock()
 		local t = trackFor(hero, pos, now)
 		MoveCheck.reset(t.check, pos.X, pos.Y, pos.Z, now)
+		MoveCheck.expect(t.check, pos.X, pos.Y, pos.Z, now + Config.Safety.teleportKeep)
 		t.graceUntil = now + 1
 	end
 end

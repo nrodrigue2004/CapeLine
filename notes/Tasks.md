@@ -145,6 +145,18 @@ What nate does:
 
 ## Studio test list (needs nate's PC)
 
+### Travel audit: underwater, vehicles, citizens, travel (2026-11-18)
+Fixes from the overnight audit (tests: ONLY="Travel audit"). Use the Dev panel and Studio's network emulation.
+1. Fast travel to each of the 12 beacons (MAP): you land beside the post on its roof, standing, never inside the post, a wall or the roof; walk off and nothing snags.
+2. Studio > Network: set 1500 ms incoming lag and fast travel: you may see the old spot for a moment, then you are at the beacon and stay there (no snap back to where you left, no strike line in the server output). Same for a respawn at a far safehouse.
+3. Start a fast travel and, during the 3 s flight, enter the HQ stairwell or a mission (Dev panel Mission): you stay in the HQ or pocket and the camera comes back.
+4. Pick up a Sunken Line commuter, then fast travel: the commuter goes back to the train car ("TRAPPED!" again); swim one to the quay instead and you are paid as before.
+5. Old Town, Clock Square: watch citizens for a minute: nobody walks through the Clock Tower, and nobody walks through a safehouse hut. Trigger a collapse near citizens (Dev panel): they run along the sidewalks to a safehouse, or vanish into a doorway; none cut through a block.
+6. Flip cars with a heavy hit from each side, the kerb side especially: a car pushed toward the buildings rolls over on the spot and lands upside down on the road, never in a building or on the sidewalk; trams and the Docks trucks too.
+7. Flip a car, then stand where it was parked for 40 s: it does not come back on top of you; step away and it resets within 2 s.
+8. Trench: find all 3 sunken caches near the factory; the one west of the hall now sits against its wall and opens when you swim close.
+9. Underwater, Lift and Throw a Diver or an Anchor onto the beach: it snaps back into the water and never follows you up the street. Swim near a Torpedo Sentry, then leap out of the sea: the torpedo pops at the surface on your screen and you are not hit.
+
 ### City and destruction audit (2026-11-18)
 Fixes from the city audit (tests: ONLY="City audit"). Use the Dev panel's structure hit and "Repair all" where it helps.
 1. Hit a building once with a skill so it turns Damaged (a hole shows). Stand back and fire a bolt (or Zap Bolt) at a wall panel that still stands: the shot stops on that panel and knocks pieces out of it. Fire one through the hole: it flies inside and breaks the back wall. Keep going with bolts only: the building comes down.

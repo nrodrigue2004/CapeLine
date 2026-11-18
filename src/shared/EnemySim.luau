@@ -161,6 +161,7 @@ export type Shot = {
 	radius: number,
 	home: number?, -- a torpedo: the hero it turns after
 	turn: number?, -- radians per second it can turn
+	sea: boolean?, -- a sea robot's torpedo: it pops at the surface (EnemySim.torpedoDone)
 	style: number?, -- drawn as: 1 a sniper round, 2 a net, 3 a grappling hook, 4 a power path's shot (a fake's)
 	cc: string?, -- a crowd control the hit puts on the hero (the Interceptor's net)
 	ccTime: number?,
@@ -827,6 +828,7 @@ local function shoot(
 		radius = radius,
 		home = home,
 		turn = turn,
+		sea = if home and e.cfg.sea then true else nil,
 		style = sp.style,
 		cc = sp.cc,
 		ccTime = sp.ccTime,
@@ -2096,14 +2098,22 @@ local function updateFlags(sim: Sim, e: Enemy)
 	e.extra = x
 end
 
--- Sea robots stay in the water (a Diver keeps under the surface); land robots that walk never step into it
+-- Sea robots stay in the water (a Diver keeps under the surface); land robots that walk never step into it.
+-- A sea robot moved out of the water from outside its own think (Lift and Throw's landing, a push, a pull)
+-- goes back to the last spot it was wet at, so it never walks the streets under the ground (travel audit).
 local function keepMedium(sim: Sim, e: Enemy, px: number, py: number, pz: number, wasWet: boolean?)
 	if e.cfg.sea then
 		if e.ai == "flyer" then
 			e.y = math.min(e.y, sim.waterTop)
 		end
-		if wasWet and not sim.water(e.x, e.y, e.z) then
+		local any = e :: any
+		if sim.water(e.x, e.y, e.z) then
+			any.wetX, any.wetY, any.wetZ = e.x, e.y, e.z
+		elseif wasWet then
 			e.x, e.y, e.z = px, py, pz
+		elseif any.wetX then
+			e.x, e.y, e.z = any.wetX, any.wetY, any.wetZ
+			e.vx, e.vy, e.vz = 0, 0, 0
 		end
 	elseif e.ai == "flyer" then
 		if sim.water(e.x, e.y, e.z) then
@@ -2194,6 +2204,12 @@ local function think(sim: Sim, e: Enemy, heroes: { Hero }, dt: number)
 	elseif ai == "grappler" then
 		thinkGrappler(sim, e, target, speed, canMove, dt)
 	end
+end
+
+-- A sea robot's torpedo at height y has left the water: it pops at the surface (the server's shot and the
+-- device's drawing end at the same place, so a hero who leaps out of the sea is safe)
+function EnemySim.torpedoDone(config: any, y: number): boolean
+	return y >= config.World.coast.waterY - 0.5
 end
 
 -- A torpedo turns its velocity toward its hero, at most `turn` radians a second (same speed). Shared with
@@ -2364,6 +2380,9 @@ local function stepShots(sim: Sim, heroes: { Hero }, dt: number)
 		end
 		if not done and s.y < sim.heightAt(s.x, s.z, s.y) then
 			done = true -- hit a building or the street
+		end
+		if not done and s.sea and EnemySim.torpedoDone(sim.config, s.y) then
+			done = true -- a torpedo pops at the surface (the device's drawing ends there too)
 		end
 		if done then
 			table.remove(sim.shots, i)
