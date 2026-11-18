@@ -21,6 +21,7 @@
 -- cleared and its level met), missionstep n (jump to stage n of the running mission).
 -- Lore step 12: reptier 0-5 (your own side's reputation tier), sideevent 1-3 (a side-vs-side event now).
 -- Hero MMO: nemesis 0/1 (your nemesis ambushes you now / your Intel is full: the Showdown opens).
+-- WP2: boardrows (40 test heroes on every weekly board and you at #6), boardroll (end the board week now).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -57,6 +58,7 @@ local HqService = require(script.Parent.HqService)
 local PurchaseService = require(script.Parent.PurchaseService)
 local NewsService = require(script.Parent.NewsService) -- lore step 7
 local RepService = require(script.Parent.RepService) -- lore step 12
+local BoardService = require(script.Parent.BoardService) -- WP2
 local ShopRules = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("ShopRules"))
 local CreatorRules = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("CreatorRules"))
 local ProfileSchema = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("ProfileSchema"))
@@ -430,6 +432,13 @@ local commands: { [string]: (player: Player, hero: any, value: number) -> () } =
 	-- 6 Act 1 mission)
 	news = function(player, _, what)
 		NewsService.dev(player, what)
+	end,
+	-- WP2: the weekly boards: boardrows (40 test heroes on every board, you at #6), boardroll (end the week now)
+	boardrows = function(player)
+		BoardService.dev(player, "rows")
+	end,
+	boardroll = function(player)
+		BoardService.dev(player, "roll")
 	end,
 }
 

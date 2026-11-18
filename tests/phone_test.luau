@@ -322,6 +322,7 @@ return function(
 				"Radar",
 				"MainMenu",
 				"PhotoMode",
+				"BoardHud", -- WP2
 			}
 			-- the panels a player opens, their ScreenGui and what open() takes
 			local PANELS = {
@@ -337,9 +338,11 @@ return function(
 				{ "ContractBoard", "ContractBoard", { offers = {}, active = {} } },
 				{ "HqHud", "HqHud", "trophies" },
 				{ "CreatorScreen", "Creator", { mode = "create" } },
+				{ "BoardHud", "BoardHud" }, -- WP2: the weekly boards
 			}
 			-- the cards and banners the game shows on its own (each shown alone)
-			local CARDS = { "MainMenu", "PvpHud", "StoryHud", "WorldHud", "Toasts", "Plates", "Squad" }
+			local CARDS =
+				{ "MainMenu", "PvpHud", "StoryHud", "WorldHud", "Toasts", "Plates", "Squad", "BoardReward" }
 			local runs = table.clone(DEVICES)
 			table.insert(runs, {
 				name = "iPhone 14 left-handed",
@@ -416,6 +419,55 @@ return function(
 						g.Enabled = was
 					end
 				end
+				-- WP2: the boards screen full (50 rows, 20-character display names, you pinned), empty and
+				-- in its error state, and the reward card
+				local boardRows = {}
+				for i = 1, 50 do
+					table.insert(boardRows, {
+						rank = i,
+						name = string.sub("WWWWWWWWWWWWWWWWWW" .. i, 1, 20),
+						value = 1000 * (60 - i),
+						me = i == 7,
+						friend = i % 5 == 0,
+					})
+				end
+				local boardStates = {
+					{
+						"rows",
+						{
+							rows = boardRows,
+							mine = { rank = 7, value = 123456 },
+							endsIn = 300000,
+							owned = true,
+						},
+					},
+					{ "empty", { rows = {}, endsIn = 100 } },
+					{ "error", { error = true } },
+				}
+				for _, st in boardStates do
+					local ok = sim:run("BoardHud " .. st[1], function()
+						M.BoardHud.open(1)
+						local d = table.clone(st[2])
+						d.board, d.filter = 1, 0
+						M.BoardHud.receive(d)
+					end)
+					check(ok, d.name .. ": the boards screen draws " .. st[1])
+					report("BoardHud " .. st[1], { minList = 90, minOrder = 6 })
+				end
+				sim:run("BoardHud.close", M.BoardHud.close)
+				check(
+					sim:run("BoardHud reward", function()
+						M.BoardHud.reward({ board = "BossMvp", rank = 3, title = "Boss Breaker", new = true })
+						M.BoardHud.reward({
+							board = "PvpWins",
+							rank = 10,
+							title = "Crater Champion",
+							new = true,
+						})
+					end),
+					d.name .. ": the reward card draws"
+				)
+				report("BoardReward card", { only = { BoardReward = true } })
 				sim:run("drawer", function()
 					sim:require("Client.Ui.Kit").dockDrawer(true)
 				end)

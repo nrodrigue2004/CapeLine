@@ -76,6 +76,9 @@ AnalyticsSchema.EVENTS = {
 	episode_step = { "episode" }, -- value: the step
 	episode_done = { "episode" },
 	travel_style = { "mobility" }, -- value: the style id worn (0 = plain)
+	-- WP2: the weekly boards
+	board_open = { "board", "filter" }, -- value: your rank (0 = not ranked)
+	board_reward = { "board", "place" }, -- value: the final rank that earned the week's title
 }
 
 AnalyticsSchema.FUNNELS = {

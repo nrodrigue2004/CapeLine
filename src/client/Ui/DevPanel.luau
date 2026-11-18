@@ -539,6 +539,13 @@ function DevPanel.init()
 		b.Text = "Camera: " .. motionNames[v + 1]
 	end)
 
+	add("Boards: test rows", function() -- WP2: 40 test heroes on every weekly board, you at #6
+		Net.send("DevCommand", "boardrows")
+	end)
+	add("Boards: end week", function() -- WP2: roll the board week now (the claim runs)
+		Net.send("DevCommand", "boardroll")
+	end)
+
 	local stats = Kit.label({
 		Text = "waiting for server stats",
 		Size = UDim2.new(1, -16, 0, 100),

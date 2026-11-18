@@ -66,6 +66,7 @@ local BadgeHud = require(Ui.BadgeHud) -- H7: the Badge Book, collections and tit
 local ContestHud = require(Ui.ContestHud) -- H7: costume contests
 local CollectClient = require(Controllers.CollectClient) -- H7: collection sparkles and the scanner marker
 local PassHud = require(Ui.PassHud) -- H8: the Hero Pass, the episode and travel styles
+local BoardHud = require(Ui.BoardHud) -- WP2: the weekly boards and the plaza board
 local TravelStyleFx = require(Fx.TravelStyleFx) -- H8: travel styles on every screen
 local StoryHud = require(Ui.StoryHud)
 local GuideHud = require(Ui.GuideHud) -- lore step 6: the guides' line box
@@ -141,6 +142,7 @@ BadgeHud.init()
 ContestHud.init()
 CollectClient.init()
 PassHud.init()
+BoardHud.init()
 TravelStyleFx.init()
 Toasts.init()
 MapScreen.init()

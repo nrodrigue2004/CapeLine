@@ -311,6 +311,13 @@ local Remotes: { [string]: RemoteDef } = {
 	PassXp = { dir = "S2C" },
 	-- H8: travel power styles. TravelStyleSet: mobility index (Config.Move.mobilityOrder), slot (0 plain)
 	TravelStyleSet = { dir = "C2S", schema = { n(1, 5), n(0, 6) }, rate = 2, burst = 4 },
+	-- WP2: the weekly boards. BoardOpen: board (Config.Boards.boards index), filter (0 all, 1 friends); only
+	-- numbers go up, names come back from Roblox display names. BoardData: the screen's rows; BoardPlaza: the
+	-- plaza board's top 10s (sent when they change); BoardReward: a weekly title earned.
+	BoardOpen = { dir = "C2S", schema = { n(1, 8), n(0, 1) }, rate = 1, burst = 4 },
+	BoardData = { dir = "S2C" },
+	BoardPlaza = { dir = "S2C" },
+	BoardReward = { dir = "S2C" },
 }
 
 return Remotes

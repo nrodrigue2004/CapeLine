@@ -6867,6 +6867,9 @@ end)
 -- The studio-wide funnels (shared test file, the same in every game) against Capeline's ladder and save
 require("./funnelkit_test")(test, check, FunnelKit, FunnelDef, ProfileSchema.default())
 
+-- WP2: the weekly boards (keys, ranking, the write budget, the reward claimed once, no free text)
+require("./boards_test")(test, check, Config)
+
 test("Analytics: the funnels' save is in the profile, repaired on load and kept off the client", function()
 	local p = ProfileSchema.default()
 	for key, value in FunnelKit.blank() :: any do
