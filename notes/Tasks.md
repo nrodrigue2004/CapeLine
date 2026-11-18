@@ -144,6 +144,17 @@ What nate does:
 
 ## Studio test list (needs nate's PC)
 
+### WP10: group-join piece and creator codes (2026-11-18)
+Settings > REWARDS (tests: ONLY="WP10"; the UI sim draws the rows at phone, tablet and PC sizes). Both ship off; Studio has its own test codes. Turn on API services for saves (Launch Checklist).
+1. Fresh Studio play, open Settings (gear button): scroll to the bottom. With Config.Promo.group.id 0 there is no group row; in Studio a REWARDS block shows the code box (STUDIOTEST is live in Studio only).
+2. Tap the box and type "studio-test!": it shows STUDIOTEST (letters up, the dash and ! never appear); it stops at 12 characters. REDEEM (or Enter): the box clears, "CODE ACCEPTED! NEW LOOK PIECE: CLOVER BADGE" shows under it, and the NEW LOOK PIECE toast shows once Settings closes. The Clover Badge is in the creator's emblem grid.
+3. REDEEM STUDIOTEST again: "You already used that code." Type STUDIOOLD: "That code has ended." Type ZZZZZZ five times, a couple of seconds apart: "That is not one of our codes"; a sixth try: "Too many tries. Wait 0:xx and try again." Wait a minute: it answers again.
+4. Leave and rejoin (or a second Studio server): STUDIOTEST still says used; the Clover Badge is still owned. Dev panel "Promo: forget claims" makes it work once more (for retesting).
+5. Second player (Studio's 2-player test): while player 1 types and redeems, player 2 sees nothing at all (no chat line, no bubble, no name plate change, no toast).
+6. Group: set Config.Promo.group.id to nate's group id and play: the row "JOIN THE GROUP: FREE SPARK BADGE" shows with CHECK. As a member, the Spark Badge unlocks on join (NEW LOOK PIECE toast) and the row says CLAIMED. As a non-member, CHECK says "Join the Capeline group from the game page, then tap CHECK." Join the group in a browser, tap CHECK again (after 20 s): the badge unlocks without a rejoin. A second CHECK within 20 s says "Checked a moment ago".
+7. Leave the group and rejoin: the Spark Badge stays owned and the row still says CLAIMED. Dev panel "Promo: group member" pays the group piece in Studio when an id is set but the test account is not in the group.
+8. Live code: add one row to Config.Promo.codes (the commented example) with tomorrow's date as starts: "That code is not live yet."; with today's date it works; set ends to yesterday: "That code has ended."
+9. Phone (iPhone SE size in the emulator): the REWARDS rows fit, the box and REDEEM are easy to tap, the phone keyboard opens on the box, and the answer line wraps inside the panel. Developer Console: no errors from PromoService or SettingsMenu; Output prints no typed text.
 ### WP6: robot combat depth (2026-11-18)
 The Warden's brace, the War-Frame's telegraphed block, the Sneak Bot's lunge and downed robots' wrecks (tests: ONLY="WP6"). Use the Dev panel to spawn robots (Sneak Bot, Warden, Brute Bot) near you.
 1. Sneak Bot lunge: spawn a Sneak Bot and stand about 12 studs from it. Within a few seconds it stops, shows itself, sinks low with its arms swept back and red eyes, a rising whine plays, and a red lane fills along the ground from it to just past you over about 0.65 s. Then it dashes down the lane and strikes once.
