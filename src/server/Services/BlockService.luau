@@ -9,6 +9,12 @@
 --   or charging a skill (hero.chargeAt) cancels it for half its cooldown; on a robot winding up, it reels.
 -- * Robots: Config.Guard.robotBlocks kinds block on a timer while fighting (shown blue to players near);
 --   the Null Sentinel keeps its front guard, and a breaker now shatters it as well as a flank hit.
+-- * WP6 (gap G9): the Warden (NullSentinel) braces on a timer too: while braced its block stands in for its
+--   front guard over a wider arc (CombatService then hits it without the guard's side check), and a breaker
+--   shatters both. The War-Frame (a BossSim whose body parts are EnemyService targets; MissionService calls
+--   watchBoss) telegraphs its block (GuardEvent rwarn), then holds it; a breaker shatters it and the
+--   War-Frame reels (its next attack waits). A Sneak Bot's lunge is a breaker against a hero's block
+--   (EnemySim marks the hit), so the counter is to interrupt its wind-up with anything fast.
 -- Nothing here changes EnemySim: robot blocks live in this service, a shatter is a stun (the windup reset
 -- EnemySim already does) and the Sentinel's guard break sets the same guardBrokenUntil a flank hit sets.
 
@@ -270,7 +276,144 @@ local function robotFighting(e: any): boolean
 end
 
 local function robotBusy(e: any, now: number): boolean
-	return (e.windupUntil or 0) > now or Status.has(e.status, "stun", now) or Status.lifted(e.status, now)
+	return (e.windupUntil or 0) > now
+		or Status.has(e.status, "stun", now)
+		or Status.lifted(e.status, now)
+		or (e.cfg ~= nil and e.cfg.guard ~= nil and now < (e.guardBrokenUntil or 0)) -- a broken guard never braces
+end
+
+---------------------------------------------------------------------------
+-- Big machines with a timed block that are not EnemySim robots (WP6: the War-Frame, a BossSim whose body,
+-- head and weak points are EnemyService targets). MissionService calls watchBoss when its arena starts; the
+-- watch ends by itself once the fight is over or the sim is no longer stepped.
+---------------------------------------------------------------------------
+
+type Boss = {
+	sim: any,
+	targets: { [string]: number },
+	rb: any,
+	rs: GuardMath.RobotState,
+	reelUntil: number,
+	key: number, -- the shine's id on the wire (negative, so it never meets a robot's)
+}
+local bosses: { Boss } = {}
+local bossKey = 0
+
+function BlockService.watchBoss(sim: any, targets: { [string]: number })
+	local rb = G.robotBlocks[sim.id]
+	if not rb then
+		return
+	end
+	for _, b in bosses do
+		if b.sim == sim then
+			return
+		end
+	end
+	bossKey -= 1
+	table.insert(bosses, {
+		sim = sim,
+		targets = targets,
+		rb = rb,
+		rs = GuardMath.robotNew(rb, os.clock()),
+		reelUntil = 0,
+		key = bossKey,
+	})
+end
+
+-- The watched boss a target id belongs to (its body, head and weak points; never its objectives)
+local function bossOf(id: number): (Boss?, string?)
+	for _, b in bosses do
+		for key, tid in b.targets do
+			if tid == id then
+				if string.match(key, "^obj") then
+					return nil, nil
+				end
+				return b, key
+			end
+		end
+	end
+	return nil, nil
+end
+
+-- Where a boss's shine sits: its middle (Config.Boss height), on the ground under it
+local function bossCentre(b: Boss): Vector3
+	local sim = b.sim
+	return Vector3.new(sim.x, sim.y + (sim.cfg.height or 20) * 0.55, sim.z)
+end
+
+-- Is this boss holding its timed block now (tests and the Dev panel)
+function BlockService.bossBlocking(sim: any): boolean
+	for _, b in bosses do
+		if b.sim == sim then
+			return GuardMath.robotBlocking(b.rs, os.clock())
+		end
+	end
+	return false
+end
+
+local function bossEvent(b: Boss, k: string, t: number?)
+	local c = bossCentre(b)
+	table.insert(
+		events,
+		{ k = k, x = c.X, y = c.Y, z = c.Z, a = b.key, t = t, s = b.rb.size, f = true, g = b.sim.y }
+	)
+end
+
+local function stepBosses(now: number)
+	for i = #bosses, 1, -1 do
+		local b = bosses[i]
+		local sim = b.sim
+		local over = sim.state == "dead" or sim.state == "retreat" or now - (sim.lastStep or now) > 5
+		local change = GuardMath.robotStep(
+			b.rb,
+			b.rs,
+			now,
+			not over and sim.state == "fight",
+			(sim.shield or 0) > 0 or now < b.reelUntil
+		)
+		if change == "warn" then
+			bossEvent(b, "rwarn", b.rb.warn)
+		elseif change == "start" then
+			bossEvent(b, "rup", b.rb.time)
+		elseif change == "stop" then
+			bossEvent(b, "rdown")
+		end
+		if over then
+			table.remove(bosses, i)
+		end
+	end
+end
+
+-- A hero's hit on a watched boss's body: the timed block's rules, as robotHit's
+local function bossHit(hero: any, b: Boss, id: number, info: any): (number, number?, boolean)
+	local now = os.clock()
+	local sim = b.sim
+	local fx, fz = -math.sin(sim.yaw or 0), -math.cos(sim.yaw or 0) -- BossSim's yaw is Roblox's, as EnemySim's
+	local front = true
+	if info.from then
+		front = GuardMath.front(b.rb.front, fx, fz, sim.x, sim.z, info.from.X, info.from.Z)
+	end
+	local outcome, mult = GuardMath.robotHit(G, b.rb, b.rs, {
+		coeff = info.coeff,
+		charged = info.charged,
+		grab = info.grab,
+		breaker = info.breaker,
+		front = front,
+	}, now)
+	if outcome == "shatter" then
+		-- it reels: the next attack waits the breaker's stagger (attacks already warned still land)
+		b.reelUntil = now + G.breaker.stagger
+		sim.nextAttack = math.max(sim.nextAttack or now, now + G.breaker.stagger)
+		local t = EnemyService.target(id)
+		local at = if t then Vector3.new(t.x, t.y, t.z) else bossCentre(b)
+		word("shatter", at, if hero.player then hero.player.UserId else hero.id)
+		bossEvent(b, "rdown")
+		BlockService.Outcome:Fire(hero, "break", nil)
+		return mult, 2, false
+	elseif outcome == "blocked" then
+		return mult, 1, true
+	end
+	return mult, nil, false
 end
 
 -- A hero's hit about to land on a robot. info: { coeff, charged, grab, breaker, status, status2, from }.
@@ -288,6 +431,10 @@ end
 function BlockService.robotHit(hero: any, id: number, info: any): (number, number?, boolean)
 	local e = EnemyService.get(id)
 	if not e or not e.alive then
+		local b = #bosses > 0 and bossOf(id)
+		if b then
+			return bossHit(hero, b, id, info)
+		end
 		return 1, nil, false
 	end
 	local now = EnemyService.now()
@@ -300,17 +447,21 @@ function BlockService.robotHit(hero: any, id: number, info: any): (number, numbe
 		BlockService.Outcome:Fire(hero, "cut", nil)
 	end
 	local breaker = GuardMath.isBreaker(G, info)
-	-- the Null Sentinel's front guard: a breaker shatters it like a flank hit does
+	local rb = G.robotBlocks[e.kind]
+	local rs = robots[id]
+	-- the Null Sentinel's front guard: a breaker shatters it like a flank hit does (and a Warden's brace
+	-- with it: WP6)
 	local cfg = e.cfg
 	if breaker and cfg and cfg.guard and now >= (e.guardBrokenUntil or 0) then
 		e.guardBrokenUntil = now + cfg.guard.breakTime
 		EnemyService.applyStatus(id, "stun", math.max(cfg.guard.breakStun, G.breaker.stagger))
 		word("shatter", at, actor)
+		if rb and rs and GuardMath.robotBreak(rb, rs, now) then
+			table.insert(events, { k = "rdown", x = e.x, y = e.y, z = e.z, a = id })
+		end
 		BlockService.Outcome:Fire(hero, "break", nil)
 		return 1, 2, false
 	end
-	local rb = G.robotBlocks[e.kind]
-	local rs = robots[id]
 	if not rb or not rs then
 		return 1, nil, false
 	end
@@ -351,7 +502,9 @@ local function stepRobots(now: number)
 				robots[c.id] = rs
 			end
 			local change = GuardMath.robotStep(rb, rs, now, robotFighting(e), robotBusy(e, now))
-			if change == "start" then
+			if change == "warn" then
+				table.insert(events, { k = "rwarn", x = e.x, y = e.y, z = e.z, a = c.id, t = rb.warn })
+			elseif change == "start" then
 				table.insert(events, { k = "rup", x = e.x, y = e.y, z = e.z, a = c.id, t = rb.time })
 			elseif change == "stop" then
 				table.insert(events, { k = "rdown", x = e.x, y = e.y, z = e.z, a = c.id })
@@ -411,7 +564,8 @@ local function hook(hero: any, amount: number, source: any?): number
 		local e = EnemyService.get(source.enemy)
 		if e then
 			from = Vector3.new(e.x, e.y, e.z)
-			info.breaker = G.robotBreakers[e.ai] == true
+			-- (WP6: a Sneak Bot's lunge marks its own hit a breaker)
+			info.breaker = G.robotBreakers[e.ai] == true or source.breaker == true
 			info.coeff = e.cfg and e.cfg.coeff
 			info.enemy = source.enemy
 			if G.interrupt.robotsInterrupt and info.coeff then
@@ -462,6 +616,9 @@ function BlockService.init()
 		if acc >= G.robotTick then
 			acc = 0
 			stepRobots(EnemyService.now())
+			if #bosses > 0 then
+				stepBosses(now)
+			end
 			-- a block ends when its owner is stunned, Downed or out of Guard; the bar refills on its own
 			for id, st in states do
 				local hero = HeroService.byId(id)

@@ -39,9 +39,32 @@ return {
 	robotBreakers = { brute = true, guard = true },
 	-- Robots that block on a timer and shine blue while they do (hit them with a heavy). The Null Sentinel
 	-- keeps its own front guard (Config.Enemies guard) and a breaker now shatters it too.
-	-- every: seconds between blocks (first one `first` after it starts fighting); time: how long it holds
+	-- every: seconds between blocks (first one `first` after it starts fighting); time: how long it holds;
+	-- cut: damage taken off hits from the `front` arc (degrees); brokenFor: no block for this long after a
+	-- shatter. warn (optional): a telegraph this long before the block goes up (the blue shine builds and a
+	-- whine rises; not blocking yet). size (optional): the shine's size for a big machine (a boss), drawn at
+	-- the spot it was sent rather than on a drawn robot.
 	robotBlocks = {
 		BruteBot = { every = 7, time = 2.2, first = 2, cut = 0.7, front = 200, brokenFor = 5 },
+		-- the Warden (kind NullSentinel; WP6, gap G9): it braces behind its shield. While braced its block
+		-- covers the front 240 degrees (wider than its 120-degree guard, so a flank hit is blocked too) and
+		-- stands in for the guard (no double cut); only a hit from behind or a breaker gets through. A breaker
+		-- shatters the brace and the guard together.
+		NullSentinel = { every = 9, time = 2.5, first = 3, cut = 0.85, front = 240, brokenFor = 6 },
+		-- Bulwark's battle form, the War-Frame (BossSim id NullWarFrame; WP6, gap G9): a timed block with a
+		-- 1.2 s telegraph, then 3.5 s of the shield on its front 200 degrees (the back weak point stays open).
+		-- Never during its phase shield. A breaker shatters it and the War-Frame reels: its next attack waits
+		-- `breaker.stagger`. NATE TO TUNE.
+		NullWarFrame = {
+			every = 14,
+			time = 3.5,
+			first = 6,
+			cut = 0.75,
+			front = 200,
+			brokenFor = 10,
+			warn = 1.2,
+			size = 52,
+		},
 	},
 	robotTick = 0.25, -- BlockService steps robot blocks this often
 	stateRadius = 160, -- robot block starts and ends go to players this close

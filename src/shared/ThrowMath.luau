@@ -193,4 +193,61 @@ function ThrowMath.respawnReady(T: any, landedAt: number, now: number, nearestHe
 	return now - landedAt >= T.respawn and nearestHero > T.viewRadius
 end
 
+---------------------------------------------------------------------------
+-- Downed robots (WP6, gap G10): a beaten robot leaves a wreck, a medium throwable (Config.Throw.wreck)
+---------------------------------------------------------------------------
+
+-- Does a robot of this Config.Enemies row leave a wreck? Every machine does, except the famous fakes, the twins
+-- and the costumed finale villains (mini-bosses with their own endings), cartoon creatures (they burst into
+-- light), sea robots (no throwing under water) and the small pack robots (Swarmers, Wind-Up Toys: a pack would
+-- fill the cap at once). A row can opt out with wreck = false.
+function ThrowMath.canWreck(cfg: any): boolean
+	if not cfg or cfg.wreck == false or cfg.fake or cfg.sea or cfg.twin then
+		return false
+	end
+	local body = cfg.body
+	return not (body and (body.small or body.creature))
+end
+
+-- The wreck's heap box (x, y, z studs) for a robot row: shares of its height by build
+function ThrowMath.wreckSize(T: any, cfg: any): (number, number, number)
+	local body = cfg.body or {}
+	local h = body.height or 6
+	local share = T.wreck.size[body.build or "normal"] or T.wreck.size.normal
+	return math.max(1.5, h * share[1]), math.max(1, h * share[2]), math.max(1.2, h * share[3])
+end
+
+export type Wreck = { id: number, busy: boolean?, born: number }
+
+-- Room for one more wreck under the cap: (true, nil) when there is room, (true, id) when the oldest wreck
+-- nobody holds or throws must go first, (false, nil) when every wreck is in someone's hands or in the air
+function ThrowMath.wreckRoom(list: { Wreck }, max: number): (boolean, number?)
+	if #list < max then
+		return true, nil
+	end
+	local oldest: Wreck? = nil
+	for _, w in list do
+		if
+			not w.busy
+			and (oldest == nil or w.born < oldest.born or (w.born == oldest.born and w.id < oldest.id))
+		then
+			oldest = w
+		end
+	end
+	if oldest then
+		return true, oldest.id
+	end
+	return false, nil
+end
+
+-- When a wreck falls apart: `life` after it fell, or `after` once it was thrown or set down; never while held
+-- or flying (busy)
+function ThrowMath.wreckEnds(T: any, at: number, handled: boolean): number
+	return at + (if handled then T.wreck.after else T.wreck.life)
+end
+
+function ThrowMath.wreckGone(endsAt: number, now: number, busy: boolean?): boolean
+	return not busy and now >= endsAt
+end
+
 return ThrowMath

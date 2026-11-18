@@ -10,7 +10,8 @@
 -- * isBreaker / isInterrupt: which hits are which; interrupts cancel heavy wind-ups and charges for half
 --   their cooldown.
 -- * Robots: the kinds in G.robotBlocks block on a timer while they fight (robotStep) and shatter on breakers
---   (robotHit), like heroes.
+--   (robotHit), like heroes. An entry with `warn` telegraphs first (the War-Frame); robotBreak ends a block
+--   that a breaker shattered another way (the Warden's front guard).
 
 local GuardMath = {}
 
@@ -210,18 +211,30 @@ end
 -- Robots that block on a timer
 ---------------------------------------------------------------------------
 
-export type RobotState = { nextAt: number, untilT: number }
+export type RobotState = {
+	nextAt: number,
+	untilT: number,
+	warnUntil: number, -- a telegraph (rb.warn) is on until then; 0 when none
+}
 
 function GuardMath.robotNew(rb: any, now: number): RobotState
-	return { nextAt = now + rb.first, untilT = 0 }
+	return { nextAt = now + rb.first, untilT = 0, warnUntil = 0 }
 end
 
 function GuardMath.robotBlocking(rs: RobotState, now: number): boolean
 	return now < rs.untilT
 end
 
+-- Is the block's telegraph showing (rb.warn: the shine builds, the block is not up yet)?
+function GuardMath.robotWarning(rs: RobotState, now: number): boolean
+	return (rs.warnUntil or 0) > 0 and now < rs.warnUntil
+end
+
 -- One step: a fighting robot that is not winding up or reeling raises its block every `every` seconds for
--- `time`. busy: winding up, stunned or lifted (ends a block). Returns "start", "stop" or nil.
+-- `time`. busy: winding up, stunned or lifted (ends a block). Returns "warn", "start", "stop" or nil.
+-- With rb.warn the block first telegraphs for `warn` seconds ("warn", not blocking yet), then goes up
+-- ("start"); being busy or leaving the fight during the telegraph calls it off ("stop"). `every` counts from
+-- the block going up either way.
 function GuardMath.robotStep(rb: any, rs: RobotState, now: number, fighting: boolean, busy: boolean): string?
 	if GuardMath.robotBlocking(rs, now) then
 		if busy or not fighting then
@@ -235,6 +248,20 @@ function GuardMath.robotStep(rb: any, rs: RobotState, now: number, fighting: boo
 		rs.untilT = 0
 		return "stop"
 	end
+	if (rs.warnUntil or 0) > 0 then
+		if busy or not fighting then
+			rs.warnUntil = 0
+			rs.nextAt = math.max(rs.nextAt, now + rb.first)
+			return "stop"
+		end
+		if now < rs.warnUntil then
+			return nil
+		end
+		rs.warnUntil = 0
+		rs.untilT = now + rb.time
+		rs.nextAt = now + rb.every
+		return "start"
+	end
 	if not fighting then
 		rs.nextAt = math.max(rs.nextAt, now + rb.first)
 		return nil
@@ -242,9 +269,24 @@ function GuardMath.robotStep(rb: any, rs: RobotState, now: number, fighting: boo
 	if busy or now < rs.nextAt then
 		return nil
 	end
+	if (rb.warn or 0) > 0 then
+		rs.warnUntil = now + rb.warn
+		rs.nextAt = now + rb.warn + rb.every
+		return "warn"
+	end
 	rs.untilT = now + rb.time
 	rs.nextAt = now + rb.every
 	return "start"
+end
+
+-- A breaker shattered this robot's guard some other way (the Warden's front guard): any block or telegraph
+-- ends and none comes back for rb.brokenFor. Returns true when a block or telegraph was showing.
+function GuardMath.robotBreak(rb: any, rs: RobotState, now: number): boolean
+	local was = GuardMath.robotBlocking(rs, now) or GuardMath.robotWarning(rs, now)
+	rs.untilT = 0
+	rs.warnUntil = 0
+	rs.nextAt = now + rb.brokenFor
+	return was
 end
 
 -- A hero's hit on a blocking robot: "hit", "blocked" (rb.cut less) or "shatter" (a breaker: the block ends,

@@ -77,6 +77,7 @@ local SHOT, HERO_HIT, DIE, WARN, SLAM, SWING, BLOCKED = 1, 2, 3, 4, 5, 6, 7
 local AIM, RALLY, LOB, ZONE, MEND, REVEAL, BOOM = 8, 9, 10, 11, 12, 13, 14
 -- the famous fakes and the evil twin (lore step 4): a dive, charge or dash; a face cracking
 local DASH, UNMASK = 15, 16
+local LUNGE = 17 -- WP6: a Sneak Bot winds up its lunge
 local PATH_SHOT = 4 -- shot style 4: a power path's shot (CombatFx.pathShot)
 local HOOKED = EnemySim.EXTRA.hooked
 
@@ -86,6 +87,15 @@ local function holds(e: number, bit: number): () -> boolean
 	local t0 = os.clock()
 	return function()
 		return os.clock() - t0 < 0.3 or bit32.band(EnemyRenderer.extra(e), bit) ~= 0
+	end
+end
+
+-- The same for a robot's windup flag (WP6: an interrupt cuts a Sneak Bot's lunge wind-up, and its lane goes)
+local WINDUP = EnemySim.WINDUP_BIT
+local function windingUp(e: number): () -> boolean
+	local t0 = os.clock()
+	return function()
+		return os.clock() - t0 < 0.3 or bit32.band(EnemyRenderer.flags(e), WINDUP) ~= 0
 	end
 end
 
@@ -877,6 +887,12 @@ local function onEvents(list: { any })
 				color,
 				set
 			)
+		elseif kind == LUNGE then
+			-- {17, e, x,y,z, tx,ty,tz, time, width}: a Sneak Bot coils for its lunge; the red lane fills along the
+			-- ground to the spot it will dash to (the robot telegraph: step out of it, or hit it with anything fast)
+			local from = Vector3.new(ev[3], ev[4], ev[5])
+			CombatFx.lane(from, Vector3.new(ev[6], ev[7], ev[8]), ev[10] or 3, ev[9] or 0.6, windingUp(ev[2]))
+			Juice.fire("lungeWind", from, { mine = false })
 		elseif kind == UNMASK then
 			-- {16, e, x,y,z}: a famous fake's face cracks to show metal: sound, flash, and a short hit-stop
 			-- and camera punch when it is near you

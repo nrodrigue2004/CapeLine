@@ -118,6 +118,21 @@ return {
 		attackRange = 6, -- melee
 		cloak = { time = 4, every = 9 }, -- cloaked for 4 s, then visible until the next cloak
 		stab = { cooldown = 1.5, backCoeff = 1.0, frontCoeff = 0.4, behindAngle = 70 },
+		-- the lunge (spec H1: "Sneak Bots charge a lunge"; WP6, NATE TO TUNE): from `min` to `range` studs off
+		-- it winds up for `windup` s (it shows itself; a lane `width` wide shows on the ground to a spot `over`
+		-- studs past the hero), then dashes `time` s at `speed` and strikes once at `coeff`, a breaker against
+		-- a block. An interrupt in the wind-up cuts it off. Once every `every` s.
+		lunge = {
+			min = 8,
+			range = 18,
+			over = 3,
+			windup = 0.65,
+			time = 0.45,
+			speed = 60,
+			width = 3.5,
+			coeff = 1.4,
+			every = 7,
+		},
 		coeff = 1.0,
 		fleeBelow = 0,
 		radius = 2.2,
