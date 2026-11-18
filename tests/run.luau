@@ -66,6 +66,9 @@ local function test(name: string, fn: () -> ())
 		return
 	end
 	current = name
+	if process.env.TRACE then
+		print("> " .. name)
+	end
 	local ok, err = pcall(fn)
 	if not ok then
 		failed += 1
