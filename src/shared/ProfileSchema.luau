@@ -157,13 +157,15 @@ function ProfileSchema.newCharacter(side: string?, classId: string?): { [string]
 		rep = { 0, 0, 0 },
 		hq = { level = 1, trophies = {}, droneAt = 0 }, -- droneAt: os.time() of the last leave (offline drones)
 		legacy = 0,
-		-- story (M7): opening 1 once the playable disaster is done; missions: first clears (bit n - 1);
-		-- choices: option picked per Act 1 choice (0 = not yet); pinned: 0 the story, else the side quest chain
+		-- story (M7): act: the act the hero is on (WP11: StoryPlan.currentAct, 1 while Act 2 is coming soon);
+		-- opening 1 once the playable disaster is done; missions: first clears across every act (bit n - 1,
+		-- Config.Story.saveRoom.missions bits); choices: option picked per story choice (0 = not yet; one slot
+		-- per Config.Story.choices entry, Act 1's 3 today); pinned: 0 the story, else the side quest chain
 		-- tracked (its Config.SideQuests bit); perks: story perks (bit 1 the Echo Drone; key NullEcho)
 		story = {
 			act = 1,
 			flags = words(ProfileSchema.SMALL_WORDS),
-			choices = { 0, 0, 0 },
+			choices = table.create(#Config.Story.choices, 0),
 			opening = 0,
 			missions = 0,
 			pinned = 0,
@@ -555,6 +557,12 @@ local function repair(p: any): any
 	if chars then
 		for _, c in chars do
 			if type(c) == "table" and #cleanChars < 4 then
+				-- WP11: the choice slots as saved (fill cuts a number list to the template's length, and a
+				-- newer build's later-act picks must survive)
+				local savedChoices: { any } = if type(c.story) == "table"
+						and type(c.story.choices) == "table"
+					then table.clone(c.story.choices)
+					else {}
 				fill(c, ProfileSchema.newCharacter())
 				c.level = num(c.level, 1, ProfileSchema.LEVEL_CAP, 1)
 				c.xp = num(c.xp, 0, 2 ^ 31, 0)
@@ -563,13 +571,19 @@ local function repair(p: any): any
 				c.beacons = num(c.beacons, 0, 4095, 0)
 				c.safehouses = num(c.safehouses, 0, 65535, 0)
 				local st = c.story
-				st.act = num(st.act, 1, 3, 1)
+				-- WP11: the act, mission bits and choice slots have room for later acts (additive: every older
+				-- value is in range, and a newer build's later-act clears and picks are kept)
+				local room = Config.Story.saveRoom
+				st.act = num(st.act, 1, #Config.Story.acts, 1)
 				st.opening = num(st.opening, 0, 1, 0)
-				st.missions = num(st.missions, 0, 63, 0)
+				st.missions = num(st.missions, 0, 2 ^ room.missions - 1, 0)
 				st.perks = num(st.perks, 0, 255, 0)
-				for i = 1, 3 do
-					st.choices[i] = num(st.choices[i], 0, 2, 0)
+				local slots = math.max(#Config.Story.choices, math.min(#savedChoices, room.choices))
+				local choices = table.create(slots, 0)
+				for i = 1, slots do
+					choices[i] = num(savedChoices[i], 0, 2, 0)
 				end
+				st.choices = choices
 				st.quests, st.menu = nil, nil -- the retired arcs (lore step 10)
 				-- side quests: only known chains in progress at a real step; the pin only on one of them
 				local sq = c.sq

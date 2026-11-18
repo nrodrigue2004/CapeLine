@@ -139,7 +139,7 @@ local Remotes: { [string]: RemoteDef } = {
 
 	-- Story (M7; spec: Mission.Enter {missionId, partyId} 1/5s, Mission.Leave, Mission.State 2/s, Choice.Pick
 	-- 1/s). NPC talk uses ProximityPrompts (the server's own check), so it has no remote.
-	StoryState = { dir = "S2C" }, -- the Journal: { side, missions, choices, pinned, perks, rep, states, sq }
+	StoryState = { dir = "S2C" }, -- the Journal: { side, act, missions, choices, pinned, perks, rep, states, sq }
 	StoryPin = { dir = "C2S", schema = { n(0, 127) }, rate = 2, burst = 3 }, -- 0 the story, else a chain in progress
 	ChoicePrompt = { dir = "S2C" }, -- { id, labels }: the two (or three) big verb buttons
 	ChoicePick = { dir = "C2S", schema = { n(0, 4), n(1, 3) }, rate = 1, burst = 2 }, -- choice id, option

@@ -513,11 +513,29 @@ return {
 	-- Mission pockets: sealed 400 x 400 areas at y = 3,000 (no PvP, no world schedulers)
 	pockets = { count = 7, size = 400, y = 3000, z = 1900, firstX = -1800, gap = 600, wall = 60 },
 
+	-- The story's acts in play order (WP11, gap G14; Shared.StoryPlan reads them). Every mission and choice
+	-- names its act. An act with soon = true is a locked row in the Journal ("Act 2: coming soon"): it has no
+	-- missions, no choices and no story text, and nothing in it can be entered or pinned. Adding an act is
+	-- data only: its missions go after the last act's (the next numbers, each with its own act; the save's
+	-- mission bits hold saveRoom.missions), its choices take the next save slots (saveRoom.choices), the act's last
+	-- mission names its ending in `ending` below, and its row here drops soon. No beats are written for acts
+	-- 2 and 3: their story is nate's to decide (drafts only under "Proposals (NOT decided)" in the notes).
+	acts = {
+		{ num = 1 },
+		{ num = 2, soon = true },
+		{ num = 3, soon = true },
+	},
+	-- the only words a coming-soon act shows (its tab and its locked row)
+	actText = { tab = "ACT %d", soon = "Act %d: coming soon", locked = "LOCKED" },
+	-- the save's room (ProfileSchema repairs to it): mission first-clear bits and choice slots across all acts
+	saveRoom = { missions = 24, choices = 12 },
+
 	-- Act 1 (nate's lore, build plan step 5): minLevel and the order gate entry; first clears pay once. Levels,
 	-- minutes and rewards are the old Act 1's at the same index, so pacing and totals do not move.
 	missions = {
 		{
 			num = 1,
+			act = 1, -- WP11: the act this mission belongs to (Config.Story.acts)
 			id = "Ceremony",
 			name = "The Ceremony",
 			minLevel = 1,
@@ -527,6 +545,7 @@ return {
 		},
 		{
 			num = 2,
+			act = 1,
 			id = "Safehouse",
 			name = "Safehouse",
 			minLevel = 3,
@@ -574,6 +593,7 @@ return {
 		},
 		{
 			num = 3,
+			act = 1,
 			id = "Framed",
 			name = "Framed",
 			minLevel = 4,
@@ -690,6 +710,7 @@ return {
 		},
 		{
 			num = 4,
+			act = 1,
 			id = "TheCopy",
 			name = "The Copy",
 			minLevel = 5,
@@ -734,6 +755,7 @@ return {
 		},
 		{
 			num = 5,
+			act = 1,
 			id = "TheSignal",
 			name = "The Signal",
 			minLevel = 6,
@@ -810,6 +832,7 @@ return {
 		},
 		{
 			num = 6,
+			act = 1,
 			id = "Live",
 			name = "Live",
 			minLevel = 8,
@@ -873,6 +896,7 @@ return {
 	choices = {
 		{
 			num = 1,
+			act = 1, -- WP11: the act this choice belongs to (Config.Story.acts)
 			mission = 3,
 			skillPoints = 2,
 			hero = {
@@ -886,6 +910,7 @@ return {
 		},
 		{
 			num = 2,
+			act = 1,
 			mission = 5,
 			skillPoints = 2,
 			hero = {
@@ -899,6 +924,7 @@ return {
 		},
 		{
 			num = 3,
+			act = 1,
 			mission = 4,
 			skillPoints = 2,
 			hero = {

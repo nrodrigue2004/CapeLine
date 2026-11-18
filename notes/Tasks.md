@@ -155,6 +155,15 @@ Settings > REWARDS (tests: ONLY="WP10"; the UI sim draws the rows at phone, tabl
 7. Leave the group and rejoin: the Spark Badge stays owned and the row still says CLAIMED. Dev panel "Promo: group member" pays the group piece in Studio when an id is set but the test account is not in the group.
 8. Live code: add one row to Config.Promo.codes (the commented example) with tomorrow's date as starts: "That code is not live yet."; with today's date it works; set ends to yesterday: "That code has ended."
 9. Phone (iPhone SE size in the emulator): the REWARDS rows fit, the box and REDEEM are easy to tap, the phone keyboard opens on the box, and the answer line wraps inside the panel. Developer Console: no errors from PromoService or SettingsMenu; Output prints no typed text.
+### WP11: story acts (2026-11-18)
+The story can hold more acts (Config.Story.acts; tests: ONLY="WP11"). Act 1 plays exactly as before; Acts 2 and 3 are locked "coming soon" rows with no story.
+1. New hero: finish the prologue, open the Journal (J) on STORY. A row of three tabs sits on top: ACT 1 (gold), ACT 2 and ACT 3 (grey). Under them Act 1's 6 missions read as before (1. THE CEREMONY to 6.), then YOUR CHOICES, the PIN row, and two locked rows: "Act 2: coming soon" and "Act 3: coming soon", each with LOCKED on the right.
+2. Tap ACT 2: the page shows only "Act 2: coming soon" (LOCKED): no missions, no choices, no PIN, no other words. Tap ACT 3: the same for Act 3. Tap ACT 1: the missions are back. Close and reopen the Journal: it stays on the act you last picked.
+3. Phone (iPhone SE size or a real phone): the act row fits on one line under the two rows of main tabs, each act button is easy to tap, nothing overlaps the X, and the STORY page still scrolls to the locked rows.
+4. Play mission 2 (Safehouse) from STORY: START, the mission, the reward and the next mission's READY all work as before; PIN still pins the story step to the tracker.
+5. A hero who has cleared all of Act 1 (Dev panel: "Act 1 done"): every mission says CLEARED and REPLAY works, nothing new is pinned, the Lodestar talk and Patch's radio read their after-Act-1 lines as before, and Act 2 stays "coming soon". Rejoin: the save loads with the same clears and choices.
+6. Developer Console shows no errors from Journal, StoryService or StoryClient while switching acts and tabs.
+
 ### WP6: robot combat depth (2026-11-18)
 The Warden's brace, the War-Frame's telegraphed block, the Sneak Bot's lunge and downed robots' wrecks (tests: ONLY="WP6"). Use the Dev panel to spawn robots (Sneak Bot, Warden, Brute Bot) near you.
 1. Sneak Bot lunge: spawn a Sneak Bot and stand about 12 studs from it. Within a few seconds it stops, shows itself, sinks low with its arms swept back and red eyes, a rising whine plays, and a red lane fills along the ground from it to just past you over about 0.65 s. Then it dashes down the lane and strikes once.

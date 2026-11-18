@@ -9,6 +9,10 @@ local Config = if script
 	then require(script.Parent.Parent:WaitForChild("Config"))
 	else (require :: any)("../config")
 
+local StoryPlan = if script
+	then require(script.Parent:WaitForChild("StoryPlan"))
+	else (require :: any)("./StoryPlan")
+
 local FunnelDef = {}
 
 local function best(profile: any, read: (any) -> number): number
@@ -67,9 +71,14 @@ FunnelDef.stages = {
 	{
 		name = "Act 1 done",
 		reached = function(p)
+			-- WP11: Act 1's missions all cleared (story.act stays 1 while Act 2 is coming soon)
 			return best(p, function(c)
-				return c.story and c.story.act or 1
-			end) >= 2
+				local st = c.story
+				if type(st) ~= "table" or type(st.missions) ~= "number" then
+					return 0
+				end
+				return if (st.act or 1) >= 2 or StoryPlan.actDone(Config, st, 1) then 1 else 0
+			end) >= 1
 		end,
 	},
 	{ name = "Level 30", reached = level(30) },

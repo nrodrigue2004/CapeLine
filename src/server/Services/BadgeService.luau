@@ -84,7 +84,7 @@ local function facts(player: Player, profile: any): { [string]: number }
 					f["mission:" .. n] = 1
 				end
 			end
-			if StoryPlan.cleared(st, #Config.Story.missions) then
+			if StoryPlan.actDone(Config, st, 1) then -- WP11: Act 1 itself, whatever acts come after
 				f["act1:" .. (ch.side or "hero")] = 1
 			end
 			for i, o in st.choices or {} do

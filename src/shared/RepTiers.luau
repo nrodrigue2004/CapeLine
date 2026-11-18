@@ -436,14 +436,14 @@ function RepTiers.act1(Config: any, side: string?): (number, number)
 	local s = RepTiers.side(side)
 	local base = 0
 	for i, m in S.missions do
-		if i >= 2 then
+		if i >= 2 and (m.act or 1) == 1 then -- WP11: Act 1's missions only
 			base += S.rep.mission + (m.rep or 0)
 		end
 	end
 	local lo, hi = base, base
 	for _, c in S.choices or {} do
 		local opts = c[s]
-		if opts then
+		if opts and (c.act or 1) == 1 then
 			local least, most = math.huge, 0
 			for _, o in opts do
 				local n = if o.rep and o.rep[1] == "side" then o.rep[2] else 0

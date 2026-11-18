@@ -1,8 +1,10 @@
 -- Journal: the story screen (spec: Story perks live in the Journal; the mission replay board; Side quests;
--- Faction reputation). Four tabs:
--- * STORY: Act 1's 6 missions (1 the Ceremony prologue) with their state and a line about each, a START (or
---   REPLAY) button, the choices picked so far (each side's own options), and
---   a PIN button for the story.
+-- Faction reputation). Eight tabs:
+-- * STORY: an act row on top (WP11: ACT 1, ACT 2, ACT 3 from Config.Story.acts; it opens on the act the hero
+--   is on). An act that is out lists its missions (Act 1's 6, 1 the Ceremony prologue) with their state and
+--   a line about each, a START (or REPLAY) button, the act's choices picked so far (each side's own options),
+--   a PIN button for the story, and a locked row for each act still to come. A coming-soon act's page is only
+--   its locked "Act 2: coming soon" row: no missions, names or story text.
 -- * QUESTS: the side quest chains (lore step 10) by layer: who gives them and where, the step, ACCEPT, RESUME,
 --   HOLD (abandon: the chain waits at its step) and the lock reason (level, a mission, another chain).
 -- * REP: Vigil Trust, Syndicate Fear and City Reputation with their rank (ranks at 100, 300, 600, 1,000, 1,500).
@@ -40,6 +42,7 @@ local panel: Frame
 local body: ScrollingFrame
 local tab = "story"
 local badgeView = "badges" -- the BADGES tab's view: badges, collect or titles
+local actView: number? = nil -- WP11: the STORY tab's act (nil: the act the hero is on)
 local tabButtons: { [string]: TextButton } = {}
 -- two rows of four (a phone fits four tabs a row)
 local TABS = {
@@ -127,14 +130,76 @@ local function pinButton(parent: Instance, num: number, pinned: boolean)
 	b.Parent = parent
 end
 
+-- WP11: a coming-soon act's locked row (its number and "coming soon" only: the act's story is not written)
+local function soonRow(order: number, act: number)
+	local r = row(order, 52)
+	r.Name = "ActSoon" .. act
+	text(r, string.format(S.actText.soon, act), UDim2.fromOffset(10, 0), UDim2.new(1, -124, 1, 0), nil, 18)
+	local lock = text(
+		r,
+		S.actText.locked,
+		UDim2.new(1, -110, 0, 0),
+		UDim2.new(0, 100, 1, 0),
+		Kit.color.muted,
+		16,
+		Kit.bodyFont
+	)
+	lock.TextXAlignment = Enum.TextXAlignment.Right
+end
+
+-- WP11: the act row on top of the STORY tab (one button an act: gold the shown one, paper an act that is out, grey a
+-- coming-soon one, which opens its locked row)
+local function actRow(shown: number)
+	local pick = Instance.new("Frame")
+	pick.Name = "ActTabs"
+	pick.BackgroundTransparency = 1
+	pick.Size = UDim2.new(1, -8, 0, U.touchTarget - 12)
+	pick.LayoutOrder = -2
+	pick.Parent = body
+	local list = Instance.new("UIListLayout")
+	list.FillDirection = Enum.FillDirection.Horizontal
+	list.Padding = UDim.new(0, 6)
+	list.SortOrder = Enum.SortOrder.LayoutOrder
+	list.Parent = pick
+	local n = #S.acts
+	for a in S.acts do
+		local soon = StoryPlan.soon(Config, a)
+		local b = Kit.button({
+			Name = "Act_" .. a,
+			Text = string.format(S.actText.tab, a),
+			Size = UDim2.new(1 / n, -6 * (n - 1) / n, 1, 0),
+			LayoutOrder = a,
+			BackgroundColor3 = if a == shown
+				then Kit.color.gold
+				elseif soon then Kit.color.muted
+				else Kit.color.paper,
+			maxText = 16,
+		}, function()
+			actView = a
+			Journal.redraw()
+		end)
+		b.Parent = pick
+	end
+end
+
 local function drawStory(j: any)
 	local side = j.side
-	for num, m in S.missions do
+	local shown = actView or j.act or StoryPlan.currentAct(Config, { missions = j.missions or 0 })
+	if not S.acts[shown] then
+		shown = 1
+	end
+	actRow(shown)
+	if StoryPlan.soon(Config, shown) then
+		soonRow(1, shown)
+		return
+	end
+	for _, num in StoryPlan.actMissions(Config, shown) do
+		local m = S.missions[num]
 		local st = j.states[num] or "locked"
 		local r = row(num, 86)
 		text(
 			r,
-			string.format("%d. %s", num, string.upper(m.name)),
+			string.format("%d. %s", StoryPlan.missionIndex(Config, num), string.upper(m.name)),
 			UDim2.fromOffset(10, 6),
 			UDim2.new(0.6, 0, 0, 26),
 			nil,
@@ -173,32 +238,28 @@ local function drawStory(j: any)
 			b.Parent = r
 		end
 	end
-	-- the choices picked so far
-	local r = row(20, 32 + #S.choices * 24)
-	text(r, "YOUR CHOICES", UDim2.fromOffset(10, 4), UDim2.new(0.6, 0, 0, 24), nil, 20)
-	-- in mission order (the choice numbers are save slots); each side reads its own options
-	local order = {}
-	for i in S.choices do
-		table.insert(order, i)
+	-- the act's choices picked so far, in mission order (the choice numbers are save slots); each side reads
+	-- its own options
+	local order = StoryPlan.actChoices(Config, shown)
+	if #order > 0 then
+		local r = row(S.saveRoom.missions + 1, 32 + #order * 24)
+		text(r, "YOUR CHOICES", UDim2.fromOffset(10, 4), UDim2.new(0.6, 0, 0, 24), nil, 20)
+		for k, i in order do
+			local c = S.choices[i]
+			local pick = j.choices[i] or 0
+			local t = if pick > 0 then StoryPlan.labels(Config, i, side)[pick] else "not yet"
+			text(
+				r,
+				string.format("%s: %s", S.missions[c.mission].name, t),
+				UDim2.fromOffset(10, 6 + k * 24),
+				UDim2.new(1, -20, 0, 20),
+				nil,
+				15,
+				Kit.bodyFont
+			)
+		end
 	end
-	table.sort(order, function(a, b)
-		return S.choices[a].mission < S.choices[b].mission
-	end)
-	for k, i in order do
-		local c = S.choices[i]
-		local pick = j.choices[i] or 0
-		local t = if pick > 0 then StoryPlan.labels(Config, i, side)[pick] else "not yet"
-		text(
-			r,
-			string.format("%s: %s", S.missions[c.mission].name, t),
-			UDim2.fromOffset(10, 6 + k * 24),
-			UDim2.new(1, -20, 0, 20),
-			nil,
-			15,
-			Kit.bodyFont
-		)
-	end
-	local p = row(21, 52)
+	local p = row(S.saveRoom.missions + 2, 52)
 	text(
 		p,
 		"Pin the story step to your tracker",
@@ -209,6 +270,12 @@ local function drawStory(j: any)
 		Kit.bodyFont
 	)
 	pinButton(p, 0, j.pinned == 0)
+	-- the acts still to come, each a locked row under the act that is out
+	for a in S.acts do
+		if a > shown and StoryPlan.soon(Config, a) then
+			soonRow(S.saveRoom.missions + 2 + a, a)
+		end
+	end
 end
 
 -- A small action button on a quest row (ACCEPT, RESUME, HOLD), right-aligned at slot 1 or 2

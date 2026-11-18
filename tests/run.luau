@@ -4449,7 +4449,10 @@ test("M7: save version 3: returning heroes skip the opening; story numbers are r
 		characters = { { story = { missions = 999, quests = { 9, -1 }, choices = { 5 }, pinned = 40 } } },
 	})
 	local st = bad.characters[1].story
-	check(st.missions == 63 and st.quests == nil, "clamped; the old arc list is gone (lore step 10)")
+	check(
+		st.missions == 999 and st.quests == nil,
+		"kept in the save's mission room (WP11); the old arc list is gone (lore step 10)"
+	)
 	check(bad.characters[1].sq.retired == 1, "a finished old arc is retired, not lost")
 	check(
 		st.choices[1] == 2 and st.choices[3] == 0 and st.pinned == 0,
@@ -8267,7 +8270,8 @@ end); -- Hero MMO features (H1 to H8) live in their own file so this one merges 
 (require :: any)("./hooks")({ test = test, check = check, near = near, Config = Config }); -- the Rogues File and the Journal's Badge Book, Mentor and Showdown tabs (own file, merges easily)
 (require :: any)("./rogues_test")({ test = test, check = check, Config = Config, placePath = process.args[1] });
 -- WP10: the group-join piece and creator codes (own file, merges easily)
-(require :: any)("./promo_test")({ test = test, check = check, Config = Config, placePath = process.args[1] })
+(require :: any)("./promo_test")({ test = test, check = check, Config = Config, placePath = process.args[1] }); -- WP11: story acts (Act 1 today, Acts 2 and 3 coming soon), own file
+(require :: any)("./acts_test")({ test = test, check = check, Config = Config, placePath = process.args[1] })
 
 test(
 	"City kit: every district dressed, deterministic, within budget, nothing in buildings or roads",
