@@ -272,6 +272,16 @@ return {
 				quest = "CoralCrest",
 				color = { 255, 130, 120 },
 			},
+			-- origin line reward (lore step 11, The Last Owner): a moonstone circlet from Ambrose's stage trunk. Never
+			-- rolled, never sold.
+			{
+				n = 36,
+				name = "Moonstone Circlet",
+				shape = "halo",
+				tier = "Story",
+				quest = "MoonstoneCirclet",
+				color = { 190, 200, 255 },
+			},
 			-- Fame and Infamy rank rewards (M8): never rolled by loot (tier "Fame")
 			{
 				n = 21,
@@ -369,6 +379,16 @@ return {
 				quest = "DockCoat",
 				color = { 60, 140, 140 },
 			},
+			-- origin line reward (lore step 11, The Ashgrove Test): a Kindler's core, cold and safe now, worn as a chest
+			-- plate. Never rolled, never sold.
+			{
+				n = 36,
+				name = "Kindling Core",
+				shape = "core",
+				tier = "Story",
+				quest = "KindlingCore",
+				color = { 80, 255, 255 },
+			},
 		},
 		hands = {
 			-- lore step 12 (the city remembers): side styles at Gizmo's bench, Credits only, opened by your own
@@ -437,6 +457,16 @@ return {
 				boss = "LeviathanEngine",
 				shiny = true,
 				color = { 150, 255, 230 },
+			},
+			-- origin line reward (lore step 11, Suit Recall): one of Clawback's own repo gauntlets. Never rolled, never
+			-- sold.
+			{
+				n = 36,
+				name = "Clawback Gauntlet",
+				shape = "gauntlet",
+				tier = "Story",
+				quest = "ClawbackGauntlet",
+				color = { 230, 190, 60 },
 			},
 		},
 		legs = {
@@ -595,6 +625,16 @@ return {
 				quest = "TatteredSail",
 				color = { 214, 206, 180 },
 			},
+			-- origin line reward (lore step 11, Starblood Calling): wings of starlight from the old pod's sail. Never
+			-- rolled, never sold.
+			{
+				n = 36,
+				name = "Starfall Wings",
+				shape = "lightwings",
+				tier = "Story",
+				quest = "StarfallWings",
+				color = { 190, 90, 255 },
+			},
 			{ n = 4, name = "Light Wings", shape = "lightwings", tier = "Rare", color = { 255, 230, 140 } },
 			{
 				n = 30,
@@ -682,6 +722,16 @@ return {
 				tier = "Story",
 				quest = "UndisputedBelt",
 				color = { 240, 196, 64 },
+			},
+			-- origin line reward (lore step 11, The Taken Master): Master Hoshi's own black belt. Never rolled, never
+			-- sold.
+			{
+				n = 36,
+				name = "Master's Belt",
+				shape = "belt",
+				tier = "Story",
+				quest = "MastersBelt",
+				color = { 28, 28, 32 },
 			},
 		},
 		gadget = {},

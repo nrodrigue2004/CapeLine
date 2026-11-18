@@ -41,6 +41,14 @@
 --   landmark's own boxes (WorldGen.landmark; hand-placed, so fixed every week): `quarry` "gate" (the gap in its
 --   north wall) or "floor" (the open floor point nearest `spot` that keeps `clear` studs from every wall,
 --   terrace and boulder): { kind, x, z, sx, sz, top, door }. quarryPlan holds the landmark's floor, walls and gate.
+-- * (lore step 11, the origin lines) a building site may keep `away`.site studs from the chains' other building
+--   sites (those earlier by id, and every one with no away.site of its own, so the search never loops). An Old
+--   Town site (district "OldTown") is one of Old Town's listed buildings nearest `near` (studs from Clock
+--   Square's middle), `away` studs from the square (clock), every safehouse (pad) and beacon; its way in is the
+--   face that opens on a street (open ground in the height map), nearest the square. A Radio Hill site (`hill`:
+--   "terrace") stands on the hill's first terrace, read from the landmark's own boxes (hand-placed: fixed every
+--   week), on the side facing town: hill(Config, world, id) gives { kind, x, z, sx, sz, top, door } (door.y the
+--   terrace's top).
 
 local HqRules = if script then require(script.Parent.HqRules) else (require :: any)("./HqRules")
 local DeepLayout = if script then require(script.Parent.DeepLayout) else (require :: any)("./DeepLayout")
@@ -56,16 +64,42 @@ local function flat(ax: number, az: number, bx: number, bz: number): number
 	return math.sqrt((ax - bx) ^ 2 + (az - bz) ^ 2)
 end
 
--- Does building b keep every distance site st asks for?
-function SideQuestSites.fits(Config: any, world: any, st: any, b: any): boolean
+local FACES = { { 0, 1 }, { 0, -1 }, { 1, 0 }, { -1, 0 } }
+
+-- Does building b keep every distance site st asks for? others: the centres of the other building sites it
+-- keeps away.site from (lore step 11, the origin lines)
+function SideQuestSites.fits(Config: any, world: any, st: any, b: any, others: { { number } }?): boolean
 	local a = st.away
 	if b.crown or b.h < st.height[1] or b.h > st.height[2] then
 		return false
+	end
+	for _, o in others or {} do
+		if flat(b.x, b.z, o[1], o[2]) < (a.site or 0) then
+			return false
+		end
 	end
 	if st.district == "Uptown" then
 		-- chain 2's bank: clear of Uptown's landmark tower and the plaza round it
 		local lm = world.uptown.landmark
 		return flat(b.x, b.z, lm.x, lm.z) >= a.landmark
+	end
+	if st.district == "OldTown" then
+		-- lore step 11, the origin lines: clear of Clock Square, the safehouse pads and the beacons
+		local sq = SideQuestSites.clockSquare(Config)
+		if flat(b.x, b.z, sq[1], sq[2]) < a.clock then
+			return false
+		end
+		for _, s in world.safehouses or {} do
+			if flat(b.x, b.z, s.x, s.z) < a.pad then
+				return false
+			end
+		end
+		for _, bc in world.beacons or {} do
+			if flat(b.x, b.z, bc.x, bc.z) < a.beacon then
+				return false
+			end
+		end
+		return SideQuestSites.streetDoor(Config, world, b, sq[1], sq[2]) ~= nil
 	end
 	local L = world.downtown
 	local bt = L.beacon
@@ -89,6 +123,63 @@ function SideQuestSites.fits(Config: any, world: any, st: any, b: any): boolean
 	return true
 end
 
+-- Is this a site in an existing hub building (Downtown, Uptown or Old Town), not a square, the outskirts, a farm,
+-- the quarry, the sea floor or Radio Hill?
+function SideQuestSites.isBuildingSite(st: any): boolean
+	return type(st) == "table"
+		and st.square == nil
+		and not SideQuestSites.isOutskirts(st)
+		and st.farm == nil
+		and st.road == nil
+		and st.quarry == nil
+		and st.deep == nil
+		and st.hill == nil
+end
+
+-- The middle of Old Town's Clock Square (Config.City.oldTown: the 2 x 2 blocks at `square`), map studs { x, z }
+function SideQuestSites.clockSquare(Config: any): { number }
+	local d = Config.City.districts.OldTown
+	local t = Config.City.oldTown
+	local pitch = t.block + t.street
+	local size = 2 * t.block + t.street
+	local s0 = t.square[1]
+	return {
+		d.minX + t.street / 2 + (s0 - 1) * pitch + size / 2,
+		d.minZ + t.street / 2 + (s0 - 1) * pitch + size / 2,
+	}
+end
+
+-- The face of a building that opens on a street, read from the height map (lore step 11, the origin lines: Old
+-- Town's houses stand in rows, so a face is a way in only when the ground 6 and 10 studs out is open: no wall,
+-- no next-door house), nearest (ox, oz); nil when no face opens
+function SideQuestSites.streetDoor(Config: any, world: any, b: any, ox: number, oz: number): Door?
+	if not world or not world.heights then
+		return nil
+	end
+	local open = Config.City.ground.y + 1.5
+	local best: Door? = nil
+	local bestD = math.huge
+	for _, f in FACES do
+		local half = if f[1] ~= 0 then b.sx / 2 else b.sz / 2
+		local clear = true
+		for _, out in { 6, 10 } do
+			for _, side in { -3, 0, 3 } do
+				local px = b.x + f[1] * (half + out) + f[2] * side
+				local pz = b.z + f[2] * (half + out) + f[1] * side
+				if WorldMap.heightAt(world, px, pz) > open then
+					clear = false
+				end
+			end
+		end
+		local x, z = b.x + f[1] * (half + 6), b.z + f[2] * (half + 6)
+		local d = flat(x, z, ox, oz)
+		if clear and d < bestD then
+			best, bestD = { x = x, z = z, fx = f[1], fz = f[2] }, d
+		end
+	end
+	return best
+end
+
 -- The building a site is in, or nil (no such district, a square site, or nothing fits)
 function SideQuestSites.building(Config: any, world: any, id: string): any?
 	local st = Config.SideQuests.sites[id]
@@ -100,8 +191,55 @@ function SideQuestSites.building(Config: any, world: any, id: string): any?
 		or st.road
 		or st.quarry
 		or st.deep
+		or st.hill
 	then
 		return nil
+	end
+	-- lore step 11, the origin lines: the other building sites this one keeps away.site from
+	local others: { { number } }? = nil
+	if st.away and st.away.site then
+		local list = {}
+		for other, ost in Config.SideQuests.sites do
+			if
+				other ~= id
+				and SideQuestSites.isBuildingSite(ost)
+				and (other < id or not (ost.away and ost.away.site))
+			then
+				local ob = SideQuestSites.building(Config, world, other)
+				if ob then
+					table.insert(list, { ob.x, ob.z })
+				end
+			end
+		end
+		others = list
+	end
+	if st.district == "OldTown" then
+		-- lore step 11, the origin lines: one of Old Town's listed buildings, nearest `near` from Clock Square
+		if not world or not world.buildings then
+			return nil
+		end
+		local sq = SideQuestSites.clockSquare(Config)
+		local tx, tz = sq[1] + st.near[1], sq[2] + st.near[2]
+		local best, bestD = nil, math.huge
+		for _, w in world.buildings do
+			if w.district == "OldTown" then
+				local b = {
+					x = w.x,
+					z = w.z,
+					sx = w.sx,
+					sz = w.sz,
+					h = w.top - w.base,
+					top = w.top,
+					base = w.base,
+					id = w.id,
+				}
+				local d = flat(b.x, b.z, tx, tz)
+				if d < bestD and SideQuestSites.fits(Config, world, st, b, others) then
+					best, bestD = b, d
+				end
+			end
+		end
+		return best
 	end
 	local L, ox, oz
 	if st.district == "Uptown" then
@@ -120,7 +258,7 @@ function SideQuestSites.building(Config: any, world: any, id: string): any?
 	local tx, tz = ox + st.near[1], oz + st.near[2]
 	local best, bestD = nil, math.huge
 	for _, b in L.buildings do
-		if SideQuestSites.fits(Config, world, st, b) then
+		if SideQuestSites.fits(Config, world, st, b, others) then
 			local d = flat(b.x, b.z, tx, tz)
 			if d < bestD then
 				best, bestD = b, d
@@ -130,7 +268,6 @@ function SideQuestSites.building(Config: any, world: any, id: string): any?
 	return best
 end
 
-local FACES = { { 0, 1 }, { 0, -1 }, { 1, 0 }, { -1, 0 } }
 
 -- The way in: the street-side face nearest the plaza (or the point ox, oz)
 function SideQuestSites.door(world: any, b: any, ox: number?, oz: number?): Door
@@ -465,6 +602,14 @@ function SideQuestSites.place(Config: any, world: any, id: string): (any?, Door?
 		end
 		return lot, lot.door
 	end
+	if st.hill then
+		-- lore step 11, the origin lines: a spot on Radio Hill's first terrace (the landmark never moves)
+		local h = SideQuestSites.hill(Config, world, id)
+		if not h then
+			return nil, nil
+		end
+		return h, h.door
+	end
 	local b = SideQuestSites.building(Config, world, id)
 	if not b then
 		return nil, nil
@@ -472,6 +617,10 @@ function SideQuestSites.place(Config: any, world: any, id: string): (any?, Door?
 	if st.district == "Uptown" then
 		local lm = world.uptown.landmark
 		return b, SideQuestSites.door(world, b, lm.x, lm.z)
+	end
+	if st.district == "OldTown" then
+		local sq = SideQuestSites.clockSquare(Config)
+		return b, SideQuestSites.streetDoor(Config, world, b, sq[1], sq[2])
 	end
 	return b, SideQuestSites.door(world, b)
 end
@@ -1321,6 +1470,82 @@ function SideQuestSites.quarry(Config: any, _world: any, id: string): any?
 				end
 			end
 		end
+	end
+	byConfig[st] = found or false
+	return found
+end
+
+---------------------------------------------------------------------------
+-- Radio Hill sites (lore step 11, the origin lines: the Alien line's radio mast)
+---------------------------------------------------------------------------
+
+SideQuestSites.HILL_KINDS = { terrace = true }
+SideQuestSites.HILL = "RadioHill" -- the Config.World.landmarks id the hill sites stand on
+
+local hillCache: { [any]: { [any]: any } } = setmetatable({}, { __mode = "k" }) :: any
+
+-- Radio Hill's steps from the landmark's own boxes (WorldGen.landmark; hand-placed, so fixed every week): the
+-- stacked rock and grass slabs, widest first, and the hill's middle; nil when the landmark is missing
+function SideQuestSites.hillSteps(Config: any): (any?, any?)
+	local W = Config.World
+	for i, lm in W.landmarks do
+		if lm.id == SideQuestSites.HILL then
+			local l = WorldGen.landmark(Config.City, W, i)
+			local steps = {}
+			for _, b in l.boxes do
+				if b.kind == "rock" and math.abs(b.sx - b.sz) < 0.01 then
+					table.insert(steps, b)
+				end
+			end
+			table.sort(steps, function(p, q)
+				return p.sx > q.sx
+			end)
+			return if #steps >= 2 then steps else nil, l.centre
+		end
+	end
+	return nil, nil
+end
+
+-- A hill site (Config.SideQuests.sites with `hill`), or nil: "terrace" is the middle of the first terrace (the
+-- top of the widest step, between its edge and the next step's) on the side facing the map's middle, where the
+-- town is; the way in faces town. { kind, x, z, sx, sz, top, door } with door.y the terrace's top.
+function SideQuestSites.hill(Config: any, _world: any, id: string): any?
+	local st = Config.SideQuests.sites[id]
+	if not st or not SideQuestSites.HILL_KINDS[st.hill] then
+		return nil
+	end
+	local byConfig = hillCache[Config]
+	if not byConfig then
+		byConfig = {}
+		hillCache[Config] = byConfig
+	end
+	local hit = byConfig[st]
+	if hit ~= nil then
+		return if hit then hit else nil
+	end
+	local steps, centre = SideQuestSites.hillSteps(Config)
+	local found = nil
+	if steps and centre then
+		local s1, s2 = steps[1], steps[2]
+		-- the side facing the map's middle (x and z from 0, the hub's centre)
+		local fx, fz = 0, 0
+		if math.abs(centre.x) >= math.abs(centre.z) then
+			fx = if centre.x < 0 then 1 else -1
+		else
+			fz = if centre.z < 0 then 1 else -1
+		end
+		local out = (s1.sx / 2 + s2.sx / 2) / 2 -- the terrace's middle, from the hill's middle
+		local top = s1.cy + s1.sy / 2
+		local x, z = s1.cx + fx * out, s1.cz + fz * out
+		found = {
+			kind = "terrace",
+			x = x,
+			z = z,
+			sx = (s1.sx - s2.sx) / 2,
+			sz = (s1.sx - s2.sx) / 2,
+			top = top,
+			door = { x = x, z = z, fx = fx, fz = fz, y = top },
+		}
 	end
 	byConfig[st] = found or false
 	return found

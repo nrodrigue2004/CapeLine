@@ -187,6 +187,27 @@ local function buildPortrait(who: string, sp: any): Frame
 			-- a fighter's plaster across the nose (chain 6: Flint)
 			local tape = piece(frame, 0.5, 0.61, 0.2, 0.05, Color3.fromRGB(240, 220, 190), 0.3)
 			tape.Rotation = -8
+		elseif extra == "spectacles" then
+			-- round reading glasses over the eyes, a thin bridge between them (the origin lines: Dr. Okafor,
+			-- Doctor Holloway)
+			local rim = Color3.fromRGB(60, 50, 44)
+			for i = -1, 1, 2 do
+				local lens = piece(frame, 0.5 + i * 0.1, 0.55, 0.15, 0.13, Color3.fromRGB(215, 235, 250), 0.5)
+				local ring = Instance.new("UIStroke")
+				ring.Color = rim
+				ring.Thickness = 2
+				ring.Parent = lens
+			end
+			piece(frame, 0.5, 0.54, 0.06, 0.02, rim)
+		elseif extra == "headband" then
+			-- a martial artist's cloth band round the forehead, its two tails out to the side (the origin lines:
+			-- Kiko, Master Hoshi, Gale)
+			local cloth = rgb(sp.color)
+			piece(frame, 0.5, 0.36, 0.58, 0.07, cloth, 0.1)
+			for i = 0, 1 do
+				local tail = piece(frame, 0.82, 0.38 + i * 0.06, 0.16, 0.04, cloth:Lerp(dark, 0.2), 0.1)
+				tail.Rotation = 18 + i * 16
+			end
 		end
 	end
 	-- a radio voice's static: faint bars over the portrait (they flicker unless Reduce flashing is on)

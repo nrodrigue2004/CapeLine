@@ -1241,6 +1241,104 @@ return {
 					extras = { "bandage" },
 				},
 			},
+			-- The origin lines (lore step 11). The Ashgrove Test: Doctor Holloway on the lab's speakers and in his
+			-- rig (silver slicked hair, spectacles).
+			holloway = {
+				name = "DOCTOR HOLLOWAY",
+				color = { 80, 220, 230 },
+				style = "broadcast",
+				blip = "guideFake",
+				portrait = {
+					bg = { 26, 40, 60 },
+					skin = { 241, 194, 160 },
+					hair = { 175, 180, 190 },
+					shape = "slick",
+					extras = { "spectacles" },
+				},
+			},
+			-- Starblood Calling: the Voidhound's cold machine voice (an antenna helm, a single purple visor)
+			voidhound = {
+				name = "THE VOIDHOUND",
+				color = { 190, 90, 255 },
+				style = "broadcast",
+				blip = "guideFake",
+				portrait = {
+					bg = { 20, 16, 40 },
+					skin = { 70, 60, 110 },
+					hair = { 40, 44, 60 },
+					shape = "helmet",
+					extras = { "visor" },
+				},
+			},
+			-- The Last Owner: Morrow the Mirage (top hat, masquerade mask) and Ambrose the Astonishing, the
+			-- relic's last owner, an old stage magician with a white beard
+			morrow = {
+				name = "MORROW",
+				color = { 120, 80, 220 },
+				style = "broadcast",
+				blip = "guideFake",
+				portrait = {
+					bg = { 30, 20, 50 },
+					skin = { 255, 236, 220 },
+					hair = { 24, 24, 28 },
+					shape = "slick",
+					extras = { "tophat", "mask" },
+				},
+			},
+			ambrose = {
+				name = "AMBROSE",
+				color = { 230, 190, 60 },
+				style = "person",
+				blip = "guideLodestar",
+				portrait = {
+					bg = { 60, 30, 50 },
+					skin = { 224, 172, 130 },
+					hair = { 245, 245, 245 },
+					shape = "messy",
+					extras = { "beard" },
+				},
+			},
+			-- Suit Recall: Clawback on his repo crew's loudspeakers (ball cap, horseshoe moustache)
+			clawback = {
+				name = "CLAWBACK",
+				color = { 230, 190, 60 },
+				style = "broadcast",
+				blip = "guideFake",
+				portrait = {
+					bg = { 50, 46, 30 },
+					skin = { 198, 140, 100 },
+					hair = { 80, 50, 30 },
+					shape = "slick",
+					extras = { "cap", "moustache" },
+				},
+			},
+			-- The Taken Master: Gale (a wild mane, a headband, a scar) and Master Hoshi (a grey beard, a headband)
+			gale = {
+				name = "GALE",
+				color = { 40, 190, 170 },
+				style = "person",
+				blip = "guideFake",
+				portrait = {
+					bg = { 20, 50, 56 },
+					skin = { 224, 172, 130 },
+					hair = { 55, 58, 66 },
+					shape = "messy",
+					extras = { "headband", "scar" },
+				},
+			},
+			hoshi = {
+				name = "MASTER HOSHI",
+				color = { 245, 245, 245 },
+				style = "person",
+				blip = "guideLodestar",
+				portrait = {
+					bg = { 50, 40, 36 },
+					skin = { 241, 194, 160 },
+					hair = { 175, 180, 190 },
+					shape = "slick",
+					extras = { "beard", "headband" },
+				},
+			},
 		},
 		-- the three guides: each has its own blip and portrait
 		guides = { "lodestar", "patch", "crane" },
@@ -1442,6 +1540,12 @@ return {
 			Brinebreaker = 10, -- side quest chain: The Salt Dogs (lore step 11, the Coast)
 			Undisputed = 11, -- side quest chain: The Pit (lore step 11, chain 6, the Old Quarry)
 			["Tide Turner"] = 12, -- side quest chain: The Sunken City (lore step 11, the Underwater chain)
+			-- 13 to 16: the character lines (lore step 11)
+			["Test Passed"] = 17, -- origin line: The Ashgrove Test (Lab, lore step 11)
+			Starborn = 18, -- origin line: Starblood Calling (Alien)
+			["Relic Keeper"] = 19, -- origin line: The Last Owner (Magic)
+			["No Returns"] = 20, -- origin line: Suit Recall (Tech)
+			["Lesson Learned"] = 21, -- origin line: The Taken Master (Training)
 			GoldTrim = 100,
 		},
 	},

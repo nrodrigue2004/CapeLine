@@ -851,6 +851,196 @@ function BUILD.pit(l: Layout, _Config: any)
 	end
 end
 
+-- The deck, the back wall with its way down, the 9 steps and the sealed lower floor's ceiling that the origin
+-- lines' two pockets share (the academy's shape): the deck over the south of the pocket at height D with its
+-- floor skin, a back wall at z = -34 with a gap at its middle (`gapPoint`), 9 steps of 2 studs down to the
+-- floor walled both sides, the lower floor's ceiling tagged so robots never stand on it, and `foot` at the
+-- bottom of the steps
+local function deckAndStairs(
+	l: Layout,
+	D: number,
+	deckColor: string,
+	skin: string,
+	wall: string,
+	stair: string,
+	ceiling: string,
+	gapPoint: string,
+	foot: string
+)
+	box(l, "building", 0, D / 2, 80, 396, D, 232, deckColor)
+	box(l, "plaza", 0, D + 0.1, 80, 396, 0.2, 232, skin)
+	point(l, "spawn", 0, D + 3, 172)
+	box(l, "building", -107, D + 18, -34, 178, 36, 4, wall)
+	box(l, "building", 107, D + 18, -34, 178, 36, 4, wall)
+	point(l, gapPoint, 0, D + 0.5, -28)
+	for i = 1, 9 do
+		local top = D - 2 * i
+		box(l, "building", 0, top / 2, -39 - (i - 1) * 6, 32, top, 6, stair)
+	end
+	for k = -1, 1, 2 do
+		box(l, "building", k * 18, D + 2, -70, 4, D + 4, 68, wall)
+	end
+	point(l, foot, 0, 0.5, -100)
+	local ceil = { tag = "ceiling" }
+	box(l, "building", -109, D + 2, -117, 178, 4, 162, ceiling, ceil)
+	box(l, "building", 109, D + 2, -117, 178, 4, 162, ceiling, ceil)
+	box(l, "building", 0, D + 2, -152, 40, 4, 92, ceiling, ceil)
+end
+
+-- Ashgrove Labs (lore step 11, the Lab origin line "The Ashgrove Test"): the lab that woke a Lab-Born hero's
+-- Spark, open again in secret. The lab floor is a deck over the south of the pocket: reception west (room 1)
+-- with its desk and waiting chairs, the records office east (room 2) with filing cabinets, and the test chamber
+-- in the middle (`chamber`): the Kindler, a ring of eight light posts round a chair, under a glowing hood. The
+-- back wall's sealed door (`sealDoor`) opens on the stairs down to the sublevel (`sublevel` is their foot), where
+-- Doctor Holloway runs four new Kindlers (`kindlers`) beside holding tanks, his work desk and the boss spot
+-- (`boss`).
+-- PLACEHOLDER ART: greybox parts in the city palette, like every pocket.
+local LAB_DECK = 20
+function BUILD.ashlab(l: Layout, _Config: any)
+	local D = LAB_DECK
+	local deco = { tag = "decor", ghost = true }
+	local glowPost = { shape = "cylinder", ghost = true, tag = "decor" }
+	deckAndStairs(l, D, "concrete", "white", "white", "concrete", "slate", "sealDoor", "sublevel")
+	-- the lab's sign over the entrance and a strip of blue lights along the front wall
+	box(l, "glow", 0, D + 16, 195, 80, 6, 1, "beaconGlow", deco)
+	for i = -4, 4 do
+		box(l, "glow", i * 40, D + 0.4, 190, 6, 0.4, 2, "window", deco)
+	end
+	-- reception (room 1, west): the front desk and two rows of waiting chairs
+	box(l, "building", -90, D + 11, 26, 4, 22, 32, "white")
+	box(l, "building", -90, D + 11, 104, 4, 22, 32, "white")
+	box(l, "building", -143, D + 11, 10, 106, 22, 4, "white")
+	box(l, "building", -143, D + 11, 120, 106, 22, 4, "white")
+	box(l, "prop", -150, D + 2, 65, 30, 4, 6, "steel", deco)
+	box(l, "glow", -150, D + 4.2, 62.8, 26, 0.4, 0.4, "beaconGlow", deco)
+	for r = 0, 1 do
+		for c = 0, 3 do
+			box(l, "prop", -120 - c * 12, D + 1.5, 90 + r * 12, 5, 3, 5, "roofBlue", deco)
+		end
+	end
+	add(l, "rooms", -143, D + 0.5, 65)
+	-- the records office (room 2, east): rows of filing cabinets and a shredder
+	box(l, "building", 90, D + 11, 26, 4, 22, 32, "white")
+	box(l, "building", 90, D + 11, 104, 4, 22, 32, "white")
+	box(l, "building", 143, D + 11, 10, 106, 22, 4, "white")
+	box(l, "building", 143, D + 11, 120, 106, 22, 4, "white")
+	for c = 0, 3 do
+		box(l, "prop", 120 + c * 18, D + 4, 30, 8, 8, 4, "steel", deco)
+		box(l, "prop", 120 + c * 18, D + 4, 100, 8, 8, 4, "steel", deco)
+	end
+	box(l, "prop", 190, D + 2, 65, 4, 4, 8, "slate", deco)
+	add(l, "rooms", 143, D + 0.5, 65)
+	-- the test chamber: the Kindler, eight light posts in a ring round the test chair, a glowing hood over it
+	box(l, "plaza", 0, D + 0.25, 50, 70, 0.3, 70, "slate")
+	for i = 0, 7 do
+		local a = i * math.pi / 4
+		box(l, "prop", math.cos(a) * 22, D + 5, 50 + math.sin(a) * 22, 2, 10, 2, "steel", deco)
+		box(l, "glow", math.cos(a) * 22, D + 10.5, 50 + math.sin(a) * 22, 3, 1, 3, "beaconGlow", glowPost)
+	end
+	box(l, "prop", 0, D + 1.5, 50, 4, 3, 4, "white", deco) -- the test chair
+	box(l, "glow", 0, D + 18, 50, 16, 0.6, 16, "beaconGlow", glowPost) -- the hood
+	point(l, "chamber", 0, D + 0.5, 50)
+	-- the sealed door: a steel slab slid aside, a red warning light over it
+	box(l, "prop", 26, D + 7, -30, 14, 14, 3, "steel", deco)
+	box(l, "glow", 0, D + 15, -31.5, 6, 1.5, 0.5, "relicRed", deco)
+	-- the sublevel: four new Kindlers (a ring of light round a steel plinth), holding tanks along the walls,
+	-- Holloway's work desk and lamps under the ceiling
+	for _, p in { { -120, -80 }, { -120, -150 }, { 120, -80 }, { 120, -150 } } do
+		add(l, "kindlers", p[1], 0.5, p[2])
+		box(l, "prop", p[1], 0.5, p[2], 9, 1, 9, "steel", deco)
+		for i = 0, 3 do
+			local a = i * math.pi / 2 + math.pi / 4
+			box(l, "glow", p[1] + math.cos(a) * 6, 4, p[2] + math.sin(a) * 6, 1, 8, 1, "beaconGlow", deco)
+		end
+	end
+	for i = -3, 3 do
+		box(l, "prop", i * 40, 7, -194, 10, 14, 6, "glass", deco) -- a holding tank
+		box(l, "glow", i * 40, 2, -194, 8, 1, 4, "nullGlow", deco)
+	end
+	box(l, "prop", 60, 2, -130, 20, 4, 8, "steel", deco) -- the work desk
+	box(l, "glow", 60, 6, -133, 10, 4, 0.4, "window", deco)
+	for _, x in { -150, -60, 60, 150 } do
+		box(l, "glow", x, D - 0.6, -117, 10, 0.6, 3, "workLamp", deco)
+	end
+	point(l, "boss", 0, 0.5, -160)
+end
+
+-- Gale's Iron Hall (lore step 11, the Training origin line "The Taken Master"): the rival fight school where
+-- Master Hoshi is held. The school's floor is a wooden deck over the south of the pocket: the locker room west
+-- (room 1) with its benches, the trophy room east (room 2) with gold cups on shelves, and the training floor in
+-- the middle (`hall`): red mats, punching bags and wooden dummies. The back wall's iron door (`ironDoor`) opens
+-- on the stairs down to the inner dojo (`inner` is their foot): Master Hoshi's cage in the middle, held by four
+-- chains to iron posts (`chains`), braziers along the walls and the boss spot (`boss`).
+-- PLACEHOLDER ART: greybox parts in the city palette, like every pocket.
+local HALL_DECK = 20
+local CAGE = { x = 0, z = -140, half = 12 }
+function BUILD.ironhall(l: Layout, _Config: any)
+	local D = HALL_DECK
+	local deco = { tag = "decor", ghost = true }
+	deckAndStairs(l, D, "brick", "wood", "brick", "rock", "rock", "ironDoor", "inner")
+	-- the school's banner over the entrance: a red cloth with a glowing fist mark
+	box(l, "prop", 0, D + 16, 195, 60, 14, 1, "relicRed", deco)
+	box(l, "glow", 0, D + 16, 194.4, 12, 8, 0.4, "foundryGlow", deco)
+	-- the locker room (room 1, west): benches between two rows of lockers
+	box(l, "building", -90, D + 11, 26, 4, 22, 32, "brick")
+	box(l, "building", -90, D + 11, 104, 4, 22, 32, "brick")
+	box(l, "building", -143, D + 11, 10, 106, 22, 4, "brick")
+	box(l, "building", -143, D + 11, 120, 106, 22, 4, "brick")
+	for c = 0, 4 do
+		box(l, "prop", -110 - c * 16, D + 6, 18, 10, 12, 4, "steel", deco)
+		box(l, "prop", -110 - c * 16, D + 6, 112, 10, 12, 4, "steel", deco)
+	end
+	box(l, "prop", -143, D + 1, 65, 60, 2, 4, "wood", deco)
+	add(l, "rooms", -143, D + 0.5, 65)
+	-- the trophy room (room 2, east): shelves of gold cups
+	box(l, "building", 90, D + 11, 26, 4, 22, 32, "brick")
+	box(l, "building", 90, D + 11, 104, 4, 22, 32, "brick")
+	box(l, "building", 143, D + 11, 10, 106, 22, 4, "brick")
+	box(l, "building", 143, D + 11, 120, 106, 22, 4, "brick")
+	for r = 0, 2 do
+		box(l, "prop", 194, D + 4 + r * 6, 65, 3, 0.6, 80, "wood", deco)
+		for c = -3, 3 do
+			box(l, "prop", 193, D + 5.6 + r * 6, 65 + c * 10, 2, 2.4, 2, "bank", deco)
+		end
+	end
+	add(l, "rooms", 143, D + 0.5, 65)
+	-- the training floor: red mats, four punching bags on chains and two wooden dummies
+	box(l, "plaza", 0, D + 0.25, 50, 120, 0.3, 110, "roofRed")
+	for _, p in { { -50, 10 }, { 50, 10 }, { -50, 90 }, { 50, 90 } } do
+		box(l, "prop", p[1], D + 14, p[2], 0.6, 8, 0.6, "steel", deco)
+		box(l, "prop", p[1], D + 7, p[2], 3, 6, 3, "rust", deco)
+	end
+	for _, x in { -20, 20 } do
+		box(l, "prop", x, D + 3, 50, 1.5, 6, 1.5, "wood", deco)
+		box(l, "prop", x, D + 5, 50, 5, 0.8, 0.8, "wood", deco)
+	end
+	box(l, "glow", -70, D + 18, -18, 6, 0.5, 6, "foundryGlow", deco)
+	box(l, "glow", 70, D + 18, -18, 6, 0.5, 6, "foundryGlow", deco)
+	point(l, "hall", 0, D + 0.5, 50)
+	-- the iron door: a heavy slab slid aside
+	box(l, "prop", 26, D + 7, -30, 14, 14, 3, "steel", deco)
+	-- the inner dojo: Master Hoshi's cage on its plinth, four chains out to iron posts, braziers round the walls
+	box(l, "building", CAGE.x, 1, CAGE.z, CAGE.half * 2, 2, CAGE.half * 2, "rock")
+	for _, c in { { -1, -1 }, { 1, -1 }, { 1, 1 }, { -1, 1 } } do
+		box(l, "prop", CAGE.x + c[1] * CAGE.half, 9, CAGE.z + c[2] * CAGE.half, 1, 14, 1, "steel", deco)
+		local px, pz = CAGE.x + c[1] * (CAGE.half + 18), CAGE.z + c[2] * (CAGE.half + 18)
+		add(l, "chains", px, 0.5, pz)
+		box(l, "prop", px, 4, pz, 3, 8, 3, "steel", deco)
+		local mx, mz = (px + CAGE.x + c[1] * CAGE.half) / 2, (pz + CAGE.z + c[2] * CAGE.half) / 2
+		local chain = { tag = "decor", ghost = true, ry = 45 * c[1] * c[2] }
+		box(l, "prop", mx, 7, mz, 0.6, 0.6, 26, "steel", chain)
+	end
+	box(l, "prop", CAGE.x, 16.5, CAGE.z, CAGE.half * 2, 1, CAGE.half * 2, "steel", deco) -- the cage's lid
+	for _, p in { { -180, -80 }, { 180, -80 }, { -180, -180 }, { 180, -180 } } do
+		box(l, "prop", p[1], 2, p[2], 4, 4, 4, "steel", deco)
+		box(l, "glow", p[1], 4.6, p[2], 3, 1.2, 3, "foundryGlow", deco)
+	end
+	for _, x in { -150, -60, 60, 150 } do
+		box(l, "glow", x, D - 0.6, -117, 10, 0.6, 3, "workLamp", deco)
+	end
+	point(l, "boss", 70, 0.5, -170)
+end
+
 -- Is this a pocket layout name? (lore step 10: side quest pocket steps are checked against it)
 function PocketLayout.known(layout: any): boolean
 	return type(layout) == "string" and BUILD[layout] ~= nil

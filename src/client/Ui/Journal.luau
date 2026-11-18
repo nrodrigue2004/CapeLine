@@ -41,6 +41,7 @@ local WHERE = {
 	Coast = "the Coast", -- lore step 11: The Salt Dogs' pier
 	OldQuarry = "the Old Quarry", -- lore step 11, chain 6: The Pit
 	Underwater = "the Coral Shelf", -- lore step 11: The Sunken City, on the sea floor
+	RadioHill = "the west hills", -- lore step 11, the origin lines: Starblood Calling (RADIO HILL, the west hills)
 }
 local STATE_TEXT = { done = "CLEARED", open = "READY", level = "LEVEL %d", locked = "LOCKED" }
 

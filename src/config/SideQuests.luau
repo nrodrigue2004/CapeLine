@@ -54,6 +54,7 @@ return {
 		"Coast",
 		"OldQuarry",
 		"Underwater",
+		"RadioHill", -- the hand-placed hill west of the city (the origin lines, Starblood Calling)
 	},
 	sides = { "hero", "villain" },
 	pocketNum = 160, -- MissionState num for a side quest pocket run (after the Showdown's 150)
@@ -319,6 +320,55 @@ return {
 			clear = 14,
 			sign = false,
 		},
+		-- The origin lines (nate's lore, build plan step 11): one home site a line, each picked by rule and kept
+		-- `away.site` studs from every other chain's building (Shared.SideQuestSites).
+		-- The Ashgrove Test (Lab): an existing Downtown building south-east of the plaza (`near` from it), off
+		-- the museum and opera runners' roofs. Inside it is the "ashlab" pocket (Shared.PocketLayout).
+		AshgroveLab = {
+			name = "ASHGROVE LABS",
+			district = "Downtown",
+			near = { 300, 260 },
+			height = { 50, 160 }, -- a research block, not a tower
+			away = { plaza = 220, row = 150, door = 180, open = 80, site = 300 },
+		},
+		-- Starblood Calling (Alien): the first terrace of Radio Hill on its town side, under the old radio mast on
+		-- the hand-placed landmark west of the city (`hill` "terrace": Shared.SideQuestSites.hill reads it from
+		-- the landmark's boxes, so it never moves with the weekly seed). The beacon on top is the step 2 climb.
+		RadioMast = {
+			name = "RADIO HILL",
+			district = "RadioHill",
+			hill = "terrace",
+		},
+		-- The Last Owner (Magic): an existing Old Town building near Clock Square (`near` from the square's
+		-- middle; `away.clock` keeps it off the square itself), its door on an open street.
+		MothMoon = {
+			name = "MOTH & MOON CURIOS",
+			district = "OldTown",
+			near = { -150, 150 },
+			height = { 18, 46 },
+			away = { clock = 90, pad = 80, beacon = 80, site = 300 },
+		},
+		-- The Taken Master (Training): an outskirts shop lot west of the hub, the Willow Street Dojo (the same rule
+		-- as Tick-Tock Toys; sorted after it, so the toy shop's pick never moves)
+		WillowDojo = {
+			name = "WILLOW STREET DOJO",
+			district = "Suburbs",
+			lot = "shop",
+			near = { -1150, 600 },
+			rings = { 2, 5 },
+			height = { 10, 20 },
+			away = { pad = 150, beacon = 150, landmark = 300, district = 200, site = 400 },
+		},
+		-- Suit Recall (Tech): Tinker Tess's garage, an outskirts house lot south of the hub
+		Workshop = {
+			name = "TINKER'S GARAGE",
+			district = "Suburbs",
+			lot = "house",
+			near = { 700, 1250 },
+			rings = { 2, 5 },
+			height = { 6, 30 },
+			away = { pad = 150, beacon = 150, landmark = 300, district = 200, site = 400 },
+		},
 	},
 
 	-- Rooftop race courses (chain 2: Rooftop Racers over both skylines, nate): Shared.SideQuestSites.course
@@ -436,6 +486,189 @@ return {
 				},
 				tints = { back = { 31, 27, 0 } }, -- a sea-foam cape with bronze trim
 				mats = { suit = "Metal" },
+			},
+		},
+		-- The origin lines' finale villains (lore step 11): none needs a robot type of its own.
+		-- The Ashgrove Test (Lab): Doctor Holloway in his shielded lab rig, a silver-haired director in a lab coat
+		-- with steel plates, a gear rig on his back and a visor. No Spark of his own: the rig is the Warden's
+		-- (`robot`: its guard brain, front shield and health), in the Light path's look, damage into the band.
+		Holloway = {
+			name = "Doctor Holloway",
+			title = "Director of Ashgrove Labs",
+			creature = false,
+			robot = true,
+			path = "Light",
+			height = 7,
+			dmgMult = 1.4,
+			body = {
+				metal = { 200, 205, 215 },
+				eye = { 80, 255, 255 },
+				suit = { 245, 245, 245 },
+				trim = { 70, 60, 160 },
+			},
+			look = {
+				gender = 1,
+				build = 3, -- Heavy: the Warden's frame
+				height = 4,
+				skin = 2,
+				hair = 19, -- silver
+				colors = { 18, 34, 46 }, -- white, indigo, cyan glow
+				pieces = {
+					suit = "Lab Coat",
+					shoulders = "Layered Plates",
+					hands = "Tech Gloves",
+					backpack = "Cog Rig",
+					head = "Mono Visor",
+					hair = "Slicked Back",
+					visage = "Cold Face",
+					feet = "Armored Boots",
+				},
+				tints = {},
+				mats = { shoulders = "Metal", backpack = "Metal" },
+			},
+		},
+		-- Starblood Calling (Alien): the Voidhound, an ancient hunting machine from the stars in a starfield shell,
+		-- an antenna helm, a one-eyed visor and a meteor cape. Over the Captain (`robot`: it hangs back and
+		-- rallies its drones), in the Pulse path's look, damage into the band.
+		Voidhound = {
+			name = "The Voidhound",
+			title = "Hunter from the Stars",
+			creature = false,
+			robot = true,
+			path = "Pulse",
+			height = 8,
+			dmgMult = 1.1,
+			body = {
+				metal = { 70, 60, 110 },
+				eye = { 190, 90, 255 },
+				suit = { 40, 44, 60 },
+				trim = { 190, 90, 255 },
+			},
+			look = {
+				gender = 1,
+				build = 2, -- Normal: the Captain's frame
+				height = 5,
+				skin = 26, -- the Metal skin: a machine all through
+				hair = 22,
+				colors = { 35, 44, 48 }, -- deep purple, midnight, ultraviolet
+				pieces = {
+					suit = "Starfield Suit",
+					head = "Antenna Helm",
+					eyes = "Cyclops Visor",
+					back = "Meteor Cape",
+					shoulders = "Crystal Shards",
+					hands = "Talon Gloves",
+					feet = "Hover Boots",
+				},
+				tints = {},
+				mats = { suit = "Metal" },
+			},
+		},
+		-- The Last Owner (Magic): Morrow the Mirage, a jealous old stage illusionist in a tuxedo, a high-collared
+		-- cape, a top hat and a masquerade mask, in Madame Masque-a-rade's powered suit of mirrors and wires.
+		Morrow = {
+			name = "Morrow the Mirage",
+			title = "The Jealous Illusionist",
+			creature = false,
+			body = {
+				metal = { 175, 180, 190 },
+				eye = { 190, 110, 240 },
+				suit = { 24, 24, 28 },
+				trim = { 120, 80, 220 },
+			},
+			look = {
+				gender = 1,
+				build = 2, -- Normal: the suit's build
+				height = 4,
+				skin = 9,
+				hair = 22, -- black
+				colors = { 22, 12, 19 }, -- black, violet, silver
+				pieces = {
+					suit = "Tuxedo",
+					back = "High Collar Cape",
+					hat = "Top Hat",
+					head = "Masquerade",
+					hands = "Gloves",
+					beard = "Pencil Mustache",
+					hair = "Slicked Back",
+					eyes = "Violet Glow",
+				},
+				tints = { back = { 22, 12, 0 } }, -- a black cape lined in violet
+				mats = {},
+			},
+		},
+		-- Suit Recall (Tech): Clawback, the repo king, a big man in a hooked exo frame with iron gauntlets, a
+		-- ball cap and a rack of gears on his back. Over the Grappler (`robot`: its hook pulls a hero in), in the
+		-- Gadgeteer path's look, damage into the band.
+		Clawback = {
+			name = "Clawback",
+			title = "The Repo King",
+			creature = false,
+			robot = true,
+			path = "Gadgeteer",
+			height = 8,
+			dmgMult = 1.1,
+			body = {
+				metal = { 110, 115, 125 },
+				eye = { 255, 140, 40 },
+				suit = { 230, 190, 60 },
+				trim = { 55, 58, 66 },
+			},
+			look = {
+				gender = 1,
+				build = 3, -- Heavy: the Grappler's frame
+				height = 5,
+				skin = 4,
+				hair = 39, -- chocolate
+				colors = { 28, 21, 3 }, -- mustard, charcoal, orange
+				pieces = {
+					suit = "Exo Frame",
+					hat = "Ball Cap",
+					hands = "Armored Gauntlets",
+					belt = "Tool Belt",
+					shoulders = "Gear Pads",
+					backpack = "Gear Rack",
+					beard = "Horseshoe",
+					visage = "Scarred Face",
+					feet = "Armored Boots",
+				},
+				tints = {},
+				mats = { hands = "Metal" },
+			},
+		},
+		-- The Taken Master (Training): Gale, Master Hoshi's angriest old student, lean and fast in a fighter's
+		-- sash, a headband, fighter's wraps and a long wind scarf. His Spark never woke, so he wears Redline's
+		-- powered racing suit (its dashes and speed) as a speed rig.
+		Gale = {
+			name = "Gale",
+			title = "The Master's Fallen Student",
+			creature = false,
+			body = {
+				metal = { 85, 95, 110 },
+				eye = { 80, 255, 255 },
+				suit = { 24, 24, 28 },
+				trim = { 40, 190, 170 },
+			},
+			look = {
+				gender = 1,
+				build = 1, -- Slim: the suit's build (Redline's lean racer)
+				height = 3,
+				skin = 3,
+				hair = 21, -- charcoal
+				colors = { 8, 18, 22 }, -- teal, white, black
+				pieces = {
+					suit = "Sash Fighter",
+					hat = "Hachimaki",
+					hands = "Fighter Wraps",
+					legs = "Hakama",
+					back = "Wind Scarf",
+					hair = "Wild Mane",
+					visage = "Sharp Face",
+					eyes = "Ice Blades",
+					feet = "Tabi Boots",
+				},
+				tints = {},
+				mats = {},
 			},
 		},
 	},
@@ -706,6 +939,185 @@ return {
 					hands = "Hand Wraps",
 					neck = "Whistle",
 					feet = "High Tops",
+				},
+				tints = {},
+				mats = {},
+			},
+		},
+		-- The origin lines' givers (lore step 11), each at their line's home site.
+		-- The Ashgrove Test (Lab): Dr. Okafor, the night-shift scientist who ran the Kindler on the night of your
+		-- test. She was fired when she asked why the lab shut; she wants the volunteers out (the Vigil), or her
+		-- back pay out of the research (the Dread Syndicate).
+		Okafor = {
+			name = "DR. OKAFOR",
+			anchor = "site",
+			site = "AshgroveLab",
+			color = { 240, 240, 245 },
+			style = "person",
+			blip = "guideInsider",
+			portrait = {
+				bg = { 30, 60, 80 },
+				skin = { 86, 56, 38 },
+				hair = { 24, 24, 28 },
+				shape = "messy",
+				extras = { "spectacles" },
+			},
+			look = {
+				gender = 2,
+				build = 2,
+				height = 3,
+				skin = 7,
+				hair = 22, -- black
+				colors = { 18, 8, 43 }, -- white, teal, slate
+				pieces = {
+					suit = "Lab Coat",
+					hair = "Locs",
+					visage = "Hero Face",
+					feet = "Sneakers",
+				},
+				tints = {},
+				mats = {},
+			},
+		},
+		-- Starblood Calling (Alien): Radio Ruth, a retired radio ham who lives by the old mast on Radio Hill and
+		-- has been taping a song from the sky all week.
+		Ruth = {
+			name = "RADIO RUTH",
+			anchor = "site",
+			site = "RadioMast",
+			color = { 230, 190, 60 },
+			style = "person",
+			blip = "radio",
+			portrait = {
+				bg = { 44, 40, 70 },
+				skin = { 241, 194, 160 },
+				hair = { 245, 245, 245 },
+				shape = "slick",
+				extras = { "headset" },
+			},
+			look = {
+				gender = 2,
+				build = 2,
+				height = 2,
+				skin = 2,
+				hair = 18, -- white
+				colors = { 28, 16, 9 }, -- mustard, brown, sky
+				pieces = {
+					shirt = "Knit Sweater",
+					pants = "Cargo Trousers",
+					hair = "Top Bun",
+					hat = "Headphones",
+					backpack = "Radio Pack",
+					visage = "Hero Face",
+					feet = "Boots",
+				},
+				tints = {},
+				mats = {},
+			},
+		},
+		-- The Last Owner (Magic): Auntie Moth, who keeps the curio shop in Old Town where your relic sat on a
+		-- shelf for forty years, until it picked you.
+		Moth = {
+			name = "AUNTIE MOTH",
+			anchor = "site",
+			site = "MothMoon",
+			color = { 150, 40, 110 },
+			style = "person",
+			blip = "guideLodestar",
+			portrait = {
+				bg = { 50, 30, 60 },
+				skin = { 198, 140, 100 },
+				hair = { 175, 180, 190 },
+				shape = "hood",
+				extras = {},
+			},
+			look = {
+				gender = 2,
+				build = 2,
+				height = 2,
+				skin = 4,
+				hair = 19, -- silver
+				colors = { 15, 13, 4 }, -- plum, lilac, gold
+				pieces = {
+					shirt = "Turtleneck",
+					pants = "Long Skirt",
+					back = "Hooded Cape",
+					neck = "Pendant",
+					wrist = "Bangles",
+					hair = "Long Straight",
+					visage = "Hero Face",
+					feet = "Sandals",
+				},
+				tints = {},
+				mats = {},
+			},
+		},
+		-- Suit Recall (Tech): Tinker Tess, the mechanic whose garage you built your suit in, from scrapyard parts
+		-- and a dead power core.
+		Tess = {
+			name = "TINKER TESS",
+			anchor = "site",
+			site = "Workshop",
+			color = { 255, 140, 40 },
+			style = "person",
+			blip = "guideInsider",
+			portrait = {
+				bg = { 60, 50, 40 },
+				skin = { 160, 105, 70 },
+				hair = { 24, 24, 28 },
+				shape = "messy",
+				extras = { "goggles" },
+			},
+			look = {
+				gender = 2,
+				build = 2,
+				height = 3,
+				skin = 5,
+				hair = 22, -- black
+				colors = { 3, 10, 21 }, -- orange, blue, charcoal
+				pieces = {
+					suit = "Overalls",
+					hat = "Flight Goggles",
+					hands = "Work Gloves",
+					belt = "Tool Belt",
+					hair = "Afro",
+					visage = "Rookie Face",
+					feet = "Combat Boots",
+				},
+				tints = {},
+				mats = {},
+			},
+		},
+		-- The Taken Master (Training): Kiko, Master Hoshi's youngest student, who sweeps the Willow Street Dojo and
+		-- saw the man in the fire rig take him.
+		Kiko = {
+			name = "KIKO",
+			anchor = "site",
+			site = "WillowDojo",
+			color = { 235, 60, 60 },
+			style = "person",
+			blip = "guideLodestar",
+			portrait = {
+				bg = { 70, 40, 40 },
+				skin = { 241, 194, 160 },
+				hair = { 24, 24, 28 },
+				shape = "slick",
+				extras = { "headband" },
+			},
+			look = {
+				gender = 2,
+				build = 1,
+				height = 1,
+				skin = 10,
+				hair = 22, -- black
+				colors = { 18, 1, 22 }, -- white, red, black
+				pieces = {
+					suit = "Dojo Gi",
+					hat = "Hachimaki",
+					belt = "Obi",
+					hair = "High Ponytail",
+					visage = "Rookie Face",
+					feet = "Sandals",
 				},
 				tints = {},
 				mats = {},
@@ -2713,6 +3125,910 @@ return {
 							who = "tidewright",
 							hero = "You jammed my spire. Then I will raise the tide myself. Velmara will not drown twice!",
 							villain = "Thieves in my treasury. The last guardian of Velmara will not let you leave.",
+						},
+					},
+				},
+			},
+		},
+
+		-- The origin lines (nate's lore, build plan step 11): one personal line per origin, offered only to heroes of
+		-- that origin (unlock.origin, Config.Creator.origins). nate's drafts: lab "find the lab that woke you",
+		-- alien "a signal from your bloodline", magic "the relic's last owner", tech "someone wants your suit
+		-- back", training "your old master was taken". 6 quests each (the layer's 5 to 8), mostly standalone,
+		-- each side its own flavour. All five end on the shared Spark lore: the origin never made the Spark, it
+		-- only woke the one that was always there (each line's comic page ends on the same panel). Each finale
+		-- villain wears a dress over an existing robot or costumed suit (no new enemy type).
+
+		-- Lab origin: The Ashgrove Test. Ashgrove Labs paid volunteers to sit in the Kindler, a ring of light; on a
+		-- Lab-Born hero's turn the machine lit up and woke their Spark, and the lab shut by morning. Now it runs
+		-- again in secret: Doctor Holloway, its director, has no Spark and tests volunteers to learn to take one.
+		-- The Vigil free the volunteers and smash the Kindlers; the Dread Syndicate steal the Kindling cells and
+		-- sell the research. Both face Holloway in his shielded lab rig.
+		{
+			id = "AshgroveTest",
+			bit = 13,
+			name = "The Ashgrove Test",
+			layer = "origin",
+			giver = "Okafor",
+			site = "AshgroveLab",
+			unlock = { origin = 1, story = 2, level = 5 }, -- Lab-Born heroes, after Act 1's Safehouse
+			villain = { name = "DOCTOR HOLLOWAY", title = "DIRECTOR OF ASHGROVE LABS" },
+			reward = { share = 3, title = "Test Passed", style = "KindlingCore" },
+			blurb = {
+				hero = "The lab that woke your Spark shut down overnight. Now its lights are back on.",
+				villain = "The lab that woke your Spark is open again. Its research is worth a fortune.",
+			},
+			lines = {
+				offer = {
+					hero = "You're the one from the Ashgrove test. I was on shift that night. The lab is open again, and people go in.",
+					villain = "You're the one from the Ashgrove test. The director owes us both, and his research sells.",
+				},
+				resume = {
+					hero = "Back again? The volunteers are still in there. Let's finish this.",
+					villain = "Back for the rest? Holloway's research won't steal itself.",
+				},
+				done = {
+					hero = "The volunteers are home and the Kindlers are scrap. You passed the test. The real one.",
+					villain = "The research is sold, the lab is dark and I got my back pay. Pleasure doing crimes.",
+				},
+			},
+			steps = {
+				-- 1. Dr. Okafor's story: the night of the test
+				{
+					hero = { kind = "talk", text = "Hear Dr. Okafor out at Ashgrove Labs" },
+					villain = { kind = "talk", text = "Get Dr. Okafor's tip at Ashgrove Labs" },
+					lines = {
+						{
+							who = "Okafor",
+							hero = "The night of your test, the Kindler flashed and you lit up like a star. They shut the lab by morning.",
+							villain = "The night of your test, the Kindler flashed and you lit up. Holloway hid it. I got fired.",
+						},
+						{
+							who = "patch",
+							hero = "Ashgrove's files were wiped the same week. Somebody really wanted that night forgotten.",
+							villain = "Wiped files mean something worth hiding. Or worth selling.",
+						},
+					},
+				},
+				-- 2. A volunteer who ran / the courier with the director's keycard
+				{
+					hero = {
+						kind = "find",
+						range = { 100, 250 },
+						witness = true,
+						text = "Find a volunteer who ran from the lab",
+					},
+					villain = {
+						kind = "chase",
+						enemy = "SneakBot",
+						hops = 5,
+						speed = 22,
+						text = "Catch the courier bot with the director's keycard",
+					},
+					lines = {
+						{
+							who = "patch",
+							hero = "A volunteer got out last night, still glowing. Her phone pinged somewhere around here.",
+							villain = "That courier bot carries Holloway's keycard. Catch it and every door in the lab opens.",
+						},
+					},
+				},
+				-- 3. Into the lab: Okafor's old badge / the Kindling cells on the loading dock
+				{
+					hero = {
+						kind = "hold",
+						seconds = 20,
+						radius = 12,
+						text = "Shield Dr. Okafor while she opens the lab",
+					},
+					villain = {
+						kind = "fetch",
+						count = 3,
+						range = { 60, 180 },
+						guards = { "ShieldBearer", 1 },
+						text = "Lift three Kindling cells from the loading dock",
+					},
+					lines = {
+						{
+							who = "Okafor",
+							hero = "My old badge still works on the side door. Mostly. Keep the guard bots off me!",
+							villain = "Kindling cells power the machine that woke you. Each one is worth a car.",
+						},
+						{
+							who = "lodestar",
+							hero = "A machine that wakes Sparks, back in business? I don't like it, kid. Watch your back in there.",
+							villain = "Whatever you carry out of there, keep it away from people. That machine hurts folks.",
+						},
+					},
+				},
+				-- 4. Inside Ashgrove Labs: reception, the test chamber and the sublevel under it
+				{
+					hero = {
+						kind = "pocket",
+						layout = "ashlab",
+						minutes = 12,
+						text = "Get inside Ashgrove Labs",
+						villainText = "Break into Ashgrove Labs",
+						steps = {
+							{
+								kind = "defeat",
+								room = 1,
+								squads = { { "ShieldBearer", 2 }, { "BurglarBot", 2 } },
+								text = "Clear the security bots from reception",
+								villainText = "Scrap the security bots at the front desk",
+							},
+							{
+								kind = "hold",
+								at = "chamber",
+								points = 1,
+								seconds = 20,
+								radius = 16,
+								waves = { { "SparkDrone", 3 } },
+								waveGap = 10,
+								text = "Shield the volunteers in the test chamber",
+								villainText = "Hold the chamber while the safe cracker runs",
+							},
+							{
+								kind = "reach",
+								at = "sublevel",
+								text = "Take the sealed stairs to the sublevel",
+								villainText = "Follow the stairs to the good stuff",
+							},
+							{
+								kind = "break",
+								list = "kindlers",
+								points = 4,
+								hits = 3,
+								text = "Smash the Kindlers. Nobody else gets tested!",
+								villainText = "Rip the Kindling cores out of the machines",
+							},
+							{
+								kind = "boss",
+								enemy = "Grappler",
+								hpMult = 3,
+								adds = { "SparkDrone", 2 },
+								text = "Beat the lab's containment bot",
+								villainText = "Scrap the containment bot for parts",
+							},
+						},
+					},
+					villain = "same",
+					lines = {
+						{
+							who = "holloway",
+							text = "Intruders in the test wing. Subject One, is that you? Come in. Let's finish your test.",
+						},
+					},
+				},
+				-- 5. Out with the volunteers / out with the cores; the truth about the Kindler
+				{
+					hero = { kind = "carry", range = { 80, 160 }, text = "Fly a volunteer home safe" },
+					villain = {
+						kind = "race",
+						checkpoints = 4,
+						gap = 60,
+						time = 45,
+						text = "Rush the Kindling cores to your buyer",
+					},
+					scene = "kindlerTruth",
+					lines = {
+						{
+							who = "Okafor",
+							hero = "He tested hundreds. It only lit up people who already had a Spark. It never made one. Never.",
+							villain = "It only ever woke a Spark someone already had. That's why he wants yours. Sell fast.",
+						},
+						{
+							who = "holloway",
+							text = "My Kindler woke them all. Not one Spark was mine. So I'll take the one I woke in you!",
+						},
+					},
+				},
+				-- 6. The finale: Doctor Holloway in his shielded lab rig at the lab's door
+				{
+					hero = {
+						kind = "finale",
+						enemy = "NullSentinel",
+						dress = "Holloway",
+						hpMult = 8,
+						adds = { { "ShieldBearer", 2 }, { "SparkDrone", 2 } },
+						range = { 60, 140 },
+						text = "Stop Doctor Holloway. The test is over!",
+						villainText = "Topple Holloway and take his lab",
+					},
+					villain = "same",
+					scene = "hollowayRig",
+					lines = {
+						{
+							who = "holloway",
+							hero = "Every Spark I ever woke walked away from me. Not you, Subject One. You're coming back to the lab!",
+							villain = "You took my cells, my files, my lab. Fine. I'll take the Spark my test woke in you!",
+						},
+					},
+				},
+			},
+		},
+
+		-- Alien origin: Starblood Calling. A song from the stars plays on Radio Hill's old mast, and only star blood
+		-- hears it: an old pod, the ship a Star-Blooded hero's ancestor came down in long ago, has started to sing
+		-- again. The Voidhound, an ancient star-hunting machine that followed that ship across the stars (not
+		-- Crane's: standalone), hears it too. The Vigil boost the song, find the pod and guard its message; the
+		-- Dread Syndicate grab the star-metal and steal the pod's core. Both face the Voidhound on the hill.
+		{
+			id = "StarbloodCalling",
+			bit = 14,
+			name = "Starblood Calling",
+			layer = "origin",
+			giver = "Ruth",
+			site = "RadioMast",
+			unlock = { origin = 2, story = 2, level = 5 }, -- Star-Blooded heroes, after Act 1's Safehouse
+			villain = { name = "THE VOIDHOUND", title = "HUNTER FROM THE STARS" },
+			reward = { share = 3, title = "Starborn", style = "StarfallWings" },
+			blurb = {
+				hero = "A song from the stars is playing on Radio Hill. Only star blood can hear it.",
+				villain = "A song from the stars leads to star-metal nobody on Earth owns. Get there first.",
+			},
+			lines = {
+				offer = {
+					hero = "Radio Ruth. My old set has caught a song from the stars all week, and you're the only one who hums along.",
+					villain = "Radio Ruth. Something up there is singing to you, and star-metal sells by the ounce.",
+				},
+				resume = {
+					hero = "The song's still playing. Ready to follow it?",
+					villain = "Still singing, still worth a fortune. Let's go.",
+				},
+				done = {
+					hero = "The hunter is scrap and the song is quiet. Your people said hello, kid. Come back and visit.",
+					villain = "Star-metal sold, hunter scrapped, and my radio's paid off. Nice doing business, starlight.",
+				},
+			},
+			steps = {
+				-- 1. Radio Ruth's story: the song on the old mast
+				{
+					hero = { kind = "talk", text = "Hear Radio Ruth out on Radio Hill" },
+					villain = { kind = "talk", text = "Get Radio Ruth's tip on Radio Hill" },
+					lines = {
+						{
+							who = "Ruth",
+							hero = "Listen. That tune comes from the sky, and your Spark lights up every time it plays.",
+							villain = "Hear that? A song from the stars. Wherever it leads, there's star-metal.",
+						},
+						{
+							who = "patch",
+							hero = "That signal isn't from any station on Earth. And it gets louder when YOU stand near the mast.",
+							villain = "Whatever that signal comes from, nobody on Earth owns it yet. That makes it ours.",
+						},
+					},
+				},
+				-- 2. The hilltop beacon / the star-metal shards on the hillside
+				{
+					hero = { kind = "beacon", seconds = 20, text = "Boost the song at the hilltop beacon" },
+					villain = {
+						kind = "fetch",
+						count = 3,
+						range = { 60, 180 },
+						guards = { "BurglarBot", 1 },
+						text = "Grab the star-metal shards on the hillside",
+					},
+					lines = {
+						{
+							who = "Ruth",
+							hero = "Hold the beacon up top and my set can tune right in. Twenty seconds should do it.",
+							villain = "Bits of star-metal fell all over this hill. Somebody else is picking them up too.",
+						},
+					},
+				},
+				-- 3. The hunter's drones arrive
+				{
+					hero = {
+						kind = "fight",
+						squads = { { "SparkDrone", 4 }, { "BurglarBot", 2 } },
+						range = { 60, 150 },
+						text = "Drive off the hunter drones on the hill",
+					},
+					villain = {
+						kind = "chase",
+						enemy = "SneakBot",
+						hops = 5,
+						speed = 22,
+						text = "Catch the hunter drone with a star shard",
+					},
+					lines = {
+						{
+							who = "voidhound",
+							text = "STAR BLOOD DETECTED. THE HUNT BEGINS. COLLECTION IS CERTAIN.",
+						},
+						{
+							who = "patch",
+							hero = "Those drones aren't from around here. They're tracking the song. They're tracking YOU.",
+							villain = "Those drones are tracking the song, and the shards. Don't let them get away with yours.",
+						},
+					},
+				},
+				-- 4. The pod / the collector
+				{
+					hero = { kind = "find", range = { 100, 250 }, text = "Find the pod the song comes from" },
+					villain = { kind = "deliver", range = { 150, 300 }, text = "Sell the star shards to a collector" },
+					lines = {
+						{
+							who = "Ruth",
+							hero = "The song is loudest past the hill. Something fell out there, a long, long time ago.",
+							villain = "A collector's waiting at the drop. Star-metal, cash only, no questions.",
+						},
+					},
+				},
+				-- 5. The pod's message / the pod's core
+				{
+					hero = {
+						kind = "hold",
+						seconds = 25,
+						radius = 12,
+						text = "Guard the pod while it plays its message",
+					},
+					villain = {
+						kind = "race",
+						checkpoints = 4,
+						gap = 70,
+						time = 45,
+						text = "Outrun the hunter with the pod's star core",
+					},
+					scene = "podMessage",
+					lines = {
+						{
+							who = "Ruth",
+							hero = "It's a message: 'Every Spark is one Spark. Our blood only woke yours.' Kid, your people knew.",
+							villain = "The pod says every Spark is one Spark, and star blood woke yours. The hunter wants it. RUN.",
+						},
+					},
+				},
+				-- 6. The finale: the Voidhound lands on Radio Hill
+				{
+					hero = {
+						kind = "finale",
+						enemy = "Captain",
+						dress = "Voidhound",
+						hpMult = 14,
+						adds = { { "SparkDrone", 3 } },
+						range = { 60, 140 },
+						text = "Stop the Voidhound. The hunt ends here!",
+						villainText = "Scrap the Voidhound and sell its parts",
+					},
+					villain = "same",
+					scene = "voidhoundLands",
+					lines = {
+						{
+							who = "voidhound",
+							hero = "ONE SPARK FROM THE STARS, STILL UNCLAIMED. HOLD STILL, STAR BLOOD.",
+							villain = "THIEF WITH STAR BLOOD. DOUBLE BOUNTY. HOLD STILL.",
+						},
+					},
+				},
+			},
+		},
+
+		-- Magic origin: The Last Owner. A Relic-Bound hero's relic was Ambrose the Astonishing's, a stage magician
+		-- who vanished on stage forty years ago. Auntie Moth, who sold it, says he is alive, hiding in Old Town, and
+		-- his old rival Morrow the Mirage (a jealous illusionist with no Spark, in a powered rig of mirrors and
+		-- wires) is hunting the relic. The Vigil find Ambrose, expose Morrow's robots and get him out; the Dread
+		-- Syndicate rob Ambrose's hidden trunks and his vault. Both face Morrow's last trick.
+		{
+			id = "LastOwner",
+			bit = 15,
+			name = "The Last Owner",
+			layer = "origin",
+			giver = "Moth",
+			site = "MothMoon",
+			unlock = { origin = 3, story = 2, level = 5 }, -- Relic-Bound heroes, after Act 1's Safehouse
+			villain = { name = "MORROW THE MIRAGE", title = "THE JEALOUS ILLUSIONIST" },
+			reward = { share = 3, title = "Relic Keeper", style = "MoonstoneCirclet" },
+			blurb = {
+				hero = "Your relic had an owner before you: Ambrose the Astonishing. Someone is hunting him.",
+				villain = "Your relic's last owner hid forty years of stage gold. A rival wants it too.",
+			},
+			lines = {
+				offer = {
+					hero = "That relic picked you off my shelf, dear. Before you, it was Ambrose's. He's in trouble.",
+					villain = "That relic was Ambrose the Astonishing's. He hid the rest of his fortune. All of it.",
+				},
+				resume = {
+					hero = "Back again? Ambrose is counting on you. So am I.",
+					villain = "Back for more gold? Ambrose hid plenty.",
+				},
+				done = {
+					hero = "Ambrose is safe and Morrow's mirrors are in pieces. The relic chose well, dear.",
+					villain = "Trunks emptied, vault cracked, Morrow scrapped. I'll take my cut in gold, dear.",
+				},
+			},
+			steps = {
+				-- 1. Auntie Moth's story: the relic's last owner
+				{
+					hero = { kind = "talk", text = "Hear Auntie Moth out at her curio shop" },
+					villain = { kind = "talk", text = "Get Auntie Moth's tip at her curio shop" },
+					lines = {
+						{
+							who = "Moth",
+							hero = "Your relic belonged to Ambrose the Astonishing. He's alive, hiding in Old Town, and someone is hunting him.",
+							villain = "Ambrose hid his trunks of stage gold all over Old Town. Forty years. Still locked.",
+						},
+						{
+							who = "patch",
+							hero = "Ambrose the Astonishing? Old posters say he vanished on stage forty years ago. Like, actually vanished.",
+							villain = "Forty years of hidden stage gold? Somebody's about to get rich. Might as well be us.",
+						},
+					},
+				},
+				-- 2. Ambrose in hiding / his locked trunks
+				{
+					hero = {
+						kind = "find",
+						range = { 100, 250 },
+						witness = true,
+						text = "Find Ambrose, the relic's last owner",
+					},
+					villain = {
+						kind = "fetch",
+						count = 3,
+						range = { 60, 180 },
+						guards = { "BurglarBot", 1 },
+						text = "Pick the locks on Ambrose's hidden trunks",
+					},
+					lines = {
+						{
+							who = "Moth",
+							hero = "Look for an old man feeding the pigeons, with playing cards up his sleeves.",
+							villain = "Each trunk is locked with a trick. Each one is also full. Go on, dear.",
+						},
+					},
+				},
+				-- 3. Morrow's robots close in / the stagehand with the map
+				{
+					hero = {
+						kind = "photo",
+						count = 3,
+						range = { 40, 140 },
+						text = "Photograph the shadow bots stalking Ambrose",
+					},
+					villain = {
+						kind = "chase",
+						enemy = "SneakBot",
+						hops = 5,
+						speed = 22,
+						text = "Catch the stagehand bot with Ambrose's map",
+					},
+					lines = {
+						{
+							who = "ambrose",
+							hero = "So the relic found you. Good. My old rival Morrow hunts it, and his robots are everywhere.",
+							villain = "After my trunks, are you? Ha! Morrow's robots want them too. And my relic.",
+						},
+						{
+							who = "morrow",
+							text = "Ambrose, old friend. Forty years in hiding. Give me the relic, and I'll make you vanish properly.",
+						},
+					},
+				},
+				-- 4. Out of Old Town / the stage gold
+				{
+					hero = {
+						kind = "escort",
+						goal = 160,
+						speed = 9,
+						near = 40,
+						text = "Get Ambrose's old show van out of Old Town",
+					},
+					villain = { kind = "deliver", range = { 150, 300 }, text = "Fence Ambrose's stage gold at the drop" },
+					lines = {
+						{
+							who = "lodestar",
+							hero = "An old magician, a jealous rival and a relic. Get the old man somewhere safe. I'll watch the roofs.",
+							villain = "Steal from the old man if you must. But if Morrow grabs him, you'll answer to me.",
+						},
+					},
+				},
+				-- 5. Morrow's troupe strikes / the race to the vault; the truth about the relic
+				{
+					hero = {
+						kind = "fight",
+						squads = { { "ShieldBearer", 1 }, { "BurglarBot", 3 } },
+						range = { 60, 150 },
+						text = "Stop Morrow's troupe grabbing Ambrose",
+					},
+					villain = {
+						kind = "race",
+						checkpoints = 4,
+						gap = 60,
+						time = 45,
+						text = "Beat Morrow's runners to the vault",
+					},
+					scene = "relicTruth",
+					lines = {
+						{
+							who = "ambrose",
+							hero = "The relic was never magic. It only woke the Spark I already had. Yours too. Morrow has none.",
+							villain = "A secret, thief: the relic has no power. It only woke your Spark. Morrow can't stand it.",
+						},
+					},
+				},
+				-- 6. The finale: Morrow's last trick
+				{
+					hero = {
+						kind = "finale",
+						enemy = "MasqueARade",
+						dress = "Morrow",
+						hpMult = 3,
+						adds = { { "BurglarBot", 2 }, { "SparkDrone", 2 } },
+						range = { 60, 140 },
+						text = "Break Morrow's last trick!",
+						villainText = "Rob Morrow blind at his own show",
+					},
+					villain = "same",
+					scene = "morrowCurtain",
+					lines = {
+						{
+							who = "morrow",
+							hero = "My greatest trick! The relic's new owner... VANISHES!",
+							villain = "A thief at my show? Watch closely. Your pockets are about to vanish!",
+						},
+					},
+				},
+			},
+		},
+
+		-- Tech origin: Suit Recall. A Suit-Forged hero built the suit in Tinker Tess's garage from scrapyard junk and
+		-- a dead power core that only lit up when they strapped in. Now Clawback, a repo king whose robots
+		-- "recover" anything that glows, says the core is his. The Vigil chase off the repo bots, save Tess's parts
+		-- and expose the fake repo orders; the Dread Syndicate rob Clawback's crew and his yard. Both face Clawback
+		-- in his hooked repo rig.
+		{
+			id = "SuitRecall",
+			bit = 16,
+			name = "Suit Recall",
+			layer = "origin",
+			giver = "Tess",
+			site = "Workshop",
+			unlock = { origin = 4, story = 2, level = 5 }, -- Suit-Forged heroes, after Act 1's Safehouse
+			villain = { name = "CLAWBACK", title = "THE REPO KING" },
+			reward = { share = 3, title = "No Returns", style = "ClawbackGauntlet" },
+			blurb = {
+				hero = "The scrap core in your suit lit up when you put it on. Now a repo king wants it.",
+				villain = "A repo king wants your suit back. His yard is full of other people's things.",
+			},
+			lines = {
+				offer = {
+					hero = "Remember the dead core we pulled from the scrap? A repo king says it's his. His robots took my garage door!",
+					villain = "Clawback's repo crew wants your suit. His yard is stuffed with stolen gear. Shopping trip?",
+				},
+				resume = {
+					hero = "Back? Good. The repo bots haven't given up, and neither have I.",
+					villain = "Back for another load? The yard isn't empty yet.",
+				},
+				done = {
+					hero = "Clawback's rig is scrap and the core stays with you. No returns, no refunds.",
+					villain = "His yard's empty, his rig's scrap and my garage has a new door. Nice work.",
+				},
+			},
+			steps = {
+				-- 1. Tinker Tess's story: the suit from the scrapyard
+				{
+					hero = { kind = "talk", text = "Hear Tinker Tess out at her garage" },
+					villain = { kind = "talk", text = "Get Tinker Tess's tip at her garage" },
+					lines = {
+						{
+							who = "Tess",
+							hero = "That core was dead scrap until you strapped in. Then it lit up. Now a repo crew wants it back.",
+							villain = "Clawback repossesses anything that glows. Your suit glows. So does everything in his yard.",
+						},
+						{
+							who = "patch",
+							hero = "Clawback Recovery? They 'recover' stuff that was never theirs. Lots of it.",
+							villain = "Clawback Recovery. A yard full of other people's stuff and not nearly enough guards.",
+						},
+					},
+				},
+				-- 2. The repo bots at the garage / the parts they took
+				{
+					hero = {
+						kind = "fight",
+						squads = { { "BurglarBot", 3 }, { "BruteBot", 1 } },
+						range = { 40, 120 },
+						text = "Chase the repo bots away from the garage",
+					},
+					villain = {
+						kind = "fetch",
+						count = 3,
+						range = { 60, 180 },
+						guards = { "BruteBot", 1 },
+						text = "Steal back the parts the repo bots took",
+					},
+					lines = {
+						{
+							who = "clawback",
+							text = "This is Clawback Recovery. That suit is overdue. Hand it over, or we take the whole garage.",
+						},
+					},
+				},
+				-- 3. Tess's parts truck / the tow truck keys
+				{
+					hero = {
+						kind = "escort",
+						goal = 160,
+						speed = 9,
+						near = 40,
+						text = "Drive Tess's parts truck somewhere safe",
+					},
+					villain = {
+						kind = "chase",
+						enemy = "SneakBot",
+						hops = 5,
+						speed = 22,
+						text = "Catch the repo bot with the tow truck keys",
+					},
+					lines = {
+						{
+							who = "Tess",
+							hero = "Every spare part I own is in that truck. Keep the tow bots off it!",
+							villain = "Their tow truck keys are on that runner bot. A tow truck of our very own.",
+						},
+					},
+				},
+				-- 4. The fake repo orders / the tow truck's parts
+				{
+					hero = {
+						kind = "photo",
+						count = 3,
+						range = { 40, 140 },
+						text = "Get the repo bots' fake orders on camera",
+					},
+					villain = { kind = "deliver", range = { 150, 300 }, text = "Sell the tow truck's parts at the drop" },
+					lines = {
+						{
+							who = "patch",
+							hero = "Their 'repo orders' are fakes. Snap the bots carrying them and I'll put the proof online.",
+							villain = "Tow trucks sell by the piece. The buyer's waiting. Don't scratch it.",
+						},
+					},
+				},
+				-- 5. Locking the core / the yard's stolen gear; the truth about the core
+				{
+					hero = {
+						kind = "hold",
+						seconds = 20,
+						radius = 12,
+						text = "Guard Tess while she locks down your core",
+					},
+					villain = {
+						kind = "race",
+						checkpoints = 4,
+						gap = 60,
+						time = 45,
+						text = "Rush the yard's stolen gear past the drones",
+					},
+					scene = "coreTruth",
+					lines = {
+						{
+							who = "Tess",
+							hero = "The core was dead when I found it. It runs on YOU. Your Spark was there before the suit ever was.",
+							villain = "Clawback thinks the core makes the power. Nope. It runs on your Spark. Without you it's a doorstop.",
+						},
+					},
+				},
+				-- 6. The finale: Clawback in his repo rig
+				{
+					hero = {
+						kind = "finale",
+						enemy = "Grappler",
+						dress = "Clawback",
+						hpMult = 14,
+						adds = { { "BruteBot", 1 }, { "BurglarBot", 2 } },
+						range = { 60, 140 },
+						text = "Stop Clawback. This suit is not for sale!",
+						villainText = "Repossess Clawback's rig for scrap",
+					},
+					villain = "same",
+					scene = "clawbackClaim",
+					lines = {
+						{
+							who = "clawback",
+							hero = "Final notice! That suit, that core, that Spark. Clawback Recovery takes it ALL back!",
+							villain = "You robbed my yard? Then you're overdue, thief. I'm repossessing YOU!",
+						},
+					},
+				},
+			},
+		},
+
+		-- Training origin: The Taken Master. A Self-Made hero trained for years at Master Hoshi's dojo on Willow
+		-- Street until their Spark woke one dawn. Now Hoshi has been taken by Gale, his angriest old student,
+		-- whose Spark never woke: he built a speed rig instead and runs a rich fight school, the Iron Hall, and he
+		-- wants the "secret" he thinks Hoshi hid. The Vigil find the witness, free Hoshi and fly him home; the Dread
+		-- Syndicate rob the school's purses and trophies and ransom Hoshi's scroll. Both face Gale.
+		{
+			id = "TakenMaster",
+			bit = 17,
+			name = "The Taken Master",
+			layer = "origin",
+			giver = "Kiko",
+			site = "WillowDojo",
+			unlock = { origin = 5, story = 2, level = 5 }, -- Self-Made heroes, after Act 1's Safehouse
+			villain = { name = "GALE", title = "THE MASTER'S FALLEN STUDENT" },
+			reward = { share = 3, title = "Lesson Learned", style = "MastersBelt" },
+			blurb = {
+				hero = "Master Hoshi trained you until your Spark woke. Now someone has taken him.",
+				villain = "Your old master was taken. His kidnapper's fight school runs on prize money.",
+			},
+			lines = {
+				offer = {
+					hero = "You're one of Master Hoshi's old students! He's gone. A man in a racing rig took him in the night.",
+					villain = "You trained with Master Hoshi too? He's been taken. The man who did it runs a rich fight school.",
+				},
+				resume = {
+					hero = "Back to train? Master Hoshi would say: again, and better.",
+					villain = "Back for more of Gale's prize money? There's plenty.",
+				},
+				done = {
+					hero = "Master Hoshi is home, and Gale's rig is cold. He says you've learned the last lesson.",
+					villain = "Gale's school is broke and the master is home. You're still a bad student, though.",
+				},
+			},
+			steps = {
+				-- 1. Kiko's story: the dojo, the master, the dawn your Spark woke
+				{
+					hero = { kind = "talk", text = "Hear Kiko out at the Willow Street Dojo" },
+					villain = { kind = "talk", text = "Get Kiko's tip at the Willow Street Dojo" },
+					lines = {
+						{
+							who = "Kiko",
+							hero = "Master Hoshi says you trained longer than anyone, until your Spark woke one dawn. Please find him!",
+							villain = "Master Hoshi always said you'd go your own way. The man who took him calls himself Gale.",
+						},
+						{
+							who = "lodestar",
+							hero = "Hoshi? He taught half the old heroes how to fall without breaking. Whoever took him wants something.",
+							villain = "Hoshi taught me to fall without breaking, years back. Help the kid, whatever your reasons.",
+						},
+					},
+				},
+				-- 2. The witness / the prize purses
+				{
+					hero = {
+						kind = "find",
+						range = { 100, 250 },
+						witness = true,
+						text = "Find the student who saw the master taken",
+					},
+					villain = {
+						kind = "fetch",
+						count = 3,
+						range = { 60, 180 },
+						guards = { "BruteBot", 1 },
+						text = "Swipe three prize purses from Gale's fighters",
+					},
+					lines = {
+						{
+							who = "Kiko",
+							hero = "One of the big kids saw everything. He ran and hid. He'll trust you.",
+							villain = "Gale pays his fighters in cash. The purses are all over the street.",
+						},
+					},
+				},
+				-- 3. The master's old rooftop course, both sides
+				{
+					hero = {
+						kind = "race",
+						checkpoints = 5,
+						gap = 60,
+						time = 50,
+						text = "Run Master Hoshi's old training course",
+						villainText = "Run the course faster than Gale's runners",
+					},
+					villain = "same",
+					lines = {
+						{
+							who = "Kiko",
+							hero = "This was his favourite course. Run it like he taught you. His trail starts at the end.",
+							villain = "Gale's runners use the master's old course. Beat them to the end and follow them.",
+						},
+					},
+				},
+				-- 4. Inside the Iron Hall: the locker room, the training floor and the inner dojo under it
+				{
+					hero = {
+						kind = "pocket",
+						layout = "ironhall",
+						minutes = 12,
+						text = "Break into Gale's Iron Hall",
+						villainText = "Rob Gale's Iron Hall",
+						steps = {
+							{
+								kind = "defeat",
+								room = 1,
+								squads = { { "BruteBot", 2 }, { "BurglarBot", 2 } },
+								text = "Beat the sparring bots in the locker room",
+								villainText = "Scrap the sparring bots by the lockers",
+							},
+							{
+								kind = "hold",
+								at = "hall",
+								points = 1,
+								seconds = 20,
+								radius = 16,
+								waves = { { "BurglarBot", 3 } },
+								waveGap = 10,
+								text = "Hold the training floor for the captive students",
+								villainText = "Hold the floor while the safe drill runs",
+							},
+							{
+								kind = "reach",
+								at = "inner",
+								text = "Take the iron stairs down to the inner dojo",
+								villainText = "Follow the stairs to the trophy vault",
+							},
+							{
+								kind = "break",
+								list = "chains",
+								points = 4,
+								hits = 3,
+								text = "Break the chains holding Master Hoshi",
+								villainText = "Break the chains off the prize cage",
+							},
+							{
+								kind = "boss",
+								enemy = "NullSentinel",
+								hpMult = 3,
+								adds = { "BurglarBot", 2 },
+								text = "Beat the Iron Gatekeeper. Strike its side!",
+								villainText = "Scrap the Iron Gatekeeper",
+							},
+						},
+					},
+					villain = "same",
+					lines = {
+						{
+							who = "hoshi",
+							hero = "You came. Good. Remember: a wall has two sides, and so does every guard. Go around it.",
+							villain = "You came for gold, not for me. Still. Hit that iron guard from the side, student.",
+						},
+					},
+				},
+				-- 5. Master Hoshi home / his scroll at the drop; the master's last lesson
+				{
+					hero = { kind = "carry", range = { 80, 160 }, text = "Fly Master Hoshi home to the dojo" },
+					villain = {
+						kind = "deliver",
+						range = { 150, 300 },
+						text = "Ransom Master Hoshi's scroll at the drop",
+					},
+					scene = "masterLesson",
+					lines = {
+						{
+							who = "hoshi",
+							hero = "Gale thinks I hid a secret that makes a Spark. There is none. Training only wakes what is there.",
+							villain = "Ransom my scroll? It says only this: no one gives you a Spark. Training wakes what is there.",
+						},
+						{
+							who = "gale",
+							text = "You took the old man back? Then fight me, and I'll beat his secret out of you!",
+						},
+					},
+				},
+				-- 6. The finale: Gale in his racing rig
+				{
+					hero = {
+						kind = "finale",
+						enemy = "Redline",
+						dress = "Gale",
+						hpMult = 3,
+						adds = { { "BruteBot", 2 } },
+						range = { 60, 140 },
+						text = "Beat Gale. Show him the last lesson!",
+						villainText = "Beat Gale and take his school",
+					},
+					villain = "same",
+					scene = "galeChallenge",
+					lines = {
+						{
+							who = "gale",
+							hero = "Hoshi's favourite! I trained harder than you, and my Spark never woke. So I built one. Fight me!",
+							villain = "A thief from Hoshi's dojo? You're no better than me. Let's see whose fists are faster!",
 						},
 					},
 				},

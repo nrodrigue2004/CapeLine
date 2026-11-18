@@ -542,6 +542,161 @@ local function picture(parent: Frame, p: any)
 		for i = 0, 3 do
 			box(parent, 0.05 + i * 0.27, 0.6, 0.05, 0.12, ground:Lerp(ink, 0.5), 62)
 		end
+	-- The origin lines (lore step 11): one picture kind a panel, the same cartoon boxes as the rest
+	elseif kind == "lab" then
+		-- Ashgrove Labs: a white research block, rows of lit windows, a flask sign over the door
+		local front = box(parent, 0.14, 0.26, 0.72, 0.46, Color3.fromRGB(235, 240, 245), 62)
+		Kit.stroke(front, ink, 2)
+		for r = 0, 2 do
+			for i = 0, 4 do
+				box(front, 0.06 + i * 0.19, 0.08 + r * 0.24, 0.12, 0.14, Color3.fromRGB(150, 230, 240), 63)
+			end
+		end
+		box(front, 0.42, 0.78, 0.16, 0.22, Color3.fromRGB(60, 80, 110), 63)
+		local flask = box(parent, 0.5, 0.2, 0.1, 0.1, Color3.fromRGB(80, 255, 255), 63)
+		flask.AnchorPoint = Vector2.new(0.5, 0.5)
+		flask.Rotation = 45
+		Kit.stroke(flask, ink, 2)
+	elseif kind == "kindler" then
+		-- the Kindler: a figure in a ring of light, rays bursting out of it
+		local ring = box(parent, 0.5, 0.5, 0.46, 0.66, Color3.fromRGB(80, 255, 255), 62)
+		ring.AnchorPoint = Vector2.new(0.5, 0.5)
+		ring.BackgroundTransparency = 0.6
+		Kit.round(ring, 200)
+		Kit.stroke(ring, Color3.fromRGB(200, 255, 255), 4)
+		for i = 0, 5 do
+			local ray = box(parent, 0.5, 0.5, 0.8, 0.025, Color3.fromRGB(230, 255, 255), 62)
+			ray.AnchorPoint = Vector2.new(0.5, 0.5)
+			ray.Rotation = i * 30
+		end
+		figure(parent, 0.47, Color3.fromRGB(255, 240, 160), false)
+	elseif kind == "spark" then
+		-- the one Spark: a row of different people, each with the same small light in the chest
+		local cols = {
+			Color3.fromRGB(70, 150, 255),
+			Color3.fromRGB(150, 220, 120),
+			Color3.fromRGB(235, 90, 90),
+			Color3.fromRGB(190, 110, 240),
+			Color3.fromRGB(255, 170, 60),
+		}
+		for i, c in cols do
+			local x = 0.08 + (i - 1) * 0.18
+			figure(parent, x, c, false)
+			local glow = box(parent, x + 0.015, 0.6, 0.03, 0.05, Color3.fromRGB(255, 240, 140), 65)
+			Kit.round(glow, 200)
+			Kit.stroke(glow, Color3.fromRGB(255, 255, 230), 2)
+		end
+	elseif kind == "starfall" then
+		-- a small ship falling out of a starry sky, a long bright tail behind it
+		for i = 0, 9 do
+			local star = box(parent, (i * 0.37) % 1, 0.04 + ((i * 0.23) % 0.5), 0.015, 0.025, Color3.new(1, 1, 1), 62)
+			star.Rotation = 45
+		end
+		local tail = box(parent, 0.2, 0.18, 0.5, 0.05, Color3.fromRGB(255, 220, 150), 63)
+		tail.Rotation = 35
+		tail.BackgroundTransparency = 0.3
+		local ship = box(parent, 0.6, 0.46, 0.14, 0.12, Color3.fromRGB(190, 200, 220), 64)
+		ship.Rotation = 35
+		Kit.round(ship, 40)
+		Kit.stroke(ship, ink, 2)
+	elseif kind == "seedship" then
+		-- the pilot who stayed: a figure by the open pod in a field, a little house behind
+		local pod = box(parent, 0.58, 0.5, 0.22, 0.22, Color3.fromRGB(190, 200, 220), 62)
+		Kit.round(pod, 200)
+		Kit.stroke(pod, ink, 2)
+		box(pod, 0.3, 0.3, 0.4, 0.3, Color3.fromRGB(190, 90, 255), 63)
+		figure(parent, 0.3, Color3.fromRGB(150, 110, 230), false)
+		figure(parent, 0.4, Color3.fromRGB(255, 190, 120), false)
+		local house = box(parent, 0.04, 0.5, 0.16, 0.22, Color3.fromRGB(230, 200, 160), 62)
+		Kit.stroke(house, ink, 2)
+	elseif kind == "radiomast" then
+		-- Radio Hill's mast on its stepped hill at night, song rings rising off its tip
+		for i = 0, 2 do
+			box(parent, 0.1 + i * 0.12, 0.6 - i * 0.08, 0.8 - i * 0.24, 0.12 + i * 0.08, ground:Lerp(ink, 0.15 * i), 62)
+		end
+		box(parent, 0.49, 0.12, 0.02, 0.36, Color3.fromRGB(200, 60, 60), 63)
+		for i = 0, 2 do
+			local ring = box(parent, 0.5, 0.12, 0.12 + i * 0.1, 0.06 + i * 0.05, Color3.new(1, 1, 1), 63)
+			ring.AnchorPoint = Vector2.new(0.5, 0.5)
+			ring.BackgroundTransparency = 1
+			Kit.round(ring, 200)
+			Kit.stroke(ring, Color3.fromRGB(190, 90, 255), 2)
+		end
+	elseif kind == "stage" then
+		-- a theatre stage: red curtains, a spotlight, a magician in a top hat
+		for i = 0, 1 do
+			local curtain = box(parent, i * 0.8, 0, 0.2, 0.72, Color3.fromRGB(170, 30, 45), 63)
+			Kit.stroke(curtain, ink, 2)
+		end
+		box(parent, 0, 0, 1, 0.08, Color3.fromRGB(140, 25, 40), 63)
+		local spot = box(parent, 0.5, 0.56, 0.36, 0.4, Color3.fromRGB(255, 245, 190), 62)
+		spot.AnchorPoint = Vector2.new(0.5, 0.5)
+		spot.BackgroundTransparency = 0.5
+		Kit.round(spot, 200)
+		figure(parent, 0.47, Color3.fromRGB(40, 40, 50), false)
+		box(parent, 0.465, 0.38, 0.06, 0.08, Color3.fromRGB(24, 24, 28), 65)
+	elseif kind == "relic" then
+		-- the relic in an old hand: a glowing moonstone on a little stand, sparkles round it
+		local stand = box(parent, 0.42, 0.56, 0.16, 0.16, Color3.fromRGB(180, 130, 70), 62)
+		Kit.stroke(stand, ink, 2)
+		local stone = box(parent, 0.5, 0.44, 0.16, 0.2, Color3.fromRGB(190, 200, 255), 63)
+		stone.AnchorPoint = Vector2.new(0.5, 0.5)
+		Kit.round(stone, 200)
+		Kit.stroke(stone, Color3.fromRGB(255, 255, 255), 3)
+		for i = 0, 5 do
+			local a = i * math.pi / 3
+			local s = box(parent, 0.5 + math.cos(a) * 0.2, 0.44 + math.sin(a) * 0.26, 0.03, 0.04, Color3.fromRGB(255, 240, 160), 64)
+			s.Rotation = 45
+		end
+	elseif kind == "tinkergarage" then
+		-- Tinker Tess's garage: an open roll-up door, a workbench, a half-built suit on a stand
+		local front = box(parent, 0.1, 0.22, 0.8, 0.5, Color3.fromRGB(200, 170, 130), 62)
+		Kit.stroke(front, ink, 2)
+		local door = box(front, 0.08, 0.2, 0.84, 0.8, Color3.fromRGB(60, 56, 54), 63)
+		for i = 0, 2 do
+			box(door, 0, 0.08 + i * 0.1, 1, 0.03, Color3.fromRGB(150, 145, 140), 64)
+		end
+		figure(parent, 0.6, Color3.fromRGB(150, 155, 165), true)
+		box(parent, 0.2, 0.6, 0.24, 0.05, Color3.fromRGB(150, 100, 55), 65)
+	elseif kind == "suitup" then
+		-- the suit lighting up: a hero in a grey suit, a core glowing in its chest, rays out of it
+		for i = 0, 5 do
+			local ray = box(parent, 0.5, 0.6, 0.7, 0.02, Color3.fromRGB(120, 230, 255), 62)
+			ray.AnchorPoint = Vector2.new(0.5, 0.5)
+			ray.Rotation = i * 30
+		end
+		figure(parent, 0.47, Color3.fromRGB(150, 155, 165), false)
+		local core = box(parent, 0.5, 0.62, 0.06, 0.08, Color3.fromRGB(120, 230, 255), 65)
+		core.AnchorPoint = Vector2.new(0.5, 0.5)
+		Kit.round(core, 200)
+		Kit.stroke(core, Color3.new(1, 1, 1), 2)
+	elseif kind == "repo" then
+		-- Clawback's tow truck: a yellow cab, its crane arm and a hook swinging down for a car
+		local cab = box(parent, 0.06, 0.5, 0.24, 0.22, Color3.fromRGB(230, 190, 60), 63)
+		Kit.stroke(cab, ink, 2)
+		box(cab, 0.15, 0.12, 0.5, 0.35, Color3.fromRGB(150, 210, 255), 64)
+		local bed = box(parent, 0.3, 0.6, 0.3, 0.12, Color3.fromRGB(80, 84, 92), 63)
+		Kit.stroke(bed, ink, 2)
+		local arm = box(parent, 0.42, 0.28, 0.36, 0.035, Color3.fromRGB(110, 115, 125), 63)
+		arm.Rotation = -20
+		box(parent, 0.74, 0.24, 0.008, 0.26, ink, 63)
+		local hook = box(parent, 0.72, 0.48, 0.05, 0.06, Color3.fromRGB(150, 150, 160), 64)
+		Kit.stroke(hook, ink, 2)
+		for i = 0, 1 do
+			local wheel = box(parent, 0.1 + i * 0.36, 0.68, 0.08, 0.1, ink, 64)
+			Kit.round(wheel, 200)
+		end
+	elseif kind == "dojo" then
+		-- the Willow Street Dojo: a low hall with a curved roof, a willow, a student in a white gi
+		local hall = box(parent, 0.18, 0.4, 0.64, 0.32, Color3.fromRGB(240, 225, 200), 62)
+		Kit.stroke(hall, ink, 2)
+		local roof = box(parent, 0.12, 0.3, 0.76, 0.12, Color3.fromRGB(150, 40, 40), 63)
+		Kit.round(roof, 40)
+		Kit.stroke(roof, ink, 2)
+		box(hall, 0.4, 0.4, 0.2, 0.6, Color3.fromRGB(120, 80, 50), 63)
+		local willow = box(parent, 0.84, 0.2, 0.16, 0.5, Color3.fromRGB(110, 170, 80), 63)
+		Kit.round(willow, 60)
+		figure(parent, 0.3, Color3.fromRGB(245, 245, 245), false)
 	end
 end
 

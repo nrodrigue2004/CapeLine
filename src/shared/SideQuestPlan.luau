@@ -1185,16 +1185,42 @@ function SideQuestPlan.validate(Config: any): { string }
 		-- (lore step 11, chain 6: or a spot on the Old Quarry landmark, `quarry`)
 		local quarrySite = st.quarry ~= nil
 		local deepSite = st.deep ~= nil -- lore step 11, the Underwater chain: a spot on the sea floor
+		local hillSite = st.hill ~= nil -- lore step 11, the origin lines: a spot on Radio Hill
 		if
 			not table.find(SQ.districts, st.district)
-			or (not outskirts and not farmSite and not quarrySite and not deepSite and not Config.City.districts[st.district])
+			or (
+				not outskirts
+				and not farmSite
+				and not quarrySite
+				and not deepSite
+				and not hillSite
+				and not Config.City.districts[st.district]
+			)
 			or (outskirts and st.district ~= (if shore then "Coast" else "Suburbs"))
 			or (quarrySite and st.district ~= "OldQuarry")
 			or (deepSite and st.district ~= "Underwater")
+			or (hillSite and st.district ~= "RadioHill")
+			or (st.district == "RadioHill" and not hillSite)
 		then
 			table.insert(bad, w .. ": district " .. tostring(st.district))
 		end
-		if deepSite then
+		if hillSite then
+			-- the first terrace of the fixed landmark (Shared.SideQuestSites.hill)
+			local SideQuestSites = if script
+				then require((script :: any).Parent.SideQuestSites)
+				else (require :: any)("./SideQuestSites")
+			if outskirts or farmSite or quarrySite or deepSite or st.square ~= nil then
+				table.insert(bad, w .. ": a hill site is only a hill site")
+			end
+			if not SideQuestSites.HILL_KINDS[st.hill] then
+				table.insert(bad, w .. ": hill " .. tostring(st.hill))
+			elseif not SideQuestSites.hill(Config, nil, id) then
+				table.insert(bad, w .. ": no spot on the hill fits")
+			end
+			if st.sign ~= nil and type(st.sign) ~= "boolean" then
+				table.insert(bad, w .. ": sign")
+			end
+		elseif deepSite then
 			-- a seabed spot picked from Shared.DeepLayout (SideQuestSites.deep): an area deep sites may use, a
 			-- point to search round, a grid, the water's depth and every distance
 			if not table.find(SQ.deep.areas, st.deep) then
@@ -1384,11 +1410,21 @@ function SideQuestPlan.validate(Config: any): { string }
 			local keys: { string } = if outskirts
 				then { "pad", "beacon", "landmark", "district", "site" }
 				elseif st.district == "Uptown" then { "landmark" }
-				else { "plaza", "row", "door", "open" }
+				elseif st.district == "OldTown" then { "clock", "pad", "beacon", "site" } -- lore step 11, origins
+				elseif st.district == "Downtown" then { "plaza", "row", "door", "open" }
+				else {}
+			if not outskirts and st.district ~= "Downtown" and st.district ~= "Uptown" and st.district ~= "OldTown" then
+				-- (the Docks have no building rule)
+				table.insert(bad, w .. ": no building rule in " .. tostring(st.district))
+			end
 			for _, k in keys do
 				if type(a[k]) ~= "number" or a[k] < 0 then
 					table.insert(bad, w .. ": away." .. k)
 				end
+			end
+			-- lore step 11, the origin lines: a building site may keep away.site from the other building sites
+			if not outskirts and a.site ~= nil and (type(a.site) ~= "number" or a.site < 0) then
+				table.insert(bad, w .. ": away.site")
 			end
 		end
 	end
