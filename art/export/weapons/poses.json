@@ -1,0 +1,748 @@
+{
+  "poses": {
+    "block": {
+      "LeftElbow": [
+        72.12827988338192,
+        0,
+        0
+      ],
+      "LeftShoulder": [
+        84,
+        0,
+        16
+      ],
+      "RightElbow": [
+        72.44897959183673,
+        0,
+        0
+      ],
+      "RightShoulder": [
+        60,
+        0,
+        -10
+      ],
+      "Waist": [
+        -6.064139941690962,
+        0,
+        0
+      ]
+    },
+    "bow": {
+      "LeftElbow": [
+        2,
+        0,
+        0
+      ],
+      "LeftShoulder": [
+        90,
+        0,
+        -6
+      ],
+      "Neck": [
+        0,
+        -46,
+        0
+      ],
+      "RightElbow": [
+        106.2962962962963,
+        0,
+        0
+      ],
+      "RightShoulder": [
+        90,
+        0,
+        -11.851851851851853
+      ],
+      "Waist": [
+        0,
+        50,
+        0
+      ]
+    },
+    "heavy": {
+      "LeftElbow": [
+        11.53063301445146,
+        0,
+        0
+      ],
+      "LeftShoulder": [
+        75.55555555555557,
+        0,
+        -25.77777777777775
+      ],
+      "RightElbow": [
+        4.99491145939345,
+        0,
+        0
+      ],
+      "RightShoulder": [
+        75.55555555555557,
+        0,
+        -8.740740740740712
+      ],
+      "Waist": [
+        -6.370370370370365,
+        -23.037037037036995,
+        0
+      ]
+    },
+    "holdBow": {
+      "LeftElbow": [
+        30,
+        0,
+        0
+      ],
+      "LeftShoulder": [
+        40,
+        0,
+        -8
+      ],
+      "RightElbow": [
+        20,
+        0,
+        0
+      ],
+      "RightShoulder": [
+        10,
+        0,
+        6
+      ]
+    },
+    "holdDual": {
+      "LeftElbow": [
+        48,
+        0,
+        0
+      ],
+      "LeftShoulder": [
+        14,
+        0,
+        -8
+      ],
+      "RightElbow": [
+        48,
+        0,
+        0
+      ],
+      "RightShoulder": [
+        14,
+        0,
+        8
+      ]
+    },
+    "holdExotic": {
+      "LeftElbow": [
+        28,
+        0,
+        0
+      ],
+      "LeftShoulder": [
+        10,
+        0,
+        -8
+      ],
+      "RightElbow": [
+        40,
+        0,
+        0
+      ],
+      "RightShoulder": [
+        16,
+        0,
+        8
+      ]
+    },
+    "holdFists": {
+      "LeftElbow": [
+        108,
+        0,
+        0
+      ],
+      "LeftShoulder": [
+        60,
+        0,
+        14
+      ],
+      "RightElbow": [
+        100,
+        0,
+        0
+      ],
+      "RightShoulder": [
+        52,
+        0,
+        -14
+      ]
+    },
+    "holdLong": {
+      "LeftElbow": [
+        50,
+        0,
+        0
+      ],
+      "LeftShoulder": [
+        40,
+        0,
+        26
+      ],
+      "RightElbow": [
+        34,
+        0,
+        0
+      ],
+      "RightShoulder": [
+        30,
+        0,
+        -10
+      ]
+    },
+    "holdOne": {
+      "LeftElbow": [
+        28,
+        0,
+        0
+      ],
+      "LeftShoulder": [
+        10,
+        0,
+        -8
+      ],
+      "RightElbow": [
+        48,
+        0,
+        0
+      ],
+      "RightShoulder": [
+        14,
+        0,
+        6
+      ]
+    },
+    "holdPole": {
+      "LeftElbow": [
+        54,
+        0,
+        0
+      ],
+      "LeftShoulder": [
+        36,
+        0,
+        26
+      ],
+      "RightElbow": [
+        64,
+        0,
+        0
+      ],
+      "RightShoulder": [
+        26,
+        0,
+        0
+      ]
+    },
+    "holdRanged": {
+      "LeftElbow": [
+        20,
+        0,
+        0
+      ],
+      "LeftShoulder": [
+        10,
+        0,
+        -6
+      ],
+      "RightElbow": [
+        34,
+        0,
+        0
+      ],
+      "RightShoulder": [
+        30,
+        0,
+        -6
+      ]
+    },
+    "holdShield": {
+      "LeftElbow": [
+        125,
+        0,
+        0
+      ],
+      "LeftShoulder": [
+        35,
+        0,
+        20
+      ],
+      "RightElbow": [
+        48,
+        0,
+        0
+      ],
+      "RightShoulder": [
+        14,
+        0,
+        6
+      ]
+    },
+    "holdTwin": {
+      "LeftElbow": [
+        34,
+        0,
+        0
+      ],
+      "LeftShoulder": [
+        30,
+        0,
+        6
+      ],
+      "RightElbow": [
+        34,
+        0,
+        0
+      ],
+      "RightShoulder": [
+        30,
+        0,
+        -6
+      ]
+    },
+    "holdTwo": {
+      "LeftElbow": [
+        50,
+        0,
+        0
+      ],
+      "LeftShoulder": [
+        36,
+        0,
+        22
+      ],
+      "RightElbow": [
+        46,
+        0,
+        0
+      ],
+      "RightShoulder": [
+        30,
+        0,
+        -16
+      ]
+    },
+    "lash": {
+      "LeftShoulder": [
+        30,
+        0,
+        -30
+      ],
+      "RightElbow": [
+        66.66666666666667,
+        0,
+        0
+      ],
+      "RightShoulder": [
+        129.25925925925927,
+        0,
+        46.66666666666667
+      ],
+      "RightWrist": [
+        -32.06997084548105,
+        0,
+        0
+      ],
+      "Waist": [
+        -4.017492711370263,
+        -16.91545189504373,
+        0
+      ]
+    },
+    "punch": {
+      "LeftElbow": [
+        110,
+        0,
+        0
+      ],
+      "LeftShoulder": [
+        56,
+        0,
+        -8
+      ],
+      "RightElbow": [
+        5.037037037037037,
+        0,
+        0
+      ],
+      "RightShoulder": [
+        90.96296296296296,
+        0,
+        6
+      ],
+      "Waist": [
+        -5.667638483965015,
+        -24.559766763848398,
+        0
+      ]
+    },
+    "shoot": {
+      "LeftElbow": [
+        40,
+        0,
+        0
+      ],
+      "LeftShoulder": [
+        80,
+        0,
+        30
+      ],
+      "Neck": [
+        0,
+        8,
+        0
+      ],
+      "RightElbow": [
+        2,
+        0,
+        0
+      ],
+      "RightShoulder": [
+        91.29995448338644,
+        0,
+        0
+      ],
+      "Waist": [
+        0,
+        -14,
+        0
+      ]
+    },
+    "slash": {
+      "LeftElbow": [
+        70,
+        0,
+        0
+      ],
+      "LeftShoulder": [
+        40,
+        0,
+        -20
+      ],
+      "RightElbow": [
+        16.672,
+        0,
+        0
+      ],
+      "RightShoulder": [
+        91.68,
+        0,
+        -0.06400000000000006
+      ],
+      "Waist": [
+        -3.888,
+        -8.880000000000003,
+        0
+      ]
+    },
+    "throw": {
+      "LeftShoulder": [
+        60,
+        0,
+        -30
+      ],
+      "RightElbow": [
+        21.111111111111107,
+        0,
+        0
+      ],
+      "RightShoulder": [
+        88.5185185185185,
+        0,
+        7.777777777777775
+      ],
+      "Waist": [
+        -6.370370370370372,
+        -10.000000000000007,
+        0
+      ]
+    },
+    "thrust": {
+      "LeftElbow": [
+        23.86891215293582,
+        0,
+        0
+      ],
+      "LeftShoulder": [
+        83.48520710059172,
+        0,
+        10.386891215293582
+      ],
+      "RightElbow": [
+        7.737824305871639,
+        0,
+        0
+      ],
+      "RightShoulder": [
+        91,
+        0,
+        0
+      ],
+      "Waist": [
+        -12.645880746472463,
+        -9.032771961766045,
+        0
+      ]
+    }
+  },
+  "weapons": [
+    {
+      "action": "punch",
+      "family": "fists",
+      "hold": "holdFists",
+      "id": 1,
+      "name": "Bare Fists"
+    },
+    {
+      "action": "punch",
+      "family": "fists",
+      "hold": "holdFists",
+      "id": 2,
+      "name": "Martial Arts"
+    },
+    {
+      "action": "punch",
+      "family": "fists",
+      "hold": "holdFists",
+      "id": 3,
+      "name": "Power Gauntlets"
+    },
+    {
+      "action": "punch",
+      "family": "fists",
+      "hold": "holdFists",
+      "id": 4,
+      "name": "Strikers"
+    },
+    {
+      "action": "slash",
+      "family": "one",
+      "hold": "holdOne",
+      "id": 5,
+      "name": "Sword"
+    },
+    {
+      "action": "slash",
+      "family": "one",
+      "hold": "holdOne",
+      "id": 6,
+      "name": "Katana"
+    },
+    {
+      "action": "slash",
+      "family": "one",
+      "hold": "holdOne",
+      "id": 7,
+      "name": "Hand Axe"
+    },
+    {
+      "action": "slash",
+      "family": "one",
+      "hold": "holdOne",
+      "id": 8,
+      "name": "Mace"
+    },
+    {
+      "action": "slash",
+      "family": "one",
+      "hold": "holdOne",
+      "id": 9,
+      "name": "Baton"
+    },
+    {
+      "action": "slash",
+      "family": "one",
+      "hold": "holdOne",
+      "id": 10,
+      "name": "Dagger"
+    },
+    {
+      "action": "heavy",
+      "family": "two",
+      "hold": "holdTwo",
+      "id": 11,
+      "name": "Greatsword"
+    },
+    {
+      "action": "heavy",
+      "family": "two",
+      "hold": "holdTwo",
+      "id": 12,
+      "name": "Great Axe"
+    },
+    {
+      "action": "heavy",
+      "family": "two",
+      "hold": "holdTwo",
+      "id": 13,
+      "name": "Warhammer"
+    },
+    {
+      "action": "thrust",
+      "family": "two",
+      "hold": "holdPole",
+      "id": 14,
+      "name": "Spear"
+    },
+    {
+      "action": "heavy",
+      "family": "two",
+      "hold": "holdTwo",
+      "id": 15,
+      "name": "Scythe"
+    },
+    {
+      "action": "thrust",
+      "family": "two",
+      "hold": "holdPole",
+      "id": 16,
+      "name": "Bo Staff"
+    },
+    {
+      "action": "slash",
+      "family": "dual",
+      "hold": "holdDual",
+      "id": 17,
+      "name": "Twin Blades"
+    },
+    {
+      "action": "slash",
+      "family": "dual",
+      "hold": "holdDual",
+      "id": 18,
+      "name": "Claws"
+    },
+    {
+      "action": "slash",
+      "family": "dual",
+      "hold": "holdDual",
+      "id": 19,
+      "name": "Sai"
+    },
+    {
+      "action": "slash",
+      "family": "dual",
+      "hold": "holdDual",
+      "id": 20,
+      "name": "Tonfa"
+    },
+    {
+      "action": "slash",
+      "family": "dual",
+      "hold": "holdDual",
+      "id": 21,
+      "name": "Nunchucks"
+    },
+    {
+      "action": "block",
+      "family": "shield",
+      "hold": "holdShield",
+      "id": 22,
+      "name": "Round Shield"
+    },
+    {
+      "action": "block",
+      "family": "shield",
+      "hold": "holdShield",
+      "id": 23,
+      "name": "Tower Shield"
+    },
+    {
+      "action": "block",
+      "family": "shield",
+      "hold": "holdShield",
+      "id": 24,
+      "name": "Sword and Shield"
+    },
+    {
+      "action": "shoot",
+      "family": "ranged",
+      "hold": "holdRanged",
+      "id": 25,
+      "name": "Blaster Pistol"
+    },
+    {
+      "action": "shoot",
+      "family": "ranged",
+      "hold": "holdTwin",
+      "id": 26,
+      "name": "Twin Blasters"
+    },
+    {
+      "action": "shoot",
+      "family": "ranged",
+      "hold": "holdLong",
+      "id": 27,
+      "name": "Blaster Rifle"
+    },
+    {
+      "action": "bow",
+      "family": "ranged",
+      "hold": "holdBow",
+      "id": 28,
+      "name": "Bow"
+    },
+    {
+      "action": "shoot",
+      "family": "ranged",
+      "hold": "holdLong",
+      "id": 29,
+      "name": "Crossbow"
+    },
+    {
+      "action": "shoot",
+      "family": "ranged",
+      "hold": "holdRanged",
+      "id": 30,
+      "name": "Arm Cannon"
+    },
+    {
+      "action": "throw",
+      "family": "ranged",
+      "hold": "holdOne",
+      "id": 31,
+      "name": "Throwing Stars"
+    },
+    {
+      "action": "lash",
+      "family": "exotic",
+      "hold": "holdExotic",
+      "id": 32,
+      "name": "Chain Whip"
+    },
+    {
+      "action": "slash",
+      "family": "exotic",
+      "hold": "holdOne",
+      "id": 33,
+      "name": "War Fan"
+    },
+    {
+      "action": "lash",
+      "family": "exotic",
+      "hold": "holdExotic",
+      "id": 34,
+      "name": "Yo-yo"
+    },
+    {
+      "action": "lash",
+      "family": "exotic",
+      "hold": "holdExotic",
+      "id": 35,
+      "name": "Rope Dart"
+    },
+    {
+      "action": "throw",
+      "family": "exotic",
+      "hold": "holdOne",
+      "id": 36,
+      "name": "Boomerang"
+    }
+  ]
+}

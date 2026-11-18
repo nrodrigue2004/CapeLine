@@ -1834,7 +1834,7 @@ function LookKit.build(char: Model, look: any, weapon: any?): Folder
 		local wf = Instance.new("Folder")
 		wf.Name = "Weapon"
 		wf.Parent = folder
-		WeaponKit.build(char, wf, weapon, colors, make)
+		WeaponKit.build(char, wf, weapon, colors, make, bodyPart)
 	end
 	folder.Parent = char
 	return folder
