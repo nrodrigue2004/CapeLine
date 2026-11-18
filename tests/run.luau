@@ -8279,7 +8279,9 @@ end); -- Hero MMO features (H1 to H8) live in their own file so this one merges 
 -- WP9: the HQ's WANTED poster and nemesis heads (own file, merges easily)
 (require :: any)("./wanted_test")({ test = test, check = check, Config = Config });
 -- Overnight queue item 5: the underwater, vehicles, citizens and travel audit (own file, merges easily)
-(require :: any)("./travel_test")({ test = test, check = check, Config = Config, world = world })
+(require :: any)("./travel_test")({ test = test, check = check, Config = Config, world = world });
+-- WP12: visit a friend's HQ on the same server (own file, merges easily)
+(require :: any)("./visit_test")({ test = test, check = check, Config = Config, placePath = process.args[1] })
 
 test(
 	"City kit: every district dressed, deterministic, within budget, nothing in buildings or roads",

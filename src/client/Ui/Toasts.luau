@@ -12,6 +12,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Progress = require(Shared:WaitForChild("Progress"))
 local GearMath = require(Shared:WaitForChild("GearMath"))
 local SideQuestPlan = require(Shared:WaitForChild("SideQuestPlan"))
+local VisitRules = require(Shared:WaitForChild("VisitRules")) -- WP12: the visit lines (fixed text)
 
 local Kit = require(script.Parent.Kit)
 local Juice = require(script.Parent.Parent.Fx.Juice)
@@ -174,6 +175,8 @@ local function juice(data: { [string]: any })
 		Juice.fire("purchase", nil, { name = data.name })
 	elseif id == "pvpOn" or id == "rematchOn" then
 		Juice.fire("pvpFlag")
+	elseif id == "visit" and (data.say == "welcome" or data.say == "kicked" or data.say == "hostLeft") then
+		Juice.fire("fastTravel") -- WP12: the whoosh into a friend's HQ and back out
 	end
 end
 
@@ -558,6 +561,16 @@ function Toasts.show(data: { [string]: any })
 		end
 	elseif id == "styleBought" then
 		push("NEW STYLE! Equip it in GEAR > Show Style", Kit.color.gold, true, 4)
+	elseif id == "visit" then
+		-- WP12: a visit line from Config.Hq.visit (fixed text; the name is a hero or display name)
+		local key = data.say or ""
+		local big = key == "welcome" or key == "arrived"
+		push(
+			VisitRules.line(Config, key, data.name),
+			if big or key == "sent" then Kit.color.gold else Kit.color.paper,
+			big,
+			if big then 4.5 else nil
+		)
 	elseif id == "squadRefused" then
 		push(SQUAD_REASONS[data.reason or ""] or "Squad: try again", Kit.color.paper)
 	elseif id == "squadInvited" then

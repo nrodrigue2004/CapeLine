@@ -14,6 +14,11 @@
 -- * WP9 (gap G5, spec H5): the WANTED poster of your current nemesis (its bust in a ViewportFrame, name, rank,
 --   Intel and a stamp) and a mounted head per nemesis rank beaten, on the east wall by the Trophy Wall
 --   (Shared.WantedRules); the poster's B prompt opens the WANTED panel (HqHud passes it to NemesisHud).
+-- * WP12 (gap G15, spec Update 2): a friend's HQ as a visitor (HqState with `visit`): the same rooms, trophy
+--   wall, statues, props, dressing, WANTED poster and heads from the owner's save, read-only: the pads and signs
+--   draw but only the exit works (LEAVE HQ), the poster has no prompt, the dummies are decor. Also the visit
+--   asks (HqVisitAsked: SquadHud's card), the owner's visitors (HqVisitors: SquadHud's rows) and this device's
+--   Roblox block list for the server (GuardBlocks: a block stops visit asks).
 -- HqHud draws the station panels. PLACEHOLDER ART: every room piece is a box until the art pass (M10).
 
 local Players = game:GetService("Players")
@@ -33,6 +38,7 @@ local BodyShape = require(Shared:WaitForChild("BodyShape"))
 local HqRules = require(Shared:WaitForChild("HqRules"))
 local RepTiers = require(Shared:WaitForChild("RepTiers")) -- lore step 12: the hideout's tiered dressing
 local WantedRules = require(Shared:WaitForChild("WantedRules")) -- WP9: the WANTED poster and nemesis heads
+local VisitRules = require(Shared:WaitForChild("VisitRules")) -- WP12: visits to a friend's HQ
 local State = require(script.Parent.Parent.State)
 
 local CombatClient = require(script.Parent.CombatClient)
@@ -43,8 +49,12 @@ local HqClient = {}
 HqClient.Changed = Signal.new() -- (state) on entering, leaving and every HqState
 HqClient.Station = Signal.new() -- (name) a station prompt was used
 HqClient.Dps = Signal.new() -- (packet) the training room meter, 2 Hz
+HqClient.VisitAsked = Signal.new() -- (ask) WP12: { from, name, life }: someone asks to visit your HQ
+HqClient.VisitorsChanged = Signal.new() -- () WP12: who is visiting your HQ, or your own visit, changed
+HqClient.visitors = {} :: { { userId: number, name: string } } -- WP12: visitors in your HQ now
 
 local H = Config.Hq
+local VT = H.visit.text
 local GOLD = Color3.fromRGB(255, 200, 60)
 local function paletteColor(key: string): Color3
 	local rgb = Config.City.palette[key] or { 255, 0, 255 }
@@ -144,7 +154,11 @@ local function titleSign(f: Folder, colors: { main: Color3, trim: Color3 })
 	local title =
 		part(f, Vector3.new(1, 1, 1), CFrame.new(c + Vector3.new(0, 24, -size / 2 + 5)), colors.main)
 	title.Transparency = 1
-	sign(title, string.upper(state.name or ""), "HQ level " .. (state.level or 1), 0)
+	local sub = "HQ level " .. (state.level or 1)
+	if state.visit then -- WP12: whose HQ this is
+		sub = string.format(VT.titleSub, state.visit.name or "") .. ", level " .. (state.level or 1)
+	end
+	sign(title, string.upper(state.name or ""), sub, 0)
 end
 
 local function buildRoom(f: Folder, colors: { main: Color3, trim: Color3 })
@@ -219,9 +233,16 @@ local function stationPad(f: Folder, name: string, colors: { main: Color3, trim:
 	local pad = part(f, Vector3.new(10, 0.4, 10), CFrame.new(pos), colors.main, Enum.Material.Neon)
 	pad.Transparency = 0.4
 	local post = part(f, Vector3.new(1.2, 3.2, 1.2), CFrame.new(pos + Vector3.new(0, 1.8, 0)), colors.trim)
-	sign(post, string.upper(STATION_NAMES[name]), STATION_ACTIONS[name], 4)
+	-- WP12: a visitor reads every station as the owner's; only the exit works (LEAVE HQ)
+	local visiting = state.visit ~= nil
+	if visiting and not VisitRules.allowed(name) then
+		sign(post, string.upper(STATION_NAMES[name]), VT.station, 4)
+		return
+	end
+	local action = if visiting then VT.leave else STATION_ACTIONS[name]
+	sign(post, string.upper(STATION_NAMES[name]), action, 4)
 	local prompt = Instance.new("ProximityPrompt")
-	prompt.ActionText = STATION_ACTIONS[name]
+	prompt.ActionText = action
 	prompt.ObjectText = STATION_NAMES[name]
 	prompt.KeyboardKeyCode = Enum.KeyCode.B -- E is Skill 2
 	prompt.HoldDuration = 0
@@ -230,7 +251,7 @@ local function stationPad(f: Folder, name: string, colors: { main: Color3, trim:
 	prompt.Parent = post
 	prompt.Triggered:Connect(function()
 		if name == "exit" then
-			Net.send("HqLeave")
+			Net.send(if state.visit then "HqVisitLeave" else "HqLeave")
 		else
 			HqClient.Station:Fire(name)
 		end
@@ -607,7 +628,11 @@ local function wantedPoster(f: Folder)
 		box.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 		box.Parent = l
 	end
-	-- B (E is Skill 2) reads it: the WANTED panel, with SHOWDOWN once your Intel is full
+	-- B (E is Skill 2) reads it: the WANTED panel, with SHOWDOWN once your Intel is full (WP12: the owner's
+	-- only; a visitor just reads the poster)
+	if state.visit then
+		return
+	end
 	local prompt = Instance.new("ProximityPrompt")
 	prompt.ObjectText = W.prompt.object
 	prompt.ActionText = W.prompt.action
@@ -684,7 +709,9 @@ local function draw()
 	for _, d in state.dummies or {} do
 		local pos = Vector3.new(d.x, d.y, d.z)
 		dummy(f, pos)
-		table.insert(dummies, { id = d.id, pos = pos })
+		if not state.visit and (d.id or 0) > 0 then -- WP12: a visit copy's dummies are decor
+			table.insert(dummies, { id = d.id, pos = pos })
+		end
 	end
 	if state.sim then
 		local pos = Vector3.new(state.sim.x, state.sim.y, state.sim.z)
@@ -743,6 +770,74 @@ end
 
 function HqClient.inside(): boolean
 	return state.on == true
+end
+
+-- WP12: visiting a friend's HQ (a read-only copy): { owner, name }, or nil
+function HqClient.visiting(): { owner: number, name: string }?
+	return if state.on then state.visit else nil
+end
+
+function HqClient.visit(userId: number)
+	Net.send("HqVisitAsk", userId)
+end
+
+function HqClient.answerVisit(userId: number, yes: boolean)
+	Net.send("HqVisitAnswer", userId, if yes then 1 else 0)
+end
+
+function HqClient.leaveVisit()
+	Net.send("HqVisitLeave")
+end
+
+function HqClient.kickVisitor(userId: number)
+	Net.send("HqVisitKick", userId)
+end
+
+-- WP12: this device's Roblox block list goes to the server (GuardService.shuns), so a block stops visit asks;
+-- sent at start and after every block or unblock ({ 0 } = none). StarterGui:GetCore can fail early: retried.
+local StarterGui = game:GetService("StarterGui")
+local blocksQueued = false
+local function sendBlocks()
+	if blocksQueued then
+		return
+	end
+	blocksQueued = true
+	task.delay(1, function()
+		blocksQueued = false
+		local ok, list = pcall(function()
+			return StarterGui:GetCore("GetBlockedUserIds")
+		end)
+		local out = {}
+		if ok and type(list) == "table" then
+			for _, id in list do
+				if type(id) == "number" and id > 0 and id % 1 == 0 and #out < 200 then
+					table.insert(out, id)
+				end
+			end
+		end
+		if #out == 0 then
+			out = { 0 }
+		end
+		Net.send("GuardBlocks", out)
+	end)
+end
+
+local function watchBlocks()
+	for _ = 1, 10 do
+		local okB, blocked = pcall(function()
+			return StarterGui:GetCore("PlayerBlockedEvent")
+		end)
+		local okU, unblocked = pcall(function()
+			return StarterGui:GetCore("PlayerUnblockedEvent")
+		end)
+		if okB and okU and typeof(blocked) == "Instance" and typeof(unblocked) == "Instance" then
+			(blocked :: any).Event:Connect(sendBlocks);
+			(unblocked :: any).Event:Connect(sendBlocks)
+			break
+		end
+		task.wait(3)
+	end
+	sendBlocks()
 end
 
 -- The Vigil's service door at the plaza's edge: the server builds a plain locked service door for everyone; on a
@@ -811,7 +906,17 @@ function HqClient.init()
 			HqClient.Station:Fire(nil)
 		end
 		HqClient.Changed:Fire(state)
+		HqClient.VisitorsChanged:Fire() -- WP12: SquadHud shows LEAVE HQ while you visit
 	end)
+	-- WP12: visits
+	Net.listen("HqVisitAsked", function(ask)
+		HqClient.VisitAsked:Fire(ask)
+	end)
+	Net.listen("HqVisitors", function(data)
+		HqClient.visitors = data.list or {}
+		HqClient.VisitorsChanged:Fire()
+	end)
+	task.spawn(watchBlocks)
 	Net.listen("HqDps", function(packet)
 		if packet.slam then
 			slam(packet.slam)

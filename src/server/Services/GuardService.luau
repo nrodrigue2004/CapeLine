@@ -8,6 +8,8 @@
 -- * Reports: every name plate has Report (preset reasons, no typed text). One per reporter per target every
 --   10 minutes; 3 from 3 accounts in 10 minutes put the target in the review queue.
 -- * The review queue is a DataStore list nate reads by hand (never read back by the game).
+-- * WP12: shuns(a, b): a blocked b on their device (Roblox's block list, sent by GuardBlocks) or reported b on
+--   this server. It only stops b's visit asks reaching a (VisitService); it never punishes anyone.
 
 local DataStoreService = game:GetService("DataStoreService")
 local Players = game:GetService("Players")
@@ -31,6 +33,8 @@ local flagged: { [Player]: { [string]: boolean } } = {} -- analytics: kinds alre
 local kicking: { [Player]: boolean } = {} -- a kick is under way (its save yields)
 local store: DataStore? = nil
 GuardService.queue = {} :: { any } -- this server's review rows (also written to the store)
+local blocks: { [Player]: { [number]: boolean } } = {} -- WP12: each device's Roblox block list
+GuardService.blocksChanged = nil :: ((Player) -> ())? -- WP12: VisitService sends a newly blocked visitor home
 
 -- A row for the review queue: who, what kind (kicks, reports, trade) and a short detail table
 function GuardService.review(userId: number, kind: string, detail: { [string]: any }?)
@@ -122,6 +126,12 @@ local function onReport(player: Player, userId: number, reason: number)
 	end
 end
 
+-- WP12: does `a` want nothing from user `b`? (a blocked b on their device, or reported b on this server)
+function GuardService.shuns(a: Player, b: number): boolean
+	local list = blocks[a]
+	return (list ~= nil and list[b] == true) or GuardRules.reported(reports, a.UserId, b)
+end
+
 function GuardService.init()
 	Net.onRejected(function(player)
 		if GuardRules.netDrop(Config, strikesOf(player), os.clock()) then
@@ -130,10 +140,25 @@ function GuardService.init()
 	end)
 	MoveGuard.strikeHook = GuardService.strike
 	Net.on("ReportPlayer", onReport)
+	-- WP12: the device's block list, whole each time ({ 0 } = none)
+	Net.on("GuardBlocks", function(player, list: { number })
+		local set = {}
+		for _, id in list do
+			if id > 0 and id ~= player.UserId then
+				set[id] = true
+			end
+		end
+		blocks[player] = set
+		local hook = GuardService.blocksChanged
+		if hook then
+			hook(player)
+		end
+	end)
 	Players.PlayerRemoving:Connect(function(player)
 		strikes[player] = nil
 		flagged[player] = nil
 		kicking[player] = nil
+		blocks[player] = nil
 	end)
 end
 

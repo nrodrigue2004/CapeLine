@@ -84,6 +84,12 @@ function GuardRules.newReports(): Reports
 	return { byPair = {}, byTarget = {}, flagged = {} }
 end
 
+-- WP12: has `from` reported `target` on this server (any time)? A report stops the reported player's visit asks
+-- to the reporter (Shared.VisitRules); it never punishes on its own.
+function GuardRules.reported(book: Reports, from: number, target: number): boolean
+	return book.byPair[from .. ":" .. target] ~= nil
+end
+
 -- A report from `from` on `target`. Returns accepted, flaggedNow. One per reporter per target every 10
 -- minutes; never on yourself; 3 different reporters inside 10 minutes flag the target (once per window).
 function GuardRules.report(

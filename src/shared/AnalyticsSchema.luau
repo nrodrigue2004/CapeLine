@@ -91,6 +91,9 @@ AnalyticsSchema.EVENTS = {
 	promo_claim = { "kind", "code" },
 	-- WP8: the live balance this server runs (BalanceService), once per player session
 	balance_live = { "balance", "source", "refused" }, -- value: live numbers applied; balance "v<N>.<rev>"
+	-- WP12: a visit to a friend's HQ started (Shared.VisitRules.event): the owner's side, same or cross side,
+	-- visitors in that HQ now; value: the owner's HQ level. At most one a minute per visitor
+	hq_visit = { "side", "cross", "visitors" },
 }
 
 AnalyticsSchema.FUNNELS = {
