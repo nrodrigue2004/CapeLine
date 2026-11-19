@@ -1,6 +1,8 @@
 -- VehicleFx: the 1 s flip arc of a hub car, truck or tram (spec: Clash moments > Vehicle flip). The server
 -- has already put the vehicle on its roof; this plays the arc from home to there on the device with the same
 -- VehiclePose maths, adds a dust puff and sparks where it lands, and a pop of glass when it resets.
+-- gap-vehicles (2026-11-19): the wheel meshes ride the same Offsets (they stay on their axles, still, while it is
+-- flipped), and back home it bounces once on its springs (VehicleRig.kick).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -17,6 +19,7 @@ local VehiclePose = require(Shared:WaitForChild("VehiclePose"))
 
 local DebrisBudget = require(script.Parent.DebrisBudget)
 local Juice = require(script.Parent.Juice)
+local VehicleRig = require(script.Parent.VehicleRig)
 
 local VehicleFx = {}
 
@@ -103,6 +106,10 @@ function VehicleFx.init()
 	Net.listen("VehicleFlip", function(id: number, dx: number, dz: number)
 		if list[id] and type(dx) == "number" and type(dz) == "number" then
 			arcs[id] = { t0 = os.clock(), dx = dx, dz = dz }
+			local m = model(id)
+			if m then
+				VehicleRig.release(m) -- the arc draws it now
+			end
 			Juice.fire("vehicleFlip", VehiclePose.home(list[id]).Position, { mine = false })
 		end
 	end)
@@ -111,6 +118,10 @@ function VehicleFx.init()
 		if v then
 			arcs[id] = nil
 			puff(VehiclePose.home(v).Position + Vector3.new(0, 2, 0), Color3.fromRGB(200, 240, 255), 4, 0.4)
+			local m = model(id)
+			if m then
+				VehicleRig.kick(m) -- gap-vehicles: it drops back onto its springs and settles
+			end
 		end
 	end)
 	RunService.Heartbeat:Connect(FrameProf.wrap("VehicleFx", step))

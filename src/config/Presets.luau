@@ -34,6 +34,7 @@ return {
 		clothesNear = 20, -- dressed rigs this close draw every clothes face (the tucked ones too)
 		clothesFar = 60, -- past this a rig drops its clothes Textures (its part colours match them)
 		props = { tier = 1, radius = 260, parts = 700 },
+		vehicleRig = 110, -- gap-vehicles: escorts this close roll their wheels, steer and sway (Fx.VehicleRig); none past it
 		smash = 3, -- street things (lamps, benches, trees, fences) knocked loose a big impact nearby (BuildingFx, 2026-11-19)
 	},
 	medium = {
@@ -58,6 +59,7 @@ return {
 		clothesNear = 25, -- dressed rigs this close draw every clothes face (the tucked ones too)
 		clothesFar = 80, -- past this a rig drops its clothes Textures (its part colours match them)
 		props = { tier = 2, radius = 420, parts = 2000 },
+		vehicleRig = 200, -- gap-vehicles: escorts this close roll their wheels, steer and sway (Fx.VehicleRig); none past it
 		smash = 6, -- street things (lamps, benches, trees, fences) knocked loose a big impact nearby (BuildingFx, 2026-11-19)
 	},
 	high = {
@@ -82,6 +84,7 @@ return {
 		clothesNear = 30, -- dressed rigs this close draw every clothes face (the tucked ones too)
 		clothesFar = 100, -- past this a rig drops its clothes Textures (its part colours match them)
 		props = { tier = 3, radius = 600, parts = 4000 },
+		vehicleRig = 320, -- gap-vehicles: escorts this close roll their wheels, steer and sway (Fx.VehicleRig); none past it
 		smash = 10, -- street things knocked loose a big impact nearby (BuildingFx, 2026-11-19)
 	},
 	-- the preset each device class starts on (QualityRules.device)
