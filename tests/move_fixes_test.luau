@@ -114,24 +114,23 @@ return function(T: any)
 	end)
 
 	test("Move fixes: the swing attaches reliably, never scrapes the street and flings on release", function()
+		-- reworked into Spider-Man swinging (2026-11-19, Shared.SwingMath; tests/swing_test.luau has the rest)
+		local SwingMath = require("../src/shared/SwingMath")
 		local sw = M.mobility.swing
 		check(#sw.lifts >= 3 and sw.lifts[1] == 0.45, "the line tries several aims, the old one first")
 		-- the rope's length keeps the low point clear of the ground and stays taut
-		local len = MoveMath.swingRope(M, 0, 10, 60, 0, 80, 0, 0)
+		local len = SwingMath.rope(M, 0, 10, 60, 0, 80, 0, 0)
 		check(len <= 80 - sw.clearance + 1e-6, string.format("low point clears the street (rope %.1f)", len))
-		check(
-			MoveMath.swingRope(M, 0, 40, 20, 0, 60, 0, 0) <= math.sqrt(20 * 20 + 20 * 20) * 0.95 + 1e-6,
-			"never longer than the gap"
-		)
-		check(MoveMath.swingRope(M, 0, 79, 1, 0, 80, 0, 0) == sw.minLen, "never shorter than minLen")
+		check(SwingMath.rope(M, 0, 79, 1, 0, 80, 0, 0) == sw.minLen, "never shorter than minLen")
 		-- swing from a ledge-height start: the hero stays on or inside the rope's sphere, above the street
 		local ax, ay, az = 0, 90, 0
 		local px, py, pz, vx, vy, vz = 0, 30, 70, 0, 0, -30
-		local rope = MoveMath.swingRope(M, px, py, pz, ax, ay, az, 0)
+		local rope = SwingMath.rope(M, px, py, pz, ax, ay, az, 0)
+		local target = rope
 		local low, high, past = math.huge, -math.huge, false
 		for _ = 1, 240 do
-			px, py, pz, vx, vy, vz =
-				MoveMath.swingStep(M, px, py, pz, vx, vy, vz, ax, ay, az, rope, 0, -1, 1 / 60)
+			px, py, pz, vx, vy, vz, rope =
+				SwingMath.step(M, px, py, pz, vx, vy, vz, ax, ay, az, rope, target, 0, -1, 1 / 60)
 			low = math.min(low, py)
 			if pz < 0 then
 				past = true
@@ -141,7 +140,7 @@ return function(T: any)
 		check(low >= ay - rope - 1e-3 and low > 0, string.format("lowest point %.1f is over the street", low))
 		check(past and high > 20, "the swing carries through and up the far side")
 		-- letting go keeps the swing's speed (a fling), capped inside the server's swing cap
-		local rx, ry, rz = MoveMath.swingRelease(M, 0, 0, -sw.maxSpeed)
+		local rx, ry, rz = SwingMath.release(M, 0, 0, -sw.maxSpeed, 0.5)
 		local out = len3(rx, ry, rz)
 		check(out >= sw.maxSpeed and ry > 0, "letting go flings on and up")
 		check(out <= sw.release.cap + 1e-6, "at most release.cap")
@@ -164,11 +163,8 @@ return function(T: any)
 			end
 		end
 		check(pullBacks(path, swCap) == 0, "a swing and its release pass the speed check")
-		check(
-			has(mc, "swingAim()") and has(mc, "MoveMath.swingRope(M"),
-			"the controller aims and sizes the rope"
-		)
-		check(has(mc, "MoveMath.swingRelease(M, vel.X, vel.Y, vel.Z)"), "and flings on release")
+		check(has(mc, "swingAim()") and has(mc, "SwingMath.rope(M"), "the controller aims and sizes the rope")
+		check(has(mc, "SwingMath.release(M, vel.X, vel.Y, vel.Z, phase)"), "and flings on release")
 		check(has(mc, "part and not part.Parent"), "a broken anchor drops the line")
 		check(has(mc, "swung into a wall: let go and push off it"), "swinging into a wall never sticks")
 	end)

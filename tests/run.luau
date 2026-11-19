@@ -6640,9 +6640,10 @@ test("Mobility: five picks; caps cover every move; sprint, super leap and swing 
 	)
 	-- Swing: the rope keeps its length, the speed caps, and zips are legal
 	local sw = M.mobility.swing
-	local px, py, pz, qx, qy, qz = 0, 0, 30, 0, 0, 0
+	local SwingMath = require("../src/shared/SwingMath")
+	local px, py, pz, qx, qy, qz, ql = 0, 0, 30, 0, 0, 0, 50
 	for _ = 1, 600 do
-		px, py, pz, qx, qy, qz = MoveMath.swingStep(M, px, py, pz, qx, qy, qz, 0, 40, 0, 50, 0, 1, 1 / 60)
+		px, py, pz, qx, qy, qz, ql = SwingMath.step(M, px, py, pz, qx, qy, qz, 0, 40, 0, ql, 50, 0, 1, 1 / 60)
 	end
 	local d = math.sqrt(px * px + (py - 40) ^ 2 + pz * pz)
 	check(d <= 50.01, string.format("the rope holds (%.2f of 50)", d))
@@ -23052,6 +23053,8 @@ end
 -- lock-on, omnidirectional movement, knockback by move, the block key, drops and swinging robots (nate's
 -- playtest 2026-11-19, own file); ONLY="PT combat" runs these
 (require :: any)("./combat_pt_test")({ test = test, check = check, Config = Config });
+-- Spider-Man swinging (nate's playtest 2026-11-19, own file); ONLY="Swing" runs these
+(require :: any)("./swing_test")({ test = test, check = check, Config = Config, world = world });
 -- the comic icon set (gap-icons, 2026-11-19, own file); ONLY="Icons" runs just these
 (require :: any)("./icons_test")({ test = test, check = check, Config = Config });
 -- every ability's own look (nate's playtest 2026-11-19: more unique effects); ONLY="FX unique" runs these
