@@ -487,6 +487,7 @@ function DailyHud.init()
 	PopupGate.card("daily", function()
 		return panel.Visible
 	end)
+	PopupGate.closeWith("daily", panel, DailyHud.close)
 	local title = Kit.label({
 		Text = "DAILY",
 		Size = UDim2.new(1, -T - 30, 0, 34),

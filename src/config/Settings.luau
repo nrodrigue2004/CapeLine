@@ -68,6 +68,15 @@ return {
 			default = 1,
 		},
 		{ id = "hardLock", name = "Lock-on button (MMB or Tab, R3, LOCK)", kind = "toggle", default = 1 },
+		-- fix-hud (nate's playtest of gaps7, 2026-11-19: "need a way to get rid of popups"): which popups show
+		-- (Config.Ui.popups.modes): All, Important only (rewards and invites as small toasts), Off
+		{
+			id = "popups",
+			name = "Popups",
+			kind = "choice",
+			options = { "All", "Important only", "Off" },
+			default = 0,
+		},
 	},
 	maxMutes = 50, -- muted players kept on the save (user ids)
 	sendDelay = 0.6, -- seconds the device waits after the last change before sending (a slider drag sends once)

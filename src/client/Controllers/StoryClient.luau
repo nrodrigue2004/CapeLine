@@ -17,6 +17,7 @@ local Signal = require(Shared:WaitForChild("Util"):WaitForChild("Signal"))
 local OpeningPlan = require(Shared:WaitForChild("OpeningPlan"))
 
 local WorldClient = require(script.Parent.WorldClient)
+local CinemaClient = require(script.Parent.CinemaClient)
 
 local StoryClient = {}
 
@@ -38,8 +39,18 @@ StoryClient.quest = nil :: { [string]: any }?
 -- The verb button(s) each prologue beat pulses (Hud.setFocus); the camera beats show none (Config.Ui.prologue)
 StoryClient.VERBS = Config.Ui.prologue.verbs
 
+-- The prologue's beat, or nil. A returning account's held ceremony (waiting for the main menu's CREATE FIRST or
+-- PLAY THE PROLOGUE) is not playing yet: no scene, camera or letterbox behind the menu (fix-flow, 2026-11-19)
 function StoryClient.openingStep(): string?
+	if StoryClient.opening.hold then
+		return nil
+	end
 	return OpeningPlan.STEPS[StoryClient.opening.step or 0]
+end
+
+-- A held ceremony waiting for the main menu's pick
+function StoryClient.held(): boolean
+	return StoryClient.opening.hold == true and (StoryClient.opening.step or 0) > 0
 end
 
 function StoryClient.inOpening(): boolean
@@ -96,6 +107,45 @@ function StoryClient.playPrologue()
 	Net.send("OpeningAct", 4)
 end
 
+-- The exposition before the creator (fix-flow, 2026-11-19; Config.Story.opening.intro): over, watched or skipped
+local introOn = false
+function StoryClient.introDone()
+	if introOn then
+		introOn = false
+		Net.send("OpeningAct", 5)
+	end
+end
+
+function StoryClient.introPlaying(): boolean
+	return introOn
+end
+
+-- Play the exposition comic page (the server's OpeningIntro). SKIP shows after a moment, even the first time.
+function StoryClient.playIntro()
+	local I = Config.Story.opening.intro
+	local def = Config.Cinema.scenes[I.scene]
+	introOn = true
+	CinemaClient.play({
+		owner = "client",
+		key = "intro",
+		id = I.scene,
+		bit = def.bit,
+		shots = {},
+		seconds = def.seconds,
+		comic = def.comic,
+		beat = true, -- the hero waits in the quiet creator scene: no safe-moment wait
+		canSkip = function()
+			return CinemaClient.time() >= I.skipAfter
+		end,
+	})
+	StoryClient.Changed:Fire("intro")
+end
+
+-- The Journal's REPLAY of the prologue: the exposition, then the prologue (the server checks it may)
+function StoryClient.replayPrologue()
+	Net.send("OpeningAct", 6)
+end
+
 function StoryClient.enter(num: number)
 	Net.send("MissionEnter", num)
 end
@@ -123,6 +173,16 @@ function StoryClient.init()
 		StoryClient.openingAt = os.clock() - (tonumber(s.t) or 0)
 		WorldClient.clockOverride = if StoryClient.inOpening() then Config.Story.opening.clockTime else nil
 		StoryClient.Changed:Fire("opening")
+	end)
+	Net.listen("OpeningIntro", function()
+		StoryClient.playIntro()
+	end)
+	-- the page ends (or SKIP): the server opens the creator (or, for a replay, starts the prologue)
+	CinemaClient.Changed:Connect(function(scene)
+		if introOn and (scene == nil or scene.key ~= "intro") then
+			StoryClient.introDone()
+			StoryClient.Changed:Fire("intro")
+		end
 	end)
 	Net.listen("ChoicePrompt", function(c)
 		StoryClient.choice = if c.id >= 0 then c else nil

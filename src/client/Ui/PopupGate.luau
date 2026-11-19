@@ -2,7 +2,8 @@
 -- after-prologue cards (the daily claim card, the mentor picker, the weekly board's TOP 10 card) wait until
 -- the player is free: no loading screen, main menu, hero creator, prologue or cutscene up, and none of the
 -- other gated cards still open, so they come one at a time and never under a menu or over the story.
--- * PopupGate.card(name, isOpen): a gated card says how to tell it is up
+-- * PopupGate.card(name, isOpen): a gated card says how to tell it is up; PopupGate.closeWith(name, obj, close)
+--   (fix-hud 2026-11-19) its panel (or a function giving it) and how it closes, for its life, X, tap and Backspace
 -- * PopupGate.free(except): may a card show now? (except: the asking card's own name)
 -- * PopupGate.later(name, show): run show when its turn comes in Ui.Popups' line (pt-ui 2026-11-19: one card at a
 --   time with every other popup, by priority, never in a fight for the starter offer)
@@ -19,10 +20,18 @@ local PopupGate = {}
 
 local player = Players.LocalPlayer
 local cards: { [string]: () -> boolean } = {}
+local closers: { [string]: () -> () } = {}
 local waiting: { [string]: boolean } = {}
 
 function PopupGate.card(name: string, isOpen: () -> boolean)
 	cards[name] = isOpen
+end
+
+-- fix-hud: the card's panel (or a function giving it) and how it closes, so its life, the X, a tap and Backspace
+-- take it down
+function PopupGate.closeWith(name: string, obj: any, close: () -> ())
+	Popups.panel(name, obj)
+	closers[name] = close
 end
 
 local function busy(): boolean
@@ -59,13 +68,22 @@ function PopupGate.later(name: string, show: () -> ())
 	end
 	waiting[name] = true
 	local spec = Popups.spec(name)
-	Popups.card(name, spec, function()
+	local item: any = Popups.card(name, spec, function()
 		waiting[name] = nil
 		show()
 	end, function()
 		local isOpen = cards[name]
 		return isOpen ~= nil and isOpen()
+	end, function()
+		waiting[name] = nil
+		local close = closers[name]
+		if close then
+			close()
+		end
 	end)
+	if item.dropped then
+		waiting[name] = nil -- (Settings "Popups" left it out: a later one may ask again)
+	end
 end
 
 return PopupGate

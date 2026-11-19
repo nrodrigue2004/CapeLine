@@ -156,6 +156,12 @@ InputController.hints = {
 	LockCycle = "Tab",
 }
 
+-- The action a key or pad button is bound to, or nil (fix-flow, 2026-11-19: the prologue's quick-time prompts
+-- read keys while the hero's controls rest)
+function InputController.actionOf(key: Enum.KeyCode): string?
+	return KEYS[key]
+end
+
 function InputController.isDown(action: string): boolean
 	return down[action] == true
 end

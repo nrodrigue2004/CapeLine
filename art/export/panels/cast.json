@@ -228,6 +228,80 @@
     },
     {
       "aspect": 2,
+      "caption": "Brightharbor: a bright city by the sea, cheering for its famous heroes.",
+      "ground": [
+        70,
+        80,
+        100
+      ],
+      "index": 1,
+      "key": "intro.1",
+      "page": "intro",
+      "scene": "city",
+      "sky": [
+        150,
+        210,
+        255
+      ]
+    },
+    {
+      "aspect": 2,
+      "caption": "Ten years ago the Spark woke powers in people, and it nearly tore the city apart.",
+      "ground": [
+        70,
+        60,
+        80
+      ],
+      "index": 2,
+      "key": "intro.2",
+      "page": "intro",
+      "scene": "blast",
+      "sky": [
+        255,
+        196,
+        120
+      ],
+      "word": "KRAK!"
+    },
+    {
+      "aspect": 2.1052631578947367,
+      "caption": "Now Crane Industries scans for the Spark, and Crane's machines hunt anyone who has it.",
+      "ground": [
+        40,
+        34,
+        50
+      ],
+      "index": 3,
+      "key": "intro.3",
+      "page": "intro",
+      "scene": "scan",
+      "sky": [
+        120,
+        60,
+        70
+      ]
+    },
+    {
+      "aspect": 2.1052631578947367,
+      "caption": "Today the Spark woke in you. Nobody knows yet. So... who are you?",
+      "ground": [
+        90,
+        80,
+        90
+      ],
+      "index": 4,
+      "key": "intro.4",
+      "page": "intro",
+      "scene": "spark",
+      "sky": [
+        255,
+        240,
+        200
+      ],
+      "word": "ZAP!"
+    },
+    {
+      "aspect": 2,
       "caption": "Ashgrove Labs paid volunteers to sit in the Kindler, a ring of light. Most felt nothing.",
       "ground": [
         90,

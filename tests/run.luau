@@ -273,7 +273,11 @@ end)
 test("M1: stamina regenerates 15/s on the ground and 8/s in the air", function()
 	near(MoveMath.staminaStep(M, 50, true, false, 1), 65, 1e-6, "ground regen")
 	near(MoveMath.staminaStep(M, 50, false, false, 1), 58, 1e-6, "air regen")
-	check(MoveMath.staminaStep(M, 99, true, false, 1) == 100, "caps at 100")
+	check(
+		MoveMath.staminaStep(M, M.stamina.max - 1, true, false, 1) == M.stamina.max,
+		"caps at the pool's max"
+	)
+	check(M.stamina.max == 200, "nate 2026-11-19: double the stamina (100 -> 200)")
 end)
 
 ---------------------------------------------------------------------------
@@ -8132,7 +8136,8 @@ test(
 		local ProfileSchema = require("../src/shared/ProfileSchema")
 		-- nate, 2026-11-17: nothing from the player's avatar; our clothes, faces, hair and gear only
 		check(Config.Creator.avatar.on == false, "the player's avatar is not used")
-		check(Config.Creator.bodyStep == false, "no gender, build or height")
+		-- nate, 2026-11-19 16:45Z: gender, build and height are back (the creator's Body step)
+		check(Config.Creator.bodyStep == true, "the Body step: gender, build and height")
 		check(Config.Creator.clothes.on == true, "heroes wear our classic Shirt and Pants")
 		-- nothing picked: every avatar item shows
 		local none = AvatarRules.hides({})
@@ -8439,6 +8444,7 @@ end); -- Hero MMO features (H1 to H8) live in their own file so this one merges 
 (require :: any)("./comic_art_test")({ test = test, check = check, Config = Config });
 (require :: any)("./hairfit_test")({ test = test, check = check, Config = Config }); -- the hair fit pass: explicit catalog picks
 (require :: any)("./fit_test")({ test = test, check = check, Config = Config }); -- pt-fit: pieces and weapons on Roblox's own body
+(require :: any)("./flow_test")({ test = test, check = check, Config = Config, place = process.args[1] }); -- fix-flow
 -- WP10: the group-join piece and creator codes (own file, merges easily)
 (require :: any)("./promo_test")({ test = test, check = check, Config = Config, placePath = process.args[1] }); -- WP11: story acts (Act 1 today, Acts 2 and 3 coming soon), own file
 (require :: any)("./acts_test")({ test = test, check = check, Config = Config, placePath = process.args[1] }); -- WP8: live tuning from Balance_v<N> (own file, merges easily)
@@ -12271,7 +12277,7 @@ do
 			string.find(cc, "CinemaPlan.sample(shot, k, buf)", 1, true) ~= nil,
 			"the player samples into its buffer"
 		)
-		local stepAt = string.find(cc, "local function step()", 1, true) :: number
+		local stepAt = string.find(cc, "local function step(dt: number)", 1, true) :: number
 		local stepEnd = string.find(cc, "function CinemaClient.init()", 1, true) :: number
 		local body = string.sub(cc, stepAt, stepEnd)
 		check(not string.find(body, "{", 1, true), "no new tables in the camera step")
@@ -23028,6 +23034,8 @@ end
 (require :: any)("./setpieces_test")({ test = test, check = check, Config = Config });
 -- the 36 weapons' meshes and stances (2026-11-18, own file); ONLY="Weapon art" runs just these
 (require :: any)("./weapon_art_test")({ test = test, check = check, Config = Config });
+-- the weapons as the game builds them, on Roblox's body (fix-weapons, 2026-11-19); ONLY="Weapon sim"
+(require :: any)("./weapon_sim_test")({ test = test, check = check, Config = Config, place = process.args[1] });
 -- the gear styles' looks as meshes (2026-11-19, own file); ONLY="Gear art" runs just these
 (require :: any)("./gear_art_test")({ test = test, check = check, Config = Config });
 -- the escort and hub vehicle meshes (2026-11-18, own file); ONLY="Vehicle art" runs just these
@@ -23135,6 +23143,9 @@ end
 	world = world,
 	placePath = placePath,
 });
+-- nate's playtest of gaps7 2026-11-19 (fix-hud, own file): every popup dismissable (X, tap, Backspace, Settings
+-- Popups), the boss bar only near the fight, double stamina; ONLY="fix-hud"
+(require :: any)("./fix_hud_test")({ test = test, check = check, Config = Config, placePath = placePath });
 -- nate's playtest 2026-11-19 (pt-city, own file): Downtown and Uptown 1.5x bigger, the street and roof pieces
 -- heroes use or break; ONLY="City play"
 (require :: any)("./city_play_test")({ test = test, check = check, Config = Config, world = world });

@@ -184,7 +184,17 @@ local function draw()
 		bossText.Text = "BOSS IN " .. Kit.time(math.max(0, left))
 		bossText.TextColor3 = Color3.fromRGB(255, 120, 90)
 	elseif s.state == 2 or s.state == 3 then
-		bossText.Text = "◆ BOSS FIGHT!"
+		-- fix-hud: far from the fight this corner line is all there is (WorldHud's bar shows only near it)
+		local char = me.Character
+		local root = char and char:FindFirstChild("HumanoidRootPart") :: BasePart?
+		local far = ""
+		if root and type(s.x) == "number" and type(s.z) == "number" then
+			local d = math.floor(Vector2.new(root.Position.X - s.x, root.Position.Z - s.z).Magnitude)
+			if d > Config.Boss.hud.near then
+				far = string.format("  %s studs", Kit.comma(d))
+			end
+		end
+		bossText.Text = "◆ BOSS FIGHT!" .. far
 		bossText.TextColor3 = Color3.fromRGB(255, 120, 90)
 	elseif left > 0 then
 		bossText.Text = "Next boss " .. Kit.time(left)

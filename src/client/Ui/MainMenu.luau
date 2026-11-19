@@ -163,7 +163,8 @@ function MainMenu.init()
 		if what ~= "opening" then
 			return
 		end
-		if StoryClient.opening.createFirst and StoryClient.openingStep() == "ceremony" then
+		-- (a held ceremony has no openingStep: it is not playing until PLAY THE PROLOGUE, fix-flow 2026-11-19)
+		if StoryClient.opening.createFirst and StoryClient.held() and StoryClient.opening.step == 1 then
 			show("createFirst")
 		elseif mode == "createFirst" and not StoryClient.opening.createFirst then
 			MainMenu.close()

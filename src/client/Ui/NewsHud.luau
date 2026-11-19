@@ -33,6 +33,7 @@ local NewsArtKit = require(Shared:WaitForChild("NewsArtKit"))
 
 local Kit = require(script.Parent.Kit)
 local Popups = require(script.Parent.Popups) -- pt-ui: one line for every popup
+local Dismiss = require(script.Parent.Dismiss) -- fix-hud
 local State = require(script.Parent.Parent.State)
 local Toasts = require(script.Parent.Toasts)
 local GuideHud = require(script.Parent.GuideHud)
@@ -199,9 +200,21 @@ local function buildTv()
 	})
 	tvTicker.Parent = tvScreen
 	GuideHud.keepClear(tv)
+	-- fix-hud (nate, gaps7: "need a way to get rid of popups"): its X, a tap or Backspace switch it off, and
+	-- Crane's next segment waits twice as long
+	Dismiss.attach(tv, function()
+		tv.Visible = false
+		tvUntil = 0
+		nextCrane = os.clock() + N.tv.craneEvery * 2
+	end)
 end
 
 local function tvShow(mode: string, band: string, text: string, seconds: number)
+	-- Settings "Popups": Important only keeps the breaking news flash, Off none
+	local M = Config.Ui.popups.modes
+	if Popups.mode == M.off or (Popups.mode == M.important and mode ~= "flash") then
+		return
+	end
 	tvMode = mode
 	tvBand.Text = band
 	tvLine.Text = text

@@ -43,6 +43,10 @@ export type Scene = {
 	canSkip: (() -> boolean)?,
 	skip: (() -> ())?,
 	startedAt: number?,
+	-- fix-flow (2026-11-19, the prologue's rooftop chase): a live camera instead of shots (it writes the camera's
+	-- position and look point each frame), and `free`: the hero is not held still (it moves in the scene)
+	follow: ((dt: number) -> (Vector3, Vector3))?,
+	free: boolean?,
 }
 
 CinemaClient.Changed = Signal.new() -- (scene?) a scene started or ended
@@ -72,7 +76,7 @@ function CinemaClient.seen(bit: number?): boolean
 	return localSeen[b] == true or CinemaPlan.seen(State.profile.seen, b)
 end
 
-local function setCamera(on: boolean)
+local function setCamera(on: boolean, free: boolean?)
 	local cam = Workspace.CurrentCamera
 	if not cam or on == camOn then
 		return
@@ -81,7 +85,7 @@ local function setCamera(on: boolean)
 	if on then
 		cam.CameraType = Enum.CameraType.Scriptable
 		local r = root()
-		if r then
+		if r and not free then
 			r.Anchored = true -- the hero holds still for the scene (on this device only)
 			anchored = r
 		end
@@ -177,13 +181,15 @@ function CinemaClient.play(scene: Scene): (boolean, string?)
 			return false, why
 		end
 	end
+	local wantsCam = #scene.shots > 0 or scene.follow ~= nil
 	if cur then
-		finish(false, #scene.shots > 0) -- one beat cuts straight to the next
+		-- one beat cuts straight to the next (a held hero let go for a free scene)
+		finish(false, wantsCam and (cur.free == true) == (scene.free == true))
 	end
 	waiting = nil
 	scene.startedAt = os.clock()
 	CinemaClient.current = scene
-	setCamera(#scene.shots > 0)
+	setCamera(wantsCam, scene.free)
 	CinemaClient.Changed:Fire(scene)
 	return true, nil
 end
@@ -241,7 +247,7 @@ function CinemaClient.playScene(id: string): (boolean, string?)
 	})
 end
 
-local function step()
+local function step(dt: number)
 	local w = waiting
 	if w and os.clock() > w.untilT then
 		waiting = nil
@@ -258,8 +264,13 @@ local function step()
 	if not camOn then
 		return
 	end
-	local shot, k = CinemaPlan.at(s.shots, t)
 	local cam = Workspace.CurrentCamera
+	if s.follow and cam then
+		local at, look = s.follow(dt)
+		cam.CFrame = CFrame.lookAt(at, look)
+		return
+	end
+	local shot, k = CinemaPlan.at(s.shots, t)
 	if shot and cam then
 		CinemaPlan.sample(shot, k, buf)
 		cam.CFrame = CFrame.lookAt(Vector3.new(buf[1], buf[2], buf[3]), Vector3.new(buf[4], buf[5], buf[6]))

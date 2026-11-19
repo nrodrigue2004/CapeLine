@@ -227,6 +227,32 @@ local ALERT = {
 	news = true,
 	newsFlash = true,
 }
+-- fix-hud (Settings "Popups: Important only"): the toasts that still show: what you got (pay, drops, level
+-- ups, unlocks, ranks), friends and squad joins, and the alerts (save down, Second Wind, revived)
+local IMPORTANT = {
+	reward = true,
+	loot = true,
+	levelUp = true,
+	drones = true,
+	unlock = true,
+	piece = true,
+	styleBought = true,
+	incident = true,
+	contract = true,
+	eventDone = true,
+	sqDone = true,
+	episodeDone = true,
+	collectSet = true,
+	accolade = true,
+	fameRank = true,
+	repRank = true,
+	legacy = true,
+	contestPlace = true,
+	friendHere = true,
+	squadJoin = true,
+	squadJoined = true,
+	revived = true,
+}
 local GROUP = { reward = "reward", loot = "loot", beat = "beat", sqStep = "sq", badgeMate = "badgeMate" }
 local PRI = Config.Ui.popups.pri
 local cur: { [string]: any } = { pri = PRI.minor }
@@ -236,13 +262,14 @@ local function specFor(data: { [string]: any }): { [string]: any }
 	if URGENT[id] then
 		return { pri = PRI.story, urgent = true }
 	elseif ALERT[id] then
-		return { pri = PRI.alert }
+		return { pri = PRI.alert, important = true }
 	end
 	local minor = GROUP[id] ~= nil or id == "skillPoint" or id == "photo" or id == "photoRecon"
 	if id == "loot" and data.piece and data.piece.tier >= 4 then
 		minor = false
 	end
 	return {
+		important = IMPORTANT[id] == true,
 		pri = if minor then PRI.minor else PRI.result,
 		group = if id == "loot" and not minor then nil else GROUP[id],
 		stale = if minor then 8 else nil,
@@ -896,6 +923,10 @@ function Toasts.init()
 	Kit.stroke(chip, Kit.color.ink, 2)
 	chip.Parent = stack
 	Popups.chip = chip
+	-- fix-hud: a result card's one line under Settings "Popups: Important only"
+	Popups.briefDraw = function(text: string): TextLabel
+		return draw(text, Kit.color.gold, false, 3.6)
+	end
 	stack.Parent = gui
 	State.Toast:Connect(Toasts.show)
 end

@@ -521,6 +521,14 @@ end
 
 -- pt-ui: the PvP card waits its turn in Ui.Popups ("pvpResult")
 local function showResult(r: any)
+	-- fix-hud: Settings "Popups: Important only" shows this one line instead
+	local c = tonumber(r.credits) or 0
+	local brief = string.format(
+		"%s  %s%s CREDITS",
+		if r.won then "PVP WIN" else "PVP DEFEAT",
+		if c < 0 then "-" else "+",
+		Kit.comma(math.abs(c))
+	)
 	Popups.show("pvpResult", function()
 		showResultNow(r)
 		return resultCard
@@ -528,7 +536,7 @@ local function showResult(r: any)
 		return resultCard.Visible
 	end, function()
 		resultCard.Visible = false
-	end)
+	end, brief)
 end
 
 local wasDowned = false
