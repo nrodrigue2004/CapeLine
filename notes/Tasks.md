@@ -181,6 +181,11 @@ Looks only: where the screens hang, what they show, the card's timing and the TV
 6. The boss name cards (each of the four) show the boss's comic portrait popping out of the card's left over a comic navy plate; the name and title sit right of it, the slash bar sweeps in the boss's colour; the plate's ink and gold rule stay crisp at PC and phone sizes.
 7. Your double's card (and the three side-vs-side event cards) show the event's comic icon; the Crater's card and the side quest finales' cards are words on the plate.
 
+### Playtest gaps5: start here (2026-11-19, build playtest-gaps5)
+Everything in gaps4 plus round 5: project files capeline/Capeline-playtest-gaps5-2026-11-19.rbxl (Output "playtest-gaps5 (2026-11-19)"). It replaces every older playtest place. Run "Playtest gaps4: start here" below first if not done, then these lists:
+1. "News screens and name card art" (the plaza and tower screens, the corner TV case, the boss name cards with portraits; the corner TV now slides right of a name card while it shows).
+2. "Wrecks and the Crater" (downed robots leave a wreck heap in their colours with spark and nut particles; the Crater lab ruins wear meshes and you still stop at every wall, tank and tower).
+
 ### Playtest gaps4: start here (2026-11-19, build playtest-gaps4)
 Everything in gaps3 plus round 4: project files capeline/Capeline-playtest-gaps4-2026-11-19.rbxl (Output "playtest-gaps4 (2026-11-19)"). It replaces every older playtest place. Run "Playtest gaps3: start here" below first if not done, then these lists:
 1. "Hideout art pass: the HQ room shells and textures" (both HQs' walls, floors, lamps, the stairwell head, the captive figure).
