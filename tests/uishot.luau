@@ -11,7 +11,7 @@
 -- (the Contract Board), badges (the Badge Book), daily (the daily card), screen:<ScreenGui name> (a card screen with all its parts shown),
 -- emotes (the emote picker), photo (Photo Mode on a pose), shop:emotes (the shop's Emotes tab),
 -- comic:<page id> (a comic page from Config.Cinema.comic.pages with every panel in), guide:<speaker> (the guide line
--- box with that speaker's portrait). UISHOT_IMAGES=<ids.json> lets tests/uishot.py draw uploaded images from their local files.
+-- box with that speaker's portrait), news:<boss id> or news:double (the corner TV and a name card). UISHOT_IMAGES=<ids.json> lets tests/uishot.py draw uploaded images from their local files.
 
 local fs = require("@lune/fs")
 local process = require("@lune/process")
@@ -144,6 +144,11 @@ local function node(b: any): { [string]: any }
 		end
 		n.visible = prop(i, "Visible") ~= false
 		n.fit = prop(i, "ScaleType") == Enum.ScaleType.Fit
+		if prop(i, "ScaleType") == Enum.ScaleType.Slice then
+			local sc = prop(i, "SliceCenter")
+			n.slice = { sc.Min.X, sc.Min.Y, sc.Max.X, sc.Max.Y }
+			n.sliceScale = (prop(i, "SliceScale") or 1) * (b.scale or 1)
+		end
 	end
 	if i:IsA("ViewportFrame") then
 		n.viewport = true
@@ -493,6 +498,13 @@ for _, scene in scenes do
 				sim:require("Client.Ui.GuideHud").init()
 				sim:require("Client.Ui.CinemaHud").init()
 			end)
+		elseif string.sub(scene, 1, 5) == "news:" then
+			-- gap-news: the corner TV and a name card (news:<boss id> its card, news:double Your double's)
+			sim:run(scene, function()
+				sim:require("Client.Ui.GuideHud").init()
+				sim:require("Client.Ui.CinemaHud").init()
+				sim:require("Client.Ui.NewsHud").init()
+			end)
 		elseif string.sub(scene, 1, 6) == "guide:" then
 			sim:run(scene, function()
 				local GuideHud = sim:require("Client.Ui.GuideHud")
@@ -585,6 +597,19 @@ for _, scene in scenes do
 					c.Visible = true
 				end
 			end
+		end
+		if string.sub(scene, 1, 5) == "news:" then
+			sim:run("news", function()
+				local NewsHud = sim:require("Client.Ui.NewsHud")
+				local who = string.sub(scene, 6)
+				NewsHud.crane()
+				if who == "double" then
+					NewsHud.card("events", "YourDouble")
+				else
+					NewsHud.nameCard(who)
+				end
+			end)
+			sim:advance(0.5)
 		end
 		if scene == "menu" then
 			sim:run("menu", function()

@@ -541,6 +541,13 @@ function DevPanel.init()
 		NewsHud.nameCard(cardIds[cardIdx])
 		cardIdx = cardIdx % #cardIds + 1
 	end)
+	-- gap-news: the event cards in the name card's style (Your double first, then the side-vs-side events)
+	local eventCards = { "YourDouble", "DataTruck", "UptownVault", "SparkShipment" }
+	local eventIdx = 1
+	add("Event card", function()
+		NewsHud.card("events", eventCards[eventIdx])
+		eventIdx = eventIdx % #eventCards + 1
+	end)
 	add("Finisher (mine)", function()
 		local c = Players.LocalPlayer.Character
 		local r = c and c:FindFirstChild("HumanoidRootPart") :: BasePart?

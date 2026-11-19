@@ -35,6 +35,7 @@
         "Hq": { "$path": "art/models/Hq.rbxm" },
         "Hideout": { "$path": "art/models/Hideout.rbxm" },
         "Necks": { "$path": "art/models/Necks.rbxm" },
+        "News": { "$path": "art/models/News.rbxm" },
         "Prologue": { "$path": "art/models/Prologue.rbxm" },
         "SetPieces": { "$path": "art/models/SetPieces.rbxm" },
         "Shoulders": { "$path": "art/models/Shoulders.rbxm" },

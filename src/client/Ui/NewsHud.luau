@@ -11,7 +11,10 @@
 --   bosses and the fakes' battle forms in Live alike.
 -- * Lore step 9: the same card for the Crater ("WHERE THE OLD HEROES FELL") the first time a session a hero walks
 --   in, and for Your double on the copied hero's device.
--- PLACEHOLDER ART: the TV and the screens are plain frames and text until the art pass.
+-- * Art (gap-news, Config.NewsArt via Shared.NewsArtKit): the corner TV sits in a drawn comic TV case (its screen
+--   shows through the case's window) and the channel's mark leads the band on the TV and on every big screen; all
+--   words stay UI text. An id of 0: today's plain frame and band (PLACEHOLDER ART fallback). The big screens' frames are Blender looks
+--   (NewsService).
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -25,6 +28,7 @@ local FrameProf = require(Shared:WaitForChild("FrameProf"))
 local NewsPlan = require(Shared:WaitForChild("NewsPlan"))
 local CinemaPlan = require(Shared:WaitForChild("CinemaPlan"))
 local CreatorRules = require(Shared:WaitForChild("CreatorRules"))
+local NewsArtKit = require(Shared:WaitForChild("NewsArtKit"))
 
 local Kit = require(script.Parent.Kit)
 local State = require(script.Parent.Parent.State)
@@ -56,7 +60,8 @@ type Screen = {
 local screens: { Screen } = {}
 
 local gui: ScreenGui
-local tv: Frame
+local tv: Frame -- the whole corner TV (the case when drawn)
+local tvScreen: Frame -- its picture (the case's window; the TV itself with no case art)
 local tvBand: TextLabel
 local tvLine: TextLabel
 local tvTicker: TextLabel
@@ -81,20 +86,79 @@ end
 -- The corner TV
 ---------------------------------------------------------------------------
 
+-- The channel's mark at the left of a band (and room for it), when its image is uploaded
+local function bandMark(band: TextLabel)
+	local image = NewsArtKit.ident(Config)
+	if not image then
+		return
+	end
+	local mark = Instance.new("ImageLabel")
+	mark.Name = "Mark"
+	mark.BackgroundTransparency = 1
+	mark.Image = image
+	mark.ScaleType = Enum.ScaleType.Fit
+	mark.AnchorPoint = Vector2.new(0, 0.5)
+	mark.Position = UDim2.fromScale(0.01, 0.5)
+	mark.Size = UDim2.fromScale(0.9, 0.9)
+	mark.SizeConstraint = Enum.SizeConstraint.RelativeYY
+	mark.ZIndex = band.ZIndex + 1
+	mark.Parent = band
+	local pad = Instance.new("UIPadding")
+	pad.PaddingLeft = UDim.new(0.16, 0)
+	pad.PaddingRight = UDim.new(0.03, 0)
+	pad.Parent = band
+end
+
 local function buildTv()
 	gui = Kit.screen("NewsHud", 5)
 	local compact = Kit.compact()
-	tv = Kit.frame({
-		Name = "CornerTv",
-		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, 76),
-		Size = if compact then UDim2.fromOffset(180, 96) else UDim2.fromOffset(230, 122),
-		BackgroundColor3 = NAVY,
-		Visible = false,
-		ClipsDescendants = true,
-		ZIndex = 4,
-	})
-	Kit.stroke(tv, Kit.color.ink, 3)
+	local case, caseSize, window = NewsArtKit.tv(Config)
+	if case and caseSize and window then
+		-- the drawn TV case, its screen showing through the window (a touch bigger than the plain TV)
+		local w = if compact then 180 else 300
+		tv = Kit.frame({
+			Name = "CornerTv",
+			AnchorPoint = Vector2.new(0.5, 0),
+			Position = UDim2.new(0.5, 0, 0, 66),
+			Size = UDim2.fromOffset(w, math.floor(w * caseSize[2] / caseSize[1] + 0.5)),
+			BackgroundTransparency = 1,
+			round = false,
+			ink = false,
+			Visible = false,
+			ZIndex = 4,
+		})
+		tvScreen = Kit.frame({
+			Name = "Screen",
+			Position = UDim2.fromScale(window[1], window[2]),
+			Size = UDim2.fromScale(window[3], window[4]),
+			BackgroundColor3 = NAVY,
+			ClipsDescendants = true,
+			round = false,
+			ZIndex = 4,
+		})
+		tvScreen.Parent = tv
+		local img = Instance.new("ImageLabel")
+		img.Name = "Case"
+		img.BackgroundTransparency = 1
+		img.Image = case
+		img.ScaleType = Enum.ScaleType.Stretch
+		img.Size = UDim2.fromScale(1, 1)
+		img.ZIndex = 7
+		img.Parent = tv
+	else
+		tv = Kit.frame({
+			Name = "CornerTv",
+			AnchorPoint = Vector2.new(0.5, 0),
+			Position = UDim2.new(0.5, 0, 0, 76),
+			Size = if compact then UDim2.fromOffset(180, 96) else UDim2.fromOffset(230, 122),
+			BackgroundColor3 = NAVY,
+			Visible = false,
+			ClipsDescendants = true,
+			ZIndex = 4,
+		})
+		Kit.stroke(tv, Kit.color.ink, 3)
+		tvScreen = tv
+	end
 	tv.Parent = gui
 	tvBand = Kit.label({
 		Name = "Band",
@@ -105,7 +169,8 @@ local function buildTv()
 		maxText = 18,
 		ZIndex = 5,
 	})
-	tvBand.Parent = tv
+	tvBand.Parent = tvScreen
+	bandMark(tvBand)
 	tvLine = Kit.label({
 		Name = "Line",
 		Position = UDim2.new(0.04, 0, 0.27, 0),
@@ -116,7 +181,7 @@ local function buildTv()
 		maxText = 16,
 		ZIndex = 5,
 	})
-	tvLine.Parent = tv
+	tvLine.Parent = tvScreen
 	tvTicker = Kit.label({
 		Name = "Ticker",
 		Position = UDim2.new(0, 0, 0.8, 0),
@@ -128,7 +193,7 @@ local function buildTv()
 		maxText = 12,
 		ZIndex = 5,
 	})
-	tvTicker.Parent = tv
+	tvTicker.Parent = tvScreen
 	GuideHud.keepClear(tv)
 end
 
@@ -199,6 +264,7 @@ local function attach(part: BasePart)
 		TextColor3 = Kit.color.paper,
 		maxText = 120,
 	})
+	bandMark(band)
 	local headline = screenLabel(bg, "Headline", 0.26, 0.5, {
 		TextColor3 = Kit.color.paper,
 		Font = Kit.bodyFont,
@@ -345,7 +411,8 @@ end
 local function showCard(group: string, id: string)
 	local name, title, color = CinemaPlan.card(Config, group, id)
 	if name and title then
-		CinemaHud.card(name, title, color)
+		-- an event's card shows its comic icon (Config.Icons.event) when the sheet is uploaded
+		CinemaHud.card(name, title, color, if group == "events" then { kind = "event", id = id } else nil)
 	end
 end
 

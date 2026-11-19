@@ -286,7 +286,21 @@ def paint(canvas, n, kids):
                 ox, oy, sw, sh = n["rect"]
                 src = src.crop((int(ox), int(oy), int(ox + sw), int(oy + sh)))
             bw, bh = int(x1 - x0), int(y1 - y0)
-            if n.get("crop"):
+            if n.get("slice"):
+                # 9-slice: the corners kept at SliceScale (x the supersampling), edges and middle stretched
+                sx0, sy0, sx1, sy1 = (int(v) for v in n["slice"])
+                k = n.get("sliceScale", 1) * SS
+                L, T = int(sx0 * k), int(sy0 * k)
+                Rr, B = int((src.width - sx1) * k), int((src.height - sy1) * k)
+                out = Image.new("RGBA", (bw, bh), (0, 0, 0, 0))
+                cols = [(0, sx0, 0, L), (sx0, sx1, L, bw - Rr), (sx1, src.width, bw - Rr, bw)]
+                rows = [(0, sy0, 0, T), (sy0, sy1, T, bh - B), (sy1, src.height, bh - B, bh)]
+                for (a0, a1, d0, d1) in cols:
+                    for (b0, b1, e0, e1) in rows:
+                        if d1 > d0 and e1 > e0 and a1 > a0 and b1 > b0:
+                            out.paste(src.crop((a0, b0, a1, b1)).resize((d1 - d0, e1 - e0), Image.LANCZOS), (d0, e0))
+                src = out
+            elif n.get("crop"):
                 k = max(bw / src.width, bh / src.height)
                 src = src.resize((max(1, int(src.width * k)), max(1, int(src.height * k))), Image.LANCZOS)
                 lx, ly = (src.width - bw) // 2, (src.height - bh) // 2
@@ -295,6 +309,8 @@ def paint(canvas, n, kids):
                 src = src.resize((bw, bh), Image.LANCZOS)
             m = Image.new("L", src.size, 0)
             ImageDraw.Draw(m).rounded_rectangle([0, 0, src.size[0] - 1, src.size[1] - 1], radius=r, fill=255)
+            # the image's own alpha too (a clear window in a frame image shows what is under it)
+            m = Image.composite(src.getchannel("A"), Image.new("L", src.size, 0), m)
             canvas.paste(src, (int(x0), int(y0)), m)
         elif n.get("halftone"):
             step = (n.get("tileSize") or [8, 8])[0] * n.get("scale", 1) * SS / 2  # the tile holds two dots across

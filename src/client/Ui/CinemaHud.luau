@@ -7,7 +7,10 @@
 --   and cropped to the panel); a panel whose image is not uploaded yet is drawn from frames (a sky, a ground,
 --   skyline blocks and simple figures; PLACEHOLDER ART fallback). One sample page: "The old heroes' last
 --   stand" (Dev panel only).
--- * A boss's name card: its name, its title and a stylised slam for 3 s when you arrive at the fight.
+-- * A boss's name card: its name, its title and a stylised slam for 3 s when you arrive at the fight. The card is
+--   a drawn comic plate (9-sliced) with the boss's rendered comic portrait popping out on its left (gap-news,
+--   Config.NewsArt via Shared.NewsArtKit: the game's own boss meshes, inked); an event's card (Your double, the
+--   side-vs-side events) shows the event's comic icon there. An id of 0: today's plain card (the fallback).
 -- * The slow-mo finisher's screen (FinisherFx): Comic's big impact word, Anime's speed lines and freeze tint,
 --   and a white frame that Reduce flashing removes. Everything is built once and reused (pooled), so a
 --   finisher or a page makes no new objects on phones.
@@ -22,6 +25,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local FrameProf = require(Shared:WaitForChild("FrameProf"))
 local CinemaPlan = require(Shared:WaitForChild("CinemaPlan"))
 local ComicArt = require(Shared:WaitForChild("ComicArt"))
+local NewsArtKit = require(Shared:WaitForChild("NewsArtKit"))
 
 local Kit = require(script.Parent.Kit)
 local GuideHud = require(script.Parent.GuideHud)
@@ -46,10 +50,16 @@ local built: { [string]: { Frame } } = {} -- each page's panels, built the first
 local pageOn: { id: string, def: any, shown: number }? = nil
 
 local card: Frame
+local CARD_SCALE = Vector2.new(0.5, 0.16) -- the name card's share of the screen
+local CARD_MAX = Vector2.new(520, 150) -- and its cap (pixels)
 local cardName: TextLabel
 local cardTitle: TextLabel
 local cardSlash: Frame
 local cardScale: UIScale
+local cardStroke: UIStroke?
+local cardPlate: ImageLabel? = nil
+local cardPic: ImageLabel
+local cardIcon: ImageLabel? = nil
 local cardUntil = 0
 
 local over: ScreenGui
@@ -997,16 +1007,53 @@ local function buildCard()
 		Name = "NameCard",
 		AnchorPoint = Vector2.new(0, 0.5),
 		Position = UDim2.fromScale(0.04, 0.32),
-		Size = UDim2.fromScale(0.5, 0.16),
+		Size = UDim2.fromScale(CARD_SCALE.X, CARD_SCALE.Y),
 		BackgroundColor3 = Kit.color.night,
 		round = false,
 		Visible = false,
 		ZIndex = 20,
 	})
 	local lim = Instance.new("UISizeConstraint")
-	lim.MaxSize = Vector2.new(520, 150)
+	lim.MaxSize = CARD_MAX
 	lim.Parent = card
 	Kit.stroke(card, Kit.color.gold, 3)
+	cardStroke = card:FindFirstChildOfClass("UIStroke")
+	-- the drawn comic plate (9-sliced, its margins scaled with the card's height so the ink keeps its weight)
+	local plate, size, slice = NewsArtKit.plate(Config)
+	if plate and size and slice then
+		local pl = Instance.new("ImageLabel")
+		pl.Name = "Plate"
+		pl.BackgroundTransparency = 1
+		pl.Image = plate
+		pl.ScaleType = Enum.ScaleType.Slice
+		pl.SliceCenter = Rect.new(slice[1], slice[2], size[1] - slice[3], size[2] - slice[4])
+		pl.Size = UDim2.fromScale(1, 1)
+		pl.ZIndex = 20
+		pl.Parent = card
+		local function fit()
+			pl.SliceScale = math.max(0.05, card.AbsoluteSize.Y / size[2])
+		end
+		card:GetPropertyChangedSignal("AbsoluteSize"):Connect(fit)
+		fit()
+		cardPlate = pl
+		card.BackgroundTransparency = 1
+		if cardStroke then
+			cardStroke.Enabled = false
+		end
+	end
+	-- the portrait (a boss's) or an event's icon, popping out of the card's left end
+	cardPic = Instance.new("ImageLabel")
+	cardPic.Name = "Portrait"
+	cardPic.BackgroundTransparency = 1
+	cardPic.ScaleType = Enum.ScaleType.Fit
+	cardPic.AnchorPoint = Vector2.new(0, 0.5)
+	cardPic.Position = UDim2.fromScale(0.01, 0.46)
+	cardPic.Size = UDim2.fromScale(1.3, 1.3)
+	cardPic.SizeConstraint = Enum.SizeConstraint.RelativeYY
+	cardPic.Rotation = -4
+	cardPic.Visible = false
+	cardPic.ZIndex = 24
+	cardPic.Parent = card
 	cardScale = Instance.new("UIScale")
 	cardScale.Parent = card
 	cardSlash = Kit.frame({
@@ -1051,22 +1098,73 @@ function CinemaHud.nameCard(bossId: string, ownName: string?, ownTitle: string?)
 		name, title = ownName, ownTitle or ""
 	end
 	local art = Config.BossArt[bossId]
-	CinemaHud.card(name, title, if ownName then nil else art and art.theme)
+	CinemaHud.card(
+		name,
+		title,
+		if ownName then nil else art and art.theme,
+		if ownName then nil else { kind = "boss", id = bossId }
+	)
+end
+
+-- The picture on the card's left: a boss's portrait, an event's icon, or none (false)
+local function cardPicture(pic: { kind: string, id: string }?): boolean
+	if cardIcon then
+		cardIcon:Destroy()
+		cardIcon = nil
+	end
+	cardPic.Image = ""
+	if not pic then
+		return false
+	end
+	if pic.kind == "boss" then
+		local cell = NewsArtKit.portrait(Config, pic.id)
+		if cell then
+			cardPic.Image = cell.image
+			cardPic.ImageRectOffset = Vector2.new(cell.offset[1], cell.offset[2])
+			cardPic.ImageRectSize = Vector2.new(cell.size[1], cell.size[2])
+			return true
+		end
+	elseif pic.kind == "event" then
+		cardIcon = Kit.icon("event", pic.id, { Name = "EventIcon", ZIndex = 24 })
+		if cardIcon then
+			cardIcon.Parent = cardPic
+			return true
+		end
+	end
+	return false
 end
 
 -- Any card in the boss card's style (lore step 9: the Crater's and Your double's, Config.Cinema.nameCard places
--- and events): two fixed lines and the slash colour ({ r, g, b }, red when nil)
-function CinemaHud.card(name: string, title: string, theme: { number }?)
+-- and events): two fixed lines and the slash colour ({ r, g, b }, red when nil); pic names its picture
+-- ({ kind = "boss" or "event", id }), drawn when its art is uploaded
+function CinemaHud.card(name: string, title: string, theme: { number }?, pic: { kind: string, id: string }?)
 	cardName.Text = name
 	cardTitle.Text = title
 	cardSlash.BackgroundColor3 = if theme
 		then Color3.fromRGB(theme[1], theme[2], theme[3])
 		else Color3.fromRGB(235, 70, 70)
+	-- the words move right of a picture (its share of the card's width from the card's own shape)
+	local shown = cardPicture(pic)
+	cardPic.Visible = shown
+	-- (the card's size from its own rule: a share of the screen up to its cap; AbsoluteSize is 0 while hidden)
+	local gs = gui.AbsoluteSize
+	local sz =
+		Vector2.new(math.min(gs.X * CARD_SCALE.X, CARD_MAX.X), math.min(gs.Y * CARD_SCALE.Y, CARD_MAX.Y))
+	local left = if shown then math.clamp(1.3 * sz.Y / math.max(sz.X, 1) + 0.05, 0.2, 0.45) else 0.04
+	local inset = if cardPlate then 0.035 else 0
+	cardName.Position = UDim2.fromScale(math.max(left, 0.04 + inset), 0.06 + inset)
+	cardName.Size = UDim2.fromScale(0.96 - math.max(left, 0.04 + inset) - inset, 0.52 - inset)
+	cardTitle.Position = UDim2.fromScale(math.max(left, 0.04 + inset), 0.68)
+	cardTitle.Size = UDim2.fromScale(0.96 - math.max(left, 0.04 + inset) - inset, 0.28 - inset)
+	local sx = if shown then left - 0.02 else inset
 	card.Visible = true
 	cardScale.Scale = 1.5
 	TweenService:Create(cardScale, TweenInfo.new(0.22, Enum.EasingStyle.Back), { Scale = 1 }):Play()
+	cardSlash.Position = UDim2.fromScale(sx, 0.6)
 	cardSlash.Size = UDim2.fromScale(0, 0.06)
-	TweenService:Create(cardSlash, TweenInfo.new(0.35), { Size = UDim2.fromScale(1, 0.06) }):Play()
+	TweenService
+		:Create(cardSlash, TweenInfo.new(0.35), { Size = UDim2.fromScale(1 - sx - inset * 1.4, 0.06) })
+		:Play()
 	cardUntil = os.clock() + C.nameCard.seconds
 end
 
