@@ -138,12 +138,24 @@ def _hero(x, y, z, yaw=0):
         o.data.materials.append(_mat_flat(rgb, "SmoothPlastic", 0))
 
 
-def _place(lk, mats, at=(0, 0, 0), ry=0.0, tint=None):
-    """A copy of a look's meshes with its foot at `at`, turned ry degrees (Roblox) about up."""
+def _place(lk, mats, at=(0, 0, 0), ry=0.0, tint=None, steer=0.0):
+    """A copy of a look's meshes with its foot at `at`, turned ry degrees (Roblox) about up; steer turns the front
+    wheels (their own meshes, 2026-11-19) that many degrees about their own centre, a check they are separate."""
     for mname, ob in lk.meshes.items():
         cp = ob.copy()
         bpy.context.scene.collection.objects.link(cp)
         cp.data = ob.data.copy()
+        sp = lk.spin.get(mname)
+        if steer and sp and sp["steer"]:
+            vs = [v.co.copy() for v in cp.data.vertices]
+            lo = [min(v[i] for v in vs) for i in range(3)]
+            hi = [max(v[i] for v in vs) for i in range(3)]
+            c = [(lo[i] + hi[i]) / 2 for i in range(3)]
+            a = math.radians(steer)
+            for v in cp.data.vertices:
+                dx, dy = v.co.x - c[0], v.co.y - c[1]
+                v.co.x = c[0] + dx * math.cos(a) - dy * math.sin(a)
+                v.co.y = c[1] + dx * math.sin(a) + dy * math.cos(a)
         cp.data.materials.clear()
         if ob in lk.textured():
             cp.data.materials.append(mats[lk.name])
@@ -193,7 +205,7 @@ def run(LOOKS, MAPS, fast=False, only=None):
         L = hi[2] - lo[2]
         Hh = hi[1]
         _ground(400)
-        _place(lk, mats, tint=PAINTS[1] if lk.tint else None)
+        _place(lk, mats, tint=PAINTS[1] if lk.tint else None, steer=22)
         _hero(hi[0] + 2.4, 0, lo[2] + L * 0.62, yaw=-20)
         d = max(L, Hh * 2.0) * 1.55
         _camera((-d * 0.7, Hh * 0.55 + d * 0.2, -d * 0.62), (0, Hh * 0.42, 0), lens=45)

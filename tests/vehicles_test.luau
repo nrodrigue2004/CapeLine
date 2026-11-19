@@ -78,7 +78,8 @@ return function(T: any)
 			check(tris <= cap, look .. " is in its phone budget (" .. tris .. " of " .. cap .. " tris)")
 			total += tris
 		end
-		check(looks == 12 and meshes == 64, "12 looks in 64 meshes (" .. looks .. ", " .. meshes .. ")")
+		-- 2026-11-19 (gap-vehicles): 46 road wheels split out of the Detail meshes, the same triangles
+		check(looks == 12 and meshes == 110, "12 looks in 110 meshes (" .. looks .. ", " .. meshes .. ")")
 		check(total <= 95000, "the whole set is in budget (" .. total .. " tris)")
 		-- the hub's worst case: every one of the 40 vehicles in its look at once
 		local hub = 0
@@ -264,7 +265,14 @@ return function(T: any)
 					check(n == 4, name .. " has its colour, normal, roughness and metal maps (" .. n .. ")")
 				end
 			end
-			check(textured == 2, look .. " has a textured body and detail (" .. textured .. ")")
+			local wheels = 0
+			for _, f in fit do
+				wheels += if f.wheel then 1 else 0
+			end
+			check(
+				textured == 2 + wheels,
+				look .. " has a textured body, detail and wheels (" .. textured .. ")"
+			)
 			for name, f in fit do
 				if string.sub(name, -4) == "Body" or string.sub(name, -6) == "Detail" then
 					check(f.maps == true, name .. " is textured")
@@ -288,4 +296,95 @@ return function(T: any)
 			"the towed car wears the sedan look too"
 		)
 	end)
+
+	-- gap-vehicles (2026-11-19): nate's "trash" list: the wheels did not turn, the escorts glided like the box and
+	-- the Dev panel's sample escort kept the motorcade box
+	test("Vehicle art: every road wheel is its own textured mesh on its axle", function()
+		for look, fit in FIT do
+			local n, steer, front = 0, 0, 0
+			local axles: { [number]: number } = {}
+			for name, f in fit do
+				local w = f.wheel
+				if w then
+					n += 1
+					check(f.maps == true, name .. " keeps the look's texture set")
+					check(w.r > 0.5 and w.r < 2, name .. " has a wheel's radius (" .. w.r .. ")")
+					-- the mesh is centred on its axle and as tall and long as the wheel
+					check(math.abs(f.offset[2] - w.r) < 0.05, name .. " stands on the ground at its radius")
+					check(math.abs(f.size[2] - 2 * w.r) < 0.1, name .. " is a wheel tall")
+					check(math.abs(f.size[3] - 2 * w.r) < 0.1, name .. " is a wheel long")
+					check(f.size[1] < 1.6, name .. " is one tyre wide")
+					check(string.find(name, "Wheel", 1, true) ~= nil, name .. " is named a wheel")
+					local side = string.sub(name, -1)
+					check((side == "L") == (f.offset[1] < 0), name .. ": L is -x, R is +x")
+					axles[w.axle] = (axles[w.axle] or 0) + 1
+					if w.steer then
+						steer += 1
+						check(w.axle == 0, name .. ": only the front axle steers")
+					end
+					if w.axle == 0 then
+						front += 1
+					end
+				end
+			end
+			if look == "Tram" then
+				check(n == 0, "the tram's bogies stay in its detail (it never drives)")
+			else
+				check(n >= 4 and n % 2 == 0, look .. " has its road wheels in pairs (" .. n .. ")")
+				check(steer == 2 and front == 2, look .. " steers its two front wheels")
+				for axle, count in axles do
+					check(count == 2, look .. " axle " .. axle .. " has a wheel each side")
+				end
+			end
+		end
+		-- the wheels ride every pose the meshes do, and the devices read them
+		local kit = "src/server/Services/SetPieceMeshes.luau"
+		check(has(kit, 'p:SetAttribute("WheelR", w.r)'), "a wheel mesh carries its radius")
+		check(
+			has(kit, 'CollectionService:AddTag(model, "DriveRig")'),
+			"a driven vehicle is tagged for the devices"
+		)
+		local m = SetPieceKit.meshes(Config, { look = "CarSedan", x = 0, y = 0, z = 0 })
+		local w = 0
+		for _, mesh in m do
+			w += if mesh.wheel then 1 else 0
+		end
+		check(w == 4, "SetPieceKit hands the wheel rows on")
+		check(has("art/blender/vkit.py", "def split_wheels(lk):"), "the Blender script splits the wheels")
+	end)
+
+	test(
+		"Vehicle art: escorts drive, the sample escort is a real vehicle, flipped wheels stay still",
+		function()
+			check(SetPieceKit.truck("KindTest") ~= nil, "the Dev panel's sample escort has a vehicle look")
+			check(
+				has("src/server/Services/SideQuestService.luau", 'id = "KindTest"'),
+				"KindTest is the Dev panel's kind test chain"
+			)
+			local bad = VehicleKit.checkEscort(Config, SetPieceKit.truck("KindTest") :: string)
+			check(#bad == 0, "and it fits the motorcade box: " .. table.concat(bad, "; "))
+			for _, f in { "SideQuestService", "ContractService", "IncidentService" } do
+				local path = "src/server/Services/" .. f .. ".luau"
+				check(has(path, "DriveMath.step("), f .. " drives its vehicle with DriveMath")
+				check(has(path, "DriveMath.pose("), f .. " turns it through rounded corners")
+				check(has(path, "SetPieceMeshes.rig("), f .. " rigs its vehicle's meshes for the devices")
+			end
+			local vs = "src/server/Services/VehicleService.luau"
+			check(has(vs, 'models[v.id]:SetAttribute("Wrecked", true)'), "a flipped hub vehicle is wrecked")
+			check(has(vs, 'models[id]:SetAttribute("Wrecked", nil)'), "and whole again back home")
+			local rig = "src/client/Fx/VehicleRig.luau"
+			check(has(rig, 'FrameProf.wrap("VehicleRig"'), "the device rig is under FrameProf")
+			check(has(rig, "QualityController.preset.vehicleRig"), "and only near the camera, by preset")
+			check(has(rig, 'GetAttribute("Wrecked") == true'), "a wrecked vehicle's wheels stay still")
+			check(has(rig, "Workspace:BulkMoveTo("), "all its moves go in one call")
+			for _, name in Config.Presets.order do
+				local r = Config.Presets[name].vehicleRig
+				check(type(r) == "number" and r > 50, name .. " draws vehicles alive near the camera")
+			end
+			check(
+				Config.Presets.low.vehicleRig < Config.Presets.high.vehicleRig,
+				"a phone draws fewer alive than a PC"
+			)
+		end
+	)
 end

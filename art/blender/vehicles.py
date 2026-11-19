@@ -16,7 +16,8 @@
 # * the hub (Shared.Vehicles; over VehicleService's boxes): Downtown's CarSedan, CarHatch and CarTaxi, Old Town's
 #   CarBubble, the Tram and the Docks' DockTruck. A tinted look's paint is the vehicle's own colour (VehicleKit tints
 #   the <Prefix>Body mesh: its paint texels are see-through, so the part colour shows with the baked shading).
-# Meshes a look: <Prefix>Body, <Prefix>Detail (textured), <Prefix>Glass, <Prefix>Lamps, <Prefix>Tails (+ Neon extras).
+# Meshes a look: <Prefix>Body, <Prefix>Detail (textured), <Prefix>Glass, <Prefix>Lamps, <Prefix>Tails (+ Neon extras),
+# and each road wheel on its own, <Prefix>Wheel<F|R1|R2><L|R> (textured on Detail's set; the game spins and steers them).
 # Output: art/export/Vehicles.fbx (textures embedded), art/export/vehicles/<Look>_{Color,Normal,Roughness,Metalness}.png,
 # src/config/VehicleArt.luau; with --preview, art/preview/vehicle_<Look>.png (+ _back), art/preview/vehicles_street.png
 # (a Downtown street from art/export/vehicles/layout.json, which `lune run art/vehicles/layout.luau` writes) and the
@@ -189,6 +190,7 @@ def car_common(lk, wheel_z, r=1.05, wx=2.6, ww=0.95, seat_rgb=(70, 64, 60), rim_
             det += wheel(s_ * wx, r, z, r, ww, s_, TYRE, rim_m, HUB, segs=wheel_segs, white=white,
                          spokes=0 if rim_m is CHROME else 5)
             lk.wheels.append((s_ * wx, r, z, r))
+            lk.road.append((s_ * wx, r, z, r, ww))
     sm = seat_mat(seat_rgb)
     for (x, y, z, w, bench) in seats or []:
         det += seat(x, y, z, w=w, m=sm, bench=bench)
@@ -446,6 +448,7 @@ def axle_wheels(lk, zs, r, w, x, rim=None, white=None, segs=16, spokes=5):
         for s_ in (1, -1):
             out += wheel(s_ * x, r, z, r, w, s_, TYRE, rim or RIM, HUB, segs=segs, spokes=spokes, white=white)
             lk.wheels.append((s_ * x, r, z, r))
+            lk.road.append((s_ * x, r, z, r, w))
     return out
 
 
@@ -1038,6 +1041,7 @@ MAPS = {}
 for name, lk in LOOKS.items():
     print("baking", name, flush=True)
     MAPS[name] = vkit.bake_look(lk, ao_samples=8 if FAST else 32)
+    vkit.split_wheels(lk)  # after the bake: each road wheel its own mesh on Detail's UVs (the game spins them)
 
 TRIS = {}
 total = 0
@@ -1060,6 +1064,9 @@ for look in sorted(LOOKS):
             rgb, mat, alpha = lk.extra[mname]
         extra = (", alpha = %g" % alpha) if alpha else ""
         extra += ", maps = true" if textured else ""
+        if mname in lk.spin:  # a road wheel: its radius, axle (0 the front) and whether it steers
+            sp = lk.spin[mname]
+            extra += ", wheel = { r = %.3f, axle = %d, steer = %s }" % (sp["r"], sp["axle"], "true" if sp["steer"] else "false")
         rows.append("\t\t%s = { size = { %.3f, %.3f, %.3f }, offset = { %.3f, %.3f, %.3f }, color = { %d, %d, %d }, mat = \"%s\"%s, tris = %d },"
                     % (mname, max(size[0], 0.05), max(size[2], 0.05), max(size[1], 0.05), c[0], c[2], -c[1], rgb[0], rgb[1],
                        rgb[2], mat, extra, t))

@@ -38,10 +38,14 @@ export type Mesh = {
 	mat: string,
 	alpha: number,
 	maps: boolean, -- the mesh carries a baked texture set (a SurfaceAppearance; its colour map lets `color` show)
+	-- a road wheel on its own (Config.VehicleArt, 2026-11-19): its radius, axle (0 the front) and whether it steers;
+	-- the devices spin and steer it (Fx.VehicleRig)
+	wheel: { r: number, axle: number, steer: boolean }?,
 }
 
 -- The side quest escort trucks that have their own look (Config.SideQuests chain id -> look); the others (the
--- Dev panel's sample chain) keep the motorcade box. Every look stands over the motorcade's two boxes, nose to -z.
+-- Dev panel's escort (DEV_TRUCKS) drives Tinker Tess's parts truck look.
+-- Every look stands over the motorcade's two boxes, nose to -z.
 SetPieceKit.TRUCKS = {
 	HarvestKing = "FarmTruck", -- The Harvest King's farm folk's truck down the farm road (chain 4)
 	HeroAcademy = "FieldTripBus", -- the Halo Academy field trip bus (VehicleArt)
@@ -51,6 +55,10 @@ SetPieceKit.TRUCKS = {
 	LastOwner = "ShowVan", -- Ambrose the Astonishing's old show van out of Old Town
 	SuitRecall = "PartsTruck", -- Tinker Tess's parts truck
 } :: { [string]: string }
+
+-- gap-vehicles (2026-11-19): the Dev panel's "try a kind alone" escort (its test chain is KindTest) drives a real
+-- vehicle too, not the motorcade box
+SetPieceKit.DEV_TRUCKS = { KindTest = "PartsTruck" } :: { [string]: string }
 
 -- A look's fit table (mesh name -> size, offset, colour, material), or nil for an unknown look
 function SetPieceKit.fit(Config: any, look: string): { [string]: any }?
@@ -135,6 +143,7 @@ function SetPieceKit.meshes(Config: any, place: Place): { Mesh }
 			mat = f.mat or "SmoothPlastic",
 			alpha = f.alpha or 0,
 			maps = f.maps == true,
+			wheel = f.wheel,
 		})
 	end
 	table.sort(out, function(a, b)
@@ -252,9 +261,12 @@ function SetPieceKit.check(Config: any, places: { Place }?, boxes: { any }, slac
 	return bad
 end
 
--- The truck look for a chain's escort, or nil (the motorcade box)
+-- The truck look for a chain's escort (the Dev panel's too), or nil (the motorcade box)
 function SetPieceKit.truck(chainId: any): string?
-	return if type(chainId) == "string" then SetPieceKit.TRUCKS[chainId] else nil
+	if type(chainId) ~= "string" then
+		return nil
+	end
+	return SetPieceKit.TRUCKS[chainId] or SetPieceKit.DEV_TRUCKS[chainId]
 end
 
 return SetPieceKit

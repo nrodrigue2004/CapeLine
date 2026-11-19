@@ -9,6 +9,7 @@
 -- they stand in for stay (hidden) and do all of that exactly as before. Nothing imported: nothing is drawn and
 -- every box shows as today (PLACEHOLDER ART until the import).
 
+local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
@@ -104,11 +105,34 @@ function SetPieceMeshes.add(parent: Instance, place: SetPieceKit.Place, cf: CFra
 			p.Material = if ok and mat then mat else Enum.Material.SmoothPlastic
 			p.Transparency = m.alpha
 			p.CastShadow = m.mat ~= "Neon" and m.alpha == 0
+			local w = m.wheel
+			if w then
+				-- a road wheel: the devices spin it by its radius and steer the front pair (Fx.VehicleRig)
+				p:SetAttribute("WheelR", w.r)
+				p:SetAttribute("Steer", w.steer)
+				p:SetAttribute("Axle", w.axle)
+			end
 			p.Parent = parent
 			table.insert(out, p)
 		end
 	end
 	return out
+end
+
+-- gap-vehicles (2026-11-19): a vehicle that drives (an escort, the towed car). Each of its meshes keeps where it
+-- sits on the model's root (the Offset attribute, as VehicleService's hub vehicles do) and the model is tagged
+-- DriveRig, so every device near it rolls its wheels, steers the front pair and sways the body as the server
+-- moves it (Fx.VehicleRig). Call it with the model at its origin pose, right after add().
+function SetPieceMeshes.rig(model: Model, meshes: { MeshPart })
+	local root = model.PrimaryPart
+	local base = if root then root.CFrame else model:GetPivot()
+	if root then
+		root:SetAttribute("Offset", CFrame.new())
+	end
+	for _, p in meshes do
+		p:SetAttribute("Offset", base:ToObjectSpace(p.CFrame))
+	end
+	CollectionService:AddTag(model, "DriveRig")
 end
 
 -- The turn of a placement about up

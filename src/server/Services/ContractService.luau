@@ -37,6 +37,8 @@ local Progress = require(Shared:WaitForChild("Progress"))
 local ProfileSchema = require(Shared:WaitForChild("ProfileSchema"))
 local HeroicRules = require(Shared:WaitForChild("HeroicRules"))
 local EventPlan = require(Shared:WaitForChild("EventPlan"))
+local DriveMath = require(Shared:WaitForChild("DriveMath")) -- gap-vehicles: the escort truck drives
+local DRIVE = Config.Destruction.vehicles.drive
 
 local CityBuilder = require(script.Parent.CityBuilder)
 local HeroService = require(script.Parent.HeroService)
@@ -47,6 +49,7 @@ local DataService = require(script.Parent.DataService)
 local SafehouseService = require(script.Parent.SafehouseService)
 local IncidentService = require(script.Parent.IncidentService)
 local SiteKit = require(script.Parent.SiteKit)
+local SetPieceMeshes = require(script.Parent.SetPieceMeshes)
 local Analytics = require(script.Parent.Analytics)
 
 local ContractService = {}
@@ -71,6 +74,7 @@ type Run = {
 	shards: { any },
 	truck: Model?,
 	truckPos: Vector3?,
+	truckV: number?, -- gap-vehicles: the truck's speed (DriveMath)
 	path: { Vector3 }?,
 	length: number,
 	travelled: number,
@@ -484,18 +488,42 @@ local function build(player: Player, r: Run)
 		r.length = math.max(length, 1)
 		r.travelled = r.saved.got / def.goal * r.length
 		r.truck = SiteKit.prop("Truck", function(m)
-			SiteKit.part(m, Vector3.new(8, 6, 14), CFrame.new(0, 4, 3), Color3.fromRGB(230, 230, 235))
-			SiteKit.part(m, Vector3.new(8, 5, 5), CFrame.new(0, 3.5, -7), Color3.fromRGB(60, 120, 200))
-			SiteKit.part(
-				m,
-				Vector3.new(7.8, 2, 0.4),
-				CFrame.new(0, 4.5, -9.6),
-				Color3.fromRGB(150, 200, 230),
-				Enum.Material.Glass
-			)
+			local boxes = {
+				SiteKit.part(m, Vector3.new(8, 6, 14), CFrame.new(0, 4, 3), Color3.fromRGB(230, 230, 235)),
+				SiteKit.part(m, Vector3.new(8, 5, 5), CFrame.new(0, 3.5, -7), Color3.fromRGB(60, 120, 200)),
+				SiteKit.part(
+					m,
+					Vector3.new(7.8, 2, 0.4),
+					CFrame.new(0, 4.5, -9.6),
+					Color3.fromRGB(150, 200, 230),
+					Enum.Material.Glass
+				),
+			}
+			-- gap-vehicles (2026-11-19): the Docks truck's look in white over the boxes (8 x 20, the cab at -z),
+			-- rigged so its wheels roll and it sways on every device near it (Fx.VehicleRig); the boxes before
+			if SetPieceMeshes.ready("DockTruck") then
+				for _, b in boxes do
+					SetPieceMeshes.hide(b)
+				end
+				SetPieceMeshes.rig(
+					m,
+					SetPieceMeshes.add(m, {
+						look = "DockTruck",
+						x = 0,
+						y = 0,
+						z = 0,
+						tint = { DockTruckBody = { 244, 244, 240 } },
+					}, CFrame.new())
+				)
+			end
 		end)
 		r.truckPos = path[1]
-		SiteKit.place(r.truck, path[1])
+		r.truckV = 0
+		do
+			local x, y, z, yaw = DriveMath.pose(path, r.travelled, DRIVE.round)
+			r.truckPos = Vector3.new(x, y, z)
+			SiteKit.place(r.truck, r.truckPos, yaw)
+		end
 		table.insert(r.things, r.truck)
 	elseif t == "VaultJob" then
 		for _, p in spots(r, left, rng) do
@@ -804,21 +832,14 @@ local function stepRun(player: Player, r: Run, dt: number, pos: Vector3)
 	local now = os.clock()
 	if t == "Escort" and r.truck and r.path and r.truckPos then
 		local near = #SiteKit.heroesIn(r.truckPos, def.near) > 0
-		if near and r.travelled < r.length then
-			r.travelled = math.min(r.length, r.travelled + def.speed * dt)
-			-- where along the path the truck is
-			local left = r.travelled
-			local at, yaw = r.path[#r.path], 0
-			for i = 1, #r.path - 1 do
-				local a, b = r.path[i], r.path[i + 1]
-				local seg = (b - a).Magnitude
-				if left <= seg then
-					at = a:Lerp(b, left / math.max(seg, 1e-3))
-					yaw = math.atan2(-(b.X - a.X), -(b.Z - a.Z))
-					break
-				end
-				left -= seg
-			end
+		local v = r.truckV or 0
+		if r.travelled < r.length and (near or v > 0) then
+			-- gap-vehicles (2026-11-19): it drives (Shared.DriveMath): pulls away, slows into corners, turns through
+			-- them and brakes when nobody is near
+			r.travelled, r.truckV =
+				DriveMath.step(r.travelled, v, def.speed, near, r.path, r.length, dt, DRIVE)
+			local x, y, z, yaw = DriveMath.pose(r.path, r.travelled, DRIVE.round)
+			local at = Vector3.new(x, y, z)
 			r.truckPos = at
 			SiteKit.place(r.truck, at, yaw)
 			local share = r.travelled / r.length

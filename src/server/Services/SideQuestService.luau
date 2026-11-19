@@ -56,6 +56,8 @@ local LookKit = require(Shared:WaitForChild("LookKit"))
 local PeopleLooks = require(Shared:WaitForChild("PeopleLooks"))
 local SideQuestSets = require(Shared:WaitForChild("SideQuestSets"))
 local SetPieceKit = require(Shared:WaitForChild("SetPieceKit"))
+local DriveMath = require(Shared:WaitForChild("DriveMath")) -- gap-vehicles: the escort truck drives
+local DRIVE = Config.Destruction.vehicles.drive
 local IncidentPlan = require(Shared:WaitForChild("IncidentPlan"))
 local DeepLayout = require(Shared:WaitForChild("DeepLayout"))
 
@@ -95,7 +97,7 @@ type Goal = {
 	startedAt: number,
 	deadline: number?,
 	rings: { Vector3 }?,
-	truck: { model: Model, path: { { number } }, at: number, length: number }?,
+	truck: { model: Model, path: { { number } }, at: number, length: number, v: number }?,
 	-- (id nil: no runner yet, the server was full; it tries again each tick)
 	chase: { id: number?, path: { { number } }, up: number, leg: number, at: number, speed: number }?,
 	photos: { [number]: number }?,
@@ -622,12 +624,19 @@ local function build(g: Group, key: string, st: any): Goal
 			if dressed then
 				SetPieceMeshes.hide(body)
 				SetPieceMeshes.hide(cab)
-				SetPieceMeshes.add(m, { look = look :: string, x = 0, y = 0, z = 0 }, CFrame.new())
+				-- gap-vehicles: rigged, so every device near it rolls its wheels and sways it (Fx.VehicleRig)
+				SetPieceMeshes.rig(
+					m,
+					SetPieceMeshes.add(m, { look = look :: string, x = 0, y = 0, z = 0 }, CFrame.new())
+				)
 			end
 		end)
 		setNeed(g, goal, math.min(st.goal, math.floor(length))) -- never more than the truck can drive
-		goal.truck = { model = truck, path = path, at = 0, length = length }
-		SiteKit.place(truck, v3(path[1]))
+		goal.truck = { model = truck, path = path, at = 0, length = length, v = 0 }
+		do -- standing at the start, nose down the road (DriveMath.pose)
+			local x, y, z, yaw = DriveMath.pose(path, 0, DRIVE.round)
+			SiteKit.place(truck, Vector3.new(x, y, z), yaw)
+		end
 		table.insert(goal.things, truck)
 		goal.target = v3(path[1])
 	elseif k == "carry" then
@@ -1225,22 +1234,16 @@ local function tickGoal(g: Group, goal: Goal, dt: number)
 			have = math.min(goal.need, have + dt)
 		end
 	elseif k == "escort" and goal.truck then
+		-- gap-vehicles (2026-11-19): the truck drives (Shared.DriveMath): it pulls away while a member is near, slows
+		-- into corners, turns through them and brakes to a stop when nobody is near; the goal still counts the
+		-- studs it has driven along its path
 		local t = goal.truck
 		local tp = t.model:GetPivot().Position
-		if anyNear(tp, st.near) and t.at < t.length then
-			t.at = math.min(t.length, t.at + st.speed * dt)
-			local left = t.at
-			for i = 2, #t.path do
-				local a, b = v3(t.path[i - 1]), v3(t.path[i])
-				local len = (b - a).Magnitude
-				if left <= len then
-					local p = a:Lerp(b, left / math.max(len, 0.01))
-					local d = b - a
-					SiteKit.place(t.model, p, math.atan2(-d.X, -d.Z))
-					break
-				end
-				left -= len
-			end
+		local go = anyNear(tp, st.near)
+		if t.at < t.length and (go or t.v > 0) then
+			t.at, t.v = DriveMath.step(t.at, t.v, st.speed, go, t.path, t.length, dt, DRIVE)
+			local x, y, z, yaw = DriveMath.pose(t.path, t.at, DRIVE.round)
+			SiteKit.place(t.model, Vector3.new(x, y, z), yaw)
 			have = math.min(goal.need, t.at)
 			goal.target = t.model:GetPivot().Position
 		end

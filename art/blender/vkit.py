@@ -4,7 +4,10 @@
 # normal, roughness, metalness), the fit table and the FBX export.
 # Every look is a handful of meshes by role:
 #   <P>Body    the shell: textured; its paint regions are see-through (alpha 0) on a car the game paints
-#   <P>Detail  trim, chrome, rubber, wheels, grille, interior and props: textured, opaque
+#   <P>Detail  trim, chrome, rubber, grille, interior and props: textured, opaque
+#   <P>Wheel<axle><side>  each road wheel on its own (2026-11-19: the game spins and steers them): split out of
+#           Detail after the bake, so it keeps Detail's UVs and texture set. <axle> is F (the front, which steers)
+#           or R1, R2.. back from it; <side> L (-x, the driver's left facing -z) or R. Centred on its axle.
 #   <P>Glass   the windows: tinted and see-through (no texture), so the seats and dash show through
 #   <P>Lamps   headlights and other white or amber lights (Neon), <P>Tails the red lights (Neon)
 # Imported after kit (which imports bpy first).
@@ -411,6 +414,8 @@ class Look:
         self.seams = seams or []  # fn(P, N) -> mask 0..1 (panel lines)
         self.body_rgb, self.detail_rgb = body_rgb, detail_rgb
         self.wheels = list(wheels)  # (x, y, z, r): tread and whitewall patterns
+        self.road = []  # (x, y, z, r, w): the road wheels split into their own meshes (split_wheels)
+        self.spin = {}  # wheel mesh name -> dict(r, axle, steer): the fit table's `wheel` row
         self.rings = list(rings)  # (x, y, z, r_in, r_out, axis): striped rings (life rings)
         self.glass, self.lamp, self.tail = glass, lamp, tail
         self.meshes = {}
@@ -431,7 +436,50 @@ class Look:
         return ob
 
     def textured(self):
-        return [self.meshes[self.prefix + r] for r in ("Body", "Detail") if self.prefix + r in self.meshes]
+        out = [self.meshes[self.prefix + r] for r in ("Body", "Detail") if self.prefix + r in self.meshes]
+        return out + [self.meshes[n] for n in sorted(self.spin)]
+
+
+def split_wheels(lk):
+    """Split each road wheel (lk.road) out of the baked Detail mesh into <P>Wheel<axle><side>: every face whose
+    corners all lie inside the wheel's cylinder (radius r, width w about its x). Run after bake_look, so the wheel
+    keeps Detail's UVs and shares its texture set. The front axle steers (when there is more than one axle)."""
+    det = lk.meshes.get(lk.prefix + "Detail")
+    if det is None or not lk.road:
+        return
+    zs = sorted({round(w[2], 3) for w in lk.road})
+    for (x, y, z, r, w) in lk.road:
+        k = zs.index(round(z, 3))
+        name = lk.prefix + "Wheel" + ("F" if k == 0 else "R%d" % k) + ("L" if x < 0 else "R")
+        bpy.ops.object.select_all(action="DESELECT")
+        det.select_set(True)
+        bpy.context.view_layer.objects.active = det
+        bpy.ops.object.mode_set(mode="EDIT")
+        bpy.ops.mesh.select_mode(type="FACE")
+        bpy.ops.mesh.select_all(action="DESELECT")
+        bpy.ops.object.mode_set(mode="OBJECT")
+        me = det.data
+        rr, hw = r * 1.01 + 0.01, w / 2 + 0.04
+        n = 0
+        for p in me.polygons:
+            inside = True
+            for vi in p.vertices:
+                co = me.vertices[vi].co  # Blender (x, -z, up) of Roblox (x, up, z)
+                if abs(co.x - x) > hw or (co.z - y) ** 2 + (-co.y - z) ** 2 > rr * rr:
+                    inside = False
+                    break
+            p.select = inside
+            n += inside
+        if n == 0:
+            raise SystemExit("%s: no faces for %s" % (lk.name, name))
+        bpy.ops.object.mode_set(mode="EDIT")
+        bpy.ops.mesh.separate(type="SELECTED")
+        bpy.ops.object.mode_set(mode="OBJECT")
+        new = [o for o in bpy.context.selected_objects if o is not det][0]
+        new.name = name
+        new.data.name = name
+        lk.meshes[name] = new
+        lk.spin[name] = dict(r=r, axle=k, steer=(k == 0 and len(zs) > 1))
 
 
 # ================================================================ bake and compose

@@ -79,6 +79,23 @@ return {
 		flipHeight = 12,
 		flipTravel = 14,
 		hitRadius = 10, -- a heavy single hit flips vehicles this close to the target
+		-- gap-vehicles (2026-11-19): the escorts drive instead of gliding (Shared.DriveMath on the server). They pull
+		-- away from a stop at `accel` studs/s^2, brake at `brake` when nobody escorts them (about a stud and a half
+		-- from the escorts' 9 studs/s), slow toward `corner` of their cruise for a right-angle corner within `look`
+		-- studs (and `after` studs past it), and turn through rounded corners `round` studs either side.
+		drive = { accel = 6, brake = 26, corner = 0.55, look = 26, after = 5, round = 7 },
+		-- every device: the wheels roll at the ground speed (each wheel mesh's own radius), the front pair steers up to
+		-- maxSteer and the body sways (radians per stud/s^2 of pull or turn, capped; a spring k, damping c). smooth eases
+		-- the server's steps into a glide on the device (per second); a jump past snap studs is taken at once. kick: the
+		-- bounce a hub car gives when it drops back home after a flip (Fx.VehicleRig). How near the camera a vehicle is
+		-- drawn alive is the device preset's vehicleRig.
+		rig = {
+			maxSteer = 0.55,
+			sway = { pitch = 0.012, roll = 0.0045, maxPitch = 0.05, maxRoll = 0.06, k = 70, c = 11 },
+			smooth = 12,
+			snap = 14,
+			kick = 3.2,
+		},
 	},
 	-- citizens (never hurt, never shown hurt; they run to shelter)
 	citizens = {

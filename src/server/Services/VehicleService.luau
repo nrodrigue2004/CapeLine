@@ -9,6 +9,9 @@
 -- look (VehicleKit.look: Downtown's hatch, sedan and taxi, Old Town's bubble car, the tram, the Docks truck) in
 -- its own paint, and its parts stay, hidden, for the collision, flips, throws and queries exactly as before (the
 -- meshes take the same Offset, so every pose moves them too). PLACEHOLDER ART until the import (Tasks.md).
+-- gap-vehicles (2026-11-19): each road wheel is its own mesh (Config.VehicleArt `wheel`), posed by the same Offset, so
+-- a flip, throw or reset keeps the wheels on their axles; a flipped or held vehicle is marked Wrecked (its wheels
+-- stay still) until it is back home, where it settles on its springs (Fx.VehicleRig).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
@@ -117,6 +120,7 @@ function VehicleService.hit(center: Vector3, radius: number): number
 				if flippedIn(v.district) < V.perDistrict then
 					local dir = if d.Magnitude > 0.1 then d.Unit else Vector3.new(1, 0, 0)
 					flipped[v.id] = now + V.resetAfter
+					models[v.id]:SetAttribute("Wrecked", true) -- gap-vehicles: its wheels stay still (Fx.VehicleRig)
 					VehicleService.pose(models[v.id], VehicleService.flipRoot(v, 1, dir.X, dir.Z))
 					Net.fireAll("VehicleFlip", v.id, dir.X, dir.Z)
 					n += 1
@@ -139,6 +143,7 @@ function VehicleService.take(id: number): Model?
 		return nil
 	end
 	flipped[id] = math.huge
+	models[id]:SetAttribute("Wrecked", true)
 	return models[id]
 end
 
@@ -200,6 +205,7 @@ function VehicleService.init()
 					flipped[id] = now + 2 -- someone stands where it parks: try again in a moment
 				elseif now >= at then
 					flipped[id] = nil
+					models[id]:SetAttribute("Wrecked", nil)
 					VehicleService.pose(models[id], homes[id])
 					Net.fireAll("VehicleReset", id)
 				end

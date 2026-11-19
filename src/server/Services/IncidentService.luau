@@ -34,6 +34,10 @@ local WorldClock = require(Shared:WaitForChild("WorldClock"))
 local EventPlan = require(Shared:WaitForChild("EventPlan"))
 local HeroicRules = require(Shared:WaitForChild("HeroicRules"))
 local Progress = require(Shared:WaitForChild("Progress"))
+local DriveMath = require(Shared:WaitForChild("DriveMath")) -- gap-vehicles: the towed car rolls on its wheels
+-- a tow keeps its pace through corners (the Grappler's haul is the step's timer), only rounding them
+local TOW = table.clone(Config.Destruction.vehicles.drive)
+TOW.corner = 1
 
 local CityBuilder = require(script.Parent.CityBuilder)
 local HeroService = require(script.Parent.HeroService)
@@ -86,7 +90,7 @@ export type Live = {
 	focus: Vector3?, -- where the next rescue waits (the towed car)
 	leaderId: number?,
 	convoy: { ids: { number }, path: { Vector3 }, length: number, travelled: number }?,
-	tug: { car: Model, rope: BasePart, path: { Vector3 }, length: number, moved: number }?,
+	tug: { car: Model, rope: BasePart, path: { Vector3 }, length: number, moved: number, v: number }?,
 	barrage: { huddles: { Vector3 }, nextAt: number, shell: { at: Vector3, lands: number, ring: Model }? }?,
 	-- a fight step whose squad the server cap stopped completely: try again every few seconds
 	retry: { rows: { any }, at: Vector3, ring: number, nextAt: number }?,
@@ -348,10 +352,14 @@ local function carModel(m: Model)
 	if SetPieceMeshes.ready("CarSedan") then
 		SetPieceMeshes.hide(body)
 		SetPieceMeshes.hide(glass)
-		SetPieceMeshes.add(
+		-- gap-vehicles: rigged, so its wheels roll as it is hauled (Fx.VehicleRig)
+		SetPieceMeshes.rig(
 			m,
-			{ look = "CarSedan", x = 0, y = 0, z = 0, ry = 0, tint = TOWED_TINT },
-			CFrame.new()
+			SetPieceMeshes.add(
+				m,
+				{ look = "CarSedan", x = 0, y = 0, z = 0, ry = 0, tint = TOWED_TINT },
+				CFrame.new()
+			)
 		)
 	end
 end
@@ -709,7 +717,8 @@ local function startStep(inc: Live)
 			inc.plan.failed = true
 			return
 		end
-		inc.tug = { car = car, rope = rope, path = path, length = math.min(length, row.dist), moved = 0 }
+		inc.tug =
+			{ car = car, rope = rope, path = path, length = math.min(length, row.dist), moved = 0, v = 0 }
 	elseif step.kind == "rescue" then
 		local spot = inc.spot
 		local points = spot.points or { { inc.pos.X, inc.pos.Y, inc.pos.Z } }
@@ -1050,8 +1059,11 @@ end
 local function stepTug(inc: Live, dt: number)
 	local t = inc.tug :: any
 	local step = IncidentPlan.current(inc.plan) :: any
-	t.moved += step.def.speed * dt
-	local pos, yaw = along(t.path, t.moved)
+	-- gap-vehicles (2026-11-19): the haul pulls the car away from a stop and round rounded corners (DriveMath); it
+	-- still ends where it always did, at the end of its tow (the step fails then)
+	t.moved, t.v = DriveMath.step(t.moved, t.v, step.def.speed, true, t.path, math.huge, dt, TOW)
+	local x, y, z, yaw = DriveMath.pose(t.path, t.moved, TOW.round)
+	local pos = Vector3.new(x, y, z)
 	SiteKit.place(t.car, pos, yaw)
 	-- the cable from the car to the nearest Grappler
 	local best: Vector3? = nil
