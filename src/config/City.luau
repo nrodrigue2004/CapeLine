@@ -253,6 +253,7 @@ return {
 			Brickwork = 8,
 			CraterFloor = 32,
 			CraterRim = 24,
+			Tilled = 8, -- the farm fields (Config.Life.tilled, 2026-11-19)
 		},
 		baseMaterial = {
 			Brick = "Brick",
@@ -288,6 +289,7 @@ return {
 			Brickwork = "Brick",
 			CraterFloor = "Ground",
 			CraterRim = "Rock",
+			Tilled = "Ground",
 		},
 		-- textures that dress one landmark in their own colours (the part shows white), set by a box's `ground`
 		-- over its kit (gap-fx3, 2026-11-19: the Crater's floor and rim, Config.World.crater.ground)
@@ -319,6 +321,47 @@ return {
 			perch = { minHeight = 200, from = 90, every = 110, top = 40, salt = 35 },
 			newsBox = { chance = 0.35, salt = 36 }, -- by a corner hydrant's other end
 			foodCart = { salt = 37 }, -- one in each open square and on Uptown's green and landmark plaza
+			-- shop fronts (Shared.CityPlay: one under every awning, and a bare one now and then): sign words by hash
+			shop = {
+				bareChance = 0.3, -- a wide enough street face with no awning still gets a shop front this often
+				salt = 41,
+				frame = { { 40, 46, 58 }, { 92, 42, 40 }, { 30, 72, 62 }, { 54, 44, 80 }, { 230, 226, 214 } },
+				signs = {
+					"DELI",
+					"BAKERY",
+					"BOOKS",
+					"COMICS",
+					"PIZZA",
+					"NOODLES",
+					"FLOWERS",
+					"TOYS",
+					"GAMES",
+					"TAILOR",
+					"SHOES",
+					"MUSIC",
+					"CAFE",
+					"GYM",
+					"HARDWARE",
+					"LAUNDRY",
+					"ARCADE",
+					"BIKES",
+					"DONUTS",
+					"TACOS",
+					"BARBER",
+					"BAGELS",
+					"KARATE",
+					"PET SHOP",
+					"DINER",
+					"FIX-IT",
+					"HOBBY",
+					"CAPES & CO",
+					"GADGETS",
+					"ICE CREAM",
+				},
+				ink = { 255, 248, 226 },
+			},
+			-- a vending machine toward a side's middle, in a tint by hash (Downtown and Uptown sidewalks)
+			vending = { chance = 0.4, salt = 42, tints = { "awRed", "awBlue", "awYellow", "awTeal" } },
 			-- an awning springs a hero who lands on it falling faster than minFall up at `up` studs/s (keep of a
 			-- harder fall's speed, at most `max`); the server takes it (MoveGuard grant) once the hero is within
 			-- `reach` studs of an awning's top, at most once a `cooldown`
@@ -508,6 +551,32 @@ return {
 					AwningCanvas = { { 214, 60, 56 }, "Fabric", true, 0, true },
 					AwningStripe = { { 250, 244, 228 }, "Fabric", true },
 					AwningFrame = { { 52, 56, 62 }, "Metal", false },
+				},
+			},
+			-- the living world (2026-11-19, Art.Life from art/blender/life.py; Config.Life.shop): a shop front under each
+			-- awning (and some bare ones), built by the server in the building's model like the awning, its sign
+			-- lettered by CityBuilder. Piece row: colour, material, collides, transparency, tinted, frame paint
+			ShopFront = {
+				tier = 1,
+				server = true,
+				foot = { 12.7, 1.2, 0.6 },
+				pieces = {
+					ShopFrame = { { 40, 46, 58 }, "SmoothPlastic", true, 0, nil, true },
+					ShopGlass = { { 170, 205, 225 }, "Glass", false, 0.45 },
+					ShopBack = { { 150, 118, 84 }, "SmoothPlastic", false },
+					ShopSign = { { 214, 60, 56 }, "SmoothPlastic", false, 0, true },
+				},
+			},
+			-- a vending machine on Downtown's and Uptown's sidewalks (it spills its cans when knocked loose: Fx.CityLife)
+			VendingMachine = {
+				tier = 2,
+				foot = { 3.8, 2.7, 0 },
+				pieces = {
+					VendBody = { { 210, 50, 50 }, "SmoothPlastic", true, 0, true },
+					VendTrim = { { 40, 42, 48 }, "Metal", true },
+					VendGlass = { { 200, 230, 245 }, "Glass", false, 0.5 },
+					VendCans = { { 230, 230, 235 }, "Metal", false },
+					VendLight = { { 255, 250, 220 }, "Neon", false },
 				},
 			},
 			WaterTower = {

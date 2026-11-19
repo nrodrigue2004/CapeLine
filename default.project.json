@@ -46,6 +46,7 @@
         "SetPieces": { "$path": "art/models/SetPieces.rbxm" },
         "Shoulders": { "$path": "art/models/Shoulders.rbxm" },
         "Street": { "$path": "art/models/Street.rbxm" },
+        "Life": { "$path": "art/models/Life.rbxm" },
         "Trooper": { "$path": "art/models/Trooper.rbxm" },
         "Vehicles": { "$path": "art/models/Vehicles.rbxm" },
         "Voidhound": { "$path": "art/models/Voidhound.rbxm" },
@@ -64,6 +65,9 @@
       },
       "KitBrick": {
         "$path": "src/materials/KitBrick.model.json"
+      },
+      "KitTilled": {
+        "$path": "src/materials/KitTilled.model.json"
       },
       "KitCobble": {
         "$path": "src/materials/KitCobble.model.json"

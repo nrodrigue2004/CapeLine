@@ -8415,7 +8415,10 @@ test("City kit block: textured fronts, street dressing, and the rest of Downtown
 		local def = K.props[pr.name]
 		check(def ~= nil, pr.name .. " is a kit prop")
 		for piece in def.pieces do
-			check(Config.StreetArt[pr.name][piece] ~= nil, piece .. " has a mesh size")
+			check(
+				(Config.StreetArt[pr.name] or Config.LifeArt[pr.name])[piece] ~= nil,
+				piece .. " has a mesh size"
+			)
 		end
 		check(math.abs(pr.y - (Config.City.ground.y + 0.9)) < 1e-6, "props stand on the sidewalk")
 	end
@@ -8603,7 +8606,8 @@ test(
 			)
 			for piece in def.pieces do
 				check(
-					Config.StreetArt[p.name] ~= nil and Config.StreetArt[p.name][piece] ~= nil,
+					(Config.StreetArt[p.name] or Config.LifeArt[p.name]) ~= nil
+						and (Config.StreetArt[p.name] or Config.LifeArt[p.name])[piece] ~= nil,
 					piece .. " has a mesh"
 				)
 			end
@@ -23153,6 +23157,17 @@ end
 -- fix-carry (2026-11-19, own file): picked-up things held in the hands, telekinesis floats; ONLY="Carry"
 (require :: any)("./carry_test")({ test = test, check = check, Config = Config, placePath = placePath })
 
+-- the living world (2026-11-19, own file): Art.Life looks, shop fronts, vending, the ambient life's plans;
+-- ONLY="Living world"
+do
+	(require :: any)("./living_world_test")({
+		test = test,
+		check = check,
+		Config = Config,
+		world = world,
+		placePath = placePath,
+	})
+end
 print(string.format("\n%d passed, %d failed", passed, failed))
 if failed > 0 then
 	process.exit(1)

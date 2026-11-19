@@ -279,7 +279,9 @@ return function(T: any)
 					check(def ~= nil and def.server == true, a.name .. " is a server-built kit prop")
 					for piece in def.pieces do
 						check(
-							Config.StreetArt[a.name] and Config.StreetArt[a.name][piece] ~= nil,
+							-- (the living world's shop fronts are Art.Life meshes: Config.LifeArt, 2026-11-19)
+							(Config.StreetArt[a.name] or Config.LifeArt[a.name])
+								and (Config.StreetArt[a.name] or Config.LifeArt[a.name])[piece] ~= nil,
 							a.name .. "." .. piece .. " has a mesh"
 						)
 					end
@@ -287,7 +289,7 @@ return function(T: any)
 					local body = b.grp and byGrp[b.grp]
 					if body then
 						local top = body.cy + body.sy / 2
-						if a.name == "Awning" or a.name == "Perch" then
+						if a.name == "Awning" or a.name == "Perch" or a.name == "ShopFront" then
 							-- on the body's face, reaching out, below the roof, not into another building
 							ok = ok and a.y < top and not hitsBody(b, body)
 							local fx = math.abs(a.x - body.cx) - body.sx / 2
@@ -320,7 +322,8 @@ return function(T: any)
 					most = math.max(most, perB[b.grp])
 				end
 			end
-			check(most <= 32, string.format("at most 32 art pieces on a building (%d)", most))
+			-- (48 since the living world's shop fronts, 4 meshes each under the awnings, 2026-11-19)
+			check(most <= 48, string.format("at most 48 art pieces on a building (%d)", most))
 			for _, name in
 				{ "Awning", "WaterTower", "RoofAntenna", "RoofAC", "RoofVent", "RoofBillboard", "Perch" }
 			do
@@ -472,8 +475,9 @@ return function(T: any)
 		for name, def in K.props do
 			for piece, look in def.pieces do
 				check(
-					Config.StreetArt[name] and Config.StreetArt[name][piece] ~= nil,
-					name .. "." .. piece .. " in StreetArt"
+					(Config.StreetArt[name] or Config.LifeArt[name])
+						and (Config.StreetArt[name] or Config.LifeArt[name])[piece] ~= nil,
+					name .. "." .. piece .. " in StreetArt (or LifeArt)"
 				)
 				check(look[5] == nil or look[5] == true, name .. "." .. piece .. " tint flag")
 			end

@@ -340,14 +340,18 @@ local function field(
 	crop: string
 )
 	local cx, cz, w, d = centre(x0, z0, x1, z1)
-	box(list, "field", cx, gy + 0.2, cz, w, 0.4, d, "soil")
+	-- the living world (2026-11-19): tilled soil, lettuce rows on the brown fields and corn on the green ones
+	box(list, "field", cx, gy + 0.2, cz, w, 0.4, d, "soil").kit = "Tilled"
+	local row = if crop == "cropGreen" then "CornRow" else "CropRow"
 	local alongX = rng:chance(0.5)
 	for k = 1, 3 do
 		local f = (k - 0.5) / 3
 		if alongX then
-			box(list, "crop", cx, gy + 1.2, z0 + d * f, w - 4, 2, d / 3 - 4, crop, { ghost = true })
+			box(list, "crop", cx, gy + 1.2, z0 + d * f, w - 4, 2, d / 3 - 4, crop, { ghost = true }).look =
+				row
 		else
-			box(list, "crop", x0 + w * f, gy + 1.2, cz, w / 3 - 4, 2, d - 4, crop, { ghost = true })
+			box(list, "crop", x0 + w * f, gy + 1.2, cz, w / 3 - 4, 2, d - 4, crop, { ghost = true }).look =
+				row
 		end
 	end
 end
@@ -380,8 +384,8 @@ LOTS.silo = function(list, rng, x0, z0, x1, z1, gy)
 	for k = -1, 1, 2 do
 		local h = rng:range(26, 36)
 		local x = cx + k * 7
-		box(list, "prop", x, gy + h / 2, cz, 11, h, 11, "steel", { shape = "cylinder" })
-		box(list, "prop", x, gy + h, cz, 11, 8, 11, "white", { shape = "ball" })
+		box(list, "prop", x, gy + h / 2, cz, 11, h, 11, "steel", { shape = "cylinder" }).look = "SiloBody"
+		box(list, "prop", x, gy + h, cz, 11, 8, 11, "white", { shape = "ball" }).look = "SiloDome"
 	end
 end
 
@@ -411,7 +415,8 @@ LOTS.pasture = function(list, rng, x0, z0, x1, z1, gy)
 			5,
 			"hay",
 			{ shape = "cylinder" }
-		)
+		).look =
+			"HayBale"
 	end
 end
 

@@ -17,7 +17,16 @@ local CityPlay = {}
 
 -- What the server builds in place of a box: an Art.Street prop at a foot point, turned ry degrees (it faces -z
 -- at 0), in a palette tint when its pieces take one
-export type Art = { name: string, x: number, y: number, z: number, ry: number, tint: string? }
+export type Art = {
+	name: string,
+	x: number,
+	y: number,
+	z: number,
+	ry: number,
+	tint: string?,
+	sign: string?, -- a shop front's sign word (the living world, 2026-11-19)
+	frame: { number }?, -- a shop front's frame paint
+}
 
 local function add(
 	boxes: { any },
@@ -93,13 +102,26 @@ function CityPlay.dress(boxes: { any }, kit: any, lot: Lot): number
 		local along = if fx ~= 0 then sz else sx
 		local wx = x + fx * sx / 2
 		local wz = z + fz * sz / 2
-		if
-			along >= A.minFace
-			and gap >= out + 1.6
-			and h <= A.maxHeight
-			and h > A.y + 4
-			and CityKit.roll(kit, wx, wz, A.salt) < A.chance
-		then
+		local fits = along >= A.minFace and gap >= out + 1.6 and h <= A.maxHeight and h > A.y + 4
+		local awned = fits and CityKit.roll(kit, wx, wz, A.salt) < A.chance
+		-- the living world (2026-11-19): a face with no awning still gets a bare shop front now and then
+		local S = P.shop
+		if fits and not awned and S and CityKit.roll(kit, wz, wx, S.salt) < S.bareChance then
+			local slide = (CityKit.roll(kit, wz, wx, A.salt + 100) - 0.5) * math.max(0, along - wide - 4)
+			local ax = wx + (if fx == 0 then slide else 0)
+			local az = wz + (if fz == 0 then slide else 0)
+			CityPlay.shopFront(
+				boxes,
+				kit,
+				ax,
+				az,
+				fx,
+				fz,
+				lot.base,
+				CityKit.pick(kit, P.tints, ax, az, A.salt + 200)
+			)
+		end
+		if awned then
 			-- a long face gets a row of two (a shop front each side), else one slid along it by hash
 			local two = along >= 2 * wide + 6
 			local slide = if two
@@ -128,6 +150,9 @@ function CityPlay.dress(boxes: { any }, kit: any, lot: Lot): number
 					{ name = "Awning", x = ax, y = y, z = az, ry = ry, tint = tint }
 				)
 				b.tag = "Awning"
+				if S then
+					CityPlay.shopFront(boxes, kit, ax, az, fx, fz, lot.base, tint) -- the shop under it
+				end
 			end
 		end
 	end
@@ -223,6 +248,39 @@ function CityPlay.dress(boxes: { any }, kit: any, lot: Lot): number
 		end
 	end
 	return #boxes - first
+end
+
+-- A shop front on a building face pointing along (fx, fz), its foot on the wall at (ax, az) at the sidewalk top
+-- (Config.City.kit.props.ShopFront, Art.Life): a thin collider against the wall carrying the Art.Life look, its
+-- sign's word and frame paint by hash (kit.play.shop; fixed words, no real brands). Returns the box.
+function CityPlay.shopFront(
+	boxes: { any },
+	kit: any,
+	ax: number,
+	az: number,
+	fx: number,
+	fz: number,
+	base: number,
+	tint: string
+): any
+	local S = kit.play.shop
+	local foot = kit.props.ShopFront.foot
+	local w, d = foot[1], foot[2]
+	local b = add(
+		boxes,
+		"shop", -- its own kind: off the map screen's boxes, out of the street breaking (it is in its building)
+		ax + fx * d / 2,
+		base + 5.3,
+		az + fz * d / 2,
+		if fx ~= 0 then d else w,
+		10.6,
+		if fx ~= 0 then w else d,
+		tint,
+		{ name = "ShopFront", x = ax, y = base, z = az, ry = facing(fx, fz), tint = tint }
+	)
+	b.art.sign = CityKit.pick(kit, S.signs, ax, az, S.salt)
+	b.art.frame = CityKit.pick(kit, S.frame, az, ax, S.salt + 1)
+	return b
 end
 
 -- The street faces of lot (lx, lz) in a block of n x n lots: the sides that look onto a street, with the gap

@@ -53,6 +53,9 @@ local DebrisBudget = require(script.Parent.DebrisBudget)
 local FxLib = require(script.Parent.FxLib)
 
 local BuildingFx = {}
+-- set by Fx.CityLife (the living world, 2026-11-19): every impact this device hears (center, radius, kind; kind 9
+-- is a building coming down)
+BuildingFx.onImpact = nil :: ((Vector3, number, number) -> ())?
 
 local D = Config.Destruction
 local GROUND_CRATERS = D.ground ~= nil and D.ground.on == true
@@ -547,6 +550,10 @@ local function apply(id: number, live: boolean, fresh: { [number]: number }?)
 	pancake(rec, list, nil)
 	gone[id] = nil
 	Juice.fire("collapse", Vector3.new(rec.x, rec.base, rec.z), { mine = nearMe(rec.x, rec.z, 80) })
+	local hook = BuildingFx.onImpact
+	if hook then
+		task.spawn(hook, Vector3.new(rec.x, rec.base, rec.z), math.max(rec.sx, rec.sz), 9)
+	end
 	if nearMe(rec.x, rec.z, 250) then
 		CameraController.shake(D.collapseTime * 0.5, 0.6)
 	end
@@ -866,6 +873,15 @@ local function breakLong(p: BasePart, center: Vector3, r: number): number
 		)
 		c.CanCollide = p.CanCollide
 		c.CanQuery = p.CanQuery
+		if p:GetAttribute("Picket") == true then
+			-- a picket fence's lengths wear its picture too (the living world, 2026-11-19)
+			c.Transparency = 1
+			for _, tex in p:GetChildren() do
+				if tex:IsA("Texture") then
+					tex:Clone().Parent = c
+				end
+			end
+		end
 		if sg.broken then
 			fling(c, center)
 			c:Destroy()
@@ -905,7 +921,7 @@ local function smashStreet(center: Vector3, radius: number, only: BasePart?): nu
 		if
 			p.Name == "prop"
 			and not streetDown[p]
-			and p.Transparency < 1
+			and (p.Transparency < 1 or p:GetAttribute("Picket") == true) -- a picket fence's box is hidden behind its picture
 			and p.LocalTransparencyModifier < 1
 			and p:GetAttribute("Tag") == nil
 			and not (parent and parent:GetAttribute("BuildingId") ~= nil)
@@ -932,6 +948,10 @@ end
 local function impact(center: Vector3, radius: number, kind: number)
 	if typeof(center) ~= "Vector3" or type(radius) ~= "number" then
 		return
+	end
+	local hook = BuildingFx.onImpact
+	if hook then
+		task.spawn(hook, center, radius, kind) -- the living world: pigeons, cars, manholes, news drones (Fx.CityLife)
 	end
 	if kind == 3 then
 		smashStreet(center, radius) -- a hero went through a street thing (ImpactProp)

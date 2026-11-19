@@ -26,6 +26,10 @@ local CraterArtKit = require(Shared:WaitForChild("CraterArtKit"))
 local DeepArtKit = require(Shared:WaitForChild("DeepArtKit"))
 local HqRules = require(Shared:WaitForChild("HqRules"))
 local SideQuestSites = require(Shared:WaitForChild("SideQuestSites"))
+local LifeKit = require(Shared:WaitForChild("LifeKit"))
+local LifePlan = require(Shared:WaitForChild("LifePlan"))
+local Vehicles = require(Shared:WaitForChild("Vehicles"))
+local SignKit = require(Shared:WaitForChild("SignKit"))
 local Signal = require(Shared:WaitForChild("Util"):WaitForChild("Signal"))
 
 local CityBuilder = {}
@@ -160,6 +164,23 @@ local function makePart(b: any): BasePart -- also CityBuilder.part (mission pock
 	elseif b.kit and b.tint and b.dress then
 		p.Color = color(b.tint) -- a dressing piece waiting on its texture still shows its pocket colour
 	end
+	-- the living world (2026-11-19): a picket fence's box is hidden behind the uploaded picket picture on both long
+	-- faces, so the gaps show through; it keeps its collisions and breaks like any street thing (attribute Picket)
+	local faces = if b.look == "Picket" then LifeKit.picket(Config, b) else nil
+	if faces then
+		p.Transparency = 1
+		p.CastShadow = false
+		p:SetAttribute("Picket", true)
+		for _, face in faces do
+			local tex = Instance.new("Texture")
+			tex.Name = "Picket"
+			tex.Texture = "rbxassetid://" .. tostring(Config.Life.picket.image)
+			tex.Face = (Enum.NormalId :: any)[face]
+			tex.StudsPerTileU = Config.Life.picket.studs
+			tex.StudsPerTileV = b.sy
+			tex.Parent = p
+		end
+	end
 	if b.kind == "mark" then
 		p.CanCollide = false
 		p.CanQuery = false
@@ -203,21 +224,29 @@ local BIG = { ground = true, sand = true, sea = true, road = true }
 -- they hide and break with it; attributes tell BuildingFx what falls off or bursts and MoveController what bounces.
 local STREET_FIT = Config.StreetArt
 local streetFound: { [string]: MeshPart | false } = {}
+local lifeTurned: { [string]: boolean } = {} -- pieces from Art.Life: the import turned them (MeshFix, LifeKit.TURN)
 local function streetMesh(piece: string): MeshPart?
 	local hit = streetFound[piece]
 	if hit == nil then
 		local art = ReplicatedStorage:FindFirstChild("Art")
 		local root = art and art:FindFirstChild("Street")
 		local src = root and root:FindFirstChild(piece, true)
+		if not (src and src:IsA("MeshPart")) then
+			-- the living world's foot looks (shop fronts: art/blender/life.py)
+			local life = art and art:FindFirstChild(Config.Life.set)
+			src = life and life:FindFirstChild(piece, true)
+			lifeTurned[piece] = src ~= nil
+		end
 		hit = if src and src:IsA("MeshPart") then src else false
 		streetFound[piece] = hit
 	end
 	return if hit then hit else nil
 end
+local LIFE_TURN = CFrame.Angles(0, math.rad(LifeKit.TURN), 0)
 local function streetArt(b: any): { BasePart }?
 	local a = b.art
 	local def = a and KIT.props[a.name]
-	local fit = a and STREET_FIT[a.name]
+	local fit = a and (STREET_FIT[a.name] or Config.LifeArt[a.name])
 	if not (def and fit) then
 		return nil
 	end
@@ -241,7 +270,14 @@ local function streetArt(b: any): { BasePart }?
 		p.Anchored = true
 		p.Size = Vector3.new(f.size[1], f.size[2], f.size[3])
 		p.CFrame = at * CFrame.new(f.offset[1], f.offset[2], f.offset[3])
+		local turned = lifeTurned[piece] == true
+		if turned then
+			p.CFrame *= LIFE_TURN
+		end
 		local rgb = if look[5] and a.tint then Config.City.palette[a.tint] or look[1] else look[1]
+		if look[6] and a.frame then
+			rgb = a.frame -- a shop front's frame paint (Config.Life.shop.frame, by hash)
+		end
 		p.Color = Color3.fromRGB(rgb[1], rgb[2], rgb[3])
 		p.Material = (Enum.Material :: any)[look[2]]
 		p.Transparency = look[4] or 0
@@ -261,6 +297,72 @@ local function streetArt(b: any): { BasePart }?
 		if b.crown then
 			p:SetAttribute("Crown", true)
 		end
+		-- the living world: a shop's sign lettered with its word (fixed text; the face toward the street, the import
+		-- turn swaps it), its back lit at night and a roof vent's steam on the devices (Fx.CityLife)
+		if a.sign and piece == "ShopSign" then
+			local ink = KIT.play.shop.ink
+			SignKit.letter(p, a.sign, Color3.fromRGB(ink[1], ink[2], ink[3]), {
+				faces = { if turned then Enum.NormalId.Back else Enum.NormalId.Front },
+				pixels = 24,
+			})
+		elseif piece == "ShopBack" then
+			CollectionService:AddTag(p, "LifeShop")
+		elseif piece == "RoofVent" then
+			CollectionService:AddTag(p, "LifeSteam")
+		end
+		table.insert(out, p)
+	end
+	return out
+end
+
+-- The living world's cover looks (Shared.LifeKit, Art.Life): a box with a `look` is built as that look's meshes in
+-- its place once every piece is imported, named like the box (so the street breaking finds them), colliding like
+-- it; else nil and the box as today
+local lifeFound: { [string]: MeshPart | false } = {}
+local function lifeMesh(name: string): MeshPart?
+	local hit = lifeFound[name]
+	if hit == nil then
+		local art = ReplicatedStorage:FindFirstChild("Art")
+		local root = art and art:FindFirstChild(Config.Life.set)
+		local src = root and root:FindFirstChild(name, true)
+		hit = if src and src:IsA("MeshPart") then src else false
+		lifeFound[name] = hit
+	end
+	return if hit then hit else nil
+end
+local function lifeHas(name: string): boolean
+	return lifeMesh(name) ~= nil
+end
+local function lifeParts(b: any): { BasePart }?
+	local look = LifeKit.lookOf(Config, b)
+	if not (look and LifeKit.ready(Config, look, lifeHas)) then
+		return nil
+	end
+	local pieces = LifeKit.cover(Config, b)
+	if not pieces then
+		return nil
+	end
+	local out = {}
+	for _, pc in pieces do
+		local p = (lifeMesh(pc.name) :: MeshPart):Clone()
+		for _, ch in p:GetChildren() do
+			if not ch:IsA("SurfaceAppearance") then
+				ch:Destroy()
+			end
+		end
+		p.Name = b.kind
+		p.Anchored = true
+		p.Size = Vector3.new(pc.size[1], pc.size[2], pc.size[3])
+		p.CFrame = CFrame.new(pc.x, pc.y, pc.z) * CFrame.Angles(0, math.rad(pc.ry), 0)
+		p.Color = Color3.fromRGB(pc.color[1], pc.color[2], pc.color[3])
+		p.Material = (Enum.Material :: any)[pc.mat]
+		p.CanCollide = pc.collide
+		p.CanQuery = pc.collide
+		p.CanTouch = false
+		p.CastShadow = b.kind ~= "crop"
+		p.TopSurface = Enum.SurfaceType.Smooth
+		p.BottomSurface = Enum.SurfaceType.Smooth
+		p:SetAttribute("Look", pc.name)
 		table.insert(out, p)
 	end
 	return out
@@ -315,7 +417,7 @@ local function buildHub(world: any, folder: Folder)
 				parent = bm
 			end
 		end
-		local meshes = if b.art then streetArt(b) else nil
+		local meshes = if b.art then streetArt(b) elseif b.look then lifeParts(b) else nil
 		if meshes then
 			for _, p in meshes do
 				p.Parent = parent
@@ -455,8 +557,16 @@ local function buildOutskirts(world: any, folder: Folder)
 					end
 					parent = bm
 				end
-				makePart(b).Parent = parent
-				made += 1
+				local life = if b.look then lifeParts(b) else nil
+				if life then
+					for _, lp in life do
+						lp.Parent = parent
+					end
+					made += #life
+				else
+					makePart(b).Parent = parent
+					made += 1
+				end
 			end
 		end
 		m.Parent = tilesFolder
@@ -656,6 +766,21 @@ function CityBuilder.publishInfo(world: any)
 				{ b.id, b.x, b.z, b.sx, b.sz, b.base, b.top, if b.round then 1 else 0 }
 			)
 		end
+	end
+	-- the living world's driving lines (Shared.LifePlan.lanes from the lane dashes; the tram lines left out), for
+	-- each device's ambient traffic, steam vents and pigeons (Fx.CityLife): { ax, c, a0, a1, y }
+	local skips = {}
+	for _, v in Vehicles.place(Config) do
+		if v.kind == "tram" then
+			table.insert(
+				skips,
+				{ ax = if v.ry % 180 == 90 then "x" else "z", c = if v.ry % 180 == 90 then v.z else v.x }
+			)
+		end
+	end
+	info.lanes = {}
+	for _, l in LifePlan.lanes(world.hubBoxes, skips) do
+		table.insert(info.lanes, { l.ax, l.c, l.a0, l.a1, l.y })
 	end
 	-- the Vigil's HQ is its stairwell at the plaza's edge (HqRules.heroDoor; the map shows it to the Vigil only)
 	local hd = HqRules.heroDoor(Config, world) or { x = world.downtown.beacon.x, z = world.downtown.beacon.z }

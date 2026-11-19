@@ -1,0 +1,22 @@
+{
+ "Flag_Brightharbor.png": 138295993727973,
+ "Flag_Docks.png": 92177187521566,
+ "Flag_OldTown.png": 125531741736673,
+ "Flag_Uptown.png": 126600702302066,
+ "Life.fbx": 93482555341223,
+ "Picket.png": 103894563320884,
+ "Tilled.png": 121312959727803,
+ "Tilled_Normal.png": 105732346795496,
+ "Tilled_Roughness.png": 128912954588523,
+ "sha": {
+  "Flag_Brightharbor.png": "1275daca5330553a83babba8fbcada3b40dca542",
+  "Flag_Docks.png": "f58f58ea23d5c895f6ecb1da3a9c6454648226df",
+  "Flag_OldTown.png": "7d9eed19d5c84ce5a032e9cfc8cd5a0ade35a03d",
+  "Flag_Uptown.png": "bb8221ad8a8de7d8dfb2c070048eaa8bcb119f22",
+  "Life.fbx": "a85a8e1ed211080e554eb4edd2aa93b5ce17354b",
+  "Picket.png": "5f291e42456a21818a79ff5c5e2cf65fda71e0c6",
+  "Tilled.png": "bba31bd3f2afd40aaf0f759763050133b567231a",
+  "Tilled_Normal.png": "275fa3ff999a42dda2e207ffb3bc16c168e71f2b",
+  "Tilled_Roughness.png": "8f5b48a60d567d733f764f886bfdf34cd62d054e"
+ }
+}

@@ -32,6 +32,8 @@ export type Box = {
 	art: string?, -- the Blender look drawn over it (hidden but kept once that look is imported; Deep and Crater)
 	ground: string?, -- a landmark's own kit texture over `kit` once it is in (Config.City.kit.landmark; the Crater)
 	scar: number?, -- the Crater's burn scar decal it wears on top (Config.World.crater.scars.decals)
+	look: string?, -- the living world's Art.Life look built in its place (Shared.LifeKit; 2026-11-19)
+	park: boolean?, -- a park or roof garden tree (broadleaf crowns only)
 }
 
 export type Opts = { shape: string?, ry: number?, tag: string?, ref: number?, ghost: boolean? }
@@ -180,13 +182,16 @@ function BoxKit.house(
 	BoxKit.box(list, "building", cx, gy + h / 2, cz, sx, h, sz, body)
 	local rise = math.min(sx, sz) * 0.35
 	BoxKit.pitchedRoof(list, cx, gy + h, cz, sx, sz, rise, roof, sx < sz)
-	BoxKit.box(list, "prop", cx, gy + 3.5, cz + sz / 2 + 0.2, 4, 7, 0.4, "wood", { ghost = true })
+	BoxKit.box(list, "prop", cx, gy + 3.5, cz + sz / 2 + 0.2, 4, 7, 0.4, "wood", { ghost = true }).look =
+		"HouseDoor"
 	return gy + h + rise
 end
 
--- A tree: trunk and a ball of leaves (2 parts). Returns its top.
+-- A tree: trunk and a ball of leaves (2 parts; Art.Life's trunk and a crown over them, Shared.LifeKit). Returns
+-- its top.
 function BoxKit.tree(list: { Box }, cx: number, gy: number, cz: number, size: number): number
-	BoxKit.box(list, "prop", cx, gy + size * 0.4, cz, size * 0.18, size * 0.8, size * 0.18, "wood")
+	BoxKit.box(list, "prop", cx, gy + size * 0.4, cz, size * 0.18, size * 0.8, size * 0.18, "wood").look =
+		"TreeTrunk"
 	BoxKit.box(
 		list,
 		"prop",
@@ -198,7 +203,8 @@ function BoxKit.tree(list: { Box }, cx: number, gy: number, cz: number, size: nu
 		size * 0.9,
 		"leaf",
 		{ shape = "ball" }
-	)
+	).look =
+		"Canopy"
 	return gy + size * 1.45
 end
 
@@ -206,7 +212,7 @@ end
 function BoxKit.fence(list: { Box }, x0: number, z0: number, x1: number, z1: number, gy: number)
 	local sx = math.max(math.abs(x1 - x0), 0.6)
 	local sz = math.max(math.abs(z1 - z0), 0.6)
-	BoxKit.box(list, "prop", (x0 + x1) / 2, gy + 1.5, (z0 + z1) / 2, sx, 3, sz, "white")
+	BoxKit.box(list, "prop", (x0 + x1) / 2, gy + 1.5, (z0 + z1) / 2, sx, 3, sz, "white").look = "Picket"
 end
 
 -- The world footprint of a box (a quarter turn swaps x and z)

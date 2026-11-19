@@ -34,6 +34,8 @@ export type Box = {
 	dress: boolean?, -- added by the kit (kerbs, dashes, cornices): not part of the seeded layout
 	crown: boolean?, -- a skyscraper's top above its wreckable shaft (setbacks, spire, lantern, mast)
 	art: any?, -- the Art.Street prop the server builds in its place (Shared.CityPlay.Art, pt-city 2026-11-19)
+	look: string?, -- the living world's Art.Life look over it (Shared.LifeKit, 2026-11-19)
+	park: boolean?, -- a park tree (broadleaf crowns only)
 }
 
 -- A street prop (Config.City.kit.props; Art.Street meshes, built by each device: CityProps)
@@ -145,6 +147,12 @@ local function dressBlock(
 		if play and CityKit.roll(kit, side.x, side.z, play.newsBox.salt) < play.newsBox.chance then
 			put("NewsBox", side, (if si % 2 == 0 then 1 else -1) * (b / 2 - 11), 3.0)
 			props[#props].tint = CityKit.pick(kit, play.tints, side.x, side.z, play.newsBox.salt)
+		end
+		-- the living world (2026-11-19): a vending machine between the last planter and lamp
+		local vend = play and play.vending
+		if vend and CityKit.roll(kit, side.z, side.x, vend.salt) < vend.chance then
+			put("VendingMachine", side, (if si % 2 == 0 then -1 else 1) * (b / 2 - 16), 3.4)
+			props[#props].tint = CityKit.pick(kit, vend.tints, side.x, side.z, vend.salt)
 		end
 	end
 	-- traffic lights on two opposite corners, arms out over the street
@@ -864,7 +872,9 @@ local function parkBlock(c: Ctx, minX: number, minZ: number)
 			local z = bcz + q[2] * (b / 4 - (k - 0.5) * 14)
 			local size = 11 + k * 2
 			box(boxes, "prop", x, top + size * 0.4, z, size * 0.18, size * 0.8, size * 0.18, "wood")
+			boxes[#boxes].look, boxes[#boxes].park = "TreeTrunk", true -- Art.Life's tree (Shared.LifeKit)
 			box(boxes, "prop", x, top + size, z, size * 0.9, size * 0.9, size * 0.9, "leaf", "ball")
+			boxes[#boxes].look, boxes[#boxes].park = "Canopy", true
 		end
 	end
 	if not kit then

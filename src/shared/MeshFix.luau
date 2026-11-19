@@ -10,6 +10,7 @@ local MeshFix = {}
 
 local TURNS: { [string]: CFrame } = {
 	Weapons = CFrame.Angles(0, math.pi, 0), -- 259 of 259 meshes match a 180 degree turn about y (2026-11-19)
+	Life = CFrame.Angles(0, math.pi, 0), -- living-world: 32 of 32 match it (18 visibly off as drawn; 2026-11-19)
 }
 
 function MeshFix.turn(set: string): CFrame

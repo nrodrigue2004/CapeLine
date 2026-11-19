@@ -38,6 +38,7 @@ local LocoMath = require(Shared:WaitForChild("LocoMath"))
 
 local QualityController = require(script.Parent.QualityController)
 local NpcLoco = require(script.Parent.NpcLoco)
+local LifePlan = require(Shared:WaitForChild("LifePlan")) -- the living world: point, photo, cheer
 
 local CitizenRenderer = {}
 CitizenRenderer.hidden = false -- PrologueFx: true while the hero is in the prologue
@@ -234,12 +235,35 @@ end
 local R = Config.Remembers.citizens
 local reactors: { { pos: Vector3, side: string, tier: number } } = {}
 local lastScan = 0
+-- the living world (2026-11-19): every hero near enough gets looked at (LifePlan.react: a point at one flying or
+-- racing by, a phone held up at one standing near, a cheer after a big hit), Config.Life.citizens
+local LC = Config.Life.citizens
+local watched: { { pos: Vector3, speed: number, air: boolean } } = {}
+local lastBang: () -> (Vector3, number) = function()
+	return Vector3.zero, -math.huge
+end
+function CitizenRenderer.setBang(fn: () -> (Vector3, number))
+	lastBang = fn
+end
 local function scanReactors(now: number)
 	if now - lastScan < R.every then
 		return
 	end
 	lastScan = now
 	table.clear(reactors)
+	table.clear(watched)
+	for _, p in Players:GetPlayers() do
+		local ch = p.Character
+		local root = ch and ch:FindFirstChild("HumanoidRootPart") :: BasePart?
+		if root then
+			local hum = ch and ch:FindFirstChildOfClass("Humanoid")
+			table.insert(watched, {
+				pos = root.Position,
+				speed = root.AssemblyLinearVelocity.Magnitude,
+				air = hum ~= nil and hum.FloorMaterial == Enum.Material.Air,
+			})
+		end
+	end
 	for _, p in Players:GetPlayers() do
 		local tier = p:GetAttribute("RepTier")
 		local ch = p.Character
@@ -255,9 +279,28 @@ local function scanReactors(now: number)
 	end
 end
 
-local function reactionAt(pos: Vector3, fleeing: boolean): string?
-	if fleeing or #reactors == 0 then
+local function lookAt(pos: Vector3, key: number): string?
+	local best, bestD = nil, math.huge
+	for _, w in watched do
+		local d = (w.pos - pos).Magnitude
+		if d < bestD then
+			best, bestD = w, d
+		end
+	end
+	local at, when = lastBang()
+	local since = if (at - pos).Magnitude <= LC.cheer then os.clock() - when else math.huge
+	if not best then
+		return if since <= LC.cheerFor then "cheer" else nil
+	end
+	return LifePlan.react(LC, bestD, best.speed, best.air, since, key)
+end
+
+local function reactionAt(pos: Vector3, fleeing: boolean, key: number?): string?
+	if fleeing then
 		return nil
+	end
+	if #reactors == 0 then
+		return lookAt(pos, key or 0)
 	end
 	local best, bestD = nil, math.huge
 	for _, r in reactors do
@@ -266,7 +309,46 @@ local function reactionAt(pos: Vector3, fleeing: boolean): string?
 			best, bestD = r, d
 		end
 	end
-	return best and RepTiers.reaction(Config, best.side, best.tier, bestD, fleeing)
+	return (best and RepTiers.reaction(Config, best.side, best.tier, bestD, fleeing)) or lookAt(pos, key or 0)
+end
+
+-- The living world's point and photo poses over a walk or a clip (`over`: write over Roblox's clips)
+local flashAt: { [any]: number } = {}
+local function lifePose(body: any, react: string, over: boolean)
+	local rig = body.rig
+	local set = if over then NpcRig.over else NpcRig.turn
+	if react == "point" then
+		set(rig, "RightShoulder", CFrame.Angles(math.rad(-100), 0, math.rad(8)))
+		set(rig, "RightElbow", CFrame.Angles(math.rad(5), 0, 0))
+	elseif react == "photo" then
+		-- both hands up in front of the face, a phone between them; a flash now and then
+		for _, side in SIDES do
+			local name, sign = side[1], side[2]
+			set(rig, name .. "Shoulder", CFrame.Angles(math.rad(-95), 0, -sign * 0.5))
+			set(rig, name .. "Elbow", CFrame.Angles(math.rad(70), 0, 0))
+		end
+		local now = os.clock()
+		local hand = rig.parts and rig.parts.RightHand
+		if hand and now >= (flashAt[body] or 0) then
+			flashAt[body] = now + LC.flashEvery * (0.7 + (body.key % 7) * 0.1)
+			local f = Instance.new("Part")
+			f.Name = "PhotoFlash"
+			f.Anchored = true
+			f.CanCollide = false
+			f.CanQuery = false
+			f.CanTouch = false
+			f.CastShadow = false
+			f.Material = Enum.Material.Neon
+			f.Color = Color3.new(1, 1, 1)
+			f.Shape = Enum.PartType.Ball
+			f.Size = Vector3.new(0.5, 0.5, 0.5)
+			f.CFrame = hand.CFrame * CFrame.new(0, 0.4, -0.5)
+			f.Parent = Workspace
+			task.delay(0.08, function()
+				f:Destroy()
+			end)
+		end
+	end
 end
 
 -- A standing citizen's idle gesture (pt-anims, Shared.NpcAnim): every GESTURE_EVERY seconds, on its own beat
@@ -323,6 +405,8 @@ local function overClips(body: Body, react: string?)
 			NpcRig.over(rig, name .. "Shoulder", CFrame.Angles(math.rad(-85), 0, -sign * 0.35))
 			NpcRig.over(rig, name .. "Elbow", CFrame.Angles(math.rad(95), 0, 0))
 		end
+	elseif react == "point" or react == "photo" then
+		lifePose(body, react, true)
 	elseif body.state == PAUSE and body.speed <= 0.8 then
 		gesture(body)
 	end
@@ -340,7 +424,7 @@ local function pose(
 )
 	local moving = body.speed > 0.8
 	local fleeing = body.state == FLEE
-	local react = if joints or animated then reactionAt(body.pos, fleeing) else nil
+	local react = if joints or animated then reactionAt(body.pos, fleeing, body.key) else nil
 	body.phase += dt * (if fleeing then 14 else 8) * (if moving then 1 else 0)
 	local bob = if moving and not animated then math.abs(math.sin(body.phase)) * 0.15 else 0
 	if react == "cheer" then
@@ -385,6 +469,8 @@ local function pose(
 			NpcRig.turn(rig, name .. "Shoulder", CFrame.Angles(math.rad(-85), 0, -sign * 0.35))
 			NpcRig.turn(rig, name .. "Elbow", CFrame.Angles(math.rad(95), 0, 0))
 		end
+	elseif react == "point" or react == "photo" then
+		lifePose(body, react, false)
 	end
 end
 

@@ -28,6 +28,8 @@ local BUILD_SLICE = 0.002 -- seconds of each frame the prop list may take while 
 local CityProps = {}
 CityProps.built = 0 -- mesh parts built now (the Dev panel can show it)
 CityProps.total = 0 -- props in the whole list
+-- set by Fx.CityLife: called with (name, foot, tint, center) for every prop an impact knocks loose
+CityProps.onSmash = nil :: ((string, Vector3, string?, Vector3) -> ())?
 
 type Prop = {
 	name: string,
@@ -45,6 +47,8 @@ type Cell = { key: number, x: number, z: number, props: { Prop }, model: Model?,
 
 local cells: { [number]: Cell } = {}
 local street: Instance? = nil
+local lifeRoot: Instance? = nil -- ReplicatedStorage.Art.Life (the living world, 2026-11-19)
+local LIFE_TURN = CFrame.Angles(0, math.pi, 0) -- Shared.LifeKit.TURN: Open Cloud turned the set 180 about y
 local folder: Folder? = nil
 local looks: {
 	[string]: {
@@ -57,6 +61,7 @@ local looks: {
 			see: number,
 			fit: any,
 			tinted: boolean,
+			turn: boolean,
 		}
 	},
 } =
@@ -74,10 +79,13 @@ local function piecesOf(name: string)
 	end
 	list = {}
 	local def = KIT.props[name]
-	local fit = Config.StreetArt[name]
-	if def and fit and street then
+	-- the living world's street props (vending machines) are Art.Life meshes, turned back from the import
+	local life = Config.LifeArt[name] ~= nil and Config.StreetArt[name] == nil
+	local fit = Config.StreetArt[name] or Config.LifeArt[name]
+	local root = if life then lifeRoot else street
+	if def and fit and root then
 		for piece, look in def.pieces do
-			local src = street:FindFirstChild(piece, true)
+			local src = root:FindFirstChild(piece, true)
 			if src and src:IsA("MeshPart") and fit[piece] then
 				table.insert(list, {
 					piece = piece,
@@ -88,6 +96,7 @@ local function piecesOf(name: string)
 					see = look[4] or 0,
 					fit = fit[piece],
 					tinted = look[5] == true,
+					turn = life,
 				})
 			end
 		end
@@ -117,6 +126,9 @@ local function makeProp(pr: Prop, parent: Instance): number
 		p.Anchored = true
 		p.Size = Vector3.new(f.size[1], f.size[2], f.size[3])
 		p.CFrame = at * CFrame.new(f.offset[1], f.offset[2], f.offset[3])
+		if pc.turn then
+			p.CFrame *= LIFE_TURN
+		end
 		local tint = if pc.tinted and pr.tint then Config.City.palette[pr.tint] else nil
 		p.Color = if tint then Color3.fromRGB(tint[1], tint[2], tint[3]) else pc.color
 		p.Material = pc.material
@@ -263,6 +275,11 @@ function CityProps.smash(
 								fling(p, center)
 							end
 						end
+						local hook = CityProps.onSmash
+						if hook then
+							-- the living world (Fx.CityLife): a hydrant sprays, a machine spills its cans
+							task.spawn(hook, pr.name, Vector3.new(pr.x, pr.y, pr.z), pr.tint, center)
+						end
 						m:Destroy()
 						pr.model = nil
 						c.parts -= pr.parts or 0
@@ -316,6 +333,7 @@ function CityProps.init()
 	task.spawn(function()
 		local art = ReplicatedStorage:FindFirstChild("Art")
 		street = art and art:FindFirstChild("Street")
+		lifeRoot = art and art:FindFirstChild(Config.Life.set)
 		if not street then
 			return -- the props wait for nate's import of Art.Street (until then the city keeps today's look)
 		end
