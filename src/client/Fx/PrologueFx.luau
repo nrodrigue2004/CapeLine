@@ -34,6 +34,7 @@ local OpeningPlan = require(Shared:WaitForChild("OpeningPlan"))
 local FakeRules = require(Shared:WaitForChild("FakeRules"))
 local AbilityRules = require(Shared:WaitForChild("AbilityRules"))
 local NpcRig = require(Shared:WaitForChild("NpcRig"))
+local PeopleLooks = require(Shared:WaitForChild("PeopleLooks"))
 local RigMath = require(Shared:WaitForChild("RigMath"))
 local BodyShape = require(Shared:WaitForChild("BodyShape"))
 local LookKit = require(Shared:WaitForChild("LookKit"))
@@ -307,8 +308,8 @@ local function ensureFolder()
 end
 
 -- Silas Crane on the rig (the stage, and the billboard at `scale`): a sharp dark suit, a red tie, slicked silver
--- hair as the fallback cap; NpcRig.person gives him his catalog face and catalog hair by his name, the same on
--- every device and at every size
+-- hair as the fallback cap; his own catalog face and hair (Config.NpcLooks.cast.crane, the same as his comic
+-- portrait), the same on every device and at every size
 local function craneRig(scale: number): any
 	local crane = person(
 		"Silas Crane",
@@ -325,6 +326,7 @@ local function craneRig(scale: number): any
 		part(Vector3.new(0.5, 1.4, 0.2) * scale, CFrame.identity, Color3.fromRGB(200, 30, 40)),
 		CFrame.new(0, 0.1 * scale, -crane.parts.UpperTorso.Size.Z / 2 - 0.05 * scale)
 	)
+	NpcRig.wearCast(crane, PeopleLooks.castPick(Config, "crane"))
 	return crane
 end
 

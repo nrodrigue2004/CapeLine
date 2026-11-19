@@ -559,9 +559,9 @@ return {
 					hands = "Gloves",
 					feet = "Boots",
 					emblem = "Star Badge",
-					hair = "Side Part",
 					head = "Domino Mask",
-					visage = "Hero Face",
+					visage = "Joyful Smile", -- Roblox catalog face (picked for the character, 2026-11-19)
+					hair = "Brown Charmer Hair", -- Roblox catalog hair
 				},
 				tints = {},
 				mats = {},
@@ -593,9 +593,9 @@ return {
 					shoulders = "Riveted Pads",
 					belt = "Big Buckle",
 					emblem = "Heart Crest",
-					hair = "Short Crop",
 					head = "Half Mask",
-					visage = "Stern Face",
+					visage = "Alright", -- Roblox catalog face (picked for the character, 2026-11-19)
+					hair = "Belle Of Belfast Long Red Hair", -- Roblox catalog hair
 				},
 				tints = {},
 				mats = { shoulders = "Metal" },
@@ -626,10 +626,10 @@ return {
 					hands = "Fingerless Gloves",
 					feet = "Hover Boots",
 					emblem = "Spark",
-					hair = "Sky Spikes",
 					hat = "Flight Goggles",
 					trail = "Ribbon Trail",
-					visage = "Sharp Face",
+					visage = "Check It", -- Roblox catalog face (picked for the character, 2026-11-19)
+					hair = "Clean Shiny Spikes", -- Roblox catalog hair
 				},
 				tints = {},
 				mats = {},

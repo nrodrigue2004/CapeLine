@@ -19,6 +19,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local MentorRules = require(Shared:WaitForChild("MentorRules"))
 local Net = require(Shared:WaitForChild("Net"))
 local NpcRig = require(Shared:WaitForChild("NpcRig"))
+local PeopleLooks = require(Shared:WaitForChild("PeopleLooks"))
 local ProfileSchema = require(Shared:WaitForChild("ProfileSchema"))
 local RigMath = require(Shared:WaitForChild("RigMath"))
 local Signal = require(Shared:WaitForChild("Util"):WaitForChild("Signal"))
@@ -233,6 +234,7 @@ local function spawnAlly(run: any, mentor: number)
 		Color3.fromRGB(235, 200, 160),
 		color(m.colors[2])
 	)
+	NpcRig.wearCast(rig, PeopleLooks.castPick(Config, m.id)) -- the mentor's own catalog face and hair
 	local off = M.ally.offset
 	local at = Vector3.new(p[1] + off[1], p[2] + off[2], p[3] + off[3])
 	rig.model.Parent = run.model

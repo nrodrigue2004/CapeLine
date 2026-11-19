@@ -3,9 +3,9 @@
 -- (Config.Mentors.list) as a person to stage on Roblox's blocky R15 body: their game outfit (the uploaded classic
 -- clothes, Config.NpcLooks.people, else the creator look's colours, else a picked shirt and pants), their creator
 -- pieces that show (hats, masks, capes), a Roblox catalog face and catalog hair (nate's hard rule: faces, hair,
--- facial hair and eyes only from the catalog). A person with a creator look wears the catalog face and hair the
--- game itself gives that look (Shared.LookKit catalogFaceFor / catalogHairFor: picked by the old piece's name);
--- a person with no look wears the pick in FACE and HAIR below (recorded in notes/Decisions.md 2026-11-19).
+-- facial hair and eyes only from the catalog). Every named person has an explicit catalog pick, the same one the
+-- game wears (2026-11-19, the hair fit pass; Shared.PeopleLooks.catalogPick): a creator look names its catalog
+-- face and hair pieces, everyone else has a row in Config.NpcLooks.cast.
 -- Also every comic page panel (Config.Cinema.comic.pages) with its scene, colours, caption and shape.
 -- Run from the repo root: lune run art/panels/cast.luau   (writes art/export/panels/cast.json)
 local fs = require("@lune/fs")
@@ -24,14 +24,8 @@ local function copy(t: any): any
 	return o
 end
 
--- the same pick as Shared.LookKit (nameHash, catalogFaceFor, catalogHairFor)
-local function nameHash(s: string): number
-	local h = 0
-	for i = 1, #s do
-		h = (h * 31 + string.byte(s, i)) % 1000003
-	end
-	return h
-end
+local PeopleLooks = require("../../src/shared/PeopleLooks")
+
 local faces = Config.CatalogLooks.faces
 local hairs = Config.CatalogLooks.hair
 local function faceByName(n: string): any
@@ -50,66 +44,7 @@ local function hairByName(n: string): any
 	end
 	error("no catalog hair " .. n)
 end
-local function faceFor(kit: string): any
-	local id = tonumber(string.match(kit, "^cat:(%d+)$"))
-	for _, f in faces do
-		if f[2] == id then
-			return faceByName(f[1])
-		end
-	end
-	local f = faces[nameHash(kit) % #faces + 1]
-	return faceByName(f[1])
-end
-local function hairFor(kit: string): any
-	local id = tonumber(string.match(kit, "^cat:(%d+)$"))
-	for _, h in hairs do
-		if h[2] == id then
-			return hairByName(h[1])
-		end
-	end
-	local h = hairs[nameHash(kit) % #hairs + 1]
-	return hairByName(h[1])
-end
 
--- the catalog face for each person with no creator look (picked for the character; Decisions 2026-11-19)
-local FACE = {
-	patch = "Check It", -- the Vigil's hacker kid: quick and cocky
-	crane = "Know-It-All Grin", -- the smiling CEO on every screen
-	insider = "Stare", -- a voice in a hood
-	copy = "Sinister", -- your robot copy
-	toymaker = "Glee", -- the toy shop's old inventor
-	lark = "Bandage", -- the flyer from the Spark Pound
-	wren = "Smiling Girl",
-	toby = "Happy D",
-	flint = "Beast Mode",
-	finn = "Joyful Smile",
-	dace = "Chill",
-	ambrose = "Tired Face",
-	hoshi = "Alright",
-	CaptainMeridian = "Man Face",
-	OldBeacon = "Friendly Grin",
-	TheMargrave = "Take Over the World",
-	TheVelvetPaw = "Slickfang",
-}
--- catalog hair for each person with no creator look (nil: a hood, helmet or hat covers the head)
-local HAIR = {
-	patch = "Pal Hair",
-	crane = "Brown Charmer Hair",
-	copy = "Black Short Wolf Cut",
-	toymaker = "Lavender Updo",
-	lark = "Blonde Action Ponytail",
-	wren = "Black Ponytail",
-	toby = "Cinnamon Hair",
-	flint = "Crimson Shaggy 2.0",
-	finn = "Blonde Spiked Hair",
-	dace = "Short Blue Hair",
-	ambrose = "Long Pastel Hair",
-	hoshi = "Black Royal Braid",
-	CaptainMeridian = "Clean Shiny Spikes",
-	OldBeacon = "Hair Base In Brown",
-	TheMargrave = "Purple and Blue Male Hair Slick",
-	TheVelvetPaw = "Black Trendy Messy Buns",
-}
 -- people with no clothes upload and no look: a hero shirt and pants (art/export/clothes/heroes, white
 -- templates tinted as the game tints them) in their colours
 local OUTFIT = {
@@ -124,35 +59,8 @@ local OUTFIT = {
 	TheVelvetPaw = { suit = { { 120, 30, 60 }, { 40, 30, 40 }, { 40, 30, 40 } } },
 	copy = { suit = { { 150, 152, 162 }, { 120, 122, 132 }, { 90, 92, 100 } } },
 }
--- speakers whose clothes, look or face come from another config row
-local PEOPLE = {
-	halo = "HeadmasterHalo",
-	redline = "Redline",
-	masque = "MasqueARade",
-	harvest = "HarvestKing",
-	brine = "CaptainBrine",
-	pitboss = "Pitboss",
-	tidewright = "Tidewright",
-	vesper = "Vesper",
-	catchpole = "Catchpole",
-	scorch = "Scorch",
-	censor = "Censor",
-	holloway = "Holloway",
-	voidhound = "Voidhound",
-	morrow = "Morrow",
-	clawback = "Clawback",
-	gale = "Gale",
-	radiant = "Radiant",
-	bulwark = "Bulwark",
-	wren = "Wren",
-	toby = "Toby",
-	flint = "Flint",
-	finn = "Finn",
-	dace = "Dace",
-	ambrose = "Ambrose",
-	hoshi = "Hoshi",
-	LodestarGiver = nil,
-}
+-- speakers whose clothes, look or face come from another config row (Shared.PeopleLooks.SPEAKERS)
+local PEOPLE = PeopleLooks.SPEAKERS
 -- the same portrait as another key (one render)
 local ALIAS = { PatchRelay = "patch", LodestarGiver = "lodestar" }
 
@@ -210,14 +118,11 @@ local function person(key: string, sp: any, extra: any?): any
 	else
 		row.skin = copy(p.skin or { 224, 172, 130 })
 	end
-	local pieces = look and look.pieces or {}
-	row.face = if FACE[key] then faceByName(FACE[key]) elseif pieces.visage then faceFor(pieces.visage) else nil
-	row.hair = if HAIR[key] then hairByName(HAIR[key]) elseif pieces.hair then hairFor(pieces.hair) else nil
-	if not row.face then
-		-- a look with no visage piece (a masked or machine look): the catalog face its name picks
-		row.face = faceFor(key)
-		row.facePicked = true
-	end
+	-- the explicit catalog pick (the look's catalog face and hair pieces, else Config.NpcLooks.cast)
+	local faceName, hairName, err = PeopleLooks.catalogPick(Config, key)
+	assert(faceName, err)
+	row.face = faceByName(faceName)
+	row.hair = if hairName then hairByName(hairName) else nil
 	return row
 end
 
