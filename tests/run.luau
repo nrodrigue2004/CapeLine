@@ -22959,7 +22959,9 @@ end
 -- the enemy motion pass (2026-11-18, own file); ONLY="Enemy motion" runs just these
 (require :: any)("./motion_test")({ test = test, check = check, Config = Config });
 -- the movement fixes (nate's playtest 2026-11-19: tunnel, slide, swing, leap, wall runs); ONLY="Move fixes"
-(require :: any)("./move_fixes_test")({ test = test, check = check, Config = Config })
+(require :: any)("./move_fixes_test")({ test = test, check = check, Config = Config });
+-- every ability's own look (nate's playtest 2026-11-19: more unique effects); ONLY="FX unique" runs these
+(require :: any)("./fx_unique_test")({ test = test, check = check, Config = Config })
 
 print(string.format("\n%d passed, %d failed", passed, failed))
 if failed > 0 then

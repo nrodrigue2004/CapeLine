@@ -168,6 +168,19 @@ return {
 				id = 86085731469540,
 				file = "ink.png",
 			},
+			-- every ability's own look (nate's playtest 2026-11-19, Config.FxMoves): a ground rune circle and a
+			-- scorch mark, drawn by art/fx/textures.py --moves. Not uploaded yet (id 0), so the built-in images
+			-- stand in. PLACEHOLDER ART until nate uploads them and puts the ids here.
+			rune = {
+				builtin = "rbxasset://textures/particles/explosion01_shockwave_main.dds",
+				id = 0,
+				file = "rune.png",
+			},
+			scorch = {
+				builtin = "rbxasset://textures/particles/smoke_main.dds",
+				id = 0,
+				file = "scorch.png",
+			},
 		},
 		-- each particle kind: size from and to (studs), life (s, min max), speed (min max), spread (deg),
 		-- drag, rise (upward acceleration, negative falls), light (emission), alpha (start transparency),
@@ -432,6 +445,33 @@ return {
 				light = 0,
 				alpha = 0.1,
 				spin = 60,
+			},
+			-- every ability's own look (Config.FxMoves): both lie flat on the ground
+			rune = { -- a rune circle that opens under a target or the caster's feet
+				tex = "rune",
+				size = { 3, 9 },
+				life = { 0.5, 0.6 },
+				speed = { 0.01, 0.01 },
+				spread = 0,
+				drag = 0,
+				rise = 0,
+				light = 1,
+				alpha = 0.1,
+				spin = 90,
+				face = "flat",
+			},
+			scorch = { -- a dark scorch mark that lingers in a crater
+				tex = "scorch",
+				size = { 5, 7 },
+				life = { 1.4, 1.8 },
+				speed = { 0.01, 0.01 },
+				spread = 0,
+				drag = 0,
+				rise = 0,
+				light = 0,
+				alpha = 0.2,
+				spin = 10,
+				face = "flat",
 			},
 		},
 		-- what each element adds: on a hit (impact), along a bolt or beam (trail), at an area (burst), while a

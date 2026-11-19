@@ -26,6 +26,7 @@ local EnemySim = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("
 local FxPlan = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("FxPlan"))
 
 local QualityController = require(script.Parent.Parent.Controllers.QualityController)
+local AbilityFx = require(script.Parent.AbilityFx)
 local DebrisBudget = require(script.Parent.DebrisBudget)
 local FxLib = require(script.Parent.FxLib)
 
@@ -244,6 +245,29 @@ end
 
 -- every path's own look (overhaul plan step 6): filled in by the path section below the shapes
 local sig: any = {}
+
+-- Every ability's own look (nate's playtest 2026-11-19; Config.FxMoves, Fx/AbilityFx): while a move's shapes
+-- draw, `moving` is its row, so the path's heads, dashes, novas and marks also draw that move's own trail,
+-- hit and any head or mark it swaps in. CombatFx.cast and CombatFx.area set it themselves; CombatClient sets
+-- it around your own predicted shapes. begin returns the row it replaced, for finish to put back.
+local moving: any = nil
+local movingMine = false
+function CombatFx.begin(id: string?, mine: boolean?): any
+	local prev = moving
+	moving = if id then A.list[id] else nil
+	movingMine = mine == true
+	return prev
+end
+function CombatFx.finish(prev: any?)
+	moving = prev
+	if not prev then
+		movingMine = false
+	end
+end
+-- the move drawing now, when it belongs to this path (weapon moves have no recipe, so never)
+local function movingIn(set: string?): any?
+	return if moving and moving.set == set and AbilityFx.recipe(moving) then moving else nil
+end
 
 ---------------------------------------------------------------------------
 -- Shapes
@@ -2356,18 +2380,40 @@ local function rowOf(set: string?): any?
 	return FxPlan.pathOf(F, set)
 end
 
+-- the head and mark a path draws now: the move's own swap (Config.FxMoves head, mark) or the path's
+local function headNow(set: string?, row: any): string
+	local mv = movingIn(set)
+	return mv and AbilityFx.headOf(mv) or row.head
+end
+local function markNow(set: string?, row: any, id: string?): string
+	local mv = if id then A.list[id] else movingIn(set)
+	return mv and mv.set == set and AbilityFx.markOf(mv) or row.mark
+end
+
 function sig.head(set: string?, from: Vector3, to: Vector3, style: string, color: Color3, scale: number)
 	local row = rowOf(set)
 	if not row or (to - from).Magnitude < 1 then
 		return
 	end
-	HEAD[row.head](from, to, style, color, ACCENT[set :: string], scale)
+	HEAD[headNow(set, row)](from, to, style, color, ACCENT[set :: string], scale)
+	local mv = movingIn(set)
+	if mv then
+		AbilityFx.travel(mv, style, from, to, color, ACCENT[set :: string], movingMine)
+	end
 end
 
-function sig.mark(set: string?, pos: Vector3, style: string, color: Color3, scale: number, dir: Vector3?)
+function sig.mark(
+	set: string?,
+	pos: Vector3,
+	style: string,
+	color: Color3,
+	scale: number,
+	dir: Vector3?,
+	id: string?
+)
 	local row = rowOf(set)
 	if row then
-		MARK[row.mark](pos, style, color, ACCENT[set :: string], scale, dir)
+		MARK[markNow(set, row, id)](pos, style, color, ACCENT[set :: string], scale, dir)
 	end
 end
 
@@ -2375,6 +2421,10 @@ function sig.dash(set: string?, from: Vector3, to: Vector3, style: string, color
 	local row = rowOf(set)
 	if row and (to - from).Magnitude > 2 then
 		DASH[row.dash](from, to, style, color, ACCENT[set :: string], set)
+		local mv = movingIn(set)
+		if mv then
+			AbilityFx.travel(mv, style, from, to, color, ACCENT[set :: string], movingMine)
+		end
 	end
 end
 
@@ -2389,17 +2439,23 @@ function sig.cone(
 	color: Color3
 )
 	local row = rowOf(set)
+	local mv = movingIn(set)
+	if row and mv then
+		-- the move's own hit lands where the fan ends (every ability's own look)
+		AbilityFx.hit(mv, style, origin + f * range * 0.8, color, ACCENT[set :: string], movingMine, f)
+	end
 	if not row or row.piece == "none" then
 		return
 	end
-	if row.head ~= "none" and row.head ~= "tracer" then
+	local head = headNow(set, row)
+	if head ~= "none" and head ~= "tracer" then
 		-- a few heads fan out (Pulse's push wave reads as warped spheres, Colossus' clap as boulders...)
 		local right = f:Cross(UP)
 		right = if right.Magnitude > 1e-3 then right.Unit else Vector3.new(1, 0, 0)
 		local half = math.rad(coneDeg / 2)
 		for i = -1, 1 do
 			local d = (f * math.cos(half * i * 0.7) + right * math.sin(half * i * 0.7)).Unit
-			HEAD[row.head](origin, origin + d * range * 0.8, style, color, ACCENT[set :: string], 0.7)
+			HEAD[head](origin, origin + d * range * 0.8, style, color, ACCENT[set :: string], 0.7)
 		end
 	end
 	bits(origin + f * 2, row.piece, 6, 1, range * 2.2, color, style, 0, f * 2, 0.35)
@@ -2413,19 +2469,33 @@ function sig.swing(set: string?, at: Vector3, f: Vector3, style: string, color: 
 	end
 	bits(at, row.piece, if last then 4 else 2, 0.7, 12, color, style, 0.2, f, 0.25)
 	if last then
-		MARK[row.mark](at, style, color, ACCENT[set :: string], 0.6, f)
+		MARK[markNow(set, row)](at, style, color, ACCENT[set :: string], 0.6, f)
 	end
 end
 
 -- a nova: the path's pieces ring out from the centre, and its mark at the heart
 function sig.burst(set: string?, center: Vector3, radius: number, style: string, color: Color3, big: boolean?)
 	local row = rowOf(set)
+	local mv = movingIn(set)
+	if row and mv then
+		-- the move's own hit at the heart, sized by the area (every ability's own look)
+		AbilityFx.hit(
+			mv,
+			style,
+			center,
+			color,
+			ACCENT[set :: string],
+			movingMine,
+			nil,
+			math.clamp(radius / 10, 1, 2.2)
+		)
+	end
 	if not row or row.piece == "none" then
 		return
 	end
 	local n = math.clamp(math.floor(radius * 0.6), 6, 14)
 	bits(center, row.piece, n, 1.1, radius * 2.6, color, style, 0.15, nil, 0.4)
-	MARK[row.mark](
+	MARK[markNow(set, row)](
 		center,
 		style,
 		color,
@@ -2440,21 +2510,32 @@ sig.motes = motes
 sig.placeMotes = placeMotes
 sig.dropMotes = dropMotes
 
--- the caster's flourish for a skill or super (not basics): mine from CombatClient.fire, others' from cast()
+-- the caster's flourish: the path's for a skill or super (not basics), then the move's own (every slot,
+-- Config.FxMoves flair). Mine from CombatClient.fire, others' from cast()
 function CombatFx.castFlourish(row: any, style: string, o: Vector3, d: Vector3, userId: number?)
 	local pr = rowOf(row.set)
-	if not pr or row.slot == "basic" then
+	if not pr then
 		return
 	end
 	local color = CombatFx.colorOf(row.set, userId)
 	local dir = if d.Magnitude > 1e-3 then d.Unit else Vector3.new(0, 0, -1)
-	CAST[pr.cast](o, o - Vector3.new(0, 3.2, 0), dir, style, color, ACCENT[row.set])
+	if row.slot ~= "basic" then
+		CAST[AbilityFx.castOf(row) or pr.cast](
+			o,
+			o - Vector3.new(0, 3.2, 0),
+			dir,
+			style,
+			color,
+			ACCENT[row.set]
+		)
+	end
+	AbilityFx.flair(row, style, o, dir, color, ACCENT[row.set], userId)
 end
 
 -- the super's big moment. data as for CombatFx.cast; landing supers (AT_LANDING) come from CombatFx.area.
 function CombatFx.superMoment(row: any, style: string, data: CastData, landing: boolean?)
 	local pr = rowOf(row.set)
-	if not pr or row.slot ~= "super" or pr.super.look == "none" then
+	if not pr or row.slot ~= "super" then
 		return
 	end
 	local look = pr.super.look
@@ -2463,6 +2544,12 @@ function CombatFx.superMoment(row: any, style: string, data: CastData, landing: 
 	end
 	local o, d = data.o, data.d
 	local mine = data.a ~= nil and data.a == Players.LocalPlayer.UserId
+	if mine then
+		AbilityFx.screen(row, style, TINT[row.set]) -- the super's own screen moment (Config.FxMoves screen)
+	end
+	if look == "none" then
+		return
+	end
 	local color = CombatFx.colorOf(row.set, data.a)
 	if data.aw then
 		color = color:Lerp(AWAKEN, 0.35)
@@ -2501,12 +2588,17 @@ function CombatFx.impact(
 	style: string,
 	mine: boolean,
 	color: Color3?,
-	set: string?
+	set: string?,
+	id: string? -- the ability (every ability's own hit and mark, Config.FxMoves); weapon moves have none
 )
 	local c = color or SET_COLOR.Volt
 	local scale = if crit then 1.5 else 1
 	FxLib.impact(pos, set, c, scale * (if mine then 1 else 0.6), nil, style)
-	sig.mark(set, pos, style, c, scale * (if mine then 1 else 0.6), nil)
+	sig.mark(set, pos, style, c, scale * (if mine then 1 else 0.6), nil, id)
+	local mv = if id then A.list[id] else nil
+	if mv and mv.set == set and set then
+		AbilityFx.hit(mv, style, pos, c, ACCENT[set] or c, mine, nil, if crit then 1.25 else 1)
+	end
 	if style == "Anime" then
 		local flash = part(Vector3.one * 2.5 * scale, CFrame.new(pos), WHITE, Enum.PartType.Ball)
 		fade(flash, 0.12, { Size = Vector3.one * 5 * scale })
@@ -3366,7 +3458,7 @@ export type CastData = {
 	thrown: boolean?,
 }
 
-function CombatFx.cast(row: any, style: string, data: CastData)
+local function castShapes(row: any, style: string, data: CastData)
 	local color = CombatFx.colorOf(row.set, data.a)
 	local shape = row.shape
 	local o, d = data.o, data.d
@@ -3519,6 +3611,29 @@ function CombatFx.cast(row: any, style: string, data: CastData)
 	end
 end
 
+-- every ability's own look: the shapes draw with the move in scope (its own trail, hit, head and mark), and
+-- a lasting area or a placed piece lands the move's hit where it opens
+function CombatFx.cast(row: any, style: string, data: CastData)
+	local mine = data.a ~= nil and data.a == Players.LocalPlayer.UserId
+	local prev = CombatFx.begin(row.id, mine)
+	castShapes(row, style, data)
+	if (row.shape == "field" or row.shape == "place") and row.set ~= "Weapon" and row.summon ~= "mech" then
+		local c = data.c or data.o
+		local color = CombatFx.colorOf(row.set, data.a)
+		AbilityFx.hit(
+			row,
+			style,
+			c,
+			color,
+			ACCENT[row.set] or color,
+			mine,
+			nil,
+			math.clamp((data.r or row.radius or 10) / 10, 1, 2.2)
+		)
+	end
+	CombatFx.finish(prev)
+end
+
 -- The landing or the end of a use (leap and throw landings, echoes, field and channel ends)
 function CombatFx.area(
 	row: any,
@@ -3529,7 +3644,9 @@ function CombatFx.area(
 	userId: number?
 )
 	local color = CombatFx.colorOf(row.set, userId)
+	local prev = CombatFx.begin(row.id, mine) -- the move's own hit lands with the nova (sig.burst)
 	CombatFx.nova(center, radius, style, color, row.slot == "super" and mine, row.set)
+	CombatFx.finish(prev)
 	if style ~= "Anime" then
 		CombatFx.word(center, row.set, color, row.slot == "super")
 	end
@@ -3616,6 +3733,20 @@ function CombatFx.init()
 	slash.Parent = gui
 	slashFrame = slash
 	gui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
+	-- every ability's own look (Fx/AbilityFx) draws with this file's kit
+	AbilityFx.init({
+		part = part,
+		fade = fade,
+		beam = beam,
+		disc = disc,
+		crossBars = crossBars,
+		facing = facing,
+		fly = fly,
+		flightTime = flightTime,
+		flashScreen = flashScreen,
+		groundBelow = groundBelow,
+		PIECE = PIECE,
+	})
 end
 
 return CombatFx
