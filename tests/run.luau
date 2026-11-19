@@ -23118,7 +23118,10 @@ end
 });
 -- nate's playtest 2026-11-19 (pt-city, own file): Downtown and Uptown 1.5x bigger, the street and roof pieces
 -- heroes use or break; ONLY="City play"
-(require :: any)("./city_play_test")({ test = test, check = check, Config = Config, world = world })
+(require :: any)("./city_play_test")({ test = test, check = check, Config = Config, world = world });
+
+-- fix-carry (2026-11-19, own file): picked-up things held in the hands, telekinesis floats; ONLY="Carry"
+(require :: any)("./carry_test")({ test = test, check = check, Config = Config, placePath = placePath })
 
 print(string.format("\n%d passed, %d failed", passed, failed))
 if failed > 0 then

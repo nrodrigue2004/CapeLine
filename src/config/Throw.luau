@@ -14,15 +14,11 @@ return {
 	-- the thing's underside; `poleAt`: where a pole is gripped, a share of its length up from its foot
 	hold = { palm = 0.05, poleAt = 0.3 },
 	-- Telekinesis (fix-carry): Gravity (Pulse) and Mind heroes float what they lift instead, `gap` studs over the
-	-- head (things no bigger than `small` studs float at the right shoulder: `side` out, `sideY` up, `fwd`
-	-- forward), bobbing `bob` studs at `bobRate` rad/s, glowing in the path's colour, both hands raised to it.
+	-- head and `fwd` studs forward of the root (in front of the raised hands), bobbing `bob` studs at `bobRate` rad/s, glowing in the path's colour, both hands raised to it.
 	-- A swing whirls it round the hero `whirl` studs out, `whirlY` up
 	mind = {
 		paths = { Pulse = true, Mind = true },
 		gap = 1.6,
-		small = 4,
-		side = 1.6,
-		sideY = 1.4,
 		fwd = -0.6,
 		bob = 0.3,
 		bobRate = 2.4,
@@ -64,21 +60,47 @@ return {
 	-- size: the prop's box (x, y, z studs). PLACEHOLDER ART: plain parts until the street kit's meshes.
 	kinds = {
 		bench = {
-			weight = "light", grip = "hand",
+			weight = "light",
+			grip = "hand",
 			size = { 5, 2.6, 1.8 },
 			color = { 150, 102, 64 },
 			material = "WoodPlanks",
 		},
-		trashCan = { weight = "light", grip = "hand", size = { 2, 3, 2 }, color = { 60, 84, 72 }, material = "Metal" },
-		mailbox = { weight = "light", grip = "hand", size = { 1.8, 3.6, 1.6 }, color = { 44, 82, 160 }, material = "Metal" },
-		sign = { weight = "light", grip = "pole", size = { 2.4, 5, 0.4 }, color = { 230, 190, 40 }, material = "Metal" },
+		trashCan = {
+			weight = "light",
+			grip = "hand",
+			size = { 2, 3, 2 },
+			color = { 60, 84, 72 },
+			material = "Metal",
+		},
+		mailbox = {
+			weight = "light",
+			grip = "hand",
+			size = { 1.8, 3.6, 1.6 },
+			color = { 44, 82, 160 },
+			material = "Metal",
+		},
+		sign = {
+			weight = "light",
+			grip = "pole",
+			size = { 2.4, 5, 0.4 },
+			color = { 230, 190, 40 },
+			material = "Metal",
+		},
 		rubble = {
-			weight = "light", grip = "hand",
+			weight = "light",
+			grip = "hand",
 			size = { 2.4, 1.6, 2 },
 			color = { 140, 136, 128 },
 			material = "Concrete",
 		},
-		lampPost = { weight = "medium", grip = "pole", size = { 0.8, 10, 0.8 }, color = { 48, 60, 56 }, material = "Metal" },
+		lampPost = {
+			weight = "medium",
+			grip = "pole",
+			size = { 0.8, 10, 0.8 },
+			color = { 48, 60, 56 },
+			material = "Metal",
+		},
 		dumpster = { weight = "medium", size = { 6, 4, 3.5 }, color = { 46, 110, 70 }, material = "Metal" },
 		vending = {
 			weight = "medium",

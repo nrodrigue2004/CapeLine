@@ -46,6 +46,7 @@ local KnockRules = require(Shared:WaitForChild("KnockRules"))
 local Status = require(Shared:WaitForChild("Status"))
 local WreckArtKit = require(Shared:WaitForChild("WreckArtKit"))
 local CarryPose = require(Shared:WaitForChild("CarryPose"))
+local RigJoints = require(Shared:WaitForChild("RigJoints"))
 local HeroAnim = require(Shared:WaitForChild("HeroAnim"))
 
 local BlockService = require(script.Parent.BlockService)
@@ -148,19 +149,22 @@ function ThrowService.bodyOf(char: Instance?): (CarryPose.Body?, { [string]: Bas
 		return nil, parts
 	end
 	parts.HumanoidRootPart = root
+	-- Motor6Ds or AnimationConstraints (Avatar Joint Upgrade rigs): both read C0 and C1 (Shared.RigJoints)
+	local joints = RigJoints.of(char)
 	for _, j in CarryPose.JOINTS do
 		local p1 = char:FindFirstChild(j[3])
-		local m = p1 and p1:FindFirstChild(j[1])
-		if not (p1 and p1:IsA("BasePart") and m and m:IsA("Motor6D")) then
+		local m = joints[j[1]]
+		if not (p1 and p1:IsA("BasePart") and m) then
 			return nil, parts
 		end
 		parts[j[3]] = p1
+		local c0, c1 = (m :: any).C0, (m :: any).C1
 		table.insert(body.joints, {
 			name = j[1],
 			part0 = j[2],
 			part1 = j[3],
-			c0 = CarryPose.fromComponents({ m.C0:GetComponents() }),
-			c1 = CarryPose.fromComponents({ m.C1:GetComponents() }),
+			c0 = CarryPose.fromComponents({ c0:GetComponents() }),
+			c1 = CarryPose.fromComponents({ c1:GetComponents() }),
 		})
 	end
 	for name, p in parts do
@@ -345,11 +349,11 @@ local function sendState(hero: any)
 			since = c and c.since,
 			swings = if c then T.swing.max - (c.swings or 0) else 0,
 		})
-		hero.player:SetAttribute("Carrying", kind)
 		-- the grip picks the hold pose every device shows (HeroAnimator: carry, carryHand, carryMind) and, for a
 		-- live robot, where each device draws it (CarryRobot: its id; ThrowClient)
 		hero.player:SetAttribute("CarryGrip", c and c.grip or nil)
 		hero.player:SetAttribute("CarryRobot", if c and c.robot then c.robot else nil)
+		hero.player:SetAttribute("Carrying", kind) -- after the grip, so the pose's edge reads it
 	end
 end
 
@@ -527,7 +531,9 @@ local function throwRobot(hero: any, aim: Vector3)
 		return
 	end
 	local id = c.robot
-	local from = if c.box then (root.CFrame * c.box).Position else root.Position + Vector3.new(0, T.overhead, 0)
+	local from = if c.box
+		then (root.CFrame * c.box).Position
+		else root.Position + Vector3.new(0, T.overhead, 0)
 	local dir = Vector3.new(aim.X - from.X, 0, aim.Z - from.Z)
 	if dir.Magnitude < 0.5 then
 		dir = root.CFrame.LookVector
@@ -636,7 +642,14 @@ local function grabRobot(hero: any, id: number)
 	local body = ThrowService.bodyOf(root.Parent)
 	local h = (e.cfg.body and e.cfg.body.height) or 5
 	local hold = body
-		and CarryPose.hold(T, body, grip, HeroAnim.sample(CarryPose.CLIP[grip], 0), CarryPose.robotSize(h), true)
+		and CarryPose.hold(
+			T,
+			body,
+			grip,
+			HeroAnim.sample(CarryPose.CLIP[grip], 0),
+			CarryPose.robotSize(h),
+			true
+		)
 	hero.carry = {
 		id = ROBOT_HOLD,
 		robot = id,

@@ -10,7 +10,7 @@
 --   hand      small things (bench, bin, mailbox, rubble): up on the right fist (HeroAnim "carryHand"); welded
 --             to the RightHand
 --   pole      a sign or a lamp post gripped upright in the right fist (the same pose); welded to the RightHand
---   mind      Gravity (Pulse) and Mind heroes: it floats above (or beside, small ones) with a glow, both hands
+--   mind      Gravity (Pulse) and Mind heroes: it floats over the head with a glow, both hands
 --             raised to it (HeroAnim "carryMind"); welded to the HumanoidRootPart
 -- The maths is forward kinematics of the R15 arm, the way Roblox and HeroAnimator pose it (a child part =
 -- parent * C0 * CFrame.new(0, py, 0) * CFrame.Angles(rx, ry, rz) * C1:Inverse()), at the hold clip's first key,
@@ -30,7 +30,9 @@ export type Hold = {
 	c0: CF, -- the box's centre in that part's frame
 	box: CF, -- the box's centre in the root's frame at the clip's first key
 	hand: CF, -- the box's centre in the RightHand's frame at that key (the lift and swings follow the hand)
-	size: V, -- the box's extents in its own (held) frame
+	size: V, -- the box's extents in its own frame (as given)
+	turn: M, -- how the box is turned in the hands (its frame to the hold's upright frame)
+	ext: V, -- its extents in that upright frame (across, up, along)
 }
 
 local IDENT: M = { { 1, 0, 0 }, { 0, 1, 0 }, { 0, 0, 1 } }
@@ -51,7 +53,8 @@ CarryPose.JOINTS = {
 -- the held pose each grip shows (HeroAnimator's state pose, by the CarryGrip attribute)
 CarryPose.CLIP = { overhead = "carry", hand = "carryHand", pole = "carryHand", mind = "carryMind" }
 -- the part each grip welds to
-CarryPose.PART = { overhead = "UpperTorso", hand = "RightHand", pole = "RightHand", mind = "HumanoidRootPart" }
+CarryPose.PART =
+	{ overhead = "UpperTorso", hand = "RightHand", pole = "RightHand", mind = "HumanoidRootPart" }
 -- the one-shots during which the held thing follows the right hand (the lift, the swings and the slam)
 CarryPose.FOLLOW = { lift = true, robotSwing = true, robotSwingBack = true, robotSlam = true }
 
@@ -107,7 +110,8 @@ end
 -- CFrame.Angles(rx, ry, rz) in degrees: Rx * Ry * Rz
 function CarryPose.angles(rx: number, ry: number, rz: number): M
 	local x, y, z = math.rad(rx), math.rad(ry), math.rad(rz)
-	local cx, sx, cy, sy, cz, sz = math.cos(x), math.sin(x), math.cos(y), math.sin(y), math.cos(z), math.sin(z)
+	local cx, sx, cy, sy, cz, sz =
+		math.cos(x), math.sin(x), math.cos(y), math.sin(y), math.cos(z), math.sin(z)
 	local X = { { 1, 0, 0 }, { 0, cx, -sx }, { 0, sx, cx } }
 	local Y = { { cy, 0, sy }, { 0, 1, 0 }, { -sy, 0, cy } }
 	local Z = { { cz, -sz, 0 }, { sz, cz, 0 }, { 0, 0, 1 } }
@@ -124,11 +128,27 @@ end
 
 -- CFrame:GetComponents() order (x, y, z, R00, R01, R02, R10, ...) in and out
 function CarryPose.fromComponents(c: { number }): CF
-	return { p = { c[1], c[2], c[3] }, r = { { c[4], c[5], c[6] }, { c[7], c[8], c[9] }, { c[10], c[11], c[12] } } }
+	return {
+		p = { c[1], c[2], c[3] },
+		r = { { c[4], c[5], c[6] }, { c[7], c[8], c[9] }, { c[10], c[11], c[12] } },
+	}
 end
 function CarryPose.components(a: CF): { number }
 	local r = a.r
-	return { a.p[1], a.p[2], a.p[3], r[1][1], r[1][2], r[1][3], r[2][1], r[2][2], r[2][3], r[3][1], r[3][2], r[3][3] }
+	return {
+		a.p[1],
+		a.p[2],
+		a.p[3],
+		r[1][1],
+		r[1][2],
+		r[1][3],
+		r[2][1],
+		r[2][2],
+		r[2][3],
+		r[3][1],
+		r[3][2],
+		r[3][3],
+	}
 end
 
 ---------------------------------------------------------------------------
@@ -224,8 +244,8 @@ local function fit(size: V, grip: string, upright: boolean?): (M, V)
 end
 
 -- Where a carried box sits for a grip. pose: the grip's clip (HeroAnim.sample(CarryPose.CLIP[grip], 0)); size:
--- the box's extents in its own frame (a prop's bounding box, or a robot's { height, depth, width } with
--- `robot`, laid as CarryPose.ROBOT); upright: never laid down (vehicles)
+-- the box's extents in its own frame (a prop's bounding box, or a robot's CarryPose.robotSize with `robot`,
+-- laid as CarryPose.ROBOT); upright: never laid down (vehicles)
 function CarryPose.hold(
 	T: any,
 	body: Body,
@@ -239,7 +259,11 @@ function CarryPose.hold(
 	local P = CarryPose.parts(body, pose)
 	local r: M, ext: V
 	if robot then
-		r, ext = CarryPose.ROBOT, { size[1], size[2], size[3] }
+		r = CarryPose.ROBOT
+		ext = {}
+		for i = 1, 3 do
+			ext[i] = math.abs(r[i][1]) * size[1] + math.abs(r[i][2]) * size[2] + math.abs(r[i][3]) * size[3]
+		end
 	else
 		r, ext = fit(size, grip, upright)
 	end
@@ -249,21 +273,14 @@ function CarryPose.hold(
 		local head = P.Head
 		local hs = body.sizes.Head or { 1.2, 1.2, 1.2 }
 		local top = if head then head.p[2] + hs[2] / 2 else 2.25
-		if not robot and math.max(size[1], size[2], size[3]) <= M_.small then
-			-- small things bob at the right shoulder, long side forward
-			if ext[1] > ext[3] then
-				r, ext = mm(YAW90, r), { ext[3], ext[2], ext[1] }
-			end
-			box = CarryPose.cf(M_.side + ext[1] / 2, M_.sideY, M_.fwd, r)
-		else
-			box = CarryPose.cf(0, top + M_.gap + ext[2] / 2, M_.fwd, r)
-		end
+		box = CarryPose.cf(0, top + M_.gap + ext[2] / 2, M_.fwd, r)
 	elseif grip == "overhead" then
 		local ut = P.UpperTorso
 		local iu = CarryPose.inv(ut)
 		local a = CarryPose.point(iu, CarryPose.tip(body, P, "Right"))
 		local b = CarryPose.point(iu, CarryPose.tip(body, P, "Left"))
-		local inUt = CarryPose.cf((a[1] + b[1]) / 2, math.max(a[2], b[2]) + H.palm + ext[2] / 2, (a[3] + b[3]) / 2, r)
+		local inUt =
+			CarryPose.cf((a[1] + b[1]) / 2, math.max(a[2], b[2]) + H.palm + ext[2] / 2, (a[3] + b[3]) / 2, r)
 		box = CarryPose.mul(ut, inUt)
 	elseif grip == "pole" then
 		-- gripped in the fist a share of the way up from its foot, standing straight up in the torso's frame
@@ -288,13 +305,15 @@ function CarryPose.hold(
 		c0 = CarryPose.mul(CarryPose.inv(P[part]), box),
 		box = box,
 		hand = CarryPose.mul(CarryPose.inv(P.RightHand), box),
-		size = ext,
+		size = { size[1], size[2], size[3] },
+		turn = r,
+		ext = ext,
 	}
 end
 
--- A robot's box as it is held: its height lies across the hands, its chest depth up, its shoulders' width along
+-- A robot's box in its own frame (shoulders' width, height, chest depth); held, its height lies across the hands
 function CarryPose.robotSize(height: number): V
-	return { height, height * 0.2, height * 0.4 }
+	return { height * 0.4, height, height * 0.2 }
 end
 
 -- The 8 corners of a held box (root frame), for the checks and the previews
@@ -310,13 +329,23 @@ function CarryPose.corners(box: CF, ext: V): { V }
 	return out
 end
 
--- A point's height above a held box's underside and how far outside its footprint it lies (in the box's frame):
--- (gap above the bottom face, -inside / +outside distance across)
-function CarryPose.under(box: CF, ext: V, pt: V): (number, number)
-	local q = CarryPose.point(CarryPose.inv(box), pt)
-	local gap = -ext[2] / 2 - q[2] -- > 0: the point is below the underside
+-- A point's height below a held box's underside and how far outside its footprint it lies, in the hold's
+-- upright frame: (gap: > 0 below the bottom face, outside: < 0 inside the edge)
+function CarryPose.under(box: CF, h: Hold, pt: V): (number, number)
+	local q = mv(h.turn, CarryPose.point(CarryPose.inv(box), pt))
+	local ext = h.ext
+	local gap = -ext[2] / 2 - q[2]
 	local out = math.max(math.abs(q[1]) - ext[1] / 2, math.abs(q[3]) - ext[3] / 2)
 	return gap, out
+end
+
+-- A point inside a held box grown by `margin` on every side
+function CarryPose.inside(box: CF, h: Hold, pt: V, margin: number): boolean
+	local q = mv(h.turn, CarryPose.point(CarryPose.inv(box), pt))
+	local e = h.ext
+	return math.abs(q[1]) < e[1] / 2 + margin
+		and math.abs(q[2]) < e[2] / 2 + margin
+		and math.abs(q[3]) < e[3] / 2 + margin
 end
 
 -- The mind swing's whirl (ThrowService's old tween path, now drawn on every device): the box's centre in the

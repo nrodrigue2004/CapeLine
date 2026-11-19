@@ -2421,12 +2421,17 @@ local function pose(
 			)
 			* root.Rotation
 	end
-	if lifted then
+	-- held by a hero (fix-carry): drawn in the carrier's hands, not tumbling (heldAt, set by ThrowClient; placed
+	-- again after physics by placeHeld so it never trails the hands)
+	local held = EnemyRenderer.heldAt and EnemyRenderer.heldAt(id, L.height)
+	if held then
+		root = held
+	elseif lifted then
 		root *= CFrame.Angles(math.rad((now * 540) % 360), 0, math.rad(25)) -- tumble
 	elseif stunned then
 		root *= CFrame.Angles(0, 0, math.rad(math.sin(now * 14) * 10))
 	end
-	local up = if flyer then L.hip else L.ground - L.height * 0.5
+	local up = if flyer and not held then L.hip else L.ground - L.height * 0.5
 	table.insert(roots, rig.root)
 	table.insert(cframes, root * CFrame.new(0, up, 0))
 	if not joints then
@@ -2725,6 +2730,39 @@ local function render()
 	end
 end
 
+-- A held robot's middle in the world, by its id and drawn height (ThrowClient sets it: the carrier's hands or
+-- the telekinesis float); nil when nobody holds it
+EnemyRenderer.heldAt = nil :: ((number, number) -> CFrame?)?
+
+-- The drawn model of a robot (nil when it is not drawn here)
+function EnemyRenderer.modelOf(id: number): Model?
+	local body = live[id]
+	return body and body.model
+end
+
+-- After physics: held robots go to their carriers' hands as solved this frame, so they never lag a step behind
+-- (the render reads this state; PreSimulation's pose used the hands of the frame before)
+local heldRoots: { BasePart } = {}
+local heldFrames: { CFrame } = {}
+local function placeHeld()
+	local at = EnemyRenderer.heldAt
+	if not at then
+		return
+	end
+	table.clear(heldRoots)
+	table.clear(heldFrames)
+	for id, body in live do
+		local cf = at(id, body.layout.height)
+		if cf then
+			table.insert(heldRoots, body.rig.root)
+			table.insert(heldFrames, cf * CFrame.new(0, body.layout.ground - body.layout.height * 0.5, 0))
+		end
+	end
+	if #heldRoots > 0 then
+		Workspace:BulkMoveTo(heldRoots, heldFrames, Enum.BulkMoveMode.FireCFrameChanged)
+	end
+end
+
 function EnemyRenderer.init()
 	folder = Instance.new("Folder")
 	folder.Name = "Enemies"
@@ -2748,6 +2786,7 @@ function EnemyRenderer.init()
 
 	-- PreSimulation, after the Animator, so the poses written over Roblox's walk show (NpcLoco, like HeroAnimator)
 	RunService.PreSimulation:Connect(FrameProf.wrap("EnemyRenderer", render))
+	RunService.PostSimulation:Connect(FrameProf.wrap("EnemyHeld", placeHeld))
 end
 
 return EnemyRenderer
