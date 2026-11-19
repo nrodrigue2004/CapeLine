@@ -17,6 +17,7 @@ local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local PolishPlan = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("PolishPlan"))
 
 local MoveController = require(script.Parent.Parent.Controllers.MoveController)
+local HeroAnimator = require(script.Parent.Parent.Controllers.HeroAnimator)
 local QualityController = require(script.Parent.Parent.Controllers.QualityController)
 local State = require(script.Parent.Parent.State)
 local Juice = require(script.Parent.Juice)
@@ -202,6 +203,7 @@ function MoveFx.init()
 		ring(pos + Vector3.new(0, 0.3, 0), Color3.fromRGB(214, 206, 190), r * 2.4)
 		crack(pos, math.clamp(r * 1.4, 10, 20))
 		Juice.fire("land", pos, { mine = true })
+		HeroAnimator.play(Players.LocalPlayer, "poundLandHeavy")
 	end)
 
 	local phase = 0
