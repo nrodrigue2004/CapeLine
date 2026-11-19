@@ -3072,6 +3072,10 @@ test("M5: 220 wreckable hub buildings, ids 1 to 220, HP by size class", function
 	for _, b in world.downtown.buildings do
 		extra += if b.grown then 1 else 0
 	end
+	-- then (2026-11-19, more destruction everywhere) the rest of Old Town and the outskirts (tests/impact_test)
+	for _, b in list do
+		extra += if b.more then 1 else 0
+	end
 	check(#list == DS.hubBuildings + extra, "220 buildings and the new ones (got " .. #list .. ")")
 	for i = 1, DS.hubBuildings do
 		local d = list[i] and list[i].district
@@ -3088,14 +3092,29 @@ test("M5: 220 wreckable hub buildings, ids 1 to 220, HP by size class", function
 	end
 	check((per.Downtown or 0) > 0 and (per.Docks or 0) > 0 and (per.OldTown or 0) > 0, "all three districts")
 	local again = WorldMap.build(Config, 202650)
+	-- the outskirts (last, from the weekly tiles) change by seed; everything before them never does
+	local function hubCount(l: { any }): number
+		local n = 0
+		for _, b in l do
+			n += if b.district ~= "Outskirts" then 1 else 0
+		end
+		return n
+	end
 	check(
-		#again.buildings == #list and again.buildings[200].x == list[200].x,
+		hubCount(again.buildings) == hubCount(list) and again.buildings[200].x == list[200].x,
 		"the hub list never changes by seed"
 	)
 	local tagged: { [number]: boolean } = {}
 	for _, b in world.hubBoxes do
 		if b.bid then
 			tagged[b.bid] = true
+		end
+	end
+	for _, plan in world.tilePlans do
+		for _, b in plan.boxes do
+			if b.bid then
+				tagged[b.bid] = true
+			end
 		end
 	end
 	for i = 1, #list do
@@ -6080,7 +6099,9 @@ local Structure = require("../src/shared/Structure")
 test("RF: every building is pillars, wall panels and slabs inside its box, at most 256 pieces", function()
 	for _, b in world.buildings do
 		local g = Structure.build(DS, b)
-		check(#g.pieces >= 13 and #g.pieces <= 256, "piece count for " .. b.id .. ": " .. #g.pieces)
+		-- an outskirts house (2026-11-19) can be one storey of one panel a face: 4 pillars, 4 walls and its roof
+		local least = if b.district == "Outskirts" then 9 else 13
+		check(#g.pieces >= least and #g.pieces <= 256, "piece count for " .. b.id .. ": " .. #g.pieces)
 		local kinds = {}
 		for _, p in g.pieces do
 			kinds[p.kind] = (kinds[p.kind] or 0) + 1
@@ -8960,18 +8981,32 @@ test(
 		end
 		check(idsOk, "the first 220 wreckable buildings keep their ids")
 		local up = wd.uptown
+		-- then the 2026-11-19 additions (the rest of Old Town, the outskirts: b.more; tests/impact_test)
+		local more = 0
+		for _, b in wd.buildings do
+			more += if b.more then 1 else 0
+		end
 		check(
-			#wd.buildings == Config.Destruction.hubBuildings + grown + #up.buildings,
+			#wd.buildings == Config.Destruction.hubBuildings + grown + #up.buildings + more,
 			string.format(
-				"%d wreckable: 220 + %d grown Downtown + %d Uptown",
+				"%d wreckable: 220 + %d grown Downtown + %d Uptown + %d more",
 				#wd.buildings,
 				grown,
-				#up.buildings
+				#up.buildings,
+				more
 			)
 		)
 		for i = Config.Destruction.hubBuildings + 1, #wd.buildings do
 			local b = wd.buildings[i]
-			check(b.id == i and (b.district == "Downtown" or b.district == "Uptown"), "new wreckable " .. i)
+			check(
+				b.id == i
+					and (
+						b.district == "Downtown"
+						or b.district == "Uptown"
+						or (b.more == true and (b.district == "OldTown" or b.district == "Outskirts"))
+					),
+				"new wreckable " .. i
+			)
 		end
 
 		-- districts never overlap each other, the outskirts safehouses, landmarks or the beacons outside them
@@ -22959,7 +22994,9 @@ end
 -- the enemy motion pass (2026-11-18, own file); ONLY="Enemy motion" runs just these
 (require :: any)("./motion_test")({ test = test, check = check, Config = Config });
 -- the movement fixes (nate's playtest 2026-11-19: tunnel, slide, swing, leap, wall runs); ONLY="Move fixes"
-(require :: any)("./move_fixes_test")({ test = test, check = check, Config = Config })
+(require :: any)("./move_fixes_test")({ test = test, check = check, Config = Config });
+-- more destruction and momentum impact (nate's playtest 2026-11-19); ONLY="Impact" runs these
+(require :: any)("./impact_test")({ test = test, check = check, Config = Config, world = world })
 
 print(string.format("\n%d passed, %d failed", passed, failed))
 if failed > 0 then

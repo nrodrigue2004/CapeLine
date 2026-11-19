@@ -18,6 +18,10 @@
 -- * Audit fixes (2026-11-18): snapshots and diffs go through BuildingState.applySnapshot and applyDiff (a repair in
 --   a batch clears the old holes before that batch's new ones), at most the preset's `falling` pieces animate at
 --   once, and a building streaming out drops its saved collision flags.
+-- * The street breaks too (2026-11-19, nate: "more destruction everywhere"): every BuildingImpact knocks the street
+--   things in reach loose on this device (the kit's street props through CityProps.smash, and the city's own
+--   trees, fences, awnings and roof props), up to the preset's `smash` count and the debris budget; each comes
+--   back after Config.Destruction.street.respawn seconds. The outskirts buildings' boxes come in the snapshot (o).
 -- PLACEHOLDER ART: chunks, rubble and drones are plain boxes; cracks are thin dark bars. Dust uses the
 -- engine's built-in smoke texture.
 
@@ -39,6 +43,7 @@ local Structure = require(Shared:WaitForChild("Structure"))
 
 local QualityController = require(script.Parent.Parent.Controllers.QualityController)
 local CameraController = require(script.Parent.Parent.Controllers.CameraController)
+local CityProps = require(script.Parent.Parent.Controllers.CityProps)
 local Juice = require(script.Parent.Juice)
 local DebrisBudget = require(script.Parent.DebrisBudget)
 
@@ -178,6 +183,7 @@ local function drawStructure(rec: Rec, skip: { [number]: boolean }): (Model, { [
 	local color, material, variant = bodyLook(models[rec.id])
 	local m = Instance.new("Model")
 	m.Name = "Wreck_" .. rec.id
+	m:SetAttribute("WreckOf", rec.id) -- a ram into these pieces is a ram into the building (MoveController)
 	local parts: { [number]: BasePart } = {}
 	for i, c in gridOf(rec).pieces do
 		if not skip[i] then
@@ -616,6 +622,90 @@ local function cracks(center: Vector3, radius: number)
 	end
 end
 
+-- A street piece knocked loose: a copy flies off as debris (the device's budget), the original stays hidden
+local function fling(p: BasePart, center: Vector3)
+	local ST = D.street
+	if DebrisBudget.lease(1, ST.life) == 0 then
+		return
+	end
+	local c = p:Clone()
+	for _, ch in c:GetChildren() do
+		if not (ch:IsA("SurfaceAppearance") or ch:IsA("SpecialMesh")) then
+			ch:Destroy()
+		end
+	end
+	c.Anchored = false
+	c.CanCollide = true
+	c.CanQuery = false
+	c.CanTouch = false
+	c.LocalTransparencyModifier = 0
+	local out = Vector3.new(p.Position.X - center.X, 0, p.Position.Z - center.Z)
+	out = if out.Magnitude > 0.1
+		then out.Unit
+		else Vector3.new(math.random() - 0.5, 0, math.random() - 0.5).Unit
+	c.AssemblyLinearVelocity = out * ST.fling * (0.6 + math.random() * 0.6)
+		+ Vector3.new(0, ST.fling * (0.4 + math.random() * 0.4), 0)
+	c.AssemblyAngularVelocity = Vector3.new(math.random() - 0.5, math.random() - 0.5, math.random() - 0.5) * 8
+	c.Parent = folder
+	task.delay(ST.life - 0.8, function()
+		if c.Parent then
+			TweenService:Create(c, TweenInfo.new(0.8), { Transparency = 1 }):Play()
+		end
+	end)
+	task.delay(ST.life, function()
+		c:Destroy()
+	end)
+end
+
+-- The city's own street things (server-built parts named "prop" outside any building model: trees, fences,
+-- awnings, signs, crates) hidden on this device while they are "broken"
+local streetDown: { [BasePart]: { collide: boolean, query: boolean } } = {}
+local function smashStreet(center: Vector3, radius: number)
+	local ST = D.street
+	local r = math.max(ST.minRadius, radius * ST.radiusMult)
+	local left = QualityController.preset.smash or 3
+	left -= CityProps.smash(center, r, left, fling)
+	local city = Workspace:FindFirstChild("City")
+	if left <= 0 or not city then
+		return
+	end
+	local params = OverlapParams.new()
+	params.FilterType = Enum.RaycastFilterType.Include
+	params.FilterDescendantsInstances = { city }
+	params.MaxParts = 48
+	for _, p in Workspace:GetPartBoundsInRadius(center, r, params) do
+		if left <= 0 then
+			break
+		end
+		local parent = p.Parent
+		if
+			p.Name == "prop"
+			and not streetDown[p]
+			and p.Transparency < 1
+			and p.LocalTransparencyModifier < 1
+			and p:GetAttribute("Tag") == nil
+			and p.Size.Magnitude < 30
+			and not (parent and parent:GetAttribute("BuildingId") ~= nil)
+		then
+			left -= 1
+			fling(p, center)
+			streetDown[p] = { collide = p.CanCollide, query = p.CanQuery }
+			p.LocalTransparencyModifier = 1
+			p.CanCollide = false
+			p.CanQuery = false
+			task.delay(ST.respawn, function()
+				local f = streetDown[p]
+				streetDown[p] = nil
+				if f and p.Parent then
+					p.LocalTransparencyModifier = 0
+					p.CanCollide = f.collide
+					p.CanQuery = f.query
+				end
+			end)
+		end
+	end
+end
+
 local function impact(center: Vector3, radius: number, kind: number)
 	if typeof(center) ~= "Vector3" or type(radius) ~= "number" then
 		return
@@ -624,6 +714,7 @@ local function impact(center: Vector3, radius: number, kind: number)
 		crater(center, radius)
 	end
 	cracks(center, radius)
+	smashStreet(center, radius)
 end
 
 -- Repair drones: fly in over the building and hover while working (PLACEHOLDER ART)
@@ -783,6 +874,12 @@ function BuildingFx.init()
 	Net.listen("BuildingSnapshot", function(data: any)
 		if type(data) ~= "table" or type(data.s) ~= "buffer" then
 			return
+		end
+		-- the outskirts buildings' boxes come with the snapshot (2026-11-19: too many for WorldInfo)
+		if type(data.o) == "buffer" and type(data.o1) == "number" and data.o1 >= 1 then
+			for id, rec in BuildingState.unpackBoxes(data.o, data.o1, 4096) do
+				records[id] = rec
+			end
 		end
 		-- the states and the pieces gone from each Damaged building; holes from earlier batches are dropped
 		BuildingState.applySnapshot(view, data, pieceCount)

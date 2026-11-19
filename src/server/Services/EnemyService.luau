@@ -331,6 +331,9 @@ function EnemyService.place(id: number, pos: Vector3)
 	end
 end
 
+-- (hero, damage taken, the robot's position, melee): set by ImpactService (a heavy punch throws the hero)
+EnemyService.heroHitHook = nil :: ((any, number, Vector3, boolean) -> ())?
+
 function EnemyService.get(id: number): any
 	return sim.byId[id]
 end
@@ -444,6 +447,11 @@ local function handleEvents()
 					table.insert(out, { EnemyService.HERO_HIT, ev.hero, pos.X, pos.Y, pos.Z, dmg })
 				end
 				if hero.alive and not hero.downed then
+					-- a heavy punch throws the hero back, through a wall if one is in the way (ImpactService, 2026-11-19)
+					local by = sim.byId[ev.e]
+					if EnemyService.heroHitHook and by and ev.melee then
+						EnemyService.heroHitHook(hero, taken, Vector3.new(by.x, by.y, by.z), true)
+					end
 					if ev.cc then
 						-- the new types' crowd control (a net, a hook's hold, a shield bash): the same rules as PvP's
 						-- (stuns and roots shorten on repeats, Resolve shortens them)

@@ -113,6 +113,14 @@ local Remotes: { [string]: RemoteDef } = {
 	BuildingSnapshot = { dir = "S2C" }, -- { s = packed 2-bit states, n, dr = drone jobs }
 	BuildingDiff = { dir = "S2C" }, -- { r = repaired ids, d = { id, state, ... }, c = { id, piece, cause, ... }, dr = { { drone, building, seconds } } }
 	BuildingImpact = { dir = "S2C" }, -- center, radius, kind (1 crater, 2 cracks)
+	-- Momentum and impact (2026-11-19): the device saw its hero ram a wall fast: the contact point, the travel
+	-- direction and the speed it claims (ImpactService checks all three against its own history)
+	ImpactRam = {
+		dir = "C2S",
+		schema = { V3, V3, { t = "number", min = 0, max = 400 } },
+		rate = 4,
+		burst = 6,
+	},
 	VehicleFlip = { dir = "S2C" }, -- vehicle id, push x, push z
 	VehicleReset = { dir = "S2C" }, -- vehicle id
 	CitizenDelta = { dir = "S2C", unreliable = true }, -- CitizenBuffer packet, 4 Hz
@@ -177,7 +185,7 @@ local Remotes: { [string]: RemoteDef } = {
 	PingShow = { dir = "S2C" }, -- { kind, x, y, z, from, life, downed }: a marker on allies' screens
 	ReportPlayer = { dir = "C2S", schema = { n(1, 2 ^ 52), n(1, 4) }, rate = 0.1, burst = 2 }, -- user id, reason
 	PvpResult = { dir = "S2C" }, -- { won, other, credits, fame, cut }: the win or defeat card
-	HeroKnock = { dir = "S2C" }, -- { x, y, z, time }: a PvP knockback, pull or knockup on your own hero
+	HeroKnock = { dir = "S2C" }, -- { x, y, z, time, wall? = { x, y, z, t } }: a knockback, pull or knockup on your own hero (wall: it broke through one there, t along the throw)
 	-- WP4 (spec: Social > Rivalry, gap G8): the REMATCH ping, fixed buttons only. PvpRematch { act, userId }:
 	-- 1 the loser pings their last winner (no id), 2 the winner accepts that loser's ping, 3 the winner says no
 	PvpRematch = { dir = "C2S", schema = { n(1, 3), n(1, 2 ^ 52, true) }, rate = 0.5, burst = 3 },

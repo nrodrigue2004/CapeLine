@@ -24,6 +24,14 @@
 --   repairs go out with the diffs (r); ray() lets combat rays stop on a Damaged building's standing pieces.
 -- * Pins (2026-11-18): a beacon's host never breaks (WorldMap `fixed`), and pin(id, on) holds a roof whole while a
 --   side quest goal stands on it (BuildingState.pin); a knockback never picks a pinned wall.
+-- * More destruction everywhere (nate's playtest 2026-11-19, "only skyscrapers are destructible"): every Old Town
+--   building and every outskirts building body is wreckable now (WorldMap.moreBuildings; 2,500+ in all), so a hit
+--   looks only at the buildings round it (BuildingState.near, a 64-stud grid). The outskirts records go to each
+--   device in its snapshot (o: one 32-bit float buffer, ids from o1) instead of the WorldInfo text. A side
+--   quest's outskirts house never breaks (kept whole once the outskirts are built).
+-- * Momentum and impact (2026-11-19): smash(id, at, dmg) and wallOnPath(from, move) are ImpactService's: a hero
+--   ramming a wall fast, thrown into one, or a robot knocked into one knocks pieces out where it lands; the
+--   pieces go out at once (flushNow) so the hole is there when the thrown hero arrives.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -34,6 +42,8 @@ local Net = require(Shared:WaitForChild("Net"))
 local BuildingState = require(Shared:WaitForChild("BuildingState"))
 local Structure = require(Shared:WaitForChild("Structure"))
 local Signal = require(Shared:WaitForChild("Util"):WaitForChild("Signal"))
+local ImpactRules = require(Shared:WaitForChild("ImpactRules"))
+local SideQuestSites = require(Shared:WaitForChild("SideQuestSites"))
 
 local CityBuilder = require(script.Parent.CityBuilder)
 local HeroService = require(script.Parent.HeroService)
@@ -133,8 +143,9 @@ function BuildingService.hit(center: Vector3, radius: number, dmg: number, kind:
 	local t0 = os.clock()
 	local now = os.clock()
 	local n = 0
-	for id, b in records do
-		if BuildingState.touches(b, center.X, center.Y, center.Z, radius) then
+	for _, id in BuildingState.near(book, center.X, center.Z, radius) do
+		local b = records[id]
+		if b and BuildingState.touches(b, center.X, center.Y, center.Z, radius) then
 			n += 1
 			local y = BuildingState.blastY(b, center.Y)
 			settle(id, BuildingState.blast(D, book, id, center.X, y, center.Z, radius, dmg, now))
@@ -173,9 +184,11 @@ function BuildingService.clash(hero: any, at: Vector3, from: Vector3): Vector3?
 	end
 	away = away.Unit
 	local best, bestD = nil, D.clash.wallRange
-	for id, b in records do
+	for _, id in BuildingState.near(book, at.X, at.Z, D.clash.wallRange) do
+		local b = records[id]
 		if
-			book.state[id] ~= BuildingState.COLLAPSED
+			b
+			and book.state[id] ~= BuildingState.COLLAPSED
 			and at.Y < b.top + 4
 			and not BuildingState.pinned(book, id)
 		then
@@ -198,6 +211,92 @@ function BuildingService.clash(hero: any, at: Vector3, from: Vector3): Vector3?
 	local pz = math.clamp(at.Z, b.z - b.sz / 2, b.z + b.sz / 2)
 	settle(best, BuildingState.punch(D, book, best, px, math.max(at.Y, b.base + 2), pz, now))
 	return Vector3.new(b.x - at.X, 0, b.z - at.Z).Unit
+end
+
+-- Can building id be broken now (it stands, and nothing holds it whole)?
+local function breakable(id: number): boolean
+	local book = BuildingService.book
+	return book ~= nil
+		and records[id] ~= nil
+		and book.state[id] ~= BuildingState.COLLAPSED
+		and not BuildingState.pinned(book, id)
+end
+
+-- The first standing building a straight move from `from` goes into: its id, how far along (0..1) and the
+-- point where it enters, or nil. Pinned buildings count too (they stop a throw, they never break).
+function BuildingService.wallOnPath(from: Vector3, move: Vector3): (number?, number, Vector3?)
+	local book = BuildingService.book
+	if not book or move.Magnitude < 0.1 then
+		return nil, 1, nil
+	end
+	local ids = ImpactRules.nearPath(book.index, from.X, from.Z, move.X, move.Z, 4)
+	local id, t = ImpactRules.firstWall(
+		records,
+		ids,
+		from.X,
+		from.Y,
+		from.Z,
+		move.X,
+		move.Y,
+		move.Z,
+		function(i)
+			return book.state[i] == BuildingState.COLLAPSED
+		end
+	)
+	if not id then
+		return nil, 1, nil
+	end
+	return id, t, from + move * t
+end
+
+-- The standing building a contact point is on (a ram the device saw), or nil
+function BuildingService.buildingAt(at: Vector3, pad: number): number?
+	local book = BuildingService.book
+	if not book then
+		return nil
+	end
+	local ids = BuildingState.near(book, at.X, at.Z, pad + 1)
+	return ImpactRules.containing(records, ids, at.X, at.Y, at.Z, pad, function(i)
+		return book.state[i] == BuildingState.COLLAPSED
+	end)
+end
+
+function BuildingService.breakable(id: number): boolean
+	return breakable(id)
+end
+
+local flush: () -> ()
+
+-- Knock pieces out of building id round `at` (a ram, a throw, a robot into a wall): `dmg` structure damage
+-- within `radius`. The pieces go out now, and nearby devices get an impact (cracks, the street knocked loose).
+-- Returns how many pieces it knocked out (0: pinned, collapsed, or nothing there).
+function BuildingService.smash(id: number, at: Vector3, dmg: number, radius: number): number
+	local book = BuildingService.book
+	if not book or dmg <= 0 or not breakable(id) then
+		return 0
+	end
+	local t0 = os.clock()
+	local b = records[id]
+	local px = math.clamp(at.X, b.x - b.sx / 2, b.x + b.sx / 2)
+	local pz = math.clamp(at.Z, b.z - b.sz / 2, b.z + b.sz / 2)
+	local py = math.clamp(at.Y, b.base + 1, b.top)
+	local r = BuildingState.blast(D, book, id, px, py, pz, radius, dmg, os.clock())
+	settle(id, r)
+	local n = #r.hit + (if r.changed and r.state == BuildingState.COLLAPSED then 1 else 0)
+	if n > 0 then
+		impact(Vector3.new(px, py, pz), radius, 2)
+		BuildingService.Danger:Fire(px, pz, radius + 20, 4)
+		flush()
+	end
+	PerfMonitor.add("buildings", (os.clock() - t0) * 1000)
+	return n
+end
+
+-- Send what changed now instead of with the next 2 Hz batch (a hole a thrown hero is about to fly through)
+function BuildingService.flushNow()
+	if BuildingService.book then
+		flush()
+	end
 end
 
 -- Studs along a unit ray to the first standing piece of a Damaged building, or max (CombatService's rays:
@@ -240,7 +339,7 @@ function BuildingService.repairAll()
 	end
 end
 
-local function flush()
+flush = function()
 	local book = BuildingService.book
 	local fixed = BuildingState.takeFixed(book)
 	local diffs = BuildingState.takeDiffs(book)
@@ -252,6 +351,46 @@ local function flush()
 	droneJobs = {}
 end
 
+-- The outskirts buildings' boxes for a device (2026-11-19): too many for the WorldInfo text, so the snapshot
+-- carries them as 32-bit floats (x, z, sx, sz, base, top; WorldMap snaps them to a quarter stud, exact in a
+-- float) from id `from` on. BuildingState.unpackBoxes reads it back.
+local outskirtsFrom, outskirtsBoxes = 0, nil :: buffer?
+local function packOutskirts(world: any)
+	local list = {}
+	for _, b in world.buildings do
+		if b.district == "Outskirts" then
+			table.insert(list, b)
+		end
+	end
+	if #list == 0 then
+		return
+	end
+	outskirtsFrom = list[1].id
+	outskirtsBoxes = BuildingState.packBoxes(list)
+end
+
+-- A side quest's outskirts house (its giver's door, its goal) never breaks: kept whole once the picks are made
+local function keepSites(world: any, book: any)
+	for id, st in Config.SideQuests.sites do
+		if SideQuestSites.isOutskirts(st) and not SideQuestSites.isShore(st) then
+			local site = SideQuestSites.outskirts(Config, world, id)
+			if site then
+				for _, bid in BuildingState.near(book, site.x, site.z, 2) do
+					local b = records[bid]
+					if
+						b
+						and b.district == "Outskirts"
+						and math.abs(b.x - site.x) < 1
+						and math.abs(b.z - site.z) < 1
+					then
+						BuildingState.keepWhole(book, bid)
+					end
+				end
+			end
+		end
+	end
+end
+
 function BuildingService.init()
 	local world = CityBuilder.world
 	for _, b in world.buildings do
@@ -259,6 +398,14 @@ function BuildingService.init()
 	end
 	local book = BuildingState.new(D, world.buildings)
 	BuildingService.book = book
+	packOutskirts(world)
+	if CityBuilder.ready then
+		keepSites(world, book)
+	else
+		CityBuilder.Ready:Connect(function()
+			keepSites(world, book)
+		end)
+	end
 	Net.on("BuildingSync", function(player)
 		local jobs = {}
 		local now = os.clock()
@@ -267,11 +414,14 @@ function BuildingService.init()
 				table.insert(jobs, { d.id, d.target, math.max(0, d.doneAt - now) })
 			end
 		end
-		Net.fire(
-			"BuildingSnapshot",
-			player,
-			{ s = BuildingState.pack(book), n = book.n, dr = jobs, g = BuildingState.packGone(D, book) }
-		)
+		Net.fire("BuildingSnapshot", player, {
+			s = BuildingState.pack(book),
+			n = book.n,
+			dr = jobs,
+			g = BuildingState.packGone(D, book),
+			o = outskirtsBoxes,
+			o1 = outskirtsFrom,
+		})
 	end)
 	PerfMonitor.watch("wrecked", function()
 		local n = 0

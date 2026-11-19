@@ -288,9 +288,11 @@ return function(T: any)
 			check(next(book.gone[host2] or {}) == nil and #book.removed == 0, "no piece knocked out")
 		end
 		-- only beacon hosts are fixed: the rest of the city still breaks
+		-- (2026-11-19: the added Old Town and outskirts buildings are also fixed next to a safehouse or under a
+		-- beacon, WorldMap.keepClear; tests/impact_test checks those)
 		local fixed = 0
 		for _, b in world.buildings do
-			if b.fixed then
+			if b.fixed and not b.more then
 				fixed += 1
 				check(hosts[b.id] ~= nil, "building " .. b.id .. " is fixed only for a beacon")
 			end

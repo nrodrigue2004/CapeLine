@@ -4,6 +4,18 @@
 return {
 	hubBuildings = 220, -- destructible buildings in the hub: all of the first Downtown, the Docks warehouses, the rest from Old Town;
 	-- every building of the grown Downtown blocks and Uptown comes after these (ids 221 on; WorldMap.pickBuildings)
+	-- More destruction everywhere (nate's playtest 2026-11-19: "only skyscrapers are destructible"): before this,
+	-- only the hub's tall districts were wreckable: half of Old Town (past the first 220) and every outskirts
+	-- building (2,000+ houses, shops, barns, farm sheds) were plain parts that took no hits. Now the rest of Old
+	-- Town and every outskirts building body come after Uptown (WorldMap.moreBuildings), in the same order every
+	-- build. Landmarks (the Foundry, the Crater) and safehouses stay whole.
+	everywhere = true,
+	keepClear = 14, -- studs past a safehouse pad's circle or round a beacon where no building is wreckable
+	cell = 64, -- the server's building index cell (BuildingState.index: hits look only at nearby buildings)
+	-- the street's small things (lamps, benches, hydrants, signs, trees, fences, awnings) break on any big
+	-- impact nearby: each device knocks them loose as debris (its preset's `smash` count and debris budget) and
+	-- puts them back after `respawn` seconds. They are dressing, so the server keeps no state for them.
+	street = { respawn = 45, radiusMult = 1.2, minRadius = 8, fling = 40, life = 4 },
 	hp = { small = 6000, medium = 10000, tower = 14000 }, -- structure HP by size
 	smallMax = 30, -- a building up to this tall (2 or so floors) is small
 	mediumMax = 150, -- up to this tall is medium, taller is a tower
@@ -19,6 +31,7 @@ return {
 	collapseTime = 6, -- the collapse animation on the client; "at once" means started within this window
 	repair = {
 		dronesPerDistrict = 3,
+		districtDrones = { Outskirts = 8 }, -- the outskirts are big: more drones there (2026-11-19)
 		damagedAfter = 180, -- quiet seconds before a Damaged building is repaired
 		collapsedAfter = 240,
 		each = 20, -- seconds a drone spends on one building
