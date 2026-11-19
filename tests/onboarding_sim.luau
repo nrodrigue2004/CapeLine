@@ -23,6 +23,7 @@ local Sim = {}
 Sim.REACT = 1
 Sim.ARC = 1.9 -- PrologueFx.slowLeap's scripted first hop
 Sim.HOP = 3
+Sim.PICK = 2 -- the Ceremony's choice card: the nominal player picks in this long (act1-choices)
 Sim.LOAD = 6 -- a typical load on a phone (the screen gives up at 12 s)
 Sim.CREATOR_DELAY = 1.5 -- CreatorService: task.delay(1.5, CreatorService.createFirst) after the profile loads
 Sim.FADE = 0.45 -- the loading screen's fade out
@@ -40,7 +41,8 @@ function Sim.playTime(Config: any, step: string): number
 		local d = (O.run.minD + O.run.maxD) / 2 - O.spark.reach
 		return Sim.REACT + d / Config.Move.run.speed
 	elseif step == "spark" then
-		return Sim.REACT + O.spark.after
+		-- act1-choices: the Ceremony's choice comes `delay` s after the Spark; the player picks in Sim.PICK s
+		return Sim.REACT + O.pick.delay + Sim.PICK + O.pick.after
 	elseif step == "leap" then
 		return Sim.REACT + Sim.ARC
 	elseif step == "chase" then

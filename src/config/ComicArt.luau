@@ -5,11 +5,6 @@
 return {
 	-- one 1024 x 512 image per panel, keyed "<page>.<n>" (Config.Cinema.comic.pages)
 	panels = {
-		-- fix-flow (2026-11-19): the exposition page, not rendered yet (0: the drawn panels)
-		["intro.1"] = 0,
-		["intro.2"] = 0,
-		["intro.3"] = 0,
-		["intro.4"] = 0,
 		["brineLegend.1"] = 119145887433430,
 		["brineLegend.2"] = 98667600464549,
 		["brineLegend.3"] = 115069949871656,
@@ -22,6 +17,10 @@ return {
 		["cutStory.2"] = 102691477472770,
 		["cutStory.3"] = 133897679959306,
 		["cutStory.4"] = 121252153061678,
+		["intro.1"] = 0,
+		["intro.2"] = 0,
+		["intro.3"] = 0,
+		["intro.4"] = 0,
 		["kindlerTruth.1"] = 102688796924197,
 		["kindlerTruth.2"] = 140333626636655,
 		["kindlerTruth.3"] = 79987051218371,
@@ -77,7 +76,7 @@ return {
 	},
 	-- the portraits: 256 px cells, 4 to a row, on these sheets (image ids)
 	cell = 256,
-	sheets = { 87509785408282, 139690297509749, 110798494525982, 77354220531371 },
+	sheets = { 87509785408282, 139690297509749, 110798494525982, 107643660849735 },
 	-- each portrait's { sheet, column, row } (0-based column and row), keyed like
 	-- Config.Story.guides.speakers, Config.SideQuests.givers and Config.Mentors.list ids
 	portraits = {
@@ -131,6 +130,7 @@ return {
 		OldBeacon = { 3, 3, 3 },
 		TheMargrave = { 4, 0, 0 },
 		TheVelvetPaw = { 4, 1, 0 },
+		chairman = { 4, 2, 0 },
 	},
 	-- the same portrait as another key
 	aliases = {

@@ -129,6 +129,35 @@ function OpeningPlan.sparkBeat(side: string): string
 	return if side == "villain" then "blast" else "shield"
 end
 
+-- The Ceremony's choice moment in the spark beat (act1-choices, 2026-11-19; Config.Story.opening.pick): what the
+-- beat does now. firedAgo: seconds since the Spark fired (nil: not yet); picked: the save slot's pick (0: not
+-- yet); askedAgo: seconds since the choice card went up (nil: not asked); doneAgo: seconds since the moment ended
+-- (a pick, a time out, or a slot already picked). Returns "wait", "ask" (put the card up: the camera beat
+-- starts), "skip" (already picked on an earlier run: no card), "hold" (the card is up), "close" (no pick in
+-- time: take the card down, the slot stays open) or "leap" (on to the rooftops).
+function OpeningPlan.sparkPick(
+	Config: any,
+	firedAgo: number?,
+	picked: number,
+	askedAgo: number?,
+	doneAgo: number?
+): string
+	local P = Config.Story.opening.pick
+	if firedAgo == nil then
+		return "wait"
+	end
+	if doneAgo ~= nil then
+		return if doneAgo >= P.after then "leap" else "wait"
+	end
+	if askedAgo ~= nil then
+		return if askedAgo >= P.wait then "close" else "hold"
+	end
+	if firedAgo < P.delay then
+		return "wait"
+	end
+	return if picked ~= 0 then "skip" else "ask"
+end
+
 -- The subtitled lines of a beat for a side: { at, who, text }, in time order
 function OpeningPlan.lines(
 	Config: any,

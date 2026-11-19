@@ -83,6 +83,10 @@ local sparkShown = false
 local spearAt = 0
 local suit: { hidden: { [BasePart]: boolean }, queue: { BasePart }, next: number, until_: number }? = nil
 local slowmo: ColorCorrectionEffect? = nil
+-- act1-choices: the Ceremony's choice moment (the spark beat holds while its card is up): its grade and when the
+-- crowd froze
+local pickTint: ColorCorrectionEffect? = nil
+local frozeAt: number? = nil
 
 local function v3(t: { number }?): Vector3?
 	return if t then Vector3.new(t[1], t[2], t[3]) else nil
@@ -655,6 +659,84 @@ local function playBeat(step: string, o: { [string]: any })
 		end,
 		skip = StoryClient.skipBeat,
 	})
+end
+
+-- The Ceremony's choice (act1-choices, 2026-11-19): right after the Spark fires the moment freezes into a short
+-- camera beat (letterbox, the hero held still, a slow push past the hero toward the kid or the shover, the world
+-- greyed a little) while StoryHud's choice card is up. Never on the rooftop quick-time prompts: the server asks
+-- only in the spark beat. The server times it (Config.Story.opening.pick.wait); no SKIP (the card is the way on).
+local PICK_KEY = "ceremonyPick"
+local function playPick(o: { [string]: any })
+	local r = root()
+	local k = v3(o.kid) or v3(o.spark)
+	if not r or not k then
+		return
+	end
+	local p = r.Position
+	local flat = Vector3.new(k.X - p.X, 0, k.Z - p.Z)
+	local fwd = if flat.Magnitude > 0.5 then flat.Unit else Vector3.new(0, 0, -1)
+	local side = Vector3.new(-fwd.Z, 0, fwd.X)
+	local up = Vector3.new(0, 1, 0)
+	local mid = p:Lerp(k, 0.5) + up * 3
+	local seconds = O.pick.wait
+	local startedAt = os.clock()
+	CinemaClient.play({
+		owner = "prologue",
+		key = PICK_KEY,
+		shots = toPlan({
+			{
+				t0 = 0,
+				t1 = seconds,
+				a = look(p - fwd * 9 + side * 7 + up * 5, mid),
+				b = look(p - fwd * 5 + side * 5 + up * 4, mid + fwd * 2),
+			},
+		}),
+		seconds = seconds,
+		beat = true,
+		clock = function(): number
+			return os.clock() - startedAt
+		end,
+		bars = function(): boolean
+			return true
+		end,
+		canSkip = function(): boolean
+			return false
+		end,
+		skip = function() end,
+	})
+	if not pickTint then
+		local cc = Instance.new("ColorCorrectionEffect")
+		cc.Name = "CeremonyPick"
+		cc.Saturation = -0.35
+		cc.Contrast = 0.08
+		cc.Parent = Lighting
+		pickTint = cc
+	end
+	frozeAt = frozeAt or os.clock()
+end
+
+local function endPick()
+	local cur = CinemaClient.current
+	if cur and cur.owner == "prologue" and cur.key == PICK_KEY then
+		CinemaClient.stop("prologue")
+	end
+	if pickTint then
+		pickTint:Destroy()
+		pickTint = nil
+	end
+	-- the frozen crowd and kid pick up where they stopped (their run-off timers move by the freeze)
+	if frozeAt then
+		local held = os.clock() - frozeAt
+		frozeAt = nil
+		for _, n in crowd do
+			if n.gone then
+				n.gone += held
+			end
+		end
+		if kid and (kid :: Npc).gone then
+			(kid :: Npc).gone = ((kid :: Npc).gone :: number) + held
+		end
+	end
 end
 
 ---------------------------------------------------------------------------
@@ -1288,6 +1370,7 @@ local function onState()
 	local o = StoryClient.opening
 	local step = StoryClient.openingStep()
 	if not step then
+		endPick()
 		CinemaClient.stop("prologue")
 		if slowmo then
 			slowmo:Destroy()
@@ -1358,6 +1441,12 @@ local function onState()
 	if step == "spark" and o.fired then
 		fireSpark(o)
 	end
+	-- act1-choices: the Ceremony's choice card holds the moment
+	if step == "spark" and o.choosing then
+		playPick(o)
+	else
+		endPick()
+	end
 end
 
 local function frame(dt: number)
@@ -1400,7 +1489,11 @@ local function frame(dt: number)
 		endScan()
 	end
 	-- the panic: the crowd runs off and fades away
+	-- (act1-choices) the panic holds still while the Ceremony's choice card is up
 	for i = #crowd, 1, -1 do
+		if frozeAt then
+			break
+		end
 		local n = crowd[i]
 		moveNpc(n, dt, now)
 		if n.gone and now >= n.gone then
@@ -1408,7 +1501,7 @@ local function frame(dt: number)
 			table.remove(crowd, i)
 		end
 	end
-	local k = kid
+	local k = if frozeAt then nil else kid
 	if k then
 		moveNpc(k, dt, now)
 		if k.gone and now >= k.gone then

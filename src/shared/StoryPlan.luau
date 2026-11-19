@@ -201,6 +201,67 @@ function StoryPlan.validate(Config: any): { string }
 			no("choice " .. n .. " is in act " .. c.act .. " but its mission is not")
 		end
 	end
+	-- act1-choices: an option's reward is a title (a Config.Story.unlocks title) or Credits only, its scene lines
+	-- with `when` name a real choice and option on their own side
+	for n, c in S.choices do
+		for _, key in { "hero", "villain" } do
+			for o, opt in c[key] or {} do
+				for k, v in opt.reward or {} do
+					if k == "title" then
+						if not (S.unlocks.titles[v] and S.unlocks.titles[v] < 100) then
+							no(
+								string.format(
+									"choice %d %s %d: title %s is not a story title",
+									n,
+									key,
+									o,
+									tostring(v)
+								)
+							)
+						end
+					elseif k ~= "credits" or type(v) ~= "number" or v <= 0 then
+						no(
+							string.format(
+								"choice %d %s %d: reward %s (a title or Credits only)",
+								n,
+								key,
+								o,
+								k
+							)
+						)
+					end
+				end
+			end
+		end
+	end
+	for num, m in S.missions do
+		for _, key in { "hero", "villain" } do
+			for i, st in m[key] or {} do
+				for j, l in st.lines or {} do
+					local w = l.when
+					if w ~= nil then
+						local c = S.choices[w[1]]
+						local side = l.side
+						if
+							not c
+							or (side ~= "hero" and side ~= "villain")
+							or not (c[side] and c[side][w[2]])
+						then
+							no(
+								string.format(
+									"mission %d %s[%d] line %d: `when` needs its side's real option",
+									num,
+									key,
+									i,
+									j
+								)
+							)
+						end
+					end
+				end
+			end
+		end
+	end
 	for a in S.acts do
 		if not StoryPlan.soon(Config, a) and #StoryPlan.actMissions(Config, a) == 0 then
 			no("act " .. a .. " is out with no missions")
@@ -350,13 +411,31 @@ function StoryPlan.text(step: any, side: string): string
 	return step.text or ""
 end
 
--- A camera beat's subtitled lines for a side, by time: { at, who, text }
-function StoryPlan.sceneLines(step: any, side: string): { { at: number, who: string, text: string } }
+-- Does a scene line read for this side and these picks? (act1-choices) A line with `side` is that side's only;
+-- one with `when = { choice, option }` only for a hero whose own pick in that slot is that option.
+function StoryPlan.lineFor(line: any, side: string, choices: { number }?): boolean
+	if line.side ~= nil and line.side ~= sideKey(side) then
+		return false
+	end
+	local w = line.when
+	if w ~= nil then
+		return choices ~= nil and (choices[w[1]] or 0) == w[2]
+	end
+	return true
+end
+
+-- A camera beat's subtitled lines for a side (and the hero's picks, for the `when` lines), by time:
+-- { at, who, text }
+function StoryPlan.sceneLines(
+	step: any,
+	side: string,
+	choices: { number }?
+): { { at: number, who: string, text: string } }
 	local out = {}
 	local key = sideKey(side)
 	for _, l in step.lines or {} do
 		local text = l.text or l[key]
-		if type(text) == "string" then
+		if type(text) == "string" and StoryPlan.lineFor(l, side, choices) then
 			table.insert(out, { at = l.at, who = l.who, text = text })
 		end
 	end
@@ -405,7 +484,7 @@ function StoryPlan.option(Config: any, choiceNum: number, side: string, option: 
 	return list and list[option]
 end
 
--- A choice: returns ok and the effects to pay ({ skillPoints, rep = { track, amount }, flag, perk, arena })
+-- A choice: returns ok and the effects to pay ({ skillPoints, rep = { track, amount }, flag, perk, arena, reward })
 -- the first time; a replay pick changes nothing. The pick is saved as 1 or 2 (the side's own options).
 function StoryPlan.pick(
 	Config: any,
@@ -431,6 +510,7 @@ function StoryPlan.pick(
 		flag = o.flag,
 		perk = o.perk,
 		arena = o.arena,
+		reward = o.reward, -- act1-choices: a title or Credits (StoryService.pay), nothing that changes stats
 	}
 	if o.rep then
 		local track = o.rep[1]

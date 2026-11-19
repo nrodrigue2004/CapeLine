@@ -4840,6 +4840,96 @@
         172,
         130
       ]
+    },
+    {
+      "bg": [
+        44,
+        14,
+        22
+      ],
+      "color": [
+        220,
+        70,
+        80
+      ],
+      "extras": [
+        "mask"
+      ],
+      "face": {
+        "asset": 8329686,
+        "image": 8329434,
+        "name": "Sinister"
+      },
+      "key": "chairman",
+      "look": {
+        "build": 3,
+        "colors": [
+          22,
+          38,
+          4
+        ],
+        "gender": 2,
+        "hair": 22,
+        "hairless": true,
+        "height": 5,
+        "mats": {},
+        "pieces": {
+          "back": "High Collar Cape",
+          "feet": "Loafers",
+          "hands": "Gloves",
+          "hat": "Wide Brim",
+          "head": "Full Face Plate",
+          "suit": "Tuxedo",
+          "visage": "Sinister"
+        },
+        "skin": 5,
+        "tints": {
+          "back": [
+            22,
+            38,
+            0
+          ]
+        }
+      },
+      "name": "THE CHAIRMAN",
+      "rgb": [
+        [
+          24,
+          24,
+          28
+        ],
+        [
+          110,
+          20,
+          25
+        ],
+        [
+          255,
+          210,
+          60
+        ]
+      ],
+      "shape": "hood",
+      "skin": [
+        160,
+        105,
+        70
+      ],
+      "style": "radio",
+      "tints": {
+        "back": [
+          [
+            24,
+            24,
+            28
+          ],
+          [
+            110,
+            20,
+            25
+          ]
+        ]
+      }
     }
   ],
   "villains": [

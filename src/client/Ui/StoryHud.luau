@@ -149,10 +149,16 @@ end
 -- The subtitles (lore step 6): the beat's timed lines go to the guide line queue (GuideHud), which shows
 -- each until the next (at most Config.Story.guides.queue.hold) with its speaker's portrait and blip. The
 -- cache's table keys the beat: a prologue beat's name, or a mission's camera beat (its step table).
-local lineCache: { step: any, side: string?, list: { any } } = { step = nil, side = nil, list = {} }
+-- (act1-choices) a scene's `when` lines read by this hero's own picks (the Journal's StoryState), so the cache
+-- keys the picks too
+local lineCache: { step: any, side: string?, list: { any }, picks: string? } =
+	{ step = nil, side = nil, list = {}, picks = nil }
 local function sceneText(st: any, side: string, t: number)
-	if lineCache.step ~= st or lineCache.side ~= side then
-		lineCache = { step = st, side = side, list = StoryPlan.sceneLines(st, side) }
+	local j = StoryClient.journal
+	local choices = j and j.choices or {}
+	local picks = table.concat(choices, ",")
+	if lineCache.step ~= st or lineCache.side ~= side or lineCache.picks ~= picks then
+		lineCache = { step = st, side = side, list = StoryPlan.sceneLines(st, side, choices), picks = picks }
 	end
 	GuideHud.timeline(lineCache, lineCache.list, t)
 end
@@ -1022,6 +1028,13 @@ function StoryHud.init()
 		end
 	end)
 	StoryClient.Result:Connect(showResult)
+	-- act1-choices: what the picked option says, right after the pick (fixed lines, Config.Story.choices)
+	StoryClient.Picked:Connect(function(id: number, option: number)
+		local o = StoryPlan.option(Config, id, State.hero.side or "hero", option)
+		for _, l in (o and o.say) or {} do
+			GuideHud.say(l.who, l.text, { tag = "choice" })
+		end
+	end)
 	Net.listen("Toast", function(data: any)
 		if type(data) == "table" and type(data.id) == "string" and string.sub(data.id, 1, 2) == "sq" then
 			questToast(data)

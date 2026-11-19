@@ -276,6 +276,47 @@ function BUILD.dungeon(l: Layout, Config: any)
 	point(l, "boss", 150, 3, 0)
 	box(l, "glow", 180, 8, 0, 4, 12, 12, "beaconGlow") -- the safehouse door
 	point(l, "door", 160, 3, 0)
+	-- act1-choices (lore 2026-11-19, Act 1's hints at Lodestar's secret): the torn photo by the door, on an old
+	-- crate: a brass frame stood on its end, its print torn down the middle (the kept half in the frame, the
+	-- other half on the floor). Plain cards, nothing drawn on them (no faces: the hint is that it is torn).
+	-- Ghost decor robots never stand on. PLACEHOLDER ART (box kit) until a mesh pass.
+	box(l, "prop", 170, 1.5, -12, 4, 3, 3, "wood", { tag = "decor", ghost = true, ref = "tornPhoto" })
+	box(
+		l,
+		"prop",
+		170,
+		4.4,
+		-12,
+		2.8,
+		2.8,
+		0.3,
+		"pkBrass",
+		{ tag = "decor", ghost = true, ref = "tornPhoto" }
+	)
+	box(
+		l,
+		"prop",
+		169.7,
+		4.4,
+		-12.2,
+		1.2,
+		2.2,
+		0.1,
+		"white",
+		{ tag = "decor", ghost = true, ref = "tornPhoto" }
+	)
+	box(
+		l,
+		"prop",
+		172.6,
+		0.05,
+		-10.5,
+		1.2,
+		0.1,
+		2.2,
+		"white",
+		{ tag = "decor", ghost = true, ry = 25, ref = "tornPhoto" }
+	)
 	for _, r in { { -150, -40 }, { -110, 40 }, { -20, -42 } } do
 		add(l, "relays", r[1], 0.5, r[2])
 	end
