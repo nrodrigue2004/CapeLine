@@ -7585,7 +7585,8 @@ test(
 				check(joints[joint] == true, name .. "." .. joint .. " is an R15 joint")
 				check(#keys >= 1 and keys[1][1] == 0, name .. "." .. joint .. " starts at 0")
 				for i, k in keys do
-					check(#k == 5, name .. "." .. joint .. " key has 5 numbers")
+					-- (a 6th of 1 marks a linear key: pt-anims' two-handed copies, sampled every 1/30 s)
+					check(#k == 5 or (#k == 6 and k[6] == 1), name .. "." .. joint .. " key has 5 numbers")
 					check(k[1] <= clip.dur + 1e-6, name .. "." .. joint .. " key inside the clip")
 					if i > 1 then
 						check(k[1] > keys[i - 1][1], name .. "." .. joint .. " keys in order")
@@ -23060,6 +23061,9 @@ end
 (require :: any)("./anim_pass_test")({ test = test, check = check, Config = Config });
 -- the boss pass (2026-11-19, own file): boss animation, telegraphs, the surge wave and the Blackout; ONLY="Boss anim"
 (require :: any)("./boss_anim_test")({ test = test, check = check, Config = Config });
+-- pt-anims (nate's playtest 2026-11-19, own file): the upper-body layer, two-handed holds, robot and people clips;
+-- ONLY="PT anims" runs just these
+(require :: any)("./anims_pt_test")({ test = test, check = check, Config = Config });
 -- the gap polish (2026-11-19, own file): travel flight, gadgets, crack, ice, crate, loading card; ONLY="Gap polish"
 (require :: any)("./gap_polish_test")({
 	test = test,

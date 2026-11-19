@@ -796,6 +796,7 @@ local function onEvents(list: { any })
 			end
 		end
 		if kind == SHOT then
+			EnemyRenderer.act(ev[2], if ev[11] == 3 then "hook" else "shot") -- the shooter's arm (NpcAnim)
 			local pos, vel = Vector3.new(ev[3], ev[4], ev[5]), Vector3.new(ev[6], ev[7], ev[8])
 			if ev[11] == PATH_SHOT then
 				local set, style, color = fakeLook(ev[2])
@@ -843,6 +844,7 @@ local function onEvents(list: { any })
 		elseif kind == WARN then
 			CombatFx.warn(Vector3.new(ev[3], ev[4], ev[5]), ev[6], ev[7], ev[8], ev[9])
 		elseif kind == SLAM then
+			EnemyRenderer.act(ev[2], "slam")
 			CombatFx.slam(Vector3.new(ev[3], ev[4], ev[5]), ev[6])
 			local set, style, color = fakeLook(ev[2])
 			if set then
@@ -887,16 +889,18 @@ local function onEvents(list: { any })
 			end
 		elseif kind == RALLY then
 			local at = EnemyRenderer.position(ev[2]) or Vector3.new(ev[3], ev[4], ev[5])
+			EnemyRenderer.act(ev[2], "rally")
 			CombatFx.rally(at, ev[6])
 			Juice.fire("rally", at, { mine = false })
 		elseif kind == LOB then
-			EnemyRenderer.swing(ev[2]) -- the throw
+			EnemyRenderer.swing(ev[2], "lob") -- the throw
 			CombatFx.lob(Vector3.new(ev[3], ev[4], ev[5]), Vector3.new(ev[6], ev[7], ev[8]), ev[9])
 		elseif kind == ZONE then
 			CombatFx.zone(Vector3.new(ev[3], ev[4], ev[5]), ev[6], ev[7])
 		elseif kind == MEND then
 			-- {12, e, x,y,z, patientId, time}: both ends follow their robots
 			local patient = ev[6]
+			EnemyRenderer.act(ev[2], "mend")
 			CombatFx.mend(robotAt(ev[2], "RightHand", Vector3.new(0, 1, 0)), function()
 				return EnemyRenderer.position(patient)
 			end, ev[7], holds(ev[2], EnemySim.EXTRA.mend))
