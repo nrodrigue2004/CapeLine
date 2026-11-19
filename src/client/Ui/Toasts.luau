@@ -1,7 +1,7 @@
 -- Toasts: short pop-ups in the top middle of the screen (spec: Remote events > Toast; Juice table: level up,
 -- loot). Level up is a big gold banner with what just unlocked; a drop is a card in its tier colour (gold
 -- and purple drops get a burst); rewards show +Credits and +Renown; Second Wind and a save outage get a
--- line each; beacons, safehouses and the bank get one too; so do incidents, contracts, photos and events. At most 4 show at once; older ones slide out. PLACEHOLDER look until M10 and M11.
+-- line each; beacons, safehouses and the bank get one too; so do incidents, contracts, photos and events. At most 2 show at once (1 on a phone), the rest wait their turn in Ui.Popups (pt-ui 2026-11-19). PLACEHOLDER look until M10 and M11.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -19,6 +19,7 @@ local Juice = require(script.Parent.Parent.Fx.Juice)
 local State = require(script.Parent.Parent.State)
 local GearScreen = require(script.Parent.GearScreen)
 local ContractBoard = require(script.Parent.ContractBoard)
+local Popups = require(script.Parent.Popups)
 
 local Toasts = {}
 
@@ -109,10 +110,10 @@ local SQ_LOCKED = {
 	done = "You already finished that side quest",
 }
 
-local function push(text: string, color: Color3, big: boolean?, life: number?): TextLabel
+local function draw(text: string, color: Color3, big: boolean?, life: number?): TextLabel
 	local kids = {}
 	for _, c in stack:GetChildren() do
-		if c:IsA("TextLabel") then
+		if c:IsA("TextLabel") and c.Name ~= "More" then
 			table.insert(kids, c)
 		end
 	end
@@ -172,6 +173,112 @@ local function push(text: string, color: Color3, big: boolean?, life: number?): 
 		end
 	end)
 	return l
+end
+
+-- pt-ui (2026-11-19): every toast waits its turn in Ui.Popups (at most 2 at once, 1 on a phone; Config.Ui.popups).
+-- How a toast ranks: the answer to a tap is urgent (it pushes the oldest other toast off), alerts and big
+-- moments come first, the small notes last (and fold into "+N more" if they wait too long); a burst of the same
+-- kind merges (rewards add up, drops read "+2 more").
+local URGENT = {
+	note = true,
+	contractRefused = true,
+	missionRefused = true,
+	slotRefused = true,
+	hqRefused = true,
+	shopRefused = true,
+	squadRefused = true,
+	pvpRefused = true,
+	rematchRefused = true,
+	reviveBlocked = true,
+	sqLocked = true,
+	reported = true,
+	reportedAlready = true,
+	contestWait = true,
+	choiceKept = true,
+	slotSwitched = true,
+	respawnPick = true,
+	respawnSet = true,
+	squadInvited = true,
+	rematchSent = true,
+	lookSaved = true,
+	lookWorn = true,
+	lookBad = true,
+	hqMax = true,
+	hqCredits = true,
+	hqLocked = true,
+	mannequinLocked = true,
+	retireLevel = true,
+	scanner = true,
+	devBuy = true,
+	pvpOn = true,
+	pvpOff = true,
+	banked = true,
+	visit = true,
+}
+local ALERT = {
+	saveDown = true,
+	secondWind = true,
+	revivedBy = true,
+	fuse = true,
+	courier = true,
+	courierLate = true,
+	craterIn = true,
+	rematchOn = true,
+	news = true,
+	newsFlash = true,
+}
+local GROUP = { reward = "reward", loot = "loot", beat = "beat", sqStep = "sq", badgeMate = "badgeMate" }
+local PRI = Config.Ui.popups.pri
+local cur: { [string]: any } = { pri = PRI.minor }
+
+local function specFor(data: { [string]: any }): { [string]: any }
+	local id = data.id
+	if URGENT[id] then
+		return { pri = PRI.story, urgent = true }
+	elseif ALERT[id] then
+		return { pri = PRI.alert }
+	end
+	local minor = GROUP[id] ~= nil or id == "skillPoint" or id == "photo" or id == "photoRecon"
+	if id == "loot" and data.piece and data.piece.tier >= 4 then
+		minor = false
+	end
+	return {
+		pri = if minor then PRI.minor else PRI.result,
+		group = if id == "loot" and not minor then nil else GROUP[id],
+		stale = if minor then 8 else nil,
+	}
+end
+
+-- a reward burst adds up into one line
+local function sumReward(a: any, b: any): any
+	local credits = (a.credits or 0) + (b.credits or 0)
+	local renown = (a.renown or 0) + (b.renown or 0)
+	local out = table.clone(a)
+	out.credits, out.renown = credits, renown
+	out.text = string.format("+%s CREDITS   +%s RENOWN", Kit.comma(credits), Kit.comma(renown))
+	out.summed = true
+	return out
+end
+
+local function push(text: string, color: Color3, big: boolean?, life: number?, after: ((TextLabel) -> ())?)
+	local spec = table.clone(cur)
+	spec.life = (life or 3.5) + 0.4
+	spec.data = { text = text, color = color, big = big, life = life, after = after }
+	if spec.group == "reward" then
+		spec.data.credits, spec.data.renown = cur.credits, cur.renown
+		spec.merge = sumReward
+	end
+	Popups.toast(spec, function(d: any, count: number): TextLabel
+		local t = d.text
+		if count > 1 and not d.summed then
+			t = string.format("%s  +%d more", t, count - 1)
+		end
+		local l = draw(t, d.color, d.big, d.life)
+		if d.after then
+			d.after(l)
+		end
+		return l
+	end)
 end
 
 -- gap-icons (2026-11-19): a loot toast wears the piece's icon (slot symbol in its tier frame) as a sticker
@@ -241,6 +348,8 @@ end
 function Toasts.show(data: { [string]: any })
 	local id = data.id
 	juice(data)
+	cur = specFor(data)
+	cur.credits, cur.renown = data.credits, data.renown
 	if id == "friendHere" then
 		-- the friend boost (spec: Social table "+10% Renown per friend in the server, max +30%")
 		if data.name then
@@ -284,26 +393,24 @@ function Toasts.show(data: { [string]: any })
 		local c = G.tiers[tier].color
 		local color = Color3.fromRGB(c[1], c[2], c[3])
 		if data.kind == "salvaged" then
-			lootIcon(
-				push(
-					string.format(
-						"Stash full: %s became %d Dust",
-						GearScreen.pieceName(piece),
-						data.dust or 0
-					),
-					color
-				),
-				piece
+			push(
+				string.format("Stash full: %s became %d Dust", GearScreen.pieceName(piece), data.dust or 0),
+				color,
+				nil,
+				nil,
+				function(l)
+					lootIcon(l, piece)
+				end
 			)
 		else
-			lootIcon(
-				push(
-					string.format("%s  (ilvl %d)", GearScreen.pieceName(piece), piece.ilvl),
-					color,
-					piece.tier >= 4,
-					4.5
-				),
-				piece
+			push(
+				string.format("%s  (ilvl %d)", GearScreen.pieceName(piece), piece.ilvl),
+				color,
+				piece.tier >= 4,
+				4.5,
+				function(l)
+					lootIcon(l, piece)
+				end
 			)
 		end
 	elseif id == "secondWind" then
@@ -773,6 +880,22 @@ function Toasts.init()
 	local limit = Instance.new("UISizeConstraint")
 	limit.MaxSize = Vector2.new(420, 260)
 	limit.Parent = stack
+	-- pt-ui: "+N more" under the toasts for the small notes folded while the line was long (Ui.Popups)
+	local chip = Kit.label({
+		Name = "More",
+		Text = "",
+		Size = UDim2.new(0, 120, 0, 24),
+		BackgroundColor3 = Kit.color.paper,
+		BackgroundTransparency = 0,
+		TextColor3 = Kit.color.ink,
+		LayoutOrder = 2 ^ 30,
+		Visible = false,
+		maxText = 16,
+	})
+	Kit.round(chip, 10)
+	Kit.stroke(chip, Kit.color.ink, 2)
+	chip.Parent = stack
+	Popups.chip = chip
 	stack.Parent = gui
 	State.Toast:Connect(Toasts.show)
 end

@@ -24,6 +24,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local PvpRules = require(Shared:WaitForChild("PvpRules"))
 
 local Kit = require(script.Parent.Kit)
+local Popups = require(script.Parent.Popups) -- pt-ui: one line for every popup
 local State = require(script.Parent.Parent.State)
 local PvpClient = require(script.Parent.Parent.Controllers.PvpClient)
 local Juice = require(script.Parent.Parent.Fx.Juice)
@@ -486,7 +487,7 @@ local function fillPicker(list: { number })
 	end
 end
 
-local function showResult(r: any)
+local function showResultNow(r: any)
 	if r.won then
 		resultTitle.Text = "YOU BEAT " .. string.upper(r.other or "")
 		local parts = {}
@@ -509,7 +510,23 @@ local function showResult(r: any)
 	end
 	resultCard.Visible = true -- a newer fight's card covers a rematch ask; the ask comes back when it closes
 	Kit.bounce(resultCard)
+	local token = os.clock()
+	resultCard:SetAttribute("Shown", token)
 	task.delay(5, function()
+		if resultCard:GetAttribute("Shown") == token then
+			resultCard.Visible = false
+		end
+	end)
+end
+
+-- pt-ui: the PvP card waits its turn in Ui.Popups ("pvpResult")
+local function showResult(r: any)
+	Popups.show("pvpResult", function()
+		showResultNow(r)
+		return resultCard
+	end, function()
+		return resultCard.Visible
+	end, function()
 		resultCard.Visible = false
 	end)
 end

@@ -29,6 +29,7 @@ local NewsArtKit = require(Shared:WaitForChild("NewsArtKit"))
 local VillainCards = require(Shared:WaitForChild("VillainCards"))
 
 local Kit = require(script.Parent.Kit)
+local Popups = require(script.Parent.Popups) -- pt-ui: one line for every popup
 local GuideHud = require(script.Parent.GuideHud)
 local CinemaClient = require(script.Parent.Parent.Controllers.CinemaClient)
 local InputController = require(script.Parent.Parent.Controllers.InputController)
@@ -1155,7 +1156,7 @@ function CinemaHud.cardRight(): number?
 	return card.AbsolutePosition.X + card.AbsoluteSize.X
 end
 
-function CinemaHud.card(name: string, title: string, theme: { number }?, pic: { kind: string, id: string }?)
+local function cardNow(name: string, title: string, theme: { number }?, pic: { kind: string, id: string }?)
 	cardName.Text = name
 	cardTitle.Text = title
 	cardSlash.BackgroundColor3 = if theme
@@ -1184,6 +1185,18 @@ function CinemaHud.card(name: string, title: string, theme: { number }?, pic: { 
 		:Create(cardSlash, TweenInfo.new(0.35), { Size = UDim2.fromScale(1 - sx - inset * 1.4, 0.06) })
 		:Play()
 	cardUntil = os.clock() + C.nameCard.seconds
+end
+
+-- pt-ui: a name card waits its turn in Ui.Popups ("nameCard"; dropped if it could not show within a few seconds,
+-- since it marks an arrival)
+function CinemaHud.card(name: string, title: string, theme: { number }?, pic: { kind: string, id: string }?)
+	Popups.show("nameCard", function()
+		cardNow(name, title, theme, pic)
+	end, function()
+		return card.Visible
+	end, function()
+		card.Visible = false
+	end)
 end
 
 ---------------------------------------------------------------------------

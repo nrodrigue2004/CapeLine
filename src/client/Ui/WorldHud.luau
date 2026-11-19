@@ -25,6 +25,7 @@ local IncidentPlan = require(Shared:WaitForChild("IncidentPlan"))
 local ContractPlan = require(Shared:WaitForChild("ContractPlan"))
 
 local Kit = require(script.Parent.Kit)
+local Popups = require(script.Parent.Popups) -- pt-ui: one line for every popup
 local Shapes = require(script.Parent.Shapes)
 local State = require(script.Parent.Parent.State)
 local WorldClient = require(script.Parent.Parent.Controllers.WorldClient)
@@ -480,7 +481,7 @@ local function closeResult()
 	end
 end
 
-local function showResult(r: { [string]: any })
+local function showResultNow(r: { [string]: any })
 	closeResult()
 	local id = WorldClient.bossByNum[r.num]
 	local def = id and Config.Boss.bosses[id]
@@ -586,6 +587,16 @@ local function showResult(r: { [string]: any })
 			closeResult()
 		end
 	end)
+end
+
+-- pt-ui: the boss result card waits its turn (Ui.Popups "bossResult": never over another card, after a fight)
+local function showResult(r: { [string]: any })
+	Popups.show("bossResult", function()
+		showResultNow(r)
+		return resultCard
+	end, function()
+		return resultCard ~= nil
+	end, closeResult)
 end
 
 ---------------------------------------------------------------------------

@@ -14,6 +14,7 @@ local Net = require(Shared:WaitForChild("Net"))
 local Signal = require(Shared:WaitForChild("Util"):WaitForChild("Signal"))
 
 local Kit = require(script.Parent.Kit)
+local Popups = require(script.Parent.Popups) -- pt-ui: one line for every popup
 
 local NemesisHud = {}
 -- WP7: the Journal's SHOWDOWN tab draws this poster (drawInto) and redraws when a new poster arrives
@@ -148,15 +149,22 @@ function NemesisHud.request()
 end
 
 local function comic(name: string, line: string)
-	panelSeq += 1
-	local seq = panelSeq
-	panelName.Text = string.upper(name)
-	panelLine.Text = line
-	panel.Visible = true
-	task.delay(N.panelTime, function()
-		if panelSeq == seq then
-			panel.Visible = false
-		end
+	-- pt-ui: the taunt panel waits its turn in Ui.Popups ("nemesisPanel")
+	Popups.show("nemesisPanel", function()
+		panelSeq += 1
+		local seq = panelSeq
+		panelName.Text = string.upper(name)
+		panelLine.Text = line
+		panel.Visible = true
+		task.delay(N.panelTime, function()
+			if panelSeq == seq then
+				panel.Visible = false
+			end
+		end)
+	end, function()
+		return panel.Visible
+	end, function()
+		panel.Visible = false
 	end)
 end
 

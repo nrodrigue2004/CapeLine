@@ -23,6 +23,7 @@ local TravelStyleRules = require(Shared:WaitForChild("TravelStyleRules"))
 
 local Juice = require(script.Parent.Parent.Fx.Juice)
 local Kit = require(script.Parent.Kit)
+local Popups = require(script.Parent.Popups) -- pt-ui: one line for every popup
 local PopupGate = require(script.Parent.PopupGate)
 local ShopHud = require(script.Parent.ShopHud)
 local State = require(script.Parent.Parent.State)
@@ -398,7 +399,7 @@ local function draw()
 end
 
 -- A card that slides up from the bottom for a few seconds
-local function card(title: string, sub: string, color: Color3, onView: (() -> ())?)
+local function cardNow(title: string, sub: string, color: Color3, onView: (() -> ())?): Frame
 	local f = Kit.frame({
 		AnchorPoint = Vector2.new(0.5, 1),
 		Position = UDim2.new(0.5, 0, 1, 80),
@@ -450,6 +451,14 @@ local function card(title: string, sub: string, color: Color3, onView: (() -> ()
 				f:Destroy()
 			end)
 		end
+	end)
+	return f
+end
+
+-- pt-ui: the tier and episode card waits its turn in Ui.Popups ("passCard")
+local function card(title: string, sub: string, color: Color3, onView: (() -> ())?)
+	Popups.show("passCard", function()
+		return cardNow(title, sub, color, onView)
 	end)
 end
 

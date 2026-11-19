@@ -181,6 +181,28 @@ return {
 			Ashlar = false,
 			Brickwork = false,
 		},
+		-- pt-ui (2026-11-19): the kit texture for a building body or tower tier the layouts leave plain
+		-- (Shared.CityKit.fill): by palette colour, round shapes (cylinders, balls) in plain concrete
+		fill = {
+			kinds = { building = true, tier = true },
+			byColor = {
+				slate = "Office", -- the safehouse shelters
+				steel = "SteelPlate", -- tower masts and spires
+				white = "Siding", -- pier huts (tinted clapboard)
+				containerA = "Container",
+				containerB = "Container",
+				containerC = "Container", -- coast shacks
+				containerD = "Container",
+				brick = "Brick",
+				concrete = "Office",
+				sand = "Stone",
+				glass = "Curtain",
+			},
+			round = "Concrete", -- lighthouses, the windmill
+			default = "Concrete",
+		},
+		wreck = "Concrete", -- a broken kit building's pillars, slabs and rubble (Fx.BuildingFx)
+		beaconFront = "Panel", -- the plaza's Beacon Tower (the Vigil's HQ)
 		barnTint = "sdBarn", -- barns are red clapboard
 		roofTints = { roofRed = "tileRed", roofBlue = "tileBlue", roof = "tileSlate" }, -- RoofTile on pitched roofs
 		studsPerTile = {
@@ -221,7 +243,7 @@ return {
 		baseMaterial = {
 			Brick = "Brick",
 			Office = "Concrete",
-			Curtain = "Glass",
+			Curtain = "Concrete", -- pt-ui 2026-11-19: was Glass, which never shows a MaterialVariant
 			Stone = "Sandstone",
 			Paving = "Pavement",
 			Asphalt = "Asphalt",
@@ -239,7 +261,7 @@ return {
 			Siding = "Wood",
 			RoofTile = "ClayRoofTiles",
 			Ribbon = "SmoothPlastic",
-			Prism = "Glass",
+			Prism = "Concrete", -- (was Glass, like Curtain)
 			Terrazzo = "Pavement",
 			Planks = "WoodPlanks",
 			Tile = "CeramicTiles",

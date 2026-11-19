@@ -860,7 +860,7 @@ WorldGen.windmill = { height = 48, blade = 52 }
 -- The boxes for one tile. Hub district tiles and the non-corner landmark tiles return nothing (the districts
 -- and landmarks are built whole). clear: safehouse pads. props (optional): with Config.City.kit, the tile's
 -- street props are added to it (kept clear of its buildings, pads and roads).
-function WorldGen.tilePlan(
+local function tilePlan(
 	cityCfg: any,
 	w: any,
 	tiles: buffer,
@@ -1464,6 +1464,25 @@ function WorldGen.landmark(cityCfg: any, w: any, index: number): Landmark
 		art = art,
 		floorY = floorY,
 	}
+end
+
+-- One tile's boxes; with the kit, every building body the tile's layout left plain gets a kit texture
+-- (pt-ui 2026-11-19, Shared.CityKit.fill: pier huts, coast shacks, lighthouses, the windmill)
+function WorldGen.tilePlan(
+	cityCfg: any,
+	w: any,
+	tiles: buffer,
+	seed: number,
+	tx: number,
+	tz: number,
+	clear: { BoxKit.Circle },
+	props: { CityKit.Prop }?
+): { Box }
+	local list = tilePlan(cityCfg, w, tiles, seed, tx, tz, clear, props)
+	if props and cityCfg.kit then
+		CityKit.fill(cityCfg.kit, list)
+	end
+	return list
 end
 
 return WorldGen

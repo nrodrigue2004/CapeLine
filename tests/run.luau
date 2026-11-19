@@ -8374,8 +8374,8 @@ test("City kit block: textured fronts, street dressing, and the rest of Downtown
 		check((kits[name] or 0) > 0, name .. " fronts in Downtown")
 	end
 	check(
-		fronts == #layout.buildings - 1,
-		string.format("%d textured fronts (every building but the Beacon)", fronts)
+		fronts == #layout.buildings,
+		string.format("%d textured fronts (every building; the Beacon in panels since pt-ui)", fronts)
 	)
 	check(
 		bands > 0 and marks > 0 and kerbs == 4 * dressed,
@@ -23088,6 +23088,15 @@ end
 (require :: any)("./pocket_props_test")({ test = test, check = check, Config = Config, placePath = placePath });
 -- the villain name cards and catalog beards (gap-villains, 2026-11-19, own file); ONLY="Villain cards" or ONLY="Catalog beards"
 (require :: any)("./villains_test")({ test = test, check = check, Config = Config })
+-- nate's playtest 2026-11-19 (pt-ui, own file): the popup line, every card closes, the contest's skipped card,
+-- building textures; ONLY="pt-ui"
+(require :: any)("./pt_ui_test")({
+	test = test,
+	check = check,
+	Config = Config,
+	world = world,
+	placePath = placePath,
+})
 
 print(string.format("\n%d passed, %d failed", passed, failed))
 if failed > 0 then

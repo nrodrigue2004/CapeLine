@@ -85,6 +85,12 @@ local bodyFlags: { [BasePart]: { collide: boolean, query: boolean } } = {}
 local folder: Folder
 local synced = false
 
+-- the plain kit texture a kit building's pillars, slabs and rubble wear (Config.City.kit.wreck)
+local WRECK_KIT: string? = Config.City.kit and Config.City.kit.wreck
+local WRECK_MAT: Enum.Material = if WRECK_KIT
+	then (Enum.Material :: any)[Config.City.kit.baseMaterial[WRECK_KIT]]
+	else Enum.Material.Concrete
+
 local function newPart(
 	size: Vector3,
 	cf: CFrame,
@@ -185,6 +191,12 @@ end
 -- The building as Structure pieces, without the ones in skip. Returns the model and its parts by piece.
 local function drawStructure(rec: Rec, skip: { [number]: boolean }): (Model, { [number]: BasePart })
 	local color, material, variant = bodyLook(models[rec.id])
+	-- pillars and slabs of a kit building wear the kit's plain concrete (pt-ui 2026-11-19: they showed the front's
+	-- bare base material in its white, so a damaged building looked untextured)
+	local inner, innerMat = "", material
+	if variant ~= "" and WRECK_KIT then
+		inner, innerMat = "Kit" .. WRECK_KIT, WRECK_MAT
+	end
 	local m = Instance.new("Model")
 	m.Name = "Wreck_" .. rec.id
 	m:SetAttribute("WreckOf", rec.id) -- a ram into these pieces is a ram into the building (MoveController)
@@ -195,8 +207,8 @@ local function drawStructure(rec: Rec, skip: { [number]: boolean }): (Model, { [
 				Vector3.new(c.sx - 0.05, c.sy - 0.05, c.sz - 0.05),
 				CFrame.new(c.cx, c.cy, c.cz),
 				if c.kind == "pillar" then color:Lerp(Color3.new(0, 0, 0), 0.18) else shade(color, i),
-				material,
-				if c.kind == "wall" then variant else nil -- a kit front keeps its windows on the wall panels
+				if c.kind == "wall" then material else innerMat,
+				if c.kind == "wall" then variant else inner -- a kit front keeps its windows on the wall panels
 			)
 			p.CanCollide = true
 			p.CanQuery = true
@@ -209,7 +221,11 @@ local function drawStructure(rec: Rec, skip: { [number]: boolean }): (Model, { [
 end
 
 local function drawRubble(rec: Rec): Model
-	local color, material = bodyLook(models[rec.id])
+	local color, material, variant = bodyLook(models[rec.id])
+	local inner = ""
+	if variant ~= "" and WRECK_KIT then
+		inner, material = "Kit" .. WRECK_KIT, WRECK_MAT -- a kit building's rubble in the kit's concrete (pt-ui)
+	end
 	local m = Instance.new("Model")
 	m.Name = "Rubble_" .. rec.id
 	for i, r in Chunker.rubble(D, rec, rec.id) do
@@ -217,7 +233,8 @@ local function drawRubble(rec: Rec): Model
 			Vector3.new(r.sx, r.sy, r.sz),
 			CFrame.new(r.cx, r.cy, r.cz) * CFrame.Angles(math.rad(r.rx), math.rad(r.ry), math.rad(r.rz)),
 			shade(color:Lerp(Color3.fromRGB(90, 86, 82), 0.35), i),
-			material
+			material,
+			inner
 		)
 		p.CanCollide = true
 		p.Parent = m

@@ -151,4 +151,10 @@ function ContestRules.pad(K: any, i: number): (number, number)
 	return (col - 1.5) * K.stage.padGap, (row - 0.5) * K.stage.padGap
 end
 
+-- Does a phase change go out to every device? Always, but the show and vote steps of a skipped contest (they
+-- would only repeat "skipped"); the step back to idle always goes, so the skipped banner closes (pt-ui 2026-11-19)
+function ContestRules.announce(skipped: boolean, was: string?, phase: string): boolean
+	return not skipped or was == "call" or phase == "results" or phase == "idle"
+end
+
 return ContestRules

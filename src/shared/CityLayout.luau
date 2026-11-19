@@ -289,6 +289,9 @@ local function towerCrown(c: Ctx, style: string, body: Box, top: number, rise: n
 				3,
 				body.color
 			)
+			-- the fins wear the shaft's front (pt-ui 2026-11-19: they were the only plain part of the tower)
+			local fin = c.boxes[#c.boxes]
+			fin.kit, fin.tint = body.kit, body.tint
 		end
 	elseif style == "mast" then
 		local y = top + math.floor(rise * 0.2)
@@ -654,6 +657,10 @@ function CityLayout.downtown(cityCfg: any, worldCfg: any?): Layout
 					bw,
 					"beacon"
 				)
+				if kit then
+					-- the Beacon Tower in white panels with windows (pt-ui 2026-11-19: it was the tallest plain part)
+					boxes[#boxes].kit = kit.beaconFront
+				end
 				box(
 					boxes,
 					"glow",
