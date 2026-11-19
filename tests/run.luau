@@ -8423,6 +8423,7 @@ end); -- Hero MMO features (H1 to H8) live in their own file so this one merges 
 (require :: any)("./wanted_test")({ test = test, check = check, Config = Config });
 -- Overnight queue item 5: the underwater, vehicles, citizens and travel audit (own file, merges easily)
 (require :: any)("./travel_test")({ test = test, check = check, Config = Config, world = world });
+(require :: any)("./pockets_test")({ test = test, check = check, Config = Config }); -- the pocket kit pass (2026-11-19)
 -- WP12: visit a friend's HQ on the same server (own file, merges easily)
 (require :: any)("./visit_test")({ test = test, check = check, Config = Config, placePath = process.args[1] })
 
@@ -8535,7 +8536,11 @@ test(
 			scanKit(plan.boxes)
 		end
 		for name in K.baseMaterial do
-			check(used[name] == true, name .. " is used somewhere in the city")
+			-- (the pockets' own textures dress the pockets, not the city: tests/pockets_test.luau)
+			check(
+				used[name] == true or table.find(Config.PocketKit.textures, name) ~= nil,
+				name .. " is used somewhere in the city"
+			)
 			check(K.studsPerTile[name] ~= nil, name .. " has a tile size")
 			for _, map in { "Color", "Normal", "Roughness" } do
 				check(

@@ -69,6 +69,7 @@ local EnemyService = require(script.Parent.EnemyService)
 local IncidentService = require(script.Parent.IncidentService)
 local MissionService = require(script.Parent.MissionService)
 local SiteKit = require(script.Parent.SiteKit)
+local SignKit = require(Shared:WaitForChild("SignKit"))
 local SetPieceMeshes = require(script.Parent.SetPieceMeshes)
 local SquadService = require(script.Parent.SquadService)
 local StoryService = require(script.Parent.StoryService)
@@ -1442,17 +1443,15 @@ local function act(player: Player, what: number, bit: number)
 	end
 end
 
--- A site's sign (lore step 11): a lit frame by the door with the site's fixed name. PLACEHOLDER ART.
+-- A site's sign (lore step 11): a lit frame by the door with the site's fixed name. Since the pocket kit pass
+-- (2026-11-19) a comic sign board: a gold board in an ink frame, the name in Bangers with a thick stroke (SignKit).
 local function siteSign(name: string, door: any)
 	local m = SiteKit.prop("SiteSign", function(model)
 		SiteKit.part(model, Vector3.new(1, 12, 1), CFrame.new(-7, 6, 0), Color3.fromRGB(70, 80, 100))
 		SiteKit.part(model, Vector3.new(1, 12, 1), CFrame.new(7, 6, 0), Color3.fromRGB(70, 80, 100))
-		local board = SiteKit.part(
-			model,
-			Vector3.new(16, 3.4, 0.6),
-			CFrame.new(0, 11, 0),
-			Color3.fromRGB(245, 245, 250)
-		)
+		SiteKit.part(model, Vector3.new(16.8, 4.2, 0.4), CFrame.new(0, 11, 0), Color3.fromRGB(24, 22, 30))
+		local board =
+			SiteKit.part(model, Vector3.new(16, 3.4, 0.6), CFrame.new(0, 11, 0), Color3.fromRGB(255, 200, 50))
 		SiteKit.part(
 			model,
 			Vector3.new(5, 0.5, 5),
@@ -1460,44 +1459,23 @@ local function siteSign(name: string, door: any)
 			Color3.fromRGB(255, 215, 80),
 			Enum.Material.Neon
 		)
-		for _, face in { Enum.NormalId.Front, Enum.NormalId.Back } do
-			local gui = Instance.new("SurfaceGui")
-			gui.Face = face
-			gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
-			gui.PixelsPerStud = 40
-			local label = Instance.new("TextLabel")
-			label.Size = UDim2.fromScale(1, 1)
-			label.BackgroundTransparency = 1
-			label.Font = Enum.Font.GothamBlack
-			label.TextScaled = true
-			label.TextColor3 = Color3.fromRGB(40, 90, 170)
-			label.Text = name -- a fixed site name from Config.SideQuests.sites
-			label.Parent = gui
-			gui.Parent = board
-		end
+		-- a fixed site name from Config.SideQuests.sites
+		SignKit.letter(
+			board,
+			name,
+			Color3.fromRGB(222, 56, 60),
+			{ faces = { Enum.NormalId.Front, Enum.NormalId.Back } }
+		)
 	end)
 	-- beside the door, facing the street (a deep site's on the seabed)
 	local at = Vector3.new(door.x + door.fz * 12, door.y or gy(), door.z - door.fx * 12)
 	SiteKit.place(m, at, math.atan2(-door.fx, -door.fz))
 end
 
--- A set piece's fixed sign text on both faces of a board (lore step 11, chain 2)
+-- A set piece's fixed sign text on both faces of a board (lore step 11, chain 2), comic lettering (SignKit)
 local function writeSign(board: BasePart, text: string, color: Color3)
-	for _, face in { Enum.NormalId.Front, Enum.NormalId.Back } do
-		local gui = Instance.new("SurfaceGui")
-		gui.Face = face
-		gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
-		gui.PixelsPerStud = 40
-		local label = Instance.new("TextLabel")
-		label.Size = UDim2.fromScale(1, 1)
-		label.BackgroundTransparency = 1
-		label.Font = Enum.Font.GothamBlack
-		label.TextScaled = true
-		label.TextColor3 = color
-		label.Text = text -- a fixed set piece sign from Shared.SideQuestSets
-		label.Parent = gui
-		gui.Parent = board
-	end
+	-- a fixed set piece sign from Shared.SideQuestSets
+	SignKit.letter(board, text, color, { faces = { Enum.NormalId.Front, Enum.NormalId.Back } })
 end
 
 -- One box of a set piece (Shared.SideQuestSets), at cf. PLACEHOLDER ART: plain parts until Art.SetPieces is

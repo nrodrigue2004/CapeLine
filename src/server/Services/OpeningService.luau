@@ -48,6 +48,7 @@ local PrologueRow = require(Shared:WaitForChild("PrologueRow"))
 
 local BuildingService = require(script.Parent.BuildingService)
 local CityBuilder = require(script.Parent.CityBuilder)
+local PocketArt = require(script.Parent.PocketArt)
 local DataService = require(script.Parent.DataService)
 local HeroService = require(script.Parent.HeroService)
 local EnemyService = require(script.Parent.EnemyService)
@@ -100,12 +101,13 @@ local function v3(t: { number }, up: number?): Vector3
 	return Vector3.new(t[1], t[2] + (up or 0), t[3])
 end
 
--- The subway pocket, built once on first use (greybox, PLACEHOLDER ART like every pocket)
+-- The subway pocket, built once on first use, in the pocket kit's look (Shared.PocketDress)
 local function buildSubway()
 	if subway then
 		return
 	end
 	local l = PocketLayout.build(Config, PocketLayout.subwayIndex(Config), "subway")
+	local dress = PocketArt.dress(l, "subway") -- the kit looks (2026-11-19): tiles and tints, no geometry change
 	local m = Instance.new("Model")
 	m.Name = "PrologueSubway"
 	for _, b in l.boxes do
@@ -116,6 +118,7 @@ local function buildSubway()
 		end
 		p.Parent = m
 	end
+	PocketArt.tier1(m, dress, l, "subway", CityBuilder.part) -- every device's dressing; the rest is PocketDecor's
 	m.Parent = workspace
 	subway = m
 	EnemyService.usePocket(PocketLayout.subwayIndex(Config), l) -- robots down there know its walls

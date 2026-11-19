@@ -112,6 +112,33 @@
       },
       "KitWarehouse": {
         "$path": "src/materials/KitWarehouse.model.json"
+      },
+      "KitPlanks": {
+        "$path": "src/materials/KitPlanks.model.json"
+      },
+      "KitTile": {
+        "$path": "src/materials/KitTile.model.json"
+      },
+      "KitCaveRock": {
+        "$path": "src/materials/KitCaveRock.model.json"
+      },
+      "KitConcrete": {
+        "$path": "src/materials/KitConcrete.model.json"
+      },
+      "KitSteelPlate": {
+        "$path": "src/materials/KitSteelPlate.model.json"
+      },
+      "KitBlock": {
+        "$path": "src/materials/KitBlock.model.json"
+      },
+      "KitSand": {
+        "$path": "src/materials/KitSand.model.json"
+      },
+      "KitAshlar": {
+        "$path": "src/materials/KitAshlar.model.json"
+      },
+      "KitBrickwork": {
+        "$path": "src/materials/KitBrickwork.model.json"
       }
     },
     "Players": {

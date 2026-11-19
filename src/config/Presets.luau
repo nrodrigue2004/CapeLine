@@ -7,6 +7,9 @@
 -- Medium and high keep what the game drew before the pass; only low draws less.
 -- props: the city kit's street props this device builds (CityProps): up to this tier (Config.City.kit.props),
 -- within this many studs of the camera, at most this many mesh parts (nearest first). Phones start on low.
+-- pockets (2026-11-19): the mission and side quest pockets' kit dressing (Shared.PocketDress, Config.PocketKit):
+-- the server builds tier 1 for everyone; each device adds its tiers up to `tier`, within `parts` dressing parts
+-- (tier 1 counted) and `lights` PointLights a pocket (PocketDecor).
 -- clothesNear and clothesFar (perf pass 2026-11-18): a robot's or citizen's Roblox-look clothes are 66 Textures
 -- a rig; inside clothesNear it draws them all, out to clothesFar all but the 21 faces the body hides at rest
 -- (Shared.ClothesMap.tucked), and past it none (NpcRig.showClothes).
@@ -37,6 +40,7 @@ return {
 		clothesFar = 60, -- past this a rig drops its clothes Textures (its part colours match them)
 		props = { tier = 1, radius = 260, parts = 700 },
 		vehicleRig = 110, -- gap-vehicles: escorts this close roll their wheels, steer and sway (Fx.VehicleRig); none past it
+		pockets = { tier = 1, parts = 180, lights = 4 }, -- a pocket's dressing (Shared.PocketDress; the server's tier 1 counts)
 		smash = 3, -- street things (lamps, benches, trees, fences) knocked loose a big impact nearby (BuildingFx, 2026-11-19)
 	},
 	medium = {
@@ -64,6 +68,7 @@ return {
 		clothesFar = 80, -- past this a rig drops its clothes Textures (its part colours match them)
 		props = { tier = 2, radius = 420, parts = 2000 },
 		vehicleRig = 200, -- gap-vehicles: escorts this close roll their wheels, steer and sway (Fx.VehicleRig); none past it
+		pockets = { tier = 2, parts = 480, lights = 10 },
 		smash = 6, -- street things (lamps, benches, trees, fences) knocked loose a big impact nearby (BuildingFx, 2026-11-19)
 	},
 	high = {
@@ -91,6 +96,7 @@ return {
 		clothesFar = 100, -- past this a rig drops its clothes Textures (its part colours match them)
 		props = { tier = 3, radius = 600, parts = 4000 },
 		vehicleRig = 320, -- gap-vehicles: escorts this close roll their wheels, steer and sway (Fx.VehicleRig); none past it
+		pockets = { tier = 3, parts = 900, lights = 18 },
 		smash = 10, -- street things knocked loose a big impact nearby (BuildingFx, 2026-11-19)
 	},
 	-- the preset each device class starts on (QualityRules.device)
