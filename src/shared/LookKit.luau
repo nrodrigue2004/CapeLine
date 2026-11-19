@@ -1782,6 +1782,58 @@ local function catalogAccessory(char: Model, folder: Instance, id: number): bool
 	return true
 end
 
+-- NPC looks (nate's playtest, 2026-11-19: NPCs should look like Roblox avatars; 2026-11-18: never our own
+-- faces, hair, facial hair or eyes): a look still naming one of the old drawn hairs or faces (the configs' NPCs,
+-- fakes and givers) wears a Roblox catalog one instead, picked by the old piece's name so it is the same every
+-- time; the retired face tabs (eyes, beard, face details, makeup) are not drawn at all.
+local function nameHash(s: string): number
+	local h = 0
+	for i = 1, #s do
+		h = (h * 31 + string.byte(s, i)) % 1000003
+	end
+	return h
+end
+local function catalogHairFor(kit: string): number?
+	local list = Config.CatalogLooks.hair
+	if #list == 0 then
+		return nil
+	end
+	return list[nameHash(kit) % #list + 1][2]
+end
+local function catalogFaceFor(kit: string): number?
+	local list = Config.CatalogLooks.faces
+	if #list == 0 then
+		return nil
+	end
+	return list[nameHash(kit) % #list + 1][3]
+end
+local RETIRED: { [string]: boolean } = {}
+for _, t in C.tabs do
+	if t.hidden then
+		RETIRED[t.id] = true
+	end
+end
+LookKit.retired = RETIRED
+-- A catalog accessory that has not loaded yet goes on once it arrives (if the look is still worn)
+local function catalogSoon(char: Model, folder: Instance, id: number)
+	if catalogAccessory(char, folder, id) then
+		return
+	end
+	local lib = ReplicatedStorage:FindFirstChild("CatalogLooks")
+	if not lib then
+		return
+	end
+	local conn: RBXScriptConnection? = nil
+	conn = lib.ChildAdded:Connect(function(c)
+		if not folder.Parent then
+			(conn :: RBXScriptConnection):Disconnect()
+		elseif c.Name == tostring(id) then
+			(conn :: RBXScriptConnection):Disconnect()
+			catalogAccessory(char, folder, id)
+		end
+	end)
+end
+
 -- Build a whole look (LookService adds the gear styles the look does not cover). Returns the folder.
 -- The body wears its body set and is shaped first (build, height, gender), so every piece is sized for it.
 local NEW_SLOTS =
@@ -1884,9 +1936,14 @@ function LookKit.build(char: Model, look: any, weapon: any?): Folder
 	local hidesFace = hatKit ~= nil and PieceKits.hatHidesFace[hatKit] == true
 	local hairKit = kitOf("hair")
 	local hairCat = catalogId(hairKit)
+	local hairSub = if hairKit and not hairCat then catalogHairFor(hairKit) else nil
 	if hairCat then
 		if not hidesHair then
 			catalogAccessory(char, folder, hairCat)
+		end
+	elseif hairSub then
+		if not hidesHair then
+			catalogSoon(char, folder, hairSub)
 		end
 	elseif hairKit and not hidesHair then
 		-- the hair meshes (round 3, Config.HairArt, art/blender/hair.py) stand in for its parts once imported
@@ -1894,9 +1951,9 @@ function LookKit.build(char: Model, look: any, weapon: any?): Folder
 			addSpecs(char, folder, "Hair", KITS.hair[hairKit] or PieceKits.hair[hairKit], colors)
 		end
 	end
-	local eyeKit = kitOf("eyes")
+	local eyeKit = if RETIRED.eyes then nil else kitOf("eyes")
 	for _, slot in NEW_SLOTS do
-		local kit = kitOf(slot)
+		local kit = if RETIRED[slot] and not catalogId(kitOf(slot)) then nil else kitOf(slot)
 		local covered = hidesFace and (slot == "face" or slot == "makeup" or slot == "beard")
 		local cat = catalogId(kit)
 		if cat then
@@ -1930,12 +1987,15 @@ function LookKit.build(char: Model, look: any, weapon: any?): Folder
 			-- a Roblox catalog face (Config.CatalogLooks), else an older save's shared face, else Roblox's own
 			local visage = kitOf("visage")
 			local img = CATALOG_FACE[catalogId(visage) or 0]
+				or (if visage and not catalogId(visage) then catalogFaceFor(visage) else nil)
 			local f = Config.NpcLooks.faces[visage or ""]
 			decal.Texture = if img
 				then "rbxassetid://" .. img
 				elseif f and f.human ~= 0 then "rbxassetid://" .. f.human
 				else "rbxasset://textures/face.png"
-			decal.Transparency = if kitOf("face") or hidesFace then 1 else 0
+			local faceKit = kitOf("face")
+			local drawnFace = faceKit ~= nil and not (RETIRED.face and not catalogId(faceKit))
+			decal.Transparency = if drawnFace or hidesFace then 1 else 0
 		end
 	end
 	local e = kitOf("emblem")

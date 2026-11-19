@@ -120,6 +120,30 @@ function HeroBody.robloxBody(): Model?
 		end
 	end
 	model.Name = "StarterCharacter"
+	-- the same 15 meshes for the characters the game draws itself (NpcRig: robots, citizens, quest people),
+	-- so they wear real Shirt and Pants like the heroes (nate's playtest, 2026-11-19)
+	local old = ReplicatedStorage:FindFirstChild("RobloxBody")
+	if old then
+		old:Destroy()
+	end
+	local meshes = Instance.new("Folder")
+	meshes.Name = "RobloxBody"
+	for _, p in model:GetChildren() do
+		if p:IsA("MeshPart") then
+			local c = p:Clone()
+			for _, d in c:GetChildren() do
+				if not d:IsA("SurfaceAppearance") then
+					d:Destroy()
+				end
+			end
+			c.Anchored = true
+			c.CanCollide = false
+			c.CanQuery = false
+			c.CanTouch = false
+			c.Parent = meshes
+		end
+	end
+	meshes.Parent = ReplicatedStorage
 	return model
 end
 

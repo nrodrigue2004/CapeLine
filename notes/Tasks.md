@@ -168,7 +168,7 @@ What nate does:
 ### Playtest combined: start here (2026-11-19, build playtest-combined)
 One place with every change from 2026-11-18 (nate: "combine it all in one build"): project files capeline/Capeline-playtest-combined-2026-11-19.rbxl, enemies9 with all branches merged. The Output shows "playtest-combined (2026-11-19)". Older playtest places are out of date. Run these lists in this order; each is further down this file:
 1. "Playtest art3: start here" (the cloud-uploaded art: images, every model set, clothes on heroes).
-2. "Creator and looks fixes" (Roblox's blocky body, catalog faces and hair, drag to rotate, DONE, names, origins).
+2. "Creator and looks fixes" (Roblox's blocky body, catalog faces and hair, drag to rotate, DONE, names, origins), then "NPC looks and creator Next".
 3. "Studio list: kid-proof prologue" (alone with the story, guided roof hops, the tunnel cave-in, no Crane-built line).
 4. "Studio list: walls, speed jump, power animations" (robots stop at walls, super-speed running jump, per-path cast clips, leg brace).
 5. "Enemy motion" (robots use Roblox's idle, walk and run).
@@ -1558,6 +1558,16 @@ DEV panel (M6 row): Inc (cycles the 10 templates, spawns that one next to you), 
 - DONE with no origin picked opens ORIGIN and says why in gold; DONE always saves or says why within 6 s.
 - 40 titles and 56 nouns on PLAY; 10 origins, each with its crest.
 - Gloves, boots, masks, capes and weapons on the new body: check they still sit on the hands, feet, head and back.
+
+### NPC looks and creator Next (2026-11-19, nate's playtest 2)
+- Boot Output has no "[HeroBody]" warning; ReplicatedStorage has a RobloxBody folder (15 MeshParts).
+- City citizens, robots in the Roblox look, side quest givers and helpers, mentors and the prologue crowd stand on the same Roblox blocky body as your hero, in real Shirt and Pants (front on the front, sleeves on the arms, no stretched seams), each with a Roblox catalog face and catalog hair (no block hair caps once the catalog loads, about 10 s after boot).
+- A robot that winds up an attack shows glowing eyes over its face; a frozen robot's clothes go icy blue; a hit flashes it white (a white glow on robots in clothes).
+- A Mimic in disguise wears citizens' street clothes, then its uniform once revealed.
+- Damage still breaks shell pieces off robots (the clothes go with the part) and shows the metal frame.
+- NPCs with hero looks (the famous fakes, givers): catalog face and hair, no drawn eyes, beards or face details.
+- Creator: each NEXT press moves one step on the first press (with the UI thread's Kit fix). Output shows no "[CreatorScreen]" warnings.
+- Perf: Shift+F5 with 40+ citizens and robots on screen: frame time like before (each rig now has an inert Humanoid).
 
 ## Studio list: kid-proof prologue (2026-11-18)
 Play a new hero's prologue on a server with a second player (Studio Test > 2 players) fighting robots near the plaza.
