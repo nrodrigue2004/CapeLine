@@ -23029,7 +23029,9 @@ end
 	placePath = process.args[1],
 });
 -- the city life pass: citizens on Roblox's clips and the comic city map (2026-11-19); ONLY="City life"
-(require :: any)("./life_test")({ test = test, check = check, Config = Config })
+(require :: any)("./life_test")({ test = test, check = check, Config = Config });
+-- the Ceremony prologue's art pass (gap-prologue, 2026-11-19, own file); ONLY="Prologue art" runs just these
+(require :: any)("./prologue_art_test")({ test = test, check = check, Config = Config, placePath = placePath })
 
 print(string.format("\n%d passed, %d failed", passed, failed))
 if failed > 0 then

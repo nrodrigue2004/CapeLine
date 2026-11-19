@@ -524,6 +524,9 @@ return {
 		slogan = "A SAFER CITY, ONE SPARK AT A TIME",
 		brand = "CRANE INDUSTRIES",
 		hall = "CRANE'S HERO HALL",
+		-- the printed pictures (art/prologue/ads.py, uploaded Image ids; 0 = not uploaded: the fixed text above is
+		-- drawn on the part instead): the Hall's banner behind the stage and the Crane Industries billboard ad
+		art = { banner = 72802172729417, billboard = 96457001071583 },
 	},
 
 	-- Mission pockets: sealed 400 x 400 areas at y = 3,000 (no PvP, no world schedulers)
