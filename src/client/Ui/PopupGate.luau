@@ -2,8 +2,8 @@
 -- after-prologue cards (the daily claim card, the mentor picker, the weekly board's TOP 10 card) wait until
 -- the player is free: no loading screen, main menu, hero creator, prologue or cutscene up, and none of the
 -- other gated cards still open, so they come one at a time and never under a menu or over the story.
--- * PopupGate.card(name, isOpen, obj?, close?): a gated card says how to tell it is up, and (fix-hud 2026-11-19)
---   its panel (or a function giving it) and how it closes, so its life, the X, a tap and Backspace take it down
+-- * PopupGate.card(name, isOpen): a gated card says how to tell it is up; PopupGate.closeWith(name, obj, close)
+--   (fix-hud 2026-11-19) its panel (or a function giving it) and how it closes, for its life, X, tap and Backspace
 -- * PopupGate.free(except): may a card show now? (except: the asking card's own name)
 -- * PopupGate.later(name, show): run show when its turn comes in Ui.Popups' line (pt-ui 2026-11-19: one card at a
 --   time with every other popup, by priority, never in a fight for the starter offer)
@@ -23,14 +23,15 @@ local cards: { [string]: () -> boolean } = {}
 local closers: { [string]: () -> () } = {}
 local waiting: { [string]: boolean } = {}
 
-function PopupGate.card(name: string, isOpen: () -> boolean, obj: any?, close: (() -> ())?)
+function PopupGate.card(name: string, isOpen: () -> boolean)
 	cards[name] = isOpen
-	if obj ~= nil then
-		Popups.panel(name, obj)
-	end
-	if close then
-		closers[name] = close
-	end
+end
+
+-- fix-hud: the card's panel (or a function giving it) and how it closes, so its life, the X, a tap and Backspace
+-- take it down
+function PopupGate.closeWith(name: string, obj: any, close: () -> ())
+	Popups.panel(name, obj)
+	closers[name] = close
 end
 
 local function busy(): boolean

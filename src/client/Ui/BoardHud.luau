@@ -409,17 +409,13 @@ local function buildCard()
 	end)
 	ok.Parent = card
 	Kit.fit(card, 340, 168, 420, 168) -- centred, and scaled down on a short phone
-	PopupGate.card(
-		"board",
-		function()
-			return card.Visible
-		end,
-		card,
-		function()
-			card.Visible = false
-			table.clear(cardLines)
-		end
-	)
+	PopupGate.card("board", function()
+		return card.Visible
+	end)
+	PopupGate.closeWith("board", card, function()
+		card.Visible = false
+		table.clear(cardLines)
+	end)
 end
 
 -- A BoardData answer (also the phone test's way in)

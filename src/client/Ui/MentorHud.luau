@@ -442,16 +442,12 @@ function MentorHud.init()
 	-- on a phone (a fixed 340 px ran past a 375 px phone's safe area)
 	Kit.fit(picker, 400, 310, 480, 340)
 	picker.Parent = gui
-	PopupGate.card(
-		"mentorPick",
-		function()
-			return picker.Visible and gui.Enabled
-		end,
-		picker,
-		function()
-			picker.Visible = false -- as LATER: the MENTOR button opens it again
-		end
-	)
+	PopupGate.card("mentorPick", function()
+		return picker.Visible and gui.Enabled
+	end)
+	PopupGate.closeWith("mentorPick", picker, function()
+		picker.Visible = false -- as LATER: the MENTOR button opens it again
+	end)
 	pickBody = Kit.frame({
 		Size = UDim2.new(1, -28, 1, -20),
 		Position = UDim2.fromOffset(14, 10),

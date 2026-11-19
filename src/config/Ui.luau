@@ -152,13 +152,13 @@ return {
 		-- for a tap and has a close button: tests "pt-ui" open and close each one); stale: dropped (counted in "+N
 		-- more") when it could not show within that many seconds; fightOk: a timed ask that may show in a fight
 		-- fix-hud (nate's playtest of gaps7, 2026-11-19): every popup can be sent away (Ui.Dismiss): an X (cardX px
-		-- on a card, toastX on a toast) and a tap anywhere on it (noTap: not on cards that scroll or hold a list or pages,
+		-- on a card, toastX on a tracker; a toast is all tap, too small for an X) and a tap anywhere on it (noTap: not on cards that scroll or hold a list or pages,
 		-- their X only); `keys` clear every popup on screen and the line.
 		-- Settings "Popups" (modes, the key's option order): All; Important only (a card marked important = "card"
 		-- still shows as itself: the invites that need an answer; important = "toast": a result card shows as one
 		-- small toast line with its pay; toasts marked important by Ui.Toasts: rewards, drops, level ups, alerts);
 		-- Off (only the answer to your own tap). Nothing else shows, and the server still pays as before.
-		dismiss = { cardX = 30, toastX = 22, keys = { "Backspace" } },
+		dismiss = { cardX = 30, toastX = 22, keys = { "Backspace" } }, -- the X's face; its tap area is phone.minTap
 		modes = { all = 0, important = 1, off = 2 },
 		cards = {
 			bossResult = { pri = "result", life = 8, important = "toast" }, -- WorldHud (closes itself after 5 s or a tap)

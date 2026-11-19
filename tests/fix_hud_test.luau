@@ -8,33 +8,36 @@ local fs = require("@lune/fs")
 
 return function(T: { [string]: any })
 	local test, check, Config = T.test, T.check, T.Config
-	local BossMath = require("../src/shared/BossMath")
+	local BossRange = require("../src/shared/BossRange")
 	local P = Config.Ui.popups
 
-	test("fix-hud: the boss bar only near the fight (BossMath.hudNear)", function()
+	test("fix-hud: the boss bar only near the fight (BossRange.hudNear)", function()
 		local def = Config.Boss.bosses.RustjawPrime
 		local s = { state = 3, num = def.num, x = 0, z = 0 }
 		local r = math.max(Config.Boss.hud.near, def.arenaRadius)
 		check(r >= 400, "near is at least 400 studs")
-		check(BossMath.hudNear(Config, s, r - 5, 0, false, false) == "bar", "inside the radius: the bar")
+		check(BossRange.hudNear(Config, s, r - 5, 0, false, false) == "bar", "inside the radius: the bar")
 		check(
-			BossMath.hudNear(Config, s, r + 5, 0, false, false) == "corner",
+			BossRange.hudNear(Config, s, r + 5, 0, false, false) == "corner",
 			"just outside: the corner timer"
 		)
 		check(
-			BossMath.hudNear(Config, s, r + 5, 0, false, true) == "bar",
+			BossRange.hudNear(Config, s, r + 5, 0, false, true) == "bar",
 			"once shown it leaves only past the margin (no flicker)"
 		)
-		check(BossMath.hudNear(Config, s, 3000, 0, true, false) == "bar", "on the contribution list: the bar")
-		check(BossMath.hudNear(Config, s, nil, nil, false, false) == "corner", "no hero yet: the corner")
-		check(BossMath.hudNear(Config, { state = 0 }, 0, 0, true, true) == "none", "no boss: nothing")
+		check(
+			BossRange.hudNear(Config, s, 3000, 0, true, false) == "bar",
+			"on the contribution list: the bar"
+		)
+		check(BossRange.hudNear(Config, s, nil, nil, false, false) == "corner", "no hero yet: the corner")
+		check(BossRange.hudNear(Config, { state = 0 }, 0, 0, true, true) == "none", "no boss: nothing")
 		local banner = { state = 1, num = def.num, x = 0, z = 0 }
 		check(
-			BossMath.hudNear(Config, banner, 5000, 0, false, false) == "corner",
+			BossRange.hudNear(Config, banner, 5000, 0, false, false) == "corner",
 			"a far countdown: corner only"
 		)
 		check(
-			BossMath.hudNear(Config, banner, 5000, 0, true, false) == "corner",
+			BossRange.hudNear(Config, banner, 5000, 0, true, false) == "corner",
 			"the list counts in the fight only (a stale tier never brings the banner)"
 		)
 		local src = fs.readFile("src/client/Ui/Radar.luau")
@@ -140,7 +143,8 @@ return function(T: { [string]: any })
 	end
 	local function xOf(obj: any): any
 		local f = obj and obj:FindFirstChild("Dismiss")
-		return f and f:FindFirstChild("DismissX")
+		local top = f and f:FindFirstChild("DismissTop")
+		return top and top:FindFirstChild("DismissX")
 	end
 	local function tapOf(obj: any): any
 		local f = obj and obj:FindFirstChild("Dismiss")
@@ -176,7 +180,9 @@ return function(T: { [string]: any })
 		check(card ~= nil and shown(card), "the boss result card shows")
 		local x = xOf(card)
 		check(x ~= nil and shown(x), "it wears an X")
-		check(x and x.Text == "X" and x.Size.X.Offset == P.dismiss.cardX, "a 30 px X")
+		check(x and x.Size.X.Offset >= Config.Ui.phone.minTap, "the X is tap-sized for a phone")
+		local face = x and x:FindFirstChild("Face")
+		check(face and face.Text == "X" and face.Size.X.Offset == P.dismiss.cardX, "wearing a 30 px X")
 		if x then
 			sim:tap(x)
 		end
@@ -195,8 +201,10 @@ return function(T: { [string]: any })
 			end
 		end
 		check(toast ~= nil, "the toast shows")
-		local tx = xOf(toast)
-		check(tx ~= nil and tx.Size.X.Offset == P.dismiss.toastX, "a toast wears a small X")
+		check(
+			xOf(toast) == nil,
+			"a toast has no X (too small for a phone's thumb): the whole bubble is its tap"
+		)
 		local tap = tapOf(toast)
 		check(tap ~= nil and tap.ZIndex == 0, "and a tap layer under its words")
 		if tap then

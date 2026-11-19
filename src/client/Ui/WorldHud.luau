@@ -23,7 +23,7 @@ local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local IncidentPlan = require(Shared:WaitForChild("IncidentPlan"))
 local ContractPlan = require(Shared:WaitForChild("ContractPlan"))
-local BossMath = require(Shared:WaitForChild("BossMath"))
+local BossRange = require(Shared:WaitForChild("BossRange"))
 
 local Kit = require(script.Parent.Kit)
 local Popups = require(script.Parent.Popups) -- pt-ui: one line for every popup
@@ -296,7 +296,7 @@ local function refreshTracker()
 			end
 		end
 	end
-	tracker.Visible = not trackerHidden
+	tracker.Visible = not trackerHidden and n > 0 -- (an empty tracker shows nothing, its X neither)
 end
 
 function WorldHud.hideTracker()
@@ -452,7 +452,7 @@ local function bossKey(id: string?): string
 	return if id and Kit.iconCell("marker", id) then id else "boss"
 end
 
-local bossNear = false -- fix-hud: the bar showed last time (BossMath.hudNear's margin to leave)
+local bossNear = false -- fix-hud: the bar showed last time (BossRange.hudNear's margin to leave)
 
 local function refreshBoss()
 	local s = WorldClient.boss
@@ -460,7 +460,7 @@ local function refreshBoss()
 	local left = (s.at or 0) - (os.clock() - (s.received or os.clock()))
 	-- fix-hud: the banner and the bar only near the fight or once you are on its list; else the radar's timer
 	local pos = myPos()
-	local mode = BossMath.hudNear(
+	local mode = BossRange.hudNear(
 		Config,
 		s,
 		pos and pos.X,
@@ -641,28 +641,23 @@ end
 
 -- pt-ui: the boss result card waits its turn (Ui.Popups "bossResult": never over another card, after a fight)
 local function showResult(r: { [string]: any })
-	Popups.show(
-		"bossResult",
-		function()
-			showResultNow(r)
-			return resultCard
-		end,
-		function()
-			return resultCard ~= nil
-		end,
-		closeResult,
-		function()
-			-- fix-hud: Settings "Popups: Important only" shows this one line instead (the outcome and the pay)
-			local id = WorldClient.bossByNum[r.num]
-			local def = id and Config.Boss.bosses[id]
-			return string.format(
-				"%s %s  %s",
-				string.upper(if def then def.name else "Boss"),
-				if r.defeated then "DEFEATED!" else "RETREATED",
-				Kit.payLine(r.credits or 0, r.renown or 0, 1)
-			)
-		end
-	)
+	-- fix-hud: Settings "Popups: Important only" shows this one line instead (the outcome and the pay)
+	Popups.brief("bossResult", function()
+		local id = WorldClient.bossByNum[r.num]
+		local def = id and Config.Boss.bosses[id]
+		return string.format(
+			"%s %s  %s",
+			string.upper(if def then def.name else "Boss"),
+			if r.defeated then "DEFEATED!" else "RETREATED",
+			Kit.payLine(r.credits or 0, r.renown or 0, 1)
+		)
+	end)
+	Popups.show("bossResult", function()
+		showResultNow(r)
+		return resultCard
+	end, function()
+		return resultCard ~= nil
+	end, closeResult)
 end
 
 ---------------------------------------------------------------------------
@@ -679,6 +674,7 @@ function WorldHud.init()
 	layout.Padding = UDim.new(0, 6)
 	layout.SortOrder = Enum.SortOrder.LayoutOrder
 	layout.Parent = tracker
+	tracker.Visible = false -- (until a row shows: an empty tracker draws nothing, its X neither)
 	tracker.Parent = gui
 	for i = 1, MAX_ROWS do
 		rows[i] = makeRow(i)
@@ -699,7 +695,7 @@ function WorldHud.init()
 	place()
 	Kit.LayoutChanged:Connect(place)
 	-- fix-hud: the tracker's X (no tap-anywhere: its box is mostly clear screen)
-	Dismiss.attach(tracker, WorldHud.hideTracker, { small = true, tap = false })
+	Dismiss.attach(tracker, WorldHud.hideTracker, { thin = true, tap = false })
 
 	bossPanel = Kit.frame({
 		Name = "Boss",

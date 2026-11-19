@@ -1976,3 +1976,13 @@ Root cause: Roblox's Avatar Joint Upgrade gave heroes AnimationConstraints, whic
 3. Click (Basic) five times standing still: the arms swing a varied combo. Press a skill key (1, 2...) and the super: each plays its own pose. Fly and cast: the legs keep the flight pose.
 4. Press 2 for the weapon: the arms take its stance; swing it. Hold Q (block): the guard pose. Use an emote from the picker: the pose holds, then returns.
 5. With a second player (Test > 2 Players): each sees the other's casts and swings.
+
+## Studio list: popups away, boss bar range, double stamina (fix-hud, 2026-11-19)
+Proven headless (tests "fix-hud", the real client modules in tests/uisim.luau): X and tap on the boss result card, a toast, the name card and the drones card; Backspace clears; Settings Popups modes; the boss bar near or far. Previews art/preview/fix_hud_toasts.png, fix_hud_world.png, fix_hud_settings.png. Needs Studio:
+- [ ] The boss result card, the level badge, a stamp, a name card, the corner TV and the daily card each show a round X in their top-right corner; the X closes them at once. A tap on a toast, or on a card's body, closes it too, but CLAIM, JOIN, NO, VIEW and the stars still do their own thing.
+- [ ] Backspace (not while typing a name or promo code) clears everything on screen; the next popups still come later. B still grabs.
+- [ ] Settings > Popups: Important only: a boss win shows one gold line, not the big card; squad invites still ask. Off: nothing pops but "Not during a fight"-style answers.
+- [ ] The contest banner folds away after about 12 s each step and has an X; ENTER still works on the stage.
+- [ ] The world tracker's X folds it; a new incident, event or contract brings it back. The side quest tracker's X folds it until the next step; the mission tracker's X is on its left (LEAVE stays on the right).
+- [ ] Far from a world boss (over 400 studs): no bar at the top, the radar says "◆ BOSS FIGHT!  N studs"; fly in and the bar appears; hit it once and fly away, the bar stays.
+- [ ] Stamina: boost lasts about 14 s; the stamina ring empties at half the old rate; no speed-check pullback in a long boost.

@@ -558,7 +558,8 @@ function PassHud.init()
 	gui = Kit.screen("PassHud", 6)
 	PopupGate.card("episode", function()
 		return introShade ~= nil and introShade.Parent ~= nil
-	end, function()
+	end)
+	PopupGate.closeWith("episode", function()
 		return introShade
 	end, function()
 		if introShade then

@@ -524,23 +524,19 @@ end
 
 -- pt-ui: the COLLECT card waits its turn in Ui.Popups ("drones")
 local function showDrones(d: { [string]: any })
-	Popups.show(
-		"drones",
-		function()
-			showDronesNow(d)
-			return dronesCard
-		end,
-		nil,
-		function()
-			-- fix-hud: its life, X, a tap or Backspace collect too (the haul is never lost to a dismissed card)
-			local c = dronesCard
-			if c then
-				Net.send("HqCollect")
-				c:Destroy()
-				dronesCard = nil
-			end
+	-- fix-hud: its life, X, a tap or Backspace collect too (the haul is never lost to a dismissed card)
+	Popups.hideWith("drones", function()
+		local c = dronesCard
+		if c then
+			Net.send("HqCollect")
+			c:Destroy()
+			dronesCard = nil
 		end
-	)
+	end)
+	Popups.show("drones", function()
+		showDronesNow(d)
+		return dronesCard
+	end)
 end
 
 function HqHud.init()

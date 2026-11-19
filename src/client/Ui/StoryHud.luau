@@ -968,9 +968,12 @@ function StoryHud.init()
 		maxText = 16,
 	}, StoryClient.leave)
 	leaveButton.Parent = tracker
-	trackTitle.Size = UDim2.new(1, -106, 0, 22)
-	trackText.Size = UDim2.new(1, -106, 0, 18)
+	-- (fix-hud: and clear of the X's 40 px next to LEAVE)
+	trackTitle.Size = UDim2.new(1, -150, 0, 22)
+	trackText.Size = UDim2.new(1, -150, 0, 18)
 	questPanel, questTitle, questText, questFill = buildTracker("Quest", 136)
+	questTitle.Size = UDim2.new(1, -56, 0, 22) -- fix-hud: clear of the X
+	questText.Size = UDim2.new(1, -56, 0, 18)
 	-- the guide line box keeps clear of the trackers and the choice card (lore step 6)
 	GuideHud.keepClear(tracker)
 	GuideHud.keepClear(questPanel)
@@ -981,14 +984,14 @@ function StoryHud.init()
 		local m = StoryClient.mission
 		hiddenMission = string.format("%s:%s", tostring(m.num), tostring(m.step))
 		tracker.Visible = false
-	end, { small = true, tap = false, left = true })
+	end, { thin = true, tap = false, inset = 96 })
 	Dismiss.attach(questPanel, function()
 		local q = StoryClient.quest
 		if q then
 			hiddenQuest = string.format("%s:%s", tostring(q.bit or q.test), tostring(q.step))
 		end
 		questPanel.Visible = false
-	end, { small = true, tap = false })
+	end, { thin = true, tap = false })
 	resultCard = Kit.frame({
 		Name = "Result",
 		AnchorPoint = Vector2.new(0.5, 0.5),

@@ -15,7 +15,8 @@
 -- fix-hud (nate's playtest of gaps7, 2026-11-19: "need a way to get rid of popups shit is just on my screen"):
 -- * every card and toast that shows gets Ui.Dismiss: an X and a tap anywhere on it take it down (its own hide),
 --   Backspace clears all of them and the waiting line (the answers to a tap excepted); every card has a life.
--- * Popups.panel(name, obj or fn): the card's GuiObject when show() returns none (cards that toggle a panel).
+-- * Popups.panel(name, obj or fn): the card's GuiObject when show() returns none (cards that toggle a panel);
+--   Popups.brief(name, fn) its one line for Important only; Popups.hideWith(name, fn) its hide when it has none.
 -- * Popups.setMode(0 All | 1 Important only | 2 Off) from Settings "Popups" (Config.Ui.popups.modes):
 --   Important keeps cards marked important = "card" (the invites) and turns important = "toast" result cards
 --   into one small toast line (their brief, drawn by Popups.briefDraw, which Ui.Toasts sets); toasts keep only
@@ -64,6 +65,8 @@ Popups.dropped = 0 -- (tests) popups the mode left out
 -- draws a brief line as a small toast (Ui.Toasts sets it: Popups cannot require Toasts)
 Popups.briefDraw = nil :: ((string) -> any)?
 local panels: { [string]: any } = {}
+local briefs: { [string]: () -> string? } = {}
+local hides: { [string]: () -> () } = {}
 
 function Popups.now(): number
 	return clock
@@ -303,6 +306,8 @@ function Popups.card(
 	brief: (string | () -> string?)?
 ): PopupQueue.Item
 	start()
+	brief = brief or briefs[name]
+	hide = hide or hides[name]
 	local ok, asToast = Popups.allowed("card", spec, name)
 	if not ok then
 		local text = if type(brief) == "function" then brief() else brief
@@ -357,6 +362,16 @@ end
 -- The GuiObject a card shows when its show() returns none (a panel it toggles), or a function giving it
 function Popups.panel(name: string, obj: any)
 	panels[name] = obj
+end
+
+-- A card's one line for Settings "Popups: Important only" (a result card), and how a card that has no hide of its
+-- own is taken down (the drones' card collects), set before Popups.show
+function Popups.brief(name: string, fn: () -> string?)
+	briefs[name] = fn
+end
+
+function Popups.hideWith(name: string, fn: () -> ())
+	hides[name] = fn
 end
 
 -- Settings "Popups": a stricter mode takes down what it would not have shown

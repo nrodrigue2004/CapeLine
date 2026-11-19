@@ -486,7 +486,8 @@ function DailyHud.init()
 	Kit.fit(panel, 520, 300, 640, 560) -- phone pass: fits the safe area, scaled down a little at most
 	PopupGate.card("daily", function()
 		return panel.Visible
-	end, panel, DailyHud.close)
+	end)
+	PopupGate.closeWith("daily", panel, DailyHud.close)
 	local title = Kit.label({
 		Text = "DAILY",
 		Size = UDim2.new(1, -T - 30, 0, 34),
