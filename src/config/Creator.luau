@@ -1158,9 +1158,10 @@ return {
 			},
 		},
 	},
-	-- gender, build and height (nate, 2026-11-17: removed; every hero is the standard blocky body). true brings
-	-- the creator's Body step back.
-	bodyStep = false,
+	-- gender, build and height: the creator's Body step (nate, 2026-11-17: removed; nate, 2026-11-19 16:45Z:
+	-- "Cant change body type or size or gender", back on). On Roblox's own blocky body the set's torsos carry the
+	-- gender and build (LookKit.wearBodySet) and BodyShape scales every part; looks only, one collider.
+	bodyStep = true,
 
 	-- The emblem set (overnight item 12, 2026-11-18: art/clothes/emblems.py draws art/export/clothes/emblems, preview
 	-- art/preview/emblems.png): each shape's mark (Emblem_<shape>.png, tinted by the emblem slot's accent) and each

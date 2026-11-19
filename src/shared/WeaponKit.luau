@@ -340,7 +340,9 @@ WeaponKit.held = held
 -- blocky body: a shield on the forearm keeps its place and size instead of stretching x1.24 down the arm)
 local function fitFrame(part: BasePart): (Vector3, Vector3)
 	local s = part.Size
-	local shift, f = BodyFit.frame(Config, part.Name, { s.X, s.Y, s.Z })
+	local b = part:GetAttribute("BaseSize") -- a body the Body step shaped: the rig is told from its first size
+	local base = if typeof(b) == "Vector3" then { b.X, b.Y, b.Z } else nil
+	local shift, f = BodyFit.frame(Config, part.Name, { s.X, s.Y, s.Z }, base)
 	return V(shift[1], shift[2], shift[3]), V(f[1], f[2], f[3])
 end
 

@@ -27,6 +27,7 @@ local LookCodec = require(Shared:WaitForChild("LookCodec"))
 local WeaponRules = require(Shared:WaitForChild("WeaponRules"))
 local CreatorRules = require(Shared:WaitForChild("CreatorRules"))
 local ProfileSchema = require(Shared:WaitForChild("ProfileSchema"))
+local FlowPlan = require(Shared:WaitForChild("FlowPlan"))
 local AbilityRules = require(Shared:WaitForChild("AbilityRules"))
 local Signal = require(Shared:WaitForChild("Util"):WaitForChild("Signal"))
 
@@ -40,6 +41,7 @@ local OpeningService = require(script.Parent.OpeningService)
 local BossService = require(script.Parent.BossService)
 local FlagService = require(script.Parent.FlagService)
 local Analytics = require(script.Parent.Analytics)
+local CinemaService = require(script.Parent.CinemaService)
 
 local CreatorService = {}
 CreatorService.Saved = Signal.new() -- (player) a creator save landed (HqService refreshes the mannequins)
@@ -52,6 +54,8 @@ CreatorService.leaveHq = function(_player: Player) end
 local rng = Rng.new(os.time() % 100000 + 17)
 local firstAsked: { [Player]: boolean } = {}
 local createAsked: { [Player]: boolean } = {}
+-- fix-flow (2026-11-19): a brand-new character's exposition is playing on its device (os.clock() it began)
+local introAt: { [Player]: number } = {}
 
 local function charOf(player: Player): (any?, any?)
 	local profile = DataService.get(player)
@@ -323,7 +327,22 @@ function CreatorService.open(player: Player, mode: string)
 end
 
 -- Creator first (lore step 2): a brand-new character opens the creator before any story. The hero waits in
--- the "creator" scene (no incidents, events or robots find it) until Done starts the opening.
+-- the "creator" scene (no incidents, events or robots find it) until PLAY starts the opening. Since fix-flow
+-- (nate's playtest 2026-11-19: "The game should open with some sort of exposition ... get to the customization,
+-- then prologue"), an account's first new hero sees the exposition comic page first (Shared.FlowPlan "intro");
+-- the creator opens when the device says it is over (OpeningAct 5) or after Config.Story.opening.intro.timeout.
+local function openCreate(player: Player)
+	local _, c = charOf(player)
+	local hero = HeroService.get(player)
+	introAt[player] = nil
+	if not c or not hero or not isNew(c) or OpeningService.running(player) then
+		return
+	end
+	hero.scene = "creator"
+	Analytics.step(player, "Opening", "creator_open")
+	CreatorService.open(player, "create")
+end
+
 function CreatorService.createFirst(player: Player)
 	local _, c = charOf(player)
 	local hero = HeroService.get(player)
@@ -334,9 +353,24 @@ function CreatorService.createFirst(player: Player)
 		return
 	end
 	createAsked[player] = true
-	hero.scene = "creator"
-	Analytics.step(player, "Opening", "creator_open")
-	CreatorService.open(player, "create")
+	hero.scene = "creator" -- quiet from the first frame: the exposition and the creator are one waiting room
+	local facts = {
+		created = c.created,
+		opening = c.story.opening,
+		introSeen = CinemaService.seenScene(player, Config.Story.opening.intro.scene),
+	}
+	if FlowPlan.introFirst(facts) then
+		local at = os.clock()
+		introAt[player] = at
+		Net.fire("OpeningIntro", player, {})
+		task.delay(Config.Story.opening.intro.timeout, function()
+			if introAt[player] == at then
+				openCreate(player) -- the device never answered: the creator anyway (never a soft-lock)
+			end
+		end)
+		return
+	end
+	openCreate(player)
 end
 
 -- The street outfit (lore step 2; the prologue in step 3 starts in it and the suit snaps on mid-chase): on
@@ -412,6 +446,7 @@ local function onSelect(player: Player, slot: number)
 	profile.active = slot
 	firstAsked[player] = nil
 	createAsked[player] = nil
+	introAt[player] = nil
 	GearService.setStreet(player, false)
 	-- every service takes the new character as if it had just loaded
 	DataService.Loaded:Fire(player, profile)
@@ -458,7 +493,14 @@ function CreatorService.init()
 			task.delay(1.5, CreatorService.createFirst, hero.player) -- a first body that loaded late
 		end
 	end)
+	-- the exposition is over on the device: the creator (fix-flow)
+	OpeningService.IntroDone:Connect(function(player)
+		if introAt[player] then
+			openCreate(player)
+		end
+	end)
 	Players.PlayerRemoving:Connect(function(player)
+		introAt[player] = nil
 		firstAsked[player] = nil
 		createAsked[player] = nil
 		GearService.setStreet(player, false)

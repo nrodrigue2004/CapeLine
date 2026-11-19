@@ -34,12 +34,13 @@ local W = Config.World
 local B = W.beacon
 
 type Trip = {
-	beacon: number,
+	beacon: number, -- 0: a trip to a spot that is not a beacon (BeaconService.travelTo)
 	started: number,
 	arriveAt: number,
 	dest: CFrame,
 	done: boolean,
 	skipped: boolean?,
+	after: ((boolean) -> ())?, -- travelTo's callback: true when the hero was set down at the spot
 }
 local trips: { [Player]: Trip } = {}
 local readyAt: { [Player]: number } = {}
@@ -68,11 +69,82 @@ local function arrive(player: Player, trip: Trip)
 	end
 	player:SetAttribute("Traveling", nil)
 	-- a hero something else moved during the flight (a mission pocket, the HQ) stays where they were put
+	local landed = false
 	if hero and model and model.Parent and hero.alive and Travel.landOk(trip, hero.placedAt) then
 		model:PivotTo(trip.dest)
 		MoveGuard.reset(hero)
+		landed = true
 	end
 	Net.fire("FastTravelDone", player, trip.beacon)
+	if trip.after then
+		task.defer(trip.after, landed)
+	end
+end
+
+-- The flight itself, once its rules are met: from the hero's spot to `dest` (the arc's end), set down at `land`
+local function fly(
+	player: Player,
+	hero: any,
+	pos: Vector3,
+	id: number,
+	dest: Vector3,
+	land: CFrame,
+	after: any
+)
+	local now = os.clock()
+	readyAt[player] = now + B.cooldown
+	local trip = {
+		beacon = id,
+		started = now,
+		arriveAt = now + B.travelTime,
+		dest = land,
+		done = false,
+		after = after,
+	}
+	trips[player] = trip
+	hero.traveling = true
+	hero.travelRoute = { from = pos, to = dest }
+	player:SetAttribute("Traveling", true)
+	-- stream the destination in during the flight so the hero never lands on empty space
+	task.spawn(pcall, player.RequestStreamAroundAsync, player, dest, B.travelTime)
+	Net.fire("FastTravel", player, {
+		ok = true,
+		id = id,
+		from = pos,
+		to = dest,
+		time = B.travelTime,
+	})
+	task.delay(B.travelTime, arrive, player, trip)
+end
+
+-- Fast travel to a spot that is not a beacon (fix-flow, 2026-11-19: the costume contest's GO TO THE STAGE): the
+-- same 3 s flight, cooldown and rules as a beacon trip (Travel.canGo: not in combat, a scene or a flight, and
+-- the cooldown over), and `after(landed)` once the hero is set down. Returns ok, or false with the reason
+-- and the cooldown's seconds left.
+function BeaconService.travelTo(
+	player: Player,
+	land: CFrame,
+	after: ((boolean) -> ())?
+): (boolean, string?, number)
+	local hero = HeroService.get(player)
+	local pos = hero and HeroService.position(hero)
+	if not hero or not pos or not hero.alive then
+		return false, "scene", 0
+	end
+	local now = os.clock()
+	local ok, reason = Travel.canGo({
+		beacons = 0,
+		inCombat = HeroService.inCombat(hero),
+		traveling = trips[player] ~= nil,
+		readyAt = readyAt[player] or 0,
+		now = now,
+		scene = hero.scene,
+	})
+	if not ok then
+		return false, reason, math.max(0, (readyAt[player] or 0) - now)
+	end
+	fly(player, hero, pos, 0, land.Position + Vector3.new(0, B.arriveAbove, 0), land, after)
+	return true, nil, 0
 end
 
 local function travel(player: Player, beaconId: number)
@@ -103,28 +175,7 @@ local function travel(player: Player, beaconId: number)
 	local dest = Vector3.new(b.x, b.y + B.arriveAbove, b.z)
 	local lx, ly, lz = Travel.arrival(W, b)
 	local land = Vector3.new(lx, ly, lz)
-	readyAt[player] = now + B.cooldown
-	local trip = {
-		beacon = beaconId,
-		started = now,
-		arriveAt = now + B.travelTime,
-		dest = CFrame.new(land, land + Vector3.new(0, 0, 10)),
-		done = false,
-	}
-	trips[player] = trip
-	hero.traveling = true
-	hero.travelRoute = { from = pos, to = dest }
-	player:SetAttribute("Traveling", true)
-	-- stream the destination in during the flight so the hero never lands on empty space
-	task.spawn(pcall, player.RequestStreamAroundAsync, player, dest, B.travelTime)
-	Net.fire("FastTravel", player, {
-		ok = true,
-		id = beaconId,
-		from = pos,
-		to = dest,
-		time = B.travelTime,
-	})
-	task.delay(B.travelTime, arrive, player, trip)
+	fly(player, hero, pos, beaconId, dest, CFrame.new(land, land + Vector3.new(0, 0, 10)), nil)
 end
 
 local function discoverPass()

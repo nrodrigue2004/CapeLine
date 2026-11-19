@@ -41,14 +41,17 @@ function BodyFit.kind(Config: any, name: string, size: Vec): string
 	return if off(r.size) < off(h.size) - 1e-6 then "roblox" else "hero"
 end
 
--- The fit frame on a body part of this name and size: shift (in the part's frame) and scale
-function BodyFit.frame(Config: any, name: string, size: Vec): (Vec, Vec)
+-- The fit frame on a body part of this name and size: shift (in the part's frame) and scale. `base` is the
+-- part's size before the creator's build and height shaped it (LookKit.shapeBody's BaseSize): which rig it is
+-- comes from that, since a Titan's thick, short-looking upper arm (1.5 x 1.34) reads closer to HeroRig's
+-- proportions than to Roblox's (fix-flow, 2026-11-19: the Body step back on Roblox's body)
+function BodyFit.frame(Config: any, name: string, size: Vec, base: Vec?): (Vec, Vec)
 	local h = Config.HeroRig.parts[name]
 	if not h then
 		return { 0, 0, 0 }, { 1, 1, 1 }
 	end
 	local hs = h.size
-	if BodyFit.kind(Config, name, size) ~= "roblox" then
+	if BodyFit.kind(Config, name, base or size) ~= "roblox" then
 		return { 0, 0, 0 }, { size[1] / hs[1], size[2] / hs[2], size[3] / hs[3] }
 	end
 	local r = Config.RobloxRig.parts[name]
@@ -65,8 +68,8 @@ end
 
 -- A fit's box (offset and size on HeroRig's part) on a body part of this name and size: its centre from the
 -- part's centre and its size, both in the part's frame
-function BodyFit.place(Config: any, name: string, size: Vec, offset: Vec, box: Vec): (Vec, Vec)
-	local shift, f = BodyFit.frame(Config, name, size)
+function BodyFit.place(Config: any, name: string, size: Vec, offset: Vec, box: Vec, base: Vec?): (Vec, Vec)
+	local shift, f = BodyFit.frame(Config, name, size, base)
 	return {
 		shift[1] + offset[1] * f[1],
 		shift[2] + offset[2] * f[2],

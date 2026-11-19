@@ -244,6 +244,8 @@ local PANEL = {
 	["creator:visage"] = { "CreatorScreen", { mode = "create", step = "appearance", slot = "visage" } },
 	["creator:hair"] = { "CreatorScreen", { mode = "create", step = "appearance", slot = "hair" } },
 	["creator:weapon"] = { "CreatorScreen", { mode = "create", step = "weapon" } },
+	-- fix-flow (2026-11-19): the Body step back (gender, build, height)
+	["creator:body"] = { "CreatorScreen", { mode = "create", step = "body" } },
 	pass = { "PassHud" },
 	-- the shop's Emotes tab (2026-11-19 pose tiles)
 	["shop:emotes"] = { "ShopHud", "emotes" },
@@ -560,6 +562,13 @@ for _, scene in scenes do
 				sim:require("Client.Ui.GuideHud").init()
 				sim:require("Client.Ui.CinemaHud").init()
 				sim:require("Client.Ui.NewsHud").init()
+			end)
+		elseif scene == "qte" then
+			-- fix-flow (2026-11-19): a quick-time prompt of the prologue's rooftop chase over the HUD (a DODGE half way)
+			sim:run("qte", function()
+				local QteHud = sim:require("Client.Ui.QteHud")
+				QteHud.init()
+				QteHud.sample()
 			end)
 		elseif string.sub(scene, 1, 6) == "guide:" then
 			sim:run(scene, function()

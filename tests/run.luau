@@ -8125,7 +8125,8 @@ test(
 		local ProfileSchema = require("../src/shared/ProfileSchema")
 		-- nate, 2026-11-17: nothing from the player's avatar; our clothes, faces, hair and gear only
 		check(Config.Creator.avatar.on == false, "the player's avatar is not used")
-		check(Config.Creator.bodyStep == false, "no gender, build or height")
+		-- nate, 2026-11-19 16:45Z: gender, build and height are back (the creator's Body step)
+		check(Config.Creator.bodyStep == true, "the Body step: gender, build and height")
 		check(Config.Creator.clothes.on == true, "heroes wear our classic Shirt and Pants")
 		-- nothing picked: every avatar item shows
 		local none = AvatarRules.hides({})
@@ -8432,6 +8433,7 @@ end); -- Hero MMO features (H1 to H8) live in their own file so this one merges 
 (require :: any)("./comic_art_test")({ test = test, check = check, Config = Config });
 (require :: any)("./hairfit_test")({ test = test, check = check, Config = Config }); -- the hair fit pass: explicit catalog picks
 (require :: any)("./fit_test")({ test = test, check = check, Config = Config }); -- pt-fit: pieces and weapons on Roblox's own body
+(require :: any)("./flow_test")({ test = test, check = check, Config = Config, place = process.args[1] }); -- fix-flow
 -- WP10: the group-join piece and creator codes (own file, merges easily)
 (require :: any)("./promo_test")({ test = test, check = check, Config = Config, placePath = process.args[1] }); -- WP11: story acts (Act 1 today, Acts 2 and 3 coming soon), own file
 (require :: any)("./acts_test")({ test = test, check = check, Config = Config, placePath = process.args[1] }); -- WP8: live tuning from Balance_v<N> (own file, merges easily)

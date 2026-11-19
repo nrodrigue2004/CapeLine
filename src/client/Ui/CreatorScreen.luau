@@ -123,7 +123,7 @@ local REASONS = {
 	path = "Your archetype and path are set (one free change before level 10)",
 	look = "Something went wrong: try again",
 	scene = "Finish what you are doing first",
-	loading = "Your hero is still loading. Tap DONE again in a moment",
+	loading = "Your hero is still loading. Tap again in a moment",
 	combat = "Not during a fight",
 	safehouse = "Change your look at your HQ or a safehouse",
 	weapon = "Get that weapon at a Weapon Rack first",
@@ -1133,7 +1133,11 @@ refresh = function()
 	nameLabel.Text = string.upper(heroName())
 	local ok, why = canFinish()
 	local last = step == #STEPS
-	nextButton.Text = if pending then "SAVING..." elseif last then "DONE" else "NEXT"
+	-- a new hero's last button is PLAY: the prologue starts once it saves (fix-flow, 2026-11-19)
+	nextButton.Text = if pending
+		then "SAVING..."
+		elseif last then (if mode == "create" then "PLAY" else "DONE")
+		else "NEXT"
 	nextButton.BackgroundColor3 = if not last or (ok and not pending) then Kit.color.gold else Kit.color.muted
 	backButton.Visible = step > 1
 	if not pending and os.clock() > statusHold then
