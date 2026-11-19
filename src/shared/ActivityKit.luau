@@ -186,12 +186,7 @@ local KINDS: { [string]: Kind } = {
 		},
 	},
 	-- contracts (ContractService)
-	EscortTruck = {
-		look = "DockTruck",
-		boxes = { b(0, 4, 3, 8, 6, 14), b(0, 3.5, -7, 8, 5, 5), b(0, 4.5, -9.6, 7.8, 2, 0.4) },
-		tint = { DockTruckBody = { 60, 120, 200 } },
-		moves = true,
-	},
+	-- the contract Escort truck is drawn by the vehicles pass (SetPieceMeshes.rig in ContractService, Fx.VehicleRig)
 	Charge = {
 		look = "ActCharge",
 		boxes = { b(0, 1, 0, 3, 2, 3), b(0, 2.5, 0, 1, 1, 1, ROUND) },

@@ -43,7 +43,6 @@ return function(T: any)
 		"Scaffold",
 		"CraneLoad",
 		"CrateStack",
-		"EscortTruck",
 		"Airship",
 		"Float",
 		"Clamp",
