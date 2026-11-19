@@ -150,6 +150,17 @@ function GearMath.styleRow(config: any, id: number): any?
 	return nil
 end
 
+-- A style row's look in Config.GearArt (its meshes, art/blender/gear.py): "<slot>:<shape>", the set looks
+-- "<slot>:set:<Set>" and the gilded Legendary look "<slot>:gilded"
+function GearMath.lookKey(slot: string, row: any): string
+	if row.shape == "set" then
+		return slot .. ":set:" .. tostring(row.set)
+	elseif row.shape == "gilded" then
+		return slot .. ":gilded"
+	end
+	return slot .. ":" .. tostring(row.shape)
+end
+
 -- Every style id that can exist (the collection screen lists these)
 function GearMath.allStyles(config: any): { number }
 	local g = G(config)

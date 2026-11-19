@@ -6317,6 +6317,7 @@ if placePath then
 			return out
 		end
 		local sets = {
+			Gear = "GearArt",
 			Weapons = "WeaponArt",
 			Capes = "CapeArt",
 			Heads = "HeadArt",
@@ -22979,6 +22980,8 @@ end
 (require :: any)("./setpieces_test")({ test = test, check = check, Config = Config });
 -- the 36 weapons' meshes and stances (2026-11-18, own file); ONLY="Weapon art" runs just these
 (require :: any)("./weapon_art_test")({ test = test, check = check, Config = Config });
+-- the gear styles' looks as meshes (2026-11-19, own file); ONLY="Gear art" runs just these
+(require :: any)("./gear_art_test")({ test = test, check = check, Config = Config });
 -- the escort and hub vehicle meshes (2026-11-18, own file); ONLY="Vehicle art" runs just these
 (require :: any)("./vehicles_test")({ test = test, check = check, Config = Config });
 (require :: any)("./drive_test")({ test = test, check = check, Config = Config });

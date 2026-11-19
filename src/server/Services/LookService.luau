@@ -1,7 +1,9 @@
 -- LookService: the gear look on each hero (spec: Style collection: any unlocked style shows on its slot over
--- any gear). Built on the server so every player sees it. Each style is a few small welded parts on the
--- body (PLACEHOLDER ART: blocks, balls, wedges and cylinders until the M9 accessory meshes). The parts are
--- massless and never collide, touch or block raycasts. Works on R15 and R6 bodies. GearService calls apply()
+-- any gear). Built on the server so every player sees it. Each style's look is its Blender meshes (2026-11-19,
+-- art/blender/gear.py: Config.GearArt, ReplicatedStorage.Art.Gear; one baked texture set a slot whose colour map
+-- lets the style's own colour show through), worn only once every mesh of the look is there; until then (or with
+-- Config.Gear.art.meshes off, or on an R6 body) a few small welded parts (the old blocks, balls, wedges and
+-- cylinders, SHAPES below). Meshes and parts are massless and never collide, touch or block raycasts. Works on R15 and R6 bodies. GearService calls apply()
 -- on join, on respawn and after every gear or style change. M9: the creator look (LookKit) is built first and
 -- covers the head, chest, hands, feet and back gear styles unless a style was picked there.
 
@@ -362,7 +364,137 @@ local function bodyPart(char: Model, role: string): (BasePart?, CFrame)
 	return nil, CFrame.new()
 end
 
+local STEEL = Color3.fromRGB(175, 180, 192)
+local GA = (Config :: any).GearArt
+local KNEE = {
+	lshin = { "LeftKneeRigAttachment", "LeftAnkleRigAttachment" },
+	rshin = {
+		"RightKneeRigAttachment",
+		"RightAnkleRigAttachment",
+	},
+}
+
+-- Where a gear mesh's fit is measured from on this body, and how much to scale it: the body part's own box
+-- against the fit's reference box; a shin piece between the leg's own knee and ankle joints (Roblox's lower leg
+-- box overlaps both), so it sits on the visible shin on any body and build
+local function meshFrame(part: BasePart, at: string): (CFrame, Vector3)
+	local ref = GA.ref[at]
+	local r = Vector3.new(ref[1], ref[2], ref[3])
+	local f = part.Size / r
+	local joints = KNEE[at]
+	if joints then
+		local knee = part:FindFirstChild(joints[1])
+		local ankle = part:FindFirstChild(joints[2])
+		if knee and ankle and knee:IsA("Attachment") and ankle:IsA("Attachment") then
+			local span = knee.Position.Y - ankle.Position.Y
+			if span > 0.1 then
+				local mid = (knee.Position.Y + ankle.Position.Y) / 2
+				return CFrame.new(0, mid, 0), Vector3.new(f.X, span / r.Y, f.Z)
+			end
+		end
+	end
+	return CFrame.new(), f
+end
+
+-- A full helm (GearArt hair = false) hides the catalog hair rather than clipping through it; a hair that
+-- arrives later (CatalogLookService) hides too
+local function isHair(acc: Accessory): boolean
+	if acc.AccessoryType == Enum.AccessoryType.Hair then
+		return true
+	end
+	local h = acc:FindFirstChild("Handle")
+	return h ~= nil and h:FindFirstChild("HairAttachment") ~= nil
+end
+local function hideHair(char: Model)
+	local look = char:FindFirstChild("HeroLook")
+	if not look then
+		return
+	end
+	local function hide(d: Instance)
+		if d:IsA("Accessory") and isHair(d) then
+			for _, p in d:GetDescendants() do
+				if p:IsA("BasePart") then
+					p.Transparency = 1
+				end
+			end
+		end
+	end
+	for _, d in look:GetChildren() do
+		hide(d)
+	end
+	look.ChildAdded:Connect(function(d)
+		task.defer(hide, d)
+	end)
+end
+
+-- Wear the style's meshes (Config.GearArt). Nothing is made unless every mesh and body part is there; returns
+-- true when the meshes stand in for the parts.
+local function buildMeshes(char: Model, folder: Folder, slot: string, row: any): boolean
+	local fit = GA and G.art and G.art.meshes and GA.looks[GearMath.lookKey(slot, row)]
+	local art = ReplicatedStorage:FindFirstChild("Art")
+	local lib = art and art:FindFirstChild("Gear")
+	if not (fit and lib) then
+		return false
+	end
+	local srcs: { MeshPart } = {}
+	local parts: { BasePart } = {}
+	for i, piece in fit.pieces do
+		local found = lib:FindFirstChild(piece.mesh, true)
+		local part = char:FindFirstChild(ATTACH[piece.at][1])
+		if not (found and found:IsA("MeshPart") and part and part:IsA("BasePart")) then
+			return false
+		end
+		srcs[i] = found
+		parts[i] = part
+	end
+	local trim = colorOf(row)
+	for i, piece in fit.pieces do
+		local part = parts[i]
+		local frame, f = meshFrame(part, piece.at)
+		local p = srcs[i]:Clone()
+		for _, c in p:GetChildren() do
+			if c:IsA("SurfaceAppearance") and piece.maps then
+				c.AlphaMode = Enum.AlphaMode.Overlay -- the style's colour shows through the baked colour map
+			else
+				c:Destroy()
+			end
+		end
+		p.Name = slot
+		p.Size = Vector3.new(piece.size[1], piece.size[2], piece.size[3]) * f
+		p.Color = if piece.role == "trim" or piece.role == "glow"
+			then trim
+			elseif piece.role == "steel" then STEEL
+			elseif piece.role == "gold" then GOLD
+			else DARK
+		p.Material = if piece.glow
+			then Enum.Material.Neon
+			elseif piece.role == "steel" or piece.role == "gold" then Enum.Material.Metal
+			else Enum.Material.SmoothPlastic
+		p.Transparency = piece.alpha or 0
+		p.Anchored = false
+		p.Massless = true
+		p.CanCollide = false
+		p.CanTouch = false
+		p.CanQuery = false
+		p.CastShadow = false
+		local o = piece.offset
+		p.CFrame = part.CFrame * frame * CFrame.new(Vector3.new(o[1], o[2], o[3]) * f)
+		local weld = Instance.new("WeldConstraint")
+		weld.Part0 = part
+		weld.Part1 = p
+		weld.Parent = p
+		p.Parent = folder
+	end
+	if fit.hair == false then
+		hideHair(char)
+	end
+	return true
+end
+
 local function build(char: Model, folder: Folder, slot: string, row: any)
+	if buildMeshes(char, folder, slot, row) then
+		return
+	end
 	local specs = SHAPES[slot] and SHAPES[slot][row.shape]
 	if not specs then
 		return
