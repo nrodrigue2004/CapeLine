@@ -67,8 +67,9 @@ local function uploaded(map: { [string]: number }): { string }
 end
 local SHIRTS = uploaded(Config.Creator.clothes.shirts)
 local PANTS = uploaded(Config.Creator.clothes.pants)
-local FACES: { string } = {}
-for _, fname in Config.NpcLooks.faceOrder do
+-- Roblox catalog faces (nate, 2026-11-19: NPCs should look like Roblox avatars); the old drawn faces only if none
+local FACES: { string } = NpcRig.catalogFaces()
+for _, fname in if #FACES > 0 then {} else Config.NpcLooks.faceOrder do
 	local f = Config.NpcLooks.faces[fname]
 	if f and f.human ~= 0 then
 		table.insert(FACES, "rbxassetid://" .. f.human)
@@ -81,6 +82,7 @@ type Body = {
 	model: Model,
 	rig: NpcRig.Rig,
 	hair: BasePart,
+	group: number, -- its hair group (keyOf)
 	clothes: { [string]: { Texture } }?, -- the Roblox look's Textures by part
 	shown: number, -- how much of them is drawn (ClothesMap.level)
 	face: Decal?,
@@ -104,16 +106,19 @@ local function rgb(t: { number }): Color3
 	return Color3.fromRGB(t[1], t[2], t[3])
 end
 
--- A pool key: the colour set and the body (a pooled body only goes back to a citizen with both the same)
-local function keyOf(color: number, bodyIndex: number): number
-	return color * 16 + bodyIndex
+-- A pool key: the colour set, the body and the hair group (a pooled body only goes back to a citizen with all
+-- three the same). Each hair group's rigs wear the same few catalog hairs (NpcRig.showHair), so a citizen's
+-- hair is the same on every device.
+local HAIR_GROUPS = 6
+local function keyOf(color: number, bodyIndex: number, group: number): number
+	return (color * 16 + bodyIndex) * HAIR_GROUPS + group
 end
 
-local function newBody(color: number, bodyIndex: number): Body
+local function newBody(color: number, bodyIndex: number, group: number): Body
 	local set = C.colors[color] or C.colors[1]
 	local rig = NpcRig.person(
 		layoutOf(bodyIndex),
-		"Citizen",
+		"Citizen" .. group,
 		rgb(set[1]),
 		rgb(set[2]),
 		rgb(set[3]),
@@ -136,7 +141,8 @@ local function newBody(color: number, bodyIndex: number): Body
 		clothes = clothes,
 		face = rig.parts.Head:FindFirstChild("face") :: Decal?,
 		color = color,
-		key = keyOf(color, bodyIndex),
+		key = keyOf(color, bodyIndex, group),
+		group = group,
 		pos = Vector3.zero,
 		yaw = 0,
 		phase = 0,
@@ -146,14 +152,14 @@ local function newBody(color: number, bodyIndex: number): Body
 	}
 end
 
-local function acquire(color: number, bodyIndex: number): Body
-	local list = pool[keyOf(color, bodyIndex)]
+local function acquire(color: number, bodyIndex: number, group: number): Body
+	local list = pool[keyOf(color, bodyIndex, group)]
 	local body = list and table.remove(list)
 	if body then
 		body.model.Parent = folder
 		return body
 	end
-	return newBody(color, bodyIndex)
+	return newBody(color, bodyIndex, group)
 end
 
 local function release(body: Body)
@@ -173,16 +179,19 @@ local function dress(body: Body, id: number)
 	local pants = PANTS[(h // 13) % #PANTS + 1]
 	local top = rgb(TINTS.shirts[(h // 211) % #TINTS.shirts + 1])
 	local bottom = rgb(TINTS.pants[(h // 4099) % #TINTS.pants + 1])
-	for pname, list in clothes do
-		local upper = ClothesMap.half(pname) == 0
-		for _, t in list do
-			t.Texture = if upper then shirt else pants
-			t.Color3 = if upper then top else bottom
-		end
-	end
+	NpcRig.redressPair(body.rig, clothes, shirt, pants, top, bottom)
 	if body.face and #FACES > 0 then
 		body.face.Texture = FACES[(h // 77777) % #FACES + 1]
 	end
+end
+
+-- Its face and catalog hair, from its id (with or without the Roblox clothes)
+local function looks(body: Body, id: number)
+	local h = Rng.hash(id, 6007)
+	if body.face and #FACES > 0 then
+		body.face.Texture = FACES[(h // 77777) % #FACES + 1]
+	end
+	NpcRig.showHair(body.rig, body.group * 131, h // 1171)
 end
 
 local function lerpAngle(a: number, b: number, t: number): number
@@ -320,9 +329,10 @@ local function render()
 		local pos = Vector3.new(ra.x, ra.y, ra.z):Lerp(Vector3.new(rbb.x, rbb.y, rbb.z), alpha)
 		local body = live[id]
 		if not body then
-			body = acquire(rb.color, Rng.hash(id, 5113) % #C.bodies + 1)
+			body = acquire(rb.color, Rng.hash(id, 5113) % #C.bodies + 1, Rng.hash(id, 8761) % HAIR_GROUPS)
 			body.hair.Color = rgb(C.hair[Rng.hash(id, 4409) % #C.hair + 1])
 			dress(body, id)
+			looks(body, id)
 			NpcRig.rest(body.rig)
 			live[id] = body
 			body.pos = pos
