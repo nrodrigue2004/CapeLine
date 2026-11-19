@@ -1,6 +1,8 @@
 -- MoveFx: movement juice (spec juice rows: Leap dust ring, Land thud with a crack for 30 s, Glide faint
 -- trail, Boost trail in your color, speed lines at boost). Anime style adds speed lines at cruise too.
--- PLACEHOLDER ART: the crack is a dark flat disc until a decal is generated in the art pass.
+-- The crack (gap polish 2026-11-19) is one of three comic crack decals (art/fx/textures.py --cracks, uploaded;
+-- Config.Fx.crack.decals), picked and turned by the landing spot (PolishPlan.crackPick), fading out over its
+-- last seconds; a variant whose id is 0 falls back to the old dark flat disc.
 
 local Debris = game:GetService("Debris")
 local Players = game:GetService("Players")
@@ -12,6 +14,7 @@ local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
+local PolishPlan = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("PolishPlan"))
 
 local MoveController = require(script.Parent.Parent.Controllers.MoveController)
 local QualityController = require(script.Parent.Parent.Controllers.QualityController)
@@ -56,19 +59,45 @@ local function groundBelow(pos: Vector3): Vector3?
 	return hit and hit.Position
 end
 
-local function crack(pos: Vector3, size: number)
+local function crackPart(pos: Vector3, size: number): BasePart
+	local C = F.crack
+	local pick, turn = PolishPlan.crackPick(#C.decals, pos.X, pos.Z)
+	local id = C.decals[pick] or 0
 	local p = Instance.new("Part")
 	p.Anchored = true
 	p.CanCollide = false
 	p.CanQuery = false
 	p.CanTouch = false
 	p.CastShadow = false
-	p.Shape = Enum.PartType.Cylinder
-	p.Material = Enum.Material.Slate
-	p.Color = Color3.fromRGB(40, 40, 44)
-	p.Transparency = 0.35
-	p.Size = Vector3.new(0.1, size, size)
-	p.CFrame = CFrame.new(pos + Vector3.new(0, 0.06, 0)) * CFrame.Angles(0, 0, math.rad(90))
+	if id ~= 0 then
+		-- the comic crack decal on an invisible slab, turned by the spot; it fades over the last C.fade seconds
+		p.Transparency = 1
+		p.Size = Vector3.new(size * 1.5, 0.05, size * 1.5)
+		p.CFrame = CFrame.new(pos + Vector3.new(0, 0.04, 0)) * CFrame.Angles(0, math.rad(turn), 0)
+		local d = Instance.new("Decal")
+		d.Face = Enum.NormalId.Top
+		d.Texture = "rbxassetid://" .. tostring(id)
+		d.Transparency = PolishPlan.crackAlpha(0, C.life, C.fade, 0)
+		d.Parent = p
+		TweenService:Create(
+			d,
+			TweenInfo.new(C.fade, Enum.EasingStyle.Linear, Enum.EasingDirection.In, 0, false, C.life - C.fade),
+			{ Transparency = 1 }
+		):Play()
+	else
+		-- the fallback while that decal has no id: a dark flat disc
+		p.Shape = Enum.PartType.Cylinder
+		p.Material = Enum.Material.Slate
+		p.Color = Color3.fromRGB(40, 40, 44)
+		p.Transparency = 0.35
+		p.Size = Vector3.new(0.1, size, size)
+		p.CFrame = CFrame.new(pos + Vector3.new(0, 0.06, 0)) * CFrame.Angles(0, 0, math.rad(90))
+	end
+	return p
+end
+
+local function crack(pos: Vector3, size: number)
+	local p = crackPart(pos, size)
 	p.Parent = folder
 	table.insert(cracks, p)
 	while #cracks > QualityController.preset.craters do

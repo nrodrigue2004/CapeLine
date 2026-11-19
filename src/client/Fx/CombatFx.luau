@@ -24,6 +24,7 @@ local Workspace = game:GetService("Workspace")
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local EnemySim = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("EnemySim"))
 local FxPlan = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("FxPlan"))
+local PolishPlan = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("PolishPlan"))
 
 local QualityController = require(script.Parent.Parent.Controllers.QualityController)
 local AbilityFx = require(script.Parent.AbilityFx)
@@ -966,7 +967,31 @@ function CombatFx.windup(at: () -> Vector3?, duration: number, style: string, co
 	end))
 end
 
--- A thrown lump on an arc (Lift and Throw). PLACEHOLDER ART: a crate block when nothing was lifted.
+-- A thrown lump on an arc (Lift and Throw): a glowing lump of the power when a robot was lifted, else a wooden
+-- crate (gap polish 2026-11-19: planked, its frame and cross planks from PolishPlan.crateBoxes, all inside the
+-- old 4 x 3 x 4 box) that bursts into planks and dust where it lands. Looks only; the hit is the server's.
+local CRATE = Vector3.new(4, 3, 4)
+local function crateModel(at: CFrame): Model
+	local m = Instance.new("Model")
+	m.Name = "ThrownCrate"
+	local body = part(CRATE - Vector3.new(0.3, 0.3, 0.3), at, Color3.fromRGB(176, 128, 72))
+	body.Material = Enum.Material.WoodPlanks
+	body.Parent = m
+	m.PrimaryPart = body
+	for _, b in PolishPlan.crateBoxes(CRATE.X, CRATE.Y, CRATE.Z) do
+		local edge = b[1] == "edge"
+		local p = part(
+			Vector3.new(b[5], b[6], b[7]),
+			at * CFrame.new(b[2], b[3], b[4]),
+			if edge then Color3.fromRGB(112, 74, 40) else Color3.fromRGB(150, 104, 58)
+		)
+		p.Material = Enum.Material.Wood
+		p.Parent = m
+	end
+	m.Parent = folder
+	return m
+end
+
 function CombatFx.throwArc(
 	from: Vector3,
 	to: Vector3,
@@ -975,19 +1000,44 @@ function CombatFx.throwArc(
 	color: Color3,
 	crate: boolean
 )
-	local p =
-		part(Vector3.new(4, 3, 4), CFrame.new(from), if crate then Color3.fromRGB(150, 110, 60) else color)
-	p.Material = if crate then Enum.Material.WoodPlanks else Enum.Material.Neon
-	p.Transparency = if crate then 0 else 0.6
+	local lump: Part? = nil
+	local box: Model? = nil
+	if crate then
+		box = crateModel(CFrame.new(from))
+	else
+		local p = part(Vector3.new(4, 3, 4), CFrame.new(from), color)
+		p.Transparency = 0.6
+		lump = p
+	end
 	local start = os.clock()
 	local conn
 	conn = RunService.RenderStepped:Connect(FrameProf.wrap("CombatFx", function()
 		local t = math.clamp((os.clock() - start) / time, 0, 1)
 		local pos = from:Lerp(to, t) + Vector3.new(0, 14 * 4 * t * (1 - t), 0)
-		p.CFrame = CFrame.new(pos) * CFrame.Angles(t * 6, t * 4, 0)
+		local cf = CFrame.new(pos) * CFrame.Angles(t * 6, t * 4, 0)
+		if box then
+			box:PivotTo(cf)
+		elseif lump then
+			lump.CFrame = cf
+		end
 		if t >= 1 then
 			conn:Disconnect()
-			fade(p, 0.2)
+			if box then
+				-- it breaks on landing: the planks fly and fade, with a puff of wood dust
+				for _, d in box:GetChildren() do
+					if d:IsA("BasePart") then
+						local out = (d.Position - pos)
+						local push = if out.Magnitude > 0.1 then out.Unit else Vector3.yAxis
+						fade(d, 0.45, {
+							CFrame = d.CFrame + push * 3 + Vector3.new(0, 1.5, 0),
+						})
+					end
+				end
+				FxLib.dust(pos - Vector3.new(0, 1, 0), 5, Color3.fromRGB(176, 140, 96))
+				Debris:AddItem(box, 0.6)
+			elseif lump then
+				fade(lump, 0.2)
+			end
 		elseif style == "Anime" and math.random() < 0.5 then
 			beam(pos, pos - (to - from).Unit * 4, 0.15, WHITE, 0.15)
 		end

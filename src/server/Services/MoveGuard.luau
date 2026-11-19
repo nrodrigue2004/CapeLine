@@ -18,6 +18,7 @@ local Status = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("St
 local MoveMath = require(Shared:WaitForChild("MoveMath"))
 local MoveCheck = require(Shared:WaitForChild("MoveCheck"))
 local PosHistory = require(Shared:WaitForChild("PosHistory"))
+local Travel = require(Shared:WaitForChild("Travel"))
 
 local HeroService = require(script.Parent.HeroService)
 local PerfMonitor = require(script.Parent.PerfMonitor)
@@ -236,7 +237,23 @@ function MoveGuard.init()
 					if t.stamina <= 0 then
 						t.boosting = false
 					end
-					if now < t.graceUntil then
+					-- a fast-travel flight (gap polish 2026-11-19): free while the body stays on the trip's arc;
+					-- off it the normal check runs and pulls the hero back (BeaconService sets travelRoute)
+					local route = hero.travelRoute
+					local onRoute = route ~= nil
+						and Travel.routeGap(
+								route.from.X,
+								route.from.Y,
+								route.from.Z,
+								route.to.X,
+								route.to.Y,
+								route.to.Z,
+								pos.X,
+								pos.Y,
+								pos.Z
+							)
+							<= Config.World.beacon.routeSlack
+					if now < t.graceUntil or onRoute then
 						MoveCheck.reset(t.check, pos.X, pos.Y, pos.Z, now)
 					else
 						-- travel powers: a ride's own speed; Weightless lets anyone fly for its time; speed buffs

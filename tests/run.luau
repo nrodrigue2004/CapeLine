@@ -23007,7 +23007,14 @@ end
 -- the animation and weapons polish pass (2026-11-19, own file); ONLY="Anim pass" runs just these
 (require :: any)("./anim_pass_test")({ test = test, check = check, Config = Config });
 -- the boss pass (2026-11-19, own file): boss animation, telegraphs, the surge wave and the Blackout; ONLY="Boss anim"
-(require :: any)("./boss_anim_test")({ test = test, check = check, Config = Config })
+(require :: any)("./boss_anim_test")({ test = test, check = check, Config = Config });
+-- the gap polish (2026-11-19, own file): travel flight, gadgets, crack, ice, crate, loading card; ONLY="Gap polish"
+(require :: any)("./gap_polish_test")({
+	test = test,
+	check = check,
+	Config = Config,
+	placePath = process.args[1],
+})
 
 print(string.format("\n%d passed, %d failed", passed, failed))
 if failed > 0 then

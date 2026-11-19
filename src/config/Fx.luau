@@ -2,7 +2,15 @@
 return {
 	fov = { base = 70, leap = 1.06, boost = 1.17, blend = 6 },
 	landShake = { time = 0.1, amount = 0.35, minFall = 25 },
-	crack = { life = 30, minFall = 30 },
+	-- the landing crack (gap polish 2026-11-19): a comic crack decal drawn by art/fx/textures.py --cracks
+	-- (art/export/fx/crack_1..3.png, preview art/preview/fx_cracks.png), uploaded from the cloud as Image assets;
+	-- an id of 0 keeps the old dark disc for that variant. It fades out over the last `fade` seconds of `life`.
+	crack = {
+		life = 30,
+		minFall = 30,
+		fade = 4,
+		decals = { 73304555568597, 119974560537634, 105615552551392 },
+	},
 	bolt = { width = 0.35, life = 0.12 },
 	chain = { width = 0.5, life = 0.25, segments = 6, jitter = 1.6 },
 	dash = { trailLife = 0.3 },
@@ -255,6 +263,20 @@ return {
 				light = 0,
 				alpha = 0.35,
 				spin = 30,
+			},
+			-- the Smoke Bomb's cloud (gap polish 2026-11-19, GadgetFx): big slow puffs that hang over the blinded
+			-- area, topped up while it lasts (Config.Fx.polish.smoke)
+			cloud = {
+				tex = "smoke",
+				size = { 5, 13 },
+				life = { 1.6, 2.2 },
+				speed = { 1, 3 },
+				spread = 180,
+				drag = 1.5,
+				rise = 1.2,
+				light = 0,
+				alpha = 0.25,
+				spin = 20,
 			},
 			ember = {
 				tex = "ember",
@@ -986,6 +1008,70 @@ return {
 			[31] = "thrown", -- Throwing Stars
 			[33] = "wind", -- War Fan
 			[36] = "thrown", -- Boomerang
+		},
+	},
+	-- Gap polish (2026-11-19): the fast-travel flight, the gadgets, the ice pieces and the thrown crate. Numbers
+	-- for Shared.PolishPlan and the client (TravelClient, GadgetFx, IceFx, CombatFx.throwArc); `presets` is the
+	-- per device preset budget (phones on low draw less).
+	polish = {
+		travel = {
+			dive = 80, -- the hero leaves the flight diving this fast, so the landing is the hard superhero landing
+			hold = 150, -- farther than this (plus half a second of flight) from the route: hold still until it lands
+			camBack = 30, -- the follow camera: this far behind, this high, looking this far ahead
+			camUp = 10,
+			camAhead = 14,
+			trail = { width = 3.4, life = { low = 0.35, medium = 0.6, high = 0.8 }, kit = "comet" },
+		},
+		smoke = {
+			puffEvery = 0.45, -- the cloud is topped up this often while the blind lasts
+			color = { 168, 170, 182 },
+			edge = { 120, 122, 136 },
+		},
+		decoy = {
+			color = { 150, 210, 255 }, -- the hologram's tint (a Highlight on medium and high)
+			flickerFrom = 0.7, -- the share of its life after which the flicker gets strong
+			popColor = { 170, 225, 255 },
+		},
+		drone = {
+			radius = 5, -- the shield drone circles the hero this far out (outside its bubble), this high, this fast (turns a second)
+			height = 2.6,
+			spin = 0.5,
+			bubble = 4.2, -- the shield bubble's radius
+			color = { 120, 220, 255 },
+		},
+		ice = {
+			color = { 186, 228, 255 },
+			deep = { 110, 180, 235 },
+			snow = { 244, 250, 255 },
+		},
+		presets = {
+			low = {
+				smoke = 6,
+				smokeRing = 0,
+				decoyGlow = false,
+				frost = 0,
+				shards = 2,
+				droneBits = false,
+				trail = true,
+			},
+			medium = {
+				smoke = 10,
+				smokeRing = 1,
+				decoyGlow = true,
+				frost = 3,
+				shards = 3,
+				droneBits = true,
+				trail = true,
+			},
+			high = {
+				smoke = 14,
+				smokeRing = 1,
+				decoyGlow = true,
+				frost = 6,
+				shards = 4,
+				droneBits = true,
+				trail = true,
+			},
 		},
 	},
 }

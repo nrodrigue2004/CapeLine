@@ -79,6 +79,7 @@ export type Hero = {
 	gadget: string?,
 	luckyCount: number, -- Lucky Strike: every 8th hit
 	traveling: boolean, -- on a fast-travel flight: untargetable (BeaconService)
+	travelRoute: { from: Vector3, to: Vector3 }?, -- the fast-travel arc it flies (MoveGuard; gap polish 2026-11-19)
 	placedAt: number?, -- when SafehouseService.place last moved the body (a fast travel in the air does not land)
 	raise: number?, -- H4: a sidekick's level inside a mission pocket (MissionService.setRaise)
 	carry: any?, -- H3: what the hero holds overhead (ThrowService)

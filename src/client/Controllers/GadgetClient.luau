@@ -1,7 +1,8 @@
 -- GadgetClient: the GADGET button (spec: Tiers, slots: the gadget slot holds one active gadget). Sends the
 -- aim; the server checks the cooldown and range and answers. The Grappling Hook then pulls this hero along
 -- an arc to the hooked point (the server already allowed the distance). Smoke, the shield drone and the
--- decoy draw a placeholder effect for everyone (PLACEHOLDER ART until M11).
+-- decoy draw their looks for everyone through GadgetFx (gap polish 2026-11-19: a smoke cloud, a shield drone
+-- with its bubble, and the decoy as a flickering hologram of the owner's own body).
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -14,7 +15,7 @@ local Net = require(Shared:WaitForChild("Net"))
 local InputController = require(script.Parent.InputController)
 local MoveController = require(script.Parent.MoveController)
 local HeroAnimator = require(script.Parent.HeroAnimator)
-local CombatFx = require(script.Parent.Parent.Fx.CombatFx)
+local GadgetFx = require(script.Parent.Parent.Fx.GadgetFx)
 local State = require(script.Parent.Parent.State)
 
 local GadgetClient = {}
@@ -28,14 +29,29 @@ function GadgetClient.fraction(): number
 	return math.clamp((readyAt - os.clock()) / length, 0, 1)
 end
 
-local function draw(kind: string, at: Vector3)
-	local style = State.hero.fxStyle or "Comic"
+local function draw(kind: string, at: Vector3, owner: Player?)
 	if kind == "SmokeBomb" then
-		CombatFx.field(at, G.SmokeBomb.radius, G.SmokeBomb.blind, style, Color3.fromRGB(150, 150, 160), false)
+		GadgetFx.smoke(at)
 	elseif kind == "Decoy" then
-		CombatFx.field(at, 4, G.Decoy.duration, style, Color3.fromRGB(170, 200, 255), false)
+		if not GadgetFx.decoy(owner, at, G.Decoy.duration) then
+			GadgetFx.field(at, G.Decoy.duration, State.hero.fxStyle or "Comic")
+		end
 	elseif kind == "ShieldDrone" then
-		CombatFx.buffPop(at, style, Color3.fromRGB(170, 225, 255))
+		GadgetFx.drone(owner, G.ShieldDrone.duration)
+		if owner == Players.LocalPlayer then
+			-- your own shield can break early: the drone goes with it
+			task.spawn(function()
+				task.wait(0.6)
+				local t0 = os.clock()
+				while os.clock() - t0 < G.ShieldDrone.duration do
+					if State.buff("shield") <= 0 then
+						GadgetFx.endDrone(owner)
+						return
+					end
+					task.wait(0.25)
+				end
+			end)
+		end
 	end
 end
 
@@ -51,9 +67,10 @@ function GadgetClient.init()
 			return
 		end
 		if data.by then
-			HeroAnimator.gadget(HeroAnimator.byUserId(data.by), data.kind) -- their throw, toss or hook shot
+			local who = HeroAnimator.byUserId(data.by)
+			HeroAnimator.gadget(who, data.kind) -- their throw, toss or hook shot
 			if data.target then
-				draw(data.kind, data.target)
+				draw(data.kind, data.target, who)
 			end
 			return
 		end
@@ -64,7 +81,7 @@ function GadgetClient.init()
 		if data.kind == "GrapplingHook" and data.target then
 			MoveController.arcTo(data.target, row.time, row.height)
 		elseif data.target then
-			draw(data.kind, data.target)
+			draw(data.kind, data.target, Players.LocalPlayer)
 		end
 	end)
 end

@@ -11,7 +11,8 @@ preview art/preview/fx_trails.png; `--trails` draws only those.
 nate uploads the PNGs (Studio Asset Manager, bulk import), then puts each id in Config.Fx.lib.textures.
 Until then the game uses Roblox's built-in particle images.
 
-    python3 art/fx/textures.py [--trails] [--moves]   (--moves: only rune.png and scorch.png, Config.FxMoves)
+    python3 art/fx/textures.py [--trails] [--moves] [--cracks]   (--moves: only rune.png and scorch.png, Config.FxMoves;
+    --cracks: only the landing crack decals crack_1..3.png, Config.Fx.crack.decals, preview art/preview/fx_cracks.png)
 """
 
 import math
@@ -543,6 +544,137 @@ def trails_main():
     print("wrote", len(TRAILS), "trail strips and", path)
 
 
+# ---------------------------------------------------------------------------
+# the landing crack decals (gap polish 2026-11-19, MoveFx; Config.Fx.crack.decals): comic ground cracks in
+# their own colours (not tinted): ink cracks with a pale chipped edge, a dark pit in the middle, spider-web
+# rings between the rays and a few chips. Three variants so landings side by side differ; each is drawn at
+# 2x and scaled down. Original procedural art.
+# ---------------------------------------------------------------------------
+CRACK = 512
+INK = (24, 22, 28)
+CHIP = (232, 226, 214)
+
+
+def _crack_ray(r, cx, cy, ang, length, width, depth, out):
+    # a jagged polyline from (cx, cy) along ang; returns its points and adds branches to out
+    pts = [(cx, cy)]
+    steps = 7
+    x, y = cx, cy
+    zig = r.choice((-1, 1))
+    for i in range(1, steps + 1):
+        seg = length / steps
+        zig = -zig  # a sharp comic zig-zag, not a wandering twig
+        a = ang + zig * r.uniform(0.25, 0.5)
+        x += math.cos(a) * seg
+        y += math.sin(a) * seg
+        pts.append((x, y))
+        if depth < 1 and i in (3, 5) and r.random() < 0.45:
+            side = r.choice((-1, 1))
+            out.append((x, y, ang + side * r.uniform(0.5, 0.95), length * r.uniform(0.25, 0.45),
+                        width * 0.55, depth + 1))
+    return pts
+
+
+def crack_decal(seed):
+    r = random.Random(seed)
+    S = CRACK * 2
+    c = S / 2
+    img = Image.new("RGBA", (S, S), (0, 0, 0, 0))
+    hi = Image.new("RGBA", (S, S), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    dh = ImageDraw.Draw(hi)
+    rays = r.randint(6, 8)
+    base = r.uniform(0, math.tau)
+    lines = []
+    todo = []
+    ends = []
+    for k in range(rays):
+        ang = base + k / rays * math.tau + r.uniform(-0.25, 0.25)
+        length = S * r.uniform(0.3, 0.47)
+        todo.append((c, c, ang, length, S * 0.03, 0))
+    while todo:
+        x, y, ang, length, width, depth = todo.pop()
+        pts = _crack_ray(r, x, y, ang, length, width, depth, todo)
+        lines.append((pts, width))
+        if depth == 0:
+            ends.append(pts)
+    # spider-web rings: short ink links between neighbouring rays at two radii
+    for ring in (0.35, 0.62):
+        for k in range(len(ends)):
+            if r.random() < 0.7:
+                a = ends[k][int(ring * 7)]
+                b = ends[(k + 1) % len(ends)][int(ring * 7)]
+                mid = ((a[0] + b[0]) / 2 + r.uniform(-12, 12), (a[1] + b[1]) / 2 + r.uniform(-12, 12))
+                lines.append(([a, mid, b], S * 0.011))
+    # the chipped pale edge first (offset up-left), then the ink over it
+    for pts, w in lines:
+        n = len(pts)
+        for i in range(n - 1):
+            t = i / max(1, n - 1)
+            ww = max(2.0, w * (1 - t * 0.85))
+            a, b = pts[i], pts[i + 1]
+            o = max(2.0, ww * 0.35)
+            dh.line([(a[0] - o, a[1] - o), (b[0] - o, b[1] - o)], fill=CHIP + (150,), width=int(ww))
+    for pts, w in lines:
+        n = len(pts)
+        for i in range(n - 1):
+            t = i / max(1, n - 1)
+            ww = max(3.0, w * (1 - t * 0.8))
+            d.line([pts[i], pts[i + 1]], fill=INK + (255,), width=int(ww))
+            d.ellipse([pts[i + 1][0] - ww / 2, pts[i + 1][1] - ww / 2, pts[i + 1][0] + ww / 2,
+                       pts[i + 1][1] + ww / 2], fill=INK + (255,))
+    # the pit: a ragged ink blot with a pale rim, then a soft dent shadow under everything
+    pit = []
+    pr = S * r.uniform(0.08, 0.1)
+    for i in range(18):
+        a = i / 18 * math.tau
+        rr = pr * r.uniform(0.75, 1.2)
+        pit.append((c + math.cos(a) * rr, c + math.sin(a) * rr))
+    dh.polygon([(x - 6, y - 6) for x, y in pit], fill=CHIP + (210,))
+    d.polygon(pit, fill=INK + (255,))
+    # chips: small ink and pale shards thrown around the pit
+    for i in range(r.randint(10, 16)):
+        a = r.uniform(0, math.tau)
+        dist = S * r.uniform(0.11, 0.3)
+        x, y = c + math.cos(a) * dist, c + math.sin(a) * dist
+        s = S * r.uniform(0.006, 0.014)
+        poly = [(x + math.cos(a + j * 2.1 + r.uniform(-0.4, 0.4)) * s, y + math.sin(a + j * 2.1) * s) for j in range(3)]
+        d.polygon(poly, fill=(INK if i % 3 else CHIP) + (255,))
+    # dent: a soft dark ring of shade round the pit (alpha only, under the lines)
+    x, y = grid(S)
+    rad = np.sqrt(x * x + y * y)
+    shade = np.clip(1 - rad / 0.42, 0, 1) ** 2 * 0.35
+    dent = np.zeros((S, S, 4), np.uint8)
+    dent[..., 0], dent[..., 1], dent[..., 2] = INK
+    dent[..., 3] = (shade * 255).astype(np.uint8)
+    out = Image.fromarray(dent, "RGBA")
+    out = Image.alpha_composite(out, hi)
+    out = Image.alpha_composite(out, img)
+    return out.resize((CRACK, CRACK), Image.LANCZOS)
+
+
+CRACKS = {"crack_1.png": 11, "crack_2.png": 23, "crack_3.png": 37}
+
+
+def cracks_main():
+    """The three landing crack decals into art/export/fx and a preview on asphalt, roof and grass tiles."""
+    os.makedirs(OUT, exist_ok=True)
+    grounds = [(92, 94, 100), (150, 140, 128), (96, 140, 80)]
+    tile = 320
+    prev = Image.new("RGB", (tile * len(CRACKS), tile * len(grounds)), (18, 20, 28))
+    for i, (name, seed) in enumerate(CRACKS.items()):
+        img = crack_decal(seed)
+        img.save(os.path.join(OUT, name))
+        t = img.resize((tile - 20, tile - 20), Image.LANCZOS)
+        for j, g in enumerate(grounds):
+            bg = Image.new("RGBA", (tile, tile), g + (255,))
+            bg.alpha_composite(t, (10, 10))
+            prev.paste(bg.convert("RGB"), (i * tile, j * tile))
+    path = os.path.join(ROOT, "art", "preview", "fx_cracks.png")
+    prev.save(path)
+    print("wrote", len(CRACKS), "crack decals and", path)
+
+
 def main():
     os.makedirs(OUT, exist_ok=True)
     os.makedirs(os.path.dirname(PREVIEW), exist_ok=True)
@@ -587,7 +719,9 @@ def main():
 if __name__ == "__main__":
     import sys
 
-    if "--trails" in sys.argv:  # only the creator's trail strips (the library sheets above stay as uploaded)
+    if "--cracks" in sys.argv:  # only the landing crack decals (Config.Fx.crack.decals)
+        cracks_main()
+    elif "--trails" in sys.argv:  # only the creator's trail strips (the library sheets above stay as uploaded)
         os.makedirs(OUT, exist_ok=True)
         trails_main()
     elif "--moves" in sys.argv:  # only the ability sheets (Config.FxMoves), not uploaded yet

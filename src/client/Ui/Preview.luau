@@ -32,9 +32,10 @@ local FOCUS = {
 	weapon = { Vector3.new(-3.5, 1.0, -9), Vector3.new(0.5, 0.2, -1), false },
 }
 
--- A still copy of your own hero (no scripts, sounds, gear look or name plate), root anchored
-function Preview.clone(): Model?
-	local char = Players.LocalPlayer.Character
+-- A still copy of your own hero (no scripts, sounds, gear look or name plate), root anchored. of: another
+-- hero's body to copy instead (the Decoy gadget's hologram, GadgetFx); keepGear keeps its gear look too.
+function Preview.clone(of: Model?, keepGear: boolean?): Model?
+	local char = of or Players.LocalPlayer.Character
 	if not char then
 		return nil
 	end
@@ -58,7 +59,7 @@ function Preview.clone(): Model?
 		end
 	end
 	local gear = copy:FindFirstChild("GearLook")
-	if gear then
+	if gear and not keepGear then
 		gear:Destroy()
 	end
 	local hum = copy:FindFirstChildOfClass("Humanoid")

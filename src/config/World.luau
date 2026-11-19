@@ -147,6 +147,7 @@ return {
 		travelTime = 3, -- the skippable flight (spec: 3 s)
 		cooldown = 20,
 		arriveAbove = 6,
+		routeSlack = 60, -- a travelling hero may be this far off the flight arc (Travel.routeGap; MoveGuard)
 	},
 	heightCell = 10, -- the heightmap cell for the drone AI and bots (studs)
 	-- World clock (spec: Day and night): one server clock, 24 minutes a cycle (16 day, 3 dusk, 4 night,

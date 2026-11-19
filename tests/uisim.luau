@@ -10,7 +10,7 @@
 -- final check (notes/Tasks.md "Phone pass").
 --
 --   local sim = UiSim.new(placeGame, device)  -- device: { name, w, h, top, left, right, bottom, touch }
---   local Hud = sim:require("Client.Ui.Hud")    -- a path under StarterPlayerScripts (or "Shared.X")
+--   local Hud = sim:require("Client.Ui.Hud")    -- a path under StarterPlayerScripts (or "Shared.X", "First.X")
 --   sim:boxes()                                 -- every visible GuiObject with its box
 --   sim:issues(opts)                            -- off-screen, overlap, tiny tap targets and tiny text
 --   sim:deepIssues(screen, opts, skip)          -- the same for every hidden part of a screen, one at a time
@@ -1075,6 +1075,10 @@ function UiSim:require(path: string): any
 	local node
 	if parts[1] == "Client" then
 		node = self.place.StarterPlayer:FindFirstChild("StarterPlayerScripts")
+	elseif parts[1] == "First" then
+		-- ReplicatedFirst's modules (the loading card): "First.LoadingCard"
+		node = self.place.ReplicatedFirst
+		table.remove(parts, 1)
 	else
 		node = self.place.ReplicatedStorage
 	end

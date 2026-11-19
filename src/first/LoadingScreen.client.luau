@@ -1,14 +1,17 @@
--- LoadingScreen (ReplicatedFirst): the Capeline title card over loading. Removed once the game, the body and
+-- LoadingScreen (ReplicatedFirst): the Capeline comic splash over loading. Removed once the game, the body and
 -- the saved hero are loaded (the server's HeroLoaded attribute: a new player's creator opens about a second
 -- later, so there is no wait on a bare HUD in between), or after 12 s. A fixed status line under the spark
 -- says what is loading (onboarding check 2026-11-18).
--- PLACEHOLDER ART: a title on a night sky gradient.
+-- The card itself is LoadingCard (gap polish 2026-11-19: the PURE COMIC look with the logo, a sunburst,
+-- halftone dots and a TIP panel whose tip changes every 4 s); it requires nothing, so this stays light.
 
 local Players = game:GetService("Players")
 local ReplicatedFirst = game:GetService("ReplicatedFirst")
 local TweenService = game:GetService("TweenService")
 
 ReplicatedFirst:RemoveDefaultLoadingScreen()
+
+local LoadingCard = require(script.Parent:WaitForChild("LoadingCard"))
 
 local player = Players.LocalPlayer
 local gui = Instance.new("ScreenGui")
@@ -17,51 +20,11 @@ gui.IgnoreGuiInset = true
 gui.DisplayOrder = 100
 gui.ResetOnSpawn = false
 
-local bg = Instance.new("Frame")
-bg.Size = UDim2.fromScale(1, 1)
-bg.BackgroundColor3 = Color3.fromRGB(14, 18, 34)
-bg.BorderSizePixel = 0
-local grad = Instance.new("UIGradient")
-grad.Color = ColorSequence.new(Color3.fromRGB(30, 50, 110), Color3.fromRGB(10, 12, 24))
-grad.Rotation = 90
-grad.Parent = bg
-bg.Parent = gui
-
-local title = Instance.new("TextLabel")
-title.BackgroundTransparency = 1
-title.AnchorPoint = Vector2.new(0.5, 0.5)
-title.Position = UDim2.fromScale(0.5, 0.45)
-title.Size = UDim2.fromScale(0.7, 0.18)
-title.Font = Enum.Font.Bangers
-title.Text = "CAPELINE"
-title.TextScaled = true
-title.TextColor3 = Color3.fromRGB(255, 214, 90)
-title.TextStrokeTransparency = 0
-title.Parent = bg
-
-local spark = Instance.new("Frame")
-spark.AnchorPoint = Vector2.new(0.5, 0.5)
-spark.Position = UDim2.fromScale(0.5, 0.62)
-spark.Size = UDim2.fromOffset(18, 18)
-spark.BackgroundColor3 = Color3.fromRGB(120, 210, 255)
-spark.BorderSizePixel = 0
-spark.Rotation = 45
-spark.Parent = bg
-
-local status = Instance.new("TextLabel")
-status.BackgroundTransparency = 1
-status.AnchorPoint = Vector2.new(0.5, 0)
-status.Position = UDim2.fromScale(0.5, 0.67)
-status.Size = UDim2.fromScale(0.6, 0.05)
-status.Font = Enum.Font.GothamBold
-status.Text = "LOADING THE CITY"
-status.TextScaled = true
-status.TextColor3 = Color3.fromRGB(200, 214, 245)
-status.Parent = bg
-local limit = Instance.new("UITextSizeConstraint")
-limit.MaxTextSize = 22
-limit.MinTextSize = 10
-limit.Parent = status
+local card = LoadingCard.build(gui)
+local status = card.status
+local spark = card.spark
+local tipAt = math.random(1, #LoadingCard.TIPS)
+card.setTip(tipAt)
 
 gui.Parent = player:WaitForChild("PlayerGui")
 TweenService:Create(
@@ -69,6 +32,26 @@ TweenService:Create(
 	TweenInfo.new(0.8, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut, -1),
 	{ Rotation = 405 }
 ):Play()
+-- the logo pops in, then breathes
+card.pop.Scale = 0.6
+TweenService
+	:Create(card.pop, TweenInfo.new(0.45, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 })
+	:Play()
+task.delay(0.5, function()
+	TweenService:Create(
+		card.pop,
+		TweenInfo.new(1.4, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+		{ Scale = 1.04 }
+	):Play()
+end)
+-- a new tip every 4 s while the card is up
+task.spawn(function()
+	while gui.Parent do
+		task.wait(4)
+		tipAt += 1
+		card.setTip(tipAt)
+	end
+end)
 
 local start = os.clock()
 if not game:IsLoaded() then
@@ -115,9 +98,6 @@ if errors then
 	(errors :: StringValue).Changed:Connect(showErrors)
 	showErrors()
 end
-TweenService:Create(bg, TweenInfo.new(0.4), { BackgroundTransparency = 1 }):Play()
-TweenService:Create(title, TweenInfo.new(0.4), { TextTransparency = 1, TextStrokeTransparency = 1 }):Play()
-spark.Visible = false
-status.Visible = false
+TweenService:Create(card.root, TweenInfo.new(0.4), { GroupTransparency = 1 }):Play()
 task.wait(0.45)
 gui:Destroy()

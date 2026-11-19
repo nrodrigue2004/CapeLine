@@ -6,7 +6,7 @@
 --   lune run tests/uishot.luau build/Capeline.rbxl out.json [scene ...]
 --   python3 tests/uishot.py out.json out_dir [--fonts DIR]
 --
--- Scenes: hud (HUD and toasts), menu (the HUD with its MENU drawer open), gear, loadout, shop, settings, journal, map, creator, pass (each panel over
+-- Scenes: loading (the ReplicatedFirst loading card alone), hud (HUD and toasts), menu (the HUD with its MENU drawer open), gear, loadout, shop, settings, journal, map, creator, pass (each panel over
 -- the HUD), screen:<ScreenGui name> (a card screen with all its parts shown)
 
 local fs = require("@lune/fs")
@@ -229,100 +229,112 @@ local PANEL = {
 local out = {}
 for _, scene in scenes do
 	local sim = UiSim.new(trees, DEVICE)
-	local M = {}
-	sim:run("InputController", sim:require("Client.Controllers.InputController").init)
-	for _, m in MODULES do
-		M[m] = sim:require("Client.Ui." .. m)
-		sim:run(m, M[m].init)
-	end
-	sim:advance(0.5)
-	-- every action button shown (the most crowded HUD, as tests/phone_test.luau checks it)
-	for _, c in sim.playerGui:FindFirstChild("Hud").Cluster:GetChildren() do
-		if showAll and c:IsA("GuiButton") and c.Name ~= "Catch" then
-			c.Visible = true
-		end
-	end
-	if scene == "hud" then
-		sim:run("toasts", function()
-			M.Toasts.show({ id = "levelUp", level = 12 })
-			M.Toasts.show({ id = "pvpOff" })
-			M.Toasts.show({
-				id = "loot",
-				piece = {
-					id = 9,
-					slot = 2,
-					tier = 4,
-					ilvl = 21,
-					up = 0,
-					main = 2,
-					bonus = {},
-					set = 0,
-					perk = 0,
-					gadget = 0,
-					style = 0,
-					retunes = 0,
-					seed = 9,
-				},
-			})
+	if scene == "loading" then
+		-- the loading splash on its own (gap polish 2026-11-19), as LoadingScreen builds it
+		sim:run("loading", function()
+			local gui = UiSim.newInstance("ScreenGui")
+			gui.Name = "Loading"
+			gui.IgnoreGuiInset = true
+			gui.DisplayOrder = 100
+			sim:require("First.LoadingCard").build(gui)
+			gui.Parent = sim.playerGui
 		end)
-	elseif string.sub(scene, 1, 7) == "screen:" then
-		-- a card screen shown whole, every part at once (as tests/phone_test.luau's cards check)
-		local g = sim.playerGui:FindFirstChild(string.sub(scene, 8))
-		if g then
-			g.Enabled = true
-			for _, c in g:GetChildren() do
-				if c:IsA("GuiObject") then
-					c.Visible = true
+	else
+		local M = {}
+		sim:run("InputController", sim:require("Client.Controllers.InputController").init)
+		for _, m in MODULES do
+			M[m] = sim:require("Client.Ui." .. m)
+			sim:run(m, M[m].init)
+		end
+		sim:advance(0.5)
+		-- every action button shown (the most crowded HUD, as tests/phone_test.luau checks it)
+		for _, c in sim.playerGui:FindFirstChild("Hud").Cluster:GetChildren() do
+			if showAll and c:IsA("GuiButton") and c.Name ~= "Catch" then
+				c.Visible = true
+			end
+		end
+		if scene == "hud" then
+			sim:run("toasts", function()
+				M.Toasts.show({ id = "levelUp", level = 12 })
+				M.Toasts.show({ id = "pvpOff" })
+				M.Toasts.show({
+					id = "loot",
+					piece = {
+						id = 9,
+						slot = 2,
+						tier = 4,
+						ilvl = 21,
+						up = 0,
+						main = 2,
+						bonus = {},
+						set = 0,
+						perk = 0,
+						gadget = 0,
+						style = 0,
+						retunes = 0,
+						seed = 9,
+					},
+				})
+			end)
+		elseif string.sub(scene, 1, 7) == "screen:" then
+			-- a card screen shown whole, every part at once (as tests/phone_test.luau's cards check)
+			local g = sim.playerGui:FindFirstChild(string.sub(scene, 8))
+			if g then
+				g.Enabled = true
+				for _, c in g:GetChildren() do
+					if c:IsA("GuiObject") then
+						c.Visible = true
+					end
 				end
 			end
-		end
-	elseif PANEL[scene] then
-		local p = PANEL[scene]
-		if scene == "gear" then
-			-- a few pieces in the stash, two worn, one picked (the gear cards' icons, gap-icons)
-			local State = sim:require("Client.State")
-			local function piece(id: number, slot: number, tier: number): { [string]: any }
-				return {
-					id = id,
-					slot = slot,
-					tier = tier,
-					ilvl = 10 + id,
-					up = 0,
-					main = 1,
-					bonus = {},
-					set = 0,
-					perk = 0,
-					gadget = if slot == 8 then 1 else 0,
-					style = 0,
-					retunes = 0,
-					seed = id,
+		elseif PANEL[scene] then
+			local p = PANEL[scene]
+			if scene == "gear" then
+				-- a few pieces in the stash, two worn, one picked (the gear cards' icons, gap-icons)
+				local State = sim:require("Client.State")
+				local function piece(id: number, slot: number, tier: number): { [string]: any }
+					return {
+						id = id,
+						slot = slot,
+						tier = tier,
+						ilvl = 10 + id,
+						up = 0,
+						main = 1,
+						bonus = {},
+						set = 0,
+						perk = 0,
+						gadget = if slot == 8 then 1 else 0,
+						style = 0,
+						retunes = 0,
+						seed = id,
+					}
+				end
+				State.profile.stash = {
+					piece(1, 1, 5),
+					piece(2, 2, 4),
+					piece(3, 3, 3),
+					piece(4, 5, 2),
+					piece(5, 6, 1),
+					piece(6, 8, 3),
 				}
+				State.profile.equipment[1] = 1
+				State.profile.equipment[2] = 2
 			end
-			State.profile.stash = {
-				piece(1, 1, 5),
-				piece(2, 2, 4),
-				piece(3, 3, 3),
-				piece(4, 5, 2),
-				piece(5, 6, 1),
-				piece(6, 8, 3),
-			}
-			State.profile.equipment[1] = 1
-			State.profile.equipment[2] = 2
+			sim:run(scene, function()
+				M[p[1]].open(p[2])
+			end)
 		end
-		sim:run(scene, function()
-			M[p[1]].open(p[2])
+		sim:advance(1)
+		-- one drawn frame, so the per-frame HUD (bars, situational buttons, the key line) is as the game shows it
+		sim:run("frame", function()
+			sim.service("RunService").RenderStepped:Fire(1 / 60)
 		end)
-	end
-	sim:advance(1)
-	-- one drawn frame, so the per-frame HUD (bars, situational buttons, the key line) is as the game shows it
-	sim:run("frame", function()
-		sim.service("RunService").RenderStepped:Fire(1 / 60)
-	end)
-	sim:run("dock", sim:require("Client.Ui.Kit").layoutDock)
-	if scene == "menu" then
-		sim:run("menu", function()
-			sim:require("Client.Ui.Kit").dockDrawer(true)
-		end)
+		sim:run("dock", sim:require("Client.Ui.Kit").layoutDock)
+		if scene == "menu" then
+			sim:run("menu", function()
+				sim:require("Client.Ui.Kit").dockDrawer(true)
+			end)
+		end
 	end
 	local shot = capture(sim)
 	shot.scene = string.gsub(scene, ":", "_")
