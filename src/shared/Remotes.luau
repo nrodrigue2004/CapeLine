@@ -117,14 +117,22 @@ local Remotes: { [string]: RemoteDef } = {
 	BuildingSync = { dir = "C2S", schema = {}, rate = 0.2, burst = 2 },
 	BuildingSnapshot = { dir = "S2C" }, -- { s = packed 2-bit states, n, dr = drone jobs }
 	BuildingDiff = { dir = "S2C" }, -- { r = repaired ids, d = { id, state, ... }, c = { id, piece, cause, ... }, dr = { { drone, building, seconds } } }
-	BuildingImpact = { dir = "S2C" }, -- center, radius, kind (1 crater, 2 cracks)
+	BuildingImpact = { dir = "S2C" }, -- center, radius, kind (1 crater, 2 cracks, 3 the street only)
 	-- Momentum and impact (2026-11-19): the device saw its hero ram a wall fast: the contact point, the travel
 	-- direction and the speed it claims (ImpactService checks all three against its own history)
 	ImpactRam = {
 		dir = "C2S",
 		schema = { V3, V3, { t = "number", min = 0, max = 400 } },
-		rate = 4,
-		burst = 6,
+		rate = 8, -- fix-destroy: flying through a block meets a wall every few tenths of a second
+		burst = 10,
+	},
+	-- fix-destroy (2026-11-19): the device's hero went through a street thing (a tree, a fence, a pole) and knocked it
+	-- loose; the server passes the knock on to the players near (BuildingImpact kind 3: the street only)
+	ImpactProp = {
+		dir = "C2S",
+		schema = { V3 },
+		rate = 3,
+		burst = 4,
 	},
 	-- a hero dropping onto a roof from high up (nate, 2026-11-19 13:18Z): where it landed and the fall speed
 	-- it claims (ImpactService backs it with its own history; Config.Combat.drop)
@@ -134,6 +142,11 @@ local Remotes: { [string]: RemoteDef } = {
 		rate = 2,
 		burst = 3,
 	},
+	-- ground craters (fix-destroy, 2026-11-19; CraterService, GroundFx): a crater is { id, x, y, z, r, terrain (1/0), age }
+	CraterSync = { dir = "C2S", schema = {}, rate = 0.2, burst = 2 },
+	CraterState = { dir = "S2C" }, -- { crater, ... } the live list
+	CraterAdd = { dir = "S2C" }, -- crater
+	CraterGone = { dir = "S2C" }, -- { id, ... } healed
 	VehicleFlip = { dir = "S2C" }, -- vehicle id, push x, push z
 	VehicleReset = { dir = "S2C" }, -- vehicle id
 	CitizenDelta = { dir = "S2C", unreliable = true }, -- CitizenBuffer packet, 4 Hz

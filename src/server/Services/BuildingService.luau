@@ -48,6 +48,7 @@ local SideQuestSites = require(Shared:WaitForChild("SideQuestSites"))
 local CityBuilder = require(script.Parent.CityBuilder)
 local HeroService = require(script.Parent.HeroService)
 local PerfMonitor = require(script.Parent.PerfMonitor)
+local CraterService = require(script.Parent.CraterService)
 
 local BuildingService = {}
 
@@ -153,6 +154,10 @@ function BuildingService.hit(center: Vector3, radius: number, dmg: number, kind:
 	end
 	if dmg >= D.structure.chunkCost then -- basic hits chip quietly (no crater, cracks or running citizens)
 		impact(center, radius, kind or 2)
+		-- a heavy hit at the ground digs a crater there (fix-destroy: CraterService, terrain or part ground)
+		if n == 0 or kind == 1 then
+			CraterService.blast(center, radius, dmg)
+		end
 		-- citizens near any big hit run too, wreckable building or not
 		BuildingService.Danger:Fire(center.X, center.Z, radius + 20, 4)
 	end
@@ -213,13 +218,11 @@ function BuildingService.clash(hero: any, at: Vector3, from: Vector3): Vector3?
 	return Vector3.new(b.x - at.X, 0, b.z - at.Z).Unit
 end
 
--- Can building id be broken now (it stands, and nothing holds it whole)?
+-- Can building id be broken now (it stands)? A pinned one breaks as a shell since fix-destroy (2026-11-19): holes in
+-- its walls, never its pillars or roof (BuildingState.blast)
 local function breakable(id: number): boolean
 	local book = BuildingService.book
-	return book ~= nil
-		and records[id] ~= nil
-		and book.state[id] ~= BuildingState.COLLAPSED
-		and not BuildingState.pinned(book, id)
+	return book ~= nil and records[id] ~= nil and book.state[id] ~= BuildingState.COLLAPSED
 end
 
 -- The first standing building a straight move from `from` goes into: its id, how far along (0..1) and the
@@ -292,6 +295,12 @@ function BuildingService.smash(id: number, at: Vector3, dmg: number, radius: num
 	return n
 end
 
+-- A street thing knocked loose by a hero going through it (ImpactProp): the players near knock the same things
+-- loose on their devices (kind 3: the street only, no cracks or crater), inside the impact rate
+function BuildingService.street(at: Vector3, radius: number)
+	impact(at, radius, 3)
+end
+
 -- Send what changed now instead of with the next 2 Hz batch (a hole a thrown hero is about to fly through)
 function BuildingService.flushNow()
 	if BuildingService.book then
@@ -355,11 +364,15 @@ end
 -- carries them as 32-bit floats (x, z, sx, sz, base, top; WorldMap snaps them to a quarter stud, exact in a
 -- float) from id `from` on. BuildingState.unpackBoxes reads it back.
 local outskirtsFrom, outskirtsBoxes = 0, nil :: buffer?
+local outskirtsRound: { number } = {} -- the round outskirts bodies' ids (silos, lighthouses, the windmill)
 local function packOutskirts(world: any)
 	local list = {}
 	for _, b in world.buildings do
 		if b.district == "Outskirts" then
 			table.insert(list, b)
+			if b.round then
+				table.insert(outskirtsRound, b.id)
+			end
 		end
 	end
 	if #list == 0 then
@@ -421,6 +434,7 @@ function BuildingService.init()
 			g = BuildingState.packGone(D, book),
 			o = outskirtsBoxes,
 			o1 = outskirtsFrom,
+			rd = outskirtsRound,
 		})
 	end)
 	PerfMonitor.watch("wrecked", function()

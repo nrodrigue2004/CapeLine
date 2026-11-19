@@ -213,6 +213,52 @@ export type Screen = {
 	building: number?, -- the building it hangs on (hidden while that building is down)
 }
 
+-- The wall pieces of a building's Structure grid a screen hangs on (fix-destroy, 2026-11-19, nate: the billboard's
+-- words "keep showing after the building is destroyed"): the panels and pillars of the face it is on, under its
+-- span and height. Once any of them is knocked out the screen falls with it (NewsService sets Down).
+function NewsPlan.behind(grid: any, s: Screen): { number }
+	local face = if s.nx > 0 then 4 elseif s.nx < 0 then 3 elseif s.nz > 0 then 2 else 1
+	local out = {}
+	for i, p in grid.pieces do
+		if p.kind == "wall" or p.kind == "pillar" then
+			local onFace = p.kind == "wall" and p.face == face
+			if p.kind == "pillar" then
+				-- a corner pillar belongs to the two faces it joins
+				local c = p.face
+				onFace = (face == 1 and (c == 1 or c == 2))
+					or (face == 2 and (c == 3 or c == 4))
+					or (face == 3 and (c == 1 or c == 3))
+					or (face == 4 and (c == 2 or c == 4))
+			end
+			if onFace then
+				local along = if face <= 2
+					then math.abs(p.cx - s.x) - p.sx / 2
+					else math.abs(p.cz - s.z) - p.sz / 2
+				local up = math.abs(p.cy - s.y) - p.sy / 2
+				if along < s.w / 2 and up < s.h / 2 then
+					table.insert(out, i)
+				end
+			end
+		end
+	end
+	return out
+end
+
+-- Is a screen down: its building collapsed, or a piece it hangs on gone (gone: piece -> true)
+function NewsPlan.screenDown(state: number, behind: { number }, gone: { [number]: boolean }?): boolean
+	if state == 2 then
+		return true
+	end
+	if state == 1 and gone then
+		for _, i in behind do
+			if gone[i] then
+				return true
+			end
+		end
+	end
+	return false
+end
+
 -- Where the big screens hang for a world (WorldMap.build's): the Downtown towers nearest the plaza with a
 -- face toward it, a screen on a frame at the plaza's edge, and the Crane billboard on Uptown's landmark
 function NewsPlan.screens(Config: any, world: any): { Screen }

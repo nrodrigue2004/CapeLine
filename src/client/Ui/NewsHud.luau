@@ -20,6 +20,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
+local TweenService = game:GetService("TweenService")
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Shared = ReplicatedStorage:WaitForChild("Shared")
@@ -99,7 +100,9 @@ local function bandMark(band: TextLabel)
 	mark.Image = image
 	mark.ScaleType = Enum.ScaleType.Fit
 	mark.AnchorPoint = Vector2.new(0, 0.5)
-	mark.Position = UDim2.fromScale(0.01, 0.5)
+	-- the band's UIPadding (below) shrinks the box its children are laid out in too, so the mark is placed back out
+	-- over the left padding: 1% from the band's own edge, clear of its words (fix-destroy, 2026-11-19)
+	mark.Position = UDim2.fromScale((0.01 - 0.16) / (1 - 0.16 - 0.03), 0.5)
 	mark.Size = UDim2.fromScale(0.9, 0.9)
 	mark.SizeConstraint = Enum.SizeConstraint.RelativeYY
 	mark.ZIndex = band.ZIndex + 1
@@ -235,6 +238,9 @@ local function screenLabel(
 	props.Position = props.Position or UDim2.fromScale(0.03, y)
 	props.Size = props.Size or UDim2.fromScale(0.94, h)
 	props.ZIndex = 2
+	-- on a 3D screen the comic ink's hard-shadow bars hang off the label's box (fix-destroy, 2026-11-19, nate: "the
+	-- words aren't lined up properly on the billboards"), so the screens' words keep only their text stroke
+	props.ink = false
 	local l = Kit.label(props)
 	l.Parent = parent
 	return l
@@ -260,6 +266,7 @@ local function attach(part: BasePart)
 	bg.Size = UDim2.fromScale(1, 1)
 	bg.BackgroundColor3 = NAVY
 	bg.BorderSizePixel = 0
+	bg.ClipsDescendants = true -- the scrolling ticker (4 screens wide) stays on the screen's face
 	bg.Parent = sg
 	local band = screenLabel(bg, "Band", 0, 0.22, {
 		Position = UDim2.fromScale(0, 0),
@@ -315,6 +322,31 @@ local function refreshScreens(now: number)
 	end
 end
 
+-- A screen that came down: a dark copy of it tips off the wall and drops, then fades (this device only)
+local function dropScreen(part: BasePart)
+	local c = Instance.new("Part")
+	c.Anchored = true
+	c.CanCollide = false
+	c.CanQuery = false
+	c.CanTouch = false
+	c.Size = part.Size
+	c.CFrame = part.CFrame
+	c.Color = NAVY
+	c.Material = Enum.Material.SmoothPlastic
+	c.Parent = Workspace
+	local fall = math.min(part.Position.Y - Config.City.ground.y, 80)
+	local to = part.CFrame * CFrame.new(0, 0, -3) * CFrame.Angles(math.rad(-70), 0, math.rad(8))
+	TweenService:Create(c, TweenInfo.new(1.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+		CFrame = to - Vector3.new(0, fall, 0),
+	}):Play()
+	task.delay(1.2, function()
+		TweenService:Create(c, TweenInfo.new(0.8), { Transparency = 1 }):Play()
+	end)
+	task.delay(2.1, function()
+		c:Destroy()
+	end)
+end
+
 local lastScroll = 0
 local function scroll(now: number)
 	local step = 1 / N.tv.scroll
@@ -334,6 +366,9 @@ local function scroll(now: number)
 	end
 	for _, s in screens do
 		local on = s.part:GetAttribute("Down") ~= true
+		if s.gui.Enabled and not on and eye and (s.part.Position - eye).Magnitude < 400 then
+			dropScreen(s.part) -- it falls with the wall it hung on
+		end
 		s.gui.Enabled = on
 		if on and eye and (s.part.Position - eye).Magnitude < 600 then
 			s.offset = (s.offset + dt * N.tickerSpeed) % 1

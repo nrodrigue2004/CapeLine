@@ -42,6 +42,7 @@ local AuraFx = require(Fx.AuraFx)
 local TetherFx = require(Fx.TetherFx)
 local BuildingFx = require(Fx.BuildingFx)
 local ImpactFx = require(Fx.ImpactFx) -- 2026-11-19: rams and throws through walls
+local GroundFx = require(Fx.GroundFx) -- fix-destroy: ground craters
 local VehicleFx = require(Fx.VehicleFx)
 local VehicleRig = require(Fx.VehicleRig) -- gap-vehicles: wheels roll and steer, bodies sway
 local WorldFx = require(Fx.WorldFx)
@@ -128,6 +129,7 @@ IceFx.init()
 AuraFx.init()
 BuildingFx.init()
 ImpactFx.init()
+GroundFx.init()
 VehicleFx.init()
 VehicleRig.init()
 WorldFx.init()

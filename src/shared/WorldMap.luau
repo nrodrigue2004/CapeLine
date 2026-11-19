@@ -52,6 +52,7 @@ export type Building = {
 	peak: number?, -- the top of that crown
 	fixed: boolean?, -- a fast-travel beacon stands on its roof: it never breaks (BuildingState keeps it whole)
 	more: boolean?, -- one of the 2026-11-19 additions (the rest of Old Town, the outskirts): WorldMap.moreBuildings
+	round: boolean?, -- a cylinder (silo, lighthouse, windmill, the Foundry's stacks): Structure lays its pieces round
 }
 
 export type World = {
@@ -338,6 +339,7 @@ function WorldMap.build(Config: any, seed: number, opts: { props: boolean? }?): 
 	end
 
 	if Config.Destruction.everywhere then
+		WorldMap.moreHub(Config, buildings, hubBoxes)
 		WorldMap.keepClear(Config, buildings, safehouses, beacons)
 	end
 
@@ -571,18 +573,64 @@ end
 -- Every outskirts building body (houses, big houses, shops, barns, farm sheds, coast sheds) is wreckable too
 -- (2026-11-19; before, the outskirts only cracked). One record per plain box body, ids after the hub's, in tile
 -- order; the body and its dressing get the record's id (bid) so CityBuilder puts them in its own model.
--- Cylinders (silos, tanks, the windmill) stay whole: the Structure grid is a box.
+-- Since fix-destroy (2026-11-19, nate: "Why cant i destroy silos? I literally want everything destructible") the
+-- cylinders are wreckable too (WorldMap.roundBody: silos, lighthouses, the windmill), laid round by Structure.
+function WorldMap.roundBody(b: any): boolean
+	return b.shape == "cylinder"
+		and not b.ghost
+		and b.sx >= 8
+		and b.sy >= 12
+		and (b.kind == "building" or (b.kind == "prop" and (b.color == "steel" or b.sy >= 40)))
+end
+
+-- The hub's last whole bodies (fix-destroy, 2026-11-19): the Foundry and its three stacks, the clock tower, the 16
+-- safehouse shelters. Ids after every other record (so none before them moves); only the body gets the id, so a
+-- shelter's roof ledge, terminals and pad, and the Foundry's signs, stay put while the walls take holes. The
+-- Foundry (the Syndicate's way in) and anything by a pad or beacon are shells (keepClear marks them fixed).
+function WorldMap.moreHub(Config: any, list: { Building }, hubBoxes: { any })
+	local D = Config.Destruction
+	local n = 0
+	for _, b in hubBoxes do
+		local round = WorldMap.roundBody(b)
+		if
+			not b.bid
+			and not b.ghost
+			and (round or (b.kind == "building" and b.shape == nil and (b.ry or 0) % 90 == 0 and b.sy >= 4))
+		then
+			n += 1
+			local fx, fz = BoxKit.footprint(b)
+			local rec = addRecord(D, list, {
+				grp = "H" .. n,
+				x = b.cx,
+				z = b.cz,
+				sx = if round then b.sx else fx,
+				sz = if round then b.sx else fz,
+			}, "Hub", b.cy - b.sy / 2, b.cy + b.sy / 2)
+			rec.more = true
+			rec.round = if round then true else nil
+			if b.color == "foundry" and not round then
+				rec.fixed = true
+			end
+			b.bid = rec.id
+		end
+	end
+end
+
 function WorldMap.outskirtsBuildings(Config: any, list: { Building }, tilePlans: { any })
 	local D = Config.Destruction
 	for _, plan in tilePlans do
 		local bodies: { Building } = {}
 		for _, b in plan.boxes do
+			local round = WorldMap.roundBody(b)
 			if
-				b.kind == "building"
-				and b.shape == nil
-				and not b.ghost
-				and (b.ry or 0) % 90 == 0
-				and b.sy >= 4
+				round
+				or (
+					b.kind == "building"
+					and b.shape == nil
+					and not b.ghost
+					and (b.ry or 0) % 90 == 0
+					and b.sy >= 4
+				)
 			then
 				local fx, fz = BoxKit.footprint(b)
 				local rec = addRecord(D, list, {
@@ -593,19 +641,28 @@ function WorldMap.outskirtsBuildings(Config: any, list: { Building }, tilePlans:
 					sz = snap(fz),
 				}, "Outskirts", snap(b.cy - b.sy / 2), snap(b.cy + b.sy / 2))
 				rec.more = true
+				if round then
+					rec.round = true
+				end
 				b.bid = rec.id
 				table.insert(bodies, rec)
 			end
 		end
 		if #bodies > 0 then
 			for _, b in plan.boxes do
-				if not b.bid and dressing(b) then
+				if not b.bid and (dressing(b) or (b.kind == "prop" and not WorldMap.roundBody(b))) then
 					for _, r in bodies do
-						if
-							math.abs(b.cx - r.x) <= r.sx / 2 + 2.5
+						local near = math.abs(b.cx - r.x) <= r.sx / 2 + 2.5
 							and math.abs(b.cz - r.z) <= r.sz / 2 + 2.5
-							and b.cy >= r.base
-						then
+						local dressed = dressing(b)
+						if not dressed and r.round then
+							-- a round body's cap, its windmill blades: up its top half, close round it
+							dressed = math.abs(b.cx - r.x) <= r.sx / 2 + 4
+								and math.abs(b.cz - r.z) <= r.sz / 2 + 4
+								and b.cy >= r.base + (r.top - r.base) * 0.5
+							near = dressed
+						end
+						if near and dressed and b.cy >= r.base then
 							b.bid = r.id
 							break
 						end

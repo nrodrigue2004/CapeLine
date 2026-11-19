@@ -23054,6 +23054,15 @@ end
 (require :: any)("./move_fixes_test")({ test = test, check = check, Config = Config });
 -- more destruction and momentum impact (nate's playtest 2026-11-19); ONLY="Impact" runs these
 (require :: any)("./impact_test")({ test = test, check = check, Config = Config, world = world });
+-- fix-destroy (nate after gaps7: fly through buildings, everything destructible, terrain craters, billboards);
+-- ONLY="Destroy" runs these
+(require :: any)("./destroy_test")({
+	test = test,
+	check = check,
+	Config = Config,
+	world = world,
+	placePath = placePath,
+});
 (require :: any)("./boss_counter_test")({ test = test, check = check, Config = Config, world = world });
 -- lock-on, omnidirectional movement, knockback by move, the block key, drops and swinging robots (nate's
 -- playtest 2026-11-19, own file); ONLY="PT combat" runs these

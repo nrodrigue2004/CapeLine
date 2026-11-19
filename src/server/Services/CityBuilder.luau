@@ -650,7 +650,11 @@ function CityBuilder.publishInfo(world: any)
 	info.buildings = {}
 	for _, b in world.buildings do
 		if b.district ~= "Outskirts" then
-			table.insert(info.buildings, { b.id, b.x, b.z, b.sx, b.sz, b.base, b.top })
+			-- 8th: 1 for a round body (Structure lays its pieces on the circle), 0 for a box
+			table.insert(
+				info.buildings,
+				{ b.id, b.x, b.z, b.sx, b.sz, b.base, b.top, if b.round then 1 else 0 }
+			)
 		end
 	end
 	-- the Vigil's HQ is its stairwell at the plaza's edge (HqRules.heroDoor; the map shows it to the Vigil only)

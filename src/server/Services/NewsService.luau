@@ -39,7 +39,8 @@ local NewsService = {}
 local CODE = NewsPlan.CODE
 local feed = NewsPlan.feed()
 local streaks: { [number]: any } = {}
-local screens: { { part: BasePart, building: number?, dressed: { BasePart } } } = {}
+local screens: { { part: BasePart, building: number?, dressed: { BasePart }, plan: any, behind: { number }? } } =
+	{}
 
 -- The hero's safe name ids (title, noun), or nil for a bot or a name that is not allowed
 local function nameIds(player: Player?): (number?, number?)
@@ -213,15 +214,28 @@ local function buildScreens()
 				p.CastShadow = false
 			end
 		end
-		table.insert(screens, { part = screen, building = s.building, dressed = dressed })
+		table.insert(
+			screens,
+			{ part = screen, building = s.building, dressed = dressed, plan = s, behind = nil }
+		)
 	end
 end
 
--- A screen on a collapsed building goes dark (and its SurfaceGui with it, on the device)
+-- A screen on a collapsed building goes dark (and its SurfaceGui with it, on the device), and since fix-destroy
+-- (2026-11-19) so does one whose wall behind it took a hole: it falls with the panel (NewsHud drops a copy)
 local function watchScreens()
+	local book = BuildingService.book
 	for _, s in screens do
+		if s.building and not s.behind and book then
+			local grid = BuildingState.grid(Config.Destruction, book, s.building)
+			s.behind = if grid then NewsPlan.behind(grid, s.plan) else {}
+		end
 		if s.building then
-			local down = BuildingService.state(s.building) == BuildingState.COLLAPSED
+			local down = NewsPlan.screenDown(
+				BuildingService.state(s.building),
+				s.behind or {},
+				book and book.gone[s.building] or nil
+			)
 			if (s.part:GetAttribute("Down") == true) ~= down then
 				s.part:SetAttribute("Down", down)
 				s.part.Transparency = if down then 1 else 0
@@ -304,7 +318,7 @@ function NewsService.init()
 		end
 		buildScreens()
 		while true do
-			task.wait(3)
+			task.wait(1)
 			watchScreens()
 		end
 	end)

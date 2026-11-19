@@ -11,6 +11,13 @@
 --   (a ground-floor failure is a full collapse). A wall panel with nothing under it and no neighbour on either
 --   side drops, and so does a slab tile with nothing left holding it.
 -- * pack/unpack: one bit a piece (at most 256 pieces, 32 bytes).
+-- * Round buildings (fix-destroy, 2026-11-19, nate: "Why cant i destroy silos?"): silos, lighthouses, the windmill
+--   and the Foundry's stacks (b.round) keep the same pieces and supports, but each piece is drawn on the circle: the
+--   4 pillars at the diagonals, 2 curved-ish wall panels a face (each a flat chord turned to the tangent: dw, dd, ry)
+--   and the slab as a disc. sx/sz stay each piece's footprint box, so blasts, rays and supports work unchanged.
+-- * Shell mode (fix-destroy): a pinned building (a beacon's host, a side quest roof, a safehouse) still takes holes
+--   in its walls and inner floors, but its pillars and roof never break and no storey gives way (blast and settle
+--   with shell), so what stands on it never floats; the drones mend it like any other.
 
 local Structure = {}
 
@@ -26,6 +33,12 @@ export type Piece = {
 	face: number, -- walls: 1 front (-z), 2 back (+z), 3 left (-x), 4 right (+x); pillars: corner 1 to 4
 	col: number, -- walls: panel along the face; slabs: tile index
 	weight: number, -- what it carries (pillars 2, walls 1, slabs 0)
+	-- round buildings only (drawing): the drawn box's width (local x), depth (local z), its turn about y in degrees,
+	-- and disc = the slab is drawn as a flat cylinder 2R across
+	dw: number?,
+	dd: number?,
+	ry: number?,
+	disc: boolean?,
 }
 
 export type Grid = {
@@ -50,10 +63,18 @@ function Structure.build(cfg: any, b: any): Grid
 	local h = b.top - b.base
 	local storeys = math.clamp(math.ceil(h / S.storey - 0.25), 1, S.maxStoreys)
 	local sh = h / storeys
+	local round = b.round == true
 	local t, pt, slab = S.wall, math.min(S.pillar, b.sx / 3, b.sz / 3), S.slab
+	if round then
+		t, pt = math.min(t, b.sx / 6), math.min(S.pillar, b.sx / 4)
+	end
 	local spanX, spanZ = b.sx - 2 * pt, b.sz - 2 * pt
 	local nx = math.clamp(math.floor(spanX / S.panel + 0.5), 1, S.maxPanels)
 	local nz = math.clamp(math.floor(spanZ / S.panel + 0.5), 1, S.maxPanels)
+	if round then
+		local n = if b.sx >= 8 then 2 else 1
+		nx, nz = n, n
+	end
 	local x0, z0 = b.x - b.sx / 2, b.z - b.sz / 2
 	local grid: Grid = {
 		pieces = {},
@@ -167,7 +188,7 @@ function Structure.build(cfg: any, b: any): Grid
 			}, key("w", 4, col, s))
 		end
 		-- the slab on top (the roof on the last storey); wide buildings get 2 x 2 tiles
-		local split = if b.sx >= S.slabSplitAt and b.sz >= S.slabSplitAt then 2 else 1
+		local split = if not round and b.sx >= S.slabSplitAt and b.sz >= S.slabSplitAt then 2 else 1
 		local tx, tz = b.sx / split, b.sz / split
 		local tile = 0
 		for i = 1, split do
@@ -205,7 +226,48 @@ function Structure.build(cfg: any, b: any): Grid
 			end
 		end
 	end
+	if round then
+		Structure.roundOff(grid, b, t, pt)
+	end
 	return grid
+end
+
+-- The corner angles (degrees, x = cos, z = sin) of the 4 pillars, and each face's arc (from, to) along its columns
+local CORNER = { 225, 315, 135, 45 }
+local ARC = { { 225, 315 }, { 135, 45 }, { 225, 135 }, { -45, 45 } }
+
+local function turnBox(p: Piece, w: number, d: number, theta: number)
+	local ry = -(theta + 90)
+	local r = math.rad(ry)
+	p.dw, p.dd, p.ry = w, d, ry
+	p.sx = math.abs(w * math.cos(r)) + math.abs(d * math.sin(r))
+	p.sz = math.abs(w * math.sin(r)) + math.abs(d * math.cos(r))
+end
+
+-- Lay a round building's pieces on its circle (drawing and footprints only; the supports are the box grid's)
+function Structure.roundOff(grid: Grid, b: any, t: number, pt: number)
+	local R = math.min(b.sx, b.sz) / 2
+	for _, p in grid.pieces do
+		if p.kind == "pillar" then
+			local th = math.rad(CORNER[p.face])
+			local r = R - pt / 2
+			p.cx, p.cz = b.x + math.cos(th) * r, b.z + math.sin(th) * r
+			turnBox(p, pt, pt, CORNER[p.face])
+		elseif p.kind == "wall" then
+			local n = grid.panels[p.face]
+			local a0, a1 = ARC[p.face][1], ARC[p.face][2]
+			local deg = a0 + (a1 - a0) * (p.col - 0.5) / n
+			local th = math.rad(deg)
+			local r = R - t / 2
+			local span = math.rad(math.abs(a1 - a0) / n)
+			p.cx, p.cz = b.x + math.cos(th) * r, b.z + math.sin(th) * r
+			turnBox(p, 2 * r * math.sin(span / 2) + 0.3, t, deg)
+		else
+			p.cx, p.cz = b.x, b.z
+			p.sx, p.sz = 2 * R, 2 * R
+			p.dw, p.dd, p.ry, p.disc = 2 * R, 2 * R, 0, true
+		end
+	end
 end
 
 -- Distance from a point to a piece's box
@@ -225,12 +287,16 @@ function Structure.blast(
 	y: number,
 	z: number,
 	radius: number,
-	dmg: number
+	dmg: number,
+	shell: boolean?
 ): { number }
 	local S = cfg.structure
 	local near = {}
 	for i, p in grid.pieces do
-		if not gone[i] then
+		if
+			not gone[i]
+			and not (shell and (p.kind == "pillar" or (p.kind == "slab" and p.storey == grid.storeys)))
+		then
 			local d = Structure.distance(p, x, y, z)
 			if d <= radius then
 				table.insert(near, { i = i, d = d })
@@ -277,7 +343,8 @@ function Structure.settle(
 	cfg: any,
 	grid: Grid,
 	gone: { [number]: boolean },
-	keepGround: boolean?
+	keepGround: boolean?,
+	shell: boolean?
 ): ({ number }, number?)
 	local fell: { number } = {}
 	local failed: number? = nil
@@ -287,7 +354,7 @@ function Structure.settle(
 			table.insert(fell, i)
 		end
 	end
-	for s = 1, grid.storeys do
+	for s = 1, if shell then 0 else grid.storeys do
 		if not (s == 1 and keepGround) and not Structure.stands(cfg, grid, gone, s) then
 			failed = s
 			break

@@ -160,23 +160,26 @@ return {
 		-- travel ride) into a wall smashes through it. The device sees the wall first (ImpactFx), the server
 		-- checks the hero's own recent top speed (MoveGuard.peakSpeed) and where it is, then knocks pieces out.
 		ram = {
-			minSpeed = 85, -- studs/s: below this a wall stops you as before (flight cruise is 60, boost 110)
-			fullSpeed = 160, -- at this speed a ram does its most
-			dmg = { 900, 3000 }, -- structure damage from minSpeed to fullSpeed (600 a piece: 1 to 5 pieces)
-			radius = 9, -- studs round the contact the pieces come from (a hero-sized hole and its edges)
+			-- fix-destroy (2026-11-19, nate: "I want to fly straight through buildings"): plain flight (cruise 60) now
+			-- smashes through (was 85+, boost only), each ram opens a hero-sized hole at once (4 to 10 pieces at 400 a
+			-- piece; was 1 to 5) and keeps 90% of the speed (was 70%), so a hero flies through a block wall after wall
+			minSpeed = 45, -- studs/s: below this a wall stops you as before (flight cruise is 60, boost 110)
+			fullSpeed = 140, -- at this speed a ram does its most
+			dmg = { 1600, 4000 }, -- structure damage from minSpeed to fullSpeed
+			radius = 10, -- studs round the contact the pieces come from (a hero-sized hole and its edges)
 			reach = 4, -- studs the device looks ahead of the body each frame
 			facing = 0.35, -- how square the wall must be to the travel (dot of the travel and the wall)
-			loss = 0.3, -- share of the speed lost going through
-			hitStop = 0.08, -- seconds the hero holds at the wall (the hit-stop)
-			holdKeep = 0.08, -- share of the speed kept during the hold
+			loss = 0.1, -- share of the speed lost going through (was 0.3)
+			hitStop = 0.05, -- seconds the hero holds at the wall (the hit-stop; was 0.08)
+			holdKeep = 0.25, -- share of the speed kept during the hold (was 0.08)
 			shake = { 0.22, 0.6 }, -- camera shake {time, amount}
-			cooldown = 0.3, -- seconds between rams on the device
-			sameWall = 0.6, -- seconds before the same building counts as a new ram (a wall that held)
+			cooldown = 0.12, -- seconds between rams on the device (was 0.3: the far wall comes fast)
+			sameWall = 0.25, -- seconds before the same building counts as a new ram (its far wall; was 0.6)
 			slack = 1.25, -- the claimed speed may be at most this much over the server's recent top speed
 			window = 0.6, -- seconds of history the server's top speed looks over
 			near = 16, -- studs: the contact must be this close to where the server has the hero (plus lag)
 			lag = 0.25, -- seconds of travel added to `near` for lag
-			perHero = 6, -- breaks a hero may cause per `heroWindow` seconds (rams and knocks)
+			perHero = 12, -- breaks a hero may cause per `heroWindow` seconds (rams and knocks; was 6)
 			heroWindow = 4,
 		},
 		-- knock: a heavy robot punch, a boss strike or a PvP knockback throws the hero back; a wall in the way
@@ -197,6 +200,6 @@ return {
 		-- robots knocked into a wall (EnemySim.knock says it hit one) break it too
 		robot = { minKnock = 8, dmg = { 600, 1800 }, fullKnock = 30, reach = 4 },
 		pound = 1800, -- a Leaping ground pound's structure damage where it lands (it broke nothing before)
-		serverPerSecond = 12, -- impact breaks a second on the whole server, on top of the per-hero cap
+		serverPerSecond = 20, -- impact breaks a second on the whole server, on top of the per-hero cap (was 12)
 	},
 }
