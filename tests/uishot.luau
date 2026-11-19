@@ -132,11 +132,13 @@ local function node(b: any): { [string]: any }
 		end
 		n.halftone = i:GetAttribute("Halftone") == true
 		-- a sprite sheet cell (the icon set, gap-icons): uishot.py draws it from art/export/icons
+		-- or a picture tile's cell of a sheet (Ui.Thumb): drawn by uishot.py --images from the local sheet
 		local ro, rs = prop(i, "ImageRectOffset"), prop(i, "ImageRectSize")
 		if ro and rs and rs.X > 0 then
 			n.rect = { ro.X, ro.Y, rs.X, rs.Y }
 		end
 		n.visible = prop(i, "Visible") ~= false
+		n.fit = prop(i, "ScaleType") == Enum.ScaleType.Fit
 	end
 	if i:IsA("ViewportFrame") then
 		n.viewport = true
@@ -224,6 +226,12 @@ local PANEL = {
 	journal = { "Journal" },
 	map = { "MapScreen" },
 	creator = { "CreatorScreen", { mode = "create" } },
+	-- the creator's APPEARANCE step on one slot's picture tiles (2026-11-19 thumbnails)
+	["creator:suit"] = { "CreatorScreen", { mode = "create", step = "appearance", slot = "suit" } },
+	["creator:head"] = { "CreatorScreen", { mode = "create", step = "appearance", slot = "head" } },
+	["creator:visage"] = { "CreatorScreen", { mode = "create", step = "appearance", slot = "visage" } },
+	["creator:hair"] = { "CreatorScreen", { mode = "create", step = "appearance", slot = "hair" } },
+	["creator:weapon"] = { "CreatorScreen", { mode = "create", step = "weapon" } },
 	pass = { "PassHud" },
 }
 

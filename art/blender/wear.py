@@ -278,8 +278,13 @@ def body(at, yaw, suit=(70, 74, 88), skin=(224, 172, 130), hair=(50, 36, 30), sh
     if parts is None or "Head" in parts:
         h = head_mesh()
         h.data.materials.append(mat(skin, rough=0.55))
-        obs += [h, face_plane()]
-        if show_hair:
+        obs.append(h)
+        # the creator thumbnails show a plain head: faces and hair come only from the Roblox catalog (nate's rule),
+        # so a tile never shows a drawn face or hair as if it came with the piece
+        thumbs = bool(os.environ.get("THUMBS"))
+        if not thumbs:
+            obs.append(face_plane())
+        if show_hair and not thumbs:
             hr = hair_mesh()
             hr.data.materials.append(mat(hair, rough=0.6))
             obs.append(hr)
@@ -308,6 +313,7 @@ def place(pieces, at, yaw, pal, pivot=(0, 0, 0)):
         c.data.materials.append(mat(colour(p.role, pal), glow=p.glow, rough=rough, metal=metal, alpha=p.alpha))
         c.matrix_world = Y @ c.matrix_world
         c.hide_render = False
+        c["thumb_piece"] = True  # thumb_cells frames these (the body around them is context)
 
 
 def hide_sources(built):
@@ -326,8 +332,13 @@ def grid_preview(built, out, dress, cols=5, cell=2.8, px=320, focus=4.65, yaw_fr
                  samples=32, look_down=0.0):
     """Every kit in its own grid cell from the front three-quarter and from behind (two orthographic renders,
     paired and named by sheet.py into `out`). dress(name, at, yaw, pal) puts the body and the kit's pieces at
-    `at` (so the cell's centre is the body's z = focus). look_down tilts the camera down (radians)."""
+    `at` (so the cell's centre is the body's z = focus). look_down tilts the camera down (radians).
+    With THUMBS=1 in the environment it renders the creator thumbnails instead (thumb_cells, from the front view)."""
     import subprocess
+    if os.environ.get("THUMBS"):
+        thumb_cells(built, os.path.splitext(os.path.basename(out))[0].replace("_test", ""), dress, yaw_front,
+                    look_down)
+        return
     hide_sources(built)
     names = list(built)
     rows = (len(names) + cols - 1) // cols
@@ -360,6 +371,127 @@ def grid_preview(built, out, dress, cols=5, cell=2.8, px=320, focus=4.65, yaw_fr
                     ",".join(names)], check=True)
     for p in tmp:
         os.remove(p)
+
+
+# ---------------------------------------------------------------- creator thumbnails (2026-11-19)
+# The creator's picture tiles (art/thumbs/thumbs.py packs them): every kit rendered alone on a transparent
+# background, the orthographic camera framed on the kit's own pieces (the body around them is context, cut by the
+# frame), in one bright sample palette so every tile reads as the same hero. Cells land in
+# art/thumbs/cells/<set>/<kit>.png (kit ":" written "~"). THUMB_PX and THUMB_SAMPLES tune the render.
+THUMB_PAL = ((40, 110, 220), (235, 60, 60), (255, 210, 60))
+# per set: (minimum frame in studs, zoom out factor, an extra tilt down in radians)
+THUMB_FRAME = {"heads": (1.5, 1.12, 0.0), "hats": (1.5, 1.1, 0.1), "ears": (0.8, 1.7, 0.0),
+               "gloves": (1.2, 1.15, -0.18), "boots": (1.2, 1.15, -0.06), "necks": (1.5, 1.3, 0.0),
+               "wrists": (1.1, 1.3, 0.0), "arms": (1.9, 1.15, 0.0), "belts": (2.0, 1.15, 0.0),
+               "shoulders": (2.4, 1.1, 0.0), "backs": (2.6, 1.08, 0.0), "coats": (3.0, 1.06, 0.0),
+               "capes": (3.0, 1.06, 0.0), "suits": (5.0, 1.06, 0.0), "shirts": (3.0, 1.08, 0.0),
+               "pants": (2.6, 1.08, 0.0), "masks": (1.4, 1.12, 0.0), "legs": (2.6, 1.08, 0.0)}
+
+
+THUMB_ONE_SIDE = {"wrists", "arms", "ears"}
+
+
+def thumb_centre_x(o):
+    vs = [(o.matrix_world @ v.co).x for v in o.data.vertices]
+    return sum(vs) / max(1, len(vs))
+
+
+def thumb_path(set_name, name):
+    return os.path.join(kit.ROOT, "thumbs", "cells", set_name, name.replace(":", "~") + ".png")
+
+
+def thumb_setup(px):
+    s = bpy.context.scene
+    if any(o.type == "LIGHT" for o in s.objects):
+        return  # set up already (a script that clears its lights between sets gets them back here)
+    kit.studio(res=(px, px), samples=int(os.environ.get("THUMB_SAMPLES", "16")))
+    s.view_settings.view_transform = "Standard"
+    s.render.film_transparent = True
+    # a front fill so the side facing the camera never goes muddy on the small tile
+    L = bpy.data.lights.new("ThumbFill", "SUN")
+    L.energy = 1.6
+    ob = bpy.data.objects.new("ThumbFill", L)
+    ob.rotation_euler = (math.radians(70), 0, math.radians(-15))
+    s.collection.objects.link(ob)
+
+
+def thumb_frame(objs, look_down, set_name):
+    """An orthographic camera looking along +y (tilted down by look_down) framed on objs' world vertices."""
+    mn, zoom, tilt = THUMB_FRAME.get(set_name, (1.5, 1.15, 0.0))
+    ld = look_down + tilt
+    fwd = Vector((0, math.cos(ld), -math.sin(ld)))
+    right = Vector((1, 0, 0))
+    up = right.cross(fwd).normalized() * -1
+    if up.z < 0:
+        up = -up
+    xs, ys, pts = [], [], []
+    for o in objs:
+        if o.type != "MESH":
+            continue
+        for v in o.data.vertices:
+            w = o.matrix_world @ v.co
+            pts.append(w)
+            xs.append(w.dot(right))
+            ys.append(w.dot(up))
+    if not pts:
+        return None
+    cx, cy = (min(xs) + max(xs)) / 2, (min(ys) + max(ys)) / 2
+    size = max(max(xs) - min(xs), max(ys) - min(ys), mn) * zoom
+    depth = sum((p.dot(fwd) for p in pts)) / len(pts)
+    centre = right * cx + up * cy + fwd * depth
+    cam = bpy.context.scene.camera
+    if cam is None or cam.name != "ThumbCam":
+        cam = bpy.data.objects.new("ThumbCam", bpy.data.cameras.new("ThumbCam"))
+        bpy.context.scene.collection.objects.link(cam)
+        cam.data.type = "ORTHO"
+        bpy.context.scene.camera = cam
+    cam.data.ortho_scale = size
+    cam.data.clip_end = 200
+    cam.location = centre - fwd * 40
+    cam.rotation_euler = fwd.to_track_quat("-Z", "Y").to_euler()
+    return cam
+
+
+def thumb_cells(names, set_name, dress, yaw, look_down=0.0):
+    """Render each kit alone: dress(name, at, yaw, pal) as grid_preview's, framed on the pieces it placed."""
+    px = int(os.environ.get("THUMB_PX", "224"))
+    if isinstance(names, dict):
+        hide_sources(names)
+        names = list(names)
+    thumb_setup(px)
+    only = os.environ.get("THUMB_ONLY")
+    for name in names:
+        if only and name not in only.split(","):
+            continue
+        for o in list(bpy.context.scene.objects):
+            if o.get("preview"):
+                bpy.data.objects.remove(o, do_unlink=True)
+        before = set(bpy.context.scene.objects)
+        dress(name, (0.0, 0.0, 0.0), yaw, THUMB_PAL)
+        new = [o for o in bpy.context.scene.objects if o not in before]
+        for o in new:
+            o["preview"] = True
+        pieces = [o for o in new if o.get("thumb_piece")] or new
+        if set_name in THUMB_ONE_SIDE:
+            # a pair (both wrists, both arms): frame the one on the picture's right, close up
+            right = [o for o in pieces if o.type == "MESH" and thumb_centre_x(o) > 0.05]
+            pieces = right or pieces
+        if set_name == "coats" and name.startswith("scarf"):
+            # a scarf's tails hang behind: show it from the back three-quarter
+            for o in new:
+                bpy.data.objects.remove(o, do_unlink=True)
+            dress(name, (0.0, 0.0, 0.0), 35, THUMB_PAL)
+            new = [o for o in bpy.context.scene.objects if o not in before]
+            for o in new:
+                o["preview"] = True
+            pieces = [o for o in new if o.get("thumb_piece")] or new
+        if thumb_frame(pieces, look_down, set_name) is None:
+            print("thumb: nothing to frame for", set_name, name)
+            continue
+        kit.render(thumb_path(set_name, name))
+    for o in list(bpy.context.scene.objects):
+        if o.get("preview"):
+            bpy.data.objects.remove(o, do_unlink=True)
 
 
 # ---------------------------------------------------------------- round 3 shapes (2026-11-18)

@@ -19,6 +19,7 @@ local TravelStyleRules = require(Shared:WaitForChild("TravelStyleRules"))
 local LookCodec = require(Shared:WaitForChild("LookCodec"))
 
 local Kit = require(script.Parent.Kit)
+local Thumb = require(script.Parent.Thumb)
 local Preview = require(script.Parent.Preview)
 local State = require(script.Parent.Parent.State)
 local InputController = require(script.Parent.Parent.Controllers.InputController)
@@ -109,6 +110,13 @@ local function itemText(key: string, row: any, kind: string?): (string, string, 
 		return string.upper(s and s.name or key),
 			string.format("A %s travel style: trail, take-off and landing. Looks only", m and m.name or ""),
 			if s then rgb(s.c1) else Kit.color.paper
+	elseif kind == "weapon" then
+		-- a weapon sold in the shop (its name, not the product key)
+		for _, w in Config.Weapons.list do
+			if w[1] == row.weapon then
+				return string.upper(w[3]), w[5], Kit.color.gold
+			end
+		end
 	elseif kind == "heroPass" then
 		local d = Config.Pass.seasons[State.profile.passSeason or 0]
 		return "HERO PASS: PAID TRACK",
@@ -164,10 +172,22 @@ local function card(order: number, key: string)
 		maxText = 22,
 	})
 	n.Parent = f
+	-- the item's picture (2026-11-19 thumbnails: a pack's look, a weapon, an effect tint, a travel style) at the
+	-- left, the words beside it; no picture (emotes, passes, slots, or a sheet not uploaded yet): words only
+	local pic = Thumb.key("shop/" .. key)
+	local inset = 0
+	if pic then
+		local img = Thumb.image(pic, {
+			Size = UDim2.fromOffset(64, 64),
+			Position = UDim2.fromOffset(6, 30),
+		})
+		img.Parent = f
+		inset = 70
+	end
 	local d = Kit.label({
 		Text = desc,
-		Size = UDim2.new(1, -12, 0, 60),
-		Position = UDim2.fromOffset(6, 30),
+		Size = UDim2.new(1, -12 - inset, 0, 60 + inset // 2), -- beside a picture: taller, so the words stay readable
+		Position = UDim2.fromOffset(6 + inset, 30),
 		Font = Kit.bodyFont,
 		TextWrapped = true,
 		maxText = 13,
@@ -321,7 +341,7 @@ local function build()
 	grid.ScrollBarThickness = 6
 	grid.Parent = panel
 	local g = Instance.new("UIGridLayout")
-	g.CellSize = UDim2.fromOffset(200, 150)
+	g.CellSize = UDim2.fromOffset(200, 184) -- 2026-11-19: room for an item's picture beside its words
 	g.CellPadding = UDim2.fromOffset(10, 10)
 	g.SortOrder = Enum.SortOrder.LayoutOrder
 	g.Parent = grid

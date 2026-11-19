@@ -4,3 +4,4 @@ sourcemap.json
 __pycache__/
 .claude/
 art/export/gear/cache/
+art/thumbs/cells/
