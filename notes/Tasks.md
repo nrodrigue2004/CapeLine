@@ -1968,3 +1968,11 @@ Studio checks (only Studio can prove these):
 4. Two-handed weapons (greatsword, great axe, warhammer, scythe, spear, bo staff) on Roblox's body: the left hand closes on the handle in the ready stance and the heavy swing (AnimIK solves on HeroRig's arms; on Roblox's arms it misses by 0.15 to 0.18 studs in Lune, compare art/preview/fit_weapons_1.png).
 5. Helmets and caps that hide hair (helm, frame, monovisor and the closed hats) show no catalog hair poking through; open masks show the hero's hair over them.
 
+
+## Studio list: attack and power animations (fix-anims, 2026-11-19)
+Root cause: Roblox's Avatar Joint Upgrade gave heroes AnimationConstraints, which HeroAnimator never looked for (notes/Decisions.md). Headless proof: tests/fix_anims_test.luau. Only Studio can show these:
+1. Play Solo. Output shows "[HeroAnimator] your hero: 15 joints (Motor6D)" (with AnimationConstraint listed instead, the code still animates; no "has no R15 Waist joint" warning).
+2. Explorer, while playing: Workspace > your character > UpperTorso holds a Motor6D named Waist (not an AnimationConstraint).
+3. Click (Basic) five times standing still: the arms swing a varied combo. Press a skill key (1, 2...) and the super: each plays its own pose. Fly and cast: the legs keep the flight pose.
+4. Press 2 for the weapon: the arms take its stance; swing it. Hold Q (block): the guard pose. Use an emote from the picker: the pose holds, then returns.
+5. With a second player (Test > 2 Players): each sees the other's casts and swings.

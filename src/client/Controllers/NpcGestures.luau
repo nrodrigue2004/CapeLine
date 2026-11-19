@@ -16,6 +16,7 @@ local Workspace = game:GetService("Workspace")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local NpcAnim = require(Shared:WaitForChild("NpcAnim"))
 local FrameProf = require(Shared:WaitForChild("FrameProf"))
+local RigJoints = require(Shared:WaitForChild("RigJoints"))
 local QualityController = require(script.Parent.QualityController)
 
 local NpcGestures = {}
@@ -40,14 +41,9 @@ local people: { [Model]: Person } = {}
 local scratch: { [string]: { number } } = {}
 local RAD = math.rad
 
+-- Motor6Ds or AnimationConstraints (Shared.RigJoints; fix-anims 2026-11-19), both posed on Transform
 local function motorsOf(m: Model): { [string]: Motor6D }
-	local motors = {}
-	for _, d in m:GetDescendants() do
-		if d:IsA("Motor6D") then
-			motors[d.Name] = d
-		end
-	end
-	return motors
+	return RigJoints.of(m) :: any
 end
 
 local function add(m: Instance)
