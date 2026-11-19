@@ -12,7 +12,14 @@
 --   the server, still colliding as before) or never built (a dressing box: ghost only). Nothing imported: nothing
 --   drawn, every box shows as today.
 -- * key(x, y, z): how a device finds the part the server made for a box (its centre, to 1/20 stud).
--- The fit helpers are Shared.DeepArtKit's over Config.PocketPropArt.
+-- The fit helpers are Shared.DeepArtKit's over Config.PocketPropArt and Config.PocketPropArt2.
+-- The second set (gap-props3, 2026-11-19): blackboards, hoops, Halo's statue, the bookcase, the conveyor and its
+-- half-built robots, trophy shelves, the bench, wooden dummies, the sealed and iron doors, Hoshi's cage and chains,
+-- the roll door, scanner arch and dock crates, the stations, the tower mast and Live's stage, in their own FBX
+-- (Art.PocketProps2, Config.PocketPropArt2) so the first upload stays as it is. Two rule options came with them:
+-- * ry = "box": the placement turns with its core box's own turn (the chains run diagonally)
+-- * a `with` entry's third field "keep": those boxes frame the look (its meshes may reach round them) but stay
+--   drawn and are never hidden (Live's giant screen behind its stage)
 
 local DeepArtKit = if script then require(script.Parent.DeepArtKit) else (require :: any)("./DeepArtKit")
 
@@ -29,13 +36,36 @@ export type Place = {
 	ry: number,
 	tint: string?,
 	dress: boolean, -- its boxes are PocketDress dressing (dress.extras), not layout boxes (l.boxes)
-	boxes: { number }, -- indices into l.boxes or dress.extras
+	boxes: { number }, -- indices into l.boxes or dress.extras (hidden or not built when the look is drawn)
+	keep: { number }?, -- boxes the look frames but leaves drawn (a `with` entry's "keep")
 	tier: number, -- the highest tier among its boxes (1 for layout boxes)
 	rule: number,
 }
 
+-- The art sets, in the order their meshes are looked up (ReplicatedStorage.Art.<set>) and their fit tables
+PocketPropKit.SETS =
+	{ { set = "PocketProps", fit = "PocketPropArt" }, { set = "PocketProps2", fit = "PocketPropArt2" } }
+
+local views: { [any]: any } = setmetatable({}, { __mode = "k" }) :: any
 local function view(Config: any): any
-	return { DeepArt = Config.PocketPropArt or {}, City = Config.City }
+	local v = views[Config]
+	if v then
+		return v
+	end
+	local all = {}
+	for _, s in PocketPropKit.SETS do
+		for look, fit in Config[s.fit] or {} do
+			all[look] = fit
+		end
+	end
+	v = { DeepArt = all, City = Config.City }
+	views[Config] = v
+	return v
+end
+
+-- Every look's fit (both sets)
+function PocketPropKit.all(Config: any): { [string]: any }
+	return view(Config).DeepArt
 end
 
 function PocketPropKit.fit(Config: any, look: string): any?
@@ -140,7 +170,7 @@ function PocketPropKit.places(Config: any, l: any, dress: any, layout: string): 
 			if taken[i] or not matches(b, core) then
 				continue
 			end
-			local group, idx = { b }, { i }
+			local group, idx, keep = { b }, { i }, {}
 			local ok = true
 			local mine: { [number]: boolean } = { [i] = true }
 			local withBoxes: { any } = {}
@@ -166,7 +196,7 @@ function PocketPropKit.places(Config: any, l: any, dress: any, layout: string): 
 					local j = found[k].j
 					mine[j] = true
 					table.insert(group, list[j])
-					table.insert(idx, j)
+					table.insert(if w[3] == "keep" then keep else idx, j)
 					if k == 1 then
 						withBoxes[wi] = list[j]
 					end
@@ -178,8 +208,12 @@ function PocketPropKit.places(Config: any, l: any, dress: any, layout: string): 
 			for _, j in idx do
 				taken[j] = true
 			end
+			for _, j in keep do
+				taken[j] = true
+			end
 			local ry = if rule.face
 				then faceTurn(b.cx - l.cx, b.cz - l.cz, rule.face[1], rule.face[2])
+				elseif rule.ry == "box" then (b.ry or 0)
 				else (rule.ry or 0)
 			local cx, cy, cz, sx, sy, sz = cover(group, b.cx, b.cz, ry)
 			local tier = 1
@@ -199,6 +233,7 @@ function PocketPropKit.places(Config: any, l: any, dress: any, layout: string): 
 				tint = if tintBox then (tintBox.tint or tintBox.color) else nil,
 				dress = rule.dress == true,
 				boxes = idx,
+				keep = if #keep > 0 then keep else nil,
 				tier = tier,
 				rule = ri,
 			})
@@ -305,7 +340,11 @@ function PocketPropKit.check(Config: any, l: any, dress: any, layout: string): {
 			table.insert(bad, name .. ": no palette colour " .. p.tint)
 		end
 		local list = if p.dress then dress.extras else l.boxes
-		for _, j in p.boxes do
+		local every = table.clone(p.boxes)
+		for _, j in p.keep or {} do
+			table.insert(every, j)
+		end
+		for _, j in every do
 			for _, q in DeepArtKit.corners(list[j]) do
 				if not DeepArtKit.inside(p, q[1], q[2], q[3], 0.05) then
 					table.insert(bad, string.format("%s: box %d pokes out", name, j))

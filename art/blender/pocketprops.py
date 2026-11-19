@@ -14,10 +14,16 @@
 # * PkPostKindler, PkPostScan, PkPostIron: the Kindler's light posts, the collar scanners, the chain posts
 # * PkBrazier: an iron bowl on three legs with a flame; PkDeskOffice, PkDeskLab, PkDeskFront: desks with screens
 # * PkCamera: Live's camera rigs; PkBarrier: its crowd barriers; PkChimney, PkWaterTank: The Copy's roofs
-# Output: art/export/PocketProps.fbx (textures embedded), art/export/pockets/<Look>_{Color,Normal,Roughness,
+# The second set (gap-props3, 2026-11-19; --set 2, the default): PkStatue (Halo's statue: a stylised stone hero on
+# the blocky R15 proportions with a plain sculpted head, no face or hair, under its gold halo), PkBlackboard, PkHoop,
+# PkBookcase, PkConveyor, PkHalfBot, PkTrophyShelf, PkBench, PkWoodDummy, PkIronDoor, PkSealDoor, PkHoshiCage,
+# PkChain, PkRollDoor, PkScanArch, PkDockCrate, PkStation, PkMast, PkStage, into art/export/PocketProps2.fbx and
+# src/config/PocketPropArt2.luau (previews art/preview/pocket_props2.png, pocket_props2_rooms.png), so the first
+# set's upload stays as it is; --set 1 rebuilds the first set (only to change it: it must then be uploaded again).
+# Output (--set 1): art/export/PocketProps.fbx (textures embedded), art/export/pockets/<Look>_{Color,Normal,Roughness,
 # Metalness}.png, src/config/PocketPropArt.luau; with --preview art/preview/pocket_props.png (the looks in a row)
 # and art/preview/pocket_props_rooms.png (the pockets' rooms with their props, as a high preset sees them).
-# Run: lune run art/pockets/layout.luau && $HOME/tools/bpyenv/bin/python art/blender/pocketprops.py [--preview] [--fast]
+# Run: lune run art/pockets/layout.luau && $HOME/tools/bpyenv/bin/python art/blender/pocketprops.py [--set 1|2] [--preview] [--fast]
 import json
 import math
 import os
@@ -35,7 +41,7 @@ kit.reset()
 import numpy as np  # noqa: E402
 import hbake  # noqa: E402
 import ruinkit as rk  # noqa: E402
-from studs import mesh, LOOKS, INFO, C, S, T, TOR, turn, shift, rb  # noqa: E402
+from studs import mesh, LOOKS, INFO, B, C, S, T, TOR, turn, shift, rb, star, prism, rings_mesh  # noqa: E402
 from vkit import rbox  # noqa: E402
 
 FAST = "--fast" in sys.argv
@@ -595,9 +601,698 @@ camera()
 barrier()
 chimney()
 watertank()
+SET1 = sorted(LOOKS)
 
-ALL = sorted(LOOKS)
-missing = sorted(set(LAY["looks"]) - set(ALL))
+# ================================================================ the second set (gap-props3, 2026-11-19)
+# Built into art/export/PocketProps2.fbx and src/config/PocketPropArt2.luau with --set 2, so the first upload
+# (PocketProps.fbx, PocketPropArt.luau) stays exactly as it is.
+STONE = (226, 220, 206)
+DSTONE = (176, 170, 160)
+CHALK = (238, 240, 236)
+BOARD = (46, 78, 64)
+LACQUER = (176, 40, 36)
+SILVER = (206, 212, 222)
+BRONZE = (190, 120, 64)
+RUBBER = (40, 40, 46)
+
+
+def limb(x0, y0, x1, y1, z, w, d, rgb, mat="SmoothPlastic", bev=0.12, pat=None):
+    """A square-ended box from (x0, y0) to (x1, y1) at depth z (a blocky arm or leg)."""
+    L = math.hypot(x1 - x0, y1 - y0)
+    ob = rbox(w, L, d, 0, 0, 0, bev=bev)
+    turn(ob, "z", math.degrees(math.atan2(-(x1 - x0), (y1 - y0))))
+    shift(ob, rb((x0 + x1) / 2, (y0 + y1) / 2, z))
+    return P(ob, rgb, mat, pat)
+
+
+def sbar(x0, y0, z0, x1, y1, z1, w, rgb, mat="Metal"):
+    """A square bar (a plain box, 12 triangles) from one Roblox point to another: the light truss members."""
+    from mathutils import Vector as V
+    a, b_ = V(rb(x0, y0, z0)), V(rb(x1, y1, z1))
+    d = b_ - a
+    ob = kit.box("sb", w, w, d.length, at=(0, 0, 0))
+    kit.apply_all(ob)
+    q = V((0, 0, 1)).rotation_difference(d.normalized())
+    mid = (a + b_) / 2
+    for v in ob.data.vertices:
+        v.co = q @ v.co + mid
+    ob.data.update()
+    return P(ob, rgb, mat)
+
+
+def flat_box(sx, sy, sz, x, y, z, rgb, mat="SmoothPlastic", pat=None):
+    return P(B(sx, sy, sz, x, y, z), rgb, mat, pat)
+
+
+def statue():
+    """Halo's statue: a stylised stone hero on the blocky R15 proportions (scale 1.5: legs 3, torso 3, head 1.8),
+    hands on hips, cape behind, on a stepped plinth with a gold star plaque; the head is plain sculpted stone (no
+    face or hair is ever modelled); the gold halo floats over it (the halo glow's disc)."""
+    name = "PkStatue"
+    sx, sy, sz = frame(name)
+    b = look_of(name)["boxes"]
+    fig, plinth, halo = b[0], b[1], b[2]
+    f0 = fig["at"][1] - fig["size"][1] / 2  # the plinth's top: the figure's feet
+    p0 = plinth["at"][1] - plinth["size"][1] / 2
+    parts = []
+    # the plinth: a base step, the block, a moulded cap whose top is the plinth box's top
+    parts.append(box(12.0, 1.0, 12.0, 0, p0 + 0.5, 0, DSTONE, "Concrete", 0.08))
+    parts.append(box(10.4, f0 - p0 - 1.7, 10.4, 0, (p0 + 1.0 + f0 - 0.7) / 2, 0, DSTONE, "Concrete", 0.06))
+    parts.append(box(11.2, 0.7, 11.2, 0, f0 - 0.35, 0, STONE, "Marble", 0.1))
+    parts.append(box(5.0, 1.4, 0.12, 0, (p0 + f0) / 2 + 0.2, -5.24, GOLD, "Foil", 0.04))
+    parts.append(P(star(0.5, 0.22, 0.1, 0, (p0 + f0) / 2 + 0.2, -5.34), WHITE, "SmoothPlastic"))
+    k = 1.5
+    hip = f0 + 2 * k
+    sh = hip + 2 * k
+    # legs in a wide heroic stance and boots
+    for s in (-1, 1):
+        parts.append(limb(s * 0.75 * k, hip - 0.1, s * 1.0 * k, f0 + 0.35, 0, 0.96 * k, 0.96 * k, STONE, "Marble"))
+        parts.append(box(1.05 * k, 0.5, 1.2 * k, s * 1.0 * k, f0 + 0.25, -0.1, STONE, "Marble", 0.12))
+    # the torso (UpperTorso and LowerTorso), a belt, a raised star on the chest
+    parts.append(box(2 * k, 2 * k, 1 * k, 0, hip + k, 0, STONE, "Marble", 0.16))
+    parts.append(box(2 * k + 0.1, 0.36, 1 * k + 0.1, 0, hip + 0.3, 0, DSTONE, "Marble", 0.06))
+    parts.append(P(star(0.62, 0.28, 0.16, 0, hip + 2.1, -0.78), STONE, "Marble"))
+    # arms bent with fists on the hips
+    for s in (-1, 1):
+        ex, ey = s * 3.45, hip + 1.35
+        parts.append(limb(s * 1.5 * k, sh - 0.45, ex, ey, 0, 0.92 * k, 0.92 * k, STONE, "Marble"))
+        parts.append(limb(ex, ey, s * 1.95, hip + 0.45, 0, 0.88 * k, 0.88 * k, STONE, "Marble"))
+        parts.append(box(1.35, 1.35, 1.35, s * 1.85, hip + 0.4, 0, STONE, "Marble", 0.2))
+        parts.append(box(1.08 * k, 0.5, 1.08 * k, s * 1.5 * k, sh - 0.3, 0, STONE, "Marble", 0.2))  # shoulder pads
+    # the head: plain sculpted stone, the blocky head's soft cube on a neck (no face, no hair)
+    parts.append(cyl(0.45 * k, 0.35, 0, sh + 0.15, 0, STONE, "Marble", segs=12))
+    parts.append(box(1.2 * k, 1.2 * k, 1.2 * k, 0, sh + 0.3 + 0.6 * k, 0, STONE, "Marble", 0.32))
+    # the cape from the shoulders down the back, flaring and swept back to the plinth's top
+    top, bot = sh - 0.1, f0 + 0.9
+    rings = []
+    for i in range(7):
+        t = i / 6
+        y = top + (bot - top) * t
+        w = 1.55 * k + 1.3 * t
+        zb = 0.8 + 1.6 * t * t
+        ring = [(-w, y, zb), (w, y, zb), (w, y, zb + 0.32), (-w, y, zb + 0.32)]
+        rings.append(ring)
+    parts.append(P(rings_mesh(rings), STONE, "Marble"))
+    parts.append(box(3.4, 0.4, 0.5, 0, sh - 0.05, 0.62, DSTONE, "Marble", 0.1))  # the collar
+    gold = [TOR(3.08, 0.26, 0, halo["at"][1], 0, segs=28, csegs=5)]
+    body(name, parts, [("Halo", gold, tuple(halo["rgb"]), "Neon", 0.0, False)])
+
+
+def blackboard():
+    name = "PkBlackboard"
+    sx, sy, sz = frame(name)
+    hz = sz / 2
+    parts = [box(sx, sy, 0.5, 0, 0, hz - 0.25, DWOOD, "Wood", 0.1)]
+    parts.append(box(sx - 1.2, sy - 1.2, 0.3, 0, 0.1, -hz + 0.35, BOARD, "Slate", 0.02))
+    for y in (sy / 2 - 0.3, -sy / 2 + 0.3):
+        parts.append(box(sx, 0.6, sz, 0, y, 0, WOOD, "Wood", 0.08))
+    for x in (sx / 2 - 0.3, -sx / 2 + 0.3):
+        parts.append(box(0.6, sy, sz, x, 0, 0, WOOD, "Wood", 0.08))
+    # the chalk tray, two sticks and an eraser
+    ty = -sy / 2 + 0.75
+    parts.append(box(sx - 1.4, 0.18, 0.55, 0, ty, -hz - 0.25, WOOD, "Wood", 0.04))
+    parts.append(bar(-6, ty + 0.14, -hz - 0.25, -5.0, ty + 0.14, -hz - 0.25, 0.06, CHALK, "SmoothPlastic"))
+    parts.append(bar(-4.4, ty + 0.14, -hz - 0.3, -3.8, ty + 0.14, -hz - 0.2, 0.06, YELLOW, "SmoothPlastic"))
+    parts.append(box(1.6, 0.36, 0.5, 5.0, ty + 0.27, -hz - 0.25, NAVY, "Fabric", 0.06))
+    # chalk drawings: a flight arc of dashes, a star, a ring with an arrow through it, tally lines
+    zf = -hz + 0.18
+    for i in range(9):
+        t = i / 8
+        x = -14 + t * 12
+        y = -1.5 + math.sin(t * math.pi) * 5.0
+        parts.append(flat_box(0.8, 0.14, 0.04, x, y, zf, CHALK))
+    parts.append(P(star(1.0, 0.45, 0.04, -1.2, 3.2, zf), CHALK))
+    parts.append(P(TOR(1.6, 0.08, 6.0, 1.6, zf, axis="z", segs=20, csegs=3), CHALK))
+    parts.append(flat_box(5.6, 0.14, 0.04, 6.0, 1.6, zf, CHALK))
+    parts.append(P(turn(B(1.0, 0.14, 0.04, 8.5, 1.95, zf), "z", -35, (8.5, 1.95, zf)), CHALK))
+    parts.append(P(turn(B(1.0, 0.14, 0.04, 8.5, 1.25, zf), "z", 35, (8.5, 1.25, zf)), CHALK))
+    for i in range(5):
+        parts.append(flat_box(0.12, 1.2, 0.04, 11.0 + i * 0.5, -2.2, zf, CHALK))
+    parts.append(P(turn(B(2.8, 0.12, 0.04, 12.0, -2.2, zf), "z", 25, (12.0, -2.2, zf)), CHALK))
+    for i, w in enumerate((7.0, 5.0, 6.0)):
+        parts.append(flat_box(w, 0.12, 0.04, -9.0 + w / 2 - 3.0, -2.8 - i * 0.7, zf, CHALK))
+    body(name, parts)
+
+
+def hoop():
+    name = "PkHoop"
+    sx, sy, sz = frame(name)
+    b = look_of(name)["boxes"]
+    pz = b[0]["at"][2]
+    bot = -sy / 2
+    ry_ = b[1]["at"][1]
+    parts = [box(2.8, 0.5, 2.8, 0, bot + 0.25, pz, DSTEEL, "Metal", 0.1)]
+    parts.append(cyl(0.9, 0.4, 0, bot + 0.7, pz, IRON, "Metal", segs=12))
+    top = ry_ - 0.5
+    parts.append(cyl(0.38, top - bot - 0.9, 0, bot + 0.9 + (top - bot - 0.9) / 2, pz, STEEL, "Metal", segs=10))
+    for k in range(4):
+        y = bot + 3.0 + k * 3.6
+        parts.append(cyl(0.41, 1.2, 0, y, pz, YELLOW if k % 2 == 0 else BLUE, "SmoothPlastic", segs=10))
+    parts.append(bar(0, top, pz, 0, ry_, -2.75, 0.16, DSTEEL))
+    parts.append(box(1.4, 0.3, 0.8, 0, ry_ - 0.1, -2.75, DSTEEL, "Metal", 0.06))
+    ring = [TOR(2.72, 0.2, 0, ry_, 0, segs=28, csegs=5)]
+    body(name, parts, [("Ring", ring, tuple(b[1]["rgb"]), "Neon", 0.0, False)])
+
+
+def bookcase():
+    name = "PkBookcase"
+    sx, sy, sz = frame(name)
+    hx, hy, hz = sx / 2, sy / 2, sz / 2
+    parts = []
+    wood = bright(rgb_of(name), 0.95)
+    for s in (-1, 1):
+        parts.append(box(0.6, sy, sz, s * (hx - 0.3), 0, 0, wood, "Wood", 0.06))
+    parts.append(box(sx, 0.7, sz, 0, hy - 0.35, 0, DWOOD, "Wood", 0.1))
+    parts.append(box(sx - 1.2, 0.8, sz - 0.2, 0, -hy + 0.4, 0.1, DWOOD, "Wood", 0.06))
+    parts.append(box(sx - 1.2, sy - 1.5, 0.3, 0, 0.05, hz - 0.15, bright(DWOOD, 0.8), "Wood", 0.02))
+    rows = 5
+    y0, y1 = -hy + 0.8, hy - 0.7
+    step = (y1 - y0) / rows
+    rnd = random.Random(11)
+    cols = [RED, BLUE, (60, 150, 90), YELLOW, NAVY, (150, 70, 150), CREAM, (200, 110, 50)]
+    for r in range(rows):
+        sy0 = y0 + r * step
+        if r > 0:
+            parts.append(box(sx - 1.2, 0.3, sz - 0.4, 0, sy0, 0.0, wood, "Wood", 0.04))
+        x = -hx + 0.75
+        while x < hx - 1.4:
+            w = rnd.uniform(0.35, 0.7)
+            h = rnd.uniform(step * 0.6, step * 0.85)
+            if rnd.random() < 0.12 and x < hx - 3:  # a lying stack
+                for k in range(3):
+                    parts.append(flat_box(1.8, 0.3, sz - 1.0, x + 0.9, sy0 + 0.3 + k * 0.32, -0.2, rnd.choice(cols)))
+                x += 2.0
+                continue
+            c = rnd.choice(cols)
+            parts.append(flat_box(w, h, sz - 0.9 - rnd.uniform(0, 0.3), x + w / 2, sy0 + 0.15 + h / 2, -0.2, c))
+            parts.append(flat_box(w + 0.02, 0.1, 0.05, x + w / 2, sy0 + 0.15 + h * 0.75, -hz + 0.42, GOLD))
+            x += w + 0.04
+    body(name, parts)
+
+
+def conveyor():
+    name = "PkConveyor"
+    sx, sy, sz = frame(name)
+    hx, hy, hz = sx / 2, sy / 2, sz / 2
+    parts = [box(sx - 3.0, 0.3, sz - 2.4, 0, hy - 0.15, 0, RUBBER, "Rubber", 0.04)]
+    for s in (-1, 1):
+        parts.append(box(sx, 0.8, 0.8, 0, hy - 0.3, s * (hz - 0.6), YELLOW, "Metal", 0.08))
+        parts.append(box(sx - 1.0, 1.7, 0.3, 0, hy - 1.4, s * (hz - 0.85), DSTEEL, "Metal", 0.04, pat="plates"))
+        parts.append(cyl(0.95, sz - 1.8, s * (hx - 1.5), hy - 1.0, 0, STEEL, "Metal", segs=14, axis="z"))
+        parts.append(box(1.8, 2.4, sz - 0.2, s * (hx - 0.9), -0.3, 0, DSTEEL, "Metal", 0.1))
+        parts.append(box(0.2, 1.2, sz - 0.6, s * (hx - 0.05), -0.2, 0, YELLOW, "SmoothPlastic", 0.04, pat="hazard"))
+    n = int(sx // 20)
+    for i in range(n + 1):
+        x = -hx + 6 + i * (sx - 12) / n
+        for s in (-1, 1):
+            parts.append(box(0.8, sy - 1.6, 0.8, x, -hy + (sy - 1.6) / 2, s * (hz - 1.2), IRON, "Metal", 0))
+        parts.append(box(0.6, 0.4, sz - 2.4, x, -hy + 0.6, 0, IRON, "Metal", 0))
+    body(name, parts)
+
+
+def halfbot():
+    """A half-built copy robot on the line: its carrier plate and stand, no legs yet, the chest open on its wires, one
+    arm on and the other socket empty, the head's visor glowing (the eye glow box)."""
+    name = "PkHalfBot"
+    sx, sy, sz = frame(name)
+    b = look_of(name)["boxes"]
+    metal = bright(rgb_of(name), 1.05)
+    dark = tuple(int(c * 0.55) for c in metal)
+    eye = b[1]
+    ez, ey = eye["at"][2], eye["at"][1]
+    belt = -sy / 2 + 0.5
+    parts = [box(3.6, 0.5, 3.0, 0, belt + 0.25, 0.15, DSTEEL, "Metal", 0.08, pat="plates")]
+    parts.append(cyl(0.35, 1.8, 0, belt + 1.4, 0.15, STEEL, "Metal", segs=10))
+    pel = belt + 2.4
+    parts.append(box(2.4, 0.9, 1.8, 0, pel, 0.15, dark, "Metal", 0.14))
+    for s in (-1, 1):  # empty hip sockets with dangling cables
+        parts.append(cyl(0.35, 0.3, s * 0.75, pel - 0.55, 0.15, INK, "Metal", segs=8))
+        parts.append(bar(s * 0.75, pel - 0.6, 0.15, s * 0.9, pel - 1.6, -0.2, 0.06, RED if s < 0 else BLUE, "Rubber"))
+    t0, t1 = pel + 0.45, ey - 0.95
+    parts.append(box(3.2, t1 - t0, 2.2, 0, (t0 + t1) / 2, 0.25, metal, "Metal", 0.2))
+    zf = 0.25 - 1.1
+    parts.append(box(1.9, 1.5, 0.1, 0, (t0 + t1) / 2 + 0.1, zf - 0.02, INK, "SmoothPlastic", 0.02))
+    for i, c in enumerate((RED, YELLOW, BLUE, (90, 220, 120))):
+        parts.append(bar(-0.7 + i * 0.45, (t0 + t1) / 2 + 0.7, zf - 0.08, -0.5 + i * 0.35, (t0 + t1) / 2 - 0.6, zf - 0.08, 0.06, c, "Rubber"))
+    door = box(1.0, 1.6, 0.12, 1.55, (t0 + t1) / 2 + 0.1, zf - 0.35, metal, "Metal", 0.04)
+    parts.append(door)
+    parts.append(box(0.15, 0.4, 0.2, 1.05, (t0 + t1) / 2 + 0.1, zf - 0.14, DSTEEL, "Metal", 0.02))
+    # one arm on (left), the right shoulder an empty socket with wires
+    parts.append(box(1.0, 0.8, 1.2, -1.75, t1 - 0.4, 0.25, dark, "Metal", 0.14))
+    parts.append(box(0.8, t1 - t0 - 0.4, 0.9, -1.75, (t0 + t1) / 2 - 0.4, 0.25, metal, "Metal", 0.14))
+    parts.append(cyl(0.42, 0.3, 1.6, t1 - 0.45, 0.25, INK, "Metal", segs=8, axis="x"))
+    parts.append(bar(1.65, t1 - 0.45, 0.25, 1.85, t1 - 1.6, 0.0, 0.06, YELLOW, "Rubber"))
+    # the head, the visor's slot round the glowing eye
+    parts.append(box(0.9, 0.4, 0.9, 0, t1 + 0.15, 0.25, dark, "Metal", 0.06))
+    h0 = t1 + 0.3
+    h1 = sy / 2
+    parts.append(box(2.3, h1 - h0, 2.0, 0, (h0 + h1) / 2, 0.25, metal, "Metal", 0.22))
+    parts.append(box(2.3, 0.8, 0.2, 0, ey, ez + 0.32, INK, "SmoothPlastic", 0.06))
+    visor = [rbox(eye["size"][0], eye["size"][1] - 0.1, 0.16, 0, ey, ez + 0.1, bev=0.05)]
+    body(name, parts, [("Eye", visor, tuple(eye["rgb"]), "Neon", 0.0, False)])
+
+
+def trophy_shelf():
+    name = "PkTrophyShelf"
+    sx, sy, sz = frame(name)
+    b = look_of(name)["boxes"]
+    hx, hy, hz = sx / 2, sy / 2, sz / 2
+    shelves = [r for r in b if r["kind"] == "prop" and r["size"][0] > 50]
+    cups = [r for r in b if r["color"] == "bank"]
+    parts = [box(sx, sy, 0.25, 0, 0, hz - 0.125, bright(DWOOD, 0.8), "Wood", 0.02)]
+    parts.append(box(sx, 0.5, 0.6, 0, hy - 0.25, hz - 0.5, DWOOD, "Wood", 0.06))
+    shelf_ys = sorted(r["at"][1] for r in shelves)
+    for y in shelf_ys:
+        parts.append(box(sx, 0.6, 3.0, 0, y, 0.25, WOOD, "Wood", 0.08))
+        parts.append(box(sx, 0.25, 0.12, 0, y - 0.12, -1.27, GOLD, "Foil", 0.02))
+        for i in range(5):
+            x = -hx + 4 + i * (sx - 8) / 4
+            parts.append(P(prism([(1.75, y - 0.3), (1.75, y - 0.85), (0.6, y - 0.3)], x - 0.2, x + 0.2), DSTEEL, "Metal"))
+    metals = {0: GOLD, 1: SILVER, 2: BRONZE}
+    tops = [y + 0.3 for y in shelf_ys]
+    for c in cups:
+        x, y, z = c["at"]
+        bottom = y - c["size"][1] / 2
+        idx = max(i for i, t in enumerate(tops) if t <= bottom + 0.2)
+        shelf_top = tops[idx]
+        m = metals[len(tops) - 1 - idx]
+        h = c["size"][1] + 0.1
+        kind = int(round(x / 10.0)) % 3
+        parts.append(box(1.5, 0.45, 1.5, x, shelf_top + 0.225, z, IRON, "Wood", 0))
+        parts.append(box(1.0, 0.08, 0.05, x, shelf_top + 0.225, z - 0.77, GOLD, "Foil", 0.0))
+        if kind == 0:  # a two-handled cup
+            parts.append(cyl(0.18, 0.6, x, shelf_top + 0.75, z, m, "Foil", segs=8))
+            parts.append(cyl(0.38, h - 1.15, x, shelf_top + 1.05 + (h - 1.15) / 2, z, m, "Foil", segs=8, r2=0.95))
+            for s in (-1, 1):
+                parts.append(P(TOR(0.3, 0.07, x + s * 0.85, shelf_top + h - 0.55, z, axis="z", segs=8, csegs=3), m, "Foil"))
+        elif kind == 1:  # a star on a column
+            parts.append(cyl(0.3, h - 1.6, x, shelf_top + 0.45 + (h - 1.6) / 2, z, m, "Foil", segs=8))
+            parts.append(P(star(0.62, 0.27, 0.3, x, shelf_top + h - 0.65, z), m, "Foil"))
+        else:  # a fist trophy: a blocky fist raised on a column
+            parts.append(cyl(0.28, h - 1.7, x, shelf_top + 0.45 + (h - 1.7) / 2, z, m, "Foil", segs=8))
+            parts.append(box(0.9, 0.9, 0.8, x, shelf_top + h - 0.75, z, m, "Foil", 0))
+    body(name, parts)
+
+
+def bench():
+    name = "PkBench"
+    sx, sy, sz = frame(name)
+    hx, hy, hz = sx / 2, sy / 2, sz / 2
+    parts = []
+    for k in (-1, 0, 1):
+        parts.append(box(sx, 0.32, 1.22, 0, hy - 0.16, k * 1.3, bright(WOOD, 1.08), "Wood", 0.06))
+    n = 6
+    for i in range(n):
+        x = -hx + 2 + i * (sx - 4) / (n - 1)
+        for s in (-1, 1):
+            parts.append(box(0.4, sy - 0.32, 0.4, x, -hy + (sy - 0.32) / 2, s * (hz - 0.45), DSTEEL, "Metal", 0.05))
+        parts.append(box(0.4, 0.3, sz - 0.4, x, hy - 0.47, 0, DSTEEL, "Metal", 0.04))
+        parts.append(box(0.3, 0.25, sz - 0.6, x, -hy + 0.4, 0, DSTEEL, "Metal", 0.04))
+    parts.append(box(sx - 4, 0.25, 0.25, 0, -hy + 0.4, 0, DSTEEL, "Metal", 0.04))
+    # a folded towel, a water bottle and a gym bag's strap on top
+    parts.append(box(2.4, 0.3, 1.8, -18, hy + 0.15, 0.3, (240, 240, 236), "Fabric", 0.1))
+    parts.append(box(2.4, 0.06, 0.4, -18, hy + 0.31, 0.3, RED, "Fabric", 0.02))
+    parts.append(cyl(0.22, 0.5, 9.0, hy + 0.25, -0.8, BLUE, "SmoothPlastic", segs=10))
+    parts.append(box(3.0, 0.5, 1.6, 21.0, hy + 0.25, 0.4, RED, "Fabric", 0.18))
+    body(name, parts)
+
+
+def wood_dummy():
+    name = "PkWoodDummy"
+    sx, sy, sz = frame(name)
+    hx, hy, hz = sx / 2, sy / 2, sz / 2
+    arm = look_of(name)["boxes"][1]
+    ay = arm["at"][1]
+    wood = bright(rgb_of(name), 1.05)
+    parts = [box(3.4, 0.3, 1.9, 0, -hy + 0.15, 0, DWOOD, "Wood", 0.06)]
+    parts.append(box(0.5, 0.3, 1.9, -1.4, -hy + 0.45, 0, DWOOD, "Wood", 0.04))
+    parts.append(box(0.5, 0.3, 1.9, 1.4, -hy + 0.45, 0, DWOOD, "Wood", 0.04))
+    parts.append(cyl(0.72, sy - 0.4, 0, 0.2, 0, wood, "Wood", segs=12))
+    parts.append(cyl(0.76, 0.2, 0, hy - 0.1, 0, DWOOD, "Wood", segs=12))
+    for y in (ay - 1.3, ay + 0.9):
+        parts.append(cyl(0.75, 0.16, 0, y, 0, IRON, "Metal", segs=12))
+    for s in (-1, 1):  # the two upper arms, out and up a little, and the middle arm's stub below
+        parts.append(bar(s * 0.5, ay, 0, s * 2.4, ay + 0.35, -0.3, 0.2, wood, "Wood", segs=8))
+    parts.append(bar(0.3, ay - 0.9, -0.3, 1.9, ay - 1.0, -0.6, 0.2, wood, "Wood", segs=8))
+    parts.append(bar(-0.4, -0.9, -0.3, -1.6, -1.6, -0.55, 0.22, wood, "Wood", segs=8))
+    parts.append(bar(-1.6, -1.6, -0.55, -1.7, -2.4, -0.55, 0.2, wood, "Wood", segs=8))
+    body(name, parts)
+
+
+def slab_door(name, iron):
+    """The sealed door (Ashgrove: hazard-striped steel, a locking wheel) or Iron Hall's iron door (studded plates, two
+    ring pulls), each slid aside on its top track."""
+    sx, sy, sz = frame(name)
+    hx, hy, hz = sx / 2, sy / 2, sz / 2
+    parts = []
+    zf = -hz
+    if iron:
+        parts.append(box(sx - 0.2, sy - 0.8, sz - 0.6, 0, -0.4, 0.1, IRON, "Metal", 0.14, pat="plates"))
+        for y in (-hy + 2.2, 0.0, hy - 3.0):
+            parts.append(box(sx, 1.1, sz - 0.2, 0, y, 0.0, DSTEEL, "Metal", 0.1))
+            for i in range(7):
+                parts.append(P(S(0.22, -hx + 1.2 + i * (sx - 2.4) / 6, y, zf + 0.05, segs=8, rings=5), GOLD, "Metal"))
+        for s in (-1, 1):
+            parts.append(P(TOR(0.75, 0.16, s * 2.0, -1.0, zf - 0.1, axis="z", segs=14, csegs=4), GOLD, "Metal"))
+            parts.append(cyl(0.4, 0.3, s * 2.0, -0.3, zf + 0.05, DSTEEL, "Metal", segs=10, axis="z"))
+    else:
+        parts.append(box(sx - 0.2, sy - 0.8, sz - 0.6, 0, -0.4, 0.1, bright(STEEL, 1.05), "Metal", 0.14))
+        parts.append(box(sx - 2.2, sy - 3.0, 0.3, 0, -0.6, zf + 0.2, STEEL, "Metal", 0.06, pat="plates"))
+        for y in (-hy + 0.9, hy - 1.7):
+            parts.append(box(sx - 0.2, 0.9, 0.14, 0, y, zf + 0.26, YELLOW, "SmoothPlastic", 0.04, pat="hazard"))
+        parts.append(P(TOR(1.8, 0.2, 0, -0.4, zf - 0.15, axis="z", segs=20, csegs=4), RED, "Metal"))
+        for a in range(4):
+            r = math.radians(45 + a * 90)
+            parts.append(bar(0, -0.4, zf - 0.15, math.cos(r) * 1.8, -0.4 + math.sin(r) * 1.8, zf - 0.15, 0.12, RED))
+        parts.append(cyl(0.45, 0.4, 0, -0.4, zf - 0.1, DSTEEL, "Metal", segs=12, axis="z"))
+        for s in (-1, 1):
+            for y in (-3.5, 2.5):
+                parts.append(box(1.4, 0.6, 0.6, s * (hx - 1.0), y, zf + 0.05, DSTEEL, "Metal", 0.08))
+        parts.append(box(3.0, 1.0, 0.08, 0, hy - 3.1, zf + 0.22, WHITE, "SmoothPlastic", 0.03))
+        parts.append(box(0.9, 0.7, 0.06, 0, hy - 3.1, zf + 0.16, RED, "SmoothPlastic", 0.02))
+    # the track it slid along, its rollers
+    parts.append(box(sx, 0.6, 0.8, 0, hy - 0.3, 0.0, DSTEEL, "Metal", 0.06))
+    for s in (-1, 1):
+        parts.append(cyl(0.38, 0.5, s * (hx - 2.0), hy - 0.75, 0.0, INK, "Metal", segs=10, axis="z"))
+    body(name, parts)
+
+
+def hoshi_cage():
+    """Master Hoshi's cage: red-lacquered corner posts with gold caps, iron bars on every side, a door with a padlock
+    on the front, a grated lid with a gold edge and a ring on each post where its chain is fixed."""
+    name = "PkHoshiCage"
+    sx, sy, sz = frame(name)
+    hx, hy, hz = sx / 2, sy / 2, sz / 2
+    b = look_of(name)["boxes"]
+    lid = b[0]
+    ly = lid["at"][1]
+    bot = -hy
+    parts = []
+    for cx in (-1, 1):
+        for cz in (-1, 1):
+            parts.append(box(1.0, ly - 0.5 - bot, 1.0, cx * 12, bot + (ly - 0.5 - bot) / 2, cz * 12, LACQUER, "SmoothPlastic", 0.08))
+            parts.append(box(1.3, 0.6, 1.3, cx * 12, bot + 0.3, cz * 12, GOLD, "Metal", 0.08))
+            parts.append(P(TOR(0.42, 0.12, cx * 12.45, -2.5, cz * 12.45, axis="up", segs=10, csegs=4), DSTEEL, "Metal"))
+    for s in (-1, 1):
+        for y in (bot + 0.4, ly - 0.9):
+            parts.append(box(23.0, 0.45, 0.45, 0, y, s * 12, IRON, "Metal", 0))
+            parts.append(box(0.45, 0.45, 23.0, s * 12, y, 0, IRON, "Metal", 0))
+    n = 13
+    for i in range(1, n):
+        t = -11.5 + 23.0 * i / n
+        for s in (-1, 1):
+            parts.append(bar(s * 12, bot + 0.6, t, s * 12, ly - 1.1, t, 0.13, IRON, "Metal", 4))
+            parts.append(bar(t, bot + 0.6, 12, t, ly - 1.1, 12, 0.13, IRON, "Metal", 4))
+            if abs(t) > 3.0:
+                parts.append(bar(t, bot + 0.6, -12, t, ly - 1.1, -12, 0.13, IRON, "Metal", 4))
+    # the door (front, -z): a frame of flat bars, its bars, hinges and a fat padlock
+    for x in (-3.0, 3.0):
+        parts.append(box(0.4, ly - 1.5 - bot, 0.4, x, (bot + ly - 1.5) / 2 + 0.3, -12.25, DSTEEL, "Metal", 0))
+    for y in (bot + 1.2, 0.0, ly - 1.6):
+        parts.append(box(6.4, 0.35, 0.35, 0, y, -12.3, DSTEEL, "Metal", 0))
+    for x in (-1.5, 0.0, 1.5):
+        parts.append(bar(x, bot + 1.2, -12.3, x, ly - 1.6, -12.3, 0.13, IRON, "Metal", 4))
+    parts.append(box(1.1, 1.1, 0.5, 2.6, -1.2, -12.7, GOLD, "Metal", 0.12))
+    parts.append(P(TOR(0.34, 0.09, 2.6, -0.45, -12.7, axis="z", segs=10, csegs=4), DSTEEL, "Metal"))
+    # the lid: a gold-edged grate, the finials
+    parts.append(box(24.4, 0.6, 24.4, 0, ly + 0.2, 0, IRON, "Metal", 0.05, pat="grate"))
+    for s in (-1, 1):
+        parts.append(box(24.8, 0.4, 0.5, 0, ly - 0.25, s * 12.2, GOLD, "Metal", 0))
+        parts.append(box(0.5, 0.4, 24.8, s * 12.2, ly - 0.25, 0, GOLD, "Metal", 0))
+    for cx in (-1, 1):
+        for cz in (-1, 1):
+            parts.append(P(S(0.4, cx * 12, ly + 0.55, cz * 12, segs=8, rings=5), GOLD, "Metal"))
+    parts.append(box(6.0, 0.08, 6.0, -4.0, bot + 0.04, 3.0, (196, 170, 110), "Fabric", 0.02))  # a straw mat inside
+    body(name, parts)
+
+
+def chain():
+    name = "PkChain"
+    sx, sy, sz = frame(name)
+    hz = sz / 2
+    parts = []
+    n = int(sz / 0.52)
+    for i in range(n + 1):
+        z = -hz + 0.3 + i * (sz - 0.6) / n
+        t = z / hz
+        y = -0.45 * (1 - t * t)
+        parts.append(TOR(0.3, 0.09, 0, y, z, axis="x" if i % 2 == 0 else "up", segs=8, csegs=4))
+    link = [P(p, DSTEEL, "Metal") for p in parts]
+    body(name, link)
+
+
+def roll_door():
+    """The dock's roll door: guide rails, the roller drum's housing, the ribbed curtain part raised, a bottom bar with
+    hazard stripes and its handle, and the daylight under it (the glowing window box's light)."""
+    name = "PkRollDoor"
+    sx, sy, sz = frame(name)
+    hx, hy, hz = sx / 2, sy / 2, sz / 2
+    b = look_of(name)["boxes"]
+    win = b[0]
+    parts = []
+    for s in (-1, 1):
+        parts.append(box(1.2, sy, sz, s * (hx - 0.6), 0, 0, DSTEEL, "Metal", 0.06))
+    parts.append(box(sx, 1.8, sz, 0, hy - 0.9, 0, STEEL, "Metal", 0.14, pat="plates"))
+    gap = -hy + 6.5
+    top = hy - 1.8
+    n = int((top - gap) / 0.5)
+    for i in range(n):
+        y = gap + 0.6 + i * (top - gap - 0.6) / n + 0.25
+        parts.append(box(sx - 2.4, 0.44, 0.3, 0, y, -0.1 if i % 2 == 0 else 0.0, bright(STEEL, 1.08 if i % 2 == 0 else 0.92), "Metal", 0.06))
+    parts.append(box(sx - 2.4, 0.6, 0.6, 0, gap + 0.3, -0.1, YELLOW, "SmoothPlastic", 0.06, pat="hazard"))
+    parts.append(bar(-1.2, gap + 0.1, -0.55, 1.2, gap + 0.1, -0.55, 0.1, INK))
+    for x in (-1.2, 1.2):
+        parts.append(bar(x, gap + 0.1, -0.55, x, gap + 0.1, -0.35, 0.1, INK))
+    parts.append(box(sx - 2.4, 0.3, sz, 0, -hy + 0.15, 0, IRON, "Metal", 0.04))
+    light = [rbox(sx - 2.4, gap - (-hy + 0.3), 0.2, 0, (gap - hy + 0.3) / 2, win["at"][2] + 0.25, bev=0.02)]
+    body(name, parts, [("Light", light, tuple(win["rgb"]), "Neon", 0.0, False)])
+
+
+def scan_arch():
+    name = "PkScanArch"
+    sx, sy, sz = frame(name)
+    hx, hy, hz = sx / 2, sy / 2, sz / 2
+    b = look_of(name)["boxes"]
+    glow = b[2]
+    gy = glow["at"][1]
+    parts = []
+    for s in (-1, 1):
+        x = s * 6
+        parts.append(box(1.5, gy - 0.5 + hy, 1.5, x, (-hy + gy - 0.5) / 2, 0, WHITE, "SmoothPlastic", 0.18))
+        parts.append(box(2.2, 0.5, 2.6, x, -hy + 0.25, 0, DSTEEL, "Metal", 0.08))
+        parts.append(box(0.3, gy - 2.5 + hy, 1.0, x - s * 0.72, (-hy + 1.0 + gy - 1.5) / 2, 0, NAVY, "Metal", 0.04))
+        for y in range(4):
+            parts.append(box(0.1, 0.3, 0.7, x - s * 0.88, -hy + 2.5 + y * 2.6, 0, YELLOW, "SmoothPlastic", 0.02))
+    parts.append(box(1.0, 1.4, 0.24, -6, -hy + 6.0, -0.84, INK, "SmoothPlastic", 0.06))
+    parts.append(box(0.7, 0.5, 0.06, -6, -hy + 6.3, -0.97, (110, 230, 140), "SmoothPlastic", 0.02))
+    parts.append(box(sx, 0.4, sz, 0, gy + 0.5 - 0.2, 0, DSTEEL, "Metal", 0.06))
+    parts.append(box(sx, 0.3, sz, 0, gy - 0.5 + 0.15, 0, DSTEEL, "Metal", 0.06))
+    band = [rbox(sx - 1.6, 0.4, sz + 0.1, 0, gy, 0, bev=0.04)]
+    body(name, parts, [("Glow", band, tuple(glow["rgb"]), "Neon", 0.0, False)])
+
+
+def dock_crate():
+    name = "PkDockCrate"
+    sx, sy, sz = frame(name)
+    hx, hy, hz = sx / 2, sy / 2, sz / 2
+    paint = bright(rgb_of(name), 1.05)
+    parts = []
+    for k in (-1, 0, 1):
+        parts.append(box(sx, 0.3, 1.6, 0, -hy + 0.45, k * (hz - 0.8), DWOOD, "Wood", 0.04))
+        parts.append(box(1.4, 0.3, sz, k * (hx - 0.7), -hy + 0.15, 0, DWOOD, "Wood", 0.04))
+    c0, c1 = -hy + 0.6, -hy + 4.0
+    parts.append(box(sx - 0.2, c1 - c0, sz - 0.2, 0, (c0 + c1) / 2, 0, bright(WOOD, 1.02), "Wood", 0.06))
+    parts.append(box(sx, 0.9, sz, 0, (c0 + c1) / 2, 0, paint, "Metal", 0.04))
+    for cx in (-1, 1):
+        for cz in (-1, 1):
+            parts.append(box(0.6, c1 - c0, 0.6, cx * (hx - 0.3), (c0 + c1) / 2, cz * (hz - 0.3), DWOOD, "Wood", 0.04))
+    for s in (-1, 1):
+        parts.append(P(turn(B(0.4, c1 - c0 - 0.2, 0.15, 0, (c0 + c1) / 2, s * (hz - 0.02)), "z", 50, (0, (c0 + c1) / 2, s * (hz - 0.02))), DWOOD, "Wood"))
+    top = box(6.0, hy - c1, 6.0, 0, (c1 + hy) / 2, 0, bright(WOOD, 0.95), "Wood", 0.06)
+    stripe = box(6.1, 0.5, 6.1, 0, (c1 + hy) / 2, 0, YELLOW, "Metal", 0.03)
+    for o in (top, stripe):
+        turn(o, "up", 18)
+        shift(o, rb(-0.8, 0, 0.6))
+        parts.append(o)
+    body(name, parts)
+
+
+def station():
+    name = "PkStation"
+    sx, sy, sz = frame(name)
+    hx, hy, hz = sx / 2, sy / 2, sz / 2
+    b = look_of(name)["boxes"]
+    core, scr = b[0], b[1]
+    cz0 = core["at"][2]
+    parts = [box(8.0, 7.2, 4.0, 0, -hy + 0.4 + 3.6, cz0, bright(STEEL, 0.98), "Metal", 0.16, pat="plates")]
+    parts.append(box(8.0, 0.8, 4.0, 0, -hy + 0.4, cz0, YELLOW, "SmoothPlastic", 0.06, pat="hazard"))
+    for s in (-1, 1):
+        parts.append(box(0.12, 4.0, 2.6, s * 4.0, 0.6, cz0, DSTEEL, "Metal", 0.03, pat="grate"))
+    parts.append(box(7.0, 0.4, 3.4, 0, hy - 0.2, cz0, DSTEEL, "Metal", 0.06))
+    for i in range(5):
+        parts.append(cyl(0.22, 0.55, -2.4 + i * 1.2, hy + 0.25, cz0 + 0.3, STEEL, "Metal", segs=8))
+    sx_, sy_, _ = scr["size"]
+    _, gy, gz = scr["at"]
+    parts.append(box(sx_ + 0.6, sy_ + 0.6, 0.3, 0, gy, gz + 0.25, INK, "SmoothPlastic", 0.08))
+    parts.append(box(1.0, 1.8, 0.4, 3.3, -1.8, gz + 0.2, RED, "SmoothPlastic", 0.12))
+    parts.append(bar(3.3, -1.8, gz + 0.1, 3.3, -0.6, gz - 0.1, 0.12, INK))
+    parts.append(P(S(0.28, 3.3, -0.55, gz - 0.12, segs=8, rings=5), RED, "SmoothPlastic"))
+    for i, c in enumerate(((90, 220, 120), YELLOW, RED)):
+        parts.append(cyl(0.2, 0.12, -2.4 + i * 0.7, -1.9, gz + 0.06, c, "SmoothPlastic", segs=8, axis="z"))
+    screen = [rbox(sx_, sy_, 0.12, 0, gy, gz + 0.12, bev=0.03)]
+    body(name, parts, [("Screen", screen, tuple(scr["rgb"]), "Neon", 0.0, False)])
+
+
+def mast():
+    """Crane Tower's broadcast mast: a red and white lattice of four legs and cross braces on a foot plate, a deck and
+    railing near the top, two dishes, and the beacon lamp (the glow box) in a cage."""
+    name = "PkMast"
+    sx, sy, sz = frame(name)
+    hy = sy / 2
+    b = look_of(name)["boxes"]
+    pole, lamp = b[0], b[1]
+    bot = -hy
+    top = pole["at"][1] + pole["size"][1] / 2
+    ly = lamp["at"][1]
+    parts = [box(3.8, 0.4, 3.8, 0, bot + 0.2, 0, DSTEEL, "Metal", 0.06)]
+    def w(y):
+        t = (y - bot) / (top - bot)
+        return 1.35 - 0.55 * t
+    legs = []
+    n = 10
+    ys = [bot + 0.4 + (top - 1.0 - bot - 0.4) * i / n for i in range(n + 1)]
+    for i in range(n):
+        y0, y1 = ys[i], ys[i + 1]
+        c = RED if i % 2 == 0 else WHITE
+        a0, a1 = w(y0), w(y1)
+        for cx, cz in ((-1, -1), (1, -1), (1, 1), (-1, 1)):
+            legs.append(bar(cx * a0, y0, cz * a0, cx * a1, y1, cz * a1, 0.14, c, "Metal", 6))
+        for (p0, p1) in (((-1, -1), (1, -1)), ((1, -1), (1, 1)), ((1, 1), (-1, 1)), ((-1, 1), (-1, -1))):
+            legs.append(bar(p0[0] * a0, y0, p0[1] * a0, p1[0] * a1, y1, p1[1] * a1, 0.07, c, "Metal", 4))
+            legs.append(bar(p0[0] * a1, y1, p0[1] * a1, p1[0] * a1, y1, p1[1] * a1, 0.07, c, "Metal", 4))
+    parts += legs
+    dy = top - 0.6
+    parts.append(box(2.8, 0.25, 2.8, 0, dy, 0, DSTEEL, "Metal", 0.04, pat="grate"))
+    for s in (-1, 1):
+        parts.append(bar(s * 1.35, dy + 0.9, -1.35, s * 1.35, dy + 0.9, 1.35, 0.06, YELLOW, "Metal", 4))
+        parts.append(bar(-1.35, dy + 0.9, s * 1.35, 1.35, dy + 0.9, s * 1.35, 0.06, YELLOW, "Metal", 4))
+    for cx, cz in ((-1, -1), (1, -1), (1, 1), (-1, 1)):
+        parts.append(bar(cx * 1.35, dy, cz * 1.35, cx * 1.35, dy + 0.9, cz * 1.35, 0.06, YELLOW, "Metal", 4))
+    for (y, s) in ((bot + 20.0, -1), (bot + 24.0, 1)):
+        d = P(C(1.1, 0.4, s * 1.6, y, 0, segs=14, r2=0.35, axis="x"), WHITE, "SmoothPlastic")
+        parts.append(d)
+        parts.append(bar(s * 0.9, y, 0, s * 1.4, y, 0, 0.1, DSTEEL))
+    parts.append(cyl(1.2, 0.5, 0, top + 0.25, 0, DSTEEL, "Metal", segs=12))
+    for i in range(6):
+        a = math.radians(i * 60)
+        parts.append(bar(math.cos(a) * 1.75, top + 0.5, math.sin(a) * 1.75, math.cos(a) * 1.75, ly + 1.4, math.sin(a) * 1.75, 0.08, INK, "Metal", 4))
+    parts.append(cyl(1.9, 0.3, 0, ly + 1.55, 0, DSTEEL, "Metal", segs=12, r2=1.2))
+    beacon = [S(1.5, 0, ly, 0, segs=14, rings=8)]
+    body(name, parts, [("Beacon", beacon, tuple(lamp["rgb"]), "Neon", 0.0, False)])
+
+
+def stage():
+    """Live's stage: the deck in black boards with a star-skirted front, footlights along its edge; a truss round the
+    giant screen (kept: never covered past its edge) on two towers, with par cans along the top."""
+    name = "PkStage"
+    sx, sy, sz = frame(name)
+    hx, hy, hz = sx / 2, sy / 2, sz / 2
+    b = look_of(name)["boxes"]
+    deck, scr = b[0], b[1]
+    dx_, dy_, dz_ = deck["size"]
+    _, dcy, dcz = deck["at"]
+    dtop = dcy + dy_ / 2
+    dbot = dcy - dy_ / 2
+    zf = dcz + dz_ / 2  # the audience's side (+z)
+    zb = dcz - dz_ / 2
+    parts = [box(dx_, 0.4, dz_, 0, dtop - 0.2, dcz, (46, 44, 52), "Wood", 0.06)]
+    parts.append(box(dx_ - 0.4, dy_ - 0.4, dz_ - 0.4, 0, dcy - 0.2, dcz, (30, 30, 36), "Fabric", 0.02))
+    parts.append(box(dx_, 0.5, 0.5, 0, dtop - 0.25, zf - 0.25, GOLD, "Metal", 0.08))
+    parts.append(box(dx_, 0.5, 0.5, 0, dtop - 0.25, zb + 0.25, IRON, "Metal", 0.08))
+    for s in (-1, 1):
+        parts.append(box(0.5, 0.5, dz_, s * (dx_ / 2 - 0.25), dtop - 0.25, dcz, GOLD, "Metal", 0.08))
+    for i in range(7):
+        x = -dx_ / 2 + 8 + i * (dx_ - 16) / 6
+        parts.append(P(star(0.7, 0.3, 0.1, x, dcy - 0.4, zf + 0.02), GOLD, "Foil"))
+    lights = []
+    for i in range(20):
+        x = -dx_ / 2 + 3 + i * (dx_ - 6) / 19
+        parts.append(box(1.1, 0.4, 0.5, x, dtop + 0.15, zf - 0.6, INK, "Metal", 0))
+        lights.append(B(0.8, 0.2, 0.12, x, dtop + 0.2, zf - 0.88))
+    # the truss: two towers from the ground beside the screen, a beam over it, a rail under it
+    sw, sh_, _ = scr["size"]
+    _, scy, scz = scr["at"]
+    s_top, s_bot = scy + sh_ / 2, scy - sh_ / 2
+    zt = scz + 1.0 + 1.0  # in front of the screen's face
+    tw = 2.0
+
+    def truss(x0, y0, x1, y1, z, along):
+        bars = []
+        L = math.hypot(x1 - x0, y1 - y0)
+        n = max(1, int(L / 6.0))
+        for cy_, cz_ in ((-1, -1), (1, -1), (1, 1), (-1, 1)):
+            if along == "x":
+                bars.append(sbar(x0, y0 + cy_ * tw / 2, z + cz_ * tw / 2, x1, y1 + cy_ * tw / 2, z + cz_ * tw / 2, 0.22, SILVER))
+            else:
+                bars.append(sbar(x0 + cy_ * tw / 2, y0, z + cz_ * tw / 2, x1 + cy_ * tw / 2, y1, z + cz_ * tw / 2, 0.22, SILVER))
+        for i in range(n):
+            t0, t1 = i / n, (i + 1) / n
+            p0 = (x0 + (x1 - x0) * t0, y0 + (y1 - y0) * t0)
+            p1 = (x0 + (x1 - x0) * t1, y0 + (y1 - y0) * t1)
+            if along == "x":
+                for cz_ in (-1, 1):
+                    bars.append(sbar(p0[0], p0[1] - tw / 2, z + cz_ * tw / 2, p1[0], p1[1] + tw / 2, z + cz_ * tw / 2, 0.12, SILVER))
+                bars.append(sbar(p0[0], p0[1] + tw / 2, z - tw / 2, p1[0], p1[1] + tw / 2, z + tw / 2, 0.12, SILVER))
+            else:
+                for cx_ in (-1, 1):
+                    bars.append(sbar(p0[0] + cx_ * tw / 2, p0[1], z - tw / 2, p1[0] + cx_ * tw / 2, p1[1], z + tw / 2, 0.12, SILVER))
+                bars.append(sbar(p0[0] - tw / 2, p0[1], z + tw / 2, p1[0] + tw / 2, p1[1], z + tw / 2, 0.12, SILVER))
+        return bars
+
+    tx = sw / 2 - tw / 2 - 0.1
+    for s in (-1, 1):
+        parts += truss(s * tx, -hy + 0.6, s * tx, s_top - tw / 2, zt, "up")
+        parts.append(box(3.2, 0.6, 3.2, s * tx, -hy + 0.3, zt, IRON, "Metal", 0.06))
+    parts += truss(-tx + tw / 2, s_top - tw / 2 + 0.25, tx - tw / 2, s_top - tw / 2 + 0.25, zt, "x")
+    for i in range(10):
+        x = -sw / 2 + 12 + i * (sw - 24) / 9
+        y = s_top - tw - 0.6
+        parts.append(sbar(x, s_top - tw + 0.2, zt, x, y + 0.3, zt, 0.14, INK))
+        parts.append(cyl(0.6, 1.4, x, y, zt + 0.3, INK, "Metal", segs=8, axis="z", r2=0.5))
+        lights.append(C(0.5, 0.1, x, y, zt + 1.0, segs=8, axis="z"))
+    body(name, parts, [("Lights", lights, (255, 240, 200), "Neon", 0.0, False)])
+
+
+SET2 = ["PkStatue", "PkBlackboard", "PkHoop", "PkBookcase", "PkConveyor", "PkHalfBot", "PkTrophyShelf", "PkBench",
+        "PkWoodDummy", "PkIronDoor", "PkSealDoor", "PkHoshiCage", "PkChain", "PkRollDoor", "PkScanArch", "PkDockCrate",
+        "PkStation", "PkMast", "PkStage"]
+statue()
+blackboard()
+hoop()
+bookcase()
+conveyor()
+halfbot()
+trophy_shelf()
+bench()
+wood_dummy()
+slab_door("PkIronDoor", True)
+slab_door("PkSealDoor", False)
+hoshi_cage()
+chain()
+roll_door()
+scan_arch()
+dock_crate()
+station()
+mast()
+stage()
+
+
+
+SETN = int(sys.argv[sys.argv.index("--set") + 1]) if "--set" in sys.argv else 2
+ALL = sorted(SET2) if SETN == 2 else SET1
+OTHER = SET1 if SETN == 2 else sorted(SET2)
+SUFFIX = "2" if SETN == 2 else ""
+missing = sorted(set(LAY["looks"]) - set(SET1) - set(SET2))
 assert not missing, "looks in the layout with no builder: %s" % missing
 
 
@@ -609,9 +1304,9 @@ def res_of(look, objs):
 REUSE = "--reuse" in sys.argv  # previews only: the texture sets already on disk, no fit or FBX written
 
 
-def reuse_all():
+def reuse_all(looks):
     mapped = {}
-    for look in ALL:
+    for look in looks:
         objs = [ob for name, ob in sorted(LOOKS[look].items())
                 if INFO[name][1] not in ("Neon", "Glass", "ForceField") and not INFO[name][2]]
         m = hbake.reuse(look, objs, OUT) if objs else None
@@ -623,7 +1318,9 @@ def reuse_all():
     return mapped
 
 
-MAPPED = reuse_all() if REUSE else rk.bake_all(ALL, OUT, res_of, fast=FAST)
+MAPPED = reuse_all(ALL) if REUSE else rk.bake_all(ALL, OUT, res_of, fast=FAST)
+if "--preview" in sys.argv:  # the other set's looks from their texture sets on disk, for the room views
+    MAPPED.update(reuse_all(OTHER))
 
 
 def write_fit(path):
@@ -654,8 +1351,9 @@ def write_fit(path):
         rows.append("\t\t},")
         rows.append("\t},")
     head = [
-        "-- GENERATED by art/blender/pocketprops.py: do not edit by hand.",
-        "-- The pockets' most-seen props in Blender meshes (ReplicatedStorage.Art.PocketProps; Shared.PocketPropKit, the",
+        "-- GENERATED by art/blender/pocketprops.py%s: do not edit by hand." % (" --set 2" if SETN == 2 else " --set 1"),
+        "-- The pockets' %s props in Blender meshes (ReplicatedStorage.Art.PocketProps%s; Shared.PocketPropKit, the"
+        % ("second set of" if SETN == 2 else "most-seen", SUFFIX),
         "-- Config.PocketProps rules, PocketDecor): look -> its frame (the box of its placement, studs x, up, z) and its meshes:",
         "-- each mesh's size and its centre from the frame's middle, its colour, material, transparency, maps (a baked texture",
         "-- set in its SurfaceAppearance), tint (takes its placement's palette colour) and triangles.",
@@ -670,12 +1368,12 @@ def write_fit(path):
 
 
 if not REUSE:
-    FIT = os.path.normpath(os.path.join(kit.ROOT, "..", "src", "config", "PocketPropArt.luau"))
+    FIT = os.path.normpath(os.path.join(kit.ROOT, "..", "src", "config", "PocketPropArt%s.luau" % SUFFIX))
     total, count = write_fit(FIT)
     print("pocket props: %d looks, %d meshes, %d tris" % (len(ALL), count, total))
     for look in ALL:
         print("  %-16s %5d tris  %d meshes" % (look, sum(kit.tris(o) for o in LOOKS[look].values()), len(LOOKS[look])))
-    rk.export_fbx(os.path.join(kit.ROOT, "export", "PocketProps.fbx"), ALL, MAPPED)
+    rk.export_fbx(os.path.join(kit.ROOT, "export", "PocketProps%s.fbx" % SUFFIX), ALL, MAPPED)
 
 
 # ================================================================ previews
@@ -709,30 +1407,43 @@ if "--preview" in sys.argv:
     for o in bpy.context.scene.objects:
         if o.type == "MESH":
             o.hide_render = True
-    # the looks in two rows, each with its first tint
-    vp._ground(400, (120, 118, 112))
-    order = ["PkDesk", "PkChairSchool", "PkLockerSchool", "PkDummy", "PkPad", "PkChairLab", "PkCabinet", "PkTank",
-             "PkPostKindler", "PkDeskFront", "PkDeskLab", "PkLockerHall", "PkPunchBag", "PkPostIron", "PkBrazier",
-             "PkDeskOffice", "PkPostScan", "PkKennel", "PkCell", "PkCamera", "PkBarrier", "PkChimney", "PkWaterTank"]
-    rows_ = [order[:12], order[12:]]
-    for ri, row in enumerate(rows_):
-        x = 0.0
-        for look in row:
-            f = FRAMES[look]
-            placed(look, (x + f[0] / 2, f[1] / 2, ri * 36.0), 0, vp._keep, look_of(look).get("tint"))
-            x += f[0] + 2.0
-    vp._camera((60, 34, -48), (60, 4, 18), lens=30)
-    shots = []
-    out = os.path.join(PREV, "pocket_props_row.png")
-    kit.render(out)
-    shots.append(out)
-    for (frm, to, n) in (((14, 7, -12), (14, 3, 0), "close1"), ((44, 8, -14), (44, 3, 0), "close2"),
-                         ((24, 10, 18), (26, 4, 36), "close3")):
-        vp._camera(frm, to, lens=30)
-        out = os.path.join(PREV, "pocket_props_%s.png" % n)
+    if SETN == 1:
+        # the looks in two rows, each with its first tint
+        vp._ground(400, (120, 118, 112))
+        order = ["PkDesk", "PkChairSchool", "PkLockerSchool", "PkDummy", "PkPad", "PkChairLab", "PkCabinet", "PkTank",
+                 "PkPostKindler", "PkDeskFront", "PkDeskLab", "PkLockerHall", "PkPunchBag", "PkPostIron", "PkBrazier",
+                 "PkDeskOffice", "PkPostScan", "PkKennel", "PkCell", "PkCamera", "PkBarrier", "PkChimney", "PkWaterTank"]
+        rows_ = [order[:12], order[12:]]
+        for ri, row in enumerate(rows_):
+            x = 0.0
+            for look in row:
+                f = FRAMES[look]
+                placed(look, (x + f[0] / 2, f[1] / 2, ri * 36.0), 0, vp._keep, look_of(look).get("tint"))
+                x += f[0] + 2.0
+        vp._camera((60, 34, -48), (60, 4, 18), lens=30)
+        shots = []
+        out = os.path.join(PREV, "pocket_props_row.png")
         kit.render(out)
         shots.append(out)
-    vp._clear()
+        for (frm, to, n) in (((14, 7, -12), (14, 3, 0), "close1"), ((44, 8, -14), (44, 3, 0), "close2"),
+                             ((24, 10, 18), (26, 4, 36), "close3")):
+            vp._camera(frm, to, lens=30)
+            out = os.path.join(PREV, "pocket_props_%s.png" % n)
+            kit.render(out)
+            shots.append(out)
+        vp._clear()
+    else:  # the second set: each look on its own, seen from its front (-z) and a little above
+        shots = []
+        for look in SET2:
+            f = FRAMES[look]
+            vp._ground(600, (120, 118, 112))
+            placed(look, (0, f[1] / 2, 0), 0, vp._keep, look_of(look).get("tint"))
+            d = max(f[0], f[1] * 1.3, 6.0) * 0.95 + 2.0
+            vp._camera((d * 0.45, f[1] * 0.55 + d * 0.3, -d), (0, f[1] * 0.45, 0), lens=34)
+            out = os.path.join(PREV, "pocket_props2_%s.png" % look)
+            kit.render(out)
+            shots.append(out)
+            vp._clear()
 
     # the pockets' rooms: every other box plain, the props in their looks
     def room(pk, frm, to, name, lens=30, ybelow=-1e9, yabove=1e9):
@@ -768,30 +1479,48 @@ if "--preview" in sys.argv:
 
     P_ = {pk["name"]: pk for pk in LAY["pockets"]}
     A, L, I = P_["academy"], P_["ashlab"], P_["ironhall"]
-    rooms = [
-        room(A, (-100, 38, 116), (-150, 25, 55), "pocket_props_class", 30),
-        room(A, (0, 36, 120), (0, 27, 40), "pocket_props_hall", 30),
-        room(A, (-10, 32, 178), (-86, 27, 152), "pocket_props_lockers", 30),
-        room(P_["pound"], (0, 40, 70), (0, 4, -60), "pocket_props_pound", 26, yabove=26),
-        room(L, (100, 32, 65), (160, 23, 65), "pocket_props_records", 30),
-        room(L, (-96, 30, 112), (-150, 22, 74), "pocket_props_reception", 30),
-        room(L, (60, 22, -90), (40, 6, -170), "pocket_props_sublevel", 30, yabove=18),
-        room(I, (-100, 32, 65), (-150, 25, 28), "pocket_props_ironhall", 30),
-        room(I, (60, 14, -100), (0, 5, -150), "pocket_props_dojo", 30, yabove=18),
-        room(P_["arena"], (-110, 10, 30), (-130, 4, 2), "pocket_props_camera", 30, yabove=48),
-        room(P_["arena"], (20, 10, -95), (0, 2, -130), "pocket_props_barriers", 30, yabove=48),
-        room(P_["rooftops"], (110, 110, 160), (20, 40, 20), "pocket_props_rooftops", 26),
-    ]
+    if SETN == 1:
+        rooms = [
+            room(A, (-100, 38, 116), (-150, 25, 55), "pocket_props_class", 30),
+            room(A, (0, 36, 120), (0, 27, 40), "pocket_props_hall", 30),
+            room(A, (-10, 32, 178), (-86, 27, 152), "pocket_props_lockers", 30),
+            room(P_["pound"], (0, 40, 70), (0, 4, -60), "pocket_props_pound", 26, yabove=26),
+            room(L, (100, 32, 65), (160, 23, 65), "pocket_props_records", 30),
+            room(L, (-96, 30, 112), (-150, 22, 74), "pocket_props_reception", 30),
+            room(L, (60, 22, -90), (40, 6, -170), "pocket_props_sublevel", 30, yabove=18),
+            room(I, (-100, 32, 65), (-150, 25, 28), "pocket_props_ironhall", 30),
+            room(I, (60, 14, -100), (0, 5, -150), "pocket_props_dojo", 30, yabove=18),
+            room(P_["arena"], (-110, 10, 30), (-130, 4, 2), "pocket_props_camera", 30, yabove=48),
+            room(P_["arena"], (20, 10, -95), (0, 2, -130), "pocket_props_barriers", 30, yabove=48),
+            room(P_["rooftops"], (110, 110, 160), (20, 40, 20), "pocket_props_rooftops", 26),
+        ]
+    else:
+        rooms = [
+            room(A, (14, 36, 176), (0, 31, 146), "pocket_props2_statue", 30),
+            room(A, (-120, 38, 104), (-192, 30, 62), "pocket_props2_class", 30),
+            room(A, (10, 40, 62), (10, 32, -24), "pocket_props2_hall", 28),
+            room(A, (70, 13, -128), (10, 5, -185), "pocket_props2_workshop", 30, yabove=22),
+            room(I, (150, 34, 40), (194, 30, 70), "pocket_props2_trophies", 30),
+            room(I, (-112, 30, 92), (-143, 22, 62), "pocket_props2_bench", 30),
+            room(I, (0, 30, 84), (8, 24, 10), "pocket_props2_floor", 30),
+            room(I, (40, 24, -96), (0, 8, -140), "pocket_props2_cage", 30, yabove=18),
+            room(L, (14, 32, 4), (24, 27, -30), "pocket_props2_sealdoor", 30),
+            room(P_["pound"], (-10, 16, 140), (0, 8, 192), "pocket_props2_dock", 30, yabove=26),
+            room(P_["pound"], (-66, 13, 66), (-90, 8, 90), "pocket_props2_arch", 30, yabove=26),
+            room(P_["station"], (-34, 14, -18), (-60, 4, -48), "pocket_props2_station", 30, yabove=40),
+            room(P_["tower"], (24, 196, 14), (0, 194, -30), "pocket_props2_mast", 30),
+            room(P_["arena"], (40, 26, -70), (0, 18, -172), "pocket_props2_stage", 28, yabove=60),
+        ]
     code = (
         "import sys\nfrom PIL import Image\n"
         "ims=[Image.open(p).convert('RGB') for p in sys.argv[2:]]\n"
-        "w,h=ims[0].size; cols=2; rows=(len(ims)+1)//2\n"
+        "w,h=ims[0].size; cols=int(sys.argv[1].endswith('pocket_props2.png'))*2+2; rows=(len(ims)+cols-1)//cols\n"
         "sheet=Image.new('RGB',(cols*w,rows*h),(24,26,32))\n"
         "for i,im in enumerate(ims): sheet.paste(im.resize((w,h)),((i%cols)*w,(i//cols)*h))\n"
         "sheet.save(sys.argv[1])\n"
     )
-    subprocess.run(["python3", "-c", code, os.path.join(PREV, "pocket_props.png")] + shots, check=True)
-    subprocess.run(["python3", "-c", code, os.path.join(PREV, "pocket_props_rooms.png")] + rooms + [rooms[0]][:0], check=True)
+    subprocess.run(["python3", "-c", code, os.path.join(PREV, "pocket_props%s.png" % SUFFIX)] + shots, check=True)
+    subprocess.run(["python3", "-c", code, os.path.join(PREV, "pocket_props%s_rooms.png" % SUFFIX)] + rooms + [rooms[0]][:0], check=True)
     for p_ in shots + rooms:
         os.remove(p_)
-    print("preview:", os.path.join(PREV, "pocket_props.png"), os.path.join(PREV, "pocket_props_rooms.png"))
+    print("preview:", os.path.join(PREV, "pocket_props%s.png" % SUFFIX), os.path.join(PREV, "pocket_props%s_rooms.png" % SUFFIX))

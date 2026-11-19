@@ -41,6 +41,7 @@
         "Story": { "$path": "art/models/Story.rbxm" },
         "Crater": { "$path": "art/models/Crater.rbxm" },
         "PocketProps": { "$path": "art/models/PocketProps.rbxm" },
+        "PocketProps2": { "$path": "art/models/PocketProps2.rbxm" },
         "Board": { "$path": "art/models/Board.rbxm" },
         "SetPieces": { "$path": "art/models/SetPieces.rbxm" },
         "Shoulders": { "$path": "art/models/Shoulders.rbxm" },

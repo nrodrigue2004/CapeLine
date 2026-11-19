@@ -1,7 +1,8 @@
 -- Writes art/export/pockets/layout.json for art/blender/pocketprops.py and board.py (gap-props2, 2026-11-19): every
 -- prop placement Shared.PocketPropKit finds in the pockets (Config.PocketProps rules), each with the boxes it covers in
 -- its own frame (x, up, z from its middle, before its turn) and their colours, plus each pocket's other boxes near
--- the props for the previews, and the plaza weekly board's numbers (Config.Boards.prop).
+-- the props for the previews, and the plaza weekly board's numbers (Config.Boards.prop). A look's "keep" boxes
+-- (gap-props3) are in its rows with keep = true and stay in the pocket's boxes for the previews.
 --   lune run art/pockets/layout.luau
 local fs = require("@lune/fs")
 local serde = require("@lune/serde")
@@ -48,8 +49,16 @@ for _, name in layouts do
 		local c, s = math.cos(a), math.sin(a)
 		local list = if p.dress then dress.extras else l.boxes
 		local rows = {}
+		local every = {}
 		for _, j in p.boxes do
-			covered[if p.dress then "dress" else "box"][j] = true
+			table.insert(every, { j, false })
+		end
+		for _, j in p.keep or {} do -- (gap-props3) framed by the look, left drawn
+			table.insert(every, { j, true })
+		end
+		for _, e in every do
+			local j = e[1]
+			covered[if p.dress then "dress" else "box"][j] = not e[2]
 			local b = list[j]
 			local dx, dz = b.cx - p.cx, b.cz - p.cz
 			local r = row(b, { dx * c - dz * s, b.cy - p.cy, dx * s + dz * c }, (b.ry or 0) - p.ry)
@@ -60,6 +69,7 @@ for _, name in layouts do
 			elseif math.abs(q) < 1e-6 then
 				r.ry = 0
 			end
+			r.keep = e[2] or nil
 			table.insert(rows, r)
 		end
 		if not out.looks[p.look] then

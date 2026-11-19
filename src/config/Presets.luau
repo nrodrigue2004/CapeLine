@@ -46,7 +46,7 @@ return {
 		clothesFar = 60, -- past this a rig drops its clothes Textures (its part colours match them)
 		props = { tier = 1, radius = 260, parts = 700 },
 		vehicleRig = 110, -- gap-vehicles: escorts this close roll their wheels, steer and sway (Fx.VehicleRig); none past it
-		pockets = { tier = 1, parts = 180, lights = 4, props = 40 }, -- a pocket's dressing (Shared.PocketDress; the server's tier 1 counts); props: prop meshes a pocket (Shared.PocketPropKit, gap-props2)
+		pockets = { tier = 1, parts = 180, lights = 4, props = 64 }, -- a pocket's dressing (Shared.PocketDress; the server's tier 1 counts); props: prop meshes a pocket (Shared.PocketPropKit, gap-props2; 40 -> 64 in gap-props3 so phones get the second set's layout props: shared mesh assets, one draw per mesh and material)
 		ruins = { bits = 0 }, -- the Crater's loose lab debris this device scatters (Shared.CraterArtKit.bits; gap-wrecks)
 		smash = 3, -- street things (lamps, benches, trees, fences) knocked loose a big impact nearby (BuildingFx, 2026-11-19)
 		sites = { radius = 240, looks = 6, parts = 30 }, -- activity props in their Blender looks (Fx.ActivityProps)
