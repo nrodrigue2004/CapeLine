@@ -1219,6 +1219,39 @@ function SideQuestPlan.checkChain(Config: any, chain: any, ids: { [string]: any 
 	return bad
 end
 
+-- side-content (nate, 2026-11-19: "You should only see the ones for your side"): the one side a giver serves, or
+-- nil when it gives to both. A giver serves the sides of the chains it opens (a chain's unlock.side, else both) and
+-- of any goal that sends a hero back to it (a goal's own `giver`). The server tags a one-side giver (SideOnly) and
+-- the other side's devices hide it (StoryClient); its `none` line stays for anyone who reaches it anyway.
+function SideQuestPlan.giverSide(Config: any, giverId: string): string?
+	local hero, villain = false, false
+	for _, chain in Config.SideQuests.chains do
+		local only = chain.unlock and chain.unlock.side
+		if chain.giver == giverId then
+			hero = hero or only ~= "villain"
+			villain = villain or only ~= "hero"
+		end
+		for _, step in chain.steps or {} do
+			for _, side in { "hero", "villain" } do
+				local g = SideQuestPlan.goal(step, side)
+				if g and g.giver == giverId and (only == nil or only == side) then
+					if side == "hero" then
+						hero = true
+					else
+						villain = true
+					end
+				end
+			end
+		end
+	end
+	if hero and not villain then
+		return "hero"
+	elseif villain and not hero then
+		return "villain"
+	end
+	return nil
+end
+
 -- Problems with all the side quest data (empty when all is well)
 function SideQuestPlan.validate(Config: any): { string }
 	local SQ = Q(Config)

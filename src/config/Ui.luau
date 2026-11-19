@@ -177,6 +177,7 @@ return {
 			taskForcePanel = { pri = "info", life = 5 }, -- TaskForceHud: the panel between legs (4 s)
 			mentorPanel = { pri = "info", life = 5 }, -- MentorHud: the mentor's comic line (4 s)
 			nemesisPanel = { pri = "info", life = 5 }, -- NemesisHud: the taunt panel (3.5 s)
+			lorePage = { pri = "info", life = 9, stale = 30 }, -- LoreClient: a lore page's caption card (side-content)
 			-- Ui.PopupGate's join cards (they also wait out the loading screen, menu, creator and prologue)
 			daily = { pri = "join", life = 20, noTap = true }, -- DailyHud: CLAIM, X
 			mentorPick = { pri = "join", life = 25, noTap = true }, -- MentorHud: the picker

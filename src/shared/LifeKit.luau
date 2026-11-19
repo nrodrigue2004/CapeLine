@@ -18,8 +18,6 @@ local CityKit = if script then require(script.Parent.CityKit) else (require :: a
 
 local LifeKit = {}
 
-LifeKit.TURN = 180 -- Open Cloud's FBX import turns every Art.Life mesh 180 degrees about y (meshcheck, MeshFix)
-
 -- the looks whose long side follows the box's long side (a row along z turns a quarter)
 local ROWS = { CropRow = true, CornRow = true }
 
@@ -136,7 +134,7 @@ function LifeKit.cover(Config: any, b: any): { Piece }?
 			x = b.cx + ox * c + oz * s,
 			y = b.cy + oy,
 			z = b.cz - ox * s + oz * c,
-			ry = ry + LifeKit.TURN,
+			ry = ry, -- (the import's turn is Shared.MeshFix's, put on by the builder)
 			color = color :: { number },
 			mat = look1.mat or "SmoothPlastic",
 			collide = look1.collide ~= false and not b.ghost and b.kind ~= "crop",

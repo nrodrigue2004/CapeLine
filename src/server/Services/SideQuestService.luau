@@ -1697,12 +1697,19 @@ local function placeGivers()
 			end
 			local pos = Vector3.new(px, py, pz)
 			local body: any
+			local model: Instance
 			if gv.relay then
-				local _, b = relayModel(gv.name, gv.color, pos)
-				body = b
+				local m, b = relayModel(gv.name, gv.color, pos)
+				body, model = b, m
 			else
-				local _, b = npcModel(gv.name, gv.color, pos, if gv.look then id else nil, gv.look)
-				body = b
+				local m, b = npcModel(gv.name, gv.color, pos, if gv.look then id else nil, gv.look)
+				body, model = b, m
+			end
+			-- side-content: a giver for one side only is hidden on the other side's devices (StoryClient)
+			local only = SideQuestPlan.giverSide(Config, id)
+			if only then
+				model:SetAttribute("SideOnly", only)
+				CollectionService:AddTag(model, "SideOnly")
 			end
 			local prompt = Instance.new("ProximityPrompt")
 			prompt.ActionText = "Talk"
@@ -1721,7 +1728,7 @@ local function placeGivers()
 				end
 			end)
 			givers[id] = { pos = pos }
-			where[id] = { math.floor(px), math.floor(pz) }
+			where[id] = { math.floor(px), math.floor(pz), only } -- side-content: the side it serves (nil: both)
 		end
 	end
 	-- the map's giver markers (positions only; the Journal's rows say which chains are open)

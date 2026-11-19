@@ -34,6 +34,7 @@ local Debris = game:GetService("Debris")
 local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
+local MeshFix = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("MeshFix"))
 
 local WorldClient = require(script.Parent.Parent.Controllers.WorldClient)
 local CameraController = require(script.Parent.Parent.Controllers.CameraController)
@@ -202,7 +203,7 @@ local function meshPiece(
 	at: CFrame,
 	parent: Instance
 ): MeshPart
-	local p = src:Clone()
+	local p = MeshFix.clone(src)
 	local lit = LIT[row.role] == true
 	for _, c in p:GetChildren() do
 		if lit or not c:IsA("SurfaceAppearance") then
@@ -216,7 +217,9 @@ local function meshPiece(
 	p.CanTouch = false
 	p.CastShadow = not lit
 	p.Size = Vector3.new(row.size[1], row.size[2], row.size[3])
-	p.CFrame = at * CFrame.new(row.offset[1], row.offset[2], row.offset[3])
+	-- the box's centre, then the import's own turn (Shared.MeshFix: Open Cloud turned every mesh 180 degrees about y
+	-- inside its box, so the jaw, fins and plates swung to the far side of their boxes)
+	p.CFrame = at * CFrame.new(row.offset[1], row.offset[2], row.offset[3]) * MeshFix.of(p)
 	p.Material = if lit then Enum.Material.Neon else Enum.Material.Metal
 	p.Color = if row.role == "weak" then rgb(ART.weakColor[1]) else Color3.fromRGB(200, 200, 200)
 	p:SetAttribute("Role", row.role)
@@ -908,6 +911,9 @@ end
 
 -- The world boss on screen for the lock-on (LockClient): its middle and its height, or nil when none is drawn
 -- or it is not in the fight (landing, leaving)
+-- (tests/model_fit_test.luau builds every boss through the game's own code)
+WorldFx._build = build
+
 function WorldFx.bossFocus(): (Vector3?, number)
 	local sh = shown
 	if not sh or not sh.model.Parent or not (sh.state == 2 or sh.state == 3) then

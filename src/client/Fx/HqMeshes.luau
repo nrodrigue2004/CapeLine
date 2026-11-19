@@ -14,6 +14,7 @@ local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local SetPieceKit = require(Shared:WaitForChild("SetPieceKit"))
 local HqArtKit = require(Shared:WaitForChild("HqArtKit"))
+local MeshFix = require(Shared:WaitForChild("MeshFix"))
 
 local HqMeshes = {}
 
@@ -59,7 +60,7 @@ local function clone(m: SetPieceKit.Mesh, parent: Instance): MeshPart?
 	if not src then
 		return nil
 	end
-	local p = (src :: MeshPart):Clone() :: MeshPart
+	local p = MeshFix.clone(src :: MeshPart) :: MeshPart
 	-- a textured mesh keeps its SurfaceAppearance (the baked texture set; the colour map's alpha shows the part's
 	-- Color below, so a tint still paints it); anything else goes
 	for _, c in p:GetChildren() do
@@ -98,7 +99,7 @@ function HqMeshes.place(parent: Instance, look: string, cf: CFrame, tint: { [str
 	for _, m in SetPieceKit.meshes(Config, { look = look, x = 0, y = 0, z = 0, tint = tint }) do
 		local p = clone(m, parent)
 		if p then
-			p.CFrame = cf * CFrame.new(m.offset[1], m.offset[2], m.offset[3])
+			p.CFrame = cf * CFrame.new(m.offset[1], m.offset[2], m.offset[3]) * MeshFix.of(p) -- the import's turn
 		end
 	end
 	return true
@@ -115,7 +116,7 @@ function HqMeshes.put(parent: Instance, place: SetPieceKit.Place, base: Vector3)
 	for _, m in SetPieceKit.meshes(Config, place) do
 		local p = clone(m, parent)
 		if p then
-			p.CFrame = cf * CFrame.new(m.offset[1], m.offset[2], m.offset[3])
+			p.CFrame = cf * CFrame.new(m.offset[1], m.offset[2], m.offset[3]) * MeshFix.of(p) -- the import's turn
 		end
 	end
 	return true
@@ -145,15 +146,17 @@ function HqMeshes.cover(p: BasePart, shape: string): boolean
 				mp.CastShadow = p.Material ~= Enum.Material.Neon and p.Transparency == 0
 			end
 			local off = CFrame.new(m.offset[1], m.offset[2], m.offset[3])
+			local fix = MeshFix.of(mp) -- the import's own turn (Shared.MeshFix)
 			if p.Anchored then
-				mp.CFrame = p.CFrame * off
+				mp.CFrame = p.CFrame * off * fix
 			else
 				mp.Anchored = false
-				mp.CFrame = p.CFrame * off
+				mp.CFrame = p.CFrame * off * fix
 				local w = Instance.new("Weld")
 				w.Part0 = p
 				w.Part1 = mp
 				w.C0 = off
+				w.C1 = fix:Inverse()
 				w.Parent = mp
 			end
 		end

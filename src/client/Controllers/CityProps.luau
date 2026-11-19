@@ -17,6 +17,7 @@ local Workspace = game:GetService("Workspace")
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local WorldMap = require(Shared:WaitForChild("WorldMap"))
+local MeshFix = require(Shared:WaitForChild("MeshFix"))
 local QualityController = require(script.Parent.QualityController)
 
 local KIT = Config.City.kit
@@ -48,7 +49,6 @@ type Cell = { key: number, x: number, z: number, props: { Prop }, model: Model?,
 local cells: { [number]: Cell } = {}
 local street: Instance? = nil
 local lifeRoot: Instance? = nil -- ReplicatedStorage.Art.Life (the living world, 2026-11-19)
-local LIFE_TURN = CFrame.Angles(0, math.pi, 0) -- Shared.LifeKit.TURN: Open Cloud turned the set 180 about y
 local folder: Folder? = nil
 local looks: {
 	[string]: {
@@ -61,7 +61,6 @@ local looks: {
 			see: number,
 			fit: any,
 			tinted: boolean,
-			turn: boolean,
 		}
 	},
 } =
@@ -79,7 +78,7 @@ local function piecesOf(name: string)
 	end
 	list = {}
 	local def = KIT.props[name]
-	-- the living world's street props (vending machines) are Art.Life meshes, turned back from the import
+	-- the living world's street props (vending machines) are Art.Life meshes (MeshFix.of turns them back)
 	local life = Config.LifeArt[name] ~= nil and Config.StreetArt[name] == nil
 	local fit = Config.StreetArt[name] or Config.LifeArt[name]
 	local root = if life then lifeRoot else street
@@ -96,7 +95,6 @@ local function piecesOf(name: string)
 					see = look[4] or 0,
 					fit = fit[piece],
 					tinted = look[5] == true,
-					turn = life,
 				})
 			end
 		end
@@ -115,7 +113,7 @@ local function makeProp(pr: Prop, parent: Instance): number
 	model.Name = pr.name
 	local made = 0
 	for _, pc in piecesOf(pr.name) do
-		local p = pc.src:Clone()
+		local p = MeshFix.clone(pc.src)
 		for _, c in p:GetChildren() do
 			if not c:IsA("SurfaceAppearance") then
 				c:Destroy()
@@ -125,10 +123,7 @@ local function makeProp(pr: Prop, parent: Instance): number
 		p.Name = pc.piece
 		p.Anchored = true
 		p.Size = Vector3.new(f.size[1], f.size[2], f.size[3])
-		p.CFrame = at * CFrame.new(f.offset[1], f.offset[2], f.offset[3])
-		if pc.turn then
-			p.CFrame *= LIFE_TURN
-		end
+		p.CFrame = at * CFrame.new(f.offset[1], f.offset[2], f.offset[3]) * MeshFix.of(p) -- the import's turn
 		local tint = if pc.tinted and pr.tint then Config.City.palette[pr.tint] else nil
 		p.Color = if tint then Color3.fromRGB(tint[1], tint[2], tint[3]) else pc.color
 		p.Material = pc.material

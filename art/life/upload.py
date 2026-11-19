@@ -1,5 +1,5 @@
 # upload.py: the living-world set (2026-11-19) through Open Cloud like art/city/upload.py: art/export/Life.fbx as a
-# Model and art/export/life/*.png (the picket fence, the four flags, the tilled soil) as Images (the proxy adds the
+# Model (and art/export/LoreBook.fbx, the lore book's meshes: art/blender/lorebooks.py) and art/export/life/*.png (the picket fence, the four flags, the tilled soil) as Images (the proxy adds the
 # key, the creator is $ROBLOX_USER_ID). Each operation is polled and each asset's moderation checked.
 # art/life/ids.json keeps { file: id } and each file's sha1, so only changed files go up again; the model's id goes
 # to art/life/model_ids.json for art/upload/pull_models.py.  Run from the repo root: python3 -I art/life/upload.py
@@ -17,7 +17,8 @@ IDS = os.path.join(REPO, "art", "life", "ids.json")
 MODEL_IDS = os.path.join(REPO, "art", "life", "model_ids.json")
 API = "https://apis.roblox.com/assets/v1"
 LIFE = os.path.join(REPO, "art", "export", "life")
-FILES = [(os.path.join(REPO, "art", "export", "Life.fbx"), "Life.fbx", "Model")] + [
+FILES = [(os.path.join(REPO, "art", "export", "Life.fbx"), "Life.fbx", "Model"),
+         (os.path.join(REPO, "art", "export", "LoreBook.fbx"), "LoreBook.fbx", "Model")] + [
     (os.path.join(LIFE, n), n, "Image") for n in ("Picket.png", "Flag_Brightharbor.png", "Flag_Uptown.png", "Flag_Docks.png",
                                                   "Flag_OldTown.png", "Tilled.png")
 ] + [(os.path.join(REPO, "art", "export", "city", "Tilled_%s.png" % m), "Tilled_%s.png" % m, "Image") for m in ("Normal", "Roughness")]
@@ -65,7 +66,7 @@ def moderation(asset_id):
 
 
 def write_ids(ids):
-    json.dump({"Life": ids["Life.fbx"]}, open(MODEL_IDS, "w"), indent=1)
+    json.dump({"Life": ids["Life.fbx"], "LoreBook": ids["LoreBook.fbx"]}, open(MODEL_IDS, "w"), indent=1)
 
 
 def main():

@@ -26,6 +26,7 @@ local NpcRig = require(Shared:WaitForChild("NpcRig"))
 local PieceKits = require(Shared:WaitForChild("PieceKits"))
 local WeaponKit = require(Shared:WaitForChild("WeaponKit"))
 local BodyFit = require(Shared:WaitForChild("BodyFit"))
+local MeshFix = require(Shared:WaitForChild("MeshFix"))
 
 local LookKit = {}
 
@@ -898,13 +899,18 @@ end
 -- gender and build (the female chest and hips, the V on Large and Titan) with the classic clothing UVs, while
 -- the sets' limbs are drawn for the Blender body's shorter blocks, so Roblox's own limbs stay and shapeBody
 -- scales them (fix-flow, 2026-11-19: nate wants gender, build and height back). MaleMedium is Roblox's torso.
+-- The torsos come from Art.BodyTorsos (fix-bodies, 2026-11-19), not Art.Bodies: Roblox's upload stored every
+-- Bodies mesh turned 180 degrees about y in its box (Shared.MeshFix), and ApplyMesh cannot turn a mesh, so the
+-- female chest and the big builds' V sat on the back. BodyTorsos is the same torsos drawn pre-turned
+-- (art/blender/bodies.py --torsos), so Roblox's copy faces forward (measured as drawn: art/models/meshturns.json).
+-- Not imported: Roblox's own torso (never a Bodies torso, which would face backwards).
 local SET_TORSO = { "UpperTorso", "LowerTorso" }
 local function setMesh(key: string, name: string): MeshPart?
 	if key == "MaleMedium" then
 		return nil
 	end
 	local art = ReplicatedStorage:FindFirstChild("Art")
-	local bodies = art and art:FindFirstChild("Bodies")
+	local bodies = art and art:FindFirstChild("BodyTorsos")
 	local m = bodies and bodies:FindFirstChild(key .. "_" .. name, true)
 	return if m and m:IsA("MeshPart") then m else nil
 end
@@ -1415,7 +1421,7 @@ local function capeMeshes(
 	end
 	local shift, f = fitFrame(torso)
 	for i, row in fit.pieces do
-		local p = srcs[i]:Clone()
+		local p = MeshFix.clone(srcs[i])
 		for _, c in p:GetChildren() do
 			c:Destroy()
 		end
@@ -1430,8 +1436,11 @@ local function capeMeshes(
 		p.CanTouch = false
 		p.CanQuery = false
 		p.CastShadow = false
+		-- the fitted box's centre, then the import's own turn (Shared.MeshFix: Open Cloud turned every cape mesh 180
+		-- degrees about y in its box, so the drape and its collar swung to the wrong side of the torso)
 		p.CFrame = torso.CFrame
 			* CFrame.new(shift + Vector3.new(row.offset[1], row.offset[2], row.offset[3]) * f)
+			* MeshFix.of(p)
 		local weld = Instance.new("WeldConstraint")
 		weld.Part0 = torso
 		weld.Part1 = p
@@ -1499,7 +1508,7 @@ function pieceMeshes(
 	for i, row in fit.pieces do
 		local part = parts[i]
 		local shift, f = fitFrame(part)
-		local p = srcs[i]:Clone()
+		local p = MeshFix.clone(srcs[i])
 		for _, c in p:GetChildren() do
 			c:Destroy()
 		end
@@ -1518,8 +1527,11 @@ function pieceMeshes(
 		p.CanTouch = false
 		p.CanQuery = false
 		p.CastShadow = false
+		-- the fitted box's centre, then the import's own turn (Shared.MeshFix: a visor, a hood or a toe cap faced
+		-- backwards in its box until this)
 		p.CFrame = part.CFrame
 			* CFrame.new(shift + Vector3.new(row.offset[1], row.offset[2], row.offset[3]) * f)
+			* MeshFix.of(p)
 		local weld = Instance.new("WeldConstraint")
 		weld.Part0 = part
 		weld.Part1 = p
@@ -1528,6 +1540,10 @@ function pieceMeshes(
 	end
 	return true, fit
 end
+
+-- (tests/model_fit_test.luau places every mesh kit through these, the game's own code)
+LookKit._pieceMeshes = pieceMeshes
+LookKit._capeMeshes = capeMeshes
 
 -- Remove a look built by build() (the folder and the emitters and trails it made on body parts, and a mask's
 -- decals on the head)

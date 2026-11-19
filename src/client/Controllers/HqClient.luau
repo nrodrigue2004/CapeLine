@@ -49,11 +49,13 @@ local WantedRules = require(Shared:WaitForChild("WantedRules")) -- WP9: the WANT
 local VisitRules = require(Shared:WaitForChild("VisitRules")) -- WP12: visits to a friend's HQ
 local HqArtKit = require(Shared:WaitForChild("HqArtKit")) -- the HQ art pass: where the meshes go
 local HideoutKit = require(Shared:WaitForChild("HideoutKit")) -- the hideout art pass: the room shells' modules
+local LoreBookKit = require(Shared:WaitForChild("LoreBookKit")) -- side-content: the Lore Shelf (prop 23)
 local State = require(script.Parent.Parent.State)
 
 local CombatClient = require(script.Parent.CombatClient)
 local Preview = require(script.Parent.Parent.Ui.Preview)
 local HqMeshes = require(script.Parent.Parent.Fx.HqMeshes)
+local LoreBooks = require(script.Parent.Parent.Fx.LoreBooks)
 local QualityController = require(script.Parent.QualityController)
 
 local HqClient = {}
@@ -503,7 +505,32 @@ local function props(f: Folder)
 	for _, bit in state.props or {} do
 		local spot = HqArtKit.PROP_SPOTS[bit]
 		local name = H.props[bit]
-		if spot and name then
+		if spot and name and HqArtKit.PART_PROPS[bit] == "LoreShelf" then
+			-- side-content: the Lore Shelf, one book a district, every one glowing (the prop comes with the full set)
+			local at = centre() + Vector3.new(spot[1], 0, spot[2])
+			local ry = math.rad(HqArtKit.facing(spot[1], spot[2]))
+			local done: { [string]: boolean } = {}
+			local ids: { string } = {}
+			for _, d in Config.Lore.districts do
+				done[d.id] = true
+				table.insert(ids, d.id)
+			end
+			local colors = LoreBookKit.colors(Config.Lore.look, nil)
+			colors.spine = { 120, 80, 50 }
+			local parts = LoreBooks.build(
+				f,
+				LoreBookKit.shelf(ids, done),
+				colors,
+				CFrame.new(at) * CFrame.Angles(0, ry, 0),
+				function(key)
+					return Config.Lore.look.cover[string.sub(key, 6)]
+				end
+			)
+			local back = parts.Back
+			if back then
+				sign(back, name, nil, 3)
+			end
+		elseif spot and name then
 			local at = centre() + Vector3.new(spot[1], 0, spot[2])
 			local p = part(
 				f,

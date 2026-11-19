@@ -1,0 +1,305 @@
+{
+ "Activity": {
+  "asDrawn": 28,
+  "either": 28,
+  "meshes": 63,
+  "turned": 63,
+  "verdict": "rotY180"
+ },
+ "Arms": {
+  "asDrawn": 34,
+  "either": 34,
+  "meshes": 50,
+  "turned": 50,
+  "verdict": "rotY180"
+ },
+ "Backs": {
+  "asDrawn": 22,
+  "either": 22,
+  "meshes": 79,
+  "turned": 79,
+  "verdict": "rotY180"
+ },
+ "Belts": {
+  "asDrawn": 18,
+  "either": 18,
+  "meshes": 48,
+  "turned": 48,
+  "verdict": "rotY180"
+ },
+ "Board": {
+  "asDrawn": 0,
+  "either": 0,
+  "meshes": 2,
+  "turned": 2,
+  "verdict": "rotY180"
+ },
+ "Bodies": {
+  "asDrawn": 48,
+  "either": 48,
+  "meshes": 54,
+  "turned": 54,
+  "verdict": "rotY180"
+ },
+ "BodyTorsos": {
+  "against": "art/export/Bodies.fbx (the drawn torsos; BodyTorsos.fbx is them pre-turned)",
+  "asDrawn": 12,
+  "either": 6,
+  "meshes": 12,
+  "turned": 6,
+  "verdict": "identity"
+ },
+ "Boots": {
+  "asDrawn": 90,
+  "either": 90,
+  "meshes": 172,
+  "turned": 172,
+  "verdict": "rotY180"
+ },
+ "Bosses": {
+  "asDrawn": 20,
+  "either": 20,
+  "meshes": 85,
+  "turned": 85,
+  "verdict": "rotY180"
+ },
+ "Bramblebeast": {
+  "asDrawn": 4,
+  "either": 4,
+  "meshes": 18,
+  "turned": 18,
+  "verdict": "rotY180"
+ },
+ "Capes": {
+  "asDrawn": 3,
+  "either": 3,
+  "meshes": 57,
+  "turned": 57,
+  "verdict": "rotY180"
+ },
+ "Coats": {
+  "asDrawn": 19,
+  "either": 19,
+  "meshes": 42,
+  "turned": 42,
+  "verdict": "rotY180"
+ },
+ "Crater": {
+  "asDrawn": 2,
+  "either": 2,
+  "meshes": 33,
+  "turned": 33,
+  "verdict": "rotY180"
+ },
+ "Deep": {
+  "asDrawn": 13,
+  "either": 13,
+  "meshes": 37,
+  "turned": 37,
+  "verdict": "rotY180"
+ },
+ "Ears": {
+  "asDrawn": 15,
+  "either": 15,
+  "meshes": 28,
+  "turned": 28,
+  "verdict": "rotY180"
+ },
+ "Eyes": {
+  "asDrawn": 2,
+  "either": 2,
+  "meshes": 13,
+  "turned": 13,
+  "verdict": "rotY180"
+ },
+ "Gear": {
+  "asDrawn": 119,
+  "either": 119,
+  "meshes": 215,
+  "turned": 215,
+  "verdict": "rotY180"
+ },
+ "Gloves": {
+  "asDrawn": 60,
+  "either": 60,
+  "meshes": 100,
+  "turned": 100,
+  "verdict": "rotY180"
+ },
+ "Hair": {
+  "asDrawn": 9,
+  "either": 9,
+  "meshes": 49,
+  "turned": 49,
+  "verdict": "rotY180"
+ },
+ "Hats": {
+  "asDrawn": 20,
+  "either": 20,
+  "meshes": 55,
+  "turned": 55,
+  "verdict": "rotY180"
+ },
+ "Heads": {
+  "asDrawn": 22,
+  "either": 22,
+  "meshes": 79,
+  "turned": 79,
+  "verdict": "rotY180"
+ },
+ "Hero": {
+  "asDrawn": 15,
+  "either": 15,
+  "meshes": 15,
+  "turned": 15,
+  "verdict": "symmetric"
+ },
+ "Hideout": {
+  "asDrawn": 7,
+  "either": 7,
+  "meshes": 18,
+  "turned": 18,
+  "verdict": "rotY180"
+ },
+ "Hq": {
+  "asDrawn": 143,
+  "either": 143,
+  "meshes": 289,
+  "turned": 289,
+  "verdict": "rotY180"
+ },
+ "Life": {
+  "asDrawn": 14,
+  "either": 14,
+  "meshes": 32,
+  "turned": 32,
+  "verdict": "rotY180"
+ },
+ "LoreBook": {
+  "asDrawn": 8,
+  "either": 8,
+  "meshes": 15,
+  "turned": 15,
+  "verdict": "rotY180"
+ },
+ "Necks": {
+  "asDrawn": 11,
+  "either": 11,
+  "meshes": 27,
+  "turned": 27,
+  "verdict": "rotY180"
+ },
+ "News": {
+  "asDrawn": 5,
+  "either": 5,
+  "meshes": 14,
+  "turned": 14,
+  "verdict": "rotY180"
+ },
+ "PocketProps": {
+  "asDrawn": 9,
+  "either": 9,
+  "meshes": 32,
+  "turned": 32,
+  "verdict": "rotY180"
+ },
+ "PocketProps2": {
+  "asDrawn": 9,
+  "either": 9,
+  "meshes": 27,
+  "turned": 27,
+  "verdict": "rotY180"
+ },
+ "Prologue": {
+  "asDrawn": 5,
+  "either": 5,
+  "meshes": 23,
+  "turned": 23,
+  "verdict": "rotY180"
+ },
+ "Robots": {
+  "asDrawn": 9,
+  "either": 9,
+  "meshes": 38,
+  "turned": 38,
+  "verdict": "rotY180"
+ },
+ "SetPieces": {
+  "asDrawn": 65,
+  "either": 65,
+  "meshes": 155,
+  "turned": 155,
+  "verdict": "rotY180"
+ },
+ "Shoulders": {
+  "asDrawn": 10,
+  "either": 10,
+  "meshes": 92,
+  "turned": 92,
+  "verdict": "rotY180"
+ },
+ "Story": {
+  "asDrawn": 6,
+  "either": 6,
+  "meshes": 20,
+  "turned": 20,
+  "verdict": "rotY180"
+ },
+ "Street": {
+  "asDrawn": 31,
+  "either": 31,
+  "meshes": 65,
+  "turned": 65,
+  "verdict": "rotY180"
+ },
+ "Trooper": {
+  "asDrawn": 0,
+  "either": 0,
+  "meshes": 16,
+  "turned": 16,
+  "verdict": "rotY180"
+ },
+ "Vehicles": {
+  "asDrawn": 21,
+  "either": 21,
+  "meshes": 110,
+  "turned": 110,
+  "verdict": "rotY180"
+ },
+ "Voidhound": {
+  "asDrawn": 0,
+  "either": 0,
+  "meshes": 19,
+  "turned": 19,
+  "verdict": "rotY180"
+ },
+ "Weapons": {
+  "asDrawn": 0,
+  "by": "fix-weapons",
+  "either": 0,
+  "meshes": 259,
+  "turned": 259,
+  "verdict": "rotY180"
+ },
+ "WindupGiant": {
+  "asDrawn": 8,
+  "either": 8,
+  "meshes": 17,
+  "turned": 17,
+  "verdict": "rotY180"
+ },
+ "Wrecks": {
+  "asDrawn": 0,
+  "either": 0,
+  "meshes": 33,
+  "turned": 33,
+  "verdict": "rotY180"
+ },
+ "Wrists": {
+  "asDrawn": 26,
+  "either": 26,
+  "meshes": 29,
+  "turned": 29,
+  "verdict": "rotY180"
+ }
+}

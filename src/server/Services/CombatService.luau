@@ -1892,10 +1892,10 @@ function CombatService.init()
 	local poundAt: { [number]: number } = {}
 	Net.on("MovePound", function(player)
 		local hero = HeroService.get(player)
-		local m = Config.Move.mobility.leap
 		if not hero or not hero.alive or hero.mobility ~= "leap" then
 			return
 		end
+		local m = HeroService.moveConfig(hero).mobility.leap -- side-content: the trained ranks (a wider pound)
 		local now = os.clock()
 		if now < (poundAt[hero.id] or 0) then
 			return

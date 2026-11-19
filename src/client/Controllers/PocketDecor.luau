@@ -27,6 +27,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local PocketLayout = require(Shared:WaitForChild("PocketLayout"))
 local PocketDress = require(Shared:WaitForChild("PocketDress"))
 local PocketPropKit = require(Shared:WaitForChild("PocketPropKit"))
+local MeshFix = require(Shared:WaitForChild("MeshFix"))
 local QualityController = require(script.Parent.QualityController)
 local CityProps = require(script.Parent.CityProps)
 
@@ -184,7 +185,7 @@ local function makeProp(place: PocketPropKit.Place, m: Model): number
 		if not src then
 			continue
 		end
-		local p = src:Clone()
+		local p = MeshFix.clone(src)
 		for _, c in p:GetChildren() do
 			if mesh.maps and c:IsA("SurfaceAppearance") then
 				c.AlphaMode = Enum.AlphaMode.Overlay
@@ -198,7 +199,7 @@ local function makeProp(place: PocketPropKit.Place, m: Model): number
 		p.CanTouch = false
 		p.CastShadow = mesh.mat ~= "Neon" and mesh.alpha == 0
 		p.Size = Vector3.new(mesh.size[1], mesh.size[2], mesh.size[3])
-		p.CFrame = at * CFrame.new(mesh.offset[1], mesh.offset[2], mesh.offset[3])
+		p.CFrame = at * CFrame.new(mesh.offset[1], mesh.offset[2], mesh.offset[3]) * MeshFix.of(p) -- the import's turn
 		p.Color = Color3.fromRGB(mesh.color[1], mesh.color[2], mesh.color[3])
 		p.Material = (Enum.Material :: any)[mesh.mat] or Enum.Material.SmoothPlastic
 		p.Transparency = mesh.alpha

@@ -48,6 +48,7 @@ local WreckArtKit = require(Shared:WaitForChild("WreckArtKit"))
 local CarryPose = require(Shared:WaitForChild("CarryPose"))
 local RigJoints = require(Shared:WaitForChild("RigJoints"))
 local HeroAnim = require(Shared:WaitForChild("HeroAnim"))
+local MeshFix = require(Shared:WaitForChild("MeshFix"))
 
 local BlockService = require(script.Parent.BlockService)
 local CombatService = require(script.Parent.CombatService)
@@ -859,7 +860,7 @@ local function wreckMeshes(m: Model, kind: string, sx: number, sy: number, sz: n
 		if not src then
 			continue
 		end
-		local p = src:Clone()
+		local p = MeshFix.clone(src)
 		for _, c in p:GetChildren() do
 			if mm.maps and c:IsA("SurfaceAppearance") then
 				c.AlphaMode = Enum.AlphaMode.Overlay
@@ -873,7 +874,7 @@ local function wreckMeshes(m: Model, kind: string, sx: number, sy: number, sz: n
 		p.CanQuery = false
 		p.CanTouch = false
 		p.Size = Vector3.new(mm.size[1], mm.size[2], mm.size[3])
-		p.CFrame = mid * CFrame.new(mm.offset[1], mm.offset[2], mm.offset[3])
+		p.CFrame = mid * CFrame.new(mm.offset[1], mm.offset[2], mm.offset[3]) * MeshFix.of(p) -- the import's turn
 		p.Color = Color3.fromRGB(mm.color[1], mm.color[2], mm.color[3])
 		local ok, mat = pcall(function()
 			return (Enum.Material :: any)[mm.mat]

@@ -44,6 +44,9 @@ def fetch(aid):
             time.sleep(3 * (a + 1))
             continue
         raw = subprocess.run(["curl", "-sSf", loc], capture_output=True).stdout
+        if len(raw) < 16:  # (fix-models: an empty reply under load; try again rather than cache nothing)
+            time.sleep(3 * (a + 1))
+            continue
         return gzip.decompress(raw) if raw[:2] == b"\x1f\x8b" else raw
     raise SystemExit(f"could not download {aid}")
 
@@ -82,7 +85,9 @@ def main():
     dump = os.path.join(cache, "_fbx.json")
     subprocess.run([BPY, os.path.join(HERE, "meshdump.py"), fbx, dump], check=True, capture_output=True)
     drawn = json.load(open(dump))
-    ids = json.load(open(os.path.join(ROOT, "art", "models", s.lower() + "_meshids.json")))
+    # (the robots' ids predate the per-set names: art/models/meshids.json)
+    idfile = "meshids.json" if s == "Robots" else s.lower() + "_meshids.json"
+    ids = json.load(open(os.path.join(ROOT, "art", "models", idfile)))
     tally, off = collections.Counter(), []
     for path, aid in sorted(ids.items()):
         if not isinstance(aid, int) or "#" in path:
@@ -91,7 +96,7 @@ def main():
         if name not in drawn:
             continue
         f = os.path.join(cache, name + ".bin")
-        if not os.path.exists(f):
+        if not os.path.exists(f) or os.path.getsize(f) < 16:
             open(f, "wb").write(fetch(aid))
         b = np.array(drawn[name])
         exp = np.stack([b[:, 0], b[:, 2], -b[:, 1]], 1)
@@ -109,6 +114,22 @@ def main():
     print(f"{len(off)} of {sum(tally.values())} meshes do not face as drawn")
     for e, n, best in sorted(off, reverse=True)[:20]:
         print(f"   {n}: {e:.3f} studs off as drawn, matches {best}")
+    # the set's verdict for art/models/meshturns.json (fix-models: art/upload/meshturns.py gathers them)
+    total = sum(tally.values())
+    turned = sum(v for k, v in tally.items() if "rotY180" in k)
+    asdrawn = sum(v for k, v in tally.items() if "identity" in k)
+    both = sum(v for k, v in tally.items() if "rotY180" in k and "identity" in k)
+    if both == total:
+        verdict = "symmetric"
+    elif turned == total:
+        verdict = "rotY180"
+    elif asdrawn == total:
+        verdict = "identity"
+    else:
+        verdict = "mixed"
+    json.dump({"set": s, "meshes": total, "turned": turned, "asDrawn": asdrawn, "either": both, "verdict": verdict},
+              open(os.path.join(cache, "summary.json"), "w"))
+    print("verdict", verdict)
 
 
 if __name__ == "__main__":

@@ -28,6 +28,7 @@ local Workspace = game:GetService("Workspace")
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local FrameProf = require(Shared:WaitForChild("FrameProf"))
+local MeshFix = require(Shared:WaitForChild("MeshFix"))
 local LifePlan = require(Shared:WaitForChild("LifePlan"))
 local SetPieceKit = require(Shared:WaitForChild("SetPieceKit"))
 local VehicleKit = require(Shared:WaitForChild("VehicleKit"))
@@ -46,7 +47,7 @@ local CityLife = {}
 CityLife.cars = 0 -- live counts (the Dev panel can show them)
 CityLife.flocks = 0
 
-local LIFE_TURN = CFrame.Angles(0, math.pi, 0) -- Shared.LifeKit.TURN: Open Cloud turned Art.Life 180 about y
+local LIFE_TURN = MeshFix.turn(Config.Life.set) -- the import's turn of Art.Life (Shared.MeshFix, meshcheck)
 local GROUND = Config.City.ground.y
 local SIDEWALK = GROUND + 0.9
 
@@ -84,7 +85,7 @@ local function lifePiece(
 	if not (src and fit) then
 		return nil
 	end
-	local p = src:Clone()
+	local p = MeshFix.clone(src)
 	for _, c in p:GetChildren() do
 		c:Destroy()
 	end
@@ -129,6 +130,7 @@ type Car = {
 	model: Model,
 	parts: { BasePart },
 	offs: { CFrame },
+	fixes: { CFrame },
 	wheels: { { i: number, r: number } },
 	spin: number,
 	hold: number, -- braking for a bang until this time
@@ -185,10 +187,11 @@ local function buildCar(): Car?
 				local m = Instance.new("Model")
 				m.Name = "LifeCar"
 				local parts: { BasePart }, offs: { CFrame }, wheels: { { i: number, r: number } } = {}, {}, {}
+				local fixes: { CFrame } = {} -- each mesh's import turn (Shared.MeshFix), put back after a wheel's roll
 				for _, mm in SetPieceKit.meshes(Config, place :: any) do
 					local src = vehicleArt and vehicleArt:FindFirstChild(mm.name, true)
 					if src and src:IsA("MeshPart") then
-						local p = src:Clone()
+						local p = MeshFix.clone(src)
 						for _, c in p:GetChildren() do
 							if mm.maps and c:IsA("SurfaceAppearance") then
 								pcall(function()
@@ -212,6 +215,7 @@ local function buildCar(): Car?
 						p.Parent = m
 						table.insert(parts, p)
 						table.insert(offs, CFrame.new(mm.offset[1], mm.offset[2], mm.offset[3]))
+						table.insert(fixes, MeshFix.of(p))
 						if mm.wheel then
 							table.insert(wheels, { i = #parts, r = mm.wheel.r })
 						end
@@ -230,6 +234,7 @@ local function buildCar(): Car?
 					model = m,
 					parts = parts,
 					offs = offs,
+					fixes = fixes,
 					wheels = wheels,
 					spin = 0,
 					hold = 0,
@@ -376,7 +381,7 @@ local function stepCars(dt: number, now: number, list: { any })
 		car.spin += car.v * dt
 		for k, p in car.parts do
 			table.insert(bulkParts, p)
-			table.insert(bulkCFrames, root * car.offs[k])
+			table.insert(bulkCFrames, root * car.offs[k] * car.fixes[k])
 		end
 		if B.wheels then
 			for _, w in car.wheels do
@@ -384,6 +389,7 @@ local function stepCars(dt: number, now: number, list: { any })
 				bulkCFrames[#bulkCFrames - #car.parts + k] = root
 					* car.offs[k]
 					* CFrame.Angles(-car.spin / math.max(w.r, 0.3), 0, 0)
+					* car.fixes[k]
 			end
 		end
 	end

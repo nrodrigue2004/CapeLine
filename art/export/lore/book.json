@@ -1,0 +1,1645 @@
+{
+  "book": [
+    {
+      "color": "cover",
+      "material": "fabric",
+      "mesh": "LoreCover",
+      "name": "CoverL",
+      "pos": [
+        -0.728261781109079,
+        0,
+        0.26506561107739324
+      ],
+      "rot": [
+        0,
+        20,
+        0
+      ],
+      "shape": "block",
+      "size": [
+        1.55,
+        2.16,
+        0.12
+      ]
+    },
+    {
+      "color": "page",
+      "material": "plastic",
+      "mesh": "LorePages",
+      "name": "PagesL",
+      "pos": [
+        -0.7274671248859425,
+        0,
+        0.0625826030952738
+      ],
+      "rot": [
+        0,
+        20,
+        0
+      ],
+      "shape": "block",
+      "size": [
+        1.31,
+        1.8,
+        0.26
+      ]
+    },
+    {
+      "color": "ink",
+      "material": "plastic",
+      "name": "LineL1",
+      "pos": [
+        -0.7457910857546562,
+        0.62,
+        -0.07547619763137978
+      ],
+      "rot": [
+        0,
+        20,
+        0
+      ],
+      "shape": "block",
+      "size": [
+        0.95,
+        0.05,
+        0.012
+      ]
+    },
+    {
+      "color": "ink",
+      "material": "plastic",
+      "name": "LineL2",
+      "pos": [
+        -0.7457910857546562,
+        0.32,
+        -0.07547619763137978
+      ],
+      "rot": [
+        0,
+        20,
+        0
+      ],
+      "shape": "block",
+      "size": [
+        0.95,
+        0.05,
+        0.012
+      ]
+    },
+    {
+      "color": "ink",
+      "material": "plastic",
+      "name": "LineL3",
+      "pos": [
+        -0.7457910857546562,
+        0.020000000000000018,
+        -0.07547619763137978
+      ],
+      "rot": [
+        0,
+        20,
+        0
+      ],
+      "shape": "block",
+      "size": [
+        0.95,
+        0.05,
+        0.012
+      ]
+    },
+    {
+      "color": "ink",
+      "material": "plastic",
+      "name": "LineL4",
+      "pos": [
+        -0.7457910857546562,
+        -0.2799999999999999,
+        -0.07547619763137978
+      ],
+      "rot": [
+        0,
+        20,
+        0
+      ],
+      "shape": "block",
+      "size": [
+        0.95,
+        0.05,
+        0.012
+      ]
+    },
+    {
+      "color": "ink",
+      "material": "plastic",
+      "name": "LineL5",
+      "pos": [
+        -0.5813448771171222,
+        -0.58,
+        -0.13532972271337182
+      ],
+      "rot": [
+        0,
+        20,
+        0
+      ],
+      "shape": "block",
+      "size": [
+        0.6,
+        0.05,
+        0.012
+      ]
+    },
+    {
+      "color": "gold",
+      "material": "metal",
+      "mesh": "LoreCorner",
+      "name": "CornerLT",
+      "pos": [
+        -1.2685850380609762,
+        0.9,
+        0.46172719348965274
+      ],
+      "rot": [
+        0,
+        20,
+        0
+      ],
+      "shape": "block",
+      "size": [
+        0.26,
+        0.26,
+        0.16
+      ]
+    },
+    {
+      "color": "gold",
+      "material": "metal",
+      "mesh": "LoreCorner",
+      "name": "CornerLB",
+      "pos": [
+        -1.2685850380609762,
+        -0.9,
+        0.46172719348965274
+      ],
+      "rot": [
+        0,
+        20,
+        0
+      ],
+      "shape": "block",
+      "size": [
+        0.26,
+        0.26,
+        0.16
+      ]
+    },
+    {
+      "color": "cover",
+      "material": "fabric",
+      "mesh": "LoreCover",
+      "name": "CoverR",
+      "pos": [
+        0.728261781109079,
+        0,
+        0.26506561107739324
+      ],
+      "rot": [
+        0,
+        -20,
+        0
+      ],
+      "shape": "block",
+      "size": [
+        1.55,
+        2.16,
+        0.12
+      ]
+    },
+    {
+      "color": "page",
+      "material": "plastic",
+      "mesh": "LorePages",
+      "name": "PagesR",
+      "pos": [
+        0.7274671248859425,
+        0,
+        0.0625826030952738
+      ],
+      "rot": [
+        0,
+        -20,
+        0
+      ],
+      "shape": "block",
+      "size": [
+        1.31,
+        1.8,
+        0.26
+      ]
+    },
+    {
+      "color": "ink",
+      "material": "plastic",
+      "name": "LineR1",
+      "pos": [
+        0.7457910857546562,
+        0.62,
+        -0.07547619763137978
+      ],
+      "rot": [
+        0,
+        -20,
+        0
+      ],
+      "shape": "block",
+      "size": [
+        0.95,
+        0.05,
+        0.012
+      ]
+    },
+    {
+      "color": "ink",
+      "material": "plastic",
+      "name": "LineR2",
+      "pos": [
+        0.7457910857546562,
+        0.32,
+        -0.07547619763137978
+      ],
+      "rot": [
+        0,
+        -20,
+        0
+      ],
+      "shape": "block",
+      "size": [
+        0.95,
+        0.05,
+        0.012
+      ]
+    },
+    {
+      "color": "ink",
+      "material": "plastic",
+      "name": "LineR3",
+      "pos": [
+        0.7457910857546562,
+        0.020000000000000018,
+        -0.07547619763137978
+      ],
+      "rot": [
+        0,
+        -20,
+        0
+      ],
+      "shape": "block",
+      "size": [
+        0.95,
+        0.05,
+        0.012
+      ]
+    },
+    {
+      "color": "ink",
+      "material": "plastic",
+      "name": "LineR4",
+      "pos": [
+        0.7457910857546562,
+        -0.2799999999999999,
+        -0.07547619763137978
+      ],
+      "rot": [
+        0,
+        -20,
+        0
+      ],
+      "shape": "block",
+      "size": [
+        0.95,
+        0.05,
+        0.012
+      ]
+    },
+    {
+      "color": "ink",
+      "material": "plastic",
+      "name": "LineR5",
+      "pos": [
+        0.5813448771171222,
+        -0.58,
+        -0.13532972271337182
+      ],
+      "rot": [
+        0,
+        -20,
+        0
+      ],
+      "shape": "block",
+      "size": [
+        0.6,
+        0.05,
+        0.012
+      ]
+    },
+    {
+      "color": "gold",
+      "material": "metal",
+      "mesh": "LoreCorner",
+      "name": "CornerRT",
+      "pos": [
+        1.2685850380609762,
+        0.9,
+        0.46172719348965274
+      ],
+      "rot": [
+        0,
+        -20,
+        0
+      ],
+      "shape": "block",
+      "size": [
+        0.26,
+        0.26,
+        0.16
+      ]
+    },
+    {
+      "color": "gold",
+      "material": "metal",
+      "mesh": "LoreCorner",
+      "name": "CornerRB",
+      "pos": [
+        1.2685850380609762,
+        -0.9,
+        0.46172719348965274
+      ],
+      "rot": [
+        0,
+        -20,
+        0
+      ],
+      "shape": "block",
+      "size": [
+        0.26,
+        0.26,
+        0.16
+      ]
+    },
+    {
+      "color": "spine",
+      "material": "fabric",
+      "mesh": "LoreSpine",
+      "name": "Spine",
+      "pos": [
+        0,
+        0,
+        0.06
+      ],
+      "rot": [
+        0,
+        0,
+        90
+      ],
+      "shape": "cylinder",
+      "size": [
+        2.04,
+        0.3,
+        0.3
+      ]
+    },
+    {
+      "color": "gold",
+      "material": "metal",
+      "mesh": "LoreBand",
+      "name": "BandT",
+      "pos": [
+        0,
+        0.8200000000000001,
+        0.06
+      ],
+      "rot": [
+        0,
+        0,
+        90
+      ],
+      "shape": "cylinder",
+      "size": [
+        0.08,
+        0.34,
+        0.34
+      ]
+    },
+    {
+      "color": "gold",
+      "material": "metal",
+      "mesh": "LoreBand",
+      "name": "BandB",
+      "pos": [
+        0,
+        -0.8200000000000001,
+        0.06
+      ],
+      "rot": [
+        0,
+        0,
+        90
+      ],
+      "shape": "cylinder",
+      "size": [
+        0.08,
+        0.34,
+        0.34
+      ]
+    },
+    {
+      "color": "gold",
+      "material": "metal",
+      "mesh": "LoreClasp",
+      "name": "Clasp",
+      "pos": [
+        1.408744274955726,
+        0,
+        0.3105472070063836
+      ],
+      "rot": [
+        0,
+        70,
+        0
+      ],
+      "shape": "cylinder",
+      "size": [
+        0.1,
+        0.42,
+        0.42
+      ]
+    },
+    {
+      "color": "ribbon",
+      "material": "fabric",
+      "mesh": "LoreRibbon",
+      "name": "Ribbon",
+      "pos": [
+        0.05,
+        -1.3,
+        -0.02
+      ],
+      "rot": [
+        0,
+        0,
+        -8
+      ],
+      "shape": "block",
+      "size": [
+        0.12,
+        0.9,
+        0.02
+      ]
+    },
+    {
+      "color": "ribbon",
+      "material": "fabric",
+      "mesh": "LoreRibbonTip",
+      "name": "RibbonTip",
+      "pos": [
+        0.11,
+        -1.8199999999999998,
+        -0.02
+      ],
+      "rot": [
+        0,
+        90,
+        -8
+      ],
+      "shape": "wedge",
+      "size": [
+        0.02,
+        0.18,
+        0.12
+      ]
+    },
+    {
+      "color": "glow",
+      "material": "neon",
+      "mesh": "LoreStar",
+      "name": "StarCore",
+      "pos": [
+        0,
+        1.75,
+        0
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "shape": "ball",
+      "size": [
+        0.42,
+        0.42,
+        0.42
+      ],
+      "spin": true
+    },
+    {
+      "color": "glow",
+      "material": "neon",
+      "mesh": "LoreSpark",
+      "name": "StarRay1",
+      "pos": [
+        0,
+        1.75,
+        0
+      ],
+      "rot": [
+        0,
+        0,
+        45
+      ],
+      "shape": "block",
+      "size": [
+        0.9,
+        0.12,
+        0.12
+      ],
+      "spin": true
+    },
+    {
+      "color": "glow",
+      "material": "neon",
+      "mesh": "LoreSpark",
+      "name": "StarRay2",
+      "pos": [
+        0,
+        1.75,
+        0
+      ],
+      "rot": [
+        0,
+        90,
+        45
+      ],
+      "shape": "block",
+      "size": [
+        0.9,
+        0.12,
+        0.12
+      ],
+      "spin": true
+    },
+    {
+      "alpha": 0.88,
+      "color": "glow",
+      "material": "neon",
+      "name": "Halo",
+      "pos": [
+        0,
+        0.1,
+        0.7
+      ],
+      "rot": [
+        0,
+        90,
+        0
+      ],
+      "shape": "cylinder",
+      "size": [
+        0.05,
+        3,
+        3
+      ]
+    }
+  ],
+  "colors": {
+    "Coast": {
+      "cover": [
+        30,
+        100,
+        160
+      ],
+      "glow": [
+        255,
+        236,
+        160
+      ],
+      "gold": [
+        255,
+        205,
+        90
+      ],
+      "ink": [
+        70,
+        60,
+        70
+      ],
+      "page": [
+        250,
+        244,
+        225
+      ],
+      "ribbon": [
+        200,
+        40,
+        50
+      ],
+      "spine": [
+        21,
+        70,
+        112
+      ]
+    },
+    "Crater": {
+      "cover": [
+        30,
+        50,
+        80
+      ],
+      "glow": [
+        255,
+        236,
+        160
+      ],
+      "gold": [
+        255,
+        205,
+        90
+      ],
+      "ink": [
+        70,
+        60,
+        70
+      ],
+      "page": [
+        250,
+        244,
+        225
+      ],
+      "ribbon": [
+        200,
+        40,
+        50
+      ],
+      "spine": [
+        21,
+        35,
+        56
+      ]
+    },
+    "Docks": {
+      "cover": [
+        40,
+        110,
+        120
+      ],
+      "glow": [
+        255,
+        236,
+        160
+      ],
+      "gold": [
+        255,
+        205,
+        90
+      ],
+      "ink": [
+        70,
+        60,
+        70
+      ],
+      "page": [
+        250,
+        244,
+        225
+      ],
+      "ribbon": [
+        200,
+        40,
+        50
+      ],
+      "spine": [
+        28,
+        77,
+        84
+      ]
+    },
+    "Downtown": {
+      "cover": [
+        40,
+        70,
+        150
+      ],
+      "glow": [
+        255,
+        236,
+        160
+      ],
+      "gold": [
+        255,
+        205,
+        90
+      ],
+      "ink": [
+        70,
+        60,
+        70
+      ],
+      "page": [
+        250,
+        244,
+        225
+      ],
+      "ribbon": [
+        200,
+        40,
+        50
+      ],
+      "spine": [
+        28,
+        49,
+        105
+      ]
+    },
+    "Farmland": {
+      "cover": [
+        120,
+        140,
+        50
+      ],
+      "glow": [
+        255,
+        236,
+        160
+      ],
+      "gold": [
+        255,
+        205,
+        90
+      ],
+      "ink": [
+        70,
+        60,
+        70
+      ],
+      "page": [
+        250,
+        244,
+        225
+      ],
+      "ribbon": [
+        200,
+        40,
+        50
+      ],
+      "spine": [
+        84,
+        98,
+        35
+      ]
+    },
+    "OldQuarry": {
+      "cover": [
+        110,
+        80,
+        60
+      ],
+      "glow": [
+        255,
+        236,
+        160
+      ],
+      "gold": [
+        255,
+        205,
+        90
+      ],
+      "ink": [
+        70,
+        60,
+        70
+      ],
+      "page": [
+        250,
+        244,
+        225
+      ],
+      "ribbon": [
+        200,
+        40,
+        50
+      ],
+      "spine": [
+        77,
+        56,
+        42
+      ]
+    },
+    "OldTown": {
+      "cover": [
+        120,
+        60,
+        130
+      ],
+      "glow": [
+        255,
+        236,
+        160
+      ],
+      "gold": [
+        255,
+        205,
+        90
+      ],
+      "ink": [
+        70,
+        60,
+        70
+      ],
+      "page": [
+        250,
+        244,
+        225
+      ],
+      "ribbon": [
+        200,
+        40,
+        50
+      ],
+      "spine": [
+        84,
+        42,
+        91
+      ]
+    },
+    "RadioHill": {
+      "cover": [
+        90,
+        70,
+        170
+      ],
+      "glow": [
+        255,
+        236,
+        160
+      ],
+      "gold": [
+        255,
+        205,
+        90
+      ],
+      "ink": [
+        70,
+        60,
+        70
+      ],
+      "page": [
+        250,
+        244,
+        225
+      ],
+      "ribbon": [
+        200,
+        40,
+        50
+      ],
+      "spine": [
+        62,
+        49,
+        118
+      ]
+    },
+    "Suburbs": {
+      "cover": [
+        210,
+        80,
+        90
+      ],
+      "glow": [
+        255,
+        236,
+        160
+      ],
+      "gold": [
+        255,
+        205,
+        90
+      ],
+      "ink": [
+        70,
+        60,
+        70
+      ],
+      "page": [
+        250,
+        244,
+        225
+      ],
+      "ribbon": [
+        200,
+        40,
+        50
+      ],
+      "spine": [
+        147,
+        56,
+        62
+      ]
+    },
+    "Underwater": {
+      "cover": [
+        30,
+        130,
+        140
+      ],
+      "glow": [
+        255,
+        236,
+        160
+      ],
+      "gold": [
+        255,
+        205,
+        90
+      ],
+      "ink": [
+        70,
+        60,
+        70
+      ],
+      "page": [
+        250,
+        244,
+        225
+      ],
+      "ribbon": [
+        200,
+        40,
+        50
+      ],
+      "spine": [
+        21,
+        91,
+        98
+      ]
+    },
+    "Uptown": {
+      "cover": [
+        200,
+        110,
+        60
+      ],
+      "glow": [
+        255,
+        236,
+        160
+      ],
+      "gold": [
+        255,
+        205,
+        90
+      ],
+      "ink": [
+        70,
+        60,
+        70
+      ],
+      "page": [
+        250,
+        244,
+        225
+      ],
+      "ribbon": [
+        200,
+        40,
+        50
+      ],
+      "spine": [
+        140,
+        77,
+        42
+      ]
+    }
+  },
+  "shelf": [
+    {
+      "color": "spine",
+      "material": "plastic",
+      "mesh": "LoreShelfBack",
+      "name": "Back",
+      "pos": [
+        0,
+        2.6,
+        0.6
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "shape": "block",
+      "size": [
+        6.4,
+        5.2,
+        0.2
+      ]
+    },
+    {
+      "color": "spine",
+      "material": "plastic",
+      "mesh": "LoreShelfSide",
+      "name": "Side",
+      "pos": [
+        -3.2,
+        2.6,
+        0
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "shape": "block",
+      "size": [
+        0.25,
+        5.2,
+        1.4
+      ]
+    },
+    {
+      "color": "spine",
+      "material": "plastic",
+      "mesh": "LoreShelfSide",
+      "name": "Side",
+      "pos": [
+        3.2,
+        2.6,
+        0
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "shape": "block",
+      "size": [
+        0.25,
+        5.2,
+        1.4
+      ]
+    },
+    {
+      "color": "spine",
+      "material": "plastic",
+      "mesh": "LoreShelfBoard",
+      "name": "Shelf1",
+      "pos": [
+        0,
+        0.15,
+        0
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "shape": "block",
+      "size": [
+        6.4,
+        0.22,
+        1.4
+      ]
+    },
+    {
+      "color": "spine",
+      "material": "plastic",
+      "mesh": "LoreShelfBoard",
+      "name": "Shelf2",
+      "pos": [
+        0,
+        2.5,
+        0
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "shape": "block",
+      "size": [
+        6.4,
+        0.22,
+        1.4
+      ]
+    },
+    {
+      "color": "spine",
+      "material": "plastic",
+      "mesh": "LoreShelfBoard",
+      "name": "Shelf3",
+      "pos": [
+        0,
+        5.1000000000000005,
+        0
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "shape": "block",
+      "size": [
+        6.4,
+        0.22,
+        1.4
+      ]
+    },
+    {
+      "color": "book:Downtown",
+      "material": "neon",
+      "mesh": "LoreBookClosed",
+      "name": "BookDowntown",
+      "pos": [
+        -2.6500000000000004,
+        1.24,
+        -0.05
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "shape": "block",
+      "size": [
+        0.7,
+        1.96,
+        1
+      ]
+    },
+    {
+      "color": "gold",
+      "material": "metal",
+      "mesh": "LoreSpineBand",
+      "name": "BandDowntown",
+      "pos": [
+        -2.6500000000000004,
+        1.9199999999999997,
+        -0.05
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "shape": "block",
+      "size": [
+        0.72,
+        0.12,
+        1.02
+      ]
+    },
+    {
+      "color": "book:Uptown",
+      "material": "fabric",
+      "mesh": "LoreBookClosed",
+      "name": "BookUptown",
+      "pos": [
+        -1.7000000000000004,
+        1.1800000000000002,
+        -0.05
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "shape": "block",
+      "size": [
+        0.7,
+        1.84,
+        1
+      ]
+    },
+    {
+      "color": "gold",
+      "material": "metal",
+      "mesh": "LoreSpineBand",
+      "name": "BandUptown",
+      "pos": [
+        -1.7000000000000004,
+        1.8,
+        -0.05
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "shape": "block",
+      "size": [
+        0.72,
+        0.12,
+        1.02
+      ]
+    },
+    {
+      "color": "book:OldTown",
+      "material": "fabric",
+      "mesh": "LoreBookClosed",
+      "name": "BookOldTown",
+      "pos": [
+        -0.7500000000000004,
+        1.12,
+        -0.05
+      ],
+      "rot": [
+        0,
+        0,
+        6
+      ],
+      "shape": "block",
+      "size": [
+        0.7,
+        1.7200000000000002,
+        1
+      ]
+    },
+    {
+      "color": "gold",
+      "material": "metal",
+      "mesh": "LoreSpineBand",
+      "name": "BandOldTown",
+      "pos": [
+        -0.7500000000000004,
+        1.6800000000000002,
+        -0.05
+      ],
+      "rot": [
+        0,
+        0,
+        6
+      ],
+      "shape": "block",
+      "size": [
+        0.72,
+        0.12,
+        1.02
+      ]
+    },
+    {
+      "color": "book:Docks",
+      "material": "neon",
+      "mesh": "LoreBookClosed",
+      "name": "BookDocks",
+      "pos": [
+        0.1999999999999993,
+        1.06,
+        -0.05
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "shape": "block",
+      "size": [
+        0.7,
+        1.6,
+        1
+      ]
+    },
+    {
+      "color": "gold",
+      "material": "metal",
+      "mesh": "LoreSpineBand",
+      "name": "BandDocks",
+      "pos": [
+        0.1999999999999993,
+        1.56,
+        -0.05
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "shape": "block",
+      "size": [
+        0.72,
+        0.12,
+        1.02
+      ]
+    },
+    {
+      "color": "book:Suburbs",
+      "material": "fabric",
+      "mesh": "LoreBookClosed",
+      "name": "BookSuburbs",
+      "pos": [
+        1.1499999999999995,
+        1.24,
+        -0.05
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "shape": "block",
+      "size": [
+        0.7,
+        1.96,
+        1
+      ]
+    },
+    {
+      "color": "gold",
+      "material": "metal",
+      "mesh": "LoreSpineBand",
+      "name": "BandSuburbs",
+      "pos": [
+        1.1499999999999995,
+        1.9199999999999997,
+        -0.05
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "shape": "block",
+      "size": [
+        0.72,
+        0.12,
+        1.02
+      ]
+    },
+    {
+      "color": "book:Farmland",
+      "material": "fabric",
+      "mesh": "LoreBookClosed",
+      "name": "BookFarmland",
+      "pos": [
+        2.0999999999999996,
+        1.1800000000000002,
+        -0.05
+      ],
+      "rot": [
+        0,
+        0,
+        6
+      ],
+      "shape": "block",
+      "size": [
+        0.7,
+        1.84,
+        1
+      ]
+    },
+    {
+      "color": "gold",
+      "material": "metal",
+      "mesh": "LoreSpineBand",
+      "name": "BandFarmland",
+      "pos": [
+        2.0999999999999996,
+        1.8,
+        -0.05
+      ],
+      "rot": [
+        0,
+        0,
+        6
+      ],
+      "shape": "block",
+      "size": [
+        0.72,
+        0.12,
+        1.02
+      ]
+    },
+    {
+      "color": "book:Coast",
+      "material": "fabric",
+      "mesh": "LoreBookClosed",
+      "name": "BookCoast",
+      "pos": [
+        -2.6500000000000004,
+        3.4699999999999998,
+        -0.05
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "shape": "block",
+      "size": [
+        0.7,
+        1.7200000000000002,
+        1
+      ]
+    },
+    {
+      "color": "gold",
+      "material": "metal",
+      "mesh": "LoreSpineBand",
+      "name": "BandCoast",
+      "pos": [
+        -2.6500000000000004,
+        4.03,
+        -0.05
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "shape": "block",
+      "size": [
+        0.72,
+        0.12,
+        1.02
+      ]
+    },
+    {
+      "color": "book:Crater",
+      "material": "neon",
+      "mesh": "LoreBookClosed",
+      "name": "BookCrater",
+      "pos": [
+        -1.7000000000000004,
+        3.41,
+        -0.05
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "shape": "block",
+      "size": [
+        0.7,
+        1.6,
+        1
+      ]
+    },
+    {
+      "color": "gold",
+      "material": "metal",
+      "mesh": "LoreSpineBand",
+      "name": "BandCrater",
+      "pos": [
+        -1.7000000000000004,
+        3.91,
+        -0.05
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "shape": "block",
+      "size": [
+        0.72,
+        0.12,
+        1.02
+      ]
+    },
+    {
+      "color": "book:RadioHill",
+      "material": "fabric",
+      "mesh": "LoreBookClosed",
+      "name": "BookRadioHill",
+      "pos": [
+        -0.7500000000000004,
+        3.59,
+        -0.05
+      ],
+      "rot": [
+        0,
+        0,
+        6
+      ],
+      "shape": "block",
+      "size": [
+        0.7,
+        1.96,
+        1
+      ]
+    },
+    {
+      "color": "gold",
+      "material": "metal",
+      "mesh": "LoreSpineBand",
+      "name": "BandRadioHill",
+      "pos": [
+        -0.7500000000000004,
+        4.2700000000000005,
+        -0.05
+      ],
+      "rot": [
+        0,
+        0,
+        6
+      ],
+      "shape": "block",
+      "size": [
+        0.72,
+        0.12,
+        1.02
+      ]
+    },
+    {
+      "color": "book:OldQuarry",
+      "material": "fabric",
+      "mesh": "LoreBookClosed",
+      "name": "BookOldQuarry",
+      "pos": [
+        0.1999999999999993,
+        3.53,
+        -0.05
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "shape": "block",
+      "size": [
+        0.7,
+        1.84,
+        1
+      ]
+    },
+    {
+      "color": "gold",
+      "material": "metal",
+      "mesh": "LoreSpineBand",
+      "name": "BandOldQuarry",
+      "pos": [
+        0.1999999999999993,
+        4.15,
+        -0.05
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "shape": "block",
+      "size": [
+        0.72,
+        0.12,
+        1.02
+      ]
+    },
+    {
+      "color": "book:Underwater",
+      "material": "fabric",
+      "mesh": "LoreBookClosed",
+      "name": "BookUnderwater",
+      "pos": [
+        1.1499999999999995,
+        3.4699999999999998,
+        -0.05
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "shape": "block",
+      "size": [
+        0.7,
+        1.7200000000000002,
+        1
+      ]
+    },
+    {
+      "color": "gold",
+      "material": "metal",
+      "mesh": "LoreSpineBand",
+      "name": "BandUnderwater",
+      "pos": [
+        1.1499999999999995,
+        4.03,
+        -0.05
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "shape": "block",
+      "size": [
+        0.72,
+        0.12,
+        1.02
+      ]
+    }
+  ],
+  "show": [
+    "Crater",
+    "Downtown",
+    "Farmland"
+  ]
+}

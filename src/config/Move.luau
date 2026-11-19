@@ -68,12 +68,67 @@ return {
 	-- of getting around. Each is tuned so crossing the 1,600-stud hub takes about 25 to 30 s. `cap` is the
 	-- server's speed cap (MoveMath.speedCap); `swim` the underwater speed. Level upgrades in `up`. (tune)
 	mobilityOrder = { "flight", "speed", "leap", "acrobat", "swing" },
+	-- Mobility training (side-content, 2026-11-19; nate: "I dont see any mobility upgrades"): 5 ranks for each pick
+	-- (each pick's `ranks` rows), trained in order from the POWERS screen's MOBILITY tab. Rank n opens at hero level
+	-- levels[n] and costs costs[n] Credits (earned in play; never sold for Robux, and no rank is in the shop). Ranks
+	-- are saved per hero and per pick (profile character mobRanks), so swapping picks keeps them. (tune)
+	ranks = { levels = { 5, 12, 20, 30, 40 }, costs = { 600, 1800, 4000, 8000, 14000 } },
 	mobility = {
 		flight = {
 			name = "Flight",
 			text = "Fly anywhere: cruise, boost, hover and dive",
 			swim = 50,
 			up = { boostLevel = 10, boost = 120 }, -- level 10: faster boost (inside the 125 flight cap)
+			-- training ranks (side-content, 2026-11-19; `ranks` below says when and what they cost): each row sets
+			-- numbers in this hero's own copy of Config.Move (Shared.MoveRanks), so the device's feel and the server's
+			-- speed caps (MoveMath.speedCap, MoveGuard) always move together
+			ranks = {
+				{
+					name = "Tailwind",
+					text = "Cruise 60 -> 66 studs/s",
+					set = { { "flight.cruise", 66 }, { "caps.cruise", 66 } },
+				},
+				{
+					name = "Afterburner",
+					text = "Boost 120 -> 128 studs/s",
+					set = {
+						{ "flight.boost", 128 },
+						{ "mobility.flight.up.boost", 128 },
+						{ "caps.flight", 135 },
+					},
+				},
+				{
+					name = "Hard Banking",
+					text = "Sharper turns, faster take-off",
+					set = {
+						{ "flight.turnRate", 155 },
+						{ "flight.accel", 125 },
+						{ "flight.boostAccel", 215 },
+					},
+				},
+				{
+					name = "Jet Stream",
+					text = "Cruise 74, boost 136, boost lasts longer",
+					set = {
+						{ "flight.cruise", 74 },
+						{ "caps.cruise", 74 },
+						{ "flight.boost", 136 },
+						{ "mobility.flight.up.boost", 136 },
+						{ "caps.flight", 145 },
+						{ "stamina.boostDrain", 11 },
+					},
+				},
+				{
+					name = "Sound Barrier",
+					text = "Boost 148 studs/s and it drains less",
+					set = {
+						{ "flight.boost", 148 },
+						{ "mobility.flight.up.boost", 148 },
+						{ "caps.flight", 158 },
+						{ "stamina.boostDrain", 9 },
+					},
+				},
+			},
 		},
 		speed = {
 			name = "Super-speed",
@@ -94,6 +149,41 @@ return {
 			cap = 100,
 			swim = 60,
 			up = { trailLevel = 12, trailSpeed = 70, trailRadius = 7, trailCoeff = 0.25 }, -- level 12: the trail hurts robots
+			ranks = {
+				{
+					name = "Quick Feet",
+					text = "Reach top speed faster, turn tighter",
+					set = { { "mobility.speed.accel", 95 }, { "mobility.speed.turnRate", 260 } },
+				},
+				{
+					name = "Fast Lane",
+					text = "Top speed 100 -> 108 studs/s",
+					set = { { "mobility.speed.sprint", 108 }, { "mobility.speed.cap", 108 } },
+				},
+				{
+					name = "Wall Runner",
+					text = "Run up walls faster, for longer",
+					set = { { "mobility.speed.wallRun", 72 }, { "mobility.speed.wallDrain", 9 } },
+				},
+				{
+					name = "Blur",
+					text = "Top speed 116, higher running hops",
+					set = {
+						{ "mobility.speed.sprint", 116 },
+						{ "mobility.speed.cap", 116 },
+						{ "mobility.speed.hop.up", 52 },
+					},
+				},
+				{
+					name = "Lightning Legs",
+					text = "Top speed 125, walls cost half",
+					set = {
+						{ "mobility.speed.sprint", 125 },
+						{ "mobility.speed.cap", 125 },
+						{ "mobility.speed.wallDrain", 6 },
+					},
+				},
+			},
 		},
 		leap = {
 			name = "Leaping",
@@ -112,6 +202,42 @@ return {
 			pound = { speed = 160, radius = 12, coeff = 0.8, cooldown = 3, minFall = 15 }, -- Down in the air
 			swim = 36,
 			up = { poundLevel = 10, poundRadius = 18 },
+			ranks = {
+				{
+					name = "Spring Heels",
+					text = "Leaps 90 -> 100 high, 225 far",
+					set = { { "mobility.leap.apex", 100 }, { "mobility.leap.range", 225 } },
+				},
+				{
+					name = "Hair Trigger",
+					text = "Shorter crouch and cooldown",
+					set = { { "mobility.leap.charge", 0.18 }, { "mobility.leap.cooldown", 0.35 } },
+				},
+				{
+					name = "Ricochet",
+					text = "4 wall bounces, and higher ones",
+					set = {
+						{ "mobility.leap.bounce.max", 4 },
+						{ "mobility.leap.bounce.up", 80 },
+						{ "mobility.leap.bounce.out", 56 },
+					},
+				},
+				{
+					name = "Skybound",
+					text = "Leaps 115 high, 260 far",
+					set = { { "mobility.leap.apex", 115 }, { "mobility.leap.range", 260 } },
+				},
+				{
+					name = "Meteor",
+					text = "Leaps 130 high, 300 far, a wider pound",
+					set = {
+						{ "mobility.leap.apex", 130 },
+						{ "mobility.leap.range", 300 },
+						{ "mobility.leap.pound.radius", 15 },
+						{ "mobility.leap.up.poundRadius", 22 },
+					},
+				},
+			},
 		},
 		acrobat = {
 			name = "Acrobat",
@@ -133,7 +259,38 @@ return {
 			run = 24,
 			cap = 75,
 			swim = 45,
-			up = { jumpsLevel = 10 },
+			up = { jumpsLevel = 10, jumps = 2 }, -- level 10: 2 air jumps (rank 5: 3)
+			ranks = {
+				{
+					name = "Sure Grip",
+					text = "Climb 26 -> 34 studs/s, longer wall runs",
+					set = { { "mobility.acrobat.climb", 34 }, { "mobility.acrobat.wallRunTime", 5 } },
+				},
+				{
+					name = "Spring Step",
+					text = "Higher, longer air jumps",
+					set = { { "mobility.acrobat.jump", 62 }, { "mobility.acrobat.jumpForward", 40 } },
+				},
+				{
+					name = "Parkour",
+					text = "Faster wall runs that barely sink",
+					set = {
+						{ "mobility.acrobat.wallRun", 54 },
+						{ "mobility.acrobat.wallRunTime", 6 },
+						{ "mobility.acrobat.sink", 1 },
+					},
+				},
+				{
+					name = "Updraft",
+					text = "Glide 70 -> 82 studs/s",
+					set = { { "mobility.acrobat.glideForward", 82 }, { "mobility.acrobat.cap", 88 } },
+				},
+				{
+					name = "Triple Jump",
+					text = "A third jump in the air",
+					set = { { "mobility.acrobat.up.jumps", 3 }, { "mobility.acrobat.jump", 66 } },
+				},
+			},
 		},
 		swing = {
 			name = "Swing",
@@ -209,6 +366,47 @@ return {
 			cap = 120,
 			swim = 45,
 			up = { rangeLevel = 10, range = 220 },
+			ranks = {
+				{
+					name = "Long Line",
+					text = "Lines reach 25 studs farther",
+					set = { { "mobility.swing.range", 195 }, { "mobility.swing.up.range", 245 } },
+				},
+				{
+					name = "Strong Arms",
+					text = "Pump harder, reel in faster",
+					set = { { "mobility.swing.pump", 40 }, { "mobility.swing.reel", 52 } },
+				},
+				{
+					name = "Momentum",
+					text = "Swing 105 -> 114 studs/s",
+					set = {
+						{ "mobility.swing.maxSpeed", 114 },
+						{ "mobility.swing.release.cap", 124 },
+						{ "mobility.swing.cap", 130 },
+					},
+				},
+				{
+					name = "Zipline",
+					text = "Faster zips and a bigger pop",
+					set = {
+						{ "mobility.swing.zip", 135 },
+						{ "mobility.swing.zipPop.up", 48 },
+						{ "mobility.swing.cap", 138 },
+					},
+				},
+				{
+					name = "Skyline",
+					text = "Swing 124 studs/s, lines reach 270",
+					set = {
+						{ "mobility.swing.maxSpeed", 124 },
+						{ "mobility.swing.release.cap", 134 },
+						{ "mobility.swing.range", 215 },
+						{ "mobility.swing.up.range", 270 },
+						{ "mobility.swing.cap", 145 },
+					},
+				},
+			},
 		},
 	},
 	swim = { base = 24, surface = 2 },

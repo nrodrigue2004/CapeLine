@@ -309,11 +309,12 @@ return function(T: any)
 		local bad = CreatorRules.defaultLook(Config)
 		bad.build = 9
 		check(not CreatorRules.validate(Config, profile, bad, 1), "an unknown build is refused")
-		-- the 8 body sets: their torsos are in the built place and fill Roblox's own torso boxes
+		-- the 8 body sets: their torsos are in the built place and fill Roblox's own torso boxes (worn from
+		-- Art.BodyTorsos, the pre-turned upload, since fix-bodies: ApplyMesh cannot turn Art.Bodies' copies)
 		local game = roblox.deserializePlace(fs.readFile(T.place or "build/Capeline.rbxl"))
 		local bodies = game:GetService("ReplicatedStorage"):FindFirstChild("Art")
-		bodies = bodies and bodies:FindFirstChild("Bodies")
-		check(bodies ~= nil, "Art.Bodies is in the build")
+		bodies = bodies and bodies:FindFirstChild("BodyTorsos")
+		check(bodies ~= nil, "Art.BodyTorsos is in the build")
 		local R = Config.RobloxRig.parts
 		for _, g in { 1, 2 } do
 			for b = 1, 4 do

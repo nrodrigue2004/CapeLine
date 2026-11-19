@@ -26,6 +26,7 @@ StoryClient.Result = Signal.new() -- (result) a mission's result card
 StoryClient.Talk = Signal.new() -- ({ bit, kind, step, giver }) a side quest giver or step speaks
 StoryClient.Fade = Signal.new() -- () a mission trip: fade out and back in
 StoryClient.Broadcast = Signal.new() -- (id) an act's ending broadcast (lore step 5)
+StoryClient.Picked = Signal.new() -- (id, option) this hero answered a choice card (act1-choices: its lines play)
 
 StoryClient.missionAt = 0 -- os.clock() when the mission's current step began on the server (from its `t`)
 
@@ -87,6 +88,7 @@ function StoryClient.pick(option: number)
 		Net.send("ChoicePick", c.id, option)
 		StoryClient.choice = nil
 		StoryClient.Changed:Fire("choice")
+		StoryClient.Picked:Fire(c.id, option)
 	end
 end
 

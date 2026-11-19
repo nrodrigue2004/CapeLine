@@ -20,7 +20,7 @@ local ProfileSchema = {}
 -- 40 cap is already in range, so raising the cap needs no migration.
 ProfileSchema.LEVEL_CAP = Config.Stats.levelCap
 
-ProfileSchema.VERSION = 13
+ProfileSchema.VERSION = 14
 ProfileSchema.BOSSES = 3 -- #Config.Boss.order (a test checks they match)
 ProfileSchema.SLOTS = 8
 ProfileSchema.STYLE_WORDS = 16 -- 512 bits
@@ -146,6 +146,9 @@ function ProfileSchema.newCharacter(side: string?, classId: string?): { [string]
 		created = 0,
 		startSet = "Volt", -- the main path (nate 2026-11-16: archetype, path, mobility)
 		mobility = "flight", -- swapped free at any safehouse
+		-- side-content (save v14, 2026-11-19): each mobility's trained rank (Config.Move.mobilityOrder; 0 = none,
+		-- up to #Config.Move.ranks.costs; Shared.MoveRanks): earned with level and Credits, kept when you swap
+		mobRanks = { 0, 0, 0, 0, 0 },
 		weapon = 0, -- the carried weapon (Config.Weapons id), 0 = Bare Fists
 		pathChanged = 0, -- 1 once the free archetype or path change (before level 10) is used
 		-- lore step 2: how the Spark woke (Config.Creator.origins index, 0 = not picked yet; picked in the
@@ -322,6 +325,8 @@ function ProfileSchema.default(): { [string]: any }
 		-- WP10: the group-join piece (group = 1 once paid) and the creator codes claimed ([CODE] = UTC day),
 		-- account-wide (Shared.PromoRules); added 2026-11-18 without a version bump (repair fills and cleans it)
 		promo = { group = 0, codes = {} },
+		-- side-content (save v14, 2026-11-19): the lore pages read on this account (Config.Lore bits - 1, Shared.LorePlan)
+		lore = words(2),
 	}
 end
 
@@ -467,6 +472,17 @@ local MIGRATIONS: { [number]: (any) -> () } = {
 			paid = 0,
 			bonus = 0,
 		}
+	end,
+	[14] = function(p)
+		-- side-content (2026-11-19): the lore pages start unread and every mobility at rank 0 (repair() cleans both)
+		p.lore = words(2)
+		if type(p.characters) == "table" then
+			for _, c in p.characters do
+				if type(c) == "table" then
+					c.mobRanks = { 0, 0, 0, 0, 0 }
+				end
+			end
+		end
 	end,
 }
 ProfileSchema.MIGRATIONS = MIGRATIONS
@@ -648,6 +664,7 @@ local function repair(p: any): any
 					c.mobility = "flight"
 				end
 				c.pathChanged = num(c.pathChanged, 0, 1, 0)
+				c.mobRanks = cleanNumbers(c.mobRanks, 5, 0, #Config.Move.ranks.costs, true)
 				c.origin = num(c.origin, 0, 1e6, 0)
 				if not Config.Creator.origins[c.origin] then
 					c.origin = 0 -- not an origin: not picked yet
@@ -781,6 +798,7 @@ local function repair(p: any): any
 	p.mmo.contest.lastWin = num(p.mmo.contest.lastWin, 0, 2 ^ 40, 0)
 	-- H8: travel styles, the Hero Pass, the episode
 	p.mmo.travel = cleanNumbers(p.mmo.travel, 1, 0, 2 ^ 32 - 1, true)
+	p.lore = cleanNumbers(p.lore, 2, 0, 2 ^ 32 - 1, true)
 	local pass = p.pass
 	pass.season = num(pass.season, 0, 65535, 0)
 	pass.xp = num(pass.xp, 0, 2 ^ 31, 0)
@@ -997,6 +1015,7 @@ function ProfileSchema.clientView(profile: any, walletOnly: boolean?): { [string
 		opening = if type(c.story) == "table" then c.story.opening else 1, -- 0 while this hero's prologue is still to finish (MainMenu, onboarding check)
 		startSet = c.startSet,
 		mobility = c.mobility,
+		mobRanks = c.mobRanks,
 		pathChanged = c.pathChanged,
 		origin = c.origin,
 		tint = c.tint,

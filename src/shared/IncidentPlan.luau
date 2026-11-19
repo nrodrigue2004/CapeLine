@@ -453,4 +453,34 @@ function IncidentPlan.stepText(cfg: any, tid: string, i: number, side: string): 
 	return row.text or (cfg.kinds and cfg.kinds[row.kind] and cfg.kinds[row.kind].text) or ""
 end
 
+-- side-content (nate, 2026-11-19: "Side/radiant quests should be different for hero/villain. You should only see the
+-- ones for your side"): an incident belongs to the side of the hero it spawned for; only that side sees it, helps
+-- it and is paid for it (a "both" template plays the same goal on each side, in each side's own words)
+function IncidentPlan.sees(incSide: string?, heroSide: string?): boolean
+	return (incSide or "hero") == (heroSide or "hero")
+end
+
+-- The "both" templates' missing villain words (the tests read it): a villainName of its own, a villainText and a
+-- villainText on every shared row with a line
+function IncidentPlan.sideGaps(cfg: any): { string }
+	local bad = {}
+	for tid, t in cfg.templates do
+		if t.side == "both" then
+			if not t.villainName or t.villainName == t.name then
+				table.insert(bad, tid .. ": villainName")
+			end
+			if not t.villainText or t.villainText == t.text then
+				table.insert(bad, tid .. ": villainText")
+			end
+			for i, row in t.steps do
+				if row.side == nil and row.text and (not row.villainText or row.villainText == row.text) then
+					table.insert(bad, string.format("%s step %d: villainText", tid, i))
+				end
+			end
+		end
+	end
+	table.sort(bad)
+	return bad
+end
+
 return IncidentPlan

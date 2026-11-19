@@ -48,7 +48,8 @@ function LifePlan.lanes(boxes: { any }, skips: { { ax: string, c: number } }?): 
 	local out: { Lane } = {}
 	for _, g in groups do
 		local skip = false
-		for _, s in skips or {} do
+		local list: { { ax: string, c: number } } = skips or {}
+		for _, s in list do
 			if s.ax == g.ax and math.abs(s.c - g.c) < 4 then
 				skip = true
 			end

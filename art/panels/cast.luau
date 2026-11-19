@@ -138,8 +138,17 @@ end
 
 local portraits = {}
 local keys = {}
+-- speakers added after the first sheets were packed go last, in this order, so every older portrait keeps its
+-- sheet cell (post.py cuts a kept portrait from its old cell): act1-choices (2026-11-19) the Chairman
+local LATE = { "chairman" }
+local late = {}
+for _, k in LATE do
+	late[k] = true
+end
 for k in Config.Story.guides.speakers do
-	table.insert(keys, k)
+	if not late[k] then
+		table.insert(keys, k)
+	end
 end
 table.sort(keys)
 for _, k in keys do
@@ -168,6 +177,10 @@ for _, m in Config.Mentors.list do
 			bg = { math.floor(c1[1] * 0.6), math.floor(c1[2] * 0.6), math.floor(c1[3] * 0.6) },
 		})
 	)
+end
+
+for _, k in LATE do
+	table.insert(portraits, person(k, Config.Story.guides.speakers[k]))
 end
 
 local panels = {}

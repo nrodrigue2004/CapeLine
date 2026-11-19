@@ -14,6 +14,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local SetPieceKit = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("SetPieceKit"))
+local MeshFix = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("MeshFix"))
 
 local SetPieceMeshes = {}
 
@@ -80,7 +81,7 @@ function SetPieceMeshes.add(parent: Instance, place: SetPieceKit.Place, cf: CFra
 	for _, m in SetPieceKit.meshes(Config, place) do
 		local src = source(m.name)
 		if src then
-			local p = src:Clone()
+			local p = MeshFix.clone(src)
 			-- a textured mesh keeps its SurfaceAppearance (the baked colour, normal, roughness and metal maps; the
 			-- colour map's alpha shows the part colour below, so a tint still paints it); anything else goes
 			for _, c in p:GetChildren() do
@@ -97,7 +98,7 @@ function SetPieceMeshes.add(parent: Instance, place: SetPieceKit.Place, cf: CFra
 			p.CanTouch = false
 			p.Massless = true
 			p.Size = Vector3.new(m.size[1], m.size[2], m.size[3])
-			p.CFrame = cf * CFrame.new(m.offset[1], m.offset[2], m.offset[3])
+			p.CFrame = cf * CFrame.new(m.offset[1], m.offset[2], m.offset[3]) * MeshFix.of(p) -- the import's turn
 			p.Color = Color3.fromRGB(m.color[1], m.color[2], m.color[3])
 			local ok, mat = pcall(function()
 				return (Enum.Material :: any)[m.mat]

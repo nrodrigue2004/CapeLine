@@ -373,13 +373,14 @@ local function carModel(m: Model)
 	end
 end
 
--- A step's big moment: a toast line and its juice action for the heroes near it (Config.Incidents.beats)
-local function beat(key: string, at: Vector3)
+-- A step's big moment: a toast line and its juice action for the heroes near it (Config.Incidents.beats) on the
+-- incident's own side (side-content)
+local function beat(key: string, at: Vector3, side: string?)
 	if not IC.beats[key] then
 		return
 	end
 	for _, h in SiteKit.heroesIn(at, IC.beatRadius) do
-		if h.player then
+		if h.player and IncidentPlan.sees(side, h.side) then
 			Net.fire("Toast", h.player, { id = "beat", beat = key, x = at.X, y = at.Y, z = at.Z })
 		end
 	end
@@ -521,7 +522,7 @@ local function fakeCracked(inc: Live, at: Vector3)
 	end
 	f.cracked = true
 	IncidentPlan.advance(inc.plan, "unmask", 1)
-	beat("fakeCracked", at)
+	beat("fakeCracked", at, inc.side)
 	CitizenService.danger(at.X, at.Z, 40, 5)
 	IncidentService.FakeUnmasked:Fire(inc, f.by)
 end
@@ -567,7 +568,7 @@ local function fakeFell(inc: Live, step: IncidentPlan.Step, by: number?, pos: Ve
 	if step.kind == "unmask" then
 		fakeCracked(inc, pos)
 	elseif step.kind == "defeat" and IncidentPlan.advance(inc.plan, "defeat", 1) then
-		beat("fakeScrapped", pos)
+		beat("fakeScrapped", pos, inc.side)
 	end
 end
 
@@ -575,7 +576,7 @@ end
 local function panicWave(inc: Live, step: IncidentPlan.Step, now: number)
 	local at = inc.stepPos or inc.pos
 	if inc.panicAt == nil then
-		beat("panicSpread", at)
+		beat("panicSpread", at, inc.side)
 	elseif now < inc.panicAt then
 		return
 	end
@@ -943,7 +944,7 @@ local function spawnFor(hero: any, pos: Vector3): boolean
 	hm.last = tid
 	startStep(inc)
 	if heroic then
-		beat("heroic", inc.pos)
+		beat("heroic", inc.pos, inc.side)
 	end
 	return true
 end
@@ -999,7 +1000,8 @@ local function finish(inc: Live, ok: boolean, now: number)
 		end
 		for heroId in inc.helpers do
 			local hero = HeroService.byId(heroId)
-			if hero and hero.player then
+			-- side-content: the other side's heroes who hit its robots are not paid (they never saw it)
+			if hero and hero.player and IncidentPlan.sees(inc.side, hero.side) then
 				payClear(hero.player, inc)
 				GearService.grant(
 					hero.player,
@@ -1115,7 +1117,7 @@ local function stepBarrage(inc: Live, now: number)
 			if blocked then
 				beat(if r == "done" or r == "step" then "barrageOver" else "shellBlocked", at)
 			else
-				beat("shellMissed", at)
+				beat("shellMissed", at, inc.side)
 				CitizenService.danger(at.X, at.Z, 30, 6)
 			end
 			b.nextAt = now + row.every
@@ -1246,25 +1248,25 @@ local function onKilled(_kind: string, by: number?, pos: Vector3, enemyId: numbe
 	elseif k == "leader" then
 		if inc.leaderId == nil or id == inc.leaderId then
 			if IncidentPlan.advance(inc.plan, "leader", 1) and inc.leaderId then
-				beat("leaderDown", pos)
+				beat("leaderDown", pos, inc.side)
 			end
 		end
 	elseif k == "barrage" then
 		-- every Bomber down: the shelling stops
 		if next(inc.targets) == nil and IncidentPlan.endBarrage(inc.plan) then
-			beat("barrageOver", pos)
+			beat("barrageOver", pos, inc.side)
 		end
 	else
 		local r = IncidentPlan.advance(inc.plan, k, 1)
 		if k == "find" then
-			beat("found", pos)
+			beat("found", pos, inc.side)
 			CitizenService.danger(pos.X, pos.Z, 40, 5)
 		elseif r and k == "nest" then
-			beat("nestCleared", pos)
+			beat("nestCleared", pos, inc.side)
 		elseif r and k == "convoy" then
-			beat("convoyStopped", pos)
+			beat("convoyStopped", pos, inc.side)
 		elseif r and k == "tug" then
-			beat("towStopped", pos)
+			beat("towStopped", pos, inc.side)
 		end
 	end
 end
@@ -1307,7 +1309,7 @@ function IncidentService.force(hero: any, tid: string, heroic: boolean?): boolea
 	live[inc.id] = inc
 	startStep(inc)
 	if inc.plan.heroic then
-		beat("heroic", inc.pos)
+		beat("heroic", inc.pos, inc.side)
 	end
 	return true
 end
@@ -1395,7 +1397,10 @@ local function send()
 		local pos = hero and HeroService.position(hero)
 		local batch = {}
 		for _, inc in live do
-			local near = pos and (pos - inc.pos).Magnitude <= S.sendRadius
+			-- side-content: only the incident's own side sees it (a villain never gets the Vigil's rescue)
+			local near = pos
+				and IncidentPlan.sees(inc.side, hero and hero.side)
+				and (pos - inc.pos).Magnitude <= S.sendRadius
 			if near and not inc.known[player] and not inc.ended then
 				inc.known[player] = true
 				Net.fire("IncidentSpawn", player, spawnPacket(inc, player, now))

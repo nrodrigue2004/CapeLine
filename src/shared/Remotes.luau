@@ -68,6 +68,10 @@ local Remotes: { [string]: RemoteDef } = {
 	-- the Swing's line (2026-11-19): where your line hangs (zero: none) so other devices draw it; looks only, the
 	-- server checks the reach and sets the SwingAt attribute
 	MoveLine = { dir = "C2S", schema = { V3 }, rate = 8, burst = 8 },
+	-- side-content (2026-11-19): train the current mobility pick one rank (Shared.MoveRanks; level and Credits);
+	-- MoveTrained answers { ok, reason, rank, pick }
+	MoveTrain = { dir = "C2S", schema = {}, rate = 1, burst = 3 },
+	MoveTrained = { dir = "S2C" },
 
 	-- Enemies (not in the spec's list; see EnemyBuffer and Decisions.md)
 	EnemyDelta = { dir = "S2C", unreliable = true },
@@ -371,6 +375,11 @@ local Remotes: { [string]: RemoteDef } = {
 	CollectScanner = { dir = "C2S", schema = {}, rate = 1, burst = 2 },
 	CollectState = { dir = "S2C" },
 	CollectFound = { dir = "S2C" },
+	-- side-content (2026-11-19): lore pages. LoreOpen asks for the spots and the pages read; LoreState carries
+	-- them; LoreFound is a page picked up (its bit and what it paid)
+	LoreOpen = { dir = "C2S", schema = {}, rate = 1, burst = 3 },
+	LoreState = { dir = "S2C" },
+	LoreFound = { dir = "S2C" },
 	-- H7: costume contests. ContestEnter: step on (near the stage, in the call); ContestVote: user id, stars
 	ContestOpen = { dir = "C2S", schema = {}, rate = 1, burst = 3 },
 	ContestEnter = { dir = "C2S", schema = {}, rate = 1, burst = 2 },

@@ -5,16 +5,112 @@
 -- wrong way and no longer met their guard or grip. Measured per mesh by art/upload/meshcheck.py (downloads each
 -- MeshId, decodes Roblox's mesh file, compares with the FBX). A placed piece is part.CFrame * offset * MeshFix.turn(set).
 -- Sets not verified as turned stay identity. Re-run meshcheck after any re-upload: a different importer may differ.
+-- fix-models (nate, same playtest: "the leviathan engine's parts just aren't placed properly ... consistent
+-- throughout the game with gear/weapons/etc."): every other set measured the same (2,303 more meshes in 39 sets, none as drawn;
+-- the per-set tally is art/models/meshturns.json, written by art/upload/meshturns.py and checked against this
+-- table by tests/model_fit_test.luau), so off-centre shapes (a jaw, a fin, a hood, a headlight) swung to the far
+-- side of their boxes. Pieces cloned with MeshFix.clone carry their set as the MeshSet attribute, so code that
+-- places a clone later (or a rig that joints it, Shared.NpcRig) finds its turn with MeshFix.of(part).
 
 local MeshFix = {}
 
-local TURNS: { [string]: CFrame } = {
-	Weapons = CFrame.Angles(0, math.pi, 0), -- 259 of 259 meshes match a 180 degree turn about y (2026-11-19)
-	Life = CFrame.Angles(0, math.pi, 0), -- living-world: 32 of 32 match it (18 visibly off as drawn; 2026-11-19)
-}
+local TURN = CFrame.Angles(0, math.pi, 0)
 
-function MeshFix.turn(set: string): CFrame
-	return TURNS[set] or CFrame.identity
+-- every set measured turned (2026-11-19; art/models/meshturns.json has the counts). Hero is not listed: its 15
+-- meshes are symmetric either way. Bodies (the fallback body sets, unused while Config.Creator.robloxBody is on) is
+-- turned like the rest: NpcRig turns a rig built on them. LookKit.wearBodySet's in-place ApplyMesh cannot turn, so it
+-- uses BodyTorsos (the torsos uploaded pre-turned, fix-bodies 2026-11-19), which is not listed: identity.
+local TURNS: { [string]: CFrame } = {
+	Weapons = TURN, -- 259 of 259 meshes match a 180 degree turn about y (2026-11-19)
+}
+for _, set in
+	{
+		"Activity",
+		"Arms",
+		"Backs",
+		"Belts",
+		"Board",
+		"Bodies",
+		"Boots",
+		"Bosses",
+		"Bramblebeast",
+		"Capes",
+		"Coats",
+		"Crater",
+		"Deep",
+		"Ears",
+		"Eyes",
+		"Gear",
+		"Gloves",
+		"Hair",
+		"Hats",
+		"Heads",
+		"Hideout",
+		"Hq",
+		"Life", -- living-world: 32 of 32 match it (2026-11-19)
+		"LoreBook", -- living-world: the lore book and shelf, 15 of 15 (2026-11-19)
+		"Necks",
+		"News",
+		"PocketProps",
+		"PocketProps2",
+		"Prologue",
+		"Robots",
+		"SetPieces",
+		"Shoulders",
+		"Story",
+		"Street",
+		"Trooper",
+		"Vehicles",
+		"Voidhound",
+		"WindupGiant",
+		"Wrecks",
+		"Wrists",
+	}
+do
+	TURNS[set] = TURN
+end
+
+-- The correction for one set's meshes (identity for a set not measured turned)
+function MeshFix.turn(set: string?): CFrame
+	return if set then TURNS[set] or CFrame.identity else CFrame.identity
+end
+
+-- Every set in the table and its turn (tests)
+function MeshFix.sets(): { [string]: CFrame }
+	return table.clone(TURNS)
+end
+
+-- The art set a mesh comes from: its MeshSet attribute (a clone made by MeshFix.clone), else the folder under
+-- ReplicatedStorage.Art it sits in; nil for anything else (Roblox's own body, catalog accessories, plain parts)
+function MeshFix.setOf(inst: Instance): string?
+	local tagged = inst:GetAttribute("MeshSet")
+	if type(tagged) == "string" then
+		return tagged
+	end
+	local node: Instance? = inst
+	while node and node.Parent do
+		local parent = node.Parent :: Instance
+		if parent.Name == "Art" and parent.Parent and parent.Parent.ClassName == "ReplicatedStorage" then
+			return node.Name
+		end
+		node = parent
+	end
+	return nil
+end
+
+-- The correction for this part's geometry (identity for anything not from a turned set)
+function MeshFix.of(inst: Instance): CFrame
+	return MeshFix.turn(MeshFix.setOf(inst))
+end
+
+-- A copy of an imported mesh that remembers its set (MeshFix.of works on it anywhere)
+function MeshFix.clone<T>(src: T & Instance): T
+	local set = MeshFix.setOf(src)
+	local p = (src :: Instance):Clone()
+	if set then
+		p:SetAttribute("MeshSet", set)
+	end
+	return p :: any
 end
 
 return MeshFix

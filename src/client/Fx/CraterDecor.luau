@@ -14,6 +14,7 @@ local Workspace = game:GetService("Workspace")
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local CraterArtKit = require(Shared:WaitForChild("CraterArtKit"))
+local MeshFix = require(Shared:WaitForChild("MeshFix"))
 local QualityController = require(script.Parent.Parent.Controllers.QualityController)
 
 local CraterDecor = {}
@@ -73,7 +74,7 @@ local function build(preset: string)
 			if not src then
 				continue
 			end
-			local p = src:Clone()
+			local p = MeshFix.clone(src)
 			for _, c in p:GetChildren() do
 				if m.maps and c:IsA("SurfaceAppearance") then
 					c.AlphaMode = Enum.AlphaMode.Overlay
@@ -87,7 +88,7 @@ local function build(preset: string)
 			p.CanTouch = false
 			p.CastShadow = false
 			p.Size = Vector3.new(m.size[1], m.size[2], m.size[3])
-			p.CFrame = at * CFrame.new(m.offset[1], m.offset[2], m.offset[3])
+			p.CFrame = at * CFrame.new(m.offset[1], m.offset[2], m.offset[3]) * MeshFix.of(p) -- the import's turn
 			p.Color = Color3.fromRGB(m.color[1], m.color[2], m.color[3])
 			p.Transparency = m.alpha
 			p.Parent = f

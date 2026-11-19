@@ -99,6 +99,11 @@ type Run = {
 	hop: number,
 	fired: number, -- when the spark fired (0: not yet)
 	rewarded: boolean,
+	-- the Ceremony's choice in the spark beat (act1-choices, OpeningPlan.sparkPick): when the card went up, when
+	-- the moment ended (picked, timed out or already picked), and the seconds the beat's stuck clock was held
+	askAt: number?,
+	pickDone: number?,
+	paused: number,
 }
 
 local runs: { [Player]: Run } = {}
@@ -222,6 +227,8 @@ local function send(r: Run)
 		side = r.side,
 		left = math.max(0, math.ceil(r.startedAt + O.timeout - now)),
 		fired = if r.fired > 0 then now - r.fired else nil,
+		-- act1-choices: the Ceremony's choice card is up (the device holds the moment as a camera beat)
+		choosing = if r.askAt ~= nil and r.pickDone == nil then true else nil,
 		fake = r.fakeId,
 		hop = r.hop,
 		-- the scene (the client builds the props, crowd and camera from these)
@@ -378,8 +385,34 @@ local function fire(r: Run)
 	send(r)
 end
 
+-- The Ceremony's choice (act1-choices): the moment ends (a pick or a time out); the stuck clock gets the time back
+local function endPick(r: Run, now: number)
+	if r.askAt and not r.pickDone then
+		r.paused += now - r.askAt
+	end
+	r.pickDone = now
+end
+
+-- Put the Ceremony's choice in front of the hero (each side's own two options); the answer pays once
+local function askPick(r: Run, now: number)
+	local n = O.pick.choice
+	r.askAt = now
+	StoryService.ask(r.player, n, StoryPlan.labels(Config, n, r.side), function(option)
+		if runs[r.player] ~= r or r.step ~= "spark" or r.pickDone then
+			return
+		end
+		StoryService.choose(r.player, n, option)
+		endPick(r, os.clock())
+		send(r)
+	end)
+	send(r)
+end
+
 local function enter(r: Run, step: string)
 	local route = r.route
+	if step == "spark" then
+		r.askAt, r.pickDone, r.paused = nil, nil, 0
+	end
 	if step == "ceremony" then
 		GearService.setStreet(r.player, true) -- CreatorService.streetOutfit's own call (it requires this module)
 		placeFor(r, step, true)
@@ -471,6 +504,10 @@ local function enter(r: Run, step: string)
 end
 
 setStep = function(r: Run, step: string)
+	if r.step == "spark" and step ~= "spark" and r.askAt and not r.pickDone then
+		StoryService.cancelAsk(r.player) -- the beat moved on (a jump, the whole prologue's time out): no card left up
+		r.pickDone = os.clock()
+	end
 	-- a camera beat is seen once the prologue moves off it (start() enters the ceremony on itself: not seen)
 	if MissionRules.markSeen(r.step, step, OpeningPlan.CUT[r.step] == true, r.hold) then
 		CinemaService.markScene(r.player, r.step) -- lore step 7: a camera beat seen once may be skipped later
@@ -517,6 +554,7 @@ function OpeningService.stop(player: Player)
 	clearEnemies(r)
 	freeLane(r)
 	holdRow(r, false)
+	StoryService.cancelAsk(player)
 	GearService.setStreet(player, false)
 	runs[player] = nil
 	r.hero.scene = nil
@@ -582,6 +620,9 @@ function OpeningService.start(player: Player, force: boolean?): boolean
 		hop = 3,
 		fired = 0,
 		rewarded = false,
+		askAt = nil,
+		pickDone = nil,
+		paused = 0,
 	}
 	runs[player] = r
 	hero.scene = "opening"
@@ -660,7 +701,9 @@ local function step(r: Run, now: number, dt: number)
 		setStep(r, "title")
 		return
 	end
-	if now - r.stepAt > OpeningPlan.limit(Config, s) then
+	-- (act1-choices) the Ceremony's choice holds the spark beat's stuck clock while its card is up
+	local held = r.paused + (if r.askAt and not r.pickDone then now - r.askAt else 0)
+	if now - r.stepAt - held > OpeningPlan.limit(Config, s) then
 		local nxt = OpeningPlan.next(s)
 		if nxt then
 			if not OpeningPlan.timed(Config, s) then
@@ -681,10 +724,32 @@ local function step(r: Run, now: number, dt: number)
 			setStep(r, "spark")
 		end
 	elseif s == "spark" then
-		if r.fired == 0 and now - r.stepAt >= O.spark.auto then
-			fire(r)
-		elseif r.fired > 0 and now - r.fired >= O.spark.after then
-			setStep(r, "leap")
+		if r.fired == 0 then
+			if now - r.stepAt >= O.spark.auto then
+				fire(r)
+			end
+		else
+			-- act1-choices: the Ceremony's choice right after the Spark fires, then on to the rooftops
+			local story = StoryService.story(r.player)
+			local picked = if story then story.choices[O.pick.choice] or 0 else 1
+			local act = OpeningPlan.sparkPick(
+				Config,
+				now - r.fired,
+				picked,
+				if r.askAt then now - r.askAt else nil,
+				if r.pickDone then now - r.pickDone else nil
+			)
+			if act == "ask" then
+				askPick(r, now)
+			elseif act == "skip" then
+				r.pickDone = now
+			elseif act == "close" then
+				StoryService.cancelAsk(r.player)
+				endPick(r, now)
+				send(r)
+			elseif act == "leap" then
+				setStep(r, "leap")
+			end
 		end
 	elseif s == "leap" then
 		if OpeningPlan.at(Config, route.roofs[2], pos.X, pos.Y, pos.Z, 30) then

@@ -106,6 +106,16 @@ function GuidePlan.lines(Config: any): { { where: string, line: any, mission: nu
 			end
 		end
 	end
+	-- act1-choices: what an option says right after it is picked
+	for n, c in S.choices do
+		for _, key in GuidePlan.SIDES do
+			for o, opt in c[key] or {} do
+				for i, l in opt.say or {} do
+					add(string.format("choices[%d].%s[%d].say[%d]", n, key, o, i), l)
+				end
+			end
+		end
+	end
 	for id, e in S.ending do
 		for i, l in e.lines do
 			add(string.format("ending.%s[%d]", id, i), l)
@@ -140,6 +150,10 @@ function GuidePlan.validate(Config: any): { string }
 			table.insert(bad, e.where .. ": unknown speaker " .. tostring(l.who))
 		end
 		for _, side in GuidePlan.SIDES do
+			-- (act1-choices) a line with `side` is read by that side only
+			if l.side ~= nil and l.side ~= side then
+				continue
+			end
 			local t = GuidePlan.lineText(l, side)
 			if not t or #t == 0 then
 				table.insert(bad, e.where .. ": no text for " .. side)
@@ -460,7 +474,7 @@ function GuidePlan.coverage(Config: any, num: number, side: string): { [string]:
 	end
 	for _, st in steps do
 		for _, l in st.lines or {} do
-			if GuidePlan.lineText(l, side) then
+			if GuidePlan.lineText(l, side) and (l.side == nil or l.side == key) then
 				count(l.who)
 			end
 		end

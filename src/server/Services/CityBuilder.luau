@@ -19,6 +19,7 @@ local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Shared = ReplicatedStorage:WaitForChild("Shared")
+local MeshFix = require(Shared:WaitForChild("MeshFix"))
 local WorldMap = require(Shared:WaitForChild("WorldMap"))
 local WorldGen = require(Shared:WaitForChild("WorldGen"))
 local DeepLayout = require(Shared:WaitForChild("DeepLayout"))
@@ -224,7 +225,6 @@ local BIG = { ground = true, sand = true, sea = true, road = true }
 -- they hide and break with it; attributes tell BuildingFx what falls off or bursts and MoveController what bounces.
 local STREET_FIT = Config.StreetArt
 local streetFound: { [string]: MeshPart | false } = {}
-local lifeTurned: { [string]: boolean } = {} -- pieces from Art.Life: the import turned them (MeshFix, LifeKit.TURN)
 local function streetMesh(piece: string): MeshPart?
 	local hit = streetFound[piece]
 	if hit == nil then
@@ -235,14 +235,12 @@ local function streetMesh(piece: string): MeshPart?
 			-- the living world's foot looks (shop fronts: art/blender/life.py)
 			local life = art and art:FindFirstChild(Config.Life.set)
 			src = life and life:FindFirstChild(piece, true)
-			lifeTurned[piece] = src ~= nil
 		end
 		hit = if src and src:IsA("MeshPart") then src else false
 		streetFound[piece] = hit
 	end
 	return if hit then hit else nil
 end
-local LIFE_TURN = CFrame.Angles(0, math.rad(LifeKit.TURN), 0)
 local function streetArt(b: any): { BasePart }?
 	local a = b.art
 	local def = a and KIT.props[a.name]
@@ -260,7 +258,7 @@ local function streetArt(b: any): { BasePart }?
 	for piece, look in def.pieces do
 		local src = streetMesh(piece) :: MeshPart
 		local f = fit[piece]
-		local p = src:Clone()
+		local p = MeshFix.clone(src)
 		for _, ch in p:GetChildren() do
 			if not ch:IsA("SurfaceAppearance") then
 				ch:Destroy()
@@ -269,11 +267,7 @@ local function streetArt(b: any): { BasePart }?
 		p.Name = piece
 		p.Anchored = true
 		p.Size = Vector3.new(f.size[1], f.size[2], f.size[3])
-		p.CFrame = at * CFrame.new(f.offset[1], f.offset[2], f.offset[3])
-		local turned = lifeTurned[piece] == true
-		if turned then
-			p.CFrame *= LIFE_TURN
-		end
+		p.CFrame = at * CFrame.new(f.offset[1], f.offset[2], f.offset[3]) * MeshFix.of(p) -- the import's turn
 		local rgb = if look[5] and a.tint then Config.City.palette[a.tint] or look[1] else look[1]
 		if look[6] and a.frame then
 			rgb = a.frame -- a shop front's frame paint (Config.Life.shop.frame, by hash)
@@ -302,7 +296,9 @@ local function streetArt(b: any): { BasePart }?
 		if a.sign and piece == "ShopSign" then
 			local ink = KIT.play.shop.ink
 			SignKit.letter(p, a.sign, Color3.fromRGB(ink[1], ink[2], ink[3]), {
-				faces = { if turned then Enum.NormalId.Back else Enum.NormalId.Front },
+				faces = {
+					if MeshFix.of(p) ~= CFrame.identity then Enum.NormalId.Back else Enum.NormalId.Front,
+				},
 				pixels = 24,
 			})
 		elseif piece == "ShopBack" then
@@ -344,7 +340,7 @@ local function lifeParts(b: any): { BasePart }?
 	end
 	local out = {}
 	for _, pc in pieces do
-		local p = (lifeMesh(pc.name) :: MeshPart):Clone()
+		local p = MeshFix.clone(lifeMesh(pc.name) :: MeshPart)
 		for _, ch in p:GetChildren() do
 			if not ch:IsA("SurfaceAppearance") then
 				ch:Destroy()
@@ -353,7 +349,7 @@ local function lifeParts(b: any): { BasePart }?
 		p.Name = b.kind
 		p.Anchored = true
 		p.Size = Vector3.new(pc.size[1], pc.size[2], pc.size[3])
-		p.CFrame = CFrame.new(pc.x, pc.y, pc.z) * CFrame.Angles(0, math.rad(pc.ry), 0)
+		p.CFrame = CFrame.new(pc.x, pc.y, pc.z) * CFrame.Angles(0, math.rad(pc.ry), 0) * MeshFix.of(p) -- the import's turn
 		p.Color = Color3.fromRGB(pc.color[1], pc.color[2], pc.color[3])
 		p.Material = (Enum.Material :: any)[pc.mat]
 		p.CanCollide = pc.collide
@@ -472,7 +468,7 @@ end
 
 -- One mesh of a look as a visual-only clone (no collisions, queries or touches; no shadow) at `at` * its offset
 local function artMesh(src: MeshPart, m: any, at: CFrame): MeshPart
-	local p = src:Clone()
+	local p = MeshFix.clone(src)
 	for _, c in p:GetChildren() do
 		if m.maps and c:IsA("SurfaceAppearance") then
 			c.AlphaMode = Enum.AlphaMode.Overlay
@@ -486,7 +482,7 @@ local function artMesh(src: MeshPart, m: any, at: CFrame): MeshPart
 	p.CanQuery = false
 	p.CanTouch = false
 	p.Size = Vector3.new(m.size[1], m.size[2], m.size[3])
-	p.CFrame = at * CFrame.new(m.offset[1], m.offset[2], m.offset[3])
+	p.CFrame = at * CFrame.new(m.offset[1], m.offset[2], m.offset[3]) * MeshFix.of(p) -- the import's turn
 	p.Color = Color3.fromRGB(m.color[1], m.color[2], m.color[3])
 	local ok, mat = pcall(function()
 		return (Enum.Material :: any)[m.mat]

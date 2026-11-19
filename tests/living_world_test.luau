@@ -70,11 +70,9 @@ return function(T: any)
 			has("default.project.json", '"Life": { "$path": "art/models/Life.rbxm" }'),
 			"Rojo maps Art.Life"
 		)
-		check(
-			has("src/shared/MeshFix.luau", "Life = CFrame.Angles(0, math.pi, 0)"),
-			"Life is turned 180 about y"
-		)
-		check(LifeKit.TURN == 180, "LifeKit turns the cover pieces back the same 180 degrees")
+		check(has("src/shared/MeshFix.luau", '"Life", -- living-world'), "MeshFix turns Art.Life back")
+		local turns = serde.decode("json", fs.readFile("art/models/meshturns.json"))
+		check(turns.Life and turns.Life.verdict == "rotY180", "meshcheck measured Art.Life turned")
 		for _, id in
 			{
 				L.picket.image,
@@ -179,7 +177,7 @@ return function(T: any)
 			ghost = true,
 		}
 		local p = (LifeKit.cover(Config, rowZ) :: any)[1]
-		check(p.size[1] > 25 and (p.ry - LifeKit.TURN) % 180 == 90, "a row along z is turned along z")
+		check(p.size[1] > 25 and p.ry % 180 == 90, "a row along z is turned along z")
 		-- a ball crown is round: the box's largest side every way
 		local ball = {
 			kind = "prop",
@@ -423,6 +421,42 @@ return function(T: any)
 		check(has("src/server/Services/CityBuilder.luau", "info.lanes"), "WorldInfo carries the lanes")
 	end)
 
+	test("Living world: the lore book and the Lore Shelf wear sculpted meshes", function()
+		local LoreBookKit = require("../src/shared/LoreBookKit")
+		local ids = serde.decode("json", fs.readFile("art/models/lorebook_meshids.json"))
+		local turns = serde.decode("json", fs.readFile("art/models/meshturns.json"))
+		check(
+			turns.LoreBook and turns.LoreBook.verdict == "rotY180",
+			"meshcheck measured Art.LoreBook turned"
+		)
+		check(has("src/shared/MeshFix.luau", '"LoreBook",'), "MeshFix turns Art.LoreBook back")
+		local used: { [string]: boolean } = {}
+		local districts = {}
+		for _, d in Config.Lore.districts do
+			table.insert(districts, d.id)
+		end
+		for _, list in { LoreBookKit.book(), LoreBookKit.shelf(districts, {}) } do
+			for _, p in list do
+				local m = LoreBookKit.meshOf(p.name)
+				local plain = string.sub(p.name, 1, 4) == "Line" or p.name == "Halo"
+				check((m ~= nil) ~= plain, p.name .. (if plain then " stays a part" else " wears a mesh"))
+				if m then
+					used[m] = true
+					check(table.find(LoreBookKit.MESHES, m) ~= nil, m .. " is listed")
+				end
+			end
+		end
+		for _, m in LoreBookKit.MESHES do
+			check(used[m] == true, m .. " is worn by a piece")
+			check(ids[m] ~= nil, m .. " has an uploaded mesh id")
+		end
+		check(
+			has("src/client/Fx/LoreBooks.luau", "MeshFix.clone(src)"),
+			"Fx.LoreBooks clones through MeshFix"
+		)
+		check(has("src/client/Fx/LoreBooks.luau", "* MeshFix.of(part)"), "and turns each mesh back")
+	end)
+
 	test("Living world: the place has Art.Life and the tilled soil", function()
 		local path = T.placePath
 		if not path then
@@ -454,6 +488,12 @@ return function(T: any)
 					check(names[name] == true, look .. "." .. name .. " is in Art.Life")
 				end
 			end
+		end
+		local lore = art and art:FindFirstChild("LoreBook")
+		check(lore ~= nil, "ReplicatedStorage.Art.LoreBook is in the place")
+		for _, m in require("../src/shared/LoreBookKit").MESHES do
+			local p = lore and lore:FindFirstChild(m, true)
+			check(p ~= nil and p.ClassName == "MeshPart", m .. " is in Art.LoreBook")
 		end
 		local ms = game:GetService("MaterialService")
 		check(ms:FindFirstChild("KitTilled") ~= nil, "MaterialService has KitTilled")

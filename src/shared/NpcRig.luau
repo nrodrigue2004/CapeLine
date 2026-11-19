@@ -20,6 +20,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local RigMath = require(script.Parent.RigMath)
 local ClothesMap = require(script.Parent.ClothesMap)
+local MeshFix = require(script.Parent.MeshFix)
 
 local NpcRig = {}
 
@@ -147,11 +148,15 @@ function NpcRig.meshes(set: string?, look: string?): { [string]: MeshPart }?
 	return if ok then out else nil
 end
 
-local function attach(part: BasePart, list: { [string]: { number } })
+-- (fix: the part's import turn, Shared.MeshFix; each attachment is given in the drawn frame and stored in the
+-- turned part's own frame, so it sits where the layout says)
+local function attach(part: BasePart, list: { [string]: { number } }, fix: CFrame?)
+	local unturn = if fix then fix:Inverse() else CFrame.identity
 	for name, at in list do
 		local a = Instance.new("Attachment")
 		a.Name = name
-		a.CFrame = CFrame.new(v3(at))
+		a.CFrame = unturn
+			* CFrame.new(v3(at))
 			* (if string.find(name, "GripAttachment", 1, true) then GRIP else CFrame.identity)
 		a.Parent = part
 	end
@@ -206,7 +211,7 @@ function NpcRig.build(
 		local mesh = meshes and meshes[pname]
 		local p: BasePart
 		if mesh then
-			p = mesh:Clone()
+			p = MeshFix.clone(mesh)
 			NpcRig.keepLook(p) -- the importer's own children go; the rig's attachments replace them
 		else
 			local part = Instance.new("Part")
@@ -216,13 +221,17 @@ function NpcRig.build(
 		end
 		p.Name = pname
 		p.Size = v3(def.size)
-		p.CFrame = CFrame.new(v3(layout.centres[pname]))
+		-- a shell set's limb (Art.Trooper, a finale, the HQ dummy) is turned by its import's own turn (Shared.MeshFix:
+		-- Open Cloud turned every mesh 180 degrees about y, so faces, chest plates and boot toes pointed backwards);
+		-- its attachments and joints are given in the drawn frame and turned back, so the rig stands as laid out
+		local fix = MeshFix.of(p)
+		p.CFrame = CFrame.new(v3(layout.centres[pname])) * fix
 		p.Color = colors[pname] or Color3.fromRGB(163, 162, 165)
 		p.Material = material or Enum.Material.SmoothPlastic
 		p.Anchored = false
 		p.CastShadow = shadows == true
 		quiet(p)
-		attach(p, def.attachments)
+		attach(p, def.attachments, fix)
 		p.Parent = model
 		parts[pname] = p
 	end
@@ -232,8 +241,8 @@ function NpcRig.build(
 		m.Name = j.name
 		m.Part0 = if j.part0 == "HumanoidRootPart" then root else parts[j.part0]
 		m.Part1 = parts[j.part1]
-		m.C0 = CFrame.new(v3(j.c0))
-		m.C1 = CFrame.new(v3(j.c1))
+		m.C0 = MeshFix.of(m.Part0 :: BasePart):Inverse() * CFrame.new(v3(j.c0))
+		m.C1 = MeshFix.of(m.Part1 :: BasePart):Inverse() * CFrame.new(v3(j.c1))
 		m.Parent = parts[j.part1] -- where Roblox's own R15 rig keeps each joint
 		motors[j.name] = m
 	end
@@ -520,7 +529,9 @@ function NpcRig.wearCast(rig: Rig, pick: { face: string?, hair: number?, bald: b
 end
 
 -- Fix an extra piece (a bone, a cape, a helmet) to one of the rig's parts, `c0` from that part's centre;
--- the joint gets `name` so NpcRig.turn can move it. Returns the joint.
+-- the joint gets `name` so NpcRig.turn can move it. Returns the joint. c0 and c1 are in the drawn frames: a
+-- turned shell part or a turned mesh piece (Shared.MeshFix) is turned back here, so the joint's own frame and
+-- every pose on it (Transform) stay exactly as drawn.
 function NpcRig.fix(
 	rig: Rig,
 	parent: string,
@@ -532,13 +543,15 @@ function NpcRig.fix(
 	local p0 = if parent == "HumanoidRootPart" then rig.root else rig.parts[parent]
 	piece.Anchored = false
 	quiet(piece)
-	piece.CFrame = p0.CFrame * c0 * (c1 or CFrame.identity):Inverse()
+	c0 = MeshFix.of(p0):Inverse() * c0
+	local c1t = MeshFix.of(piece):Inverse() * (c1 or CFrame.identity)
+	piece.CFrame = p0.CFrame * c0 * c1t:Inverse()
 	local m = Instance.new("Motor6D")
 	m.Name = name or piece.Name
 	m.Part0 = p0
 	m.Part1 = piece
 	m.C0 = c0
-	m.C1 = c1 or CFrame.identity
+	m.C1 = c1t
 	m.Parent = piece
 	if name then
 		rig.motors[name] = m
@@ -719,7 +732,8 @@ function NpcRig.face(rig: Rig, image: string): Decal
 	local d = Instance.new("Decal")
 	d.Name = "face"
 	d.Texture = image
-	d.Face = Enum.NormalId.Front
+	-- (a shell head turned by its import, Shared.MeshFix, faces the world's front with its Back face)
+	d.Face = if MeshFix.of(rig.parts.Head) == CFrame.identity then Enum.NormalId.Front else Enum.NormalId.Back
 	d.Parent = rig.parts.Head
 	return d
 end
@@ -770,7 +784,14 @@ function NpcRig.wear(rig: Rig, accessory: Accessory, name: string): BasePart?
 	handle.CanTouch = false
 	handle.Massless = true
 	handle.CastShadow = false
-	NpcRig.fix(rig, parent :: string, handle, (target :: Attachment).CFrame * att.CFrame:Inverse())
+	-- (the attachment sits in the part's own frame; fix takes the drawn frame, Shared.MeshFix)
+	local p0 = if parent == "HumanoidRootPart" then rig.root else rig.parts[parent :: string]
+	NpcRig.fix(
+		rig,
+		parent :: string,
+		handle,
+		MeshFix.of(p0) * (target :: Attachment).CFrame * att.CFrame:Inverse()
+	)
 	return handle
 end
 
@@ -784,7 +805,9 @@ end
 function NpcRig.bend(rig: Rig, joint: string, cf: CFrame)
 	local m = rig.motors[joint]
 	if m then
-		m.C0 = CFrame.new(m.C0.Position) * cf
+		-- the rest turn of a turned shell part (Shared.MeshFix) stays under the pose
+		local rest = if m.Part0 then MeshFix.of(m.Part0):Inverse().Rotation else CFrame.identity
+		m.C0 = CFrame.new(m.C0.Position) * rest * cf
 	end
 end
 

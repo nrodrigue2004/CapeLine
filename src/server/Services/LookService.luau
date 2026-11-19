@@ -18,6 +18,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local GearMath = require(Shared:WaitForChild("GearMath"))
+local MeshFix = require(Shared:WaitForChild("MeshFix"))
 local LookKit = require(Shared:WaitForChild("LookKit"))
 local BodyShape = require(Shared:WaitForChild("BodyShape"))
 
@@ -451,7 +452,7 @@ local function buildMeshes(char: Model, folder: Folder, slot: string, row: any):
 	for i, piece in fit.pieces do
 		local part = parts[i]
 		local frame, f = meshFrame(part, piece.at)
-		local p = srcs[i]:Clone()
+		local p = MeshFix.clone(srcs[i])
 		for _, c in p:GetChildren() do
 			if c:IsA("SurfaceAppearance") and piece.maps then
 				c.AlphaMode = Enum.AlphaMode.Overlay -- the style's colour shows through the baked colour map
@@ -478,7 +479,7 @@ local function buildMeshes(char: Model, folder: Folder, slot: string, row: any):
 		p.CanQuery = false
 		p.CastShadow = false
 		local o = piece.offset
-		p.CFrame = part.CFrame * frame * CFrame.new(Vector3.new(o[1], o[2], o[3]) * f)
+		p.CFrame = part.CFrame * frame * CFrame.new(Vector3.new(o[1], o[2], o[3]) * f) * MeshFix.of(p) -- the import's turn
 		local weld = Instance.new("WeldConstraint")
 		weld.Part0 = part
 		weld.Part1 = p

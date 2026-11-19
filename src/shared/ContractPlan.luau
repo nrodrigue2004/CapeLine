@@ -260,4 +260,28 @@ function ContractPlan.repair(cfg: any, list: any, maxLevel: number): { Saved }
 	return out
 end
 
+-- side-content (nate, 2026-11-19: each side its own radiant content): every type both sides take has the
+-- Syndicate's own name and goal line (the same %s / %d slots as the Vigil's); the tests read the gaps
+function ContractPlan.sideGaps(cfg: any): { string }
+	local bad = {}
+	for id, t in cfg.types do
+		if t.side == "both" then
+			if not t.villainName or t.villainName == t.name then
+				table.insert(bad, id .. ": villainName")
+			end
+			if not t.villainText or t.villainText == t.text then
+				table.insert(bad, id .. ": villainText")
+			else
+				local _, a = string.gsub(t.text, "%%[sd]", "")
+				local _, b = string.gsub(t.villainText, "%%[sd]", "")
+				if a ~= b then
+					table.insert(bad, id .. ": villainText slots")
+				end
+			end
+		end
+	end
+	table.sort(bad)
+	return bad
+end
+
 return ContractPlan

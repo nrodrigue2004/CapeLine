@@ -8450,7 +8450,9 @@ end); -- Hero MMO features (H1 to H8) live in their own file so this one merges 
 (require :: any)("./flow_test")({ test = test, check = check, Config = Config, place = process.args[1] }); -- fix-flow
 -- WP10: the group-join piece and creator codes (own file, merges easily)
 (require :: any)("./promo_test")({ test = test, check = check, Config = Config, placePath = process.args[1] }); -- WP11: story acts (Act 1 today, Acts 2 and 3 coming soon), own file
-(require :: any)("./acts_test")({ test = test, check = check, Config = Config, placePath = process.args[1] }); -- WP8: live tuning from Balance_v<N> (own file, merges easily)
+(require :: any)("./acts_test")({ test = test, check = check, Config = Config, placePath = process.args[1] }); -- act1-choices: a choice in every Act 1 mission (own file, merges easily)
+(require :: any)("./act1_choices_test")({ test = test, check = check, Config = Config }); -- WP8: live tuning from Balance_v<N> (own file, merges easily)
+(require :: any)("./side_content_test")({ test = test, check = check, Config = Config, world = world }); -- side-content: lore pages, mobility training, each side's own content
 (require :: any)("./balance_test")({ test = test, check = check, Config = Config });
 -- WP9: the HQ's WANTED poster and nemesis heads (own file, merges easily)
 (require :: any)("./wanted_test")({ test = test, check = check, Config = Config });
@@ -11047,11 +11049,20 @@ do
 	)
 
 	test(
-		"Lore 5: each side's 3 choices record their flag and pay only Skill Points, rep and cosmetics",
+		"Lore 5: each side's choices record their flag and pay only Skill Points, rep and cosmetics",
 		function()
-			local ALLOWED = { label = true, flag = true, rep = true, perk = true, arena = true }
+			-- (act1-choices: `reward` is a title or Credits, checked by StoryPlan.validate; `say` is fixed lines)
+			local ALLOWED = {
+				label = true,
+				flag = true,
+				rep = true,
+				perk = true,
+				arena = true,
+				reward = true,
+				say = true,
+			}
 			local flags = {}
-			check(#S.choices == 3, "3 choices")
+			check(#S.choices == 6, "6 choices: one a mission in Act 1")
 			local missions = {}
 			for n, c in S.choices do
 				missions[c.mission] = true
@@ -11070,8 +11081,8 @@ do
 						local story = ProfileSchema.newCharacter(side).story
 						local ok, fx = StoryPlan.pick(Config, story, n, o, side)
 						check(
-							ok and fx.flag == opt.flag and fx.skillPoints == 2,
-							opt.label .. ": picked, flag, 2 points"
+							ok and fx.flag == opt.flag and fx.skillPoints == (if n <= 3 then 2 else 0),
+							opt.label .. ": picked, flag, 2 points (the act1-choices three: none)"
 						)
 						check(story.choices[n] == o, opt.label .. ": saved in its slot")
 						check(
@@ -11097,10 +11108,9 @@ do
 					check(#StoryPlan.labels(Config, n, side) == 2, "2 buttons")
 				end
 			end
-			check(
-				missions[3] and missions[4] and missions[5],
-				"one choice each in Framed, The Copy and The Signal"
-			)
+			for num = 1, 6 do
+				check(missions[num] == true, "a choice in Act 1 mission " .. num)
+			end
 			-- the flags each mission's choice step asks for match the doc
 			check(StoryPlan.labels(Config, 1, "hero")[1] == "Save the Bridge", "Framed: save the bridge")
 			check(StoryPlan.labels(Config, 1, "villain")[1] == "Grab the Data Core", "Framed: the data core")
@@ -11978,7 +11988,9 @@ test(
 		local kit = HqRules.wallKit(Config, 376)
 		local decor, wallC = 0, 0
 		for _, b in dungeon.boxes do
-			if b.tag == "decor" then
+			if b.tag == "decor" and b.ref == "tornPhoto" then
+				check(b.ghost == true, "the torn photo is walk-through") -- act1-choices: not the wall kit
+			elseif b.tag == "decor" then
 				decor += 1
 				check(b.ghost == true, "decor is walk-through")
 			elseif b.kind == "building" and b.color == H.hideout.colors.wall then
@@ -23102,6 +23114,14 @@ end
 -- pt-anims (nate's playtest 2026-11-19, own file): the upper-body layer, two-handed holds, robot and people clips;
 -- ONLY="PT anims" runs just these
 (require :: any)("./anims_pt_test")({ test = test, check = check, Config = Config });
+-- fix-models (nate's playtest 2026-11-19, own file): every imported mesh where Blender drew it, through the game's
+-- own placing code and the measured import turn (Shared.MeshFix); ONLY="Model fit" runs just these
+(require :: any)("./model_fit_test")({
+	test = test,
+	check = check,
+	Config = Config,
+	placePath = process.args[1],
+});
 -- fix-anims (nate's playtest 2026-11-19, own file): the real client boot and key path on both joint kinds;
 -- ONLY="Fix anims" runs just these
 (require :: any)("./fix_anims_test")({

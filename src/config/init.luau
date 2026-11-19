@@ -101,6 +101,7 @@ local NAMES = {
 	"Mentors", -- H6: mentors
 	"Badges", -- H7: badges, titles and accolades
 	"Collect", -- H7: collections
+	"Lore", -- lore pages at the landmarks (side-content, 2026-11-19; Shared.LorePlan)
 	"Rogues", -- the Rogues File: every robot, fake, villain and boss beaten (the Journal's ROGUES tab)
 	"Contest", -- H7: costume contests
 	"TravelStyles", -- H8: travel power styles

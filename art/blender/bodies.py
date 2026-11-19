@@ -9,7 +9,7 @@
 # Output: art/export/Bodies.fbx (nate imports it with Studio's 3D Importer into ReplicatedStorage.Art as
 # "Bodies"; the model is then pulled back into art/models/Bodies.rbxm) and art/preview/bodies.png (all 8,
 # sized by the game's own factors, front and side).
-# Run: $HOME/tools/bpyenv/bin/python art/blender/bodies.py [--preview [--side]] [--no-export]
+# Run: $HOME/tools/bpyenv/bin/python art/blender/bodies.py [--preview [--side]] [--no-export] [--torsos]
 import math
 import os
 import sys
@@ -170,6 +170,30 @@ for cp in exported:
 
 if "--no-export" not in sys.argv:
     kit.export_fbx(exported, os.path.join(kit.ROOT, "export", "Bodies.fbx"))
+# --torsos (fix-bodies, 2026-11-19): the sets' torsos again, PRE-TURNED 180 degrees about up, into
+# art/export/BodyTorsos.fbx (uploaded as Art.BodyTorsos). Roblox's Open Cloud FBX import stores every mesh turned
+# 180 degrees about y in its box (art/upload/meshcheck.py, art/models/meshturns.json); a placed MeshPart can be
+# turned back (Shared.MeshFix), but LookKit.wearBodySet puts these on the live torsos with MeshPart:ApplyMesh,
+# which cannot turn, so these copies are drawn turned and the import's turn faces them forward again. The UVs ride
+# with the vertices, so classic Shirt and Pants still land front on front.
+if "--torsos" in sys.argv:
+    torsos = []
+    for cp in exported:
+        if cp.name.endswith("_UpperTorso") or cp.name.endswith("_LowerTorso"):
+            t = cp.copy()
+            t.data = cp.data.copy()
+            bpy.context.scene.collection.objects.link(t)
+            for v in t.data.vertices:
+                v.co.x, v.co.y = -v.co.x, -v.co.y  # Blender x and y (Roblox x and z): 180 degrees about up
+            t.data.update()
+            torsos.append(t)
+    for t in torsos:
+        name = t.name.split(".")[0]
+        t.name = name
+    kit.export_fbx(torsos, os.path.join(kit.ROOT, "export", "BodyTorsos.fbx"))
+    print("body torsos (pre-turned):", len(torsos))
+    for t in torsos:
+        bpy.data.objects.remove(t, do_unlink=True)
 for cp in exported:
     bpy.data.objects.remove(cp, do_unlink=True)
 
