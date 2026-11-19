@@ -14,6 +14,7 @@ local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Net = require(Shared:WaitForChild("Net"))
 local EmotePoses = require(Shared:WaitForChild("EmotePoses"))
+local RigJoints = require(Shared:WaitForChild("RigJoints"))
 
 local Kit = require(script.Parent.Parent.Ui.Kit)
 local Thumb = require(script.Parent.Parent.Ui.Thumb)
@@ -39,14 +40,10 @@ EmoteFx.POSE_NAMES = EmotePoses.POSE_NAMES
 local playing: { [Model]: { seq: number, base: { [Motor6D]: CFrame } } } = {}
 local picker: Frame
 
-local function motors(char: Model): { [string]: Motor6D }
-	local out = {}
-	for _, d in char:GetDescendants() do
-		if d:IsA("Motor6D") then
-			out[d.Name] = d
-		end
-	end
-	return out
+-- the rig's joints (Shared.RigJoints): Motor6Ds, or the AnimationConstraints of Roblox's Avatar Joint Upgrade,
+-- whose C0 is read-only (fix-anims 2026-11-19), so those take the pose through HeroAnimator.emotePose
+local function motors(char: Model): { [string]: any }
+	return RigJoints.of(char)
 end
 
 local function play(char: Model, id: number, hold: number?)
@@ -60,7 +57,12 @@ local function play(char: Model, id: number, hold: number?)
 	playing[char] = { seq = seq, base = base }
 	local joints = motors(char)
 	local info = TweenInfo.new(0.18, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+	local constraints = false
 	for name, m in joints do
+		if not RigJoints.c0Writable(m) then
+			constraints = true
+			continue
+		end
 		if not base[m] then
 			base[m] = m.C0
 		end
@@ -69,6 +71,9 @@ local function play(char: Model, id: number, hold: number?)
 			then base[m] * CFrame.Angles(math.rad(a[1]), math.rad(a[2]), math.rad(a[3]))
 			else base[m]
 		TweenService:Create(m, info, { C0 = goal }):Play()
+	end
+	if constraints then
+		HeroAnimator.emotePose(Players:GetPlayerFromCharacter(char), pose, hold or S.emoteTime)
 	end
 	task.delay(hold or S.emoteTime, function()
 		local now = playing[char]

@@ -19,7 +19,8 @@
 --   block hits and parries, guard breaks, the flinch). Soft ones (transitions, flinches) never cut a cast.
 --   A clip moves only the joints it lists, so a cast in the air keeps the flight legs; a hero running on the
 --   ground keeps most of the Animator's stride under a cast that moves the legs.
--- Poses are written to Motor6D.Transform in PreSimulation, after the Animator, blended from what the Animator
+-- Poses are written to each joint's Transform (Motor6D or AnimationConstraint, Shared.RigJoints) in
+-- PreSimulation, after the Animator, blended from what the Animator
 -- set (or from rest where it set nothing). Transform is local to each device, so every device animates
 -- everyone it can see; heroes past HeroAnim.range are left alone, past nearRange they update every other frame.
 -- PLACEHOLDER ANIMATION: hand-keyed poses (HeroAnim, HeroMoves) until real animations.
@@ -35,6 +36,8 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Net = require(Shared:WaitForChild("Net"))
 local HeroAnim = require(Shared:WaitForChild("HeroAnim"))
 local FrameProf = require(Shared:WaitForChild("FrameProf"))
+local RigJoints = require(Shared:WaitForChild("RigJoints"))
+local CarryPose = require(Shared:WaitForChild("CarryPose"))
 local MoveController = require(script.Parent.MoveController)
 local InputController = require(script.Parent.InputController)
 
@@ -57,6 +60,8 @@ type Rig = {
 	root: BasePart,
 	hum: Humanoid?,
 	motors: { [string]: Motor6D },
+	jointN: number,
+	scanAt: number,
 	written: { [Motor6D]: CFrame },
 	modeFrom: string?,
 	modeTo: string?,
@@ -82,18 +87,21 @@ type Rig = {
 	basicAt: number,
 	emoteUntil: number,
 	promptUntil: number,
+	-- an emote's held pose on joints whose C0 cannot be tweened (AnimationConstraints): EmoteFx.play's angles,
+	-- premultiplied onto Transform (C0 * R * Transform), faded in and out
+	posed: { [string]: { number } }?,
+	posedUntil: number,
+	posedW: number,
 }
 
 local rigs: { [Player]: Rig } = {}
+local spawnedAt = os.clock()
 
+-- the joints by R15 name: Motor6Ds, or the AnimationConstraints Roblox's Avatar Joint Upgrade spawns player
+-- characters with (fix-anims 2026-11-19: only Motor6Ds were looked for, so on an upgraded character every
+-- clip silently did nothing). Both take Transform the same way.
 local function motorsOf(char: Model): { [string]: Motor6D }
-	local out = {}
-	for _, d in char:GetDescendants() do
-		if d:IsA("Motor6D") then
-			out[d.Name] = d
-		end
-	end
-	return out
+	return RigJoints.of(char) :: any
 end
 
 local function rigOf(p: Player): Rig?
@@ -104,6 +112,16 @@ local function rigOf(p: Player): Rig?
 	end
 	local r = rigs[p]
 	if r and r.char == char and r.root.Parent then
+		-- a joint that streamed in late or was rebuilt (a look refit): look again, at most once a second
+		local waist = r.motors.Waist
+		if (r.jointN < 15 or not (waist and waist.Parent)) and os.clock() - r.scanAt > 1 then
+			r.scanAt = os.clock()
+			r.motors = motorsOf(char :: Model)
+			r.jointN = 0
+			for _ in r.motors do
+				r.jointN += 1
+			end
+		end
 		return r
 	end
 	local root = char:FindFirstChild("HumanoidRootPart")
@@ -112,13 +130,22 @@ local function rigOf(p: Player): Rig?
 	end
 	local motors = motorsOf(char :: Model)
 	if not motors.Waist then
-		return nil -- not an R15 rig (yet)
+		-- not an R15 rig (yet); said once per spawn if your own hero still has no joints after 5 s
+		if p == player and char:GetAttribute("AnimWarned") == nil and os.clock() - spawnedAt > 5 then
+			char:SetAttribute("AnimWarned", true)
+			warn(
+				"[HeroAnimator] your hero has no R15 Waist joint (Motor6D or AnimationConstraint): no clips play"
+			)
+		end
+		return nil
 	end
 	r = {
 		char = char :: Model,
 		root = root :: BasePart,
 		hum = (char :: Model):FindFirstChildOfClass("Humanoid"),
 		motors = motors,
+		jointN = 0,
+		scanAt = os.clock(),
 		written = {},
 		modeFrom = nil,
 		modeTo = nil,
@@ -143,8 +170,24 @@ local function rigOf(p: Player): Rig?
 		basicAt = 0,
 		emoteUntil = 0,
 		promptUntil = 0,
+		posed = nil,
+		posedUntil = 0,
+		posedW = 0,
 	}
+	local kinds = {}
+	for _, j in motors do
+		r.jointN += 1
+		kinds[j.ClassName] = true
+	end
 	rigs[p] = r
+	if p == player then
+		-- one line per spawn for the Studio check (fix-anims): how many joints were found and of what kind
+		local names = {}
+		for k in kinds do
+			table.insert(names, k)
+		end
+		print(string.format("[HeroAnimator] your hero: %d joints (%s)", r.jointN, table.concat(names, ", ")))
+	end
 	return r
 end
 
@@ -240,6 +283,7 @@ local function stanceOf(r: Rig, p: Player, now: number): string?
 end
 
 -- the held state pose (nil: none), by priority
+local CARRY_CLIP: { [string]: string } = CarryPose.CLIP
 local function stateOf(r: Rig, p: Player, now: number): string?
 	if p:GetAttribute("Downed") == true then
 		return nil
@@ -247,8 +291,13 @@ local function stateOf(r: Rig, p: Player, now: number): string?
 	if p:GetAttribute("Reviving") ~= nil then
 		return "revive"
 	elseif p:GetAttribute("Carrying") ~= nil then
-		-- a grabbed robot held as a club (pt-combat sets CarryGrip "club"): both hands on it by the shoulder
-		return if p:GetAttribute("CarryGrip") == "club" then "robotHold" else "carry"
+		-- the hold pose by ThrowService's grip (fix-carry, Shared.CarryPose.CLIP): overhead on both fists, up on the
+		-- right fist, both hands raised to a floated thing; "club" (an older grip) keeps pt-anims' robot hold
+		local grip = p:GetAttribute("CarryGrip")
+		if grip == "club" then
+			return "robotHold"
+		end
+		return CARRY_CLIP[grip :: any] or "carry"
 	elseif p:GetAttribute("Blocking") == true then
 		local shield = p:GetAttribute("Held") == "weapon" and familyOfId(weaponOf(r, now)) == "shield"
 		return if shield then "guardShield" else "guard"
@@ -363,6 +412,16 @@ function HeroAnimator.emote(p: Player?, seconds: number)
 	end
 end
 
+-- an emote or photo pose (EmoteFx) on a rig whose joints are AnimationConstraints: joint -> { x, y, z } degrees,
+-- held for `seconds` (EmoteFx tweens a Motor6D's C0 itself)
+function HeroAnimator.emotePose(p: Player?, pose: { [string]: { number } }, seconds: number)
+	local r = p and rigOf(p :: Player)
+	if r then
+		r.posed = pose
+		r.posedUntil = os.clock() + seconds
+	end
+end
+
 -- The slow-mo finisher (lore step 7, FinisherFx): every hero's clips run at this speed on this device only
 -- (the server is never slowed). The mode clips' clock lags behind by `modeLag`; action clips start later.
 HeroAnimator.timeScale = 1
@@ -398,7 +457,10 @@ local function step(r: Rig, p: Player, now: number, dt: number)
 	local carrying = p:GetAttribute("Carrying") ~= nil
 	if carrying ~= r.carrying then
 		r.carrying = carrying
-		HeroAnimator.play(p, if carrying then "lift" else "heave")
+		-- a floated thing (telekinesis) rises without the squat
+		if not carrying or p:GetAttribute("CarryGrip") ~= "mind" then
+			HeroAnimator.play(p, if carrying then "lift" else "heave")
+		end
 	end
 	local awake = p:GetAttribute("Awakened") == true
 	if awake ~= r.awake then
@@ -475,6 +537,14 @@ local function step(r: Rig, p: Player, now: number, dt: number)
 	-- the stride carries on; flying, falling, gliding, swimming or riding it shows none of them and only the
 	-- Root's turn, so the travel pose keeps its legs and pitch
 	local legW, upper = HeroAnim.layer(r.modeTo, flat)
+	local posedOn = r.posed ~= nil and now < r.posedUntil
+	r.posedW = if posedOn
+		then math.min(1, r.posedW + dtHold / 0.18)
+		else math.max(0, r.posedW - dtHold / 0.25)
+	if r.posedW <= 0 and not posedOn then
+		r.posed = nil
+	end
+	local posed = r.posed
 	for name, motor in r.motors do
 		local f = from and from[name]
 		local tt = to and to[name]
@@ -482,8 +552,9 @@ local function step(r: Rig, p: Player, now: number, dt: number)
 		local hd = hold and hold[name]
 		local st = state and state[name]
 		local br = brace and brace[name]
+		local ep = posed and posed[name]
 		local last = r.written[motor]
-		if f or tt or ac or hd or st or br then
+		if f or tt or ac or hd or st or br or ep then
 			-- what the Animator set this frame, or rest if it left our last pose in place
 			local base = motor.Transform
 			if last and base == last then
@@ -512,6 +583,10 @@ local function step(r: Rig, p: Player, now: number, dt: number)
 			end
 			if ac and lw > 0 then
 				out = out:Lerp(toCFrame(ac), wAct * lw)
+			end
+			if ep then
+				local w = r.posedW
+				out = CFrame.Angles(RAD(ep[1] * w), RAD(ep[2] * w), RAD(ep[3] * w)) * out
 			end
 			motor.Transform = out
 			r.written[motor] = out
@@ -574,6 +649,7 @@ function HeroAnimator.init()
 	end)
 	player.CharacterAdded:Connect(function()
 		sentMode = 0
+		spawnedAt = os.clock()
 	end)
 	-- interact: a terminal, a door, a quest giver (ProximityPrompts fire only for you; others see their result)
 	ProximityPromptService.PromptTriggered:Connect(function(_prompt, who)
