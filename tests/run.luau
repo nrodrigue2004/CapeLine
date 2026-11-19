@@ -6104,16 +6104,23 @@ test("RF: every building is pillars, wall panels and slabs inside its box, at mo
 	for _, b in world.buildings do
 		local g = Structure.build(DS, b)
 		-- an outskirts house (2026-11-19) can be one storey of one panel a face: 4 pillars, 4 walls and its roof
-		local least = if b.district == "Outskirts" then 9 else 13
+		-- (fix-destroy: a round body or an added hub box can be that small too)
+		local least = if b.district == "Outskirts" or b.district == "Hub" or b.round then 9 else 13
 		check(#g.pieces >= least and #g.pieces <= 256, "piece count for " .. b.id .. ": " .. #g.pieces)
 		local kinds = {}
 		for _, p in g.pieces do
 			kinds[p.kind] = (kinds[p.kind] or 0) + 1
-			check(
-				math.abs(p.cx - b.x) <= b.sx / 2 - p.sx / 2 + 1e-6
-					and math.abs(p.cz - b.z) <= b.sz / 2 - p.sz / 2 + 1e-6,
-				"inside the footprint"
-			)
+			if b.round then
+				-- a silo or tank (fix-destroy): its pieces sit on the circle
+				local dx, dz = p.cx - b.x, p.cz - b.z
+				check(math.sqrt(dx * dx + dz * dz) <= b.sx / 2 + 1e-6, "inside the round footprint")
+			else
+				check(
+					math.abs(p.cx - b.x) <= b.sx / 2 - p.sx / 2 + 1e-6
+						and math.abs(p.cz - b.z) <= b.sz / 2 - p.sz / 2 + 1e-6,
+					"inside the footprint"
+				)
+			end
 			check(p.cy - p.sy / 2 >= b.base - 1e-6 and p.cy + p.sy / 2 <= b.top + 1e-6, "inside the height")
 		end
 		check(kinds.pillar == 4 * g.storeys, "4 pillars a storey")
@@ -9030,7 +9037,10 @@ test(
 					and (
 						b.district == "Downtown"
 						or b.district == "Uptown"
-						or (b.more == true and (b.district == "OldTown" or b.district == "Outskirts"))
+						or (
+							b.more == true
+							and (b.district == "OldTown" or b.district == "Outskirts" or b.district == "Hub")
+						)
 					),
 				"new wreckable " .. i
 			)

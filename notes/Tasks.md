@@ -1986,3 +1986,14 @@ Previews: art/preview/carry.png (the game's own hold sums on the blocky body). L
 5. Throw each: it leaves from where it was held (over the head or the fist), lands as before; set it down (B): it drops in front, upright, the glow gone.
 6. Output: no errors from ThrowService, ThrowClient or EnemyRenderer; the MicroProfiler shows ThrowHold and EnemyHeld tiny with nobody carrying.
 
+
+## Studio test list: everything destructible, flying through, craters, billboards (fix-destroy, 2026-11-19)
+- Fly at plain cruise (no boost) into a Downtown tower: the hole opens at once, you keep going through the far wall and out the other side with no stop and no MoveCorrect pullback; the knocked pieces fly ahead and never snag you. Repeat with a boost and a glide dive.
+- Fly into a beacon host (Downtown East) or a safehouse shelter: the walls hole, the roof and pad never move, it never collapses; drones mend it.
+- Punch or super a farm silo: holes show on a round, eight-sided shell (no square box), a few supers bring it down into a rubble heap, the white cap goes with it; drones put it back. Same for a lighthouse (bands and lamp go with it) and the beacon windmill (shell: blades and roof stay).
+- Fly through a tree, a lamp, a container and a long fence: each is knocked loose as you pass (only the fence lengths you hit fly), another player near sees the same; all come back after 45 s.
+- A super on a road, a plaza and a field: a crater with the ink decal, dark pit and broken rim chunks in the ground's colour; every player sees the same one; it sinks back over its last minute (4 min in all). Check a phone shows at most 6.
+- Underwater, a super at the sand seabed: the Terrain is really dug (a bowl you can swim into), the water stays water (no air pocket), and after 4 min the seabed is back exactly. Check WriteVoxels accepts the saved arrays (CraterService heal).
+- News screens: the band's channel mark sits left of the words, the headline and ticker stay inside the screen; knock out the wall behind a tower screen: the screen drops off and its words go; a collapse hides it as before.
+- Wreck a building with a sign, poster or face decal on its parts: the decal and any SurfaceGui hide with the body (nothing floats in the air), and a flung roof billboard keeps its look as it falls.
+- PerfMonitor in a 10-player wreck of Downtown: "craters" stays at 48 or less, "impactBreaks" climbs within 20 a second, frame time on a phone preset holds (falling 240, debris 60, crater chunks 36).
