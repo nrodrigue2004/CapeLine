@@ -20,7 +20,6 @@ return {
 		pack6 = { id = 0, robux = 249, kind = "pack", pack = 6 },
 		pack7 = { id = 0, robux = 299, kind = "pack", pack = 7 }, -- the 2026-11-16 creator plan's new slots
 		starter = { id = 0, robux = 79, kind = "starter" }, -- A/B: 49, 79, 99
-		slot3 = { id = 0, robux = 149, kind = "slot", slot = 3 },
 		slot4 = { id = 0, robux = 249, kind = "slot", slot = 4 },
 		tint1 = { id = 0, robux = 49, kind = "tint", tint = 1 },
 		tint2 = { id = 0, robux = 49, kind = "tint", tint = 2 },
@@ -129,7 +128,7 @@ return {
 		},
 		-- H8: the Hero Pass leads the Passes tab (a seventh tab is too small to read on a phone)
 		{ id = "passes", name = "Passes", items = { "heroPass", "quickSwap", "double" } },
-		{ id = "slots", name = "Slots", items = { "slot3", "slot4" } },
+		{ id = "slots", name = "Slots", items = { "slot4" } },
 	},
 
 	-- Costume packs: the Robux pieces in Config.Creator ("pack:N"); 34 spec pieces in packs 1 to 5, the 8

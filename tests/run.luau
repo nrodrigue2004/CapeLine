@@ -5221,9 +5221,9 @@ test(
 		check(CreatorRules.pickOk(Config, "Rogue", "Blade", "villain"), "Blade can be a starting set")
 		check(not CreatorRules.pickOk(Config, "Rogue", "Titan", "hero"), "Titan still opens by level")
 		check(not CreatorRules.pickOk(Config, "Wizard", "Volt", "hero"), "classes from the list only")
-		check(CreatorRules.maxSlots(profile) == 2, "2 free slots")
-		profile.purchases.slots = bit32.lshift(1, 3)
-		check(CreatorRules.maxSlots(profile) == 3, "slot 3 bought")
+		check(CreatorRules.maxSlots(profile) == 3, "3 free slots (nate, 2026-11-19)")
+		profile.purchases.slots = bit32.lshift(1, 4)
+		check(CreatorRules.maxSlots(profile) == 4, "slot 4 bought")
 	end
 )
 
@@ -5325,7 +5325,10 @@ test(
 		check(frozen(profile) == before, "no product touches Credits, gear, styles, pity, ranks or level")
 		check(#profile.purchases.receipts <= 50, "receipts stay at 50")
 		local p2 = ProfileSchema.default()
-		check(select(2, ShopRules.available(Config, p2, "slot4")) == "slot3", "slot 4 needs slot 3")
+		check(
+			ShopRules.available(Config, p2, "slot4"),
+			"slot 4 is sold on its own (slot 3 is free since 2026-11-19)"
+		)
 		ShopRules.grant(Config, p2, "pack2", "a")
 		check(
 			select(2, ShopRules.available(Config, p2, "pack2")) == "owned",

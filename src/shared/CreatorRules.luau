@@ -548,10 +548,11 @@ function CreatorRules.visibleStyles(
 	return out
 end
 
--- Character slots: 2 free; slots 3 and 4 are bought (profile.purchases.slots, a bit per slot)
+-- Character slots: 3 free (nate, 2026-11-19: "3 hero save slots"); slot 4 is bought (profile.purchases.slots,
+-- a bit per slot)
 function CreatorRules.maxSlots(profile: any): number
-	local n = 2
-	for slot = 3, 4 do
+	local n = 3
+	for slot = 4, 4 do
 		if bit32.btest(profile.purchases.slots or 0, bit32.lshift(1, slot)) then
 			n += 1
 		end

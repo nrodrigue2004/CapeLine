@@ -738,3 +738,5 @@ Drafts for nate only (WP11, 2026-11-18). None of these is in code or config; the
 - 2026-11-19 (gap-fx3): a collapse's dust cloud (BuildingFx) wears the effects library's uploaded smoke sheet as a 4x4 flipbook instead of Roblox's built-in smoke.
 - 2026-11-19 (gap-fx3): all 10 images went up from the cloud as Image assets (art/crater/upload.py, ids in art/crater/ids.json, all Approved), which writes the MaterialVariant files and the scar and chip ids.
 - 2026-11-19 (nate, decision card): the War-Frame's name card title is THE IRON OATH (was the placeholder THE SHIELD UNMASKED).
+- 2026-11-19 (nate, 13:18Z): "3 hero save slots": 3 free hero slots (was 2); slot 4 stays a Robux buy on its own, the slot 3 product is gone (nothing is live, so no one owned it).
+- 2026-11-19 (nate): yes to two new ideas: a hero dropping onto a building from high up smashes it (a ground-pound landing), and grabbing a robot to swing it around as a weapon. No to the skyscraper collapse cam and the villain bounty boss.
