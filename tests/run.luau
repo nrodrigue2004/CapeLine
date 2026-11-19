@@ -8043,8 +8043,10 @@ test("Remade bosses: every boss has its meshes, weak points inside their hit sph
 					row.size[k] > 0 and row.size[k] <= def.arenaRadius,
 					id .. "_" .. name .. " fits its arena"
 				)
+				-- a limb split off the hull for the boss pass (the Leviathan's tail wheel) keeps the hull's old reach
+				local reach = if row.seg and row.seg ~= "Body" then 0.6 else 0.5
 				check(
-					math.abs(row.offset[k]) <= def.arenaRadius / 2,
+					math.abs(row.offset[k]) <= def.arenaRadius * reach,
 					id .. "_" .. name .. " sits on the boss"
 				)
 			end
@@ -23000,7 +23002,9 @@ end
 -- every ability's own look (nate's playtest 2026-11-19: more unique effects); ONLY="FX unique" runs these
 (require :: any)("./fx_unique_test")({ test = test, check = check, Config = Config });
 -- the animation and weapons polish pass (2026-11-19, own file); ONLY="Anim pass" runs just these
-(require :: any)("./anim_pass_test")({ test = test, check = check, Config = Config })
+(require :: any)("./anim_pass_test")({ test = test, check = check, Config = Config });
+-- the boss pass (2026-11-19, own file): boss animation, telegraphs, the surge wave and the Blackout; ONLY="Boss anim"
+(require :: any)("./boss_anim_test")({ test = test, check = check, Config = Config })
 
 print(string.format("\n%d passed, %d failed", passed, failed))
 if failed > 0 then

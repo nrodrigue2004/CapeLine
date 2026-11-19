@@ -12,7 +12,8 @@
 # PLACEHOLDER ART until nate imports the FBX (Tasks.md "Lore step 8: world bosses"); until then the game draws each
 # world boss from the part-built look written here too (BossArt parts, previews boss_<Boss>_parts.png).
 # * Each boss is a few meshes by role (src/config/BossArt.luau, generated here):
-#     hull           the textured body (never moves; the game pivots the whole model)
+#     hull           the textured body, split by rig segment (the boss pass, 2026-11-19: "<Seg>_Hull", the main
+#                    body plain "Hull"; every role is split the same way; BossArt rig, Shared.BossPose)
 #     shed2 / shed3  textured armour plates that break off at phase 2 (66%) and phase 3 (33%)
 #     glow           emissive accents (eyes, vents, lights): Neon in game, coloured by phase
 #     weak           the weak points (Config.Boss targets with weak = true): Neon, one shared pulsing gold on every
@@ -211,6 +212,15 @@ def mirror(objs):
 
 
 # ---------------------------------------------------------------- one boss: its pieces, roles, lamps and colours
+def centre_of(ob):
+    """The centre of a sub-shape's box (Blender axes, world)."""
+    vs = [ob.matrix_world @ v.co for v in ob.data.vertices]
+    if not vs:
+        return Vector((0, 0, 0))
+    return Vector(((min(v.x for v in vs) + max(v.x for v in vs)) / 2, (min(v.y for v in vs) + max(v.y for v in vs)) / 2,
+                   (min(v.z for v in vs) + max(v.z for v in vs)) / 2))
+
+
 ROLE = {"Hull": "hull", "Plates2": "shed2", "Plates3": "shed3", "Glow": "glow", "Weak": "weak"}
 
 
@@ -232,6 +242,9 @@ class Boss:
         self.debris = None  # the colour of the bits that fly off (plates, the defeat)
         self.fx = None  # the look's own effect round it: {kind, every, at = [(x, up, z)], ...} in Roblox axes
         self.parts = None  # the part-built look until the meshes are imported (fallback rows, Roblox axes)
+        self.segs = {}  # piece -> its rig segment ("Body" for the main one)
+        self.seg_of = None  # (piece name, centre in Blender axes) -> rig segment; None keeps one segment
+        self.rig = []  # [(segment, parent, pivot in Blender axes)], parents first; "Root" is the boss's feet
         self.objective_parts = None  # and its objective, set at each Config.Boss objective
 
     def add(self, name, *objs):
@@ -247,10 +260,24 @@ class Boss:
 
     def finish(self):
         for name, subs in self.subs.items():
-            full = "%s_%s" % (self.id, name)
-            ob = kit.join(full, subs, shade=False)
-            kit.shade_auto(ob, 35)
-            self.pieces[name] = ob
+            # the body's pieces split by rig segment (the boss pass, 2026-11-19: each segment moves on its own pivot
+            # in game, Shared.BossPose); the objective's pieces stay whole
+            groups = {}
+            for o in subs:
+                seg = "Body"
+                if self.seg_of and name in ROLE:
+                    kit.apply_all(o)
+                    seg = self.seg_of(name, centre_of(o))
+                groups.setdefault(seg, []).append(o)
+            for seg, objs in groups.items():
+                key = name if seg == "Body" else "%s_%s" % (seg, name)
+                full = "%s_%s" % (self.id, key)
+                ob = kit.join(full, objs, shade=False)
+                kit.shade_auto(ob, 35)
+                self.pieces[key] = ob
+                self.segs[key] = seg
+                if key != name:
+                    self.roles[key] = ROLE[name]
 
     def textured(self):
         return [ob for n, ob in self.pieces.items() if self.roles[n] in ("hull", "shed2", "shed3", "objective")]
@@ -1032,12 +1059,114 @@ def warframe():
     return b
 
 
+# ================================================================ the rigs (the boss pass, 2026-11-19)
+# Each boss's body is split into rig segments by where each sub-shape's centre sits, so the game can pose them
+# (Shared.BossPose, Fx.BossAnim): the titans' arms, forearms, thighs, shins, head and bumper jaw; the Maw's head,
+# jaw, four legs and tail; the Leviathan's neck, head, jaw, flank gears, turbine and tide wheel. Each segment turns
+# about its pivot (Blender axes here, Roblox x, up, z in BossArt.rig), children after their parents. "Root" is the
+# boss's feet (the model's pivot). Textures, roles, hit boxes and the triangle budget are unchanged by the split.
+def side(x):
+    return "L" if x < 0 else "R"
+
+
+def rust_seg(name, c):
+    x, y, z = c
+    ax = abs(x)
+    if ax >= 26.5 or (ax >= 24 and z < 78):
+        return ("Arm" if z >= 60 else "Fore") + side(x)
+    if z < 49 and 3 < ax < 24 and not (44 < z < 54 and y > 9.5):
+        return ("Thigh" if z >= 32 else "Shin") + side(x)
+    if 84 < z < 98.5 and y > 4 and ax <= 16:
+        return "Jaw"
+    if z >= 93 and ax < 24 and y > -12:
+        return "Head"
+    return "Body"
+
+
+RUST_RIG = [("Body", "Root", (0, 0, 48)), ("ThighL", "Root", (-13.3, 0, 48)), ("ShinL", "ThighL", (-14, 0, 31)),
+            ("ThighR", "Root", (13.3, 0, 48)), ("ShinR", "ThighR", (14, 0, 31)), ("Head", "Body", (0, 1, 91)),
+            ("Jaw", "Head", (0, 2, 90)), ("ArmL", "Body", (-28, 0, 82)), ("ForeL", "ArmL", (-32, -1, 59)),
+            ("ArmR", "Body", (28, 0, 82)), ("ForeR", "ArmR", (33, -2, 60))]
+
+
+def maw_seg(name, c):
+    x, y, z = c
+    ax = abs(x)
+    if y < -42:
+        return "Tail"
+    if ax >= 9 and y < 22 and z < 26:
+        return ("LegF" if y > -8 else "LegB") + side(x)
+    if y >= 14 and z < 29.5 and ax < 17:
+        return "Jaw"
+    if y >= 16 and z >= 29.5:
+        return "Head"
+    return "Body"
+
+
+MAW_RIG = [("Body", "Root", (0, -4, 30)), ("Head", "Body", (0, 18, 40)), ("Jaw", "Head", (0, 20, 31)),
+           ("Tail", "Body", (0, -42, 27)), ("LegFL", "Root", (-13, 12, 32)), ("LegFR", "Root", (13, 12, 32)),
+           ("LegBL", "Root", (-13, -26, 32)), ("LegBR", "Root", (13, -26, 32))]
+
+LEV_GEARS = (("GearL", -16.4, -16, 3, 9.0), ("GearR", 16.4, -16, 3, 9.0), ("CogL", -14.6, -34, 6.5, 6.0),
+             ("CogR", 14.6, -34, 6.5, 6.0))
+
+
+def lev_seg(name, c):
+    x, y, z = c
+    ax = abs(x)
+    for gid, gx, gy, gz, r in LEV_GEARS:
+        if ax > 12 and x * gx > 0 and math.hypot(y - gy, z - gz) <= r and abs(x - gx) < 3:
+            return gid
+    if y < -136:
+        return "Wheel"
+    if name == "Hull" and ax < 6.5 and abs(y + 2) < 6.5 and 13.75 <= z < 14.5:
+        return "Turbine"
+    if 3 < y < 27.5 and 3 < z < 44 and ax < 14:
+        return "Neck"
+    if y >= 22 and z >= 30:
+        return "Jaw" if z < 36.5 and ax < 12 else "Head"
+    return "Body"
+
+
+LEV_RIG = [("Body", "Root", (0, -20, 0)), ("Neck", "Body", (0, 6, 4)), ("Head", "Neck", (0, 26, 40)),
+           ("Jaw", "Head", (0, 28, 37))] + [(g[0], "Body", (g[1], g[2], g[3])) for g in LEV_GEARS] + [
+           ("Turbine", "Body", (0, -2, 13.9)), ("Wheel", "Body", (0, -142, -33.5))]
+
+
+def war_seg(name, c):
+    x, y, z = c
+    ax = abs(x)
+    if ax >= 13.5 and 18 <= z <= 50 and name != "Plates2":
+        return ("Arm" if z >= 34 else "Fore") + side(x)
+    if z >= 50.5 and ax < 10:
+        return "Head"
+    if z < 28 and ax > 1.5 and y > -8 and name != "Plates2":
+        return ("Thigh" if z >= 14.25 else "Shin") + side(x)
+    return "Body"
+
+
+WAR_RIG = [("Body", "Root", (0, 0, 28)), ("ThighL", "Root", (-6.6, 0, 27.5)), ("ShinL", "ThighL", (-5, 4.5, 14)),
+           ("ThighR", "Root", (6.6, 0, 27.5)), ("ShinR", "ThighR", (5, 4.5, 14)), ("Head", "Body", (0, 0, 50.5)),
+           ("ArmL", "Body", (-18, 0, 46)), ("ForeL", "ArmL", (-22.5, -0.5, 34)), ("ArmR", "Body", (18, 0, 46)),
+           ("ForeR", "ArmR", (22.5, -0.5, 34))]
+RIGS = {"RustjawPrime": (rust_seg, RUST_RIG), "LumenMaw": (maw_seg, MAW_RIG), "LeviathanEngine": (lev_seg, LEV_RIG),
+        "NullWarFrame": (war_seg, WAR_RIG)}
+PART_NAME = {"body": "Hull", "glow": "Glow", "weak": "Weak"}
+
 BUILDERS = {"RustjawPrime": rustjaw, "LumenMaw": maw, "LeviathanEngine": leviathan, "NullWarFrame": warframe}
 for bid, fn in BUILDERS.items():
     if ONLY and bid != ONLY:
         continue
     bb = fn()
+    bb.seg_of, bb.rig = RIGS[bid]
+    for row in bb.parts or []:
+        row["seg"] = bb.seg_of(PART_NAME[row["role"]], rb(row["at"]))
     bb.finish()
+    used = set(bb.segs.values())
+    for seg, parent, _ in bb.rig:
+        assert parent == "Root" or parent in [r[0] for r in bb.rig], "%s: %s's parent" % (bid, seg)
+    assert used <= {r[0] for r in bb.rig}, "%s: segments %s not in the rig" % (bid, used)
+    print(bid, "segments", sorted(used))
     BOSSES[bid] = bb
     counts = bb.tris()
     total = sum(counts.values())
@@ -1273,6 +1402,8 @@ def part_row(r):
         out += ", rot = %s" % vec(r["rot"])
     if r["role"] in ("body", "objective"):
         out += ', color = %s, mat = "%s"' % (vec(r["color"]), r["mat"])
+    if r.get("seg"):
+        out += ', seg = "%s"' % r["seg"]
     return "{ %s }" % out
 
 
@@ -1302,8 +1433,15 @@ if ONLY is None and not QUICK:
             if role in ("objective", "objectiveGlow"):
                 continue
             lo, hi = bounds(bb.pieces[name])
-            rows.append("\t\t\t%s = { role = \"%s\", size = %s, offset = %s }, -- %d tris"
-                        % (name, role, size3(lo, hi), v3((lo + hi) / 2), counts[name]))
+            rows.append("\t\t\t%s = { role = \"%s\", size = %s, offset = %s, seg = \"%s\" }, -- %d tris"
+                        % (name, role, size3(lo, hi), v3((lo + hi) / 2), bb.segs.get(name, "Body"), counts[name]))
+        rows.append("\t\t},")
+        rows.append("\t\t-- the rig (Shared.BossPose poses it): each segment turns about its pivot (x, up, z from the feet),")
+        rows.append("\t\t-- parents first; Root is the feet. The objectives on the body ride on the Body segment")
+        rows.append("\t\trig = {")
+        for seg, parent, pv in bb.rig:
+            rows.append("\t\t\t{ name = \"%s\", parent = \"%s\", pivot = { %s, %s, %s } }," % (
+                seg, parent, fmt(pv[0]), fmt(pv[2]), fmt(-pv[1])))
         rows.append("\t\t},")
         rows.append("\t\t-- the objective, set at each Config.Boss objective (offsets from its point; the Maw's from the")
         rows.append("\t\t-- generator's foot)")
@@ -1342,6 +1480,8 @@ if ONLY is None and not QUICK:
         "-- shed3 (textured plates that break off at phases 2 and 3), glow (Neon, the phase colour), weak (Neon, the",
         "-- pulsing weak-point gold), objective and objectiveGlow (one set per Config.Boss objective; the lamp goes dark",
         "-- when broken). One %d px texture set per boss (art/export/bosses). Hit boxes stay Config.Boss's." % RES,
+        "-- seg: the rig segment a piece moves with (the boss pass, 2026-11-19; pieces of a segment other than Body are",
+        "-- named \"<Seg>_<Piece>\"); rig: each segment's parent and pivot; Shared.BossPose poses them (Fx.BossAnim).",
         "-- look, theme, debris, fx and parts (the world bosses): the look in words, its colour (entrance and name card),",
         "-- the colour of the bits that fly off, its own effect round it (sparks, light pulled in, sea mist) and the",
         "-- part-built look the game draws until the meshes are imported (at most partBudget parts, the old count).",
