@@ -417,6 +417,7 @@ local function buildMeshes(
 			c:Destroy()
 		end
 		m.Name = "Weapon"
+		m:SetAttribute("Piece", p.mesh) -- which mesh it is (TetherFx swings the line weapons' lines and tips)
 		m.Size = V(p.size[1], p.size[2], p.size[3]) * f
 		m.Color = color
 		m.Material = if neon then Enum.Material.Neon else mat

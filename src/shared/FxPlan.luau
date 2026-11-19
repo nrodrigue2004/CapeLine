@@ -16,8 +16,54 @@ export type Budget = { perSecond: number, tokens: number, at: number }
 export type Emit = { kind: string, count: number }
 
 function FxPlan.elementOf(L: any, set: string?): string
+	local look = FxPlan.weaponLook(set)
+	if look then
+		return L.weaponElement and L.weaponElement[look] or L.setElement.Weapon or "energy"
+	end
 	return L.setElement[set or "Volt"] or "energy"
 end
+
+-- Weapon moves' looks (Config.Fx.weaponLooks): the effects set a weapon draws with is "Weapon:<look>"
+local WEAPON_PREFIX = "Weapon:"
+function FxPlan.weaponLook(set: string?): string?
+	if set and string.sub(set, 1, #WEAPON_PREFIX) == WEAPON_PREFIX then
+		return string.sub(set, #WEAPON_PREFIX + 1)
+	end
+	return nil
+end
+
+-- the effects set for a weapon move: its own look, else its family's (family: Config.Weapons family id)
+function FxPlan.weaponSet(F: any, weaponId: number?, family: string?): string
+	local W = F.weaponLooks
+	local look = W and ((weaponId and W.weapon[weaponId]) or (family and W.family[family]))
+	return if look and W.looks[look] then WEAPON_PREFIX .. look else "Weapon"
+end
+
+-- a weapon look as a full path row (every field CombatFx reads; nothing draws on casts, fields or supers)
+local weaponRows: { [string]: any } = {}
+local function weaponRow(F: any, look: string): any?
+	local src = F.weaponLooks and F.weaponLooks.looks[look]
+	if not src then
+		return nil
+	end
+	local row = weaponRows[look]
+	if not row then
+		row = {
+			piece = src.piece,
+			accent = src.accent or { 255, 255, 255 },
+			head = src.head or "none",
+			mark = src.mark or "none",
+			cast = "none",
+			dash = src.dash or "none",
+			field = { piece = "none", motion = "rise" },
+			charge = { piece = src.piece, n = 4, radius = 2.4, spin = 6 },
+			super = { look = "none", tint = src.color },
+		}
+		weaponRows[look] = row
+	end
+	return row
+end
+FxPlan.weaponRow = weaponRow
 
 -- the kinds and counts for an element's moment ("impact", "trail" or "burst"), scaled by the preset share
 -- and a size factor (a crit or a super draws more). Kinds are sorted so the plan is the same every time.
@@ -188,6 +234,10 @@ FxPlan.SUPERS = {
 
 -- a path's look row, or nil (weapon moves and unknown sets keep the shapes alone)
 function FxPlan.pathOf(F: any, set: string?): any?
+	local look = FxPlan.weaponLook(set)
+	if look then
+		return weaponRow(F, look)
+	end
 	return set and F.paths[set] or nil
 end
 

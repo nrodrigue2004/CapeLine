@@ -51,6 +51,19 @@ for set, c in A.setColor do
 end
 SET_COLOR.Weapon = rgb(F.weaponColor)
 
+-- The effects set a row draws with: its power path, or a weapon move's own look ("Weapon:<look>", the weapons
+-- polish pass: blades cut, clubs clang, guns tracer, whips snap, each in its own colour; Config.Fx.weaponLooks)
+function CombatFx.setOf(row: any?): string?
+	if not row then
+		return nil
+	end
+	if row.weapon then
+		local w = Config.Weapons.list[row.weapon]
+		return FxPlan.weaponSet(F, row.weapon, w and w[2])
+	end
+	return row.set
+end
+
 -- A power set's colour, or the caster's effect tint (a Robux look: Config.Shop.tints, the FxTint attribute)
 local TINTS: { Color3 } = {}
 for i, t in Config.Shop.tints do
@@ -211,7 +224,9 @@ end
 
 -- Comic sound word
 function CombatFx.word(pos: Vector3, set: string?, color: Color3, big: boolean?)
-	local list = F.words[set or "Volt"] or F.words.Volt
+	local look = FxPlan.weaponLook(set)
+	local wl = look and F.weaponLooks.looks[look]
+	local list = (wl and wl.words) or F.words[set or "Volt"] or (look and F.words.Weapon) or F.words.Volt
 	local text = if big then list[3] else list[math.random(1, 2)]
 	floatText(
 		pos + Vector3.new(math.random() * 2 - 1, 2.5, 0),
@@ -1015,6 +1030,13 @@ local TINT: { [string]: Color3 } = {}
 for set, row in P do
 	ACCENT[set] = rgb(row.accent)
 	TINT[set] = rgb(row.super.tint)
+end
+-- the weapons' own looks (Config.Fx.weaponLooks, the set "Weapon:<look>" from FxPlan.weaponSet)
+for look, row in F.weaponLooks.looks do
+	local set = "Weapon:" .. look
+	ACCENT[set] = rgb(row.accent or { 255, 255, 255 })
+	TINT[set] = rgb(row.color)
+	SET_COLOR[set] = rgb(row.color)
 end
 local UP = Vector3.new(0, 1, 0)
 
@@ -3367,7 +3389,8 @@ export type CastData = {
 }
 
 function CombatFx.cast(row: any, style: string, data: CastData)
-	local color = CombatFx.colorOf(row.set, data.a)
+	local fxSet = CombatFx.setOf(row)
+	local color = CombatFx.colorOf(fxSet, data.a)
 	local shape = row.shape
 	local o, d = data.o, data.d
 	local big = row.slot == "super"
@@ -3380,16 +3403,16 @@ function CombatFx.cast(row: any, style: string, data: CastData)
 				return o
 			end, data.target or function()
 				return data.e
-			end, data.dur or row.channel * (row.tick or 0.25), style, color, row.set)
+			end, data.dur or row.channel * (row.tick or 0.25), style, color, fxSet)
 		else
-			CombatFx.bolt(o, data.e or (o + d * row.range), style, color, row.set)
+			CombatFx.bolt(o, data.e or (o + d * row.range), style, color, fxSet)
 		end
 	elseif shape == "chain" then
-		CombatFx.chain({ o, data.e or (o + d * row.range) }, style, color, row.set)
+		CombatFx.chain({ o, data.e or (o + d * row.range) }, style, color, fxSet)
 	elseif shape == "dash" then
-		CombatFx.dash(o, data.e or (o + d * row.range), style, color, row.set)
+		CombatFx.dash(o, data.e or (o + d * row.range), style, color, fxSet)
 	elseif shape == "cone" then
-		CombatFx.cone(o, d, row.range, row.cone or 40, style, color, row.set)
+		CombatFx.cone(o, d, row.range, row.cone or 40, style, color, fxSet)
 	elseif shape == "arc" then
 		local sword = (row.set == "Blade" or row.sword == true)
 		CombatFx.arc(
@@ -3402,7 +3425,7 @@ function CombatFx.cast(row: any, style: string, data: CastData)
 			data.step,
 			sword,
 			row.id == "RisingBlade",
-			row.set
+			fxSet
 		)
 		if row.channel then
 			-- a flurry: more slashes over the channel
@@ -3419,13 +3442,13 @@ function CombatFx.cast(row: any, style: string, data: CastData)
 						(i % 3) + 1,
 						sword,
 						false,
-						row.set
+						fxSet
 					)
 				end)
 			end
 		end
 	elseif shape == "nova" then
-		CombatFx.nova(data.c or o, data.r or row.radius, style, color, big, row.set)
+		CombatFx.nova(data.c or o, data.r or row.radius, style, color, big, fxSet)
 	elseif shape == "line" then
 		local width = row.width or 5
 		CombatFx.line(
@@ -3436,7 +3459,7 @@ function CombatFx.cast(row: any, style: string, data: CastData)
 			color,
 			row.ground,
 			(row.set == "Blade" or row.sword == true),
-			row.set
+			fxSet
 		)
 		if data.t then
 			CombatFx.line(
@@ -3447,18 +3470,18 @@ function CombatFx.cast(row: any, style: string, data: CastData)
 				color,
 				row.ground,
 				(row.set == "Blade" or row.sword == true),
-				row.set
+				fxSet
 			)
 		end
 		if big then
-			CombatFx.nova(data.e or o, width, style, color, true, row.set)
+			CombatFx.nova(data.e or o, width, style, color, true, fxSet)
 		end
 	elseif shape == "ride" then
 		CombatFx.ride(row.set, data.caster or function()
 			return o
 		end, data.dur or row.duration or 4, style, color)
 		if data.c and (row.coeff or 0) > 0 then
-			CombatFx.nova(data.c, data.r or row.radius or 8, style, color, false, row.set)
+			CombatFx.nova(data.c, data.r or row.radius or 8, style, color, false, fxSet)
 		end
 	elseif shape == "launch" then
 		CombatFx.launch(row, o, style, color)
@@ -3470,7 +3493,7 @@ function CombatFx.cast(row: any, style: string, data: CastData)
 			end, data.dur or row.decoy or 5, style, color)
 		end
 	elseif shape == "field" and row.summon == "mech" then
-		CombatFx.nova(o, 10, style, color, true, row.set) -- the mech is the hero's own form (the Form attribute)
+		CombatFx.nova(o, 10, style, color, true, fxSet) -- the mech is the hero's own form (the Form attribute)
 	elseif shape == "field" and row.summon then
 		local c = data.c or o
 		CombatFx.summon(row.summon, data.follow or function()
@@ -3486,7 +3509,7 @@ function CombatFx.cast(row: any, style: string, data: CastData)
 				false,
 				nil,
 				false,
-				row.set
+				fxSet
 			)
 		end
 	elseif shape == "field" then
@@ -3499,7 +3522,7 @@ function CombatFx.cast(row: any, style: string, data: CastData)
 			row.id == "BlizzardDome",
 			data.follow,
 			row.status == "pull" or row.id == "BladeStorm",
-			row.set
+			fxSet
 		)
 	elseif shape == "buff" then
 		CombatFx.buffPop(o, style, color)
@@ -3528,10 +3551,11 @@ function CombatFx.area(
 	mine: boolean,
 	userId: number?
 )
-	local color = CombatFx.colorOf(row.set, userId)
-	CombatFx.nova(center, radius, style, color, row.slot == "super" and mine, row.set)
+	local fxSet = CombatFx.setOf(row)
+	local color = CombatFx.colorOf(fxSet, userId)
+	CombatFx.nova(center, radius, style, color, row.slot == "super" and mine, fxSet)
 	if style ~= "Anime" then
-		CombatFx.word(center, row.set, color, row.slot == "super")
+		CombatFx.word(center, fxSet, color, row.slot == "super")
 	end
 	if row.slot == "super" then
 		-- a landing super's big moment (Titan's Meteor Leap)

@@ -337,6 +337,11 @@ function MoveController.arcTo(target: Vector3, time: number, height: number)
 	setMode("dash")
 end
 
+-- Whether the dash now is an arc (a zip, a grapple, a launch power, a guided hop): HeroAnimator poses it as one
+function MoveController.arcing(): boolean
+	return arc ~= nil and MoveController.mode == "dash"
+end
+
 -- A wall within `reach` of the hero along `dir` (a near-vertical face), or nil
 local function wallAlong(dir: Vector3, reach: number): RaycastResult?
 	if not root or dir.Magnitude < 1e-3 then

@@ -19,6 +19,7 @@ local FrameProf = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild(
 
 local EnemyRenderer = require(script.Parent.Parent.Controllers.EnemyRenderer)
 local CameraController = require(script.Parent.Parent.Controllers.CameraController)
+local HeroAnimator = require(script.Parent.Parent.Controllers.HeroAnimator)
 local Juice = require(script.Parent.Juice)
 
 local GuardFx = {}
@@ -108,6 +109,10 @@ end
 local function onEvent(ev: any)
 	local pos = Vector3.new(ev.x, ev.y + 3, ev.z)
 	local mine = ev.a == player.UserId
+	if ev.k == "block" or ev.k == "perfect" or ev.k == "shatter" then
+		-- the hero's body answers too (a jolt on the guard, the parry, the guard knocked open)
+		HeroAnimator.guardEvent(if type(ev.a) == "number" then HeroAnimator.byUserId(ev.a) else nil, ev.k)
+	end
 	if ev.k == "block" then
 		pop("block", pos)
 		Juice.fire("block", pos, { mine = mine })

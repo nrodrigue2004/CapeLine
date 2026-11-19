@@ -3,6 +3,7 @@
 -- an arc to the hooked point (the server already allowed the distance). Smoke, the shield drone and the
 -- decoy draw a placeholder effect for everyone (PLACEHOLDER ART until M11).
 
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
@@ -12,6 +13,7 @@ local Net = require(Shared:WaitForChild("Net"))
 
 local InputController = require(script.Parent.InputController)
 local MoveController = require(script.Parent.MoveController)
+local HeroAnimator = require(script.Parent.HeroAnimator)
 local CombatFx = require(script.Parent.Parent.Fx.CombatFx)
 local State = require(script.Parent.Parent.State)
 
@@ -49,6 +51,7 @@ function GadgetClient.init()
 			return
 		end
 		if data.by then
+			HeroAnimator.gadget(HeroAnimator.byUserId(data.by), data.kind) -- their throw, toss or hook shot
 			if data.target then
 				draw(data.kind, data.target)
 			end
@@ -56,6 +59,7 @@ function GadgetClient.init()
 		end
 		length = math.max(1, data.cd or 1)
 		readyAt = os.clock() + length
+		HeroAnimator.gadget(Players.LocalPlayer, data.kind)
 		local row = G[data.kind]
 		if data.kind == "GrapplingHook" and data.target then
 			MoveController.arcTo(data.target, row.time, row.height)

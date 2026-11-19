@@ -22957,7 +22957,9 @@ end
 -- every power path's own hero moves (nate's playtest 2026-11-18); ONLY="Power anims" runs these
 (require :: any)("./anim_test")({ test = test, check = check, Config = Config });
 -- the enemy motion pass (2026-11-18, own file); ONLY="Enemy motion" runs just these
-(require :: any)("./motion_test")({ test = test, check = check, Config = Config })
+(require :: any)("./motion_test")({ test = test, check = check, Config = Config });
+-- the animation and weapons polish pass (2026-11-19, own file); ONLY="Anim pass" runs just these
+(require :: any)("./anim_pass_test")({ test = test, check = check, Config = Config })
 
 print(string.format("\n%d passed, %d failed", passed, failed))
 if failed > 0 then

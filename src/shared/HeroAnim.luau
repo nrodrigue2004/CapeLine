@@ -35,6 +35,10 @@ HeroAnim.MODES = {
 	"water",
 	"wall",
 	"wallrun",
+	-- appended by the animation pass (2026-11-19): display modes only HeroAnimator sends (a zip, grapple or launch
+	-- arc is MoveController's dash; swimming is the ground mode in the water)
+	"arc",
+	"swim",
 }
 HeroAnim.modeIndex = {} :: { [string]: number }
 for i, m in HeroAnim.MODES do
@@ -939,27 +943,142 @@ C.brace = {
 	},
 }
 
+-- The animation pass's clips (Shared.HeroMoves): every power's own move, every weapon's combo and skills, the
+-- mobility poses and transitions, block, carry, revive, gadgets, interact, Awakening and the hit reactions
+local HeroMoves = if script
+	then require((script :: any).Parent.HeroMoves)
+	else (require :: any)("./HeroMoves")
+for name, clip in HeroMoves.CLIPS do
+	assert(C[name] == nil, "HeroMoves clip " .. name .. " is already a HeroAnim clip")
+	C[name] = clip
+end
+for name, clip in HeroMoves.UPGRADES do
+	assert(C[name] ~= nil, "HeroMoves upgrade " .. name .. " is not a HeroAnim clip")
+	C[name] = clip
+end
+for name, legs in HeroMoves.LEGS_FOR do
+	if C[name] then
+		C[name] = HeroMoves.addLegs(C[name], legs)
+	end
+end
+
 HeroAnim.CLIPS = C
 
 -- the mode pose for a hero: nil means the Animator's own (ground walk, idle and jump). current: the pose it
 -- has now, so hover and fly (and the Downed kneel and crawl) switch with a margin instead of flickering.
-function HeroAnim.modeClip(mode: string?, speed: number, downed: boolean, current: string?): string?
+-- ctx (the animation pass, optional): vy the vertical speed (a steep fall in flight dives), giveUp (the Downed
+-- hero gave up), ride (the hero's power path, for its travel power's own ride pose).
+export type ModeCtx = { vy: number?, giveUp: boolean?, ride: string? }
+HeroAnim.sprintSpeed = 44 -- running faster than this (Super-speed) leans into the sprint
+HeroAnim.flyFastSpeed = 95 -- flying faster than this (a boost) locks into the boost pose
+HeroAnim.diveShare = 0.75 -- falling faster than this share of the flight speed (and over 40) dives
+
+-- the travel powers' ride poses by path (Tide keeps the surf stance)
+HeroAnim.RIDE_CLIPS = {
+	Fire = "rideJet",
+	Earth = "rideRock",
+	Tide = "ride",
+	Gadgeteer = "rideBoard",
+	Mind = "ridePlatform",
+	Spirit = "rideSpirit",
+	Light = "rideRail",
+} :: { [string]: string }
+
+function HeroAnim.modeClip(
+	mode: string?,
+	speed: number,
+	downed: boolean,
+	current: string?,
+	ctx: ModeCtx?
+): string?
 	if downed then
+		if ctx and ctx.giveUp then
+			return "giveUp"
+		end
 		local still = if current == "downedMove" then speed < 1.5 else speed < 3
 		return if still then "downed" else "downedMove"
 	end
 	if mode == nil or mode == "ground" then
-		return nil
+		local fast = if current == "sprint" then HeroAnim.sprintSpeed - 6 else HeroAnim.sprintSpeed
+		return if speed > fast then "sprint" else nil
 	end
 	if mode == "fly" then
+		local vy = ctx and ctx.vy or 0
+		if vy < -40 and -vy > speed * HeroAnim.diveShare then
+			return "dive"
+		end
+		local boost = if current == "flyFast" then HeroAnim.flyFastSpeed - 10 else HeroAnim.flyFastSpeed
+		if speed > boost then
+			return "flyFast"
+		end
 		local limit = if current == "hover" then HeroAnim.hoverSpeed + 4 else HeroAnim.hoverSpeed - 4
 		return if speed < limit then "hover" else "fly"
+	end
+	if mode == "charge" then
+		return "leapCrouch" -- the Leap crouch (the old "charge" clip was a shoulder barge)
+	elseif mode == "water" then
+		return "waterRun" -- Super-speed across the water (swimming is "swim")
+	elseif mode == "ride" then
+		return ctx and ctx.ride and HeroAnim.RIDE_CLIPS[ctx.ride] or "ride"
 	end
 	if C[mode] then
 		return mode
 	end
 	return "air"
 end
+
+-- The one-shot a mode change plays (every device: it comes from the mode). fall: the hero's downward speed
+-- just before (studs a second), flat its sideways speed; nil when the change needs none.
+HeroAnim.landSpeed = 22 -- a landing faster than this bends the knees
+HeroAnim.landHardSpeed = 70 -- and this fast is the superhero landing (EmoteFx's big landing too)
+HeroAnim.rollSpeed = 40 -- landing this fast on the move rolls through it
+local AIRBORNE = { air = true, glide = true, fly = true, swing = true, dash = true, arc = true, ride = true }
+function HeroAnim.transition(from: string?, to: string?, fall: number, flat: number): string?
+	from, to = from or "ground", to or "ground"
+	if from == to then
+		return nil
+	end
+	if to == "fly" then
+		return if from == "ground" or from == "charge" or from == "swim" then "takeoff" else nil
+	elseif to == "glide" then
+		return "glideOpen"
+	elseif to == "swing" then
+		return "swingCatch"
+	elseif to == "dash" then
+		return "dashStart"
+	elseif to == "wall" or to == "wallrun" then
+		return "wallGrab"
+	end
+	if to == "air" then
+		if from == "charge" then
+			return "leapOff"
+		elseif from == "fly" then
+			return "flyStop"
+		elseif from == "wall" or from == "wallrun" then
+			return "wallKick"
+		elseif from == "swing" then
+			return "swingRelease"
+		end
+		return nil
+	end
+	if to == "ground" then
+		if from == "pound" then
+			return "poundLand"
+		end
+		if not AIRBORNE[from] then
+			return nil
+		end
+		if fall >= HeroAnim.landHardSpeed then
+			return "landHard"
+		elseif flat >= HeroAnim.rollSpeed and fall >= HeroAnim.landSpeed then
+			return "landRoll"
+		elseif fall >= HeroAnim.landSpeed then
+			return "land"
+		end
+	end
+	return nil
+end
+HeroAnim.jumpKick = 25 -- the vertical speed jumping up this much in a frame mid-air is an air jump (a flip)
 
 local HOLD_CLIPS = { -- per weapon family: the M1 combo, then what its skills use by shape
 	fists = { combo = { "punch", "punchL", "kick" } },
@@ -1102,13 +1221,382 @@ function HeroAnim.movesLegs(name: string): boolean
 	return clip ~= nil and (clip.joints.RightHip ~= nil or clip.joints.LeftHip ~= nil)
 end
 
+-- The animation pass (nate's playtest 2026-11-19: "Animation for EVERYTHING"): every power has its own move,
+-- so no two abilities in a path share one (PATH_CLIPS above stays the fallback for a new row).
+local ABILITY_CLIPS: { [string]: string } = {
+	-- Volt
+	ChainLightning = "hurl",
+	DashStrike = "boltRide",
+	StaticField = "fistDown",
+	ArcFlash = "palmFan",
+	Overcharge = "powerUp",
+	GroundSpark = "groundSwipe",
+	ThunderDrop = "thunderDrop",
+	-- Frost
+	FreezeBeam = "channel",
+	IceSlide = "rampCast",
+	FrostNova = "ground",
+	SnowWall = "wallRaise",
+	GlacierArmor = "armorUp",
+	Shatter = "grip",
+	BlizzardDome = "blizzard",
+	-- Titan
+	LiftAndThrow = "heave",
+	GroundSlam = "stomp",
+	ShoulderCharge = "charge2",
+	Brace = "braceUp",
+	Haymaker = "haymaker",
+	RallyRoar = "roar",
+	MeteorLeap = "meteorLeap",
+	-- Pulse
+	Pull = "pull",
+	Float = "liftPalm",
+	GravityWell = "wellPlant",
+	Repulse = "nova",
+	Weightless = "raise",
+	Crush = "grip",
+	Singularity = "singularity",
+	-- Blade
+	FlashStep = "iaiDash",
+	CrescentWave = "crescent",
+	RisingBlade = "risingCut",
+	ThousandCuts = "bladeFlurry",
+	ParryStance = "parryStance",
+	BladeStorm = "spin",
+	HeavenSplitter = "heavenSplit",
+	-- Fire
+	FlameJets = "jetLift",
+	FireWhip = "fireWhip",
+	EmberRing = "ringSpin",
+	Flashpoint = "hurl",
+	HeatHaze = "hazeWave",
+	PhoenixDive = "phoenixDive",
+	Sunfall = "sunfall",
+	-- Earth
+	RockRide = "summonRise",
+	StonePillar = "stomp",
+	Quicksand = "ground",
+	MudWave = "earthPush",
+	VineSnare = "rootGrab",
+	Sandstorm = "blizzard",
+	Overgrowth = "overgrowth",
+	-- Tide
+	WaveSurf = "sweep",
+	BubblePrison = "bubbleCup",
+	Riptide = "ringSpin",
+	Geyser = "liftPalm",
+	HealingRain = "raise",
+	TideMirror = "barrierPush",
+	Tsunami = "tsunami",
+	-- Gunslinger
+	RecoilJump = "recoilJump",
+	Ricochet = "quickDraw",
+	TrickShot = "trickShot",
+	BulletTime = "bulletTime",
+	GrenadeRoll = "roll",
+	DeadeyeMark = "aimDown",
+	HighNoon = "highNoon",
+	-- Gadgeteer
+	Hoverboard = "hopOn",
+	TurretDrop = "toss",
+	GrappleYank = "grappleFire",
+	ShockMines = "minePlant",
+	FixItDrone = "droneLaunch",
+	HoloDecoy = "decoyTap",
+	MechSuit = "mechUp",
+	-- Shadow
+	ShadowStep = "vanish",
+	SmokeBomb = "smokeSlam",
+	ShadowClones = "handSign",
+	ChainSickle = "whipLash",
+	NightMark = "markPoint",
+	WallRunStrike = "flipStrike",
+	Eclipse = "eclipse",
+	-- Martial
+	SkyStep = "skyStep",
+	KiBlast = "kiBlast",
+	HundredFists = "flurry",
+	CounterPalm = "counterStance",
+	DragonRise = "dragonRise",
+	SpiritFocus = "focusBreath",
+	HeavenfallBeam = "heavenfall",
+	-- Juggernaut
+	Unstoppable = "charge2",
+	IronHide = "armorUp",
+	GirderSwing = "girderSwing",
+	ShockwaveStomp = "slam",
+	Bulldoze = "bulldoze",
+	Challenge = "challenge",
+	SiegeMode = "siege",
+	-- Colossus
+	GiantStride = "giantStep",
+	Grow = "powerUp",
+	CarToss = "heave",
+	ThunderClap = "clap",
+	BoulderFist = "haymaker",
+	ShrinkDodge = "duck",
+	TitanForm = "titanRise",
+	-- Mind
+	PsiPlatform = "levitate",
+	Telekinesis = "temple",
+	Override = "mindLock",
+	MindShield = "barrierPush",
+	PsychicLink = "linkReach",
+	Foresight = "focusBreath",
+	PsychicStorm = "psiStorm",
+	-- Spirit
+	SpiritRide = "summonRise",
+	GuardianRush = "guardianPush",
+	SoulChains = "sweep",
+	WardTotem = "totemPlant",
+	GuardianShield = "braceUp",
+	SpiritSwap = "lunge",
+	AscendedGuardian = "ascend",
+	-- Light
+	LightRail = "markPoint",
+	PrismBeam = "blast2",
+	RadiantHeal = "raise",
+	Flash = "flash",
+	Sanctuary = "wellPlant",
+	HaloBlades = "ringSpin",
+	Dawnburst = "dawnburst",
+}
+HeroAnim.ABILITY_CLIPS = ABILITY_CLIPS
+
+-- each path's basic attack: alternating hands (HeroAnimator counts the steps of a basic with no combo)
+local BASIC_CLIPS: { [string]: { string } } = {
+	Volt = { "flick", "flickL" },
+	Frost = { "blast", "blastL" },
+	Titan = { "punch", "punchL", "uppercut" },
+	Pulse = { "pushPalm", "pushPalmL" },
+	Blade = { "slash", "backslash", "overhead" },
+	Fire = { "starToss", "starTossL" },
+	Earth = { "cross", "jab" },
+	Tide = { "pushPalmL", "pushPalm" },
+	Gunslinger = { "pistol", "pistolL" },
+	Gadgeteer = { "shot", "hipShot" },
+	Shadow = { "kunai", "kunaiL" },
+	Martial = { "jab", "cross", "frontKick", "palmJab" },
+	Juggernaut = { "smash", "smashL" },
+	Colossus = { "swipe", "swipeL" },
+	Mind = { "psiFlick", "psiFlickL" },
+	Spirit = { "spiritJab", "spiritJabL" },
+	Light = { "lance", "lanceL" },
+}
+HeroAnim.BASIC_CLIPS = BASIC_CLIPS
+
+-- Every weapon's moves (the weapons polish pass): its M1 combo (4 hits, each a different swing) and Z X C V
+type Moves = { combo: { string }, Z: string, X: string, C: string, V: string }
+local function W(combo: { string }, z: string, x: string, c: string, v: string): Moves
+	return { combo = combo, Z = z, X = x, C = c, V = v }
+end
+local WEAPON_MOVES: { [number]: Moves } = {
+	[1] = W({ "jab", "cross", "hook", "launchUpper" }, "haymaker", "grabSlam", "rush", "groundPound"),
+	[2] = W(
+		{ "palmJab", "roundhouse", "jab", "spinKick" },
+		"counterStance",
+		"sweepKick",
+		"flyingKick",
+		"flurryBurst"
+	),
+	[3] = W(
+		{ "heavyJab", "heavyCross", "hammerFist", "launchUpper" },
+		"powerPunch",
+		"uppercut",
+		"doubleFist",
+		"groundPound"
+	),
+	[4] = W(
+		{ "frontKick", "roundhouse", "kneeStrike", "spinKick" },
+		"dragonRise",
+		"axeKick",
+		"kneeRush",
+		"tornadoKick"
+	),
+	[5] = W({ "slash", "backslash", "thrustOne", "overhead" }, "iaiDash", "risingCut", "crescent", "spin"),
+	[6] = W({ "iaiDraw", "backslash", "slash", "finisherCut" }, "iaiDash", "sheathe", "crescent", "cutStorm"),
+	[7] = W({ "slash", "backslash", "overhead", "finisherCut" }, "throw", "recall", "rend", "spinThrow"),
+	[8] = W(
+		{ "blunt", "bluntL", "bluntUpper", "overhead" },
+		"smashDown",
+		"guardSmash",
+		"spin",
+		"groundPound"
+	),
+	[9] = W({ "batonTap", "blunt", "bluntL", "bluntUpper" }, "thrustOne", "wideSweep", "throw", "ringSpin"),
+	[10] = W({ "stab", "backslash", "stabRise", "slash" }, "vanish", "backstab", "fanThrow", "flipStrike"),
+	[11] = W(
+		{ "heavy", "heavyBack", "heavyRise", "heavyOver" },
+		"wideSweep",
+		"chargedOver",
+		"spin",
+		"groundSplit"
+	),
+	[12] = W(
+		{ "heavy", "heavyBack", "heavyOver", "heavyRise" },
+		"grimSpin",
+		"groundSplit",
+		"leapChop",
+		"executioner"
+	),
+	[13] = W(
+		{ "heavy", "heavyOver", "heavyBack", "heavyRise" },
+		"uplift",
+		"hammerToss",
+		"groundPound",
+		"meteorHammer"
+	),
+	[14] = W(
+		{ "thrust", "poleSweep", "staffOver", "thrustLunge" },
+		"vault",
+		"pierce",
+		"wideSweep",
+		"charge2"
+	),
+	[15] = W(
+		{ "reap", "heavyBack", "heavyRise", "heavyOver" },
+		"soulHook",
+		"grimSpin",
+		"fireWhip",
+		"harvest"
+	),
+	[16] = W(
+		{ "thrust", "staffSpin", "poleSweep", "staffOver" },
+		"vault",
+		"staffSpin",
+		"sweepKick",
+		"dragonStaff"
+	),
+	[17] = W({ "slash", "slashL", "crossCut", "spin" }, "iaiDash", "grimSpin", "twinToss", "flipStrike"),
+	[18] = W({ "rake", "rakeL", "crossCut", "rake" }, "pounce", "frenzy", "spin", "rush"),
+	[19] = W({ "stab", "backslash", "crossCut", "stabRise" }, "saiCatch", "disarm", "twinToss", "pinStorm"),
+	[20] = W(
+		{ "tonfaJab", "tonfaJabL", "hammerFist", "crossCut" },
+		"tonfaGuard",
+		"spin",
+		"rush",
+		"twinHammer"
+	),
+	[21] = W({ "chuck", "chuckL", "chuckOver", "spin" }, "juggle", "whirlChain", "rush", "flurryBurst"),
+	[22] = W(
+		{ "shieldBash", "cross", "shieldOver", "shove" },
+		"shieldUp",
+		"shieldCharge",
+		"shieldThrow",
+		"bulwarkSlam"
+	),
+	[23] = W(
+		{ "shove", "shieldBash", "shieldOver", "shove" },
+		"shieldUp",
+		"coverAllies",
+		"shieldCharge",
+		"bulwarkSlam"
+	),
+	[24] = W(
+		{ "slash", "shieldBash", "backslash", "overhead" },
+		"shieldUp",
+		"shove",
+		"thrustLunge",
+		"crescent"
+	),
+	[25] = W({ "shot", "hipShot", "shot", "hipShot" }, "chargeShot", "spreadShot", "quickDraw", "megaBeam"),
+	[26] = W({ "shot", "shotL", "shot", "shotL" }, "spinVolley", "runGun", "crossfire", "bulletStorm"),
+	[27] = W(
+		{ "rifleShot", "rifleCycle", "rifleShot", "rifleCycle" },
+		"chargeShot",
+		"spreadShot",
+		"cannonShot",
+		"railshot"
+	),
+	[28] = W({ "bowDraw", "bow", "bowDraw", "bow" }, "powerDraw", "splitArrow", "bow", "arrowRain"),
+	[29] = W(
+		{ "crossShot", "crossReload", "crossShot", "crossReload" },
+		"chargeShot",
+		"spreadShot",
+		"cannonShot",
+		"railshot"
+	),
+	[30] = W(
+		{ "cannonShot", "hipShot", "cannonShot", "hipShot" },
+		"spreadShot",
+		"cannonBrace",
+		"cannonGround",
+		"megaBeam"
+	),
+	[31] = W(
+		{ "starToss", "starTossL", "sideThrow", "starToss" },
+		"fanThrow",
+		"sideThrow",
+		"smokeSlam",
+		"starStorm"
+	),
+	[32] = W(
+		{ "whipLash", "whipSide", "whipLash", "whipCrack" },
+		"whipPull",
+		"whipCrack",
+		"swingCatch",
+		"whipCyclone"
+	),
+	[33] = W({ "fanCut", "backslash", "slash", "fanSpin" }, "gust", "sweep", "fanGlide", "typhoon"),
+	[34] = W(
+		{ "yoyoThrow", "yoyoSide", "yoyoUp", "yoyoBack" },
+		"walkDog",
+		"aroundWorld",
+		"tetherSnag",
+		"cradle"
+	),
+	[35] = W(
+		{ "dartSpin", "dartThrow", "dartKick", "dartThrow" },
+		"dartWrap",
+		"whirlChain",
+		"dartSnap",
+		"serpent"
+	),
+	[36] = W(
+		{ "throw", "sideThrow", "starToss", "rangCatch" },
+		"sideThrow",
+		"rangCatch",
+		"fanThrow",
+		"spinThrow"
+	),
+}
+HeroAnim.WEAPON_MOVES = WEAPON_MOVES
+
+-- The gadgets (GadgetClient: yours at once, others' from GadgetResult)
+HeroAnim.GADGET_CLIPS = {
+	GrapplingHook = "grappleFire",
+	SmokeBomb = "smokeSlam",
+	ShieldDrone = "droneLaunch",
+	Decoy = "decoyTap",
+} :: { [string]: string }
+
 -- The clip an ability row plays when cast. row: a Config.Abilities row (shape, slot, set, sword, channel,
 -- weapon); family: the weapon's family id when row.weapon is set; step: the combo step (1, 2, 3...).
 function HeroAnim.castClip(row: any, family: string?, step: number?): string
 	local s = math.max(1, step or 1)
 	local shape = row.shape or ""
+	local moves = row.weapon and WEAPON_MOVES[row.weapon]
+	if moves then
+		if row.slot == "basic" or row.weaponKey == "M1" then
+			return moves.combo[(s - 1) % #moves.combo + 1]
+		end
+		local key = (moves :: any)[row.weaponKey or ""]
+		if key then
+			return key
+		end
+	end
 	if row.channel and shape == "bolt" then
 		return "channel"
+	end
+	local own = ABILITY_CLIPS[row.id or ""]
+	if own and not row.weapon then
+		return own
+	end
+	if row.slot == "basic" and not row.weapon then
+		local seq = BASIC_CLIPS[row.set or ""]
+		if seq then
+			return seq[(s - 1) % #seq + 1]
+		end
 	end
 	if row.weapon and family then
 		local per = WEAPON_CLIPS[row.weapon] or (HOLD_CLIPS[family] or HOLD_CLIPS.fists).combo
@@ -1158,6 +1646,35 @@ function HeroAnim.castClip(row: any, family: string?, step: number?): string
 		return "overhead"
 	end
 	return SHAPE_CLIPS[shape] or "blast"
+end
+
+-- The held pose while a cast winds up (a cast time or a charge-up): both hands gathered for supers, areas
+-- and buffs, the weapon or fists raised high for heavy melee, the hand drawn back for an aimed shot
+local HEAVY_SETS = { Titan = true, Juggernaut = true, Colossus = true, Earth = true }
+function HeroAnim.windupClip(row: any?, family: string?): string
+	if not row then
+		return "windup"
+	end
+	if row.weapon then
+		if family == "two" or family == "one" or family == "fists" or family == "shield" then
+			return "windupHeavy"
+		end
+		return "windup"
+	end
+	local group = SHAPE_GROUP[row.shape or ""]
+	if HEAVY_SETS[row.set or ""] and (row.shape == "arc" or group == "around") then
+		return "windupHeavy"
+	end
+	if row.slot == "super" or group == "around" or group == "self" then
+		return "windupBoth"
+	end
+	return "windup"
+end
+
+-- Whether HeroAnimator may hold a clip for a given length (a channel): loops can, one-shots play once
+function HeroAnim.loops(name: string): boolean
+	local clip = C[name]
+	return clip ~= nil and clip.loop == true
 end
 
 local function smooth(x: number): number
