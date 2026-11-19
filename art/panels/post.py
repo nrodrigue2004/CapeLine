@@ -223,9 +223,11 @@ def main():
         if os.path.isfile(os.path.join(RAW, "panel_%s.png" % p["key"])):
             img = panel_image(p)
             img.save(os.path.join(OUT, file_panel(p)))
-        else:
+        elif os.path.isfile(os.path.join(OUT, file_panel(p))):
             img = Image.open(os.path.join(OUT, file_panel(p))).convert("RGB")  # kept as exported
             kept += 1
+        else:
+            continue  # never rendered (the fix-flow intro panels): the UI keeps its drawn fallback
         imgs.append((p, img))
     pages = sorted({p["page"] for p in CAST["panels"]})
     tw, th = 340, 170

@@ -31,7 +31,7 @@ return function(T: any)
 			table.insert(st.missions, { num = 7, act = 2, id = "TestA", name = "Test A", minLevel = 10 })
 			table.insert(st.missions, { num = 8, act = 2, id = "TestB", name = "Test B", minLevel = 12 })
 			table.insert(st.choices, {
-				num = 4,
+				num = 7,
 				act = 2,
 				mission = 7,
 				skillPoints = 2,
@@ -63,7 +63,10 @@ return function(T: any)
 				check(c.act == 1, "choice " .. n .. " names Act 1")
 			end
 			check(#StoryPlan.actMissions(Config, 1) == 6, "Act 1 holds the 6 missions")
-			check(#StoryPlan.actChoices(Config, 1) == 3, "Act 1 holds the 3 choices")
+			check(
+				#StoryPlan.actChoices(Config, 1) == 6,
+				"Act 1 holds the 6 choices (one a mission, act1-choices)"
+			)
 			for a = 2, 3 do
 				check(#StoryPlan.actMissions(Config, a) == 0, "Act " .. a .. " has no missions")
 				check(#StoryPlan.actChoices(Config, a) == 0, "Act " .. a .. " has no choices")
@@ -171,12 +174,12 @@ return function(T: any)
 		check(StoryPlan.actLast(C, 6) and StoryPlan.actLast(C, 8), "each act has its own last mission")
 		check(not StoryPlan.actLast(C, 7), "Act 2's first is not its last")
 		-- the choice slot an old 3-slot save lacks reads as not yet, and pays once
-		check(#story.choices == 3, "the old save's 3 slots")
-		local ok, fx = StoryPlan.pick(C, story, 4, 2, "hero")
+		check(#story.choices == 6, "today's save's 6 slots")
+		local ok, fx = StoryPlan.pick(C, story, 7, 2, "hero")
 		check(ok and fx and fx.flag == "testRight" and fx.skillPoints == 2, "Act 2's choice picks")
-		check(not StoryPlan.pick(C, story, 4, 1, "hero"), "and only once")
+		check(not StoryPlan.pick(C, story, 7, 1, "hero"), "and only once")
 		check(StoryPlan.actSkillPoints(C, 1) == 8 and StoryPlan.actSkillPoints(C, 2) == 2, "points by act")
-		check(#StoryPlan.actChoices(C, 2) == 1 and StoryPlan.actChoices(C, 2)[1] == 4, "Act 2's choice")
+		check(#StoryPlan.actChoices(C, 2) == 1 and StoryPlan.actChoices(C, 2)[1] == 7, "Act 2's choice")
 		-- Act 1's own numbers do not move with Act 2 added (the rep pace after Act 1)
 		local RepTiers = require("../src/shared/RepTiers")
 		for _, side in { "hero", "villain" } do
@@ -198,7 +201,7 @@ return function(T: any)
 			StoryPlan.nextMission(held, s2) == nil and StoryPlan.pinnedText(held, s2, "hero") == nil,
 			"no pin"
 		)
-		check(not StoryPlan.pick(held, s2, 4, 1, "hero"), "no pick")
+		check(not StoryPlan.pick(held, s2, 7, 1, "hero"), "no pick")
 		check(StoryPlan.currentAct(held, s2) == 1, "the hero stays on Act 1")
 		check(#StoryPlan.validate(held) > 0, "the check catches missions in a coming-soon act")
 	end)
@@ -236,12 +239,15 @@ return function(T: any)
 		local p = ProfileSchema.default()
 		local st = p.characters[1].story
 		check(st.act == 1 and st.missions == 0 and st.pinned == 0, "a new save starts on Act 1")
-		check(#st.choices == 3 and st.choices[1] == 0 and st.choices[3] == 0, "three choice slots, as before")
+		check(
+			#st.choices == 6 and st.choices[1] == 0 and st.choices[6] == 0,
+			"six choice slots (act1-choices)"
+		)
 		check(ProfileSchema.VERSION == 13, "no save version bump: nothing moves")
 		-- today's saves load the same
 		local back = ProfileSchema.load(ProfileSchema.deepCopy(p))
 		local bs = back.characters[1].story
-		check(bs.act == 1 and bs.missions == 0 and #bs.choices == 3, "a default save round trips")
+		check(bs.act == 1 and bs.missions == 0 and #bs.choices == 6, "a default save round trips")
 		local old = ProfileSchema.default()
 		local os_ = old.characters[1].story
 		os_.missions = 63
@@ -249,18 +255,24 @@ return function(T: any)
 		os_.act = 1
 		local ol = ProfileSchema.load(old).characters[1].story
 		check(
-			ol.missions == 63 and ol.choices[1] == 1 and ol.choices[2] == 2 and #ol.choices == 3,
-			"Act 1 done keeps"
+			ol.missions == 63
+				and ol.choices[1] == 1
+				and ol.choices[2] == 2
+				and ol.choices[3] == 1
+				and #ol.choices == 6
+				and ol.choices[4] == 0
+				and ol.choices[6] == 0,
+			"Act 1 done keeps (an old 3-slot save's new slots read 0, not yet)"
 		)
 		-- a newer build's later-act clears, picks and act are kept (they were clamped to 6 bits and 3 slots)
 		local newer = ProfileSchema.default()
 		local ns = newer.characters[1].story
 		ns.missions = 2 ^ 8 - 1
-		ns.choices = { 1, 2, 1, 2, 1 }
+		ns.choices = { 1, 2, 1, 2, 1, 2, 2, 1 }
 		ns.act = 2
 		local nl = ProfileSchema.load(newer).characters[1].story
 		check(nl.missions == 255, "mission bits 7 and 8 survive a load")
-		check(#nl.choices == 5 and nl.choices[4] == 2 and nl.choices[5] == 1, "choice slots 4 and 5 survive")
+		check(#nl.choices == 8 and nl.choices[7] == 2 and nl.choices[8] == 1, "choice slots 7 and 8 survive")
 		check(nl.act == 2, "the act survives")
 		-- junk is repaired inside the room
 		local junk = ProfileSchema.default()

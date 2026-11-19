@@ -331,6 +331,12 @@ def pieces(page, skin, hair_rgb):
         bx("VisorSlit", (0.9, 0.06, 0.08), (0, 0.67, 4.72), slit, bev=0.0, emit=0.0 if slit == (24, 24, 28) else 3.0)
     elif head == "Visor Band":
         bx("VisorBand", (1.28, 0.1, 0.2), (0, 0.65, 4.7), acc, bev=0.02, emit=2.0)
+    elif head == "Full Face Plate":
+        # PieceKits fullface (act1-choices, the Chairman): a plate over the whole face in the main colour, two thin
+        # eye slits in the accent; the catalog face stays under it
+        bx("FacePlate", (1.3, 0.1, 1.12), (0, 0.65, 4.58), tint("head", 0, prim), bev=0.06, metal=0.6, rough=0.3)
+        for s in (-1, 1):
+            bx("PlateSlit", (0.32, 0.04, 0.06), (s * 0.25, 0.71, 4.74), tint("head", 2, acc), bev=0.0, emit=1.5)
     elif head == "Eye Patch":
         bx("Patch", (0.3, 0.06, 0.26), (0.24, 0.65, 4.72), (24, 24, 28), bev=0.03)
         s = bx("PatchStrap", (1.3, 0.06, 0.06), (0, 0.64, 4.86), (24, 24, 28), bev=0.0)

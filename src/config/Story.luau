@@ -56,7 +56,7 @@ local SAFEHOUSE_DOOR = {
 }
 local SAFEHOUSE_OFFER = {
 	kind = "scene",
-	seconds = 17,
+	seconds = 20,
 	focus = "door",
 	lodestar = "door",
 	lines = {
@@ -66,16 +66,83 @@ local SAFEHOUSE_OFFER = {
 			text = "Everyone with the Spark is being hunted. Crane's machines scan for it, so nobody can hide.",
 		},
 		{
-			at = 6,
+			at = 5.5,
 			who = "lodestar",
 			hero = "The Vigil protects this city, even while it hunts us. Stand with us.",
 			villain = "I know what you are. Crane wants your Spark as much as mine. Share the hideout, and keep your hands off my people.",
 		},
 		{
-			at = 12,
+			at = 10.5,
 			who = "patch",
 			hero = "Welcome to the Vigil! I made you a badge. It's mostly tape.",
 			villain = "A Syndicate crook in our safehouse? Fine. I'm hiding the snacks, Old Star.",
+		},
+		-- act1-choices (nate, 2026-11-19): the set-up for the Safehouse choice. A line with `side` reads for that
+		-- side only (StoryPlan.sceneLines): Lodestar asks the Vigil's name; the Syndicate's offer comes from the
+		-- Chairman, the masked boss who sends the Syndicate's orders in Acts 1 and 2 (lore "More decisions")
+		{
+			at = 15,
+			who = "lodestar",
+			side = "hero",
+			text = "One more thing, rookie. I like to know who I'm trusting. What's your real name?",
+		},
+		{
+			at = 15,
+			who = "chairman",
+			side = "villain",
+			text = "This is the Chairman. Keep the old hero's roof, but you work for me now. A fair cut of every job.",
+		},
+	},
+}
+-- act1-choices: after the Safehouse choice. A line with `when = { choice, option }` reads only for a hero whose
+-- own pick in that save slot is that option (and only on its `side`: each side has its own options). Act 1's
+-- hints at Lodestar's secret (lore, 2026-11-19): the torn photo by the door (PocketLayout's dungeon) and how he
+-- dodges Patch's question about his old students. Nobody explains it until Act 2.
+local SAFEHOUSE_AFTER = {
+	kind = "scene",
+	seconds = 13,
+	focus = "door",
+	lodestar = "door",
+	lines = {
+		{
+			at = 0.5,
+			who = "lodestar",
+			side = "hero",
+			when = { 5, 1 },
+			text = "A real name. Thank you. I'll keep it safe, the way I keep you safe.",
+		},
+		{
+			at = 0.5,
+			who = "lodestar",
+			side = "hero",
+			when = { 5, 2 },
+			text = "Keep it, then. A mask keeps the people you love out of this.",
+		},
+		{
+			at = 0.5,
+			who = "chairman",
+			side = "villain",
+			when = { 5, 1 },
+			text = "Smart. The Syndicate looks after its own. Don't make me regret it.",
+		},
+		{
+			at = 0.5,
+			who = "chairman",
+			side = "villain",
+			when = { 5, 2 },
+			text = "A bigger cut? Bold. Fine. Earn every coin of it, or I take it all back.",
+		},
+		{
+			at = 5,
+			who = "patch",
+			hero = "Hey, Old Star, who are the kids in that torn photo by the door? Your old students?",
+			villain = "Don't touch the torn photo by the door. Old Star gets weird about it. Trust me.",
+		},
+		{
+			at = 9,
+			who = "lodestar",
+			hero = "Old friends. A long time ago. Patch, show our rookie the bunks.",
+			villain = "That photo is none of your business. Rest up. Then get out of my safehouse.",
 		},
 	},
 }
@@ -285,6 +352,54 @@ local LIVE_UNMASKED = {
 		{ at = 4.5, who = "bulwark", text = "Exposure detected. Battle form." },
 	},
 }
+-- act1-choices: after the Live choice, Crane answers on air before the ending broadcast. His "the Vigil buries its
+-- mistakes" is Act 1's TV hint at Lodestar's secret (lore, 2026-11-19); `when` lines read by the hero's own pick.
+local LIVE_AFTER = {
+	kind = "scene",
+	seconds = 14,
+	focus = "boss",
+	lines = {
+		{
+			at = 0.5,
+			who = "patch",
+			side = "hero",
+			when = { 6, 1 },
+			text = "You took the mask off on live TV! Now the whole city sees a real person, not a robot.",
+		},
+		{
+			at = 0.5,
+			who = "patch",
+			side = "hero",
+			when = { 6, 2 },
+			text = "Mask stays on. Smart. The city saw the robot fall, not your face.",
+		},
+		{
+			at = 0.5,
+			who = "patch",
+			side = "villain",
+			when = { 6, 1 },
+			text = "You threatened Crane on live TV. In front of everyone. That was terrifying. Nice.",
+		},
+		{
+			at = 0.5,
+			who = "patch",
+			side = "villain",
+			when = { 6, 2 },
+			text = "Footage sold. The buyer paid double, and now every channel in town will play it.",
+		},
+		{
+			at = 5,
+			who = "crane",
+			text = "Brightharbor, don't be fooled by cheap tricks. Ask your heroes why the Vigil buries its mistakes.",
+		},
+		{
+			at = 10,
+			who = "patch",
+			hero = "Buries its mistakes? What's he talking about, Old Star? ...Old Star?",
+			villain = "Buries its mistakes? Ha. Sounds like a secret worth selling one day.",
+		},
+	},
+}
 local LIVE_BATTLE = {
 	kind = "warframe",
 	text = "Bring down Bulwark's battle form",
@@ -341,7 +456,8 @@ return {
 			kid = 4, -- the kid (Vigil) or the shover (Syndicate) stands this far from the spark point
 		},
 		run = { minD = 60, maxD = 110 }, -- the spark point: open ground this far from the start, away from the stage
-		spark = { reach = 18, auto = 6, after = 3, blast = 70 }, -- fires on Basic (or by itself); the shove flies 70
+		-- fires on Basic (or by itself); the shove flies 70; the beat then holds for the Ceremony's choice (`pick`)
+		spark = { reach = 18, auto = 6, blast = 70 },
 		-- the chase: the first `count` roofs of the rooftop row (Config.City.downtown.row, nate 2026-11-17); if
 		-- the row is missing, a chain of `fallback` ordinary Downtown roofs near the spark point
 		roofs = {
@@ -389,6 +505,12 @@ return {
 		-- .intro; SKIP from `skipAfter` s, even the first time), then the creator, then the Ceremony prologue after
 		-- PLAY (Shared.FlowPlan). The server opens the creator by itself if the device never answers in `timeout` s.
 		intro = { page = "intro", scene = "intro", skipAfter = 1.5, timeout = 45 },
+		-- The Ceremony's choice (act1-choices, 2026-11-19; Config.Story.choices[choice]): `delay` s after the Spark
+		-- fires (the shield pops, the shover flies) the moment freezes into a short camera beat with the choice card
+		-- (Fx.PrologueFx, never during the rooftop quick-time prompts); a hero who has not picked in `wait` s moves
+		-- on with the slot left open (a REPLAY asks again); `after` s after the pick the leap begins. A slot already
+		-- picked (a replay) is not asked again.
+		pick = { choice = 4, delay = 1.2, wait = 20, after = 3.5 },
 		suit = { pieceGap = 0.16 }, -- the suit snaps on piece by piece this fast
 		entrance = { minD = 20, maxD = 80 }, -- the subway steps: open ground below the last roof
 		-- the subway pocket: Config.Story.pockets index count + 1 (missions never take it), one lane per prologue
@@ -620,6 +742,8 @@ return {
 				SAFEHOUSE_GAUNTLET,
 				SAFEHOUSE_DOOR,
 				SAFEHOUSE_OFFER,
+				{ kind = "choice", choice = 5, text = "Tell Lodestar your real name?" },
+				SAFEHOUSE_AFTER,
 			},
 			villain = {
 				SAFEHOUSE_TUNNELS,
@@ -639,6 +763,8 @@ return {
 				SAFEHOUSE_GAUNTLET,
 				SAFEHOUSE_DOOR,
 				SAFEHOUSE_OFFER,
+				{ kind = "choice", choice = 5, text = "The Chairman's offer" },
+				SAFEHOUSE_AFTER,
 			},
 		},
 		{
@@ -916,6 +1042,8 @@ return {
 				LIVE_FAKE,
 				LIVE_UNMASKED,
 				LIVE_BATTLE,
+				{ kind = "choice", choice = 6, text = "The cameras are on you" },
+				LIVE_AFTER,
 			},
 			villain = {
 				{
@@ -936,15 +1064,18 @@ return {
 				LIVE_FAKE,
 				LIVE_UNMASKED,
 				LIVE_BATTLE,
+				{ kind = "choice", choice = 6, text = "Crane is still on air" },
+				LIVE_AFTER,
 			},
 		},
 	},
 
-	-- Choices (nate's lore: one per side in Framed, The Signal and The Copy). Each side has its own two
-	-- options; each grants 2 Skill Points once. An option records its story flag and pays reputation, and a
-	-- few add a cosmetic (the Echo Drone, the crackling arena): nothing that changes stats. The choice number
-	-- is the save slot, kept from the old Act 1 so older picks keep their meaning (1 the first mission choice,
-	-- 2 the trust test, 3 the robot core).
+	-- Choices (nate's lore: one per side in every Act 1 mission; Framed, The Signal and The Copy first, then The
+	-- Ceremony, Safehouse and Live, act1-choices 2026-11-19). Each side has its own two options; the first three
+	-- grant 2 Skill Points once (the later three none). An option records its story flag and pays reputation,
+	-- and a few add a cosmetic (the Echo Drone, the crackling arena) or a title or Credits (`reward`): nothing
+	-- that changes stats. The choice number is the save slot, kept from the old Act 1 so older picks keep their
+	-- meaning (1 the first mission choice, 2 the trust test, 3 the robot core; 4 to 6 the new ones).
 	choices = {
 		{
 			num = 1,
@@ -988,6 +1119,126 @@ return {
 				{ label = "Reprogram It", flag = "twinMinion", rep = { "side", 100 }, perk = "NullEcho" }, -- the
 				-- twin's core as a little drone minion (cosmetic)
 				{ label = "Sell It", flag = "twinSold", rep = { "side", 100 } },
+			},
+		},
+		-- act1-choices (nate, 2026-11-19: "every mission should get a choice, for act 1 too"; the lore doc's
+		-- "Story choices draft" rows 1-1, 1-2 and 1-6, approved as written). Save slots 4 to 6 (old saves read 0,
+		-- "not yet": nothing they picked moves). Each option changes lines (`say`: said right after the pick, and
+		-- the scenes' `when` lines), pays reputation (one option of each side's pair pays the side's own track and
+		-- the other City Reputation, so Act 1's least own-side total and the rank pace stay put; the Vigil's
+		-- Safehouse pair both pay Trust) and a reward that is a title or Credits only: no Skill Points, nothing
+		-- that changes stats (Act 1 still grants 8 Skill Points). The rewards and amounts are Claude's (the doc
+		-- names none), for nate to approve.
+		{
+			num = 4,
+			act = 1,
+			mission = 1, -- The Ceremony: asked in the prologue's spark beat, right after the Spark fires
+			skillPoints = 0,
+			hero = {
+				{
+					label = "Pull the Kid Clear",
+					flag = "kidPulled",
+					rep = { "side", 60 },
+					reward = { title = "First Save" },
+					say = {
+						{ who = "crane", text = "That rogue just grabbed a child! Officers, stop them!" },
+					},
+				},
+				{
+					label = "Catch the News Crew",
+					flag = "crewCaught",
+					rep = { "city", 60 }, -- saved on camera: the city saw it
+					reward = { credits = 100 },
+					say = {
+						{ who = "crane", text = "Cut the cameras! Cut the feed! Officers, get that rogue!" },
+					},
+				},
+			},
+			villain = {
+				{
+					label = "Grab the Medal",
+					flag = "medalGrabbed",
+					rep = { "side", 60 },
+					reward = { title = "Medal Snatcher" },
+					say = { { who = "crane", text = "My medal! That rogue is a thief too! Officers!" } },
+				},
+				{
+					label = "Grab the Keycard",
+					flag = "keycardGrabbed",
+					rep = { "city", 40 }, -- quiet work: to the crowd you are one more of Crane's scanner victims
+					reward = { credits = 150 },
+					say = {
+						{ who = "crane", text = "Guards! Where is your keycard? Lock the Hall down, now!" },
+					},
+				},
+			},
+		},
+		{
+			num = 5,
+			act = 1,
+			mission = 2, -- Safehouse: after the offer scene
+			skillPoints = 0,
+			hero = {
+				{
+					label = "Tell Your Real Name",
+					flag = "nameTold",
+					rep = { "side", 100 },
+					reward = { title = "True Name" },
+				},
+				{
+					label = "Keep It Secret",
+					flag = "nameKept",
+					rep = { "side", 50 },
+					reward = { credits = 150 },
+				},
+			},
+			villain = {
+				{
+					label = "Take the Deal",
+					flag = "dealTaken",
+					rep = { "city", 50 }, -- the Chairman's people keep your face off Crane's news
+					reward = { title = "Chairman's Pick" },
+				},
+				{
+					label = "Demand a Bigger Cut",
+					flag = "cutDemanded",
+					rep = { "side", 100 },
+					reward = { credits = 250 },
+				},
+			},
+		},
+		{
+			num = 6,
+			act = 1,
+			mission = 6, -- Live: after Bulwark's battle form falls, still on every screen
+			skillPoints = 0,
+			hero = {
+				{
+					label = "Show Your Face",
+					flag = "faceShown",
+					rep = { "city", 150 }, -- proof you're real, live
+					reward = { title = "Face of Hope" },
+				},
+				{
+					label = "Keep the Mask On",
+					flag = "maskKept",
+					rep = { "side", 100 },
+					reward = { credits = 250 },
+				},
+			},
+			villain = {
+				{
+					label = "Threaten Crane",
+					flag = "craneThreatened",
+					rep = { "side", 150 },
+					reward = { title = "Prime Time Threat" },
+				},
+				{
+					label = "Sell the Footage",
+					flag = "footageSold",
+					rep = { "city", 50 }, -- the buyer airs it: the city sees Bulwark fall again
+					reward = { credits = 400 },
+				},
 			},
 		},
 	},
@@ -1120,6 +1371,43 @@ return {
 					hair = { 150, 156, 170 },
 					shape = "helmet",
 					extras = { "visor" },
+				},
+			},
+			-- The Chairman (lore "More decisions", 2026-11-19): the Dread Syndicate's masked boss, who sends its
+			-- orders through Acts 1 and 2 by radio (the mask comes off at Act 3's truce: Duchess Vanta, the reveal
+			-- nate kept for the Syndicate). A creator look for the cast art: a full face plate over a catalog face,
+			-- a wide brim, no hair, a black tuxedo and a high-collared cape that hide the build.
+			chairman = {
+				name = "THE CHAIRMAN",
+				color = { 220, 70, 80 },
+				style = "radio",
+				blip = "guideInsider",
+				portrait = {
+					bg = { 44, 14, 22 },
+					skin = { 160, 105, 70 },
+					hair = { 24, 24, 28 },
+					shape = "hood",
+					extras = { "mask" },
+				},
+				look = {
+					gender = 2,
+					build = 3,
+					height = 5,
+					skin = 5,
+					hair = 22, -- black (no hair piece shows)
+					colors = { 22, 38, 4 }, -- black, maroon, gold
+					pieces = {
+						suit = "Tuxedo",
+						head = "Full Face Plate",
+						hat = "Wide Brim", -- a crime boss's brim over the plate
+						back = "High Collar Cape",
+						hands = "Gloves",
+						feet = "Loafers",
+						visage = "Sinister", -- Roblox catalog face (under the plate)
+					},
+					hairless = true, -- no catalog hair: the plate and the brim cover the head
+					tints = { back = { 22, 38, 0 } }, -- a black cape lined in maroon
+					mats = {},
 				},
 			},
 			copy = {
@@ -1696,6 +1984,13 @@ return {
 			["Relic Keeper"] = 19, -- origin line: The Last Owner (Magic)
 			["No Returns"] = 20, -- origin line: Suit Recall (Tech)
 			["Lesson Learned"] = 21, -- origin line: The Taken Master (Training)
+			-- act1-choices (2026-11-19): the new Act 1 choices' titles (one option of each pair)
+			["First Save"] = 22, -- The Ceremony, Vigil: pull the kid clear
+			["Medal Snatcher"] = 23, -- The Ceremony, Syndicate: grab the medal
+			["True Name"] = 24, -- Safehouse, Vigil: tell Lodestar your real name
+			["Chairman's Pick"] = 25, -- Safehouse, Syndicate: take the Chairman's deal
+			["Face of Hope"] = 26, -- Live, Vigil: show your face on air
+			["Prime Time Threat"] = 27, -- Live, Syndicate: threaten Crane on air
 			GoldTrim = 100,
 		},
 	},

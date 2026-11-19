@@ -35,7 +35,7 @@ local StoryService = {}
 StoryService.Changed = Signal.new() -- (player) the story save changed (SideQuestService rebuilds the tracked step)
 StoryService.Picked = Signal.new() -- (player, id, option) a choice was answered
 
--- Choice ids on the wire: 1 to 3 the Act 1 choices, 0 the opening
+-- Choice ids on the wire: the Act 1 choices' save slots (1 to 6; 4 is the Ceremony's, asked in the prologue)
 StoryService.OPENING_CHOICE = 0
 
 -- lore step 10: Dev side quest chains (the framework sample) are offered in Studio with the Dev flag on
@@ -205,10 +205,14 @@ function StoryService.choose(player: Player, choiceNum: number, option: number):
 		return false
 	end
 	-- lore step 5: a choice pays its Skill Points, reputation and story flag (the pick itself, saved), and a
-	-- cosmetic perk for a few options; nothing that changes stats
+	-- cosmetic perk, a title or Credits for some options; nothing that changes stats
 	StoryService.addSkillPoints(player, fx.skillPoints)
 	if fx.rep then
 		StoryService.addRep(player, fx.rep[1], fx.rep[2])
+	end
+	if fx.reward then
+		-- act1-choices: the Ceremony, Safehouse and Live picks pay a title or Credits (StoryPlan.validate)
+		StoryService.pay(player, fx.reward, hero.level)
 	end
 	DataService.changed(player)
 	DataService.saveSoon(player)
