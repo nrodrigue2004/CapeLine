@@ -17,6 +17,7 @@ local Workspace = game:GetService("Workspace")
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local WorldMap = require(Shared:WaitForChild("WorldMap"))
+local MeshFix = require(Shared:WaitForChild("MeshFix"))
 local QualityController = require(script.Parent.QualityController)
 
 local KIT = Config.City.kit
@@ -106,7 +107,7 @@ local function makeProp(pr: Prop, parent: Instance): number
 	model.Name = pr.name
 	local made = 0
 	for _, pc in piecesOf(pr.name) do
-		local p = pc.src:Clone()
+		local p = MeshFix.clone(pc.src)
 		for _, c in p:GetChildren() do
 			if not c:IsA("SurfaceAppearance") then
 				c:Destroy()
@@ -116,7 +117,7 @@ local function makeProp(pr: Prop, parent: Instance): number
 		p.Name = pc.piece
 		p.Anchored = true
 		p.Size = Vector3.new(f.size[1], f.size[2], f.size[3])
-		p.CFrame = at * CFrame.new(f.offset[1], f.offset[2], f.offset[3])
+		p.CFrame = at * CFrame.new(f.offset[1], f.offset[2], f.offset[3]) * MeshFix.of(p) -- the import's turn
 		local tint = if pc.tinted and pr.tint then Config.City.palette[pr.tint] else nil
 		p.Color = if tint then Color3.fromRGB(tint[1], tint[2], tint[3]) else pc.color
 		p.Material = pc.material

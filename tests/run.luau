@@ -23098,6 +23098,14 @@ end
 -- pt-anims (nate's playtest 2026-11-19, own file): the upper-body layer, two-handed holds, robot and people clips;
 -- ONLY="PT anims" runs just these
 (require :: any)("./anims_pt_test")({ test = test, check = check, Config = Config });
+-- fix-models (nate's playtest 2026-11-19, own file): every imported mesh where Blender drew it, through the game's
+-- own placing code and the measured import turn (Shared.MeshFix); ONLY="Model fit" runs just these
+(require :: any)("./model_fit_test")({
+	test = test,
+	check = check,
+	Config = Config,
+	placePath = process.args[1],
+});
 -- fix-anims (nate's playtest 2026-11-19, own file): the real client boot and key path on both joint kinds;
 -- ONLY="Fix anims" runs just these
 (require :: any)("./fix_anims_test")({

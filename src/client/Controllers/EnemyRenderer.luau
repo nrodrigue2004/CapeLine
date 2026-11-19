@@ -46,6 +46,7 @@ local TweenService = game:GetService("TweenService")
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Net = require(Shared:WaitForChild("Net"))
+local MeshFix = require(Shared:WaitForChild("MeshFix"))
 local EnemyBuffer = require(Shared:WaitForChild("EnemyBuffer"))
 local Status = require(Shared:WaitForChild("Status"))
 local Rng = require(Shared:WaitForChild("Rng"))
@@ -348,7 +349,7 @@ local function newPart(
 	local p: BasePart
 	if mesh then
 		local fit = ArtFit.fit[mesh.Name]
-		p = mesh:Clone()
+		p = MeshFix.clone(mesh) -- NpcRig.fix turns it by its import's turn (Shared.MeshFix)
 		p.Size = if fit then size * Vector3.new(fit[1], fit[2], fit[3]) else size
 	else
 		local part = Instance.new("Part")
@@ -372,7 +373,7 @@ local function lookMesh(look: string, name: string): BasePart?
 	if not (found and found:IsA("MeshPart")) then
 		return nil
 	end
-	local p = found:Clone()
+	local p = MeshFix.clone(found)
 	NpcRig.keepLook(p)
 	return p
 end

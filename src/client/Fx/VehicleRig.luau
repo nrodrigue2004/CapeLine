@@ -20,6 +20,7 @@ local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local FrameProf = require(Shared:WaitForChild("FrameProf"))
 local DriveMath = require(Shared:WaitForChild("DriveMath"))
+local MeshFix = require(Shared:WaitForChild("MeshFix"))
 
 local QualityController = require(script.Parent.Parent.Controllers.QualityController)
 
@@ -27,7 +28,8 @@ local VehicleRig = {}
 
 local R = Config.Destruction.vehicles.rig
 
-type Piece = { part: BasePart, offset: CFrame, r: number, steer: boolean }
+-- (a wheel's offset is its drawn frame and fix the import's turn of its mesh, Shared.MeshFix, put back after the roll)
+type Piece = { part: BasePart, offset: CFrame, r: number, steer: boolean, fix: CFrame }
 type Rig = {
 	model: Model,
 	root: BasePart,
@@ -69,11 +71,18 @@ local function build(m: Model, temp: boolean): Rig?
 				local r = p:GetAttribute("WheelR")
 				if type(r) == "number" and r > 0 then
 					local steer = p:GetAttribute("Steer") == true
-					table.insert(wheels, { part = p, offset = off, r = r, steer = steer })
+					local fix = MeshFix.of(p)
+					table.insert(
+						wheels,
+						{ part = p, offset = off * fix:Inverse(), r = r, steer = steer, fix = fix }
+					)
 					front = math.min(front, off.Position.Z)
 					back = math.max(back, off.Position.Z)
 				else
-					table.insert(body, { part = p, offset = off, r = 0, steer = false })
+					table.insert(
+						body,
+						{ part = p, offset = off, r = 0, steer = false, fix = CFrame.identity }
+					)
 				end
 			end
 		end
@@ -117,7 +126,7 @@ local function pose(rig: Rig, at: CFrame)
 		table.insert(parts, w.part)
 		local turn = if w.steer then CFrame.Angles(0, rig.steer, 0) else CFrame.identity
 		-- rolling forward (the nose is -z) turns the wheel's top toward -z: a negative turn about x
-		table.insert(cfs, at * w.offset * turn * CFrame.Angles(-rig.roll / w.r, 0, 0))
+		table.insert(cfs, at * w.offset * turn * CFrame.Angles(-rig.roll / w.r, 0, 0) * w.fix)
 	end
 end
 

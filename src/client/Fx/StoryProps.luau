@@ -14,6 +14,7 @@ local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local StoryArtKit = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("StoryArtKit"))
+local MeshFix = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("MeshFix"))
 
 local QualityController = require(script.Parent.Parent.Controllers.QualityController)
 
@@ -50,7 +51,7 @@ function StoryProps.clone(m: StoryArtKit.Mesh): MeshPart?
 	if not src then
 		return nil
 	end
-	local p = src:Clone()
+	local p = MeshFix.clone(src)
 	for _, c in p:GetChildren() do
 		if m.maps and c:IsA("SurfaceAppearance") then
 			c.AlphaMode = Enum.AlphaMode.Overlay
@@ -91,11 +92,14 @@ function StoryProps.weld(
 		if p then
 			local off = CFrame.new(mesh.offset[1], mesh.offset[2] + lift, mesh.offset[3])
 			p.Anchored = false
-			p.CFrame = anchor.CFrame * off
+			-- the box's centre, then the import's own turn (Shared.MeshFix), held by the weld's C1
+			local fix = MeshFix.of(p)
+			p.CFrame = anchor.CFrame * off * fix
 			local w = Instance.new("Weld")
 			w.Part0 = anchor
 			w.Part1 = p
 			w.C0 = off
+			w.C1 = fix:Inverse()
 			w.Parent = p
 			p.Parent = parent
 			out[mesh.name] = p

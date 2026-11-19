@@ -26,6 +26,7 @@ local NpcRig = require(Shared:WaitForChild("NpcRig"))
 local PieceKits = require(Shared:WaitForChild("PieceKits"))
 local WeaponKit = require(Shared:WaitForChild("WeaponKit"))
 local BodyFit = require(Shared:WaitForChild("BodyFit"))
+local MeshFix = require(Shared:WaitForChild("MeshFix"))
 
 local LookKit = {}
 
@@ -1415,7 +1416,7 @@ local function capeMeshes(
 	end
 	local shift, f = fitFrame(torso)
 	for i, row in fit.pieces do
-		local p = srcs[i]:Clone()
+		local p = MeshFix.clone(srcs[i])
 		for _, c in p:GetChildren() do
 			c:Destroy()
 		end
@@ -1430,8 +1431,11 @@ local function capeMeshes(
 		p.CanTouch = false
 		p.CanQuery = false
 		p.CastShadow = false
+		-- the fitted box's centre, then the import's own turn (Shared.MeshFix: Open Cloud turned every cape mesh 180
+		-- degrees about y in its box, so the drape and its collar swung to the wrong side of the torso)
 		p.CFrame = torso.CFrame
 			* CFrame.new(shift + Vector3.new(row.offset[1], row.offset[2], row.offset[3]) * f)
+			* MeshFix.of(p)
 		local weld = Instance.new("WeldConstraint")
 		weld.Part0 = torso
 		weld.Part1 = p
@@ -1499,7 +1503,7 @@ function pieceMeshes(
 	for i, row in fit.pieces do
 		local part = parts[i]
 		local shift, f = fitFrame(part)
-		local p = srcs[i]:Clone()
+		local p = MeshFix.clone(srcs[i])
 		for _, c in p:GetChildren() do
 			c:Destroy()
 		end
@@ -1518,8 +1522,11 @@ function pieceMeshes(
 		p.CanTouch = false
 		p.CanQuery = false
 		p.CastShadow = false
+		-- the fitted box's centre, then the import's own turn (Shared.MeshFix: a visor, a hood or a toe cap faced
+		-- backwards in its box until this)
 		p.CFrame = part.CFrame
 			* CFrame.new(shift + Vector3.new(row.offset[1], row.offset[2], row.offset[3]) * f)
+			* MeshFix.of(p)
 		local weld = Instance.new("WeldConstraint")
 		weld.Part0 = part
 		weld.Part1 = p
@@ -1528,6 +1535,10 @@ function pieceMeshes(
 	end
 	return true, fit
 end
+
+-- (tests/model_fit_test.luau places every mesh kit through these, the game's own code)
+LookKit._pieceMeshes = pieceMeshes
+LookKit._capeMeshes = capeMeshes
 
 -- Remove a look built by build() (the folder and the emitters and trails it made on body parts, and a mask's
 -- decals on the head)

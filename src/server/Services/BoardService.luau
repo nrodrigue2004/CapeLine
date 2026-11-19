@@ -28,6 +28,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Net = require(Shared:WaitForChild("Net"))
 local BoardKeys = require(Shared:WaitForChild("BoardKeys"))
 local BoardArtKit = require(Shared:WaitForChild("BoardArtKit"))
+local MeshFix = require(Shared:WaitForChild("MeshFix"))
 
 local Services = script.Parent
 local BoardStore = require(Services.BoardStore)
@@ -242,7 +243,7 @@ local function dressProp(model: Model, cf: CFrame)
 		if not src then
 			continue
 		end
-		local mp = src:Clone()
+		local mp = MeshFix.clone(src)
 		for _, c in mp:GetChildren() do
 			if m.maps and c:IsA("SurfaceAppearance") then
 				c.AlphaMode = Enum.AlphaMode.Overlay
@@ -255,7 +256,7 @@ local function dressProp(model: Model, cf: CFrame)
 		mp.CanQuery = false
 		mp.CanTouch = false
 		mp.Size = Vector3.new(m.size[1], m.size[2], m.size[3])
-		mp.CFrame = cf * CFrame.new(m.offset[1], m.offset[2], m.offset[3])
+		mp.CFrame = cf * CFrame.new(m.offset[1], m.offset[2], m.offset[3]) * MeshFix.of(mp) -- the import's turn
 		mp.Color = Color3.fromRGB(m.color[1], m.color[2], m.color[3])
 		mp.Material = (Enum.Material :: any)[m.mat] or Enum.Material.SmoothPlastic
 		mp.Parent = folder

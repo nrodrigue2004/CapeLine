@@ -25,6 +25,7 @@ local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local EnemySim = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("EnemySim"))
 local FxPlan = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("FxPlan"))
 local PolishPlan = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("PolishPlan"))
+local MeshFix = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("MeshFix"))
 
 local QualityController = require(script.Parent.Parent.Controllers.QualityController)
 local AbilityFx = require(script.Parent.AbilityFx)
@@ -2782,8 +2783,10 @@ function CombatFx.torpedo(pos: Vector3, vel: Vector3, home: number, turn: number
 	local body: BasePart = if mesh
 		then mesh
 		else part(Vector3.new(1.4, 1.4, 4), CFrame.lookAt(pos, pos + vel), ENEMY)
+	-- the mesh's import turn (Shared.MeshFix): unturned, the imported torpedo flew tail first
+	local fix = if mesh then MeshFix.of(mesh) else CFrame.identity
 	if mesh then
-		mesh.CFrame = CFrame.lookAt(pos, pos + vel)
+		mesh.CFrame = CFrame.lookAt(pos, pos + vel) * fix
 		mesh.Parent = folder
 	end
 	local life = math.min(4, 130 / speed)
@@ -2805,7 +2808,7 @@ function CombatFx.torpedo(pos: Vector3, vel: Vector3, home: number, turn: number
 		shot.y += shot.vy * dt
 		shot.z += shot.vz * dt
 		local at = Vector3.new(shot.x, shot.y, shot.z)
-		body.CFrame = CFrame.lookAt(at, at + Vector3.new(shot.vx, shot.vy, shot.vz))
+		body.CFrame = CFrame.lookAt(at, at + Vector3.new(shot.vx, shot.vy, shot.vz)) * fix
 		trail += dt
 		if trail >= 0.08 then
 			trail = 0

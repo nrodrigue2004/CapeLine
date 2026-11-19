@@ -19,6 +19,7 @@ local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Shared = ReplicatedStorage:WaitForChild("Shared")
+local MeshFix = require(Shared:WaitForChild("MeshFix"))
 local WorldMap = require(Shared:WaitForChild("WorldMap"))
 local WorldGen = require(Shared:WaitForChild("WorldGen"))
 local DeepLayout = require(Shared:WaitForChild("DeepLayout"))
@@ -231,7 +232,7 @@ local function streetArt(b: any): { BasePart }?
 	for piece, look in def.pieces do
 		local src = streetMesh(piece) :: MeshPart
 		local f = fit[piece]
-		local p = src:Clone()
+		local p = MeshFix.clone(src)
 		for _, ch in p:GetChildren() do
 			if not ch:IsA("SurfaceAppearance") then
 				ch:Destroy()
@@ -240,7 +241,7 @@ local function streetArt(b: any): { BasePart }?
 		p.Name = piece
 		p.Anchored = true
 		p.Size = Vector3.new(f.size[1], f.size[2], f.size[3])
-		p.CFrame = at * CFrame.new(f.offset[1], f.offset[2], f.offset[3])
+		p.CFrame = at * CFrame.new(f.offset[1], f.offset[2], f.offset[3]) * MeshFix.of(p) -- the import's turn
 		local rgb = if look[5] and a.tint then Config.City.palette[a.tint] or look[1] else look[1]
 		p.Color = Color3.fromRGB(rgb[1], rgb[2], rgb[3])
 		p.Material = (Enum.Material :: any)[look[2]]
@@ -370,7 +371,7 @@ end
 
 -- One mesh of a look as a visual-only clone (no collisions, queries or touches; no shadow) at `at` * its offset
 local function artMesh(src: MeshPart, m: any, at: CFrame): MeshPart
-	local p = src:Clone()
+	local p = MeshFix.clone(src)
 	for _, c in p:GetChildren() do
 		if m.maps and c:IsA("SurfaceAppearance") then
 			c.AlphaMode = Enum.AlphaMode.Overlay
@@ -384,7 +385,7 @@ local function artMesh(src: MeshPart, m: any, at: CFrame): MeshPart
 	p.CanQuery = false
 	p.CanTouch = false
 	p.Size = Vector3.new(m.size[1], m.size[2], m.size[3])
-	p.CFrame = at * CFrame.new(m.offset[1], m.offset[2], m.offset[3])
+	p.CFrame = at * CFrame.new(m.offset[1], m.offset[2], m.offset[3]) * MeshFix.of(p) -- the import's turn
 	p.Color = Color3.fromRGB(m.color[1], m.color[2], m.color[3])
 	local ok, mat = pcall(function()
 		return (Enum.Material :: any)[m.mat]
