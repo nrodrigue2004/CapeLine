@@ -1137,6 +1137,14 @@ end
 -- Any card in the boss card's style (lore step 9: the Crater's and Your double's, Config.Cinema.nameCard places
 -- and events): two fixed lines and the slash colour ({ r, g, b }, red when nil); pic names its picture
 -- ({ kind = "boss" or "event", id }), drawn when its art is uploaded
+-- The name card's right edge in screen pixels while it shows, else nil (NewsHud keeps the corner TV clear of it)
+function CinemaHud.cardRight(): number?
+	if not (card and card.Visible) then
+		return nil
+	end
+	return card.AbsolutePosition.X + card.AbsoluteSize.X
+end
+
 function CinemaHud.card(name: string, title: string, theme: { number }?, pic: { kind: string, id: string }?)
 	cardName.Text = name
 	cardTitle.Text = title

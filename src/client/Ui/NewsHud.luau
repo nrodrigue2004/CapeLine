@@ -434,6 +434,21 @@ local function frame()
 	if tv.Visible and (now >= tvUntil or (tvMode ~= "flash" and not quiet())) then
 		tv.Visible = false
 	end
+	-- the boss name card sits at the left at the TV's height: while it shows, the TV moves right of it
+	-- (2026-11-19: on PC the card covered the TV's left half)
+	if tv.Visible then
+		local right = CinemaHud.cardRight()
+		local shift = 0
+		if right then
+			local half = tv.AbsoluteSize.X / 2
+			local centre = gui.AbsoluteSize.X / 2
+			shift = math.max(0, right + 12 + half - centre)
+			shift = math.min(shift, math.max(0, gui.AbsoluteSize.X - 8 - half - centre))
+		end
+		if tv.Position.X.Offset ~= shift then
+			tv.Position = UDim2.new(0.5, shift, tv.Position.Y.Scale, tv.Position.Y.Offset)
+		end
+	end
 	if not tv.Visible and quiet() and now >= nextCrane then
 		nextCrane = now + N.tv.craneEvery
 		local _, i = NewsPlan.reel(Config, {}, now)

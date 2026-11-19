@@ -610,6 +610,10 @@ for _, scene in scenes do
 				end
 			end)
 			sim:advance(0.5)
+			-- one more drawn frame: NewsHud keeps the corner TV clear of the name card on its frame
+			sim:run("newsframe", function()
+				sim.service("RunService").RenderStepped:Fire(1 / 60)
+			end)
 		end
 		if scene == "menu" then
 			sim:run("menu", function()
