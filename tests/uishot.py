@@ -29,12 +29,13 @@ def arg(name, default=None):
 
 FONT_DIR = arg("--fonts", "")
 # --images map.json: {"rbxassetid://<id>": "local.png"} (art/thumbs/ids.json): picture tiles drawn from the sheets
-IMAGES = json.load(open(arg("--images"))) if arg("--images") else {}
+# (its own map: IMAGES below is each shot's own pictures, refilled per shot, which wiped this one)
+THUMB_IMAGES = json.load(open(arg("--images"))) if arg("--images") else {}
 _imgs = {}
 
 
 def local_image(n):
-    path = IMAGES.get(n.get("image") or "")
+    path = THUMB_IMAGES.get(n.get("image") or "")
     if not path:
         return None
     if path not in _imgs:

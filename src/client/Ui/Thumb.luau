@@ -27,6 +27,16 @@ function Thumb.weaponKey(id: number): string
 	return ThumbMap.weaponKey(id)
 end
 
+-- an emote's, landing pose's or photo pose's picture (nil while its sheet is not uploaded: words only)
+function Thumb.emote(id: number): Pic?
+	return ThumbMap.pic(Config, ThumbMap.emoteKey(id))
+end
+
+-- a shop item's picture: its own cell, or an emote's pose
+function Thumb.shop(key: string): Pic?
+	return ThumbMap.shop(Config, key)
+end
+
 -- a text tile's glyph where a piece has no picture of its own (catalog hair, voices), or nil
 function Thumb.glyph(p: { tab: string, kit: string }): string?
 	if ThumbMap.creator(Config, p) then
@@ -51,6 +61,41 @@ function Thumb.image(pic: Pic, props: { [string]: any }): ImageLabel
 		(l :: any)[k] = v
 	end
 	return l
+end
+
+-- A row button's picture at its left and its words beside it (the emote picker, Photo Mode's POSE button):
+-- b's own Text goes empty; a later call replaces the picture and words (a button that changes what it names).
+-- pic nil: just the words, centred, as a plain button.
+function Thumb.side(b: TextButton, pic: Pic?, text: string, maxText: number?)
+	for _, c in b:GetChildren() do
+		if c.Name == "Thumb" or c.Name == "ThumbText" then
+			c:Destroy()
+		end
+	end
+	if not pic then
+		b.Text = text
+		return
+	end
+	b.Text = ""
+	local h = b.AbsoluteSize.Y > 0 and b.AbsoluteSize.Y or b.Size.Y.Offset
+	local side = math.max(24, h - 8)
+	local img = Thumb.image(pic, {
+		Size = UDim2.new(0, side, 1, 4),
+		Position = UDim2.fromOffset(-4, -2),
+		ZIndex = b.ZIndex + 1,
+	})
+	img.Parent = b
+	local l = Kit.label({
+		Name = "ThumbText",
+		Text = text,
+		Size = UDim2.new(1, -side - 2, 1, 0),
+		Position = UDim2.fromOffset(side + 2, 0),
+		TextColor3 = b.TextColor3,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		ZIndex = b.ZIndex + 1,
+		maxText = maxText or 16,
+	})
+	l.Parent = b
 end
 
 -- A picture tile's insides: the picture over most of the button, the name as a caption under it and, for a

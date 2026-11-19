@@ -100,4 +100,66 @@ return function(T: any)
 		check(ThumbMap.creator(fake, p) == nil, "no id, no picture")
 		check(ThumbMap.creator(Config, p) ~= nil, "with the id, a picture")
 	end)
+
+	-- the pose tiles (2026-11-19): every emote, landing pose and photo pose is rendered from the game's own pose
+	-- table, so the tile matches what EmoteFx plays
+	test("Thumbs: every emote, landing pose and photo pose has a picture of its own pose", function()
+		local EmotePoses = require("../src/shared/EmotePoses")
+		local serde = require("@lune/serde")
+		local P = serde.decode("json", fs.readFile("art/thumbs/pieces.json"))
+		local listed = {}
+		for _, row in P.poses do
+			listed[row.id] = row
+		end
+		local ids = table.clone(EmotePoses.PHOTO_POSES)
+		for id in Config.Shop.emotes do
+			table.insert(ids, id)
+		end
+		local sheets = {}
+		for _, id in ids do
+			local key = ThumbMap.emoteKey(id)
+			check(EmotePoses.POSES[id] ~= nil, key .. ": EmoteFx has its pose")
+			check(Th.cells[key] ~= nil, key .. " has a cell")
+			check(ThumbMap.pic(Config, key) ~= nil, key .. " shows a picture")
+			local row = listed[id]
+			check(row ~= nil and row.key == key, key .. ": listed for the renders")
+			if row then
+				local same = true
+				for joint, a in EmotePoses.POSES[id] do
+					local b = row.joints[joint]
+					same = same and b ~= nil and b[1] == a[1] and b[2] == a[2] and b[3] == a[3]
+				end
+				for joint in row.joints do
+					same = same and EmotePoses.POSES[id][joint] ~= nil
+				end
+				check(same, key .. ": the render used the pose the game plays (rerun art/thumbs/pieces.luau)")
+			end
+			sheets[(ThumbMap.cell(Config, key))] = true
+		end
+		for sheet in sheets do
+			check(sheet >= 9, "pose tiles sit on their own sheets, after the first 8 (sheet " .. sheet .. ")")
+		end
+		for _, tab in Config.Shop.tabs do
+			for _, key in tab.items do
+				local row = Config.Shop.products[key]
+				if row and row.kind == "emote" then
+					local pic = ThumbMap.shop(Config, key)
+					local want = ThumbMap.pic(Config, ThumbMap.emoteKey(row.emote))
+					check(
+						pic ~= nil and want ~= nil and pic.x == want.x and pic.y == want.y,
+						"shop " .. key .. " shows its pose"
+					)
+				end
+			end
+		end
+		local fake = table.clone(Config)
+		fake.Thumbs = table.clone(Th)
+		fake.Thumbs.sheets = table.clone(Th.sheets)
+		fake.Thumbs.sheets[9] = 0
+		check(ThumbMap.shop(fake, "emote3") == nil, "a pose sheet at id 0: the shop card stays words")
+		check(
+			ThumbMap.pic(fake, ThumbMap.emoteKey(101)) == nil,
+			"a pose sheet at id 0: the POSE button stays words"
+		)
+	end)
 end

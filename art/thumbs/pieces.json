@@ -6527,6 +6527,955 @@
       ]
     }
   ],
+  "poses": [
+    {
+      "id": 1,
+      "joints": {
+        "Neck": [
+          -5,
+          0,
+          0
+        ],
+        "RightElbow": [
+          0,
+          0,
+          110
+        ],
+        "RightShoulder": [
+          0,
+          0,
+          150
+        ]
+      },
+      "key": "emote/1",
+      "kind": "emote",
+      "name": "Salute"
+    },
+    {
+      "id": 2,
+      "joints": {
+        "Neck": [
+          -20,
+          0,
+          0
+        ],
+        "RightShoulder": [
+          -30,
+          0,
+          0
+        ],
+        "Waist": [
+          -45,
+          0,
+          0
+        ]
+      },
+      "key": "emote/2",
+      "kind": "emote",
+      "name": "Bow"
+    },
+    {
+      "id": 3,
+      "joints": {
+        "RightElbow": [
+          0,
+          0,
+          30
+        ],
+        "RightShoulder": [
+          0,
+          0,
+          160
+        ]
+      },
+      "key": "emote/3",
+      "kind": "emote",
+      "name": "Wave"
+    },
+    {
+      "id": 4,
+      "joints": {
+        "RightElbow": [
+          80,
+          0,
+          0
+        ],
+        "RightShoulder": [
+          70,
+          0,
+          0
+        ]
+      },
+      "key": "emote/4",
+      "kind": "emote",
+      "name": "Thumbs Up"
+    },
+    {
+      "id": 5,
+      "joints": {
+        "LeftElbow": [
+          0,
+          0,
+          -100
+        ],
+        "LeftShoulder": [
+          0,
+          0,
+          -90
+        ],
+        "RightElbow": [
+          0,
+          0,
+          100
+        ],
+        "RightShoulder": [
+          0,
+          0,
+          90
+        ]
+      },
+      "key": "emote/5",
+      "kind": "emote",
+      "name": "Flex"
+    },
+    {
+      "id": 6,
+      "joints": {
+        "LeftHip": [
+          0,
+          0,
+          -12
+        ],
+        "LeftShoulder": [
+          0,
+          0,
+          -30
+        ],
+        "Neck": [
+          10,
+          20,
+          0
+        ],
+        "RightHip": [
+          0,
+          0,
+          12
+        ],
+        "RightShoulder": [
+          0,
+          0,
+          30
+        ]
+      },
+      "key": "emote/6",
+      "kind": "emote",
+      "name": "Hero Pose"
+    },
+    {
+      "id": 7,
+      "joints": {
+        "Neck": [
+          25,
+          0,
+          0
+        ],
+        "RightShoulder": [
+          0,
+          0,
+          175
+        ]
+      },
+      "key": "emote/7",
+      "kind": "emote",
+      "name": "Point Up"
+    },
+    {
+      "id": 8,
+      "joints": {
+        "LeftKnee": [
+          -30,
+          0,
+          0
+        ],
+        "LeftShoulder": [
+          40,
+          0,
+          -40
+        ],
+        "RightKnee": [
+          -30,
+          0,
+          0
+        ],
+        "RightShoulder": [
+          40,
+          0,
+          40
+        ],
+        "Waist": [
+          -15,
+          0,
+          0
+        ]
+      },
+      "key": "emote/8",
+      "kind": "emote",
+      "name": "Power Up"
+    },
+    {
+      "id": 9,
+      "joints": {
+        "Neck": [
+          30,
+          0,
+          0
+        ],
+        "RightShoulder": [
+          20,
+          0,
+          20
+        ],
+        "Waist": [
+          20,
+          0,
+          0
+        ]
+      },
+      "key": "emote/9",
+      "kind": "emote",
+      "name": "Laugh"
+    },
+    {
+      "id": 10,
+      "joints": {
+        "LeftShoulder": [
+          0,
+          0,
+          -40
+        ],
+        "RightShoulder": [
+          0,
+          0,
+          100
+        ],
+        "Waist": [
+          0,
+          50,
+          0
+        ]
+      },
+      "key": "emote/10",
+      "kind": "emote",
+      "name": "Cape Swish"
+    },
+    {
+      "id": 11,
+      "joints": {
+        "LeftShoulder": [
+          0,
+          0,
+          -165
+        ],
+        "Neck": [
+          15,
+          0,
+          0
+        ],
+        "RightShoulder": [
+          0,
+          0,
+          165
+        ]
+      },
+      "key": "emote/11",
+      "kind": "emote",
+      "name": "Rookie Cheer"
+    },
+    {
+      "id": 12,
+      "joints": {
+        "LeftShoulder": [
+          0,
+          0,
+          -10
+        ],
+        "Neck": [
+          -8,
+          0,
+          0
+        ],
+        "RightElbow": [
+          0,
+          0,
+          125
+        ],
+        "RightShoulder": [
+          0,
+          0,
+          160
+        ]
+      },
+      "key": "emote/12",
+      "kind": "emote",
+      "name": "Sharp Salute"
+    },
+    {
+      "id": 13,
+      "joints": {
+        "LeftElbow": [
+          0,
+          0,
+          -20
+        ],
+        "LeftShoulder": [
+          0,
+          0,
+          -170
+        ],
+        "RightElbow": [
+          0,
+          0,
+          20
+        ],
+        "RightShoulder": [
+          0,
+          0,
+          170
+        ]
+      },
+      "key": "emote/13",
+      "kind": "emote",
+      "name": "Big Wave"
+    },
+    {
+      "id": 14,
+      "joints": {
+        "LeftShoulder": [
+          -50,
+          0,
+          -20
+        ],
+        "Neck": [
+          -15,
+          0,
+          0
+        ],
+        "RightShoulder": [
+          40,
+          0,
+          20
+        ],
+        "Waist": [
+          -60,
+          0,
+          0
+        ]
+      },
+      "key": "emote/14",
+      "kind": "emote",
+      "name": "Grand Bow"
+    },
+    {
+      "id": 15,
+      "joints": {
+        "LeftElbow": [
+          0,
+          0,
+          -90
+        ],
+        "LeftShoulder": [
+          0,
+          0,
+          -40
+        ],
+        "Neck": [
+          0,
+          0,
+          12
+        ],
+        "RightElbow": [
+          0,
+          0,
+          90
+        ],
+        "RightShoulder": [
+          0,
+          0,
+          40
+        ]
+      },
+      "key": "emote/15",
+      "kind": "emote",
+      "name": "Shrug"
+    },
+    {
+      "id": 16,
+      "joints": {
+        "LeftElbow": [
+          0,
+          0,
+          -100
+        ],
+        "LeftShoulder": [
+          0,
+          0,
+          -80
+        ],
+        "Neck": [
+          -6,
+          0,
+          0
+        ],
+        "RightElbow": [
+          0,
+          0,
+          100
+        ],
+        "RightShoulder": [
+          0,
+          0,
+          80
+        ]
+      },
+      "key": "emote/16",
+      "kind": "emote",
+      "name": "Double Thumbs Up"
+    },
+    {
+      "id": 17,
+      "joints": {
+        "LeftShoulder": [
+          70,
+          0,
+          -60
+        ],
+        "Neck": [
+          -20,
+          0,
+          0
+        ],
+        "RightShoulder": [
+          70,
+          0,
+          60
+        ],
+        "Waist": [
+          -30,
+          0,
+          0
+        ]
+      },
+      "key": "emote/17",
+      "kind": "emote",
+      "name": "Team Huddle"
+    },
+    {
+      "id": 18,
+      "joints": {
+        "LeftElbow": [
+          0,
+          0,
+          -80
+        ],
+        "LeftShoulder": [
+          0,
+          0,
+          -30
+        ],
+        "RightElbow": [
+          0,
+          0,
+          40
+        ],
+        "RightShoulder": [
+          0,
+          0,
+          150
+        ],
+        "Waist": [
+          0,
+          20,
+          0
+        ]
+      },
+      "key": "emote/18",
+      "kind": "emote",
+      "name": "Comic Pose"
+    },
+    {
+      "id": 19,
+      "joints": {
+        "LeftShoulder": [
+          0,
+          0,
+          -120
+        ],
+        "RightShoulder": [
+          0,
+          0,
+          120
+        ],
+        "Root": [
+          0,
+          180,
+          0
+        ]
+      },
+      "key": "emote/19",
+      "kind": "emote",
+      "name": "Spotlight Spin"
+    },
+    {
+      "id": 20,
+      "joints": {
+        "LeftHip": [
+          -20,
+          0,
+          0
+        ],
+        "LeftKnee": [
+          -60,
+          0,
+          0
+        ],
+        "LeftShoulder": [
+          -40,
+          0,
+          -20
+        ],
+        "RightHip": [
+          70,
+          0,
+          0
+        ],
+        "RightKnee": [
+          -100,
+          0,
+          0
+        ],
+        "RightShoulder": [
+          0,
+          0,
+          60
+        ],
+        "Waist": [
+          -35,
+          0,
+          0
+        ]
+      },
+      "key": "emote/20",
+      "kind": "landing",
+      "name": "Super Landing"
+    },
+    {
+      "id": 21,
+      "joints": {
+        "LeftKnee": [
+          -80,
+          0,
+          0
+        ],
+        "Neck": [
+          -10,
+          0,
+          0
+        ],
+        "RightHip": [
+          80,
+          0,
+          0
+        ],
+        "RightKnee": [
+          -90,
+          0,
+          0
+        ],
+        "Waist": [
+          -20,
+          0,
+          0
+        ]
+      },
+      "key": "emote/21",
+      "kind": "landing",
+      "name": "Kneel Landing"
+    },
+    {
+      "id": 22,
+      "joints": {
+        "LeftShoulder": [
+          0,
+          0,
+          -90
+        ],
+        "RightShoulder": [
+          0,
+          0,
+          90
+        ],
+        "Root": [
+          0,
+          180,
+          0
+        ]
+      },
+      "key": "emote/22",
+      "kind": "landing",
+      "name": "Spin Landing"
+    },
+    {
+      "id": 23,
+      "joints": {
+        "LeftKnee": [
+          -110,
+          0,
+          0
+        ],
+        "LeftShoulder": [
+          -60,
+          0,
+          -20
+        ],
+        "RightKnee": [
+          -110,
+          0,
+          0
+        ],
+        "RightShoulder": [
+          -60,
+          0,
+          20
+        ],
+        "Waist": [
+          -50,
+          0,
+          0
+        ]
+      },
+      "key": "emote/23",
+      "kind": "landing",
+      "name": "Crater Landing"
+    },
+    {
+      "id": 24,
+      "joints": {
+        "LeftShoulder": [
+          0,
+          0,
+          -45
+        ],
+        "Neck": [
+          10,
+          0,
+          0
+        ],
+        "RightKnee": [
+          -20,
+          0,
+          0
+        ],
+        "RightShoulder": [
+          0,
+          0,
+          45
+        ]
+      },
+      "key": "emote/24",
+      "kind": "landing",
+      "name": "Float Down"
+    },
+    {
+      "id": 25,
+      "joints": {
+        "LeftShoulder": [
+          0,
+          0,
+          -160
+        ],
+        "Neck": [
+          -10,
+          0,
+          0
+        ],
+        "RightShoulder": [
+          0,
+          0,
+          160
+        ],
+        "Root": [
+          0,
+          180,
+          0
+        ]
+      },
+      "key": "emote/25",
+      "kind": "landing",
+      "name": "Spotlight Landing"
+    },
+    {
+      "id": 101,
+      "joints": {
+        "LeftElbow": [
+          90,
+          0,
+          0
+        ],
+        "LeftShoulder": [
+          80,
+          0,
+          -20
+        ],
+        "RightElbow": [
+          90,
+          0,
+          0
+        ],
+        "RightKnee": [
+          -15,
+          0,
+          0
+        ],
+        "RightShoulder": [
+          80,
+          0,
+          20
+        ]
+      },
+      "key": "emote/101",
+      "kind": "photo",
+      "name": "Ready"
+    },
+    {
+      "id": 102,
+      "joints": {
+        "Neck": [
+          10,
+          15,
+          0
+        ],
+        "RightElbow": [
+          100,
+          0,
+          0
+        ],
+        "RightShoulder": [
+          120,
+          0,
+          40
+        ]
+      },
+      "key": "emote/102",
+      "kind": "photo",
+      "name": "Look Out"
+    },
+    {
+      "id": 103,
+      "joints": {
+        "LeftHip": [
+          -25,
+          0,
+          0
+        ],
+        "LeftKnee": [
+          -50,
+          0,
+          0
+        ],
+        "LeftShoulder": [
+          0,
+          0,
+          -20
+        ],
+        "RightShoulder": [
+          0,
+          0,
+          170
+        ]
+      },
+      "key": "emote/103",
+      "kind": "photo",
+      "name": "Take Off"
+    },
+    {
+      "id": 104,
+      "joints": {
+        "Neck": [
+          -10,
+          -10,
+          0
+        ],
+        "RightElbow": [
+          130,
+          0,
+          0
+        ],
+        "RightShoulder": [
+          100,
+          0,
+          30
+        ]
+      },
+      "key": "emote/104",
+      "kind": "photo",
+      "name": "Thinking"
+    }
+  ],
+  "rig": {
+    "ground": 2.9999999999999996,
+    "joints": [
+      {
+        "name": "Root",
+        "part0": "HumanoidRootPart",
+        "part1": "LowerTorso",
+        "pivot": [
+          0,
+          -0.8,
+          0
+        ]
+      },
+      {
+        "name": "Waist",
+        "part0": "LowerTorso",
+        "part1": "UpperTorso",
+        "pivot": [
+          0,
+          -0.6000000000000001,
+          0
+        ]
+      },
+      {
+        "name": "Neck",
+        "part0": "UpperTorso",
+        "part1": "Head",
+        "pivot": [
+          0,
+          1,
+          0
+        ]
+      },
+      {
+        "name": "LeftShoulder",
+        "part0": "UpperTorso",
+        "part1": "LeftUpperArm",
+        "pivot": [
+          -1,
+          0.76,
+          0
+        ]
+      },
+      {
+        "name": "LeftElbow",
+        "part0": "LeftUpperArm",
+        "part1": "LeftLowerArm",
+        "pivot": [
+          -1.5,
+          0.14999999999999997,
+          0
+        ]
+      },
+      {
+        "name": "LeftWrist",
+        "part0": "LeftLowerArm",
+        "part1": "LeftHand",
+        "pivot": [
+          -1.5,
+          -0.7,
+          0
+        ]
+      },
+      {
+        "name": "RightShoulder",
+        "part0": "UpperTorso",
+        "part1": "RightUpperArm",
+        "pivot": [
+          1,
+          0.76,
+          0
+        ]
+      },
+      {
+        "name": "RightElbow",
+        "part0": "RightUpperArm",
+        "part1": "RightLowerArm",
+        "pivot": [
+          1.5,
+          0.14999999999999997,
+          0
+        ]
+      },
+      {
+        "name": "RightWrist",
+        "part0": "RightLowerArm",
+        "part1": "RightHand",
+        "pivot": [
+          1.5,
+          -0.7,
+          0
+        ]
+      },
+      {
+        "name": "LeftHip",
+        "part0": "LowerTorso",
+        "part1": "LeftUpperLeg",
+        "pivot": [
+          -0.5,
+          -1,
+          0
+        ]
+      },
+      {
+        "name": "LeftKnee",
+        "part0": "LeftUpperLeg",
+        "part1": "LeftLowerLeg",
+        "pivot": [
+          -0.5,
+          -1.85,
+          0
+        ]
+      },
+      {
+        "name": "LeftAnkle",
+        "part0": "LeftLowerLeg",
+        "part1": "LeftFoot",
+        "pivot": [
+          -0.5,
+          -2.6999999999999997,
+          0
+        ]
+      },
+      {
+        "name": "RightHip",
+        "part0": "LowerTorso",
+        "part1": "RightUpperLeg",
+        "pivot": [
+          0.5,
+          -1,
+          0
+        ]
+      },
+      {
+        "name": "RightKnee",
+        "part0": "RightUpperLeg",
+        "part1": "RightLowerLeg",
+        "pivot": [
+          0.5,
+          -1.85,
+          0
+        ]
+      },
+      {
+        "name": "RightAnkle",
+        "part0": "RightLowerLeg",
+        "part1": "RightFoot",
+        "pivot": [
+          0.5,
+          -2.6999999999999997,
+          0
+        ]
+      }
+    ]
+  },
   "shop": [
     {
       "key": "pack7",

@@ -12,6 +12,8 @@ local Config = require("../../src/config")
 local CreatorRules = require("../../src/shared/CreatorRules")
 local TravelStyleRules = require("../../src/shared/TravelStyleRules")
 local ThumbMap = require("../../src/shared/ThumbMap")
+local EmotePoses = require("../../src/shared/EmotePoses")
+local RigMath = require("../../src/shared/RigMath")
 
 local PieceKits = luau.load(fs.readFile("src/shared/PieceKits.luau"), {
 	debugName = "PieceKits",
@@ -87,6 +89,45 @@ for i, pk in Config.Shop.packs do
 		table.insert(pieces, { tab = p.tab, kit = p.kit, key = ThumbMap.creatorKey(Config, p) })
 	end
 	table.insert(out.packs, { i = i, name = pk.name, color = pk.color, pieces = pieces })
+end
+
+-- the poses (2026-11-19): every emote, landing pose and Photo Mode pose with its joint angles (Shared.EmotePoses,
+-- what EmoteFx plays), and the hero rig's joints (Config.HeroRig through RigMath: each joint's parent and child
+-- part and its pivot at rest, studs from the root's centre, Roblox axes; ground: the root's centre above the
+-- soles) so art/blender/clothed.py poses poses the blocky body the same way
+local poseIds = {}
+for id in Config.Shop.emotes do
+	table.insert(poseIds, id)
+end
+table.sort(poseIds)
+for _, id in EmotePoses.PHOTO_POSES do
+	table.insert(poseIds, id)
+end
+out.poses = {}
+for _, id in poseIds do
+	local row = Config.Shop.emotes[id]
+	local joints = {}
+	for name, a in EmotePoses.POSES[id] or {} do
+		joints[name] = { a[1], a[2], a[3] }
+	end
+	table.insert(out.poses, {
+		id = id,
+		key = ThumbMap.emoteKey(id),
+		name = if row then row.name else EmotePoses.POSE_NAMES[id],
+		kind = if not row then "photo" elseif row.landing then "landing" else "emote",
+		joints = joints,
+	})
+end
+local layout = RigMath.layout(Config.HeroRig)
+out.rig = { ground = layout.ground, joints = {} }
+for _, j in layout.joints do
+	local c = layout.centres[j.part0]
+	table.insert(out.rig.joints, {
+		name = j.name,
+		part0 = j.part0,
+		part1 = j.part1,
+		pivot = { c[1] + j.c0[1], c[2] + j.c0[2], c[3] + j.c0[3] },
+	})
 end
 
 -- every shop item in shop order: its key, kind and what it names (pack, tint, travel style, weapon, emote)

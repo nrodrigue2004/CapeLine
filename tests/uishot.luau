@@ -9,6 +9,7 @@
 -- Scenes: loading (the ReplicatedFirst loading card alone), hud (HUD and toasts), menu (the HUD with its MENU drawer open), gear, loadout, shop, settings, journal, map, creator, pass (each panel over
 -- the HUD), world (the HUD with incidents, an event, a contract, a boss fight and its result card), contracts
 -- (the Contract Board), badges (the Badge Book), daily (the daily card), screen:<ScreenGui name> (a card screen with all its parts shown),
+-- emotes (the emote picker), photo (Photo Mode on a pose), shop:emotes (the shop's Emotes tab),
 -- comic:<page id> (a comic page from Config.Cinema.comic.pages with every panel in), guide:<speaker> (the guide line
 -- box with that speaker's portrait). UISHOT_IMAGES=<ids.json> lets tests/uishot.py draw uploaded images from their local files.
 
@@ -239,6 +240,8 @@ local PANEL = {
 	["creator:hair"] = { "CreatorScreen", { mode = "create", step = "appearance", slot = "hair" } },
 	["creator:weapon"] = { "CreatorScreen", { mode = "create", step = "weapon" } },
 	pass = { "PassHud" },
+	-- the shop's Emotes tab (2026-11-19 pose tiles)
+	["shop:emotes"] = { "ShopHud", "emotes" },
 }
 
 -- The map scene (the map pass, 2026-11-19): the server's WorldInfo for one seed, built the way CityBuilder
@@ -496,6 +499,35 @@ for _, scene in scenes do
 				GuideHud.init()
 				GuideHud.sample(string.sub(scene, 7))
 			end)
+		elseif scene == "emotes" or scene == "photo" then
+			-- the emote picker with a few owned emotes, or Photo Mode on its third pose (2026-11-19 pose tiles)
+			local State = sim:require("Client.State")
+			State.profile.emotes = { 1, 3, 5, 8, 11, 18 }
+			if scene == "emotes" then
+				local EmoteFx = sim:require("Client.Fx.EmoteFx")
+				sim:run("EmoteFx", EmoteFx.init)
+				sim:run("picker", EmoteFx.toggle)
+			else
+				local PhotoMode = sim:require("Client.Ui.PhotoMode")
+				sim:run("PhotoMode", PhotoMode.init)
+				-- (no hero in the sim, so open() stays shut: show its bar the way open() does)
+				local g = sim.playerGui:FindFirstChild("Photo")
+				for _, d in (g and g:GetDescendants() or {}) do
+					if d:IsA("GuiObject") then
+						d.Visible = d.Name ~= "PHOTO" and not (d:IsA("TextButton") and d.Text == "PHOTO")
+					end
+				end
+				for _, d in (g and g:GetDescendants() or {}) do
+					if d:IsA("TextButton") and d.Text == "POSE" then
+						sim:run("pose", function()
+							for _ = 1, 3 do
+								d.Activated:Fire()
+							end
+						end)
+						break
+					end
+				end
+			end
 		elseif PANEL[scene] then
 			local p = PANEL[scene]
 			if scene == "map" then
