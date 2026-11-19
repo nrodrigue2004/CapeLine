@@ -22973,6 +22973,8 @@ end
 (require :: any)("./weapon_art_test")({ test = test, check = check, Config = Config });
 -- the escort and hub vehicle meshes (2026-11-18, own file); ONLY="Vehicle art" runs just these
 (require :: any)("./vehicles_test")({ test = test, check = check, Config = Config });
+-- the activity props' meshes and the crater and crack decals (2026-11-19, own file); ONLY="Activity art" runs these
+(require :: any)("./activity_test")({ test = test, check = check, Config = Config });
 -- the side quest juice pass and the beacon roof fix (2026-11-18); ONLY="SQ juice" or ONLY="Beacon roofs"
 (require :: any)("./polish_test")({ test = test, check = check, Config = Config, world = world });
 -- the text pass (2026-11-18, own file): old names, fixed typos and term casing; ONLY="Text pass" runs these

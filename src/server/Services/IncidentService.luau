@@ -173,6 +173,7 @@ local function tramModel(m: Model)
 	)
 	SiteKit.part(m, Vector3.new(6, 0.8, 30), CFrame.new(0, 10, 0), Color3.fromRGB(60, 60, 70))
 	SiteKit.part(m, Vector3.new(0.4, 4, 0.4), CFrame.new(0, 12, -6), Color3.fromRGB(40, 40, 48))
+	SiteKit.look(m, "Tram") -- the hub's Tram look (Art.Vehicles) once imported (Fx.ActivityProps)
 end
 
 local function relayModel(m: Model)
@@ -201,6 +202,7 @@ local function relayModel(m: Model)
 		Enum.Material.Neon,
 		Enum.PartType.Ball
 	)
+	SiteKit.look(m, "Relay")
 end
 
 local function propAt(inc: Live, kind: string)
@@ -239,11 +241,12 @@ local function propAt(inc: Live, kind: string)
 			Enum.Material.Neon
 		)
 	end
+	SiteKit.look(m, if kind == "Vault" then "Vault" else "ShardCrate", CFrame.new(p))
 	table.insert(inc.things, m)
 end
 
 local function valveModel(m: Model)
-	-- PLACEHOLDER ART: a burst pipe and its valve wheel with a column of spray
+	-- a burst pipe and its valve wheel with a column of spray (the ActValve look on the device once imported)
 	SiteKit.part(
 		m,
 		Vector3.new(3, 3, 3),
@@ -269,6 +272,7 @@ local function valveModel(m: Model)
 	)
 	spray.Name = "Spray"
 	spray.Transparency = 0.45
+	SiteKit.look(m, "Valve")
 end
 
 local OBJECT_MODELS: { [string]: (Model) -> () } = {
@@ -277,7 +281,9 @@ local OBJECT_MODELS: { [string]: (Model) -> () } = {
 	Valve = valveModel,
 }
 
--- PLACEHOLDER ART: what a hold step stands under (a scaffold frame, a swinging crate, a pile of crates)
+-- What a hold step stands under (a scaffold frame, a swinging crate, a pile of crates); the device draws their
+-- Blender looks over these parts once imported (Shared.ActivityKit)
+local HOLD_LOOKS = { Scaffold = "Scaffold", Load = "CraneLoad", Crates = "CrateStack" }
 local function holdProp(inc: Live, kind: string, at: Vector3)
 	local m = SiteKit.model(kind)
 	if kind == "Scaffold" then
@@ -324,6 +330,9 @@ local function holdProp(inc: Live, kind: string, at: Vector3)
 				Enum.Material.WoodPlanks
 			)
 		end
+	end
+	if HOLD_LOOKS[kind] then
+		SiteKit.look(m, HOLD_LOOKS[kind], CFrame.new(at))
 	end
 	table.insert(inc.things, m)
 end
@@ -743,6 +752,7 @@ local function startStep(inc: Live)
 					CFrame.new(at - Vector3.new(0, 0.3, 0)),
 					Color3.fromRGB(150, 150, 160)
 				)
+				SiteKit.look(ledge, "Balcony", CFrame.new(at))
 				table.insert(inc.things, ledge)
 			end
 			local c = SiteKit.citizen(at, {
@@ -782,12 +792,13 @@ local function startStep(inc: Live)
 				Vector3.new(top[1], top[2], top[3]),
 				Vector3.new(top[1] + dir[1], top[2], top[3] + dir[2])
 			)
-			SiteKit.part(
+			local board = SiteKit.part(
 				m,
 				Vector3.new(16, 8, 0.6),
 				face * CFrame.new(0, 0, -1) * CFrame.Angles(math.rad(-20), 0, 0),
 				Color3.fromRGB(240, 90, 90)
 			)
+			board.Name = "Face" -- the ActBillboard look rides this board, its fall too (Shared.ActivityKit)
 			SiteKit.part(
 				m,
 				Vector3.new(14, 6, 0.7),
@@ -795,6 +806,7 @@ local function startStep(inc: Live)
 				Color3.fromRGB(255, 230, 120),
 				Enum.Material.Neon
 			)
+			SiteKit.look(m, "Billboard", board.CFrame)
 			inc.sign = m
 			table.insert(inc.things, m)
 			CitizenService.danger(inc.pos.X, inc.pos.Z, 30, IC.templates[tid].time)

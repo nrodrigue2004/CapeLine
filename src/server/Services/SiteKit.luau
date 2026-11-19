@@ -11,8 +11,9 @@
 --   target.
 -- * pickup: a shard to touch.
 -- Everything a site builds lives under Workspace.Sites and is removed with clear().
--- PLACEHOLDER ART: the cat, pads, rings, shards and objects are plain parts; stranded citizens are R15 people
--- (NpcRig.person) with the hero meshes once imported.
+-- * look: tags a prop's model with its Blender look (Shared.ActivityKit kind); the device draws it over the parts
+--   (Fx.ActivityProps) once Art.Activity is imported and hides them there. The parts here stay as they are.
+-- The cat is a plain part; stranded citizens are R15 people (NpcRig.person) with the hero meshes once imported.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -76,6 +77,20 @@ function SiteKit.part(
 	return p
 end
 local part = SiteKit.part
+
+-- Tag a prop with its look (Shared.ActivityKit.KINDS); a model built in world studs (no Root) gets an unseen Root
+-- at `foot`, the look's foot point. scale: a ring's LookScale.
+function SiteKit.look(m: Model, kind: string, foot: CFrame?, scale: number?)
+	if not m:FindFirstChild("Root") then
+		local r = part(m, Vector3.new(1, 1, 1), foot or m:GetPivot(), Color3.new(1, 1, 1))
+		r.Name = "Root"
+		r.Transparency = 1
+	end
+	m:SetAttribute("Look", kind)
+	if scale then
+		m:SetAttribute("LookScale", scale)
+	end
+end
 
 function SiteKit.model(name: string): Model
 	local m = Instance.new("Model")
@@ -358,6 +373,7 @@ function SiteKit.pad(pos: Vector3, label: string?): any
 		Enum.PartType.Cylinder
 	)
 	disc.Transparency = 0.55
+	disc.Name = "Disc"
 	part(m, Vector3.new(1, 10, 1), CFrame.new(pos + Vector3.new(0, 5, 0)), Color3.fromRGB(240, 240, 240))
 	part(
 		m,
@@ -366,6 +382,7 @@ function SiteKit.pad(pos: Vector3, label: string?): any
 		Color3.fromRGB(80, 220, 140),
 		Enum.Material.Neon
 	)
+	SiteKit.look(m, "RescuePad", CFrame.new(pos))
 	local pad = { pos = pos, model = m, label = label }
 	table.insert(pads, pad)
 	return pad
@@ -435,6 +452,7 @@ function SiteKit.ring(pos: Vector3, radius: number, color: Color3?): Model
 	)
 	disc.Transparency = 0.6
 	disc.Name = "Ring"
+	SiteKit.look(m, "HoldRing", CFrame.new(pos), radius / 10) -- (ActivityKit.RING)
 	return m
 end
 
@@ -544,6 +562,7 @@ function SiteKit.pickup(
 	glow.Range = 14
 	glow.Brightness = 2
 	glow.Parent = crystal
+	SiteKit.look(m, "Shard", CFrame.new(pos))
 	local h = {
 		model = m,
 		pos = pos,

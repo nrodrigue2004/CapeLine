@@ -22,8 +22,9 @@
 --   things in reach loose on this device (the kit's street props through CityProps.smash, and the city's own
 --   trees, fences, awnings and roof props), up to the preset's `smash` count and the debris budget; each comes
 --   back after Config.Destruction.street.respawn seconds. The outskirts buildings' boxes come in the snapshot (o).
--- PLACEHOLDER ART: chunks, rubble and drones are plain boxes; cracks are thin dark bars. Dust uses the
--- engine's built-in smoke texture.
+-- * Craters and cracks wear comic ink decals (Config.Destruction.decals, art/fx/textures.py --destruction) once their
+--   ids are in; with id 0 a crater is today's dark disc and a crack today's thin dark bars.
+-- PLACEHOLDER ART: chunks, rubble and drones are plain boxes. Dust uses the engine's built-in smoke texture.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -547,15 +548,32 @@ local function crater(center: Vector3, radius: number)
 	local m = Instance.new("Model")
 	m.Name = "Crater"
 	local up = surface(hit.Position, hit.Normal)
-	local pit = newPart(
-		Vector3.new(0.12, r * 2, r * 2),
-		up * CFrame.new(0, 0.07, 0) * CFrame.Angles(0, 0, math.rad(90)),
-		CRACK_COLOR,
-		Enum.Material.Slate
-	)
-	pit.Shape = Enum.PartType.Cylinder
-	pit.Transparency = 0.25
-	pit.Parent = m
+	local ink = D.decals and D.decals.crater
+	if ink and ink.id ~= 0 then
+		-- the comic crater decal, turned a random way, on an unseen plate just over the ground
+		local w = r * ink.span
+		local plate = newPart(
+			Vector3.new(w, 0.05, w),
+			up * CFrame.new(0, 0.06, 0) * CFrame.Angles(0, math.random() * math.pi * 2, 0),
+			CRACK_COLOR
+		)
+		plate.Transparency = 1
+		local decal = Instance.new("Decal")
+		decal.Texture = "rbxassetid://" .. tostring(ink.id)
+		decal.Face = Enum.NormalId.Top
+		decal.Parent = plate
+		plate.Parent = m
+	else
+		local pit = newPart(
+			Vector3.new(0.12, r * 2, r * 2),
+			up * CFrame.new(0, 0.07, 0) * CFrame.Angles(0, 0, math.rad(90)),
+			CRACK_COLOR,
+			Enum.Material.Slate
+		)
+		pit.Shape = Enum.PartType.Cylinder
+		pit.Transparency = 0.25
+		pit.Parent = m
+	end
 	local color = if hit.Instance:IsA("BasePart") then hit.Instance.Color else Color3.fromRGB(120, 116, 110)
 	for k = 1, 8 do
 		local a = k / 8 * math.pi * 2 + math.random() * 0.3
@@ -578,6 +596,24 @@ local function crackAt(hit: RaycastResult, size: number)
 	local m = Instance.new("Model")
 	m.Name = "Crack"
 	local face = CFrame.lookAlong(hit.Position + hit.Normal * 0.06, -hit.Normal)
+	local ink = D.decals and D.decals.crack
+	if ink and ink.id ~= 0 then
+		-- the comic crack decal on an unseen plate flat on the wall (its back face looks out), turned a random way
+		local w = size * ink.span
+		local plate = newPart(
+			Vector3.new(w, w, 0.05),
+			face * CFrame.Angles(0, 0, math.random() * math.pi * 2),
+			CRACK_COLOR
+		)
+		plate.Transparency = 1
+		local decal = Instance.new("Decal")
+		decal.Texture = "rbxassetid://" .. tostring(ink.id)
+		decal.Face = Enum.NormalId.Back
+		decal.Parent = plate
+		plate.Parent = m
+		addMark(m)
+		return
+	end
 	local function bar(a: Vector2, b: Vector2, w: number)
 		local mid = (a + b) / 2
 		local len = (b - a).Magnitude

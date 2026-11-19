@@ -11,7 +11,8 @@ preview art/preview/fx_trails.png; `--trails` draws only those.
 nate uploads the PNGs (Studio Asset Manager, bulk import), then puts each id in Config.Fx.lib.textures.
 Until then the game uses Roblox's built-in particle images.
 
-    python3 art/fx/textures.py [--trails] [--moves]   (--moves: only rune.png and scorch.png, Config.FxMoves)
+    python3 art/fx/textures.py [--trails] [--moves] [--destruction]   (--moves: only rune.png and scorch.png,
+    Config.FxMoves; --destruction: only crater.png and crack.png, Config.Destruction.decals)
 """
 
 import math
@@ -584,12 +585,138 @@ def main():
     print("wrote", len(made), "textures to", OUT, "and", PREVIEW)
 
 
+# ---------------------------------------------------------------------------
+# destruction decals (2026-11-19, the props gap): BuildingFx's crater and facade crack in comic ink, full colour
+# (not tinted). The crater is seen from above: a dark pit with an inked rim, light rock chips round it and cracks
+# running out; the crack is a branching inked split with a pale chipped edge, for any wall colour. Previews
+# art/preview/destruction.png (on a street grey and a wall cream).
+# ---------------------------------------------------------------------------
+INK = (24, 22, 30)
+
+
+def _jag(d, pts, width, fill):
+    d.line(pts, fill=fill, width=width, joint="curve")
+
+
+def _crack_path(rr, x, y, ang, length, steps, spread):
+    pts = [(x, y)]
+    for _ in range(steps):
+        ang += rr.uniform(-spread, spread)
+        x += math.cos(ang) * length / steps
+        y += math.sin(ang) * length / steps
+        pts.append((x, y))
+    return pts
+
+
+def crater(size=512):
+    rr = random.Random(41)
+    S = size * 2  # drawn at twice the size, then smoothed down
+    img = Image.new("RGBA", (S, S), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    c = S / 2
+    n = noise(S, 5, 12)
+    # cracks out from the rim (under the pit)
+    for k in range(9):
+        a = k * math.tau / 9 + rr.uniform(-0.2, 0.2)
+        pts = _crack_path(rr, c + math.cos(a) * S * 0.28, c + math.sin(a) * S * 0.28, a, S * rr.uniform(0.13, 0.2), 5, 0.5)
+        _jag(d, pts, int(S * 0.012), INK + (255,))
+        if k % 2 == 0:
+            m = pts[2]
+            _jag(d, _crack_path(rr, m[0], m[1], a + rr.choice((-0.9, 0.9)), S * 0.07, 3, 0.4), int(S * 0.007), INK + (255,))
+    # the rim: a ragged ring of light rock with ink round it
+    ring = []
+    for k in range(64):
+        a = k * math.tau / 64
+        r = S * (0.31 + 0.025 * math.sin(a * 5 + 1) + rr.uniform(-0.012, 0.012))
+        ring.append((c + math.cos(a) * r, c + math.sin(a) * r))
+    d.polygon(ring, fill=(150, 140, 128, 255), outline=INK + (255,), width=int(S * 0.012))
+    pit = []
+    for k in range(48):
+        a = k * math.tau / 48
+        r = S * (0.22 + 0.02 * math.sin(a * 4 + 0.5) + rr.uniform(-0.01, 0.01))
+        pit.append((c + math.cos(a) * r, c + math.sin(a) * r))
+    d.polygon(pit, fill=(58, 50, 52, 255), outline=INK + (255,), width=int(S * 0.012))
+    d.ellipse([c - S * 0.12, c - S * 0.1, c + S * 0.12, c + S * 0.12], fill=(36, 30, 36, 255))
+    # chips on the rim: light faces with an ink edge
+    for k in range(16):
+        a = k * math.tau / 16 + rr.uniform(-0.15, 0.15)
+        r = S * rr.uniform(0.27, 0.36)
+        w = S * rr.uniform(0.02, 0.035)
+        px, py = c + math.cos(a) * r, c + math.sin(a) * r
+        poly = [(px + math.cos(a + j * math.tau / 5 + rr.uniform(-0.3, 0.3)) * w, py + math.sin(a + j * math.tau / 5) * w) for j in range(5)]
+        d.polygon(poly, fill=(196, 186, 172, 255), outline=INK + (255,), width=int(S * 0.006))
+    # comic shading: a little speckle
+    arr = np.asarray(img, np.float32)
+    shade = 0.88 + 0.12 * n
+    arr[..., :3] *= shade[..., None]
+    out = Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8), "RGBA")
+    return out.resize((size, size), Image.LANCZOS)
+
+
+def crack(size=512):
+    rr = random.Random(23)
+    S = size * 2
+    img = Image.new("RGBA", (S, S), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    c = S / 2
+    arms = []
+    for k in range(5):
+        a = k * math.tau / 5 + rr.uniform(-0.35, 0.35)
+        arms.append(_crack_path(rr, c, c, a, S * rr.uniform(0.33, 0.46), 6, 0.55))
+    # the pale chipped edge first (offset a little up and left), then the ink split over it
+    for pts in arms:
+        _jag(d, [(x - S * 0.006, y - S * 0.006) for (x, y) in pts], int(S * 0.03), (236, 228, 214, 230))
+    for pts in arms:
+        for i in range(len(pts) - 1):
+            w = int(S * (0.028 * (1 - i / len(pts)) + 0.006))
+            d.line([pts[i], pts[i + 1]], fill=INK + (255,), width=w, joint="curve")
+            q = pts[i + 1]
+            d.ellipse([q[0] - w / 2, q[1] - w / 2, q[0] + w / 2, q[1] + w / 2], fill=INK + (255,))
+        for j in (2, 4):
+            if j < len(pts) and rr.random() < 0.8:
+                m = pts[j]
+                ang = math.atan2(m[1] - c, m[0] - c) + rr.choice((-0.8, 0.8))
+                br = _crack_path(rr, m[0], m[1], ang, S * 0.1, 3, 0.4)
+                _jag(d, br, int(S * 0.008), INK + (255,))
+    # a little dark star where it was hit
+    star_ = []
+    for k in range(10):
+        a = k * math.tau / 10
+        r = S * (0.06 if k % 2 == 0 else 0.03)
+        star_.append((c + math.cos(a) * r, c + math.sin(a) * r))
+    d.polygon(star_, fill=INK + (255,))
+    return img.resize((size, size), Image.LANCZOS)
+
+
+DESTRUCTION = {"crater.png": crater, "crack.png": crack}
+
+
+def destruction_main():
+    os.makedirs(OUT, exist_ok=True)
+    made = []
+    for name, fn in DESTRUCTION.items():
+        im = fn()
+        im.save(os.path.join(OUT, name))
+        made.append(im)
+    tile = 384
+    prev = Image.new("RGBA", (tile * 2, tile), (0, 0, 0, 255))
+    for i, (im, bg) in enumerate(zip(made, ((118, 118, 124), (226, 214, 190)))):
+        cell = Image.new("RGBA", (tile, tile), bg + (255,))
+        t = im.resize((tile, tile), Image.LANCZOS)
+        cell.paste(t, (0, 0), t)
+        prev.paste(cell, (i * tile, 0))
+    prev.save(os.path.join(ROOT, "art", "preview", "destruction.png"))
+    print("wrote", len(made), "destruction decals to", OUT)
+
+
 if __name__ == "__main__":
     import sys
 
     if "--trails" in sys.argv:  # only the creator's trail strips (the library sheets above stay as uploaded)
         os.makedirs(OUT, exist_ok=True)
         trails_main()
+    elif "--destruction" in sys.argv:  # only the crater and crack decals (BuildingFx)
+        destruction_main()
     elif "--moves" in sys.argv:  # only the ability sheets (Config.FxMoves), not uploaded yet
         moves_main()
     else:

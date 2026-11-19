@@ -222,7 +222,8 @@ local function markNear(ev: Live, at: Vector3, r: number)
 end
 
 ---------------------------------------------------------------------------
--- Models (PLACEHOLDER ART: plain parts)
+-- Models: plain parts; the device draws each one's Blender look over them once Art.Activity is imported
+-- (SiteKit.look, Shared.ActivityKit, Fx.ActivityProps)
 ---------------------------------------------------------------------------
 
 local function trainModel(m: Model)
@@ -249,6 +250,7 @@ local function trainModel(m: Model)
 		Color3.fromRGB(255, 230, 120),
 		Enum.Material.Neon
 	)
+	SiteKit.look(m, "Train")
 end
 
 local function airshipModel(m: Model)
@@ -277,6 +279,7 @@ local function airshipModel(m: Model)
 			Enum.PartType.Cylinder
 		)
 	end
+	SiteKit.look(m, "Airship")
 end
 
 local function floatModel(m: Model)
@@ -297,6 +300,7 @@ local function floatModel(m: Model)
 		Color3.fromRGB(90, 200, 255),
 		Enum.Material.Neon
 	)
+	SiteKit.look(m, "Float")
 end
 
 local function clampModel(m: Model)
@@ -314,9 +318,10 @@ local function clampModel(m: Model)
 		Color3.fromRGB(255, 140, 40),
 		Enum.Material.Neon
 	)
+	SiteKit.look(m, "Clamp")
 end
 
--- lore step 12: the armoured Crane data truck (PLACEHOLDER ART: a navy box truck with the Crane C on its sides)
+-- lore step 12: the armoured Crane data truck (a navy box truck with the Crane C on its sides; ActDataTruck)
 local function truckModel(m: Model)
 	local navy = Color3.fromRGB(36, 48, 92)
 	SiteKit.part(
@@ -359,6 +364,7 @@ local function truckModel(m: Model)
 		Color3.fromRGB(255, 80, 60),
 		Enum.Material.Neon
 	)
+	SiteKit.look(m, "DataTruck")
 end
 
 local OBJECT_MODELS: { [string]: (Model) -> () } = {
@@ -388,6 +394,7 @@ local function siteModel(kind: string?, at: Vector3): Model
 		)
 		bar.Name = "Core"
 		bar.Transparency = 0.4
+		SiteKit.look(m, "Gate", CFrame.new(at))
 		return m
 	end
 	local m = SiteKit.model("Generator")
@@ -407,6 +414,7 @@ local function siteModel(kind: string?, at: Vector3): Model
 		Enum.PartType.Ball
 	)
 	core.Name = "Core"
+	SiteKit.look(m, "Generator", CFrame.new(at))
 	return m
 end
 
@@ -428,6 +436,7 @@ local function holdProp(ev: Live, kind: string?)
 			Enum.Material.Metal,
 			Enum.PartType.Cylinder
 		)
+		SiteKit.look(m, "CityVault", CFrame.new(ev.pos))
 		table.insert(ev.things, m)
 	elseif kind == "Barricade" then
 		local m = SiteKit.model("Barricade")
@@ -439,6 +448,7 @@ local function holdProp(ev: Live, kind: string?)
 				if i % 2 == 0 then Color3.fromRGB(240, 200, 60) else Color3.fromRGB(40, 40, 46)
 			)
 		end
+		SiteKit.look(m, "Barricade", CFrame.new(ev.pos))
 		table.insert(ev.things, m)
 	end
 end

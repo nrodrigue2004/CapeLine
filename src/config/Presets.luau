@@ -10,6 +10,8 @@
 -- clothesNear and clothesFar (perf pass 2026-11-18): a robot's or citizen's Roblox-look clothes are 66 Textures
 -- a rig; inside clothesNear it draws them all, out to clothesFar all but the 21 faces the body hides at rest
 -- (Shared.ClothesMap.tucked), and past it none (NpcRig.showClothes).
+-- sites (2026-11-19): the incident, event and contract props this device draws in their Blender looks (Fx.ActivityProps):
+-- within radius studs of the camera, at most `looks` props and `parts` mesh parts, nearest first; the rest keep their parts.
 return {
 	order = { "low", "medium", "high" },
 	low = {
@@ -35,6 +37,7 @@ return {
 		clothesFar = 60, -- past this a rig drops its clothes Textures (its part colours match them)
 		props = { tier = 1, radius = 260, parts = 700 },
 		smash = 3, -- street things (lamps, benches, trees, fences) knocked loose a big impact nearby (BuildingFx, 2026-11-19)
+		sites = { radius = 240, looks = 6, parts = 30 }, -- activity props in their Blender looks (Fx.ActivityProps)
 	},
 	medium = {
 		streamRadius = 600,
@@ -59,6 +62,7 @@ return {
 		clothesFar = 80, -- past this a rig drops its clothes Textures (its part colours match them)
 		props = { tier = 2, radius = 420, parts = 2000 },
 		smash = 6, -- street things (lamps, benches, trees, fences) knocked loose a big impact nearby (BuildingFx, 2026-11-19)
+		sites = { radius = 420, looks = 14, parts = 70 }, -- activity props in their Blender looks (Fx.ActivityProps)
 	},
 	high = {
 		streamRadius = 800,
@@ -83,6 +87,7 @@ return {
 		clothesFar = 100, -- past this a rig drops its clothes Textures (its part colours match them)
 		props = { tier = 3, radius = 600, parts = 4000 },
 		smash = 10, -- street things knocked loose a big impact nearby (BuildingFx, 2026-11-19)
+		sites = { radius = 640, looks = 30, parts = 150 }, -- activity props in their Blender looks (Fx.ActivityProps)
 	},
 	-- the preset each device class starts on (QualityRules.device)
 	auto = { phone = "low", tablet = "medium", pc = "medium", console = "medium" },

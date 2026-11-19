@@ -13,6 +13,7 @@
         "$className": "Folder",
         "Robots": { "$path": "art/models/Robots.rbxm" },
         "Hero": { "$path": "art/models/Hero.rbxm" },
+        "Activity": { "$path": "art/models/Activity.rbxm" },
         "Arms": { "$path": "art/models/Arms.rbxm" },
         "Backs": { "$path": "art/models/Backs.rbxm" },
         "Belts": { "$path": "art/models/Belts.rbxm" },
