@@ -5,6 +5,9 @@
 -- radius and a mesh-part cap, nearest first), so phones get fewer. Props are dressing: they collide for this
 -- device's hero, and nothing on the server depends on them. None until Art.Street is imported (Tasks.md "City
 -- kit: the whole city"). Client only.
+-- smash(center, radius, max, fling) (2026-11-19, "more destruction everywhere"): a big impact nearby knocks the
+-- props in reach loose (BuildingFx flings a copy of each piece as debris); the prop is gone from this device for
+-- Config.Destruction.street.respawn seconds, then stands again. Every device hears the same impacts.
 
 local HttpService = game:GetService("HttpService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -26,7 +29,17 @@ local CityProps = {}
 CityProps.built = 0 -- mesh parts built now (the Dev panel can show it)
 CityProps.total = 0 -- props in the whole list
 
-type Prop = { name: string, x: number, y: number, z: number, ry: number, d: string? }
+type Prop = {
+	name: string,
+	x: number,
+	y: number,
+	z: number,
+	ry: number,
+	d: string?,
+	model: Model?, -- built on this device now
+	parts: number?,
+	brokenUntil: number?, -- knocked loose by an impact: not built again before this
+}
 type Cell = { key: number, x: number, z: number, props: { Prop }, model: Model?, parts: number }
 
 local cells: { [number]: Cell } = {}
@@ -112,10 +125,15 @@ local function makeProp(pr: Prop, parent: Instance): number
 		made += 1
 	end
 	model.Parent = parent
+	pr.model = model
+	pr.parts = made
 	return made
 end
 
 local function clearCell(c: Cell)
+	for _, pr in c.props do
+		pr.model = nil
+	end
 	if c.model then
 		c.model:Destroy()
 		c.model = nil
@@ -171,8 +189,9 @@ local function refresh()
 		if not c.model then
 			local m = Instance.new("Model")
 			m.Name = "Props_" .. c.key
+			local now = os.clock()
 			for _, pr in c.props do
-				if KIT.props[pr.name].tier <= budget.tier then
+				if KIT.props[pr.name].tier <= budget.tier and (pr.brokenUntil or 0) <= now then
 					c.parts += makeProp(pr, m)
 					steps += 1
 					if steps % PER_STEP == 0 then
@@ -195,6 +214,62 @@ local function refresh()
 	if gen ~= generation then
 		task.spawn(refresh) -- build again under the new preset
 	end
+end
+
+-- Knock up to `max` built props within `radius` of center loose: fling(part, center) makes each piece's debris,
+-- then the prop goes until its respawn time. Returns how many props it knocked loose.
+function CityProps.smash(
+	center: Vector3,
+	radius: number,
+	max: number,
+	fling: (BasePart, Vector3) -> ()
+): number
+	if max <= 0 then
+		return 0
+	end
+	local n = 0
+	local now = os.clock()
+	local respawn = Config.Destruction.street.respawn
+	local r2 = radius * radius
+	for cx = math.floor((center.X - radius) / CELL), math.floor((center.X + radius) / CELL) do
+		for cz = math.floor((center.Z - radius) / CELL), math.floor((center.Z + radius) / CELL) do
+			local c = cells[cx * 4096 + cz]
+			if c and c.model then
+				for _, pr in c.props do
+					local m = pr.model
+					if
+						m
+						and (pr.x - center.X) ^ 2 + (pr.z - center.Z) ^ 2 <= r2
+						and math.abs(pr.y - center.Y) <= radius + 6
+					then
+						for _, p in m:GetChildren() do
+							if p:IsA("BasePart") then
+								fling(p, center)
+							end
+						end
+						m:Destroy()
+						pr.model = nil
+						c.parts -= pr.parts or 0
+						CityProps.built -= pr.parts or 0
+						pr.brokenUntil = now + respawn
+						task.delay(respawn, function()
+							local cm = c.model
+							if cm and not pr.model and (pr.brokenUntil or 0) <= os.clock() then
+								local made = makeProp(pr, cm)
+								c.parts += made
+								CityProps.built += made
+							end
+						end)
+						n += 1
+						if n >= max then
+							return n
+						end
+					end
+				end
+			end
+		end
+	end
+	return n
 end
 
 -- A new preset: drop everything and build again under its budget

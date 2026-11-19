@@ -24,6 +24,7 @@
 --   HP-only path, kept for callers without a position.
 
 local Structure = if script then require(script.Parent.Structure) else (require :: any)("./Structure")
+local ImpactRules = if script then require(script.Parent.ImpactRules) else (require :: any)("./ImpactRules")
 
 local BuildingState = {}
 
@@ -55,6 +56,7 @@ export type Book = {
 	fixed: { number }, -- ids repaired since the last send (sent first, so devices drop the old holes)
 	keep: { [number]: boolean }, -- ids that never break (a beacon's host: the building record's `fixed`)
 	pins: { [number]: number }, -- ids held whole for now, with how many holders (side quest roofs)
+	index: ImpactRules.Index, -- the buildings on a flat grid (cfg.cell): hits look only at the ones round them
 }
 
 -- buildings: { id, hp, district } (WorldMap.buildings)
@@ -81,6 +83,7 @@ function BuildingState.new(cfg: any, buildings: { any }): Book
 		fixed = {},
 		keep = {},
 		pins = {},
+		index = { cell = cfg.cell or 64, cells = {} },
 	}
 	local districts: { [string]: boolean } = {}
 	for _, b in buildings do
@@ -94,6 +97,9 @@ function BuildingState.new(cfg: any, buildings: { any }): Book
 		if b.fixed == true then
 			book.keep[b.id] = true
 		end
+		if b.sx then
+			ImpactRules.add(book.index, b.id, b)
+		end
 		districts[b.district] = true
 	end
 	local names = {}
@@ -102,11 +108,25 @@ function BuildingState.new(cfg: any, buildings: { any }): Book
 	end
 	table.sort(names)
 	for _, d in names do
-		for _ = 1, cfg.repair.dronesPerDistrict do
+		local per = (cfg.repair.districtDrones and cfg.repair.districtDrones[d])
+			or cfg.repair.dronesPerDistrict
+		for _ = 1, per do
 			table.insert(book.drones, { id = #book.drones + 1, district = d, target = nil, doneAt = 0 })
 		end
 	end
 	return book
+end
+
+-- The building ids whose footprints are in the grid cells within r of (x, z) (smallest id first)
+function BuildingState.near(book: Book, x: number, z: number, r: number): { number }
+	return ImpactRules.near(book.index, x, z, r)
+end
+
+-- Hold building id whole for good (a side quest's outskirts house, 2026-11-19), like a beacon's host
+function BuildingState.keepWhole(book: Book, id: number)
+	if book.state[id] ~= nil then
+		book.keep[id] = true
+	end
 end
 
 -- Does building id never break right now (a beacon's host, or a roof a side quest goal stands on)?
@@ -574,10 +594,21 @@ function BuildingState.stepDrones(cfg: any, book: Book, now: number): ({ number 
 			end
 		end
 	end
+	-- the wrecked buildings once (2,500+ buildings since 2026-11-19: no drone walks all of them)
+	local wrecked: { number }? = nil
 	for _, d in book.drones do
 		if not d.target then
+			if not wrecked then
+				local list = {}
+				for id = 1, book.n do
+					if book.state[id] ~= 0 then
+						table.insert(list, id)
+					end
+				end
+				wrecked = list
+			end
 			local best, bestT = nil, math.huge
-			for id = 1, book.n do
+			for _, id in wrecked :: { number } do
 				if
 					book.district[id] == d.district
 					and not book.busy[id]
@@ -596,6 +627,42 @@ function BuildingState.stepDrones(cfg: any, book: Book, now: number): ({ number 
 		end
 	end
 	return repaired, started
+end
+
+-- Building boxes as 32-bit floats, 6 a building (x, z, sx, sz, base, top) in list order (the outskirts records in
+-- the snapshot, 2026-11-19). WorldMap snaps them to a quarter stud so a float holds them exactly.
+function BuildingState.packBoxes(list: { any }): buffer
+	local b = buffer.create(#list * 24)
+	for i, r in list do
+		local o = (i - 1) * 24
+		buffer.writef32(b, o, r.x)
+		buffer.writef32(b, o + 4, r.z)
+		buffer.writef32(b, o + 8, r.sx)
+		buffer.writef32(b, o + 12, r.sz)
+		buffer.writef32(b, o + 16, r.base)
+		buffer.writef32(b, o + 20, r.top)
+	end
+	return b
+end
+
+-- The device's read of packBoxes: records by id from `from` on (at most `max` of them)
+function BuildingState.unpackBoxes(b: buffer, from: number, max: number): { [number]: any }
+	local out = {}
+	local n = math.min(buffer.len(b) // 24, max)
+	for i = 1, n do
+		local o = (i - 1) * 24
+		local id = from + i - 1
+		out[id] = {
+			id = id,
+			x = buffer.readf32(b, o),
+			z = buffer.readf32(b, o + 4),
+			sx = buffer.readf32(b, o + 8),
+			sz = buffer.readf32(b, o + 12),
+			base = buffer.readf32(b, o + 16),
+			top = buffer.readf32(b, o + 20),
+		}
+	end
+	return out
 end
 
 -- 2 bits a building, 4 to a byte

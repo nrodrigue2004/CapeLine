@@ -48,6 +48,7 @@ local VehicleService = require(script.Parent.VehicleService)
 local FlagService = require(script.Parent.FlagService)
 local Analytics = require(script.Parent.Analytics)
 local BlockService = require(script.Parent.BlockService) -- H1: block, breaker, interrupt
+local ImpactService = require(script.Parent.ImpactService) -- 2026-11-19: throws and rams break walls
 local GuardMath = require(Shared:WaitForChild("GuardMath"))
 
 local CombatService = {}
@@ -258,8 +259,13 @@ local function pvpStatus(
 			HeroService.cc(target, "knockup", math.min(dur, 1), nil, resist)
 		end
 		if target.player and move.Magnitude > 0.5 then
-			MoveGuard.grant(target, move.Magnitude + 10)
-			Net.fire("HeroKnock", target.player, { x = move.X, y = move.Y, z = move.Z, time = time })
+			if kind == "knockback" then
+				-- thrown back: through a building in the way when it is fast enough (ImpactService, 2026-11-19)
+				ImpactService.knockHero(target, Vector3.new(move.X, 0, move.Z), time, math.max(2, move.Y))
+			else
+				MoveGuard.grant(target, move.Magnitude + 10)
+				Net.fire("HeroKnock", target.player, { x = move.X, y = move.Y, z = move.Z, time = time })
+			end
 		end
 	elseif kind == "slow" then
 		HeroService.cc(target, "slow", dur * ccMult(hero), eff.slow or 0.6, resist)
@@ -291,6 +297,9 @@ local function applyStatus(
 		local dir = knockDir or flatDir(at - from)
 		local wall = EnemyService.knock(id, dir, eff.knock or 8)
 		EnemyService.applyStatus(id, "stun", 0.25) -- a moment of stagger so it does not shoot mid-flight
+		if wall then
+			ImpactService.robotWall(hero, id, dir, eff.knock or 8) -- the wall it hit breaks (2026-11-19)
+		end
 		if wall and eff.stunOnWall then
 			EnemyService.applyStatus(id, "stun", eff.stunOnWall * ccMult(hero))
 		end
@@ -1803,6 +1812,11 @@ function CombatService.init()
 			poundAt[hero.id] = now + m.pound.cooldown
 			local radius = if hero.level >= m.up.poundLevel then m.up.poundRadius else m.pound.radius
 			CombatService.burst(hero, pos - Vector3.new(0, 2, 0), radius, m.pound.coeff)
+			-- the pound breaks what it lands on and next to (2026-11-19: it broke nothing before); never in a safe area
+			if not FlagService.safe(hero) and not hero.scene then
+				BuildingService.hit(pos - Vector3.new(0, 2, 0), radius, C.impact.pound, 1)
+				VehicleService.hit(pos, radius)
+			end
 		end
 	end)
 	Net.on("CombatCancel", function(player, seq: number)

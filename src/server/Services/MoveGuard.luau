@@ -112,6 +112,27 @@ function MoveGuard.speed(hero: any): number
 	return math.sqrt(dx * dx + dy * dy + dz * dz) / 0.2
 end
 
+-- The hero's top speed over the last `window` seconds, in 0.1 s steps (ImpactService: a ram claimed at a wall
+-- must be no faster than the hero really moved just before it, while the wall has already stopped it)
+function MoveGuard.peakSpeed(hero: any, window: number): number
+	local t = tracks[hero.id]
+	if not t then
+		return 0
+	end
+	local now = os.clock()
+	local top = 0
+	local steps = math.max(1, math.floor(window / 0.1 + 0.5))
+	for k = 0, steps - 1 do
+		local x1, y1, z1 = PosHistory.at(t.history, now - k * 0.1)
+		local x0, y0, z0 = PosHistory.at(t.history, now - (k + 1) * 0.1)
+		if x1 and x0 then
+			local dx, dy, dz = x1 - x0, (y1 :: number) - (y0 :: number), (z1 :: number) - (z0 :: number)
+			top = math.max(top, math.sqrt(dx * dx + dy * dy + dz * dz) / 0.1)
+		end
+	end
+	return top
+end
+
 -- How far the hero has dropped from the highest point of the last `window` seconds (the ground pound needs
 -- a real fall, so a client cannot pound on flat ground)
 function MoveGuard.dropped(hero: any, window: number): number

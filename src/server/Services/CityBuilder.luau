@@ -262,7 +262,20 @@ local function buildOutskirts(world: any, folder: Folder)
 		local made = 0
 		for _, b in plan.boxes do
 			if not skipPlain(b) then
-				makePart(b).Parent = m
+				local parent: Instance = m
+				if b.bid then
+					-- a wreckable outskirts building (2026-11-19): its own model inside the tile, like the hub's
+					local bm = CityBuilder.buildingModels[b.bid]
+					if not bm then
+						bm = Instance.new("Model")
+						bm.Name = "Building_" .. b.bid
+						bm:SetAttribute("BuildingId", b.bid)
+						bm.Parent = m
+						CityBuilder.buildingModels[b.bid] = bm
+					end
+					parent = bm
+				end
+				makePart(b).Parent = parent
 				made += 1
 			end
 		end
@@ -402,10 +415,13 @@ function CityBuilder.publishInfo(world: any)
 	for _, lm in world.landmarks do
 		table.insert(info.landmarks, { id = lm.id, x = lm.centre.x, z = lm.centre.z, size = lm.size })
 	end
-	-- the wreckable buildings, for the client's chunks, rubble and drones (BuildingFx)
+	-- the wreckable buildings, for the client's chunks, rubble and drones (BuildingFx); the 2,000+ outskirts ones
+	-- go in the building snapshot instead (BuildingService, a float buffer), so this text stays small
 	info.buildings = {}
 	for _, b in world.buildings do
-		table.insert(info.buildings, { b.id, b.x, b.z, b.sx, b.sz, b.base, b.top })
+		if b.district ~= "Outskirts" then
+			table.insert(info.buildings, { b.id, b.x, b.z, b.sx, b.sz, b.base, b.top })
+		end
 	end
 	-- the Vigil's HQ is its stairwell at the plaza's edge (HqRules.heroDoor; the map shows it to the Vigil only)
 	local hd = HqRules.heroDoor(Config, world) or { x = world.downtown.beacon.x, z = world.downtown.beacon.z }

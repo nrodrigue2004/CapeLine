@@ -51,6 +51,7 @@ export type Building = {
 	crown: string?, -- a skyscraper's silhouette above its body (Config.City.skyline); nothing lands on its top
 	peak: number?, -- the top of that crown
 	fixed: boolean?, -- a fast-travel beacon stands on its roof: it never breaks (BuildingState keeps it whole)
+	more: boolean?, -- one of the 2026-11-19 additions (the rest of Old Town, the outskirts): WorldMap.moreBuildings
 }
 
 export type World = {
@@ -213,6 +214,9 @@ function WorldMap.build(Config: any, seed: number, opts: { props: boolean? }?): 
 	local uptown = CityLayout.uptown(city)
 
 	local buildings = WorldMap.pickBuildings(Config, downtown, docks, oldTown, uptown)
+	if Config.Destruction.everywhere then
+		WorldMap.moreOldTown(Config, buildings, oldTown) -- 2026-11-19: every Old Town building, after Uptown
+	end
 	local byGrp: { [string]: number } = {}
 	for _, b in buildings do
 		byGrp[b.grp] = b.id
@@ -266,6 +270,9 @@ function WorldMap.build(Config: any, seed: number, opts: { props: boolean? }?): 
 				outskirtsParts += #plan
 			end
 		end
+	end
+	if Config.Destruction.everywhere then
+		WorldMap.outskirtsBuildings(Config, buildings, tilePlans) -- 2026-11-19: every outskirts building body
 	end
 	local landmarks = {}
 	local landmarkParts = 0
@@ -328,6 +335,10 @@ function WorldMap.build(Config: any, seed: number, opts: { props: boolean? }?): 
 			end
 		end
 		beacons[b.id] = buildBeacon(hubBoxes, w, b, p)
+	end
+
+	if Config.Destruction.everywhere then
+		WorldMap.keepClear(Config, buildings, safehouses, beacons)
 	end
 
 	-- heights of everything (a device that only wants the props skips them)
@@ -481,6 +492,156 @@ function WorldMap.props(Config: any, seed: number): { CityKit.Prop }
 	return job.props
 end
 
+-- One wreckable building record, id next in the list (pickBuildings and moreBuildings)
+local function addRecord(
+	D: any,
+	list: { Building },
+	b: any,
+	district: string,
+	base: number,
+	top: number
+): Building
+	local h = top - base
+	local size = if h <= D.smallMax then "small" elseif h <= D.mediumMax then "medium" else "tower"
+	local rec: Building = {
+		id = #list + 1,
+		grp = b.grp,
+		district = district,
+		x = b.x,
+		z = b.z,
+		sx = b.sx,
+		sz = b.sz,
+		base = base,
+		top = top,
+		size = size,
+		hp = D.hp[size],
+		crown = b.crown,
+		peak = b.peak,
+	}
+	table.insert(list, rec)
+	return rec
+end
+
+-- Old Town in the fixed hash order pickBuildings uses
+local function oldTownOrder(Config: any, oldTown: any): { any }
+	local old = table.clone(oldTown.buildings)
+	local seed = Config.City.oldTown.seed
+	table.sort(old, function(a, b)
+		return Rng.hash(seed, math.floor(a.x), math.floor(a.z))
+			< Rng.hash(seed, math.floor(b.x), math.floor(b.z))
+	end)
+	return old
+end
+
+-- More destruction everywhere (nate's playtest 2026-11-19: "only skyscrapers are destructible"). The first 220
+-- (pickBuildings) stopped partway through Old Town, so half its houses never took a hit; the rest come now,
+-- after Uptown, in the same hash order (so every id before them is unchanged).
+function WorldMap.moreOldTown(Config: any, list: { Building }, oldTown: any)
+	local D = Config.Destruction
+	local have: { [string]: boolean } = {}
+	for _, b in list do
+		have[b.grp] = true
+	end
+	for _, b in oldTownOrder(Config, oldTown) do
+		if b.grp and not have[b.grp] then
+			addRecord(D, list, b, "OldTown", b.base, b.base + b.h).more = true
+		end
+	end
+end
+
+-- Box kinds that belong to the outskirts building they stand on or against (its roof, window bands, ledges,
+-- door and awning): they hide with it when it breaks. Trees, fences and silos stay street things.
+local function dressing(b: any): boolean
+	return b.kind == "roof"
+		or b.kind == "band"
+		or b.kind == "ledge"
+		or b.kind == "glow"
+		or (b.kind == "prop" and (b.ghost == true or b.sy <= 1))
+end
+
+local function snap(v: number): number
+	return math.floor(v * 4 + 0.5) / 4 -- a quarter stud, exact as a 32-bit float (BuildingService sends them so)
+end
+
+-- Every outskirts building body (houses, big houses, shops, barns, farm sheds, coast sheds) is wreckable too
+-- (2026-11-19; before, the outskirts only cracked). One record per plain box body, ids after the hub's, in tile
+-- order; the body and its dressing get the record's id (bid) so CityBuilder puts them in its own model.
+-- Cylinders (silos, tanks, the windmill) stay whole: the Structure grid is a box.
+function WorldMap.outskirtsBuildings(Config: any, list: { Building }, tilePlans: { any })
+	local D = Config.Destruction
+	for _, plan in tilePlans do
+		local bodies: { Building } = {}
+		for _, b in plan.boxes do
+			if
+				b.kind == "building"
+				and b.shape == nil
+				and not b.ghost
+				and (b.ry or 0) % 90 == 0
+				and b.sy >= 4
+			then
+				local fx, fz = BoxKit.footprint(b)
+				local rec = addRecord(D, list, {
+					grp = string.format("T%d_%d_%d", plan.tx, plan.tz, #bodies + 1),
+					x = snap(b.cx),
+					z = snap(b.cz),
+					sx = snap(fx),
+					sz = snap(fz),
+				}, "Outskirts", snap(b.cy - b.sy / 2), snap(b.cy + b.sy / 2))
+				rec.more = true
+				b.bid = rec.id
+				table.insert(bodies, rec)
+			end
+		end
+		if #bodies > 0 then
+			for _, b in plan.boxes do
+				if not b.bid and dressing(b) then
+					for _, r in bodies do
+						if
+							math.abs(b.cx - r.x) <= r.sx / 2 + 2.5
+							and math.abs(b.cz - r.z) <= r.sz / 2 + 2.5
+							and b.cy >= r.base
+						then
+							b.bid = r.id
+							break
+						end
+					end
+				end
+			end
+		end
+	end
+end
+
+-- The added buildings never break near a safehouse or under a beacon (nobody wrecks a safehouse's street or
+-- the pad a hero fast-travels to): they are marked fixed, like a beacon's host
+function WorldMap.keepClear(
+	Config: any,
+	list: { Building },
+	safehouses: { [number]: any },
+	beacons: { [number]: any }
+)
+	local D = Config.Destruction
+	local pad = Config.World.safehouse.pad * 0.75 + D.keepClear
+	for _, b in list do
+		if b.more then
+			local function dist(x: number, z: number): number
+				local dx = math.max(math.abs(x - b.x) - b.sx / 2, 0)
+				local dz = math.max(math.abs(z - b.z) - b.sz / 2, 0)
+				return math.sqrt(dx * dx + dz * dz)
+			end
+			for _, s in safehouses do
+				if dist(s.x, s.z) <= pad then
+					b.fixed = true
+				end
+			end
+			for _, k in beacons do
+				if dist(k.x, k.z) <= D.keepClear then
+					b.fixed = true
+				end
+			end
+		end
+	end
+end
+
 -- The wreckable buildings: all of the first Downtown, the Docks warehouses, then Old Town houses picked by a
 -- fixed hash until Config.Destruction.hubBuildings is reached; then every building of the grown Downtown
 -- blocks and of Uptown (2026-11-17), so the first 220 keep their ids. Ids are 1..n in that order, the same
@@ -495,23 +656,7 @@ function WorldMap.pickBuildings(
 	local D = Config.Destruction
 	local list: { Building } = {}
 	local function add(b: any, district: string, base: number, top: number)
-		local h = top - base
-		local size = if h <= D.smallMax then "small" elseif h <= D.mediumMax then "medium" else "tower"
-		table.insert(list, {
-			id = #list + 1,
-			grp = b.grp,
-			district = district,
-			x = b.x,
-			z = b.z,
-			sx = b.sx,
-			sz = b.sz,
-			base = base,
-			top = top,
-			size = size,
-			hp = D.hp[size],
-			crown = b.crown,
-			peak = b.peak,
-		})
+		addRecord(D, list, b, district, base, top)
 	end
 	local gy = Config.City.ground.y
 	for _, b in downtown.buildings do
@@ -522,13 +667,7 @@ function WorldMap.pickBuildings(
 	for _, b in docks.buildings do
 		add(b, "Docks", b.base, b.base + b.h)
 	end
-	local old = table.clone(oldTown.buildings)
-	local seed = Config.City.oldTown.seed
-	table.sort(old, function(a, b)
-		return Rng.hash(seed, math.floor(a.x), math.floor(a.z))
-			< Rng.hash(seed, math.floor(b.x), math.floor(b.z))
-	end)
-	for _, b in old do
+	for _, b in oldTownOrder(Config, oldTown) do
 		if #list >= D.hubBuildings then
 			break
 		end

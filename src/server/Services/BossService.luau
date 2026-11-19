@@ -42,6 +42,7 @@ local EconomyService = require(script.Parent.EconomyService)
 local GearService = require(script.Parent.GearService)
 local DataService = require(script.Parent.DataService)
 local BuildingService = require(script.Parent.BuildingService)
+local ImpactService = require(script.Parent.ImpactService)
 local CitizenService = require(script.Parent.CitizenService)
 local IncidentService = require(script.Parent.IncidentService)
 local PerfMonitor = require(script.Parent.PerfMonitor)
@@ -390,6 +391,10 @@ local function handleEvents(f: Fight)
 				local hero = HeroService.byId(hit[1])
 				if hero then
 					HeroService.damage(hero, hit[2], { boss = true })
+					if hero.alive and not hero.downed then
+						-- thrown back from the strike, through a building in the way (ImpactService, 2026-11-19)
+						ImpactService.bossHit(hero, Vector3.new(ev.x, ev.y, ev.z))
+					end
 				end
 			end
 			if ev.struct then

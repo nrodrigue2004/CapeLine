@@ -82,6 +82,7 @@ return {
 		{ id = "questFinale", visual = "JuiceFx" }, -- boom and chime; fireworks over the villain, the VICTORY! stamp
 		{ id = "questDone", visual = "StoryHud" }, -- fanfare and the victory sting; the result card and confetti
 		{ id = "questRetry", visual = "JuiceFx" }, -- soft low ping; the TRY AGAIN! stamp (Downed in a finale)
+		{ id = "wallSmash", visual = "ImpactFx" }, -- crunch and boom; chips off the wall, shake and punch (2026-11-19: rams and throws)
 	},
 	-- Side quest juice (the juice pass, 2026-11-18; Shared.QuestJuice reads it, StoryHud fires it): which juice
 	-- row each moment of a chain fires, and the stamp word for a step done by its kind (every kind in
@@ -144,6 +145,7 @@ return {
 		incidentClear = s("electronicpingshort.wav", 0.8, 0.8),
 		collapse = s("action_jump_land.mp3", 1, 0.3, { range = 400 }),
 		crater = s("action_jump_land.mp3", 0.8, 0.55, { range = 200 }),
+		wallSmash = s("action_jump_land.mp3", 1, 0.45, { range = 220 }), -- PLACEHOLDER SOUND: the crater crunch, lower
 		clash = s("action_jump_land.mp3", 1, 0.6, { range = 220 }),
 		vehicleFlip = s("action_jump_land.mp3", 0.7, 0.9, { range = 160 }),
 		downed = s("action_falling.mp3", 0.5, 0.4, { loop = true }), -- the muffled heartbeat while Downed

@@ -57,6 +57,7 @@ MoveController.Landed = Signal.new() -- (position, fallSpeed)
 MoveController.ModeChanged = Signal.new() -- (mode, old)
 MoveController.BoostChanged = Signal.new() -- (on)
 MoveController.Pounded = Signal.new() -- (position) a Leaping ground pound landed
+MoveController.Rammed = Signal.new() -- (contact, wall normal, speed, building id) a fast hero hit a wall (ImpactFx)
 
 local root: BasePart? = nil
 local hum: Humanoid? = nil
@@ -567,6 +568,60 @@ local function orientation(mode: string, dt: number): CFrame
 		* CFrame.Angles(math.rad(tilt), 0, 0)
 end
 
+-- Momentum and impact (nate's playtest 2026-11-19: "flying at super speed. Momentum and impact should destroy
+-- things"): moving fast enough (flight boost, a Super-speed running jump, a dash, a Leaping pound, a travel ride)
+-- into a building's wall is a ram. The hero holds a short hit-stop, loses some speed and keeps pushing; ImpactFx
+-- tells the server (ImpactService checks it and knocks the pieces out, so the hole opens and the hero goes on
+-- through). A ground sprint into a wall still runs up it (Super-speed's wall run).
+local RAM = Config.Combat.impact.ram
+local RAM_MODES = { fly = true, dash = true, pound = true, ride = true }
+local ramHold = 0
+local ramNext = 0
+local ramCarry: Vector3? = nil
+local ramLast: { id: number, at: number } = { id = 0, at = -math.huge }
+
+-- The wreckable building a part belongs to (its model in the city, or the stand-in pieces BuildingFx draws)
+local function buildingOf(part: Instance): number?
+	local m = part.Parent
+	while m and m ~= Workspace do
+		local id = m:GetAttribute("BuildingId") or m:GetAttribute("WreckOf")
+		if type(id) == "number" then
+			return id
+		end
+		m = m.Parent
+	end
+	return nil
+end
+
+local function ramStep(mode: string, v: Vector3, pos: Vector3, now: number, dt: number): Vector3
+	if now < ramHold then
+		return v * RAM.holdKeep -- the hit-stop
+	end
+	local carry = ramCarry
+	if carry then
+		ramCarry = nil
+		return carry -- on through, a little slower
+	end
+	local speed = v.Magnitude
+	if speed < RAM.minSpeed or now < ramNext or not (RAM_MODES[mode] or (mode == "air" and hopping)) then
+		return v
+	end
+	local hit = Workspace:Raycast(pos, v.Unit * (speed * dt + RAM.reach), rayParams)
+	if not hit or v.Unit:Dot(-hit.Normal) < RAM.facing then
+		return v
+	end
+	local id = buildingOf(hit.Instance)
+	if not id or (id == ramLast.id and now - ramLast.at < RAM.sameWall) then
+		return v -- not a building, or the same one again at once (a wall that held: no hit-stop every frame)
+	end
+	ramLast.id, ramLast.at = id, now
+	ramNext = now + RAM.cooldown
+	ramHold = now + RAM.hitStop
+	ramCarry = v * (1 - RAM.loss)
+	MoveController.Rammed:Fire(hit.Position, hit.Normal, speed, id)
+	return v * RAM.holdKeep
+end
+
 local function step(dt: number)
 	if not root or not hum or not lv or not ao or hum.Health <= 0 then
 		return
@@ -930,6 +985,7 @@ local function step(dt: number)
 		end
 	end
 
+	vel = ramStep(MoveController.mode, vel, pos, now, dt)
 	lv.VectorVelocity = vel
 	ao.CFrame = orientation(MoveController.mode, dt)
 	MoveController.velocity = vel
