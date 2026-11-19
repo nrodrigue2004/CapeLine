@@ -59,5 +59,5 @@ for prop, x, y in ROW:
 floor = kit.box("floor", 400, 400, 1, at=(50, 0, -0.5))
 floor.data.materials.append(kit.material("floor", (120, 120, 118), rough=0.9))
 kit.studio(res=(1000, 420) if FAST else (2000, 840), samples=16 if FAST else 48)
-kit.camera((50, 120, 40), (50, 0, 7), lens=40)
+kit.camera((50, 130, 40), (50, 0, 7), lens=34)
 kit.render(os.path.join(kit.ROOT, "preview", "street_play.png"))
