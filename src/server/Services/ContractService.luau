@@ -343,7 +343,7 @@ local function progress(player: Player, r: Run, amount: number)
 end
 
 local function chargeModel(p: Vector3): Model
-	-- PLACEHOLDER ART: a robot charge with a blinking light
+	-- a robot charge with a blinking light (ActCharge on the device once imported)
 	local m = SiteKit.model("Charge")
 	SiteKit.part(
 		m,
@@ -361,6 +361,7 @@ local function chargeModel(p: Vector3): Model
 		Enum.PartType.Ball
 	)
 	light.Name = "Core"
+	SiteKit.look(m, "Charge", CFrame.new(p))
 	return m
 end
 
@@ -379,6 +380,7 @@ local function pylonModel(m: Model)
 		Color3.fromRGB(255, 90, 60),
 		Enum.Material.Neon
 	)
+	SiteKit.look(m, "Pylon")
 end
 
 -- Rooftop courier: put the next thing to touch (the parcel, then each drop) out
@@ -418,6 +420,7 @@ local function courierNext(player: Player, r: Run)
 			return hero.player == player
 		end
 	)
+	h.model:SetAttribute("Look", if r.grabbedAt then "DropPad" else "Parcel") -- (Shared.ActivityKit)
 	r.next = h
 	table.insert(r.things, h)
 end
@@ -544,6 +547,7 @@ local function build(player: Player, r: Run)
 				Enum.Material.Metal,
 				Enum.PartType.Cylinder
 			)
+			SiteKit.look(m, "Vault", CFrame.new(p))
 			table.insert(r.things, m)
 			table.insert(r.vaults, { guards = guards, pos = p, held = 0, done = false })
 		end
@@ -561,7 +565,7 @@ local function build(player: Player, r: Run)
 	elseif t == "Demolition" then
 		local p = spots(r, 1, rng)[1] or Vector3.new(r.saved.ox or 0, 0.5, r.saved.oz or 0)
 		local mast = SiteKit.prop("Outpost", function(m)
-			-- PLACEHOLDER ART: the outpost's mast and its red lamp
+			-- the outpost's mast and its red lamp (ActOutpost on the device once imported)
 			SiteKit.part(
 				m,
 				Vector3.new(2, 26, 2),
@@ -577,6 +581,7 @@ local function build(player: Player, r: Run)
 				Enum.Material.Neon,
 				Enum.PartType.Ball
 			)
+			SiteKit.look(m, "Outpost")
 		end)
 		SiteKit.place(mast, p)
 		table.insert(r.things, mast)
@@ -639,7 +644,7 @@ local function build(player: Player, r: Run)
 		r.gen = p
 		r.held = r.saved.got
 		local m = SiteKit.prop("Generator", function(model)
-			-- PLACEHOLDER ART: the generator and its core
+			-- the generator and its core (ActGenerator on the device once imported; its glow takes the core's colour)
 			SiteKit.part(
 				model,
 				Vector3.new(6, 6, 6),
@@ -647,7 +652,7 @@ local function build(player: Player, r: Run)
 				Color3.fromRGB(70, 75, 85),
 				Enum.Material.Metal
 			)
-			SiteKit.part(
+			local core = SiteKit.part(
 				model,
 				Vector3.new(2, 2, 2),
 				CFrame.new(0, 7, 0),
@@ -655,6 +660,8 @@ local function build(player: Player, r: Run)
 				Enum.Material.Neon,
 				Enum.PartType.Ball
 			)
+			core.Name = "Core"
+			SiteKit.look(model, "Generator")
 		end)
 		SiteKit.place(m, p)
 		table.insert(r.things, m)

@@ -1,7 +1,9 @@
 -- ActivityFx: the looks of the 2026-11-17 events that need one on the device. The Harbour fog ambush
 -- (Config.Events.HarbourFog.fog) rolls fog banks over the Docks around a hero standing in them and greys the
 -- colours a little; it fades out when the event ends or the hero leaves. Lighting fog and the Atmosphere
--- are left alone (DeepClient owns them underwater). PLACEHOLDER ART: fog banks are plain translucent parts.
+-- are left alone (DeepClient owns them underwater). The banks are art/blender/activity.py's ActFog puffs once
+-- ReplicatedStorage.Art.Activity holds them (Shared.ActivityKit.FOG), else plain translucent balls (the fallback).
+-- It also drives ActivityProps (the incident, event and contract props' Blender looks) twice a second.
 
 local Lighting = game:GetService("Lighting")
 local Players = game:GetService("Players")
@@ -12,6 +14,9 @@ local FrameProf =
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local EventPlan = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("EventPlan"))
+local ActivityKit = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("ActivityKit"))
+
+local ActivityProps = require(script.Parent.ActivityProps)
 
 local WorldClient = require(script.Parent.Parent.Controllers.WorldClient)
 
@@ -48,18 +53,29 @@ local function build()
 	f.Name = "ActivityFog"
 	f.Parent = workspace
 	folder = f
+	-- the ActFog puffs once imported (one mesh, the ball's 90 x 16 x 90), else a plain ball
+	local puff = if ActivityProps.ready(ActivityKit.FOG)
+		then ActivityKit.meshes(Config, { look = ActivityKit.FOG, boxes = {} })[1]
+		else nil
 	for i = 1, BANKS do
-		local p = Instance.new("Part")
+		local p: BasePart
+		local mesh = puff and ActivityProps.clone(puff)
+		if mesh then
+			p = mesh
+		else
+			local ball = Instance.new("Part")
+			ball.Shape = Enum.PartType.Ball
+			ball.Size = Vector3.new(90, 16, 90)
+			ball.Material = Enum.Material.SmoothPlastic
+			ball.Color = Color3.fromRGB(215, 222, 230)
+			p = ball
+		end
 		p.Name = "FogBank" .. i
 		p.Anchored = true
 		p.CanCollide = false
 		p.CanQuery = false
 		p.CanTouch = false
 		p.CastShadow = false
-		p.Material = Enum.Material.SmoothPlastic
-		p.Color = Color3.fromRGB(215, 222, 230)
-		p.Size = Vector3.new(90, 16, 90)
-		p.Shape = Enum.PartType.Ball
 		p.Transparency = 1
 		p.Parent = f
 		table.insert(banks, p)
@@ -111,11 +127,17 @@ end
 
 function ActivityFx.init()
 	local acc = 0
+	local props = 0
 	RunService.Heartbeat:Connect(FrameProf.wrap("ActivityFx", function(dt)
 		acc += dt
 		if acc >= 0.1 then
 			step(acc)
 			acc = 0
+			props += 1
+			if props >= 5 then
+				props = 0
+				ActivityProps.step()
+			end
 		end
 	end))
 end

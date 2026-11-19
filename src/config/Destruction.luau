@@ -69,6 +69,13 @@ return {
 	-- clash moments
 	clash = { wallRange = 20, perPlayer = 3, window = 10, knock = 26 },
 	crater = { radius = 6, life = 30 },
+	-- comic ink decals for the crater and the facade crack (art/fx/textures.py --destruction, uploaded as Image
+	-- assets); id 0 keeps today's dark disc and thin bars (BuildingFx). crater: the decal spans this many crater
+	-- radii; crack: this many crack sizes.
+	decals = {
+		crater = { id = 71768303762622, file = "crater.png", span = 2.5 },
+		crack = { id = 122295174099384, file = "crack.png", span = 2.2 },
+	},
 	-- cars and trams
 	vehicles = {
 		count = 40, -- in the hub

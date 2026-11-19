@@ -13,6 +13,8 @@
 -- clothesNear and clothesFar (perf pass 2026-11-18): a robot's or citizen's Roblox-look clothes are 66 Textures
 -- a rig; inside clothesNear it draws them all, out to clothesFar all but the 21 faces the body hides at rest
 -- (Shared.ClothesMap.tucked), and past it none (NpcRig.showClothes).
+-- sites (2026-11-19): the incident, event and contract props this device draws in their Blender looks (Fx.ActivityProps):
+-- within radius studs of the camera, at most `looks` props and `parts` mesh parts, nearest first; the rest keep their parts.
 return {
 	order = { "low", "medium", "high" },
 	low = {
@@ -42,6 +44,7 @@ return {
 		vehicleRig = 110, -- gap-vehicles: escorts this close roll their wheels, steer and sway (Fx.VehicleRig); none past it
 		pockets = { tier = 1, parts = 180, lights = 4 }, -- a pocket's dressing (Shared.PocketDress; the server's tier 1 counts)
 		smash = 3, -- street things (lamps, benches, trees, fences) knocked loose a big impact nearby (BuildingFx, 2026-11-19)
+		sites = { radius = 240, looks = 6, parts = 30 }, -- activity props in their Blender looks (Fx.ActivityProps)
 	},
 	medium = {
 		streamRadius = 600,
@@ -70,6 +73,7 @@ return {
 		vehicleRig = 200, -- gap-vehicles: escorts this close roll their wheels, steer and sway (Fx.VehicleRig); none past it
 		pockets = { tier = 2, parts = 480, lights = 10 },
 		smash = 6, -- street things (lamps, benches, trees, fences) knocked loose a big impact nearby (BuildingFx, 2026-11-19)
+		sites = { radius = 420, looks = 14, parts = 70 }, -- activity props in their Blender looks (Fx.ActivityProps)
 	},
 	high = {
 		streamRadius = 800,
@@ -98,6 +102,7 @@ return {
 		vehicleRig = 320, -- gap-vehicles: escorts this close roll their wheels, steer and sway (Fx.VehicleRig); none past it
 		pockets = { tier = 3, parts = 900, lights = 18 },
 		smash = 10, -- street things knocked loose a big impact nearby (BuildingFx, 2026-11-19)
+		sites = { radius = 640, looks = 30, parts = 150 }, -- activity props in their Blender looks (Fx.ActivityProps)
 	},
 	-- the preset each device class starts on (QualityRules.device)
 	auto = { phone = "low", tablet = "medium", pc = "medium", console = "medium" },
