@@ -224,6 +224,8 @@ local function sendState(hero: any)
 			swings = if c then T.swing.max - (c.swings or 0) else 0,
 		})
 		hero.player:SetAttribute("Carrying", kind)
+		-- a held robot is gripped like a club (pt-anims' robotHold clip)
+		hero.player:SetAttribute("CarryGrip", if kind == "robot" then "club" else nil)
 	end
 end
 
@@ -588,6 +590,8 @@ local function swing(hero: any, aim: Vector3)
 				arc = S.arc,
 				r = S.radius,
 				t = S.time,
+				n = c.swings, -- the swing count, for the alternating swing clips
+				slam = c.swings >= T.swing.max or nil, -- the last swing brings it down overhead
 			})
 		end
 	end

@@ -3294,4 +3294,68 @@ C.dashStart = S({ -- into a dash: a quick lean and a push off the back foot
 	dip = 0,
 })
 
+-- pt-anims (nate's playtest 2026-11-19, with pt-combat's ground pound and robot swing): the heavy ground-pound
+-- landing and a grabbed robot swung as a two-handed weapon (both hands on its legs, the robot as the club head)
+C.poundLandHeavy = S({ -- a big ground pound: both fists driven into the crater, a wide squat, held, then up
+	dur = 1.1,
+	a = 0.04,
+	c = 0.16,
+	f = 0.75,
+	R = { w = { 175, 0, 8 }, h = { 20, 0, 24 }, f = { 22, 0, 24 }, e = { 10, 0, 0 }, wr = { 0, 0, 0 } },
+	L = { w = { 175, 0, -8 }, h = { 20, 0, -24 }, f = { 22, 0, -24 }, e = { 10, 0, 0 } },
+	waist = { { 14, 0, 0 }, { -56, 0, 0 }, { -50, 0, 0 } },
+	neck = { { 0, 0, 0 }, { 34, 0, 0 }, { 30, 0, 0 } },
+	legs = "squat",
+	lift = 0,
+	dip = -1.5,
+})
+C.robotHold = { -- a grabbed robot held like a club: both hands together by the right shoulder, cocked back
+	dur = 1.2,
+	loop = true,
+	joints = {
+		RightShoulder = { K(0, 120, 0, 30), K(0.6, 124, 0, 32), K(1.2, 120, 0, 30) },
+		RightElbow = { K(0, 70), K(0.6, 74), K(1.2, 70) },
+		LeftShoulder = { K(0, 110, 0, 46), K(0.6, 114, 0, 48), K(1.2, 110, 0, 46) },
+		LeftElbow = { K(0, 86), K(0.6, 90), K(1.2, 86) },
+		RightWrist = hold(-20),
+		LeftWrist = hold(-20),
+		Waist = { K(0, 6, 26), K(0.6, 8, 28), K(1.2, 6, 26) },
+		Neck = hold(0, -20),
+	},
+}
+C.robotSwing = S({ -- the grabbed robot swung flat round the body, right to left, both hands on it
+	dur = 0.75,
+	a = 0.35,
+	c = 0.55,
+	f = 0.78,
+	R = { w = { 110, 0, 70 }, h = { 92, 0, -20 }, f = { 84, 0, -50 }, e = { 50, 10, 16 } },
+	L = { w = { 100, 0, 80 }, h = { 92, 0, -6 }, f = { 84, 0, -36 }, e = { 70, 14, 22 } },
+	waist = { { 8, 60, 0 }, { -10, -50, 0 }, { -8, -70, 0 } },
+	legs = "wide",
+	dip = -0.5,
+})
+C.robotSwingBack = S({ -- the backhand return: the robot comes back left to right, lower
+	dur = 0.7,
+	a = 0.32,
+	c = 0.52,
+	f = 0.76,
+	R = { w = { 84, 0, -50 }, h = { 70, 0, 60 }, f = { 64, 0, 80 }, e = { 50, 10, 16 } },
+	L = { w = { 84, 0, -36 }, h = { 70, 0, 74 }, f = { 64, 0, 94 }, e = { 70, 14, 22 } },
+	waist = { { 4, -60, 0 }, { -14, 46, 0 }, { -10, 60, 0 } },
+	legs = "stepL",
+	dip = -0.4,
+})
+C.robotSlam = S({ -- the robot raised overhead in both hands and slammed down in front
+	dur = 0.9,
+	a = 0.45,
+	c = 0.62,
+	f = 0.8,
+	R = { w = { 176, 0, 14 }, h = { 40, 0, 4 }, e = { 30, 10, 10 } },
+	L = { w = { 176, 0, -14 }, h = { 40, 0, -4 }, e = { 30, 10, 10 } },
+	waist = { { 26, 0, 0 }, { -48, 0, 0 } },
+	neck = { { 24, 0, 0 }, { -10, 0, 0 } },
+	legs = "kneel",
+	lift = 0.3,
+})
+
 return HeroMoves

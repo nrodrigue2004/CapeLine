@@ -136,21 +136,74 @@ return {
 		swing = {
 			name = "Swing",
 			text = "Swing on lines from the buildings and zip to rooftops",
+			-- Spider-Man swinging (nate's playtest 2026-11-19: "Swinging should feel like Spider-Man"; Shared.SwingMath):
+			-- hold Fly in the air to shoot a line at a real building face or roof corner ahead and above (the camera's
+			-- look, then its travel; never the sky), swing through the arc on the swing's own `gravity`, let go to
+			-- fling forward and up (a release on the rising half is the sweet one), hold Fly again to catch the next
+			-- line; Leap while swinging zips up the line and pops over the top (the point launch); Fly on the ground
+			-- zips to the spot aimed at. Every speed stays inside `cap` (the server's Swing cap)
 			range = 170, -- a line reaches this far
-			maxSpeed = 95,
-			pump = 22, -- studs/s^2 of push along the swing
-			zip = 120, -- a zip to a ledge (tap Fly on the ground)
-			-- the swing fixes (nate's playtest 2026-11-19: "swing doesn't work properly"): the line tries each `lifts`
-			-- aim (camera look plus this much up, then along the travel) for something at least `minAbove` studs up;
-			-- the rope is never longer than keeps its low point `clearance` studs over the ground (no scraping the
-			-- street, which used to end the swing) nor shorter than minLen; a swing from the ground pops up
-			-- `groundPop`; letting go flings: the speed times release.boost plus release.up, at most release.cap
+			maxSpeed = 105, -- the swing's top speed (was 95)
+			gravity = 150, -- studs/s^2 on the rope: a snappier arc than the leap's floaty airGravity
+			pump = 30, -- studs/s^2 of push along the swing (the stick forward)
+			steer = 40, -- studs/s^2 of sideways air control (the stick across the swing)
+			reel = 40, -- studs/s the rope shortens toward its target (off the street)
+			taut = 0.97, -- share of the gap the rope starts at (taut at once)
+			plane = 0.25, -- share of the anchor's sideways offset the swing keeps (SwingMath.pivot: it swings along the travel)
+			catchSlack = 1, -- a line slacker than this coming in catches (the fall's speed kept along the swing)
+			catchKeep = 0.8, -- share of that fall kept on along the swing
+			topGap = 2, -- swung up within this of the anchor's height: lets go on its own
+			rearm = 0.15, -- holding Fly after a release fires the next line this long after it starts to fall
+			zip = 120, -- a zip to a ledge or up the line: never faster than this at any point
+			zipArc = { most = 12, share = 0.08, pace = 1, minTime = 0.2 },
+			zipPop = { up = 40, forward = 30 }, -- the point launch at a zip's end
+			-- the anchor search: rays at each `lifts` aim (look plus this much up) and each `aim.yaws` turn; scores
+			-- favour a point ahead (minAlong at least), about `aim.up` above and `aim.ahead` out
 			lifts = { 0.45, 0.9, 1.6 },
+			aim = {
+				yaws = { 0, 22, -22, 45, -45 },
+				minAlong = 0.55,
+				near = 18, -- nearer than this is no swing
+				up = 45,
+				ahead = 60,
+				wAlong = 2,
+				wUp = 1,
+				wAhead = 0.6,
+				wTravel = 0.5,
+				travelAt = 20, -- moving faster than this also searches along the travel
+				travelApart = 30, -- when it is this many degrees off the camera's look
+				travelCost = 0.3,
+			},
+			-- a hit on a wall snaps up to the roof edge (or corner) within `probe` above it
+			edge = { probe = 30, steps = 4, out = 1.5, below = 0.5 },
 			minAbove = 4,
 			minLen = 12,
 			clearance = 6,
 			groundPop = 25,
-			release = { up = 14, boost = 1.15, cap = 110 },
+			-- letting go: speed x boost (early x early) plus up (earlyUp) and `forward` along the travel; sweet: the
+			-- phase (SwingMath.phase) window of the rising half; at most cap
+			release = {
+				up = 18,
+				boost = 1.12,
+				early = 1,
+				earlyUp = 6,
+				forward = 8,
+				sweet = { 0.25, 1 },
+				cap = 115,
+			},
+			-- the feel on this device (scaled by Camera motion; wind lines by quality): FOV widens by `fov` and the
+			-- camera pulls back `pull` studs at top speed; wind lines past `lines` of maxSpeed; the line shoots out
+			-- in `shoot` s; the whoosh on a release faster than `whoosh`
+			feel = {
+				fov = 0.14,
+				pull = 6,
+				lines = 0.45,
+				shoot = 0.09,
+				whoosh = 45,
+				width = 0.16,
+				others = { low = 3, medium = 6, high = 8 }, -- other heroes' lines drawn at once, by quality preset
+				othersRange = 350,
+			},
 			cap = 120,
 			swim = 45,
 			up = { rangeLevel = 10, range = 220 },

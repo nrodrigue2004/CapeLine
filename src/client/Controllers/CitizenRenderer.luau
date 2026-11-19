@@ -30,6 +30,7 @@ local BodyShape = require(Shared:WaitForChild("BodyShape"))
 local NpcRig = require(Shared:WaitForChild("NpcRig"))
 local ClothesMap = require(Shared:WaitForChild("ClothesMap"))
 local QualityRules = require(Shared:WaitForChild("QualityRules"))
+local NpcAnim = require(Shared:WaitForChild("NpcAnim")) -- pt-anims: idle gestures
 local RepTiers = require(Shared:WaitForChild("RepTiers")) -- lore step 12: citizens cheer or flinch
 local Players = game:GetService("Players")
 
@@ -268,6 +269,35 @@ local function reactionAt(pos: Vector3, fleeing: boolean): string?
 	return best and RepTiers.reaction(Config, best.side, best.tier, bestD, fleeing)
 end
 
+-- A standing citizen's idle gesture (pt-anims, Shared.NpcAnim): every GESTURE_EVERY seconds, on its own beat
+-- (from its key), one of the people clips plays over Roblox's idle on the upper body: a look round, a check of
+-- the time, a bit of talk, a shrug, a point. Stateless: the beat and the pick come from the clock and the key.
+local GESTURE_EVERY = 8
+local gestureScratch: { [string]: { number } } = {}
+local function gesture(body: Body)
+	local now = os.clock() + (body.key % 97) * 0.83
+	local cycle = math.floor(now / GESTURE_EVERY)
+	local t = now - cycle * GESTURE_EVERY
+	local r = ((body.key * 0.618 + cycle * 0.371) % 1)
+	if r > 0.7 then
+		return -- a beat with no gesture now and then, so a crowd is never all moving at once
+	end
+	local clip = NpcAnim.pick(NpcAnim.PEOPLE.citizen.idle, r / 0.7)
+	local c = NpcAnim.CLIPS[clip]
+	if t >= c.dur then
+		return
+	end
+	local w = NpcAnim.weight(t, c.dur, NpcAnim.people.fade, false)
+	local rig = body.rig
+	for joint, a in NpcAnim.sample(clip, t, gestureScratch) do
+		NpcRig.over(
+			rig,
+			joint,
+			NpcRig.animBase(rig, joint):Lerp(CFrame.Angles(math.rad(a[1]), math.rad(a[2]), math.rad(a[3])), w)
+		)
+	end
+end
+
 -- Over Roblox's clips (an animated citizen): only what differs from a plain idle, walk or run, written every
 -- frame after the Animator: the flee's arms thrown up, or a cheer's or flinch's arms (the legs keep the clip)
 local function overClips(body: Body, react: string?)
@@ -293,6 +323,8 @@ local function overClips(body: Body, react: string?)
 			NpcRig.over(rig, name .. "Shoulder", CFrame.Angles(math.rad(-85), 0, -sign * 0.35))
 			NpcRig.over(rig, name .. "Elbow", CFrame.Angles(math.rad(95), 0, 0))
 		end
+	elseif body.state == PAUSE and body.speed <= 0.8 then
+		gesture(body)
 	end
 end
 

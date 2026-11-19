@@ -27,6 +27,7 @@ local CombatClient = require(script.Parent.CombatClient)
 local StoryClient = require(script.Parent.StoryClient)
 local EnemyRenderer = require(script.Parent.EnemyRenderer)
 local CombatFx = require(script.Parent.Parent.Fx.CombatFx)
+local HeroAnimator = require(script.Parent.HeroAnimator)
 local State = require(script.Parent.Parent.State)
 
 local ThrowClient = {}
@@ -284,6 +285,10 @@ function ThrowClient.init()
 			CombatFx.colorOf(nil, d.u),
 			3
 		)
+		local who = if type(d.u) == "number" then Players:GetPlayerByUserId(d.u) else nil
+		if who then
+			HeroAnimator.robotSwing(who, if type(d.n) == "number" then d.n else nil, d.slam == true)
+		end
 	end)
 	Net.listen("ThrowState", function(data: any)
 		if type(data) ~= "table" then

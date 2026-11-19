@@ -17,6 +17,7 @@ local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local PolishPlan = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("PolishPlan"))
 
 local MoveController = require(script.Parent.Parent.Controllers.MoveController)
+local HeroAnimator = require(script.Parent.Parent.Controllers.HeroAnimator)
 local QualityController = require(script.Parent.Parent.Controllers.QualityController)
 local State = require(script.Parent.Parent.State)
 local Juice = require(script.Parent.Juice)
@@ -202,6 +203,7 @@ function MoveFx.init()
 		ring(pos + Vector3.new(0, 0.3, 0), Color3.fromRGB(214, 206, 190), r * 2.4)
 		crack(pos, math.clamp(r * 1.4, 10, 20))
 		Juice.fire("land", pos, { mine = true })
+		HeroAnimator.play(Players.LocalPlayer, "poundLandHeavy")
 	end)
 
 	local phase = 0
@@ -236,12 +238,24 @@ function MoveFx.init()
 			Juice.fire("boost", nil, { mine = true })
 		end
 		lastMode, wasBoosting = mode, MoveController.boosting
-		Juice.hold("flyCruise", mode == "fly" or mode == "glide", math.clamp(speed / 220, 0.05, 0.5))
+		-- the Swing (2026-11-19): the wind and the speed lines come in with the swing's speed (feel.lines of its top)
+		local swingPose = MoveController.swingPose.state
+		local swinging = swingPose ~= "none"
+		local swingFast = swinging
+			and speed > Config.Move.mobility.swing.maxSpeed * Config.Move.mobility.swing.feel.lines
+		Juice.hold(
+			"flyCruise",
+			mode == "fly" or mode == "glide" or swinging,
+			math.clamp(speed / 220, 0.05, 0.5)
+		)
 		if trail then
 			trail.Enabled = MoveController.boosting or mode == "glide" or mode == "dash"
 			trail.Lifetime = if mode == "glide" then 0.2 else F.trail.boostLife
 		end
-		local show = MoveController.boosting or (anime and mode == "fly" and speed > 45) or mode == "dash"
+		local show = MoveController.boosting
+			or (anime and mode == "fly" and speed > 45)
+			or mode == "dash"
+			or swingFast
 		phase += dt * 30
 		for i, f in lines do
 			local target = if show then 0.55 + 0.35 * math.abs(math.sin(phase + i * 1.7)) else 1

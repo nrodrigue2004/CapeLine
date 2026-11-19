@@ -16,7 +16,7 @@
 
 local HeroAnim = {}
 
-export type Key = { number } -- { t, rx, ry, rz, py? }
+export type Key = { number } -- { t, rx, ry, rz, py?, linear? } (a 6th of 1: linear to the next key)
 export type Clip = { dur: number, loop: boolean?, joints: { [string]: { Key } } }
 export type Angles = { [string]: { number } } -- joint -> { rx, ry, rz, py }
 
@@ -1127,6 +1127,36 @@ end
 function HeroAnim.holdsIn(modeClip: string?): boolean
 	return modeClip == nil or modeClip == "air"
 end
+-- The upper-body layer (pt-anims, nate's playtest 2026-11-19: "Make sure it works even if player is flying or
+-- mid air"): how much of an action's (or a held state's) legs show over a mode pose, and what of its Root.
+-- On the ground (nil) the whole body moves (a running hero keeps most of the Animator's stride); sprinting and
+-- running on water keep most of the stride too; every travel pose in the air or the water (flight, hover,
+-- boost, dive, glide, a jump or fall, a dash, a zip, a swing, a wall, a ride, swimming, the Leap crouch) keeps
+-- its own legs, and the Root keeps only an action's turn (no kneel dip, flip or lean against the flight pitch).
+-- The Downed poses keep theirs (nothing plays over them but the hit flinch).
+local GROUNDED_RUN = { sprint = true, waterRun = true } :: { [string]: boolean }
+function HeroAnim.layer(modeClip: string?, flat: number): (number, boolean)
+	if modeClip == nil then
+		return (if flat > 6 then 0.3 else 1), false
+	end
+	if GROUNDED_RUN[modeClip] then
+		return 0.3, false
+	end
+	return 0, true
+end
+-- an action's Root angles under the upper-body layer: only its turn (y) stays
+function HeroAnim.upperRoot(a: { number }): { number }
+	return { 0, a[2], 0, 0 }
+end
+HeroAnim.LEGS = {
+	RightHip = true,
+	LeftHip = true,
+	RightKnee = true,
+	LeftKnee = true,
+	RightAnkle = true,
+	LeftAnkle = true,
+} :: { [string]: boolean }
+
 HeroAnim.holdBlend = 0.18 -- the stance fades in and out this long (a swap to or from the weapon)
 HeroAnim.holdWeight = 0.92 -- and shows this much over the Animator's arm swing (a little sway stays)
 
@@ -1687,7 +1717,8 @@ function HeroAnim.sampleKeys(keys: { Key }, t: number, dur: number, loop: boolea
 		local a, b = keys[i], keys[i + 1]
 		if t <= b[1] then
 			local span = b[1] - a[1]
-			local f = if span > 0 then smooth((t - a[1]) / span) else 1
+			local x = if span > 0 then (t - a[1]) / span else 1
+			local f = if a[6] == 1 then x else smooth(x) -- a 6th of 1: linear to the next key (dense keys)
 			return {
 				a[2] + (b[2] - a[2]) * f,
 				a[3] + (b[3] - a[3]) * f,
@@ -1720,6 +1751,76 @@ function HeroAnim.actionWeight(t: number, dur: number): number
 	local fin = math.min(1, t / HeroAnim.fadeIn)
 	local fout = math.min(1, (dur - t) / HeroAnim.fadeOut)
 	return math.clamp(math.min(fin, fout), 0, 1)
+end
+
+-- Two-handed holds (pt-anims, nate's playtest 2026-11-19: "Some of them might need two handed animations"):
+-- the weapons held in both hands get copies of their moves and stance whose left arm is solved onto the weapon
+-- at every key (Shared.AnimIK.pin, once at load): "@hilt" (greatsword, great axe, warhammer, scythe: the left
+-- hand under the right on the grip), "@pole" (spear, bo staff: the left hand ahead on the shaft), "@long" (the
+-- rifle and the crossbow: the left hand under the barrel). A move that lets go (the hammer throw) keeps its
+-- own arms. The grabbed-robot swings (pt-combat's robot as a weapon) hold it the same way.
+HeroAnim.TWO_HAND = {
+	hilt = { aim = { 0, -0.707, -0.707 }, gap = -0.75 },
+	pole = { aim = { 0, -1, 0 }, gap = 1.3 },
+	long = { aim = { 0, -1, 0 }, gap = 1.4 },
+} :: { [string]: { aim: { number }, gap: number } }
+HeroAnim.TWO_HAND_WEAPON = {
+	[11] = "hilt", -- Greatsword
+	[12] = "hilt", -- Great Axe
+	[13] = "hilt", -- Warhammer
+	[14] = "pole", -- Spear
+	[15] = "hilt", -- Scythe
+	[16] = "pole", -- Bo Staff
+	[27] = "long", -- Blaster Rifle
+	[29] = "long", -- Crossbow
+} :: { [number]: string }
+-- moves where the off hand lets go of the weapon (it is thrown, or one hand swings it out)
+HeroAnim.ONE_HAND_MOVES = { hammerToss = true, fireWhip = true, sweepKick = true } :: { [string]: boolean }
+-- clips that hold a grabbed robot in both hands (HeroAnimator plays them by name)
+HeroAnim.ROBOT_SWINGS = { "robotHold", "robotSwing", "robotSwingBack", "robotSlam" }
+do
+	local AnimIK = if script then require((script :: any).Parent.AnimIK) else (require :: any)("./AnimIK")
+	local rig = if script
+		then require((script :: any).Parent.Parent:WaitForChild("Config"):WaitForChild("HeroRig"))
+		else (require :: any)("../config/HeroRig")
+	local arm = AnimIK.arm(rig)
+	local function sampleAll(clip: Clip, t: number): { [string]: { number } }
+		local out = {}
+		for joint, keys in clip.joints do
+			out[joint] = HeroAnim.sampleKeys(keys, t, clip.dur, false)
+		end
+		return out
+	end
+	local function pinned(name: string, class: string): string
+		local pin = name .. "@" .. class
+		if not C[pin] then
+			local h = HeroAnim.TWO_HAND[class]
+			C[pin] = AnimIK.pin(C[name], arm, h.aim, h.gap, sampleAll)
+		end
+		return pin
+	end
+	HeroAnim.pinned = pinned
+	for id, class in HeroAnim.TWO_HAND_WEAPON do
+		local m = WEAPON_MOVES[id]
+		if m then
+			local combo = {}
+			for i, c in m.combo do
+				combo[i] = if HeroAnim.ONE_HAND_MOVES[c] then c else pinned(c, class)
+			end
+			local function one(c: string): string
+				return if HeroAnim.ONE_HAND_MOVES[c] then c else pinned(c, class)
+			end
+			WEAPON_MOVES[id] = W(combo, one(m.Z), one(m.X), one(m.C), one(m.V))
+		end
+		-- the rifle's stance keeps its own hand-set arms (the solve draws the stock up into the face)
+		local stance = HeroAnim.holdClip(id, if class == "long" then "ranged" else "two")
+		if stance and class ~= "long" then
+			HOLD_WEAPON[id] = pinned(stance, class)
+		end
+	end
+	for _, name in HeroAnim.ROBOT_SWINGS do
+		C[name] = AnimIK.pin(C[name], arm, HeroAnim.TWO_HAND.hilt.aim, HeroAnim.TWO_HAND.hilt.gap, sampleAll)
+	end
 end
 
 return HeroAnim

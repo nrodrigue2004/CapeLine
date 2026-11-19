@@ -68,7 +68,10 @@ FAST = "--fast" in sys.argv
 ONLY = None
 if "--only" in sys.argv:
     ONLY = {int(x) for x in sys.argv[sys.argv.index("--only") + 1].split(",")}
-G = -0.2  # the grip line under the hand (WeaponKit's G)
+# the grip line: the handle's axis, on Roblox's own Right/LeftGripAttachment (the hand's bottom face, y -0.15 from
+# its centre), where a Roblox tool's handle sits, so the handle is half in the fist (pt-fit 2026-11-19: it was
+# -0.2, so every handle hung under the hand; Config.RobloxRig, tests/fit_test.luau)
+G = -0.15
 PI = math.pi
 BUDGET = 2000  # triangles a weapon (both hands, Classic)
 ATS = ("rhand", "lhand", "rlarm", "llarm", "rfoot", "lfoot", "rshin", "lshin")
@@ -329,6 +332,9 @@ AIM = {}  # id -> {"at": part, "dir": (x, y, z) legacy, "face": (x, y, z) legacy
 PIVOT = {"rhand": (0, G, 0), "lhand": (0, G, 0), "rlarm": (0, 0, 0), "llarm": (0, 0, 0), "rfoot": (0, 0, 0),
          "lfoot": (0, 0, 0), "rshin": (0, 0, 0), "lshin": (0, 0, 0)}
 GRIP = {}  # id -> (at, (x, y, z) legacy): where the hand holds it
+# the two-handed weapons' second hand (pt-fit 2026-11-19): where the left hand should close on the handle, in the
+# right hand's frame before the hold (pommel side +z, blade side -z), for HeroAnim's two-handed stances to reach
+GRIP2 = {11: 0.55, 12: 0.85, 13: 0.7, 14: -1.85, 15: 0.85, 16: -1.7}
 
 
 def weapon(wid, name, hold=None, aim=("rhand", (0, 0, -1)), face=None, grip_at=None):
@@ -389,7 +395,7 @@ def w_gauntlets(st):
 
 
 # 4 Strikers: armoured boots with a toe cap, heel fin and glowing soles
-@weapon(4, "Strikers", aim=("rfoot", (0, 0, -1)))
+@weapon(4, "Strikers", aim=("rfoot", (0, 0, -1)), grip_at=("rfoot", (0, 0, 0)))
 def w_strikers(st):
     shell = [box(1.16, 0.46, 1.2, 0, 0.06, -0.04, bev=0.12)]
     toe = rings_mesh([[(-0.5, 0.3, -0.55), (0.5, 0.3, -0.55), (0.5, -0.16, -0.55), (-0.5, -0.16, -0.55)],
@@ -888,9 +894,9 @@ def w_rifle(st):
 
 # 28 Bow: a recurve bow with glowing tips, the string toward the archer
 @weapon(28, "Bow", hold={"lhand": {"rx": -90}}, aim=("lhand", (0, 1, 0)), face=(0, 0, 1),
-        grip_at=("lhand", (0, G, -0.15)))
+        grip_at=("lhand", (0, G, 0)))
 def w_bow(st):
-    z0 = -0.15
+    z0 = 0.0  # the riser through the palm (pt-fit: it was 0.15 past the knuckles, so the bow hung under the fist)
     riser = [box(0.18, 0.95, 0.22, 0, G, z0, bev=0.06)]
     limbs = []
     tips = []
@@ -1223,6 +1229,9 @@ for wid in ids:
     lines.append('\t\taim = { at = "%s", dir = { %.3f, %.3f, %.3f }%s },' % (aim["at"], *d, face_s))
     g = turn_point(gp, hold, ga)
     lines.append('\t\tgrip = { at = "%s", pos = { %.3f, %.3f, %.3f } },' % (ga, *g))
+    if wid in GRIP2:
+        g2 = turn_point((0, G, GRIP2[wid]), hold, "rhand")
+        lines.append('\t\tgrip2 = { at = "rhand", pos = { %.3f, %.3f, %.3f } },' % g2)
     lines.append("\t\tpieces = {")
     for p in b["pieces"]:
         off, size = box_of(p.ob)
@@ -1253,10 +1262,12 @@ HEADER = [
     "-- id: hold, how the weapon is turned from WeaponKit's parts frame (degrees about x then y, CFrame.Angles(rx, ry, 0),",
     "-- about the pivot: the grip line for a hand, the forearm's centre for a shield; WeaponKit turns its parts the same",
     "-- way); aim, the weapon's pointing direction (and a shield's or bow's face) in its body part's frame; grip, where",
-    "-- the hand holds it; pieces, each mesh with the body part it is welded to (a LookKit ATTACH role), its colour",
-    "-- role (p main or finish, s trim, a glow, white), flags (blade: takes the finish and the styles; glow: shown by",
-    "-- the glow strength; neon: always lit; emblem: carries the hero's symbol), its box against that part's centre",
-    "-- in studs on the standard blocky rig (x right, y up, z back), triangles, and its Broad and Jagged meshes where",
+    "-- the hand holds it (on the hand's grip attachment); grip2, where a two-handed weapon's left hand closes on it;",
+    "-- pieces, each mesh with the body part it is welded to (a LookKit ATTACH role), its colour role (p main or",
+    "-- finish, s trim, a glow, white), flags (blade: takes the finish and the styles; glow: shown by the glow",
+    "-- strength; neon: always lit; emblem: carries the hero's symbol), its box against that part's centre in studs",
+    "-- on the classic blocks of Config.HeroRig (x right, y up, z back; Shared.BodyFit puts it on Roblox's own body),",
+    "-- triangles, and its Broad and Jagged meshes where",
     "-- those styles change its shape. %d weapons, %d meshes, %d triangles (Classic)." % (len(ids), meshes, total),
     "return {",
 ]

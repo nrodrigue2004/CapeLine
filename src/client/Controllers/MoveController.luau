@@ -17,8 +17,11 @@
 --            bounce off it, Down in the air to `pound` (the server's MovePound burst hits around the landing)
 --   acrobat  Leap in the air to double jump, walk or jump into a wall to `wall` climb, jump at one glancingly to
 --            run along it (`wallrun`, while the stick is held; Leap kicks off and chains), a faster glide
---   swing    Fly in the air fires a line at a building and `swing`s on it (release to let go and fling); Fly on
---            the ground zips to the spot aimed at
+--   swing    Spider-Man swinging (nate's playtest 2026-11-19; Shared.SwingMath): hold Fly in the air to shoot a line
+--            at a real building face or roof corner ahead and above along the camera (never the sky: a miss shows
+--            the cue), `swing` through the pendulum, let go to fling forward and up (hold Fly to catch the next
+--            line as the hero falls), Leap while swinging zips up the line and pops over the top; Fly on the
+--            ground zips to the spot aimed at. SwingFx draws the line, CameraController the speed feel
 -- Travel powers (CombatClient): `ride` for `duration` at a server-allowed speed (air, surf or rail), and
 -- `launch` arcs. A Weightless (zeroG) buff lets any hero fly while it lasts. Underwater the Humanoid swims at
 -- the mobility's swim speed.
@@ -40,6 +43,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Net = require(Shared:WaitForChild("Net"))
 local MoveMath = require(Shared:WaitForChild("MoveMath"))
 local CityPlay = require(Shared:WaitForChild("CityPlay"))
+local SwingMath = require(Shared:WaitForChild("SwingMath"))
 local Signal = require(Shared:WaitForChild("Util"):WaitForChild("Signal"))
 local FrameProf = require(Shared:WaitForChild("FrameProf"))
 
@@ -63,6 +67,25 @@ MoveController.Pounded = Signal.new() -- (position) a Leaping ground pound lande
 MoveController.Dropped = Signal.new() -- (position, fall speed) a drop from high up smashed onto a roof (MoveFx)
 MoveController.Bounced = Signal.new() -- (position, up speed) an awning sprang the hero up (pt-city)
 MoveController.Rammed = Signal.new() -- (contact, wall normal, speed, building id) a fast hero hit a wall (ImpactFx)
+-- the swing (SwingFx, CameraController, HeroAnimator): a line shot (anchor, edge), let go (velocity, sweet), a
+-- line with nothing real to hang from (from, look), a zip begun (target)
+MoveController.SwingShot = Signal.new()
+MoveController.SwingReleased = Signal.new()
+MoveController.SwingMissed = Signal.new()
+MoveController.Zipped = Signal.new()
+-- the swing's pose state, updated in place every frame (no new tables): state "none", "shoot" (the line flying
+-- out), "swing", "release" (just let go) or "zip"; phase: SwingMath.phase (-1 high behind, 0 bottom, +1 level
+-- ahead); speed: share of the swing's top speed; anchor: where the line hangs (nil: none); shotAt: os.clock() of
+-- the shot. HeroAnimator can pick its swing clips from it (pt-anims adds them; today the swing, swingCatch and
+-- swingRelease clips play from the mode).
+MoveController.swingPose = {
+	state = "none",
+	phase = 0,
+	speed = 0,
+	anchor = nil :: Vector3?,
+	shotAt = 0,
+	sweet = false,
+}
 
 local root: BasePart? = nil
 local hum: Humanoid? = nil
@@ -96,9 +119,17 @@ local wallLeft = -math.huge -- when the hero last left a wall (wall.regrab)
 local spentWall: Vector3? = nil -- a wall run that ran out: that wall is not grabbed again before a landing or a kick
 local hopping = false -- in a Super-speed running jump (keeps the run's speed; holding Leap hops again)
 local swingAnchor: Vector3? = nil
+local swingPivot = Vector3.zero -- the point the hero swings under (SwingMath.pivot: in the plane of its travel)
 local swingLen = 0
-local swingLine: Part? = nil
+local swingTarget = 0 -- the length the rope reels toward (its low point clear of the street)
 local swingPart: BasePart? = nil -- what the line hangs from (a broken building piece drops the line)
+local swingNormal = Vector3.zero
+local swingEdge = false -- the line hangs from a roof edge or corner
+local releasedAt = -math.huge
+local missedAt = -math.huge
+local zipping = false -- the dash arc now is a zip (it pops at its end)
+local zipDir = Vector3.zero
+local swingDrive: Vector3? = nil -- this frame's body velocity on the rope (the swing's own plus the rope's pull)
 local chargeRun = Vector3.zero -- the flat run speed when a Leaping charge began (carried into the leap)
 local ride: { kind: string, speed: number, untilT: number, dir: Vector3 }? = nil
 local waterParams = RaycastParams.new()
@@ -327,6 +358,7 @@ function MoveController.dash(dir: Vector3, distance: number, time: number)
 		return
 	end
 	local mode = MoveController.mode
+	zipping = false
 	dashReturn = if mode == "fly" then "fly" else "air"
 	if mode == "ground" or mode == "charge" then
 		enterAir(Vector3.zero)
@@ -347,6 +379,7 @@ function MoveController.arcTo(target: Vector3, time: number, height: number)
 		enterAir(Vector3.zero)
 	end
 	dashReturn = "air"
+	zipping = false
 	arc = { from = root.Position, to = target, start = os.clock(), time = time, height = height }
 	dashUntil = os.clock() + time
 	setMode("dash")
@@ -487,18 +520,18 @@ local function airWallGrab(flat: Vector3, now: number): boolean
 end
 
 local function dropLine()
+	local had = swingAnchor ~= nil
 	swingAnchor = nil
 	swingPart = nil
-	if swingLine then
-		swingLine:Destroy()
-		swingLine = nil
+	MoveController.swingPose.anchor = nil
+	if had then
+		Net.send("MoveLine", Vector3.zero) -- other devices stop drawing your line
 	end
 end
 
--- Swing: fire a line at the building the camera looks at (a bit upward), within the line's range
+-- Swing: the line's reach at this level
 local function swingRange(): number
-	local m = M.mobility.swing
-	return if level() >= m.up.rangeLevel then m.up.range else m.range
+	return SwingMath.range(M, level())
 end
 local function aimHit(range: number, lift: number, look: Vector3?): RaycastResult?
 	local cam = Workspace.CurrentCamera.CFrame
@@ -507,64 +540,140 @@ local function aimHit(range: number, lift: number, look: Vector3?): RaycastResul
 	return Workspace:Raycast(from, dir * range, rayParams)
 end
 
--- the first thing the line can hang from: the camera's aim at each of the swing's lifts, then the same along
--- the way the hero travels (nate's playtest 2026-11-19: one fixed aim missed most buildings)
-local function swingAim(): RaycastResult?
-	if not root then
-		return nil
+-- SwingMath's raycast: only fixed, solid things hold a line (buildings, their pieces, the ground's terrain),
+-- never a character, a robot, a vehicle or a ghost sign
+local function worldCast(ox: number, oy: number, oz: number, dx: number, dy: number, dz: number)
+	local hit = Workspace:Raycast(Vector3.new(ox, oy, oz), Vector3.new(dx, dy, dz), rayParams)
+	if not hit then
+		return nil, 0, 0, 0, 0, 0
 	end
-	local m = M.mobility.swing
-	local range = swingRange()
-	local cam = Workspace.CurrentCamera.CFrame
-	local looks = { cam.LookVector }
-	local fv = Vector3.new(vel.X, 0, vel.Z)
-	if fv.Magnitude > 5 then
-		table.insert(looks, fv.Unit)
+	local inst = hit.Instance
+	if inst:IsA("BasePart") and (not inst.Anchored or not inst.CanCollide) then
+		return nil, 0, 0, 0, 0, 0
 	end
-	for _, look in looks do
-		for _, lift in m.lifts do
-			local hit = aimHit(range, lift, look)
-			if hit and hit.Position.Y >= root.Position.Y + m.minAbove then
-				return hit
-			end
-		end
-	end
-	return nil
+	local p, n = hit.Position, hit.Normal
+	return p.X, p.Y, p.Z, n.X, n.Y, n.Z
 end
 
-local function startSwing(): boolean
-	local hit = swingAim()
-	if not hit or not root then
+-- the line: the best real anchor ahead and above along the camera's aim (then the travel), snapped to a roof
+-- edge or corner when one is close (SwingMath.findAnchor; up to 34 rays, only when a line fires)
+-- the hero's velocity now (on the ground the Humanoid moves the body, not `vel`)
+local function travelVel(): Vector3
+	local mode = MoveController.mode
+	if root and (mode == "ground" or mode == "charge") then
+		return root.AssemblyLinearVelocity
+	end
+	return vel
+end
+
+local function swingAim(): (Vector3?, Vector3, boolean)
+	if not root then
+		return nil, Vector3.zero, false
+	end
+	local p = root.Position
+	local look = Workspace.CurrentCamera.CFrame.LookVector
+	local v = travelVel()
+	local a =
+		SwingMath.findAnchor(M, p.X, p.Y, p.Z, look.X, look.Y, look.Z, v.X, v.Z, swingRange(), worldCast)
+	if not a then
+		return nil, Vector3.zero, false
+	end
+	return Vector3.new(a.x, a.y, a.z), Vector3.new(a.nx, a.ny, a.nz), a.edge
+end
+
+-- cue: show the miss (a pressed Fly; a held one retrying while falling stays quiet)
+local function startSwing(cue: boolean): boolean
+	if not root then
 		return false
 	end
-	local m = M.mobility.swing
-	-- the rope keeps the swing's low point off the street under the anchor
-	local below = Workspace:Raycast(
-		hit.Position + hit.Normal * 2,
-		Vector3.new(0, -(hit.Position.Y - root.Position.Y + 200), 0),
-		rayParams
-	)
-	local p, a = root.Position, hit.Position
-	swingAnchor = a
-	swingPart = hit.Instance
-	swingLen = MoveMath.swingRope(M, p.X, p.Y, p.Z, a.X, a.Y, a.Z, if below then below.Position.Y else nil)
+	local anchor, normal, edge = swingAim()
+	local p = root.Position
+	if not anchor then
+		missedAt = os.clock()
+		if cue then
+			MoveController.SwingMissed:Fire(p, Workspace.CurrentCamera.CFrame.LookVector)
+		end
+		return false
+	end
+	-- what it hangs from (a piece that breaks off drops the line), seen straight from the hero
+	local to = anchor - p
+	local seen = Workspace:Raycast(p, to.Unit * (to.Magnitude + 2), rayParams)
+	swingAnchor = anchor
+	swingPart = if seen then seen.Instance else nil
+	swingNormal = normal
+	swingEdge = edge
+	-- the swing runs along the travel (or the camera's look from a standstill), under the anchor's height
+	local tv = travelVel()
+	local fv = Vector3.new(tv.X, 0, tv.Z)
+	local look = Workspace.CurrentCamera.CFrame.LookVector
+	local way = if fv.Magnitude > 10 then fv else Vector3.new(look.X, 0, look.Z)
+	local qx, qy, qz = SwingMath.pivot(M, p.X, p.Z, anchor.X, anchor.Y, anchor.Z, way.X, way.Z)
+	swingPivot = Vector3.new(qx, qy, qz)
+	-- the rope keeps the swing's low point (under the pivot) off the street
+	local below = Workspace:Raycast(swingPivot, Vector3.new(0, -(qy - p.Y + 200), 0), rayParams)
+	swingLen = SwingMath.rope(M, p.X, p.Y, p.Z, qx, qy, qz, nil)
+	swingTarget = SwingMath.rope(M, p.X, p.Y, p.Z, qx, qy, qz, if below then below.Position.Y else nil)
 	if MoveController.mode == "ground" or MoveController.mode == "charge" then
 		local run = root.AssemblyLinearVelocity
-		enterAir(Vector3.new(run.X, m.groundPop, run.Z))
+		enterAir(Vector3.new(run.X, M.mobility.swing.groundPop, run.Z))
 	end
-	local line = Instance.new("Part")
-	line.Name = "SwingLine" -- PLACEHOLDER ART: a plain line until the VFX pass
-	line.Anchored = true
-	line.CanCollide = false
-	line.CanQuery = false
-	line.CanTouch = false
-	line.Material = Enum.Material.Neon
-	line.Color = MoveController.lineColor or Color3.fromRGB(235, 235, 245)
-	line.Size = Vector3.new(0.15, 0.15, 1)
-	line.Parent = Workspace
-	swingLine = line
+	local pose = MoveController.swingPose
+	pose.anchor = anchor
+	pose.shotAt = os.clock()
 	setMode("swing")
+	Net.send("MoveLine", anchor) -- other devices draw your line (MoveGuard checks the reach)
+	MoveController.SwingShot:Fire(anchor, edge)
 	return true
+end
+
+-- Let go of the line: fling on with the swing's speed (SwingMath.release; sweet on the rising half)
+local function releaseSwing(now: number)
+	local a = if swingAnchor then swingPivot else nil
+	local phase = 0
+	if a and root then
+		local p = root.Position
+		phase = SwingMath.phase(p.X, p.Y, p.Z, a.X, a.Y, a.Z, vel.Y)
+	end
+	dropLine()
+	local vx, vy, vz, sweet = SwingMath.release(M, vel.X, vel.Y, vel.Z, phase)
+	vel = Vector3.new(vx, vy, vz)
+	airSince = now
+	releasedAt = now
+	MoveController.swingPose.sweet = sweet
+	setMode("air")
+	MoveController.SwingReleased:Fire(vel, sweet)
+end
+
+-- A zip to a point on an arc never faster than the swing's zip speed; it pops on at the end (the point launch)
+local function zipTo(target: Vector3)
+	if not root then
+		return
+	end
+	local p = root.Position
+	local t, h = SwingMath.zipPlan(M, p.X, p.Y, p.Z, target.X, target.Y, target.Z)
+	MoveController.arcTo(target, t, h)
+	zipping = true
+	zipDir = target - p
+	MoveController.Zipped:Fire(target)
+end
+
+-- Leap while swinging: up the line to its anchor and over the top (a roof edge: onto the roof; a wall: up its
+-- face, the pop sliding along it)
+local function zipLine()
+	local a = swingAnchor
+	if not a or not root then
+		return
+	end
+	local n = Vector3.new(swingNormal.X, 0, swingNormal.Z)
+	n = if n.Magnitude > 1e-3 then n.Unit else Vector3.zero
+	local target = if swingEdge then a + Vector3.new(0, 5, 0) - n * 4 else a + n * 3 + Vector3.new(0, 2, 0)
+	local edge = swingEdge
+	dropLine()
+	zipTo(target)
+	if not edge and n.Magnitude > 0 then
+		local flat = Vector3.new(zipDir.X, 0, zipDir.Z)
+		zipDir = flat - n * flat:Dot(n) -- the pop slides along the wall, never into it
+	end
 end
 
 -- Swing on the ground: zip to the spot aimed at (a ledge or rooftop), inside the server's swing cap
@@ -578,8 +687,25 @@ local function zip(): boolean
 	if d < 12 then
 		return false
 	end
-	MoveController.arcTo(target, d / (M.mobility.swing.zip * 0.9), math.min(12, d * 0.08))
+	zipTo(target)
 	return true
+end
+
+-- the pose state HeroAnimator can read (MoveController.swingPose), in place
+local function swingPoseStep(mode: string, now: number)
+	local pose = MoveController.swingPose
+	local sw = M.mobility.swing
+	pose.speed = math.clamp(vel.Magnitude / sw.maxSpeed, 0, 1.2)
+	if mode == "swing" then
+		pose.state = if now - pose.shotAt < sw.feel.shoot then "shoot" else "swing"
+	elseif mode == "dash" and zipping then
+		pose.state = "zip"
+	elseif mode == "air" and now - releasedAt < 0.35 then
+		pose.state = "release"
+	else
+		pose.state = "none"
+		pose.phase = 0
+	end
 end
 
 -- Travel powers (CombatClient): ride for `duration` at up to `speed` (the server allows it with the ride buff)
@@ -665,6 +791,9 @@ function MoveController.labels(): { leap: string, fly: string?, boost: string?, 
 		end
 	elseif pick == "swing" then
 		out.fly = if mode == "swing" then "LET GO" elseif air then "SWING" else "ZIP"
+		if mode == "swing" then
+			out.leap = "ZIP" -- up the line and over the top
+		end
 	end
 	return out
 end
@@ -863,6 +992,7 @@ local function step(dt: number)
 	local pos = root.Position
 	local onGround, groundY = grounded()
 	local now = os.clock()
+	swingPoseStep(mode, now)
 
 	if mode == "ground" then
 		setBoost(false)
@@ -989,6 +1119,23 @@ local function step(dt: number)
 			local sx, sz = MoveMath.airSteer(vel.X, vel.Z, flat.X, flat.Z, A.accel, A.max, dt)
 			vel = Vector3.new(sx, vel.Y, sz)
 			if InputController.isDown("Leap") and vel.Y <= 0 then
+				setMode("glide")
+			end
+		elseif mobility() == "swing" and not canFly() then
+			-- Swing: steer the fling without losing it, and holding Fly catches the next line once falling
+			local sw = M.mobility.swing
+			local sx, sz = MoveMath.airSteer(vel.X, vel.Z, flat.X, flat.Z, sw.steer, M.caps.glide * 0.5, dt)
+			vel = Vector3.new(sx, vel.Y, sz)
+			if
+				InputController.isDown("Fly")
+				and vel.Y < 0
+				and now - releasedAt >= sw.rearm
+				and now - missedAt >= 0.3
+				and not held()
+				and startSwing(false)
+			then
+				mode = MoveController.mode
+			elseif InputController.isDown("Leap") and vel.Y <= 0 then
 				setMode("glide")
 			end
 		else
@@ -1125,24 +1272,26 @@ local function step(dt: number)
 			return
 		end
 	elseif mode == "swing" then
-		local anchor = swingAnchor
+		local anchor = if swingAnchor then swingPivot else nil
 		local part = swingPart
 		local ahead = Vector3.new(vel.X, 0, vel.Z)
 		local bump = if ahead.Magnitude > 5 then wallAlong(ahead, 3) else nil
 		if bump then
-			-- swung into a wall: let go and push off it, never stuck pressed against the building
+			-- swung into a wall: let go and push off it, never stuck pressed against the building; the speed along
+			-- the wall carries on (so the next line chains)
 			dropLine()
 			local n = Vector3.new(bump.Normal.X, 0, bump.Normal.Z)
 			wallNormal = if n.Magnitude > 1e-3 then n.Unit else -ahead.Unit
+			local along = ahead - wallNormal * ahead:Dot(wallNormal)
 			jumpOff(M.mobility.swing.release.up, 15)
+			vel += along * 0.8
+			releasedAt = now
 		elseif not anchor or (part and not part.Parent) or not InputController.isDown("Fly") or held() then
 			-- let go (or the piece it hung from broke off): fling on with the swing's speed
-			dropLine()
-			vel = Vector3.new(MoveMath.swingRelease(M, vel.X, vel.Y, vel.Z))
-			airSince = now
-			setMode("air")
+			releaseSwing(now)
 		else
-			local nx, ny, nz = MoveMath.swingStep(
+			local sw = M.mobility.swing
+			local nx, ny, nz, vx, vy, vz, len = SwingMath.step(
 				M,
 				pos.X,
 				pos.Y,
@@ -1154,26 +1303,22 @@ local function step(dt: number)
 				anchor.Y,
 				anchor.Z,
 				swingLen,
+				swingTarget,
 				flat.X,
 				flat.Z,
 				dt
 			)
-			local next = Vector3.new(nx, ny, nz)
-			vel = (next - pos) / math.max(dt, 1e-3)
-			if vel.Magnitude > M.mobility.swing.maxSpeed then
-				vel = vel.Unit * M.mobility.swing.maxSpeed
-			end
-			if swingLine then
-				local mid = (pos + anchor) / 2
-				swingLine.Size = Vector3.new(0.15, 0.15, (anchor - pos).Magnitude)
-				swingLine.CFrame = CFrame.lookAt(mid, anchor)
-			end
-			if pos.Y > anchor.Y - 2 then
-				-- swung up past the anchor: let go at the top, flinging on
-				dropLine()
-				vel = Vector3.new(MoveMath.swingRelease(M, vel.X, vel.Y, vel.Z))
-				airSince = now
-				setMode("air")
+			swingLen = len
+			vel = Vector3.new(vx, vy, vz)
+			-- the body goes to the rope's point (the physics step drifts off it); the swing keeps its own velocity
+			local drive = (Vector3.new(nx, ny, nz) - pos) / math.max(dt, 1e-3)
+			swingDrive = if drive.Magnitude > sw.cap then drive.Unit * sw.cap else drive
+			MoveController.swingPose.phase =
+				SwingMath.phase(pos.X, pos.Y, pos.Z, anchor.X, anchor.Y, anchor.Z, vel.Y)
+			if SwingMath.atTop(M, pos.Y, anchor.Y, vel.Y) then
+				-- swung up level with the anchor: let go at the top, flinging on
+				swingDrive = nil
+				releaseSwing(now)
 			end
 		end
 		mode = MoveController.mode
@@ -1227,6 +1372,12 @@ local function step(dt: number)
 		if now >= dashUntil then
 			arc = nil
 			vel *= 0.25
+			if zipping then
+				-- the zip's point launch: on and up off the top (SwingMath.zipPop, inside the swing cap)
+				zipping = false
+				vel = Vector3.new(SwingMath.zipPop(M, zipDir.X, zipDir.Z))
+				airSince = now
+			end
 			setMode(dashReturn)
 			mode = dashReturn
 		end
@@ -1282,7 +1433,8 @@ local function step(dt: number)
 	end
 
 	vel = ramStep(MoveController.mode, vel, pos, now, dt)
-	lv.VectorVelocity = vel
+	lv.VectorVelocity = if swingDrive and MoveController.mode == "swing" then swingDrive else vel
+	swingDrive = nil
 	ao.CFrame = orientation(MoveController.mode, dt)
 	MoveController.velocity = vel
 end
@@ -1319,6 +1471,8 @@ local function onPressed(action: string)
 			chargeRun = runFlat -- Leaping keeps some of the run in the leap
 			hum.WalkSpeed = 6 -- the crouch
 			setMode("charge")
+		elseif mode == "swing" then
+			zipLine() -- up the line and over the top
 		elseif mode == "wall" or mode == "wallrun" then
 			-- kick off the wall (Acrobat gets an air jump back)
 			-- a kick off a wall run keeps the speed along the wall, so the next wall can be grabbed (chains)
@@ -1382,7 +1536,7 @@ local function onPressed(action: string)
 			end
 			-- on the ground a zip to the spot aimed at; in the air (or with nothing to zip to) a swing line
 			if air or not zip() then
-				startSwing()
+				startSwing(true)
 			end
 			return
 		end

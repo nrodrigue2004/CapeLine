@@ -6641,9 +6641,10 @@ test("Mobility: five picks; caps cover every move; sprint, super leap and swing 
 	)
 	-- Swing: the rope keeps its length, the speed caps, and zips are legal
 	local sw = M.mobility.swing
-	local px, py, pz, qx, qy, qz = 0, 0, 30, 0, 0, 0
+	local SwingMath = require("../src/shared/SwingMath")
+	local px, py, pz, qx, qy, qz, ql = 0, 0, 30, 0, 0, 0, 50
 	for _ = 1, 600 do
-		px, py, pz, qx, qy, qz = MoveMath.swingStep(M, px, py, pz, qx, qy, qz, 0, 40, 0, 50, 0, 1, 1 / 60)
+		px, py, pz, qx, qy, qz, ql = SwingMath.step(M, px, py, pz, qx, qy, qz, 0, 40, 0, ql, 50, 0, 1, 1 / 60)
 	end
 	local d = math.sqrt(px * px + (py - 40) ^ 2 + pz * pz)
 	check(d <= 50.01, string.format("the rope holds (%.2f of 50)", d))
@@ -7586,7 +7587,8 @@ test(
 				check(joints[joint] == true, name .. "." .. joint .. " is an R15 joint")
 				check(#keys >= 1 and keys[1][1] == 0, name .. "." .. joint .. " starts at 0")
 				for i, k in keys do
-					check(#k == 5, name .. "." .. joint .. " key has 5 numbers")
+					-- (a 6th of 1 marks a linear key: pt-anims' two-handed copies, sampled every 1/30 s)
+					check(#k == 5 or (#k == 6 and k[6] == 1), name .. "." .. joint .. " key has 5 numbers")
 					check(k[1] <= clip.dur + 1e-6, name .. "." .. joint .. " key inside the clip")
 					if i > 1 then
 						check(k[1] > keys[i - 1][1], name .. "." .. joint .. " keys in order")
@@ -8429,6 +8431,7 @@ end); -- Hero MMO features (H1 to H8) live in their own file so this one merges 
 (require :: any)("./rogues_test")({ test = test, check = check, Config = Config, placePath = process.args[1] });
 (require :: any)("./comic_art_test")({ test = test, check = check, Config = Config });
 (require :: any)("./hairfit_test")({ test = test, check = check, Config = Config }); -- the hair fit pass: explicit catalog picks
+(require :: any)("./fit_test")({ test = test, check = check, Config = Config }); -- pt-fit: pieces and weapons on Roblox's own body
 -- WP10: the group-join piece and creator codes (own file, merges easily)
 (require :: any)("./promo_test")({ test = test, check = check, Config = Config, placePath = process.args[1] }); -- WP11: story acts (Act 1 today, Acts 2 and 3 coming soon), own file
 (require :: any)("./acts_test")({ test = test, check = check, Config = Config, placePath = process.args[1] }); -- WP8: live tuning from Balance_v<N> (own file, merges easily)
@@ -23055,6 +23058,8 @@ end
 -- lock-on, omnidirectional movement, knockback by move, the block key, drops and swinging robots (nate's
 -- playtest 2026-11-19, own file); ONLY="PT combat" runs these
 (require :: any)("./combat_pt_test")({ test = test, check = check, Config = Config });
+-- Spider-Man swinging (nate's playtest 2026-11-19, own file); ONLY="Swing" runs these
+(require :: any)("./swing_test")({ test = test, check = check, Config = Config, world = world });
 -- the comic icon set (gap-icons, 2026-11-19, own file); ONLY="Icons" runs just these
 (require :: any)("./icons_test")({ test = test, check = check, Config = Config });
 -- every ability's own look (nate's playtest 2026-11-19: more unique effects); ONLY="FX unique" runs these
@@ -23063,6 +23068,9 @@ end
 (require :: any)("./anim_pass_test")({ test = test, check = check, Config = Config });
 -- the boss pass (2026-11-19, own file): boss animation, telegraphs, the surge wave and the Blackout; ONLY="Boss anim"
 (require :: any)("./boss_anim_test")({ test = test, check = check, Config = Config });
+-- pt-anims (nate's playtest 2026-11-19, own file): the upper-body layer, two-handed holds, robot and people clips;
+-- ONLY="PT anims" runs just these
+(require :: any)("./anims_pt_test")({ test = test, check = check, Config = Config });
 -- the gap polish (2026-11-19, own file): travel flight, gadgets, crack, ice, crate, loading card; ONLY="Gap polish"
 (require :: any)("./gap_polish_test")({
 	test = test,

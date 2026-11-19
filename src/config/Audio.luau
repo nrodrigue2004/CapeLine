@@ -184,6 +184,11 @@ return {
 		passClaim = s("electronicpingshort.wav", 0.6, 2.1),
 		episodeIntro = s("swoosh.wav", 0.5, 1.4),
 		styleBurst = s("swoosh.wav", 0.5, 1.1, { range = 120, vary = 0.08 }),
+		-- the Swing (2026-11-19, SwingFx): the line's thwip, the release whoosh (louder on a sweet one), the miss.
+		-- PLACEHOLDER SOUND: built-in clips until nate picks Creator Store ids
+		swingShoot = s("swoosh.wav", 0.4, 2.1, { range = 90, vary = 0.1 }),
+		swingRelease = s("swoosh.wav", 0.6, 0.9, { range = 110, vary = 0.06 }),
+		swingMiss = s("clickfast.wav", 0.35, 0.7),
 		boardReward = s("electronicpingshort.wav", 0.8, 1.3), -- WP2: a weekly board title
 		dailyClaim = s("electronicpingshort.wav", 0.8, 1.6),
 		dailyQuest = s("electronicpingshort.wav", 0.7, 1.15),
