@@ -7,8 +7,12 @@
 -- few frames. Citizens are never hurt or shown hurt (spec: Destruction); a hidden citizen (safe in a shelter)
 -- is simply not sent. The device preset (QualityController) sets how many are drawn (the nearest) and how
 -- often far ones pose (phone pass: low draws 30 of the 60, so half the bodies and clothes Textures).
--- PLACEHOLDER ART: plain blocks until the hero meshes are imported (then the hero meshes), and posed in code
--- until real R15 animations.
+-- Motion (2026-11-19, as the robots since 2026-11-18): the nearest citizens play Roblox's own R15 idle, walk and
+-- run (Controllers.NpcLoco, Shared.LocoMath, Config.Destruction.citizens.loco), speed-matched to their drawn
+-- motion, each with its own idle; the flee is the run with the arms thrown up, and the lore step 12 cheers and
+-- flinches are arms written over the clips (NpcRig.over, so the feet keep walking). Only the nearest few per
+-- preset animate (citizenAnimNear, citizenAnimMax; phones 8); farther ones keep the code poses below, stepped
+-- every few frames. Drawn in PreSimulation, after the Animator, so the poses written over the clips show.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -29,12 +33,16 @@ local QualityRules = require(Shared:WaitForChild("QualityRules"))
 local RepTiers = require(Shared:WaitForChild("RepTiers")) -- lore step 12: citizens cheer or flinch
 local Players = game:GetService("Players")
 
+local LocoMath = require(Shared:WaitForChild("LocoMath"))
+
 local QualityController = require(script.Parent.QualityController)
+local NpcLoco = require(script.Parent.NpcLoco)
 
 local CitizenRenderer = {}
 CitizenRenderer.hidden = false -- PrologueFx: true while the hero is in the prologue
 
 local C = Config.Destruction.citizens
+local LOCO = C.loco
 local FLEE, PAUSE = 2, 1
 local SIDES = { { "Left", -1 }, { "Right", 1 } }
 -- one rig layout per body (C.bodies: gender and build), each in its body set's shape
@@ -93,6 +101,10 @@ type Body = {
 	phase: number,
 	speed: number,
 	state: number,
+	-- Roblox's own idle, walk and run on this body (NpcLoco), loaded the first time it is near enough
+	loco: NpcLoco.Loco?,
+	locoTried: boolean,
+	animated: boolean, -- the clips play on it this frame
 }
 
 local snapshots: { { t: number, rows: { [number]: CitizenBuffer.Row } } } = {}
@@ -149,6 +161,9 @@ local function newBody(color: number, bodyIndex: number, group: number): Body
 		speed = 0,
 		state = 0,
 		shown = 2,
+		loco = nil,
+		locoTried = false,
+		animated = false,
 	}
 end
 
@@ -162,7 +177,20 @@ local function acquire(color: number, bodyIndex: number, group: number): Body
 	return newBody(color, bodyIndex, group)
 end
 
+-- Back to the code poses: the clips stop and every joint is written again
+local function unanimate(body: Body)
+	if body.loco then
+		NpcLoco.stop(body.loco)
+	end
+	if body.animated then
+		body.animated = false
+		NpcRig.overDone(body.rig)
+		NpcRig.rest(body.rig)
+	end
+end
+
 local function release(body: Body)
+	unanimate(body)
 	body.model.Parent = nil
 	pool[body.key] = pool[body.key] or {}
 	table.insert(pool[body.key], body)
@@ -240,14 +268,49 @@ local function reactionAt(pos: Vector3, fleeing: boolean): string?
 	return best and RepTiers.reaction(Config, best.side, best.tier, bestD, fleeing)
 end
 
+-- Over Roblox's clips (an animated citizen): only what differs from a plain idle, walk or run, written every
+-- frame after the Animator: the flee's arms thrown up, or a cheer's or flinch's arms (the legs keep the clip)
+local function overClips(body: Body, react: string?)
+	local rig = body.rig
+	if body.state == FLEE then
+		local flail = math.sin(os.clock() * 16 + body.phase) * 0.25
+		for _, side in SIDES do
+			local name, sign = side[1], side[2]
+			NpcRig.over(rig, name .. "Shoulder", CFrame.Angles(LOCO.fleeArms + flail * sign, 0, sign * 0.2))
+			NpcRig.over(rig, name .. "Elbow", CFrame.Angles(math.rad(20), 0, 0))
+		end
+	elseif react == "cheer" then
+		local wave = math.sin(os.clock() * 9) * 0.35
+		for _, side in SIDES do
+			local name, sign = side[1], side[2]
+			NpcRig.over(rig, name .. "Shoulder", CFrame.Angles(math.rad(-160) + wave * sign, 0, sign * 0.25))
+			NpcRig.over(rig, name .. "Elbow", CFrame.Angles(math.rad(15), 0, 0))
+		end
+	elseif react == "flinch" then
+		NpcRig.over(rig, "Waist", NpcRig.animBase(rig, "Waist") * CFrame.Angles(math.rad(14), 0, 0))
+		for _, side in SIDES do
+			local name, sign = side[1], side[2]
+			NpcRig.over(rig, name .. "Shoulder", CFrame.Angles(math.rad(-85), 0, -sign * 0.35))
+			NpcRig.over(rig, name .. "Elbow", CFrame.Angles(math.rad(95), 0, 0))
+		end
+	end
+end
+
 -- Pose one citizen (pos is the feet): the root goes on the BulkMoveTo lists, the R15 joints turn when
--- `joints` is true
-local function pose(body: Body, dt: number, roots: { BasePart }, cframes: { CFrame }, joints: boolean)
+-- `joints` is true. `animated`: Roblox's clips play on it (NpcLoco), so only the root and overClips.
+local function pose(
+	body: Body,
+	dt: number,
+	roots: { BasePart },
+	cframes: { CFrame },
+	joints: boolean,
+	animated: boolean
+)
 	local moving = body.speed > 0.8
 	local fleeing = body.state == FLEE
-	local react = if joints then reactionAt(body.pos, fleeing) else nil
+	local react = if joints or animated then reactionAt(body.pos, fleeing) else nil
 	body.phase += dt * (if fleeing then 14 else 8) * (if moving then 1 else 0)
-	local bob = if moving then math.abs(math.sin(body.phase)) * 0.15 else 0
+	local bob = if moving and not animated then math.abs(math.sin(body.phase)) * 0.15 else 0
 	if react == "cheer" then
 		bob += math.abs(math.sin(os.clock() * 7)) * 0.35 -- little hops
 	end
@@ -256,6 +319,10 @@ local function pose(body: Body, dt: number, roots: { BasePart }, cframes: { CFra
 		cframes,
 		CFrame.new(body.pos + Vector3.new(0, body.rig.layout.ground + bob, 0)) * CFrame.Angles(0, body.yaw, 0)
 	)
+	if animated then
+		overClips(body, react)
+		return
+	end
 	if not joints then
 		return
 	end
@@ -323,6 +390,20 @@ local function render()
 	end
 	local roots, cframes = {}, {}
 	frame += 1
+	-- the nearest few play Roblox's own clips (LocoMath.pickAnimated: a phone 8 within 50 studs)
+	local animNear = if LOCO.on then Q.citizenAnimNear or LOCO.near else 0
+	local rows = {}
+	for id, rb in drawn do
+		local dx, dz = rb.x - cam.X, rb.z - cam.Z
+		table.insert(rows, { id = id, dist = math.sqrt(dx * dx + dz * dz) })
+	end
+	local current = {}
+	for id, body in live do
+		if body.animated then
+			current[id] = true
+		end
+	end
+	local anim = LocoMath.pickAnimated(rows, current, animNear, Q.citizenAnimMax or LOCO.max, LOCO.keep)
 	for id, rb in drawn do
 		local ra = a.rows[id] or b.rows[id] or rb
 		local rbb = b.rows[id] or rb
@@ -351,8 +432,33 @@ local function render()
 				NpcRig.showClothes(body.rig, body.clothes, level)
 			end
 		end
+		local animated = false
+		if anim[id] then
+			if not body.loco and not body.locoTried then
+				body.locoTried = true
+				local pick, rate, offset = LocoMath.idlePick(Rng.hash(id, 3301), LOCO.idles, LOCO.idleRate)
+				local L = body.rig.layout
+				body.loco = NpcLoco.new(body.model, L.ground, L.hip, LOCO, LOCO.idles[pick][1], rate, offset)
+			end
+			local loco = body.loco
+			if loco and (loco.on or NpcLoco.ready(loco)) then
+				NpcLoco.drive(loco, body.speed, false, LOCO)
+				animated = true
+			end
+		end
+		if not animated and body.animated then
+			unanimate(body)
+		end
+		body.animated = animated
 		local near = dist < (Q.citizenPoseNear or C.poseNear)
-		pose(body, dt, roots, cframes, near or (frame + id) % (Q.citizenPoseEvery or C.poseEvery) == 0)
+		pose(
+			body,
+			dt,
+			roots,
+			cframes,
+			near or (frame + id) % (Q.citizenPoseEvery or C.poseEvery) == 0,
+			animated
+		)
 	end
 	if #roots > 0 then
 		Workspace:BulkMoveTo(roots, cframes, Enum.BulkMoveMode.FireCFrameChanged)
@@ -389,7 +495,13 @@ function CitizenRenderer.init()
 			table.remove(snapshots, 1)
 		end
 	end)
-	RunService.RenderStepped:Connect(FrameProf.wrap("CitizenRenderer", render))
+	if LOCO.on then
+		for _, e in LOCO.idles do
+			NpcLoco.preload({ idle = e[1], walk = LOCO.walk, run = LOCO.run })
+		end
+	end
+	-- PreSimulation, after the Animator, so the arms written over Roblox's clips show (NpcLoco, like the robots)
+	RunService.PreSimulation:Connect(FrameProf.wrap("CitizenRenderer", render))
 end
 
 return CitizenRenderer

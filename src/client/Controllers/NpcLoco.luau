@@ -21,6 +21,8 @@ export type Loco = {
 	on: boolean,
 	scale: number, -- the rig's heightScale (LocoMath)
 	w: { number }, -- the weights and speeds last set (idle, walk, run, walk speed, run speed)
+	idleRate: number, -- how fast the idle plays (1; a citizen's own pace, LocoMath.idlePick)
+	offset: number?, -- where in their loops the clips start (0..1) the first time they play (a crowd out of step)
 }
 
 local SMALL = 0.0001 -- a clip kept playing at no weight (Animate's smallButNotZero), so it never restarts
@@ -54,8 +56,17 @@ function NpcLoco.ready(l: Loco): boolean
 end
 
 -- The rig's tracks, loaded once (the rig must be in the Workspace). Nil when it has no AnimationController or
--- a clip will not load (the caller keeps its own code-posed walk then).
-function NpcLoco.new(model: Model, ground: number, hip: number, cfg: any): Loco?
+-- a clip will not load (the caller keeps its own code-posed walk then). `idle` replaces cfg.idle (a citizen's
+-- own idle clip, LocoMath.idlePick); `idleRate` and `offset` as in Loco.
+function NpcLoco.new(
+	model: Model,
+	ground: number,
+	hip: number,
+	cfg: any,
+	idle: string?,
+	idleRate: number?,
+	offset: number?
+): Loco?
 	if not model:IsDescendantOf(Workspace) then
 		return nil
 	end
@@ -72,7 +83,7 @@ function NpcLoco.new(model: Model, ground: number, hip: number, cfg: any): Loco?
 	local ok, tracks = pcall(function()
 		local a = animator :: Animator
 		return {
-			a:LoadAnimation(animation(cfg.idle)),
+			a:LoadAnimation(animation(idle or cfg.idle)),
 			a:LoadAnimation(animation(cfg.walk)),
 			a:LoadAnimation(animation(cfg.run)),
 		}
@@ -91,6 +102,8 @@ function NpcLoco.new(model: Model, ground: number, hip: number, cfg: any): Loco?
 		on = false,
 		scale = LocoMath.heightScale(ground, hip, cfg),
 		w = { -1, -1, -1, -1, -1 },
+		idleRate = idleRate or 1,
+		offset = offset,
 	}
 end
 
@@ -116,9 +129,18 @@ function NpcLoco.drive(l: Loco, studs: number, frozen: boolean, cfg: any)
 	local w = l.w
 	if not l.on then
 		l.on = true
-		l.idle:Play(cfg.fade, math.max(b.idle, SMALL), 1)
+		l.idle:Play(cfg.fade, math.max(b.idle, SMALL), l.idleRate)
 		l.walk:Play(cfg.fade, math.max(b.walk, SMALL), b.walkSpeed)
 		l.run:Play(cfg.fade, math.max(b.run, SMALL), b.runSpeed)
+		local o = l.offset
+		if o then
+			l.offset = nil -- only the first time: a pooled body picks up where it left off
+			for _, t in { l.idle, l.walk, l.run } do
+				if t.Length > 0 then
+					t.TimePosition = o * t.Length
+				end
+			end
+		end
 		w[1], w[2], w[3], w[4], w[5] = b.idle, b.walk, b.run, b.walkSpeed, b.runSpeed
 		return
 	end
@@ -127,7 +149,7 @@ function NpcLoco.drive(l: Loco, studs: number, frozen: boolean, cfg: any)
 	w[3] = weight(l.run, b.run, w[3], cfg.fade)
 	w[4] = speed(l.walk, if frozen then 0 else b.walkSpeed, w[4])
 	w[5] = speed(l.run, if frozen then 0 else b.runSpeed, w[5])
-	local idleSpeed = if frozen then 0 else 1
+	local idleSpeed = if frozen then 0 else l.idleRate
 	if l.idle.Speed ~= idleSpeed then
 		l.idle:AdjustSpeed(idleSpeed)
 	end

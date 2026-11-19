@@ -69,4 +69,58 @@ function LocoMath.phaseRate(speed: number, leg: number, swing: number): number
 	return math.min(2 * math.pi * math.max(0, speed) / (2 * step), 26)
 end
 
+-- Which drawn people play Roblox's own clips this frame (citizens, 2026-11-19): those within `near` studs of the
+-- camera, nearest first, at most `max` (a phone animates only the few closest; the rest keep the cheap code
+-- poses). One already animated counts as `keep` times nearer (and may stay out to near * keep), so a person at
+-- the edge does not start and stop its clips every frame. rows: { id, dist }. Returns the chosen ids.
+function LocoMath.pickAnimated(
+	rows: { { id: number, dist: number } },
+	current: { [number]: any },
+	near: number,
+	max: number,
+	keep: number?
+): { [number]: boolean }
+	local k = keep or 1.15
+	local cand: { { id: number, d: number } } = {}
+	for _, r in rows do
+		local d = if current[r.id] then r.dist / k else r.dist
+		if d < near then
+			table.insert(cand, { id = r.id, d = d })
+		end
+	end
+	table.sort(cand, function(a, b)
+		if a.d ~= b.d then
+			return a.d < b.d
+		end
+		return a.id < b.id
+	end)
+	local out: { [number]: boolean } = {}
+	for i = 1, math.min(max, #cand) do
+		out[cand[i].id] = true
+	end
+	return out
+end
+
+-- A person's own idle (citizens): which of the idle clips (weighted, like Animate's idle list), how fast it
+-- plays and where in the loop it starts (0..1), all from its id's hash, so a crowd does not breathe in step
+-- and everyone sees the same idle on a citizen. idles: { { id, weight } }; rate: { slowest, fastest }.
+function LocoMath.idlePick(h: number, idles: { { any } }, rate: { number }): (number, number, number)
+	local total = 0
+	for _, e in idles do
+		total += e[2]
+	end
+	local roll = h % math.max(1, total)
+	local pick = 1
+	for i, e in idles do
+		if roll < e[2] then
+			pick = i
+			break
+		end
+		roll -= e[2]
+	end
+	local speed = rate[1] + (rate[2] - rate[1]) * ((h // 97) % 1000) / 999
+	local offset = ((h // 7919) % 1000) / 1000
+	return pick, speed, offset
+end
+
 return LocoMath

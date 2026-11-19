@@ -31,6 +31,19 @@ FONT_DIR = arg("--fonts", "")
 PREFIX = arg("--prefix", "")
 FALLBACK = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 _fonts = {}
+# a shot's pictures by content id -> a local file (the map's city pictures and patterns, 2026-11-19); others
+# are drawn as an empty frame
+IMAGES = {}
+_loaded = {}
+
+
+def picture(url):
+    path = IMAGES.get(url)
+    if not path or not os.path.exists(path):
+        return None
+    if path not in _loaded:
+        _loaded[path] = Image.open(path).convert("RGBA")
+    return _loaded[path]
 
 
 def font(name, px):
@@ -240,6 +253,22 @@ def paint(canvas, n, kids):
             canvas.paste(Image.alpha_composite(canvas.crop((int(x0), int(y0), int(x0) + tile.size[0], int(y0) + tile.size[1])), tile), (int(x0), int(y0)), m)
         elif n.get("rect") and sheet_for(n["image"]) is not None:
             paint_cell(canvas, n, sheet_for(n["image"]), x0, y0, x1, y1)
+        elif picture(n["image"]) is not None:
+            src = picture(n["image"])
+            bw, bh = int(round(x1 - x0)), int(round(y1 - y0))
+            ts = n.get("tileScale")
+            if n.get("tile") and ts and ts[0] > 0 and ts[1] > 0:
+                tw, th = max(1, int(round(bw * ts[0]))), max(1, int(round(bh * ts[1])))
+                one = src.resize((tw, th), Image.LANCZOS)
+                img = Image.new("RGBA", (bw, bh))
+                for ty in range(0, bh, th):
+                    for tx in range(0, bw, tw):
+                        img.paste(one, (tx, ty))
+            else:
+                img = src.resize((bw, bh), Image.LANCZOS)
+            layer = Image.new("RGBA", canvas.size)
+            layer.paste(img, (int(round(x0)), int(round(y0))))
+            canvas.alpha_composite(layer)
         else:
             d.rounded_rectangle([x0, y0, x1, y1], radius=r, outline=(255, 255, 255, 90), width=SS)
             d.line([x0, y0, x1, y1], fill=(255, 255, 255, 60), width=SS)
@@ -264,6 +293,8 @@ def main():
     out_dir = sys.argv[2]
     os.makedirs(out_dir, exist_ok=True)
     for shot in data:
+        IMAGES.clear()
+        IMAGES.update(shot.get("images") or {})
         w, h = shot["w"], shot["h"]
         canvas = backdrop(w, h)
         for root in shot["roots"]:

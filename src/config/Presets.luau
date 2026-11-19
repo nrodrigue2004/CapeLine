@@ -25,6 +25,8 @@ return {
 		citizensDrawn = 30, -- the nearest citizens drawn (the sim sends up to 60)
 		citizenPoseNear = 60, -- citizens this close to the camera pose every frame
 		citizenPoseEvery = 4, -- farther ones every this many frames
+		citizenAnimNear = 50, -- citizens this close play Roblox's own idle, walk and run (Config.Destruction.citizens.loco)
+		citizenAnimMax = 8, -- at most this many of them, nearest first
 		bloom = false,
 		sunRays = false,
 		enemyPoseNear = 60, -- robots this close pose every frame (Config.Enemies.look.poseNear before)
@@ -50,6 +52,8 @@ return {
 		citizensDrawn = 60,
 		citizenPoseNear = 100,
 		citizenPoseEvery = 3,
+		citizenAnimNear = 90, -- citizens this close play Roblox's own idle, walk and run
+		citizenAnimMax = 16, -- at most this many of them, nearest first
 		bloom = true,
 		sunRays = true,
 		enemyPoseNear = 120, -- robots this close pose every frame (Config.Enemies.look.poseNear before)
@@ -75,6 +79,8 @@ return {
 		citizensDrawn = 60,
 		citizenPoseNear = 100,
 		citizenPoseEvery = 3,
+		citizenAnimNear = 120, -- citizens this close play Roblox's own idle, walk and run
+		citizenAnimMax = 24, -- at most this many of them, nearest first
 		bloom = true,
 		sunRays = true,
 		enemyPoseNear = 120, -- robots this close pose every frame (Config.Enemies.look.poseNear before)
