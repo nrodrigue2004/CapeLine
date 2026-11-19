@@ -1590,3 +1590,14 @@ Play a new hero's prologue on a server with a second player (Studio Test > 2 pla
 3. Hero creator: click NEXT through every step and DONE, quickly and slowly, moving the mouse over the tiles first: every click moves one step, never two.
 4. PC with mouse: no LEAP, FLY, BOOST or DOWN buttons, a key line "SPACE LEAP  F FLY ..." under the skills, BLOCK beside them; a controller or phone brings the round buttons back; the opening still pulses LEAP.
 5. Phone (Device Emulator, iPhone SE): MENU's grid sits over the action buttons and every cell takes a tap; flag PVP on: PVP joins the top row; with a daily reward owed MENU reads "MENU !" in gold.
+
+## Studio list: nate's 2026-11-19 combat list (movement, destruction, effects, animation)
+- [ ] Subway: Leap rises to the ceiling and lands; reset mid-tunnel and walk forward through rubble. Missions: Leap and fly normally.
+- [ ] Super-speed: no slide or SLIDE button; hop at a wall head-on runs up it, glancing runs along it (hold Leap or Boost); Leap kicks off.
+- [ ] Acrobat: jump at a building at an angle and hold the stick: up to 4 s of wall run; kick between alley walls chains.
+- [ ] Swing: lines attach at many camera angles; no scraping stop over streets; release flings forward; walls push you off; ground start lifts off.
+- [ ] Leaping: quick crouch with growing rings; running leap keeps speed; firm air steer; bounces carry on; pound from low roofs.
+- [ ] Old Town and the outskirts break and collapse, drones repair; street props knock loose and return in ~45 s (phone too).
+- [ ] Boost flight or a speed hop into a wall smashes through (hit-stop, shake); cruising only bumps. Brute or boss hits throw you through walls; light hits do not. Robots knocked into walls break them. Pins, the prologue row, safehouses, HQs and pockets never break. Watch "impactBreaks" with 30 bots.
+- [ ] Each path: every move shows its own flourish, hit and trail; supers their screen moment (Reduce flashing hides flashes); phone frame rate holds in a 6-robot fight.
+- [ ] Every skill and super, each weapon's combo and Z/X/C/V, gadgets, guard/parry, carry, revive, Give Up, Awakening, landings and take-offs animate on you and on a second client; whip/yo-yo/rope dart/nunchucks ropes lag, lash and reel in, nothing left behind on swap; FrameProf HeroAnimator and TetherFx stay low.
