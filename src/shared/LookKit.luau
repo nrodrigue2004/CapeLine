@@ -849,6 +849,7 @@ local function make(
 	weld.Parent = p
 	p.Parent = folder
 end
+LookKit.make = make -- (tests/weaponsim.luau builds the weapons' part fallback with it)
 
 -- A slot's own colours (main, trim, glow over p, s, a) and material, from the look's per-slot picks
 local function slotColors(base: Colors, look: any, slot: string): (Colors, Enum.Material?)

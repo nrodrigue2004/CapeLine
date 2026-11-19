@@ -19,6 +19,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local WeaponMesh = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("WeaponMesh"))
 local BodyFit = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("BodyFit"))
+local MeshFix = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("MeshFix"))
 
 local WeaponKit = {}
 
@@ -383,6 +384,7 @@ local function buildMeshes(
 	local glow = math.clamp(look.glowLevel or 0, 0, W.glowLevels)
 	local mastered = look.mastered == true
 	local list = WeaponMesh.pieces(Config, look.id, look.style or 1)
+	local turn = MeshFix.turn("Weapons")
 	local parts = {}
 	for i, p in list do
 		local part, offset = bodyPart(char, p.at)
@@ -430,7 +432,9 @@ local function buildMeshes(
 		m.CanTouch = false
 		m.CanQuery = false
 		m.CastShadow = false
-		m.CFrame = part.CFrame * offset * CF(shift + V(p.offset[1], p.offset[2], p.offset[3]) * f)
+		-- the box's centre on the body part, then the import's own turn (Shared.MeshFix: Open Cloud turned every weapon
+		-- mesh 180 degrees about y inside its box; unturned, diagonal blades and hafts cross and float off the grip)
+		m.CFrame = part.CFrame * offset * CF(shift + V(p.offset[1], p.offset[2], p.offset[3]) * f) * turn
 		local weld = Instance.new("WeldConstraint")
 		weld.Part0 = part
 		weld.Part1 = m

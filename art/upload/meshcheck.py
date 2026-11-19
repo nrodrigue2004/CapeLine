@@ -9,7 +9,7 @@ it into Roblox's frame (x, up, back: Blender (x, z, -y), as kit.export writes it
 FBX geometry about its box centre matches Roblox's: identity, or a 180 degree turn about x, y or z, or a
 mirror. Prints a tally and every mesh that does not match as drawn. Cache: build/meshcheck/<SET>/.
 Found 2026-11-19: Open Cloud's FBX import turns every mesh 180 degrees about y (x and z flipped) inside its
-MeshPart; the box size is the same, so only the geometry inside it is turned (Shared.WeaponMesh.IMPORT_TURN).
+MeshPart; the box size is the same, so only the geometry inside it is turned (Shared.MeshFix turns it back).
 """
 
 import collections
@@ -111,4 +111,5 @@ def main():
         print(f"   {n}: {e:.3f} studs off as drawn, matches {best}")
 
 
-main()
+if __name__ == "__main__":
+    main()
