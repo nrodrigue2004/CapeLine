@@ -4,6 +4,10 @@
 -- Called from tests/run.luau:
 --   require("./pocket_props_test")({ test = test, check = check, Config = Config, placePath = placePath })
 -- ONLY="Pocket props" or ONLY="Board art" runs just these.
+-- gap-props3 (2026-11-19): the second set (Config.PocketPropArt2, Art.PocketProps2: blackboards, hoops, Halo's
+-- statue, the bookcase, the conveyor and half-built robots, trophy shelves, the bench, wooden dummies, the sealed and
+-- iron doors, Hoshi's cage and chains, the roll door, scanner arch, dock crates, the stations, the tower mast and
+-- Live's stage) checked the same way, with its "keep" boxes and box-turned chains.
 
 return function(T: any)
 	local test, check, Config = T.test, T.check, T.Config
@@ -53,23 +57,88 @@ return function(T: any)
 				end
 			end
 		end
-		check(total >= 150, "the props drawn as meshes: " .. total)
+		check(total >= 215, "the props drawn as meshes: " .. total)
 		local used = {}
 		for _, r in Config.PocketProps.rules do
 			used[r.look] = true
 			check(
-				Config.PocketPropArt[r.look] ~= nil,
+				PocketPropKit.all(Config)[r.look] ~= nil,
 				r.look .. " has its meshes (art/blender/pocketprops.py)"
 			)
 		end
-		for look in Config.PocketPropArt do
+		for look in PocketPropKit.all(Config) do
 			check(used[look] == true, look .. " is placed by a rule")
 		end
 		-- the pockets the task named all get props; the subway (the prologue's) is never touched
-		for _, layout in { "academy", "pound", "ashlab", "ironhall", "arena", "rooftops" } do
+		for _, layout in { "academy", "pound", "ashlab", "ironhall", "arena", "rooftops", "station", "tower" } do
 			check(table.find(layouts(), layout) ~= nil, layout .. " has props")
 		end
 		check(table.find(layouts(), "subway") == nil, "the prologue's subway is left as it is")
+		-- the second set: its own fit table, none of its looks in the first (the first upload is unchanged)
+		local second = {
+			PkStatue = 1,
+			PkBlackboard = 2,
+			PkHoop = 2,
+			PkBookcase = 1,
+			PkConveyor = 1,
+			PkHalfBot = 7,
+			PkTrophyShelf = 1,
+			PkBench = 1,
+			PkWoodDummy = 2,
+			PkIronDoor = 1,
+			PkSealDoor = 1,
+			PkHoshiCage = 1,
+			PkChain = 4,
+			PkRollDoor = 1,
+			PkScanArch = 1,
+			PkDockCrate = 2,
+			PkStation = 3,
+			PkMast = 1,
+			PkStage = 1,
+		}
+		for look, n in second do
+			check(Config.PocketPropArt2[look] ~= nil, look .. " is in the second set")
+			check(Config.PocketPropArt[look] == nil, look .. " is not in the first set")
+			local found = 0
+			for _, r in Config.PocketProps.rules do
+				if r.look == look then
+					found += r.count
+				end
+			end
+			check(found == n, string.format("%s: %d placements, wants %d", look, found, n))
+		end
+		for look in Config.PocketPropArt2 do
+			check(second[look] ~= nil, look .. " is one of the second set's looks")
+		end
+	end)
+
+	test("Pocket props: keep boxes stay drawn, chains turn with their boxes", function()
+		local l, dress = built(1, "arena")
+		local stage
+		for _, p in PocketPropKit.places(Config, l, dress, "arena") do
+			if p.look == "PkStage" then
+				stage = p
+			end
+		end
+		check(stage ~= nil and stage.keep ~= nil and #stage.keep == 1, "the stage frames the giant screen")
+		if stage and stage.keep then
+			local scr = l.boxes[stage.keep[1]]
+			check(scr.kind == "glow" and scr.sx == 140, "the kept box is the giant screen")
+			check(table.find(stage.boxes, stage.keep[1]) == nil, "the screen is never hidden")
+			check(#stage.boxes == 1 and l.boxes[stage.boxes[1]].sx == 120, "only the deck is hidden")
+		end
+		local src = fs.readFile("src/client/Controllers/PocketDecor.luau")
+		check(not has(src, "p.keep"), "PocketDecor hides only a place's boxes")
+		local li, di = built(1, "ironhall")
+		local turns = {}
+		for _, p in PocketPropKit.places(Config, li, di, "ironhall") do
+			if p.look == "PkChain" then
+				local b = li.boxes[p.boxes[1]]
+				check(p.ry == b.ry, "a chain turns with its box")
+				turns[p.ry] = true
+			end
+		end
+		check(turns[45] and turns[-45], "both diagonals")
 	end)
 
 	test(
@@ -142,7 +211,7 @@ return function(T: any)
 		local places = PocketPropKit.places(Config, l, dress, "academy")
 		check(#PocketPropKit.pick(Config, places, "high", {}) == 0, "nothing imported: nothing drawn")
 		local half = {}
-		for look in Config.PocketPropArt do
+		for look in PocketPropKit.all(Config) do
 			half[look] = look ~= "PkDesk"
 		end
 		for _, p in PocketPropKit.pick(Config, places, "high", half) do
@@ -188,12 +257,24 @@ return function(T: any)
 		end
 		check(desks > 0, "phones still get the classroom desks")
 		check(#PocketPropKit.pick(Config, places, "high", allReady()) == #places, "high draws them all")
+		-- gap-props3: phones (low, 64 meshes) draw every layout prop of every pocket, the second set's too
+		for _, layout in layouts() do
+			local ll, dd = built(1, layout)
+			local pl = PocketPropKit.places(Config, ll, dd, layout)
+			local want = 0
+			for _, p in pl do
+				want += if p.dress then 0 else 1
+			end
+			local got = PocketPropKit.pick(Config, pl, "low", allReady())
+			check(#got == want, string.format("low %s: %d of %d layout props", layout, #got, want))
+		end
 	end)
 
 	test("Pocket props: the fit data (meshes, tints, triangles, no faces)", function()
 		local names = {}
 		local tris = 0
-		for look, fit in Config.PocketPropArt do
+		local setTris = { 0, 0 }
+		for look, fit in PocketPropKit.all(Config) do
 			check(#fit.frame == 3, look .. " has a frame")
 			local lt = 0
 			local tinted = false
@@ -214,6 +295,8 @@ return function(T: any)
 			end
 			check(lt > 0 and lt <= 4000, look .. " is light enough for phones: " .. lt)
 			tris += lt
+			local k = if Config.PocketPropArt2[look] then 2 else 1
+			setTris[k] += lt
 			local rule
 			for _, r in Config.PocketProps.rules do
 				if r.look == look then
@@ -222,7 +305,16 @@ return function(T: any)
 			end
 			check(not tinted or (rule and rule.tint ~= nil), look .. ": a tinted mesh has a tint rule")
 		end
-		check(tris < 60000, "the whole set's triangles: " .. tris)
+		check(
+			setTris[1] < 60000 and setTris[2] < 60000,
+			"each set's triangles: " .. setTris[1] .. ", " .. setTris[2]
+		)
+		-- Halo's statue: a plain sculpted head (no face or hair meshes), its halo a glow
+		local st = Config.PocketPropArt2.PkStatue
+		check(
+			st and st.meshes.PkStatueHalo and st.meshes.PkStatueHalo.mat == "Neon",
+			"the statue's halo glows"
+		)
 	end)
 
 	test("Board art: built for today's screen, the rows never covered, the parts kept", function()
@@ -257,33 +349,45 @@ return function(T: any)
 	end)
 
 	if T.placePath then
-		test("Pocket props: Art.PocketProps and Art.Board are in the place, every mesh uploaded", function()
-			local roblox = require("@lune/roblox")
-			local game = roblox.deserializePlace(fs.readFile(T.placePath))
-			local art = game:GetService("ReplicatedStorage"):FindFirstChild("Art")
-			for _, pair in { { "PocketProps", Config.PocketPropArt }, { "Board", Config.BoardArt } } do
-				local set = art and art:FindFirstChild(pair[1])
-				check(set ~= nil, "ReplicatedStorage.Art." .. pair[1])
-				if not set then
-					continue
-				end
-				for look, fit in pair[2] do
-					for name, row in fit.meshes do
-						local m = set:FindFirstChild(name, true)
-						check(m ~= nil and m:IsA("MeshPart"), "Art." .. pair[1] .. " has " .. name)
-						if m and m:IsA("MeshPart") then
-							check(string.match(m.MeshId, "^rbxassetid://%d+$") ~= nil, name .. " is uploaded")
-							if row.maps then
-								local sa = m:FindFirstChildOfClass("SurfaceAppearance")
+		test(
+			"Pocket props: Art.PocketProps, PocketProps2 and Board are in the place, every mesh uploaded",
+			function()
+				local roblox = require("@lune/roblox")
+				local game = roblox.deserializePlace(fs.readFile(T.placePath))
+				local art = game:GetService("ReplicatedStorage"):FindFirstChild("Art")
+				for _, pair in
+					{
+						{ "PocketProps", Config.PocketPropArt },
+						{ "PocketProps2", Config.PocketPropArt2 },
+						{ "Board", Config.BoardArt },
+					}
+				do
+					local set = art and art:FindFirstChild(pair[1])
+					check(set ~= nil, "ReplicatedStorage.Art." .. pair[1])
+					if not set then
+						continue
+					end
+					for look, fit in pair[2] do
+						for name, row in fit.meshes do
+							local m = set:FindFirstChild(name, true)
+							check(m ~= nil and m:IsA("MeshPart"), "Art." .. pair[1] .. " has " .. name)
+							if m and m:IsA("MeshPart") then
 								check(
-									sa ~= nil and string.match(sa.ColorMap, "%d+") ~= nil,
-									look .. " " .. name .. " keeps its baked texture set"
+									string.match(m.MeshId, "^rbxassetid://%d+$") ~= nil,
+									name .. " is uploaded"
 								)
+								if row.maps then
+									local sa = m:FindFirstChildOfClass("SurfaceAppearance")
+									check(
+										sa ~= nil and string.match(sa.ColorMap, "%d+") ~= nil,
+										look .. " " .. name .. " keeps its baked texture set"
+									)
+								end
 							end
 						end
 					end
 				end
 			end
-		end)
+		)
 	end
 end

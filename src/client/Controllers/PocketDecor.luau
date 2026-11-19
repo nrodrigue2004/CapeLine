@@ -12,6 +12,10 @@
 -- within the preset's mesh budget (Config.Presets <preset>.pockets.props): the server's boxes they stand in for are
 -- hidden on this device only (LocalTransparencyModifier: kept, still colliding, queried and standing as before) and
 -- shown again when the pocket is dropped; dressing boxes a look stands in for are simply not built. Ghost meshes.
+-- gap-props3 (2026-11-19): the second set (Art.PocketProps2: blackboards, hoops, Halo's statue, the bookcase, the
+-- conveyor and half-built robots, trophy shelves, the bench, wooden dummies, sealed doors, Hoshi's cage and chains,
+-- the roll door, scanner arch, dock crates, the stations, the tower mast and Live's stage) draws the same way; a
+-- look's "keep" boxes (Live's giant screen) are never hidden.
 
 local MaterialService = game:GetService("MaterialService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -116,12 +120,18 @@ local function makePart(b: any): BasePart
 	return p
 end
 
--- The prop meshes' sources (Art.PocketProps), looked up until there so a later import counts
+-- The prop meshes' sources (Art.PocketProps, and Art.PocketProps2 since gap-props3), looked up until there so a
+-- later import counts
 local function propSource(name: string): MeshPart?
 	local art = ReplicatedStorage:FindFirstChild("Art")
-	local set = art and art:FindFirstChild("PocketProps")
-	local src = set and set:FindFirstChild(name, true)
-	return if src and src:IsA("MeshPart") then src else nil
+	for _, s in PocketPropKit.SETS do
+		local set = art and art:FindFirstChild(s.set)
+		local src = set and set:FindFirstChild(name, true)
+		if src and src:IsA("MeshPart") then
+			return src
+		end
+	end
+	return nil
 end
 local function propHas(name: string): boolean
 	return propSource(name) ~= nil
