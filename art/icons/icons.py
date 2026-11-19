@@ -16,6 +16,11 @@ sticker: bold ink outline, hard ink shadow, flat cel colours, no text.
 Cells are 128 px (drawn at 512 and shrunk, so they read at 48 px on a phone), packed 8 x 8 into 1024 px
 sheets. Deterministic: run it again and the PNGs are identical.
 
+The second set (gap-icons2, symbols2.py) starts on sheet 5: the open world (incidents, events, contracts,
+bosses and markers, drawn on clear ground and laid by the UI over six white shape backings it tints) and the
+books (badge groups, collections, accolades, Journal tabs, Rogues groups, daily rewards, boards, movement
+buttons). Preview art/preview/icons2.png.
+
     python3 art/icons/icons.py      -> art/export/icons/icons_<n>.png,
                                        src/config/Icons.luau (ids from art/icons/ids.json),
                                        art/preview/icons.png (the contact sheet)
@@ -35,6 +40,7 @@ sys.path.insert(0, HERE)
 
 from ink import GOLD, INK, Sym, mix, rgba, shade, star, ngon, arcpts, bolt, flame, crescent, rot  # noqa: E402
 from symbols import SYM  # noqa: E402
+import symbols2  # noqa: E402,F401  (gap-icons2: the second set's symbols join SYM)
 
 ROOT = os.path.dirname(os.path.dirname(HERE))
 CELL = 128
@@ -405,6 +411,196 @@ def tier_colors():
         TIER_COLORS[name] = (int(m.group(1)), int(m.group(2)), int(m.group(3)))
 
 
+# ---------------------------------------------------------------- the second set (gap-icons2, 2026-11-19)
+# The open world and the books: every incident, event and contract type, the world markers, the Badge Book's
+# groups, collections and accolades, the Journal's tabs, the Rogues File's groups, the daily rewards, the weekly
+# boards and the movement buttons. It starts on a fresh sheet (icons_5), so the four uploaded sheets never change.
+
+INCIDENT = {
+    "RobotHeist": "i_heist", "TowerFire": "i_fire", "RunawayTram": "i_tram", "FallingSign": "i_sign",
+    "RooftopChase": "i_chase", "CatOnCrane": "i_cat", "RaidPrep": "i_raid", "VaultBreach": "i_vault",
+    "ShardCrate": "i_crate", "CommSabotage": "i_comm", "SniperNest": "i_sniper", "MedicConvoy": "i_medic",
+    "CaptainWarband": "i_warband", "MimicCrowd": "i_mimic", "BomberBarrage": "i_bomber", "GrapplerTow": "i_tow",
+    "ScaffoldCollapse": "i_scaffold", "CraneLoad": "i_craneload", "WaterMain": "i_water", "DroneSwarm": "i_swarm",
+    "ShieldWall": "i_shieldwall", "SkyAmbush": "i_skyambush", "DepotRaid": "i_depot", "SignalJam": "i_jam",
+    "SuspiciousHero": "i_suspect",
+}
+EVENT = {
+    "MeteorShower": "e_meteors", "RobotRampage": "e_rampage", "TidalSurge": "e_surge", "VaultBreach": "e_vault",
+    "TrainHijack": "e_train", "Blackout": "e_blackout", "AirshipDrop": "e_airship", "BridgeSiege": "e_bridge",
+    "StadiumLockdown": "e_stadium", "PowerPlantOverload": "e_plant", "ParadeGoneWrong": "e_parade",
+    "HarbourFog": "e_fog", "YourDouble": "e_double", "DataTruck": "e_datatruck", "UptownVault": "e_upvault",
+    "SparkShipment": "e_crystals",
+}
+CONTRACT = {
+    "DroneSweep": "c_sweep", "RescueRun": "c_rescue", "ShardRecovery": "c_core", "Escort": "c_escort",
+    "VaultJob": "c_safe", "Stakeout": "c_stakeout", "Bounty": "c_bounty", "Demolition": "c_demo",
+    "RooftopCourier": "c_courier", "Defusal": "c_defuse", "PhotoRecon": "c_photo", "GeneratorHold": "c_generator",
+}
+MARKER = {
+    "boss": "k_boss", "RustjawPrime": "k_rustjaw", "LumenMaw": "k_maw", "LeviathanEngine": "k_leviathan",
+    "NullWarFrame": "k_warframe", "giver": "k_giver", "site": "k_site", "quest": "k_quest",
+    "safehouse": "k_safehouse", "beacon": "k_beacon", "hqHero": "k_hqhero", "hqVillain": "k_hqvillain",
+    "squad": "k_squad", "help": "k_help", "here": "k_here", "danger": "k_danger",
+}
+MARKER_ORDER = list(MARKER)
+# the colorblind-safe shapes (Ui/Shapes.luau) as white comic backings the UI tints with ImageColor3; inner is
+# where the symbol sits on each (centre x, centre y, size; fractions of the cell)
+SHAPES = ["circle", "diamond", "triangle", "star", "square", "hex"]
+SHAPE_INNER = {"circle": (0.5, 0.5, 0.66), "diamond": (0.5, 0.5, 0.56), "triangle": (0.5, 0.63, 0.5),
+               "star": (0.5, 0.55, 0.5), "square": (0.5, 0.5, 0.68), "hex": (0.5, 0.5, 0.64)}
+BADGE_GROUP = {"explore": ("compass", (60, 180, 230)), "defeat": ("brokenbot", (125, 140, 160)),
+               "rescue": ("lifebuoy", (235, 80, 80)), "story": ("book", (150, 95, 215)),
+               "combat": ("starfist", (245, 140, 50)), "groups": ("trio", (60, 190, 120)),
+               "nemesis": ("versus", (190, 60, 110)), "showoff": ("spotlight", (240, 100, 190)),
+               "pvp": ("crater", (220, 70, 60)), "episodes": ("tv", (70, 130, 230))}
+COLLECT = {"ComicCovers": ("comicbook", (70, 150, 240)), "LostToys": ("windkey", (240, 130, 60)),
+           "ShipBells": ("bell", (40, 150, 200)), "DeepRelics": ("amphora", (40, 120, 170)),
+           "RoofPigeons": ("pigeon", (130, 170, 210)), "CometShards": ("charm", (150, 90, 220)),
+           "RobotParts": ("gearnut", (110, 125, 150)), "BossPlates": ("plate", (230, 110, 50)),
+           "NemesisCores": ("core", (120, 60, 160)), "ContestRibbons": ("rosette", (235, 90, 150)),
+           "MentorKeepsakes": ("locket", (60, 180, 160)), "TaskForcePatches": ("crest", (70, 160, 90))}
+ACCOLADE = {"compassGlow": "glowcompass", "scrapTrim": "rivets", "thumbsUp": "thumbs", "inkTrim": "nib",
+            "guardSpark": "guardspark", "huddle": "hands"}
+JOURNAL = {"story": "book", "quests": "j_quests", "rep": "j_rep", "perks": "j_perks", "rogues": "j_rogues",
+           "badges": "j_medal", "mentor": "j_mentor", "showdown": "j_showdown"}
+ROGUES = {"robots": ("r_robot", (90, 170, 240)), "fakes": ("r_fake", (240, 110, 170)),
+          "villains": ("r_villain", (140, 90, 210)), "bosses": ("k_boss", (245, 140, 50))}
+DAILY = {"credits": "d_credits", "renown": "d_renown", "dust": "d_dust", "title": "d_title", "got": "d_got"}
+BOARD = {"BossMvp": "b_mvp", "Rescues": "lifebuoy", "PvpWins": "b_trophy"}
+MOVEKEY = {"Leap": "v_leap", "Boost": "v_boost", "Down": "v_down"}
+
+
+def mark_icon(name, scale=0.9):
+    """A symbol on clear ground (laid over a tinted shape backing, a row or a tab)."""
+    p = palette((90, 110, 150))
+    p["a"] = (150, 210, 255, 255)
+    S = Sym(ink=5.5, shadow=(3.4, 3.4))
+    SYM[name](S, p)
+    o = (1 - scale) / 2
+    return shrink(S.render(BIG, origin=(BIG * o, BIG * o), scale=BIG * scale / 100))
+
+
+def shape_backing(shape):
+    """A white comic shape (ink edge, hard shadow, halftone and a grey cel rim) the UI tints per marker."""
+    white = (255, 255, 255)
+    S = Sym(ink=6.5, shadow=(4, 4))
+    if shape == "circle":
+        S.circle(48, 48, 40, white)
+    elif shape == "diamond":
+        S.poly([(48, 6), (90, 48), (48, 90), (6, 48)], white)
+    elif shape == "triangle":
+        S.poly([(48, 8), (90, 86), (6, 86)], white)
+    elif shape == "star":
+        S.poly(star(48, 52, 46, 24, 5), white)
+    elif shape == "square":
+        S.rect(10, 10, 86, 86, white, 12)
+    elif shape == "hex":
+        S.poly(ngon(48, 48, 43, 6, 0), white)
+    img = S.render(BIG)
+    # halftone dots in light grey on the lower right, inside the shape
+    a = img.getchannel("A")
+    inside = Image.eval(np_to_l(np.asarray(img)), lambda v: v)
+    img.alpha_composite(halftone(BIG, 0.3, (205, 205, 212, 255), Image.composite(inside, Image.new("L", a.size, 0), a)))
+    return shrink(img)
+
+
+def np_to_l(arr):
+    """A mask of the near-white fill (not the ink or the shadow)."""
+    m = (arr[:, :, 0] > 200) & (arr[:, :, 3] > 200)
+    return Image.fromarray((m * 255).astype(np.uint8), "L")
+
+
+def ring_disc_icon(bg, name):
+    """An accolade: a disc with a gold ring and studs (like a super) and its symbol."""
+    return disc_icon(bg, None, name, GOLD)
+
+
+def set2_cells():
+    incidents = order_list(read("src/config/Incidents.luau"), "order")
+    ev_src = read("src/config/Events.luau")
+    events = order_list(ev_src, "order") + order_list(ev_src, r"\n\trare") + order_list(ev_src, r"\n\tside")
+    contracts = order_list(read("src/config/Contracts.luau"), "order")
+    bosses = [m.group(1) for m in re.finditer(r"^\t\t(\w+) = \{\n\t\t\tname = ", read("src/config/Boss.luau"), re.M)]
+    badges = re.findall(r'^\t\t\tid = "(\w+)",\n\t\t\tat = ', read("src/config/Badges.luau"), re.M)
+    accolades = re.findall(r'accolade = \{\s*kind = "\w+",\s*id = "(\w+)"', read("src/config/Badges.luau"))
+    collects = re.findall(r'^\t\t\tid = "(\w+)",\n\t\t\tname = ', read("src/config/Collect.luau"), re.M)
+    rogues = re.findall(r'\{ id = "(\w+)", name = "[^"]+" \}', read("src/config/Rogues.luau"))
+    boards = re.findall(r'\{ id = "(\w+)", name = "[^"]+", unit', read("src/config/Boards.luau"))
+    assert incidents == list(INCIDENT), incidents
+    assert events == list(EVENT), events
+    assert contracts == list(CONTRACT), contracts
+    for b in bosses:
+        assert b in MARKER, "no marker for boss " + b
+    assert badges == list(BADGE_GROUP), badges
+    assert accolades == list(ACCOLADE), accolades
+    assert collects == list(COLLECT), collects
+    assert rogues == list(ROGUES), rogues
+    assert boards == list(BOARD), boards
+    # unique symbols inside each group (the first set's rule)
+    for gname, table in (("incident", INCIDENT), ("event", EVENT), ("contract", CONTRACT), ("marker", MARKER),
+                         ("badgeGroup", {k: v[0] for k, v in BADGE_GROUP.items()}),
+                         ("collect", {k: v[0] for k, v in COLLECT.items()}), ("accolade", ACCOLADE),
+                         ("journal", JOURNAL), ("rogues", {k: v[0] for k, v in ROGUES.items()}), ("daily", DAILY),
+                         ("board", BOARD), ("moveKey", MOVEKEY)):
+        names = list(table.values())
+        for n in names:
+            assert n in SYM, "unknown symbol " + n
+        assert len(set(names)) == len(names), gname + " repeats a symbol"
+    cells = []
+    for key in SHAPES:
+        cells.append(("shape", key, shape_backing(key), "shapes"))
+    for key in incidents:
+        cells.append(("incident", key, mark_icon(INCIDENT[key]), "incidents"))
+    for key in events:
+        cells.append(("event", key, mark_icon(EVENT[key]), "events"))
+    for key in contracts:
+        cells.append(("contract", key, mark_icon(CONTRACT[key]), "contracts"))
+    for key in MARKER_ORDER:
+        cells.append(("marker", key, mark_icon(MARKER[key]), "markers"))
+    for key, (name, bg) in BADGE_GROUP.items():
+        cells.append(("badgeGroup", key, disc_icon(bg, None, name), "badges"))
+    for key, (name, bg) in COLLECT.items():
+        cells.append(("collect", key, disc_icon(bg, None, name), "collect"))
+    acc_bg = {m.group(1): tuple(int(v) for v in m.group(2, 3, 4)) for m in re.finditer(
+        r'id = "(\w+)",\s*name = "[^"]+",\s*(?:color|emote) = \{? ?(\d+),? ?(\d*),? ?(\d*)',
+        read("src/config/Badges.luau")) if m.group(3)}
+    for key, name in ACCOLADE.items():
+        bg = acc_bg.get(key, (255, 200, 60))
+        if sum(bg) < 200:
+            bg = (90, 90, 110)  # the ink trim: a dark slate so the ink symbol still reads
+        cells.append(("accolade", key, ring_disc_icon(bg, name), "accolades"))
+    for key, name in JOURNAL.items():
+        cells.append(("journal", key, mark_icon(name, 0.84), "journal"))
+    for key, (name, bg) in ROGUES.items():
+        cells.append(("rogues", key, disc_icon(bg, None, name), "rogues"))
+    for key, name in DAILY.items():
+        cells.append(("daily", key, mark_icon(name, 0.84), "daily"))
+    for key, name in BOARD.items():
+        cells.append(("board", key, disc_icon(OTHER_BG["move"], None, name), "boards"))
+    for key, name in MOVEKEY.items():
+        cells.append(("moveKey", key, disc_icon(OTHER_BG["mobility"], None, name), "move keys"))
+    return cells
+
+
+SET2_GROUPS = [
+    ("shape", "gap-icons2: the colorblind-safe marker shapes as white comic backings (tint with ImageColor3)", SHAPES),
+    ("incident", "every incident (Config.Incidents.order), a symbol on clear ground", None),
+    ("event", "every event (Config.Events order, rare and side), a symbol on clear ground", None),
+    ("contract", "every contract type (Config.Contracts.order), a symbol on clear ground", None),
+    ("marker", "world markers: the bosses, givers, sites, quest steps, safehouses, beacons, HQs, squad, pings",
+     MARKER_ORDER),
+    ("badgeGroup", "the Badge Book's groups (Config.Badges.groups), discs", None),
+    ("collect", "the collections (Config.Collect.sets), discs", None),
+    ("accolade", "the accolades (Config.Badges groups' accolade ids), gold-ringed discs", None),
+    ("journal", "the Journal's tabs, symbols on clear ground", None),
+    ("rogues", "the Rogues File's groups (Config.Rogues.groups), discs", None),
+    ("daily", "the daily card's rewards and the got tick, symbols on clear ground", None),
+    ("board", "the weekly boards (Config.Boards.boards), discs", None),
+    ("moveKey", "the movement buttons (LEAP, BOOST, DOWN; FLY shows the mobility pick's icon)", None),
+]
+
+
 # ---------------------------------------------------------------- build
 
 
@@ -458,14 +654,19 @@ def build():
     for i, key in enumerate(TIER_ORDER):
         cells.append(("tier", key, tier_frame(key, i + 1), "tier"))
     del fam
+    n_first = len(cells)
+    # gap-icons2: the second set starts on a fresh sheet so the uploaded ones stay byte-identical
+    first_sheets = (n_first + PER_SHEET - 1) // PER_SHEET
+    cells2 = set2_cells()
 
     # pack: abilities fill sheets 1 and 2 and spill into 3; the rest follow in order
     out_dir = os.path.join(ROOT, "art", "export", "icons")
     os.makedirs(out_dir, exist_ok=True)
-    n_sheets = (len(cells) + PER_SHEET - 1) // PER_SHEET
+    placed = list(enumerate(cells)) + [(first_sheets * PER_SHEET + i, c) for i, c in enumerate(cells2)]
+    n_sheets = (placed[-1][0] + PER_SHEET) // PER_SHEET
     sheets = [Image.new("RGBA", (SHEET, SHEET), (0, 0, 0, 0)) for _ in range(n_sheets)]
     layout = {}
-    for i, (group, key, img, _) in enumerate(cells):
+    for i, (group, key, img, _) in placed:
         s, idx = divmod(i, PER_SHEET)
         x, y = (idx % PER_ROW) * CELL, (idx // PER_ROW) * CELL
         sheets[s].paste(img, (x, y))
@@ -477,7 +678,8 @@ def build():
         files.append(name)
     write_config(files, layout, slots, mobility, gadgets)
     contact(cells)
-    print("icons:", len(cells), "cells on", n_sheets, "sheets ->", out_dir)
+    contact2(cells2)
+    print("icons:", len(cells) + len(cells2), "cells on", n_sheets, "sheets ->", out_dir)
 
 
 def write_config(files, layout, slots, mobility, gadgets):
@@ -506,7 +708,7 @@ def write_config(files, layout, slots, mobility, gadgets):
         ("action", "the HUD's Awakening, shield (block) and power-swap buttons", ["Awaken", "Block", "Power"]),
         ("slot", "the 8 gear slots (Config.Gear.slotOrder), drawn on clear ground over a tier frame", slots),
         ("tier", "a gear tier's frame (Config.Gear.tierOrder): colour, 1 to 6 pips", TIER_ORDER),
-    ]
+    ] + SET2_GROUPS
     for group, text, order in groups:
         L.append("\t-- %s" % text)
         L.append("\t%s = {" % group)
@@ -517,6 +719,12 @@ def write_config(files, layout, slots, mobility, gadgets):
             k = "[%d]" % key if isinstance(key, int) else key
             L.append("\t\t%s = { %d, %d }," % (k, s, idx))
         L.append("\t},")
+    L.append("\t-- where a symbol sits on each shape backing: { centre x, centre y, size } as fractions of the cell")
+    L.append("\tshapeInner = {")
+    for key in SHAPES:
+        x, y, sz = SHAPE_INNER[key]
+        L.append("\t\t%s = { %s, %s, %s }," % (key, x, y, sz))
+    L.append("\t},")
     L.append("}")
     with open(os.path.join(ROOT, "src", "config", "Icons.luau"), "w", encoding="utf-8") as f:
         f.write("\n".join(L) + "\n")
@@ -559,6 +767,93 @@ def contact(cells):
         sheet.alpha_composite(card, (label + i * (big + 6), y))
         sheet.alpha_composite(card.resize((small, small), Image.LANCZOS), (label + 8 * (big + 6) + 30 + i * (small + 4), y + 8))
     path = os.path.join(ROOT, "art", "preview", "icons.png")
+    sheet.convert("RGB").save(path)
+    print(path)
+
+
+# how the UI lays a world symbol on its shape (WorldHud, Radar, MapScreen, ContractBoard): shape and tint
+VIGIL, SYNDICATE, GOLDC, CONTRACTC = (70, 150, 255), (235, 70, 80), (255, 200, 60), (255, 150, 70)
+MARKER_SHAPE = {"boss": ("diamond", (255, 90, 60)), "RustjawPrime": ("diamond", (255, 90, 60)),
+                "LumenMaw": ("diamond", (255, 90, 60)), "LeviathanEngine": ("diamond", (255, 90, 60)),
+                "NullWarFrame": ("diamond", (255, 90, 60)), "giver": ("circle", GOLDC), "site": ("square", GOLDC),
+                "quest": ("circle", GOLDC), "safehouse": ("square", (90, 200, 120)), "beacon": ("circle", GOLDC),
+                "hqHero": ("square", VIGIL), "hqVillain": ("square", SYNDICATE), "squad": ("square", (90, 200, 120)),
+                "help": ("circle", (255, 220, 90)), "here": ("circle", (120, 220, 255)),
+                "danger": ("triangle", (255, 90, 80))}
+
+
+def compose(shapes, shape, tint, sym, px):
+    """A tinted backing with the symbol on it at px, as the game draws it."""
+    back = shapes[shape].resize((px, px), Image.LANCZOS)
+    arr = np.asarray(back).astype(np.float32)
+    arr[:, :, :3] *= np.array(tint, np.float32) / 255.0
+    out = Image.fromarray(arr.astype(np.uint8), "RGBA")
+    x, y, sz = SHAPE_INNER[shape]
+    sp = max(1, int(round(px * sz)))
+    out.alpha_composite(sym.resize((sp, sp), Image.LANCZOS), (int(round(px * x - sp / 2)), int(round(px * y - sp / 2))))
+    return out
+
+
+def contact2(cells):
+    """art/preview/icons2.png: the second set by group at 64 px, world symbols on their tinted shapes at 64,
+    48 and 24 px (the radar's size), the rest as drawn and again at 48 px."""
+    font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+    font = ImageFont.truetype(font_path, 15) if os.path.exists(font_path) else ImageFont.load_default()
+    shapes = {k: img for g, k, img, _ in cells if g == "shape"}
+    rows = []
+    for group, key, img, row in cells:
+        if not rows or rows[-1][0] != row:
+            rows.append((row, []))
+        if group == "incident":
+            tint = SYNDICATE if len(rows[-1][1]) % 4 == 3 else VIGIL
+            img2 = compose(shapes, "circle", tint, img, 128)
+        elif group == "event":
+            img2 = compose(shapes, "star", GOLDC, img, 128)
+        elif group == "contract":
+            img2 = compose(shapes, "hex", CONTRACTC, img, 128)
+        elif group == "marker":
+            sh, tint = MARKER_SHAPE[key]
+            img2 = compose(shapes, sh, tint, img, 128)
+        else:
+            img2 = None
+        rows[-1][1].append((img, img2))
+    big, small, tiny, label = 64, 48, 24, 112
+    per = 14
+    width = label + per * (big + 6) + 20
+    height = 20
+    for name, items in rows:
+        n = (len(items) + per - 1) // per
+        height += n * (big + 8) + (n * (big + 8) + n * (small + 6) if items[0][1] is not None else n * (small + 6))
+    sheet = Image.new("RGBA", (width, height), (255, 247, 224, 255))
+    night = (34, 38, 58, 255)
+    d = ImageDraw.Draw(sheet)
+    y = 14
+    for name, items in rows:
+        d.text((10, y + 22), name, fill=(17, 17, 17), font=font)
+        n = (len(items) + per - 1) // per
+        for i, (img, _) in enumerate(items):
+            r, c = divmod(i, per)
+            sheet.alpha_composite(img.resize((big, big), Image.LANCZOS), (label + c * (big + 6), y + r * (big + 8)))
+        y += n * (big + 8)
+        if items[0][1] is not None:
+            # on their shapes over a dark HUD strip: 64 px, then 48 px and 24 px side by side
+            d.rectangle([label - 6, y - 4, width - 8, y + n * (big + 8) + n * (small + 6)], fill=night)
+            for i, (_, img2) in enumerate(items):
+                r, c = divmod(i, per)
+                sheet.alpha_composite(img2.resize((big, big), Image.LANCZOS), (label + c * (big + 6), y + r * (big + 8)))
+            y += n * (big + 8)
+            for i, (_, img2) in enumerate(items):
+                r, c = divmod(i, per)
+                x0 = label + c * (big + 6)
+                sheet.alpha_composite(img2.resize((small, small), Image.LANCZOS), (x0, y + r * (small + 6)))
+                sheet.alpha_composite(img2.resize((tiny, tiny), Image.LANCZOS), (x0 + small + 2, y + r * (small + 6) + 12))
+            y += n * (small + 6)
+        else:
+            for i, (img, _) in enumerate(items):
+                r, c = divmod(i, per)
+                sheet.alpha_composite(img.resize((small, small), Image.LANCZOS), (label + c * (big + 6), y + r * (small + 6)))
+            y += n * (small + 6)
+    path = os.path.join(ROOT, "art", "preview", "icons2.png")
     sheet.convert("RGB").save(path)
     print(path)
 

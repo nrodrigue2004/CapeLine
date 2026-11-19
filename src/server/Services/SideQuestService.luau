@@ -212,6 +212,50 @@ local function lookRig(id: string, def: any): any
 	return rig
 end
 
+-- gap-icons2 (2026-11-19): the giver's comic marker (Config.Icons marker "giver" on the gold circle) over its
+-- name tag; nothing while the icon sheets are not uploaded (the neon marker and the name stay either way)
+local function giverIcon(tag: BillboardGui, label: TextLabel)
+	local IC = Config.Icons
+	local function cell(group: string, key: string): (string?, Vector2?)
+		local at = IC and IC[group] and IC[group][key]
+		local sheet = at and IC.sheets[at[1]]
+		if not sheet or (sheet.id or 0) == 0 then
+			return nil, nil
+		end
+		return "rbxassetid://" .. sheet.id,
+			Vector2.new((at[2] % IC.perRow) * IC.cell, (at[2] // IC.perRow) * IC.cell)
+	end
+	local backImage, backAt = cell("shape", "circle")
+	local symImage, symAt = cell("marker", "giver")
+	if not backImage or not symImage then
+		return
+	end
+	tag.Size = UDim2.fromOffset(160, 70)
+	label.Size = UDim2.new(1, 0, 0, 26)
+	label.Position = UDim2.new(0, 0, 1, -26)
+	local back = Instance.new("ImageLabel")
+	back.Name = "GiverMark"
+	back.BackgroundTransparency = 1
+	back.Image = backImage
+	back.ImageRectOffset = backAt :: Vector2
+	back.ImageRectSize = Vector2.new(IC.cell, IC.cell)
+	back.ImageColor3 = Color3.fromRGB(255, 200, 60)
+	back.AnchorPoint = Vector2.new(0.5, 0)
+	back.Position = UDim2.fromScale(0.5, 0)
+	back.Size = UDim2.fromOffset(42, 42)
+	back.Parent = tag
+	local inner = IC.shapeInner.circle
+	local sym = Instance.new("ImageLabel")
+	sym.BackgroundTransparency = 1
+	sym.Image = symImage
+	sym.ImageRectOffset = symAt :: Vector2
+	sym.ImageRectSize = Vector2.new(IC.cell, IC.cell)
+	sym.AnchorPoint = Vector2.new(0.5, 0.5)
+	sym.Position = UDim2.fromScale(inner[1], inner[2])
+	sym.Size = UDim2.fromScale(inner[3], inner[3])
+	sym.Parent = back
+end
+
 -- A named helper (Config.NpcLooks.helpers: Toby, Finn, Master Hoshi...) as a person on the rig: their speaker
 -- card's skin and hair, plain shirt and pants colours, and their own outfit and face once uploaded
 local function helperRig(id: string, h: any): any
@@ -280,6 +324,7 @@ local function npcModel(
 	label.TextStrokeTransparency = 0.4
 	label.Text = name -- a fixed giver name from Config.SideQuests
 	label.Parent = tag
+	giverIcon(tag, label)
 	tag.Parent = head
 	return m, rig.root
 end
@@ -356,6 +401,7 @@ local function relayModel(name: string, color: { number }, pos: Vector3): (Model
 	label.TextStrokeTransparency = 0.4
 	label.Text = name -- a fixed giver name from Config.SideQuests
 	label.Parent = tag
+	giverIcon(tag, label)
 	tag.Parent = box
 	return m, box
 end

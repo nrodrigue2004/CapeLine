@@ -19,6 +19,7 @@ local Workspace = game:GetService("Workspace")
 local State = require(script.Parent.Parent.State)
 local PvpClient = require(script.Parent.Parent.Controllers.PvpClient)
 local CombatFx = require(script.Parent.CombatFx)
+local Kit = require(script.Parent.Parent.Ui.Kit)
 
 local PvpFx = {}
 
@@ -28,9 +29,9 @@ local downRings: { [Player]: Part } = {}
 local overloads: { [Player]: number } = {}
 
 local PING = {
-	{ text = "HELP!", color = Color3.fromRGB(255, 220, 90) },
-	{ text = "HERE", color = Color3.fromRGB(120, 220, 255) },
-	{ text = "▲ DANGER", color = Color3.fromRGB(255, 90, 80) }, -- the triangle: colorblind-safe danger
+	{ text = "HELP!", color = Color3.fromRGB(255, 220, 90), mark = "help", shape = "circle" },
+	{ text = "HERE", color = Color3.fromRGB(120, 220, 255), mark = "here", shape = "circle" },
+	{ text = "▲ DANGER", color = Color3.fromRGB(255, 90, 80), mark = "danger", shape = "triangle" }, -- the triangle: colorblind-safe danger
 }
 
 local function ring(color: Color3, size: number): Part
@@ -167,6 +168,21 @@ local function showPing(ping: any)
 	label.TextStrokeTransparency = 0.2
 	label.Text = if ping.downed then "HELP!" else row.text
 	label.Parent = bb
+	-- gap-icons2: the ping's comic icon on its shape above the word (the word then drops its triangle)
+	local mark = Instance.new("Frame")
+	mark.BackgroundTransparency = 1
+	mark.AnchorPoint = Vector2.new(0.5, 1)
+	mark.Position = UDim2.fromScale(0.5, 0)
+	mark.Size = UDim2.fromOffset(40, 40)
+	mark.Parent = bb
+	local key = if ping.downed then "help" else row.mark
+	if Kit.showMark(mark, if ping.downed then "circle" else row.shape, row.color, "marker", key) then
+		bb.Size = UDim2.fromOffset(120, 46)
+		bb.StudsOffset = Vector3.new(0, 2, 0)
+		if not ping.downed and row.mark == "danger" then
+			label.Text = "DANGER"
+		end
+	end
 	local who = Instance.new("TextLabel")
 	who.BackgroundTransparency = 1
 	who.Position = UDim2.fromScale(0, 0.6)

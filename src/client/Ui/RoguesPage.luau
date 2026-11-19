@@ -202,14 +202,22 @@ local function pageRow(body: Instance, order: number, e: RoguesFile.Entry)
 	end
 end
 
-local function header(body: Instance, order: number, text: string)
+-- group: the Rogues File group's id, for its icon at the header's left (gap-icons2, Config.Icons rogues)
+local function header(body: Instance, order: number, text: string, group: string?)
 	local h = Kit.frame({
-		Size = UDim2.new(1, -8, 0, 30),
+		Size = UDim2.new(1, -8, 0, 34),
 		LayoutOrder = order,
 		BackgroundTransparency = 1,
 	})
 	h.Parent = body
-	label(h, text, 4, 2, -8, 26, 18, Kit.color.gold, Kit.font)
+	local x = 4
+	local icon = group
+		and Kit.icon("rogues", group, { Size = UDim2.fromOffset(32, 32), Position = UDim2.fromOffset(2, 1) })
+	if icon then
+		icon.Parent = h
+		x = 40
+	end
+	label(h, text, x, 4, -(x + 4), 26, 18, Kit.color.gold, Kit.font)
 end
 
 -- Draw the whole book into a Journal tab's scrolling list (the caller cleared it)
@@ -272,7 +280,7 @@ function RoguesPage.drawInto(body: Instance)
 				end
 			end
 		end
-		header(body, gi * 1000, string.format("%s   %d / %d", grp.name, got, all))
+		header(body, gi * 1000, string.format("%s   %d / %d", grp.name, got, all), grp.id)
 		local i = 0
 		for _, e in list do
 			if e.group == grp.id then

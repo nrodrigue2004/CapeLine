@@ -196,6 +196,38 @@ local function dot(
 	return b
 end
 
+-- gap-icons2 (2026-11-19): a dot shows its comic symbol on its colorblind shape (Kit.showMark), a little
+-- bigger than the plain dot (grow); false (the dot keeps today's look) while the icon sheets are not uploaded
+local function iconDot(
+	d: TextButton,
+	shape: string,
+	color: Color3,
+	group: string,
+	key: any,
+	grow: number
+): boolean
+	if not Kit.showMark(d, shape, color, group, key) then
+		return false
+	end
+	d.BackgroundTransparency = 1
+	d.Text = ""
+	d.Rotation = 0
+	local st = d:FindFirstChildOfClass("UIStroke")
+	if st then
+		st.Enabled = false
+	end
+	for _, name in { "Lamp", "BossText" } do
+		local c = d:FindFirstChild(name)
+		if c and c:IsA("GuiObject") then
+			c.Visible = false
+		end
+	end
+	local base = (d:GetAttribute("Base") :: number) * grow
+	d:SetAttribute("Base", base)
+	d.Size = UDim2.fromOffset(base * iconScale, base * iconScale)
+	return true
+end
+
 local function draw()
 	if not info then
 		return
@@ -230,6 +262,7 @@ local function draw()
 		d.TextScaled = true
 		d.Font = Kit.font
 		d.TextColor3 = Kit.color.ink
+		iconDot(d, "square", d.BackgroundColor3, "marker", "safehouse", 1.8)
 		markers["s" .. s.id] = d
 	end
 	for _, b in info.beacons do
@@ -265,6 +298,7 @@ local function draw()
 		lamp.ZIndex = 3
 		Kit.round(lamp, 99)
 		lamp.Parent = d
+		iconDot(d, "circle", if found then Kit.color.gold else Kit.color.muted, "marker", "beacon", 1.3)
 		d.Activated:Connect(function()
 			if dragMoved > 8 then
 				return -- the end of a pan, not a tap
@@ -444,6 +478,7 @@ local function buildBase()
 		})
 		l.Parent = d
 		table.insert(tags, l)
+		iconDot(d, "square", color, "marker", if hq.side == "hero" then "hqHero" else "hqVillain", 1.4)
 		hqDots[hq.side] = d
 	end
 	buildYou()
@@ -497,6 +532,7 @@ local function drawWorld()
 				14,
 				if inc.side == "villain" then Kit.color.syndicate else Kit.color.vigil
 			)
+			iconDot(d, "circle", d.BackgroundColor3, "incident", inc.tid, 2)
 			flyable(d, inc.pos, "the incident")
 			table.insert(worldMarks, d)
 		end
@@ -510,6 +546,7 @@ local function drawWorld()
 			d.TextScaled = true
 			d.TextColor3 = Kit.color.gold
 			d.TextStrokeTransparency = 0
+			iconDot(d, "star", Kit.color.gold, "event", ev.id, 1.3)
 			flyable(d, Vector3.new(ev.x, Config.City.ground.y, ev.z), "the event")
 			table.insert(worldMarks, d)
 		end
@@ -545,6 +582,7 @@ local function drawWorld()
 					maxText = 11,
 				})
 				l.Parent = d
+				iconDot(d, "square", Color3.fromRGB(col[1], col[2], col[3]), "marker", "squad", 1.4)
 				table.insert(worldMarks, d)
 			end
 		end
@@ -570,6 +608,7 @@ local function drawWorld()
 				d.Text = "!"
 				d.TextScaled = true
 				d.TextColor3 = Kit.color.ink
+				iconDot(d, "circle", d.BackgroundColor3, "marker", "giver", 1.3)
 				flyable(d, Vector3.new(at[1], Config.City.ground.y, at[2]), giver.name)
 				table.insert(worldMarks, d)
 			end
@@ -611,6 +650,7 @@ local function drawWorld()
 					maxText = 11,
 				})
 				l.Parent = d
+				iconDot(d, "square", Kit.color.gold, "marker", "site", 1.5)
 				flyable(d, Vector3.new(at[1], Config.City.ground.y, at[2]), st.name)
 				table.insert(worldMarks, d)
 			end
@@ -619,6 +659,7 @@ local function drawWorld()
 	local q = StoryClient.quest
 	if q and q.target then
 		local d = dot("SideQuest", q.target[1], q.target[3], 14, Kit.color.gold)
+		iconDot(d, "circle", Kit.color.gold, "marker", "quest", 1.6)
 		flyable(d, Vector3.new(q.target[1], q.target[2], q.target[3]), "your side quest")
 		table.insert(worldMarks, d)
 	end
@@ -633,6 +674,7 @@ local function drawWorld()
 		end
 		flyable(d, Vector3.new(b.x, b.y or Config.City.ground.y, b.z), "the world boss")
 		local l = Kit.label({
+			Name = "BossText",
 			Text = "BOSS",
 			Size = UDim2.fromScale(1, 1),
 			TextColor3 = Kit.color.paper,
@@ -640,6 +682,14 @@ local function drawWorld()
 			maxText = 12,
 		})
 		l.Parent = d
+		iconDot(
+			d,
+			"diamond",
+			Color3.fromRGB(235, 60, 50),
+			"marker",
+			if b.id and Kit.iconCell("marker", b.id) then b.id else "boss",
+			1.2
+		)
 		table.insert(worldMarks, d)
 	end
 end

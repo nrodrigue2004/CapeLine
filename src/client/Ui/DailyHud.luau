@@ -173,6 +173,26 @@ local function drawTrack(d: { [string]: any })
 			maxText = 12,
 		})
 		small.Parent = cell
+		-- gap-icons2: the reward's comic icon in place of its kind word; a got day adds the tick on its corner
+		local icon = Kit.icon("daily", string.lower(kind), {
+			AnchorPoint = Vector2.new(0.5, 0),
+			Position = UDim2.new(0.5, 0, 0, 46),
+			Size = UDim2.fromOffset(26, 26),
+			ImageTransparency = if got then 0.35 else 0,
+		})
+		if icon then
+			icon.Parent = cell
+			small.Visible = false
+			local tick = got
+				and Kit.icon("daily", "got", {
+					AnchorPoint = Vector2.new(0.5, 0.5),
+					Position = UDim2.fromScale(0.95, 0.8),
+					Size = UDim2.fromScale(0.7, 0.7),
+				})
+			if tick then
+				tick.Parent = icon
+			end
+		end
 	end
 end
 

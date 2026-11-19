@@ -230,6 +230,14 @@ def paint_cell(canvas, n, sheet, x0, y0, x1, y1):
     s = min((x1 - x0) / w, (y1 - y0) / h)  # ScaleType Fit
     tw, th = max(1, int(w * s)), max(1, int(h * s))
     cell = cell.resize((tw, th), Image.LANCZOS)
+    tint = n.get("imageC") or [255, 255, 255]
+    if tuple(tint) != (255, 255, 255):
+        # ImageColor3 multiplies the picture (gap-icons2: the tinted shape backings)
+        r, g, b, a = cell.split()
+        r = r.point(lambda v, k=tint[0]: v * k // 255)
+        g = g.point(lambda v, k=tint[1]: v * k // 255)
+        b = b.point(lambda v, k=tint[2]: v * k // 255)
+        cell = Image.merge("RGBA", (r, g, b, a))
     t = n.get("imageT", 0)
     if t > 0:
         a = cell.getchannel("A").point(lambda v: int(v * (1 - t)))

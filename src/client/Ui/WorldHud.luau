@@ -7,6 +7,9 @@
 -- * Markers in the world: incidents (blue Vigil, red Syndicate) within 450 studs, events and the boss.
 -- * Boss: a countdown banner from T minus 60 s, then the shared HP bar with the phase marks, the time left
 --   and the hero's own tier and rank. The result card shows for 5 s (tap to close).
+-- gap-icons2 (2026-11-19): every incident, event, contract and boss shows its comic symbol on its colorblind
+-- shape (Kit.showMark: circle incident, star event, hex contract, diamond boss) on the markers, the tracker
+-- rows, the boss bar and the result card; without the uploaded sheets they keep today's "!" and shapes.
 -- PLACEHOLDER look until the UI pass (M10).
 
 local Players = game:GetService("Players")
@@ -86,6 +89,13 @@ local function makeRow(i: number): Frame
 		Visible = false,
 	})
 	Kit.round(f, 8)
+	-- gap-icons2: the row's symbol on its shape at the left (hidden with no icon; the texts then move back)
+	local mark = Instance.new("Frame")
+	mark.Name = "Mark"
+	mark.BackgroundTransparency = 1
+	mark.Size = UDim2.fromOffset(34, 34)
+	mark.Position = UDim2.fromOffset(4, 2)
+	mark.Parent = f
 	local title = Kit.label({
 		Name = "Title",
 		Size = UDim2.new(1, -12, 0, 20),
@@ -118,13 +128,24 @@ local function makeRow(i: number): Frame
 	return f
 end
 
-local function setRow(f: Frame, title: string, sub: string, frac: number, color: Color3)
+-- mark: { shape, group, key } of the row's symbol (Kit.showMark), or nil
+local function setRow(f: Frame, title: string, sub: string, frac: number, color: Color3, mark: { any }?)
 	f.Visible = true
+	local holder = f:FindFirstChild("Mark") :: Frame
+	local on = mark ~= nil and Kit.showMark(holder, mark[1], color, mark[2], mark[3])
+	if not on then
+		Kit.showMark(holder, "circle", color, nil, nil)
+	end
+	local x = if on then 42 else 6
 	local t = f:FindFirstChild("Title") :: TextLabel
 	t.Text = title
 	t.TextColor3 = color
+	t.Position = UDim2.fromOffset(x, 2)
+	t.Size = UDim2.new(1, -(x + 6), 0, 20)
 	local subLabel = f:FindFirstChild("Sub") :: TextLabel
 	subLabel.Text = sub
+	subLabel.Position = UDim2.fromOffset(x, 22)
+	subLabel.Size = UDim2.new(1, -(x + 6), 0, 14)
 	local fill = (f:FindFirstChild("Bar") :: Frame):FindFirstChild("Fill") :: Frame
 	fill.Size = UDim2.fromScale(math.clamp(frac, 0, 1), 1)
 	fill.BackgroundColor3 = color
@@ -165,7 +186,8 @@ local function refreshTracker()
 				heroicTitle("EVENT: " .. string.upper(name), ev.heroic),
 				string.format("%s   %s   %d studs", score, Kit.time(ev.ends - now), dist),
 				if ev.need > 0 then ev.have / ev.need else 0,
-				if ev.heroic then HEROIC_COLOR else Kit.color.gold
+				if ev.heroic then HEROIC_COLOR else Kit.color.gold,
+				{ "star", "event", ev.id }
 			)
 		end
 	end
@@ -207,7 +229,8 @@ local function refreshTracker()
 				heroicTitle("CONTRACT: " .. string.upper(title), heroic),
 				sub,
 				c[2] / math.max(1, c[3]),
-				if heroic then HEROIC_COLOR else Color3.fromRGB(255, 150, 70)
+				if heroic then HEROIC_COLOR else Color3.fromRGB(255, 150, 70),
+				if id then { "hex", "contract", id } else nil
 			)
 		end
 	end
@@ -243,7 +266,8 @@ local function refreshTracker()
 				heroicTitle(string.upper(name), inc.heroic),
 				sub,
 				inc.frac,
-				if inc.heroic then HEROIC_COLOR else sideColor(inc.side)
+				if inc.heroic then HEROIC_COLOR else sideColor(inc.side),
+				{ "circle", "incident", inc.tid }
 			)
 		end
 	end
@@ -262,7 +286,9 @@ local function marker(
 	text: string,
 	color: Color3,
 	maxDist: number,
-	shape: string?
+	shape: string?,
+	group: string?, -- gap-icons2: the symbol on the shape (Config.Icons group and key)
+	symKey: any
 ): BillboardGui
 	local b = markers[key]
 	if not b then
@@ -279,14 +305,14 @@ local function marker(
 		b.Name = "Marker"
 		b.AlwaysOnTop = true
 		b.LightInfluence = 0
-		b.Size = UDim2.fromOffset(150, 46)
+		b.Size = UDim2.fromOffset(150, 58)
 		b.StudsOffsetWorldSpace = Vector3.new(0, 14, 0)
 		b.MaxDistance = maxDist
 		local icon = Kit.label({
 			Name = "Icon",
 			Text = "!",
-			Size = UDim2.fromOffset(26, 26),
-			Position = UDim2.new(0.5, -13, 0, 0),
+			Size = UDim2.fromOffset(36, 36),
+			Position = UDim2.new(0.5, -18, 0, 0),
 			BackgroundTransparency = 0,
 			BackgroundColor3 = color,
 			TextColor3 = Kit.color.paper,
@@ -298,7 +324,7 @@ local function marker(
 		local l = Kit.label({
 			Name = "Text",
 			Size = UDim2.new(1, 0, 0, 18),
-			Position = UDim2.fromOffset(0, 27),
+			Position = UDim2.fromOffset(0, 39),
 			TextColor3 = Kit.color.paper,
 			TextStrokeTransparency = 0.2,
 			Font = Kit.bodyFont,
@@ -314,8 +340,8 @@ local function marker(
 	local textLabel = b:FindFirstChild("Text") :: TextLabel
 	textLabel.Text = text
 	local icon = b:FindFirstChild("Icon") :: TextLabel
-	Shapes.apply(icon, shape or "circle", color) -- M10: colorblind-safe shapes
-	if shape == "diamond" or shape == "circle" or not shape then
+	local marked = Shapes.apply(icon, shape or "circle", color, group, symKey) -- M10: colorblind-safe shapes
+	if not marked and (shape == "diamond" or shape == "circle" or not shape) then
 		icon.Text = "!"
 	end
 	return b
@@ -335,7 +361,10 @@ local function refreshMarkers()
 				inc.pos,
 				string.format("%s  %dm", heroicTitle(name, inc.heroic), d),
 				if inc.heroic then HEROIC_COLOR else sideColor(inc.side),
-				IC.spawner.sendRadius
+				IC.spawner.sendRadius,
+				"circle",
+				"incident",
+				inc.tid
 			)
 		end
 	end
@@ -351,7 +380,9 @@ local function refreshMarkers()
 				heroicTitle(string.upper(def.name), ev.heroic),
 				if ev.heroic then HEROIC_COLOR else Kit.color.gold,
 				3000,
-				"star"
+				"star",
+				"event",
+				ev.id
 			)
 			b.StudsOffsetWorldSpace = Vector3.new(0, 30, 0)
 		end
@@ -366,7 +397,9 @@ local function refreshMarkers()
 			string.upper(def.name),
 			Color3.fromRGB(255, 90, 60),
 			5000,
-			"diamond"
+			"diamond",
+			"marker",
+			if Kit.iconCell("marker", s.id) then s.id else "boss"
 		)
 		b.StudsOffsetWorldSpace = Vector3.new(0, def.height + 12, 0)
 	end
@@ -382,6 +415,11 @@ end
 -- The world boss
 ---------------------------------------------------------------------------
 
+-- the boss's marker symbol (its own, else the generic boss)
+local function bossKey(id: string?): string
+	return if id and Kit.iconCell("marker", id) then id else "boss"
+end
+
 local function refreshBoss()
 	local s = WorldClient.boss
 	local def = s.id and Config.Boss.bosses[s.id]
@@ -396,6 +434,10 @@ local function refreshBoss()
 	if (s.state == 2 or s.state == 3) and def then
 		bossPanel.Visible = true
 		bossName.Text = string.upper(def.name) .. string.format("   LV %d", s.level or 1)
+		-- gap-icons2: the boss's own symbol on its diamond, a sticker on the panel's corner
+		local sticker = bossPanel:FindFirstChild("BossMark") :: Frame
+		local on = Kit.showMark(sticker, "diamond", Color3.fromRGB(255, 90, 60), "marker", bossKey(s.id))
+		bossName.Position = UDim2.fromOffset(if on then 30 else 6, 2)
 		local share = if (s.max or 0) > 0 then s.hp / s.max else 1
 		bossFill.Size = UDim2.fromScale(math.clamp(share, 0, 1), 1)
 		local objectives = s.objectives or {}
@@ -451,6 +493,21 @@ local function showResult(r: { [string]: any })
 		BackgroundTransparency = 0.05,
 	})
 	Kit.stroke(card, if r.defeated then Kit.color.gold else Kit.color.muted, 3)
+	-- gap-icons2: the boss's symbol on its diamond, a big sticker on the card's corner
+	local sticker = Instance.new("Frame")
+	sticker.Name = "BossMark"
+	sticker.BackgroundTransparency = 1
+	sticker.Size = UDim2.fromOffset(58, 58)
+	sticker.Position = UDim2.fromOffset(-34, -34)
+	sticker.ZIndex = 3
+	sticker.Parent = card
+	Kit.showMark(
+		sticker,
+		"diamond",
+		if r.defeated then Kit.color.gold else Color3.fromRGB(255, 90, 60),
+		"marker",
+		bossKey(id)
+	)
 	local lines = {
 		{
 			string.format(
@@ -585,6 +642,13 @@ function WorldHud.init()
 		maxText = 18,
 	})
 	bossName.Parent = bossPanel
+	local sticker = Instance.new("Frame")
+	sticker.Name = "BossMark"
+	sticker.BackgroundTransparency = 1
+	sticker.Size = UDim2.fromOffset(34, 34)
+	sticker.Position = UDim2.fromOffset(-10, -12)
+	sticker.ZIndex = 3
+	sticker.Parent = bossPanel
 	local bar = Kit.frame({
 		Size = UDim2.new(1, -12, 0, 12),
 		Position = UDim2.fromOffset(6, 22),

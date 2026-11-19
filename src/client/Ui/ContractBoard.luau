@@ -2,6 +2,8 @@
 -- Contract.Abandon). Opens when the server sends the board (the safehouse terminal is the check). Three
 -- offers for the hero's side with their pay at the zone level (x2 for the first 5 each day), and the
 -- accepted contracts (up to 3) with their progress and an Abandon button.
+-- gap-icons2 (2026-11-19): each card shows its contract type's comic symbol on the orange contract hex
+-- (Kit.showMark), the Heroic gold on a Heroic one; without the uploaded sheets the card is text only.
 -- PLACEHOLDER look until the UI pass (M10).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -84,17 +86,34 @@ local function card(
 	lines: { string },
 	button: string?,
 	color: Color3?,
-	onClick: (() -> ())?
+	onClick: (() -> ())?,
+	typeId: string?, -- gap-icons2: the contract type, for its symbol
+	heroic: boolean?
 )
 	local f = Kit.frame({
 		Size = UDim2.new(1, 0, 0, 30 + #lines * 18 + 6),
 		BackgroundColor3 = Kit.color.paper,
 		LayoutOrder = order,
 	})
+	local mark = Instance.new("Frame")
+	mark.Name = "Mark"
+	mark.BackgroundTransparency = 1
+	mark.AnchorPoint = Vector2.new(0, 0.5)
+	mark.Position = UDim2.new(0, 6, 0.5, 0)
+	mark.Size = UDim2.fromOffset(52, 52)
+	mark.Parent = f
+	local on = Kit.showMark(
+		mark,
+		"hex",
+		if heroic then HEROIC_COLOR else Color3.fromRGB(255, 150, 70),
+		if typeId then "contract" else nil,
+		typeId
+	)
+	local x = if on then 64 else 10
 	local t = Kit.label({
 		Text = title,
-		Size = UDim2.new(1, -(T * 2 + 30), 0, 24),
-		Position = UDim2.fromOffset(10, 4),
+		Size = UDim2.new(1, -(T * 2 + 20 + x), 0, 24),
+		Position = UDim2.fromOffset(x, 4),
 		TextXAlignment = Enum.TextXAlignment.Left,
 		maxText = 20,
 	})
@@ -102,8 +121,8 @@ local function card(
 	for i, line in lines do
 		local l = Kit.label({
 			Text = line,
-			Size = UDim2.new(1, -(T * 2 + 30), 0, 16),
-			Position = UDim2.fromOffset(10, 28 + (i - 1) * 18),
+			Size = UDim2.new(1, -(T * 2 + 20 + x), 0, 16),
+			Position = UDim2.fromOffset(x, 28 + (i - 1) * 18),
 			TextXAlignment = Enum.TextXAlignment.Left,
 			Font = Kit.bodyFont,
 			TextColor3 = Kit.color.ink,
@@ -168,7 +187,9 @@ local function render(board: { [string]: any })
 					then nil
 					else function()
 						Net.send("ContractAccept", i)
-					end
+					end,
+				id,
+				heroic
 			)
 		end
 	end
@@ -197,7 +218,9 @@ local function render(board: { [string]: any })
 				Kit.color.muted,
 				function()
 					Net.send("ContractAbandon", i) -- the server sends the board back
-				end
+				end,
+				id,
+				a[5] == 1
 			)
 		end
 	end
