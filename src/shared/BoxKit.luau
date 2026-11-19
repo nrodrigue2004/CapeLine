@@ -29,6 +29,7 @@ export type Box = {
 	plain: string?, -- drawn only while this kit texture is missing (window bands on a textured front)
 	dress: boolean?, -- added by the kit (kerbs, lines, cornices): not part of the seeded layout
 	crown: boolean?, -- a skyscraper's top above its wreckable shaft (setbacks, spire, lantern, mast)
+	art: string?, -- the Blender look drawn over it (hidden but kept once that look is imported; Deep and Crater)
 }
 
 export type Opts = { shape: string?, ry: number?, tag: string?, ref: number?, ghost: boolean? }

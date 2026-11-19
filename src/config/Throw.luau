@@ -65,7 +65,8 @@ return {
 		},
 		slab = { weight = "heavy", size = { 8, 2.4, 6 }, color = { 128, 124, 118 }, material = "Concrete" },
 		-- a downed robot (WP6, gap G10; the spec's medium row): its wreck lies where it fell for a short window
-		-- (`wreck` below). Built by ThrowService in the robot's own colours. PLACEHOLDER ART: plain parts.
+		-- (`wreck` below). Built by ThrowService in the robot's own colours: art/blender/wrecks.py's heap per kind
+		-- (Shared.WreckArtKit), plain parts until Art.Wrecks is imported.
 		wreck = { weight = "medium", wreck = true },
 		car = { weight = "heavy", vehicle = true }, -- VehicleService's cars
 		truck = { weight = "heavy", vehicle = true }, -- VehicleService's trucks (the spec's van)
@@ -98,12 +99,12 @@ return {
 		after = 3, -- seconds after a throw lands or it is set down before it falls apart
 		blink = 2, -- it flickers on every screen for its last seconds
 		maxDrop = 80, -- a robot beaten higher than this above the ground (a flyer over a rooftop gap) leaves none
-		-- client look, inside the device's debris budget (DebrisBudget): a few sparks every `sparkEvery` s while
-		-- the camera is within `sparkRange`; a pop of `popChips` chips when it falls apart
+		-- client look: a few sparks every `sparkEvery` s while the camera is within `sparkRange`, and a pop when it
+		-- falls apart (their particle counts are Config.Fx.lib.wreck, inside the preset's particle budget)
 		sparkEvery = 0.6,
 		sparkRange = 120,
-		sparks = 2,
-		popChips = 6,
+		-- a wreck's look may draw at most this many triangles (art/blender/wrecks.py; `max` of them at once, tests)
+		tris = 6000,
 		-- the heap's box as shares of the robot's height (x wide, y tall, z deep), by build
 		size = {
 			slim = { 0.42, 0.26, 0.34 },

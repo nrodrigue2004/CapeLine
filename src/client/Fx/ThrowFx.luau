@@ -2,10 +2,11 @@
 -- thrown thing on the server's arc (ThrowFly: the same parabola on every screen, Shared.ThrowMath.arcPoint,
 -- tumbling as it goes), with a dust ring, chips and a crash where it lands (a shake for heavy ones near you),
 -- a puff when someone lifts something (the Carrying attribute) and when a prop comes home (ThrowBack).
--- Downed robots' wrecks (WP6): sparks while one lies near the camera, a flicker for its last seconds (the
--- WreckEnds server time) and a pop of chips and sparks when it falls apart (WreckGone), all inside the
--- device's debris budget (DebrisBudget). Cartoon: machines spark, nothing else.
--- PLACEHOLDER ART: plain parts for the dust, chips and sparks until the effects pass.
+-- Downed robots' wrecks (WP6): sparks while one lies near the camera (its dead eyes light for a blink), a
+-- flicker for its last seconds (the WreckEnds server time) and a pop of nuts, sparks and smoke when it falls
+-- apart (WreckGone): textured particles through the effects library (FxLib, Config.Fx.lib.wreck, inside the
+-- preset's particle budget; gap-wrecks, 2026-11-19). Cartoon: machines spark, nothing else.
+-- PLACEHOLDER ART: plain parts for the throw's dust and chips until the effects pass.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -21,7 +22,7 @@ local ThrowMath = require(Shared:WaitForChild("ThrowMath"))
 
 local CameraController = require(script.Parent.Parent.Controllers.CameraController)
 local Juice = require(script.Parent.Juice)
-local DebrisBudget = require(script.Parent.DebrisBudget)
+local FxLib = require(script.Parent.FxLib)
 
 local ThrowFx = {}
 
@@ -33,6 +34,7 @@ local carrying: { [Player]: string? } = {}
 local fxFolder: Folder
 local W = T.wreck
 local SPARK = Color3.fromRGB(255, 226, 120)
+local METAL = Color3.fromRGB(90, 90, 100)
 local wrecks: { [Model]: { next: number, dim: boolean } } = {}
 
 -- The model for an item id: a prop in Workspace.Throwables, or a vehicle tagged with ThrowId
@@ -124,31 +126,32 @@ function ThrowFx.throwLand(at: Vector3, weight: string, mine: boolean)
 	Juice.fire("throwLand", at, { mine = mine })
 end
 
--- WP6: a downed robot's wreck sparks (a few bright bits that jump and fade, from the debris budget)
-local function sparks(at: Vector3, n: number)
-	local got = DebrisBudget.lease(n, 0.5)
-	for _ = 1, got do
-		local p = Instance.new("Part")
-		p.Anchored = true
-		p.CanCollide = false
-		p.CanQuery = false
-		p.CanTouch = false
-		p.CastShadow = false
-		p.Material = Enum.Material.Neon
-		p.Color = SPARK
-		p.Size = Vector3.new(0.18, 0.18, 0.7)
-		local dir = Vector3.new(math.random() - 0.5, 0.8 + math.random(), math.random() - 0.5).Unit
-		p.CFrame = CFrame.lookAt(at, at + dir)
-		p.Parent = fxFolder
-		TweenService:Create(p, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-			CFrame = CFrame.lookAt(at + dir * 3, at + dir * 4),
-			Transparency = 1,
-			Size = Vector3.new(0.08, 0.08, 0.3),
-		}):Play()
-		task.delay(0.45, function()
-			p:Destroy()
-		end)
+-- WP6: a wreck's suit, metal and eye colours (ThrowService's attributes; the Body's colour if missing)
+local function wreckColors(m: Model, main: BasePart): (Color3, Color3, Color3)
+	local suit, metal, eye =
+		m:GetAttribute("WreckSuit"), m:GetAttribute("WreckMetal"), m:GetAttribute("WreckEye")
+	return if typeof(suit) == "Color3" then suit else main.Color,
+		if typeof(metal) == "Color3" then metal else METAL,
+		if typeof(eye) == "Color3" then eye else SPARK
+end
+
+-- its dead eyes light for a blink as it sparks (the look's Eyes mesh, or the plain heap's Eyes part)
+local function flickerEyes(m: Model, eye: Color3)
+	local p = m:FindFirstChild("Eyes")
+	if not p or not p:IsA("BasePart") or p:GetAttribute("Lit") then
+		return
 	end
+	local color, material = p.Color, p.Material
+	p:SetAttribute("Lit", true)
+	p.Color = eye
+	p.Material = Enum.Material.Neon
+	task.delay(Config.Fx.lib.wreck.flicker, function()
+		if p.Parent then
+			p.Color = color
+			p.Material = material
+			p:SetAttribute("Lit", nil)
+		end
+	end)
 end
 
 local function setDim(m: Model, dim: boolean)
@@ -167,18 +170,9 @@ local function popWreck(m: Model)
 		return
 	end
 	local at = main.Position
-	local n = DebrisBudget.lease(W.popChips, 0.6)
-	for _ = 1, n do
-		chip(
-			at + Vector3.new((math.random() - 0.5) * 2, 0.5, (math.random() - 0.5) * 2),
-			main.Color,
-			0.9,
-			0.55,
-			0.3
-		)
-	end
-	sparks(at + Vector3.new(0, 1, 0), W.sparks + 2)
-	dust(at, 4, 1)
+	local suit, metal = wreckColors(m, main)
+	FxLib.wreckMoment("pop", at + Vector3.new(0, 0.5, 0), SPARK, suit, metal)
+	FxLib.dust(at - Vector3.new(0, main.Size.Y * 0.4, 0), 4)
 	Juice.fire("wreckPop", at, { mine = false })
 end
 
@@ -209,7 +203,9 @@ local function stepWrecks(now: number)
 		if now >= w.next then
 			w.next = now + W.sparkEvery * (0.6 + math.random() * 0.8)
 			if eye and (eye - at).Magnitude <= W.sparkRange then
-				sparks(at + Vector3.new(0, main.Size.Y * 0.5, 0), W.sparks)
+				local suit, metal, eye = wreckColors(m, main)
+				FxLib.wreckMoment("spark", at + Vector3.new(0, main.Size.Y * 0.5, 0), SPARK, suit, metal)
+				flickerEyes(m, eye)
 				if math.random() < 0.3 then
 					Juice.fire("wreckSpark", at, { mine = false })
 				end

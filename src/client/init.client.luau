@@ -55,6 +55,7 @@ local GuardFx = require(Fx.GuardFx)
 local ChargeFx = require(Fx.ChargeFx) -- H2: charge-up powers
 local ThrowClient = require(Controllers.ThrowClient) -- H3: pick up and throw
 local ThrowFx = require(Fx.ThrowFx)
+local CraterDecor = require(Fx.CraterDecor) -- lore step 9: the Crater's loose lab debris, per preset
 local TravelClient = require(Controllers.TravelClient)
 local Hud = require(Ui.Hud)
 local LoadoutScreen = require(Ui.LoadoutScreen)
@@ -136,6 +137,7 @@ GuardFx.init()
 ChargeFx.init()
 ThrowClient.init() -- after BlockClient: it wraps CombatClient.blocked
 ThrowFx.init()
+CraterDecor.init()
 HeroAnimator.init()
 TetherFx.init()
 HqClient.init()

@@ -468,7 +468,8 @@ return function(T: any)
 			"EnemyService's Killed handler is untouched"
 		)
 		local fx = source("src/client/Fx/ThrowFx.luau")
-		check(string.find(fx, "DebrisBudget.lease", 1, true) ~= nil, "sparks and chips in the debris budget")
+		-- gap-wrecks (2026-11-19): the sparks and pop are FxLib particles inside the preset's particle budget
+		check(string.find(fx, "FxLib.wreckMoment", 1, true) ~= nil, "sparks and pop in the effects budget")
 		check(string.find(fx, '"WreckGone"', 1, true) ~= nil, "the pop")
 		check(string.find(fx, "WreckEnds", 1, true) ~= nil, "the flicker near the end")
 		for _, id in { "wreckSpark", "wreckPop" } do

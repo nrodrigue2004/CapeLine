@@ -11,9 +11,10 @@ preview art/preview/fx_trails.png; `--trails` draws only those.
 nate uploads the PNGs (Studio Asset Manager, bulk import), then puts each id in Config.Fx.lib.textures.
 Until then the game uses Roblox's built-in particle images.
 
-    python3 art/fx/textures.py [--trails] [--moves] [--cracks] [--destruction]   (--moves: only rune.png and scorch.png,
+    python3 art/fx/textures.py [--trails] [--moves] [--cracks] [--destruction] [--wrecks]   (--moves: only rune.png and scorch.png,
     Config.FxMoves; --cracks: only the landing crack decals crack_1..3.png, Config.Fx.crack.decals, preview
-    art/preview/fx_cracks.png; --destruction: only crater.png and crack.png, Config.Destruction.decals)
+    art/preview/fx_cracks.png; --destruction: only crater.png and crack.png, Config.Destruction.decals; --wrecks: only
+    bolt.png, the downed robots' nut, preview art/preview/fx_bolt.png)
 """
 
 import math
@@ -398,6 +399,40 @@ def scorch(size=256):
 
 
 MOVES = {"rune.png": rune, "scorch.png": scorch}
+
+
+def bolt(size=128):
+    # a downed robot's loose hex nut (gap-wrecks, 2026-11-19: the wreck's pop, Config.Fx.lib.kinds.bolt): a
+    # six-sided plate with a round hole, a lit top edge and an inked rim, so a tint reads as painted metal
+    x, y = grid(size)
+    ang = np.arctan2(y, x)
+    r = np.sqrt(x * x + y * y)
+    # the hexagon's edge distance (flat sides)
+    sector = (ang + math.pi / 6) % (math.pi / 3) - math.pi / 6
+    hexr = r * np.cos(sector)
+    body = np.clip((0.84 - hexr) * 40, 0, 1)
+    hole = np.clip((r - 0.34) * 40, 0, 1)
+    ink = np.clip((hexr - 0.74) * 12, 0, 1) * 0.55 + np.clip((0.44 - r) * 12, 0, 1) * 0.55
+    light = 0.78 + 0.22 * np.clip(-(x + y) * 0.8, -1, 1)
+    a = body * hole
+    shade = np.clip(light * (1 - ink), 0, 1)
+    rgba = np.zeros((size, size, 4), np.uint8)
+    rgba[..., :3] = (shade[..., None] * 255).astype(np.uint8)
+    rgba[..., 3] = (a * 255).astype(np.uint8)
+    return Image.fromarray(rgba, "RGBA")
+
+
+def wrecks_main():
+    """Only the wreck's nut (art/preview/fx_bolt.png on a dark background, in two tints)."""
+    os.makedirs(OUT, exist_ok=True)
+    im = bolt()
+    im.save(os.path.join(OUT, "bolt.png"))
+    prev = Image.new("RGB", (3 * 160, 160), (34, 36, 44))
+    for i, tint in enumerate([(255, 255, 255), (200, 60, 50), (120, 130, 150)]):
+        tinted = Image.fromarray((np.asarray(im.convert("RGB"), np.float32) * np.array(tint) / 255).astype(np.uint8))
+        prev.paste(tinted, (i * 160 + 16, 16), im)
+    prev.save(os.path.join(ROOT, "art", "preview", "fx_bolt.png"))
+    print("wrote bolt.png to", OUT)
 
 
 def moves_main():
@@ -853,6 +888,8 @@ if __name__ == "__main__":
         destruction_main()
     elif "--moves" in sys.argv:  # only the ability sheets (Config.FxMoves), not uploaded yet
         moves_main()
+    elif "--wrecks" in sys.argv:  # only the wreck's nut (Config.Fx.lib.textures.bolt)
+        wrecks_main()
     else:
         main()
         trails_main()

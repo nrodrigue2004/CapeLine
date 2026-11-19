@@ -37,6 +37,8 @@
         "Necks": { "$path": "art/models/Necks.rbxm" },
         "News": { "$path": "art/models/News.rbxm" },
         "Prologue": { "$path": "art/models/Prologue.rbxm" },
+        "Wrecks": { "$path": "art/models/Wrecks.rbxm" },
+        "Crater": { "$path": "art/models/Crater.rbxm" },
         "SetPieces": { "$path": "art/models/SetPieces.rbxm" },
         "Shoulders": { "$path": "art/models/Shoulders.rbxm" },
         "Street": { "$path": "art/models/Street.rbxm" },
