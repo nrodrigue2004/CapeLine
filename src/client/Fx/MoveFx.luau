@@ -167,8 +167,26 @@ function MoveFx.init()
 
 	local phase = 0
 	local lastMode, wasBoosting = "", false
+	local nextCharge, chargeFull = 0, false
 	RunService.RenderStepped:Connect(FrameProf.wrap("MoveFx", function(dt)
 		local mode = MoveController.mode
+		-- hold to charge: rings at the feet grow as the Leap's crouch fills, a bright one when it is full
+		if mode == "charge" then
+			local now = os.clock()
+			local frac = MoveController.chargeFraction()
+			local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
+			local g = root and groundBelow(root.Position)
+			if g and frac >= 1 and not chargeFull then
+				chargeFull = true
+				ring(g + Vector3.new(0, 0.2, 0), heroColor(), F.charge.full)
+			elseif g and frac < 1 and now >= nextCharge then
+				nextCharge = now + F.charge.every
+				local s = F.charge.size
+				ring(g + Vector3.new(0, 0.2, 0), Color3.fromRGB(255, 236, 170), s[1] + (s[2] - s[1]) * frac)
+			end
+		else
+			chargeFull = false
+		end
 		local speed = MoveController.velocity.Magnitude
 		local anime = State.hero.fxStyle == "Anime"
 		-- sounds: a soft air on glide, a burst on boost, wind that rises with flight speed

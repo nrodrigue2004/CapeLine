@@ -41,7 +41,10 @@ return {
 	},
 	-- spec: cloud layer at 500, ceiling 600; raised 2026-11-17 for the skyscrapers (nate: "taller buildings"):
 	-- the Uptown landmark's spire tops out at 820, so the clouds sit at 880 and the ceiling at 960
-	ceiling = { soft = 920, hard = 960, push = 60 },
+	-- band (nate's playtest 2026-11-19, "can't jump in tunnel"): the ceiling only acts up to hard + band. The
+	-- mission pockets and the prologue's subway sit at y 3,000 (Config.Story.pockets), far above the sky, under
+	-- their own roofs: a ceiling that acted there flattened every Leap and pushed every flight down
+	ceiling = { soft = 920, hard = 960, push = 60, band = 400 },
 	fall = { terminal = 220 }, -- fastest legal fall (Roblox freefall from the ceiling)
 	-- Server caps per style (spec column "Server check"); position checks allow cap x tolerance
 	caps = {
@@ -79,11 +82,13 @@ return {
 			wallRun = 60, -- studs/s up a wall while sprinting into it
 			wallDrain = 12, -- stamina per second on a wall
 			waterRun = 45, -- the speed needed to run across water
-			slide = 1.0, -- seconds of slide (Down while sprinting): shots pass over
 			-- the running jump (nate's playtest 2026-11-18: "holding the jump without losing speed"): Leap while
 			-- running faster than `from` is an instant hop that keeps the run's speed (no crouch, no slowdown),
 			-- steers at turnRate in the air, and holding Leap hops again on every landing
 			hop = { from = 30, up = 45, turnRate = 160, glideBelow = -60 },
+			-- wall runs (nate's playtest 2026-11-19: "jump onto building and keep wall running"): a hop or fall into a
+			-- wall at waterRun or more runs up it (wallRun) like the ground run does; a glancing one at hop.from or more
+			-- runs along it at the run's speed; either keeps going while Boost or Leap is held and stamina lasts
 			cap = 100,
 			swim = 60,
 			up = { trailLevel = 12, trailSpeed = 70, trailRadius = 7, trailCoeff = 0.25 }, -- level 12: the trail hurts robots
@@ -91,12 +96,18 @@ return {
 		leap = {
 			name = "Leaping",
 			text = "Huge charged leaps, wall bounces and a ground pound",
+			-- nate's playtest 2026-11-19 ("Leap could be a bit better"): a shorter crouch, a bigger tap leap, the
+			-- run's speed carried into the leap, a firmer air steer, bigger bounces that keep their speed along the
+			-- wall, and a pound from lower down
 			apex = 90,
 			range = 200,
-			charge = 0.4,
-			cooldown = 0.8,
-			bounce = { up = 60, out = 45, max = 3, reach = 5 }, -- Leap near a wall in the air
-			pound = { speed = 160, radius = 12, coeff = 0.8, cooldown = 3, minFall = 25 }, -- Down in the air
+			charge = 0.25, -- was 0.4: the crouch before a full leap
+			minCharge = 0.55, -- a tapped leap still gets 55% of the height (everyone else's: Config.Move.leap)
+			cooldown = 0.5, -- was 0.8
+			carry = 0.6, -- share of the run's flat speed (up to caps.run) kept in the leap
+			air = { accel = 55, max = 40 }, -- air steer: studs/s^2, and the flat speed it may build up to
+			bounce = { up = 70, out = 50, max = 3, reach = 6, keep = 0.8 }, -- Leap near a wall in the air
+			pound = { speed = 160, radius = 12, coeff = 0.8, cooldown = 3, minFall = 15 }, -- Down in the air
 			swim = 36,
 			up = { poundLevel = 10, poundRadius = 18 },
 		},
@@ -107,8 +118,15 @@ return {
 			jumpForward = 35,
 			jumps = 1, -- extra jumps in the air (2 from level 10)
 			climb = 26, -- studs/s up a wall (hold forward into it)
-			wallRun = 45, -- studs/s along a wall
-			wallRunTime = 1.6,
+			-- wall runs (nate's playtest 2026-11-19: "jump onto building and keep wall running"): jump at a wall and
+			-- the hero grabs it: within wall.grabAngle of head-on (stick into it) climbs, more glancing runs along it at
+			-- the speed it came in with (wallRun to cap); the run lasts while the stick is held, up to wallRunTime,
+			-- sinking `sink` studs/s; Leap kicks off keeping the speed along the wall (and gives an air jump back),
+			-- so walls chain (wall.regrab)
+			wallRun = 45, -- studs/s along a wall (at least)
+			wallRunTime = 4, -- was a fixed 1.6 s
+			wallRunMin = 12, -- flat speed needed to start a run along a wall
+			sink = 2,
 			glideForward = 70, -- a faster glide than everyone's
 			run = 24,
 			cap = 75,
@@ -122,10 +140,25 @@ return {
 			maxSpeed = 95,
 			pump = 22, -- studs/s^2 of push along the swing
 			zip = 120, -- a zip to a ledge (tap Fly on the ground)
+			-- the swing fixes (nate's playtest 2026-11-19: "swing doesn't work properly"): the line tries each `lifts`
+			-- aim (camera look plus this much up, then along the travel) for something at least `minAbove` studs up;
+			-- the rope is never longer than keeps its low point `clearance` studs over the ground (no scraping the
+			-- street, which used to end the swing) nor shorter than minLen; a swing from the ground pops up
+			-- `groundPop`; letting go flings: the speed times release.boost plus release.up, at most release.cap
+			lifts = { 0.45, 0.9, 1.6 },
+			minAbove = 4,
+			minLen = 12,
+			clearance = 6,
+			groundPop = 25,
+			release = { up = 14, boost = 1.15, cap = 110 },
 			cap = 120,
 			swim = 45,
 			up = { rangeLevel = 10, range = 220 },
 		},
 	},
-	swim = { base = 24, surface = 2 }, -- everyone swims; surface: studs below the waterline the hero floats at
+	swim = { base = 24, surface = 2 },
+	-- wall grabs in the air (Acrobat and Super-speed): a wall hit within grabAngle degrees of head-on is run or
+	-- climbed up, a more glancing one is run along; `regrab` s after leaving a wall the hero may grab one again
+	-- (a wall run that timed out is not grabbed again before the hero lands or kicks off with Leap)
+	wall = { grabAngle = 40, regrab = 0.25 }, -- everyone swims; surface: studs below the waterline the hero floats at
 }

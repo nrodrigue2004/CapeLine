@@ -172,9 +172,9 @@ function MoveMath.flightStep(
 		vy = approach(vy, ty, accel * dt)
 	end
 
-	-- ceiling: a soft push back down above the cloud layer, hard stop at 600
+	-- ceiling: a soft push back down above the cloud layer, hard stop at the top (never in the pockets far above)
 	local c = cfg.ceiling
-	if y > c.soft then
+	if y > c.soft and MoveMath.ceilingOn(cfg, y) then
 		local over = math.clamp((y - c.soft) / (c.hard - c.soft), 0, 1)
 		vy = math.min(vy, -c.push * over + (1 - over) * vy)
 		if y >= c.hard then
@@ -189,6 +189,12 @@ function MoveMath.flightStep(
 		vx, vy, vz = vx * k, vy * k, vz * k
 	end
 	return vx, vy, vz, boosting
+end
+
+-- Does the sky's ceiling act at height y? Only up to hard + band: the mission pockets and the prologue's subway
+-- (y 3,000) are far above it, under their own roofs, and a Leap or a flight there must rise freely
+function MoveMath.ceilingOn(cfg: any, y: number): boolean
+	return y <= cfg.ceiling.hard + (cfg.ceiling.band or 0)
 end
 
 ---------------------------------------------------------------------------
@@ -255,23 +261,135 @@ function MoveMath.guardCap(
 	return cap * (1 + math.max(0, o.classSpeed or 0)) * (1 + math.max(0, o.speedBuff or 0))
 end
 
--- The Leaping mobility's full leap (bigger than everyone's)
+-- The Leaping mobility's full leap (bigger than everyone's). runX/runZ (optional): the flat speed the hero
+-- runs at; `carry` of it (at most caps.run's worth) is kept on top of the leap, so a running leap never stalls
 function MoveMath.superLeapLaunch(
 	cfg: any,
 	dirX: number,
 	dirZ: number,
-	charge01: number
+	charge01: number,
+	runX: number?,
+	runZ: number?
 ): (number, number, number)
 	local m = cfg.mobility.leap
-	return MoveMath.leapLaunch({
-		leap = { apex = m.apex, range = m.range, minCharge = cfg.leap.minCharge },
+	local vx, vy, vz = MoveMath.leapLaunch({
+		leap = { apex = m.apex, range = m.range, minCharge = m.minCharge or cfg.leap.minCharge },
 		airGravity = cfg.airGravity,
 	}, dirX, dirZ, charge01)
+	local rx, rz = runX or 0, runZ or 0
+	local rl = len2(rx, rz)
+	if rl > 1e-3 and m.carry then
+		local k = math.min(rl, cfg.caps.run) / rl * m.carry
+		vx, vz = vx + rx * k, vz + rz * k
+	end
+	return vx, vy, vz
 end
 
+-- The fastest Leaping launch: a full leap with a top-run carry along it (the server cap for Leaping heroes)
 function MoveMath.superLeapSpeed(cfg: any): number
-	local vx, vy, vz = MoveMath.superLeapLaunch(cfg, 1, 0, 1)
+	local vx, vy, vz = MoveMath.superLeapLaunch(cfg, 1, 0, 1, cfg.caps.run, 0)
 	return len3(vx, vy, vz)
+end
+
+-- Air steer: push the flat velocity along the stick at `accel`, never past `max` flat speed (or the speed it
+-- already had, if faster: steering never slows a leap, it only turns it)
+function MoveMath.airSteer(
+	vx: number,
+	vz: number,
+	wishX: number,
+	wishZ: number,
+	accel: number,
+	max: number,
+	dt: number
+): (number, number)
+	local before = len2(vx, vz)
+	local nx, nz = vx + wishX * accel * dt, vz + wishZ * accel * dt
+	local after = len2(nx, nz)
+	local limit = math.max(before, max)
+	if after > limit and after > 1e-6 then
+		nx, nz = nx / after * limit, nz / after * limit
+	end
+	return nx, nz
+end
+
+---------------------------------------------------------------------------
+-- Wall grabs and wall runs (Acrobat and Super-speed)
+---------------------------------------------------------------------------
+
+-- What a hero in the air does on meeting a wall: "wall" (up it: an Acrobat's climb or Super-speed's run up),
+-- "wallrun" (along it) or nil (nothing), with the speed. flatSpeed: the hero's flat speed; headOn: the cosine
+-- between the way the hero goes and straight into the wall (1 = head-on); stickIn: the stick pushes into it.
+function MoveMath.wallGrab(
+	cfg: any,
+	pick: string,
+	flatSpeed: number,
+	headOn: number,
+	stickIn: boolean
+): (string?, number)
+	local front = headOn >= math.cos(math.rad(cfg.wall.grabAngle))
+	if pick == "acrobat" then
+		local a = cfg.mobility.acrobat
+		if front and stickIn then
+			return "wall", a.climb
+		elseif not front and flatSpeed >= a.wallRunMin then
+			return "wallrun", math.clamp(flatSpeed, a.wallRun, a.cap)
+		end
+	elseif pick == "speed" then
+		local m = cfg.mobility.speed
+		if front and flatSpeed >= m.waterRun then
+			return "wall", m.wallRun
+		elseif not front and flatSpeed >= m.hop.from then
+			return "wallrun", math.min(flatSpeed, m.sprint)
+		end
+	end
+	return nil, 0
+end
+
+-- Does a wall run go on? elapsed: seconds on this wall; stick: the flat stick (world); nx, nz: the wall's
+-- normal; held: Super-speed's Boost or Leap is down. An Acrobat runs while the stick is pushed (not away from
+-- the wall) up to wallRunTime; Super-speed while it holds Boost or Leap and has stamina.
+function MoveMath.wallRunKeep(
+	cfg: any,
+	pick: string,
+	elapsed: number,
+	stickX: number,
+	stickZ: number,
+	nx: number,
+	nz: number,
+	held: boolean,
+	stamina: number
+): boolean
+	if pick == "speed" then
+		return held and stamina > 0
+	end
+	local a = cfg.mobility.acrobat
+	if elapsed >= a.wallRunTime or len2(stickX, stickZ) < 0.3 then
+		return false
+	end
+	return (stickX * nx + stickZ * nz) / len2(stickX, stickZ) < 0.5 -- not pulling away from the wall
+end
+
+-- Kicking off a wall run: `keep` of the speed along the wall, `out` away from it and `up`, never faster than
+-- the mobility's cap in total (the server's cap). alongX/alongZ: the run's flat direction (unit).
+function MoveMath.wallKick(
+	cfg: any,
+	pick: string,
+	alongX: number,
+	alongZ: number,
+	speed: number,
+	nx: number,
+	nz: number,
+	up: number,
+	out: number
+): (number, number, number)
+	local vx, vy, vz = alongX * speed + nx * out, up, alongZ * speed + nz * out
+	local cap = (cfg.mobility[pick] and cfg.mobility[pick].cap) or cfg.caps.run
+	local total = len3(vx, vy, vz)
+	if total > cap then
+		local k = cap / total
+		vx, vy, vz = vx * k, vy * k, vz * k
+	end
+	return vx, vy, vz
 end
 
 -- Super-speed: the sprint speed after dt of holding Boost (accelerates to the top speed)
@@ -372,6 +490,39 @@ function MoveMath.swingStep(
 		vx, vy, vz = vx * k, vy * k, vz * k
 	end
 	return nx, ny, nz, vx, vy, vz
+end
+
+-- The rope's length for a line from the hero (px, py, pz) to (ax, ay, az): a little shorter than the gap (so it
+-- is taut at once), never so long that the swing's low point scrapes the ground at groundY (nil: none found),
+-- and never shorter than minLen
+function MoveMath.swingRope(
+	cfg: any,
+	px: number,
+	py: number,
+	pz: number,
+	ax: number,
+	ay: number,
+	az: number,
+	groundY: number?
+): number
+	local m = cfg.mobility.swing
+	local len = len3(ax - px, ay - py, az - pz) * 0.95
+	if groundY then
+		len = math.min(len, ay - groundY - m.clearance)
+	end
+	return math.max(m.minLen, len)
+end
+
+-- Letting go of a swing: the speed it had times release.boost, plus release.up, at most release.cap in total
+function MoveMath.swingRelease(cfg: any, vx: number, vy: number, vz: number): (number, number, number)
+	local r = cfg.mobility.swing.release
+	vx, vy, vz = vx * r.boost, vy * r.boost + r.up, vz * r.boost
+	local total = len3(vx, vy, vz)
+	if total > r.cap then
+		local k = r.cap / total
+		vx, vy, vz = vx * k, vy * k, vz * k
+	end
+	return vx, vy, vz
 end
 
 MoveMath.len3 = len3

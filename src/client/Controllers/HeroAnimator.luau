@@ -1,7 +1,7 @@
 --!strict
 -- HeroAnimator: plays Shared.HeroAnim's clips on every hero near you (overhaul plan step 2). Two layers on top
 -- of the Animator (Roblox's default Animate keeps the ground walk, run, idle and jump):
--- * mode: the movement pose (fly, hover, glide, leap, dash, slide, swing, wall run, ride, swim, Downed),
+-- * mode: the movement pose (fly, hover, glide, leap, dash, swing, wall run, ride, swim, Downed),
 --   crossfaded on a change. Your own mode comes from MoveController; other heroes' from their "Move"
 --   attribute (you send yours with MoveMode, the server sets it) and their speed.
 -- * stance: while the weapon is held (the Held attribute) and the hero stands, runs or jumps, the arms take

@@ -30,6 +30,9 @@ return {
 		boom = { color = { 255, 150, 50 }, chunks = 5, shake = 40 },
 	},
 	trail = { boostLife = 0.4 },
+	-- the Leap crouch's hold-to-charge rings (nate's playtest 2026-11-19): a ring at the feet every `every` s,
+	-- growing from size[1] to size[2] studs as the charge fills, and a bright `full` ring once it is full
+	charge = { every = 0.08, size = { 3, 12 }, full = 16 },
 	voltColor = { 120, 210, 255 },
 	weaponColor = { 240, 236, 225 }, -- weapon moves: a bright steel streak
 	enemyShotColor = { 255, 110, 80 },

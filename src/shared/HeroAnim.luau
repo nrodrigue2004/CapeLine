@@ -1,7 +1,7 @@
 --!strict
 -- HeroAnim: the heroes' core animations as data (overhaul plan step 2: idle, run, fly, combo, cast, hit), and
 -- the maths that samples them. Roblox's default Animate keeps the ground idle, walk, run and jump; these
--- clips cover everything it has no animation for: flight, hover, glide, leaps, dashes, slides, swings, wall
+-- clips cover everything it has no animation for: flight, hover, glide, leaps, dashes, swings, wall
 -- runs, rides, swimming, the Downed kneel, every power cast, every weapon's combo and moves, the windup and
 -- the flinch when hit. HeroAnimator (client) plays them on every hero by writing Motor6D.Transform after the
 -- Animator, so nothing needs uploading and they work on the blocky R15 rig (and any R15 avatar).
@@ -30,7 +30,7 @@ HeroAnim.MODES = {
 	"glide",
 	"pound",
 	"ride",
-	"slide",
+	"retired", -- was Super-speed's slide (removed 2026-11-19); the slot stays so the indexes after it never shift
 	"swing",
 	"water",
 	"wall",
@@ -194,20 +194,6 @@ C.pound = {
 		LeftHip = hold(60),
 		RightKnee = hold(-80),
 		LeftKnee = hold(-80),
-	},
-}
-C.slide = {
-	dur = 0.6,
-	loop = true,
-	joints = {
-		Waist = hold(26),
-		Neck = hold(-14),
-		LeftHip = hold(72),
-		LeftKnee = hold(-8),
-		RightHip = hold(12),
-		RightKnee = hold(-84),
-		RightShoulder = hold(-20, 0, 40),
-		LeftShoulder = hold(-20, 0, -40),
 	},
 }
 C.swing = {

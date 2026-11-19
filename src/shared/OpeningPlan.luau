@@ -169,6 +169,22 @@ function OpeningPlan.slabFalls(Config: any, lane: Lane, k: number, z: number): b
 	return c ~= nil and z <= c.z - S.slab / 2 - S.behind
 end
 
+-- Does fallen slab k's rubble shut the way for a hero at z? Only once the hero is wholly past it (nate's
+-- playtest 2026-11-19: "can't jump in tunnel so I'm stuck"): a hero put back on the start side (a respawn, a
+-- stuck beat moving on) or caught under it walks through, so the rubble never stands between the hero and
+-- the chamber
+function OpeningPlan.rubbleShuts(Config: any, lane: Lane, k: number, z: number): boolean
+	local c = lane.collapses[k]
+	local S = Config.Story.opening.subway
+	return c ~= nil and z < c.z - S.slab / 2 - 1
+end
+
+-- Does a guided hop (HOPS) apply to a hero at y? Never once the hero is down in the subway pocket (a beat's
+-- city target left over for a frame would arc the hero thousands of studs away)
+function OpeningPlan.hopsAt(Config: any, step: string?, y: number): boolean
+	return step ~= nil and OpeningPlan.HOPS[step] == true and y < Config.Story.pockets.y - 100
+end
+
 -- The fight chamber's floor as a room its robots never leave: { x0, x1, z0, z1, yMax } (`pad` studs in from the
 -- walls; yMax keeps a flyer under the ceiling, in reach)
 function OpeningPlan.chamber(Config: any, lane: Lane, pad: number?): { number }

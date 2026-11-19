@@ -63,6 +63,7 @@ local scanner: Part? = nil
 local debris: Part? = nil
 local board: Part? = nil
 local slabs: { [number]: Part } = {}
+local slabDown: { [number]: boolean } = {} -- slab k has landed as rubble
 local lastStep: string? = nil
 local leapDone = false
 local sparkShown = false
@@ -241,6 +242,7 @@ local function clearScene()
 	table.clear(crowd)
 	table.clear(stageNpcs)
 	table.clear(slabs)
+	table.clear(slabDown)
 	kid, lodestar, scanBeam, scanner, debris, board = nil, nil, nil, nil, nil, nil
 	sparkShown, leapDone, suit = false, false, nil
 end
@@ -857,6 +859,14 @@ local function tunnelStep(o: { [string]: any })
 	end
 	ensureFolder()
 	local S = O.subway
+	for k, slab in slabs do
+		-- the way back is shut, but only behind the hero: never between the hero and the chamber
+		local shut = slabDown[k] == true and OpeningPlan.rubbleShuts(Config, lane, k, r.Position.Z)
+		if slab.CanCollide ~= shut then
+			slab.CanCollide = shut
+			slab.CanQuery = shut -- a ghost pile is no wall or floor to the movement rays either
+		end
+	end
 	for k, c in lane.collapses do
 		-- kid-proof: the tunnel caves in BEHIND the hero (OpeningPlan.slabFalls), every run the same
 		if not slabs[k] and OpeningPlan.slabFalls(Config, lane, k, r.Position.Z) then
@@ -877,8 +887,7 @@ local function tunnelStep(o: { [string]: any })
 				if not slab.Parent then
 					return
 				end
-				slab.CanCollide = true -- the way back is shut
-				slab.CanQuery = true
+				slabDown[k] = true -- CanCollide follows OpeningPlan.rubbleShuts each frame (above)
 				CombatFx.burst(floor + Vector3.new(0, 2, 0), "Comic")
 				AudioController.play("collapse", floor)
 				CameraController.shake(0.35, 0.6)
@@ -1253,7 +1262,7 @@ function PrologueFx.init()
 		local o = StoryClient.opening
 		local r = root()
 		local to = o.target
-		if not step or not OpeningPlan.HOPS[step] or not to or not r then
+		if not to or not r or not OpeningPlan.hopsAt(Config, step, r.Position.Y) then
 			return nil, 0, 0
 		end
 		local p = r.Position
