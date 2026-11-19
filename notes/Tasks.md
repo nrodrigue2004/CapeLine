@@ -184,6 +184,14 @@ What nate does:
 
 ## Studio test list (needs nate's PC)
 
+### Playtest gaps2: start here (2026-11-19, build playtest-gaps2)
+Everything in gaps1 plus the art round 2: project files capeline/Capeline-playtest-gaps2-2026-11-19.rbxl (Output "playtest-gaps2 (2026-11-19)"). It replaces every older playtest place. Run "Playtest gaps1: start here" below first if not done, then these lists, each further down this file:
+1. "Ceremony prologue art" (just below) (the stage, drone, sign, billboard with Crane on the catwalk, shield bubble, scanner sweep).
+2. "Studio list: gear looks as meshes" (every gear look on Roblox's body, colours, helms hide hair, phone frame rate).
+3. "Studio list: activity props and destruction decals" (incident, event and contract props, crater and crack decals).
+4. "Studio list: Deep art" (the Sunken Line, reef, wrecks, factory, kelp, caches, divers).
+5. "Studio list: gap review fixes" (pocket lights in place, pocket dressing only near you).
+
 ### Playtest gaps1: start here (2026-11-19, build playtest-gaps1)
 Combined build 2 plus six polish packages: project files capeline/Capeline-playtest-gaps1-2026-11-19.rbxl (Output "playtest-gaps1 (2026-11-19)"). It replaces every older playtest place. Run "Playtest combined 2: start here" below first if not done, then these lists, each further down this file:
 1. "Studio list: the comic icon set" (powers, weapons, gear and loot toasts show icons).
