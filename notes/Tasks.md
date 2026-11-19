@@ -204,6 +204,18 @@ Looks only: where the screens hang, what they show, the card's timing and the TV
 6. The boss name cards (each of the four) show the boss's comic portrait popping out of the card's left over a comic navy plate; the name and title sit right of it, the slash bar sweeps in the boss's colour; the plate's ink and gold rule stay crisp at PC and phone sizes.
 7. Your double's card (and the three side-vs-side event cards) show the event's comic icon; the Crater's card and the side quest finales' cards are words on the plate.
 
+### Playtest gaps7: start here (2026-11-19, build playtest-gaps7)
+Everything in gaps6 plus nate's 2026-11-19 playtest list: project files capeline/Capeline-playtest-gaps7-2026-11-19.rbxl (Output "playtest-gaps7 (2026-11-19)"). It replaces every older playtest place. Run "Playtest gaps6: start here" below first if not done, then these lists:
+1. "lock-on, omnidirectional movement, knockback, block key, drops, swinging robots" (block is Q now; middle mouse or Tab locks; R3 on gamepad, LOCK on phone).
+2. "Spider-Man swinging" (hold Fly in the air; Leap zips up the line).
+3. "Boss stuck and anti-cheese" (bosses smash through, leap free, fight fliers).
+4. "Animation audit and Studio list: pt-anims" (casts in the air, two-handed holds, robot attacks and hit reacts, people's gestures, the robot swing clips).
+5. "fit on Roblox's body" (boots, pads, coats, holsters, handles in the fist, hats over hair).
+6. "popups, the contest card and building textures" (one card and two toasts at once, CONTEST SKIPPED closes, glass and prism towers textured).
+7. "bigger city and interactive street" (Downtown 980 x 1,120 and Uptown 750 x 750, awning bounce, falling water towers, perches; phone frame time with ~10.3k hub parts).
+8. "Villain name cards and catalog beards", "Crater ground and throw particles", "Pocket props, the second set", "Studio list: picture tiles" (the Halo tile).
+3 free hero slots now (slot 4 is sold); War-Frame card reads THE IRON OATH.
+
 ### Playtest gaps6: start here (2026-11-19, build playtest-gaps6)
 Everything in gaps5 plus round 6: project files capeline/Capeline-playtest-gaps6-2026-11-19.rbxl (Output "playtest-gaps6 (2026-11-19)"). It replaces every older playtest place. Run "Playtest gaps5: start here" below first if not done, then these lists:
 1. "Studio list: story props and the Echo Drone" (the runaway tram, break targets, the bridge's people under girders, goal beacons, the new Echo Drone).

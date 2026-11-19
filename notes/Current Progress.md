@@ -65,3 +65,4 @@
 - Repo: local only (restore with `git clone -b enemies9 capeline.bundle capeline`, branch enemies9). Backup after every milestone: /mnt/project-files/capeline/ (capeline.bundle, Capeline.rbxl, notes). Restore: `git clone capeline.bundle capeline`.
 - Tools: rojo, lune, selene, stylua binaries in ~/tools (download from GitHub releases; see roblox-dev-setup memory). Auto-resume: a check fires every 90 minutes (send_later) and reschedules itself.
 - Done 2026-11-19 (pt-thumbs): hat tiles re-checked after pt-fit; only the Halo tile changed (re-rendered higher), sheet 2 re-uploaded (76587313495295, Approved).
+- 2026-11-19: playtest-gaps7 built (nate's playtest list: lock-on, omni movement, knockback, Q block, drop smash, robot swing, boss anti-cheese, animations, piece fit, popup queue, textures, Spider-Man swinging, 1.56x Downtown and Uptown). Start at Tasks.md "Playtest gaps7: start here".
