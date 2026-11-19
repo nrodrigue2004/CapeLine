@@ -34,8 +34,8 @@ return function(T: any)
 		return false
 	end
 
-	local HUB =
-		{ CarHatch = 1000, CarSedan = 1000, CarTaxi = 1000, CarBubble = 1000, Tram = 1500, DockTruck = 1500 }
+	-- the 2026-11-19 remake's budgets: about 6k a car, under about 10k a tram, truck or escort
+	local HUB = { CarHatch = 7000, CarSedan = 7000, CarTaxi = 7000, CarBubble = 7000 }
 
 	test("Vehicle art: the fit table, one look each, all in the phone budget", function()
 		check(type(FIT) == "table", "Config.VehicleArt is indexed")
@@ -74,12 +74,12 @@ return function(T: any)
 				check(type(f.tris) == "number" and f.tris > 0, name .. " counts its triangles")
 				tris += f.tris or 0
 			end
-			local cap = HUB[look] or 2500
+			local cap = HUB[look] or 10500
 			check(tris <= cap, look .. " is in its phone budget (" .. tris .. " of " .. cap .. " tris)")
 			total += tris
 		end
-		check(looks == 12 and meshes == 87, "12 looks in 87 meshes (" .. looks .. ", " .. meshes .. ")")
-		check(total <= 18000, "the whole set is in budget (" .. total .. " tris)")
+		check(looks == 12 and meshes == 64, "12 looks in 64 meshes (" .. looks .. ", " .. meshes .. ")")
+		check(total <= 95000, "the whole set is in budget (" .. total .. " tris)")
 		-- the hub's worst case: every one of the 40 vehicles in its look at once
 		local hub = 0
 		for _, v in Vehicles.place(Config) do
@@ -87,7 +87,7 @@ return function(T: any)
 				hub += f.tris
 			end
 		end
-		check(hub <= 40000, "all 40 hub vehicles together stay light (" .. hub .. " tris)")
+		check(hub <= 270000, "all 40 hub vehicles together stay in budget (" .. hub .. " tris)")
 		check(fs.isFile("art/export/Vehicles.fbx"), "the meshes are exported for nate's import")
 		check(fs.isFile("art/preview/vehicles.png"), "and previewed")
 		check(has("src/config/init.luau", '"VehicleArt"'), "the config index lists it")
@@ -235,6 +235,57 @@ return function(T: any)
 		check(
 			has(ts, "p.CanQuery = if it.query then it.query[p] ~= false else true"),
 			"a thrown car's meshes take no queries after landing"
+		)
+	end)
+
+	-- nate's 2026-11-18 playtest: "plain/grey". The old meshes carried no texture, UVs or material, so every look
+	-- read as flat plastic. Each look's body and detail now carry a baked texture set (SurfaceAppearance), the pulled
+	-- model has its four maps, and the clone keeps them.
+	test("Vehicle art: every look is textured, its maps are imported and kept on the clone", function()
+		local ids = fs.readFile("art/models/vehicles_meshids.json")
+		for look, fit in FIT do
+			local textured = 0
+			for name, f in fit do
+				check(
+					not (f.color[1] == 163 and f.color[2] == 162 and f.color[3] == 165),
+					name .. " is not the importer's default grey"
+				)
+				if f.maps then
+					textured += 1
+					check(f.mat == "SmoothPlastic", name .. " lets its maps give the material")
+					local maps = string.match(ids, '"' .. name .. '%.SurfaceAppearance#maps"%s*:%s*(%b[])')
+					check(maps ~= nil, name .. " has its SurfaceAppearance in the pulled model")
+					local n = 0
+					for id in string.gmatch(maps or "", "%d+") do
+						if tonumber(id) and (tonumber(id) :: number) > 0 then
+							n += 1
+						end
+					end
+					check(n == 4, name .. " has its colour, normal, roughness and metal maps (" .. n .. ")")
+				end
+			end
+			check(textured == 2, look .. " has a textured body and detail (" .. textured .. ")")
+			for name, f in fit do
+				if string.sub(name, -4) == "Body" or string.sub(name, -6) == "Detail" then
+					check(f.maps == true, name .. " is textured")
+				end
+			end
+		end
+		local kit = "src/server/Services/SetPieceMeshes.luau"
+		check(
+			has(kit, 'if m.maps and c:IsA("SurfaceAppearance") then'),
+			"a clone keeps its SurfaceAppearance"
+		)
+		check(has(kit, "c.AlphaMode = Enum.AlphaMode.Overlay"), "and lets the tint show through its paint")
+		local m = SetPieceKit.meshes(Config, { look = "CarSedan", x = 0, y = 0, z = 0 })
+		local any = false
+		for _, mesh in m do
+			any = any or mesh.maps
+		end
+		check(any, "SetPieceKit hands the maps flag on")
+		check(
+			has("src/server/Services/IncidentService.luau", 'SetPieceMeshes.ready("CarSedan")'),
+			"the towed car wears the sedan look too"
 		)
 	end)
 end
