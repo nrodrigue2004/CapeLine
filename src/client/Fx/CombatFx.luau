@@ -29,6 +29,7 @@ local QualityController = require(script.Parent.Parent.Controllers.QualityContro
 local AbilityFx = require(script.Parent.AbilityFx)
 local DebrisBudget = require(script.Parent.DebrisBudget)
 local FxLib = require(script.Parent.FxLib)
+local DeepMeshes = require(script.Parent.DeepMeshes)
 
 local CombatFx = {}
 CombatFx.reduceFlashing = false
@@ -2726,7 +2727,15 @@ function CombatFx.torpedo(pos: Vector3, vel: Vector3, home: number, turn: number
 	if speed < 1 then
 		return
 	end
-	local body = part(Vector3.new(1.4, 1.4, 4), CFrame.lookAt(pos, pos + vel), ENEMY)
+	-- the Deep set's torpedo (nose at -z, as lookAt points) once imported, else a box
+	local mesh = DeepMeshes.clone("Torpedo", Vector3.new(1.4, 1.4, 4))
+	local body: BasePart = if mesh
+		then mesh
+		else part(Vector3.new(1.4, 1.4, 4), CFrame.lookAt(pos, pos + vel), ENEMY)
+	if mesh then
+		mesh.CFrame = CFrame.lookAt(pos, pos + vel)
+		mesh.Parent = folder
+	end
 	local life = math.min(4, 130 / speed)
 	local wet = not EnemySim.torpedoDone(Config, pos.Y) -- fired under the water: it pops at the surface
 	local shot =

@@ -81,4 +81,31 @@ return {
 		fogEnd = 160,
 		bubbles = 0.08, -- seconds between bubbles from a moving hero
 	},
+	-- the deep art pass (2026-11-19; art/blender/deep.py, Config.DeepArt, Shared.DeepArtKit): the looks are drawn
+	-- by CityBuilder once imported (Art.Deep); these are the device's own touches (DeepClient), by preset
+	art = {
+		-- kelp sways about its foot near the camera: at most `max` strands within `near` studs (low: none)
+		kelp = {
+			angle = 6, -- degrees of lean
+			speed = 0.9, -- radians a second
+			refresh = 0.5, -- seconds between picks of the nearest strands
+			low = { near = 0, max = 0 },
+			medium = { near = 140, max = 30 },
+			high = { near = 240, max = 82 },
+		},
+		-- caustic light shimmering on the floor round the camera in the lit water (not the Sunken Line), fading out
+		-- by maxDepth under the surface: a plane of `size` studs (0: off) with two scrolling caustic Textures
+		caustics = {
+			image = 95631515057833, -- art/fx/deep.py's caustics.png (uploaded as an Image, 2026-11-19)
+			low = 0,
+			medium = 100,
+			high = 160,
+			tile = 22, -- studs a caustic tile covers
+			speed = 1.1, -- studs a second the two layers drift
+			maxDepth = 90,
+			alpha = 0.45, -- the layers' transparency just under the surface (fading to 1 at maxDepth)
+		},
+		marker = 125894691049575, -- the drawn comic cache marker (art/fx/deep.py's cache_marker.png, uploaded as an Image)
+		bubble = 7, -- the commuters' air bubble (studs across; Art.Deep's AirBubble)
+	},
 }

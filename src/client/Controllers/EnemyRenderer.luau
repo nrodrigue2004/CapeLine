@@ -286,8 +286,16 @@ local artFolder = ReplicatedStorage:FindFirstChild("Art")
 local robotArt = artFolder and artFolder:FindFirstChild("Robots")
 local ALIAS: { [string]: string } = { Tank2 = "Tank" }
 local meshCache: { [string]: MeshPart | false } = {}
+-- the sea robots' gear from the Deep set (art/blender/deep.py, Art.Deep), sized to the same pieces
+local deepArt = artFolder and artFolder:FindFirstChild("Deep")
+local DEEP: { [string]: string } =
+	{ Helmet = "DiverDome", HelmetFrame = "HelmetFrame", Tank = "DiverTank", Tank2 = "DiverTank" }
 
 local function meshFor(name: string): MeshPart?
+	local deep = DEEP[name] and deepArt and deepArt:FindFirstChild(DEEP[name], true)
+	if deep and deep:IsA("MeshPart") then
+		return deep
+	end
 	if not robotArt then
 		return nil
 	end
@@ -960,7 +968,7 @@ local function makeRobot(typeId: number, ident: { [string]: any }?): Body
 			)
 		end
 	end
-	-- sea robots: a glass diving helmet and an air tank (PLACEHOLDER ART)
+	-- sea robots: a glass diving helmet and an air tank (the Deep set's meshes once imported, else parts)
 	if body.helmet then
 		add(
 			"Helmet",
@@ -973,6 +981,9 @@ local function makeRobot(typeId: number, ident: { [string]: any }?): Body
 			0.55
 		)
 		add("Collar", "Head", CFrame.new(0, -HD.Y * 0.55, 0), HD * Vector3.new(1.25, 0.18, 1.25), trim, M)
+		if meshFor("HelmetFrame") then -- the Deep set's brass frame over the glass dome
+			add("HelmetFrame", "Head", I, Vector3.one * HD.Y * 1.45, trim, M)
+		end
 	end
 	if body.tank then
 		local tw = UT.X * 0.16

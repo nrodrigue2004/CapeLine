@@ -10,6 +10,7 @@
 -- * heightAt(x, z): the roof or ground height anywhere (the robot AI, the load bots and spawn checks).
 -- PLACEHOLDER ART: plain parts in the muted city palette until the kit and Chunker pass (M5).
 
+local CollectionService = game:GetService("CollectionService")
 local HttpService = game:GetService("HttpService")
 local MaterialService = game:GetService("MaterialService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -21,6 +22,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local WorldMap = require(Shared:WaitForChild("WorldMap"))
 local WorldGen = require(Shared:WaitForChild("WorldGen"))
 local DeepLayout = require(Shared:WaitForChild("DeepLayout"))
+local DeepArtKit = require(Shared:WaitForChild("DeepArtKit"))
 local HqRules = require(Shared:WaitForChild("HqRules"))
 local SideQuestSites = require(Shared:WaitForChild("SideQuestSites"))
 local Signal = require(Shared:WaitForChild("Util"):WaitForChild("Signal"))
@@ -307,8 +309,69 @@ CityBuilder.part = makePart
 
 local TERRAIN = { water = Enum.Material.Water, sand = Enum.Material.Sand, rock = Enum.Material.Rock }
 
+-- The Deep's meshes (art/blender/deep.py, imported as ReplicatedStorage.Art.Deep), looked up by name
+local deepFound: { [string]: MeshPart } = {}
+local function deepSource(name: string): MeshPart?
+	local hit = deepFound[name]
+	if hit and hit.Parent then
+		return hit
+	end
+	local art = ReplicatedStorage:FindFirstChild("Art")
+	local root = art and art:FindFirstChild("Deep")
+	local src = root and root:FindFirstChild(name, true)
+	if src and src:IsA("MeshPart") then
+		deepFound[name] = src
+		return src
+	end
+	return nil
+end
+
+-- One placement's meshes (Shared.DeepArtKit) into its chunk model: visuals only (no collisions, queries or
+-- touches; the boxes they stand in for stay, hidden). Kelp is tagged DeepKelp for DeepClient's sway.
+local function deepLook(place: any, parent: Instance): number
+	local n = 0
+	local at = CFrame.new(place.cx, place.cy, place.cz) * CFrame.Angles(0, math.rad(place.ry or 0), 0)
+	for _, m in DeepArtKit.meshes(Config, place) do
+		local src = deepSource(m.name)
+		if not src then
+			continue
+		end
+		local p = src:Clone()
+		for _, c in p:GetChildren() do
+			if m.maps and c:IsA("SurfaceAppearance") then
+				c.AlphaMode = Enum.AlphaMode.Overlay
+			else
+				c:Destroy()
+			end
+		end
+		p.Name = m.name
+		p.Anchored = true
+		p.CanCollide = false
+		p.CanQuery = false
+		p.CanTouch = false
+		p.Size = Vector3.new(m.size[1], m.size[2], m.size[3])
+		p.CFrame = at * CFrame.new(m.offset[1], m.offset[2], m.offset[3])
+		p.Color = Color3.fromRGB(m.color[1], m.color[2], m.color[3])
+		local ok, mat = pcall(function()
+			return (Enum.Material :: any)[m.mat]
+		end)
+		p.Material = if ok and mat then mat else Enum.Material.SmoothPlastic
+		p.Transparency = m.alpha
+		p.CastShadow = false
+		if place.tag == "kelp" then
+			-- the sway turns the strand about its foot: the placement's bottom middle
+			p:SetAttribute("Foot", Vector3.new(place.cx, place.cy - place.sy / 2, place.cz))
+			CollectionService:AddTag(p, "DeepKelp")
+		end
+		p.Parent = parent
+		n += 1
+	end
+	return n
+end
+
 -- The underwater areas (Config.Deep): Terrain water, seabed and rock walls in chunks (a few a frame), then the
--- tunnel, reef, wrecks, caches and the sunken factory as parts in 140-stud chunk models
+-- tunnel, reef, wrecks, caches and the sunken factory as parts in 140-stud chunk models; each look imported in
+-- Art.Deep is drawn over its boxes (hidden, kept for collisions, queries and the walls)
 local function buildDeep(folder: Folder)
 	local t0 = os.clock()
 	local deep = CityBuilder.deep
@@ -334,6 +397,9 @@ local function buildDeep(folder: Folder)
 	end
 	local deepFolder = Instance.new("Folder")
 	deepFolder.Name = "Deep"
+	local ready = DeepArtKit.readyLooks(Config, function(name: string): boolean
+		return deepSource(name) ~= nil
+	end)
 	local chunks: { [string]: Model } = {}
 	for _, b in deep.boxes do
 		local key = chunkKey(b.cx, b.cz)
@@ -345,15 +411,36 @@ local function buildDeep(folder: Folder)
 			m.Parent = deepFolder
 			chunks[key] = m
 		end
-		makePart(b).Parent = m
+		local p = makePart(b)
+		if DeepArtKit.hides(b, ready) then
+			p.Transparency = 1
+			p.CastShadow = false
+		end
+		p.Parent = m
+	end
+	local meshes = 0
+	for _, place in deep.art do
+		if ready[place.look] then
+			local key = chunkKey(place.cx, place.cz)
+			local m = chunks[key]
+			if not m then
+				m = Instance.new("Model")
+				m.Name = "Deep_" .. key
+				m.ModelStreamingMode = Enum.ModelStreamingMode.Atomic
+				m.Parent = deepFolder
+				chunks[key] = m
+			end
+			meshes += deepLook(place, m)
+		end
 	end
 	deepFolder.Parent = folder
-	CityBuilder.builtParts += #deep.boxes
+	CityBuilder.builtParts += #deep.boxes + meshes
 	print(
 		string.format(
-			"[CityBuilder] underwater: %d fills, %d parts in %.2f s",
+			"[CityBuilder] underwater: %d fills, %d parts, %d meshes in %.2f s",
 			n,
 			#deep.boxes,
+			meshes,
 			os.clock() - t0
 		)
 	)
