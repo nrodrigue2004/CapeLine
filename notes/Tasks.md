@@ -1814,6 +1814,7 @@ Today's six packages (gaps1) read for what Studio hits and Lune cannot (luau-lsp
 - WEAPON: each weapon row has its picture at the left.
 - SHOP: packs, weapons, effect tints and travel styles show a picture at the card's left; emotes, passes and slots stay words.
 - The 8 sheets (Config.Thumbs) load (no grey tiles); all 8 were Approved on 2026-11-19 (`python3 -I art/thumbs/upload.py --check` rechecks).
+- Hat tiles (pt-thumbs, 2026-11-19): the Halo tile shows the halo floating well clear of the head, as it sits in game after pt-fit; sheet 2 is now 76587313495295 (Approved) and loads (no grey tiles in the Hats row).
 
 ## Studio list: comic art (2026-11-19)
 1. Dev panel comic page (lastStand) and each side quest's story page: every panel shows its rendered picture, cropped to the panel's shape with the action in view (no stretched or blank panels); captions, sound words, slide-in timing and SKIP are as before.

@@ -63,3 +63,4 @@
 - Next: nate plays playtest-art4 (he called art3 below his standard: UI, enemy movement, vehicles need a quality pass, coordinator planning it) (every mesh and image is in) and runs the Studio lists; the M12 balance call (Decisions), store art, the playtest week and the quiet launch.
 - Repo: local only (restore with `git clone -b enemies9 capeline.bundle capeline`, branch enemies9). Backup after every milestone: /mnt/project-files/capeline/ (capeline.bundle, Capeline.rbxl, notes). Restore: `git clone capeline.bundle capeline`.
 - Tools: rojo, lune, selene, stylua binaries in ~/tools (download from GitHub releases; see roblox-dev-setup memory). Auto-resume: a check fires every 90 minutes (send_later) and reschedules itself.
+- Done 2026-11-19 (pt-thumbs): hat tiles re-checked after pt-fit; only the Halo tile changed (re-rendered higher), sheet 2 re-uploaded (76587313495295, Approved).
