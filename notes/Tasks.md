@@ -210,6 +210,12 @@ What nate does:
 
 ## Studio test list (needs nate's PC)
 
+### Playtest gaps4: start here (2026-11-19, build playtest-gaps4)
+Everything in gaps3 plus round 4: project files capeline/Capeline-playtest-gaps4-2026-11-19.rbxl (Output "playtest-gaps4 (2026-11-19)"). It replaces every older playtest place. Run "Playtest gaps3: start here" below first if not done, then these lists:
+1. "Hideout art pass: the HQ room shells and textures" (both HQs' walls, floors, lamps, the stairwell head, the captive figure).
+2. "Studio list: pose tiles" (emote, landing and photo pose pictures in the shop, the EMOTE picker and Photo Mode). Also: on a phone with 5+ emotes the EMOTE picker now scrolls instead of running off the screen.
+3. "Studio list: catalog faces and hair for the named cast" (every guide, giver, helper, mentor and villain wears their own catalog face and hair; the comic art matches).
+
 ### Playtest gaps3: start here (2026-11-19, build playtest-gaps3)
 Everything in gaps2 plus the art round 3: project files capeline/Capeline-playtest-gaps3-2026-11-19.rbxl (Output "playtest-gaps3 (2026-11-19)"). It replaces every older playtest place. Run "Playtest gaps2: start here" below first if not done, then these lists:
 1. "Comic icons 2: the open world and the books" (world markers, Contract Board, radar, map marks, pings, givers, badge and journal icons, movement buttons).
