@@ -58,6 +58,7 @@ type Entry = {
 	corner: UICorner,
 	cooldown: TextLabel,
 	charge: UIStroke,
+	caption: TextLabel, -- the short name under an icon (gap-icons: the icon replaces the button's text)
 }
 local buttons: { [string]: Entry } = {}
 local statusCard: Frame
@@ -166,6 +167,20 @@ local function actionButton(
 		maxText = 13,
 	})
 	hint.Parent = b
+	-- the short name as a small caption across the icon's foot (shown only while an icon is shown)
+	local caption = Kit.label({
+		Name = "Caption",
+		Text = "",
+		AnchorPoint = Vector2.new(0.5, 1),
+		Size = UDim2.new(1, 16, 0, 13),
+		Position = UDim2.new(0.5, 0, 1, 12),
+		TextColor3 = Kit.color.paper,
+		TextStrokeTransparency = 0,
+		Visible = false,
+		ZIndex = 5,
+		maxText = 12,
+	})
+	caption.Parent = b
 	b.InputBegan:Connect(function(input)
 		local t = input.UserInputType
 		if t == Enum.UserInputType.Touch or t == Enum.UserInputType.MouseButton1 then
@@ -197,6 +212,7 @@ local function actionButton(
 		corner = corner,
 		cooldown = cooldown,
 		charge = charge,
+		caption = caption,
 	}
 	return b
 end
@@ -451,6 +467,13 @@ local function buildCluster()
 		Color3.fromRGB(110, 180, 255)
 	)
 	buildGuardRing(block)
+	-- gap-icons: the shield and Awakening buttons wear their comic icons (their text stays without one)
+	for action, key in { Block = "Block", Awaken = "Awaken" } do
+		local entry = buttons[action]
+		if Kit.showIcon(entry.button, "action", key, nil) then
+			entry.button.Text = ""
+		end
+	end
 	-- the loadout screen
 	local powers = actionButton(
 		gui,
@@ -564,6 +587,18 @@ local function buildCluster()
 	Kit.dock(settings, "Settings", 11)
 end
 
+-- gap-icons (2026-11-19): a button shows its comic icon (Config.Icons) instead of its text; with no uploaded
+-- icon it keeps the text. caption: the short name under the icon (nil hides it).
+local function showIcon(entry: Entry?, group: string?, key: any, text: string, caption: string?)
+	if not entry then
+		return
+	end
+	local on = Kit.showIcon(entry.button, group, key, nil)
+	entry.button.Text = if on then "" else text
+	entry.caption.Text = caption or ""
+	entry.caption.Visible = on and caption ~= nil
+end
+
 local function refreshInfo()
 	local h = State.hero
 	infoText.Text = string.format(
@@ -588,7 +623,12 @@ local function refreshInfo()
 	if gadget then
 		gadget.button.Visible = h.gadget ~= nil
 		if h.gadget then
-			gadget.button.Text = string.upper(string.split(Config.Gear.gadgets[h.gadget].name, " ")[1])
+			showIcon(
+				gadget,
+				"gadget",
+				h.gadget,
+				string.upper(string.split(Config.Gear.gadgets[h.gadget].name, " ")[1])
+			)
 		end
 	end
 	-- what is held (key 1 the power, key 2 the weapon) decides what M1 and the four skills cast
@@ -602,8 +642,14 @@ local function refreshInfo()
 		-- the declutter pass (2026-11-19): a slot that is empty or still locked draws nothing (the status card
 		-- says what the next level unlocks)
 		entry.button.Visible = id ~= nil and not locked
+		local shown = id ~= nil and A[id] ~= nil and not locked and Kit.showAbility(entry.button, id)
+		if not shown then
+			Kit.showAbility(entry.button, nil)
+		end
+		entry.caption.Visible = shown
+		entry.caption.Text = if shown and id then ShortName[id] else ""
 		if id and A[id] then
-			entry.button.Text = if locked then "LOCKED" else ShortName[id]
+			entry.button.Text = if locked then "LOCKED" elseif shown then "" else ShortName[id]
 			local c = Config.Abilities.setColor[A[id].set]
 			if action ~= "Super" then
 				local col = if c then rgb(c) else weaponColor
@@ -619,9 +665,15 @@ local function refreshInfo()
 	local swap = buttons.Swap
 	if swap then
 		local w = WeaponRules.get(Config, h.weapon or 0)
-		swap.button.Text = if kit.weapon
+		local swapText = if kit.weapon
 			then "POWER"
 			else string.upper(string.split(if w then w.name else "WEAPON", " ")[1])
+		-- the swap shows what a tap takes up: the power's fist, or the carried weapon's silhouette
+		if kit.weapon then
+			showIcon(swap, "action", "Power", swapText)
+		else
+			showIcon(swap, "weapon", h.weapon or 0, swapText)
+		end
 		swap.button.Visible = WeaponRules.skillId(Config, h.weapon or 0, "M1") ~= nil
 	end
 end
@@ -1085,9 +1137,14 @@ function Hud.init()
 		end
 		local blockBtn = buttons.Block
 		if blockBtn then
-			blockBtn.button.BackgroundColor3 = if BlockClient.blocking()
+			local blocking = BlockClient.blocking()
+			blockBtn.button.BackgroundColor3 = if blocking
 				then Color3.fromRGB(200, 235, 255)
 				else Color3.fromRGB(110, 180, 255)
+			local icon = blockBtn.button:FindFirstChild("Icon") :: ImageLabel?
+			if icon then
+				icon.ImageTransparency = if blocking then 0.4 else 0 -- lit: the pale fill shows through
+			end
 		end
 		applyFocus()
 	end))

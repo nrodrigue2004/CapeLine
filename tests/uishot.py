@@ -192,6 +192,38 @@ def draw_node(canvas, n):
         paint(canvas, n, kids=True)
 
 
+_sheets = None
+
+
+def sheet_for(image):
+    """The icon sheet (art/export/icons) an rbxassetid names, by art/icons/ids.json (gap-icons)."""
+    global _sheets
+    if _sheets is None:
+        _sheets = {}
+        root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        ids = os.path.join(root, "art", "icons", "ids.json")
+        if os.path.exists(ids):
+            for f, i in json.load(open(ids)).items():
+                path = os.path.join(root, "art", "export", "icons", f)
+                if os.path.exists(path):
+                    _sheets["rbxassetid://" + str(i)] = Image.open(path).convert("RGBA")
+    m = re.match(r"(rbxassetid://\d+)", image or "")
+    return _sheets.get(m.group(1)) if m else None
+
+
+def paint_cell(canvas, n, sheet, x0, y0, x1, y1):
+    ox, oy, w, h = n["rect"]
+    cell = sheet.crop((int(ox), int(oy), int(ox + w), int(oy + h)))
+    s = min((x1 - x0) / w, (y1 - y0) / h)  # ScaleType Fit
+    tw, th = max(1, int(w * s)), max(1, int(h * s))
+    cell = cell.resize((tw, th), Image.LANCZOS)
+    t = n.get("imageT", 0)
+    if t > 0:
+        a = cell.getchannel("A").point(lambda v: int(v * (1 - t)))
+        cell.putalpha(a)
+    canvas.alpha_composite(cell, (int(x0 + (x1 - x0 - tw) / 2), int(y0 + (y1 - y0 - th) / 2)))
+
+
 def paint(canvas, n, kids):
     x0, y0 = n["x"] * SS, n["y"] * SS
     x1, y1 = (n["x"] + n["w"]) * SS, (n["y"] + n["h"]) * SS
@@ -206,6 +238,8 @@ def paint(canvas, n, kids):
             m = Image.new("L", tile.size, 0)
             ImageDraw.Draw(m).rounded_rectangle([0, 0, tile.size[0] - 1, tile.size[1] - 1], radius=r, fill=255)
             canvas.paste(Image.alpha_composite(canvas.crop((int(x0), int(y0), int(x0) + tile.size[0], int(y0) + tile.size[1])), tile), (int(x0), int(y0)), m)
+        elif n.get("rect") and sheet_for(n["image"]) is not None:
+            paint_cell(canvas, n, sheet_for(n["image"]), x0, y0, x1, y1)
         else:
             d.rounded_rectangle([x0, y0, x1, y1], radius=r, outline=(255, 255, 255, 90), width=SS)
             d.line([x0, y0, x1, y1], fill=(255, 255, 255, 60), width=SS)

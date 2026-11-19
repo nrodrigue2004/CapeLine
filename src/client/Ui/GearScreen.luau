@@ -83,6 +83,35 @@ local function tierColor(piece: any): Color3
 	return rgb(G.tiers[GearMath.tierName(Config, piece)].color)
 end
 
+-- gap-icons (2026-11-19): a piece's icon is its slot symbol in its tier's frame (Kit.gearIcon)
+function GearScreen.pieceIcon(piece: any, props: { [string]: any }?): ImageLabel?
+	return Kit.gearIcon(GearMath.slotName(Config, piece), GearMath.tierName(Config, piece), props)
+end
+
+-- Sets a Kit button's icon at its left (replacing any old one) and moves its text over for it
+local function leftIcon(b: TextButton, icon: ImageLabel?, size: number)
+	local old = b:FindFirstChild("GearIcon")
+	if old then
+		old:Destroy()
+	end
+	local pad = b:FindFirstChildOfClass("UIPadding")
+	local left = if icon then size + 10 else 8
+	if pad and pad.PaddingLeft.Offset ~= left then
+		pad.PaddingLeft = UDim.new(0, left)
+		if b:FindFirstChild("InkLine") then
+			Kit.ink(b) -- re-place the ink shadow (it undoes the padding)
+		end
+	end
+	if icon then
+		icon.Name = "GearIcon"
+		icon.AnchorPoint = Vector2.new(0, 0.5)
+		icon.Size = UDim2.fromOffset(size, size)
+		icon.Position = UDim2.new(0, 4 - (if pad then left else 0), 0.5, 0)
+		icon.ZIndex = b.ZIndex
+		icon.Parent = b
+	end
+end
+
 local function find(id: number?): any?
 	if not id then
 		return nil
@@ -149,6 +178,12 @@ end
 
 local function refreshCard()
 	clear(cardButtons)
+	local oldIcon = card:FindFirstChild("PieceIcon")
+	if oldIcon then
+		oldIcon:Destroy()
+	end
+	cardTitle.Size = UDim2.new(1, -16, 0, 30)
+	cardBody.Position = UDim2.fromOffset(8, 40)
 	local piece = find(picked)
 	if not piece then
 		cardTitle.Text = "Pick a piece"
@@ -157,6 +192,16 @@ local function refreshCard()
 			"Gear gives stats. Looks are separate: any style you have unlocked can show over any gear (STYLES)."
 		return
 	end
+	local icon = GearScreen.pieceIcon(piece, {
+		Name = "PieceIcon",
+		Size = UDim2.fromOffset(48, 48),
+		Position = UDim2.new(1, -54, 0, 4),
+	})
+	if icon then
+		icon.Parent = card
+	end
+	cardTitle.Size = UDim2.new(1, if icon then -70 else -16, 0, 30)
+	cardBody.Position = UDim2.fromOffset(8, if icon then 54 else 40)
 	cardTitle.Text = GearScreen.pieceName(piece) .. (if piece.up > 0 then " +" .. piece.up else "")
 	cardTitle.TextColor3 = tierColor(piece)
 	local lines = GearMath.describe(Config, piece)
@@ -223,6 +268,12 @@ local function refreshStash()
 			.. "\n"
 			.. (if worn then GearScreen.pieceName(worn) else "empty")
 		b.BackgroundColor3 = if worn then tierColor(worn) else Kit.color.paper
+		-- the worn piece's icon, or the bare slot symbol when nothing is worn there
+		leftIcon(
+			b,
+			if worn then GearScreen.pieceIcon(worn) else Kit.icon("slot", slot, { ImageTransparency = 0.35 }),
+			if Kit.compact() then 30 else 38
+		)
 		local stroke = b:FindFirstChildOfClass("UIStroke")
 		if stroke then
 			-- the picked slot's ink outline turns gold (the comic look keeps every slot outlined)
@@ -260,6 +311,7 @@ local function refreshStash()
 			picked = p.id
 			refreshCard()
 		end)
+		leftIcon(b, GearScreen.pieceIcon(p), if Kit.compact() then 30 else 44) -- a phone's cards keep room for text
 		b.Parent = stashList
 	end
 	if #list == 0 then

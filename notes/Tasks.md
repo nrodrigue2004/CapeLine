@@ -79,10 +79,10 @@ Waiting on others:
 - Robot bodies: Blender meshes since 2026-11-16 (art/models/Robots.rbxm); the walk, aim and windup poses are still code-driven. PLACEHOLDER animation until real animations.
 - Ability visuals for all powers: neon parts, beams and rings (CombatFx, AuraFx) with the effects library's particles under them (FxLib, 2026-11-17) on Roblox's built-in particle images until the generated sheets in art/export/fx are uploaded (Launch Checklist). PLACEHOLDER ART until then and the icon set.
 - Snow Wall pieces, the Ice Slide ramp and the thrown crate in Lift and Throw: plain parts (CombatService). PLACEHOLDER ART.
-- Ability buttons show short names, not icons (Hud, LoadoutScreen). PLACEHOLDER ART.
+- Ability buttons: comic icons since 2026-11-19 (gap-icons: art/icons/icons.py, Config.Icons, 4 sheets uploaded; the HUD buttons, loadout cards and slots). Done; the mobility icons are drawn but not shown yet (the creator's mobility step and the movement buttons keep text).
 - Hero animations (2026-11-17): flight, hover, glide, leaps, dashes, slides, swings, wall runs, rides, swimming, the Downed kneel, every cast, each weapon family's combo, the windup and the flinch are hand-keyed code poses (Shared.HeroAnim, HeroAnimator); the ground walk, run, idle and jump are Roblox's default Animate. PLACEHOLDER ANIMATION until real animations are made and uploaded.
 - Gear looks: all 31 gear styles (plus 5 set looks and the gilded Legendary look per slot) are blocks, balls, wedges and cylinders welded to the body (LookService). PLACEHOLDER ART until the M9 accessory meshes.
-- Gear, loot and toast screens: Kit placeholder look, text-only piece cards, no item icons (GearScreen, Toasts). PLACEHOLDER ART.
+- Gear, loot and toast screens: piece cards, worn slots, the picked piece and loot toasts show the slot icon in its tier frame since 2026-11-19 (gap-icons). Done for the icons; the STYLES tab's style tiles stay text (no per-style icons).
 - Gadget effects: smoke, decoy and shield drone are a plain disc or pop (GadgetClient); the decoy has no body. PLACEHOLDER ART.
 - Destruction (M5): building chunks and rubble are plain boxes in the body's colour; craters are a dark disc with a rock rim; facade cracks are thin dark bars; dust uses the engine's built-in smoke texture; repair drones are a box with four rotor discs and a neon beam (BuildingFx). PLACEHOLDER ART until the destruction kit and decals.
 - Vehicles (M5): the 40 cars, trucks and trams wear the vehicle meshes over their hidden boxes (see Vehicle meshes above); the flip's dust ball and sparks are plain parts (VehicleFx). PLACEHOLDER ART for the flip effects only.
@@ -1608,3 +1608,11 @@ Play a new hero's prologue on a server with a second player (Studio Test > 2 pla
 - [ ] Boost flight or a speed hop into a wall smashes through (hit-stop, shake); cruising only bumps. Brute or boss hits throw you through walls; light hits do not. Robots knocked into walls break them. Pins, the prologue row, safehouses, HQs and pockets never break. Watch "impactBreaks" with 30 bots.
 - [ ] Each path: every move shows its own flourish, hit and trail; supers their screen moment (Reduce flashing hides flashes); phone frame rate holds in a 6-robot fight.
 - [ ] Every skill and super, each weapon's combo and Z/X/C/V, gadgets, guard/parry, carry, revive, Give Up, Awakening, landings and take-offs animate on you and on a second client; whip/yo-yo/rope dart/nunchucks ropes lag, lash and reel in, nothing left behind on swap; FrameProf HeroAnimator and TetherFx stay low.
+
+## Studio list: the comic icon set (gap-icons, 2026-11-19)
+1. HUD (touch, 1280 x 720 and a phone): the basic, four skills and super show their power's icon with the short name small under it; empty skill slots stay hidden; the cooldown sweep and seconds draw over the icon; the charge ring and charge fill still show while held. Swap to the weapon (key 2): the buttons show the weapon's silhouette with a gold move badge (combo, 1 to 4 pips) and LOCKED slots stay hidden.
+2. The WEAPON/POWER swap button shows the carried weapon, then the power fist while the weapon is held; the shield button shows the shield and turns pale while blocking; Awakening shows its burst when the meter is full; a hero with a gadget sees the gadget's icon.
+3. POWERS: every card has its icon at the top left (paler on a locked path), the loadout slots show the icon left of the name, and tapping slots and EQUIP still works on a phone.
+4. GEAR: worn slots show the piece icon (empty slots a faded slot symbol), stash cards show slot-in-tier icons, picking a piece shows its icon at the card's top right without covering the text.
+5. A loot drop's toast wears the piece icon at its left and fades with it. Icons stay crisp at 48 px (no blurry sheet: the sheets are 1024 px, 128 px cells).
+

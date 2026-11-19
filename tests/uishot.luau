@@ -1,7 +1,7 @@
 -- UiShot: a picture of the real UI without Studio (the comic UI pass, 2026-11-18). Runs the game's own HUD
 -- and panels headless through tests/uisim.luau and writes every drawn GuiObject (box, fill, corner, strokes,
 -- text, font, rotation, draw order) to JSON; tests/uishot.py draws that JSON to a PNG. Approximate: the sim's
--- layout and text sizes, no images but Kit's halftone, no UIGradient.
+-- layout and text sizes, no images but Kit's halftone and the icon sheets, no UIGradient.
 --
 --   lune run tests/uishot.luau build/Capeline.rbxl out.json [scene ...]
 --   python3 tests/uishot.py out.json out_dir [--fonts DIR]
@@ -130,6 +130,12 @@ local function node(b: any): { [string]: any }
 			n.tileSize = { t.X.Offset, t.Y.Offset }
 		end
 		n.halftone = i:GetAttribute("Halftone") == true
+		-- a sprite sheet cell (the icon set, gap-icons): uishot.py draws it from art/export/icons
+		local ro, rs = prop(i, "ImageRectOffset"), prop(i, "ImageRectSize")
+		if ro and rs and rs.X > 0 then
+			n.rect = { ro.X, ro.Y, rs.X, rs.Y }
+		end
+		n.visible = prop(i, "Visible") ~= false
 	end
 	if i:IsA("ViewportFrame") then
 		n.viewport = true
@@ -240,6 +246,24 @@ for _, scene in scenes do
 		sim:run("toasts", function()
 			M.Toasts.show({ id = "levelUp", level = 12 })
 			M.Toasts.show({ id = "pvpOff" })
+			M.Toasts.show({
+				id = "loot",
+				piece = {
+					id = 9,
+					slot = 2,
+					tier = 4,
+					ilvl = 21,
+					up = 0,
+					main = 2,
+					bonus = {},
+					set = 0,
+					perk = 0,
+					gadget = 0,
+					style = 0,
+					retunes = 0,
+					seed = 9,
+				},
+			})
 		end)
 	elseif string.sub(scene, 1, 7) == "screen:" then
 		-- a card screen shown whole, every part at once (as tests/phone_test.luau's cards check)
@@ -254,6 +278,37 @@ for _, scene in scenes do
 		end
 	elseif PANEL[scene] then
 		local p = PANEL[scene]
+		if scene == "gear" then
+			-- a few pieces in the stash, two worn, one picked (the gear cards' icons, gap-icons)
+			local State = sim:require("Client.State")
+			local function piece(id: number, slot: number, tier: number): { [string]: any }
+				return {
+					id = id,
+					slot = slot,
+					tier = tier,
+					ilvl = 10 + id,
+					up = 0,
+					main = 1,
+					bonus = {},
+					set = 0,
+					perk = 0,
+					gadget = if slot == 8 then 1 else 0,
+					style = 0,
+					retunes = 0,
+					seed = id,
+				}
+			end
+			State.profile.stash = {
+				piece(1, 1, 5),
+				piece(2, 2, 4),
+				piece(3, 3, 3),
+				piece(4, 5, 2),
+				piece(5, 6, 1),
+				piece(6, 8, 3),
+			}
+			State.profile.equipment[1] = 1
+			State.profile.equipment[2] = 2
+		end
 		sim:run(scene, function()
 			M[p[1]].open(p[2])
 		end)

@@ -22997,6 +22997,8 @@ end
 (require :: any)("./move_fixes_test")({ test = test, check = check, Config = Config });
 -- more destruction and momentum impact (nate's playtest 2026-11-19); ONLY="Impact" runs these
 (require :: any)("./impact_test")({ test = test, check = check, Config = Config, world = world });
+-- the comic icon set (gap-icons, 2026-11-19, own file); ONLY="Icons" runs just these
+(require :: any)("./icons_test")({ test = test, check = check, Config = Config });
 -- every ability's own look (nate's playtest 2026-11-19: more unique effects); ONLY="FX unique" runs these
 (require :: any)("./fx_unique_test")({ test = test, check = check, Config = Config });
 -- the animation and weapons polish pass (2026-11-19, own file); ONLY="Anim pass" runs just these

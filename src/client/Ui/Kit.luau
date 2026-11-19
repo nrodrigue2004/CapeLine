@@ -800,6 +800,153 @@ local function inkText(t: TextLabel | TextButton, props: { [string]: any }, big:
 	t:GetPropertyChangedSignal("TextColor3"):Connect(sync)
 end
 
+---------------------------------------------------------------------------
+-- The comic icon set (gap-icons, 2026-11-19; art/icons/icons.py, Config.Icons): 128 px cells on 1024 px
+-- sheets. Every call gives nil while the cell's sheet is not uploaded (id 0), so callers keep their text.
+---------------------------------------------------------------------------
+local IC = Config.Icons
+
+-- The image, offset and size of one cell ("ability" ZapBolt, "weapon" 5, "slot" head ...), or nil
+function Kit.iconCell(group: string, key: any): (string?, Vector2?, Vector2?)
+	local list = IC and IC[group]
+	local at = list and list[key]
+	local sheet = at and IC.sheets[at[1]]
+	if not sheet or (sheet.id or 0) == 0 then
+		return nil
+	end
+	local c = at[2]
+	return "rbxassetid://" .. sheet.id,
+		Vector2.new((c % IC.perRow) * IC.cell, (c // IC.perRow) * IC.cell),
+		Vector2.new(IC.cell, IC.cell)
+end
+
+-- An ImageLabel showing one cell (props set its size and place; default: fills the parent), or nil
+function Kit.icon(group: string, key: any, props: { [string]: any }?): ImageLabel?
+	local image, offset, size = Kit.iconCell(group, key)
+	if not image then
+		return nil
+	end
+	local i = Instance.new("ImageLabel")
+	i.Name = "Icon"
+	i.BackgroundTransparency = 1
+	i.Image = image :: string
+	i.ImageRectOffset = offset :: Vector2
+	i.ImageRectSize = size :: Vector2
+	i.ScaleType = Enum.ScaleType.Fit
+	i.Size = UDim2.fromScale(1, 1)
+	i.Active = false
+	i.Selectable = false
+	for k, v in props or {} do
+		(i :: any)[k] = v
+	end
+	return i
+end
+
+-- Points an icon made by Kit.icon at another cell (false when that cell has no uploaded sheet)
+function Kit.setIcon(i: ImageLabel, group: string, key: any): boolean
+	local image, offset, size = Kit.iconCell(group, key)
+	if not image then
+		return false
+	end
+	i.Image = image :: string
+	i.ImageRectOffset = offset :: Vector2
+	i.ImageRectSize = size :: Vector2
+	return true
+end
+
+-- A power's or a weapon move's icon cells: a power is its own disc; a weapon move ("W<n><key>", see
+-- Shared.WeaponRules.skillId) is the weapon's silhouette plus its move badge (the combo, or Z X C V)
+function Kit.abilityCells(id: string): ({ any }?, { any }?)
+	if IC and IC.ability[id] then
+		return { "ability", id }, nil
+	end
+	local n, key = string.match(id, "^W(%d+)(%w+)$")
+	if n and IC and IC.weapon[tonumber(n)] then
+		return { "weapon", tonumber(n) }, if IC.move[key] then { "move", key } else nil
+	end
+	return nil, nil
+end
+
+-- Shows one cell on `holder` (the icon is made once, then re-pointed): it fills the holder's whole box,
+-- under a button's cooldown sweep and numbers; `badge` ({ group, key }) sits at its lower right. Returns
+-- false (and hides any icon) when there is nothing to show, so the caller keeps its text.
+function Kit.showIcon(holder: GuiObject, group: string?, key: any, badge: { any }?): boolean
+	local icon = holder:FindFirstChild("Icon") :: ImageLabel?
+	if not group or not Kit.iconCell(group, key) then
+		if icon then
+			icon.Visible = false
+		end
+		return false
+	end
+	if not icon then
+		-- a padded button lays its children out inside the padding: undo it
+		local p = holder:FindFirstChildOfClass("UIPadding")
+		local pl = if p then p.PaddingLeft.Offset else 0
+		local pr = if p then p.PaddingRight.Offset else 0
+		local pt = if p then p.PaddingTop.Offset else 0
+		local pb = if p then p.PaddingBottom.Offset else 0
+		local made = Kit.icon(group, key, {
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.new(0.5, (pr - pl) / 2, 0.5, (pb - pt) / 2),
+			Size = UDim2.new(1, pl + pr, 1, pt + pb),
+			ZIndex = holder.ZIndex,
+		}) :: ImageLabel
+		made.Parent = holder
+		icon = made
+	end
+	local i = icon :: ImageLabel
+	i.Visible = true
+	Kit.setIcon(i, group, key)
+	local mark = i:FindFirstChild("Badge") :: ImageLabel?
+	if badge and Kit.iconCell(badge[1], badge[2]) then
+		if not mark then
+			mark = Kit.icon(badge[1], badge[2], {
+				Name = "Badge",
+				AnchorPoint = Vector2.new(1, 1),
+				Position = UDim2.fromScale(1.06, 1.06),
+				Size = UDim2.fromScale(0.42, 0.42),
+				ZIndex = i.ZIndex,
+			});
+			(mark :: ImageLabel).Parent = i
+		end
+		local m = mark :: ImageLabel
+		m.Visible = true
+		Kit.setIcon(m, badge[1], badge[2])
+	elseif mark then
+		mark.Visible = false
+	end
+	return true
+end
+
+-- An ability's icon on `holder` (a power's disc, or a weapon's silhouette with its move badge)
+function Kit.showAbility(holder: GuiObject, id: string?): boolean
+	local main, badge = nil, nil
+	if id then
+		main, badge = Kit.abilityCells(id)
+	end
+	return Kit.showIcon(holder, main and main[1], main and main[2], badge)
+end
+
+-- A gear piece's icon: the tier frame with the slot symbol over it (pips along the frame's bottom stay
+-- clear). nil while the sheet is not uploaded.
+function Kit.gearIcon(slot: string, tier: string, props: { [string]: any }?): ImageLabel?
+	local frame = Kit.icon("tier", tier, props)
+	if not frame then
+		return nil
+	end
+	frame.Name = "GearIcon"
+	local s = Kit.icon("slot", slot, {
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.fromScale(0.5, 0.06),
+		Size = UDim2.fromScale(0.7, 0.7),
+		ZIndex = frame.ZIndex + 1,
+	})
+	if s then
+		s.Parent = frame
+	end
+	return frame
+end
+
 function Kit.round(inst: GuiObject, radius: number?)
 	local c = inst:FindFirstChildOfClass("UICorner") or Instance.new("UICorner")
 	c.CornerRadius = UDim.new(0, radius or Config.Ui.corner)

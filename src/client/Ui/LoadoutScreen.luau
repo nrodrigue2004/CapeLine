@@ -194,10 +194,20 @@ local function card(id: string, order: number): Frame
 		BackgroundColor3 = if unlocked then Kit.color.paper else Color3.fromRGB(150, 150, 160),
 	})
 	Kit.stroke(f, rgb(A.setColor[row.set]), 3)
+	-- gap-icons (2026-11-19): the power's comic icon at the top left; the name and cost move over for it
+	local icon = Kit.icon("ability", id, {
+		Size = UDim2.fromOffset(40, 40),
+		Position = UDim2.fromOffset(6, 4),
+		ImageTransparency = if unlocked then 0 else 0.45,
+	})
+	local textX = if icon then 50 else 6
+	if icon then
+		icon.Parent = f
+	end
 	local title = Kit.label({
 		Text = string.upper(row.name),
-		Size = UDim2.new(1, -12, 0, 22),
-		Position = UDim2.fromOffset(6, 4),
+		Size = UDim2.new(1, -textX - 6, 0, 22),
+		Position = UDim2.fromOffset(textX, 4),
 		TextXAlignment = Enum.TextXAlignment.Left,
 		maxText = 20,
 	})
@@ -209,8 +219,8 @@ local function card(id: string, order: number): Frame
 		else string.format("%d PTS", row.pts)
 	local sub = Kit.label({
 		Text = tag .. "   " .. (if row.slot == "basic" then "" else pips(rank, AbilityRules.maxRank(row))),
-		Size = UDim2.new(1, -12, 0, 16),
-		Position = UDim2.fromOffset(6, 26),
+		Size = UDim2.new(1, -textX - 6, 0, 16),
+		Position = UDim2.fromOffset(textX, 26),
 		TextXAlignment = Enum.TextXAlignment.Left,
 		Font = Kit.bodyFont,
 		TextColor3 = Kit.color.muted,
@@ -301,6 +311,45 @@ local function card(id: string, order: number): Frame
 	return f
 end
 
+-- gap-icons: a loadout slot shows its power's icon at the left, the name beside it (no icon: the name alone)
+local function slotIcon(b: TextButton, id: string?)
+	local pad = b:FindFirstChildOfClass("UIPadding") -- Kit.button's own (8 px a side)
+	local icon = b:FindFirstChild("SlotIcon") :: ImageLabel?
+	local on = id ~= nil and Kit.iconCell("ability", id) ~= nil
+	if on and not icon then
+		local made = Kit.icon("ability", id, {
+			Name = "SlotIcon",
+			AnchorPoint = Vector2.new(0, 0.5),
+			Size = UDim2.fromOffset(40, 40),
+			ZIndex = b.ZIndex,
+		}) :: ImageLabel
+		made.Parent = b
+		icon = made
+	end
+	if icon and on and id then
+		Kit.setIcon(icon, "ability", id)
+	end
+	-- a phone's slots are too narrow for icon and name: the icon alone, centred (the cards above name it)
+	local alone = on and Kit.compact()
+	if alone then
+		b.Text = ""
+	end
+	local left = if on and not alone then 52 else 8
+	if pad and pad.PaddingLeft.Offset ~= left then
+		pad.PaddingLeft = UDim.new(0, left)
+		if b:FindFirstChild("InkLine") then
+			Kit.ink(b) -- re-place the ink shadow (it undoes the padding)
+		end
+	end
+	if icon then
+		icon.Visible = on
+		icon.AnchorPoint = if alone then Vector2.new(0.5, 0.5) else Vector2.new(0, 0.5)
+		icon.Position = if alone
+			then UDim2.fromScale(0.5, 0.5)
+			else UDim2.new(0, 5 - (if pad then left else 0), 0.5, 0) -- 5 px in from the button's edge
+	end
+end
+
 local function slotText(id: string?, lockedAt: number?): string
 	if lockedAt then
 		return string.format("LV %d", lockedAt)
@@ -372,10 +421,12 @@ refresh = function()
 	for i, b in slotButtons do
 		local lockedAt = if i > slots then A.slotLevels[i] else nil
 		b.Text = slotText(draft.skills[i], lockedAt)
+		slotIcon(b, if lockedAt then nil else draft.skills[i])
 		b.BackgroundColor3 = if i == selectedSlot then Kit.color.gold else Kit.color.paper
 	end
 	superButton.Text =
 		slotText(draft.super, if AbilityRules.superUnlocked(Config, h.level) then nil else A.superLevel)
+	slotIcon(superButton, if AbilityRules.superUnlocked(Config, h.level) then draft.super else nil)
 	superButton.BackgroundColor3 = if selectedSlot == 5 then Kit.color.gold else Kit.color.paper
 	local left = math.max(0, h.respecIn or 0)
 	respecButton.Text = if left > 0 then string.format("RESPEC %s", Kit.time(left)) else "RESPEC"
@@ -652,7 +703,10 @@ function LoadoutScreen.init()
 		end
 	end
 	place()
-	Kit.LayoutChanged:Connect(place)
+	Kit.LayoutChanged:Connect(function()
+		place()
+		refresh() -- the slots' icon-only phone look follows the screen size
+	end)
 
 	InputController.Pressed:Connect(function(action)
 		if action == "Loadout" then

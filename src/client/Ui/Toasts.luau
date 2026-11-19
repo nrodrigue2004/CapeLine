@@ -109,7 +109,7 @@ local SQ_LOCKED = {
 	done = "You already finished that side quest",
 }
 
-local function push(text: string, color: Color3, big: boolean?, life: number?)
+local function push(text: string, color: Color3, big: boolean?, life: number?): TextLabel
 	local kids = {}
 	for _, c in stack:GetChildren() do
 		if c:IsA("TextLabel") then
@@ -169,6 +169,37 @@ local function push(text: string, color: Color3, big: boolean?, life: number?)
 			end
 			task.wait(0.3)
 			l:Destroy()
+		end
+	end)
+	return l
+end
+
+-- gap-icons (2026-11-19): a loot toast wears the piece's icon (slot symbol in its tier frame) as a sticker
+-- over the bubble's left end; the text moves over for it. No uploaded icon: the plain bubble.
+local function lootIcon(l: TextLabel, piece: any)
+	local h = l.Size.Y.Offset
+	local size = h + 10
+	local icon = GearScreen.pieceIcon(piece, {
+		AnchorPoint = Vector2.new(0, 0.5),
+		Size = UDim2.fromOffset(size, size),
+		ZIndex = l.ZIndex + 1,
+	})
+	if not icon then
+		return
+	end
+	icon.Parent = l
+	local pad = Instance.new("UIPadding")
+	pad.PaddingLeft = UDim.new(0, size)
+	pad.Parent = l
+	-- the shadow folder lays out inside the padding (Kit.ink undoes it on a size change)
+	if l:FindFirstChild("InkLine") then
+		Kit.ink(l)
+	end
+	icon.Position = UDim2.new(0, -6 - size, 0.5, 0) -- the padded content box starts `size` in
+	-- fades out with the bubble
+	l:GetPropertyChangedSignal("TextTransparency"):Connect(function()
+		for _, i in { icon, icon:FindFirstChild("Icon") } do
+			(i :: ImageLabel).ImageTransparency = l.TextTransparency
 		end
 	end)
 end
@@ -253,16 +284,26 @@ function Toasts.show(data: { [string]: any })
 		local c = G.tiers[tier].color
 		local color = Color3.fromRGB(c[1], c[2], c[3])
 		if data.kind == "salvaged" then
-			push(
-				string.format("Stash full: %s became %d Dust", GearScreen.pieceName(piece), data.dust or 0),
-				color
+			lootIcon(
+				push(
+					string.format(
+						"Stash full: %s became %d Dust",
+						GearScreen.pieceName(piece),
+						data.dust or 0
+					),
+					color
+				),
+				piece
 			)
 		else
-			push(
-				string.format("%s  (ilvl %d)", GearScreen.pieceName(piece), piece.ilvl),
-				color,
-				piece.tier >= 4,
-				4.5
+			lootIcon(
+				push(
+					string.format("%s  (ilvl %d)", GearScreen.pieceName(piece), piece.ilvl),
+					color,
+					piece.tier >= 4,
+					4.5
+				),
+				piece
 			)
 		end
 	elseif id == "secondWind" then
