@@ -28,6 +28,9 @@ TURNS = json.load(open(os.path.join(ROOT, "art", "models", "meshturns.json")))
 
 
 def fbx_path(s):
+    if s == "BodyTorsos":
+        # (Roblox's copy of the pre-turned torsos is the drawn Bodies geometry, measured against Bodies.fbx)
+        return os.path.join(ROOT, "art", "export", "Bodies.fbx")
     if s in FINALES:
         return os.path.join(ROOT, "art", "export", "finales", s + ".fbx")
     return os.path.join(ROOT, "art", "export", s + ".fbx")

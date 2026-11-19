@@ -899,13 +899,18 @@ end
 -- gender and build (the female chest and hips, the V on Large and Titan) with the classic clothing UVs, while
 -- the sets' limbs are drawn for the Blender body's shorter blocks, so Roblox's own limbs stay and shapeBody
 -- scales them (fix-flow, 2026-11-19: nate wants gender, build and height back). MaleMedium is Roblox's torso.
+-- The torsos come from Art.BodyTorsos (fix-bodies, 2026-11-19), not Art.Bodies: Roblox's upload stored every
+-- Bodies mesh turned 180 degrees about y in its box (Shared.MeshFix), and ApplyMesh cannot turn a mesh, so the
+-- female chest and the big builds' V sat on the back. BodyTorsos is the same torsos drawn pre-turned
+-- (art/blender/bodies.py --torsos), so Roblox's copy faces forward (measured as drawn: art/models/meshturns.json).
+-- Not imported: Roblox's own torso (never a Bodies torso, which would face backwards).
 local SET_TORSO = { "UpperTorso", "LowerTorso" }
 local function setMesh(key: string, name: string): MeshPart?
 	if key == "MaleMedium" then
 		return nil
 	end
 	local art = ReplicatedStorage:FindFirstChild("Art")
-	local bodies = art and art:FindFirstChild("Bodies")
+	local bodies = art and art:FindFirstChild("BodyTorsos")
 	local m = bodies and bodies:FindFirstChild(key .. "_" .. name, true)
 	return if m and m:IsA("MeshPart") then m else nil
 end

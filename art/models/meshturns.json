@@ -41,6 +41,14 @@
   "turned": 54,
   "verdict": "rotY180"
  },
+ "BodyTorsos": {
+  "against": "art/export/Bodies.fbx (the drawn torsos; BodyTorsos.fbx is them pre-turned)",
+  "asDrawn": 12,
+  "either": 6,
+  "meshes": 12,
+  "turned": 6,
+  "verdict": "identity"
+ },
  "Boots": {
   "asDrawn": 90,
   "either": 90,

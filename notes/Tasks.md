@@ -2032,3 +2032,10 @@ Root cause (nate: "the leviathan engine's parts just aren't placed properly ... 
 - [ ] Props: street props (benches, billboards, awnings, water towers, lamps), set pieces, HQ stations and dressing, the hideout shells, story props and the Echo Drone, prologue stage, Crater ruins, wrecks, pocket props, news screens and the plaza board: faces and screens toward the street or room as before; the Torpedo Sentry's torpedo flies nose first.
 - [ ] A training dummy in the HQ (NpcRig look "Hq") and its visor and target: on the front.
 - Known left as is: LookKit.wearBodySet (Art.Bodies via ApplyMesh in place) cannot turn a mesh; it only runs when Roblox's own body is off (Config.Creator.robloxBody), so it is not seen today.
+
+## Studio list: body set torsos face forward (fix-bodies, 2026-11-19)
+Root cause: the Body step wears the body sets' torsos on Roblox's own body with MeshPart:ApplyMesh, which keeps the mesh as Roblox stored it (turned 180 degrees by the upload) and cannot turn it. The torsos are now uploaded pre-turned (Art.BodyTorsos, Model 119292912239570) so the stored copy faces forward. Headless proof: tests/model_fit_test.luau "the body sets' torsos on Roblox's own body" (every gender and build through LookKit.wearBodySet; with setMesh on Art.Bodies it fails).
+1. In the creator's Body step pick each female build (Small, Medium, Large, Titan): the chest shape is on the front, not the back.
+2. Pick Male Large and Male Titan: the broad V is on the front; Male Medium keeps Roblox's own torso.
+3. With a suit on, the Shirt and Pants front still sits on the front of the new torso, and the torso joins the arms, neck and hips with no gap.
+4. NPCs and robots on body sets (NpcRig) look as before.

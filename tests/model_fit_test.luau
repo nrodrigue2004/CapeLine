@@ -351,6 +351,78 @@ return function(T: any)
 		end
 	)
 
+	-- fix-bodies (2026-11-19): the Body step's torsos go on Roblox's own body with MeshPart:ApplyMesh, in place,
+	-- which cannot turn a mesh, so the worn mesh must come from a set Roblox stored as drawn (Art.BodyTorsos, the
+	-- pre-turned upload), never from a turned one (Art.Bodies)
+	test("Model fit: the body sets' torsos on Roblox's own body (LookKit.wearBodySet)", function()
+		local s = boot()
+		local LookKit = s:require("Shared.LookKit")
+		local BodyShape = s:require("Shared.BodyShape")
+		local RigMath = s:require("Shared.RigMath")
+		local MeshFix = s:require("Shared.MeshFix")
+		local R = Config.RobloxRig.parts
+		-- Roblox's own body as HeroBody publishes it (ReplicatedStorage.RobloxBody) and a character on it
+		local rb = UiSim.newInstance("Folder")
+		rb.Name = "RobloxBody"
+		for _, j in RigMath.JOINTS do
+			local m = UiSim.newInstance("MeshPart")
+			m.Name = j[3]
+			m.MeshId = "rbxassetid://1" .. j[3]
+			m.Parent = rb
+		end
+		rb.Parent = s.place.ReplicatedStorage
+		local worn, kinds = 0, 0
+		for _, g in { 1, 2 } do
+			for b = 1, 4 do
+				local look = { gender = g, build = b, height = 3 }
+				local key = BodyShape.setKey(Config, look)
+				local char = UiSim.newInstance("Model")
+				local applied: { [string]: any } = {}
+				for name, row in R do
+					local p = UiSim.newInstance("MeshPart")
+					p.Name = name
+					p.Size = v3(row.size)
+					p.MeshId = "rbxassetid://1" .. name
+					p.ApplyMesh = function(self: any, src: any)
+						applied[self.Name] = src
+						self.MeshId = "rbxassetid://applied" .. src.Name
+					end
+					p.Parent = char
+				end
+				check(LookKit.onRobloxBody(char), key .. ": the character reads as Roblox's own body")
+				LookKit.wearBodySet(char, look)
+				check(char:GetAttribute("BodySet") == key, key .. ": the set is marked worn")
+				kinds += 1
+				for name, src in applied do
+					worn += 1
+					check(
+						name == "UpperTorso" or name == "LowerTorso",
+						key .. ": only the torsos change (" .. name .. ")"
+					)
+					local set = MeshFix.setOf(src)
+					local shown = measured(set)
+					check(
+						angleOf(shown) < 0.1,
+						string.format(
+							"%s %s worn from %s, which Roblox stored as drawn (not turned)",
+							key,
+							name,
+							tostring(set)
+						)
+					)
+					check(src.Name == key .. "_" .. name, key .. " " .. name .. " is its own set's torso")
+				end
+				if key == "MaleMedium" then
+					check(next(applied) == nil, "MaleMedium keeps Roblox's own torso")
+				elseif g == 2 then
+					check(applied.UpperTorso ~= nil, key .. ": the female chest is worn")
+				end
+			end
+		end
+		rb.Parent = nil
+		check(kinds == 8 and worn >= 12, string.format("8 body sets worn, %d torsos applied", worn))
+	end)
+
 	test("Model fit: every creator kit and cape on the body (LookKit)", function()
 		local s = boot()
 		local LookKit = s:require("Shared.LookKit")
