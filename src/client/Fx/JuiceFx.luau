@@ -18,6 +18,7 @@ local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Progress = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Progress"))
 
 local Kit = require(script.Parent.Parent.Ui.Kit)
+local Popups = require(script.Parent.Parent.Ui.Popups) -- pt-ui: one line for every popup
 local State = require(script.Parent.Parent.State)
 
 local JuiceFx = {}
@@ -103,7 +104,7 @@ local function pop(at: Vector3, text: string, color: Color3)
 end
 
 -- A big stamp that slams onto the screen (medals, contracts, NEW)
-local function stamp(text: string, color: Color3, sub: string?)
+local function stampNow(text: string, color: Color3, sub: string?): Frame
 	local f = Kit.frame({
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromScale(0.5, 0.32),
@@ -156,6 +157,15 @@ local function stamp(text: string, color: Color3, sub: string?)
 		task.delay(0.3, function()
 			f:Destroy()
 		end)
+	end)
+	return f
+end
+
+-- pt-ui: a stamp waits its turn with every other card in Ui.Popups ("stamp": dropped if it could not show
+-- within a few seconds, so a late stamp never lands on a quiet moment)
+local function stamp(text: string, color: Color3, sub: string?)
+	Popups.show("stamp", function()
+		return stampNow(text, color, sub)
 	end)
 end
 
@@ -241,7 +251,7 @@ function JuiceFx.revive(at: Vector3?)
 end
 
 -- Level up: the level badge spins in and the next unlock lights up
-function JuiceFx.levelUp(_at: Vector3?, data: { [string]: any }?)
+local function levelBadge(_at: Vector3?, data: { [string]: any }?): Frame
 	local lvl = data and data.level or State.hero.level or 1
 	local badge = Kit.frame({
 		AnchorPoint = Vector2.new(0.5, 0.5),
@@ -312,6 +322,14 @@ function JuiceFx.levelUp(_at: Vector3?, data: { [string]: any }?)
 		n.Visible = false
 		l.Visible = false
 		Debris:AddItem(badge, 0.35)
+	end)
+	return badge
+end
+
+function JuiceFx.levelUp(at: Vector3?, data: { [string]: any }?)
+	-- pt-ui: the badge waits its turn in Ui.Popups ("levelBadge"); the LEVEL toast always shows
+	Popups.show("levelBadge", function()
+		return levelBadge(at, data)
 	end)
 end
 

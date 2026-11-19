@@ -39,6 +39,7 @@ local Net = require(Shared:WaitForChild("Net"))
 local QuestJuice = require(Shared:WaitForChild("QuestJuice"))
 
 local Kit = require(script.Parent.Kit)
+local Popups = require(script.Parent.Popups) -- pt-ui: one line for every popup
 local Hud = require(script.Parent.Hud)
 local GuideHud = require(script.Parent.GuideHud)
 local CinemaHud = require(script.Parent.CinemaHud)
@@ -338,7 +339,7 @@ end
 
 -- The result card's lines: { text, colour, size, counts up (the pay line) }; it closes after 5.5 s
 local cardToken = 0
-local function fillCard(lines: { any }, credits: number, renown: number)
+local function fillCardNow(lines: { any }, credits: number, renown: number)
 	for _, c in resultCard:GetChildren() do
 		if c:IsA("TextLabel") then
 			c:Destroy()
@@ -367,6 +368,18 @@ local function fillCard(lines: { any }, credits: number, renown: number)
 		if token == cardToken then
 			resultCard.Visible = false
 		end
+	end)
+end
+
+-- pt-ui: the result card waits its turn in Ui.Popups ("missionResult")
+local function fillCard(lines: { any }, credits: number, renown: number)
+	Popups.show("missionResult", function()
+		fillCardNow(lines, credits, renown)
+		return resultCard
+	end, function()
+		return resultCard.Visible
+	end, function()
+		resultCard.Visible = false
 	end)
 end
 

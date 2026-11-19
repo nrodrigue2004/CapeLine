@@ -13,6 +13,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Net = require(Shared:WaitForChild("Net"))
 
 local Kit = require(script.Parent.Kit)
+local Popups = require(script.Parent.Popups) -- pt-ui: one line for every popup
 local InputController = require(script.Parent.Parent.Controllers.InputController)
 
 local TaskForceHud = {}
@@ -257,12 +258,24 @@ function TaskForceHud.isOpen(): boolean
 end
 
 -- PLACEHOLDER CONTENT: lore thread to fill. The comic panel between legs is a title card for now.
+local panelSeq = 0
 local function showPanel(m: { [string]: any })
-	local t = TF.list[m.tf or 0]
-	cardTitle.Text = string.upper(t and t.name or "TASK FORCE")
-	cardSub.Text = string.format("MISSION %d OF %d", m.leg or 1, m.legs or 1)
-	card.Visible = true
-	task.delay(TF.panelTime, function()
+	-- pt-ui: waits its turn in Ui.Popups ("taskForcePanel")
+	Popups.show("taskForcePanel", function()
+		local t = TF.list[m.tf or 0]
+		cardTitle.Text = string.upper(t and t.name or "TASK FORCE")
+		cardSub.Text = string.format("MISSION %d OF %d", m.leg or 1, m.legs or 1)
+		card.Visible = true
+		panelSeq += 1
+		local seq = panelSeq
+		task.delay(TF.panelTime, function()
+			if panelSeq == seq then
+				card.Visible = false
+			end
+		end)
+	end, function()
+		return card.Visible
+	end, function()
 		card.Visible = false
 	end)
 end

@@ -1845,3 +1845,9 @@ Today's six packages (gaps1) read for what Studio hits and Lune cannot (luau-lsp
 4. Ram a wall at speed and get thrown through one: chips in the wall's colour and a puff of dust fly out from the wall (no physical chip blocks any more).
 5. Drop to the phone preset: fewer particles, still readable; no frame drop with several throws at once. A collapse's dust cloud uses the drawn smoke sheet.
 
+
+## Studio list: popups, the contest card and building textures (2026-11-19, pt-ui)
+1. Popups: kill a world boss next to a contest vote with a squad invite coming in (Dev: boss, contest, a second player). One big card at a time (the boss result first, then the vote card), at most 2 toasts (1 on a phone, none over a card), a burst of drops reads "+2 more", rewards add up; nothing important is lost (the level toast, the result card). Previews art/preview/popups_before.png, popups_after.png, popups_phone_before.png, popups_phone_after.png.
+2. Fight robots for a while: result cards, panels and the starter offer wait; the invite and PvP card still come; the corner TV stays off till 4 s after the fight; a tap on a locked thing still answers at once.
+3. Costume contest with one entrant (skipped): CONTEST SKIPPED shows, then closes within 12 s (or tap X); the next contest still calls. A normal contest's results banner closes too; the vote card's X closes it for that contest.
+4. Buildings: Downtown glass towers (Curtain) and Uptown prism towers show their window textures; skyscraper crown fins, masts and spires are textured; safehouse shelters (office front), pier huts (tinted clapboard), coast shacks (container), lighthouses and the windmill (concrete) are textured, and the plaza's Beacon Tower wears white panels with windows. Break a building: its pillars, floors and rubble show concrete texture, not plain white.

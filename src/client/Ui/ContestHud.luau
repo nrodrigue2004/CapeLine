@@ -18,6 +18,7 @@ local Net = require(Shared:WaitForChild("Net"))
 
 local Juice = require(script.Parent.Parent.Fx.Juice)
 local Kit = require(script.Parent.Kit)
+local Popups = require(script.Parent.Popups) -- pt-ui: one line for every popup
 
 local ContestHud = {}
 
@@ -36,6 +37,13 @@ local clockOffset = 0 -- server os.time minus this device's
 local myVotes: { [number]: number } = {}
 local light: SpotLight? = nil
 local spinning = false
+-- pt-ui (2026-11-19, nate: "contest skipped stays on my screen"): the results and skipped banner close on this
+-- device after Config.Contest.results s (or its X), whatever the server says next
+local overShown = true -- the results or skipped banner is still up (cleared after Config.Contest.results s or the X)
+local overToken = 0
+local closeButton: TextButton
+local voteAsked = false -- the stars card is waiting in Ui.Popups or up
+local voteClosed = false -- its X was tapped this contest
 
 local function now(): number
 	return os.time() + clockOffset
@@ -165,15 +173,34 @@ end
 local function render()
 	local phase = state.phase
 	local left = math.max(0, (state.endsAt or 0) - now())
-	banner.Visible = phase == "call"
-		or phase == "show"
-		or phase == "vote"
-		or phase == "results"
-		or phase == "skipped"
+	local over = phase == "results" or phase == "skipped"
+	-- (and it steps aside while another big card is up: a result card, a name card)
+	local otherCard = Popups.cardUp() and not Popups.cardUp("contestVote")
+	banner.Visible = (phase == "call" or phase == "show" or phase == "vote" or (over and overShown))
+		and not otherCard
+	closeButton.Visible = over
 	enterButton.Visible = phase == "call" and not isEntry(me.UserId) and #(state.entries or {}) < K.maxEntries
-	card.Visible = (phase == "show" or phase == "vote")
+	local want = (phase == "show" or phase == "vote")
 		and not isEntry(me.UserId)
 		and #(state.entries or {}) > 0
+		and not voteClosed
+	if not want then
+		card.Visible = false
+		voteAsked = false
+	elseif not card.Visible and not voteAsked then
+		-- the stars card takes the big card slot through the show and the vote (Ui.Popups "contestVote")
+		voteAsked = true
+		Popups.show("contestVote", function()
+			if voteAsked and not voteClosed then
+				card.Visible = true
+				drawCard()
+			end
+		end, function()
+			return card.Visible
+		end, function()
+			card.Visible = false
+		end)
+	end
 	if phase == "call" then
 		bannerTitle.Text = "COSTUME CONTEST: " .. string.upper(state.theme or "")
 		bannerSub.Text = string.format(
@@ -205,7 +232,7 @@ function ContestHud.init()
 	gui = Kit.screen("ContestHud", 5)
 	banner = Kit.frame({
 		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, 132),
+		Position = UDim2.new(0.5, 0, 0, 190), -- under the toasts (pt-ui: it sat on them)
 		Size = UDim2.new(0.9, 0, 0, 74),
 		BackgroundColor3 = Color3.fromRGB(80, 40, 120),
 		BackgroundTransparency = 0.1,
@@ -249,6 +276,19 @@ function ContestHud.init()
 		end
 	end)
 	enterButton.Parent = banner
+	closeButton = Kit.button({
+		Text = "X",
+		AnchorPoint = Vector2.new(1, 0.5),
+		Position = UDim2.new(1, -10, 0.5, 0),
+		Size = UDim2.fromOffset(T, T),
+		BackgroundColor3 = Kit.color.paper,
+		Visible = false,
+	}, function()
+		overShown = false
+		render()
+	end)
+	closeButton.Name = "Close"
+	closeButton.Parent = banner
 	card = Kit.frame({
 		AnchorPoint = Vector2.new(1, 0.5),
 		Position = UDim2.new(1, -12, 0.5, 0),
@@ -262,6 +302,18 @@ function ContestHud.init()
 	clim.MinSize = Vector2.new(220, 200)
 	clim.Parent = card
 	card.Parent = gui
+	local x = Kit.button({
+		Name = "Close",
+		Text = "X",
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, -4, 0, 4),
+		Size = UDim2.fromOffset(T - 8, T - 8),
+		BackgroundColor3 = Kit.color.paper,
+	}, function()
+		voteClosed = true
+		render()
+	end)
+	x.Parent = card
 	local head = Kit.label({
 		Text = "RATE THE LOOKS",
 		Size = UDim2.new(1, -20, 0, 28),
@@ -294,8 +346,20 @@ function ContestHud.init()
 		end
 		local was = state.phase
 		state = d
+		if (d.phase == "results" or d.phase == "skipped") and was ~= d.phase then
+			overShown = true
+			overToken += 1
+			local token = overToken
+			task.delay(K.results, function()
+				if token == overToken then
+					overShown = false
+					render()
+				end
+			end)
+		end
 		if d.phase == "call" and was ~= "call" then
 			myVotes = {}
+			voteClosed = false
 			Juice.fire("contestCall", nil, { mine = false })
 		end
 		spotlightOn(if d.phase == "show" then d.spot else nil)
@@ -313,7 +377,9 @@ function ContestHud.init()
 	task.spawn(function()
 		while true do
 			task.wait(1)
-			if banner.Visible and state.phase ~= "results" then
+			local ph: string = state.phase or "idle"
+			local live = ph == "call" or ph == "show" or ph == "vote"
+			if live or (banner.Visible and ph ~= "results") then
 				render()
 			end
 		end

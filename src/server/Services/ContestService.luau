@@ -146,7 +146,8 @@ local function packet(s: State, now: number): { [string]: any }
 		table.insert(list, { id = u, name = nameOf(u) })
 	end
 	return {
-		phase = if s.skipped then "skipped" else phase,
+		-- (pt-ui 2026-11-19) a skipped contest reads "skipped" until its cycle is over, then idle like any other
+		phase = if s.skipped and phase ~= "idle" then "skipped" else phase,
 		theme = s.theme,
 		entries = list,
 		spot = if phase == "show" then s.entries[a] else nil,
@@ -345,7 +346,9 @@ local function step()
 		if beam then
 			beam.Transparency = if phase == "call" then 0.55 else 1
 		end
-		if not s.skipped or was == "call" or phase == "results" then
+		-- a skipped contest still tells every device when it is over (pt-ui 2026-11-19: the idle step was never sent
+		-- after a skip, so the CONTEST SKIPPED banner stayed up until the next contest's call, 30 minutes on)
+		if ContestRules.announce(s.skipped, was, phase) then
 			broadcast(s)
 		end
 	end

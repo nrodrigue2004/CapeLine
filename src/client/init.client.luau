@@ -160,6 +160,13 @@ BoardHud.init()
 DailyHud.init()
 TravelStyleFx.init()
 Toasts.init()
+-- pt-ui (2026-11-19): a cast or a landed hit is fighting, so non-urgent popups wait (Ui.Popups; hits taken come
+-- from CinemaClient.lastHit)
+do
+	local Popups = require(Ui.Popups)
+	CombatClient.Cast:Connect(Popups.fought)
+	CombatClient.HitConfirm:Connect(Popups.fought)
+end
 MapScreen.init()
 WorldHud.init()
 CreatorScreen.init()

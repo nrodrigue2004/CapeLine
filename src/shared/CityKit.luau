@@ -56,6 +56,30 @@ function CityKit.front(kit: any, b: any, group: { [string]: { string } }?, color
 	return name
 end
 
+-- pt-ui (2026-11-19, nate's playtest: "some buildings don't have textures"): every building body and tower
+-- tier the layouts left plain (safehouse shelters, pier huts, coast shacks, lighthouses, the windmill, tower
+-- masts and spires) takes a kit texture from Config.City.kit.fill by its colour and shape; a tinted texture
+-- gets a tint by hash. Only kit fields change (no random draws), so the layout is the same box by box.
+function CityKit.fill(kit: any, list: { any })
+	local F = kit.fill
+	if not F then
+		return
+	end
+	for _, b in list do
+		if F.kinds[b.kind] and b.kit == nil then
+			local name = F.byColor[b.color]
+			if b.shape ~= nil and b.shape ~= "wedge" and name ~= "SteelPlate" then
+				name = F.round
+			end
+			name = name or F.default
+			b.kit = name
+			if b.tint == nil then
+				b.tint = CityKit.tint(kit, name, b.cx, b.cz)
+			end
+		end
+	end
+end
+
 -- A pitched roof wedge gets clay tiles in a brighter version of its colour
 function CityKit.roof(kit: any, b: any)
 	if b.shape == "wedge" and b.kind == "roof" then

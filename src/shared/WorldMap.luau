@@ -341,6 +341,11 @@ function WorldMap.build(Config: any, seed: number, opts: { props: boolean? }?): 
 		WorldMap.keepClear(Config, buildings, safehouses, beacons)
 	end
 
+	-- pt-ui (2026-11-19): every building body the layouts left plain gets a kit texture (Shared.CityKit.fill)
+	if city.kit then
+		CityKit.fill(city.kit, hubBoxes)
+	end
+
 	-- heights of everything (a device that only wants the props skips them)
 	local heights =
 		HeightMap.new(if opts and opts.props then 0 else city.mapSize, w.heightCell, w.coast.waterY)

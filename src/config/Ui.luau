@@ -118,7 +118,62 @@ return {
 	},
 	-- the cards the server pops by itself (daily claim, mentor picker, TOP 10): Ui.PopupGate holds each until the
 	-- player is free (no loading screen, menu, creator, prologue, cutscene or other such card)
-	popups = { settle = 1.2, giveUp = 600 }, -- seconds of calm before one shows; the longest it waits
+	-- pt-ui (2026-11-19, nate's playtest: "too many popups on the screen at once"): every transient popup waits in one
+	-- line (Shared.PopupQueue, Ui.Popups): at most maxCards big cards and maxToasts toasts at once (phoneToasts on a
+	-- phone), by pri; non-urgent cards wait while fighting (a hit given or taken in the last `calm` s) for at most
+	-- combatHold s; offers wait offerCalm s of calm; toasts up are cut to `hurry` s while others wait; folded
+	-- ones show "+N more" for moreLife s. settle: seconds of calm after a menu or scene before a card shows;
+	-- giveUp: the longest Ui.PopupGate's join cards wait for that.
+	popups = {
+		settle = 1.2,
+		giveUp = 600,
+		tick = 0.1,
+		maxCards = 1,
+		maxToasts = 2,
+		phoneToasts = 1,
+		calm = 4,
+		offerCalm = 8,
+		combatHold = 30,
+		hurry = 2.2,
+		moreLife = 3,
+		pri = {
+			story = 90,
+			alert = 80,
+			result = 70,
+			social = 60,
+			news = 50,
+			join = 40,
+			juice = 35,
+			info = 30,
+			offer = 20,
+			minor = 10,
+		},
+		-- every big card that pops by itself: its priority and rules. life: the longest it stays up (nil: it waits
+		-- for a tap and has a close button: tests "pt-ui" open and close each one); stale: dropped (counted in "+N
+		-- more") when it could not show within that many seconds; fightOk: a timed ask that may show in a fight
+		cards = {
+			bossResult = { pri = "result", life = 8 }, -- WorldHud (closes itself after 5 s or a tap)
+			missionResult = { pri = "result", life = 8 }, -- StoryHud: missions and side quest chains (5.5 s)
+			pvpResult = { pri = "result", life = 7, fightOk = true }, -- PvpHud (5 s)
+			stamp = { pri = "juice", life = 2.4, stale = 3, fightOk = true }, -- JuiceFx stamps: medals, NEW, steps
+			levelBadge = { pri = "juice", life = 3, stale = 6, fightOk = true }, -- JuiceFx: the spinning level badge
+			nameCard = { pri = "news", life = 4, stale = 4, fightOk = true }, -- CinemaHud: boss, place, event cards
+			squadInvite = { pri = "social", life = 31, fightOk = true }, -- SquadHud: JOIN / NO, Config.Squad.inviteLife
+			visitAsk = { pri = "social", life = 31, fightOk = true }, -- SquadHud: ACCEPT / NO, Config.Hq.visit.askLife
+			contestVote = { pri = "social", fightOk = true }, -- ContestHud: the stars card through the show and vote
+			drones = { pri = "info" }, -- HqHud: COLLECT
+			passCard = { pri = "info", life = 6 }, -- PassHud: a tier or episode step with VIEW (5 s)
+			taskForcePanel = { pri = "info", life = 5 }, -- TaskForceHud: the panel between legs (4 s)
+			mentorPanel = { pri = "info", life = 5 }, -- MentorHud: the mentor's comic line (4 s)
+			nemesisPanel = { pri = "info", life = 5 }, -- NemesisHud: the taunt panel (3.5 s)
+			-- Ui.PopupGate's join cards (they also wait out the loading screen, menu, creator and prologue)
+			daily = { pri = "join" }, -- DailyHud: CLAIM, X
+			mentorPick = { pri = "join" }, -- MentorHud: the picker
+			episode = { pri = "join" }, -- PassHud: the episode's comic panels
+			board = { pri = "join" }, -- BoardHud: last week's TOP 10 title, WEAR / OK
+			starter = { pri = "offer", offer = true }, -- ShopHud: the starter pack offer (never in a fight)
+		},
+	},
 	colors = {
 		-- the comic palette (2026-11-18): flat print colours with one ink
 		ink = { 17, 17, 17 },

@@ -19,6 +19,7 @@ local FrameProf =
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
 
 local Kit = require(script.Parent.Kit)
+local Popups = require(script.Parent.Popups) -- pt-ui: one line for every popup
 local SquadClient = require(script.Parent.Parent.Controllers.SquadClient)
 local HqClient = require(script.Parent.Parent.Controllers.HqClient) -- WP12: visits
 
@@ -505,8 +506,32 @@ function SquadHud.init()
 		drawList()
 		drawPanel()
 	end)
-	SquadClient.Invited:Connect(showInvite)
-	HqClient.VisitAsked:Connect(showVisit)
+	-- pt-ui: both asks wait their turn in Ui.Popups (behind a card already up; they may come in a fight, as they
+	-- run out); the countdown still runs from when the ask came
+	SquadClient.Invited:Connect(function(inv)
+		local at = os.clock()
+		Popups.show("squadInvite", function()
+			local d = table.clone(inv)
+			d.life = math.max(1, (inv.life or Q.inviteLife) - (os.clock() - at))
+			showInvite(d)
+		end, function()
+			return card.Visible
+		end, function()
+			card.Visible = false
+		end)
+	end)
+	HqClient.VisitAsked:Connect(function(ask)
+		local at = os.clock()
+		Popups.show("visitAsk", function()
+			local d = table.clone(ask)
+			d.life = math.max(1, (ask.life or Config.Hq.visit.askLife) - (os.clock() - at))
+			showVisit(d)
+		end, function()
+			return visitCard.Visible
+		end, function()
+			answerVisit(false)
+		end)
+	end)
 	HqClient.VisitorsChanged:Connect(function()
 		leaveButton.Visible = HqClient.visiting() ~= nil
 		drawPanel()

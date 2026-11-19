@@ -16,6 +16,7 @@ local Signal = require(Shared:WaitForChild("Util"):WaitForChild("Signal"))
 
 local Juice = require(script.Parent.Parent.Fx.Juice)
 local Kit = require(script.Parent.Kit)
+local Popups = require(script.Parent.Popups) -- pt-ui: one line for every popup
 local PopupGate = require(script.Parent.PopupGate)
 
 local MentorHud = {}
@@ -327,7 +328,7 @@ local function showPicker(d: { [string]: any })
 	picker.Visible = true
 end
 
-local function comic(mentor: number, line: string)
+local function comicNow(mentor: number, line: string)
 	local m = M.list[mentor]
 	if not m then
 		return
@@ -346,6 +347,17 @@ local function comic(mentor: number, line: string)
 		if panelSeq == seq then
 			panel.Visible = false
 		end
+	end)
+end
+
+-- pt-ui: the mentor's panel waits its turn in Ui.Popups ("mentorPanel")
+local function comic(mentor: number, line: string)
+	Popups.show("mentorPanel", function()
+		comicNow(mentor, line)
+	end, function()
+		return panel.Visible
+	end, function()
+		panel.Visible = false
 	end)
 end
 

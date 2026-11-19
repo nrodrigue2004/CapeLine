@@ -20,6 +20,7 @@ local RepTiers = require(Shared:WaitForChild("RepTiers")) -- lore step 12: the s
 local WantedRules = require(Shared:WaitForChild("WantedRules")) -- WP9: the nemesis heads' count
 
 local Kit = require(script.Parent.Kit)
+local Popups = require(script.Parent.Popups) -- pt-ui: one line for every popup
 local State = require(script.Parent.Parent.State)
 local HqClient = require(script.Parent.Parent.Controllers.HqClient)
 local GearScreen = require(script.Parent.GearScreen)
@@ -478,7 +479,7 @@ end
 
 -- The offline drones' COLLECT card (spec: Wait table "Away ... collected with one tap")
 local dronesCard: Frame? = nil
-local function showDrones(d: { [string]: any })
+local function showDronesNow(d: { [string]: any })
 	if dronesCard then
 		dronesCard:Destroy()
 	end
@@ -519,6 +520,14 @@ local function showDrones(d: { [string]: any })
 	card.Parent = gui
 	Kit.pulse(card, 0.2)
 	dronesCard = card
+end
+
+-- pt-ui: the COLLECT card waits its turn in Ui.Popups ("drones")
+local function showDrones(d: { [string]: any })
+	Popups.show("drones", function()
+		showDronesNow(d)
+		return dronesCard
+	end)
 end
 
 function HqHud.init()

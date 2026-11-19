@@ -417,6 +417,61 @@ for _, scene in scenes do
 					},
 				})
 			end)
+		elseif scene == "busy" then
+			-- pt-ui (2026-11-19, nate: "too many popups at once"): the busiest moment: a world boss falls while a
+			-- contest votes, a squad invite and a news name card come in, the level goes up, three drops, rewards,
+			-- an incident clears and the stamps fly, all in the same second
+			sim:run("busy", function()
+				sim:require("Client.Fx.JuiceFx").init()
+				sim:require("Client.Ui.GuideHud").init()
+				sim:require("Client.Ui.CinemaHud").init()
+				sim:require("Client.Ui.NewsHud").init()
+				sim:require("Client.Ui.ContestHud").init()
+				worldData(sim, true)
+				local remotes = sim.service("ReplicatedStorage"):WaitForChild("Remotes")
+				local ev = remotes:FindFirstChild("ContestState")
+				if ev then
+					ev.OnClientEvent:Fire({
+						phase = "vote",
+						theme = "Neon Nights",
+						entries = { { id = 7, name = "Bolt" }, { id = 8, name = "Nova" } },
+						endsAt = os.time() + 15,
+						now = os.time(),
+						top = {},
+					})
+				end
+				sim:require("Client.Controllers.SquadClient").Invited
+					:Fire({ from = 9, name = "Tempest", size = 2 })
+				sim:require("Client.Ui.NewsHud").nameCard("RustjawPrime")
+				local function piece(id: number, tier: number): { [string]: any }
+					return {
+						id = id,
+						slot = id % 8 + 1,
+						tier = tier,
+						ilvl = 20 + id,
+						up = 0,
+						main = 1,
+						bonus = {},
+						set = 0,
+						perk = 0,
+						gadget = 0,
+						style = 0,
+						retunes = 0,
+						seed = id,
+					}
+				end
+				M.Toasts.show({ id = "levelUp", level = 12 })
+				M.Toasts.show({ id = "incident", name = "Tower Fire", medal = "gold" })
+				for i = 1, 3 do
+					M.Toasts.show({ id = "loot", piece = piece(i, if i == 1 then 4 else 2) })
+					M.Toasts.show({ id = "reward", credits = 120 * i, renown = 30 * i })
+				end
+				M.Toasts.show({ id = "sqStep", bit = 1, step = 2 })
+				M.Toasts.show({ id = "badgeMate", who = "Nova", name = "First Flight" })
+				M.Toasts.show({ id = "pvpOff" })
+				sim:require("Client.Fx.Juice").fire("contractDone", nil, { name = "VAULT JOB" })
+				sim:require("Client.Fx.Juice").fire("badgeEarned", nil, { name = "Night Owl", mine = true })
+			end)
 		elseif scene == "world" or scene == "contracts" or scene == "badges" or scene == "daily" then
 			-- gap-icons2: the open world and the books with sample data (their comic icons)
 			sim:run(scene, function()

@@ -31,6 +31,7 @@ local CreatorRules = require(Shared:WaitForChild("CreatorRules"))
 local NewsArtKit = require(Shared:WaitForChild("NewsArtKit"))
 
 local Kit = require(script.Parent.Kit)
+local Popups = require(script.Parent.Popups) -- pt-ui: one line for every popup
 local State = require(script.Parent.Parent.State)
 local Toasts = require(script.Parent.Toasts)
 local GuideHud = require(script.Parent.GuideHud)
@@ -212,7 +213,11 @@ local function tvShow(mode: string, band: string, text: string, seconds: number)
 end
 
 local function quiet(): boolean
-	return not StoryClient.inOpening() and not StoryClient.inMission() and not CinemaClient.playing()
+	-- pt-ui (2026-11-19): nor in a fight (Ui.Popups); a breaking news flash still shows
+	return not StoryClient.inOpening()
+		and not StoryClient.inMission()
+		and not CinemaClient.playing()
+		and not Popups.fighting()
 end
 
 ---------------------------------------------------------------------------
