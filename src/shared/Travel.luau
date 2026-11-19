@@ -5,7 +5,8 @@
 -- * canTravel: the beacon exists and is discovered, the hero is out of combat, not already travelling, not in a
 --   scene (the HQ, a friend's HQ, a mission pocket, the prologue, the creator: each has its own way out, and a
 --   flight out of one left the hero in the city still in that scene), and the 20 s cooldown is over.
--- * flightPath: the 3 s skippable flight's arc (the client animates it; the server moves the hero at the end).
+-- * flightPath: the 3 s skippable flight's arc (the hero flies it on its own device; the server sets it down at
+--   the end). routeGap: how far a point is off that arc (MoveGuard's check while the hero flies it).
 -- * deposit: every on-hand Credit goes to the bank (only on-hand Credits can move in PvP, M8).
 -- * respawnAt: a defeat respawns at the nearest visited safehouse; a join at the last chosen one.
 
@@ -100,6 +101,39 @@ function Travel.flightPath(
 	local base = fromY + (toY - fromY) * t
 	local bump = math.sin(t * math.pi) * (cruise - (fromY + toY) / 2)
 	return x, base + bump, z
+end
+
+-- How far a point is from the whole flight arc (the hero flies the route itself since the gap polish,
+-- 2026-11-19, so other players see it leave and arrive): the nearest of `steps` straight pieces along it.
+-- MoveGuard lets a travelling hero move freely while this stays within the beacon's routeSlack. Any point
+-- along the arc counts (lag only puts the hero earlier on it), never a point off it.
+function Travel.routeGap(
+	fromX: number,
+	fromY: number,
+	fromZ: number,
+	toX: number,
+	toY: number,
+	toZ: number,
+	x: number,
+	y: number,
+	z: number,
+	steps: number?
+): number
+	local n = steps or 32
+	local best = math.huge
+	local ax, ay, az = Travel.flightPath(fromX, fromY, fromZ, toX, toY, toZ, 0)
+	for i = 1, n do
+		local bx, by, bz = Travel.flightPath(fromX, fromY, fromZ, toX, toY, toZ, i / n)
+		local dx, dy, dz = bx - ax, by - ay, bz - az
+		local len2 = dx * dx + dy * dy + dz * dz
+		local u = if len2 > 1e-6
+			then math.clamp(((x - ax) * dx + (y - ay) * dy + (z - az) * dz) / len2, 0, 1)
+			else 0
+		local px, py, pz = ax + dx * u - x, ay + dy * u - y, az + dz * u - z
+		best = math.min(best, math.sqrt(px * px + py * py + pz * pz))
+		ax, ay, az = bx, by, bz
+	end
+	return best
 end
 
 -- Move every on-hand Credit into the bank; returns the amount moved

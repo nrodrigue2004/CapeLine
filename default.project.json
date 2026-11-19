@@ -4,7 +4,8 @@
   "tree": {
     "$className": "DataModel",
     "ReplicatedFirst": {
-      "LoadingScreen": { "$path": "src/first/LoadingScreen.client.luau" }
+      "LoadingScreen": { "$path": "src/first/LoadingScreen.client.luau" },
+      "LoadingCard": { "$path": "src/first/LoadingCard.luau" }
     },
     "ReplicatedStorage": {
       "Config": { "$path": "src/config" },

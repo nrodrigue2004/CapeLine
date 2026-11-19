@@ -40,6 +40,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Net = require(Shared:WaitForChild("Net"))
 local MoveMath = require(Shared:WaitForChild("MoveMath"))
 local Signal = require(Shared:WaitForChild("Util"):WaitForChild("Signal"))
+local FrameProf = require(Shared:WaitForChild("FrameProf"))
 
 local InputController = require(script.Parent.InputController)
 local State = require(script.Parent.Parent.State)
@@ -77,6 +78,8 @@ local rayParams = RaycastParams.new()
 rayParams.FilterType = Enum.RaycastFilterType.Exclude
 
 local arc: { from: Vector3, to: Vector3, start: number, time: number, height: number }? = nil
+-- a fast-travel flight (TravelClient, gap polish 2026-11-19): the body follows at(f) for `time` seconds
+local trip: { at: (number) -> Vector3, start: number, time: number, hold: boolean }? = nil
 
 -- mobility state
 local sprint = M.run.speed -- Super-speed's current run speed
@@ -322,7 +325,7 @@ end
 
 -- Dash Strike: a short burst along `dir`, approved by the server's MoveGuard grant
 function MoveController.dash(dir: Vector3, distance: number, time: number)
-	if not root or dir.Magnitude < 0.1 then
+	if not root or trip or dir.Magnitude < 0.1 then
 		return
 	end
 	local mode = MoveController.mode
@@ -338,7 +341,7 @@ end
 
 -- Meteor Leap: a high arc to a landing spot in `time` seconds (the server granted the travel)
 function MoveController.arcTo(target: Vector3, time: number, height: number)
-	if not root then
+	if not root or trip then
 		return
 	end
 	local mode = MoveController.mode
@@ -561,7 +564,7 @@ end
 
 -- Travel powers (CombatClient): ride for `duration` at up to `speed` (the server allows it with the ride buff)
 function MoveController.ride(kind: string, speed: number, duration: number)
-	if not root then
+	if not root or trip then
 		return
 	end
 	local cam = Workspace.CurrentCamera.CFrame
@@ -588,7 +591,7 @@ end
 -- Weightless: take off (any hero may fly while zeroG lasts)
 MoveController.wantTakeOff = 0
 function MoveController.takeOff()
-	if not hum or MoveController.mode == "fly" then
+	if not hum or trip or MoveController.mode == "fly" then
 		return
 	end
 	if MoveController.mode == "ground" or MoveController.mode == "charge" then
@@ -732,11 +735,88 @@ local function ramStep(mode: string, v: Vector3, pos: Vector3, now: number, dt: 
 	return v * RAM.holdKeep
 end
 
+-- Fast travel (TravelClient; gap polish 2026-11-19: the hero used to stand still under a camera sweep): the body
+-- flies at(f) (f = 0..1 of `time` seconds, the server's arc eased on this device) in the flight pose, through
+-- everything (TravelClient's collision group), with no input, landing check or ram. The server sets the hero
+-- down at the end; endTravel then drops it out of the flight diving at `dive`, so it lands with the landing's
+-- juice and pose. hold(): stop following (a skip, or the server put the body somewhere else).
+function MoveController.travel(at: (number) -> Vector3, time: number)
+	if not root or not hum or hum.Health <= 0 then
+		return
+	end
+	if MoveController.mode == "swing" then
+		dropLine()
+	end
+	enterAir(Vector3.zero)
+	arc, ride = nil, nil
+	MoveController.autoTarget = nil
+	setBoost(false)
+	trip = { at = at, start = os.clock(), time = math.max(0.1, time), hold = false }
+	setMode("fly")
+end
+
+function MoveController.traveling(): boolean
+	return trip ~= nil
+end
+
+function MoveController.holdTravel()
+	if trip then
+		trip.hold = true
+	end
+end
+
+function MoveController.endTravel(dive: number)
+	if not trip then
+		return
+	end
+	trip = nil
+	vel = Vector3.new(0, -math.abs(dive), 0)
+	airSince = os.clock() - 1 -- the landing may come at once
+	if root and hum and hum.Health > 0 then
+		setMode("air")
+	end
+end
+
+-- one frame of the flight: steer onto the arc point a frame ahead (a feed-forward with the error folded in,
+-- capped so a teleport never flings the body back across the map)
+local function travelStep(
+	t0: { at: (number) -> Vector3, start: number, time: number, hold: boolean },
+	dt: number
+)
+	local r, v, o, h = root :: BasePart, lv :: LinearVelocity, ao :: AlignOrientation, hum :: Humanoid
+	local now = os.clock()
+	local f = math.clamp((now - t0.start) / t0.time, 0, 1)
+	local pos = r.Position
+	local here = t0.at(f)
+	local ahead = t0.at(math.min(1, f + dt / t0.time))
+	local pace = (ahead - here).Magnitude / math.max(dt, 1e-3)
+	-- a frame hitch at full speed leaves the body behind by up to half a second of flight: it catches up; only a
+	-- skip, a pull-back or a server move (much farther) holds it still for the landing
+	if t0.hold or (here - pos).Magnitude > Config.Fx.polish.travel.hold + pace * 0.5 then
+		t0.hold = true
+		vel = vel * math.max(0, 1 - dt * 6)
+	else
+		local want = (ahead - pos) / math.max(dt, 1e-3)
+		local cap = math.max(80, pace * 1.6)
+		vel = if want.Magnitude > cap then want.Unit * cap else want
+	end
+	h.PlatformStand = true
+	v.Enabled = true
+	o.Enabled = true
+	v.VectorVelocity = vel
+	o.CFrame = orientation("fly", dt)
+	MoveController.velocity = vel
+end
+
 local function step(dt: number)
 	if not root or not hum or not lv or not ao or hum.Health <= 0 then
 		return
 	end
 	dt = math.min(dt, 1 / 20)
+	if trip then
+		travelStep(trip, dt)
+		return
+	end
 	local mode = MoveController.mode
 	local pos = root.Position
 	local onGround, groundY = grounded()
@@ -1126,7 +1206,7 @@ local function step(dt: number)
 end
 
 local function onPressed(action: string)
-	if not hum or hum.Health <= 0 or held() or downed() then
+	if not hum or hum.Health <= 0 or held() or downed() or trip then
 		return
 	end
 	local mode = MoveController.mode
@@ -1297,6 +1377,7 @@ local function bind(character: Model)
 	sprint = M.run.speed
 	airJumps, bounces = 0, 0
 	ride = nil
+	trip = nil
 	dropLine()
 	setMode("ground");
 	(hum :: Humanoid).Died:Connect(function()
@@ -1325,6 +1406,9 @@ function MoveController.init()
 		end
 	end)
 	Net.listen("MoveCorrect", function(pos: Vector3)
+		if trip then
+			trip.hold = true -- pulled back off a flight: wait there for the landing
+		end
 		if root then
 			root.CFrame = CFrame.new(pos) * root.CFrame.Rotation
 			root.AssemblyLinearVelocity = Vector3.zero
@@ -1359,7 +1443,7 @@ function MoveController.init()
 			hum.WalkSpeed = runSpeed()
 		end
 	end)
-	RunService.PreSimulation:Connect(step)
+	RunService.PreSimulation:Connect(FrameProf.wrap("MoveController", step))
 end
 
 return MoveController

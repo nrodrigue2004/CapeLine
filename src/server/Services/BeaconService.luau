@@ -7,7 +7,12 @@
 --   time } so the client plays the flight; the hero is moved when the flight ends or the player skips
 --   (MoveTravelSkip), and MoveGuard accepts the jump. Taking damage during the flight cannot happen: the
 --   hero is untargetable while travelling.
+-- * Gap polish (2026-11-19): the hero flies the route on its own device (TravelClient), so every player sees
+--   it leave and arrive. The trip's arc is hero.travelRoute (MoveGuard allows the flight while the body stays
+--   within Travel.routeGap of it) and the player's Traveling attribute (every device's trail and bursts).
+--   Bodies fly through buildings in the "TravelFlight" collision group. Discovery waits for the landing.
 
+local PhysicsService = game:GetService("PhysicsService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -59,7 +64,9 @@ local function arrive(player: Player, trip: Trip)
 	local model = player.Character
 	if hero then
 		hero.traveling = false
+		hero.travelRoute = nil
 	end
+	player:SetAttribute("Traveling", nil)
 	-- a hero something else moved during the flight (a mission pocket, the HQ) stays where they were put
 	if hero and model and model.Parent and hero.alive and Travel.landOk(trip, hero.placedAt) then
 		model:PivotTo(trip.dest)
@@ -106,6 +113,8 @@ local function travel(player: Player, beaconId: number)
 	}
 	trips[player] = trip
 	hero.traveling = true
+	hero.travelRoute = { from = pos, to = dest }
+	player:SetAttribute("Traveling", true)
 	-- stream the destination in during the flight so the hero never lands on empty space
 	task.spawn(pcall, player.RequestStreamAroundAsync, player, dest, B.travelTime)
 	Net.fire("FastTravel", player, {
@@ -123,7 +132,7 @@ local function discoverPass()
 	local r2 = B.touchRadius * B.touchRadius
 	for _, player in Players:GetPlayers() do
 		local hero = HeroService.get(player)
-		local pos = hero and hero.alive and HeroService.position(hero)
+		local pos = hero and hero.alive and not hero.traveling and HeroService.position(hero)
 		local c = pos and char(player)
 		if c then
 			for id, b in world.beacons do
@@ -146,7 +155,23 @@ local function discoverPass()
 	end
 end
 
+-- The flight's collision group: collides with nothing, so the hero flies over (or through) the city on its
+-- route and never rams a tower (TravelClient puts its own body in it for the flight only)
+BeaconService.GROUP = "TravelFlight"
+local function flightGroup()
+	pcall(function()
+		if not PhysicsService:IsCollisionGroupRegistered(BeaconService.GROUP) then
+			PhysicsService:RegisterCollisionGroup(BeaconService.GROUP)
+		end
+		for _, g in PhysicsService:GetRegisteredCollisionGroups() do
+			PhysicsService:CollisionGroupSetCollidable(BeaconService.GROUP, g.name, false)
+		end
+	end)
+end
+
 function BeaconService.init()
+	flightGroup()
+	task.defer(flightGroup) -- again once every service has registered its own groups
 	Net.on("MoveFastTravel", travel)
 	Net.on("MoveTravelSkip", function(player)
 		local trip = trips[player]
@@ -160,6 +185,8 @@ function BeaconService.init()
 			trips[hero.player].done = true
 			trips[hero.player] = nil
 			hero.traveling = false
+			hero.travelRoute = nil
+			hero.player:SetAttribute("Traveling", nil)
 		end
 	end)
 	Players.PlayerRemoving:Connect(function(player)

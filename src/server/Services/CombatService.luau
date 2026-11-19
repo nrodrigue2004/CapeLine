@@ -14,6 +14,7 @@
 -- reach the target's own client as an impulse (HeroKnock). Heals, shields and buffs skip flagged fighters
 -- an unflagged helper may not support. Stunned, lifted or Downed heroes cannot cast.
 
+local CollectionService = game:GetService("CollectionService")
 local Debris = game:GetService("Debris")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -656,7 +657,15 @@ local function addField(
 	return f
 end
 
-local function icePart(size: Vector3, cf: CFrame, life: number, collide: boolean): Part
+-- the ice pieces (Snow Wall slabs, the Ice Slide ramp, Frost's raft) are tagged "IceLook" with their kind so
+-- every device dresses them (IceFx, gap polish 2026-11-19: shards, snow, frost motes); the part itself, its
+-- size, collision and life, is the same as before
+local function iceLook(p: BasePart, kind: string)
+	p:SetAttribute("IceKind", kind)
+	CollectionService:AddTag(p, "IceLook")
+end
+
+local function icePart(size: Vector3, cf: CFrame, life: number, collide: boolean, kind: string?): Part
 	local p = Instance.new("Part")
 	p.Anchored = true
 	p.CanCollide = collide
@@ -667,6 +676,7 @@ local function icePart(size: Vector3, cf: CFrame, life: number, collide: boolean
 	p.Transparency = 0.15
 	p.Size = size
 	p.CFrame = cf
+	iceLook(p, kind or "slab")
 	p.Parent = partsFolder
 	Debris:AddItem(p, life)
 	return p
@@ -682,19 +692,20 @@ local function iceRaft(hero: any, at: Vector3)
 	end
 	raftUntil[hero.id] = now + f.life
 	local y = Config.World.coast.waterY + 0.4
-	icePart(Vector3.new(f.size, 1.2, f.size), CFrame.new(at.X, y, at.Z), f.life, true)
+	icePart(Vector3.new(f.size, 1.2, f.size), CFrame.new(at.X, y, at.Z), f.life, true, "raft")
 end
 
 local function makeWall(hero: any, eff: any, num: number, pieces: { { number } })
 	local now = os.clock()
 	for _, pc in pieces do
 		local pos = Vector3.new(pc[1], pc[2], pc[3])
-		-- the wall stops shots, not heroes (no griefing doorways) (PLACEHOLDER ART: plain ice slabs)
+		-- the wall stops shots, not heroes (no griefing doorways); IceFx dresses each slab with shards and snow
 		icePart(
 			Vector3.new(6.5, 8, 1.6),
 			CFrame.new(pos) * CFrame.Angles(0, math.rad(pc[4]), 0),
 			eff.duration,
-			false
+			false,
+			"wall"
 		)
 		EnemyService.addBlocker(pos, 4.2, now + eff.duration)
 		if eff.touchCoeff then
@@ -716,7 +727,7 @@ local function makeRamp(hero: any, eff: any, num: number, piece: { number })
 	local yaw = math.rad(piece[4])
 	local height = len * 0.22
 	local base = CFrame.new(piece[1], piece[2] + height / 2, piece[3]) * CFrame.Angles(0, yaw, 0)
-	-- a wedge rising along the aim; slick ice (PLACEHOLDER ART)
+	-- a wedge rising along the aim; slick ice (IceFx dresses it: snow rails, a frost glaze and motes)
 	local w = Instance.new("WedgePart")
 	w.Anchored = true
 	w.CanQuery = false
@@ -726,6 +737,7 @@ local function makeRamp(hero: any, eff: any, num: number, piece: { number })
 	w.Size = Vector3.new(8, height, len)
 	w.CFrame = base * CFrame.Angles(0, math.pi, 0)
 	w.CustomPhysicalProperties = PhysicalProperties.new(0.9, 0, 0.5, 100, 1)
+	iceLook(w, "ramp")
 	w.Parent = partsFolder
 	Debris:AddItem(w, eff.duration)
 	if eff.slowTouch then
