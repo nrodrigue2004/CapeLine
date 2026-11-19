@@ -122,13 +122,28 @@ function EmoteFx.poseLocal(id: number, hold: number?)
 	end
 end
 
+-- the picker's rows sit in a scroll (2026-11-19): on a phone (375 px tall) 5 or more emotes ran off the top
+local rows: ScrollingFrame
+local PICKER_BOTTOM = 160 -- the picker's bottom edge above the screen's bottom (the action buttons)
+local PICKER_TOP = 70 -- room kept for the top HUD
+
+local function fitPicker(count: number)
+	local rowH = if count == 0 then 40 else count * (T - 10) + (count - 1) * 6
+	local view = workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize.Y or 720
+	local most = math.max(T + 16, view - PICKER_BOTTOM - PICKER_TOP)
+	picker.Size = UDim2.fromOffset(220, math.min(rowH + 16, most))
+	rows.CanvasSize = UDim2.fromOffset(0, rowH)
+	rows.ScrollingEnabled = rowH + 16 > most
+end
+
 local function drawPicker()
-	for _, c in picker:GetChildren() do
+	for _, c in rows:GetChildren() do
 		if c:IsA("TextButton") or c:IsA("TextLabel") then
 			c:Destroy()
 		end
 	end
 	local list = owned()
+	fitPicker(#list)
 	if #list == 0 then
 		local l = Kit.label({
 			Text = "No emotes yet: earn them with Fame or find them in the SHOP",
@@ -138,7 +153,7 @@ local function drawPicker()
 			TextWrapped = true,
 			maxText = 14,
 		})
-		l.Parent = picker
+		l.Parent = rows
 		return
 	end
 	for i, id in list do
@@ -153,7 +168,7 @@ local function drawPicker()
 		end)
 		-- the pose's picture at the left (2026-11-19), words only while its sheet is not uploaded
 		Thumb.side(b, Thumb.emote(id), string.upper(S.emotes[id].name))
-		b.Parent = picker
+		b.Parent = rows
 	end
 end
 
@@ -170,7 +185,6 @@ function EmoteFx.init()
 		AnchorPoint = Vector2.new(0.5, 1),
 		Position = UDim2.new(0.5, 0, 1, -160),
 		Size = UDim2.fromOffset(220, 0),
-		AutomaticSize = Enum.AutomaticSize.Y,
 		BackgroundColor3 = Kit.color.night,
 		BackgroundTransparency = 0.15,
 		Visible = false,
@@ -181,10 +195,18 @@ function EmoteFx.init()
 	pad.PaddingLeft = UDim.new(0, 8)
 	pad.PaddingRight = UDim.new(0, 8)
 	pad.Parent = picker
+	rows = Instance.new("ScrollingFrame")
+	rows.Name = "Rows"
+	rows.Size = UDim2.fromScale(1, 1)
+	rows.BackgroundTransparency = 1
+	rows.BorderSizePixel = 0
+	rows.ScrollBarThickness = 4
+	rows.ScrollingDirection = Enum.ScrollingDirection.Y
+	rows.Parent = picker
 	local list = Instance.new("UIListLayout")
 	list.Padding = UDim.new(0, 6)
 	list.SortOrder = Enum.SortOrder.LayoutOrder
-	list.Parent = picker
+	list.Parent = rows
 	picker.Parent = gui
 	InputController.Pressed:Connect(function(action)
 		if action == "Emote" then
