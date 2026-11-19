@@ -157,6 +157,24 @@ return {
 		},
 	},
 	swim = { base = 24, surface = 2 },
+	-- Omnidirectional movement (nate's playtest 2026-11-19: "Add omnidirectional movement. Don't forget about during
+	-- flying too"). The hero moves relative to the camera in any direction: in flight the velocity eases straight to
+	-- the stick's 3D direction at `flightAccel` (strafe, backpedal, up and down along the camera's pitch) instead of
+	-- turning round to it; only a boost along the look keeps the swooping turn. The body faces the camera's look
+	-- (or the lock target) while hovering and strafing, and the move once it is fast forward; it leans into the move
+	-- (`lean`, degrees at cruise). Gliding drifts toward the stick at `glideAccel`. Underwater the camera's pitch
+	-- swims up and down too (`swimVertical` of the swim speed, so the 3D speed stays inside the server's cap), Leap
+	-- rises, Down sinks. On the ground a lock turns the body to the target, so strafing and backpedalling circle it.
+	omni = {
+		flightAccel = 110, -- studs/s^2 toward the stick's velocity (cruise 60: a full reverse in about a second)
+		swoop = 0.8, -- a boost this close to the camera's look (dot) keeps the swooping turn (flight.turnRate)
+		face = 10, -- per second the body turns toward where it faces
+		faceMoveAt = 0.75, -- share of cruise speed forward past which a free flier faces its travel
+		lean = { forward = 28, side = 22, back = 18 },
+		glideAccel = 45, -- studs/s^2 a glide's drift moves toward the stick
+		swimVertical = 0.7,
+		groundTurn = 12, -- per second a locked hero on the ground turns to face the target
+	},
 	-- wall grabs in the air (Acrobat and Super-speed): a wall hit within grabAngle degrees of head-on is run or
 	-- climbed up, a more glancing one is run along; `regrab` s after leaving a wall the hero may grab one again
 	-- (a wall run that timed out is not grabbed again before the hero lands or kicks off with Leap)

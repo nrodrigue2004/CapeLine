@@ -194,6 +194,16 @@ function MoveFx.init()
 		end
 	end)
 
+	-- a drop that smashes a roof (Config.Combat.drop): a wide dust ring, a second big crack and a heavy shake
+	MoveController.Dropped:Connect(function(pos: Vector3, fall: number)
+		local Dp = Config.Combat.drop
+		local t = math.clamp((fall - Dp.minFall) / (Dp.fullFall - Dp.minFall), 0, 1)
+		local r = Dp.radius[1] + (Dp.radius[2] - Dp.radius[1]) * t
+		ring(pos + Vector3.new(0, 0.3, 0), Color3.fromRGB(214, 206, 190), r * 2.4)
+		crack(pos, math.clamp(r * 1.4, 10, 20))
+		Juice.fire("land", pos, { mine = true })
+	end)
+
 	local phase = 0
 	local lastMode, wasBoosting = "", false
 	local nextCharge, chargeFull = 0, false

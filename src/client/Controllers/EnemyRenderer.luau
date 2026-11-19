@@ -2210,6 +2210,21 @@ function EnemyRenderer.each(): { [number]: Vector3 }
 	return out
 end
 
+-- A drawn robot's position for the lock-on (nil: not drawn, cloaked or still disguised), no table made
+function EnemyRenderer.lockable(id: number): Vector3?
+	local body = live[id]
+	if body and bit32.band(body.flags, BITS.cloak) == 0 and not disguised(body) then
+		return body.pos
+	end
+	return nil
+end
+
+-- A drawn robot's row in Config.Enemies (the grab-a-robot prompt checks ThrowMath.canHoldRobot), or nil
+function EnemyRenderer.cfgOf(id: number): any
+	local body = live[id]
+	return body and body.cfg
+end
+
 function EnemyRenderer.flags(id: number): number
 	local body = live[id]
 	return if body then body.flags else 0

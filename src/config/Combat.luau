@@ -63,6 +63,98 @@ return {
 	-- destroy things"). The server owns every break (ImpactService through BuildingService), scaled by speed and
 	-- capped; pins (beacon hosts, side quest roofs, the prologue's held row), safe areas, story scenes,
 	-- safehouses and landmarks never break.
+	-- Knockback by move (nate's playtest 2026-11-19: "A lot of moves should have strong knock back. That is to send
+	-- enemies flying through buildings. Determine knock back based on move"). Every damaging ability and weapon move
+	-- has a kind (Shared.KnockRules.kind: a row's own `knockKind`, else by slot, shape and coeff) and each kind a
+	-- throw: `dist` studs along the ground, an arc `lift` studs high, flown at `speed` studs/s (0: an instant shove,
+	-- no flight). A launched robot that meets a building breaks through it (ImpactService, the robot curves in
+	-- impact.robot, inside the per-hero and server caps) and flies on with `through.keep` of the rest, at most
+	-- `through.max` studs inside; a wall that holds stops it with a `wallStun` stagger. World bosses never move (their
+	-- parts are fixed targets); mini-bosses take `miniBoss` of it; robots immune to knockback none. In PvP only the
+	-- `pvpKinds` throw players, at Config.Pvp.knock.scale of the distance and never past its maxDistance. (tune)
+	knock = {
+		kinds = {
+			field = { dist = 0, lift = 0, speed = 0 }, -- fields and channels tick: they hold robots, never shove
+			jab = { dist = 2.5, lift = 0, speed = 0 }, -- basics and combo hits: a small shove
+			strike = { dist = 10, lift = 3, speed = 45 }, -- most skills
+			heavy = { dist = 28, lift = 8, speed = 65 }, -- smashes, slams, big hitters
+			charged = { dist = 46, lift = 12, speed = 80 }, -- a fully charged skill (lerped by the charge level)
+			super = { dist = 64, lift = 16, speed = 90 }, -- supers and team-up combos
+			swing = { dist = 32, lift = 7, speed = 70 }, -- a robot swung as a weapon (Config.Throw.swing)
+			thrown = { dist = 50, lift = 10, speed = 80 }, -- the swung robot itself when it is thrown
+		},
+		order = { "field", "jab", "strike", "heavy", "charged", "super", "swing", "thrown" },
+		heavyCoeff = 1.8, -- a skill this heavy is a smash
+		slamShapes = { nova = true, leap = true }, -- slams and landings: heavy from slamCoeff
+		slamCoeff = 1.2,
+		lastHit = 2.5, -- a combo's last hit (the finisher) shoves this many times a jab
+		crit = 1.25, -- a crit throws further
+		miniBoss = 0.1, -- mini-bosses barely move (world bosses not at all)
+		pvpKinds = { heavy = true, charged = true, super = true, swing = true, thrown = true },
+		through = { max = 40, keep = 0.6 }, -- studs a robot may fly inside a broken building; share of the rest kept
+		wallStun = 0.8, -- seconds a robot that hits a wall that holds is dazed
+		gravity = 120, -- studs/s^2 a launched robot falls at once its arc ends above the ground
+	},
+	-- Lock-on (nate's playtest 2026-11-19, "a player/enemy lock-on ... camera should have dynamic movement"; nate
+	-- decided BOTH, 13:17Z): the soft lock (Settings softLock, on by default) eases your casts and the camera
+	-- toward the best target in front within `soft.range`; the hard lock (Settings hardLock; middle mouse or Tab on
+	-- PC, R3 on a gamepad, the LOCK button on touch) keeps one target framed with the dynamic camera. Targets: drawn
+	-- robots, the world boss, and flagged players only when PvP allows the hit. Rules in Shared.LockRules. (tune)
+	lock = {
+		soft = {
+			range = 60, -- studs from the hero
+			angle = 24, -- degrees off the aim the soft lock still takes
+			camTurn = 0.9, -- per second the camera eases its yaw toward the soft target (times Camera motion)
+			camIdle = 0.6, -- seconds after you last turned the camera before it eases
+			camDead = 6, -- degrees: no easing when the target is this close to the centre
+		},
+		hard = {
+			range = 120, -- studs: a new lock finds targets this far
+			angle = 60, -- degrees off the camera's look
+			keep = 170, -- studs: a lock drops past this
+			lost = 1.5, -- seconds a target may be hidden before the lock drops
+			turn = 7, -- per second the camera turns to frame it
+			pitch = { -55, 30 }, -- degrees the lock may tilt the camera (down, up)
+			lean = 5, -- degrees the camera rolls with your sideways motion (times Camera motion)
+			sway = 1.5, -- studs the camera swings out the side you move to
+			big = 14, -- studs: a target taller than this (a boss) pulls the camera back
+			pull = 0.9, -- studs back per stud over `big`
+			pullMax = 40,
+			shoulder = 2.5, -- studs the camera sits to the side so the hero never covers the target
+			heroAim = 0.35, -- 0 frames the target, 1 the hero: the look point between them
+			cycleAngle = 120, -- degrees either side Tab and the stick flick search for the next target
+			flick = 0.7, -- the right stick pushed this far sideways while locked cycles targets
+			flickGap = 0.35, -- seconds between flick cycles
+		},
+		padHold = 0.35, -- R3 held this long fires the Gadget instead (a tap toggles the lock)
+		-- the comic target marker (LockClient): corner brackets round the target and a diamond over it
+		marker = {
+			size = 64, -- pixels at 30 studs (scaled by distance, clamped)
+			min = 40,
+			max = 120,
+			soft = { 255, 255, 255 }, -- the soft lock's thin white brackets
+			hard = { 255, 70, 60 }, -- the hard lock's red brackets and diamond
+			ink = { 20, 20, 28 },
+			spin = 90, -- degrees a second the hard lock's brackets turn
+			pulse = 0.12, -- share the brackets breathe in and out
+		},
+	},
+	-- A hero dropping onto a building from high up smashes it (nate, 2026-11-19 13:18Z): a landing on a roof at
+	-- `minFall` studs/s or more (a long fall, a dive) breaks the roof and the storey under it, scaled from minFall to
+	-- fullFall; the server checks the claim against its own recent speed (MoveGuard.peakSpeed, slack) and the
+	-- hero's spot (near + lag), inside the impact caps (perHero, serverPerSecond). Robots round the landing are hit
+	-- (coeff, radius) and thrown as a heavy. The device plays the landing crack, dust and shake.
+	drop = {
+		minFall = 90,
+		fullFall = 200,
+		dmg = { 1200, 3600 }, -- structure damage from minFall to fullFall
+		radius = { 8, 14 }, -- studs of roof round the landing
+		coeff = 1.2, -- the hit on robots round it (times the hero's basic damage)
+		near = 18,
+		lag = 0.25,
+		slack = 1.25,
+		window = 1.0,
+	},
 	impact = {
 		-- ram: a hero moving this fast (flight boost, a Super-speed running jump, a dash, a Leaping pound, a
 		-- travel ride) into a wall smashes through it. The device sees the wall first (ImpactFx), the server

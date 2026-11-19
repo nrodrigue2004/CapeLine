@@ -18,17 +18,26 @@
 -- imported as ReplicatedStorage.Art.Wrecks) in the robot's colours, metal only where it broke, the metal
 -- under-head (never a face). Its plain Body box stays the collider, hidden; a kind whose meshes are not all
 -- imported builds today's plain parts (the Studio-friendly fallback).
+-- Grab a robot and swing it (nate, 2026-11-19 13:18Z; Config.Throw.swing): a held wreck, or a live robot grabbed
+-- while stunned (WorldGrabRobot; held overhead, it thinks no more: EnemyService.hold), swings with Basic
+-- (WorldSwing): a wide arc in front that hits and throws the robots in it (CombatService.swung, knock "swing") and
+-- breaks the wall it meets (ImpactService.swingWall, inside the impact caps). After `max` swings, or with a held
+-- Basic, it is thrown; a live robot flies as knock "thrown" and smashes through the buildings it meets.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Net = require(Shared:WaitForChild("Net"))
 local Signal = require(Shared:WaitForChild("Util"):WaitForChild("Signal"))
+local FrameProf = require(Shared:WaitForChild("FrameProf"))
 local ThrowMath = require(Shared:WaitForChild("ThrowMath"))
+local KnockRules = require(Shared:WaitForChild("KnockRules"))
+local Status = require(Shared:WaitForChild("Status"))
 local WreckArtKit = require(Shared:WaitForChild("WreckArtKit"))
 
 local BlockService = require(script.Parent.BlockService)
@@ -36,12 +45,14 @@ local CombatService = require(script.Parent.CombatService)
 local EnemyService = require(script.Parent.EnemyService)
 local HeroService = require(script.Parent.HeroService)
 local VehicleService = require(script.Parent.VehicleService)
+local ImpactService = require(script.Parent.ImpactService)
 
 local ThrowService = {}
 
 local T = Config.Throw
 local VEH_BASE = 1000 -- item ids above this are VehicleService's vehicles (id - VEH_BASE)
 local WRECK_BASE = 3000 -- downed robots' wrecks take ids WRECK_BASE + 1 .. WRECK_BASE + 999 (WP6)
+local ROBOT_HOLD = 65000 -- ThrowState's id while a live robot is held (it is no item: hero.carry.robot)
 local W = T.wreck
 
 type It = {
@@ -205,12 +216,14 @@ local function sendState(hero: any)
 	if hero.player then
 		local c = hero.carry
 		local it = c and items[c.id]
+		local kind = if c and c.robot then "robot" elseif it then it.kind else nil
 		Net.fire("ThrowState", hero.player, {
-			id = if c then c.id else 0,
-			kind = it and it.kind,
+			id = if c and c.robot then ROBOT_HOLD elseif c then c.id else 0,
+			kind = kind,
 			since = c and c.since,
+			swings = if c then T.swing.max - (c.swings or 0) else 0,
 		})
-		hero.player:SetAttribute("Carrying", if it then it.kind else nil)
+		hero.player:SetAttribute("Carrying", kind)
 	end
 end
 
@@ -223,6 +236,18 @@ end
 -- Set down in front of the hero (Grab again, the 8 s limit, a stun, death or travel)
 local function setDown(hero: any)
 	local c = hero.carry
+	if c and c.robot then
+		-- a held robot is let go in front of the hero, still dazed
+		local id = c.robot
+		EnemyService.hold(id, nil)
+		local root = HeroService.rootPart(hero)
+		if root and EnemyService.alive(id) then
+			EnemyService.place(id, root.Position + root.CFrame.LookVector * 4)
+			EnemyService.applyStatus(id, "stun", 0.6)
+		end
+		release(hero)
+		return
+	end
 	local it = c and items[c.id]
 	if not it then
 		release(hero)
@@ -368,8 +393,40 @@ local function grab(hero: any, id: number)
 	ThrowService.Grabbed:Fire(hero, it.kind)
 end
 
+-- Throw a held live robot along the aim: it flies as knock "thrown" and smashes through what it meets
+local function throwRobot(hero: any, aim: Vector3)
+	local c = hero.carry
+	local root = HeroService.rootPart(hero)
+	if not c or not root or not ThrowMath.lifted(T, c.since, os.clock()) or HeroService.disabled(hero) then
+		return
+	end
+	local id = c.robot
+	local from = root.Position + Vector3.new(0, T.overhead, 0)
+	local dir = Vector3.new(aim.X - from.X, 0, aim.Z - from.Z)
+	if dir.Magnitude < 0.5 then
+		dir = root.CFrame.LookVector
+	end
+	EnemyService.hold(id, nil)
+	release(hero)
+	hero.lastCast = os.clock()
+	if EnemyService.alive(id) then
+		local e = EnemyService.get(id)
+		if e then
+			e.x, e.y, e.z = from.X, from.Y, from.Z
+		end
+		local plan = KnockRules.plan(Config.Combat.knock, "thrown")
+		EnemyService.launch(id, dir.Unit, plan.dist, plan.lift, plan.speed, hero.id)
+		EnemyService.applyStatus(id, "stun", plan.dist / math.max(plan.speed, 1) + 0.5)
+	end
+	ThrowService.Thrown:Fire(hero, "robot", "medium", 0)
+end
+
 local function throw(hero: any, aim: Vector3)
 	local c = hero.carry
+	if c and c.robot then
+		throwRobot(hero, aim)
+		return
+	end
 	local it = c and items[c.id]
 	local root = HeroService.rootPart(hero)
 	if not it or not root or not ThrowMath.lifted(T, c.since, os.clock()) or HeroService.disabled(hero) then
@@ -409,8 +466,167 @@ end
 
 function ThrowService.carrying(hero: any): string?
 	local c = hero.carry
+	if c and c.robot then
+		return "robot"
+	end
 	local it = c and items[c.id]
 	return it and it.kind
+end
+
+---------------------------------------------------------------------------
+-- Grab a robot and swing it (Config.Throw.swing)
+---------------------------------------------------------------------------
+
+local S = T.swing
+local swinging: { [any]: { start: number, yaw: number } } = {} -- hero -> the swing being drawn (a live robot's whirl)
+
+-- Grab a live robot that is stunned (or flying from a hit): it is held overhead and thinks no more
+local function grabRobot(hero: any, id: number)
+	if hero.carry or not canGrab(hero) then
+		return
+	end
+	local root = HeroService.rootPart(hero)
+	local e = EnemyService.get(id)
+	if not root or not e or not e.alive or e.held then
+		return
+	end
+	local now = EnemyService.now()
+	local st = Status.get(e.status, "stun", now)
+	local left = if st then st.untilT - now else 0
+	if e.launch then
+		left = math.max(left, S.robot.stunAtLeast)
+	end
+	if not ThrowMath.canHoldRobot(T, e.cfg, left) then
+		return
+	end
+	local p = root.Position
+	if (Vector3.new(e.x, e.y, e.z) - p).Magnitude > S.robot.reach + 4 then -- a little slack for lag
+		return
+	end
+	EnemyService.hold(id, hero.id)
+	hero.carry = { id = ROBOT_HOLD, robot = id, since = os.clock(), swings = 0, swingAt = -math.huge }
+	HeroService.applyWalkSpeed(hero)
+	sendState(hero)
+	ThrowService.Grabbed:Fire(hero, "robot")
+end
+
+-- One swing of what the hero holds toward the aim: hits and throws the robots in the arc, breaks the wall in reach
+local function swing(hero: any, aim: Vector3)
+	local c = hero.carry
+	local root = HeroService.rootPart(hero)
+	if not c or not root or HeroService.disabled(hero) then
+		return
+	end
+	local kind = if c.robot then "robot" else (items[c.id] and items[c.id].kind)
+	if not ThrowMath.swingable(T, kind) then
+		return
+	end
+	local now = os.clock()
+	if
+		not ThrowMath.lifted(T, c.since, now)
+		or not ThrowMath.swingReady(T, c.swings or 0, c.swingAt or -math.huge, now)
+	then
+		return
+	end
+	c.swings = (c.swings or 0) + 1
+	c.swingAt = now
+	hero.lastCast = now
+	local center = root.Position
+	local dir = Vector3.new(aim.X - center.X, 0, aim.Z - center.Z)
+	if dir.Magnitude < 0.5 then
+		dir = root.CFrame.LookVector
+	end
+	dir = Vector3.new(dir.X, 0, dir.Z).Unit
+	CombatService.swung(hero, center, dir, S.arc, S.radius, S.coeff, c.robot)
+	ImpactService.swingWall(hero, center + Vector3.new(0, 1.5, 0), dir, S.radius, S.struct)
+	if c.robot then
+		local e = EnemyService.get(c.robot)
+		if e and e.alive then
+			EnemyService.damage(c.robot, e.maxHealth * S.self, hero.id, nil)
+		end
+		swinging[hero] = { start = now, yaw = math.atan2(-dir.X, -dir.Z) }
+	else
+		local it = items[c.id]
+		local weld: Weld? = nil
+		for _, w in (it and it.welds) or {} do
+			if w:IsA("Weld") then
+				weld = w :: Weld
+			end
+		end
+		if weld then
+			-- the wreck whirls out round the front and back overhead (the weld replicates the arc)
+			local h = sizeOf(it :: It).Y
+			local half = math.rad(S.arc / 2)
+			local yaw = math.atan2(-dir.X, -dir.Z)
+				- math.atan2(-root.CFrame.LookVector.X, -root.CFrame.LookVector.Z)
+			local out = CFrame.Angles(0, yaw, 0)
+			weld.C0 = out * CFrame.Angles(0, half, 0) * CFrame.new(0, 1, -5)
+			TweenService
+				:Create(weld, TweenInfo.new(S.time, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+					C0 = out * CFrame.Angles(0, -half, 0) * CFrame.new(0, 1, -5),
+				})
+				:Play()
+			CombatService.after(S.time, function()
+				if weld.Parent then
+					TweenService
+						:Create(weld, TweenInfo.new(0.2), { C0 = CFrame.new(0, T.overhead + h / 2, 0) })
+						:Play()
+				end
+			end)
+		end
+	end
+	for _, p in Players:GetPlayers() do
+		local r = p.Character and p.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
+		if r and (r.Position - center).Magnitude <= 150 then
+			Net.fire("SwingFx", p, {
+				u = if hero.player then hero.player.UserId else 0,
+				x = center.X,
+				y = center.Y,
+				z = center.Z,
+				dx = dir.X,
+				dz = dir.Z,
+				arc = S.arc,
+				r = S.radius,
+				t = S.time,
+			})
+		end
+	end
+	sendState(hero)
+end
+
+-- Held robots ride overhead (or whirl round the hero during a swing), every frame
+local function holdStep()
+	local now = os.clock()
+	for _, hero in HeroService.all() do
+		local c = hero.carry
+		if c and c.robot then
+			local e = EnemyService.get(c.robot)
+			local root = HeroService.rootPart(hero)
+			if not e or not e.alive or not root then
+				EnemyService.hold(c.robot, nil)
+				release(hero)
+				swinging[hero] = nil
+			else
+				local pos = root.Position + Vector3.new(0, T.overhead, 0)
+				local sw = swinging[hero]
+				if sw then
+					local u = (now - sw.start) / S.time
+					if u >= 1 then
+						swinging[hero] = nil
+					else
+						local a = sw.yaw + math.rad(S.arc / 2) * (1 - 2 * u)
+						pos = root.Position + Vector3.new(-math.sin(a) * 5, 1, -math.cos(a) * 5)
+					end
+				end
+				e.x, e.y, e.z = pos.X, pos.Y, pos.Z
+			end
+		end
+	end
+	for hero in swinging do
+		if not hero.carry then
+			swinging[hero] = nil
+		end
+	end
 end
 
 -- Props come home 60 s after landing once nobody is near; carriers drop at the limit or when stopped
@@ -788,6 +1004,19 @@ function ThrowService.init()
 			throw(hero, aim)
 		end
 	end)
+	Net.on("WorldGrabRobot", function(player: Player, id: number)
+		local hero = HeroService.get(player)
+		if hero then
+			grabRobot(hero, id)
+		end
+	end)
+	Net.on("WorldSwing", function(player: Player, aim: Vector3)
+		local hero = HeroService.get(player)
+		if hero and hero.carry then
+			swing(hero, aim)
+		end
+	end)
+	RunService.Heartbeat:Connect(FrameProf.wrap("ThrowHold", holdStep))
 	HeroService.Removed:Connect(function(hero: any)
 		if hero.carry then
 			setDown(hero)

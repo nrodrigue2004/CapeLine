@@ -1,4 +1,4 @@
--- BlockClient: hold Block (spec: Hero MMO features > Block, breaker and interrupt; H1). Alt on PC, LB on a
+-- BlockClient: hold Block (spec: Hero MMO features > Block, breaker and interrupt; H1). Q on PC (Alt until 2026-11-19), LB on a
 -- gamepad, the shield button above FLY on phones (Hud). While held: half speed (MoveController scale), no
 -- casting (CombatClient.blocked), and the Guard ring drains. The server owns the bar (GuardState); this
 -- keeps a copy for the ring, refilling it between updates the way Shared.GuardMath does.

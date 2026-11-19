@@ -906,6 +906,18 @@ local function pullStep(dt: number)
 	root.CFrame += d.Unit * 14 * dt
 end
 
+-- The world boss on screen for the lock-on (LockClient): its middle and its height, or nil when none is drawn
+-- or it is not in the fight (landing, leaving)
+function WorldFx.bossFocus(): (Vector3?, number)
+	local sh = shown
+	if not sh or not sh.model.Parent or not (sh.state == 2 or sh.state == 3) then
+		return nil, 0
+	end
+	local def = B.bosses[sh.id]
+	local h = if def then def.height else 20
+	return sh.model:GetPivot().Position + Vector3.new(0, h * 0.5, 0), h
+end
+
 function WorldFx.init()
 	folder = Instance.new("Folder")
 	folder.Name = "WorldFx"

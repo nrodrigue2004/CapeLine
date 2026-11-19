@@ -158,7 +158,17 @@ local function sourcePosition(id: number): Vector3?
 end
 
 -- Pick the aim point and the target hint for an ability
+-- Lock-on (LockClient sets it): the hard lock's target, else the soft lock's, when in the cast's reach
+CombatClient.lockAim = nil :: ((number, Vector3) -> (Vector3?, number))?
+
 local function aim(range: number, origin: Vector3): (Vector3, number, Vector3?)
+	local lock = CombatClient.lockAim
+	if lock then
+		local pos, id = lock(range, origin)
+		if pos then
+			return pos, id, pos
+		end
+	end
 	local ray = InputController.aimRay()
 	local touchAim = InputController.device == "gamepad"
 		or (InputController.device == "touch" and InputController.autoAim)

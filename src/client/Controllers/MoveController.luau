@@ -59,6 +59,7 @@ MoveController.Landed = Signal.new() -- (position, fallSpeed)
 MoveController.ModeChanged = Signal.new() -- (mode, old)
 MoveController.BoostChanged = Signal.new() -- (on)
 MoveController.Pounded = Signal.new() -- (position) a Leaping ground pound landed
+MoveController.Dropped = Signal.new() -- (position, fall speed) a drop from high up smashed onto a roof (MoveFx)
 MoveController.Rammed = Signal.new() -- (contact, wall normal, speed, building id) a fast hero hit a wall (ImpactFx)
 
 local root: BasePart? = nil
@@ -261,21 +262,16 @@ end
 local function wishDirs(): (Vector3, Vector3)
 	local cam = Workspace.CurrentCamera.CFrame
 	local mv = InputController.moveVector()
-	local look = cam.LookVector
-	local f = Vector3.new(look.X, 0, look.Z)
-	f = if f.Magnitude > 1e-3 then f.Unit else Vector3.new(0, 0, -1)
-	local r = Vector3.new(cam.RightVector.X, 0, cam.RightVector.Z)
-	r = if r.Magnitude > 1e-3 then r.Unit else Vector3.new(1, 0, 0)
-	local flat = r * mv.X + f * -mv.Z
-	local full = r * mv.X + look * -mv.Z
-	if flat.Magnitude > 1 then
-		flat = flat.Unit
-	end
-	if full.Magnitude > 1 then
-		full = full.Unit
-	end
-	return flat, full
+	local look, right = cam.LookVector, cam.RightVector
+	-- omnidirectional (Config.Move.omni): every direction relative to the camera, never relative to the body
+	local ax, az, bx, by, bz = MoveMath.omniWish(mv.X, mv.Z, look.X, look.Y, look.Z, right.X, right.Z)
+	return Vector3.new(ax, 0, az), Vector3.new(bx, by, bz)
 end
+
+-- Lock-on (LockClient sets it each frame): the locked target's position, or nil. The body turns to it on the
+-- ground (strafe and backpedal circle it) and in the air (omniFace).
+MoveController.lockAt = nil :: Vector3?
+local groundLocked = false
 
 -- How far a Leap's crouch has charged (0 to 1; 0 outside the charge): MoveFx's charge rings
 local function chargeTime(): number
@@ -666,6 +662,28 @@ local function orientation(mode: string, dt: number): CFrame
 	local frac = math.clamp((speed - 10) / 50, 0, 1)
 	local targetRoll = math.clamp(-math.deg(yawRate) * 0.25, -fl.bankMax, fl.bankMax) * frac
 	roll += (targetRoll - roll) * math.min(1, dt * 6)
+	-- omnidirectional flight and glide (Config.Move.omni): face the camera's look (or the lock target) while
+	-- hovering, strafing or backpedalling, lean into the move; a fast forward flight or boost faces its travel
+	local lock = MoveController.lockAt
+	if (mode == "fly" and not MoveController.boosting) or mode == "glide" then
+		local lx, lz
+		if lock and root then
+			lx, lz = lock.X - root.Position.X, lock.Z - root.Position.Z
+		end
+		local fx, fz = MoveMath.omniFace(M, camFlat.X, camFlat.Z, vel.X, vel.Z, lx, lz)
+		local want = math.atan2(-fx, -fz)
+		local k = 1 - math.exp(-M.omni.face * dt)
+		local fyaw = lastYaw + ((want - lastYaw + math.pi) % (2 * math.pi) - math.pi) * k
+		lastYaw = fyaw
+		local pitch, lean = MoveMath.omniLean(M, -math.sin(fyaw), -math.cos(fyaw), vel.X, vel.Z)
+		if mode == "glide" then
+			pitch = math.min(pitch, -35) -- the glide's spread pose stays tipped forward
+		end
+		roll += (lean - roll) * math.min(1, dt * 6)
+		return CFrame.fromOrientation(0, fyaw, 0)
+			* CFrame.Angles(0, 0, math.rad(roll))
+			* CFrame.Angles(math.rad(pitch), 0, 0)
+	end
 	local tilt = 0
 	if mode == "fly" or mode == "dash" then
 		local p = if speed > 1 then math.deg(math.asin(math.clamp(vel.Y / speed, -1, 1))) else 0
@@ -853,6 +871,32 @@ local function step(dt: number)
 				return
 			end
 		end
+		-- lock-on: the body turns to the target, so the stick strafes and backpedals round it
+		local lock = MoveController.lockAt
+		if lock and not held() and not downed() then
+			hum.AutoRotate = false
+			groundLocked = true
+			local to = Vector3.new(lock.X - pos.X, 0, lock.Z - pos.Z)
+			if to.Magnitude > 0.5 then
+				local want = CFrame.lookAt(pos, pos + to.Unit)
+				local k = 1 - math.exp(-M.omni.groundTurn * dt)
+				root.CFrame = root.CFrame:Lerp(want, k)
+			end
+		elseif groundLocked then
+			groundLocked = false
+			hum.AutoRotate = true
+		end
+		-- underwater: the camera's pitch swims up and down too, Leap rises, Down sinks (Config.Move.omni)
+		if hum:GetState() == Enum.HumanoidStateType.Swimming and not held() and not downed() then
+			local _, full = wishDirs()
+			local vertical = (if InputController.isDown("Leap") then 1 else 0)
+				- (if InputController.isDown("Down") then 1 else 0)
+			if math.abs(full.Y) > 0.05 or vertical ~= 0 then
+				local v = root.AssemblyLinearVelocity
+				local vy = MoveMath.swimVertical(M, full.Y, vertical, runSpeed())
+				root.AssemblyLinearVelocity = Vector3.new(v.X, vy, v.Z)
+			end
+		end
 		if
 			not onGround
 			and hum:GetState() == Enum.HumanoidStateType.Freefall
@@ -937,7 +981,7 @@ local function step(dt: number)
 		end
 	elseif mode == "glide" then
 		local gcfg = if mobility() == "acrobat" then ACRO_CFG else M
-		vel = Vector3.new(MoveMath.glideStep(gcfg, vel.X, vel.Y, vel.Z, flat.X, flat.Z, dt))
+		vel = Vector3.new(MoveMath.glideStep(gcfg, vel.X, vel.Y, vel.Z, flat.X, flat.Z, dt, true))
 		if not InputController.isDown("Leap") then
 			setMode("air")
 		end
@@ -962,6 +1006,10 @@ local function step(dt: number)
 				wishZ = full.Z,
 				vertical = vertical,
 				boost = wantBoost,
+				omni = true,
+				forward = if full.Magnitude > 1e-3
+					then full.Unit:Dot(Workspace.CurrentCamera.CFrame.LookVector)
+					else 0,
 			},
 			dt
 		)
@@ -1396,6 +1444,20 @@ function MoveController.init()
 	player.CharacterAdded:Connect(bind)
 	InputController.Pressed:Connect(onPressed)
 	InputController.Released:Connect(onReleased)
+	-- a drop onto a building from high up (nate, 2026-11-19 13:18Z; Config.Combat.drop): a landing this fast on a
+	-- wreckable roof asks the server to smash it (ImpactService checks the fall against its own history)
+	MoveController.Landed:Connect(function(pos: Vector3, fallSpeed: number)
+		if fallSpeed < Config.Combat.drop.minFall or not root then
+			return
+		end
+		rayParams.FilterDescendantsInstances = { player.Character :: Instance }
+		local reach = (if hum then hum.HipHeight else 2) + root.Size.Y / 2 + 3
+		local hit = Workspace:Raycast(pos, Vector3.new(0, -reach, 0), rayParams)
+		if hit and buildingOf(hit.Instance) then
+			Net.send("ImpactDrop", hit.Position, fallSpeed)
+			MoveController.Dropped:Fire(hit.Position, fallSpeed)
+		end
+	end)
 	State.StatusChanged:Connect(function()
 		if hum and MoveController.mode == "ground" then
 			hum.WalkSpeed = runSpeed()

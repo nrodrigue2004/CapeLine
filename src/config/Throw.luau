@@ -68,6 +68,9 @@ return {
 		-- (`wreck` below). Built by ThrowService in the robot's own colours: art/blender/wrecks.py's heap per kind
 		-- (Shared.WreckArtKit), plain parts until Art.Wrecks is imported.
 		wreck = { weight = "medium", wreck = true },
+		-- a live robot grabbed while stunned (nate, 2026-11-19 13:18Z; `swing` below): held overhead by ThrowService,
+		-- swung with Basic, thrown as Combat.knock "thrown"
+		robot = { weight = "medium", robot = true },
 		car = { weight = "heavy", vehicle = true }, -- VehicleService's cars
 		truck = { weight = "heavy", vehicle = true }, -- VehicleService's trucks (the spec's van)
 		-- trams stay on their lines (34 studs long): they only flip
@@ -114,6 +117,25 @@ return {
 	},
 	respawn = 60, -- a thrown prop comes back this long after landing, once no hero is within `viewRadius`
 	viewRadius = 120,
+	-- Grab a robot and swing it (nate, 2026-11-19 13:18Z): carrying a robot's wreck, or a stunned robot (grabbed
+	-- live: `robot`), Basic swings it round in a wide arc (`arc` degrees in front, `radius` studs) that hits the
+	-- robots in it (`coeff`, knocked as Combat.knock "swing") and breaks the walls it meets (`struct` structure
+	-- damage at the nearest wall in reach, inside the impact caps). Up to `max` swings `gap` s apart, then throw it
+	-- (a live robot flies as Combat.knock "thrown" and smashes through what it hits). A live robot loses `self`
+	-- of its health each swing; a held robot is let go after carryMax like anything else. Never bosses, mini-bosses,
+	-- fakes, twins, creatures or pack robots (ThrowMath.canWreck), never one immune to knockback. (tune)
+	swing = {
+		arc = 220,
+		radius = 11,
+		coeff = 1.4,
+		struct = 900,
+		max = 4,
+		gap = 0.45,
+		time = 0.35, -- seconds the swing's whirl takes (the drawn arc)
+		rate = 4, -- WorldSwing per second (Remotes)
+		self = 0.12, -- share of a live robot's own max health each swing takes off it
+		robot = { reach = 10, stunAtLeast = 0.2 }, -- a live robot must be stunned (or reeling) with this much left
+	},
 	-- Titan's Lift and Throw stays the strong version: it lifts any weight from further, with a bigger nova
 	titan = { reach = 20, radiusMult = 1.4 },
 }

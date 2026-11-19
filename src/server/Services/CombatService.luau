@@ -36,6 +36,7 @@ local ChargeRules = require(Shared:WaitForChild("ChargeRules"))
 local WeaponRules = require(Shared:WaitForChild("WeaponRules"))
 local Awakening = require(Shared:WaitForChild("Awakening"))
 local ClashRules = require(Shared:WaitForChild("ClashRules"))
+local KnockRules = require(Shared:WaitForChild("KnockRules"))
 local BuildingState = require(Shared:WaitForChild("BuildingState"))
 local Status = require(Shared:WaitForChild("Status"))
 local Signal = require(Shared:WaitForChild("Util"):WaitForChild("Signal"))
@@ -419,6 +420,30 @@ local function pvpHit(
 	if noStatus then
 		return false
 	end
+	-- knockback by move in PvP (Config.Combat.knock.pvpKinds): only the big kinds throw a player, compressed by
+	-- Config.Pvp.knock.scale and capped at its maxDistance; a row's own knockback status keeps its own rule
+	if
+		primary
+		and r.k ~= K.TICK
+		and eff.status ~= "knockback"
+		and eff.status2 ~= "knockback"
+		and target.player
+	then
+		local plan = KnockRules.plan(C.knock, KnockRules.kind(C.knock, eff), {
+			charge = eff.chargedBig or eff.chargeLevel,
+			crit = crit,
+		})
+		local d = KnockRules.pvp(C.knock, Config.Pvp, plan.kind, plan.dist)
+		if d > 0.5 then
+			local dir = knockDir or flatDir(pos - from)
+			ImpactService.knockHero(
+				target,
+				dir * d,
+				math.max(0.3, d / math.max(plan.speed, 30)),
+				plan.lift * 0.5
+			)
+		end
+	end
 	if eff.status and (primary or not eff.firstOnly) then
 		pvpStatus(hero, eff, eff.status, eff.statusDur or 1, target, pos, from, knockDir)
 	end
@@ -543,27 +568,40 @@ local function applyHit(
 		return false
 	end
 	local at = Vector3.new(e.x, e.y, e.z)
-	-- Weighty hits (Config.Combat.weight): a small shove away from the hit; bigger on heavy and crit hits.
-	-- Not on ticks (channels and fields), and not when the skill's own knockback status moves it anyway.
-	if primary and r.k ~= K.TICK and eff.status ~= "knockback" and eff.status2 ~= "knockback" then
-		local W = C.weight
-		EnemyService.knock(
-			cand.id,
-			knockDir or flatDir(at - from),
-			if heavy or crit then W.knockHeavy else W.knock
-		)
+	-- Knockback by move (nate's playtest 2026-11-19; Config.Combat.knock, Shared.KnockRules): every damaging
+	-- move throws the robot by its kind (jabs shove, strikes knock, heavies, charged hits and supers launch it
+	-- along an arc and through the buildings it meets). Not on ticks (channels and fields). A row's own knockback
+	-- status rides in the same throw (its distance when bigger). Mini-bosses barely move; world bosses not at all.
+	local launched = false
+	if primary and r.k ~= K.TICK then
+		local own = if eff.status == "knockback" or eff.status2 == "knockback" then eff.knock or 8 else nil
+		local plan = KnockRules.plan(C.knock, KnockRules.kind(C.knock, eff), {
+			charge = eff.chargedBig or eff.chargeLevel,
+			last = eff.hits ~= nil and r.m == #eff.hits,
+			crit = crit,
+			miniBoss = e.cfg ~= nil and e.cfg.miniBoss == true,
+			knock = own,
+		})
+		if plan.dist > 0 then
+			local dir = knockDir or flatDir(at - from)
+			launched = EnemyService.launch(cand.id, dir, plan.dist, plan.lift, plan.speed, hero.id)
+			if launched and plan.speed > 0 then
+				EnemyService.applyStatus(cand.id, "stun", 0.25) -- a moment of stagger so it does not shoot mid-flight
+			end
+		end
 	end
-	if heavy and primary then
+	if heavy and primary and not launched then
 		-- Knockback arc (spec: Clash moments): a heavy hit near a wall throws the robot through it
 		local through = BuildingService.clash(hero, at, from)
 		if through then
 			EnemyService.knock(cand.id, through, DS.clash.knock)
 		end
 	end
-	if eff.status and (primary or not eff.firstOnly) then
+	-- (a knockback status already rode in the launch above)
+	if eff.status and (primary or not eff.firstOnly) and not (launched and eff.status == "knockback") then
 		applyStatus(hero, eff, eff.status, eff.statusDur or 1, cand.id, at, from, knockDir)
 	end
-	if eff.status2 then
+	if eff.status2 and not (launched and eff.status2 == "knockback") then
 		applyStatus(hero, eff, eff.status2, eff.status2Dur or 1, cand.id, at, from, knockDir)
 	end
 	local class = Config.Classes[hero.classId]
@@ -1751,6 +1789,51 @@ function CombatService.thrown(hero: any, land: Vector3, from: Vector3, hit: any)
 	end
 	return n
 end
+-- A hero's drop onto a roof (ImpactService checked it; Config.Combat.drop): the robots round the landing are hit
+-- and thrown as a heavy, drawn like a Leaping pound's landing
+function CombatService.dropHit(hero: any, at: Vector3, _fall: number)
+	local Dp = C.drop
+	local basic = A.list[hero.loadout.basic or "ZapBolt"]
+	local eff = { set = basic.set, slot = "skill", coeff = Dp.coeff, knockKind = "heavy" }
+	local radius = Dp.radius[2]
+	local r = record(hero, basic.num, 0, K.LAND, at, Vector3.new(0, -1, 0))
+	r.c, r.r = at, radius
+	local n = hitArea(hero, eff, r, at, radius, Dp.coeff)
+	gainFor(hero, eff, n)
+	return n
+end
+
+-- A robot swung as a weapon (ThrowService; Config.Throw.swing): everything in the arc `arc` degrees wide round
+-- the hero's facing (yaw dir), within radius, is hit and thrown as "swing"; `except` is the swung robot itself
+function CombatService.swung(
+	hero: any,
+	center: Vector3,
+	dir: Vector3,
+	arc: number,
+	radius: number,
+	coeff: number,
+	except: number?
+): number
+	local basic = A.list[hero.loadout.basic or "ZapBolt"]
+	local eff = { set = basic.set, slot = "skill", coeff = coeff, knockKind = "swing", thrownObject = true }
+	local r = record(hero, basic.num, 0, K.LAND, center, flatDir(dir))
+	r.c, r.r = center, radius
+	local face = flatDir(dir)
+	local half = math.cos(math.rad(arc / 2))
+	local n = 0
+	for _, c in CastPlan.area(center.X, center.Y, center.Z, radius, cands(hero), los) do
+		if c.id ~= except then
+			local to = Vector3.new(c.x - center.X, 0, c.z - center.Z)
+			if to.Magnitude < 1 or to.Unit:Dot(face) >= half then
+				applyHit(hero, eff, r, c, coeff, true, center, flatDir(to))
+				n += 1
+			end
+		end
+	end
+	gainFor(hero, eff, n)
+	return n
+end
+
 -- ThrowService sets this: Lift and Throw with no robot in its grip lifts the nearest world thing (any weight,
 -- Config.Throw.titan.reach) and flies it to the landing; returns true when it took one
 CombatService.titanLift = nil :: ((any, Vector3, Vector3, number) -> boolean)?
@@ -1799,6 +1882,7 @@ function CombatService.init()
 		end
 	end)
 	BlockService.chargeCut = CombatService.chargeEnded
+	ImpactService.dropHit = CombatService.dropHit -- a drop onto a roof hits the robots round it
 	-- H2: charging a charge-up power slows the hero (HeroService.speedMult)
 	HeroService.speedHooks.charge = function(hero: any): number
 		return if CombatService.chargingPower(hero) then C.charge.powerSlow else 1

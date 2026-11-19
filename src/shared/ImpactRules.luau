@@ -224,6 +224,28 @@ function ImpactRules.robotDamage(robot: any, distance: number): number
 	)
 end
 
+-- A hero dropping onto a roof at `fall` studs/s (nate, 2026-11-19 13:18Z): structure damage and radius (0 when
+-- too slow). drop: Config.Combat.drop
+function ImpactRules.dropDamage(drop: any, fall: number): (number, number)
+	if fall < drop.minFall then
+		return 0, 0
+	end
+	local t = (fall - drop.minFall) / (drop.fullFall - drop.minFall)
+	return math.floor(lerp(drop.dmg[1], drop.dmg[2], t)), lerp(drop.radius[1], drop.radius[2], t)
+end
+
+-- The server's check of a drop the device saw: the server's own recent top speed backs the claimed fall, and
+-- the landing is near where the server has the hero. Returns the fall speed it counts at, or nil.
+function ImpactRules.dropOk(drop: any, claimed: number, peak: number, distance: number): number?
+	if claimed < drop.minFall or peak < drop.minFall / drop.slack then
+		return nil
+	end
+	if distance > drop.near + claimed * drop.lag then
+		return nil
+	end
+	return math.min(claimed, peak * drop.slack)
+end
+
 -- A throw of `total` studs whose wall is `t` (0..1) along it: the studs it travels in all. broke: the wall gave
 -- way, so the hero goes on through with `through` of the rest; else it stops `stopShort` before the wall.
 function ImpactRules.throwLength(knock: any, total: number, t: number, broke: boolean): number

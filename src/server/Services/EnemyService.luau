@@ -311,6 +311,28 @@ function EnemyService.knock(id: number, dir: Vector3, distance: number): boolean
 	return EnemySim.knock(sim, id, dir.X, dir.Z, distance)
 end
 
+-- Knockback by move (nate's playtest 2026-11-19; Shared.KnockRules): fly the robot along an arc; a wall on the
+-- way asks EnemyService.launchWall (ImpactService) whether it breaks. src: the hero who hit it.
+function EnemyService.launch(
+	id: number,
+	dir: Vector3,
+	distance: number,
+	lift: number,
+	speed: number,
+	src: number?
+)
+	return EnemySim.launch(sim, id, dir.X, dir.Z, distance, lift, speed, src)
+end
+
+-- (robot, contact, direction, the throw's distance, leaving a building it broke into, the hero's id) -> broke:
+-- set by ImpactService
+EnemyService.launchWall = nil :: ((any, Vector3, Vector3, number, boolean, number?) -> boolean)?
+
+-- A hero's hold on a robot (Config.Throw.swing): heroId nil lets go
+function EnemyService.hold(id: number, heroId: number?)
+	EnemySim.hold(sim, id, heroId)
+end
+
 function EnemyService.addBlocker(pos: Vector3, radius: number, untilT: number)
 	EnemySim.addBlocker(sim, pos.X, pos.Y, pos.Z, radius, untilT)
 end
@@ -604,6 +626,14 @@ function EnemyService.init(heightAt: (number, number) -> number)
 		end,
 		random = function()
 			return rng:NextNumber()
+		end,
+		wallHit = function(e, x, y, z, dx, dz, distance, exit)
+			local hook = EnemyService.launchWall
+			if not hook then
+				return false
+			end
+			local src = e.launch and e.launch.src
+			return hook(e, Vector3.new(x, y, z), Vector3.new(dx, 0, dz), distance, exit, src)
 		end,
 	})
 	HeroService.Removed:Connect(function(hero)

@@ -59,6 +59,15 @@ return {
 			options = { "Full", "Reduced", "Off" },
 			default = 0,
 		},
+		-- nate's playtest 2026-11-19 (lock-on, nate decided both): the soft lock eases casts and the camera toward
+		-- the best target in front; the hard lock is the LOCK toggle (middle mouse / Tab, R3, the LOCK button)
+		{
+			id = "softLock",
+			name = "Soft lock-on (aim and camera ease to targets)",
+			kind = "toggle",
+			default = 1,
+		},
+		{ id = "hardLock", name = "Lock-on button (MMB or Tab, R3, LOCK)", kind = "toggle", default = 1 },
 	},
 	maxMutes = 50, -- muted players kept on the save (user ids)
 	sendDelay = 0.6, -- seconds the device waits after the last change before sending (a slider drag sends once)
