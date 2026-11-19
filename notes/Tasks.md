@@ -201,6 +201,12 @@ What nate does:
 
 ## Studio test list (needs nate's PC)
 
+### Playtest gaps3: start here (2026-11-19, build playtest-gaps3)
+Everything in gaps2 plus the art round 3: project files capeline/Capeline-playtest-gaps3-2026-11-19.rbxl (Output "playtest-gaps3 (2026-11-19)"). It replaces every older playtest place. Run "Playtest gaps2: start here" below first if not done, then these lists:
+1. "Comic icons 2: the open world and the books" (world markers, Contract Board, radar, map marks, pings, givers, badge and journal icons, movement buttons).
+2. "Studio list: picture tiles" (creator, weapon and shop tiles show their thumbnails).
+3. "Studio list: comic art" (story comic pages and guide and mentor portraits with catalog faces and hair).
+
 ### Playtest gaps2: start here (2026-11-19, build playtest-gaps2)
 Everything in gaps1 plus the art round 2: project files capeline/Capeline-playtest-gaps2-2026-11-19.rbxl (Output "playtest-gaps2 (2026-11-19)"). It replaces every older playtest place. Run "Playtest gaps1: start here" below first if not done, then these lists, each further down this file:
 1. "Ceremony prologue art" (just below) (the stage, drone, sign, billboard with Crane on the catwalk, shield bubble, scanner sweep).
