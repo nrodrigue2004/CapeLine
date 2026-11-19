@@ -2,7 +2,14 @@
 -- respawn. Anyone grabs light and medium things (benches, bins, mailboxes, signs, rubble, lamp posts,
 -- dumpsters, vending machines); heavy things (cars, trucks, big slabs) only Powerhouse heroes or anyone
 -- Awakened. Citizens and heroes are never in the list. The rules are Shared.ThrowMath.
--- Carry: the thing is welded overhead (massless, no collisions, so it rides with the hero's own movement);
+-- Carry (fix-carry, nate after gaps7: "i should actually hold them"): the thing is welded into the hero's hands
+-- (Shared.CarryPose): big things on both raised fists (a Weld to the UpperTorso), small ones up on the right fist
+-- and poles in it (a Weld to the RightHand); Gravity and Mind heroes float it over the head with a glow (a Weld
+-- to the HumanoidRootPart). A server Weld into the character joins its assembly: it is massless and never
+-- collides, the hero's device owns the assembly, and every device draws it from the joints it poses itself
+-- (HeroAnimator's carry poses on Motor6D.Transform), so it sits in the hands on every screen with no lag and no
+-- extra traffic. Live robots are no parts: each device draws a held robot at its carrier's hands (ThrowClient,
+-- EnemyRenderer.heldAt) and the server keeps its position for the hit checks (holdStep).
 -- the hero moves at 80% (HeroService.speedHooks.carry, no boost) and cannot cast or block. Throw: the server
 -- picks the landing (aim, range, walls, ground), tells every client to fly it on the same arc (ThrowFly; no
 -- free physics), and when it lands CombatService.thrown hits robots (and heroes flagged against the thrower),
@@ -26,7 +33,6 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
@@ -39,6 +45,8 @@ local ThrowMath = require(Shared:WaitForChild("ThrowMath"))
 local KnockRules = require(Shared:WaitForChild("KnockRules"))
 local Status = require(Shared:WaitForChild("Status"))
 local WreckArtKit = require(Shared:WaitForChild("WreckArtKit"))
+local CarryPose = require(Shared:WaitForChild("CarryPose"))
+local HeroAnim = require(Shared:WaitForChild("HeroAnim"))
 
 local BlockService = require(script.Parent.BlockService)
 local CombatService = require(script.Parent.CombatService)
@@ -68,6 +76,7 @@ type It = {
 	vehicle: number?,
 	landedAt: number?,
 	welds: { Instance }?,
+	box: CFrame?, -- while carried: the thing's middle in the carrier's root frame (the throw starts there)
 	collide: { [BasePart]: boolean }?,
 	query: { [BasePart]: boolean }?, -- each part's CanQuery before the carry (a vehicle's look meshes take none)
 	wreck: boolean?, -- a downed robot's wreck (WP6): it never goes home, it falls apart at endsAt
@@ -122,8 +131,80 @@ local function sizeOf(it: It): Vector3
 	return it.model:GetExtentsSize()
 end
 
--- Every part of the thing: welded to its main part for the carry, or anchored back as it was
-local function attach(it: It, root: BasePart)
+local function toCF(c: CarryPose.CF): CFrame
+	return CFrame.new(table.unpack(CarryPose.components(c)))
+end
+
+-- A character's R15 arm for CarryPose, from its own Motor6Ds (any body shape), and its parts by name; nil when
+-- it is not an R15 body (a bot's box)
+function ThrowService.bodyOf(char: Instance?): (CarryPose.Body?, { [string]: BasePart })
+	local parts: { [string]: BasePart } = {}
+	if not char then
+		return nil, parts
+	end
+	local body: CarryPose.Body = { joints = {}, sizes = {} }
+	local root = char:FindFirstChild("HumanoidRootPart")
+	if not (root and root:IsA("BasePart")) then
+		return nil, parts
+	end
+	parts.HumanoidRootPart = root
+	for _, j in CarryPose.JOINTS do
+		local p1 = char:FindFirstChild(j[3])
+		local m = p1 and p1:FindFirstChild(j[1])
+		if not (p1 and p1:IsA("BasePart") and m and m:IsA("Motor6D")) then
+			return nil, parts
+		end
+		parts[j[3]] = p1
+		table.insert(body.joints, {
+			name = j[1],
+			part0 = j[2],
+			part1 = j[3],
+			c0 = CarryPose.fromComponents({ m.C0:GetComponents() }),
+			c1 = CarryPose.fromComponents({ m.C1:GetComponents() }),
+		})
+	end
+	for name, p in parts do
+		body.sizes[name] = { p.Size.X, p.Size.Y, p.Size.Z }
+	end
+	return body, parts
+end
+
+-- The hero's grip on a kind: Gravity and Mind heroes float it, others hold it (Shared.CarryPose.gripOf)
+local function gripFor(hero: any, kind: string): string
+	return CarryPose.gripOf(T, kind, hero.setId)
+end
+
+-- The telekinesis glow in the path's colour (Config.Throw.mind.glow): an outline and a light, server parts so
+-- every device sees them
+local function glow(it: It, hero: any)
+	local M = T.mind
+	local rgb = M.glow[hero.setId] or M.glow.Mind
+	local c = Color3.fromRGB(rgb[1], rgb[2], rgb[3])
+	local h = Instance.new("Highlight")
+	h.Name = "CarryGlow"
+	h.FillColor = c
+	h.FillTransparency = 0.75
+	h.OutlineColor = c
+	h.OutlineTransparency = 0
+	h.DepthMode = Enum.HighlightDepthMode.Occluded
+	h.Adornee = it.model
+	h.Parent = it.model
+	local main = it.model.PrimaryPart
+	if main then
+		local l = Instance.new("PointLight")
+		l.Name = "CarryGlow"
+		l.Color = c
+		l.Brightness = M.light.brightness
+		l.Range = M.light.range
+		l.Parent = main
+	end
+end
+
+-- Every part of the thing: welded to its main part, and the main part welded into the hero's hands (or over
+-- the head for telekinesis) where Shared.CarryPose puts it for the hold pose's first key. The Weld carries
+-- what each device needs to move it during the lift and the swings (ThrowClient): CarryBase (the box's middle
+-- in the weld part's frame), CarryHand (the same in the RightHand's frame), CarryOffset (box to main part).
+local function attach(it: It, hero: any, root: BasePart): string
 	local main = it.model.PrimaryPart :: BasePart
 	local welds: { Instance } = {}
 	local collide: { [BasePart]: boolean } = {}
@@ -144,21 +225,51 @@ local function attach(it: It, root: BasePart)
 			end
 		end
 	end
-	local h = sizeOf(it).Y
+	local grip = gripFor(hero, it.kind)
+	local bbCF, bbSize = it.model:GetBoundingBox()
+	local body, parts = ThrowService.bodyOf(root.Parent)
+	local hold = body
+		and CarryPose.hold(
+			T,
+			body,
+			grip,
+			HeroAnim.sample(CarryPose.CLIP[grip], 0),
+			{ bbSize.X, bbSize.Y, bbSize.Z },
+			nil,
+			it.vehicle ~= nil
+		)
+	local part0 = hold and parts[hold.part]
 	local weld = Instance.new("Weld")
-	weld.Part0 = root
+	weld.Name = "CarryWeld"
 	weld.Part1 = main
-	-- start low in front, then raise it overhead over the lift time
-	weld.C0 = CFrame.new(0, -1.5, -3)
-	weld.Parent = root
+	if hold and part0 then
+		local offset = (main.CFrame:Inverse() * bbCF):Inverse() -- the box's middle to the main part
+		local base = toCF(hold.c0)
+		weld.Part0 = part0
+		weld.C0 = base * offset
+		weld:SetAttribute("CarryBase", base)
+		weld:SetAttribute("CarryHand", toCF(hold.hand))
+		weld:SetAttribute("CarryOffset", offset)
+		weld:SetAttribute("CarryGrip", grip)
+		weld.Parent = part0
+		it.box = toCF(hold.box)
+	else
+		-- not an R15 body (a bot): over the root as before
+		grip = "overhead"
+		weld.Part0 = root
+		weld.C0 = CFrame.new(0, T.overhead + bbSize.Y / 2, 0)
+		weld.Parent = root
+		it.box = weld.C0
+	end
 	table.insert(welds, weld)
 	for p in collide do
 		p.Anchored = false
 	end
-	TweenService:Create(weld, TweenInfo.new(T.liftTime, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-		C0 = CFrame.new(0, T.overhead + h / 2, 0),
-	}):Play()
+	if grip == "mind" then
+		glow(it, hero)
+	end
 	it.welds, it.collide, it.query = welds, collide, query
+	return grip
 end
 
 local function detach(it: It)
@@ -167,6 +278,12 @@ local function detach(it: It)
 			w:Destroy()
 		end
 	end
+	for _, g in it.model:GetDescendants() do
+		if g.Name == "CarryGlow" then
+			g:Destroy()
+		end
+	end
+	it.box = nil
 	if it.collide then
 		for p, c in it.collide do
 			p.Anchored = true
@@ -176,6 +293,11 @@ local function detach(it: It)
 		end
 	end
 	it.welds, it.collide, it.query = nil, nil, nil
+end
+
+-- The carried thing's middle in the world now (the throw starts there)
+local function heldAt(it: It, root: BasePart): Vector3
+	return if it.box then (root.CFrame * it.box).Position else root.Position + Vector3.new(0, T.overhead, 0)
 end
 
 -- Put a prop down at a spot (upright or knocked over), or a vehicle through VehicleService
@@ -224,8 +346,10 @@ local function sendState(hero: any)
 			swings = if c then T.swing.max - (c.swings or 0) else 0,
 		})
 		hero.player:SetAttribute("Carrying", kind)
-		-- a held robot is gripped like a club (pt-anims' robotHold clip)
-		hero.player:SetAttribute("CarryGrip", if kind == "robot" then "club" else nil)
+		-- the grip picks the hold pose every device shows (HeroAnimator: carry, carryHand, carryMind) and, for a
+		-- live robot, where each device draws it (CarryRobot: its id; ThrowClient)
+		hero.player:SetAttribute("CarryGrip", c and c.grip or nil)
+		hero.player:SetAttribute("CarryRobot", if c and c.robot then c.robot else nil)
 	end
 end
 
@@ -388,8 +512,8 @@ local function grab(hero: any, id: number)
 	if it.wreck then
 		it.model:SetAttribute("WreckEnds", nil) -- held: no flicker, it waits for its landing
 	end
-	attach(it, root)
-	hero.carry = { id = id, since = os.clock() }
+	local grip = attach(it, hero, root)
+	hero.carry = { id = id, since = os.clock(), grip = grip }
 	HeroService.applyWalkSpeed(hero)
 	sendState(hero)
 	ThrowService.Grabbed:Fire(hero, it.kind)
@@ -403,7 +527,7 @@ local function throwRobot(hero: any, aim: Vector3)
 		return
 	end
 	local id = c.robot
-	local from = root.Position + Vector3.new(0, T.overhead, 0)
+	local from = if c.box then (root.CFrame * c.box).Position else root.Position + Vector3.new(0, T.overhead, 0)
 	local dir = Vector3.new(aim.X - from.X, 0, aim.Z - from.Z)
 	if dir.Magnitude < 0.5 then
 		dir = root.CFrame.LookVector
@@ -434,7 +558,7 @@ local function throw(hero: any, aim: Vector3)
 	if not it or not root or not ThrowMath.lifted(T, c.since, os.clock()) or HeroService.disabled(hero) then
 		return
 	end
-	local from = root.Position + Vector3.new(0, T.overhead + sizeOf(it).Y / 2, 0)
+	local from = heldAt(it, root)
 	if (aim - from).Magnitude > 1000 then
 		return
 	end
@@ -506,7 +630,22 @@ local function grabRobot(hero: any, id: number)
 		return
 	end
 	EnemyService.hold(id, hero.id)
-	hero.carry = { id = ROBOT_HOLD, robot = id, since = os.clock(), swings = 0, swingAt = -math.huge }
+	-- held like any big thing: overhead on both fists (or floated by a Gravity or Mind hero); every device draws it
+	-- there from the same CarryPose sums (ThrowClient), the server keeps its middle for the hits
+	local grip = gripFor(hero, "robot")
+	local body = ThrowService.bodyOf(root.Parent)
+	local h = (e.cfg.body and e.cfg.body.height) or 5
+	local hold = body
+		and CarryPose.hold(T, body, grip, HeroAnim.sample(CarryPose.CLIP[grip], 0), CarryPose.robotSize(h), true)
+	hero.carry = {
+		id = ROBOT_HOLD,
+		robot = id,
+		since = os.clock(),
+		swings = 0,
+		swingAt = -math.huge,
+		grip = if hold then grip else "overhead",
+		box = if hold then toCF(hold.box) else nil,
+	}
 	HeroService.applyWalkSpeed(hero)
 	sendState(hero)
 	ThrowService.Grabbed:Fire(hero, "robot")
@@ -547,36 +686,9 @@ local function swing(hero: any, aim: Vector3)
 			EnemyService.damage(c.robot, e.maxHealth * S.self, hero.id, nil)
 		end
 		swinging[hero] = { start = now, yaw = math.atan2(-dir.X, -dir.Z) }
-	else
-		local it = items[c.id]
-		local weld: Weld? = nil
-		for _, w in (it and it.welds) or {} do
-			if w:IsA("Weld") then
-				weld = w :: Weld
-			end
-		end
-		if weld then
-			-- the wreck whirls out round the front and back overhead (the weld replicates the arc)
-			local h = sizeOf(it :: It).Y
-			local half = math.rad(S.arc / 2)
-			local yaw = math.atan2(-dir.X, -dir.Z)
-				- math.atan2(-root.CFrame.LookVector.X, -root.CFrame.LookVector.Z)
-			local out = CFrame.Angles(0, yaw, 0)
-			weld.C0 = out * CFrame.Angles(0, half, 0) * CFrame.new(0, 1, -5)
-			TweenService
-				:Create(weld, TweenInfo.new(S.time, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-					C0 = out * CFrame.Angles(0, -half, 0) * CFrame.new(0, 1, -5),
-				})
-				:Play()
-			CombatService.after(S.time, function()
-				if weld.Parent then
-					TweenService
-						:Create(weld, TweenInfo.new(0.2), { C0 = CFrame.new(0, T.overhead + h / 2, 0) })
-						:Play()
-				end
-			end)
-		end
 	end
+	-- a held prop swings on every device (ThrowClient): in the hands it follows the swing clip's right hand, a
+	-- floated one whirls round the hero (CarryPose.whirl); the server's hits above do not wait for it
 	for _, p in Players:GetPlayers() do
 		local r = p.Character and p.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
 		if r and (r.Position - center).Magnitude <= 150 then
@@ -611,7 +723,9 @@ local function holdStep()
 				release(hero)
 				swinging[hero] = nil
 			else
-				local pos = root.Position + Vector3.new(0, T.overhead, 0)
+				local pos = if c.box
+					then (root.CFrame * c.box).Position
+					else root.Position + Vector3.new(0, T.overhead, 0)
 				local sw = swinging[hero]
 				if sw then
 					local u = (now - sw.start) / S.time

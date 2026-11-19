@@ -2666,18 +2666,46 @@ C.interrupted = S({ -- a charge or wind-up cut off: the energy fizzles, the hero
 	neck = { { 0, 0, 0 }, { 20, 20, 0 } },
 	legs = "back",
 })
-C.carry = { -- carrying a robot, a car or a prop over the head (the Carrying attribute)
+C.carry = { -- carrying a robot, a car or a prop over the head (the Carrying attribute): both arms straight up, the
+	-- fists just over the head so the thing rests on them (fix-carry, Shared.CarryPose welds it there); a slow bob
 	dur = 1.0,
 	loop = true,
 	joints = {
-		RightShoulder = { K(0, 168, 0, 20), K(0.5, 166, 0, 22), K(1, 168, 0, 20) },
-		LeftShoulder = { K(0, 168, 0, -20), K(0.5, 166, 0, -22), K(1, 168, 0, -20) },
-		RightElbow = { K(0, 40), K(0.5, 46), K(1, 40) },
-		LeftElbow = { K(0, 40), K(0.5, 46), K(1, 40) },
-		RightWrist = hold(-30),
-		LeftWrist = hold(-30),
-		Waist = { K(0, 8), K(0.5, 10), K(1, 8) },
-		Neck = hold(10),
+		RightShoulder = { K(0, 172, 0, 12), K(0.5, 169, 0, 13), K(1, 172, 0, 12) },
+		LeftShoulder = { K(0, 172, 0, -12), K(0.5, 169, 0, -13), K(1, 172, 0, -12) },
+		RightElbow = { K(0, 8), K(0.5, 12), K(1, 8) },
+		LeftElbow = { K(0, 8), K(0.5, 12), K(1, 8) },
+		RightWrist = hold(0),
+		LeftWrist = hold(0),
+		Waist = { K(0, 6), K(0.5, 8), K(1, 6) },
+		Neck = hold(-6),
+	},
+}
+C.carryHand = { -- a small thing up on the right fist (CarryGrip "hand" or "pole"), the free arm out for balance
+	dur = 1.0,
+	loop = true,
+	joints = {
+		RightShoulder = { K(0, 166, 0, 14), K(0.5, 163, 0, 15), K(1, 166, 0, 14) },
+		RightElbow = { K(0, 20), K(0.5, 24), K(1, 20) },
+		RightWrist = hold(0),
+		LeftShoulder = { K(0, 24, 0, -24), K(0.5, 28, 0, -26), K(1, 24, 0, -24) },
+		LeftElbow = hold(36),
+		Waist = { K(0, 4, -6, -4), K(0.5, 6, -6, -4), K(1, 4, -6, -4) },
+		Neck = hold(8, 6),
+	},
+}
+C.carryMind = { -- telekinesis (CarryGrip "mind"): both hands raised to the floating thing, fingers spread, swaying
+	dur = 2.0,
+	loop = true,
+	joints = {
+		RightShoulder = { K(0, 150, 0, 26), K(1, 156, 0, 22), K(2, 150, 0, 26) },
+		LeftShoulder = { K(0, 150, 0, -26), K(1, 144, 0, -30), K(2, 150, 0, -26) },
+		RightElbow = { K(0, 18), K(1, 26), K(2, 18) },
+		LeftElbow = { K(0, 26), K(1, 18), K(2, 26) },
+		RightWrist = hold(-50),
+		LeftWrist = hold(-50),
+		Waist = { K(0, 6), K(1, 9), K(2, 6) },
+		Neck = hold(16),
 	},
 }
 C.lift = S({ -- picking it up: squat, both hands under it, drive up with the legs
