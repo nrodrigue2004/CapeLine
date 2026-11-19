@@ -128,6 +128,7 @@ local function node(b: any): { [string]: any }
 		local t = prop(i, "TileSize")
 		if t then
 			n.tileSize = { t.X.Offset, t.Y.Offset }
+			n.tileScale = { t.X.Scale, t.Y.Scale }
 		end
 		n.halftone = i:GetAttribute("Halftone") == true
 	end
@@ -220,6 +221,56 @@ local PANEL = {
 	pass = { "PassHud" },
 }
 
+-- The map scene (the map pass, 2026-11-19): the server's WorldInfo for one seed, built the way CityBuilder
+-- publishes it, some beacons and safehouses found, and the map's pictures from art/export/map (their real ids
+-- once uploaded, else stand-in ids) so uishot.py draws them. UISHOT_MAPZOOM=2.5 shows the map zoomed in on you.
+local mapImages: { [string]: string } = {}
+local function mapWorld(sim: any)
+	local Config = require("../src/config")
+	local WorldMap = require("../src/shared/WorldMap")
+	local world = WorldMap.build(Config, 202647)
+	local info = { seed = world.seed, safehouses = {}, beacons = {}, landmarks = {}, hq = {} }
+	for id, sh in world.safehouses do
+		table.insert(info.safehouses, { id = id, name = sh.name, x = sh.x, z = sh.z })
+	end
+	for id, b in world.beacons do
+		table.insert(info.beacons, { id = id, name = b.name, x = b.x, y = b.y, z = b.z })
+	end
+	for _, lm in world.landmarks do
+		table.insert(info.landmarks, { id = lm.id, x = lm.centre.x, z = lm.centre.z, size = lm.size })
+	end
+	info.hq = {
+		{ side = "hero", x = world.downtown.beacon.x - 80, z = world.downtown.beacon.z },
+		{ side = "villain", x = world.spots.foundry.x, z = world.spots.foundry.z },
+	}
+	local s = UiSim.newInstance("StringValue")
+	s.Name = "WorldInfo"
+	s.Value = serde.encode("json", info)
+	s.Parent = sim.service("ReplicatedStorage")
+	-- some found: beacons 1 to 4, safehouses 1 to 6
+	local State = sim:require("Client.State")
+	State.profile.beacons = 15
+	State.profile.safehouses = 63
+	local cfg = sim:require("Config")
+	local fakeId = 990000
+	local function wire(tbl: any, key: string, file: string)
+		local id = tbl[key]
+		if id == 0 then
+			fakeId += 1
+			id = fakeId
+			tbl[key] = id
+		end
+		mapImages["rbxassetid://" .. id] = "art/export/map/" .. file
+	end
+	wire(cfg.MapArt.city, "Hub", "Hub.png")
+	wire(cfg.MapArt.city, "Uptown", "Uptown.png")
+	for key, file in
+		{ suburbs = "Suburbs.png", farmland = "Farmland.png", coast = "Coast.png", landmark = "Landmark.png" }
+	do
+		wire(cfg.MapArt.patterns, key, file)
+	end
+end
+
 local out = {}
 for _, scene in scenes do
 	local sim = UiSim.new(trees, DEVICE)
@@ -254,6 +305,9 @@ for _, scene in scenes do
 		end
 	elseif PANEL[scene] then
 		local p = PANEL[scene]
+		if scene == "map" then
+			mapWorld(sim)
+		end
 		sim:run(scene, function()
 			M[p[1]].open(p[2])
 		end)
@@ -269,7 +323,15 @@ for _, scene in scenes do
 			sim:require("Client.Ui.Kit").dockDrawer(true)
 		end)
 	end
+	if scene == "map" and process.env.UISHOT_MAPZOOM then
+		sim:run("zoom", function()
+			local MS = sim:require("Client.Ui.MapScreen")
+			-- over the plaza, between Downtown, Old Town and the Docks
+			MS.lookAt(-150, 0, tonumber(process.env.UISHOT_MAPZOOM) or 2)
+		end)
+	end
 	local shot = capture(sim)
+	shot.images = if scene == "map" then mapImages else nil
 	shot.scene = string.gsub(scene, ":", "_")
 	shot.errors = {}
 	for _, e in sim.errors do

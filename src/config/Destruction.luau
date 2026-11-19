@@ -138,5 +138,36 @@ return {
 		poseNear = 100, -- citizens this close to the camera pose every frame; farther ones every poseEvery frames
 		poseEvery = 3,
 		drawDelay = 0.3, -- clients draw citizens this far in the past (packets come 4 times a second)
+		-- Roblox's own R15 idle, walk and run on the near citizens (2026-11-19, like the robots since 2026-11-18;
+		-- Controllers.NpcLoco, Shared.LocoMath): the walk and run speed-matched to their motion (walk 6, run 18
+		-- studs/s), the flee is the run with arms thrown up over it, and the lore step 12 cheers and flinches are
+		-- arms written over the walk. The same clips and blend as Config.Enemies.look.loco (tests check it), plus
+		-- Animate's three idles by weight, each body at its own pace and point in the loop. Only the nearest few
+		-- animate (Config.Presets citizenAnimNear and citizenAnimMax); the rest keep the code poses, stepped.
+		loco = {
+			on = true,
+			idle = "rbxassetid://507766388",
+			walk = "rbxassetid://913402848",
+			run = "rbxassetid://913376220",
+			-- Roblox's R15 Animate idles (made by Roblox, free in every experience): the breathing stand most of
+			-- the time, the two look-arounds now and then
+			idles = {
+				{ "rbxassetid://507766388", 8 },
+				{ "rbxassetid://507766666", 1 },
+				{ "rbxassetid://507766951", 1 },
+			},
+			idleRate = { 0.85, 1.15 },
+			still = 0.75,
+			walkAt = 6.4,
+			runAt = 12.8,
+			refLeg = 2,
+			minWarp = 0.4,
+			maxWarp = 2.8,
+			fade = 0.25,
+			near = 100, -- when a preset gives no citizenAnimNear
+			max = 16, -- and no citizenAnimMax
+			keep = 1.15, -- an animated citizen stays animated out to near x keep (no start-stop at the edge)
+			fleeArms = math.rad(-150), -- shoulders thrown up over the run while fleeing (the old flee pose)
+		},
 	},
 }

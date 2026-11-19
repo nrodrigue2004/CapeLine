@@ -12,7 +12,9 @@
 -- * pickup: a shard to touch.
 -- Everything a site builds lives under Workspace.Sites and is removed with clear().
 -- PLACEHOLDER ART: the cat, pads, rings, shards and objects are plain parts; stranded citizens are R15 people
--- (NpcRig.person) with the hero meshes once imported.
+-- (NpcRig.person) with the hero meshes once imported. Stranded people and bystanders breathe with Roblox's own
+-- R15 idle (2026-11-19, the citizens' clips: Config.Destruction.citizens.loco) under their arms-up wave (the
+-- wave is the joints' C0, so the idle plays on top); it stops while they are carried. The cat is no person.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -168,6 +170,54 @@ local SHIRTS = Config.Destruction.citizens.colors
 local HAIR = Config.Destruction.citizens.hair
 local personLayout = RigMath.layout(Config.HeroRig, nil, 1)
 
+-- Roblox's own idle on a stranded person (server-made, so it reaches every player): one of the citizens' idles
+-- at its own pace and point in the loop. Kept by model so the carry can stop it and the set-down restart it.
+local idleTracks: { [Model]: AnimationTrack } = setmetatable({}, { __mode = "k" }) :: any
+local idleAnims: { [string]: Animation } = {}
+local function playIdle(model: Model)
+	local L = Config.Destruction.citizens.loco
+	if not (L and L.on) or not model:IsDescendantOf(Workspace) then
+		return
+	end
+	local ac = model:FindFirstChildOfClass("AnimationController")
+	if not ac then
+		return
+	end
+	local track = idleTracks[model]
+	if not track then
+		local e = L.idles[math.random(1, #L.idles)]
+		local a = idleAnims[e[1]]
+		if not a then
+			a = Instance.new("Animation")
+			a.AnimationId = e[1]
+			idleAnims[e[1]] = a
+		end
+		local animator = ac:FindFirstChildOfClass("Animator") or Instance.new("Animator")
+		animator.Parent = ac
+		local ok, t = pcall(function()
+			return (animator :: Animator):LoadAnimation(a)
+		end)
+		if not ok or not t then
+			return
+		end
+		t.Looped = true
+		t.Priority = Enum.AnimationPriority.Idle
+		idleTracks[model] = t
+		track = t
+	end
+	local t = track :: AnimationTrack
+	t:Play(0.3, 1, L.idleRate[1] + math.random() * (L.idleRate[2] - L.idleRate[1]))
+	if t.Length > 0 then
+		t.TimePosition = math.random() * t.Length
+	end
+end
+local function stopIdle(model: Model)
+	local t = idleTracks[model]
+	if t then
+		t:Stop(0)
+	end
+end
+
 -- person (optional): makes the rig instead of a random citizen (a side quest's named helper, PeopleLooks)
 local function citizenModel(pos: Vector3, cat: boolean?, person: (() -> any)?): (Model, BasePart)
 	local m = SiteKit.model(if cat then "Cat" else "StrandedCitizen")
@@ -215,6 +265,7 @@ local function citizenModel(pos: Vector3, cat: boolean?, person: (() -> any)?): 
 		NpcRig.bend(rig, "LeftShoulder", CFrame.Angles(math.rad(165), 0, math.rad(-12)))
 		NpcRig.bend(rig, "RightShoulder", CFrame.Angles(math.rad(165), 0, math.rad(12)))
 		body = rig.root
+		playIdle(m)
 	end
 	m.PrimaryPart = body
 	return m, body
@@ -280,6 +331,7 @@ function SiteKit.citizen(
 		c.carrier = hero
 		carried[hero.id] = c
 		prompt.Enabled = false
+		stopIdle(m) -- welded on the hero's back: no clip fighting the welds
 		-- ride on the hero's back
 		local offset = hrp.CFrame * CFrame.new(0, if c.cat then 2.2 else 0.6, 1.4)
 		m:PivotTo(offset * CFrame.new(0, -(body.Position.Y - m:GetPivot().Position.Y), 0))
@@ -328,6 +380,9 @@ local function setDown(c: Citizen, at: Vector3)
 	end
 	local pivot = c.model:GetPivot()
 	c.model:PivotTo(CFrame.new(at) * pivot.Rotation)
+	if not c.cat then
+		playIdle(c.model)
+	end
 end
 
 function SiteKit.removeCitizen(c: Citizen)
