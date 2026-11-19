@@ -258,6 +258,42 @@ HqArtKit.DRESS = {
 	},
 } :: { [string]: { [string]: Dress } }
 
+-- The captured Crane robot (the Foundry's rank 3) as HqClient draws it once Roblox's own body is there: a figure
+-- on Roblox's blocky body like every robot (nate, 2026-11-19), in the Spark Trooper's grunt uniform (Config.NpcLooks
+-- robots), a catalog face (Config.CatalogLooks) and catalog hair, `scale` times a hero's size with its feet
+-- `feet` studs under the torso piece's middle, limp (joint -> degrees about x, y, z, held on C0), a strap to the
+-- hook; it stands in for the boxes in `covers` (and the HqCaptiveBot mesh, its fallback before the body loads)
+HqArtKit.CAPTIVE = {
+	at = "robotTorso",
+	look = "HqCaptiveBot",
+	kind = "SparkDrone",
+	version = "Grunt",
+	face = 3,
+	hair = 5,
+	scale = 2,
+	feet = -5.5,
+	forward = -0.3,
+	strap = 2.4,
+	pose = {
+		Neck = { -28, 0, 8 },
+		Waist = { 8, 0, 0 },
+		LeftShoulder = { 6, 0, -4 },
+		RightShoulder = { 10, 0, 6 },
+		LeftHip = { 6, 0, 0 },
+		RightHip = { -4, 0, 0 },
+		LeftKnee = { -10, 0, 0 },
+		RightKnee = { -6, 0, 0 },
+	},
+	covers = {
+		robotHead = true,
+		robotEye = true,
+		robotTorso = true,
+		craneC = true,
+		robotArm = true,
+		robotLeg = true,
+	},
+} :: { [string]: any }
+
 -- The dressing's looks: placements (cell offsets) and, for each piece index, the placement it hides under
 function HqArtKit.dressing(side: string?, pieces: { RepTiers.Piece }): ({ Place }, { [number]: number })
 	local map = HqArtKit.DRESS[HqArtKit.tag(side)] or {}

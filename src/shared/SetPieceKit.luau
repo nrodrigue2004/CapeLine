@@ -28,6 +28,9 @@ export type Place = {
 	ry: number?,
 	piece: string?,
 	tint: { [string]: { number } }?,
+	-- (the hideout art pass, 2026-11-19) a look stretched along its own x, y and z before its turn: a module
+	-- repeated over a wall or floor of any length (Shared.HideoutKit); nil is { 1, 1, 1 }
+	scale: { number }?,
 }
 
 export type Mesh = {
@@ -71,7 +74,11 @@ function SetPieceKit.fit(Config: any, look: string): { [string]: any }?
 		return b
 	end
 	local c = Config.HqArt and Config.HqArt[look]
-	return if type(c) == "table" then c else nil
+	if type(c) == "table" then
+		return c
+	end
+	local d = Config.HideoutArt and Config.HideoutArt[look]
+	return if type(d) == "table" then d else nil
 end
 
 -- Add a placement to a list; returns its index (the boxes it stands in for take it as `art`)
@@ -133,12 +140,18 @@ function SetPieceKit.meshes(Config: any, place: Place): { Mesh }
 	if fit == nil then
 		return out
 	end
+	local sc = place.scale
 	for name, f in fit do
 		local tint = place.tint and place.tint[name]
+		local size, offset = f.size, f.offset
+		if sc then
+			size = { size[1] * sc[1], size[2] * sc[2], size[3] * sc[3] }
+			offset = { offset[1] * sc[1], offset[2] * sc[2], offset[3] * sc[3] }
+		end
 		table.insert(out, {
 			name = name,
-			size = f.size,
-			offset = f.offset,
+			size = size,
+			offset = offset,
 			color = tint or f.color,
 			mat = f.mat or "SmoothPlastic",
 			alpha = f.alpha or 0,

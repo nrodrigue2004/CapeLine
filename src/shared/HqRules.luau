@@ -87,7 +87,12 @@ export type Piece = {
 	rz: number?,
 	glow: boolean?,
 	light: number?,
+	run: Run?, -- the wall-kit run a piece belongs to (placeKit): Shared.HideoutKit dresses each run in modules
 }
+
+-- One wall-kit run as placed (placeKit): the wall face's middle (x, z), its length and the turn about up (degrees)
+-- that faces a look's front (-z) into the room
+export type Run = { x: number, z: number, len: number, ry: number }
 
 local function piece(list: { Piece }, name: string, x, y, z, sx, sy, sz, color: string, mat: string?): Piece
 	local p: Piece = {
@@ -142,8 +147,14 @@ function HqRules.placeKit(
 	nz: number
 )
 	local alongX = ux ~= 0
+	local len = 0
+	for _, p in kit do
+		len = math.max(len, p.sx)
+	end
+	local run: Run = { x = ox, z = oz, len = len, ry = math.deg(math.atan2(-nx, -nz)) }
 	for _, p in kit do
 		local q = table.clone(p)
+		q.run = run
 		q.x = ox + ux * p.x + nx * p.z
 		q.z = oz + uz * p.x + nz * p.z
 		q.sx = if alongX then p.sx else p.sz

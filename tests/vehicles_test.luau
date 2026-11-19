@@ -230,7 +230,10 @@ return function(T: any)
 		check(has(vs, "SetPieceMeshes.hide(p)"), "its parts hide (and keep colliding)")
 		check(has(vs, 'mesh:SetAttribute("Offset", mesh.CFrame)'), "the meshes move with every pose")
 		local kit = "src/server/Services/SetPieceMeshes.luau"
-		check(has(kit, 'local ROOTS = { "SetPieces", "Vehicles" }'), "the meshes come from Art.Vehicles too")
+		check(
+			has(kit, 'local ROOTS = { "SetPieces", "Vehicles", "Hideout" }'),
+			"the meshes come from Art.Vehicles too"
+		)
 		check(has(kit, "p.CanCollide = false") and has(kit, "p.CanQuery = false"), "a mesh never collides")
 		local ts = "src/server/Services/ThrowService.luau"
 		check(

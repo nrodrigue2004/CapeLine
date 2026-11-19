@@ -19,8 +19,8 @@ local SetPieceMeshes = {}
 
 local found: { [string]: MeshPart } = {}
 
--- The imported models (Art.SetPieces, Art.Vehicles), looked up each time until there, so a later import counts
-local ROOTS = { "SetPieces", "Vehicles" }
+-- The imported models (Art.SetPieces, Art.Vehicles, Art.Hideout), looked up each time until there, so a later import counts
+local ROOTS = { "SetPieces", "Vehicles", "Hideout" } -- (Hideout: the stairwell head and mission 2's wall kit)
 local function roots(): { Instance }
 	local out = {}
 	local art = ReplicatedStorage:FindFirstChild("Art")

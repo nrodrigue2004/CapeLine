@@ -16,6 +16,7 @@
 local BoxKit = if script then require(script.Parent.BoxKit) else (require :: any)("./BoxKit")
 local SetPieceKit = if script then require(script.Parent.SetPieceKit) else (require :: any)("./SetPieceKit")
 local HqRules = if script then require(script.Parent.HqRules) else (require :: any)("./HqRules")
+local HideoutKit = if script then require(script.Parent.HideoutKit) else (require :: any)("./HideoutKit")
 
 local PocketLayout = {}
 
@@ -209,8 +210,39 @@ function BUILD.dungeon(l: Layout, Config: any)
 		box(l, "building", 0, wallH / 2, k * 60, 380, wallH, 4, wallC)
 		local kit: { any } = {}
 		HqRules.placeKit(kit, HqRules.wallKit(Config, 376), 0, k * 58, 1, 0, 0, -k)
+		-- (the hideout art pass, 2026-11-19) the run's long pieces are cut into module-long boxes, each under its
+		-- own HideRun module, and each lamp housing under a caged HideLamp; the glowing faces stay boxes. Ghost
+		-- decor, so the cut changes nothing anyone touches.
+		local run = kit[1].run
+		local n = math.max(1, math.floor(run.len / HideoutKit.MODULE + 0.5))
+		local seg = run.len / n
+		local mods = {}
+		for i = 1, n do
+			local t = -run.len / 2 + (i - 0.5) * seg
+			mods[i] = SetPieceKit.place(l.art, "HideRun", l.cx + run.x + t, l.cy, l.cz + run.z, run.ry)
+			l.art[mods[i]].scale = { seg / HideoutKit.MODULE, 1, 1 }
+		end
 		for _, p in kit do
-			BoxKit.box(
+			local look = HideoutKit.PIECES[p.name]
+			if look == "HideRun" then
+				for i = 1, n do
+					BoxKit.box(
+						l.boxes,
+						"prop",
+						l.cx + p.x - run.len / 2 + (i - 0.5) * seg,
+						l.cy + p.y,
+						l.cz + p.z,
+						seg,
+						p.sy,
+						p.sz,
+						p.color,
+						{ tag = "decor", ghost = true }
+					);
+					(l.boxes[#l.boxes] :: any).art = mods[i]
+				end
+				continue
+			end
+			local b = BoxKit.box(
 				l.boxes,
 				if p.glow then "glow" else "prop",
 				l.cx + p.x,
@@ -222,6 +254,9 @@ function BUILD.dungeon(l: Layout, Config: any)
 				p.color,
 				{ tag = "decor", ghost = true }
 			)
+			if look == "HideLamp" then
+				(b :: any).art = SetPieceKit.place(l.art, look, l.cx + p.x, l.cy + p.y, l.cz + p.z, run.ry)
+			end
 		end
 	end
 	-- dividing walls with doors between the 3 rooms

@@ -11,6 +11,7 @@ local HqArtKit = require("../../src/shared/HqArtKit")
 local HqRules = require("../../src/shared/HqRules")
 local WantedRules = require("../../src/shared/WantedRules")
 local RepTiers = require("../../src/shared/RepTiers")
+local HideoutKit = require("../../src/shared/HideoutKit")
 
 local P = Config.City.palette
 local H = Config.Hq
@@ -128,6 +129,28 @@ for i = 1, 5 do
 	local x, z, a = HqArtKit.statueAt(Config, i, 5)
 	table.insert(out.statues, { x, z, math.deg(a) })
 end
+
+-- the room shells' modules (Shared.HideoutKit, the high preset): the Safehouse's over HqRules.hideout, the
+-- Foundry's over its box room, with the pieces each hides (by index, 1-based)
+local function shell(places: { any }, hides: { [number]: number }): { [string]: any }
+	local ps = {}
+	for _, p in places do
+		table.insert(ps, { look = p.look, at = { p.x, p.y, p.z }, ry = p.ry or 0, scale = p.scale or { 1, 1, 1 }, tint = p.tint })
+	end
+	local hd = {}
+	for i, k in hides do
+		hd[tostring(i)] = k
+	end
+	return { places = ps, hides = hd }
+end
+out.shellV = shell(HideoutKit.cell(Config, HqRules.hideout(Config), "high"))
+out.shellS = shell(HideoutKit.foundry(Config, HqArtKit.COLORS.villain.main, "high"))
+local fb = {}
+for _, b in HideoutKit.foundryBoxes(Config) do
+	table.insert(fb, { name = b.name, at = { b.x, b.y, b.z }, size = { b.sx, b.sy, b.sz } })
+end
+out.foundryBoxes = fb
+out.door = { size = H.door.size }
 
 if not fs.isDir("art/export/hq") then
 	fs.writeDir("art/export/hq")

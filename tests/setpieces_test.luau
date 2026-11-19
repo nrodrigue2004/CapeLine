@@ -186,7 +186,7 @@ return function(T: any)
 	test("Set piece art: the services draw the meshes over hidden boxes that keep their collision", function()
 		local kit = "src/server/Services/SetPieceMeshes.luau"
 		check(
-			has(kit, 'local ROOTS = { "SetPieces", "Vehicles" }'),
+			has(kit, 'local ROOTS = { "SetPieces", "Vehicles", "Hideout" }'),
 			"the meshes come from ReplicatedStorage.Art.SetPieces (and Art.Vehicles)"
 		)
 		check(
