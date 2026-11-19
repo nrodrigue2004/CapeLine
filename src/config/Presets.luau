@@ -42,7 +42,7 @@ return {
 		clothesFar = 60, -- past this a rig drops its clothes Textures (its part colours match them)
 		props = { tier = 1, radius = 260, parts = 700 },
 		vehicleRig = 110, -- gap-vehicles: escorts this close roll their wheels, steer and sway (Fx.VehicleRig); none past it
-		pockets = { tier = 1, parts = 180, lights = 4 }, -- a pocket's dressing (Shared.PocketDress; the server's tier 1 counts)
+		pockets = { tier = 1, parts = 180, lights = 4, props = 40 }, -- a pocket's dressing (Shared.PocketDress; the server's tier 1 counts); props: prop meshes a pocket (Shared.PocketPropKit, gap-props2)
 		ruins = { bits = 0 }, -- the Crater's loose lab debris this device scatters (Shared.CraterArtKit.bits; gap-wrecks)
 		smash = 3, -- street things (lamps, benches, trees, fences) knocked loose a big impact nearby (BuildingFx, 2026-11-19)
 		sites = { radius = 240, looks = 6, parts = 30 }, -- activity props in their Blender looks (Fx.ActivityProps)
@@ -72,7 +72,7 @@ return {
 		clothesFar = 80, -- past this a rig drops its clothes Textures (its part colours match them)
 		props = { tier = 2, radius = 420, parts = 2000 },
 		vehicleRig = 200, -- gap-vehicles: escorts this close roll their wheels, steer and sway (Fx.VehicleRig); none past it
-		pockets = { tier = 2, parts = 480, lights = 10 },
+		pockets = { tier = 2, parts = 480, lights = 10, props = 110 },
 		ruins = { bits = 16 }, -- the Crater's loose lab debris this device scatters (Shared.CraterArtKit.bits; gap-wrecks)
 		smash = 6, -- street things (lamps, benches, trees, fences) knocked loose a big impact nearby (BuildingFx, 2026-11-19)
 		sites = { radius = 420, looks = 14, parts = 70 }, -- activity props in their Blender looks (Fx.ActivityProps)
@@ -102,7 +102,7 @@ return {
 		clothesFar = 100, -- past this a rig drops its clothes Textures (its part colours match them)
 		props = { tier = 3, radius = 600, parts = 4000 },
 		vehicleRig = 320, -- gap-vehicles: escorts this close roll their wheels, steer and sway (Fx.VehicleRig); none past it
-		pockets = { tier = 3, parts = 900, lights = 18 },
+		pockets = { tier = 3, parts = 900, lights = 18, props = 220 },
 		ruins = { bits = 36 }, -- the Crater's loose lab debris this device scatters (Shared.CraterArtKit.bits; gap-wrecks)
 		smash = 10, -- street things knocked loose a big impact nearby (BuildingFx, 2026-11-19)
 		sites = { radius = 640, looks = 30, parts = 150 }, -- activity props in their Blender looks (Fx.ActivityProps)

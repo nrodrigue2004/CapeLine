@@ -6,6 +6,12 @@
 -- props (Art.Street, through CityProps.make). All of it is ghost decoration: no collision, no queries, no touch.
 -- Built once when the pocket arrives (a hundred parts a frame at most), dropped with it, rebuilt when the preset
 -- changes. No per-frame loop. Client only.
+-- The props (gap-props2, 2026-11-19): the pockets' most-seen props (desks, chairs, lockers, cabinets, tanks, cages,
+-- dummies, bags, pads, posts, braziers, screen desks, camera rigs, barriers, chimneys, water tanks) are drawn here in
+-- art/blender/pocketprops.py's meshes (Art.PocketProps, Shared.PocketPropKit, Config.PocketProps) with the dressing,
+-- within the preset's mesh budget (Config.Presets <preset>.pockets.props): the server's boxes they stand in for are
+-- hidden on this device only (LocalTransparencyModifier: kept, still colliding, queried and standing as before) and
+-- shown again when the pocket is dropped; dressing boxes a look stands in for are simply not built. Ghost meshes.
 
 local MaterialService = game:GetService("MaterialService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -16,6 +22,7 @@ local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local PocketLayout = require(Shared:WaitForChild("PocketLayout"))
 local PocketDress = require(Shared:WaitForChild("PocketDress"))
+local PocketPropKit = require(Shared:WaitForChild("PocketPropKit"))
 local QualityController = require(script.Parent.QualityController)
 local CityProps = require(script.Parent.CityProps)
 
@@ -109,7 +116,90 @@ local function makePart(b: any): BasePart
 	return p
 end
 
+-- The prop meshes' sources (Art.PocketProps), looked up until there so a later import counts
+local function propSource(name: string): MeshPart?
+	local art = ReplicatedStorage:FindFirstChild("Art")
+	local set = art and art:FindFirstChild("PocketProps")
+	local src = set and set:FindFirstChild(name, true)
+	return if src and src:IsA("MeshPart") then src else nil
+end
+local function propHas(name: string): boolean
+	return propSource(name) ~= nil
+end
+
+-- The server's parts this device hides behind prop meshes, per pocket, and the watch for parts streaming in
+local hidden: { [Model]: { BasePart } } = {}
+local hideWatch: { [Model]: RBXScriptConnection } = {}
+
+local function unhide(src: Model)
+	local c = hideWatch[src]
+	if c then
+		c:Disconnect()
+		hideWatch[src] = nil
+	end
+	for _, p in hidden[src] or {} do
+		p.LocalTransparencyModifier = 0
+	end
+	hidden[src] = nil
+end
+
+local function hideParts(src: Model, keys: { [string]: boolean })
+	unhide(src)
+	if next(keys) == nil then
+		return
+	end
+	local list: { BasePart } = {}
+	hidden[src] = list
+	local function try(d: Instance)
+		if d:IsA("BasePart") then
+			local pos = d.Position
+			if keys[PocketPropKit.key(pos.X, pos.Y, pos.Z)] then
+				d.LocalTransparencyModifier = 1
+				table.insert(list, d)
+			end
+		end
+	end
+	for _, d in src:GetDescendants() do
+		try(d)
+	end
+	hideWatch[src] = src.DescendantAdded:Connect(try)
+end
+
+-- One prop placement's meshes into m (ghosts); returns how many
+local function makeProp(place: PocketPropKit.Place, m: Model): number
+	local at = CFrame.new(place.cx, place.cy, place.cz) * CFrame.Angles(0, math.rad(place.ry), 0)
+	local n = 0
+	for _, mesh in PocketPropKit.meshes(Config, place) do
+		local src = propSource(mesh.name)
+		if not src then
+			continue
+		end
+		local p = src:Clone()
+		for _, c in p:GetChildren() do
+			if mesh.maps and c:IsA("SurfaceAppearance") then
+				c.AlphaMode = Enum.AlphaMode.Overlay
+			else
+				c:Destroy()
+			end
+		end
+		p.Anchored = true
+		p.CanCollide = false
+		p.CanQuery = false
+		p.CanTouch = false
+		p.CastShadow = mesh.mat ~= "Neon" and mesh.alpha == 0
+		p.Size = Vector3.new(mesh.size[1], mesh.size[2], mesh.size[3])
+		p.CFrame = at * CFrame.new(mesh.offset[1], mesh.offset[2], mesh.offset[3])
+		p.Color = Color3.fromRGB(mesh.color[1], mesh.color[2], mesh.color[3])
+		p.Material = (Enum.Material :: any)[mesh.mat] or Enum.Material.SmoothPlastic
+		p.Transparency = mesh.alpha
+		p.Parent = m
+		n += 1
+	end
+	return n
+end
+
 local function drop(src: Model)
+	unhide(src)
 	local m = built[src]
 	if m then
 		built[src] = nil
@@ -137,6 +227,31 @@ local function build(src: Model)
 	local l = PocketLayout.build(Config, index, layout)
 	local dress = PocketDress.apply(Config, l, layout)
 	local budget = QualityController.preset.pockets or Config.Presets.low.pockets
+	-- the props this device draws as meshes (every mesh of the look imported, within the preset's mesh budget)
+	local places = PocketPropKit.places(Config, l, dress, layout)
+	local drawn =
+		PocketPropKit.pick(Config, places, QualityController.name, PocketPropKit.readyLooks(Config, propHas))
+	local skip: { [any]: boolean } = {}
+	local keys: { [string]: boolean } = {}
+	for _, p in drawn do
+		for _, j in p.boxes do
+			if p.dress then
+				skip[dress.extras[j]] = true
+			else
+				local b = l.boxes[j]
+				keys[PocketPropKit.key(b.cx, b.cy, b.cz)] = true
+			end
+		end
+	end
+	if next(skip) then
+		local kept = {}
+		for _, e in dress.extras do
+			if not skip[e] then
+				table.insert(kept, e)
+			end
+		end
+		dress = { extras = kept, lights = dress.lights, props = dress.props, layout = dress.layout }
+	end
 	local extras, props, lights = PocketDress.pick(Config, dress, budget, 2)
 	local m = Instance.new("Model")
 	m.Name = "Decor_" .. src.Name
@@ -188,6 +303,21 @@ local function build(src: Model)
 		local made =
 			CityProps.make(pr.name, CFrame.new(pr.x, pr.y, pr.z) * CFrame.Angles(0, math.rad(pr.ry), 0), m)
 		PocketDecor.built += made
+	end
+	-- the prop meshes, then the boxes they stand in for are hidden (never before their meshes are there)
+	for _, p in drawn do
+		if built[src] ~= m then
+			return
+		end
+		local made = makeProp(p, m)
+		PocketDecor.built += made
+		n += made
+		if n % PER_STEP < made then
+			RunService.Heartbeat:Wait()
+		end
+	end
+	if built[src] == m then
+		hideParts(src, keys)
 	end
 end
 

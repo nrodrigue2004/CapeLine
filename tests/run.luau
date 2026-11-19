@@ -23054,7 +23054,9 @@ end
 -- the in-city news's art pass (gap-news, 2026-11-19, own file); ONLY="News art" runs just these
 (require :: any)("./news_art_test")({ test = test, check = check, Config = Config, placePath = placePath });
 -- the wrecks and Crater art pass (gap-wrecks, 2026-11-19, own file); ONLY="Wreck art" or ONLY="Crater art"
-(require :: any)("./wrecks_art_test")({ test = test, check = check, Config = Config, placePath = placePath })
+(require :: any)("./wrecks_art_test")({ test = test, check = check, Config = Config, placePath = placePath });
+-- the pocket props and the plaza board's art pass (gap-props2, 2026-11-19, own file); ONLY="Pocket props" or ONLY="Board art"
+(require :: any)("./pocket_props_test")({ test = test, check = check, Config = Config, placePath = placePath })
 
 print(string.format("\n%d passed, %d failed", passed, failed))
 if failed > 0 then

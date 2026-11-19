@@ -10,7 +10,8 @@
 --   writeEvery s, within the budget share), a leave flushes that player's totals, shutdown flushes all.
 -- * BoardOpen(board, filter) answers BoardData: the top 50 (or your friends among the top 100) with ranks
 --   and Roblox display names, your own row pinned, the week's countdown and the reward line; or error = true.
--- * The plaza board (PLACEHOLDER ART): a free-standing screen on the plaza; BoardPlaza carries each board's
+-- * The plaza board: a free-standing screen on the plaza (its Blender look, Art.Board, once imported: dressProp; the
+--   plain parts are PLACEHOLDER ART before); BoardPlaza carries each board's
 --   top 10 to every device, only when it changed.
 -- * Rewards: the week a player counted in waits on the save; once its standings settle (Config.Boards.reward
 --   .settle after it ends) the next join, or the next minute online, reads the final ranks once and grants
@@ -26,6 +27,7 @@ local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Net = require(Shared:WaitForChild("Net"))
 local BoardKeys = require(Shared:WaitForChild("BoardKeys"))
+local BoardArtKit = require(Shared:WaitForChild("BoardArtKit"))
 
 local Services = script.Parent
 local BoardStore = require(Services.BoardStore)
@@ -209,6 +211,58 @@ end
 -- The plaza board
 ---------------------------------------------------------------------------
 
+-- The board's Blender look (gap-props2, 2026-11-19; art/blender/board.py, Art.Board, Shared.BoardArtKit): once every
+-- mesh is imported, the frame, crest and legs are hidden (kept: they collide exactly as before) and the meshes are
+-- drawn round the screen, which stays as it is (the SurfaceGui's rows on its face). Nothing imported: the parts show.
+local function artSource(name: string): MeshPart?
+	local art = ReplicatedStorage:FindFirstChild("Art")
+	local set = art and art:FindFirstChild("Board")
+	local src = set and set:FindFirstChild(name, true)
+	return if src and src:IsA("MeshPart") then src else nil
+end
+
+local function dressProp(model: Model, cf: CFrame)
+	if
+		not BoardArtKit.ready(Config, function(name: string): boolean
+			return artSource(name) ~= nil
+		end)
+	then
+		return -- PLACEHOLDER ART until Art.Board is in the place: the plain parts
+	end
+	for _, p in model:GetChildren() do
+		if p:IsA("BasePart") and BoardArtKit.HIDES[p.Name] then
+			p.Transparency = 1
+			p.CastShadow = false
+		end
+	end
+	local folder = Instance.new("Folder")
+	folder.Name = "Look"
+	for _, m in BoardArtKit.meshes(Config) do
+		local src = artSource(m.name)
+		if not src then
+			continue
+		end
+		local mp = src:Clone()
+		for _, c in mp:GetChildren() do
+			if m.maps and c:IsA("SurfaceAppearance") then
+				c.AlphaMode = Enum.AlphaMode.Overlay
+			else
+				c:Destroy()
+			end
+		end
+		mp.Anchored = true
+		mp.CanCollide = false
+		mp.CanQuery = false
+		mp.CanTouch = false
+		mp.Size = Vector3.new(m.size[1], m.size[2], m.size[3])
+		mp.CFrame = cf * CFrame.new(m.offset[1], m.offset[2], m.offset[3])
+		mp.Color = Color3.fromRGB(m.color[1], m.color[2], m.color[3])
+		mp.Material = (Enum.Material :: any)[m.mat] or Enum.Material.SmoothPlastic
+		mp.Parent = folder
+	end
+	folder.Parent = model
+end
+
 local function buildProp()
 	local world = CityBuilder.world
 	local bt = world and world.downtown and world.downtown.beacon
@@ -238,7 +292,7 @@ local function buildProp()
 		p.Parent = model
 		return p
 	end
-	-- PLACEHOLDER ART: a navy screen in a gold frame on two legs
+	-- a navy screen in a gold frame on two legs (the parts; their Blender look over them once imported: dressProp)
 	local screen = part("Screen", Vector3.new(w, h, 0.6), cf, Color3.fromRGB(16, 22, 44))
 	part(
 		"Frame",
@@ -264,6 +318,7 @@ local function buildProp()
 		)
 	end
 	model.PrimaryPart = screen
+	dressProp(model, cf)
 	model.Parent = Workspace
 end
 

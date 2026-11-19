@@ -6,8 +6,10 @@
 -- and the gauntlet, the arena and its pillars). A pocket is a floor with walls and a sky dome feel; parts
 -- are made by CityBuilder's part maker.
 -- Looks: every pocket wears the pocket kit (2026-11-19, Shared.PocketDress, Config.PocketKit: kit textures and tints on
--- these boxes, never their place, size or solidity, plus ghost dressing). The props here (desks, pods, consoles,
--- cover) are still boxes or Set piece meshes: PLACEHOLDER ART where no mesh draws them.
+-- these boxes, never their place, size or solidity, plus ghost dressing). The most-seen props here (desks, chairs,
+-- lockers, cabinets, tanks, cages, dummies, pads, posts, camera rigs...) draw as Blender meshes on each device over
+-- these same boxes (gap-props2: Shared.PocketPropKit finds them by Config.PocketProps, PocketDecor draws them);
+-- the rest are still boxes or Set piece meshes: PLACEHOLDER ART where no mesh draws them.
 -- (lore step 11, the character lines: "pound", the Spark Pound, Catchpole's Docks warehouse.)
 -- (overnight queue item 10: the side quests' pockets list their Blender looks, Layout.art: Shared.SetPieceKit
 -- placements in world studs over the decor boxes that carry their index as `art`; MissionService draws the
