@@ -27,6 +27,19 @@ PocketDecor.built = 0 -- dressing parts this device built (the Dev panel can sho
 
 local folder: Folder? = nil
 local built: { [Model]: Model } = {}
+-- gap review (2026-11-19): only pockets near this device's camera get the tiers above 1 (every live pocket of every
+-- player used to, up to 900 parts and 18 lights each on high); built inside NEAR studs of the pocket's edge,
+-- dropped past FAR (no flicker at the edge), checked once a second
+local known: { [Model]: boolean } = {}
+local NEAR, FAR = 250, 400
+local function edgeDistance(src: Model): number
+	local ok, cf, size = pcall(src.GetBoundingBox, src)
+	local cam = Workspace.CurrentCamera
+	if not ok or not cam then
+		return math.huge
+	end
+	return math.max(0, (cam.CFrame.Position - cf.Position).Magnitude - size.Magnitude / 2)
+end
 
 local colorCache: { [string]: Color3 } = {}
 local function color(key: string): Color3
@@ -183,14 +196,20 @@ local function watch(m: Instance)
 		return
 	end
 	local model = m :: Model
-	task.spawn(build, model)
+	known[model] = true
+	if edgeDistance(model) <= NEAR then
+		task.spawn(build, model)
+	end
 	model.AncestryChanged:Connect(function(_, parent)
 		if parent == nil then
+			known[model] = nil
 			drop(model)
 		end
 	end)
 	model:GetAttributeChangedSignal("PocketLayout"):Connect(function()
-		task.spawn(build, model)
+		if built[model] then
+			task.spawn(build, model)
+		end
 	end)
 end
 
@@ -218,6 +237,19 @@ function PocketDecor.init()
 			pocketsFolder(c)
 		elseif c.Name == "PrologueSubway" then
 			watch(c)
+		end
+	end)
+	task.spawn(function()
+		while true do
+			task.wait(1)
+			for src in known do
+				local d = edgeDistance(src)
+				if not built[src] and d <= NEAR then
+					task.spawn(build, src)
+				elseif built[src] and d > FAR then
+					drop(src)
+				end
+			end
 		end
 	end)
 	QualityController.Changed:Connect(function()
