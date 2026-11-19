@@ -289,12 +289,18 @@ return function(T: any)
 			hasText(cc, "CombatFx.begin(id, true)") and hasText(cc, "CombatFx.finish(fxPrev)"),
 			"your casts are in scope"
 		)
-		-- the two new sheets: drawn, listed, not uploaded yet, so the built-in images stand in
+		-- the two new sheets: drawn, listed and uploaded (2026-11-19), with a built-in image kept as the fallback
 		for _, name in { "rune", "scorch" } do
 			local t = L.textures[name]
-			check(t ~= nil and t.id == 0, name .. " sheet waits for its upload")
+			check(
+				t ~= nil and t.id > 0 and t.builtin ~= nil,
+				name .. " sheet is uploaded, with a built-in fallback"
+			)
 			check(fs.isFile("art/export/fx/" .. t.file), name .. " sheet is drawn")
-			check(FxPlan.textureOf(L, name) == t.builtin, name .. " falls back to a built-in image")
+			check(
+				FxPlan.textureOf(L, name) == "rbxassetid://" .. tostring(t.id),
+				name .. " uses its uploaded image"
+			)
 			check(L.kinds[name] ~= nil and L.kinds[name].face == "flat", name .. " lies flat")
 		end
 		check(hasText(read("art/fx/textures.py"), "--moves"), "textures.py draws the ability sheets alone")

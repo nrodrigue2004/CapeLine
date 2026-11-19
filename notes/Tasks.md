@@ -165,7 +165,14 @@ What nate does:
 
 ## Studio test list (needs nate's PC)
 
-### Playtest combined: start here (2026-11-19, build playtest-combined)
+### Playtest combined 2: start here (2026-11-19, build playtest-combined2)
+Round 2 of nate's playtest fixes in one place: project files capeline/Capeline-playtest-combined2-2026-11-19.rbxl (Output "playtest-combined2 (2026-11-19)"). It replaces every older playtest place. Run these lists, each further down this file:
+1. "NPC looks and creator Next" (every rig on Roblox's own body in real Shirt and Pants, catalog faces and hair, glowing turned eyes, the hit flash, NEXT never stalls).
+2. "Studio list: declutter and button reliability" (top row SHOP, MAP, GEAR, POWERS, MENU; every click and TRY AGAIN tap lands).
+3. "Studio list: nate's 2026-11-19 combat list" (movement, destruction everywhere, momentum impact, every ability's own effect with the rune and scorch textures now uploaded, the animation pass and weapon swings).
+Then the round 1 lists below if there is time. Write what broke in the chat.
+
+### Playtest combined: round 1 (2026-11-19, build playtest-combined)
 One place with every change from 2026-11-18 (nate: "combine it all in one build"): project files capeline/Capeline-playtest-combined-2026-11-19.rbxl, enemies9 with all branches merged. The Output shows "playtest-combined (2026-11-19)". Older playtest places are out of date. Run these lists in this order; each is further down this file:
 1. "Playtest art3: start here" (the cloud-uploaded art: images, every model set, clothes on heroes).
 2. "Creator and looks fixes" (Roblox's blocky body, catalog faces and hair, drag to rotate, DONE, names, origins), then "NPC looks and creator Next".

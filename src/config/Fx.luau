@@ -169,16 +169,15 @@ return {
 				file = "ink.png",
 			},
 			-- every ability's own look (nate's playtest 2026-11-19, Config.FxMoves): a ground rune circle and a
-			-- scorch mark, drawn by art/fx/textures.py --moves. Not uploaded yet (id 0), so the built-in images
-			-- stand in. PLACEHOLDER ART until nate uploads them and puts the ids here.
+			-- scorch mark, drawn by art/fx/textures.py --moves, uploaded from the cloud 2026-11-19 (Image assets).
 			rune = {
 				builtin = "rbxasset://textures/particles/explosion01_shockwave_main.dds",
-				id = 0,
+				id = 125111477106243,
 				file = "rune.png",
 			},
 			scorch = {
 				builtin = "rbxasset://textures/particles/smoke_main.dds",
-				id = 0,
+				id = 131428080752757,
 				file = "scorch.png",
 			},
 		},
