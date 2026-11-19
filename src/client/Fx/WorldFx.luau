@@ -7,11 +7,13 @@
 --   dims the area round it), and the Leviathan Engine, the Deep Machine (an ancient brass-and-stone sea machine with
 --   a tide-turbine heart; sea mist drifts off it). Broken objectives go dark. Never gory: machines shed sparks,
 --   bolts and plates, the Maw bursts into light.
--- * Telegraphs from Boss.Attack: red ground markers that fill over the warning (ring, cone, circles, lines,
---   the gravity pull's wide ring); the strike flashes, shakes the camera near it, and the pull drags this
---   hero toward the Maw while it warns.
--- * Events: the Tidal surge raises the water over the Docks, the Blackout dims Old Town for whoever stands
---   in it.
+-- * Telegraphs from Boss.Attack: comic ground telegraphs that fill to the hit (Fx.BossTelegraph: ring, cone,
+--   circles, lines, the pull; hazard-tape edges, cracks, chevrons); the strike flashes, shakes the camera near it,
+--   and the pull drags this hero toward the Maw while it warns.
+-- * Motion (the boss pass, 2026-11-19): every boss's segments are posed by Fx.BossAnim from Shared.BossPose: idle,
+--   walk, each attack's wind-up timed to its warning, flinch, weak, stagger, enrage, defeat and the entrance.
+-- * Events: Fx.EventFx draws the Tidal surge's wave and the Blackout's dark (was here: one glass slab and a
+--   colour correction).
 -- * Remade bosses (overhaul plan step 4; art/blender/bosses.py, Config.BossArt): once ReplicatedStorage.Art.Bosses
 --   holds every mesh of a boss, it is drawn from them: a textured hull, armour plates that break off at phases 2
 --   and 3, Neon accents in the phase colour, weak points in one pulsing gold, and the objectives' bodies with their
@@ -36,6 +38,9 @@ local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local WorldClient = require(script.Parent.Parent.Controllers.WorldClient)
 local CameraController = require(script.Parent.Parent.Controllers.CameraController)
 local CombatFx = require(script.Parent.CombatFx)
+local BossAnim = require(script.Parent.BossAnim)
+local BossTelegraph = require(script.Parent.BossTelegraph)
+local EventFx = require(script.Parent.EventFx)
 local FxLib = require(script.Parent.FxLib)
 local State = require(script.Parent.Parent.State)
 local Juice = require(script.Parent.Juice)
@@ -68,6 +73,7 @@ type Shown = {
 	phase: number, -- the phase its look shows (art only; 0 before the first state)
 	weak: { BasePart }, -- the pulsing weak-point lamps (art only)
 	nextFx: number, -- when its look's own effect (sparks, light, mist) next plays
+	anim: BossAnim.Anim?, -- its segments in motion (Fx.BossAnim)
 }
 local shown: Shown? = nil
 
@@ -214,6 +220,9 @@ local function meshPiece(
 	p.Material = if lit then Enum.Material.Neon else Enum.Material.Metal
 	p.Color = if row.role == "weak" then rgb(ART.weakColor[1]) else Color3.fromRGB(200, 200, 200)
 	p:SetAttribute("Role", row.role)
+	if row.seg then
+		p:SetAttribute("Seg", row.seg)
+	end
 	p.Parent = parent
 	return p
 end
@@ -294,6 +303,9 @@ local function lookPart(fit: { [string]: any }, row: { [string]: any }, at: CFra
 	)
 	p.CastShadow = not LIT[role]
 	p:SetAttribute("Role", role)
+	if row.seg then
+		p:SetAttribute("Seg", row.seg)
+	end
 	return p
 end
 
@@ -387,6 +399,7 @@ local function build(id: string, s: { [string]: any }): Shown
 	end
 	m.Parent = folder
 	return {
+		anim = BossAnim.attach(id, m),
 		id = id,
 		model = m,
 		objectives = objectives,
@@ -408,6 +421,10 @@ local function build(id: string, s: { [string]: any }): Shown
 end
 
 local function destroy(sh: Shown)
+	if sh.anim then
+		BossAnim.detach(sh.anim)
+		sh.anim = nil
+	end
 	sh.model:Destroy()
 	for _, o in sh.objectives do
 		if o.Parent == folder then
@@ -444,6 +461,9 @@ local function onState()
 	local sh = shown :: Shown
 	sh.tx, sh.ty, sh.tz, sh.tyaw = s.x, s.y, s.z, s.yaw or 0
 	sh.state = s.state
+	if sh.anim then
+		BossAnim.state(sh.anim, s.hp, s.max, s.phase)
+	end
 	if sh.art and (s.phase or 1) ~= sh.phase then
 		showPhase(sh, s.phase or 1)
 	end
@@ -567,7 +587,16 @@ local function lookFx(sh: Shown)
 	end
 end
 
+-- A beaten boss plays its collapse before it sinks (BossAnim's defeat clip), off the shown slot
+local dying: { { sh: Shown, cf: CFrame } } = {}
+
 local function frame(dt: number)
+	for _, d in dying do
+		if d.sh.anim then
+			BossAnim.step(d.sh.anim, d.cf, dt, false)
+		end
+	end
+	BossTelegraph.step()
 	local sh = shown
 	if not sh then
 		if mawDim then
@@ -589,7 +618,14 @@ local function frame(dt: number)
 	elseif sh.state == 5 then
 		sh.lift += dt * 40
 	end
-	sh.model:PivotTo(CFrame.new(sh.x, sh.y + sh.lift, sh.z) * CFrame.Angles(0, sh.yaw, 0))
+	local rootCF = CFrame.new(sh.x, sh.y + sh.lift, sh.z) * CFrame.Angles(0, sh.yaw, 0)
+	if sh.anim then
+		-- Rustjaw walks while it closes on the crowd (BossSim moves it 6 studs a second)
+		local moving = (sh.tx - sh.x) ^ 2 + (sh.tz - sh.z) ^ 2 > 1
+		BossAnim.step(sh.anim, rootCF, dt, moving)
+	else
+		sh.model:PivotTo(rootCF)
+	end
 	if #sh.weak > 0 then
 		-- the weak points pulse gold, the same on every boss ("hit the gold")
 		local f = 0.5 + 0.5 * math.sin(os.clock() * ART.pulse * 2 * math.pi)
@@ -611,45 +647,26 @@ local function ground(x: number, y: number, z: number): Vector3
 	return Vector3.new(x, y + 0.2, z)
 end
 
-local function lineWarn(from: Vector3, dir: Vector3, length: number, width: number, t: number)
-	local cf = CFrame.lookAt(from, from + dir) * CFrame.new(0, 0, -length / 2)
-	local outline = part(folder, Vector3.new(width, 0.12, length), cf, WARN)
-	outline.Transparency = 0.6
-	local fill = part(
-		folder,
-		Vector3.new(width, 0.14, 0.5),
-		CFrame.lookAt(from, from + dir) * CFrame.new(0, 0, -0.25),
-		WARN
-	)
-	fill.Transparency = 0.35
-	TweenService:Create(fill, TweenInfo.new(t, Enum.EasingStyle.Linear), {
-		Size = Vector3.new(width, 0.14, length),
-		CFrame = cf,
-	}):Play()
-	Debris:AddItem(outline, t + 0.05)
-	Debris:AddItem(fill, t + 0.05)
-end
-
 local pullUntil, pullAt, pullR = 0, Vector3.zero, 0
+
+-- The boss's look colour (the pull's motes, the strike's shockwave), the attack's red otherwise
+local function lookColor(num: number?): Color3
+	local id = WorldClient.bossByNum[num or 0] or (shown and shown.id)
+	local fit = id and ART[id]
+	return if fit and fit.theme then rgb(fit.theme) else WARN
+end
 
 local function warn(ev: { [string]: any })
 	local t = ev.t or 1
 	local c = ground(ev.x, ev.y, ev.z)
-	if ev.shape == "ring" then
-		CombatFx.warn(c, ev.r, t)
-	elseif ev.shape == "cone" then
-		CombatFx.warn(c, ev.r, t, ev.arc, ev.yaw)
-	elseif ev.shape == "circles" then
-		for _, p in ev.points or {} do
-			CombatFx.warn(ground(p[1], ev.y, p[2]), ev.r, t)
-		end
-	elseif ev.shape == "lines" then
-		for _, d in ev.points or {} do
-			lineWarn(c, Vector3.new(d[1], 0, d[2]), ev.length, ev.width, t)
-		end
-	elseif ev.shape == "pull" then
-		CombatFx.warn(c, ev.nova, t)
+	BossTelegraph.warn(ev, ev.y, lookColor(ev.num))
+	if ev.shape == "pull" then
 		pullUntil, pullAt, pullR = os.clock() + t, c, ev.r
+	end
+	-- the boss winds up over the warning so the strike lands on the hit (the cannons have their own small kick)
+	local sh = shown
+	if sh and sh.anim and ev.src == "boss" and ev.a then
+		BossAnim.attack(sh.anim, ev.a, t)
 	end
 end
 
@@ -662,8 +679,29 @@ end
 local function strike(ev: { [string]: any })
 	local c = ground(ev.x, ev.y, ev.z)
 	local style = State.hero.fxStyle
-	if ev.shape == "ring" or ev.shape == "cone" then
+	BossTelegraph.strike(ev, ev.y, lookColor(ev.num))
+	local sh = shown
+	if sh and sh.anim then
+		if ev.src == "boss" then
+			BossAnim.strike(sh.anim, ev.a)
+		elseif ev.src == "cannon" then
+			BossAnim.play(sh.anim, "shot")
+		end
+	end
+	if ev.shape == "ring" then
 		CombatFx.slam(c, ev.r)
+	elseif ev.shape == "cone" then
+		-- the swipe, bite or sweep fans out in front of where the boss faced when it warned
+		local yaw = if sh then sh.yaw else 0
+		CombatFx.cone(
+			c + Vector3.new(0, 3, 0),
+			Vector3.new(-math.sin(yaw), 0, -math.cos(yaw)),
+			ev.r,
+			100,
+			style,
+			WARN
+		)
+		FxLib.dust(c, ev.r * 0.5)
 	elseif ev.shape == "circles" then
 		for _, p in ev.points or {} do
 			CombatFx.slam(ground(p[1], ev.y, p[2]), ev.r)
@@ -703,6 +741,9 @@ local function bigMoment(ev: { [string]: any })
 	if ev.k == "land" then
 		task.delay(B.schedule.landing * 0.8, function()
 			local at = Vector3.new(ev.x, ev.y, ev.z)
+			if shown and shown.anim then
+				BossAnim.play(shown.anim, "land")
+			end
 			CombatFx.slam(at, 60)
 			-- the entrance in its look's colour (welding orange, the Maw's light, the Deep Machine's aqua)
 			local id = WorldClient.bossByNum[ev.num or 0] or (shown and shown.id)
@@ -721,6 +762,13 @@ local function bigMoment(ev: { [string]: any })
 		CombatFx.nova(top, 40, style, glow, true)
 		CombatFx.banner(string.format("PHASE %d!", ev.phase), WARN, style)
 		Juice.fire("bossPhase", top, { mine = near(top, 500) })
+		if s.anim then
+			-- the plates break: it staggers, then roars into the new phase
+			BossAnim.phase(s.anim, ev.phase or 2)
+		end
+	elseif ev.k == "shield" and s and s.anim and (ev.left or 0) <= 0 then
+		-- the War-Frame's shield broke: it reels and shows its back core
+		BossAnim.play(s.anim, "weak")
 	elseif ev.k == "dead" and s then
 		-- it falls apart: plates and bolts everywhere, then it sinks
 		local pivot = s.model:GetPivot()
@@ -736,17 +784,37 @@ local function bigMoment(ev: { [string]: any })
 			end)
 		end
 		CombatFx.banner("BOSS DEFEATED!", Color3.fromRGB(255, 200, 60), style)
-		for _, p in s.model:GetDescendants() do
-			if p:IsA("BasePart") then
-				TweenService:Create(p, TweenInfo.new(3, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
-					CFrame = p.CFrame - Vector3.new(0, 30, 0),
-					Transparency = 1,
-				}):Play()
-			end
+		-- it collapses first (BossAnim's defeat clip), then sinks away
+		local hold = 0
+		local row = { sh = s, cf = s.model:GetPivot() }
+		if s.anim then
+			BossAnim.play(s.anim, "defeat")
+			table.insert(dying, row)
+			hold = 2.6
 		end
 		shown = nil
-		task.delay(3.2, function()
-			destroy(s)
+		task.delay(hold, function()
+			local i = table.find(dying, row)
+			if i then
+				table.remove(dying, i)
+			end
+			if s.anim then
+				BossAnim.detach(s.anim)
+				s.anim = nil
+			end
+			for _, p in s.model:GetDescendants() do
+				if p:IsA("BasePart") then
+					TweenService
+						:Create(p, TweenInfo.new(3, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+							CFrame = p.CFrame - Vector3.new(0, 30, 0),
+							Transparency = 1,
+						})
+						:Play()
+				end
+			end
+			task.delay(3.2, function()
+				destroy(s)
+			end)
 		end)
 	elseif ev.k == "retreat" then
 		CombatFx.banner("IT GOT AWAY!", Color3.fromRGB(200, 200, 210), style)
@@ -789,78 +857,6 @@ local function pullStep(dt: number)
 	root.CFrame += d.Unit * 14 * dt
 end
 
----------------------------------------------------------------------------
--- Event looks
----------------------------------------------------------------------------
-
-local water: Part? = nil
-local dim: ColorCorrectionEffect? = nil
-
-local function inDistrict(name: string): boolean
-	local char = Players.LocalPlayer.Character
-	local root = char and char:FindFirstChild("HumanoidRootPart") :: BasePart?
-	local d = Config.City.districts[name]
-	if not root then
-		return false
-	end
-	local p = root.Position
-	return p.X >= d.minX and p.X <= d.maxX and p.Z >= d.minZ and p.Z <= d.maxZ
-end
-
-local function eventStep()
-	local surge, blackout = nil, nil
-	for _, ev in WorldClient.events do
-		if ev.id == "TidalSurge" and ev.state == 0 then
-			surge = ev
-		elseif ev.id == "Blackout" and ev.state == 0 then
-			blackout = ev
-		end
-	end
-	if surge then
-		local def = Config.Events.events.TidalSurge
-		local d = Config.City.districts.Docks
-		local gy = Config.City.ground.y
-		if not water then
-			water = part(
-				folder,
-				Vector3.new(d.maxX - d.minX, 1, d.maxZ - d.minZ),
-				CFrame.new((d.minX + d.maxX) / 2, gy - 1, (d.minZ + d.maxZ) / 2),
-				Color3.fromRGB(60, 140, 200),
-				Enum.Material.Glass
-			)
-			water.Name = "SurgeWater"
-		end
-		local w = water :: Part
-		w.Transparency = 0.45
-		local f = math.clamp(1 - (surge.ends - os.clock()) / def.length, 0, 1)
-		-- it rises over the first half and holds; the more citizens saved, the lower it sits
-		local saved = if surge.need > 0 then surge.have / surge.need else 0
-		local h = def.rise * math.min(1, f * 2) * (1 - saved * 0.5)
-		w.CFrame = CFrame.new(w.Position.X, gy - 0.5 + h / 2, w.Position.Z)
-		w.Size = Vector3.new(w.Size.X, math.max(0.2, h), w.Size.Z)
-	elseif water then
-		water:Destroy()
-		water = nil
-	end
-	local dark = blackout ~= nil and inDistrict("OldTown")
-	if dark and not dim then
-		local c = Instance.new("ColorCorrectionEffect")
-		c.Name = "Blackout"
-		c.Brightness = 0
-		c.Parent = Lighting
-		dim = c
-	end
-	if dim then
-		local want = if dark then -0.18 - 0.05 * (4 - ((blackout and blackout.have) or 0)) / 4 else 0
-		dim.Brightness += (want - dim.Brightness) * 0.2
-		dim.Saturation = dim.Brightness
-		if not dark and math.abs(dim.Brightness) < 0.01 then
-			dim:Destroy()
-			dim = nil
-		end
-	end
-end
-
 function WorldFx.init()
 	folder = Instance.new("Folder")
 	folder.Name = "WorldFx"
@@ -871,15 +867,11 @@ function WorldFx.init()
 		end
 	end)
 	WorldClient.BossAttack:Connect(onAttack)
-	local acc = 0
+	BossTelegraph.init(folder)
+	EventFx.init(folder)
 	RunService.RenderStepped:Connect(FrameProf.wrap("WorldFx", function(dt)
 		frame(dt)
 		pullStep(dt)
-		acc += dt
-		if acc >= 0.25 then
-			acc = 0
-			eventStep()
-		end
 	end))
 end
 

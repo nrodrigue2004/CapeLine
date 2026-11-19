@@ -7,6 +7,8 @@
 -- shed3 (textured plates that break off at phases 2 and 3), glow (Neon, the phase colour), weak (Neon, the
 -- pulsing weak-point gold), objective and objectiveGlow (one set per Config.Boss objective; the lamp goes dark
 -- when broken). One 1024 px texture set per boss (art/export/bosses). Hit boxes stay Config.Boss's.
+-- seg: the rig segment a piece moves with (the boss pass, 2026-11-19; pieces of a segment other than Body are
+-- named "<Seg>_<Piece>"); rig: each segment's parent and pivot; Shared.BossPose poses them (Fx.BossAnim).
 -- look, theme, debris, fx and parts (the world bosses): the look in words, its colour (entrance and name card),
 -- the colour of the bits that fly off, its own effect round it (sparks, light pulled in, sea mist) and the
 -- part-built look the game draws until the meshes are imported (at most partBudget parts, the old count).
@@ -36,19 +38,153 @@ return {
 			},
 		},
 		pieces = {
-			Glow = { role = "glow", size = { 52.400, 59.180, 38.518 }, offset = { 0.000, 91.310, 3.309 } }, -- 764 tris
-			Hull = { role = "hull", size = { 83.463, 119.422, 44.699 }, offset = { -0.668, 59.411, 1.149 } }, -- 9612 tris
+			ArmL_Hull = {
+				role = "hull",
+				size = { 23.586, 33.303, 24.800 },
+				offset = { -27.000, 75.030, -0.000 },
+				seg = "ArmL",
+			}, -- 500 tris
+			ArmR_Hull = {
+				role = "hull",
+				size = { 23.586, 42.761, 24.800 },
+				offset = { 27.000, 70.301, -0.000 },
+				seg = "ArmR",
+			}, -- 668 tris
+			ArmR_Plates3 = {
+				role = "shed3",
+				size = { 11.000, 8.000, 11.400 },
+				offset = { 32.000, 68.000, -0.200 },
+				seg = "ArmR",
+			}, -- 152 tris
+			ForeL_Hull = {
+				role = "hull",
+				size = { 18.800, 41.200, 22.700 },
+				offset = { -33.000, 44.600, -3.150 },
+				seg = "ForeL",
+			}, -- 864 tris
+			ForeL_Plates3 = {
+				role = "shed3",
+				size = { 10.381, 13.434, 5.415 },
+				offset = { -38.400, 50.000, 0.000 },
+				seg = "ForeL",
+			}, -- 44 tris
+			ForeR_Hull = {
+				role = "hull",
+				size = { 14.127, 37.990, 12.826 },
+				offset = { 34.000, 41.377, -2.750 },
+				seg = "ForeR",
+			}, -- 380 tris
+			Glow = {
+				role = "glow",
+				size = { 52.400, 44.980, 38.518 },
+				offset = { 0.000, 84.210, 3.309 },
+				seg = "Body",
+			}, -- 464 tris
+			Head_Glow = {
+				role = "glow",
+				size = { 19.297, 24.100, 22.700 },
+				offset = { 0.719, 108.850, -2.250 },
+				seg = "Head",
+			}, -- 300 tris
+			Head_Hull = {
+				role = "hull",
+				size = { 35.200, 26.122, 22.181 },
+				offset = { 0.000, 106.061, -3.110 },
+				seg = "Head",
+			}, -- 856 tris
+			Hull = {
+				role = "hull",
+				size = { 51.910, 62.215, 42.040 },
+				offset = { 0.118, 75.107, 2.479 },
+				seg = "Body",
+			}, -- 2560 tris
+			Jaw_Hull = {
+				role = "hull",
+				size = { 30.000, 15.900, 23.089 },
+				offset = { 0.000, 92.450, -9.656 },
+				seg = "Jaw",
+			}, -- 408 tris
 			Plates2 = {
 				role = "shed2",
-				size = { 39.600, 51.500, 9.800 },
-				offset = { 0.000, 36.750, -10.900 },
-			}, -- 608 tris
+				size = { 24.000, 9.000, 2.900 },
+				offset = { 0.000, 58.000, -14.350 },
+				seg = "Body",
+			}, -- 216 tris
 			Plates3 = {
 				role = "shed3",
-				size = { 81.091, 46.181, 23.200 },
-				offset = { -3.045, 66.373, -6.100 },
-			}, -- 580 tris
-			Weak = { role = "weak", size = { 34.400, 50.200, 16.900 }, offset = { 0.000, 51.900, -13.250 } }, -- 864 tris
+				size = { 48.000, 12.368, 3.500 },
+				offset = { 0.000, 83.280, -15.950 },
+				seg = "Body",
+			}, -- 384 tris
+			ShinL_Hull = {
+				role = "hull",
+				size = { 20.427, 37.800, 28.600 },
+				offset = { -14.613, 18.600, -3.300 },
+				seg = "ShinL",
+			}, -- 1316 tris
+			ShinL_Plates2 = {
+				role = "shed2",
+				size = { 11.600, 14.000, 2.800 },
+				offset = { -14.000, 18.000, -7.400 },
+				seg = "ShinL",
+			}, -- 196 tris
+			ShinL_Weak = {
+				role = "weak",
+				size = { 6.400, 6.400, 6.400 },
+				offset = { -14.000, 30.000, -8.000 },
+				seg = "ShinL",
+			}, -- 288 tris
+			ShinR_Hull = {
+				role = "hull",
+				size = { 20.427, 37.800, 28.600 },
+				offset = { 14.613, 18.600, -3.300 },
+				seg = "ShinR",
+			}, -- 1316 tris
+			ShinR_Plates2 = {
+				role = "shed2",
+				size = { 11.600, 14.000, 2.800 },
+				offset = { 14.000, 18.000, -7.400 },
+				seg = "ShinR",
+			}, -- 196 tris
+			ShinR_Weak = {
+				role = "weak",
+				size = { 6.400, 6.400, 6.400 },
+				offset = { 14.000, 30.000, -8.000 },
+				seg = "ShinR",
+			}, -- 288 tris
+			ThighL_Hull = {
+				role = "hull",
+				size = { 15.052, 23.203, 15.209 },
+				offset = { -14.159, 44.199, -0.000 },
+				seg = "ThighL",
+			}, -- 372 tris
+			ThighR_Hull = {
+				role = "hull",
+				size = { 15.052, 23.203, 15.209 },
+				offset = { 14.159, 44.199, -0.000 },
+				seg = "ThighR",
+			}, -- 372 tris
+			Weak = {
+				role = "weak",
+				size = { 10.000, 10.000, 6.200 },
+				offset = { 0.000, 72.000, -18.600 },
+				seg = "Body",
+			}, -- 288 tris
+		},
+		-- the rig (Shared.BossPose poses it): each segment turns about its pivot (x, up, z from the feet),
+		-- parents first; Root is the feet. The objectives on the body ride on the Body segment
+		rig = {
+			{ name = "Body", parent = "Root", pivot = { 0, 48, 0 } },
+			{ name = "ThighL", parent = "Root", pivot = { -13.3, 48, 0 } },
+			{ name = "ShinL", parent = "ThighL", pivot = { -14, 31, 0 } },
+			{ name = "ThighR", parent = "Root", pivot = { 13.3, 48, 0 } },
+			{ name = "ShinR", parent = "ThighR", pivot = { 14, 31, 0 } },
+			{ name = "Head", parent = "Body", pivot = { 0, 91, -1 } },
+			{ name = "Jaw", parent = "Head", pivot = { 0, 90, -2 } },
+			{ name = "ArmL", parent = "Body", pivot = { -28, 82, 0 } },
+			{ name = "ForeL", parent = "ArmL", pivot = { -32, 59, 1 } },
+			{ name = "ArmR", parent = "Body", pivot = { 28, 82, 0 } },
+			{ name = "ForeR", parent = "ArmR", pivot = { 33, 60, 2 } },
 		},
 		-- the objective, set at each Config.Boss objective (offsets from its point; the Maw's from the
 		-- generator's foot)
@@ -74,6 +210,7 @@ return {
 				at = { -14, 4.6, -2 },
 				color = { 62, 168, 178 },
 				mat = "SmoothPlastic",
+				seg = "ShinL",
 			},
 			{
 				role = "body",
@@ -82,8 +219,9 @@ return {
 				at = { -14, 27, 0 },
 				color = { 238, 218, 168 },
 				mat = "SmoothPlastic",
+				seg = "ShinL",
 			},
-			{ role = "weak", shape = "Ball", size = { 5, 5, 5 }, at = { -14, 30, -7.6 } },
+			{ role = "weak", shape = "Ball", size = { 5, 5, 5 }, at = { -14, 30, -7.6 }, seg = "ShinL" },
 			{
 				role = "body",
 				shape = "Block",
@@ -91,6 +229,7 @@ return {
 				at = { 14, 4.6, -2 },
 				color = { 214, 64, 52 },
 				mat = "SmoothPlastic",
+				seg = "ShinR",
 			},
 			{
 				role = "body",
@@ -99,8 +238,9 @@ return {
 				at = { 14, 27, 0 },
 				color = { 62, 168, 178 },
 				mat = "SmoothPlastic",
+				seg = "ShinR",
 			},
-			{ role = "weak", shape = "Ball", size = { 5, 5, 5 }, at = { 14, 30, -7.6 } },
+			{ role = "weak", shape = "Ball", size = { 5, 5, 5 }, at = { 14, 30, -7.6 }, seg = "ShinR" },
 			{
 				role = "body",
 				shape = "Block",
@@ -108,8 +248,9 @@ return {
 				at = { 0, 68, 0 },
 				color = { 214, 64, 52 },
 				mat = "SmoothPlastic",
+				seg = "Body",
 			},
-			{ role = "weak", shape = "Ball", size = { 7, 7, 7 }, at = { 0, 72, -17.6 } },
+			{ role = "weak", shape = "Ball", size = { 7, 7, 7 }, at = { 0, 72, -17.6 }, seg = "Body" },
 			{
 				role = "body",
 				shape = "Block",
@@ -117,6 +258,7 @@ return {
 				at = { 0, 99.5, -2.6 },
 				color = { 62, 168, 178 },
 				mat = "SmoothPlastic",
+				seg = "Head",
 			},
 			{
 				role = "body",
@@ -125,6 +267,7 @@ return {
 				at = { 0, 89, -9 },
 				color = { 196, 202, 212 },
 				mat = "Metal",
+				seg = "Jaw",
 			},
 			{
 				role = "glow",
@@ -132,6 +275,7 @@ return {
 				size = { 1, 5.6, 5.6 },
 				at = { -6.2, 99.6, -13 },
 				rot = { 0, 90, 0 },
+				seg = "Head",
 			},
 			{
 				role = "glow",
@@ -139,6 +283,7 @@ return {
 				size = { 1, 5.6, 5.6 },
 				at = { 6.2, 99.6, -13 },
 				rot = { 0, 90, 0 },
+				seg = "Head",
 			},
 			{
 				role = "body",
@@ -148,6 +293,7 @@ return {
 				rot = { 0, 0, -6 },
 				color = { 238, 218, 168 },
 				mat = "SmoothPlastic",
+				seg = "ArmL",
 			},
 			{
 				role = "body",
@@ -156,6 +302,7 @@ return {
 				at = { -33, 32, -1 },
 				color = { 62, 168, 178 },
 				mat = "SmoothPlastic",
+				seg = "ForeL",
 			},
 			{
 				role = "body",
@@ -165,6 +312,7 @@ return {
 				rot = { 0, 0, 5 },
 				color = { 250, 196, 40 },
 				mat = "SmoothPlastic",
+				seg = "ArmR",
 			},
 			{
 				role = "body",
@@ -173,6 +321,7 @@ return {
 				at = { 34, 34, -1.5 },
 				color = { 40, 38, 44 },
 				mat = "SmoothPlastic",
+				seg = "ForeR",
 			},
 			{
 				role = "body",
@@ -182,6 +331,7 @@ return {
 				rot = { 0, 0, 90 },
 				color = { 196, 202, 212 },
 				mat = "Metal",
+				seg = "Body",
 			},
 		},
 		objectiveParts = {
@@ -220,15 +370,138 @@ return {
 		debris = { 150, 120, 230 }, -- the bits that fly off
 		fx = { kind = "light", every = 0.12, reach = 34, dim = 0.22, at = { { 0, 31, -44 } } },
 		pieces = {
-			Glow = { role = "glow", size = { 38.406, 44.854, 145.873 }, offset = { 0.011, 30.263, 10.864 } }, -- 2044 tris
-			Hull = { role = "hull", size = { 43.799, 58.900, 136.962 }, offset = { 0.000, 29.450, 13.481 } }, -- 5346 tris
-			Plates2 = { role = "shed2", size = { 40.000, 17.818, 44.000 }, offset = { 0.000, 36.000, 4.000 } }, -- 360 tris
+			Glow = {
+				role = "glow",
+				size = { 32.202, 21.110, 62.449 },
+				offset = { 0.000, 40.785, 9.087 },
+				seg = "Body",
+			}, -- 372 tris
+			Head_Glow = {
+				role = "glow",
+				size = { 29.200, 29.757, 35.473 },
+				offset = { 0.000, 37.811, -44.336 },
+				seg = "Head",
+			}, -- 1148 tris
+			Head_Hull = {
+				role = "hull",
+				size = { 40.432, 35.501, 43.572 },
+				offset = { 0.000, 39.739, -33.214 },
+				seg = "Head",
+			}, -- 762 tris
+			Head_Plates3 = {
+				role = "shed3",
+				size = { 30.000, 4.888, 10.000 },
+				offset = { 0.000, 50.980, -39.000 },
+				seg = "Head",
+			}, -- 216 tris
+			Hull = {
+				role = "hull",
+				size = { 39.649, 41.100, 68.000 },
+				offset = { 0.000, 38.350, 10.000 },
+				seg = "Body",
+			}, -- 1853 tris
+			Jaw_Glow = {
+				role = "glow",
+				size = { 28.144, 15.059, 18.357 },
+				offset = { -0.480, 27.586, -52.888 },
+				seg = "Jaw",
+			}, -- 200 tris
+			Jaw_Hull = {
+				role = "hull",
+				size = { 31.000, 16.900, 36.000 },
+				offset = { 0.000, 22.550, -34.000 },
+				seg = "Jaw",
+			}, -- 327 tris
+			LegBL_Glow = {
+				role = "glow",
+				size = { 2.174, 13.437, 9.625 },
+				offset = { -18.071, 14.555, 26.596 },
+				seg = "LegBL",
+			}, -- 20 tris
+			LegBL_Hull = {
+				role = "hull",
+				size = { 12.711, 33.691, 20.400 },
+				offset = { -15.544, 16.846, 25.800 },
+				seg = "LegBL",
+			}, -- 565 tris
+			LegBR_Glow = {
+				role = "glow",
+				size = { 2.196, 13.437, 9.605 },
+				offset = { 18.116, 14.555, 26.557 },
+				seg = "LegBR",
+			}, -- 20 tris
+			LegBR_Hull = {
+				role = "hull",
+				size = { 12.711, 33.691, 20.400 },
+				offset = { 15.544, 16.846, 25.800 },
+				seg = "LegBR",
+			}, -- 565 tris
+			LegFL_Glow = {
+				role = "glow",
+				size = { 2.196, 13.132, 2.701 },
+				offset = { -18.095, 14.510, -17.054 },
+				seg = "LegFL",
+			}, -- 20 tris
+			LegFL_Hull = {
+				role = "hull",
+				size = { 12.344, 33.568, 13.844 },
+				offset = { -15.728, 16.784, -15.478 },
+				seg = "LegFL",
+			}, -- 565 tris
+			LegFR_Glow = {
+				role = "glow",
+				size = { 2.196, 13.132, 2.701 },
+				offset = { 18.095, 14.510, -17.054 },
+				seg = "LegFR",
+			}, -- 20 tris
+			LegFR_Hull = {
+				role = "hull",
+				size = { 12.344, 33.568, 13.844 },
+				offset = { 15.728, 16.784, -15.478 },
+				seg = "LegFR",
+			}, -- 565 tris
+			Plates2 = {
+				role = "shed2",
+				size = { 40.000, 17.818, 44.000 },
+				offset = { 0.000, 36.000, 4.000 },
+				seg = "Body",
+			}, -- 360 tris
 			Plates3 = {
 				role = "shed3",
-				size = { 46.675, 19.486, 38.600 },
-				offset = { 0.000, 43.681, -24.700 },
-			}, -- 408 tris
-			Weak = { role = "weak", size = { 30.529, 12.500, 14.697 }, offset = { 0.000, 60.000, 12.000 } }, -- 672 tris
+				size = { 46.675, 13.844, 17.200 },
+				offset = { 0.000, 40.860, -14.000 },
+				seg = "Body",
+			}, -- 192 tris
+			Tail_Glow = {
+				role = "glow",
+				size = { 5.440, 20.915, 27.872 },
+				offset = { -2.020, 39.543, 69.864 },
+				seg = "Tail",
+			}, -- 244 tris
+			Tail_Hull = {
+				role = "hull",
+				size = { 10.800, 25.765, 40.849 },
+				offset = { 0.000, 33.483, 61.537 },
+				seg = "Tail",
+			}, -- 144 tris
+			Weak = {
+				role = "weak",
+				size = { 30.529, 12.500, 14.697 },
+				offset = { 0.000, 60.000, 12.000 },
+				seg = "Body",
+			}, -- 672 tris
+		},
+		-- the rig (Shared.BossPose poses it): each segment turns about its pivot (x, up, z from the feet),
+		-- parents first; Root is the feet. The objectives on the body ride on the Body segment
+		rig = {
+			{ name = "Body", parent = "Root", pivot = { 0, 30, 4 } },
+			{ name = "Head", parent = "Body", pivot = { 0, 40, -18 } },
+			{ name = "Jaw", parent = "Head", pivot = { 0, 31, -20 } },
+			{ name = "Tail", parent = "Body", pivot = { 0, 27, 42 } },
+			{ name = "LegFL", parent = "Root", pivot = { -13, 32, -12 } },
+			{ name = "LegFR", parent = "Root", pivot = { 13, 32, -12 } },
+			{ name = "LegBL", parent = "Root", pivot = { -13, 32, 26 } },
+			{ name = "LegBR", parent = "Root", pivot = { 13, 32, 26 } },
 		},
 		-- the objective, set at each Config.Boss objective (offsets from its point; the Maw's from the
 		-- generator's foot)
@@ -254,6 +527,7 @@ return {
 				at = { 0, 34, 10 },
 				color = { 38, 32, 78 },
 				mat = "SmoothPlastic",
+				seg = "Body",
 			},
 			{
 				role = "body",
@@ -262,6 +536,7 @@ return {
 				at = { 0, 45, -32 },
 				color = { 38, 32, 78 },
 				mat = "SmoothPlastic",
+				seg = "Head",
 			},
 			{
 				role = "body",
@@ -271,6 +546,7 @@ return {
 				rot = { -14, 0, 0 },
 				color = { 20, 18, 42 },
 				mat = "SmoothPlastic",
+				seg = "Jaw",
 			},
 			{
 				role = "glow",
@@ -278,9 +554,10 @@ return {
 				size = { 1, 12, 12 },
 				at = { 0, 31, -44 },
 				rot = { 0, 90, 0 },
+				seg = "Head",
 			},
-			{ role = "glow", shape = "Block", size = { 16, 2, 1 }, at = { 0, 48.6, -46 } },
-			{ role = "glow", shape = "Block", size = { 2, 1, 60 }, at = { 0, 48.4, 10 } },
+			{ role = "glow", shape = "Block", size = { 16, 2, 1 }, at = { 0, 48.6, -46 }, seg = "Head" },
+			{ role = "glow", shape = "Block", size = { 2, 1, 60 }, at = { 0, 48.4, 10 }, seg = "Body" },
 			{
 				role = "body",
 				shape = "Block",
@@ -288,6 +565,7 @@ return {
 				at = { -16, 11, -12 },
 				color = { 38, 32, 78 },
 				mat = "SmoothPlastic",
+				seg = "LegFL",
 			},
 			{
 				role = "body",
@@ -296,6 +574,7 @@ return {
 				at = { -16, 11, 24 },
 				color = { 38, 32, 78 },
 				mat = "SmoothPlastic",
+				seg = "LegBL",
 			},
 			{
 				role = "body",
@@ -304,6 +583,7 @@ return {
 				at = { 16, 11, -12 },
 				color = { 38, 32, 78 },
 				mat = "SmoothPlastic",
+				seg = "LegFR",
 			},
 			{
 				role = "body",
@@ -312,6 +592,7 @@ return {
 				at = { 16, 11, 24 },
 				color = { 38, 32, 78 },
 				mat = "SmoothPlastic",
+				seg = "LegBR",
 			},
 			{
 				role = "weak",
@@ -319,6 +600,7 @@ return {
 				size = { 12, 5, 5 },
 				at = { -12, 55, 8 },
 				rot = { 0, 0, 90 },
+				seg = "Body",
 			},
 			{
 				role = "weak",
@@ -326,6 +608,7 @@ return {
 				size = { 16, 5, 5 },
 				at = { 0, 58, 16 },
 				rot = { 0, 0, 90 },
+				seg = "Body",
 			},
 			{
 				role = "weak",
@@ -333,6 +616,7 @@ return {
 				size = { 12, 5, 5 },
 				at = { 12, 55, 8 },
 				rot = { 0, 0, 90 },
+				seg = "Body",
 			},
 		},
 		objectiveParts = {
@@ -366,19 +650,116 @@ return {
 			at = { { 0, 15, -2 }, { -14, 18, 12 }, { 14, 18, 12 }, { 0, 64.5, -30 } },
 		},
 		pieces = {
-			Glow = { role = "glow", size = { 32.848, 77.991, 129.200 }, offset = { 0.000, 27.005, 14.000 } }, -- 548 tris
-			Hull = { role = "hull", size = { 60.000, 106.044, 204.953 }, offset = { 0.000, 13.121, 40.476 } }, -- 7696 tris
-			Plates2 = {
+			CogL_Hull = {
+				role = "hull",
+				size = { 2.600, 11.946, 12.130 },
+				offset = { -14.600, 6.473, 34.000 },
+				seg = "CogL",
+			}, -- 172 tris
+			CogR_Hull = {
+				role = "hull",
+				size = { 2.600, 11.946, 12.130 },
+				offset = { 14.600, 6.473, 34.000 },
+				seg = "CogR",
+			}, -- 172 tris
+			GearL_Hull = {
+				role = "hull",
+				size = { 5.229, 17.800, 17.800 },
+				offset = { -15.286, 3.000, 16.000 },
+				seg = "GearL",
+			}, -- 236 tris
+			GearR_Hull = {
+				role = "hull",
+				size = { 5.372, 17.800, 17.800 },
+				offset = { 15.214, 3.000, 16.000 },
+				seg = "GearR",
+			}, -- 236 tris
+			Glow = {
+				role = "glow",
+				size = { 32.848, 26.241, 82.650 },
+				offset = { 0.000, 1.130, 37.275 },
+				seg = "Body",
+			}, -- 448 tris
+			Head_Glow = {
+				role = "glow",
+				size = { 14.400, 32.200, 20.000 },
+				offset = { 0.000, 49.900, -40.600 },
+				seg = "Head",
+			}, -- 100 tris
+			Head_Hull = {
+				role = "hull",
+				size = { 27.600, 33.065, 40.000 },
+				offset = { 0.000, 49.610, -42.000 },
+				seg = "Head",
+			}, -- 1190 tris
+			Head_Plates2 = {
 				role = "shed2",
 				size = { 35.918, 13.477, 17.010 },
 				offset = { 0.000, 44.749, -27.098 },
+				seg = "Head",
 			}, -- 256 tris
-			Plates3 = {
+			Head_Weak = {
+				role = "weak",
+				size = { 23.600, 6.000, 6.000 },
+				offset = { 0.000, 50.000, -46.600 },
+				seg = "Head",
+			}, -- 576 tris
+			Hull = {
+				role = "hull",
+				size = { 60.000, 60.951, 171.386 },
+				offset = { 0.000, -4.711, 54.637 },
+				seg = "Body",
+			}, -- 3396 tris
+			Jaw_Hull = {
+				role = "hull",
+				size = { 20.000, 11.600, 31.000 },
+				offset = { 0.000, 34.200, -41.500 },
+				seg = "Jaw",
+			}, -- 286 tris
+			Neck_Hull = {
+				role = "hull",
+				size = { 23.424, 47.042, 36.734 },
+				offset = { 0.000, 21.173, -16.204 },
+				seg = "Neck",
+			}, -- 1176 tris
+			Neck_Plates3 = {
 				role = "shed3",
 				size = { 23.100, 37.278, 32.734 },
 				offset = { 0.000, 17.518, -14.960 },
+				seg = "Neck",
 			}, -- 296 tris
-			Weak = { role = "weak", size = { 23.600, 40.780, 55.000 }, offset = { 0.000, 32.610, -22.100 } }, -- 864 tris
+			Turbine_Hull = {
+				role = "hull",
+				size = { 10.000, 1.129, 10.000 },
+				offset = { 0.000, 13.900, 2.000 },
+				seg = "Turbine",
+			}, -- 352 tris
+			Weak = {
+				role = "weak",
+				size = { 6.800, 4.760, 6.800 },
+				offset = { 0.000, 14.600, 2.000 },
+				seg = "Body",
+			}, -- 288 tris
+			Wheel_Hull = {
+				role = "hull",
+				size = { 13.000, 12.802, 1.905 },
+				offset = { 0.000, -33.500, 142.000 },
+				seg = "Wheel",
+			}, -- 480 tris
+		},
+		-- the rig (Shared.BossPose poses it): each segment turns about its pivot (x, up, z from the feet),
+		-- parents first; Root is the feet. The objectives on the body ride on the Body segment
+		rig = {
+			{ name = "Body", parent = "Root", pivot = { 0, 0, 20 } },
+			{ name = "Neck", parent = "Body", pivot = { 0, 4, -6 } },
+			{ name = "Head", parent = "Neck", pivot = { 0, 40, -26 } },
+			{ name = "Jaw", parent = "Head", pivot = { 0, 37, -28 } },
+			{ name = "GearL", parent = "Body", pivot = { -16.4, 3, 16 } },
+			{ name = "GearR", parent = "Body", pivot = { 16.4, 3, 16 } },
+			{ name = "CogL", parent = "Body", pivot = { -14.6, 6.5, 34 } },
+			{ name = "CogR", parent = "Body", pivot = { 14.6, 6.5, 34 } },
+			{ name = "Turbine", parent = "Body", pivot = { 0, 13.9, 2 } },
+			{ name = "Wheel", parent = "Body", pivot = { 0, -33.5, 142 } },
 		},
 		-- the objective, set at each Config.Boss objective (offsets from its point; the Maw's from the
 		-- generator's foot)
@@ -401,6 +782,7 @@ return {
 				rot = { -10, 0, 0 },
 				color = { 92, 108, 100 },
 				mat = "Slate",
+				seg = "Body",
 			},
 			{
 				role = "body",
@@ -410,6 +792,7 @@ return {
 				rot = { -10, 0, 0 },
 				color = { 204, 152, 64 },
 				mat = "Metal",
+				seg = "Body",
 			},
 			{
 				role = "body",
@@ -419,6 +802,7 @@ return {
 				rot = { -10, 0, 0 },
 				color = { 92, 108, 100 },
 				mat = "Slate",
+				seg = "Body",
 			},
 			{
 				role = "body",
@@ -428,6 +812,7 @@ return {
 				rot = { -10, 0, 0 },
 				color = { 204, 152, 64 },
 				mat = "Metal",
+				seg = "Body",
 			},
 			{
 				role = "body",
@@ -437,6 +822,7 @@ return {
 				rot = { -10, 0, 0 },
 				color = { 92, 108, 100 },
 				mat = "Slate",
+				seg = "Body",
 			},
 			{
 				role = "body",
@@ -446,6 +832,7 @@ return {
 				rot = { -10, 0, 0 },
 				color = { 204, 152, 64 },
 				mat = "Metal",
+				seg = "Body",
 			},
 			{
 				role = "body",
@@ -454,6 +841,7 @@ return {
 				at = { -16.4, 3, 16 },
 				color = { 204, 152, 64 },
 				mat = "Metal",
+				seg = "GearL",
 			},
 			{
 				role = "body",
@@ -462,6 +850,7 @@ return {
 				at = { 16.4, 3, 16 },
 				color = { 204, 152, 64 },
 				mat = "Metal",
+				seg = "GearR",
 			},
 			{
 				role = "body",
@@ -471,8 +860,9 @@ return {
 				rot = { 0, 0, 90 },
 				color = { 204, 152, 64 },
 				mat = "Metal",
+				seg = "Body",
 			},
-			{ role = "weak", shape = "Ball", size = { 6, 6, 6 }, at = { 0, 14.6, 2 } },
+			{ role = "weak", shape = "Ball", size = { 6, 6, 6 }, at = { 0, 14.6, 2 }, seg = "Body" },
 			{
 				role = "body",
 				shape = "Block",
@@ -481,6 +871,7 @@ return {
 				rot = { -35, 0, 0 },
 				color = { 204, 152, 64 },
 				mat = "Metal",
+				seg = "Neck",
 			},
 			{
 				role = "body",
@@ -490,6 +881,7 @@ return {
 				rot = { -35, 0, 0 },
 				color = { 86, 168, 148 },
 				mat = "Metal",
+				seg = "Neck",
 			},
 			{
 				role = "body",
@@ -499,6 +891,7 @@ return {
 				rot = { -35, 0, 0 },
 				color = { 204, 152, 64 },
 				mat = "Metal",
+				seg = "Neck",
 			},
 			{
 				role = "body",
@@ -507,6 +900,7 @@ return {
 				at = { 0, 47.5, -38 },
 				color = { 204, 152, 64 },
 				mat = "Metal",
+				seg = "Head",
 			},
 			{
 				role = "body",
@@ -515,16 +909,18 @@ return {
 				at = { 0, 34.5, -41 },
 				color = { 92, 108, 100 },
 				mat = "Slate",
+				seg = "Jaw",
 			},
-			{ role = "glow", shape = "Block", size = { 14, 4, 1 }, at = { 0, 38, -54 } },
-			{ role = "weak", shape = "Ball", size = { 6, 6, 6 }, at = { -8.8, 50, -46.6 } },
-			{ role = "weak", shape = "Ball", size = { 6, 6, 6 }, at = { 8.8, 50, -46.6 } },
+			{ role = "glow", shape = "Block", size = { 14, 4, 1 }, at = { 0, 38, -54 }, seg = "Head" },
+			{ role = "weak", shape = "Ball", size = { 6, 6, 6 }, at = { -8.8, 50, -46.6 }, seg = "Head" },
+			{ role = "weak", shape = "Ball", size = { 6, 6, 6 }, at = { 8.8, 50, -46.6 }, seg = "Head" },
 			{
 				role = "glow",
 				shape = "Block",
 				size = { 1, 2, 26 },
 				at = { -15.4, 3.5, 12 },
 				rot = { -10, 0, 0 },
+				seg = "GearL",
 			},
 			{
 				role = "glow",
@@ -532,6 +928,7 @@ return {
 				size = { 1, 2, 26 },
 				at = { 15.4, 3.5, 12 },
 				rot = { -10, 0, 0 },
+				seg = "GearR",
 			},
 			{
 				role = "body",
@@ -540,6 +937,7 @@ return {
 				at = { 0, 58, -33 },
 				color = { 92, 108, 100 },
 				mat = "Slate",
+				seg = "Head",
 			},
 			{
 				role = "body",
@@ -548,6 +946,7 @@ return {
 				at = { 0, 2, -6 },
 				color = { 92, 108, 100 },
 				mat = "Slate",
+				seg = "Body",
 			},
 			{
 				role = "body",
@@ -556,6 +955,7 @@ return {
 				at = { 0, -30, 142 },
 				color = { 204, 152, 64 },
 				mat = "Metal",
+				seg = "Wheel",
 			},
 		},
 		objectiveParts = {
@@ -580,15 +980,134 @@ return {
 		triangles = 7170,
 		glow = { { 110, 210, 255 }, { 255, 136, 40 }, { 255, 52, 48 } }, -- phases 1, 2, 3
 		pieces = {
-			Glow = { role = "glow", size = { 18.200, 31.200, 23.300 }, offset = { 0.000, 42.800, 0.850 } }, -- 176 tris
-			Hull = { role = "hull", size = { 55.941, 64.500, 25.382 }, offset = { 0.000, 32.250, 1.670 } }, -- 5178 tris
+			ArmL_Hull = {
+				role = "hull",
+				size = { 13.415, 20.000, 13.022 },
+				offset = { -19.107, 40.600, -0.289 },
+				seg = "ArmL",
+			}, -- 652 tris
+			ArmR_Hull = {
+				role = "hull",
+				size = { 13.415, 20.000, 13.022 },
+				offset = { 19.107, 40.600, -0.289 },
+				seg = "ArmR",
+			}, -- 652 tris
+			ForeL_Hull = {
+				role = "hull",
+				size = { 9.404, 16.163, 9.732 },
+				offset = { -23.269, 26.482, -0.516 },
+				seg = "ForeL",
+			}, -- 216 tris
+			ForeL_Plates3 = {
+				role = "shed3",
+				size = { 6.191, 8.004, 4.140 },
+				offset = { -26.900, 29.000, -0.300 },
+				seg = "ForeL",
+			}, -- 44 tris
+			ForeR_Hull = {
+				role = "hull",
+				size = { 9.404, 21.680, 13.776 },
+				offset = { 23.269, 23.723, -2.538 },
+				seg = "ForeR",
+			}, -- 260 tris
+			ForeR_Plates3 = {
+				role = "shed3",
+				size = { 6.191, 8.004, 4.140 },
+				offset = { 26.900, 29.000, -0.300 },
+				seg = "ForeR",
+			}, -- 44 tris
+			Glow = {
+				role = "glow",
+				size = { 18.200, 14.600, 23.300 },
+				offset = { 0.000, 34.500, 0.850 },
+				seg = "Body",
+			}, -- 164 tris
+			Head_Glow = {
+				role = "glow",
+				size = { 10.000, 1.800, 1.400 },
+				offset = { 0.000, 57.500, -7.000 },
+				seg = "Head",
+			}, -- 12 tris
+			Head_Hull = {
+				role = "hull",
+				size = { 19.600, 14.325, 13.200 },
+				offset = { 0.000, 57.338, -1.200 },
+				seg = "Head",
+			}, -- 344 tris
+			Head_Plates3 = {
+				role = "shed3",
+				size = { 14.400, 4.400, 7.000 },
+				offset = { 0.000, 53.800, -2.500 },
+				seg = "Head",
+			}, -- 88 tris
+			Hull = {
+				role = "hull",
+				size = { 35.000, 29.700, 25.331 },
+				offset = { 0.000, 39.850, 1.695 },
+				seg = "Body",
+			}, -- 1248 tris
 			Plates2 = {
 				role = "shed2",
 				size = { 37.602, 27.199, 14.019 },
 				offset = { 0.000, 34.599, -1.167 },
+				seg = "Body",
 			}, -- 264 tris
-			Plates3 = { role = "shed3", size = { 59.991, 31.002, 7.770 }, offset = { 0.000, 40.499, -2.115 } }, -- 176 tris
-			Weak = { role = "weak", size = { 12.800, 32.300, 26.780 }, offset = { 0.000, 27.650, 2.590 } }, -- 864 tris
+			ShinL_Hull = {
+				role = "hull",
+				size = { 15.073, 17.705, 20.021 },
+				offset = { -7.936, 8.852, -1.010 },
+				seg = "ShinL",
+			}, -- 555 tris
+			ShinL_Weak = {
+				role = "weak",
+				size = { 5.000, 5.000, 5.000 },
+				offset = { -3.900, 14.000, -8.300 },
+				seg = "ShinL",
+			}, -- 288 tris
+			ShinR_Hull = {
+				role = "hull",
+				size = { 15.073, 17.705, 20.021 },
+				offset = { 7.936, 8.852, -1.010 },
+				seg = "ShinR",
+			}, -- 555 tris
+			ShinR_Weak = {
+				role = "weak",
+				size = { 5.000, 5.000, 5.000 },
+				offset = { 3.900, 14.000, -8.300 },
+				seg = "ShinR",
+			}, -- 288 tris
+			ThighL_Hull = {
+				role = "hull",
+				size = { 8.461, 17.861, 11.321 },
+				offset = { -6.349, 22.569, -1.661 },
+				seg = "ThighL",
+			}, -- 348 tris
+			ThighR_Hull = {
+				role = "hull",
+				size = { 8.461, 17.861, 11.321 },
+				offset = { 6.349, 22.569, -1.661 },
+				seg = "ThighR",
+			}, -- 348 tris
+			Weak = {
+				role = "weak",
+				size = { 7.600, 7.600, 4.560 },
+				offset = { 0.000, 40.000, 13.700 },
+				seg = "Body",
+			}, -- 288 tris
+		},
+		-- the rig (Shared.BossPose poses it): each segment turns about its pivot (x, up, z from the feet),
+		-- parents first; Root is the feet. The objectives on the body ride on the Body segment
+		rig = {
+			{ name = "Body", parent = "Root", pivot = { 0, 28, 0 } },
+			{ name = "ThighL", parent = "Root", pivot = { -6.6, 27.5, 0 } },
+			{ name = "ShinL", parent = "ThighL", pivot = { -5, 14, -4.5 } },
+			{ name = "ThighR", parent = "Root", pivot = { 6.6, 27.5, 0 } },
+			{ name = "ShinR", parent = "ThighR", pivot = { 5, 14, -4.5 } },
+			{ name = "Head", parent = "Body", pivot = { 0, 50.5, 0 } },
+			{ name = "ArmL", parent = "Body", pivot = { -18, 46, 0 } },
+			{ name = "ForeL", parent = "ArmL", pivot = { -22.5, 34, 0.5 } },
+			{ name = "ArmR", parent = "Body", pivot = { 18, 46, 0 } },
+			{ name = "ForeR", parent = "ArmR", pivot = { 22.5, 34, 0.5 } },
 		},
 		-- the objective, set at each Config.Boss objective (offsets from its point; the Maw's from the
 		-- generator's foot)
