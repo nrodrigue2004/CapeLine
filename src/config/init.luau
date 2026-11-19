@@ -16,6 +16,7 @@ local NAMES = {
 	"Net",
 	"Safety",
 	"Fx",
+	"FxMoves", -- every ability's own effect recipe (nate's playtest 2026-11-19: more unique effects)
 	"Ui",
 	"Dev",
 	"Places",

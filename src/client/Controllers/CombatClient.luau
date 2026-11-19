@@ -331,6 +331,8 @@ function CombatClient.fire(id: string, charge: number?): boolean
 	else
 		HeroAnimator.cast(player, row, step)
 	end
+	-- every ability's own look (Config.FxMoves): your predicted shapes draw with this move in scope
+	local fxPrev = CombatFx.begin(id, true)
 	if eff.cast and eff.cast > 0 then
 		CombatFx.windup(myChest, eff.cast, style, color, eff.set)
 	elseif shape == "bolt" and not eff.channel then
@@ -391,7 +393,9 @@ function CombatClient.fire(id: string, charge: number?): boolean
 				MoveController.dash(Vector3.new(0, -1, 0), down - 3, 0.2)
 			end
 			task.delay(if down > 6 then 0.2 else 0, function()
+				local prev = CombatFx.begin(id, true)
 				CombatFx.nova(ground, eff.radius, style, color, true, eff.set)
+				CombatFx.finish(prev)
 				CameraController.shake(0.25, 0.6)
 			end)
 		else
@@ -447,9 +451,11 @@ function CombatClient.fire(id: string, charge: number?): boolean
 		local target = root.Position + f * math.max(0, fwd - 2) + Vector3.new(0, up, 0)
 		MoveController.launchTo(target, eff.time or 0.5, math.max(4, up * 0.25))
 	end
+	CombatFx.finish(fxPrev)
 	-- every path's own look and sound (overhaul plan step 6): the flourish, the super's moment, the sound layer
+	-- (the path's flourish is for skills and supers; every move, basics too, adds its own: Config.FxMoves)
+	CombatFx.castFlourish(eff, style, origin, dir, player.UserId)
 	if slot ~= "basic" then
-		CombatFx.castFlourish(eff, style, origin, dir, player.UserId)
 		Juice.path(eff.set, if slot == "super" then "super" else "cast", origin)
 	end
 	if slot == "super" and PREDICTED[shape] and not (eff.cast and eff.cast > 0) and not eff.channel then
@@ -498,7 +504,7 @@ local function drawHits(r: any, row: any, style: string, mine: boolean)
 		anyCrit = anyCrit or crit
 		EnemyRenderer.flash(h[1])
 		if not tick or crit then
-			CombatFx.impact(pos, crit, style, mine, color, row and row.set)
+			CombatFx.impact(pos, crit, style, mine, color, row and row.set, row and row.id)
 		end
 		-- weighty hits (Config.Combat.weight): the robot freezes with you, then recoils; sparks spray out
 		if not tick and h[4] ~= 1 then

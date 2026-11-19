@@ -213,6 +213,127 @@ function FxPlan.pieces(L: any, preset: string, n: number, scale: number?): numbe
 	return math.max(1, math.floor(n * share * (scale or 1) + 0.5))
 end
 
+---------------------------------------------------------------------------
+-- Every ability's own look (nate's playtest 2026-11-19: "Need more unique effects"; Config.FxMoves, drawn by
+-- the client's Fx/AbilityFx on top of the path's look). Tests: tests/fx_unique_test.luau.
+---------------------------------------------------------------------------
+
+-- the names a recipe may use; AbilityFx has one drawing for each (tests check both sides)
+FxPlan.TRAILS = { "none", "ribbon", "spiral", "beads", "zigzag", "twin", "comet", "wake", "sparkle", "smoke" }
+FxPlan.HITS = {
+	"none",
+	"ring",
+	"crater",
+	"sparks",
+	"shards",
+	"splash",
+	"pillar",
+	"starburst",
+	"petals",
+	"spiral",
+	"cross",
+	"bloom",
+	"shatter",
+	"bubble",
+	"rays",
+	"cage",
+	"rune",
+}
+FxPlan.FLAIRS = {
+	"none",
+	"sigil",
+	"crack",
+	"burst",
+	"spin",
+	"pillar",
+	"fan",
+	"orbs",
+	"vent",
+	"halo",
+	"flash",
+	"wings",
+	"lines",
+	"rune",
+	"dust",
+}
+FxPlan.SCREENS = { "none", "flash", "bars", "vignette", "lines", "slash", "invert", "pulse" }
+-- screen moments that flash the whole screen (skipped with Reduce flashing on)
+FxPlan.FLASHY_SCREENS = { flash = true, invert = true, pulse = true }
+-- the shapes where something flies, so the move has a trail
+FxPlan.TRAVEL = { bolt = true, chain = true, line = true, dash = true, leap = true }
+
+-- an ability's recipe, or nil (weapon moves and unknown ids keep the path's look alone)
+function FxPlan.recipeOf(M: any, id: string?): any?
+	return id and M.moves[id] or nil
+end
+
+-- one particle count, scaled like FxPlan.plan (a one-off kind always shows; the rest scale, at least one)
+function FxPlan.count(base: number, share: number, scale: number?): number
+	if base <= 1 then
+		return base
+	end
+	return math.max(1, math.floor(base * share * (scale or 1) + 0.5))
+end
+
+-- what one recipe moment draws on a preset: particles (each kind scaled) and pieces (FxPlan.pieces), times
+-- `times` (a trail's points). kind is "trail", "hit" or "flair".
+function FxPlan.momentCost(
+	L: any,
+	M: any,
+	kind: string,
+	name: string?,
+	preset: string,
+	scale: number?,
+	times: number?
+): (number, number)
+	local row = name and M.kit[kind][name]
+	if not row then
+		return 0, 0
+	end
+	local share = L.scale[preset] or L.scale.medium
+	local particles = 0
+	for _, n in row.fx do
+		particles += FxPlan.count(n, share, scale)
+	end
+	local parts = if row.parts > 0 then FxPlan.pieces(L, preset, row.parts, scale) else 0
+	local k = times or 1
+	return particles * k, parts
+end
+
+-- a whole move on a preset: its flair, its trail and its hit on `targets` robots (particles, pieces)
+function FxPlan.moveCost(
+	L: any,
+	M: any,
+	recipe: any,
+	preset: string,
+	targets: number,
+	scale: number?
+): (number, number)
+	local p1, q1 = FxPlan.momentCost(L, M, "flair", recipe.flair, preset, scale)
+	local p2, q2 = FxPlan.momentCost(L, M, "trail", recipe.trail, preset, scale, M.kit.trailPoints)
+	local p3, q3 = FxPlan.momentCost(L, M, "hit", recipe.hit, preset, scale)
+	return p1 + p2 + p3 * targets, q1 + q2 + q3 * targets
+end
+
+-- the draw size of a recipe for a slot (a basic draws smaller), clamped so no move outgrows its path
+function FxPlan.recipeSize(M: any, recipe: any, slot: string?): number
+	local s = math.clamp(recipe.size or 1, 0.6, 1.6)
+	return if slot == "basic" then s * M.kit.basicScale else s
+end
+
+-- what makes a recipe look like itself, for the "no two the same" checks
+function FxPlan.recipeKey(recipe: any): string
+	return table.concat({
+		recipe.flair or "none",
+		recipe.hit or "none",
+		recipe.trail or "none",
+		recipe.head or "-",
+		recipe.mark or "-",
+		recipe.cast or "-",
+		recipe.screen or "none",
+	}, "/")
+end
+
 -- where charge mote i of n sits around the hand: wide and slow when the charge starts, tight, quick and big
 -- at full (level 0 to 1, t in seconds). Returns the offset (x, y, z) and the mote's size.
 function FxPlan.orbit(charge: any, level: number, t: number, i: number): (number, number, number, number)

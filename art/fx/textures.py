@@ -11,7 +11,7 @@ preview art/preview/fx_trails.png; `--trails` draws only those.
 nate uploads the PNGs (Studio Asset Manager, bulk import), then puts each id in Config.Fx.lib.textures.
 Until then the game uses Roblox's built-in particle images.
 
-    python3 art/fx/textures.py [--trails]
+    python3 art/fx/textures.py [--trails] [--moves]   (--moves: only rune.png and scorch.png, Config.FxMoves)
 """
 
 import math
@@ -354,6 +354,59 @@ def ink(size=128):
 
 
 # ---------------------------------------------------------------------------
+# every ability's own look (nate's playtest 2026-11-19, Config.FxMoves): two flat ground sheets. Not uploaded
+# yet: the game uses built-in images until their ids are in Config.Fx.lib.textures (PLACEHOLDER ART).
+# ---------------------------------------------------------------------------
+def rune(size=256):
+    # a ground rune circle: two rings, eight small diamonds between them and a four-point star inside. Plain
+    # geometry of our own (no real-world script or symbol).
+    img = Image.new("L", (size, size), 0)
+    d = ImageDraw.Draw(img)
+    c = size / 2
+    w = max(2, size // 80)
+    for R, fill in ((0.47, 255), (0.36, 220), (0.12, 200)):
+        d.ellipse([c - R * size, c - R * size, c + R * size, c + R * size], outline=fill, width=w)
+    for k in range(8):
+        a = k * math.tau / 8 + math.tau / 16
+        r0 = 0.415 * size
+        px, py = c + math.cos(a) * r0, c + math.sin(a) * r0
+        s = 0.03 * size
+        d.polygon([(px, py - s), (px + s, py), (px, py + s), (px - s, py)], fill=255)
+    for k in range(4):
+        a = k * math.tau / 4
+        tip = (c + math.cos(a) * 0.33 * size, c + math.sin(a) * 0.33 * size)
+        l = (c + math.cos(a + 0.5) * 0.1 * size, c + math.sin(a + 0.5) * 0.1 * size)
+        r = (c + math.cos(a - 0.5) * 0.1 * size, c + math.sin(a - 0.5) * 0.1 * size)
+        d.line([l, tip, r], fill=230, width=w)
+    img = img.filter(ImageFilter.GaussianBlur(1.0))
+    return to_image(np.clip(np.asarray(img, np.float32) / 255 * 1.2, 0, 1))
+
+
+def scorch(size=256):
+    # a scorch mark: a soft dark blot with a ragged edge and a few streaks out (white here; the game tints it
+    # dark, LightEmission 0)
+    x, y = grid(size)
+    r = np.sqrt(x * x + y * y)
+    ang = np.arctan2(y, x)
+    n = noise(size, 6, 31)
+    edge = 0.62 + 0.12 * np.sin(ang * 7 + 1.3) + 0.1 * (n - 0.5)
+    body = np.clip((edge - r) / 0.18, 0, 1) ** 0.7
+    streaks = np.clip(np.cos(ang * 11) ** 24 * np.clip(1 - np.abs(r - 0.7) / 0.25, 0, 1), 0, 1) * 0.6
+    return to_image(np.clip(body * (0.75 + 0.25 * n) + streaks, 0, 1))
+
+
+MOVES = {"rune.png": rune, "scorch.png": scorch}
+
+
+def moves_main():
+    """Only the ability sheets (the uploaded library sheets stay as they are)."""
+    os.makedirs(OUT, exist_ok=True)
+    for name, fn in MOVES.items():
+        fn().save(os.path.join(OUT, name))
+    print("wrote", len(MOVES), "ability sheets to", OUT)
+
+
+# ---------------------------------------------------------------------------
 # the creator's flight trails (creator art round 2, 2026-11-18): strips for Roblox Trails, 512 x 128, u along
 # the trail (u = 0 the newest end), v across it; white on transparent so the trail's colours tint them
 # (Config.Creator.trailFx: Stretch strips fade along their length, Wrap strips repeat)
@@ -537,6 +590,9 @@ if __name__ == "__main__":
     if "--trails" in sys.argv:  # only the creator's trail strips (the library sheets above stay as uploaded)
         os.makedirs(OUT, exist_ok=True)
         trails_main()
+    elif "--moves" in sys.argv:  # only the ability sheets (Config.FxMoves), not uploaded yet
+        moves_main()
     else:
         main()
         trails_main()
+        moves_main()
