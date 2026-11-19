@@ -227,6 +227,30 @@ return {
 		Bulwark = { clothes = 116363104603810, face = 129527751609547, cracked = 140144429385939 }, -- royal blue armour, a yellow-edged silver chest plate, a hex back
 		Skylance = { clothes = 88797281558131, face = 75221313254249, cracked = 130978478789779 }, -- azure, three white streaks edged in cyan; chevrons on the back
 	},
+	-- The named cast with no creator look (2026-11-19, the hair fit pass): each one's Roblox catalog face and hair,
+	-- by name from Config.CatalogLooks, picked for who they are (hair = false: none, a hood or bald). Keys are
+	-- Config.Story.guides.speakers keys and Config.Mentors ids. The game wears these on the helpers' rigs, the
+	-- mentors' allies and Crane on the stage (NpcRig.wearCast), and art/panels/cast.luau draws the portraits
+	-- with them, so the art matches the world. People with a creator look name catalog pieces in the look itself.
+	cast = {
+		patch = { face = "Check It", hair = "Pal Hair" }, -- the Vigil's hacker kid: quick and cocky
+		crane = { face = "Know-It-All Grin", hair = "Brown Charmer Hair" }, -- the smiling CEO on every screen
+		insider = { face = "Stare", hair = false }, -- a voice in a hood
+		copy = { face = "Sinister", hair = "Black Short Wolf Cut" }, -- your robot copy
+		toymaker = { face = "Mr. Chuckles", hair = false }, -- the toy shop's old inventor, bald and sly
+		lark = { face = "Alright", hair = "Shimmering Brown French Braids" }, -- Patch's big sister, a flier
+		wren = { face = "Smiling Girl", hair = "Black Flowy Pigtails" }, -- the runaway student
+		toby = { face = "Big Sad Eyes", hair = "Blonde Spiked Hair" }, -- the boy whose Spark winds when upset
+		flint = { face = "Bandage", hair = "Crimson Shaggy 2.0" }, -- a young fighter, a plaster across the nose
+		finn = { face = "Joyful Smile", hair = "Cool Boy Hair" }, -- Skipper Nell's deckhand grandson
+		dace = { face = "Awkward Grin", hair = "Short Blue Hair" }, -- the diver whose dredger cracked the seal
+		ambrose = { face = "Winky", hair = "Platinum Blonde Bundles" }, -- an old stage magician, long white hair
+		hoshi = { face = "Chill", hair = "Messy Samurai Ponytail in Brown" }, -- the calm old master
+		CaptainMeridian = { face = "Smile", hair = "Beautiful Hair for Beautiful People" }, -- the by-the-book flyer
+		OldBeacon = { face = "Friendly Grin", hair = "Hair Base In Brown" }, -- the old street hero, the drill coach
+		TheMargrave = { face = "Take Over the World", hair = "Purple and Blue Male Hair Slick" }, -- the money man
+		TheVelvetPaw = { face = "Slickfang", hair = "Black Trendy Messy Buns" }, -- the cat burglar (buns for ears)
+	},
 	-- The named helpers a side quest step draws (who stands in for a `find` step's witness, or the one carried in
 	-- a `carry` step): chain id, step number and side; `speaker` is their Config.Story.guides.speakers card (its
 	-- portrait's skin and hair); shirt and pants colour them until their outfit is uploaded. Tests check each row

@@ -405,11 +405,11 @@ return {
 					hands = "Gloves",
 					feet = "Tall Boots",
 					emblem = "Star",
-					hair = "Slicked Back",
 					beard = "Full Beard",
 					shoulders = "Mantle",
 					belt = "Utility Belt",
-					visage = "Scarred Face",
+					visage = "Man Face", -- Roblox catalog face (picked for the character, 2026-11-19)
+					hair = "Black Braid", -- Roblox catalog hair
 				},
 				tints = { back = { 11, 4, 0 } },
 				mats = {},

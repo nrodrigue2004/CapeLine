@@ -9,6 +9,9 @@
 # Then writes src/config/ComicArt.luau (each panel's image id, each portrait's sheet and cell; ids from
 # art/export/panels/ids.json, which art/panels/upload.py fills; 0 = not uploaded, the UI draws today's frames)
 # and the contact sheets art/preview/panels.png and art/preview/portraits.png.
+# A portrait or panel with no raw render keeps its exported image as it is (2026-11-19: re-render only what
+# changed, so unchanged panels keep their uploaded ids; a kept portrait is cut from its old sheet cell, which
+# needs the cast's portrait order unchanged).
 # Run: python3 art/panels/post.py   (PIL and numpy)
 import json
 import math
@@ -165,9 +168,23 @@ def font(size):
     return ImageFont.load_default()
 
 
+def old_card(sheet_cache, si, c, r):
+    """A kept portrait: its card cut from the exported sheet (read before any sheet is rewritten)."""
+    img = sheet_cache.get(si)
+    if img is None:
+        raise SystemExit("post.py: no raw render and no old sheet for a portrait (sheet %d)" % (si + 1))
+    return img.crop((c * CELL, r * CELL, (c + 1) * CELL, (r + 1) * CELL))
+
+
 def main():
     os.makedirs(OUT, exist_ok=True)
     ids = json.load(open(IDS_PATH)) if os.path.isfile(IDS_PATH) else {}
+    sheet_cache = {}
+    for si in range(8):
+        path = os.path.join(OUT, "Portraits_%d.png" % (si + 1))
+        if os.path.isfile(path):
+            sheet_cache[si] = Image.open(path).convert("RGB")
+    kept = 0
     # portraits
     rows = CAST["portraits"]
     per = PER_ROW * PER_ROW
@@ -175,8 +192,12 @@ def main():
     for si in range((len(rows) + per - 1) // per):
         sheet = Image.new("RGB", (CELL * PER_ROW, CELL * PER_ROW), INK)
         for k, row in enumerate(rows[si * per:(si + 1) * per]):
-            card = portrait_card(row)
             c, r = k % PER_ROW, k // PER_ROW
+            if os.path.isfile(os.path.join(RAW, "portrait_%s.png" % row["key"])):
+                card = portrait_card(row)
+            else:
+                card = old_card(sheet_cache, si, c, r)
+                kept += 1
             sheet.paste(card, (c * CELL, r * CELL))
             cells[row["key"]] = (si, c, r)
             cards.append((row, card))
@@ -199,8 +220,12 @@ def main():
     # panels
     imgs = []
     for p in CAST["panels"]:
-        img = panel_image(p)
-        img.save(os.path.join(OUT, file_panel(p)))
+        if os.path.isfile(os.path.join(RAW, "panel_%s.png" % p["key"])):
+            img = panel_image(p)
+            img.save(os.path.join(OUT, file_panel(p)))
+        else:
+            img = Image.open(os.path.join(OUT, file_panel(p))).convert("RGB")  # kept as exported
+            kept += 1
         imgs.append((p, img))
     pages = sorted({p["page"] for p in CAST["panels"]})
     tw, th = 340, 170
@@ -213,8 +238,8 @@ def main():
                 sheet.paste(img.resize((tw, th), Image.LANCZOS), (220 + (p["index"] - 1) * tw, pi * (th + 6)))
     sheet.save(os.path.join(PREVIEW, "panels.png"))
     write_config(sheets, cells, ids)
-    print("post.py: %d portraits on %d sheets, %d panels; config and previews written" % (len(cards), len(sheets),
-                                                                                      len(imgs)))
+    print("post.py: %d portraits on %d sheets, %d panels (%d kept as exported); config and previews written" % (
+        len(cards), len(sheets), len(imgs), kept))
 
 
 if __name__ == "__main__":

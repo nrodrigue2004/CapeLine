@@ -275,6 +275,8 @@ local function helperRig(id: string, h: any): any
 	if fit then
 		NpcRig.wearOutfit(rig, fit, Config.NpcLooks.offsetSign)
 	end
+	-- their own catalog face and hair (Config.NpcLooks.cast, by speaker card), not a name hash
+	NpcRig.wearCast(rig, PeopleLooks.castPick(Config, h.speaker))
 	return rig
 end
 

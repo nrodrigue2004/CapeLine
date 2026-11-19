@@ -49,6 +49,8 @@ export type Rig = {
 	pants: Pants?,
 	-- catalog hair accessories worn (NpcRig.showHair shows one) and the blocky hair they replace
 	hairs: { BasePart }?,
+	-- true once NpcRig.wearCast put a named person's own catalog hair on (showHair then leaves it)
+	castHair: boolean?,
 }
 
 local GRIP = CFrame.Angles(-math.pi / 2, 0, 0)
@@ -400,6 +402,9 @@ local HAIR_SLOTS = 3
 -- picked by `seed` and shows the one `h` picks; the blocky "Hair" part hides once one is worn. Hairs that have
 -- not loaded yet are tried again on the next call, so a rig built early still gets one.
 function NpcRig.showHair(rig: Rig, seed: number, h: number)
+	if rig.castHair then
+		return -- a named person's own catalog hair (NpcRig.wearCast)
+	end
 	local hairs = rig.hairs or {}
 	rig.hairs = hairs
 	if #hairs == 0 then
@@ -431,6 +436,67 @@ function NpcRig.showHair(rig: Rig, seed: number, h: number)
 	local blocky = rig.model:FindFirstChild("Hair")
 	if blocky and blocky:IsA("BasePart") then
 		blocky.Transparency = 1
+	end
+end
+
+-- A named person's explicit Roblox catalog pick (Shared.PeopleLooks.castPick, Config.NpcLooks.cast; 2026-11-19,
+-- the hair fit pass): the face decal shows the picked catalog face, and the picked catalog hair replaces the hairs
+-- showHair hung on the rig (it goes on once CatalogLookService has loaded it); bald takes every hair off.
+function NpcRig.wearCast(rig: Rig, pick: { face: string?, hair: number?, bald: boolean? }?)
+	if not pick then
+		return
+	end
+	if pick.face then
+		local d = rig.parts.Head:FindFirstChild("face")
+		if d and d:IsA("Decal") then
+			d.Texture = pick.face
+		else
+			NpcRig.face(rig, pick.face)
+		end
+	end
+	if not pick.hair and not pick.bald then
+		return
+	end
+	for _, h in (rig.hairs or {}) :: { BasePart } do
+		h:Destroy()
+	end
+	rig.hairs = {}
+	rig.castHair = true -- showHair leaves this rig alone from now on
+	local blocky = rig.model:FindFirstChild("Hair")
+	if blocky and blocky:IsA("BasePart") then
+		blocky.Transparency = if pick.bald then 1 else 0 -- the blocky cap stays only until the catalog hair is in
+	end
+	local id = pick.hair
+	if not id then
+		return
+	end
+	local function put(acc: Instance): boolean
+		if not acc:IsA("Accessory") then
+			return false
+		end
+		local handle = NpcRig.wear(rig, acc, "CatHair1")
+		if handle then
+			rig.hairs = { handle }
+			if blocky and blocky:IsA("BasePart") then
+				blocky.Transparency = 1
+			end
+		end
+		return true
+	end
+	local lib = ReplicatedStorage:FindFirstChild("CatalogLooks")
+	local src = lib and lib:FindFirstChild(tostring(id))
+	if src then
+		put(src)
+	elseif lib then
+		local conn: RBXScriptConnection? = nil
+		conn = lib.ChildAdded:Connect(function(c)
+			if not rig.model.Parent then
+				(conn :: RBXScriptConnection):Disconnect()
+			elseif c.Name == tostring(id) then
+				(conn :: RBXScriptConnection):Disconnect()
+				put(c)
+			end
+		end)
 	end
 end
 

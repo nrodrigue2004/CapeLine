@@ -532,6 +532,14 @@ local function makeRobot(typeId: number, ident: { [string]: any }?): Body
 			crackFace = fit.cracked
 		elseif fr and (fr.cracked or 0) ~= 0 then
 			crackFace = "rbxassetid://" .. fr.cracked
+		elseif vp and string.sub(vp.kit, 1, 4) == "cat:" then
+			-- a catalog face (the hair fit pass, 2026-11-19) has no cracked twin: a fake cracks to one of the
+			-- shared cracked faces, picked by its face piece so each fake keeps its own
+			local order = NL.faceOrder
+			local f = NL.faces[order[(vp.index % #order) + 1]]
+			if f and (f.cracked or 0) ~= 0 then
+				crackFace = "rbxassetid://" .. f.cracked
+			end
 		end
 	end
 	local parts, names, cols, trans, byName, index = {}, {}, {}, {}, {}, {}

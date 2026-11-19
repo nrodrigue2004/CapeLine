@@ -501,10 +501,10 @@ return {
 					shoulders = "Riveted Pads",
 					belt = "Champion Belt",
 					beard = "Handlebar",
-					hair = "Slicked Back",
-					visage = "Scarred Face",
 					neck = "Chain",
 					feet = "Armored Boots",
+					visage = "Know-It-All Grin", -- Roblox catalog face (picked for the character, 2026-11-19)
+					hair = "Black Ponytail", -- Roblox catalog hair
 				},
 				tints = { hat = { 22, 38, 0 } }, -- a black top hat with a maroon band
 				mats = { hands = "Metal", shoulders = "Metal" }, -- iron gloves and riveted pads: the rig
@@ -548,9 +548,9 @@ return {
 					ears = "Fin Ears",
 					eyes = "Ice Glow",
 					emblem = "Orb Crest",
-					hair = "Long Straight",
 					beard = "Full Beard",
-					visage = "Stern Face",
+					visage = "Alien", -- Roblox catalog face (picked for the character, 2026-11-19)
+					hair = "Blue Anime Hair", -- Roblox catalog hair
 				},
 				tints = { back = { 31, 27, 0 } }, -- a sea-foam cape with bronze trim
 				mats = { suit = "Metal" },
@@ -585,9 +585,9 @@ return {
 					hands = "Gloves",
 					feet = "Tall Boots",
 					emblem = "Star Crest",
-					hair = "Long Straight",
-					visage = "Hero Face",
 					makeup = "Star Mark",
+					visage = "Woman Face", -- Roblox catalog face (picked for the character, 2026-11-19)
+					hair = "Platinum Blonde Bundles", -- Roblox catalog hair
 				},
 				tints = {},
 				mats = {},
@@ -620,9 +620,9 @@ return {
 					hands = "Work Gloves",
 					feet = "Combat Boots",
 					belt = "Tool Belt",
-					hair = "Shaggy",
 					beard = "Stubble",
-					visage = "Sharp Face",
+					visage = "Stare", -- Roblox catalog face (picked for the character, 2026-11-19)
+					hair = "Black Short Wolf Cut", -- Roblox catalog hair
 				},
 				tints = {},
 				mats = { hands = "Leather" },
@@ -655,9 +655,9 @@ return {
 					feet = "Combat Boots",
 					belt = "Chain Belt",
 					neck = "Chain",
-					hair = "Flame Hair",
 					beard = "Goatee",
-					visage = "Scarred Face",
+					visage = "Beast Mode", -- Roblox catalog face (picked for the character, 2026-11-19)
+					hair = "Crimson Shaggy 2.0", -- Roblox catalog hair
 				},
 				tints = {},
 				mats = {},
@@ -690,8 +690,8 @@ return {
 					hands = "Gloves",
 					feet = "Loafers",
 					neck = "High Collar",
-					hair = "Side Part",
-					visage = "Cold Face",
+					visage = "Chill", -- Roblox catalog face (picked for the character, 2026-11-19)
+					hair = "Black Celebrity Gamer Hair", -- Roblox catalog hair
 				},
 				tints = { head = { 22, 22, 0 }, back = { 22, 20, 0 } }, -- an all-black visor (the bar), a black cape
 				mats = {},
@@ -728,9 +728,9 @@ return {
 					hands = "Tech Gloves",
 					backpack = "Cog Rig",
 					head = "Mono Visor",
-					hair = "Slicked Back",
-					visage = "Cold Face",
 					feet = "Armored Boots",
+					visage = "Err...", -- Roblox catalog face (picked for the character, 2026-11-19)
+					hair = "Cool Boy Hair", -- Roblox catalog hair
 				},
 				tints = {},
 				mats = { shoulders = "Metal", backpack = "Metal" },
@@ -768,7 +768,9 @@ return {
 					shoulders = "Crystal Shards",
 					hands = "Talon Gloves",
 					feet = "Hover Boots",
+					visage = "Blizzard Beast Mode", -- Roblox catalog face (picked for the character, 2026-11-19)
 				},
+				hairless = true, -- no catalog hair: a machine under its antenna helm
 				tints = {},
 				mats = { suit = "Metal" },
 			},
@@ -799,8 +801,9 @@ return {
 					head = "Masquerade",
 					hands = "Gloves",
 					beard = "Pencil Mustache",
-					hair = "Slicked Back",
 					eyes = "Violet Glow",
+					visage = "Slickfang", -- Roblox catalog face (picked for the character, 2026-11-19)
+					hair = "Long Straight Hair (Black)", -- Roblox catalog hair
 				},
 				tints = { back = { 22, 12, 0 } }, -- a black cape lined in violet
 				mats = {},
@@ -838,9 +841,10 @@ return {
 					shoulders = "Gear Pads",
 					backpack = "Gear Rack",
 					beard = "Horseshoe",
-					visage = "Scarred Face",
 					feet = "Armored Boots",
+					visage = "Meanie", -- Roblox catalog face (picked for the character, 2026-11-19)
 				},
+				hairless = true, -- no catalog hair: bald under his ball cap
 				tints = {},
 				mats = { hands = "Metal" },
 			},
@@ -871,10 +875,10 @@ return {
 					hands = "Fighter Wraps",
 					legs = "Hakama",
 					back = "Wind Scarf",
-					hair = "Wild Mane",
-					visage = "Sharp Face",
 					eyes = "Ice Blades",
 					feet = "Tabi Boots",
+					visage = "ROAR", -- Roblox catalog face (picked for the character, 2026-11-19)
+					hair = "Black Messy Hairstyle", -- Roblox catalog hair
 				},
 				tints = {},
 				mats = {},
@@ -916,13 +920,13 @@ return {
 				pieces = {
 					shirt = "Flannel Shirt",
 					pants = "Cargo Trousers",
-					visage = "Stern Face",
-					hair = "Short Crop",
 					beard = "Mutton Chops",
 					hat = "Ball Cap",
 					belt = "Utility Belt",
 					feet = "Boots",
+					visage = "Err...", -- Roblox catalog face (picked for the character, 2026-11-19)
 				},
+				hairless = true, -- no catalog hair: bald under his ball cap
 				tints = {},
 				mats = {},
 			},
@@ -954,11 +958,11 @@ return {
 				pieces = {
 					shirt = "Blazer and Tie",
 					pants = "Slacks",
-					visage = "Hero Face",
-					hair = "Side Part",
 					beard = "Soul Patch",
 					feet = "Boots",
 					hands = "Gloves",
+					visage = "Awkward", -- Roblox catalog face (picked for the character, 2026-11-19)
+					hair = "Black Short Parted Hair", -- Roblox catalog hair
 				},
 				tints = {},
 				mats = {},
@@ -991,11 +995,11 @@ return {
 				pieces = {
 					shirt = "Polo",
 					pants = "Chinos",
-					visage = "Rookie Face",
-					hair = "Space Buns",
 					hat = "Ball Cap",
 					neck = "Kerchief",
 					feet = "Boots",
+					visage = "Laughing Fun", -- Roblox catalog face (picked for the character, 2026-11-19)
+					hair = "Red Long Hair", -- Roblox catalog hair
 				},
 				tints = {},
 				mats = {},
@@ -1028,12 +1032,12 @@ return {
 				pieces = {
 					shirt = "Flannel Shirt",
 					pants = "Denim Jeans",
-					visage = "Hero Face",
-					hair = "Braids",
 					hat = "Wide Brim",
 					neck = "Kerchief",
 					hands = "Work Gloves",
 					feet = "Boots",
+					visage = "Freckled Grin", -- Roblox catalog face (picked for the character, 2026-11-19)
+					hair = "Braided Ponytail Redhead", -- Roblox catalog hair
 				},
 				tints = {},
 				mats = {},
@@ -1067,12 +1071,12 @@ return {
 				pieces = {
 					shirt = "Knit Sweater",
 					pants = "Cargo Trousers",
-					visage = "Stern Face",
-					hair = "Braids",
 					hat = "Beanie",
 					neck = "Whistle",
 					back = "Field Coat",
 					feet = "Boots",
+					visage = "Happy D", -- Roblox catalog face (picked for the character, 2026-11-19)
+					hair = "Blonde Royal Braid", -- Roblox catalog hair
 				},
 				tints = {},
 				mats = {},
@@ -1109,8 +1113,8 @@ return {
 					backpack = "Air Tanks",
 					feet = "Flippers",
 					hands = "Gloves",
-					hair = "Curly Top",
-					visage = "Hero Face",
+					visage = "Anime Surprise", -- Roblox catalog face (picked for the character, 2026-11-19)
+					hair = "Lush Wavy Hair (Blonde)", -- Roblox catalog hair
 				},
 				tints = {},
 				mats = {},
@@ -1144,14 +1148,14 @@ return {
 				pieces = {
 					shirt = "Tank",
 					pants = "Track Bottoms",
-					visage = "Stern Face",
-					hair = "Buzz Cut",
 					beard = "Boxed Beard",
 					hat = "Beanie",
 					hands = "Hand Wraps",
 					neck = "Whistle",
 					feet = "High Tops",
+					visage = "Tired Face", -- Roblox catalog face (picked for the character, 2026-11-19)
 				},
+				hairless = true, -- no catalog hair: a shaved head under his beanie
 				tints = {},
 				mats = {},
 			},
@@ -1188,11 +1192,11 @@ return {
 					hands = "Gloves",
 					feet = "Tall Boots",
 					emblem = "Star",
-					hair = "Slicked Back",
 					beard = "Full Beard",
 					shoulders = "Mantle",
 					belt = "Utility Belt",
-					visage = "Scarred Face",
+					visage = "Man Face", -- Roblox catalog face (picked for the character, 2026-11-19)
+					hair = "Black Braid", -- Roblox catalog hair
 				},
 				tints = { back = { 11, 4, 0 } },
 				mats = {},
@@ -1250,10 +1254,10 @@ return {
 					neck = "Bead Necklace",
 					wrist = "Gem Ring",
 					ears = "Gem Studs",
-					hair = "Crown Braid",
-					visage = "Cold Face",
 					makeup = "Lipstick",
 					feet = "Loafers",
+					visage = "Sinister", -- Roblox catalog face (picked for the character, 2026-11-19)
+					hair = "Supermodel Sidepart Hair (Black)", -- Roblox catalog hair
 				},
 				tints = { neck = { 18, 18, 0 } }, -- white beads: her pearls
 				mats = {},
@@ -1285,12 +1289,12 @@ return {
 				colors = { 10, 18, 1 }, -- blue, white, red
 				pieces = {
 					suit = "Trench Coat",
-					hair = "Bob Cut",
 					ears = "Comms Earpiece",
 					neck = "Pendant",
 					feet = "Sneakers",
-					visage = "Hero Face",
 					makeup = "Freckles",
+					visage = "Mildly Irritated Face", -- Roblox catalog face (picked for the character, 2026-11-19)
+					hair = "Y2K uneven bob", -- Roblox catalog hair
 				},
 				tints = {},
 				mats = {},
@@ -1323,9 +1327,9 @@ return {
 				colors = { 18, 8, 43 }, -- white, teal, slate
 				pieces = {
 					suit = "Lab Coat",
-					hair = "Locs",
-					visage = "Hero Face",
 					feet = "Sneakers",
+					visage = "Bad News Face", -- Roblox catalog face (picked for the character, 2026-11-19)
+					hair = "Goddess Box Braids", -- Roblox catalog hair
 				},
 				tints = {},
 				mats = {},
@@ -1357,11 +1361,11 @@ return {
 				pieces = {
 					shirt = "Knit Sweater",
 					pants = "Cargo Trousers",
-					hair = "Top Bun",
 					hat = "Headphones",
 					backpack = "Radio Pack",
-					visage = "Hero Face",
 					feet = "Boots",
+					visage = "Glee", -- Roblox catalog face (picked for the character, 2026-11-19)
+					hair = "Loose White Anime Side Buns", -- Roblox catalog hair
 				},
 				tints = {},
 				mats = {},
@@ -1396,9 +1400,9 @@ return {
 					back = "Hooded Cape",
 					neck = "Pendant",
 					wrist = "Bangles",
-					hair = "Long Straight",
-					visage = "Hero Face",
 					feet = "Sandals",
+					visage = "Adoration", -- Roblox catalog face (picked for the character, 2026-11-19)
+					hair = "Light Brown Ethereal Hairstyle", -- Roblox catalog hair
 				},
 				tints = {},
 				mats = {},
@@ -1432,9 +1436,9 @@ return {
 					hat = "Flight Goggles",
 					hands = "Work Gloves",
 					belt = "Tool Belt",
-					hair = "Afro",
-					visage = "Rookie Face",
 					feet = "Combat Boots",
+					visage = "Silly Fun", -- Roblox catalog face (picked for the character, 2026-11-19)
+					hair = "Loose Black Anime Side Buns", -- Roblox catalog hair
 				},
 				tints = {},
 				mats = {},
@@ -1467,9 +1471,9 @@ return {
 					suit = "Dojo Gi",
 					hat = "Hachimaki",
 					belt = "Obi",
-					hair = "High Ponytail",
-					visage = "Rookie Face",
 					feet = "Sandals",
+					visage = "Good Intentioned", -- Roblox catalog face (picked for the character, 2026-11-19)
+					hair = "Black Y2K Aesthetic Ponytail", -- Roblox catalog hair
 				},
 				tints = {},
 				mats = {},

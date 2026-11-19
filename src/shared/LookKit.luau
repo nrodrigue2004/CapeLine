@@ -1939,7 +1939,8 @@ function LookKit.build(char: Model, look: any, weapon: any?): Folder
 	local hairSub = if hairKit and not hairCat then catalogHairFor(hairKit) else nil
 	if hairCat then
 		if not hidesHair then
-			catalogAccessory(char, folder, hairCat)
+			-- an NPC look built before CatalogLookService has loaded it gets it on arrival (heroes rebuild anyway)
+			catalogSoon(char, folder, hairCat)
 		end
 	elseif hairSub then
 		if not hidesHair then

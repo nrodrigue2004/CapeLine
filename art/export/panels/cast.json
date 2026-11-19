@@ -1200,13 +1200,13 @@
         "beard"
       ],
       "face": {
-        "asset": 141728790,
-        "image": 141728515,
-        "name": "Tired Face"
+        "asset": 7074864,
+        "image": 7074856,
+        "name": "Winky"
       },
       "hair": {
-        "asset": 727320877,
-        "name": "Long Pastel Hair"
+        "asset": 11546097241.0,
+        "name": "Platinum Blonde Bundles"
       },
       "key": "ambrose",
       "name": "AMBROSE",
@@ -1235,9 +1235,9 @@
         "scar"
       ],
       "face": {
-        "asset": 144075659,
-        "image": 144080495,
-        "name": "Smile"
+        "asset": 10678423,
+        "image": 10678229,
+        "name": "Bad Dog"
       },
       "hair": {
         "asset": 398673196,
@@ -1262,13 +1262,13 @@
           "beard": "Full Beard",
           "emblem": "Cross",
           "feet": "Armored Boots",
-          "hair": "Slicked Back",
+          "hair": "Blonde Action Ponytail",
           "hands": "Armored Gauntlets",
           "hat": "Wide Brim",
           "head": "Eye Patch",
           "shoulders": "Epaulettes",
           "suit": "Plated Suit",
-          "visage": "Scarred Face"
+          "visage": "Bad Dog"
         },
         "skin": 3,
         "tints": {
@@ -1335,13 +1335,13 @@
         "visor"
       ],
       "face": {
-        "asset": 406000730,
-        "image": 406035320,
-        "name": "Happy D"
+        "asset": 86487700,
+        "image": 83017053,
+        "name": "Man Face"
       },
       "hair": {
-        "asset": 11652080034.0,
-        "name": "Y2K uneven bob"
+        "asset": 4875445470.0,
+        "name": "Black Short Parted Hair"
       },
       "key": "bulwark",
       "look": {
@@ -1363,11 +1363,11 @@
           "belt": "Champion Belt",
           "emblem": "Hex Badge",
           "feet": "Combat Boots",
-          "hair": "Buzz Cut",
+          "hair": "Black Short Parted Hair",
           "hands": "Armored Gauntlets",
           "shoulders": "Great Pauldrons",
           "suit": "Plated Suit",
-          "visage": "Stern Face"
+          "visage": "Man Face"
         },
         "skin": 4,
         "tints": {
@@ -1435,13 +1435,13 @@
         "beard"
       ],
       "face": {
-        "asset": 236399287,
-        "image": 236455674,
-        "name": "Happy Wink"
+        "asset": 8560971,
+        "image": 8560915,
+        "name": "Stare"
       },
       "hair": {
-        "asset": 11510446398.0,
-        "name": "Long Straight Hair (Black)"
+        "asset": 6441556987.0,
+        "name": "Black Short Wolf Cut"
       },
       "key": "catchpole",
       "look": {
@@ -1462,11 +1462,11 @@
           "beard": "Stubble",
           "belt": "Tool Belt",
           "feet": "Combat Boots",
-          "hair": "Shaggy",
+          "hair": "Black Short Wolf Cut",
           "hands": "Work Gloves",
           "hat": "Tracker Lens",
           "suit": "Ranger Harness",
-          "visage": "Sharp Face"
+          "visage": "Stare"
         },
         "skin": 4,
         "tints": {}
@@ -1515,13 +1515,13 @@
         "blackbar"
       ],
       "face": {
-        "asset": 20722130,
-        "image": 20722053,
-        "name": "Shiny Teeth"
+        "asset": 7074764,
+        "image": 7074749,
+        "name": "Chill"
       },
       "hair": {
-        "asset": 6778986933.0,
-        "name": "Adorbs Black Long Hair"
+        "asset": 11219692974.0,
+        "name": "Black Celebrity Gamer Hair"
       },
       "key": "censor",
       "look": {
@@ -1538,12 +1538,12 @@
         "pieces": {
           "back": "Long Cape",
           "feet": "Loafers",
-          "hair": "Side Part",
+          "hair": "Black Celebrity Gamer Hair",
           "hands": "Gloves",
           "head": "Mono Visor",
           "neck": "High Collar",
           "suit": "Tuxedo",
-          "visage": "Cold Face"
+          "visage": "Chill"
         },
         "skin": 9,
         "tints": {
@@ -1628,9 +1628,9 @@
         "moustache"
       ],
       "face": {
-        "asset": 144075659,
-        "image": 144080495,
-        "name": "Smile"
+        "asset": 9250643,
+        "image": 508490451,
+        "name": "Meanie"
       },
       "key": "clawback",
       "look": {
@@ -1642,6 +1642,7 @@
         ],
         "gender": 1,
         "hair": 39,
+        "hairless": true,
         "height": 5,
         "mats": {
           "hands": "Metal"
@@ -1655,7 +1656,7 @@
           "hat": "Ball Cap",
           "shoulders": "Gear Pads",
           "suit": "Exo Frame",
-          "visage": "Scarred Face"
+          "visage": "Meanie"
         },
         "skin": 4,
         "tints": {}
@@ -1802,9 +1803,9 @@
         "goggles"
       ],
       "face": {
-        "asset": 7074764,
-        "image": 7074749,
-        "name": "Chill"
+        "asset": 150182501,
+        "image": 150070305,
+        "name": "Awkward Grin"
       },
       "hair": {
         "asset": 10906986317.0,
@@ -1841,8 +1842,8 @@
         "name": "Joyful Smile"
       },
       "hair": {
-        "asset": 376524487,
-        "name": "Blonde Spiked Hair"
+        "asset": 5644883846.0,
+        "name": "Cool Boy Hair"
       },
       "key": "finn",
       "name": "FINN",
@@ -1870,9 +1871,9 @@
         "bandage"
       ],
       "face": {
-        "asset": 128992838,
-        "image": 127959433,
-        "name": "Beast Mode"
+        "asset": 20418682,
+        "image": 20418584,
+        "name": "Bandage"
       },
       "hair": {
         "asset": 553722174,
@@ -1905,13 +1906,13 @@
         "scar"
       ],
       "face": {
-        "asset": 236399287,
-        "image": 236455674,
-        "name": "Happy Wink"
+        "asset": 406001167,
+        "image": 405704879,
+        "name": "ROAR"
       },
       "hair": {
-        "asset": 4527498648.0,
-        "name": "Clean Shiny Spikes"
+        "asset": 7259123616.0,
+        "name": "Black Messy Hairstyle"
       },
       "key": "gale",
       "look": {
@@ -1929,12 +1930,12 @@
           "back": "Wind Scarf",
           "eyes": "Ice Blades",
           "feet": "Tabi Boots",
-          "hair": "Wild Mane",
+          "hair": "Black Messy Hairstyle",
           "hands": "Fighter Wraps",
           "hat": "Hachimaki",
           "legs": "Hakama",
           "suit": "Sash Fighter",
-          "visage": "Sharp Face"
+          "visage": "ROAR"
         },
         "skin": 3,
         "tints": {}
@@ -1982,13 +1983,13 @@
         "mask"
       ],
       "face": {
-        "asset": 28878297,
-        "image": 28878210,
-        "name": "Adoration"
+        "asset": 45084008,
+        "image": 45083898,
+        "name": "Angelic"
       },
       "hair": {
-        "asset": 398673196,
-        "name": "Blonde Action Ponytail"
+        "asset": 9818081125.0,
+        "name": "Hair Base In Brown"
       },
       "key": "halo",
       "look": {
@@ -2008,13 +2009,13 @@
           "belt": "Sash",
           "emblem": "Peak",
           "feet": "Boots",
-          "hair": "Slicked Back",
+          "hair": "Hair Base In Brown",
           "hands": "Gloves",
           "hat": "Halo",
           "neck": "Medal",
           "shoulders": "Mantle",
           "suit": "Split Tone",
-          "visage": "Hero Face"
+          "visage": "Angelic"
         },
         "skin": 1,
         "tints": {
@@ -2082,13 +2083,13 @@
         "crown"
       ],
       "face": {
-        "asset": 406000730,
-        "image": 406035320,
-        "name": "Happy D"
+        "asset": 12732366,
+        "image": 12732236,
+        "name": "Take Over the World"
       },
       "hair": {
-        "asset": 11510446398.0,
-        "name": "Long Straight Hair (Black)"
+        "asset": 5918940548.0,
+        "name": "Blonde Curly Celebrity Hair"
       },
       "key": "harvest",
       "look": {
@@ -2109,12 +2110,12 @@
           "beard": "Full Beard",
           "belt": "Rope Belt",
           "feet": "Boots",
-          "hair": "Shaggy",
+          "hair": "Blonde Curly Celebrity Hair",
           "hands": "Work Gloves",
           "hat": "Iron Crown",
           "shoulders": "Riveted Pads",
           "suit": "Overalls",
-          "visage": "Stern Face"
+          "visage": "Take Over the World"
         },
         "skin": 4,
         "tints": {
@@ -2181,13 +2182,13 @@
         "spectacles"
       ],
       "face": {
-        "asset": 20722130,
-        "image": 20722053,
-        "name": "Shiny Teeth"
+        "asset": 20418658,
+        "image": 20418518,
+        "name": "Err..."
       },
       "hair": {
-        "asset": 398673196,
-        "name": "Blonde Action Ponytail"
+        "asset": 5644883846.0,
+        "name": "Cool Boy Hair"
       },
       "key": "holloway",
       "look": {
@@ -2207,12 +2208,12 @@
         "pieces": {
           "backpack": "Cog Rig",
           "feet": "Armored Boots",
-          "hair": "Slicked Back",
+          "hair": "Cool Boy Hair",
           "hands": "Tech Gloves",
           "head": "Mono Visor",
           "shoulders": "Layered Plates",
           "suit": "Lab Coat",
-          "visage": "Cold Face"
+          "visage": "Err..."
         },
         "skin": 2,
         "tints": {}
@@ -2261,13 +2262,13 @@
         "headband"
       ],
       "face": {
-        "asset": 7131541,
-        "image": 7131482,
-        "name": "Alright"
+        "asset": 7074764,
+        "image": 7074749,
+        "name": "Chill"
       },
       "hair": {
-        "asset": 4935029747.0,
-        "name": "Black Royal Braid"
+        "asset": 9263386889.0,
+        "name": "Messy Samurai Ponytail in Brown"
       },
       "key": "hoshi",
       "name": "MASTER HOSHI",
@@ -2337,13 +2338,13 @@
         "bandage"
       ],
       "face": {
-        "asset": 20418682,
-        "image": 20418584,
-        "name": "Bandage"
+        "asset": 7131541,
+        "image": 7131482,
+        "name": "Alright"
       },
       "hair": {
-        "asset": 398673196,
-        "name": "Blonde Action Ponytail"
+        "asset": 4684968628.0,
+        "name": "Shimmering Brown French Braids"
       },
       "key": "lark",
       "name": "LARK",
@@ -2386,13 +2387,13 @@
         "star"
       ],
       "face": {
-        "asset": 144075659,
-        "image": 144080495,
-        "name": "Smile"
+        "asset": 86487700,
+        "image": 83017053,
+        "name": "Man Face"
       },
       "hair": {
-        "asset": 398673196,
-        "name": "Blonde Action Ponytail"
+        "asset": 7372442294.0,
+        "name": "Black Braid"
       },
       "key": "lodestar",
       "look": {
@@ -2412,11 +2413,11 @@
           "belt": "Utility Belt",
           "emblem": "Star",
           "feet": "Tall Boots",
-          "hair": "Slicked Back",
+          "hair": "Black Braid",
           "hands": "Gloves",
           "shoulders": "Mantle",
           "suit": "Split Tone",
-          "visage": "Scarred Face"
+          "visage": "Man Face"
         },
         "skin": 4,
         "tints": {
@@ -2506,14 +2507,14 @@
           "back": "High Collar Cape",
           "emblem": "Diamond",
           "feet": "Tall Boots",
-          "hair": "Long Straight",
+          "hair": "Black and Red",
           "hands": "Long Cuffs",
           "head": "Masquerade",
           "neck": "Choker",
           "shoulders": "Feather Pads",
           "suit": "Split Tone",
           "trail": "Ribbon Trail",
-          "visage": "Sharp Face"
+          "visage": "Happy Wink"
         },
         "skin": 2,
         "tints": {
@@ -2581,14 +2582,13 @@
         "mask"
       ],
       "face": {
-        "asset": 26424808,
-        "image": 26424652,
-        "name": "Know-It-All Grin"
+        "asset": 7317765,
+        "image": 7317591,
+        "name": "Slickfang"
       },
-      "facePicked": true,
       "hair": {
-        "asset": 398673196,
-        "name": "Blonde Action Ponytail"
+        "asset": 11510446398.0,
+        "name": "Long Straight Hair (Black)"
       },
       "key": "morrow",
       "look": {
@@ -2606,11 +2606,12 @@
           "back": "High Collar Cape",
           "beard": "Pencil Mustache",
           "eyes": "Violet Glow",
-          "hair": "Slicked Back",
+          "hair": "Long Straight Hair (Black)",
           "hands": "Gloves",
           "hat": "Top Hat",
           "head": "Masquerade",
-          "suit": "Tuxedo"
+          "suit": "Tuxedo",
+          "visage": "Slickfang"
         },
         "skin": 9,
         "tints": {
@@ -2726,13 +2727,13 @@
         "moustache"
       ],
       "face": {
-        "asset": 144075659,
-        "image": 144080495,
-        "name": "Smile"
+        "asset": 26424808,
+        "image": 26424652,
+        "name": "Know-It-All Grin"
       },
       "hair": {
-        "asset": 398673196,
-        "name": "Blonde Action Ponytail"
+        "asset": 376527350,
+        "name": "Black Ponytail"
       },
       "key": "pitboss",
       "look": {
@@ -2753,13 +2754,13 @@
           "beard": "Handlebar",
           "belt": "Champion Belt",
           "feet": "Armored Boots",
-          "hair": "Slicked Back",
+          "hair": "Black Ponytail",
           "hands": "Boxing Gloves",
           "hat": "Top Hat",
           "neck": "Chain",
           "shoulders": "Riveted Pads",
           "suit": "Tuxedo",
-          "visage": "Scarred Face"
+          "visage": "Know-It-All Grin"
         },
         "skin": 25,
         "tints": {
@@ -2826,13 +2827,13 @@
         "mask"
       ],
       "face": {
-        "asset": 28878297,
-        "image": 28878210,
-        "name": "Adoration"
+        "asset": 20722130,
+        "image": 20722053,
+        "name": "Shiny Teeth"
       },
       "hair": {
-        "asset": 6216526940.0,
-        "name": "Loose White Anime Side Buns"
+        "asset": 376524487,
+        "name": "Blonde Spiked Hair"
       },
       "key": "radiant",
       "look": {
@@ -2853,13 +2854,13 @@
           "belt": "Sash",
           "emblem": "Burst",
           "feet": "Winged Boots",
-          "hair": "Hero Quiff",
+          "hair": "Blonde Spiked Hair",
           "hands": "Long Cuffs",
           "hat": "Halo",
           "shoulders": "Epaulettes",
           "suit": "Chevron Suit",
           "trail": "Sparkle Trail",
-          "visage": "Hero Face"
+          "visage": "Shiny Teeth"
         },
         "skin": 2,
         "tints": {
@@ -2938,13 +2939,13 @@
         "visor"
       ],
       "face": {
-        "asset": 236399287,
-        "image": 236455674,
-        "name": "Happy Wink"
+        "asset": 9250643,
+        "image": 508490451,
+        "name": "Meanie"
       },
       "hair": {
-        "asset": 6413288640.0,
-        "name": "Black Flowy Pigtails"
+        "asset": 5891039736.0,
+        "name": "Black Anime Hair"
       },
       "key": "redline",
       "look": {
@@ -2962,13 +2963,13 @@
           "back": "Hero Scarf",
           "emblem": "Spark",
           "feet": "Jet Boots",
-          "hair": "Wolf Cut",
+          "hair": "Black Anime Hair",
           "hands": "Fingerless Gloves",
           "hat": "Flight Goggles",
           "head": "Visor Band",
           "suit": "Racer Stripe",
           "trail": "Streak Trail",
-          "visage": "Sharp Face"
+          "visage": "Meanie"
         },
         "skin": 5,
         "tints": {
@@ -3035,13 +3036,13 @@
         "scar"
       ],
       "face": {
-        "asset": 144075659,
-        "image": 144080495,
-        "name": "Smile"
+        "asset": 128992838,
+        "image": 127959433,
+        "name": "Beast Mode"
       },
       "hair": {
-        "asset": 14815761,
-        "name": "Black and Red"
+        "asset": 553722174,
+        "name": "Crimson Shaggy 2.0"
       },
       "key": "scorch",
       "look": {
@@ -3059,12 +3060,12 @@
           "beard": "Goatee",
           "belt": "Chain Belt",
           "feet": "Combat Boots",
-          "hair": "Flame Hair",
+          "hair": "Crimson Shaggy 2.0",
           "hands": "Flame Gloves",
           "neck": "Chain",
           "shoulders": "Flame Pads",
           "suit": "Magma Veins",
-          "visage": "Scarred Face"
+          "visage": "Beast Mode"
         },
         "skin": 3,
         "tints": {}
@@ -3113,13 +3114,13 @@
         "crown"
       ],
       "face": {
-        "asset": 406000730,
-        "image": 406035320,
-        "name": "Happy D"
+        "asset": 31317701,
+        "image": 31317607,
+        "name": "Alien"
       },
       "hair": {
-        "asset": 14815761,
-        "name": "Black and Red"
+        "asset": 11100760918.0,
+        "name": "Blue Anime Hair"
       },
       "key": "tidewright",
       "look": {
@@ -3143,12 +3144,12 @@
           "emblem": "Orb Crest",
           "eyes": "Ice Glow",
           "feet": "Armored Boots",
-          "hair": "Long Straight",
+          "hair": "Blue Anime Hair",
           "hands": "Armored Gauntlets",
           "hat": "Iron Crown",
           "shoulders": "Shell Pads",
           "suit": "Plated Suit",
-          "visage": "Stern Face"
+          "visage": "Alien"
         },
         "skin": 26,
         "tints": {
@@ -3213,13 +3214,13 @@
       ],
       "extras": {},
       "face": {
-        "asset": 406000730,
-        "image": 406035320,
-        "name": "Happy D"
+        "asset": 391496223,
+        "image": 629933140,
+        "name": "Big Sad Eyes"
       },
       "hair": {
-        "asset": 13745548,
-        "name": "Cinnamon Hair"
+        "asset": 376524487,
+        "name": "Blonde Spiked Hair"
       },
       "key": "toby",
       "name": "TOBY",
@@ -3248,13 +3249,9 @@
         "visor"
       ],
       "face": {
-        "asset": 7074729,
-        "image": 7074712,
-        "name": "Glee"
-      },
-      "hair": {
-        "asset": 451220849,
-        "name": "Lavender Updo"
+        "asset": 10907541,
+        "image": 10747810,
+        "name": "Mr. Chuckles"
       },
       "key": "toymaker",
       "name": "THE TOYMAKER",
@@ -3295,13 +3292,13 @@
         "star"
       ],
       "face": {
-        "asset": 28878297,
-        "image": 28878210,
-        "name": "Adoration"
+        "asset": 86487766,
+        "image": 83022608,
+        "name": "Woman Face"
       },
       "hair": {
-        "asset": 14815761,
-        "name": "Black and Red"
+        "asset": 11546097241.0,
+        "name": "Platinum Blonde Bundles"
       },
       "key": "vesper",
       "look": {
@@ -3319,11 +3316,11 @@
           "back": "Star Cape",
           "emblem": "Star Crest",
           "feet": "Tall Boots",
-          "hair": "Long Straight",
+          "hair": "Platinum Blonde Bundles",
           "hands": "Gloves",
           "makeup": "Star Mark",
           "suit": "Starfield Suit",
-          "visage": "Hero Face"
+          "visage": "Woman Face"
         },
         "skin": 10,
         "tints": {}
@@ -3371,11 +3368,10 @@
         "visor"
       ],
       "face": {
-        "asset": 236399287,
-        "image": 236455674,
-        "name": "Happy Wink"
+        "asset": 209995252,
+        "image": 209712379,
+        "name": "Blizzard Beast Mode"
       },
-      "facePicked": true,
       "key": "voidhound",
       "look": {
         "build": 2,
@@ -3386,6 +3382,7 @@
         ],
         "gender": 1,
         "hair": 22,
+        "hairless": true,
         "height": 5,
         "mats": {
           "suit": "Metal"
@@ -3397,7 +3394,8 @@
           "hands": "Talon Gloves",
           "head": "Antenna Helm",
           "shoulders": "Crystal Shards",
-          "suit": "Starfield Suit"
+          "suit": "Starfield Suit",
+          "visage": "Blizzard Beast Mode"
         },
         "skin": 26,
         "tints": {}
@@ -3450,8 +3448,8 @@
         "name": "Smiling Girl"
       },
       "hair": {
-        "asset": 376527350,
-        "name": "Black Ponytail"
+        "asset": 6413288640.0,
+        "name": "Black Flowy Pigtails"
       },
       "key": "wren",
       "name": "WREN",
@@ -3479,13 +3477,13 @@
         "tie"
       ],
       "face": {
-        "asset": 28878297,
-        "image": 28878210,
-        "name": "Adoration"
+        "asset": 23932048,
+        "image": 23931977,
+        "name": "Awkward"
       },
       "hair": {
-        "asset": 6778986933.0,
-        "name": "Adorbs Black Long Hair"
+        "asset": 4875445470.0,
+        "name": "Black Short Parted Hair"
       },
       "key": "Benny",
       "look": {
@@ -3502,11 +3500,11 @@
         "pieces": {
           "beard": "Soul Patch",
           "feet": "Boots",
-          "hair": "Side Part",
+          "hair": "Black Short Parted Hair",
           "hands": "Gloves",
           "pants": "Slacks",
           "shirt": "Blazer and Tie",
-          "visage": "Hero Face"
+          "visage": "Awkward"
         },
         "skin": 5,
         "tints": {}
@@ -3555,13 +3553,9 @@
         "bandage"
       ],
       "face": {
-        "asset": 406000730,
-        "image": 406035320,
-        "name": "Happy D"
-      },
-      "hair": {
-        "asset": 11652080034.0,
-        "name": "Y2K uneven bob"
+        "asset": 141728790,
+        "image": 141728515,
+        "name": "Tired Face"
       },
       "key": "Brick",
       "look": {
@@ -3573,18 +3567,18 @@
         ],
         "gender": 1,
         "hair": 19,
+        "hairless": true,
         "height": 4,
         "mats": {},
         "pieces": {
           "beard": "Boxed Beard",
           "feet": "High Tops",
-          "hair": "Buzz Cut",
           "hands": "Hand Wraps",
           "hat": "Beanie",
           "neck": "Whistle",
           "pants": "Track Bottoms",
           "shirt": "Tank",
-          "visage": "Stern Face"
+          "visage": "Tired Face"
         },
         "skin": 6,
         "tints": {}
@@ -3632,13 +3626,13 @@
         "strawhat"
       ],
       "face": {
-        "asset": 28878297,
-        "image": 28878210,
-        "name": "Adoration"
+        "asset": 12145366,
+        "image": 12145059,
+        "name": "Freckled Grin"
       },
       "hair": {
-        "asset": 13745548,
-        "name": "Cinnamon Hair"
+        "asset": 5268665185.0,
+        "name": "Braided Ponytail Redhead"
       },
       "key": "Dot",
       "look": {
@@ -3654,13 +3648,13 @@
         "mats": {},
         "pieces": {
           "feet": "Boots",
-          "hair": "Braids",
+          "hair": "Braided Ponytail Redhead",
           "hands": "Work Gloves",
           "hat": "Wide Brim",
           "neck": "Kerchief",
           "pants": "Denim Jeans",
           "shirt": "Flannel Shirt",
-          "visage": "Hero Face"
+          "visage": "Freckled Grin"
         },
         "skin": 3,
         "tints": {}
@@ -3709,13 +3703,9 @@
         "beard"
       ],
       "face": {
-        "asset": 406000730,
-        "image": 406035320,
-        "name": "Happy D"
-      },
-      "hair": {
-        "asset": 11546097241.0,
-        "name": "Platinum Blonde Bundles"
+        "asset": 20418658,
+        "image": 20418518,
+        "name": "Err..."
       },
       "key": "Gus",
       "look": {
@@ -3727,17 +3717,17 @@
         ],
         "gender": 1,
         "hair": 19,
+        "hairless": true,
         "height": 3,
         "mats": {},
         "pieces": {
           "beard": "Mutton Chops",
           "belt": "Utility Belt",
           "feet": "Boots",
-          "hair": "Short Crop",
           "hat": "Ball Cap",
           "pants": "Cargo Trousers",
           "shirt": "Flannel Shirt",
-          "visage": "Stern Face"
+          "visage": "Err..."
         },
         "skin": 4,
         "tints": {}
@@ -3785,13 +3775,13 @@
         "headband"
       ],
       "face": {
-        "asset": 144075659,
-        "image": 144080495,
-        "name": "Smile"
+        "asset": 7317793,
+        "image": 7317606,
+        "name": "Good Intentioned"
       },
       "hair": {
-        "asset": 6778986933.0,
-        "name": "Adorbs Black Long Hair"
+        "asset": 11451696773.0,
+        "name": "Black Y2K Aesthetic Ponytail"
       },
       "key": "Kiko",
       "look": {
@@ -3808,10 +3798,10 @@
         "pieces": {
           "belt": "Obi",
           "feet": "Sandals",
-          "hair": "High Ponytail",
+          "hair": "Black Y2K Aesthetic Ponytail",
           "hat": "Hachimaki",
           "suit": "Dojo Gi",
-          "visage": "Rookie Face"
+          "visage": "Good Intentioned"
         },
         "skin": 10,
         "tints": {}
@@ -3862,8 +3852,8 @@
         "name": "Adoration"
       },
       "hair": {
-        "asset": 14815761,
-        "name": "Black and Red"
+        "asset": 5945436918.0,
+        "name": "Light Brown Ethereal Hairstyle"
       },
       "key": "Moth",
       "look": {
@@ -3880,11 +3870,11 @@
         "pieces": {
           "back": "Hooded Cape",
           "feet": "Sandals",
-          "hair": "Long Straight",
+          "hair": "Light Brown Ethereal Hairstyle",
           "neck": "Pendant",
           "pants": "Long Skirt",
           "shirt": "Turtleneck",
-          "visage": "Hero Face",
+          "visage": "Adoration",
           "wrist": "Bangles"
         },
         "skin": 4,
@@ -3939,8 +3929,8 @@
         "name": "Happy D"
       },
       "hair": {
-        "asset": 13745548,
-        "name": "Cinnamon Hair"
+        "asset": 4935030295.0,
+        "name": "Blonde Royal Braid"
       },
       "key": "Nell",
       "look": {
@@ -3957,12 +3947,12 @@
         "pieces": {
           "back": "Field Coat",
           "feet": "Boots",
-          "hair": "Braids",
+          "hair": "Blonde Royal Braid",
           "hat": "Beanie",
           "neck": "Whistle",
           "pants": "Cargo Trousers",
           "shirt": "Knit Sweater",
-          "visage": "Stern Face"
+          "visage": "Happy D"
         },
         "skin": 4,
         "tints": {}
@@ -4010,13 +4000,13 @@
         "mic"
       ],
       "face": {
-        "asset": 28878297,
-        "image": 28878210,
-        "name": "Adoration"
+        "asset": 280988393,
+        "image": 280987977,
+        "name": "Mildly Irritated Face"
       },
       "hair": {
-        "asset": 10482964428.0,
-        "name": "Y2K Layered Wolfcut (Blonde)"
+        "asset": 11652080034.0,
+        "name": "Y2K uneven bob"
       },
       "key": "Nora",
       "look": {
@@ -4033,11 +4023,11 @@
         "pieces": {
           "ears": "Comms Earpiece",
           "feet": "Sneakers",
-          "hair": "Bob Cut",
+          "hair": "Y2K uneven bob",
           "makeup": "Freckles",
           "neck": "Pendant",
           "suit": "Trench Coat",
-          "visage": "Hero Face"
+          "visage": "Mildly Irritated Face"
         },
         "skin": 4,
         "tints": {}
@@ -4085,13 +4075,13 @@
         "spectacles"
       ],
       "face": {
-        "asset": 28878297,
-        "image": 28878210,
-        "name": "Adoration"
+        "asset": 268603331,
+        "image": 629929484,
+        "name": "Bad News Face"
       },
       "hair": {
-        "asset": 727320877,
-        "name": "Long Pastel Hair"
+        "asset": 11708550366.0,
+        "name": "Goddess Box Braids"
       },
       "key": "Okafor",
       "look": {
@@ -4107,9 +4097,9 @@
         "mats": {},
         "pieces": {
           "feet": "Sneakers",
-          "hair": "Locs",
+          "hair": "Goddess Box Braids",
           "suit": "Lab Coat",
-          "visage": "Hero Face"
+          "visage": "Bad News Face"
         },
         "skin": 7,
         "tints": {}
@@ -4157,9 +4147,9 @@
         "goggles"
       ],
       "face": {
-        "asset": 28878297,
-        "image": 28878210,
-        "name": "Adoration"
+        "asset": 416846300,
+        "image": 416829065,
+        "name": "Anime Surprise"
       },
       "hair": {
         "asset": 11597599236.0,
@@ -4180,11 +4170,11 @@
         "pieces": {
           "backpack": "Air Tanks",
           "feet": "Flippers",
-          "hair": "Curly Top",
+          "hair": "Lush Wavy Hair (Blonde)",
           "hands": "Gloves",
           "hat": "Flight Goggles",
           "suit": "Wetsuit",
-          "visage": "Hero Face"
+          "visage": "Anime Surprise"
         },
         "skin": 6,
         "tints": {}
@@ -4232,13 +4222,13 @@
         "headset"
       ],
       "face": {
-        "asset": 28878297,
-        "image": 28878210,
-        "name": "Adoration"
+        "asset": 7074729,
+        "image": 7074712,
+        "name": "Glee"
       },
       "hair": {
-        "asset": 9818081125.0,
-        "name": "Hair Base In Brown"
+        "asset": 6216526940.0,
+        "name": "Loose White Anime Side Buns"
       },
       "key": "Ruth",
       "look": {
@@ -4255,11 +4245,11 @@
         "pieces": {
           "backpack": "Radio Pack",
           "feet": "Boots",
-          "hair": "Top Bun",
+          "hair": "Loose White Anime Side Buns",
           "hat": "Headphones",
           "pants": "Cargo Trousers",
           "shirt": "Knit Sweater",
-          "visage": "Hero Face"
+          "visage": "Glee"
         },
         "skin": 2,
         "tints": {}
@@ -4307,13 +4297,13 @@
         "cap"
       ],
       "face": {
-        "asset": 144075659,
-        "image": 144080495,
-        "name": "Smile"
+        "asset": 226217449,
+        "image": 226216895,
+        "name": "Laughing Fun"
       },
       "hair": {
-        "asset": 451220849,
-        "name": "Lavender Updo"
+        "asset": 9057666593.0,
+        "name": "Red Long Hair"
       },
       "key": "Scoops",
       "look": {
@@ -4329,12 +4319,12 @@
         "mats": {},
         "pieces": {
           "feet": "Boots",
-          "hair": "Space Buns",
+          "hair": "Red Long Hair",
           "hat": "Ball Cap",
           "neck": "Kerchief",
           "pants": "Chinos",
           "shirt": "Polo",
-          "visage": "Rookie Face"
+          "visage": "Laughing Fun"
         },
         "skin": 5,
         "tints": {}
@@ -4382,13 +4372,13 @@
         "goggles"
       ],
       "face": {
-        "asset": 144075659,
-        "image": 144080495,
-        "name": "Smile"
+        "asset": 7699174,
+        "image": 7699086,
+        "name": "Silly Fun"
       },
       "hair": {
-        "asset": 63690008,
-        "name": "Pal Hair"
+        "asset": 6211939438.0,
+        "name": "Loose Black Anime Side Buns"
       },
       "key": "Tess",
       "look": {
@@ -4405,11 +4395,11 @@
         "pieces": {
           "belt": "Tool Belt",
           "feet": "Combat Boots",
-          "hair": "Afro",
+          "hair": "Loose Black Anime Side Buns",
           "hands": "Work Gloves",
           "hat": "Flight Goggles",
           "suit": "Overalls",
-          "visage": "Rookie Face"
+          "visage": "Silly Fun"
         },
         "skin": 5,
         "tints": {}
@@ -4457,13 +4447,13 @@
         "pearls"
       ],
       "face": {
-        "asset": 20722130,
-        "image": 20722053,
-        "name": "Shiny Teeth"
+        "asset": 8329686,
+        "image": 8329434,
+        "name": "Sinister"
       },
       "hair": {
-        "asset": 4935030295.0,
-        "name": "Blonde Royal Braid"
+        "asset": 11700874636.0,
+        "name": "Supermodel Sidepart Hair (Black)"
       },
       "key": "Vanta",
       "look": {
@@ -4480,11 +4470,11 @@
         "pieces": {
           "ears": "Gem Studs",
           "feet": "Loafers",
-          "hair": "Crown Braid",
+          "hair": "Supermodel Sidepart Hair (Black)",
           "makeup": "Lipstick",
           "neck": "Bead Necklace",
           "suit": "Royal Coat",
-          "visage": "Cold Face",
+          "visage": "Sinister",
           "wrist": "Gem Ring"
         },
         "skin": 5,
@@ -4550,13 +4540,13 @@
       ],
       "extras": {},
       "face": {
-        "asset": 86487700,
-        "image": 83017053,
-        "name": "Man Face"
+        "asset": 144075659,
+        "image": 144080495,
+        "name": "Smile"
       },
       "hair": {
-        "asset": 4527498648.0,
-        "name": "Clean Shiny Spikes"
+        "asset": 16630147,
+        "name": "Beautiful Hair for Beautiful People"
       },
       "key": "CaptainMeridian",
       "name": "CAPTAIN MERIDIAN",

@@ -426,13 +426,16 @@ def S_lastStand(p, i):
     elif i == 2:
         city_day(p, seed=8)
         sun((45, 0, 60), 4.0, (255, 210, 170))
-        fig(hero(cape=(30, 70, 200), clothes="heroes/preview/Hero2", hair={"asset": 376526888}), (-7, 2, 0), 60, "punch")
-        fig(hero(cape=(240, 190, 40), clothes="heroes/preview/Hero3", face={"image": 7074712}), (-10, -2, 0), 40, "fist")
-        fig(hero(cape=(220, 60, 60), clothes="heroes/preview/Hero4", hair={"asset": 553722174}), (-4, -4, 0), 70,
+        # 2026-11-19 re-staged (the hair fit pass): both sides turned three-quarters to the camera and a warm key
+        # light from the front, so the heroes' faces and the robots read (the old side-on staging was dim)
+        fig(hero(cape=(30, 70, 200), clothes="heroes/preview/Hero2", hair={"asset": 376526888}), (-6, 3, 0), 35, "punch")
+        fig(hero(cape=(240, 190, 40), clothes="heroes/preview/Hero3", face={"image": 7074712}), (-10, 0, 0), 25, "fist")
+        fig(hero(cape=(220, 60, 60), clothes="heroes/preview/Hero4", hair={"asset": 553722174}), (-3, -3, 0), 40,
             "point")
         for k, x in enumerate((5, 9, 13)):
-            fig(robot("SparkDrone", k), (x, -1 + k * 2, 0), -110, "punch" if k == 0 else "hold")
+            fig(robot("SparkDrone", k), (x, 1 - k * 2, 0), -50, "punch" if k == 0 else "hold")
         burst((0, 0, 4.5), (255, 220, 120), 3.5)
+        C.area((0, 26, 12), (0, 0, 4), 3200, (255, 236, 210), size=16)
         camera((0, 30, 5), (0, 0, 4), 38)
     elif i == 3:
         city_day(p, seed=9)
@@ -615,13 +618,18 @@ def S_brineLegend(p, i):
                  size=(0.2, 0.5), strength=3)
         camera((0, 26, 5), (1, -1, 4), 36)
     elif i == 3:
+        # 2026-11-19 re-staged (the hair fit pass): the ghost ship under a moon with brighter sails, the crew on
+        # the rail facing the camera in a key light, a wider frame so the hull shows (the old one was murky)
         water((30, 50, 70))
-        C.lamp((0, 0, 40), 5000, (160, 255, 200), size=40)
-        ship((0, -18, 0), 0)
-        fig(robot("SaltDog", 2), (-4, -16, 5.6), 20, "point")
-        fig(robot("SaltDog", 5), (4, -16, 5.6), -10, "fist")
-        camera((0, 34, 12), (0, -16, 10), 34, k=0.8)
-        smoke(Vector((0, -4, 2)), 26, 12, seed=3, rgb=(200, 220, 230), alpha=0.35)
+        bpy.context.scene.world.node_tree.nodes["Background"].inputs["Strength"].default_value = 0.45
+        ball(16, (-70, -320, 110), (240, 250, 235), emit=2.5)
+        C.lamp((0, -22, 30), 5000, (160, 255, 200), size=30)
+        ship((0, -18, 0), 0, glow=0.6)
+        fig(robot("SaltDog", 2), (-4, -14.6, 5.6), 15, "point")
+        fig(robot("SaltDog", 5), (4, -14.6, 5.6), -15, "fist")
+        C.area((0, 16, 16), (0, -14, 8), 4200, (255, 240, 220), size=14)
+        camera((0, 34, 10), (0, -16, 9), 34, fill=0.4)
+        smoke(Vector((0, -4, 2)), 26, 12, seed=3, rgb=(200, 220, 230), alpha=0.2)
     else:
         water((30, 90, 110))
         for k in range(9):
@@ -636,7 +644,7 @@ def S_brineLegend(p, i):
         camera((0, 30, 6), (0, -6, 6), 34)
 
 
-def ship(at, yaw):
+def ship(at, yaw, glow=0.45):
     """The ghost ship side on: a dark hull, a deck and three masts with glowing sails."""
     x, y, z = at
     box((34, 9, 6), (x, y, z + 2), (60, 50, 48))
@@ -645,7 +653,7 @@ def ship(at, yaw):
     for k, h in enumerate((20, 24, 17)):
         cx = x - 9 + k * 9
         cyl(0.4, 0.3, h, (cx, y, z + h / 2 + 5), (80, 60, 50))
-        glowbox((6, 0.3, h * 0.42), (cx, y + 0.5, z + h * 0.62 + 5), (150, 255, 190), 0.45)
+        glowbox((6, 0.3, h * 0.42), (cx, y + 0.5, z + h * 0.62 + 5), (150, 255, 190), glow)
 
 
 def S_pitStory(p, i):
@@ -738,11 +746,15 @@ def S_tidewrightTale(p, i):
 
 def S_vesperStory(p, i):
     if i == 1:
-        city_night(p, lit=0.25)
-        fig("lodestar", (-5, 0, 14), 70, "fly", tilt=(-60, 0))
-        fig("vesper", (5, -2, 16), 70, "fly", tilt=(-60, 0))
-        ball(14, (60, -400, 140), (250, 245, 220), emit=3)
-        camera((0, 34, 12), (0, 0, 14), 34)
+        # 2026-11-19 re-staged (the hair fit pass): the partners fly at the camera three-quarters on, side by side
+        # under a big moon, with a cool key light on their faces (the old side-on flight was too dark to read)
+        city_night(p, lit=0.35)
+        fig("lodestar", (-4, 0, 14), 30, "fly", tilt=(-18, 0))
+        fig("vesper", (4, -3, 16), 20, "fly", tilt=(-18, 0))
+        ball(22, (30, -260, 60), (250, 245, 220), emit=3)
+        C.area((0, 22, 18), (0, 0, 15), 4200, (220, 230, 255), size=16)
+        C.lamp((0, -14, 22), 1500, (255, 240, 210), size=8)
+        camera((0, 34, 13), (0, 0, 15), 34, fill=0.7)
     elif i == 2:
         room((120, 60, 70), (200, 190, 170), w=40, d=24)
         glowbox((24, 0.4, 9), (0, -11.4, 9), (60, 80, 140), 0.8)
@@ -907,8 +919,14 @@ def S_kindlerTruth(p, i):
         for k in range(5):
             box((5, 0.6, 1), (-12 + k * 6, -8.8, 6), (140, 100, 60), rot=(0, 20 * (k % 2 * 2 - 1), 0))
         glowbox((4, 0.4, 3), (8, -8.8, 12), (255, 240, 180), 3)
-        fig("holloway", (6, -4, 0), 20, "relaxed")
-        camera((0, 24, 6), (0, -8, 7), 34, fill=0.45)
+        # 2026-11-19 re-staged (the hair fit pass): Holloway nearer the camera under a street lamp's key light
+        # with a cool rim from the lab, framed bigger (the old night shot left him a dark shape)
+        fig("holloway", (4, -2, 0), 15, "relaxed")
+        cyl(0.2, 0.2, 9, (-2, 0, 4.5), (60, 60, 66), metal=0.5)
+        glowbox((1.2, 1.2, 0.6), (-2, 0, 9.2), (255, 230, 170), 4)
+        C.area((-1, 12, 10), (4, -2, 4), 2600, (255, 232, 200), size=10)
+        C.lamp((4, -7, 8), 900, (150, 170, 255), size=4)
+        camera((0, 24, 6), (0, -8, 7), 34, fill=0.62)
     else:
         spark_end(p, 1)
 

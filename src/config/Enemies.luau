@@ -613,12 +613,12 @@ return {
 					hands = "Long Cuffs",
 					feet = "Winged Boots",
 					emblem = "Burst",
-					hair = "Hero Quiff",
 					hat = "Halo",
 					shoulders = "Epaulettes",
 					belt = "Sash",
 					trail = "Sparkle Trail",
-					visage = "Hero Face",
+					visage = "Shiny Teeth", -- Roblox catalog face (picked for the character, 2026-11-19)
+					hair = "Blonde Spiked Hair", -- Roblox catalog hair
 				},
 				tints = { back = { 18, 4, 0 }, belt = { 18, 0, 0 } }, -- a white cape with gold trim, a white sash
 				mats = { shoulders = "Metal" },
@@ -678,8 +678,8 @@ return {
 					belt = "Champion Belt",
 					arms = "Arm Plates",
 					emblem = "Hex Badge",
-					hair = "Buzz Cut",
-					visage = "Stern Face",
+					visage = "Man Face", -- Roblox catalog face (picked for the character, 2026-11-19)
+					hair = "Black Short Parted Hair", -- Roblox catalog hair (a full hero look wears hair)
 				},
 				tints = { shoulders = { 19, 10, 0 } },
 				mats = { suit = "Metal", shoulders = "Metal" },
@@ -746,11 +746,11 @@ return {
 					hands = "Fingerless Gloves",
 					feet = "Tall Boots",
 					emblem = "Ring Star",
-					hair = "High Ponytail",
 					shoulders = "Wingtips",
 					arms = "Bracers",
 					trail = "Streak Trail",
-					visage = "Sharp Face",
+					visage = "Blinky", -- Roblox catalog face (picked for the character, 2026-11-19)
+					hair = "True Blue Hair", -- Roblox catalog hair
 				},
 				tints = { back = { 18, 33, 0 } },
 				mats = {},
@@ -810,13 +810,13 @@ return {
 					hands = "Gloves",
 					feet = "Boots",
 					emblem = "Peak",
-					hair = "Slicked Back",
 					beard = "Pencil Mustache",
 					hat = "Halo",
 					shoulders = "Mantle",
 					neck = "Medal",
 					belt = "Sash",
-					visage = "Hero Face",
+					visage = "Angelic", -- Roblox catalog face (picked for the character, 2026-11-19)
+					hair = "Hair Base In Brown", -- Roblox catalog hair
 				},
 				tints = { back = { 33, 4, 0 } }, -- an azure cape with gold trim
 				mats = {},
@@ -885,10 +885,10 @@ return {
 					hands = "Fingerless Gloves",
 					feet = "Jet Boots",
 					emblem = "Spark",
-					hair = "Wolf Cut",
 					back = "Hero Scarf",
 					trail = "Streak Trail",
-					visage = "Sharp Face",
+					visage = "Meanie", -- Roblox catalog face (picked for the character, 2026-11-19)
+					hair = "Black Anime Hair", -- Roblox catalog hair
 				},
 				tints = { back = { 1, 22, 0 } }, -- a red scarf with black trim
 				mats = {},
@@ -947,11 +947,11 @@ return {
 					hands = "Long Cuffs",
 					feet = "Tall Boots",
 					emblem = "Diamond",
-					hair = "Long Straight",
 					shoulders = "Feather Pads",
 					neck = "Choker",
 					trail = "Ribbon Trail",
-					visage = "Sharp Face",
+					visage = "Happy Wink", -- Roblox catalog face (picked for the character, 2026-11-19)
+					hair = "Black and Red", -- Roblox catalog hair
 				},
 				tints = { back = { 4, 35, 0 } }, -- a gold cape lined in purple
 				mats = {},
@@ -1093,7 +1093,6 @@ return {
 				colors = { 30, 6, 3 }, -- forest, lime, orange
 				pieces = {
 					suit = "Magma Veins",
-					hair = "Wild Mane",
 					hat = "Antlers",
 					shoulders = "Fur Trim",
 					hands = "Talon Gloves",
@@ -1101,8 +1100,9 @@ return {
 					back = "Tattered Cape",
 					eyes = "Toxic Glow",
 					face = "Fangs",
-					visage = "Sharp Face",
+					visage = "ROAR", -- Roblox catalog face (picked for the character, 2026-11-19)
 				},
+				hairless = true, -- no catalog hair: a bark and vine creature
 				tints = { back = { 30, 6, 0 }, hat = { 16, 29, 0 } }, -- a leafy cape, branch horns
 				mats = {},
 			},
@@ -1163,14 +1163,14 @@ return {
 				pieces = {
 					suit = "Overalls",
 					hat = "Iron Crown",
-					hair = "Shaggy",
 					beard = "Full Beard",
 					hands = "Work Gloves",
 					feet = "Boots",
 					shoulders = "Riveted Pads",
 					back = "Field Coat",
 					belt = "Rope Belt",
-					visage = "Stern Face",
+					visage = "Take Over the World", -- Roblox catalog face (picked for the character, 2026-11-19)
+					hair = "Blonde Curly Celebrity Hair", -- Roblox catalog hair
 				},
 				tints = { hat = { 4, 28, 0 } }, -- the crown in wheat gold
 				mats = { shoulders = "Metal" },
@@ -1265,8 +1265,8 @@ return {
 					feet = "Armored Boots",
 					shoulders = "Epaulettes",
 					emblem = "Cross",
-					hair = "Slicked Back",
-					visage = "Scarred Face",
+					visage = "Bad Dog", -- Roblox catalog face (picked for the character, 2026-11-19)
+					hair = "Blonde Action Ponytail", -- Roblox catalog hair
 				},
 				tints = { back = { 38, 27, 0 } }, -- a maroon coat with bronze trim
 				mats = { suit = "Metal" },
