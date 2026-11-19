@@ -3,7 +3,7 @@
 -- (ModuleScript sources) with stand-in services: GUI objects are plain Lua stand-ins with the engine's
 -- property defaults (from Lune's reflection database), events that can be fired, and a layout pass that
 -- works out every object's on-screen box the way Roblox does for the parts our UI uses (UDim2 size and
--- position, AnchorPoint, UIScale, UIPadding, UISizeConstraint, UIAspectRatioConstraint, UIListLayout,
+-- position, AnchorPoint, SizeConstraint, UIScale, UIPadding, UISizeConstraint, UIAspectRatioConstraint, UIListLayout,
 -- UIGridLayout, AutomaticSize, ScrollingFrame canvases, ScreenGui safe insets). Text sizes are estimated from
 -- the box (TextScaled) or TextSize, with an average glyph width per font.
 -- Not modelled: rich text, rotation, UIFlexItem, real glyph widths. Studio's Device Emulator is still the
@@ -1265,6 +1265,15 @@ end
 local function baseSize(inst: any, pw: number, ph: number): (number, number)
 	local s = inst.Size
 	local w, h = udim(s.X, pw), udim(s.Y, ph)
+	-- SizeConstraint: both axes' scales from one parent axis (RelativeYY: a square from the parent's height)
+	local ok, cons = pcall(function()
+		return inst.SizeConstraint
+	end)
+	if ok and cons == Enum.SizeConstraint.RelativeYY then
+		w = udim(s.X, ph)
+	elseif ok and cons == Enum.SizeConstraint.RelativeXX then
+		h = udim(s.Y, pw)
+	end
 	local ar = childOf(inst, "UIAspectRatioConstraint")
 	if ar then
 		local r = ar.AspectRatio

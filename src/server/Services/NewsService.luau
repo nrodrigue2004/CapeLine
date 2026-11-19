@@ -6,7 +6,10 @@
 -- system; a blocked or missing name reads "A HERO") and one number. No free text ever goes out.
 -- * The big screens hang where NewsPlan.screens says (Downtown towers by the plaza, the plaza's frame, the
 --   Crane billboard on Uptown's landmark); a screen on a building that collapses goes dark until repaired.
---   PLACEHOLDER ART: plain dark panels and a frame until the art pass.
+--   Each screen's frame (and the plaza's legs) wears its Blender look from ReplicatedStorage.Art.News once all its
+--   meshes are imported (gap-news, Shared.NewsArtKit: bezel, header or marquee, lamps, pillars or catwalk); the
+--   plain frame and legs are then hidden, the screen part stays as it is, and nothing collides, as before.
+--   Nothing imported: the plain dark panels and frame show (PLACEHOLDER ART fallback).
 -- * A joining device gets the feed so far.
 
 local Players = game:GetService("Players")
@@ -20,6 +23,7 @@ local NewsPlan = require(Shared:WaitForChild("NewsPlan"))
 local CreatorRules = require(Shared:WaitForChild("CreatorRules"))
 local ProfileSchema = require(Shared:WaitForChild("ProfileSchema"))
 local BuildingState = require(Shared:WaitForChild("BuildingState"))
+local NewsArtKit = require(Shared:WaitForChild("NewsArtKit"))
 
 local CityBuilder = require(script.Parent.CityBuilder)
 local DataService = require(script.Parent.DataService)
@@ -35,7 +39,7 @@ local NewsService = {}
 local CODE = NewsPlan.CODE
 local feed = NewsPlan.feed()
 local streaks: { [number]: any } = {}
-local screens: { { part: BasePart, building: number? } } = {}
+local screens: { { part: BasePart, building: number?, dressed: { BasePart } } } = {}
 
 -- The hero's safe name ids (title, noun), or nil for a bot or a name that is not allowed
 local function nameIds(player: Player?): (number?, number?)
@@ -99,8 +103,56 @@ function NewsService.dev(player: Player, what: number)
 end
 
 ---------------------------------------------------------------------------
--- The big screens (PLACEHOLDER ART: dark panels on a frame)
+-- The big screens (dark panels on a frame; dressed in Art.News's looks once imported)
 ---------------------------------------------------------------------------
+
+-- The source MeshPart named `name` in Art.News, or nil
+local function source(name: string): MeshPart?
+	local art = ReplicatedStorage:FindFirstChild("Art")
+	local set = art and art:FindFirstChild("News")
+	local src = set and set:FindFirstChild(name, true)
+	return if src and src:IsA("MeshPart") then src else nil
+end
+
+-- One look's meshes round the screen at cf (its centre, front at -z); empty when the look is not all imported
+local function dress(parent: Instance, look: string, cf: CFrame, name: string): { BasePart }
+	local out = {}
+	if not NewsArtKit.ready(Config, look, function(n: string): boolean
+		return source(n) ~= nil
+	end) then
+		return out
+	end
+	for _, m in NewsArtKit.meshes(Config, look) do
+		local src = source(m.name) :: MeshPart
+		local p = src:Clone()
+		-- a textured mesh keeps its SurfaceAppearance (the baked maps; opaque, so the part colour never shows)
+		for _, c in p:GetChildren() do
+			if m.maps and c:IsA("SurfaceAppearance") then
+				c.AlphaMode = Enum.AlphaMode.Overlay
+			else
+				c:Destroy()
+			end
+		end
+		p.Name = name .. m.name
+		p.Anchored = true
+		p.CanCollide = false
+		p.CanQuery = false
+		p.CanTouch = false
+		p.Size = Vector3.new(m.size[1], m.size[2], m.size[3])
+		p.CFrame = cf * CFrame.new(m.offset[1], m.offset[2], m.offset[3])
+		p.Color = Color3.fromRGB(m.color[1], m.color[2], m.color[3])
+		local ok, mat = pcall(function()
+			return (Enum.Material :: any)[m.mat]
+		end)
+		p.Material = if ok and mat then mat else Enum.Material.SmoothPlastic
+		p.Transparency = m.alpha
+		p.CastShadow = m.mat ~= "Neon" and m.alpha == 0
+		p:SetAttribute("Alpha", m.alpha)
+		p.Parent = parent
+		table.insert(out, p)
+	end
+	return out
+end
 
 local function panel(parent: Instance, size: Vector3, cf: CFrame, color: Color3, name: string): Part
 	local p = Instance.new("Part")
@@ -133,7 +185,8 @@ local function buildScreens()
 			panel(folder, Vector3.new(s.w, s.h, 0.6), cf, Color3.fromRGB(16, 18, 28), "Screen" .. i)
 		screen:SetAttribute("Kind", s.kind)
 		-- the frame round it
-		panel(
+		local plain = {}
+		plain[1] = panel(
 			folder,
 			Vector3.new(s.w + 2, s.h + 2, 0.4),
 			cf * CFrame.new(0, 0, 0.5),
@@ -145,10 +198,22 @@ local function buildScreens()
 			local legH = s.y - s.h / 2 - gy
 			for _, side in { -1, 1 } do
 				local leg = cf * CFrame.new(side * (s.w / 2 - 1.5), -s.h / 2 - legH / 2, 0.8)
-				panel(folder, Vector3.new(1.4, legH, 1.4), leg, Color3.fromRGB(40, 42, 54), "Leg" .. i)
+				table.insert(
+					plain,
+					panel(folder, Vector3.new(1.4, legH, 1.4), leg, Color3.fromRGB(40, 42, 54), "Leg" .. i)
+				)
 			end
 		end
-		table.insert(screens, { part = screen, building = s.building })
+		-- its Blender look (the frame and legs it stands for hide; they never collided, nor do the meshes)
+		local look = NewsArtKit.lookFor(s.kind)
+		local dressed = if look then dress(folder, look, cf, "Look" .. i) else {}
+		if #dressed > 0 then
+			for _, p in plain do
+				p.Transparency = 1
+				p.CastShadow = false
+			end
+		end
+		table.insert(screens, { part = screen, building = s.building, dressed = dressed })
 	end
 end
 
@@ -160,6 +225,9 @@ local function watchScreens()
 			if (s.part:GetAttribute("Down") == true) ~= down then
 				s.part:SetAttribute("Down", down)
 				s.part.Transparency = if down then 1 else 0
+				for _, p in s.dressed do
+					p.Transparency = if down then 1 else (p:GetAttribute("Alpha") :: number? or 0)
+				end
 			end
 		end
 	end

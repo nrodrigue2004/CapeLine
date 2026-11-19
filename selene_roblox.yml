@@ -30,6 +30,7 @@ globals:
   TweenInfo: { any: true }
   Random: { any: true }
   Region3: { any: true }
+  Rect: { any: true }
   BrickColor: { any: true }
   DateTime: { any: true }
   task: { any: true }
