@@ -37,6 +37,7 @@ local Net = require(Shared:WaitForChild("Net"))
 local HeroAnim = require(Shared:WaitForChild("HeroAnim"))
 local FrameProf = require(Shared:WaitForChild("FrameProf"))
 local RigJoints = require(Shared:WaitForChild("RigJoints"))
+local CarryPose = require(Shared:WaitForChild("CarryPose"))
 local MoveController = require(script.Parent.MoveController)
 local InputController = require(script.Parent.InputController)
 
@@ -282,6 +283,7 @@ local function stanceOf(r: Rig, p: Player, now: number): string?
 end
 
 -- the held state pose (nil: none), by priority
+local CARRY_CLIP: { [string]: string } = CarryPose.CLIP
 local function stateOf(r: Rig, p: Player, now: number): string?
 	if p:GetAttribute("Downed") == true then
 		return nil
@@ -289,8 +291,13 @@ local function stateOf(r: Rig, p: Player, now: number): string?
 	if p:GetAttribute("Reviving") ~= nil then
 		return "revive"
 	elseif p:GetAttribute("Carrying") ~= nil then
-		-- a grabbed robot held as a club (pt-combat sets CarryGrip "club"): both hands on it by the shoulder
-		return if p:GetAttribute("CarryGrip") == "club" then "robotHold" else "carry"
+		-- the hold pose by ThrowService's grip (fix-carry, Shared.CarryPose.CLIP): overhead on both fists, up on the
+		-- right fist, both hands raised to a floated thing; "club" (an older grip) keeps pt-anims' robot hold
+		local grip = p:GetAttribute("CarryGrip")
+		if grip == "club" then
+			return "robotHold"
+		end
+		return CARRY_CLIP[grip :: any] or "carry"
 	elseif p:GetAttribute("Blocking") == true then
 		local shield = p:GetAttribute("Held") == "weapon" and familyOfId(weaponOf(r, now)) == "shield"
 		return if shield then "guardShield" else "guard"
@@ -450,7 +457,10 @@ local function step(r: Rig, p: Player, now: number, dt: number)
 	local carrying = p:GetAttribute("Carrying") ~= nil
 	if carrying ~= r.carrying then
 		r.carrying = carrying
-		HeroAnimator.play(p, if carrying then "lift" else "heave")
+		-- a floated thing (telekinesis) rises without the squat
+		if not carrying or p:GetAttribute("CarryGrip") ~= "mind" then
+			HeroAnimator.play(p, if carrying then "lift" else "heave")
+		end
 	end
 	local awake = p:GetAttribute("Awakened") == true
 	if awake ~= r.awake then

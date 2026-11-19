@@ -22,6 +22,7 @@ local Net = require(Shared:WaitForChild("Net"))
 local Signal = require(Shared:WaitForChild("Util"):WaitForChild("Signal"))
 
 local Analytics = require(script.Parent.Analytics)
+local BeaconService = require(script.Parent.BeaconService)
 local BadgeService = require(script.Parent.BadgeService)
 local CityBuilder = require(script.Parent.CityBuilder)
 local CollectService = require(script.Parent.CollectService)
@@ -192,6 +193,39 @@ local function enter(player: Player)
 	broadcast(s)
 end
 
+-- GO TO THE STAGE (fix-flow, 2026-11-19): in range it is ENTER; away, the hero fast travels to the stage's
+-- front (the beacon flight's rules and cooldown) and steps on when it lands, while the call is still open
+local function go(player: Player)
+	local s = state
+	local hero = HeroService.get(player)
+	local p = hero and HeroService.position(hero)
+	if not s or not hero or not p or not stageAt then
+		return
+	end
+	local phase = ContestRules.phase(K, os.time(), #s.entries)
+	local how, why =
+		ContestRules.goPlan(K, phase, s.entries, player.UserId, (p - (stageAt :: Vector3)).Magnitude)
+	if how == "enter" then
+		enter(player)
+		Net.fire("ContestGoResult", player, { ok = true, how = "enter" })
+		return
+	elseif how ~= "travel" then
+		Net.fire("ContestGoResult", player, { ok = false, reason = why })
+		return
+	end
+	local at = (stageAt :: Vector3) + Vector3.new(0, 3, -(K.stage.size / 2 + 4))
+	local ok, reason, wait = BeaconService.travelTo(
+		player,
+		CFrame.lookAt(at, stageAt :: Vector3),
+		function(landed)
+			if landed then
+				enter(player)
+			end
+		end
+	)
+	Net.fire("ContestGoResult", player, { ok = ok, how = "travel", reason = reason, wait = wait })
+end
+
 local function vote(player: Player, target: number, stars: number)
 	local s = state
 	if not s or (s.phase ~= "show" and s.phase ~= "vote") then
@@ -356,6 +390,7 @@ end
 
 function ContestService.init()
 	Net.on("ContestEnter", enter)
+	Net.on("ContestGo", go)
 	Net.on("ContestVote", vote)
 	Net.on("ContestOpen", function(player: Player)
 		if state then

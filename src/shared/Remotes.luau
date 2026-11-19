@@ -117,14 +117,22 @@ local Remotes: { [string]: RemoteDef } = {
 	BuildingSync = { dir = "C2S", schema = {}, rate = 0.2, burst = 2 },
 	BuildingSnapshot = { dir = "S2C" }, -- { s = packed 2-bit states, n, dr = drone jobs }
 	BuildingDiff = { dir = "S2C" }, -- { r = repaired ids, d = { id, state, ... }, c = { id, piece, cause, ... }, dr = { { drone, building, seconds } } }
-	BuildingImpact = { dir = "S2C" }, -- center, radius, kind (1 crater, 2 cracks)
+	BuildingImpact = { dir = "S2C" }, -- center, radius, kind (1 crater, 2 cracks, 3 the street only)
 	-- Momentum and impact (2026-11-19): the device saw its hero ram a wall fast: the contact point, the travel
 	-- direction and the speed it claims (ImpactService checks all three against its own history)
 	ImpactRam = {
 		dir = "C2S",
 		schema = { V3, V3, { t = "number", min = 0, max = 400 } },
-		rate = 4,
-		burst = 6,
+		rate = 8, -- fix-destroy: flying through a block meets a wall every few tenths of a second
+		burst = 10,
+	},
+	-- fix-destroy (2026-11-19): the device's hero went through a street thing (a tree, a fence, a pole) and knocked it
+	-- loose; the server passes the knock on to the players near (BuildingImpact kind 3: the street only)
+	ImpactProp = {
+		dir = "C2S",
+		schema = { V3 },
+		rate = 3,
+		burst = 4,
 	},
 	-- a hero dropping onto a roof from high up (nate, 2026-11-19 13:18Z): where it landed and the fall speed
 	-- it claims (ImpactService backs it with its own history; Config.Combat.drop)
@@ -134,6 +142,11 @@ local Remotes: { [string]: RemoteDef } = {
 		rate = 2,
 		burst = 3,
 	},
+	-- ground craters (fix-destroy, 2026-11-19; CraterService, GroundFx): a crater is { id, x, y, z, r, terrain (1/0), age }
+	CraterSync = { dir = "C2S", schema = {}, rate = 0.2, burst = 2 },
+	CraterState = { dir = "S2C" }, -- { crater, ... } the live list
+	CraterAdd = { dir = "S2C" }, -- crater
+	CraterGone = { dir = "S2C" }, -- { id, ... } healed
 	VehicleFlip = { dir = "S2C" }, -- vehicle id, push x, push z
 	VehicleReset = { dir = "S2C" }, -- vehicle id
 	CitizenDelta = { dir = "S2C", unreliable = true }, -- CitizenBuffer packet, 4 Hz
@@ -165,8 +178,10 @@ local Remotes: { [string]: RemoteDef } = {
 	ChoicePrompt = { dir = "S2C" }, -- { id, labels }: the two (or three) big verb buttons
 	ChoicePick = { dir = "C2S", schema = { n(0, 4), n(1, 3) }, rate = 1, burst = 2 }, -- choice id, option
 	OpeningState = { dir = "S2C" }, -- { step, t, target, side, left, the scene's points }: the Ceremony prologue
-	-- 1 the Spark fires, 2 skip a camera beat (replays only), 3 Create First, 4 play the prologue (main menu)
-	OpeningAct = { dir = "C2S", schema = { n(1, 4) }, rate = 2, burst = 3 },
+	-- 1 the Spark fires, 2 skip a camera beat (replays only), 3 Create First, 4 play the prologue (main menu),
+	-- 5 the exposition is over (watched or skipped; fix-flow 2026-11-19), 6 replay the prologue (the Journal)
+	OpeningAct = { dir = "C2S", schema = { n(1, 6) }, rate = 2, burst = 3 },
+	OpeningIntro = { dir = "S2C" }, -- { replay }: play the exposition comic page, then send OpeningAct 5
 	MissionEnter = { dir = "C2S", schema = { n(2, 6), n(0, 1000000, true) }, rate = 0.2, burst = 2 },
 	MissionLeave = { dir = "C2S", schema = {}, rate = 0.5, burst = 2 },
 	MissionState = { dir = "S2C" }, -- { num, step, steps, side, kind, text, have, need, t, points, target, focus }, 2 Hz
@@ -359,6 +374,11 @@ local Remotes: { [string]: RemoteDef } = {
 	-- H7: costume contests. ContestEnter: step on (near the stage, in the call); ContestVote: user id, stars
 	ContestOpen = { dir = "C2S", schema = {}, rate = 1, burst = 3 },
 	ContestEnter = { dir = "C2S", schema = {}, rate = 1, burst = 2 },
+	-- fix-flow (2026-11-19, nate: "Go to the stage button doesnt work"): GO TO THE STAGE from anywhere; the server
+	-- flies the hero there (BeaconService.travelTo) and steps them on, or answers ContestGoResult { ok, how,
+	-- reason, wait } (how "enter", "travel"; a refusal: the device flies there itself and enters on arrival)
+	ContestGo = { dir = "C2S", schema = {}, rate = 1, burst = 2 },
+	ContestGoResult = { dir = "S2C" },
 	ContestVote = { dir = "C2S", schema = { n(1, 2 ^ 53), n(1, 5) }, rate = 4, burst = 8 },
 	ContestState = { dir = "S2C" },
 	-- H8: the Hero Pass and the weekly episode. PassOpen: ask for the pass and episode; PassClaim: tier,

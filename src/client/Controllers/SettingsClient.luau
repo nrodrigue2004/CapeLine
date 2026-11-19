@@ -21,6 +21,7 @@ local LockClient = require(script.Parent.LockClient)
 local CombatFx = require(script.Parent.Parent.Fx.CombatFx)
 local FxLib = require(script.Parent.Parent.Fx.FxLib)
 local Kit = require(script.Parent.Parent.Ui.Kit)
+local Popups = require(script.Parent.Parent.Ui.Popups) -- fix-hud: Settings "Popups"
 
 local SettingsClient = {}
 
@@ -89,6 +90,8 @@ local function apply(id: string)
 		LockClient.softOn = v == 1 -- lock-on (nate's playtest 2026-11-19): casts and the camera ease to targets
 	elseif id == "hardLock" then
 		LockClient.hardOn = v == 1 -- the LOCK toggle (middle mouse or Tab, R3, the LOCK button)
+	elseif id == "popups" then
+		Popups.setMode(v) -- fix-hud: All, Important only, Off (Config.Ui.popups.modes)
 	elseif id == "buttonSize" then
 		Kit.setButtonScale(v / 100) -- the touch cluster's size (TouchLayout keeps it on screen)
 	end

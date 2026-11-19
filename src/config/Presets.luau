@@ -27,6 +27,7 @@ return {
 		debris = 60,
 		falling = 240, -- building pieces in a falling storey or collapse animated at once (BuildingFx; the rest just go)
 		craters = 6,
+		craterRim = 6, -- broken rim chunks round each drawn ground crater (GroundFx, fix-destroy)
 		enemiesDrawn = 20,
 		emitters = 3,
 		shadows = false,
@@ -60,6 +61,7 @@ return {
 		debris = 150,
 		falling = 600,
 		craters = 12,
+		craterRim = 10,
 		enemiesDrawn = 40,
 		emitters = 3,
 		shadows = true,
@@ -93,6 +95,7 @@ return {
 		debris = 250,
 		falling = 1000,
 		craters = 20,
+		craterRim = 14,
 		enemiesDrawn = 60,
 		emitters = 5,
 		shadows = true,

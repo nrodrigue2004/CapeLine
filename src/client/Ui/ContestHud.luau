@@ -17,8 +17,10 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Net = require(Shared:WaitForChild("Net"))
 
 local Juice = require(script.Parent.Parent.Fx.Juice)
+local MoveController = require(script.Parent.Parent.Controllers.MoveController)
 local Kit = require(script.Parent.Kit)
-local Popups = require(script.Parent.Popups) -- pt-ui: one line for every popup
+local Popups = require(script.Parent.Popups)
+local Dismiss = require(script.Parent.Dismiss) -- fix-hud -- pt-ui: one line for every popup
 
 local ContestHud = {}
 
@@ -39,11 +41,31 @@ local light: SpotLight? = nil
 local spinning = false
 -- pt-ui (2026-11-19, nate: "contest skipped stays on my screen"): the results and skipped banner close on this
 -- device after Config.Contest.results s (or its X), whatever the server says next
+-- fix-hud (nate, gaps7: popups stuck on screen): the call, show and vote banner folds away K.bannerLife s after
+-- each new step (or at its X, a tap or Backspace) and comes back at the next step; ENTER waits on the radar's
+-- star and the stage itself
+local liveHidden = false
+local liveAt = 0
 local overShown = true -- the results or skipped banner is still up (cleared after Config.Contest.results s or the X)
 local overToken = 0
 local closeButton: TextButton
 local voteAsked = false -- the stars card is waiting in Ui.Popups or up
 local voteClosed = false -- its X was tapped this contest
+-- GO TO THE STAGE (fix-flow, 2026-11-19): the server flies the hero there and steps them on; when it cannot (a
+-- fight, the fast travel cooldown) the hero flies there on its own (MoveController.flyTo) and ENTER is sent on
+-- arrival. `going` is that wait; `goNote` a short line under the theme until `goNoteUntil`.
+local going = false
+local goNote = ""
+local goNoteUntil = 0
+local GO_REASONS = {
+	combat = "Finish the fight first, then fly over",
+	cooldown = "Fast travel is cooling down: flying you there",
+	traveling = "Already on the way",
+	scene = "Head back out to the city first",
+	full = "The stage is full this time",
+	closed = "The call is over",
+	["in"] = "You are on the stage",
+}
 
 local function now(): number
 	return os.time() + clockOffset
@@ -176,9 +198,11 @@ local function render()
 	local over = phase == "results" or phase == "skipped"
 	-- (and it steps aside while another big card is up: a result card, a name card)
 	local otherCard = Popups.cardUp() and not Popups.cardUp("contestVote")
-	banner.Visible = (phase == "call" or phase == "show" or phase == "vote" or (over and overShown))
-		and not otherCard
-	closeButton.Visible = over
+	local live = (phase == "call" or phase == "show" or phase == "vote")
+		and not liveHidden
+		and os.clock() - liveAt < K.bannerLife
+	banner.Visible = (live or (over and overShown)) and not otherCard
+	closeButton.Visible = true
 	enterButton.Visible = phase == "call" and not isEntry(me.UserId) and #(state.entries or {}) < K.maxEntries
 	local want = (phase == "show" or phase == "vote")
 		and not isEntry(me.UserId)
@@ -190,6 +214,9 @@ local function render()
 	elseif not card.Visible and not voteAsked then
 		-- the stars card takes the big card slot through the show and the vote (Ui.Popups "contestVote")
 		voteAsked = true
+		Popups.panel("contestVote", function() -- fix-hud: its X, a tap and Backspace (Ui.Dismiss)
+			return card
+		end)
 		Popups.show("contestVote", function()
 			if voteAsked and not voteClosed then
 				card.Visible = true
@@ -209,7 +236,15 @@ local function render()
 			#(state.entries or {}),
 			K.maxEntries
 		)
-		enterButton.Text = if nearStage() then "ENTER" else "GO TO THE STAGE"
+		enterButton.Text = if nearStage() then "ENTER" elseif going then "ON THE WAY" else "GO TO THE STAGE"
+		if os.clock() < goNoteUntil then
+			bannerSub.Text = goNote
+		end
+		-- flying there on our own: step on as soon as the stage is in reach
+		if going and nearStage() and not isEntry(me.UserId) then
+			going = false
+			Net.send("ContestEnter")
+		end
 	elseif phase == "show" then
 		local nm = ""
 		for _, e in state.entries or {} do
@@ -273,6 +308,8 @@ function ContestHud.init()
 	}, function()
 		if nearStage() then
 			Net.send("ContestEnter")
+		else
+			Net.send("ContestGo") -- the server fast travels the hero there and steps them on
 		end
 	end)
 	enterButton.Parent = banner
@@ -285,10 +322,16 @@ function ContestHud.init()
 		Visible = false,
 	}, function()
 		overShown = false
+		liveHidden = true
 		render()
 	end)
 	closeButton.Name = "Close"
 	closeButton.Parent = banner
+	Dismiss.attach(banner, function()
+		overShown = false
+		liveHidden = true
+		render()
+	end, { x = false })
 	card = Kit.frame({
 		AnchorPoint = Vector2.new(1, 0.5),
 		Position = UDim2.new(1, -12, 0.5, 0),
@@ -346,6 +389,10 @@ function ContestHud.init()
 		end
 		local was = state.phase
 		state = d
+		if d.phase ~= was then
+			liveHidden = false -- a new step: the banner shows again for a moment
+			liveAt = os.clock()
+		end
 		if (d.phase == "results" or d.phase == "skipped") and was ~= d.phase then
 			overShown = true
 			overToken += 1
@@ -356,6 +403,9 @@ function ContestHud.init()
 					render()
 				end
 			end)
+		end
+		if d.phase ~= "call" then
+			going = false
 		end
 		if d.phase == "call" and was ~= "call" then
 			myVotes = {}
@@ -368,6 +418,25 @@ function ContestHud.init()
 		end
 		if card.Visible or d.phase == "show" or d.phase == "vote" then
 			drawCard()
+		end
+		render()
+	end)
+	Net.listen("ContestGoResult", function(d: any)
+		if type(d) ~= "table" or d.ok then
+			going = false
+			return
+		end
+		local why = tostring(d.reason or "")
+		goNote = GO_REASONS[why] or "Head for the beam over the plaza stage"
+		goNoteUntil = os.clock() + 4
+		-- the flight could not start: fly there on our own (any stick push takes over) and enter on arrival
+		local st = state.stage
+		if (why == "combat" or why == "cooldown") and st then
+			going = MoveController.flyTo(Vector3.new(st[1], st[2] + 6, st[3]))
+			if not going then
+				goNote = "Head for the beam over the plaza stage"
+				going = true -- on foot: still step on once there
+			end
 		end
 		render()
 	end)

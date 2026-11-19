@@ -23,14 +23,17 @@ local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local IncidentPlan = require(Shared:WaitForChild("IncidentPlan"))
 local ContractPlan = require(Shared:WaitForChild("ContractPlan"))
+local BossRange = require(Shared:WaitForChild("BossRange"))
 
 local Kit = require(script.Parent.Kit)
 local Popups = require(script.Parent.Popups) -- pt-ui: one line for every popup
+local Dismiss = require(script.Parent.Dismiss) -- fix-hud
 local Shapes = require(script.Parent.Shapes)
 local State = require(script.Parent.Parent.State)
 local WorldClient = require(script.Parent.Parent.Controllers.WorldClient)
 
 local WorldHud = {}
+WorldHud.bossMode = "none" -- fix-hud: "bar" near the fight, "corner" (radar timer and marker only), "none"
 
 local U = Config.Ui
 local IC = Config.Incidents
@@ -163,14 +166,22 @@ local function compass(dx: number, dz: number): string
 	return names[i]
 end
 
+-- fix-hud (nate, gaps7: "need a way to get rid of popups"): the tracker's X (or Backspace) folds it away until
+-- something new joins it (a new event, contract or incident row)
+local trackerHidden = false
+local hiddenKeys: { [string]: boolean } = {}
+local shownKeys: { [string]: boolean } = {}
+
 local function refreshTracker()
 	local now = os.clock()
 	local pos = myPos()
 	local n = 0
+	table.clear(shownKeys)
 	-- events first: they are server-wide
 	for _, ev in WorldClient.events do
 		if n < shownRows and ev.state == 0 and ev.id then
 			n += 1
+			shownKeys["e" .. tostring(ev.id) .. ":" .. tostring(ev.ends)] = true
 			local def = Config.Events.events[ev.id]
 			local villain = State.hero.side == "villain"
 			local name = if villain and def.villainName then def.villainName else def.name
@@ -195,6 +206,7 @@ local function refreshTracker()
 	for _, c in WorldClient.contracts do
 		if n < shownRows then
 			n += 1
+			shownKeys["c" .. tostring(c[1])] = true
 			local id = WorldClient.contractByNum[c[1]]
 			local def = id and Config.Contracts.types[id]
 			local sub = string.format("%d / %d", c[2], c[3])
@@ -253,6 +265,7 @@ local function refreshTracker()
 		if n < shownRows then
 			n += 1
 			local inc, d = list[i].inc, list[i].d
+			shownKeys["i" .. tostring(inc.tid) .. ":" .. tostring(inc.deadline)] = true
 			local name = IncidentPlan.title(IC, inc.tid, inc.side)
 			local sub = string.format("%s   %d studs", Kit.time(inc.deadline - now), math.floor(d))
 			local line = IncidentPlan.stepText(IC, inc.tid, inc.step, inc.side)
@@ -275,6 +288,24 @@ local function refreshTracker()
 	for i = n + 1, MAX_ROWS do
 		rows[i].Visible = false
 	end
+	if trackerHidden then
+		for k in shownKeys do
+			if not hiddenKeys[k] then
+				trackerHidden = false -- something new: the tracker comes back
+				break
+			end
+		end
+	end
+	tracker.Visible = not trackerHidden and n > 0 -- (an empty tracker shows nothing, its X neither)
+end
+
+function WorldHud.hideTracker()
+	trackerHidden = true
+	table.clear(hiddenKeys)
+	for k in shownKeys do
+		hiddenKeys[k] = true
+	end
+	tracker.Visible = false
 end
 
 ---------------------------------------------------------------------------
@@ -421,10 +452,29 @@ local function bossKey(id: string?): string
 	return if id and Kit.iconCell("marker", id) then id else "boss"
 end
 
+local bossNear = false -- fix-hud: the bar showed last time (BossRange.hudNear's margin to leave)
+
 local function refreshBoss()
 	local s = WorldClient.boss
 	local def = s.id and Config.Boss.bosses[s.id]
 	local left = (s.at or 0) - (os.clock() - (s.received or os.clock()))
+	-- fix-hud: the banner and the bar only near the fight or once you are on its list; else the radar's timer
+	local pos = myPos()
+	local mode = BossRange.hudNear(
+		Config,
+		s,
+		pos and pos.X,
+		pos and pos.Z,
+		(WorldClient.mine.tier or "") ~= "",
+		bossNear
+	)
+	bossNear = mode == "bar"
+	WorldHud.bossMode = mode
+	if mode ~= "bar" then
+		banner.Visible = false
+		bossPanel.Visible = false
+		return
+	end
 	if s.state == 1 and def then
 		banner.Visible = true
 		banner.Text = string.format("WORLD BOSS: %s arrives in %s!", string.upper(def.name), Kit.time(left))
@@ -591,6 +641,17 @@ end
 
 -- pt-ui: the boss result card waits its turn (Ui.Popups "bossResult": never over another card, after a fight)
 local function showResult(r: { [string]: any })
+	-- fix-hud: Settings "Popups: Important only" shows this one line instead (the outcome and the pay)
+	Popups.brief("bossResult", function()
+		local id = WorldClient.bossByNum[r.num]
+		local def = id and Config.Boss.bosses[id]
+		return string.format(
+			"%s %s  %s",
+			string.upper(if def then def.name else "Boss"),
+			if r.defeated then "DEFEATED!" else "RETREATED",
+			Kit.payLine(r.credits or 0, r.renown or 0, 1)
+		)
+	end)
 	Popups.show("bossResult", function()
 		showResultNow(r)
 		return resultCard
@@ -613,6 +674,7 @@ function WorldHud.init()
 	layout.Padding = UDim.new(0, 6)
 	layout.SortOrder = Enum.SortOrder.LayoutOrder
 	layout.Parent = tracker
+	tracker.Visible = false -- (until a row shows: an empty tracker draws nothing, its X neither)
 	tracker.Parent = gui
 	for i = 1, MAX_ROWS do
 		rows[i] = makeRow(i)
@@ -632,6 +694,8 @@ function WorldHud.init()
 	end
 	place()
 	Kit.LayoutChanged:Connect(place)
+	-- fix-hud: the tracker's X (no tap-anywhere: its box is mostly clear screen)
+	Dismiss.attach(tracker, WorldHud.hideTracker, { thin = true, tap = false })
 
 	bossPanel = Kit.frame({
 		Name = "Boss",

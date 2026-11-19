@@ -1190,6 +1190,9 @@ end
 -- pt-ui: a name card waits its turn in Ui.Popups ("nameCard"; dropped if it could not show within a few seconds,
 -- since it marks an arrival)
 function CinemaHud.card(name: string, title: string, theme: { number }?, pic: { kind: string, id: string }?)
+	Popups.panel("nameCard", function() -- fix-hud: its X, a tap and Backspace (Ui.Dismiss)
+		return card
+	end)
 	Popups.show("nameCard", function()
 		cardNow(name, title, theme, pic)
 	end, function()

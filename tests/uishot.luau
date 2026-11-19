@@ -6,7 +6,7 @@
 --   lune run tests/uishot.luau build/Capeline.rbxl out.json [scene ...]
 --   python3 tests/uishot.py out.json out_dir [--fonts DIR]
 --
--- Scenes: loading (the ReplicatedFirst loading card alone), hud (HUD and toasts), menu (the HUD with its MENU drawer open), gear, loadout, shop, settings, journal, map, creator, pass (each panel over
+-- Scenes: loading (the ReplicatedFirst loading card alone), hud (HUD and toasts), menu (the HUD with its MENU drawer open), gear, loadout, shop, settings, settings:popups (its last rows), journal, map, creator, pass (each panel over
 -- the HUD), world (the HUD with incidents, an event, a contract, a boss fight and its result card), contracts
 -- (the Contract Board), badges (the Badge Book), daily (the daily card), screen:<ScreenGui name> (a card screen with all its parts shown),
 -- emotes (the emote picker), photo (Photo Mode on a pose), shop:emotes (the shop's Emotes tab),
@@ -235,6 +235,8 @@ local PANEL = {
 	loadout = { "LoadoutScreen" },
 	shop = { "ShopHud" },
 	settings = { "SettingsMenu" },
+	-- fix-hud (2026-11-19): the end of the settings list, where the new Popups choice sits (the rows above it hidden)
+	["settings:popups"] = { "SettingsMenu" },
 	journal = { "Journal" },
 	map = { "MapScreen" },
 	creator = { "CreatorScreen", { mode = "create" } },
@@ -244,6 +246,8 @@ local PANEL = {
 	["creator:visage"] = { "CreatorScreen", { mode = "create", step = "appearance", slot = "visage" } },
 	["creator:hair"] = { "CreatorScreen", { mode = "create", step = "appearance", slot = "hair" } },
 	["creator:weapon"] = { "CreatorScreen", { mode = "create", step = "weapon" } },
+	-- fix-flow (2026-11-19): the Body step back (gender, build, height)
+	["creator:body"] = { "CreatorScreen", { mode = "create", step = "body" } },
 	pass = { "PassHud" },
 	-- the shop's Emotes tab (2026-11-19 pose tiles)
 	["shop:emotes"] = { "ShopHud", "emotes" },
@@ -561,6 +565,13 @@ for _, scene in scenes do
 				sim:require("Client.Ui.CinemaHud").init()
 				sim:require("Client.Ui.NewsHud").init()
 			end)
+		elseif scene == "qte" then
+			-- fix-flow (2026-11-19): a quick-time prompt of the prologue's rooftop chase over the HUD (a DODGE half way)
+			sim:run("qte", function()
+				local QteHud = sim:require("Client.Ui.QteHud")
+				QteHud.init()
+				QteHud.sample()
+			end)
 		elseif string.sub(scene, 1, 6) == "guide:" then
 			sim:run(scene, function()
 				local GuideHud = sim:require("Client.Ui.GuideHud")
@@ -643,6 +654,19 @@ for _, scene in scenes do
 			sim.service("RunService").RenderStepped:Fire(1 / 60)
 		end)
 		sim:run("dock", sim:require("Client.Ui.Kit").layoutDock)
+		if scene == "settings:popups" then
+			local keep = { ["Soft lock-on (aim and camera ease to targets)"] = true, Popups = true }
+			keep["Lock-on button (MMB or Tab, R3, LOCK)"] = true
+			keep["Camera motion"] = true
+			local g = sim.playerGui:FindFirstChild("Settings")
+			local body = g and g:FindFirstChildWhichIsA("ScrollingFrame", true)
+			for _, row in (body and body:GetChildren() or {}) do
+				if row:IsA("GuiObject") then
+					local name = row:FindFirstChildWhichIsA("TextLabel")
+					row.Visible = name ~= nil and keep[name.Text] == true
+				end
+			end
+		end
 		if string.sub(scene, 1, 6) == "comic:" then
 			sim:run("page", function()
 				sim:require("Client.Ui.CinemaHud").showPage(string.sub(scene, 7))

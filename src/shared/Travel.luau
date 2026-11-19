@@ -54,6 +54,12 @@ function Travel.canTravel(worldCfg: any, s: TravelState, beaconId: number): (boo
 	if not Travel.has(s.beacons, beaconId) then
 		return false, "undiscovered"
 	end
+	return Travel.canGo(s)
+end
+
+-- The rules every fast travel shares, a beacon's or a spot's (the costume contest's stage, fix-flow 2026-11-19):
+-- not mid-flight, not in a scene (the HQ, a visit, a pocket, the prologue), not fighting, and the cooldown over
+function Travel.canGo(s: TravelState): (boolean, string?)
 	if s.traveling then
 		return false, "traveling"
 	end

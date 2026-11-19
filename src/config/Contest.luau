@@ -13,6 +13,7 @@ return {
 	show = 10, -- seconds in the spotlight per contestant
 	vote = 20, -- seconds of voting after the last contestant (votes open with the first spotlight)
 	results = 12, -- seconds on the podium
+	bannerLife = 12, -- fix-hud: seconds the call, show and vote banner stays up after each new step (then folds; X too)
 	maxEntries = 8,
 	minEntries = 3,
 	minVoters = 5,

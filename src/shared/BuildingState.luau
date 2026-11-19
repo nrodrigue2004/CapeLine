@@ -13,9 +13,10 @@
 --   the same batch (applyDiff, applySnapshot: the device's copy, pure so Lune checks it matches); ray finds the
 --   standing pieces of Damaged buildings (their real body stops blocking on the server, so only the holes let
 --   shots through); abilityStruct and castStruct say which casts break buildings (every damaging one).
--- * Pins (2026-11-18): a building that holds something up never breaks: a fast-travel beacon's host for good
+-- * Pins (2026-11-18): a building that holds something up never falls: a fast-travel beacon's host for good
 --   (WorldMap marks it `fixed`), and the roof a side quest goal stands on while that goal is live (pin/unpin,
---   SideQuestService through BuildingService.pin). Hits on a pinned building knock nothing out.
+--   SideQuestService through BuildingService.pin). Since fix-destroy (2026-11-19) a pinned building is a shell:
+--   blasts knock holes in its walls and inner floors, never its pillars or roof, and no storey gives way.
 
 -- * blast / punch (Red Faction-style, nate 2026-11-16): a hit knocks pieces out of the building's Structure
 --   grid and whatever loses its support falls. Damaged = any piece gone; Collapsed = the ground storey gave
@@ -325,9 +326,12 @@ function BuildingState.blast(
 	local state = book.state[id]
 	local out: Blast =
 		{ state = state or 0, changed = false, cut = false, warn = false, hit = {}, fell = {}, failed = nil }
-	if state == nil or state == 2 or dmg <= 0 or BuildingState.pinned(book, id) then
+	if state == nil or state == 2 or dmg <= 0 then
 		return out
 	end
+	-- a pinned building is a shell (fix-destroy, 2026-11-19): its walls and inner floors break, its pillars and roof
+	-- never do and no storey gives way, so the pad, roof goal or safehouse on it never floats
+	local shell = BuildingState.pinned(book, id)
 	local grid = BuildingState.grid(cfg, book, id)
 	if not grid then
 		return out
@@ -345,13 +349,13 @@ function BuildingState.blast(
 	end
 	local gone = book.gone[id] or {}
 	book.gone[id] = gone
-	out.hit = Structure.blast(cfg, grid, gone, x, y, z, radius, dmg)
+	out.hit = Structure.blast(cfg, grid, gone, x, y, z, radius, dmg, shell)
 	if #out.hit == 0 then
 		return out
 	end
 	local capped = recentCollapses(cfg, book, now) >= cfg.maxCollapses
-	out.fell, out.failed = Structure.settle(cfg, grid, gone, capped)
-	out.cut = capped and not Structure.stands(cfg, grid, gone, 1)
+	out.fell, out.failed = Structure.settle(cfg, grid, gone, capped, shell)
+	out.cut = not shell and capped and not Structure.stands(cfg, grid, gone, 1)
 	if out.cut then
 		book.held[id] = true -- it comes down once the cap has room (stepHeld)
 	end

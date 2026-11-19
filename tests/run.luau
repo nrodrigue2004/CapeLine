@@ -273,7 +273,11 @@ end)
 test("M1: stamina regenerates 15/s on the ground and 8/s in the air", function()
 	near(MoveMath.staminaStep(M, 50, true, false, 1), 65, 1e-6, "ground regen")
 	near(MoveMath.staminaStep(M, 50, false, false, 1), 58, 1e-6, "air regen")
-	check(MoveMath.staminaStep(M, 99, true, false, 1) == 100, "caps at 100")
+	check(
+		MoveMath.staminaStep(M, M.stamina.max - 1, true, false, 1) == M.stamina.max,
+		"caps at the pool's max"
+	)
+	check(M.stamina.max == 200, "nate 2026-11-19: double the stamina (100 -> 200)")
 end)
 
 ---------------------------------------------------------------------------
@@ -6104,16 +6108,23 @@ test("RF: every building is pillars, wall panels and slabs inside its box, at mo
 	for _, b in world.buildings do
 		local g = Structure.build(DS, b)
 		-- an outskirts house (2026-11-19) can be one storey of one panel a face: 4 pillars, 4 walls and its roof
-		local least = if b.district == "Outskirts" then 9 else 13
+		-- (fix-destroy: a round body or an added hub box can be that small too)
+		local least = if b.district == "Outskirts" or b.district == "Hub" or b.round then 9 else 13
 		check(#g.pieces >= least and #g.pieces <= 256, "piece count for " .. b.id .. ": " .. #g.pieces)
 		local kinds = {}
 		for _, p in g.pieces do
 			kinds[p.kind] = (kinds[p.kind] or 0) + 1
-			check(
-				math.abs(p.cx - b.x) <= b.sx / 2 - p.sx / 2 + 1e-6
-					and math.abs(p.cz - b.z) <= b.sz / 2 - p.sz / 2 + 1e-6,
-				"inside the footprint"
-			)
+			if b.round then
+				-- a silo or tank (fix-destroy): its pieces sit on the circle
+				local dx, dz = p.cx - b.x, p.cz - b.z
+				check(math.sqrt(dx * dx + dz * dz) <= b.sx / 2 + 1e-6, "inside the round footprint")
+			else
+				check(
+					math.abs(p.cx - b.x) <= b.sx / 2 - p.sx / 2 + 1e-6
+						and math.abs(p.cz - b.z) <= b.sz / 2 - p.sz / 2 + 1e-6,
+					"inside the footprint"
+				)
+			end
 			check(p.cy - p.sy / 2 >= b.base - 1e-6 and p.cy + p.sy / 2 <= b.top + 1e-6, "inside the height")
 		end
 		check(kinds.pillar == 4 * g.storeys, "4 pillars a storey")
@@ -8125,7 +8136,8 @@ test(
 		local ProfileSchema = require("../src/shared/ProfileSchema")
 		-- nate, 2026-11-17: nothing from the player's avatar; our clothes, faces, hair and gear only
 		check(Config.Creator.avatar.on == false, "the player's avatar is not used")
-		check(Config.Creator.bodyStep == false, "no gender, build or height")
+		-- nate, 2026-11-19 16:45Z: gender, build and height are back (the creator's Body step)
+		check(Config.Creator.bodyStep == true, "the Body step: gender, build and height")
 		check(Config.Creator.clothes.on == true, "heroes wear our classic Shirt and Pants")
 		-- nothing picked: every avatar item shows
 		local none = AvatarRules.hides({})
@@ -8432,6 +8444,7 @@ end); -- Hero MMO features (H1 to H8) live in their own file so this one merges 
 (require :: any)("./comic_art_test")({ test = test, check = check, Config = Config });
 (require :: any)("./hairfit_test")({ test = test, check = check, Config = Config }); -- the hair fit pass: explicit catalog picks
 (require :: any)("./fit_test")({ test = test, check = check, Config = Config }); -- pt-fit: pieces and weapons on Roblox's own body
+(require :: any)("./flow_test")({ test = test, check = check, Config = Config, place = process.args[1] }); -- fix-flow
 -- WP10: the group-join piece and creator codes (own file, merges easily)
 (require :: any)("./promo_test")({ test = test, check = check, Config = Config, placePath = process.args[1] }); -- WP11: story acts (Act 1 today, Acts 2 and 3 coming soon), own file
 (require :: any)("./acts_test")({ test = test, check = check, Config = Config, placePath = process.args[1] }); -- WP8: live tuning from Balance_v<N> (own file, merges easily)
@@ -9030,7 +9043,10 @@ test(
 					and (
 						b.district == "Downtown"
 						or b.district == "Uptown"
-						or (b.more == true and (b.district == "OldTown" or b.district == "Outskirts"))
+						or (
+							b.more == true
+							and (b.district == "OldTown" or b.district == "Outskirts" or b.district == "Hub")
+						)
 					),
 				"new wreckable " .. i
 			)
@@ -12261,7 +12277,7 @@ do
 			string.find(cc, "CinemaPlan.sample(shot, k, buf)", 1, true) ~= nil,
 			"the player samples into its buffer"
 		)
-		local stepAt = string.find(cc, "local function step()", 1, true) :: number
+		local stepAt = string.find(cc, "local function step(dt: number)", 1, true) :: number
 		local stepEnd = string.find(cc, "function CinemaClient.init()", 1, true) :: number
 		local body = string.sub(cc, stepAt, stepEnd)
 		check(not string.find(body, "{", 1, true), "no new tables in the camera step")
@@ -23018,6 +23034,8 @@ end
 (require :: any)("./setpieces_test")({ test = test, check = check, Config = Config });
 -- the 36 weapons' meshes and stances (2026-11-18, own file); ONLY="Weapon art" runs just these
 (require :: any)("./weapon_art_test")({ test = test, check = check, Config = Config });
+-- the weapons as the game builds them, on Roblox's body (fix-weapons, 2026-11-19); ONLY="Weapon sim"
+(require :: any)("./weapon_sim_test")({ test = test, check = check, Config = Config, place = process.args[1] });
 -- the gear styles' looks as meshes (2026-11-19, own file); ONLY="Gear art" runs just these
 (require :: any)("./gear_art_test")({ test = test, check = check, Config = Config });
 -- the escort and hub vehicle meshes (2026-11-18, own file); ONLY="Vehicle art" runs just these
@@ -23054,6 +23072,15 @@ end
 (require :: any)("./move_fixes_test")({ test = test, check = check, Config = Config });
 -- more destruction and momentum impact (nate's playtest 2026-11-19); ONLY="Impact" runs these
 (require :: any)("./impact_test")({ test = test, check = check, Config = Config, world = world });
+-- fix-destroy (nate after gaps7: fly through buildings, everything destructible, terrain craters, billboards);
+-- ONLY="Destroy" runs these
+(require :: any)("./destroy_test")({
+	test = test,
+	check = check,
+	Config = Config,
+	world = world,
+	placePath = placePath,
+});
 (require :: any)("./boss_counter_test")({ test = test, check = check, Config = Config, world = world });
 -- lock-on, omnidirectional movement, knockback by move, the block key, drops and swinging robots (nate's
 -- playtest 2026-11-19, own file); ONLY="PT combat" runs these
@@ -23116,9 +23143,15 @@ end
 	world = world,
 	placePath = placePath,
 });
+-- nate's playtest of gaps7 2026-11-19 (fix-hud, own file): every popup dismissable (X, tap, Backspace, Settings
+-- Popups), the boss bar only near the fight, double stamina; ONLY="fix-hud"
+(require :: any)("./fix_hud_test")({ test = test, check = check, Config = Config, placePath = placePath });
 -- nate's playtest 2026-11-19 (pt-city, own file): Downtown and Uptown 1.5x bigger, the street and roof pieces
 -- heroes use or break; ONLY="City play"
-(require :: any)("./city_play_test")({ test = test, check = check, Config = Config, world = world })
+(require :: any)("./city_play_test")({ test = test, check = check, Config = Config, world = world });
+
+-- fix-carry (2026-11-19, own file): picked-up things held in the hands, telekinesis floats; ONLY="Carry"
+(require :: any)("./carry_test")({ test = test, check = check, Config = Config, placePath = placePath })
 
 print(string.format("\n%d passed, %d failed", passed, failed))
 if failed > 0 then

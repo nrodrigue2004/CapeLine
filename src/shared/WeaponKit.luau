@@ -19,6 +19,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local WeaponMesh = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("WeaponMesh"))
 local BodyFit = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("BodyFit"))
+local MeshFix = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("MeshFix"))
 
 local WeaponKit = {}
 
@@ -340,7 +341,9 @@ WeaponKit.held = held
 -- blocky body: a shield on the forearm keeps its place and size instead of stretching x1.24 down the arm)
 local function fitFrame(part: BasePart): (Vector3, Vector3)
 	local s = part.Size
-	local shift, f = BodyFit.frame(Config, part.Name, { s.X, s.Y, s.Z })
+	local b = part:GetAttribute("BaseSize") -- a body the Body step shaped: the rig is told from its first size
+	local base = if typeof(b) == "Vector3" then { b.X, b.Y, b.Z } else nil
+	local shift, f = BodyFit.frame(Config, part.Name, { s.X, s.Y, s.Z }, base)
 	return V(shift[1], shift[2], shift[3]), V(f[1], f[2], f[3])
 end
 
@@ -383,6 +386,7 @@ local function buildMeshes(
 	local glow = math.clamp(look.glowLevel or 0, 0, W.glowLevels)
 	local mastered = look.mastered == true
 	local list = WeaponMesh.pieces(Config, look.id, look.style or 1)
+	local turn = MeshFix.turn("Weapons")
 	local parts = {}
 	for i, p in list do
 		local part, offset = bodyPart(char, p.at)
@@ -430,7 +434,9 @@ local function buildMeshes(
 		m.CanTouch = false
 		m.CanQuery = false
 		m.CastShadow = false
-		m.CFrame = part.CFrame * offset * CF(shift + V(p.offset[1], p.offset[2], p.offset[3]) * f)
+		-- the box's centre on the body part, then the import's own turn (Shared.MeshFix: Open Cloud turned every weapon
+		-- mesh 180 degrees about y inside its box; unturned, diagonal blades and hafts cross and float off the grip)
+		m.CFrame = part.CFrame * offset * CF(shift + V(p.offset[1], p.offset[2], p.offset[3]) * f) * turn
 		local weld = Instance.new("WeldConstraint")
 		weld.Part0 = part
 		weld.Part1 = m

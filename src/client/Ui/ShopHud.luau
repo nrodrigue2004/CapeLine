@@ -457,6 +457,9 @@ function ShopHud.init()
 		PopupGate.card("starter", function()
 			return offer.Visible
 		end)
+		PopupGate.closeWith("starter", offer, function()
+			offer.Visible = false -- (not NO THANKS: it may be offered again another day)
+		end)
 		PopupGate.later("starter", function()
 			offer.Visible = true
 		end)

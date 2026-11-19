@@ -34,6 +34,11 @@ return {
 	hp = { base = 60000, perHero = 4000, atLevel = 20, range = 600 },
 	prep = { weakenEach = 0.03, weakenMax = 0.15 },
 	phases = { 0.66, 0.33 },
+	-- fix-hud (nate, gaps7: "Why is the boss bar above my screen if im not even near it?"): the big countdown
+	-- banner and the shared HP bar show only near the fight (inside max(near, the arena's radius) studs, flat,
+	-- leaving at that plus `leave`) or once you are on its contribution list; elsewhere the radar's corner timer
+	-- and the world marker only (Shared.BossRange.hudNear)
+	hud = { near = 400, leave = 60 },
 	weakMult = 2,
 	contribution = {
 		damage = 0.5,

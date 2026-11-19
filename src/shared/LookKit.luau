@@ -68,7 +68,10 @@ type Spec = {
 -- every arm and leg piece (x1.375 on an upper arm, x1.40 on a shin) and slid it down the limb.
 local function fitFrame(part: BasePart): (Vector3, Vector3)
 	local s = part.Size
-	local shift, f = BodyFit.frame(Config, part.Name, { s.X, s.Y, s.Z })
+	-- a body the Body step shaped keeps its first size (BaseSize): BodyFit tells the rig from that
+	local b = part:GetAttribute("BaseSize")
+	local base = if typeof(b) == "Vector3" then { b.X, b.Y, b.Z } else nil
+	local shift, f = BodyFit.frame(Config, part.Name, { s.X, s.Y, s.Z }, base)
 	return Vector3.new(shift[1], shift[2], shift[3]), Vector3.new(f[1], f[2], f[3])
 end
 LookKit.fitFrame = fitFrame
@@ -849,6 +852,7 @@ local function make(
 	weld.Parent = p
 	p.Parent = folder
 end
+LookKit.make = make -- (tests/weaponsim.luau builds the weapons' part fallback with it)
 
 -- A slot's own colours (main, trim, glow over p, s, a) and material, from the look's per-slot picks
 local function slotColors(base: Colors, look: any, slot: string): (Colors, Enum.Material?)
@@ -889,19 +893,58 @@ end
 -- with MeshPart:ApplyMesh, in place, so its joints, attachments and everything welded to it stay. Sizes are
 -- kept (shapeBody sizes every part right after). Skipped when the set is already worn, while the meshes are
 -- not imported (a plain block body), or for a part that is not a MeshPart. Marks the model "BodySet".
+-- On Roblox's own blocky body (every hero, robot and citizen since 2026-11-19) only the torsos change: the
+-- sets' UpperTorso and LowerTorso fill exactly Roblox's torso boxes (2 x 1.6 x 1 and 2 x 0.4 x 1) and carry the
+-- gender and build (the female chest and hips, the V on Large and Titan) with the classic clothing UVs, while
+-- the sets' limbs are drawn for the Blender body's shorter blocks, so Roblox's own limbs stay and shapeBody
+-- scales them (fix-flow, 2026-11-19: nate wants gender, build and height back). MaleMedium is Roblox's torso.
+local SET_TORSO = { "UpperTorso", "LowerTorso" }
+local function setMesh(key: string, name: string): MeshPart?
+	if key == "MaleMedium" then
+		return nil
+	end
+	local art = ReplicatedStorage:FindFirstChild("Art")
+	local bodies = art and art:FindFirstChild("Bodies")
+	local m = bodies and bodies:FindFirstChild(key .. "_" .. name, true)
+	return if m and m:IsA("MeshPart") then m else nil
+end
+LookKit.setMesh = setMesh
+
+-- Is this character on Roblox's own blocky body (by its upper arm's first-seen proportions; BodyFit.kind)?
+function LookKit.onRobloxBody(char: Model): boolean
+	local arm = char:FindFirstChild("LeftUpperArm")
+	if not (arm and arm:IsA("BasePart")) then
+		return false
+	end
+	local b = arm:GetAttribute("BaseSize")
+	local s = if typeof(b) == "Vector3" then b else arm.Size
+	return BodyFit.kind(Config, "LeftUpperArm", { s.X, s.Y, s.Z }) == "roblox"
+end
+
 function LookKit.wearBodySet(char: Model, look: any)
 	local key = BodyShape.setKey(Config, look)
 	if char:GetAttribute("BodySet") == key then
 		return
 	end
-	local meshes = NpcRig.meshes(key)
+	local meshes: { [string]: MeshPart }? = nil
+	local parts = BodyShape.PARTS
+	local roblox = NpcRig.robloxMeshes()
+	if roblox and LookKit.onRobloxBody(char) then
+		local out = {}
+		for _, name in SET_TORSO do
+			out[name] = setMesh(key, name) or roblox[name]
+		end
+		meshes, parts = out, SET_TORSO
+	else
+		meshes = NpcRig.meshes(key)
+	end
 	if not meshes then
 		return
 	end
-	for _, name in BodyShape.PARTS do
+	for _, name in parts do
 		local p = char:FindFirstChild(name)
 		local src = meshes[name]
-		if p and p:IsA("MeshPart") and src then
+		if p and p:IsA("MeshPart") and src and p.MeshId ~= src.MeshId then
 			local size = p.Size
 			local ok, err = pcall(function()
 				p:ApplyMesh(src)

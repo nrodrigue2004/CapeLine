@@ -50,7 +50,7 @@ local STEPS = {
 	{ id = "mobility", name = "Mobility" },
 	{ id = "powers", name = "Powers" },
 	{ id = "weapon", name = "Weapon" },
-	{ id = "appearance", name = "Appearance" },
+	{ id = "appearance", name = "Appearance", short = "Looks" }, -- short: the tab on a narrow screen (8 tabs)
 	{ id = "play", name = "Play" },
 }
 -- the appearance list: body areas, then their slots (tab ids from Config.Creator, plus skin and colours)
@@ -123,7 +123,7 @@ local REASONS = {
 	path = "Your archetype and path are set (one free change before level 10)",
 	look = "Something went wrong: try again",
 	scene = "Finish what you are doing first",
-	loading = "Your hero is still loading. Tap DONE again in a moment",
+	loading = "Your hero is still loading. Tap again in a moment",
 	combat = "Not during a fight",
 	safehouse = "Change your look at your HQ or a safehouse",
 	weapon = "Get that weapon at a Weapon Rack first",
@@ -1133,7 +1133,11 @@ refresh = function()
 	nameLabel.Text = string.upper(heroName())
 	local ok, why = canFinish()
 	local last = step == #STEPS
-	nextButton.Text = if pending then "SAVING..." elseif last then "DONE" else "NEXT"
+	-- a new hero's last button is PLAY: the prologue starts once it saves (fix-flow, 2026-11-19)
+	nextButton.Text = if pending
+		then "SAVING..."
+		elseif last then (if mode == "create" then "PLAY" else "DONE")
+		else "NEXT"
 	nextButton.BackgroundColor3 = if not last or (ok and not pending) then Kit.color.gold else Kit.color.muted
 	backButton.Visible = step > 1
 	if not pending and os.clock() > statusHold then
@@ -1270,6 +1274,13 @@ local function layout()
 	titleLabel.Visible = not tight
 	stepRow.Position = UDim2.fromOffset(10, if tight then 6 else 50)
 	stepRow.Size = UDim2.new(1, -20, 0, tab)
+	-- with the Body step's 8 tabs a long name gets its short form on a narrow screen (fix-flow, the phone pass)
+	for _, st in STEPS do
+		local b = stepRow:FindFirstChild(st.id)
+		if b and b:IsA("TextButton") then
+			b.Text = string.upper(if area.X < 700 and st.short then st.short else st.name)
+		end
+	end
 	local top = (if tight then 6 else 50) + tab + (if tight then 8 else 12)
 	local bottom = bar + below + (if tight then 24 else 20)
 	status.Position = UDim2.new(0.5, 0, 1, -bar - below - 2)

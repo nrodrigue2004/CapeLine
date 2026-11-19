@@ -20,6 +20,8 @@ local MoveController = require(script.Parent.Parent.Controllers.MoveController)
 local CameraController = require(script.Parent.Parent.Controllers.CameraController)
 local Juice = require(script.Parent.Juice)
 local FxLib = require(script.Parent.FxLib)
+local BuildingFx = require(script.Parent.BuildingFx)
+local ImpactRules = require(Shared:WaitForChild("ImpactRules"))
 
 local ImpactFx = {}
 
@@ -41,13 +43,15 @@ function ImpactFx.smash(at: Vector3, normal: Vector3, strength: number, color: C
 end
 
 function ImpactFx.init()
-	MoveController.Rammed:Connect(function(at: Vector3, normal: Vector3, speed: number, _id: number)
+	MoveController.Rammed:Connect(function(at: Vector3, normal: Vector3, speed: number, id: number)
 		local dir = MoveController.velocity
 		if dir.Magnitude < 1e-3 then
 			dir = -normal
 		end
 		Net.send("ImpactRam", at, dir.Unit, math.clamp(speed, 0, 400))
 		local R = I.ram
+		-- the hole opens here now (fix-destroy): the same blast the server will run, so the hero flies on through
+		BuildingFx.predict(id, at + dir.Unit * 1.5, ImpactRules.ramDamage(R, speed), R.radius)
 		local hit = Workspace:Raycast(at + normal, -normal * 3)
 		local color = if hit and hit.Instance:IsA("BasePart") then hit.Instance.Color else nil
 		ImpactFx.smash(at, normal, (speed - R.minSpeed) / (R.fullSpeed - R.minSpeed) + 0.4, color)

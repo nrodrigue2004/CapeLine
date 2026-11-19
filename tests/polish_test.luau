@@ -251,6 +251,28 @@ return function(T: any)
 		return book.state[b.id]
 	end
 
+	-- fix-destroy (2026-11-19): a pinned building is a shell: its walls break, but it never comes down and its
+	-- pillars and roof (what a beacon, a goal or a player stands on) never go
+	local function shellHolds(book: any, b: any): boolean
+		if book.state[b.id] == BuildingState.COLLAPSED then
+			return false
+		end
+		local g = BuildingState.grid(DS, book, b.id)
+		local roofY = -math.huge
+		for _, p in g.pieces do
+			if p.kind == "slab" then
+				roofY = math.max(roofY, p.cy)
+			end
+		end
+		for i in book.gone[b.id] or {} do
+			local p = g.pieces[i]
+			if p and (p.kind == "pillar" or (p.kind == "slab" and p.cy >= roofY - 1e-6)) then
+				return false
+			end
+		end
+		return true
+	end
+
 	test("Beacon roofs: every beacon's host building is fixed and never breaks", function()
 		local book = BuildingState.new(DS, world.buildings)
 		local hosts = {}
@@ -279,13 +301,11 @@ return function(T: any)
 		check(host2 ~= nil, "Downtown East has its host roof")
 		if host2 then
 			local b = world.buildings[host2]
-			check(wreck(book, b, 0) == BuildingState.INTACT, "40 supers on beacon 2's host: still Intact")
-			check(
-				BuildingState.hit(DS, book, host2, 1e9, 1000) == BuildingState.INTACT,
-				"an HP hit does nothing"
-			)
+			local before = book.state[host2]
+			check(BuildingState.hit(DS, book, host2, 1e9, 0) == before, "an HP hit does nothing")
+			wreck(book, b, 0)
+			check(shellHolds(book, b), "40 supers on beacon 2's host: a shell, its pillars and roof stand")
 			check(not BuildingState.force(DS, book, host2, 1000), "a knockback through it does nothing")
-			check(next(book.gone[host2] or {}) == nil and #book.removed == 0, "no piece knocked out")
 		end
 		-- only beacon hosts are fixed: the rest of the city still breaks
 		-- (2026-11-19: the added Old Town and outskirts buildings are also fixed next to a safehouse or under a
@@ -341,10 +361,8 @@ return function(T: any)
 				end
 				local first = roofs and roofs[1]
 				if first then
-					check(
-						wreck(book, world.buildings[first.id], 0) == BuildingState.INTACT,
-						id .. ": a held roof stands"
-					)
+					wreck(book, world.buildings[first.id], 0)
+					check(shellHolds(book, world.buildings[first.id]), id .. ": a held roof stands")
 				end
 				for _, r in roofs or {} do
 					BuildingState.pin(book, r.id, false)
@@ -365,7 +383,8 @@ return function(T: any)
 			BuildingState.pin(book, b.id, true)
 			BuildingState.pin(book, b.id, false)
 			check(BuildingState.pinned(book, b.id), "one holder left: still held")
-			check(wreck(book, b, 100) == BuildingState.INTACT, "held: nothing breaks")
+			wreck(book, b, 100)
+			check(shellHolds(book, b), "held: its pillars and roof stand")
 			BuildingState.pin(book, b.id, false)
 			check(not BuildingState.pinned(book, b.id), "let go")
 			BuildingState.pin(book, b.id, false)

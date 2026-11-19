@@ -858,7 +858,13 @@ end
 -- tells the server (ImpactService checks it and knocks the pieces out, so the hole opens and the hero goes on
 -- through). A ground sprint into a wall still runs up it (Super-speed's wall run).
 local RAM = Config.Combat.impact.ram
-local RAM_MODES = { fly = true, dash = true, pound = true, ride = true }
+-- fix-destroy (2026-11-19, nate: "I want to fly straight through buildings"): glides and swoops ram too, plain flight
+-- is fast enough (Config.Combat.impact.ram.minSpeed), the hole opens on this device at once (BuildingFx.predict via
+-- ImpactFx, the server's pieces follow) and a street thing in the way (a tree, a fence, a lamp, a pole) is knocked
+-- loose as you go through it (onPropHit, BuildingFx.smashStreet)
+local RAM_MODES = { fly = true, dash = true, pound = true, ride = true, glide = true }
+-- set by BuildingFx: knock the street things at `at` loose on this device; true when something went
+MoveController.onPropHit = nil :: ((part: BasePart, at: Vector3, speed: number) -> boolean)?
 local ramHold = 0
 local ramNext = 0
 local ramCarry: Vector3? = nil
@@ -895,8 +901,17 @@ local function ramStep(mode: string, v: Vector3, pos: Vector3, now: number, dt: 
 		return v
 	end
 	local id = buildingOf(hit.Instance)
-	if not id or (id == ramLast.id and now - ramLast.at < RAM.sameWall) then
-		return v -- not a building, or the same one again at once (a wall that held: no hit-stop every frame)
+	if not id then
+		-- a street thing in the way goes flying and the hero keeps nearly all its speed
+		local onProp = MoveController.onPropHit
+		if onProp and hit.Instance:IsA("BasePart") and onProp(hit.Instance, hit.Position, speed) then
+			ramNext = now + RAM.cooldown * 0.5
+			return v * (1 - RAM.loss * 0.5)
+		end
+		return v
+	end
+	if id == ramLast.id and now - ramLast.at < RAM.sameWall then
+		return v -- the same one again at once (a wall that held: no hit-stop every frame)
 	end
 	ramLast.id, ramLast.at = id, now
 	ramNext = now + RAM.cooldown

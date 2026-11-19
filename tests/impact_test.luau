@@ -213,7 +213,19 @@ return function(T: any)
 		BuildingState.keepWhole(book, house.id + 1)
 		local k = world.buildings[house.id + 1]
 		local kr = BuildingState.blast(D, book, k.id, k.x, k.base + 3, k.z, 20, 6000, 0)
-		check(#kr.hit == 0 and book.state[k.id] == 0, "a kept building (a side quest's house) never breaks")
+		-- fix-destroy (2026-11-19): a kept building is a shell: its walls break, its pillars and roof never do and
+		-- it never comes down
+		for _, i in kr.hit do
+			local p = BuildingState.grid(D, book, k.id).pieces[i]
+			check(p.kind ~= "pillar", "a kept building's pillars never break")
+		end
+		for t = 1, 8 do
+			kr = BuildingState.blast(D, book, k.id, k.x, k.base + 3, k.z, 20, 6000, 100 + t * 10)
+		end
+		check(
+			book.state[k.id] ~= BuildingState.COLLAPSED,
+			"a kept building (a side quest's house) never comes down"
+		)
 	end)
 
 	test("Impact: hits look only at nearby buildings, and miss none", function()
@@ -302,8 +314,8 @@ return function(T: any)
 		check(ImpactRules.ramDamage(R, R.minSpeed) == R.dmg[1], "a ram at the floor")
 		check(ImpactRules.ramDamage(R, R.fullSpeed + 50) == R.dmg[2], "capped at the top")
 		check(
-			R.minSpeed > Config.Move.flight.cruise,
-			"cruising never rams (flight cruise is under the floor)"
+			R.minSpeed < Config.Move.flight.cruise,
+			"plain flight rams too (fix-destroy, nate: fly straight through buildings)"
 		)
 		check(R.minSpeed <= Config.Move.flight.boost, "a flight boost rams")
 		check(R.minSpeed <= Config.Move.mobility.speed.sprint, "a Super-speed running jump rams")
@@ -343,7 +355,8 @@ return function(T: any)
 		check(not ImpactRules.ramOk(R, 110, 30, 5), "claimed fast, moved slowly: no")
 		check(not ImpactRules.ramOk(R, 200, 110, 5), "claims more than the history allows: no")
 		check(not ImpactRules.ramOk(R, 110, 110, 200), "the wall is nowhere near the hero: no")
-		check(not ImpactRules.ramOk(R, 60, 60, 2), "cruising speed: no")
+		check(ImpactRules.ramOk(R, 60, 60, 2), "cruising speed rams too (fix-destroy: fly straight through)")
+		check(not ImpactRules.ramOk(R, 30, 30, 2), "a slow drift: no")
 		check(
 			ImpactRules.ramSpeed(R, 300, 100) == 100 * R.slack,
 			"the ram counts at no more than the history"
@@ -443,7 +456,10 @@ return function(T: any)
 		function()
 			local mc = source("src/client/Controllers/MoveController.luau")
 			check(
-				has(mc, "local RAM_MODES = { fly = true, dash = true, pound = true, ride = true }"),
+				has(
+					mc,
+					"local RAM_MODES = { fly = true, dash = true, pound = true, ride = true, glide = true }"
+				),
 				"the fast modes ram"
 			)
 			check(has(mc, 'mode == "air" and hopping'), "a Super-speed running jump rams")

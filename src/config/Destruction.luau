@@ -15,7 +15,8 @@ return {
 	-- the street's small things (lamps, benches, hydrants, signs, trees, fences, awnings) break on any big
 	-- impact nearby: each device knocks them loose as debris (its preset's `smash` count and debris budget) and
 	-- puts them back after `respawn` seconds. They are dressing, so the server keeps no state for them.
-	street = { respawn = 45, radiusMult = 1.2, minRadius = 8, fling = 40, life = 4 },
+	-- segment: a long fence or wall breaks in lengths this long (Shared.StreetBreak; fix-destroy 2026-11-19)
+	street = { respawn = 45, radiusMult = 1.2, minRadius = 8, fling = 40, life = 4, segment = 6 },
 	hp = { small = 6000, medium = 10000, tower = 14000 }, -- structure HP by size
 	smallMax = 30, -- a building up to this tall (2 or so floors) is small
 	mediumMax = 150, -- up to this tall is medium, taller is a tower
@@ -23,7 +24,7 @@ return {
 	warnAt = 0.75, -- 75% lost: citizens nearby run for shelter (they are gone before any collapse)
 	superStruct = 3000, -- supers with no structDmg of their own
 	-- every other damaging ability breaks buildings too (nate 2026-11-16: "nothing is destructible"): a basic
-	-- hit adds up (3 knock a piece out), a skill knocks out at least one piece. Basics only reach 5 studs.
+	-- hit adds up (2 knock a piece out since fix-destroy), a skill knocks out at least one piece. Basics only reach 5 studs.
 	slotStruct = { basic = 200, skill = 700 },
 	basicStructRadius = 5,
 	bossStruct = 2000, -- boss attacks (M6)
@@ -59,9 +60,12 @@ return {
 		slab = 1.2, -- floor slab thickness
 		slabSplitAt = 36, -- slabs split 2 x 2 on buildings this wide both ways
 		support = 0.35, -- a storey stands while its pillars and walls keep 35% of their weight
-		chunkCost = 600, -- structure damage per piece knocked out (a super's 3,000 takes about 5)
+		-- fix-destroy (2026-11-19, nate: "destruction should be a bit easier"): 1.5x as many pieces for the same
+		-- structure damage everywhere (was 600 a piece and 10 a hit): a super's 3,000 takes about 7, a skill's 700
+		-- 1 to 2, and 2 basics knock a piece out (were 3)
+		chunkCost = 400, -- structure damage per piece knocked out
 		pillarCost = 2, -- pillars weigh and cost double
-		maxPerHit = 10, -- pieces one hit can knock out
+		maxPerHit = 15, -- pieces one hit can knock out (was 10)
 		clashPanels = 2, -- a robot thrown through a wall breaks this many panels
 		warnLost = 0.3, -- citizens nearby run once 30% of the weight is gone or a storey falls
 		debrisLife = 5, -- seconds a loose piece tumbles on the device before it fades
@@ -69,6 +73,28 @@ return {
 	-- clash moments
 	clash = { wallRange = 20, perPlayer = 3, window = 10, knock = 26 },
 	crater = { radius = 6, life = 30 },
+	-- ground craters (fix-destroy, 2026-11-19, nate: "even terrain"; Shared.CraterRules, CraterService, GroundFx): a hit of
+	-- minDmg structure damage or more (a super 3,000, a boss slam 2,000, a pound 1,800, a big drop 1,200 to 3,600) at
+	-- the ground digs a crater radius[1] to radius[2] across (fullDmg and up). Terrain (the seabed and the rock under
+	-- the water) is dug for real; part ground (roads, sidewalks, plazas, fields, sand) gets the drawn crater. Each
+	-- lives `life` s, the last `heal` s healing back. Caps: perSecond a second, perCell in a `cell`-stud square,
+	-- maxLive on the server; a device draws its preset's `craters` nearest and `rim` chunks each (Config.Presets).
+	ground = {
+		on = true,
+		minDmg = 1500,
+		fullDmg = 4000,
+		radius = { 5, 12 },
+		depth = 0.6, -- a terrain bowl is this many radii deep
+		soft = 0.35, -- its soft edge band, in radii
+		voxel = 4, -- Terrain's voxel size (ReadVoxels / WriteVoxels resolution)
+		life = 240,
+		heal = 60,
+		perSecond = 3,
+		cell = 48,
+		perCell = 2,
+		maxLive = 48,
+		near = 6, -- the hit must be this close above the ground to crater it
+	},
 	-- comic ink decals for the crater and the facade crack (art/fx/textures.py --destruction, uploaded as Image
 	-- assets); id 0 keeps today's dark disc and thin bars (BuildingFx). crater: the decal spans this many crater
 	-- radii; crack: this many crack sizes.

@@ -29,6 +29,7 @@ local CityPlay = require(Shared:WaitForChild("CityPlay"))
 local HeroService = require(script.Parent.HeroService)
 local MoveGuard = require(script.Parent.MoveGuard)
 local BuildingService = require(script.Parent.BuildingService)
+local CraterService = require(script.Parent.CraterService)
 local FlagService = require(script.Parent.FlagService)
 local EnemyService = require(script.Parent.EnemyService)
 local PerfMonitor = require(script.Parent.PerfMonitor)
@@ -249,7 +250,12 @@ local function onDrop(player: Player, at: Vector3, fall: number)
 		ImpactService.dropHit(hero, at, speed)
 	end
 	local id = BuildingService.buildingAt(at + Vector3.new(0, -2, 0), 3)
-	if not id or not BuildingService.breakable(id) then
+	if not id then
+		-- a landing on the ground craters it (fix-destroy, 2026-11-19: CraterService, inside its own caps)
+		CraterService.blast(at, radius, dmg)
+		return
+	end
+	if not BuildingService.breakable(id) then
 		return
 	end
 	if not ImpactRules.allow(I, ledger, hero.id, os.clock()) then
@@ -321,8 +327,23 @@ local function onBounce(player: Player)
 	MoveGuard.grant(hero, B.max * 0.8 + 10)
 end
 
+-- A hero went through a street thing (ImpactProp, fix-destroy): near where the server has it, the knock goes out
+local function onProp(player: Player, at: Vector3)
+	local hero = HeroService.get(player)
+	if not hero or not hero.alive then
+		return
+	end
+	local pos = HeroService.position(hero)
+	local R = I.ram
+	if not pos or (at - pos).Magnitude > R.near + MoveGuard.speed(hero) * R.lag + 6 then
+		return
+	end
+	BuildingService.street(at, 4)
+end
+
 function ImpactService.init()
 	Net.on("CityBounce", onBounce)
+	Net.on("ImpactProp", onProp)
 	Net.on("ImpactRam", onRam)
 	Net.on("ImpactDrop", onDrop)
 	EnemyService.heroHitHook = ImpactService.robotHit

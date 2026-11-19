@@ -412,6 +412,10 @@ local function buildCard()
 	PopupGate.card("board", function()
 		return card.Visible
 	end)
+	PopupGate.closeWith("board", card, function()
+		card.Visible = false
+		table.clear(cardLines)
+	end)
 end
 
 -- A BoardData answer (also the phone test's way in)

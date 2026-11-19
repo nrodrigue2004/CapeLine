@@ -40,6 +40,7 @@ local QuestJuice = require(Shared:WaitForChild("QuestJuice"))
 
 local Kit = require(script.Parent.Kit)
 local Popups = require(script.Parent.Popups) -- pt-ui: one line for every popup
+local Dismiss = require(script.Parent.Dismiss) -- fix-hud
 local Hud = require(script.Parent.Hud)
 local GuideHud = require(script.Parent.GuideHud)
 local CinemaHud = require(script.Parent.CinemaHud)
@@ -75,6 +76,9 @@ local titleCard: Frame
 local markerPart: Part
 local markerGui: BillboardGui
 local markerText: TextLabel
+-- fix-hud (nate, gaps7: "need a way to get rid of popups"): the trackers' X folds them until the next step
+local hiddenMission: string? = nil
+local hiddenQuest: string? = nil
 local areaPart: Part
 
 local HIDE_IN_OPENING = { "WorldHud", "ContractBoard", "Gear", "Loadout", "Map" }
@@ -380,6 +384,11 @@ local function fillCard(lines: { any }, credits: number, renown: number)
 		return resultCard.Visible
 	end, function()
 		resultCard.Visible = false
+	end, function()
+		-- fix-hud: Settings "Popups: Important only" shows this one line instead (title and pay)
+		local first = lines[1]
+		local title = if first and type(first[1]) == "string" then first[1] .. "  " else ""
+		return title .. Kit.payLine(credits, renown, 1)
 	end)
 end
 
@@ -841,8 +850,9 @@ local function frame()
 			Hud.setFocus(if sceneFocus then {} else nil)
 		end
 	end
-	-- the mission tracker
-	if (m.num or 0) > 0 and not scene then
+	-- the mission tracker (fix-hud: its X or Backspace fold it until the next step)
+	local mKey = string.format("%s:%s", tostring(m.num), tostring(m.step))
+	if (m.num or 0) > 0 and not scene and hiddenMission ~= mKey then
 		tracker.Visible = true
 		trackTitle.Text = string.format("MISSION %d: %s", m.num, string.upper(missionName(m.num)))
 		trackText.Text = string.format("%s  (%d/%d)", m.text or "", m.step or 1, m.steps or 1)
@@ -854,7 +864,8 @@ local function frame()
 	-- the side quest tracker (not in a mission)
 	if q and not StoryClient.inMission() and not StoryClient.inOpening() then
 		local title, text = questLines(q, State.hero.side or "hero")
-		questPanel.Visible = title ~= nil
+		local qKey = string.format("%s:%s", tostring(q.bit or q.test), tostring(q.step))
+		questPanel.Visible = title ~= nil and hiddenQuest ~= qKey
 		if title and text then
 			questTitle.Text = title
 			local left = if q.left then q.left - (now - (q.received or now)) else nil
@@ -957,13 +968,30 @@ function StoryHud.init()
 		maxText = 16,
 	}, StoryClient.leave)
 	leaveButton.Parent = tracker
-	trackTitle.Size = UDim2.new(1, -106, 0, 22)
-	trackText.Size = UDim2.new(1, -106, 0, 18)
+	-- (fix-hud: and clear of the X's 40 px next to LEAVE)
+	trackTitle.Size = UDim2.new(1, -150, 0, 22)
+	trackText.Size = UDim2.new(1, -150, 0, 18)
 	questPanel, questTitle, questText, questFill = buildTracker("Quest", 136)
+	questTitle.Size = UDim2.new(1, -56, 0, 22) -- fix-hud: clear of the X
+	questText.Size = UDim2.new(1, -56, 0, 18)
 	-- the guide line box keeps clear of the trackers and the choice card (lore step 6)
 	GuideHud.keepClear(tracker)
 	GuideHud.keepClear(questPanel)
 	GuideHud.keepClear(choiceCard)
+	-- fix-hud: the trackers' X (Backspace too) folds them until the next step; never the choice card (a story
+	-- choice waits for its answer)
+	Dismiss.attach(tracker, function()
+		local m = StoryClient.mission
+		hiddenMission = string.format("%s:%s", tostring(m.num), tostring(m.step))
+		tracker.Visible = false
+	end, { thin = true, tap = false, inset = 96 })
+	Dismiss.attach(questPanel, function()
+		local q = StoryClient.quest
+		if q then
+			hiddenQuest = string.format("%s:%s", tostring(q.bit or q.test), tostring(q.step))
+		end
+		questPanel.Visible = false
+	end, { thin = true, tap = false })
 	resultCard = Kit.frame({
 		Name = "Result",
 		AnchorPoint = Vector2.new(0.5, 0.5),

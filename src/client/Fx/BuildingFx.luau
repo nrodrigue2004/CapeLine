@@ -42,10 +42,12 @@ local Chunker = require(Shared:WaitForChild("Chunker"))
 local BuildingState = require(Shared:WaitForChild("BuildingState"))
 local Structure = require(Shared:WaitForChild("Structure"))
 local FxPlan = require(Shared:WaitForChild("FxPlan"))
+local StreetBreak = require(Shared:WaitForChild("StreetBreak"))
 
 local QualityController = require(script.Parent.Parent.Controllers.QualityController)
 local CameraController = require(script.Parent.Parent.Controllers.CameraController)
 local CityProps = require(script.Parent.Parent.Controllers.CityProps)
+local MoveController = require(script.Parent.Parent.Controllers.MoveController)
 local Juice = require(script.Parent.Juice)
 local DebrisBudget = require(script.Parent.DebrisBudget)
 local FxLib = require(script.Parent.FxLib)
@@ -53,6 +55,7 @@ local FxLib = require(script.Parent.FxLib)
 local BuildingFx = {}
 
 local D = Config.Destruction
+local GROUND_CRATERS = D.ground ~= nil and D.ground.on == true
 -- the collapse's dust cloud wears the effects library's uploaded smoke sheet (a 4x4 flipbook) since gap-fx3
 -- (2026-11-19), Roblox's built-in smoke while its id is 0
 local DUST_TEXTURE, DUST_FLIP = FxPlan.textureOf(Config.Fx.lib, "smoke")
@@ -60,7 +63,16 @@ local CRACK_COLOR = Color3.fromRGB(34, 32, 36)
 local DRONE_COLOR = Color3.fromRGB(255, 196, 64)
 local DRONE_LIGHT = Color3.fromRGB(120, 230, 255)
 
-type Rec = { id: number, x: number, z: number, sx: number, sz: number, base: number, top: number }
+type Rec = {
+	id: number,
+	x: number,
+	z: number,
+	sx: number,
+	sz: number,
+	base: number,
+	top: number,
+	round: boolean?,
+}
 type Drawn = { state: number, model: Model, parts: { [number]: BasePart }? }
 type Fall = {
 	id: number,
@@ -143,7 +155,25 @@ local function setHidden(model: Model?, hiddenAll: boolean, keepCrown: boolean?)
 		return
 	end
 	for _, p in model:GetDescendants() do
-		if p:IsA("BasePart") then
+		if p:IsA("Decal") or p:IsA("Texture") then
+			-- a sign, poster or face decal on a hidden part goes with it (nate 2026-11-19: "they keep showing
+			-- after the building is destroyed"); a part's LocalTransparencyModifier does not reach its decals
+			local host = p.Parent
+			local hidden = hiddenAll
+				and not (keepCrown and host and host:IsA("BasePart") and host:GetAttribute("Crown") == true)
+			p.LocalTransparencyModifier = if hidden then 1 else 0
+		elseif p:IsA("SurfaceGui") or p:IsA("BillboardGui") then
+			local host = p.Parent
+			local hidden = hiddenAll
+				and not (keepCrown and host and host:IsA("BasePart") and host:GetAttribute("Crown") == true)
+			if hidden and p:GetAttribute("WasOn") == nil then
+				p:SetAttribute("WasOn", p.Enabled)
+				p.Enabled = false
+			elseif not hidden and p:GetAttribute("WasOn") ~= nil then
+				p.Enabled = p:GetAttribute("WasOn") == true
+				p:SetAttribute("WasOn", nil)
+			end
+		elseif p:IsA("BasePart") then
 			local hidden = hiddenAll and not (keepCrown and p:GetAttribute("Crown") == true)
 			p.LocalTransparencyModifier = if hidden then 1 else 0
 			if hidden then
@@ -204,9 +234,19 @@ local function drawStructure(rec: Rec, skip: { [number]: boolean }): (Model, { [
 	local parts: { [number]: BasePart } = {}
 	for i, c in gridOf(rec).pieces do
 		if not skip[i] then
+			-- a round body's pieces stand on its circle (Structure.roundOff: turned chords, the slab a disc)
+			local size = Vector3.new(c.sx - 0.05, c.sy - 0.05, c.sz - 0.05)
+			local cf = CFrame.new(c.cx, c.cy, c.cz)
+			if c.disc then
+				size = Vector3.new(c.sy - 0.05, (c.dw or c.sx) - 0.05, (c.dd or c.sz) - 0.05)
+				cf *= CFrame.Angles(0, 0, math.rad(90))
+			elseif c.ry then
+				size = Vector3.new((c.dw or c.sx) - 0.05, c.sy - 0.05, (c.dd or c.sz) - 0.05)
+				cf *= CFrame.Angles(0, math.rad(c.ry), 0)
+			end
 			local p = newPart(
-				Vector3.new(c.sx - 0.05, c.sy - 0.05, c.sz - 0.05),
-				CFrame.new(c.cx, c.cy, c.cz),
+				size,
+				cf,
 				if c.kind == "pillar" then color:Lerp(Color3.new(0, 0, 0), 0.18) else shade(color, i),
 				if c.kind == "wall" then material else innerMat,
 				if c.kind == "wall" then variant else inner -- a kit front keeps its windows on the wall panels
@@ -214,6 +254,9 @@ local function drawStructure(rec: Rec, skip: { [number]: boolean }): (Model, { [
 			p.CanCollide = true
 			p.CanQuery = true
 			p.CastShadow = c.kind ~= "slab"
+			if c.disc then
+				p.Shape = Enum.PartType.Cylinder
+			end
 			p.Parent = m
 			parts[i] = p
 		end
@@ -243,6 +286,8 @@ local function drawRubble(rec: Rec): Model
 	return m
 end
 
+local ramPush: Vector3? = nil -- set while a predicted ram's pieces are knocked out (BuildingFx.predict)
+
 -- A piece knocked out: it flies off as loose physics debris (within the debris budget, else it just goes)
 local function knockOut(rec: Rec, part: BasePart, from: Vector3?)
 	if DebrisBudget.lease(1, D.structure.debrisLife) == 0 then
@@ -253,6 +298,17 @@ local function knockOut(rec: Rec, part: BasePart, from: Vector3?)
 	part.CanQuery = false
 	local out = part.Position - (from or Vector3.new(rec.x, part.Position.Y, rec.z))
 	out = if out.Magnitude > 0.1 then out.Unit else Vector3.new(1, 0, 0)
+	local push = ramPush
+	if push then
+		-- a hero flying through: the pieces go ahead of it, the way it travels, and never block it for a moment
+		out = (push + out * 0.35).Unit
+		part.CanCollide = false
+		task.delay(0.35, function()
+			if part.Parent then
+				part.CanCollide = true
+			end
+		end)
+	end
 	part.AssemblyLinearVelocity = out * (18 + math.random() * 16) + Vector3.new(0, 10 + math.random() * 8, 0)
 	part.AssemblyAngularVelocity = Vector3.new(math.random() - 0.5, math.random() - 0.5, math.random() - 0.5)
 		* 6
@@ -702,7 +758,12 @@ local function fling(p: BasePart, center: Vector3)
 	end
 	local c = p:Clone()
 	for _, ch in c:GetChildren() do
-		if not (ch:IsA("SurfaceAppearance") or ch:IsA("SpecialMesh")) then
+		if ch:IsA("Decal") or ch:IsA("Texture") then
+			ch.LocalTransparencyModifier = 0 -- a sign's words fall with its board
+		elseif ch:IsA("SurfaceGui") then
+			ch.Enabled = ch:GetAttribute("WasOn") ~= false
+			ch:SetAttribute("WasOn", nil)
+		elseif not (ch:IsA("SurfaceAppearance") or ch:IsA("SpecialMesh")) then
 			ch:Destroy()
 		end
 	end
@@ -744,22 +805,99 @@ roofFall = function(model: Model, rec: Rec)
 end
 
 -- The city's own street things (server-built parts named "prop" outside any building model: trees, fences,
--- awnings, signs, crates) hidden on this device while they are "broken"
-local streetDown: { [BasePart]: { collide: boolean, query: boolean } } = {}
-local function smashStreet(center: Vector3, radius: number)
+-- awnings, signs, crates, containers, hay, poles) hidden on this device while they are "broken". fix-destroy
+-- (2026-11-19, nate: "I literally want everything destructible"): bigger things go too (Shared.StreetBreak: up to
+-- 32 studs tall and 20 across, so containers and windmill poles), and a long fence or wall breaks only where it was
+-- hit: it is drawn as short stand-in lengths on this device and the ones in reach fly off.
+local streetDown: { [BasePart]: { collide: boolean, query: boolean, segs: Model? } } = {}
+
+local function hideStreet(p: BasePart, segs: Model?)
+	streetDown[p] = { collide = p.CanCollide, query = p.CanQuery, segs = segs }
+	p.LocalTransparencyModifier = 1
+	p.CanCollide = false
+	p.CanQuery = false
+	for _, ch in p:GetChildren() do
+		if ch:IsA("Decal") or ch:IsA("Texture") then
+			ch.LocalTransparencyModifier = 1
+		end
+	end
+	task.delay(D.street.respawn, function()
+		local f = streetDown[p]
+		streetDown[p] = nil
+		if f then
+			if f.segs then
+				f.segs:Destroy()
+			end
+			if p.Parent then
+				p.LocalTransparencyModifier = 0
+				p.CanCollide = f.collide
+				p.CanQuery = f.query
+				for _, ch in p:GetChildren() do
+					if ch:IsA("Decal") or ch:IsA("Texture") then
+						ch.LocalTransparencyModifier = 0
+					end
+				end
+			end
+		end
+	end)
+end
+
+-- A long thin street part broken at `center`: short lengths stand in for it, the ones within r fly
+local function breakLong(p: BasePart, center: Vector3, r: number): number
+	local plan = StreetBreak.segments(
+		{ x = p.Position.X, y = p.Position.Y, z = p.Position.Z, sx = p.Size.X, sy = p.Size.Y, sz = p.Size.Z },
+		{ x = center.X, y = center.Y, z = center.Z },
+		r,
+		D.street.segment
+	)
+	if not plan then
+		return 0
+	end
+	local segs = Instance.new("Model")
+	segs.Name = "StreetBits"
+	local flew = 0
+	for _, sg in plan do
+		local c = newPart(
+			Vector3.new(sg.sx, sg.sy, sg.sz),
+			CFrame.new(sg.x, sg.y, sg.z) * (p.CFrame - p.CFrame.Position),
+			p.Color,
+			p.Material,
+			p.MaterialVariant
+		)
+		c.CanCollide = p.CanCollide
+		c.CanQuery = p.CanQuery
+		if sg.broken then
+			fling(c, center)
+			c:Destroy()
+			flew += 1
+		else
+			c.Parent = segs
+		end
+	end
+	segs.Parent = folder
+	hideStreet(p, segs)
+	return flew
+end
+
+local function smashStreet(center: Vector3, radius: number, only: BasePart?): number
 	local ST = D.street
 	local r = math.max(ST.minRadius, radius * ST.radiusMult)
-	local left = QualityController.preset.smash or 3
+	local max = QualityController.preset.smash or 3
+	local left = max
 	left -= CityProps.smash(center, r, left, fling)
 	local city = Workspace:FindFirstChild("City")
 	if left <= 0 or not city then
-		return
+		return max - left
 	end
 	local params = OverlapParams.new()
 	params.FilterType = Enum.RaycastFilterType.Include
 	params.FilterDescendantsInstances = { city }
 	params.MaxParts = 48
-	for _, p in Workspace:GetPartBoundsInRadius(center, r, params) do
+	local list = Workspace:GetPartBoundsInRadius(center, r, params)
+	if only then
+		table.insert(list, 1, only)
+	end
+	for _, p in list do
 		if left <= 0 then
 			break
 		end
@@ -770,34 +908,37 @@ local function smashStreet(center: Vector3, radius: number)
 			and p.Transparency < 1
 			and p.LocalTransparencyModifier < 1
 			and p:GetAttribute("Tag") == nil
-			and p.Size.Magnitude < 30
 			and not (parent and parent:GetAttribute("BuildingId") ~= nil)
 		then
-			left -= 1
-			fling(p, center)
-			streetDown[p] = { collide = p.CanCollide, query = p.CanQuery }
-			p.LocalTransparencyModifier = 1
-			p.CanCollide = false
-			p.CanQuery = false
-			task.delay(ST.respawn, function()
-				local f = streetDown[p]
-				streetDown[p] = nil
-				if f and p.Parent then
-					p.LocalTransparencyModifier = 0
-					p.CanCollide = f.collide
-					p.CanQuery = f.query
-				end
-			end)
+			local kind = StreetBreak.kind(p.Size.X, p.Size.Y, p.Size.Z)
+			if kind == "whole" then
+				left -= 1
+				fling(p, center)
+				hideStreet(p, nil)
+			elseif kind == "long" then
+				left -= 1
+				breakLong(p, center, r)
+			end
 		end
 	end
+	return max - left
+end
+
+-- Knock the street things round `at` loose on this device (a ram through a tree or a fence); how many went
+function BuildingFx.smashAt(at: Vector3, radius: number, part: BasePart?): number
+	return smashStreet(at, radius, part)
 end
 
 local function impact(center: Vector3, radius: number, kind: number)
 	if typeof(center) ~= "Vector3" or type(radius) ~= "number" then
 		return
 	end
-	if kind == 1 then
-		crater(center, radius)
+	if kind == 3 then
+		smashStreet(center, radius) -- a hero went through a street thing (ImpactProp)
+		return
+	end
+	if kind == 1 and not GROUND_CRATERS then
+		crater(center, radius) -- (the server's ground craters draw their own since fix-destroy: GroundFx)
 	end
 	cracks(center, radius)
 	smashStreet(center, radius)
@@ -934,10 +1075,126 @@ local function loadRecords(): boolean
 		return false
 	end
 	for _, row in info.buildings do
-		records[row[1]] =
-			{ id = row[1], x = row[2], z = row[3], sx = row[4], sz = row[5], base = row[6], top = row[7] }
+		records[row[1]] = {
+			id = row[1],
+			x = row[2],
+			z = row[3],
+			sx = row[4],
+			sz = row[5],
+			base = row[6],
+			top = row[7],
+			round = row[8] == 1,
+		}
 	end
 	return true
+end
+
+-- Flying through (fix-destroy, 2026-11-19, nate: "I want to fly straight through buildings"): a ram opens its hole on
+-- this device at once, the same blast the server runs (Structure.blast at the same point, radius and damage), so the
+-- hero never stops at a wall waiting for the 2 Hz diff. The server's pieces confirm it; a piece it never confirms
+-- (the server said no, or picked another) comes back after `hold` seconds.
+type Pending = {
+	untilT: number,
+	pieces: { [number]: boolean },
+	confirmed: { [number]: boolean },
+	prev: number,
+	server: number?,
+}
+local pending: { [number]: Pending } = {}
+local PREDICT_HOLD = 1.5
+
+function BuildingFx.predict(id: number, at: Vector3, dmg: number, radius: number): number
+	local rec = records[id]
+	if not rec or not models[id] or (state[id] or 0) == BuildingState.COLLAPSED or dmg <= 0 then
+		return 0
+	end
+	local px = math.clamp(at.X, rec.x - rec.sx / 2, rec.x + rec.sx / 2)
+	local pz = math.clamp(at.Z, rec.z - rec.sz / 2, rec.z + rec.sz / 2)
+	local py = math.clamp(at.Y, rec.base + 1, rec.top)
+	local g = gone[id] or {}
+	gone[id] = g
+	local hit = Structure.blast(D, gridOf(rec), g, px, py, pz, radius, dmg)
+	if #hit == 0 then
+		return 0
+	end
+	local p = pending[id]
+	if not p then
+		p = { untilT = 0, pieces = {}, confirmed = {}, prev = state[id] or 0, server = nil }
+		pending[id] = p
+	end
+	p.untilT = os.clock() + PREDICT_HOLD
+	local fresh = {}
+	for _, i in hit do
+		p.pieces[i] = true
+		fresh[i] = 1
+	end
+	state[id] = BuildingState.DAMAGED
+	local travel = MoveController.velocity
+	ramPush = if travel.Magnitude > 1 then travel.Unit else nil
+	apply(id, true, fresh)
+	ramPush = nil
+	return #hit
+end
+
+-- What a diff batch says about predicted buildings (before it is applied)
+local function confirm(data: any)
+	if next(pending) == nil then
+		return
+	end
+	for _, id in data.r or {} do
+		pending[id] = nil
+	end
+	local c = data.c or {}
+	for i = 1, #c - 2, 3 do
+		local p = pending[c[i]]
+		if p and type(c[i + 1]) == "number" then
+			p.confirmed[c[i + 1]] = true
+		end
+	end
+	local d = data.d or {}
+	for i = 1, #d - 1, 2 do
+		local p = pending[d[i]]
+		if p and type(d[i + 1]) == "number" then
+			p.server = d[i + 1]
+		end
+	end
+end
+
+-- Predicted pieces the server never confirmed come back (the building redrawn from the server's copy)
+local function reconcile()
+	local now = os.clock()
+	for id, p in pending do
+		if now >= p.untilT then
+			pending[id] = nil
+			local back = false
+			local g = gone[id]
+			for i in p.pieces do
+				if not p.confirmed[i] and g then
+					g[i] = nil
+					back = true
+				end
+			end
+			if back then
+				if next(p.confirmed) == nil and p.server == nil then
+					state[id] = p.prev
+				end
+				clearDrawn(id)
+				apply(id, false)
+			end
+		end
+	end
+end
+
+-- Street things a ram goes through (MoveController.onPropHit): knocked loose on this device and told to the server,
+-- which passes the knock on to the players near (BuildingImpact), so everyone sees the tree go
+local propSent = 0
+local function propHit(part: BasePart, at: Vector3, _speed: number): boolean
+	local n = BuildingFx.smashAt(at, 4, part)
+	if n > 0 and os.clock() - propSent > 0.25 then
+		propSent = os.clock()
+		Net.send("ImpactProp", at)
+	end
+	return n > 0
 end
 
 -- Building states right now (for the map and tests)
@@ -966,6 +1223,13 @@ function BuildingFx.init()
 			for id, rec in BuildingState.unpackBoxes(data.o, data.o1, 4096) do
 				records[id] = rec
 			end
+			for _, id in (if type(data.rd) == "table" then data.rd else {}) :: { any } do
+				local rec = type(id) == "number" and records[id]
+				if rec then
+					rec.round = true
+					grids[id] = nil
+				end
+			end
 		end
 		-- the states and the pieces gone from each Damaged building; holes from earlier batches are dropped
 		BuildingState.applySnapshot(view, data, pieceCount)
@@ -984,6 +1248,7 @@ function BuildingFx.init()
 		if type(data) ~= "table" then
 			return
 		end
+		confirm(data)
 		-- repairs first (their old holes go, even when hit again in this batch), then pieces (so a building
 		-- turning Damaged is drawn with its holes), then states
 		local touched, fresh, reset = BuildingState.applyDiff(view, data, known)
@@ -1000,7 +1265,13 @@ function BuildingFx.init()
 		end
 	end)
 	Net.listen("BuildingImpact", impact)
-	RunService.Heartbeat:Connect(FrameProf.wrap("BuildingFx", stepFalls))
+	RunService.Heartbeat:Connect(FrameProf.wrap("BuildingFx", function()
+		stepFalls()
+		if next(pending) ~= nil then
+			reconcile()
+		end
+	end))
+	MoveController.onPropHit = propHit
 	task.spawn(function()
 		while not loadRecords() do
 			task.wait(0.5)
