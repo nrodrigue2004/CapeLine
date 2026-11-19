@@ -45,6 +45,7 @@ local Rng = require(Shared:WaitForChild("Rng"))
 local StoryPlan = require(Shared:WaitForChild("StoryPlan"))
 local PocketLayout = require(Shared:WaitForChild("PocketLayout"))
 local SetPieceKit = require(Shared:WaitForChild("SetPieceKit"))
+local StoryArtKit = require(Shared:WaitForChild("StoryArtKit"))
 local BossSim = require(Shared:WaitForChild("BossSim"))
 local BossMath = require(Shared:WaitForChild("BossMath"))
 local FakeRules = require(Shared:WaitForChild("FakeRules"))
@@ -152,6 +153,22 @@ end
 
 local function v3(t: { number }, up: number?): Vector3
 	return Vector3.new(t[1], t[2] + (up or 0), t[3])
+end
+
+-- A break target's (or the runaway train's) plain parts, exactly as before (Shared.StoryArtKit.BOXES: never
+-- colliding, the hits are the combat target's), tagged with the look each device draws over them (Fx.StoryProps,
+-- gap-story 2026-11-19; until Art.Story is imported, or out of the preset's budget, these parts show)
+local function storyParts(m: Model, boxes: string, st: any)
+	for _, b in StoryArtKit.BOXES[boxes] do
+		SiteKit.part(
+			m,
+			Vector3.new(b.size[1], b.size[2], b.size[3]),
+			CFrame.new(b.at[1], b.at[2], b.at[3]),
+			Color3.fromRGB(b.color[1], b.color[2], b.color[3]),
+			if b.neon then Enum.Material.Neon else nil
+		)
+	end
+	m:SetAttribute("StoryLook", StoryArtKit.lookFor(st))
 end
 
 ---------------------------------------------------------------------------
@@ -455,18 +472,7 @@ local function startStep(run: Run, track: Track)
 				10,
 				st.hits,
 				function(m)
-					SiteKit.part(
-						m,
-						Vector3.new(10, 9, 26),
-						CFrame.new(0, 4.5, 0),
-						Color3.fromRGB(220, 200, 70)
-					)
-					SiteKit.part(
-						m,
-						Vector3.new(10.4, 2, 26.4),
-						CFrame.new(0, 7, 0),
-						Color3.fromRGB(60, 60, 70)
-					)
+					storyParts(m, "train", st)
 				end,
 				nil,
 				function()
@@ -496,19 +502,7 @@ local function startStep(run: Run, track: Track)
 						5,
 						st.hits,
 						function(m)
-							SiteKit.part(
-								m,
-								Vector3.new(5, 4, 5),
-								CFrame.new(0, 2, 0),
-								Color3.fromRGB(120, 90, 200)
-							)
-							SiteKit.part(
-								m,
-								Vector3.new(1.5, 3, 1.5),
-								CFrame.new(0, 5, 0),
-								Color3.fromRGB(160, 230, 255),
-								Enum.Material.Neon
-							)
+							storyParts(m, "crate", st)
 						end,
 						nil,
 						function()
@@ -949,6 +943,10 @@ local function statePacket(run: Run, player: Player): { [string]: any }
 	out.target = stepTarget(run, track, player)
 	out.points = track.points
 	out.held = track.held
+	if st.kind == "hold" then
+		out.seconds = st.seconds
+		out.people = st.people or nil -- people pinned at the rings (StoryFx draws them; gap-story)
+	end
 	out.t = now - track.stepAt
 	if st.kind == "scene" then
 		out.focus = if st.focus == "fake" then keptPos(run) else run.layout.points[st.focus or "spawn"]

@@ -630,6 +630,7 @@ return {
 					radius = 12,
 					waves = { { "SparkDrone", 4 }, { "SparkDrone", 5 }, { "BurglarBot", 3 } },
 					waveGap = 14,
+					people = true, -- a person pinned under a girder at each ring (StoryFx; cosmetic)
 					text = "Get the people off the bridge",
 					radio = {
 						{
@@ -651,6 +652,7 @@ return {
 					points = 3,
 					hits = 14,
 					guards = { "Turret", 2 },
+					look = "StoryVan", -- the armored trucks' look (Shared.StoryArtKit; cosmetic)
 					text = "Loot the armored trucks in the chaos",
 					radio = {
 						{

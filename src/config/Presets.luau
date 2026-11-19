@@ -15,6 +15,10 @@
 -- (Shared.ClothesMap.tucked), and past it none (NpcRig.showClothes).
 -- sites (2026-11-19): the incident, event and contract props this device draws in their Blender looks (Fx.ActivityProps):
 -- within radius studs of the camera, at most `looks` props and `parts` mesh parts, nearest first; the rest keep their parts.
+-- story (2026-11-19, gap-story): a mission's props in their Blender looks (Fx.StoryProps, Shared.StoryArtKit): within
+-- radius studs, at most `looks` (nearest first; the rest keep their parts), the nearest `drones` Echo Drones in their
+-- mesh look (the rest keep the plain ball), the goal beacon on or off, and
+-- whether its chevron rings slide.
 return {
 	order = { "low", "medium", "high" },
 	low = {
@@ -46,6 +50,7 @@ return {
 		ruins = { bits = 0 }, -- the Crater's loose lab debris this device scatters (Shared.CraterArtKit.bits; gap-wrecks)
 		smash = 3, -- street things (lamps, benches, trees, fences) knocked loose a big impact nearby (BuildingFx, 2026-11-19)
 		sites = { radius = 240, looks = 6, parts = 30 }, -- activity props in their Blender looks (Fx.ActivityProps)
+		story = { radius = 240, looks = 6, drones = 2, beacon = true, rings = false }, -- story props and Echo Drones (Fx.StoryProps)
 	},
 	medium = {
 		streamRadius = 600,
@@ -76,6 +81,7 @@ return {
 		ruins = { bits = 16 }, -- the Crater's loose lab debris this device scatters (Shared.CraterArtKit.bits; gap-wrecks)
 		smash = 6, -- street things (lamps, benches, trees, fences) knocked loose a big impact nearby (BuildingFx, 2026-11-19)
 		sites = { radius = 420, looks = 14, parts = 70 }, -- activity props in their Blender looks (Fx.ActivityProps)
+		story = { radius = 420, looks = 12, drones = 6, beacon = true, rings = true }, -- story props and Echo Drones (Fx.StoryProps)
 	},
 	high = {
 		streamRadius = 800,
@@ -106,6 +112,7 @@ return {
 		ruins = { bits = 36 }, -- the Crater's loose lab debris this device scatters (Shared.CraterArtKit.bits; gap-wrecks)
 		smash = 10, -- street things knocked loose a big impact nearby (BuildingFx, 2026-11-19)
 		sites = { radius = 640, looks = 30, parts = 150 }, -- activity props in their Blender looks (Fx.ActivityProps)
+		story = { radius = 640, looks = 24, drones = 12, beacon = true, rings = true }, -- story props and Echo Drones (Fx.StoryProps)
 	},
 	-- the preset each device class starts on (QualityRules.device)
 	auto = { phone = "low", tablet = "medium", pc = "medium", console = "medium" },
