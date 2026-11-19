@@ -11,7 +11,14 @@
 -- * the camera beats: the CUT beats' shots (OpeningPlan.CUT) play through the one cutscene player
 --   (CinemaClient, lore step 7: letterbox, SKIP once seen); the follow camera elsewhere
 -- Reduce flashing: no flashes or shakes here either (CombatFx and CameraController already obey it).
--- PLACEHOLDER ART: the stage, the crowd, Crane, the billboard and the slabs are parts until the art pass.
+-- The art pass (gap-prologue, 2026-11-19): the stage set (deck, trim, steps, podium, the Hall's banner frame,
+-- spotlight towers, crowd barriers), the scanner drone, the falling sign, the subway slab and rubble and the
+-- billboard's frame are art/blender/prologue.py's meshes (Fx.PrologueMeshes, Shared.PrologueArtKit) over the same
+-- plain parts, which stay hidden and keep every collision, position and timing; until Art.Prologue is imported the
+-- parts show as before. The banner and the billboard show the printed pictures (art/prologue/ads.py, Config ids)
+-- and Silas Crane stands on the billboard as his own rig (his catalog face and hair; nothing drawn). The shield
+-- bubble and the scanner's red sweep are effects with FxLib's pooled particles (its budget, Reduce flashing).
+-- PLACEHOLDER ART: the crowd and Crane are plain people on the rig until their art pass.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -43,6 +50,9 @@ local CombatFx = require(script.Parent.CombatFx)
 local CinemaClient = require(script.Parent.Parent.Controllers.CinemaClient)
 local CombatClient = require(script.Parent.Parent.Controllers.CombatClient)
 local CitizenRenderer = require(script.Parent.Parent.Controllers.CitizenRenderer)
+local FxLib = require(script.Parent.FxLib)
+local PrologueMeshes = require(script.Parent.PrologueMeshes)
+local PrologueArtKit = require(Shared:WaitForChild("PrologueArtKit"))
 
 local PrologueFx = {}
 
@@ -58,12 +68,14 @@ local crowd: { Npc } = {}
 local stageNpcs: { [string]: Npc } = {}
 local kid: Npc? = nil
 local lodestar: Npc? = nil
-local scanBeam: Part? = nil
 local scanner: Part? = nil
 local debris: Part? = nil
 local board: Part? = nil
 local slabs: { [number]: Part } = {}
 local slabDown: { [number]: boolean } = {} -- slab k has landed as rubble
+local slabArt: { [number]: { MeshPart } } = {} -- slab k's meshes (the falling slab, then the rubble)
+local plainParts: { [string]: BasePart } = {} -- the ceremony's plain parts by PrologueArtKit frame name
+local scan: { [string]: any }? = nil -- the scanner's sweep: its fan, line, ring and next mote
 local lastStep: string? = nil
 local leapDone = false
 local sparkShown = false
@@ -132,6 +144,41 @@ local function sign(p: BasePart, face: Enum.NormalId, lines: { { any } }, bg: Co
 		t.TextColor3 = l[2]
 		t.Parent = back
 	end
+end
+
+-- A printed picture (an uploaded Image id) over a part's face; false when there is none (the caller draws text)
+local function picture(p: BasePart, face: Enum.NormalId, id: number?): boolean
+	if type(id) ~= "number" or id <= 0 then
+		return false
+	end
+	local g = Instance.new("SurfaceGui")
+	g.Face = face
+	g.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	g.PixelsPerStud = 16
+	g.LightInfluence = 0
+	g.Parent = p
+	local img = Instance.new("ImageLabel")
+	img.Size = UDim2.fromScale(1, 1)
+	img.BackgroundTransparency = 1
+	img.Image = "rbxassetid://" .. id
+	img.ScaleType = Enum.ScaleType.Stretch
+	img.Parent = g
+	return true
+end
+
+-- A look's Blender meshes over its plain parts (Shared.PrologueArtKit): drawn only once every mesh is imported;
+-- then the parts it stands for are hidden (they keep colliding exactly as before). Returns the meshes.
+local function dress(look: string, cf: CFrame, weld: BasePart?, skip: { [string]: boolean }?): { MeshPart }
+	if not folder then
+		return {}
+	end
+	local made = PrologueMeshes.add(folder :: Folder, look, cf, weld, skip)
+	if #made > 0 then
+		for _, name in PrologueArtKit.LOOKS[look].hides do
+			PrologueMeshes.hide(plainParts[name])
+		end
+	end
+	return made
 end
 
 local function plate(model: Model, top: string, sub: string, color: Color3)
@@ -243,7 +290,10 @@ local function clearScene()
 	table.clear(stageNpcs)
 	table.clear(slabs)
 	table.clear(slabDown)
-	kid, lodestar, scanBeam, scanner, debris, board = nil, nil, nil, nil, nil, nil
+	table.clear(slabArt)
+	table.clear(plainParts)
+	scan = nil
+	kid, lodestar, scanner, debris, board = nil, nil, nil, nil, nil
 	sparkShown, leapDone, suit = false, false, nil
 end
 
@@ -256,6 +306,28 @@ local function ensureFolder()
 	end
 end
 
+-- Silas Crane on the rig (the stage, and the billboard at `scale`): a sharp dark suit, a red tie, slicked silver
+-- hair as the fallback cap; NpcRig.person gives him his catalog face and catalog hair by his name, the same on
+-- every device and at every size
+local function craneRig(scale: number): any
+	local crane = person(
+		"Silas Crane",
+		{ gender = 1, build = 2, height = 4 },
+		Color3.fromRGB(34, 36, 44),
+		Color3.fromRGB(34, 36, 44),
+		rgb(Config.Creator.skins[2]),
+		Color3.fromRGB(190, 195, 205),
+		scale
+	)
+	NpcRig.fix(
+		crane,
+		"UpperTorso",
+		part(Vector3.new(0.5, 1.4, 0.2) * scale, CFrame.identity, Color3.fromRGB(200, 30, 40)),
+		CFrame.new(0, 0.1 * scale, -crane.parts.UpperTorso.Size.Z / 2 - 0.05 * scale)
+	)
+	return crane
+end
+
 local function buildCeremony(o: { [string]: any })
 	ensureFolder()
 	local stage, face, hall = v3(o.stage), v3(o.face), v3(o.hall)
@@ -266,28 +338,29 @@ local function buildCeremony(o: { [string]: any })
 	local yawOut = yawTo(stage, stage + face)
 	local base =
 		CFrame.lookAt(stage - Vector3.new(0, P.height / 2, 0), stage - Vector3.new(0, P.height / 2, 0) + face)
-	-- the stage: a deck, a gold trim, steps down to the crowd, a podium and the Hall's banner behind
-	part(
+	-- the stage: a deck, a gold trim, steps down to the crowd, a podium and the Hall's banner behind (the plain
+	-- parts; the Blender looks draw over them once imported, the deck and steps still the colliding floor)
+	plainParts.deck = part(
 		Vector3.new(P.width, P.height, P.depth),
 		base,
 		Color3.fromRGB(70, 74, 92),
 		Enum.Material.Concrete,
 		true
 	)
-	part(
+	plainParts.trim = part(
 		Vector3.new(P.width + 0.6, 0.6, P.depth + 0.6),
 		base * CFrame.new(0, P.height / 2, 0),
 		Color3.fromRGB(255, 210, 60),
 		Enum.Material.Metal
 	)
-	part(
+	plainParts.steps = part(
 		Vector3.new(10, P.height / 2, 4),
 		base * CFrame.new(0, -P.height / 4, -P.depth / 2 - 2),
 		Color3.fromRGB(70, 74, 92),
 		Enum.Material.Concrete,
 		true
 	)
-	part(
+	plainParts.podium = part(
 		Vector3.new(3, 4, 2),
 		CFrame.new(v3(o.crane) :: Vector3 + face * 2.5 + Vector3.new(0, 2, 0)),
 		Color3.fromRGB(30, 32, 40)
@@ -300,25 +373,21 @@ local function buildCeremony(o: { [string]: any })
 		),
 		Color3.fromRGB(30, 34, 60)
 	)
-	sign(banner, Enum.NormalId.Front, {
-		{ O.hall, Color3.fromRGB(255, 210, 60), 0.5 },
-		{ O.brand, Color3.fromRGB(240, 240, 240), 0.3 },
-	}, Color3.fromRGB(30, 34, 60))
-	-- Silas Crane: a sharp dark suit, a red tie, slicked silver hair
-	local crane = person(
-		"Silas Crane",
-		{ gender = 1, build = 2, height = 4 },
-		Color3.fromRGB(34, 36, 44),
-		Color3.fromRGB(34, 36, 44),
-		rgb(Config.Creator.skins[2]),
-		Color3.fromRGB(190, 195, 205)
-	)
-	NpcRig.fix(
-		crane,
-		"UpperTorso",
-		part(Vector3.new(0.5, 1.4, 0.2), CFrame.identity, Color3.fromRGB(200, 30, 40)),
-		CFrame.new(0, 0.1, -crane.parts.UpperTorso.Size.Z / 2 - 0.05)
-	)
+	plainParts.banner = banner
+	if not picture(banner, Enum.NormalId.Front, O.art.banner) then
+		sign(banner, Enum.NormalId.Front, {
+			{ O.hall, Color3.fromRGB(255, 210, 60), 0.5 },
+			{ O.brand, Color3.fromRGB(240, 240, 240), 0.3 },
+		}, Color3.fromRGB(30, 34, 60))
+	end
+	local low = QualityController.name == "low"
+	dress("Stage", base)
+	dress("Podium", base)
+	dress("Spotlights", base, nil, if low then { SpotlightsBeam = true } else nil) -- no light beams on phones
+	dress("Barriers", base)
+	dress("HallBanner", banner.CFrame)
+	-- Silas Crane: a sharp dark suit, a red tie, his catalog face and hair
+	local crane = craneRig(1)
 	plate(crane.model, "SILAS CRANE", O.brand, Color3.fromRGB(255, 210, 60))
 	stageNpcs.crane = npc(crane, v3(o.crane) :: Vector3, yawOut)
 	-- the famous fakes as the city's heroes: their hero names and titles, no robot tag
@@ -337,14 +406,17 @@ local function buildCeremony(o: { [string]: any })
 		local d =
 			part(Vector3.new(4, 4, 4), CFrame.new(sc), Color3.fromRGB(220, 222, 230), Enum.Material.Metal)
 		d.Shape = Enum.PartType.Ball
-		part(
+		local ring = part(
 			Vector3.new(0.4, 7, 7),
 			CFrame.new(sc) * CFrame.Angles(0, 0, math.rad(90)),
 			Color3.fromRGB(255, 60, 60),
 			Enum.Material.Neon
-		).Shape =
-			Enum.PartType.Cylinder
+		)
+		ring.Shape = Enum.PartType.Cylinder
 		scanner = d
+		plainParts.scanner, plainParts.scannerRing = d, ring
+		-- the drone's meshes ride its bob (welded to the ball); the ring's part never moved, so it is just hidden
+		dress("Scanner", d.CFrame, d)
 	end
 	-- the crowd, facing the stage (fewer on the phone preset)
 	local start = v3(o.start) :: Vector3
@@ -587,27 +659,116 @@ end
 -- The beats' moments
 ---------------------------------------------------------------------------
 
+-- A flat triangle a, b, c from two wedges (the scanner's fan of light)
+local function triangle(w1: WedgePart, w2: WedgePart, a: Vector3, b: Vector3, c: Vector3)
+	local ab, ac, bc = b - a, c - a, c - b
+	local abd, acd, bcd = ab:Dot(ab), ac:Dot(ac), bc:Dot(bc)
+	if abd > acd and abd > bcd then
+		c, a = a, c
+	elseif acd > bcd and acd > abd then
+		a, b = b, a
+	end
+	ab, ac, bc = b - a, c - a, c - b
+	local right = ac:Cross(ab)
+	if right.Magnitude < 1e-4 or bc.Magnitude < 1e-4 then
+		return
+	end
+	right = right.Unit
+	local up = bc:Cross(right).Unit
+	local back = bc.Unit
+	local height = math.abs(ab:Dot(up))
+	w1.Size = Vector3.new(0.05, height, math.abs(ab:Dot(back)))
+	w1.CFrame = CFrame.fromMatrix((a + b) / 2, right, up, back)
+	w2.Size = Vector3.new(0.05, height, math.abs(ac:Dot(back)))
+	w2.CFrame = CFrame.fromMatrix((a + c) / 2, -right, up, -back)
+end
+
+local SCAN_RED = Color3.fromRGB(255, 46, 46)
+
+local function glowPart(size: Vector3, alpha: number): Part
+	local p = part(size, CFrame.identity, SCAN_RED, Enum.Material.Neon)
+	p.Transparency = alpha
+	return p
+end
+
+local function wedge(alpha: number): WedgePart
+	local w = Instance.new("WedgePart")
+	w.Anchored, w.CanCollide, w.CanQuery, w.CanTouch, w.CastShadow = true, false, false, false, false
+	w.Material = Enum.Material.Neon
+	w.Color = SCAN_RED
+	w.Transparency = alpha
+	w.Parent = folder
+	return w
+end
+
+local function endScan()
+	local s = scan
+	if s then
+		for _, p in s.parts do
+			p:Destroy()
+		end
+		scan = nil
+	end
+end
+
+-- The scan: a fan of red light from the drone's lens sweeps a line across the crowd, slows and locks onto the
+-- hero (the same path and timing as before), then rings the hero with a target rune. Pooled FxLib motes ride the
+-- line within the device's particle budget; with Reduce flashing on, nothing pulses.
 local function sweep(o: { [string]: any }, t: number)
 	local start, face = v3(o.start), v3(o.face)
-	if not start or not face then
+	if not start or not face or not folder then
 		return
 	end
 	local side = Vector3.new(-face.Z, 0, face.X)
-	if not scanBeam then
-		local b =
-			part(Vector3.new(0.6, 12, 40), CFrame.new(start), Color3.fromRGB(255, 50, 50), Enum.Material.Neon)
-		b.Transparency = 0.45
-		scanBeam = b
+	if not scan then
+		local fan1, fan2, fan3, fan4 = wedge(0.78), wedge(0.78), wedge(0.78), wedge(0.78)
+		local line = glowPart(Vector3.new(0.5, 0.18, 40), 0.15)
+		local ring = glowPart(Vector3.new(0.18, 8, 8), 1)
+		ring.Shape = Enum.PartType.Cylinder
+		scan = {
+			parts = { fan1, fan2, fan3, fan4, line, ring },
+			fan = { fan1, fan2, fan3, fan4 },
+			line = line,
+			ring = ring,
+			mote = 0,
+			rune = 0,
+			locked = false,
+		}
 		AudioController.play("bossWarning")
 	end
-	local b = scanBeam :: Part
+	local s = scan :: { [string]: any }
 	local lock = O.beats.scan * 0.42
-	local x = if t < lock then math.sin(t / lock * math.pi * 1.5) * 26 * (1 - t / lock) + 0 else 0
-	b.CFrame =
-		CFrame.lookAt(start + side * x + Vector3.new(0, 4, 0), start + side * x + Vector3.new(0, 4, 0) + face)
-	if t >= lock then
-		b.Size = Vector3.new(0.6, 9, 9)
-		b.Color = Color3.fromRGB(255, 20, 20)
+	local x = if t < lock then math.sin(t / lock * math.pi * 1.5) * 26 * (1 - t / lock) else 0
+	local g = start + side * x + Vector3.new(0, 0.12, 0)
+	local half = if t < lock then 20 else 3.6
+	local a, b = g - face * half, g + face * half
+	local lens = if scanner
+		then (scanner :: Part).Position - Vector3.new(0, 1.45, 0)
+		else g + Vector3.new(0, 20, 0)
+	-- the fan: two thin triangles a hair apart, so it reads from either side
+	triangle(s.fan[1], s.fan[2], lens, a, b)
+	triangle(s.fan[3], s.fan[4], lens + side * 0.06, a + side * 0.06, b + side * 0.06)
+	s.line.Size = Vector3.new(0.5, 0.18, half * 2)
+	s.line.CFrame = CFrame.lookAt(g, g + face)
+	local now = os.clock()
+	if t < lock then
+		if now >= s.mote then
+			s.mote = now + 0.12
+			FxLib.emit("spark", SCAN_RED, a:Lerp(b, math.random()), 2, Vector3.new(0, 1, 0))
+		end
+	else
+		if not s.locked then
+			s.locked = true
+			FxLib.shock(start + Vector3.new(0, 0.2, 0), 7, SCAN_RED)
+			FxLib.emit("spark", SCAN_RED, start + Vector3.new(0, 1, 0), 10)
+		end
+		local pulse = if CombatFx.reduceFlashing then 0 else math.sin(now * 2 * math.pi * 1.5) * 0.12
+		s.ring.Transparency = 0.25 + pulse
+		s.ring.CFrame = CFrame.new(start + Vector3.new(0, 0.15, 0)) * CFrame.Angles(0, 0, math.rad(90))
+		if now >= s.rune then
+			s.rune = now + 0.55
+			FxLib.emit("rune", SCAN_RED, start + Vector3.new(0, 0.25, 0), 1, Vector3.new(0, 1, 0))
+		end
 	end
 end
 
@@ -621,17 +782,28 @@ local function fireSpark(o: { [string]: any })
 	local color = powerColor()
 	local style = State.hero.fxStyle
 	if OpeningPlan.sparkBeat(o.side) == "shield" then
-		-- the sign comes down; the Spark throws a shield over the kid; it bounces off
-		local shield = part(
-			Vector3.new(9, 9, 9),
-			CFrame.new(k.pos + Vector3.new(0, 2, 0)),
-			color,
-			Enum.Material.ForceField
-		)
+		-- the sign comes down; the Spark throws a shield over the kid; it bounces off. The bubble pops open (a
+		-- shimmering ForceField shell over a faint tinted core), hex plates and a ring flare out (FxLib), the hit
+		-- ripples it, and it fades out in wisps.
+		local center = k.pos + Vector3.new(0, 2, 0)
+		local shield = part(Vector3.one, CFrame.new(center), color, Enum.Material.ForceField)
 		shield.Shape = Enum.PartType.Ball
 		shield.Transparency = 0.2
+		local core = part(Vector3.one, CFrame.new(center), color, Enum.Material.Glass)
+		core.Shape = Enum.PartType.Ball
+		core.Transparency = 0.82
+		local pop = TweenInfo.new(0.22, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+		TweenService:Create(shield, pop, { Size = Vector3.new(9, 9, 9) }):Play()
+		TweenService:Create(core, pop, { Size = Vector3.new(8.6, 8.6, 8.6) }):Play()
+		FxLib.shock(k.pos + Vector3.new(0, 0.2, 0), 5, color)
+		for i = 0, 5 do
+			local a = i / 6 * math.pi * 2
+			local dir = Vector3.new(math.cos(a), 0.6, math.sin(a)).Unit
+			FxLib.emit("hex", color, center + dir * 4.2, 2, dir)
+		end
+		FxLib.emit("star", color, center + Vector3.new(0, 4.4, 0), 3)
 		if r then
-			CombatFx.bolt(r.Position, k.pos + Vector3.new(0, 2, 0), style, color, State.hero.setId)
+			CombatFx.bolt(r.Position, center, style, color, State.hero.setId)
 		end
 		local d = debris
 		if d then
@@ -645,6 +817,14 @@ local function fireSpark(o: { [string]: any })
 				CombatFx.burst(hit, style, color)
 				AudioController.play("clash", hit)
 				CameraController.shake(0.25, 0.4)
+				-- the shell takes the hit: sparks and plates off the top, a quick ripple (none with Reduce flashing)
+				FxLib.emit("spark", color, hit - Vector3.new(0, 1.5, 0), 12, Vector3.new(0, 1, 0))
+				FxLib.emit("hex", color, hit - Vector3.new(0, 1.5, 0), 6, Vector3.new(0, 1, 0))
+				if shield.Parent and not CombatFx.reduceFlashing then
+					local ripple =
+						TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, 0, true)
+					TweenService:Create(shield, ripple, { Size = Vector3.new(9.8, 8.4, 9.8) }):Play()
+				end
 				TweenService:Create(d, TweenInfo.new(0.7, Enum.EasingStyle.Quad), {
 					CFrame = CFrame.new(hit + Vector3.new(12, -5, 6)) * CFrame.Angles(0.6, 0.2, 1.2),
 				}):Play()
@@ -653,6 +833,8 @@ local function fireSpark(o: { [string]: any })
 		task.delay(2.2, function()
 			if shield.Parent then
 				TweenService:Create(shield, TweenInfo.new(0.5), { Transparency = 1 }):Play()
+				TweenService:Create(core, TweenInfo.new(0.5), { Transparency = 1 }):Play()
+				FxLib.emit("wisp", color, center, 6)
 			end
 			local start = v3(o.start)
 			if start and kid == k then
@@ -879,6 +1061,12 @@ local function tunnelStep(o: { [string]: any })
 				Enum.Material.Slate
 			)
 			slabs[k] = slab
+			-- the slab's look rides the falling part (welded); the part keeps its timing, size and collisions
+			local art = PrologueMeshes.add(folder :: Folder, "Slab", slab.CFrame, slab)
+			if #art > 0 then
+				PrologueMeshes.hide(slab)
+			end
+			slabArt[k] = art
 			TweenService:Create(slab, TweenInfo.new(0.22, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
 				CFrame = CFrame.new(floor + Vector3.new(0, S.rubble / 2, 0)),
 				Size = Vector3.new(S.width - 1, S.rubble, S.slab),
@@ -888,6 +1076,19 @@ local function tunnelStep(o: { [string]: any })
 					return
 				end
 				slabDown[k] = true -- CanCollide follows OpeningPlan.rubbleShuts each frame (above)
+				-- the slab becomes the rubble pile's look where it landed (or the plain part again without one)
+				local rubble = if folder
+					then PrologueMeshes.add(folder :: Folder, "Rubble", slab.CFrame, nil)
+					else {}
+				for _, m in slabArt[k] or {} do
+					m:Destroy()
+				end
+				slabArt[k] = rubble
+				if #rubble > 0 then
+					PrologueMeshes.hide(slab)
+				else
+					slab.Transparency = 0
+				end
 				CombatFx.burst(floor + Vector3.new(0, 2, 0), "Comic")
 				AudioController.play("collapse", floor)
 				CameraController.shake(0.35, 0.6)
@@ -953,66 +1154,57 @@ local function buildBoard(o: { [string]: any })
 	local p =
 		part(Vector3.new(B.size[1], B.size[2], 1), CFrame.lookAt(at, at + n), Color3.fromRGB(240, 240, 240))
 	board = p
-	local g = Instance.new("SurfaceGui")
-	g.Face = Enum.NormalId.Front
-	g.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
-	g.PixelsPerStud = 12
-	g.LightInfluence = 0
-	g.Parent = p
-	local bg = Instance.new("Frame")
-	bg.Size = UDim2.fromScale(1, 1)
-	bg.BackgroundColor3 = Color3.fromRGB(26, 30, 56)
-	bg.BorderSizePixel = 0
-	bg.Parent = g
-	-- Silas Crane's smiling face (PLACEHOLDER ART: drawn with shapes)
-	local function blob(
-		parent: Instance,
-		color: Color3,
-		x: number,
-		y: number,
-		w: number,
-		h: number,
-		round: number?
-	): Frame
-		local f = Instance.new("Frame")
-		f.AnchorPoint = Vector2.new(0.5, 0.5)
-		f.Position = UDim2.fromScale(x, y)
-		f.Size = UDim2.fromScale(w, h)
-		f.BackgroundColor3 = color
-		f.BorderSizePixel = 0
-		f.Parent = parent
-		if round then
-			local c = Instance.new("UICorner")
-			c.CornerRadius = UDim.new(round, 0)
-			c.Parent = f
+	plainParts.board = p
+	-- the printed Crane Industries ad (art/prologue/ads.py); without its upload, the brand and slogan as text on
+	-- the right two thirds, the same layout (the left third is Crane's)
+	if not picture(p, Enum.NormalId.Front, O.art.billboard) then
+		local g = Instance.new("SurfaceGui")
+		g.Face = Enum.NormalId.Front
+		g.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+		g.PixelsPerStud = 12
+		g.LightInfluence = 0
+		g.Parent = p
+		local bg = Instance.new("Frame")
+		bg.Size = UDim2.fromScale(1, 1)
+		bg.BackgroundColor3 = Color3.fromRGB(26, 30, 56)
+		bg.BorderSizePixel = 0
+		bg.Parent = g
+		local function text(t: string, y: number, h: number, color: Color3)
+			local l = Instance.new("TextLabel")
+			l.AnchorPoint = Vector2.new(0.5, 0.5)
+			l.Position = UDim2.fromScale(0.7, y)
+			l.Size = UDim2.fromScale(0.56, h)
+			l.BackgroundTransparency = 1
+			l.Font = Enum.Font.GothamBlack
+			l.TextScaled = true
+			l.TextWrapped = true
+			l.Text = t
+			l.TextColor3 = color
+			l.Parent = bg
 		end
-		return f
+		text(O.brand, 0.3, 0.22, Color3.fromRGB(255, 210, 60))
+		text(O.slogan, 0.65, 0.34, Color3.fromRGB(245, 245, 245))
 	end
-	local face = blob(bg, rgb(Config.Creator.skins[2]), 0.25, 0.55, 0.32, 0.8, 0.5)
-	blob(bg, Color3.fromRGB(190, 195, 205), 0.25, 0.2, 0.34, 0.2, 0.5) -- slicked silver hair
-	blob(face, Color3.fromRGB(30, 30, 40), 0.32, 0.38, 0.12, 0.08, 0.5)
-	blob(face, Color3.fromRGB(30, 30, 40), 0.68, 0.38, 0.12, 0.08, 0.5)
-	local smile = blob(face, Color3.fromRGB(250, 250, 250), 0.5, 0.68, 0.5, 0.14, 0.5)
-	local st = Instance.new("UIStroke")
-	st.Color = Color3.fromRGB(120, 40, 50)
-	st.Thickness = 3
-	st.Parent = smile
-	blob(bg, Color3.fromRGB(200, 30, 40), 0.25, 0.97, 0.06, 0.1) -- the red tie
-	local function text(t: string, y: number, h: number, color: Color3)
-		local l = Instance.new("TextLabel")
-		l.AnchorPoint = Vector2.new(0.5, 0.5)
-		l.Position = UDim2.fromScale(0.7, y)
-		l.Size = UDim2.fromScale(0.56, h)
-		l.BackgroundTransparency = 1
-		l.Font = Enum.Font.GothamBlack
-		l.TextScaled = true
-		l.TextWrapped = true
-		l.Text = t
-		l.TextColor3 = color
-		l.Parent = bg
+	local cf = p.CFrame
+	local frame = dress("Billboard", cf)
+	-- Silas Crane himself on the catwalk in front of the ad's left third, turned three quarters toward its words
+	-- and presenting them: his own rig at billboard size, his catalog face and catalog hair (nate's rule: faces and
+	-- hair come from the Roblox catalog, never drawn), so the picture holds no person
+	local C = PrologueArtKit.CRANE
+	local feet = cf * CFrame.new(C.at[1], C.at[2], C.at[3])
+	if #frame == 0 then
+		-- no frame imported: a plain ledge to stand on (PLACEHOLDER ART until Art.Prologue)
+		part(
+			Vector3.new(16, 0.4, 5.6),
+			feet * CFrame.new(0, -0.2, 0),
+			Color3.fromRGB(78, 84, 98),
+			Enum.Material.DiamondPlate
+		)
 	end
-	text(O.brand, 0.3, 0.22, Color3.fromRGB(255, 210, 60))
-	text(O.slogan, 0.65, 0.34, Color3.fromRGB(245, 245, 245))
+	local crane = craneRig(C.scale)
+	NpcRig.place(crane, feet * CFrame.Angles(0, math.rad(C.yaw), 0))
+	NpcRig.turn(crane, "RightShoulder", CFrame.Angles(1.75, 0, 0.35))
+	NpcRig.turn(crane, "LeftShoulder", CFrame.Angles(0.15, 0, 0))
 end
 
 -- (lore step 6: each line's blip is the guide line queue's, Ui.GuideHud, with the speaker's own sound)
@@ -1109,12 +1301,15 @@ local function onState()
 		end
 		if step == "spark" and kid and o.side ~= "villain" and not debris then
 			-- the sign shaking loose over the kid
-			debris = part(
+			local d = part(
 				Vector3.new(8, 3, 1),
 				CFrame.new((kid :: Npc).pos + Vector3.new(0, 24, 0)),
 				Color3.fromRGB(230, 120, 60),
 				Enum.Material.SmoothPlastic
 			)
+			debris = d
+			plainParts.sign = d
+			dress("FallingSign", d.CFrame, d) -- welded: the meshes shake, fall and bounce with it
 		end
 		if step == "leap" then
 			-- the plaza is behind us now
@@ -1199,9 +1394,8 @@ local function frame(dt: number)
 				NpcRig.turn(n.rig, "RightShoulder", CFrame.Angles(0.3, 0, 0))
 			end
 		end
-	elseif scanBeam then
-		scanBeam:Destroy()
-		scanBeam = nil
+	elseif scan then
+		endScan()
 	end
 	-- the panic: the crowd runs off and fades away
 	for i = #crowd, 1, -1 do
