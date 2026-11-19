@@ -32,6 +32,7 @@
 -- hero look (earnable creator pieces, LookKit); crates, rings, site signs, set pieces and the motorcade are
 -- plain parts.
 
+local CollectionService = game:GetService("CollectionService")
 local Debris = game:GetService("Debris")
 local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
@@ -277,6 +278,8 @@ local function helperRig(id: string, h: any): any
 	end
 	-- their own catalog face and hair (Config.NpcLooks.cast, by speaker card), not a name hash
 	NpcRig.wearCast(rig, PeopleLooks.castPick(Config, h.speaker))
+	rig.model:SetAttribute("Gesture", "helper") -- idle variety on every device (pt-anims: NpcGestures)
+	CollectionService:AddTag(rig.model, "NpcGesture")
 	return rig
 end
 
@@ -298,6 +301,9 @@ local function npcModel(
 			Color3.fromRGB(70, 46, 30)
 		)
 	local m = rig.model
+	-- idle variety on every device (pt-anims: NpcGestures waves, talks, points)
+	m:SetAttribute("Gesture", "giver")
+	CollectionService:AddTag(m, "NpcGesture")
 	local holder = SiteKit.model("Giver" .. name) -- where SiteKit keeps site models
 	m.Parent = holder.Parent
 	holder:Destroy()

@@ -61,6 +61,7 @@ local LookKit = require(Shared:WaitForChild("LookKit"))
 local CreatorRules = require(Shared:WaitForChild("CreatorRules"))
 local PeopleLooks = require(Shared:WaitForChild("PeopleLooks"))
 local LocoMath = require(Shared:WaitForChild("LocoMath"))
+local NpcAnim = require(Shared:WaitForChild("NpcAnim"))
 
 local QualityController = require(script.Parent.QualityController)
 local NpcLoco = require(script.Parent.NpcLoco)
@@ -140,6 +141,11 @@ type Body = {
 	flashUntil: number,
 	lastFlags: number,
 	swingUntil: number,
+	-- the attack and hit clips (Shared.NpcAnim, pt-anims): the one-shot playing, when it started, and the
+	-- joints any clip has written (set back when the clips stop)
+	actClip: string?,
+	actAt: number,
+	npcTouched: { [string]: boolean },
 	-- weighty hits (Config.Combat.weight): held in place for the hit-stop, then a recoil away from the hit
 	freezeUntil: number,
 	freezePos: Vector3?,
@@ -1446,6 +1452,9 @@ local function makeRobot(typeId: number, ident: { [string]: any }?): Body
 		flashUntil = 0,
 		lastFlags = -1,
 		swingUntil = 0,
+		actClip = nil,
+		actAt = 0,
+		npcTouched = {},
 		freezeUntil = 0,
 		freezePos = nil,
 		flinchAt = -1,
@@ -2057,14 +2066,39 @@ function EnemyRenderer.impact(id: number, dir: Vector3, heavy: boolean, freeze: 
 	body.flinchDir = if flat.Magnitude > 1e-3 then flat.Unit else Vector3.new(0, 0, -1)
 	body.flinchStuds = if heavy then W.flinchHeavy else W.flinchStuds
 	body.flinchTilt = if heavy then W.flinchTilt * 2 else W.flinchTilt
+	-- the hit react on the joints (NpcAnim): a heavy hit always shows; a light one never cuts an attack
+	local playing = body.actClip
+	local busy = playing ~= nil
+		and playing ~= "hit"
+		and playing ~= "hitHeavy"
+		and now - body.actAt < (NpcAnim.CLIPS[playing] :: any).dur
+	if heavy or not busy then
+		body.actClip = if heavy then "hitHeavy" else "hit"
+		body.actAt = now + freeze
+	end
+end
+
+-- An attack event's clip on robot `id` (pt-anims, Shared.NpcAnim): "swing", "shot", "hook", "slam", "lob",
+-- "rally", "pull" or "mend", by the robot's AI kind
+function EnemyRenderer.act(id: number, event: string)
+	local body = live[id]
+	if not body or disguised(body) then
+		return
+	end
+	local clip = NpcAnim.robotClip(body.cfg.ai, event)
+	if clip then
+		body.actClip = clip
+		body.actAt = os.clock()
+	end
 end
 
 -- A melee swing pose (Sneak stab, Sentinel sweep) for 0.3 s
-function EnemyRenderer.swing(id: number)
+function EnemyRenderer.swing(id: number, event: string?)
 	local body = live[id]
 	if body then
 		body.swingUntil = os.clock() + 0.3
 	end
+	EnemyRenderer.act(id, event or "swing")
 end
 
 -- Remove at once (death); returns the last drawn position, the body colour for the burst and whether it was
@@ -2263,6 +2297,55 @@ end
 -- Pose one robot: its root goes on the BulkMoveTo lists; its R15 joints turn when `joints` is true (near
 -- robots every frame, far ones every few frames). `animated`: Roblox's walk plays on it (NpcLoco), so only
 -- the poses that differ from a plain walk are written, over the Animator, every frame.
+-- The NpcAnim layer over a robot's pose (pt-anims): an attack's or a hit's one-shot, the stagger while
+-- stunned, or its kind's wind-up while the windup flag is up, blended over what the code (or Roblox's walk)
+-- set this frame. Legs only while it stands (a walking robot keeps its stride). When the clips stop, the
+-- joints only they move go back to rest.
+local NPC_LEGS = {
+	LeftHip = true,
+	RightHip = true,
+	LeftKnee = true,
+	RightKnee = true,
+	LeftAnkle = true,
+	RightAnkle = true,
+}
+local NPC_OWN = { Neck = true, LeftWrist = true, RightWrist = true } -- joints the code pose never writes
+local npcScratch: { [string]: { number } } = {}
+local RADS = math.rad
+local function npcLayer(
+	body: Body,
+	put: (any, string, CFrame) -> (),
+	animated: boolean,
+	clip: string?,
+	t: number,
+	w: number,
+	legs: boolean
+)
+	local rig = body.rig
+	if not clip or w <= 0 then
+		if next(body.npcTouched) then
+			for joint in body.npcTouched do
+				if animated then
+					NpcRig.over(rig, joint, NpcRig.animBase(rig, joint))
+				elseif NPC_OWN[joint] then
+					NpcRig.turn(rig, joint, CFrame.identity)
+				end
+			end
+			table.clear(body.npcTouched)
+		end
+		return
+	end
+	local pose = NpcAnim.sample(clip, t, npcScratch)
+	for joint, a in pose do
+		local m = rig.motors[joint]
+		if m and (legs or not NPC_LEGS[joint]) then
+			local base = if animated then NpcRig.animBase(rig, joint) else m.Transform
+			put(rig, joint, base:Lerp(CFrame.Angles(RADS(a[1]), RADS(a[2]), RADS(a[3])), w))
+			body.npcTouched[joint] = true
+		end
+	end
+end
+
 local function pose(
 	body: Body,
 	id: number,
@@ -2446,6 +2529,25 @@ local function pose(
 		NpcRig.turn(rig, name .. "Hip", CFrame.Angles(thighA, 0, 0))
 		NpcRig.turn(rig, name .. "Knee", CFrame.Angles(-kneeA, 0, 0))
 	end
+	-- the attack, hit, stagger and wind-up clips (NpcAnim) over it all; a lunge, its coil and a tumble keep
+	-- their code poses
+	local clip, t, w = nil, 0, 0
+	if not (lunging or coiled or lifted) then
+		local act = body.actClip
+		local c = act and NpcAnim.CLIPS[act]
+		if c and now - body.actAt < c.dur then
+			clip, t = act, math.max(0, now - body.actAt)
+			w = NpcAnim.weight(t, c.dur, 0.08)
+		elseif stunned then
+			clip, t, w = "stagger", now + id * 0.37, 1
+		elseif windup and not sneak then
+			clip, t, w = NpcAnim.robotClip(cfg.ai, "windup"), now, 1
+		end
+		if act and not c or (c and now - body.actAt >= c.dur) then
+			body.actClip = nil
+		end
+	end
+	npcLayer(body, put, animated, clip, t, w, not flyer and speed < 3)
 end
 
 -- Scratch kept across frames (perf pass 2026-11-18: render made about 130 tables a frame): the ids in

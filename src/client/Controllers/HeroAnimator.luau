@@ -247,7 +247,8 @@ local function stateOf(r: Rig, p: Player, now: number): string?
 	if p:GetAttribute("Reviving") ~= nil then
 		return "revive"
 	elseif p:GetAttribute("Carrying") ~= nil then
-		return "carry"
+		-- a grabbed robot held as a club (pt-combat sets CarryGrip "club"): both hands on it by the shoulder
+		return if p:GetAttribute("CarryGrip") == "club" then "robotHold" else "carry"
 	elseif p:GetAttribute("Blocking") == true then
 		local shield = p:GetAttribute("Held") == "weapon" and familyOfId(weaponOf(r, now)) == "shield"
 		return if shield then "guardShield" else "guard"
@@ -286,6 +287,13 @@ function HeroAnimator.cast(p: Player?, row: any, step: number?)
 		dur = (row.channel or 1) * (row.tick or 0.25)
 	end
 	HeroAnimator.play(p, clip, dur)
+end
+
+-- a grabbed robot swung as a weapon (pt-combat): step 1, 2, 3... alternates the swing and the backhand;
+-- slam brings it down overhead. Every device calls it from the swing's event.
+function HeroAnimator.robotSwing(p: Player?, step: number?, slam: boolean?)
+	local clip = if slam then "robotSlam" elseif (step or 1) % 2 == 0 then "robotSwingBack" else "robotSwing"
+	HeroAnimator.play(p, clip)
 end
 
 -- a cast time or a charge-up: the pose for the row (both hands, heavy, or aimed), held for `seconds`
@@ -361,14 +369,7 @@ HeroAnimator.timeScale = 1
 local modeLag = 0
 local lastUpdate = 0
 
-local LEG = {
-	RightHip = true,
-	LeftHip = true,
-	RightKnee = true,
-	LeftKnee = true,
-	RightAnkle = true,
-	LeftAnkle = true,
-}
+local LEG = HeroAnim.LEGS
 local AIR = { air = true, glide = true }
 
 local function step(r: Rig, p: Player, now: number, dt: number)
@@ -470,8 +471,10 @@ local function step(r: Rig, p: Player, now: number, dt: number)
 			and not HeroAnim.movesLegs((a :: Action).clip)
 		then HeroAnim.sample("brace", 0)
 		else nil
-	-- running on the ground: a cast that moves the legs shows only a little of them, so the stride carries on
-	local legW = if not r.modeTo and flat > 6 then 0.3 else 1
+	-- the upper-body layer (HeroAnim.layer): running on the ground a cast shows only a little of its legs, so
+	-- the stride carries on; flying, falling, gliding, swimming or riding it shows none of them and only the
+	-- Root's turn, so the travel pose keeps its legs and pitch
+	local legW, upper = HeroAnim.layer(r.modeTo, flat)
 	for name, motor in r.motors do
 		local f = from and from[name]
 		local tt = to and to[name]
@@ -497,13 +500,17 @@ local function step(r: Rig, p: Player, now: number, dt: number)
 				out = out:Lerp(toCFrame(hd), wHold)
 			end
 			local lw = if LEG[name] then legW else 1
-			if st then
+			if upper and name == "Root" then
+				st = st and HeroAnim.upperRoot(st)
+				ac = ac and HeroAnim.upperRoot(ac)
+			end
+			if st and lw > 0 then
 				out = out:Lerp(toCFrame(st), r.stateW * lw)
 			end
 			if br then
 				out = out:Lerp(toCFrame(br), wAct)
 			end
-			if ac then
+			if ac and lw > 0 then
 				out = out:Lerp(toCFrame(ac), wAct * lw)
 			end
 			motor.Transform = out

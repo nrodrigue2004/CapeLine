@@ -36,6 +36,8 @@ return {
 		citizenPoseEvery = 4, -- farther ones every this many frames
 		citizenAnimNear = 50, -- citizens this close play Roblox's own idle, walk and run (Config.Destruction.citizens.loco)
 		citizenAnimMax = 8, -- at most this many of them, nearest first
+		gestureNear = 40, -- quest givers, helpers and standing citizens this close gesture (Shared.NpcAnim, pt-anims)
+		gestureMax = 4, -- at most this many of them, nearest first
 		bloom = false,
 		sunRays = false,
 		enemyPoseNear = 60, -- robots this close pose every frame (Config.Enemies.look.poseNear before)
@@ -67,6 +69,8 @@ return {
 		citizenPoseEvery = 3,
 		citizenAnimNear = 90, -- citizens this close play Roblox's own idle, walk and run
 		citizenAnimMax = 16, -- at most this many of them, nearest first
+		gestureNear = 70, -- quest givers, helpers and standing citizens this close gesture (Shared.NpcAnim, pt-anims)
+		gestureMax = 8, -- at most this many of them, nearest first
 		bloom = true,
 		sunRays = true,
 		enemyPoseNear = 120, -- robots this close pose every frame (Config.Enemies.look.poseNear before)
@@ -98,6 +102,8 @@ return {
 		citizenPoseEvery = 3,
 		citizenAnimNear = 120, -- citizens this close play Roblox's own idle, walk and run
 		citizenAnimMax = 24, -- at most this many of them, nearest first
+		gestureNear = 100, -- quest givers, helpers and standing citizens this close gesture (Shared.NpcAnim, pt-anims)
+		gestureMax = 12, -- at most this many of them, nearest first
 		bloom = true,
 		sunRays = true,
 		enemyPoseNear = 120, -- robots this close pose every frame (Config.Enemies.look.poseNear before)

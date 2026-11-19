@@ -252,7 +252,9 @@ return function(T: any)
 				check(c.loop == true, clip .. " loops")
 				for joint in c.joints do
 					check(
-						string.find(joint, "Shoulder") or string.find(joint, "Elbow"),
+						string.find(joint, "Shoulder")
+							or string.find(joint, "Elbow")
+							or (string.find(clip, "@", 1, true) and string.find(joint, "Wrist")), -- two-handed (pt-anims)
 						clip .. " moves only the arms"
 					)
 				end
@@ -273,7 +275,11 @@ return function(T: any)
 			end
 		end
 		check(HeroAnim.holdClip(nil, nil) == nil, "no weapon, no stance")
-		check(HeroAnim.holdClip(14, "two") == "holdPole", "the spear levels its own way")
+		-- (pt-anims: the two-handed copy of the pole stance)
+		check(
+			string.sub(HeroAnim.holdClip(14, "two") or "", 1, 8) == "holdPole",
+			"the spear levels its own way"
+		)
 		check(
 			HeroAnim.holdsIn(nil) and HeroAnim.holdsIn("air"),
 			"the stance shows standing, running and jumping"
