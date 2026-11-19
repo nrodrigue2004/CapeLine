@@ -236,6 +236,12 @@ Looks only: where the screens hang, what they show, the card's timing and the TV
 6. The boss name cards (each of the four) show the boss's comic portrait popping out of the card's left over a comic navy plate; the name and title sit right of it, the slash bar sweeps in the boss's colour; the plate's ink and gold rule stay crisp at PC and phone sizes.
 7. Your double's card (and the three side-vs-side event cards) show the event's comic icon; the Crater's card and the side quest finales' cards are words on the plate.
 
+### Playtest gaps9: start here (2026-11-19, build playtest-gaps9)
+Everything in gaps8 plus: project files capeline/Capeline-playtest-gaps9-2026-11-19.rbxl (Output "playtest-gaps9 (2026-11-19)"). It replaces every older playtest place. Run "Playtest gaps8: start here" below first if not done, then these lists:
+1. "Act 1 choices: one in every mission" (the Ceremony pick inside the spark beat, Safehouse and Live picks per side, the Chairman, the torn photo).
+2. "lore pages, mobility training, each side's own content" (21 lore pages, Journal LORE tab, MOBILITY tab in Loadout, side-only incidents).
+3. "Living world" (meshes over trees, crops, hay, silos, doors; shop fronts; traffic, pigeons, steam, flags, drones, sprays, citizens reacting; phone frame time).
+
 ### Playtest gaps8: start here (2026-11-19, build playtest-gaps8)
 Everything in gaps7 plus the fixes for nate's 2026-11-19 16:45Z playtest: project files capeline/Capeline-playtest-gaps8-2026-11-19.rbxl (Output "playtest-gaps8 (2026-11-19)"). It replaces every older playtest place. First check the Output shows "[HeroAnimator] your hero: 15 joints (Motor6D)", then these lists:
 1. "attack and power animations" (fix-anims).
