@@ -23087,16 +23087,19 @@ end
 -- the pocket props and the plaza board's art pass (gap-props2, 2026-11-19, own file); ONLY="Pocket props" or ONLY="Board art"
 (require :: any)("./pocket_props_test")({ test = test, check = check, Config = Config, placePath = placePath });
 -- the villain name cards and catalog beards (gap-villains, 2026-11-19, own file); ONLY="Villain cards" or ONLY="Catalog beards"
-(require :: any)("./villains_test")({ test = test, check = check, Config = Config })
--- nate's playtest 2026-11-19 (pt-ui, own file): the popup line, every card closes, the contest's skipped card,
--- building textures; ONLY="pt-ui"
-(require :: any)("./pt_ui_test")({
-	test = test,
-	check = check,
-	Config = Config,
-	world = world,
-	placePath = placePath,
-})
+(require :: any)("./villains_test")
+	({ test = test, check = check, Config = Config })
+	-- nate's playtest 2026-11-19 (pt-ui, own file): the popup line, every card closes, the contest's skipped card,
+	-- building textures; ONLY="pt-ui"
+	(require :: any)
+	("./pt_ui_test")
+	({
+		test = test,
+		check = check,
+		Config = Config,
+		world = world,
+		placePath = placePath,
+	})
 
 print(string.format("\n%d passed, %d failed", passed, failed))
 if failed > 0 then
