@@ -13,8 +13,8 @@
 -- * finisher: slow-mo finishers on bosses and elites (Comic: impact word + hit stop; Anime: freeze frame +
 --   speed lines), the finisher's own and a shorter one for players nearby. The server is never slowed.
 -- * nameCard: a world boss's (or a fake's battle form's) 3 s name card for players who arrive at the fight.
---   The world bosses' titles are nate's lore (2026-11-17, build plan step 8); the battle form's is a
---   PLACEHOLDER until its own pass. A world boss's BREAKING flash names it with its title too (NewsPlan).
+--   The world bosses' titles are nate's lore (2026-11-17, build plan step 8); the battle form's (THE IRON
+--   OATH) is nate's pick of 2026-11-19. A world boss's BREAKING flash names it with its title too (NewsPlan).
 -- * news: in-city news broadcasts (big screens, the HUD's corner TV, BREAKING NEWS and the ticker). Fixed
 --   templates only; a hero's name comes from the safe name system (CreatorRules.heroName ids), never text.
 -- * comic: comic-panel flashback pages (PLACEHOLDER ART: panels drawn from frames until the art pass).
@@ -1060,12 +1060,12 @@ return {
 		reach = 150, -- studs past the arena's edge that count as arriving at the fight
 		check = 0.5, -- seconds between checks
 		-- names come from Config.Boss; the world bosses' titles are nate's lore (build plan step 8), the card reads
-		-- e.g. RUSTJAW PRIME / THE JUNKYARD TITAN; the battle form's title is a PLACEHOLDER until its own pass
+		-- e.g. RUSTJAW PRIME / THE JUNKYARD TITAN; the battle form's title is nate's pick (2026-11-19)
 		titles = {
 			RustjawPrime = "THE JUNKYARD TITAN",
 			LumenMaw = "THE LIGHT EATER",
 			LeviathanEngine = "THE DEEP MACHINE",
-			NullWarFrame = "THE SHIELD UNMASKED",
+			NullWarFrame = "THE IRON OATH",
 		},
 		-- lore step 9: place and event cards in the same style (CinemaHud.card): the Crater the first time a
 		-- session a hero walks in, and Your double on the copied hero's own device. { name, title, colour }
