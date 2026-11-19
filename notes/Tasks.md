@@ -177,6 +177,15 @@ What nate does:
 
 ## Studio test list (needs nate's PC)
 
+### Playtest gaps1: start here (2026-11-19, build playtest-gaps1)
+Combined build 2 plus six polish packages: project files capeline/Capeline-playtest-gaps1-2026-11-19.rbxl (Output "playtest-gaps1 (2026-11-19)"). It replaces every older playtest place. Run "Playtest combined 2: start here" below first if not done, then these lists, each further down this file:
+1. "Studio list: the comic icon set" (powers, weapons, gear and loot toasts show icons).
+2. "Studio list: vehicles alive" (wheels roll and steer, escorts drive and brake).
+3. "Studio list: Boss pass" (bosses animate, comic telegraphs, the surge wave and the Blackout).
+4. "Studio test list: gap polish" (fast travel flight, gadgets, landing crack, ice pieces and crate, loading card).
+5. "Studio list: city life and the comic map" (citizens on Roblox's walk and run, the new map with zoom and pan).
+6. "Studio list: Pocket kit" (every mission and side quest pocket in the kit look, signs, the Crater ruins).
+
 ### Playtest combined 2: start here (2026-11-19, build playtest-combined2)
 Round 2 of nate's playtest fixes in one place: project files capeline/Capeline-playtest-combined2-2026-11-19.rbxl (Output "playtest-combined2 (2026-11-19)"). It replaces every older playtest place. Run these lists, each further down this file:
 1. "NPC looks and creator Next" (every rig on Roblox's own body in real Shirt and Pants, catalog faces and hair, glowing turned eyes, the hit flash, NEXT never stalls).
