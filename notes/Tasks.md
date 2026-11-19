@@ -205,6 +205,16 @@ Looks only: where the screens hang, what they show, the card's timing and the TV
 6. The boss name cards (each of the four) show the boss's comic portrait popping out of the card's left over a comic navy plate; the name and title sit right of it, the slash bar sweeps in the boss's colour; the plate's ink and gold rule stay crisp at PC and phone sizes.
 7. Your double's card (and the three side-vs-side event cards) show the event's comic icon; the Crater's card and the side quest finales' cards are words on the plate.
 
+### Playtest gaps8: start here (2026-11-19, build playtest-gaps8)
+Everything in gaps7 plus the fixes for nate's 2026-11-19 16:45Z playtest: project files capeline/Capeline-playtest-gaps8-2026-11-19.rbxl (Output "playtest-gaps8 (2026-11-19)"). It replaces every older playtest place. First check the Output shows "[HeroAnimator] your hero: 15 joints (Motor6D)", then these lists:
+1. "attack and power animations" (fix-anims).
+2. "weapons whole in the hand" and "models placed as Blender drew them" (bosses incl. the Leviathan Engine, troopers, finales, creator pieces, cars nose first).
+3. "first-time flow, Body step, rooftop QTEs, GO TO THE STAGE" and "body set torsos face forward".
+4. "holding picked-up things".
+5. "popups away, boss bar range, double stamina".
+6. "everything destructible, flying through, craters, billboards".
+Paste any red Output lines into the thread.
+
 ### Playtest gaps7: start here (2026-11-19, build playtest-gaps7)
 Everything in gaps6 plus nate's 2026-11-19 playtest list: project files capeline/Capeline-playtest-gaps7-2026-11-19.rbxl (Output "playtest-gaps7 (2026-11-19)"). It replaces every older playtest place. Run "Playtest gaps6: start here" below first if not done, then these lists:
 1. "lock-on, omnidirectional movement, knockback, block key, drops, swinging robots" (block is Q now; middle mouse or Tab locks; R3 on gamepad, LOCK on phone).
