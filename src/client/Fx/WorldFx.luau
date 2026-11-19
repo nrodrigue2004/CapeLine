@@ -606,6 +606,22 @@ local function frame(dt: number)
 		return
 	end
 	local k = math.min(1, dt * 3)
+	local lp = sh.leap
+	local hop = 0
+	if lp then
+		-- the Leap (the gap closer and the unstick, 2026-11-19): it crouches, then arcs over to the landing ring for
+		-- the last part of the warning and lands on the hit
+		local f = (os.clock() - lp.start) / lp.t
+		local g = math.clamp((f - 0.45) / 0.55, 0, 1)
+		sh.x = lp.fx + (lp.toX - lp.fx) * g
+		sh.z = lp.fz + (lp.toZ - lp.fz) * g
+		sh.tx, sh.tz = sh.x, sh.z
+		hop = math.sin(g * math.pi) * lp.height
+		if f >= 1 then
+			sh.tx, sh.tz = lp.toX, lp.toZ
+			sh.leap = nil
+		end
+	end
 	sh.x += (sh.tx - sh.x) * k
 	sh.y += (sh.ty - sh.y) * k
 	sh.z += (sh.tz - sh.z) * k
@@ -618,7 +634,7 @@ local function frame(dt: number)
 	elseif sh.state == 5 then
 		sh.lift += dt * 40
 	end
-	local rootCF = CFrame.new(sh.x, sh.y + sh.lift, sh.z) * CFrame.Angles(0, sh.yaw, 0)
+	local rootCF = CFrame.new(sh.x, sh.y + sh.lift + hop, sh.z) * CFrame.Angles(0, sh.yaw, 0)
 	if sh.anim then
 		-- Rustjaw walks while it closes on the crowd (BossSim moves it 6 studs a second)
 		local moving = (sh.tx - sh.x) ^ 2 + (sh.tz - sh.z) ^ 2 > 1
@@ -662,6 +678,18 @@ local function warn(ev: { [string]: any })
 	BossTelegraph.warn(ev, ev.y, lookColor(ev.num))
 	if ev.shape == "pull" then
 		pullUntil, pullAt, pullR = os.clock() + t, c, ev.r
+	end
+	local lsh = shown
+	if ev.leap and lsh then
+		lsh.leap = {
+			start = os.clock(),
+			t = t,
+			fx = lsh.x,
+			fz = lsh.z,
+			toX = ev.x,
+			toZ = ev.z,
+			height = B.bosses[lsh.id].height * 0.6,
+		}
 	end
 	-- the boss winds up over the warning so the strike lands on the hit (the cannons have their own small kick)
 	local sh = shown
@@ -729,6 +757,17 @@ local function strike(ev: { [string]: any })
 		end
 	elseif ev.shape == "pull" then
 		CombatFx.nova(c, ev.r, style, LUMEN, true)
+	elseif ev.shape == "homing" or ev.shape == "tether" then
+		-- the counters' shots (2026-11-19): from high on the boss to where each one caught up
+		local s = shown
+		local from = Vector3.new(ev.x, (if s then s.y + B.bosses[s.id].height * 0.75 else ev.y + 40), ev.z)
+		for _, p in ev.points or {} do
+			local to = Vector3.new(p[1], p[2], p[3])
+			CombatFx.bolt(from, to, style, lookColor(ev.num))
+			CombatFx.nova(to, ev.r or 10, style, WARN, false)
+		end
+	elseif ev.shape == "column" then
+		CombatFx.nova(c + Vector3.new(0, ((ev.lo or 0) + (ev.hi or 0)) / 2, 0), ev.r, style, WARN, true)
 	end
 	if near(c, (ev.r or 40) + 60) then
 		CameraController.shake(0.4, if ev.struct then 1.2 else 0.6)
@@ -765,6 +804,16 @@ local function bigMoment(ev: { [string]: any })
 		if s.anim then
 			-- the plates break: it staggers, then roars into the new phase
 			BossAnim.phase(s.anim, ev.phase or 2)
+		end
+	elseif ev.k == "enrage" then
+		-- nobody has come close for a while (2026-11-19): it attacks faster and harder until someone does
+		if ev.on then
+			CombatFx.banner("ENRAGED! GET IN CLOSE!", WARN, style)
+			if s and s.anim then
+				BossAnim.play(s.anim, "enrage")
+			end
+		else
+			CombatFx.banner("IT CALMS DOWN!", Color3.fromRGB(255, 200, 60), style)
 		end
 	elseif ev.k == "shield" and s and s.anim and (ev.left or 0) <= 0 then
 		-- the War-Frame's shield broke: it reels and shows its back core

@@ -8,7 +8,18 @@
 -- * Phases 2 and 3 alternate the phase's hazard with the normal attacks.
 -- * Hits on heroes: (20 + 4 x level) x coeff, like robots. Ground attacks (ring, circles) miss heroes flying
 --   more than 12 studs up; the cone and lines reach as high as the boss.
--- Events (drained by BossService): warn, strike, pull, phase, objective, dead, retreat.
+-- Events (drained by BossService): warn, strike, pull, phase, objective, dead, retreat, smash, enrage.
+-- * Buildings (nate's playtest 2026-11-19, "Boss is stuck between building"): a walking boss smashes through any
+--   building in its footprint (smash events: BuildingService blasts them within the collapse caps) and slows while
+--   it plows; a pinned building (beacon hosts, side quest roofs) pushes it around instead. Last resort: if it has
+--   not got anywhere for `unstick.after` seconds it leaps (telegraphed) to open ground near its crowd.
+--   sim.blocks(x, z, r) gives the standing building boxes near a point (BuildingState.boxesNear); nil = no city.
+-- * Counters (same playtest, "a lot of bosses I can just fly stepping with ranged moves"): every boss threatens
+--   every mobility and range, each telegraphed: homing shots at airborne heroes away from it (react "air"), a
+--   swat or snap at heroes hovering near its body (react "hover", a column), a gap closer on a hero who has stayed
+--   far away too long (react "kite": a leap for the walker, a tether yank for the others), and it enrages
+--   (faster, harder hits) when nobody has been close for a while. Melee heroes on the ground are never their
+--   targets; a reactive attack never takes two slots in a row, so the normal rotation still runs.
 
 local BossMath = if script then require(script.Parent.BossMath) else (require :: any)("./BossMath")
 
@@ -43,6 +54,15 @@ export type Pending = {
 	struct: boolean,
 	nova: number,
 	cover: boolean,
+	up: number, -- how high above its feet a ring reaches (12 by default)
+	lo: number, -- a column's floor and ceiling above its feet
+	hi: number,
+	track: number, -- homing: the share of a target's move the shot follows, at most maxTrack studs
+	maxTrack: number,
+	shots: { { number } }, -- homing and tether: { x, y, z, heroId } locked when the warning starts
+	yank: number, -- tether: a hit pulls the hero in to this far from the boss
+	drop: number, -- column: a hit knocks the hero down this far
+	leap: boolean, -- the boss lands at (x, z) when it resolves
 }
 export type Sim = {
 	Config: any,
@@ -70,6 +90,15 @@ export type Sim = {
 	lastStep: number,
 	shield: number, -- hits left on a phase shield (War-Frame), 0 = none
 	cover: { { number } }, -- pillars that block covered lines: { x, z, r }
+	blocks: ((number, number, number) -> { any })?, -- standing building boxes near a point (nil: open ground)
+	smashAt: { [number]: number }, -- building id -> last smash
+	stuckFor: number, -- seconds it wanted to walk and got nowhere
+	stuck: boolean,
+	far: { [number]: number }, -- hero id -> seconds spent far away (kiting)
+	closeAt: number, -- last time any hero was close
+	enraged: boolean,
+	cool: { [string]: number }, -- reactive attack id -> ready again at
+	lastReact: boolean, -- the last attack was a reactive one
 }
 
 local function objectHp(Config: any, hits: number, level: number): number
@@ -117,6 +146,15 @@ function BossSim.new(
 		lastStep = now,
 		shield = 0,
 		cover = {},
+		blocks = nil,
+		smashAt = {},
+		stuckFor = 0,
+		stuck = false,
+		far = {},
+		closeAt = now + sched.landing,
+		enraged = false,
+		cool = {},
+		lastReact = false,
 	}
 	if cfg.lifespan then
 		sim.endsAt = now + sched.landing + cfg.lifespan
@@ -297,6 +335,11 @@ local function addPending(sim: Sim, p: Pending, warn: number)
 		points = p.points,
 		t = warn,
 		nova = p.nova,
+		up = if p.up ~= 12 then p.up else nil,
+		lo = if p.shape == "column" then p.lo else nil,
+		hi = if p.shape == "column" then p.hi else nil,
+		shots = if #p.shots > 0 then p.shots else nil,
+		leap = if p.leap then true else nil,
 	})
 	if p.shape == "pull" then
 		table.insert(sim.events, { k = "pull", x = p.x, y = p.y, z = p.z, r = p.r, t = warn })
@@ -322,13 +365,202 @@ local function pending(sim: Sim, atk: any, now: number, src: string): Pending
 		struct = atk.struct == true,
 		nova = atk.nova or 0,
 		cover = atk.cover == true,
+		up = atk.up or 12,
+		lo = atk.lo or 0,
+		hi = atk.hi or 0,
+		track = atk.track or 0,
+		maxTrack = atk.maxTrack or 0,
+		shots = {},
+		yank = atk.yank or 0,
+		drop = atk.drop or 0,
+		leap = atk.leap == true,
 	}
 end
 
+-- Counters (nate's playtest 2026-11-19): who is close (melee reach of the body, not above its top), who is in the
+-- air away from it, who hovers by its body
+local function flat(sim: Sim, h: Hero): number
+	return math.sqrt((h.x - sim.x) ^ 2 + (h.z - sim.z) ^ 2)
+end
+
+function BossSim.isClose(sim: Sim, h: Hero): boolean
+	local c = sim.cfg.counters
+	return c ~= nil and flat(sim, h) <= c.meleeR and h.y - sim.y <= sim.cfg.height + 15
+end
+
+function BossSim.isAir(sim: Sim, h: Hero): boolean
+	local c = sim.cfg.counters
+	return c ~= nil and h.y - sim.y > c.air and not BossSim.isClose(sim, h)
+end
+
+local function inColumn(sim: Sim, a: any, h: Hero): boolean
+	local up = h.y - sim.y
+	return flat(sim, h) <= a.r and up >= a.lo and up <= a.hi
+end
+
+local function circleBox(x: number, z: number, r: number, b: any): boolean
+	local dx = math.max(math.abs(x - b.x) - b.sx / 2, 0)
+	local dz = math.max(math.abs(z - b.z) - b.sz / 2, 0)
+	return dx * dx + dz * dz < r * r
+end
+
+local function bodyR(sim: Sim): number
+	return sim.cfg.bodyR or 12
+end
+
+-- Is there room for its body at (x, z)? (no standing building in the way)
+function BossSim.clearAt(sim: Sim, x: number, z: number, r: number): boolean
+	local f = sim.blocks
+	if not f then
+		return true
+	end
+	for _, b in f(x, z, r) do
+		if circleBox(x, z, r, b) then
+			return false
+		end
+	end
+	return true
+end
+
+local function leash(sim: Sim, x: number, z: number): (number, number)
+	local hx, hz = x - sim.homeX, z - sim.homeZ
+	local d = math.sqrt(hx * hx + hz * hz)
+	local R = sim.cfg.arenaRadius
+	if d > R then
+		return sim.homeX + hx / d * R, sim.homeZ + hz / d * R
+	end
+	return x, z
+end
+
+-- Open ground for its feet near (x, z) inside its arena: the point itself, else rings of points round it, else where
+-- it stands (never back home: a leap must not lose ground)
+function BossSim.openNear(sim: Sim, x: number, z: number): (number, number)
+	local r = bodyR(sim)
+	local px, pz = leash(sim, x, z)
+	if BossSim.clearAt(sim, px, pz, r) then
+		return px, pz
+	end
+	for ring = 1, 10 do
+		local rad = ring * 18
+		for k = 0, 11 do
+			local a = k / 12 * math.pi * 2 + ring * 0.3
+			local qx, qz = leash(sim, x + math.cos(a) * rad, z + math.sin(a) * rad)
+			if BossSim.clearAt(sim, qx, qz, r) then
+				return qx, qz
+			end
+		end
+	end
+	return sim.x, sim.z
+end
+
+-- The reactive attack for now (and its target hero for a gap closer), or nil for the normal rotation
+local function reactive(sim: Sim, now: number, heroes: { Hero }): (any?, Hero?)
+	local c = sim.cfg.counters
+	if not c then
+		return nil, nil
+	end
+	local by: { [string]: any } = {}
+	for _, a in sim.cfg.attacks do
+		if a.react and table.find(a.phases, sim.phase) then
+			by[a.react] = a
+		end
+	end
+	if sim.stuck and by.kite and by.kite.leap then
+		return by.kite, nil -- the last-resort unstick
+	end
+	if sim.lastReact then
+		return nil, nil
+	end
+	local function ready(a: any): boolean
+		return a ~= nil and now >= (sim.cool[a.id] or 0)
+	end
+	if ready(by.kite) then
+		local best, bt = nil, c.kiteAfter
+		local reach = if by.kite.leap then by.kite.up or 12 else math.huge -- a leap's slam can't reach a high flier
+		for _, h in heroes do
+			local f = sim.far[h.id] or 0
+			if h.alive and f >= bt and h.y - sim.y <= reach then
+				best, bt = h, f
+			end
+		end
+		if best then
+			return by.kite, best
+		end
+	end
+	if ready(by.hover) then
+		for _, h in heroes do
+			if h.alive and inColumn(sim, by.hover, h) then
+				return by.hover, nil
+			end
+		end
+	end
+	if ready(by.air) then
+		for _, h in heroes do
+			if h.alive and BossSim.isAir(sim, h) and flat(sim, h) <= 300 then
+				return by.air, nil
+			end
+		end
+	end
+	return nil, nil
+end
+
+local function gapOf(sim: Sim): number
+	local c = sim.cfg.counters
+	return sim.cfg.gap[sim.phase] * (if sim.enraged and c then c.enrage.gap else 1)
+end
+
+local function startReactive(sim: Sim, atk: any, target: Hero?, now: number, heroes: { Hero })
+	sim.lastReact = true
+	sim.cool[atk.id] = now + (atk.cooldown or 8)
+	local p = pending(sim, atk, now, "boss")
+	if atk.shape == "homing" then
+		for _, h in heroes do
+			if #p.shots >= atk.count then
+				break
+			end
+			if h.alive and BossSim.isAir(sim, h) and flat(sim, h) <= 300 then
+				table.insert(p.shots, { h.x, h.y, h.z, h.id })
+			end
+		end
+	elseif atk.shape == "tether" and target then
+		table.insert(p.shots, { target.x, target.y, target.z, target.id })
+	elseif atk.leap then
+		local tx, tz = sim.homeX, sim.homeZ
+		if target then
+			tx, tz = target.x, target.z
+		else
+			local crowd = near(sim, heroes, sim.cfg.arenaRadius + 250)
+			if #crowd > 0 then
+				tx, tz = 0, 0
+				for _, h in crowd do
+					tx += h.x
+					tz += h.z
+				end
+				tx /= #crowd
+				tz /= #crowd
+			end
+		end
+		p.x, p.z = BossSim.openNear(sim, tx, tz)
+		sim.stuck = false
+		sim.stuckFor = 0
+	end
+	if target then
+		sim.far[target.id] = 0
+	end
+	addPending(sim, p, atk.warn)
+	sim.nextAttack = now + atk.warn + gapOf(sim)
+end
+
 local function startAttack(sim: Sim, now: number, heroes: { Hero })
+	local ratk, target = reactive(sim, now, heroes)
+	if ratk then
+		startReactive(sim, ratk, target, now, heroes)
+		return
+	end
+	sim.lastReact = false
 	local list, hazard = {}, nil
 	for _, a in sim.cfg.attacks do
-		if table.find(a.phases, sim.phase) then
+		if table.find(a.phases, sim.phase) and not a.react then
 			if a.hazard then
 				hazard = a
 			else
@@ -368,7 +600,7 @@ local function startAttack(sim: Sim, now: number, heroes: { Hero })
 		end
 	end
 	addPending(sim, p, atk.warn)
-	sim.nextAttack = now + atk.warn + sim.cfg.gap[sim.phase]
+	sim.nextAttack = now + atk.warn + gapOf(sim)
 end
 
 -- Is a pillar between the boss and this hero? (a circle crossing the segment, before the hero)
@@ -394,7 +626,20 @@ end
 local function hitTest(sim: Sim, p: Pending, h: Hero): boolean
 	local dx, dz = h.x - p.x, h.z - p.z
 	local up = h.y - p.y
-	if p.shape == "ring" or p.shape == "circles" then
+	if p.shape == "column" then
+		return dx * dx + dz * dz <= p.r * p.r and up >= p.lo and up <= p.hi
+	elseif p.shape == "homing" or p.shape == "tether" then
+		for _, pt in p.points do
+			if (h.x - pt[1]) ^ 2 + (h.y - pt[2]) ^ 2 + (h.z - pt[3]) ^ 2 <= p.r * p.r then
+				return true
+			end
+		end
+		return false
+	elseif p.shape == "ring" then
+		if up > p.up then
+			return false
+		end
+	elseif p.shape == "circles" then
 		if up > 12 then
 			return false
 		end
@@ -440,9 +685,38 @@ local function hitTest(sim: Sim, p: Pending, h: Hero): boolean
 	return false
 end
 
+-- Where each homing shot or tether ends up: it follows its target's move by `track`, at most maxTrack studs, so a
+-- hero who keeps moving gets clear and one who hovers still is hit
+local function homeIn(p: Pending, heroes: { Hero })
+	local out = {}
+	for _, s in p.shots do
+		local x, y, z = s[1], s[2], s[3]
+		for _, h in heroes do
+			if h.id == s[4] and h.alive then
+				local dx, dy, dz = h.x - x, h.y - y, h.z - z
+				local d = math.sqrt(dx * dx + dy * dy + dz * dz)
+				if d > 1e-3 then
+					local m = math.min(d * p.track, p.maxTrack)
+					x, y, z = x + dx / d * m, y + dy / d * m, z + dz / d * m
+				end
+				break
+			end
+		end
+		table.insert(out, { x, y, z })
+	end
+	p.points = out
+end
+
 local function resolve(sim: Sim, p: Pending, heroes: { Hero })
 	local hits = {}
-	local dmg = heroDamage(sim, p.coeff)
+	local c = sim.cfg.counters
+	local dmg = heroDamage(sim, p.coeff) * (if sim.enraged and c then c.enrage.dmg else 1)
+	if p.shape == "homing" or p.shape == "tether" then
+		homeIn(p, heroes)
+	end
+	if p.leap then
+		sim.x, sim.z = p.x, p.z -- it lands
+	end
 	for _, h in heroes do
 		if h.alive and hitTest(sim, p, h) then
 			table.insert(hits, { h.id, dmg })
@@ -453,7 +727,16 @@ local function resolve(sim: Sim, p: Pending, heroes: { Hero })
 	if p.struct then
 		ev.struct = p.r
 	end
-	if p.shape == "circles" then
+	if p.yank > 0 then
+		ev.yank = p.yank
+	end
+	if p.drop > 0 then
+		ev.drop = p.drop
+	end
+	if p.leap then
+		ev.leap = true
+	end
+	if p.shape == "circles" or p.shape == "homing" or p.shape == "tether" then
 		ev.points = p.points
 		ev.r = p.r
 	elseif p.shape == "pull" then
@@ -462,6 +745,71 @@ local function resolve(sim: Sim, p: Pending, heroes: { Hero })
 		ev.r = p.r
 	end
 	table.insert(sim.events, ev)
+end
+
+-- Take a walking step to (nx, nz) among the buildings: a building in its footprint slows it and is smashed (a smash
+-- event every `smash.every` seconds a building, BuildingService blasts it within the collapse caps); a pinned one
+-- (a beacon host, a side quest roof) never breaks, so it pushes the boss out and it slides along it instead.
+function BossSim.walk(sim: Sim, now: number, nx: number, nz: number)
+	local f = sim.blocks
+	local sm = sim.cfg.smash
+	if not f or not sm then
+		sim.x, sim.z = nx, nz
+		return
+	end
+	local r = bodyR(sim)
+	local list = f(nx, nz, r + sm.reach)
+	local plow = false
+	for _, b in list do
+		if not b.pinned and circleBox(nx, nz, r + sm.reach, b) then
+			plow = true
+		end
+	end
+	if plow then
+		nx, nz = sim.x + (nx - sim.x) * sm.slow, sim.z + (nz - sim.z) * sm.slow
+	end
+	-- pinned buildings push it out (twice, for corners between two of them)
+	for _ = 1, 2 do
+		for _, b in list do
+			if b.pinned and circleBox(nx, nz, r, b) then
+				local hx, hz = b.sx / 2, b.sz / 2
+				local qx, qz = math.clamp(nx, b.x - hx, b.x + hx), math.clamp(nz, b.z - hz, b.z + hz)
+				local ddx, ddz = nx - qx, nz - qz
+				local d = math.sqrt(ddx * ddx + ddz * ddz)
+				if d > 1e-3 then
+					nx, nz = qx + ddx / d * r, qz + ddz / d * r
+				else
+					-- inside it: out through the nearest face
+					local ex, ez = hx - math.abs(nx - b.x), hz - math.abs(nz - b.z)
+					if ex < ez then
+						nx = b.x + (if nx >= b.x then 1 else -1) * (hx + r)
+					else
+						nz = b.z + (if nz >= b.z then 1 else -1) * (hz + r)
+					end
+				end
+			end
+		end
+	end
+	sim.x, sim.z = nx, nz
+	for _, b in list do
+		if
+			not b.pinned
+			and circleBox(nx, nz, r + sm.reach, b)
+			and now - (sim.smashAt[b.id] or -math.huge) >= sm.every
+		then
+			sim.smashAt[b.id] = now
+			local hx, hz = b.sx / 2, b.sz / 2
+			table.insert(sim.events, {
+				k = "smash",
+				id = b.id,
+				x = math.clamp(nx, b.x - hx, b.x + hx),
+				y = sim.y + sm.at,
+				z = math.clamp(nz, b.z - hz, b.z + hz),
+				r = r,
+				dmg = sm.dmg,
+			})
+		end
+	end
 end
 
 function BossSim.step(sim: Sim, now: number, heroes: { Hero })
@@ -483,7 +831,7 @@ function BossSim.step(sim: Sim, now: number, heroes: { Hero })
 		table.insert(sim.events, { k = "retreat" })
 		return
 	end
-	-- move toward the crowd and face it
+	-- move toward the crowd and face it (through buildings: walk() smashes them, pinned ones push it round)
 	local crowd = near(sim, heroes, sim.cfg.arenaRadius + 250)
 	if #crowd > 0 then
 		local cx, cz = 0, 0
@@ -494,20 +842,60 @@ function BossSim.step(sim: Sim, now: number, heroes: { Hero })
 		cx /= #crowd
 		cz /= #crowd
 		turnToward(sim, cx, cz, dt)
-		if sim.cfg.speed > 0 and #sim.pending == 0 then
+		-- it walks unless it is winding up its own attack (the cannons' shells never hold it up); a crowd far away
+		-- makes it charge (chase.mult x speed past chase.beyond studs)
+		local winding = false
+		for _, p in sim.pending do
+			winding = winding or p.src == "boss"
+		end
+		if sim.cfg.speed > 0 and not winding then
 			local dx, dz = cx - sim.x, cz - sim.z
 			local d = math.sqrt(dx * dx + dz * dz)
 			if d > 40 then
-				local stepLen = math.min(d - 40, sim.cfg.speed * dt)
-				local nx, nz = sim.x + dx / d * stepLen, sim.z + dz / d * stepLen
-				local hx, hz = nx - sim.homeX, nz - sim.homeZ
-				local hd = math.sqrt(hx * hx + hz * hz)
-				if hd > sim.cfg.arenaRadius then
-					nx = sim.homeX + hx / hd * sim.cfg.arenaRadius
-					nz = sim.homeZ + hz / hd * sim.cfg.arenaRadius
+				local ch = sim.cfg.chase
+				local speed = sim.cfg.speed * (if ch and d > ch.beyond then ch.mult else 1)
+				local stepLen = math.min(d - 40, speed * dt)
+				local nx, nz = leash(sim, sim.x + dx / d * stepLen, sim.z + dz / d * stepLen)
+				local want = math.sqrt((nx - sim.x) ^ 2 + (nz - sim.z) ^ 2)
+				local ox, oz = sim.x, sim.z
+				BossSim.walk(sim, now, nx, nz)
+				local u = sim.cfg.unstick
+				if u and want > 0.05 then
+					-- progress toward the crowd, not just movement: sliding to and fro along a pinned wall is stuck too
+					local before = math.sqrt((cx - ox) ^ 2 + (cz - oz) ^ 2)
+					local after = math.sqrt((cx - sim.x) ^ 2 + (cz - sim.z) ^ 2)
+					if before - after < want * 0.25 then
+						sim.stuckFor += dt
+					else
+						sim.stuckFor = math.max(0, sim.stuckFor - dt * 2)
+					end
+					if sim.stuckFor >= u.after and not sim.stuck then
+						sim.stuck = true
+						sim.nextAttack = math.min(sim.nextAttack, now)
+					end
 				end
-				sim.x, sim.z = nx, nz
 			end
+		end
+	end
+	-- who is close, who keeps away (the gap closers' clock), and the enrage when nobody comes close
+	local c = sim.cfg.counters
+	if c then
+		local anyClose = #crowd == 0
+		for _, h in crowd do
+			if BossSim.isClose(sim, h) then
+				anyClose = true
+				sim.far[h.id] = 0
+			elseif flat(sim, h) > c.kiteRange or h.y - sim.y > sim.cfg.height + 15 then
+				sim.far[h.id] = (sim.far[h.id] or 0) + dt
+			end
+		end
+		if anyClose then
+			sim.closeAt = now
+		end
+		local want = now - sim.closeAt >= c.enrage.after
+		if want ~= sim.enraged then
+			sim.enraged = want
+			table.insert(sim.events, { k = "enrage", on = want })
 		end
 	end
 	-- generators heal; cannons shell

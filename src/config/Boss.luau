@@ -16,7 +16,9 @@
 --   (the cannons or the generators). Tiers: Participant at 10% of the median, Contributor top 50%, MVP
 --   top 3; anyone who took part below that gets the 25% floor.
 -- * 8 minutes, then it retreats: no rewards except a 25% Credits consolation for Participants and up.
--- Attack shapes: ring (around the boss), cone (in front), circles (at heroes), lines (at heroes), pull.
+-- Attack shapes: ring (around the boss; `up` how high it reaches, 12 by default), cone (in front), circles (at heroes),
+-- lines (at heroes), pull, and the counters (2026-11-19): homing (3D shots at airborne heroes), column (a cylinder by its
+-- body from lo to hi up), tether (a homing shot that yanks its target in). `react` marks a reactive attack (BossSim).
 return {
 	order = { "RustjawPrime", "LumenMaw", "LeviathanEngine" },
 	schedule = {
@@ -61,6 +63,26 @@ return {
 			height = 110,
 			speed = 6, -- walks toward the crowd
 			turn = 50, -- degrees per second
+			-- buildings (nate's playtest 2026-11-19, "Boss is stuck between building"): its footprint smashes every
+			-- building it walks into (a blast of dmg at `at` up, every `every` s a building, within the collapse
+			-- caps; slowed to `slow` while it plows), pinned ones push it round, and after unstick.after seconds
+			-- going nowhere it leaps (Leap, telegraphed) to open ground near its crowd
+			bodyR = 14, -- its feet's footprint (the legs stand at +-14): it fits a 30-stud street, so it walks the streets
+			-- and smashes what it walks into rather than everything it passes
+			smash = { every = 0.5, dmg = 2400, slow = 0.6, reach = 1, at = 8 },
+			unstick = { after = 4 },
+			chase = { beyond = 120, mult = 2 }, -- a crowd further than 120 studs: it charges at twice its walk
+			-- counters (nate's playtest 2026-11-19: every boss threatens every mobility and range; BossSim): close = within
+			-- meleeR (flat) and not above its top; airborne = more than `air` up and not close; a hero further than
+			-- kiteRange (or above its top) for kiteAfter seconds draws the gap closer; nobody close for enrage.after
+			-- seconds: gaps x enrage.gap, hits x enrage.dmg until someone comes in
+			counters = {
+				meleeR = 60,
+				air = 14,
+				kiteRange = 120,
+				kiteAfter = 10,
+				enrage = { after = 25, gap = 0.7, dmg = 1.25 },
+			},
 			gap = { 3.6, 3.1, 2.6 }, -- seconds between attacks in each phase
 			-- body parts that take hits (offsets from the feet, in the boss's facing frame)
 			targets = {
@@ -119,6 +141,48 @@ return {
 					phases = { 3 },
 					hazard = true,
 				},
+				-- counters (react): homing shots at airborne heroes away from it (they follow 60% of a move, at most 40
+				-- studs: keep moving to shake them), a column swat at heroes hovering by its body (knocked down), and
+				-- the gap closer on a kiter
+				{
+					id = "JunkFlak",
+					shape = "homing",
+					react = "air",
+					r = 10,
+					count = 3,
+					track = 0.6,
+					maxTrack = 40,
+					warn = 1.6,
+					coeff = 1.3,
+					cooldown = 6,
+					phases = { 1, 2, 3 },
+				},
+				{
+					id = "Swat",
+					shape = "column",
+					react = "hover",
+					r = 55,
+					lo = 24,
+					hi = 150,
+					drop = 30,
+					warn = 1.2,
+					coeff = 1.8,
+					cooldown = 7,
+					phases = { 1, 2, 3 },
+				},
+				{
+					id = "Leap", -- lands on the kiter's spot (open ground); also the last-resort unstick
+					shape = "ring",
+					react = "kite",
+					leap = true,
+					r = 36,
+					up = 40, -- the landing's shockwave reaches low fliers
+					warn = 1.8,
+					coeff = 1.8,
+					struct = true,
+					cooldown = 12,
+					phases = { 1, 2, 3 },
+				},
 			},
 		},
 		LumenMaw = {
@@ -130,6 +194,17 @@ return {
 			height = 70,
 			speed = 0, -- stays in its pit and turns
 			turn = 60,
+			-- counters (nate's playtest 2026-11-19: every boss threatens every mobility and range; BossSim): close = within
+			-- meleeR (flat) and not above its top; airborne = more than `air` up and not close; a hero further than
+			-- kiteRange (or above its top) for kiteAfter seconds draws the gap closer; nobody close for enrage.after
+			-- seconds: gaps x enrage.gap, hits x enrage.dmg until someone comes in
+			counters = {
+				meleeR = 55,
+				air = 14,
+				kiteRange = 110,
+				kiteAfter = 10,
+				enrage = { after = 25, gap = 0.7, dmg = 1.25 },
+			},
 			gap = { 3.4, 3.0, 2.6 },
 			targets = {
 				{ id = "head", at = { 0, 40, -30 }, r = 16 },
@@ -186,6 +261,48 @@ return {
 					phases = { 3 },
 					hazard = true,
 				},
+				-- counters (react): homing shots at airborne heroes away from it (they follow 60% of a move, at most 40
+				-- studs: keep moving to shake them), a column swat at heroes hovering by its body (knocked down), and
+				-- the gap closer on a kiter
+				{
+					id = "LightSeekers",
+					shape = "homing",
+					react = "air",
+					r = 10,
+					count = 3,
+					track = 0.6,
+					maxTrack = 40,
+					warn = 1.6,
+					coeff = 1.3,
+					cooldown = 6,
+					phases = { 1, 2, 3 },
+				},
+				{
+					id = "SnapUp",
+					shape = "column",
+					react = "hover",
+					r = 50,
+					lo = 20,
+					hi = 110,
+					drop = 30,
+					warn = 1.2,
+					coeff = 1.8,
+					cooldown = 7,
+					phases = { 1, 2, 3 },
+				},
+				{
+					id = "LureBeam", -- a tether at the kiter: a hit yanks them in to `yank` studs from it
+					shape = "tether",
+					react = "kite",
+					r = 10,
+					track = 0.6,
+					maxTrack = 40,
+					yank = 30,
+					warn = 1.6,
+					coeff = 1.2,
+					cooldown = 12,
+					phases = { 1, 2, 3 },
+				},
 			},
 		},
 		LeviathanEngine = {
@@ -197,6 +314,17 @@ return {
 			height = 60,
 			speed = 0, -- holds over the Trench and turns its head
 			turn = 45,
+			-- counters (nate's playtest 2026-11-19: every boss threatens every mobility and range; BossSim): close = within
+			-- meleeR (flat) and not above its top; airborne = more than `air` up and not close; a hero further than
+			-- kiteRange (or above its top) for kiteAfter seconds draws the gap closer; nobody close for enrage.after
+			-- seconds: gaps x enrage.gap, hits x enrage.dmg until someone comes in
+			counters = {
+				meleeR = 65,
+				air = 14,
+				kiteRange = 130,
+				kiteAfter = 10,
+				enrage = { after = 25, gap = 0.7, dmg = 1.25 },
+			},
 			gap = { 3.6, 3.0, 2.5 },
 			-- the head and neck rise out of the water; the hull and reactor sit just under the surface
 			targets = {
@@ -253,6 +381,48 @@ return {
 					phases = { 3 },
 					hazard = true,
 				},
+				-- counters (react): homing shots at airborne heroes away from it (they follow 60% of a move, at most 40
+				-- studs: keep moving to shake them), a column swat at heroes hovering by its body (knocked down), and
+				-- the gap closer on a kiter
+				{
+					id = "SkyTorpedoes",
+					shape = "homing",
+					react = "air",
+					r = 10,
+					count = 3,
+					track = 0.6,
+					maxTrack = 40,
+					warn = 1.6,
+					coeff = 1.3,
+					cooldown = 6,
+					phases = { 1, 2, 3 },
+				},
+				{
+					id = "Breach",
+					shape = "column",
+					react = "hover",
+					r = 55,
+					lo = 18,
+					hi = 100,
+					drop = 30,
+					warn = 1.2,
+					coeff = 1.8,
+					cooldown = 7,
+					phases = { 1, 2, 3 },
+				},
+				{
+					id = "Harpoon", -- a tether at the kiter: a hit yanks them in to `yank` studs from it
+					shape = "tether",
+					react = "kite",
+					r = 10,
+					track = 0.6,
+					maxTrack = 40,
+					yank = 30,
+					warn = 1.6,
+					coeff = 1.2,
+					cooldown = 12,
+					phases = { 1, 2, 3 },
+				},
 			},
 		},
 		-- Mission 6 (Story, Live): Bulwark's battle form, what the famous fake turns into once unmasked live (lore step 5;
@@ -268,6 +438,17 @@ return {
 			height = 60,
 			speed = 0,
 			turn = 70,
+			-- counters (nate's playtest 2026-11-19: every boss threatens every mobility and range; BossSim): close = within
+			-- meleeR (flat) and not above its top; airborne = more than `air` up and not close; a hero further than
+			-- kiteRange (or above its top) for kiteAfter seconds draws the gap closer; nobody close for enrage.after
+			-- seconds: gaps x enrage.gap, hits x enrage.dmg until someone comes in
+			counters = {
+				meleeR = 45,
+				air = 14,
+				kiteRange = 100,
+				kiteAfter = 10,
+				enrage = { after = 25, gap = 0.7, dmg = 1.25 },
+			},
 			gap = { 3.2, 2.8, 2.4 },
 			lifespan = 1e6,
 			targets = {
@@ -324,6 +505,48 @@ return {
 					cover = true, -- the arena's pillars block it
 					phases = { 3 },
 					hazard = true,
+				},
+				-- counters (react): homing shots at airborne heroes away from it (they follow 60% of a move, at most 40
+				-- studs: keep moving to shake them), a column swat at heroes hovering by its body (knocked down), and
+				-- the gap closer on a kiter
+				{
+					id = "SeekerMissiles",
+					shape = "homing",
+					react = "air",
+					r = 10,
+					count = 3,
+					track = 0.6,
+					maxTrack = 40,
+					warn = 1.6,
+					coeff = 1.3,
+					cooldown = 6,
+					phases = { 1, 2, 3 },
+				},
+				{
+					id = "FlakBurst",
+					shape = "column",
+					react = "hover",
+					r = 45,
+					lo = 18,
+					hi = 100,
+					drop = 30,
+					warn = 1.2,
+					coeff = 1.8,
+					cooldown = 7,
+					phases = { 1, 2, 3 },
+				},
+				{
+					id = "GrappleClaw", -- a tether at the kiter: a hit yanks them in to `yank` studs from it
+					shape = "tether",
+					react = "kite",
+					r = 10,
+					track = 0.6,
+					maxTrack = 40,
+					yank = 30,
+					warn = 1.6,
+					coeff = 1.2,
+					cooldown = 12,
+					phases = { 1, 2, 3 },
 				},
 			},
 		},

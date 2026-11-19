@@ -122,6 +122,27 @@ function BuildingState.near(book: Book, x: number, z: number, r: number): { numb
 	return ImpactRules.near(book.index, x, z, r)
 end
 
+-- The standing (not Collapsed) building boxes near (x, z) with whether each is pinned: a walking boss's footprint
+-- smashes the others and slides round the pinned ones (BossSim.blocks, nate's playtest 2026-11-19)
+function BuildingState.boxesNear(book: Book, x: number, z: number, r: number): { any }
+	local out = {}
+	for _, id in ImpactRules.near(book.index, x, z, r) do
+		local b = book.boxes[id]
+		if b and b.sx and book.state[id] ~= BuildingState.COLLAPSED then
+			table.insert(out, {
+				id = id,
+				x = b.x,
+				z = b.z,
+				sx = b.sx,
+				sz = b.sz,
+				top = b.top,
+				pinned = BuildingState.pinned(book, id),
+			})
+		end
+	end
+	return out
+end
+
 -- Hold building id whole for good (a side quest's outskirts house, 2026-11-19), like a beacon's host
 function BuildingState.keepWhole(book: Book, id: number)
 	if book.state[id] ~= nil then

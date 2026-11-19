@@ -6874,7 +6874,11 @@ test("Underwater: Leviathan Engine boss, its drop and the save slot", function()
 	end
 	check(weak >= 2 and #cfg.objectives.list == 2, "weak points and two torpedo bays")
 	for _, a in cfg.attacks do
-		check(table.find({ "ring", "cone", "circles", "lines", "pull" }, a.shape) ~= nil, a.id .. " shape")
+		check(
+			table.find({ "ring", "cone", "circles", "lines", "pull", "homing", "column", "tether" }, a.shape)
+				~= nil,
+			a.id .. " shape"
+		)
 	end
 	check(GearMath.bossStyle(Config, "LeviathanEngine", false) ~= nil, "it drops a style")
 	check(GearMath.bossStyle(Config, "LeviathanEngine", true) ~= nil, "and a shiny one")
@@ -12763,10 +12767,13 @@ test(
 			"the Maw's targets"
 		)
 		check(B.bosses.LeviathanEngine.targets[6].id == "reactor", "the Leviathan's reactor")
-		check(
-			#B.bosses.RustjawPrime.attacks == 4 and B.bosses.RustjawPrime.attacks[3].id == "ScrapRain",
-			"Rustjaw's attacks"
-		)
+		check((function()
+			local n = 0
+			for _, a in B.bosses.RustjawPrime.attacks do
+				n += if a.react then 0 else 1 -- the counters (2026-11-19) come on top
+			end
+			return n == 4
+		end)() and B.bosses.RustjawPrime.attacks[3].id == "ScrapRain", "Rustjaw's attacks")
 		-- no old look names or placeholder looks left
 		local files = {
 			"src/config/Cinema.luau",
@@ -23040,6 +23047,7 @@ end
 (require :: any)("./move_fixes_test")({ test = test, check = check, Config = Config });
 -- more destruction and momentum impact (nate's playtest 2026-11-19); ONLY="Impact" runs these
 (require :: any)("./impact_test")({ test = test, check = check, Config = Config, world = world });
+(require :: any)("./boss_counter_test")({ test = test, check = check, Config = Config, world = world });
 -- the comic icon set (gap-icons, 2026-11-19, own file); ONLY="Icons" runs just these
 (require :: any)("./icons_test")({ test = test, check = check, Config = Config });
 -- every ability's own look (nate's playtest 2026-11-19: more unique effects); ONLY="FX unique" runs these
