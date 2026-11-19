@@ -144,6 +144,14 @@ local function makePart(b: any): BasePart -- also CityBuilder.part (mission pock
 		p.Material = (Enum.Material :: any)[KIT.baseMaterial[b.kit]]
 		p.MaterialVariant = "Kit" .. b.kit
 		p.Color = if KIT.tinted[b.kit] ~= nil then color(b.tint or b.color) else WHITE
+	elseif b.mat then
+		-- a pocket box's plain look (Shared.PocketDress: lamps, metal, cloth) in its pocket's tint
+		p.Material = (Enum.Material :: any)[b.mat]
+		if b.tint then
+			p.Color = color(b.tint)
+		end
+	elseif b.kit and b.tint and b.dress then
+		p.Color = color(b.tint) -- a dressing piece waiting on its texture still shows its pocket colour
 	end
 	if b.kind == "mark" then
 		p.CanCollide = false

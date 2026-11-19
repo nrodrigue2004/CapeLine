@@ -14,6 +14,7 @@ local Ui = script.Ui
 
 local QualityController = require(Controllers.QualityController)
 local CityProps = require(Controllers.CityProps)
+local PocketDecor = require(Controllers.PocketDecor)
 local InputController = require(Controllers.InputController)
 local MoveController = require(Controllers.MoveController)
 local GroundGuard = require(Controllers.GroundGuard)
@@ -99,6 +100,7 @@ local FinisherFx = require(Fx.FinisherFx) -- lore step 7: slow-mo finishers
 State.init()
 QualityController.init()
 CityProps.init() -- the city kit's street props near the camera, within the preset's budget
+PocketDecor.init() -- the pockets' kit dressing above tier 1, lights and props, within the preset's budget
 InputController.init()
 MoveController.init()
 GroundGuard.init() -- holds the hero still until the ground under a spawn or a server move has streamed in

@@ -12,6 +12,7 @@ local NAMES = {
 	"Enemies",
 	"Combat",
 	"City",
+	"PocketKit", -- the pockets' kit look (Shared.PocketDress, 2026-11-19)
 	"Presets",
 	"Net",
 	"Safety",

@@ -130,6 +130,18 @@ local function makeProp(pr: Prop, parent: Instance): number
 	return made
 end
 
+-- One street prop's meshes at `at` under parent, outside the city's cells (the pockets' dressing, PocketDecor);
+-- returns the mesh parts made (0 until Art.Street is imported)
+function CityProps.make(name: string, at: CFrame, parent: Instance): number
+	if not KIT.props[name] or not street then
+		return 0
+	end
+	local pos = at.Position
+	local _, ry = at:ToOrientation()
+	local pr: Prop = { name = name, x = pos.X, y = pos.Y, z = pos.Z, ry = math.deg(ry) }
+	return makeProp(pr, parent)
+end
+
 local function clearCell(c: Cell)
 	for _, pr in c.props do
 		pr.model = nil

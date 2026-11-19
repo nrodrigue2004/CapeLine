@@ -1,0 +1,11 @@
+{
+  "className": "MaterialVariant",
+  "properties": {
+    "BaseMaterial": "Sandstone",
+    "StudsPerTile": 12.0,
+    "MaterialPattern": "Regular",
+    "ColorMap": "rbxassetid://107291373768527",
+    "NormalMap": "rbxassetid://94979924002014",
+    "RoughnessMap": "rbxassetid://123873582668034"
+  }
+}

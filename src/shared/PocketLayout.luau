@@ -5,7 +5,9 @@
 -- uses (spawn, stations, crates, the tower top and mast, the contact and the chase path, the three rooms
 -- and the gauntlet, the arena and its pillars). A pocket is a floor with walls and a sky dome feel; parts
 -- are made by CityBuilder's part maker.
--- PLACEHOLDER ART: every pocket is greybox parts until the art pass.
+-- Looks: every pocket wears the pocket kit (2026-11-19, Shared.PocketDress, Config.PocketKit: kit textures and tints on
+-- these boxes, never their place, size or solidity, plus ghost dressing). The props here (desks, pods, consoles,
+-- cover) are still boxes or Set piece meshes: PLACEHOLDER ART where no mesh draws them.
 -- (lore step 11, the character lines: "pound", the Spark Pound, Catchpole's Docks warehouse.)
 -- (overnight queue item 10: the side quests' pockets list their Blender looks, Layout.art: Shared.SetPieceKit
 -- placements in world studs over the decor boxes that carry their index as `art`; MissionService draws the
@@ -357,7 +359,7 @@ end
 
 -- The prologue's subway (lore step 3): one tunnel a lane (walls, a ceiling, rails, lamps), each ending in a
 -- square fight chamber. The falling slabs and rubble are drawn on the hero's device (PrologueFx).
--- PLACEHOLDER ART: greybox like every pocket.
+-- (its look: the pocket kit, Shared.PocketDress)
 function BUILD.subway(l: Layout, Config: any)
 	local S = Config.Story.opening.subway
 	for i = 1, S.lanes do
@@ -399,7 +401,7 @@ end
 -- and the back wall's hidden door (`hiddenDoor`) to a stairwell down. Under the school's floor (its ceiling
 -- tagged so robots never stand on it) is Crane's copier workshop: four Spark scanner pods (`pods`), an
 -- assembly line of copy robots and the foreman's spot (`boss`); `workshop` is the foot of the stairs.
--- PLACEHOLDER ART: greybox parts in the city palette, like every pocket.
+-- (its look: the pocket kit, Shared.PocketDress)
 local DECK = 24
 function BUILD.academy(l: Layout, _Config: any)
 	local D = DECK
@@ -506,7 +508,7 @@ end
 -- stand on it) is the basement workshop: four clockwork winders (`winders`) piped to the Tantrum Tap, the brass
 -- tank in the middle, half-built toy soldiers on the benches and the boss spot (`boss`); `workshop` is the foot
 -- of the stairs.
--- PLACEHOLDER ART: greybox parts in the city palette, like every pocket.
+-- (its look: the pocket kit, Shared.PocketDress)
 local SHOP_DECK = 20
 function BUILD.toyshop(l: Layout, _Config: any)
 	local D = SHOP_DECK
@@ -618,7 +620,7 @@ end
 -- Drowned Gull, Brine's little ship, moored in a sea pool with its hologram "ghost" sails, the four projector
 -- rigs that throw the ghost ship (`projectors`), the treasure along the back and the boss spot (`boss`);
 -- `grotto` is the foot of the steps.
--- PLACEHOLDER ART: greybox parts in the city palette, like every pocket.
+-- (its look: the pocket kit, Shared.PocketDress)
 local CAVE_SHELF = 20
 function BUILD.seacave(l: Layout, _Config: any)
 	local D = CAVE_SHELF
@@ -721,7 +723,7 @@ end
 -- ceiling tagged so robots never stand on it) is the engine hall: the four tide engines that raise the wave
 -- (`pumps`: a plinth, a drum and a glowing core each), the great sea valve along the back and the boss spot
 -- (`boss`); `engines` is the foot of the stair.
--- PLACEHOLDER ART: greybox parts in the city palette, like every pocket.
+-- (its look: the pocket kit, Shared.PocketDress)
 local CITY_TERRACE = 20
 function BUILD.velmara(l: Layout, _Config: any)
 	local D = CITY_TERRACE
@@ -822,7 +824,7 @@ end
 -- middle (`stairhead`). Below the gallery, open to the cavern, is the Pit itself: the ring on its low stage
 -- (`ring`, `boss`: canvas, corner posts and glowing ropes) under four floodlights, rock benches for the crowd
 -- round three sides and the family's box seat at the back; `pitfloor` is the foot of the steps.
--- PLACEHOLDER ART: greybox parts in the city palette, like every pocket.
+-- (its look: the pocket kit, Shared.PocketDress)
 local PIT_DECK = 20
 local RING = { z = -130, size = 40, stage = 2 }
 function BUILD.pit(l: Layout, _Config: any)
@@ -1000,7 +1002,7 @@ end
 -- back wall's sealed door (`sealDoor`) opens on the stairs down to the sublevel (`sublevel` is their foot), where
 -- Doctor Holloway runs four new Kindlers (`kindlers`) beside holding tanks, his work desk and the boss spot
 -- (`boss`).
--- PLACEHOLDER ART: greybox parts in the city palette, like every pocket.
+-- (its look: the pocket kit, Shared.PocketDress)
 local LAB_DECK = 20
 function BUILD.ashlab(l: Layout, _Config: any)
 	local D = LAB_DECK
@@ -1077,7 +1079,7 @@ end
 -- the middle (`hall`): red mats, punching bags and wooden dummies. The back wall's iron door (`ironDoor`) opens
 -- on the stairs down to the inner dojo (`inner` is their foot): Master Hoshi's cage in the middle, held by four
 -- chains to iron posts (`chains`), braziers along the walls and the boss spot (`boss`).
--- PLACEHOLDER ART: greybox parts in the city palette, like every pocket.
+-- (its look: the pocket kit, Shared.PocketDress)
 local HALL_DECK = 20
 local CAGE = { x = 0, z = -140, half = 12 }
 function BUILD.ironhall(l: Layout, _Config: any)

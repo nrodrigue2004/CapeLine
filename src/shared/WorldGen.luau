@@ -1159,7 +1159,8 @@ local function craterRuins(list: { Box }, c: any, cx: number, fy: number, cz: nu
 	end
 	-- the scorched foundation
 	local f = c.foundation
-	box(list, "ledge", cx, fy + f.h / 2, cz, f.w, f.h, f.d, "scorch")
+	local fnd = box(list, "ledge", cx, fy + f.h / 2, cz, f.w, f.h, f.d, "scorch")
+	fnd.kit, fnd.tint = "Concrete", "crater" -- the pocket kit's poured concrete, burnt dark (2026-11-19)
 	local top = fy + f.h
 	-- broken walls on its edges, ragged on top; the Crane C on two of them
 	local th = c.wallThick
@@ -1175,6 +1176,12 @@ local function craterRuins(list: { Box }, c: any, cx: number, fy: number, cz: nu
 		local jsx = if alongX then j[2] else th
 		local jsz = if alongX then th else j[2]
 		box(list, "building", jx, top + wl.h + j[3] / 2, jz, jsx, j[3], jsz, "labWall").kit = "Panel"
+		-- (the kit pass, 2026-11-19) a chunk of fallen wall at its foot: a ghost, so nothing stands on it and the
+		-- wall's solid boxes are as before (one a wall keeps the Crater inside its part budget)
+		local ox = if alongX then wl.len * 0.3 else th + 3
+		local oz = if alongX then th + 3 else wl.len * 0.3
+		local rb = box(list, "prop", wx + ox, top + 1, wz + oz, 4, 2, 3, "labWall", { ghost = true, ry = 25 })
+		rb.kit, rb.tint = "Concrete", "labWall"
 		if wl.logo then
 			-- the Crane Industries C (original): a navy plate, a white C opening to the viewer's right. Seen from
 			-- outside a north wall (logo 1) the viewer faces -z, so their right is +x; on a south wall it is -x.
@@ -1205,7 +1212,19 @@ local function craterRuins(list: { Box }, c: any, cx: number, fy: number, cz: nu
 		box(list, "building", ox, fy + tw.h / 2, oz, tw.w, tw.h, tw.len, "labWall", { ry = tw.ry }).kit =
 			"Panel"
 		local ex, ez = turned(0, tw.len / 2 + 9, tw.ry)
-		box(list, "building", ox + ex, fy + 2.5, oz + ez, tw.w + 4, 5, 12, "craneNavy", { ry = tw.ry + 12 })
+		local crown = box(
+			list,
+			"building",
+			ox + ex,
+			fy + 2.5,
+			oz + ez,
+			tw.w + 4,
+			5,
+			12,
+			"craneNavy",
+			{ ry = tw.ry + 12 }
+		)
+		crown.kit, crown.tint = "SteelPlate", "craneNavy"
 		local mx, mz = turned(tw.w / 2 + 3, 6, tw.ry)
 		box(list, "prop", ox + mx, fy + 0.6, oz + mz, 1.2, 1.2, 28, "steel", { ry = tw.ry - 6 })
 	end
@@ -1213,9 +1232,11 @@ local function craterRuins(list: { Box }, c: any, cx: number, fy: number, cz: nu
 	for _, h in c.husks do
 		local a = math.rad(h.a)
 		local hx, hz = cx + math.cos(a) * h.d, cz + math.sin(a) * h.d
-		box(list, "prop", hx, fy + 1.5, hz, 4.5, 3, 6.5, "husk", { ry = h.ry })
+		local torso = box(list, "prop", hx, fy + 1.5, hz, 4.5, 3, 6.5, "husk", { ry = h.ry })
+		torso.kit, torso.tint = "SteelPlate", "husk"
 		local dx, dz = turned(3.5, 5.5, h.ry)
-		box(list, "prop", hx + dx, fy + 1.4, hz + dz, 2.8, 2.8, 2.8, "rust", { ry = h.ry + 35 })
+		local head = box(list, "prop", hx + dx, fy + 1.4, hz + dz, 2.8, 2.8, 2.8, "rust", { ry = h.ry + 35 })
+		head.kit, head.tint = "SteelPlate", "rust"
 	end
 	-- the old heroes' relics where they made their stand (original designs)
 	local rl = c.relics
@@ -1246,7 +1267,8 @@ function WorldGen.landmark(cityCfg: any, w: any, index: number): Landmark
 	if lm.id == "CometCrater" then
 		local c = w.crater
 		local r = size / 2 - c.rimWidth
-		box(list, "field", cx, gy + 0.3, cz, r * 2, 0.6, r * 2, "crater", { shape = "cylinder" })
+		box(list, "field", cx, gy + 0.3, cz, r * 2, 0.6, r * 2, "crater", { shape = "cylinder" }).kit =
+			"CaveRock"
 		local segs = 16
 		local seg = 2 * math.pi * r / segs + 4
 		for k = 0, segs - 1 do
@@ -1262,7 +1284,8 @@ function WorldGen.landmark(cityCfg: any, w: any, index: number): Landmark
 				seg,
 				"rock",
 				{ ry = -math.deg(a) }
-			)
+			).kit =
+				"CaveRock"
 		end
 		craterRuins(list, c, cx, gy + 0.6, cz)
 		spot = { x = cx, y = gy + c.rimHeight + 0.5, z = cz - r }

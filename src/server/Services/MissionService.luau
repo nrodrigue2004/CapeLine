@@ -66,6 +66,7 @@ local BossService = require(script.Parent.BossService)
 local BlockService = require(script.Parent.BlockService)
 local SiteKit = require(script.Parent.SiteKit)
 local SetPieceMeshes = require(script.Parent.SetPieceMeshes)
+local PocketArt = require(script.Parent.PocketArt)
 local StoryService = require(script.Parent.StoryService)
 local Analytics = require(script.Parent.Analytics)
 local CinemaService = require(script.Parent.CinemaService)
@@ -160,6 +161,7 @@ end
 local function buildPocket(index: number, layout: string): (PocketLayout.Layout, Model)
 	local l = PocketLayout.build(Config, index, layout)
 	PocketLayout.heights(l)
+	local dress = PocketArt.dress(l, layout) -- the kit looks (2026-11-19): textures and tints only, no geometry
 	local m = Instance.new("Model")
 	m.Name = "Pocket" .. index
 	-- the side quests' pockets' Blender looks (Layout.art) once Art.SetPieces is imported: the boxes they stand
@@ -181,6 +183,7 @@ local function buildPocket(index: number, layout: string): (PocketLayout.Layout,
 			SetPieceMeshes.add(m, pl, CFrame.new(pl.x, pl.y, pl.z) * SetPieceMeshes.yaw(pl))
 		end
 	end
+	PocketArt.tier1(m, dress, l, layout, CityBuilder.part) -- every device's dressing; the rest is PocketDecor's
 	m.Parent = root()
 	return l, m
 end
