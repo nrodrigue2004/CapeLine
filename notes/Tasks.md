@@ -1985,7 +1985,6 @@ Root cause: Roblox's Avatar Joint Upgrade gave heroes AnimationConstraints, whic
 4. Press 2 for the weapon: the arms take its stance; swing it. Hold Q (block): the guard pose. Use an emote from the picker: the pose holds, then returns.
 5. With a second player (Test > 2 Players): each sees the other's casts and swings.
 
-<<<<<<< HEAD
 ## Studio test list: holding picked-up things (fix-carry, 2026-11-19)
 Previews: art/preview/carry.png (the game's own hold sums on the blocky body). Lune proves the maths (tests/carry_test.luau, ONLY="Carry"); only Studio shows the welds and poses on real characters.
 1. As a Powerhouse (Titan), grab a car: it sits on both raised fists over your head, the arms straight up under it, not floating above. Walk, sprint, jump and fly with it: it never trails, wobbles loose or sinks into the head. A second player sees the same (their screen poses your arms).
@@ -1995,11 +1994,9 @@ Previews: art/preview/carry.png (the game's own hold sums on the blocky body). L
 5. Throw each: it leaves from where it was held (over the head or the fist), lands as before; set it down (B): it drops in front, upright, the glow gone.
 6. Output: no errors from ThrowService, ThrowClient or EnemyRenderer; the MicroProfiler shows ThrowHold and EnemyHeld tiny with nobody carrying.
 
-=======
 ## Studio list: weapons whole in the hand (fix-weapons, 2026-11-19)
 1. Play, carry each family (key 2): Sword, Great Axe, Warhammer, Scythe, Spear, Twin Blades, Sai, Blaster Rifle, Crossbow, War Fan, Yo-yo, Boomerang. Each is one piece in the hand (blade meets guard, haft meets head), as art/preview/weapons_held.png and weapons_ingame_after.png; nothing floats beside the hero.
 2. Swap weapons at the Weapon Rack and in the creator several times: no old pieces stay behind; swing and run: the weapon stays on the hand.
 3. Styles 2 Broad and 3 Jagged on the Sword and Great Axe: same, the blade on its hilt.
 4. Another player's weapon looks the same from your screen (built on the server, replicated).
 5. If a weapon looks backwards or split after any re-upload of Weapons.fbx, run `python3 -I art/upload/meshcheck.py Weapons` and update Shared.MeshFix.
->>>>>>> 067ec6baa040d0a0ecb7eb99dee3753e0c758f9c
