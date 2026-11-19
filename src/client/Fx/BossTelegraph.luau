@@ -10,12 +10,17 @@
 --   lane, and chevrons crawling in toward the centre of a pull;
 -- * effects library particles: dust kicked up at the edge as it appears, embers rising off it near the hit, a
 --   shockwave ring, dust and a scorch at the strike, and the cracks linger and fade (FxLib budgets per preset).
+-- * the counters (nate's playtest 2026-11-19): a homing shot is a lock-on reticle in the air where it locked (dashed
+--   ring and four brackets closing in, a shadow ring on the ground under it; on your own hero it rides with you so you
+--   see you are tracked: keep moving to shake it); a column is a tinted cylinder by the boss's body with dashed tape
+--   rings at its floor and ceiling and a ground ring; a tether is a dashed beam from the boss to its lock-on reticle.
 -- Reduce flashing: no pulsing and no last-moment brightening (steady edges); FxLib already skips its bright kinds.
 -- Cheap: dash and wedge counts scale with the device preset (QualityController); one list stepped from WorldFx's
 -- profiled frame loop.
 
 local TweenService = game:GetService("TweenService")
 local Debris = game:GetService("Debris")
+local Players = game:GetService("Players")
 
 local CombatFx = require(script.Parent.CombatFx)
 local FxLib = require(script.Parent.FxLib)
@@ -439,6 +444,114 @@ local function pull(c: Vector3, r: number, nova: number, t: number, color: Color
 	ring(c, nova, t, false)
 end
 
+-- The counters' telegraphs (2026-11-19)
+
+local function localRoot(): BasePart?
+	local char = Players.LocalPlayer.Character
+	return char and char:FindFirstChild("HumanoidRootPart") :: BasePart?
+end
+
+-- A lock-on reticle at `at` (a homing shot's or tether's lock): a dashed ring and four brackets closing to r by the
+-- hit, a faint shadow ring on the ground under it. On the local hero (locked within 8 studs) it follows them.
+local function reticle(at: Vector3, r: number, groundY: number, t: number)
+	local parts = {}
+	local root = localRoot()
+	local mine = root ~= nil and (root.Position - at).Magnitude <= 8
+	local shadow = disc(Vector3.new(at.X, groundY, at.Z), r, TINT, 0.12, 0.7)
+	table.insert(parts, shadow)
+	local ring = {}
+	local n = math.max(8, math.floor(12 * scale()))
+	for i = 0, n - 1 do
+		local p = part(Vector3.new(1, 0.4, 2), CFrame.new(at), if i % 2 == 0 then WARN else TAPE, true)
+		table.insert(ring, p)
+		table.insert(parts, p)
+	end
+	local brackets = {}
+	for i = 0, 3 do
+		local p = part(Vector3.new(0.8, 0.8, 4), CFrame.new(at), WARN, true)
+		table.insert(brackets, { p = p, a = i * math.pi / 2 })
+		table.insert(parts, p)
+	end
+	add(t, parts, function(f, now)
+		local c = at
+		local rt = if mine then localRoot() else nil
+		if rt then
+			c = rt.Position
+			shadow.CFrame = CFrame.new(Vector3.new(c.X, groundY, c.Z) + UP * 0.12) * FLAT
+		end
+		local rr = r * (2.2 - 1.2 * f)
+		local spin = now * (1 + f * 3)
+		for i, p in ring do
+			local a = (i - 1) / n * math.pi * 2 + spin * 0.3
+			local pos = c + Vector3.new(math.cos(a), 0, math.sin(a)) * rr
+			p.CFrame = CFrame.lookAt(pos, pos + Vector3.new(-math.sin(a), 0, math.cos(a)))
+		end
+		for _, b in brackets do
+			local a = b.a - spin
+			local pos = c + Vector3.new(math.cos(a), 0, math.sin(a)) * (rr + 3)
+			b.p.CFrame = CFrame.lookAt(pos, c)
+		end
+		pulse(ring, f, now)
+	end)
+end
+
+local function column(c: Vector3, r: number, lo: number, hi: number, t: number)
+	local parts = {}
+	local s = scale()
+	local h = math.max(1, hi - lo)
+	local body = part(
+		Vector3.new(h, r * 2, r * 2),
+		CFrame.new(c + UP * (lo + h / 2)) * FLAT,
+		TINT,
+		false,
+		Enum.PartType.Cylinder
+	)
+	body.Transparency = 0.86
+	table.insert(parts, body)
+	local edge = {}
+	local n = math.max(8, math.floor(math.clamp(r * 0.5, 10, 24) * s / 2) * 2)
+	for _, y in { lo, hi } do
+		for _, d in dashes(parts, c + UP * y, r, n, 0, math.pi * 2, 1.4) do
+			table.insert(edge, d)
+		end
+	end
+	-- a band that climbs from the floor to the ceiling by the hit
+	local band = disc(c + UP * lo, r, WARN, 0, 0.55)
+	table.insert(parts, band)
+	add(t, parts, function(f, now)
+		band.CFrame = CFrame.new(c + UP * (lo + h * f)) * FLAT
+		fillColor(band, f)
+		pulse(edge, f, now)
+	end)
+	ring(c, r, t, false)
+end
+
+local function tether(from: Vector3, at: Vector3, r: number, groundY: number, t: number)
+	local parts = {}
+	local d = at - from
+	if d.Magnitude < 1 then
+		return
+	end
+	local n = math.max(4, math.floor(d.Magnitude / 12))
+	local seg = d.Magnitude / n
+	local list = {}
+	for i = 0, n - 1 do
+		local mid = from + d.Unit * (seg * (i + 0.5))
+		local p = part(
+			Vector3.new(0.7, 0.7, seg * 0.6),
+			CFrame.lookAt(mid, mid + d.Unit),
+			if i % 2 == 0 then WARN else TAPE,
+			true
+		)
+		table.insert(list, p)
+		table.insert(parts, p)
+	end
+	add(t, parts, function(f, now)
+		pulse(list, f, now)
+	end)
+	reticle(at, r, groundY, t)
+end
+
 ---------------------------------------------------------------------------
 -- Public
 ---------------------------------------------------------------------------
@@ -467,6 +580,16 @@ function BossTelegraph.warn(ev: { [string]: any }, groundY: number, color: Color
 		end
 	elseif shape == "pull" then
 		pull(c, ev.r, ev.nova, t, color or WARN)
+	elseif shape == "homing" then
+		for _, p in ev.shots or {} do
+			reticle(Vector3.new(p[1], p[2], p[3]), ev.r or 10, groundY, t)
+		end
+	elseif shape == "column" then
+		column(c, ev.r, ev.lo or 0, ev.hi or 40, t)
+	elseif shape == "tether" then
+		for _, p in ev.shots or {} do
+			tether(c + UP * 30, Vector3.new(p[1], p[2], p[3]), ev.r or 10, groundY, t)
+		end
 	end
 end
 

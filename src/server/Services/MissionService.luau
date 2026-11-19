@@ -673,6 +673,7 @@ local function tickWarframe(run: Run, track: Track, now: number)
 				local hero = HeroService.byId(hit[1])
 				if hero then
 					HeroService.damage(hero, hit[2], { boss = true })
+					BossService.strikeHero(hero, ev, sim) -- the counters: a tether yanks, a swat knocks down
 				end
 			end
 		elseif ev.k == "summon" then

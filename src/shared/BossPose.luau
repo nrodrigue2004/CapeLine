@@ -1243,4 +1243,126 @@ function BossPose.bigHit(drop: number, max: number): boolean
 	return max > 0 and drop / max >= BossPose.flinchShare
 end
 
+---------------------------------------------------------------------------
+-- The counters' attacks (pt-bosses, nate's playtest 2026-11-19: homing shots at fliers, a swat or snap at heroes
+-- hovering by the body, the gap closers). PLACEHOLDER ANIMATION: simple hand-keyed poses so every attack id has a
+-- clip; the animation pass (pt-anims) replaces them by adding real clips under the same ids in the sets above
+-- (a clip already there wins: these only fill the gaps).
+---------------------------------------------------------------------------
+
+local COUNTERS: { [string]: { [string]: Attack } } = {
+	RustjawPrime = {
+		-- the shoulders hunch and the arms cock back, then both fling scrap up at the sky
+		JunkFlak = attack(0.75, {
+			ArmL = V(-20, 0, -30),
+			ArmR = V(-20, 0, 30),
+			Body = V(8),
+			Head = V(14),
+			Root = V(0, 0, 0, 0, -1),
+		}, { ArmL = V(110, 0, -20), ArmR = V(110, 0, 20), Body = V(-6), Head = V(24), Jaw = V(16) }, 0.9),
+		-- the right arm swings up and over, swatting the air above its shoulders
+		Swat = attack(
+			0.75,
+			{ ArmR = V(-30, 0, 50), ForeR = V(30), Body = V(0, -20), Head = V(10, -10) },
+			{ ArmR = V(125, 0, 10), ForeR = V(10), Body = V(-6, 22), Head = V(20, 10) },
+			0.9
+		),
+		-- a deep crouch, then up and over: the Root lifts (the arc itself is WorldFx's) and lands in a crouch
+		Leap = attack(0.6, {
+			ThighL = V(40),
+			ThighR = V(40),
+			ShinL = V(-60),
+			ShinR = V(-60),
+			Body = V(20),
+			Root = V(0, 0, 0, 0, -6),
+		}, {
+			ThighL = V(30),
+			ThighR = V(30),
+			ShinL = V(-50),
+			ShinR = V(-50),
+			Body = V(16),
+			ArmL = V(-10, 0, -40),
+			ArmR = V(-10, 0, 40),
+			Root = V(0, 0, 0, 0, -5),
+		}, 1),
+	},
+	LumenMaw = {
+		-- the light sacs flare: the head tips up and the jaw opens to spit seekers at the sky
+		LightSeekers = attack(
+			0.75,
+			{ Head = V(-10), Jaw = V(20), Body = V(-8), Root = V(0, 0, 0, 0, -1) },
+			{ Head = V(24), Jaw = V(50), Body = V(10), Tail = V(10) },
+			0.9
+		),
+		-- it rears on its back legs and snaps straight up
+		SnapUp = attack(
+			0.75,
+			{ Body = V(-12), Head = V(-14), LegFL = V(-20), LegFR = V(-20), Root = V(0, 0, 0, 0, -2) },
+			{ Body = V(16), Head = V(22), Jaw = V(52), LegFL = V(30), LegFR = V(30), Root = V(0, 0, 0, 0, 6) },
+			1
+		),
+		-- the head aims low at its prey, then the lure beam lashes out
+		LureBeam = attack(
+			0.75,
+			{ Head = V(-16, 20), Jaw = V(30), Body = V(-6) },
+			{ Head = V(6, -10), Jaw = V(50), Body = V(6), Tail = V(0, 30) },
+			0.9
+		),
+	},
+	LeviathanEngine = {
+		-- the neck coils back and the head tips skyward to fire torpedoes up
+		SkyTorpedoes = attack(
+			0.75,
+			{ Neck = V(-20), Head = V(-10), Jaw = V(10) },
+			{ Neck = V(40), Head = V(28), Jaw = V(40) },
+			0.9
+		),
+		-- it surges up out of the water and snaps at what hovers above it
+		Breach = attack(
+			0.75,
+			{ Neck = V(-30), Head = V(-20), Root = V(0, 0, 0, 0, -4) },
+			{ Neck = V(40), Head = V(24), Jaw = V(42), Root = V(0, 0, 0, 0, 10) },
+			1
+		),
+		-- the head turns to sight the kiter, then fires its harpoon
+		Harpoon = attack(
+			0.75,
+			{ Neck = V(-10, 20), Head = V(-8, 16), Jaw = V(16) },
+			{ Neck = V(20, -10), Head = V(6, -8), Jaw = V(30) },
+			0.9
+		),
+	},
+	NullWarFrame = {
+		-- the shoulder pods tip up and the arms brace for the missile salvo
+		SeekerMissiles = attack(
+			0.75,
+			{ Body = V(10), ArmL = V(-20, 0, -30), ArmR = V(-20, 0, 30), Root = V(0, 0, 0, 0, -1) },
+			{ Body = V(-14), ArmL = V(40, 0, -40), ArmR = V(40, 0, 40), Head = V(20) },
+			0.9
+		),
+		-- both arms sweep up overhead for the flak burst
+		FlakBurst = attack(
+			0.75,
+			{ ArmL = V(-30, 0, -20), ArmR = V(-30, 0, 20), Body = V(12) },
+			{ ArmL = V(130, 0, -30), ArmR = V(130, 0, 30), Body = V(-10), Head = V(24) },
+			0.9
+		),
+		-- the right arm aims the grapple claw, then fires it out
+		GrappleClaw = attack(
+			0.75,
+			{ ArmR = V(-20, 0, 30), ForeR = V(40), Body = V(0, -20) },
+			{ ArmR = V(80, 0, 10), ForeR = V(0), Body = V(0, 16), Head = V(0, 10) },
+			0.9
+		),
+	},
+}
+for bossId, list in COUNTERS do
+	local set = BossPose.SETS[bossId]
+	for id, a in list do
+		if set and set.attacks[id] == nil then
+			set.attacks[id] = a
+		end
+	end
+end
+
 return BossPose

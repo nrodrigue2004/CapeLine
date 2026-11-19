@@ -14,6 +14,10 @@
 -- * Rewards: the tier's Economy row x share (late joiners and anyone below Participant who took part get
 --   the 25% floor), gear rolls from the boss drop sources, a chance at the boss's cosmetic (1 in 20 shiny)
 --   and the Rogues File page. A retreat after 8 minutes pays only a 25% Credits consolation.
+-- * Buildings and counters (nate's playtest 2026-11-19): the walking boss gets the city's standing boxes
+--   (BuildingState.boxesNear) so it smashes through buildings (BossSim smash events -> BuildingService.smash, inside
+--   the collapse caps) and slides round pinned ones; tether hits yank the hero in and column swats knock it down
+--   (strikeHero, shared with the War-Frame in MissionService).
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -34,6 +38,7 @@ local Progress = require(Shared:WaitForChild("Progress"))
 local ProfileSchema = require(Shared:WaitForChild("ProfileSchema"))
 local IncidentSpots = require(Shared:WaitForChild("IncidentSpots"))
 local WorldMap = require(Shared:WaitForChild("WorldMap"))
+local BuildingState = require(Shared:WaitForChild("BuildingState"))
 
 local CityBuilder = require(script.Parent.CityBuilder)
 local HeroService = require(script.Parent.HeroService)
@@ -46,6 +51,7 @@ local ImpactService = require(script.Parent.ImpactService)
 local CitizenService = require(script.Parent.CitizenService)
 local IncidentService = require(script.Parent.IncidentService)
 local PerfMonitor = require(script.Parent.PerfMonitor)
+local MoveGuard = require(script.Parent.MoveGuard)
 
 local Bits = ProfileSchema.Bits
 
@@ -206,6 +212,45 @@ local function syncTargets(f: Fight)
 	end)
 end
 
+-- What a counter strike does to a hero it hit, past the damage: a tether yanks it in to `yank` studs from the boss (and
+-- down toward it), a swat knocks it away and down. True when it did either (no ordinary throw then).
+function BossService.strikeHero(hero: any, ev: any, sim: BossSim.Sim): boolean
+	if not hero or not hero.player or not hero.alive or hero.downed then
+		return false
+	end
+	local pos = HeroService.position(hero)
+	if not pos or not (ev.yank or ev.drop) then
+		return false
+	end
+	local flat = Vector3.new(sim.x - pos.X, 0, sim.z - pos.Z)
+	if ev.yank then
+		local dist = flat.Magnitude - ev.yank
+		if dist > 1 then
+			local move = flat.Unit * dist
+			MoveGuard.grant(hero, dist + 10)
+			Net.fire("HeroKnock", hero.player, {
+				x = move.X,
+				y = 3,
+				z = move.Z,
+				time = 0.6,
+				drop = math.min(0, sim.y + 6 - pos.Y),
+			})
+		end
+		return true
+	end
+	local away = if flat.Magnitude > 0.1 then -flat.Unit else Vector3.new(1, 0, 0)
+	local move = away * 24
+	MoveGuard.grant(hero, 34)
+	Net.fire("HeroKnock", hero.player, {
+		x = move.X,
+		y = 2,
+		z = move.Z,
+		time = 0.5,
+		drop = -math.min(ev.drop, math.max(0, pos.Y - sim.y - 4)),
+	})
+	return true
+end
+
 local function clearTargets(f: Fight)
 	BossService.unlinkTargets(f.targets)
 end
@@ -228,9 +273,16 @@ local function begin()
 	local level = ZoneLevel.at(Config, at.X, at.Z, math.floor(med + 0.5), CityBuilder.world.tiles)
 	local maxHp = BossMath.maxHp(Config, near, level, prepCleared)
 	local now = os.clock()
+	local sim = BossSim.new(Config, bossId, at.X, at.Y, at.Z, maxHp, level, now, rng)
+	local book = BuildingService.book
+	if book and sim.cfg.speed > 0 then
+		sim.blocks = function(x: number, z: number, r: number)
+			return BuildingState.boxesNear(book, x, z, r)
+		end
+	end
 	local f: Fight = {
 		id = bossId,
-		sim = BossSim.new(Config, bossId, at.X, at.Y, at.Z, maxHp, level, now, rng),
+		sim = sim,
 		targets = {},
 		ledger = {},
 		level = level,
@@ -391,6 +443,9 @@ local function handleEvents(f: Fight)
 				local hero = HeroService.byId(hit[1])
 				if hero then
 					HeroService.damage(hero, hit[2], { boss = true })
+					if BossService.strikeHero(hero, ev, f.sim) then
+						continue
+					end
 					if hero.alive and not hero.downed then
 						-- thrown back from the strike, through a building in the way (ImpactService, 2026-11-19)
 						ImpactService.bossHit(hero, Vector3.new(ev.x, ev.y, ev.z))
@@ -405,6 +460,11 @@ local function handleEvents(f: Fight)
 					1
 				)
 			end
+		end
+		if ev.k == "smash" then
+			-- it walked into a building: knock its pieces out where the body meets it (the diffs show the hole)
+			BuildingService.smash(ev.id, Vector3.new(ev.x, ev.y, ev.z), ev.dmg, ev.r)
+			continue
 		end
 		if ev.k == "dead" then
 			finish(f, true)
