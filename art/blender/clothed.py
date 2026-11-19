@@ -7,7 +7,9 @@
 #      version of its uniform, art/clothes/uniforms.py); python art/blender/clothed.py uniforms Grunt new ->
 #      art/preview/uniforms_new_grunt.png (the 9 kinds added with the new enemy types; `chains`: the side quest
 #      chains' Wind-Up Toy, Wind-Up Giant and Salt Dog, front and back, into uniforms_chains_<version>.png); then
-#      python3 art/clothes/uniforms.py --stack makes art/preview/uniforms.png and uniforms_new.png
+#      python3 art/clothes/uniforms.py --stack makes art/preview/uniforms.png and uniforms_new.png;
+#      python art/blender/clothed.py poses   -> art/thumbs/cells/poses/<id>.png (the emote, landing and photo pose
+#      tiles, posed from Shared.EmotePoses via art/thumbs/pieces.json)
 import math
 import os
 import sys
@@ -464,10 +466,60 @@ def thumbs():
         wear.thumb_cells([k for k in want.get("legs", []) if k in pieces["legs"]], "legs", dress_legs, yaw, 0.05)
 
 
+def pose_matrices(rig, joints, keep_root_yaw=False):
+    """Each part's world matrix (Blender, feet at z = 0) for one pose: Shared.EmotePoses' joint angles applied as
+    EmoteFx does (a joint's C0 times CFrame.Angles(x, y, z): the child turns about its joint, in its parent's frame),
+    down the R15 chain of Config.HeroRig (art/thumbs/pieces.json rig). The Root's yaw (a whole-body turn, the spin
+    poses) is left out unless keep_root_yaw: the tile shows the hero facing you."""
+    P = Matrix(((1, 0, 0), (0, 0, -1), (0, 1, 0)))  # Roblox (x right, y up, z back) to Blender
+    g = rig["ground"]
+    W = {"HumanoidRootPart": Matrix.Identity(4)}
+    for j in rig["joints"]:
+        a = joints.get(j["name"])
+        R = Matrix.Identity(4)
+        if a:
+            x, y, z = (math.radians(v) for v in a)
+            if j["name"] == "Root" and not keep_root_yaw:
+                y = 0.0
+            # CFrame.Angles(x, y, z) = Rx * Ry * Rz (Roblox axes), into Blender's
+            Rr = Matrix.Rotation(x, 3, "X") @ Matrix.Rotation(y, 3, "Y") @ Matrix.Rotation(z, 3, "Z")
+            R = (P @ Rr @ P.transposed()).to_4x4()
+        px, py, pz = j["pivot"]
+        pv = Vector((px, -pz, py + g))
+        W[j["part1"]] = W[j["part0"]] @ Matrix.Translation(pv) @ R @ Matrix.Translation(-pv)
+    return W
+
+
+def poses():
+    """The emote, landing pose and Photo Mode pose tiles (2026-11-19; art/thumbs/thumbs.py packs them): the plain
+    blocky body (no face, no hair: those come only from the catalog) in the Plain suit, posed from the game's own
+    pose table (Shared.EmotePoses through art/thumbs/pieces.json), framed on the whole body."""
+    import json
+    import wear
+    pieces = json.load(open(os.path.join(kit.ROOT, "thumbs", "pieces.json")))
+    rig = pieces["rig"]
+    rows = {r["kit"]: r for page in json.load(open(os.path.join(CLOTHES, "suits", "preview.json"))) for r in page}
+    suit = rows["plain"]
+    paint = [THUMB_SKIN if tuple(c) == (224, 172, 130) else tuple(c) for c in suit["paint"]]
+    by_id = {str(p["id"]): p for p in pieces["poses"]}
+
+    def dress_pose(k, at, y, pal):
+        obs = figure((0.0, 0.0, 0.0), 0, THUMB_SKIN, (0, 0, 0), face=None, outfit=suit["name"], layered=True,
+                     paint=paint, hair_on=False)
+        W = pose_matrices(rig, by_id[k]["joints"])
+        Y = Matrix.Translation(Vector(at)) @ Matrix.Rotation(math.radians(y), 4, "Z")
+        for ob in obs:
+            part = ob.name.split(".")[0]
+            ob.matrix_world = Y @ W.get(part, Matrix.Identity(4)) @ ob.matrix_world
+    wear.thumb_cells(list(by_id), "poses", dress_pose, 180 - 28, 0.05)
+
+
 if __name__ != "__main__":
     pass  # imported (art/blender/rogues.py uses figure() and the helpers): no preview
 elif ROBOT == "thumbs":
     thumbs()
+elif ROBOT == "poses":
+    poses()
 elif ROBOT == "heroes":
     # heroes in our own Roblox-style clothes (art/clothes/heroes.py), with our faces
     skins = [(240, 190, 150), (141, 95, 64), (224, 172, 130), (198, 140, 96), (92, 62, 44), (250, 210, 180),

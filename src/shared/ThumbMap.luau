@@ -29,6 +29,12 @@ function ThumbMap.weaponKey(id: number): string
 	return "weapon/" .. tostring(id)
 end
 
+-- an emote's, landing pose's or Photo Mode pose's tile key (Config.Shop.emotes ids, photo poses 101 and up; the
+-- pose rendered from Shared.EmotePoses on the blocky body, 2026-11-19)
+function ThumbMap.emoteKey(id: number): string
+	return "emote/" .. tostring(id)
+end
+
 -- the cell of a tile key: sheet number (1-based), column and row (0-based), or nil
 function ThumbMap.cell(Config: any, key: string): (number?, number?, number?)
 	local T = Config.Thumbs
@@ -85,6 +91,19 @@ function ThumbMap.creator(Config: any, p: { tab: string, kit: string }): Pic?
 		return ThumbMap.catalogFace(Config, p.kit)
 	end
 	return ThumbMap.pic(Config, ThumbMap.creatorKey(Config, p))
+end
+
+-- what a shop item's card shows: its own cell, else (an emote or landing pose) the pose's picture, or nil (words)
+function ThumbMap.shop(Config: any, key: string): Pic?
+	local pic = ThumbMap.pic(Config, "shop/" .. key)
+	if pic then
+		return pic
+	end
+	local row = Config.Shop.products[key]
+	if row and row.kind == "emote" and row.emote then
+		return ThumbMap.pic(Config, ThumbMap.emoteKey(row.emote))
+	end
+	return nil
 end
 
 -- a glyph for a text tile that has no picture (catalog hair, voices)

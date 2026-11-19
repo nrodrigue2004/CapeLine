@@ -8,6 +8,8 @@
 # 1024 x 1024 sheets of 128 px cells: art/export/thumbs/Thumbs_<n>.png. Writes src/config/Thumbs.luau (each key's
 # cell; each sheet's uploaded image id, kept while the sheet's pixels are unchanged, else 0 until it is uploaded
 # again: art/thumbs/sheets.json holds each sheet's hash and id) and the contact sheet art/preview/thumbs.png.
+# The pose tiles (2026-11-19): every emote, landing pose and photo pose from `clothed.py poses` (the game's own
+# Shared.EmotePoses on the plain blocky body) on a sheet of their own after the others.
 # Catalog faces and hair are never drawn here (nate's rule: they come only from the Roblox catalog).
 # Run from the repo root: python3 art/thumbs/thumbs.py
 import hashlib
@@ -33,7 +35,9 @@ PAL = {"p": (40, 110, 220), "s": (235, 60, 60), "a": (255, 210, 60), "dark": (34
 # card tints by body area (the creator's AREAS), light enough for the ink to read on
 CARD = {"head": (255, 230, 196), "hat": (255, 230, 196), "ears": (255, 230, 196), "torso": (214, 232, 255),
         "arms": (220, 246, 220), "legs": (238, 224, 255), "back": (255, 222, 222), "emblem": (255, 247, 224),
-        "fx": (40, 46, 70), "weapon": (226, 230, 240), "trail": (205, 228, 255)}
+        "fx": (40, 46, 70), "weapon": (226, 230, 240), "trail": (205, 228, 255),
+        # the pose tiles (2026-11-19): emotes, landing poses, Photo Mode's poses
+        "emote": (255, 236, 170), "landing": (255, 214, 186), "photo": (206, 238, 255)}
 AREA = {"head": "head", "hat": "hat", "ears": "ears", "suit": "torso", "shirt": "torso", "neck": "torso",
         "shoulders": "torso", "emblem": "emblem", "arms": "arms", "hands": "arms", "wrist": "arms", "pants": "legs",
         "belt": "legs", "legs": "legs", "feet": "legs", "back": "back", "backpack": "back", "aura": "fx",
@@ -418,6 +422,43 @@ def tiles(P):
     return out
 
 
+def spin_arrow(im):
+    """A comic turn arrow round the hero's feet (the spin poses: the hero turns about as the pose plays; the tile
+    shows them facing you)."""
+    S = im.width
+    d = ImageDraw.Draw(im)
+    box = (S * 0.14, S * 0.8, S * 0.86, S * 0.95)
+    w = max(3, S // 40)
+    d.arc(box, 200, 340, fill=INK + (255,), width=w + 4)
+    d.arc(box, 200, 340, fill=PAL["a"] + (255,), width=w)
+    cx, cy = (box[0] + box[2]) / 2, (box[1] + box[3]) / 2
+    rx, ry = (box[2] - box[0]) / 2, (box[3] - box[1]) / 2
+    a = math.radians(340)
+    x, y = cx + rx * math.cos(a), cy + ry * math.sin(a)
+    q = S * 0.05
+    tri = [(x + q, y + q * 0.2), (x - q * 0.7, y - q * 0.9), (x - q * 0.2, y + q * 1.0)]
+    d.polygon(tri, fill=PAL["a"] + (255,), outline=INK + (255,))
+    return im
+
+
+def pose_tiles(P):
+    """[(key, image, caption, group)]: every emote, landing pose and Photo Mode pose rendered on the plain blocky
+    body from the game's own pose table (`clothed.py poses`: art/thumbs/cells/poses/<id>.png)."""
+    out = []
+    for p in P.get("poses", []):
+        src = render_cell(["poses"], str(p["id"]))
+        if src is None:
+            continue
+        bg = CARD[p["kind"]]
+        im = framed_render(src, bg)
+        root = p["joints"].get("Root")
+        if root and abs(root[1]) >= 90:
+            big = im.resize((CELL * SS, CELL * SS), Image.LANCZOS)
+            im = spin_arrow(big).resize((CELL, CELL), Image.LANCZOS)
+        out.append((p["key"], im, p["name"], p["kind"]))
+    return out
+
+
 def sheet_hash(im):
     return hashlib.sha256(im.tobytes()).hexdigest()[:16]
 
@@ -425,15 +466,22 @@ def sheet_hash(im):
 def main():
     P = load(os.path.join(ART, "thumbs", "pieces.json"))
     T = tiles(P)
-    os.makedirs(OUT, exist_ok=True)
     per_sheet = PER * PER
-    n_sheets = (len(T) + per_sheet - 1) // per_sheet
+    # the pose tiles (2026-11-19) start on a sheet of their own, so adding them leaves the uploaded sheets as they were
+    poses = pose_tiles(P)
+    slots = list(range(len(T)))
+    if poses:
+        start = (len(T) + per_sheet - 1) // per_sheet * per_sheet
+        slots += [start + i for i in range(len(poses))]
+        T = T + poses
+    os.makedirs(OUT, exist_ok=True)
+    n_sheets = (slots[-1] + per_sheet) // per_sheet if slots else 0
     sheets = [Image.new("RGBA", (PER * CELL, PER * CELL), (0, 0, 0, 0)) for _ in range(n_sheets)]
     cells = {}
     for i, (key, im, _, _) in enumerate(T):
-        s, k = divmod(i, per_sheet)
+        s, k = divmod(slots[i], per_sheet)
         sheets[s].alpha_composite(im, ((k % PER) * CELL, (k // PER) * CELL))
-        cells[key] = i + 1
+        cells[key] = slots[i] + 1
     rec_path = os.path.join(ART, "thumbs", "sheets.json")
     rec = load(rec_path) if os.path.isfile(rec_path) else {}
     ids = []

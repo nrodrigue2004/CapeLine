@@ -380,7 +380,7 @@ def grid_preview(built, out, dress, cols=5, cell=2.8, px=320, focus=4.65, yaw_fr
 # art/thumbs/cells/<set>/<kit>.png (kit ":" written "~"). THUMB_PX and THUMB_SAMPLES tune the render.
 THUMB_PAL = ((40, 110, 220), (235, 60, 60), (255, 210, 60))
 # per set: (minimum frame in studs, zoom out factor, an extra tilt down in radians)
-THUMB_FRAME = {"heads": (1.5, 1.12, 0.0), "hats": (1.5, 1.1, 0.1), "ears": (0.8, 1.7, 0.0),
+THUMB_FRAME = {"poses": (3.0, 1.2, 0.0), "heads": (1.5, 1.12, 0.0), "hats": (1.5, 1.1, 0.1), "ears": (0.8, 1.7, 0.0),
                "gloves": (1.2, 1.15, -0.18), "boots": (1.2, 1.15, -0.06), "necks": (1.5, 1.3, 0.0),
                "wrists": (1.1, 1.3, 0.0), "arms": (1.9, 1.15, 0.0), "belts": (2.0, 1.15, 0.0),
                "shoulders": (2.4, 1.1, 0.0), "backs": (2.6, 1.08, 0.0), "coats": (3.0, 1.06, 0.0),

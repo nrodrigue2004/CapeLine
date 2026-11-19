@@ -26,6 +26,7 @@ local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Net = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Net"))
 
 local Kit = require(script.Parent.Kit)
+local Thumb = require(script.Parent.Thumb)
 local InputController = require(script.Parent.Parent.Controllers.InputController)
 local StoryClient = require(script.Parent.Parent.Controllers.StoryClient)
 local EmoteFx = require(script.Parent.Parent.Fx.EmoteFx)
@@ -264,7 +265,10 @@ local function nextPose()
 	local list = poses()
 	poseAt = poseAt % #list + 1
 	local id = list[poseAt]
-	poseButton.Text = "POSE: " .. string.upper(poseName(id))
+	-- the pose's picture at the button's left (2026-11-19), words only while its sheet is not uploaded
+	-- (beside its picture the name alone, so it stays readable in the 150 px button)
+	local pic = Thumb.emote(id)
+	Thumb.side(poseButton, pic, (if pic then "" else "POSE: ") .. string.upper(poseName(id)), 14)
 	if id >= 100 then
 		EmoteFx.poseLocal(id, 8)
 	else

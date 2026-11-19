@@ -172,9 +172,10 @@ local function card(order: number, key: string)
 		maxText = 22,
 	})
 	n.Parent = f
-	-- the item's picture (2026-11-19 thumbnails: a pack's look, a weapon, an effect tint, a travel style) at the
-	-- left, the words beside it; no picture (emotes, passes, slots, or a sheet not uploaded yet): words only
-	local pic = Thumb.key("shop/" .. key)
+	-- the item's picture (2026-11-19 thumbnails: a pack's look, a weapon, an effect tint, a travel style, an
+	-- emote's or landing pose's pose) at the left, the words beside it; no picture (passes, slots, or a sheet not
+	-- uploaded yet): words only
+	local pic = Thumb.shop(key)
 	local inset = 0
 	if pic then
 		local img = Thumb.image(pic, {
