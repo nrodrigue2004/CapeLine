@@ -9,7 +9,9 @@
 # Cast and pages come from art/export/panels/cast.json (lune run art/panels/cast.luau).
 # Output: build/panels/raw/portrait_<key>.png (RGBA, the figure on a clear background) and
 #         build/panels/raw/panel_<page>.<n>.png (RGB, the whole scene). build/ is not in git.
-# Run: $HOME/tools/bpyenv/bin/python art/blender/panels.py [portraits|panels|all] [--only key,key] [--samples N]
+# Run: $HOME/tools/bpyenv/bin/python art/blender/panels.py [portraits|panels|all|villains|beards] [--only key,key]
+#      [--samples N]   (villains: the side quest villains' name card portraits, build/panels/raw/villain_<Name>.png;
+#      beards: each catalog beard on a plain head for art/preview/beards.png; gap-villains, 2026-11-19)
 import json
 import math
 import os
@@ -68,20 +70,32 @@ def cframe(c):
 
 
 HEAD_HAIR = Matrix.Translation((0, 0.6, 0))  # the blocky R15 head's HairAttachment (from the head's centre)
+# the blocky head's attachments a catalog accessory fits by (Roblox head space, from the head's centre)
+HEAD_ATT = {
+    "HairAttachment": HEAD_HAIR,
+    "HatAttachment": HEAD_HAIR,
+    "FaceFrontAttachment": Matrix.Translation((0, 0, -0.6)),
+    "FaceCenterAttachment": Matrix.Translation((0, 0, 0)),
+}
+BEARD_INDEX = json.load(open(os.path.join(CAT, "beard", "index.json"))) if os.path.isfile(
+    os.path.join(CAT, "beard", "index.json")) else {}
 
 
-def catalog_hair(asset):
-    """The catalog hair accessory's own mesh and texture, fitted as Roblox fits it: the handle placed so its
-    HairAttachment meets the head's, the SpecialMesh's scale and offset applied. In rest coordinates (the head's
-    centre at z 4.6, Blender axes)."""
+def catalog_hair(asset, kind="hair"):
+    """The catalog accessory's own mesh and texture (hair, or a beard: kind "beard"), fitted as Roblox fits it:
+    the handle placed so its attachment meets the head's (HairAttachment, FaceFrontAttachment...), the
+    SpecialMesh's scale and offset applied. In rest coordinates (the head's centre at z 4.6, Blender axes)."""
     asset = int(asset)
-    e = HAIR_INDEX.get(str(asset))
+    e = (BEARD_INDEX if kind == "beard" else HAIR_INDEX).get(str(asset))
     if not e:
         return None
     fit = e["fit"]
-    mesh = json.load(open(os.path.join(CAT, "hair", e["mesh"])))
+    mesh = json.load(open(os.path.join(CAT, kind, e["mesh"])))
     att = fit.get("attachment")
-    handle = HEAD_HAIR @ cframe(att["cframe"]).inverted() if att else Matrix.Translation((0, 0.6, 0))
+    if att:
+        handle = HEAD_ATT.get(att["name"], HEAD_HAIR) @ cframe(att["cframe"]).inverted()
+    else:
+        handle = Matrix.Translation((0, 0.6, 0))
     sc = Vector(fit.get("scale") or (1, 1, 1))
     off = Vector(fit.get("offset") or (0, 0, 0))
     verts = []
@@ -89,7 +103,8 @@ def catalog_hair(asset):
         q = off + Vector((p[0] * sc.x, p[1] * sc.y, p[2] * sc.z))
         w = handle @ q
         verts.append((w.x, -w.z, w.y + 4.6))
-    me = bpy.data.meshes.new("CatHair%d" % asset)
+    tag = "CatBeard" if kind == "beard" else "CatHair"
+    me = bpy.data.meshes.new("%s%d" % (tag, asset))
     me.from_pydata(verts, [], [tuple(f) for f in mesh["faces"]])
     me.update()
     uv = me.uv_layers.new(name="UV")
@@ -99,17 +114,22 @@ def catalog_hair(asset):
             uv.data[li].uv = (t[0], 1 - t[1])
     for poly in me.polygons:
         poly.use_smooth = True
-    ob = bpy.data.objects.new("CatHair%d" % asset, me)
+    ob = bpy.data.objects.new("%s%d" % (tag, asset), me)
     bpy.context.scene.collection.objects.link(ob)
-    m = bpy.data.materials.new("cathair%d" % asset)
+    m = bpy.data.materials.new("%s%d" % (tag.lower(), asset))
     m.use_nodes = True
     nt = m.node_tree
     p = nt.nodes["Principled BSDF"]
     p.inputs["Roughness"].default_value = 0.6
     if e.get("texture"):
         t = nt.nodes.new("ShaderNodeTexImage")
-        t.image = bpy.data.images.load(os.path.join(CAT, "hair", e["texture"]), check_existing=True)
+        t.image = bpy.data.images.load(os.path.join(CAT, kind, e["texture"]), check_existing=True)
         nt.links.new(t.outputs["Color"], p.inputs["Base Color"])
+        # (a beard's texture may carry its own cut-out alpha)
+        if kind == "beard":
+            nt.links.new(t.outputs["Alpha"], p.inputs["Alpha"])
+            if hasattr(m, "blend_method"):
+                m.blend_method = "HASHED"
     else:
         p.inputs["Base Color"].default_value = (0.1, 0.08, 0.06, 1)
     ob.data.materials.append(m)
@@ -323,6 +343,10 @@ def person(key, root=None, bends=None, coll=None, arm_up=None):
             cut_above(hr, HAT_CUT[hat])
         if hr:
             obs.append(C._apply(hr, M["Head"]))
+    if row.get("beard"):  # (a hood or helmet leaves the face open: the beard shows)
+        br = catalog_hair(row["beard"]["asset"], "beard")
+        if br:
+            obs.append(C._apply(br, M["Head"]))
     for ob in obs:
         C.put(ob, coll)
     return M, obs
@@ -357,8 +381,66 @@ def portrait(row):
     print("panels.py: rendered", path, flush=True)
 
 
+VILLAIN_BENDS = {"LeftShoulder": (0, 10, 0), "RightShoulder": (0, -10, 0), "Neck": (-6, 0, 0)}
+
+
+def villain_card(v):
+    """A side quest villain's name card portrait (gap-villains, 2026-11-19): the person from the cast on the
+    blocky R15 body in their own outfit, catalog face, hair and beard (person() as the guide portraits), or a
+    finale that is not a person in its own model (art/export/finales, rogues.finale), from the chest up in a
+    slightly low three-quarter view turned toward the card's words, on a clear background, for
+    art/panels/villains.py to ink."""
+    setup((768, 768))
+    if v.get("finale"):
+        obs = R["finale"](v["finale"], v["art"])
+        coll = C.collection("People")
+        for ob in obs:
+            C.put(ob, coll)
+    else:
+        person(v["key"], bends=VILLAIN_BENDS)
+    aim = (0, 0, 4.35)
+    R["frame"](-24, aim, 4.3)
+    cam = bpy.context.scene.camera
+    cam.location.z -= 8.0  # a little below the eyes: villains loom
+    cam.rotation_euler = (Vector(aim) - cam.location).to_track_quat("-Z", "Y").to_euler()
+    ink(["People"], 3.2)
+    slug = "".join(ch for ch in v["name"].title() if ch.isalnum())
+    path = os.path.join(RAW, "villain_%s.png" % slug)
+    kit.render(path)
+    print("panels.py: rendered", path, flush=True)
+
+
+def beard_preview():
+    """Each catalog beard (build/catalog/beard) on a plain blocky head, front three-quarter and side, for
+    art/panels/post.py's beard sheet (art/preview/beards.png): a check that each fits and reads as a beard."""
+    smile = next((r["face"] for r in CAST["portraits"] if r["face"]["name"] == "Smile"), CAST["portraits"][0]["face"])
+    for aid in BEARD_INDEX:
+        if ONLY and aid not in ONLY:
+            continue
+        for yaw, tag in ((-28, "front"), (-80, "side")):
+            row = {"key": "beard_" + aid, "skin": [224, 172, 130], "face": smile, "hair": None,
+                   "outfit": {"shirt": "Hoodie", "shirtTint": [90, 110, 140], "pants": "Jeans",
+                              "pantsTint": [60, 70, 100]}, "beard": {"asset": int(aid)}, "extras": []}
+            setup((384, 384))
+            person(row)
+            R["frame"](yaw, (0, 0, 4.5), 2.6)
+            ink(["People"], 2.0)
+            path = os.path.join(RAW, "beard_%s_%s.png" % (aid, tag))
+            kit.render(path)
+            print("panels.py: rendered", path, flush=True)
+
+
 def main():
     os.makedirs(RAW, exist_ok=True)
+    if WHAT == "beards":
+        beard_preview()
+        return
+    if WHAT == "villains":
+        for v in CAST.get("villains", []):
+            if ONLY and v["name"] not in ONLY and (v.get("key") or v.get("finale")) not in ONLY:
+                continue
+            villain_card(v)
+        return
     if WHAT in ("portraits", "all"):
         for row in CAST["portraits"]:
             if ONLY and row["key"] not in ONLY:

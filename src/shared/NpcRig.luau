@@ -442,7 +442,7 @@ end
 -- A named person's explicit Roblox catalog pick (Shared.PeopleLooks.castPick, Config.NpcLooks.cast; 2026-11-19,
 -- the hair fit pass): the face decal shows the picked catalog face, and the picked catalog hair replaces the hairs
 -- showHair hung on the rig (it goes on once CatalogLookService has loaded it); bald takes every hair off.
-function NpcRig.wearCast(rig: Rig, pick: { face: string?, hair: number?, bald: boolean? }?)
+function NpcRig.wearCast(rig: Rig, pick: { face: string?, hair: number?, bald: boolean?, beard: number? }?)
 	if not pick then
 		return
 	end
@@ -452,6 +452,25 @@ function NpcRig.wearCast(rig: Rig, pick: { face: string?, hair: number?, bald: b
 			d.Texture = pick.face
 		else
 			NpcRig.face(rig, pick.face)
+		end
+	end
+	-- the person's catalog beard (gap-villains, 2026-11-19), on its own face attachment once loaded
+	local beard = pick.beard
+	if beard and not rig.model:FindFirstChild("CatBeard", true) then
+		local lib = ReplicatedStorage:FindFirstChild("CatalogLooks")
+		local src = lib and lib:FindFirstChild(tostring(beard))
+		if src and src:IsA("Accessory") then
+			NpcRig.wear(rig, src, "CatBeard")
+		elseif lib then
+			local conn: RBXScriptConnection? = nil
+			conn = lib.ChildAdded:Connect(function(c)
+				if not rig.model.Parent then
+					(conn :: RBXScriptConnection):Disconnect()
+				elseif c.Name == tostring(beard) and c:IsA("Accessory") then
+					(conn :: RBXScriptConnection):Disconnect()
+					NpcRig.wear(rig, c, "CatBeard")
+				end
+			end)
 		end
 	end
 	if not pick.hair and not pick.bald then

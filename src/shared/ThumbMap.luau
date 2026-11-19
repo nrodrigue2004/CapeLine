@@ -107,6 +107,6 @@ function ThumbMap.shop(Config: any, key: string): Pic?
 end
 
 -- a glyph for a text tile that has no picture (catalog hair, voices)
-ThumbMap.GLYPHS = { hair = "✂", voice = "♪" }
+ThumbMap.GLYPHS = { hair = "✂", beard = "✂", voice = "♪" }
 
 return ThumbMap

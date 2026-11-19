@@ -1809,7 +1809,8 @@ local function catalogFaceFor(kit: string): number?
 end
 local RETIRED: { [string]: boolean } = {}
 for _, t in C.tabs do
-	if t.hidden then
+	-- a hidden tab, or a catalog tab whose drawn styles are never worn (facial hair: only catalog beards show)
+	if t.hidden or t.drawnRetired then
 		RETIRED[t.id] = true
 	end
 end
@@ -1959,7 +1960,8 @@ function LookKit.build(char: Model, look: any, weapon: any?): Folder
 		local cat = catalogId(kit)
 		if cat then
 			if not covered then
-				catalogAccessory(char, folder, cat)
+				-- (an NPC look built before CatalogLookService has loaded it gets it on arrival, like the hair)
+				catalogSoon(char, folder, cat)
 			end
 		elseif kit and not covered then
 			local c, m = slotColors(colors, look, slot)

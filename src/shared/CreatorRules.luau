@@ -382,7 +382,9 @@ function CreatorRules.offeredLook(Config: any, look: Look): Look
 		local p = if i > 0 then CreatorRules.piece(Config, slot, i) else nil
 		if p and not CreatorRules.offered(Config, p) then
 			local first = 0
-			if not CreatorRules.hidden(Config, slot) then
+			-- (a drawn beard comes off: facial hair has no default, gap-villains 2026-11-19)
+			local tab = Config.Creator.tabs[p.tabIndex]
+			if not CreatorRules.hidden(Config, slot) and not (tab and tab.drawnRetired) then
 				for _, q in CreatorRules.index(Config).byTab[slot] do
 					if CreatorRules.offered(Config, q) then
 						first = q.index

@@ -122,21 +122,34 @@ local function catHair(Config: any, name: any): any
 	end
 	return nil
 end
+local function catBeard(Config: any, name: any): any
+	for _, b in Config.CatalogLooks.beards or {} do
+		if b[1] == name then
+			return b
+		end
+	end
+	return nil
+end
 
 -- The explicit catalog pick of a named person with no creator look (Config.NpcLooks.cast; a speaker key or a
 -- mentor id): the face's image ("rbxassetid://...") and the hair accessory's asset id (nil: no hair). Nil when
 -- the key has no pick (the rig keeps its own).
-function PeopleLooks.castPick(Config: any, key: string?): { face: string?, hair: number?, bald: boolean }?
+function PeopleLooks.castPick(
+	Config: any,
+	key: string?
+): { face: string?, hair: number?, bald: boolean, beard: number? }?
 	local row = key and Config.NpcLooks.cast and Config.NpcLooks.cast[key]
 	if type(row) ~= "table" then
 		return nil
 	end
 	local f = catFace(Config, row.face)
 	local h = if row.hair then catHair(Config, row.hair) else nil
+	local b = if row.beard then catBeard(Config, row.beard) else nil
 	return {
 		face = if f then "rbxassetid://" .. string.format("%d", f[3]) else nil,
 		hair = if h then h[2] else nil,
 		bald = row.hair == false,
+		beard = if b then b[2] else nil, -- the catalog beard's asset id (gap-villains, 2026-11-19)
 	}
 end
 
@@ -206,8 +219,9 @@ function PeopleLooks.namedKeys(Config: any): { string }
 end
 
 -- The catalog face and hair a named character wears, by name: (face name, hair name or false), and an error
--- text when the pick is not an explicit catalog item
-function PeopleLooks.catalogPick(Config: any, key: string): (string?, any, string?)
+-- text when the pick is not an explicit catalog item; then the catalog beard's name, or nil (gap-villains,
+-- 2026-11-19: a look's beard piece or the cast row's beard must be a Config.CatalogLooks beard)
+function PeopleLooks.catalogPick(Config: any, key: string): (string?, any, string?, string?)
 	local def = PeopleLooks.lookDef(Config, key)
 	if def then
 		local byTab = CreatorRules.index(Config).byTab
@@ -223,12 +237,18 @@ function PeopleLooks.catalogPick(Config: any, key: string): (string?, any, strin
 		if not (cat("visage", face) and catFace(Config, face)) then
 			return nil, nil, key .. ": the look's face " .. tostring(face) .. " is not a Roblox catalog face"
 		end
+		local beard = def.pieces.beard
+		if beard ~= nil and not (cat("beard", beard) and catBeard(Config, beard)) then
+			return nil,
+				nil,
+				key .. ": the look's beard " .. tostring(beard) .. " is not a Roblox catalog beard"
+		end
 		local hair = def.pieces.hair
 		if hair == nil then
 			if def.hairless ~= true then
 				return nil, nil, key .. ": the look has no hair piece and no hairless = true"
 			end
-			return face, false, nil
+			return face, false, nil, beard
 		end
 		if def.hairless then
 			return nil, nil, key .. ": hairless but the look names hair " .. tostring(hair)
@@ -236,7 +256,7 @@ function PeopleLooks.catalogPick(Config: any, key: string): (string?, any, strin
 		if not (cat("hair", hair) and catHair(Config, hair)) then
 			return nil, nil, key .. ": the look's hair " .. tostring(hair) .. " is not a Roblox catalog hair"
 		end
-		return face, hair, nil
+		return face, hair, nil, beard
 	end
 	local row = Config.NpcLooks.cast and Config.NpcLooks.cast[key]
 	if type(row) ~= "table" then
@@ -248,7 +268,10 @@ function PeopleLooks.catalogPick(Config: any, key: string): (string?, any, strin
 	if row.hair ~= false and not catHair(Config, row.hair) then
 		return nil, nil, key .. ": cast hair " .. tostring(row.hair) .. " is not in Config.CatalogLooks"
 	end
-	return row.face, row.hair, nil
+	if row.beard ~= nil and not catBeard(Config, row.beard) then
+		return nil, nil, key .. ": cast beard " .. tostring(row.beard) .. " is not in Config.CatalogLooks"
+	end
+	return row.face, row.hair, nil, row.beard
 end
 
 -- Named characters left without an explicit catalog face and hair (tests)

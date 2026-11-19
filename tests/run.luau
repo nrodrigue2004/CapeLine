@@ -7304,7 +7304,10 @@ test(
 					local id = tonumber(string.sub(p.kit, 5))
 					local found = false
 					for _, row in
-						(if p.tab == "visage" then Config.CatalogLooks.faces else Config.CatalogLooks.hair)
+						(if p.tab == "visage"
+							then Config.CatalogLooks.faces
+							elseif p.tab == "beard" then Config.CatalogLooks.beards
+							else Config.CatalogLooks.hair)
 					do
 						found = found or (row[2] == id and (p.tab ~= "visage" or (row[3] or 0) > 0))
 					end
@@ -7327,10 +7330,10 @@ test(
 		-- and the classic clothes and faces (2026-11-17): 18 shirts, 12 pants, 6 faces; and the 5 origin crests
 		-- (lore step 2)
 		-- and Hero Pass season 1's Opening Night set (H8: suit, cape, mask, boots)
-		-- + 5 origin crests and 49 catalog hairs + 44 catalog faces (2026-11-18)
+		-- + 5 origin crests and 49 catalog hairs + 44 catalog faces (2026-11-18) + 8 catalog beards (gap-villains)
 		check(
-			count == 121 + 92 + 24 + 47 + 73 + 36 + 5 + 4 + 5 + 49 + 44,
-			"500 pieces beyond the first 146 (646 in all)"
+			count == 121 + 92 + 24 + 47 + 73 + 36 + 5 + 4 + 5 + 49 + 44 + 8,
+			"508 pieces beyond the first 146 (654 in all)"
 		)
 		-- every piece's unlock can actually be earned
 		for _, p in idx.list do
@@ -23058,7 +23061,9 @@ end
 -- the story art pass (gap-story, 2026-11-19, own file); ONLY="Story art" runs just these
 (require :: any)("./story_art_test")({ test = test, check = check, Config = Config, placePath = placePath });
 -- the pocket props and the plaza board's art pass (gap-props2, 2026-11-19, own file); ONLY="Pocket props" or ONLY="Board art"
-(require :: any)("./pocket_props_test")({ test = test, check = check, Config = Config, placePath = placePath })
+(require :: any)("./pocket_props_test")({ test = test, check = check, Config = Config, placePath = placePath });
+-- the villain name cards and catalog beards (gap-villains, 2026-11-19, own file); ONLY="Villain cards" or ONLY="Catalog beards"
+(require :: any)("./villains_test")({ test = test, check = check, Config = Config })
 
 print(string.format("\n%d passed, %d failed", passed, failed))
 if failed > 0 then

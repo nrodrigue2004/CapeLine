@@ -405,7 +405,7 @@ return {
 					hands = "Gloves",
 					feet = "Tall Boots",
 					emblem = "Star",
-					beard = "Full Beard",
+					beard = "Styled Beard Black", -- a Roblox catalog beard (gap-villains, 2026-11-19)
 					shoulders = "Mantle",
 					belt = "Utility Belt",
 					visage = "Man Face", -- Roblox catalog face (picked for the character, 2026-11-19)

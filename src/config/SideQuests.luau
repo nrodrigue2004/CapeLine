@@ -500,7 +500,7 @@ return {
 					hands = "Boxing Gloves",
 					shoulders = "Riveted Pads",
 					belt = "Champion Belt",
-					beard = "Handlebar",
+					beard = "Fancy Moustache", -- a Roblox catalog beard (gap-villains, 2026-11-19)
 					neck = "Chain",
 					feet = "Armored Boots",
 					visage = "Know-It-All Grin", -- Roblox catalog face (picked for the character, 2026-11-19)
@@ -548,7 +548,7 @@ return {
 					ears = "Fin Ears",
 					eyes = "Ice Glow",
 					emblem = "Orb Crest",
-					beard = "Full Beard",
+					beard = "Styled Beard White", -- a Roblox catalog beard (gap-villains, 2026-11-19)
 					visage = "Alien", -- Roblox catalog face (picked for the character, 2026-11-19)
 					hair = "Blue Anime Hair", -- Roblox catalog hair
 				},
@@ -620,7 +620,7 @@ return {
 					hands = "Work Gloves",
 					feet = "Combat Boots",
 					belt = "Tool Belt",
-					beard = "Stubble",
+					beard = "Stubble Beard [Black]", -- a Roblox catalog beard (gap-villains, 2026-11-19)
 					visage = "Stare", -- Roblox catalog face (picked for the character, 2026-11-19)
 					hair = "Black Short Wolf Cut", -- Roblox catalog hair
 				},
@@ -655,7 +655,7 @@ return {
 					feet = "Combat Boots",
 					belt = "Chain Belt",
 					neck = "Chain",
-					beard = "Goatee",
+					beard = "Red Down Facing Moustache", -- a Roblox catalog beard (gap-villains, 2026-11-19)
 					visage = "Beast Mode", -- Roblox catalog face (picked for the character, 2026-11-19)
 					hair = "Crimson Shaggy 2.0", -- Roblox catalog hair
 				},
@@ -800,7 +800,7 @@ return {
 					hat = "Top Hat",
 					head = "Masquerade",
 					hands = "Gloves",
-					beard = "Pencil Mustache",
+					beard = "Fancy Moustache", -- a Roblox catalog beard (gap-villains, 2026-11-19)
 					eyes = "Violet Glow",
 					visage = "Slickfang", -- Roblox catalog face (picked for the character, 2026-11-19)
 					hair = "Long Straight Hair (Black)", -- Roblox catalog hair
@@ -840,7 +840,7 @@ return {
 					belt = "Tool Belt",
 					shoulders = "Gear Pads",
 					backpack = "Gear Rack",
-					beard = "Horseshoe",
+					beard = "Full Black Trimmed Beard", -- a Roblox catalog beard (gap-villains, 2026-11-19)
 					feet = "Armored Boots",
 					visage = "Meanie", -- Roblox catalog face (picked for the character, 2026-11-19)
 				},
@@ -920,7 +920,7 @@ return {
 				pieces = {
 					shirt = "Flannel Shirt",
 					pants = "Cargo Trousers",
-					beard = "Mutton Chops",
+					beard = "Styled Beard Brown", -- a Roblox catalog beard (gap-villains, 2026-11-19)
 					hat = "Ball Cap",
 					belt = "Utility Belt",
 					feet = "Boots",
@@ -958,7 +958,6 @@ return {
 				pieces = {
 					shirt = "Blazer and Tie",
 					pants = "Slacks",
-					beard = "Soul Patch",
 					feet = "Boots",
 					hands = "Gloves",
 					visage = "Awkward", -- Roblox catalog face (picked for the character, 2026-11-19)
@@ -1148,7 +1147,7 @@ return {
 				pieces = {
 					shirt = "Tank",
 					pants = "Track Bottoms",
-					beard = "Boxed Beard",
+					beard = "Full Black Trimmed Beard", -- a Roblox catalog beard (gap-villains, 2026-11-19)
 					hat = "Beanie",
 					hands = "Hand Wraps",
 					neck = "Whistle",
@@ -1192,7 +1191,7 @@ return {
 					hands = "Gloves",
 					feet = "Tall Boots",
 					emblem = "Star",
-					beard = "Full Beard",
+					beard = "Styled Beard Black", -- a Roblox catalog beard (gap-villains, 2026-11-19)
 					shoulders = "Mantle",
 					belt = "Utility Belt",
 					visage = "Man Face", -- Roblox catalog face (picked for the character, 2026-11-19)

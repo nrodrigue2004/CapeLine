@@ -36,6 +36,14 @@ local function faceByName(n: string): any
 	end
 	error("no catalog face " .. n)
 end
+local function beardByName(n: string): any
+	for _, b in Config.CatalogLooks.beards do
+		if b[1] == n then
+			return { name = b[1], asset = b[2] }
+		end
+	end
+	error("no catalog beard " .. n)
+end
 local function hairByName(n: string): any
 	for _, h in hairs do
 		if h[1] == n then
@@ -119,10 +127,12 @@ local function person(key: string, sp: any, extra: any?): any
 		row.skin = copy(p.skin or { 224, 172, 130 })
 	end
 	-- the explicit catalog pick (the look's catalog face and hair pieces, else Config.NpcLooks.cast)
-	local faceName, hairName, err = PeopleLooks.catalogPick(Config, key)
+	local faceName, hairName, err, beardName = PeopleLooks.catalogPick(Config, key)
 	assert(faceName, err)
 	row.face = faceByName(faceName)
 	row.hair = if hairName then hairByName(hairName) else nil
+	-- the catalog beard (gap-villains, 2026-11-19: Config.CatalogLooks.beards, a look's piece or the cast row's)
+	row.beard = if beardName then beardByName(beardName) else nil
 	return row
 end
 
@@ -183,9 +193,83 @@ for _, id in ids do
 	end
 end
 
+-- The side quest villains' name cards (gap-villains, 2026-11-19, nate): every name a finale's card shows
+-- (SideQuestPlan.card: the chain's villain, or an encore finale's first foe) with the person who wears it, a
+-- portrait key above, or a finale that is not a person (its own model, Config.FinaleArt). The Dev sample chain
+-- keeps the text card.
+local VILLAINS: { [string]: string } = {
+	["HEADMASTER HALO"] = "halo",
+	["REDLINE"] = "redline",
+	["MADAME MASQUE-A-RADE"] = "masque",
+	["THE TOYMAKER"] = "toymaker",
+	["THE BRAMBLEBEAST"] = "finale:Bramblebeast",
+	["THE HARVEST KING"] = "harvest",
+	["CAPTAIN BRINE"] = "brine",
+	["THE PITBOSS"] = "pitboss",
+	["THE TIDEWRIGHT"] = "tidewright",
+	["VESPER"] = "vesper",
+	["CATCHPOLE"] = "catchpole",
+	["SAL SCORCH"] = "scorch",
+	["THE CENSOR"] = "censor",
+	["DOCTOR HOLLOWAY"] = "holloway",
+	["THE VOIDHOUND"] = "finale:Voidhound",
+	["MORROW THE MIRAGE"] = "morrow",
+	["CLAWBACK"] = "clawback",
+	["GALE"] = "gale",
+}
+-- a finale's card colour (its look's own glow: the Bramblebeast's leaves, the Voidhound's violet)
+local FINALE_COLOR = { Bramblebeast = { 90, 170, 70 }, Voidhound = { 150, 80, 230 } }
+local byKey = {}
+for _, r in portraits do
+	byKey[r.key] = r
+end
+local villains, seen = {}, {}
+local chainIds = {}
+for id in Config.SideQuests.chains do
+	table.insert(chainIds, id)
+end
+table.sort(chainIds, function(a, b)
+	return tostring(a) < tostring(b)
+end)
+local function addVillain(name: string, title: string)
+	if seen[name] then
+		return
+	end
+	seen[name] = true
+	local who = VILLAINS[name]
+	assert(who, "no portrait for the villain card " .. name .. " (art/panels/cast.luau VILLAINS)")
+	local fin = string.match(who, "^finale:(.+)$")
+	if fin then
+		local art = Config.FinaleArt[fin]
+		assert(art, "no Config.FinaleArt " .. fin)
+		table.insert(villains, { name = name, title = title, finale = fin, art = copy(art), color = copy(FINALE_COLOR[fin] or art.tint) })
+	else
+		local row = byKey[who]
+		assert(row, "no portrait row " .. who)
+		table.insert(villains, { name = name, title = title, key = who, color = copy(row.color) })
+	end
+end
+for _, id in chainIds do
+	local chain = Config.SideQuests.chains[id]
+	if type(chain.villain) == "table" and not chain.dev then
+		for _, step in chain.steps or {} do
+			for _, side in { "hero", "villain" } do
+				local g = step[side]
+				if type(g) == "table" and g.kind == "finale" and g.encore and type(g.card) == "table" then
+					addVillain(g.card.name, g.card.title)
+				end
+			end
+		end
+		addVillain(chain.villain.name, chain.villain.title)
+	end
+end
+table.sort(villains, function(a, b)
+	return a.name < b.name
+end)
+
 fs.writeDir("art/export/panels")
 fs.writeFile(
 	"art/export/panels/cast.json",
-	serde.encode("json", { portraits = portraits, aliases = aliases, panels = panels }, true)
+	serde.encode("json", { portraits = portraits, aliases = aliases, panels = panels, villains = villains }, true)
 )
-print(#portraits .. " portraits, " .. #panels .. " panels -> art/export/panels/cast.json")
+print(#portraits .. " portraits, " .. #panels .. " panels, " .. #villains .. " villain cards -> art/export/panels/cast.json")

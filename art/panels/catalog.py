@@ -9,6 +9,7 @@
 #   hair/mesh_<id>.json, tex_<id>.png  each hair's mesh (Roblox mesh versions 1 to 5, read here as plain data)
 #                                    and texture; a mesh in a newer format is skipped and that hair is not used
 #   hair/index.json                  { asset id: { mesh, texture, fit } } for art/blender/panels.py
+#   beard/...                        the same for the catalog beards and moustaches (gap-villains, 2026-11-19)
 # Run from the repo root: python3 -I art/panels/catalog.py   (needs curl and ~/tools/lune)
 import gzip
 import json
@@ -28,9 +29,11 @@ def catalog_ids():
     src = open(os.path.join(REPO, "src", "config", "CatalogLooks.luau"), encoding="utf-8").read()
     faces_src = src.split("hair = {")[0]
     hair_src = src.split("hair = {")[1].split("beards = {")[0]
+    beard_src = src.split("beards = {")[1]
     faces = [(n, int(a), int(i)) for n, a, i in re.findall(r'\{ "([^"]+)", (\d+), (\d+) \}', faces_src)]
     hair = [(n, int(a)) for n, a in re.findall(r'\{ "([^"]+)", (\d+) \}', hair_src)]
-    return faces, hair
+    beards = [(n, int(a)) for n, a in re.findall(r'\{ "([^"]+)", (\d+) \}', beard_src)]
+    return faces, hair, beards
 
 
 def fetch(asset_id, path):
@@ -107,19 +110,24 @@ def read_mesh(data):
     return pos, uvs, faces
 
 
-def main():
-    faces, hair = catalog_ids()
-    fdir, hdir = os.path.join(OUT, "faces"), os.path.join(OUT, "hair")
-    os.makedirs(fdir, exist_ok=True)
-    os.makedirs(hdir, exist_ok=True)
-    ok = sum(fetch(img, os.path.join(fdir, "%d.png" % img)) for _, _, img in faces)
-    print("catalog.py: %d of %d faces" % (ok, len(faces)))
-    for _, aid in hair:
-        fetch(aid, os.path.join(hdir, "%d.rbxm" % aid))
-    r = subprocess.run([LUNE, "run", os.path.join(REPO, "art", "panels", "accessory.luau"), hdir],
+def accessories(kind, items):
+    """Downloads each accessory of a kind (hair or beard) into build/catalog/<kind>/ and writes its index.json
+    ({ asset id: { mesh, texture, fit } }). A newer binary model rbx-dom misreads (Tags) is rewritten by
+    art/upload/rbxfix.py first; the downloaded items are data only, nothing in them is run."""
+    d = os.path.join(OUT, kind)
+    os.makedirs(d, exist_ok=True)
+    for _, aid in items:
+        p = os.path.join(d, "%d.rbxm" % aid)
+        if fetch(aid, p) and not os.path.isfile(p + ".fixed"):
+            fix = subprocess.run([sys.executable, "-I", os.path.join(REPO, "art", "upload", "rbxfix.py"), p, p + ".tmp"],
+                                 capture_output=True, text=True)
+            if fix.returncode == 0 and os.path.isfile(p + ".tmp"):
+                os.replace(p + ".tmp", p)
+            open(p + ".fixed", "w").close()
+    r = subprocess.run([LUNE, "run", os.path.join(REPO, "art", "panels", "accessory.luau"), d],
                        capture_output=True, text=True, cwd=REPO)
     print(r.stdout.strip(), r.stderr.strip()[:400])
-    rows = json.load(open(os.path.join(hdir, "accessories.json")))
+    rows = json.load(open(os.path.join(d, "accessories.json")))
     index = {}
     for row in rows:
         aid = int(row["id"])
@@ -127,26 +135,36 @@ def main():
         row["texture"] = int(row["texture"]) if row.get("texture") else None
         if not row.get("mesh"):
             continue
-        mp = os.path.join(hdir, "mesh_%d.bin" % row["mesh"])
+        mp = os.path.join(d, "mesh_%d.bin" % row["mesh"])
         if not fetch(row["mesh"], mp):
             continue
         try:
             pos, uvs, fc = read_mesh(open(mp, "rb").read())
         except Exception as e:  # noqa: BLE001
-            print("catalog.py: hair", aid, "mesh skipped:", e)
+            print("catalog.py:", kind, aid, "mesh skipped:", e)
             continue
-        json.dump({"pos": pos, "uv": uvs, "faces": fc}, open(os.path.join(hdir, "mesh_%d.json" % row["mesh"]), "w"))
+        json.dump({"pos": pos, "uv": uvs, "faces": fc}, open(os.path.join(d, "mesh_%d.json" % row["mesh"]), "w"))
         tex = None
         if row.get("texture"):
-            tp = os.path.join(hdir, "tex_%d.png" % row["texture"])
+            tp = os.path.join(d, "tex_%d.png" % row["texture"])
             if fetch(row["texture"], tp) and open(tp, "rb").read(4) == b"\x89PNG":
                 tex = os.path.basename(tp)
         index[str(aid)] = {"mesh": "mesh_%d.json" % row["mesh"], "texture": tex, "fit": row}
-    json.dump(index, open(os.path.join(hdir, "index.json"), "w"), indent=1)
-    print("catalog.py: %d of %d hairs usable" % (len(index), len(hair)))
-    names = {str(a): n for n, a in hair}
+    json.dump(index, open(os.path.join(d, "index.json"), "w"), indent=1)
+    print("catalog.py: %d of %d %s usable" % (len(index), len(items), kind))
+    names = {str(a): n for n, a in items}
     for aid in sorted(set(names) - set(index)):
         print("  not usable:", aid, names[aid])
+
+
+def main():
+    faces, hair, beards = catalog_ids()
+    fdir = os.path.join(OUT, "faces")
+    os.makedirs(fdir, exist_ok=True)
+    ok = sum(fetch(img, os.path.join(fdir, "%d.png" % img)) for _, _, img in faces)
+    print("catalog.py: %d of %d faces" % (ok, len(faces)))
+    accessories("hair", hair)
+    accessories("beard", beards)
 
 
 if __name__ == "__main__":

@@ -1186,6 +1186,10 @@
   ],
   "portraits": [
     {
+      "beard": {
+        "asset": 14874478651.0,
+        "name": "Fancy Moustache"
+      },
       "bg": [
         60,
         30,
@@ -1220,6 +1224,10 @@
       "style": "person"
     },
     {
+      "beard": {
+        "asset": 7177950320.0,
+        "name": "Styled Beard Blonde"
+      },
       "bg": [
         20,
         50,
@@ -1259,7 +1267,7 @@
         },
         "pieces": {
           "back": "Duster Coat",
-          "beard": "Full Beard",
+          "beard": "Styled Beard Blonde",
           "emblem": "Cross",
           "feet": "Armored Boots",
           "hair": "Blonde Action Ponytail",
@@ -1420,6 +1428,10 @@
       }
     },
     {
+      "beard": {
+        "asset": 13895617178.0,
+        "name": "Stubble Beard [Black]"
+      },
       "bg": [
         40,
         50,
@@ -1459,7 +1471,7 @@
         },
         "pieces": {
           "back": "Duster Coat",
-          "beard": "Stubble",
+          "beard": "Stubble Beard [Black]",
           "belt": "Tool Belt",
           "feet": "Combat Boots",
           "hair": "Black Short Wolf Cut",
@@ -1613,6 +1625,10 @@
       }
     },
     {
+      "beard": {
+        "asset": 6351051364.0,
+        "name": "Full Black Trimmed Beard"
+      },
       "bg": [
         50,
         46,
@@ -1649,7 +1665,7 @@
         },
         "pieces": {
           "backpack": "Gear Rack",
-          "beard": "Horseshoe",
+          "beard": "Full Black Trimmed Beard",
           "belt": "Tool Belt",
           "feet": "Armored Boots",
           "hands": "Armored Gauntlets",
@@ -2005,7 +2021,6 @@
         "mats": {},
         "pieces": {
           "back": "High Collar Cape",
-          "beard": "Pencil Mustache",
           "belt": "Sash",
           "emblem": "Peak",
           "feet": "Boots",
@@ -2068,6 +2083,10 @@
       }
     },
     {
+      "beard": {
+        "asset": 7177950320.0,
+        "name": "Styled Beard Blonde"
+      },
       "bg": [
         70,
         90,
@@ -2107,7 +2126,7 @@
         },
         "pieces": {
           "back": "Field Coat",
-          "beard": "Full Beard",
+          "beard": "Styled Beard Blonde",
           "belt": "Rope Belt",
           "feet": "Boots",
           "hair": "Blonde Curly Celebrity Hair",
@@ -2247,6 +2266,10 @@
       "tints": {}
     },
     {
+      "beard": {
+        "asset": 7177954907.0,
+        "name": "Styled Beard White"
+      },
       "bg": [
         50,
         40,
@@ -2371,6 +2394,10 @@
       "style": "radio"
     },
     {
+      "beard": {
+        "asset": 7177948497.0,
+        "name": "Styled Beard Black"
+      },
       "bg": [
         30,
         42,
@@ -2409,7 +2436,7 @@
         "mats": {},
         "pieces": {
           "back": "Classic Cape",
-          "beard": "Full Beard",
+          "beard": "Styled Beard Black",
           "belt": "Utility Belt",
           "emblem": "Star",
           "feet": "Tall Boots",
@@ -2567,6 +2594,10 @@
       }
     },
     {
+      "beard": {
+        "asset": 14874478651.0,
+        "name": "Fancy Moustache"
+      },
       "bg": [
         30,
         20,
@@ -2604,7 +2635,7 @@
         "mats": {},
         "pieces": {
           "back": "High Collar Cape",
-          "beard": "Pencil Mustache",
+          "beard": "Fancy Moustache",
           "eyes": "Violet Glow",
           "hair": "Long Straight Hair (Black)",
           "hands": "Gloves",
@@ -2712,6 +2743,10 @@
       "style": "radio"
     },
     {
+      "beard": {
+        "asset": 14874478651.0,
+        "name": "Fancy Moustache"
+      },
       "bg": [
         70,
         26,
@@ -2751,7 +2786,7 @@
           "shoulders": "Metal"
         },
         "pieces": {
-          "beard": "Handlebar",
+          "beard": "Fancy Moustache",
           "belt": "Champion Belt",
           "feet": "Armored Boots",
           "hair": "Black Ponytail",
@@ -3022,6 +3057,10 @@
       }
     },
     {
+      "beard": {
+        "asset": 16780013894.0,
+        "name": "Red Down Facing Moustache"
+      },
       "bg": [
         80,
         30,
@@ -3057,7 +3096,7 @@
         "height": 3,
         "mats": {},
         "pieces": {
-          "beard": "Goatee",
+          "beard": "Red Down Facing Moustache",
           "belt": "Chain Belt",
           "feet": "Combat Boots",
           "hair": "Crimson Shaggy 2.0",
@@ -3099,6 +3138,10 @@
       "tints": {}
     },
     {
+      "beard": {
+        "asset": 7177954907.0,
+        "name": "Styled Beard White"
+      },
       "bg": [
         10,
         40,
@@ -3139,7 +3182,7 @@
         "pieces": {
           "arms": "Scale Guards",
           "back": "Long Cape",
-          "beard": "Full Beard",
+          "beard": "Styled Beard White",
           "ears": "Fin Ears",
           "emblem": "Orb Crest",
           "eyes": "Ice Glow",
@@ -3234,6 +3277,10 @@
       "style": "person"
     },
     {
+      "beard": {
+        "asset": 7177954907.0,
+        "name": "Styled Beard White"
+      },
       "bg": [
         70,
         40,
@@ -3498,7 +3545,6 @@
         "height": 3,
         "mats": {},
         "pieces": {
-          "beard": "Soul Patch",
           "feet": "Boots",
           "hair": "Black Short Parted Hair",
           "hands": "Gloves",
@@ -3538,6 +3584,10 @@
       "tints": {}
     },
     {
+      "beard": {
+        "asset": 6351051364.0,
+        "name": "Full Black Trimmed Beard"
+      },
       "bg": [
         60,
         62,
@@ -3571,7 +3621,7 @@
         "height": 4,
         "mats": {},
         "pieces": {
-          "beard": "Boxed Beard",
+          "beard": "Full Black Trimmed Beard",
           "feet": "High Tops",
           "hands": "Hand Wraps",
           "hat": "Beanie",
@@ -3688,6 +3738,10 @@
       "tints": {}
     },
     {
+      "beard": {
+        "asset": 7177951938.0,
+        "name": "Styled Beard Brown"
+      },
       "bg": [
         40,
         58,
@@ -3721,7 +3775,7 @@
         "height": 3,
         "mats": {},
         "pieces": {
-          "beard": "Mutton Chops",
+          "beard": "Styled Beard Brown",
           "belt": "Utility Belt",
           "feet": "Boots",
           "hat": "Ball Cap",
@@ -4576,6 +4630,10 @@
       ]
     },
     {
+      "beard": {
+        "asset": 7177951938.0,
+        "name": "Styled Beard Brown"
+      },
       "bg": [
         54,
         66,
@@ -4708,6 +4766,301 @@
         172,
         130
       ]
+    }
+  ],
+  "villains": [
+    {
+      "color": [
+        40,
+        190,
+        170
+      ],
+      "key": "brine",
+      "name": "CAPTAIN BRINE",
+      "title": "CAPTAIN OF THE SALT DOGS"
+    },
+    {
+      "color": [
+        150,
+        200,
+        90
+      ],
+      "key": "catchpole",
+      "name": "CATCHPOLE",
+      "title": "THE SPARK CATCHER"
+    },
+    {
+      "color": [
+        230,
+        190,
+        60
+      ],
+      "key": "clawback",
+      "name": "CLAWBACK",
+      "title": "THE REPO KING"
+    },
+    {
+      "color": [
+        80,
+        220,
+        230
+      ],
+      "key": "holloway",
+      "name": "DOCTOR HOLLOWAY",
+      "title": "DIRECTOR OF ASHGROVE LABS"
+    },
+    {
+      "color": [
+        40,
+        190,
+        170
+      ],
+      "key": "gale",
+      "name": "GALE",
+      "title": "THE MASTER'S FALLEN STUDENT"
+    },
+    {
+      "color": [
+        120,
+        200,
+        255
+      ],
+      "key": "halo",
+      "name": "HEADMASTER HALO",
+      "title": "THE FAKE TEACHER"
+    },
+    {
+      "color": [
+        200,
+        120,
+        255
+      ],
+      "key": "masque",
+      "name": "MADAME MASQUE-A-RADE",
+      "title": "THE MASKED THIEF"
+    },
+    {
+      "color": [
+        120,
+        80,
+        220
+      ],
+      "key": "morrow",
+      "name": "MORROW THE MIRAGE",
+      "title": "THE JEALOUS ILLUSIONIST"
+    },
+    {
+      "color": [
+        255,
+        80,
+        60
+      ],
+      "key": "redline",
+      "name": "REDLINE",
+      "title": "KING OF THE ROOFTOPS"
+    },
+    {
+      "color": [
+        255,
+        120,
+        40
+      ],
+      "key": "scorch",
+      "name": "SAL SCORCH",
+      "title": "BOSS OF THE TORCH CREW"
+    },
+    {
+      "art": {
+        "extras": {
+          "BrambleBack": {
+            "offset": [
+              0,
+              0.156,
+              0.685
+            ],
+            "parent": "UpperTorso",
+            "size": [
+              0.72,
+              0.675,
+              0.93
+            ]
+          },
+          "BrambleCrown": {
+            "offset": [
+              0,
+              0.865,
+              0.042
+            ],
+            "parent": "Head",
+            "size": [
+              1.696,
+              0.901,
+              0.244
+            ]
+          },
+          "BrambleMane": {
+            "offset": [
+              0,
+              0.512,
+              0
+            ],
+            "parent": "UpperTorso",
+            "size": [
+              0.738,
+              0.358,
+              1.107
+            ]
+          }
+        },
+        "machine": false,
+        "tint": [
+          60,
+          130,
+          60
+        ],
+        "triangles": 9506
+      },
+      "color": [
+        90,
+        170,
+        70
+      ],
+      "finale": "Bramblebeast",
+      "name": "THE BRAMBLEBEAST",
+      "title": "THE HUNGRY HARVEST"
+    },
+    {
+      "color": [
+        200,
+        200,
+        210
+      ],
+      "key": "censor",
+      "name": "THE CENSOR",
+      "title": "HE DECIDES WHAT YOU SEE"
+    },
+    {
+      "color": [
+        230,
+        190,
+        60
+      ],
+      "key": "harvest",
+      "name": "THE HARVEST KING",
+      "title": "LORD OF THE FIELDS"
+    },
+    {
+      "color": [
+        200,
+        60,
+        50
+      ],
+      "key": "pitboss",
+      "name": "THE PITBOSS",
+      "title": "HEAD OF THE GRAVEL FAMILY"
+    },
+    {
+      "color": [
+        60,
+        200,
+        190
+      ],
+      "key": "tidewright",
+      "name": "THE TIDEWRIGHT",
+      "title": "LAST GUARDIAN OF VELMARA"
+    },
+    {
+      "color": [
+        230,
+        190,
+        90
+      ],
+      "key": "toymaker",
+      "name": "THE TOYMAKER",
+      "title": "THE OLD INVENTOR"
+    },
+    {
+      "art": {
+        "extras": {
+          "HoundEars": {
+            "offset": [
+              0,
+              0.708,
+              0.244
+            ],
+            "parent": "Head",
+            "size": [
+              0.867,
+              0.75,
+              0.624
+            ]
+          },
+          "HoundSnout": {
+            "offset": [
+              0,
+              -0.294,
+              -0.729
+            ],
+            "parent": "Head",
+            "size": [
+              0.518,
+              0.411,
+              0.792
+            ]
+          },
+          "HoundSpines": {
+            "offset": [
+              0,
+              0.031,
+              0.494
+            ],
+            "parent": "UpperTorso",
+            "size": [
+              0.05,
+              0.938,
+              0.771
+            ]
+          },
+          "HoundTail": {
+            "offset": [
+              0,
+              -1.39,
+              1.026
+            ],
+            "parent": "LowerTorso",
+            "size": [
+              0.16,
+              3.528,
+              1.264
+            ]
+          }
+        },
+        "machine": true,
+        "tint": [
+          44,
+          48,
+          72
+        ],
+        "triangles": 6788
+      },
+      "color": [
+        150,
+        80,
+        230
+      ],
+      "finale": "Voidhound",
+      "name": "THE VOIDHOUND",
+      "title": "HUNTER FROM THE STARS"
+    },
+    {
+      "color": [
+        220,
+        150,
+        255
+      ],
+      "key": "vesper",
+      "name": "VESPER",
+      "title": "THE EVENING STAR"
     }
   ]
 }

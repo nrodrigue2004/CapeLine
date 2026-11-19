@@ -11,7 +11,7 @@
 -- (the Contract Board), badges (the Badge Book), daily (the daily card), screen:<ScreenGui name> (a card screen with all its parts shown),
 -- emotes (the emote picker), photo (Photo Mode on a pose), shop:emotes (the shop's Emotes tab),
 -- comic:<page id> (a comic page from Config.Cinema.comic.pages with every panel in), guide:<speaker> (the guide line
--- box with that speaker's portrait), news:<boss id> or news:double (the corner TV and a name card). UISHOT_IMAGES=<ids.json> lets tests/uishot.py draw uploaded images from their local files.
+-- box with that speaker's portrait), news:<boss id> or news:double (the corner TV and a name card), villain:<card name, _ for spaces> (a side quest finale's name card). UISHOT_IMAGES=<ids.json> lets tests/uishot.py draw uploaded images from their local files.
 
 local fs = require("@lune/fs")
 local process = require("@lune/process")
@@ -491,8 +491,9 @@ for _, scene in scenes do
 					end
 				end
 			end
-		elseif string.sub(scene, 1, 6) == "comic:" then
-			-- a comic page with every panel in (as CinemaHud slides them in over the scene's seconds)
+		elseif string.sub(scene, 1, 6) == "comic:" or string.sub(scene, 1, 8) == "villain:" then
+			-- a comic page with every panel in (as CinemaHud slides them in over the scene's seconds); or
+			-- (gap-villains) a side quest finale's name card, villain:<card name, _ for spaces>, with its portrait
 			-- (opened after the drawn frame below: with no scene playing, CinemaHud's frame closes a page)
 			sim:run(scene, function()
 				sim:require("Client.Ui.GuideHud").init()
@@ -614,6 +615,19 @@ for _, scene in scenes do
 			sim:run("newsframe", function()
 				sim.service("RunService").RenderStepped:Fire(1 / 60)
 			end)
+		end
+		if string.sub(scene, 1, 8) == "villain:" then
+			sim:run("villain", function()
+				local name = string.gsub(string.sub(scene, 9), "_", " ")
+				local title = ""
+				for _, chain in sim:require("Config").SideQuests.chains do
+					if type(chain.villain) == "table" and chain.villain.name == name then
+						title = chain.villain.title
+					end
+				end
+				sim:require("Client.Ui.CinemaHud").nameCard("", name, title)
+			end)
+			sim:advance(0.5)
 		end
 		if scene == "menu" then
 			sim:run("menu", function()

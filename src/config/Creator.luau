@@ -502,9 +502,12 @@ return {
 		{
 			id = "beard",
 			name = "Facial hair",
-			-- retired from the creator (nate 2026-11-18: catalog faces, hair and facial hair only, never our own);
-			-- kept for NPC looks and saved ids. The creator, Randomize and a hero's save skip it.
-			hidden = true,
+			-- 2026-11-19 (gap-villains, nate: catalog beards, Claude picks them): the creator shows only the Roblox
+			-- catalog beards and moustaches in `more` (kit "cat:<asset id>", Config.CatalogLooks.beards, loaded by
+			-- CatalogLookService); the drawn styles below are never worn (drawnRetired, nate's rule 2026-11-18) and
+			-- stay only for saved ids. `more` uses the tab's own spare ids 316 to 339.
+			catalog = true,
+			drawnRetired = true,
 			base = 300,
 			pieces = {
 				{ "Stubble", "stubble", "free" },
@@ -522,6 +525,19 @@ return {
 				{ "Boxed Beard", "boxed", "lvl:22" },
 				{ "Forked Beard", "forked", "drop" },
 				{ "Wizard Beard", "wizard", "legacy:2" },
+			},
+			more = {
+				base = 315,
+				pieces = {
+					{ "Styled Beard Black", "cat:7177948497", "free" },
+					{ "Styled Beard Brown", "cat:7177951938", "free" },
+					{ "Styled Beard Blonde", "cat:7177950320", "free" },
+					{ "Styled Beard White", "cat:7177954907", "free" },
+					{ "Full Black Trimmed Beard", "cat:6351051364", "free" },
+					{ "Stubble Beard [Black]", "cat:13895617178", "free" },
+					{ "Fancy Moustache", "cat:14874478651", "free" },
+					{ "Red Down Facing Moustache", "cat:16780013894", "free" },
+				},
 			},
 		},
 		{
