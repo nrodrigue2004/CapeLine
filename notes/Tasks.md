@@ -1686,3 +1686,10 @@ The mission and side quest pockets in the cartoon kit (Config.PocketKit, Shared.
 - [ ] The Crater: Panel walls, fallen wall chunks, burnt foundation, cave-rock floor and rim; PvP and the Double Trouble event unchanged.
 - [ ] City side quest site signs (HALO ACADEMY and the rest) and the gala's signs are comic boards in Bangers, readable both sides.
 
+
+## Studio list: gap review fixes (2026-11-19)
+Today's six packages (gaps1) read for what Studio hits and Lune cannot (luau-lsp type check run too: only optional-value and union noise in the changed lines).
+- [ ] Pocket lights (PocketDecor): start a mission on medium or high; the PointLights sit on the pocket's lamps, not a pocket centre away (they were placed with WorldPosition on an attachment with no parent yet). tests/gap_review_test.luau.
+- [ ] Seen, not changed (check while playing): every device builds PocketDecor's tiers for every live pocket, also other players' (phones: tier 1 only, so just the 4 lights; medium 480 and high 900 parts a pocket); if FrameProf or the part count shows it, gate the build on the camera being near the pocket.
+- [ ] Seen, not changed: the map's zoom 1 on a wide phone frame shows the square map centred with empty sides (MapPlan.view sizes by the frame's short side); a drag that starts on a beacon or marker does not pan (the button takes the press).
+- [ ] Seen, not changed: the Decoy hologram flickers through LocalTransparencyModifier; its Highlight and the copy's face decal do not flicker with it.

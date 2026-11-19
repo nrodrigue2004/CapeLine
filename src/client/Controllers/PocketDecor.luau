@@ -142,7 +142,9 @@ local function build(src: Model)
 		anchor.CFrame = CFrame.new(l.cx, l.cy, l.cz)
 		for _, li in lights do
 			local a = Instance.new("Attachment")
-			a.WorldPosition = Vector3.new(li.x, li.y, li.z)
+			-- gap review (2026-11-19): relative to the anchor (an unparented attachment's WorldPosition is taken as
+			-- its Position, so the light landed a whole pocket centre away once parented)
+			a.Position = anchor.CFrame:PointToObjectSpace(Vector3.new(li.x, li.y, li.z))
 			local pl = Instance.new("PointLight")
 			pl.Color = color(li.color)
 			pl.Range = li.range
