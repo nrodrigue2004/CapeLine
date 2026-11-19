@@ -62,7 +62,7 @@ local Remotes: { [string]: RemoteDef } = {
 	MoveCorrect = { dir = "S2C" }, -- position: sent when a speed or position check fails
 	MovePound = { dir = "C2S", schema = {}, rate = 1, burst = 2 }, -- Leaping: the ground pound landed
 	-- your movement mode (Shared.HeroAnim.MODES index) so other devices pose you; the server sets the Move attribute
-	MoveMode = { dir = "C2S", schema = { n(1, 13) }, rate = 10, burst = 10 },
+	MoveMode = { dir = "C2S", schema = { n(1, 15) }, rate = 10, burst = 10 },
 
 	-- Enemies (not in the spec's list; see EnemyBuffer and Decisions.md)
 	EnemyDelta = { dir = "S2C", unreliable = true },

@@ -18,6 +18,7 @@ local Kit = require(script.Parent.Parent.Ui.Kit)
 local State = require(script.Parent.Parent.State)
 local InputController = require(script.Parent.Parent.Controllers.InputController)
 local MoveController = require(script.Parent.Parent.Controllers.MoveController)
+local HeroAnimator = require(script.Parent.Parent.Controllers.HeroAnimator)
 
 local EmoteFx = {}
 
@@ -222,6 +223,7 @@ local function watch(p: Player)
 		local char = p.Character
 		if typeof(v) == "number" and char then
 			play(char, v // 1000)
+			HeroAnimator.emote(p, S.emoteTime) -- it breathes and bounces under the held pose
 		end
 	end)
 	p.CharacterRemoving:Connect(function(char)

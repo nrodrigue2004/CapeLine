@@ -311,7 +311,8 @@ function CombatClient.fire(id: string, charge: number?): boolean
 	seq += 1
 	channel = nil
 	local style = State.hero.fxStyle
-	local color = CombatFx.colorOf(eff.set, player.UserId)
+	local fxSet = CombatFx.setOf(eff) -- a power path, or a weapon move's own look
+	local color = CombatFx.colorOf(fxSet, player.UserId)
 	if slot == "super" and awake then
 		color = color:Lerp(Color3.fromRGB(255, 235, 120), 0.35)
 	end
@@ -327,17 +328,17 @@ function CombatClient.fire(id: string, charge: number?): boolean
 
 	-- the hero's own pose at once (others see it when the server's result reaches them)
 	if eff.cast and eff.cast > 0 then
-		HeroAnimator.windup(player, eff.cast)
+		HeroAnimator.windup(player, eff.cast, eff)
 	else
 		HeroAnimator.cast(player, row, step)
 	end
 	-- every ability's own look (Config.FxMoves): your predicted shapes draw with this move in scope
 	local fxPrev = CombatFx.begin(id, true)
 	if eff.cast and eff.cast > 0 then
-		CombatFx.windup(myChest, eff.cast, style, color, eff.set)
+		CombatFx.windup(myChest, eff.cast, style, color, fxSet)
 	elseif shape == "bolt" and not eff.channel then
 		local to = targetPos or (origin + dir * math.min(range, (point - origin).Magnitude))
-		CombatFx.bolt(origin, to, style, color, eff.set)
+		CombatFx.bolt(origin, to, style, color, fxSet)
 	elseif shape == "bolt" and eff.channel then
 		local tid = hint
 		channel = { seq = seq, id = id, untilT = now + eff.channel * (eff.tick or 0.25) }
@@ -348,23 +349,23 @@ function CombatClient.fire(id: string, charge: number?): boolean
 					return nil
 				end
 				return EnemyRenderer.position(tid) or PvpClient.position(tid) or sourcePosition(tid)
-			end, eff.channel * (eff.tick or 0.25), style, color, eff.set)
+			end, eff.channel * (eff.tick or 0.25), style, color, fxSet)
 		end
 	elseif shape == "chain" then
 		CombatFx.chain(
 			{ origin, targetPos or (origin + dir * math.min(range, (point - origin).Magnitude)) },
 			style,
 			color,
-			eff.set
+			fxSet
 		)
 	elseif shape == "dash" then
 		local d = math.max(0, rayDist(origin, dir, eff.range) - 3)
-		CombatFx.dash(origin, origin + dir * d, style, color, eff.set)
+		CombatFx.dash(origin, origin + dir * d, style, color, fxSet)
 		MoveController.dash(dir, d, eff.time or 0.18)
 		CameraController.punch(0.05)
 		CameraController.lean(dir) -- lore step 7: the camera leans into the dash
 	elseif shape == "cone" then
-		CombatFx.cone(origin, dir, eff.range, eff.cone or 40, style, color, eff.set)
+		CombatFx.cone(origin, dir, eff.range, eff.cone or 40, style, color, fxSet)
 	elseif shape == "arc" then
 		CombatFx.arc(
 			origin,
@@ -376,14 +377,14 @@ function CombatClient.fire(id: string, charge: number?): boolean
 			step,
 			(eff.set == "Blade" or eff.sword == true),
 			id == "RisingBlade",
-			eff.set
+			fxSet
 		)
 		if eff.channel then
 			channel = { seq = seq, id = id, untilT = now + eff.channel * (eff.tick or 0.15) }
 			CombatFx.cast(eff, style, { o = origin, d = dir, step = step, a = player.UserId })
 		end
 		if step == 3 and style ~= "Anime" then
-			CombatFx.word(origin + dir * eff.range, eff.set, color, false)
+			CombatFx.word(origin + dir * eff.range, fxSet, color, false)
 		end
 	elseif shape == "nova" then
 		if eff.slam then
@@ -394,12 +395,12 @@ function CombatClient.fire(id: string, charge: number?): boolean
 			end
 			task.delay(if down > 6 then 0.2 else 0, function()
 				local prev = CombatFx.begin(id, true)
-				CombatFx.nova(ground, eff.radius, style, color, true, eff.set)
+				CombatFx.nova(ground, eff.radius, style, color, true, fxSet)
 				CombatFx.finish(prev)
 				CameraController.shake(0.25, 0.6)
 			end)
 		else
-			CombatFx.nova(origin, eff.radius, style, color, slot == "super", eff.set)
+			CombatFx.nova(origin, eff.radius, style, color, slot == "super", fxSet)
 			CameraController.shake(0.1, 0.3)
 		end
 	elseif shape == "line" then
@@ -417,7 +418,7 @@ function CombatClient.fire(id: string, charge: number?): boolean
 			color,
 			eff.ground,
 			(eff.set == "Blade" or eff.sword == true),
-			eff.set
+			fxSet
 		)
 		if slot == "super" then
 			CameraController.shake(0.2, 0.5)
@@ -493,7 +494,8 @@ local lastThud = 0
 
 local function drawHits(r: any, row: any, style: string, mine: boolean)
 	local hits = r.h or {}
-	local color = CombatFx.colorOf(row and row.set, r.a)
+	local fxSet = CombatFx.setOf(row)
+	local color = CombatFx.colorOf(fxSet, r.a)
 	local anyCrit = false
 	local wordDone = false
 	local tick = r.k == K.TICK
@@ -504,7 +506,7 @@ local function drawHits(r: any, row: any, style: string, mine: boolean)
 		anyCrit = anyCrit or crit
 		EnemyRenderer.flash(h[1])
 		if not tick or crit then
-			CombatFx.impact(pos, crit, style, mine, color, row and row.set, row and row.id)
+			CombatFx.impact(pos, crit, style, mine, color, fxSet, row and row.id)
 		end
 		-- weighty hits (Config.Combat.weight): the robot freezes with you, then recoils; sparks spray out
 		if not tick and h[4] ~= 1 then
@@ -526,7 +528,7 @@ local function drawHits(r: any, row: any, style: string, mine: boolean)
 			and (r.k == K.CAST or r.k == K.LAND)
 		then
 			wordDone = true
-			CombatFx.word(pos, row.set, color, row.slot == "super")
+			CombatFx.word(pos, fxSet, color, row.slot == "super")
 		end
 	end
 	if mine and anyCrit and #hits > 0 then
@@ -583,7 +585,8 @@ local function onResult(list: { any })
 		local row = A.byNum[r.n]
 		local style = styleOf(r.a)
 		if row then
-			local color = CombatFx.colorOf(row.set, r.a)
+			local fxSet = CombatFx.setOf(row)
+			local color = CombatFx.colorOf(fxSet, r.a)
 			local kind = r.k
 			if kind == K.CAST and not mine then
 				Juice.fire(castSound(row.slot), r.o, { mine = false, userId = r.a })
@@ -606,7 +609,7 @@ local function onResult(list: { any })
 						table.insert(points, EnemyRenderer.position(h[1]) or Vector3.new(h[5], h[6], h[7]))
 					end
 					if #points > 1 then
-						CombatFx.chain(points, style, color, row.set)
+						CombatFx.chain(points, style, color, fxSet)
 					end
 				elseif not predicted and not (mine and row.shape == "leap") then
 					local data: CombatFx.CastData = {
@@ -657,7 +660,7 @@ local function onResult(list: { any })
 								return EnemyRenderer.position(tid)
 							end,
 							false,
-							row.set
+							fxSet
 						)
 					end
 					-- decoys (Tide Mirror, Holo Decoy, Spirit Swap): a copy the robots chase
@@ -668,12 +671,12 @@ local function onResult(list: { any })
 						end, r.dur or row.decoy, style, color)
 					end
 					if row.shape == "leap" and r.e then
-						CombatFx.dash(r.o, r.e, style, color, row.set) -- others see the leap's streak
+						CombatFx.dash(r.o, r.e, style, color, fxSet) -- others see the leap's streak
 					end
 				end
 			elseif kind == K.WINDUP and not mine then
-				CombatFx.windup(casterPos(r.a, r.o), r.dur or 1, style, color, row.set)
-				HeroAnimator.windup(HeroAnimator.byUserId(r.a), r.dur or 1)
+				CombatFx.windup(casterPos(r.a, r.o), r.dur or 1, style, color, fxSet)
+				HeroAnimator.windup(HeroAnimator.byUserId(r.a), r.dur or 1, row)
 			elseif kind == K.LAND or kind == K.END then
 				if r.c then
 					CombatFx.area(row, style, r.c, r.r or 10, mine, r.a)
@@ -682,11 +685,11 @@ local function onResult(list: { any })
 					end
 				end
 				if kind == K.LAND and r.dur then
-					CombatFx.field(r.c, row.radius * 0.6, r.dur, style, color, false, nil, false, row.set)
+					CombatFx.field(r.c, row.radius * 0.6, r.dur, style, color, false, nil, false, fxSet)
 				end
 			elseif kind == K.ECHO then
 				if r.c then
-					CombatFx.nova(r.c, r.r or 10, style, color, false, row.set)
+					CombatFx.nova(r.c, r.r or 10, style, color, false, fxSet)
 				elseif r.e then
 					CombatFx.line(
 						r.o,
@@ -696,7 +699,7 @@ local function onResult(list: { any })
 						color,
 						row.ground,
 						(row.set == "Blade" or row.sword == true),
-						row.set
+						fxSet
 					)
 				end
 			elseif kind == K.CLASH then
@@ -998,7 +1001,7 @@ updateHold = function()
 	local eff = ChargeRules.apply(C, State.effective(h.id), level)
 	local origin = root.Position + CHEST
 	local point = aim(rangeOf(eff), origin)
-	local color = CombatFx.colorOf(eff.set, player.UserId)
+	local color = CombatFx.colorOf(CombatFx.setOf(eff), player.UserId)
 	AimPreview.draw(
 		eff,
 		origin,
@@ -1011,11 +1014,11 @@ updateHold = function()
 	if h.charge and level > 0 and not h.posed then
 		h.posed = true
 		Juice.path(eff.set, "charge", origin)
-		HeroAnimator.windup(player, C.charge.maxHold) -- the charging pose until release
+		HeroAnimator.windup(player, C.charge.maxHold, A.list[h.id]) -- the charging pose until release
 	end
 	if level >= 1 and not h.full then
 		h.full = true
-		FxLib.gather(origin, eff.set, color) -- fully charged
+		FxLib.gather(origin, CombatFx.setOf(eff), color) -- fully charged
 		if ChargeRules.power(A.list[h.id]) then
 			Juice.fire("chargeFull", origin, { mine = true }) -- H2: the ping and flash; it breaks blocks now
 		else
@@ -1036,6 +1039,7 @@ function CombatClient.cancelHold(num: number, cd: number)
 		AimPreview.hide()
 		MoveController.setScale("charge", nil)
 	end
+	HeroAnimator.play(player, "interrupted") -- the wind-up fizzles: a stumble replaces the held pose
 	Cooldowns.start(book, row.id, os.clock(), cd)
 end
 

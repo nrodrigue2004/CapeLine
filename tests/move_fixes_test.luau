@@ -104,7 +104,10 @@ return function(T: any)
 		check(not has(mc, 'setMode("slide")') and not has(mc, '"SLIDE"'), "no slide mode or button")
 		check(not has(mc, "slideUntil"), "no slide timer")
 		check(HeroAnim.modeIndex.slide == nil and HeroAnim.CLIPS.slide == nil, "no slide pose")
-		check(#HeroAnim.MODES == 13 and HeroAnim.modeIndex.swing == 10, "later modes keep their wire index")
+		check(
+			#HeroAnim.MODES >= 13 and HeroAnim.modeIndex.swing == 10 and HeroAnim.modeIndex.wallrun == 13,
+			"later modes keep their wire index"
+		)
 		check(HeroAnim.modeClip("retired", 30, false, nil) == "air", "the retired slot poses as the air")
 		-- the running jump (2026-11-18) is untouched
 		check(has(mc, "MoveMath.speedHop(M, runFlat.X, runFlat.Z"), "the Super-speed hop is still there")

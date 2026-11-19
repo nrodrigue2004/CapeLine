@@ -633,6 +633,20 @@ return {
 			Light = "light",
 			Weapon = "steel",
 		},
+		-- weapon moves by their look (Config.Fx.weaponLooks; the set "Weapon:<look>")
+		weaponElement = {
+			fists = "force",
+			edge = "blade",
+			heavy = "giant",
+			blunt = "iron",
+			pole = "ki",
+			shield = "iron",
+			shot = "ballistic",
+			arrow = "steel",
+			thrown = "blade",
+			tether = "steel",
+			wind = "spirit",
+		},
 		-- particles a second this device may emit (a burst over the budget is trimmed, never queued), and the
 		-- share of each count a preset draws
 		budget = { low = 220, medium = 520, high = 1100 },
@@ -850,6 +864,129 @@ return {
 			field = { piece = "spike", motion = "orbit" },
 			charge = { piece = "spike", n = 8, radius = 3.2, spin = 1.5 },
 			super = { look = "dawn", tint = { 255, 245, 200 } },
+		},
+	},
+
+	-- Weapon moves' own looks (the weapons polish pass, 2026-11-19; the follow-up "weapon moves still use the
+	-- steel power visuals"): each weapon draws its family's look or its own, with a colour, an element for the
+	-- effects library and the same piece, head, mark and dash names the paths use (CombatFx). CombatClient hands
+	-- the effects the set "Weapon:<look>" (Shared.FxPlan.weaponSet); FxPlan.pathOf finds the row here, so a
+	-- weapon move never looks like a power path. The rows carry every field a path row has (nothing extra draws
+	-- on a cast, a field or a super). PLACEHOLDER ART: part-built like the paths.
+	weaponLooks = {
+		looks = {
+			fists = {
+				color = { 255, 214, 150 },
+				piece = "ball",
+				head = "none",
+				mark = "pow",
+				dash = "afterimage",
+				words = { "WHAP!", "THWACK!", "KA-POW!" },
+			},
+			edge = {
+				color = { 205, 232, 255 },
+				piece = "shard",
+				head = "none",
+				mark = "cross",
+				dash = "afterimage",
+				words = { "SHING!", "SLICE!", "KSHAAANG!" },
+			},
+			heavy = {
+				color = { 255, 190, 120 },
+				piece = "rock",
+				head = "none",
+				mark = "quake",
+				dash = "plow",
+				words = { "KRUNCH!", "WHOMP!", "KA-THOOM!" },
+			},
+			blunt = {
+				color = { 255, 205, 110 },
+				piece = "plate",
+				head = "none",
+				mark = "clang",
+				dash = "plow",
+				words = { "BONK!", "CLONK!", "KA-DONG!" },
+			},
+			pole = {
+				color = { 190, 255, 205 },
+				piece = "spike",
+				head = "none",
+				mark = "kiring",
+				dash = "afterimage",
+				words = { "THWIP!", "WHIRR!", "KA-THUNK!" },
+			},
+			shield = {
+				color = { 150, 200, 255 },
+				piece = "plate",
+				head = "none",
+				mark = "clang",
+				dash = "plow",
+				words = { "CLANG!", "BWONG!", "KA-BLANG!" },
+			},
+			shot = {
+				color = { 120, 240, 255 },
+				piece = "ember",
+				head = "tracer",
+				mark = "ricochet",
+				dash = "smoke",
+				words = { "PEW!", "ZAP!", "KA-BLAM!" },
+			},
+			arrow = {
+				color = { 205, 255, 140 },
+				piece = "spike",
+				head = "spike",
+				mark = "cross",
+				dash = "afterimage",
+				words = { "THWIP!", "THUNK!", "FWASHOOM!" },
+			},
+			thrown = {
+				color = { 230, 220, 255 },
+				piece = "kunai",
+				head = "kunai",
+				mark = "cross",
+				dash = "afterimage",
+				words = { "SHUNK!", "WHIZZ!", "SHA-SHUNK!" },
+			},
+			tether = {
+				color = { 255, 150, 220 },
+				piece = "ball",
+				head = "none",
+				mark = "kiring",
+				dash = "afterimage",
+				words = { "CRACK!", "SNAP!", "KA-WHIP!" },
+			},
+			wind = {
+				color = { 170, 255, 235 },
+				piece = "flake",
+				head = "none",
+				mark = "warp",
+				dash = "afterimage",
+				words = { "FWOOSH!", "SWISH!", "HWOOOSH!" },
+			},
+		},
+		-- by family, then the weapons that read their own way (weapon ids, Config.Weapons.list)
+		family = {
+			fists = "fists",
+			one = "edge",
+			two = "heavy",
+			dual = "edge",
+			shield = "shield",
+			ranged = "shot",
+			exotic = "tether",
+		},
+		weapon = {
+			[8] = "blunt", -- Mace
+			[9] = "blunt", -- Baton
+			[13] = "blunt", -- Warhammer
+			[14] = "pole", -- Spear
+			[16] = "pole", -- Bo Staff
+			[20] = "blunt", -- Tonfa
+			[24] = "edge", -- Sword and Shield
+			[28] = "arrow", -- Bow
+			[29] = "arrow", -- Crossbow
+			[31] = "thrown", -- Throwing Stars
+			[33] = "wind", -- War Fan
+			[36] = "thrown", -- Boomerang
 		},
 	},
 }

@@ -284,7 +284,7 @@ return function(T: any)
 			check(hasText(cfx, needle), "CombatFx: " .. needle)
 		end
 		-- CombatClient: hits carry the ability, your predicted shapes draw in scope, basics get their flair
-		check(hasText(cc, "row and row.set, row and row.id)"), "CombatClient passes the ability to impacts")
+		check(hasText(cc, "fxSet, row and row.id)"), "CombatClient passes the ability to impacts")
 		check(
 			hasText(cc, "CombatFx.begin(id, true)") and hasText(cc, "CombatFx.finish(fxPrev)"),
 			"your casts are in scope"

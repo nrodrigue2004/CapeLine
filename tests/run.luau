@@ -22998,7 +22998,9 @@ end
 -- more destruction and momentum impact (nate's playtest 2026-11-19); ONLY="Impact" runs these
 (require :: any)("./impact_test")({ test = test, check = check, Config = Config, world = world });
 -- every ability's own look (nate's playtest 2026-11-19: more unique effects); ONLY="FX unique" runs these
-(require :: any)("./fx_unique_test")({ test = test, check = check, Config = Config })
+(require :: any)("./fx_unique_test")({ test = test, check = check, Config = Config });
+-- the animation and weapons polish pass (2026-11-19, own file); ONLY="Anim pass" runs just these
+(require :: any)("./anim_pass_test")({ test = test, check = check, Config = Config })
 
 print(string.format("\n%d passed, %d failed", passed, failed))
 if failed > 0 then

@@ -131,6 +131,7 @@ local function down(hero: any, source: any?)
 	downs[hero.id] = { untilT = now + D.time, source = source, sentAt = now }
 	if hero.player then
 		hero.player:SetAttribute("Downed", true)
+		hero.player:SetAttribute("GiveUp", nil) -- a fresh Downed has not given up (the slump pose reads it)
 	end
 	DeathService.Downed:Fire(hero)
 	sendDown(hero, { safehouses = visitedList(hero) })
@@ -223,11 +224,37 @@ local function onGiveUp(player: Player)
 	local d = hero and downs[hero.id]
 	if hero and d and not d.giveUpAt then
 		d.giveUpAt = os.clock() + D.giveUp
+		player:SetAttribute("GiveUp", true) -- every device slumps the kneel (HeroAnimator)
 		sendDown(hero)
 	end
 end
 
+-- The helpers kneeling over a Downed ally carry Reviving (every device poses them, HeroAnimator); rebuilt each
+-- step from the reviving holds, so any way a hold ends (done, broken, the ally defeated or gone) clears it
+local reviving: { [Player]: boolean } = {}
+local function markRevivers()
+	local now: { [Player]: boolean } = {}
+	for _, d in downs do
+		local helper = d.reviver and HeroService.byId(d.reviver.id)
+		if helper and helper.player then
+			now[helper.player] = true
+		end
+	end
+	for p in reviving do
+		if not now[p] and p.Parent then
+			p:SetAttribute("Reviving", nil)
+		end
+	end
+	for p in now do
+		if not reviving[p] then
+			p:SetAttribute("Reviving", true)
+		end
+	end
+	reviving = now
+end
+
 local function step()
+	markRevivers()
 	local now = os.clock()
 	for id, d in downs do
 		local hero = HeroService.byId(id)
