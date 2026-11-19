@@ -23073,6 +23073,14 @@ end
 -- pt-anims (nate's playtest 2026-11-19, own file): the upper-body layer, two-handed holds, robot and people clips;
 -- ONLY="PT anims" runs just these
 (require :: any)("./anims_pt_test")({ test = test, check = check, Config = Config });
+-- fix-anims (nate's playtest 2026-11-19, own file): the real client boot and key path on both joint kinds;
+-- ONLY="Fix anims" runs just these
+(require :: any)("./fix_anims_test")({
+	test = test,
+	check = check,
+	Config = Config,
+	placePath = process.args[1],
+});
 -- the gap polish (2026-11-19, own file): travel flight, gadgets, crack, ice, crate, loading card; ONLY="Gap polish"
 (require :: any)("./gap_polish_test")({
 	test = test,

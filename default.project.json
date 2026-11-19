@@ -167,7 +167,8 @@
     "StarterPlayer": {
       "$properties": {
         "EnableMouseLockOption": false,
-        "CameraMaxZoomDistance": 60
+        "CameraMaxZoomDistance": 60,
+        "AvatarJointUpgrade_Serialized": "Disabled"
       },
       "StarterPlayerScripts": {
         "Client": { "$path": "src/client" }

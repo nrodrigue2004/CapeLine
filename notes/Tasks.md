@@ -1977,3 +1977,10 @@ Studio checks (only Studio can prove these):
 - Journal: the PROLOGUE row's REPLAY plays the comic page, then the prologue with SKIP on its camera beats.
 - Costume contest: during the call, far from the plaza, GO TO THE STAGE flies you there (3 s) and you are on a pad; mid-fight or on cooldown it says why and auto-flies you, ENTER on arrival.
 - Returning account, new hero slot: no comic page (seen), creator, then the CREATE FIRST / PLAY THE PROLOGUE menu over the live city (no ceremony camera behind it).
+## Studio list: attack and power animations (fix-anims, 2026-11-19)
+Root cause: Roblox's Avatar Joint Upgrade gave heroes AnimationConstraints, which HeroAnimator never looked for (notes/Decisions.md). Headless proof: tests/fix_anims_test.luau. Only Studio can show these:
+1. Play Solo. Output shows "[HeroAnimator] your hero: 15 joints (Motor6D)" (with AnimationConstraint listed instead, the code still animates; no "has no R15 Waist joint" warning).
+2. Explorer, while playing: Workspace > your character > UpperTorso holds a Motor6D named Waist (not an AnimationConstraint).
+3. Click (Basic) five times standing still: the arms swing a varied combo. Press a skill key (1, 2...) and the super: each plays its own pose. Fly and cast: the legs keep the flight pose.
+4. Press 2 for the weapon: the arms take its stance; swing it. Hold Q (block): the guard pose. Use an emote from the picker: the pose holds, then returns.
+5. With a second player (Test > 2 Players): each sees the other's casts and swings.
