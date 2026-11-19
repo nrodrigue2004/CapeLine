@@ -728,3 +728,7 @@ Drafts for nate only (WP11, 2026-11-18). None of these is in code or config; the
 - 2026-11-19 (gap-props2): the plaza weekly board's look (art/blender/board.py, Art.Board, Shared.BoardArtKit) is server-built round the unchanged Screen part (the SurfaceGui's adornee); Frame, Crest and Leg parts are hidden, never removed, so the collision is as before; the generator records `clear` (how far any mesh reaches in front of the screen's face inside its rectangle) and the test keeps it at or below 0.
 - 2026-11-19 (gap-props2): both FBX went up from the cloud as Model assets with their texture sets embedded (Roblox made the SurfaceAppearance images; both approved) and were pulled into art/models/PocketProps.rbxm and Board.rbxm.
 
+- 2026-11-19 (nate, 12:18Z): the unmasked fakes keep their drawn cracked faces (the one drawn-face exception to the catalog-only rule: they show machine damage, not a person's face).
+- 2026-11-19 (nate): side quest villains' name cards get portraits rendered on Roblox's own body with their catalog face and hair, the same pipeline as the comic art.
+- 2026-11-19 (nate): Claude searches the Roblox catalog for beard accessories and picks them (verified through asset delivery), no list needed from nate.
+- 2026-11-19 (nate): the War-Frame's name card title: Claude suggests 3 and nate picks.
