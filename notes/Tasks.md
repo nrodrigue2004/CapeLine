@@ -181,6 +181,11 @@ Looks only: where the screens hang, what they show, the card's timing and the TV
 6. The boss name cards (each of the four) show the boss's comic portrait popping out of the card's left over a comic navy plate; the name and title sit right of it, the slash bar sweeps in the boss's colour; the plate's ink and gold rule stay crisp at PC and phone sizes.
 7. Your double's card (and the three side-vs-side event cards) show the event's comic icon; the Crater's card and the side quest finales' cards are words on the plate.
 
+### Playtest gaps6: start here (2026-11-19, build playtest-gaps6)
+Everything in gaps5 plus round 6: project files capeline/Capeline-playtest-gaps6-2026-11-19.rbxl (Output "playtest-gaps6 (2026-11-19)"). It replaces every older playtest place. Run "Playtest gaps5: start here" below first if not done, then these lists:
+1. "Studio list: story props and the Echo Drone" (the runaway tram, break targets, the bridge's people under girders, goal beacons, the new Echo Drone).
+2. "Pocket props and the plaza board" (side quest and mission pockets' desks, lockers, cages, tanks, dummies, cameras, barriers; the plaza weekly board).
+
 ### Playtest gaps5: start here (2026-11-19, build playtest-gaps5)
 Everything in gaps4 plus round 5: project files capeline/Capeline-playtest-gaps5-2026-11-19.rbxl (Output "playtest-gaps5 (2026-11-19)"). It replaces every older playtest place. Run "Playtest gaps4: start here" below first if not done, then these lists:
 1. "News screens and name card art" (the plaza and tower screens, the corner TV case, the boss name cards with portraits; the corner TV now slides right of a name card while it shows).
