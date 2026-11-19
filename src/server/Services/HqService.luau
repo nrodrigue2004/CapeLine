@@ -33,6 +33,7 @@ local StoryPlan = require(Shared:WaitForChild("StoryPlan"))
 local RepTiers = require(Shared:WaitForChild("RepTiers")) -- lore step 12
 local WantedRules = require(Shared:WaitForChild("WantedRules")) -- WP9: the WANTED poster and nemesis heads
 local ProfileSchema = require(Shared:WaitForChild("ProfileSchema"))
+local HideoutKit = require(Shared:WaitForChild("HideoutKit")) -- the hideout art pass: the stairwell head's look
 
 local CityBuilder = require(script.Parent.CityBuilder)
 local DataService = require(script.Parent.DataService)
@@ -43,6 +44,7 @@ local GearService = require(script.Parent.GearService)
 local SafehouseService = require(script.Parent.SafehouseService)
 local StoryService = require(script.Parent.StoryService)
 local FlagService = require(script.Parent.FlagService)
+local SetPieceMeshes = require(script.Parent.SetPieceMeshes)
 local CreatorService = require(script.Parent.CreatorService)
 
 local HqService = {}
@@ -633,7 +635,8 @@ end
 
 -- The Vigil's way in (nate's lore plan Q2): a maintenance stairwell head at the plaza's edge, a plain concrete
 -- box with a steel service door facing the plaza (`cf` at its foot, looking out of the door). Everyone sees a
--- locked "Service Door"; a Vigil device swaps in the HQ's name and a marker (HqClient). PLACEHOLDER ART.
+-- locked "Service Door"; a Vigil device swaps in the HQ's name and a marker (HqClient). Dressed in the
+-- HideStairHead look (art/blender/hideout.py) once Art.Hideout is imported; plain parts until then.
 local function makeServiceDoor(cf: CFrame)
 	local D = H.door
 	local w, h, d = D.size[1], D.size[2], D.size[3]
@@ -704,6 +707,19 @@ local function makeServiceDoor(cf: CFrame)
 		Enum.Material.Metal
 	)
 	door.CanCollide = false
+	-- the hideout art pass (2026-11-19): the stairwell head's look over its parts once Art.Hideout is imported
+	-- (Shared.HideoutKit); the parts stay, hidden: the head, roof and frame still collide, the door keeps its prompt,
+	-- the lamp still glows
+	local head = HideoutKit.stairHead()
+	if SetPieceMeshes.ready(head.look) then
+		SetPieceMeshes.add(model, head, cf)
+		for _, name in HideoutKit.HEAD_PARTS do
+			local p = model:FindFirstChild(name)
+			if p and p:IsA("BasePart") then
+				SetPieceMeshes.hide(p)
+			end
+		end
+	end
 	model.Parent = folder
 	hookPrompt(door, "hero", D.object, D.locked)
 	doors.hero = cf * CFrame.new(0, 3, -4)

@@ -29,6 +29,7 @@
         "Hats": { "$path": "art/models/Hats.rbxm" },
         "Heads": { "$path": "art/models/Heads.rbxm" },
         "Hq": { "$path": "art/models/Hq.rbxm" },
+        "Hideout": { "$path": "art/models/Hideout.rbxm" },
         "Necks": { "$path": "art/models/Necks.rbxm" },
         "SetPieces": { "$path": "art/models/SetPieces.rbxm" },
         "Shoulders": { "$path": "art/models/Shoulders.rbxm" },

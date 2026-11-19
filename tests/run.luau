@@ -11936,7 +11936,19 @@ test(
 				wallC += 1
 			end
 		end
-		check(decor == #kit * 2, "the wall kit on both tunnel walls")
+		-- (the hideout art pass) each run piece is cut into module-long boxes, one under each HideRun module
+		local HideoutKit = require("../src/shared/HideoutKit")
+		local placed: { any } = {}
+		HqRules.placeKit(placed, kit, 0, 58, 1, 0, 0, -1)
+		local cuts = math.max(1, math.floor(placed[1].run.len / HideoutKit.MODULE + 0.5))
+		local expect = 0
+		for _, p in kit do
+			expect += if HideoutKit.PIECES[p.name] == "HideRun" then cuts else 1
+		end
+		check(
+			decor == expect * 2,
+			string.format("the wall kit on both tunnel walls (%d of %d)", decor, expect * 2)
+		)
 		check(wallC >= 7, "the tunnels have the hideout's walls")
 		local room = dungeon.lists.rooms[3]
 		near(
@@ -22985,6 +22997,7 @@ end
 (require :: any)("./review_test")({ test = test, check = check, Config = Config });
 -- the HQ art pass (2026-11-18, own file); ONLY="HQ art" runs just these
 (require :: any)("./hqart_test")({ test = test, check = check, Config = Config });
+(require :: any)("./hideout_test")({ test = test, check = check, Config = Config });
 -- walls (nate's playtest 2026-11-18: robots walked through walls; the subway fight); ONLY="Walls" runs these
 (require :: any)("./walls_test")({ test = test, check = check, Config = Config });
 -- Super-speed's running jump (nate's playtest 2026-11-18); ONLY="Speed hop" runs these

@@ -39,6 +39,17 @@ return {
 		height = 30,
 		lampEvery = 24,
 	},
+	-- the hideout art pass (2026-11-19, Shared.HideoutKit): the looks a quality preset leaves as plain parts (phones
+	-- keep the ceiling tiles and beam bays plain: the least seen, the most parts) and each preset's ceiling for one
+	-- room shell's modules (mesh parts and triangles; tests/hideout_test.luau checks both rooms against it)
+	art = {
+		skip = { low = { HideCeiling = true, HideBeam = true }, medium = {}, high = {} },
+		budget = {
+			low = { parts = 160, tris = 50000 },
+			medium = { parts = 260, tris = 70000 },
+			high = { parts = 260, tris = 70000 },
+		},
+	},
 	doorRange = 14,
 	-- the solo cells: one per hero slot (HeroService pvpSlot), on a grid at y 4,500 (safe: no PvP, no
 	-- schedulers, out of every streaming range)

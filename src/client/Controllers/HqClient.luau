@@ -48,11 +48,13 @@ local RepTiers = require(Shared:WaitForChild("RepTiers")) -- lore step 12: the h
 local WantedRules = require(Shared:WaitForChild("WantedRules")) -- WP9: the WANTED poster and nemesis heads
 local VisitRules = require(Shared:WaitForChild("VisitRules")) -- WP12: visits to a friend's HQ
 local HqArtKit = require(Shared:WaitForChild("HqArtKit")) -- the HQ art pass: where the meshes go
+local HideoutKit = require(Shared:WaitForChild("HideoutKit")) -- the hideout art pass: the room shells' modules
 local State = require(script.Parent.Parent.State)
 
 local CombatClient = require(script.Parent.CombatClient)
 local Preview = require(script.Parent.Parent.Ui.Preview)
 local HqMeshes = require(script.Parent.Parent.Fx.HqMeshes)
+local QualityController = require(script.Parent.QualityController)
 
 local HqClient = {}
 
@@ -178,19 +180,46 @@ local function titleSign(f: Folder, colors: { main: Color3, trim: Color3 })
 	sign(title, string.upper(state.name or ""), sub, 0)
 end
 
+-- The hideout art pass (2026-11-19): a room shell's modules (Shared.HideoutKit placements and the part index each
+-- hides) drawn once Art.Hideout holds their meshes; each part a drawn module stands in for is hidden, not removed
+local function shellOver(
+	f: Folder,
+	places: { HideoutKit.Place },
+	hides: { [number]: number },
+	parts: { [number]: BasePart }
+)
+	local drawn: { [number]: boolean } = {}
+	local c = centre()
+	for k, pl in places do
+		drawn[k] = HqMeshes.put(f, pl, c)
+	end
+	for i, k in hides do
+		local p = parts[i]
+		if p and drawn[k] then
+			HqMeshes.hide(p)
+		end
+	end
+end
+
 local function buildRoom(f: Folder, colors: { main: Color3, trim: Color3 })
 	local c = centre()
 	local size = H.cell.size
-	-- the floor's trim ring and rug (the server's floor holds you up)
-	part(f, Vector3.new(size - 8, 0.2, size - 8), CFrame.new(c + Vector3.new(0, 0.15, 0)), colors.trim)
-	part(f, Vector3.new(size - 24, 0.25, size - 24), CFrame.new(c + Vector3.new(0, 0.2, 0)), colors.main)
+	-- the floor's trim ring and rug (the server's floor holds you up); the boxes as Shared.HideoutKit.foundryBoxes
+	-- lists them (trim, rug, then the walls), so its modules know which part each hides
+	local parts: { [number]: BasePart } = {}
+	parts[1] =
+		part(f, Vector3.new(size - 8, 0.2, size - 8), CFrame.new(c + Vector3.new(0, 0.15, 0)), colors.trim)
+	parts[2] =
+		part(f, Vector3.new(size - 24, 0.25, size - 24), CFrame.new(c + Vector3.new(0, 0.2, 0)), colors.main)
 	-- the walls (drawn, the server's are invisible), with a glowing band in the side's colour
+	local walls: { BasePart } = {}
 	for i = 0, 3 do
 		local a = i * math.pi / 2
 		local out = CFrame.Angles(0, a, 0) * CFrame.new(0, 0, -size / 2)
 		local wall =
 			part(f, Vector3.new(size, 30, 2), CFrame.new(c) * out * CFrame.new(0, 15, 0), colors.trim)
 		wall.Material = Enum.Material.Concrete
+		walls[i + 1] = wall
 		local band =
 			part(f, Vector3.new(size - 10, 6, 0.5), CFrame.new(c) * out * CFrame.new(0, 18, 1.2), colors.main)
 		band.Material = Enum.Material.Neon
@@ -205,6 +234,20 @@ local function buildRoom(f: Folder, colors: { main: Color3, trim: Color3 })
 	pl.Parent = light
 	part(f, Vector3.new(24, 0.6, 6), CFrame.new(c + Vector3.new(0, 26, -size / 2 + 4)), colors.main).Material =
 		Enum.Material.Neon
+	-- the hideout art pass: iron wall bays, diamond plate floor tiles and rug tiles in the side's colour over the
+	-- parts (the light bands stay); match each wall part to HideoutKit's box by where it stands
+	for k, b in HideoutKit.foundryBoxes(Config) do
+		if b.name == "wall" then
+			for _, w in walls do
+				local d = w.Position - (c + Vector3.new(b.x, b.y, b.z))
+				if d.Magnitude < 1 then
+					parts[k] = w
+				end
+			end
+		end
+	end
+	local places, hides = HideoutKit.foundry(Config, tint(colors.main), QualityController.name)
+	shellOver(f, places, hides, parts)
 	titleSign(f, colors)
 end
 
@@ -216,12 +259,15 @@ local function buildHideout(f: Folder, colors: { main: Color3, trim: Color3 })
 	local size = H.cell.size
 	part(f, Vector3.new(size - 24, 0.25, size - 24), CFrame.new(c + Vector3.new(0, 0.3, 0)), colors.main).Transparency =
 		0.35
-	for _, p in HqRules.hideout(Config) do
+	local pieces = HqRules.hideout(Config)
+	local parts: { [number]: Part } = {}
+	for i, p in pieces do
 		local cf = CFrame.new(c + Vector3.new(p.x, p.y, p.z))
 		if p.rz then
 			cf *= CFrame.Angles(0, 0, math.rad(p.rz))
 		end
 		local made = part(f, Vector3.new(p.sx, p.sy, p.sz), cf, paletteColor(p.color))
+		parts[i] = made
 		local mat = p.mat and (Enum.Material :: any)[p.mat]
 		if mat then
 			made.Material = mat
@@ -234,6 +280,10 @@ local function buildHideout(f: Folder, colors: { main: Color3, trim: Color3 })
 			l.Parent = made
 		end
 	end
+	-- the hideout art pass: the room shell's modules over the parts (Shared.HideoutKit), which stay hidden (their
+	-- lights still shine); the glowing faces stay as they are
+	local places, hides = HideoutKit.cell(Config, pieces, QualityController.name)
+	shellOver(f, places, hides, parts)
 	-- a soft fill so the room's middle is never dark
 	local fill = part(f, Vector3.new(4, 1, 4), CFrame.new(c + Vector3.new(0, 26, 0)), Color3.new(1, 1, 1))
 	fill.Transparency = 1
@@ -490,6 +540,45 @@ local SHAPES: { [string]: Enum.PartType } = {
 	Cylinder = Enum.PartType.Cylinder,
 	Wedge = Enum.PartType.Wedge,
 }
+-- The captured robot as a figure on Roblox's own blocky body (NpcRig.robloxMeshes), `torso` its torso's middle:
+-- the Spark Trooper uniform's real Shirt and Pants (Config.NpcLooks), a catalog face and catalog hair, hung limp
+-- from the hook by a strap. Returns whether it was built (false: no Roblox body, clothes or faces yet).
+local function captive(f: Folder, torso: Vector3): boolean
+	local K = HqArtKit.CAPTIVE
+	local NL = Config.NpcLooks
+	local recipe = NL and NL.robots and NL.robots[K.kind]
+	local id = recipe and recipe.clothes and recipe.clothes[K.version]
+	local face = NpcRig.catalogFace(K.face)
+	if not NpcRig.robloxMeshes() or not id or id == 0 or not face then
+		return false
+	end
+	local skin = Config.Enemies.look.skins[1]
+	local colors: { [string]: Color3 } = {}
+	for _, name in BodyShape.PARTS do
+		colors[name] = Color3.fromRGB(skin[1], skin[2], skin[3])
+	end
+	local rig =
+		NpcRig.build(RigMath.layout(Config.HeroRig, nil, K.scale), "Captive", colors, nil, nil, nil, nil)
+	NpcRig.redress(rig, nil, "rbxassetid://" .. id)
+	NpcRig.face(rig, face)
+	NpcRig.showHair(rig, K.hair, K.hair)
+	rig.model.Parent = f
+	NpcRig.place(rig, CFrame.new(torso + Vector3.new(0, K.feet, K.forward)))
+	for joint, a in K.pose do
+		NpcRig.bend(rig, joint, CFrame.Angles(math.rad(a[1]), math.rad(a[2]), math.rad(a[3])))
+	end
+	-- the strap from the hook down behind its neck
+	local strap = part(
+		f,
+		Vector3.new(0.3, K.strap, 0.3),
+		CFrame.new(torso + Vector3.new(0, K.feet + K.scale * 5 - K.strap / 2 + 0.6, K.forward + 0.55)),
+		Color3.fromRGB(218, 186, 120),
+		Enum.Material.Fabric
+	)
+	strap.Name = "Strap"
+	return true
+end
+
 local function dressing(f: Folder)
 	local c = centre()
 	local pieces = RepTiers.dressing(Config, state.side, state.repTier or 0)
@@ -531,11 +620,31 @@ local function dressing(f: Folder)
 		end
 		madeParts[i] = made
 	end
+	-- the captured Crane robot (Foundry rank 3): like every robot now, a figure on Roblox's own body in its
+	-- uniform with a catalog face and hair (HqArtKit.CAPTIVE), limp on the hook; its boxes hide under it. Until
+	-- Roblox's body is there, the robot mesh (HqCaptiveBot) or its boxes, as before.
+	local figure = false
+	for _, p in pieces do
+		if p.name == HqArtKit.CAPTIVE.at then
+			figure = captive(f, c + Vector3.new(p.x, p.y, p.z))
+		end
+	end
 	local places, hides = HqArtKit.dressing(state.side, pieces)
 	local drawn: { [number]: boolean } = {}
 	for k, pl in places do
 		local cf = CFrame.new(c + Vector3.new(pl.x, pl.y, pl.z)) * CFrame.Angles(0, math.rad(pl.ry or 0), 0)
-		drawn[k] = HqMeshes.place(f, pl.look, cf)
+		if figure and pl.look == HqArtKit.CAPTIVE.look then
+			drawn[k] = true
+		else
+			drawn[k] = HqMeshes.place(f, pl.look, cf)
+		end
+	end
+	if figure then
+		for i, p in pieces do
+			if HqArtKit.CAPTIVE.covers[p.name] and madeParts[i] then
+				HqMeshes.hide(madeParts[i])
+			end
+		end
 	end
 	for i, k in hides do
 		local p = madeParts[i]

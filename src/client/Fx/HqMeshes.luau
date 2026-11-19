@@ -1,11 +1,12 @@
 --!strict
--- HqMeshes: the HQ rooms dressed in art/blender/hq.py's meshes once nate imports them as ReplicatedStorage.Art.Hq
+-- HqMeshes: the HQ rooms dressed in art/blender/hq.py's meshes, imported as ReplicatedStorage.Art.Hq (and the room
+-- shells as Art.Hideout, Shared.HideoutKit; both with baked texture sets kept as their SurfaceAppearance)
 -- (Tasks.md "HQ meshes"). Shared.HqArtKit says where each look goes and Config.HqArt how each mesh sits; this
 -- module finds and clones them for HqClient (the HQ is drawn on the device only). A look is drawn only when every
 -- one of its meshes is found (never half a look); the part it stands in for is hidden, not removed, so its
 -- prompt, sign and SurfaceGui (the WANTED poster, the head plates, the "?" of an empty mount) work exactly as
 -- before. The meshes never collide, take queries or touches. Nothing imported: nothing is drawn and every part
--- shows as today (PLACEHOLDER ART until the import).
+-- shows as today.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -17,6 +18,8 @@ local HqArtKit = require(Shared:WaitForChild("HqArtKit"))
 local HqMeshes = {}
 
 local found: { [string]: MeshPart } = {}
+-- the stations, props and dressing (art/blender/hq.py) and the room shells (the hideout art pass: Art.Hideout)
+local ROOTS = { "Hq", "Hideout" }
 
 -- The source MeshPart named `name` in Art.Hq (looked up each time until there, so a later import counts)
 local function source(name: string): MeshPart?
@@ -25,11 +28,13 @@ local function source(name: string): MeshPart?
 		return hit
 	end
 	local art = ReplicatedStorage:FindFirstChild("Art")
-	local root = art and art:FindFirstChild("Hq")
-	local src = root and root:FindFirstChild(name, true)
-	if src and src:IsA("MeshPart") then
-		found[name] = src
-		return src
+	for _, set in ROOTS do
+		local root = art and art:FindFirstChild(set)
+		local src = root and root:FindFirstChild(name, true)
+		if src and src:IsA("MeshPart") then
+			found[name] = src
+			return src
+		end
 	end
 	return nil
 end
@@ -55,8 +60,16 @@ local function clone(m: SetPieceKit.Mesh, parent: Instance): MeshPart?
 		return nil
 	end
 	local p = (src :: MeshPart):Clone() :: MeshPart
+	-- a textured mesh keeps its SurfaceAppearance (the baked texture set; the colour map's alpha shows the part's
+	-- Color below, so a tint still paints it); anything else goes
 	for _, c in p:GetChildren() do
-		c:Destroy()
+		if m.maps and c:IsA("SurfaceAppearance") then
+			pcall(function()
+				c.AlphaMode = Enum.AlphaMode.Overlay
+			end)
+		else
+			c:Destroy()
+		end
 	end
 	p.Name = m.name
 	p.Anchored = true
@@ -83,6 +96,23 @@ function HqMeshes.place(parent: Instance, look: string, cf: CFrame, tint: { [str
 		return false
 	end
 	for _, m in SetPieceKit.meshes(Config, { look = look, x = 0, y = 0, z = 0, tint = tint }) do
+		local p = clone(m, parent)
+		if p then
+			p.CFrame = cf * CFrame.new(m.offset[1], m.offset[2], m.offset[3])
+		end
+	end
+	return true
+end
+
+-- A placement (SetPieceKit.Place, cell offsets; with a `scale`: a HideoutKit module) under parent, the cell's
+-- middle at `base`. Returns whether it was drawn (false: not imported).
+function HqMeshes.put(parent: Instance, place: SetPieceKit.Place, base: Vector3): boolean
+	if not HqMeshes.ready(place.look) then
+		return false
+	end
+	local cf = CFrame.new(base + Vector3.new(place.x, place.y, place.z))
+		* CFrame.Angles(0, math.rad(place.ry or 0), 0)
+	for _, m in SetPieceKit.meshes(Config, place) do
 		local p = clone(m, parent)
 		if p then
 			p.CFrame = cf * CFrame.new(m.offset[1], m.offset[2], m.offset[3])
