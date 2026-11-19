@@ -93,7 +93,7 @@ local function setup(p: Player, char: Model, wf: Instance, id: number): Rig?
 		return nil
 	end
 	local art = Config.WeaponArt[id]
-	local g = art and art.grip and art.grip.pos or { 0, -0.2, 0 }
+	local g = art and art.grip and art.grip.pos or { 0, -0.15, 0 }
 	local grip = Vector3.new(g[1], g[2], g[3])
 	local tips: { Piece } = {}
 	local lines: { BasePart } = {}

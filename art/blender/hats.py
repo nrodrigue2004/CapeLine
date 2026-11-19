@@ -257,15 +257,19 @@ def h_horns():
     return [H(joined("Horns", horns, 60), "white")]
 
 
+HALO_Z = 5.82
+
+
 @style("halo")
 def h_halo():
-    halo = kit.torus("Halo", 0.5, 0.06, at=(0, -0.05, 5.62), segs=32, csegs=6)
-    wear.turn(halo, (-0.2, 0, 0), (0, -0.05, 5.62))
+    # pt-fit 2026-11-19: 0.2 higher (was 5.62) so it floats over a Roblox catalog hair, not inside it
+    halo = kit.torus("Halo", 0.5, 0.06, at=(0, -0.05, HALO_Z), segs=32, csegs=6)
+    wear.turn(halo, (-0.2, 0, 0), (0, -0.05, HALO_Z))
     kit.shade_auto(halo, 60)
-    glints = [ball("g", 0.05, (0.5 * math.cos(a), -0.05 + 0.5 * math.sin(a), 5.62), segs=8, rings=4)
+    glints = [ball("g", 0.05, (0.5 * math.cos(a), -0.05 + 0.5 * math.sin(a), HALO_Z), segs=8, rings=4)
               for a in (0.5, 2.6, 4.4)]
     for g in glints:
-        wear.turn(g, (-0.2, 0, 0), (0, -0.05, 5.62))
+        wear.turn(g, (-0.2, 0, 0), (0, -0.05, HALO_Z))
     return [H(halo, "a", True, alpha=0.2), H(joined("Glints", glints), "white", True)]
 
 
@@ -468,7 +472,9 @@ HEADER = ["hats.py",
           "hair = false: the hat covers the hair (the same kits as PieceKits.hatHidesHair)."]
 
 # the kits that cover the hair (as PieceKits.hatHidesHair, so a hat hides the same hair with meshes or parts)
-COVERS_HAIR = {"beanie", "streethood", "kabuto", "knight", "dorag", "bucket", "aviator"}
+# pt-fit 2026-11-19: the crowned hats (cap, brim, tophat, beret) cover it too: Roblox catalog hair rises 0.15 to 0.9
+# above the head, so they sank into it
+COVERS_HAIR = {"beanie", "streethood", "kabuto", "knight", "dorag", "bucket", "aviator", "cap", "brim", "tophat", "beret"}
 
 
 def preview(built):

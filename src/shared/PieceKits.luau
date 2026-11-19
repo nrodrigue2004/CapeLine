@@ -262,8 +262,18 @@ local hat = {
 		S("head", V(0.12, 0.4, 0.9), CF(0, TOP + 0.2, 0), "p")
 	),
 }
--- headwear that covers the hair (and the knight helm the face too)
-local hatHidesHair = { beanie = true, streethood = true, kabuto = true, knight = true, tophat = false }
+-- headwear that covers the hair (and the knight helm the face too). pt-fit (2026-11-19): the crowned hats (cap,
+-- brim, tophat, beret) too, as Roblox catalog hair rises 0.15 to 0.9 studs over the head and swallowed them
+local hatHidesHair = {
+	beanie = true,
+	streethood = true,
+	kabuto = true,
+	knight = true,
+	tophat = true,
+	cap = true,
+	brim = true,
+	beret = true,
+}
 local hatHidesFace = { knight = true }
 
 local GOLD = { mat = Enum.Material.Metal }

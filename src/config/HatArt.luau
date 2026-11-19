@@ -8,7 +8,7 @@
 return {
 	cap = {
 		triangles = 1144,
-		hair = true,
+		hair = false,
 		pieces = {
 			{
 				mesh = "Hat_cap_Crown",
@@ -207,7 +207,7 @@ return {
 	},
 	brim = {
 		triangles = 1568,
-		hair = true,
+		hair = false,
 		pieces = {
 			{
 				mesh = "Hat_brim_Hat",
@@ -231,7 +231,7 @@ return {
 	},
 	tophat = {
 		triangles = 1440,
-		hair = true,
+		hair = false,
 		pieces = {
 			{
 				mesh = "Hat_tophat_Hat",
@@ -323,7 +323,7 @@ return {
 				role = "a",
 				glow = true,
 				alpha = 0.20,
-				offset = { 0.000, 1.010, 0.050 },
+				offset = { 0.000, 1.210, 0.050 },
 				size = { 1.120, 0.312, 1.098 },
 			},
 			{
@@ -331,7 +331,7 @@ return {
 				at = "head",
 				role = "white",
 				glow = true,
-				offset = { 0.005, 1.032, 0.157 },
+				offset = { 0.005, 1.232, 0.157 },
 				size = { 0.967, 0.244, 0.817 },
 			},
 		},
@@ -418,7 +418,7 @@ return {
 	},
 	beret = {
 		triangles = 780,
-		hair = true,
+		hair = false,
 		pieces = {
 			{
 				mesh = "Hat_beret_Beret",

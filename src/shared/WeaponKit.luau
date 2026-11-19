@@ -18,6 +18,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local WeaponMesh = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("WeaponMesh"))
+local BodyFit = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("BodyFit"))
 
 local WeaponKit = {}
 
@@ -66,7 +67,7 @@ local function cat(...: { Spec }): { Spec }
 	return out
 end
 
-local G = -0.2 -- the grip line inside the hand (hands are 1 x 0.3 x 1)
+local G = -0.15 -- the grip line: the hand's grip attachment (hands are 1 x 0.3 x 1; pt-fit: was -0.2, under the fist)
 local BLADE = { blade = true }
 local METAL = { mat = Enum.Material.Metal }
 
@@ -335,10 +336,12 @@ local function held(id: number, s: Spec): Spec
 end
 WeaponKit.held = held
 
--- the standard blocky rig's part sizes (the fit's boxes are on these; a bigger body scales them)
-local RIG_SIZE: { [string]: Vector3 } = {}
-for name, def in Config.HeroRig.parts do
-	RIG_SIZE[name] = V(def.size[1], def.size[2], def.size[3])
+-- the fit's boxes are on Config.HeroRig's classic blocks; Shared.BodyFit maps them onto the body worn (Roblox's own
+-- blocky body: a shield on the forearm keeps its place and size instead of stretching x1.24 down the arm)
+local function fitFrame(part: BasePart): (Vector3, Vector3)
+	local s = part.Size
+	local shift, f = BodyFit.frame(Config, part.Name, { s.X, s.Y, s.Z })
+	return V(shift[1], shift[2], shift[3]), V(f[1], f[2], f[3])
 end
 
 -- The imported weapon meshes (ReplicatedStorage.Art.Weapons), or nil
@@ -410,8 +413,7 @@ local function buildMeshes(
 			color = colors.a
 		end
 		local part, offset = parts[i][1], parts[i][2]
-		local ref = RIG_SIZE[part.Name]
-		local f = if ref then part.Size / ref else Vector3.one
+		local shift, f = fitFrame(part)
 		local m = src:Clone()
 		for _, c in m:GetChildren() do
 			c:Destroy()
@@ -428,7 +430,7 @@ local function buildMeshes(
 		m.CanTouch = false
 		m.CanQuery = false
 		m.CastShadow = false
-		m.CFrame = part.CFrame * offset * CF(V(p.offset[1], p.offset[2], p.offset[3]) * f)
+		m.CFrame = part.CFrame * offset * CF(shift + V(p.offset[1], p.offset[2], p.offset[3]) * f)
 		local weld = Instance.new("WeldConstraint")
 		weld.Part0 = part
 		weld.Part1 = m

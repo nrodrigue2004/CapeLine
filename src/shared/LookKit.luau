@@ -25,6 +25,7 @@ local AvatarRules = require(Shared:WaitForChild("AvatarRules"))
 local NpcRig = require(Shared:WaitForChild("NpcRig"))
 local PieceKits = require(Shared:WaitForChild("PieceKits"))
 local WeaponKit = require(Shared:WaitForChild("WeaponKit"))
+local BodyFit = require(Shared:WaitForChild("BodyFit"))
 
 local LookKit = {}
 
@@ -61,11 +62,16 @@ type Spec = {
 	eye: boolean?, -- a face's plain eyes (PieceKits), skipped under a glowing Eyes piece
 }
 
--- the standard blocky rig's part sizes: specs are written for these and scale with the hero's build
-local RIG_SIZE: { [string]: Vector3 } = {}
-for name, def in Config.HeroRig.parts do
-	RIG_SIZE[name] = Vector3.new(def.size[1], def.size[2], def.size[3])
+-- Specs and mesh fits are written on the classic blocks of Config.HeroRig; Shared.BodyFit maps them onto the
+-- body they are worn on (Roblox's own blocky R15 body: its taller, overlapping limb boxes; the Blender body: the
+-- boxes as written; a bigger build scales with its parts). pt-fit, 2026-11-19: scaling by the box alone stretched
+-- every arm and leg piece (x1.375 on an upper arm, x1.40 on a shin) and slid it down the limb.
+local function fitFrame(part: BasePart): (Vector3, Vector3)
+	local s = part.Size
+	local shift, f = BodyFit.frame(Config, part.Name, { s.X, s.Y, s.Z })
+	return Vector3.new(shift[1], shift[2], shift[3]), Vector3.new(f[1], f[2], f[3])
 end
+LookKit.fitFrame = fitFrame
 
 local V, CF = Vector3.new, CFrame.new
 local ROT_Z = CFrame.Angles(0, 0, math.rad(90))
@@ -810,11 +816,10 @@ local function make(
 	if not part then
 		return
 	end
-	-- a wider or taller body part (the build, or another avatar's sizes) scales the piece with it
-	local ref = RIG_SIZE[part.Name]
-	local f = if ref then part.Size / ref else Vector3.one
+	-- the spec's frame on this body (Shared.BodyFit); a wider or taller body part scales the piece with it
+	local shift, f = fitFrame(part)
 	local size = spec.size * f
-	local cf = CFrame.new(spec.cf.Position * f) * spec.cf.Rotation
+	local cf = CFrame.new(shift + spec.cf.Position * f) * spec.cf.Rotation
 	local p: BasePart
 	if spec.shape == "Wedge" then
 		p = Instance.new("WedgePart")
@@ -1365,8 +1370,7 @@ local function capeMeshes(
 		end
 		srcs[i] = found
 	end
-	local ref = RIG_SIZE.UpperTorso
-	local f = if ref then torso.Size / ref else Vector3.one
+	local shift, f = fitFrame(torso)
 	for i, row in fit.pieces do
 		local p = srcs[i]:Clone()
 		for _, c in p:GetChildren() do
@@ -1383,7 +1387,8 @@ local function capeMeshes(
 		p.CanTouch = false
 		p.CanQuery = false
 		p.CastShadow = false
-		p.CFrame = torso.CFrame * CFrame.new(Vector3.new(row.offset[1], row.offset[2], row.offset[3]) * f)
+		p.CFrame = torso.CFrame
+			* CFrame.new(shift + Vector3.new(row.offset[1], row.offset[2], row.offset[3]) * f)
 		local weld = Instance.new("WeldConstraint")
 		weld.Part0 = torso
 		weld.Part1 = p
@@ -1450,8 +1455,7 @@ function pieceMeshes(
 	end
 	for i, row in fit.pieces do
 		local part = parts[i]
-		local ref = RIG_SIZE[part.Name]
-		local f = if ref then part.Size / ref else Vector3.one
+		local shift, f = fitFrame(part)
 		local p = srcs[i]:Clone()
 		for _, c in p:GetChildren() do
 			c:Destroy()
@@ -1471,7 +1475,8 @@ function pieceMeshes(
 		p.CanTouch = false
 		p.CanQuery = false
 		p.CastShadow = false
-		p.CFrame = part.CFrame * CFrame.new(Vector3.new(row.offset[1], row.offset[2], row.offset[3]) * f)
+		p.CFrame = part.CFrame
+			* CFrame.new(shift + Vector3.new(row.offset[1], row.offset[2], row.offset[3]) * f)
 		local weld = Instance.new("WeldConstraint")
 		weld.Part0 = part
 		weld.Part1 = p

@@ -259,11 +259,11 @@ return function(T: any)
 					)
 				end
 			end
-			-- the hold turns about the grip line under a hand (WeaponKit's G), a shield about its forearm's centre
+			-- the hold turns about the grip line in the hand (WeaponKit's G, the grip attachment since pt-fit), a shield about its forearm's centre
 			for at, h in FIT[id].hold do
 				if at == "rhand" or at == "lhand" then
 					check(
-						h.pivot[2] == -0.2 and h.pivot[1] == 0 and h.pivot[3] == 0,
+						h.pivot[2] == -0.15 and h.pivot[1] == 0 and h.pivot[3] == 0,
 						w[3] .. " turns about the grip"
 					)
 				else
