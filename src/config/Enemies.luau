@@ -810,7 +810,6 @@ return {
 					hands = "Gloves",
 					feet = "Boots",
 					emblem = "Peak",
-					beard = "Pencil Mustache",
 					hat = "Halo",
 					shoulders = "Mantle",
 					neck = "Medal",
@@ -1163,7 +1162,7 @@ return {
 				pieces = {
 					suit = "Overalls",
 					hat = "Iron Crown",
-					beard = "Full Beard",
+					beard = "Styled Beard Blonde", -- a Roblox catalog beard (gap-villains, 2026-11-19)
 					hands = "Work Gloves",
 					feet = "Boots",
 					shoulders = "Riveted Pads",
@@ -1260,7 +1259,7 @@ return {
 					back = "Duster Coat",
 					hat = "Wide Brim",
 					head = "Eye Patch",
-					beard = "Full Beard",
+					beard = "Styled Beard Blonde", -- a Roblox catalog beard (gap-villains, 2026-11-19)
 					hands = "Armored Gauntlets",
 					feet = "Armored Boots",
 					shoulders = "Epaulettes",

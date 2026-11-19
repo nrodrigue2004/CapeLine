@@ -265,9 +265,11 @@ def paint_cell(canvas, n, sheet, x0, y0, x1, y1):
 LOCAL_IMAGES = {}
 if os.environ.get("UISHOT_IMAGES"):
     import json as _json
-    _ids = _json.load(open(os.environ["UISHOT_IMAGES"]))
-    _dir = os.path.dirname(os.environ["UISHOT_IMAGES"])
-    LOCAL_IMAGES = {str(v): os.path.join(_dir, k) for k, v in _ids.items() if isinstance(v, int)}
+    # (several ids files may be given, joined by ":")
+    for _path in os.environ["UISHOT_IMAGES"].split(os.pathsep):
+        _ids = _json.load(open(_path))
+        _dir = os.path.dirname(_path)
+        LOCAL_IMAGES.update({str(v): os.path.join(_dir, k) for k, v in _ids.items() if isinstance(v, int)})
 
 
 def paint(canvas, n, kids):

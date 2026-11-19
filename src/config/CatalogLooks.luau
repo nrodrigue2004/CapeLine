@@ -100,6 +100,20 @@ return {
 		{ "Black Short Wolf Cut", 6441556987 },
 		{ "Black Short Parted Hair", 4875445470 },
 	},
-	-- facial hair: catalog beard and mustache accessories; empty until nate picks the ones he likes
-	beards = {},
+	-- facial hair (gap-villains, 2026-11-19, nate: Claude picks them): catalog beard and moustache Face accessories
+	-- (asset type 42, worn on the head's FaceFrontAttachment or FaceCenterAttachment), each checked through Open
+	-- Cloud asset delivery, then rendered on the blocky head to check each reads as a classic beard
+	-- (art/preview/beards.png). Left out: items whose mesh could not be checked offline (mesh format 7: White
+	-- Mustache, Mustache 1 Black, Galaxy Mustache), a near-invisible 5 O'Clock Shadow and a Scruffy Beard that
+	-- breaks into shards. Loaded at boot by CatalogLookService like the hair. { name, asset id }
+	beards = {
+		{ "Styled Beard Black", 7177948497 },
+		{ "Styled Beard Brown", 7177951938 },
+		{ "Styled Beard Blonde", 7177950320 },
+		{ "Styled Beard White", 7177954907 },
+		{ "Full Black Trimmed Beard", 6351051364 },
+		{ "Stubble Beard [Black]", 13895617178 },
+		{ "Fancy Moustache", 14874478651 },
+		{ "Red Down Facing Moustache", 16780013894 },
+	},
 }

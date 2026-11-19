@@ -979,7 +979,7 @@ local function drawAppearance()
 		header(area[1])
 		for _, id in area[2] do
 			if CreatorRules.hidden(Config, id) then
-				continue -- retired (our own eyes, face details, makeup, facial hair until catalog beards come)
+				continue -- retired (our own eyes, face details, makeup)
 			end
 			row(slotName(id), nil, slot == id, false, function()
 				if slot ~= id then
@@ -999,7 +999,11 @@ local function drawAppearance()
 		end
 		local sub = if slot == "skin"
 			then "24 tones and 6 fantasy skins"
-			elseif slot == "colors" then "Sets the whole hero; any slot can then have its own"
+			elseif
+				slot == "colors"
+			then "Sets the whole hero; any slot can then have its own" -- facial hair is Roblox catalog items only (gap-villains, 2026-11-19), free, in their own colours
+
+			elseif slot == "beard" then count .. " Roblox catalog items, free. Each keeps its own colours."
 			else count .. " styles. Tap a colour square for this slot's own colours."
 		setCard(slotName(slot), sub, nil)
 	end
@@ -1010,7 +1014,14 @@ local function drawAppearance()
 		drawMatchAll()
 	else
 		drawPieces()
-		if slot ~= "voice" and slot ~= "aura" and slot ~= "trail" and slot ~= "hair" and slot ~= "visage" then
+		if
+			slot ~= "voice"
+			and slot ~= "aura"
+			and slot ~= "trail"
+			and slot ~= "hair"
+			and slot ~= "visage"
+			and slot ~= "beard"
+		then
 			drawSlotColors()
 		end
 	end

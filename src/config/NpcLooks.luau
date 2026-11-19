@@ -232,22 +232,23 @@ return {
 	-- Config.Story.guides.speakers keys and Config.Mentors ids. The game wears these on the helpers' rigs, the
 	-- mentors' allies and Crane on the stage (NpcRig.wearCast), and art/panels/cast.luau draws the portraits
 	-- with them, so the art matches the world. People with a creator look name catalog pieces in the look itself.
+	-- (beard: an optional Config.CatalogLooks.beards name, gap-villains 2026-11-19)
 	cast = {
 		patch = { face = "Check It", hair = "Pal Hair" }, -- the Vigil's hacker kid: quick and cocky
 		crane = { face = "Know-It-All Grin", hair = "Brown Charmer Hair" }, -- the smiling CEO on every screen
 		insider = { face = "Stare", hair = false }, -- a voice in a hood
 		copy = { face = "Sinister", hair = "Black Short Wolf Cut" }, -- your robot copy
-		toymaker = { face = "Mr. Chuckles", hair = false }, -- the toy shop's old inventor, bald and sly
+		toymaker = { face = "Mr. Chuckles", hair = false, beard = "Styled Beard White" }, -- the toy shop's old inventor, bald and sly
 		lark = { face = "Alright", hair = "Shimmering Brown French Braids" }, -- Patch's big sister, a flier
 		wren = { face = "Smiling Girl", hair = "Black Flowy Pigtails" }, -- the runaway student
 		toby = { face = "Big Sad Eyes", hair = "Blonde Spiked Hair" }, -- the boy whose Spark winds when upset
 		flint = { face = "Bandage", hair = "Crimson Shaggy 2.0" }, -- a young fighter, a plaster across the nose
 		finn = { face = "Joyful Smile", hair = "Cool Boy Hair" }, -- Skipper Nell's deckhand grandson
 		dace = { face = "Awkward Grin", hair = "Short Blue Hair" }, -- the diver whose dredger cracked the seal
-		ambrose = { face = "Winky", hair = "Platinum Blonde Bundles" }, -- an old stage magician, long white hair
-		hoshi = { face = "Chill", hair = "Messy Samurai Ponytail in Brown" }, -- the calm old master
+		ambrose = { face = "Winky", hair = "Platinum Blonde Bundles", beard = "Fancy Moustache" }, -- an old stage magician, long white hair
+		hoshi = { face = "Chill", hair = "Messy Samurai Ponytail in Brown", beard = "Styled Beard White" }, -- the calm old master
 		CaptainMeridian = { face = "Smile", hair = "Beautiful Hair for Beautiful People" }, -- the by-the-book flyer
-		OldBeacon = { face = "Friendly Grin", hair = "Hair Base In Brown" }, -- the old street hero, the drill coach
+		OldBeacon = { face = "Friendly Grin", hair = "Hair Base In Brown", beard = "Styled Beard Brown" }, -- the old street hero, the drill coach
 		TheMargrave = { face = "Take Over the World", hair = "Purple and Blue Male Hair Slick" }, -- the money man
 		TheVelvetPaw = { face = "Slickfang", hair = "Black Trendy Messy Buns" }, -- the cat burglar (buns for ears)
 	},

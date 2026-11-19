@@ -26,6 +26,7 @@ local FrameProf = require(Shared:WaitForChild("FrameProf"))
 local CinemaPlan = require(Shared:WaitForChild("CinemaPlan"))
 local ComicArt = require(Shared:WaitForChild("ComicArt"))
 local NewsArtKit = require(Shared:WaitForChild("NewsArtKit"))
+local VillainCards = require(Shared:WaitForChild("VillainCards"))
 
 local Kit = require(script.Parent.Kit)
 local GuideHud = require(script.Parent.GuideHud)
@@ -1102,11 +1103,12 @@ function CinemaHud.nameCard(bossId: string, ownName: string?, ownTitle: string?)
 		name,
 		title,
 		if ownName then nil else art and art.theme,
-		if ownName then nil else { kind = "boss", id = bossId }
+		-- a side quest villain's own rendered portrait (gap-villains, 2026-11-19), by the card's name
+		if ownName then { kind = "villain", id = ownName } else { kind = "boss", id = bossId }
 	)
 end
 
--- The picture on the card's left: a boss's portrait, an event's icon, or none (false)
+-- The picture on the card's left: a boss's or a side quest villain's portrait, an event's icon, or none (false)
 local function cardPicture(pic: { kind: string, id: string }?): boolean
 	if cardIcon then
 		cardIcon:Destroy()
@@ -1118,6 +1120,14 @@ local function cardPicture(pic: { kind: string, id: string }?): boolean
 	end
 	if pic.kind == "boss" then
 		local cell = NewsArtKit.portrait(Config, pic.id)
+		if cell then
+			cardPic.Image = cell.image
+			cardPic.ImageRectOffset = Vector2.new(cell.offset[1], cell.offset[2])
+			cardPic.ImageRectSize = Vector2.new(cell.size[1], cell.size[2])
+			return true
+		end
+	elseif pic.kind == "villain" then
+		local cell = VillainCards.portrait(Config, pic.id)
 		if cell then
 			cardPic.Image = cell.image
 			cardPic.ImageRectOffset = Vector2.new(cell.offset[1], cell.offset[2])
@@ -1136,7 +1146,7 @@ end
 
 -- Any card in the boss card's style (lore step 9: the Crater's and Your double's, Config.Cinema.nameCard places
 -- and events): two fixed lines and the slash colour ({ r, g, b }, red when nil); pic names its picture
--- ({ kind = "boss" or "event", id }), drawn when its art is uploaded
+-- ({ kind = "boss", "villain" (a card name) or "event", id }), drawn when its art is uploaded
 -- The name card's right edge in screen pixels while it shows, else nil (NewsHud keeps the corner TV clear of it)
 function CinemaHud.cardRight(): number?
 	if not (card and card.Visible) then
