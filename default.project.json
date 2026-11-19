@@ -24,6 +24,7 @@
         "Coats": { "$path": "art/models/Coats.rbxm" },
         "Ears": { "$path": "art/models/Ears.rbxm" },
         "Eyes": { "$path": "art/models/Eyes.rbxm" },
+        "Gear": { "$path": "art/models/Gear.rbxm" },
         "Gloves": { "$path": "art/models/Gloves.rbxm" },
         "Hair": { "$path": "art/models/Hair.rbxm" },
         "Hats": { "$path": "art/models/Hats.rbxm" },

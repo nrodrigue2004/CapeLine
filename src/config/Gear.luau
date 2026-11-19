@@ -169,8 +169,8 @@ return {
 	},
 
 	-- Gear styles: every looted piece unlocks its style forever (a bit in profile.styles, ids 1 to 511).
-	-- id = slot index x 64 + n. Each style is a part-built look (PLACEHOLDER ART until meshes):
-	-- shape picks the builder in LookService, color is the style's own trim colour.
+	-- id = slot index x 64 + n. shape picks the look (its meshes in Config.GearArt, art/blender/gear.py; the old
+	-- part-built shapes in LookService until they are imported), color is the style's own trim colour.
 	-- tier: the lowest tier that can roll it. Set and Legendary styles come only with those pieces.
 	styles = {
 		head = {
@@ -779,4 +779,14 @@ return {
 	-- Set styles (head, chest, hands, feet share one look per set) and Legendary styles (one per slot)
 	setStyleBase = 40, -- n = 40 + set index
 	legendaryStyleN = 50, -- n = 50: a gold-trimmed version of the slot's top shape
+	-- The looks' meshes (2026-11-19, art/blender/gear.py, Config.GearArt, ReplicatedStorage.Art.Gear): meshes = false
+	-- goes back to the part-built shapes. Every hero shows its gear looks to everyone, so the triangles are
+	-- budgeted: a look at most lookMax, a hero's worst outfit (the heaviest look of each slot) at most heroMax, and
+	-- the heroes a preset draws in full (Config.Presets playersFull) times heroMax within that preset's budget.
+	art = {
+		meshes = true,
+		lookMax = 2100,
+		heroMax = 13000,
+		budget = { low = 160000, medium = 260000, high = 400000 },
+	},
 }

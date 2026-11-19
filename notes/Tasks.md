@@ -81,7 +81,7 @@ Waiting on others:
 - Snow Wall pieces, the Ice Slide ramp and the thrown crate in Lift and Throw: plain parts (CombatService). PLACEHOLDER ART.
 - Ability buttons show short names, not icons (Hud, LoadoutScreen). PLACEHOLDER ART.
 - Hero animations (2026-11-17): flight, hover, glide, leaps, dashes, slides, swings, wall runs, rides, swimming, the Downed kneel, every cast, each weapon family's combo, the windup and the flinch are hand-keyed code poses (Shared.HeroAnim, HeroAnimator); the ground walk, run, idle and jump are Roblox's default Animate. PLACEHOLDER ANIMATION until real animations are made and uploaded.
-- Gear looks: all 31 gear styles (plus 5 set looks and the gilded Legendary look per slot) are blocks, balls, wedges and cylinders welded to the body (LookService). PLACEHOLDER ART until the M9 accessory meshes.
+- Gear looks: DONE 2026-11-19: all 27 gear shapes, the 5 set looks on their 4 slots and the gilded Legendary look of every slot (54 looks) are Blender meshes with a baked texture set a slot (art/blender/gear.py, Config.GearArt, ReplicatedStorage.Art.Gear; Studio list "Gear looks as meshes"). The old blocks, balls, wedges and cylinders stay only as the fall-back while a look's meshes are missing (LookService).
 - Gear, loot and toast screens: Kit placeholder look, text-only piece cards, no item icons (GearScreen, Toasts). PLACEHOLDER ART.
 - Gadget effects: smoke, decoy and shield drone are a plain disc or pop (GadgetClient); the decoy has no body. PLACEHOLDER ART.
 - Destruction (M5): building chunks and rubble are plain boxes in the body's colour; craters are a dark disc with a rock rim; facade cracks are thin dark bars; dust uses the engine's built-in smoke texture; repair drones are a box with four rotor discs and a neon beam (BuildingFx). PLACEHOLDER ART until the destruction kit and decals.
@@ -1608,3 +1608,14 @@ Play a new hero's prologue on a server with a second player (Studio Test > 2 pla
 - [ ] Boost flight or a speed hop into a wall smashes through (hit-stop, shake); cruising only bumps. Brute or boss hits throw you through walls; light hits do not. Robots knocked into walls break them. Pins, the prologue row, safehouses, HQs and pockets never break. Watch "impactBreaks" with 30 bots.
 - [ ] Each path: every move shows its own flourish, hit and trail; supers their screen moment (Reduce flashing hides flashes); phone frame rate holds in a 6-robot fight.
 - [ ] Every skill and super, each weapon's combo and Z/X/C/V, gadgets, guard/parry, carry, revive, Give Up, Awakening, landings and take-offs animate on you and on a second client; whip/yo-yo/rope dart/nunchucks ropes lag, lash and reel in, nothing left behind on swap; FrameProf HeroAnimator and TetherFx stay low.
+
+## Studio list: gear looks as meshes (2026-11-19)
+1. GEAR: equip (or Show Style) one style a slot on a hero with no creator piece there: the gear look is smooth meshes in the style's own colour with soft shading and detail (no blocks). Try Rookie Visor, Fin Helm, Halo Crown, Padded Vest, Coil Gauntlets, Shin Guards, Jet Heels, Long Cape, Jet Pack, Light Wings, Power Sash.
+2. Same shape, two styles (Rookie Visor and Vigil Patrol Visor): same meshes, each in its own colour (the tint shows through the baked texture, not a flat grey).
+3. Epic sets: wear all 4 pieces of each set (Stormcaller, Rimeguard, Ironclad, Orbitwear, Edgewalker): each set has its own helm, chest, gloves and boots in its power colour; Legendary pieces show the gilded looks (gold metal, gold glow).
+4. Fit on Roblox's blocky body: nothing floats or sinks into the body from the front, back and sides; shin pieces sit between knee and ankle while walking and running; helms do not clip the catalog hair (a full helm hides it, a visor, mask or halo keeps it). Try Titan and Small builds and the shortest and tallest heights.
+5. Glow pieces (lenses, cores, coils, wings) are Neon in the style colour; Light Wings are see-through.
+6. The creator preview, the street outfit (DEV "Street outfit") and the creator's own head, chest, hands, feet and back pieces still win over gear unless a Show Style is picked (looks over gear).
+7. 12+ heroes in full gear on a phone (low preset): no frame drop against the old block looks (Dev perf panel).
+8. Config.Gear.art.meshes = false brings the old part looks back.
+
