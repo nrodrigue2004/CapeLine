@@ -12,6 +12,14 @@
 -- * Popups.fought(): a hit given or taken (also read from CinemaClient.lastHit every tick).
 -- * Popups.busy: set by Ui.PopupGate (loading, menu, creator, prologue, cutscene).
 -- * Popups.chip: the "+N more" note under the toasts for what was folded.
+-- fix-hud (nate's playtest of gaps7, 2026-11-19: "need a way to get rid of popups shit is just on my screen"):
+-- * every card and toast that shows gets Ui.Dismiss: an X and a tap anywhere on it take it down (its own hide),
+--   Backspace clears all of them and the waiting line (the answers to a tap excepted); every card has a life.
+-- * Popups.panel(name, obj or fn): the card's GuiObject when show() returns none (cards that toggle a panel).
+-- * Popups.setMode(0 All | 1 Important only | 2 Off) from Settings "Popups" (Config.Ui.popups.modes):
+--   Important keeps cards marked important = "card" (the invites) and turns important = "toast" result cards
+--   into one small toast line (their brief, drawn by Popups.briefDraw, which Ui.Toasts sets); toasts keep only
+--   spec.important ones (rewards, drops, level ups, alerts); Off keeps only the answer to your own tap.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -22,6 +30,7 @@ local PopupQueue = require(Shared:WaitForChild("PopupQueue"))
 local FrameProf = require(Shared:WaitForChild("FrameProf"))
 
 local Kit = require(script.Parent.Kit)
+local Dismiss = require(script.Parent.Dismiss)
 local CinemaClient = require(script.Parent.Parent.Controllers.CinemaClient)
 
 local Popups = {}
@@ -50,6 +59,11 @@ Popups.busy = function(): boolean
 	return false
 end
 Popups.chip = nil :: TextLabel?
+Popups.mode = 0 -- Config.Ui.popups.modes: 0 All, 1 Important only, 2 Off
+Popups.dropped = 0 -- (tests) popups the mode left out
+-- draws a brief line as a small toast (Ui.Toasts sets it: Popups cannot require Toasts)
+Popups.briefDraw = nil :: ((string) -> any)?
+local panels: { [string]: any } = {}
 
 function Popups.now(): number
 	return clock
@@ -107,6 +121,46 @@ local function takeDown(item: PopupQueue.Item)
 	end
 end
 
+-- The X, a tap on it or Backspace: take it down now and free its slot
+function Popups.dismiss(id: number)
+	local item: PopupQueue.Item? = nil
+	for _, sh in q.showing do
+		if sh.id == id then
+			item = sh
+		end
+	end
+	if item then
+		takeDown(item)
+	end
+	PopupQueue.closed(q, id)
+end
+
+local function decorate(item: PopupQueue.Item, h: Handle)
+	local obj = h.obj
+	if typeof(obj) ~= "Instance" then
+		local p = panels[item.name]
+		if type(p) == "function" then
+			local ok, got = pcall(p)
+			p = if ok then got else nil
+		end
+		obj = p
+	end
+	if typeof(obj) == "Instance" and obj:IsA("GuiObject") then
+		local c = P.cards[item.name]
+		local id = item.id
+		Dismiss.attach(obj, function()
+			Popups.dismiss(id)
+			-- a card that toggles a panel and gave no hide: hide the panel
+			if not h.hide and typeof(h.obj) ~= "Instance" and obj.Parent then
+				obj.Visible = false
+			end
+		end, {
+			small = item.kind == "toast",
+			tap = not (c and c.noTap),
+		})
+	end
+end
+
 local function more(n: number)
 	local chip = Popups.chip
 	if n <= 0 or not chip then
@@ -155,6 +209,7 @@ function Popups.tick()
 			end
 			if ok then
 				h.obj = obj
+				decorate(item, h)
 			else
 				warn("[Popups] " .. item.name .. ": " .. tostring(obj))
 				handles[item.id] = nil
@@ -183,8 +238,46 @@ local function start()
 end
 
 -- A small toast; draw(data, count) builds it when its turn comes
+-- Does the Settings mode let this one show? (urgent: the answer to your own tap always shows)
+function Popups.allowed(kind: string, spec: { [string]: any }, name: string?): (boolean, boolean)
+	if spec.urgent or Popups.mode == P.modes.all then
+		return true, false
+	end
+	if Popups.mode == P.modes.off then
+		return false, false
+	end
+	if kind == "toast" then
+		return spec.important == true, false
+	end
+	local c = name and P.cards[name]
+	local imp = c and c.important
+	if imp == "card" then
+		return true, false
+	end
+	return false, imp == "toast" -- (a result card: its brief line as a toast)
+end
+
+local function droppedItem(name: string, kind: string): PopupQueue.Item
+	Popups.dropped += 1
+	return {
+		id = 0,
+		name = name,
+		kind = kind,
+		pri = 0,
+		urgent = false,
+		offer = false,
+		fightOk = false,
+		born = clock,
+		count = 0,
+		dropped = true,
+	} :: any
+end
+
 function Popups.toast(spec: { [string]: any }, draw: (any, number) -> any): PopupQueue.Item
 	start()
+	if not Popups.allowed("toast", spec) then
+		return droppedItem("toast", "toast")
+	end
 	local s = table.clone(spec)
 	s.kind = "toast"
 	s.life = s.life or 3.5
@@ -206,9 +299,21 @@ function Popups.card(
 	spec: { [string]: any },
 	show: () -> any,
 	isOpen: (() -> boolean)?,
-	hide: (() -> ())?
+	hide: (() -> ())?,
+	brief: (string | () -> string?)?
 ): PopupQueue.Item
 	start()
+	local ok, asToast = Popups.allowed("card", spec, name)
+	if not ok then
+		local text = if type(brief) == "function" then brief() else brief
+		local drawBrief = Popups.briefDraw
+		if asToast and type(text) == "string" and drawBrief then
+			Popups.toast({ pri = P.pri.result, important = true, life = 4 }, function()
+				return drawBrief(text)
+			end)
+		end
+		return droppedItem(name, "card")
+	end
 	local s = table.clone(spec)
 	s.kind = "card"
 	s.name = name
@@ -243,10 +348,48 @@ function Popups.show(
 	name: string,
 	show: () -> any,
 	isOpen: (() -> boolean)?,
-	hide: (() -> ())?
+	hide: (() -> ())?,
+	brief: (string | () -> string?)?
 ): PopupQueue.Item
-	return Popups.card(name, Popups.spec(name), show, isOpen, hide)
+	return Popups.card(name, Popups.spec(name), show, isOpen, hide, brief)
 end
+
+-- The GuiObject a card shows when its show() returns none (a panel it toggles), or a function giving it
+function Popups.panel(name: string, obj: any)
+	panels[name] = obj
+end
+
+-- Settings "Popups": a stricter mode takes down what it would not have shown
+function Popups.setMode(v: number)
+	local was = Popups.mode
+	Popups.mode = v
+	if v > was then
+		Popups.clearAll()
+	end
+end
+
+-- Backspace: everything on screen goes, and the line empties (the answers to a tap stay)
+function Popups.clearAll(): number
+	local n = 0
+	for i = #q.waiting, 1, -1 do
+		local w = q.waiting[i]
+		if not w.urgent then
+			table.remove(q.waiting, i)
+			handles[w.id] = nil
+			n += 1
+		end
+	end
+	for _, sh in table.clone(q.showing) do
+		Popups.dismiss(sh.id)
+		n += 1
+	end
+	return n
+end
+
+-- Ui.Dismiss's Backspace also empties the line (Dismiss cannot require Popups)
+Dismiss.Cleared:Connect(function()
+	Popups.clearAll()
+end)
 
 -- (tests) move this device's popup clock on, as the Heartbeat would
 function Popups.advance(dt: number)

@@ -352,6 +352,9 @@ end
 
 -- pt-ui: the mentor's panel waits its turn in Ui.Popups ("mentorPanel")
 local function comic(mentor: number, line: string)
+	Popups.panel("mentorPanel", function() -- fix-hud: its X, a tap and Backspace (Ui.Dismiss)
+		return panel
+	end)
 	Popups.show("mentorPanel", function()
 		comicNow(mentor, line)
 	end, function()
@@ -439,9 +442,16 @@ function MentorHud.init()
 	-- on a phone (a fixed 340 px ran past a 375 px phone's safe area)
 	Kit.fit(picker, 400, 310, 480, 340)
 	picker.Parent = gui
-	PopupGate.card("mentorPick", function()
-		return picker.Visible and gui.Enabled
-	end)
+	PopupGate.card(
+		"mentorPick",
+		function()
+			return picker.Visible and gui.Enabled
+		end,
+		picker,
+		function()
+			picker.Visible = false -- as LATER: the MENTOR button opens it again
+		end
+	)
 	pickBody = Kit.frame({
 		Size = UDim2.new(1, -28, 1, -20),
 		Position = UDim2.fromOffset(14, 10),

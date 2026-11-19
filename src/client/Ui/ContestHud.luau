@@ -18,7 +18,8 @@ local Net = require(Shared:WaitForChild("Net"))
 
 local Juice = require(script.Parent.Parent.Fx.Juice)
 local Kit = require(script.Parent.Kit)
-local Popups = require(script.Parent.Popups) -- pt-ui: one line for every popup
+local Popups = require(script.Parent.Popups)
+local Dismiss = require(script.Parent.Dismiss) -- fix-hud -- pt-ui: one line for every popup
 
 local ContestHud = {}
 
@@ -39,6 +40,11 @@ local light: SpotLight? = nil
 local spinning = false
 -- pt-ui (2026-11-19, nate: "contest skipped stays on my screen"): the results and skipped banner close on this
 -- device after Config.Contest.results s (or its X), whatever the server says next
+-- fix-hud (nate, gaps7: popups stuck on screen): the call, show and vote banner folds away K.bannerLife s after
+-- each new step (or at its X, a tap or Backspace) and comes back at the next step; ENTER waits on the radar's
+-- star and the stage itself
+local liveHidden = false
+local liveAt = 0
 local overShown = true -- the results or skipped banner is still up (cleared after Config.Contest.results s or the X)
 local overToken = 0
 local closeButton: TextButton
@@ -176,9 +182,11 @@ local function render()
 	local over = phase == "results" or phase == "skipped"
 	-- (and it steps aside while another big card is up: a result card, a name card)
 	local otherCard = Popups.cardUp() and not Popups.cardUp("contestVote")
-	banner.Visible = (phase == "call" or phase == "show" or phase == "vote" or (over and overShown))
-		and not otherCard
-	closeButton.Visible = over
+	local live = (phase == "call" or phase == "show" or phase == "vote")
+		and not liveHidden
+		and os.clock() - liveAt < K.bannerLife
+	banner.Visible = (live or (over and overShown)) and not otherCard
+	closeButton.Visible = true
 	enterButton.Visible = phase == "call" and not isEntry(me.UserId) and #(state.entries or {}) < K.maxEntries
 	local want = (phase == "show" or phase == "vote")
 		and not isEntry(me.UserId)
@@ -190,6 +198,9 @@ local function render()
 	elseif not card.Visible and not voteAsked then
 		-- the stars card takes the big card slot through the show and the vote (Ui.Popups "contestVote")
 		voteAsked = true
+		Popups.panel("contestVote", function() -- fix-hud: its X, a tap and Backspace (Ui.Dismiss)
+			return card
+		end)
 		Popups.show("contestVote", function()
 			if voteAsked and not voteClosed then
 				card.Visible = true
@@ -285,10 +296,16 @@ function ContestHud.init()
 		Visible = false,
 	}, function()
 		overShown = false
+		liveHidden = true
 		render()
 	end)
 	closeButton.Name = "Close"
 	closeButton.Parent = banner
+	Dismiss.attach(banner, function()
+		overShown = false
+		liveHidden = true
+		render()
+	end, { x = false })
 	card = Kit.frame({
 		AnchorPoint = Vector2.new(1, 0.5),
 		Position = UDim2.new(1, -12, 0.5, 0),
@@ -346,6 +363,10 @@ function ContestHud.init()
 		end
 		local was = state.phase
 		state = d
+		if d.phase ~= was then
+			liveHidden = false -- a new step: the banner shows again for a moment
+			liveAt = os.clock()
+		end
 		if (d.phase == "results" or d.phase == "skipped") and was ~= d.phase then
 			overShown = true
 			overToken += 1

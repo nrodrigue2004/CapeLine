@@ -324,7 +324,7 @@ function MoveMath.ceilingOn(cfg: any, y: number): boolean
 end
 
 ---------------------------------------------------------------------------
--- Stamina: 100. Boost drains 14/s; regen 15/s on the ground and 8/s gliding or cruising
+-- Stamina: Config.Move.stamina.max (200 since nate 2026-11-19, was 100). Boost drains 14/s; regen 15/s on the ground and 8/s gliding or cruising
 ---------------------------------------------------------------------------
 
 function MoveMath.staminaStep(

@@ -1476,6 +1476,9 @@ function UiSim:_layoutChildren(parent: any, box: Box, out: { Box }, padFrom: any
 			for i = from + 1, #out do
 				out[i].deco = true
 			end
+		elseif c._class == "Folder" and c._props.Name == "Dismiss" then
+			-- fix-hud: Ui.Dismiss's X and tap layer, the same way (but checked: the X is a real button)
+			self:_layoutChildren(c, box, out, parent)
 		end
 	end
 end

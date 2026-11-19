@@ -273,7 +273,11 @@ end)
 test("M1: stamina regenerates 15/s on the ground and 8/s in the air", function()
 	near(MoveMath.staminaStep(M, 50, true, false, 1), 65, 1e-6, "ground regen")
 	near(MoveMath.staminaStep(M, 50, false, false, 1), 58, 1e-6, "air regen")
-	check(MoveMath.staminaStep(M, 99, true, false, 1) == 100, "caps at 100")
+	check(
+		MoveMath.staminaStep(M, M.stamina.max - 1, true, false, 1) == M.stamina.max,
+		"caps at the pool's max"
+	)
+	check(M.stamina.max == 200, "nate 2026-11-19: double the stamina (100 -> 200)")
 end)
 
 ---------------------------------------------------------------------------
@@ -23108,6 +23112,9 @@ end
 	world = world,
 	placePath = placePath,
 });
+-- nate's playtest of gaps7 2026-11-19 (fix-hud, own file): every popup dismissable (X, tap, Backspace, Settings
+-- Popups), the boss bar only near the fight, double stamina; ONLY="fix-hud"
+(require :: any)("./fix_hud_test")({ test = test, check = check, Config = Config, placePath = placePath });
 -- nate's playtest 2026-11-19 (pt-city, own file): Downtown and Uptown 1.5x bigger, the street and roof pieces
 -- heroes use or break; ONLY="City play"
 (require :: any)("./city_play_test")({ test = test, check = check, Config = Config, world = world })

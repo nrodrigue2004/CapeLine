@@ -32,8 +32,10 @@ return {
 		bankMax = 35, -- degrees of lean into turns (Client)
 		pitchMax = 80, -- body tilts this far toward horizontal at full speed (Client)
 	},
+	-- nate (2026-11-19, gaps7 playtest: "Player should have like double the stamina"): the pool doubles 100 -> 200;
+	-- drains and regens per second unchanged, so boost lasts ~14 s (was ~7) and a wall run twice as long
 	stamina = {
-		max = 100,
+		max = 200,
 		boostDrain = 14,
 		regenGround = 15,
 		regenAir = 8, -- gliding or cruising

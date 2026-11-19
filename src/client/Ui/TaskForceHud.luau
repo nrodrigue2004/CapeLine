@@ -261,6 +261,9 @@ end
 local panelSeq = 0
 local function showPanel(m: { [string]: any })
 	-- pt-ui: waits its turn in Ui.Popups ("taskForcePanel")
+	Popups.panel("taskForcePanel", function() -- fix-hud: its X, a tap and Backspace (Ui.Dismiss)
+		return card
+	end)
 	Popups.show("taskForcePanel", function()
 		local t = TF.list[m.tf or 0]
 		cardTitle.Text = string.upper(t and t.name or "TASK FORCE")

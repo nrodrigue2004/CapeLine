@@ -558,6 +558,13 @@ function PassHud.init()
 	gui = Kit.screen("PassHud", 6)
 	PopupGate.card("episode", function()
 		return introShade ~= nil and introShade.Parent ~= nil
+	end, function()
+		return introShade
+	end, function()
+		if introShade then
+			introShade:Destroy() -- the Episode tab replays it
+			introShade = nil
+		end
 	end)
 	panel = Kit.frame({
 		AnchorPoint = Vector2.new(0.5, 0.5),

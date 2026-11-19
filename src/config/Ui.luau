@@ -151,27 +151,37 @@ return {
 		-- every big card that pops by itself: its priority and rules. life: the longest it stays up (nil: it waits
 		-- for a tap and has a close button: tests "pt-ui" open and close each one); stale: dropped (counted in "+N
 		-- more") when it could not show within that many seconds; fightOk: a timed ask that may show in a fight
+		-- fix-hud (nate's playtest of gaps7, 2026-11-19): every popup can be sent away (Ui.Dismiss): an X (cardX px
+		-- on a card, toastX on a toast) and a tap anywhere on it (noTap: not on cards that scroll or hold a list or pages,
+		-- their X only); `keys` clear every popup on screen and the line.
+		-- Settings "Popups" (modes, the key's option order): All; Important only (a card marked important = "card"
+		-- still shows as itself: the invites that need an answer; important = "toast": a result card shows as one
+		-- small toast line with its pay; toasts marked important by Ui.Toasts: rewards, drops, level ups, alerts);
+		-- Off (only the answer to your own tap). Nothing else shows, and the server still pays as before.
+		dismiss = { cardX = 30, toastX = 22, keys = { "Backspace" } },
+		modes = { all = 0, important = 1, off = 2 },
 		cards = {
-			bossResult = { pri = "result", life = 8 }, -- WorldHud (closes itself after 5 s or a tap)
-			missionResult = { pri = "result", life = 8 }, -- StoryHud: missions and side quest chains (5.5 s)
-			pvpResult = { pri = "result", life = 7, fightOk = true }, -- PvpHud (5 s)
+			bossResult = { pri = "result", life = 8, important = "toast" }, -- WorldHud (closes itself after 5 s or a tap)
+			missionResult = { pri = "result", life = 8, important = "toast" }, -- StoryHud: missions and side quest chains (5.5 s)
+			pvpResult = { pri = "result", life = 7, fightOk = true, important = "toast" }, -- PvpHud (5 s)
 			stamp = { pri = "juice", life = 2.4, stale = 3, fightOk = true }, -- JuiceFx stamps: medals, NEW, steps
 			levelBadge = { pri = "juice", life = 3, stale = 6, fightOk = true }, -- JuiceFx: the spinning level badge
 			nameCard = { pri = "news", life = 4, stale = 4, fightOk = true }, -- CinemaHud: boss, place, event cards
-			squadInvite = { pri = "social", life = 31, fightOk = true }, -- SquadHud: JOIN / NO, Config.Squad.inviteLife
-			visitAsk = { pri = "social", life = 31, fightOk = true }, -- SquadHud: ACCEPT / NO, Config.Hq.visit.askLife
-			contestVote = { pri = "social", fightOk = true }, -- ContestHud: the stars card through the show and vote
-			drones = { pri = "info" }, -- HqHud: COLLECT
+			squadInvite = { pri = "social", life = 31, fightOk = true, important = "card" }, -- SquadHud: JOIN / NO, Config.Squad.inviteLife
+			visitAsk = { pri = "social", life = 31, fightOk = true, important = "card" }, -- SquadHud: ACCEPT / NO, Config.Hq.visit.askLife
+			-- fix-hud (nate, gaps7: "need a way to get rid of popups"): every card has a short life now, and an X
+			contestVote = { pri = "social", fightOk = true, important = "card", noTap = true }, -- ContestHud: the stars card (its X; closes when the vote does)
+			drones = { pri = "info", life = 12 }, -- HqHud: COLLECT (going away by itself or its X collects too)
 			passCard = { pri = "info", life = 6 }, -- PassHud: a tier or episode step with VIEW (5 s)
 			taskForcePanel = { pri = "info", life = 5 }, -- TaskForceHud: the panel between legs (4 s)
 			mentorPanel = { pri = "info", life = 5 }, -- MentorHud: the mentor's comic line (4 s)
 			nemesisPanel = { pri = "info", life = 5 }, -- NemesisHud: the taunt panel (3.5 s)
 			-- Ui.PopupGate's join cards (they also wait out the loading screen, menu, creator and prologue)
-			daily = { pri = "join" }, -- DailyHud: CLAIM, X
-			mentorPick = { pri = "join" }, -- MentorHud: the picker
-			episode = { pri = "join" }, -- PassHud: the episode's comic panels
-			board = { pri = "join" }, -- BoardHud: last week's TOP 10 title, WEAR / OK
-			starter = { pri = "offer", offer = true }, -- ShopHud: the starter pack offer (never in a fight)
+			daily = { pri = "join", life = 20, noTap = true }, -- DailyHud: CLAIM, X
+			mentorPick = { pri = "join", life = 25, noTap = true }, -- MentorHud: the picker
+			episode = { pri = "join", life = 40, noTap = true }, -- PassHud: the episode's comic panels
+			board = { pri = "join", life = 15 }, -- BoardHud: last week's TOP 10 title, WEAR / OK
+			starter = { pri = "offer", life = 15, offer = true }, -- ShopHud: the starter pack offer (never in a fight)
 		},
 	},
 	colors = {

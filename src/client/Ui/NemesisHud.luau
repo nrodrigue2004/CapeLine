@@ -150,6 +150,9 @@ end
 
 local function comic(name: string, line: string)
 	-- pt-ui: the taunt panel waits its turn in Ui.Popups ("nemesisPanel")
+	Popups.panel("nemesisPanel", function() -- fix-hud: its X, a tap and Backspace (Ui.Dismiss)
+		return panel
+	end)
 	Popups.show("nemesisPanel", function()
 		panelSeq += 1
 		local seq = panelSeq

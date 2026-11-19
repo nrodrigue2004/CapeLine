@@ -454,9 +454,16 @@ function ShopHud.init()
 		-- cards (review 2026-11-18). Ui.PopupGate is required here, not at the top: it reads the main menu,
 		-- which reads this shop
 		local PopupGate = require(script.Parent.PopupGate) :: any
-		PopupGate.card("starter", function()
-			return offer.Visible
-		end)
+		PopupGate.card(
+			"starter",
+			function()
+				return offer.Visible
+			end,
+			offer,
+			function()
+				offer.Visible = false -- (not NO THANKS: it may be offered again another day)
+			end
+		)
 		PopupGate.later("starter", function()
 			offer.Visible = true
 		end)
