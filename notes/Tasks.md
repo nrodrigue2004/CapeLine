@@ -1346,7 +1346,7 @@ The Output at boot says build fx-paths (2026-11-17). Overhaul plan step 6: every
 20. Weapons (key 2) look exactly as before.
 ### H1 Block, breaker, interrupt (2026-11-17)
 The Output at boot says build mmo-h1 block (2026-11-17).
-1. Hold Alt (PC), LB (controller) or the blue BLOCK button above FLY (phone): a blue shield disc shows in front of your hero (others see it too), you walk and fly at half speed, Boost is off, and no skill or basic fires. Let go: back to normal at once.
+1. Hold Q (PC; Alt until 2026-11-19), LB (controller) or the blue BLOCK button above FLY (phone): a blue shield disc shows in front of your hero (others see it too), you walk and fly at half speed, Boost is off, and no skill or basic fires. Let go: back to normal at once.
 2. Block a Spark Trooper's shots from the front: BLOCKED pops, each hit takes about 70% less, and the ring round the BLOCK button drains a little per hit. Turn your back: the shots hit in full.
 3. Guard: keep blocking a stream of hits until the ring empties: SHATTER! pops with a crunch and a shake, you reel for 1 second and take the hit in full. Let go: after 1 second the ring refills (full in about 4 s). With an almost empty ring the block will not start.
 4. Perfect block: press Block just as a Brute Bot's slam lands (watch its warning ring): PERFECT! with a gold flash, no damage, the Brute reels, and the Awakening meter jumps. Pressed early (held a while), the slam shatters your block instead (Brute slams and Null Sentinel sweeps are breakers).
@@ -1407,7 +1407,7 @@ The Output at boot says build mmo-h6 mentors (2026-11-17).
 1. New hero: play the prologue to the title. About 8 s after you land back in the plaza the PICK YOUR MENTOR card pops: a Vigil hero sees Captain Meridian and Old Beacon, a Syndicate villain The Margrave and The Velvet Paw, each with a one-line blurb and their reward. LATER closes it; MENTOR (top row or MORE) brings it back.
 2. Pick one: their comic panel slides in at the top with your hero name and never stops you moving. The MENTOR card shows them, the open quest part and its counts.
 3. Away from a safehouse the card has no CHANGE; at a safehouse terminal CHANGE swaps to the other mentor of your side for free (finished parts stay; the open part's counts start over).
-4. Panels: the first block (hold Alt or LB as a Crane Trooper swings), the first nemesis ambush and the first task force clear each pop a panel once; every 5 levels another one (Dev panel: add levels).
+4. Panels: the first block (hold Q or LB as a Crane Trooper swings), the first nemesis ambush and the first task force clear each pop a panel once; every 5 levels another one (Dev panel: add levels).
 5. Quest line: at level 10 part 1 opens (clear 3 incidents); finishing a part toasts "Mentor quest part 1 of 4 done" and pays a mission reward. Parts open at 20, 30 and 40.
 6. The last part: the look reward bursts on (Gold Flight Trail, Lantern Glow, Violet Smoke Trail or Spark Crackle), the emote is in the emote picker, and the HQ trophy wall shows Mentor's Pride. WEAR on the card switches the look on and off.
 7. A side change in the creator: the next spawn asks you to pick again; earned looks stay wearable.
@@ -1845,3 +1845,18 @@ Today's six packages (gaps1) read for what Studio hits and Lune cannot (luau-lsp
 4. Ram a wall at speed and get thrown through one: chips in the wall's colour and a puff of dust fly out from the wall (no physical chip blocks any more).
 5. Drop to the phone preset: fewer particles, still readable; no frame drop with several throws at once. A collapse's dust cloud uses the drawn smoke sheet.
 
+
+## Studio list: lock-on, omnidirectional movement, knockback, block key, drops, swinging robots (2026-11-19, pt-combat)
+1. Soft lock: walk up to robots and fire basics without aiming exactly: casts go to the robot nearest the centre in front (thin white corner brackets on it). Leave the camera alone for a second: it eases round toward that robot; turn the camera yourself and it never fights you. Settings "Soft lock-on" off: no brackets, the old aim.
+2. Hard lock, PC: middle mouse on a robot: red turning brackets and a diamond; the camera swings round to keep it and your hero both on screen, sitting a little off your shoulder. Tab and a held middle mouse move it to the next robot; middle mouse again lets go. Check Tab also opens Roblox's player list (if that annoys, the list can be hidden or Tab dropped).
+3. Hard lock, gamepad: tap R3 locks, flick the right stick sideways to change targets, hold R3 for the Gadget. Phone: the red LOCK button between FLY and the skills: tap locks, hold for the next; check it never covers a skill on an iPhone SE.
+4. Locked on the ground: the hero faces the target, the stick strafes and backpedals round it. In the air too. Strafe hard: the camera leans and swings out a little; Settings Camera motion Off: no lean or sway, the lock still frames.
+5. Lock the world boss: the camera pulls back to fit it; never inside a wall. A lock drops when the robot dies, flies off past ~170 studs or hides behind a building for 1.5 s.
+6. PvP: flagged players can be locked only while you can hit them; unflagged never.
+7. Omni flight: fly forward, pull the stick back: you slow and fly backwards facing the camera, no U-turn; strafe sideways; up and down follow where the camera looks plus Leap/Down. Boost forward still swoops and turns like before. No MoveCorrect pull-backs while doing any of it.
+8. Glide: drift sideways and back without turning round. Underwater: look up or down and push forward to swim that way; Leap rises, Down sinks.
+9. Knockback: a basic shoves a robot a little; a Haymaker, a slam or any heavy skill sends it flying in an arc tumbling; a charged skill or a super sends it far. One that hits a building breaks through the wall (sparks, chunks) and keeps flying, out the far side; a pinned building (beacon host, side quest roof) stops it dazed. Bosses do not move; a mini-boss barely.
+10. PvP: a heavy or a super throws a flagged player a short way (half the distance, 30 studs at most); jabs never juggle.
+11. Block: hold Q: the shield shows and the Guard ring drains. Alt no longer blocks. LB and the phone shield button as before.
+12. Drop smash: jump or fall from a tall roof onto a lower one (34+ studs): the roof under you breaks with a wide dust ring and a big crack; robots round you go flying. A short hop breaks nothing.
+13. Swing a robot: stun a robot (Arc Flash, a stun skill) or beat one so it leaves a wreck; GRAB it (B); tap attack: it whirls round in front, hits and throws the robots in the arc and breaks a wall you are next to; after 4 swings, or holding attack, it is thrown; a live one smashes through what it hits. The prompt never shows over a boss, a mini-boss or a small pack robot.

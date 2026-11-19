@@ -68,6 +68,7 @@ function ChargeRules.apply(C: any, eff: any, level: number): any
 	end
 	local ch = C.charge
 	local big = eff.charge
+	eff.chargeLevel = level -- knockback by move: a charged hit throws further (Shared.KnockRules)
 	local grow: number
 	if big then
 		-- H2: a charge-up power: 1x to `mult` damage, up to `grow` size; full is a breaker

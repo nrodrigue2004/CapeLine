@@ -31,7 +31,7 @@ return {
 	-- Stuns and roots: each repeat within 8 s is halved, then 3 s immune (Status, pvp = true)
 	dr = { window = 8, immune = 3 },
 
-	knock = { maxDistance = 30, upSpeed = 40 }, -- knockback, pull and knockup on players (an impulse)
+	knock = { maxDistance = 30, upSpeed = 40, scale = 0.5 }, -- knockback, pull and knockup on players (an impulse); scale: the PvP share of a move's knockback (Combat.knock)
 
 	-- Defeat and death
 	downed = {

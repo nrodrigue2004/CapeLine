@@ -76,10 +76,33 @@ function MoveMath.glideStep(
 	vz: number,
 	wishX: number,
 	wishZ: number,
-	dt: number
+	dt: number,
+	omni: boolean?
 ): (number, number, number)
 	local gl = cfg.glide
 	local blend = 1 - math.exp(-gl.blend * dt)
+	-- omnidirectional (cfg.omni and `omni`): the drift eases straight toward the stick's direction (strafe and
+	-- drift back without turning round); the fall is the same
+	local om = cfg.omni
+	if omni and om and len2(wishX, wishZ) > 0.1 then
+		local wl = len2(wishX, wishZ)
+		local tx, tz = wishX / wl * gl.forward, wishZ / wl * gl.forward
+		local dx, dz = tx - vx, tz - vz
+		local d = len2(dx, dz)
+		local step = om.glideAccel * dt
+		if d <= step then
+			vx, vz = tx, tz
+		else
+			vx, vz = vx + dx / d * step, vz + dz / d * step
+		end
+		vy = vy + (-gl.fall - vy) * blend
+		local total = len3(vx, vy, vz)
+		if total > gl.cap then
+			local k = gl.cap / total
+			vx, vy, vz = vx * k, vy * k, vz * k
+		end
+		return vx, vy, vz
+	end
 	-- heading: current horizontal direction turned toward the stick
 	local hx, hz = vx, vz
 	if len2(hx, hz) < 1 then
@@ -113,6 +136,8 @@ export type FlightInput = {
 	wishZ: number,
 	vertical: number, -- explicit up (+1) or down (-1) buttons
 	boost: boolean,
+	omni: boolean?, -- omnidirectional flight (Config.Move.omni)
+	forward: number?, -- the stick's direction dotted with the camera's look (1 = straight ahead)
 }
 
 -- Returns the new velocity and whether boost is actually on (stamina allowing).
@@ -141,10 +166,24 @@ function MoveMath.flightStep(
 	ty += input.vertical * (if input.vertical > 0 then fl.up else fl.down)
 	ty = math.clamp(ty, -fl.down, if boosting then fl.up * 1.5 else fl.up)
 
-	-- horizontal: turn rate limited at speed, then speed up or slow down along the new heading
+	-- horizontal: turn rate limited at speed, then speed up or slow down along the new heading. Omnidirectional
+	-- (cfg.omni with input.omni): the velocity eases straight to the stick's (strafe, backpedal) unless this is a
+	-- boost along the camera's look, which keeps the swooping turn
 	local hSpeed = len2(vx, vz)
 	local tSpeed = len2(tx, tz)
-	if hSpeed > fl.freeTurnBelow and tSpeed > 1e-3 then
+	local om = cfg.omni
+	local swoop = boosting and (input.forward or 0) >= (if om then om.swoop else 0)
+	if input.omni and om and not swoop then
+		local dx, dz = tx - vx, tz - vz
+		local d = len2(dx, dz)
+		local rate = if tSpeed > 1e-3 then om.flightAccel else math.max(fl.decel, om.flightAccel)
+		local step = rate * dt
+		if d <= step then
+			vx, vz = tx, tz
+		else
+			vx, vz = vx + dx / d * step, vz + dz / d * step
+		end
+	elseif hSpeed > fl.freeTurnBelow and tSpeed > 1e-3 then
 		vx, vz = MoveMath.turnToward(vx, vz, tx, tz, math.rad(fl.turnRate) * dt)
 		local rate = if tSpeed > hSpeed then accel else fl.decel
 		local newSpeed = approach(hSpeed, tSpeed, rate * dt)
@@ -189,6 +228,93 @@ function MoveMath.flightStep(
 		vx, vy, vz = vx * k, vy * k, vz * k
 	end
 	return vx, vy, vz, boosting
+end
+
+---------------------------------------------------------------------------
+-- Omnidirectional movement (nate's playtest 2026-11-19; Config.Move.omni)
+---------------------------------------------------------------------------
+
+-- The stick's world directions from the camera: flat (for running, leaping, gliding) and full 3D along the
+-- camera's pitch (flight, swimming). mvX right, mvZ back (Roblox's move vector: forward is -Z); look is the
+-- camera's look, right its right vector. Each at most length 1.
+function MoveMath.omniWish(
+	mvX: number,
+	mvZ: number,
+	lookX: number,
+	lookY: number,
+	lookZ: number,
+	rightX: number,
+	rightZ: number
+): (number, number, number, number, number)
+	local fx, fz = lookX, lookZ
+	local fl = len2(fx, fz)
+	if fl > 1e-3 then
+		fx, fz = fx / fl, fz / fl
+	else
+		fx, fz = 0, -1
+	end
+	local rx, rz = rightX, rightZ
+	local rl = len2(rx, rz)
+	if rl > 1e-3 then
+		rx, rz = rx / rl, rz / rl
+	else
+		rx, rz = 1, 0
+	end
+	local ax, az = rx * mvX + fx * -mvZ, rz * mvX + fz * -mvZ
+	local a = len2(ax, az)
+	if a > 1 then
+		ax, az = ax / a, az / a
+	end
+	local bx, by, bz = rx * mvX + lookX * -mvZ, lookY * -mvZ, rz * mvX + lookZ * -mvZ
+	local b = len3(bx, by, bz)
+	if b > 1 then
+		bx, by, bz = bx / b, by / b, bz / b
+	end
+	return ax, az, bx, by, bz
+end
+
+-- Where an omnidirectional flier faces (a flat direction): the lock target, else the camera's look while it
+-- hovers, strafes or backpedals, and its travel once it flies forward fast (faceMoveAt of cruise)
+function MoveMath.omniFace(
+	cfg: any,
+	camX: number,
+	camZ: number,
+	vx: number,
+	vz: number,
+	lockX: number?,
+	lockZ: number?
+): (number, number)
+	if lockX and lockZ and len2(lockX, lockZ) > 1e-3 then
+		local l = len2(lockX, lockZ)
+		return lockX / l, lockZ / l
+	end
+	local cl = len2(camX, camZ)
+	local cx, cz = if cl > 1e-3 then camX / cl else 0, if cl > 1e-3 then camZ / cl else -1
+	local fwd = vx * cx + vz * cz
+	local speed = len2(vx, vz)
+	if speed > 1e-3 and fwd >= cfg.flight.cruise * cfg.omni.faceMoveAt and fwd / speed > 0.7 then
+		return vx / speed, vz / speed
+	end
+	return cx, cz
+end
+
+-- The body's lean into its move, relative to where it faces (degrees): pitch forward (negative) when moving
+-- ahead, back when backpedalling, roll into a strafe; full at cruise speed
+function MoveMath.omniLean(cfg: any, faceX: number, faceZ: number, vx: number, vz: number): (number, number)
+	local L = cfg.omni.lean
+	local cruise = cfg.flight.cruise
+	local fwd = (vx * faceX + vz * faceZ) / cruise
+	local side = (vx * -faceZ + vz * faceX) / cruise
+	fwd, side = math.clamp(fwd, -1, 1), math.clamp(side, -1, 1)
+	local pitch = if fwd >= 0 then -L.forward * fwd else L.back * -fwd
+	return pitch, -L.side * side
+end
+
+-- Swimming in 3D: the vertical speed for the stick along the camera's pitch plus Leap (up) and Down, at most
+-- swimVertical of the swim speed so the whole move stays inside the server's cap
+function MoveMath.swimVertical(cfg: any, wishY: number, vertical: number, speed: number): number
+	local k = cfg.omni.swimVertical
+	return math.clamp((wishY + vertical) * speed * k, -speed * k, speed * k)
 end
 
 -- Does the sky's ceiling act at height y? Only up to hard + band: the mission pockets and the prologue's subway

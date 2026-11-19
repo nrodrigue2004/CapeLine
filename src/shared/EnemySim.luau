@@ -163,6 +163,29 @@ export type Enemy = {
 	slams: number, -- slams so far (every Nth is a shockwave)
 	unmasked: boolean, -- its face has cracked
 	path: string?, -- an evil twin's power path
+	-- knockback by move (nate's playtest 2026-11-19): a launch along an arc (EnemySim.launch), and a hero's hold
+	-- on it (Config.Throw.swing: grabbed while stunned, carried and swung; the server moves it)
+	launch: Launch?,
+	held: number?,
+}
+
+-- A robot flying from a hit: along (dx, dz) for `total` studs at `speed`, `lift` high at the middle, from the
+-- floor height it left (base). ghost: studs left inside a building it broke into (heights ignored there);
+-- entry: where it went in (it comes back out there if the building does not let it through); fall: its fall
+-- speed once the arc has ended above the ground. src: the hero whose hit launched it.
+export type Launch = {
+	dx: number,
+	dz: number,
+	total: number,
+	moved: number,
+	lift: number,
+	speed: number,
+	base: number,
+	src: number?,
+	ghost: number,
+	entryX: number?,
+	entryZ: number?,
+	fall: number?,
 }
 
 export type Shot = {
@@ -234,6 +257,10 @@ export type Sim = {
 	heroMeta: { [number]: { nextSpawn: number } },
 	rngNext: () -> number,
 	ticksLastStep: number,
+	-- (robot, x, y, z, dx, dz, distance, exit) a launched robot meets a building's wall (exit: leaving one it broke
+	-- into); true when the wall broke and it may fly on through (the server's ImpactService; tests fake it)
+	wallHit: ((Enemy, number, number, number, number, number, number, boolean) -> boolean)?,
+	launched: { Enemy },
 }
 
 local function dist3(ax: number, ay: number, az: number, bx: number, by: number, bz: number): number
@@ -294,6 +321,8 @@ function EnemySim.new(config: any, opts: { [string]: any }?): Sim
 		heroMeta = {},
 		rngNext = o.random or lcg,
 		ticksLastStep = 0,
+		wallHit = o.wallHit,
+		launched = {},
 	}
 end
 
@@ -808,6 +837,192 @@ function EnemySim.knock(sim: Sim, id: number, dx: number, dz: number, distance: 
 		e.y = sim.heightAt(e.x, e.z, e.y) + halfHeight(e.cfg)
 	end
 	return false
+end
+
+-- Launch a robot along (dx, dz): `distance` studs over the ground at `speed` studs/s, an arc `lift` high (nate's
+-- playtest 2026-11-19, knockback by move; Shared.KnockRules plans it). speed 0 (or a short throw) is the instant
+-- knock above. A wall on the way asks sim.wallHit: broken, the robot flies on through with `keep` of the rest (at
+-- most `maxInside` studs inside the building; if it cannot get out the far side it drops back out of the hole);
+-- held, it stops there dazed. Returns true when it was launched (or knocked).
+function EnemySim.launch(
+	sim: Sim,
+	id: number,
+	dx: number,
+	dz: number,
+	distance: number,
+	lift: number,
+	speed: number,
+	src: number?
+): boolean
+	local e = sim.byId[id]
+	if not e or not e.alive or distance <= 0 or e.held then
+		return false
+	end
+	if e.cfg.immune and table.find(e.cfg.immune, "knockback") then
+		return false
+	end
+	local l = math.sqrt(dx * dx + dz * dz)
+	if l < 1e-4 then
+		return false
+	end
+	if speed <= 0 or distance < 4 then
+		EnemySim.knock(sim, id, dx, dz, distance)
+		return true
+	end
+	local prior = e.launch
+	local base = if prior then prior.base else e.y
+	e.launch = {
+		dx = dx / l,
+		dz = dz / l,
+		total = distance,
+		moved = 0,
+		lift = lift,
+		speed = speed,
+		base = base,
+		src = src,
+		ghost = 0,
+	}
+	e.windupUntil = 0 -- a launch interrupts a wind-up, an aim, a beam and a hook like any crowd control
+	e.aimUntil = 0
+	e.mendUntil = 0
+	cutHook(sim, e)
+	if not prior then
+		table.insert(sim.launched, e)
+	end
+	return true
+end
+
+function EnemySim.launching(sim: Sim, id: number): boolean
+	local e = sim.byId[id]
+	return e ~= nil and e.launch ~= nil
+end
+
+local function endLaunch(sim: Sim, e: Enemy)
+	e.launch = nil
+	e.vx, e.vy, e.vz = 0, 0, 0
+	if e.ai ~= "flyer" then
+		e.y = sim.heightAt(e.x, e.z, e.y) + halfHeight(e.cfg)
+	end
+end
+
+-- One launched robot's flight this step (a stud at a time, so a thin wall is never skipped)
+local function stepLaunch(sim: Sim, e: Enemy, dt: number): boolean
+	local L = e.launch :: Launch
+	local K = sim.config.Combat and sim.config.Combat.knock
+	local half = if e.ai == "flyer" then 2 else halfHeight(e.cfg)
+	if L.fall then
+		-- the arc ended above the ground (off a roof's edge): fall to it
+		L.fall += ((K and K.gravity) or 120) * dt
+		local floor = sim.heightAt(e.x, e.z, e.y) + half
+		e.y -= L.fall * dt
+		if e.y <= floor or e.ai == "flyer" then
+			e.y = math.max(e.y, floor)
+			endLaunch(sim, e)
+			return false
+		end
+		return true
+	end
+	local r = bodyRadius(e)
+	local advance = L.speed * dt
+	while advance > 0 and L.moved < L.total do
+		local step = math.min(1, advance, L.total - L.moved)
+		local u = (L.moved + step) / L.total
+		local y = L.base + L.lift * 4 * u * (1 - u)
+		local feet = y - half
+		local ax, az = e.x + L.dx * (step + r), e.z + L.dz * (step + r)
+		local ahead = sim.heightAt(ax, az, y)
+		local blocked = ahead > feet + 3
+		local c = e.ai == "flyer" and sim.ceilingAt(e.x + L.dx * step, e.z + L.dz * step, y)
+		if c and c - FLY_HEAD < y - 0.5 then
+			blocked = true
+		end
+		if L.ghost > 0 then
+			-- inside a broken building: on through, heights ignored, until out the far side or out of room
+			L.ghost -= step
+			e.x, e.z = e.x + L.dx * step, e.z + L.dz * step
+			e.y = y
+			L.moved += step
+			advance -= step
+			if not blocked then
+				local ok = sim.wallHit ~= nil and sim.wallHit(e, ax, y, az, L.dx, L.dz, L.total, true)
+				if not ok then
+					-- the far wall held: back out of the hole it came in by
+					e.x, e.z = L.entryX or e.x, L.entryZ or e.z
+					endLaunch(sim, e)
+					EnemySim.applyStatus(sim, e.id, "stun", (K and K.wallStun) or 0.8)
+					return false
+				end
+				L.ghost = 0
+			elseif L.ghost <= 0 then
+				e.x, e.z = L.entryX or e.x, L.entryZ or e.z
+				endLaunch(sim, e)
+				EnemySim.applyStatus(sim, e.id, "stun", (K and K.wallStun) or 0.8)
+				return false
+			end
+		elseif blocked then
+			local broke = not c
+				and sim.wallHit ~= nil
+				and sim.wallHit(e, ax, y, az, L.dx, L.dz, L.total, false)
+			if not broke then
+				endLaunch(sim, e)
+				EnemySim.applyStatus(sim, e.id, "stun", (K and K.wallStun) or 0.8)
+				return false
+			end
+			-- through the hole with part of the rest of the throw
+			local T = (K and K.through) or { max = 40, keep = 0.6 }
+			L.entryX, L.entryZ = e.x, e.z
+			local rest = (L.total - L.moved) * T.keep
+			L.total = L.moved + math.max(rest, T.max)
+			L.ghost = T.max
+		else
+			e.x, e.z = e.x + L.dx * step, e.z + L.dz * step
+			e.y = y
+			L.moved += step
+			advance -= step
+		end
+	end
+	if L.moved >= L.total then
+		local floor = sim.heightAt(e.x, e.z, e.y) + half
+		if L.ghost > 0 and floor > e.y + 3 then
+			-- it stopped inside a building: back out of the hole
+			e.x, e.z = L.entryX or e.x, L.entryZ or e.z
+			endLaunch(sim, e)
+			return false
+		end
+		if e.ai ~= "flyer" and e.y > floor + 1 then
+			L.fall = 0
+			return true
+		end
+		endLaunch(sim, e)
+		return false
+	end
+	return true
+end
+
+local function stepLaunches(sim: Sim, dt: number)
+	local list = sim.launched
+	for i = #list, 1, -1 do
+		local e = list[i]
+		if not e.alive or not e.launch or e.held or not stepLaunch(sim, e, dt) then
+			if e.alive and e.launch and e.held then
+				e.launch = nil
+			end
+			table.remove(list, i)
+		end
+	end
+end
+
+-- A hero's hold on a robot (Config.Throw.swing): held robots stop thinking and launches; the server moves them.
+-- heroId nil lets go.
+function EnemySim.hold(sim: Sim, id: number, heroId: number?)
+	local e = sim.byId[id]
+	if e and e.alive then
+		e.held = heroId
+		if heroId then
+			e.launch = nil
+			e.vx, e.vy, e.vz = 0, 0, 0
+		end
+	end
 end
 
 -- Snow Wall pieces stop enemy shots
@@ -2213,6 +2428,9 @@ local function updateFlags(sim: Sim, e: Enemy)
 	if e.cfg.guard and not guardUp(sim, e) then
 		f += B.guardBroken
 	end
+	if (e.launch or e.held) and bit32.band(f, B.lifted) == 0 then
+		f += B.lifted -- launched or swung: the drawn robot tumbles (EnemyRenderer)
+	end
 	e.flags = f
 	local X = EnemySim.EXTRA
 	local x = 0
@@ -2274,6 +2492,11 @@ local function think(sim: Sim, e: Enemy, heroes: { Hero }, dt: number)
 
 	if nearestHeroDist(e, heroes) < 500 then
 		e.lastHeroNear = now
+	end
+
+	-- launched by a hit, or held by a hero: no thinking until it lands or is let go
+	if e.launch or e.held then
+		return
 	end
 
 	-- lifted: knockup arcs, float holds (no moving or acting)
@@ -2581,6 +2804,7 @@ function EnemySim.step(sim: Sim, now: number, heroes: { Hero }, maxTicks: number
 	sim.now = now
 	stepShots(sim, heroes, dt)
 	stepBombs(sim, heroes)
+	stepLaunches(sim, dt)
 	-- who each robot may see: a solo hero (the prologue) only by its own story's robots, and those robots only
 	-- by it (no new tables unless some hero or robot is solo)
 	local open = heroes

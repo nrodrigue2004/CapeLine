@@ -1,6 +1,6 @@
 -- SettingsClient: the device side of Settings (spec: Accessibility; Settings.Set). Holds the values from
 -- the save, applies each one at once (graphics preset, text size, left-handed stick and HUD, reduce
--- flashing, one-hand flight, tap-to-fly, touch aim assist, damage numbers, volumes, touch button size, camera motion) and sends a change to
+-- flashing, one-hand flight, tap-to-fly, touch aim assist, damage numbers, volumes, touch button size, camera motion, soft and hard lock-on) and sends a change to
 -- the save after a short pause so a slider drag sends once. The saved mute list fills PvpClient's mutes.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -17,6 +17,7 @@ local QualityController = require(script.Parent.QualityController)
 local InputController = require(script.Parent.InputController)
 local CameraController = require(script.Parent.CameraController)
 local PvpClient = require(script.Parent.PvpClient)
+local LockClient = require(script.Parent.LockClient)
 local CombatFx = require(script.Parent.Parent.Fx.CombatFx)
 local FxLib = require(script.Parent.Parent.Fx.FxLib)
 local Kit = require(script.Parent.Parent.Ui.Kit)
@@ -84,6 +85,10 @@ local function apply(id: string)
 		group("Effects").Volume = v / 10
 	elseif id == "cameraMotion" then
 		CameraController.setMotion(v) -- lore step 7: Full, Reduced (half) or Off (Config.Cinema.camera)
+	elseif id == "softLock" then
+		LockClient.softOn = v == 1 -- lock-on (nate's playtest 2026-11-19): casts and the camera ease to targets
+	elseif id == "hardLock" then
+		LockClient.hardOn = v == 1 -- the LOCK toggle (middle mouse or Tab, R3, the LOCK button)
 	elseif id == "buttonSize" then
 		Kit.setButtonScale(v / 100) -- the touch cluster's size (TouchLayout keeps it on screen)
 	end

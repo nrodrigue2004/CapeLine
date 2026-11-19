@@ -319,8 +319,8 @@ return function(T: any)
 		check(Remotes.GuardState.dir == "S2C" and Remotes.GuardEvent.dir == "S2C", "guard state and words")
 		local input = source("src/client/Controllers/InputController.luau")
 		check(
-			string.find(input, '%[Enum.KeyCode.LeftAlt%] = "Block"') ~= nil,
-			"Alt blocks on PC (F stays Fly)"
+			string.find(input, '%[Enum.KeyCode.Q%] = "Block"') ~= nil,
+			"Q blocks on PC (Alt failed in nate's 2026-11-19 playtest; F stays Fly)"
 		)
 		check(string.find(input, '%[Enum.KeyCode.ButtonL1%] = "Block"') ~= nil, "LB blocks on a gamepad")
 		check(string.find(input, '%[Enum.KeyCode.F%] = "Fly"') ~= nil, "F is still Fly")

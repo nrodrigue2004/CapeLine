@@ -36,6 +36,7 @@ local MoveController = require(script.Parent.Parent.Controllers.MoveController)
 local CombatClient = require(script.Parent.Parent.Controllers.CombatClient)
 local GadgetClient = require(script.Parent.Parent.Controllers.GadgetClient)
 local BlockClient = require(script.Parent.Parent.Controllers.BlockClient)
+local LockClient = require(script.Parent.Parent.Controllers.LockClient)
 
 local Hud = {}
 
@@ -467,6 +468,16 @@ local function buildCluster()
 		Color3.fromRGB(110, 180, 255)
 	)
 	buildGuardRing(block)
+	-- lock-on (nate's playtest 2026-11-19): tap LOCK to lock the target in front or let go, hold it for the next
+	-- (LockClient); placed by TouchLayout between FLY and the skills
+	actionButton(
+		cluster,
+		"Lock",
+		"LOCK",
+		s - 10,
+		UDim2.new(1, -big - s * 1.5 - 48, 1, -s - 12),
+		Color3.fromRGB(255, 120, 100)
+	)
 	-- gap-icons: the shield and Awakening buttons wear their comic icons (their text stays without one)
 	for action, key in { Block = "Block", Awaken = "Awaken" } do
 		local entry = buttons[action]
@@ -1147,6 +1158,14 @@ function Hud.init()
 					end
 				end
 			end
+		end
+		-- lock-on: the LOCK button while the setting is on (PC uses middle mouse and Tab), lit while locked
+		local lockBtn = buttons.Lock
+		if lockBtn then
+			lockBtn.button.Visible = LockClient.hardOn and not keys
+			lockBtn.button.BackgroundColor3 = if LockClient.locked()
+				then Color3.fromRGB(255, 70, 60)
+				else Color3.fromRGB(255, 160, 140)
 		end
 		local blockBtn = buttons.Block
 		if blockBtn then

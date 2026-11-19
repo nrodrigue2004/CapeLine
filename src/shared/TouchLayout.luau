@@ -41,6 +41,9 @@ TouchLayout.SLOTS = {
 	Boost = { x = -304, y = -42, d = 58 },
 	Down = { x = -304, y = -126, d = 54 },
 	Block = { x = -224, y = -168, d = 58, optional = true }, -- H1: the shield above LEAP and FLY (spec)
+	-- lock-on (nate's playtest 2026-11-19): LOCK in the gap between FLY and the skill ring (inside the cluster's
+	-- extent, so nothing else moves or shrinks); shown while Settings hardLock is on
+	Lock = { x = -176, y = -58, d = 50 },
 } :: { [string]: Slot }
 
 -- Pairs that share a spot on purpose

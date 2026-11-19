@@ -4,7 +4,12 @@
 -- Basic (hold to keep firing), Skill1 to Skill4, Super, Awaken, Loadout (opens the loadout screen), Gear (the
 -- gear screen), Gadget (the gadget slot's active), Map (the map and fast travel), HoldPower, HoldWeapon and
 -- Swap (what M1 and the skills cast: the power or the carried weapon), Menu (gamepad Select: the top row).
--- H1: Block (hold).
+-- H1: Block (hold): Q on PC since nate's playtest 2026-11-19 ("Alt to block doesn't seem to work": Windows
+-- turns a lone Alt press into a menu key that eats the next key, Studio's camera takes Alt, and Alt+Shift
+-- switches keyboard layouts; Decisions 2026-11-19), LB on a gamepad, the shield button on touch.
+-- Lock-on (nate's playtest 2026-11-19; LockClient): Lock toggles the hard lock (middle mouse; a tap of R3 on a
+-- gamepad, held R3 is the Gadget; the LOCK button on touch), LockCycle moves it to the next target (Tab; the
+-- right stick flicked sideways while locked: InputController.Flick).
 -- Phone pass (overhaul step 8): a HUD button's touch is let go wherever the finger lifts, and dragging a
 -- held Basic, skill or super button turns the camera to aim (holdTouch).
 -- M10 (spec: Accessibility "left-handed layout ... one-hand flight mode (right thumb only with auto-turn)"):
@@ -24,11 +29,14 @@ local Signal = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Ut
 local InputController = {}
 
 InputController.Pressed = Signal.new() -- (action)
+InputController.Flick = Signal.new() -- (dir) the gamepad's right stick flicked right (1) or left (-1)
 InputController.Released = Signal.new() -- (action)
 InputController.DeviceChanged = Signal.new() -- (device)
 InputController.device = "mouse" -- "mouse", "touch" or "gamepad"
 
 local down: { [string]: boolean } = {}
+local r3At, r3Down, r3Gadget = 0, false, false
+local flickAt, flickOut = 0, false
 
 InputController.autoAim = true -- Settings: aim assist on touch
 InputController.stickMode = "default" :: string -- "default", "left" (left-handed) or "oneHand"
@@ -49,7 +57,6 @@ local KEYS: { [Enum.KeyCode]: string } = {
 	[Enum.KeyCode.X] = "Skill2",
 	[Enum.KeyCode.C] = "Skill3",
 	[Enum.KeyCode.V] = "Skill4",
-	[Enum.KeyCode.Q] = "Skill1",
 	[Enum.KeyCode.E] = "Skill2",
 	[Enum.KeyCode.R] = "Skill3",
 	[Enum.KeyCode.T] = "Skill4",
@@ -65,8 +72,12 @@ local KEYS: { [Enum.KeyCode]: string } = {
 	[Enum.KeyCode.B] = "Catch", -- the interact key (only the opening's catch step listens)
 	[Enum.KeyCode.P] = "Shop",
 	[Enum.KeyCode.H] = "Emote",
-	-- H1 (Hero MMO features): hold to block. The spec's F stays Fly (Decisions 2026-11-17), so Block is Alt
-	[Enum.KeyCode.LeftAlt] = "Block",
+	-- H1 (Hero MMO features): hold to block. The spec's F stays Fly (Decisions 2026-11-17). Block was Alt until
+	-- nate's playtest 2026-11-19 found it unreliable (Windows' menu key, Studio's camera, Alt+Shift), so it is Q
+	-- (Z stays Skill 1; Q was only Skill 1's second key)
+	[Enum.KeyCode.Q] = "Block",
+	-- lock-on (nate's playtest 2026-11-19): Tab moves the lock to the next target (middle mouse toggles it)
+	[Enum.KeyCode.Tab] = "LockCycle",
 	-- gamepad
 	[Enum.KeyCode.ButtonA] = "Leap",
 	[Enum.KeyCode.ButtonY] = "Fly",
@@ -86,7 +97,7 @@ local KEYS: { [Enum.KeyCode]: string } = {
 	-- phone pass: Select opens the top row and its MORE drawer for the D-pad (GEAR, MAP, JOURNAL, SHOP,
 	-- POWERS; H1 moved d-pad down to Skill 4)
 	[Enum.KeyCode.ButtonSelect] = "Menu",
-	[Enum.KeyCode.ButtonR3] = "Gadget",
+	-- R3: a tap toggles the lock, a hold (Config.Combat.lock.padHold) is the Gadget (see init)
 }
 
 -- Gamepad keys that also fire a second action: X catches in the opening's catch step (StoryHud only
@@ -110,8 +121,9 @@ InputController.padHints = {
 	Super = "▲",
 	Awaken = "▶",
 	Swap = "LS",
-	Gadget = "RS",
+	Gadget = "RS hold",
 	Block = "LB",
+	Lock = "RS",
 	Catch = "X",
 }
 
@@ -139,7 +151,9 @@ InputController.hints = {
 	Catch = "B",
 	Shop = "P",
 	Emote = "H",
-	Block = "Alt",
+	Block = "Q",
+	Lock = "MMB",
+	LockCycle = "Tab",
 }
 
 function InputController.isDown(action: string): boolean
@@ -354,6 +368,22 @@ function InputController.init()
 		if t == Enum.UserInputType.MouseButton1 then
 			InputController.set("Basic", true)
 			return
+		elseif t == Enum.UserInputType.MouseButton3 then
+			InputController.set("Lock", true)
+			return
+		end
+		if input.KeyCode == Enum.KeyCode.ButtonR3 then
+			-- a tap toggles the lock; held past padHold it is the Gadget (held until R3 lets go)
+			r3At = os.clock()
+			local at = r3At
+			task.delay(Config.Combat.lock.padHold, function()
+				if r3At == at and r3Down then
+					r3Gadget = true
+					InputController.set("Gadget", true)
+				end
+			end)
+			r3Down = true
+			return
 		end
 		local action = KEYS[input.KeyCode]
 		if action then
@@ -365,6 +395,21 @@ function InputController.init()
 		end
 	end)
 	UserInputService.InputChanged:Connect(function(input)
+		if input.KeyCode == Enum.KeyCode.Thumbstick2 then
+			-- a sideways flick of the right stick (LockClient cycles the lock with it)
+			local x = input.Position.X
+			local L = Config.Combat.lock.hard
+			if math.abs(x) >= L.flick and math.abs(input.Position.Y) < L.flick then
+				local now = os.clock()
+				if not flickOut and now - flickAt >= L.flickGap then
+					flickOut, flickAt = true, now
+					InputController.Flick:Fire(if x > 0 then 1 else -1)
+				end
+			elseif math.abs(x) < 0.3 then
+				flickOut = false
+			end
+			return
+		end
 		local hold = touchHolds[input]
 		if hold then
 			local p = Vector2.new(input.Position.X, input.Position.Y)
@@ -392,6 +437,21 @@ function InputController.init()
 		end
 		if stick.id == input then
 			stick.id, stick.vec = nil, Vector2.zero
+			return
+		end
+		if input.UserInputType == Enum.UserInputType.MouseButton3 then
+			InputController.set("Lock", false)
+			return
+		end
+		if input.KeyCode == Enum.KeyCode.ButtonR3 then
+			r3Down = false
+			if r3Gadget then
+				r3Gadget = false
+				InputController.set("Gadget", false)
+			else
+				InputController.set("Lock", true)
+				InputController.set("Lock", false)
+			end
 			return
 		end
 		if input.UserInputType == Enum.UserInputType.MouseButton1 then

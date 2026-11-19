@@ -54,6 +54,7 @@ local BlockClient = require(Controllers.BlockClient) -- H1: block, breaker, inte
 local GuardFx = require(Fx.GuardFx)
 local ChargeFx = require(Fx.ChargeFx) -- H2: charge-up powers
 local ThrowClient = require(Controllers.ThrowClient) -- H3: pick up and throw
+local LockClient = require(Controllers.LockClient) -- nate's playtest 2026-11-19: soft and hard lock-on
 local ThrowFx = require(Fx.ThrowFx)
 local CraterDecor = require(Fx.CraterDecor) -- lore step 9: the Crater's loose lab debris, per preset
 local TravelClient = require(Controllers.TravelClient)
@@ -136,6 +137,7 @@ BlockClient.init()
 GuardFx.init()
 ChargeFx.init()
 ThrowClient.init() -- after BlockClient: it wraps CombatClient.blocked
+LockClient.init() -- after CombatClient and WorldFx: it aims casts (CombatClient.lockAim) and frames the camera
 ThrowFx.init()
 CraterDecor.init()
 HeroAnimator.init()

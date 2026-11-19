@@ -11702,7 +11702,7 @@ test("Weighty hits: flash, sound, sparks, knockback, shake and freeze on every h
 	-- wiring
 	local svc = readFile("src/server/Services/CombatService.luau")
 	check(
-		string.find(svc, "W.knockHeavy else W.knock", 1, true) ~= nil
+		string.find(svc, "KnockRules.plan(C.knock", 1, true) ~= nil
 			and string.find(svc, "r.k ~= K.TICK", 1, true) ~= nil,
 		"the server shoves on hits, not ticks"
 	)
@@ -12336,7 +12336,8 @@ do
 			keys[k.id] = i
 		end
 		local idx = keys.cameraMotion
-		check(idx == #Config.Settings.keys, "the new key goes last (its index is the Settings.Set number)")
+		-- (keys only ever append: the lock-on keys came after it on 2026-11-19, so its index stays 13)
+		check(idx == 13, "its own key, its index fixed (the Settings.Set number)")
 		local k = Config.Settings.keys[idx]
 		check(k.kind == "choice" and #k.options == 3 and k.default == 0, "Full by default")
 		local SettingsRules = require("../src/shared/SettingsRules")
@@ -23034,6 +23035,9 @@ end
 (require :: any)("./move_fixes_test")({ test = test, check = check, Config = Config });
 -- more destruction and momentum impact (nate's playtest 2026-11-19); ONLY="Impact" runs these
 (require :: any)("./impact_test")({ test = test, check = check, Config = Config, world = world });
+-- lock-on, omnidirectional movement, knockback by move, the block key, drops and swinging robots (nate's
+-- playtest 2026-11-19, own file); ONLY="PT combat" runs these
+(require :: any)("./combat_pt_test")({ test = test, check = check, Config = Config });
 -- the comic icon set (gap-icons, 2026-11-19, own file); ONLY="Icons" runs just these
 (require :: any)("./icons_test")({ test = test, check = check, Config = Config });
 -- every ability's own look (nate's playtest 2026-11-19: more unique effects); ONLY="FX unique" runs these

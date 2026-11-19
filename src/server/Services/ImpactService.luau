@@ -156,6 +156,108 @@ function ImpactService.robotWall(hero: any, enemyId: number, dir: Vector3, dista
 	return broke
 end
 
+-- Knockback by move (nate's playtest 2026-11-19): a launched robot meets a wall (EnemySim asks through
+-- EnemyService.launchWall). The hero whose hit launched it must be allowed to break things here; the wall breaks
+-- by the throw's distance (impact.robot curve) inside the caps, so it flies on through. exit: leaving a building it
+-- broke into (the far wall).
+local function launchWall(
+	e: any,
+	at: Vector3,
+	dir: Vector3,
+	distance: number,
+	_exit: boolean,
+	src: number?
+): boolean
+	local hero = src and HeroService.byId(src)
+	if not hero or not mayBreak(hero) then
+		return false
+	end
+	local dmg = ImpactRules.robotDamage(I.robot, distance)
+	if dmg <= 0 then
+		return false
+	end
+	local flat = Vector3.new(dir.X, 0, dir.Z)
+	if flat.Magnitude < 0.1 then
+		return false
+	end
+	local from = Vector3.new(e.x, e.y, e.z) - flat.Unit * 2
+	local id, _, hitAt = BuildingService.wallOnPath(from, flat.Unit * (I.robot.reach + 6))
+	if not id then
+		id = BuildingService.buildingAt(at, 3)
+		hitAt = at
+	end
+	if not id or not hitAt or not BuildingService.breakable(id) then
+		return false
+	end
+	if not ImpactRules.allow(I, ledger, hero.id, os.clock()) then
+		return false
+	end
+	local broke = BuildingService.smash(id, hitAt, dmg, I.ram.radius) > 0
+	if broke then
+		ImpactService.breaks += 1
+	end
+	return broke
+end
+ImpactService.launchWall = launchWall
+
+-- A robot swung as a weapon (ThrowService; Config.Throw.swing): the first wall within reach along dir breaks
+function ImpactService.swingWall(hero: any, from: Vector3, dir: Vector3, reach: number, dmg: number): boolean
+	if dmg <= 0 or not mayBreak(hero) or dir.Magnitude < 0.1 then
+		return false
+	end
+	local id, _, at = BuildingService.wallOnPath(from, dir.Unit * reach)
+	if not id or not at or not BuildingService.breakable(id) then
+		return false
+	end
+	if not ImpactRules.allow(I, ledger, hero.id, os.clock()) then
+		return false
+	end
+	local broke = BuildingService.smash(id, at, dmg, I.ram.radius) > 0
+	if broke then
+		ImpactService.breaks += 1
+	end
+	return broke
+end
+
+-- A hero dropping onto a building from high up (nate, 2026-11-19 13:18Z; Config.Combat.drop): the device's
+-- landing claim (ImpactDrop: where it landed, its fall speed). The server backs it with its own recent speed and
+-- the hero's spot, breaks the roof under it (and the storeys BuildingState says fall), inside the caps, and
+-- tells CombatService to hit the robots round it (CombatService.dropHit).
+ImpactService.dropHit = nil :: ((any, Vector3, number) -> ())?
+local function onDrop(player: Player, at: Vector3, fall: number)
+	local hero = HeroService.get(player)
+	if not mayBreak(hero) then
+		return
+	end
+	local pos = HeroService.position(hero)
+	if not pos then
+		return
+	end
+	local Dp = Config.Combat.drop
+	local peak = MoveGuard.peakSpeed(hero, Dp.window)
+	local speed = ImpactRules.dropOk(Dp, fall, peak, (at - pos).Magnitude)
+	if not speed then
+		return
+	end
+	local dmg, radius = ImpactRules.dropDamage(Dp, speed)
+	if dmg <= 0 then
+		return
+	end
+	if ImpactService.dropHit then
+		ImpactService.dropHit(hero, at, speed)
+	end
+	local id = BuildingService.buildingAt(at + Vector3.new(0, -2, 0), 3)
+	if not id or not BuildingService.breakable(id) then
+		return
+	end
+	if not ImpactRules.allow(I, ledger, hero.id, os.clock()) then
+		return
+	end
+	if BuildingService.smash(id, at + Vector3.new(0, -2, 0), dmg, radius) > 0 then
+		ImpactService.breaks += 1
+	end
+end
+
 -- The device's ram claim (ImpactRam): contact point, travel direction, speed
 local function onRam(player: Player, at: Vector3, dir: Vector3, speed: number)
 	local hero = HeroService.get(player)
@@ -189,7 +291,9 @@ end
 
 function ImpactService.init()
 	Net.on("ImpactRam", onRam)
+	Net.on("ImpactDrop", onDrop)
 	EnemyService.heroHitHook = ImpactService.robotHit
+	EnemyService.launchWall = launchWall
 	Players.PlayerRemoving:Connect(function(player)
 		local hero = HeroService.get(player)
 		if hero then

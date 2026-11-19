@@ -182,6 +182,30 @@ function ThrowMath.carryOver(T: any, since: number, now: number): boolean
 	return now - since >= T.carryMax
 end
 
+-- Grab a robot and swing it (nate, 2026-11-19 13:18Z; Config.Throw.swing). May a live robot of this row be
+-- grabbed with `stunLeft` seconds of stun (or a launch) on it? Never mini-bosses, the rows canWreck turns down
+-- (fakes, twins, sea robots, creatures, pack robots) or one immune to knockback.
+function ThrowMath.canHoldRobot(T: any, cfg: any, stunLeft: number): boolean
+	if not ThrowMath.canWreck(cfg) or cfg.miniBoss or cfg.boss then
+		return false
+	end
+	if cfg.immune and table.find(cfg.immune, "knockback") then
+		return false
+	end
+	return stunLeft >= T.swing.robot.stunAtLeast
+end
+
+-- May the holder swing again? (swings so far, the last swing's time)
+function ThrowMath.swingReady(T: any, swings: number, last: number, now: number): boolean
+	return swings < T.swing.max and now - last >= T.swing.gap
+end
+
+-- What a held thing swings as: a robot's wreck or a live robot (the props stay throw-only)
+function ThrowMath.swingable(T: any, kind: string?): boolean
+	local k = kind and T.kinds[kind]
+	return k ~= nil and (k.wreck == true or k.robot == true)
+end
+
 -- Can it be thrown yet (the 0.3 s lift)?
 function ThrowMath.lifted(T: any, since: number, now: number): boolean
 	return now - since >= T.liftTime

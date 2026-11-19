@@ -121,6 +121,14 @@ local Remotes: { [string]: RemoteDef } = {
 		rate = 4,
 		burst = 6,
 	},
+	-- a hero dropping onto a roof from high up (nate, 2026-11-19 13:18Z): where it landed and the fall speed
+	-- it claims (ImpactService backs it with its own history; Config.Combat.drop)
+	ImpactDrop = {
+		dir = "C2S",
+		schema = { V3, { t = "number", min = 0, max = 400 } },
+		rate = 2,
+		burst = 3,
+	},
 	VehicleFlip = { dir = "S2C" }, -- vehicle id, push x, push z
 	VehicleReset = { dir = "S2C" }, -- vehicle id
 	CitizenDelta = { dir = "S2C", unreliable = true }, -- CitizenBuffer packet, 4 Hz
@@ -298,6 +306,11 @@ local Remotes: { [string]: RemoteDef } = {
 	WorldGrab = { dir = "C2S", schema = { n(0, 65535) }, rate = 4, burst = 4 },
 	WorldThrow = { dir = "C2S", schema = { V3 }, rate = 4, burst = 4 },
 	ThrowState = { dir = "S2C" },
+	-- grab a robot and swing it (nate, 2026-11-19 13:18Z; Config.Throw.swing): swing what you hold (a robot's
+	-- wreck or a stunned robot) toward the aim point; SwingFx to everyone near: hero user id, centre, yaw, time
+	WorldSwing = { dir = "C2S", schema = { V3 }, rate = 4, burst = 4 },
+	WorldGrabRobot = { dir = "C2S", schema = { n(1, 65535) }, rate = 4, burst = 4 }, -- a stunned robot's id
+	SwingFx = { dir = "S2C" },
 	ThrowFly = { dir = "S2C" },
 	ThrowBack = { dir = "S2C" },
 	-- H4: task forces (spec: TaskForce.List / TaskForce.Join / TaskForce.Look 1/s). TaskForceList: ask for
