@@ -521,8 +521,27 @@ def preview(pieces):
     kit.render(os.path.join(kit.ROOT, "preview", "capes.png"))
 
 
+def thumbs(pieces):
+    """The creator thumbnails (THUMBS=1, art/thumbs/thumbs.py packs them): each cape from behind on the plain
+    blocky body (wear.body: no face, no hair), framed on the cape."""
+    import wear
+    for o in list(bpy.context.scene.objects):
+        o.hide_render = True
+
+    def dress(name, at, yaw, pal):
+        wear.body(at, yaw, suit=(150, 156, 170))
+        before = set(bpy.context.scene.objects)
+        place(pieces[name[5:]], at, yaw, pal)
+        for o in set(bpy.context.scene.objects) - before:
+            o["thumb_piece"] = True
+    wear.thumb_cells(["cape:" + n for n in STYLES], "capes", dress, 25, 0.12)
+
+
 if __name__ == "__main__":
     rows, pieces = build()
+    if os.environ.get("THUMBS"):
+        thumbs(pieces)
+        sys.exit(0)
     if not QUICK:
         objs = [ob for items in pieces.values() for ob, _, _ in items]
         kit.export_fbx(objs, os.path.join(kit.ROOT, "export", "Capes.fbx"))

@@ -28,6 +28,22 @@ def arg(name, default=None):
 
 
 FONT_DIR = arg("--fonts", "")
+# --images map.json: {"rbxassetid://<id>": "local.png"} (art/thumbs/ids.json): picture tiles drawn from the sheets
+IMAGES = json.load(open(arg("--images"))) if arg("--images") else {}
+_imgs = {}
+
+
+def local_image(n):
+    path = IMAGES.get(n.get("image") or "")
+    if not path:
+        return None
+    if path not in _imgs:
+        _imgs[path] = Image.open(path).convert("RGBA")
+    im = _imgs[path]
+    if n.get("rect"):
+        x, y, w, h = n["rect"]
+        im = im.crop((x, y, x + w, y + h))
+    return im
 PREFIX = arg("--prefix", "")
 FALLBACK = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 _fonts = {}
@@ -206,6 +222,16 @@ def paint(canvas, n, kids):
             m = Image.new("L", tile.size, 0)
             ImageDraw.Draw(m).rounded_rectangle([0, 0, tile.size[0] - 1, tile.size[1] - 1], radius=r, fill=255)
             canvas.paste(Image.alpha_composite(canvas.crop((int(x0), int(y0), int(x0) + tile.size[0], int(y0) + tile.size[1])), tile), (int(x0), int(y0)), m)
+        elif local_image(n) is not None:
+            im = local_image(n)
+            bw, bh = int(x1 - x0), int(y1 - y0)
+            k = min(bw / im.width, bh / im.height) if n.get("fit") else None
+            size = (max(1, int(im.width * k)), max(1, int(im.height * k))) if k else (bw, bh)
+            im = im.resize(size, Image.LANCZOS)
+            if n.get("imageT", 0) > 0:
+                a = im.split()[3].point(lambda v: int(v * (1 - n["imageT"])))
+                im.putalpha(a)
+            canvas.alpha_composite(im, (int(x0 + (bw - size[0]) / 2), int(y0 + (bh - size[1]) / 2)))
         else:
             d.rounded_rectangle([x0, y0, x1, y1], radius=r, outline=(255, 255, 255, 90), width=SS)
             d.line([x0, y0, x1, y1], fill=(255, 255, 255, 60), width=SS)

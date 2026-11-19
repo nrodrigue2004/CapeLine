@@ -62,6 +62,8 @@ kit.reset()
 from studs import B, C, S, T, TOR, rings_mesh, prism, star, turn, shift, mirror, rb  # noqa: E402
 
 PREVIEW = "--preview" in sys.argv
+THUMBS = "--thumbs" in sys.argv  # the creator thumbnails only (no fit, no FBX): art/thumbs/cells/weapons/<id>.png
+PREVIEW = PREVIEW or THUMBS
 FAST = "--fast" in sys.argv
 ONLY = None
 if "--only" in sys.argv:
@@ -1258,7 +1260,7 @@ HEADER = [
     "-- those styles change its shape. %d weapons, %d meshes, %d triangles (Classic)." % (len(ids), meshes, total),
     "return {",
 ]
-if ONLY is None:
+if ONLY is None and not THUMBS:
     FIT = os.path.normpath(os.path.join(kit.ROOT, "..", "src", "config", "WeaponArt.luau"))
     with open(FIT, "w") as fh:
         fh.write("\n".join(HEADER + lines + ["}", ""]))
@@ -1276,7 +1278,7 @@ def all_obs(wid):
     return [p.ob for p in b["pieces"]] + [v.ob for vs in b["variants"].values() for v in vs.values()]
 
 
-if ONLY is None and "--no-export" not in sys.argv:
+if ONLY is None and "--no-export" not in sys.argv and not THUMBS:
     export = []
     for wid in ids:
         for ob in all_obs(wid):
@@ -1493,6 +1495,44 @@ for wid in BUILT:
     for vs in BUILT[wid]["variants"].values():
         for v in vs.values():
             v.ob.hide_render = True
+
+if THUMBS:
+    # each weapon alone as in weapons.png (seen from the hero's right and a little above), one render each on a
+    # transparent card for art/thumbs/thumbs.py, in the one bright look every creator thumbnail uses
+    setup((224, 224), 16)
+    bpy.context.scene.render.film_transparent = True
+    tlook = ((40, 110, 220), (235, 60, 60), (255, 210, 60))
+    view = Matrix.Rotation(math.radians(24), 4, "Y") @ Matrix.Rotation(math.radians(-18), 4, "Z")
+    for wid in ids:
+        legacy = BUILT[wid]["legacy"]
+        rights = {p.name[:-1] for p in legacy if p.name.endswith("R")}
+        shown = [p for p in legacy if not (p.name.endswith("L") and p.name[:-1] in rights)]
+        placed = []
+        for p in shown:
+            M = Matrix.Translation(Vector(rb(*RIG[ROLE_PART[p.at]][1])))
+            if p.at == "llarm":
+                M = Matrix.Translation(Vector(rb(1.5, 2.6, 1.4 if wid == 24 else 0.0))) @ Matrix.Rotation(PI, 4, "Z")
+            if p.at == "lhand" and not rights:
+                M = Matrix.Translation(Vector(rb(1.5, 2.15, 0)))
+            placed.append((p, M))
+        lo = Vector((1e9, 1e9, 1e9))
+        hi = -lo
+        for p, M in placed:
+            for v in p.ob.data.vertices:
+                w = view @ M @ v.co
+                lo = Vector((min(lo.x, w.x), min(lo.y, w.y), min(lo.z, w.z)))
+                hi = Vector((max(hi.x, w.x), max(hi.y, w.y), max(hi.z, w.z)))
+        ctr = (lo + hi) / 2
+        ext = hi - lo
+        for p, M in placed:
+            kind, glow = piece_mat(p)
+            show_copy(p.ob, Matrix.Translation(-ctr) @ view @ M, colour(p.role, tlook), kind, glow, p.alpha)
+        cam = ortho_cam((40, 0, 0), (0, 0, 0), max(ext.y, ext.z, 0.8) * 1.12)
+        cam.rotation_euler = (math.radians(90), 0, math.radians(90))
+        kit.render(os.path.join(kit.ROOT, "thumbs", "cells", "weapons", "%d.png" % wid))
+        clear_shown()
+        bpy.data.objects.remove(cam, do_unlink=True)
+    sys.exit(0)
 
 PX = int(sys.argv[sys.argv.index("--px") + 1]) if "--px" in sys.argv else (220 if FAST else 300)
 SAMPLES = 10 if FAST else 28

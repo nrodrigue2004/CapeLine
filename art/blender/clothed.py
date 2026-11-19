@@ -110,14 +110,26 @@ def clothed_mat(name, skin, layers):
     col.outputs[0].default_value = (*(lin(c) for c in skin), 1)
     last = col.outputs[0]
     for img in layers:
+        tint = None
+        if isinstance(img, tuple):  # (image, rgb): the template tinted as Clothing.Color3 does (multiply)
+            img, tint = img
         t = nt.nodes.new("ShaderNodeTexImage")
         t.image = img
         t.interpolation = "Closest"  # Roblox shows the template's pixels crisp
+        colour = t.outputs["Color"]
+        if tint:
+            mul = nt.nodes.new("ShaderNodeMix")
+            mul.data_type = "RGBA"
+            mul.blend_type = "MULTIPLY"
+            mul.inputs["Factor"].default_value = 1.0
+            nt.links.new(colour, mul.inputs["A"])
+            mul.inputs["B"].default_value = (*(lin(c) for c in tint), 1)
+            colour = mul.outputs["Result"]
         mix = nt.nodes.new("ShaderNodeMix")
         mix.data_type = "RGBA"
         nt.links.new(t.outputs["Alpha"], mix.inputs["Factor"])
         nt.links.new(last, mix.inputs["A"])
-        nt.links.new(t.outputs["Color"], mix.inputs["B"])
+        nt.links.new(colour, mix.inputs["B"])
         last = mix.outputs["Result"]
     nt.links.new(last, p.inputs["Base Color"])
     return m
@@ -285,7 +297,11 @@ def figure(at, yaw, skin, hair_rgb, turned=False, arm_up=False, face="Hero", out
     """outfit: the clothes image's name (under art/export/clothes), shirt and pants as <outfit>_Shirt/_Pants;
     paint: the body's own part colours under the clothes (torso, arms, legs: a creator suit's paint), else skin"""
     outfit = outfit or ROBOT
-    shirt_img, pants_img = image(outfit + "_Shirt"), image(outfit + "_Pants")
+    if isinstance(outfit, tuple):  # (shirt, pants) as (name, tint) pairs, or None for a bare body part
+        shirt_img = (image(outfit[0][0]), outfit[0][1]) if outfit[0] else None
+        pants_img = (image(outfit[1][0]), outfit[1][1]) if outfit[1] else None
+    else:
+        shirt_img, pants_img = image(outfit + "_Shirt"), image(outfit + "_Pants")
     Y = Matrix.Translation(Vector(at)) @ Matrix.Rotation(math.radians(yaw), 4, "Z")
     obs = []
     for name in BLOCKS:
@@ -296,8 +312,11 @@ def figure(at, yaw, skin, hair_rgb, turned=False, arm_up=False, face="Hero", out
         layers = [shirt_img] if short in ("UpperTorso", "UpperArm", "LowerArm", "Hand") else [pants_img]
         if layered and "Torso" in short:
             layers = [pants_img, shirt_img]  # a real Shirt and Pants on a Humanoid: the shirt over the pants
+        layers = [x for x in layers if x is not None]
         under = skin
-        if paint:
+        if paint and name in paint:
+            under = paint[name]  # a per-part paint (the Legs tab's thumbnails)
+        elif paint and not isinstance(paint, dict):
             under = paint[0] if "Torso" in short else (paint[1] if short in ("UpperArm", "LowerArm", "Hand") else paint[2])
         ob.data.materials.append(clothed_mat(name, under, layers))
         if arm_up and name in ("RightUpperArm", "RightLowerArm", "RightHand"):
@@ -309,13 +328,14 @@ def figure(at, yaw, skin, hair_rgb, turned=False, arm_up=False, face="Hero", out
     kit.shade_auto(h, 60)
     if decals is not None:
         # a creator mask's head decals (art/clothes/masks.py) over the face, projected onto the head
-        fpath = os.path.join(FACES_DIR, "Face_%s.png" % face)
-        h.data.materials.append(projected_head_mat(skin, [(fpath, (255, 255, 255), "front")] + decals))
+        under = [(os.path.join(FACES_DIR, "Face_%s.png" % face), (255, 255, 255), "front")] if face else []
+        h.data.materials.append(projected_head_mat(skin, under + decals))
         obs.append(h)
     else:
         h.data.materials.append(kit.material("skin%d" % len(bpy.data.materials), srgb(skin), rough=0.55))
         obs.append(h)
-        obs.append(face_plane(turned, face))
+        if face:  # None: a plain head (the creator thumbnails: faces come only from the Roblox catalog)
+            obs.append(face_plane(turned, face))
     if hair_on:
         hr = hair()
         kit.shade_auto(hr, 40)
@@ -323,10 +343,131 @@ def figure(at, yaw, skin, hair_rgb, turned=False, arm_up=False, face="Hero", out
         obs.append(hr)
     for ob in obs:
         ob.matrix_world = Y @ ob.matrix_world
+    return obs
+
+
+def leg_parts(spec, yaw):
+    """The Legs tab's parts (art/thumbs/pieces.json, from Shared.PieceKits) on the blocky body turned yaw."""
+    import wear
+    P = Matrix(((1, 0, 0), (0, 0, -1), (0, 1, 0)))  # Roblox (x right, y up, z back) to Blender
+    centres = {"lthigh": (-0.5, 1.575, 0), "rthigh": (0.5, 1.575, 0), "lshin": (-0.5, 0.725, 0),
+               "rshin": (0.5, 0.725, 0), "lfoot": (-0.5, 0.15, 0), "rfoot": (0.5, 0.15, 0), "waist": (0, 2.2, 0)}
+    Y = Matrix.Rotation(math.radians(yaw), 4, "Z")
+    obs = []
+    for k, part in enumerate(spec["parts"]):
+        sx, sy, sz = part["size"]
+        if part.get("shape") == "Ball":
+            bpy.ops.mesh.primitive_uv_sphere_add(radius=0.5, segments=16, ring_count=8)
+            ob = bpy.context.active_object
+            ob.data.transform(Matrix.Diagonal((sx, sz, sy, 1)))
+        else:
+            ob = kit.box("lp%d" % k, sx, sz, sy)
+            kit.bevel(ob, min(0.03, min(sx, sy, sz) / 4), 1)
+        c = part["cf"]
+        R = Matrix(((c[3], c[4], c[5]), (c[6], c[7], c[8]), (c[9], c[10], c[11])))
+        Rb = P @ R @ P.transposed()
+        cx, cy, cz = centres.get(part["at"], (0, 1, 0))
+        wx, wy, wz = cx + c[0], cy + c[1], cz + c[2]
+        # the part's offset turns with the body part (an un-rotated rig: the part's CFrame is its centre's)
+        M = Matrix.Translation(P @ Vector((wx, wy, wz))) @ Rb.to_4x4()
+        ob.matrix_world = Y @ M
+        rgb = THUMB_COLOURS.get(part["color"], THUMB_COLOURS["p"])
+        ob.data.materials.append(kit.material("lp%d_%d" % (k, len(bpy.data.materials)), srgb(rgb), rough=0.55,
+                                              emit=2.0 if part.get("neon") else 0.0))
+        ob["thumb_piece"] = True
+        obs.append(ob)
+    return obs
+
+
+THUMB_COLOURS = {"p": (40, 110, 220), "s": (235, 60, 60), "a": (255, 210, 60), "dark": (34, 38, 52),
+                 "white": (240, 240, 245), "gold": (255, 210, 70), "ice": (200, 245, 255), "glowRed": (255, 80, 40),
+                 "skin": (224, 172, 130), "hair": (60, 40, 30)}
+THUMB_SKIN = (224, 172, 130)
+
+
+def thumbs():
+    """The creator thumbnails of the clothing tabs (art/thumbs/thumbs.py packs them): Suits, Shirt, Pants, the flat
+    Masks and the Legs, each on a plain blocky body (no face, no hair: those come only from the catalog)."""
+    import json
+    import wear
+    pieces = json.load(open(os.path.join(kit.ROOT, "thumbs", "pieces.json")))
+    want = {}
+    for p in pieces["creator"]:
+        want.setdefault(p["tab"], []).append(p["kit"])
+    only = sys.argv[sys.argv.index("--set") + 1].split(",") if "--set" in sys.argv else None
+
+    def tag(obs, names):
+        for o in obs:
+            if o.name.split(".")[0] in names:
+                o["thumb_piece"] = True
+    upper = {"UpperTorso", "LeftUpperArm", "RightUpperArm", "LeftLowerArm", "RightLowerArm", "LowerTorso"}
+    legs = {"LeftUpperLeg", "RightUpperLeg", "LeftLowerLeg", "RightLowerLeg", "LowerTorso"}
+    yaw = 180 - 22
+    grey = (150, 156, 170)
+
+    if only is None or "suits" in only:
+        rows = {r["kit"]: r for page in json.load(open(os.path.join(CLOTHES, "suits", "preview.json"))) for r in page}
+
+        def dress_suit(k, at, y, pal):
+            r = rows[k]
+            paint = [THUMB_SKIN if tuple(c) == (224, 172, 130) else tuple(c) for c in r["paint"]]
+            obs = figure(at, y, THUMB_SKIN, (0, 0, 0), face=None, outfit=r["name"], layered=True, paint=paint,
+                         hair_on=False)
+            tag(obs, set(BLOCKS))
+        wear.thumb_cells([k for k in want.get("suit", []) if k in rows], "suits", dress_suit, yaw, 0.05)
+
+    if only is None or "shirts" in only:
+        def dress_shirt(k, at, y, pal):
+            obs = figure(at, y, THUMB_SKIN, (0, 0, 0), face=None, layered=True, hair_on=False,
+                         outfit=(("heroes/Shirt_" + k, pal[0]), ("heroes/Pants_Jeans", (90, 96, 112))))
+            tag(obs, upper)
+        wear.thumb_cells(want.get("shirt", []), "shirts", dress_shirt, yaw, 0.05)
+
+    if only is None or "pants" in only:
+        def dress_pants(k, at, y, pal):
+            obs = figure(at, y, THUMB_SKIN, (0, 0, 0), face=None, layered=True, hair_on=False,
+                         outfit=(("heroes/Shirt_Tee", (235, 235, 240)), ("heroes/Pants_" + k, pal[0])))
+            tag(obs, legs)
+        wear.thumb_cells(want.get("pants", []), "pants", dress_pants, yaw, 0.05)
+
+    if only is None or "masks" in only:
+        rows = {r["kit"]: r for r in json.load(open(os.path.join(CLOTHES, "masks", "preview.json")))}
+        tints = {"p": (40, 110, 220), "s": (235, 60, 60), "a": (255, 210, 60), "white": (255, 255, 255)}
+        folder = os.path.join(CLOTHES, "masks")
+
+        def dress_mask(k, at, y, pal):
+            r = rows[k]
+            decals = []
+            for side, name in (("front", "Front"), ("left", "Side"), ("right", "Side"), ("back", "Back"),
+                               ("top", "Top")):
+                f = os.path.join(folder, "Mask%s_%s.png" % (name, k))
+                if side == "back" and not os.path.isfile(f):
+                    f = os.path.join(folder, "MaskSide_%s.png" % k)
+                if os.path.isfile(f):
+                    decals.append((f, tints[r["tint"]], side))
+            obs = figure(at, y, THUMB_SKIN, (0, 0, 0), face=None, layered=True, hair_on=False, decals=decals,
+                         outfit=(("heroes/Shirt_Tee", grey), ("heroes/Pants_Jeans", grey)))
+            tag(obs, {"Head"})
+        wear.thumb_cells([k for k in want.get("head", []) if k in rows], "masks", dress_mask, 180, 0.0)
+
+    if only is None or "legs" in only:
+        def dress_legs(k, at, y, pal):
+            spec = pieces["legs"][k]
+            up, low = (THUMB_COLOURS.get(c, THUMB_SKIN) for c in spec["paint"])
+            paint = {"LeftUpperLeg": up, "RightUpperLeg": up, "LeftLowerLeg": low, "RightLowerLeg": low,
+                     "LeftFoot": (34, 38, 52), "RightFoot": (34, 38, 52)}
+            for n in BLOCKS:
+                paint.setdefault(n, THUMB_SKIN if "Hand" in n else grey)
+            obs = figure(at, y, THUMB_SKIN, (0, 0, 0), face=None, outfit=(None, None), paint=paint, hair_on=False)
+            tag(obs, legs)
+            leg_parts(spec, y)
+        wear.thumb_cells([k for k in want.get("legs", []) if k in pieces["legs"]], "legs", dress_legs, yaw, 0.05)
 
 
 if __name__ != "__main__":
     pass  # imported (art/blender/rogues.py uses figure() and the helpers): no preview
+elif ROBOT == "thumbs":
+    thumbs()
 elif ROBOT == "heroes":
     # heroes in our own Roblox-style clothes (art/clothes/heroes.py), with our faces
     skins = [(240, 190, 150), (141, 95, 64), (224, 172, 130), (198, 140, 96), (92, 62, 44), (250, 210, 180),

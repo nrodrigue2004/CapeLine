@@ -1,0 +1,7687 @@
+{
+  "auras": {
+    "ember": [
+      {
+        "alpha": 0,
+        "box": [
+          2.2,
+          4.2,
+          1.4
+        ],
+        "colors": [
+          "a",
+          "glowRed"
+        ],
+        "life": [
+          0.9,
+          1.4
+        ],
+        "light": 1,
+        "rate": 12,
+        "rise": 5,
+        "size": [
+          0.45,
+          0.05
+        ],
+        "speed": [
+          1,
+          2.5
+        ],
+        "spin": 0,
+        "spread": 35,
+        "tex": "ember"
+      },
+      {
+        "alpha": 0.75,
+        "box": [
+          1.6,
+          3.2,
+          1
+        ],
+        "colors": [
+          "glowRed",
+          "a"
+        ],
+        "life": [
+          0.8,
+          1.2
+        ],
+        "light": 1,
+        "rate": 3,
+        "rise": 1,
+        "size": [
+          1.6,
+          2.6
+        ],
+        "speed": [
+          0,
+          0.5
+        ],
+        "spin": 0,
+        "spread": 10,
+        "tex": "glow"
+      }
+    ],
+    "mist": [
+      {
+        "alpha": 0.55,
+        "box": [
+          2.6,
+          1,
+          2
+        ],
+        "colors": [
+          "ice",
+          "white"
+        ],
+        "life": [
+          2.2,
+          3
+        ],
+        "light": 0.2,
+        "low": true,
+        "rate": 6,
+        "rise": 0.2,
+        "size": [
+          2.2,
+          3.4
+        ],
+        "speed": [
+          0.3,
+          0.8
+        ],
+        "spin": 15,
+        "spread": 180,
+        "tex": "smoke"
+      },
+      {
+        "alpha": 0,
+        "box": [
+          2.4,
+          4.2,
+          1.6
+        ],
+        "colors": [
+          "white",
+          "ice"
+        ],
+        "life": [
+          1.2,
+          1.8
+        ],
+        "light": 0.6,
+        "rate": 4,
+        "rise": -0.5,
+        "size": [
+          0.3,
+          0.1
+        ],
+        "speed": [
+          0.5,
+          1
+        ],
+        "spin": 60,
+        "spread": 180,
+        "tex": "flake"
+      }
+    ],
+    "shimmer": [
+      {
+        "alpha": 0.35,
+        "box": [
+          2.4,
+          4.4,
+          1.6
+        ],
+        "colors": [
+          "a",
+          "white"
+        ],
+        "life": [
+          0.9,
+          1.3
+        ],
+        "light": 0.8,
+        "rate": 3,
+        "rise": 0.5,
+        "size": [
+          0.9,
+          1.2
+        ],
+        "speed": [
+          0,
+          0.3
+        ],
+        "spin": 0,
+        "spread": 180,
+        "tex": "hex"
+      },
+      {
+        "alpha": 0,
+        "box": [
+          2.4,
+          4.4,
+          1.6
+        ],
+        "colors": [
+          "white",
+          "a"
+        ],
+        "life": [
+          0.6,
+          1
+        ],
+        "light": 1,
+        "rate": 6,
+        "rise": 0.6,
+        "size": [
+          0.5,
+          0
+        ],
+        "speed": [
+          0,
+          0.4
+        ],
+        "spin": 90,
+        "spread": 180,
+        "tex": "star"
+      }
+    ],
+    "solar": [
+      {
+        "alpha": 0.7,
+        "box": [
+          1,
+          2.4,
+          0.6
+        ],
+        "colors": [
+          "gold",
+          "a"
+        ],
+        "life": [
+          1,
+          1.4
+        ],
+        "light": 1,
+        "rate": 3,
+        "rise": 0,
+        "size": [
+          3.4,
+          4.4
+        ],
+        "speed": [
+          0,
+          0.2
+        ],
+        "spin": 0,
+        "spread": 0,
+        "tex": "glow"
+      },
+      {
+        "alpha": 0,
+        "box": [
+          2.4,
+          4,
+          1.6
+        ],
+        "colors": [
+          "gold",
+          "white"
+        ],
+        "life": [
+          0.8,
+          1.2
+        ],
+        "light": 1,
+        "rate": 6,
+        "rise": 2.5,
+        "size": [
+          0.55,
+          0.05
+        ],
+        "speed": [
+          1,
+          2
+        ],
+        "spin": 120,
+        "spread": 60,
+        "tex": "star"
+      },
+      {
+        "alpha": 0,
+        "box": [
+          2.2,
+          4,
+          1.4
+        ],
+        "colors": [
+          "gold",
+          "a"
+        ],
+        "life": [
+          0.8,
+          1.2
+        ],
+        "light": 1,
+        "rate": 6,
+        "rise": 4,
+        "size": [
+          0.35,
+          0
+        ],
+        "speed": [
+          1,
+          2
+        ],
+        "spin": 0,
+        "spread": 30,
+        "tex": "ember"
+      }
+    ],
+    "spirit": [
+      {
+        "alpha": 0.15,
+        "box": [
+          2.2,
+          3.6,
+          1.3
+        ],
+        "colors": [
+          "a",
+          "white"
+        ],
+        "life": [
+          0.6,
+          0.9
+        ],
+        "light": 1,
+        "rate": 14,
+        "rise": 6,
+        "size": [
+          1.3,
+          0.3
+        ],
+        "speed": [
+          1.5,
+          3
+        ],
+        "spin": 0,
+        "spread": 20,
+        "tex": "fire"
+      },
+      {
+        "alpha": 0.8,
+        "box": [
+          1,
+          2,
+          0.6
+        ],
+        "colors": [
+          "a",
+          "white"
+        ],
+        "life": [
+          1,
+          1.4
+        ],
+        "light": 1,
+        "rate": 2,
+        "rise": 0,
+        "size": [
+          3,
+          4
+        ],
+        "speed": [
+          0,
+          0.3
+        ],
+        "spin": 0,
+        "spread": 0,
+        "tex": "glow"
+      }
+    ],
+    "static": [
+      {
+        "alpha": 0.1,
+        "box": [
+          2.4,
+          4.4,
+          1.6
+        ],
+        "colors": [
+          "a",
+          "white"
+        ],
+        "life": [
+          0.12,
+          0.2
+        ],
+        "light": 1,
+        "rate": 5,
+        "rise": 0,
+        "size": [
+          1.1,
+          0.6
+        ],
+        "speed": [
+          0,
+          0.5
+        ],
+        "spin": 200,
+        "spread": 180,
+        "tex": "crackle"
+      },
+      {
+        "alpha": 0,
+        "box": [
+          2.2,
+          4.2,
+          1.4
+        ],
+        "colors": [
+          "white",
+          "a"
+        ],
+        "life": [
+          0.25,
+          0.4
+        ],
+        "light": 1,
+        "rate": 8,
+        "rise": -6,
+        "size": [
+          0.25,
+          0
+        ],
+        "speed": [
+          4,
+          8
+        ],
+        "spin": 0,
+        "spread": 180,
+        "streak": true,
+        "tex": "spark"
+      }
+    ]
+  },
+  "creator": [
+    {
+      "key": "suit/plain",
+      "kit": "plain",
+      "name": "Rookie Suit",
+      "tab": "suit"
+    },
+    {
+      "key": "suit/stripe",
+      "kit": "stripe",
+      "name": "Racer Stripe",
+      "tab": "suit"
+    },
+    {
+      "key": "suit/split",
+      "kit": "split",
+      "name": "Split Tone",
+      "tab": "suit"
+    },
+    {
+      "key": "suit/chevron",
+      "kit": "chevron",
+      "name": "Chevron Suit",
+      "tab": "suit"
+    },
+    {
+      "key": "suit/jacket",
+      "kit": "jacket",
+      "name": "Street Jacket",
+      "tab": "suit"
+    },
+    {
+      "key": "suit/armor",
+      "kit": "armor",
+      "name": "Plated Suit",
+      "tab": "suit"
+    },
+    {
+      "key": "suit/core",
+      "kit": "core",
+      "name": "Reactor Core",
+      "tab": "suit"
+    },
+    {
+      "key": "suit/circuit",
+      "kit": "circuit",
+      "name": "Circuit Suit",
+      "tab": "suit"
+    },
+    {
+      "key": "suit/sash",
+      "kit": "sash",
+      "name": "Sash Fighter",
+      "tab": "suit"
+    },
+    {
+      "key": "suit/ribs",
+      "kit": "ribs",
+      "name": "Rib Frame",
+      "tab": "suit"
+    },
+    {
+      "key": "suit/panel",
+      "kit": "panel",
+      "name": "Night Patrol Suit",
+      "tab": "suit"
+    },
+    {
+      "key": "suit/bolt",
+      "kit": "bolt",
+      "name": "Storm Front Suit",
+      "tab": "suit"
+    },
+    {
+      "key": "suit/bulwark",
+      "kit": "bulwark",
+      "name": "Bastion Suit",
+      "tab": "suit"
+    },
+    {
+      "key": "suit/neon",
+      "kit": "neon",
+      "name": "Neon Rogue Suit",
+      "tab": "suit"
+    },
+    {
+      "key": "suit/chrome",
+      "kit": "chrome",
+      "name": "Chrome Finish",
+      "tab": "suit"
+    },
+    {
+      "key": "back/cape:short",
+      "kit": "cape:short",
+      "name": "Short Cape",
+      "tab": "back"
+    },
+    {
+      "key": "back/cape:classic",
+      "kit": "cape:classic",
+      "name": "Classic Cape",
+      "tab": "back"
+    },
+    {
+      "key": "back/cape:collar",
+      "kit": "cape:collar",
+      "name": "High Collar Cape",
+      "tab": "back"
+    },
+    {
+      "key": "back/cape:long",
+      "kit": "cape:long",
+      "name": "Long Cape",
+      "tab": "back"
+    },
+    {
+      "key": "back/cape:tattered",
+      "kit": "cape:tattered",
+      "name": "Tattered Cape",
+      "tab": "back"
+    },
+    {
+      "key": "back/cape:split",
+      "kit": "cape:split",
+      "name": "Split Cape",
+      "tab": "back"
+    },
+    {
+      "key": "back/cape:comet",
+      "kit": "cape:comet",
+      "name": "Meteor Cape",
+      "tab": "back"
+    },
+    {
+      "key": "back/cape:mantle",
+      "kit": "cape:mantle",
+      "name": "Royal Mantle",
+      "tab": "back"
+    },
+    {
+      "key": "back/cape:long",
+      "kit": "cape:long",
+      "name": "Night Patrol Cape",
+      "tab": "back"
+    },
+    {
+      "key": "back/cape:split",
+      "kit": "cape:split",
+      "name": "Storm Front Cape",
+      "tab": "back"
+    },
+    {
+      "key": "back/cape:tattered",
+      "kit": "cape:tattered",
+      "name": "Neon Rogue Cape",
+      "tab": "back"
+    },
+    {
+      "key": "back/cape:mantle",
+      "kit": "cape:mantle",
+      "name": "Solar Crown Cape",
+      "tab": "back"
+    },
+    {
+      "key": "back/coat:short",
+      "kit": "coat:short",
+      "name": "Field Coat",
+      "tab": "back"
+    },
+    {
+      "key": "back/coat:long",
+      "kit": "coat:long",
+      "name": "Duster Coat",
+      "tab": "back"
+    },
+    {
+      "key": "back/coat:shoulder",
+      "kit": "coat:shoulder",
+      "name": "Captain's Coat",
+      "tab": "back"
+    },
+    {
+      "key": "back/coat:shadow",
+      "kit": "coat:shadow",
+      "name": "Shadow Longcoat",
+      "tab": "back"
+    },
+    {
+      "key": "back/scarf:one",
+      "kit": "scarf:one",
+      "name": "Hero Scarf",
+      "tab": "back"
+    },
+    {
+      "key": "back/scarf:two",
+      "kit": "scarf:two",
+      "name": "Twin Tail Scarf",
+      "tab": "back"
+    },
+    {
+      "key": "back/scarf:long",
+      "kit": "scarf:long",
+      "name": "Wind Scarf",
+      "tab": "back"
+    },
+    {
+      "key": "back/scarf:spirit",
+      "kit": "scarf:spirit",
+      "name": "Spirit Scarf",
+      "tab": "back"
+    },
+    {
+      "key": "back/cape:classic",
+      "kit": "cape:classic",
+      "name": "Starter Cape",
+      "tab": "back"
+    },
+    {
+      "key": "head/domino",
+      "kit": "domino",
+      "name": "Domino Mask",
+      "tab": "head"
+    },
+    {
+      "key": "head/cowl",
+      "kit": "cowl",
+      "name": "Cowl",
+      "tab": "head"
+    },
+    {
+      "key": "head/visor",
+      "kit": "visor",
+      "name": "Visor Band",
+      "tab": "head"
+    },
+    {
+      "key": "head/half",
+      "kit": "half",
+      "name": "Half Mask",
+      "tab": "head"
+    },
+    {
+      "key": "head/bandana",
+      "kit": "bandana",
+      "name": "Bandana Mask",
+      "tab": "head"
+    },
+    {
+      "key": "head/helm",
+      "kit": "helm",
+      "name": "Full Helm",
+      "tab": "head"
+    },
+    {
+      "key": "head/crest",
+      "kit": "crest",
+      "name": "Crest Helm",
+      "tab": "head"
+    },
+    {
+      "key": "head/horns",
+      "kit": "horns",
+      "name": "Horned Helm",
+      "tab": "head"
+    },
+    {
+      "key": "head/antenna",
+      "kit": "antenna",
+      "name": "Antenna Helm",
+      "tab": "head"
+    },
+    {
+      "key": "head/hood",
+      "kit": "hood",
+      "name": "Hood",
+      "tab": "head"
+    },
+    {
+      "key": "head/frame",
+      "kit": "frame",
+      "name": "Frame Helm",
+      "tab": "head"
+    },
+    {
+      "key": "head/cowl",
+      "kit": "cowl",
+      "name": "Night Patrol Cowl",
+      "tab": "head"
+    },
+    {
+      "key": "head/crest",
+      "kit": "crest",
+      "name": "Storm Front Helm",
+      "tab": "head"
+    },
+    {
+      "key": "head/helm",
+      "kit": "helm",
+      "name": "Bastion Helm",
+      "tab": "head"
+    },
+    {
+      "key": "head/visor",
+      "kit": "visor",
+      "name": "Neon Rogue Visor",
+      "tab": "head"
+    },
+    {
+      "key": "head/crown",
+      "kit": "crown",
+      "name": "Solar Crown",
+      "tab": "head"
+    },
+    {
+      "key": "hands/glove",
+      "kit": "glove",
+      "name": "Gloves",
+      "tab": "hands"
+    },
+    {
+      "key": "hands/cuff",
+      "kit": "cuff",
+      "name": "Long Cuffs",
+      "tab": "hands"
+    },
+    {
+      "key": "hands/fingerless",
+      "kit": "fingerless",
+      "name": "Fingerless Gloves",
+      "tab": "hands"
+    },
+    {
+      "key": "hands/spiked",
+      "kit": "spiked",
+      "name": "Spiked Gloves",
+      "tab": "hands"
+    },
+    {
+      "key": "hands/gauntlet",
+      "kit": "gauntlet",
+      "name": "Armored Gauntlets",
+      "tab": "hands"
+    },
+    {
+      "key": "hands/spark",
+      "kit": "spark",
+      "name": "Spark Gloves",
+      "tab": "hands"
+    },
+    {
+      "key": "hands/cuff",
+      "kit": "cuff",
+      "name": "Storm Front Gloves",
+      "tab": "hands"
+    },
+    {
+      "key": "hands/claws",
+      "kit": "claws",
+      "name": "Neon Rogue Claws",
+      "tab": "hands"
+    },
+    {
+      "key": "hands/wraps",
+      "kit": "wraps",
+      "name": "Hand Wraps",
+      "tab": "hands"
+    },
+    {
+      "key": "hands/wraps:long",
+      "kit": "wraps:long",
+      "name": "Fighter Wraps",
+      "tab": "hands"
+    },
+    {
+      "key": "hands/wraps:glow",
+      "kit": "wraps:glow",
+      "name": "Spirit Wraps",
+      "tab": "hands"
+    },
+    {
+      "key": "hands/wraps:dark",
+      "kit": "wraps:dark",
+      "name": "Shadow Wraps",
+      "tab": "hands"
+    },
+    {
+      "key": "feet/boot",
+      "kit": "boot",
+      "name": "Boots",
+      "tab": "feet"
+    },
+    {
+      "key": "feet/tall",
+      "kit": "tall",
+      "name": "Tall Boots",
+      "tab": "feet"
+    },
+    {
+      "key": "feet/sneaker",
+      "kit": "sneaker",
+      "name": "Sneakers",
+      "tab": "feet"
+    },
+    {
+      "key": "feet/winged",
+      "kit": "winged",
+      "name": "Winged Boots",
+      "tab": "feet"
+    },
+    {
+      "key": "feet/jet",
+      "kit": "jet",
+      "name": "Jet Boots",
+      "tab": "feet"
+    },
+    {
+      "key": "feet/armored",
+      "kit": "armored",
+      "name": "Armored Boots",
+      "tab": "feet"
+    },
+    {
+      "key": "feet/tall",
+      "kit": "tall",
+      "name": "Night Patrol Boots",
+      "tab": "feet"
+    },
+    {
+      "key": "feet/armored",
+      "kit": "armored",
+      "name": "Bastion Boots",
+      "tab": "feet"
+    },
+    {
+      "key": "emblem/star:none",
+      "kit": "star:none",
+      "name": "Star",
+      "tab": "emblem"
+    },
+    {
+      "key": "emblem/spark:none",
+      "kit": "spark:none",
+      "name": "Spark",
+      "tab": "emblem"
+    },
+    {
+      "key": "emblem/diamond:none",
+      "kit": "diamond:none",
+      "name": "Diamond",
+      "tab": "emblem"
+    },
+    {
+      "key": "emblem/orb:none",
+      "kit": "orb:none",
+      "name": "Orb",
+      "tab": "emblem"
+    },
+    {
+      "key": "emblem/peak:none",
+      "kit": "peak:none",
+      "name": "Peak",
+      "tab": "emblem"
+    },
+    {
+      "key": "emblem/heart:none",
+      "kit": "heart:none",
+      "name": "Heart",
+      "tab": "emblem"
+    },
+    {
+      "key": "emblem/cross:none",
+      "kit": "cross:none",
+      "name": "Cross",
+      "tab": "emblem"
+    },
+    {
+      "key": "emblem/moon:none",
+      "kit": "moon:none",
+      "name": "Moon",
+      "tab": "emblem"
+    },
+    {
+      "key": "emblem/clover:none",
+      "kit": "clover:none",
+      "name": "Clover",
+      "tab": "emblem"
+    },
+    {
+      "key": "emblem/flower:none",
+      "kit": "flower:none",
+      "name": "Flower",
+      "tab": "emblem"
+    },
+    {
+      "key": "emblem/star:badge",
+      "kit": "star:badge",
+      "name": "Star Badge",
+      "tab": "emblem"
+    },
+    {
+      "key": "emblem/spark:badge",
+      "kit": "spark:badge",
+      "name": "Spark Badge",
+      "tab": "emblem"
+    },
+    {
+      "key": "emblem/diamond:badge",
+      "kit": "diamond:badge",
+      "name": "Diamond Badge",
+      "tab": "emblem"
+    },
+    {
+      "key": "emblem/orb:badge",
+      "kit": "orb:badge",
+      "name": "Orb Badge",
+      "tab": "emblem"
+    },
+    {
+      "key": "emblem/peak:badge",
+      "kit": "peak:badge",
+      "name": "Peak Badge",
+      "tab": "emblem"
+    },
+    {
+      "key": "emblem/heart:badge",
+      "kit": "heart:badge",
+      "name": "Heart Badge",
+      "tab": "emblem"
+    },
+    {
+      "key": "emblem/cross:badge",
+      "kit": "cross:badge",
+      "name": "Cross Badge",
+      "tab": "emblem"
+    },
+    {
+      "key": "emblem/moon:badge",
+      "kit": "moon:badge",
+      "name": "Moon Badge",
+      "tab": "emblem"
+    },
+    {
+      "key": "emblem/clover:badge",
+      "kit": "clover:badge",
+      "name": "Clover Badge",
+      "tab": "emblem"
+    },
+    {
+      "key": "emblem/flower:badge",
+      "kit": "flower:badge",
+      "name": "Flower Badge",
+      "tab": "emblem"
+    },
+    {
+      "key": "emblem/star:crest",
+      "kit": "star:crest",
+      "name": "Star Crest",
+      "tab": "emblem"
+    },
+    {
+      "key": "emblem/spark:crest",
+      "kit": "spark:crest",
+      "name": "Spark Crest",
+      "tab": "emblem"
+    },
+    {
+      "key": "emblem/diamond:crest",
+      "kit": "diamond:crest",
+      "name": "Diamond Crest",
+      "tab": "emblem"
+    },
+    {
+      "key": "emblem/orb:crest",
+      "kit": "orb:crest",
+      "name": "Orb Crest",
+      "tab": "emblem"
+    },
+    {
+      "key": "emblem/peak:crest",
+      "kit": "peak:crest",
+      "name": "Peak Crest",
+      "tab": "emblem"
+    },
+    {
+      "key": "emblem/heart:crest",
+      "kit": "heart:crest",
+      "name": "Heart Crest",
+      "tab": "emblem"
+    },
+    {
+      "key": "emblem/cross:crest",
+      "kit": "cross:crest",
+      "name": "Cross Crest",
+      "tab": "emblem"
+    },
+    {
+      "key": "emblem/moon:crest",
+      "kit": "moon:crest",
+      "name": "Moon Crest",
+      "tab": "emblem"
+    },
+    {
+      "key": "emblem/moon:gem",
+      "kit": "moon:gem",
+      "name": "Moon Gem",
+      "tab": "emblem"
+    },
+    {
+      "key": "emblem/star:gem",
+      "kit": "star:gem",
+      "name": "Star Gem",
+      "tab": "emblem"
+    },
+    {
+      "key": "emblem/spark:gem",
+      "kit": "spark:gem",
+      "name": "Spark Gem",
+      "tab": "emblem"
+    },
+    {
+      "key": "emblem/cross:gem",
+      "kit": "cross:gem",
+      "name": "Cross Gem",
+      "tab": "emblem"
+    },
+    {
+      "key": "emblem/diamond:gem",
+      "kit": "diamond:gem",
+      "name": "Diamond Gem",
+      "tab": "emblem"
+    },
+    {
+      "key": "emblem/peak:gem",
+      "kit": "peak:gem",
+      "name": "Peak Gem",
+      "tab": "emblem"
+    },
+    {
+      "key": "emblem/clover:crest",
+      "kit": "clover:crest",
+      "name": "Clover Crest",
+      "tab": "emblem"
+    },
+    {
+      "key": "emblem/heart:gem",
+      "kit": "heart:gem",
+      "name": "Heart Gem",
+      "tab": "emblem"
+    },
+    {
+      "key": "emblem/orb:gem",
+      "kit": "orb:gem",
+      "name": "Orb Gem",
+      "tab": "emblem"
+    },
+    {
+      "key": "emblem/flower:gem",
+      "kit": "flower:gem",
+      "name": "Flower Gem",
+      "tab": "emblem"
+    },
+    {
+      "key": "emblem/clover:gem",
+      "kit": "clover:gem",
+      "name": "Clover Gem",
+      "tab": "emblem"
+    },
+    {
+      "key": "emblem/flower:crest",
+      "kit": "flower:crest",
+      "name": "Flower Crest",
+      "tab": "emblem"
+    },
+    {
+      "key": "aura/ember",
+      "kit": "ember",
+      "name": "Ember Aura",
+      "tab": "aura"
+    },
+    {
+      "key": "aura/mist",
+      "kit": "mist",
+      "name": "Frost Mist",
+      "tab": "aura"
+    },
+    {
+      "key": "aura/static",
+      "kit": "static",
+      "name": "Static Aura",
+      "tab": "aura"
+    },
+    {
+      "key": "aura/spirit",
+      "kit": "spirit",
+      "name": "Spirit Flame",
+      "tab": "aura"
+    },
+    {
+      "key": "aura/shimmer",
+      "kit": "shimmer",
+      "name": "Bastion Shimmer",
+      "tab": "aura"
+    },
+    {
+      "key": "aura/solar",
+      "kit": "solar",
+      "name": "Solar Aura",
+      "tab": "aura"
+    },
+    {
+      "key": "trail/ribbon",
+      "kit": "ribbon",
+      "name": "Ribbon Trail",
+      "tab": "trail"
+    },
+    {
+      "key": "trail/streak",
+      "kit": "streak",
+      "name": "Streak Trail",
+      "tab": "trail"
+    },
+    {
+      "key": "trail/twin",
+      "kit": "twin",
+      "name": "Twin Ribbon",
+      "tab": "trail"
+    },
+    {
+      "key": "trail/sparkle",
+      "kit": "sparkle",
+      "name": "Sparkle Trail",
+      "tab": "trail"
+    },
+    {
+      "key": "trail/comet",
+      "kit": "comet",
+      "name": "Meteor Trail",
+      "tab": "trail"
+    },
+    {
+      "key": "trail/smoke",
+      "kit": "smoke",
+      "name": "Smoke Trail",
+      "tab": "trail"
+    },
+    {
+      "key": "trail/storm",
+      "kit": "storm",
+      "name": "Storm Trail",
+      "tab": "trail"
+    },
+    {
+      "key": "trail/neon",
+      "kit": "neon",
+      "name": "Neon Trail",
+      "tab": "trail"
+    },
+    {
+      "key": "voice/plucky",
+      "kit": "plucky",
+      "name": "Plucky",
+      "tab": "voice"
+    },
+    {
+      "key": "voice/gravel",
+      "kit": "gravel",
+      "name": "Gravel",
+      "tab": "voice"
+    },
+    {
+      "key": "voice/showboat",
+      "kit": "showboat",
+      "name": "Showboat",
+      "tab": "voice"
+    },
+    {
+      "key": "voice/patrol",
+      "kit": "patrol",
+      "name": "Night Patrol Voice",
+      "tab": "voice"
+    },
+    {
+      "key": "hat/cap",
+      "kit": "cap",
+      "name": "Ball Cap",
+      "tab": "hat"
+    },
+    {
+      "key": "hat/beanie",
+      "kit": "beanie",
+      "name": "Beanie",
+      "tab": "hat"
+    },
+    {
+      "key": "hat/headband",
+      "kit": "headband",
+      "name": "Headband",
+      "tab": "hat"
+    },
+    {
+      "key": "hat/shades",
+      "kit": "shades",
+      "name": "Shades",
+      "tab": "hat"
+    },
+    {
+      "key": "hat/goggles",
+      "kit": "goggles",
+      "name": "Flight Goggles",
+      "tab": "hat"
+    },
+    {
+      "key": "hat/visor",
+      "kit": "visor",
+      "name": "Energy Visor",
+      "tab": "hat"
+    },
+    {
+      "key": "hat/phones",
+      "kit": "phones",
+      "name": "Headphones",
+      "tab": "hat"
+    },
+    {
+      "key": "hat/brim",
+      "kit": "brim",
+      "name": "Wide Brim",
+      "tab": "hat"
+    },
+    {
+      "key": "hat/tophat",
+      "kit": "tophat",
+      "name": "Top Hat",
+      "tab": "hat"
+    },
+    {
+      "key": "hat/streethood",
+      "kit": "streethood",
+      "name": "Street Hood",
+      "tab": "hat"
+    },
+    {
+      "key": "hat/crown",
+      "kit": "crown",
+      "name": "Iron Crown",
+      "tab": "hat"
+    },
+    {
+      "key": "hat/horns",
+      "kit": "horns",
+      "name": "Ram Horns",
+      "tab": "hat"
+    },
+    {
+      "key": "hat/halo",
+      "kit": "halo",
+      "name": "Halo",
+      "tab": "hat"
+    },
+    {
+      "key": "hat/kabuto",
+      "kit": "kabuto",
+      "name": "Plume Helm",
+      "tab": "hat"
+    },
+    {
+      "key": "hat/knight",
+      "kit": "knight",
+      "name": "Knight Helm",
+      "tab": "hat"
+    },
+    {
+      "key": "hat/dorag",
+      "kit": "dorag",
+      "name": "Do-rag",
+      "tab": "hat"
+    },
+    {
+      "key": "hat/beret",
+      "kit": "beret",
+      "name": "Beret",
+      "tab": "hat"
+    },
+    {
+      "key": "hat/bucket",
+      "kit": "bucket",
+      "name": "Bucket Hat",
+      "tab": "hat"
+    },
+    {
+      "key": "hat/catears",
+      "kit": "catears",
+      "name": "Cat Ear Band",
+      "tab": "hat"
+    },
+    {
+      "key": "hat/antlers",
+      "kit": "antlers",
+      "name": "Antlers",
+      "tab": "hat"
+    },
+    {
+      "key": "hat/hachimaki",
+      "kit": "hachimaki",
+      "name": "Hachimaki",
+      "tab": "hat"
+    },
+    {
+      "key": "hat/tiara",
+      "kit": "tiara",
+      "name": "Tiara",
+      "tab": "hat"
+    },
+    {
+      "key": "hat/laurel",
+      "kit": "laurel",
+      "name": "Laurel Wreath",
+      "tab": "hat"
+    },
+    {
+      "key": "hat/lens",
+      "kit": "lens",
+      "name": "Tracker Lens",
+      "tab": "hat"
+    },
+    {
+      "key": "hat/aviator",
+      "kit": "aviator",
+      "name": "Aviator Cap",
+      "tab": "hat"
+    },
+    {
+      "key": "ears/studs",
+      "kit": "studs",
+      "name": "Studs",
+      "tab": "ears"
+    },
+    {
+      "key": "ears/hoops",
+      "kit": "hoops",
+      "name": "Hoops",
+      "tab": "ears"
+    },
+    {
+      "key": "ears/comms",
+      "kit": "comms",
+      "name": "Comms Earpiece",
+      "tab": "ears"
+    },
+    {
+      "key": "ears/dangles",
+      "kit": "dangles",
+      "name": "Dangles",
+      "tab": "ears"
+    },
+    {
+      "key": "ears/cuffs",
+      "kit": "cuffs",
+      "name": "Ear Cuffs",
+      "tab": "ears"
+    },
+    {
+      "key": "ears/wings",
+      "kit": "wings",
+      "name": "Wing Earrings",
+      "tab": "ears"
+    },
+    {
+      "key": "ears/gauges",
+      "kit": "gauges",
+      "name": "Gauges",
+      "tab": "ears"
+    },
+    {
+      "key": "ears/chain",
+      "kit": "chain",
+      "name": "Ear Chains",
+      "tab": "ears"
+    },
+    {
+      "key": "ears/gems",
+      "kit": "gems",
+      "name": "Gem Studs",
+      "tab": "ears"
+    },
+    {
+      "key": "ears/fins",
+      "kit": "fins",
+      "name": "Fin Ears",
+      "tab": "ears"
+    },
+    {
+      "key": "shoulders/pads",
+      "kit": "pads",
+      "name": "Shoulder Pads",
+      "tab": "shoulders"
+    },
+    {
+      "key": "shoulders/studded",
+      "kit": "studded",
+      "name": "Studded Pads",
+      "tab": "shoulders"
+    },
+    {
+      "key": "shoulders/epaulettes",
+      "kit": "epaulettes",
+      "name": "Epaulettes",
+      "tab": "shoulders"
+    },
+    {
+      "key": "shoulders/fur",
+      "kit": "fur",
+      "name": "Fur Trim",
+      "tab": "shoulders"
+    },
+    {
+      "key": "shoulders/spikes",
+      "kit": "spikes",
+      "name": "Spiked Pads",
+      "tab": "shoulders"
+    },
+    {
+      "key": "shoulders/single",
+      "kit": "single",
+      "name": "Single Pauldron",
+      "tab": "shoulders"
+    },
+    {
+      "key": "shoulders/layered",
+      "kit": "layered",
+      "name": "Layered Plates",
+      "tab": "shoulders"
+    },
+    {
+      "key": "shoulders/pauldrons",
+      "kit": "pauldrons",
+      "name": "Great Pauldrons",
+      "tab": "shoulders"
+    },
+    {
+      "key": "shoulders/coils",
+      "kit": "coils",
+      "name": "Energy Coils",
+      "tab": "shoulders"
+    },
+    {
+      "key": "shoulders/crystal",
+      "kit": "crystal",
+      "name": "Crystal Shards",
+      "tab": "shoulders"
+    },
+    {
+      "key": "shoulders/mantle",
+      "kit": "mantle",
+      "name": "Mantle",
+      "tab": "shoulders"
+    },
+    {
+      "key": "shoulders/feathers",
+      "kit": "feathers",
+      "name": "Feather Pads",
+      "tab": "shoulders"
+    },
+    {
+      "key": "shoulders/scales",
+      "kit": "scales",
+      "name": "Scale Pads",
+      "tab": "shoulders"
+    },
+    {
+      "key": "shoulders/riveted",
+      "kit": "riveted",
+      "name": "Riveted Pads",
+      "tab": "shoulders"
+    },
+    {
+      "key": "shoulders/plume",
+      "kit": "plume",
+      "name": "Plumed Pad",
+      "tab": "shoulders"
+    },
+    {
+      "key": "shoulders/wingtips",
+      "kit": "wingtips",
+      "name": "Wingtips",
+      "tab": "shoulders"
+    },
+    {
+      "key": "shoulders/shell",
+      "kit": "shell",
+      "name": "Shell Pads",
+      "tab": "shoulders"
+    },
+    {
+      "key": "shoulders/gears",
+      "kit": "gears",
+      "name": "Gear Pads",
+      "tab": "shoulders"
+    },
+    {
+      "key": "shoulders/flames",
+      "kit": "flames",
+      "name": "Flame Pads",
+      "tab": "shoulders"
+    },
+    {
+      "key": "shoulders/blades",
+      "kit": "blades",
+      "name": "Blade Pads",
+      "tab": "shoulders"
+    },
+    {
+      "key": "neck/chain",
+      "kit": "chain",
+      "name": "Chain",
+      "tab": "neck"
+    },
+    {
+      "key": "neck/pendant",
+      "kit": "pendant",
+      "name": "Pendant",
+      "tab": "neck"
+    },
+    {
+      "key": "neck/choker",
+      "kit": "choker",
+      "name": "Choker",
+      "tab": "neck"
+    },
+    {
+      "key": "neck/tags",
+      "kit": "tags",
+      "name": "Dog Tags",
+      "tab": "neck"
+    },
+    {
+      "key": "neck/beads",
+      "kit": "beads",
+      "name": "Bead Necklace",
+      "tab": "neck"
+    },
+    {
+      "key": "neck/collar",
+      "kit": "collar",
+      "name": "High Collar",
+      "tab": "neck"
+    },
+    {
+      "key": "neck/amulet",
+      "kit": "amulet",
+      "name": "Glow Amulet",
+      "tab": "neck"
+    },
+    {
+      "key": "neck/torc",
+      "kit": "torc",
+      "name": "Gold Torc",
+      "tab": "neck"
+    },
+    {
+      "key": "neck/scarf",
+      "kit": "scarf",
+      "name": "Scarf",
+      "tab": "neck"
+    },
+    {
+      "key": "neck/kerchief",
+      "kit": "kerchief",
+      "name": "Kerchief",
+      "tab": "neck"
+    },
+    {
+      "key": "neck/medal",
+      "kit": "medal",
+      "name": "Medal",
+      "tab": "neck"
+    },
+    {
+      "key": "neck/whistle",
+      "kit": "whistle",
+      "name": "Whistle",
+      "tab": "neck"
+    },
+    {
+      "key": "neck/fang",
+      "kit": "fang",
+      "name": "Fang Cord",
+      "tab": "neck"
+    },
+    {
+      "key": "neck/neckphones",
+      "kit": "neckphones",
+      "name": "Neck Phones",
+      "tab": "neck"
+    },
+    {
+      "key": "neck/ruff",
+      "kit": "ruff",
+      "name": "Ruff Collar",
+      "tab": "neck"
+    },
+    {
+      "key": "arms/bracers",
+      "kit": "bracers",
+      "name": "Bracers",
+      "tab": "arms"
+    },
+    {
+      "key": "arms/sleeves",
+      "kit": "sleeves",
+      "name": "Sleeves",
+      "tab": "arms"
+    },
+    {
+      "key": "arms/wraps",
+      "kit": "wraps",
+      "name": "Arm Wraps",
+      "tab": "arms"
+    },
+    {
+      "key": "arms/bands",
+      "kit": "bands",
+      "name": "Arm Bands",
+      "tab": "arms"
+    },
+    {
+      "key": "arms/tattoo",
+      "kit": "tattoo",
+      "name": "Tattoo Lines",
+      "tab": "arms"
+    },
+    {
+      "key": "arms/spikes",
+      "kit": "spikes",
+      "name": "Forearm Spikes",
+      "tab": "arms"
+    },
+    {
+      "key": "arms/armor",
+      "kit": "armor",
+      "name": "Arm Plates",
+      "tab": "arms"
+    },
+    {
+      "key": "arms/coils",
+      "kit": "coils",
+      "name": "Power Rings",
+      "tab": "arms"
+    },
+    {
+      "key": "arms/elbowpads",
+      "kit": "elbowpads",
+      "name": "Elbow Pads",
+      "tab": "arms"
+    },
+    {
+      "key": "arms/rolled",
+      "kit": "rolled",
+      "name": "Rolled Sleeves",
+      "tab": "arms"
+    },
+    {
+      "key": "arms/chains",
+      "kit": "chains",
+      "name": "Arm Chains",
+      "tab": "arms"
+    },
+    {
+      "key": "arms/fins",
+      "kit": "fins",
+      "name": "Arm Fins",
+      "tab": "arms"
+    },
+    {
+      "key": "arms/runes",
+      "kit": "runes",
+      "name": "Rune Bands",
+      "tab": "arms"
+    },
+    {
+      "key": "arms/scales",
+      "kit": "scales",
+      "name": "Scale Guards",
+      "tab": "arms"
+    },
+    {
+      "key": "arms/longsleeve",
+      "kit": "longsleeve",
+      "name": "Long Sleeves",
+      "tab": "arms"
+    },
+    {
+      "key": "wrist/ring",
+      "kit": "ring",
+      "name": "Ring",
+      "tab": "wrist"
+    },
+    {
+      "key": "wrist/bracelet",
+      "kit": "bracelet",
+      "name": "Bracelet",
+      "tab": "wrist"
+    },
+    {
+      "key": "wrist/rings",
+      "kit": "rings",
+      "name": "Two Rings",
+      "tab": "wrist"
+    },
+    {
+      "key": "wrist/cuffs",
+      "kit": "cuffs",
+      "name": "Metal Cuffs",
+      "tab": "wrist"
+    },
+    {
+      "key": "wrist/beads",
+      "kit": "beads",
+      "name": "Wrist Beads",
+      "tab": "wrist"
+    },
+    {
+      "key": "wrist/power",
+      "kit": "power",
+      "name": "Power Bands",
+      "tab": "wrist"
+    },
+    {
+      "key": "wrist/watch",
+      "kit": "watch",
+      "name": "Wrist Watch",
+      "tab": "wrist"
+    },
+    {
+      "key": "wrist/bangles",
+      "kit": "bangles",
+      "name": "Bangles",
+      "tab": "wrist"
+    },
+    {
+      "key": "wrist/sweatband",
+      "kit": "sweatband",
+      "name": "Sweatband",
+      "tab": "wrist"
+    },
+    {
+      "key": "wrist/links",
+      "kit": "links",
+      "name": "Chain Links",
+      "tab": "wrist"
+    },
+    {
+      "key": "wrist/studs",
+      "kit": "studs",
+      "name": "Studded Band",
+      "tab": "wrist"
+    },
+    {
+      "key": "wrist/gemring",
+      "kit": "gemring",
+      "name": "Gem Ring",
+      "tab": "wrist"
+    },
+    {
+      "key": "belt/plain",
+      "kit": "plain",
+      "name": "Plain Belt",
+      "tab": "belt"
+    },
+    {
+      "key": "belt/utility",
+      "kit": "utility",
+      "name": "Utility Belt",
+      "tab": "belt"
+    },
+    {
+      "key": "belt/sash",
+      "kit": "sash",
+      "name": "Sash",
+      "tab": "belt"
+    },
+    {
+      "key": "belt/rope",
+      "kit": "rope",
+      "name": "Rope Belt",
+      "tab": "belt"
+    },
+    {
+      "key": "belt/chain",
+      "kit": "chain",
+      "name": "Chain Belt",
+      "tab": "belt"
+    },
+    {
+      "key": "belt/holsters",
+      "kit": "holsters",
+      "name": "Thigh Holsters",
+      "tab": "belt"
+    },
+    {
+      "key": "belt/tech",
+      "kit": "tech",
+      "name": "Tech Belt",
+      "tab": "belt"
+    },
+    {
+      "key": "belt/champion",
+      "kit": "champion",
+      "name": "Champion Belt",
+      "tab": "belt"
+    },
+    {
+      "key": "belt/studded",
+      "kit": "studded",
+      "name": "Studded Belt",
+      "tab": "belt"
+    },
+    {
+      "key": "belt/bigbuckle",
+      "kit": "bigbuckle",
+      "name": "Big Buckle",
+      "tab": "belt"
+    },
+    {
+      "key": "belt/fanny",
+      "kit": "fanny",
+      "name": "Waist Pack",
+      "tab": "belt"
+    },
+    {
+      "key": "belt/toolbelt",
+      "kit": "toolbelt",
+      "name": "Tool Belt",
+      "tab": "belt"
+    },
+    {
+      "key": "belt/obi",
+      "kit": "obi",
+      "name": "Obi",
+      "tab": "belt"
+    },
+    {
+      "key": "belt/capsules",
+      "kit": "capsules",
+      "name": "Capsule Belt",
+      "tab": "belt"
+    },
+    {
+      "key": "belt/cord",
+      "kit": "cord",
+      "name": "Tassel Cord",
+      "tab": "belt"
+    },
+    {
+      "key": "legs/pants",
+      "kit": "pants",
+      "name": "Pants",
+      "tab": "legs"
+    },
+    {
+      "key": "legs/shorts",
+      "kit": "shorts",
+      "name": "Shorts",
+      "tab": "legs"
+    },
+    {
+      "key": "legs/joggers",
+      "kit": "joggers",
+      "name": "Joggers",
+      "tab": "legs"
+    },
+    {
+      "key": "legs/track",
+      "kit": "track",
+      "name": "Track Pants",
+      "tab": "legs"
+    },
+    {
+      "key": "legs/cargo",
+      "kit": "cargo",
+      "name": "Cargo Pants",
+      "tab": "legs"
+    },
+    {
+      "key": "legs/kneepads",
+      "kit": "kneepads",
+      "name": "Knee Pads",
+      "tab": "legs"
+    },
+    {
+      "key": "legs/ripped",
+      "kit": "ripped",
+      "name": "Ripped Jeans",
+      "tab": "legs"
+    },
+    {
+      "key": "legs/skirt",
+      "kit": "skirt",
+      "name": "Battle Skirt",
+      "tab": "legs"
+    },
+    {
+      "key": "legs/hakama",
+      "kit": "hakama",
+      "name": "Hakama",
+      "tab": "legs"
+    },
+    {
+      "key": "legs/greaves",
+      "kit": "greaves",
+      "name": "Shin Greaves",
+      "tab": "legs"
+    },
+    {
+      "key": "legs/legwraps",
+      "kit": "legwraps",
+      "name": "Leg Wraps",
+      "tab": "legs"
+    },
+    {
+      "key": "legs/armored",
+      "kit": "armored",
+      "name": "Armored Legs",
+      "tab": "legs"
+    },
+    {
+      "key": "legs/jeans",
+      "kit": "jeans",
+      "name": "Jeans",
+      "tab": "legs"
+    },
+    {
+      "key": "legs/cuffed",
+      "kit": "cuffed",
+      "name": "Cuffed Pants",
+      "tab": "legs"
+    },
+    {
+      "key": "legs/capri",
+      "kit": "capri",
+      "name": "Capris",
+      "tab": "legs"
+    },
+    {
+      "key": "legs/flared",
+      "kit": "flared",
+      "name": "Flared Pants",
+      "tab": "legs"
+    },
+    {
+      "key": "legs/pleated",
+      "kit": "pleated",
+      "name": "Pleated Skirt",
+      "tab": "legs"
+    },
+    {
+      "key": "legs/leggings",
+      "kit": "leggings",
+      "name": "Glow Leggings",
+      "tab": "legs"
+    },
+    {
+      "key": "legs/camo",
+      "kit": "camo",
+      "name": "Camo Pants",
+      "tab": "legs"
+    },
+    {
+      "key": "legs/ski",
+      "kit": "ski",
+      "name": "Ski Pants",
+      "tab": "legs"
+    },
+    {
+      "key": "legs/harem",
+      "kit": "harem",
+      "name": "Genie Pants",
+      "tab": "legs"
+    },
+    {
+      "key": "legs/chaps",
+      "kit": "chaps",
+      "name": "Chaps",
+      "tab": "legs"
+    },
+    {
+      "key": "legs/shinguards",
+      "kit": "shinguards",
+      "name": "Shin Guards",
+      "tab": "legs"
+    },
+    {
+      "key": "legs/checkered",
+      "kit": "checkered",
+      "name": "Checkered Pants",
+      "tab": "legs"
+    },
+    {
+      "key": "legs/bandaged",
+      "kit": "bandaged",
+      "name": "Bandaged Legs",
+      "tab": "legs"
+    },
+    {
+      "key": "legs/glowlines",
+      "kit": "glowlines",
+      "name": "Glow Lines",
+      "tab": "legs"
+    },
+    {
+      "key": "legs/scaled",
+      "kit": "scaled",
+      "name": "Scaled Leggings",
+      "tab": "legs"
+    },
+    {
+      "key": "legs/sarong",
+      "kit": "sarong",
+      "name": "Sarong",
+      "tab": "legs"
+    },
+    {
+      "key": "legs/sweats",
+      "kit": "sweats",
+      "name": "Sweatpants",
+      "tab": "legs"
+    },
+    {
+      "key": "legs/moto",
+      "kit": "moto",
+      "name": "Moto Pants",
+      "tab": "legs"
+    },
+    {
+      "key": "backpack/backpack",
+      "kit": "backpack",
+      "name": "Backpack",
+      "tab": "backpack"
+    },
+    {
+      "key": "backpack/sheath",
+      "kit": "sheath",
+      "name": "Sword Sheath",
+      "tab": "backpack"
+    },
+    {
+      "key": "backpack/quiver",
+      "kit": "quiver",
+      "name": "Quiver",
+      "tab": "backpack"
+    },
+    {
+      "key": "backpack/tanks",
+      "kit": "tanks",
+      "name": "Air Tanks",
+      "tab": "backpack"
+    },
+    {
+      "key": "backpack/jetpack",
+      "kit": "jetpack",
+      "name": "Jetpack",
+      "tab": "backpack"
+    },
+    {
+      "key": "backpack/shield",
+      "kit": "shield",
+      "name": "Back Shield",
+      "tab": "backpack"
+    },
+    {
+      "key": "backpack/drone",
+      "kit": "drone",
+      "name": "Drone Pod",
+      "tab": "backpack"
+    },
+    {
+      "key": "backpack/wings",
+      "kit": "wings",
+      "name": "Feather Wings",
+      "tab": "backpack"
+    },
+    {
+      "key": "backpack/bat",
+      "kit": "bat",
+      "name": "Bat Wings",
+      "tab": "backpack"
+    },
+    {
+      "key": "backpack/ring",
+      "kit": "ring",
+      "name": "Halo Ring",
+      "tab": "backpack"
+    },
+    {
+      "key": "backpack/energy",
+      "kit": "energy",
+      "name": "Energy Wings",
+      "tab": "backpack"
+    },
+    {
+      "key": "backpack/rack",
+      "kit": "rack",
+      "name": "Gear Rack",
+      "tab": "backpack"
+    },
+    {
+      "key": "backpack/satchel",
+      "kit": "satchel",
+      "name": "Satchel",
+      "tab": "backpack"
+    },
+    {
+      "key": "backpack/case",
+      "kit": "case",
+      "name": "Instrument Case",
+      "tab": "backpack"
+    },
+    {
+      "key": "backpack/banner",
+      "kit": "banner",
+      "name": "Back Banner",
+      "tab": "backpack"
+    },
+    {
+      "key": "backpack/scroll",
+      "kit": "scroll",
+      "name": "Scroll",
+      "tab": "backpack"
+    },
+    {
+      "key": "backpack/cogs",
+      "kit": "cogs",
+      "name": "Cog Rig",
+      "tab": "backpack"
+    },
+    {
+      "key": "backpack/butterfly",
+      "kit": "butterfly",
+      "name": "Butterfly Wings",
+      "tab": "backpack"
+    },
+    {
+      "key": "backpack/fins",
+      "kit": "fins",
+      "name": "Dorsal Fins",
+      "tab": "backpack"
+    },
+    {
+      "key": "backpack/antenna",
+      "kit": "antenna",
+      "name": "Radio Pack",
+      "tab": "backpack"
+    },
+    {
+      "key": "backpack/umbrella",
+      "kit": "umbrella",
+      "name": "Umbrella",
+      "tab": "backpack"
+    },
+    {
+      "key": "backpack/orbs",
+      "kit": "orbs",
+      "name": "Orbit Orbs",
+      "tab": "backpack"
+    },
+    {
+      "key": "shirt/Tee",
+      "kit": "Tee",
+      "name": "Tee",
+      "tab": "shirt"
+    },
+    {
+      "key": "shirt/LongSleeve",
+      "kit": "LongSleeve",
+      "name": "Long Sleeve",
+      "tab": "shirt"
+    },
+    {
+      "key": "shirt/Hoodie",
+      "kit": "Hoodie",
+      "name": "Pullover Hoodie",
+      "tab": "shirt"
+    },
+    {
+      "key": "shirt/ZipJacket",
+      "kit": "ZipJacket",
+      "name": "Zip Jacket",
+      "tab": "shirt"
+    },
+    {
+      "key": "shirt/TrackTop",
+      "kit": "TrackTop",
+      "name": "Track Top",
+      "tab": "shirt"
+    },
+    {
+      "key": "shirt/ButtonShirt",
+      "kit": "ButtonShirt",
+      "name": "Button Shirt",
+      "tab": "shirt"
+    },
+    {
+      "key": "shirt/Polo",
+      "kit": "Polo",
+      "name": "Polo",
+      "tab": "shirt"
+    },
+    {
+      "key": "shirt/Tank",
+      "kit": "Tank",
+      "name": "Tank",
+      "tab": "shirt"
+    },
+    {
+      "key": "shirt/Sweater",
+      "kit": "Sweater",
+      "name": "Knit Sweater",
+      "tab": "shirt"
+    },
+    {
+      "key": "shirt/Bomber",
+      "kit": "Bomber",
+      "name": "Bomber",
+      "tab": "shirt"
+    },
+    {
+      "key": "shirt/Flannel",
+      "kit": "Flannel",
+      "name": "Flannel Shirt",
+      "tab": "shirt"
+    },
+    {
+      "key": "shirt/DenimJacket",
+      "kit": "DenimJacket",
+      "name": "Denim Jacket",
+      "tab": "shirt"
+    },
+    {
+      "key": "shirt/LeatherJacket",
+      "kit": "LeatherJacket",
+      "name": "Leather Jacket",
+      "tab": "shirt"
+    },
+    {
+      "key": "shirt/Blazer",
+      "kit": "Blazer",
+      "name": "Blazer and Tie",
+      "tab": "shirt"
+    },
+    {
+      "key": "shirt/Turtleneck",
+      "kit": "Turtleneck",
+      "name": "Turtleneck",
+      "tab": "shirt"
+    },
+    {
+      "key": "shirt/Raglan",
+      "kit": "Raglan",
+      "name": "Raglan Tee",
+      "tab": "shirt"
+    },
+    {
+      "key": "shirt/GraphicTee",
+      "kit": "GraphicTee",
+      "name": "Meteor Tee",
+      "tab": "shirt"
+    },
+    {
+      "key": "shirt/PufferVest",
+      "kit": "PufferVest",
+      "name": "Puffer Vest",
+      "tab": "shirt"
+    },
+    {
+      "key": "pants/Jeans",
+      "kit": "Jeans",
+      "name": "Denim Jeans",
+      "tab": "pants"
+    },
+    {
+      "key": "pants/Cargo",
+      "kit": "Cargo",
+      "name": "Cargo Trousers",
+      "tab": "pants"
+    },
+    {
+      "key": "pants/Joggers",
+      "kit": "Joggers",
+      "name": "Jogger Pants",
+      "tab": "pants"
+    },
+    {
+      "key": "pants/Shorts",
+      "kit": "Shorts",
+      "name": "Casual Shorts",
+      "tab": "pants"
+    },
+    {
+      "key": "pants/TrackPants",
+      "kit": "TrackPants",
+      "name": "Track Bottoms",
+      "tab": "pants"
+    },
+    {
+      "key": "pants/Slacks",
+      "kit": "Slacks",
+      "name": "Slacks",
+      "tab": "pants"
+    },
+    {
+      "key": "pants/Skirt",
+      "kit": "Skirt",
+      "name": "Classic Skirt",
+      "tab": "pants"
+    },
+    {
+      "key": "pants/LongSkirt",
+      "kit": "LongSkirt",
+      "name": "Long Skirt",
+      "tab": "pants"
+    },
+    {
+      "key": "pants/RippedJeans",
+      "kit": "RippedJeans",
+      "name": "Torn Denim",
+      "tab": "pants"
+    },
+    {
+      "key": "pants/Chinos",
+      "kit": "Chinos",
+      "name": "Chinos",
+      "tab": "pants"
+    },
+    {
+      "key": "pants/Leggings",
+      "kit": "Leggings",
+      "name": "Leggings",
+      "tab": "pants"
+    },
+    {
+      "key": "pants/Sweatpants",
+      "kit": "Sweatpants",
+      "name": "Lounge Sweats",
+      "tab": "pants"
+    },
+    {
+      "kit": "cat:144075659",
+      "name": "Smile",
+      "tab": "visage"
+    },
+    {
+      "kit": "cat:10907541",
+      "name": "Mr. Chuckles",
+      "tab": "visage"
+    },
+    {
+      "kit": "cat:12145366",
+      "name": "Freckled Grin",
+      "tab": "visage"
+    },
+    {
+      "kit": "cat:128992838",
+      "name": "Beast Mode",
+      "tab": "visage"
+    },
+    {
+      "kit": "cat:141728790",
+      "name": "Tired Face",
+      "tab": "visage"
+    },
+    {
+      "kit": "cat:150182501",
+      "name": "Awkward Grin",
+      "tab": "visage"
+    },
+    {
+      "kit": "cat:20418658",
+      "name": "Err...",
+      "tab": "visage"
+    },
+    {
+      "kit": "cat:20418682",
+      "name": "Bandage",
+      "tab": "visage"
+    },
+    {
+      "kit": "cat:20722130",
+      "name": "Shiny Teeth",
+      "tab": "visage"
+    },
+    {
+      "kit": "cat:209994875",
+      "name": "Smiling Girl",
+      "tab": "visage"
+    },
+    {
+      "kit": "cat:209995252",
+      "name": "Blizzard Beast Mode",
+      "tab": "visage"
+    },
+    {
+      "kit": "cat:209995366",
+      "name": "Joyful Smile",
+      "tab": "visage"
+    },
+    {
+      "kit": "cat:226217449",
+      "name": "Laughing Fun",
+      "tab": "visage"
+    },
+    {
+      "kit": "cat:236399287",
+      "name": "Happy Wink",
+      "tab": "visage"
+    },
+    {
+      "kit": "cat:23932048",
+      "name": "Awkward",
+      "tab": "visage"
+    },
+    {
+      "kit": "cat:25321961",
+      "name": "Friendly Grin",
+      "tab": "visage"
+    },
+    {
+      "kit": "cat:26424808",
+      "name": "Know-It-All Grin",
+      "tab": "visage"
+    },
+    {
+      "kit": "cat:268603331",
+      "name": "Bad News Face",
+      "tab": "visage"
+    },
+    {
+      "kit": "cat:280988393",
+      "name": "Mildly Irritated Face",
+      "tab": "visage"
+    },
+    {
+      "kit": "cat:28878297",
+      "name": "Adoration",
+      "tab": "visage"
+    },
+    {
+      "kit": "cat:31317701",
+      "name": "Alien",
+      "tab": "visage"
+    },
+    {
+      "kit": "cat:391496223",
+      "name": "Big Sad Eyes",
+      "tab": "visage"
+    },
+    {
+      "kit": "cat:406000730",
+      "name": "Happy D",
+      "tab": "visage"
+    },
+    {
+      "kit": "cat:406001167",
+      "name": "ROAR",
+      "tab": "visage"
+    },
+    {
+      "kit": "cat:416846300",
+      "name": "Anime Surprise",
+      "tab": "visage"
+    },
+    {
+      "kit": "cat:45084008",
+      "name": "Angelic",
+      "tab": "visage"
+    },
+    {
+      "kit": "cat:7074729",
+      "name": "Glee",
+      "tab": "visage"
+    },
+    {
+      "kit": "cat:7074764",
+      "name": "Chill",
+      "tab": "visage"
+    },
+    {
+      "kit": "cat:7074786",
+      "name": "Check It",
+      "tab": "visage"
+    },
+    {
+      "kit": "cat:7074864",
+      "name": "Winky",
+      "tab": "visage"
+    },
+    {
+      "kit": "cat:7131541",
+      "name": "Alright",
+      "tab": "visage"
+    },
+    {
+      "kit": "cat:7317765",
+      "name": "Slickfang",
+      "tab": "visage"
+    },
+    {
+      "kit": "cat:7317793",
+      "name": "Good Intentioned",
+      "tab": "visage"
+    },
+    {
+      "kit": "cat:7506135",
+      "name": "Blinky",
+      "tab": "visage"
+    },
+    {
+      "kit": "cat:7699174",
+      "name": "Silly Fun",
+      "tab": "visage"
+    },
+    {
+      "kit": "cat:8329686",
+      "name": "Sinister",
+      "tab": "visage"
+    },
+    {
+      "kit": "cat:8560971",
+      "name": "Stare",
+      "tab": "visage"
+    },
+    {
+      "kit": "cat:8560975",
+      "name": "Anguished",
+      "tab": "visage"
+    },
+    {
+      "kit": "cat:86487700",
+      "name": "Man Face",
+      "tab": "visage"
+    },
+    {
+      "kit": "cat:86487766",
+      "name": "Woman Face",
+      "tab": "visage"
+    },
+    {
+      "kit": "cat:9250633",
+      "name": "Aghast",
+      "tab": "visage"
+    },
+    {
+      "kit": "cat:9250643",
+      "name": "Meanie",
+      "tab": "visage"
+    },
+    {
+      "kit": "cat:12732366",
+      "name": "Take Over the World",
+      "tab": "visage"
+    },
+    {
+      "kit": "cat:10678423",
+      "name": "Bad Dog",
+      "tab": "visage"
+    },
+    {
+      "key": "suit/tee",
+      "kit": "tee",
+      "name": "Plain Tee",
+      "tab": "suit"
+    },
+    {
+      "key": "suit/tank",
+      "kit": "tank",
+      "name": "Tank Top",
+      "tab": "suit"
+    },
+    {
+      "key": "suit/hoodie",
+      "kit": "hoodie",
+      "name": "Hoodie",
+      "tab": "suit"
+    },
+    {
+      "key": "suit/tracksuit",
+      "kit": "tracksuit",
+      "name": "Tracksuit Top",
+      "tab": "suit"
+    },
+    {
+      "key": "suit/sweater",
+      "kit": "sweater",
+      "name": "Sweater",
+      "tab": "suit"
+    },
+    {
+      "key": "suit/jersey",
+      "kit": "jersey",
+      "name": "Team Jersey",
+      "tab": "suit"
+    },
+    {
+      "key": "suit/varsity",
+      "kit": "varsity",
+      "name": "Varsity Jacket",
+      "tab": "suit"
+    },
+    {
+      "key": "suit/puffer",
+      "kit": "puffer",
+      "name": "Puffer Jacket",
+      "tab": "suit"
+    },
+    {
+      "key": "suit/overalls",
+      "kit": "overalls",
+      "name": "Overalls",
+      "tab": "suit"
+    },
+    {
+      "key": "suit/bomber",
+      "kit": "bomber",
+      "name": "Bomber Jacket",
+      "tab": "suit"
+    },
+    {
+      "key": "suit/vest",
+      "kit": "vest",
+      "name": "Vest",
+      "tab": "suit"
+    },
+    {
+      "key": "suit/trench",
+      "kit": "trench",
+      "name": "Trench Coat",
+      "tab": "suit"
+    },
+    {
+      "key": "suit/gi",
+      "kit": "gi",
+      "name": "Dojo Gi",
+      "tab": "suit"
+    },
+    {
+      "key": "suit/labcoat",
+      "kit": "labcoat",
+      "name": "Lab Coat",
+      "tab": "suit"
+    },
+    {
+      "key": "suit/fatigues",
+      "kit": "fatigues",
+      "name": "Fatigues",
+      "tab": "suit"
+    },
+    {
+      "key": "suit/racing",
+      "kit": "racing",
+      "name": "Racing Suit",
+      "tab": "suit"
+    },
+    {
+      "key": "suit/wetsuit",
+      "kit": "wetsuit",
+      "name": "Wetsuit",
+      "tab": "suit"
+    },
+    {
+      "key": "suit/kimono",
+      "kit": "kimono",
+      "name": "Kimono",
+      "tab": "suit"
+    },
+    {
+      "key": "suit/shinobi",
+      "kit": "shinobi",
+      "name": "Shinobi Garb",
+      "tab": "suit"
+    },
+    {
+      "key": "suit/ranger",
+      "kit": "ranger",
+      "name": "Ranger Harness",
+      "tab": "suit"
+    },
+    {
+      "key": "suit/tux",
+      "kit": "tux",
+      "name": "Tuxedo",
+      "tab": "suit"
+    },
+    {
+      "key": "suit/spacesuit",
+      "kit": "spacesuit",
+      "name": "Space Suit",
+      "tab": "suit"
+    },
+    {
+      "key": "suit/plate",
+      "kit": "plate",
+      "name": "Plate Tabard",
+      "tab": "suit"
+    },
+    {
+      "key": "suit/exo",
+      "kit": "exo",
+      "name": "Exo Frame",
+      "tab": "suit"
+    },
+    {
+      "key": "suit/cyber",
+      "kit": "cyber",
+      "name": "Cyber Lines",
+      "tab": "suit"
+    },
+    {
+      "key": "suit/robe",
+      "kit": "robe",
+      "name": "Mystic Robe",
+      "tab": "suit"
+    },
+    {
+      "key": "suit/royal",
+      "kit": "royal",
+      "name": "Royal Coat",
+      "tab": "suit"
+    },
+    {
+      "key": "suit/magma",
+      "kit": "magma",
+      "name": "Magma Veins",
+      "tab": "suit"
+    },
+    {
+      "key": "suit/frost",
+      "kit": "frost",
+      "name": "Frost Shell",
+      "tab": "suit"
+    },
+    {
+      "key": "suit/starfield",
+      "kit": "starfield",
+      "name": "Starfield Suit",
+      "tab": "suit"
+    },
+    {
+      "key": "suit/nightTux",
+      "kit": "nightTux",
+      "name": "Opening Night Suit",
+      "tab": "suit"
+    },
+    {
+      "key": "back/cape:hood",
+      "kit": "cape:hood",
+      "name": "Hooded Cape",
+      "tab": "back"
+    },
+    {
+      "key": "back/cape:feather",
+      "kit": "cape:feather",
+      "name": "Feather Cape",
+      "tab": "back"
+    },
+    {
+      "key": "back/cape:star",
+      "kit": "cape:star",
+      "name": "Star Cape",
+      "tab": "back"
+    },
+    {
+      "key": "back/cape:night",
+      "kit": "cape:night",
+      "name": "Opening Night Cape",
+      "tab": "back"
+    },
+    {
+      "key": "head/ninja",
+      "kit": "ninja",
+      "name": "Ninja Wrap",
+      "tab": "head"
+    },
+    {
+      "key": "head/fullface",
+      "kit": "fullface",
+      "name": "Full Face Plate",
+      "tab": "head"
+    },
+    {
+      "key": "head/respirator",
+      "kit": "respirator",
+      "name": "Respirator",
+      "tab": "head"
+    },
+    {
+      "key": "head/eyepatch",
+      "kit": "eyepatch",
+      "name": "Eye Patch",
+      "tab": "head"
+    },
+    {
+      "key": "head/masquerade",
+      "kit": "masquerade",
+      "name": "Masquerade",
+      "tab": "head"
+    },
+    {
+      "key": "head/gasmask",
+      "kit": "gasmask",
+      "name": "Gas Mask",
+      "tab": "head"
+    },
+    {
+      "key": "head/goalie",
+      "kit": "goalie",
+      "name": "Goalie Mask",
+      "tab": "head"
+    },
+    {
+      "key": "head/monovisor",
+      "kit": "monovisor",
+      "name": "Mono Visor",
+      "tab": "head"
+    },
+    {
+      "key": "head/welder",
+      "kit": "welder",
+      "name": "Welding Mask",
+      "tab": "head"
+    },
+    {
+      "key": "head/skull",
+      "kit": "skull",
+      "name": "Skull Mask",
+      "tab": "head"
+    },
+    {
+      "key": "head/techmask",
+      "kit": "techmask",
+      "name": "Tech Mask",
+      "tab": "head"
+    },
+    {
+      "key": "head/oni",
+      "kit": "oni",
+      "name": "Oni Mask",
+      "tab": "head"
+    },
+    {
+      "key": "head/fox",
+      "kit": "fox",
+      "name": "Fox Mask",
+      "tab": "head"
+    },
+    {
+      "key": "head/crystal",
+      "kit": "crystal",
+      "name": "Crystal Mask",
+      "tab": "head"
+    },
+    {
+      "key": "head/nightMask",
+      "kit": "nightMask",
+      "name": "Opening Night Mask",
+      "tab": "head"
+    },
+    {
+      "key": "hands/boxing",
+      "kit": "boxing",
+      "name": "Boxing Gloves",
+      "tab": "hands"
+    },
+    {
+      "key": "hands/knuckle",
+      "kit": "knuckle",
+      "name": "Knuckle Guards",
+      "tab": "hands"
+    },
+    {
+      "key": "hands/mittens",
+      "kit": "mittens",
+      "name": "Mittens",
+      "tab": "hands"
+    },
+    {
+      "key": "hands/work",
+      "kit": "work",
+      "name": "Work Gloves",
+      "tab": "hands"
+    },
+    {
+      "key": "hands/tech",
+      "kit": "tech",
+      "name": "Tech Gloves",
+      "tab": "hands"
+    },
+    {
+      "key": "hands/crystal",
+      "kit": "crystal",
+      "name": "Crystal Gloves",
+      "tab": "hands"
+    },
+    {
+      "key": "hands/talons",
+      "kit": "talons",
+      "name": "Talon Gloves",
+      "tab": "hands"
+    },
+    {
+      "key": "hands/flame",
+      "kit": "flame",
+      "name": "Flame Gloves",
+      "tab": "hands"
+    },
+    {
+      "key": "feet/sandals",
+      "kit": "sandals",
+      "name": "Sandals",
+      "tab": "feet"
+    },
+    {
+      "key": "feet/hightops",
+      "kit": "hightops",
+      "name": "High Tops",
+      "tab": "feet"
+    },
+    {
+      "key": "feet/geta",
+      "kit": "geta",
+      "name": "Geta",
+      "tab": "feet"
+    },
+    {
+      "key": "feet/tabi",
+      "kit": "tabi",
+      "name": "Tabi Boots",
+      "tab": "feet"
+    },
+    {
+      "key": "feet/combat",
+      "kit": "combat",
+      "name": "Combat Boots",
+      "tab": "feet"
+    },
+    {
+      "key": "feet/moon",
+      "kit": "moon",
+      "name": "Moon Boots",
+      "tab": "feet"
+    },
+    {
+      "key": "feet/skates",
+      "kit": "skates",
+      "name": "Roller Skates",
+      "tab": "feet"
+    },
+    {
+      "key": "feet/flippers",
+      "kit": "flippers",
+      "name": "Flippers",
+      "tab": "feet"
+    },
+    {
+      "key": "feet/hover",
+      "kit": "hover",
+      "name": "Hover Boots",
+      "tab": "feet"
+    },
+    {
+      "key": "feet/spikes",
+      "kit": "spikes",
+      "name": "Spiked Boots",
+      "tab": "feet"
+    },
+    {
+      "key": "feet/fur",
+      "kit": "fur",
+      "name": "Fur Boots",
+      "tab": "feet"
+    },
+    {
+      "key": "feet/slippers",
+      "kit": "slippers",
+      "name": "Slippers",
+      "tab": "feet"
+    },
+    {
+      "key": "feet/loafers",
+      "kit": "loafers",
+      "name": "Loafers",
+      "tab": "feet"
+    },
+    {
+      "key": "feet/ice",
+      "kit": "ice",
+      "name": "Ice Boots",
+      "tab": "feet"
+    },
+    {
+      "key": "feet/nightBoots",
+      "kit": "nightBoots",
+      "name": "Opening Night Boots",
+      "tab": "feet"
+    },
+    {
+      "key": "emblem/hex:none",
+      "kit": "hex:none",
+      "name": "Hex",
+      "tab": "emblem"
+    },
+    {
+      "key": "emblem/ringstar:none",
+      "kit": "ringstar:none",
+      "name": "Ring Star",
+      "tab": "emblem"
+    },
+    {
+      "key": "emblem/quad:none",
+      "kit": "quad:none",
+      "name": "Quad",
+      "tab": "emblem"
+    },
+    {
+      "key": "emblem/burst:none",
+      "kit": "burst:none",
+      "name": "Burst",
+      "tab": "emblem"
+    },
+    {
+      "key": "emblem/spade:none",
+      "kit": "spade:none",
+      "name": "Spade",
+      "tab": "emblem"
+    },
+    {
+      "key": "emblem/hex:badge",
+      "kit": "hex:badge",
+      "name": "Hex Badge",
+      "tab": "emblem"
+    },
+    {
+      "key": "emblem/ringstar:badge",
+      "kit": "ringstar:badge",
+      "name": "Ring Star Badge",
+      "tab": "emblem"
+    },
+    {
+      "key": "emblem/quad:badge",
+      "kit": "quad:badge",
+      "name": "Quad Badge",
+      "tab": "emblem"
+    },
+    {
+      "key": "emblem/burst:badge",
+      "kit": "burst:badge",
+      "name": "Burst Badge",
+      "tab": "emblem"
+    },
+    {
+      "key": "emblem/spade:badge",
+      "kit": "spade:badge",
+      "name": "Spade Badge",
+      "tab": "emblem"
+    },
+    {
+      "key": "emblem/hex:crest",
+      "kit": "hex:crest",
+      "name": "Hex Crest",
+      "tab": "emblem"
+    },
+    {
+      "key": "emblem/ringstar:crest",
+      "kit": "ringstar:crest",
+      "name": "Ring Star Crest",
+      "tab": "emblem"
+    },
+    {
+      "key": "emblem/quad:crest",
+      "kit": "quad:crest",
+      "name": "Quad Crest",
+      "tab": "emblem"
+    },
+    {
+      "key": "emblem/burst:crest",
+      "kit": "burst:crest",
+      "name": "Burst Crest",
+      "tab": "emblem"
+    },
+    {
+      "key": "emblem/spade:crest",
+      "kit": "spade:crest",
+      "name": "Spade Crest",
+      "tab": "emblem"
+    },
+    {
+      "key": "emblem/hex:gem",
+      "kit": "hex:gem",
+      "name": "Hex Gem",
+      "tab": "emblem"
+    },
+    {
+      "key": "emblem/ringstar:gem",
+      "kit": "ringstar:gem",
+      "name": "Ring Star Gem",
+      "tab": "emblem"
+    },
+    {
+      "key": "emblem/quad:gem",
+      "kit": "quad:gem",
+      "name": "Quad Gem",
+      "tab": "emblem"
+    },
+    {
+      "key": "emblem/burst:gem",
+      "kit": "burst:gem",
+      "name": "Burst Gem",
+      "tab": "emblem"
+    },
+    {
+      "key": "emblem/spade:gem",
+      "kit": "spade:gem",
+      "name": "Spade Gem",
+      "tab": "emblem"
+    },
+    {
+      "key": "emblem/lab:crest",
+      "kit": "lab:crest",
+      "name": "Lab Crest",
+      "tab": "emblem"
+    },
+    {
+      "key": "emblem/alien:crest",
+      "kit": "alien:crest",
+      "name": "Star-Blood Crest",
+      "tab": "emblem"
+    },
+    {
+      "key": "emblem/relic:crest",
+      "kit": "relic:crest",
+      "name": "Relic Crest",
+      "tab": "emblem"
+    },
+    {
+      "key": "emblem/tech:crest",
+      "kit": "tech:crest",
+      "name": "Tech Crest",
+      "tab": "emblem"
+    },
+    {
+      "key": "emblem/dojo:crest",
+      "kit": "dojo:crest",
+      "name": "Dojo Crest",
+      "tab": "emblem"
+    },
+    {
+      "key": "emblem/born:crest",
+      "kit": "born:crest",
+      "name": "Birthmark Crest",
+      "tab": "emblem"
+    },
+    {
+      "key": "emblem/storm:crest",
+      "kit": "storm:crest",
+      "name": "Storm Crest",
+      "tab": "emblem"
+    },
+    {
+      "key": "emblem/serum:crest",
+      "kit": "serum:crest",
+      "name": "Serum Crest",
+      "tab": "emblem"
+    },
+    {
+      "key": "emblem/spirit:crest",
+      "kit": "spirit:crest",
+      "name": "Spirit Crest",
+      "tab": "emblem"
+    },
+    {
+      "key": "emblem/heir:crest",
+      "kit": "heir:crest",
+      "name": "Heirloom Crest",
+      "tab": "emblem"
+    },
+    {
+      "kit": "cat:16630147",
+      "name": "Beautiful Hair for Beautiful People",
+      "tab": "hair"
+    },
+    {
+      "kit": "cat:7259123616",
+      "name": "Black Messy Hairstyle",
+      "tab": "hair"
+    },
+    {
+      "kit": "cat:2956239660",
+      "name": "Belle Of Belfast Long Red Hair",
+      "tab": "hair"
+    },
+    {
+      "kit": "cat:63690008",
+      "name": "Pal Hair",
+      "tab": "hair"
+    },
+    {
+      "kit": "cat:13745548",
+      "name": "Cinnamon Hair",
+      "tab": "hair"
+    },
+    {
+      "kit": "cat:451221329",
+      "name": "True Blue Hair",
+      "tab": "hair"
+    },
+    {
+      "kit": "cat:14815761",
+      "name": "Black and Red",
+      "tab": "hair"
+    },
+    {
+      "kit": "cat:376526888",
+      "name": "Straight Blonde Hair",
+      "tab": "hair"
+    },
+    {
+      "kit": "cat:376524487",
+      "name": "Blonde Spiked Hair",
+      "tab": "hair"
+    },
+    {
+      "kit": "cat:4935029747",
+      "name": "Black Royal Braid",
+      "tab": "hair"
+    },
+    {
+      "kit": "cat:4935030295",
+      "name": "Blonde Royal Braid",
+      "tab": "hair"
+    },
+    {
+      "kit": "cat:5945436918",
+      "name": "Light Brown Ethereal Hairstyle",
+      "tab": "hair"
+    },
+    {
+      "kit": "cat:6413290259",
+      "name": "Blonde Flowy Pigtails",
+      "tab": "hair"
+    },
+    {
+      "kit": "cat:6413288640",
+      "name": "Black Flowy Pigtails",
+      "tab": "hair"
+    },
+    {
+      "kit": "cat:11219692974",
+      "name": "Black Celebrity Gamer Hair",
+      "tab": "hair"
+    },
+    {
+      "kit": "cat:11652080034",
+      "name": "Y2K uneven bob",
+      "tab": "hair"
+    },
+    {
+      "kit": "cat:7372442294",
+      "name": "Black Braid",
+      "tab": "hair"
+    },
+    {
+      "kit": "cat:11708550366",
+      "name": "Goddess Box Braids",
+      "tab": "hair"
+    },
+    {
+      "kit": "cat:7204639314",
+      "name": "Purple and Blue Male Hair Slick",
+      "tab": "hair"
+    },
+    {
+      "kit": "cat:5268665185",
+      "name": "Braided Ponytail Redhead",
+      "tab": "hair"
+    },
+    {
+      "kit": "cat:9263386889",
+      "name": "Messy Samurai Ponytail in Brown",
+      "tab": "hair"
+    },
+    {
+      "kit": "cat:9818081125",
+      "name": "Hair Base In Brown",
+      "tab": "hair"
+    },
+    {
+      "kit": "cat:11700874636",
+      "name": "Supermodel Sidepart Hair (Black)",
+      "tab": "hair"
+    },
+    {
+      "kit": "cat:9057666593",
+      "name": "Red Long Hair",
+      "tab": "hair"
+    },
+    {
+      "kit": "cat:11510446398",
+      "name": "Long Straight Hair (Black)",
+      "tab": "hair"
+    },
+    {
+      "kit": "cat:11451696773",
+      "name": "Black Y2K Aesthetic Ponytail",
+      "tab": "hair"
+    },
+    {
+      "kit": "cat:10906986317",
+      "name": "Short Blue Hair",
+      "tab": "hair"
+    },
+    {
+      "kit": "cat:11546097241",
+      "name": "Platinum Blonde Bundles",
+      "tab": "hair"
+    },
+    {
+      "kit": "cat:11100760918",
+      "name": "Blue Anime Hair",
+      "tab": "hair"
+    },
+    {
+      "kit": "cat:542164807",
+      "name": "8-bit action ponytail",
+      "tab": "hair"
+    },
+    {
+      "kit": "cat:376548738",
+      "name": "Brown Charmer Hair",
+      "tab": "hair"
+    },
+    {
+      "kit": "cat:376527350",
+      "name": "Black Ponytail",
+      "tab": "hair"
+    },
+    {
+      "kit": "cat:451220849",
+      "name": "Lavender Updo",
+      "tab": "hair"
+    },
+    {
+      "kit": "cat:6211939438",
+      "name": "Loose Black Anime Side Buns",
+      "tab": "hair"
+    },
+    {
+      "kit": "cat:6216526940",
+      "name": "Loose White Anime Side Buns",
+      "tab": "hair"
+    },
+    {
+      "kit": "cat:553722174",
+      "name": "Crimson Shaggy 2.0",
+      "tab": "hair"
+    },
+    {
+      "kit": "cat:5918940548",
+      "name": "Blonde Curly Celebrity Hair",
+      "tab": "hair"
+    },
+    {
+      "kit": "cat:5891039736",
+      "name": "Black Anime Hair",
+      "tab": "hair"
+    },
+    {
+      "kit": "cat:11597599236",
+      "name": "Lush Wavy Hair (Blonde)",
+      "tab": "hair"
+    },
+    {
+      "kit": "cat:10482964428",
+      "name": "Y2K Layered Wolfcut (Blonde)",
+      "tab": "hair"
+    },
+    {
+      "kit": "cat:4684968628",
+      "name": "Shimmering Brown French Braids",
+      "tab": "hair"
+    },
+    {
+      "kit": "cat:5314006793",
+      "name": "Black Trendy Messy Buns",
+      "tab": "hair"
+    },
+    {
+      "kit": "cat:398673196",
+      "name": "Blonde Action Ponytail",
+      "tab": "hair"
+    },
+    {
+      "kit": "cat:5644883846",
+      "name": "Cool Boy Hair",
+      "tab": "hair"
+    },
+    {
+      "kit": "cat:6778986933",
+      "name": "Adorbs Black Long Hair",
+      "tab": "hair"
+    },
+    {
+      "kit": "cat:4527498648",
+      "name": "Clean Shiny Spikes",
+      "tab": "hair"
+    },
+    {
+      "kit": "cat:727320877",
+      "name": "Long Pastel Hair",
+      "tab": "hair"
+    },
+    {
+      "kit": "cat:6441556987",
+      "name": "Black Short Wolf Cut",
+      "tab": "hair"
+    },
+    {
+      "kit": "cat:4875445470",
+      "name": "Black Short Parted Hair",
+      "tab": "hair"
+    }
+  ],
+  "emotes": {
+    "1": {
+      "landing": false,
+      "name": "Salute"
+    },
+    "10": {
+      "landing": false,
+      "name": "Cape Swish"
+    },
+    "11": {
+      "landing": false,
+      "name": "Rookie Cheer"
+    },
+    "12": {
+      "landing": false,
+      "name": "Sharp Salute"
+    },
+    "13": {
+      "landing": false,
+      "name": "Big Wave"
+    },
+    "14": {
+      "landing": false,
+      "name": "Grand Bow"
+    },
+    "15": {
+      "landing": false,
+      "name": "Shrug"
+    },
+    "16": {
+      "landing": false,
+      "name": "Double Thumbs Up"
+    },
+    "17": {
+      "landing": false,
+      "name": "Team Huddle"
+    },
+    "18": {
+      "landing": false,
+      "name": "Comic Pose"
+    },
+    "19": {
+      "landing": false,
+      "name": "Spotlight Spin"
+    },
+    "2": {
+      "landing": false,
+      "name": "Bow"
+    },
+    "20": {
+      "landing": true,
+      "name": "Super Landing"
+    },
+    "21": {
+      "landing": true,
+      "name": "Kneel Landing"
+    },
+    "22": {
+      "landing": true,
+      "name": "Spin Landing"
+    },
+    "23": {
+      "landing": true,
+      "name": "Crater Landing"
+    },
+    "24": {
+      "landing": true,
+      "name": "Float Down"
+    },
+    "25": {
+      "landing": true,
+      "name": "Spotlight Landing"
+    },
+    "3": {
+      "landing": false,
+      "name": "Wave"
+    },
+    "4": {
+      "landing": false,
+      "name": "Thumbs Up"
+    },
+    "5": {
+      "landing": false,
+      "name": "Flex"
+    },
+    "6": {
+      "landing": false,
+      "name": "Hero Pose"
+    },
+    "7": {
+      "landing": false,
+      "name": "Point Up"
+    },
+    "8": {
+      "landing": false,
+      "name": "Power Up"
+    },
+    "9": {
+      "landing": false,
+      "name": "Laugh"
+    }
+  },
+  "legs": {
+    "armored": {
+      "paint": [
+        "dark",
+        "dark"
+      ],
+      "parts": [
+        {
+          "at": "lthigh",
+          "cf": [
+            0,
+            0.05000000074505806,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "s",
+          "neon": false,
+          "size": [
+            1.100000023841858,
+            0.6000000238418579,
+            1.100000023841858
+          ]
+        },
+        {
+          "at": "rthigh",
+          "cf": [
+            0,
+            0.05000000074505806,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "s",
+          "neon": false,
+          "size": [
+            1.100000023841858,
+            0.6000000238418579,
+            1.100000023841858
+          ]
+        },
+        {
+          "at": "lshin",
+          "cf": [
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "s",
+          "neon": false,
+          "size": [
+            1.100000023841858,
+            0.6499999761581421,
+            1.100000023841858
+          ]
+        },
+        {
+          "at": "rshin",
+          "cf": [
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "s",
+          "neon": false,
+          "size": [
+            1.100000023841858,
+            0.6499999761581421,
+            1.100000023841858
+          ]
+        }
+      ]
+    },
+    "bandaged": {
+      "paint": [
+        "s",
+        "s"
+      ],
+      "parts": [
+        {
+          "at": "lthigh",
+          "cf": [
+            0,
+            0.10000000149011612,
+            0,
+            0.9848077297210693,
+            -0.1736481636762619,
+            0,
+            0.1736481636762619,
+            0.9848077297210693,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "white",
+          "neon": false,
+          "size": [
+            1.059999942779541,
+            0.1599999964237213,
+            1.059999942779541
+          ]
+        },
+        {
+          "at": "rshin",
+          "cf": [
+            0,
+            0.15000000596046448,
+            0,
+            0.9848077297210693,
+            0.1736481636762619,
+            0,
+            -0.1736481636762619,
+            0.9848077297210693,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "white",
+          "neon": false,
+          "size": [
+            1.059999942779541,
+            0.1599999964237213,
+            1.059999942779541
+          ]
+        },
+        {
+          "at": "rshin",
+          "cf": [
+            0,
+            -0.10000000149011612,
+            0,
+            0.9902680516242981,
+            -0.13917310535907745,
+            0,
+            0.13917310535907745,
+            0.9902680516242981,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "white",
+          "neon": false,
+          "size": [
+            1.059999942779541,
+            0.1599999964237213,
+            1.059999942779541
+          ]
+        }
+      ]
+    },
+    "camo": {
+      "paint": [
+        "s",
+        "s"
+      ],
+      "parts": [
+        {
+          "at": "lthigh",
+          "cf": [
+            0.10000000149011612,
+            0.10000000149011612,
+            -0.5049999952316284,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "dark",
+          "neon": false,
+          "size": [
+            0.5,
+            0.30000001192092896,
+            0.029999999329447746
+          ]
+        },
+        {
+          "at": "rthigh",
+          "cf": [
+            -0.15000000596046448,
+            -0.20000000298023224,
+            -0.5049999952316284,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "dark",
+          "neon": false,
+          "size": [
+            0.4000000059604645,
+            0.3499999940395355,
+            0.029999999329447746
+          ]
+        },
+        {
+          "at": "lshin",
+          "cf": [
+            -0.10000000149011612,
+            0.10000000149011612,
+            -0.5049999952316284,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "dark",
+          "neon": false,
+          "size": [
+            0.3499999940395355,
+            0.30000001192092896,
+            0.029999999329447746
+          ]
+        },
+        {
+          "at": "rshin",
+          "cf": [
+            0.05000000074505806,
+            -0.15000000596046448,
+            -0.5049999952316284,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "dark",
+          "neon": false,
+          "size": [
+            0.5,
+            0.25,
+            0.029999999329447746
+          ]
+        }
+      ]
+    },
+    "capri": {
+      "paint": [
+        "s",
+        "skin"
+      ],
+      "parts": [
+        {
+          "at": "lshin",
+          "cf": [
+            0,
+            0.25999999046325684,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "s",
+          "neon": false,
+          "size": [
+            1.0399999618530273,
+            0.3499999940395355,
+            1.0399999618530273
+          ]
+        },
+        {
+          "at": "rshin",
+          "cf": [
+            0,
+            0.25999999046325684,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "s",
+          "neon": false,
+          "size": [
+            1.0399999618530273,
+            0.3499999940395355,
+            1.0399999618530273
+          ]
+        }
+      ]
+    },
+    "cargo": {
+      "paint": [
+        "s",
+        "s"
+      ],
+      "parts": [
+        {
+          "at": "lthigh",
+          "cf": [
+            -0.5400000214576721,
+            -0.10000000149011612,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "s",
+          "neon": false,
+          "size": [
+            0.11999999731779099,
+            0.36000001430511475,
+            0.41999998688697815
+          ]
+        },
+        {
+          "at": "rthigh",
+          "cf": [
+            0.5400000214576721,
+            -0.10000000149011612,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "s",
+          "neon": false,
+          "size": [
+            0.11999999731779099,
+            0.36000001430511475,
+            0.41999998688697815
+          ]
+        }
+      ]
+    },
+    "chaps": {
+      "paint": [
+        "s",
+        "s"
+      ],
+      "parts": [
+        {
+          "at": "lthigh",
+          "cf": [
+            -0.5,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "dark",
+          "neon": false,
+          "size": [
+            0.20000000298023224,
+            0.8700000047683716,
+            1.0800000429153442
+          ]
+        },
+        {
+          "at": "rthigh",
+          "cf": [
+            0.5,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "dark",
+          "neon": false,
+          "size": [
+            0.20000000298023224,
+            0.8700000047683716,
+            1.0800000429153442
+          ]
+        },
+        {
+          "at": "lshin",
+          "cf": [
+            -0.5,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "dark",
+          "neon": false,
+          "size": [
+            0.20000000298023224,
+            0.8700000047683716,
+            1.0800000429153442
+          ]
+        },
+        {
+          "at": "rshin",
+          "cf": [
+            0.5,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "dark",
+          "neon": false,
+          "size": [
+            0.20000000298023224,
+            0.8700000047683716,
+            1.0800000429153442
+          ]
+        }
+      ]
+    },
+    "checkered": {
+      "paint": [
+        "white",
+        "white"
+      ],
+      "parts": [
+        {
+          "at": "lthigh",
+          "cf": [
+            -0.25,
+            0.20999999344348907,
+            -0.5049999952316284,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "dark",
+          "neon": false,
+          "size": [
+            0.5,
+            0.41999998688697815,
+            0.029999999329447746
+          ]
+        },
+        {
+          "at": "rthigh",
+          "cf": [
+            0.25,
+            0.20999999344348907,
+            -0.5049999952316284,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "dark",
+          "neon": false,
+          "size": [
+            0.5,
+            0.41999998688697815,
+            0.029999999329447746
+          ]
+        },
+        {
+          "at": "lthigh",
+          "cf": [
+            0.25,
+            -0.20999999344348907,
+            -0.5049999952316284,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "dark",
+          "neon": false,
+          "size": [
+            0.5,
+            0.41999998688697815,
+            0.029999999329447746
+          ]
+        },
+        {
+          "at": "rthigh",
+          "cf": [
+            -0.25,
+            -0.20999999344348907,
+            -0.5049999952316284,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "dark",
+          "neon": false,
+          "size": [
+            0.5,
+            0.41999998688697815,
+            0.029999999329447746
+          ]
+        },
+        {
+          "at": "lshin",
+          "cf": [
+            -0.25,
+            0.20999999344348907,
+            -0.5049999952316284,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "dark",
+          "neon": false,
+          "size": [
+            0.5,
+            0.41999998688697815,
+            0.029999999329447746
+          ]
+        },
+        {
+          "at": "rshin",
+          "cf": [
+            0.25,
+            0.20999999344348907,
+            -0.5049999952316284,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "dark",
+          "neon": false,
+          "size": [
+            0.5,
+            0.41999998688697815,
+            0.029999999329447746
+          ]
+        },
+        {
+          "at": "lshin",
+          "cf": [
+            0.25,
+            -0.20999999344348907,
+            -0.5049999952316284,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "dark",
+          "neon": false,
+          "size": [
+            0.5,
+            0.41999998688697815,
+            0.029999999329447746
+          ]
+        },
+        {
+          "at": "rshin",
+          "cf": [
+            -0.25,
+            -0.20999999344348907,
+            -0.5049999952316284,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "dark",
+          "neon": false,
+          "size": [
+            0.5,
+            0.41999998688697815,
+            0.029999999329447746
+          ]
+        }
+      ]
+    },
+    "cuffed": {
+      "paint": [
+        "s",
+        "s"
+      ],
+      "parts": [
+        {
+          "at": "lshin",
+          "cf": [
+            0,
+            -0.33000001311302185,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "s",
+          "neon": false,
+          "size": [
+            1.100000023841858,
+            0.20000000298023224,
+            1.100000023841858
+          ]
+        },
+        {
+          "at": "rshin",
+          "cf": [
+            0,
+            -0.33000001311302185,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "s",
+          "neon": false,
+          "size": [
+            1.100000023841858,
+            0.20000000298023224,
+            1.100000023841858
+          ]
+        }
+      ]
+    },
+    "flared": {
+      "paint": [
+        "s",
+        "s"
+      ],
+      "parts": [
+        {
+          "at": "lshin",
+          "cf": [
+            0,
+            -0.23999999463558197,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "s",
+          "neon": false,
+          "size": [
+            1.2999999523162842,
+            0.4000000059604645,
+            1.2999999523162842
+          ]
+        },
+        {
+          "at": "rshin",
+          "cf": [
+            0,
+            -0.23999999463558197,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "s",
+          "neon": false,
+          "size": [
+            1.2999999523162842,
+            0.4000000059604645,
+            1.2999999523162842
+          ]
+        }
+      ]
+    },
+    "glowlines": {
+      "paint": [
+        "dark",
+        "dark"
+      ],
+      "parts": [
+        {
+          "at": "lthigh",
+          "cf": [
+            0,
+            0,
+            -0.5099999904632568,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "a",
+          "neon": true,
+          "size": [
+            0.05999999865889549,
+            0.8700000047683716,
+            0.03999999910593033
+          ]
+        },
+        {
+          "at": "rthigh",
+          "cf": [
+            0,
+            0,
+            -0.5099999904632568,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "a",
+          "neon": true,
+          "size": [
+            0.05999999865889549,
+            0.8700000047683716,
+            0.03999999910593033
+          ]
+        },
+        {
+          "at": "lshin",
+          "cf": [
+            0,
+            0,
+            -0.5099999904632568,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "a",
+          "neon": true,
+          "size": [
+            0.05999999865889549,
+            0.8700000047683716,
+            0.03999999910593033
+          ]
+        },
+        {
+          "at": "rshin",
+          "cf": [
+            0,
+            0,
+            -0.5099999904632568,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "a",
+          "neon": true,
+          "size": [
+            0.05999999865889549,
+            0.8700000047683716,
+            0.03999999910593033
+          ]
+        },
+        {
+          "at": "lshin",
+          "cf": [
+            0,
+            0.3499999940395355,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "a",
+          "neon": true,
+          "size": [
+            1.0399999618530273,
+            0.05999999865889549,
+            1.0399999618530273
+          ]
+        },
+        {
+          "at": "rshin",
+          "cf": [
+            0,
+            0.3499999940395355,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "a",
+          "neon": true,
+          "size": [
+            1.0399999618530273,
+            0.05999999865889549,
+            1.0399999618530273
+          ]
+        }
+      ]
+    },
+    "greaves": {
+      "paint": [
+        "s",
+        "s"
+      ],
+      "parts": [
+        {
+          "at": "lshin",
+          "cf": [
+            0,
+            -0.019999999552965164,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "p",
+          "neon": false,
+          "size": [
+            1.100000023841858,
+            0.75,
+            1.100000023841858
+          ]
+        },
+        {
+          "at": "rshin",
+          "cf": [
+            0,
+            -0.019999999552965164,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "p",
+          "neon": false,
+          "size": [
+            1.100000023841858,
+            0.75,
+            1.100000023841858
+          ]
+        }
+      ]
+    },
+    "hakama": {
+      "paint": [
+        "p",
+        "p"
+      ],
+      "parts": [
+        {
+          "at": "lthigh",
+          "cf": [
+            -0.07999999821186066,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "p",
+          "neon": false,
+          "size": [
+            1.25,
+            0.8999999761581421,
+            1.25
+          ]
+        },
+        {
+          "at": "rthigh",
+          "cf": [
+            0.07999999821186066,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "p",
+          "neon": false,
+          "size": [
+            1.25,
+            0.8999999761581421,
+            1.25
+          ]
+        },
+        {
+          "at": "lshin",
+          "cf": [
+            -0.10000000149011612,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "p",
+          "neon": false,
+          "size": [
+            1.350000023841858,
+            0.8999999761581421,
+            1.2999999523162842
+          ]
+        },
+        {
+          "at": "rshin",
+          "cf": [
+            0.10000000149011612,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "p",
+          "neon": false,
+          "size": [
+            1.350000023841858,
+            0.8999999761581421,
+            1.2999999523162842
+          ]
+        }
+      ]
+    },
+    "harem": {
+      "paint": [
+        "p",
+        "p"
+      ],
+      "parts": [
+        {
+          "at": "lthigh",
+          "cf": [
+            -0.07999999821186066,
+            -0.05000000074505806,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "p",
+          "neon": false,
+          "size": [
+            1.2999999523162842,
+            0.949999988079071,
+            1.2999999523162842
+          ]
+        },
+        {
+          "at": "rthigh",
+          "cf": [
+            0.07999999821186066,
+            -0.05000000074505806,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "p",
+          "neon": false,
+          "size": [
+            1.2999999523162842,
+            0.949999988079071,
+            1.2999999523162842
+          ]
+        },
+        {
+          "at": "lshin",
+          "cf": [
+            -0.05000000074505806,
+            0.11999999731779099,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "p",
+          "neon": false,
+          "size": [
+            1.25,
+            0.6000000238418579,
+            1.25
+          ]
+        },
+        {
+          "at": "rshin",
+          "cf": [
+            0.05000000074505806,
+            0.11999999731779099,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "p",
+          "neon": false,
+          "size": [
+            1.25,
+            0.6000000238418579,
+            1.25
+          ]
+        },
+        {
+          "at": "lshin",
+          "cf": [
+            0,
+            -0.36000001430511475,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "s",
+          "neon": false,
+          "size": [
+            1.059999942779541,
+            0.14000000059604645,
+            1.059999942779541
+          ]
+        },
+        {
+          "at": "rshin",
+          "cf": [
+            0,
+            -0.36000001430511475,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "s",
+          "neon": false,
+          "size": [
+            1.059999942779541,
+            0.14000000059604645,
+            1.059999942779541
+          ]
+        }
+      ]
+    },
+    "jeans": {
+      "paint": [
+        "s",
+        "s"
+      ],
+      "parts": [
+        {
+          "at": "lthigh",
+          "cf": [
+            -0.5099999904632568,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "gold",
+          "neon": false,
+          "size": [
+            0.03999999910593033,
+            0.8700000047683716,
+            0.05999999865889549
+          ]
+        },
+        {
+          "at": "rthigh",
+          "cf": [
+            0.5099999904632568,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "gold",
+          "neon": false,
+          "size": [
+            0.03999999910593033,
+            0.8700000047683716,
+            0.05999999865889549
+          ]
+        },
+        {
+          "at": "lshin",
+          "cf": [
+            -0.5099999904632568,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "gold",
+          "neon": false,
+          "size": [
+            0.03999999910593033,
+            0.8700000047683716,
+            0.05999999865889549
+          ]
+        },
+        {
+          "at": "rshin",
+          "cf": [
+            0.5099999904632568,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "gold",
+          "neon": false,
+          "size": [
+            0.03999999910593033,
+            0.8700000047683716,
+            0.05999999865889549
+          ]
+        }
+      ]
+    },
+    "joggers": {
+      "paint": [
+        "s",
+        "s"
+      ],
+      "parts": [
+        {
+          "at": "lshin",
+          "cf": [
+            0,
+            -0.36000001430511475,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "white",
+          "neon": false,
+          "size": [
+            1.059999942779541,
+            0.14000000059604645,
+            1.059999942779541
+          ]
+        },
+        {
+          "at": "rshin",
+          "cf": [
+            0,
+            -0.36000001430511475,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "white",
+          "neon": false,
+          "size": [
+            1.059999942779541,
+            0.14000000059604645,
+            1.059999942779541
+          ]
+        }
+      ]
+    },
+    "kneepads": {
+      "paint": [
+        "s",
+        "s"
+      ],
+      "parts": [
+        {
+          "at": "lshin",
+          "cf": [
+            0,
+            0.3400000035762787,
+            -0.5299999713897705,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "dark",
+          "neon": false,
+          "size": [
+            0.7200000286102295,
+            0.30000001192092896,
+            0.11999999731779099
+          ]
+        },
+        {
+          "at": "rshin",
+          "cf": [
+            0,
+            0.3400000035762787,
+            -0.5299999713897705,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "dark",
+          "neon": false,
+          "size": [
+            0.7200000286102295,
+            0.30000001192092896,
+            0.11999999731779099
+          ]
+        }
+      ]
+    },
+    "leggings": {
+      "paint": [
+        "dark",
+        "dark"
+      ],
+      "parts": [
+        {
+          "at": "lthigh",
+          "cf": [
+            -0.5099999904632568,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "a",
+          "neon": true,
+          "size": [
+            0.03999999910593033,
+            0.8700000047683716,
+            0.11999999731779099
+          ]
+        },
+        {
+          "at": "rthigh",
+          "cf": [
+            0.5099999904632568,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "a",
+          "neon": true,
+          "size": [
+            0.03999999910593033,
+            0.8700000047683716,
+            0.11999999731779099
+          ]
+        },
+        {
+          "at": "lshin",
+          "cf": [
+            -0.5099999904632568,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "a",
+          "neon": true,
+          "size": [
+            0.03999999910593033,
+            0.8700000047683716,
+            0.11999999731779099
+          ]
+        },
+        {
+          "at": "rshin",
+          "cf": [
+            0.5099999904632568,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "a",
+          "neon": true,
+          "size": [
+            0.03999999910593033,
+            0.8700000047683716,
+            0.11999999731779099
+          ]
+        }
+      ]
+    },
+    "legwraps": {
+      "paint": [
+        "s",
+        "s"
+      ],
+      "parts": [
+        {
+          "at": "lshin",
+          "cf": [
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "white",
+          "neon": false,
+          "size": [
+            1.0499999523162842,
+            0.800000011920929,
+            1.0499999523162842
+          ]
+        },
+        {
+          "at": "rshin",
+          "cf": [
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "white",
+          "neon": false,
+          "size": [
+            1.0499999523162842,
+            0.800000011920929,
+            1.0499999523162842
+          ]
+        }
+      ]
+    },
+    "moto": {
+      "paint": [
+        "dark",
+        "dark"
+      ],
+      "parts": [
+        {
+          "at": "lshin",
+          "cf": [
+            0,
+            0.15000000596046448,
+            -0.550000011920929,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "s",
+          "neon": false,
+          "size": [
+            0.8500000238418579,
+            0.5,
+            0.1599999964237213
+          ]
+        },
+        {
+          "at": "rshin",
+          "cf": [
+            0,
+            0.15000000596046448,
+            -0.550000011920929,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "s",
+          "neon": false,
+          "size": [
+            0.8500000238418579,
+            0.5,
+            0.1599999964237213
+          ]
+        },
+        {
+          "at": "lthigh",
+          "cf": [
+            -0.5199999809265137,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "a",
+          "neon": false,
+          "size": [
+            0.05999999865889549,
+            0.8700000047683716,
+            0.30000001192092896
+          ]
+        },
+        {
+          "at": "rthigh",
+          "cf": [
+            0.5199999809265137,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "a",
+          "neon": false,
+          "size": [
+            0.05999999865889549,
+            0.8700000047683716,
+            0.30000001192092896
+          ]
+        }
+      ]
+    },
+    "pants": {
+      "paint": [
+        "s",
+        "s"
+      ],
+      "parts": {}
+    },
+    "pleated": {
+      "paint": [
+        "skin",
+        "skin"
+      ],
+      "parts": [
+        {
+          "at": "waist",
+          "cf": [
+            0,
+            -0.4000000059604645,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "p",
+          "neon": false,
+          "size": [
+            2.1500000953674316,
+            0.699999988079071,
+            1.2000000476837158
+          ]
+        },
+        {
+          "at": "waist",
+          "cf": [
+            0,
+            -0.699999988079071,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "white",
+          "neon": false,
+          "size": [
+            2.180000066757202,
+            0.07999999821186066,
+            1.2200000286102295
+          ]
+        }
+      ]
+    },
+    "ripped": {
+      "paint": [
+        "s",
+        "s"
+      ],
+      "parts": [
+        {
+          "at": "lthigh",
+          "cf": [
+            0.10000000149011612,
+            -0.10000000149011612,
+            -0.5049999952316284,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "skin",
+          "neon": false,
+          "size": [
+            0.4000000059604645,
+            0.15000000596046448,
+            0.029999999329447746
+          ]
+        },
+        {
+          "at": "rshin",
+          "cf": [
+            -0.05000000074505806,
+            0.20000000298023224,
+            -0.5049999952316284,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "skin",
+          "neon": false,
+          "size": [
+            0.3199999928474426,
+            0.11999999731779099,
+            0.029999999329447746
+          ]
+        }
+      ]
+    },
+    "sarong": {
+      "paint": [
+        "s",
+        "s"
+      ],
+      "parts": [
+        {
+          "at": "waist",
+          "cf": [
+            0,
+            -0.75,
+            0,
+            0.9975640773773193,
+            -0.06975647062063217,
+            0,
+            0.06975647062063217,
+            0.9975640773773193,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "p",
+          "neon": false,
+          "size": [
+            2.200000047683716,
+            1.399999976158142,
+            1.2000000476837158
+          ]
+        },
+        {
+          "at": "waist",
+          "cf": [
+            0.75,
+            -0.05000000074505806,
+            -0.6000000238418579,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "p",
+          "neon": false,
+          "shape": "Ball",
+          "size": [
+            0.30000001192092896,
+            0.30000001192092896,
+            0.11999999731779099
+          ]
+        }
+      ]
+    },
+    "scaled": {
+      "paint": [
+        "dark",
+        "dark"
+      ],
+      "parts": [
+        {
+          "at": "lthigh",
+          "cf": [
+            0,
+            0.20000000298023224,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0.9902680516242981,
+            -0.13917310535907745,
+            0,
+            0.13917310535907745,
+            0.9902680516242981
+          ],
+          "color": "p",
+          "neon": false,
+          "size": [
+            1.0800000429153442,
+            0.20000000298023224,
+            1.0800000429153442
+          ]
+        },
+        {
+          "at": "rthigh",
+          "cf": [
+            0,
+            0.20000000298023224,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0.9902680516242981,
+            -0.13917310535907745,
+            0,
+            0.13917310535907745,
+            0.9902680516242981
+          ],
+          "color": "p",
+          "neon": false,
+          "size": [
+            1.0800000429153442,
+            0.20000000298023224,
+            1.0800000429153442
+          ]
+        },
+        {
+          "at": "lthigh",
+          "cf": [
+            0,
+            -0.10000000149011612,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0.9902680516242981,
+            -0.13917310535907745,
+            0,
+            0.13917310535907745,
+            0.9902680516242981
+          ],
+          "color": "s",
+          "neon": false,
+          "size": [
+            1.0800000429153442,
+            0.20000000298023224,
+            1.0800000429153442
+          ]
+        },
+        {
+          "at": "rthigh",
+          "cf": [
+            0,
+            -0.10000000149011612,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0.9902680516242981,
+            -0.13917310535907745,
+            0,
+            0.13917310535907745,
+            0.9902680516242981
+          ],
+          "color": "s",
+          "neon": false,
+          "size": [
+            1.0800000429153442,
+            0.20000000298023224,
+            1.0800000429153442
+          ]
+        },
+        {
+          "at": "lshin",
+          "cf": [
+            0,
+            0.10000000149011612,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0.9902680516242981,
+            -0.13917310535907745,
+            0,
+            0.13917310535907745,
+            0.9902680516242981
+          ],
+          "color": "p",
+          "neon": false,
+          "size": [
+            1.0800000429153442,
+            0.20000000298023224,
+            1.0800000429153442
+          ]
+        },
+        {
+          "at": "rshin",
+          "cf": [
+            0,
+            0.10000000149011612,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0.9902680516242981,
+            -0.13917310535907745,
+            0,
+            0.13917310535907745,
+            0.9902680516242981
+          ],
+          "color": "p",
+          "neon": false,
+          "size": [
+            1.0800000429153442,
+            0.20000000298023224,
+            1.0800000429153442
+          ]
+        }
+      ]
+    },
+    "shinguards": {
+      "paint": [
+        "s",
+        "s"
+      ],
+      "parts": [
+        {
+          "at": "lshin",
+          "cf": [
+            0,
+            0,
+            -0.550000011920929,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "white",
+          "neon": false,
+          "size": [
+            0.800000011920929,
+            0.699999988079071,
+            0.14000000059604645
+          ]
+        },
+        {
+          "at": "rshin",
+          "cf": [
+            0,
+            0,
+            -0.550000011920929,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "white",
+          "neon": false,
+          "size": [
+            0.800000011920929,
+            0.699999988079071,
+            0.14000000059604645
+          ]
+        }
+      ]
+    },
+    "shorts": {
+      "paint": [
+        "s",
+        "skin"
+      ],
+      "parts": [
+        {
+          "at": "lthigh",
+          "cf": [
+            0,
+            -0.3799999952316284,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "s",
+          "neon": false,
+          "size": [
+            1.0399999618530273,
+            0.10000000149011612,
+            1.0399999618530273
+          ]
+        },
+        {
+          "at": "rthigh",
+          "cf": [
+            0,
+            -0.3799999952316284,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "s",
+          "neon": false,
+          "size": [
+            1.0399999618530273,
+            0.10000000149011612,
+            1.0399999618530273
+          ]
+        }
+      ]
+    },
+    "ski": {
+      "paint": [
+        "p",
+        "p"
+      ],
+      "parts": [
+        {
+          "at": "lthigh",
+          "cf": [
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "p",
+          "neon": false,
+          "size": [
+            1.1399999856948853,
+            0.8700000047683716,
+            1.1399999856948853
+          ]
+        },
+        {
+          "at": "rthigh",
+          "cf": [
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "p",
+          "neon": false,
+          "size": [
+            1.1399999856948853,
+            0.8700000047683716,
+            1.1399999856948853
+          ]
+        },
+        {
+          "at": "lshin",
+          "cf": [
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "p",
+          "neon": false,
+          "size": [
+            1.1399999856948853,
+            0.8700000047683716,
+            1.1399999856948853
+          ]
+        },
+        {
+          "at": "rshin",
+          "cf": [
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "p",
+          "neon": false,
+          "size": [
+            1.1399999856948853,
+            0.8700000047683716,
+            1.1399999856948853
+          ]
+        },
+        {
+          "at": "lthigh",
+          "cf": [
+            0,
+            0.30000001192092896,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "white",
+          "neon": false,
+          "size": [
+            1.159999966621399,
+            0.07999999821186066,
+            1.159999966621399
+          ]
+        },
+        {
+          "at": "rthigh",
+          "cf": [
+            0,
+            0.30000001192092896,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "white",
+          "neon": false,
+          "size": [
+            1.159999966621399,
+            0.07999999821186066,
+            1.159999966621399
+          ]
+        }
+      ]
+    },
+    "skirt": {
+      "paint": [
+        "dark",
+        "dark"
+      ],
+      "parts": [
+        {
+          "at": "waist",
+          "cf": [
+            0,
+            -0.550000011920929,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "p",
+          "neon": false,
+          "size": [
+            2.200000047683716,
+            0.8999999761581421,
+            1.25
+          ]
+        }
+      ]
+    },
+    "sweats": {
+      "paint": [
+        "s",
+        "s"
+      ],
+      "parts": [
+        {
+          "at": "lthigh",
+          "cf": [
+            0,
+            -0.019999999552965164,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "s",
+          "neon": false,
+          "size": [
+            1.1200000047683716,
+            0.8999999761581421,
+            1.1200000047683716
+          ]
+        },
+        {
+          "at": "rthigh",
+          "cf": [
+            0,
+            -0.019999999552965164,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "s",
+          "neon": false,
+          "size": [
+            1.1200000047683716,
+            0.8999999761581421,
+            1.1200000047683716
+          ]
+        },
+        {
+          "at": "lshin",
+          "cf": [
+            0,
+            -0.3499999940395355,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "s",
+          "neon": false,
+          "size": [
+            1.059999942779541,
+            0.1599999964237213,
+            1.059999942779541
+          ]
+        },
+        {
+          "at": "rshin",
+          "cf": [
+            0,
+            -0.3499999940395355,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "s",
+          "neon": false,
+          "size": [
+            1.059999942779541,
+            0.1599999964237213,
+            1.059999942779541
+          ]
+        },
+        {
+          "at": "waist",
+          "cf": [
+            -0.10000000149011612,
+            -0.10000000149011612,
+            -0.5600000023841858,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "white",
+          "neon": false,
+          "size": [
+            0.05000000074505806,
+            0.30000001192092896,
+            0.03999999910593033
+          ]
+        },
+        {
+          "at": "waist",
+          "cf": [
+            0.10000000149011612,
+            -0.10000000149011612,
+            -0.5600000023841858,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "white",
+          "neon": false,
+          "size": [
+            0.05000000074505806,
+            0.30000001192092896,
+            0.03999999910593033
+          ]
+        }
+      ]
+    },
+    "track": {
+      "paint": [
+        "s",
+        "s"
+      ],
+      "parts": [
+        {
+          "at": "lthigh",
+          "cf": [
+            -0.5099999904632568,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "a",
+          "neon": false,
+          "size": [
+            0.03999999910593033,
+            0.8700000047683716,
+            0.30000001192092896
+          ]
+        },
+        {
+          "at": "rthigh",
+          "cf": [
+            0.5099999904632568,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "a",
+          "neon": false,
+          "size": [
+            0.03999999910593033,
+            0.8700000047683716,
+            0.30000001192092896
+          ]
+        },
+        {
+          "at": "lshin",
+          "cf": [
+            -0.5099999904632568,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "a",
+          "neon": false,
+          "size": [
+            0.03999999910593033,
+            0.8700000047683716,
+            0.30000001192092896
+          ]
+        },
+        {
+          "at": "rshin",
+          "cf": [
+            0.5099999904632568,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1
+          ],
+          "color": "a",
+          "neon": false,
+          "size": [
+            0.03999999910593033,
+            0.8700000047683716,
+            0.30000001192092896
+          ]
+        }
+      ]
+    }
+  },
+  "packs": [
+    {
+      "color": [
+        40,
+        50,
+        110
+      ],
+      "i": 1,
+      "name": "Night Patrol",
+      "pieces": [
+        {
+          "key": "suit/panel",
+          "kit": "panel",
+          "tab": "suit"
+        },
+        {
+          "key": "back/cape:long",
+          "kit": "cape:long",
+          "tab": "back"
+        },
+        {
+          "key": "head/cowl",
+          "kit": "cowl",
+          "tab": "head"
+        },
+        {
+          "key": "feet/tall",
+          "kit": "tall",
+          "tab": "feet"
+        },
+        {
+          "key": "emblem/moon:gem",
+          "kit": "moon:gem",
+          "tab": "emblem"
+        },
+        {
+          "key": "emblem/star:gem",
+          "kit": "star:gem",
+          "tab": "emblem"
+        },
+        {
+          "key": "voice/patrol",
+          "kit": "patrol",
+          "tab": "voice"
+        }
+      ]
+    },
+    {
+      "color": [
+        110,
+        210,
+        255
+      ],
+      "i": 2,
+      "name": "Storm Front",
+      "pieces": [
+        {
+          "key": "suit/bolt",
+          "kit": "bolt",
+          "tab": "suit"
+        },
+        {
+          "key": "back/cape:split",
+          "kit": "cape:split",
+          "tab": "back"
+        },
+        {
+          "key": "head/crest",
+          "kit": "crest",
+          "tab": "head"
+        },
+        {
+          "key": "hands/cuff",
+          "kit": "cuff",
+          "tab": "hands"
+        },
+        {
+          "key": "emblem/spark:gem",
+          "kit": "spark:gem",
+          "tab": "emblem"
+        },
+        {
+          "key": "emblem/cross:gem",
+          "kit": "cross:gem",
+          "tab": "emblem"
+        },
+        {
+          "key": "trail/storm",
+          "kit": "storm",
+          "tab": "trail"
+        }
+      ]
+    },
+    {
+      "color": [
+        175,
+        180,
+        190
+      ],
+      "i": 3,
+      "name": "Iron Bastion",
+      "pieces": [
+        {
+          "key": "suit/bulwark",
+          "kit": "bulwark",
+          "tab": "suit"
+        },
+        {
+          "key": "head/helm",
+          "kit": "helm",
+          "tab": "head"
+        },
+        {
+          "key": "feet/armored",
+          "kit": "armored",
+          "tab": "feet"
+        },
+        {
+          "key": "emblem/diamond:gem",
+          "kit": "diamond:gem",
+          "tab": "emblem"
+        },
+        {
+          "key": "emblem/peak:gem",
+          "kit": "peak:gem",
+          "tab": "emblem"
+        },
+        {
+          "key": "emblem/clover:crest",
+          "kit": "clover:crest",
+          "tab": "emblem"
+        },
+        {
+          "key": "aura/shimmer",
+          "kit": "shimmer",
+          "tab": "aura"
+        }
+      ]
+    },
+    {
+      "color": [
+        240,
+        110,
+        190
+      ],
+      "i": 4,
+      "name": "Neon Rogue",
+      "pieces": [
+        {
+          "key": "suit/neon",
+          "kit": "neon",
+          "tab": "suit"
+        },
+        {
+          "key": "back/cape:tattered",
+          "kit": "cape:tattered",
+          "tab": "back"
+        },
+        {
+          "key": "head/visor",
+          "kit": "visor",
+          "tab": "head"
+        },
+        {
+          "key": "hands/claws",
+          "kit": "claws",
+          "tab": "hands"
+        },
+        {
+          "key": "emblem/heart:gem",
+          "kit": "heart:gem",
+          "tab": "emblem"
+        },
+        {
+          "key": "emblem/orb:gem",
+          "kit": "orb:gem",
+          "tab": "emblem"
+        },
+        {
+          "key": "trail/neon",
+          "kit": "neon",
+          "tab": "trail"
+        }
+      ]
+    },
+    {
+      "color": [
+        255,
+        210,
+        60
+      ],
+      "i": 5,
+      "name": "Solar Crown",
+      "pieces": [
+        {
+          "key": "back/cape:mantle",
+          "kit": "cape:mantle",
+          "tab": "back"
+        },
+        {
+          "key": "head/crown",
+          "kit": "crown",
+          "tab": "head"
+        },
+        {
+          "key": "emblem/flower:gem",
+          "kit": "flower:gem",
+          "tab": "emblem"
+        },
+        {
+          "key": "emblem/clover:gem",
+          "kit": "clover:gem",
+          "tab": "emblem"
+        },
+        {
+          "key": "emblem/flower:crest",
+          "kit": "flower:crest",
+          "tab": "emblem"
+        },
+        {
+          "key": "aura/solar",
+          "kit": "solar",
+          "tab": "aura"
+        }
+      ]
+    },
+    {
+      "color": [
+        255,
+        70,
+        90
+      ],
+      "i": 6,
+      "name": "Spirit Blade",
+      "pieces": [
+        {
+          "key": "back/coat:shoulder",
+          "kit": "coat:shoulder",
+          "tab": "back"
+        },
+        {
+          "key": "back/coat:shadow",
+          "kit": "coat:shadow",
+          "tab": "back"
+        },
+        {
+          "key": "back/scarf:spirit",
+          "kit": "scarf:spirit",
+          "tab": "back"
+        },
+        {
+          "key": "hands/wraps:dark",
+          "kit": "wraps:dark",
+          "tab": "hands"
+        },
+        {
+          "key": "hair/sky",
+          "kit": "sky",
+          "tab": "hair"
+        },
+        {
+          "key": "hair/flow",
+          "kit": "flow",
+          "tab": "hair"
+        },
+        {
+          "key": "eyes/spirit",
+          "kit": "spirit",
+          "tab": "eyes"
+        },
+        {
+          "key": "eyes/prism",
+          "kit": "prism",
+          "tab": "eyes"
+        }
+      ]
+    },
+    {
+      "color": [
+        255,
+        140,
+        40
+      ],
+      "i": 7,
+      "name": "Street Legend",
+      "pieces": [
+        {
+          "key": "beard/long",
+          "kit": "long",
+          "tab": "beard"
+        },
+        {
+          "key": "face/scar",
+          "kit": "scar",
+          "tab": "face"
+        },
+        {
+          "key": "makeup/half",
+          "kit": "half",
+          "tab": "makeup"
+        },
+        {
+          "key": "hat/kabuto",
+          "kit": "kabuto",
+          "tab": "hat"
+        },
+        {
+          "key": "hat/knight",
+          "kit": "knight",
+          "tab": "hat"
+        },
+        {
+          "key": "ears/wings",
+          "kit": "wings",
+          "tab": "ears"
+        },
+        {
+          "key": "shoulders/coils",
+          "kit": "coils",
+          "tab": "shoulders"
+        },
+        {
+          "key": "neck/torc",
+          "kit": "torc",
+          "tab": "neck"
+        },
+        {
+          "key": "arms/coils",
+          "kit": "coils",
+          "tab": "arms"
+        },
+        {
+          "key": "legs/armored",
+          "kit": "armored",
+          "tab": "legs"
+        },
+        {
+          "key": "backpack/energy",
+          "kit": "energy",
+          "tab": "backpack"
+        },
+        {
+          "key": "hair/sideshave",
+          "kit": "sideshave",
+          "tab": "hair"
+        }
+      ]
+    }
+  ],
+  "shop": [
+    {
+      "key": "pack7",
+      "kind": "pack",
+      "pack": 7,
+      "tab": "packs"
+    },
+    {
+      "key": "pack1",
+      "kind": "pack",
+      "pack": 1,
+      "tab": "packs"
+    },
+    {
+      "key": "pack2",
+      "kind": "pack",
+      "pack": 2,
+      "tab": "packs"
+    },
+    {
+      "key": "pack3",
+      "kind": "pack",
+      "pack": 3,
+      "tab": "packs"
+    },
+    {
+      "key": "pack4",
+      "kind": "pack",
+      "pack": 4,
+      "tab": "packs"
+    },
+    {
+      "key": "pack5",
+      "kind": "pack",
+      "pack": 5,
+      "tab": "packs"
+    },
+    {
+      "key": "pack6",
+      "kind": "pack",
+      "pack": 6,
+      "tab": "packs"
+    },
+    {
+      "key": "weaponBoomerang",
+      "kind": "weapon",
+      "tab": "weapons",
+      "weapon": 36
+    },
+    {
+      "key": "weaponWhip",
+      "kind": "weapon",
+      "tab": "weapons",
+      "weapon": 32
+    },
+    {
+      "key": "weaponFan",
+      "kind": "weapon",
+      "tab": "weapons",
+      "weapon": 33
+    },
+    {
+      "key": "weaponYoyo",
+      "kind": "weapon",
+      "tab": "weapons",
+      "weapon": 34
+    },
+    {
+      "key": "weaponDart",
+      "kind": "weapon",
+      "tab": "weapons",
+      "weapon": 35
+    },
+    {
+      "key": "tint1",
+      "kind": "tint",
+      "tab": "effects",
+      "tint": 1
+    },
+    {
+      "key": "tint2",
+      "kind": "tint",
+      "tab": "effects",
+      "tint": 2
+    },
+    {
+      "key": "tint3",
+      "kind": "tint",
+      "tab": "effects",
+      "tint": 3
+    },
+    {
+      "key": "tint4",
+      "kind": "tint",
+      "tab": "effects",
+      "tint": 4
+    },
+    {
+      "key": "tint5",
+      "kind": "tint",
+      "tab": "effects",
+      "tint": 5
+    },
+    {
+      "key": "tint6",
+      "kind": "tint",
+      "tab": "effects",
+      "tint": 6
+    },
+    {
+      "key": "tint7",
+      "kind": "tint",
+      "tab": "effects",
+      "tint": 7
+    },
+    {
+      "key": "tint8",
+      "kind": "tint",
+      "tab": "effects",
+      "tint": 8
+    },
+    {
+      "key": "tint9",
+      "kind": "tint",
+      "tab": "effects",
+      "tint": 9
+    },
+    {
+      "key": "tint10",
+      "kind": "tint",
+      "tab": "effects",
+      "tint": 10
+    },
+    {
+      "key": "travel3",
+      "kind": "travel",
+      "style": 3,
+      "tab": "effects"
+    },
+    {
+      "key": "travel4",
+      "kind": "travel",
+      "style": 4,
+      "tab": "effects"
+    },
+    {
+      "key": "travel9",
+      "kind": "travel",
+      "style": 9,
+      "tab": "effects"
+    },
+    {
+      "key": "travel10",
+      "kind": "travel",
+      "style": 10,
+      "tab": "effects"
+    },
+    {
+      "key": "travel15",
+      "kind": "travel",
+      "style": 15,
+      "tab": "effects"
+    },
+    {
+      "key": "travel16",
+      "kind": "travel",
+      "style": 16,
+      "tab": "effects"
+    },
+    {
+      "key": "travel21",
+      "kind": "travel",
+      "style": 21,
+      "tab": "effects"
+    },
+    {
+      "key": "travel22",
+      "kind": "travel",
+      "style": 22,
+      "tab": "effects"
+    },
+    {
+      "key": "travel27",
+      "kind": "travel",
+      "style": 27,
+      "tab": "effects"
+    },
+    {
+      "key": "travel28",
+      "kind": "travel",
+      "style": 28,
+      "tab": "effects"
+    },
+    {
+      "emote": 3,
+      "key": "emote3",
+      "kind": "emote",
+      "tab": "emotes"
+    },
+    {
+      "emote": 4,
+      "key": "emote4",
+      "kind": "emote",
+      "tab": "emotes"
+    },
+    {
+      "emote": 5,
+      "key": "emote5",
+      "kind": "emote",
+      "tab": "emotes"
+    },
+    {
+      "emote": 6,
+      "key": "emote6",
+      "kind": "emote",
+      "tab": "emotes"
+    },
+    {
+      "emote": 7,
+      "key": "emote7",
+      "kind": "emote",
+      "tab": "emotes"
+    },
+    {
+      "emote": 8,
+      "key": "emote8",
+      "kind": "emote",
+      "tab": "emotes"
+    },
+    {
+      "emote": 9,
+      "key": "emote9",
+      "kind": "emote",
+      "tab": "emotes"
+    },
+    {
+      "emote": 10,
+      "key": "emote10",
+      "kind": "emote",
+      "tab": "emotes"
+    },
+    {
+      "emote": 21,
+      "key": "pose21",
+      "kind": "emote",
+      "tab": "emotes"
+    },
+    {
+      "emote": 22,
+      "key": "pose22",
+      "kind": "emote",
+      "tab": "emotes"
+    },
+    {
+      "emote": 23,
+      "key": "pose23",
+      "kind": "emote",
+      "tab": "emotes"
+    },
+    {
+      "emote": 24,
+      "key": "pose24",
+      "kind": "emote",
+      "tab": "emotes"
+    },
+    {
+      "key": "heroPass",
+      "kind": "heroPass",
+      "tab": "passes"
+    },
+    {
+      "key": "quickSwap",
+      "kind": "pass",
+      "tab": "passes"
+    },
+    {
+      "key": "double",
+      "kind": "pass",
+      "tab": "passes"
+    },
+    {
+      "key": "slot3",
+      "kind": "slot",
+      "tab": "slots"
+    },
+    {
+      "key": "slot4",
+      "kind": "slot",
+      "tab": "slots"
+    }
+  ],
+  "tints": [
+    {
+      "color": [
+        235,
+        50,
+        70
+      ],
+      "i": 1,
+      "name": "Crimson",
+      "rainbow": false
+    },
+    {
+      "color": [
+        255,
+        205,
+        60
+      ],
+      "i": 2,
+      "name": "Gold",
+      "rainbow": false
+    },
+    {
+      "color": [
+        150,
+        90,
+        255
+      ],
+      "i": 3,
+      "name": "Violet",
+      "rainbow": false
+    },
+    {
+      "color": [
+        110,
+        240,
+        180
+      ],
+      "i": 4,
+      "name": "Mint",
+      "rainbow": false
+    },
+    {
+      "color": [
+        200,
+        245,
+        255
+      ],
+      "i": 5,
+      "name": "Ice",
+      "rainbow": false
+    },
+    {
+      "color": [
+        255,
+        130,
+        200
+      ],
+      "i": 6,
+      "name": "Rose",
+      "rainbow": false
+    },
+    {
+      "color": [
+        255,
+        130,
+        50
+      ],
+      "i": 7,
+      "name": "Sunset",
+      "rainbow": false
+    },
+    {
+      "color": [
+        70,
+        40,
+        110
+      ],
+      "i": 8,
+      "name": "Shadow",
+      "rainbow": false
+    },
+    {
+      "color": [
+        255,
+        255,
+        255
+      ],
+      "i": 9,
+      "name": "Prism",
+      "rainbow": true
+    },
+    {
+      "color": [
+        20,
+        10,
+        30
+      ],
+      "glow": [
+        190,
+        120,
+        255
+      ],
+      "i": 10,
+      "name": "Void",
+      "rainbow": false
+    },
+    {
+      "color": [
+        90,
+        170,
+        255
+      ],
+      "i": 11,
+      "name": "Sky Blue",
+      "rainbow": false
+    },
+    {
+      "color": [
+        255,
+        225,
+        140
+      ],
+      "glow": [
+        255,
+        245,
+        200
+      ],
+      "i": 12,
+      "name": "Holo Gold",
+      "rainbow": false
+    },
+    {
+      "color": [
+        255,
+        60,
+        200
+      ],
+      "glow": [
+        120,
+        60,
+        255
+      ],
+      "i": 13,
+      "name": "Neon Night",
+      "rainbow": false
+    },
+    {
+      "color": [
+        230,
+        60,
+        50
+      ],
+      "i": 14,
+      "name": "Halftone Red",
+      "rainbow": false
+    },
+    {
+      "color": [
+        235,
+        240,
+        255
+      ],
+      "glow": [
+        170,
+        200,
+        255
+      ],
+      "i": 15,
+      "name": "Starlight",
+      "rainbow": false
+    }
+  ],
+  "travel": [
+    {
+      "burst": "sparks",
+      "c1": [
+        255,
+        210,
+        120
+      ],
+      "c2": [
+        255,
+        120,
+        60
+      ],
+      "glow": 0.9,
+      "id": 1,
+      "mobility": "flight",
+      "name": "Star Tail"
+    },
+    {
+      "burst": "sparks",
+      "c1": [
+        150,
+        220,
+        255
+      ],
+      "c2": [
+        255,
+        255,
+        255
+      ],
+      "glow": 1,
+      "id": 2,
+      "mobility": "flight",
+      "name": "Static"
+    },
+    {
+      "burst": "ink",
+      "c1": [
+        30,
+        30,
+        40
+      ],
+      "c2": [
+        90,
+        90,
+        110
+      ],
+      "glow": 0,
+      "id": 3,
+      "mobility": "flight",
+      "name": "Ink Splash"
+    },
+    {
+      "burst": "petals",
+      "c1": [
+        255,
+        160,
+        200
+      ],
+      "c2": [
+        255,
+        230,
+        240
+      ],
+      "glow": 0.3,
+      "id": 4,
+      "mobility": "flight",
+      "name": "Petal Storm"
+    },
+    {
+      "burst": "puff",
+      "c1": [
+        120,
+        255,
+        200
+      ],
+      "c2": [
+        40,
+        160,
+        255
+      ],
+      "glow": 0.8,
+      "id": 5,
+      "mobility": "flight",
+      "name": "Ghost Fire"
+    },
+    {
+      "burst": "prism",
+      "c1": [
+        255,
+        255,
+        255
+      ],
+      "c2": [
+        200,
+        160,
+        255
+      ],
+      "glow": 1,
+      "id": 6,
+      "mobility": "flight",
+      "name": "Prism"
+    },
+    {
+      "burst": "ring",
+      "c1": [
+        200,
+        220,
+        255
+      ],
+      "c2": [
+        120,
+        140,
+        200
+      ],
+      "glow": 0.4,
+      "id": 7,
+      "mobility": "speed",
+      "name": "Afterimage"
+    },
+    {
+      "burst": "sparks",
+      "c1": [
+        150,
+        220,
+        255
+      ],
+      "c2": [
+        255,
+        255,
+        255
+      ],
+      "glow": 1,
+      "id": 8,
+      "mobility": "speed",
+      "name": "Static Dash"
+    },
+    {
+      "burst": "ink",
+      "c1": [
+        30,
+        30,
+        40
+      ],
+      "c2": [
+        90,
+        90,
+        110
+      ],
+      "glow": 0,
+      "id": 9,
+      "mobility": "speed",
+      "name": "Ink Sprint"
+    },
+    {
+      "burst": "petals",
+      "c1": [
+        255,
+        160,
+        200
+      ],
+      "c2": [
+        255,
+        230,
+        240
+      ],
+      "glow": 0.3,
+      "id": 10,
+      "mobility": "speed",
+      "name": "Petal Rush"
+    },
+    {
+      "burst": "puff",
+      "c1": [
+        120,
+        255,
+        200
+      ],
+      "c2": [
+        40,
+        160,
+        255
+      ],
+      "glow": 0.8,
+      "id": 11,
+      "mobility": "speed",
+      "name": "Ghost Fire Run"
+    },
+    {
+      "burst": "prism",
+      "c1": [
+        255,
+        255,
+        255
+      ],
+      "c2": [
+        200,
+        160,
+        255
+      ],
+      "glow": 1,
+      "id": 12,
+      "mobility": "speed",
+      "name": "Prism Streak"
+    },
+    {
+      "burst": "ring",
+      "c1": [
+        255,
+        200,
+        120
+      ],
+      "c2": [
+        200,
+        140,
+        90
+      ],
+      "glow": 0.2,
+      "id": 13,
+      "mobility": "leap",
+      "name": "Shockwave"
+    },
+    {
+      "burst": "sparks",
+      "c1": [
+        150,
+        220,
+        255
+      ],
+      "c2": [
+        255,
+        255,
+        255
+      ],
+      "glow": 1,
+      "id": 14,
+      "mobility": "leap",
+      "name": "Static Bound"
+    },
+    {
+      "burst": "ink",
+      "c1": [
+        30,
+        30,
+        40
+      ],
+      "c2": [
+        90,
+        90,
+        110
+      ],
+      "glow": 0,
+      "id": 15,
+      "mobility": "leap",
+      "name": "Ink Arc"
+    },
+    {
+      "burst": "petals",
+      "c1": [
+        255,
+        160,
+        200
+      ],
+      "c2": [
+        255,
+        230,
+        240
+      ],
+      "glow": 0.3,
+      "id": 16,
+      "mobility": "leap",
+      "name": "Petal Leap"
+    },
+    {
+      "burst": "puff",
+      "c1": [
+        120,
+        255,
+        200
+      ],
+      "c2": [
+        40,
+        160,
+        255
+      ],
+      "glow": 0.8,
+      "id": 17,
+      "mobility": "leap",
+      "name": "Ghost Fire Leap"
+    },
+    {
+      "burst": "prism",
+      "c1": [
+        255,
+        255,
+        255
+      ],
+      "c2": [
+        200,
+        160,
+        255
+      ],
+      "glow": 1,
+      "id": 18,
+      "mobility": "leap",
+      "name": "Prism Bound"
+    },
+    {
+      "burst": "ring",
+      "c1": [
+        255,
+        90,
+        90
+      ],
+      "c2": [
+        255,
+        200,
+        90
+      ],
+      "glow": 0.3,
+      "id": 19,
+      "mobility": "acrobat",
+      "name": "Ribbon Flip"
+    },
+    {
+      "burst": "sparks",
+      "c1": [
+        150,
+        220,
+        255
+      ],
+      "c2": [
+        255,
+        255,
+        255
+      ],
+      "glow": 1,
+      "id": 20,
+      "mobility": "acrobat",
+      "name": "Static Flip"
+    },
+    {
+      "burst": "ink",
+      "c1": [
+        30,
+        30,
+        40
+      ],
+      "c2": [
+        90,
+        90,
+        110
+      ],
+      "glow": 0,
+      "id": 21,
+      "mobility": "acrobat",
+      "name": "Ink Flourish"
+    },
+    {
+      "burst": "petals",
+      "c1": [
+        255,
+        160,
+        200
+      ],
+      "c2": [
+        255,
+        230,
+        240
+      ],
+      "glow": 0.3,
+      "id": 22,
+      "mobility": "acrobat",
+      "name": "Petal Twirl"
+    },
+    {
+      "burst": "puff",
+      "c1": [
+        120,
+        255,
+        200
+      ],
+      "c2": [
+        40,
+        160,
+        255
+      ],
+      "glow": 0.8,
+      "id": 23,
+      "mobility": "acrobat",
+      "name": "Ghost Fire Flip"
+    },
+    {
+      "burst": "prism",
+      "c1": [
+        255,
+        255,
+        255
+      ],
+      "c2": [
+        200,
+        160,
+        255
+      ],
+      "glow": 1,
+      "id": 24,
+      "mobility": "acrobat",
+      "name": "Prism Twist"
+    },
+    {
+      "burst": "ring",
+      "c1": [
+        190,
+        200,
+        215
+      ],
+      "c2": [
+        120,
+        130,
+        150
+      ],
+      "glow": 0.1,
+      "id": 25,
+      "mobility": "swing",
+      "name": "Steel Cable"
+    },
+    {
+      "burst": "sparks",
+      "c1": [
+        150,
+        220,
+        255
+      ],
+      "c2": [
+        255,
+        255,
+        255
+      ],
+      "glow": 1,
+      "id": 26,
+      "mobility": "swing",
+      "name": "Static Line"
+    },
+    {
+      "burst": "ink",
+      "c1": [
+        30,
+        30,
+        40
+      ],
+      "c2": [
+        90,
+        90,
+        110
+      ],
+      "glow": 0,
+      "id": 27,
+      "mobility": "swing",
+      "name": "Ink Line"
+    },
+    {
+      "burst": "petals",
+      "c1": [
+        120,
+        200,
+        110
+      ],
+      "c2": [
+        255,
+        160,
+        200
+      ],
+      "glow": 0.3,
+      "id": 28,
+      "mobility": "swing",
+      "name": "Petal Vine"
+    },
+    {
+      "burst": "puff",
+      "c1": [
+        120,
+        255,
+        200
+      ],
+      "c2": [
+        40,
+        160,
+        255
+      ],
+      "glow": 0.8,
+      "id": 29,
+      "mobility": "swing",
+      "name": "Ghost Fire Line"
+    },
+    {
+      "burst": "prism",
+      "c1": [
+        255,
+        255,
+        255
+      ],
+      "c2": [
+        200,
+        160,
+        255
+      ],
+      "glow": 1,
+      "id": 30,
+      "mobility": "swing",
+      "name": "Prism Line"
+    }
+  ],
+  "weapons": [
+    {
+      "id": 1,
+      "key": "weapon/1",
+      "name": "Bare Fists"
+    },
+    {
+      "id": 2,
+      "key": "weapon/2",
+      "name": "Martial Arts"
+    },
+    {
+      "id": 3,
+      "key": "weapon/3",
+      "name": "Power Gauntlets"
+    },
+    {
+      "id": 4,
+      "key": "weapon/4",
+      "name": "Strikers"
+    },
+    {
+      "id": 5,
+      "key": "weapon/5",
+      "name": "Sword"
+    },
+    {
+      "id": 6,
+      "key": "weapon/6",
+      "name": "Katana"
+    },
+    {
+      "id": 7,
+      "key": "weapon/7",
+      "name": "Hand Axe"
+    },
+    {
+      "id": 8,
+      "key": "weapon/8",
+      "name": "Mace"
+    },
+    {
+      "id": 9,
+      "key": "weapon/9",
+      "name": "Baton"
+    },
+    {
+      "id": 10,
+      "key": "weapon/10",
+      "name": "Dagger"
+    },
+    {
+      "id": 11,
+      "key": "weapon/11",
+      "name": "Greatsword"
+    },
+    {
+      "id": 12,
+      "key": "weapon/12",
+      "name": "Great Axe"
+    },
+    {
+      "id": 13,
+      "key": "weapon/13",
+      "name": "Warhammer"
+    },
+    {
+      "id": 14,
+      "key": "weapon/14",
+      "name": "Spear"
+    },
+    {
+      "id": 15,
+      "key": "weapon/15",
+      "name": "Scythe"
+    },
+    {
+      "id": 16,
+      "key": "weapon/16",
+      "name": "Bo Staff"
+    },
+    {
+      "id": 17,
+      "key": "weapon/17",
+      "name": "Twin Blades"
+    },
+    {
+      "id": 18,
+      "key": "weapon/18",
+      "name": "Claws"
+    },
+    {
+      "id": 19,
+      "key": "weapon/19",
+      "name": "Sai"
+    },
+    {
+      "id": 20,
+      "key": "weapon/20",
+      "name": "Tonfa"
+    },
+    {
+      "id": 21,
+      "key": "weapon/21",
+      "name": "Nunchucks"
+    },
+    {
+      "id": 22,
+      "key": "weapon/22",
+      "name": "Round Shield"
+    },
+    {
+      "id": 23,
+      "key": "weapon/23",
+      "name": "Tower Shield"
+    },
+    {
+      "id": 24,
+      "key": "weapon/24",
+      "name": "Sword and Shield"
+    },
+    {
+      "id": 25,
+      "key": "weapon/25",
+      "name": "Blaster Pistol"
+    },
+    {
+      "id": 26,
+      "key": "weapon/26",
+      "name": "Twin Blasters"
+    },
+    {
+      "id": 27,
+      "key": "weapon/27",
+      "name": "Blaster Rifle"
+    },
+    {
+      "id": 28,
+      "key": "weapon/28",
+      "name": "Bow"
+    },
+    {
+      "id": 29,
+      "key": "weapon/29",
+      "name": "Crossbow"
+    },
+    {
+      "id": 30,
+      "key": "weapon/30",
+      "name": "Arm Cannon"
+    },
+    {
+      "id": 31,
+      "key": "weapon/31",
+      "name": "Throwing Stars"
+    },
+    {
+      "id": 32,
+      "key": "weapon/32",
+      "name": "Chain Whip"
+    },
+    {
+      "id": 33,
+      "key": "weapon/33",
+      "name": "War Fan"
+    },
+    {
+      "id": 34,
+      "key": "weapon/34",
+      "name": "Yo-yo"
+    },
+    {
+      "id": 35,
+      "key": "weapon/35",
+      "name": "Rope Dart"
+    },
+    {
+      "id": 36,
+      "key": "weapon/36",
+      "name": "Boomerang"
+    }
+  ]
+}

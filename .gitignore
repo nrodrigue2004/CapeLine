@@ -3,3 +3,4 @@ build/
 sourcemap.json
 __pycache__/
 .claude/
+art/thumbs/cells/

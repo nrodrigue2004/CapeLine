@@ -30,6 +30,7 @@ local WeaponRules = require(Shared:WaitForChild("WeaponRules"))
 local ProfileSchema = require(Shared:WaitForChild("ProfileSchema"))
 
 local Kit = require(script.Parent.Kit)
+local Thumb = require(script.Parent.Thumb)
 local Preview = require(script.Parent.Preview)
 local State = require(script.Parent.Parent.State)
 
@@ -142,6 +143,9 @@ local cardTitle: TextLabel
 local cardSub: TextLabel
 local cardBody: TextLabel
 local grid: Frame
+local pieceGrid: Frame -- the slot's pieces as picture tiles (Thumb), above the colour grid
+local tileParent: Frame? = nil -- where tile() puts its tile (nil: the colour grid)
+local layoutPieces: () -> () -- sizes the piece grid's cells (pictures or text)
 local nameLabel: TextLabel
 local status: TextLabel
 local backButton: TextButton
@@ -327,7 +331,8 @@ local function row(
 	on: boolean,
 	locked: boolean,
 	pick: () -> (),
-	hover: (() -> ())?
+	hover: (() -> ())?,
+	pic: Thumb.Pic?
 )
 	rowOrder += 1
 	local b = Kit.button({
@@ -336,10 +341,21 @@ local function row(
 		LayoutOrder = rowOrder,
 		BackgroundColor3 = if on then Kit.color.gold elseif locked then Kit.color.muted else Kit.color.paper,
 	}, pick)
+	-- a weapon row's picture at its left (2026-11-19 thumbnails), the name beside it
+	local inset = 0
+	if pic then
+		local img = Thumb.image(pic, {
+			Size = UDim2.new(0, T - 8, 1, 4),
+			Position = UDim2.fromOffset(-4, -2),
+			ImageTransparency = if locked then 0.4 else 0,
+		})
+		img.Parent = b
+		inset = T - 8
+	end
 	local l = Kit.label({
 		Text = text,
-		Size = UDim2.new(if sub then 0.58 else 1, -12, 1, 0),
-		Position = UDim2.fromOffset(10, 0),
+		Size = UDim2.new(if sub then 0.58 else 1, -12 - inset, 1, 0),
+		Position = UDim2.fromOffset(10 + inset, 0),
 		TextColor3 = Kit.color.ink,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		Font = Kit.bodyFont,
@@ -373,13 +389,15 @@ end
 
 -- Tiles and swatches on the right (the grid under the card)
 local tileOrder = 0
+local PIC_CAPTION = 22 -- a picture tile's name line under its picture
 local function tile(
 	text: string,
 	sub: string?,
 	on: boolean,
 	locked: boolean,
 	pick: () -> (),
-	hover: (() -> ())?
+	hover: (() -> ())?,
+	pic: Thumb.Pic?
 )
 	tileOrder += 1
 	local b = Kit.button({
@@ -387,6 +405,18 @@ local function tile(
 		LayoutOrder = tileOrder,
 		BackgroundColor3 = if on then Kit.color.gold elseif locked then Kit.color.muted else Kit.color.paper,
 	}, pick)
+	if pic then
+		-- a picture tile (2026-11-19): the piece's thumbnail, its name under it, how to get it if locked
+		Thumb.fill(b, pic, text, sub, locked, PIC_CAPTION)
+		if hover then
+			b.MouseEnter:Connect(hover)
+			b.MouseLeave:Connect(function()
+				showPreview()
+			end)
+		end
+		b.Parent = tileParent or grid
+		return b
+	end
 	local l = Kit.label({
 		Text = text,
 		Size = UDim2.new(1, -6, if sub then 0.6 else 1, 0),
@@ -413,7 +443,7 @@ local function tile(
 			showPreview()
 		end)
 	end
-	b.Parent = grid
+	b.Parent = tileParent or grid
 	return b
 end
 local function swatch(color: Color3?, on: boolean, pick: () -> (), label: string?)
@@ -786,7 +816,7 @@ local function drawWeapon()
 				-- previewing any weapon is fine; Done checks it can be carried
 				weaponLook = WeaponRules.lookOf(profileView(), w.id)
 				refresh()
-			end, hoverWeapon(w.id))
+			end, hoverWeapon(w.id), Thumb.key(Thumb.weaponKey(w.id)))
 		end
 	end
 	cardFor = function()
@@ -882,6 +912,7 @@ end
 local function drawPieces()
 	local pv = profileView()
 	local cur = look.pieces[slot] or 0
+	tileParent = pieceGrid
 	if not REQUIRED[slot] then
 		tile(
 			if AVATAR and OWN[slot] then "MY OWN" else "NONE",
@@ -902,8 +933,9 @@ local function drawPieces()
 			continue -- a drawn style kept for NPCs (catalog tabs) or a retired tab
 		end
 		local have = CreatorRules.wearable(Config, pv, p, originIdx)
+		local glyph = Thumb.glyph(p)
 		tile(
-			p.name,
+			if glyph then glyph .. " " .. p.name else p.name,
 			if have then nil else sourceText(p),
 			cur == p.index,
 			not have,
@@ -917,8 +949,23 @@ local function drawPieces()
 			end,
 			hoverLook(function(l)
 				l.pieces[slot] = p.index
-			end)
+			end),
+			Thumb.creator(p)
 		)
+	end
+	tileParent = nil
+	-- the slot's pieces show as pictures once any has one (taller cells), else as today's text tiles
+	local g = pieceGrid:FindFirstChildOfClass("UIGridLayout")
+	if g then
+		local pics = false
+		for _, c in pieceGrid:GetChildren() do
+			if c:FindFirstChild("Thumb") then
+				pics = true
+				break
+			end
+		end
+		pieceGrid:SetAttribute("Pictures", pics)
+		layoutPieces()
 	end
 end
 local function drawAppearance()
@@ -1053,7 +1100,10 @@ end
 refresh = function()
 	clear(list)
 	clear(grid)
+	clear(pieceGrid)
+	pieceGrid:SetAttribute("Pictures", false)
 	rowOrder, tileOrder = 0, 0
+	tileParent = nil
 	cardFor = nil
 	for _, b in stepRow:GetChildren() do
 		if b:IsA("TextButton") then
@@ -1062,6 +1112,8 @@ refresh = function()
 	end
 	safely(STEPS[step].id, DRAW[STEPS[step].id])
 	grid.Visible = #grid:GetChildren() > 1
+	pieceGrid.Visible = #pieceGrid:GetChildren() > 1
+	layoutPieces()
 	nameLabel.Text = string.upper(heroName())
 	local ok, why = canFinish()
 	local last = step == #STEPS
@@ -1237,6 +1289,24 @@ local function layout()
 	if g then
 		g.CellSize = UDim2.fromOffset(if narrow or tight then 96 else 118, (if tight then 44 else T) + 12)
 	end
+	layoutPieces()
+end
+
+-- picture tiles are square pictures over a name line (phones: 84 wide, PC 104); text tiles keep the colour grid's
+layoutPieces = function()
+	local g = pieceGrid and pieceGrid:FindFirstChildOfClass("UIGridLayout")
+	if not g then
+		return
+	end
+	local tight = Kit.compact()
+	local narrow = Kit.area().X < 560
+	local small = narrow or tight
+	if pieceGrid:GetAttribute("Pictures") then
+		local w = if small then 84 else 104
+		g.CellSize = UDim2.fromOffset(w, w + PIC_CAPTION - 4)
+	else
+		g.CellSize = UDim2.fromOffset(if small then 96 else 118, (if tight then 44 else T) + 12)
+	end
 end
 
 local function build()
@@ -1385,11 +1455,22 @@ local function build()
 		Font = Kit.bodyFont,
 	})
 	cardBody.Parent = card
+	pieceGrid = Instance.new("Frame")
+	pieceGrid.Name = "Pieces"
+	pieceGrid.BackgroundTransparency = 1
+	pieceGrid.Size = UDim2.new(1, -8, 0, 0)
+	pieceGrid.AutomaticSize = Enum.AutomaticSize.Y
+	pieceGrid.LayoutOrder = 2
+	pieceGrid.Parent = detail
+	local pg = Instance.new("UIGridLayout")
+	pg.CellPadding = UDim2.fromOffset(6, 6)
+	pg.SortOrder = Enum.SortOrder.LayoutOrder
+	pg.Parent = pieceGrid
 	grid = Instance.new("Frame")
 	grid.BackgroundTransparency = 1
 	grid.Size = UDim2.new(1, -8, 0, 0)
 	grid.AutomaticSize = Enum.AutomaticSize.Y
-	grid.LayoutOrder = 2
+	grid.LayoutOrder = 3
 	grid.Parent = detail
 	local g = Instance.new("UIGridLayout")
 	g.CellPadding = UDim2.fromOffset(6, 6)
@@ -1454,7 +1535,7 @@ local function build()
 	Kit.LayoutChanged:Connect(layout)
 end
 
--- opts: { mode, side, classIdx, pathOpen, origin, step (a STEPS id) }
+-- opts: { mode, side, classIdx, pathOpen, origin, step (a STEPS id), slot (an appearance slot) }
 function CreatorScreen.open(opts: { [string]: any })
 	mode = opts.mode or "edit"
 	pending = false
@@ -1488,7 +1569,7 @@ function CreatorScreen.open(opts: { [string]: any })
 			step = i
 		end
 	end
-	slot = if C.clothes.on then "shirt" else "suit"
+	slot = opts.slot or (if C.clothes.on then "shirt" else "suit") -- opts.slot: an appearance slot to open on
 	colorTarget, weaponTarget = 1, 1
 	cancelButton.Visible = mode == "edit"
 	gui.Enabled = true
