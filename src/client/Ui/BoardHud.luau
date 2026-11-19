@@ -7,6 +7,8 @@
 --   top 10, redrawn only when BoardPlaza brings rows that changed; the countdown ticks once a minute.
 -- * A weekly title earned (BoardReward): the boardReward juice (sound, vibration) and the TOP 10 card here.
 -- Names are Roblox display names the server sends; nothing on this screen is typed by a player.
+-- gap-icons2 (2026-11-19): each board's tab and the TOP 10! card lead with the board's comic icon (Config.Icons
+-- board: a crown for Boss MVPs, the lifebuoy for rescues, a trophy for PvP wins).
 -- PLACEHOLDER ART: Kit frames and plain text until the UI pass.
 
 local Players = game:GetService("Players")
@@ -348,6 +350,7 @@ local function showReward(d: any)
 		string.format("#%d ON %s LAST WEEK: TITLE %s", d.rank, b.name, string.upper(tostring(d.title)))
 	)
 	cardText.Text = table.concat(cardLines, "\n")
+	Kit.lead(card:FindFirstChild("Head") :: TextLabel, "board", b.id, 30)
 	card.Visible = true
 	Kit.pulse(card, 0.15)
 	Juice.fire("boardReward", nil, { mine = true, title = d.title, rank = d.rank })
@@ -367,6 +370,7 @@ local function buildCard()
 	Kit.stroke(card, Kit.color.gold, 3)
 	card.Parent = cardGui
 	local head = Kit.label({
+		Name = "Head",
 		Text = "TOP " .. B.reward.top .. "!",
 		Size = UDim2.new(1, -16, 0, 34),
 		Position = UDim2.fromOffset(8, 6),
@@ -491,6 +495,7 @@ function BoardHud.init()
 			BoardHud.refresh()
 		end)
 		btn.Parent = panel
+		Kit.lead(btn, "board", b.id, BTN - 14)
 		tabButtons[i] = btn
 	end
 	filterButton = Kit.button({

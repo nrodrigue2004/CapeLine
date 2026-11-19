@@ -6,6 +6,8 @@
 --   in their slot colour) within 400 studs; farther ones sit on the rim. Tap it for the map.
 -- * Under it: the world clock (day or night and the hour) and the boss timer.
 -- * PING opens a wheel: HELP, HERE (where you aim) and DANGER; SQUAD opens the squad panel.
+-- gap-icons2 (2026-11-19): each mark is its comic symbol on its shape (Shapes.apply with a Config.Icons key) and
+-- the ping wheel's rows lead with the Help, Here and Danger icons; Kit shapes and glyphs without the sheets.
 -- PLACEHOLDER look until the art pass: Kit shapes.
 
 local Players = game:GetService("Players")
@@ -78,7 +80,9 @@ local function place(
 	yaw: number,
 	shape: string,
 	color: Color3,
-	size: number?
+	size: number?,
+	group: string?,
+	key: any
 )
 	local d = dot(n)
 	local off = Vector2.new(at.X - origin.X, at.Z - origin.Z)
@@ -93,7 +97,7 @@ local function place(
 	d.Position = UDim2.new(0.5, r.X * k, 0.5, r.Y * k)
 	local px = size or 12
 	d.Size = UDim2.fromOffset(px, px)
-	Shapes.apply(d, shape, color)
+	Shapes.apply(d, shape, color, group, key)
 	d.Visible = true
 end
 
@@ -110,19 +114,29 @@ local function draw()
 			if inc.state == WorldClient.ACTIVE and inc.pos then
 				n += 1
 				local col = if inc.side == "villain" then Kit.color.syndicate else Kit.color.vigil
-				place(n, inc.pos, origin, -yaw, "circle", col, 12)
+				place(n, inc.pos, origin, -yaw, "circle", col, 16, "incident", inc.tid)
 			end
 		end
 		for _, ev in WorldClient.events do
 			if ev.state == 0 and ev.x then
 				n += 1
-				place(n, Vector3.new(ev.x, 0, ev.z), origin, -yaw, "star", Kit.color.gold, 18)
+				place(n, Vector3.new(ev.x, 0, ev.z), origin, -yaw, "star", Kit.color.gold, 22, "event", ev.id)
 			end
 		end
 		local b = WorldClient.boss
 		if (b.state == 1 or b.state == 2 or b.state == 3) and b.x then
 			n += 1
-			place(n, Vector3.new(b.x, 0, b.z), origin, -yaw, "diamond", Color3.fromRGB(255, 90, 60), 14)
+			place(
+				n,
+				Vector3.new(b.x, 0, b.z),
+				origin,
+				-yaw,
+				"diamond",
+				Color3.fromRGB(255, 90, 60),
+				20,
+				"marker",
+				if b.id and Kit.iconCell("marker", b.id) then b.id else "boss"
+			)
 		end
 		local now = os.clock()
 		for i = #dangers, 1, -1 do
@@ -132,7 +146,7 @@ local function draw()
 		end
 		for _, dz in dangers do
 			n += 1
-			place(n, dz.pos, origin, -yaw, "triangle", Color3.fromRGB(255, 90, 80), 18)
+			place(n, dz.pos, origin, -yaw, "triangle", Color3.fromRGB(255, 90, 80), 20, "marker", "danger")
 		end
 		for _, m in SquadClient.state.members or {} do
 			local p = Players:GetPlayerByUserId(m.userId)
@@ -145,7 +159,7 @@ local function draw()
 			end
 			if pos and p ~= me then
 				n += 1
-				place(n, pos, origin, -yaw, "square", SquadHud.slotColor(m.slot), 10)
+				place(n, pos, origin, -yaw, "square", SquadHud.slotColor(m.slot), 16, "marker", "squad")
 			end
 		end
 	end
@@ -211,9 +225,9 @@ local function buildWheel()
 	pad.Parent = wheel
 	for kind, row in
 		{
-			{ "HELP", Color3.fromRGB(255, 220, 90) },
-			{ "HERE", Color3.fromRGB(120, 220, 255) },
-			{ "▲ DANGER", Color3.fromRGB(255, 90, 80) },
+			{ "HELP", Color3.fromRGB(255, 220, 90), "help" },
+			{ "HERE", Color3.fromRGB(120, 220, 255), "here" },
+			{ "▲ DANGER", Color3.fromRGB(255, 90, 80), "danger" },
 		}
 	do
 		local b = Kit.button({
@@ -228,6 +242,10 @@ local function buildWheel()
 			end
 		end)
 		b.Parent = wheel
+		-- gap-icons2: the ping's icon leads its row (the danger row then drops its text triangle)
+		if Kit.lead(b, "marker", row[3], U.touchTarget - 20) and kind == 3 then
+			b.Text = "DANGER"
+		end
 	end
 end
 

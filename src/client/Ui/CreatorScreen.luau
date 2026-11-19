@@ -641,12 +641,17 @@ local function drawMobility()
 	header("HOW YOU GET AROUND")
 	for i, id in Config.Move.mobilityOrder do
 		local m = Config.Move.mobility[id]
-		row(m.name, nil, mobIdx == i, false, function()
+		local b = row(m.name, nil, mobIdx == i, false, function()
 			mobIdx = i
 			refresh()
 		end, function()
 			mobilityCard(i)
 		end)
+		-- gap-icons2: the pick's comic icon before its name (text only while the sheet is not uploaded)
+		local l = b:FindFirstChildOfClass("TextLabel")
+		if l then
+			Kit.lead(l, "mobility", id, T - 16)
+		end
 	end
 	cardFor = function()
 		mobilityCard(mobIdx)

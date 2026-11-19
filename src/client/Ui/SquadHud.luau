@@ -77,6 +77,30 @@ local function drawList()
 		maxText = 16,
 	})
 	head.Parent = list
+	-- gap-icons2: the leader's drawn emblem mark (Config.Creator.emblemArt, tinted in its colour) in place of the
+	-- text glyph, once uploaded
+	local EA = Config.Creator.emblemArt
+	local markId = if e
+			and EA
+			and EA.on == true
+			and type(e.shape) == "string"
+		then EA.shapes[e.shape] or 0
+		else 0
+	if e and markId ~= 0 then
+		head.Text = "SQUAD"
+		local pad = Instance.new("UIPadding")
+		pad.PaddingLeft = UDim.new(0, 24)
+		pad.Parent = head
+		local mark = Instance.new("ImageLabel")
+		mark.Name = "Emblem"
+		mark.BackgroundTransparency = 1
+		mark.Image = "rbxassetid://" .. markId
+		mark.ImageColor3 = rgb(e.color)
+		mark.AnchorPoint = Vector2.new(0, 0.5)
+		mark.Position = UDim2.new(0, -24, 0.5, 0)
+		mark.Size = UDim2.fromOffset(20, 20)
+		mark.Parent = head
+	end
 	for _, m in st.members do
 		if m.userId ~= me.UserId then
 			local l = Kit.label({

@@ -6,6 +6,8 @@
 -- * TITLES: the title shown under your name (one at a time, all fixed text) and the accolade aura and plate
 --   trim you wear.
 -- A new badge: the stamp, chime and confetti (Juice "badgeEarned").
+-- gap-icons2 (2026-11-19): each group, badge row, collection and accolade leads with its comic icon
+-- (Config.Icons badgeGroup, collect, accolade; Kit.lead); a badge not yet earned shows it faded.
 -- PLACEHOLDER ART: Kit frames until the UI pass.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -98,7 +100,7 @@ local function drawBadges(d: { [string]: any })
 	local earned = #d.bits
 	line(string.format("%d OF %d BADGES", earned, #BadgeRules.list(B)), 30, 24, Kit.color.gold, Kit.font)
 	for _, g in B.groups do
-		line(string.upper(g.name), 28, 20, Kit.color.gold, Kit.font)
+		Kit.lead(line(string.upper(g.name), 28, 20, Kit.color.gold, Kit.font), "badgeGroup", g.id, 28)
 		if g.accolade then
 			line("Finish the group: " .. g.accolade.name, 18, 13, Kit.color.muted)
 		end
@@ -115,10 +117,22 @@ local function drawBadges(d: { [string]: any })
 			Kit.stroke(row, if got then Kit.color.gold else Color3.fromRGB(110, 110, 120), 2)
 			row.LayoutOrder = order
 			row.Parent = body
+			-- the group's icon on the badge (faded until earned)
+			local icon = Kit.icon("badgeGroup", g.id, {
+				AnchorPoint = Vector2.new(0, 0.5),
+				Position = UDim2.new(0, 5, 0.5, 0),
+				Size = UDim2.fromOffset(36, 36),
+				ImageTransparency = if got then 0 else 0.55,
+			})
+			local x = 8
+			if icon then
+				icon.Parent = row
+				x = 46
+			end
 			local name = Kit.label({
 				Text = string.upper(b.name),
-				Size = UDim2.new(1, -90, 0, 24),
-				Position = UDim2.fromOffset(8, 2),
+				Size = UDim2.new(1, -(82 + x), 0, 24),
+				Position = UDim2.fromOffset(x, 2),
 				TextXAlignment = Enum.TextXAlignment.Left,
 				TextColor3 = if got then Kit.color.gold else Color3.fromRGB(150, 150, 160),
 				maxText = 18,
@@ -126,8 +140,8 @@ local function drawBadges(d: { [string]: any })
 			name.Parent = row
 			local hint = Kit.label({
 				Text = b.hint,
-				Size = UDim2.new(1, -90, 0, 18),
-				Position = UDim2.fromOffset(8, 25),
+				Size = UDim2.new(1, -(82 + x), 0, 18),
+				Position = UDim2.fromOffset(x, 25),
 				TextXAlignment = Enum.TextXAlignment.Left,
 				TextColor3 = Kit.color.paper,
 				Font = Kit.bodyFont,
@@ -170,18 +184,23 @@ local function drawCollections(d: { [string]: any })
 			end
 		end
 		local done = found >= s.count
-		line(
-			string.format(
-				"%s  %d / %d%s",
-				string.upper(s.name),
-				found,
-				s.count,
-				if done then "  DONE" else ""
+		Kit.lead(
+			line(
+				string.format(
+					"%s  %d / %d%s",
+					string.upper(s.name),
+					found,
+					s.count,
+					if done then "  DONE" else ""
+				),
+				30,
+				18,
+				if done then Kit.color.gold else Kit.color.paper,
+				Kit.font
 			),
-			26,
-			18,
-			if done then Kit.color.gold else Kit.color.paper,
-			Kit.font
+			"collect",
+			s.id,
+			30
 		)
 		line(WHERE[s.id] or "", 18, 13, Kit.color.muted)
 		line(
@@ -220,15 +239,30 @@ local function drawTitles(d: { [string]: any })
 		if a and a.kind ~= "emote" then
 			local slot = if a.kind == "aura" then 1 else 2
 			local on = (if slot == 1 then d.aura else d.trim) == gi
-			button(
-				string.format("%s %s (%s)", if on then "TAKE OFF" else "WEAR", string.upper(a.name), a.kind),
-				if on then Kit.color.paper else rgb(a.color),
-				function()
-					Net.send("AccoladeWear", slot, if on then 0 else gi)
-				end
+			Kit.lead(
+				button(
+					string.format(
+						"%s %s (%s)",
+						if on then "TAKE OFF" else "WEAR",
+						string.upper(a.name),
+						a.kind
+					),
+					if on then Kit.color.paper else rgb(a.color),
+					function()
+						Net.send("AccoladeWear", slot, if on then 0 else gi)
+					end
+				),
+				"accolade",
+				a.id,
+				T - 22
 			)
 		elseif a then
-			line(a.name .. " emote: in your emote wheel", 20, 14, Kit.color.paper)
+			Kit.lead(
+				line(a.name .. " emote: in your emote wheel", 26, 14, Kit.color.paper),
+				"accolade",
+				a.id,
+				26
+			)
 		end
 	end
 end

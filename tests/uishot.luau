@@ -7,7 +7,8 @@
 --   python3 tests/uishot.py out.json out_dir [--fonts DIR]
 --
 -- Scenes: loading (the ReplicatedFirst loading card alone), hud (HUD and toasts), menu (the HUD with its MENU drawer open), gear, loadout, shop, settings, journal, map, creator, pass (each panel over
--- the HUD), screen:<ScreenGui name> (a card screen with all its parts shown)
+-- the HUD), world (the HUD with incidents, an event, a contract, a boss fight and its result card), contracts
+-- (the Contract Board), badges (the Badge Book), daily (the daily card), screen:<ScreenGui name> (a card screen with all its parts shown)
 
 local fs = require("@lune/fs")
 local process = require("@lune/process")
@@ -216,6 +217,8 @@ local MODULES = {
 	"BoardHud",
 	"SquadHud",
 	"MainMenu",
+	"ContractBoard",
+	"BadgeHud",
 }
 -- a scene's panel and what its open() takes
 local PANEL = {
@@ -285,6 +288,74 @@ local function mapWorld(sim: any)
 	end
 end
 
+-- gap-icons2: sample world state (3 incidents, an event, a contract and a boss fight) for the world and map scenes;
+-- result: also fire the boss result card
+local function worldData(sim: any, result: boolean)
+	local WC = sim:require("Client.Controllers.WorldClient")
+	local cfg = sim:require("Config")
+	local num = function(tbl: any, id: string): number
+		return tbl[id].num
+	end
+	local V3 = roblox.Vector3
+	local tids = { "TowerFire", "RobotHeist", "CatOnCrane" }
+	for i, tid in tids do
+		WC.incidents[i] = {
+			id = i,
+			num = num(cfg.Incidents.templates, tid),
+			tid = tid,
+			pos = V3.new(20 * i, 0, -40 * i),
+			side = if i == 2 then "villain" else "hero",
+			level = 5,
+			deadline = os.clock() + 80,
+			own = i == 1,
+			steps = 2,
+			step = 1,
+			frac = 0.4,
+			have = 1,
+			need = 3,
+			state = WC.ACTIVE,
+			medal = 0,
+		}
+	end
+	WC.events[1] = {
+		id = "TidalSurge",
+		state = 0,
+		x = 120,
+		z = -200,
+		have = 4,
+		need = 12,
+		ends = os.clock() + 200,
+	}
+	WC.contracts = { { num(cfg.Contracts.types, "VaultJob"), 1, 2, 120, 30, -40, 0, 0, 0 } }
+	WC.boss = {
+		state = 3,
+		id = "RustjawPrime",
+		num = 1,
+		x = -100,
+		y = 0,
+		z = 150,
+		hp = 600000,
+		max = 1000000,
+		phase = 2,
+		level = 30,
+		at = 300,
+		received = os.clock(),
+		objectives = { 1, 1, 0 },
+	}
+	if not result then
+		return
+	end
+	WC.BossResult:Fire({
+		num = cfg.Boss.bosses.RustjawPrime.num,
+		defeated = true,
+		tier = "mvp",
+		rank = 2,
+		credits = 1200,
+		renown = 300,
+		drops = 1,
+	})
+end
+
 local out = {}
 for _, scene in scenes do
 	local sim = UiSim.new(trees, DEVICE)
@@ -335,6 +406,69 @@ for _, scene in scenes do
 					},
 				})
 			end)
+		elseif scene == "world" or scene == "contracts" or scene == "badges" or scene == "daily" then
+			-- gap-icons2: the open world and the books with sample data (their comic icons)
+			sim:run(scene, function()
+				local cfg = sim:require("Config")
+				local num = function(tbl: any, id: string): number
+					return tbl[id].num
+				end
+				if scene == "world" then
+					worldData(sim, true)
+					-- a hero standing at the origin, so the radar and the distances have a centre
+					local char = UiSim.newInstance("Model")
+					char.Name = "Tester"
+					local root = UiSim.newInstance("Part")
+					root.Name = "HumanoidRootPart"
+					root.CFrame = roblox.CFrame.new(0, 0, 0)
+					root.Parent = char
+					char.Parent = sim.service("Workspace")
+					sim.player.Character = char
+					local rs = sim.service("RunService")
+					rs.Heartbeat:Fire(0.3)
+					rs.RenderStepped:Fire(0.2)
+				elseif scene == "contracts" then
+					local CT = cfg.Contracts.types
+					M.ContractBoard.open({
+						offers = {
+							{ num(CT, "DroneSweep"), 12, 800, 120, 0, 0, 0 },
+							{ num(CT, "RescueRun"), 12, 900, 140, 0, 1, 0 },
+							{ num(CT, "PhotoRecon"), 12, 700, 110, 1, 0, 0 },
+						},
+						active = { { num(CT, "GeneratorHold"), 20, 60, 12, 0, 0 } },
+						done = 2,
+					})
+				elseif scene == "badges" then
+					M.BadgeHud.apply({
+						bits = { 0, 1, 2, 40 },
+						progress = {},
+						collect = { 0, 1, 2 },
+						titles = {},
+						accolades = { 1, 3 },
+						aura = 1,
+						trim = 0,
+						scanner = 0,
+					})
+					M.BadgeHud.open(process.env.UISHOT_BADGES or "badges")
+				else
+					local days = {}
+					for i, r in
+						{
+							{ credits = 500 },
+							{ renown = 50 },
+							{ dust = 20 },
+							{ credits = 800 },
+							{ renown = 100 },
+							{ dust = 40 },
+							{ title = 1, renown = 200 },
+						}
+					do
+						r.state = if i < 4 then "got" elseif i == 4 then "ready" else "later"
+						days[i] = r
+					end
+					M.DailyHud.open({ streak = 3, best = 5, day = 4, days = days, owed = true, quests = {} })
+				end
+			end)
 		elseif string.sub(scene, 1, 7) == "screen:" then
 			-- a card screen shown whole, every part at once (as tests/phone_test.luau's cards check)
 			local g = sim.playerGui:FindFirstChild(string.sub(scene, 8))
@@ -350,6 +484,7 @@ for _, scene in scenes do
 			local p = PANEL[scene]
 			if scene == "map" then
 				mapWorld(sim)
+				worldData(sim, false)
 			end
 			if scene == "gear" then
 				-- a few pieces in the stash, two worn, one picked (the gear cards' icons, gap-icons)

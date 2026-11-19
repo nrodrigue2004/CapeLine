@@ -635,6 +635,7 @@ function Journal.init()
 				feed(def[1])
 			end)
 			b.Parent = tabs
+			Kit.lead(b, "journal", def[1], tabH - 18) -- gap-icons2: the tab's comic icon before its name
 			tabButtons[def[1]] = b
 		end
 	end

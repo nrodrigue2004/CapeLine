@@ -64,7 +64,8 @@ local function emblemOf(player: Player): { [string]: any }?
 	local p = CreatorRules.piece(Config, "emblem", look.pieces.emblem or 0)
 	local shape = if p then string.split(p.kit, ":")[1] else "star"
 	local c = Config.Creator.palette[look.colors[3] or 1] or { 255, 200, 60 }
-	return { glyph = Config.Creator.shapes[shape] or "★", color = c }
+	-- gap-icons2: the shape too, so the squad tag can show the drawn emblem mark (Config.Creator.emblemArt)
+	return { glyph = Config.Creator.shapes[shape] or "★", color = c, shape = shape }
 end
 
 local function send(squadId: number?, withPositions: boolean?)

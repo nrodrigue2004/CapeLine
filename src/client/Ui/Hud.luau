@@ -599,6 +599,19 @@ local function showIcon(entry: Entry?, group: string?, key: any, text: string, c
 	entry.caption.Visible = on and caption ~= nil
 end
 
+-- gap-icons2 (2026-11-19): the movement buttons wear their comic icons (FLY the hero's mobility pick; LEAP,
+-- BOOST and DOWN their own) with the changing word (LEAP, GLIDE, BOUNCE, LAND, SPRINT, POUND...) as the small
+-- caption; text only while the sheets are not uploaded. Set only when something changed (it runs every frame).
+local moveShown: { [string]: string } = {}
+local function moveButton(action: string, group: string, key: any, text: string)
+	local sig = group .. ":" .. tostring(key) .. ":" .. text
+	if moveShown[action] == sig then
+		return
+	end
+	moveShown[action] = sig
+	showIcon(buttons[action], group, key, text, text)
+end
+
 local function refreshInfo()
 	local h = State.hero
 	infoText.Text = string.format(
@@ -1068,12 +1081,12 @@ function Hud.init()
 		-- mouse and keyboard: the movement keys are one key line, not round buttons (the declutter pass)
 		local keys = keyMode and focus == nil
 		buttons.Fly.button.Visible = labels.fly ~= nil and not keys
-		buttons.Fly.button.Text = labels.fly or "FLY"
+		moveButton("Fly", "mobility", State.hero.mobility or "flight", labels.fly or "FLY")
 		buttons.Boost.button.Visible = labels.boost ~= nil and not keys
-		buttons.Boost.button.Text = labels.boost or "BOOST"
+		moveButton("Boost", "moveKey", "Boost", labels.boost or "BOOST")
 		buttons.Down.button.Visible = labels.down ~= nil and not keys
-		buttons.Down.button.Text = labels.down or "DOWN"
-		buttons.Leap.button.Text = labels.leap
+		moveButton("Down", "moveKey", "Down", labels.down or "DOWN")
+		moveButton("Leap", "moveKey", "Leap", labels.leap)
 		buttons.Leap.button.Visible = not keys
 		keyLine.Visible = keys
 		if keys then

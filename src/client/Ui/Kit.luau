@@ -947,6 +947,84 @@ function Kit.gearIcon(slot: string, tier: string, props: { [string]: any }?): Im
 	return frame
 end
 
+-- gap-icons2 (2026-11-19): a world symbol (an incident, event, contract or marker) on its colorblind-safe shape
+-- (Config.Icons.shape: white comic backings tinted with ImageColor3), filling `holder`'s box. The shape keeps
+-- the marker's colour and outline (circle incident, star event, diamond boss, triangle danger, square squad,
+-- hex contract); the symbol sits where Config.Icons.shapeInner puts it. Made once, then re-pointed. false (and
+-- both hidden) while either cell is not uploaded, so the caller keeps today's look.
+function Kit.showMark(holder: GuiObject, shape: string, color: Color3, group: string?, key: any): boolean
+	local back = holder:FindFirstChild("MarkShape") :: ImageLabel?
+	local sym = back and back:FindFirstChild("MarkSym") :: ImageLabel?
+	if not group or not Kit.iconCell("shape", shape) or not Kit.iconCell(group, key) then
+		if back then
+			back.Visible = false
+		end
+		return false
+	end
+	if not back then
+		local z = holder.ZIndex
+		back = Kit.icon("shape", shape, {
+			Name = "MarkShape",
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.fromScale(0.5, 0.5),
+			ZIndex = z,
+		})
+		sym = Kit.icon(group, key, { Name = "MarkSym", AnchorPoint = Vector2.new(0.5, 0.5), ZIndex = z });
+		(sym :: ImageLabel).Parent = back;
+		(back :: ImageLabel).Parent = holder
+	end
+	local b, s = back :: ImageLabel, sym :: ImageLabel
+	b.Visible = true
+	-- a rotated holder (the old diamond) must not turn the picture
+	b.Rotation = -holder.Rotation
+	Kit.setIcon(b, "shape", shape)
+	b.ImageColor3 = color
+	Kit.setIcon(s, group, key)
+	local inner = IC.shapeInner and IC.shapeInner[shape] or { 0.5, 0.5, 0.66 }
+	s.Position = UDim2.fromScale(inner[1], inner[2])
+	s.Size = UDim2.fromScale(inner[3], inner[3])
+	return true
+end
+
+-- gap-icons2: an icon at the left of a text line (a header, a tab, a row's title): the text moves right by the
+-- icon's width. px: the icon's size (default the label's height). nil while the cell is not uploaded.
+function Kit.lead(label: GuiObject, group: string, key: any, px: number?): ImageLabel?
+	local old = label:FindFirstChild("Lead") :: ImageLabel?
+	if old then
+		old:Destroy()
+	end
+	local size = px or label.AbsoluteSize.Y
+	if size <= 0 then
+		size = label.Size.Y.Offset
+	end
+	local i = Kit.icon(group, key, {
+		Name = "Lead",
+		AnchorPoint = Vector2.new(0, 0.5),
+		Position = UDim2.new(0, -(size + 4), 0.5, 0),
+		Size = UDim2.fromOffset(size, size),
+		ZIndex = label.ZIndex,
+	})
+	if not i then
+		return nil
+	end
+	-- one UIPadding an object (a button already has one): widen its left by the icon, once
+	local pad = label:FindFirstChildOfClass("UIPadding")
+	if not pad then
+		local made = Instance.new("UIPadding")
+		made.Parent = label
+		pad = made
+	end
+	local p = pad :: UIPadding
+	local base = p:GetAttribute("LeadBase")
+	if type(base) ~= "number" then
+		base = p.PaddingLeft.Offset
+		p:SetAttribute("LeadBase", base)
+	end
+	p.PaddingLeft = UDim.new(0, (base :: number) + size + 4)
+	i.Parent = label
+	return i
+end
+
 function Kit.round(inst: GuiObject, radius: number?)
 	local c = inst:FindFirstChildOfClass("UICorner") or Instance.new("UICorner")
 	c.CornerRadius = UDim.new(0, radius or Config.Ui.corner)
