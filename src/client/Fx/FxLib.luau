@@ -276,6 +276,38 @@ function FxLib.wreckMoment(moment: string, pos: Vector3, spark: Color3, suit: Co
 	end
 end
 
+-- A throw or a ram (ThrowFx, ImpactFx; Config.Fx.lib.throw): `moment` "grab", "land", "back" or "smash" at pos.
+-- Dust and chips take `color` (the ground's or the wall's own colour); chips kick out along `dir` (up if none),
+-- dust puffs fan out round it; a landing's flat dust ring grows to `radius`; "back" shines in `color`.
+function FxLib.throwMoment(
+	moment: string,
+	pos: Vector3,
+	color: Color3,
+	dir: Vector3?,
+	radius: number?,
+	weight: string?
+)
+	local up = if dir and dir.Magnitude > 1e-3 then dir.Unit else Vector3.new(0, 1, 0)
+	local r = radius or 4
+	for _, e in FxPlan.throwPlan(L, moment, share(), weight) do
+		if e.kind == "shock" then
+			FxLib.shock(pos + Vector3.new(0, 0.3, 0), r, color)
+		elseif e.kind == "dust" then
+			-- puffs fanned round the spot (out along the wall for a smash), low and wide
+			for i = 0, e.count - 1 do
+				local a = (i + math.random()) / e.count * math.pi * 2
+				local side = Vector3.new(math.cos(a), 0.2, math.sin(a))
+				local d = (side + up * 0.6).Unit
+				FxLib.emit("dust", color, pos + side * r * 0.25, 1, d)
+			end
+		elseif e.kind == "chip" then
+			FxLib.emit("chip", color, pos + up * 0.5, e.count, up)
+		else
+			FxLib.emit(e.kind, color, pos, e.count, nil)
+		end
+	end
+end
+
 -- a robot breaking apart: sparks, smoke and a flash
 function FxLib.wreck(pos: Vector3)
 	FxLib.emit("core", Color3.fromRGB(255, 180, 90), pos, 1)

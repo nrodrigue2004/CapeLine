@@ -1,0 +1,619 @@
+{
+  "kinds": {
+    "bolt": {
+      "drag": 1.5,
+      "file": "bolt.png",
+      "life": [
+        0.55,
+        0.85
+      ],
+      "light": 0,
+      "rise": -55,
+      "size": [
+        0.55,
+        0.4
+      ],
+      "speed": [
+        12,
+        22
+      ],
+      "spread": 70
+    },
+    "bubble": {
+      "drag": 2,
+      "file": "bubble.png",
+      "life": [
+        0.5,
+        0.9
+      ],
+      "light": 0.3,
+      "rise": 8,
+      "size": [
+        0.5,
+        1.3
+      ],
+      "speed": [
+        4,
+        10
+      ],
+      "spread": 180
+    },
+    "chip": {
+      "drag": 1.2,
+      "file": "chip.png",
+      "life": [
+        0.6,
+        1
+      ],
+      "light": 0,
+      "rise": -70,
+      "size": [
+        1.5,
+        1.1
+      ],
+      "speed": [
+        16,
+        32
+      ],
+      "spread": 55
+    },
+    "cloud": {
+      "drag": 1.5,
+      "file": "smoke_4x4.png",
+      "flip": 4,
+      "life": [
+        1.6,
+        2.2
+      ],
+      "light": 0,
+      "rise": 1.2,
+      "size": [
+        5,
+        13
+      ],
+      "speed": [
+        1,
+        3
+      ],
+      "spread": 180
+    },
+    "core": {
+      "drag": 0,
+      "file": "core.png",
+      "life": [
+        0.18,
+        0.26
+      ],
+      "light": 1,
+      "rise": 0,
+      "size": [
+        2,
+        9
+      ],
+      "speed": [
+        0,
+        0
+      ],
+      "spread": 0
+    },
+    "crackle": {
+      "drag": 0,
+      "file": "electric_4x4.png",
+      "flip": 4,
+      "life": [
+        0.08,
+        0.16
+      ],
+      "light": 1,
+      "rise": 0,
+      "size": [
+        1.4,
+        0.4
+      ],
+      "speed": [
+        0,
+        4
+      ],
+      "spread": 180
+    },
+    "dust": {
+      "drag": 3,
+      "file": "smoke_4x4.png",
+      "flip": 4,
+      "life": [
+        0.9,
+        1.4
+      ],
+      "light": 0,
+      "rise": 1,
+      "size": [
+        3,
+        9
+      ],
+      "speed": [
+        10,
+        18
+      ],
+      "spread": 25
+    },
+    "ember": {
+      "drag": 2,
+      "file": "ember.png",
+      "life": [
+        0.5,
+        0.9
+      ],
+      "light": 1,
+      "rise": 10,
+      "size": [
+        0.6,
+        0.1
+      ],
+      "speed": [
+        6,
+        18
+      ],
+      "spread": 180
+    },
+    "flake": {
+      "drag": 2,
+      "file": "flake.png",
+      "life": [
+        0.6,
+        1.1
+      ],
+      "light": 0.8,
+      "rise": -8,
+      "size": [
+        0.8,
+        0.3
+      ],
+      "speed": [
+        4,
+        12
+      ],
+      "spread": 180
+    },
+    "flame": {
+      "drag": 3,
+      "file": "fire_4x4.png",
+      "flip": 4,
+      "life": [
+        0.3,
+        0.5
+      ],
+      "light": 0.8,
+      "rise": 12,
+      "size": [
+        2.5,
+        0.5
+      ],
+      "speed": [
+        4,
+        10
+      ],
+      "spread": 180
+    },
+    "glow": {
+      "drag": 0,
+      "file": "glow.png",
+      "life": [
+        0.12,
+        0.18
+      ],
+      "light": 1,
+      "rise": 0,
+      "size": [
+        1.5,
+        7
+      ],
+      "speed": [
+        0,
+        0
+      ],
+      "spread": 0
+    },
+    "glyph": {
+      "drag": 0,
+      "file": "glyph.png",
+      "life": [
+        0.45,
+        0.55
+      ],
+      "light": 1,
+      "rise": 0,
+      "size": [
+        2,
+        8
+      ],
+      "speed": [
+        0,
+        0
+      ],
+      "spread": 0
+    },
+    "hex": {
+      "drag": 3,
+      "file": "hex.png",
+      "life": [
+        0.35,
+        0.6
+      ],
+      "light": 1,
+      "rise": -10,
+      "size": [
+        0.8,
+        0.3
+      ],
+      "speed": [
+        8,
+        18
+      ],
+      "spread": 180
+    },
+    "implode": {
+      "drag": 0,
+      "file": "implode.png",
+      "life": [
+        0.35,
+        0.45
+      ],
+      "light": 1,
+      "rise": 0,
+      "size": [
+        7,
+        1
+      ],
+      "speed": [
+        0,
+        0
+      ],
+      "spread": 0
+    },
+    "ink": {
+      "drag": 3,
+      "file": "ink.png",
+      "life": [
+        0.5,
+        0.8
+      ],
+      "light": 0,
+      "rise": -20,
+      "size": [
+        1.4,
+        2.8
+      ],
+      "speed": [
+        6,
+        14
+      ],
+      "spread": 180
+    },
+    "leaf": {
+      "drag": 2,
+      "file": "leaf.png",
+      "life": [
+        0.8,
+        1.2
+      ],
+      "light": 0.2,
+      "rise": -6,
+      "size": [
+        0.9,
+        0.7
+      ],
+      "speed": [
+        6,
+        14
+      ],
+      "spread": 180
+    },
+    "rock": {
+      "drag": 1,
+      "file": "rock.png",
+      "life": [
+        0.5,
+        0.8
+      ],
+      "light": 0,
+      "rise": -60,
+      "size": [
+        1.3,
+        0.9
+      ],
+      "speed": [
+        14,
+        26
+      ],
+      "spread": 70
+    },
+    "rune": {
+      "drag": 0,
+      "face": "flat",
+      "file": "rune.png",
+      "life": [
+        0.5,
+        0.6
+      ],
+      "light": 1,
+      "rise": 0,
+      "size": [
+        3,
+        9
+      ],
+      "speed": [
+        0.01,
+        0.01
+      ],
+      "spread": 0
+    },
+    "scorch": {
+      "drag": 0,
+      "face": "flat",
+      "file": "scorch.png",
+      "life": [
+        1.4,
+        1.8
+      ],
+      "light": 0,
+      "rise": 0,
+      "size": [
+        5,
+        7
+      ],
+      "speed": [
+        0.01,
+        0.01
+      ],
+      "spread": 0
+    },
+    "shard": {
+      "drag": 3,
+      "face": "streak",
+      "file": "spark.png",
+      "life": [
+        0.3,
+        0.55
+      ],
+      "light": 0.6,
+      "rise": -40,
+      "size": [
+        0.8,
+        0.2
+      ],
+      "speed": [
+        18,
+        34
+      ],
+      "spread": 180
+    },
+    "shock": {
+      "drag": 0,
+      "face": "flat",
+      "file": "shock.png",
+      "life": [
+        0.32,
+        0.32
+      ],
+      "light": 1,
+      "rise": 0,
+      "size": [
+        1,
+        1
+      ],
+      "speed": [
+        0.01,
+        0.01
+      ],
+      "spread": 0
+    },
+    "slash": {
+      "drag": 6,
+      "face": "streak",
+      "file": "slash.png",
+      "life": [
+        0.12,
+        0.2
+      ],
+      "light": 1,
+      "rise": 0,
+      "size": [
+        3,
+        0.8
+      ],
+      "speed": [
+        18,
+        30
+      ],
+      "spread": 180
+    },
+    "smoke": {
+      "drag": 2,
+      "file": "smoke_4x4.png",
+      "flip": 4,
+      "life": [
+        0.8,
+        1.3
+      ],
+      "light": 0,
+      "rise": 3,
+      "size": [
+        2,
+        6
+      ],
+      "speed": [
+        3,
+        9
+      ],
+      "spread": 180
+    },
+    "spark": {
+      "drag": 5,
+      "face": "streak",
+      "file": "spark.png",
+      "life": [
+        0.22,
+        0.4
+      ],
+      "light": 1,
+      "rise": -30,
+      "size": [
+        0.5,
+        0
+      ],
+      "speed": [
+        22,
+        46
+      ],
+      "spread": 180
+    },
+    "star": {
+      "drag": 2,
+      "file": "star.png",
+      "life": [
+        0.2,
+        0.35
+      ],
+      "light": 1,
+      "rise": 0,
+      "size": [
+        1.6,
+        0
+      ],
+      "speed": [
+        0,
+        6
+      ],
+      "spread": 180
+    },
+    "vortex": {
+      "drag": 0,
+      "file": "vortex.png",
+      "life": [
+        0.3,
+        0.4
+      ],
+      "light": 1,
+      "rise": 0,
+      "size": [
+        6,
+        1
+      ],
+      "speed": [
+        0,
+        0
+      ],
+      "spread": 0
+    },
+    "wisp": {
+      "drag": 1,
+      "file": "glow.png",
+      "life": [
+        0.5,
+        0.9
+      ],
+      "light": 1,
+      "rise": 6,
+      "size": [
+        1.2,
+        0
+      ],
+      "speed": [
+        3,
+        8
+      ],
+      "spread": 180
+    }
+  },
+  "plans": {
+    "high": {
+      "back": {
+        "glow": 1,
+        "star": 4
+      },
+      "grab": {
+        "dust": 3
+      },
+      "land_heavy": {
+        "chip": 16,
+        "dust": 10,
+        "shock": 1
+      },
+      "land_light": {
+        "chip": 5,
+        "dust": 4,
+        "shock": 1
+      },
+      "land_medium": {
+        "chip": 9,
+        "dust": 6,
+        "shock": 1
+      },
+      "smash": {
+        "chip": 14,
+        "dust": 4
+      }
+    },
+    "low": {
+      "back": {
+        "glow": 1,
+        "star": 2
+      },
+      "grab": {
+        "dust": 1
+      },
+      "land_heavy": {
+        "chip": 6,
+        "dust": 4,
+        "shock": 1
+      },
+      "land_light": {
+        "chip": 2,
+        "dust": 2,
+        "shock": 1
+      },
+      "land_medium": {
+        "chip": 4,
+        "dust": 2,
+        "shock": 1
+      },
+      "smash": {
+        "chip": 6,
+        "dust": 2
+      }
+    },
+    "medium": {
+      "back": {
+        "glow": 1,
+        "star": 3
+      },
+      "grab": {
+        "dust": 2
+      },
+      "land_heavy": {
+        "chip": 11,
+        "dust": 7,
+        "shock": 1
+      },
+      "land_light": {
+        "chip": 4,
+        "dust": 3,
+        "shock": 1
+      },
+      "land_medium": {
+        "chip": 6,
+        "dust": 4,
+        "shock": 1
+      },
+      "smash": {
+        "chip": 10,
+        "dust": 3
+      }
+    }
+  },
+  "radius": {
+    "heavy": 12,
+    "light": 6,
+    "medium": 8
+  }
+}

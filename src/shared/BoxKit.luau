@@ -30,6 +30,8 @@ export type Box = {
 	dress: boolean?, -- added by the kit (kerbs, lines, cornices): not part of the seeded layout
 	crown: boolean?, -- a skyscraper's top above its wreckable shaft (setbacks, spire, lantern, mast)
 	art: string?, -- the Blender look drawn over it (hidden but kept once that look is imported; Deep and Crater)
+	ground: string?, -- a landmark's own kit texture over `kit` once it is in (Config.City.kit.landmark; the Crater)
+	scar: number?, -- the Crater's burn scar decal it wears on top (Config.World.crater.scars.decals)
 }
 
 export type Opts = { shape: string?, ry: number?, tag: string?, ref: number?, ghost: boolean? }

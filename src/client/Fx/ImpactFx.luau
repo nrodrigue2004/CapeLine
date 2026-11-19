@@ -3,13 +3,13 @@
 -- speed. Momentum and impact should destroy things").
 -- * A ram (MoveController.Rammed: your hero hit a building's wall fast): tells the server (ImpactRam; ImpactService
 --   checks it and knocks the pieces out, BuildingFx draws them), and plays the wall smash: a crunch, a camera shake
---   and punch, a burst of chips off the wall from the device's debris budget. MoveController holds the hit-stop.
+--   and punch, a burst of chips and a puff of dust off the wall in its own colour: textured particles through the
+--   effects library since gap-fx3, 2026-11-19 (FxLib.throwMoment "smash", Config.Fx.lib.throw, the uploaded
+--   chip.png; inside the preset's particle budget). MoveController holds the hit-stop.
 -- * A throw that broke a wall (HeroKnock with `wall`): the same smash where you go through, timed to when you get
 --   there.
--- PLACEHOLDER ART: the chips are plain blocks in the wall's colour.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
@@ -19,47 +19,16 @@ local Net = require(Shared:WaitForChild("Net"))
 local MoveController = require(script.Parent.Parent.Controllers.MoveController)
 local CameraController = require(script.Parent.Parent.Controllers.CameraController)
 local Juice = require(script.Parent.Juice)
-local DebrisBudget = require(script.Parent.DebrisBudget)
+local FxLib = require(script.Parent.FxLib)
 
 local ImpactFx = {}
 
 local I = Config.Combat.impact
-local CHIPS = 8
-local CHIP_LIFE = 2.5
 local CHIP_COLOR = Color3.fromRGB(150, 144, 136)
 
-local folder: Folder? = nil
-
--- Chips flying off the wall at `at` (out along its normal)
+-- Chips and dust flying off the wall at `at` (out along its normal), in the wall's colour
 local function chips(at: Vector3, normal: Vector3, color: Color3?)
-	local n = DebrisBudget.lease(CHIPS, CHIP_LIFE)
-	for _ = 1, n do
-		local s = 0.6 + math.random() * 1.2
-		local p = Instance.new("Part")
-		p.Size = Vector3.new(s, s * 0.7, s)
-		p.CFrame = CFrame.new(
-			at + normal * 1.5 + Vector3.new(math.random() - 0.5, math.random() - 0.5, math.random() - 0.5) * 3
-		)
-		p.Color = color or CHIP_COLOR
-		p.Material = Enum.Material.Concrete
-		p.CanCollide = true
-		p.CanQuery = false
-		p.CanTouch = false
-		p.CastShadow = false
-		local out = normal + Vector3.new(math.random() - 0.5, math.random() * 0.8, math.random() - 0.5)
-		p.AssemblyLinearVelocity = out.Unit * (24 + math.random() * 20)
-		p.AssemblyAngularVelocity = Vector3.new(math.random() - 0.5, math.random() - 0.5, math.random() - 0.5)
-			* 10
-		p.Parent = folder
-		task.delay(CHIP_LIFE - 0.6, function()
-			if p.Parent then
-				TweenService:Create(p, TweenInfo.new(0.6), { Transparency = 1 }):Play()
-			end
-		end)
-		task.delay(CHIP_LIFE, function()
-			p:Destroy()
-		end)
-	end
+	FxLib.throwMoment("smash", at + normal * 1.5, color or CHIP_COLOR, normal, 3)
 end
 
 -- The wall smash: sound, shake, punch, chips
@@ -72,9 +41,6 @@ function ImpactFx.smash(at: Vector3, normal: Vector3, strength: number, color: C
 end
 
 function ImpactFx.init()
-	folder = Instance.new("Folder")
-	folder.Name = "ImpactFx"
-	folder.Parent = Workspace
 	MoveController.Rammed:Connect(function(at: Vector3, normal: Vector3, speed: number, _id: number)
 		local dir = MoveController.velocity
 		if dir.Magnitude < 1e-3 then

@@ -68,6 +68,7 @@ local MATERIAL = {
 -- Tinted textures keep a colour (the box's tint, else its own colour); the rest show white so nothing tints.
 -- The street props are not built here: each device builds the ones near it (CityProps).
 local KIT = Config.City.kit
+local SCARS = Config.World.crater.scars.decals or {}
 local WHITE = Color3.new(1, 1, 1)
 local kitFound: { [string]: boolean } = {}
 local function kitHas(name: string): boolean
@@ -143,10 +144,13 @@ local function makePart(b: any): BasePart -- also CityBuilder.part (mission pock
 	elseif b.kind == "glow" then
 		p.CanCollide = false
 	end
-	if b.kit and kitHas(b.kit) then
-		p.Material = (Enum.Material :: any)[KIT.baseMaterial[b.kit]]
-		p.MaterialVariant = "Kit" .. b.kit
-		p.Color = if KIT.tinted[b.kit] ~= nil then color(b.tint or b.color) else WHITE
+	-- a landmark's own ground (the Crater's floor and rim, gap-fx3) over its kit once that texture is in; it is
+	-- drawn in its own colours, so the part shows white
+	local kit = if b.ground and kitHas(b.ground) then b.ground else b.kit
+	if kit and kitHas(kit) then
+		p.Material = (Enum.Material :: any)[KIT.baseMaterial[kit]]
+		p.MaterialVariant = "Kit" .. kit
+		p.Color = if KIT.landmark[kit] or KIT.tinted[kit] == nil then WHITE else color(b.tint or b.color)
 	elseif b.mat then
 		-- a pocket box's plain look (Shared.PocketDress: lamps, metal, cloth) in its pocket's tint
 		p.Material = (Enum.Material :: any)[b.mat]
@@ -160,6 +164,17 @@ local function makePart(b: any): BasePart -- also CityBuilder.part (mission pock
 		p.CanCollide = false
 		p.CanQuery = false
 		p.CastShadow = false
+	end
+	-- the Crater's burn scars (gap-fx3, 2026-11-19): the comic scar decal on the strip's top face, the strip itself
+	-- hidden (a mark never collides or queries either way); id 0 keeps the plain dark strip
+	local scar = b.scar and SCARS[b.scar]
+	if scar and scar.id ~= 0 then
+		p.Transparency = 1
+		local decal = Instance.new("Decal")
+		decal.Name = "Scar"
+		decal.Texture = "rbxassetid://" .. tostring(scar.id)
+		decal.Face = Enum.NormalId.Top
+		decal.Parent = p
 	end
 	if b.tag == "beam" then
 		p.Transparency = 0.55

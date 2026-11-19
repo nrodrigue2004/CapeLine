@@ -1,0 +1,24 @@
+{
+ "CraterFloor_Color.png": 132147978430376,
+ "CraterFloor_Normal.png": 135375036814395,
+ "CraterFloor_Roughness.png": 127793265901057,
+ "CraterRim_Color.png": 86865287747905,
+ "CraterRim_Normal.png": 106976884062450,
+ "CraterRim_Roughness.png": 126193266419855,
+ "chip.png": 133274880401189,
+ "scar_1.png": 73344202395342,
+ "scar_2.png": 76818744119840,
+ "scar_3.png": 120924241999489,
+ "sha": {
+  "CraterFloor_Color.png": "8b8f7a48820ef0215c91d420bd173024996554b2",
+  "CraterFloor_Normal.png": "878dcbcf22648182fc49c34ab23726f0f7c47475",
+  "CraterFloor_Roughness.png": "78ac99a1414c456a6dc167cf92f2b99dd300bdeb",
+  "CraterRim_Color.png": "8e285d94d107d47ec892c72e5998575b1968c783",
+  "CraterRim_Normal.png": "896db53daf5b75c1a8280deb71f65a9cc60305f1",
+  "CraterRim_Roughness.png": "6db660e4def551f4fa55f427c0fa306e0ccda569",
+  "chip.png": "f0608e4257210d4fa23b63411905196acd43e809",
+  "scar_1.png": "3b69a645e911b6562edebf7dd4a9d26ca9d15900",
+  "scar_2.png": "22c5311f1ee9f662c8f87c6362bfdba08d98e830",
+  "scar_3.png": "ecf742b0ec3b30bbbad46b184439fb6f364dd45d"
+ }
+}
