@@ -2,6 +2,11 @@
 -- The city kit's street props (ReplicatedStorage.Art.Street): each piece's size and its centre from the prop's
 -- foot point, in studs (x, up, back; a prop faces -z, toward the street). Colours: Config.City.kit.props.
 return {
+	Awning = {
+		AwningCanvas = { size = { 11.000, 3.083, 4.651 }, offset = { -0.500, -1.459, -2.255 } }, -- 360 tris
+		AwningFrame = { size = { 12.400, 3.300, 4.585 }, offset = { 0.000, -1.400, -2.278 } }, -- 132 tris
+		AwningStripe = { size = { 11.000, 3.083, 4.651 }, offset = { 0.500, -1.459, -2.255 } }, -- 360 tris
+	},
 	Barrel = {
 		Barrel = { size = { 2.000, 3.280, 1.970 }, offset = { 0.000, 1.498, -0.000 } }, -- 324 tris
 	},
@@ -25,7 +30,7 @@ return {
 		ShelterSeat = { size = { 4.400, 1.640, 0.900 }, offset = { 0.000, 0.870, 0.450 } }, -- 132 tris
 	},
 	Bush = {
-		Bush = { size = { 4.862, 3.575, 4.430 }, offset = { -0.023, 1.787, -0.000 } }, -- 1780 tris
+		Bush = { size = { 4.862, 3.575, 4.430 }, offset = { -0.023, 1.787, -0.000 } }, -- 1782 tris
 	},
 	CafeSet = {
 		CafeChairs = { size = { 5.580, 3.200, 1.300 }, offset = { 0.000, 1.600, -0.000 } }, -- 528 tris
@@ -44,6 +49,11 @@ return {
 		TubBlooms = { size = { 1.519, 0.680, 1.735 }, offset = { -0.109, 2.350, 0.108 } }, -- 576 tris
 		TubLeaves = { size = { 2.484, 1.555, 2.400 }, offset = { -0.024, 1.643, -0.000 } }, -- 500 tris
 	},
+	FoodCart = {
+		CartBody = { size = { 5.200, 2.875, 2.500 }, offset = { 0.000, 2.250, -0.000 } }, -- 80 tris
+		CartTrim = { size = { 6.468, 8.000, 3.000 }, offset = { 0.434, 4.000, -0.000 } }, -- 436 tris
+		CartUmbrella = { size = { 6.600, 1.863, 6.277 }, offset = { 0.000, 8.036, -0.000 } }, -- 80 tris
+	},
 	Hydrant = {
 		Hydrant = { size = { 1.300, 3.293, 1.345 }, offset = { 0.000, 1.554, -0.053 } }, -- 348 tris
 	},
@@ -60,6 +70,10 @@ return {
 	MooringBollard = {
 		MooringBollard = { size = { 2.000, 2.625, 1.970 }, offset = { 0.000, 1.162, -0.000 } }, -- 252 tris
 	},
+	NewsBox = {
+		NewsBoxBody = { size = { 3.540, 3.693, 1.560 }, offset = { 0.000, 1.847, -0.060 } }, -- 632 tris
+		NewsBoxGlass = { size = { 3.100, 1.000, 0.060 }, offset = { 0.000, 2.750, -0.740 } }, -- 24 tris
+	},
 	OldLamp = {
 		OldGlow = { size = { 1.200, 1.365, 1.200 }, offset = { 0.000, 10.958, -0.000 } }, -- 16 tris
 		OldLantern = { size = { 1.700, 2.575, 1.700 }, offset = { 0.000, 11.325, -0.000 } }, -- 96 tris
@@ -68,6 +82,9 @@ return {
 	Pallet = {
 		Pallet = { size = { 4.000, 0.900, 4.000 }, offset = { 0.000, 0.450, -0.000 } }, -- 484 tris
 	},
+	Perch = {
+		Perch = { size = { 10.000, 6.390, 4.015 }, offset = { 0.000, -0.305, -1.992 } }, -- 1088 tris
+	},
 	Planter = {
 		Crown = { size = { 6.362, 5.708, 6.210 }, offset = { 0.002, 11.201, -0.000 } }, -- 2570 tris
 		PlanterBox = { size = { 3.400, 1.400, 3.400 }, offset = { 0.000, 0.700, -0.000 } }, -- 108 tris
@@ -75,6 +92,24 @@ return {
 	},
 	PowerPole = {
 		PowerPole = { size = { 6.400, 24.000, 1.850 }, offset = { 0.000, 12.000, -0.425 } }, -- 220 tris
+	},
+	RoofAC = {
+		ACBox = { size = { 4.900, 3.400, 2.860 }, offset = { 0.150, 1.700, -0.030 } }, -- 572 tris
+		ACFan = { size = { 4.100, 0.245, 2.400 }, offset = { -0.050, 3.423, -0.000 } }, -- 356 tris
+	},
+	RoofAntenna = {
+		AntennaDish = { size = { 3.000, 2.776, 1.064 }, offset = { 0.000, 9.154, -0.996 } }, -- 108 tris
+		AntennaLight = { size = { 0.571, 0.600, 0.600 }, offset = { -0.000, 20.250, -0.000 } }, -- 100 tris
+		AntennaMast = { size = { 3.534, 20.041, 3.291 }, offset = { 0.120, 9.980, -0.007 } }, -- 188 tris
+	},
+	RoofBillboard = {
+		BoardArt = { size = { 17.800, 7.200, 0.120 }, offset = { -0.200, 11.500, -0.280 } }, -- 128 tris
+		BoardFace = { size = { 22.000, 9.000, 0.500 }, offset = { 0.000, 11.500, -0.000 } }, -- 108 tris
+		BoardFrame = { size = { 22.600, 17.174, 6.554 }, offset = { 0.000, 8.561, 1.373 } }, -- 1236 tris
+		BoardLamps = { size = { 14.900, 0.546, 0.583 }, offset = { 0.000, 16.750, -1.950 } }, -- 132 tris
+	},
+	RoofVent = {
+		RoofVent = { size = { 3.372, 3.109, 3.248 }, offset = { -0.064, 1.461, -0.520 } }, -- 416 tris
 	},
 	StreetLamp = {
 		Bulb = { size = { 0.480, 0.169, 1.000 }, offset = { 0.000, 13.171, -3.400 } }, -- 64 tris
@@ -85,5 +120,11 @@ return {
 		SignalBox = { size = { 1.100, 3.000, 0.900 }, offset = { 0.000, 14.000, -8.600 } }, -- 108 tris
 		SignalLights = { size = { 0.624, 2.540, 0.120 }, offset = { 0.000, 14.000, -9.080 } }, -- 156 tris
 		SignalPole = { size = { 0.975, 16.000, 9.500 }, offset = { 0.000, 8.000, -4.250 } }, -- 144 tris
+	},
+	WaterTower = {
+		TowerHoops = { size = { 9.040, 4.490, 9.040 }, offset = { 0.000, 8.350, -0.000 } }, -- 840 tris
+		TowerLegs = { size = { 9.800, 11.800, 10.020 }, offset = { 0.000, 5.900, -0.110 } }, -- 1220 tris
+		TowerRoof = { size = { 9.400, 3.825, 9.400 }, offset = { 0.000, 12.708, -0.000 } }, -- 324 tris
+		TowerTank = { size = { 8.900, 7.095, 8.900 }, offset = { 0.000, 8.052, -0.000 } }, -- 140 tris
 	},
 }

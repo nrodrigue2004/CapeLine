@@ -24,6 +24,7 @@ local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Net = require(Shared:WaitForChild("Net"))
 local ImpactRules = require(Shared:WaitForChild("ImpactRules"))
+local CityPlay = require(Shared:WaitForChild("CityPlay"))
 
 local HeroService = require(script.Parent.HeroService)
 local MoveGuard = require(script.Parent.MoveGuard)
@@ -31,6 +32,7 @@ local BuildingService = require(script.Parent.BuildingService)
 local FlagService = require(script.Parent.FlagService)
 local EnemyService = require(script.Parent.EnemyService)
 local PerfMonitor = require(script.Parent.PerfMonitor)
+local CityBuilder = require(script.Parent.CityBuilder)
 
 local ImpactService = {}
 
@@ -289,7 +291,38 @@ local function onRam(player: Player, at: Vector3, dir: Vector3, speed: number)
 	end
 end
 
+-- An awning sprang a hero up (pt-city, 2026-11-19; MoveController.awningUp): the server finds an awning (Shared.CityPlay)
+-- by the hero, on a building still standing, and lets the climb through MoveGuard. Nothing else changes.
+local awnings: CityPlay.AwningIndex? = nil
+local bounced: { [number]: number } = {}
+local function onBounce(player: Player)
+	local hero = HeroService.get(player)
+	local world = CityBuilder.world
+	local B = Config.City.kit.play and Config.City.kit.play.bounce
+	if not hero or not hero.alive or hero.downed or not world or not B then
+		return
+	end
+	local now = os.clock()
+	if now - (bounced[hero.id] or -math.huge) < B.cooldown * 0.8 then
+		return
+	end
+	local pos = HeroService.position(hero)
+	if not pos then
+		return
+	end
+	if not awnings then
+		awnings = CityPlay.awnings(world.hubBoxes)
+	end
+	local a = CityPlay.nearAwning(awnings :: CityPlay.AwningIndex, pos.X, pos.Y, pos.Z, B.reach)
+	if not a or (a.bid and BuildingService.state(a.bid) ~= 0) then
+		return
+	end
+	bounced[hero.id] = now
+	MoveGuard.grant(hero, B.max * 0.8 + 10)
+end
+
 function ImpactService.init()
+	Net.on("CityBounce", onBounce)
 	Net.on("ImpactRam", onRam)
 	Net.on("ImpactDrop", onDrop)
 	EnemyService.heroHitHook = ImpactService.robotHit
@@ -298,6 +331,7 @@ function ImpactService.init()
 		local hero = HeroService.get(player)
 		if hero then
 			ImpactRules.forget(ledger, hero.id)
+			bounced[hero.id] = nil
 		end
 	end)
 	PerfMonitor.watch("impactBreaks", function()

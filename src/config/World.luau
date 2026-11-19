@@ -141,7 +141,7 @@ return {
 		{ id = 9, name = "Lantern Row", district = "OldTown", x = 600, z = -200 },
 		{ id = 10, name = "Mill Bridge", district = "OldTown", x = 200, z = -640 },
 		{ id = 11, name = "North Park", district = "Hub", x = -400, z = -600 },
-		{ id = 12, name = "South Park", district = "Hub", x = -400, z = 620 },
+		{ id = 12, name = "South Park", district = "Hub", x = -400, z = 720 }, -- z 620 until 2026-11-19 (Downtown grew south)
 		{ id = 13, name = "Northgate", district = "Outskirts", tile = { 23, 11 } },
 		{ id = 14, name = "Eastfield", district = "Outskirts", tile = { 35, 23 } },
 		{ id = 15, name = "Southmoor", district = "Outskirts", tile = { 23, 35 } },

@@ -39,6 +39,7 @@ local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Net = require(Shared:WaitForChild("Net"))
 local MoveMath = require(Shared:WaitForChild("MoveMath"))
+local CityPlay = require(Shared:WaitForChild("CityPlay"))
 local Signal = require(Shared:WaitForChild("Util"):WaitForChild("Signal"))
 local FrameProf = require(Shared:WaitForChild("FrameProf"))
 
@@ -60,6 +61,7 @@ MoveController.ModeChanged = Signal.new() -- (mode, old)
 MoveController.BoostChanged = Signal.new() -- (on)
 MoveController.Pounded = Signal.new() -- (position) a Leaping ground pound landed
 MoveController.Dropped = Signal.new() -- (position, fall speed) a drop from high up smashed onto a roof (MoveFx)
+MoveController.Bounced = Signal.new() -- (position, up speed) an awning sprang the hero up (pt-city)
 MoveController.Rammed = Signal.new() -- (contact, wall normal, speed, building id) a fast hero hit a wall (ImpactFx)
 
 local root: BasePart? = nil
@@ -353,6 +355,28 @@ end
 -- Whether the dash now is an arc (a zip, a grapple, a launch power, a guided hop): HeroAnimator poses it as one
 function MoveController.arcing(): boolean
 	return arc ~= nil and MoveController.mode == "dash"
+end
+
+-- An awning under a falling hero (pt-city, 2026-11-19; Config.City.kit.play.bounce): the speed it springs the hero
+-- up at, or nil (not on one, not falling fast enough, or bounced a moment ago). The server takes the bounce
+-- (CityBounce) once it finds the hero by an awning.
+local PLAY = Config.City.kit.play
+local bouncedAt = -math.huge
+local function awningUp(vy: number): number?
+	if not root or not hum or not PLAY or os.clock() - bouncedAt < PLAY.bounce.cooldown then
+		return nil
+	end
+	local reach = hum.HipHeight + root.Size.Y / 2 + 1.2
+	local hit = Workspace:Raycast(root.Position, Vector3.new(0, -reach, 0), rayParams)
+	local p = hit and hit.Instance
+	if not (p and p:GetAttribute("Bounce") == true and p.LocalTransparencyModifier < 1) then
+		return nil
+	end
+	local up = CityPlay.bounce(PLAY, vy)
+	if up then
+		bouncedAt = os.clock()
+	end
+	return up
 end
 
 -- A wall within `reach` of the hero along `dir` (a near-vertical face), or nil
@@ -1227,7 +1251,17 @@ local function step(dt: number)
 		end
 		local landing = (mode == "air" or mode == "glide" or mode == "swing") and vel.Y <= 0
 			or (mode == "fly" and (vel.Y < -2 or InputController.isDown("Down")) and pos.Y - groundY < 4.5)
-		if landing then
+		local spring = if landing and (mode == "air" or mode == "glide") then awningUp(vel.Y) else nil
+		if spring then
+			-- an awning: spring back up, most of the run kept (no landing, so no drop smash either)
+			vel = Vector3.new(vel.X * 0.9, spring, vel.Z * 0.9)
+			airSince = now
+			if mode == "glide" then
+				setMode("air")
+			end
+			Net.send("CityBounce")
+			MoveController.Bounced:Fire(pos, spring)
+		elseif landing then
 			if
 				hopping
 				and mode == "air"

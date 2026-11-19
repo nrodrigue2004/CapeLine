@@ -203,6 +203,15 @@ for pr in DATA["props"]:
         cp.matrix_world = at
         if not src.data.materials:
             src.data.materials.append(pmat[piece])  # the mesh is shared by every copy
+        look = LOOKS[pr["name"]][piece]
+        if pr.get("tint") and len(look) > 4 and look[4]:
+            # a tinted piece (pt-city: awnings, billboards, news boxes, carts) in its placement's colour
+            key = "tint_" + piece + "_" + pr["tint"]
+            if key not in pmat:
+                pmat[key] = kit.material(key, PALETTE[pr["tint"]], rough=0.6)
+            cp.data = src.data.copy()  # its own mesh, so the shared one keeps its colour
+            cp.data.materials.clear()
+            cp.data.materials.append(pmat[key])
 
 # light: a warm afternoon sun and a blue sky (the game uses Future lighting with an atmosphere)
 s = bpy.context.scene

@@ -8,6 +8,7 @@
 
 local Rng = if script then require(script.Parent.Rng) else (require :: any)("./Rng")
 local CityKit = if script then require(script.Parent.CityKit) else (require :: any)("./CityKit")
+local CityPlay = if script then require(script.Parent.CityPlay) else (require :: any)("./CityPlay")
 
 local CityLayout = {}
 
@@ -32,6 +33,7 @@ export type Box = {
 	plain: string?, -- drawn only while this kit texture is missing (a kit building's window bands)
 	dress: boolean?, -- added by the kit (kerbs, dashes, cornices): not part of the seeded layout
 	crown: boolean?, -- a skyscraper's top above its wreckable shaft (setbacks, spire, lantern, mast)
+	art: any?, -- the Art.Street prop the server builds in its place (Shared.CityPlay.Art, pt-city 2026-11-19)
 }
 
 -- A street prop (Config.City.kit.props; Art.Street meshes, built by each device: CityProps)
@@ -138,6 +140,12 @@ local function dressBlock(
 			put("Bin", side, mid + 4.2, 3.2)
 		end
 		put("Hydrant", side, (if si % 2 == 0 then -1 else 1) * (b / 2 - 5), kw + 0.9)
+		-- pt-city (2026-11-19): a pair of news boxes toward the side's other end, in a tint by hash
+		local play = kit.play
+		if play and CityKit.roll(kit, side.x, side.z, play.newsBox.salt) < play.newsBox.chance then
+			put("NewsBox", side, (if si % 2 == 0 then 1 else -1) * (b / 2 - 11), 3.0)
+			props[#props].tint = CityKit.pick(kit, play.tints, side.x, side.z, play.newsBox.salt)
+		end
 	end
 	-- traffic lights on two opposite corners, arms out over the street
 	put("TrafficLight", sides[1], -b / 2 + 2.2, kw + 1.2)
@@ -213,6 +221,7 @@ type Ctx = {
 	skyline: any?, -- Config.City.skyline: tower silhouettes and band spacing
 	row: { [string]: number }?, -- the rooftop row's blocks ("bx,bz" -> its place in downtown.row.blocks)
 	rowOut: { any }?, -- the row's roofs as they are built (Layout.row)
+	towerChance: number?, -- this block's tower chance when not the district's (the 2026-11-19 blocks: more towers)
 }
 
 local DOWNTOWN_STYLE = { planter = "Planter" }
@@ -421,7 +430,7 @@ local function lotBlock(c: Ctx, rng: any, bx: number, bz: number, minX: number, 
 		for lz = 1, t.lotsPerSide do
 			local lcx = minX + t.sidewalk + (lx - 1) * (lot + t.lotGap) + lot / 2
 			local lcz = minZ + t.sidewalk + (lz - 1) * (lot + t.lotGap) + lot / 2
-			local tall = rng:chance(t.height.towerChance)
+			local tall = rng:chance(c.towerChance or t.height.towerChance)
 			local height = if tall
 				then rng:range(t.height.towerMin, t.height.towerMax)
 				else rng:range(t.height.min, t.height.max)
@@ -493,9 +502,34 @@ local function lotBlock(c: Ctx, rng: any, bx: number, bz: number, minX: number, 
 				box(boxes, "prop", lcx, top + 0.6, lcz, sx * 0.6, 1.2, sz * 0.6, "leaf")
 			elseif hasTank then
 				box(boxes, "prop", lcx + sx / 4, top + 6, lcz + sz / 4, 10, 12, 10, "brick", "cylinder")
+				if kit and kit.play then
+					-- a water tower mesh in its place (pt-city): it bursts off the roof when the building breaks
+					boxes[#boxes].art =
+						{ name = "WaterTower", x = lcx + sx / 4, y = top, z = lcz + sz / 4, ry = 0 }
+				end
 			end
 			if hasAntenna then
 				box(boxes, "prop", lcx - sx / 4, top + 10, lcz - sz / 4, 1, 20, 1, "steel")
+				if kit and kit.play then
+					boxes[#boxes].art =
+						{ name = "RoofAntenna", x = lcx - sx / 4, y = top, z = lcz - sz / 4, ry = 0 }
+				end
+			end
+			if kit and kit.play then
+				-- pt-city (2026-11-19): awnings over its shop fronts, roof units and a billboard, perches up a tower
+				CityPlay.dress(boxes, kit, {
+					x = lcx,
+					z = lcz,
+					sx = sx,
+					sz = sz,
+					base = gy + 0.9,
+					top = top,
+					flat = style == "flat",
+					faces = CityPlay.faces(lx, lz, t.lotsPerSide, minX, minZ, t.block, lcx, lcz, sx, sz),
+					garden = hasTank and t.rooftop.gardenChance ~= nil,
+					tank = hasTank and t.rooftop.gardenChance == nil,
+					antenna = hasAntenna,
+				})
 			end
 			local grp = c.prefix .. (#c.buildings + 1)
 			for k = first, #boxes do
@@ -550,6 +584,11 @@ local function openBlock(c: Ctx, minX: number, minZ: number)
 	end
 	for _, s in { { -1, -1 }, { 1, -1 }, { -1, 1 }, { 1, 1 } } do
 		CityKit.put(c.props, c.style.planter, bcx + s[1] * r, top, bcz + s[2] * r, 0)
+	end
+	if kit.play then
+		-- a food cart (pt-city, 2026-11-19), in a tint by hash
+		local cart = CityKit.put(c.props, "FoodCart", bcx + 14, top, bcz - 14, 0)
+		cart.tint = CityKit.pick(kit, kit.play.tints, cart.x, cart.z, kit.play.foodCart.salt)
 	end
 	CityKit.keep(kit, c.props, propsFrom, CityKit.obstacles({}, top))
 end
@@ -697,29 +736,42 @@ function CityLayout.downtown(cityCfg: any, worldCfg: any?): Layout
 		end
 	end
 
-	-- the grown blocks, each from its own stream (a hash of the block), and the open squares among them
+	-- the grown blocks, each from its own stream (a hash of the block), and the open squares among them. The
+	-- first ring (downtown.grow1, 2026-11-17) is built first in its old order, so its buildings keep their
+	-- groups and wreck ids; the 2026-11-19 blocks follow with their own tower chance (downtown.towers)
 	c.grown = true
-	for bx = firstX, lastX do
-		for bz = firstZ, lastZ do
-			if bx >= 1 and bx <= nx and bz >= 1 and bz <= nz then
-				continue
-			end
-			local minX, minZ = corner(bx, bz)
-			if kit then
-				dashes(boxes, t, kit, minX, minZ, gy, bx < lastX, bz < lastZ)
-			end
-			local id = open[bx .. "," .. bz]
-			if id then
-				openBlock(c, minX, minZ)
-				table.insert(
-					openSquares,
-					{ id = id, x = minX + t.block / 2, z = minZ + t.block / 2, size = t.block }
-				)
-			else
-				lotBlock(c, Rng.new(Rng.hash(t.seed, bx + 64, bz + 64, 5)), bx, bz, minX, minZ)
+	local g1 = t.grow1 or t.grow
+	local function firstRing(bx: number, bz: number): boolean
+		return bx >= 1 - g1.west and bx <= nx + g1.east and bz >= 1 - g1.north and bz <= nz + g1.south
+	end
+	for pass = 1, 2 do
+		for bx = firstX, lastX do
+			for bz = firstZ, lastZ do
+				if bx >= 1 and bx <= nx and bz >= 1 and bz <= nz then
+					continue
+				end
+				if firstRing(bx, bz) ~= (pass == 1) then
+					continue
+				end
+				c.towerChance = if pass == 2 and t.towers then t.towers.chance else nil
+				local minX, minZ = corner(bx, bz)
+				if kit then
+					dashes(boxes, t, kit, minX, minZ, gy, bx < lastX, bz < lastZ)
+				end
+				local id = open[bx .. "," .. bz]
+				if id then
+					openBlock(c, minX, minZ)
+					table.insert(
+						openSquares,
+						{ id = id, x = minX + t.block / 2, z = minZ + t.block / 2, size = t.block }
+					)
+				else
+					lotBlock(c, Rng.new(Rng.hash(t.seed, bx + 64, bz + 64, 5)), bx, bz, minX, minZ)
+				end
 			end
 		end
 	end
+	c.towerChance = nil
 
 	-- height grid for the drone AI and shot checks (max top per 10-stud cell over the hub)
 	local hub = cityCfg.hub
@@ -837,6 +889,11 @@ local function parkBlock(c: Ctx, minX: number, minZ: number)
 		CityKit.put(c.props, "Bush", bcx + q[1] * 9, top, bcz + q[2] * (b / 2 - 9), 0)
 		CityKit.put(c.props, "StreetLamp", bcx + q[1] * (b / 2 - 3), top, bcz + q[2] * (b / 2 - 3), 0)
 	end
+	if kit.play then
+		-- a food cart (pt-city, 2026-11-19), in a tint by hash
+		local cart = CityKit.put(c.props, "FoodCart", bcx + f.radius + 14, top, bcz - f.radius - 14, 90)
+		cart.tint = CityKit.pick(kit, kit.play.tints, cart.x, cart.z, kit.play.foodCart.salt)
+	end
 	local clearOf = {}
 	table.move(boxes, parkFirst, #boxes, 1, clearOf)
 	CityKit.keep(kit, c.props, propsFrom, CityKit.obstacles(clearOf, top))
@@ -907,6 +964,19 @@ local function landmarkBlock(c: Ctx, minX: number, minZ: number)
 	crownBox(c, "glow", bcx, y, bcz, size * 0.36, lantern, size * 0.36, "beaconGlow")
 	y += lantern
 	crownBox(c, "tier", bcx, y, bcz, 3, gy + 0.9 + L.height - y, 3, "steel", "cylinder")
+	if kit and kit.play then
+		-- perches up its shaft (pt-city): no street faces (its plaza is round it), no roof units (the crown)
+		CityPlay.dress(boxes, kit, {
+			x = bcx,
+			z = bcz,
+			sx = size,
+			sz = size,
+			base = gy + 0.9,
+			top = top,
+			flat = false,
+			faces = {},
+		})
+	end
 	local grp = c.prefix .. (#c.buildings + 1)
 	for k = first, #boxes do
 		boxes[k].grp = grp
@@ -937,6 +1007,11 @@ local function landmarkBlock(c: Ctx, minX: number, minZ: number)
 		end
 		for _, q in { { -1, -1 }, { 1, -1 }, { -1, 1 }, { 1, 1 } } do
 			CityKit.put(c.props, "FlowerTub", bcx + q[1] * r, top0, bcz + q[2] * r, 0)
+		end
+		if kit.play then
+			-- a food cart (pt-city, 2026-11-19), in a tint by hash
+			local cart = CityKit.put(c.props, "FoodCart", bcx - r + 8, top0, bcz + r + 4, 180)
+			cart.tint = CityKit.pick(kit, kit.play.tints, cart.x, cart.z, kit.play.foodCart.salt)
 		end
 		local clearOf = {}
 		table.move(boxes, blockFirst, #boxes, 1, clearOf)
@@ -992,22 +1067,36 @@ function CityLayout.uptown(cityCfg: any): District
 	local z0 = d.minZ + (h - nz * pitch) / 2 + t.street / 2
 	local park = { x = 0, z = 0, size = t.block }
 	local landmark = { x = 0, z = 0, size = 0, peak = gy }
-	for bx = 1, nx do
-		for bz = 1, nz do
-			local minX, minZ = x0 + (bx - 1) * pitch, z0 + (bz - 1) * pitch
-			if kit then
-				dashes(boxes, t, kit, minX, minZ, gy, bx < nx, bz < nz)
-			end
-			if bx == t.park[1] and bz == t.park[2] then
-				parkBlock(c, minX, minZ)
-				park = { x = minX + t.block / 2, z = minZ + t.block / 2, size = t.block }
-			elseif t.landmark and bx == t.landmark.block[1] and bz == t.landmark.block[2] then
-				landmark = landmarkBlock(c, minX, minZ)
-			else
-				lotBlock(c, Rng.new(Rng.hash(t.seed, bx, bz, 5)), bx, bz, minX, minZ)
+	-- block (bx, bz) counts from the 2026-11-17 square's north-west block (1, 1); the 2026-11-19 column west and
+	-- row north (uptown.grow) are below 1. The old 4 x 4 is built first in its old order (same groups, same ids),
+	-- then the new blocks with their own tower chance (uptown.towers)
+	local gw = if t.grow then t.grow.west else 0
+	local gn = if t.grow then t.grow.north else 0
+	local firstX, firstZ = 1 - gw, 1 - gn
+	local lastX, lastZ = nx - gw, nz - gn
+	for pass = 1, 2 do
+		for bx = firstX, lastX do
+			for bz = firstZ, lastZ do
+				if (bx >= 1 and bz >= 1) ~= (pass == 1) then
+					continue
+				end
+				c.towerChance = if pass == 2 and t.towers then t.towers.chance else nil
+				local minX, minZ = x0 + (bx - firstX) * pitch, z0 + (bz - firstZ) * pitch
+				if kit then
+					dashes(boxes, t, kit, minX, minZ, gy, bx < lastX, bz < lastZ)
+				end
+				if bx == t.park[1] and bz == t.park[2] then
+					parkBlock(c, minX, minZ)
+					park = { x = minX + t.block / 2, z = minZ + t.block / 2, size = t.block }
+				elseif t.landmark and bx == t.landmark.block[1] and bz == t.landmark.block[2] then
+					landmark = landmarkBlock(c, minX, minZ)
+				else
+					lotBlock(c, Rng.new(Rng.hash(t.seed, bx, bz, 5)), bx, bz, minX, minZ)
+				end
 			end
 		end
 	end
+	c.towerChance = nil
 	local parts = 0
 	for _, b in boxes do
 		if b.kind ~= "spawn" then

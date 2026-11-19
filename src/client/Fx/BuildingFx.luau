@@ -48,6 +48,7 @@ local CameraController = require(script.Parent.Parent.Controllers.CameraControll
 local CityProps = require(script.Parent.Parent.Controllers.CityProps)
 local Juice = require(script.Parent.Juice)
 local DebrisBudget = require(script.Parent.DebrisBudget)
+local FxLib = require(script.Parent.FxLib)
 
 local BuildingFx = {}
 
@@ -353,6 +354,12 @@ end
 
 -- Draw a building's look for its state. live: the change just happened (animate it). fresh: pieces that
 -- just went (piece -> 1 knocked out, 2 fell), drawn first so they can fly or drop away.
+-- pt-city (2026-11-19): what stands on a building that breaks (its billboard, water tower, antenna, roof units,
+-- awnings: parts with the Falls attribute, CityBuilder's street art) is flung off as debris the moment it first
+-- breaks; a water tower's tank bursts in a splash. Set below, once fling is defined.
+local roofFall: (model: Model, rec: Rec) -> () = function() end
+local fallen: { [number]: boolean } = {}
+
 local function apply(id: number, live: boolean, fresh: { [number]: number }?)
 	local rec = records[id]
 	local model = models[id]
@@ -372,6 +379,7 @@ local function apply(id: number, live: boolean, fresh: { [number]: number }?)
 	if s == BuildingState.INTACT then
 		clearDrawn(id)
 		gone[id] = nil
+		fallen[id] = nil
 		setHidden(model, false)
 		if live then
 			local pop = newPart(
@@ -390,6 +398,10 @@ local function apply(id: number, live: boolean, fresh: { [number]: number }?)
 			end)
 		end
 		return
+	end
+	if live and not fallen[id] then
+		fallen[id] = true
+		roofFall(model, rec)
 	end
 	setHidden(model, true)
 	local g = gone[id] or {}
@@ -715,6 +727,20 @@ local function fling(p: BasePart, center: Vector3)
 	task.delay(ST.life, function()
 		c:Destroy()
 	end)
+end
+
+roofFall = function(model: Model, rec: Rec)
+	local splash = 0
+	for _, p in model:GetDescendants() do
+		if p:IsA("BasePart") and p:GetAttribute("Falls") == true and p.LocalTransparencyModifier < 1 then
+			-- off the roof's edge, outward from the building's middle
+			fling(p, Vector3.new(rec.x, p.Position.Y - 6, rec.z))
+			if p:GetAttribute("Burst") == true and splash < 2 then
+				splash += 1
+				FxLib.burst(p.Position, 8, "Tide", Color3.fromRGB(120, 190, 235))
+			end
+		end
+	end
 end
 
 -- The city's own street things (server-built parts named "prop" outside any building model: trees, fences,

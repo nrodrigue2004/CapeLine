@@ -4,16 +4,22 @@
 
 -- Downtown's size (nate 2026-11-17: "make downtown bigger"; nate picked about 1.5x, ~860 x 860). The core is
 -- the first 700 x 700 Downtown, built from the same draws as always; `grow` adds whole blocks (110 + a 30
--- street = 140 studs) on each side: 1 north and 1 west makes 840 x 840 (1.44x; the nearest square to 860).
--- West reaches 90 studs past the hub edge into the first suburb ring (those tiles become Downtown's); east
--- would run into the Docks. Other sizes are this one line (2 + 2 would need North Park moved).
+-- street = 140 studs) on each side. 2026-11-17: 1 north and 1 west made 840 x 840 (GROW1, kept as the first
+-- ring: its blocks keep their draws and their order). 2026-11-19 (nate's playtest: "Downtown and Uptown should
+-- be larger", skyscraper fights are the fun): about 1.5x again, 2 more blocks: 1 more column west and 2 rows
+-- south, so 980 x 1,120 (1.56x of 840 x 840; 2.24x the first 700 x 700). East runs into the Docks, north into
+-- North Park and Uptown, and a third column west would cut the column 12 highway, so south it is (South Park's
+-- safehouse moved 100 studs south, out of the way). The new blocks are tower country (`towers` below).
 local DOWNTOWN_BLOCK, DOWNTOWN_STREET = 110, 30
 local PITCH = DOWNTOWN_BLOCK + DOWNTOWN_STREET
 local CORE = { minX = -750, maxX = -50, minZ = -350, maxZ = 350 }
-local GROW = { north = 1, south = 0, west = 1, east = 0 }
+local GROW1 = { north = 1, south = 0, west = 1, east = 0 } -- the 2026-11-17 ring (840 x 840)
+local GROW = { north = 1, south = 2, west = 2, east = 0 }
 -- Uptown (PLACEHOLDER NAME; the lore thread decides what it is): the second Downtown-style district, out of
--- the hub just north of it, between North Park and Northgate. A square of `size` studs centred on (x, z).
-local UPTOWN = { x = -400, z = -1100, size = 600 }
+-- the hub just north of it, between North Park and Northgate. 2026-11-17: a square of 600 studs centred on
+-- (-400, -1,100); 2026-11-19: grown by a block column west and a block row north (the east edge stays clear of
+-- the Northgate safehouse and the south edge on the hub's), so 750 x 750 (1.56x). `grow` counts those blocks.
+local UPTOWN = { minX = -850, maxX = -100, minZ = -1550, maxZ = -800, grow = { west = 1, north = 1 } }
 
 return {
 	mapSize = 4800,
@@ -21,7 +27,7 @@ return {
 	hub = { min = -800, max = 800 },
 	ground = { y = 0, thickness = 4 },
 	districts = {
-		Downtown = { -- the core grown by whole blocks: 840 x 840 with GROW above, towers and rooftops
+		Downtown = { -- the core grown by whole blocks: 980 x 1,120 with GROW above, towers and rooftops
 			minX = CORE.minX - GROW.west * PITCH,
 			maxX = CORE.maxX + GROW.east * PITCH,
 			minZ = CORE.minZ - GROW.north * PITCH,
@@ -29,11 +35,11 @@ return {
 		},
 		Docks = { minX = 0, maxX = 800, minZ = 300, maxZ = 800 }, -- 800 x 500 (M4)
 		OldTown = { minX = 100, maxX = 700, minZ = -700, maxZ = -100 }, -- 600 x 600 (M4)
-		Uptown = { -- 600 x 600, the second business district (2026-11-17), out in the first suburb rings
-			minX = UPTOWN.x - UPTOWN.size / 2,
-			maxX = UPTOWN.x + UPTOWN.size / 2,
-			minZ = UPTOWN.z - UPTOWN.size / 2,
-			maxZ = UPTOWN.z + UPTOWN.size / 2,
+		Uptown = { -- 750 x 750 (600 x 600 until 2026-11-19), the second business district, in the first suburb rings
+			minX = UPTOWN.minX,
+			maxX = UPTOWN.maxX,
+			minZ = UPTOWN.minZ,
+			maxZ = UPTOWN.maxZ,
 		},
 	},
 	-- Downtown greybox grid: blocks of buildings split by streets
@@ -52,6 +58,10 @@ return {
 		seed = 20261116, -- fixed: the hub is handcrafted in the spec, so it never changes with the weekly seed
 		core = CORE, -- the first 700 x 700: its blocks keep their draws, so its buildings never move
 		grow = GROW,
+		grow1 = GROW1, -- the first ring's blocks are built (and numbered) before the 2026-11-19 ones
+		-- the 2026-11-19 blocks (outside grow1) are where the skyline is: more of their lots draw a tower (the same
+		-- draw, a higher chance, so nothing in the older blocks changes)
+		towers = { chance = 0.4 },
 		-- open squares in the new blocks, kept for the lore thread's side quest chains (a fake hero academy and
 		-- one more): paved, lamps and benches round the edge, nothing built. Block (x, z) counts like the
 		-- safehouse lots: the core is 1..5 on both axes, the north row and the west column 0.
@@ -93,7 +103,11 @@ return {
 		height = { min = 48, max = 170, towerChance = 0.24, towerMin = 380, towerMax = 560 },
 		rooftop = { ledgeChance = 0.4, gardenChance = 0.35, antennaChance = 0.25 },
 		colors = { "upCoral", "upTeal", "upAmber", "upViolet", "upCream", "upSky" },
-		park = { 3, 2 }, -- one block is a green with a fountain (block x, z from the north-west corner, 1..4)
+		-- blocks count from the 2026-11-17 square's north-west block (1, 1) to (4, 4); the 2026-11-19 column west
+		-- and row north are 0 (each block keeps its own seeded stream, so no older building moves)
+		grow = UPTOWN.grow,
+		towers = { chance = 0.42 }, -- the new blocks' tower chance (tower country, like Downtown's new blocks)
+		park = { 3, 2 }, -- one block is a green with a fountain (block x, z as above)
 		-- the landmark skyscraper (PLACEHOLDER NAME), the city's tallest: a square shaft, two setbacks, a lit
 		-- lantern and a spire to `height`, alone on its block with a plaza round it
 		landmark = { block = { 2, 3 }, size = 64, height = 820 },
@@ -292,6 +306,24 @@ return {
 		-- front texture never shows on top
 		lampEvery = 26, -- street lamps along each side (studs apart), planted trees between them
 		dash = { length = 6, gap = 6, width = 0.5 }, -- the lane dashes down the middle of Downtown's streets
+		-- pt-city (2026-11-19): the street-level and rooftop pieces heroes use or break in Downtown and Uptown
+		-- (CityLayout; Shared.CityPlay). Picks are hashes of each spot (salts below), never a layout draw, so no
+		-- building moves. Chances are per building face or roof; heights in studs over the sidewalk.
+		play = {
+			awning = { chance = 0.55, y = 11, maxHeight = 1000, minFace = 16, salt = 31 }, -- over a shop front
+			tints = { "awRed", "awGreen", "awBlue", "awYellow", "awTeal", "awPink", "awOrange" },
+			ac = { chance = 0.6, salt = 32 }, -- on a flat roof's free quarter
+			vent = { chance = 0.45, salt = 33 },
+			billboard = { chance = 0.32, minHeight = 36, maxHeight = 200, minWidth = 26, salt = 34 },
+			-- perches on a tower's faces (h 200 and up): every `every` studs from `from`, one face a level in turn
+			perch = { minHeight = 200, from = 90, every = 110, top = 40, salt = 35 },
+			newsBox = { chance = 0.35, salt = 36 }, -- by a corner hydrant's other end
+			foodCart = { salt = 37 }, -- one in each open square and on Uptown's green and landmark plaza
+			-- an awning springs a hero who lands on it falling faster than minFall up at `up` studs/s (keep of a
+			-- harder fall's speed, at most `max`); the server takes it (MoveGuard grant) once the hero is within
+			-- `reach` studs of an awning's top, at most once a `cooldown`
+			bounce = { up = 70, keep = 0.6, max = 105, minFall = 14, reach = 6, cooldown = 0.6 },
+		},
 		-- props: what each is made of (Art.Street mesh name -> colour, material, collides, transparency), its
 		-- tier (1 every device, 2 medium and high, 3 high only: Config.Presets props) and its footprint on the
 		-- ground (width across, depth, and how far the footprint's centre sits behind the foot point), which the
@@ -445,13 +477,106 @@ return {
 				foot = { 1.2, 1.2, 0 },
 				pieces = { PowerPole = { { 120, 92, 66 }, "Wood", true } },
 			},
+			-- pt-city (2026-11-19, nate's playtest: "a more interactive map, more detailed ... fewer simple shapes").
+			-- Street props like the rest (each device builds them near its camera; they knock loose):
+			NewsBox = {
+				tier = 2,
+				foot = { 3.6, 1.6, 0 },
+				pieces = {
+					NewsBoxBody = { { 214, 60, 56 }, "SmoothPlastic", true, 0, true }, -- 5th: tinted per placement
+					NewsBoxGlass = { { 200, 226, 236 }, "Glass", true, 0.4 },
+				},
+			},
+			FoodCart = {
+				tier = 2,
+				foot = { 5.8, 3.2, 0 },
+				pieces = {
+					CartBody = { { 236, 84, 72 }, "SmoothPlastic", true, 0, true },
+					CartTrim = { { 64, 68, 76 }, "Metal", true },
+					CartUmbrella = { { 250, 244, 228 }, "Fabric", false },
+				},
+			},
+			-- the roof and wall pieces: `server` ones are built by the server inside the building they stand on (in
+			-- place of their box, CityLayout's `art`), so they break and come back with it; `falls` pieces are flung
+			-- off as debris when it breaks (Fx.BuildingFx), `burst` adds a splash, `bounce` springs a hero up
+			Awning = {
+				tier = 1,
+				server = true,
+				bounce = true,
+				foot = { 12, 4.5, 2.25 },
+				pieces = {
+					AwningCanvas = { { 214, 60, 56 }, "Fabric", true, 0, true },
+					AwningStripe = { { 250, 244, 228 }, "Fabric", true },
+					AwningFrame = { { 52, 56, 62 }, "Metal", false },
+				},
+			},
+			WaterTower = {
+				tier = 1,
+				server = true,
+				falls = true,
+				burst = true,
+				foot = { 10, 10, 0 },
+				pieces = {
+					TowerLegs = { { 96, 74, 58 }, "Wood", true },
+					TowerTank = { { 150, 108, 72 }, "WoodPlanks", true },
+					TowerHoops = { { 48, 50, 56 }, "Metal", false },
+					TowerRoof = { { 84, 92, 100 }, "Metal", true },
+				},
+			},
+			RoofAntenna = {
+				tier = 1,
+				server = true,
+				falls = true,
+				foot = { 3.6, 3.6, 0 },
+				pieces = {
+					AntennaMast = { { 140, 146, 152 }, "Metal", true },
+					AntennaDish = { { 236, 236, 230 }, "SmoothPlastic", false },
+					AntennaLight = { { 255, 60, 60 }, "Neon", false },
+				},
+			},
+			RoofAC = {
+				tier = 1,
+				server = true,
+				falls = true,
+				foot = { 5.2, 2.8, 0 },
+				pieces = {
+					ACBox = { { 206, 208, 204 }, "Metal", true },
+					ACFan = { { 70, 74, 80 }, "Metal", false },
+				},
+			},
+			RoofVent = {
+				tier = 1,
+				server = true,
+				falls = true,
+				foot = { 2.6, 3.4, 0 },
+				pieces = { RoofVent = { { 150, 156, 160 }, "Metal", true } },
+			},
+			RoofBillboard = {
+				tier = 1,
+				server = true,
+				falls = true,
+				foot = { 23, 5, 1.6 },
+				pieces = {
+					BoardFrame = { { 56, 60, 68 }, "Metal", true },
+					BoardFace = { { 255, 196, 60 }, "SmoothPlastic", true, 0, true },
+					BoardArt = { { 255, 248, 230 }, "SmoothPlastic", false },
+					BoardLamps = { { 255, 236, 190 }, "Neon", false },
+				},
+			},
+			Perch = {
+				tier = 1,
+				server = true,
+				foot = { 10, 4, 2 },
+				pieces = { Perch = { { 128, 136, 146 }, "Metal", true } },
+			},
 		},
 		-- the most each district may add, all tiers (props, their mesh parts, and the server-built kerbs, dashes
 		-- and cornices, which also count in partBudget). A device builds only the props near its camera, under its
 		-- preset's cap (Config.Presets props).
 		budget = {
-			Downtown = { props = 1900, parts = 4000, boxes = 1200 },
-			Uptown = { props = 900, parts = 2400, boxes = 500 },
+			-- 2026-11-19: Downtown 1.56x and Uptown 1.56x bigger, with the roof and wall pieces (pt-city)
+			Downtown = { props = 3400, parts = 8600, boxes = 2400 },
+			Uptown = { props = 1800, parts = 4600, boxes = 1100 },
 			Docks = { props = 260, parts = 420, boxes = 20 },
 			OldTown = { props = 520, parts = 1200, boxes = 300 },
 			Hub = { props = 1150, parts = 2400, boxes = 0 },
@@ -593,6 +718,14 @@ return {
 		upSky = { 120, 182, 226 },
 		upMint = { 136, 214, 176 },
 		upRoof = { 196, 190, 180 },
+		-- awnings, billboard faces, news boxes and food carts (pt-city, 2026-11-19): bright cartoon colours
+		awRed = { 222, 70, 62 },
+		awGreen = { 70, 160, 96 },
+		awBlue = { 62, 116, 200 },
+		awYellow = { 250, 196, 58 },
+		awTeal = { 40, 168, 170 },
+		awPink = { 236, 110, 160 },
+		awOrange = { 246, 136, 52 },
 		terrazzo = { 222, 206, 186 },
 		sdBlue = { 160, 200, 236 },
 		sdYellow = { 255, 228, 160 },
@@ -668,5 +801,7 @@ return {
 		pkSignGold = { 255, 200, 50 },
 		pkBulb = { 255, 236, 170 },
 	},
-	partBudget = { downtown = 6000, docks = 1500, oldTown = 2500, uptown = 2000, hub = 14000 }, -- greybox part count ceiling (hub budget 55,000 in the spec)
+	-- 2026-11-19 (pt-city): downtown 6,000 -> 9,000 and uptown 2,000 -> 4,000 for the 1.56x districts and their new
+	-- roof and wall pieces
+	partBudget = { downtown = 9000, docks = 1500, oldTown = 2500, uptown = 4000, hub = 14000 }, -- greybox part count ceiling (hub budget 55,000 in the spec)
 }

@@ -13,7 +13,8 @@ local CityKit = {}
 
 -- A street prop: its foot point and facing (degrees around y; a prop faces -z, toward the street). d: the
 -- district it dresses (WorldMap fills it in: Downtown, Docks, OldTown, Hub, Outskirts).
-export type Prop = { name: string, x: number, y: number, z: number, ry: number, d: string? }
+-- tint: a palette key for its tinted pieces (Config.City.kit.props pieces' 5th field; pt-city 2026-11-19)
+export type Prop = { name: string, x: number, y: number, z: number, ry: number, d: string?, tint: string? }
 
 export type Rect = { x0: number, z0: number, x1: number, z1: number }
 

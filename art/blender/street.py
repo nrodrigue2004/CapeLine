@@ -293,6 +293,209 @@ pp.append(kit.cyl("can", 0.6, 0.6, 1.6, at=(0, 0.75, 19.0), segs=10))
 joined("PowerPole", "PowerPole", pp)
 
 
+# ================================================================ pt-city (2026-11-19, nate's playtest: "a more
+# interactive map, more detailed ... fewer simple shapes"): what heroes use or break on the street and the roofs.
+# The server builds the roof and wall pieces (Config.City.kit.props `server`) in place of today's boxes, inside the
+# building they stand on, so they break with it; NewsBox and FoodCart are street props like the rest. Pieces
+# marked tinted in Config take a colour per placement.
+
+def baked(prop, name, parts, bev=None):
+    """joined(), then the object's own turn and move baked into its mesh (join keeps the first part's transform,
+    and a placed() first part would otherwise ride along into the export)."""
+    ob = joined(prop, name, parts, bev)
+    bpy.ops.object.select_all(action="DESELECT")
+    ob.select_set(True)
+    bpy.context.view_layer.objects.active = ob
+    bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+    return ob
+
+# ---------------------------------------------------------------- an awning over a shop front (bounces a hero).
+# Foot point: the wall, at the awning's top back edge; it reaches 4.5 studs out toward the street (+y) and drops
+# 1.6 to its valance. 12 stripes: even ones AwningCanvas (tinted), odd ones AwningStripe (cream).
+AW_W, AW_OUT, AW_DROP = 12.0, 4.5, 1.6
+aw_ang = math.atan2(AW_DROP, AW_OUT)
+aw_len = math.hypot(AW_OUT, AW_DROP) + 0.1
+canvas, stripes = [], []
+for k in range(12):
+    x = -AW_W / 2 + 0.5 + k
+    slab = placed(kit.box("aw", 1.0, aw_len, 0.14), (x, AW_OUT / 2, -AW_DROP / 2), (-aw_ang, 0, 0))
+    val = kit.box("val", 1.0, 0.12, 0.95, at=(x, AW_OUT + 0.02, -AW_DROP - 0.42))
+    tip = placed(kit.cyl("sc", 0.5, 0.5, 0.12, at=(0, 0, 0), segs=10, axis="Y"), (x, AW_OUT + 0.02, -AW_DROP - 0.9), (0, 0, 0))
+    (canvas if k % 2 == 0 else stripes).extend([slab, val, tip])
+baked("Awning", "AwningCanvas", canvas)
+baked("Awning", "AwningStripe", stripes)
+afr = [kit.box("rail", AW_W + 0.4, 0.3, 0.3, at=(0, 0.15, 0.1))]
+for x in (-AW_W / 2 + 0.1, AW_W / 2 - 0.1):
+    afr.append(kit.tube_along("arm", [Vector((x, 0.1, -2.6)), Vector((x, AW_OUT * 0.55, -AW_DROP * 0.75)),
+                                      Vector((x, AW_OUT, -AW_DROP - 0.05))], [0.09, 0.08, 0.08], segs=6))
+    afr.append(kit.box("plate", 0.5, 0.15, 0.9, at=(x, 0.06, -2.6)))
+afr.append(kit.tube_along("front", [Vector((-AW_W / 2, AW_OUT, -AW_DROP - 0.05)), Vector((AW_W / 2, AW_OUT, -AW_DROP - 0.05))],
+                          [0.07, 0.07], segs=6))
+baked("Awning", "AwningFrame", afr)
+
+# ---------------------------------------------------------------- a rooftop water tower (bursts when its roof breaks).
+# Foot point: the roof; 10 studs across, 14.6 tall (the box it replaces is 10 x 12)
+legs = []
+for sx in (-1, 1):
+    for sy in (-1, 1):
+        legs.append(kit.box("leg", 0.6, 0.6, 4.8, at=(sx * 3.1, sy * 3.1, 2.4)))
+for a in range(4):
+    ang = a * math.pi / 2
+    c, s2 = math.cos(ang), math.sin(ang)
+    p0 = Vector((c * 3.1 - s2 * 3.1, s2 * 3.1 + c * 3.1, 0.6))
+    p1 = Vector((c * 3.1 + s2 * 3.1, s2 * 3.1 - c * 3.1, 4.2))
+    legs.append(kit.tube_along("br", [p0, p1], [0.12, 0.12], segs=5))
+legs.append(kit.cyl("deck", 4.9, 4.9, 0.4, at=(0, 0, 4.95), segs=24))
+for z in range(0, 12):
+    legs.append(kit.box("rung", 1.2, 0.12, 0.12, at=(0, 5.05, 0.8 + z * 0.95)))
+for x in (-0.55, 0.55):
+    legs.append(kit.box("lrail", 0.14, 0.14, 11.8, at=(x, 5.05, 5.9)))
+baked("WaterTower", "TowerLegs", legs, bev=0.04)
+add("WaterTower", "TowerTank", kit.loft("TowerTank", [(5.15, 4.3, 4.3, 0, 0), (8.3, 4.45, 4.45, 0, 0), (11.6, 4.3, 4.3, 0, 0)],
+                                          segs=28, power=2.0, cap=(True, False)))
+hoops = [kit.torus("h%d" % k, 4.42 if k == 1 else 4.36, 0.1, at=(0, 0, z), segs=28, csegs=5) for k, z in enumerate((6.2, 8.3, 10.5))]
+baked("WaterTower", "TowerHoops", hoops)
+roof = [kit.loft("cone", [(11.5, 4.7, 4.7, 0, 0), (11.75, 4.7, 4.7, 0, 0), (13.9, 0.45, 0.45, 0, 0), (14.1, 0.1, 0.1, 0, 0)],
+                 segs=28, power=2.0), kit.sphere("fin", r=0.32, at=(0, 0, 14.3), segs=10, rings=6)]
+baked("WaterTower", "TowerRoof", roof)
+
+# ---------------------------------------------------------------- a rooftop antenna mast with a dish and a red light
+# (the 1 x 20 x 1 box it replaces); foot at the roof
+mast = [kit.cyl("m", 0.28, 0.16, 20.0, at=(0, 0, 10.0), segs=8)]
+for a in range(3):
+    ang = a * 2 * math.pi / 3
+    mast.append(kit.tube_along("leg", [Vector((math.cos(ang) * 1.8, math.sin(ang) * 1.8, 0.0)), Vector((0, 0, 4.0))],
+                               [0.1, 0.08], segs=5))
+for z, w in ((13.5, 3.2), (16.5, 2.2)):
+    mast.append(kit.box("arm", w, 0.14, 0.14, at=(0, 0, z)))
+    for x in (-w / 2, w / 2):
+        mast.append(kit.cyl("rod", 0.05, 0.05, 1.6, at=(x, 0, z + 0.8), segs=5))
+mast.append(kit.box("clamp", 0.5, 0.5, 0.6, at=(0, 0.3, 9.0)))
+baked("RoofAntenna", "AntennaMast", mast)
+dish = kit.loft("AntennaDish", [(0.0, 0.15, 0.15, 0, 0), (0.25, 1.1, 1.1, 0, 0), (0.45, 1.5, 1.5, 0, 0)], segs=18, power=2.0,
+                cap=(True, True))
+dish.rotation_euler = (math.radians(-70), 0, 0)
+dish.location = (0, 0.6, 9.0)
+add("RoofAntenna", "AntennaDish", dish)
+add("RoofAntenna", "AntennaLight", kit.sphere("AntennaLight", r=0.3, at=(0, 0, 20.25), segs=10, rings=6))
+
+# ---------------------------------------------------------------- a rooftop air conditioner (4.6 x 2.8, 3.6 tall)
+ac = [kit.box("body", 4.6, 2.8, 3.0, at=(0, 0, 1.9))]
+for x in (-1.9, 1.9):
+    ac.append(kit.box("foot", 0.5, 2.6, 0.4, at=(x, 0, 0.2)))
+for k in range(9):
+    ac.append(kit.box("fin", 0.1, 0.08, 2.0, at=(-1.9 + k * 0.32, 1.42, 1.9)))
+ac.append(kit.box("pipe", 0.3, 0.3, 1.6, at=(2.45, -0.8, 1.2)))
+baked("RoofAC", "ACBox", ac, bev=0.06)
+fan = [kit.torus("ring", 1.0, 0.1, at=(0.9, 0, 3.45), segs=20, csegs=5), kit.cyl("hub", 0.25, 0.25, 0.2, at=(0.9, 0, 3.4), segs=10)]
+for a in range(4):
+    blade = placed(kit.box("bl", 0.32, 0.85, 0.05), (0.9 + math.cos(a * math.pi / 2) * 0.45, math.sin(a * math.pi / 2) * 0.45, 3.42),
+                   (0, math.radians(18), a * math.pi / 2))
+    fan.append(blade)
+for k in range(5):
+    fan.append(kit.box("gr", 0.06, 2.0, 0.06, at=(0.1 + k * 0.4, 0, 3.5)))
+fan.append(kit.box("lid", 1.4, 2.4, 0.12, at=(-1.4, 0, 3.45)))
+baked("RoofAC", "ACFan", fan)
+
+# ---------------------------------------------------------------- rooftop vents: two mushroom caps and a bent pipe
+vents = []
+for (x, y, r, h) in ((-0.8, 0.3, 0.5, 2.4), (0.9, -0.4, 0.38, 1.8)):
+    vents.append(kit.loft("v", [(0, r * 1.25, r * 1.25, x, y), (0.2, r, r, x, y), (h, r, r, x, y), (h + 0.08, r * 1.9, r * 1.9, x, y),
+                                (h + 0.45, r * 1.5, r * 1.5, x, y), (h + 0.6, 0.1, 0.1, x, y)], segs=14, power=2.0))
+vents.append(kit.tube_along("pipe", [Vector((0.2, 1.1, 0.0)), Vector((0.2, 1.1, 1.6)), Vector((0.2, 1.5, 2.2)), Vector((0.2, 2.1, 2.3))],
+                            [0.28, 0.28, 0.28, 0.28], segs=10))
+baked("RoofVent", "RoofVent", vents)
+
+# ---------------------------------------------------------------- a rooftop billboard on a steel frame (falls when its
+# roof breaks): the face 22 x 9 from 7 to 16 studs up, facing the street (+y); no words on it (cartoon starburst
+# and ribbon shapes in BoardArt)
+BB_W, BB_LO, BB_HI = 22.0, 7.0, 16.0
+add("RoofBillboard", "BoardFace", kit.box("BoardFace", BB_W, 0.5, BB_HI - BB_LO, at=(0, 0, (BB_LO + BB_HI) / 2)), bev=0.1)
+fr = []
+for x in (-BB_W / 2 + 1.5, 0.0, BB_W / 2 - 1.5):
+    fr.append(kit.box("post", 0.5, 0.5, BB_HI, at=(x, -0.6, BB_HI / 2)))
+    fr.append(kit.tube_along("brace", [Vector((x, -0.6, BB_HI * 0.7)), Vector((x, -4.2, 0.0))], [0.14, 0.14], segs=5))
+    fr.append(kit.box("shoe", 0.9, 0.9, 0.3, at=(x, -4.2, 0.15)))
+    fr.append(kit.box("shoe2", 0.9, 0.9, 0.3, at=(x, -0.6, 0.15)))
+fr.append(kit.box("walk", BB_W, 1.6, 0.18, at=(0, 1.0, BB_LO - 0.35)))
+fr.append(kit.box("toe", BB_W, 0.1, 0.35, at=(0, 1.78, BB_LO - 0.15)))
+for x in (-BB_W / 2 + 0.2, -3.8, 3.8, BB_W / 2 - 0.2):
+    fr.append(kit.box("rp", 0.1, 0.1, 1.1, at=(x, 1.75, BB_LO + 0.2)))
+fr.append(kit.box("rail", BB_W, 0.1, 0.1, at=(0, 1.75, BB_LO + 0.75)))
+fr.append(kit.box("trimT", BB_W + 0.6, 0.7, 0.35, at=(0, 0, BB_HI + 0.1)))
+fr.append(kit.box("trimB", BB_W + 0.6, 0.7, 0.35, at=(0, 0, BB_LO - 0.1)))
+for z in (BB_HI + 0.2,):
+    for x in (-7.0, 0.0, 7.0):
+        fr.append(kit.tube_along("larm", [Vector((x, 0.1, z)), Vector((x, 1.2, z + 0.9)), Vector((x, 1.9, z + 0.8))],
+                                 [0.07, 0.07, 0.07], segs=5))
+baked("RoofBillboard", "BoardFrame", fr, bev=0.03)
+art = []
+star = []
+cx, cz, R, r2 = -5.5, (BB_LO + BB_HI) / 2, 3.6, 2.2
+import bmesh  # noqa: E402
+bm = bmesh.new()
+pts = []
+for k in range(24):
+    a = k * math.pi / 12
+    rr = R if k % 2 == 0 else r2
+    pts.append((cx + math.cos(a) * rr, cz + math.sin(a) * rr))
+front = [bm.verts.new((x, 0.3, z)) for (x, z) in pts]
+back = [bm.verts.new((x, 0.22, z)) for (x, z) in pts]
+bm.faces.new(list(reversed(front)))
+bm.faces.new(back)
+for k in range(len(pts)):
+    bm.faces.new((front[k], front[(k + 1) % len(pts)], back[(k + 1) % len(pts)], back[k]))
+bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+art.append(kit._obj("star", bm))
+for k, (w, z) in enumerate(((9.0, 13.6), (7.0, 11.6), (8.0, 9.6))):
+    art.append(kit.box("bar%d" % k, w, 0.1, 1.1, at=(4.2 - (9.0 - w) / 2, 0.29, z)))
+baked("RoofBillboard", "BoardArt", art)
+lamps = [placed(kit.box("lamp", 0.9, 0.5, 0.4), (x, 1.95, BB_HI + 0.75), (math.radians(30), 0, 0)) for x in (-7.0, 0.0, 7.0)]
+baked("RoofBillboard", "BoardLamps", lamps, bev=0.05)
+
+# ---------------------------------------------------------------- a steel perch on a tower's face (a mid-air landing
+# spot in skyscraper fights): foot point the wall at deck level, 10 wide, 4 out (+y)
+pc = [kit.box("deck", 10.0, 4.0, 0.4, at=(0, 2.0, -0.2))]
+for k in range(9):
+    pc.append(kit.box("slat", 0.08, 3.9, 0.06, at=(-4.4 + k * 1.1, 2.0, 0.03)))
+for x in (-4.9, -2.45, 0.0, 2.45, 4.9):
+    pc.append(kit.box("post", 0.16, 0.16, 2.8, at=(x, 3.9, 1.4)))
+pc.append(kit.box("rail", 10.0, 0.18, 0.18, at=(0, 3.9, 2.8)))
+pc.append(kit.box("mid", 10.0, 0.1, 0.1, at=(0, 3.9, 1.4)))
+for x in (-4.9, 4.9):
+    pc.append(kit.box("srail", 0.18, 4.0, 0.18, at=(x, 2.0, 2.8)))
+    pc.append(kit.tube_along("brk", [Vector((x * 0.9, 0.1, -3.0)), Vector((x * 0.9, 3.6, -0.4))], [0.16, 0.14], segs=5))
+    pc.append(kit.box("plate", 0.8, 0.15, 1.2, at=(x * 0.9, 0.06, -2.9)))
+pc.append(kit.box("hatch", 1.6, 1.6, 0.1, at=(3.2, 1.4, 0.06)))
+baked("Perch", "Perch", pc, bev=0.02)
+
+# ---------------------------------------------------------------- Downtown and Uptown: a pair of newspaper boxes
+nb, ng = [], []
+for x in (-0.95, 0.95):
+    nb.append(kit.loft("nb", [(0.9, 0.82, 0.72, x, 0), (3.3, 0.82, 0.72, x, 0), (3.6, 0.7, 0.62, x, 0)], segs=16, power=6.0))
+    nb.append(kit.box("ped", 0.5, 0.5, 0.9, at=(x, 0, 0.45)))
+    nb.append(kit.box("foot", 1.2, 1.0, 0.12, at=(x, 0, 0.06)))
+    nb.append(kit.box("handle", 0.8, 0.12, 0.14, at=(x, 0.78, 2.0)))
+    ng.append(kit.box("win", 1.2, 0.06, 1.0, at=(x, 0.74, 2.75)))
+baked("NewsBox", "NewsBoxBody", nb, bev=0.03)
+baked("NewsBox", "NewsBoxGlass", ng)
+
+# ---------------------------------------------------------------- a street food cart under a parasol
+cb = [kit.loft("cart", [(1.0, 2.6, 1.25, 0, 0), (3.5, 2.6, 1.25, 0, 0)], segs=20, power=6.0)]
+baked("FoodCart", "CartBody", cb, bev=None)
+ct = [kit.box("counter", 5.6, 2.9, 0.18, at=(0, 0, 3.6)), kit.cyl("pole", 0.09, 0.09, 4.4, at=(0, 0, 5.8), segs=8)]
+for x in (-1.8, 1.8):
+    ct.append(kit.cyl("wheel", 0.75, 0.75, 0.3, at=(x, 1.35, 0.75), segs=16, axis="Y"))
+    ct.append(kit.cyl("wheel2", 0.75, 0.75, 0.3, at=(x, -1.35, 0.75), segs=16, axis="Y"))
+ct.append(kit.tube_along("handle", [Vector((2.6, -0.8, 3.0)), Vector((3.6, -0.8, 3.4)), Vector((3.6, 0.8, 3.4)),
+                                    Vector((2.6, 0.8, 3.0))], [0.08, 0.08, 0.08, 0.08], segs=6))
+for x in (-1.6, 0.0, 1.6):
+    ct.append(kit.cyl("jar", 0.32, 0.3, 0.6, at=(x, 0.6, 4.0), segs=10))
+baked("FoodCart", "CartTrim", ct, bev=None)
+add("FoodCart", "CartUmbrella", kit.loft("CartUmbrella", [(7.6, 3.3, 3.3, 0, 0), (7.8, 3.2, 3.2, 0, 0), (8.7, 1.2, 1.2, 0, 0),
+                                                         (8.95, 0.12, 0.12, 0, 0)], segs=10, power=2.0))
+
+
 # ---------------------------------------------------------------- sizes and offsets (Roblox axes: x, up, back)
 def bounds(ob):
     vs = [ob.matrix_world @ v.co for v in ob.data.vertices]

@@ -36,6 +36,7 @@ type Prop = {
 	z: number,
 	ry: number,
 	d: string?,
+	tint: string?, -- a palette key for its tinted pieces (pt-city: news boxes, food carts)
 	model: Model?, -- built on this device now
 	parts: number?,
 	brokenUntil: number?, -- knocked loose by an impact: not built again before this
@@ -55,6 +56,7 @@ local looks: {
 			collide: boolean,
 			see: number,
 			fit: any,
+			tinted: boolean,
 		}
 	},
 } =
@@ -85,6 +87,7 @@ local function piecesOf(name: string)
 					collide = look[3],
 					see = look[4] or 0,
 					fit = fit[piece],
+					tinted = look[5] == true,
 				})
 			end
 		end
@@ -114,7 +117,8 @@ local function makeProp(pr: Prop, parent: Instance): number
 		p.Anchored = true
 		p.Size = Vector3.new(f.size[1], f.size[2], f.size[3])
 		p.CFrame = at * CFrame.new(f.offset[1], f.offset[2], f.offset[3])
-		p.Color = pc.color
+		local tint = if pc.tinted and pr.tint then Config.City.palette[pr.tint] else nil
+		p.Color = if tint then Color3.fromRGB(tint[1], tint[2], tint[3]) else pc.color
 		p.Material = pc.material
 		p.Transparency = pc.see
 		p.CanCollide = pc.collide

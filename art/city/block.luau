@@ -19,12 +19,15 @@ local gy = C.ground.y
 local t = C.downtown
 local d = C.districts.Downtown
 local pitch = t.block + t.street
-local nx = math.floor((d.maxX - d.minX) / pitch)
-local nz = math.floor((d.maxZ - d.minZ) / pitch)
+-- the preview block counts from the first 700 x 700 (the plaza's block is its middle), so growing Downtown never
+-- moves it
+local core = t.core or d
+local nx = math.floor((core.maxX - core.minX) / pitch)
+local nz = math.floor((core.maxZ - core.minZ) / pitch)
 local o = C.kit.previewBlock
 local bx, bz = math.ceil(nx / 2) + o[1], math.ceil(nz / 2) + o[2]
-local minX = d.minX + t.street / 2 + (bx - 1) * pitch
-local minZ = d.minZ + t.street / 2 + (bz - 1) * pitch
+local minX = core.minX + t.street / 2 + (bx - 1) * pitch
+local minZ = core.minZ + t.street / 2 + (bz - 1) * pitch
 local b = C.docks.basin
 local u = C.districts.Uptown
 local AREAS = {
@@ -59,10 +62,27 @@ local AREAS = {
 		},
 	},
 	-- the whole grown Downtown and its skyline from the north-east, the north open square in front (2026-11-17)
+	-- 2026-11-19 (pt-city): 980 x 1,120 now, from the north-east and from the south-west (the new blocks)
 	DowntownWide = {
 		window = { d.minX - 40, d.minZ - 40, d.maxX + 40, d.maxZ + 40 },
 		cams = {
-			air = { { 40, gy + 560, -1080 }, { -470, gy + 120, -160 }, 30 },
+			air = { { 200, gy + 640, -1180 }, { -540, gy + 120, 40 }, 28 },
+			south = { { -1500, gy + 520, 1180 }, { -560, gy + 140, 120 }, 28 },
+			top = {
+				{ (d.minX + d.maxX) / 2, gy + 2600, (d.minZ + d.maxZ) / 2 + 1 },
+				{ (d.minX + d.maxX) / 2, gy, (d.minZ + d.maxZ) / 2 },
+				24,
+			},
+		},
+	},
+	-- street level in the new south-west blocks: awnings, news boxes, perches up the towers (pt-city)
+	DowntownSW = {
+		window = { d.minX - 40, d.maxZ - 420, d.minX + 420, d.maxZ + 40 },
+		cams = {
+			-- down the street between the west column and the next (x -890), north from the south edge
+			street = { { d.minX + 146, gy + 7, d.maxZ - 6 }, { d.minX + 128, gy + 20, d.maxZ - 150 }, 22 },
+			awning = { { d.minX + 128, gy + 8, d.maxZ - 112 }, { d.minX + 161, gy + 11, d.maxZ - 90 }, 26 },
+			roofs = { { d.minX - 160, gy + 330, d.maxZ + 160 }, { d.minX + 150, gy + 60, d.maxZ - 170 }, 30 },
 		},
 	},
 	-- Uptown (PLACEHOLDER NAME), the second business district north of the hub
@@ -70,8 +90,13 @@ local AREAS = {
 		window = { u.minX - 60, u.minZ - 60, u.maxX + 60, u.maxZ + 60 },
 		cams = {
 			street = { { -403, gy + 6, -905 }, { -360, gy + 16, -1060 }, 22 },
-			air = { { -980, gy + 460, -560 }, { -380, gy + 170, -1120 }, 28 },
+			air = { { -1180, gy + 520, -520 }, { -470, gy + 170, -1170 }, 28 },
 			green = { { -380, gy + 30, -1120 }, { -282, gy + 22, -1222 }, 24 },
+			top = {
+				{ (u.minX + u.maxX) / 2, gy + 2000, (u.minZ + u.maxZ) / 2 + 1 },
+				{ (u.minX + u.maxX) / 2, gy, (u.minZ + u.maxZ) / 2 },
+				24,
+			},
 		},
 	},
 	Suburbs = {
@@ -93,7 +118,16 @@ local out = { area = area, window = w, cams = a.cams, boxes = {}, props = {}, gr
 local function add(list: { any })
 	for _, bx2 in list do
 		if inside(bx2.cx, bx2.cz, math.max(bx2.sx, bx2.sz) / 2) and not (bx2.plain and bx2.kit == nil) then
-			table.insert(out.boxes, bx2)
+			if bx2.art then
+				-- the server builds its Art.Street meshes in its place (pt-city): render those
+				local a = bx2.art
+				table.insert(
+					out.props,
+					{ name = a.name, x = a.x, y = a.y, z = a.z, ry = a.ry, tint = a.tint }
+				)
+			else
+				table.insert(out.boxes, bx2)
+			end
 		end
 	end
 end

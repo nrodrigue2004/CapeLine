@@ -197,6 +197,75 @@ end
 
 local BIG = { ground = true, sand = true, sea = true, road = true }
 
+-- pt-city (2026-11-19): a box with `art` (Shared.CityPlay: awnings, water towers, antennas, roof units, billboards,
+-- perches) is built as that Art.Street prop's meshes in its place, once every piece is imported; else the box as
+-- today. The meshes collide like the box did (Config.City.kit.props pieces), sit in the same building model, so
+-- they hide and break with it; attributes tell BuildingFx what falls off or bursts and MoveController what bounces.
+local STREET_FIT = Config.StreetArt
+local streetFound: { [string]: MeshPart | false } = {}
+local function streetMesh(piece: string): MeshPart?
+	local hit = streetFound[piece]
+	if hit == nil then
+		local art = ReplicatedStorage:FindFirstChild("Art")
+		local root = art and art:FindFirstChild("Street")
+		local src = root and root:FindFirstChild(piece, true)
+		hit = if src and src:IsA("MeshPart") then src else false
+		streetFound[piece] = hit
+	end
+	return if hit then hit else nil
+end
+local function streetArt(b: any): { BasePart }?
+	local a = b.art
+	local def = a and KIT.props[a.name]
+	local fit = a and STREET_FIT[a.name]
+	if not (def and fit) then
+		return nil
+	end
+	for piece in def.pieces do
+		if not (fit[piece] and streetMesh(piece)) then
+			return nil -- all or nothing: a half-built prop never shows
+		end
+	end
+	local at = CFrame.new(a.x, a.y, a.z) * CFrame.Angles(0, math.rad(a.ry), 0)
+	local out = {}
+	for piece, look in def.pieces do
+		local src = streetMesh(piece) :: MeshPart
+		local f = fit[piece]
+		local p = src:Clone()
+		for _, ch in p:GetChildren() do
+			if not ch:IsA("SurfaceAppearance") then
+				ch:Destroy()
+			end
+		end
+		p.Name = piece
+		p.Anchored = true
+		p.Size = Vector3.new(f.size[1], f.size[2], f.size[3])
+		p.CFrame = at * CFrame.new(f.offset[1], f.offset[2], f.offset[3])
+		local rgb = if look[5] and a.tint then Config.City.palette[a.tint] or look[1] else look[1]
+		p.Color = Color3.fromRGB(rgb[1], rgb[2], rgb[3])
+		p.Material = (Enum.Material :: any)[look[2]]
+		p.Transparency = look[4] or 0
+		p.CanCollide = look[3]
+		p.CanQuery = look[3]
+		p.CanTouch = false
+		p.CastShadow = look[2] ~= "Neon"
+		if def.falls then
+			p:SetAttribute("Falls", true)
+		end
+		if def.burst then
+			p:SetAttribute("Burst", true)
+		end
+		if def.bounce and look[3] then
+			p:SetAttribute("Bounce", true)
+		end
+		if b.crown then
+			p:SetAttribute("Crown", true)
+		end
+		table.insert(out, p)
+	end
+	return out
+end
+
 local function buildHub(world: any, folder: Folder)
 	local chunks: { [string]: Model } = {}
 	local hub = Instance.new("Folder")
@@ -246,7 +315,19 @@ local function buildHub(world: any, folder: Folder)
 				parent = bm
 			end
 		end
-		makePart(b).Parent = parent
+		local meshes = if b.art then streetArt(b) else nil
+		if meshes then
+			for _, p in meshes do
+				p.Parent = parent
+			end
+			skipped += 1 - #meshes
+		else
+			local p = makePart(b)
+			if b.tag == "Awning" then
+				p:SetAttribute("Bounce", true) -- the box stands in for the awning until its meshes are in
+			end
+			p.Parent = parent
+		end
 	end
 	CityBuilder.builtParts += #world.baseBoxes + #world.hubBoxes - skipped
 	-- New heroes land on the plaza (spec: Players, joining and leaving)

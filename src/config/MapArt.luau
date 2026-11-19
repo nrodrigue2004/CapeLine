@@ -6,8 +6,8 @@
 return {
 	-- the fixed city: the hub with the districts past it, and Uptown (Shared.MapPlan.cityImages places them)
 	city = {
-		Hub = 97737291819312,
-		Uptown = 107395410782817,
+		Hub = 83024587731077,
+		Uptown = 82310550679079,
 	},
 	-- one outskirts tile (100 studs) each, tiled over the merged zone rectangles (MapPlan.zones)
 	patterns = {
@@ -17,7 +17,7 @@ return {
 		landmark = 125662367565066,
 	},
 	-- the layout the pictures were drawn from (art/map/layout.luau's box count), so a test notices a stale picture
-	boxes = 3280,
+	boxes = 3562,
 	margin = 240, -- studs of sea drawn round the map's edge
 	maxZoom = 4, -- the map zooms in this far (pinch, wheel or the + and - buttons)
 	openZoom = 2, -- the first open shows the map this far in, centred on you

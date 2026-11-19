@@ -3425,8 +3425,9 @@ end)
 test("M6: zone level is the hero's level raised to the area floor, capped at the level cap", function()
 	check(ZoneLevel.area(Config, 0, 0, world.tiles) == "hub", "the plaza is hub")
 	check(ZoneLevel.at(Config, 0, 0, 3, world.tiles) == 3, "hub: the hero's own level")
-	local sx = -Config.City.mapSize / 2 + (Config.World.hubFirst - 3) * Config.City.tile + 50
-	check(ZoneLevel.area(Config, sx, 0, world.tiles) == "suburbs", "3 tiles out is suburbs")
+	-- 4 tiles out (3 until 2026-11-19: Downtown now reaches into the third tile west of the hub)
+	local sx = -Config.City.mapSize / 2 + (Config.World.hubFirst - 4) * Config.City.tile + 50
+	check(ZoneLevel.area(Config, sx, 0, world.tiles) == "suburbs", "4 tiles out is suburbs")
 	check(ZoneLevel.at(Config, sx, 0, 1, world.tiles) == 5, "the suburbs floor is 5")
 	check(ZoneLevel.at(Config, sx, 0, 30, world.tiles) == 30, "a higher hero keeps their level")
 	local cr = Config.World.landmarks[1]
@@ -8362,10 +8363,10 @@ test("City kit block: textured fronts, street dressing, and the rest of Downtown
 			blocks += 1
 		end
 	end
-	-- 33 blocks of lots (24 in the first Downtown, 9 grown) and 2 open squares, all paved
+	-- 53 blocks of lots (24 in the first Downtown, 9 grown on 2026-11-17, 20 on 2026-11-19) and 2 open squares
 	local dressed = blocks + #layout.open
 	check(
-		kits.Paving == dressed and blocks == 33 and #layout.open == 2 and kits.Asphalt == 1,
+		kits.Paving == dressed and blocks == 53 and #layout.open == 2 and kits.Asphalt == 1,
 		string.format("every block paved, the road textured (%d blocks, %d squares)", blocks, #layout.open)
 	)
 	local fronts = 0
@@ -9099,8 +9100,9 @@ test(
 				end
 			end
 		end
+		-- 750 x 750 from x -850 (half a tile in) to the tile edge at -100: 8 x 8 tiles (6 x 6 until 2026-11-19)
 		check(
-			tilesOk and upTiles == 36,
+			tilesOk and upTiles == 64,
 			string.format("Uptown's %d tiles are fixed, every other tile as before", upTiles)
 		)
 		local intruders = 0
@@ -9360,7 +9362,8 @@ test(
 		local crownParts, bad = 0, 0
 		local perBuilding = {}
 		for _, bx in wd.hubBoxes do
-			if bx.grp then
+			-- (the street art pieces, pt-city 2026-11-19, have their own cap: tests/city_play_test)
+			if bx.grp and not bx.art then
 				perBuilding[bx.grp] = (perBuilding[bx.grp] or 0) + 1
 			end
 			if bx.crown then
@@ -23087,19 +23090,19 @@ end
 -- the pocket props and the plaza board's art pass (gap-props2, 2026-11-19, own file); ONLY="Pocket props" or ONLY="Board art"
 (require :: any)("./pocket_props_test")({ test = test, check = check, Config = Config, placePath = placePath });
 -- the villain name cards and catalog beards (gap-villains, 2026-11-19, own file); ONLY="Villain cards" or ONLY="Catalog beards"
-(require :: any)("./villains_test")
-	({ test = test, check = check, Config = Config })
-	-- nate's playtest 2026-11-19 (pt-ui, own file): the popup line, every card closes, the contest's skipped card,
-	-- building textures; ONLY="pt-ui"
-	(require :: any)
-	("./pt_ui_test")
-	({
-		test = test,
-		check = check,
-		Config = Config,
-		world = world,
-		placePath = placePath,
-	})
+(require :: any)("./villains_test")({ test = test, check = check, Config = Config });
+-- nate's playtest 2026-11-19 (pt-ui, own file): the popup line, every card closes, the contest's skipped card,
+-- building textures; ONLY="pt-ui"
+(require :: any)("./pt_ui_test")({
+	test = test,
+	check = check,
+	Config = Config,
+	world = world,
+	placePath = placePath,
+});
+-- nate's playtest 2026-11-19 (pt-city, own file): Downtown and Uptown 1.5x bigger, the street and roof pieces
+-- heroes use or break; ONLY="City play"
+(require :: any)("./city_play_test")({ test = test, check = check, Config = Config, world = world })
 
 print(string.format("\n%d passed, %d failed", passed, failed))
 if failed > 0 then

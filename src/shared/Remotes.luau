@@ -61,6 +61,8 @@ local Remotes: { [string]: RemoteDef } = {
 	MoveBoost = { dir = "C2S", schema = { { t = "boolean" } }, rate = 4, burst = 4 },
 	MoveCorrect = { dir = "S2C" }, -- position: sent when a speed or position check fails
 	MovePound = { dir = "C2S", schema = {}, rate = 1, burst = 2 }, -- Leaping: the ground pound landed
+	-- pt-city (2026-11-19): an awning sprang the hero up (the server checks one is there and grants the climb)
+	CityBounce = { dir = "C2S", schema = {}, rate = 2, burst = 3 },
 	-- your movement mode (Shared.HeroAnim.MODES index) so other devices pose you; the server sets the Move attribute
 	MoveMode = { dir = "C2S", schema = { n(1, 15) }, rate = 10, burst = 10 },
 
