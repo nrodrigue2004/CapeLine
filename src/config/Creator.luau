@@ -1640,7 +1640,7 @@ return {
 		},
 		heights = { 0.9, 0.95, 1.0, 1.05, 1.1 },
 		heightNames = { "Short", "Below average", "Average", "Tall", "Very tall" },
-		note = "Looks only: every body has the same speed, reach and hit box",
+		note = "Looks only, never stats", -- (short for the phone card, fix-flow; every body has one hit box)
 		-- Female: the upper torso tapers to a narrower waist (blocky, no other change)
 		femaleWaist = 0.85,
 	},

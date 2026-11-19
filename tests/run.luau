@@ -12263,7 +12263,7 @@ do
 			string.find(cc, "CinemaPlan.sample(shot, k, buf)", 1, true) ~= nil,
 			"the player samples into its buffer"
 		)
-		local stepAt = string.find(cc, "local function step()", 1, true) :: number
+		local stepAt = string.find(cc, "local function step(dt: number)", 1, true) :: number
 		local stepEnd = string.find(cc, "function CinemaClient.init()", 1, true) :: number
 		local body = string.sub(cc, stepAt, stepEnd)
 		check(not string.find(body, "{", 1, true), "no new tables in the camera step")

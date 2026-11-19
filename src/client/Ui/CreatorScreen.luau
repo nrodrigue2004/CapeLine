@@ -50,7 +50,7 @@ local STEPS = {
 	{ id = "mobility", name = "Mobility" },
 	{ id = "powers", name = "Powers" },
 	{ id = "weapon", name = "Weapon" },
-	{ id = "appearance", name = "Appearance" },
+	{ id = "appearance", name = "Appearance", short = "Looks" }, -- short: the tab on a narrow screen (8 tabs)
 	{ id = "play", name = "Play" },
 }
 -- the appearance list: body areas, then their slots (tab ids from Config.Creator, plus skin and colours)
@@ -1274,6 +1274,13 @@ local function layout()
 	titleLabel.Visible = not tight
 	stepRow.Position = UDim2.fromOffset(10, if tight then 6 else 50)
 	stepRow.Size = UDim2.new(1, -20, 0, tab)
+	-- with the Body step's 8 tabs a long name gets its short form on a narrow screen (fix-flow, the phone pass)
+	for _, st in STEPS do
+		local b = stepRow:FindFirstChild(st.id)
+		if b and b:IsA("TextButton") then
+			b.Text = string.upper(if area.X < 700 and st.short then st.short else st.name)
+		end
+	end
 	local top = (if tight then 6 else 50) + tab + (if tight then 8 else 12)
 	local bottom = bar + below + (if tight then 24 else 20)
 	status.Position = UDim2.new(0.5, 0, 1, -bar - below - 2)

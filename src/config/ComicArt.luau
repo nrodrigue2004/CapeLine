@@ -5,6 +5,11 @@
 return {
 	-- one 1024 x 512 image per panel, keyed "<page>.<n>" (Config.Cinema.comic.pages)
 	panels = {
+		-- fix-flow (2026-11-19): the exposition page, not rendered yet (0: the drawn panels)
+		["intro.1"] = 0,
+		["intro.2"] = 0,
+		["intro.3"] = 0,
+		["intro.4"] = 0,
 		["brineLegend.1"] = 119145887433430,
 		["brineLegend.2"] = 98667600464549,
 		["brineLegend.3"] = 115069949871656,
