@@ -24,6 +24,7 @@
         "Bramblebeast": { "$path": "art/models/Bramblebeast.rbxm" },
         "Capes": { "$path": "art/models/Capes.rbxm" },
         "Coats": { "$path": "art/models/Coats.rbxm" },
+        "Deep": { "$path": "art/models/Deep.rbxm" },
         "Ears": { "$path": "art/models/Ears.rbxm" },
         "Eyes": { "$path": "art/models/Eyes.rbxm" },
         "Gear": { "$path": "art/models/Gear.rbxm" },

@@ -7,7 +7,12 @@
 --              water closed in (under the land and the far sea surface there is nothing)
 --   * caches, rescues and the boss arena, as points
 -- plus the questions the server and client ask: which area a spot is in, the floor under it, and whether it
--- is underwater. Pure: no Roblox instances, so Lune tests it. PLACEHOLDER ART: simple parts until the art pass.
+-- is underwater. Pure: no Roblox instances, so Lune tests it.
+-- Art (2026-11-19, the deep art pass): `art` lists where art/blender/deep.py's looks stand (Config.DeepArt,
+-- Shared.DeepArtKit): each placement a look stretched to fill its own box { cx, cy, cz, sx, sy, sz, ry }. A box a
+-- look stands in for carries `art` (the look's name): once every mesh of that look is imported it is hidden but
+-- kept, so it still collides, takes queries and makes the walls exactly as before (the meshes never collide).
+-- The placements never draw from the rng, so every box is where it always was. Until the import every box shows.
 
 local Rng = if script then require(script.Parent.Rng) else (require :: any)("./Rng")
 local BoxKit = if script then require(script.Parent.BoxKit) else (require :: any)("./BoxKit")
@@ -17,8 +22,23 @@ local DeepLayout = {}
 type Box = BoxKit.Box
 export type Fill = { material: string, cx: number, cy: number, cz: number, sx: number, sy: number, sz: number }
 export type Spot = { id: number, x: number, y: number, z: number, area: string }
+-- A look placed over boxes (or as non-colliding dressing): its box in world studs, turned ry about up; `tint` a
+-- City.palette colour for the meshes that take a copy's colour (coral, kelp); `tag` "kelp" for the sway
+export type Place = {
+	look: string,
+	cx: number,
+	cy: number,
+	cz: number,
+	sx: number,
+	sy: number,
+	sz: number,
+	ry: number?,
+	tint: string?,
+	tag: string?,
+}
 export type Layout = {
 	boxes: { Box },
+	art: { Place },
 	terrain: { Fill },
 	caches: { Spot },
 	rescues: { Spot },
@@ -27,6 +47,66 @@ export type Layout = {
 }
 
 local box = BoxKit.box
+
+-- The art placements of the build in progress (DeepLayout.build sets it; the builders below add to it)
+local building: { art: { Place } } = { art = {} }
+
+local function place(
+	look: string,
+	cx: number,
+	cy: number,
+	cz: number,
+	sx: number,
+	sy: number,
+	sz: number,
+	ry: number?,
+	tint: string?,
+	tag: string?
+): Place
+	local p: Place =
+		{ look = look, cx = cx, cy = cy, cz = cz, sx = sx, sy = sy, sz = sz, ry = ry, tint = tint, tag = tag }
+	table.insert(building.art, p)
+	return p
+end
+
+-- A box drawn by a look once that look is imported (hidden then, never removed)
+local function art(b: Box, look: string): Box
+	(b :: any).art = look
+	return b
+end
+
+-- A long run split into segments of about `step` studs, each a placement of `look` (along x, or along z when
+-- `alongZ`: the look turned 90 degrees, its own x along the run)
+local function strip(
+	look: string,
+	a0: number,
+	a1: number,
+	cy: number,
+	c: number,
+	sy: number,
+	sz: number,
+	step: number,
+	alongZ: boolean?
+)
+	local len = a1 - a0
+	local n = math.max(1, math.floor(len / step + 0.5))
+	for i = 1, n do
+		local m = a0 + len * (i - 0.5) / n
+		if alongZ then
+			place(look, c, cy, m, len / n, sy, sz, 90)
+		else
+			place(look, m, cy, c, len / n, sy, sz, 0)
+		end
+	end
+end
+
+-- A variant and a turn picked from a spot (never from the rng, so the layout's boxes never move)
+local function pick(x: number, z: number, n: number): number
+	return math.floor(math.abs(x * 7.13 + z * 3.71)) % n + 1
+end
+local function spin(x: number, z: number): number
+	return math.floor(math.abs(x * 13.7 - z * 5.3) * 10) % 360
+end
 
 local function waterY(Config: any): number
 	return Config.World.coast.waterY
@@ -213,11 +293,28 @@ local function trench(
 	-- the sunken factory: a long hall, a sloped roof, chimneys, pipes and glowing vents
 	local f = t.factory
 	local fy = t.floor
-	box(boxes, "building", f.x, fy + f.sy / 2, f.z, f.sx, f.sy, f.sz, "nullMetal")
-	box(boxes, "roof", f.x, fy + f.sy + 3, f.z, f.sx + 6, 6, f.sz + 6, "nullMetal")
+	art(box(boxes, "building", f.x, fy + f.sy / 2, f.z, f.sx, f.sy, f.sz, "nullMetal"), "FactoryHall")
+	place("FactoryHall", f.x, fy + f.sy / 2, f.z, f.sx, f.sy, f.sz)
+	art(box(boxes, "roof", f.x, fy + f.sy + 3, f.z, f.sx + 6, 6, f.sz + 6, "nullMetal"), "FactoryRoof")
+	place("FactoryRoof", f.x, fy + f.sy + 3, f.z, f.sx + 6, 6, f.sz + 6)
 	for i = 1, f.chimneys do
 		local cx = f.x - f.sx / 2 + f.sx * (i - 0.5) / f.chimneys
-		box(boxes, "prop", cx, fy + f.sy + 26, f.z + f.sz * 0.25, 12, 40, 12, "rust", { shape = "cylinder" })
+		art(
+			box(
+				boxes,
+				"prop",
+				cx,
+				fy + f.sy + 26,
+				f.z + f.sz * 0.25,
+				12,
+				40,
+				12,
+				"rust",
+				{ shape = "cylinder" }
+			),
+			"FactoryChimney"
+		)
+		place("FactoryChimney", cx, fy + f.sy + 26, f.z + f.sz * 0.25, 12, 40, 12, spin(cx, f.z))
 		box(boxes, "glow", cx, fy + f.sy + 47, f.z + f.sz * 0.25, 8, 2, 8, "nullGlow")
 	end
 	-- the gate facing the arena, and vents along the front
@@ -228,7 +325,12 @@ local function trench(
 	for _ = 1, 6 do
 		local px = t.minX + 40 + rng:range(0, t.maxX - t.minX - 80)
 		local pz = t.minZ + 40 + rng:range(0, 160)
-		box(boxes, "prop", px, fy + 3, pz, 6, 60, 6, "rust", { shape = "cylinder", ry = rng:range(0, 180) })
+		local pry = rng:range(0, 180)
+		art(
+			box(boxes, "prop", px, fy + 3, pz, 6, 60, 6, "rust", { shape = "cylinder", ry = pry }),
+			"FactoryPipe"
+		)
+		place("FactoryPipe", px, fy + 3, pz, 6, 60, 6, pry)
 	end
 	return { x = f.x, y = fy, z = f.z }
 end
@@ -244,18 +346,52 @@ local function basin(Config: any, terrain: { Fill }, boxes: { Box })
 	fill(terrain, "sand", b.minX - w, floor - 6, b.minZ - w, b.maxX + w, floor, b.maxZ + w)
 	local h = top - floor
 	local cy = (top + floor) / 2
+	local Q = "QuayWall"
+	local step = 24
 	-- north, south and east quay walls
-	box(boxes, "ledge", (b.minX + b.maxX) / 2, cy, b.minZ - w / 2, b.maxX - b.minX + w * 2, h, w, "concrete")
-	box(boxes, "ledge", (b.minX + b.maxX) / 2, cy, b.maxZ + w / 2, b.maxX - b.minX + w * 2, h, w, "concrete")
-	box(boxes, "ledge", b.maxX + w / 2, cy, (b.minZ + b.maxZ) / 2, w, h, b.maxZ - b.minZ, "concrete")
+	art(
+		box(
+			boxes,
+			"ledge",
+			(b.minX + b.maxX) / 2,
+			cy,
+			b.minZ - w / 2,
+			b.maxX - b.minX + w * 2,
+			h,
+			w,
+			"concrete"
+		),
+		Q
+	)
+	art(
+		box(
+			boxes,
+			"ledge",
+			(b.minX + b.maxX) / 2,
+			cy,
+			b.maxZ + w / 2,
+			b.maxX - b.minX + w * 2,
+			h,
+			w,
+			"concrete"
+		),
+		Q
+	)
+	art(box(boxes, "ledge", b.maxX + w / 2, cy, (b.minZ + b.maxZ) / 2, w, h, b.maxZ - b.minZ, "concrete"), Q)
+	strip(Q, b.minX - w, b.maxX + w, cy, b.minZ - w / 2, h, w, step)
+	strip(Q, b.minX - w, b.maxX + w, cy, b.maxZ + w / 2, h, w, step)
+	strip(Q, b.minZ, b.maxZ, cy, b.maxX + w / 2, h, w, step, true)
 	-- the west wall, with the Sunken Line's tunnel mouth in it
 	local L = D.sunkenLine
 	local gz0, gz1 = L.z - L.width / 2, L.z + L.width / 2
 	local gTop = L.floor + L.height
 	local wx = b.minX - w / 2
-	box(boxes, "ledge", wx, cy, (b.minZ + gz0) / 2, w, h, gz0 - b.minZ, "concrete")
-	box(boxes, "ledge", wx, cy, (gz1 + b.maxZ) / 2, w, h, b.maxZ - gz1, "concrete")
-	box(boxes, "ledge", wx, (top + gTop) / 2, L.z, w, top - gTop, L.width, "concrete")
+	art(box(boxes, "ledge", wx, cy, (b.minZ + gz0) / 2, w, h, gz0 - b.minZ, "concrete"), Q)
+	art(box(boxes, "ledge", wx, cy, (gz1 + b.maxZ) / 2, w, h, b.maxZ - gz1, "concrete"), Q)
+	art(box(boxes, "ledge", wx, (top + gTop) / 2, L.z, w, top - gTop, L.width, "concrete"), Q)
+	strip(Q, b.minZ, gz0, cy, wx, h, w, step, true)
+	strip(Q, gz1, b.maxZ, cy, wx, h, w, step, true)
+	strip(Q, gz0, gz1, (top + gTop) / 2, wx, top - gTop, w, step, true)
 	-- a warning sign over the mouth
 	box(boxes, "glow", wx + w / 2 + 0.3, gTop + 3, L.z, 0.4, 3, 14, "line")
 end
@@ -270,26 +406,53 @@ local function sunkenLine(Config: any, terrain: { Fill }, boxes: { Box }, rescue
 	fill(terrain, "water", st.maxX, floor, z0, L.fromX, ceil, z1)
 	local len = L.fromX - st.maxX
 	local mx = (L.fromX + st.maxX) / 2
-	box(boxes, "sidewalk", mx, floor - w / 2, L.z, len, w, L.width + w * 2, "tunnel")
-	box(boxes, "sidewalk", mx, ceil + w / 2, L.z, len, w, L.width + w * 2, "tunnel")
-	box(boxes, "sidewalk", mx, (floor + ceil) / 2, z0 - w / 2, len, L.height, w, "tunnel")
-	box(boxes, "sidewalk", mx, (floor + ceil) / 2, z1 + w / 2, len, L.height, w, "tunnel")
+	local T = "TunnelSegment"
+	art(box(boxes, "sidewalk", mx, floor - w / 2, L.z, len, w, L.width + w * 2, "tunnel"), T)
+	art(box(boxes, "sidewalk", mx, ceil + w / 2, L.z, len, w, L.width + w * 2, "tunnel"), T)
+	art(box(boxes, "sidewalk", mx, (floor + ceil) / 2, z0 - w / 2, len, L.height, w, "tunnel"), T)
+	art(box(boxes, "sidewalk", mx, (floor + ceil) / 2, z1 + w / 2, len, L.height, w, "tunnel"), T)
 	-- the rails and a line of lamps (dark now)
 	for _, dz in { -3, 3 } do
-		box(boxes, "prop", mx, floor + 0.3, L.z + dz, len, 0.6, 0.6, "steel")
+		art(box(boxes, "prop", mx, floor + 0.3, L.z + dz, len, 0.6, 0.6, "steel"), T)
 	end
+	-- the tunnel's look in segments about 20 studs long: tiles, ribs, rails and sleepers, porthole lamps
+	strip(T, st.maxX, L.fromX, (floor + ceil) / 2, L.z, L.height + w * 2, L.width + w * 2, 20)
 	-- the station: wider, with a platform along its south side and a row of pillars
 	local sz0, sz1 = L.z - st.width / 2, L.z + st.width / 2
 	local slen = st.maxX - st.minX
 	local smx = (st.minX + st.maxX) / 2
 	fill(terrain, "water", st.minX, floor, sz0, st.maxX, ceil, sz1)
-	box(boxes, "sidewalk", smx, floor - w / 2, L.z, slen + w, w, st.width + w * 2, "tunnel")
-	box(boxes, "sidewalk", smx, ceil + w / 2, L.z, slen + w, w, st.width + w * 2, "tunnel")
-	box(boxes, "sidewalk", smx, (floor + ceil) / 2, sz0 - w / 2, slen + w, L.height, w, "tunnel")
-	box(boxes, "sidewalk", smx, (floor + ceil) / 2, sz1 + w / 2, slen + w, L.height, w, "tunnel")
-	box(boxes, "sidewalk", st.minX - w / 2, (floor + ceil) / 2, L.z, w, L.height, st.width + w * 2, "tunnel")
+	local S = "StationShell"
+	art(box(boxes, "sidewalk", smx, floor - w / 2, L.z, slen + w, w, st.width + w * 2, "tunnel"), S)
+	art(box(boxes, "sidewalk", smx, ceil + w / 2, L.z, slen + w, w, st.width + w * 2, "tunnel"), S)
+	art(box(boxes, "sidewalk", smx, (floor + ceil) / 2, sz0 - w / 2, slen + w, L.height, w, "tunnel"), S)
+	art(box(boxes, "sidewalk", smx, (floor + ceil) / 2, sz1 + w / 2, slen + w, L.height, w, "tunnel"), S)
+	art(
+		box(
+			boxes,
+			"sidewalk",
+			st.minX - w / 2,
+			(floor + ceil) / 2,
+			L.z,
+			w,
+			L.height,
+			st.width + w * 2,
+			"tunnel"
+		),
+		S
+	)
+	-- the station's whole shell, one look: tiled walls, porthole windows, ceiling lamps, the tunnel's portal
+	place(
+		S,
+		(st.minX - w + st.maxX + w) / 2,
+		(floor + ceil) / 2,
+		L.z,
+		slen + w * 2,
+		L.height + w * 2,
+		st.width + w * 2
+	)
 	-- the station's side walls step in to the tunnel's at its east end
-	box(
+	local step1 = box(
 		boxes,
 		"sidewalk",
 		st.maxX + w / 2,
@@ -300,7 +463,7 @@ local function sunkenLine(Config: any, terrain: { Fill }, boxes: { Box }, rescue
 		z0 - sz0,
 		"tunnel"
 	)
-	box(
+	local step2 = box(
 		boxes,
 		"sidewalk",
 		st.maxX + w / 2,
@@ -311,10 +474,25 @@ local function sunkenLine(Config: any, terrain: { Fill }, boxes: { Box }, rescue
 		sz1 - z1,
 		"tunnel"
 	)
-	box(boxes, "plaza", smx, floor + st.platform / 2, sz0 + 9, slen, st.platform, 18, "concrete")
+	art(step1, S)
+	art(step2, S)
+	art(
+		box(boxes, "plaza", smx, floor + st.platform / 2, sz0 + 9, slen, st.platform, 18, "concrete"),
+		"StationPlatform"
+	)
+	place("StationPlatform", smx, floor + st.platform / 2, sz0 + 9, slen, st.platform, 18)
 	for i = 0, 4 do
 		local px = st.minX + 8 + i * (slen - 16) / 4
-		box(
+		place(
+			"StationPillar",
+			px,
+			(floor + st.platform + ceil) / 2,
+			sz0 + 18,
+			2.5,
+			L.height - st.platform,
+			2.5
+		)
+		local pillar = box(
 			boxes,
 			"ledge",
 			px,
@@ -325,16 +503,21 @@ local function sunkenLine(Config: any, terrain: { Fill }, boxes: { Box }, rescue
 			2.5,
 			"white"
 		)
+		art(pillar, "StationPillar")
 	end
 	box(boxes, "glow", smx, ceil - 1.5, sz0 + 0.4, 30, 2.5, 0.4, "line") -- the station's name board
 	-- flooded train cars, each with a commuter in an air pocket
 	local c = L.car
 	for i, cx in L.cars do
 		local cy = floor + 0.8 + c.height / 2
-		box(boxes, "prop", cx, cy, L.z, c.length, c.height, c.width, "trainCar")
-		box(boxes, "band", cx, cy + 1.5, L.z - c.width / 2 - 0.05, c.length - 4, 3, 0.3, "glass")
-		box(boxes, "band", cx, cy + 1.5, L.z + c.width / 2 + 0.05, c.length - 4, 3, 0.3, "glass")
-		box(boxes, "prop", cx, cy - 2.5, L.z, c.length + 0.2, 1, c.width + 0.2, "trainStripe")
+		local C = "TrainCar"
+		art(box(boxes, "prop", cx, cy, L.z, c.length, c.height, c.width, "trainCar"), C)
+		art(box(boxes, "band", cx, cy + 1.5, L.z - c.width / 2 - 0.05, c.length - 4, 3, 0.3, "glass"), C)
+		art(box(boxes, "band", cx, cy + 1.5, L.z + c.width / 2 + 0.05, c.length - 4, 3, 0.3, "glass"), C)
+		art(box(boxes, "prop", cx, cy - 2.5, L.z, c.length + 0.2, 1, c.width + 0.2, "trainStripe"), C)
+		-- the car's look stands on the floor (its bogies fill the gap under the box)
+		local top = cy + c.height / 2
+		place(C, cx, (floor + top) / 2, L.z, c.length + 0.2, top - floor, c.width + 0.8)
 		table.insert(rescues, { id = i, x = cx, y = cy + c.height / 2 + 2.5, z = L.z, area = "line" })
 	end
 	table.insert(rescues, {
@@ -347,6 +530,11 @@ local function sunkenLine(Config: any, terrain: { Fill }, boxes: { Box }, rescue
 end
 
 local REEF_COLORS = { "coralA", "coralB", "coralC", "coralD" }
+-- each coral shape's looks (art/blender/deep.py), one picked by the spot
+local BALLS = { "CoralBrain", "CoralKnob", "CoralStag" }
+local TUBES = { "CoralTube", "CoralFinger" }
+local FANS = { "CoralFan", "CoralLace" }
+DeepLayout.CORALS = { balls = BALLS, tubes = TUBES, fans = FANS }
 
 local function shelf(Config: any, boxes: { Box }, rng: any)
 	local D = Config.Deep
@@ -363,21 +551,31 @@ local function shelf(Config: any, boxes: { Box }, rng: any)
 			local ox, oz = rng:range(-10, 10), rng:range(-10, 10)
 			local col = REEF_COLORS[rng:int(1, #REEF_COLORS)]
 			local kind = rng:int(1, 3)
+			local px, pz = x + ox, z + oz
 			if kind == 1 then
 				local r = rng:range(3, 7)
-				box(boxes, "prop", x + ox, f + r * 0.4, z + oz, r, r, r, col, { shape = "ball" })
+				local look = BALLS[pick(px, pz, #BALLS)]
+				art(box(boxes, "prop", px, f + r * 0.4, pz, r, r, r, col, { shape = "ball" }), look)
+				place(look, px, f + r * 0.4, pz, r, r, r, spin(px, pz), col)
 			elseif kind == 2 then
 				local h = rng:range(4, 10)
-				box(boxes, "prop", x + ox, f + h / 2, z + oz, 1.6, h, 1.6, col, { shape = "cylinder" })
+				local look = TUBES[pick(px, pz, #TUBES)]
+				art(box(boxes, "prop", px, f + h / 2, pz, 1.6, h, 1.6, col, { shape = "cylinder" }), look)
+				place(look, px, f + h / 2, pz, 3.2, h, 3.2, spin(px, pz), col)
 			else
 				local h = rng:range(4, 8)
-				box(boxes, "prop", x + ox, f + h / 2, z + oz, h, h, 0.4, col, { ry = rng:range(0, 180) })
+				local fry = rng:range(0, 180)
+				local look = FANS[pick(px, pz, #FANS)]
+				art(box(boxes, "prop", px, f + h / 2, pz, h, h, 0.4, col, { ry = fry }), look)
+				place(look, px, f + h / 2, pz, h, h, 1.2, fry, col)
 			end
 		end
 		-- kelp stands taller
 		for _ = 1, rng:int(1, 3) do
 			local h = rng:range(8, math.max(9, -f - 4))
-			box(boxes, "crop", x + rng:range(-14, 14), f + h / 2, z + rng:range(-14, 14), 0.8, h, 0.8, "kelp")
+			local kx, kz = x + rng:range(-14, 14), z + rng:range(-14, 14)
+			art(box(boxes, "crop", kx, f + h / 2, kz, 0.8, h, 0.8, "kelp"), "KelpStrand")
+			place("KelpStrand", kx, f + h / 2, kz, 5, h, 5, spin(kx, kz), "kelp", "kelp")
 		end
 	end
 	-- shipwrecks: a hull on its side, a bow, a cabin and a broken mast
@@ -391,10 +589,17 @@ local function shelf(Config: any, boxes: { Box }, rng: any)
 		local ry = rng:range(0, 180)
 		local a = math.rad(ry)
 		local fx, fz = math.sin(a), math.cos(a)
-		box(boxes, "rock", x, f + 6, z, 14, 12, 60, "wreck", { ry = ry })
-		box(boxes, "rock", x + fx * 38, f + 6, z + fz * 38, 14, 12, 16, "wreck", { shape = "wedge", ry = ry })
-		box(boxes, "prop", x - fx * 14, f + 15, z - fz * 14, 10, 7, 12, "rust", { ry = ry })
-		box(boxes, "prop", x + fx * 4 + 14, f + 3, z + fz * 4, 2, 2, 36, "wood", { ry = ry + 70 })
+		art(box(boxes, "rock", x, f + 6, z, 14, 12, 60, "wreck", { ry = ry }), "WreckHull")
+		place("WreckHull", x, f + 6, z, 14, 12, 60, ry)
+		local bx, bz = x + fx * 38, z + fz * 38
+		art(box(boxes, "rock", bx, f + 6, bz, 14, 12, 16, "wreck", { shape = "wedge", ry = ry }), "WreckBow")
+		place("WreckBow", bx, f + 6, bz, 14, 12, 16, ry)
+		local cx, cz = x - fx * 14, z - fz * 14
+		art(box(boxes, "prop", cx, f + 15, cz, 10, 7, 12, "rust", { ry = ry }), "WreckCabin")
+		place("WreckCabin", cx, f + 15, cz, 10, 7, 12, ry)
+		local mx, mz = x + fx * 4 + 14, z + fz * 4
+		art(box(boxes, "prop", mx, f + 3, mz, 2, 2, 36, "wood", { ry = ry + 70 }), "WreckMast")
+		place("WreckMast", mx, f + 3, mz, 5, 2.4, 36, ry + 70)
 	end
 end
 
@@ -464,6 +669,8 @@ function DeepLayout.build(Config: any): Layout
 	local D = Config.Deep
 	local rng = Rng.new(D.shelf.seed)
 	local boxes: { Box } = {}
+	local placed: { Place } = {}
+	building.art = placed
 	local terrain: { Fill } = {}
 	local rescues: { Spot } = {}
 	local cacheSpots: { Spot } = {}
@@ -474,11 +681,14 @@ function DeepLayout.build(Config: any): Layout
 	shelf(Config, boxes, rng)
 	caches(Config, Rng.new(D.caches.seed), cacheSpots, factory)
 	for _, c in cacheSpots do
-		box(boxes, "prop", c.x, c.y, c.z, 6, 4, 6, "cargo", { tag = "cache", ref = c.id })
+		art(box(boxes, "prop", c.x, c.y, c.z, 6, 4, 6, "cargo", { tag = "cache", ref = c.id }), "CacheChest")
+		place("CacheChest", c.x, c.y, c.z, 6, 4, 6, spin(c.x, c.z) // 90 * 90) -- (square: quarter turns)
 	end
+	building.art = {}
 	local a = D.trench.arena
 	return {
 		boxes = boxes,
+		art = placed,
 		terrain = terrain,
 		caches = cacheSpots,
 		rescues = rescues,
