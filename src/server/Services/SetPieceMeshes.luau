@@ -80,8 +80,14 @@ function SetPieceMeshes.add(parent: Instance, place: SetPieceKit.Place, cf: CFra
 		local src = source(m.name)
 		if src then
 			local p = src:Clone()
+			-- a textured mesh keeps its SurfaceAppearance (the baked colour, normal, roughness and metal maps; the
+			-- colour map's alpha shows the part colour below, so a tint still paints it); anything else goes
 			for _, c in p:GetChildren() do
-				c:Destroy()
+				if m.maps and c:IsA("SurfaceAppearance") then
+					c.AlphaMode = Enum.AlphaMode.Overlay
+				else
+					c:Destroy()
+				end
 			end
 			p.Name = m.name
 			p.Anchored = true

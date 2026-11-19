@@ -44,6 +44,7 @@ local DataService = require(script.Parent.DataService)
 local CitizenService = require(script.Parent.CitizenService)
 local PerfMonitor = require(script.Parent.PerfMonitor)
 local SiteKit = require(script.Parent.SiteKit)
+local SetPieceMeshes = require(script.Parent.SetPieceMeshes)
 
 local IncidentService = {}
 
@@ -327,21 +328,32 @@ local function holdProp(inc: Live, kind: string, at: Vector3)
 	table.insert(inc.things, m)
 end
 
+-- The towed car: the hub's sedan look in red (Art.Vehicles) over its two boxes once imported; the boxes before
+local TOWED_TINT = { CarSedanBody = { 200, 70, 60 } }
 local function carModel(m: Model)
-	SiteKit.part(
+	local body = SiteKit.part(
 		m,
 		Vector3.new(6, 3, 11),
 		CFrame.new(0, 2, 0),
 		Color3.fromRGB(200, 70, 60),
 		Enum.Material.Metal
 	)
-	SiteKit.part(
+	local glass = SiteKit.part(
 		m,
 		Vector3.new(5.6, 2.2, 6),
 		CFrame.new(0, 4.4, 0.5),
 		Color3.fromRGB(150, 200, 230),
 		Enum.Material.Glass
 	)
+	if SetPieceMeshes.ready("CarSedan") then
+		SetPieceMeshes.hide(body)
+		SetPieceMeshes.hide(glass)
+		SetPieceMeshes.add(
+			m,
+			{ look = "CarSedan", x = 0, y = 0, z = 0, ry = 0, tint = TOWED_TINT },
+			CFrame.new()
+		)
+	end
 end
 
 -- A step's big moment: a toast line and its juice action for the heroes near it (Config.Incidents.beats)

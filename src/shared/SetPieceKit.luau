@@ -37,6 +37,7 @@ export type Mesh = {
 	color: { number },
 	mat: string,
 	alpha: number,
+	maps: boolean, -- the mesh carries a baked texture set (a SurfaceAppearance; its colour map lets `color` show)
 }
 
 -- The side quest escort trucks that have their own look (Config.SideQuests chain id -> look); the others (the
@@ -133,6 +134,7 @@ function SetPieceKit.meshes(Config: any, place: Place): { Mesh }
 			color = tint or f.color,
 			mat = f.mat or "SmoothPlastic",
 			alpha = f.alpha or 0,
+			maps = f.maps == true,
 		})
 	end
 	table.sort(out, function(a, b)
