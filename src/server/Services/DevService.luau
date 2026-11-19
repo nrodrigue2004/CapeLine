@@ -209,6 +209,8 @@ local commands: { [string]: (player: Player, hero: any, value: number) -> () } =
 		end
 	end,
 	wipe = function(player, hero)
+		-- a prologue that was running goes first, or it plays on behind the new creator (fix-flow, 2026-11-19)
+		OpeningService.stop(player)
 		local profile = DataService.resetProfile(player)
 		if profile then
 			HeroService.applyProfile(hero, profile.characters[1], profile.currency)

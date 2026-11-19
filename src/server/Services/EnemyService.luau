@@ -158,7 +158,12 @@ end
 
 -- Story robots: a health multiplier (mission bosses), a damage multiplier (0 never attacks back) and a
 -- set number of hits to defeat (the opening's drones: 2 and 4)
-function EnemyService.tune(id: number, opts: { hpMult: number?, dmgMult: number?, hits: number? })
+-- (untouchable: no hero can hurt, stun, knock or grab it until tuned again with untouchable false; the
+-- prologue's rooftop Skylance, fix-flow 2026-11-19)
+function EnemyService.tune(
+	id: number,
+	opts: { hpMult: number?, dmgMult: number?, hits: number?, untouchable: boolean? }
+)
 	local e = sim.byId[id]
 	if e and e.alive then
 		if opts.hpMult then
@@ -167,7 +172,13 @@ function EnemyService.tune(id: number, opts: { hpMult: number?, dmgMult: number?
 		end
 		e.dmgMult = opts.dmgMult
 		e.hitLife = opts.hits
+		e.untouchable = opts.untouchable or nil
 	end
+end
+
+function EnemyService.untouchable(id: number): boolean
+	local e = sim.byId[id]
+	return e ~= nil and e.untouchable == true
 end
 
 local function forgetIdent(id: number)

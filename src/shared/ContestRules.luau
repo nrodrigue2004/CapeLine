@@ -62,6 +62,28 @@ function ContestRules.canEnter(K: any, entries: { number }, userId: number, dist
 	return true, nil
 end
 
+-- GO TO THE STAGE (fix-flow, 2026-11-19): what the button does for this player now. "enter" (in range: step
+-- on), "travel" (away: fly there first, then step on), or false with why ("closed" outside the call, "in",
+-- "full"). The flight's own rules (combat, cooldown, a scene) are Travel.canGo's.
+function ContestRules.goPlan(
+	K: any,
+	phase: string,
+	entries: { number },
+	userId: number,
+	dist: number
+): (string | false, string?)
+	if phase ~= "call" then
+		return false, "closed"
+	end
+	local ok, why = ContestRules.canEnter(K, entries, userId, dist)
+	if ok then
+		return "enter", nil
+	elseif why == "far" then
+		return "travel", nil
+	end
+	return false, why
+end
+
 -- May this player vote? (on the server 2 minutes, not a contestant)
 function ContestRules.canVote(K: any, joinedAt: number, now: number, isEntry: boolean): boolean
 	return not isEntry and now - joinedAt >= K.voteAfter

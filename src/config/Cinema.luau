@@ -28,6 +28,9 @@ return {
 		scan = { bit = 1, beat = "scan" },
 		rescue = { bit = 2, beat = "rescue" },
 		title = { bit = 3, beat = "title" },
+		-- the exposition before the creator (fix-flow, 2026-11-19): played by the server's OpeningIntro, SKIP any time
+		-- after Config.Story.opening.intro.skipAfter (bit 131: Cinema.wideBits)
+		intro = { bit = 131, client = true, seconds = 18, comic = "intro" },
 		-- the Dev panel's sample in-engine scene: a slow orbit round the hero, a push up and a look out at
 		-- the city, with two of Patch's lines (any safe moment)
 		cityWatch = {
@@ -1154,6 +1157,49 @@ return {
 
 	comic = {
 		pages = {
+			-- The exposition a brand-new hero sees before the creator (fix-flow, 2026-11-19; Config.Story.opening.intro):
+			-- who you are, Brightharbor, the Spark, the hunt and Crane's machines, in the lore's own facts (Crane's
+			-- ceremony line, Lodestar's safehouse line). PLACEHOLDER ART: the drawn panels until the comic art pass
+			-- renders them (art/blender/panels.py; Config.ComicArt "intro.<n>").
+			intro = {
+				title = "BRIGHTHARBOR",
+				panels = {
+					{
+						rect = { 0.03, 0.12, 0.45, 0.4 },
+						sky = { 150, 210, 255 },
+						ground = { 70, 80, 100 },
+						scene = "city",
+						caption = "Brightharbor: a bright city by the sea, cheering for its famous heroes.",
+						at = 0,
+					},
+					{
+						rect = { 0.52, 0.12, 0.45, 0.4 },
+						sky = { 255, 196, 120 },
+						ground = { 70, 60, 80 },
+						scene = "blast",
+						caption = "Ten years ago the Spark woke powers in people, and it nearly tore the city apart.",
+						word = "KRAK!",
+						at = 3.5,
+					},
+					{
+						rect = { 0.03, 0.56, 0.45, 0.38 },
+						sky = { 120, 60, 70 },
+						ground = { 40, 34, 50 },
+						scene = "scan",
+						caption = "Now Crane Industries scans for the Spark, and Crane's machines hunt anyone who has it.",
+						at = 7.5,
+					},
+					{
+						rect = { 0.52, 0.56, 0.45, 0.38 },
+						sky = { 255, 240, 200 },
+						ground = { 90, 80, 90 },
+						scene = "spark",
+						caption = "Today the Spark woke in you. Nobody knows yet. So... who are you?",
+						word = "ZAP!",
+						at = 11.5,
+					},
+				},
+			},
 			-- "The old heroes' last stand" (the Crater lore: a Crane lab blew up in the battle where the old
 			-- heroes fell). A neutral sample; Crane's own backstory pages wait for nate (Act 2).
 			lastStand = {

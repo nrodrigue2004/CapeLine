@@ -205,7 +205,7 @@ local function drawStory(j: any)
 			nil,
 			22
 		)
-		-- lore step 5: mission 1 is the Ceremony prologue (replayed from the main menu, not the board)
+		-- lore step 5: mission 1 is the Ceremony prologue (its REPLAY plays the exposition, then the prologue)
 		local label = string.format(STATE_TEXT[st] or "", m.minLevel)
 			.. (if m.opening then "  (PROLOGUE)" else "")
 		local col = if st == "done"
@@ -224,7 +224,7 @@ local function drawStory(j: any)
 				Kit.bodyFont
 			)
 		end
-		if not m.opening and (st == "open" or st == "done") then
+		if (st == "open" or st == "done") and (not m.opening or st == "done") then
 			local b = Kit.button({
 				Text = if st == "done" then "REPLAY" else "START",
 				AnchorPoint = Vector2.new(1, 0.5),
@@ -232,7 +232,12 @@ local function drawStory(j: any)
 				Size = UDim2.fromOffset(100, U.touchTarget - 8),
 				maxText = 20,
 			}, function()
-				StoryClient.enter(num)
+				if m.opening then
+					-- fix-flow (2026-11-19): the exposition again, then the prologue (out in the city only)
+					StoryClient.replayPrologue()
+				else
+					StoryClient.enter(num)
+				end
 				Journal.close()
 			end)
 			b.Parent = r

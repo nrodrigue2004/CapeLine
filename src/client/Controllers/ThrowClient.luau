@@ -8,6 +8,11 @@
 -- (or tumbling) robot you could hold; holding a robot's wreck or a robot, a tap of attack SWINGS it (a wide arc
 -- that hits robots and breaks walls), a held attack (or the last swing used) THROWS it. SwingFx draws everyone's
 -- swings.
+-- Holding (fix-carry, nate after gaps7: "i should actually hold them"): ThrowService welds a carried prop into
+-- the carrier's hands (Shared.CarryPose); this moves it on every device during the moments the hands leave the
+-- hold pose (the lift, the swings and the slam: it follows the right hand), bobs a telekinesis float and whirls
+-- it on a swing, and draws everyone's held live robots in their hands (EnemyRenderer.heldAt), from the same
+-- CarryPose sums the server uses for the hits. All local: the Weld's C0 is set on this device only.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -28,6 +33,9 @@ local StoryClient = require(script.Parent.StoryClient)
 local EnemyRenderer = require(script.Parent.EnemyRenderer)
 local CombatFx = require(script.Parent.Parent.Fx.CombatFx)
 local HeroAnimator = require(script.Parent.HeroAnimator)
+local CarryPose = require(Shared:WaitForChild("CarryPose"))
+local HeroAnim = require(Shared:WaitForChild("HeroAnim"))
+local RigJoints = require(Shared:WaitForChild("RigJoints"))
 local State = require(script.Parent.Parent.State)
 
 local ThrowClient = {}
@@ -201,6 +209,212 @@ local function step()
 	end
 end
 
+---------------------------------------------------------------------------
+-- Holding: the carried thing in the hands on this device (fix-carry)
+---------------------------------------------------------------------------
+
+local HOLD_RANGE = 220 -- carriers farther from the camera than this keep the plain weld
+local M = T.mind
+type Carrier = {
+	char: Model?,
+	weld: Weld?,
+	robot: number?,
+	grip: string?,
+	hold: CarryPose.Hold?, -- a held robot's hold, worked out here from the carrier's own joints
+	holdH: number?,
+	whirl: { start: number, yaw: number }?, -- a swing's whirl round a telekinesis carrier (world yaw)
+	glow: Highlight?,
+}
+local carriers: { [Player]: Carrier } = {}
+local robotHeld: { [number]: Player } = {} -- robot id -> who holds it
+
+local function toCF(c: CarryPose.CF): CFrame
+	return CFrame.new(table.unpack(CarryPose.components(c)))
+end
+
+-- a carrier's R15 arm from its own joints (Motor6Ds or AnimationConstraints), the way ThrowService reads it
+local function bodyOf(char: Model): CarryPose.Body?
+	local joints = RigJoints.of(char)
+	local body: CarryPose.Body = { joints = {}, sizes = {} }
+	for _, j in CarryPose.JOINTS do
+		local m = joints[j[1]]
+		if not m then
+			return nil
+		end
+		local c0, c1 = (m :: any).C0, (m :: any).C1
+		table.insert(body.joints, {
+			name = j[1],
+			part0 = j[2],
+			part1 = j[3],
+			c0 = CarryPose.fromComponents({ c0:GetComponents() }),
+			c1 = CarryPose.fromComponents({ c1:GetComponents() }),
+		})
+	end
+	for _, n in { "Head", "RightHand", "LeftHand" } do
+		local p = char:FindFirstChild(n)
+		if p and p:IsA("BasePart") then
+			body.sizes[n] = { p.Size.X, p.Size.Y, p.Size.Z }
+		end
+	end
+	return body
+end
+
+local function refresh(p: Player)
+	local kind = p:GetAttribute("Carrying")
+	local old = carriers[p]
+	if old and old.robot then
+		robotHeld[old.robot] = nil
+	end
+	if old and old.glow then
+		old.glow:Destroy()
+	end
+	if not kind then
+		carriers[p] = nil
+		return
+	end
+	local robot = p:GetAttribute("CarryRobot")
+	local c: Carrier = {
+		char = p.Character,
+		robot = if type(robot) == "number" then robot else nil,
+		grip = p:GetAttribute("CarryGrip") :: any,
+	}
+	carriers[p] = c
+	if c.robot then
+		robotHeld[c.robot] = p
+	end
+end
+
+local function track(p: Player)
+	for _, name in { "Carrying", "CarryGrip", "CarryRobot" } do
+		p:GetAttributeChangedSignal(name):Connect(function()
+			refresh(p)
+		end)
+	end
+	refresh(p)
+end
+
+-- the box's middle in its weld part's frame now: the hold, following the right hand through the lift and the
+-- swings (blended by the clip's weight), bobbing or whirling for telekinesis
+local function boxNow(
+	p: Player,
+	c: Carrier,
+	char: Model,
+	part0: BasePart,
+	base: CFrame,
+	hand: CFrame,
+	now: number
+): CFrame
+	if c.grip == "mind" then
+		local w = c.whirl
+		if w then
+			local u = (now - w.start) / T.swing.time
+			if u < 1 then
+				local root = char:FindFirstChild("HumanoidRootPart") :: BasePart?
+				if root then
+					local v = CarryPose.whirl(T, w.yaw, u)
+					local world = CFrame.new(root.Position + Vector3.new(v[1], v[2], v[3]))
+						* root.CFrame.Rotation
+					return part0.CFrame:Inverse() * world * base.Rotation
+				end
+			else
+				c.whirl = nil
+			end
+		end
+		return CFrame.new(0, math.sin(now * M.bobRate + p.UserId % 7) * M.bob, 0) * base
+	end
+	local clip, t, dur = HeroAnimator.actionOf(p)
+	if clip and CarryPose.FOLLOW[clip] then
+		local rh = char:FindFirstChild("RightHand") :: BasePart?
+		local w = HeroAnim.actionWeight(t, dur)
+		if rh and w > 0 then
+			return base:Lerp(part0.CFrame:Inverse() * rh.CFrame * hand, w)
+		end
+	end
+	return base
+end
+
+-- Props: the carry Weld's C0 on this device (PreSimulation, so the physics step solves it this frame)
+local function holdStep()
+	local now = os.clock()
+	local cam = Workspace.CurrentCamera
+	local eye = if cam then cam.CFrame.Position else Vector3.zero
+	for p, c in carriers do
+		local char = p.Character
+		if c.robot or not char then
+			continue
+		end
+		if not (c.weld and c.weld.Parent and c.char == char) then
+			c.char = char
+			local w = char:FindFirstChild("CarryWeld", true)
+			c.weld = if w and w:IsA("Weld") then w else nil
+		end
+		local weld = c.weld
+		local part0 = weld and weld.Part0
+		if not (weld and part0) then
+			continue
+		end
+		if (part0.Position - eye).Magnitude > HOLD_RANGE then
+			continue
+		end
+		local base, hand, offset =
+			weld:GetAttribute("CarryBase"), weld:GetAttribute("CarryHand"), weld:GetAttribute("CarryOffset")
+		if typeof(base) ~= "CFrame" or typeof(hand) ~= "CFrame" or typeof(offset) ~= "CFrame" then
+			continue
+		end
+		local c0 = boxNow(p, c, char, part0, base, hand, now) * offset
+		if c0 ~= weld.C0 then
+			weld.C0 = c0
+		end
+	end
+end
+
+-- Robots: where EnemyRenderer draws a held one (its middle in the world), from the carrier's hands now
+local function robotAt(id: number, height: number): CFrame?
+	local p = robotHeld[id]
+	local c = p and carriers[p]
+	local char = p and p.Character
+	if not (c and char) then
+		return nil
+	end
+	if not c.hold or c.holdH ~= height or c.char ~= char then
+		local body = bodyOf(char)
+		if not body then
+			return nil
+		end
+		local grip = c.grip or "overhead"
+		c.char = char
+		c.holdH = height
+		c.hold = CarryPose.hold(
+			T,
+			body,
+			grip,
+			HeroAnim.sample(CarryPose.CLIP[grip] or "carry", 0),
+			CarryPose.robotSize(height),
+			true
+		)
+	end
+	local hold = c.hold :: CarryPose.Hold
+	local part0 = char:FindFirstChild(hold.part) :: BasePart?
+	if not part0 then
+		return nil
+	end
+	if c.grip == "mind" and not c.glow then
+		local m = EnemyRenderer.modelOf(id)
+		local rgb = M.glow[p:GetAttribute("PowerSet") :: any] or M.glow.Mind
+		if m then
+			local h = Instance.new("Highlight")
+			h.FillColor = Color3.fromRGB(rgb[1], rgb[2], rgb[3])
+			h.OutlineColor = h.FillColor
+			h.FillTransparency = 0.75
+			h.DepthMode = Enum.HighlightDepthMode.Occluded
+			h.Adornee = m
+			h.Parent = m
+			c.glow = h
+		end
+	end
+	return part0.CFrame * boxNow(p, c, char, part0, toCF(hold.c0), toCF(hold.hand), os.clock())
+end
+
 function ThrowClient.init()
 	gui = Instance.new("BillboardGui")
 	gui.Name = "GrabPrompt"
@@ -286,6 +500,10 @@ function ThrowClient.init()
 			3
 		)
 		local who = if type(d.u) == "number" then Players:GetPlayerByUserId(d.u) else nil
+		local held = who and carriers[who]
+		if held and held.grip == "mind" then
+			held.whirl = { start = os.clock(), yaw = math.atan2(-dir.X, -dir.Z) }
+		end
 		if who then
 			HeroAnimator.robotSwing(who, if type(d.n) == "number" then d.n else nil, d.slam == true)
 		end
@@ -312,6 +530,19 @@ function ThrowClient.init()
 		MoveController.setScale("carry", nil)
 	end)
 	RunService.Heartbeat:Connect(FrameProf.wrap("ThrowClient", step))
+	for _, p in Players:GetPlayers() do
+		track(p)
+	end
+	Players.PlayerAdded:Connect(track)
+	Players.PlayerRemoving:Connect(function(p)
+		local c = carriers[p]
+		if c and c.robot then
+			robotHeld[c.robot] = nil
+		end
+		carriers[p] = nil
+	end)
+	EnemyRenderer.heldAt = robotAt
+	RunService.PreSimulation:Connect(FrameProf.wrap("ThrowHold", holdStep))
 end
 
 return ThrowClient

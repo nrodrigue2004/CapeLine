@@ -358,6 +358,37 @@ return {
 		-- the higher end flat * lift (clamped to `height`); the server grants the travel (MoveGuard)
 		hop = { speed = 62, fall = 160, time = { 0.8, 2.2 }, lift = 0.22, height = { 8, 22 }, grant = 30 },
 		chase = { fake = "Skylance", behind = 26, throwEvery = 3.2, warn = 0.7 }, -- harmless telegraphed spears
+		-- The rooftop chase as a cinematic with quick-time prompts (fix-flow, nate's playtest 2026-11-19: "I can
+		-- literally just kill skylance while im doing rooftop stuff. It should be a cutscene with QTE's"; Shared.QtePlan,
+		-- Fx.PrologueQte, Ui.QteHud). On the `beats` the hero's own controls rest and the camera is the chase camera;
+		-- every hop is a prompt: JUMP (the Leap key, A, or a tap on the prompt) and, on the `dodge` hops of the chase,
+		-- a DODGE first (the Block key, LB, or a tap) as Skylance's spear comes in. The prompt shows `lead` s after
+		-- the hero lands and is open for `window` s (`ease` times longer after a miss); a press before it shows is
+		-- ignored, a wrong prompt key or no press is a miss: the hero teeters (no damage) and the prompt comes back
+		-- `retry` s later; after `assist` misses in a row the hop happens by itself, so nobody is stuck. Skylance
+		-- cannot be hurt, stunned, knocked or grabbed until the fight (EnemyService.tune untouchable).
+		qte = {
+			beats = { leap = true, chase = true, descend = true },
+			camera = { leap = true, chase = true, suit = true, descend = true }, -- the chase camera's beats
+			lead = 0.6,
+			window = 2.4,
+			ease = 1.5,
+			retry = 1.2,
+			assist = 3,
+			dodge = { [4] = true, [6] = true }, -- chase hops (route roof numbers) with a DODGE before the JUMP
+			side = 3.5, -- studs the DODGE side-step moves
+			camSide = 24, -- the chase camera: studs to the side of the hop, up and behind
+			camUp = 11,
+			camBack = 10,
+			camEase = 5, -- how fast the camera follows (per second)
+			words = { Leap = "JUMP!", Block = "DODGE!", drop = "DROP!" }, -- the prompt's verb (UI words)
+		},
+		-- The exposition before the creator (fix-flow, nate's playtest 2026-11-19: "The game should open with some
+		-- sort of exposition that tells the player whats going on. get to the customization, then prologue"): a
+		-- brand-new character's first thing is the comic page Config.Cinema.comic.pages[page] (Config.Cinema.scenes
+		-- .intro; SKIP from `skipAfter` s, even the first time), then the creator, then the Ceremony prologue after
+		-- PLAY (Shared.FlowPlan). The server opens the creator by itself if the device never answers in `timeout` s.
+		intro = { page = "intro", scene = "intro", skipAfter = 1.5, timeout = 45 },
 		suit = { pieceGap = 0.16 }, -- the suit snaps on piece by piece this fast
 		entrance = { minD = 20, maxD = 80 }, -- the subway steps: open ground below the last roof
 		-- the subway pocket: Config.Story.pockets index count + 1 (missions never take it), one lane per prologue

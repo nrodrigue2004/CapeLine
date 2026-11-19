@@ -127,6 +127,9 @@ export type Enemy = {
 	lastX: number,
 	lastZ: number,
 	scripted: boolean?,
+	-- a story robot no hero can touch yet (fix-flow, 2026-11-19: the prologue's rooftop Skylance until the
+	-- scripted fight): no damage, status, knock, launch or grab, and never a hit candidate
+	untouchable: boolean?,
 	dmgMult: number?, -- the opening's drones: 0 never attacks back, 0.35 a weak one
 	hitLife: number?, -- the opening's drones: any hit takes this share of its health (2 hits, 4 hits)
 	tag: number?, -- the incident, contract site or event that spawned it
@@ -661,6 +664,9 @@ function EnemySim.damage(
 	if not e or not e.alive then
 		return false, nil, 0, EnemySim.HIT
 	end
+	if e.untouchable then
+		return false, e, 0, EnemySim.BLOCKED
+	end
 	local cfg = e.cfg
 	local flag = EnemySim.HIT
 	local dealt = amount * (1 - (cfg.mitigation or 0))
@@ -756,7 +762,7 @@ function EnemySim.applyStatus(
 	opts: Status.ApplyOpts?
 ): number
 	local e = sim.byId[id]
-	if not e or not e.alive then
+	if not e or not e.alive or e.untouchable then
 		return 0
 	end
 	local o: Status.ApplyOpts = if opts then table.clone(opts) else {}
@@ -782,7 +788,7 @@ end
 -- Shift an enemy now (small nudges)
 function EnemySim.push(sim: Sim, id: number, dx: number, dy: number, dz: number)
 	local e = sim.byId[id]
-	if e and e.alive then
+	if e and e.alive and not e.untouchable then
 		if e.cfg.immune and table.find(e.cfg.immune, "knockback") then
 			return
 		end
@@ -806,7 +812,7 @@ end
 -- (Shoulder Charge's Wall Breaker stuns then).
 function EnemySim.knock(sim: Sim, id: number, dx: number, dz: number, distance: number): boolean
 	local e = sim.byId[id]
-	if not e or not e.alive or distance <= 0 then
+	if not e or not e.alive or distance <= 0 or e.untouchable then
 		return false
 	end
 	if e.cfg.immune and table.find(e.cfg.immune, "knockback") then
@@ -855,7 +861,7 @@ function EnemySim.launch(
 	src: number?
 ): boolean
 	local e = sim.byId[id]
-	if not e or not e.alive or distance <= 0 or e.held then
+	if not e or not e.alive or distance <= 0 or e.held or e.untouchable then
 		return false
 	end
 	if e.cfg.immune and table.find(e.cfg.immune, "knockback") then
@@ -1016,7 +1022,7 @@ end
 -- heroId nil lets go.
 function EnemySim.hold(sim: Sim, id: number, heroId: number?)
 	local e = sim.byId[id]
-	if e and e.alive then
+	if e and e.alive and not (heroId and e.untouchable) then
 		e.held = heroId
 		if heroId then
 			e.launch = nil
@@ -2869,7 +2875,8 @@ end
 function EnemySim.candidates(sim: Sim): { any }
 	local out = table.create(#sim.enemies)
 	for _, e in sim.enemies do
-		if e.alive and not e.disguised then -- a disguised Mimic is a citizen until it shows itself
+		-- a disguised Mimic is a citizen until it shows itself; an untouchable story robot is never a target
+		if e.alive and not e.disguised and not e.untouchable then
 			table.insert(out, {
 				id = e.id,
 				x = e.x,
