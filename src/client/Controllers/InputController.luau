@@ -274,6 +274,16 @@ function InputController.holdTouch(input: InputObject, action: string, aim: bool
 	touchHolds[input] = { action = action, last = Vector2.new(input.Position.X, input.Position.Y), aim = aim }
 end
 
+-- A mouse click that pressed a HUD button: let go when the mouse button comes up anywhere (nate's playtest
+-- 2026-11-19, "so many buttons are extremely unreliable"). The button's own InputEnded only comes when the
+-- release is over it; POWERS, GEAR, MAP and the rest open their screen on the press, so the release landed on
+-- that screen, the action stayed down, and the next click was no press at all (it only let go): every
+-- other click did nothing.
+local mouseHolds: { [string]: boolean } = {}
+function InputController.holdMouse(action: string)
+	mouseHolds[action] = true
+end
+
 -- Apply the drag to the camera before Roblox's camera runs (as CameraController's one-hand auto-turn does)
 local function applyAimDrag()
 	if aimYaw == 0 and aimPitch == 0 then
@@ -386,6 +396,10 @@ function InputController.init()
 		end
 		if input.UserInputType == Enum.UserInputType.MouseButton1 then
 			InputController.set("Basic", false)
+			for action in mouseHolds do
+				InputController.set(action, false)
+			end
+			table.clear(mouseHolds)
 			return
 		end
 		local action = KEYS[input.KeyCode]
@@ -400,6 +414,7 @@ function InputController.init()
 	RunService:BindToRenderStep("CapelineAimDrag", Enum.RenderPriority.Camera.Value - 2, applyAimDrag)
 	UserInputService.WindowFocusReleased:Connect(function()
 		table.clear(touchHolds)
+		table.clear(mouseHolds)
 		for action in down do
 			InputController.set(action, false)
 		end

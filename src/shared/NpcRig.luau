@@ -8,6 +8,13 @@
 -- * poses are set on the Motor6Ds' Transform (NpcRig.turn), written only when they change.
 -- The 15 parts use the hero meshes (ReplicatedStorage.Art.Hero, reshaped per body set from Art.Bodies) once
 -- nate imports them, else plain blocks of the same sizes, which is the same blocky body.
+-- nate's playtest (2026-11-19): "Npcs and enemies still don't wear clothes properly", "there are still npcs that
+-- don't look like Roblox avatars". Like the heroes (HeroBody.robloxBody), every rig now uses Roblox's own blocky
+-- R15 meshes (ReplicatedStorage.RobloxBody, published by HeroBody at boot) with an inert Humanoid (no state
+-- machine, no name or health), so real Shirt and Pants composite onto the meshes' own UVs exactly as on any
+-- avatar (NpcRig.setClothes; Config.ClothesSplit gives each side by side clothes image its Shirt and Pants).
+-- Faces come from Roblox's catalog (Config.CatalogLooks) and hair from catalog accessories
+-- (ReplicatedStorage.CatalogLooks). Until RobloxBody is there, the old Texture clothes stay the fallback.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -15,6 +22,16 @@ local RigMath = require(script.Parent.RigMath)
 local ClothesMap = require(script.Parent.ClothesMap)
 
 local NpcRig = {}
+
+-- Config, found once (NpcRig runs on the server and every device; the Config folder is in ReplicatedStorage)
+local cfgCache: any = nil
+local function config(): any
+	if cfgCache == nil then
+		local c = ReplicatedStorage:FindFirstChild("Config")
+		cfgCache = if c then require(c :: any) else false
+	end
+	return cfgCache or nil
+end
 
 export type Rig = {
 	model: Model,
@@ -26,6 +43,12 @@ export type Rig = {
 	-- poses written over an Animator (NpcRig.over) and the Animator's own pose under each (NpcRig.animBase)
 	wrote: { [string]: CFrame },
 	base: { [string]: CFrame },
+	-- on Roblox's own body: the inert Humanoid that lets real Shirt and Pants show, and those two
+	humanoid: Humanoid?,
+	shirt: Shirt?,
+	pants: Pants?,
+	-- catalog hair accessories worn (NpcRig.showHair shows one) and the blocky hair they replace
+	hairs: { BasePart }?,
 }
 
 local GRIP = CFrame.Angles(-math.pi / 2, 0, 0)
@@ -43,7 +66,40 @@ end
 -- `look` names a whole shell set instead (ReplicatedStorage.Art[look], e.g. "Trooper": a remade robot's
 -- armour, its 15 parts filling the same boxes); nil while it is not imported, and the caller falls back.
 local meshCache: { [string]: { [string]: MeshPart } | false } = {}
+-- Roblox's own blocky R15 meshes (ReplicatedStorage.RobloxBody, from HeroBody.init), or nil while they are not
+-- there or Config.NpcLooks.robloxBody is off. Not cached until found (they arrive at boot).
+local robloxCache: { [string]: MeshPart }? = nil
+function NpcRig.robloxMeshes(): { [string]: MeshPart }?
+	if robloxCache then
+		return robloxCache
+	end
+	local cfg = config()
+	if cfg and cfg.NpcLooks.robloxBody == false then
+		return nil
+	end
+	local folder = ReplicatedStorage:FindFirstChild("RobloxBody")
+	if not folder then
+		return nil
+	end
+	local out = {}
+	for _, j in RigMath.JOINTS do
+		local found = folder:FindFirstChild(j[3])
+		if not (found and found:IsA("MeshPart")) then
+			return nil
+		end
+		out[j[3]] = found
+	end
+	robloxCache = out
+	return out
+end
+
 function NpcRig.meshes(set: string?, look: string?): { [string]: MeshPart }?
+	if not look then
+		local rb = NpcRig.robloxMeshes()
+		if rb then
+			return rb -- every body set on Roblox's own body (its sizes still come from the layout)
+		end
+	end
 	local key = if look then "look:" .. look else set or "MaleMedium"
 	local cached = meshCache[key]
 	if cached ~= nil then
@@ -181,6 +237,23 @@ function NpcRig.build(
 	end
 	local ac = Instance.new("AnimationController")
 	ac.Parent = model
+	local hum: Humanoid? = nil
+	if meshes and meshes == NpcRig.robloxMeshes() then
+		-- inert: no states, physics, name or health; it is only there so Shirt and Pants composite (the root
+		-- stays anchored and the joints are posed as before)
+		local h = Instance.new("Humanoid")
+		h.RigType = Enum.HumanoidRigType.R15
+		h.EvaluateStateMachine = false
+		h.RequiresNeck = false
+		h.BreakJointsOnDeath = false
+		h.AutomaticScalingEnabled = false
+		h.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
+		h.HealthDisplayType = Enum.HumanoidHealthDisplayType.AlwaysOff
+		h.NameDisplayDistance = 0
+		h.HealthDisplayDistance = 0
+		h.Parent = model
+		hum = h
+	end
 	return {
 		model = model,
 		root = root,
@@ -190,7 +263,175 @@ function NpcRig.build(
 		layout = layout,
 		wrote = {},
 		base = {},
+		humanoid = hum,
 	}
+end
+
+-- Real Roblox clothes on a rig on Roblox's own body (a no-op without its Humanoid): the Shirt and Pants
+-- templates (image content ids; nil takes that piece off). Re-dressing a pooled rig just sets them again.
+function NpcRig.setClothes(rig: Rig, shirt: string?, pants: string?)
+	if not rig.humanoid then
+		return
+	end
+	if shirt then
+		local s = rig.shirt or Instance.new("Shirt")
+		s.Name = "NpcShirt"
+		if s.ShirtTemplate ~= shirt then
+			s.ShirtTemplate = shirt
+		end
+		s.Parent = rig.model
+		rig.shirt = s
+	elseif rig.shirt then
+		rig.shirt.Parent = nil
+	end
+	if pants then
+		local p = rig.pants or Instance.new("Pants")
+		p.Name = "NpcPants"
+		if p.PantsTemplate ~= pants then
+			p.PantsTemplate = pants
+		end
+		p.Parent = rig.model
+		rig.pants = p
+	elseif rig.pants then
+		rig.pants.Parent = nil
+	end
+end
+
+-- Tint the real clothes (a citizen's shirt and pants colours, a frozen robot's ice); nil pants takes the shirt's
+function NpcRig.tintClothes(rig: Rig, shirt: Color3, pants: Color3?)
+	if rig.shirt and rig.shirt.Color3 ~= shirt then
+		rig.shirt.Color3 = shirt
+	end
+	local p = pants or shirt
+	if rig.pants and rig.pants.Color3 ~= p then
+		rig.pants.Color3 = p
+	end
+end
+
+-- Whether the rig wears real Shirt and Pants (so per-part clothes Textures are not used)
+function NpcRig.realClothes(rig: Rig): boolean
+	return rig.humanoid ~= nil
+end
+
+-- A side by side clothes image's own Shirt and Pants (Config.ClothesSplit), as content ids
+function NpcRig.split(image: string): (string?, string?)
+	local cfg = config()
+	local map = cfg and cfg.ClothesSplit
+	local n = tonumber(string.match(image, "(%d+)%s*$"))
+	local pair = map and n and map[n]
+	if pair then
+		return "rbxassetid://" .. pair[1], "rbxassetid://" .. pair[2]
+	end
+	return nil, nil
+end
+
+-- An empty Textures table by part (what dress and dressPair return on a rig in real clothes)
+local function noTextures(rig: Rig): { [string]: { Texture } }
+	local out = {}
+	for pname in rig.parts do
+		out[pname] = {}
+	end
+	return out
+end
+
+-- Re-dress a pooled rig with a side by side clothes image (its real Shirt and Pants, or its Textures)
+function NpcRig.redress(rig: Rig, clothes: { [string]: { Texture } }?, image: string)
+	if rig.humanoid then
+		local s, p = NpcRig.split(image)
+		if s then
+			NpcRig.setClothes(rig, s, p)
+			return
+		end
+	end
+	for _, list in clothes or {} do
+		for _, t in list do
+			t.Texture = image
+		end
+	end
+end
+
+-- Re-dress a pooled rig with a separate Shirt and Pants image and their tints (white keeps the image's colours)
+function NpcRig.redressPair(
+	rig: Rig,
+	clothes: { [string]: { Texture } }?,
+	shirt: string,
+	pants: string,
+	top: Color3?,
+	bottom: Color3?
+)
+	if rig.humanoid then
+		NpcRig.setClothes(rig, shirt, pants)
+		NpcRig.tintClothes(rig, top or Color3.new(1, 1, 1), bottom or Color3.new(1, 1, 1))
+		return
+	end
+	for pname, list in clothes or {} do
+		local upper = ClothesMap.half(pname) == 0
+		for _, t in list do
+			t.Texture = if upper then shirt else pants
+			if top and bottom then
+				t.Color3 = if upper then top else bottom
+			end
+		end
+	end
+end
+
+-- A Roblox catalog face's image (Config.CatalogLooks.faces) picked by `h`, or nil when there are none
+function NpcRig.catalogFace(h: number): string?
+	local cfg = config()
+	local faces = cfg and cfg.CatalogLooks and cfg.CatalogLooks.faces
+	if not faces or #faces == 0 then
+		return nil
+	end
+	return "rbxassetid://" .. faces[h % #faces + 1][3]
+end
+
+-- Every catalog face image, in Config order (the same on every device)
+function NpcRig.catalogFaces(): { string }
+	local cfg = config()
+	local out = {}
+	for _, f in (cfg and cfg.CatalogLooks and cfg.CatalogLooks.faces) or {} do
+		table.insert(out, "rbxassetid://" .. f[3])
+	end
+	return out
+end
+
+local HAIR_SLOTS = 3
+-- Catalog hair (ReplicatedStorage.CatalogLooks, loaded by the server at boot): a rig wears up to three hairs
+-- picked by `seed` and shows the one `h` picks; the blocky "Hair" part hides once one is worn. Hairs that have
+-- not loaded yet are tried again on the next call, so a rig built early still gets one.
+function NpcRig.showHair(rig: Rig, seed: number, h: number)
+	local hairs = rig.hairs or {}
+	rig.hairs = hairs
+	if #hairs == 0 then
+		local lib = ReplicatedStorage:FindFirstChild("CatalogLooks")
+		local list = {}
+		for _, c in if lib then lib:GetChildren() else {} do
+			if c:IsA("Accessory") and c:GetAttribute("Kind") ~= "beard" then
+				table.insert(list, c)
+			end
+		end
+		table.sort(list, function(a, b)
+			return a.Name < b.Name -- the same pick on every device
+		end)
+		for i = 1, math.min(HAIR_SLOTS, #list) do
+			local acc = list[(seed + (i - 1) * 17) % #list + 1]
+			local handle = NpcRig.wear(rig, acc :: Accessory, "CatHair" .. i)
+			if handle then
+				table.insert(hairs, handle)
+			end
+		end
+	end
+	if #hairs == 0 then
+		return
+	end
+	local pick = h % #hairs + 1
+	for i, handle in hairs do
+		handle.Transparency = if i == pick then 0 else 1
+	end
+	local blocky = rig.model:FindFirstChild("Hair")
+	if blocky and blocky:IsA("BasePart") then
+		blocky.Transparency = 1
+	end
 end
 
 -- Fix an extra piece (a bone, a cape, a helmet) to one of the rig's parts, `c0` from that part's centre;
@@ -246,9 +487,14 @@ function NpcRig.person(
 	end
 	local rig = NpcRig.build(layout, name, colors, nil, nil, set)
 	local head = rig.parts.Head
+	-- a Roblox catalog face picked by the name (citizens re-pick theirs by id), else Roblox's default face
+	local seed = 0
+	for i = 1, #name do
+		seed = (seed * 31 + string.byte(name, i)) % 1000003
+	end
 	local face = Instance.new("Decal")
 	face.Name = "face"
-	face.Texture = "rbxasset://textures/face.png" -- Roblox's built-in default face, like the heroes
+	face.Texture = NpcRig.catalogFace(seed) or "rbxasset://textures/face.png"
 	face.Face = Enum.NormalId.Front
 	face.Parent = head
 	if hair then
@@ -261,6 +507,8 @@ function NpcRig.person(
 		h.BottomSurface = Enum.SurfaceType.Smooth
 		h.CastShadow = false
 		NpcRig.fix(rig, "Head", h, CFrame.new(0, head.Size.Y * 0.45, head.Size.Z * 0.04))
+		-- catalog hair over it once loaded (the blocky cap is only the fallback)
+		NpcRig.showHair(rig, seed, seed // 7)
 	end
 	return rig
 end
@@ -270,6 +518,13 @@ end
 -- the template (Shared.ClothesMap). `sign` is Config.NpcLooks.offsetSign. Returns the Textures by part, so the
 -- caller can hide a part's clothes with it.
 function NpcRig.dress(rig: Rig, image: string, sign: number?): { [string]: { Texture } }
+	if rig.humanoid then
+		local s, p = NpcRig.split(image)
+		if s then
+			NpcRig.setClothes(rig, s, p)
+			return noTextures(rig)
+		end
+	end
 	local out: { [string]: { Texture } } = {}
 	for pname, p in rig.parts do
 		local list = {}
@@ -302,6 +557,10 @@ end
 -- torso and arms show the shirt, the lower torso and legs the pants. Returns the Textures by part (swap their
 -- Texture and Color3 to re-dress a pooled rig: ClothesMap.half says which image a part shows).
 function NpcRig.dressPair(rig: Rig, shirt: string, pants: string, sign: number?): { [string]: { Texture } }
+	if rig.humanoid then
+		NpcRig.setClothes(rig, shirt, pants)
+		return noTextures(rig)
+	end
 	local out: { [string]: { Texture } } = {}
 	for pname, p in rig.parts do
 		local list = {}

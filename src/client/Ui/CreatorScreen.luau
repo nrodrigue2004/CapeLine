@@ -1040,6 +1040,16 @@ local DRAW = {
 	play = drawPlay,
 }
 
+-- A step's list or the hero preview that fails to draw never stops the rest of the redraw (nate's playtest,
+-- 2026-11-19: "next button in character creator still requires me to keep hitting it": an error part way
+-- through left the old step on screen, so a press looked lost)
+local function safely(label: string, fn: () -> ())
+	local ok, err = pcall(fn)
+	if not ok then
+		warn("[CreatorScreen] " .. label .. ": " .. tostring(err))
+	end
+end
+
 refresh = function()
 	clear(list)
 	clear(grid)
@@ -1050,7 +1060,7 @@ refresh = function()
 			b.BackgroundColor3 = if b.Name == STEPS[step].id then Kit.color.gold else Kit.color.paper
 		end
 	end
-	DRAW[STEPS[step].id]()
+	safely(STEPS[step].id, DRAW[STEPS[step].id])
 	grid.Visible = #grid:GetChildren() > 1
 	nameLabel.Text = string.upper(heroName())
 	local ok, why = canFinish()
@@ -1062,7 +1072,9 @@ refresh = function()
 		status.Text = if ok or not last then "" else (why or "")
 		status.TextColor3 = Kit.color.paper
 	end
-	showPreview()
+	safely("preview", function()
+		showPreview()
+	end)
 end
 
 -- A DONE that cannot save yet: say why in gold, and open the step that fixes it
@@ -1546,10 +1558,31 @@ function CreatorScreen.init()
 			refuse(REASONS[data.reason] or "Try again", nil)
 		end
 	end)
+	-- a profile sync redraws the lists, but never under a press that is still held (the tile or row being
+	-- pressed would be rebuilt and the tap lost): it waits for the release
+	local redrawQueued = false
 	State.ProfileChanged:Connect(function()
-		if gui.Enabled and not pending then
-			refresh()
+		if redrawQueued then
+			return
 		end
+		redrawQueued = true
+		task.spawn(function()
+			local UIS = game:GetService("UserInputService")
+			local t0 = os.clock()
+			local function held(): boolean
+				local ok, down = pcall(function()
+					return UIS:IsMouseButtonPressed(Enum.UserInputType.MouseButton1)
+				end)
+				return ok and down == true
+			end
+			while held() and os.clock() - t0 < 3 do
+				task.wait(0.05)
+			end
+			redrawQueued = false
+			if gui.Enabled and not pending then
+				refresh()
+			end
+		end)
 	end)
 end
 

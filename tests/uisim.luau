@@ -1874,6 +1874,89 @@ function UiSim:deepIssues(screen: any, opts: { [string]: any }, skip: { string }
 	return out
 end
 
+-- Draw order (button reliability, 2026-11-19): screens by DisplayOrder, then down the tree each level by
+-- ZIndex (Sibling) and child order; a Folder (Kit's "Ink") lets its GuiObjects draw as its parent's children
+local function drawKey(b: Box): { number }
+	local path = {}
+	local n = b.inst
+	while n and not n:IsA("ScreenGui") do
+		local p = n.Parent
+		if not p then
+			break
+		end
+		if n:IsA("GuiObject") then
+			local idx = table.find(p._children, n) or 0
+			if p._class == "Folder" and p.Parent then
+				idx = table.find(p.Parent._children, p) or 0
+			end
+			table.insert(path, 1, idx)
+			table.insert(path, 1, n.ZIndex)
+		end
+		n = p
+	end
+	table.insert(path, 1, b.screen.DisplayOrder)
+	return path
+end
+
+local function drawsOver(a: Box, b: Box): boolean
+	local ka, kb = drawKey(a), drawKey(b)
+	for i = 1, math.min(#ka, #kb) do
+		if ka[i] ~= kb[i] then
+			return ka[i] > kb[i]
+		end
+	end
+	return #ka > #kb -- a child draws over its parent
+end
+
+-- Takes input at a point (sinks it, so nothing under it gets the tap): a GuiButton, a TextBox, a
+-- ScrollingFrame or any GuiObject made Active, and Interactable
+local function sinks(i: any): boolean
+	if i.Interactable == false then
+		return false
+	end
+	return i:IsA("GuiButton") or i:IsA("TextBox") or i.Active == true
+end
+UiSim.sinks = sinks
+
+-- The object a tap at (x, y) lands on: the top-drawn input-taking box there (its clip respected), or nil
+function UiSim:hitAt(x: number, y: number, boxes: { Box }?): Box?
+	local best: Box? = nil
+	for _, b in boxes or self:boxes() do
+		local part = shownPart(b)
+		if
+			part
+			and sinks(b.inst)
+			and x >= part.x
+			and x <= part.x + part.w
+			and y >= part.y
+			and y <= part.y + part.h
+			and (best == nil or drawsOver(b, best))
+		then
+			best = b
+		end
+	end
+	return best
+end
+
+-- Every shown button whose middle a tap cannot reach: something else that takes input draws over it there.
+-- Returns "button <- blocker" lines; only = ScreenGui names to check (nil for all).
+function UiSim:blockedButtons(only: { [string]: boolean }?): { string }
+	local out = {}
+	local boxes = self:boxes()
+	for _, b in boxes do
+		if b.button and not b.deco and (not only or only[b.screen.Name]) then
+			local part = shownPart(b)
+			if part and part.w >= 4 and part.h >= 4 then
+				local hit = self:hitAt(part.x + part.w / 2, part.y + part.h / 2, boxes)
+				if hit and hit.inst ~= b.inst and not hit.inst:IsDescendantOf(b.inst) then
+					table.insert(out, b.inst:GetFullName() .. " <- " .. hit.inst:GetFullName())
+				end
+			end
+		end
+	end
+	return out
+end
+
 -- Tap a button: fires Activated and MouseButton1Click (and a touch press and release)
 function UiSim:tap(button: any)
 	local input = {

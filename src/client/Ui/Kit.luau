@@ -167,12 +167,15 @@ function Kit.fit(panel: GuiObject, minW: number, minH: number, maxW: number, max
 end
 
 ---------------------------------------------------------------------------
--- The top row of screen buttons (POWERS, GEAR, MAP, SHOP, PING ...) from every module, laid out by
--- TouchLayout.dock; what does not fit on a phone goes in the MORE drawer. Each owner still shows and hides
--- its own button; the row closes up around hidden ones.
+-- The top row of screen buttons from every module, laid out by TouchLayout.dock. The declutter pass (nate's
+-- playtest 2026-11-19): the row holds only Config.Ui.dock.row (POWERS, GEAR, MAP, SHOP, LEAVE) and pinned
+-- buttons (the DockPin attribute: PVP while flagged); everything else, and what does not fit on a phone,
+-- goes in the MENU drawer, a grid under MENU. Each owner still shows and hides its own button; the row and
+-- the grid close up around hidden ones. A drawer button whose label ends in "!" makes it "MENU !" in gold.
 ---------------------------------------------------------------------------
 type DockEntry = { id: string, order: number, button: GuiButton, slot: Frame }
 local dockGui: ScreenGui? = nil
+local dockMenuGui: ScreenGui? = nil -- the drawer's own screen, over the HUD's action buttons
 local dockEntries: { DockEntry } = {}
 local dockDrawer: ScrollingFrame? = nil
 local dockMore: TextButton? = nil
@@ -182,6 +185,7 @@ local dockQueued = false
 Kit.DockLaid = Signal.new() -- after the row is laid out (the plan, for whoever needs the row's height)
 
 local layoutDock: () -> ()
+local hintShown: (GuiButton, boolean) -> ()
 
 local function queueDock()
 	if dockQueued then
@@ -200,6 +204,9 @@ local function dockScreen(): ScreenGui
 	end
 	local g = Kit.screen("Dock", 1)
 	dockGui = g
+	-- the drawer draws (and takes taps) over the HUD's buttons, under every panel (5 and up)
+	local menuGui = Kit.screen("DockMenu", 4)
+	dockMenuGui = menuGui
 	local drawer = Instance.new("ScrollingFrame")
 	drawer.Name = "Drawer"
 	drawer.BackgroundColor3 = Kit.color.night
@@ -212,20 +219,21 @@ local function dockScreen(): ScreenGui
 	drawer.Visible = false
 	Kit.round(drawer)
 	Kit.ink(drawer, { shadow = false }) -- it clips, so it would cut its own shadow off
-	local list = Instance.new("UIListLayout")
-	list.Padding = UDim.new(0, 6)
-	list.SortOrder = Enum.SortOrder.LayoutOrder
-	list.Parent = drawer
+	local grid = Instance.new("UIGridLayout")
+	grid.CellPadding = UDim2.fromOffset(6, 6)
+	grid.FillDirection = Enum.FillDirection.Horizontal
+	grid.SortOrder = Enum.SortOrder.LayoutOrder
+	grid.Parent = drawer
 	local pad = Instance.new("UIPadding")
 	for _, side in { "PaddingTop", "PaddingBottom", "PaddingLeft", "PaddingRight" } do
 		(pad :: any)[side] = UDim.new(0, 6)
 	end
 	pad.Parent = drawer
-	drawer.Parent = g
+	drawer.Parent = menuGui
 	dockDrawer = drawer
 	local more = Kit.button({
 		Name = "More",
-		Text = "MORE",
+		Text = Config.Ui.dock.menu,
 		BackgroundColor3 = Kit.color.paper,
 		Visible = false,
 		maxText = 20,
@@ -238,15 +246,25 @@ local function dockScreen(): ScreenGui
 	return g
 end
 
+-- A docked button's key hint (the Hud's "Hint" label under it) shows in the row, not in the drawer (under a
+-- grid cell it would sit on the next row): the InDrawer attribute tells the Hud
+function hintShown(button: GuiButton, on: boolean)
+	if button:GetAttribute("InDrawer") ~= not on then
+		button:SetAttribute("InDrawer", not on)
+	end
+end
+
 function layoutDock()
 	local g = dockScreen()
 	local a = Kit.area()
 	local hi = if dockSpan.hi < 0 then a.X - Config.Ui.safe else dockSpan.hi
 	local items = {}
 	local byId: { [string]: DockEntry } = {}
+	local rowIds = Config.Ui.dock.row
 	for _, e in dockEntries do
 		if e.button.Parent == e.slot and e.button.Visible then
-			table.insert(items, { id = e.id, text = e.button.Text, order = e.order })
+			local menu = not rowIds[e.id] and e.button:GetAttribute("DockPin") ~= true
+			table.insert(items, { id = e.id, text = e.button.Text, order = e.order, menu = menu })
 			byId[e.id] = e
 		else
 			e.slot.Visible = false
@@ -268,15 +286,26 @@ function layoutDock()
 	end)
 	for i, p in xs do
 		p.e.button.Rotation = if i % 2 == 0 then Config.Ui.ink.tilt else -Config.Ui.ink.tilt
+		hintShown(p.e.button, true)
 	end
 	local drawer = dockDrawer :: ScrollingFrame
+	local alert = false
 	for i, id in plan.drawer do
 		local e = byId[id]
 		e.slot.Parent = drawer
 		e.slot.LayoutOrder = i
-		e.slot.Size = UDim2.new(1, 0, 0, plan.height)
 		e.slot.Visible = true
 		e.button.Rotation = 0
+		hintShown(e.button, false) -- a key hint under a grid cell would sit on the next row
+		if e.button:IsA("TextButton") and string.sub(e.button.Text, -1) == "!" then
+			alert = true
+		end
+	end
+	-- something to claim in the drawer (DAILY !): MENU says so the same way
+	local menuText = Config.Ui.dock.menu .. (if alert then " !" else "")
+	if dockMore and dockMore.Text ~= menuText then
+		dockMore.Text = menuText
+		dockMore.BackgroundColor3 = if alert then Kit.color.gold else Kit.color.paper
 	end
 	local more = dockMore :: TextButton
 	more.Visible = plan.more ~= nil
@@ -285,11 +314,18 @@ function layoutDock()
 		local m = plan.more
 		more.Position = UDim2.fromOffset(m.x, m.y)
 		more.Size = UDim2.fromOffset(m.w, m.h)
-		local dw = Config.Ui.phone.drawerW
+		-- a grid of up to Config.Ui.dock.columns columns, hung under MENU and kept on screen
+		local cols = math.max(1, math.min(Config.Ui.dock.columns, #plan.drawer))
+		local cw = Config.Ui.phone.drawerW
+		local dw = cols * cw + (cols - 1) * 6 + 12
 		local x = if dockSpan.fromLo then m.x else m.x + m.w - dw
-		local y = m.y + m.h + 6
-		local rows = #plan.drawer
+		x = math.clamp(x, Config.Ui.safe, math.max(Config.Ui.safe, a.X - Config.Ui.safe - dw))
+		-- below the row's key hints and the wallet line on a big screen
+		local y = m.y + m.h + (if Kit.compact() then 6 else 26)
+		local rows = math.ceil(#plan.drawer / cols)
 		local want = rows * (plan.height + 6) + 6
+		local grid = drawer:FindFirstChildOfClass("UIGridLayout") :: UIGridLayout
+		grid.CellSize = UDim2.fromOffset(cw, plan.height)
 		drawer.Position = UDim2.fromOffset(x, y)
 		drawer.Size = UDim2.fromOffset(dw, math.min(want, a.Y - y - Config.Ui.safe))
 	else
@@ -315,10 +351,17 @@ function Kit.dock(button: GuiButton, id: string, order: number)
 	Kit.round(button)
 	if button:IsA("TextButton") then
 		Kit.ink(button, { force = true })
+		-- one lettering size for every tab, whoever made the button (they sit side by side in the MENU grid)
+		local limit = button:FindFirstChildOfClass("UITextSizeConstraint")
+		if limit and limits[limit] then
+			limits[limit] = Config.Ui.dock.text
+			limit.MaxTextSize = math.max(1, math.floor(Config.Ui.dock.text * Kit.textScale))
+		end
 	end
 	slot.Parent = dockGui
 	table.insert(dockEntries, { id = id, order = order, button = button, slot = slot })
 	button:GetPropertyChangedSignal("Visible"):Connect(queueDock)
+	button:GetAttributeChangedSignal("DockPin"):Connect(queueDock)
 	if button:IsA("TextButton") then
 		button:GetPropertyChangedSignal("Text"):Connect(queueDock)
 	end
@@ -345,7 +388,8 @@ end
 
 -- The whole row (the opening shows only its verb buttons)
 function Kit.dockShown(on: boolean)
-	dockScreen().Enabled = on
+	dockScreen().Enabled = on;
+	(dockMenuGui :: ScreenGui).Enabled = on
 	if not on then
 		Kit.dockDrawer(false)
 	end
@@ -450,6 +494,7 @@ function Kit.opening(id: string, root: Instance, close: () -> (), main: boolean?
 	if panelOpen(me) then
 		return -- already open (an open that redraws it): nothing to close, the selection stays
 	end
+	Kit.dockDrawer(false) -- a screen opening puts the MENU drawer away
 	if me.main then
 		for other, p in panels do
 			if other ~= id and p.main and panelOpen(p) then
@@ -851,7 +896,7 @@ function Kit.button(props: { [string]: any }, onClick: (() -> ())?): TextButton
 	inkText(b, props, false)
 	if onClick then
 		local waits = props.pending == true
-		b.Activated:Connect(function()
+		local function fire()
 			if waits and b:GetAttribute("Pending") then
 				return -- one request at a time
 			end
@@ -861,17 +906,86 @@ function Kit.button(props: { [string]: any }, onClick: (() -> ())?): TextButton
 				Kit.pending(b)
 			end
 			onClick()
-		end)
+		end
+		Kit.tapGuard(b, fire)
 	end
 	return b
 end
 
+-- Every tap counts once (nate's playtest 2026-11-19: "so many buttons are extremely unreliable, next button in
+-- character creator still requires me to keep hitting it"). Activated is the tap, but a press can also end
+-- with no Activated (the engine drops it when the screen under the cursor changes mid-press: a hover that
+-- rebuilds the hero, a redraw). So a press that begins on the button and ends on it, without moving more than
+-- Config.Ui.tap.slop pixels and with the button where it was (not a scroll), also counts, after
+-- Config.Ui.tap.wait seconds if no Activated came for it. Each press fires once, whichever arrives first.
+local function isPress(input: InputObject): boolean
+	return input.UserInputType == Enum.UserInputType.MouseButton1
+		or input.UserInputType == Enum.UserInputType.Touch
+end
+Kit.TAPS = { fallback = 0 } -- how many taps the fallback saved (the Dev panel, tests)
+
+function Kit.tapGuard(b: GuiButton, fire: () -> ())
+	local TAP = Config.Ui.tap
+	local press: { input: InputObject, at: Vector3, from: Vector2, done: boolean }? = nil
+	b.InputBegan:Connect(function(input)
+		if isPress(input) then
+			press = { input = input, at = input.Position, from = b.AbsolutePosition, done = false }
+		end
+	end)
+	b.Activated:Connect(function()
+		local p = press
+		if p and p.done then
+			press = nil -- the fallback already counted this press
+			return
+		end
+		if p then
+			p.done = true
+		end
+		fire()
+	end)
+	b.InputEnded:Connect(function(input)
+		local p = press
+		if
+			not p
+			or not isPress(input)
+			or (input ~= p.input and input.UserInputType ~= p.input.UserInputType)
+		then
+			return
+		end
+		if p.done then
+			press = nil -- Activated counted it
+			return
+		end
+		local moved = (input.Position - p.at).Magnitude > TAP.slop
+			or (b.AbsolutePosition - p.from).Magnitude > TAP.slop
+		if moved then
+			press = nil -- a drag or a scroll, not a tap
+			return
+		end
+		task.delay(TAP.wait, function()
+			if press ~= p then
+				return -- a new press began
+			end
+			press = nil
+			if p.done or not b.Parent or not shown(b) or not b.Active or not b.Interactable then
+				return
+			end
+			p.done = true
+			Kit.TAPS.fallback += 1
+			fire()
+		end)
+	end)
+end
+
 -- Pending state (spec: "every remote call has a pending state under 150 ms"): the button shows "..." at
 -- once and takes no more taps until the server answers (any profile sync, notice or toast settles it, and
--- most screens redraw). No answer in 5 s shows TRY AGAIN, the error state.
+-- most screens redraw). No answer in 5 s shows TRY AGAIN, the error state, and the button takes a tap again at
+-- once (2026-11-19: it used to stay locked 1.6 s more under TRY AGAIN, so the tap it asked for did nothing;
+-- one of the "keep hitting it" buttons); its own text comes back after 1.6 s.
 -- Each wait is tagged with its own number, so an earlier tap's timer (settled, then tapped again) never
 -- shows TRY AGAIN or unlocks the button before the new tap's answer.
 local pendingButtons: { [TextButton]: { text: string, tag: number } } = setmetatable({}, { __mode = "k" }) :: any
+local retryText: { [TextButton]: { text: string, tag: number } } = setmetatable({}, { __mode = "k" }) :: any
 local pendingTag = 0
 function Kit.pending(b: TextButton, timeout: number?)
 	if pendingButtons[b] then
@@ -879,22 +993,24 @@ function Kit.pending(b: TextButton, timeout: number?)
 	end
 	pendingTag += 1
 	local tag = pendingTag
-	local text = b.Text
+	-- a tap on TRY AGAIN: the button's own text is the one from before
+	local text = if retryText[b] then retryText[b].text else b.Text
+	retryText[b] = nil
 	pendingButtons[b] = { text = text, tag = tag }
 	b:SetAttribute("Pending", true)
 	b.Text = "..."
-	local function mine(): boolean
-		local p = pendingButtons[b]
-		return p ~= nil and p.tag == tag and b.Parent ~= nil
-	end
 	task.delay(timeout or 5, function()
-		if mine() then
+		local p = pendingButtons[b]
+		if p and p.tag == tag and b.Parent ~= nil then
+			pendingButtons[b] = nil
+			b:SetAttribute("Pending", nil)
 			b.Text = "TRY AGAIN"
+			retryText[b] = { text = text, tag = tag }
 			task.delay(1.6, function()
-				if mine() then
+				local r = retryText[b]
+				if r and r.tag == tag then
+					retryText[b] = nil
 					b.Text = text
-					b:SetAttribute("Pending", nil)
-					pendingButtons[b] = nil
 				end
 			end)
 		end

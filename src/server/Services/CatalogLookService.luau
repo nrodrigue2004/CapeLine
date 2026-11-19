@@ -40,6 +40,8 @@ local function load(id: number, field: string)
 			end
 		end
 		acc.Name = tostring(id)
+		-- NPCs pick their hair from these (NpcRig.showHair); a beard is never worn as hair
+		acc:SetAttribute("Kind", if field == "FaceAccessory" then "beard" else "hair")
 		acc.Parent = folder
 	else
 		warn(string.format("[CatalogLooks] %d has no accessory", id))

@@ -8,6 +8,9 @@ return {
 	-- which look robots wear: "auto" = these clothes once their images are uploaded, else the Blender shell once
 	-- imported, else the plain look; "roblox", "shell" and "plain" force one (the Dev panel cycles them)
 	style = "auto",
+	-- every rig on Roblox's own blocky R15 body in real Shirt and Pants (Config.ClothesSplit), Roblox catalog faces
+	-- and catalog hair, like the heroes (nate's playtest 2026-11-19); false goes back to the painted-on clothes
+	robloxBody = true,
 	-- +1, or -1 if Studio shows the clothes shifted the wrong way on every face (one number fixes them all)
 	offsetSign = 1,
 	-- free Roblox-made hair (catalog ids; the server skips any that fail to load or are not made by Roblox)

@@ -3,6 +3,10 @@
 return {
 	touchTarget = 56, -- at least 48 px
 	safe = 16,
+	-- a press that starts and ends on a kit button counts as a tap even if the engine sends no Activated
+	-- (nate's playtest 2026-11-19, "buttons are extremely unreliable"): it may move this many pixels, and
+	-- counts this many seconds after the release when no Activated came (Kit.tapGuard)
+	tap = { slop = 14, wait = 0.12 },
 	corner = 4, -- the comic look (2026-11-18): small square-ish corners; round buttons stay round
 	-- the comic ink (nate picked the bold comic mockup, 2026-11-18): Kit gives every drawn panel and button a
 	-- thick ink outline and a hard ink drop shadow down-right; paper panels get faint halftone dots
@@ -27,6 +31,20 @@ return {
 	},
 	textScale = { min = 1.0, max = 1.6 },
 	-- overhaul plan step 8, the phone pass (Shared.TouchLayout): the HUD sizes itself to the screen
+	-- the declutter pass (nate's playtest 2026-11-19: "wayyy too much on screen, especially the bar at the top
+	-- with buttons"): the top row keeps the four screens players open most (and LEAVE while visiting); every
+	-- other screen button (JOURNAL, SQUAD, EMOTE, PING, PASS, DAILY, BOARDS, SETTINGS ...) sits in the MENU
+	-- drawer, a grid under the MENU button. A button with the DockPin attribute joins the row while it is set
+	-- (PVP while flagged); a drawer button whose label ends in "!" (DAILY !) makes it "MENU !" in gold.
+	dock = {
+		row = { VisitLeave = true, Loadout = true, Gear = true, Map = true, Shop = true },
+		menu = "MENU",
+		columns = 2, -- the drawer's grid
+		text = 22, -- every tab's largest lettering (row and drawer alike)
+		-- mouse and keyboard: the movement keys show as one key line under the action buttons instead of
+		-- round buttons (touch and gamepad keep the buttons; the opening's verb buttons still show)
+		keyLine = { "Leap", "Fly", "Boost", "Down" },
+	},
 	phone = {
 		compactBelow = 500, -- a screen whose short side is under this many pixels is a phone (compact HUD)
 		row = 46, -- the top row of screen buttons (POWERS, GEAR, MAP...), its height
@@ -46,7 +64,7 @@ return {
 		trackerRow = 52, -- an incident tracker row with its gap
 		panelMargin = 8, -- a fitted panel keeps this far from the screen's edge
 		minPanelScale = 0.8, -- a fitted panel never shrinks more than this (it scrolls instead)
-		drawerW = 150, -- the MORE drawer's width
+		drawerW = 150, -- a MENU drawer column's width
 		-- hold a skill button and drag to aim (the camera turns with the finger)
 		aimDrag = { yaw = 0.011, pitch = 0.008, maxPitch = 70 }, -- radians per pixel; degrees
 	},

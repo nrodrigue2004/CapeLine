@@ -92,8 +92,14 @@ local NL = Config.NpcLooks
 local style: string = NL.style
 local HAIR_SLOTS = 3 -- a Roblox-look robot carries up to this many of its kind's hairs and shows one
 -- the shared faces that are uploaded: { human image, turned image } (a missing turned id keeps the human face)
+-- nate's playtest (2026-11-19, "there are still npcs that don't look like Roblox avatars"): Roblox catalog faces
+-- (Config.CatalogLooks) when there are any; a robot that turns shows glowing eyes over its face (EyeL, IrisL ...)
+-- instead of a drawn "turned" face. The old drawn faces are only the fallback.
 local upFaces: { { string } } = {}
-for _, fname in NL.faceOrder do
+for _, img in NpcRig.catalogFaces() do
+	table.insert(upFaces, { img, img })
+end
+for _, fname in if #upFaces > 0 then {} else NL.faceOrder do
 	local f = NL.faces[fname]
 	if f and f.human ~= 0 then
 		local human = "rbxassetid://" .. f.human
@@ -167,6 +173,9 @@ type Body = {
 	citizen: boolean,
 	street: { [string]: Color3 },
 	streetClothes: { [string]: { Texture } }?,
+	-- real Shirt and Pants (NpcRig.realClothes): a Mimic's street pair, and which pair is on ("uniform", "street")
+	streetPair: { string }?,
+	wearing: string?,
 	streetTint: { Color3 },
 	streetFace: Decal?,
 	-- a famous fake or an evil twin (lore step 4): its hero look's pieces with the body part each is fixed to,
@@ -226,6 +235,7 @@ end
 local live: { [number]: Body } = {}
 local pool: { [number]: { Body } } = {}
 local folder: Folder
+local flashGlow: (model: Model, seconds: number) -> ()
 
 local function rgb(t: { number }): Color3
 	return Color3.fromRGB(t[1], t[2], t[3])
@@ -705,7 +715,8 @@ local function makeRobot(typeId: number, ident: { [string]: any }?): Body
 		faceDecal = NpcRig.face(rig, upFaces[1][1]) -- assign picks this robot's face
 	end
 	-- (a finale's own model has its face modelled and painted)
-	local eyeSides: { any } = if mode == "roblox" or fake or artCfg then {} else SIDES
+	-- a Roblox-look robot gets them too, hidden until it turns (applyFlags), so its catalog face stays a face
+	local eyeSides: { any } = if fake or artCfg then {} else SIDES
 	for _, side in eyeSides do
 		local at = CFrame.new(side[3] * HD.X * 0.2, HD.Y * 0.06, -HD.Z * 0.5 - 0.02)
 		add("Eye" .. side[2], "Head", at, Vector3.new(HD.X * 0.22, HD.Y * 0.09, 0.05), rgb(LOOK.sclera), SKIN)
@@ -717,6 +728,10 @@ local function makeRobot(typeId: number, ident: { [string]: any }?): Body
 			rgb(LOOK.irises[1]),
 			SKIN
 		)
+		if mode == "roblox" then
+			trans[index["Eye" .. side[2]]] = 1
+			trans[index["Iris" .. side[2]]] = 1
+		end
 	end
 	-- a fake's face crack (PLACEHOLDER ART until the cracked face images are uploaded): one half of the face
 	-- torn away to a metal plate with a glowing eye, and dark cracks across the rest; shown once unmasked
@@ -1498,11 +1513,9 @@ local function disguiseFor(body: Body, id: number, skin: Color3)
 			rgb(STREET_TINTS.shirts[(h // 211) % #STREET_TINTS.shirts + 1]),
 			rgb(STREET_TINTS.pants[(h // 4099) % #STREET_TINTS.pants + 1]),
 		}
-		for pname, list in clothes do
-			local upper = ClothesMap.half(pname) == 0
-			for _, t in list do
-				t.Texture = if upper then top else bottom
-			end
+		body.streetPair = { top, bottom }
+		if not NpcRig.realClothes(body.rig) then
+			NpcRig.redressPair(body.rig, clothes, top, bottom)
 		end
 	end
 	body.street = street
@@ -1553,12 +1566,9 @@ local function assign(body: Body, id: number)
 		local outfit = if #body.outfits > 0 then body.outfits[(h // 16807) % #body.outfits + 1] else nil
 		if outfit and outfit ~= body.outfit and body.clothes then
 			body.outfit = outfit
-			for _, list in body.clothes do
-				for _, tex in list do
-					tex.Texture = outfit
-				end
-			end
+			NpcRig.redress(body.rig, body.clothes, outfit)
 		end
+		body.wearing = nil -- applyFlags puts the right real clothes on (the uniform, or a Mimic's street clothes)
 		local pick = if #body.hairs > 0 then body.hairs[(h // 343) % #body.hairs + 1] else nil
 		for _, slot in body.hairs do
 			local i = body.index[slot]
@@ -1660,6 +1670,7 @@ local NEON_KEEP = {
 
 -- what a disguised Mimic shows: the person (body, hair, eyes); every robot piece is hidden
 local PERSON: { [string]: boolean } = { Hair = true, Hair1 = true, Hair2 = true, Hair3 = true }
+local EYE_PARTS: { [string]: boolean } = { EyeL = true, EyeR = true, IrisL = true, IrisR = true }
 for _, pname in BodyShape.PARTS do
 	PERSON[pname] = true
 end
@@ -1725,6 +1736,9 @@ local function applyFlags(body: Body)
 			if cold and not NEON_KEEP[name] then
 				color = color:Lerp(ICE, 0.6)
 			end
+			if body.mode == "roblox" and EYE_PARTS[name] then
+				t = if turned then 0 else 1 -- glowing eyes over the catalog face once it turns
+			end
 			if name == "IrisL" or name == "IrisR" then
 				if turned then
 					color = if windup then Color3.fromRGB(255, 40, 40) else glow
@@ -1781,6 +1795,25 @@ local function applyFlags(body: Body)
 	end
 	if body.streetFace then
 		body.streetFace.Transparency = if disguised then 0 else 1
+	end
+	-- real Shirt and Pants (Roblox's own body): one pair a model, so a Mimic swaps between its uniform and the
+	-- street clothes; ice tints them; a cloak fades them with the parts they are on
+	if NpcRig.realClothes(body.rig) and (body.clothes or body.streetClothes) then
+		local pair = body.streetPair
+		local wear = if disguised and pair then "street" elseif body.outfit then "uniform" else nil
+		if wear and wear ~= body.wearing then
+			body.wearing = wear
+			if wear == "street" and pair then
+				NpcRig.setClothes(body.rig, pair[1], pair[2])
+			elseif body.outfit then
+				NpcRig.redress(body.rig, nil, body.outfit)
+			end
+		end
+		if wear == "street" then
+			NpcRig.tintClothes(body.rig, body.streetTint[1], body.streetTint[2])
+		else
+			NpcRig.tintClothes(body.rig, if cold then ICE else Color3.new(1, 1, 1))
+		end
 	end
 	if body.light then
 		-- the light's glow on the ground is skipped on the Low preset (the neon light still pulses)
@@ -1934,6 +1967,34 @@ local function updateShell(body: Body, near: boolean)
 	body.lastFlags = -1
 end
 
+-- The white hit flash over real Shirt and Pants (they hide the part colour): a few pooled Highlights, each
+-- on one robot for the flash (Roblox draws at most 31 at once, so the pool stays small)
+local glows: { Highlight } = {}
+local glowAt = 0
+flashGlow = function(model: Model, seconds: number)
+	glowAt = glowAt % 6 + 1
+	local g = glows[glowAt]
+	if not g then
+		g = Instance.new("Highlight")
+		g.Name = "HitFlash"
+		g.FillColor = Color3.new(1, 1, 1)
+		g.FillTransparency = 0.15
+		g.OutlineTransparency = 1
+		g.DepthMode = Enum.HighlightDepthMode.Occluded
+		g.Parent = folder
+		glows[glowAt] = g
+	end
+	g.Adornee = model
+	g.Enabled = true
+	local mine = g
+	task.delay(seconds, function()
+		if mine.Adornee == model then
+			mine.Enabled = false
+			mine.Adornee = nil
+		end
+	end)
+end
+
 local function disguised(body: Body): boolean
 	return body.citizen and bit32.band(body.extra, EXTRA.disguise) ~= 0
 end
@@ -1942,6 +2003,9 @@ function EnemyRenderer.flash(id: number)
 	local body = live[id]
 	if body and not disguised(body) then
 		body.flashUntil = os.clock() + Config.Fx.hitFlash
+		if NpcRig.realClothes(body.rig) then
+			flashGlow(body.model, Config.Fx.hitFlash) -- real clothes cover the part colour: a white glow instead
+		end
 		for i, p in body.parts do
 			if body.baseTransparency[i] < 1 and not gone(body, body.names[i]) then
 				p.Color = Color3.new(1, 1, 1)

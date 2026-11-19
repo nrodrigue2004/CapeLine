@@ -586,6 +586,11 @@ local function frame()
 	local since = now - PvpClient.flagAt
 	local hidden = StoryClient.inOpening()
 	flagButton.Visible = PvpClient.canFlag() and not hidden
+	-- flagged: the switch stands in the top row (off, it waits in the MENU drawer; Config.Ui.dock)
+	local pin = flagButton.Visible and PvpClient.flag.flagged == true
+	if flagButton:GetAttribute("DockPin") ~= pin then
+		flagButton:SetAttribute("DockPin", pin)
+	end
 	if flagButton.Visible then
 		local offIn = math.max(0, (f.offIn or 0) - since)
 		if f.flagged then
