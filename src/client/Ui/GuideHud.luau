@@ -8,7 +8,9 @@
 -- * On a camera beat the box sits under the letterbox; in play it takes the free spot GuidePlan.box finds,
 --   clear of the action buttons, the status corner, the top row and the story trackers (keepClear).
 -- * Reduce flashing: no pop-in pulse and no radio static flicker on the portrait.
--- PLACEHOLDER ART: the portraits are drawn from frames until the art pass (Tasks.md "Placeholder art").
+-- Portraits are the comic art pass's rendered busts (Config.ComicArt, Shared.ComicArt: the speaker on Roblox's
+-- blocky body in their game outfit with a catalog face and hair); a portrait whose sheet is not uploaded yet is
+-- drawn from frames as before (PLACEHOLDER ART fallback).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -17,6 +19,7 @@ local FrameProf =
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local GuidePlan = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("GuidePlan"))
+local ComicArt = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("ComicArt"))
 
 local Kit = require(script.Parent.Kit)
 local State = require(script.Parent.Parent.State)
@@ -52,7 +55,7 @@ local function side(): string
 end
 
 ---------------------------------------------------------------------------
--- Portraits (PLACEHOLDER ART: frames in the speaker's colours)
+-- Portraits: the rendered comic bust (Config.ComicArt), else frames in the speaker's colours (the fallback)
 ---------------------------------------------------------------------------
 
 local function piece(
@@ -80,18 +83,8 @@ local function piece(
 	return f
 end
 
-local function buildPortrait(who: string, sp: any): Frame
-	local p = sp.portrait
-	local frame = Instance.new("Frame")
-	frame.Name = "Portrait_" .. who
-	frame.Size = UDim2.fromScale(1, 1)
-	frame.BackgroundColor3 = rgb(p.bg)
-	frame.BorderSizePixel = 0
-	frame.ClipsDescendants = true
-	frame.Visible = false
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 8)
-	corner.Parent = frame
+-- The fallback portrait drawn from frames (PLACEHOLDER ART: until the speaker's comic sheet is uploaded)
+local function drawFrames(frame: Frame, p: any, sp: any)
 	local skin, hair = rgb(p.skin), rgb(p.hair)
 	local dark = Color3.fromRGB(24, 26, 34)
 	-- shoulders in the speaker's colour, then the head
@@ -230,6 +223,36 @@ local function buildPortrait(who: string, sp: any): Frame
 				tail.Rotation = 18 + i * 16
 			end
 		end
+	end
+end
+
+local function buildPortrait(who: string, sp: any): Frame
+	local p = sp.portrait
+	local frame = Instance.new("Frame")
+	frame.Name = "Portrait_" .. who
+	frame.Size = UDim2.fromScale(1, 1)
+	frame.BackgroundColor3 = rgb(p.bg)
+	frame.BorderSizePixel = 0
+	frame.ClipsDescendants = true
+	frame.Visible = false
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 8)
+	corner.Parent = frame
+	local art = ComicArt.portrait(Config, who)
+	if art then
+		local img = Instance.new("ImageLabel")
+		img.Name = "Art"
+		img.Size = UDim2.fromScale(1, 1)
+		img.BackgroundTransparency = 1
+		img.Image = art.image
+		img.ImageRectOffset = Vector2.new(art.offset[1], art.offset[2])
+		img.ImageRectSize = Vector2.new(art.size[1], art.size[2])
+		img.Parent = frame
+		local c2 = Instance.new("UICorner")
+		c2.CornerRadius = UDim.new(0, 8)
+		c2.Parent = img
+	else
+		drawFrames(frame, p, sp)
 	end
 	-- a radio voice's static: faint bars over the portrait (they flicker unless Reduce flashing is on)
 	if sp.style == "radio" then
