@@ -67,6 +67,10 @@ local holdStart: { [string]: number } = {} -- when each held skill went down (th
 local shieldFill: Frame
 local meterFill: Frame
 local meterText: TextLabel
+local meterBar: Frame -- the Awakening meter's track (shown once it holds any charge)
+local renownBar: Frame
+local keyLine: TextLabel -- mouse and keyboard: the movement keys as one line (Config.Ui.dock.keyLine)
+local keyMode = false -- the device is mouse and keyboard
 local buffRow: Frame
 local renownFill: Frame
 local renownText: TextLabel
@@ -76,6 +80,9 @@ local stickRing: Frame
 local stickKnob: Frame
 local mirrored = false
 local SLOT_ACTIONS = { "Skill1", "Skill2", "Skill3", "Skill4" }
+local fitCard: () -> ()
+local layout: () -> ()
+local applyDevice: (device: string) -> ()
 local ShortName: { [string]: string } = {}
 for id, row in A do
 	-- the verb on the button: the ability's first word, or its second for "Ice", "Arc" and the like
@@ -166,6 +173,8 @@ local function actionButton(
 			if t == Enum.UserInputType.Touch then
 				-- let go wherever the finger lifts; a held skill aims by dragging its button
 				InputController.holdTouch(input, action, AIMS[action] == true)
+			else
+				InputController.holdMouse(action) -- let go wherever the mouse button comes up
 			end
 			Kit.bounce(b)
 		end
@@ -275,6 +284,7 @@ local function buildTopLeft()
 		BackgroundColor3 = BAR,
 	})
 	meter.Parent = card
+	meterBar = meter
 	meterFill = Kit.frame({ Size = UDim2.fromScale(0, 1), BackgroundColor3 = Color3.fromRGB(255, 220, 90) })
 	meterFill.Parent = meter
 	meterText = Kit.label({
@@ -295,6 +305,7 @@ local function buildTopLeft()
 		BackgroundColor3 = BAR,
 	})
 	renown.Parent = card
+	renownBar = renown
 	renownFill = Kit.frame({ Size = UDim2.fromScale(0, 1), BackgroundColor3 = Color3.fromRGB(150, 120, 255) })
 	renownFill.Parent = renown
 	renownText = Kit.label({
@@ -478,10 +489,10 @@ local function buildCluster()
 		Kit.color.paper
 	)
 	journal.Size = UDim2.fromOffset(s + 40, s - 10)
-	-- M10: Settings (a gear glyph; also on the main menu)
+	-- M10: Settings (also on the main menu)
 	local settings = Kit.button({
 		Name = "SettingsButton",
-		Text = "⚙",
+		Text = "SETTINGS", -- in the MENU drawer (the declutter pass): a word reads better than a glyph there
 		Size = UDim2.fromOffset(s - 10, s - 10),
 		Position = UDim2.fromOffset(U.safe + 258, U.safe),
 		BackgroundColor3 = Kit.color.paper,
@@ -543,6 +554,10 @@ local function buildCluster()
 	for action, order in DOCK_ORDER do
 		local entry = buttons[action]
 		if entry then
+			-- in the MENU drawer its key hint hides (Kit sets InDrawer)
+			entry.button:GetAttributeChangedSignal("InDrawer"):Connect(function()
+				applyDevice(InputController.device)
+			end)
 			Kit.dock(entry.button, action, order)
 		end
 	end
@@ -584,7 +599,9 @@ local function refreshInfo()
 		if not entry then
 			return
 		end
-		entry.button.Visible = id ~= nil
+		-- the declutter pass (2026-11-19): a slot that is empty or still locked draws nothing (the status card
+		-- says what the next level unlocks)
+		entry.button.Visible = id ~= nil and not locked
 		if id and A[id] then
 			entry.button.Text = if locked then "LOCKED" else ShortName[id]
 			local c = Config.Abilities.setColor[A[id].set]
@@ -641,18 +658,22 @@ local function refreshBuffs()
 	end
 end
 
-local function applyDevice(device: string)
+applyDevice = function(device: string)
 	local touch = device == "touch"
 	local pad = device == "gamepad"
 	for action, entry in buttons do
 		-- key names for keyboards, button names for controllers (none for touch)
 		local hint = if pad then InputController.padHints[action] else InputController.hints[action]
 		entry.hint.Text = hint or ""
-		entry.hint.Visible = not touch and hint ~= nil
+		entry.hint.Visible = not touch and hint ~= nil and entry.button:GetAttribute("InDrawer") ~= true
 		entry.button.BackgroundTransparency = if touch then 0 else 0.15 -- comic: solid ink-lined buttons
 	end
 	-- the mouse aims, so the crosshair only shows for touch and gamepad aiming
 	crosshair.Visible = device ~= "mouse"
+	if keyMode ~= (device == "mouse") then
+		keyMode = device == "mouse"
+		layout()
+	end
 	Kit.setHudOpts({ touch = touch })
 	Kit.padUi = pad -- an opened panel selects its first button for the D-pad (Kit.opening)
 end
@@ -724,9 +745,19 @@ local function setSweep(entry: Entry, f: number)
 	sweep.Size = UDim2.new(1, px, f, if f > 0 then py * f else 0)
 end
 
+-- The status card's height: the Awakening meter's row only while it holds a charge
+local cardFull = Vector2.new(250, 104)
+local meterShown = false
+local METER_ROW = 18
+fitCard = function()
+	meterBar.Visible = meterShown
+	renownBar.Position = UDim2.fromOffset(8, if meterShown then 82 else 82 - METER_ROW)
+	statusCard.Size = UDim2.fromOffset(cardFull.X, cardFull.Y - (if meterShown then 0 else METER_ROW))
+end
+
 -- Place every action button and the display parts for this screen (Shared.TouchLayout): on rotation, a
 -- resize, the device changing, left-handed and the Button size setting
-local function layout()
+layout = function()
 	if not cluster then
 		return
 	end
@@ -734,6 +765,10 @@ local function layout()
 	local opts = Kit.hudOptions()
 	opts.present = { Block = buttons.Block ~= nil }
 	local placed = TouchLayout.cluster(Config, a.X, a.Y, opts :: any)
+	if keyMode and placed.Block and placed.Leap then
+		-- mouse and keyboard: no movement column (the key line), so the shield closes up beside the skills
+		placed.Block = { x = placed.Leap.x, y = placed.Leap.y, size = placed.Block.size }
+	end
 	cluster.AnchorPoint = Vector2.zero
 	cluster.Position = UDim2.new()
 	cluster.Size = UDim2.fromScale(1, 1)
@@ -775,7 +810,8 @@ local function layout()
 	-- the display parts and the top row's span
 	local hb = Kit.hudBoxes()
 	statusCard.Position = UDim2.fromOffset(hb.status.x, hb.status.y)
-	statusCard.Size = UDim2.fromOffset(hb.status.w, hb.status.h)
+	cardFull = Vector2.new(hb.status.w, hb.status.h)
+	fitCard()
 	buffRow.Position = UDim2.fromOffset(hb.buffs.x, hb.buffs.y)
 	buffRow.Size = UDim2.fromOffset(hb.buffs.w, hb.buffs.h)
 	walletText.AnchorPoint = Vector2.zero
@@ -812,6 +848,20 @@ function Hud.init()
 	local stamFill = buildTopLeft()
 	buildCrosshair()
 	buildCluster()
+	keyLine = Kit.label({
+		Name = "KeyLine",
+		Text = "",
+		AnchorPoint = Vector2.new(1, 1),
+		Size = UDim2.fromOffset(460, 18),
+		Position = UDim2.new(1, -U.safe, 1, -6),
+		TextXAlignment = Enum.TextXAlignment.Right,
+		TextColor3 = Kit.color.paper,
+		TextStrokeTransparency = 0.2,
+		Font = Kit.bodyFont,
+		Visible = false,
+		maxText = 13,
+	})
+	keyLine.Parent = gui
 	stickRing = Kit.frame({
 		Name = "StickRing",
 		AnchorPoint = Vector2.new(0.5, 0.5),
@@ -905,6 +955,12 @@ function Hud.init()
 			meterFill.Size = UDim2.fromScale(math.clamp(st.meter / maxM, 0, 1), 1)
 			meterText.Text = if st.meter >= maxM then "AWAKENING READY" else "AWAKENING"
 		end
+		-- the meter shows once it holds any charge; empty, the card closes up over it
+		local meterOn = awake or st.meter > 0
+		if meterOn ~= meterShown then
+			meterShown = meterOn
+			fitCard()
+		end
 		local full = st.meter >= maxM and not awake
 		buttons.Awaken.button.Visible = full
 		if full and not lastFull then
@@ -957,13 +1013,31 @@ function Hud.init()
 		end
 		-- the movement buttons follow the hero's mobility and what they are doing (MoveController.labels)
 		local labels = MoveController.labels()
-		buttons.Fly.button.Visible = labels.fly ~= nil
+		-- mouse and keyboard: the movement keys are one key line, not round buttons (the declutter pass)
+		local keys = keyMode and focus == nil
+		buttons.Fly.button.Visible = labels.fly ~= nil and not keys
 		buttons.Fly.button.Text = labels.fly or "FLY"
-		buttons.Boost.button.Visible = labels.boost ~= nil
+		buttons.Boost.button.Visible = labels.boost ~= nil and not keys
 		buttons.Boost.button.Text = labels.boost or "BOOST"
-		buttons.Down.button.Visible = labels.down ~= nil
+		buttons.Down.button.Visible = labels.down ~= nil and not keys
 		buttons.Down.button.Text = labels.down or "DOWN"
 		buttons.Leap.button.Text = labels.leap
+		buttons.Leap.button.Visible = not keys
+		keyLine.Visible = keys
+		if keys then
+			local parts = {}
+			for _, action in U.dock.keyLine do
+				local label = (labels :: any)[string.lower(action)]
+				local key = InputController.hints[action]
+				if label and key then
+					table.insert(parts, string.upper(key) .. " " .. label)
+				end
+			end
+			local text = table.concat(parts, "   ")
+			if keyLine.Text ~= text then
+				keyLine.Text = text
+			end
+		end
 		-- H1: the Guard ring, and the shield button lit while blocking
 		local g = BlockClient.guard()
 		local litG = math.floor(g * #guardDots + 0.5)

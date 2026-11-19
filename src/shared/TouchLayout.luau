@@ -7,8 +7,8 @@
 -- * clusterScale(Config, w, h, opts): the action cluster's size: as big as Config.Ui.phone wants on this
 --   device times the player's Button size setting, but never bigger than fits under the top row.
 -- * cluster(Config, w, h, opts): every action button's centre and size (mirrored for left-handed).
--- * dock(Config, items, lo, hi, w, h, fromLo): the top row of screen buttons, from one end by order; the
---   ones that do not fit go in the MORE drawer.
+-- * dock(Config, items, lo, hi, w, h, fromLo): the top row of screen buttons, from one end by order; menu
+--   items and the ones that do not fit go in the MENU drawer.
 -- * hud(Config, w, h, opts): the display parts' boxes (status card, wallet, buffs, radar, tracker, squad
 --   list) and the top row's span, phone or not, left-handed or not.
 -- * panelScale(Config, w, h, designW, designH): the UIScale for a panel drawn at a design size, so it fits the
@@ -152,17 +152,20 @@ function TouchLayout.labelWidth(Config: any, text: string, row: number): number
 	return math.max(row, math.floor(n * row * P.glyph + P.padX + 0.5))
 end
 
-export type DockItem = { id: string, text: string, order: number }
+-- menu: the item lives in the MENU drawer whatever the room (the declutter pass, nate's playtest 2026-11-19:
+-- "wayyy too much on screen, especially the bar at the top with buttons")
+export type DockItem = { id: string, text: string, order: number, menu: boolean? }
 export type DockPlan = {
 	row: { [string]: Box }, -- the buttons in the top row
-	drawer: { string }, -- the rest, in order, for the MORE drawer
-	more: Box?, -- the MORE button when the drawer has any
+	drawer: { string }, -- the rest, in order, for the MENU drawer
+	more: Box?, -- the MENU button when the drawer has any
 	height: number,
 }
 
--- The top row between x = lo and x = hi: items by order from the hi end towards lo (from the lo end when
--- fromLo, for the left-handed phone layout). The ones that do not fit, and everything after the first that
--- does not, go in the drawer in order; MORE then takes the outer end.
+-- The top row between x = lo and x = hi: the row items by order from the hi end towards lo (from the lo end
+-- when fromLo, for the left-handed phone layout). Menu items, the row items that do not fit and everything
+-- after the first that does not, go in the drawer in order; MENU (Config.Ui.dock.menu) then takes the outer
+-- end.
 function TouchLayout.dock(
 	Config: any,
 	items: { DockItem },
@@ -176,7 +179,11 @@ function TouchLayout.dock(
 	local row = if TouchLayout.compact(Config, w, h) then P.rowCompact else P.row
 	local m, gap = Config.Ui.safe, P.gap
 	local list = table.clone(items)
+	-- the row items first (the drawer lists the overflow, then the menu items), each part by order
 	table.sort(list, function(a, b)
+		if (a.menu == true) ~= (b.menu == true) then
+			return not a.menu
+		end
 		if a.order ~= b.order then
 			return a.order < b.order
 		end
@@ -191,7 +198,7 @@ function TouchLayout.dock(
 		local cursor = 0 -- distance used from the outer end
 		local more: Box? = nil
 		if withMore then
-			local mw = TouchLayout.labelWidth(Config, "MORE", row)
+			local mw = TouchLayout.labelWidth(Config, Config.Ui.dock.menu, row)
 			more = at(0, mw)
 			cursor = mw + gap
 		end
@@ -199,7 +206,7 @@ function TouchLayout.dock(
 		local rest: { string } = {}
 		for _, it in list do
 			local bw = TouchLayout.labelWidth(Config, it.text, row)
-			if #rest == 0 and cursor + bw <= hi - lo then
+			if not it.menu and #rest == 0 and cursor + bw <= hi - lo then
 				placed[it.id] = at(cursor, bw)
 				cursor += bw + gap
 			else

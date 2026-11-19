@@ -1573,3 +1573,10 @@ Play a new hero's prologue on a server with a second player (Studio Test > 2 pla
 - [ ] A mission pocket and the city: robots never walk or fly through a wall; fliers rise over buildings smoothly (no pop onto a roof); shots stop at walls.
 - [ ] Super-speed: sprint (hold Boost), tap Leap: a low fast hop at full speed. Hold Leap: hop after hop with no slowdown. Let go: land at full run. Watch for any speed pull-back.
 - [ ] Cast one skill from each path standing still and running: the whole body moves (stance, wind-up, release); nothing pops or twists oddly; Martial's spin kick turns cleanly.
+
+## Studio list: declutter and button reliability (2026-11-19)
+1. PC: the top row is SHOP, MAP, GEAR, POWERS, MENU only; MENU opens a 2-column grid with JOURNAL, SQUAD, EMOTE, PING, SETTINGS, PASS, DAILY, BOARDS (and the level-gated ones); a pick opens its screen and shuts the grid; J, H, P, M, I, L still open their screens.
+2. PC: click POWERS ten times in a row (open, close, open...): every click toggles it. Same for GEAR, MAP, SHOP.
+3. Hero creator: click NEXT through every step and DONE, quickly and slowly, moving the mouse over the tiles first: every click moves one step, never two.
+4. PC with mouse: no LEAP, FLY, BOOST or DOWN buttons, a key line "SPACE LEAP  F FLY ..." under the skills, BLOCK beside them; a controller or phone brings the round buttons back; the opening still pulses LEAP.
+5. Phone (Device Emulator, iPhone SE): MENU's grid sits over the action buttons and every cell takes a tap; flag PVP on: PVP joins the top row; with a daily reward owed MENU reads "MENU !" in gold.

@@ -108,7 +108,7 @@ return function(
 		)
 	end)
 
-	test("Phone: the top row fits between the status card and the edge; the rest goes in MORE", function()
+	test("Phone: the top row fits between the status card and the edge; the rest goes in MENU", function()
 		local items = {}
 		for i, t in
 			{ "POWERS", "GEAR", "MAP", "SHOP", "PING", "PVP", "JOURNAL", "SQUAD", "EMOTE", "PHOTO", "⚙" }
@@ -129,6 +129,20 @@ return function(
 				end
 				check(#boxes >= 3, d.name .. ": at least two buttons and MORE in the row")
 				check(#plan.drawer == 0 or plan.more ~= nil, d.name .. ": a drawer always has its MORE")
+				-- the declutter pass: menu items always go in the drawer (after the overflow), in order
+				local mixed = {}
+				for i, it in items do
+					table.insert(mixed, { id = it.id, text = it.text, order = it.order, menu = i > 4 })
+				end
+				local mp = TouchLayout.dock(Config, mixed, hb.dockLo, hb.dockHi, w, h, hb.dockFromLo)
+				check(mp.more ~= nil, d.name .. ": menu items bring MENU")
+				local n = 0
+				for id in mp.row do
+					n += 1
+					check(tonumber(string.sub(id, 2)) <= 4, d.name .. ": a menu item never stands in the row")
+				end
+				check(n + #mp.drawer == #items, d.name .. ": every item is in the row or the drawer")
+				check(mp.drawer[#mp.drawer] == "b" .. #items, d.name .. ": the drawer keeps the order")
 				for i, b in boxes do
 					check(
 						b.x >= hb.dockLo - 0.5 and b.x + b.w <= hb.dockHi + 0.5,
@@ -454,10 +468,11 @@ return function(
 						M.Hud.setLeftHanded(true)
 					end)
 				end
-				-- every action button shown at once (the most crowded HUD: Awaken ready, a gadget, Down in flight)
+				-- every action button shown at once (the most crowded HUD: Awaken ready, a gadget, Down in flight);
+				-- with a mouse the movement keys are the key line, never buttons (Config.Ui.dock.keyLine)
 				for _, c in sim.playerGui:FindFirstChild("Hud").Cluster:GetChildren() do
 					if c:IsA("GuiButton") and c.Name ~= "Catch" then
-						c.Visible = true
+						c.Visible = d.touch or not table.find(Config.Ui.dock.keyLine, c.Name)
 					end
 				end
 				local base = { minTap = P.minTap, minText = P.minText, safe = true, textOverlap = true }
@@ -574,7 +589,7 @@ return function(
 				sim:run("drawer", function()
 					sim:require("Client.Ui.Kit").dockDrawer(true)
 				end)
-				report("MORE drawer", { only = { Dock = true } })
+				report("MENU drawer", { only = { Dock = true, DockMenu = true } })
 				sim:run("drawer", function()
 					sim:require("Client.Ui.Kit").dockDrawer(false)
 				end)
@@ -712,4 +727,200 @@ return function(
 			end
 		end
 	)
+
+	-- nate's playtest 2026-11-19: "so many buttons are extremely unreliable, next button in character creator
+	-- still requires me to keep hitting it"
+	test("Buttons: every tap lands, counts once, and nothing decorative takes input", function()
+		local fs = require("@lune/fs")
+		local roblox = require("@lune/roblox")
+		local UiSim = require("./uisim")
+		local Enum, Vector3, UDim2 = roblox.Enum, roblox.Vector3, roblox.UDim2
+		local trees = UiSim.load(roblox.deserializePlace(fs.readFile(placePath)))
+		for _, d in { DEVICES[1], DEVICES[5] } do
+			local sim = UiSim.new(trees, d)
+			local M = {}
+			local Input = sim:require("Client.Controllers.InputController")
+			sim:run("InputController", Input.init)
+			for _, m in
+				{
+					"Hud",
+					"Radar",
+					"LoadoutScreen",
+					"GearScreen",
+					"MapScreen",
+					"Journal",
+					"PassHud",
+					"DailyHud",
+					"BoardHud",
+					"ShopHud",
+					"SettingsMenu",
+					"SquadHud",
+					"PvpHud",
+					"Toasts",
+					"WorldHud",
+					"CreatorScreen",
+				}
+			do
+				M[m] = sim:require("Client.Ui." .. m)
+				sim:run(m, M[m].init)
+			end
+			local Kit = sim:require("Client.Ui.Kit")
+			-- one drawn frame (the HUD's per-frame part shows and hides the situational buttons)
+			sim:run("frame", function()
+				sim.service("RunService").RenderStepped:Fire(1 / 60)
+			end)
+			sim:run("dock", Kit.layoutDock)
+			-- the comic ink never takes a tap: every shadow, burst and halftone is inactive and unselectable
+			for _, b in sim:boxes() do
+				if b.deco then
+					check(
+						not UiSim.sinks(b.inst) and b.inst.Selectable == false,
+						d.name .. ": ink takes no input: " .. b.inst:GetFullName()
+					)
+				end
+			end
+			-- a tap on any shown button's middle reaches that button (the HUD, the MENU drawer, the creator)
+			for _, line in sim:blockedButtons() do
+				check(false, d.name .. " HUD: a tap misses " .. line)
+			end
+			sim:run("menu", function()
+				Kit.dockDrawer(true)
+			end)
+			for _, line in sim:blockedButtons({ DockMenu = true, Dock = true }) do
+				check(false, d.name .. " MENU drawer: a tap misses " .. line)
+			end
+			sim:run("menu", function()
+				Kit.dockDrawer(false)
+			end)
+			sim:run("creator", function()
+				M.CreatorScreen.open({ mode = "create" })
+			end)
+			for _, line in sim:blockedButtons({ Creator = true }) do
+				check(false, d.name .. " creator: a tap misses " .. line)
+			end
+			sim:run("creator", M.CreatorScreen.close)
+			for _, e in sim.errors do
+				check(false, d.name .. ": " .. tostring(e))
+			end
+			-- the declutter pass: only POWERS, GEAR, MAP and SHOP stand in the row; the rest is in MENU's grid
+			local dock = sim.playerGui:FindFirstChild("Dock")
+			local inRow = {}
+			for _, c in dock:GetChildren() do
+				if c:IsA("Frame") and c.Visible and c.Name ~= "More" then
+					inRow[c.Name] = true
+				end
+			end
+			for _, id in { "Loadout", "Gear", "Map", "Shop" } do
+				check(inRow[id] == true, d.name .. ": " .. id .. " in the top row")
+			end
+			for id in inRow do
+				check(
+					Config.Ui.dock.row[id] == true,
+					d.name .. ": only row buttons in the top row, not " .. id
+				)
+			end
+			check(dock:FindFirstChild("More").Visible, d.name .. ": MENU shows")
+		end
+
+		local sim = UiSim.new(trees, DEVICES[5])
+		local Input = sim:require("Client.Controllers.InputController")
+		sim:run("InputController", Input.init)
+		local Kit = sim:require("Client.Ui.Kit")
+		local taps = 0
+		local b
+		sim:run("button", function()
+			local g = Kit.screen("TapTest", 3)
+			b = Kit.button({ Text = "NEXT", Size = UDim2.fromOffset(170, 56) }, function()
+				taps += 1
+			end)
+			b.Parent = g
+		end)
+		local function input(x: number): any
+			return {
+				UserInputType = Enum.UserInputType.MouseButton1,
+				UserInputState = Enum.UserInputState.Begin,
+				Position = Vector3.new(x, 20, 0),
+				KeyCode = Enum.KeyCode.Unknown,
+			}
+		end
+		local function fire(ev: string, i: any)
+			sim:run(ev, function()
+				b._signals[ev]:Fire(i)
+			end)
+		end
+		-- a press and release on the button with no Activated (the engine dropped it) still counts, once
+		local i1 = input(40)
+		fire("InputBegan", i1)
+		fire("InputEnded", i1)
+		check(taps == 0, "the fallback waits for Activated")
+		sim:advance(Config.Ui.tap.wait + 0.05)
+		check(taps == 1, "a press and release with no Activated counts")
+		check(Kit.TAPS.fallback == 1, "the fallback counted it")
+		-- Activated before or after the release: one tap each, never two
+		local i2 = input(40)
+		fire("InputBegan", i2)
+		fire("Activated", i2)
+		fire("InputEnded", i2)
+		sim:advance(0.3)
+		check(taps == 2, "Activated then release: one tap")
+		local i3 = input(40)
+		fire("InputBegan", i3)
+		fire("InputEnded", i3)
+		fire("Activated", i3)
+		sim:advance(0.3)
+		check(taps == 3, "release then Activated: one tap")
+		-- a drag (or a scroll) is not a tap
+		fire("InputBegan", input(40))
+		fire("InputEnded", input(40 + Config.Ui.tap.slop + 10))
+		sim:advance(0.3)
+		check(taps == 3, "a drag is not a tap")
+		-- a gamepad or keyboard Activated with no press counts too
+		fire("Activated", input(0))
+		check(taps == 4, "Activated alone counts")
+		check(Kit.TAPS.fallback == 1, "the fallback only counted the dropped one")
+
+		-- TRY AGAIN takes a tap at once, and settles back to the button's own text
+		local sent = 0
+		local p
+		sim:run("pending", function()
+			p = Kit.button({ Text = "BUY", pending = true }, function()
+				sent += 1
+			end)
+			p.Parent = sim.playerGui:FindFirstChild("TapTest")
+		end)
+		sim:tap(p)
+		sim:advance(5.1)
+		check(p.Text == "TRY AGAIN" and p:GetAttribute("Pending") == nil, "TRY AGAIN takes a tap")
+		sim:tap(p)
+		check(sent == 2 and p.Text == "...", "a tap on TRY AGAIN sends again")
+		sim:run("settle", Kit.settle)
+		check(p.Text == "BUY", "the answer brings back BUY, not TRY AGAIN")
+
+		-- a HUD button clicked with the mouse lets go wherever the mouse button comes up (POWERS opened its
+		-- screen on the press, so the release landed on the screen and the next click did nothing)
+		local Hud = sim:require("Client.Ui.Hud")
+		sim:run("Hud", Hud.init)
+		local presses = 0
+		Input.Pressed:Connect(function(action)
+			if action == "Loadout" then
+				presses += 1
+			end
+		end)
+		sim:run("dock", Kit.layoutDock)
+		local powers = sim.playerGui:FindFirstChild("Dock").Loadout.Loadout
+		local uis = sim.service("UserInputService")
+		for _ = 1, 2 do
+			local i = input(10)
+			sim:run("press", function()
+				powers._signals.InputBegan:Fire(i)
+			end)
+			sim:run("release elsewhere", function()
+				uis.InputEnded:Fire(i, true)
+			end)
+		end
+		check(presses == 2, "two clicks on POWERS are two presses")
+		for _, e in sim.errors do
+			check(false, tostring(e))
+		end
+	end)
 end

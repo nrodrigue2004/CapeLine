@@ -6,7 +6,7 @@
 --   lune run tests/uishot.luau build/Capeline.rbxl out.json [scene ...]
 --   python3 tests/uishot.py out.json out_dir [--fonts DIR]
 --
--- Scenes: hud (HUD and toasts), gear, loadout, shop, settings, journal, map, creator, pass (each panel over
+-- Scenes: hud (HUD and toasts), menu (the HUD with its MENU drawer open), gear, loadout, shop, settings, journal, map, creator, pass (each panel over
 -- the HUD), screen:<ScreenGui name> (a card screen with all its parts shown)
 
 local fs = require("@lune/fs")
@@ -34,6 +34,10 @@ if size then
 		DEVICE.w, DEVICE.h = tonumber(w) :: number, tonumber(h) :: number
 	end
 end
+-- UISHOT_PC=1 draws a mouse-and-keyboard screen (no touch buttons); UISHOT_ALL=0 leaves the action buttons as
+-- the game shows them (else every one is shown: the most crowded HUD)
+DEVICE.touch = process.env.UISHOT_PC ~= "1"
+local showAll = process.env.UISHOT_ALL ~= "0"
 
 local trees = UiSim.load(roblox.deserializePlace(fs.readFile(placePath)))
 
@@ -228,7 +232,7 @@ for _, scene in scenes do
 	sim:advance(0.5)
 	-- every action button shown (the most crowded HUD, as tests/phone_test.luau checks it)
 	for _, c in sim.playerGui:FindFirstChild("Hud").Cluster:GetChildren() do
-		if c:IsA("GuiButton") and c.Name ~= "Catch" then
+		if showAll and c:IsA("GuiButton") and c.Name ~= "Catch" then
 			c.Visible = true
 		end
 	end
@@ -255,7 +259,16 @@ for _, scene in scenes do
 		end)
 	end
 	sim:advance(1)
+	-- one drawn frame, so the per-frame HUD (bars, situational buttons, the key line) is as the game shows it
+	sim:run("frame", function()
+		sim.service("RunService").RenderStepped:Fire(1 / 60)
+	end)
 	sim:run("dock", sim:require("Client.Ui.Kit").layoutDock)
+	if scene == "menu" then
+		sim:run("menu", function()
+			sim:require("Client.Ui.Kit").dockDrawer(true)
+		end)
+	end
 	local shot = capture(sim)
 	shot.scene = string.gsub(scene, ":", "_")
 	shot.errors = {}
