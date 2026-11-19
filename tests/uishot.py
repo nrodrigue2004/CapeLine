@@ -259,6 +259,14 @@ def paint_cell(canvas, n, sheet, x0, y0, x1, y1):
         a = cell.getchannel("A").point(lambda v: int(v * (1 - t)))
         cell.putalpha(a)
     canvas.alpha_composite(cell, (int(x0 + (x1 - x0 - tw) / 2), int(y0 + (y1 - y0 - th) / 2)))
+# UISHOT_IMAGES=<ids.json> (file name -> uploaded id, as art/panels/upload.py keeps them, next to the files):
+# uploaded images draw from their local files instead of a placeholder box
+LOCAL_IMAGES = {}
+if os.environ.get("UISHOT_IMAGES"):
+    import json as _json
+    _ids = _json.load(open(os.environ["UISHOT_IMAGES"]))
+    _dir = os.path.dirname(os.environ["UISHOT_IMAGES"])
+    LOCAL_IMAGES = {str(v): os.path.join(_dir, k) for k, v in _ids.items() if isinstance(v, int)}
 
 
 def paint(canvas, n, kids):
@@ -269,7 +277,25 @@ def paint(canvas, n, kids):
     if n.get("bgT", 0) < 0.99 and x1 > x0 and y1 > y0:
         d.rounded_rectangle([x0, y0, x1, y1], radius=r, fill=rgba(n["bg"], n["bgT"]))
     if n.get("image") and n.get("imageT", 0) < 0.99 and x1 - x0 > 1 and y1 - y0 > 1:
-        if n.get("halftone"):
+        local_img = LOCAL_IMAGES.get(str(n["image"]).replace("rbxassetid://", ""))
+        if local_img:
+            # an uploaded image drawn from its local file (UISHOT_IMAGES), with its rect and Crop scaling
+            src = Image.open(local_img).convert("RGBA")
+            if n.get("rect"):
+                ox, oy, sw, sh = n["rect"]
+                src = src.crop((int(ox), int(oy), int(ox + sw), int(oy + sh)))
+            bw, bh = int(x1 - x0), int(y1 - y0)
+            if n.get("crop"):
+                k = max(bw / src.width, bh / src.height)
+                src = src.resize((max(1, int(src.width * k)), max(1, int(src.height * k))), Image.LANCZOS)
+                lx, ly = (src.width - bw) // 2, (src.height - bh) // 2
+                src = src.crop((lx, ly, lx + bw, ly + bh))
+            else:
+                src = src.resize((bw, bh), Image.LANCZOS)
+            m = Image.new("L", src.size, 0)
+            ImageDraw.Draw(m).rounded_rectangle([0, 0, src.size[0] - 1, src.size[1] - 1], radius=r, fill=255)
+            canvas.paste(src, (int(x0), int(y0)), m)
+        elif n.get("halftone"):
             step = (n.get("tileSize") or [8, 8])[0] * n.get("scale", 1) * SS / 2  # the tile holds two dots across
             tile = halftone(int(x1 - x0), int(y1 - y0), n["imageC"], n["imageT"], step)
             m = Image.new("L", tile.size, 0)

@@ -8,7 +8,9 @@
 --
 -- Scenes: loading (the ReplicatedFirst loading card alone), hud (HUD and toasts), menu (the HUD with its MENU drawer open), gear, loadout, shop, settings, journal, map, creator, pass (each panel over
 -- the HUD), world (the HUD with incidents, an event, a contract, a boss fight and its result card), contracts
--- (the Contract Board), badges (the Badge Book), daily (the daily card), screen:<ScreenGui name> (a card screen with all its parts shown)
+-- (the Contract Board), badges (the Badge Book), daily (the daily card), screen:<ScreenGui name> (a card screen with all its parts shown),
+-- comic:<page id> (a comic page from Config.Cinema.comic.pages with every panel in), guide:<speaker> (the guide line
+-- box with that speaker's portrait). UISHOT_IMAGES=<ids.json> lets tests/uishot.py draw uploaded images from their local files.
 
 local fs = require("@lune/fs")
 local process = require("@lune/process")
@@ -132,6 +134,7 @@ local function node(b: any): { [string]: any }
 			n.tileScale = { t.X.Scale, t.Y.Scale }
 		end
 		n.halftone = i:GetAttribute("Halftone") == true
+		n.crop = prop(i, "ScaleType") == Enum.ScaleType.Crop
 		-- a sprite sheet cell (the icon set, gap-icons): uishot.py draws it from art/export/icons
 		-- or a picture tile's cell of a sheet (Ui.Thumb): drawn by uishot.py --images from the local sheet
 		local ro, rs = prop(i, "ImageRectOffset"), prop(i, "ImageRectSize")
@@ -480,6 +483,19 @@ for _, scene in scenes do
 					end
 				end
 			end
+		elseif string.sub(scene, 1, 6) == "comic:" then
+			-- a comic page with every panel in (as CinemaHud slides them in over the scene's seconds)
+			-- (opened after the drawn frame below: with no scene playing, CinemaHud's frame closes a page)
+			sim:run(scene, function()
+				sim:require("Client.Ui.GuideHud").init()
+				sim:require("Client.Ui.CinemaHud").init()
+			end)
+		elseif string.sub(scene, 1, 6) == "guide:" then
+			sim:run(scene, function()
+				local GuideHud = sim:require("Client.Ui.GuideHud")
+				GuideHud.init()
+				GuideHud.sample(string.sub(scene, 7))
+			end)
 		elseif PANEL[scene] then
 			local p = PANEL[scene]
 			if scene == "map" then
@@ -527,6 +543,17 @@ for _, scene in scenes do
 			sim.service("RunService").RenderStepped:Fire(1 / 60)
 		end)
 		sim:run("dock", sim:require("Client.Ui.Kit").layoutDock)
+		if string.sub(scene, 1, 6) == "comic:" then
+			sim:run("page", function()
+				sim:require("Client.Ui.CinemaHud").showPage(string.sub(scene, 7))
+			end)
+			local g = sim.playerGui:FindFirstChild("ComicPage")
+			for _, c in (g and g:FindFirstChild("Page") or sim.playerGui):GetChildren() do
+				if c:IsA("Frame") and string.sub(c.Name, 1, 5) == "Panel" then
+					c.Visible = true
+				end
+			end
+		end
 		if scene == "menu" then
 			sim:run("menu", function()
 				sim:require("Client.Ui.Kit").dockDrawer(true)

@@ -1,0 +1,4723 @@
+{
+  "aliases": {
+    "LodestarGiver": "lodestar",
+    "PatchRelay": "patch"
+  },
+  "panels": [
+    {
+      "aspect": 2,
+      "caption": "Brine was a salvage diver off Gull Point. One day his Spark woke in the deep.",
+      "ground": [
+        60,
+        130,
+        180
+      ],
+      "index": 1,
+      "key": "brineLegend.1",
+      "page": "brineLegend",
+      "scene": "pier",
+      "sky": [
+        150,
+        200,
+        235
+      ]
+    },
+    {
+      "aspect": 2,
+      "caption": "He pulled old diving robots off the sea floor and made them his crew.",
+      "ground": [
+        30,
+        60,
+        90
+      ],
+      "index": 2,
+      "key": "brineLegend.2",
+      "page": "brineLegend",
+      "scene": "salvage",
+      "sky": [
+        60,
+        70,
+        100
+      ],
+      "word": "CLANK!"
+    },
+    {
+      "aspect": 2.1052631578947367,
+      "caption": "Then the ghost ship came out of the fog. Sailors jumped ship. Brine took the rest.",
+      "ground": [
+        25,
+        50,
+        70
+      ],
+      "index": 3,
+      "key": "brineLegend.3",
+      "page": "brineLegend",
+      "scene": "ghostship",
+      "sky": [
+        40,
+        50,
+        70
+      ],
+      "word": "WOOOO!"
+    },
+    {
+      "aspect": 2.1052631578947367,
+      "caption": "Every crate goes to his sea cave. Nobody who went looking ever found it.",
+      "ground": [
+        20,
+        30,
+        40
+      ],
+      "index": 4,
+      "key": "brineLegend.4",
+      "page": "brineLegend",
+      "scene": "seacave",
+      "sky": [
+        30,
+        30,
+        40
+      ],
+      "word": "SPLASH!"
+    },
+    {
+      "aspect": 2,
+      "caption": "You built the suit in Tinker Tess's garage, from scrapyard parts and a dead core.",
+      "ground": [
+        120,
+        110,
+        100
+      ],
+      "index": 1,
+      "key": "coreTruth.1",
+      "page": "coreTruth",
+      "scene": "tinkergarage",
+      "sky": [
+        255,
+        210,
+        150
+      ]
+    },
+    {
+      "aspect": 2,
+      "caption": "The core stayed dead until you strapped in. Then it lit up.",
+      "ground": [
+        90,
+        85,
+        80
+      ],
+      "index": 2,
+      "key": "coreTruth.2",
+      "page": "coreTruth",
+      "scene": "suitup",
+      "sky": [
+        60,
+        60,
+        80
+      ],
+      "word": "VRRRMM!"
+    },
+    {
+      "aspect": 2.1052631578947367,
+      "caption": "Clawback's robots take back anything that glows. Now they want yours.",
+      "ground": [
+        100,
+        95,
+        90
+      ],
+      "index": 3,
+      "key": "coreTruth.3",
+      "page": "coreTruth",
+      "scene": "repo",
+      "sky": [
+        230,
+        160,
+        90
+      ],
+      "word": "CLANK!"
+    },
+    {
+      "aspect": 2.1052631578947367,
+      "caption": "The core never made your power. It runs on your Spark, and it always has.",
+      "ground": [
+        60,
+        50,
+        80
+      ],
+      "index": 4,
+      "key": "coreTruth.4",
+      "page": "coreTruth",
+      "scene": "spark",
+      "sky": [
+        255,
+        236,
+        170
+      ]
+    },
+    {
+      "aspect": 2,
+      "caption": "Every night BHN 24 tells Brightharbor what happened today. Most of it, anyway.",
+      "ground": [
+        70,
+        80,
+        100
+      ],
+      "index": 1,
+      "key": "cutStory.1",
+      "page": "cutStory",
+      "scene": "tv",
+      "sky": [
+        120,
+        180,
+        240
+      ]
+    },
+    {
+      "aspect": 2,
+      "caption": "Some stories never air. Tapes vanish. Screens go black in the middle of a sentence.",
+      "ground": [
+        40,
+        40,
+        50
+      ],
+      "index": 2,
+      "key": "cutStory.2",
+      "page": "cutStory",
+      "scene": "blackout",
+      "sky": [
+        30,
+        30,
+        40
+      ],
+      "word": "CUT!"
+    },
+    {
+      "aspect": 2.1052631578947367,
+      "caption": "Nora Bright has one van, one camera and one uplink the Censor can't reach.",
+      "ground": [
+        80,
+        80,
+        90
+      ],
+      "index": 3,
+      "key": "cutStory.3",
+      "page": "cutStory",
+      "scene": "van",
+      "sky": [
+        255,
+        190,
+        120
+      ]
+    },
+    {
+      "aspect": 2.1052631578947367,
+      "caption": "If the uplink holds, every screen in the city shows the truth at once.",
+      "ground": [
+        40,
+        40,
+        60
+      ],
+      "index": 4,
+      "key": "cutStory.4",
+      "page": "cutStory",
+      "scene": "city",
+      "sky": [
+        30,
+        40,
+        80
+      ]
+    },
+    {
+      "aspect": 2,
+      "caption": "Ashgrove Labs paid volunteers to sit in the Kindler, a ring of light. Most felt nothing.",
+      "ground": [
+        90,
+        100,
+        120
+      ],
+      "index": 1,
+      "key": "kindlerTruth.1",
+      "page": "kindlerTruth",
+      "scene": "lab",
+      "sky": [
+        150,
+        200,
+        230
+      ]
+    },
+    {
+      "aspect": 2,
+      "caption": "Then it was your turn. The ring flashed, and something inside you lit up.",
+      "ground": [
+        60,
+        70,
+        100
+      ],
+      "index": 2,
+      "key": "kindlerTruth.2",
+      "page": "kindlerTruth",
+      "scene": "kindler",
+      "sky": [
+        40,
+        50,
+        90
+      ],
+      "word": "FZZAP!"
+    },
+    {
+      "aspect": 2.1052631578947367,
+      "caption": "By morning the lab was shut and its files wiped. The director kept testing in secret.",
+      "ground": [
+        50,
+        50,
+        70
+      ],
+      "index": 3,
+      "key": "kindlerTruth.3",
+      "page": "kindlerTruth",
+      "scene": "city",
+      "sky": [
+        60,
+        60,
+        90
+      ]
+    },
+    {
+      "aspect": 2.1052631578947367,
+      "caption": "The Kindler never made a Spark. Every powered person has one. It only woke yours.",
+      "ground": [
+        60,
+        50,
+        80
+      ],
+      "index": 4,
+      "key": "kindlerTruth.4",
+      "page": "kindlerTruth",
+      "scene": "spark",
+      "sky": [
+        255,
+        236,
+        170
+      ]
+    },
+    {
+      "aspect": 2,
+      "caption": "Three summers without rain. Every farm out here was drying up.",
+      "ground": [
+        170,
+        130,
+        80
+      ],
+      "index": 1,
+      "key": "kingStory.1",
+      "page": "kingStory",
+      "scene": "farm",
+      "sky": [
+        255,
+        200,
+        110
+      ]
+    },
+    {
+      "aspect": 2,
+      "caption": "Then my Spark woke up. Anything I touched would grow. Anything!",
+      "ground": [
+        90,
+        140,
+        60
+      ],
+      "index": 2,
+      "key": "kingStory.2",
+      "page": "kingStory",
+      "scene": "sprout",
+      "sky": [
+        150,
+        210,
+        255
+      ],
+      "word": "SPROUT!"
+    },
+    {
+      "aspect": 2.1052631578947367,
+      "caption": "So I grew a guardian to keep the crows off. It grew. And grew.",
+      "ground": [
+        60,
+        110,
+        50
+      ],
+      "index": 3,
+      "key": "kingStory.3",
+      "page": "kingStory",
+      "scene": "beast",
+      "sky": [
+        120,
+        160,
+        210
+      ],
+      "word": "RUMBLE!"
+    },
+    {
+      "aspect": 2.1052631578947367,
+      "caption": "Now it's always hungry. But it's MINE. Nobody hurts what I made.",
+      "ground": [
+        70,
+        90,
+        50
+      ],
+      "index": 4,
+      "key": "kingStory.4",
+      "page": "kingStory",
+      "scene": "farm",
+      "sky": [
+        255,
+        140,
+        90
+      ]
+    },
+    {
+      "aspect": 2,
+      "caption": "Lark raised her kid brother alone. Patch could fix any radio. Lark could fly.",
+      "ground": [
+        80,
+        70,
+        80
+      ],
+      "index": 1,
+      "key": "larkStory.1",
+      "page": "larkStory",
+      "scene": "sisters",
+      "sky": [
+        255,
+        180,
+        120
+      ]
+    },
+    {
+      "aspect": 2,
+      "caption": "Then the net vans came. Catchpole hunts Sparks for the bounty on their heads.",
+      "ground": [
+        50,
+        50,
+        60
+      ],
+      "index": 2,
+      "key": "larkStory.2",
+      "page": "larkStory",
+      "scene": "van",
+      "sky": [
+        60,
+        60,
+        80
+      ],
+      "word": "FWUMP!"
+    },
+    {
+      "aspect": 2.1052631578947367,
+      "caption": "Twelve cages in a Docks warehouse. A collar on every Spark, so none can fight back.",
+      "ground": [
+        70,
+        72,
+        80
+      ],
+      "index": 3,
+      "key": "larkStory.3",
+      "page": "larkStory",
+      "scene": "cage",
+      "sky": [
+        40,
+        44,
+        54
+      ]
+    },
+    {
+      "aspect": 2.1052631578947367,
+      "caption": "For a year Patch searched every radio wave in the city. Tonight one answered.",
+      "ground": [
+        40,
+        40,
+        60
+      ],
+      "index": 4,
+      "key": "larkStory.4",
+      "page": "larkStory",
+      "scene": "city",
+      "sky": [
+        20,
+        30,
+        60
+      ]
+    },
+    {
+      "aspect": 2,
+      "caption": "Years ago, the Crater was a busy city block.",
+      "ground": [
+        70,
+        60,
+        80
+      ],
+      "index": 1,
+      "key": "lastStand.1",
+      "page": "lastStand",
+      "scene": "city",
+      "sky": [
+        255,
+        196,
+        120
+      ]
+    },
+    {
+      "aspect": 2,
+      "caption": "The old heroes made their last stand there against the machines.",
+      "ground": [
+        40,
+        34,
+        50
+      ],
+      "index": 2,
+      "key": "lastStand.2",
+      "page": "lastStand",
+      "scene": "stand",
+      "sky": [
+        120,
+        60,
+        70
+      ],
+      "word": "KRAK!"
+    },
+    {
+      "aspect": 1.4035087719298245,
+      "caption": "Mid-battle, a Crane Industries lab went up in a flash.",
+      "ground": [
+        90,
+        80,
+        90
+      ],
+      "index": 3,
+      "key": "lastStand.3",
+      "page": "lastStand",
+      "scene": "blast",
+      "sky": [
+        255,
+        240,
+        200
+      ],
+      "word": "BOOM!"
+    },
+    {
+      "aspect": 2.853801169590643,
+      "caption": "When the dust settled, the old heroes were gone. Only the Crater was left.",
+      "ground": [
+        30,
+        30,
+        40
+      ],
+      "index": 4,
+      "key": "lastStand.4",
+      "page": "lastStand",
+      "scene": "crater",
+      "sky": [
+        70,
+        80,
+        110
+      ]
+    },
+    {
+      "aspect": 2,
+      "caption": "For years you trained at Master Hoshi's dojo on Willow Street.",
+      "ground": [
+        160,
+        120,
+        80
+      ],
+      "index": 1,
+      "key": "masterLesson.1",
+      "page": "masterLesson",
+      "scene": "dojo",
+      "sky": [
+        255,
+        220,
+        170
+      ]
+    },
+    {
+      "aspect": 2,
+      "caption": "Then, one dawn, after a thousand falls, your Spark woke up.",
+      "ground": [
+        140,
+        100,
+        70
+      ],
+      "index": 2,
+      "key": "masterLesson.2",
+      "page": "masterLesson",
+      "scene": "dojo",
+      "sky": [
+        255,
+        170,
+        110
+      ],
+      "word": "WHOOSH!"
+    },
+    {
+      "aspect": 2.1052631578947367,
+      "caption": "Gale trained just as hard. His Spark never woke, so he built a racing rig.",
+      "ground": [
+        50,
+        50,
+        60
+      ],
+      "index": 3,
+      "key": "masterLesson.3",
+      "page": "masterLesson",
+      "scene": "suitup",
+      "sky": [
+        40,
+        60,
+        80
+      ],
+      "word": "ZOOM!"
+    },
+    {
+      "aspect": 2.1052631578947367,
+      "caption": "No one can give you a Spark. Training only wakes the one that was always there.",
+      "ground": [
+        60,
+        50,
+        80
+      ],
+      "index": 4,
+      "key": "masterLesson.4",
+      "page": "masterLesson",
+      "scene": "spark",
+      "sky": [
+        255,
+        236,
+        170
+      ]
+    },
+    {
+      "aspect": 2,
+      "caption": "When the Old Quarry shut down, the Gravel family kept the mine tunnels under it.",
+      "ground": [
+        150,
+        130,
+        110
+      ],
+      "index": 1,
+      "key": "pitStory.1",
+      "page": "pitStory",
+      "scene": "quarry",
+      "sky": [
+        255,
+        170,
+        100
+      ]
+    },
+    {
+      "aspect": 2,
+      "caption": "Then the eldest son's Spark woke up. His skin turned to quarry stone.",
+      "ground": [
+        110,
+        100,
+        95
+      ],
+      "index": 2,
+      "key": "pitStory.2",
+      "page": "pitStory",
+      "scene": "stone",
+      "sky": [
+        90,
+        80,
+        110
+      ],
+      "word": "CRACK!"
+    },
+    {
+      "aspect": 2.1052631578947367,
+      "caption": "He never lost a fight. So he dug a ring, sold tickets and took the bets.",
+      "ground": [
+        120,
+        100,
+        80
+      ],
+      "index": 3,
+      "key": "pitStory.3",
+      "page": "pitStory",
+      "scene": "ring",
+      "sky": [
+        40,
+        34,
+        50
+      ],
+      "word": "DING DING!"
+    },
+    {
+      "aspect": 2.1052631578947367,
+      "caption": "Lose in the Pit and you owe the family. So you fight again. Nobody walks out.",
+      "ground": [
+        90,
+        70,
+        60
+      ],
+      "index": 4,
+      "key": "pitStory.4",
+      "page": "pitStory",
+      "scene": "ring",
+      "sky": [
+        70,
+        20,
+        24
+      ]
+    },
+    {
+      "aspect": 2,
+      "caption": "Long ago a little ship fell from the stars and came down past Radio Hill.",
+      "ground": [
+        70,
+        80,
+        60
+      ],
+      "index": 1,
+      "key": "podMessage.1",
+      "page": "podMessage",
+      "scene": "starfall",
+      "sky": [
+        30,
+        26,
+        60
+      ],
+      "word": "KA-THOOM!"
+    },
+    {
+      "aspect": 2,
+      "caption": "Its pilot stayed, and had a family. The star blood was passed down and down.",
+      "ground": [
+        110,
+        140,
+        80
+      ],
+      "index": 2,
+      "key": "podMessage.2",
+      "page": "podMessage",
+      "scene": "seedship",
+      "sky": [
+        255,
+        200,
+        150
+      ]
+    },
+    {
+      "aspect": 2.1052631578947367,
+      "caption": "This week the old pod woke up, and began to sing to its family.",
+      "ground": [
+        90,
+        110,
+        70
+      ],
+      "index": 3,
+      "key": "podMessage.3",
+      "page": "podMessage",
+      "scene": "radiomast",
+      "sky": [
+        50,
+        40,
+        90
+      ],
+      "word": "LA-LA-LAA!"
+    },
+    {
+      "aspect": 2.1052631578947367,
+      "caption": "Its message: every Spark is one Spark. Star blood only woke the one in you.",
+      "ground": [
+        60,
+        50,
+        80
+      ],
+      "index": 4,
+      "key": "podMessage.4",
+      "page": "podMessage",
+      "scene": "spark",
+      "sky": [
+        255,
+        236,
+        170
+      ]
+    },
+    {
+      "aspect": 2,
+      "caption": "Forty years ago, Ambrose the Astonishing filled every theatre in Old Town.",
+      "ground": [
+        70,
+        40,
+        40
+      ],
+      "index": 1,
+      "key": "relicTruth.1",
+      "page": "relicTruth",
+      "scene": "stage",
+      "sky": [
+        110,
+        30,
+        50
+      ]
+    },
+    {
+      "aspect": 2,
+      "caption": "His secret was a little relic. Whenever he held it, his Spark woke up.",
+      "ground": [
+        60,
+        40,
+        60
+      ],
+      "index": 2,
+      "key": "relicTruth.2",
+      "page": "relicTruth",
+      "scene": "relic",
+      "sky": [
+        40,
+        30,
+        70
+      ],
+      "word": "TING!"
+    },
+    {
+      "aspect": 2.1052631578947367,
+      "caption": "Jealous Morrow had no Spark. He tried to steal it, so Ambrose vanished for good.",
+      "ground": [
+        50,
+        30,
+        40
+      ],
+      "index": 3,
+      "key": "relicTruth.3",
+      "page": "relicTruth",
+      "scene": "stage",
+      "sky": [
+        60,
+        20,
+        40
+      ],
+      "word": "POOF!"
+    },
+    {
+      "aspect": 2.1052631578947367,
+      "caption": "The relic was never magic. It only woke the Spark in its owner. Now that is you.",
+      "ground": [
+        60,
+        50,
+        80
+      ],
+      "index": 4,
+      "key": "relicTruth.4",
+      "page": "relicTruth",
+      "scene": "spark",
+      "sky": [
+        255,
+        236,
+        170
+      ]
+    },
+    {
+      "aspect": 2,
+      "caption": "Sal Scorch started with one tow truck and a lighter. Now his Torch Crew owns the garages.",
+      "ground": [
+        90,
+        70,
+        60
+      ],
+      "index": 1,
+      "key": "scorchStory.1",
+      "page": "scorchStory",
+      "scene": "garage",
+      "sky": [
+        255,
+        160,
+        90
+      ]
+    },
+    {
+      "aspect": 2,
+      "caption": "Pay the Crew, or your shop catches fire. Nobody in Old Town says no twice.",
+      "ground": [
+        70,
+        40,
+        40
+      ],
+      "index": 2,
+      "key": "scorchStory.2",
+      "page": "scorchStory",
+      "scene": "blast",
+      "sky": [
+        120,
+        40,
+        30
+      ],
+      "word": "FWOOM!"
+    },
+    {
+      "aspect": 2.1052631578947367,
+      "caption": "For twenty years Duchess Vanta ran Old Town from the Opal Room. Scorch wants her chair.",
+      "ground": [
+        90,
+        50,
+        40
+      ],
+      "index": 3,
+      "key": "scorchStory.3",
+      "page": "scorchStory",
+      "scene": "club",
+      "sky": [
+        60,
+        20,
+        40
+      ]
+    },
+    {
+      "aspect": 2.1052631578947367,
+      "caption": "So the Duchess wants him gone, by someone nobody in Old Town knows. You.",
+      "ground": [
+        50,
+        40,
+        60
+      ],
+      "index": 4,
+      "key": "scorchStory.4",
+      "page": "scorchStory",
+      "scene": "city",
+      "sky": [
+        40,
+        30,
+        60
+      ]
+    },
+    {
+      "aspect": 2,
+      "caption": "Long ago Velmara stood in the sun, a city of bronze towers by the bay.",
+      "ground": [
+        210,
+        190,
+        140
+      ],
+      "index": 1,
+      "key": "tidewrightTale.1",
+      "page": "tidewrightTale",
+      "scene": "velmara",
+      "sky": [
+        150,
+        210,
+        240
+      ]
+    },
+    {
+      "aspect": 2,
+      "caption": "Then a great storm drowned it. Its people swam for the shore and never came back.",
+      "ground": [
+        30,
+        70,
+        110
+      ],
+      "index": 2,
+      "key": "tidewrightTale.2",
+      "page": "tidewrightTale",
+      "scene": "flood",
+      "sky": [
+        50,
+        60,
+        90
+      ],
+      "word": "WHOOSH!"
+    },
+    {
+      "aspect": 2.1052631578947367,
+      "caption": "They left the Tidewright to keep the city safe. It waited, and waited, and slept.",
+      "ground": [
+        20,
+        40,
+        60
+      ],
+      "index": 3,
+      "key": "tidewrightTale.3",
+      "page": "tidewrightTale",
+      "scene": "guardian",
+      "sky": [
+        20,
+        50,
+        80
+      ]
+    },
+    {
+      "aspect": 2.1052631578947367,
+      "caption": "Last week a salvage drill cracked the seal. The guardian woke up angry.",
+      "ground": [
+        20,
+        35,
+        50
+      ],
+      "index": 4,
+      "key": "tidewrightTale.4",
+      "page": "tidewrightTale",
+      "scene": "dredger",
+      "sky": [
+        25,
+        40,
+        60
+      ],
+      "word": "KRAK!"
+    },
+    {
+      "aspect": 2,
+      "caption": "Tick-Tock Toys was my favourite shop. The Toymaker said I was special.",
+      "ground": [
+        110,
+        170,
+        90
+      ],
+      "index": 1,
+      "key": "tobyStory.1",
+      "page": "tobyStory",
+      "scene": "toyshop",
+      "sky": [
+        170,
+        220,
+        255
+      ]
+    },
+    {
+      "aspect": 2,
+      "caption": "He gave me a wind-up bear. When I cried, every toy on the street woke up!",
+      "ground": [
+        110,
+        170,
+        90
+      ],
+      "index": 2,
+      "key": "tobyStory.2",
+      "page": "tobyStory",
+      "scene": "gnome",
+      "sky": [
+        255,
+        220,
+        170
+      ],
+      "word": "TICK-TICK!"
+    },
+    {
+      "aspect": 2.1052631578947367,
+      "caption": "Then he broke my toys on purpose. Every day. So I would keep crying.",
+      "ground": [
+        70,
+        60,
+        70
+      ],
+      "index": 3,
+      "key": "tobyStory.3",
+      "page": "tobyStory",
+      "scene": "tantrum",
+      "sky": [
+        90,
+        80,
+        120
+      ]
+    },
+    {
+      "aspect": 2.1052631578947367,
+      "caption": "His machine in the basement drinks it all up. He calls it the Tantrum Tap.",
+      "ground": [
+        30,
+        30,
+        40
+      ],
+      "index": 4,
+      "key": "tobyStory.4",
+      "page": "tobyStory",
+      "scene": "tap",
+      "sky": [
+        40,
+        40,
+        60
+      ],
+      "word": "GLUG!"
+    },
+    {
+      "aspect": 2,
+      "caption": "For twelve years Lodestar and Vesper kept Brightharbor's night sky safe.",
+      "ground": [
+        30,
+        30,
+        50
+      ],
+      "index": 1,
+      "key": "vesperStory.1",
+      "page": "vesperStory",
+      "scene": "twostars",
+      "sky": [
+        40,
+        50,
+        100
+      ]
+    },
+    {
+      "aspect": 2,
+      "caption": "After every patrol: the Night Owl diner, two coffees, the booth by the window.",
+      "ground": [
+        60,
+        50,
+        60
+      ],
+      "index": 2,
+      "key": "vesperStory.2",
+      "page": "vesperStory",
+      "scene": "diner",
+      "sky": [
+        30,
+        30,
+        60
+      ]
+    },
+    {
+      "aspect": 2.1052631578947367,
+      "caption": "Then the harbour fire, last winter. Vesper flew in for the last family and never came out.",
+      "ground": [
+        70,
+        40,
+        40
+      ],
+      "index": 3,
+      "key": "vesperStory.3",
+      "page": "vesperStory",
+      "scene": "blast",
+      "sky": [
+        120,
+        40,
+        30
+      ],
+      "word": "FWOOM!"
+    },
+    {
+      "aspect": 2.1052631578947367,
+      "caption": "Last month she was back: rich, famous, on every screen. She walked right past him.",
+      "ground": [
+        120,
+        90,
+        120
+      ],
+      "index": 4,
+      "key": "vesperStory.4",
+      "page": "vesperStory",
+      "scene": "tv",
+      "sky": [
+        255,
+        200,
+        230
+      ]
+    },
+    {
+      "aspect": 2,
+      "caption": "Halo Academy said I was special. Free lessons for kids with Sparks.",
+      "ground": [
+        90,
+        110,
+        80
+      ],
+      "index": 1,
+      "key": "wrenStory.1",
+      "page": "wrenStory",
+      "scene": "school",
+      "sky": [
+        150,
+        210,
+        255
+      ]
+    },
+    {
+      "aspect": 2,
+      "caption": "Headmaster Halo picked me for the honours class. Everyone clapped.",
+      "ground": [
+        70,
+        70,
+        90
+      ],
+      "index": 2,
+      "key": "wrenStory.2",
+      "page": "wrenStory",
+      "scene": "stand",
+      "sky": [
+        255,
+        230,
+        160
+      ]
+    },
+    {
+      "aspect": 2.1052631578947367,
+      "caption": "Downstairs, a machine measured my Spark. A robot stood up... with MY powers.",
+      "ground": [
+        30,
+        30,
+        40
+      ],
+      "index": 3,
+      "key": "wrenStory.3",
+      "page": "wrenStory",
+      "scene": "scan",
+      "sky": [
+        40,
+        50,
+        70
+      ],
+      "word": "ZZZAP!"
+    },
+    {
+      "aspect": 2.1052631578947367,
+      "caption": "So I ran. And I kept running until I found you.",
+      "ground": [
+        60,
+        50,
+        60
+      ],
+      "index": 4,
+      "key": "wrenStory.4",
+      "page": "wrenStory",
+      "scene": "city",
+      "sky": [
+        255,
+        140,
+        90
+      ]
+    }
+  ],
+  "portraits": [
+    {
+      "bg": [
+        60,
+        30,
+        50
+      ],
+      "color": [
+        230,
+        190,
+        60
+      ],
+      "extras": [
+        "beard"
+      ],
+      "face": {
+        "asset": 141728790,
+        "image": 141728515,
+        "name": "Tired Face"
+      },
+      "hair": {
+        "asset": 727320877,
+        "name": "Long Pastel Hair"
+      },
+      "key": "ambrose",
+      "name": "AMBROSE",
+      "people": "Ambrose",
+      "shape": "messy",
+      "skin": [
+        224,
+        172,
+        130
+      ],
+      "style": "person"
+    },
+    {
+      "bg": [
+        20,
+        50,
+        60
+      ],
+      "color": [
+        40,
+        190,
+        170
+      ],
+      "extras": [
+        "beard",
+        "scar"
+      ],
+      "face": {
+        "asset": 144075659,
+        "image": 144080495,
+        "name": "Smile"
+      },
+      "hair": {
+        "asset": 398673196,
+        "name": "Blonde Action Ponytail"
+      },
+      "key": "brine",
+      "look": {
+        "build": 3,
+        "colors": [
+          32,
+          27,
+          38
+        ],
+        "gender": 1,
+        "hair": 40,
+        "height": 4,
+        "mats": {
+          "suit": "Metal"
+        },
+        "pieces": {
+          "back": "Duster Coat",
+          "beard": "Full Beard",
+          "emblem": "Cross",
+          "feet": "Armored Boots",
+          "hair": "Slicked Back",
+          "hands": "Armored Gauntlets",
+          "hat": "Wide Brim",
+          "head": "Eye Patch",
+          "shoulders": "Epaulettes",
+          "suit": "Plated Suit",
+          "visage": "Scarred Face"
+        },
+        "skin": 3,
+        "tints": {
+          "back": [
+            38,
+            27,
+            0
+          ]
+        }
+      },
+      "name": "CAPTAIN BRINE",
+      "people": "CaptainBrine",
+      "rgb": [
+        [
+          20,
+          110,
+          120
+        ],
+        [
+          180,
+          120,
+          40
+        ],
+        [
+          110,
+          20,
+          25
+        ]
+      ],
+      "shape": "helmet",
+      "skin": [
+        224,
+        172,
+        130
+      ],
+      "style": "broadcast",
+      "tints": {
+        "back": [
+          [
+            110,
+            20,
+            25
+          ],
+          [
+            180,
+            120,
+            40
+          ]
+        ]
+      }
+    },
+    {
+      "bg": [
+        60,
+        62,
+        72
+      ],
+      "color": [
+        200,
+        205,
+        215
+      ],
+      "extras": [
+        "visor"
+      ],
+      "face": {
+        "asset": 406000730,
+        "image": 406035320,
+        "name": "Happy D"
+      },
+      "hair": {
+        "asset": 11652080034.0,
+        "name": "Y2K uneven bob"
+      },
+      "key": "bulwark",
+      "look": {
+        "build": 4,
+        "colors": [
+          10,
+          19,
+          47
+        ],
+        "gender": 1,
+        "hair": 22,
+        "height": 5,
+        "mats": {
+          "shoulders": "Metal",
+          "suit": "Metal"
+        },
+        "pieces": {
+          "arms": "Arm Plates",
+          "belt": "Champion Belt",
+          "emblem": "Hex Badge",
+          "feet": "Combat Boots",
+          "hair": "Buzz Cut",
+          "hands": "Armored Gauntlets",
+          "shoulders": "Great Pauldrons",
+          "suit": "Plated Suit",
+          "visage": "Stern Face"
+        },
+        "skin": 4,
+        "tints": {
+          "shoulders": [
+            19,
+            10,
+            0
+          ]
+        }
+      },
+      "name": "BULWARK",
+      "people": "Bulwark",
+      "rgb": [
+        [
+          40,
+          110,
+          220
+        ],
+        [
+          175,
+          180,
+          190
+        ],
+        [
+          255,
+          240,
+          80
+        ]
+      ],
+      "shape": "helmet",
+      "skin": [
+        198,
+        140,
+        100
+      ],
+      "style": "person",
+      "tints": {
+        "shoulders": [
+          [
+            175,
+            180,
+            190
+          ],
+          [
+            40,
+            110,
+            220
+          ]
+        ]
+      }
+    },
+    {
+      "bg": [
+        40,
+        50,
+        36
+      ],
+      "color": [
+        150,
+        200,
+        90
+      ],
+      "extras": [
+        "goggles",
+        "beard"
+      ],
+      "face": {
+        "asset": 236399287,
+        "image": 236455674,
+        "name": "Happy Wink"
+      },
+      "hair": {
+        "asset": 11510446398.0,
+        "name": "Long Straight Hair (Black)"
+      },
+      "key": "catchpole",
+      "look": {
+        "build": 3,
+        "colors": [
+          29,
+          16,
+          4
+        ],
+        "gender": 1,
+        "hair": 39,
+        "height": 4,
+        "mats": {
+          "hands": "Leather"
+        },
+        "pieces": {
+          "back": "Duster Coat",
+          "beard": "Stubble",
+          "belt": "Tool Belt",
+          "feet": "Combat Boots",
+          "hair": "Shaggy",
+          "hands": "Work Gloves",
+          "hat": "Tracker Lens",
+          "suit": "Ranger Harness",
+          "visage": "Sharp Face"
+        },
+        "skin": 4,
+        "tints": {}
+      },
+      "name": "CATCHPOLE",
+      "people": "Catchpole",
+      "rgb": [
+        [
+          90,
+          110,
+          40
+        ],
+        [
+          120,
+          75,
+          45
+        ],
+        [
+          255,
+          210,
+          60
+        ]
+      ],
+      "shape": "hood",
+      "skin": [
+        198,
+        140,
+        100
+      ],
+      "style": "person",
+      "tints": {}
+    },
+    {
+      "bg": [
+        20,
+        20,
+        26
+      ],
+      "color": [
+        200,
+        200,
+        210
+      ],
+      "extras": [
+        "tie",
+        "blackbar"
+      ],
+      "face": {
+        "asset": 20722130,
+        "image": 20722053,
+        "name": "Shiny Teeth"
+      },
+      "hair": {
+        "asset": 6778986933.0,
+        "name": "Adorbs Black Long Hair"
+      },
+      "key": "censor",
+      "look": {
+        "build": 2,
+        "colors": [
+          22,
+          18,
+          20
+        ],
+        "gender": 1,
+        "hair": 22,
+        "height": 4,
+        "mats": {},
+        "pieces": {
+          "back": "Long Cape",
+          "feet": "Loafers",
+          "hair": "Side Part",
+          "hands": "Gloves",
+          "head": "Mono Visor",
+          "neck": "High Collar",
+          "suit": "Tuxedo",
+          "visage": "Cold Face"
+        },
+        "skin": 9,
+        "tints": {
+          "back": [
+            22,
+            20,
+            0
+          ],
+          "head": [
+            22,
+            22,
+            0
+          ]
+        }
+      },
+      "name": "THE CENSOR",
+      "people": "Censor",
+      "rgb": [
+        [
+          24,
+          24,
+          28
+        ],
+        [
+          245,
+          245,
+          245
+        ],
+        [
+          110,
+          115,
+          125
+        ]
+      ],
+      "shape": "slick",
+      "skin": [
+        255,
+        236,
+        220
+      ],
+      "style": "broadcast",
+      "tints": {
+        "back": [
+          [
+            24,
+            24,
+            28
+          ],
+          [
+            110,
+            115,
+            125
+          ]
+        ],
+        "head": [
+          [
+            24,
+            24,
+            28
+          ],
+          [
+            24,
+            24,
+            28
+          ]
+        ]
+      }
+    },
+    {
+      "bg": [
+        50,
+        46,
+        30
+      ],
+      "color": [
+        230,
+        190,
+        60
+      ],
+      "extras": [
+        "cap",
+        "moustache"
+      ],
+      "face": {
+        "asset": 144075659,
+        "image": 144080495,
+        "name": "Smile"
+      },
+      "key": "clawback",
+      "look": {
+        "build": 3,
+        "colors": [
+          28,
+          21,
+          3
+        ],
+        "gender": 1,
+        "hair": 39,
+        "height": 5,
+        "mats": {
+          "hands": "Metal"
+        },
+        "pieces": {
+          "backpack": "Gear Rack",
+          "beard": "Horseshoe",
+          "belt": "Tool Belt",
+          "feet": "Armored Boots",
+          "hands": "Armored Gauntlets",
+          "hat": "Ball Cap",
+          "shoulders": "Gear Pads",
+          "suit": "Exo Frame",
+          "visage": "Scarred Face"
+        },
+        "skin": 4,
+        "tints": {}
+      },
+      "name": "CLAWBACK",
+      "people": "Clawback",
+      "rgb": [
+        [
+          230,
+          190,
+          60
+        ],
+        [
+          55,
+          58,
+          66
+        ],
+        [
+          255,
+          140,
+          40
+        ]
+      ],
+      "shape": "slick",
+      "skin": [
+        198,
+        140,
+        100
+      ],
+      "style": "broadcast",
+      "tints": {}
+    },
+    {
+      "bg": [
+        80,
+        20,
+        24
+      ],
+      "color": [
+        255,
+        110,
+        110
+      ],
+      "extras": [
+        "visor"
+      ],
+      "face": {
+        "asset": 8329686,
+        "image": 8329434,
+        "name": "Sinister"
+      },
+      "hair": {
+        "asset": 6441556987.0,
+        "name": "Black Short Wolf Cut"
+      },
+      "key": "copy",
+      "name": "THE COPY",
+      "outfit": {
+        "suit": [
+          [
+            150,
+            152,
+            162
+          ],
+          [
+            120,
+            122,
+            132
+          ],
+          [
+            90,
+            92,
+            100
+          ]
+        ]
+      },
+      "shape": "messy",
+      "skin": [
+        150,
+        152,
+        162
+      ],
+      "style": "person"
+    },
+    {
+      "bg": [
+        64,
+        50,
+        18
+      ],
+      "color": [
+        255,
+        210,
+        60
+      ],
+      "extras": [
+        "tie"
+      ],
+      "face": {
+        "asset": 26424808,
+        "image": 26424652,
+        "name": "Know-It-All Grin"
+      },
+      "hair": {
+        "asset": 376548738,
+        "name": "Brown Charmer Hair"
+      },
+      "key": "crane",
+      "name": "SILAS CRANE",
+      "outfit": {
+        "pants": "Slacks",
+        "pantsTint": [
+          40,
+          40,
+          46
+        ],
+        "shirt": "Blazer",
+        "shirtTint": [
+          245,
+          245,
+          240
+        ]
+      },
+      "shape": "slick",
+      "skin": [
+        232,
+        190,
+        160
+      ],
+      "style": "broadcast"
+    },
+    {
+      "bg": [
+        30,
+        70,
+        100
+      ],
+      "color": [
+        240,
+        170,
+        40
+      ],
+      "extras": [
+        "goggles"
+      ],
+      "face": {
+        "asset": 7074764,
+        "image": 7074749,
+        "name": "Chill"
+      },
+      "hair": {
+        "asset": 10906986317.0,
+        "name": "Short Blue Hair"
+      },
+      "key": "dace",
+      "name": "DACE",
+      "people": "Dace",
+      "shape": "slick",
+      "skin": [
+        160,
+        105,
+        70
+      ],
+      "style": "person"
+    },
+    {
+      "bg": [
+        40,
+        80,
+        110
+      ],
+      "color": [
+        255,
+        180,
+        90
+      ],
+      "extras": [
+        "cap"
+      ],
+      "face": {
+        "asset": 209995366,
+        "image": 209713384,
+        "name": "Joyful Smile"
+      },
+      "hair": {
+        "asset": 376524487,
+        "name": "Blonde Spiked Hair"
+      },
+      "key": "finn",
+      "name": "FINN",
+      "people": "Finn",
+      "shape": "messy",
+      "skin": [
+        198,
+        140,
+        100
+      ],
+      "style": "person"
+    },
+    {
+      "bg": [
+        60,
+        50,
+        46
+      ],
+      "color": [
+        255,
+        150,
+        60
+      ],
+      "extras": [
+        "bandage"
+      ],
+      "face": {
+        "asset": 128992838,
+        "image": 127959433,
+        "name": "Beast Mode"
+      },
+      "hair": {
+        "asset": 553722174,
+        "name": "Crimson Shaggy 2.0"
+      },
+      "key": "flint",
+      "name": "FLINT",
+      "people": "Flint",
+      "shape": "messy",
+      "skin": [
+        224,
+        172,
+        130
+      ],
+      "style": "person"
+    },
+    {
+      "bg": [
+        20,
+        50,
+        56
+      ],
+      "color": [
+        40,
+        190,
+        170
+      ],
+      "extras": [
+        "headband",
+        "scar"
+      ],
+      "face": {
+        "asset": 236399287,
+        "image": 236455674,
+        "name": "Happy Wink"
+      },
+      "hair": {
+        "asset": 4527498648.0,
+        "name": "Clean Shiny Spikes"
+      },
+      "key": "gale",
+      "look": {
+        "build": 1,
+        "colors": [
+          8,
+          18,
+          22
+        ],
+        "gender": 1,
+        "hair": 21,
+        "height": 3,
+        "mats": {},
+        "pieces": {
+          "back": "Wind Scarf",
+          "eyes": "Ice Blades",
+          "feet": "Tabi Boots",
+          "hair": "Wild Mane",
+          "hands": "Fighter Wraps",
+          "hat": "Hachimaki",
+          "legs": "Hakama",
+          "suit": "Sash Fighter",
+          "visage": "Sharp Face"
+        },
+        "skin": 3,
+        "tints": {}
+      },
+      "name": "GALE",
+      "people": "Gale",
+      "rgb": [
+        [
+          40,
+          190,
+          170
+        ],
+        [
+          245,
+          245,
+          245
+        ],
+        [
+          24,
+          24,
+          28
+        ]
+      ],
+      "shape": "messy",
+      "skin": [
+        224,
+        172,
+        130
+      ],
+      "style": "person",
+      "tints": {}
+    },
+    {
+      "bg": [
+        30,
+        60,
+        100
+      ],
+      "color": [
+        120,
+        200,
+        255
+      ],
+      "extras": [
+        "mask"
+      ],
+      "face": {
+        "asset": 28878297,
+        "image": 28878210,
+        "name": "Adoration"
+      },
+      "hair": {
+        "asset": 398673196,
+        "name": "Blonde Action Ponytail"
+      },
+      "key": "halo",
+      "look": {
+        "build": 2,
+        "colors": [
+          18,
+          33,
+          4
+        ],
+        "gender": 1,
+        "hair": 19,
+        "height": 4,
+        "mats": {},
+        "pieces": {
+          "back": "High Collar Cape",
+          "beard": "Pencil Mustache",
+          "belt": "Sash",
+          "emblem": "Peak",
+          "feet": "Boots",
+          "hair": "Slicked Back",
+          "hands": "Gloves",
+          "hat": "Halo",
+          "neck": "Medal",
+          "shoulders": "Mantle",
+          "suit": "Split Tone",
+          "visage": "Hero Face"
+        },
+        "skin": 1,
+        "tints": {
+          "back": [
+            33,
+            4,
+            0
+          ]
+        }
+      },
+      "name": "HEADMASTER HALO",
+      "people": "HeadmasterHalo",
+      "rgb": [
+        [
+          245,
+          245,
+          245
+        ],
+        [
+          60,
+          160,
+          230
+        ],
+        [
+          255,
+          210,
+          60
+        ]
+      ],
+      "shape": "slick",
+      "skin": [
+        255,
+        224,
+        196
+      ],
+      "style": "broadcast",
+      "tints": {
+        "back": [
+          [
+            60,
+            160,
+            230
+          ],
+          [
+            255,
+            210,
+            60
+          ]
+        ]
+      }
+    },
+    {
+      "bg": [
+        70,
+        90,
+        30
+      ],
+      "color": [
+        230,
+        190,
+        60
+      ],
+      "extras": [
+        "beard",
+        "crown"
+      ],
+      "face": {
+        "asset": 406000730,
+        "image": 406035320,
+        "name": "Happy D"
+      },
+      "hair": {
+        "asset": 11510446398.0,
+        "name": "Long Straight Hair (Black)"
+      },
+      "key": "harvest",
+      "look": {
+        "build": 3,
+        "colors": [
+          28,
+          30,
+          16
+        ],
+        "gender": 1,
+        "hair": 19,
+        "height": 4,
+        "mats": {
+          "shoulders": "Metal"
+        },
+        "pieces": {
+          "back": "Field Coat",
+          "beard": "Full Beard",
+          "belt": "Rope Belt",
+          "feet": "Boots",
+          "hair": "Shaggy",
+          "hands": "Work Gloves",
+          "hat": "Iron Crown",
+          "shoulders": "Riveted Pads",
+          "suit": "Overalls",
+          "visage": "Stern Face"
+        },
+        "skin": 4,
+        "tints": {
+          "hat": [
+            4,
+            28,
+            0
+          ]
+        }
+      },
+      "name": "THE HARVEST KING",
+      "people": "HarvestKing",
+      "rgb": [
+        [
+          230,
+          190,
+          60
+        ],
+        [
+          30,
+          90,
+          50
+        ],
+        [
+          120,
+          75,
+          45
+        ]
+      ],
+      "shape": "messy",
+      "skin": [
+        198,
+        140,
+        100
+      ],
+      "style": "person",
+      "tints": {
+        "hat": [
+          [
+            255,
+            210,
+            60
+          ],
+          [
+            230,
+            190,
+            60
+          ]
+        ]
+      }
+    },
+    {
+      "bg": [
+        26,
+        40,
+        60
+      ],
+      "color": [
+        80,
+        220,
+        230
+      ],
+      "extras": [
+        "spectacles"
+      ],
+      "face": {
+        "asset": 20722130,
+        "image": 20722053,
+        "name": "Shiny Teeth"
+      },
+      "hair": {
+        "asset": 398673196,
+        "name": "Blonde Action Ponytail"
+      },
+      "key": "holloway",
+      "look": {
+        "build": 3,
+        "colors": [
+          18,
+          34,
+          46
+        ],
+        "gender": 1,
+        "hair": 19,
+        "height": 4,
+        "mats": {
+          "backpack": "Metal",
+          "shoulders": "Metal"
+        },
+        "pieces": {
+          "backpack": "Cog Rig",
+          "feet": "Armored Boots",
+          "hair": "Slicked Back",
+          "hands": "Tech Gloves",
+          "head": "Mono Visor",
+          "shoulders": "Layered Plates",
+          "suit": "Lab Coat",
+          "visage": "Cold Face"
+        },
+        "skin": 2,
+        "tints": {}
+      },
+      "name": "DOCTOR HOLLOWAY",
+      "people": "Holloway",
+      "rgb": [
+        [
+          245,
+          245,
+          245
+        ],
+        [
+          70,
+          60,
+          160
+        ],
+        [
+          80,
+          255,
+          255
+        ]
+      ],
+      "shape": "slick",
+      "skin": [
+        241,
+        194,
+        160
+      ],
+      "style": "broadcast",
+      "tints": {}
+    },
+    {
+      "bg": [
+        50,
+        40,
+        36
+      ],
+      "color": [
+        245,
+        245,
+        245
+      ],
+      "extras": [
+        "beard",
+        "headband"
+      ],
+      "face": {
+        "asset": 7131541,
+        "image": 7131482,
+        "name": "Alright"
+      },
+      "hair": {
+        "asset": 4935029747.0,
+        "name": "Black Royal Braid"
+      },
+      "key": "hoshi",
+      "name": "MASTER HOSHI",
+      "people": "Hoshi",
+      "shape": "slick",
+      "skin": [
+        241,
+        194,
+        160
+      ],
+      "style": "person"
+    },
+    {
+      "bg": [
+        50,
+        30,
+        70
+      ],
+      "color": [
+        230,
+        160,
+        255
+      ],
+      "extras": {},
+      "face": {
+        "asset": 8560971,
+        "image": 8560915,
+        "name": "Stare"
+      },
+      "key": "insider",
+      "name": "CRANE INSIDER",
+      "outfit": {
+        "pants": "Joggers",
+        "pantsTint": [
+          30,
+          30,
+          36
+        ],
+        "shirt": "Hoodie",
+        "shirtTint": [
+          60,
+          40,
+          80
+        ]
+      },
+      "shape": "hood",
+      "skin": [
+        200,
+        150,
+        120
+      ],
+      "style": "radio"
+    },
+    {
+      "bg": [
+        70,
+        50,
+        30
+      ],
+      "color": [
+        255,
+        200,
+        80
+      ],
+      "extras": [
+        "cap",
+        "bandage"
+      ],
+      "face": {
+        "asset": 20418682,
+        "image": 20418584,
+        "name": "Bandage"
+      },
+      "hair": {
+        "asset": 398673196,
+        "name": "Blonde Action Ponytail"
+      },
+      "key": "lark",
+      "name": "LARK",
+      "outfit": {
+        "pants": "Jeans",
+        "pantsTint": [
+          60,
+          80,
+          130
+        ],
+        "shirt": "Bomber",
+        "shirtTint": [
+          230,
+          120,
+          40
+        ]
+      },
+      "shape": "messy",
+      "skin": [
+        241,
+        194,
+        160
+      ],
+      "style": "radio"
+    },
+    {
+      "bg": [
+        30,
+        42,
+        86
+      ],
+      "color": [
+        150,
+        190,
+        255
+      ],
+      "extras": [
+        "beard",
+        "scar",
+        "star"
+      ],
+      "face": {
+        "asset": 144075659,
+        "image": 144080495,
+        "name": "Smile"
+      },
+      "hair": {
+        "asset": 398673196,
+        "name": "Blonde Action Ponytail"
+      },
+      "key": "lodestar",
+      "look": {
+        "build": 3,
+        "colors": [
+          11,
+          19,
+          4
+        ],
+        "gender": 1,
+        "hair": 19,
+        "height": 5,
+        "mats": {},
+        "pieces": {
+          "back": "Classic Cape",
+          "beard": "Full Beard",
+          "belt": "Utility Belt",
+          "emblem": "Star",
+          "feet": "Tall Boots",
+          "hair": "Slicked Back",
+          "hands": "Gloves",
+          "shoulders": "Mantle",
+          "suit": "Split Tone",
+          "visage": "Scarred Face"
+        },
+        "skin": 4,
+        "tints": {
+          "back": [
+            11,
+            4,
+            0
+          ]
+        }
+      },
+      "name": "LODESTAR",
+      "rgb": [
+        [
+          30,
+          45,
+          120
+        ],
+        [
+          175,
+          180,
+          190
+        ],
+        [
+          255,
+          210,
+          60
+        ]
+      ],
+      "shape": "slick",
+      "skin": [
+        198,
+        140,
+        100
+      ],
+      "style": "person",
+      "tints": {
+        "back": [
+          [
+            30,
+            45,
+            120
+          ],
+          [
+            255,
+            210,
+            60
+          ]
+        ]
+      }
+    },
+    {
+      "bg": [
+        60,
+        24,
+        80
+      ],
+      "color": [
+        200,
+        120,
+        255
+      ],
+      "extras": [
+        "mask"
+      ],
+      "face": {
+        "asset": 236399287,
+        "image": 236455674,
+        "name": "Happy Wink"
+      },
+      "hair": {
+        "asset": 14815761,
+        "name": "Black and Red"
+      },
+      "key": "masque",
+      "look": {
+        "build": 2,
+        "colors": [
+          35,
+          4,
+          48
+        ],
+        "gender": 2,
+        "hair": 35,
+        "height": 4,
+        "mats": {},
+        "pieces": {
+          "back": "High Collar Cape",
+          "emblem": "Diamond",
+          "feet": "Tall Boots",
+          "hair": "Long Straight",
+          "hands": "Long Cuffs",
+          "head": "Masquerade",
+          "neck": "Choker",
+          "shoulders": "Feather Pads",
+          "suit": "Split Tone",
+          "trail": "Ribbon Trail",
+          "visage": "Sharp Face"
+        },
+        "skin": 2,
+        "tints": {
+          "back": [
+            4,
+            35,
+            0
+          ]
+        }
+      },
+      "name": "MADAME MASQUE-A-RADE",
+      "people": "MasqueARade",
+      "rgb": [
+        [
+          70,
+          20,
+          110
+        ],
+        [
+          255,
+          210,
+          60
+        ],
+        [
+          190,
+          90,
+          255
+        ]
+      ],
+      "shape": "slick",
+      "skin": [
+        241,
+        194,
+        160
+      ],
+      "style": "person",
+      "tints": {
+        "back": [
+          [
+            255,
+            210,
+            60
+          ],
+          [
+            70,
+            20,
+            110
+          ]
+        ]
+      }
+    },
+    {
+      "bg": [
+        30,
+        20,
+        50
+      ],
+      "color": [
+        120,
+        80,
+        220
+      ],
+      "extras": [
+        "tophat",
+        "mask"
+      ],
+      "face": {
+        "asset": 26424808,
+        "image": 26424652,
+        "name": "Know-It-All Grin"
+      },
+      "facePicked": true,
+      "hair": {
+        "asset": 398673196,
+        "name": "Blonde Action Ponytail"
+      },
+      "key": "morrow",
+      "look": {
+        "build": 2,
+        "colors": [
+          22,
+          12,
+          19
+        ],
+        "gender": 1,
+        "hair": 22,
+        "height": 4,
+        "mats": {},
+        "pieces": {
+          "back": "High Collar Cape",
+          "beard": "Pencil Mustache",
+          "eyes": "Violet Glow",
+          "hair": "Slicked Back",
+          "hands": "Gloves",
+          "hat": "Top Hat",
+          "head": "Masquerade",
+          "suit": "Tuxedo"
+        },
+        "skin": 9,
+        "tints": {
+          "back": [
+            22,
+            12,
+            0
+          ]
+        }
+      },
+      "name": "MORROW",
+      "people": "Morrow",
+      "rgb": [
+        [
+          24,
+          24,
+          28
+        ],
+        [
+          120,
+          80,
+          220
+        ],
+        [
+          175,
+          180,
+          190
+        ]
+      ],
+      "shape": "slick",
+      "skin": [
+        255,
+        236,
+        220
+      ],
+      "style": "broadcast",
+      "tints": {
+        "back": [
+          [
+            24,
+            24,
+            28
+          ],
+          [
+            120,
+            80,
+            220
+          ]
+        ]
+      }
+    },
+    {
+      "bg": [
+        18,
+        60,
+        72
+      ],
+      "color": [
+        120,
+        230,
+        255
+      ],
+      "extras": [
+        "cap",
+        "headset"
+      ],
+      "face": {
+        "asset": 7074786,
+        "image": 7074780,
+        "name": "Check It"
+      },
+      "hair": {
+        "asset": 63690008,
+        "name": "Pal Hair"
+      },
+      "key": "patch",
+      "name": "PATCH",
+      "outfit": {
+        "pants": "Cargo",
+        "pantsTint": [
+          70,
+          70,
+          80
+        ],
+        "shirt": "Hoodie",
+        "shirtTint": [
+          40,
+          150,
+          170
+        ]
+      },
+      "shape": "messy",
+      "skin": [
+        241,
+        194,
+        160
+      ],
+      "style": "radio"
+    },
+    {
+      "bg": [
+        70,
+        26,
+        30
+      ],
+      "color": [
+        200,
+        60,
+        50
+      ],
+      "extras": [
+        "tophat",
+        "moustache"
+      ],
+      "face": {
+        "asset": 144075659,
+        "image": 144080495,
+        "name": "Smile"
+      },
+      "hair": {
+        "asset": 398673196,
+        "name": "Blonde Action Ponytail"
+      },
+      "key": "pitboss",
+      "look": {
+        "build": 4,
+        "colors": [
+          38,
+          4,
+          22
+        ],
+        "gender": 1,
+        "hair": 22,
+        "height": 5,
+        "mats": {
+          "hands": "Metal",
+          "shoulders": "Metal"
+        },
+        "pieces": {
+          "beard": "Handlebar",
+          "belt": "Champion Belt",
+          "feet": "Armored Boots",
+          "hair": "Slicked Back",
+          "hands": "Boxing Gloves",
+          "hat": "Top Hat",
+          "neck": "Chain",
+          "shoulders": "Riveted Pads",
+          "suit": "Tuxedo",
+          "visage": "Scarred Face"
+        },
+        "skin": 25,
+        "tints": {
+          "hat": [
+            22,
+            38,
+            0
+          ]
+        }
+      },
+      "name": "THE PITBOSS",
+      "people": "Pitboss",
+      "rgb": [
+        [
+          110,
+          20,
+          25
+        ],
+        [
+          255,
+          210,
+          60
+        ],
+        [
+          24,
+          24,
+          28
+        ]
+      ],
+      "shape": "slick",
+      "skin": [
+        150,
+        140,
+        130
+      ],
+      "style": "broadcast",
+      "tints": {
+        "hat": [
+          [
+            24,
+            24,
+            28
+          ],
+          [
+            110,
+            20,
+            25
+          ]
+        ]
+      }
+    },
+    {
+      "bg": [
+        96,
+        74,
+        20
+      ],
+      "color": [
+        255,
+        220,
+        120
+      ],
+      "extras": [
+        "mask"
+      ],
+      "face": {
+        "asset": 28878297,
+        "image": 28878210,
+        "name": "Adoration"
+      },
+      "hair": {
+        "asset": 6216526940.0,
+        "name": "Loose White Anime Side Buns"
+      },
+      "key": "radiant",
+      "look": {
+        "build": 2,
+        "colors": [
+          4,
+          18,
+          47
+        ],
+        "gender": 1,
+        "hair": 4,
+        "height": 4,
+        "mats": {
+          "shoulders": "Metal"
+        },
+        "pieces": {
+          "back": "Long Cape",
+          "belt": "Sash",
+          "emblem": "Burst",
+          "feet": "Winged Boots",
+          "hair": "Hero Quiff",
+          "hands": "Long Cuffs",
+          "hat": "Halo",
+          "shoulders": "Epaulettes",
+          "suit": "Chevron Suit",
+          "trail": "Sparkle Trail",
+          "visage": "Hero Face"
+        },
+        "skin": 2,
+        "tints": {
+          "back": [
+            18,
+            4,
+            0
+          ],
+          "belt": [
+            18,
+            0,
+            0
+          ]
+        }
+      },
+      "name": "RADIANT",
+      "people": "Radiant",
+      "rgb": [
+        [
+          255,
+          210,
+          60
+        ],
+        [
+          245,
+          245,
+          245
+        ],
+        [
+          255,
+          240,
+          80
+        ]
+      ],
+      "shape": "slick",
+      "skin": [
+        241,
+        194,
+        160
+      ],
+      "style": "person",
+      "tints": {
+        "back": [
+          [
+            245,
+            245,
+            245
+          ],
+          [
+            255,
+            210,
+            60
+          ]
+        ],
+        "belt": [
+          [
+            245,
+            245,
+            245
+          ]
+        ]
+      }
+    },
+    {
+      "bg": [
+        90,
+        20,
+        20
+      ],
+      "color": [
+        255,
+        80,
+        60
+      ],
+      "extras": [
+        "visor"
+      ],
+      "face": {
+        "asset": 236399287,
+        "image": 236455674,
+        "name": "Happy Wink"
+      },
+      "hair": {
+        "asset": 6413288640.0,
+        "name": "Black Flowy Pigtails"
+      },
+      "key": "redline",
+      "look": {
+        "build": 1,
+        "colors": [
+          1,
+          22,
+          24
+        ],
+        "gender": 1,
+        "hair": 1,
+        "height": 3,
+        "mats": {},
+        "pieces": {
+          "back": "Hero Scarf",
+          "emblem": "Spark",
+          "feet": "Jet Boots",
+          "hair": "Wolf Cut",
+          "hands": "Fingerless Gloves",
+          "hat": "Flight Goggles",
+          "head": "Visor Band",
+          "suit": "Racer Stripe",
+          "trail": "Streak Trail",
+          "visage": "Sharp Face"
+        },
+        "skin": 5,
+        "tints": {
+          "back": [
+            1,
+            22,
+            0
+          ]
+        }
+      },
+      "name": "REDLINE",
+      "people": "Redline",
+      "rgb": [
+        [
+          235,
+          60,
+          60
+        ],
+        [
+          24,
+          24,
+          28
+        ],
+        [
+          255,
+          90,
+          40
+        ]
+      ],
+      "shape": "helmet",
+      "skin": [
+        160,
+        105,
+        70
+      ],
+      "style": "radio",
+      "tints": {
+        "back": [
+          [
+            235,
+            60,
+            60
+          ],
+          [
+            24,
+            24,
+            28
+          ]
+        ]
+      }
+    },
+    {
+      "bg": [
+        80,
+        30,
+        20
+      ],
+      "color": [
+        255,
+        120,
+        40
+      ],
+      "extras": [
+        "scar"
+      ],
+      "face": {
+        "asset": 144075659,
+        "image": 144080495,
+        "name": "Smile"
+      },
+      "hair": {
+        "asset": 14815761,
+        "name": "Black and Red"
+      },
+      "key": "scorch",
+      "look": {
+        "build": 1,
+        "colors": [
+          24,
+          22,
+          4
+        ],
+        "gender": 1,
+        "hair": 24,
+        "height": 3,
+        "mats": {},
+        "pieces": {
+          "beard": "Goatee",
+          "belt": "Chain Belt",
+          "feet": "Combat Boots",
+          "hair": "Flame Hair",
+          "hands": "Flame Gloves",
+          "neck": "Chain",
+          "shoulders": "Flame Pads",
+          "suit": "Magma Veins",
+          "visage": "Scarred Face"
+        },
+        "skin": 3,
+        "tints": {}
+      },
+      "name": "SAL SCORCH",
+      "people": "Scorch",
+      "rgb": [
+        [
+          255,
+          90,
+          40
+        ],
+        [
+          24,
+          24,
+          28
+        ],
+        [
+          255,
+          210,
+          60
+        ]
+      ],
+      "shape": "messy",
+      "skin": [
+        224,
+        172,
+        130
+      ],
+      "style": "person",
+      "tints": {}
+    },
+    {
+      "bg": [
+        10,
+        40,
+        60
+      ],
+      "color": [
+        60,
+        200,
+        190
+      ],
+      "extras": [
+        "beard",
+        "crown"
+      ],
+      "face": {
+        "asset": 406000730,
+        "image": 406035320,
+        "name": "Happy D"
+      },
+      "hair": {
+        "asset": 14815761,
+        "name": "Black and Red"
+      },
+      "key": "tidewright",
+      "look": {
+        "build": 3,
+        "colors": [
+          32,
+          27,
+          31
+        ],
+        "gender": 1,
+        "hair": 31,
+        "height": 5,
+        "mats": {
+          "suit": "Metal"
+        },
+        "pieces": {
+          "arms": "Scale Guards",
+          "back": "Long Cape",
+          "beard": "Full Beard",
+          "ears": "Fin Ears",
+          "emblem": "Orb Crest",
+          "eyes": "Ice Glow",
+          "feet": "Armored Boots",
+          "hair": "Long Straight",
+          "hands": "Armored Gauntlets",
+          "hat": "Iron Crown",
+          "shoulders": "Shell Pads",
+          "suit": "Plated Suit",
+          "visage": "Stern Face"
+        },
+        "skin": 26,
+        "tints": {
+          "back": [
+            31,
+            27,
+            0
+          ]
+        }
+      },
+      "name": "THE TIDEWRIGHT",
+      "people": "Tidewright",
+      "rgb": [
+        [
+          20,
+          110,
+          120
+        ],
+        [
+          180,
+          120,
+          40
+        ],
+        [
+          170,
+          255,
+          200
+        ]
+      ],
+      "shape": "helmet",
+      "skin": [
+        170,
+        175,
+        185
+      ],
+      "style": "person",
+      "tints": {
+        "back": [
+          [
+            170,
+            255,
+            200
+          ],
+          [
+            180,
+            120,
+            40
+          ]
+        ]
+      }
+    },
+    {
+      "bg": [
+        40,
+        70,
+        110
+      ],
+      "color": [
+        120,
+        200,
+        255
+      ],
+      "extras": {},
+      "face": {
+        "asset": 406000730,
+        "image": 406035320,
+        "name": "Happy D"
+      },
+      "hair": {
+        "asset": 13745548,
+        "name": "Cinnamon Hair"
+      },
+      "key": "toby",
+      "name": "TOBY",
+      "people": "Toby",
+      "shape": "messy",
+      "skin": [
+        255,
+        224,
+        196
+      ],
+      "style": "person"
+    },
+    {
+      "bg": [
+        70,
+        40,
+        30
+      ],
+      "color": [
+        230,
+        190,
+        90
+      ],
+      "extras": [
+        "beard",
+        "visor"
+      ],
+      "face": {
+        "asset": 7074729,
+        "image": 7074712,
+        "name": "Glee"
+      },
+      "hair": {
+        "asset": 451220849,
+        "name": "Lavender Updo"
+      },
+      "key": "toymaker",
+      "name": "THE TOYMAKER",
+      "outfit": {
+        "pants": "Chinos",
+        "pantsTint": [
+          90,
+          70,
+          50
+        ],
+        "shirt": "Sweater",
+        "shirtTint": [
+          150,
+          60,
+          50
+        ]
+      },
+      "shape": "messy",
+      "skin": [
+        241,
+        194,
+        160
+      ],
+      "style": "broadcast"
+    },
+    {
+      "bg": [
+        50,
+        30,
+        80
+      ],
+      "color": [
+        220,
+        150,
+        255
+      ],
+      "extras": [
+        "star"
+      ],
+      "face": {
+        "asset": 28878297,
+        "image": 28878210,
+        "name": "Adoration"
+      },
+      "hair": {
+        "asset": 14815761,
+        "name": "Black and Red"
+      },
+      "key": "vesper",
+      "look": {
+        "build": 2,
+        "colors": [
+          35,
+          13,
+          18
+        ],
+        "gender": 2,
+        "hair": 18,
+        "height": 4,
+        "mats": {},
+        "pieces": {
+          "back": "Star Cape",
+          "emblem": "Star Crest",
+          "feet": "Tall Boots",
+          "hair": "Long Straight",
+          "hands": "Gloves",
+          "makeup": "Star Mark",
+          "suit": "Starfield Suit",
+          "visage": "Hero Face"
+        },
+        "skin": 10,
+        "tints": {}
+      },
+      "name": "VESPER",
+      "people": "Vesper",
+      "rgb": [
+        [
+          70,
+          20,
+          110
+        ],
+        [
+          190,
+          110,
+          240
+        ],
+        [
+          245,
+          245,
+          245
+        ]
+      ],
+      "shape": "slick",
+      "skin": [
+        250,
+        214,
+        186
+      ],
+      "style": "broadcast",
+      "tints": {}
+    },
+    {
+      "bg": [
+        20,
+        16,
+        40
+      ],
+      "color": [
+        190,
+        90,
+        255
+      ],
+      "extras": [
+        "visor"
+      ],
+      "face": {
+        "asset": 236399287,
+        "image": 236455674,
+        "name": "Happy Wink"
+      },
+      "facePicked": true,
+      "key": "voidhound",
+      "look": {
+        "build": 2,
+        "colors": [
+          35,
+          44,
+          48
+        ],
+        "gender": 1,
+        "hair": 22,
+        "height": 5,
+        "mats": {
+          "suit": "Metal"
+        },
+        "pieces": {
+          "back": "Meteor Cape",
+          "eyes": "Cyclops Visor",
+          "feet": "Hover Boots",
+          "hands": "Talon Gloves",
+          "head": "Antenna Helm",
+          "shoulders": "Crystal Shards",
+          "suit": "Starfield Suit"
+        },
+        "skin": 26,
+        "tints": {}
+      },
+      "name": "THE VOIDHOUND",
+      "people": "Voidhound",
+      "rgb": [
+        [
+          70,
+          20,
+          110
+        ],
+        [
+          40,
+          44,
+          60
+        ],
+        [
+          190,
+          90,
+          255
+        ]
+      ],
+      "shape": "helmet",
+      "skin": [
+        170,
+        175,
+        185
+      ],
+      "style": "broadcast",
+      "tints": {}
+    },
+    {
+      "bg": [
+        90,
+        50,
+        40
+      ],
+      "color": [
+        255,
+        170,
+        120
+      ],
+      "extras": [
+        "cap"
+      ],
+      "face": {
+        "asset": 209994875,
+        "image": 209713952,
+        "name": "Smiling Girl"
+      },
+      "hair": {
+        "asset": 376527350,
+        "name": "Black Ponytail"
+      },
+      "key": "wren",
+      "name": "WREN",
+      "people": "Wren",
+      "shape": "messy",
+      "skin": [
+        160,
+        110,
+        80
+      ],
+      "style": "person"
+    },
+    {
+      "bg": [
+        90,
+        24,
+        36
+      ],
+      "color": [
+        200,
+        40,
+        60
+      ],
+      "extras": [
+        "tie"
+      ],
+      "face": {
+        "asset": 28878297,
+        "image": 28878210,
+        "name": "Adoration"
+      },
+      "hair": {
+        "asset": 6778986933.0,
+        "name": "Adorbs Black Long Hair"
+      },
+      "key": "Benny",
+      "look": {
+        "build": 2,
+        "colors": [
+          2,
+          4,
+          18
+        ],
+        "gender": 1,
+        "hair": 22,
+        "height": 3,
+        "mats": {},
+        "pieces": {
+          "beard": "Soul Patch",
+          "feet": "Boots",
+          "hair": "Side Part",
+          "hands": "Gloves",
+          "pants": "Slacks",
+          "shirt": "Blazer and Tie",
+          "visage": "Hero Face"
+        },
+        "skin": 5,
+        "tints": {}
+      },
+      "name": "VALET BENNY",
+      "people": "Benny",
+      "rgb": [
+        [
+          160,
+          30,
+          45
+        ],
+        [
+          255,
+          210,
+          60
+        ],
+        [
+          245,
+          245,
+          245
+        ]
+      ],
+      "shape": "slick",
+      "skin": [
+        160,
+        105,
+        70
+      ],
+      "style": "person",
+      "tints": {}
+    },
+    {
+      "bg": [
+        60,
+        62,
+        70
+      ],
+      "color": [
+        200,
+        70,
+        60
+      ],
+      "extras": [
+        "beard",
+        "bandage"
+      ],
+      "face": {
+        "asset": 406000730,
+        "image": 406035320,
+        "name": "Happy D"
+      },
+      "hair": {
+        "asset": 11652080034.0,
+        "name": "Y2K uneven bob"
+      },
+      "key": "Brick",
+      "look": {
+        "build": 3,
+        "colors": [
+          43,
+          1,
+          18
+        ],
+        "gender": 1,
+        "hair": 19,
+        "height": 4,
+        "mats": {},
+        "pieces": {
+          "beard": "Boxed Beard",
+          "feet": "High Tops",
+          "hair": "Buzz Cut",
+          "hands": "Hand Wraps",
+          "hat": "Beanie",
+          "neck": "Whistle",
+          "pants": "Track Bottoms",
+          "shirt": "Tank",
+          "visage": "Stern Face"
+        },
+        "skin": 6,
+        "tints": {}
+      },
+      "name": "BRICK",
+      "people": "Brick",
+      "rgb": [
+        [
+          85,
+          95,
+          110
+        ],
+        [
+          235,
+          60,
+          60
+        ],
+        [
+          245,
+          245,
+          245
+        ]
+      ],
+      "shape": "messy",
+      "skin": [
+        120,
+        78,
+        52
+      ],
+      "style": "person",
+      "tints": {}
+    },
+    {
+      "bg": [
+        50,
+        80,
+        40
+      ],
+      "color": [
+        120,
+        170,
+        70
+      ],
+      "extras": [
+        "strawhat"
+      ],
+      "face": {
+        "asset": 28878297,
+        "image": 28878210,
+        "name": "Adoration"
+      },
+      "hair": {
+        "asset": 13745548,
+        "name": "Cinnamon Hair"
+      },
+      "key": "Dot",
+      "look": {
+        "build": 2,
+        "colors": [
+          29,
+          16,
+          5
+        ],
+        "gender": 2,
+        "hair": 39,
+        "height": 3,
+        "mats": {},
+        "pieces": {
+          "feet": "Boots",
+          "hair": "Braids",
+          "hands": "Work Gloves",
+          "hat": "Wide Brim",
+          "neck": "Kerchief",
+          "pants": "Denim Jeans",
+          "shirt": "Flannel Shirt",
+          "visage": "Hero Face"
+        },
+        "skin": 3,
+        "tints": {}
+      },
+      "name": "FARMER DOT",
+      "people": "Dot",
+      "rgb": [
+        [
+          90,
+          110,
+          40
+        ],
+        [
+          120,
+          75,
+          45
+        ],
+        [
+          250,
+          240,
+          150
+        ]
+      ],
+      "shape": "messy",
+      "skin": [
+        224,
+        172,
+        130
+      ],
+      "style": "person",
+      "tints": {}
+    },
+    {
+      "bg": [
+        40,
+        58,
+        80
+      ],
+      "color": [
+        120,
+        170,
+        210
+      ],
+      "extras": [
+        "cap",
+        "beard"
+      ],
+      "face": {
+        "asset": 406000730,
+        "image": 406035320,
+        "name": "Happy D"
+      },
+      "hair": {
+        "asset": 11546097241.0,
+        "name": "Platinum Blonde Bundles"
+      },
+      "key": "Gus",
+      "look": {
+        "build": 3,
+        "colors": [
+          10,
+          19,
+          47
+        ],
+        "gender": 1,
+        "hair": 19,
+        "height": 3,
+        "mats": {},
+        "pieces": {
+          "beard": "Mutton Chops",
+          "belt": "Utility Belt",
+          "feet": "Boots",
+          "hair": "Short Crop",
+          "hat": "Ball Cap",
+          "pants": "Cargo Trousers",
+          "shirt": "Flannel Shirt",
+          "visage": "Stern Face"
+        },
+        "skin": 4,
+        "tints": {}
+      },
+      "name": "JANITOR GUS",
+      "people": "Gus",
+      "rgb": [
+        [
+          40,
+          110,
+          220
+        ],
+        [
+          175,
+          180,
+          190
+        ],
+        [
+          255,
+          240,
+          80
+        ]
+      ],
+      "shape": "messy",
+      "skin": [
+        198,
+        140,
+        100
+      ],
+      "style": "person",
+      "tints": {}
+    },
+    {
+      "bg": [
+        70,
+        40,
+        40
+      ],
+      "color": [
+        235,
+        60,
+        60
+      ],
+      "extras": [
+        "headband"
+      ],
+      "face": {
+        "asset": 144075659,
+        "image": 144080495,
+        "name": "Smile"
+      },
+      "hair": {
+        "asset": 6778986933.0,
+        "name": "Adorbs Black Long Hair"
+      },
+      "key": "Kiko",
+      "look": {
+        "build": 1,
+        "colors": [
+          18,
+          1,
+          22
+        ],
+        "gender": 2,
+        "hair": 22,
+        "height": 1,
+        "mats": {},
+        "pieces": {
+          "belt": "Obi",
+          "feet": "Sandals",
+          "hair": "High Ponytail",
+          "hat": "Hachimaki",
+          "suit": "Dojo Gi",
+          "visage": "Rookie Face"
+        },
+        "skin": 10,
+        "tints": {}
+      },
+      "name": "KIKO",
+      "people": "Kiko",
+      "rgb": [
+        [
+          245,
+          245,
+          245
+        ],
+        [
+          235,
+          60,
+          60
+        ],
+        [
+          24,
+          24,
+          28
+        ]
+      ],
+      "shape": "slick",
+      "skin": [
+        250,
+        214,
+        186
+      ],
+      "style": "person",
+      "tints": {}
+    },
+    {
+      "bg": [
+        50,
+        30,
+        60
+      ],
+      "color": [
+        150,
+        40,
+        110
+      ],
+      "extras": {},
+      "face": {
+        "asset": 28878297,
+        "image": 28878210,
+        "name": "Adoration"
+      },
+      "hair": {
+        "asset": 14815761,
+        "name": "Black and Red"
+      },
+      "key": "Moth",
+      "look": {
+        "build": 2,
+        "colors": [
+          15,
+          13,
+          4
+        ],
+        "gender": 2,
+        "hair": 19,
+        "height": 2,
+        "mats": {},
+        "pieces": {
+          "back": "Hooded Cape",
+          "feet": "Sandals",
+          "hair": "Long Straight",
+          "neck": "Pendant",
+          "pants": "Long Skirt",
+          "shirt": "Turtleneck",
+          "visage": "Hero Face",
+          "wrist": "Bangles"
+        },
+        "skin": 4,
+        "tints": {}
+      },
+      "name": "AUNTIE MOTH",
+      "people": "Moth",
+      "rgb": [
+        [
+          150,
+          40,
+          110
+        ],
+        [
+          190,
+          110,
+          240
+        ],
+        [
+          255,
+          210,
+          60
+        ]
+      ],
+      "shape": "hood",
+      "skin": [
+        198,
+        140,
+        100
+      ],
+      "style": "person",
+      "tints": {}
+    },
+    {
+      "bg": [
+        30,
+        60,
+        90
+      ],
+      "color": [
+        90,
+        170,
+        220
+      ],
+      "extras": [
+        "cap",
+        "scar"
+      ],
+      "face": {
+        "asset": 406000730,
+        "image": 406035320,
+        "name": "Happy D"
+      },
+      "hair": {
+        "asset": 13745548,
+        "name": "Cinnamon Hair"
+      },
+      "key": "Nell",
+      "look": {
+        "build": 2,
+        "colors": [
+          11,
+          18,
+          1
+        ],
+        "gender": 2,
+        "hair": 40,
+        "height": 2,
+        "mats": {},
+        "pieces": {
+          "back": "Field Coat",
+          "feet": "Boots",
+          "hair": "Braids",
+          "hat": "Beanie",
+          "neck": "Whistle",
+          "pants": "Cargo Trousers",
+          "shirt": "Knit Sweater",
+          "visage": "Stern Face"
+        },
+        "skin": 4,
+        "tints": {}
+      },
+      "name": "SKIPPER NELL",
+      "people": "Nell",
+      "rgb": [
+        [
+          30,
+          45,
+          120
+        ],
+        [
+          245,
+          245,
+          245
+        ],
+        [
+          235,
+          60,
+          60
+        ]
+      ],
+      "shape": "slick",
+      "skin": [
+        198,
+        140,
+        100
+      ],
+      "style": "person",
+      "tints": {}
+    },
+    {
+      "bg": [
+        30,
+        50,
+        90
+      ],
+      "color": [
+        90,
+        170,
+        255
+      ],
+      "extras": [
+        "mic"
+      ],
+      "face": {
+        "asset": 28878297,
+        "image": 28878210,
+        "name": "Adoration"
+      },
+      "hair": {
+        "asset": 10482964428.0,
+        "name": "Y2K Layered Wolfcut (Blonde)"
+      },
+      "key": "Nora",
+      "look": {
+        "build": 2,
+        "colors": [
+          10,
+          18,
+          1
+        ],
+        "gender": 2,
+        "hair": 39,
+        "height": 3,
+        "mats": {},
+        "pieces": {
+          "ears": "Comms Earpiece",
+          "feet": "Sneakers",
+          "hair": "Bob Cut",
+          "makeup": "Freckles",
+          "neck": "Pendant",
+          "suit": "Trench Coat",
+          "visage": "Hero Face"
+        },
+        "skin": 4,
+        "tints": {}
+      },
+      "name": "NORA BRIGHT",
+      "people": "Nora",
+      "rgb": [
+        [
+          40,
+          110,
+          220
+        ],
+        [
+          245,
+          245,
+          245
+        ],
+        [
+          235,
+          60,
+          60
+        ]
+      ],
+      "shape": "messy",
+      "skin": [
+        198,
+        140,
+        100
+      ],
+      "style": "person",
+      "tints": {}
+    },
+    {
+      "bg": [
+        30,
+        60,
+        80
+      ],
+      "color": [
+        240,
+        240,
+        245
+      ],
+      "extras": [
+        "spectacles"
+      ],
+      "face": {
+        "asset": 28878297,
+        "image": 28878210,
+        "name": "Adoration"
+      },
+      "hair": {
+        "asset": 727320877,
+        "name": "Long Pastel Hair"
+      },
+      "key": "Okafor",
+      "look": {
+        "build": 2,
+        "colors": [
+          18,
+          8,
+          43
+        ],
+        "gender": 2,
+        "hair": 22,
+        "height": 3,
+        "mats": {},
+        "pieces": {
+          "feet": "Sneakers",
+          "hair": "Locs",
+          "suit": "Lab Coat",
+          "visage": "Hero Face"
+        },
+        "skin": 7,
+        "tints": {}
+      },
+      "name": "DR. OKAFOR",
+      "people": "Okafor",
+      "rgb": [
+        [
+          245,
+          245,
+          245
+        ],
+        [
+          40,
+          190,
+          170
+        ],
+        [
+          85,
+          95,
+          110
+        ]
+      ],
+      "shape": "messy",
+      "skin": [
+        86,
+        56,
+        38
+      ],
+      "style": "person",
+      "tints": {}
+    },
+    {
+      "bg": [
+        20,
+        70,
+        100
+      ],
+      "color": [
+        60,
+        200,
+        220
+      ],
+      "extras": [
+        "goggles"
+      ],
+      "face": {
+        "asset": 28878297,
+        "image": 28878210,
+        "name": "Adoration"
+      },
+      "hair": {
+        "asset": 11597599236.0,
+        "name": "Lush Wavy Hair (Blonde)"
+      },
+      "key": "Pearl",
+      "look": {
+        "build": 2,
+        "colors": [
+          8,
+          26,
+          18
+        ],
+        "gender": 2,
+        "hair": 22,
+        "height": 3,
+        "mats": {},
+        "pieces": {
+          "backpack": "Air Tanks",
+          "feet": "Flippers",
+          "hair": "Curly Top",
+          "hands": "Gloves",
+          "hat": "Flight Goggles",
+          "suit": "Wetsuit",
+          "visage": "Hero Face"
+        },
+        "skin": 6,
+        "tints": {}
+      },
+      "name": "DOC PEARL",
+      "people": "Pearl",
+      "rgb": [
+        [
+          40,
+          190,
+          170
+        ],
+        [
+          255,
+          220,
+          140
+        ],
+        [
+          245,
+          245,
+          245
+        ]
+      ],
+      "shape": "messy",
+      "skin": [
+        120,
+        78,
+        52
+      ],
+      "style": "person",
+      "tints": {}
+    },
+    {
+      "bg": [
+        44,
+        40,
+        70
+      ],
+      "color": [
+        230,
+        190,
+        60
+      ],
+      "extras": [
+        "headset"
+      ],
+      "face": {
+        "asset": 28878297,
+        "image": 28878210,
+        "name": "Adoration"
+      },
+      "hair": {
+        "asset": 9818081125.0,
+        "name": "Hair Base In Brown"
+      },
+      "key": "Ruth",
+      "look": {
+        "build": 2,
+        "colors": [
+          28,
+          16,
+          9
+        ],
+        "gender": 2,
+        "hair": 18,
+        "height": 2,
+        "mats": {},
+        "pieces": {
+          "backpack": "Radio Pack",
+          "feet": "Boots",
+          "hair": "Top Bun",
+          "hat": "Headphones",
+          "pants": "Cargo Trousers",
+          "shirt": "Knit Sweater",
+          "visage": "Hero Face"
+        },
+        "skin": 2,
+        "tints": {}
+      },
+      "name": "RADIO RUTH",
+      "people": "Ruth",
+      "rgb": [
+        [
+          230,
+          190,
+          60
+        ],
+        [
+          120,
+          75,
+          45
+        ],
+        [
+          110,
+          210,
+          255
+        ]
+      ],
+      "shape": "slick",
+      "skin": [
+        241,
+        194,
+        160
+      ],
+      "style": "person",
+      "tints": {}
+    },
+    {
+      "bg": [
+        90,
+        40,
+        70
+      ],
+      "color": [
+        240,
+        110,
+        190
+      ],
+      "extras": [
+        "cap"
+      ],
+      "face": {
+        "asset": 144075659,
+        "image": 144080495,
+        "name": "Smile"
+      },
+      "hair": {
+        "asset": 451220849,
+        "name": "Lavender Updo"
+      },
+      "key": "Scoops",
+      "look": {
+        "build": 2,
+        "colors": [
+          14,
+          31,
+          18
+        ],
+        "gender": 2,
+        "hair": 39,
+        "height": 3,
+        "mats": {},
+        "pieces": {
+          "feet": "Boots",
+          "hair": "Space Buns",
+          "hat": "Ball Cap",
+          "neck": "Kerchief",
+          "pants": "Chinos",
+          "shirt": "Polo",
+          "visage": "Rookie Face"
+        },
+        "skin": 5,
+        "tints": {}
+      },
+      "name": "SCOOPS",
+      "people": "Scoops",
+      "rgb": [
+        [
+          240,
+          110,
+          190
+        ],
+        [
+          170,
+          255,
+          200
+        ],
+        [
+          245,
+          245,
+          245
+        ]
+      ],
+      "shape": "messy",
+      "skin": [
+        160,
+        105,
+        70
+      ],
+      "style": "person",
+      "tints": {}
+    },
+    {
+      "bg": [
+        60,
+        50,
+        40
+      ],
+      "color": [
+        255,
+        140,
+        40
+      ],
+      "extras": [
+        "goggles"
+      ],
+      "face": {
+        "asset": 144075659,
+        "image": 144080495,
+        "name": "Smile"
+      },
+      "hair": {
+        "asset": 63690008,
+        "name": "Pal Hair"
+      },
+      "key": "Tess",
+      "look": {
+        "build": 2,
+        "colors": [
+          3,
+          10,
+          21
+        ],
+        "gender": 2,
+        "hair": 22,
+        "height": 3,
+        "mats": {},
+        "pieces": {
+          "belt": "Tool Belt",
+          "feet": "Combat Boots",
+          "hair": "Afro",
+          "hands": "Work Gloves",
+          "hat": "Flight Goggles",
+          "suit": "Overalls",
+          "visage": "Rookie Face"
+        },
+        "skin": 5,
+        "tints": {}
+      },
+      "name": "TINKER TESS",
+      "people": "Tess",
+      "rgb": [
+        [
+          255,
+          140,
+          40
+        ],
+        [
+          40,
+          110,
+          220
+        ],
+        [
+          55,
+          58,
+          66
+        ]
+      ],
+      "shape": "messy",
+      "skin": [
+        160,
+        105,
+        70
+      ],
+      "style": "person",
+      "tints": {}
+    },
+    {
+      "bg": [
+        50,
+        20,
+        60
+      ],
+      "color": [
+        190,
+        110,
+        240
+      ],
+      "extras": [
+        "pearls"
+      ],
+      "face": {
+        "asset": 20722130,
+        "image": 20722053,
+        "name": "Shiny Teeth"
+      },
+      "hair": {
+        "asset": 4935030295.0,
+        "name": "Blonde Royal Braid"
+      },
+      "key": "Vanta",
+      "look": {
+        "build": 2,
+        "colors": [
+          35,
+          28,
+          22
+        ],
+        "gender": 2,
+        "hair": 19,
+        "height": 4,
+        "mats": {},
+        "pieces": {
+          "ears": "Gem Studs",
+          "feet": "Loafers",
+          "hair": "Crown Braid",
+          "makeup": "Lipstick",
+          "neck": "Bead Necklace",
+          "suit": "Royal Coat",
+          "visage": "Cold Face",
+          "wrist": "Gem Ring"
+        },
+        "skin": 5,
+        "tints": {
+          "neck": [
+            18,
+            18,
+            0
+          ]
+        }
+      },
+      "name": "DUCHESS VANTA",
+      "people": "Vanta",
+      "rgb": [
+        [
+          70,
+          20,
+          110
+        ],
+        [
+          230,
+          190,
+          60
+        ],
+        [
+          24,
+          24,
+          28
+        ]
+      ],
+      "shape": "slick",
+      "skin": [
+        160,
+        105,
+        70
+      ],
+      "style": "person",
+      "tints": {
+        "neck": [
+          [
+            245,
+            245,
+            245
+          ],
+          [
+            245,
+            245,
+            245
+          ]
+        ]
+      }
+    },
+    {
+      "bg": [
+        24,
+        42,
+        96
+      ],
+      "color": [
+        240,
+        200,
+        70
+      ],
+      "extras": {},
+      "face": {
+        "asset": 86487700,
+        "image": 83017053,
+        "name": "Man Face"
+      },
+      "hair": {
+        "asset": 4527498648.0,
+        "name": "Clean Shiny Spikes"
+      },
+      "key": "CaptainMeridian",
+      "name": "CAPTAIN MERIDIAN",
+      "outfit": {
+        "suit": [
+          [
+            40,
+            70,
+            160
+          ],
+          [
+            40,
+            70,
+            160
+          ],
+          [
+            240,
+            200,
+            70
+          ]
+        ]
+      },
+      "skin": [
+        224,
+        172,
+        130
+      ]
+    },
+    {
+      "bg": [
+        54,
+        66,
+        48
+      ],
+      "color": [
+        255,
+        190,
+        90
+      ],
+      "extras": {},
+      "face": {
+        "asset": 25321961,
+        "image": 25321744,
+        "name": "Friendly Grin"
+      },
+      "hair": {
+        "asset": 9818081125.0,
+        "name": "Hair Base In Brown"
+      },
+      "key": "OldBeacon",
+      "name": "OLD BEACON",
+      "outfit": {
+        "pants": "Cargo",
+        "pantsTint": [
+          70,
+          60,
+          50
+        ],
+        "shirt": "LeatherJacket",
+        "shirtTint": [
+          90,
+          110,
+          80
+        ]
+      },
+      "skin": [
+        224,
+        172,
+        130
+      ]
+    },
+    {
+      "bg": [
+        30,
+        18,
+        42
+      ],
+      "color": [
+        170,
+        110,
+        230
+      ],
+      "extras": {},
+      "face": {
+        "asset": 12732366,
+        "image": 12732236,
+        "name": "Take Over the World"
+      },
+      "hair": {
+        "asset": 7204639314.0,
+        "name": "Purple and Blue Male Hair Slick"
+      },
+      "key": "TheMargrave",
+      "name": "THE MARGRAVE",
+      "outfit": {
+        "pants": "Slacks",
+        "pantsTint": [
+          30,
+          24,
+          40
+        ],
+        "shirt": "Blazer",
+        "shirtTint": [
+          50,
+          30,
+          70
+        ]
+      },
+      "skin": [
+        224,
+        172,
+        130
+      ]
+    },
+    {
+      "bg": [
+        72,
+        18,
+        36
+      ],
+      "color": [
+        120,
+        230,
+        255
+      ],
+      "extras": {},
+      "face": {
+        "asset": 7317765,
+        "image": 7317591,
+        "name": "Slickfang"
+      },
+      "hair": {
+        "asset": 5314006793.0,
+        "name": "Black Trendy Messy Buns"
+      },
+      "key": "TheVelvetPaw",
+      "name": "THE VELVET PAW",
+      "outfit": {
+        "suit": [
+          [
+            120,
+            30,
+            60
+          ],
+          [
+            40,
+            30,
+            40
+          ],
+          [
+            40,
+            30,
+            40
+          ]
+        ]
+      },
+      "skin": [
+        224,
+        172,
+        130
+      ]
+    }
+  ]
+}

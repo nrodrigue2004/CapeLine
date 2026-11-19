@@ -2,8 +2,10 @@
 -- * The cutscene player's screen (CinemaClient): the letterbox bars sliding in and out, SKIP (once the scene
 --   was seen on this save), and a device-started scene's subtitles fed to the guide line box (Ui.GuideHud).
 -- * Comic-panel flashback pages: a full-screen page of 3 to 5 panels with ink borders, captions and sound
---   words, sliding in one by one (PLACEHOLDER ART: each panel's picture is drawn from frames: a sky, a
---   ground, skyline blocks and simple figures, until the art pass). One sample page: "The old heroes' last
+--   words, sliding in one by one. Each panel's picture is the comic art pass's rendered panel (Config.ComicArt,
+--   Shared.ComicArt: the scene staged on Roblox's blocky bodies in game outfits, catalog faces and hair, inked
+--   and cropped to the panel); a panel whose image is not uploaded yet is drawn from frames (a sky, a ground,
+--   skyline blocks and simple figures; PLACEHOLDER ART fallback). One sample page: "The old heroes' last
 --   stand" (Dev panel only).
 -- * A boss's name card: its name, its title and a stylised slam for 3 s when you arrive at the fight.
 -- * The slow-mo finisher's screen (FinisherFx): Comic's big impact word, Anime's speed lines and freeze tint,
@@ -19,6 +21,7 @@ local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local FrameProf = require(Shared:WaitForChild("FrameProf"))
 local CinemaPlan = require(Shared:WaitForChild("CinemaPlan"))
+local ComicArt = require(Shared:WaitForChild("ComicArt"))
 
 local Kit = require(script.Parent.Kit)
 local GuideHud = require(script.Parent.GuideHud)
@@ -106,7 +109,7 @@ local function buildBars()
 end
 
 ---------------------------------------------------------------------------
--- Comic-panel pages (PLACEHOLDER ART)
+-- Comic-panel pages (the frame-drawn pictures below are the fallback until a panel's image is uploaded)
 ---------------------------------------------------------------------------
 
 local function box(
@@ -906,7 +909,20 @@ local function openPage(id: string)
 			ZIndex = 61,
 		})
 		Kit.stroke(f, ink, 5)
-		picture(f, p)
+		local art = ComicArt.panel(Config, id, i)
+		if art then
+			-- the rendered panel, cropped to the panel's shape (the action sits in the middle of every render)
+			local img = Instance.new("ImageLabel")
+			img.Name = "Art"
+			img.Size = UDim2.fromScale(1, 1)
+			img.BackgroundTransparency = 1
+			img.ScaleType = Enum.ScaleType.Crop
+			img.Image = art
+			img.ZIndex = 62
+			img.Parent = f
+		else
+			picture(f, p)
+		end
 		local cap = Kit.label({
 			Name = "Caption",
 			Text = p.caption,

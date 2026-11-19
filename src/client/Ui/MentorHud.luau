@@ -3,13 +3,15 @@
 -- the parts done), their look reward (WEAR it once earned) and, at a safehouse, CHANGE to the other mentor of
 -- your side (free). After the opening the picker card pops once with your side's two mentors. The comic
 -- panels (fixed lines with your hero name) slide in at the top and never block play.
--- PLACEHOLDER ART: Kit frames, the portrait is a colour block with the mentor's initial (Tasks).
+-- The portrait is the comic art pass's rendered bust (Config.ComicArt); until its sheet is uploaded, a colour block
+-- with the mentor's initial (PLACEHOLDER ART fallback). The rest is Kit frames.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Net = require(Shared:WaitForChild("Net"))
+local ComicArt = require(Shared:WaitForChild("ComicArt"))
 local Signal = require(Shared:WaitForChild("Util"):WaitForChild("Signal"))
 
 local Juice = require(script.Parent.Parent.Fx.Juice)
@@ -62,6 +64,32 @@ local function text(parent: Instance, s: string, h: number, size: number, color:
 	return l
 end
 
+-- The mentor's rendered comic bust (Config.ComicArt) over the portrait block; with no art uploaded yet the block
+-- shows the initial instead (PLACEHOLDER ART fallback). Returns whether the art shows.
+local function dressPortrait(p: TextLabel, m: any): boolean
+	local art = ComicArt.portrait(Config, m.id)
+	local img = p:FindFirstChild("Art") :: ImageLabel?
+	if art and not img then
+		local new = Instance.new("ImageLabel")
+		new.Name = "Art"
+		new.Size = UDim2.fromScale(1, 1)
+		new.BackgroundTransparency = 1
+		new.ZIndex = p.ZIndex
+		new.Parent = p
+		img = new
+	end
+	if img then
+		img.Visible = art ~= nil
+		if art then
+			img.Image = art.image
+			img.ImageRectOffset = Vector2.new(art.offset[1], art.offset[2])
+			img.ImageRectSize = Vector2.new(art.size[1], art.size[2])
+		end
+	end
+	p.Text = if art then "" else m.initial
+	return art ~= nil
+end
+
 local function portrait(parent: Instance, m: any, size: number): TextLabel
 	local p = Kit.label({
 		Text = m.initial,
@@ -72,6 +100,7 @@ local function portrait(parent: Instance, m: any, size: number): TextLabel
 		maxText = math.floor(size * 0.6),
 	})
 	Kit.stroke(p, rgb(m.colors[2]), 3)
+	dressPortrait(p, m)
 	p.Parent = parent
 	return p
 end
@@ -307,7 +336,7 @@ local function comic(mentor: number, line: string)
 	local seq = panelSeq
 	panelPortrait.BackgroundColor3 = rgb(m.colors[1])
 	panelPortrait.TextColor3 = rgb(m.colors[2])
-	panelPortrait.Text = m.initial
+	dressPortrait(panelPortrait, m)
 	panelName.Text = string.upper(m.name)
 	panelName.TextColor3 = rgb(m.colors[2])
 	panelLine.Text = line
