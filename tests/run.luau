@@ -8542,7 +8542,9 @@ test(
 		for name in K.baseMaterial do
 			-- (the pockets' own textures dress the pockets, not the city: tests/pockets_test.luau)
 			check(
-				used[name] == true or table.find(Config.PocketKit.textures, name) ~= nil,
+				used[name] == true
+					or table.find(Config.PocketKit.textures, name) ~= nil
+					or (K.landmark and K.landmark[name]) == true,
 				name .. " is used somewhere in the city"
 			)
 			check(K.studsPerTile[name] ~= nil, name .. " has a tile size")
@@ -23055,6 +23057,13 @@ end
 (require :: any)("./news_art_test")({ test = test, check = check, Config = Config, placePath = placePath });
 -- the wrecks and Crater art pass (gap-wrecks, 2026-11-19, own file); ONLY="Wreck art" or ONLY="Crater art"
 (require :: any)("./wrecks_art_test")({ test = test, check = check, Config = Config, placePath = placePath });
+-- the Crater ground, burn scars and throw particles (gap-fx3, 2026-11-19, own file); ONLY="Crater ground" or ONLY="Throw fx"
+(require :: any)("./crater_ground_test")({
+	test = test,
+	check = check,
+	Config = Config,
+	placePath = placePath,
+});
 -- the story art pass (gap-story, 2026-11-19, own file); ONLY="Story art" runs just these
 (require :: any)("./story_art_test")({ test = test, check = check, Config = Config, placePath = placePath });
 -- the pocket props and the plaza board's art pass (gap-props2, 2026-11-19, own file); ONLY="Pocket props" or ONLY="Board art"

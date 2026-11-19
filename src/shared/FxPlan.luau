@@ -85,9 +85,10 @@ function FxPlan.plan(L: any, element: string, moment: string, share: number, sca
 	return out
 end
 
--- A downed robot's wreck moment (Config.Fx.lib.wreck: "spark" or "pop"), the same count rule as plan
-function FxPlan.wreckPlan(L: any, moment: string, share: number): { Emit }
-	local list = (L.wreck and L.wreck[moment]) or {}
+-- One moment of a group of one-off effects in Config.Fx.lib (`group` "wreck": "spark" or "pop"; "throw": "grab",
+-- "land_<weight>", "back" or "smash"), the same count rule as plan (one-off kinds always show, the rest scale)
+function FxPlan.momentPlan(L: any, group: string, moment: string, share: number): { Emit }
+	local list = (L[group] and L[group][moment]) or {}
 	local out: { Emit } = {}
 	local kinds = {}
 	for kind in list do
@@ -102,6 +103,21 @@ function FxPlan.wreckPlan(L: any, moment: string, share: number): { Emit }
 		)
 	end
 	return out
+end
+
+-- A downed robot's wreck moment (Config.Fx.lib.wreck: "spark" or "pop")
+function FxPlan.wreckPlan(L: any, moment: string, share: number): { Emit }
+	return FxPlan.momentPlan(L, "wreck", moment, share)
+end
+
+-- A throw's moment (Config.Fx.lib.throw); a landing is named by its weight ("light", "medium", "heavy"), an
+-- unknown weight lands light
+function FxPlan.throwPlan(L: any, moment: string, share: number, weight: string?): { Emit }
+	if moment == "land" then
+		local key = "land_" .. (weight or "light")
+		moment = if L.throw and L.throw[key] then key else "land_light"
+	end
+	return FxPlan.momentPlan(L, "throw", moment, share)
 end
 
 function FxPlan.newBudget(perSecond: number, now: number): Budget

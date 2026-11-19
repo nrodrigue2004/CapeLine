@@ -1151,12 +1151,13 @@ local function craterRuins(list: { Box }, c: any, cx: number, fy: number, cz: nu
 		table.insert(art, CraterArtKit.cover(look, boxes, x, z, ry, 0))
 	end
 	-- burn scars radiating out from the blast (flat marks, under everything else)
+	-- (gap-fx3, 2026-11-19) each strip names its burn scar decal (`scar`, 1.. #decals; CityBuilder draws it on top)
 	local sc = c.scars
 	for k = 0, sc.n - 1 do
 		local a = (k + 0.5) / sc.n * 2 * math.pi + (if k % 2 == 0 then 0.06 else -0.09)
 		local len = (sc.to - sc.from) * (if k % 3 == 0 then 1 else 0.8)
 		local mid = sc.from + len / 2
-		box(
+		local strip = box(
 			list,
 			"mark",
 			cx + math.cos(a) * mid,
@@ -1168,6 +1169,9 @@ local function craterRuins(list: { Box }, c: any, cx: number, fy: number, cz: nu
 			"scorch",
 			{ ry = -math.deg(a) }
 		)
+		if sc.decals and #sc.decals > 0 then
+			strip.scar = k % #sc.decals + 1
+		end
 	end
 	-- the scorched foundation
 	local f = c.foundation
@@ -1313,13 +1317,17 @@ function WorldGen.landmark(cityCfg: any, w: any, index: number): Landmark
 	if lm.id == "CometCrater" then
 		local c = w.crater
 		local r = size / 2 - c.rimWidth
-		box(list, "field", cx, gy + 0.3, cz, r * 2, 0.6, r * 2, "crater", { shape = "cylinder" }).kit =
-			"CaveRock"
+		-- the floor and the rim wear the Crater's own ground (`ground`, Config.World.crater.ground; gap-fx3) once its
+		-- MaterialVariant is in, else their kit
+		local floorBox =
+			box(list, "field", cx, gy + 0.3, cz, r * 2, 0.6, r * 2, "crater", { shape = "cylinder" })
+		floorBox.kit = "CaveRock"
+		floorBox.ground = c.ground and c.ground.floor
 		local segs = 16
 		local seg = 2 * math.pi * r / segs + 4
 		for k = 0, segs - 1 do
 			local a = k / segs * 2 * math.pi
-			box(
+			local rim = box(
 				list,
 				"rock",
 				cx + math.cos(a) * r,
@@ -1330,8 +1338,9 @@ function WorldGen.landmark(cityCfg: any, w: any, index: number): Landmark
 				seg,
 				"rock",
 				{ ry = -math.deg(a) }
-			).kit =
-				"CaveRock"
+			)
+			rim.kit = "CaveRock"
+			rim.ground = c.ground and c.ground.rim
 		end
 		art = craterRuins(list, c, cx, gy + 0.6, cz)
 		floorY = gy + 0.6

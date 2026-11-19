@@ -73,8 +73,26 @@ return {
 			{ x = -80, z = -50, ry = -122, w = 16, h = 12, len = 70 },
 			{ x = 84, z = 56, ry = 56, w = 14, h = 11, len = 56 },
 		},
-		-- burn scars radiating from the blast: `n` dark strips from `from` to `to` studs out
-		scars = { n = 10, from = 48, to = 160, width = 5 },
+		-- burn scars radiating from the blast: `n` dark strips from `from` to `to` studs out. Since gap-fx3 (2026-11-19)
+		-- each wears a comic burn scar decal (art/fx/textures.py --scars, uploaded as Image assets) on its top face,
+		-- taking turns through `decals` (the image's left end at the blast); the strip itself is hidden then (a mark:
+		-- never collides or queries either way). id 0 keeps today's dark strip.
+		scars = {
+			n = 10,
+			from = 48,
+			to = 160,
+			width = 5,
+			decals = {
+				{ id = 73344202395342, file = "scar_1.png" },
+				{ id = 76818744119840, file = "scar_2.png" },
+				{ id = 120924241999489, file = "scar_3.png" },
+			},
+		},
+		-- the floor's and rim's ground (gap-fx3, 2026-11-19; art/city/crater_materials.py, MaterialVariants
+		-- "Kit" .. name with an Organic pattern so the big floor never shows a grid): the blasted, cracked ash floor
+		-- and the upthrown rock strata of the rim, drawn in their own colours. Until a variant is in MaterialService
+		-- the box keeps its kit (CaveRock). Looks only: the boxes are exactly as before.
+		ground = { floor = "CraterFloor", rim = "CraterRim" },
 		-- robot husks from the battle (angle in degrees, distance out, ry): a torso lying down and its head
 		husks = {
 			{ a = 20, d = 92, ry = 30 },

@@ -14,7 +14,9 @@ Until then the game uses Roblox's built-in particle images.
     python3 art/fx/textures.py [--trails] [--moves] [--cracks] [--destruction] [--wrecks]   (--moves: only rune.png and scorch.png,
     Config.FxMoves; --cracks: only the landing crack decals crack_1..3.png, Config.Fx.crack.decals, preview
     art/preview/fx_cracks.png; --destruction: only crater.png and crack.png, Config.Destruction.decals; --wrecks: only
-    bolt.png, the downed robots' nut, preview art/preview/fx_bolt.png)
+    bolt.png, the downed robots' nut, preview art/preview/fx_bolt.png; --chips: only chip.png, the throw and smash
+    chip, preview art/preview/fx_chip.png; --scars: only the Crater's burn scars scar_1..3.png, preview
+    art/preview/fx_scars.png)
 """
 
 import math
@@ -876,6 +878,138 @@ def destruction_main():
     print("wrote", len(made), "destruction decals to", OUT)
 
 
+# ---------------------------------------------------------------------------
+# throws, rams and the Crater's burn scars (gap-fx3, 2026-11-19)
+# chip.png: a chunk of rubble knocked off by a throw landing or a wall smash (Config.Fx.lib.kinds.chip): a
+#   faceted chip with a lit top face, a shaded side and an inked rim, drawn white so a tint reads as the wall's
+#   or the ground's own colour.
+# scar_1..3.png: the Crater's burn scars (Config.World.crater.scars.decals), full colour, seen from above: a
+#   long charred streak running out from the blast (the image's left end points at the lab), sooty and jagged,
+#   with ash flecks, a few glassed cracks and an inked edge, fading out at its far end. Never blood: soot and ash.
+# ---------------------------------------------------------------------------
+def chip(size=128):
+    r = random.Random(53)
+    S = size * 2
+    img = Image.new("RGBA", (S, S), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    c = S / 2
+    pts = []
+    n = 6
+    for k in range(n):
+        a = k / n * math.tau + r.uniform(-0.3, 0.3)
+        rad = S * r.uniform(0.3, 0.42)
+        pts.append((c + math.cos(a) * rad, c + math.sin(a) * rad))
+    w = int(S * 0.05)
+    d.polygon(pts, fill=(150, 150, 150, 255), outline=(40, 40, 40, 255), width=w)
+    # the lit top face: the polygon's upper-left half, a ridge line to the opposite corner
+    top = [pts[2], pts[3], pts[4], pts[5]]
+    d.polygon(top, fill=(240, 240, 240, 255))
+    d.line([pts[2], pts[5]], fill=(40, 40, 40, 255), width=int(S * 0.035))
+    d.line(pts + [pts[0]], fill=(30, 30, 30, 255), width=w, joint="curve")
+    # a crack across the shaded side and a couple of grit specks
+    m = ((pts[0][0] + pts[1][0]) / 2, (pts[0][1] + pts[1][1]) / 2)
+    d.line([(c, c), m], fill=(60, 60, 60, 255), width=int(S * 0.02))
+    arr = np.asarray(img, np.float32)
+    grain = 0.88 + 0.12 * noise(S, 10, 9)
+    arr[..., :3] *= grain[..., None]
+    return Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8), "RGBA").resize((size, size), Image.LANCZOS)
+
+
+def scar(seed, w=1024, h=256):
+    rr = random.Random(seed)
+    S = 2
+    W, H = w * S, h * S
+    y, x = np.mgrid[0:H, 0:W].astype(np.float32)
+    u = x / W  # 0 at the blast end, 1 at the far end
+    v = (y - H / 2) / (H / 2)  # -1..1 across
+
+    def big(scale, sd):
+        return np.asarray(Image.fromarray((noise(256, scale, sd) * 255).astype(np.uint8)).resize((W, H), Image.BICUBIC), np.float32) / 255
+
+    n1, n2, n3 = big(5, seed), big(16, seed + 1), big(3, seed + 2)
+    # the streak's half width: a broad scorch at the blast end tapering to a ragged point, its edges bitten
+    # into tongues by the noise and bent a little along its length
+    taper = np.clip(1 - u, 0, 1) ** 0.75
+    half = 0.86 * taper * (0.78 + 0.5 * (n1 - 0.5)) + 0.05
+    bend = 0.18 * np.sin(u * (3 + seed % 3) + seed) * u
+    inside = half - np.abs(v - bend)
+    body = np.clip(inside / 0.05, 0, 1)
+    core = np.clip((inside - 0.18 * taper) / (0.22 * taper + 0.02), 0, 1)
+    edge = np.clip(1 - np.abs(inside) / 0.03, 0, 1)  # the inked rim
+    fade = np.clip((0.97 - u) / 0.25, 0, 1) * np.clip(u / 0.1, 0, 1) ** 0.6
+    # colours: a brown-grey soot halo outside, dark soot, a near-black char core
+    ash = np.array([92, 82, 80], np.float32)
+    soot = np.array([56, 50, 52], np.float32)
+    char = np.array([28, 24, 28], np.float32)
+    col = ash[None, None, :] * (1 - body[..., None]) + soot[None, None, :] * body[..., None]
+    col = col * (1 - core[..., None]) + char[None, None, :] * core[..., None]
+    col *= 0.85 + 0.3 * (n2[..., None] - 0.5)
+    halo = np.clip((inside + 0.22) / 0.22, 0, 1) * (0.25 + 0.35 * n3)
+    alpha = np.maximum(body, halo) * fade
+    rgba = np.zeros((H, W, 4), np.float32)
+    rgba[..., :3] = col
+    rgba[..., 3] = alpha * 255
+    img = Image.fromarray(np.clip(rgba, 0, 255).astype(np.uint8), "RGBA")
+    # glassed cracks only inside the char core (pale, thin, jagged), drawn on their own layer then masked
+    cr = Image.new("L", (W, H), 0)
+    dc = ImageDraw.Draw(cr)
+    for _ in range(4 + seed % 2):
+        x0 = rr.uniform(0.03, 0.3) * W
+        pts = _crack_path(rr, x0, H / 2 + rr.uniform(-0.2, 0.2) * H, rr.uniform(-0.2, 0.2), W * rr.uniform(0.18, 0.32), 8, 0.4)
+        dc.line(pts, fill=255, width=int(H * 0.012), joint="curve")
+    crack = np.asarray(cr, np.float32) / 255 * core * fade
+    arr = np.asarray(img, np.float32)
+    arr[..., :3] = arr[..., :3] * (1 - crack[..., None] * 0.8) + np.array([150, 140, 156], np.float32) * crack[..., None] * 0.8
+    img = Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8), "RGBA")
+    d = ImageDraw.Draw(img)
+    # ash flecks: dark soot spatter just past the edge, pale ash specks inside
+    for _ in range(90):
+        fx = rr.uniform(0.02, 0.8)
+        side = rr.choice((-1, 1))
+        hw = (0.86 * (1 - fx) ** 0.75 * 0.85 + 0.05)
+        fy = H / 2 + side * (hw + abs(rr.gauss(0, 0.08))) * H / 2
+        rad = H * rr.uniform(0.006, 0.018) * (1 - fx * 0.6)
+        d.ellipse([fx * W - rad, fy - rad, fx * W + rad, fy + rad], fill=(44, 38, 42, int(230 * (1 - fx * 0.8))))
+    for _ in range(70):
+        fx = rr.uniform(0.03, 0.7)
+        fy = H / 2 + rr.gauss(0, 0.15) * H / 2
+        rad = H * rr.uniform(0.004, 0.01)
+        d.ellipse([fx * W - rad, fy - rad, fx * W + rad, fy + rad], fill=(132, 124, 122, 200))
+    arr = np.asarray(img, np.float32)
+    ink = edge * fade * (0.6 + 0.4 * n2)
+    arr[..., :3] = arr[..., :3] * (1 - ink[..., None]) + np.array(INK, np.float32)[None, None, :] * ink[..., None]
+    arr[..., 3] = np.maximum(arr[..., 3], ink * 255)
+    return Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8), "RGBA").resize((w, h), Image.LANCZOS)
+
+
+def chips_main():
+    """Only the chip (art/preview/fx_chip.png: in a dust, a wall cream and a brick tint)."""
+    os.makedirs(OUT, exist_ok=True)
+    im = chip()
+    im.save(os.path.join(OUT, "chip.png"))
+    prev = Image.new("RGB", (4 * 160, 160), (34, 36, 44))
+    for i, tint in enumerate([(255, 255, 255), (196, 186, 170), (226, 214, 190), (176, 84, 66)]):
+        tinted = Image.fromarray((np.asarray(im.convert("RGB"), np.float32) * np.array(tint) / 255).astype(np.uint8))
+        prev.paste(tinted, (i * 160 + 16, 16), im)
+    prev.save(os.path.join(ROOT, "art", "preview", "fx_chip.png"))
+    print("wrote chip.png to", OUT)
+
+
+def scars_main():
+    """Only the Crater's burn scars (art/preview/fx_scars.png on the Crater floor's ash grey)."""
+    os.makedirs(OUT, exist_ok=True)
+    made = []
+    for k in (1, 2, 3):
+        im = scar(60 + k)
+        im.save(os.path.join(OUT, "scar_%d.png" % k))
+        made.append(im)
+    prev = Image.new("RGBA", (1024, 3 * 256 + 40), (128, 118, 108, 255))
+    for i, im in enumerate(made):
+        prev.paste(im, (0, 10 + i * 266), im)
+    prev.convert("RGB").save(os.path.join(ROOT, "art", "preview", "fx_scars.png"))
+    print("wrote", len(made), "burn scars to", OUT)
+
+
 if __name__ == "__main__":
     import sys
 
@@ -890,6 +1024,10 @@ if __name__ == "__main__":
         moves_main()
     elif "--wrecks" in sys.argv:  # only the wreck's nut (Config.Fx.lib.textures.bolt)
         wrecks_main()
+    elif "--chips" in sys.argv:  # only the throw and smash chip (Config.Fx.lib.textures.chip)
+        chips_main()
+    elif "--scars" in sys.argv:  # only the Crater's burn scars (Config.World.crater.scars.decals)
+        scars_main()
     else:
         main()
         trails_main()

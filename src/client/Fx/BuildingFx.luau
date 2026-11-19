@@ -24,7 +24,7 @@
 --   back after Config.Destruction.street.respawn seconds. The outskirts buildings' boxes come in the snapshot (o).
 -- * Craters and cracks wear comic ink decals (Config.Destruction.decals, art/fx/textures.py --destruction) once their
 --   ids are in; with id 0 a crater is today's dark disc and a crack today's thin dark bars.
--- PLACEHOLDER ART: chunks, rubble and drones are plain boxes. Dust uses the engine's built-in smoke texture.
+-- PLACEHOLDER ART: chunks, rubble and drones are plain boxes. Dust wears the effects library's smoke sheet.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -41,6 +41,7 @@ local Net = require(Shared:WaitForChild("Net"))
 local Chunker = require(Shared:WaitForChild("Chunker"))
 local BuildingState = require(Shared:WaitForChild("BuildingState"))
 local Structure = require(Shared:WaitForChild("Structure"))
+local FxPlan = require(Shared:WaitForChild("FxPlan"))
 
 local QualityController = require(script.Parent.Parent.Controllers.QualityController)
 local CameraController = require(script.Parent.Parent.Controllers.CameraController)
@@ -51,7 +52,9 @@ local DebrisBudget = require(script.Parent.DebrisBudget)
 local BuildingFx = {}
 
 local D = Config.Destruction
-local DUST_TEXTURE = "rbxasset://textures/particles/smoke_main.dds"
+-- the collapse's dust cloud wears the effects library's uploaded smoke sheet (a 4x4 flipbook) since gap-fx3
+-- (2026-11-19), Roblox's built-in smoke while its id is 0
+local DUST_TEXTURE, DUST_FLIP = FxPlan.textureOf(Config.Fx.lib, "smoke")
 local CRACK_COLOR = Color3.fromRGB(34, 32, 36)
 local DRONE_COLOR = Color3.fromRGB(255, 196, 64)
 local DRONE_LIGHT = Color3.fromRGB(120, 230, 255)
@@ -259,6 +262,10 @@ local function dustCloud(rec: Rec, seconds: number): BasePart?
 	p.Transparency = 1
 	local e = Instance.new("ParticleEmitter")
 	e.Texture = DUST_TEXTURE
+	if DUST_FLIP == 4 then
+		e.FlipbookLayout = Enum.ParticleFlipbookLayout.Grid4x4
+		e.FlipbookMode = Enum.ParticleFlipbookMode.OneShot
+	end
 	e.Shape = Enum.ParticleEmitterShape.Box
 	e.EmissionDirection = Enum.NormalId.Top
 	e.Color = ColorSequence.new(Color3.fromRGB(196, 186, 172))

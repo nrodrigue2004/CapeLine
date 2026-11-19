@@ -133,6 +133,12 @@
       "KitCaveRock": {
         "$path": "src/materials/KitCaveRock.model.json"
       },
+      "KitCraterFloor": {
+        "$path": "src/materials/KitCraterFloor.model.json"
+      },
+      "KitCraterRim": {
+        "$path": "src/materials/KitCraterRim.model.json"
+      },
       "KitConcrete": {
         "$path": "src/materials/KitConcrete.model.json"
       },

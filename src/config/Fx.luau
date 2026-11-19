@@ -195,6 +195,13 @@ return {
 				id = 127209369475474,
 				file = "bolt.png",
 			},
+			-- a chunk of rubble off a throw landing or a wall smash (gap-fx3, 2026-11-19: art/fx/textures.py --chips;
+			-- uploaded from the cloud as an Image asset), tinted in the ground's or the wall's colour
+			chip = {
+				builtin = "rbxasset://textures/particles/smoke_main.dds",
+				id = 133274880401189,
+				file = "chip.png",
+			},
 		},
 		-- each particle kind: size from and to (studs), life (s, min max), speed (min max), spread (deg),
 		-- drag, rise (upward acceleration, negative falls), light (emission), alpha (start transparency),
@@ -333,6 +340,20 @@ return {
 				light = 0,
 				alpha = 0,
 				spin = 420,
+			},
+			-- rubble chips off a throw landing or a wall smash (gap-fx3, 2026-11-19): kicked out, tumbling, falling
+			-- fast; tinted in the ground's or wall's own colour, never bright
+			chip = {
+				tex = "chip",
+				size = { 1.5, 1.1 },
+				life = { 0.6, 1 },
+				speed = { 16, 32 },
+				spread = 55,
+				drag = 1.2,
+				rise = -70,
+				light = 0,
+				alpha = 0,
+				spin = 360,
 			},
 			wisp = {
 				tex = "glow",
@@ -699,6 +720,18 @@ return {
 			spark = { spark = 5, crackle = 1 },
 			pop = { bolt = 12, spark = 16, smoke = 4, core = 1, crackle = 1 },
 			flicker = 0.12,
+		},
+		-- throws and rams (gap-fx3, 2026-11-19; ThrowFx and ImpactFx through FxLib, counts before the preset's share,
+		-- inside the budget above; once plain parts): `grab` a puff at the lifter's feet, `land_<weight>` where a
+		-- thrown thing crashes down (a dust ring, puffs and chips in the dust colour), `back` the shine when a prop
+		-- comes home, `smash` a wall broken by a ram or a thrown hero (chips in the wall's colour, a puff of dust)
+		throw = {
+			grab = { dust = 3 },
+			land_light = { shock = 1, dust = 4, chip = 5 },
+			land_medium = { shock = 1, dust = 6, chip = 9 },
+			land_heavy = { shock = 1, dust = 10, chip = 16 },
+			back = { glow = 1, star = 6 },
+			smash = { chip = 14, dust = 4 },
 		},
 		scale = { low = 0.4, medium = 0.7, high = 1 },
 		-- a super's whole moment (its burst, its own particles and crits on superTargets robots) must fit in this

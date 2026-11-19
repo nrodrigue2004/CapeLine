@@ -215,6 +215,8 @@ return {
 			Sand = 16,
 			Ashlar = 12,
 			Brickwork = 8,
+			CraterFloor = 32,
+			CraterRim = 24,
 		},
 		baseMaterial = {
 			Brick = "Brick",
@@ -248,7 +250,12 @@ return {
 			Sand = "Sand",
 			Ashlar = "Sandstone",
 			Brickwork = "Brick",
+			CraterFloor = "Ground",
+			CraterRim = "Rock",
 		},
+		-- textures that dress one landmark in their own colours (the part shows white), set by a box's `ground`
+		-- over its kit (gap-fx3, 2026-11-19: the Crater's floor and rim, Config.World.crater.ground)
+		landmark = { CraterFloor = true, CraterRim = true },
 		-- the ground each district's kit puts down
 		ground = {
 			Downtown = { sidewalk = "Paving", road = "Asphalt" },

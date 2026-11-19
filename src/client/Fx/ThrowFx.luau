@@ -1,17 +1,17 @@
 -- ThrowFx: the look of pick up and throw (spec: Hero MMO features > Pick up and throw; H3). Flies every
 -- thrown thing on the server's arc (ThrowFly: the same parabola on every screen, Shared.ThrowMath.arcPoint,
 -- tumbling as it goes), with a dust ring, chips and a crash where it lands (a shake for heavy ones near you),
--- a puff when someone lifts something (the Carrying attribute) and when a prop comes home (ThrowBack).
+-- a puff when someone lifts something (the Carrying attribute) and a shine when a prop comes home (ThrowBack):
+-- textured particles through the effects library since gap-fx3 (2026-11-19: FxLib.throwMoment, Config.Fx.lib.throw,
+-- the uploaded chip.png, in the ground's own colour; inside the preset's particle budget).
 -- Downed robots' wrecks (WP6): sparks while one lies near the camera (its dead eyes light for a blink), a
 -- flicker for its last seconds (the WreckEnds server time) and a pop of nuts, sparks and smoke when it falls
 -- apart (WreckGone): textured particles through the effects library (FxLib, Config.Fx.lib.wreck, inside the
 -- preset's particle budget; gap-wrecks, 2026-11-19). Cartoon: machines spark, nothing else.
--- PLACEHOLDER ART: plain parts for the throw's dust and chips until the effects pass.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
-local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
@@ -31,7 +31,6 @@ local player = Players.LocalPlayer
 local DUST = Color3.fromRGB(196, 186, 170)
 local flights: { [number]: any } = {}
 local carrying: { [Player]: string? } = {}
-local fxFolder: Folder
 local W = T.wreck
 local SPARK = Color3.fromRGB(255, 226, 120)
 local METAL = Color3.fromRGB(90, 90, 100)
@@ -52,70 +51,35 @@ function ThrowFx.model(id: number): Model?
 	return nil
 end
 
-local function chip(at: Vector3, color: Color3, size: number, life: number, grow: number?)
-	local p = Instance.new("Part")
-	p.Anchored = true
-	p.CanCollide = false
-	p.CanQuery = false
-	p.CanTouch = false
-	p.CastShadow = false
-	p.Material = Enum.Material.SmoothPlastic
-	p.Color = color
-	p.Size = Vector3.one * size
-	p.CFrame = CFrame.new(at)
-	p.Parent = fxFolder
-	TweenService:Create(p, TweenInfo.new(life), {
-		Transparency = 1,
-		Size = Vector3.one * size * (grow or 1),
-		CFrame = CFrame.new(at + Vector3.new((math.random() - 0.5) * 4, size, (math.random() - 0.5) * 4)),
-	}):Play()
-	task.delay(life, function()
-		p:Destroy()
-	end)
-end
-
-local function dust(at: Vector3, radius: number, n: number)
-	local ring = Instance.new("Part")
-	ring.Shape = Enum.PartType.Cylinder
-	ring.Anchored = true
-	ring.CanCollide = false
-	ring.CanQuery = false
-	ring.CanTouch = false
-	ring.Material = Enum.Material.SmoothPlastic
-	ring.Color = DUST
-	ring.Transparency = 0.3
-	ring.Size = Vector3.new(0.4, 2, 2)
-	ring.CFrame = CFrame.new(at + Vector3.new(0, 0.3, 0)) * CFrame.Angles(0, 0, math.pi / 2)
-	ring.Parent = fxFolder
-	TweenService
-		:Create(
-			ring,
-			TweenInfo.new(0.45),
-			{ Size = Vector3.new(0.4, radius * 2, radius * 2), Transparency = 1 }
-		)
-		:Play()
-	task.delay(0.5, function()
-		ring:Destroy()
-	end)
-	for _ = 1, n do
-		chip(
-			at + Vector3.new((math.random() - 0.5) * radius, 0.5, (math.random() - 0.5) * radius),
-			DUST,
-			1.2,
-			0.6,
-			2
-		)
+-- the ground's colour under a landing (dust takes it on, half way to plain dust), else plain dust
+local groundRay = RaycastParams.new()
+groundRay.FilterType = Enum.RaycastFilterType.Exclude
+local function groundColor(at: Vector3, thrown: Instance?): Color3
+	local skip: { Instance } = if thrown then { thrown } else {}
+	for _, i in
+		{ player.Character, Workspace:FindFirstChild("Throwables"), Workspace:FindFirstChild("FxEmitters") }
+	do
+		if i then
+			table.insert(skip, i)
+		end
 	end
+	groundRay.FilterDescendantsInstances = skip
+	local hit = Workspace:Raycast(at + Vector3.new(0, 3, 0), Vector3.new(0, -8, 0), groundRay)
+	if hit and hit.Instance:IsA("BasePart") then
+		return (hit.Instance :: BasePart).Color:Lerp(DUST, 0.5)
+	end
+	return DUST
 end
 
 -- Juice rows (Config.Audio.juice): the visual for grab and throwLand
 function ThrowFx.grab(at: Vector3)
-	dust(at - Vector3.new(0, 2.5, 0), 4, 3)
+	local feet = at - Vector3.new(0, 2.5, 0)
+	FxLib.throwMoment("grab", feet, groundColor(feet), nil, 4)
 end
 
-function ThrowFx.throwLand(at: Vector3, weight: string, mine: boolean)
+function ThrowFx.throwLand(at: Vector3, weight: string, mine: boolean, thrown: Instance?)
 	local W = T.weights[weight] or T.weights.light
-	dust(at, W.radius, if weight == "heavy" then 8 else 4)
+	FxLib.throwMoment("land", at, groundColor(at, thrown), nil, W.radius, weight)
 	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
 	if weight ~= "light" and root and (root.Position - at).Magnitude < 60 then
 		CameraController.shake(
@@ -242,7 +206,7 @@ local function step()
 		if t >= 1 then
 			flights[id] = nil
 			if f.hit then
-				ThrowFx.throwLand(f.to, weightOf(f.model), f.mine)
+				ThrowFx.throwLand(f.to, weightOf(f.model), f.mine, f.model)
 			end
 		end
 	end
@@ -261,9 +225,6 @@ local function step()
 end
 
 function ThrowFx.init()
-	fxFolder = Instance.new("Folder")
-	fxFolder.Name = "ThrowFx"
-	fxFolder.Parent = Workspace
 	Net.listen(
 		"ThrowFly",
 		function(id: number, from: Vector3, to: Vector3, time: number, peak: number, by: number)
@@ -289,7 +250,7 @@ function ThrowFx.init()
 	Net.listen("ThrowBack", function(id: number)
 		local m = ThrowFx.model(id)
 		if m then
-			chip(m:GetPivot().Position, Color3.fromRGB(200, 240, 255), 3, 0.4, 2)
+			FxLib.throwMoment("back", m:GetPivot().Position, Color3.fromRGB(200, 240, 255))
 		end
 	end)
 	Players.PlayerRemoving:Connect(function(p: Player)
