@@ -259,6 +259,23 @@ function FxLib.dust(at: Vector3, radius: number, color: Color3?)
 	end
 end
 
+-- A downed robot's wreck (ThrowFx, Config.Fx.lib.wreck): its sparks near the camera ("spark") or its pop when
+-- it falls apart ("pop"); bolts tumble out half in `suit`, half in `metal`, the sparks in `spark`
+function FxLib.wreckMoment(moment: string, pos: Vector3, spark: Color3, suit: Color3, metal: Color3)
+	local up = Vector3.new(0, 1, 0)
+	for _, e in FxPlan.wreckPlan(L, moment, share()) do
+		if e.kind == "bolt" then
+			local half = math.ceil(e.count / 2)
+			FxLib.emit("bolt", suit, pos, half, up)
+			FxLib.emit("bolt", metal, pos, e.count - half, up)
+		elseif e.kind == "smoke" then
+			FxLib.emit("smoke", Color3.fromRGB(70, 70, 76), pos, e.count)
+		else
+			FxLib.emit(e.kind, spark, pos, e.count, if e.kind == "spark" then up else nil)
+		end
+	end
+end
+
 -- a robot breaking apart: sparks, smoke and a flash
 function FxLib.wreck(pos: Vector3)
 	FxLib.emit("core", Color3.fromRGB(255, 180, 90), pos, 1)

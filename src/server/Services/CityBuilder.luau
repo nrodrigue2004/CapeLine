@@ -22,6 +22,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local WorldMap = require(Shared:WaitForChild("WorldMap"))
 local WorldGen = require(Shared:WaitForChild("WorldGen"))
 local DeepLayout = require(Shared:WaitForChild("DeepLayout"))
+local CraterArtKit = require(Shared:WaitForChild("CraterArtKit"))
 local DeepArtKit = require(Shared:WaitForChild("DeepArtKit"))
 local HqRules = require(Shared:WaitForChild("HqRules"))
 local SideQuestSites = require(Shared:WaitForChild("SideQuestSites"))
@@ -249,6 +250,55 @@ local function buildHub(world: any, folder: Folder)
 	end
 end
 
+-- An imported art set's meshes (ReplicatedStorage.Art.<set>), looked up by name: the Deep's (art/blender/deep.py)
+-- and the Crater's (art/blender/crater.py)
+local artFound: { [string]: MeshPart } = {}
+local function artSource(set: string, name: string): MeshPart?
+	local key = set .. "/" .. name
+	local hit = artFound[key]
+	if hit and hit.Parent then
+		return hit
+	end
+	local art = ReplicatedStorage:FindFirstChild("Art")
+	local root = art and art:FindFirstChild(set)
+	local src = root and root:FindFirstChild(name, true)
+	if src and src:IsA("MeshPart") then
+		artFound[key] = src
+		return src
+	end
+	return nil
+end
+local function deepSource(name: string): MeshPart?
+	return artSource("Deep", name)
+end
+
+-- One mesh of a look as a visual-only clone (no collisions, queries or touches; no shadow) at `at` * its offset
+local function artMesh(src: MeshPart, m: any, at: CFrame): MeshPart
+	local p = src:Clone()
+	for _, c in p:GetChildren() do
+		if m.maps and c:IsA("SurfaceAppearance") then
+			c.AlphaMode = Enum.AlphaMode.Overlay
+		else
+			c:Destroy()
+		end
+	end
+	p.Name = m.name
+	p.Anchored = true
+	p.CanCollide = false
+	p.CanQuery = false
+	p.CanTouch = false
+	p.Size = Vector3.new(m.size[1], m.size[2], m.size[3])
+	p.CFrame = at * CFrame.new(m.offset[1], m.offset[2], m.offset[3])
+	p.Color = Color3.fromRGB(m.color[1], m.color[2], m.color[3])
+	local ok, mat = pcall(function()
+		return (Enum.Material :: any)[m.mat]
+	end)
+	p.Material = if ok and mat then mat else Enum.Material.SmoothPlastic
+	p.Transparency = m.alpha
+	p.CastShadow = false
+	return p
+end
+
 local function buildOutskirts(world: any, folder: Folder)
 	local t0 = os.clock()
 	local tilesFolder = Instance.new("Folder")
@@ -257,8 +307,32 @@ local function buildOutskirts(world: any, folder: Folder)
 	for _, lm in world.landmarks do
 		local m = Instance.new("Model")
 		m.Name = lm.id
+		-- the Crater's Crane lab (lore step 9) in art/blender/crater.py's meshes once Art.Crater has every mesh of a
+		-- look: its boxes are hidden but kept exactly as they were (collisions, queries); else today's parts
+		local ready = if lm.art
+			then CraterArtKit.readyLooks(Config, function(name: string): boolean
+				return artSource("Crater", name) ~= nil
+			end)
+			else {}
 		for _, b in lm.boxes do
-			makePart(b).Parent = m
+			local p = makePart(b)
+			if CraterArtKit.hides(b, ready) then
+				p.Transparency = 1
+				p.CastShadow = false
+			end
+			p.Parent = m
+		end
+		for _, place in lm.art or {} do
+			if ready[place.look] then
+				local at = CFrame.new(place.cx, place.cy, place.cz)
+					* CFrame.Angles(0, math.rad(place.ry or 0), 0)
+				for _, mm in CraterArtKit.meshes(Config, place) do
+					local src = artSource("Crater", mm.name)
+					if src then
+						artMesh(src, mm, at).Parent = m
+					end
+				end
+			end
 		end
 		m:SetAttribute("Landmark", lm.id)
 		m.Parent = tilesFolder
@@ -317,23 +391,6 @@ CityBuilder.part = makePart
 
 local TERRAIN = { water = Enum.Material.Water, sand = Enum.Material.Sand, rock = Enum.Material.Rock }
 
--- The Deep's meshes (art/blender/deep.py, imported as ReplicatedStorage.Art.Deep), looked up by name
-local deepFound: { [string]: MeshPart } = {}
-local function deepSource(name: string): MeshPart?
-	local hit = deepFound[name]
-	if hit and hit.Parent then
-		return hit
-	end
-	local art = ReplicatedStorage:FindFirstChild("Art")
-	local root = art and art:FindFirstChild("Deep")
-	local src = root and root:FindFirstChild(name, true)
-	if src and src:IsA("MeshPart") then
-		deepFound[name] = src
-		return src
-	end
-	return nil
-end
-
 -- One placement's meshes (Shared.DeepArtKit) into its chunk model: visuals only (no collisions, queries or
 -- touches; the boxes they stand in for stay, hidden). Kelp is tagged DeepKelp for DeepClient's sway.
 local function deepLook(place: any, parent: Instance): number
@@ -344,28 +401,7 @@ local function deepLook(place: any, parent: Instance): number
 		if not src then
 			continue
 		end
-		local p = src:Clone()
-		for _, c in p:GetChildren() do
-			if m.maps and c:IsA("SurfaceAppearance") then
-				c.AlphaMode = Enum.AlphaMode.Overlay
-			else
-				c:Destroy()
-			end
-		end
-		p.Name = m.name
-		p.Anchored = true
-		p.CanCollide = false
-		p.CanQuery = false
-		p.CanTouch = false
-		p.Size = Vector3.new(m.size[1], m.size[2], m.size[3])
-		p.CFrame = at * CFrame.new(m.offset[1], m.offset[2], m.offset[3])
-		p.Color = Color3.fromRGB(m.color[1], m.color[2], m.color[3])
-		local ok, mat = pcall(function()
-			return (Enum.Material :: any)[m.mat]
-		end)
-		p.Material = if ok and mat then mat else Enum.Material.SmoothPlastic
-		p.Transparency = m.alpha
-		p.CastShadow = false
+		local p = artMesh(src, m, at)
 		if place.tag == "kelp" then
 			-- the sway turns the strand about its foot: the placement's bottom middle
 			p:SetAttribute("Foot", Vector3.new(place.cx, place.cy - place.sy / 2, place.cz))
@@ -508,7 +544,10 @@ function CityBuilder.publishInfo(world: any)
 		table.insert(info.beacons, { id = id, name = b.name, x = b.x, y = b.y, z = b.z })
 	end
 	for _, lm in world.landmarks do
-		table.insert(info.landmarks, { id = lm.id, x = lm.centre.x, z = lm.centre.z, size = lm.size })
+		table.insert(
+			info.landmarks,
+			{ id = lm.id, x = lm.centre.x, z = lm.centre.z, size = lm.size, floorY = lm.floorY, art = lm.art }
+		)
 	end
 	-- the wreckable buildings, for the client's chunks, rubble and drones (BuildingFx); the 2,000+ outskirts ones
 	-- go in the building snapshot instead (BuildingService, a float buffer), so this text stays small

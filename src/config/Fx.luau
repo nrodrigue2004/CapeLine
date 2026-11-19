@@ -188,6 +188,13 @@ return {
 				id = 131428080752757,
 				file = "scorch.png",
 			},
+			-- a downed robot's loose nut (gap-wrecks, 2026-11-19: the wreck's pop, art/fx/textures.py --wrecks; uploaded
+			-- from the cloud as an Image asset)
+			bolt = {
+				builtin = "rbxasset://textures/particles/smoke_main.dds",
+				id = 127209369475474,
+				file = "bolt.png",
+			},
 		},
 		-- each particle kind: size from and to (studs), life (s, min max), speed (min max), spread (deg),
 		-- drag, rise (upward acceleration, negative falls), light (emission), alpha (start transparency),
@@ -312,6 +319,20 @@ return {
 				alpha = 0,
 				face = "streak",
 				spin = 200,
+			},
+			-- a downed robot's nuts and bits (gap-wrecks, 2026-11-19): tumble out, fall and bounce away; tinted
+			-- in the robot's suit and metal colours, never bright
+			bolt = {
+				tex = "bolt",
+				size = { 0.55, 0.4 },
+				life = { 0.55, 0.85 },
+				speed = { 12, 22 },
+				spread = 70,
+				drag = 1.5,
+				rise = -55,
+				light = 0,
+				alpha = 0,
+				spin = 420,
 			},
 			wisp = {
 				tex = "glow",
@@ -671,6 +692,14 @@ return {
 		-- particles a second this device may emit (a burst over the budget is trimmed, never queued), and the
 		-- share of each count a preset draws
 		budget = { low = 220, medium = 520, high = 1100 },
+		-- a downed robot's wreck (WP6; gap-wrecks, 2026-11-19, ThrowFx through FxLib, counts before the preset's
+		-- share, inside the budget above): `spark` every Config.Throw.wreck.sparkEvery s near the camera (its
+		-- dead eyes light for `flicker` s), `pop` when it falls apart (bolts half in the suit colour, half metal)
+		wreck = {
+			spark = { spark = 5, crackle = 1 },
+			pop = { bolt = 12, spark = 16, smoke = 4, core = 1, crackle = 1 },
+			flicker = 0.12,
+		},
 		scale = { low = 0.4, medium = 0.7, high = 1 },
 		-- a super's whole moment (its burst, its own particles and crits on superTargets robots) must fit in this
 		-- share of a second's budget on every preset, so the fight around it still has room (tests check)

@@ -85,6 +85,25 @@ function FxPlan.plan(L: any, element: string, moment: string, share: number, sca
 	return out
 end
 
+-- A downed robot's wreck moment (Config.Fx.lib.wreck: "spark" or "pop"), the same count rule as plan
+function FxPlan.wreckPlan(L: any, moment: string, share: number): { Emit }
+	local list = (L.wreck and L.wreck[moment]) or {}
+	local out: { Emit } = {}
+	local kinds = {}
+	for kind in list do
+		table.insert(kinds, kind)
+	end
+	table.sort(kinds)
+	for _, kind in kinds do
+		local base = list[kind]
+		table.insert(
+			out,
+			{ kind = kind, count = if base <= 1 then base else math.max(1, math.floor(base * share + 0.5)) }
+		)
+	end
+	return out
+end
+
 function FxPlan.newBudget(perSecond: number, now: number): Budget
 	return { perSecond = perSecond, tokens = perSecond, at = now }
 end

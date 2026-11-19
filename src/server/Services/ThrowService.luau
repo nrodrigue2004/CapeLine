@@ -14,7 +14,10 @@
 -- or set down), then it falls apart (WreckGone: sparks and a pop on every screen, ThrowFx). At most
 -- wreck.max at once: a new one clears the oldest nobody holds. Never fakes, twins, creatures, sea robots or
 -- the small pack robots (Shared.ThrowMath.canWreck), nor a dressed villain (EnemyService.identity dress).
--- PLACEHOLDER ART: the wreck is plain parts in its colours.
+-- The wreck's look (gap-wrecks, 2026-11-19): art/blender/wrecks.py's heap per robot kind (Shared.WreckArtKit,
+-- imported as ReplicatedStorage.Art.Wrecks) in the robot's colours, metal only where it broke, the metal
+-- under-head (never a face). Its plain Body box stays the collider, hidden; a kind whose meshes are not all
+-- imported builds today's plain parts (the Studio-friendly fallback).
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -26,6 +29,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Net = require(Shared:WaitForChild("Net"))
 local Signal = require(Shared:WaitForChild("Util"):WaitForChild("Signal"))
 local ThrowMath = require(Shared:WaitForChild("ThrowMath"))
+local WreckArtKit = require(Shared:WaitForChild("WreckArtKit"))
 
 local BlockService = require(script.Parent.BlockService)
 local CombatService = require(script.Parent.CombatService)
@@ -482,8 +486,60 @@ local function rgbOf(t: { number }?, fallback: Color3): Color3
 	return if t then Color3.fromRGB(t[1], t[2], t[3]) else fallback
 end
 
+-- The wrecks' meshes (ReplicatedStorage.Art.Wrecks), looked up by name
+local wreckFound: { [string]: MeshPart } = {}
+local function wreckSource(name: string): MeshPart?
+	local hit = wreckFound[name]
+	if hit and hit.Parent then
+		return hit
+	end
+	local art = ReplicatedStorage:FindFirstChild("Art")
+	local root = art and art:FindFirstChild("Wrecks")
+	local src = root and root:FindFirstChild(name, true)
+	if src and src:IsA("MeshPart") then
+		wreckFound[name] = src
+		return src
+	end
+	return nil
+end
+
+-- The look's meshes on the heap's middle (visual only: no collisions, queries or touches, so the carry and the
+-- landing see only the Body box); the dead eyes are named so ThrowFx flickers them
+local function wreckMeshes(m: Model, kind: string, sx: number, sy: number, sz: number, base: CFrame)
+	local mid = base * CFrame.new(0, sy / 2, 0)
+	for _, mm in WreckArtKit.meshes(Config, kind, sx, sy, sz) do
+		local src = wreckSource(mm.name)
+		if not src then
+			continue
+		end
+		local p = src:Clone()
+		for _, c in p:GetChildren() do
+			if mm.maps and c:IsA("SurfaceAppearance") then
+				c.AlphaMode = Enum.AlphaMode.Overlay
+			else
+				c:Destroy()
+			end
+		end
+		p.Name = if WreckArtKit.isEyes(mm.name) then "Eyes" else mm.name
+		p.Anchored = true
+		p.CanCollide = false
+		p.CanQuery = false
+		p.CanTouch = false
+		p.Size = Vector3.new(mm.size[1], mm.size[2], mm.size[3])
+		p.CFrame = mid * CFrame.new(mm.offset[1], mm.offset[2], mm.offset[3])
+		p.Color = Color3.fromRGB(mm.color[1], mm.color[2], mm.color[3])
+		local ok, mat = pcall(function()
+			return (Enum.Material :: any)[mm.mat]
+		end)
+		p.Material = if ok and mat then mat else Enum.Material.SmoothPlastic
+		p.Transparency = mm.alpha
+		p.Parent = m
+	end
+end
+
 -- The heap: the chassis on its side in the suit colour, the head dropped beside it with its eyes dark, and an
--- arm across the top in the trim colour. PLACEHOLDER ART: plain parts until a wreck mesh.
+-- arm across the top in the trim colour; or, once Art.Wrecks has every mesh of this kind's look, that look over
+-- the hidden Body box (WreckArtKit)
 local function wreckModel(kind: string, cfg: any, at: Vector3, yaw: number): Model
 	local body = cfg.body or {}
 	local sx, sy, sz = ThrowMath.wreckSize(T, cfg)
@@ -519,6 +575,23 @@ local function wreckModel(kind: string, cfg: any, at: Vector3, yaw: number): Mod
 		Enum.Material.Metal
 	)
 	main.Parent = m
+	m:SetAttribute("ThrowKind", "wreck")
+	m:SetAttribute("WreckOf", kind)
+	-- the colours ThrowFx's sparks, eye blink and pop use
+	m:SetAttribute("WreckSuit", main.Color)
+	m:SetAttribute("WreckMetal", metal)
+	m:SetAttribute("WreckEye", rgbOf(body.eye, Color3.fromRGB(255, 220, 80)))
+	m.PrimaryPart = main
+	if
+		WreckArtKit.ready(Config, kind, function(name: string): boolean
+			return wreckSource(name) ~= nil
+		end)
+	then
+		main.Transparency = 1
+		main.CastShadow = false
+		wreckMeshes(m, kind, sx, sy, sz, base)
+		return m
+	end
 	local hs = math.max(0.9, sy * 0.8)
 	local head = piece(
 		"Head",
@@ -546,9 +619,6 @@ local function wreckModel(kind: string, cfg: any, at: Vector3, yaw: number): Mod
 		Enum.Material.Metal
 	)
 	arm.Parent = m
-	m.PrimaryPart = main
-	m:SetAttribute("ThrowKind", "wreck")
-	m:SetAttribute("WreckOf", kind)
 	return m
 end
 

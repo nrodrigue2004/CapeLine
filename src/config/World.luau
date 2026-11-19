@@ -34,7 +34,8 @@ return {
 	-- Offsets are studs from the Crater's centre (x east, z north); heights from the floor. Everything stays
 	-- under `maxTop` (the rim is 26) and nothing over `openTop` stands within `openRadius` of the centre, so
 	-- fliers see across the whole bowl and the middle is an open fighting floor. `parts` caps the landmark.
-	-- PLACEHOLDER ART: plain parts (the lab's walls and towers take the kit's white Panel texture once it is in).
+	-- The lab's ruins wear art/blender/crater.py's meshes over these boxes once Art.Crater is imported (gap-wrecks,
+	-- 2026-11-19; Shared.CraterArtKit, `art` below): the boxes stay as they are, hidden, for collision.
 	crater = {
 		rimHeight = 26,
 		rimWidth = 30,
@@ -88,6 +89,19 @@ return {
 			cape = { x = -76, z = 22, rebar = 12 },
 			shield = { x = -70, z = 2, w = 8, d = 6, ry = 25 },
 			helmet = { x = -84, z = -14, size = 5 },
+		},
+		-- the Blender looks (gap-wrecks, 2026-11-19; art/blender/crater.py, Shared.CraterArtKit, Config.CraterArt): every
+		-- wall, fallen chunk, tank, tower, husk and relic is drawn over its boxes (hidden, kept for collision) once
+		-- imported. `bits`: the loose debris looks each device scatters on the floor (weights), Config.Presets
+		-- <preset>.ruins.bits of them (none on phones), seeded by `seed`, from ring[1] to ring[2] studs out, `pad`
+		-- studs clear of every placement and `apart` studs from each other; ghosts, all under 2 studs tall
+		art = {
+			bits = { CraterBitRubble = 4, CraterBitPipes = 2, CraterBitConsole = 1, CraterBitPlates = 2 },
+			tris = 90000, -- the lab's meshes may draw at most this many triangles (art/blender/crater.py; tests)
+			seed = 9119,
+			ring = { 36, 158 },
+			pad = 2,
+			apart = 7,
 		},
 	},
 	radioHill = { steps = 6, stepHeight = 14, mastHeight = 120, rings = 6 },

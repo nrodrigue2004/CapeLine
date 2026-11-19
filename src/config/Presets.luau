@@ -43,6 +43,7 @@ return {
 		props = { tier = 1, radius = 260, parts = 700 },
 		vehicleRig = 110, -- gap-vehicles: escorts this close roll their wheels, steer and sway (Fx.VehicleRig); none past it
 		pockets = { tier = 1, parts = 180, lights = 4 }, -- a pocket's dressing (Shared.PocketDress; the server's tier 1 counts)
+		ruins = { bits = 0 }, -- the Crater's loose lab debris this device scatters (Shared.CraterArtKit.bits; gap-wrecks)
 		smash = 3, -- street things (lamps, benches, trees, fences) knocked loose a big impact nearby (BuildingFx, 2026-11-19)
 		sites = { radius = 240, looks = 6, parts = 30 }, -- activity props in their Blender looks (Fx.ActivityProps)
 	},
@@ -72,6 +73,7 @@ return {
 		props = { tier = 2, radius = 420, parts = 2000 },
 		vehicleRig = 200, -- gap-vehicles: escorts this close roll their wheels, steer and sway (Fx.VehicleRig); none past it
 		pockets = { tier = 2, parts = 480, lights = 10 },
+		ruins = { bits = 16 }, -- the Crater's loose lab debris this device scatters (Shared.CraterArtKit.bits; gap-wrecks)
 		smash = 6, -- street things (lamps, benches, trees, fences) knocked loose a big impact nearby (BuildingFx, 2026-11-19)
 		sites = { radius = 420, looks = 14, parts = 70 }, -- activity props in their Blender looks (Fx.ActivityProps)
 	},
@@ -101,6 +103,7 @@ return {
 		props = { tier = 3, radius = 600, parts = 4000 },
 		vehicleRig = 320, -- gap-vehicles: escorts this close roll their wheels, steer and sway (Fx.VehicleRig); none past it
 		pockets = { tier = 3, parts = 900, lights = 18 },
+		ruins = { bits = 36 }, -- the Crater's loose lab debris this device scatters (Shared.CraterArtKit.bits; gap-wrecks)
 		smash = 10, -- street things knocked loose a big impact nearby (BuildingFx, 2026-11-19)
 		sites = { radius = 640, looks = 30, parts = 150 }, -- activity props in their Blender looks (Fx.ActivityProps)
 	},
