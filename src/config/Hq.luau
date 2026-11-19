@@ -202,6 +202,7 @@ return {
 		[20] = "Golden Ticket Booth", -- H8: Hero Pass season 1 (paid track)
 		[21] = "Spotlight Rig", -- H8
 		[22] = "Season One Statue", -- H8
+		[23] = "Lore Shelf", -- side-content (2026-11-19): every lore page read (Config.Lore)
 	},
 
 	-- Legacy rebirth (spec: at the level cap, 50 since 2026-11-17, retire to the Hall of Legends: a statue;

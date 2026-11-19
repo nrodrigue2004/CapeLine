@@ -161,6 +161,24 @@ function AbilityService.init()
 			HeroService.sendState(hero)
 		end
 	end)
+	-- side-content (2026-11-19): mobility training: the hero's current pick one rank up (Shared.MoveRanks: in
+	-- order, its level, Credits; earned only). MoveTrained answers the device (the TRAINED stamp and the new feel).
+	Net.on("MoveTrain", function(player)
+		local hero = HeroService.get(player)
+		local profile = DataService.get(player)
+		if not hero or not profile or not hero.loaded then
+			return
+		end
+		local credits = profile.currency.credits + profile.currency.banked
+		local ok, reason, rank = HeroService.trainMobility(hero, credits, function(cost)
+			return EconomyService.spend(hero, cost)
+		end)
+		Net.fire("MoveTrained", player, { ok = ok, reason = reason, rank = rank, pick = hero.mobility })
+		if ok then
+			Analytics.event(player, "mobility_rank", rank, { hero.mobility })
+			DataService.saveSoon(player)
+		end
+	end)
 	Net.on("SkillsRespec", function(player)
 		local hero = HeroService.get(player)
 		if hero then

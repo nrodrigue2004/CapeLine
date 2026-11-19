@@ -8449,6 +8449,7 @@ end); -- Hero MMO features (H1 to H8) live in their own file so this one merges 
 (require :: any)("./promo_test")({ test = test, check = check, Config = Config, placePath = process.args[1] }); -- WP11: story acts (Act 1 today, Acts 2 and 3 coming soon), own file
 (require :: any)("./acts_test")({ test = test, check = check, Config = Config, placePath = process.args[1] }); -- act1-choices: a choice in every Act 1 mission (own file, merges easily)
 (require :: any)("./act1_choices_test")({ test = test, check = check, Config = Config }); -- WP8: live tuning from Balance_v<N> (own file, merges easily)
+(require :: any)("./side_content_test")({ test = test, check = check, Config = Config, world = world }); -- side-content: lore pages, mobility training, each side's own content
 (require :: any)("./balance_test")({ test = test, check = check, Config = Config });
 -- WP9: the HQ's WANTED poster and nemesis heads (own file, merges easily)
 (require :: any)("./wanted_test")({ test = test, check = check, Config = Config });

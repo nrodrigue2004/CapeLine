@@ -440,4 +440,24 @@ function EventPlan.rarePay(cfg: any, credits: number, renown: number): (number, 
 	return math.floor(credits * m + 0.5), math.floor(renown * m + 0.5)
 end
 
+-- side-content (nate, 2026-11-19: each side its own radiant content): every shared event (all but the side-vs-side
+-- ones, which have their own two goals, and Double Trouble, which is one hero's own fake) gives the Syndicate its own
+-- goal line (and a name, which may be shared); the tests read the gaps
+function EventPlan.sideGaps(cfg: any): { string }
+	local bad = {}
+	for id, def in cfg.events do
+		if not def.side and def.goal ~= "twin" then
+			-- the name may be the same (both sides face one airship or one siege); the goal line never is
+			if not def.villainName then
+				table.insert(bad, id .. ": villainName")
+			end
+			if not def.villainText or def.villainText == def.text then
+				table.insert(bad, id .. ": villainText")
+			end
+		end
+	end
+	table.sort(bad)
+	return bad
+end
+
 return EventPlan

@@ -222,6 +222,30 @@ function BadgeRules.titles(Config: any, profile: any, char: any): { { id: number
 			end
 		end
 	end
+	-- side-content (2026-11-19): the lore titles (a district's pages all read, every page read; Config.Lore), kept
+	-- forever with the pages (profile.lore bits, page bit - 1)
+	local LO = Config.Lore
+	if LO and type(profile.lore) == "table" then
+		local all = #LO.pages > 0
+		for i, d in LO.districts do
+			local done, any = true, false
+			for _, pg in LO.pages do
+				if pg.district == d.id then
+					any = true
+					done = done and Bits.get(profile.lore, pg.bit - 1)
+				end
+			end
+			if any and done then
+				table.insert(out, { id = LO.titleBase + i, name = d.title })
+			end
+		end
+		for _, pg in LO.pages do
+			all = all and Bits.get(profile.lore, pg.bit - 1)
+		end
+		if all then
+			table.insert(out, { id = LO.allTitle, name = LO.allName })
+		end
+	end
 	-- lore step 12: the reputation tier titles (Vigil Trust and Syndicate Fear), held while the points are there
 	if Config.Remembers then
 		for _, t in RepTiers.titles(Config, char) do

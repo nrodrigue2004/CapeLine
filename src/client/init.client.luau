@@ -78,6 +78,8 @@ local MentorFx = require(Fx.MentorFx)
 local BadgeHud = require(Ui.BadgeHud) -- H7: the Badge Book, collections and titles
 local ContestHud = require(Ui.ContestHud) -- H7: costume contests
 local CollectClient = require(Controllers.CollectClient) -- H7: collection sparkles and the scanner marker
+local LoreClient = require(Controllers.LoreClient) -- side-content: the lore pages' books and caption cards
+local SideOnly = require(Controllers.SideOnly) -- side-content: hides the other side's quest givers
 local PassHud = require(Ui.PassHud) -- H8: the Hero Pass, the episode and travel styles
 local BoardHud = require(Ui.BoardHud) -- WP2: the weekly boards and the plaza board
 local DailyHud = require(Ui.DailyHud) -- WP1: the daily streak card and the daily quest tracker
@@ -167,6 +169,8 @@ MentorFx.init()
 BadgeHud.init()
 ContestHud.init()
 CollectClient.init()
+LoreClient.init()
+SideOnly.init()
 PassHud.init()
 BoardHud.init()
 DailyHud.init()

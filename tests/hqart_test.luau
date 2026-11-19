@@ -230,7 +230,10 @@ return function(T: any)
 	test("HQ art: every prop has a spot and a look, every dressing look covers named pieces", function()
 		for i in Config.Hq.props do
 			check(HqArtKit.PROP_SPOTS[i] ~= nil, "prop " .. i .. " has a spot in the room")
-			check(HqArtKit.PROPS[i] ~= nil and FIT[HqArtKit.PROPS[i]] ~= nil, "prop " .. i .. " has its look")
+			check(
+				(HqArtKit.PROPS[i] ~= nil and FIT[HqArtKit.PROPS[i]] ~= nil) or HqArtKit.PART_PROPS[i] ~= nil,
+				"prop " .. i .. " has its look (a mesh, or its own parts kit)"
+			)
 		end
 		local seen: { [string]: boolean } = {}
 		for _, spot in HqArtKit.PROP_SPOTS do

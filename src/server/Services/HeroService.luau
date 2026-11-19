@@ -23,6 +23,7 @@ local Signal = require(Shared:WaitForChild("Util"):WaitForChild("Signal"))
 local Status = require(Shared:WaitForChild("Status"))
 local Awakening = require(Shared:WaitForChild("Awakening"))
 local AbilityRules = require(Shared:WaitForChild("AbilityRules"))
+local MoveRanks = require(Shared:WaitForChild("MoveRanks"))
 
 local Analytics = require(script.Parent.Analytics)
 local DataService = require(script.Parent.DataService)
@@ -38,6 +39,7 @@ export type Hero = {
 	side: string, -- "hero" (the Vigil) or "villain" (the Dread Syndicate)
 	classId: string, -- the archetype (Elemental, Rogue, Powerhouse, Mystic)
 	mobility: string, -- flight, speed, leap, acrobat, swing (Config.Move.mobility)
+	mobRanks: { number }, -- side-content: each pick's trained rank (Config.Move.mobilityOrder; Shared.MoveRanks)
 	formToken: number?,
 	setId: string,
 	fxStyle: string, -- "Comic" or "Anime": how this hero's powers look to everyone
@@ -157,6 +159,7 @@ local function newHero(id: number, name: string, player: Player?, bot: any?): He
 		setId = "Volt",
 		fxStyle = "Comic",
 		mobility = "flight",
+		mobRanks = { 0, 0, 0, 0, 0 },
 		styles = stylesFor("flight"),
 		loadout = loadout,
 		loadouts = { loadout, table.clone(loadout) },
@@ -361,6 +364,7 @@ function HeroService.sendState(hero: Hero)
 		fxStyle = hero.fxStyle,
 		startSet = hero.startSet,
 		mobility = hero.mobility,
+		mobRanks = hero.mobRanks,
 		power = HeroService.power(hero),
 		maxHealth = hero.maxHealth,
 		styles = hero.styles,
@@ -511,6 +515,33 @@ function HeroService.refresh(hero: Hero)
 		hum.Health = hero.health
 	end
 	HeroService.sendState(hero)
+end
+
+-- side-content: this hero's own Config.Move (its pick's trained ranks applied; Shared.MoveRanks). The device moves
+-- with the same copy, so MoveGuard's caps and the stamina mirror follow every rank.
+function HeroService.moveConfig(hero: Hero): any
+	local pick = hero.mobility or "flight"
+	return MoveRanks.config(Config.Move, pick, MoveRanks.rankOf(Config.Move, hero.mobRanks, pick))
+end
+
+-- side-content: train the hero's current pick one rank up (MoveRanks.canTrain: in order, its level, Credits
+-- through `spend`). Returns ok, the reason and the new rank.
+function HeroService.trainMobility(
+	hero: Hero,
+	credits: number,
+	spend: (number) -> boolean
+): (boolean, string?, number)
+	local pick = hero.mobility or "flight"
+	local ok, why, rank, cost = MoveRanks.canTrain(Config.Move, hero.mobRanks, pick, hero.level, credits)
+	if not ok then
+		return false, why, rank
+	end
+	if not spend(cost) then
+		return false, "credits", rank
+	end
+	hero.mobRanks = MoveRanks.withRank(Config.Move, hero.mobRanks, pick, rank)
+	HeroService.sendState(hero)
+	return true, nil, rank
 end
 
 function HeroService.setMobility(hero: Hero, mobility: string)
@@ -696,6 +727,7 @@ function HeroService.applyProfile(hero: Hero, char: any, currency: any)
 	hero.classId = AbilityRules.archetypeOf(Config, path) or Config.Classes.default
 	hero.mobility = if Config.Move.mobility[char.mobility] then char.mobility else "flight"
 	hero.styles = stylesFor(hero.mobility)
+	hero.mobRanks = table.clone(char.mobRanks or { 0, 0, 0, 0, 0 })
 	hero.ranks = table.clone(char.ranks)
 	-- skills from outside the archetype (saves from before the archetypes) are dropped; their points return
 	local kept = 0
@@ -754,6 +786,7 @@ function HeroService.writeBack(hero: Hero, char: any)
 	char.classId = hero.classId
 	char.startSet = hero.startSet
 	char.mobility = hero.mobility
+	char.mobRanks = table.clone(hero.mobRanks)
 	char.fxStyle = hero.fxStyle
 	char.ranks = table.clone(hero.ranks)
 	char.mods = table.clone(hero.mods)

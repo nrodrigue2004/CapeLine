@@ -243,7 +243,10 @@ return function(T: any)
 			#st.choices == 6 and st.choices[1] == 0 and st.choices[6] == 0,
 			"six choice slots (act1-choices)"
 		)
-		check(ProfileSchema.VERSION == 13, "no save version bump: nothing moves")
+		check(
+			ProfileSchema.VERSION == 14,
+			"no save version bump from the acts (14: side-content's lore pages and mobility ranks)"
+		)
 		-- today's saves load the same
 		local back = ProfileSchema.load(ProfileSchema.deepCopy(p))
 		local bs = back.characters[1].story

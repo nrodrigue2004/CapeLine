@@ -536,6 +536,70 @@ function JuiceFx.collectFind(at: Vector3?, data: { [string]: any }?)
 	pop(where + Vector3.new(0, 3, 0), text, GOLD)
 end
 
+-- side-content (2026-11-19): a lore page read: the book bursts into a fan of glowing pages that flutter up and out,
+-- a warm gold ring and the "PAGE 3 / 21" pop (LoreClient shows the caption card itself); a district or the whole
+-- set done adds the stamp with its title and a little confetti
+function JuiceFx.lorePage(at: Vector3?, data: { [string]: any }?)
+	local d = data or {}
+	local where = at or (myRoot() and (myRoot() :: BasePart).Position)
+	if not where then
+		return
+	end
+	local paper = Color3.fromRGB(255, 244, 214)
+	ring(where, 8, Color3.fromRGB(255, 214, 110), 0.7)
+	ring(where + Vector3.new(0, 1.5, 0), 5, paper, 0.5)
+	local n = if JuiceFx.reduce then 5 else 12
+	for i = 1, n do
+		local a = i / n * math.pi * 2
+		local out = Vector3.new(math.cos(a), 0.6 + (i % 3) * 0.35, math.sin(a))
+		local pg = bit(
+			Vector3.new(0.9, 0.05, 1.2),
+			CFrame.new(where) * CFrame.Angles(math.random() * 3, a, math.random() * 3),
+			paper
+		)
+		pg.Material = Enum.Material.SmoothPlastic
+		fadeOut(pg, 0.9 + (i % 4) * 0.1, {
+			CFrame = CFrame.new(where + out * (5 + (i % 3) * 2))
+				* CFrame.Angles(math.random() * 6, a * 2, math.random() * 6),
+		})
+	end
+	if d.count then
+		pop(where + Vector3.new(0, 3, 0), string.format("LORE %d / %d", d.found or 0, d.count), GOLD)
+	end
+	if d.title then
+		stamp(
+			if d.all then "ARCHIVE COMPLETE!" else "DISTRICT READ!",
+			GOLD,
+			"TITLE: " .. string.upper(d.title)
+		)
+		confetti(if d.all then 60 else 24)
+	end
+end
+
+-- side-content (2026-11-19): a mobility rank trained: a rush of speed lines out from your feet, a blue ring and the
+-- TRAINED! stamp with the rank's name
+function JuiceFx.moveTrain(_at: Vector3?, data: { [string]: any }?)
+	local d = data or {}
+	local root = myRoot()
+	if root then
+		local feet = root.Position - Vector3.new(0, 2.5, 0)
+		ring(feet, 10, Color3.fromRGB(110, 190, 255), 0.6)
+		ring(feet, 6, Color3.new(1, 1, 1), 0.4)
+		for i = 1, (if JuiceFx.reduce then 4 else 10) do
+			local a = i / 10 * math.pi * 2
+			local dir = Vector3.new(math.cos(a), 0.15, math.sin(a))
+			local line =
+				bit(Vector3.new(0.2, 0.2, 3), CFrame.lookAt(feet, feet + dir), Color3.fromRGB(200, 230, 255))
+			fadeOut(
+				line,
+				0.45,
+				{ CFrame = CFrame.lookAt(feet + dir * 9, feet + dir * 10), Size = Vector3.new(0.1, 0.1, 6) }
+			)
+		end
+	end
+	stamp("TRAINED!", Color3.fromRGB(110, 190, 255), d.name and string.upper(d.name) or nil)
+end
+
 -- H7: a costume contest calls for contestants: a small "CONTEST!" stamp
 function JuiceFx.contestCall()
 	stamp("CONTEST!", Color3.fromRGB(200, 140, 255), "COSTUME CONTEST ON THE PLAZA")

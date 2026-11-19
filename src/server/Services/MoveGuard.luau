@@ -197,7 +197,8 @@ function MoveGuard.init()
 			and hero.mobility == "swing"
 			and at.Magnitude > 1e-3
 			and at == at -- not NaN
-			and (at - root.Position).Magnitude <= Config.Move.mobility.swing.up.range * 1.5
+			and (at - root.Position).Magnitude
+				<= HeroService.moveConfig(hero).mobility.swing.up.range * 1.5
 		player:SetAttribute("SwingAt", if ok then at else nil)
 	end)
 	Net.on("MoveBoost", function(player, on: boolean)
@@ -205,7 +206,9 @@ function MoveGuard.init()
 		if hero then
 			local t = tracks[hero.id]
 			if t then
-				t.boosting = on and hero.styles.flight == true and t.stamina >= Config.Move.stamina.boostMin
+				t.boosting = on
+					and hero.styles.flight == true
+					and t.stamina >= HeroService.moveConfig(hero).stamina.boostMin
 			end
 		end
 	end)
@@ -245,10 +248,11 @@ function MoveGuard.init()
 				local pos = HeroService.position(hero)
 				if pos and hero.player and (hero.alive or hero.downed) then -- a Downed crawl is checked too
 					local t = trackFor(hero, pos, now)
+					-- side-content: the hero's own Config.Move (its trained mobility ranks), as on its device
+					local moveCfg = HeroService.moveConfig(hero)
 					-- server stamina mirror
 					local free = t.freeUntil ~= nil and now < (t.freeUntil :: number)
-					t.stamina =
-						MoveMath.staminaStep(Config.Move, t.stamina, true, t.boosting and not free, step)
+					t.stamina = MoveMath.staminaStep(moveCfg, t.stamina, true, t.boosting and not free, step)
 					if t.stamina <= 0 then
 						t.boosting = false
 					end
@@ -274,22 +278,14 @@ function MoveGuard.init()
 						-- travel powers: a ride's own speed; Weightless lets anyone fly for its time; speed buffs
 						-- (and a class's run bonus) scale the cap as they scale the client's run
 						local class = Config.Classes[hero.classId]
-						local cap = MoveMath.guardCap(Config.Move, hero.styles, t.boosting, {
+						local cap = MoveMath.guardCap(moveCfg, hero.styles, t.boosting, {
 							ride = Status.value(hero.status, "ride", now, 0),
 							zeroG = Status.has(hero.status, "zeroG", now),
 							speedBuff = Status.value(hero.status, "speed", now, 0),
 							classSpeed = class and class.moveSpeed or 0,
 						})
-						local ok, strike, wait = MoveCheck.sample(
-							t.check,
-							pos.X,
-							pos.Y,
-							pos.Z,
-							now,
-							cap,
-							Config.Move,
-							Config.Safety
-						)
+						local ok, strike, wait =
+							MoveCheck.sample(t.check, pos.X, pos.Y, pos.Z, now, cap, moveCfg, Config.Safety)
 						if not ok and not wait then
 							correct(hero, t)
 							if strike then

@@ -368,7 +368,10 @@ return function(T: any)
 				has("src/server/Services/DevService.luau", "HqService.redraw(player) -- WP9"),
 				"the HQ redraws"
 			)
-			check(ProfileSchema.VERSION == 13, "no save version bump")
+			check(
+				ProfileSchema.VERSION == 14,
+				"no save version bump (14: side-content's lore pages and mobility ranks)"
+			)
 			local mmo = ProfileSchema.newCharacter("hero", "Powerhouse").mmo
 			check(
 				mmo.heads == 0 and #mmo.banes == 0 and mmo.nemesis.rank == 1,

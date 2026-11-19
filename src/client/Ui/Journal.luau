@@ -9,6 +9,7 @@
 --   HOLD (abandon: the chain waits at its step) and the lock reason (level, a mission, another chain).
 -- * REP: Vigil Trust, Syndicate Fear and City Reputation with their rank (ranks at 100, 300, 600, 1,000, 1,500).
 -- * PERKS: the story perks unlocked by choices (the Echo Drone).
+-- * LORE: the lore pages (side-content, LoreClient's drawInto): each district's pages read, tap one to read it again.
 -- * ROGUES: the Rogues File (Ui.RoguesPage): every robot, famous fake, side quest villain and world boss,
 --   silhouettes for the ones not beaten yet, gold pages for hard boss wins.
 -- * BADGES: the Badge Book, Collections and titles (BadgeHud's views; spec H7: "a Badge Book in the
@@ -32,6 +33,7 @@ local RoguesPage = require(script.Parent.RoguesPage)
 local BadgeHud = require(script.Parent.BadgeHud)
 local MentorHud = require(script.Parent.MentorHud)
 local NemesisHud = require(script.Parent.NemesisHud)
+local LoreClient = require(script.Parent.Parent.Controllers.LoreClient)
 
 local Journal = {}
 
@@ -44,13 +46,20 @@ local tab = "story"
 local badgeView = "badges" -- the BADGES tab's view: badges, collect or titles
 local actView: number? = nil -- WP11: the STORY tab's act (nil: the act the hero is on)
 local tabButtons: { [string]: TextButton } = {}
--- two rows of four (a phone fits four tabs a row)
+-- two rows (a phone fits four or five tabs a row; side-content added LORE to the first)
 local TABS = {
-	{ { "story", "STORY" }, { "quests", "QUESTS" }, { "rep", "REP" }, { "perks", "PERKS" } },
+	{
+		{ "story", "STORY" },
+		{ "quests", "QUESTS" },
+		{ "lore", "LORE" },
+		{ "rep", "REP" },
+		{ "perks", "PERKS" },
+	},
 	{ { "rogues", "ROGUES" }, { "badges", "BADGES" }, { "mentor", "MENTOR" }, { "showdown", "SHOWDOWN" } },
 }
 -- the tabs drawn from another screen's data (each asks its server for it when it opens)
 local FEEDS = {
+	lore = LoreClient,
 	rogues = RoguesPage,
 	badges = BadgeHud,
 	mentor = MentorHud,
@@ -536,6 +545,9 @@ local function draw()
 	elseif tab == "showdown" then
 		NemesisHud.drawInto(body, Journal.close)
 		return
+	elseif tab == "lore" then
+		LoreClient.drawInto(body) -- side-content: the lore pages by district
+		return
 	end
 	if not j then
 		-- the journal comes with the save; it is on its way (spec: every screen has a loading state)
@@ -630,7 +642,7 @@ function Journal.init()
 			local b = Kit.button({
 				Name = "Tab_" .. def[1],
 				Text = def[2],
-				Size = UDim2.new(0.25, -5, 1, 0),
+				Size = UDim2.new(1 / #rowTabs, -5, 1, 0),
 				LayoutOrder = i,
 				BackgroundColor3 = Kit.color.paper,
 				maxText = 20,

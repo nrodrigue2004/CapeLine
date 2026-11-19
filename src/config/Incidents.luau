@@ -168,7 +168,7 @@ return {
 		CatOnCrane = {
 			num = 6,
 			name = "Cat on a crane",
-			villainName = "Cat on a crane",
+			villainName = "Crane cat caper",
 			side = "both",
 			where = "crane",
 			time = 75,
@@ -179,12 +179,13 @@ return {
 		RaidPrep = {
 			num = 7,
 			name = "Raid prep",
-			villainName = "Raid prep",
+			villainName = "Boss shakedown",
 			side = "both",
 			where = "any",
 			time = 90,
 			prep = true, -- only while a world boss is counting down; each clear weakens the boss
 			text = "Destroy the drones powering the boss",
+			villainText = "Wreck the drones: no boss takes your city", -- side-content: the villain side's own line (draft for nate)
 			steps = { { kind = "defeat", enemies = { { "SparkDrone", 3, 4 } } } },
 		},
 		VaultBreach = {
@@ -239,6 +240,7 @@ return {
 					kind = "nest",
 					enemies = { { "Sniper", 2, 2 }, { "SparkDrone", 1, 2 } },
 					text = "Clear the sniper nest",
+					villainText = "Clear the rival nest", -- side-content: the villain side's own line (draft for nate)
 				},
 			},
 		},
@@ -260,11 +262,13 @@ return {
 					speed = 9,
 					legs = 6,
 					text = "Stop the {MedicUnit}s",
+					villainText = "Wreck the {MedicUnit}s", -- side-content: the villain side's own line (draft for nate)
 				},
 				{
 					kind = "defeat",
 					enemies = { { "BruteBot", 1, 1 }, { "BurglarBot", 2, 3 } },
 					text = "Beat the squad they were fixing",
+					villainText = "Beat the rival squad", -- side-content: the villain side's own line (draft for nate)
 				},
 			},
 		},
@@ -277,12 +281,14 @@ return {
 			time = 110,
 			requires = { "Captain" },
 			text = "Break the warband: down its {Captain}",
+			villainText = "A rival {Captain} wants your turf: down it", -- side-content: the villain side's own line (draft for nate)
 			steps = {
 				{
 					kind = "leader",
 					leader = "Captain",
 					enemies = { { "BurglarBot", 2, 3 }, { "SparkDrone", 1, 2 } },
 					text = "Down the {Captain}",
+					villainText = "Down the rival {Captain}", -- side-content: the villain side's own line (draft for nate)
 				},
 			},
 		},
@@ -297,7 +303,13 @@ return {
 			text = "A {Mimic} hides in the crowd: find it",
 			villainText = "A {Mimic} is copying your crew: find it",
 			steps = {
-				{ kind = "find", enemies = { { "Mimic", 1, 1 } }, crowd = 6, text = "Find the {Mimic}" },
+				{
+					kind = "find",
+					enemies = { { "Mimic", 1, 1 } },
+					crowd = 6,
+					text = "Find the {Mimic}",
+					villainText = "Find the copycat {Mimic}",
+				},
 			},
 		},
 		BomberBarrage = {
@@ -321,6 +333,7 @@ return {
 					warn = 2.5,
 					cover = 8,
 					text = "Stand in the red rings",
+					villainText = "Cover your crew in the red rings", -- side-content: the villain side's own line (draft for nate)
 				},
 			},
 		},
@@ -341,8 +354,14 @@ return {
 					speed = 2.5,
 					dist = 110,
 					text = "Down the {Grappler}",
+					villainText = "Take the car back from the {Grappler}", -- side-content: the villain side's own line (draft for nate)
 				},
-				{ kind = "rescue", count = 1, text = "Get the driver out" },
+				{
+					kind = "rescue",
+					count = 1,
+					text = "Get the driver out",
+					villainText = "Get your driver out",
+				},
 			},
 		},
 		ScaffoldCollapse = {
@@ -362,8 +381,15 @@ return {
 					at = "front",
 					prop = "Scaffold",
 					text = "Brace the scaffold",
+					villainText = "Brace it for your crew", -- side-content: the villain side's own line (draft for nate)
 				},
-				{ kind = "rescue", count = 2, at = "balcony", text = "Carry the workers down" },
+				{
+					kind = "rescue",
+					count = 2,
+					at = "balcony",
+					text = "Carry the workers down",
+					villainText = "Get your crew down",
+				},
 			},
 		},
 		CraneLoad = {
@@ -376,8 +402,20 @@ return {
 			text = "Robots cut a crane cable: catch the load",
 			villainText = "Catch the swinging cargo before it is lost",
 			steps = {
-				{ kind = "defeat", enemies = { { "BurglarBot", 2, 3 } }, text = "Beat the cable cutters" },
-				{ kind = "hold", seconds = 5, radius = 10, prop = "Load", text = "Catch the load" },
+				{
+					kind = "defeat",
+					enemies = { { "BurglarBot", 2, 3 } },
+					text = "Beat the cable cutters",
+					villainText = "Beat the rival cable cutters",
+				},
+				{
+					kind = "hold",
+					seconds = 5,
+					radius = 10,
+					prop = "Load",
+					text = "Catch the load",
+					villainText = "Grab the cargo",
+				},
 			},
 		},
 		WaterMain = {
@@ -390,18 +428,30 @@ return {
 			text = "Shut the burst water main, then get people out",
 			villainText = "Shut the water main and clear the street",
 			steps = {
-				{ kind = "object", hits = 10, label = "Valve", text = "Shut the valve" },
-				{ kind = "rescue", count = 3, text = "Carry the soaked citizens out" },
+				{
+					kind = "object",
+					hits = 10,
+					label = "Valve",
+					text = "Shut the valve",
+					villainText = "Shut the valve before your hideout floods",
+				},
+				{
+					kind = "rescue",
+					count = 3,
+					text = "Carry the soaked citizens out",
+					villainText = "Get your crew out of the flood",
+				},
 			},
 		},
 		DroneSwarm = {
 			num = 20,
 			name = "Rooftop drone swarm",
-			villainName = "Drone swarm",
+			villainName = "Drone squatters",
 			side = "both",
 			where = "nest",
 			time = 90,
 			text = "Clear the drone swarm off the roof",
+			villainText = "Run the drone squatters off your rooftop", -- side-content: the villain side's own line (draft for nate)
 			steps = {
 				{
 					kind = "nest",
@@ -410,6 +460,7 @@ return {
 						{ "Interceptor", 1, 2, "SparkDrone", 1, 2 },
 					},
 					text = "Clear the swarm",
+					villainText = "Clear the squatters", -- side-content: the villain side's own line (draft for nate)
 				},
 			},
 		},
@@ -434,11 +485,12 @@ return {
 		SkyAmbush = {
 			num = 22,
 			name = "Sky ambush",
-			villainName = "Sky ambush",
+			villainName = "Bounty hunters",
 			side = "both",
 			where = "any",
 			time = 80,
 			text = "{Interceptor}s are hunting flyers: beat them",
+			villainText = "Bounty {Interceptor}s are hunting you: beat them", -- side-content: the villain side's own line (draft for nate)
 			steps = {
 				{
 					kind = "defeat",
@@ -447,6 +499,7 @@ return {
 						{ "SparkDrone", 1, 1 },
 					},
 					text = "Beat the jets",
+					villainText = "Beat the bounty jets", -- side-content: the villain side's own line (draft for nate)
 				},
 			},
 		},

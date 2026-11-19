@@ -64,6 +64,8 @@ return {
 		{ id = "mentorReward", visual = "MentorFx" }, -- bright chime; the new look bursts on (H6)
 		{ id = "badgeEarned", visual = "JuiceFx" }, -- stamp thunk and chime; the badge stamp and confetti (H7)
 		{ id = "collectFind", visual = "JuiceFx" }, -- sparkle ping; a ring and the set count pop (H7)
+		{ id = "lorePage", visual = "JuiceFx" }, -- side-content: page flip and a warm chime; the book bursts into gold pages, the caption card
+		{ id = "moveTrain", visual = "JuiceFx" }, -- side-content: rising whoosh; a speed ring at your feet and the TRAINED! stamp
 		{ id = "contestCall", visual = "JuiceFx" }, -- fanfare swoosh; the CONTEST! stamp (H7)
 		{ id = "contestWin", visual = "JuiceFx" }, -- cheer ping; confetti, WINNER! on the winner's screen (H7)
 		{ id = "roguePage", visual = "JuiceFx" }, -- page ping; the NEW PAGE! or GOLD PAGE! stamp (Rogues File)
@@ -177,6 +179,10 @@ return {
 		badgeEarned = s("electronicpingshort.wav", 0.8, 1.5),
 		collectFind = s("electronicpingshort.wav", 0.7, 2.2),
 		collectNear = s("clickfast.wav", 0.25, 2.4, { range = 40 }), -- the soft chime near a find (not a juice row)
+		-- side-content (2026-11-19): lore pages and mobility training. PLACEHOLDER SOUND: built-in clips until nate picks ids
+		lorePage = s("swoosh.wav", 0.7, 1.8),
+		loreNear = s("electronicpingshort.wav", 0.2, 2.8, { range = 45 }), -- the soft chime near an unread page (not a juice row)
+		moveTrain = s("swoosh.wav", 0.8, 0.85),
 		contestCall = s("swoosh.wav", 0.6, 1.2),
 		contestWin = s("electronicpingshort.wav", 0.8, 1.3),
 		roguePage = s("electronicpingshort.wav", 0.75, 1.15), -- the Rogues File (PLACEHOLDER SOUND)

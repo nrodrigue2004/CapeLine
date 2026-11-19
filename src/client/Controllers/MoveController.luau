@@ -46,10 +46,13 @@ local CityPlay = require(Shared:WaitForChild("CityPlay"))
 local SwingMath = require(Shared:WaitForChild("SwingMath"))
 local Signal = require(Shared:WaitForChild("Util"):WaitForChild("Signal"))
 local FrameProf = require(Shared:WaitForChild("FrameProf"))
+local MoveRanks = require(Shared:WaitForChild("MoveRanks"))
 
 local InputController = require(script.Parent.InputController)
 local State = require(script.Parent.Parent.State)
 
+-- side-content (2026-11-19): M is this hero's own Config.Move, its pick's trained ranks applied (Shared.MoveRanks;
+-- retune() swaps it when the hero state changes). The server's MoveGuard reads the very same copy for its caps.
 local M = Config.Move
 local player = Players.LocalPlayer
 
@@ -159,6 +162,31 @@ ACRO_CFG.glide.cap = M.mobility.acrobat.cap
 local FLIGHT_UP = table.clone(M)
 FLIGHT_UP.flight = table.clone(M.flight)
 FLIGHT_UP.flight.boost = M.mobility.flight.up.boost
+
+-- side-content: swap in the trained copy (and the two derived tables) when the pick or its rank changes
+local tunedKey = ""
+local function retune()
+	local pick = mobility()
+	local rank = MoveRanks.rankOf(Config.Move, State.hero.mobRanks, pick)
+	local key = pick .. "#" .. rank
+	if key == tunedKey then
+		return
+	end
+	tunedKey = key
+	M = MoveRanks.config(Config.Move, pick, rank)
+	ACRO_CFG = table.clone(M)
+	ACRO_CFG.glide = table.clone(M.glide)
+	ACRO_CFG.glide.forward = M.mobility.acrobat.glideForward
+	ACRO_CFG.glide.cap = M.mobility.acrobat.cap
+	FLIGHT_UP = table.clone(M)
+	FLIGHT_UP.flight = table.clone(M.flight)
+	FLIGHT_UP.flight.boost = math.max(M.flight.boost, M.mobility.flight.up.boost)
+end
+MoveController.retune = retune
+-- the hero's movement numbers as the device moves with them (the POWERS screen's MOBILITY tab, FX)
+function MoveController.config(): any
+	return M
+end
 
 local function ccLeft(kind: string): boolean
 	local c = State.status.cc[kind]
@@ -785,7 +813,9 @@ function MoveController.labels(): { leap: string, fly: string?, boost: string?, 
 		if
 			air
 			and airJumps
-				< (if level() >= M.mobility.acrobat.up.jumpsLevel then 2 else M.mobility.acrobat.jumps)
+				< (if level() >= M.mobility.acrobat.up.jumpsLevel
+					then M.mobility.acrobat.up.jumps or 2
+					else M.mobility.acrobat.jumps)
 		then
 			out.leap = "JUMP"
 		end
@@ -1534,7 +1564,7 @@ local function onPressed(action: string)
 		elseif (mode == "air" or mode == "glide") and pick == "acrobat" then
 			-- Acrobat: jump again in the air
 			local a = M.mobility.acrobat
-			local most = if level() >= a.up.jumpsLevel then 2 else a.jumps
+			local most = if level() >= a.up.jumpsLevel then a.up.jumps or 2 else a.jumps
 			if airJumps < most and root then
 				airJumps += 1
 				local flat = wishDirs()
@@ -1647,6 +1677,8 @@ function MoveController.init()
 	player.CharacterAdded:Connect(bind)
 	InputController.Pressed:Connect(onPressed)
 	InputController.Released:Connect(onReleased)
+	retune()
+	State.Changed:Connect(retune)
 	-- a drop onto a building from high up (nate, 2026-11-19 13:18Z; Config.Combat.drop): a landing this fast on a
 	-- wreckable roof asks the server to smash it (ImpactService checks the fall against its own history)
 	MoveController.Landed:Connect(function(pos: Vector3, fallSpeed: number)

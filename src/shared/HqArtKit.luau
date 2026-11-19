@@ -174,7 +174,15 @@ HqArtKit.PROP_SPOTS = {
 	[20] = { -52, 10 },
 	[21] = { -50, -50 },
 	[22] = { 52, -48 },
+	-- side-content (2026-11-19): the Lore Shelf (every lore page read, Config.Lore.shelfProp) by the exit
+	[23] = { -28, -48 },
 } :: { [number]: { number } }
+
+-- The props drawn from their own kit's parts, not an Art.Hq mesh (HqClient draws them; PLACEHOLDER ART until a
+-- Blender pass): the Lore Shelf is Shared.LoreBookKit.shelf, one book a district
+HqArtKit.PART_PROPS = {
+	[23] = "LoreShelf",
+} :: { [number]: string }
 
 HqArtKit.PROPS = {
 	[1] = "HqCafeSign",
@@ -475,6 +483,9 @@ function HqArtKit.scene(
 	end
 	-- props
 	for bit, spot in HqArtKit.PROP_SPOTS do
+		if HqArtKit.PART_PROPS[bit] then
+			continue -- drawn from its own parts kit (the Lore Shelf), no mesh to place
+		end
 		local look = HqArtKit.PROPS[bit]
 		local size, y, tilt = HqArtKit.propBox(bit)
 		local ry = HqArtKit.facing(spot[1], spot[2])

@@ -30,8 +30,10 @@ return {
 		DroneSweep = {
 			num = 1,
 			name = "Drone sweep",
+			villainName = "Drone scrap raid", -- side-content: the Syndicate's own job (draft for nate)
 			side = "both",
 			text = "Defeat 3 {SparkDrone} squads",
+			villainText = "Scrap 3 {SparkDrone} squads for parts",
 			goal = 3,
 			squad = { "SparkDrone", 3 },
 			credits = { 40, 4 },
@@ -40,8 +42,10 @@ return {
 		RescueRun = {
 			num = 2,
 			name = "Rescue run",
+			villainName = "Jailbreak", -- side-content: the Syndicate's own job (draft for nate)
 			side = "both",
 			text = "Carry 5 stranded citizens to a safehouse",
+			villainText = "Break 5 crew members out to a safehouse",
 			goal = 5,
 			credits = { 36, 3 },
 			renown = { 50, 5 },
@@ -49,8 +53,10 @@ return {
 		ShardRecovery = {
 			num = 3,
 			name = "Core recovery",
+			villainName = "Core heist", -- side-content: the Syndicate's own job (draft for nate)
 			side = "both",
 			text = "Find 3 lost power cores with the radar",
+			villainText = "Steal 3 lost power cores before the Vigil finds them",
 			goal = 3,
 			credits = { 50, 4 },
 			pickup = 8, -- touch range
@@ -58,8 +64,10 @@ return {
 		Escort = {
 			num = 4,
 			name = "Escort",
+			villainName = "Getaway truck", -- side-content: the Syndicate's own job (draft for nate)
 			side = "both",
 			text = "Walk the truck 600 studs",
+			villainText = "Walk the stolen truck 600 studs",
 			goal = 600,
 			credits = { 44, 4 },
 			speed = 9, -- truck studs/s while a hero is near it
@@ -93,8 +101,10 @@ return {
 		Bounty = {
 			num = 7,
 			name = "Bounty",
+			villainName = "Hit job", -- side-content: the Syndicate's own job (draft for nate)
 			side = "both",
 			text = "Hunt down %s, an elite %s", -- the name and the robot type, from the fixed lists below
+			villainText = "Take out %s, an elite %s, for the Syndicate",
 			goal = 1,
 			-- the elite's name: a fixed list (no free text); its type: the first of `targets` that is switched
 			-- on and unlocked at the level, counted round from the contract's pick
@@ -121,8 +131,10 @@ return {
 		Demolition = {
 			num = 8,
 			name = "Outpost demolition",
+			villainName = "Outpost raid", -- side-content: the Syndicate's own job (draft for nate)
 			side = "both",
 			text = "Knock down a robot outpost: break its 3 pylons",
+			villainText = "Raid a robot outpost: break its 3 pylons",
 			goal = 3,
 			hits = 18, -- each pylon, in hits of Power at the zone level
 			spread = 18, -- pylons stand this far round the outpost's mast
@@ -133,8 +145,10 @@ return {
 		RooftopCourier = {
 			num = 9,
 			name = "Rooftop courier",
+			villainName = "Smuggle run", -- side-content: the Syndicate's own job (draft for nate)
 			side = "both",
 			text = "Grab the parcel and touch 5 rooftop drops in %d s",
+			villainText = "Grab the goods and touch 5 rooftop drops in %d s",
 			goal = 5, -- drops after the parcel
 			timeLimit = 75, -- from the parcel; out of time puts the parcel back on its roof
 			touch = 10,
@@ -158,8 +172,10 @@ return {
 		PhotoRecon = {
 			num = 11,
 			name = "Photo recon",
+			villainName = "Casing the job", -- side-content: the Syndicate's own job (draft for nate)
 			side = "both",
 			text = "Take a Photo Mode shot from 3 rooftop lookouts",
+			villainText = "Case the city from 3 rooftop lookouts: Photo Mode shots",
 			goal = 3,
 			range = 14, -- stand this close to a lookout when you take the photo
 			credits = { 42, 4 },

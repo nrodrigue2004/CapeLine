@@ -3,6 +3,9 @@
 -- and build a loadout: the set's basic, up to 4 skills (slots open at levels 1, 1, 5 and 10) and a super
 -- (level 20), with the 52-point budget shown live. The second loadout opens at level 15. SAVE sends
 -- Hero.Loadout; the server checks everything again and answers with a notice.
+-- The MOBILITY tab (side-content, 2026-11-19; nate: "I dont see any mobility upgrades"): your mobility pick's 5
+-- training ranks (Config.Move ranks, Shared.MoveRanks) as cards, each with what it changes, the level it opens at
+-- and its Credits; TRAIN sends MoveTrain and the server checks it all again.
 -- Opens with the POWERS button, L on a keyboard, or D-pad down.
 -- PLACEHOLDER look until the UI pass (M10).
 
@@ -12,10 +15,12 @@ local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Net = require(Shared:WaitForChild("Net"))
 local AbilityRules = require(Shared:WaitForChild("AbilityRules"))
+local MoveRanks = require(Shared:WaitForChild("MoveRanks"))
 
 local Kit = require(script.Parent.Kit)
 local State = require(script.Parent.Parent.State)
 local InputController = require(script.Parent.Parent.Controllers.InputController)
+local Juice = require(script.Parent.Parent.Fx.Juice)
 
 local LoadoutScreen = {}
 
@@ -38,6 +43,7 @@ local buildTabs: () -> ()
 local draft = { set = "Volt", skills = {} :: { string }, super = nil :: string? }
 local draftIndex = 1
 local selectedSlot = 1 -- 1..4 skills, 5 super
+local MOBILITY = "@mobility" -- viewSet for the MOBILITY tab
 
 local REASONS = {
 	["over budget"] = "Over the 52-point budget",
@@ -55,6 +61,9 @@ local REASONS = {
 	["max rank"] = "Already max rank",
 	["second loadout locked"] = "Loadout 2 opens at level 15",
 	rank = "Reach rank 3 first",
+	level = "Reach the level shown first",
+	max = "Fully trained",
+	pick = "Pick a mobility in the creator first",
 	safehouse = "Change loadouts and respec at your HQ or a safehouse",
 }
 
@@ -311,6 +320,87 @@ local function card(id: string, order: number): Frame
 	return f
 end
 
+-- side-content: a mobility training card: rank n of the hero's pick (or the pick's summary card, n = 0)
+local function rankCard(pick: string, n: number, order: number): Frame
+	local h = State.hero
+	local M = Config.Move
+	local m = M.mobility[pick]
+	local have = MoveRanks.rankOf(M, h.mobRanks, pick)
+	local f = Kit.frame({
+		Name = "Rank" .. n,
+		LayoutOrder = order,
+		BackgroundColor3 = if n == 0 or n <= have then Kit.color.paper else Color3.fromRGB(205, 205, 212),
+	})
+	Kit.stroke(f, if n > 0 and n <= have then Kit.color.gold else Color3.fromRGB(110, 170, 255), 3)
+	local function line(t: string, y: number, h2: number, muted: boolean?, font: Enum.Font?)
+		local l = Kit.label({
+			Text = t,
+			Size = UDim2.new(1, -12, 0, h2),
+			Position = UDim2.fromOffset(6, y),
+			TextXAlignment = Enum.TextXAlignment.Left,
+			TextYAlignment = Enum.TextYAlignment.Top,
+			TextWrapped = true,
+			TextColor3 = if muted then Kit.color.muted else Kit.color.ink,
+			Font = font or Kit.bodyFont,
+			maxText = 13,
+		})
+		l.Parent = f
+		return l
+	end
+	if n == 0 then
+		line(string.upper(m.name), 4, 22, false, Kit.font)
+		line(
+			string.format(
+				"TRAINED %s  %d / %d",
+				pips(have, MoveRanks.max(M, pick)),
+				have,
+				MoveRanks.max(M, pick)
+			),
+			28,
+			18,
+			true
+		)
+		line(
+			"Each rank makes " .. m.name .. " faster or stronger for good. Earned with level and Credits.",
+			50,
+			56
+		)
+		line("Swap picks free in the creator; every pick keeps its own ranks.", 108, 36, true)
+		return f
+	end
+	local row = m.ranks[n]
+	local lv, cost = MoveRanks.needs(M, n)
+	line(string.format("RANK %d  %s", n, string.upper(row.name)), 4, 22, false, Kit.font)
+	line(row.text, 28, 38)
+	line(string.format("LEVEL %d   %s CREDITS", lv, Kit.comma(cost)), 70, 18, true)
+	local ok, reason = MoveRanks.canTrain(M, h.mobRanks, pick, h.level, h.credits or 0)
+	local label = if n <= have
+		then "TRAINED"
+		elseif n > have + 1 then string.format("AFTER RANK %d", n - 1)
+		elseif reason == "level" then string.format("LEVEL %d", lv)
+		elseif reason == "credits" then "NEED CREDITS"
+		else "TRAIN"
+	local b = Kit.button({
+		pending = n == have + 1 and ok,
+		Text = label,
+		Size = UDim2.new(1, -12, 0, 40),
+		Position = UDim2.new(0, 6, 1, -44),
+		BackgroundColor3 = if n == have + 1 and ok
+			then Kit.color.gold
+			elseif n <= have then Color3.fromRGB(120, 230, 140)
+			else Color3.fromRGB(190, 190, 195),
+		maxText = 14,
+	}, function()
+		if n == have + 1 and ok then
+			Net.send("MoveTrain")
+		elseif n == have + 1 then
+			notice(REASONS[reason or ""] or "Can't train that yet")
+		end
+	end)
+	b.Parent = f
+	return f
+end
+
 -- gap-icons: a loadout slot shows its power's icon at the left, the name beside it (no icon: the name alone)
 local function slotIcon(b: TextButton, id: string?)
 	local pad = b:FindFirstChildOfClass("UIPadding") -- Kit.button's own (8 px a side)
@@ -372,10 +462,12 @@ buildTabs = function()
 		b:Destroy()
 	end
 	table.clear(tabButtons)
-	for _, set in AbilityRules.paths(Config, classId) do
+	local paths = AbilityRules.paths(Config, classId)
+	local w = 1 / math.max(5, #paths)
+	for _, set in paths do
 		local b = Kit.button({
 			Text = string.upper(A.setName[set] or set),
-			Size = UDim2.new(0.2, -6, 1, 0),
+			Size = UDim2.new(w, -6, 1, 0),
 			TextWrapped = true, -- phone pass: two lines on a narrow tab
 			maxText = 18,
 		}, function()
@@ -385,6 +477,20 @@ buildTabs = function()
 		b.Parent = tabsFrame
 		tabButtons[set] = b
 	end
+	-- side-content: the MOBILITY tab sits in the header row, left of X (the path tabs keep their whole row on a phone)
+	local T = Config.Ui.touchTarget
+	local mb = Kit.button({
+		Name = "MobilityTab",
+		Text = "MOBILITY",
+		Size = UDim2.fromOffset(150, T - 10),
+		Position = UDim2.new(1, -T - 8 - 158, 0, 6),
+		maxText = 22,
+	}, function()
+		viewSet = MOBILITY
+		refresh()
+	end)
+	mb.Parent = panel
+	tabButtons[MOBILITY] = mb
 end
 
 refresh = function()
@@ -396,6 +502,13 @@ refresh = function()
 	buildTabs()
 	local borrowed = AbilityRules.borrowed(Config, h.ranks, h.startSet)
 	for set, b in tabButtons do
+		if set == MOBILITY then
+			local pick = h.mobility or "flight"
+			local r = MoveRanks.rankOf(Config.Move, h.mobRanks, pick)
+			b.Text = string.format("MOBILITY %d/%d", r, MoveRanks.max(Config.Move, pick))
+			b.BackgroundColor3 = if viewSet == MOBILITY then Kit.color.gold else Color3.fromRGB(210, 210, 215)
+			continue
+		end
 		local open = AbilityRules.setUnlocked(Config, h.level, set, h.startSet)
 		local name = string.upper(A.setName[set] or set)
 		b.Text = if set == h.startSet
@@ -436,6 +549,13 @@ refresh = function()
 		end
 	end
 	local n = 0
+	if viewSet == MOBILITY then
+		local pick = h.mobility or "flight"
+		for r = 0, MoveRanks.max(Config.Move, pick) do
+			rankCard(pick, r, r).Parent = grid
+		end
+		return
+	end
 	for _, id in A.order do
 		if A.list[id].set == viewSet then
 			n += 1
@@ -498,7 +618,7 @@ function LoadoutScreen.init()
 	panel.Parent = gui
 	header = Kit.label({
 		Text = "POWERS",
-		Size = UDim2.new(1, -140, 0, 34),
+		Size = UDim2.new(1, -310, 0, 34), -- side-content: room for the MOBILITY tab beside X
 		Position = UDim2.fromOffset(14, 8),
 		TextXAlignment = Enum.TextXAlignment.Left,
 		TextColor3 = Kit.color.gold,
@@ -714,6 +834,20 @@ function LoadoutScreen.init()
 		end
 	end)
 	State.Changed:Connect(refresh)
+	-- side-content: a training answer (the TRAINED stamp plays from Juice; the screen redraws on HeroState)
+	Net.listen("MoveTrained", function(d: any)
+		if type(d) ~= "table" then
+			return
+		end
+		if d.ok then
+			local m = Config.Move.mobility[d.pick or ""]
+			local row = m and m.ranks and m.ranks[d.rank]
+			notice(string.format("Trained rank %d: %s", d.rank or 0, if row then row.name else ""), true)
+			Juice.fire("moveTrain", nil, { name = if row then row.name else nil, mine = true })
+		else
+			notice(REASONS[d.reason or ""] or "Can't train that yet")
+		end
+	end)
 	State.Notice:Connect(function(ok, reason)
 		if ok then
 			notice("Done", true)

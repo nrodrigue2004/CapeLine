@@ -71,6 +71,7 @@ local NemesisService = require(Services.NemesisService)
 local MentorService = require(Services.MentorService)
 local BadgeService = require(Services.BadgeService)
 local CollectService = require(Services.CollectService)
+local LoreService = require(Services.LoreService)
 local RoguesService = require(Services.RoguesService) -- the Rogues File (the Journal's ROGUES tab)
 local ContestService = require(Services.ContestService)
 local PassService = require(Services.PassService)
@@ -162,6 +163,7 @@ boot("NemesisService", NemesisService.init) -- H5: your nemesis
 boot("MentorService", MentorService.init) -- H6: mentors
 boot("BadgeService", BadgeService.init) -- H7: badges, titles, accolades
 boot("CollectService", CollectService.init) -- H7: collections
+boot("LoreService", LoreService.init) -- side-content: lore pages at the landmarks
 boot("RoguesService", RoguesService.init) -- the Rogues File: pages from defeats, gold boss pages, milestones
 boot("ContestService", ContestService.init) -- H7: costume contests
 boot("PassService", PassService.init) -- H8: the Hero Pass and the weekly episode
