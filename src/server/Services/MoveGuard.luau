@@ -188,6 +188,18 @@ function MoveGuard.init()
 	Net.on("MoveMode", function(player, mode: number)
 		player:SetAttribute("Move", mode)
 	end)
+	-- the Swing's line, for other devices to draw (looks only): a Swing hero's anchor within the line's reach
+	Net.on("MoveLine", function(player, at: Vector3)
+		local hero = HeroService.get(player)
+		local root = hero and HeroService.rootPart(hero)
+		local ok = hero ~= nil
+			and root ~= nil
+			and hero.mobility == "swing"
+			and at.Magnitude > 1e-3
+			and at == at -- not NaN
+			and (at - root.Position).Magnitude <= Config.Move.mobility.swing.up.range * 1.5
+		player:SetAttribute("SwingAt", if ok then at else nil)
+	end)
 	Net.on("MoveBoost", function(player, on: boolean)
 		local hero = HeroService.get(player)
 		if hero then
@@ -199,6 +211,9 @@ function MoveGuard.init()
 	end)
 	HeroService.Spawned:Connect(function(hero)
 		tracks[hero.id] = nil
+		if hero.player then
+			hero.player:SetAttribute("SwingAt", nil) -- a new body has no line out
+		end
 		task.defer(MoveGuard.reset, hero)
 	end)
 	HeroService.Removed:Connect(function(hero)

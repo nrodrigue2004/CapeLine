@@ -238,12 +238,24 @@ function MoveFx.init()
 			Juice.fire("boost", nil, { mine = true })
 		end
 		lastMode, wasBoosting = mode, MoveController.boosting
-		Juice.hold("flyCruise", mode == "fly" or mode == "glide", math.clamp(speed / 220, 0.05, 0.5))
+		-- the Swing (2026-11-19): the wind and the speed lines come in with the swing's speed (feel.lines of its top)
+		local swingPose = MoveController.swingPose.state
+		local swinging = swingPose ~= "none"
+		local swingFast = swinging
+			and speed > Config.Move.mobility.swing.maxSpeed * Config.Move.mobility.swing.feel.lines
+		Juice.hold(
+			"flyCruise",
+			mode == "fly" or mode == "glide" or swinging,
+			math.clamp(speed / 220, 0.05, 0.5)
+		)
 		if trail then
 			trail.Enabled = MoveController.boosting or mode == "glide" or mode == "dash"
 			trail.Lifetime = if mode == "glide" then 0.2 else F.trail.boostLife
 		end
-		local show = MoveController.boosting or (anime and mode == "fly" and speed > 45) or mode == "dash"
+		local show = MoveController.boosting
+			or (anime and mode == "fly" and speed > 45)
+			or mode == "dash"
+			or swingFast
 		phase += dt * 30
 		for i, f in lines do
 			local target = if show then 0.55 + 0.35 * math.abs(math.sin(phase + i * 1.7)) else 1

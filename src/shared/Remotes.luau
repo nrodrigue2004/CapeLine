@@ -63,6 +63,9 @@ local Remotes: { [string]: RemoteDef } = {
 	MovePound = { dir = "C2S", schema = {}, rate = 1, burst = 2 }, -- Leaping: the ground pound landed
 	-- your movement mode (Shared.HeroAnim.MODES index) so other devices pose you; the server sets the Move attribute
 	MoveMode = { dir = "C2S", schema = { n(1, 15) }, rate = 10, burst = 10 },
+	-- the Swing's line (2026-11-19): where your line hangs (zero: none) so other devices draw it; looks only, the
+	-- server checks the reach and sets the SwingAt attribute
+	MoveLine = { dir = "C2S", schema = { V3 }, rate = 8, burst = 8 },
 
 	-- Enemies (not in the spec's list; see EnemyBuffer and Decisions.md)
 	EnemyDelta = { dir = "S2C", unreliable = true },

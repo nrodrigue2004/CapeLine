@@ -32,6 +32,12 @@ local fovKick = 0
 local pushKick = 0
 local lean, leanWant, leanUntil = 0, 0, 0
 local orbitTotal, orbitLeft = 0, 0
+-- the Swing's speed feel (2026-11-19, Config.Move.mobility.swing.feel): FOV wider and the camera pulled back with
+-- the swing's speed, both scaled by Camera motion (Off: none)
+local SWING = Config.Move.mobility.swing.feel
+local swingPull = 0
+local pullParams = RaycastParams.new()
+pullParams.FilterType = Enum.RaycastFilterType.Exclude
 
 -- Settings changed: Camera motion's option and Reduce flashing (the scales are kept in one table)
 function CameraController.setMotion(option: number?, reduceFlashing: boolean?)
@@ -158,6 +164,13 @@ function CameraController.init()
 				local s = MoveController.velocity.Magnitude
 				target = F.base * (1 + (F.leap - 1) * math.clamp(s / Config.Move.flight.cruise, 0, 1))
 			end
+			local sp = MoveController.swingPose
+			local swingK = if sp.state ~= "none"
+				then math.clamp(sp.speed, 0, 1) * CameraController.motion.push
+				else 0
+			if swingK > 0 then
+				target = math.max(target, F.base * (1 + SWING.fov * swingK))
+			end
 			leapGlow = math.max(0, leapGlow - dt)
 			fovKick = math.max(0, fovKick - dt * 0.6)
 			pushKick = math.max(0, pushKick - dt * (CC.push.heavy / CC.push.time))
@@ -169,6 +182,15 @@ function CameraController.init()
 			lean += (wantLean - lean) * math.min(1, dt * rate)
 			if math.abs(lean) > 1e-4 and cam.CameraType ~= Enum.CameraType.Scriptable then
 				cam.CFrame *= CFrame.Angles(0, 0, lean)
+			end
+			-- the swing's pull-back: eased, and never through a wall behind the camera
+			swingPull += (SWING.pull * swingK - swingPull) * math.min(1, dt * 3)
+			if swingPull > 0.05 and cam.CameraType ~= Enum.CameraType.Scriptable then
+				local back = -cam.CFrame.LookVector * swingPull
+				pullParams.FilterDescendantsInstances = { player.Character :: Instance }
+				local hit = Workspace:Raycast(cam.CFrame.Position, back * 1.2, pullParams)
+				local k = if hit then math.max(0, (hit.Distance / 1.2 - 0.5) / swingPull) else 1
+				cam.CFrame += back * math.min(1, k)
 			end
 			if shakeLeft > 0 then
 				shakeLeft -= dt
