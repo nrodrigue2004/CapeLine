@@ -76,10 +76,11 @@ return {
 			scan = {},
 			run = { "Leap" },
 			spark = { "Basic" }, -- the Spark fires from the attack button
-			leap = { "Leap" },
-			chase = { "Leap" }, -- the Leap button reads GLIDE in the air
-			suit = { "Leap" },
-			descend = { "Leap" },
+			-- the rooftop chase is a cinematic with its own prompts (Ui.QteHud: the prompt is the button on a phone)
+			leap = {},
+			chase = {},
+			suit = {},
+			descend = {},
 			tunnel = { "Leap" },
 			fight = { "Basic", "Skill1", "Skill2", "Leap" },
 			swarm = { "Basic", "Skill1", "Skill2", "Leap" },
@@ -104,9 +105,9 @@ return {
 				hero = "The kid is in danger! Press {Basic} to save them!",
 				villain = "That guy shoved you! Press {Basic} to fight back!",
 			},
-			leap = "Press {Leap} to jump to the next roof!",
-			chase = "Press {Leap} to jump! Keep going roof to roof!",
-			descend = "Press {Leap} to jump down to the subway!",
+			leap = "Press the button when it flashes!",
+			chase = "Skylance is coming! Press each button as it flashes!",
+			descend = "Press the button to drop to the subway!",
 			tunnel = "RUN! The tunnel is falling down!",
 			fight = "Fight Skylance! Press {Basic} to attack!",
 			swarm = "Keep fighting! Help is coming!",

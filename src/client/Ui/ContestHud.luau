@@ -17,6 +17,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Net = require(Shared:WaitForChild("Net"))
 
 local Juice = require(script.Parent.Parent.Fx.Juice)
+local MoveController = require(script.Parent.Parent.Controllers.MoveController)
 local Kit = require(script.Parent.Kit)
 local Popups = require(script.Parent.Popups) -- pt-ui: one line for every popup
 
@@ -44,6 +45,21 @@ local overToken = 0
 local closeButton: TextButton
 local voteAsked = false -- the stars card is waiting in Ui.Popups or up
 local voteClosed = false -- its X was tapped this contest
+-- GO TO THE STAGE (fix-flow, 2026-11-19): the server flies the hero there and steps them on; when it cannot (a
+-- fight, the fast travel cooldown) the hero flies there on its own (MoveController.flyTo) and ENTER is sent on
+-- arrival. `going` is that wait; `goNote` a short line under the theme until `goNoteUntil`.
+local going = false
+local goNote = ""
+local goNoteUntil = 0
+local GO_REASONS = {
+	combat = "Finish the fight first, then fly over",
+	cooldown = "Fast travel is cooling down: flying you there",
+	traveling = "Already on the way",
+	scene = "Head back out to the city first",
+	full = "The stage is full this time",
+	closed = "The call is over",
+	["in"] = "You are on the stage",
+}
 
 local function now(): number
 	return os.time() + clockOffset
@@ -209,7 +225,15 @@ local function render()
 			#(state.entries or {}),
 			K.maxEntries
 		)
-		enterButton.Text = if nearStage() then "ENTER" else "GO TO THE STAGE"
+		enterButton.Text = if nearStage() then "ENTER" elseif going then "ON THE WAY" else "GO TO THE STAGE"
+		if os.clock() < goNoteUntil then
+			bannerSub.Text = goNote
+		end
+		-- flying there on our own: step on as soon as the stage is in reach
+		if going and nearStage() and not isEntry(me.UserId) then
+			going = false
+			Net.send("ContestEnter")
+		end
 	elseif phase == "show" then
 		local nm = ""
 		for _, e in state.entries or {} do
@@ -273,6 +297,8 @@ function ContestHud.init()
 	}, function()
 		if nearStage() then
 			Net.send("ContestEnter")
+		else
+			Net.send("ContestGo") -- the server fast travels the hero there and steps them on
 		end
 	end)
 	enterButton.Parent = banner
@@ -357,6 +383,9 @@ function ContestHud.init()
 				end
 			end)
 		end
+		if d.phase ~= "call" then
+			going = false
+		end
 		if d.phase == "call" and was ~= "call" then
 			myVotes = {}
 			voteClosed = false
@@ -368,6 +397,25 @@ function ContestHud.init()
 		end
 		if card.Visible or d.phase == "show" or d.phase == "vote" then
 			drawCard()
+		end
+		render()
+	end)
+	Net.listen("ContestGoResult", function(d: any)
+		if type(d) ~= "table" or d.ok then
+			going = false
+			return
+		end
+		local why = tostring(d.reason or "")
+		goNote = GO_REASONS[why] or "Head for the beam over the plaza stage"
+		goNoteUntil = os.clock() + 4
+		-- the flight could not start: fly there on our own (any stick push takes over) and enter on arrival
+		local st = state.stage
+		if (why == "combat" or why == "cooldown") and st then
+			going = MoveController.flyTo(Vector3.new(st[1], st[2] + 6, st[3]))
+			if not going then
+				goNote = "Head for the beam over the plaza stage"
+				going = true -- on foot: still step on once there
+			end
 		end
 		render()
 	end)

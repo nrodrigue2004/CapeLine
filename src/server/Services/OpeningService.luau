@@ -7,7 +7,9 @@
 --   spark: the small Spark fires (Basic, or by itself): a Vigil hero's makes a shield over a kid under falling
 --     debris; a Syndicate villain's blasts the man who shoved them across the plaza (cartoon)
 --   leap: up on a roof: one Leap to the next, the full power firing in slow motion (the path's own look)
---   chase: Skylance chases over the roofs (telegraphed spears that never hit); Patch on the radio from here
+--   chase: Skylance chases over the roofs (telegraphed spears that never hit); Patch on the radio from here. The
+--     rooftop beats play as a cinematic with quick-time prompts on the device (Fx.PrologueQte, Shared.QtePlan) and
+--     Skylance cannot be touched until the fight (fix-flow, 2026-11-19)
 --   suit: the chosen suit snaps on piece by piece (the street outfit comes off)
 --   descend: down to the subway steps; then the subway pocket (PocketLayout's subway lane, one per prologue)
 --   tunnel: run the tunnel while slabs fall across it on a timer (under one: knocked back, no damage)
@@ -45,6 +47,7 @@ local Progress = require(Shared:WaitForChild("Progress"))
 local ProfileSchema = require(Shared:WaitForChild("ProfileSchema"))
 local MissionRules = require(Shared:WaitForChild("MissionRules"))
 local PrologueRow = require(Shared:WaitForChild("PrologueRow"))
+local FlowPlan = require(Shared:WaitForChild("FlowPlan"))
 
 local BuildingService = require(script.Parent.BuildingService)
 local CityBuilder = require(script.Parent.CityBuilder)
@@ -64,6 +67,11 @@ local OpeningService = {}
 
 -- (player, side) once a prologue is through (mission 2, Safehouse, hooks in here in lore step 5)
 OpeningService.Finished = Signal.new()
+-- (player) the exposition before the creator is over on the device (OpeningAct 5; CreatorService opens the
+-- creator on it, fix-flow 2026-11-19)
+OpeningService.IntroDone = Signal.new()
+-- players whose Journal REPLAY is waiting on its exposition (the prologue starts when it ends)
+local replayAsked: { [Player]: boolean } = {}
 
 local O = Config.Story.opening
 local CODE = OpeningPlan.CODE
@@ -385,7 +393,9 @@ local function enter(r: Run, step: string)
 				+ (v3(route.roofs[1]) - v3(route.roofs[2])).Unit * O.chase.behind
 			r.fakeId = spawn(r, O.chase.fake, behind, true)
 			if r.fakeId then
-				EnemyService.tune(r.fakeId, { dmgMult = 0 })
+				-- untouchable until the subway fight (fix-flow, nate's playtest 2026-11-19: "I can literally just kill
+				-- skylance while im doing rooftop stuff"): the fight's Skylance is a new, normal robot
+				EnemyService.tune(r.fakeId, { dmgMult = 0, untouchable = true })
 			end
 		end
 	elseif step == "chase" then
@@ -523,6 +533,22 @@ function OpeningService.start(player: Player, force: boolean?): boolean
 	local hero = HeroService.get(player)
 	local story = StoryService.story(player)
 	if not hero or not story or runs[player] then
+		return false
+	end
+	-- fix-flow (nate's playtest 2026-11-19, "prologue runs while im making my character"): never behind the
+	-- creator, and (but for the Dev command or a replay) only for a hero the creator's PLAY has saved
+	if hero.scene == "creator" then
+		return false
+	end
+	local made = StoryService.char(player)
+	if
+		not force
+		and not FlowPlan.prologueOk(
+			{ created = made and made.created, opening = story.opening },
+			hero.scene,
+			false
+		)
+	then
 		return false
 	end
 	if story.opening ~= 0 and not force then
@@ -716,7 +742,42 @@ local function step(r: Run, now: number, dt: number)
 	end
 end
 
+-- The Journal's REPLAY of the prologue (fix-flow, 2026-11-19): a made hero out in the city, out of any scene or
+-- fight, watches the exposition again (skippable) and then plays the prologue as a replay (SKIP on every camera
+-- beat, no second rewards: StoryPlan.clear pays mission 1 once)
+local function replay(player: Player)
+	local hero = HeroService.get(player)
+	local c = StoryService.char(player)
+	if not hero or not c or runs[player] or replayAsked[player] or HeroService.inCombat(hero) then
+		return
+	end
+	if not FlowPlan.prologueOk({ created = c.created, opening = 1 }, hero.scene, true) then
+		return
+	end
+	replayAsked[player] = true
+	Net.fire("OpeningIntro", player, { replay = true })
+	task.delay(Config.Story.opening.intro.timeout, function()
+		if replayAsked[player] then
+			replayAsked[player] = nil
+			OpeningService.start(player, true)
+		end
+	end)
+end
+
 local function onAct(player: Player, act: number)
+	if act == 5 then
+		CinemaService.markScene(player, Config.Story.opening.intro.scene)
+		if replayAsked[player] then
+			replayAsked[player] = nil
+			OpeningService.start(player, true)
+		else
+			OpeningService.IntroDone:Fire(player)
+		end
+		return
+	elseif act == 6 then
+		replay(player)
+		return
+	end
 	local r = runs[player]
 	if not r then
 		return
@@ -785,6 +846,7 @@ function OpeningService.init()
 		end
 	end)
 	Players.PlayerRemoving:Connect(function(player)
+		replayAsked[player] = nil
 		local r = runs[player]
 		if r then
 			clearEnemies(r)
