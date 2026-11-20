@@ -19,7 +19,8 @@
 -- and Silas Crane stands on the billboard as his own rig (his catalog face and hair; nothing drawn). The shield
 -- bubble and the scanner's red sweep are effects with FxLib's pooled particles (its budget, Reduce flashing).
 -- The crowd (Everything Left 406, 2026-11-20) are Roblox-avatar people like the city's citizens
--- (CitizenRenderer.dressRig: the uploaded shirts and pants, catalog faces and hair); Silas Crane wears his cast
+-- (CitizenRenderer.dressRig: the uploaded shirts and pants, catalog faces and hair), and so are the kid and the shover
+-- (their shirts tinted yellow and red so the beat still reads); Silas Crane wears his cast
 -- pick (catalog face and hair) over his dark suit and red tie.
 
 local Players = game:GetService("Players")
@@ -273,6 +274,33 @@ local function hero(name: string, look: any): any
 	return rig
 end
 
+-- The kid (Vigil) or the man who shoves (Syndicate): dressed like the crowd (uploaded shirt and pants, a catalog face
+-- and hair, list-combat 2026-11-20; were plain flat colours), the shirt kept in the beat's colour so the camera's
+-- push-in still finds them: the kid small in a yellow shirt, the shover big in a red one
+local KID_SEED, SHOVER_SEED = 907, 911
+local function kidRig(villain: boolean): any
+	local shirt = if villain then Color3.fromRGB(190, 50, 50) else Color3.fromRGB(255, 200, 60)
+	local pants = Color3.fromRGB(50, 60, 90)
+	local skin = rgb(Config.Creator.skins[3])
+	local rig = person(
+		if villain then "Shover" else "Kid",
+		{ gender = 1, build = if villain then 3 else 1, height = 3 },
+		shirt,
+		pants,
+		skin,
+		Color3.fromRGB(60, 40, 30),
+		if villain then 1 else 0.68
+	)
+	CitizenRenderer.dressRig(
+		rig,
+		O.plaza.crowd.seed + (if villain then SHOVER_SEED else KID_SEED),
+		skin,
+		shirt,
+		pants
+	)
+	return rig
+end
+
 local function npc(rig: any, pos: Vector3, yaw: number): Npc
 	local n: Npc =
 		{ rig = rig, pos = pos, yaw = yaw, run = nil, speed = 0, phase = math.random() * 6, gone = nil }
@@ -465,17 +493,7 @@ local function buildCeremony(o: { [string]: any })
 	-- the kid (Vigil) or the man who shoves (Syndicate), by the spark point
 	local k = v3(o.kid)
 	if k then
-		local villain = o.side == "villain"
-		local rig = person(
-			if villain then "Shover" else "Kid",
-			{ gender = 1, build = if villain then 3 else 1, height = 3 },
-			if villain then Color3.fromRGB(150, 60, 60) else Color3.fromRGB(255, 200, 60),
-			Color3.fromRGB(50, 60, 90),
-			rgb(Config.Creator.skins[3]),
-			Color3.fromRGB(60, 40, 30),
-			if villain then 1 else 0.68
-		)
-		kid = npc(rig, k, yawTo(k, start))
+		kid = npc(kidRig(o.side == "villain"), k, yawTo(k, start))
 	end
 end
 
@@ -1929,6 +1947,8 @@ function PrologueFx.cast(kind: string, parent: Instance, i: number?, look: any?)
 	if kind == "crane" then
 		rig = craneRig(1)
 		plate(rig.model, "SILAS CRANE", O.brand, Color3.fromRGB(255, 210, 60))
+	elseif kind == "kid" or kind == "shover" then
+		rig = kidRig(kind == "shover")
 	elseif kind == "citizen" then
 		local k = i or 1
 		rig = person(

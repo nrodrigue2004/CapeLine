@@ -2534,6 +2534,64 @@ return function(T: any)
 		check(n >= 2, "the crowd wears different shirts")
 	end)
 
+	test(
+		"List combat: the prologue's kid and shover are dressed like the crowd, in their beat's colours",
+		function()
+			local roblox = require("@lune/roblox")
+			if not T.placePath then
+				return
+			end
+			local UiSim = require("./uisim")
+			local sim = UiSim.new(
+				UiSim.load(roblox.deserializePlace(fs.readFile(T.placePath))),
+				{ name = "PC", w = 1280, h = 720, top = 36, left = 0, right = 0, bottom = 0, touch = false }
+			)
+			local PrologueFx = sim:require("Client.Fx.PrologueFx")
+			local faces = {}
+			for _, f in Config.CatalogLooks.faces do
+				faces["rbxassetid://" .. f[3]] = true
+			end
+			local shirts = {}
+			for _, id in Config.Creator.clothes.shirts do
+				shirts["rbxassetid://" .. id] = true
+			end
+			local heights = {}
+			for kind, want in
+				{ kid = roblox.Color3.fromRGB(255, 200, 60), shover = roblox.Color3.fromRGB(190, 50, 50) }
+			do
+				local rig
+				sim:run("cast", function()
+					rig = PrologueFx.cast(kind, sim.workspace)
+				end)
+				check(rig ~= nil, "the " .. kind)
+				if not rig then
+					continue
+				end
+				local face = rig.parts.Head:FindFirstChild("face")
+				check(face ~= nil and faces[face.Texture] == true, "the " .. kind .. " has a catalog face")
+				local shirt
+				for _, d in rig.model:GetDescendants() do
+					if d.ClassName == "Texture" and shirts[d.Texture] then
+						shirt = d
+						break
+					end
+				end
+				check(shirt ~= nil, "the " .. kind .. " wears an uploaded shirt")
+				if shirt then
+					local c = shirt.Color3
+					check(
+						math.abs(c.R - want.R) + math.abs(c.G - want.G) + math.abs(c.B - want.B) < 0.02,
+						"in the beat's colour"
+					)
+				end
+				heights[kind] = rig.parts.UpperTorso.Size.Y + rig.parts.LeftUpperLeg.Size.Y
+				rig.model:Destroy()
+			end
+			check((heights.kid or 0) < (heights.shover or 0) * 0.8, "the kid is small")
+			check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
+		end
+	)
+
 	test("List combat: side styles wear their side's crest over the shape (Everything Left 398)", function()
 		local roblox = require("@lune/roblox")
 		local SG = Config.SideGearArt

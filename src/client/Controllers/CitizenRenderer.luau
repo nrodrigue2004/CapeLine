@@ -252,7 +252,7 @@ local function release(body: Body)
 end
 
 -- The Roblox look: this citizen's shirt, pants, their colours and its face, all from its id
-local function dress(body: Body, id: number)
+local function dress(body: Body, id: number, topTint: Color3?, bottomTint: Color3?)
 	local clothes = body.clothes
 	if not clothes then
 		return
@@ -260,8 +260,8 @@ local function dress(body: Body, id: number)
 	local h = Rng.hash(id, 6007)
 	local shirt = SHIRTS[h % #SHIRTS + 1]
 	local pants = PANTS[(h // 13) % #PANTS + 1]
-	local top = rgb(TINTS.shirts[(h // 211) % #TINTS.shirts + 1])
-	local bottom = rgb(TINTS.pants[(h // 4099) % #TINTS.pants + 1])
+	local top = topTint or rgb(TINTS.shirts[(h // 211) % #TINTS.shirts + 1])
+	local bottom = bottomTint or rgb(TINTS.pants[(h // 4099) % #TINTS.pants + 1])
 	NpcRig.redressPair(body.rig, clothes, shirt, pants, top, bottom)
 	if body.face and #FACES > 0 then
 		body.face.Texture = FACES[(h // 77777) % #FACES + 1]
@@ -298,7 +298,8 @@ end
 -- Another scene's person dressed like a citizen (Everything Left 406: the prologue's crowd and the intro film's
 -- citizens, Fx.PrologueFx): skin under the uploaded shirt and pants with their tints, a catalog face and catalog
 -- hair, all picked from `id` the same way on every device; the rig's plain colours stay while the clothes are off.
-function CitizenRenderer.dressRig(rig: NpcRig.Rig, id: number, skin: Color3)
+-- top / bottom: the shirt's and pants' tints instead of the picked ones (the prologue's kid in yellow, the shover in red)
+function CitizenRenderer.dressRig(rig: NpcRig.Rig, id: number, skin: Color3, top: Color3?, bottom: Color3?)
 	local clothes: { [string]: { Texture } }? = nil
 	if ROBLOX then
 		for _, p in rig.parts do
@@ -312,7 +313,7 @@ function CitizenRenderer.dressRig(rig: NpcRig.Rig, id: number, skin: Color3)
 		face = rig.parts.Head:FindFirstChild("face") :: Decal?,
 		group = id % HAIR_GROUPS,
 	} :: any
-	dress(body, id)
+	dress(body, id, top, bottom)
 	looks(body, id)
 end
 
