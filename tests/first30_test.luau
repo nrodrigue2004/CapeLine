@@ -734,4 +734,79 @@ return function(T: any)
 			end
 		end
 	)
+
+	test("First 30: Patch names a side quest chain when it opens and points at the MAP", function()
+		local GuidePlan = require("../src/shared/GuidePlan")
+		local SideQuestPlan = require("../src/shared/SideQuestPlan")
+		-- the first non-dev chain after Safehouse
+		local chain
+		for _, c in Config.SideQuests.chains do
+			if not c.dev and c.unlock and c.unlock.story == 2 and (not chain or c.bit < chain.bit) then
+				chain = c
+			end
+		end
+		check(chain ~= nil, "a chain opens after Safehouse")
+		if not chain then
+			return
+		end
+		local b = chain.bit
+		-- pure: first read with nothing started names the first open chain; one opening later is named once
+		local pick, seen = GuidePlan.newSideQuest({ { bit = b, state = "open" } }, nil)
+		check(pick == b, "a new player who never started one hears about it")
+		pick = GuidePlan.newSideQuest({ { bit = b, state = "open" }, { bit = 99, state = "done" } }, nil)
+		check(pick == nil, "a hero who has done side quests is not told on join")
+		pick, seen = GuidePlan.newSideQuest({ { bit = b, state = "locked" } }, nil)
+		check(pick == nil, "nothing open, nothing said")
+		pick, seen = GuidePlan.newSideQuest({ { bit = b, state = "open" } }, seen)
+		check(pick == b, "the chain opening is named")
+		pick = GuidePlan.newSideQuest({ { bit = b, state = "open" } }, seen)
+		check(pick == nil, "once")
+		check(SideQuestPlan.byBit(Config, b) == chain, "found by its bit")
+		if not T.placePath then
+			return
+		end
+		-- the real client: GuideClient on two StoryState packets (locked, then open)
+		local sim = newSim()
+		local StoryClient = sim:require("Client.Controllers.StoryClient")
+		local GuideHud = sim:require("Client.Ui.GuideHud")
+		local GuideClient = sim:require("Client.Controllers.GuideClient")
+		sim:run("StoryClient", StoryClient.init)
+		sim:run("GuideHud", GuideHud.init)
+		sim:run("GuideClient", GuideClient.init)
+		local remotes = sim.service("ReplicatedStorage"):WaitForChild("Remotes")
+		local function journal(state: string)
+			sim:run("StoryState", function()
+				remotes:WaitForChild("StoryState").OnClientEvent:Fire({
+					side = "hero",
+					missions = 3,
+					choices = {},
+					pinned = 0,
+					sq = { { bit = b, state = state } },
+				})
+			end)
+			sim:run("tick", function()
+				sim.service("RunService").Heartbeat:Fire(1.1)
+			end)
+		end
+		journal("locked")
+		journal("open")
+		check(GuideClient.radio.once["sq" .. b] == true, "Patch said it")
+		local heard = false
+		for _ = 1, 10 do
+			sim:run("frame", function()
+				sim.service("RunService").RenderStepped:Fire(1 / 30)
+			end)
+			for _, c in sim.playerGui:GetDescendants() do
+				if
+					c:IsA("TextLabel")
+					and string.find(c.Text, chain.name, 1, true)
+					and string.find(c.Text, "MAP", 1, true)
+				then
+					heard = true
+				end
+			end
+		end
+		check(heard, "the line names " .. chain.name .. " and the MAP")
+		check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
+	end)
 end

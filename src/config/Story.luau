@@ -1973,6 +1973,12 @@ return {
 				-- first-30 (2026-11-20): a level-up that opens a skill slot or a move training rank (GuidePlan.powerAt);
 				-- nothing else told a new hero about the third slot and rank 1 at level 5. Once a session per level;
 				-- waits out the gap (after a mission unlock line on the same level) for up to `powerWait` s.
+				-- first-30: a side quest chain opened (GuidePlan.newSideQuest): %s is the chain's name (fixed text)
+				sqOpen = {
+					who = "patch",
+					hero = "New side quest: %s! Look for the gold ! on your MAP.",
+					villain = "New job going: %s. Find the ! on your MAP.",
+				},
 				powerBoth = {
 					who = "patch",
 					hero = "Level up! A new power slot AND move training just opened. Tap POWERS!",
