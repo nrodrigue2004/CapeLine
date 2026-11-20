@@ -1840,6 +1840,29 @@ local function suitClothes(char: Model, kit: string, colors: Colors, legsPiece: 
 	return art.shirt ~= 0 and art.parts == false
 end
 
+-- A Legs piece's own classic Pants overlay (Config.Creator.legsArt, art/clothes/legs.py) over its leg paint, tinted
+-- by its colour role from the legs slot's colours, on a Humanoid body only and once uploaded (id 0: nothing, the
+-- part-built look). Returns true when the overlay draws what the kit's flat parts drew (parts = false).
+local function legsClothes(char: Model, kit: string, colors: Colors): boolean
+	local LA = C.legsArt
+	local art = LA and LA.on == true and LA.kits[kit]
+	if not art or art.pants == 0 or not char:FindFirstChildOfClass("Humanoid") then
+		return false
+	end
+	for _, c in char:GetChildren() do
+		if c:IsA("Pants") then
+			c:Destroy() -- one Pants on a body (a suit's pants already step aside for a Legs piece)
+		end
+	end
+	local pa = Instance.new("Pants")
+	pa.Name = "HeroPants"
+	pa.PantsTemplate = "rbxassetid://" .. art.pants
+	pa.Color3 = colors[art.tint or "s"] or colors.s
+	pa.Parent = char
+	return art.parts == false
+end
+LookKit.legsClothes = legsClothes
+
 -- Roblox catalog items (nate, 2026-11-18: catalog faces, hair and facial hair, never our own). Faces are classic
 -- Face assets whose image id sits in Config.CatalogLooks; hair and beards are catalog accessories that
 -- CatalogLookService loads on the server into ReplicatedStorage.CatalogLooks (one Accessory per asset id), so
@@ -2068,7 +2091,9 @@ function LookKit.build(char: Model, look: any, weapon: any?): Folder
 			markSway(char, folder, before)
 		end
 	end
-	if legDef then
+	-- the legs piece's own Pants overlay (not over the player's own avatar clothes), which may stand in for its parts
+	local legsDrawn = legDef ~= nil and not avatar and legsClothes(char, legsKit :: string, legColors)
+	if legDef and not legsDrawn then
 		addSpecs(char, folder, "legs", legDef.parts, legColors, legMat)
 	end
 	-- headwear and masks may hide the hair (and a closed helm the face)

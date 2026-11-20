@@ -2713,19 +2713,16 @@ return function(T: any)
 		local roblox = require("@lune/roblox")
 		local UiSim = require("./uisim")
 		local trees = UiSim.load(roblox.deserializePlace(fs.readFile(T.placePath)))
-		local sim = UiSim.new(
-			trees,
-			{
-				name = "iPhone 14",
-				w = 844,
-				h = 390,
-				top = 58,
-				left = 47,
-				right = 47,
-				bottom = 0,
-				touch = true,
-			}
-		)
+		local sim = UiSim.new(trees, {
+			name = "iPhone 14",
+			w = 844,
+			h = 390,
+			top = 58,
+			left = 47,
+			right = 47,
+			bottom = 0,
+			touch = true,
+		})
 		sim:run("InputController", sim:require("Client.Controllers.InputController").init)
 		local GS = sim:require("Client.Ui.GearScreen")
 		local State = sim:require("Client.State")
@@ -2768,6 +2765,85 @@ return function(T: any)
 			"the first slot's " .. slot1 .. " styles each show a picture (saw " .. pics .. ")"
 		)
 		check(dim == slot1 - 1, "locked styles' pictures are dimmed, the owned one is not (" .. dim .. ")")
+	end)
+
+	test("List combat: every Legs piece has its own drawn Pants overlay (Everything Left 101)", function()
+		local LA = Config.Creator.legsArt
+		check(LA ~= nil and LA.on == true, "legsArt is on")
+		local ROLES = { p = true, s = true, a = true, white = true, dark = true, gold = true, skin = true }
+		local kits = {}
+		for _, tab in Config.Creator.tabs do
+			if tab.id == "legs" then
+				for _, piece in tab.pieces do
+					kits[piece[2]] = true
+					local row = LA.kits[piece[2]]
+					check(row ~= nil and row.pants > 0, piece[2] .. ": an uploaded Pants overlay")
+					if row then
+						check(ROLES[row.tint] == true, piece[2] .. ": a tint role LookKit.colors holds")
+						check(type(row.parts) == "boolean", piece[2] .. ": says whether its parts stay")
+						check(
+							fs.isFile("art/export/clothes/legs/LegsPants_" .. piece[2] .. ".png"),
+							piece[2] .. ": the drawn template is committed"
+						)
+					end
+				end
+			end
+		end
+		local n = 0
+		for kit in LA.kits do
+			n += 1
+			check(kits[kit] == true, "legsArt row " .. kit .. " is a Legs piece")
+		end
+		check(n == 30, "all 30 Legs pieces drawn (" .. n .. ")")
+		-- the 3D pieces keep their parts; the flat ones (stripes, pockets, patches, cuffs) are drawn instead
+		for _, k in { "skirt", "hakama", "greaves", "armored", "pleated", "sarong" } do
+			check(LA.kits[k].parts == true, k .. " keeps its 3D parts")
+		end
+		for _, k in { "track", "cargo", "ripped", "jeans", "camo", "checkered", "bandaged", "shorts" } do
+			check(LA.kits[k].parts == false, k .. "'s flat parts are drawn on the overlay")
+		end
+		-- the real path: LookKit puts one tinted HeroPants on a Humanoid body, none without one
+		local roblox = require("@lune/roblox")
+		local UiSim = require("./uisim")
+		local trees = UiSim.load(roblox.deserializePlace(fs.readFile(T.placePath)))
+		local sim =
+			UiSim.new(trees, { name = "PC", w = 1920, h = 1080, top = 36, left = 0, right = 0, bottom = 0 })
+		local LookKit = sim:require("Shared.LookKit")
+		local colors = {
+			p = roblox.Color3.new(1, 0, 0),
+			s = roblox.Color3.new(0, 1, 0),
+			a = roblox.Color3.new(0, 0, 1),
+			gold = roblox.Color3.new(1, 0.8, 0.3),
+			white = roblox.Color3.new(1, 1, 1),
+		}
+		local char = UiSim.newInstance("Model")
+		UiSim.newInstance("Humanoid").Parent = char
+		local old = UiSim.newInstance("Pants")
+		old.Name = "HeroPants"
+		old.Parent = char
+		local drawn = LookKit.legsClothes(char, "jeans", colors)
+		local pants = {}
+		for _, c in char:GetChildren() do
+			if c:IsA("Pants") then
+				table.insert(pants, c)
+			end
+		end
+		check(#pants == 1, "one Pants on the body (" .. #pants .. ")")
+		check(pants[1].PantsTemplate == "rbxassetid://" .. LA.kits.jeans.pants, "the jeans' own template")
+		check(pants[1].Color3 == colors.gold, "tinted by its role (gold stitching)")
+		check(drawn == true, "the jeans' gold stitch parts stay off")
+		check(LookKit.legsClothes(char, "skirt", colors) == false, "the skirt keeps its 3D skirt")
+		local bare = UiSim.newInstance("Model")
+		check(
+			LookKit.legsClothes(bare, "jeans", colors) == false,
+			"no Humanoid (an HQ mannequin): parts as before"
+		)
+		check(bare:FindFirstChildOfClass("Pants") == nil, "and no Pants")
+		local src = fs.readFile("src/shared/LookKit.luau")
+		check(
+			string.find(src, "not avatar and legsClothes(char, legsKit", 1, true) ~= nil,
+			"LookKit.build wears it, never over the player's own avatar clothes"
+		)
 	end)
 
 	test("List combat: Photo Mode backdrops are printed overlays (Everything Left 354)", function()

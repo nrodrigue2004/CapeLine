@@ -453,6 +453,11 @@ def thumbs():
         wear.thumb_cells([k for k in want.get("head", []) if k in rows], "masks", dress_mask, 180, 0.0)
 
     if only is None or "legs" in only:
+        legs_art = {}
+        lp = os.path.join(CLOTHES, "legs", "preview.json")
+        if os.path.isfile(lp):  # art/clothes/legs.py: each piece's tint role and whether it keeps its 3D parts
+            legs_art = {r["kit"]: (r["tint"], r["parts"]) for page in json.load(open(lp)) for r in page}
+
         def dress_legs(k, at, y, pal):
             spec = pieces["legs"][k]
             up, low = (THUMB_COLOURS.get(c, THUMB_SKIN) for c in spec["paint"])
@@ -460,9 +465,13 @@ def thumbs():
                      "LeftFoot": (34, 38, 52), "RightFoot": (34, 38, 52)}
             for n in BLOCKS:
                 paint.setdefault(n, THUMB_SKIN if "Hand" in n else grey)
-            obs = figure(at, y, THUMB_SKIN, (0, 0, 0), face=None, outfit=(None, None), paint=paint, hair_on=False)
+            # the piece's own Pants overlay (art/clothes/legs.py) in its tint, and its 3D parts only where it keeps them
+            drawn = legs_art.get(k)
+            pants = (("legs/LegsPants_" + k, THUMB_COLOURS.get(drawn[0], THUMB_SKIN)) if drawn else None)
+            obs = figure(at, y, THUMB_SKIN, (0, 0, 0), face=None, outfit=(None, pants), paint=paint, hair_on=False)
             tag(obs, legs)
-            leg_parts(spec, y)
+            if not drawn or drawn[1]:
+                leg_parts(spec, y)
         wear.thumb_cells([k for k in want.get("legs", []) if k in pieces["legs"]], "legs", dress_legs, yaw, 0.05)
 
 
@@ -602,6 +611,38 @@ elif ROBOT == "suits":
     floor.data.materials.append(kit.material("floor", (60, 64, 72), rough=0.8))
     kit.camera((0, 40.0, 4.2), (0, 0, 2.3), lens=37)
     kit.render(os.path.join(kit.ROOT, "preview", "suits_%d.png" % page))
+elif ROBOT == "legs":
+    # the creator's Legs tab as Pants overlays over each piece's leg paint, with the kit's 3D parts where it keeps
+    # them (art/clothes/legs.py writes preview.json): one page of 8 (`legs 1` .. `legs 4`) into
+    # art/preview/legs_<page>.png; `legs <page> back` turns them round (legs_<page>_back.png)
+    import json
+    page = int(VERSION) if VERSION.isdigit() else 1
+    back = len(ARGS) > 2 and ARGS[2] == "back"
+    rows = json.load(open(os.path.join(CLOTHES, "legs", "preview.json")))[page - 1]
+    pieces = json.load(open(os.path.join(kit.ROOT, "thumbs", "pieces.json")))["legs"]
+    skins = [(240, 190, 150), (141, 95, 64), (224, 172, 130), (198, 140, 96), (92, 62, 44), (250, 210, 180),
+             (170, 120, 84), (232, 180, 140)]
+    kit.studio(res=(2400, 760), samples=40)
+    n = len(rows)
+    for i, r in enumerate(rows):
+        pal = [tuple(c) for c in r["pal"]]
+        up, low = (skins[i] if tuple(c) == (224, 172, 130) else tuple(c) for c in r["paint"])
+        paint = {"LeftUpperLeg": up, "RightUpperLeg": up, "LeftLowerLeg": low, "RightLowerLeg": low,
+                 "LeftFoot": (34, 38, 52), "RightFoot": (34, 38, 52), "LowerTorso": pal[0]}
+        for b in BLOCKS:
+            paint.setdefault(b, skins[i] if "Hand" in b else pal[0])
+        at = (((n - 1) / 2 - i) * 4.4, 0, 0)
+        yaw = (180 if back else 0) + (i % 3 - 1) * 14
+        obs = figure(at, yaw, skins[i], (40, 30, 26), face="Hero", outfit=(None, (r["name"] + "_Pants", None)),
+                     paint=paint)
+        if r["parts"] and r["kit"] in pieces:
+            THUMB_COLOURS.update({"p": pal[0], "s": pal[1], "a": pal[2], "skin": skins[i]})
+            for ob in leg_parts(pieces[r["kit"]], yaw):
+                ob.matrix_world = Matrix.Translation(Vector(at)) @ ob.matrix_world
+    floor = kit.cyl("floor", 24, 24, 0.2, at=(0, 0, -0.1), segs=48)
+    floor.data.materials.append(kit.material("floor", (60, 64, 72), rough=0.8))
+    kit.camera((0, 40.0, 3.0), (0, 0, 1.9), lens=37)
+    kit.render(os.path.join(kit.ROOT, "preview", "legs_%d%s.png" % (page, "_back" if back else "")))
 elif ROBOT == "uniforms":
     # every robot kind in one version of its uniform, with mixed skins, faces and hair (art/clothes/uniforms.py)
     # `uniforms <Version> new`: the 9 kinds added with the new enemy types, into uniforms_new_<version>.png

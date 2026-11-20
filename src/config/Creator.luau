@@ -984,6 +984,48 @@ return {
 			Sweatpants = 135708123305914,
 		},
 	},
+	-- The Legs tab's own classic Pants overlays (list-combat 2026-11-20, Everything Left 101: art/clothes/legs.py draws
+	-- art/export/clothes/legs/LegsPants_<kit>.png; previews art/preview/legs_templates.png and legs_<1-4>.png). The
+	-- piece still paints the upper and lower legs (PieceKits legs[kit].paint); the overlay is mostly clear and adds
+	-- ink edges, cel shading, seams, pockets, cuffs, stitching, rips and patterns. tint: the colour role the template
+	-- takes from the legs slot's colours (Clothing.Color3). parts = false: the drawing replaces the kit's flat
+	-- part-built bits; true keeps its 3D parts (skirts, hakama, greaves, pads, glow strips). On a Humanoid body only,
+	-- not over the player's own avatar clothes; 0 keeps the part-built look.
+	legsArt = {
+		on = true,
+		kits = {
+			pants = { pants = 127178724562987, tint = "white", parts = false },
+			shorts = { pants = 124084624865523, tint = "s", parts = false },
+			joggers = { pants = 88050310661655, tint = "white", parts = false },
+			track = { pants = 139953640897904, tint = "a", parts = false },
+			cargo = { pants = 116724865404433, tint = "white", parts = false },
+			kneepads = { pants = 130589996105991, tint = "white", parts = true },
+			ripped = { pants = 100099338841395, tint = "skin", parts = false },
+			skirt = { pants = 134079539044431, tint = "white", parts = true },
+			hakama = { pants = 135969735402054, tint = "white", parts = true },
+			greaves = { pants = 109229380059956, tint = "white", parts = true },
+			legwraps = { pants = 73652507549141, tint = "white", parts = true },
+			armored = { pants = 134383820521247, tint = "white", parts = true },
+			jeans = { pants = 104270680972510, tint = "gold", parts = false },
+			cuffed = { pants = 110681771064482, tint = "s", parts = false },
+			capri = { pants = 75887502617497, tint = "s", parts = false },
+			flared = { pants = 132731680661391, tint = "white", parts = true },
+			pleated = { pants = 73071917767648, tint = "white", parts = true },
+			leggings = { pants = 98571843277876, tint = "a", parts = true },
+			camo = { pants = 110783115113966, tint = "white", parts = false },
+			ski = { pants = 92511698727848, tint = "white", parts = true },
+			harem = { pants = 92400484747493, tint = "gold", parts = true },
+			chaps = { pants = 140036052278374, tint = "white", parts = false },
+			shinguards = { pants = 107309570400907, tint = "white", parts = true },
+			checkered = { pants = 129149302713089, tint = "dark", parts = false },
+			bandaged = { pants = 113961921491203, tint = "white", parts = false },
+			glowlines = { pants = 75173538346357, tint = "a", parts = true },
+			scaled = { pants = 114925941513643, tint = "white", parts = true },
+			sarong = { pants = 77670394138491, tint = "white", parts = true },
+			sweats = { pants = 101704451379086, tint = "white", parts = true },
+			moto = { pants = 82874507756446, tint = "a", parts = true },
+		},
+	},
 	-- The Suits tab's own classic Shirt and Pants overlays (overnight item 12, 2026-11-18: art/clothes/suits.py draws
 	-- art/export/clothes/suits/SuitShirt_<kit>.png and SuitPants_<kit>.png; preview art/preview/suits_<1-6>.png).
 	-- A suit still paints the body in its colour roles; the overlay is mostly clear and adds ink edges, cel shading,
