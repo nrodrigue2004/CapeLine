@@ -1084,6 +1084,34 @@ return {
 		phaseWords = { "BREAK!", "CRACK!", "WHAM!" }, -- a phase's end (not the last blow)
 	},
 
+	-- Impact frames (first-30, nate 2026-11-20: "Do we have hit stop/freeze frames/flash frames. Remember that the
+	-- game being cinematic is also one of the most important things"): on the big blows the whole screen cuts
+	-- for 2 to 4 frames to stark black and white with ink lines bursting from the hit (Shared.ImpactFrames,
+	-- Fx.ImpactFrameFx). Comic: a blown-out white frame then an inked black one, thick tapered lines and the hit
+	-- star; Anime: a negative-style black frame first, many thin speed lines. The game holds still under them
+	-- (your own clip freezes). Reduce flashing: no frames, a gentle hit stop instead. Your own blows only, or a
+	-- finisher near you (FinisherFx).
+	impactFrames = {
+		on = true,
+		frame = 1 / 30, -- seconds a frame holds (two screen frames at 60 fps)
+		frames = { crit = 2, super = 3, finisher = 4 }, -- how many frames each kind cuts to
+		-- seconds since the last impact frames before this kind may cut again (a bigger kind never waits for a
+		-- smaller one): a hail of crits cuts once, never strobes
+		gap = { crit = 1.6, super = 0.5, finisher = 0 },
+		order = { crit = 1, super = 2, finisher = 3 },
+		-- the frames' looks by style, in order (each "white" or "black"), cycled when a kind has more frames
+		looks = {
+			Comic = { "white", "black", "white", "black" },
+			Anime = { "black", "white", "black", "white" },
+		},
+		lines = { Comic = 16, Anime = 30 }, -- ink lines bursting from the hit's point on screen
+		width = { Comic = { 6, 14 }, Anime = { 2, 5 } }, -- line thickness range (px)
+		inner = 0.06, -- the lines start this share of the screen's height from the point (the hit shows)
+		white = { saturation = -1, contrast = 1.6, brightness = 0.32 }, -- the white frame's ColorCorrection
+		black = { saturation = -1, contrast = 2.2, brightness = -0.42, cover = 0.45 }, -- cover: the black wash
+		gentle = 0.08, -- Reduce flashing: the hit stop held instead (seconds)
+	},
+
 	nameCard = {
 		seconds = 3,
 		reach = 150, -- studs past the arena's edge that count as arriving at the fight

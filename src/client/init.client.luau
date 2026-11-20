@@ -125,6 +125,7 @@ local CinemaClient = require(Controllers.CinemaClient) -- lore step 7: the one c
 local CinemaHud = require(Ui.CinemaHud) -- lore step 7: letterbox, SKIP, comic pages, name cards, finisher screen
 local NewsHud = require(Ui.NewsHud) -- lore step 7: the big screens and the corner TV
 local FinisherFx = require(Fx.FinisherFx) -- lore step 7: slow-mo finishers
+local ImpactFrameFx = require(Fx.ImpactFrameFx) -- first-30: the big blows' black and white impact frames
 local KoFx = require(Fx.KoFx) -- first-30: the knockout blow
 
 State.init()
@@ -259,6 +260,7 @@ CinemaHud.init()
 StoryHud.init()
 NewsHud.init()
 FinisherFx.init()
+ImpactFrameFx.init()
 KoFx.init() -- first-30: a robot you take down lands as the big blow
 GuideClient.init()
 MoveTutor.init()

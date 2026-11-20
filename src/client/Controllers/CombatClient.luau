@@ -37,6 +37,7 @@ local PvpClient = require(script.Parent.PvpClient)
 local HeroAnimator = require(script.Parent.HeroAnimator)
 local State = require(script.Parent.Parent.State)
 local CombatFx = require(script.Parent.Parent.Fx.CombatFx)
+local ImpactFrameFx = require(script.Parent.Parent.Fx.ImpactFrameFx)
 local Juice = require(script.Parent.Parent.Fx.Juice)
 local AimPreview = require(script.Parent.Parent.Fx.AimPreview)
 local FxLib = require(script.Parent.Parent.Fx.FxLib)
@@ -558,6 +559,14 @@ local function drawHits(r: any, row: any, style: string, mine: boolean)
 	if mine and #hits > 0 then
 		local heavy = heavyRow
 		hitPause(if anyCrit or heavy then C.critPause else C.hitPause)
+		-- first-30 (nate 2026-11-20, cinematic): a super's blow or a crit cuts to black and white impact frames
+		if not tick and (anyCrit or (row and row.slot == "super")) then
+			local h1 = hits[1]
+			ImpactFrameFx.cut(
+				if row and row.slot == "super" then "super" else "crit",
+				EnemyRenderer.position(h1[1]) or Vector3.new(h1[5], h1[6], h1[7])
+			)
+		end
 		if not tick then
 			-- weighty hits: every hit you land shakes the camera and thuds; heavy and crit hits harder
 			local W = C.weight

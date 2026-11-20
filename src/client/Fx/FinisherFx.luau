@@ -24,6 +24,7 @@ local AudioController = require(script.Parent.Parent.Controllers.AudioController
 local CombatClient = require(script.Parent.Parent.Controllers.CombatClient)
 local FxLib = require(script.Parent.FxLib)
 local CinemaHud = require(script.Parent.Parent.Ui.CinemaHud)
+local ImpactFrameFx = require(script.Parent.ImpactFrameFx)
 
 local FinisherFx = {}
 
@@ -78,6 +79,8 @@ function FinisherFx.play(what: string, at: Vector3, by: number?, seed: number?):
 		CameraController.push(plan.push, true)
 	end
 	CinemaHud.finisher(plan, CinemaPlan.word(Config, what, seed or math.floor(at.X + at.Z)))
+	-- first-30: the blow cuts to its black and white impact frames (Reduce flashing: a gentle hit stop instead)
+	ImpactFrameFx.cut("finisher", at)
 	AudioController.play("bossPhase", at)
 	restoreAt = now + plan.seconds
 	local mine = restoreAt

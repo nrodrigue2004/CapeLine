@@ -1308,4 +1308,102 @@ return function(T: any)
 		local ac = fs.readFile("src/client/Controllers/AudioController.luau")
 		check(string.find(ac, "MusicPlan.pick(Config, ctx)", 1, true) ~= nil, "AudioController asks the plan")
 	end)
+	test("First 30: impact frames: big blows cut to black and white ink frames (ImpactFrames)", function()
+		local ImpactFrames = require("../src/shared/ImpactFrames")
+		local I = Config.Cinema.impactFrames
+		local last = { kind = nil, at = -math.huge }
+		local p = ImpactFrames.plan(Config, "crit", "Comic", false, 10, last)
+		check(p ~= nil and #p.frames == I.frames.crit, "a crit cuts for its frames")
+		check(p ~= nil and #p.frames >= 2 and #p.frames <= 4, "2 to 4 frames")
+		check(
+			p ~= nil and p.frames[1].look == "white" and p.frames[2].look == "black",
+			"Comic: white, then inked black"
+		)
+		check(
+			ImpactFrames.plan(Config, "crit", "Comic", false, 10.3, last) == nil,
+			"a hail of crits cuts once"
+		)
+		local s = ImpactFrames.plan(Config, "super", "Anime", false, 10.4, last)
+		check(s ~= nil and s.frames[1].look == "black" and #s.frames == I.frames.super, "Anime: black first")
+		check(s ~= nil and s.lines > (p :: any).lines, "Anime draws more, thinner lines")
+		check(
+			ImpactFrames.plan(Config, "crit", "Anime", false, 10.5, last) == nil,
+			"no small cut over a big one"
+		)
+		local f = ImpactFrames.plan(Config, "finisher", "Comic", false, 10.45, last)
+		check(f ~= nil and #f.frames == 4, "a finisher always cuts, 4 frames")
+		check(
+			ImpactFrames.plan(Config, "crit", "Comic", false, 10.45 + I.gap.crit + 0.1, last) ~= nil,
+			"later crits cut again"
+		)
+		-- the frames run back to back and end
+		local fp = f :: any
+		check(
+			ImpactFrames.at(fp, 0) == fp.frames[1] and ImpactFrames.at(fp, fp.seconds + 0.01) == nil,
+			"it ends"
+		)
+		check(fp.seconds <= 0.2, "short: a cut, not a pause (" .. fp.seconds .. " s)")
+		local a1 = ImpactFrames.line(fp, 3, 42)
+		local a2 = ImpactFrames.line(fp, 3, 42)
+		check(a1 == a2, "a line holds still between frames (no flicker)")
+		-- Reduce flashing: never a frame, a gentle hit stop instead
+		local g = ImpactFrames.plan(Config, "finisher", "Comic", true, 50, { kind = nil, at = -math.huge })
+		check(g ~= nil and #g.frames == 0 and g.gentle == I.gentle, "Reduce flashing: a gentle hit stop")
+		-- the runtime path: crits and supers (CombatClient) and finishers (FinisherFx) call the cut
+		local cc = fs.readFile("src/client/Controllers/CombatClient.luau")
+		check(string.find(cc, "ImpactFrameFx.cut(", 1, true) ~= nil, "CombatClient cuts on crits and supers")
+		local fin = fs.readFile("src/client/Fx/FinisherFx.luau")
+		check(string.find(fin, 'ImpactFrameFx.cut("finisher", at)', 1, true) ~= nil, "finishers cut")
+		local boot = fs.readFile("src/client/init.client.luau")
+		check(string.find(boot, "ImpactFrameFx.init()", 1, true) ~= nil, "it runs")
+	end)
+
+	test("First 30: impact frames draw on screen and clear (UiSim)", function()
+		local sim = newSim()
+		sim.fakeClock = true
+		sim:run("InputController", sim:require("Client.Controllers.InputController").init)
+		local ImpactFrameFx = sim:require("Client.Fx.ImpactFrameFx")
+		local CameraController = sim:require("Client.Controllers.CameraController")
+		sim:run("init", ImpactFrameFx.init)
+		local RS = sim.game:GetService("RunService")
+		local function frames(n: number)
+			for _ = 1, n do
+				sim:advance(1 / 60)
+				for _, h in table.clone(RS.RenderStepped.handlers) do
+					sim:run("RenderStepped", function()
+						h(1 / 60)
+					end)
+				end
+			end
+		end
+		sim:run("cut", function()
+			ImpactFrameFx.cut("finisher", nil)
+		end)
+		frames(1)
+		local gui = sim.game.Players.Tester.PlayerGui:FindFirstChild("ImpactFrame")
+		local cc = sim.game:GetService("Lighting"):FindFirstChild("ImpactFrame")
+		check(gui ~= nil and gui.Enabled, "the cut shows over the HUD")
+		check(cc ~= nil and cc.Enabled and cc.Saturation == -1, "the picture goes black and white")
+		local shown = 0
+		if gui then
+			for _, c in gui:GetChildren() do
+				if string.sub(c.Name, 1, 4) == "Line" and c.Visible then
+					shown += 1
+				end
+			end
+		end
+		check(shown == Config.Cinema.impactFrames.lines.Comic, "its ink lines burst out (" .. shown .. ")")
+		frames(20)
+		check(gui ~= nil and not gui.Enabled and cc ~= nil and not cc.Enabled, "and it clears")
+		-- Reduce flashing: nothing on screen
+		CameraController.reduceMotion = true
+		sim:advance(5)
+		sim:run("cut2", function()
+			ImpactFrameFx.cut("finisher", nil)
+		end)
+		frames(1)
+		check(gui ~= nil and not gui.Enabled, "Reduce flashing: no frame")
+		CameraController.reduceMotion = false
+		check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
+	end)
 end
