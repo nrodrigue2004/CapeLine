@@ -3801,6 +3801,35 @@ local function groundBelow(pos: Vector3, down: number?): Vector3
 	return if hit then hit.Position else pos
 end
 
+-- A robot shot's glowing streak (Config.Fx.shot trail, life; the energy strip texture): a Trail between two
+-- attachments across the pellet, so the streak follows however the pellet moves
+local function shotTrail(p: BasePart, color: Color3, width: number, life: number)
+	local tex = F.energyBeam and F.energyBeam.texture
+	local a0 = Instance.new("Attachment")
+	a0.Position = Vector3.new(0, width / 2, 0)
+	a0.Parent = p
+	local a1 = Instance.new("Attachment")
+	a1.Position = Vector3.new(0, -width / 2, 0)
+	a1.Parent = p
+	local t = Instance.new("Trail")
+	t.Name = "ShotTrail"
+	t.Attachment0 = a0
+	t.Attachment1 = a1
+	t.FaceCamera = true
+	t.Lifetime = life
+	t.LightEmission = 1
+	t.Brightness = 2
+	t.Color = ColorSequence.new(WHITE, color)
+	t.Transparency = NumberSequence.new(0.1, 1)
+	t.WidthScale = NumberSequence.new(1, 0.2)
+	if tex and tex ~= 0 then
+		t.Texture = "rbxassetid://" .. tex
+		t.TextureMode = Enum.TextureMode.Stretch
+	end
+	t.Parent = p
+	return t
+end
+
 -- A Sniper's round (shot style 1): a bright, long white-hot tracer with a red glow and a muzzle flash
 local function tracer(pos: Vector3, vel: Vector3, speed: number)
 	local tr = R.tracer
@@ -3808,6 +3837,7 @@ local function tracer(pos: Vector3, vel: Vector3, speed: number)
 	local core = part(Vector3.new(tr.width, tr.width, tr.length), cf, rgb(tr.color))
 	local glow = part(Vector3.new(tr.width * 3, tr.width * 3, tr.length * 1.1), cf, rgb(tr.glow))
 	glow.Transparency = 0.55
+	shotTrail(core, rgb(tr.glow), tr.width * 4, F.shot.life * 1.5)
 	local flash = part(Vector3.one * 1.2, CFrame.new(pos), rgb(tr.color), Enum.PartType.Ball)
 	fade(flash, 0.12, { Size = Vector3.one * 3 })
 	FxLib.emit("spark", rgb(tr.glow), pos, 4, vel)
@@ -3874,6 +3904,7 @@ function CombatFx.enemyShot(pos: Vector3, vel: Vector3, style: number?)
 		return
 	end
 	local p = part(Vector3.new(F.shot.width, F.shot.width, 2.2), CFrame.lookAt(pos, pos + vel), ENEMY)
+	shotTrail(p, ENEMY, F.shot.trail or 0.7, F.shot.life or 0.16)
 	local life = math.min(1.6, 80 / speed)
 	TweenService:Create(p, TweenInfo.new(life, Enum.EasingStyle.Linear), {
 		CFrame = CFrame.lookAt(pos + vel * life, pos + vel * (life + 1)),
@@ -3897,6 +3928,7 @@ function CombatFx.pathShot(pos: Vector3, vel: Vector3, set: string?, style: stri
 	local cf = CFrame.lookAt(pos, pos + vel)
 	local core = part(Vector3.new(F.shot.width * 1.4, F.shot.width * 1.4, 3.6), cf, color)
 	local tip = part(Vector3.new(F.shot.width * 0.6, F.shot.width * 0.6, 4.2), cf, WHITE)
+	shotTrail(core, color, (F.shot.trail or 0.7) * 1.3, F.shot.life or 0.16)
 	local goal = { CFrame = CFrame.lookAt(to, to + vel) }
 	for _, p in { core, tip } do
 		TweenService:Create(p, TweenInfo.new(life, Enum.EasingStyle.Linear), goal):Play()

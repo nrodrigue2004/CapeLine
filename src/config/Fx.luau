@@ -82,7 +82,9 @@ return {
 	hitFlash = 0.1, -- the robot turns white this long on a hit (was 0.08; weighty hits)
 	numbers = { rise = 3, life = 0.8, critScale = 1.5 },
 	enemyDeath = { parts = 6, life = 2 },
-	shot = { width = 0.4 },
+	-- a robot shot's streak (list-combat 2026-11-20): a camera-facing Trail in the energy strip texture behind the
+	-- pellet, `trail` wide and `life` seconds long, so a shot reads as a streak you can see coming
+	shot = { width = 0.4, trail = 0.7, life = 0.16 },
 	-- the newer robots' effects (CombatFx): the Sniper's aim laser (it thickens and blinks for the locked last
 	-- part) and its tracer round, the Interceptor's net, the Grappler's hook on its cable, the Bomber's grenade
 	-- (its light blinks faster as it falls), its burning patch and blast, the Medic Unit's repair beam, the

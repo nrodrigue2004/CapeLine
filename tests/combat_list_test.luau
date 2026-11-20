@@ -3392,8 +3392,96 @@ return function(T: any)
 		)
 	end)
 
-	test("List combat: the prologue tunnel's roof chunks and pinning beam and the run's barrier wear Blender meshes", function()
+	test(
+		"List combat: the prologue tunnel's roof chunks and pinning beam and the run's barrier wear Blender meshes",
+		function()
+			local roblox = require("@lune/roblox")
+			if not T.placePath then
+				return
+			end
+			local UiSim = require("./uisim")
+			local sim = UiSim.new(
+				UiSim.load(roblox.deserializePlace(fs.readFile(T.placePath))),
+				{ name = "PC", w = 1280, h = 720, top = 36, left = 0, right = 0, bottom = 0, touch = false }
+			)
+			local PrologueFx = sim:require("Client.Fx.PrologueFx")
+			local char = UiSim.newInstance("Model")
+			local hrp = UiSim.newInstance("Part")
+			hrp.Name = "HumanoidRootPart"
+			hrp.Size = roblox.Vector3.new(2, 2, 1)
+			hrp.CFrame = roblox.CFrame.new(0, 3, 0)
+			hrp.Parent = char
+			char.Parent = sim.service("Workspace")
+			sim.service("Players").LocalPlayer.Character = char
+			sim:run("beam", function()
+				PrologueFx.moment("beam", { at = { 0, 0, 0 } }, "show")
+			end)
+			sim:run("slab", function()
+				PrologueFx.moment("slab", { at = { 6, 0, 2 } }, "hit")
+			end)
+			sim:run("barrier", function()
+				PrologueFx.moment(
+					"barrier",
+					{ at = { 30, 0, 0 }, from = { 30, 0, 10 }, to = { 30, 0, -10 } },
+					"show"
+				)
+			end)
+			local folder = sim.service("Workspace"):FindFirstChild("Prologue")
+			check(folder ~= nil, "the prologue's folder")
+			local beam, rivets, chunk = nil, nil, nil
+			for _, d in (if folder then folder:GetDescendants() else {}) do
+				if d.Name == "GirderBeam" then
+					beam = d
+				elseif d.Name == "GirderRivets" then
+					rivets = d
+				elseif d:IsA("MeshPart") and string.match(d.Name, "^Chunk%d$") then
+					chunk = d
+				end
+			end
+			check(beam ~= nil and rivets ~= nil, "the beam is the Blender girder")
+			if beam then
+				local host = beam.Parent
+				check(host:IsA("BasePart") and host.Transparency == 1, "over its hidden part")
+				-- lying across the shoulders: the girder's length (its y) runs along the part's x, about 14 long
+				check(math.abs(beam.Size.Y - 14) < 1.5, string.format("14 studs long (%.2f)", beam.Size.Y))
+				check(
+					math.abs(beam.CFrame.UpVector:Dot(host.CFrame.RightVector)) > 0.95,
+					"its length runs along the beam part"
+				)
+				local w = beam:FindFirstChildWhichIsA("WeldConstraint")
+				check(w ~= nil and w.Part0 == host and not beam.Anchored, "welded so it falls with the part")
+			end
+			-- the run's barrier: the sawhorse barricade standing on its feet, over its hidden part
+			local bar = {}
+			for _, d in (if folder then folder:GetDescendants() else {}) do
+				if d:IsA("MeshPart") and string.sub(d.Name, 1, 7) == "Barrier" then
+					bar[d.Name] = d
+				end
+			end
+			for _, name in { "Barrier", "BarrierStripes", "BarrierLegs", "BarrierLamp" } do
+				check(bar[name] ~= nil, "the barrier's " .. name)
+			end
+			if bar.Barrier and bar.BarrierLegs then
+				check(bar.Barrier.Parent.Transparency == 1, "over its hidden part")
+				local legs = bar.BarrierLegs
+				local low = legs.CFrame.Position.Y - legs.Size.Y / 2
+				check(math.abs(low) < 0.4, string.format("standing on its feet (%.2f)", low))
+				check(math.abs(bar.Barrier.CFrame.Position.X - 30) < 1, "where the beat puts it")
+			end
+			check(chunk ~= nil, "the falling roof chunk is a broken block")
+			if chunk then
+				check(
+					chunk.Parent.Transparency == 1 and math.abs(chunk.Size.X - 5) < 1e-3,
+					"stretched over its part"
+				)
+			end
+			check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
+		end
+	)
+
+	test("List combat: robot shots leave a glowing streak you can see coming", function()
 		local roblox = require("@lune/roblox")
+		check(Config.Fx.shot.trail > 0 and Config.Fx.shot.life > 0, "the streak is tuned")
 		if not T.placePath then
 			return
 		end
@@ -3402,77 +3490,45 @@ return function(T: any)
 			UiSim.load(roblox.deserializePlace(fs.readFile(T.placePath))),
 			{ name = "PC", w = 1280, h = 720, top = 36, left = 0, right = 0, bottom = 0, touch = false }
 		)
-		local PrologueFx = sim:require("Client.Fx.PrologueFx")
-		local char = UiSim.newInstance("Model")
-		local hrp = UiSim.newInstance("Part")
-		hrp.Name = "HumanoidRootPart"
-		hrp.Size = roblox.Vector3.new(2, 2, 1)
-		hrp.CFrame = roblox.CFrame.new(0, 3, 0)
-		hrp.Parent = char
-		char.Parent = sim.service("Workspace")
-		sim.service("Players").LocalPlayer.Character = char
-		sim:run("beam", function()
-			PrologueFx.moment("beam", { at = { 0, 0, 0 } }, "show")
-		end)
-		sim:run("slab", function()
-			PrologueFx.moment("slab", { at = { 6, 0, 2 } }, "hit")
-		end)
-		sim:run("barrier", function()
-			PrologueFx.moment(
-				"barrier",
-				{ at = { 30, 0, 0 }, from = { 30, 0, 10 }, to = { 30, 0, -10 } },
-				"show"
-			)
-		end)
-		local folder = sim.service("Workspace"):FindFirstChild("Prologue")
-		check(folder ~= nil, "the prologue's folder")
-		local beam, rivets, chunk = nil, nil, nil
-		for _, d in (if folder then folder:GetDescendants() else {}) do
-			if d.Name == "GirderBeam" then
-				beam = d
-			elseif d.Name == "GirderRivets" then
-				rivets = d
-			elseif d:IsA("MeshPart") and string.match(d.Name, "^Chunk%d$") then
-				chunk = d
+		local CombatFx = sim:require("Client.Fx.CombatFx")
+		sim:run("CombatFx", CombatFx.init)
+		local V = roblox.Vector3.new
+		local function trails()
+			local n, textured = 0, true
+			for _, d in sim.service("Workspace"):GetDescendants() do
+				if d:IsA("Trail") and d.Name == "ShotTrail" then
+					n += 1
+					textured = textured
+						and d.Texture == "rbxassetid://" .. Config.Fx.energyBeam.texture
+						and d.FaceCamera
+						and d.Attachment0 ~= nil
+						and d.Attachment1 ~= nil
+						and d.Attachment0.Parent == d.Parent
+				end
 			end
+			return n, textured
 		end
-		check(beam ~= nil and rivets ~= nil, "the beam is the Blender girder")
-		if beam then
-			local host = beam.Parent
-			check(host:IsA("BasePart") and host.Transparency == 1, "over its hidden part")
-			-- lying across the shoulders: the girder's length (its y) runs along the part's x, about 14 long
-			check(math.abs(beam.Size.Y - 14) < 1.5, string.format("14 studs long (%.2f)", beam.Size.Y))
-			check(
-				math.abs(beam.CFrame.UpVector:Dot(host.CFrame.RightVector)) > 0.95,
-				"its length runs along the beam part"
+		sim:run("pellet", function()
+			CombatFx.enemyShot(V(0, 5, 0), V(0, 0, -60), nil)
+		end)
+		local n, ok = trails()
+		check(n == 1 and ok, "a pellet trails an energy streak (" .. n .. ")")
+		sim:run("sniper", function()
+			CombatFx.enemyShot(V(10, 5, 0), V(0, 0, -200), 1)
+		end)
+		n, ok = trails()
+		check(n == 2 and ok, "a Sniper round too (" .. n .. ")")
+		sim:run("fake", function()
+			CombatFx.pathShot(
+				V(20, 5, 0),
+				V(0, 0, -60),
+				"Light",
+				"Comic",
+				roblox.Color3.fromRGB(255, 230, 120)
 			)
-			local w = beam:FindFirstChildWhichIsA("WeldConstraint")
-			check(w ~= nil and w.Part0 == host and not beam.Anchored, "welded so it falls with the part")
-		end
-		-- the run's barrier: the sawhorse barricade standing on its feet, over its hidden part
-		local bar = {}
-		for _, d in (if folder then folder:GetDescendants() else {}) do
-			if d:IsA("MeshPart") and string.sub(d.Name, 1, 7) == "Barrier" then
-				bar[d.Name] = d
-			end
-		end
-		for _, name in { "Barrier", "BarrierStripes", "BarrierLegs", "BarrierLamp" } do
-			check(bar[name] ~= nil, "the barrier's " .. name)
-		end
-		if bar.Barrier and bar.BarrierLegs then
-			check(bar.Barrier.Parent.Transparency == 1, "over its hidden part")
-			local legs = bar.BarrierLegs
-			local low = legs.CFrame.Position.Y - legs.Size.Y / 2
-			check(math.abs(low) < 0.4, string.format("standing on its feet (%.2f)", low))
-			check(math.abs(bar.Barrier.CFrame.Position.X - 30) < 1, "where the beat puts it")
-		end
-		check(chunk ~= nil, "the falling roof chunk is a broken block")
-		if chunk then
-			check(
-				chunk.Parent.Transparency == 1 and math.abs(chunk.Size.X - 5) < 1e-3,
-				"stretched over its part"
-			)
-		end
+		end)
+		n, ok = trails()
+		check(n == 3 and ok, "and a famous fake's shot (" .. n .. ")")
 		check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
 	end)
 
