@@ -3473,12 +3473,14 @@ end
 
 -- Weighty hits (Config.Combat.weight): sparks spray out of the hit along `dir` (from the hit into the robot),
 -- hot white cores fading to the hit colour; heavy hits throw twice as many, further. Comes out of the device
--- debris budget, so a crowd fight on a phone stays cheap. PLACEHOLDER ART: part-built.
+-- debris budget, so a crowd fight on a phone stays cheap. Since 2026-11-20 the spray is the effects library's
+-- textured spark streaks (FxLib kind hitspark, the particle budget) with two hot part streaks on heavy hits.
 function CombatFx.hitSparks(pos: Vector3, dir: Vector3, color: Color3?, heavy: boolean)
 	local W = Config.Combat.weight
-	local n = DebrisBudget.lease(if heavy then W.sparks * 2 else W.sparks, W.sparkLife)
 	local d = if dir.Magnitude > 1e-3 then dir.Unit else UP
 	local c = color or WHITE
+	FxLib.emit("hitspark", c, pos, if heavy then W.sparks * 2 else W.sparks, (d + UP * 0.25).Unit)
+	local n = DebrisBudget.lease(if heavy then 2 else 0, W.sparkLife)
 	local reach = if heavy then 9 else 5.5
 	for _ = 1, n do
 		local v = (d + randomUnit() * 0.75 + UP * 0.25).Unit

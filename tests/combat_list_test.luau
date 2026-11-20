@@ -3167,6 +3167,17 @@ return function(T: any)
 			end
 		end
 		check(star ~= nil, "the hit star's emitter is made")
+		-- a weighty hit's spray: textured spark streaks from the particle budget (two part streaks on heavy hits)
+		sim:run("sparks", function()
+			CombatFx.hitSparks(roblox.Vector3.new(0, 5, 0), roblox.Vector3.new(0, 0, -1), nil, true)
+		end)
+		local sparks = nil
+		for _, d in sim.service("Workspace"):GetDescendants() do
+			if d:IsA("ParticleEmitter") and string.find(d.Parent.Name, "^hitspark:") then
+				sparks = d
+			end
+		end
+		check(sparks ~= nil, "the spark spray is particles")
 		check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
 	end)
 

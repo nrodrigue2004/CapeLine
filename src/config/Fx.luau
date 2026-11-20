@@ -292,6 +292,20 @@ return {
 				alpha = 0,
 				spin = 60,
 			},
+			-- a weighty hit's spray (CombatFx.hitSparks, 2026-11-20: was part-built bars): hot streaks out of the hit
+			-- along its direction, falling a little
+			hitspark = {
+				tex = "spark",
+				size = { 0.7, 0 },
+				life = { 0.25, 0.4 },
+				speed = { 18, 38 },
+				spread = 45,
+				drag = 4,
+				rise = -25,
+				light = 1,
+				alpha = 0,
+				face = "streak",
+			},
 			spark = {
 				tex = "spark",
 				size = { 0.5, 0 },
