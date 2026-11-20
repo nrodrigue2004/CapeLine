@@ -2813,7 +2813,13 @@ test("M4: zones: hub 16 to 31, suburbs then farmland, a 2-tile coast, 3 landmark
 			then
 				ringsOk = false
 			end
-			if ring >= 9 and ring <= 14 and t.zone ~= Z.farmland and t.zone ~= Z.landmark and not inDistrict(tx, tz) then
+			if
+				ring >= 9
+				and ring <= 14
+				and t.zone ~= Z.farmland
+				and t.zone ~= Z.landmark
+				and not inDistrict(tx, tz)
+			then
 				ringsOk = false
 			end
 			if (t.zone == Z.suburbs or t.zone == Z.farmland) and t.variant ~= W.special then
@@ -6364,6 +6370,7 @@ if placePath then
 			Vehicles = "VehicleArt",
 			Hq = "HqArt",
 			Bosses = "BossArt",
+			Bosses2 = "BossArt", -- bosses-3: the rows whose set is Bosses2
 			Trooper = "TrooperArt",
 			Bramblebeast = "FinaleArt",
 			Voidhound = "FinaleArt",
@@ -6397,7 +6404,7 @@ if placePath then
 				end
 			elseif cfgName == "BossArt" then
 				for id, row in cfg do
-					if type(row) == "table" and row.pieces then
+					if type(row) == "table" and row.pieces and (row.set or "Bosses") == name then
 						for _, group in { row.pieces, row.objective or {} } do
 							for piece in group do
 								meshIn(set, id .. "_" .. piece, name)
@@ -8128,8 +8135,8 @@ test("Remade bosses: every boss has its meshes, weak points inside their hit sph
 		check(bodies == 1 and lamps == 1, id .. " has one objective body and one lamp")
 	end
 	check(
-		n == 4,
-		"all four bosses (Rustjaw Prime, the Lumen Maw, the Leviathan Engine, the War-Frame) are remade"
+		n == 7,
+		"all seven bosses (Rustjaw Prime, the Lumen Maw, the Leviathan Engine, the War-Frame and bosses-3's three) are remade"
 	)
 	-- only the look changes: the bosses' hit spheres and numbers are the ones the fight was tuned with
 	check(Config.Boss.bosses.RustjawPrime.targets[5].id == "core", "Rustjaw's core target is unchanged")
@@ -8588,7 +8595,10 @@ test(
 			check(
 				used[name] == true
 					or table.find(Config.PocketKit.textures, name) ~= nil
-					or (K.landmark and K.landmark[name]) == true,
+					or (K.landmark and K.landmark[name]) == true
+					-- (shapes-2, nate: "uptown ... crazy colors and textures": Uptown dropped the Prism glass; the
+					-- texture stays uploaded as the towers' fallback in CityLayout)
+					or name == "Prism",
 				name .. " is used somewhere in the city"
 			)
 			check(K.studsPerTile[name] ~= nil, name .. " has a tile size")
@@ -8904,15 +8914,18 @@ test(
 		for _, bx in a.hubBoxes do
 			if bx.kind == "building" and bx.kit and districtOf(bx.cx, bx.cz) == "Uptown" then
 				all += 1
-				if bx.kit == "Ribbon" or bx.kit == "Prism" then
+				-- shapes-2 (nate: "uptown buildings look weird with crazy colors and textures"): calm glass,
+				-- ribbon, panel and deco fronts; never Downtown's brick, office or stone
+				if bx.kit == "Ribbon" or bx.kit == "Curtain" or bx.kit == "Panel" or bx.kit == "Deco" then
 					own += 1
 				end
+				check(
+					bx.kit ~= "Brick" and bx.kit ~= "Office" and bx.kit ~= "Stone",
+					"no Downtown brick in Uptown"
+				)
 			end
 		end
-		check(
-			all > 0 and own >= all * 0.7,
-			"Uptown wears mostly its own fronts (Ribbon, Prism), not Downtown's"
-		)
+		check(all > 0 and own == all, "Uptown wears its calm business fronts (Ribbon, Curtain, Panel, Deco)")
 		local houses = {}
 		for _, plan in a.tilePlans do
 			for _, bx in plan.boxes do
@@ -23118,6 +23131,7 @@ end
 (require :: any)("./anim_pass_test")({ test = test, check = check, Config = Config });
 -- the boss pass (2026-11-19, own file): boss animation, telegraphs, the surge wave and the Blackout; ONLY="Boss anim"
 (require :: any)("./boss_anim_test")({ test = test, check = check, Config = Config });
+(require :: any)("./bosses3_test")({ test = test, check = check, Config = Config, world = world });
 -- pt-anims (nate's playtest 2026-11-19, own file): the upper-body layer, two-handed holds, robot and people clips;
 -- ONLY="PT anims" runs just these
 (require :: any)("./anims_pt_test")({ test = test, check = check, Config = Config });
@@ -23202,7 +23216,10 @@ end
 (require :: any)("./climb_test")({ test = test, check = check, Config = Config, placePath = placePath });
 -- fix-respawn (nate's playtest 2026-11-19, own file): the body shape on respawn, the 40 bodies' fit, creator NEXT
 -- through the real client, the side quest givers' answers; ONLY="Fix respawn"
-(require :: any)("./fix_respawn_test")({ test = test, check = check, Config = Config, placePath = placePath })
+(require :: any)("./fix_respawn_test")({ test = test, check = check, Config = Config, placePath = placePath });
+-- the living world's round 2 (shapes-2, 2026-11-19, own file): Art.Shapes, roofs, road pictures, water, lit
+-- windows, Uptown's palette; ONLY="Shapes"
+(require :: any)("./shapes_test")({ test = test, check = check, Config = Config, world = world })
 print(string.format("\n%d passed, %d failed", passed, failed))
 if failed > 0 then
 	process.exit(1)

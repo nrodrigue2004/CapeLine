@@ -2,15 +2,19 @@
 -- Shared.NewsArtKit). An id of 0 means not uploaded: the UI keeps today's frames. No words in the images: every
 -- name, title and headline stays UI text.
 return {
-	-- each world boss's name card portrait: 512 px cells on one sheet, { column, row } (0-based)
+	-- each world boss's name card portrait: 512 px cells, 4 to a sheet, { column, row (0-based), sheet }
 	cards = {
 		sheet = 77209635321441,
+		sheets = { 77209635321441, 73150305782054 },
 		cell = 512,
 		at = {
-			RustjawPrime = { 0, 0 },
-			LumenMaw = { 1, 0 },
-			LeviathanEngine = { 0, 1 },
-			NullWarFrame = { 1, 1 },
+			RustjawPrime = { 0, 0, 1 },
+			LumenMaw = { 1, 0, 1 },
+			LeviathanEngine = { 0, 1, 1 },
+			NullWarFrame = { 1, 1, 1 },
+			StormColossus = { 0, 0, 2 },
+			SwarmQueen = { 1, 0, 2 },
+			QuarryTitan = { 0, 1, 2 },
 		},
 	},
 	-- the name card's plate, shown 9-sliced: its size and the margins kept whole { left, top, right, bottom }

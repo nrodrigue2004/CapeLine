@@ -203,6 +203,21 @@ function ParkBuilder.build(world: any, folder: Instance, makePart: (any) -> Base
 		if m.tag then
 			CollectionService:AddTag(p, m.tag)
 		end
+		-- the fountains' pools ripple like the city's (shapes-2: Config.Life.shapes.water, Fx.WaterSurface drifts them)
+		local W = Config.Life.shapes and Config.Life.shapes.water
+		if m.tag == "ParkJet" and W and W.image ~= 0 then
+			for k = 1, 2 do
+				local tex = Instance.new("Texture")
+				tex.Name = "Ripple"
+				tex.Texture = "rbxassetid://" .. tostring(W.image)
+				tex.Face = Enum.NormalId.Top
+				tex.StudsPerTileU = W.studs * (if k == 1 then 1 else 1.37)
+				tex.StudsPerTileV = W.studs * (if k == 1 then 1 else 1.37)
+				tex.Transparency = if k == 1 then 0.35 else 0.6
+				tex.Parent = p
+			end
+			CollectionService:AddTag(p, "LifeWater")
+		end
 		if m.tag == "ParkSign" then
 			SignKit.letter(p, string.upper(P.name), ink, {
 				faces = { Enum.NormalId.Front, Enum.NormalId.Back },

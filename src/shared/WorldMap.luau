@@ -16,6 +16,7 @@ local BoxKit = if script then require(script.Parent.BoxKit) else (require :: any
 local Rng = if script then require(script.Parent.Rng) else (require :: any)("./Rng")
 local CityKit = if script then require(script.Parent.CityKit) else (require :: any)("./CityKit")
 local ParkLayout = if script then require(script.Parent.ParkLayout) else (require :: any)("./ParkLayout")
+local LifeKit = if script then require(script.Parent.LifeKit) else (require :: any)("./LifeKit")
 
 local WorldMap = {}
 
@@ -286,6 +287,11 @@ function WorldMap.build(Config: any, seed: number, opts: { props: boolean? }?): 
 	end
 	if Config.Destruction.everywhere then
 		WorldMap.outskirtsBuildings(Config, buildings, tilePlans) -- 2026-11-19: every outskirts building body
+	end
+	-- round 2 of the living world (shapes-2): the roofs' parapets, cornices and caps take their mouldings
+	LifeKit.roofs(Config, hubBoxes)
+	for _, plan in tilePlans do
+		LifeKit.roofs(Config, plan.boxes)
 	end
 	local landmarks = {}
 	local landmarkParts = 0
@@ -792,6 +798,35 @@ end
 
 function WorldMap.heightAt(world: World, x: number, z: number): number
 	return HeightMap.at(world.heights, x, z)
+end
+
+-- bosses-3 (2026-11-20): where the second set of world bosses fights (Config.Boss arena), as x, ground y, z; nil for
+-- a boss placed elsewhere (BossService.findArenas: Rustjaw by the plaza, the Maw in the quarry, the Leviathan at sea).
+-- * "beacon": the Storm Colossus hovers over the Beacon Tower's plaza, off the tower's north face (it floats beside the
+--   640-stud tower, the plaza and the roofs round it its arena)
+-- * "docks": the Swarm Queen over the Docks' container yard, on the quay (Config.City.docks.containers)
+-- * "OldQuarry": the Quarry Titan on the quarry pit's floor (the landmark's centre, like the Lumen Maw)
+function WorldMap.bossArena(Config: any, world: World, bossId: string): (number?, number?, number?)
+	local def = Config.Boss.bosses[bossId]
+	if not def then
+		return nil, nil, nil
+	end
+	if def.arena == "beacon" then
+		local bt = world.downtown.beacon
+		local x, z = bt.x, bt.z - Config.City.downtown.plaza.size * 0.43
+		return x, Config.City.ground.y, z
+	elseif def.arena == "docks" then
+		local c = Config.City.docks.containers
+		return (c.minX + c.maxX) / 2, Config.City.ground.y + 0.6, (c.minZ + c.maxZ) / 2
+	elseif def.arena == "OldQuarry" and bossId ~= "LumenMaw" then
+		for _, lm in world.landmarks do
+			if lm.id == "OldQuarry" then
+				local cx, cz = lm.centre.x, lm.centre.z
+				return cx, WorldMap.heightAt(world, cx, cz), cz
+			end
+		end
+	end
+	return nil, nil, nil
 end
 
 -- The nearest safehouse to a point, from a set of allowed ids (nil = all)

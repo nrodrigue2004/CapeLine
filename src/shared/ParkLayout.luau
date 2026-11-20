@@ -737,9 +737,10 @@ function ParkLayout.build(Config: any): Park
 				BoxKit.box(boxes, "sidewalk", pz.x, gy + 0.2, pz.z, pz.rect[1], 0.4, pz.rect[2], "sidewalk")
 			pb.kit = if kit then "Flagstone" else nil
 		else
-			local pb = BoxKit.box(boxes, "sidewalk", pz.x, gy + 0.2, pz.z, pz.r * 2, 0.4, pz.r * 2, "sidewalk", {
-				shape = "cylinder",
-			})
+			local pb =
+				BoxKit.box(boxes, "sidewalk", pz.x, gy + 0.2, pz.z, pz.r * 2, 0.4, pz.r * 2, "sidewalk", {
+					shape = "cylinder",
+				})
 			pb.kit = if kit then "Flagstone" else nil
 		end
 	end

@@ -32,6 +32,7 @@ export type Box = {
 	art: string?, -- the Blender look drawn over it (hidden but kept once that look is imported; Deep and Crater)
 	ground: string?, -- a landmark's own kit texture over `kit` once it is in (Config.City.kit.landmark; the Crater)
 	scar: number?, -- the Crater's burn scar decal it wears on top (Config.World.crater.scars.decals)
+	decal: string?, -- a road picture on its top, the strip hidden under it (Config.Life.shapes.decals; shapes-2)
 	look: string?, -- the living world's Art.Life look built in its place (Shared.LifeKit; 2026-11-19)
 	park: boolean?, -- a park or roof garden tree (broadleaf crowns only)
 }

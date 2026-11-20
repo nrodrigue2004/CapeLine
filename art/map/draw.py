@@ -120,6 +120,9 @@ def draw_region(data, region):
             d.polygon(pts, fill=lift(col, 0.05))
         elif kind in ("sidewalk", "plaza"):
             d.polygon(pts, fill=lift(col, 0.18))
+        elif kind == "pond":
+            # the park's lake, reservoir and pond (MapPlan.cityBoxes: each body's circles, one smooth shore)
+            d.ellipse([min(p[0] for p in pts), min(p[1] for p in pts), max(p[0] for p in pts), max(p[1] for p in pts)], fill=lift(pal["water"], 0.2))
         elif kind == "water":
             d.ellipse([min(p[0] for p in pts), min(p[1] for p in pts), max(p[0] for p in pts), max(p[1] for p in pts)], fill=lift(pal["water"], 0.2), outline=INK, width=SS)
         elif kind == "field":

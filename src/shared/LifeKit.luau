@@ -57,11 +57,22 @@ function LifeKit.lookOf(Config: any, b: any): string?
 	local look = b.look
 	if look == "Canopy" then
 		return LifeKit.canopy(Config, b)
+	elseif look == "Rock" then
+		return CityKit.pick(kitOf(Config), Config.Life.shapes.rocks, b.cx, b.cz, 5)
 	end
 	return look
 end
 
 function LifeKit.ready(Config: any, look: string, has: (string) -> boolean): boolean
+	local sdef = Config.ShapeArt and Config.ShapeArt[look]
+	if sdef then
+		for name in sdef.meshes do
+			if not has(name) then
+				return false
+			end
+		end
+		return true
+	end
 	local def = Config.LifeArt.cover[look]
 	if not def then
 		return false
@@ -93,10 +104,101 @@ export type Piece = {
 	color: { number },
 	mat: string,
 	collide: boolean,
+	set: string?, -- the art set (nil: Config.Life.set; round 2's: Config.Life.shapes.set)
+	alpha: number?,
+	maps: boolean?, -- keeps its baked SurfaceAppearance
 }
+
+-- Round 2 (shapes-2): an Art.Shapes look over its box (Config.ShapeArt: frame and meshes), or along its edges
+local function shapeCover(Config: any, b: any, _look: string, sdef: any): { Piece }
+	local SH = Config.Life.shapes
+	local out: { Piece } = {}
+	local fx, fy, fz = sdef.frame[1], sdef.frame[2], sdef.frame[3]
+	local function color(m: any): { number }
+		if m.tint then
+			return Config.City.palette[b.color] or m.color
+		end
+		return m.color
+	end
+	local solid = not b.ghost and b.kind ~= "band" and b.kind ~= "glow" and b.kind ~= "crop" and not sdef.ring
+	local function piece(
+		name: string,
+		m: any,
+		kx: number,
+		ky: number,
+		kz: number,
+		cx: number,
+		cy: number,
+		cz: number,
+		ry: number
+	)
+		local a = math.rad(ry)
+		local c, sn = math.cos(a), math.sin(a)
+		local ox, oy, oz = m.offset[1] * kx, m.offset[2] * ky, m.offset[3] * kz
+		table.insert(out, {
+			name = name,
+			size = { m.size[1] * kx, m.size[2] * ky, m.size[3] * kz },
+			x = cx + ox * c + oz * sn,
+			y = cy + oy,
+			z = cz - ox * sn + oz * c,
+			ry = ry,
+			color = color(m),
+			mat = m.mat,
+			collide = solid and not SH.soft[name],
+			set = SH.set,
+			alpha = m.alpha,
+			maps = m.maps,
+		})
+	end
+	if sdef.ring then
+		-- a run along each edge, its face out: (edge centre offset, its turn, its length); corners overlap
+		local push = fz / 2 - SH.ring.out
+		local ky = b.sy / fy
+		local over = 2 * (fz - SH.ring.out)
+		for _, e in
+			{
+				{ 0, -b.sz / 2 - push, 0, b.sx + over },
+				{ 0, b.sz / 2 + push, 180, b.sx + over },
+				{ -b.sx / 2 - push, 0, 90, b.sz + over },
+				{ b.sx / 2 + push, 0, -90, b.sz + over },
+			}
+		do
+			-- (a run's own -z face points out: turned 180 it faces +z, 90 -x, -90 +x, as CFrame.Angles turns it)
+			for name, m in sdef.meshes do
+				piece(name, m, e[4] / fx, ky, 1, b.cx + e[1], b.cy, b.cz + e[2], e[3])
+			end
+		end
+	else
+		local sx, sy, sz = b.sx, b.sy, b.sz
+		local turn = 0
+		if sz > sx and fx > fz * 3 then
+			turn, sx, sz = 90, sz, sx -- a long look (a parapet, driftwood, a blade) follows the box's long side
+		elseif SH.turns[b.look] then
+			turn = math.floor(CityKit.roll(kitOf(Config), b.cx, b.cz, 6) * 8) * 45
+		end
+		for name, m in sdef.meshes do
+			piece(name, m, sx / fx, sy / fy, sz / fz, b.cx, b.cy, b.cz, (b.ry or 0) + turn)
+		end
+	end
+	table.sort(out, function(p, q)
+		return p.name < q.name
+	end)
+	return out
+end
+
+-- Does the box itself stay under its look (a roof's cap under its moulding)?
+function LifeKit.keeps(Config: any, b: any): boolean
+	local look = b.look
+	local sdef = look and Config.ShapeArt and Config.ShapeArt[look]
+	return sdef ~= nil and (sdef.ring == true or Config.Life.shapes.keep[look] == true)
+end
 
 function LifeKit.cover(Config: any, b: any): { Piece }?
 	local look = LifeKit.lookOf(Config, b)
+	local sdef = look and Config.ShapeArt and Config.ShapeArt[look]
+	if look and sdef then
+		return shapeCover(Config, b, look, sdef)
+	end
 	local def = look and Config.LifeArt.cover[look]
 	local spec = look and Config.Life.looks[look]
 	if not (look and def and spec) then
@@ -155,6 +257,34 @@ function LifeKit.picket(Config: any, b: any): { string }?
 		return { "Front", "Back" }
 	end
 	return { "Left", "Right" }
+end
+
+-- Round 2 (shapes-2): the roofs' plain ledges take a moulding look. A cornice cap (Config.City.kit.cornice) and a
+-- low roof's cap keep their box (in the roof kit texture) with the moulding run round its edges; a parapet (a thin
+-- ledge on a roof's edge) is drawn as the Parapet look. Boxes that are art, tagged or already looked stay as they
+-- are. Returns how many it dressed.
+function LifeKit.roofs(Config: any, boxes: { any }): number
+	local SH = Config.Life.shapes
+	if not (SH and Config.ShapeArt) then
+		return 0
+	end
+	local n = 0
+	for _, b in boxes do
+		if b.kind == "ledge" and not b.art and not b.look and not b.tag and b.shape == nil then
+			if b.color == "cornice" then
+				b.look = "CorniceRun"
+			elseif b.color == "roof" then
+				b.look = if math.min(b.sx, b.sz) <= 2 then "Parapet" else "RoofEdge"
+			end
+			if b.look then
+				n += 1
+				if b.look ~= "Parapet" and b.kit == nil then
+					b.kit = SH.roofKit
+				end
+			end
+		end
+	end
+	return n
 end
 
 -- Every box with a look in a list, by look name (the audit and the tests)

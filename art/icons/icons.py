@@ -444,6 +444,9 @@ MARKER = {
     "squad": "k_squad", "help": "k_help", "here": "k_here", "danger": "k_danger",
 }
 MARKER_ORDER = list(MARKER)
+# bosses-3 (2026-11-20, DRAFT bosses): the new world bosses' markers go at the very end of the set (after the move
+# keys), so no cell before them moves and only the last sheet changes
+MARKER_EXTRA = {"StormColossus": "k_storm", "SwarmQueen": "k_swarm", "QuarryTitan": "k_titan"}
 # the colorblind-safe shapes (Ui/Shapes.luau) as white comic backings the UI tints with ImageColor3; inner is
 # where the symbol sits on each (centre x, centre y, size; fractions of the cell)
 SHAPES = ["circle", "diamond", "triangle", "star", "square", "hex"]
@@ -531,14 +534,15 @@ def set2_cells():
     assert events == list(EVENT), events
     assert contracts == list(CONTRACT), contracts
     for b in bosses:
-        assert b in MARKER, "no marker for boss " + b
+        assert b in MARKER or b in MARKER_EXTRA, "no marker for boss " + b
     assert badges == list(BADGE_GROUP), badges
     assert accolades == list(ACCOLADE), accolades
     assert collects == list(COLLECT), collects
     assert rogues == list(ROGUES), rogues
     assert boards == list(BOARD), boards
     # unique symbols inside each group (the first set's rule)
-    for gname, table in (("incident", INCIDENT), ("event", EVENT), ("contract", CONTRACT), ("marker", MARKER),
+    for gname, table in (("incident", INCIDENT), ("event", EVENT), ("contract", CONTRACT),
+                         ("marker", dict(MARKER, **MARKER_EXTRA)),
                          ("badgeGroup", {k: v[0] for k, v in BADGE_GROUP.items()}),
                          ("collect", {k: v[0] for k, v in COLLECT.items()}), ("accolade", ACCOLADE),
                          ("journal", JOURNAL), ("rogues", {k: v[0] for k, v in ROGUES.items()}), ("daily", DAILY),
@@ -580,6 +584,8 @@ def set2_cells():
         cells.append(("board", key, disc_icon(OTHER_BG["move"], None, name), "boards"))
     for key, name in MOVEKEY.items():
         cells.append(("moveKey", key, disc_icon(OTHER_BG["mobility"], None, name), "move keys"))
+    for key, name in MARKER_EXTRA.items():
+        cells.append(("marker", key, mark_icon(name), "markers"))
     return cells
 
 
@@ -589,7 +595,7 @@ SET2_GROUPS = [
     ("event", "every event (Config.Events order, rare and side), a symbol on clear ground", None),
     ("contract", "every contract type (Config.Contracts.order), a symbol on clear ground", None),
     ("marker", "world markers: the bosses, givers, sites, quest steps, safehouses, beacons, HQs, squad, pings",
-     MARKER_ORDER),
+     MARKER_ORDER + list(MARKER_EXTRA)),
     ("badgeGroup", "the Badge Book's groups (Config.Badges.groups), discs", None),
     ("collect", "the collections (Config.Collect.sets), discs", None),
     ("accolade", "the accolades (Config.Badges groups' accolade ids), gold-ringed discs", None),
@@ -775,7 +781,8 @@ def contact(cells):
 VIGIL, SYNDICATE, GOLDC, CONTRACTC = (70, 150, 255), (235, 70, 80), (255, 200, 60), (255, 150, 70)
 MARKER_SHAPE = {"boss": ("diamond", (255, 90, 60)), "RustjawPrime": ("diamond", (255, 90, 60)),
                 "LumenMaw": ("diamond", (255, 90, 60)), "LeviathanEngine": ("diamond", (255, 90, 60)),
-                "NullWarFrame": ("diamond", (255, 90, 60)), "giver": ("circle", GOLDC), "site": ("square", GOLDC),
+                "NullWarFrame": ("diamond", (255, 90, 60)), "StormColossus": ("diamond", (255, 90, 60)),
+                "SwarmQueen": ("diamond", (255, 90, 60)), "QuarryTitan": ("diamond", (255, 90, 60)), "giver": ("circle", GOLDC), "site": ("square", GOLDC),
                 "quest": ("circle", GOLDC), "safehouse": ("square", (90, 200, 120)), "beacon": ("circle", GOLDC),
                 "hqHero": ("square", VIGIL), "hqVillain": ("square", SYNDICATE), "squad": ("square", (90, 200, 120)),
                 "help": ("circle", (255, 220, 90)), "here": ("circle", (120, 220, 255)),

@@ -180,8 +180,11 @@ def main():
             c = card(p, gold=True)
             c.save(os.path.join(OUT, file_name(p["id"], True)), optimize=True)
             cards.append((p["name"] + " (gold)", c))
-    sheet(cards).save(os.path.join(ART, "preview", "rogues.png"), optimize=True)
-    print(len(cards), "portraits ->", OUT, "; sheet art/preview/rogues.png")
+    # some figures not rendered here (build/ is not in git): only those cards are redrawn, and their sheet goes to
+    # rogues_new.png so the full contact sheet is kept (bosses-3, 2026-11-20)
+    name = "rogues_new.png" if missing else "rogues.png"
+    sheet(cards).save(os.path.join(ART, "preview", name), optimize=True)
+    print(len(cards), "portraits ->", OUT, "; sheet art/preview/" + name)
 
 
 if __name__ == "__main__":

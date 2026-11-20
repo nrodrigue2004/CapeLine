@@ -63,6 +63,13 @@
   "turned": 85,
   "verdict": "rotY180"
  },
+ "Bosses2": {
+  "asDrawn": 18,
+  "either": 18,
+  "meshes": 71,
+  "turned": 71,
+  "verdict": "rotY180"
+ },
  "Bramblebeast": {
   "asDrawn": 4,
   "either": 4,
@@ -236,6 +243,13 @@
   "either": 65,
   "meshes": 155,
   "turned": 155,
+  "verdict": "rotY180"
+ },
+ "Shapes": {
+  "asDrawn": 17,
+  "either": 17,
+  "meshes": 59,
+  "turned": 59,
   "verdict": "rotY180"
  },
  "Shoulders": {

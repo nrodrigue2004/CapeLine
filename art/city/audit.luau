@@ -39,6 +39,9 @@ local function category(b: any): string
 	elseif look == "HouseDoor" then
 		return "house doors"
 	end
+	if b.look == "CorniceRun" or b.look == "RoofEdge" or b.look == "Parapet" then
+		return "roofs and cornices"
+	end
 	local k = b.kind
 	if k == "building" or k == "tier" or k == "beacon" then
 		return "building bodies"
@@ -62,11 +65,23 @@ local function status(b: any, after: boolean): string
 	if b.art and type(b.art) == "table" then
 		return "mesh"
 	end
+	if b.look and Config.ShapeArt[LifeKit.lookOf(Config, b) or ""] then
+		return "mesh" -- round 2's looks (shapes-2: Art.Shapes; a roof cap keeps its box under its moulding)
+	end
 	if after and b.look and b.look ~= "Picket" then
 		return "mesh"
 	end
 	if after and b.look == "Picket" then
 		return "texture"
+	end
+	if b.decal or b.scar then
+		return "texture" -- a road picture (shapes-2: zebra crossings, drains) or the Crater's burn scars (gap-fx3)
+	end
+	if after and type(b.art) == "string" then
+		return "mesh" -- a landmark box an art set's look stands in for (the Crater's lab and relics: Art.Crater)
+	end
+	if after and b.mat then
+		return "texture" -- a Roblox material (shapes-2: Radio Hill's grass steps)
 	end
 	if b.kit and (after or b.kit ~= "Tilled") then
 		return "texture" -- (the fields' tilled soil is the living world's too)
@@ -102,10 +117,11 @@ for _, p in world.tilePlans do
 end
 for _, lm in world.landmarks do
 	for _, b in lm.boxes do
-		local r = add("landmarks", "Outskirts", "", 0)
-		local s = status(b, false)
+		-- (glows are lights on purpose: the beacons' beams, the Foundry's and the Crater's glow)
+		local r = add(if b.kind == "glow" then "landmark lights (glows)" else "landmarks", "Outskirts", "", 0)
+		local s, s1 = status(b, false), status(b, true)
 		r.before[s] = (r.before[s] or 0) + 1
-		r.after[s] = (r.after[s] or 0) + 1
+		r.after[s1] = (r.after[s1] or 0) + 1
 	end
 end
 for _, p in world.props do
@@ -131,10 +147,29 @@ table.sort(keys, function(a, b)
 	end
 	return a < b
 end)
+-- round 2 (shapes-2, 2026-11-19): "before" is round 1's result (the living world's "after", kept in
+-- art/preview/city_audit_round1.txt), "after" is today's city with round 2's looks (Art.Shapes, the roads' kits)
+local round1: { [string]: { number } } = {}
+for _, line in string.split(fs.readFile("art/preview/city_audit_round1.txt"), "\n") do
+	local cat, d, rest = string.match(line, "^(.-)%s+(%u%a+)%s+%d+%s+%d+%s+%d+%s+(%d+%s+%d+%s+%d+)%s*$")
+	if cat and d ~= nil then
+		local a, b2, c = string.match(rest, "(%d+)%s+(%d+)%s+(%d+)")
+		round1[cat .. "|" .. d] = { tonumber(a) :: number, tonumber(b2) :: number, tonumber(c) :: number }
+	end
+end
+for k, r in rows do
+	local old = round1[k]
+	r.before = if old then { plain = old[1], texture = old[2], mesh = old[3] } else {}
+	round1[k] = nil
+end
+for k, old in round1 do
+	rows[k] = { before = { plain = old[1], texture = old[2], mesh = old[3] }, after = {} }
+end
 local lines = {
 	"City audit (art/city/audit.luau, seed 202647, " .. os.date("!%Y-%m-%d") .. "): what the player sees, by kind and district.",
 	"mesh = Blender meshes; texture = a box in a kit MaterialVariant; plain = a plain coloured shape.",
-	"before = without the living world's looks, after = with them (Art.Life). Biggest plain groups first.",
+	"before = round 1 (the living world, art/preview/city_audit_round1.txt), after = round 2 (shapes-2: Art.Shapes,",
+	"the roads' and roofs' kit textures). Biggest plain groups first.",
 	"",
 	string.format("%-52s %-10s %22s   %22s", "kind", "district", "before plain/tex/mesh", "after plain/tex/mesh"),
 }

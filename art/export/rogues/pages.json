@@ -1089,13 +1089,13 @@
         "belt": "Sash",
         "emblem": "Burst",
         "feet": "Winged Boots",
-        "hair": "Hero Quiff",
+        "hair": "Blonde Spiked Hair",
         "hands": "Long Cuffs",
         "hat": "Halo",
         "shoulders": "Epaulettes",
         "suit": "Chevron Suit",
         "trail": "Sparkle Trail",
-        "visage": "Hero Face"
+        "visage": "Shiny Teeth"
       },
       "skin": 2,
       "tints": {
@@ -1220,11 +1220,11 @@
         "belt": "Champion Belt",
         "emblem": "Hex Badge",
         "feet": "Combat Boots",
-        "hair": "Buzz Cut",
+        "hair": "Black Short Parted Hair",
         "hands": "Armored Gauntlets",
         "shoulders": "Great Pauldrons",
         "suit": "Plated Suit",
-        "visage": "Stern Face"
+        "visage": "Man Face"
       },
       "skin": 4,
       "tints": {
@@ -1334,12 +1334,12 @@
         "back": "Wind Scarf",
         "emblem": "Ring Star",
         "feet": "Tall Boots",
-        "hair": "High Ponytail",
+        "hair": "True Blue Hair",
         "hands": "Fingerless Gloves",
         "shoulders": "Wingtips",
         "suit": "Racer Stripe",
         "trail": "Streak Trail",
-        "visage": "Sharp Face"
+        "visage": "Blinky"
       },
       "skin": 3,
       "tints": {
@@ -1494,17 +1494,16 @@
       "mats": {},
       "pieces": {
         "back": "High Collar Cape",
-        "beard": "Pencil Mustache",
         "belt": "Sash",
         "emblem": "Peak",
         "feet": "Boots",
-        "hair": "Slicked Back",
+        "hair": "Hair Base In Brown",
         "hands": "Gloves",
         "hat": "Halo",
         "neck": "Medal",
         "shoulders": "Mantle",
         "suit": "Split Tone",
-        "visage": "Hero Face"
+        "visage": "Angelic"
       },
       "skin": 1,
       "tints": {
@@ -1612,13 +1611,13 @@
         "back": "Hero Scarf",
         "emblem": "Spark",
         "feet": "Jet Boots",
-        "hair": "Wolf Cut",
+        "hair": "Black Anime Hair",
         "hands": "Fingerless Gloves",
         "hat": "Flight Goggles",
         "head": "Visor Band",
         "suit": "Racer Stripe",
         "trail": "Streak Trail",
-        "visage": "Sharp Face"
+        "visage": "Meanie"
       },
       "skin": 5,
       "tints": {
@@ -1726,14 +1725,14 @@
         "back": "High Collar Cape",
         "emblem": "Diamond",
         "feet": "Tall Boots",
-        "hair": "Long Straight",
+        "hair": "Black and Red",
         "hands": "Long Cuffs",
         "head": "Masquerade",
         "neck": "Choker",
         "shoulders": "Feather Pads",
         "suit": "Split Tone",
         "trail": "Ribbon Trail",
-        "visage": "Sharp Face"
+        "visage": "Happy Wink"
       },
       "skin": 2,
       "tints": {
@@ -1975,6 +1974,7 @@
       ],
       "gender": 1,
       "hair": 7,
+      "hairless": true,
       "height": 5,
       "mats": {},
       "pieces": {
@@ -1982,12 +1982,11 @@
         "eyes": "Toxic Glow",
         "face": "Fangs",
         "feet": "Fur Boots",
-        "hair": "Wild Mane",
         "hands": "Talon Gloves",
         "hat": "Antlers",
         "shoulders": "Fur Trim",
         "suit": "Magma Veins",
-        "visage": "Sharp Face"
+        "visage": "ROAR"
       },
       "skin": 28,
       "tints": {
@@ -2112,15 +2111,15 @@
       },
       "pieces": {
         "back": "Field Coat",
-        "beard": "Full Beard",
+        "beard": "Styled Beard Blonde",
         "belt": "Rope Belt",
         "feet": "Boots",
-        "hair": "Shaggy",
+        "hair": "Blonde Curly Celebrity Hair",
         "hands": "Work Gloves",
         "hat": "Iron Crown",
         "shoulders": "Riveted Pads",
         "suit": "Overalls",
-        "visage": "Stern Face"
+        "visage": "Take Over the World"
       },
       "skin": 4,
       "tints": {
@@ -2229,16 +2228,16 @@
       },
       "pieces": {
         "back": "Duster Coat",
-        "beard": "Full Beard",
+        "beard": "Styled Beard Blonde",
         "emblem": "Cross",
         "feet": "Armored Boots",
-        "hair": "Slicked Back",
+        "hair": "Blonde Action Ponytail",
         "hands": "Armored Gauntlets",
         "hat": "Wide Brim",
         "head": "Eye Patch",
         "shoulders": "Epaulettes",
         "suit": "Plated Suit",
-        "visage": "Scarred Face"
+        "visage": "Bad Dog"
       },
       "skin": 3,
       "tints": {
@@ -2369,16 +2368,16 @@
         "shoulders": "Metal"
       },
       "pieces": {
-        "beard": "Handlebar",
+        "beard": "Fancy Moustache",
         "belt": "Champion Belt",
         "feet": "Armored Boots",
-        "hair": "Slicked Back",
+        "hair": "Black Ponytail",
         "hands": "Boxing Gloves",
         "hat": "Top Hat",
         "neck": "Chain",
         "shoulders": "Riveted Pads",
         "suit": "Tuxedo",
-        "visage": "Scarred Face"
+        "visage": "Know-It-All Grin"
       },
       "skin": 25,
       "tints": {
@@ -2511,17 +2510,17 @@
       "pieces": {
         "arms": "Scale Guards",
         "back": "Long Cape",
-        "beard": "Full Beard",
+        "beard": "Styled Beard White",
         "ears": "Fin Ears",
         "emblem": "Orb Crest",
         "eyes": "Ice Glow",
         "feet": "Armored Boots",
-        "hair": "Long Straight",
+        "hair": "Blue Anime Hair",
         "hands": "Armored Gauntlets",
         "hat": "Iron Crown",
         "shoulders": "Shell Pads",
         "suit": "Plated Suit",
-        "visage": "Stern Face"
+        "visage": "Alien"
       },
       "skin": 26,
       "tints": {
@@ -2652,11 +2651,11 @@
         "back": "Star Cape",
         "emblem": "Star Crest",
         "feet": "Tall Boots",
-        "hair": "Long Straight",
+        "hair": "Platinum Blonde Bundles",
         "hands": "Gloves",
         "makeup": "Star Mark",
         "suit": "Starfield Suit",
-        "visage": "Hero Face"
+        "visage": "Woman Face"
       },
       "skin": 10,
       "tints": {}
@@ -2768,14 +2767,14 @@
       },
       "pieces": {
         "back": "Duster Coat",
-        "beard": "Stubble",
+        "beard": "Stubble Beard [Black]",
         "belt": "Tool Belt",
         "feet": "Combat Boots",
-        "hair": "Shaggy",
+        "hair": "Black Short Wolf Cut",
         "hands": "Work Gloves",
         "hat": "Tracker Lens",
         "suit": "Ranger Harness",
-        "visage": "Sharp Face"
+        "visage": "Stare"
       },
       "skin": 4,
       "tints": {}
@@ -2884,15 +2883,15 @@
       "height": 3,
       "mats": {},
       "pieces": {
-        "beard": "Goatee",
+        "beard": "Red Down Facing Moustache",
         "belt": "Chain Belt",
         "feet": "Combat Boots",
-        "hair": "Flame Hair",
+        "hair": "Crimson Shaggy 2.0",
         "hands": "Flame Gloves",
         "neck": "Chain",
         "shoulders": "Flame Pads",
         "suit": "Magma Veins",
-        "visage": "Scarred Face"
+        "visage": "Beast Mode"
       },
       "skin": 3,
       "tints": {}
@@ -3003,12 +3002,12 @@
       "pieces": {
         "back": "Long Cape",
         "feet": "Loafers",
-        "hair": "Side Part",
+        "hair": "Black Celebrity Gamer Hair",
         "hands": "Gloves",
         "head": "Mono Visor",
         "neck": "High Collar",
         "suit": "Tuxedo",
-        "visage": "Cold Face"
+        "visage": "Chill"
       },
       "skin": 9,
       "tints": {
@@ -3164,12 +3163,12 @@
       "pieces": {
         "backpack": "Cog Rig",
         "feet": "Armored Boots",
-        "hair": "Slicked Back",
+        "hair": "Cool Boy Hair",
         "hands": "Tech Gloves",
         "head": "Mono Visor",
         "shoulders": "Layered Plates",
         "suit": "Lab Coat",
-        "visage": "Cold Face"
+        "visage": "Err..."
       },
       "skin": 2,
       "tints": {}
@@ -3345,6 +3344,7 @@
       ],
       "gender": 1,
       "hair": 22,
+      "hairless": true,
       "height": 5,
       "mats": {
         "suit": "Metal"
@@ -3356,7 +3356,8 @@
         "hands": "Talon Gloves",
         "head": "Antenna Helm",
         "shoulders": "Crystal Shards",
-        "suit": "Starfield Suit"
+        "suit": "Starfield Suit",
+        "visage": "Blizzard Beast Mode"
       },
       "skin": 26,
       "tints": {}
@@ -3466,13 +3467,14 @@
       "mats": {},
       "pieces": {
         "back": "High Collar Cape",
-        "beard": "Pencil Mustache",
+        "beard": "Fancy Moustache",
         "eyes": "Violet Glow",
-        "hair": "Slicked Back",
+        "hair": "Long Straight Hair (Black)",
         "hands": "Gloves",
         "hat": "Top Hat",
         "head": "Masquerade",
-        "suit": "Tuxedo"
+        "suit": "Tuxedo",
+        "visage": "Slickfang"
       },
       "skin": 9,
       "tints": {
@@ -3598,20 +3600,21 @@
       ],
       "gender": 1,
       "hair": 39,
+      "hairless": true,
       "height": 5,
       "mats": {
         "hands": "Metal"
       },
       "pieces": {
         "backpack": "Gear Rack",
-        "beard": "Horseshoe",
+        "beard": "Full Black Trimmed Beard",
         "belt": "Tool Belt",
         "feet": "Armored Boots",
         "hands": "Armored Gauntlets",
         "hat": "Ball Cap",
         "shoulders": "Gear Pads",
         "suit": "Exo Frame",
-        "visage": "Scarred Face"
+        "visage": "Meanie"
       },
       "skin": 4,
       "tints": {}
@@ -3723,12 +3726,12 @@
         "back": "Wind Scarf",
         "eyes": "Ice Blades",
         "feet": "Tabi Boots",
-        "hair": "Wild Mane",
+        "hair": "Black Messy Hairstyle",
         "hands": "Fighter Wraps",
         "hat": "Hachimaki",
         "legs": "Hakama",
         "suit": "Sash Fighter",
-        "visage": "Sharp Face"
+        "visage": "ROAR"
       },
       "skin": 3,
       "tints": {}
@@ -3931,6 +3934,7 @@
           ],
           "mat": "SmoothPlastic",
           "role": "body",
+          "seg": "ShinL",
           "shape": "Block",
           "size": [
             16,
@@ -3951,6 +3955,7 @@
           ],
           "mat": "SmoothPlastic",
           "role": "body",
+          "seg": "ShinL",
           "shape": "Block",
           "size": [
             11,
@@ -3965,6 +3970,7 @@
             -7.6
           ],
           "role": "weak",
+          "seg": "ShinL",
           "shape": "Ball",
           "size": [
             5,
@@ -3985,6 +3991,7 @@
           ],
           "mat": "SmoothPlastic",
           "role": "body",
+          "seg": "ShinR",
           "shape": "Block",
           "size": [
             16,
@@ -4005,6 +4012,7 @@
           ],
           "mat": "SmoothPlastic",
           "role": "body",
+          "seg": "ShinR",
           "shape": "Block",
           "size": [
             11,
@@ -4019,6 +4027,7 @@
             -7.6
           ],
           "role": "weak",
+          "seg": "ShinR",
           "shape": "Ball",
           "size": [
             5,
@@ -4039,6 +4048,7 @@
           ],
           "mat": "SmoothPlastic",
           "role": "body",
+          "seg": "Body",
           "shape": "Block",
           "size": [
             48,
@@ -4053,6 +4063,7 @@
             -17.6
           ],
           "role": "weak",
+          "seg": "Body",
           "shape": "Ball",
           "size": [
             7,
@@ -4073,6 +4084,7 @@
           ],
           "mat": "SmoothPlastic",
           "role": "body",
+          "seg": "Head",
           "shape": "Block",
           "size": [
             24,
@@ -4093,6 +4105,7 @@
           ],
           "mat": "Metal",
           "role": "body",
+          "seg": "Jaw",
           "shape": "Block",
           "size": [
             30,
@@ -4112,6 +4125,7 @@
             90,
             0
           ],
+          "seg": "Head",
           "shape": "Cylinder",
           "size": [
             1,
@@ -4131,6 +4145,7 @@
             90,
             0
           ],
+          "seg": "Head",
           "shape": "Cylinder",
           "size": [
             1,
@@ -4156,6 +4171,7 @@
             0,
             -6
           ],
+          "seg": "ArmL",
           "shape": "Block",
           "size": [
             10,
@@ -4176,6 +4192,7 @@
           ],
           "mat": "SmoothPlastic",
           "role": "body",
+          "seg": "ForeL",
           "shape": "Block",
           "size": [
             18,
@@ -4201,6 +4218,7 @@
             0,
             5
           ],
+          "seg": "ArmR",
           "shape": "Block",
           "size": [
             6,
@@ -4221,6 +4239,7 @@
           ],
           "mat": "SmoothPlastic",
           "role": "body",
+          "seg": "ForeR",
           "shape": "Block",
           "size": [
             10,
@@ -4246,6 +4265,7 @@
             0,
             90
           ],
+          "seg": "Body",
           "shape": "Cylinder",
           "size": [
             30,
@@ -4255,72 +4275,416 @@
         }
       ],
       "pieces": {
+        "ArmL_Hull": {
+          "offset": [
+            -27,
+            75.03,
+            0
+          ],
+          "role": "hull",
+          "seg": "ArmL",
+          "size": [
+            23.586,
+            33.303,
+            24.8
+          ]
+        },
+        "ArmR_Hull": {
+          "offset": [
+            27,
+            70.301,
+            0
+          ],
+          "role": "hull",
+          "seg": "ArmR",
+          "size": [
+            23.586,
+            42.761,
+            24.8
+          ]
+        },
+        "ArmR_Plates3": {
+          "offset": [
+            32,
+            68,
+            -0.2
+          ],
+          "role": "shed3",
+          "seg": "ArmR",
+          "size": [
+            11,
+            8,
+            11.4
+          ]
+        },
+        "ForeL_Hull": {
+          "offset": [
+            -33,
+            44.6,
+            -3.15
+          ],
+          "role": "hull",
+          "seg": "ForeL",
+          "size": [
+            18.8,
+            41.2,
+            22.7
+          ]
+        },
+        "ForeL_Plates3": {
+          "offset": [
+            -38.4,
+            50,
+            0
+          ],
+          "role": "shed3",
+          "seg": "ForeL",
+          "size": [
+            10.381,
+            13.434,
+            5.415
+          ]
+        },
+        "ForeR_Hull": {
+          "offset": [
+            34,
+            41.377,
+            -2.75
+          ],
+          "role": "hull",
+          "seg": "ForeR",
+          "size": [
+            14.127,
+            37.99,
+            12.826
+          ]
+        },
         "Glow": {
           "offset": [
             0,
-            91.31,
+            84.21,
             3.309
           ],
           "role": "glow",
+          "seg": "Body",
           "size": [
             52.4,
-            59.18,
+            44.98,
             38.518
+          ]
+        },
+        "Head_Glow": {
+          "offset": [
+            0.719,
+            108.85,
+            -2.25
+          ],
+          "role": "glow",
+          "seg": "Head",
+          "size": [
+            19.297,
+            24.1,
+            22.7
+          ]
+        },
+        "Head_Hull": {
+          "offset": [
+            0,
+            106.061,
+            -3.11
+          ],
+          "role": "hull",
+          "seg": "Head",
+          "size": [
+            35.2,
+            26.122,
+            22.181
           ]
         },
         "Hull": {
           "offset": [
-            -0.668,
-            59.411,
-            1.149
+            0.118,
+            75.107,
+            2.479
           ],
           "role": "hull",
+          "seg": "Body",
           "size": [
-            83.463,
-            119.422,
-            44.699
+            51.91,
+            62.215,
+            42.04
+          ]
+        },
+        "Jaw_Hull": {
+          "offset": [
+            0,
+            92.45,
+            -9.656
+          ],
+          "role": "hull",
+          "seg": "Jaw",
+          "size": [
+            30,
+            15.9,
+            23.089
           ]
         },
         "Plates2": {
           "offset": [
             0,
-            36.75,
-            -10.9
+            58,
+            -14.35
           ],
           "role": "shed2",
+          "seg": "Body",
           "size": [
-            39.6,
-            51.5,
-            9.8
+            24,
+            9,
+            2.9
           ]
         },
         "Plates3": {
           "offset": [
-            -3.045,
-            66.373,
-            -6.1
+            0,
+            83.28,
+            -15.95
           ],
           "role": "shed3",
+          "seg": "Body",
           "size": [
-            81.091,
-            46.181,
-            23.2
+            48,
+            12.368,
+            3.5
+          ]
+        },
+        "ShinL_Hull": {
+          "offset": [
+            -14.613,
+            18.6,
+            -3.3
+          ],
+          "role": "hull",
+          "seg": "ShinL",
+          "size": [
+            20.427,
+            37.8,
+            28.6
+          ]
+        },
+        "ShinL_Plates2": {
+          "offset": [
+            -14,
+            18,
+            -7.4
+          ],
+          "role": "shed2",
+          "seg": "ShinL",
+          "size": [
+            11.6,
+            14,
+            2.8
+          ]
+        },
+        "ShinL_Weak": {
+          "offset": [
+            -14,
+            30,
+            -8
+          ],
+          "role": "weak",
+          "seg": "ShinL",
+          "size": [
+            6.4,
+            6.4,
+            6.4
+          ]
+        },
+        "ShinR_Hull": {
+          "offset": [
+            14.613,
+            18.6,
+            -3.3
+          ],
+          "role": "hull",
+          "seg": "ShinR",
+          "size": [
+            20.427,
+            37.8,
+            28.6
+          ]
+        },
+        "ShinR_Plates2": {
+          "offset": [
+            14,
+            18,
+            -7.4
+          ],
+          "role": "shed2",
+          "seg": "ShinR",
+          "size": [
+            11.6,
+            14,
+            2.8
+          ]
+        },
+        "ShinR_Weak": {
+          "offset": [
+            14,
+            30,
+            -8
+          ],
+          "role": "weak",
+          "seg": "ShinR",
+          "size": [
+            6.4,
+            6.4,
+            6.4
+          ]
+        },
+        "ThighL_Hull": {
+          "offset": [
+            -14.159,
+            44.199,
+            0
+          ],
+          "role": "hull",
+          "seg": "ThighL",
+          "size": [
+            15.052,
+            23.203,
+            15.209
+          ]
+        },
+        "ThighR_Hull": {
+          "offset": [
+            14.159,
+            44.199,
+            0
+          ],
+          "role": "hull",
+          "seg": "ThighR",
+          "size": [
+            15.052,
+            23.203,
+            15.209
           ]
         },
         "Weak": {
           "offset": [
             0,
-            51.9,
-            -13.25
+            72,
+            -18.6
           ],
           "role": "weak",
+          "seg": "Body",
           "size": [
-            34.4,
-            50.2,
-            16.9
+            10,
+            10,
+            6.2
           ]
         }
       },
+      "rig": [
+        {
+          "name": "Body",
+          "parent": "Root",
+          "pivot": [
+            0,
+            48,
+            0
+          ]
+        },
+        {
+          "name": "ThighL",
+          "parent": "Root",
+          "pivot": [
+            -13.3,
+            48,
+            0
+          ]
+        },
+        {
+          "name": "ShinL",
+          "parent": "ThighL",
+          "pivot": [
+            -14,
+            31,
+            0
+          ]
+        },
+        {
+          "name": "ThighR",
+          "parent": "Root",
+          "pivot": [
+            13.3,
+            48,
+            0
+          ]
+        },
+        {
+          "name": "ShinR",
+          "parent": "ThighR",
+          "pivot": [
+            14,
+            31,
+            0
+          ]
+        },
+        {
+          "name": "Head",
+          "parent": "Body",
+          "pivot": [
+            0,
+            91,
+            -1
+          ]
+        },
+        {
+          "name": "Jaw",
+          "parent": "Head",
+          "pivot": [
+            0,
+            90,
+            -2
+          ]
+        },
+        {
+          "name": "ArmL",
+          "parent": "Body",
+          "pivot": [
+            -28,
+            82,
+            0
+          ]
+        },
+        {
+          "name": "ForeL",
+          "parent": "ArmL",
+          "pivot": [
+            -32,
+            59,
+            1
+          ]
+        },
+        {
+          "name": "ArmR",
+          "parent": "Body",
+          "pivot": [
+            28,
+            82,
+            0
+          ]
+        },
+        {
+          "name": "ForeR",
+          "parent": "ArmR",
+          "pivot": [
+            33,
+            60,
+            2
+          ]
+        }
+      ],
       "theme": [
         255,
         170,
@@ -4496,6 +4860,7 @@
           ],
           "mat": "SmoothPlastic",
           "role": "body",
+          "seg": "Body",
           "shape": "Block",
           "size": [
             32,
@@ -4516,6 +4881,7 @@
           ],
           "mat": "SmoothPlastic",
           "role": "body",
+          "seg": "Head",
           "shape": "Block",
           "size": [
             32,
@@ -4541,6 +4907,7 @@
             0,
             0
           ],
+          "seg": "Jaw",
           "shape": "Block",
           "size": [
             28,
@@ -4560,6 +4927,7 @@
             90,
             0
           ],
+          "seg": "Head",
           "shape": "Cylinder",
           "size": [
             1,
@@ -4574,6 +4942,7 @@
             -46
           ],
           "role": "glow",
+          "seg": "Head",
           "shape": "Block",
           "size": [
             16,
@@ -4588,6 +4957,7 @@
             10
           ],
           "role": "glow",
+          "seg": "Body",
           "shape": "Block",
           "size": [
             2,
@@ -4608,6 +4978,7 @@
           ],
           "mat": "SmoothPlastic",
           "role": "body",
+          "seg": "LegFL",
           "shape": "Block",
           "size": [
             7,
@@ -4628,6 +4999,7 @@
           ],
           "mat": "SmoothPlastic",
           "role": "body",
+          "seg": "LegBL",
           "shape": "Block",
           "size": [
             7,
@@ -4648,6 +5020,7 @@
           ],
           "mat": "SmoothPlastic",
           "role": "body",
+          "seg": "LegFR",
           "shape": "Block",
           "size": [
             7,
@@ -4668,6 +5041,7 @@
           ],
           "mat": "SmoothPlastic",
           "role": "body",
+          "seg": "LegBR",
           "shape": "Block",
           "size": [
             7,
@@ -4687,6 +5061,7 @@
             0,
             90
           ],
+          "seg": "Body",
           "shape": "Cylinder",
           "size": [
             12,
@@ -4706,6 +5081,7 @@
             0,
             90
           ],
+          "seg": "Body",
           "shape": "Cylinder",
           "size": [
             16,
@@ -4725,6 +5101,7 @@
             0,
             90
           ],
+          "seg": "Body",
           "shape": "Cylinder",
           "size": [
             12,
@@ -4736,28 +5113,212 @@
       "pieces": {
         "Glow": {
           "offset": [
-            0.011,
-            30.263,
-            10.864
+            0,
+            40.785,
+            9.087
           ],
           "role": "glow",
+          "seg": "Body",
           "size": [
-            38.406,
-            44.854,
-            145.873
+            32.202,
+            21.11,
+            62.449
+          ]
+        },
+        "Head_Glow": {
+          "offset": [
+            0,
+            37.811,
+            -44.336
+          ],
+          "role": "glow",
+          "seg": "Head",
+          "size": [
+            29.2,
+            29.757,
+            35.473
+          ]
+        },
+        "Head_Hull": {
+          "offset": [
+            0,
+            39.739,
+            -33.214
+          ],
+          "role": "hull",
+          "seg": "Head",
+          "size": [
+            40.432,
+            35.501,
+            43.572
+          ]
+        },
+        "Head_Plates3": {
+          "offset": [
+            0,
+            50.98,
+            -39
+          ],
+          "role": "shed3",
+          "seg": "Head",
+          "size": [
+            30,
+            4.888,
+            10
           ]
         },
         "Hull": {
           "offset": [
             0,
-            29.45,
-            13.481
+            38.35,
+            10
           ],
           "role": "hull",
+          "seg": "Body",
           "size": [
-            43.799,
-            58.9,
-            136.962
+            39.649,
+            41.1,
+            68
+          ]
+        },
+        "Jaw_Glow": {
+          "offset": [
+            -0.48,
+            27.586,
+            -52.888
+          ],
+          "role": "glow",
+          "seg": "Jaw",
+          "size": [
+            28.144,
+            15.059,
+            18.357
+          ]
+        },
+        "Jaw_Hull": {
+          "offset": [
+            0,
+            22.55,
+            -34
+          ],
+          "role": "hull",
+          "seg": "Jaw",
+          "size": [
+            31,
+            16.9,
+            36
+          ]
+        },
+        "LegBL_Glow": {
+          "offset": [
+            -18.071,
+            14.555,
+            26.596
+          ],
+          "role": "glow",
+          "seg": "LegBL",
+          "size": [
+            2.174,
+            13.437,
+            9.625
+          ]
+        },
+        "LegBL_Hull": {
+          "offset": [
+            -15.544,
+            16.846,
+            25.8
+          ],
+          "role": "hull",
+          "seg": "LegBL",
+          "size": [
+            12.711,
+            33.691,
+            20.4
+          ]
+        },
+        "LegBR_Glow": {
+          "offset": [
+            18.116,
+            14.555,
+            26.557
+          ],
+          "role": "glow",
+          "seg": "LegBR",
+          "size": [
+            2.196,
+            13.437,
+            9.605
+          ]
+        },
+        "LegBR_Hull": {
+          "offset": [
+            15.544,
+            16.846,
+            25.8
+          ],
+          "role": "hull",
+          "seg": "LegBR",
+          "size": [
+            12.711,
+            33.691,
+            20.4
+          ]
+        },
+        "LegFL_Glow": {
+          "offset": [
+            -18.095,
+            14.51,
+            -17.054
+          ],
+          "role": "glow",
+          "seg": "LegFL",
+          "size": [
+            2.196,
+            13.132,
+            2.701
+          ]
+        },
+        "LegFL_Hull": {
+          "offset": [
+            -15.728,
+            16.784,
+            -15.478
+          ],
+          "role": "hull",
+          "seg": "LegFL",
+          "size": [
+            12.344,
+            33.568,
+            13.844
+          ]
+        },
+        "LegFR_Glow": {
+          "offset": [
+            18.095,
+            14.51,
+            -17.054
+          ],
+          "role": "glow",
+          "seg": "LegFR",
+          "size": [
+            2.196,
+            13.132,
+            2.701
+          ]
+        },
+        "LegFR_Hull": {
+          "offset": [
+            15.728,
+            16.784,
+            -15.478
+          ],
+          "role": "hull",
+          "seg": "LegFR",
+          "size": [
+            12.344,
+            33.568,
+            13.844
           ]
         },
         "Plates2": {
@@ -4767,6 +5328,7 @@
             4
           ],
           "role": "shed2",
+          "seg": "Body",
           "size": [
             40,
             17.818,
@@ -4776,14 +5338,43 @@
         "Plates3": {
           "offset": [
             0,
-            43.681,
-            -24.7
+            40.86,
+            -14
           ],
           "role": "shed3",
+          "seg": "Body",
           "size": [
             46.675,
-            19.486,
-            38.6
+            13.844,
+            17.2
+          ]
+        },
+        "Tail_Glow": {
+          "offset": [
+            -2.02,
+            39.543,
+            69.864
+          ],
+          "role": "glow",
+          "seg": "Tail",
+          "size": [
+            5.44,
+            20.915,
+            27.872
+          ]
+        },
+        "Tail_Hull": {
+          "offset": [
+            0,
+            33.483,
+            61.537
+          ],
+          "role": "hull",
+          "seg": "Tail",
+          "size": [
+            10.8,
+            25.765,
+            40.849
           ]
         },
         "Weak": {
@@ -4793,6 +5384,7 @@
             12
           ],
           "role": "weak",
+          "seg": "Body",
           "size": [
             30.529,
             12.5,
@@ -4800,6 +5392,80 @@
           ]
         }
       },
+      "rig": [
+        {
+          "name": "Body",
+          "parent": "Root",
+          "pivot": [
+            0,
+            30,
+            4
+          ]
+        },
+        {
+          "name": "Head",
+          "parent": "Body",
+          "pivot": [
+            0,
+            40,
+            -18
+          ]
+        },
+        {
+          "name": "Jaw",
+          "parent": "Head",
+          "pivot": [
+            0,
+            31,
+            -20
+          ]
+        },
+        {
+          "name": "Tail",
+          "parent": "Body",
+          "pivot": [
+            0,
+            27,
+            42
+          ]
+        },
+        {
+          "name": "LegFL",
+          "parent": "Root",
+          "pivot": [
+            -13,
+            32,
+            -12
+          ]
+        },
+        {
+          "name": "LegFR",
+          "parent": "Root",
+          "pivot": [
+            13,
+            32,
+            -12
+          ]
+        },
+        {
+          "name": "LegBL",
+          "parent": "Root",
+          "pivot": [
+            -13,
+            32,
+            26
+          ]
+        },
+        {
+          "name": "LegBR",
+          "parent": "Root",
+          "pivot": [
+            13,
+            32,
+            26
+          ]
+        }
+      ],
       "theme": [
         90,
         240,
@@ -4988,6 +5654,7 @@
             0,
             0
           ],
+          "seg": "Body",
           "shape": "Block",
           "size": [
             30,
@@ -5013,6 +5680,7 @@
             0,
             0
           ],
+          "seg": "Body",
           "shape": "Block",
           "size": [
             26.4,
@@ -5038,6 +5706,7 @@
             0,
             0
           ],
+          "seg": "Body",
           "shape": "Block",
           "size": [
             22.8,
@@ -5063,6 +5732,7 @@
             0,
             0
           ],
+          "seg": "Body",
           "shape": "Block",
           "size": [
             19.2,
@@ -5088,6 +5758,7 @@
             0,
             0
           ],
+          "seg": "Body",
           "shape": "Block",
           "size": [
             15.6,
@@ -5113,6 +5784,7 @@
             0,
             0
           ],
+          "seg": "Body",
           "shape": "Block",
           "size": [
             12,
@@ -5133,6 +5805,7 @@
           ],
           "mat": "Metal",
           "role": "body",
+          "seg": "GearL",
           "shape": "Cylinder",
           "size": [
             2.4,
@@ -5153,6 +5826,7 @@
           ],
           "mat": "Metal",
           "role": "body",
+          "seg": "GearR",
           "shape": "Cylinder",
           "size": [
             2.4,
@@ -5178,6 +5852,7 @@
             0,
             90
           ],
+          "seg": "Body",
           "shape": "Cylinder",
           "size": [
             2.4,
@@ -5192,6 +5867,7 @@
             2
           ],
           "role": "weak",
+          "seg": "Body",
           "shape": "Ball",
           "size": [
             6,
@@ -5217,6 +5893,7 @@
             0,
             0
           ],
+          "seg": "Neck",
           "shape": "Block",
           "size": [
             16,
@@ -5242,6 +5919,7 @@
             0,
             0
           ],
+          "seg": "Neck",
           "shape": "Block",
           "size": [
             15,
@@ -5267,6 +5945,7 @@
             0,
             0
           ],
+          "seg": "Neck",
           "shape": "Block",
           "size": [
             14,
@@ -5287,6 +5966,7 @@
           ],
           "mat": "Metal",
           "role": "body",
+          "seg": "Head",
           "shape": "Block",
           "size": [
             24,
@@ -5307,6 +5987,7 @@
           ],
           "mat": "Slate",
           "role": "body",
+          "seg": "Jaw",
           "shape": "Block",
           "size": [
             20,
@@ -5321,6 +6002,7 @@
             -54
           ],
           "role": "glow",
+          "seg": "Head",
           "shape": "Block",
           "size": [
             14,
@@ -5335,6 +6017,7 @@
             -46.6
           ],
           "role": "weak",
+          "seg": "Head",
           "shape": "Ball",
           "size": [
             6,
@@ -5349,6 +6032,7 @@
             -46.6
           ],
           "role": "weak",
+          "seg": "Head",
           "shape": "Ball",
           "size": [
             6,
@@ -5368,6 +6052,7 @@
             0,
             0
           ],
+          "seg": "GearL",
           "shape": "Block",
           "size": [
             1,
@@ -5387,6 +6072,7 @@
             0,
             0
           ],
+          "seg": "GearR",
           "shape": "Block",
           "size": [
             1,
@@ -5407,6 +6093,7 @@
           ],
           "mat": "Slate",
           "role": "body",
+          "seg": "Head",
           "shape": "Block",
           "size": [
             2,
@@ -5427,6 +6114,7 @@
           ],
           "mat": "Slate",
           "role": "body",
+          "seg": "Body",
           "shape": "Block",
           "size": [
             30,
@@ -5447,6 +6135,7 @@
           ],
           "mat": "Metal",
           "role": "body",
+          "seg": "Wheel",
           "shape": "Block",
           "size": [
             2,
@@ -5456,72 +6145,323 @@
         }
       ],
       "pieces": {
+        "CogL_Hull": {
+          "offset": [
+            -14.6,
+            6.473,
+            34
+          ],
+          "role": "hull",
+          "seg": "CogL",
+          "size": [
+            2.6,
+            11.946,
+            12.13
+          ]
+        },
+        "CogR_Hull": {
+          "offset": [
+            14.6,
+            6.473,
+            34
+          ],
+          "role": "hull",
+          "seg": "CogR",
+          "size": [
+            2.6,
+            11.946,
+            12.13
+          ]
+        },
+        "GearL_Hull": {
+          "offset": [
+            -15.286,
+            3,
+            16
+          ],
+          "role": "hull",
+          "seg": "GearL",
+          "size": [
+            5.229,
+            17.8,
+            17.8
+          ]
+        },
+        "GearR_Hull": {
+          "offset": [
+            15.214,
+            3,
+            16
+          ],
+          "role": "hull",
+          "seg": "GearR",
+          "size": [
+            5.372,
+            17.8,
+            17.8
+          ]
+        },
         "Glow": {
           "offset": [
             0,
-            27.005,
-            14
+            1.13,
+            37.275
           ],
           "role": "glow",
+          "seg": "Body",
           "size": [
             32.848,
-            77.991,
-            129.2
+            26.241,
+            82.65
           ]
         },
-        "Hull": {
+        "Head_Glow": {
           "offset": [
             0,
-            13.121,
-            40.476
+            49.9,
+            -40.6
           ],
-          "role": "hull",
+          "role": "glow",
+          "seg": "Head",
           "size": [
-            60,
-            106.044,
-            204.953
+            14.4,
+            32.2,
+            20
           ]
         },
-        "Plates2": {
+        "Head_Hull": {
+          "offset": [
+            0,
+            49.61,
+            -42
+          ],
+          "role": "hull",
+          "seg": "Head",
+          "size": [
+            27.6,
+            33.065,
+            40
+          ]
+        },
+        "Head_Plates2": {
           "offset": [
             0,
             44.749,
             -27.098
           ],
           "role": "shed2",
+          "seg": "Head",
           "size": [
             35.918,
             13.477,
             17.01
           ]
         },
-        "Plates3": {
+        "Head_Weak": {
+          "offset": [
+            0,
+            50,
+            -46.6
+          ],
+          "role": "weak",
+          "seg": "Head",
+          "size": [
+            23.6,
+            6,
+            6
+          ]
+        },
+        "Hull": {
+          "offset": [
+            0,
+            -4.711,
+            54.637
+          ],
+          "role": "hull",
+          "seg": "Body",
+          "size": [
+            60,
+            60.951,
+            171.386
+          ]
+        },
+        "Jaw_Hull": {
+          "offset": [
+            0,
+            34.2,
+            -41.5
+          ],
+          "role": "hull",
+          "seg": "Jaw",
+          "size": [
+            20,
+            11.6,
+            31
+          ]
+        },
+        "Neck_Hull": {
+          "offset": [
+            0,
+            21.173,
+            -16.204
+          ],
+          "role": "hull",
+          "seg": "Neck",
+          "size": [
+            23.424,
+            47.042,
+            36.734
+          ]
+        },
+        "Neck_Plates3": {
           "offset": [
             0,
             17.518,
             -14.96
           ],
           "role": "shed3",
+          "seg": "Neck",
           "size": [
             23.1,
             37.278,
             32.734
           ]
         },
+        "Turbine_Hull": {
+          "offset": [
+            0,
+            13.9,
+            2
+          ],
+          "role": "hull",
+          "seg": "Turbine",
+          "size": [
+            10,
+            1.129,
+            10
+          ]
+        },
         "Weak": {
           "offset": [
             0,
-            32.61,
-            -22.1
+            14.6,
+            2
           ],
           "role": "weak",
+          "seg": "Body",
           "size": [
-            23.6,
-            40.78,
-            55
+            6.8,
+            4.76,
+            6.8
+          ]
+        },
+        "Wheel_Hull": {
+          "offset": [
+            0,
+            -33.5,
+            142
+          ],
+          "role": "hull",
+          "seg": "Wheel",
+          "size": [
+            13,
+            12.802,
+            1.905
           ]
         }
       },
+      "rig": [
+        {
+          "name": "Body",
+          "parent": "Root",
+          "pivot": [
+            0,
+            0,
+            20
+          ]
+        },
+        {
+          "name": "Neck",
+          "parent": "Body",
+          "pivot": [
+            0,
+            4,
+            -6
+          ]
+        },
+        {
+          "name": "Head",
+          "parent": "Neck",
+          "pivot": [
+            0,
+            40,
+            -26
+          ]
+        },
+        {
+          "name": "Jaw",
+          "parent": "Head",
+          "pivot": [
+            0,
+            37,
+            -28
+          ]
+        },
+        {
+          "name": "GearL",
+          "parent": "Body",
+          "pivot": [
+            -16.4,
+            3,
+            16
+          ]
+        },
+        {
+          "name": "GearR",
+          "parent": "Body",
+          "pivot": [
+            16.4,
+            3,
+            16
+          ]
+        },
+        {
+          "name": "CogL",
+          "parent": "Body",
+          "pivot": [
+            -14.6,
+            6.5,
+            34
+          ]
+        },
+        {
+          "name": "CogR",
+          "parent": "Body",
+          "pivot": [
+            14.6,
+            6.5,
+            34
+          ]
+        },
+        {
+          "name": "Turbine",
+          "parent": "Body",
+          "pivot": [
+            0,
+            13.9,
+            2
+          ]
+        },
+        {
+          "name": "Wheel",
+          "parent": "Body",
+          "pivot": [
+            0,
+            -33.5,
+            142
+          ]
+        }
+      ],
       "theme": [
         80,
         230,
@@ -5568,6 +6508,2122 @@
     "id": "LeviathanEngine",
     "name": "Leviathan Engine",
     "title": "THE DEEP MACHINE",
+    "weakColor": [
+      255,
+      196,
+      40
+    ]
+  },
+  {
+    "bit": 4,
+    "boss": "StormColossus",
+    "bossArt": {
+      "debris": [
+        250,
+        196,
+        40
+      ],
+      "draft": true,
+      "fx": {
+        "at": [
+          [
+            0,
+            71,
+            0
+          ],
+          [
+            -35,
+            6,
+            -17
+          ],
+          [
+            35,
+            6,
+            -17
+          ],
+          [
+            0,
+            30,
+            -22
+          ]
+        ],
+        "every": 0.18,
+        "kind": "storm",
+        "reach": 26
+      },
+      "glow": [
+        [
+          150,
+          230,
+          255
+        ],
+        [
+          255,
+          226,
+          90
+        ],
+        [
+          255,
+          70,
+          110
+        ]
+      ],
+      "look": "the Storm Colossus: a Crane Industries weather machine that hovers on a lift fan",
+      "objective": {
+        "Vane": {
+          "offset": [
+            0,
+            -2.6,
+            0.6
+          ],
+          "role": "objective",
+          "size": [
+            4.945,
+            11.6,
+            7.404
+          ]
+        },
+        "VaneGlow": {
+          "offset": [
+            0,
+            4,
+            0
+          ],
+          "role": "objectiveGlow",
+          "size": [
+            3.51,
+            3.6,
+            3.6
+          ]
+        }
+      },
+      "objectiveParts": [
+        {
+          "at": [
+            0,
+            -3.4,
+            0
+          ],
+          "color": [
+            178,
+            188,
+            204
+          ],
+          "mat": "Metal",
+          "role": "objective",
+          "rot": [
+            0,
+            0,
+            90
+          ],
+          "shape": "Cylinder",
+          "size": [
+            10,
+            1.6,
+            1.6
+          ]
+        },
+        {
+          "at": [
+            0,
+            4,
+            0
+          ],
+          "role": "objectiveGlow",
+          "shape": "Ball",
+          "size": [
+            3.6,
+            3.6,
+            3.6
+          ]
+        }
+      ],
+      "parts": [
+        {
+          "at": [
+            0,
+            30,
+            0
+          ],
+          "color": [
+            36,
+            60,
+            116
+          ],
+          "mat": "SmoothPlastic",
+          "role": "body",
+          "rot": [
+            0,
+            0,
+            90
+          ],
+          "seg": "Body",
+          "shape": "Cylinder",
+          "size": [
+            36,
+            40,
+            40
+          ]
+        },
+        {
+          "at": [
+            0,
+            5,
+            0
+          ],
+          "color": [
+            178,
+            188,
+            204
+          ],
+          "mat": "Metal",
+          "role": "body",
+          "rot": [
+            0,
+            0,
+            90
+          ],
+          "seg": "Fan",
+          "shape": "Cylinder",
+          "size": [
+            4,
+            36,
+            36
+          ]
+        },
+        {
+          "at": [
+            0,
+            56,
+            0
+          ],
+          "color": [
+            226,
+            240,
+            250
+          ],
+          "mat": "SmoothPlastic",
+          "role": "body",
+          "seg": "Head",
+          "shape": "Ball",
+          "size": [
+            23,
+            23,
+            23
+          ]
+        },
+        {
+          "at": [
+            0,
+            56,
+            -11
+          ],
+          "role": "glow",
+          "seg": "Head",
+          "shape": "Block",
+          "size": [
+            16,
+            2.4,
+            1
+          ]
+        },
+        {
+          "at": [
+            0,
+            30,
+            -21
+          ],
+          "role": "weak",
+          "seg": "Body",
+          "shape": "Ball",
+          "size": [
+            8,
+            8,
+            8
+          ]
+        },
+        {
+          "at": [
+            0,
+            71,
+            0
+          ],
+          "role": "weak",
+          "seg": "Head",
+          "shape": "Ball",
+          "size": [
+            6,
+            6,
+            6
+          ]
+        },
+        {
+          "at": [
+            -30,
+            32,
+            -3
+          ],
+          "color": [
+            250,
+            196,
+            40
+          ],
+          "mat": "SmoothPlastic",
+          "role": "body",
+          "rot": [
+            30,
+            0,
+            0
+          ],
+          "seg": "ArmL",
+          "shape": "Block",
+          "size": [
+            7,
+            7,
+            22
+          ]
+        },
+        {
+          "at": [
+            -35,
+            6,
+            -17
+          ],
+          "role": "glow",
+          "seg": "ForeL",
+          "shape": "Ball",
+          "size": [
+            5,
+            5,
+            5
+          ]
+        },
+        {
+          "at": [
+            30,
+            32,
+            -3
+          ],
+          "color": [
+            250,
+            196,
+            40
+          ],
+          "mat": "SmoothPlastic",
+          "role": "body",
+          "rot": [
+            30,
+            0,
+            0
+          ],
+          "seg": "ArmR",
+          "shape": "Block",
+          "size": [
+            7,
+            7,
+            22
+          ]
+        },
+        {
+          "at": [
+            35,
+            6,
+            -17
+          ],
+          "role": "glow",
+          "seg": "ForeR",
+          "shape": "Ball",
+          "size": [
+            5,
+            5,
+            5
+          ]
+        }
+      ],
+      "pieces": {
+        "ArmL_Hull": {
+          "offset": [
+            -27.328,
+            36.129,
+            -1.81
+          ],
+          "role": "hull",
+          "seg": "ArmL",
+          "size": [
+            14.47,
+            15.784,
+            10.987
+          ]
+        },
+        "ArmL_Plates3": {
+          "offset": [
+            -25.1,
+            45.526,
+            0
+          ],
+          "role": "shed3",
+          "seg": "ArmL",
+          "size": [
+            11.032,
+            11.861,
+            14.4
+          ]
+        },
+        "ArmR_Hull": {
+          "offset": [
+            27.328,
+            36.129,
+            -1.81
+          ],
+          "role": "hull",
+          "seg": "ArmR",
+          "size": [
+            14.47,
+            15.784,
+            10.987
+          ]
+        },
+        "ArmR_Plates3": {
+          "offset": [
+            25.1,
+            45.526,
+            0
+          ],
+          "role": "shed3",
+          "seg": "ArmR",
+          "size": [
+            11.032,
+            11.861,
+            14.4
+          ]
+        },
+        "Fan_Glow": {
+          "offset": [
+            0,
+            2.4,
+            0
+          ],
+          "role": "glow",
+          "seg": "Fan",
+          "size": [
+            35.2,
+            1.2,
+            35.2
+          ]
+        },
+        "Fan_Hull": {
+          "offset": [
+            0,
+            5.761,
+            0
+          ],
+          "role": "hull",
+          "seg": "Fan",
+          "size": [
+            38.8,
+            5.678,
+            38.8
+          ]
+        },
+        "ForeL_Glow": {
+          "offset": [
+            -35.155,
+            6.338,
+            -13.465
+          ],
+          "role": "glow",
+          "seg": "ForeL",
+          "size": [
+            5.2,
+            5.2,
+            5.2
+          ]
+        },
+        "ForeL_Hull": {
+          "offset": [
+            -33.219,
+            20.633,
+            -7.835
+          ],
+          "role": "hull",
+          "seg": "ForeL",
+          "size": [
+            11.408,
+            26.334,
+            15.681
+          ]
+        },
+        "ForeR_Glow": {
+          "offset": [
+            35.155,
+            6.338,
+            -13.465
+          ],
+          "role": "glow",
+          "seg": "ForeR",
+          "size": [
+            5.2,
+            5.2,
+            5.2
+          ]
+        },
+        "ForeR_Hull": {
+          "offset": [
+            33.219,
+            20.633,
+            -7.835
+          ],
+          "role": "hull",
+          "seg": "ForeR",
+          "size": [
+            11.408,
+            26.334,
+            15.681
+          ]
+        },
+        "Glow": {
+          "offset": [
+            0,
+            38.4,
+            1.25
+          ],
+          "role": "glow",
+          "seg": "Body",
+          "size": [
+            40.012,
+            2.6,
+            48.3
+          ]
+        },
+        "Head_Glow": {
+          "offset": [
+            0,
+            56.3,
+            -7.7
+          ],
+          "role": "glow",
+          "seg": "Head",
+          "size": [
+            16.8,
+            2.6,
+            1.8
+          ]
+        },
+        "Head_Hull": {
+          "offset": [
+            0,
+            58.664,
+            -0.5
+          ],
+          "role": "hull",
+          "seg": "Head",
+          "size": [
+            34,
+            26.672,
+            25
+          ]
+        },
+        "Head_Plates3": {
+          "offset": [
+            0,
+            60.165,
+            -8.5
+          ],
+          "role": "shed3",
+          "seg": "Head",
+          "size": [
+            21,
+            3.894,
+            5
+          ]
+        },
+        "Head_Weak": {
+          "offset": [
+            0,
+            71,
+            0
+          ],
+          "role": "weak",
+          "seg": "Head",
+          "size": [
+            6.8,
+            6.8,
+            6.8
+          ]
+        },
+        "Hull": {
+          "offset": [
+            0,
+            28.55,
+            1.24
+          ],
+          "role": "hull",
+          "seg": "Body",
+          "size": [
+            56.529,
+            44.5,
+            49.52
+          ]
+        },
+        "Plates2": {
+          "offset": [
+            0,
+            29,
+            0
+          ],
+          "role": "shed2",
+          "seg": "Body",
+          "size": [
+            46,
+            28,
+            14
+          ]
+        },
+        "Weak": {
+          "offset": [
+            0,
+            30,
+            -22
+          ],
+          "role": "weak",
+          "seg": "Body",
+          "size": [
+            9.2,
+            9.2,
+            9.2
+          ]
+        }
+      },
+      "rig": [
+        {
+          "name": "Body",
+          "parent": "Root",
+          "pivot": [
+            0,
+            30,
+            0
+          ]
+        },
+        {
+          "name": "Fan",
+          "parent": "Body",
+          "pivot": [
+            0,
+            5,
+            0
+          ]
+        },
+        {
+          "name": "Head",
+          "parent": "Body",
+          "pivot": [
+            0,
+            47,
+            0
+          ]
+        },
+        {
+          "name": "ArmL",
+          "parent": "Body",
+          "pivot": [
+            -23,
+            42,
+            0
+          ]
+        },
+        {
+          "name": "ForeL",
+          "parent": "ArmL",
+          "pivot": [
+            -32,
+            30,
+            -4
+          ]
+        },
+        {
+          "name": "ArmR",
+          "parent": "Body",
+          "pivot": [
+            23,
+            42,
+            0
+          ]
+        },
+        {
+          "name": "ForeR",
+          "parent": "ArmR",
+          "pivot": [
+            32,
+            30,
+            -4
+          ]
+        }
+      ],
+      "set": "Bosses2",
+      "theme": [
+        150,
+        230,
+        255
+      ],
+      "triangles": 9248,
+      "weak": {
+        "core": [
+          0,
+          30,
+          -22
+        ],
+        "dynamo": [
+          0,
+          71,
+          0
+        ]
+      }
+    },
+    "colors": [
+      [
+        36,
+        60,
+        116
+      ],
+      [
+        250,
+        196,
+        40
+      ],
+      [
+        150,
+        230,
+        255
+      ]
+    ],
+    "gold": 12,
+    "group": "bosses",
+    "id": "StormColossus",
+    "name": "Storm Colossus",
+    "title": "THE WEATHER MACHINE",
+    "weakColor": [
+      255,
+      196,
+      40
+    ]
+  },
+  {
+    "bit": 5,
+    "boss": "SwarmQueen",
+    "bossArt": {
+      "debris": [
+        255,
+        128,
+        40
+      ],
+      "draft": true,
+      "drone": {
+        "Drone": {
+          "offset": [
+            0,
+            0.05,
+            0
+          ],
+          "role": "drone",
+          "size": [
+            3.249,
+            0.9,
+            3.249
+          ]
+        }
+      },
+      "fx": {
+        "at": [
+          [
+            0,
+            30,
+            0
+          ]
+        ],
+        "every": 0.2,
+        "kind": "swarm",
+        "reach": 30
+      },
+      "glow": [
+        [
+          255,
+          170,
+          60
+        ],
+        [
+          255,
+          110,
+          40
+        ],
+        [
+          255,
+          50,
+          70
+        ]
+      ],
+      "look": "the Swarm Queen: the hive core of a swarm of Crane drones",
+      "objective": {
+        "Node": {
+          "offset": [
+            0,
+            0,
+            1.438
+          ],
+          "role": "objective",
+          "size": [
+            11.682,
+            2.4,
+            10.324
+          ]
+        },
+        "NodeGlow": {
+          "offset": [
+            0,
+            1.4,
+            0
+          ],
+          "role": "objectiveGlow",
+          "size": [
+            3.51,
+            3.6,
+            3.6
+          ]
+        }
+      },
+      "objectiveParts": [
+        {
+          "at": [
+            0,
+            0,
+            0
+          ],
+          "color": [
+            54,
+            58,
+            72
+          ],
+          "mat": "SmoothPlastic",
+          "role": "objective",
+          "rot": [
+            0,
+            0,
+            90
+          ],
+          "shape": "Cylinder",
+          "size": [
+            2.4,
+            7.2,
+            7.2
+          ]
+        },
+        {
+          "at": [
+            0,
+            1.4,
+            0
+          ],
+          "role": "objectiveGlow",
+          "shape": "Ball",
+          "size": [
+            3.6,
+            3.6,
+            3.6
+          ]
+        }
+      ],
+      "parts": [
+        {
+          "at": [
+            0,
+            30,
+            0
+          ],
+          "color": [
+            54,
+            58,
+            72
+          ],
+          "mat": "SmoothPlastic",
+          "role": "body",
+          "seg": "Body",
+          "shape": "Ball",
+          "size": [
+            30,
+            30,
+            30
+          ]
+        },
+        {
+          "at": [
+            0,
+            30,
+            0
+          ],
+          "color": [
+            190,
+            196,
+            212
+          ],
+          "mat": "Metal",
+          "role": "body",
+          "rot": [
+            0,
+            0,
+            90
+          ],
+          "seg": "Body",
+          "shape": "Cylinder",
+          "size": [
+            2,
+            50,
+            50
+          ]
+        },
+        {
+          "at": [
+            0,
+            46,
+            0
+          ],
+          "color": [
+            250,
+            196,
+            40
+          ],
+          "mat": "SmoothPlastic",
+          "role": "body",
+          "seg": "Crown",
+          "shape": "Block",
+          "size": [
+            18,
+            3,
+            18
+          ]
+        },
+        {
+          "at": [
+            0,
+            30,
+            -14
+          ],
+          "role": "weak",
+          "seg": "Body",
+          "shape": "Ball",
+          "size": [
+            12,
+            12,
+            12
+          ]
+        },
+        {
+          "at": [
+            0,
+            4.6,
+            0
+          ],
+          "role": "glow",
+          "seg": "Body",
+          "shape": "Ball",
+          "size": [
+            4,
+            4,
+            4
+          ]
+        }
+      ],
+      "pieces": {
+        "Crown_Glow": {
+          "offset": [
+            0,
+            58,
+            0
+          ],
+          "role": "glow",
+          "seg": "Crown",
+          "size": [
+            22.702,
+            4,
+            19.915
+          ]
+        },
+        "Crown_Hull": {
+          "offset": [
+            -0.003,
+            52.049,
+            0
+          ],
+          "role": "hull",
+          "seg": "Crown",
+          "size": [
+            21.369,
+            14.097,
+            18.8
+          ]
+        },
+        "Glow": {
+          "offset": [
+            0,
+            21.4,
+            0
+          ],
+          "role": "glow",
+          "seg": "Body",
+          "size": [
+            20.785,
+            37.2,
+            24
+          ]
+        },
+        "Hull": {
+          "offset": [
+            0,
+            25,
+            0
+          ],
+          "role": "hull",
+          "seg": "Body",
+          "size": [
+            19.613,
+            40,
+            22.4
+          ]
+        },
+        "RingA_Glow": {
+          "offset": [
+            0,
+            30,
+            0
+          ],
+          "role": "glow",
+          "seg": "RingA",
+          "size": [
+            46.283,
+            2.4,
+            40.388
+          ]
+        },
+        "RingA_Hull": {
+          "offset": [
+            0,
+            30,
+            0
+          ],
+          "role": "hull",
+          "seg": "RingA",
+          "size": [
+            45.8,
+            1.712,
+            45.8
+          ]
+        },
+        "RingB_Glow": {
+          "offset": [
+            0,
+            30,
+            0
+          ],
+          "role": "glow",
+          "seg": "RingB",
+          "size": [
+            38.155,
+            34.041,
+            19.023
+          ]
+        },
+        "RingB_Hull": {
+          "offset": [
+            0,
+            30,
+            0
+          ],
+          "role": "hull",
+          "seg": "RingB",
+          "size": [
+            52.6,
+            46.443,
+            25.519
+          ]
+        },
+        "ShellL_Glow": {
+          "offset": [
+            -16.6,
+            30,
+            0
+          ],
+          "role": "glow",
+          "seg": "ShellL",
+          "size": [
+            0.6,
+            15.464,
+            20
+          ]
+        },
+        "ShellL_Hull": {
+          "offset": [
+            -8.389,
+            30,
+            0
+          ],
+          "role": "hull",
+          "seg": "ShellL",
+          "size": [
+            13.978,
+            35.84,
+            31.955
+          ]
+        },
+        "ShellL_Plates2": {
+          "offset": [
+            -15.8,
+            30,
+            0
+          ],
+          "role": "shed2",
+          "seg": "ShellL",
+          "size": [
+            1.2,
+            19.275,
+            24.4
+          ]
+        },
+        "ShellL_Plates3": {
+          "offset": [
+            -17.239,
+            30.104,
+            -0.134
+          ],
+          "role": "shed3",
+          "seg": "ShellL",
+          "size": [
+            6.323,
+            26.792,
+            2.533
+          ]
+        },
+        "ShellR_Glow": {
+          "offset": [
+            16.6,
+            30,
+            0
+          ],
+          "role": "glow",
+          "seg": "ShellR",
+          "size": [
+            0.6,
+            15.464,
+            20
+          ]
+        },
+        "ShellR_Hull": {
+          "offset": [
+            8.389,
+            30,
+            0
+          ],
+          "role": "hull",
+          "seg": "ShellR",
+          "size": [
+            13.978,
+            35.84,
+            31.955
+          ]
+        },
+        "ShellR_Plates2": {
+          "offset": [
+            15.8,
+            30,
+            0
+          ],
+          "role": "shed2",
+          "seg": "ShellR",
+          "size": [
+            1.2,
+            19.275,
+            24.4
+          ]
+        },
+        "ShellR_Plates3": {
+          "offset": [
+            17.239,
+            30.104,
+            0.134
+          ],
+          "role": "shed3",
+          "seg": "ShellR",
+          "size": [
+            6.323,
+            26.792,
+            2.533
+          ]
+        },
+        "Weak": {
+          "offset": [
+            0,
+            30,
+            0
+          ],
+          "role": "weak",
+          "seg": "Body",
+          "size": [
+            12.8,
+            12.8,
+            12.8
+          ]
+        }
+      },
+      "rig": [
+        {
+          "name": "Body",
+          "parent": "Root",
+          "pivot": [
+            0,
+            30,
+            0
+          ]
+        },
+        {
+          "name": "ShellL",
+          "parent": "Body",
+          "pivot": [
+            -3,
+            45,
+            0
+          ]
+        },
+        {
+          "name": "ShellR",
+          "parent": "Body",
+          "pivot": [
+            3,
+            45,
+            0
+          ]
+        },
+        {
+          "name": "Crown",
+          "parent": "Body",
+          "pivot": [
+            0,
+            46,
+            0
+          ]
+        },
+        {
+          "name": "RingA",
+          "parent": "Body",
+          "pivot": [
+            0,
+            30,
+            0
+          ]
+        },
+        {
+          "name": "RingB",
+          "parent": "Body",
+          "pivot": [
+            0,
+            30,
+            0
+          ]
+        }
+      ],
+      "set": "Bosses2",
+      "theme": [
+        255,
+        170,
+        60
+      ],
+      "triangles": 4190,
+      "weak": {
+        "core": [
+          0,
+          30,
+          0
+        ]
+      }
+    },
+    "colors": [
+      [
+        54,
+        58,
+        72
+      ],
+      [
+        250,
+        196,
+        40
+      ],
+      [
+        255,
+        170,
+        60
+      ]
+    ],
+    "gold": 13,
+    "group": "bosses",
+    "id": "SwarmQueen",
+    "name": "Swarm Queen",
+    "title": "THE HIVE CORE",
+    "weakColor": [
+      255,
+      196,
+      40
+    ]
+  },
+  {
+    "bit": 6,
+    "boss": "QuarryTitan",
+    "bossArt": {
+      "debris": [
+        156,
+        126,
+        100
+      ],
+      "draft": true,
+      "fx": {
+        "at": [
+          [
+            0,
+            54,
+            -20
+          ],
+          [
+            -35,
+            30,
+            -6
+          ],
+          [
+            35,
+            30,
+            -6
+          ],
+          [
+            0,
+            78,
+            -11
+          ]
+        ],
+        "every": 0.14,
+        "kind": "magma",
+        "reach": 20
+      },
+      "glow": [
+        [
+          255,
+          130,
+          40
+        ],
+        [
+          255,
+          96,
+          30
+        ],
+        [
+          255,
+          56,
+          40
+        ]
+      ],
+      "look": "the Quarry Titan: a cartoon magma golem of quarry boulders",
+      "objective": {
+        "Vent": {
+          "offset": [
+            0.412,
+            3.845,
+            -0.396
+          ],
+          "role": "objective",
+          "size": [
+            17.743,
+            8.11,
+            15.208
+          ]
+        },
+        "VentPool": {
+          "offset": [
+            0,
+            8,
+            0
+          ],
+          "role": "objectiveGlow",
+          "size": [
+            6.8,
+            3.74,
+            6.8
+          ]
+        }
+      },
+      "objectiveParts": [
+        {
+          "at": [
+            0,
+            3.5,
+            0
+          ],
+          "color": [
+            98,
+            80,
+            74
+          ],
+          "mat": "Slate",
+          "role": "objective",
+          "shape": "Block",
+          "size": [
+            12,
+            7,
+            12
+          ]
+        },
+        {
+          "at": [
+            0,
+            8,
+            0
+          ],
+          "role": "objectiveGlow",
+          "shape": "Ball",
+          "size": [
+            6,
+            6,
+            6
+          ]
+        }
+      ],
+      "parts": [
+        {
+          "at": [
+            0,
+            58,
+            2
+          ],
+          "color": [
+            98,
+            80,
+            74
+          ],
+          "mat": "Slate",
+          "role": "body",
+          "seg": "Body",
+          "shape": "Ball",
+          "size": [
+            48,
+            44,
+            44
+          ]
+        },
+        {
+          "at": [
+            0,
+            82,
+            -2
+          ],
+          "color": [
+            156,
+            126,
+            100
+          ],
+          "mat": "Slate",
+          "role": "body",
+          "seg": "Head",
+          "shape": "Ball",
+          "size": [
+            20,
+            18,
+            18
+          ]
+        },
+        {
+          "at": [
+            0,
+            54,
+            -20
+          ],
+          "role": "weak",
+          "seg": "Body",
+          "shape": "Ball",
+          "size": [
+            10,
+            10,
+            10
+          ]
+        },
+        {
+          "at": [
+            0,
+            83.4,
+            -10.6
+          ],
+          "role": "glow",
+          "seg": "Head",
+          "shape": "Block",
+          "size": [
+            12,
+            2,
+            1
+          ]
+        },
+        {
+          "at": [
+            -14,
+            20,
+            0
+          ],
+          "color": [
+            98,
+            80,
+            74
+          ],
+          "mat": "Slate",
+          "role": "body",
+          "seg": "ShinL",
+          "shape": "Block",
+          "size": [
+            14,
+            40,
+            14
+          ]
+        },
+        {
+          "at": [
+            -35,
+            30,
+            -6
+          ],
+          "color": [
+            98,
+            80,
+            74
+          ],
+          "mat": "Slate",
+          "role": "body",
+          "seg": "ForeL",
+          "shape": "Ball",
+          "size": [
+            20,
+            20,
+            20
+          ]
+        },
+        {
+          "at": [
+            -14,
+            26,
+            -8
+          ],
+          "role": "weak",
+          "seg": "ShinL",
+          "shape": "Ball",
+          "size": [
+            6,
+            6,
+            6
+          ]
+        },
+        {
+          "at": [
+            14,
+            20,
+            0
+          ],
+          "color": [
+            98,
+            80,
+            74
+          ],
+          "mat": "Slate",
+          "role": "body",
+          "seg": "ShinR",
+          "shape": "Block",
+          "size": [
+            14,
+            40,
+            14
+          ]
+        },
+        {
+          "at": [
+            35,
+            30,
+            -6
+          ],
+          "color": [
+            98,
+            80,
+            74
+          ],
+          "mat": "Slate",
+          "role": "body",
+          "seg": "ForeR",
+          "shape": "Ball",
+          "size": [
+            20,
+            20,
+            20
+          ]
+        },
+        {
+          "at": [
+            14,
+            26,
+            -8
+          ],
+          "role": "weak",
+          "seg": "ShinR",
+          "shape": "Ball",
+          "size": [
+            6,
+            6,
+            6
+          ]
+        }
+      ],
+      "pieces": {
+        "ArmL_Glow": {
+          "offset": [
+            -34.692,
+            53.055,
+            -8.064
+          ],
+          "role": "glow",
+          "seg": "ArmL",
+          "size": [
+            4.133,
+            14.333,
+            2.528
+          ]
+        },
+        "ArmL_Hull": {
+          "offset": [
+            -27.348,
+            64.963,
+            1.958
+          ],
+          "role": "hull",
+          "seg": "ArmL",
+          "size": [
+            19.24,
+            28.574,
+            18.936
+          ]
+        },
+        "ArmL_Plates3": {
+          "offset": [
+            -31.097,
+            77.49,
+            3.064
+          ],
+          "role": "shed3",
+          "seg": "ArmL",
+          "size": [
+            5.806,
+            9.021,
+            4.064
+          ]
+        },
+        "ArmR_Glow": {
+          "offset": [
+            34.655,
+            53.055,
+            -8.064
+          ],
+          "role": "glow",
+          "seg": "ArmR",
+          "size": [
+            4.207,
+            14.333,
+            2.528
+          ]
+        },
+        "ArmR_Hull": {
+          "offset": [
+            27.695,
+            64.945,
+            1.375
+          ],
+          "role": "hull",
+          "seg": "ArmR",
+          "size": [
+            19.008,
+            30.61,
+            19.673
+          ]
+        },
+        "ArmR_Plates3": {
+          "offset": [
+            31.031,
+            77.49,
+            2.952
+          ],
+          "role": "shed3",
+          "seg": "ArmR",
+          "size": [
+            5.938,
+            9.021,
+            4.097
+          ]
+        },
+        "ForeL_Glow": {
+          "offset": [
+            -35,
+            30.843,
+            -16.07
+          ],
+          "role": "glow",
+          "seg": "ForeL",
+          "size": [
+            12.405,
+            3.398,
+            2.516
+          ]
+        },
+        "ForeL_Hull": {
+          "offset": [
+            -34.233,
+            34.721,
+            -6.676
+          ],
+          "role": "hull",
+          "seg": "ForeL",
+          "size": [
+            20.445,
+            28.342,
+            21.191
+          ]
+        },
+        "ForeR_Glow": {
+          "offset": [
+            35,
+            30.843,
+            -16.07
+          ],
+          "role": "glow",
+          "seg": "ForeR",
+          "size": [
+            12.405,
+            3.398,
+            2.516
+          ]
+        },
+        "ForeR_Hull": {
+          "offset": [
+            34.617,
+            34.69,
+            -6.021
+          ],
+          "role": "hull",
+          "seg": "ForeR",
+          "size": [
+            20.189,
+            30.38,
+            19.88
+          ]
+        },
+        "Glow": {
+          "offset": [
+            -0.265,
+            58.071,
+            -13.405
+          ],
+          "role": "glow",
+          "seg": "Body",
+          "size": [
+            49.362,
+            24.758,
+            19.78
+          ]
+        },
+        "Head_Glow": {
+          "offset": [
+            0,
+            80.89,
+            -10.59
+          ],
+          "role": "glow",
+          "seg": "Head",
+          "size": [
+            13.422,
+            8.539,
+            3.02
+          ]
+        },
+        "Head_Hull": {
+          "offset": [
+            -0.382,
+            81.406,
+            -2.287
+          ],
+          "role": "hull",
+          "seg": "Head",
+          "size": [
+            21.164,
+            18.762,
+            19.426
+          ]
+        },
+        "Hull": {
+          "offset": [
+            -0.64,
+            57.145,
+            0.628
+          ],
+          "role": "hull",
+          "seg": "Body",
+          "size": [
+            55.021,
+            48.45,
+            42.793
+          ]
+        },
+        "Plates2": {
+          "offset": [
+            0.076,
+            43.94,
+            -16.152
+          ],
+          "role": "shed2",
+          "seg": "Body",
+          "size": [
+            31.004,
+            9.72,
+            5.831
+          ]
+        },
+        "Plates3": {
+          "offset": [
+            0,
+            74.748,
+            12.46
+          ],
+          "role": "shed3",
+          "seg": "Body",
+          "size": [
+            60,
+            24.503,
+            29.079
+          ]
+        },
+        "ShinL_Glow": {
+          "offset": [
+            -13.141,
+            17.424,
+            -6.932
+          ],
+          "role": "glow",
+          "seg": "ShinL",
+          "size": [
+            5.222,
+            9.57,
+            2.123
+          ]
+        },
+        "ShinL_Hull": {
+          "offset": [
+            -14.344,
+            15.583,
+            -2.754
+          ],
+          "role": "hull",
+          "seg": "ShinL",
+          "size": [
+            17.67,
+            32.818,
+            23.26
+          ]
+        },
+        "ShinL_Weak": {
+          "offset": [
+            -14,
+            26,
+            -8
+          ],
+          "role": "weak",
+          "seg": "ShinL",
+          "size": [
+            6.8,
+            6.8,
+            6.8
+          ]
+        },
+        "ShinR_Glow": {
+          "offset": [
+            13.177,
+            17.424,
+            -6.904
+          ],
+          "role": "glow",
+          "seg": "ShinR",
+          "size": [
+            5.149,
+            9.57,
+            2.184
+          ]
+        },
+        "ShinR_Hull": {
+          "offset": [
+            13.656,
+            15.335,
+            -3.353
+          ],
+          "role": "hull",
+          "seg": "ShinR",
+          "size": [
+            19.506,
+            33.313,
+            24.459
+          ]
+        },
+        "ShinR_Weak": {
+          "offset": [
+            14,
+            26,
+            -8
+          ],
+          "role": "weak",
+          "seg": "ShinR",
+          "size": [
+            6.8,
+            6.8,
+            6.8
+          ]
+        },
+        "ThighL_Glow": {
+          "offset": [
+            -13.81,
+            36.467,
+            -7.522
+          ],
+          "role": "glow",
+          "seg": "ThighL",
+          "size": [
+            5.135,
+            11.463,
+            1.757
+          ]
+        },
+        "ThighL_Hull": {
+          "offset": [
+            -13.445,
+            36.475,
+            -0.466
+          ],
+          "role": "hull",
+          "seg": "ThighL",
+          "size": [
+            14.798,
+            18.05,
+            14.608
+          ]
+        },
+        "ThighL_Plates2": {
+          "offset": [
+            -17.808,
+            38.414,
+            -4.337
+          ],
+          "role": "shed2",
+          "seg": "ThighL",
+          "size": [
+            5.118,
+            10.764,
+            8.951
+          ]
+        },
+        "ThighR_Glow": {
+          "offset": [
+            13.825,
+            36.467,
+            -7.504
+          ],
+          "role": "glow",
+          "seg": "ThighR",
+          "size": [
+            5.166,
+            11.463,
+            1.792
+          ]
+        },
+        "ThighR_Hull": {
+          "offset": [
+            13.723,
+            36.475,
+            -0.014
+          ],
+          "role": "hull",
+          "seg": "ThighR",
+          "size": [
+            14.613,
+            19.95,
+            13.704
+          ]
+        },
+        "ThighR_Plates2": {
+          "offset": [
+            17.904,
+            37.793,
+            -4.063
+          ],
+          "role": "shed2",
+          "seg": "ThighR",
+          "size": [
+            5.054,
+            10.626,
+            8.404
+          ]
+        },
+        "Weak": {
+          "offset": [
+            0,
+            54,
+            -20.4
+          ],
+          "role": "weak",
+          "seg": "Body",
+          "size": [
+            10.4,
+            10.4,
+            10.4
+          ]
+        }
+      },
+      "rig": [
+        {
+          "name": "Body",
+          "parent": "Root",
+          "pivot": [
+            0,
+            44,
+            0
+          ]
+        },
+        {
+          "name": "ThighL",
+          "parent": "Root",
+          "pivot": [
+            -14,
+            42,
+            0
+          ]
+        },
+        {
+          "name": "ShinL",
+          "parent": "ThighL",
+          "pivot": [
+            -14,
+            27,
+            0
+          ]
+        },
+        {
+          "name": "ThighR",
+          "parent": "Root",
+          "pivot": [
+            14,
+            42,
+            0
+          ]
+        },
+        {
+          "name": "ShinR",
+          "parent": "ThighR",
+          "pivot": [
+            14,
+            27,
+            0
+          ]
+        },
+        {
+          "name": "Head",
+          "parent": "Body",
+          "pivot": [
+            0,
+            76,
+            0
+          ]
+        },
+        {
+          "name": "ArmL",
+          "parent": "Body",
+          "pivot": [
+            -27,
+            70,
+            2
+          ]
+        },
+        {
+          "name": "ForeL",
+          "parent": "ArmL",
+          "pivot": [
+            -34,
+            50,
+            -2
+          ]
+        },
+        {
+          "name": "ArmR",
+          "parent": "Body",
+          "pivot": [
+            27,
+            70,
+            2
+          ]
+        },
+        {
+          "name": "ForeR",
+          "parent": "ArmR",
+          "pivot": [
+            34,
+            50,
+            -2
+          ]
+        }
+      ],
+      "set": "Bosses2",
+      "theme": [
+        255,
+        130,
+        40
+      ],
+      "triangles": 3871,
+      "weak": {
+        "core": [
+          0,
+          54,
+          -20.4
+        ],
+        "kneeL": [
+          -14,
+          26,
+          -8
+        ],
+        "kneeR": [
+          14,
+          26,
+          -8
+        ]
+      }
+    },
+    "colors": [
+      [
+        98,
+        80,
+        74
+      ],
+      [
+        156,
+        126,
+        100
+      ],
+      [
+        255,
+        130,
+        40
+      ]
+    ],
+    "gold": 14,
+    "group": "bosses",
+    "id": "QuarryTitan",
+    "name": "Quarry Titan",
+    "title": "THE MAGMA GOLEM",
     "weakColor": [
       255,
       196,

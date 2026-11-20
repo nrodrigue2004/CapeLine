@@ -1164,7 +1164,7 @@ return function(T: any)
 
 	test("H7: about 120 badges in fixed bit ranges, each with a hint and a source", function()
 		local list = BadgeRules.list(B)
-		check(#list >= 110 and #list <= 130, "about 120 badges (" .. #list .. ")")
+		check(#list >= 110 and #list <= 140, "about 120 badges (bosses-3 added 3) (" .. #list .. ")")
 		for gi, g in B.groups do
 			local hi = if B.groups[gi + 1] then B.groups[gi + 1].at else B.bits
 			check(g.at + #g.badges <= hi, g.id .. " stays inside its bit range")

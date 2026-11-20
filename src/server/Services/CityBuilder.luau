@@ -146,6 +146,25 @@ local function makePart(b: any): BasePart -- also CityBuilder.part (mission pock
 	elseif b.kind == "water" or b.kind == "sea" then
 		p.Transparency = 0.1
 		p.Reflectance = 0.1
+		-- shapes-2 (nate: "pools need to look better as well"): ripples on a pool's, pond's or fountain's top that
+		-- the devices drift (Fx.WaterSurface, tag LifeWater); none until the picture is uploaded
+		local W = Config.Life.shapes.water
+		if b.kind == "water" and W.image ~= 0 then
+			p.Material = Enum.Material.Glass
+			p.Transparency = W.transparency
+			for k = 1, 2 do
+				local tex = Instance.new("Texture")
+				tex.Name = "Ripple"
+				tex.Texture = "rbxassetid://" .. tostring(W.image)
+				-- (a cylinder part lies on its side turned up: its +x end is the top)
+				tex.Face = if b.shape == "cylinder" then Enum.NormalId.Right else Enum.NormalId.Top
+				tex.StudsPerTileU = W.studs * (if k == 1 then 1 else 1.37)
+				tex.StudsPerTileV = W.studs * (if k == 1 then 1 else 1.37)
+				tex.Transparency = if k == 1 then 0.35 else 0.6
+				tex.Parent = p
+			end
+			CollectionService:AddTag(p, "LifeWater")
+		end
 	elseif b.kind == "glow" then
 		p.CanCollide = false
 	end
@@ -195,6 +214,16 @@ local function makePart(b: any): BasePart -- also CityBuilder.part (mission pock
 		local decal = Instance.new("Decal")
 		decal.Name = "Scar"
 		decal.Texture = "rbxassetid://" .. tostring(scar.id)
+		decal.Face = Enum.NormalId.Top
+		decal.Parent = p
+	end
+	-- shapes-2 (2026-11-19): a road picture (a zebra crossing, a storm drain) on the strip's top, the strip hidden
+	local decalId = b.decal and Config.Life.shapes.decals[b.decal]
+	if decalId and decalId ~= 0 then
+		p.Transparency = 1
+		local decal = Instance.new("Decal")
+		decal.Name = b.decal
+		decal.Texture = "rbxassetid://" .. tostring(decalId)
 		decal.Face = Enum.NormalId.Top
 		decal.Parent = p
 	end
@@ -315,23 +344,28 @@ end
 -- its place once every piece is imported, named like the box (so the street breaking finds them), colliding like
 -- it; else nil and the box as today
 local lifeFound: { [string]: MeshPart | false } = {}
-local function lifeMesh(name: string): MeshPart?
-	local hit = lifeFound[name]
+local function lifeMesh(name: string, set: string?): MeshPart?
+	local key = (set or Config.Life.set) .. "/" .. name
+	local hit = lifeFound[key]
 	if hit == nil then
 		local art = ReplicatedStorage:FindFirstChild("Art")
-		local root = art and art:FindFirstChild(Config.Life.set)
+		local root = art and art:FindFirstChild(set or Config.Life.set)
 		local src = root and root:FindFirstChild(name, true)
 		hit = if src and src:IsA("MeshPart") then src else false
-		lifeFound[name] = hit
+		lifeFound[key] = hit
 	end
 	return if hit then hit else nil
 end
-local function lifeHas(name: string): boolean
-	return lifeMesh(name) ~= nil
+-- a look's meshes are in one set: round 2's (Config.ShapeArt, Art.Shapes) or the living world's (Art.Life)
+local function lifeHasIn(look: string): (string) -> boolean
+	local set = if Config.ShapeArt[look] then Config.Life.shapes.set else nil
+	return function(name: string): boolean
+		return lifeMesh(name, set) ~= nil
+	end
 end
 local function lifeParts(b: any): { BasePart }?
 	local look = LifeKit.lookOf(Config, b)
-	if not (look and LifeKit.ready(Config, look, lifeHas)) then
+	if not (look and LifeKit.ready(Config, look, lifeHasIn(look))) then
 		return nil
 	end
 	local pieces = LifeKit.cover(Config, b)
@@ -340,9 +374,10 @@ local function lifeParts(b: any): { BasePart }?
 	end
 	local out = {}
 	for _, pc in pieces do
-		local p = MeshFix.clone(lifeMesh(pc.name) :: MeshPart)
+		local p = MeshFix.clone(lifeMesh(pc.name, pc.set) :: MeshPart)
 		for _, ch in p:GetChildren() do
-			if not ch:IsA("SurfaceAppearance") then
+			-- (round 2's flat meshes drop their SurfaceAppearance too and show their own colour)
+			if not ch:IsA("SurfaceAppearance") or (pc.set and not pc.maps) then
 				ch:Destroy()
 			end
 		end
@@ -358,6 +393,10 @@ local function lifeParts(b: any): { BasePart }?
 		p.CastShadow = b.kind ~= "crop"
 		p.TopSurface = Enum.SurfaceType.Smooth
 		p.BottomSurface = Enum.SurfaceType.Smooth
+		p.Transparency = pc.alpha or 0
+		if pc.mat == "Neon" or (pc.alpha or 0) > 0 then
+			p.CastShadow = false
+		end
 		p:SetAttribute("Look", pc.name)
 		table.insert(out, p)
 	end
@@ -391,7 +430,7 @@ local function buildHub(world: any, folder: Folder)
 	end
 	local skipped = 0
 	for _, b in world.hubBoxes do
-		if skipPlain(b) then
+		if skipPlain(b) or (b.decal and (Config.Life.shapes.decals[b.decal] or 0) == 0) then
 			skipped += 1
 			continue
 		end
@@ -414,6 +453,10 @@ local function buildHub(world: any, folder: Folder)
 			end
 		end
 		local meshes = if b.art then streetArt(b) elseif b.look then lifeParts(b) else nil
+		if meshes and b.look and LifeKit.keeps(Config, b) then
+			makePart(b).Parent = parent -- a roof's cap stays under its moulding (shapes-2)
+			skipped -= 1
+		end
 		if meshes then
 			for _, p in meshes do
 				p.Parent = parent
@@ -509,6 +552,13 @@ local function buildOutskirts(world: any, folder: Folder)
 			end)
 			else {}
 		for _, b in lm.boxes do
+			local life = if b.look then lifeParts(b) else nil -- (shapes-2: the radio mast, the quarry's boulders)
+			if life then
+				for _, lp in life do
+					lp.Parent = m
+				end
+				continue
+			end
 			local p = makePart(b)
 			if CraterArtKit.hides(b, ready) then
 				p.Transparency = 1
@@ -553,8 +603,12 @@ local function buildOutskirts(world: any, folder: Folder)
 					end
 					parent = bm
 				end
-				local life = if b.look then lifeParts(b) else nil
+				local life = if b.art then streetArt(b) elseif b.look then lifeParts(b) else nil
 				if life then
+					if b.look and LifeKit.keeps(Config, b) then
+						makePart(b).Parent = parent -- a roof's cap stays under its moulding (shapes-2)
+						made += 1
+					end
 					for _, lp in life do
 						lp.Parent = parent
 					end

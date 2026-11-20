@@ -304,7 +304,8 @@ LOTS.shop = function(list, rng, x0, z0, x1, z1, gy)
 	local h = rng:range(12, 16)
 	local color = HOUSE_BODY[rng:int(1, #HOUSE_BODY)]
 	box(list, "building", cx, gy + h / 2, cz, sx, h, sz, color)
-	box(list, "prop", cx, gy + 9, cz + sz / 2 + 2, sx * 0.9, 0.6, 4, HOUSE_ROOF[rng:int(1, #HOUSE_ROOF)])
+	box(list, "prop", cx, gy + 9, cz + sz / 2 + 2, sx * 0.9, 0.6, 4, HOUSE_ROOF[rng:int(1, #HOUSE_ROOF)]).look =
+		"ShopAwning"
 	box(list, "band", cx, gy + 4, cz + sz / 2 + 0.2, sx * 0.8, 5, 0.4, "window")
 end
 
@@ -313,13 +314,20 @@ LOTS.park = function(list, rng, x0, z0, x1, z1, gy)
 	for _ = 1, rng:int(2, 3) do
 		BoxKit.tree(list, rng:range(x0 + 6, x1 - 6), gy, rng:range(z0 + 6, z1 - 6), rng:range(9, 14))
 	end
-	box(list, "prop", cx, gy + 1, cz, math.min(w - 10, 8), 2, 2, "wood")
+	box(list, "prop", cx, gy + 1, cz, math.min(w - 10, 8), 2, 2, "wood").look = "ParkBench"
 	local _ = d
 end
 
 LOTS.pool = function(list, rng, x0, z0, x1, z1, gy)
 	local cx, cz, w, d = centre(x0, z0, x1, z1)
-	box(list, "water", cx, gy + 0.3, cz, w * 0.55, 0.6, d * 0.45, "water")
+	box(list, "water", cx, gy + 0.3, cz, w * 0.55, 0.6, d * 0.45, "water").look = "PoolEdge"
+	-- (shapes-2, nate: "pools need to look better as well"): a ladder over the near edge, two loungers past the far one
+	local pw, pd = w * 0.55, d * 0.45
+	box(list, "prop", cx + pw * 0.25, gy, cz - pd / 2 + 0.4, 2, 4, 1, "white", { ghost = true }).look =
+		"PoolLadder"
+	for _, k in { -1, 1 } do
+		box(list, "prop", cx + k * 3.2, gy + 0.7, cz + pd / 2 + 4.6, 2.4, 1.4, 6, "awBlue").look = "Lounger"
+	end
 	BoxKit.fence(list, x0 + 1, z0 + 1, x1 - 1, z0 + 1, gy)
 	BoxKit.fence(list, x0 + 1, z0 + 1, x0 + 1, z1 - 1, gy)
 	BoxKit.tree(list, x1 - 5, gy, z1 - 5, rng:range(8, 12))
@@ -425,25 +433,25 @@ end
 LOTS.pond = function(list, rng, x0, z0, x1, z1, gy)
 	local cx, cz, w, d = centre(x0, z0, x1, z1)
 	local r = math.min(w, d) * 0.7
-	box(list, "water", cx, gy + 0.3, cz, r, 0.6, r, "water", { shape = "cylinder" })
-	box(list, "prop", cx + r / 2, gy + 1.5, cz - r / 3, 5, 4, 5, "rock", { shape = "ball" })
-	box(list, "prop", cx - r / 2, gy + 1.2, cz + r / 4, 4, 3, 4, "rock", { shape = "ball" })
+	box(list, "water", cx, gy + 0.3, cz, r, 0.6, r, "water", { shape = "cylinder" }).look = "PondRim"
+	box(list, "prop", cx + r / 2, gy + 1.5, cz - r / 3, 5, 4, 5, "rock", { shape = "ball" }).look = "Rock"
+	box(list, "prop", cx - r / 2, gy + 1.2, cz + r / 4, 4, 3, 4, "rock", { shape = "ball" }).look = "Rock"
 	local _ = rng
 end
 
 LOTS.tractor = function(list, rng, x0, z0, x1, z1, gy)
 	field(list, rng, x0, z0, x1, z1, gy, "crop")
 	local cx, cz = centre(x0, z0, x1, z1)
-	box(list, "prop", cx, gy + 3, cz, 6, 4, 9, "roofRed")
-	box(list, "prop", cx, gy + 6.5, cz + 1.5, 5, 3, 4, "glass")
+	box(list, "prop", cx, gy + 3, cz, 6, 4, 9, "roofRed").look = "Tractor"
+	box(list, "prop", cx, gy + 6.5, cz + 1.5, 5, 3, 4, "glass").look = "TractorCab"
 end
 
 LOTS.windmillSmall = function(list, rng, x0, z0, x1, z1, gy)
 	local cx, cz = centre(x0, z0, x1, z1)
 	local h = rng:range(24, 30)
-	box(list, "prop", cx, gy + h / 2, cz, 3, h, 3, "steel", { shape = "cylinder" })
-	box(list, "prop", cx, gy + h, cz - 2, 1, 22, 1, "white", { ghost = true })
-	box(list, "prop", cx, gy + h, cz - 2, 22, 1, 1, "white", { ghost = true })
+	box(list, "prop", cx, gy + h / 2, cz, 3, h, 3, "steel", { shape = "cylinder" }).look = "WindTower"
+	box(list, "prop", cx, gy + h, cz - 2, 1, 22, 1, "white", { ghost = true }).look = "WindBladeV"
+	box(list, "prop", cx, gy + h, cz - 2, 22, 1, 1, "white", { ghost = true }).look = "WindBladeH"
 end
 
 -- hub filler lots (taller, on a sidewalk pad)
@@ -459,10 +467,11 @@ end
 
 LOTS.parking = function(list, rng, x0, z0, x1, z1, gy)
 	local cx, cz, w, d = centre(x0, z0, x1, z1)
-	box(list, "road", cx, gy + 0.15, cz, w - 2, 0.3, d - 2, "road")
+	box(list, "road", cx, gy + 0.15, cz, w - 2, 0.3, d - 2, "road").kit = "Asphalt"
 	local colors = { "containerA", "containerB", "containerC", "white" }
 	for k = 1, 3 do
-		box(list, "prop", x0 + w * (k - 0.5) / 3, gy + 2.3, cz, 5, 4, 9, colors[rng:int(1, #colors)])
+		box(list, "prop", x0 + w * (k - 0.5) / 3, gy + 2.3, cz, 5, 4, 9, colors[rng:int(1, #colors)]).look =
+			"LotCar"
 	end
 end
 
@@ -479,8 +488,9 @@ LOTS.court = function(list, rng, x0, z0, x1, z1, gy)
 		d - 4,
 		if rng:chance(0.5) then "roofBlue" else "containerD"
 	)
-	box(list, "prop", cx, gy + 5, z0 + 4, 1, 10, 1, "white")
-	box(list, "prop", cx, gy + 5, z1 - 4, 1, 10, 1, "white")
+	-- (the hoops face the court: a look faces -z, so the near end's turns round)
+	box(list, "prop", cx, gy + 5, z0 + 4, 1, 10, 1, "white", { ry = 180 }).look = "HoopPost"
+	box(list, "prop", cx, gy + 5, z1 - 4, 1, 10, 1, "white").look = "HoopPost"
 end
 
 -- Each variant names its 4 lots in clockwise order from the north-west; rotation shifts that order
@@ -619,6 +629,27 @@ local function dressLot(
 		end
 	elseif body and kind == "shop" then
 		local front = body.cz + body.sz / 2
+		-- shapes-2 (2026-11-19): the window band is a real shop front (Art.Life, like Downtown's), its sign word and
+		-- paint by hash
+		local S = kit.play and kit.play.shop
+		if S then
+			for k = first, #list do
+				local b = list[k]
+				if b.kind == "band" and b.color == "window" then
+					local tint = CityKit.pick(kit, kit.play.tints, body.cx, front, 31 + 200)
+					b.art = {
+						name = "ShopFront",
+						x = body.cx,
+						y = gy,
+						z = front,
+						ry = 180,
+						tint = tint,
+						sign = CityKit.pick(kit, S.signs, body.cx, front, S.salt),
+						frame = CityKit.pick(kit, S.frame, front, body.cx, S.salt + 1),
+					} :: any
+				end
+			end
+		end
 		put("Bench", body.cx - body.sx / 4, front + 1.8, 180)
 		put("Bin", body.cx + body.sx / 2 - 1.6, front + 1.8, 180)
 	elseif kind == "park" then
@@ -775,8 +806,9 @@ local function coastTile(
 		local cols = { "containerA", "containerB", "containerC", "white" }
 		for _ = 1, 3 do
 			local x, z = rng:range(x0 + 10, x0 + size - 10), rng:range(z0 + 10, z0 + size - 10)
-			box(list, "prop", x, sand + 4, z, 0.6, 8, 0.6, "white", { ghost = true })
-			box(list, "prop", x, sand + 8, z, 9, 1, 9, cols[rng:int(1, #cols)], { shape = "cylinder" })
+			box(list, "prop", x, sand + 4, z, 0.6, 8, 0.6, "white", { ghost = true }).look = "UmbrellaPole"
+			box(list, "prop", x, sand + 8, z, 9, 1, 9, cols[rng:int(1, #cols)], { shape = "cylinder" }).look =
+				"UmbrellaTop"
 		end
 		for _ = 1, 2 do
 			box(
@@ -790,16 +822,18 @@ local function coastTile(
 				6,
 				cols[rng:int(1, #cols)],
 				{ ghost = true }
-			)
+			).look =
+				"BeachTowel"
 		end
 	elseif t.variant == 1 then
 		-- a pier out over the water on the edge tiles, a boardwalk inland
 		if edge then
 			local p = pierAt(w, tx, tz, x0, z0, size) :: Pier
 			local px, pz, len = p.x, p.z, p.len
-			box(list, "prop", px, gy + 2, pz, p.sx, 1, p.sz, "wood")
+			box(list, "prop", px, gy + 2, pz, p.sx, 1, p.sz, "wood").kit = "Planks"
 			for k = -1, 1, 2 do
-				box(list, "prop", px + ox * k * len * 0.3, gy - 2, pz + oz * k * len * 0.3, 2, 8, 2, "wood")
+				box(list, "prop", px + ox * k * len * 0.3, gy - 2, pz + oz * k * len * 0.3, 2, 8, 2, "wood").look =
+					"Piling"
 			end
 			box(list, "building", p.hut[1], gy + 6, p.hut[2], 10, 8, 10, "white")
 		else
@@ -813,18 +847,22 @@ local function coastTile(
 				1,
 				if oz ~= 0 then 8 else size - 10,
 				"wood"
-			)
+			).kit =
+				"Planks"
 			box(list, "building", cx + oz * 20, sand + 5, cz + ox * 20, 10, 10, 8, "containerC")
 		end
 	elseif t.variant == 2 then
 		-- lighthouse with red bands and a lamp
 		local h = 60
 		local x, z = cx - ox * 15, cz - oz * 15
-		box(list, "prop", x, sand + 3, z, 26, 6, 26, "rock", { shape = "cylinder" })
+		box(list, "prop", x, sand + 3, z, 26, 6, 26, "rock", { shape = "cylinder" }).look = "RockBase"
 		box(list, "building", x, sand + 6 + h / 2, z, 12, h, 12, "white", { shape = "cylinder" })
-		box(list, "band", x, sand + 6 + h * 0.35, z, 12.6, 6, 12.6, "roofRed", { shape = "cylinder" })
-		box(list, "band", x, sand + 6 + h * 0.7, z, 12.6, 6, 12.6, "roofRed", { shape = "cylinder" })
-		box(list, "glow", x, sand + 6 + h + 3, z, 8, 6, 8, "beaconLight", { shape = "cylinder" })
+		box(list, "band", x, sand + 6 + h * 0.35, z, 12.6, 6, 12.6, "roofRed", { shape = "cylinder" }).look =
+			"LightBand"
+		box(list, "band", x, sand + 6 + h * 0.7, z, 12.6, 6, 12.6, "roofRed", { shape = "cylinder" }).look =
+			"LightBand"
+		box(list, "glow", x, sand + 6 + h + 3, z, 8, 6, 8, "beaconLight", { shape = "cylinder" }).look =
+			"Lantern"
 	else
 		-- dunes and driftwood
 		for _ = 1, 4 do
@@ -840,7 +878,8 @@ local function coastTile(
 				s,
 				"sand",
 				{ shape = "ball" }
-			)
+			).look =
+				"Dune"
 		end
 		for _ = 1, 2 do
 			box(
@@ -853,7 +892,8 @@ local function coastTile(
 				1.2,
 				1.2,
 				"wood"
-			)
+			).look =
+				"Driftwood"
 		end
 	end
 end
@@ -893,7 +933,8 @@ local function tilePlan(
 		local kinds = VARIANTS.hubFill[t.variant + 1]
 		local street = cityCfg.hubFill.street
 		local park = kinds[1] == "park" and kinds[2] == "park"
-		box(list, "road", x0 + size / 2, gy + 0.1, z0 + size / 2, size, 0.2, size, "road")
+		box(list, "road", x0 + size / 2, gy + 0.1, z0 + size / 2, size, 0.2, size, "road").kit = kit
+			and kit.ground.Outskirts.road
 		box(
 			list,
 			"sidewalk",
@@ -946,8 +987,8 @@ local function tilePlan(
 				{ shape = "cylinder" }
 			)
 			box(list, "roof", cx, gy + m.height + 2, cz, 18, 10, 18, "roofRed", { shape = "ball" })
-			box(list, "prop", cx, gy + m.height - 6, cz - 10, 2, m.blade, 1, "wood")
-			box(list, "prop", cx, gy + m.height - 6, cz - 10, m.blade, 2, 1, "wood")
+			box(list, "prop", cx, gy + m.height - 6, cz - 10, 2, m.blade, 1, "wood").look = "WindBladeV"
+			box(list, "prop", cx, gy + m.height - 6, cz - 10, m.blade, 2, 1, "wood").look = "WindBladeH"
 			local rects = lotRects(w, x0, z0, size, nil, 3)
 			for i = 1, 4 do
 				if i % 2 == 1 then
@@ -1378,9 +1419,16 @@ function WorldGen.landmark(cityCfg: any, w: any, index: number): Landmark
 				s,
 				if k % 2 == 0 then "grass" else "rock"
 			)
+			-- shapes-2: the rock steps in the cave rock texture, the grass steps in Roblox grass
+			if k % 2 == 0 then
+				list[#list].mat = "Grass"
+			else
+				list[#list].kit = "CaveRock"
+			end
 			top += h.stepHeight
 		end
-		box(list, "prop", cx, top + h.mastHeight / 2, cz, 3, h.mastHeight, 3, "steel", { shape = "cylinder" })
+		box(list, "prop", cx, top + h.mastHeight / 2, cz, 3, h.mastHeight, 3, "steel", { shape = "cylinder" }).look =
+			"RadioMast"
 		box(list, "glow", cx, top + h.mastHeight + 1, cz, 4, 2, 4, "foundryGlow")
 		-- the glide course: square hoops floating down the west side (M6 times it)
 		for k = 1, h.rings do
@@ -1407,7 +1455,7 @@ function WorldGen.landmark(cityCfg: any, w: any, index: number): Landmark
 	else
 		local q = w.quarry
 		local t = 30
-		box(list, "field", cx, gy + 0.3, cz, size - 2 * t, 0.6, size - 2 * t, "rock")
+		box(list, "field", cx, gy + 0.3, cz, size - 2 * t, 0.6, size - 2 * t, "rock").kit = "CaveRock"
 		-- walls on 3 sides and a north wall with a gate in the middle
 		box(list, "rock", cx, gy + q.wallHeight / 2, z0 + size - t / 2, size, q.wallHeight, t, "rock")
 		box(list, "rock", x0 + t / 2, gy + q.wallHeight / 2, cz, t, q.wallHeight, size - 2 * t, "rock")
@@ -1468,7 +1516,14 @@ function WorldGen.landmark(cityCfg: any, w: any, index: number): Landmark
 				12,
 				"rock",
 				{ shape = "ball" }
-			)
+			).look =
+				"Rock"
+		end
+		-- shapes-2 (2026-11-19): the quarry's walls in cave rock, its cut terraces in sandstone blocks
+		for _, b in list do
+			if b.kind == "rock" and b.shape == nil then
+				b.kit = if b.color == "sand" then "Ashlar" else "CaveRock"
+			end
 		end
 		spot = { x = cx, y = gy + q.wallHeight + 0.5, z = z0 + size - t / 2 }
 	end

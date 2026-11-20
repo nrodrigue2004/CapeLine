@@ -328,7 +328,15 @@ function MapPlan.cityBoxes(cityCfg: any, w: any, world: any): { any }
 	local park = world.park
 	if park then
 		local g, gy = park.green, cityCfg.ground.y
-		local function flat(kind: string, color: string, cx: number, cz: number, sx: number, sz: number, top: number)
+		local function flat(
+			kind: string,
+			color: string,
+			cx: number,
+			cz: number,
+			sx: number,
+			sz: number,
+			top: number
+		)
 			table.insert(out, {
 				layer = "hub",
 				kind = kind,
@@ -345,7 +353,7 @@ function MapPlan.cityBoxes(cityCfg: any, w: any, world: any): { any }
 		flat("ground", "grass", (g.x0 + g.x1) / 2, (g.z0 + g.z1) / 2, g.x1 - g.x0, g.z1 - g.z0, gy - 0.05)
 		for _, wt in park.waters do
 			for _, c in wt.blobs do
-				flat("water", "water", c[1], c[2], c[3] * 2, c[3] * 2, gy + 0.05)
+				flat("pond", "water", c[1], c[2], c[3] * 2, c[3] * 2, gy + 0.05)
 			end
 		end
 	end

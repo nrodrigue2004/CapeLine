@@ -127,6 +127,21 @@ return function(T: any)
 		check(found > 0, "street spots found round the park (" .. found .. " of " .. asked .. ")")
 	end)
 
+	test("Park: the world bosses' arenas stay clear of the park", function()
+		for id, def in Config.Boss.bosses do
+			local x, _, z = WorldMap.bossArena(Config, world, id)
+			if x and z then
+				local r = def.arenaRadius or 0
+				local dx = math.max(b.minX - x, 0, x - b.maxX)
+				local dz = math.max(b.minZ - z, 0, z - b.maxZ)
+				check(
+					math.sqrt(dx * dx + dz * dz) >= r * 0.5,
+					id .. "'s arena keeps off the park (" .. r .. " radius)"
+				)
+			end
+		end
+	end)
+
 	test(
 		"Park: paths stay out of the water but over the bridges; trees and spots where they belong",
 		function()

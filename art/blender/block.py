@@ -20,6 +20,7 @@ from mathutils import Matrix, Vector  # noqa: E402
 args = [a for a in sys.argv[1:] if not a.startswith("--")]
 AREA = args[0] if args else "Downtown"
 FAST = "--fast" in sys.argv
+NIGHT = "--night" in sys.argv  # shapes-2: after dusk, the lit windows (art/city/litwindows.py) on the fronts
 NAME = "block" if AREA == "Downtown" else AREA
 DATA = json.load(open(os.path.join(kit.ROOT, "export", "city", NAME + ".json")))
 TEX = os.path.join(kit.ROOT, "export", "city")
@@ -88,6 +89,24 @@ def kit_material(name, tint):
     mt = img("Metalness", True)
     if mt:
         nt.links.new(mt.outputs["Color"], p.inputs["Metallic"])
+    lit_path = os.path.join(TEX, "lit", "Lit%s.png" % name)
+    if NIGHT and os.path.exists(lit_path):
+        # the same object-space mapping as the front (a tile from the part's centre), as Fx.LitWindows lays it:
+        # an unlit picture over the face, so it adds light where its alpha is
+        ln = nt.nodes.new("ShaderNodeTexImage")
+        ln.image = bpy.data.images.load(lit_path, check_existing=True)
+        ln.projection = "BOX"
+        ln.projection_blend = 0.0
+        lm = nt.nodes.new("ShaderNodeMapping")
+        lm.inputs["Scale"].default_value = (1.0 / 48, 1.0 / 48, 1.0 / 48)
+        nt.links.new(tc.outputs["Object"], lm.inputs["Vector"])
+        nt.links.new(lm.outputs["Vector"], ln.inputs["Vector"])
+        mul = nt.nodes.new("ShaderNodeMath")
+        mul.operation = "MULTIPLY"
+        mul.inputs[1].default_value = 3.0
+        nt.links.new(ln.outputs["Alpha"], mul.inputs[0])
+        nt.links.new(ln.outputs["Color"], p.inputs["Emission Color"])
+        nt.links.new(mul.outputs["Value"], p.inputs["Emission Strength"])
     n = img("Normal", True)
     nm = nt.nodes.new("ShaderNodeNormalMap")
     nt.links.new(n.outputs["Color"], nm.inputs["Color"])
@@ -193,6 +212,8 @@ for name, pieces in LOOKS.items():
             p.inputs["Alpha"].default_value = 1 - look[3]
         pmat[piece] = m
 for pr in DATA["props"]:
+    if pr["name"] not in street.PROPS:
+        continue  # (a living-world look from life.py: not in the street set's preview)
     at = Matrix.Translation(rb(pr["x"], pr["y"], pr["z"])) @ Matrix.Rotation(math.radians(pr["ry"]), 4, "Z")
     for piece, src in street.PROPS[pr["name"]].items():
         cp = src.copy()
@@ -243,7 +264,18 @@ s.collection.objects.link(sun)
 s.view_settings.view_transform = "AgX"
 s.view_settings.exposure = -0.55
 
+if NIGHT:
+    # the game's night: a low moon and a cool ambient (WorldClient's night OutdoorAmbient 70, 80, 120)
+    try:
+        sky.sun_elevation = math.radians(-4)
+    except Exception:
+        pass
+    bg.inputs["Strength"].default_value = 0.05
+    sun.data.energy = 0.25
+    sun.data.color = (0.6, 0.7, 1.0)
+    s.view_settings.exposure = -0.3
 for view, (frm, to, lens) in DATA["cams"].items():
     cam = kit.camera(rb(*frm), rb(*to), lens=lens)
     cam.data.clip_end = 20000  # a whole skyline from the air (the default 100 cut the towers' feet off)
-    kit.render(os.path.join(kit.ROOT, "preview", "%s_%s.png" % (NAME, view)))
+    suffix = "_night" if NIGHT else ""
+    kit.render(os.path.join(kit.ROOT, "preview", "%s_%s%s.png" % (NAME, view, suffix)))

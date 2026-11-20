@@ -19,6 +19,12 @@
 --   and 3, Neon accents in the phase colour, weak points in one pulsing gold, and the objectives' bodies with their
 --   red lamps. Hit boxes stay Config.Boss's targets either way.
 -- PLACEHOLDER ART: until those meshes are imported each world boss is drawn from its part-built look in
+-- * bosses-3 (2026-11-20; DRAFT looks until nate OKs them): the Storm Colossus, the Swarm Queen and the Quarry Titan
+--   from Art.Bosses2 (Config.BossArt's set). A hovering boss floats at Boss.State's alt (eased), comes down when it is
+--   lowered; its lightning rods and roof pads are drawn where BossSim put them (a glowing rod or a pad ring with an
+--   updraft) and a hero riding one gets a whoosh. Lightning bolts fall from the clouds onto tall circles, gusts blow
+--   wind streaks, storm clouds and lava pools linger for their time, the Titan's rocks arc over during the warning.
+--   The Swarm Queen's drones are Fx.SwarmFx's (fists, walls, a giant; they drop when its formations break).
 -- Config.BossArt (parts: the same silhouette in at most the old part count; accents still take the phase colour
 -- and the weak points pulse gold). Bulwark's battle form (NullWarFrame) keeps its plain parts below (Tasks.md
 -- "Lore step 8: world bosses").
@@ -45,6 +51,7 @@ local EventFx = require(script.Parent.EventFx)
 local FxLib = require(script.Parent.FxLib)
 local State = require(script.Parent.Parent.State)
 local Juice = require(script.Parent.Juice)
+local SwarmFx = require(script.Parent.SwarmFx)
 
 local WorldFx = {}
 
@@ -75,8 +82,16 @@ type Shown = {
 	weak: { BasePart }, -- the pulsing weak-point lamps (art only)
 	nextFx: number, -- when its look's own effect (sparks, light, mist) next plays
 	anim: BossAnim.Anim?, -- its segments in motion (Fx.BossAnim)
+	alt: number, -- bosses-3: how high it floats now (eased to Boss.State's alt)
+	talt: number,
+	swarm: SwarmFx.Swarm?, -- the Swarm Queen's drones
+	lifts: boolean, -- its rods and pads are drawn
+	nextLiftFx: number,
 }
 local shown: Shown? = nil
+-- bosses-3: lingering zones (storm clouds, lava pools) and the Titan's rocks in the air
+local zones: { { parts: { BasePart }, untilT: number } } = {}
+local rocks: { { part: BasePart, from: Vector3, to: Vector3, start: number, dur: number } } = {}
 
 local function part(
 	parent: Instance,
@@ -178,7 +193,7 @@ end
 local function bossMeshes(id: string): { [string]: MeshPart }?
 	local fit = ART[id]
 	local art = ReplicatedStorage:FindFirstChild("Art")
-	local lib = art and art:FindFirstChild("Bosses")
+	local lib = art and art:FindFirstChild(if fit and fit.set then fit.set else "Bosses")
 	if not (fit and lib) then
 		return nil
 	end
@@ -414,19 +429,108 @@ local function build(id: string, s: { [string]: any }): Shown
 		ty = s.y,
 		tz = s.z,
 		tyaw = s.yaw or 0,
-		lift = if id == "RustjawPrime" then 260 elseif id == "NullWarFrame" then 120 else -B.bosses[id].height,
+		lift = if id == "RustjawPrime"
+			then 260
+			elseif id == "NullWarFrame" then 120
+			elseif B.bosses[id].hover then 220 -- a hovering boss flies down in
+			else -B.bosses[id].height,
 		state = s.state,
 		art = meshes ~= nil or parts,
 		phase = 0,
 		weak = weak,
 		nextFx = 0,
+		alt = s.alt or 0,
+		talt = s.alt or 0,
+		swarm = if B.bosses[id].swarm
+			then SwarmFx.attach(folder, CFrame.new(s.x, s.y + (s.alt or 0) + 30, s.z))
+			else nil,
+		lifts = false,
+		nextLiftFx = 0,
 	}
+end
+
+-- bosses-3: the lightning rods (a steel rod with a glowing tip) and roof pads (a glowing ring) that ride heroes up
+-- to a hovering boss, where BossSim put them ({ x, y, z, 1 for a pad }); they go with the boss
+local ROD = Color3.fromRGB(178, 188, 204)
+local function drawLifts(sh: Shown, list: { { number } })
+	sh.lifts = true
+	local fit = ART[sh.id]
+	local glow = if fit and fit.theme then rgb(fit.theme) else Color3.fromRGB(150, 230, 255)
+	for _, l in list do
+		local at = Vector3.new(l[1], l[2], l[3])
+		local parts: { BasePart } = {}
+		if l[4] == 1 then
+			table.insert(
+				parts,
+				part(
+					folder,
+					Vector3.new(0.4, 18, 18),
+					CFrame.new(at + Vector3.new(0, 0.3, 0)) * CFrame.Angles(0, 0, math.rad(90)),
+					glow,
+					Enum.Material.Neon,
+					Enum.PartType.Cylinder
+				)
+			)
+		else
+			table.insert(
+				parts,
+				part(
+					folder,
+					Vector3.new(1.2, 26, 1.2),
+					CFrame.new(at + Vector3.new(0, 13, 0)),
+					ROD,
+					Enum.Material.Metal
+				)
+			)
+			table.insert(
+				parts,
+				part(
+					folder,
+					Vector3.new(6, 2, 6),
+					CFrame.new(at + Vector3.new(0, 1, 0)),
+					Color3.fromRGB(250, 196, 40),
+					Enum.Material.Metal
+				)
+			)
+			table.insert(
+				parts,
+				part(
+					folder,
+					Vector3.one * 2.6,
+					CFrame.new(at + Vector3.new(0, 26.5, 0)),
+					glow,
+					Enum.Material.Neon,
+					Enum.PartType.Ball
+				)
+			)
+		end
+		-- the updraft: a faint column of light over it
+		local beam = part(
+			folder,
+			Vector3.new(60, 8, 8),
+			CFrame.new(at + Vector3.new(0, 30, 0)) * CFrame.Angles(0, 0, math.rad(90)),
+			glow,
+			Enum.Material.Neon,
+			Enum.PartType.Cylinder
+		)
+		beam.Transparency = 0.85
+		table.insert(parts, beam)
+		for _, p in parts do
+			p.CastShadow = false
+			p:SetAttribute("Boss", true)
+			p:SetAttribute("Lift", true)
+		end
+	end
 end
 
 local function destroy(sh: Shown)
 	if sh.anim then
 		BossAnim.detach(sh.anim)
 		sh.anim = nil
+	end
+	if sh.swarm then
+		SwarmFx.detach(sh.swarm)
+		sh.swarm = nil
 	end
 	sh.model:Destroy()
 	for _, o in sh.objectives do
@@ -463,6 +567,10 @@ local function onState()
 	end
 	local sh = shown :: Shown
 	sh.tx, sh.ty, sh.tz, sh.tyaw = s.x, s.y, s.z, s.yaw or 0
+	sh.talt = s.alt or 0
+	if s.lifts and not sh.lifts then
+		drawLifts(sh, s.lifts)
+	end
 	sh.state = s.state
 	if sh.anim then
 		BossAnim.state(sh.anim, s.hp, s.max, s.phase)
@@ -494,6 +602,10 @@ local function onState()
 			glow.Material = Enum.Material.Metal
 			glow.Color = Color3.fromRGB(40, 40, 44)
 			CombatFx.burst(glow.Position, State.hero.fxStyle)
+		elseif up ~= nil and up > 0 and glow.Material ~= Enum.Material.Neon then
+			-- bosses-3: the Swarm Queen's formations re-form (their nodes light up again)
+			glow.Material = Enum.Material.Neon
+			glow.Color = rgb(ART.objectiveColor)
 		end
 	end
 end
@@ -559,6 +671,33 @@ local function lookFx(sh: Shown)
 				FxLib.emit("smoke", Color3.fromRGB(210, 240, 245), pos, 1, Vector3.new(0, 1, 0))
 			elseif fx.kind == "light" then
 				lightStreak(pivot * CFrame.new(at[1], at[2], at[3]), fx.reach, glow)
+			elseif fx.kind == "storm" then
+				-- bosses-3: arcs crackle off its coils and crown, storm cloud puffs drift off its top
+				local reach = fx.reach or 20
+				local to = pos
+					+ Vector3.new(
+						math.random(-reach, reach),
+						math.random(-reach, reach) * 0.5,
+						math.random(-reach, reach)
+					)
+				CombatFx.bolt(pos, to, State.hero.fxStyle, glow)
+				FxLib.emit(
+					"smoke",
+					Color3.fromRGB(70, 76, 96),
+					pivot * Vector3.new(0, 80, 0),
+					1,
+					Vector3.new(0, 1, 0)
+				)
+			elseif fx.kind == "magma" then
+				-- bosses-3: embers rise off the Titan's cracks, a little smoke off its shoulders
+				FxLib.emit("spark", glow, pos, 3, Vector3.new(0, 1, 0))
+				FxLib.emit(
+					"smoke",
+					Color3.fromRGB(60, 50, 48),
+					pos + Vector3.new(0, 6, 0),
+					1,
+					Vector3.new(0, 1, 0)
+				)
 			end
 		end
 		if fx.dim then
@@ -593,7 +732,34 @@ end
 -- A beaten boss plays its collapse before it sinks (BossAnim's defeat clip), off the shown slot
 local dying: { { sh: Shown, cf: CFrame } } = {}
 
+-- bosses-3: lingering zones fade out at their end; the Titan's rocks fly their arcs
+local function zoneStep()
+	local now = os.clock()
+	for i = #zones, 1, -1 do
+		local zn = zones[i]
+		if now >= zn.untilT then
+			for _, p in zn.parts do
+				TweenService:Create(p, TweenInfo.new(0.6), { Transparency = 1 }):Play()
+				Debris:AddItem(p, 0.7)
+			end
+			table.remove(zones, i)
+		end
+	end
+	for i = #rocks, 1, -1 do
+		local r = rocks[i]
+		local f = (now - r.start) / r.dur
+		if f >= 1 then
+			r.part:Destroy()
+			table.remove(rocks, i)
+		else
+			local p = r.from:Lerp(r.to, f) + Vector3.new(0, math.sin(f * math.pi) * 60, 0)
+			r.part.CFrame = CFrame.new(p) * CFrame.Angles(f * 9, f * 5, 0)
+		end
+	end
+end
+
 local function frame(dt: number)
+	zoneStep()
 	for _, d in dying do
 		if d.sh.anim then
 			BossAnim.step(d.sh.anim, d.cf, dt, false)
@@ -628,6 +794,7 @@ local function frame(dt: number)
 	sh.x += (sh.tx - sh.x) * k
 	sh.y += (sh.ty - sh.y) * k
 	sh.z += (sh.tz - sh.z) * k
+	sh.alt += (sh.talt - sh.alt) * k
 	local d = (sh.tyaw - sh.yaw + math.pi) % (2 * math.pi) - math.pi
 	sh.yaw += d * k
 	if sh.state == 3 then
@@ -637,7 +804,17 @@ local function frame(dt: number)
 	elseif sh.state == 5 then
 		sh.lift += dt * 40
 	end
-	local rootCF = CFrame.new(sh.x, sh.y + sh.lift + hop, sh.z) * CFrame.Angles(0, sh.yaw, 0)
+	local rootCF = CFrame.new(sh.x, sh.y + sh.alt + sh.lift + hop, sh.z) * CFrame.Angles(0, sh.yaw, 0)
+	local sw = sh.swarm
+	if sw then
+		-- the drones fly to their formation round the core (Fx.SwarmFx; the core sits 30 up in the model)
+		local s = WorldClient.boss
+		local alive = {}
+		for i = 1, 3 do
+			alive[i] = ((s.objectives or {})[i] or 1) > 0
+		end
+		SwarmFx.step(sw, dt, rootCF * CFrame.new(0, 30, 0), sh.y, sh.phase, alive, s.exposed == true)
+	end
 	if sh.anim then
 		-- Rustjaw walks while it closes on the crowd (BossSim moves it 6 studs a second)
 		local moving = (sh.tx - sh.x) ^ 2 + (sh.tz - sh.z) ^ 2 > 1
@@ -694,6 +871,46 @@ local function warn(ev: { [string]: any })
 			height = B.bosses[lsh.id].height * 0.6,
 		}
 	end
+	-- bosses-3: the Titan's rocks arc over during the warning; the swarm's formation flies out to where it lands
+	local bs = shown
+	if bs and ev.a == "RockThrow" and ev.points then
+		local hand = bs.model:GetPivot() * Vector3.new(35, 60, -6)
+		for _, p in ev.points do
+			local rock = part(
+				folder,
+				Vector3.one * 7,
+				CFrame.new(hand),
+				Color3.fromRGB(110, 86, 74),
+				Enum.Material.Slate,
+				Enum.PartType.Ball
+			)
+			rock.CastShadow = true
+			table.insert(rocks, {
+				part = rock,
+				from = hand,
+				to = Vector3.new(p[1], ev.y + 2, p[2]),
+				start = os.clock(),
+				dur = t,
+			})
+		end
+	end
+	if bs and bs.swarm and ev.src == "boss" and ev.a then
+		local pts = {}
+		for _, p in ev.points or {} do
+			if #p == 2 then
+				table.insert(pts, Vector3.new(p[1], ev.y + 4, p[2]))
+			end
+		end
+		for _, p in ev.shots or {} do
+			table.insert(pts, Vector3.new(p[1], p[2], p[3]))
+		end
+		if ev.shape == "lines" then
+			for _, d in ev.points or {} do
+				table.insert(pts, Vector3.new(ev.x + d[1] * 120, ev.y + 20, ev.z + d[2] * 120))
+			end
+		end
+		SwarmFx.attack(bs.swarm, ev.a, t, pts)
+	end
 	-- the boss winds up over the warning so the strike lands on the hit (the cannons have their own small kick)
 	local sh = shown
 	if sh and sh.anim and ev.src == "boss" and ev.a then
@@ -735,8 +952,87 @@ local function strike(ev: { [string]: any })
 		FxLib.dust(c, ev.r * 0.5)
 	elseif ev.shape == "circles" then
 		for _, p in ev.points or {} do
-			CombatFx.slam(ground(p[1], ev.y, p[2]), ev.r)
+			local at = ground(p[1], ev.y, p[2])
+			CombatFx.slam(at, ev.r)
+			if ev.tall then
+				-- bosses-3: a lightning bolt from the storm clouds onto the spot
+				local top = at + Vector3.new(0, (ev.alt or 0) + 140, 0)
+				CombatFx.bolt(top, at, style, lookColor(ev.num))
+				FxLib.emit("spark", lookColor(ev.num), at + Vector3.new(0, 2, 0), 6, Vector3.new(0, 1, 0))
+			end
 		end
+	elseif ev.shape == "gust" then
+		-- bosses-3: a blast of wind: streaks fly out across the cone at every height it reaches
+		local yaw = ev.yaw or (if sh then sh.yaw else 0)
+		local base = Vector3.new(ev.x, ev.y + (ev.alt or 0) + 30, ev.z)
+		for k = 1, 10 do
+			local a = yaw + math.rad(((k - 0.5) / 10 - 0.5) * (ev.arc or 80))
+			local dir = Vector3.new(-math.sin(a), 0, -math.cos(a))
+			local h = (math.random() - 0.4) * 60
+			CombatFx.line(
+				base + Vector3.new(0, h, 0),
+				base + dir * ev.r + Vector3.new(0, h, 0),
+				2,
+				style,
+				Color3.fromRGB(230, 245, 255),
+				false
+			)
+		end
+		FxLib.dust(c, 30)
+	elseif ev.shape == "zone" then
+		-- bosses-3: storm clouds that stay in the sky (dark puffs crackling) or lava pools on the floor (orange, bubbling)
+		local lava = (ev.lo or 0) <= 0
+		local parts: { BasePart } = {}
+		for _, p in ev.points or {} do
+			if lava then
+				local pool = part(
+					folder,
+					Vector3.new(0.6, ev.r * 2, ev.r * 2),
+					CFrame.new(p[1], ev.y + 0.35, p[2]) * CFrame.Angles(0, 0, math.rad(90)),
+					Color3.fromRGB(255, 120, 40),
+					Enum.Material.Neon,
+					Enum.PartType.Cylinder
+				)
+				pool.Transparency = 0.15
+				table.insert(parts, pool)
+				FxLib.emit(
+					"spark",
+					Color3.fromRGB(255, 160, 60),
+					Vector3.new(p[1], ev.y + 1, p[2]),
+					8,
+					Vector3.new(0, 1, 0)
+				)
+			else
+				local cy = ev.y + math.max(ev.lo or 24, (ev.alt or 0) + 20)
+				for j = 1, 3 do
+					local a = j * 2.1
+					local puff = part(
+						folder,
+						Vector3.one * ev.r * (0.9 + j * 0.15),
+						CFrame.new(
+							p[1] + math.cos(a) * ev.r * 0.5,
+							cy + j * 3,
+							p[2] + math.sin(a) * ev.r * 0.5
+						),
+						Color3.fromRGB(64, 70, 90),
+						Enum.Material.SmoothPlastic,
+						Enum.PartType.Ball
+					)
+					puff.Transparency = 0.35
+					table.insert(parts, puff)
+				end
+				CombatFx.bolt(
+					Vector3.new(p[1], cy, p[2]),
+					Vector3.new(p[1] + 8, cy - 18, p[2] - 6),
+					style,
+					lookColor(ev.num)
+				)
+			end
+		end
+		for _, pp in parts do
+			pp.CastShadow = false
+		end
+		table.insert(zones, { parts = parts, untilT = os.clock() + (ev.dur or 8) })
 	elseif ev.shape == "lines" then
 		local width = (B.bosses[WorldClient.bossByNum[ev.num] or ""] or { attacks = {} }).attacks
 		local w, len = 10, 200
@@ -746,7 +1042,7 @@ local function strike(ev: { [string]: any })
 			end
 		end
 		local s = shown
-		local fromY = if s then s.y + B.bosses[s.id].height * 0.8 else ev.y + 60
+		local fromY = if s then s.y + s.alt + B.bosses[s.id].height * 0.8 else ev.y + 60
 		for _, d in ev.points or {} do
 			local dir = Vector3.new(d[1], 0, d[2])
 			CombatFx.line(
@@ -763,7 +1059,8 @@ local function strike(ev: { [string]: any })
 	elseif ev.shape == "homing" or ev.shape == "tether" then
 		-- the counters' shots (2026-11-19): from high on the boss to where each one caught up
 		local s = shown
-		local from = Vector3.new(ev.x, (if s then s.y + B.bosses[s.id].height * 0.75 else ev.y + 40), ev.z)
+		local from =
+			Vector3.new(ev.x, (if s then s.y + s.alt + B.bosses[s.id].height * 0.75 else ev.y + 40), ev.z)
 		for _, p in ev.points or {} do
 			local to = Vector3.new(p[1], p[2], p[3])
 			CombatFx.bolt(from, to, style, lookColor(ev.num))
@@ -868,6 +1165,32 @@ local function bigMoment(ev: { [string]: any })
 				destroy(s)
 			end)
 		end)
+	elseif ev.k == "lower" and s then
+		-- bosses-3: the Storm Colossus comes down to rooftop height (its fan sputters): everyone can reach it
+		if ev.on then
+			CombatFx.banner("IT'S COMING DOWN! HIT IT!", Color3.fromRGB(150, 230, 255), style)
+			if s.anim then
+				BossAnim.play(s.anim, "weak")
+			end
+		end
+	elseif ev.k == "exposed" and s then
+		-- bosses-3: every formation broken: the Swarm Queen's core crashes down, its shells open
+		if ev.on then
+			CombatFx.banner("CORE EXPOSED! SMASH IT!", Color3.fromRGB(255, 200, 60), style)
+			Juice.fire("bossPhase", s.model:GetPivot().Position, { mine = false })
+			if s.anim then
+				BossAnim.play(s.anim, "weak")
+			end
+		else
+			CombatFx.banner("THE SWARM RE-FORMS!", WARN, style)
+		end
+	elseif ev.k == "lift" then
+		-- bosses-3: a hero rides a lightning rod or roof pad up: a whoosh of light up the column
+		local at = Vector3.new(ev.x, ev.y, ev.z)
+		local fit = s and ART[s.id]
+		local glow = if fit and fit.theme then rgb(fit.theme) else Color3.fromRGB(150, 230, 255)
+		CombatFx.nova(at + Vector3.new(0, 2, 0), 10, style, glow, false)
+		FxLib.emit("spark", glow, at + Vector3.new(0, 4, 0), 10, Vector3.new(0, 1, 0))
 	elseif ev.k == "retreat" then
 		CombatFx.banner("IT GOT AWAY!", Color3.fromRGB(200, 200, 210), style)
 		task.delay(5, function()

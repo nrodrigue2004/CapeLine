@@ -33,6 +33,7 @@ for _, set in
 		"Bodies",
 		"Boots",
 		"Bosses",
+		"Bosses2",
 		"Bramblebeast",
 		"Capes",
 		"Coats",
@@ -57,6 +58,7 @@ for _, set in
 		"Prologue",
 		"Robots",
 		"SetPieces",
+		"Shapes", -- shapes-2: the living world's round 2, 59 of 59 match it (2026-11-19)
 		"Shoulders",
 		"Story",
 		"Street",

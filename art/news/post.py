@@ -42,7 +42,12 @@ BOSSES = [
     ("LumenMaw", (90, 240, 230)),
     ("LeviathanEngine", (80, 230, 255)),
     ("NullWarFrame", (235, 70, 70)),
+    # bosses-3 (2026-11-20, DRAFT looks): a second sheet, NewsCards2.png (a sheet holds 4 cells: Roblox's 1024 px cap)
+    ("StormColossus", (150, 230, 255)),
+    ("SwarmQueen", (255, 170, 60)),
+    ("QuarryTitan", (255, 130, 40)),
 ]
+SHEETS = ("NewsCards.png", "NewsCards2.png")
 PLATE = (1024, 288)
 PLATE_SLICE = (48, 44, 72, 44)  # left, top, right, bottom margins kept unstretched
 TV = (800, 520)
@@ -83,21 +88,22 @@ def portrait(bid, rgb):
 
 
 def cards_sheet():
-    path = os.path.join(OUT, "NewsCards.png")
-    old = Image.open(path).convert("RGB") if os.path.isfile(path) else None
-    sheet = Image.new("RGB", (CELL * 2, CELL * 2), INK)
     at, kept = {}, 0
-    for i, (bid, rgb) in enumerate(BOSSES):
-        c, r = i % 2, i // 2
-        img = portrait(bid, rgb)
-        if img is None:
-            if old is None:
-                raise SystemExit("post.py: no render and no old sheet for " + bid)
-            img = old.crop((c * CELL, r * CELL, (c + 1) * CELL, (r + 1) * CELL))
-            kept += 1
-        sheet.paste(img, (c * CELL, r * CELL))
-        at[bid] = (c, r)
-    sheet.save(path)
+    for s, name in enumerate(SHEETS):
+        path = os.path.join(OUT, name)
+        old = Image.open(path).convert("RGB") if os.path.isfile(path) else None
+        sheet = Image.new("RGB", (CELL * 2, CELL * 2), INK)
+        for i, (bid, rgb) in enumerate(BOSSES[s * 4:s * 4 + 4]):
+            c, r = i % 2, i // 2
+            img = portrait(bid, rgb)
+            if img is None:
+                if old is None:
+                    raise SystemExit("post.py: no render and no old sheet for " + bid)
+                img = old.crop((c * CELL, r * CELL, (c + 1) * CELL, (r + 1) * CELL))
+                kept += 1
+            sheet.paste(img, (c * CELL, r * CELL))
+            at[bid] = (c, r, s + 1)
+        sheet.save(path)
     return at, kept
 
 
@@ -256,14 +262,15 @@ def write_config(at, ids):
         "-- Shared.NewsArtKit). An id of 0 means not uploaded: the UI keeps today's frames. No words in the images: every",
         "-- name, title and headline stays UI text.",
         "return {",
-        "\t-- each world boss's name card portrait: %d px cells on one sheet, { column, row } (0-based)" % CELL,
+        "\t-- each world boss's name card portrait: %d px cells, 4 to a sheet, { column, row (0-based), sheet }" % CELL,
         "\tcards = {",
         "\t\tsheet = %d," % iid("NewsCards.png"),
+        "\t\tsheets = { %s }," % ", ".join(str(iid(n)) for n in SHEETS),
         "\t\tcell = %d," % CELL,
         "\t\tat = {",
     ]
     for bid, _ in BOSSES:
-        lines.append("\t\t\t%s = { %d, %d }," % (bid, at[bid][0], at[bid][1]))
+        lines.append("\t\t\t%s = { %d, %d, %d }," % (bid, at[bid][0], at[bid][1], at[bid][2]))
     lines += [
         "\t\t},",
         "\t},",

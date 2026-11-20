@@ -33,6 +33,10 @@ SHOTS = {
     "LumenMaw": dict(pose="idle", yaw=25, elev=-3, keep=1.0, focus=("Head", "Jaw", "Body"), pad=1.1),
     "LeviathanEngine": dict(pose="idle", yaw=-35, elev=0, keep=1.0, focus=("Head", "Jaw", "Neck"), pad=1.25),
     "NullWarFrame": dict(pose="idle", yaw=10, elev=-4, keep=0.6),
+    # bosses-3 (2026-11-20, DRAFT looks)
+    "StormColossus": dict(pose="idle", yaw=20, elev=-4, keep=0.85, focus=("Body", "Head", "ArmL", "ArmR"), pad=1.05),
+    "SwarmQueen": dict(pose="idle", yaw=25, elev=-3, keep=1.0),
+    "QuarryTitan": dict(pose="idle", yaw=15, elev=-4, keep=0.62),
 }
 if os.environ.get("CARD_TRY"):  # trying shots: CARD_TRY="pose,yaw,elev,keep"
     p_, y_, e_, k_ = os.environ["CARD_TRY"].split(",")
@@ -80,6 +84,8 @@ def roblox_cf(c):
 
 before = set(bpy.data.objects)
 bpy.ops.import_scene.fbx(filepath=os.path.join(kit.ROOT, "export", "Bosses.fbx"))
+# bosses-3: the second set's meshes (their names are "<Boss>_<Piece>" too)
+bpy.ops.import_scene.fbx(filepath=os.path.join(kit.ROOT, "export", "Bosses2.fbx"))
 SRC = {}
 for ob in set(bpy.data.objects) - before:
     if ob.type != "MESH":

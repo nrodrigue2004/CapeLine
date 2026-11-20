@@ -21,7 +21,7 @@ local ProfileSchema = {}
 ProfileSchema.LEVEL_CAP = Config.Stats.levelCap
 
 ProfileSchema.VERSION = 14
-ProfileSchema.BOSSES = 3 -- #Config.Boss.order (a test checks they match)
+ProfileSchema.BOSSES = 6 -- #Config.Boss.order (a test checks they match; 6 since bosses-3, 2026-11-20)
 ProfileSchema.SLOTS = 8
 ProfileSchema.STYLE_WORDS = 16 -- 512 bits
 ProfileSchema.SMALL_WORDS = 4 -- 128 bits for emotes, titles, Rogues File pages
@@ -238,7 +238,7 @@ function ProfileSchema.default(): { [string]: any }
 		weaponsOwned = words(ProfileSchema.WEAPON_WORDS),
 		weapons = {},
 		legends = {}, -- the Hall of Legends: retired heroes' statues (HqRules.retire)
-		bosses = { 0, 0, 0 }, -- best world boss reward tier per boss (Config.Boss.order): 1 joined, 2, 3 MVP
+		bosses = { 0, 0, 0, 0, 0, 0 }, -- best world boss reward tier per boss (Config.Boss.order): 1 joined, 2, 3 MVP
 		shop = { starterSeen = 0 }, -- the starter pack offer was shown (once)
 		settings = {}, -- M10: { [key id] = number } (SettingsRules.clean fills and fixes it on load)
 		mutes = {}, -- M10: muted user ids (the mute list), at most Config.Settings.maxMutes
