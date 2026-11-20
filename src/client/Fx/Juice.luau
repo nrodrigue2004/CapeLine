@@ -81,9 +81,12 @@ function Juice.fire(id: string, at: Vector3?, data: { [string]: any }?)
 end
 
 -- A path's own sound layer (Config.Audio.paths; overhaul plan step 6), on top of the slot's cast sound:
--- moment is "cast", "super", "hit" or "charge". Weapon moves and unknown sets have none.
+-- moment is "cast", "super", "hit" or "charge". Weapon moves ("Weapon:<look>") play Config.Audio.weapons.
 function Juice.path(set: string?, moment: string, at: Vector3?)
 	local row = set and A.paths[set]
+	if not row and set and string.sub(set, 1, 7) == "Weapon:" then
+		row = A.weapons[string.sub(set, 8)] -- a weapon move's look (list-combat: Config.Audio.weapons)
+	end
 	if row and row[moment] then
 		AudioController.playSpec(row[moment], at)
 	end

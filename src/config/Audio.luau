@@ -253,6 +253,56 @@ local Audio = {
 	-- every path's own sound layer (overhaul plan step 6), played with the slot's cast sound above (Juice.path):
 	-- cast (skills), super, hit (your hits, once per use) and charge (a skill starts charging). Each is
 	-- its element's own recording (clip "<Path>_<moment>"); the built-in fallbacks below play only without an atlas id.
+	-- Weapon sounds by the weapon's look (list-combat 2026-11-20, checklist 202: "weapon sounds for each family (slash,
+	-- clang, shot)"; Config.Fx.weaponLooks): the swing or shot on every move (basics too) and the hit, on top of
+	-- the shared hit thud. Recorded clips from the atlases (blades cut, clubs clang, guns bang, bows twang); a
+	-- new recording per look can replace a row's `clip` later.
+	weapons = {
+		fists = {
+			cast = s("swoosh.wav", 0.22, 1.25, { clip = "Martial_cast", range = 70, vary = 0.1 }),
+			hit = s("action_jump_land.mp3", 0.3, 1.1, { clip = "Martial_hit", range = 80, vary = 0.1 }),
+		},
+		edge = {
+			cast = s("swoosh.wav", 0.26, 1.3, { clip = "Blade_cast", range = 80, vary = 0.1 }),
+			hit = s("clickfast.wav", 0.32, 1.1, { clip = "Blade_hit", range = 90, vary = 0.1 }),
+		},
+		heavy = {
+			cast = s("swoosh.wav", 0.3, 0.75, { clip = "Blade_cast", range = 100, vary = 0.06 }),
+			hit = s("action_jump_land.mp3", 0.4, 0.7, { clip = "heavy", range = 120, vary = 0.08 }),
+		},
+		blunt = {
+			cast = s("swoosh.wav", 0.26, 0.8, { clip = "basic", range = 90, vary = 0.08 }),
+			hit = s("clickfast.wav", 0.38, 0.7, { clip = "clank", range = 110, vary = 0.1 }),
+		},
+		pole = {
+			cast = s("swoosh.wav", 0.24, 1.0, { clip = "Blade_cast", range = 80, vary = 0.1 }),
+			hit = s("action_jump_land.mp3", 0.3, 1.0, { clip = "Martial_hit", range = 90, vary = 0.1 }),
+		},
+		shield = {
+			cast = s("swoosh.wav", 0.22, 0.85, { clip = "basic", range = 80, vary = 0.08 }),
+			hit = s("clickfast.wav", 0.4, 0.8, { clip = "clank", range = 100, vary = 0.08 }),
+		},
+		shot = {
+			cast = s("clickfast.wav", 0.32, 1.0, { clip = "Gunslinger_cast", range = 160, vary = 0.08 }),
+			hit = s("clickfast.wav", 0.28, 1.2, { clip = "Gunslinger_hit", range = 90, vary = 0.1 }),
+		},
+		arrow = {
+			cast = s("swoosh.wav", 0.24, 1.5, { clip = "Blade_cast", range = 110, vary = 0.1 }),
+			hit = s("clickfast.wav", 0.28, 1.4, { clip = "Blade_hit", range = 80, vary = 0.1 }),
+		},
+		thrown = {
+			cast = s("swoosh.wav", 0.24, 1.2, { clip = "Blade_cast", range = 100, vary = 0.1 }),
+			hit = s("clickfast.wav", 0.32, 1.0, { clip = "clank", range = 90, vary = 0.1 }),
+		},
+		tether = {
+			cast = s("swoosh.wav", 0.26, 1.6, { clip = "Blade_cast", range = 90, vary = 0.12 }),
+			hit = s("action_jump_land.mp3", 0.3, 1.3, { clip = "Martial_hit", range = 80, vary = 0.1 }),
+		},
+		wind = {
+			cast = s("swoosh.wav", 0.24, 0.9, { clip = "Spirit_cast", range = 90, vary = 0.1 }),
+			hit = s("swoosh.wav", 0.26, 1.1, { clip = "Spirit_hit", range = 80, vary = 0.1 }),
+		},
+	},
 	paths = {
 		Volt = {
 			cast = s("electronicpingshort.wav", 0.3, 2.4, { range = 100, vary = 0.08 }),

@@ -469,6 +469,9 @@ function CombatClient.fire(id: string, charge: number?): boolean
 	if slot ~= "basic" then
 		Juice.path(eff.set, if slot == "super" then "super" else "cast", origin)
 	end
+	if eff.weapon then
+		Juice.path(CombatFx.setOf(eff), "cast", origin) -- the weapon's own swing, shot or twang (list-combat)
+	end
 	if slot == "super" and PREDICTED[shape] and not (eff.cast and eff.cast > 0) and not eff.channel then
 		CombatFx.superMoment(
 			eff,
@@ -571,7 +574,7 @@ local function drawHits(r: any, row: any, style: string, mine: boolean)
 				CameraController.push() -- lore step 7: a gentle push in on heavy hits
 			end
 			Juice.path(
-				row and row.set,
+				CombatFx.setOf(row), -- a weapon move's own hit sound (slash, clang, shot: list-combat)
 				"hit",
 				EnemyRenderer.position(hits[1][1]) or Vector3.new(hits[1][5], hits[1][6], hits[1][7])
 			)
@@ -602,6 +605,9 @@ local function onResult(list: { any })
 				Juice.fire(castSound(row.slot), r.o, { mine = false, userId = r.a })
 				if row.slot ~= "basic" then
 					Juice.path(row.set, if row.slot == "super" then "super" else "cast", r.o)
+				end
+				if row.weapon then
+					Juice.path(fxSet, "cast", r.o)
 				end
 			end
 			if kind == K.CAST and (not mine or (row.cast and row.cast > 0)) then

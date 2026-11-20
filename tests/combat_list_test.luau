@@ -229,4 +229,45 @@ return function(T: any)
 			"a knocked piece crunches"
 		)
 	end)
+
+	test("List combat: every weapon look has its own swing and hit sound from the atlases (202)", function()
+		local SoundPick = require("../src/shared/SoundPick")
+		local fs = require("@lune/fs")
+		for look in Config.Fx.weaponLooks.looks do
+			local row = Config.Audio.weapons[look]
+			check(row ~= nil, look .. " has sounds")
+			if row then
+				for _, moment in { "cast", "hit" } do
+					local spec = row[moment]
+					check(spec ~= nil, look .. " " .. moment)
+					if spec then
+						local regions = SoundPick.variants(Config.AudioClips, spec.clip)
+						check(
+							#regions > 0,
+							look .. " " .. moment .. " clip " .. tostring(spec.clip) .. " is recorded"
+						)
+						check(
+							spec.volume > 0 and spec.volume <= 0.5,
+							look .. " " .. moment .. " sits under the hit thud"
+						)
+					end
+				end
+			end
+		end
+		local juice = fs.readFile("src/client/Fx/Juice.luau")
+		check(
+			string.find(juice, "A.weapons[string.sub(set, 8)]", 1, true) ~= nil,
+			"Juice.path plays Weapon:<look>"
+		)
+		local cc = fs.readFile("src/client/Controllers/CombatClient.luau")
+		check(
+			string.find(cc, 'Juice.path(CombatFx.setOf(eff), "cast", origin)', 1, true) ~= nil,
+			"your swing"
+		)
+		check(string.find(cc, 'Juice.path(fxSet, "cast", r.o)', 1, true) ~= nil, "others' swings")
+		check(
+			string.find(cc, "CombatFx.setOf(row), -- a weapon move's own hit sound", 1, true) ~= nil,
+			"the hit"
+		)
+	end)
 end
