@@ -294,6 +294,8 @@ function ProfileSchema.default(): { [string]: any }
 			contracts = 0,
 			mvps = 0,
 			doubleAt = 0, -- lore step 9: playSeconds at this account's last Your double event (0 never)
+			bountyWeek = 0, -- list-combat: the weekly seed of the last boss bounty paid (Config.Boss.bounty)
+			newsWeek = 0, -- list-combat: the weekly seed this account last heard "this week's city" for
 		},
 		guard = { kicks = 0, reviewed = 0 }, -- M8: safety kicks on this account (review queue after 2); never a ban
 		-- Hero MMO features on the account (H7): badges = 256 badge bits, counts = the counters badges read
@@ -1037,6 +1039,7 @@ function ProfileSchema.clientView(profile: any, walletOnly: boolean?): { [string
 		legacy = c.legacy,
 		hq = { level = c.hq.level, trophies = c.hq.trophies },
 		legends = profile.legends,
+		bosses = profile.bosses, -- list-combat: the best boss reward tiers (the Journal's GOALS)
 		roster = ProfileSchema.roster(profile),
 		stats = profile.stats,
 		settings = profile.settings, -- M10

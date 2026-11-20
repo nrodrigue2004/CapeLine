@@ -181,11 +181,16 @@ function NemesisMath.signatures(N: any, who: Who, bits: number): { string }
 	return list
 end
 
--- A taunt, gloat or escape line with the hero's name in it (fixed lines only)
+-- A taunt, gloat, escape or callback line with the hero's name in it (fixed lines only; {n}: the meeting number)
 function NemesisMath.line(N: any, kind: string, seed: number, n: number, hero: string): string
-	local list = if kind == "gloat" then N.gloats elseif kind == "escape" then N.escapes else N.taunts
+	local list = if kind == "gloat"
+		then N.gloats
+		elseif kind == "escape" then N.escapes
+		elseif kind == "callback" and N.callbacks then N.callbacks
+		else N.taunts
 	local i = Rng.hash(seed, n, #kind) % #list + 1
 	local text = string.gsub(list[i], "{hero}", hero)
+	text = string.gsub(text, "{n}", tostring(n))
 	return text
 end
 

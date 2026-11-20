@@ -130,6 +130,18 @@ return {
 	-- taunts: fixed lines filled with your hero name ({hero}); drafts the lore thread may rewrite, no story
 	-- characters (standalone from the main story, nate 2026-11-17).
 	-- PLACEHOLDER CONTENT: lore thread to fill (the voice of the taunts, gloats and escapes)
+	-- callbacks (list-combat 2026-11-20, nate: a recurring player base): from the second meeting on, the opening
+	-- line remembers the last fight and the nemesis wears a welded scar per past meeting (up to `scars`). DRAFT
+	-- wording for nate. {n} is how many times you have met.
+	scars = 3,
+	callbacks = {
+		"See this weld, {hero}? You did that. Meeting {n}. I remember all of them.",
+		"Last time you got lucky, {hero}. I patched the hole you left.",
+		"{hero}! I kept every scar you gave me. Time to return the favour.",
+		"Round {n}, {hero}. My repair bill has your name on it.",
+		"I replayed our last fight a thousand times, {hero}. You lose in all of them now.",
+		"Still wearing that cape, {hero}? I still wear your dents.",
+	},
 	taunts = {
 		"{hero}! I have been looking for you.",
 		"Nice cape, {hero}. It will look better on my wall.",

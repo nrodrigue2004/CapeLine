@@ -245,6 +245,7 @@ local function spawnNemesis(e: Enc, at: Vector3, squad: boolean): number?
 		cape = e.who.cape,
 		pitch = e.who.pitch,
 		weak = NemesisMath.showdownOpen(N, e.st),
+		scars = math.clamp(e.st.met - 1, 0, N.scars or 0),
 	})
 	return id
 end
@@ -273,7 +274,9 @@ local function startAmbush(player: Player, st: NemesisMath.Saved, at: Vector3)
 	}
 	encs[player] = e
 	lastEnc[player] = os.clock()
-	tell(e, { k = "taunt", line = NemesisMath.line(N, "taunt", e.who.seed, st.met, heroName(player)) })
+	-- from the second meeting on it remembers you (list-combat: a callback line and its scars)
+	local opener = if st.met >= 2 then "callback" else "taunt"
+	tell(e, { k = "taunt", line = NemesisMath.line(N, opener, e.who.seed, st.met, heroName(player)) })
 	for _, p in helpers(e) do
 		NemesisService.Met:Fire(p)
 		Analytics.event(p, "nemesis_met", st.met, { st.rank, NemesisMath.traitCount(st.traits) })
@@ -595,6 +598,7 @@ local function startShowdown(player: Player)
 					head = who.head,
 					cape = who.cape,
 					weak = true,
+					scars = math.clamp(st.met - 1, 0, N.scars or 0),
 				})
 				tell(e, {
 					k = "taunt",

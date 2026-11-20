@@ -386,6 +386,57 @@ function Toasts.show(data: { [string]: any })
 	juice(data)
 	cur = specFor(data)
 	cur.credits, cur.renown = data.credits, data.renown
+	if id == "weekNews" then
+		-- "this week's city" (list-combat 2026-11-20): the weekly seed rebuilt the outskirts; the bounty boss
+		local bname = "a world boss"
+		for _, b in Config.Boss.bosses do
+			if b.num == data.num then
+				bname = b.name
+			end
+		end
+		push("NEW WEEK IN BRIGHTHARBOR!", Kit.color.gold, true, 6)
+		push(
+			"The outskirts were rebuilt: new roads, farms, suburbs and piers to find",
+			Kit.color.paper,
+			false,
+			6
+		)
+		push(
+			string.format("This week's BOUNTY boss: %s (double reward once)", bname),
+			Color3.fromRGB(255, 170, 60),
+			false,
+			6
+		)
+		return
+	end
+	if id == "bossSoon" or id == "friendBoss" then
+		-- list-combat 2026-11-20: a world boss rises soon (the week's bounty says so), or a friend is fighting one
+		local bname = "A WORLD BOSS"
+		for _, b in Config.Boss.bosses do
+			if b.num == data.num then
+				bname = string.upper(b.name)
+			end
+		end
+		if id == "bossSoon" then
+			push(
+				string.format("%s RISES IN %d MINUTES!", bname, data.minutes or 10),
+				Color3.fromRGB(255, 120, 80),
+				true,
+				5
+			)
+			if data.bounty then
+				push("This week's BOUNTY boss: double reward and Dust once a week", Kit.color.gold, false, 5)
+			end
+		else
+			push(
+				string.format("%s is fighting %s! Fly there from the MAP", data.name or "Your friend", bname),
+				Kit.color.gold,
+				true,
+				6
+			)
+		end
+		return
+	end
 	if id == "friendHere" then
 		-- the friend boost (spec: Social table "+10% Renown per friend in the server, max +30%")
 		if data.name then

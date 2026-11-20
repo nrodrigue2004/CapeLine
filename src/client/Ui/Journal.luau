@@ -24,6 +24,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local StoryPlan = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("StoryPlan"))
 local SideQuestPlan = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("SideQuestPlan"))
+local LongGoals = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("LongGoals"))
 
 local Kit = require(script.Parent.Kit)
 local State = require(script.Parent.Parent.State)
@@ -55,7 +56,13 @@ local TABS = {
 		{ "rep", "REP" },
 		{ "perks", "PERKS" },
 	},
-	{ { "rogues", "ROGUES" }, { "badges", "BADGES" }, { "mentor", "MENTOR" }, { "showdown", "SHOWDOWN" } },
+	{
+		{ "goals", "GOALS" },
+		{ "rogues", "ROGUES" },
+		{ "badges", "BADGES" },
+		{ "mentor", "MENTOR" },
+		{ "showdown", "SHOWDOWN" },
+	},
 }
 -- the tabs drawn from another screen's data (each asks its server for it when it opens)
 local FEEDS = {
@@ -527,6 +534,49 @@ local function drawBadges()
 	BadgeHud.drawInto(body, badgeView)
 end
 
+-- GOALS (list-combat 2026-11-20, nate: "long goals on screen"): Shared.LongGoals' rows as comic bars
+local function drawGoals()
+	local rows = LongGoals.rows(Config, State.profile or {}, LoreClient.progress())
+	for i, r in rows do
+		local box = Instance.new("Frame")
+		box.Name = "Goal"
+		box.BackgroundTransparency = 1
+		box.Size = UDim2.new(1, 0, 0, 56)
+		box.LayoutOrder = i
+		box.Parent = body
+		local name = Kit.label({
+			Text = string.format("%s   %d / %d", string.upper(r.name), r.have, r.need),
+			Size = UDim2.new(1, 0, 0, 22),
+			TextXAlignment = Enum.TextXAlignment.Left,
+			Font = Kit.font,
+			maxText = 20,
+		})
+		name.Parent = box
+		local track = Instance.new("Frame")
+		track.Name = "Track"
+		track.Position = UDim2.fromOffset(0, 24)
+		track.Size = UDim2.new(1, 0, 0, 12)
+		track.BackgroundColor3 = Kit.color.ink
+		track.BorderSizePixel = 0
+		track.Parent = box
+		local fill = Instance.new("Frame")
+		fill.Name = "Fill"
+		fill.Size = UDim2.fromScale(if r.need > 0 then r.have / r.need else 0, 1)
+		fill.BackgroundColor3 = if r.have >= r.need then Kit.color.volt else Kit.color.gold
+		fill.BorderSizePixel = 0
+		fill.Parent = track
+		local note = Kit.label({
+			Text = r.note,
+			Position = UDim2.fromOffset(0, 38),
+			Size = UDim2.new(1, 0, 0, 16),
+			TextXAlignment = Enum.TextXAlignment.Left,
+			TextColor3 = Kit.color.muted,
+			maxText = 14,
+		})
+		note.Parent = box
+	end
+end
+
 local function draw()
 	local j = StoryClient.journal
 	clearBody()
@@ -548,6 +598,9 @@ local function draw()
 		return
 	elseif tab == "lore" then
 		LoreClient.drawInto(body) -- side-content: the lore pages by district
+		return
+	elseif tab == "goals" then
+		drawGoals() -- list-combat: the long goals as bars
 		return
 	end
 	if not j then

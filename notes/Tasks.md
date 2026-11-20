@@ -2222,3 +2222,11 @@ Storyboard (the game's own camera on the test seed, stand-in figures): art/previ
 ## Studio list: fast early levels (2026-11-20, list-combat)
 - [ ] A new hero after the prologue (level 3) clears Safehouse and reaches level 5 (new skill slot, the level-up toast) in about 8 minutes of mission; the MOBILITY tab offers rank 1 at 150 Credits right then.
 - [ ] Renown toasts still show the base amount while the bar fills faster (the boost is applied on top): nate to say if the toast should show the boosted number.
+
+## Studio list: retention (2026-11-20, list-combat)
+- [ ] 10 and 5 minutes before a boss: the orange "RISES IN N MINUTES!" toast (and the bounty line on the week's bounty boss); none in the prologue, a mission or the creator.
+- [ ] Beat the week's bounty boss: the result card shows WEEKLY BOUNTY! and the pay is doubled with 60 Dust; a second kill that week pays normally.
+- [ ] Two friends on one server: one joins the boss, the other (out in the city) gets the friend toast once.
+- [ ] Change the week (or edit stats.newsWeek in a test save): the NEW WEEK toast after the daily card; a brand-new save never sees it.
+- [ ] Meet your nemesis a second and third time: the callback line names the meeting and 1 then 2 welded scars show on its chest.
+- [ ] Journal > GOALS: the bars fill from your own save (level, HQ, mobility, Mastery, lore, boss MVPs); they look right on a phone.

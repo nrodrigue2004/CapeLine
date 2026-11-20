@@ -38,6 +38,17 @@ local function friendCount(player: Player): number
 	return n
 end
 
+-- This player's friends on this server now (the friend boost's list; the boss invite reads it too)
+function EconomyService.friendsHere(player: Player): { Player }
+	local out = {}
+	for other in friendsOf[player] or {} do
+		if other.Parent == Players then
+			table.insert(out, other)
+		end
+	end
+	return out
+end
+
 local function syncCredits(player: Player, profile: any)
 	local hero = HeroService.get(player)
 	if hero then

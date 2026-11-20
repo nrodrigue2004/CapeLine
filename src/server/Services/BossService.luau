@@ -358,6 +358,25 @@ local function rewardHero(
 			EconomyService.Earned:Fire(player, r.earn) -- Fame or Infamy for the tier (M8); a retreat pays none
 		end
 	end
+	-- the week's bounty boss (list-combat): defeated, it pays again `mult - 1` times over plus Dust, once a week
+	local bounty = false
+	local week = CityBuilder.seed()
+	if
+		defeated
+		and r.share > 0
+		and f.id == BossMath.bounty(Config, week)
+		and profile.stats.bountyWeek ~= week
+	then
+		profile.stats.bountyWeek = week
+		local extra = B.bounty.mult - 1
+		local bc, br = math.floor(credits * extra + 0.5), math.floor(renown * extra + 0.5)
+		EconomyService.addCredits(player, bc)
+		EconomyService.addRenown(player, br)
+		EconomyService.addDust(player, B.bounty.dust)
+		credits += bc
+		renown += br
+		bounty = true
+	end
 	local drops = 0
 	for _, src in r.drops do
 		drops += #GearService.grant(player, src, f.level)
@@ -403,6 +422,7 @@ local function rewardHero(
 		style = styleId,
 		shiny = shiny,
 		mvps = mvps,
+		bounty = bounty or nil,
 	})
 	local l = f.ledger[heroId]
 	local score = if l then math.floor(l.damage + l.support + l.objectives) else 0
@@ -634,6 +654,54 @@ local function sendContribution(f: Fight)
 	end
 end
 
+-- "Rises in N minutes" (list-combat 2026-11-20): once per wait at each Config.Boss.schedule.alerts mark, to every
+-- hero out in the city (not in a story scene); the week's bounty boss says so
+local alerted: { [number]: number } = {}
+local function alerts(now: number)
+	local left = startAt - now
+	for _, m in SCHED.alerts or {} do
+		if left <= m * 60 and left > m * 60 - 20 and alerted[m] ~= startAt then
+			alerted[m] = startAt
+			local id = nextBoss()
+			local bounty = id == BossMath.bounty(Config, CityBuilder.seed())
+			for _, player in Players:GetPlayers() do
+				local hero = HeroService.get(player)
+				if hero and hero.loaded and not hero.scene then
+					Net.fire(
+						"Toast",
+						player,
+						{ id = "bossSoon", num = B.bosses[id].num, minutes = m, bounty = bounty }
+					)
+				end
+			end
+		end
+	end
+end
+
+-- "Your friend is fighting the boss" (list-combat 2026-11-20): a hero out in the city whose Roblox friend on this
+-- server is in the fight hears it once a fight (it flies there from the MAP like any boss)
+local invited: { [Player]: Fight } = setmetatable({}, { __mode = "k" }) :: any
+local lastInvite = 0
+local function invites(f: Fight)
+	for _, player in Players:GetPlayers() do
+		local hero = HeroService.get(player)
+		if invited[player] ~= f and hero and hero.loaded and not hero.scene and not inArena(f, hero) then
+			for _, other in EconomyService.friendsHere(player) do
+				local oh = HeroService.get(other)
+				if oh and inArena(f, oh) then
+					invited[player] = f
+					Net.fire(
+						"Toast",
+						player,
+						{ id = "friendBoss", num = f.sim.cfg.num, name = other.DisplayName }
+					)
+					break
+				end
+			end
+		end
+	end
+end
+
 ---------------------------------------------------------------------------
 -- Public
 ---------------------------------------------------------------------------
@@ -713,6 +781,7 @@ function BossService.init()
 		local now = os.clock()
 		local t0 = now
 		if phase == "waiting" then
+			alerts(now)
 			IncidentService.prep = startAt - now <= SCHED.prepWindow
 			if now >= startAt and #Players:GetPlayers() > 0 then
 				begin()
@@ -723,6 +792,10 @@ function BossService.init()
 			local f = fight
 			if f and not f.over then
 				stepFight(f, now)
+				if now - lastInvite >= 2 then
+					lastInvite = now
+					invites(f)
+				end
 			end
 		elseif phase == "result" and now >= resultUntil then
 			phase = "waiting"

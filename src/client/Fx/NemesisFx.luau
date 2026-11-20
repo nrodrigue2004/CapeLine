@@ -125,6 +125,25 @@ local function build(d: { [string]: any })
 			end
 		end
 	end
+	-- its scars (list-combat 2026-11-20): a welded patch per past meeting, a dark plate with a glowing seam
+	local SCARS = {
+		{ CFrame.new(-1.1 * wide, 2.2, -1.75) * CFrame.Angles(0, 0, 0.5), Vector3.new(1.6, 0.9, 0.2) },
+		{ CFrame.new(1.3 * wide, 3.6, -1.75) * CFrame.Angles(0, 0, -0.3), Vector3.new(1.3, 0.7, 0.2) },
+		{ CFrame.new(0.4, 5.3, -1.55) * CFrame.Angles(0, 0, 0.9), Vector3.new(1.0, 0.5, 0.2) },
+	}
+	for i = 1, math.min(tonumber(d.scars) or 0, #SCARS) do
+		local cf, size = SCARS[i][1], SCARS[i][2]
+		add(part(size, Color3.fromRGB(70, 72, 80), nil, Enum.Material.CorrodedMetal), cf)
+		add(
+			part(
+				Vector3.new(size.X * 1.05, 0.12, 0.24),
+				Color3.fromRGB(255, 150, 50),
+				nil,
+				Enum.Material.Neon
+			),
+			cf * CFrame.new(0, 0, -0.03)
+		)
+	end
 	local core: BasePart? = nil
 	if d.weak then
 		core = part(

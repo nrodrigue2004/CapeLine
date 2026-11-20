@@ -38,6 +38,12 @@ function BossMath.phase(Config: any, hpShare: number): number
 end
 
 -- Seconds from a boss ending to the next one starting (rng: :range)
+-- The week's bounty boss (list-combat 2026-11-20): one of the rotation by the weekly seed, the same on every server
+function BossMath.bounty(Config: any, weekSeed: number): string
+	local order = Config.Boss.order
+	return order[(weekSeed * 7 + 3) % #order + 1]
+end
+
 function BossMath.nextDelay(Config: any, rng: any): number
 	local e = Config.Boss.schedule.every
 	return rng:range(e[1], e[2])

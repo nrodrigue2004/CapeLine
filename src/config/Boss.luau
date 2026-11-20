@@ -39,7 +39,13 @@ return {
 		landing = 5, -- seconds of the landing or rising before it can be hit
 		lifespan = 480,
 		resultTime = 12, -- the result card, then the scheduler waits again
+		-- list-combat 2026-11-20 (nate: a recurring player base): "rises in N minutes" alerts to everyone out in
+		-- the city (BossService, Toasts "bossSoon"), and a friend fighting the boss asks you to join
+		alerts = { 10, 5 },
 	},
+	-- The weekly boss bounty (list-combat 2026-11-20): one boss a week (BossMath.bounty from the weekly seed)
+	-- pays its defeat reward `mult` times over plus `dust` Dust, once per hero a week. Earned only.
+	bounty = { mult = 2, dust = 60 },
 	hp = { base = 60000, perHero = 4000, atLevel = 20, range = 600 },
 	prep = { weakenEach = 0.03, weakenMax = 0.15 },
 	phases = { 0.66, 0.33 },

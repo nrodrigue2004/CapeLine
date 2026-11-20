@@ -581,6 +581,18 @@ local function showResultNow(r: { [string]: any })
 			true, -- counts up
 		},
 	}
+	if r.bounty then
+		-- the week's bounty boss (list-combat 2026-11-20): paid twice over plus Dust, once a week
+		table.insert(lines, {
+			string.format(
+				"WEEKLY BOUNTY! x%d pay + %d Dust",
+				Config.Boss.bounty.mult,
+				Config.Boss.bounty.dust
+			),
+			Color3.fromRGB(255, 170, 60),
+			20,
+		})
+	end
 	if (r.drops or 0) > 0 then
 		table.insert(
 			lines,

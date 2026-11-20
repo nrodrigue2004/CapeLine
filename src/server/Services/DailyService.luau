@@ -37,6 +37,8 @@ local IncidentService = require(script.Parent.IncidentService)
 local SideQuestService = require(script.Parent.SideQuestService)
 local ThrowService = require(script.Parent.ThrowService)
 local BadgeService = require(script.Parent.BadgeService)
+local CityBuilder = require(script.Parent.CityBuilder)
+local BossMath = require(Shared:WaitForChild("BossMath"))
 
 local DailyService = {}
 
@@ -173,6 +175,18 @@ local function offerCard(player: Player)
 		if player.Parent == Players and profile and not shown[player] then
 			shown[player] = true
 			send(player, profile.daily.owed > 0)
+			-- "this week's city" (list-combat 2026-11-20, nate: a recurring player base): a returning hero's first
+			-- visit of a new week hears what changed: the outskirts rebuilt by the weekly seed, the bounty boss
+			local week = CityBuilder.seed()
+			if profile.stats.newsWeek ~= week then
+				local returning = profile.stats.newsWeek ~= 0
+				profile.stats.newsWeek = week
+				DataService.changed(player)
+				if returning then
+					local b = Config.Boss.bosses[BossMath.bounty(Config, week)]
+					Net.fire("Toast", player, { id = "weekNews", num = b and b.num or 0 })
+				end
+			end
 		end
 	end)
 end
