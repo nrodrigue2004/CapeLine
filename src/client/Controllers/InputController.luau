@@ -162,6 +162,11 @@ function InputController.actionOf(key: Enum.KeyCode): string?
 	return KEYS[key]
 end
 
+-- The second action a pad button also fires (X: Catch, the prologue's GRAB prompt; prologue-cine), or nil
+function InputController.alsoOf(key: Enum.KeyCode): string?
+	return ALSO[key]
+end
+
 function InputController.isDown(action: string): boolean
 	return down[action] == true
 end

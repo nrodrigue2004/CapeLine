@@ -142,7 +142,12 @@ return function(T: any)
 			if b.look and b.look ~= "Picket" then
 				check(pieces ~= nil and #pieces >= 1, tostring(b.look) .. " gives pieces")
 			end
-			for _, p in pieces or {} do
+			-- (a ring look runs along its box's edges, not over it; a pond's rim and reeds stand round and above its
+			-- water box, and the lighthouse lantern's deck overhangs its box: tests/shapes_test.luau checks those)
+			local ring = b.look
+				and Config.ShapeArt[b.look]
+				and (Config.ShapeArt[b.look].ring or Config.Life.shapes.keep[b.look] or b.look == "Lantern")
+			for _, p in if ring then {} else pieces or {} do
 				n += 1
 				local big = math.max(b.sx, b.sy, b.sz)
 				local dx, dz = math.abs(p.x - b.cx), math.abs(p.z - b.cz)

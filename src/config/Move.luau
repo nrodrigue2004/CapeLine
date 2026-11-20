@@ -3,6 +3,11 @@
 -- and the server checks share one set of numbers.
 return {
 	run = { speed = 20, groundMax = 28 },
+	-- the sprint for everyone (nate 2026-11-19 20:46Z: "everyone should get a sprint with shift, superspeed is just
+	-- way faster"): hold Boost (Shift, LT; on touch the SPRINT button or the stick pushed to its edge) on the ground
+	-- to run at `speed` (1.4x the run; caps.run 28 already covers it, so no server change), free of stamina.
+	-- Super-speed keeps its own sprint (mobility.speed.sprint, 100 and up).
+	sprint = { speed = 28, edge = 0.95, ease = 8 },
 	airGravity = 120, -- studs/s^2 while leaping (Roblox default is 196.2)
 	leap = {
 		charge = 0.25, -- tap: the hero crouches this long, then launches
@@ -37,8 +42,12 @@ return {
 	stamina = {
 		max = 200,
 		boostDrain = 14,
-		regenGround = 15,
-		regenAir = 8, -- gliding or cruising
+		-- nate 2026-11-20 00:03Z ("stamina/boost should refill quicker"): regen 15 -> 40 on the ground (a full
+		-- refill in 5 s, was 13) and 8 -> 20 in the air (10 s), after `regenDelay` s without a drain (boost, wall
+		-- runs, the crawl's scurry), so boosting still costs something
+		regenGround = 40,
+		regenAir = 20, -- gliding or cruising
+		regenDelay = 0.6,
 		boostMin = 10, -- boost needs this much to start
 	},
 	-- spec: cloud layer at 500, ceiling 600; raised 2026-11-17 for the skyscrapers (nate: "taller buildings"):
@@ -146,6 +155,10 @@ return {
 			-- wall runs (nate's playtest 2026-11-19: "jump onto building and keep wall running"): a hop or fall into a
 			-- wall at waterRun or more runs up it (wallRun) like the ground run does; a glancing one at hop.from or more
 			-- runs along it at the run's speed; either keeps going while Boost or Leap is held and stamina lasts
+			-- the smash rule (nate on the card, 2026-11-19 20:45Z): holding Boost at `smash` studs/s or more, a wall
+			-- ahead (running or hopping) is smashed straight through (the flight ram, Config.Combat.impact.ram);
+			-- without Boost the hero runs up it (`wall`) or along it (`wallrun`) as before, at any run speed
+			smash = 45,
 			cap = 100,
 			swim = 60,
 			up = { trailLevel = 12, trailSpeed = 70, trailRadius = 7, trailCoeff = 0.25 }, -- level 12: the trail hurts robots
@@ -202,6 +215,29 @@ return {
 			pound = { speed = 160, radius = 12, coeff = 0.8, cooldown = 3, minFall = 15 }, -- Down in the air
 			swim = 36,
 			up = { poundLevel = 10, poundRadius = 18 },
+			-- the Hulk wall climb (nate's playtest 2026-11-19 20:42Z: "he'd grab a piece of the building and do a large
+			-- vertical jump and grab onto the next piece and so on"; Shared.ClimbMath): a leap, fall or jump into a
+			-- wall grabs it (fingers dig in: a crack and dust where the hands bite, the building takes a `bite`
+			-- chip through the server's MoveGrab), Leap bounds `bound` studs straight up the face to the next grab
+			-- (holding Leap bounds again after `grip` s), and over the top a vault onto the roof (`vault`); Leap with
+			-- the stick pulled away from the wall kicks off (`kick`, momentum out and up); Down lets go. Sideways
+			-- stick drifts the bound along the face (`side`).
+			climb = {
+				bound = 30, -- studs a bound rises
+				gravity = 120, -- the bound's own fall (airGravity)
+				grip = 0.14, -- seconds a grab holds before a held Leap bounds again
+				reach = 3.5, -- studs to a wall that counts as grabbable
+				press = 3, -- studs/s the hands push into the face (keeps the body on it)
+				side = 14, -- studs/s sideways drift along the face while bounding
+				vault = { up = 36, forward = 24, time = 0.42 },
+				kick = { up = 52, out = 58 },
+				bite = { dmg = 120, radius = 3, every = 0.25 },
+			},
+			-- the smash rule (nate on the card, 2026-11-19 20:45Z: "boost (or a fast leap) smashes through
+			-- buildings"): mid-leap moving into a wall at `into` studs/s or more (flat, into the face) goes straight
+			-- through it like a flight ram (Config.Combat.impact.ram); slower (a tapped leap, near the top, a jump
+			-- from beside the wall) grabs it and climbs. A full charged leap runs ~82 flat, a tapped one ~60.
+			smash = { into = 68 },
 			ranks = {
 				{
 					name = "Spring Heels",
@@ -210,8 +246,12 @@ return {
 				},
 				{
 					name = "Hair Trigger",
-					text = "Shorter crouch and cooldown",
-					set = { { "mobility.leap.charge", 0.18 }, { "mobility.leap.cooldown", 0.35 } },
+					text = "Shorter crouch, quicker climb grabs",
+					set = {
+						{ "mobility.leap.charge", 0.18 },
+						{ "mobility.leap.cooldown", 0.35 },
+						{ "mobility.leap.climb.grip", 0.08 },
+					},
 				},
 				{
 					name = "Ricochet",
@@ -224,8 +264,12 @@ return {
 				},
 				{
 					name = "Skybound",
-					text = "Leaps 115 high, 260 far",
-					set = { { "mobility.leap.apex", 115 }, { "mobility.leap.range", 260 } },
+					text = "Leaps 115 high, climb bounds 38 high",
+					set = {
+						{ "mobility.leap.apex", 115 },
+						{ "mobility.leap.range", 260 },
+						{ "mobility.leap.climb.bound", 38 },
+					},
 				},
 				{
 					name = "Meteor",
@@ -241,16 +285,35 @@ return {
 		},
 		acrobat = {
 			name = "Acrobat",
-			text = "Double jump, climb any wall, wall run and glide",
+			-- the agility pick (nate's playtest 2026-11-19 20:42Z: "whats the point of the player picking acrobat? it
+			-- just seems so much worse than everything else"; "should we add wall crawling?"): crawl on any wall or
+			-- ceiling, flips that dodge attacks, the best air control and the fastest climb, on top of the double and
+			-- triple jump, the glide and the wall runs
+			text = "Crawl on walls and ceilings, flip past hits",
 			jump = 55, -- each air jump's upward speed
 			jumpForward = 35,
 			jumps = 1, -- extra jumps in the air (2 from level 10)
-			climb = 26, -- studs/s up a wall (hold forward into it)
-			-- wall runs (nate's playtest 2026-11-19: "jump onto building and keep wall running"): jump at a wall and
-			-- the hero grabs it: within wall.grabAngle of head-on (stick into it) climbs, more glancing runs along it at
-			-- the speed it came in with (wallRun to cap); the run lasts while the stick is held, up to wallRunTime,
-			-- sinking `sink` studs/s; Leap kicks off keeping the speed along the wall (and gives an air jump back),
-			-- so walls chain (wall.regrab)
+			-- wall crawl (Shared.ClimbMath.crawl*): walk, jump or fall into any wall, or rise into a ceiling, and the
+			-- hero sticks to it; the stick crawls over the face (up is up on a wall, the camera's forward on a
+			-- ceiling), round outside corners and into inside ones, and onto a roof at the top; Boost scurries at
+			-- `crawlBurst` on stamina; Leap jumps off (an air jump back); Down lets go. `climb` is the crawl speed
+			-- (the fastest climb of any pick: Leap's bounds average ~30 up, Super-speed's wall run needs stamina)
+			climb = 40,
+			crawlBurst = 66,
+			crawlDrain = 10, -- stamina per second while scurrying
+			crawlReach = 3.4, -- studs to a face that keeps the hero on it
+			crawlGap = 1.6, -- studs the body sits off the face
+			ceilingReach = 3, -- rising this close under a ceiling grabs it
+			-- the best air control of any pick: the stick builds up to air.max flat at air.accel (Leaping: 55 / 40)
+			air = { accel = 95, max = 46 },
+			-- flips that dodge (Down: Ctrl, B, the FLIP button): a quick flip along the stick (back when it is
+			-- still) on the ground or in the air; for `iframes` s attacks miss (the server's own clock, MoveFlip:
+			-- HeroService.damage). Every `cooldown` s.
+			flip = { speed = 58, up = 20, time = 0.32, iframes = 0.3, cooldown = 1.1, word = "DODGE!" },
+			-- wall runs (nate's playtest 2026-11-19: "jump onto building and keep wall running"): jump at a wall
+			-- glancingly and the hero runs along it at the speed it came in with (wallRun to cap); the run lasts while
+			-- the stick is held, up to wallRunTime, sinking `sink` studs/s; Leap kicks off keeping the speed along
+			-- the wall (and gives an air jump back), so walls chain (wall.regrab). Head-on, it crawls instead.
 			wallRun = 45, -- studs/s along a wall (at least)
 			wallRunTime = 4, -- was a fixed 1.6 s
 			wallRunMin = 12, -- flat speed needed to start a run along a wall
@@ -262,9 +325,9 @@ return {
 			up = { jumpsLevel = 10, jumps = 2 }, -- level 10: 2 air jumps (rank 5: 3)
 			ranks = {
 				{
-					name = "Sure Grip",
-					text = "Climb 26 -> 34 studs/s, longer wall runs",
-					set = { { "mobility.acrobat.climb", 34 }, { "mobility.acrobat.wallRunTime", 5 } },
+					name = "Spider Grip",
+					text = "Crawl 40 -> 48 studs/s, longer wall runs",
+					set = { { "mobility.acrobat.climb", 48 }, { "mobility.acrobat.wallRunTime", 5 } },
 				},
 				{
 					name = "Spring Step",
@@ -272,23 +335,33 @@ return {
 					set = { { "mobility.acrobat.jump", 62 }, { "mobility.acrobat.jumpForward", 40 } },
 				},
 				{
-					name = "Parkour",
-					text = "Faster wall runs that barely sink",
+					name = "Evasion",
+					text = "Flips dodge longer, every 0.8 s",
+					set = {
+						{ "mobility.acrobat.flip.iframes", 0.4 },
+						{ "mobility.acrobat.flip.cooldown", 0.8 },
+					},
+				},
+				{
+					name = "Freerunner",
+					text = "Wall runs 54, glide 82, scurry 74",
 					set = {
 						{ "mobility.acrobat.wallRun", 54 },
 						{ "mobility.acrobat.wallRunTime", 6 },
 						{ "mobility.acrobat.sink", 1 },
+						{ "mobility.acrobat.glideForward", 82 },
+						{ "mobility.acrobat.crawlBurst", 74 },
+						{ "mobility.acrobat.cap", 88 },
 					},
 				},
 				{
-					name = "Updraft",
-					text = "Glide 70 -> 82 studs/s",
-					set = { { "mobility.acrobat.glideForward", 82 }, { "mobility.acrobat.cap", 88 } },
-				},
-				{
 					name = "Triple Jump",
-					text = "A third jump in the air",
-					set = { { "mobility.acrobat.up.jumps", 3 }, { "mobility.acrobat.jump", 66 } },
+					text = "A third jump in the air, quicker flips",
+					set = {
+						{ "mobility.acrobat.up.jumps", 3 },
+						{ "mobility.acrobat.jump", 66 },
+						{ "mobility.acrobat.flip.cooldown", 0.6 },
+					},
 				},
 			},
 		},
@@ -335,6 +408,18 @@ return {
 			},
 			-- a hit on a wall snaps up to the roof edge (or corner) within `probe` above it
 			edge = { probe = 30, steps = 4, out = 1.5, below = 0.5 },
+			-- swing anywhere (nate's playtest 2026-11-19 20:42Z: "if you aren't in the city its pretty useless"):
+			-- when the main fan finds nothing, a wider, lower fan (`wide`) catches trees, poles, rocks, cliffs and big
+			-- props nearer by; with nothing at all in reach a shorter, weaker `sky` line hangs from the air ahead and
+			-- above (only when the way up to it is open), so a line always fires. The city's buildings stay best:
+			-- the sky line's swing tops out at sky.maxSpeed and pumps at sky.pump.
+			wide = {
+				lifts = { 0.15, 0.3, 0.6 },
+				yaws = { 0, 30, -30, 60, -60, 90, -90 },
+				near = 10,
+				minAbove = 3,
+			},
+			sky = { up = 34, ahead = 40, maxSpeed = 78, pump = 18, release = 92, minClear = 6 },
 			minAbove = 4,
 			minLen = 12,
 			clearance = 6,

@@ -462,7 +462,10 @@ return function(T: any)
 				),
 				"the fast modes ram"
 			)
-			check(has(mc, 'mode == "air" and hopping'), "a Super-speed running jump rams")
+			check(
+				has(mc, 'pick == "speed" and InputController.isDown("Boost")'),
+				"a Super-speed jump holding Boost rams (the smash rule, 2026-11-19)"
+			)
 			check(not has(mc, "RAM_MODES = { ground"), "a ground sprint still runs up the wall")
 			check(
 				has(mc, "vel = ramStep(MoveController.mode, vel, pos, now, dt)"),

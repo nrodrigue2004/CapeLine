@@ -74,14 +74,16 @@ return {
 		verbs = {
 			ceremony = {},
 			scan = {},
-			run = { "Leap" },
-			spark = { "Basic" }, -- the Spark fires from the attack button
+			-- prologue-cine (2026-11-20): every beat to the subway fight is a cinematic with its own prompts (Ui.QteHud:
+			-- the prompt is the button on a phone), so none shows the HUD's buttons
+			run = {},
+			spark = {},
 			-- the rooftop chase is a cinematic with its own prompts (Ui.QteHud: the prompt is the button on a phone)
 			leap = {},
 			chase = {},
 			suit = {},
 			descend = {},
-			tunnel = { "Leap" },
+			tunnel = {},
 			fight = { "Basic", "Skill1", "Skill2", "Leap" },
 			swarm = { "Basic", "Skill1", "Skill2", "Leap" },
 			rescue = {},
@@ -89,26 +91,23 @@ return {
 		},
 		-- one fixed word under the gold marker on a beat that has a place to reach, so the goal reads at once
 		-- (the lines can come later or not at all for a quick player); the camera beats have no marker
-		goals = {
-			run = "RUN",
-			spark = "SPARK",
-			leap = "LEAP",
-			chase = "LEAP",
-			descend = "SUBWAY",
-			tunnel = "RUN",
-		},
+		-- (prologue-cine, nate 2026-11-20: "dont have the player run to the gold marker": no beat before the
+		-- subway fight has a marker now; the fight's foe is in plain sight)
+		goals = {},
 		-- kid-proof (nate's playtest 2026-11-18): one short instruction on screen for every beat the hero plays,
 		-- big and always there until the beat is done; {Action} is that action's key or button on this device
 		hints = {
-			run = "Run to the gold marker!",
+			-- (the prompt beats show their prompt, not this line: the hint hides while a cinematic plays)
+			run = "Press the button when it flashes!",
 			spark = {
-				hero = "The kid is in danger! Press {Basic} to save them!",
-				villain = "That guy shoved you! Press {Basic} to fight back!",
+				hero = "The kid is in danger! Press the button to save them!",
+				villain = "That guy shoved you! Press the button to fight back!",
 			},
 			leap = "Press the button when it flashes!",
 			chase = "Skylance is coming! Press each button as it flashes!",
+			suit = "Hold the button to suit up!",
 			descend = "Press the button to drop to the subway!",
-			tunnel = "RUN! The tunnel is falling down!",
+			tunnel = "The tunnel is falling down! Press each button as it flashes!",
 			fight = "Fight Skylance! Press {Basic} to attack!",
 			swarm = "Keep fighting! Help is coming!",
 		},

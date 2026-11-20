@@ -64,7 +64,13 @@ local Remotes: { [string]: RemoteDef } = {
 	-- pt-city (2026-11-19): an awning sprang the hero up (the server checks one is there and grants the climb)
 	CityBounce = { dir = "C2S", schema = {}, rate = 2, burst = 3 },
 	-- your movement mode (Shared.HeroAnim.MODES index) so other devices pose you; the server sets the Move attribute
-	MoveMode = { dir = "C2S", schema = { n(1, 15) }, rate = 10, burst = 10 },
+	MoveMode = { dir = "C2S", schema = { n(1, 20) }, rate = 10, burst = 10 },
+	-- move-2 (2026-11-19): a Leaping hero's hands bit into a wall (the Hulk climb; ImpactService chips the building
+	-- there, a small hit, checked and rate-held); an Acrobat flipped (MoveGuard sets its dodge window on the
+	-- server's own clock, HeroService.damage misses it); MoveDodged tells the device an attack missed it
+	MoveGrab = { dir = "C2S", schema = { V3 }, rate = 6, burst = 6 },
+	MoveFlip = { dir = "C2S", schema = {}, rate = 3, burst = 3 },
+	MoveDodged = { dir = "S2C" },
 	-- the Swing's line (2026-11-19): where your line hangs (zero: none) so other devices draw it; looks only, the
 	-- server checks the reach and sets the SwingAt attribute
 	MoveLine = { dir = "C2S", schema = { V3 }, rate = 8, burst = 8 },
@@ -184,7 +190,7 @@ local Remotes: { [string]: RemoteDef } = {
 	OpeningState = { dir = "S2C" }, -- { step, t, target, side, left, the scene's points }: the Ceremony prologue
 	-- 1 the Spark fires, 2 skip a camera beat (replays only), 3 Create First, 4 play the prologue (main menu),
 	-- 5 the exposition is over (watched or skipped; fix-flow 2026-11-19), 6 replay the prologue (the Journal)
-	OpeningAct = { dir = "C2S", schema = { n(1, 6) }, rate = 2, burst = 3 },
+	OpeningAct = { dir = "C2S", schema = { n(1, 7) }, rate = 2, burst = 3 }, -- 7: the suit snapped (prologue-cine)
 	OpeningIntro = { dir = "S2C" }, -- { replay }: play the exposition comic page, then send OpeningAct 5
 	MissionEnter = { dir = "C2S", schema = { n(2, 6), n(0, 1000000, true) }, rate = 0.2, burst = 2 },
 	MissionLeave = { dir = "C2S", schema = {}, rate = 0.5, burst = 2 },
@@ -201,7 +207,9 @@ local Remotes: { [string]: RemoteDef } = {
 	SideQuestAct = { dir = "C2S", schema = { n(1, 2), n(1, 127) }, rate = 1, burst = 3 },
 	-- the tracked chain's step, 2 Hz: { bit, step, steps, have, need, wait, left, target, area, scene, card }
 	SideQuestState = { dir = "S2C" },
-	SideQuestTalk = { dir = "S2C" }, -- { bit, kind, step }: fixed giver and step lines through GuideHud
+	SideQuestTalk = { dir = "S2C" }, -- { bit, kind, step, why?, n? }: fixed giver and step lines through GuideHud
+	-- (kind "heard": a talk step counted; "refused": the press was turned down, why names the reason; "none": no
+	-- chain to offer, why and n say what it waits on)
 
 	-- PvP, death and safety (M8; spec: Flag.Set {on} 1/5s, Flag.State, Revive.Start {targetUserId} 2/s,
 	-- Down.GiveUp 1/s, Respawn.Choose {safehouseId}, Ping.Place {kind, position} 2/s, Report.Player

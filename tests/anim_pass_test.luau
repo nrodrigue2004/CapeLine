@@ -222,7 +222,8 @@ return function(T: any)
 
 	test("Anim pass: mobility poses by speed, fall, path and Give Up", function()
 		local mc = HeroAnim.modeClip
-		check(mc("ground", 30, false, nil) == nil, "a run is Roblox's own")
+		check(mc("ground", 20, false, nil) == nil, "a run is Roblox's own")
+		check(mc("ground", 30, false, nil) == "runFast", "everyone's sprint has its stride (move-2)")
 		check(mc("ground", HeroAnim.sprintSpeed + 1, false, nil) == "sprint", "sprint")
 		check(mc("ground", HeroAnim.sprintSpeed - 3, false, "sprint") == "sprint", "sprint holds")
 		check(mc("fly", 80, false, nil, { vy = -70 }) == "dive", "dive")
@@ -241,8 +242,8 @@ return function(T: any)
 		check(mc("fly", 0, true, nil, { giveUp = true }) == "giveUp", "Give Up slump")
 		check(mc("fly", 0, true, nil) == "downed", "Downed")
 		check(
-			#HeroAnim.MODES == 15 and table.find(HeroAnim.MODES, "swim") ~= nil,
-			"15 modes with swim and arc"
+			#HeroAnim.MODES == 20 and table.find(HeroAnim.MODES, "swim") ~= nil,
+			"20 modes with swim and arc (and move-2's climb, bound, crawl, flip, climbVault)"
 		)
 	end)
 

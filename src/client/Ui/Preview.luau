@@ -11,12 +11,15 @@ local FrameProf =
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local LookKit = require(Shared:WaitForChild("LookKit"))
+local LookCodec = require(Shared:WaitForChild("LookCodec"))
 
 local Preview = {}
 
 export type Handle = {
 	frame: ViewportFrame,
-	set: (look: any, weapon: any?) -> (),
+	set: (look: any, weapon: any?) -> (), -- built at the end of the frame, the latest ask only (fix-respawn)
+	flush: () -> (), -- build a waiting ask now
+	builds: () -> number, -- how many builds ran (tests)
 	-- the creator plan's camera per step: "full", "face" (eyes, makeup), "back" (capes, back bling), "weapon"
 	focus: (kind: string) -> (),
 	-- turn the hero by this many radians (the creator's turn buttons); dragging the hero turns it too
@@ -178,24 +181,75 @@ function Preview.new(parent: Instance, size: UDim2, position: UDim2): Handle
 			end
 		end)
 	)
+	-- fix-respawn (nate, 2026-11-19: "Next button in character creator is still super unresponsive"): a build is
+	-- a whole LookKit.build (dozens of meshes, the body set and shape). Every hover, hover end and redraw asked
+	-- for one at once, so sweeping the mouse over the rows and tiles on the way to NEXT, and the redraw NEXT
+	-- itself asks for, built the hero many times in one frame and the press felt dead. Now the latest ask is
+	-- built once at the end of the frame, and never again while the look is the same.
+	local wanted: { look: any, weapon: any? }? = nil
+	local queued = false
+	local builtKey: string? = nil
+	local builtCount = 0
+	local function keyOf(look: any, weapon: any?): string
+		local parts = { buffer.tostring(LookCodec.encode(look)) }
+		if type(weapon) == "table" then
+			local keys = {}
+			for k in weapon do
+				table.insert(keys, tostring(k))
+			end
+			table.sort(keys)
+			for _, k in keys do
+				table.insert(parts, k .. "=" .. tostring(weapon[k]))
+			end
+		end
+		return table.concat(parts, "|")
+	end
+	local function build()
+		queued = false
+		local w = wanted
+		wanted = nil
+		if not w then
+			return
+		end
+		if not model then
+			model = Preview.clone()
+			builtKey = nil
+			if model then
+				model.PrimaryPart = model:FindFirstChild("HumanoidRootPart") :: BasePart?
+				model:PivotTo(CFrame.new())
+				model.Parent = world
+				focusKind = "full"
+				aim("full")
+			end
+		end
+		if model then
+			local ok, key = pcall(keyOf, w.look, w.weapon)
+			if ok and key == builtKey then
+				return -- the hero already wears it (a hover ended back on the current look, a redraw)
+			end
+			builtKey = if ok then key else nil
+			builtCount += 1
+			LookKit.strip(model)
+			LookKit.build(model, w.look, w.weapon)
+		end
+	end
 	local handle: Handle
 	handle = {
 		frame = vp,
 		set = function(look: any, weapon: any?)
-			if not model then
-				model = Preview.clone()
-				if model then
-					model.PrimaryPart = model:FindFirstChild("HumanoidRootPart") :: BasePart?
-					model:PivotTo(CFrame.new())
-					model.Parent = world
-					focusKind = "full"
-					aim("full")
-				end
+			wanted = { look = look, weapon = weapon }
+			if not queued then
+				queued = true
+				task.defer(build)
 			end
-			if model then
-				LookKit.strip(model)
-				LookKit.build(model, look, weapon)
+		end,
+		flush = function()
+			if wanted then
+				build()
 			end
+		end,
+		builds = function(): number
+			return builtCount
 		end,
 		focus = function(kind: string)
 			if kind ~= focusKind then

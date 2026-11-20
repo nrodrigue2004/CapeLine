@@ -81,12 +81,23 @@ local lastStep: string? = nil
 local leapDone = false
 local sparkShown = false
 local spearAt = 0
-local suit: { hidden: { [BasePart]: boolean }, queue: { BasePart }, next: number, until_: number }? = nil
+local suit: {
+	hidden: { [BasePart]: boolean },
+	queue: { BasePart },
+	next: number,
+	until_: number,
+	shown: number?, -- pieces the HOLD prompt has put on (prologue-cine)
+	gap: number?, -- seconds between the last pieces once the hold is done
+}? =
+	nil
 local slowmo: ColorCorrectionEffect? = nil
 -- act1-choices: the Ceremony's choice moment (the spark beat holds while its card is up): its grade and when the
 -- crowd froze
 local pickTint: ColorCorrectionEffect? = nil
 local frozeAt: number? = nil
+-- prologue-cine: the directed beats' props (a barrier, a debris pile, a beam) and the man who charges the hero
+local props: { [string]: BasePart } = {}
+local runner: Npc? = nil
 
 local function v3(t: { number }?): Vector3?
 	return if t then Vector3.new(t[1], t[2], t[3]) else nil
@@ -300,6 +311,8 @@ local function clearScene()
 	scan = nil
 	kid, lodestar, scanner, debris, board = nil, nil, nil, nil, nil
 	sparkShown, leapDone, suit = false, false, nil
+	table.clear(props)
+	runner = nil
 end
 
 local function ensureFolder()
@@ -967,8 +980,9 @@ local function fireSpark(o: { [string]: any })
 	end
 end
 
--- The rooftop leap: one Leap becomes a slow, high arc to the next roof with the path's own power look
-local function slowLeap(o: { [string]: any })
+-- The rooftop leap's slow motion with the path's own power look (prologue-cine: Fx.PrologueQte moves the hero on
+-- the authored arc, Shared.PrologueCine; this is its look: the grade, the punch and the super's flourish mid-air)
+local function slowLeap(o: { [string]: any }, time: number)
 	if leapDone then
 		return
 	end
@@ -978,8 +992,6 @@ local function slowLeap(o: { [string]: any })
 		return
 	end
 	leapDone = true
-	local time = 1.9
-	MoveController.arcTo(goal + Vector3.new(0, 3, 0), time, 26)
 	local cc = Instance.new("ColorCorrectionEffect")
 	cc.Name = "PrologueSlowMo"
 	cc.TintColor = Color3.new(1, 1, 1):Lerp(powerColor(), 0.25)
@@ -1096,7 +1108,7 @@ local function suitStep(now: number)
 		end
 	end
 	if now >= s.next and #s.queue > 0 then
-		s.next = now + O.suit.pieceGap
+		s.next = now + (s.gap or O.suit.pieceGap)
 		local p = table.remove(s.queue, 1) :: BasePart
 		if p.Parent then
 			p.LocalTransparencyModifier = 0
@@ -1115,6 +1127,254 @@ local function suitStep(now: number)
 	elseif now >= s.until_ + 2 and #s.queue == 0 then
 		suit = nil
 	end
+end
+
+---------------------------------------------------------------------------
+-- The directed beats' moments (prologue-cine, 2026-11-20; Shared.PrologueCine, Fx.PrologueQte): what each prompt
+-- shows as it comes up ("show"), when it is answered ("hit") and what a miss looks like ("miss": a near miss,
+-- never damage). Everything here is on this device only and goes when the prologue ends.
+-- PLACEHOLDER ART: the run's knocked-over barrier and the tunnel's beam are plain parts until their art pass.
+---------------------------------------------------------------------------
+
+local function feetOf(p: { number }?): Vector3?
+	return if p then Vector3.new(p[1], p[2], p[3]) else nil
+end
+
+local function shoveHero(amount: number)
+	CameraController.shake(0.3, amount)
+	local r = root()
+	if r then
+		CombatFx.burst(r.Position - Vector3.new(0, 2, 0), "Comic")
+	end
+end
+
+-- Skylance's spear from where he is to `at` (it never hurts)
+local function throwSpear(o: { [string]: any }, at: Vector3)
+	local from = o.fake and EnemyRenderer.position(o.fake)
+	if from then
+		CombatFx.bolt(from + Vector3.new(0, 3, 0), at, "Comic", Color3.fromRGB(110, 210, 255), "Blade")
+	end
+	CombatFx.burst(at, "Comic")
+	AudioController.play("clash", at)
+end
+
+-- A chunk of the tunnel roof falling at `at` (a near miss, or where the hero just was)
+local function chunk(at: Vector3)
+	ensureFolder()
+	local S = O.subway
+	local c = part(
+		Vector3.new(5, 3, 5),
+		CFrame.new(at + Vector3.new(0, S.height - 4, 0)),
+		Color3.fromRGB(110, 100, 92),
+		Enum.Material.Slate
+	)
+	TweenService:Create(c, TweenInfo.new(0.28, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+		CFrame = CFrame.new(at + Vector3.new(0, 1.5, 0)) * CFrame.Angles(0.3, 0.6, 0.2),
+	}):Play()
+	task.delay(0.3, function()
+		CombatFx.burst(at + Vector3.new(0, 1, 0), "Comic")
+		AudioController.play("collapse", at)
+		CameraController.shake(0.3, 0.5)
+	end)
+	task.delay(4, function()
+		c:Destroy()
+	end)
+end
+
+function PrologueFx.moment(kind: string?, seg: { [string]: any }, phase: string)
+	local o = StoryClient.opening
+	local at = feetOf(seg.at)
+	local r = root()
+	if not kind or not at then
+		return
+	end
+	ensureFolder()
+	if kind == "runner" then
+		if phase == "show" and not runner then
+			-- a fleeing man barrels up the street at the hero
+			local rig = person(
+				"Citizen",
+				{ gender = 1, build = 3, height = 3 },
+				rgb(SHIRTS[3]),
+				rgb(PANTS[1]),
+				rgb(Config.Creator.skins[5]),
+				rgb(PANTS[4])
+			)
+			local toward = if r
+				then Vector3.new(r.Position.X - at.X, 0, r.Position.Z - at.Z)
+				else Vector3.zero
+			local n = npc(rig, at, 0)
+			n.run = if toward.Magnitude > 0.1 then toward.Unit else Vector3.new(1, 0, 0)
+			n.speed = 6 -- he slows as the prompt waits (the hero's moment), then charges past
+			n.gone = os.clock() + 8
+			table.insert(crowd, n)
+			runner = n
+		elseif phase == "hit" and runner then
+			(runner :: Npc).speed = 22
+		elseif phase == "miss" then
+			shoveHero(0.45)
+			if runner then
+				(runner :: Npc).speed = 2 -- he stumbles back a step; the prompt comes again
+			end
+		end
+	elseif kind == "barrier" then
+		if phase == "show" and not props.barrier then
+			-- a crowd barrier knocked flat across the street (yellow and black)
+			local dir = feetOf(seg.to) and (feetOf(seg.to) :: Vector3) - (feetOf(seg.from) :: Vector3)
+				or Vector3.new(0, 0, -1)
+			local flat = Vector3.new(dir.X, 0, dir.Z)
+			flat = if flat.Magnitude > 0.1 then flat.Unit else Vector3.new(0, 0, -1)
+			local cf = CFrame.lookAt(at + Vector3.new(0, 1.2, 0), at + Vector3.new(0, 1.2, 0) + flat)
+			local b =
+				part(Vector3.new(9, 2.4, 0.6), cf * CFrame.Angles(0.35, 0, 0), Color3.fromRGB(250, 200, 40))
+			for i = -1, 1 do
+				local stripe = part(
+					Vector3.new(1.2, 2.5, 0.65),
+					b.CFrame * CFrame.new(i * 3, 0, 0),
+					Color3.fromRGB(30, 30, 34)
+				)
+				stripe.Parent = b
+			end
+			props.barrier = b
+		elseif phase == "miss" then
+			shoveHero(0.35)
+		end
+	elseif kind == "sign" or kind == "shove" then
+		if phase == "miss" then
+			if kind == "sign" and debris then
+				-- the sign slips lower over the kid: hurry!
+				local d = debris :: Part
+				d.CFrame = d.CFrame - Vector3.new(0, 3, 0)
+				CombatFx.burst(d.Position, "Comic")
+				AudioController.play("clash", d.Position)
+			end
+			shoveHero(0.35)
+		end
+	elseif kind == "spear" then
+		if phase == "show" and r then
+			CombatFx.warn(r.Position - Vector3.new(0, 2.5, 0), 4, O.qte.window) -- the spear's mark under the hero
+		elseif phase == "hit" then
+			task.delay(0.15, throwSpear, o, at + Vector3.new(0, 0.5, 0)) -- it lands where the hero was
+		elseif phase == "miss" and r then
+			throwSpear(o, r.Position + Vector3.new(1.8, -2.5, 0)) -- a stride wide: it scares, never hurts
+			shoveHero(0.45)
+		end
+	elseif kind == "ledge" then
+		if phase == "miss" and r then
+			-- the fingers slip: dust off the ledge, the hero catches lower
+			FxLib.emit("spark", Color3.fromRGB(200, 190, 170), r.Position + Vector3.new(0, 2.5, 0), 6)
+			shoveHero(0.4)
+		end
+	elseif kind == "slab" then
+		if phase == "show" then
+			CombatFx.warn(at, 3.5, O.qte.window)
+		elseif phase == "hit" then
+			chunk(at)
+		elseif phase == "miss" and r then
+			chunk(at + Vector3.new(0, 0, -5))
+		end
+	elseif kind == "pile" then
+		if phase == "show" and not props.pile then
+			local pile = part(
+				Vector3.new(O.subway.width - 6, 3, 4),
+				CFrame.new(at + Vector3.new(0, 1.5, 0)),
+				Color3.fromRGB(110, 100, 92),
+				Enum.Material.Slate
+			)
+			local art = PrologueMeshes.add(folder :: Folder, "Rubble", pile.CFrame, nil)
+			if #art > 0 then
+				PrologueMeshes.hide(pile)
+			end
+			props.pile = pile
+		elseif phase == "miss" then
+			shoveHero(0.35)
+		end
+	elseif kind == "beam" then
+		if phase == "show" and not props.beam and r then
+			-- a beam drops across the hero's shoulders: pinned
+			local top = r.Position + Vector3.new(0, 2.2, 0)
+			local b = part(
+				Vector3.new(14, 1.6, 1.6),
+				CFrame.new(top + Vector3.new(0, 14, 0)) * CFrame.Angles(0, 0, 0.2),
+				Color3.fromRGB(120, 80, 50),
+				Enum.Material.Wood
+			)
+			TweenService:Create(b, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+				CFrame = CFrame.new(top) * CFrame.Angles(0, 0, 0.2),
+			}):Play()
+			task.delay(0.26, function()
+				CameraController.shake(0.35, 0.7)
+				AudioController.play("collapse", top)
+			end)
+			props.beam = b
+		elseif phase == "hit" and props.beam then
+			-- thrown off: it tumbles away down the tunnel
+			local b = props.beam
+			props.beam = nil
+			CombatFx.word(b.Position + Vector3.new(0, 2, 0), State.hero.setId, powerColor(), true)
+			CombatFx.burst(b.Position, State.hero.fxStyle, powerColor())
+			TweenService:Create(b, TweenInfo.new(0.6, Enum.EasingStyle.Quad), {
+				CFrame = b.CFrame * CFrame.new(0, 9, 14) * CFrame.Angles(2.5, 0.4, 1.4),
+				Transparency = 1,
+			}):Play()
+			task.delay(0.65, function()
+				b:Destroy()
+			end)
+		elseif phase == "miss" and props.beam then
+			props.beam.CFrame = props.beam.CFrame - Vector3.new(0, 0.4, 0)
+			shoveHero(0.5)
+		end
+	elseif kind == "suit" then
+		if phase == "miss" then
+			-- the Spark fizzles out for now: a puff, try again
+			if r then
+				FxLib.emit("wisp", powerColor(), r.Position, 4)
+			end
+		end
+	end
+end
+
+-- The suit's HOLD prompt (prologue-cine): f (0 to 1) of the pieces are on; done: the rest snap on, then SUIT UP
+function PrologueFx.suitHold(f: number, done: boolean)
+	local s = suit
+	if not s then
+		return
+	end
+	local now = os.clock()
+	if done then
+		if #s.queue == 0 then
+			-- every piece is on already (the hold built it all): the snap
+			CombatFx.banner(
+				if State.hero.fxStyle == "Anime" then "SUIT UP" else "SUIT UP!",
+				powerColor(),
+				State.hero.fxStyle
+			)
+			CameraController.punch(0.08)
+			suit = nil
+			return
+		end
+		s.next = math.min(s.next, now)
+		s.until_ = math.min(s.until_, now + 0.2)
+		s.gap = math.min(O.suit.pieceGap, 1.4 / math.max(1, #s.queue)) -- the rest in about the snap's time
+		return
+	end
+	-- while held, pieces pop on in step with the fill
+	local total = (s.shown or 0) + #s.queue
+	local want = math.floor(f * total)
+	while (s.shown or 0) < want and #s.queue > 0 do
+		local p = table.remove(s.queue, 1) :: BasePart
+		s.shown = (s.shown or 0) + 1
+		if p.Parent then
+			p.LocalTransparencyModifier = 0
+			CombatFx.burst(p.Position, State.hero.fxStyle, powerColor())
+			AudioController.play("skillRank", p.Position)
+		end
+	end
+end
+
+-- The big leap's slow motion (Fx.PrologueQte calls it as the JUMP lands its prompt)
+function PrologueFx.slowLeap(time: number)
+	slowLeap(StoryClient.opening, time)
 end
 
 local function tunnelStep(o: { [string]: any })
@@ -1426,7 +1686,8 @@ local function onState()
 			end
 		end
 		if step == "suit" then
-			suit = { hidden = {}, queue = {}, next = os.clock() + 0.3, until_ = os.clock() + 1.6 }
+			-- prologue-cine: the suit's pieces stay hidden until the HOLD prompt builds them (PrologueFx.suitHold)
+			suit = { hidden = {}, queue = {}, next = math.huge, until_ = math.huge }
 		end
 		if step == "title" then
 			buildBoard(o)
@@ -1558,11 +1819,6 @@ function PrologueFx.init()
 		local time, height = OpeningPlan.hopArc(Config, { p.X, p.Y, p.Z }, to)
 		return Vector3.new(to[1], to[2] + 3, to[3]), time, height
 	end
-	MoveController.Leaped:Connect(function()
-		if StoryClient.openingStep() == "leap" then
-			slowLeap(StoryClient.opening)
-		end
-	end)
 	RunService.RenderStepped:Connect(FrameProf.wrap("PrologueFx", frame))
 end
 

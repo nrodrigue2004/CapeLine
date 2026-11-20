@@ -3,7 +3,7 @@
 # from the right hand for the two-handed moves (so the off hand can be seen on it). No faces or hair (those come
 # only from the Roblox catalog). Robots are drawn in steel, people in a plain shirt.
 # Run: lune run art/anims/frames.luau && $HOME/tools/bpyenv/bin/python art/blender/clips.py
-#      -> art/preview/anim_clips_<page>.png (1 two-handed, 2 ground vs mid-air, 3 robots, 4 people and landings)
+#      -> art/preview/anim_clips_<page>.png (1 two-handed, 2 ground vs mid-air, 3 robots, 4 people and landings, 5 climb, crawl, flip and sprint)
 import json
 import math
 import os

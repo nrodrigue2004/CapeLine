@@ -45,6 +45,13 @@ end
 function HeroBody.build(meshes: { [string]: MeshPart }): Model
 	local model = Instance.new("Model")
 	model.Name = "StarterCharacter"
+	-- fix-respawn (2026-11-19): the creator's Body step shapes every part itself (LookKit.shapeBody); the
+	-- Humanoid's automatic scaling would put them back to their first size on a spawn (nate: "my size reset").
+	-- The player's own avatar (Config.Creator.avatar.on, off) needs Roblox's scaling for ApplyDescription.
+	local hum = model:FindFirstChildOfClass("Humanoid")
+	if hum and not Config.Creator.avatar.on then
+		hum.AutomaticScalingEnabled = false
+	end
 
 	local root = Instance.new("Part")
 	root.Name = "HumanoidRootPart"

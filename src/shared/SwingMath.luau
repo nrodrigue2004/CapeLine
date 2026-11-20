@@ -49,6 +49,7 @@ export type Anchor = {
 	ny: number,
 	nz: number,
 	edge: boolean, -- snapped up to a roof edge or corner
+	sky: boolean?, -- the sky line (skyAnchor): nothing real held it
 	score: number,
 }
 
@@ -70,16 +71,17 @@ local function score(
 	aimX: number,
 	aimZ: number,
 	tx: number,
-	tz: number
+	tz: number,
+	wide: any?
 ): number?
 	local up = hy - py
-	if up < m.minAbove then
+	if up < (if wide then wide.minAbove else m.minAbove) then
 		return nil
 	end
 	local fx, fz = hx - px, hz - pz
 	local fd = len2(fx, fz)
 	local A = m.aim
-	if len3(fx, up, fz) < A.near then
+	if len3(fx, up, fz) < (if wide then wide.near else A.near) then
 		return nil -- right in the hero's face: no swing in it (zip or climb instead)
 	end
 	local along = if fd > 1e-3 then (fx * aimX + fz * aimZ) / fd else 1
@@ -97,7 +99,8 @@ local function score(
 end
 
 -- Where a line can hang from. (px, py, pz): the hero; (lx, ly, lz): the camera's look; (tx, tz): the flat
--- travel (zeros when still); range: the line's reach. Returns the anchor (nil: nothing real to hang from) and
+-- travel (zeros when still); range: the line's reach; wideOk: outside the city, try the wide low fan (swing.wide)
+-- when the main one finds nothing. Returns the anchor (nil: nothing real to hang from) and
 -- the number of rays cast (the device's budget).
 function SwingMath.findAnchor(
 	cfg: any,
@@ -110,7 +113,8 @@ function SwingMath.findAnchor(
 	tx: number,
 	tz: number,
 	range: number,
-	cast: Cast
+	cast: Cast,
+	wideOk: boolean?
 ): (Anchor?, number)
 	local m = cfg.mobility.swing
 	local A = m.aim
@@ -126,26 +130,43 @@ function SwingMath.findAnchor(
 		end
 	end
 	local best: Anchor? = nil
-	for li, look in looks do
-		for _, yaw in A.yaws do
-			local a = math.rad(yaw)
-			local c, s = math.cos(a), math.sin(a)
-			local fx, fz = look[1] * c - look[3] * s, look[1] * s + look[3] * c
-			for _, lift in m.lifts do
-				local dx, dy, dz = fx, math.max(look[2], 0) + lift, fz
-				local dl = len3(dx, dy, dz)
-				dx, dy, dz = dx / dl * range, dy / dl * range, dz / dl * range
-				rays += 1
-				local hx, hy, hz, nx, ny, nz = cast(px, py, pz, dx, dy, dz)
-				if hx then
-					-- the travel look scores against its own aim; the camera's stays the main one
-					local sx, sz = if li == 1 then aimX else fx, if li == 1 then aimZ else fz
-					local sc = score(m, px, py, pz, hx, hy, hz, sx, sz, tx, tz)
-					if sc and li > 1 then
-						sc -= A.travelCost
-					end
-					if sc and (not best or sc > best.score) then
-						best = { x = hx, y = hy, z = hz, nx = nx, ny = ny, nz = nz, edge = false, score = sc }
+	-- the main fan first; with nothing in it, the wide low fan (swing anywhere: trees, poles, rocks, cliffs)
+	local W = if wideOk then m.wide else nil
+	for pass = 1, if W then 2 else 1 do
+		if best then
+			break
+		end
+		local wide = if pass == 2 then W else nil
+		for li, look in looks do
+			for _, yaw in (if wide then wide.yaws else A.yaws) do
+				local a = math.rad(yaw)
+				local c, s = math.cos(a), math.sin(a)
+				local fx, fz = look[1] * c - look[3] * s, look[1] * s + look[3] * c
+				for _, lift in (if wide then wide.lifts else m.lifts) do
+					local dx, dy, dz = fx, math.max(look[2], 0) + lift, fz
+					local dl = len3(dx, dy, dz)
+					dx, dy, dz = dx / dl * range, dy / dl * range, dz / dl * range
+					rays += 1
+					local hx, hy, hz, nx, ny, nz = cast(px, py, pz, dx, dy, dz)
+					if hx then
+						-- the travel look scores against its own aim; the camera's stays the main one
+						local sx, sz = if li == 1 then aimX else fx, if li == 1 then aimZ else fz
+						local sc = score(m, px, py, pz, hx, hy, hz, sx, sz, tx, tz, wide)
+						if sc and li > 1 then
+							sc -= A.travelCost
+						end
+						if sc and (not best or sc > best.score) then
+							best = {
+								x = hx,
+								y = hy,
+								z = hz,
+								nx = nx,
+								ny = ny,
+								nz = nz,
+								edge = false,
+								score = sc,
+							}
+						end
 					end
 				end
 			end
@@ -183,6 +204,82 @@ function SwingMath.findAnchor(
 		end
 	end
 	return b, rays
+end
+
+-- Is (x, z) in one of the city's districts (Config.City.districts boxes)? Outside them the wide fan opens (in the
+-- city the buildings hold the good lines; a low near catch there would only spoil the chain)
+function SwingMath.inCity(districts: any, x: number, z: number): boolean
+	for _, d in districts do
+		if x >= d.minX and x <= d.maxX and z >= d.minZ and z <= d.maxZ then
+			return true
+		end
+	end
+	return false
+end
+
+-- The sky line (swing anywhere): with nothing real in reach, a shorter, weaker line hangs from the air sky.ahead
+-- out along the aim (the travel when moving fast) and sky.up above, only when the way up to it is open (a ray to
+-- it hits nothing nearer than its end less sky.minClear: no sky line through a roof or a tunnel's ceiling).
+-- Returns the anchor (sky = true) or nil.
+function SwingMath.skyAnchor(
+	cfg: any,
+	px: number,
+	py: number,
+	pz: number,
+	lx: number,
+	lz: number,
+	tx: number,
+	tz: number,
+	cast: Cast
+): Anchor?
+	local m = cfg.mobility.swing
+	local S = m.sky
+	if not S then
+		return nil
+	end
+	local dx, dz = lx, lz
+	local tl = len2(tx, tz)
+	if tl > m.aim.travelAt then
+		dx, dz = tx, tz
+	end
+	local dl = len2(dx, dz)
+	if dl < 1e-3 then
+		dx, dz, dl = 0, -1, 1
+	end
+	local ax, ay, az = px + dx / dl * S.ahead, py + S.up, pz + dz / dl * S.ahead
+	local rx, ry, rz = ax - px, ay - py, az - pz
+	local hx, hy, hz = cast(px, py, pz, rx, ry, rz)
+	if hx then
+		local gap = len3(hx - px, (hy :: number) - py, (hz :: number) - pz)
+		if gap < len3(rx, ry, rz) - S.minClear then
+			return nil
+		end
+	end
+	return { x = ax, y = ay, z = az, nx = 0, ny = -1, nz = 0, edge = false, score = -math.huge, sky = true }
+end
+
+-- The swing's numbers for a sky line: the same config with the swing's top speed, pump and release cap swapped
+-- for the sky line's weaker ones (cached per config)
+local skyCache: { [any]: any } = setmetatable({}, { __mode = "k" }) :: any
+function SwingMath.skyConfig(cfg: any): any
+	local hit = skyCache[cfg]
+	if hit then
+		return hit
+	end
+	local S = cfg.mobility.swing.sky
+	if not S then
+		return cfg
+	end
+	local out = table.clone(cfg)
+	out.mobility = table.clone(cfg.mobility)
+	local sw = table.clone(cfg.mobility.swing)
+	sw.maxSpeed = math.min(sw.maxSpeed, S.maxSpeed)
+	sw.pump = math.min(sw.pump, S.pump)
+	sw.release = table.clone(sw.release)
+	sw.release.cap = math.min(sw.release.cap, S.release)
+	out.mobility.swing = sw
+	skyCache[cfg] = out
+	return out
 end
 
 -- The swing's pivot for a line to (ax, ay, az): the hero swings in the plane of its travel (dx, dz), under a

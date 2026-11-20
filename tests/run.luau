@@ -217,9 +217,13 @@ local function flyFor(
 	local cvx, cvy, cvz = vx or 0, vy or 0, vz or 0
 	local boosting = false
 	local dt = 1 / 60
-	for _ = 1, math.floor(seconds * 60) do
+	local drainAt = -math.huge -- the regen waits regenDelay after a drain (as MoveController does)
+	for i = 1, math.floor(seconds * 60) do
 		cvx, cvy, cvz, boosting = MoveMath.flightStep(M, cvx, cvy, cvz, hy, s, input, dt)
-		s = MoveMath.staminaStep(M, s, false, boosting, dt)
+		s = MoveMath.staminaStep(M, s, false, boosting, dt, i * dt - drainAt)
+		if boosting then
+			drainAt = i * dt
+		end
 		x += cvx * dt
 		hy += cvy * dt
 		z += cvz * dt
@@ -270,9 +274,13 @@ test("M1: the ceiling pushes back above the soft line and never lets a hero past
 	check(y > M.ceiling.soft - 20, string.format("climbs up to the soft ceiling (y = %.1f)", y))
 end)
 
-test("M1: stamina regenerates 15/s on the ground and 8/s in the air", function()
-	near(MoveMath.staminaStep(M, 50, true, false, 1), 65, 1e-6, "ground regen")
-	near(MoveMath.staminaStep(M, 50, false, false, 1), 58, 1e-6, "air regen")
+test("M1: stamina regenerates 40/s on the ground and 20/s in the air after a 0.6 s pause", function()
+	near(MoveMath.staminaStep(M, 50, true, false, 1), 50 + M.stamina.regenGround, 1e-6, "ground regen")
+	near(MoveMath.staminaStep(M, 50, false, false, 1), 50 + M.stamina.regenAir, 1e-6, "air regen")
+	check(M.stamina.regenGround == 40 and M.stamina.regenAir == 20, "nate 2026-11-20: refills quicker")
+	check(MoveMath.staminaStep(M, 50, true, false, 0.1, 0.3) == 50, "no regen right after a drain")
+	near(MoveMath.staminaStep(M, 50, true, false, 0.1, 0.7), 54, 1e-6, "regen once the pause is over")
+	check(M.stamina.max / M.stamina.regenGround <= 5.01, "a full refill in about 5 s on the ground")
 	check(
 		MoveMath.staminaStep(M, M.stamina.max - 1, true, false, 1) == M.stamina.max,
 		"caps at the pool's max"
@@ -8448,6 +8456,7 @@ end); -- Hero MMO features (H1 to H8) live in their own file so this one merges 
 (require :: any)("./hairfit_test")({ test = test, check = check, Config = Config }); -- the hair fit pass: explicit catalog picks
 (require :: any)("./fit_test")({ test = test, check = check, Config = Config }); -- pt-fit: pieces and weapons on Roblox's own body
 (require :: any)("./flow_test")({ test = test, check = check, Config = Config, place = process.args[1] }); -- fix-flow
+(require :: any)("./cine_test")({ test = test, check = check, Config = Config, place = process.args[1] }); -- prologue-cine
 -- WP10: the group-join piece and creator codes (own file, merges easily)
 (require :: any)("./promo_test")({ test = test, check = check, Config = Config, placePath = process.args[1] }); -- WP11: story acts (Act 1 today, Acts 2 and 3 coming soon), own file
 (require :: any)("./acts_test")({ test = test, check = check, Config = Config, placePath = process.args[1] }); -- act1-choices: a choice in every Act 1 mission (own file, merges easily)
@@ -8461,7 +8470,8 @@ end); -- Hero MMO features (H1 to H8) live in their own file so this one merges 
 (require :: any)("./pockets_test")({ test = test, check = check, Config = Config }); -- the pocket kit pass (2026-11-19)
 (require :: any)("./gap_review_test")({ test = test, check = check, Config = Config }); -- the gap review (2026-11-19)
 -- WP12: visit a friend's HQ on the same server (own file, merges easily)
-(require :: any)("./visit_test")({ test = test, check = check, Config = Config, placePath = process.args[1] })
+(require :: any)("./visit_test")({ test = test, check = check, Config = Config, placePath = process.args[1] });
+(require :: any)("./sounds_test")({ test = test, check = check, Config = Config, placePath = process.args[1] }) -- the sounds pass (2026-11-19)
 
 test(
 	"City kit: every district dressed, deterministic, within budget, nothing in buildings or roads",
@@ -8576,7 +8586,10 @@ test(
 			check(
 				used[name] == true
 					or table.find(Config.PocketKit.textures, name) ~= nil
-					or (K.landmark and K.landmark[name]) == true,
+					or (K.landmark and K.landmark[name]) == true
+					-- (shapes-2, nate: "uptown ... crazy colors and textures": Uptown dropped the Prism glass; the
+					-- texture stays uploaded as the towers' fallback in CityLayout)
+					or name == "Prism",
 				name .. " is used somewhere in the city"
 			)
 			check(K.studsPerTile[name] ~= nil, name .. " has a tile size")
@@ -8892,15 +8905,18 @@ test(
 		for _, bx in a.hubBoxes do
 			if bx.kind == "building" and bx.kit and districtOf(bx.cx, bx.cz) == "Uptown" then
 				all += 1
-				if bx.kit == "Ribbon" or bx.kit == "Prism" then
+				-- shapes-2 (nate: "uptown buildings look weird with crazy colors and textures"): calm glass,
+				-- ribbon, panel and deco fronts; never Downtown's brick, office or stone
+				if bx.kit == "Ribbon" or bx.kit == "Curtain" or bx.kit == "Panel" or bx.kit == "Deco" then
 					own += 1
 				end
+				check(
+					bx.kit ~= "Brick" and bx.kit ~= "Office" and bx.kit ~= "Stone",
+					"no Downtown brick in Uptown"
+				)
 			end
 		end
-		check(
-			all > 0 and own >= all * 0.7,
-			"Uptown wears mostly its own fronts (Ribbon, Prism), not Downtown's"
-		)
+		check(all > 0 and own == all, "Uptown wears its calm business fronts (Ribbon, Curtain, Panel, Deco)")
 		local houses = {}
 		for _, plan in a.tilePlans do
 			for _, bx in plan.boxes do
@@ -11709,13 +11725,8 @@ do
 				"both start"
 			)
 			check(
-				string.find(
-					readFile("src/config/Audio.luau"),
-					"PLACEHOLDER SOUND: built-in clips until real voice",
-					1,
-					true
-				) ~= nil,
-				"placeholder blips are labelled"
+				string.find(readFile("src/config/Audio.luau"), "Blips until real voice lines", 1, true) ~= nil,
+				"the blips say real voice lines come later (recorded blips since the sounds pass)"
 			)
 		end
 	)
@@ -23188,6 +23199,12 @@ do
 		placePath = placePath,
 	})
 end
+-- move-2 (2026-11-19, own file): the smash rule, the Hulk climb, the Acrobat's crawl and flips, swing anywhere and
+-- everyone's sprint; ONLY="Climb"
+(require :: any)("./climb_test")({ test = test, check = check, Config = Config, placePath = placePath });
+-- fix-respawn (nate's playtest 2026-11-19, own file): the body shape on respawn, the 40 bodies' fit, creator NEXT
+-- through the real client, the side quest givers' answers; ONLY="Fix respawn"
+(require :: any)("./fix_respawn_test")({ test = test, check = check, Config = Config, placePath = placePath });
 -- the living world's round 2 (shapes-2, 2026-11-19, own file): Art.Shapes, roofs, road pictures, water, lit
 -- windows, Uptown's palette; ONLY="Shapes"
 (require :: any)("./shapes_test")({ test = test, check = check, Config = Config, world = world })

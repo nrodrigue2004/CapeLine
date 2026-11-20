@@ -650,8 +650,9 @@ return {
 		-- preset's cap (Config.Presets props).
 		budget = {
 			-- 2026-11-19: Downtown 1.56x and Uptown 1.56x bigger, with the roof and wall pieces (pt-city)
-			Downtown = { props = 3400, parts = 8600, boxes = 2400 },
-			Uptown = { props = 1800, parts = 4600, boxes = 1100 },
+			-- shapes-2 (2026-11-19): + the zebra crossings and drains (a part and a Decal each)
+			Downtown = { props = 3400, parts = 8600, boxes = 2800 },
+			Uptown = { props = 1800, parts = 4600, boxes = 1260 },
 			Docks = { props = 260, parts = 420, boxes = 20 },
 			OldTown = { props = 520, parts = 1200, boxes = 300 },
 			Hub = { props = 1150, parts = 2400, boxes = 0 },

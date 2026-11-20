@@ -225,7 +225,7 @@ return function(T: any)
 			)
 			local mc = src("src/client/Controllers/MoveController.luau")
 			check(
-				string.find(mc, 'FrameProf.wrap("MoveController", step)', 1, true) ~= nil,
+				string.find(mc, 'FrameProf.wrap("MoveController", stepAll)', 1, true) ~= nil,
 				"MoveController under FrameProf"
 			)
 			check(

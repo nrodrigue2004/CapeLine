@@ -301,6 +301,7 @@ local function actButton(parent: Instance, label: string, slot: number, color: C
 		Size = UDim2.fromOffset(84, U.touchTarget - 12),
 		BackgroundColor3 = color,
 		maxText = 18,
+		pending = true, -- fix-respawn: "..." at once until the server answers (a toast or the redrawn page)
 	}, fn)
 	b.Parent = parent
 end

@@ -9,6 +9,7 @@ return function(T: any)
 	local StoryPlan = require("../src/shared/StoryPlan")
 	local GuidePlan = require("../src/shared/GuidePlan")
 	local OpeningPlan = require("../src/shared/OpeningPlan")
+	local PrologueCine = require("../src/shared/PrologueCine")
 	local ProfileSchema = require("../src/shared/ProfileSchema")
 	local PeopleLooks = require("../src/shared/PeopleLooks")
 	local PocketLayout = require("../src/shared/PocketLayout")
@@ -332,9 +333,18 @@ return function(T: any)
 			check(f(30, 0, P.wait, nil) == "close", "no pick in time: the card goes, the slot stays open")
 			check(f(30, 1, P.wait + 1, P.after * 0.5) == "wait", "the pick's lines play")
 			check(f(30, 1, 2, P.after) == "leap", "then the leap")
+			-- prologue-cine (2026-11-20): the Spark itself is the beat's one prompt; the card comes after it
+			local sparkSegs = PrologueCine.beat(Config, { spark = { 0, 0, 0 }, kid = { 2, 0, 0 } }, "spark")
+			local prompts, last = 0, nil
+			for _, seg in sparkSegs do
+				if seg.prompt then
+					prompts += 1
+					last = seg
+				end
+			end
 			check(
-				not S.opening.qte.beats.spark and not OpeningPlan.HOPS.spark,
-				"the spark beat has no quick-time prompt"
+				prompts == 1 and last.spark == true and not OpeningPlan.HOPS.spark,
+				"the spark beat's only prompt is the Spark, before the card"
 			)
 			local svc = read("src/server/Services/OpeningService.luau")
 			check(has(svc, "OpeningPlan.sparkPick("), "OpeningService runs the moment")

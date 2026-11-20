@@ -40,6 +40,8 @@ export type Hero = {
 	classId: string, -- the archetype (Elemental, Rogue, Powerhouse, Mystic)
 	mobility: string, -- flight, speed, leap, acrobat, swing (Config.Move.mobility)
 	mobRanks: { number }, -- side-content: each pick's trained rank (Config.Move.mobilityOrder; Shared.MoveRanks)
+	dodgeUntil: number?, -- move-2: an Acrobat's flip makes attacks miss until then (MoveGuard's MoveFlip)
+	flipAt: number?, -- when its last flip was taken (the cooldown on the server's clock)
 	formToken: number?,
 	setId: string,
 	fxStyle: string, -- "Comic" or "Anime": how this hero's powers look to everyone
@@ -128,6 +130,7 @@ HeroService.Removed = Signal.new() -- (hero)
 HeroService.guardHook = nil :: ((any, number, any?) -> number)?
 HeroService.speedHooks = {} :: { [string]: (any) -> number }
 HeroService.Parried = Signal.new() -- (hero, source) a hit was turned aside by Parry Stance
+HeroService.Dodged = Signal.new() -- (hero, source) a hit missed an Acrobat mid-flip (move-2)
 HeroService.Reflected = Signal.new() -- (hero, enemyId, amount) Thorns sends part of a robot's hit back
 HeroService.Awakened = Signal.new() -- (hero)
 HeroService.SecondWind = Signal.new() -- (hero) the Second Wind perk saved this hero
@@ -616,6 +619,17 @@ function HeroService.damage(hero: Hero, amount: number, source: any?)
 		return 0
 	end
 	local now = os.clock()
+	-- move-2: an Acrobat's flip (MoveFlip, the server's own window) dodges every attack (not falls, fields' ticks
+	-- from no one, or story damage)
+	if
+		hero.dodgeUntil
+		and now < hero.dodgeUntil
+		and source
+		and (source.enemy or source.pvp or source.boss)
+	then
+		HeroService.Dodged:Fire(hero, source)
+		return 0
+	end
 	hero.lastDamaged = now
 	if Status.has(hero.status, "parry", now) and source and (source.enemy or source.pvp) then
 		Status.remove(hero.status, "parry")

@@ -341,7 +341,31 @@ local function onProp(player: Player, at: Vector3)
 	BuildingService.street(at, 4)
 end
 
+-- A Leaping hero's hands bit into a wall (move-2, the Hulk climb; MoveGrab): a small chip on the building there
+-- (Config.Move.mobility.leap.climb.bite: small hits add up until a piece breaks, BuildingState), near where the
+-- server has the hero, at most one every bite.every s, never in a safe area or on what never breaks. It counts
+-- toward nothing else (a chip is no break until it adds up).
+local bitAt: { [number]: number } = {}
+local function onGrab(player: Player, at: Vector3)
+	local hero = HeroService.get(player)
+	if not mayBreak(hero) or hero.mobility ~= "leap" then
+		return
+	end
+	local pos = HeroService.position(hero)
+	local B = HeroService.moveConfig(hero).mobility.leap.climb.bite
+	local now = os.clock()
+	if not pos or (at - pos).Magnitude > 10 or now - (bitAt[hero.id] or -math.huge) < B.every * 0.8 then
+		return
+	end
+	bitAt[hero.id] = now
+	local id = BuildingService.buildingAt(at, 3)
+	if id and BuildingService.breakable(id) and BuildingService.smash(id, at, B.dmg, B.radius) > 0 then
+		ImpactService.breaks += 1
+	end
+end
+
 function ImpactService.init()
+	Net.on("MoveGrab", onGrab)
 	Net.on("CityBounce", onBounce)
 	Net.on("ImpactProp", onProp)
 	Net.on("ImpactRam", onRam)
@@ -353,6 +377,7 @@ function ImpactService.init()
 		if hero then
 			ImpactRules.forget(ledger, hero.id)
 			bounced[hero.id] = nil
+			bitAt[hero.id] = nil
 		end
 	end)
 	PerfMonitor.watch("impactBreaks", function()

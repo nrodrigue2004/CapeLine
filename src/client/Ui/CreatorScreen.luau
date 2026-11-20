@@ -299,10 +299,26 @@ end
 
 local refresh: () -> ()
 local refuse: (why: string, fix: string?) -> ()
+local goStep: (i: number) -> ()
 
 -- the hero in the middle: the current look, or a look being hovered
+local hoverToken = 0
 local function showPreview(l: any?, wl: any?)
+	hoverToken += 1 -- a hover still waiting is overtaken by this look
 	preview.set(l or look, wl or weaponLook)
+end
+-- A hover (or its end) previews once the pointer rests HOVER_REST s: sweeping over the rows and tiles on the way
+-- to NEXT builds nothing (fix-respawn, 2026-11-19: each hover rebuilt the whole hero at once, so the press felt
+-- dead); Preview builds the last ask once per frame and skips a look it already wears.
+local HOVER_REST = 0.08
+local function hoverPreview(l: any?, wl: any?)
+	hoverToken += 1
+	local my = hoverToken
+	task.delay(HOVER_REST, function()
+		if my == hoverToken and gui.Enabled then
+			preview.set(l or look, wl or weaponLook)
+		end
+	end)
 end
 
 local function setCard(title: string, sub: string?, body: string?)
@@ -377,7 +393,7 @@ local function row(
 	if hover then
 		b.MouseEnter:Connect(hover)
 		b.MouseLeave:Connect(function()
-			showPreview()
+			hoverPreview()
 			if cardFor then
 				cardFor()
 			end
@@ -411,7 +427,7 @@ local function tile(
 		if hover then
 			b.MouseEnter:Connect(hover)
 			b.MouseLeave:Connect(function()
-				showPreview()
+				hoverPreview()
 			end)
 		end
 		b.Parent = tileParent or grid
@@ -440,7 +456,7 @@ local function tile(
 	if hover then
 		b.MouseEnter:Connect(hover)
 		b.MouseLeave:Connect(function()
-			showPreview()
+			hoverPreview()
 		end)
 	end
 	b.Parent = tileParent or grid
@@ -491,7 +507,7 @@ local function hoverLook(edit: (any) -> ()): () -> ()
 	return function()
 		local l = LookCodec.copy(look)
 		edit(l)
-		showPreview(l, nil)
+		hoverPreview(l, nil)
 	end
 end
 
@@ -756,7 +772,7 @@ end
 local function hoverWeapon(id: number): () -> ()
 	return function()
 		local wl = WeaponRules.lookOf(profileView(), id)
-		showPreview(nil, wl)
+		hoverPreview(nil, wl)
 		weaponCard(id)
 	end
 end
@@ -1113,7 +1129,41 @@ local function safely(label: string, fn: () -> ())
 	end
 end
 
+-- Change step (NEXT, BACK, the step row). fix-respawn (nate, 2026-11-19: "Next button in character creator is
+-- still super unresponsive"): the press shows at once (the step row's gold, NEXT's text, BACK; Kit's bounce and
+-- click already ran), and the step's lists (up to 500 picture tiles) and the hero draw on the next frame, so the
+-- change is on screen before the heavy draw. Presses while it waits each still count (two NEXTs: two steps).
+local stepQueued = false
+local function markStep()
+	for _, b in stepRow:GetChildren() do
+		if b:IsA("TextButton") then
+			b.BackgroundColor3 = if b.Name == STEPS[step].id then Kit.color.gold else Kit.color.paper
+		end
+	end
+	local last = step == #STEPS
+	nextButton.Text = if pending
+		then "SAVING..."
+		elseif last then (if mode == "create" then "PLAY" else "DONE")
+		else "NEXT"
+	backButton.Visible = step > 1
+end
+goStep = function(i: number)
+	step = math.clamp(i, 1, #STEPS)
+	markStep()
+	if stepQueued then
+		return
+	end
+	stepQueued = true
+	task.delay(0, function()
+		stepQueued = false
+		if gui.Enabled then
+			refresh()
+		end
+	end)
+end
+
 refresh = function()
+	stepQueued = false
 	clear(list)
 	clear(grid)
 	clear(pieceGrid)
@@ -1172,6 +1222,10 @@ local function finish()
 		return
 	end
 	if pending then
+		-- a press while the save is on its way: say so (never a silent press)
+		status.Text = "Saving... one moment"
+		status.TextColor3 = Kit.color.gold
+		Kit.bounce(status)
 		return
 	end
 	pending = true
@@ -1374,9 +1428,9 @@ local function build()
 			LayoutOrder = i,
 			BackgroundColor3 = Kit.color.paper,
 			maxText = 18,
+			onDown = true,
 		}, function()
-			step = i
-			refresh()
+			goStep(i)
 		end)
 		b.Parent = stepRow
 	end
@@ -1517,13 +1571,13 @@ local function build()
 	status.Parent = panel
 	backButton = Kit.button({
 		Text = "BACK",
+		onDown = true, -- fix-respawn: a press counts on the way down (nothing before the release can lose it)
 		AnchorPoint = Vector2.new(0, 1),
 		Size = UDim2.fromOffset(140, T),
 		Position = UDim2.new(0, 10, 1, -20),
 		BackgroundColor3 = Kit.color.paper,
 	}, function()
-		step = math.max(1, step - 1)
-		refresh()
+		goStep(math.max(1, step - 1))
 	end)
 	backButton.Parent = panel
 	cancelButton = Kit.button({
@@ -1546,13 +1600,13 @@ local function build()
 	randButton.Parent = panel
 	nextButton = Kit.button({
 		Text = "NEXT",
+		onDown = true, -- fix-respawn: a press counts on the way down (nothing before the release can lose it)
 		AnchorPoint = Vector2.new(1, 1),
 		Size = UDim2.fromOffset(170, T),
 		Position = UDim2.new(1, -16, 1, -20),
 	}, function()
 		if step < #STEPS then
-			step += 1
-			refresh()
+			goStep(step + 1)
 		else
 			finish()
 		end
@@ -1670,6 +1724,12 @@ function CreatorScreen.init()
 	-- pressed would be rebuilt and the tap lost): it waits for the release
 	local redrawQueued = false
 	State.ProfileChanged:Connect(function()
+		-- fix-respawn (2026-11-19): a wallet-only sync (Credits, Renown, XP: any reward, any kill) redrew the whole
+		-- creator, its up to 500 tiles and the hero, under the player's pointer; the creator reads no wallet, so
+		-- only a level change (level-gated pieces) redraws it
+		if State.syncWalletOnly and not State.syncLevelChanged then
+			return
+		end
 		if redrawQueued then
 			return
 		end
