@@ -41,7 +41,9 @@ return function(T: any)
 		}
 		c.uptown = table.clone(C.uptown)
 		c.uptown.grow = nil
-		c.districts.Uptown = { minX = -700, maxX = -100, minZ = -1400, maxZ = -800 }
+		-- (the park, 2026-11-20: the whole of Uptown moved 300 studs north to make room for the park, so its old
+		-- square moved with it; everything inside is laid out from the district's corner)
+		c.districts.Uptown = { minX = -700, maxX = -100, minZ = -1700, maxZ = -1100 }
 		local cfg = table.clone(Config)
 		cfg.City = c
 		return cfg

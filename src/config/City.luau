@@ -19,7 +19,7 @@ local GROW = { north = 1, south = 2, west = 2, east = 0 }
 -- the hub just north of it, between North Park and Northgate. 2026-11-17: a square of 600 studs centred on
 -- (-400, -1,100); 2026-11-19: grown by a block column west and a block row north (the east edge stays clear of
 -- the Northgate safehouse and the south edge on the hub's), so 750 x 750 (1.56x). `grow` counts those blocks.
-local UPTOWN = { minX = -850, maxX = -100, minZ = -1550, maxZ = -800, grow = { west = 1, north = 1 } }
+local UPTOWN = { minX = -850, maxX = -100, minZ = -1850, maxZ = -1100, grow = { west = 1, north = 1 } }
 
 return {
 	mapSize = 4800,
