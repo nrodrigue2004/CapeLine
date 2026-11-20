@@ -382,10 +382,20 @@ function MoveMath.guardCap(
 	cfg: any,
 	styles: { [string]: boolean },
 	boosting: boolean,
-	o: { ride: number?, zeroG: boolean?, speedBuff: number?, classSpeed: number? }
+	o: {
+		ride: number?,
+		zeroG: boolean?,
+		speedBuff: number?,
+		classSpeed: number?,
+		slip: number?,
+	}
 ): number
 	local cap = MoveMath.speedCap(cfg, styles, boosting)
 	cap = math.max(cap, o.ride or 0)
+	if o.slip and o.slip > 0 then
+		-- Slipstream (Config.Move.moves.slipstream): an ally in a leader's wake cruises at `slip` x its cruise
+		cap = math.max(cap, cfg.caps.cruise * o.slip)
+	end
 	if o.zeroG then
 		cap = math.max(cap, cfg.caps.flight)
 	end

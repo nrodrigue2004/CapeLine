@@ -179,6 +179,21 @@ function AbilityService.init()
 			DataService.saveSoon(player)
 		end
 	end)
+	-- the mobility upgrade rework (nate 2026-11-20): a choice rank's move (the first pick free anywhere, a swap at a
+	-- safehouse or HQ: SafehouseService.canSwap)
+	Net.on("MoveChoose", function(player, rank: number, option: number)
+		local hero = HeroService.get(player)
+		if not hero or not hero.loaded then
+			return
+		end
+		local canSwap = SafehouseService.canSwap(hero)
+		local ok, reason = HeroService.chooseMove(hero, math.floor(rank), math.floor(option), canSwap)
+		Net.fire("MoveChosen", player, { ok = ok, reason = reason })
+		if ok then
+			Analytics.event(player, "mobility_move", rank, { hero.mobility, tostring(option) })
+			DataService.saveSoon(player)
+		end
+	end)
 	Net.on("SkillsRespec", function(player)
 		local hero = HeroService.get(player)
 		if hero then

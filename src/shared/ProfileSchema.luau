@@ -20,7 +20,7 @@ local ProfileSchema = {}
 -- 40 cap is already in range, so raising the cap needs no migration.
 ProfileSchema.LEVEL_CAP = Config.Stats.levelCap
 
-ProfileSchema.VERSION = 15
+ProfileSchema.VERSION = 16
 ProfileSchema.BOSSES = 6 -- #Config.Boss.order (a test checks they match; 6 since bosses-3, 2026-11-20)
 ProfileSchema.SLOTS = 8
 ProfileSchema.STYLE_WORDS = 16 -- 512 bits
@@ -149,6 +149,9 @@ function ProfileSchema.newCharacter(side: string?, classId: string?): { [string]
 		-- side-content (save v14, 2026-11-19): each mobility's trained rank (Config.Move.mobilityOrder; 0 = none,
 		-- up to #Config.Move.ranks.costs; Shared.MoveRanks): earned with level and Credits, kept when you swap
 		mobRanks = { 0, 0, 0, 0, 0 },
+		-- the mobility upgrade rework (save v16, nate 2026-11-20): the move picked at each pick's choice ranks (3 and 5:
+		-- Config.Move.choices; 0 none, 1 or 2; Shared.MoveRanks.slotOf), kept when you swap picks
+		mobMoves = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
 		weapon = 0, -- the carried weapon (Config.Weapons id), 0 = Bare Fists
 		pathChanged = 0, -- 1 once the free archetype or path change (before level 10) is used
 		-- lore step 2: how the Spark woke (Config.Creator.origins index, 0 = not picked yet; picked in the
@@ -500,6 +503,16 @@ local MIGRATIONS: { [number]: (any) -> () } = {
 			end
 		end
 	end,
+	[16] = function(p)
+		-- the mobility upgrade rework (nate 2026-11-20): no move picked yet at any choice rank (repair() cleans it)
+		if type(p.characters) == "table" then
+			for _, c in p.characters do
+				if type(c) == "table" then
+					c.mobMoves = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }
+				end
+			end
+		end
+	end,
 }
 ProfileSchema.MIGRATIONS = MIGRATIONS
 
@@ -681,6 +694,7 @@ local function repair(p: any): any
 				end
 				c.pathChanged = num(c.pathChanged, 0, 1, 0)
 				c.mobRanks = cleanNumbers(c.mobRanks, 5, 0, #Config.Move.ranks.costs, true)
+				c.mobMoves = cleanNumbers(c.mobMoves, 10, 0, 2, true)
 				c.origin = num(c.origin, 0, 1e6, 0)
 				if not Config.Creator.origins[c.origin] then
 					c.origin = 0 -- not an origin: not picked yet
@@ -1032,6 +1046,7 @@ function ProfileSchema.clientView(profile: any, walletOnly: boolean?): { [string
 		startSet = c.startSet,
 		mobility = c.mobility,
 		mobRanks = c.mobRanks,
+		mobMoves = c.mobMoves,
 		pathChanged = c.pathChanged,
 		origin = c.origin,
 		tint = c.tint,

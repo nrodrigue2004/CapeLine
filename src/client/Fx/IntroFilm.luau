@@ -341,17 +341,22 @@ local function pose(a: Actor, clip: string?, t: number)
 	if not rig then
 		return
 	end
-	if clip == "walk" or clip == "sprint" then
-		local speed = if clip == "sprint" then 18 else 6
+	if clip == "sprint" then
+		-- the heroes' own sprint stride (HeroAnim runFast, list-combat 2026-11-20), at an 18-stud run's pace
+		local angles = HeroAnim.sample("runFast", t * 18 / HeroAnim.runFastSpeed + a.phase)
+		for joint in rig.motors do
+			local k = angles[joint]
+			NpcRig.turn(rig, joint, if k then toCFrame(k) else CFrame.identity)
+		end
+		return
+	end
+	if clip == "walk" then
+		local speed = 6
 		local swing = math.sin(t * (6 + speed * 0.3) + a.phase) * math.clamp(speed / 14, 0, 1) * 0.8
 		for _, s in { { "Left", 1 }, { "Right", -1 } } do
 			NpcRig.turn(rig, s[1] .. "Hip", CFrame.Angles(swing * s[2], 0, 0))
 			NpcRig.turn(rig, s[1] .. "Knee", CFrame.Angles(-math.max(0, swing * s[2]) * 0.9, 0, 0))
-			NpcRig.turn(
-				rig,
-				s[1] .. "Shoulder",
-				CFrame.Angles(-swing * s[2] * 0.9 + (if speed > 8 then 0.5 else 0), 0, 0)
-			)
+			NpcRig.turn(rig, s[1] .. "Shoulder", CFrame.Angles(-swing * s[2] * 0.9, 0, 0))
 		end
 		return
 	end

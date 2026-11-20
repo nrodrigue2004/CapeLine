@@ -230,6 +230,9 @@ end
 -- the hero's spot, breaks the roof under it (and the storeys BuildingState says fall), inside the caps, and
 -- tells CombatService to hit the robots round it (CombatService.dropHit).
 ImpactService.dropHit = nil :: ((any, Vector3, number) -> ())?
+-- the mobility moves (MoveActService sets them): a ram's damage multiplier, a climb bite's multiplier
+ImpactService.ramHook = nil :: ((any, Vector3, Vector3) -> number)?
+ImpactService.biteHook = nil :: ((any) -> number)?
 local function onDrop(player: Player, at: Vector3, fall: number)
 	local hero = HeroService.get(player)
 	if not mayBreak(hero) then
@@ -296,6 +299,9 @@ local function onRam(player: Player, at: Vector3, dir: Vector3, speed: number)
 		return
 	end
 	local dmg = ImpactRules.ramDamage(R, ImpactRules.ramSpeed(R, speed, peak))
+	if ImpactService.ramHook then
+		dmg *= ImpactService.ramHook(hero, at, dir.Unit) -- the mobility moves (MoveActService: Blazing Ram, Slipstream)
+	end
 	if BuildingService.smash(id, at + dir.Unit * 1.5, dmg, R.radius) > 0 then
 		ImpactService.breaks += 1
 	end
@@ -368,7 +374,8 @@ local function onGrab(player: Player, at: Vector3)
 	end
 	bitAt[hero.id] = now
 	local id = BuildingService.buildingAt(at, 3)
-	if id and BuildingService.breakable(id) and BuildingService.smash(id, at, B.dmg, B.radius) > 0 then
+	local mult = if ImpactService.biteHook then ImpactService.biteHook(hero) else 1 -- Wall Crusher
+	if id and BuildingService.breakable(id) and BuildingService.smash(id, at, B.dmg * mult, B.radius) > 0 then
 		ImpactService.breaks += 1
 	end
 end

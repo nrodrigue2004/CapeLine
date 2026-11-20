@@ -23166,6 +23166,13 @@ end
 	world = world,
 	placePath = process.args[1],
 });
+-- the mobility upgrade rework (nate 2026-11-20, own file); ONLY="Mobility moves" runs these
+(require :: any)("./mobility_moves_test")({
+	test = test,
+	check = check,
+	Config = Config,
+	placePath = process.args[1],
+});
 -- lock-on, omnidirectional movement, knockback by move, the block key, drops and swinging robots (nate's
 -- playtest 2026-11-19, own file); ONLY="PT combat" runs these
 (require :: any)("./combat_pt_test")({ test = test, check = check, Config = Config });

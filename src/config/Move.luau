@@ -82,6 +82,242 @@ return {
 	-- levels[n] and costs costs[n] Credits (earned in play; never sold for Robux, and no rank is in the shop). Ranks
 	-- are saved per hero and per pick (profile character mobRanks), so swapping picks keeps them. (tune)
 	ranks = { levels = { 5, 12, 20, 30, 40 }, costs = { 150, 1800, 4000, 8000, 14000 } },
+	-- The mobility upgrade rework (nate, 2026-11-20): ranks 1, 2 and 4 stay number bumps; ranks 3 and 5 (`choices`)
+	-- also open a CHOICE of two new moves (each such row's `choice`). The hero picks one per rank once trained and
+	-- swaps free at a safehouse or HQ (SafehouseService.canSwap); the picks are saved per hero and pick next to
+	-- mobRanks (profile character mobMoves; Shared.MoveRanks.moveOf). Earned only, never sold; no move changes a stat.
+	-- Each move's numbers are below (`moves`); every speed stays inside its pick's server cap (MoveRanks.check), and
+	-- knocks and stuns on heroes go through PvpRules' compression.
+	choices = { 3, 5 },
+	moves = {
+		-- Flight rank 3
+		sonicDive = {
+			name = "Sonic Boom Dive",
+			text = "Dive from high up: land in a shockwave that knocks robots and cracks roofs",
+			-- a dive (falling at `speed` or more after `drop` studs of fall) that hits the ground or a roof bursts
+			-- `radius` round the landing: robots take `coeff` x the hero's power and a `knock`; a roof takes `dmg`
+			drop = 40,
+			speed = 70,
+			radius = 16,
+			coeff = 0.9,
+			knock = 40,
+			dmg = 900,
+			cooldown = 4,
+		},
+		slipstream = {
+			name = "Slipstream",
+			text = "Allies in your wake fly faster; boost through a hole you broke to refill stamina",
+			-- an ally flying within `width` of the line `length` studs behind a boosting Slipstream hero cruises up
+			-- to `ally` x their cruise (never past their own boost, so inside their cap); a ram through a wall
+			-- while boosting gives back `refill` stamina
+			length = 60,
+			width = 14,
+			ally = 1.3,
+			refill = 35,
+			hold = 0.6, -- the wake's lift lasts this long after the ally leaves it (the server checks 5 times a second)
+		},
+		-- Flight rank 5
+		phase = {
+			name = "Phase",
+			text = "Boost through buildings as a flicker, without breaking them",
+			-- boosting into a wall passes through as a ghost for up to `time` s (stamina `drain` a second on top),
+			-- every `cooldown` s after it ends; nothing breaks
+			time = 1.2,
+			drain = 18,
+			cooldown = 3,
+			clear = 3, -- the flicker holds on (up to 2 x time) while a building is within this many studs
+		},
+		-- (nate's sheet called it Comet; Comet is an old-lore name the text checks refuse, so it shows as Blazing Ram)
+		blazeRam = {
+			name = "Blazing Ram",
+			text = "Rams leave a fire trail and blow walls outward, for more stamina",
+			-- a ram's structure hit x `ram`, its pieces thrown outward x `throw`; each ram costs `stamina`; the fire
+			-- trail burns robots `trailCoeff` x power a second within `trailRadius` for `trailLife` s
+			ram = 1.6,
+			throw = 1.8,
+			stamina = 12,
+			trailCoeff = 0.3,
+			trailRadius = 6,
+			trailLife = 3,
+		},
+		-- Super-speed rank 3
+		tornadoRun = {
+			name = "Tornado Run",
+			text = "Run in a tight circle to raise a whirlwind that lifts robots and debris",
+			-- `turns` full turns within `radius` of one middle at `speed` or more, inside `window` s, raise a whirlwind
+			-- there for `life` s: robots within `lift.radius` rise `lift.up` and are stunned `stun` s, taking `coeff`
+			turns = 1.5,
+			radius = 26,
+			speed = 50,
+			window = 4,
+			life = 3,
+			lift = { radius = 18, up = 36 },
+			stun = 1.5,
+			coeff = 0.6,
+			cooldown = 8,
+		},
+		afterimage = {
+			name = "Afterimage",
+			text = "Stop hard from top speed to leave a decoy that robots shoot at",
+			-- slowing from `from` studs/s to under `to` within `within` s leaves a decoy where the hero stopped for
+			-- `life` s (robots in `taunt` studs shoot it), every `cooldown` s
+			from = 70,
+			to = 12,
+			within = 0.5,
+			life = 4,
+			taunt = 60,
+			cooldown = 6,
+		},
+		-- Super-speed rank 5
+		sonicWake = {
+			name = "Sonic Wake",
+			text = "Pass by at top speed to flip cars and shatter windows",
+			-- running at `speed` or more: cars within `radius` flip (VehicleService), building faces within `radius`
+			-- crack (a small structure hit, `dmg`, at most every `every` s a building)
+			speed = 95,
+			radius = 12,
+			dmg = 150,
+			every = 0.6,
+		},
+		blink = {
+			name = "Blink",
+			text = "A 30-stud dash in a blink, every 6 s",
+			-- Boost tapped while running: the hero covers `range` studs along the stick (stopping short of walls) in
+			-- `time` s (a server-granted move), every `cooldown` s
+			range = 30,
+			time = 0.12,
+			cooldown = 6,
+		},
+		-- Leaping rank 3
+		impactLanding = {
+			name = "Impact Landing",
+			text = "Big landings stun robots and crack the street, more from higher",
+			-- a landing after `minFall` studs of fall: robots within radius (minFall: `radius[1]`, `fullFall`:
+			-- `radius[2]`) are stunned `stun` s and take `coeff`; the street gets a crater from `crater` fall up
+			minFall = 30,
+			fullFall = 110,
+			radius = { 8, 20 },
+			stun = 1.2,
+			coeff = 0.4,
+			crater = 70,
+			craterDmg = 1500,
+			cooldown = 2,
+		},
+		wallCrusher = {
+			name = "Wall Crusher",
+			text = "Climb grabs punch handholds; a kick-off shatters the panel",
+			-- each climb grab bites `bite` x the climb's bite damage; a kick-off hits the panel for `kick`
+			bite = 2.5,
+			kick = 1200,
+			kickRadius = 6,
+			cooldown = 1,
+		},
+		-- Leaping rank 5
+		meteorStrike = {
+			name = "Meteor Strike",
+			text = "From the top of a leap, aim a pound that craters the ground",
+			-- Down near the top of a leap (within `apex` of its peak speed) aims a pound at the camera's target up to
+			-- `range` away; it lands at `speed`, bursting `radius` (`coeff`, `knock`) and digging a crater (`dmg`)
+			apex = 18,
+			range = 120,
+			speed = 150,
+			radius = 18,
+			coeff = 1.1,
+			knock = 50,
+			dmg = 2400,
+			cooldown = 6,
+		},
+		moonJump = {
+			name = "Moon Jump",
+			text = "One extra leap in mid-air",
+			-- Leap in the air once a leap: a fresh tapped leap (`share` of a full one's speed) from where the hero is
+			share = 0.7,
+		},
+		-- Acrobat rank 3
+		kickChain = {
+			name = "Kick Chain",
+			text = "Each wall-kick in a row is faster, up to 5",
+			-- each kick-off within `within` s of the last landing on a wall adds `step` to the next kick's speed, up to
+			-- `most` in a row
+			step = 0.07,
+			most = 5,
+			within = 1.2,
+		},
+		ceilingDrop = {
+			name = "Ceiling Drop",
+			text = "Drop from a wall or ceiling onto a robot for a takedown",
+			-- letting go of a wall or ceiling with a robot within `reach` below: the hero drops on it, `coeff` x power
+			-- (a takedown that floors a basic robot), stunning those within `radius`
+			reach = 40,
+			cone = 30,
+			coeff = 2.5,
+			radius = 8,
+			stun = 1,
+			cooldown = 3,
+		},
+		-- Acrobat rank 5
+		shadowFlip = {
+			name = "Shadow Flip",
+			text = "A dodge flip leaves a clone that draws fire",
+			-- each flip leaves a decoy where it started for `life` s (robots within `taunt` shoot it), every `cooldown` s
+			life = 3,
+			taunt = 50,
+			cooldown = 4,
+		},
+		slingshot = {
+			name = "Slingshot",
+			text = "Crouch on a wall, then launch about 120 studs",
+			-- hold Down on a wall for `charge` s, let go to launch away from it along the camera's look (a
+			-- server-granted move of `range` studs over `time` s, arcing `up` at the top)
+			charge = 0.5,
+			range = 120,
+			time = 1.3,
+			up = 22,
+			cooldown = 2,
+		},
+		-- Swing rank 3
+		doubleZip = {
+			name = "Double Zip",
+			text = "Fire two lines at once and shoot forward between them",
+			-- Leap while swinging fires a second line `spread` degrees off the first; the hero shoots forward from
+			-- between them at `speed` (inside the zip cap), `range` studs
+			spread = 40,
+			speed = 120,
+			range = 90,
+			cooldown = 3,
+		},
+		yank = {
+			name = "Yank",
+			text = "Pull a car, chunk or robot to you, then throw it",
+			-- Fly on the ground (or swinging) at a robot, car or loose chunk within `range` pulls it to the hero over
+			-- `time` s; then it is carried and thrown like a picked-up prop (ImpactService throws)
+			range = 70,
+			time = 0.4,
+			cone = 18, -- degrees off the camera's aim a target may be
+			stun = 1.5, -- a yanked robot is dazed this long (so it can be held)
+			cooldown = 5,
+		},
+		-- Swing rank 5
+		wreckingKick = {
+			name = "Wrecking Kick",
+			text = "Kick through walls mid-swing; let go fast to bowl robots over",
+			-- swinging into a wall at `speed` or more kicks it out (a ram); a release at `bowl` or more knocks robots
+			-- within `radius` of the path for `knock`, `coeff`
+			speed = 55,
+			bowl = 90,
+			radius = 8,
+			knock = 35,
+			coeff = 0.5,
+			cooldown = 1.5,
+		},
+		skyHook = {
+			name = "Sky Hook",
+			text = "A full-strength line from the sky in open areas, every 10 s",
+			-- when no building is in reach, the line hangs from the sky at full swing strength (not the weak sky
+			-- line), every `cooldown` s
+			cooldown = 10,
+		},
+	},
 	mobility = {
 		flight = {
 			name = "Flight",
@@ -108,6 +344,7 @@ return {
 				},
 				{
 					name = "Hard Banking",
+					choice = { "sonicDive", "slipstream" }, -- the rank's move: pick one (Config.Move.moves)
 					text = "Sharper turns, faster take-off",
 					set = {
 						{ "flight.turnRate", 155 },
@@ -129,6 +366,7 @@ return {
 				},
 				{
 					name = "Sound Barrier",
+					choice = { "phase", "blazeRam" }, -- the rank's move: pick one (Config.Move.moves)
 					text = "Boost 148 studs/s and it drains less",
 					set = {
 						{ "flight.boost", 148 },
@@ -175,6 +413,7 @@ return {
 				},
 				{
 					name = "Wall Runner",
+					choice = { "tornadoRun", "afterimage" }, -- the rank's move: pick one (Config.Move.moves)
 					text = "Run up walls faster, for longer",
 					set = { { "mobility.speed.wallRun", 72 }, { "mobility.speed.wallDrain", 9 } },
 				},
@@ -189,6 +428,7 @@ return {
 				},
 				{
 					name = "Lightning Legs",
+					choice = { "sonicWake", "blink" }, -- the rank's move: pick one (Config.Move.moves)
 					text = "Top speed 125, walls cost half",
 					set = {
 						{ "mobility.speed.sprint", 125 },
@@ -255,6 +495,7 @@ return {
 				},
 				{
 					name = "Ricochet",
+					choice = { "impactLanding", "wallCrusher" }, -- the rank's move: pick one (Config.Move.moves)
 					text = "4 wall bounces, and higher ones",
 					set = {
 						{ "mobility.leap.bounce.max", 4 },
@@ -273,6 +514,7 @@ return {
 				},
 				{
 					name = "Meteor",
+					choice = { "meteorStrike", "moonJump" }, -- the rank's move: pick one (Config.Move.moves)
 					text = "Leaps 130 high, 300 far, a wider pound",
 					set = {
 						{ "mobility.leap.apex", 130 },
@@ -336,6 +578,7 @@ return {
 				},
 				{
 					name = "Evasion",
+					choice = { "kickChain", "ceilingDrop" }, -- the rank's move: pick one (Config.Move.moves)
 					text = "Flips dodge longer, every 0.8 s",
 					set = {
 						{ "mobility.acrobat.flip.iframes", 0.4 },
@@ -356,6 +599,7 @@ return {
 				},
 				{
 					name = "Triple Jump",
+					choice = { "shadowFlip", "slingshot" }, -- the rank's move: pick one (Config.Move.moves)
 					text = "A third jump in the air, quicker flips",
 					set = {
 						{ "mobility.acrobat.up.jumps", 3 },
@@ -470,6 +714,7 @@ return {
 				},
 				{
 					name = "Momentum",
+					choice = { "doubleZip", "yank" }, -- the rank's move: pick one (Config.Move.moves)
 					text = "Swing 105 -> 114 studs/s",
 					set = {
 						{ "mobility.swing.maxSpeed", 114 },
@@ -488,6 +733,7 @@ return {
 				},
 				{
 					name = "Skyline",
+					choice = { "wreckingKick", "skyHook" }, -- the rank's move: pick one (Config.Move.moves)
 					text = "Swing 124 studs/s, lines reach 270",
 					set = {
 						{ "mobility.swing.maxSpeed", 124 },

@@ -58,7 +58,17 @@ function ImpactFx.init()
 		Net.send("ImpactRam", at, dir.Unit, math.clamp(speed, 0, 400))
 		local R = I.ram
 		-- the hole opens here now (fix-destroy): the same blast the server will run, so the hero flies on through
-		BuildingFx.predict(id, at + dir.Unit * 1.5, ImpactRules.ramDamage(R, speed), R.radius)
+		-- Blazing Ram (Flight rank 5): more damage, the pieces blown outward (MoveActService does the same sum)
+		local blaze = MoveController.has("blazeRam")
+		local B = Config.Move.moves.blazeRam
+		BuildingFx.predict(
+			id,
+			at + dir.Unit * 1.5,
+			ImpactRules.ramDamage(R, speed) * (if blaze then B.ram else 1),
+			R.radius,
+			nil,
+			if blaze then B.throw else nil
+		)
 		local hit = Workspace:Raycast(at + normal, -normal * 3)
 		local color = if hit and hit.Instance:IsA("BasePart") then hit.Instance.Color else nil
 		ImpactFx.smash(at, normal, (speed - R.minSpeed) / (R.fullSpeed - R.minSpeed) + 0.4, color)

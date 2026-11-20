@@ -401,6 +401,83 @@ local function rankCard(pick: string, n: number, order: number): Frame
 	return f
 end
 
+-- The mobility upgrade rework (nate 2026-11-20): a choice rank's two moves, one card each (its icon, name and what it
+-- does). Trained: PICK sends MoveChoose (the first pick anywhere; a swap at a safehouse or HQ, the server checks);
+-- the picked one is gold. Not trained yet: the card says which rank opens it.
+local function moveCard(pick: string, rank: number, k: number, order: number): Frame
+	local h = State.hero
+	local M = Config.Move
+	local id = (MoveRanks.options(M, pick, rank) or {})[k]
+	local mv = id and M.moves[id]
+	local picked = MoveRanks.picked(M, h.mobMoves, pick, rank)
+	local trained = MoveRanks.rankOf(M, h.mobRanks, pick) >= rank
+	local f = Kit.frame({
+		Name = "Move" .. rank .. "_" .. k,
+		LayoutOrder = order,
+		BackgroundColor3 = if picked == k then Color3.fromRGB(255, 236, 170) else Kit.color.paper,
+	})
+	Kit.stroke(f, if picked == k then Kit.color.gold else Color3.fromRGB(110, 170, 255), 3)
+	if not mv then
+		return f
+	end
+	local icon = Kit.icon("mobmove", id, {
+		Name = "MoveIcon",
+		Size = UDim2.fromOffset(40, 40),
+		Position = UDim2.fromOffset(6, 6),
+	})
+	if icon then
+		icon.Parent = f
+	end
+	local left = if icon then 52 else 6
+	local name = Kit.label({
+		Name = "MoveName",
+		Text = string.format("RANK %d  %s", rank, string.upper(mv.name)),
+		Size = UDim2.new(1, -left - 6, 0, 40),
+		Position = UDim2.fromOffset(left, 6),
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextWrapped = true,
+		Font = Kit.font,
+		maxText = 13,
+	})
+	name.Parent = f
+	local text = Kit.label({
+		Name = "MoveText",
+		Text = mv.text,
+		Size = UDim2.new(1, -12, 0, 52),
+		Position = UDim2.fromOffset(6, 48),
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextYAlignment = Enum.TextYAlignment.Top,
+		TextWrapped = true,
+		Font = Kit.bodyFont,
+		maxText = 12,
+	})
+	text.Parent = f
+	local label = if not trained
+		then string.format("RANK %d FIRST", rank)
+		elseif picked == k then "PICKED"
+		elseif picked == 0 then "PICK"
+		else "SWAP"
+	local b = Kit.button({
+		pending = trained and picked ~= k,
+		Text = label,
+		Size = UDim2.new(1, -12, 0, 40),
+		Position = UDim2.new(0, 6, 1, -44),
+		BackgroundColor3 = if picked == k
+			then Color3.fromRGB(120, 230, 140)
+			elseif trained then Kit.color.gold
+			else Color3.fromRGB(190, 190, 195),
+		maxText = 14,
+	}, function()
+		if trained and picked ~= k then
+			Net.send("MoveChoose", rank, k)
+		elseif not trained then
+			notice(string.format("Train rank %d to pick a move", rank))
+		end
+	end)
+	b.Parent = f
+	return f
+end
+
 -- gap-icons: a loadout slot shows its power's icon at the left, the name beside it (no icon: the name alone)
 local function slotIcon(b: TextButton, id: string?)
 	local pad = b:FindFirstChildOfClass("UIPadding") -- Kit.button's own (8 px a side)
@@ -551,8 +628,17 @@ refresh = function()
 	local n = 0
 	if viewSet == MOBILITY then
 		local pick = h.mobility or "flight"
+		local order = 0
 		for r = 0, MoveRanks.max(Config.Move, pick) do
-			rankCard(pick, r, r).Parent = grid
+			order += 1
+			rankCard(pick, r, order).Parent = grid
+			-- a choice rank's two moves follow its card
+			if MoveRanks.options(Config.Move, pick, r) then
+				for k = 1, 2 do
+					order += 1
+					moveCard(pick, r, k, order).Parent = grid
+				end
+			end
 		end
 		return
 	end
@@ -846,6 +932,22 @@ function LoadoutScreen.init()
 			Juice.fire("moveTrain", nil, { name = if row then row.name else nil, mine = true })
 		else
 			notice(REASONS[d.reason or ""] or "Can't train that yet")
+		end
+	end)
+	-- the mobility rework: a move picked or swapped (the card turns gold on HeroState)
+	Net.listen("MoveChosen", function(d: any)
+		if type(d) ~= "table" then
+			return
+		end
+		if d.ok then
+			notice("Move picked", true)
+		else
+			local why = ({
+				rank = "Train that rank first",
+				safehouse = "Swap moves at a safehouse or your HQ",
+				same = "Already picked",
+			})[d.reason or ""]
+			notice(why or "Can't pick that yet")
 		end
 	end)
 	State.Notice:Connect(function(ok, reason)

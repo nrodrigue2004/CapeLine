@@ -2740,6 +2740,59 @@ return function(T: any)
 		check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
 	end)
 
+	test(
+		"List combat: the prologue crowd and the intro film's people run on the heroes' sprint stride",
+		function()
+			local roblox = require("@lune/roblox")
+			local HeroAnim = require("../src/shared/HeroAnim")
+			check(HeroAnim.loops("runFast"), "the sprint stride loops")
+			local pro = fs.readFile("src/client/Fx/PrologueFx.luau")
+			local film = fs.readFile("src/client/Fx/IntroFilm.luau")
+			check(
+				string.find(pro, 'local RUN_CLIP = "runFast"', 1, true) ~= nil,
+				"the prologue's runners use it"
+			)
+			check(
+				string.find(film, 'HeroAnim.sample("runFast"', 1, true) ~= nil,
+				"the intro film's runners use it"
+			)
+			if not T.placePath then
+				return
+			end
+			local UiSim = require("./uisim")
+			local sim = UiSim.new(
+				UiSim.load(roblox.deserializePlace(fs.readFile(T.placePath))),
+				{ name = "PC", w = 1280, h = 720, top = 36, left = 0, right = 0, bottom = 0, touch = false }
+			)
+			local PrologueFx = sim:require("Client.Fx.PrologueFx")
+			local rig
+			sim:run("cast", function()
+				rig = PrologueFx.cast("citizen", sim.workspace, 2)
+			end)
+			check(rig ~= nil, "a crowd citizen")
+			-- every joint the stride moves is a joint of the crowd's rig, so none of the run is lost
+			local a = HeroAnim.sample("runFast", 0.1)
+			local n = 0
+			for joint in a do
+				n += 1
+				check(rig and rig.motors[joint] ~= nil, "the rig has " .. joint)
+			end
+			check(n >= 10, "the stride moves arms, legs, waist and root (" .. n .. ")")
+			check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
+		end
+	)
+
+	test("List combat: incident and event objects jolt on each hit (ActivityProps)", function()
+		local fx = fs.readFile("src/client/Fx/ActivityProps.luau")
+		check(string.find(fx, 'm:GetAttributeChangedSignal("Hp")', 1, true) ~= nil, "listens to what is left")
+		check(string.find(fx, "StoryProps.punch(rest, anchor.Position)", 1, true) ~= nil, "the shared punch")
+		check(
+			string.find(fs.readFile("src/client/Fx/StoryProps.luau"), "function StoryProps.punch(", 1, true)
+				~= nil,
+			"StoryProps shares it"
+		)
+	end)
+
 	test("List combat: side styles wear their side's crest over the shape (Everything Left 398)", function()
 		local roblox = require("@lune/roblox")
 		local SG = Config.SideGearArt

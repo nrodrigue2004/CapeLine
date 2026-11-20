@@ -76,6 +76,7 @@ AnalyticsSchema.EVENTS = {
 	collect_set = { "set" },
 	lore_page = { "district" }, -- side-content: value: pages read in all
 	mobility_rank = { "mobility" }, -- side-content: value: the rank trained
+	mobility_move = { "mobility", "option" }, -- the mobility rework: value: the choice rank (3 or 5)
 	contest_enter = { "theme" },
 	contest_done = { "theme", "voters" }, -- value: contestants
 	pass_tier = { "season" }, -- H8: value: the tier reached

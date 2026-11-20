@@ -317,7 +317,10 @@ return function(T: any)
 		check(has(mc, "glide = true"), "glides and swoops ram too")
 		check(has(mc, "MoveController.onPropHit"), "a street thing in the way is knocked loose, not a stop")
 		local fx = source("src/client/Fx/ImpactFx.luau")
-		check(has(fx, "BuildingFx.predict(id"), "the device opens the hole at once")
+		check(
+			has(fx, "BuildingFx.predict(") and has(fx, "ImpactRules.ramDamage(R, speed)"),
+			"the device opens the hole at once"
+		)
 		local bf = source("src/client/Fx/BuildingFx.luau")
 		check(
 			has(bf, "function BuildingFx.predict") and has(bf, "local function reconcile"),

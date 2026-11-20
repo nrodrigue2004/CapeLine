@@ -484,6 +484,7 @@ local function drawRubble(rec: Rec): Model
 end
 
 local ramPush: Vector3? = nil -- set while a predicted ram's pieces are knocked out (BuildingFx.predict)
+local ramThrow = 1 -- how hard they fly (Blazing Ram blows the wall outward)
 
 -- Throw one loose piece off the building (out from the hit, or ahead of a ramming hero), fading out after
 -- debrisLife; a bit (a torn-off chunk off a wall) flies a little faster and spins harder
@@ -503,7 +504,7 @@ local function throwPiece(rec: Rec, part: BasePart, from: Vector3?, bit: boolean
 			end
 		end)
 	end
-	local fast = if bit then 1.4 else 1
+	local fast = (if bit then 1.4 else 1) * (if push then ramThrow else 1)
 	part.AssemblyLinearVelocity = out * (18 + math.random() * 16) * fast
 		+ Vector3.new(0, 10 + math.random() * 8, 0)
 	part.AssemblyAngularVelocity = Vector3.new(math.random() - 0.5, math.random() - 0.5, math.random() - 0.5)
@@ -1630,7 +1631,14 @@ local pending: { [number]: Pending } = {}
 local PREDICT_HOLD = 1.5
 
 -- hold: how long the hole stays before an unconfirmed guess heals (the intro film keeps its hole for the film)
-function BuildingFx.predict(id: number, at: Vector3, dmg: number, radius: number, hold: number?): number
+function BuildingFx.predict(
+	id: number,
+	at: Vector3,
+	dmg: number,
+	radius: number,
+	hold: number?,
+	throw: number?
+): number
 	local rec = records[id]
 	if not rec or not models[id] or (state[id] or 0) == BuildingState.COLLAPSED or dmg <= 0 then
 		return 0
@@ -1658,8 +1666,10 @@ function BuildingFx.predict(id: number, at: Vector3, dmg: number, radius: number
 	state[id] = BuildingState.DAMAGED
 	local travel = MoveController.velocity
 	ramPush = if travel.Magnitude > 1 then travel.Unit else nil
+	ramThrow = throw or 1
 	apply(id, true, fresh)
 	ramPush = nil
+	ramThrow = 1
 	return #hit
 end
 

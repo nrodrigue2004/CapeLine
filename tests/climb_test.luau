@@ -458,7 +458,7 @@ return function(T: any)
 		check(has(ha, 'return "climbVault"'), "HeroAnimator shows the vault")
 		local is = fs.readFile("src/server/Services/ImpactService.luau")
 		check(
-			has(is, 'Net.on("MoveGrab", onGrab)') and has(is, "B.dmg, B.radius"),
+			has(is, 'Net.on("MoveGrab", onGrab)') and has(is, "B.dmg * mult, B.radius"),
 			"the grab chips the building"
 		)
 		local fx = fs.readFile("src/client/Fx/MoveFx.luau")

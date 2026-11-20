@@ -301,7 +301,10 @@ return function(T: any)
 			"the air checks for a wall to grab (Acrobat and Super-speed)"
 		)
 		check(has(mc, "MoveMath.wallRunKeep("), "the run lasts while held")
-		check(has(mc, "kickAlong(M.mobility.acrobat.jump, M.mobility.acrobat.jumpForward)"), "Leap kicks on")
+		check(
+			has(mc, "kickAlong(M.mobility.acrobat.jump * k, M.mobility.acrobat.jumpForward * k)"),
+			"Leap kicks on"
+		)
 		check(not has(mc, "wallUntil"), "no fixed wall run timer")
 	end)
 end

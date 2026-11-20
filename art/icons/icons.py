@@ -49,6 +49,7 @@ BIG = CELL * SS
 SHEET = 1024
 PER_ROW = SHEET // CELL
 PER_SHEET = PER_ROW * PER_ROW
+MOVE_ORDER = []
 
 # ---------------------------------------------------------------- the game's data (read from src/config)
 
@@ -154,6 +155,15 @@ MOBILITY = {"flight": "m_flight", "speed": "m_speed", "leap": "m_leap", "acrobat
             "swing": "m_swing"}
 GADGET = {"GrapplingHook": "g_grapple", "SmokeBomb": "g_smoke", "ShieldDrone": "g_drone", "Decoy": "g_decoy"}
 ACTION = {"Awaken": "a_awaken", "Block": "a_block", "Power": "a_power"}
+# the mobility rework's 20 moves (nate 2026-11-20; Config.Move.moves, offered by the rank rows' `choice`): a third set
+# on its own sheet after the second, so the uploaded sheets stay byte-identical. Rank 5's moves get a gold ring.
+MOBMOVE = {
+    "sonicDive": "wingdive", "slipstream": "jet", "phase": "haze", "blazeRam": "fireball",
+    "tornadoRun": "tornado", "afterimage": "decoy", "sonicWake": "wave", "blink": "flash",
+    "impactLanding": "stomp", "wallCrusher": "crack", "meteorStrike": "meteor", "moonJump": "rising",
+    "kickChain": "wallrun", "ceilingDrop": "slam", "shadowFlip": "clones", "slingshot": "launch",
+    "doubleZip": "g_grapple", "yank": "magnet", "wreckingKick": "explosion", "skyHook": "hook",
+}
 
 # path discs: the background (Config.Abilities.setColor, deepened where a pale one would wash out a white
 # symbol) and the element motif drawn tone on tone behind the symbol
@@ -669,6 +679,24 @@ def build():
     out_dir = os.path.join(ROOT, "art", "export", "icons")
     os.makedirs(out_dir, exist_ok=True)
     placed = list(enumerate(cells)) + [(first_sheets * PER_SHEET + i, c) for i, c in enumerate(cells2)]
+    # the third set (the mobility rework's moves) on a fresh sheet after the second
+    third = ((placed[-1][0] + PER_SHEET) // PER_SHEET) * PER_SHEET
+    moves_src = read("src/config/Move.luau")
+    rank5 = set()
+    move_order = []
+    for m in re.finditer(r'name = "([^"]+)",\n\t+choice = \{ "(\w+)", "(\w+)" \}', moves_src):
+        move_order += [m.group(2), m.group(3)]
+    for m in re.finditer(r'name = "(Sound Barrier|Lightning Legs|Meteor|Triple Jump|Skyline)",\n\t+choice = \{ "(\w+)", "(\w+)" \}', moves_src):
+        rank5 |= {m.group(2), m.group(3)}
+    assert len(move_order) == 20 and set(move_order) == set(MOBMOVE), move_order
+    cells3 = []
+    for key in move_order:
+        assert MOBMOVE[key] in SYM, "unknown symbol " + MOBMOVE[key]
+        ring = GOLD if key in rank5 else None
+        cells3.append(("mobmove", key, disc_icon(OTHER_BG["mobility"], None, MOBMOVE[key], ring), "mobility moves"))
+    placed += [(third + i, c) for i, c in enumerate(cells3)]
+    global MOVE_ORDER
+    MOVE_ORDER = move_order
     n_sheets = (placed[-1][0] + PER_SHEET) // PER_SHEET
     sheets = [Image.new("RGBA", (SHEET, SHEET), (0, 0, 0, 0)) for _ in range(n_sheets)]
     layout = {}
@@ -683,7 +711,7 @@ def build():
         img.save(os.path.join(out_dir, name), optimize=True)
         files.append(name)
     write_config(files, layout, slots, mobility, gadgets)
-    contact(cells)
+    contact(cells + cells3)
     contact2(cells2)
     print("icons:", len(cells) + len(cells2), "cells on", n_sheets, "sheets ->", out_dir)
 
@@ -714,7 +742,9 @@ def write_config(files, layout, slots, mobility, gadgets):
         ("action", "the HUD's Awakening, shield (block) and power-swap buttons", ["Awaken", "Block", "Power"]),
         ("slot", "the 8 gear slots (Config.Gear.slotOrder), drawn on clear ground over a tier frame", slots),
         ("tier", "a gear tier's frame (Config.Gear.tierOrder): colour, 1 to 6 pips", TIER_ORDER),
-    ] + SET2_GROUPS
+    ] + SET2_GROUPS + [
+        ("mobmove", "the mobility rework's 20 moves (Config.Move.moves), rank 5's gold-ringed", MOVE_ORDER),
+    ]
     for group, text, order in groups:
         L.append("\t-- %s" % text)
         L.append("\t%s = {" % group)

@@ -78,6 +78,19 @@ local Remotes: { [string]: RemoteDef } = {
 	-- MoveTrained answers { ok, reason, rank, pick }
 	MoveTrain = { dir = "C2S", schema = {}, rate = 1, burst = 3 },
 	MoveTrained = { dir = "S2C" },
+	-- the mobility upgrade rework (nate 2026-11-20): pick option 1 or 2 at the current pick's choice rank (3 or 5);
+	-- the server checks the rank is trained and that a swap is at a safehouse; MoveChosen answers { ok, reason }
+	MoveChoose = { dir = "C2S", schema = { n(3, 5), n(1, 2) }, rate = 2, burst = 4 },
+	MoveChosen = { dir = "S2C" },
+	-- the 20 moves going off (Shared.MoveActs: move num, a point, a direction, optional target id and step); the
+	-- server checks its own history, cooldown and range first (MoveActService); MoveActFx draws it on other devices
+	MoveAct = {
+		dir = "C2S",
+		schema = { n(1, 32), V3, V3, n(0, 2 ^ 31, true), n(0, 3, true) },
+		rate = 6,
+		burst = 10,
+	},
+	MoveActFx = { dir = "S2C", unreliable = true },
 
 	-- Enemies (not in the spec's list; see EnemyBuffer and Decisions.md)
 	EnemyDelta = { dir = "S2C", unreliable = true },
