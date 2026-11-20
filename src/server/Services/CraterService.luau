@@ -49,7 +49,16 @@ local GROUND = {
 }
 
 local function wire(c: CraterRules.Crater): { any }
-	return { c.id, c.x, c.y, c.z, c.r, if c.ground == "terrain" then 1 else 0, os.clock() - c.born }
+	return {
+		c.id,
+		c.x,
+		c.y,
+		c.z,
+		c.r,
+		if c.ground == "terrain" then 1 else 0,
+		os.clock() - c.born,
+		c.deep or 1,
+	}
 end
 
 local function rayParams(): RaycastParams
@@ -128,47 +137,58 @@ splash = function(at: Vector3, radius: number)
 	CraterService.splashes += 1
 end
 
--- Read, dig and write a terrain crater's voxels (the read is kept for the heal)
-local function dig(c: CraterRules.Crater): boolean
-	local lo, hi = CraterRules.region(G, c)
-	local region = Region3.new(Vector3.new(lo[1], lo[2], lo[3]), Vector3.new(hi[1], hi[2], hi[3]))
+-- Dig a terrain crater's voxels: read once (the read is kept for the heal; its region covers the deepest it can
+-- go), then every dig carves from that read at the crater's depth now (deeper after more hits, shallower as it fills
+-- back: scale) and writes it. Returns true when written.
+local filled: { [number]: number } = {} -- crater id -> the fill scale last written
+local function dig(c: CraterRules.Crater, scale: number?): boolean
 	local terrain = Workspace.Terrain
-	local ok, mats, occ = pcall(terrain.ReadVoxels, terrain, region, G.voxel)
-	if not ok then
-		return false
+	local lo, hi = CraterRules.region(G, c)
+	local s = saved[c.id]
+	if not s then
+		local region = Region3.new(Vector3.new(lo[1], lo[2], lo[3]), Vector3.new(hi[1], hi[2], hi[3]))
+		local ok, mats, occ = pcall(terrain.ReadVoxels, terrain, region, G.voxel)
+		if not ok then
+			return false
+		end
+		s = { region = region, mats = mats, occ = occ }
 	end
-	-- names for the pure carve, then back to materials (and a copy of the read for the heal)
+	local keep = s :: any
+	-- names for the pure carve, from the original read every time
 	local names, occs = {}, {}
-	local keepMats, keepOcc = {}, {}
-	for i, plane in mats do
-		names[i], occs[i], keepMats[i], keepOcc[i] = {}, {}, {}, {}
+	for i, plane in keep.mats do
+		names[i], occs[i] = {}, {}
 		for j, row in plane do
-			names[i][j], occs[i][j], keepMats[i][j], keepOcc[i][j] = {}, {}, {}, {}
+			names[i][j], occs[i][j] = {}, {}
 			for k, m in row do
 				names[i][j][k] = m.Name
-				occs[i][j][k] = occ[i][j][k]
-				keepMats[i][j][k] = m
-				keepOcc[i][j][k] = occ[i][j][k]
+				occs[i][j][k] = keep.occ[i][j][k]
 			end
 		end
 	end
 	local world = require(script.Parent.CityBuilder).world -- (required here: the park is built after boot)
 	local waterY = CraterRules.waterLevel(G, world and world.park, WATER_Y, c.x, c.z, ParkLayout.inside)
-	if CraterRules.carve(G, c, lo, names, occs, waterY) == 0 then
+	if CraterRules.carve(G, c, lo, names, occs, waterY, scale) == 0 and not saved[c.id] then
 		return false
 	end
+	local mats, occ = {}, {}
 	for i, plane in names do
+		mats[i], occ[i] = {}, {}
 		for j, row in plane do
+			mats[i][j], occ[i][j] = {}, {}
 			for k, n in row do
 				mats[i][j][k] = (Enum.Material :: any)[n]
 				occ[i][j][k] = occs[i][j][k]
 			end
 		end
 	end
-	local wrote = pcall(terrain.WriteVoxels, terrain, region, G.voxel, mats, occ)
+	local wrote = pcall(terrain.WriteVoxels, terrain, keep.region, G.voxel, mats, occ)
 	if wrote then
-		saved[c.id] = { region = region, mats = keepMats, occ = keepOcc }
-		CraterService.dug += 1
+		if not saved[c.id] then
+			CraterService.dug += 1
+		end
+		saved[c.id] = keep
+		filled[c.id] = scale or 1
 	end
 	return wrote
 end
@@ -190,6 +210,16 @@ function CraterService.blast(at: Vector3, radius: number, dmg: number): CraterRu
 	end
 	if dmg < G.minDmg then
 		return nil -- (a lighter hit only splashes)
+	end
+	-- another heavy hit in a live crater digs it deeper (destroy-all round 3) instead of a new one beside it
+	local deeper = CraterRules.deepen(G, book, surface.X, surface.Z, os.clock())
+	if deeper then
+		if deeper.ground == "terrain" then
+			dig(deeper)
+		end
+		Net.fireAll("CraterAdd", wire(deeper))
+		PerfMonitor.add("buildings", (os.clock() - t0) * 1000)
+		return deeper
 	end
 	local c = CraterRules.add(G, book, surface.X, surface.Y, surface.Z, dmg, kind, os.clock())
 	if not c then
@@ -217,12 +247,23 @@ function CraterService.init()
 	task.spawn(function()
 		while true do
 			task.wait(2)
-			local gone = CraterRules.step(G, book, os.clock())
+			local now = os.clock()
+			-- terrain bowls fill back in steps while they heal (destroy-all round 3)
+			for _, c in book.list do
+				if saved[c.id] then
+					local scale = CraterRules.fillScale(G, c, now)
+					if scale < (filled[c.id] or 1) then
+						dig(c, scale)
+					end
+				end
+			end
+			local gone = CraterRules.step(G, book, now)
 			if #gone > 0 then
 				local ids = {}
 				for _, c in gone do
 					table.insert(ids, c.id)
 					local s = saved[c.id]
+					filled[c.id] = nil
 					if s then
 						saved[c.id] = nil
 						local terrain = Workspace.Terrain

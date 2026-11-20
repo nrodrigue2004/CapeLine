@@ -1085,7 +1085,14 @@ MoveController.propStop = 0
 local ramHold = 0
 local ramNext = 0
 local ramCarry: Vector3? = nil
-local ramLast: { id: number, at: number } = { id = 0, at = -math.huge }
+-- destroy-all (2026-11-20): `pos` is where the last ram hit, so a small building's far wall (more than RAM.radius
+-- from the entry hole) is a new ram even inside sameWall; before, a 15-stud-deep block stalled the hero mid-building
+local ramLast: { id: number, at: number, pos: Vector3 } = { id = 0, at = -math.huge, pos = Vector3.zero }
+
+-- The same building hit again at once, near the last hole (a wall that held, or the hole's own edge)
+local function sameRam(id: number, at: Vector3, now: number, window: number): boolean
+	return id == ramLast.id and now - ramLast.at < window and (at - ramLast.pos).Magnitude < RAM.radius
+end
 
 -- The wreckable building a part belongs to (its model in the city, or the stand-in pieces BuildingFx draws)
 local function buildingOf(part: Instance): number?
@@ -1237,10 +1244,10 @@ local function ramStep(mode: string, v: Vector3, pos: Vector3, now: number, dt: 
 		end
 		return v
 	end
-	if id == ramLast.id and now - ramLast.at < RAM.sameWall then
+	if sameRam(id, hit.Position, now, RAM.sameWall) then
 		return v -- the same one again at once (a wall that held: no hit-stop every frame)
 	end
-	ramLast.id, ramLast.at = id, now
+	ramLast.id, ramLast.at, ramLast.pos = id, now, hit.Position
 	ramNext = now + RAM.cooldown
 	ramHold = now + RAM.hitStop
 	ramCarry = v * (1 - RAM.loss)
@@ -1272,13 +1279,13 @@ local function groundRam(hit: RaycastResult, speed: number, now: number): boolea
 		end
 		return false
 	end
-	if id == ramLast.id and now - ramLast.at < RAM.sameWall * 2 then
+	if sameRam(id, hit.Position, now, RAM.sameWall * 2) then
 		return true
 	end
 	if now < ramNext or speed < RAM.minSpeed then
 		return now < ramNext
 	end
-	ramLast.id, ramLast.at = id, now
+	ramLast.id, ramLast.at, ramLast.pos = id, now, hit.Position
 	ramNext = now + RAM.cooldown
 	ramHold = now + RAM.hitStop
 	MoveController.Rammed:Fire(hit.Position, hit.Normal, speed, id)

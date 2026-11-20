@@ -59,6 +59,7 @@ local PerfMonitor = require(script.Parent.PerfMonitor)
 local MoveGuard = require(script.Parent.MoveGuard)
 local CraterService = require(script.Parent.CraterService)
 local VehicleService = require(script.Parent.VehicleService)
+local ImpactRules = require(Shared:WaitForChild("ImpactRules"))
 
 local Bits = ProfileSchema.Bits
 
@@ -505,6 +506,17 @@ local function handleEvents(f: Fight)
 				)
 				VehicleService.hit(Vector3.new(ev.x, ev.y, ev.z), ev.struct) -- destroy-all: cars in the slam flip
 			end
+			-- destroy-all round 3: the city wrecks along the strike's own shape (a charge's or beam's line, a cone, rock
+			-- falls, shots, a stomp): buildings through BuildingService (pins and caps as any hit), the street knocked
+			-- loose round each spot (its impact), cars flipped
+			local W = Config.Destruction.bossWreck
+			if W then
+				for _, w in ImpactRules.bossWreck(W, ev) do
+					local at = Vector3.new(w[1], w[2], w[3])
+					BuildingService.hit(at, w[4], W.dmg, 2)
+					VehicleService.hit(at, w[4])
+				end
+			end
 		end
 		if ev.k == "strike" and ev.crater then
 			-- bosses-3: the Quarry Titan breaks the ground (a crater at the slam, or at every rock)
@@ -561,8 +573,35 @@ local function handleEvents(f: Fight)
 	end
 end
 
+-- destroy-all round 3: the boss's footsteps knock the street round its feet as it walks (lamps, benches, trees,
+-- park looks: BuildingService.street, a heavy knock) and flip the cars there, every bossWreck.stomp seconds it moved
+local stomps: { [any]: { at: number, x: number, z: number } } = setmetatable({}, { __mode = "k" }) :: any
+local function stomp(f: Fight, now: number)
+	local W = Config.Destruction.bossWreck
+	local sim = f.sim
+	local stomped = stomps[f]
+	if not stomped then
+		stomped = { at = now, x = sim.x, z = sim.z }
+		stomps[f] = stomped
+	end
+	if not W or now - stomped.at < W.stomp then
+		return
+	end
+	local moved = (sim.x - stomped.x) ^ 2 + (sim.z - stomped.z) ^ 2
+	stomped.at = now
+	stomped.x, stomped.z = sim.x, sim.z
+	if moved < 4 or moved > 400 * 400 then
+		return -- standing still, or a leap's landing (its strike wrecks already)
+	end
+	local r = (sim.cfg.bodyR or 12) + 4
+	local at = Vector3.new(sim.x, sim.y + 2, sim.z)
+	BuildingService.street(at, r, true)
+	VehicleService.hit(at, r)
+end
+
 local function stepFight(f: Fight, now: number)
 	BossSim.step(f.sim, now, heroList())
+	stomp(f, now)
 	syncTargets(f)
 	handleEvents(f)
 end

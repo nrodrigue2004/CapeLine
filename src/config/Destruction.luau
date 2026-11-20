@@ -64,6 +64,11 @@ return {
 	wallReach = 3,
 	chipRate = 10, -- chip notices (a hit that breaks nothing yet) per second per server: dust and a chip mark
 	bossStruct = 2000, -- boss attacks (M6)
+	-- destroy-all round 3 (2026-11-20): every boss strike wrecks the city along its own shape (ImpactRules.bossWreck):
+	-- at most `max` spots a strike, `step` studs apart along a charge or beam, each a hit of `dmg` (3 pieces) within
+	-- radius studs, `lift` above the boss's feet; its footsteps knock the street (lamps, benches, cars, park looks)
+	-- every `stomp` s while it walks, its feet's bodyR round
+	bossWreck = { max = 6, step = 18, dmg = 1200, radius = { 6, 22 }, lift = 4, side = 2, stomp = 0.45 },
 	maxCollapses = 3, -- collapses at once per server; a fourth is cut to Damaged
 	collapseTime = 6, -- the collapse animation on the client; "at once" means started within this window
 	repair = {
@@ -141,6 +146,13 @@ return {
 		-- devices near, at most splashRate a second on the server
 		splashMin = 400,
 		splashRate = 4,
+		-- destroy-all round 3: a hit within near x a live crater's radius of its middle digs it one level deeper (each
+		-- level add x the depth more, up to max levels) and starts its life again; while it heals the bowl fills back
+		-- in `fills` steps (terrain written that many times)
+		deepen = { near = 0.8, max = 3, add = 0.6, fills = 4 },
+		-- a crater of minR+ throws up clods of the ground's own look (GroundFx; Presets collapse.clods each, only within
+		-- range studs of the camera), up and out at these speeds, gone after life s
+		clods = { minR = 7, range = 260, up = 42, out = 16, life = 5 },
 	},
 	-- comic ink decals for the crater and the facade crack (art/fx/textures.py --destruction, uploaded as Image
 	-- assets); id 0 keeps today's dark disc and thin bars (BuildingFx). crater: the decal spans this many crater

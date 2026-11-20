@@ -557,4 +557,329 @@ return function(T: any)
 			"nothing outside the park"
 		)
 	end)
+
+	-- destroy-all round 3 (2026-11-20): bosses wreck the city along each strike's own shape
+	test("Destroy all: every boss strike wrecks the city along its shape, inside the caps", function()
+		local ImpactRules = require("../src/shared/ImpactRules")
+		local BossSim = require("../src/shared/BossSim")
+		local Rng = require("../src/shared/Rng")
+		local W = Config.Destruction.bossWreck
+		check(W ~= nil and W.max >= 1 and W.dmg > 0, "bossWreck is tuned")
+		local seen: { [string]: number } = {}
+		local spots, over, wide, off = 0, 0, 0, 0
+		for run = 1, #Config.Boss.order * 3 do
+			local id = Config.Boss.order[(run - 1) // 3 + 1]
+			local sim = BossSim.new(Config, id, 0, 0, 0, 1e9, 20, 0, Rng.new(11))
+			sim.phase = (run - 1) % 3 + 1 -- every phase's attacks (lines are Rustjaw's phase 3 eye laser)
+			BossSim.step(sim, 6, {})
+			local heroes = {
+				{ id = 1, x = 30, y = 0, z = 20, alive = true },
+				{ id = 2, x = -25, y = 40, z = -30, alive = true },
+			}
+			local t = 6
+			while t < 66 do
+				t += 0.1
+				BossSim.step(sim, t, heroes)
+				for _, ev in BossSim.drain(sim) do
+					if ev.k == "strike" then
+						local w = ImpactRules.bossWreck(W, ev)
+						if #w > 0 then
+							seen[ev.shape] = (seen[ev.shape] or 0) + 1
+						end
+						if #w > W.max then
+							over += 1
+						end
+						for _, s in w do
+							spots += 1
+							if s[4] < W.radius[1] or s[4] > W.radius[2] then
+								wide += 1
+							end
+						end
+						if ev.shape == "lines" then
+							check(ev.points ~= nil and ev.length ~= nil, "a line strike carries its lines")
+							-- every spot lies on one of its lines, within the line's reach
+							for _, s in w do
+								local dx, dz = s[1] - ev.x, s[3] - ev.z
+								local best = math.huge
+								for _, d in ev.points do
+									local along = dx * d[1] + dz * d[2]
+									local across = math.abs(dx * d[2] - dz * d[1])
+									if along >= 0 and along <= ev.length + 1 then
+										best = math.min(best, across)
+									end
+								end
+								if best > 1 then
+									off += 1
+								end
+							end
+						end
+					end
+				end
+			end
+		end
+		print(
+			string.format(
+				"  [destroy all] boss wreck: %d spots (lines %d, cone %d, ring %d, column %d, circles %d strikes)",
+				spots,
+				seen.lines or 0,
+				seen.cone or 0,
+				seen.ring or 0,
+				seen.column or 0,
+				seen.circles or 0
+			)
+		)
+		check(over == 0, "never more than max spots a strike")
+		check(wide == 0, "every spot's radius within bossWreck.radius")
+		check(off == 0, "a charge's or beam's spots lie along its lines (" .. off .. " off)")
+		for _, shape in { "lines", "cone", "ring", "column" } do
+			check((seen[shape] or 0) > 0, "a " .. shape .. " strike wrecks the city")
+		end
+		check(
+			#ImpactRules.bossWreck(W, { shape = "gust", x = 0, y = 0, z = 0, r = 30 }) == 0,
+			"a gust wrecks nothing"
+		)
+		local fan = ImpactRules.bossWreck(W, {
+			shape = "lines",
+			x = 0,
+			y = 0,
+			z = 0,
+			length = 200,
+			width = 8,
+			points = { { 1, 0 }, { 0, 1 }, { -1, 0 } },
+		})
+		local first = { false, false, false }
+		for _, s in fan do
+			if s[1] > 1 then
+				first[1] = true
+			elseif s[3] > 1 then
+				first[2] = true
+			elseif s[1] < -1 then
+				first[3] = true
+			end
+		end
+		check(
+			#fan == W.max and first[1] and first[2] and first[3],
+			"a long fan shares the cap among its lines"
+		)
+
+		local src = fs.readFile("src/server/Services/BossService.luau")
+		check(
+			string.find(src, "ImpactRules.bossWreck(W, ev)", 1, true) ~= nil
+				and string.find(src, "BuildingService.hit(at, w[4], W.dmg, 2)", 1, true) ~= nil
+				and string.find(src, "VehicleService.hit(at, w[4])", 1, true) ~= nil,
+			"BossService hits each spot through BuildingService and flips the cars there"
+		)
+		check(
+			string.find(src, "BuildingService.street(at, r, true)", 1, true) ~= nil
+				and string.find(src, "stomp(f, now)", 1, true) ~= nil,
+			"its footsteps knock the street as it walks"
+		)
+	end)
+
+	-- destroy-all round 3: repeated heavy hits dig deeper, fill back in steps; big ones throw clods
+	test("Destroy all: craters dig deeper under repeated hits and fill back over time", function()
+		local G = Config.Destruction.ground
+		local dp = G.deepen
+		check(dp ~= nil and dp.max >= 2 and dp.fills >= 2, "deepen is tuned")
+		local book = CraterRules.new()
+		local c = CraterRules.add(G, book, 0, 0, 0, G.fullDmg, "terrain", 0)
+		check(c ~= nil, "a first crater")
+		if not c then
+			return
+		end
+		local d1 = CraterRules.depthOf(G, c)
+		check(CraterRules.deepen(G, book, 40, 40, 0.1) == nil, "a hit away from it is not the same crater")
+		local again = CraterRules.deepen(G, book, c.r * 0.3, 0, 2)
+		check(
+			again == c and c.deep == 2 and c.born == 2,
+			"a hit in it digs it a level deeper and starts its life again"
+		)
+		check(CraterRules.depthOf(G, c) > d1, "deeper")
+		for k = 1, 6 do
+			CraterRules.deepen(G, book, 0, 0, 2 + k * 2)
+		end
+		check(c.deep == dp.max, "up to the cap (" .. tostring(c.deep) .. ")")
+		local cap = CraterRules.depthOf(G, c)
+		check(math.abs(cap - G.depth * (1 + (dp.max - 1) * dp.add)) < 1e-6, "the cap's depth")
+		local born = c.born
+		check(CraterRules.fillScale(G, c, born + 1) == 1, "whole until it heals")
+		local half = CraterRules.fillScale(G, c, born + G.life - G.heal / 2)
+		check(half < 1 and half > 0, "half way through the heal it is part filled (" .. half .. ")")
+		local steps: { [number]: boolean } = {}
+		for t = born + G.life - G.heal, born + G.life, 1 do
+			steps[CraterRules.fillScale(G, c, t)] = true
+		end
+		local n = 0
+		for _ in steps do
+			n += 1
+		end
+		check(n <= dp.fills + 1, "it fills in a few steps, not every frame (" .. n .. ")")
+		-- the voxels read once cover the deepest bowl, and a filled bowl carves nothing
+		local lo, hi = CraterRules.region(G, c)
+		check(hi[2] - lo[2] >= c.r * cap, "the read region covers the deepest bowl")
+		local function grid(): ({ any }, { any })
+			local mats, occ = {}, {}
+			local nx = (hi[1] - lo[1]) / G.voxel
+			local ny = (hi[2] - lo[2]) / G.voxel
+			local nz = (hi[3] - lo[3]) / G.voxel
+			for i = 1, nx do
+				mats[i], occ[i] = {}, {}
+				for j = 1, ny do
+					mats[i][j], occ[i][j] = {}, {}
+					for k = 1, nz do
+						mats[i][j][k] = "Grass"
+						occ[i][j][k] = 1
+					end
+				end
+			end
+			return mats, occ
+		end
+		local m1, o1 = grid()
+		local deepN = CraterRules.carve(G, c, lo, m1, o1, -1e9)
+		local shallow = table.clone(c)
+		shallow.deep = 1
+		local m2, o2 = grid()
+		local oneN = CraterRules.carve(G, shallow, lo, m2, o2, -1e9)
+		check(
+			deepN > oneN and oneN > 0,
+			"a deeper crater carves more voxels (" .. oneN .. " -> " .. deepN .. ")"
+		)
+		local m3, o3 = grid()
+		check(CraterRules.carve(G, c, lo, m3, o3, -1e9, 0) == 0, "a filled-back bowl carves nothing")
+
+		local srv = fs.readFile("src/server/Services/CraterService.luau")
+		check(
+			string.find(srv, "CraterRules.deepen(G, book", 1, true) ~= nil
+				and string.find(srv, "CraterRules.fillScale(G, c, now)", 1, true) ~= nil
+				and string.find(srv, "c.deep or 1", 1, true) ~= nil,
+			"CraterService deepens, fills back and sends the depth"
+		)
+		local fx = fs.readFile("src/client/Fx/GroundFx.luau")
+		check(
+			string.find(fx, "clods(c)", 1, true) ~= nil
+				and string.find(fx, "DebrisBudget.lease", 1, true) ~= nil
+				and string.find(fx, "GetMaterialColor", 1, true) ~= nil,
+			"GroundFx throws clods of the ground's own look within the debris budget"
+		)
+		local last = 0
+		for _, name in Config.Presets.order do
+			local pr = Config.Presets[name]
+			local k = pr and pr.collapse and pr.collapse.clods
+			check(k ~= nil and k >= last, name .. " has its clods (" .. tostring(k) .. ")")
+			last = k or last
+		end
+	end)
+
+	-- destroy-all round 3: "fly through buildings" reads well: flight at cruise goes through block buildings wall
+	-- after wall without a stall, and the device's same-building gate lets the far wall ram
+	test("Destroy all: a flight ram goes through whole buildings with no stall", function()
+		local BuildingState = require("../src/shared/BuildingState")
+		local ImpactRules = require("../src/shared/ImpactRules")
+		local D = Config.Destruction
+		local R = Config.Combat.impact.ram
+		local book = BuildingState.new(D, world.buildings)
+		local tried, through, stalls, farWalls, held, maxRams = 0, 0, 0, 0, 0, 0
+		-- the 30 thinnest block buildings (where a far wall comes soonest) and 30 more across the city
+		local pool = {}
+		for _, b in world.buildings do
+			if
+				not b.round
+				and b.district ~= "Outskirts"
+				and not BuildingState.pinned(book, b.id)
+				and b.top - b.base > 14
+			then
+				table.insert(pool, b)
+			end
+		end
+		table.sort(pool, function(a, b)
+			return a.sx < b.sx
+		end)
+		local picks = {}
+		for k = 1, math.min(30, #pool) do
+			table.insert(picks, pool[k])
+		end
+		for k = 31, #pool, math.max(1, (#pool - 30) // 30) do
+			table.insert(picks, pool[k])
+		end
+		-- at cruise (60) and at Boost (110), each on a whole city
+		for _, cruise in { 60, 110 } do
+			book = BuildingState.new(D, world.buildings)
+			for _, b in picks do
+				tried += 1
+				local y = b.base + 12.5
+				local exitX = b.x + b.sx / 2 + 2
+				local pos = b.x - b.sx / 2 - 3
+				local rams, t, speed, good = 0, 0, cruise, true
+				local lastT, lastX = -math.huge, -math.huge
+				while pos < exitX do
+					local d = math.huge
+					for _, o in { { 0, 0 }, { 0, 1.5 }, { 0, -1.5 }, { 1.5, 0 }, { -1.5, 0 } } do
+						d = math.min(d, BuildingState.ray(D, book, pos, y + o[1], b.z + o[2], 1, 0, 0, 200))
+					end
+					if rams == 0 then
+						d = (b.x - b.sx / 2) - pos -- an intact building is not in the ray: its face
+					end
+					if pos + d >= exitX then
+						break
+					end
+					local hitX = pos + d
+					t += d / speed + R.hitStop
+					-- MoveController's gate: the same building again inside sameWall is skipped; since round 3 only
+					-- when it is within RAM.radius of the last hole (the far wall of a small block rams)
+					if rams > 0 and t - lastT < R.sameWall then
+						if hitX - lastX >= R.radius then
+							farWalls += 1 -- a far wall: skipped before round 3, a ram now
+						else
+							held += 1 -- the same hole's edge again (a wall that held): still gated
+						end
+					end
+					rams += 1
+					local r = BuildingState.blast(
+						D,
+						book,
+						b.id,
+						hitX + 1.5,
+						y,
+						b.z,
+						R.radius,
+						ImpactRules.ramDamage(R, speed),
+						t
+					)
+					if book.state[b.id] == 2 then
+						break -- it came down round the hero
+					end
+					if #r.hit == 0 or rams > 12 then
+						good = false
+						break
+					end
+					lastT, lastX = t, hitX
+					pos = hitX - 0.01
+					speed *= 1 - R.loss
+				end
+				maxRams = math.max(maxRams, rams)
+				if good then
+					through += 1
+				else
+					stalls += 1
+				end
+			end
+		end
+		print(
+			string.format(
+				"  [destroy all] fly-through (cruise and Boost): %d of %d, %d stalls, up to %d rams; %d far-wall rams the old gate skipped, %d held-wall contacts gated",
+				through,
+				tried,
+				stalls,
+				maxRams,
+				farWalls,
+				held
+			)
+		)
+		check(tried >= 80, "enough buildings tried")
+		check(through >= tried * 0.95, "flight goes through nearly every building")
+		check(
+			has("src/client/Controllers/MoveController.luau", "(at - ramLast.pos).Magnitude < RAM.radius"),
+			"MoveController gates the same building by distance from the last hole"
+		)
+	end)
 end

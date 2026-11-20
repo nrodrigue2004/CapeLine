@@ -884,6 +884,13 @@ local function resolve(sim: Sim, p: Pending, heroes: { Hero })
 	if p.shape == "circles" or p.shape == "homing" or p.shape == "tether" or p.shape == "zone" then
 		ev.points = p.points
 		ev.r = p.r
+	elseif p.shape == "lines" then
+		-- (destroy-all: the city wrecks along each line, ImpactRules.bossWreck)
+		ev.points, ev.length, ev.width, ev.r = p.points, p.length, p.width, p.r
+	elseif p.shape == "cone" then
+		ev.yaw, ev.arc, ev.r = p.yaw, p.arc, p.r
+	elseif p.shape == "column" then
+		ev.lo, ev.r = p.lo, p.r
 	elseif p.shape == "pull" then
 		ev.r = p.nova
 	else

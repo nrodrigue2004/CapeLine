@@ -24,6 +24,7 @@ export type Crater = {
 	r: number,
 	ground: string, -- "terrain" or "part"
 	born: number,
+	deep: number?, -- destroy-all round 3: how many hits dug it (1 .. cfg.deepen.max; nil is 1)
 }
 
 export type Book = {
@@ -115,6 +116,48 @@ function CraterRules.add(
 	return c
 end
 
+-- Repeated heavy hits dig deeper (destroy-all round 3, 2026-11-20): a hit landing within deepen.near x its radius of
+-- a live crater's middle deepens that crater one level (to deepen.max) and starts its life again, instead of a new
+-- crater beside it. It counts toward the craters-a-second cap. Returns the crater, or nil (none near, or the cap).
+function CraterRules.deepen(cfg: any, book: Book, x: number, z: number, now: number): Crater?
+	local dp = cfg.deepen
+	if not dp then
+		return nil
+	end
+	for i = #book.times, 1, -1 do
+		if now - book.times[i] >= 1 then
+			table.remove(book.times, i)
+		end
+	end
+	if #book.times >= cfg.perSecond then
+		return nil
+	end
+	for _, c in book.list do
+		if (c.x - x) ^ 2 + (c.z - z) ^ 2 <= (c.r * dp.near) ^ 2 then
+			c.deep = math.min((c.deep or 1) + 1, dp.max)
+			c.born = now
+			table.insert(book.times, now)
+			return c
+		end
+	end
+	return nil
+end
+
+-- A crater's bowl depth in radii: deeper by deepen.add for each level past the first; scale (0..1) fills it back
+function CraterRules.depthOf(cfg: any, c: Crater, scale: number?): number
+	local dp = cfg.deepen
+	local level = if dp then math.clamp(c.deep or 1, 1, dp.max) else 1
+	return cfg.depth * (1 + (level - 1) * (if dp then dp.add else 0)) * (scale or 1)
+end
+
+-- How much of its bowl a crater still has (1 whole .. 0 filled back), in steps of 1 / deepen.fills while it heals,
+-- so the server writes the voxels a few times, not every frame
+function CraterRules.fillScale(cfg: any, c: Crater, now: number): number
+	local h = CraterRules.healing(cfg, c, now)
+	local n = (cfg.deepen and cfg.deepen.fills) or 1
+	return 1 - math.floor(h * n) / n
+end
+
 -- 0 while the crater is whole, rising to 1 over its last `heal` seconds
 function CraterRules.healing(cfg: any, c: Crater, now: number): number
 	local age = now - c.born
@@ -135,7 +178,8 @@ end
 -- The voxel region a terrain crater reads and writes: its min and max corners on the voxel grid
 function CraterRules.region(cfg: any, c: Crater): ({ number }, { number })
 	local v = cfg.voxel
-	local d = c.r * cfg.depth
+	-- the deepest it can be dug (deepen.max), so the voxels read once cover every later dig and the heal
+	local d = c.r * CraterRules.depthOf(cfg, { deep = if cfg.deepen then cfg.deepen.max else 1 } :: any)
 	local lo = {
 		math.floor((c.x - c.r - v) / v) * v,
 		math.floor((c.y - d - v) / v) * v,
@@ -159,10 +203,14 @@ function CraterRules.carve(
 	lo: { number },
 	mats: { any },
 	occ: { any },
-	waterY: number
+	waterY: number,
+	scale: number?
 ): number
 	local v = cfg.voxel
-	local depth = c.r * cfg.depth
+	local depth = c.r * CraterRules.depthOf(cfg, c, scale)
+	if depth < v * 0.5 then
+		return 0 -- filled back
+	end
 	local changed = 0
 	for i, plane in mats do
 		for j, row in plane do

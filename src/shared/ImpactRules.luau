@@ -316,4 +316,56 @@ function ImpactRules.forget(ledger: Ledger, who: number)
 	ledger.heroes[who] = nil
 end
 
+-- Where a boss strike wrecks the city (destroy-all round 3, 2026-11-20: "bosses wreck the city as they fight"): spots
+-- { x, y, z, r } along the strike's own shape, at most cfg.max a strike: a charge or beam (lines) every cfg.step studs
+-- along each line, a cone at a third and two thirds of its reach, rock falls and shots where they land, a stomp (ring)
+-- in its middle, a swat (column) at roof height round the boss. BossService hits each through BuildingService (pins,
+-- caps and the street knock as for any hit) and flips the cars there. gust, pull, zone and tether wreck nothing.
+-- ev: BossSim's strike event (shape, x, y, z, r, points, length, width, yaw, arc, lo, hi).
+function ImpactRules.bossWreck(cfg: any, ev: any): { { number } }
+	local out: { { number } } = {}
+	local max = cfg.max
+	local lo, hi = cfg.radius[1], cfg.radius[2]
+	local function add(x: number, y: number, z: number, r: number)
+		if #out < max then
+			table.insert(out, { x, y, z, math.clamp(r, lo, hi) })
+		end
+	end
+	local shape = ev.shape
+	local x, y, z, r = ev.x or 0, ev.y or 0, ev.z or 0, ev.r or 0
+	local up = y + cfg.lift
+	if shape == "lines" and ev.points then
+		local len = ev.length or 0
+		local w = (ev.width or 0) / 2 + cfg.side
+		local steps = math.max(1, math.floor(len / cfg.step))
+		-- breadth first over the lines, so every line of a fan gets its share of the cap
+		for k = 1, steps do
+			for _, d in ev.points do
+				add(x + d[1] * k * cfg.step, up, z + d[2] * k * cfg.step, w)
+			end
+		end
+	elseif shape == "cone" then
+		local a = ev.yaw or 0
+		local fx, fz = -math.sin(a), -math.cos(a)
+		local half = math.rad((ev.arc or 90) / 2)
+		for _, t in { 0.35, 0.7 } do
+			local d = r * t
+			add(x + fx * d, up, z + fz * d, math.max(d * math.sin(half), cfg.radius[1]))
+		end
+	elseif (shape == "circles" or shape == "homing") and ev.points then
+		for _, p in ev.points do
+			if #p >= 3 then
+				add(p[1], p[2], p[3], r) -- a shot: where it lands
+			else
+				add(p[1], up, p[2], r) -- a rock fall
+			end
+		end
+	elseif shape == "ring" then
+		add(x, up, z, r)
+	elseif shape == "column" then
+		add(x, y + (ev.lo or 0) + cfg.lift * 2, z, r * 0.5)
+	end
+	return out
+end
+
 return ImpactRules

@@ -22,6 +22,8 @@ local MeshFix = require(Shared:WaitForChild("MeshFix"))
 
 local QualityController = require(script.Parent.Parent.Controllers.QualityController)
 local Juice = require(script.Parent.Juice)
+local DebrisBudget = require(script.Parent.DebrisBudget)
+local TweenService = game:GetService("TweenService")
 
 local GroundFx = {}
 
@@ -80,6 +82,11 @@ local function groundLook(c: CraterRules.Crater): (Color3, Enum.Material)
 	local city = Workspace:FindFirstChild("City")
 	params.FilterDescendantsInstances = if city then { city, Workspace.Terrain } else { Workspace.Terrain }
 	local hit = Workspace:Raycast(Vector3.new(c.x, c.y + 3, c.z), Vector3.new(0, -8, 0), params)
+	if hit and hit.Instance == Workspace.Terrain then
+		-- Terrain: the material's own colour (the park's grass, the seabed's sand, destroy-all round 3)
+		local ok, col = pcall(Workspace.Terrain.GetMaterialColor, Workspace.Terrain, hit.Material)
+		return if ok then col else Color3.fromRGB(150, 130, 100), hit.Material
+	end
 	if hit and hit.Instance:IsA("BasePart") then
 		return hit.Instance.Color, hit.Instance.Material
 	end
@@ -90,6 +97,8 @@ local function draw(c: CraterRules.Crater): Drawn
 	local m = Instance.new("Model")
 	m.Name = "GroundCrater_" .. c.id
 	local color, material = groundLook(c)
+	-- a crater dug deeper by more hits (destroy-all round 3): a wider, darker pit and a higher rim
+	local deep = 1 + ((c.deep or 1) - 1) * 0.25
 	local at = CFrame.new(c.x, c.y, c.z)
 	local ink: Decal? = nil
 	if c.ground ~= "terrain" then
@@ -112,13 +121,13 @@ local function draw(c: CraterRules.Crater): Drawn
 		end
 		-- the dark pit: reads as a hole in the paving
 		local pit = part(
-			Vector3.new(0.1, c.r * 1.5, c.r * 1.5),
+			Vector3.new(0.1, c.r * 1.5 * deep, c.r * 1.5 * deep),
 			at * CFrame.new(0, 0.06, 0) * CFrame.Angles(0, 0, math.rad(90)),
 			PIT,
 			Enum.Material.Slate
 		)
 		pit.Shape = Enum.PartType.Cylinder
-		pit.Transparency = if ink then 0.45 else 0.15
+		pit.Transparency = math.max(0, (if ink then 0.45 else 0.15) - (deep - 1) * 0.6)
 		pit.Parent = m
 	end
 	local rim = {}
@@ -126,7 +135,7 @@ local function draw(c: CraterRules.Crater): Drawn
 		local cf = CFrame.new(r.x, r.y, r.z)
 			* CFrame.Angles(0, math.rad(r.ry), 0)
 			* CFrame.Angles(0, 0, math.rad(r.tilt))
-		local size = Vector3.new(r.sx, r.sy, r.sz)
+		local size = Vector3.new(r.sx, r.sy * deep, r.sz)
 		local src = chunks()
 		local chunk: BasePart
 		if src then
@@ -151,6 +160,67 @@ local function draw(c: CraterRules.Crater): Drawn
 	end
 	m.Parent = folder
 	return { model = m, rim = rim, ink = ink }
+end
+
+-- A big slam throws up clods of the ground's own colour and material (destroy-all round 3): broken blocks (Art.Rubble,
+-- else plain parts) flying up and out, bouncing and settling, then fading; the preset's collapse.clods within the
+-- debris budget, only near the camera
+local CLOD_PHYS = PhysicalProperties.new(2.2, 0.85, 0.28, 1, 1)
+local function clods(c: CraterRules.Crater)
+	local C = G.clods
+	if not C or c.r < C.minR then
+		return
+	end
+	local cam = Workspace.CurrentCamera
+	if not cam or (cam.CFrame.Position - Vector3.new(c.x, c.y, c.z)).Magnitude > C.range then
+		return
+	end
+	local want = ((QualityController.preset.collapse or {}) :: any).clods or 0
+	local n = DebrisBudget.lease(math.min(want, math.ceil(c.r / 2)), C.life)
+	if n <= 0 then
+		return
+	end
+	local color, material = groundLook(c)
+	local src = chunks()
+	for i = 1, n do
+		local a = (i + math.random()) / n * math.pi * 2
+		local s = c.r * (0.12 + math.random() * 0.12)
+		local size = Vector3.new(s, s * 0.75, s * 1.1)
+		local cf = CFrame.new(c.x + math.cos(a) * c.r * 0.4, c.y + s, c.z + math.sin(a) * c.r * 0.4)
+			* CFrame.Angles(math.random() * 6, math.random() * 6, 0)
+		local p: BasePart
+		if src then
+			local mp = MeshFix.clone(src[i % 3 + 1])
+			mp:ClearAllChildren()
+			mp.Size = size
+			mp.CFrame = cf * MeshFix.of(mp)
+			p = mp
+		else
+			p = part(size, cf, color, material)
+		end
+		p.Color = color:Lerp(PIT, 0.15)
+		p.Material = material
+		p.Anchored = false
+		p.CanCollide = true
+		p.CanQuery = false
+		p.CanTouch = false
+		p.CastShadow = true
+		p.CustomPhysicalProperties = CLOD_PHYS
+		p.Parent = folder
+		local out = Vector3.new(math.cos(a), 0, math.sin(a))
+		p.AssemblyLinearVelocity = out * (C.out * (0.6 + math.random() * 0.6))
+			+ Vector3.new(0, C.up * (0.7 + math.random() * 0.5), 0)
+		p.AssemblyAngularVelocity = Vector3.new(math.random() - 0.5, math.random() - 0.5, math.random() - 0.5)
+			* 10
+		task.delay(C.life - 1, function()
+			if p.Parent then
+				TweenService:Create(p, TweenInfo.new(1), { Transparency = 1 }):Play()
+			end
+		end)
+		task.delay(C.life, function()
+			p:Destroy()
+		end)
+	end
 end
 
 local function undraw(id: number)
@@ -222,6 +292,7 @@ local function fromWire(w: any): CraterRules.Crater?
 		r = math.clamp(w[5], 1, 40),
 		ground = if w[6] == 1 then "terrain" else "part",
 		born = os.clock() - (tonumber(w[7]) or 0),
+		deep = math.clamp(math.floor(tonumber(w[8]) or 1), 1, 6),
 	}
 end
 
@@ -258,8 +329,12 @@ function GroundFx.init()
 	Net.listen("CraterAdd", function(w: any)
 		local c = fromWire(w)
 		if c then
+			if live[c.id] then
+				undraw(c.id) -- dug deeper: drawn again at its new depth (destroy-all round 3)
+			end
 			live[c.id] = c
 			Juice.fire("crater", Vector3.new(c.x, c.y, c.z), { mine = false })
+			clods(c)
 		end
 	end)
 	Net.listen("CraterGone", function(ids: any)
