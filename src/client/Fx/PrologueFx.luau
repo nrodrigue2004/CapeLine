@@ -38,6 +38,7 @@ local OpeningPlan = require(Shared:WaitForChild("OpeningPlan"))
 local FakeRules = require(Shared:WaitForChild("FakeRules"))
 local AbilityRules = require(Shared:WaitForChild("AbilityRules"))
 local NpcRig = require(Shared:WaitForChild("NpcRig"))
+local HeroAnim = require(Shared:WaitForChild("HeroAnim"))
 local PeopleLooks = require(Shared:WaitForChild("PeopleLooks"))
 local RigMath = require(Shared:WaitForChild("RigMath"))
 local BodyShape = require(Shared:WaitForChild("BodyShape"))
@@ -501,15 +502,36 @@ end
 -- Poses and the crowd's panic
 ---------------------------------------------------------------------------
 
+-- A clip's joint angles (degrees, an optional lift) as a joint turn
+local function clipTurn(a: { number }): CFrame
+	local cf = CFrame.Angles(math.rad(a[1]), math.rad(a[2]), math.rad(a[3]))
+	if (a[4] or 0) ~= 0 then
+		cf = CFrame.new(0, a[4], 0) * cf
+	end
+	return cf
+end
+
+-- A running person (the crowd fleeing, the shover running off) takes the heroes' own sprint stride (HeroAnim
+-- runFast: knees up, fists pumping, a bob; list-combat 2026-11-20, was a hip and shoulder swing), its pace matched
+-- to the run's speed so the feet keep up with the ground
+local RUN_CLIP = "runFast"
+local function poseRun(n: Npc, speed: number, t: number)
+	local angles = HeroAnim.sample(RUN_CLIP, t * speed / HeroAnim.runFastSpeed + n.phase)
+	for joint in n.rig.motors do
+		local a = angles[joint]
+		NpcRig.turn(n.rig, joint, if a then clipTurn(a) else CFrame.identity)
+	end
+end
+
 local function poseWalk(n: Npc, speed: number, t: number)
+	if speed > 8 then
+		poseRun(n, speed, t)
+		return
+	end
 	local swing = math.sin(t * (6 + speed * 0.3) + n.phase) * math.clamp(speed / 14, 0, 1) * 0.8
 	for _, s in { { "Left", 1 }, { "Right", -1 } } do
 		NpcRig.turn(n.rig, s[1] .. "Hip", CFrame.Angles(swing * s[2], 0, 0))
-		NpcRig.turn(
-			n.rig,
-			s[1] .. "Shoulder",
-			CFrame.Angles(-swing * s[2] * 0.9 + (if speed > 8 then 0.6 else 0), 0, 0)
-		)
+		NpcRig.turn(n.rig, s[1] .. "Shoulder", CFrame.Angles(-swing * s[2] * 0.9, 0, 0))
 	end
 end
 
