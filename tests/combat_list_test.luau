@@ -988,8 +988,8 @@ return function(T: any)
 			end
 		end
 		check(
-			n == 79,
-			"79 meshes in 33 looks (the psi gem; the snowflake; the hex plate; the robots' net and claw; the wings flourish; 178 the held girder; 382 added the jets, the rail and the slab; 173 the bullet; 169, 177, 180 and 183 the sun, ki ring, black hole and field rims; 172 the slash; 381 the shock ring and cone fan, then the flying heads; 167 Static Field's arcs): "
+			n == 82,
+			"82 meshes in 34 looks (a robot's scrap; the psi gem; the snowflake; the hex plate; the robots' net and claw; the wings flourish; 178 the held girder; 382 added the jets, the rail and the slab; 173 the bullet; 169, 177, 180 and 183 the sun, ki ring, black hole and field rims; 172 the slash; 381 the shock ring and cone fan, then the flying heads; 167 Static Field's arcs): "
 				.. n
 		)
 		for _, look in
@@ -3718,7 +3718,7 @@ return function(T: any)
 	end)
 
 	test(
-		"List combat: halo and spin flourishes are hollow Blender hoops, shatters glass stones, wings Blender wings, cages lances, plates hex plates, flakes snowflakes, tris psi gems, rings hoops",
+		"List combat: halo and spin flourishes are hollow Blender hoops, shatters glass stones, wings Blender wings, cages lances, plates hex plates, flakes snowflakes, tris psi gems, rings hoops, robots throw scrap",
 		function()
 			local roblox = require("@lune/roblox")
 			if not T.placePath then
@@ -3874,6 +3874,18 @@ return function(T: any)
 			local plain = ringsAfter(nil, -180)
 			local gun = ringsAfter("Gunslinger", -210)
 			check(gun > plain, "Gunslinger's field pieces are rings (" .. gun .. " vs " .. plain .. ")")
+			-- a downed robot throws gears, brackets and bolts
+			sim:run("robot down", function()
+				CombatFx.burst(V(-240, 5, 0), "Comic", roblox.Color3.fromRGB(90, 96, 110))
+			end)
+			local scrapKinds = {}
+			for _, d in sim.service("Workspace"):GetDescendants() do
+				if d:IsA("MeshPart") and string.sub(d.Name, 1, 5) == "Scrap" then
+					scrapKinds[d.Name] = true
+					check(not d.Anchored, d.Name .. " flies loose")
+				end
+			end
+			check(scrapKinds.ScrapGear and scrapKinds.ScrapBolt, "the scrap is gears and bolts")
 			local gems = 0
 			for _, d in sim.service("Workspace"):GetDescendants() do
 				if d:IsA("MeshPart") and d.Name == "PsiGem" then

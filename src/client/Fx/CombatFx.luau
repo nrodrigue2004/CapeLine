@@ -4562,10 +4562,30 @@ end
 function CombatFx.burst(pos: Vector3, style: string, metal: Color3?)
 	FxLib.wreck(pos)
 	local n = DebrisBudget.lease(F.enemyDeath.parts, F.enemyDeath.life)
-	for _ = 1, n do
-		local size =
-			Vector3.new(0.4 + math.random() * 0.6, 0.3 + math.random() * 0.5, 0.4 + math.random() * 0.6)
-		local p = part(size, CFrame.new(pos), metal or Color3.fromRGB(80, 86, 96))
+	-- the scrap: gears, bent brackets and bolts (Art.Powers Scrap, 2026-11-20) when imported, else metal chips
+	local SCRAP = { "ScrapGear", "ScrapBracket", "ScrapBolt" }
+	local scrap = PowerMeshes.ready("Scrap")
+	for i = 1, n do
+		local p: BasePart
+		local mesh: MeshPart? = nil
+		if scrap then
+			local name = SCRAP[(i - 1) % #SCRAP + 1]
+			local m = Config.PowerArt.Scrap[name]
+			local k = 1.1 + math.random() * 0.7
+			mesh = powerMesh(
+				name,
+				Vector3.new(m.size[1], m.size[2], m.size[3]) * k,
+				metal or Color3.fromRGB(80, 86, 96)
+			)
+		end
+		if mesh then
+			mesh.CFrame = CFrame.new(pos) * CFrame.Angles(math.random() * 6, math.random() * 6, 0)
+			p = mesh
+		else
+			local size =
+				Vector3.new(0.4 + math.random() * 0.6, 0.3 + math.random() * 0.5, 0.4 + math.random() * 0.6)
+			p = part(size, CFrame.new(pos), metal or Color3.fromRGB(80, 86, 96))
+		end
 		p.Material = Enum.Material.Metal
 		p.Anchored = false
 		p.AssemblyLinearVelocity = Vector3.new(

@@ -676,6 +676,22 @@ def gemring(k, x):
 mesh("Gem", tint("PsiGem"), [rings_mesh([gemring(0.35, -0.15), gemring(1.0, 0.0), gemring(0.35, 0.15)])],
      (255, 230, 250), "Neon", alpha=0.1, shade=False)
 
+# ================================================================ a robot's scrap (CombatFx.burst, 2026-11-20): what flies off a downed robot, three
+# small pieces about 1 stud across (each anchored at its own centre): a toothed gear with a hub, a bent L bracket with
+# bolt holes' studs, and a hex-headed bolt.
+teeth = []
+for i in range(40):  # ten square teeth: two points out, two in
+    a = (i + 0.5) * math.pi / 20
+    r = 0.5 if (i // 2) % 2 == 0 else 0.38
+    teeth.append((math.cos(a) * r, math.sin(a) * r))
+gear = [extrude_up(teeth, -0.08, 0.08), C(0.16, 0.3, 0, 0, 0, segs=10)]
+mesh("Scrap", "ScrapGear", gear, (150, 156, 168), "Metal", shade=False)
+bracket = [B(0.9, 0.1, 0.45, 0, 0, 0), B(0.1, 0.6, 0.45, -0.4, 0.3, 0)]
+bracket += [C(0.07, 0.04, x, 0.06, 0, segs=6) for x in (-0.1, 0.25)]
+mesh("Scrap", "ScrapBracket", bracket, (150, 156, 168), "Metal", shade=False)
+bolt = [extrude_up(hexpoly(0.22), 0.3, 0.45), C(0.1, 0.76, 0, -0.07, 0, segs=8)]
+mesh("Scrap", "ScrapBolt", bolt, (150, 156, 168), "Metal", shade=False)
+
 # ================================================================ the fit table and the export
 def bounds(ob):
     vs = [ob.matrix_world @ v.co for v in ob.data.vertices]
@@ -739,7 +755,7 @@ if "--preview" in sys.argv:
              "Bullet": (-4, -14, 2), "Sun": (6, -16, 4), "BlackHole": (13, -16, 3), "KiRing": (19, -16, 3),
              "EmberRim": (-12, -16, 0.2), "HaloRim": (-18, -16, 0.2), "VoltRim": (-38, -16, 0.2),
              "Slash": (-26, -16, 2), "Shock": (-32, -16, 1), "Heads": (26, -16, 2), "Girder": (31, 6, 11.5), "Wing": (-28, 6, 3), "Net": (-34, 6, 2),
-             "Claw": (-31, -6, 1), "Plate": (-35, -6, 1), "Flake": (-38, -6, 1), "Gem": (-41, -6, 1)}
+             "Claw": (-31, -6, 1), "Plate": (-35, -6, 1), "Flake": (-38, -6, 1), "Gem": (-41, -6, 1), "Scrap": (-44, -6, 1)}
     close = "--close" in sys.argv  # the 2026-11-20 effect looks only, near the camera (art/preview/powers_fx.png)
     if close:
         spots = {"Sun": (-9, 0, 3), "BlackHole": (-3.5, 0, 2.5), "KiRing": (1, 0, 2.5), "EmberRim": (5.5, 0, 0.2),
