@@ -795,6 +795,16 @@ function BossService.status(): string
 	return phase
 end
 
+-- The boss now, for the WELCOME BACK card (Shared.ReturnPlan): the phase, the seconds to the next landing while
+-- waiting, and which boss (the one fighting, or the next)
+function BossService.upcoming(): (string, number?, string)
+	local f = fight
+	if phase ~= "waiting" and f then
+		return phase, nil, f.id
+	end
+	return phase, math.max(0, startAt - os.clock()), nextBoss()
+end
+
 -- Is this hero inside a live world boss fight? (PvP rewards there are halved, M8.) Not once it is over:
 -- the result phase keeps `fight` for its timer, but PvP there pays in full (2026-11-18 fix)
 function BossService.inFight(hero: any): boolean

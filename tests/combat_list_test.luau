@@ -988,8 +988,8 @@ return function(T: any)
 			end
 		end
 		check(
-			n == 86,
-			"86 meshes in 36 looks (the Bomber's grenade; the petal; a robot's scrap; the psi gem; the snowflake; the hex plate; the robots' net and claw; the wings flourish; 178 the held girder; 382 added the jets, the rail and the slab; 173 the bullet; 169, 177, 180 and 183 the sun, ki ring, black hole and field rims; 172 the slash; 381 the shock ring and cone fan, then the flying heads; 167 Static Field's arcs): "
+			n == 89,
+			"89 meshes in 37 looks (Siege Mode's anchors; the Bomber's grenade; the petal; a robot's scrap; the psi gem; the snowflake; the hex plate; the robots' net and claw; the wings flourish; 178 the held girder; 382 added the jets, the rail and the slab; 173 the bullet; 169, 177, 180 and 183 the sun, ki ring, black hole and field rims; 172 the slash; 381 the shock ring and cone fan, then the flying heads; 167 Static Field's arcs): "
 				.. n
 		)
 		for _, look in
@@ -3841,6 +3841,97 @@ return function(T: any)
 		end
 	)
 	test(
+		"List combat: Shadow's Eclipse is the Blender sun gone dark, Siege Mode drives Blender anchors",
+		function()
+			local roblox = require("@lune/roblox")
+			local E = Config.Fx.eclipse
+			check(E and E.corona > E.core and E.core > 0, "the eclipse is tuned")
+			if not T.placePath then
+				return
+			end
+			local UiSim = require("./uisim")
+			local sim = UiSim.new(
+				UiSim.load(roblox.deserializePlace(fs.readFile(T.placePath))),
+				{ name = "PC", w = 1280, h = 720, top = 36, left = 0, right = 0, bottom = 0, touch = false }
+			)
+			local CombatFx = sim:require("Client.Fx.CombatFx")
+			sim:run("CombatFx", CombatFx.init)
+			local V = roblox.Vector3.new
+			sim:run("Eclipse", function()
+				CombatFx.superMoment(
+					Config.Abilities.list.Eclipse,
+					"Comic",
+					{ o = V(0, 5, 0), d = V(0, 0, -1), c = V(0, 3, -20), r = 14 } :: any
+				)
+			end)
+			local core, corona, discs = nil, nil, 0
+			for _, d in sim.service("Workspace"):GetDescendants() do
+				if d:IsA("MeshPart") and d.Name == "SunCore" then
+					core = d
+				elseif d:IsA("MeshPart") and d.Name == "SunCorona" then
+					corona = d
+				elseif d:IsA("Part") and d.Shape == roblox.Enum.PartType.Cylinder and d.Position.Y > 20 then
+					discs += 1
+				end
+			end
+			check(core ~= nil and corona ~= nil, "the core and corona are drawn")
+			if core and corona then
+				check(
+					core.Material == roblox.Enum.Material.SmoothPlastic,
+					"the core is a flat black, not a glow"
+				)
+				local accent = Config.Fx.paths.Shadow.accent
+				check(
+					math.abs(core.Color.R * 255 - accent[1]) < 1
+						and math.abs(core.Color.B * 255 - accent[3]) < 1,
+					"in Shadow's dark accent"
+				)
+				check(corona.CFrame.Position.Y > 20, "high over the zone")
+			end
+			check(discs == 0, "no flat neon disc rim")
+			-- Juggernaut's Siege Mode: four Blender anchors driven point first round the hero, each a stake, a housing
+			-- and a glowing band, slamming down
+			sim:run("Siege", function()
+				CombatFx.superMoment(
+					Config.Abilities.list.SiegeMode,
+					"Comic",
+					{ o = V(100, 5, 0), d = V(0, 0, -1), r = 14 } :: any
+				)
+			end)
+			local stakes, housings, bands, highest = 0, 0, 0, -math.huge
+			for _, d in sim.service("Workspace"):GetDescendants() do
+				if d:IsA("MeshPart") and d.Name == "SiegeStake" then
+					stakes += 1
+					highest = math.max(highest, d.CFrame.Position.Y)
+				elseif d:IsA("MeshPart") and d.Name == "SiegeHousing" then
+					housings += 1
+				elseif d:IsA("MeshPart") and d.Name == "SiegeBand" then
+					bands += 1
+				end
+			end
+			check(
+				stakes == 4 and housings == 4 and bands == 4,
+				"four anchors (" .. stakes .. ", " .. housings .. ", " .. bands .. ")"
+			)
+			check(
+				highest > 0 and highest < 6,
+				"they slam down into the ground round the hero (" .. highest .. ")"
+			)
+			local boxes = 0
+			for _, d in sim.service("Workspace"):GetDescendants() do
+				if
+					d:IsA("Part")
+					and d.Material == roblox.Enum.Material.Metal
+					and math.abs(d.Size.Y - 6) < 0.01
+				then
+					boxes += 1
+				end
+			end
+			check(boxes == 0, "no plain anchor boxes")
+			check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
+		end
+	)
+	test(
 		"List combat: taking a hit sparks off the hero, a red arrow points at the robot, a thud and a shake",
 		function()
 			local roblox = require("@lune/roblox")
@@ -3969,6 +4060,49 @@ return function(T: any)
 			end)
 			check(parts() == p0 and #sounds == s0, "a punch far away draws nothing")
 			Enemy.facing = realFacing
+			-- a Sniper locks onto a hero near you: the lock pings from them, quieter and lower; far off, silent
+			local Aim = SimConfig.Fx.robots.aim.ally
+			local allyChar = UiSim.newInstance("Model")
+			local allyRoot = UiSim.newInstance("Part")
+			allyRoot.Name = "HumanoidRootPart"
+			allyRoot.CFrame = roblox.CFrame.new(20, 3, 0)
+			allyRoot.Position = roblox.Vector3.new(20, 3, 0)
+			allyRoot.Parent = allyChar
+			allyChar.Parent = sim.workspace
+			local ally = { Character = allyChar, UserId = 555 }
+			local players = sim.service("Players")
+			local realGet = players._props.GetPlayerByUserId
+			players._props.GetPlayerByUserId = function(_, id)
+				return if id == 555 then ally else realGet(_, id)
+			end
+			local opts: any = nil
+			local realAudioPlay = Audio.play
+			Audio.play = function(id, at, o)
+				if id == "aimLock" then
+					opts = { at = at, o = o }
+				end
+				return realAudioPlay(id, at, o)
+			end
+			sim:run("aim", function()
+				remotes
+					:WaitForChild("CombatEvents").OnClientEvent
+					:Fire({ { 8, 43, 60, 3, 0, 555, 0.25, 0.1 } })
+			end)
+			check(opts == nil, "no ping before the lock")
+			sim:advance(0.2)
+			check(opts ~= nil and opts.o and opts.o.volume == Aim.volume, "a quieter lock ping for the ally")
+			check(opts and (opts.at - roblox.Vector3.new(20, 4.5, 0)).Magnitude < 0.01, "from the ally")
+			opts = nil
+			allyRoot.Position = roblox.Vector3.new(2000, 3, 0)
+			sim:run("far aim", function()
+				remotes
+					:WaitForChild("CombatEvents").OnClientEvent
+					:Fire({ { 8, 44, 1960, 3, 0, 555, 0.25, 0.1 } })
+			end)
+			sim:advance(0.2)
+			check(opts == nil, "a lock on a far hero stays silent")
+			Audio.play = realAudioPlay
+			players._props.GetPlayerByUserId = realGet
 			FxLib.emit, Audio.playSpec, Camera.shake = realEmit, realPlay, realShake
 			check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
 		end

@@ -302,6 +302,7 @@ return {
 			mentorPick = { pri = "join", life = 25, noTap = true }, -- MentorHud: the picker
 			episode = { pri = "join", life = 40, noTap = true }, -- PassHud: the episode's comic panels
 			board = { pri = "join", life = 15 }, -- BoardHud: last week's TOP 10 title, WEAR / OK
+			welcome = { pri = "join", life = 30, noTap = true }, -- ReturnHud: WELCOME BACK, its GO rows, X (alive-world)
 			starter = { pri = "offer", life = 15, offer = true }, -- ShopHud: the starter pack offer (never in a fight)
 		},
 	},

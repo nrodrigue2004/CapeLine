@@ -78,6 +78,11 @@ return {
 	-- all 3 done: a bonus on top (Credits at the contract scale, plus Dust)
 	allDone = { pay = 1, dust = 30 },
 
+	-- the WELCOME BACK card (retention pass, alive-world 2026-11-20; Shared.ReturnPlan, Ui.ReturnHud): on a returning
+	-- hero's join, after the daily card, what changed since you left and what to do now, each with GO; the MENU
+	-- drawer's TO DO opens it any time. rows: the to-do lines shown at most; longAway: days away for the warmer title
+	welcome = { on = true, rows = 6, longAway = 3 },
+
 	-- the screens
 	ui = {
 		showAfter = 4, -- seconds after the hero is free (made, the prologue done, no scene) to show the card

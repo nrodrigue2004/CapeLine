@@ -100,6 +100,9 @@ return {
 	-- (list-combat 2026-11-20) a blocked hit: a pale flash `flash` studs across, a glow and `sparks` glancing back
 	-- at the robot, with Config.Audio.impact.clank
 	block = { color = { 200, 235, 255 }, flash = 4, sparks = 6 },
+	-- (list-combat 2026-11-20) Shadow's Eclipse in the Blender sun: the corona and black core's sizes in studs and the
+	-- corona's turn (radians) over its 1.4 s
+	eclipse = { corona = 22, core = 14, turn = 0.8 },
 	hurt = {
 		heavy = 0.12,
 		gap = 0.08,
@@ -145,7 +148,15 @@ return {
 		},
 	},
 	robots = {
-		aim = { color = { 255, 40, 40 }, width = 0.1, lockWidth = 0.3, blink = 14, dot = 0.6 },
+		-- ally: (list-combat 2026-11-20) a lock on another hero within `near` studs pings from them, quieter and lower
+		aim = {
+			color = { 255, 40, 40 },
+			width = 0.1,
+			lockWidth = 0.3,
+			blink = 14,
+			dot = 0.6,
+			ally = { near = 90, volume = 0.35, pitch = 2.2 },
+		},
 		tracer = { color = { 255, 240, 210 }, glow = { 255, 80, 60 }, length = 14, width = 0.22 },
 		net = { color = { 190, 235, 255 }, size = 4.5, spin = 8 },
 		-- (list-combat 2026-11-20) the claw bites: biteSparks off a caught hero, wallSparks and a scorch on a wall;
