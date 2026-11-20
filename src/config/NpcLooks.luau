@@ -258,6 +258,8 @@ return {
 		fence = { face = "Meanie", hair = "Black Messy Hairstyle" }, -- The Copy: the Syndicate's fence
 		producer = { face = "Good Intentioned", hair = "Black Ponytail" }, -- Live: the show's producer
 		stagehand = { face = "Blinky", hair = false }, -- Live: the stagehand under a hood
+		parent = { face = "Bad News Face", hair = "Black Braid" }, -- Most Wanted: the Spark family's parent
+		freed = { face = "Anime Surprise", hair = "Braided Ponytail Redhead" }, -- Most Wanted: a freed Spark
 	},
 	-- The named helpers a side quest step draws (who stands in for a `find` step's witness, or the one carried in
 	-- a `carry` step): chain id, step number and side; `speaker` is their Config.Story.guides.speakers card (its

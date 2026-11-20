@@ -636,7 +636,7 @@ return function(T: any)
 		return out
 	end
 
-	test("Missions walk: every Act 1 mission ends for both sides and every choice", function()
+	test("Missions walk: every mission ends for both sides and every choice", function()
 		if not placePath then
 			return
 		end
@@ -644,7 +644,7 @@ return function(T: any)
 		local S = Config.Story
 		local n = 0
 		for num, m in S.missions do
-			if (m.act or 1) == 1 and not m.opening then
+			if not m.opening then -- every act's missions (Act 2 since 2026-11-20)
 				local own = nil
 				for _, ch in S.choices do
 					if ch.mission == num then

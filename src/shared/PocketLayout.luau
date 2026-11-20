@@ -130,7 +130,7 @@ end
 local BUILD: { [string]: (Layout, any) -> () } = {}
 
 -- A Downtown block with 3 power stations (or crates) and cover (no Act 1 mission uses it since lore step 5;
--- kept for later acts)
+-- Act 2's Most Wanted plays here)
 function BUILD.station(l: Layout)
 	box(l, "road", 0, 0.1, 0, 30, 0.2, 380, "road")
 	box(l, "road", 0, 0.1, 0, 380, 0.2, 30, "road")
@@ -149,6 +149,74 @@ function BUILD.station(l: Layout)
 	l.points.trainDir = { 1, 0, 300 } -- a direction (x, z) and a length, not a place
 	for i = 0, 6 do
 		add(l, "path", -150 + i * 50, 51.5, if i % 2 == 0 then 110 else -110)
+	end
+	-- Most Wanted (Act 2 mission 1, missions lane 2026-11-20): the hiding family's alley by the south-west
+	-- block, the truck up the main road, the prison van on the cross street, the hunters' tunnel exit and the
+	-- roof route (scanner turrets on three roofs, the far roof the end); boxes are PLACEHOLDER ART
+	point(l, "family", -52, 0.5, 100)
+	for _, q in { { -58, 94 }, { -46, 94 }, { -52, 88 } } do
+		add(l, "people", q[1], 0.5, q[2])
+	end
+	box(l, "prop", -62, 2, 104, 6, 4, 3, "steel") -- the bins they hide behind
+	point(l, "truck", 6, 0.5, -60)
+	box(l, "prop", 6, 4, -74, 10, 8, 18, "concrete") -- the truck
+	point(l, "lookout", 40, 0.5, 120)
+	point(l, "van", 0, 0.5, 40)
+	for _, q in { { -8, 50 }, { 8, 50 }, { 0, 28 } } do
+		add(l, "cuffs", q[1], 0.5, q[2])
+	end
+	point(l, "tunnel", -20, 0.5, -130)
+	box(l, "prop", -20, 6, -168, 24, 12, 4, "slate") -- the tunnel mouth
+	box(l, "glow", -20, 12.5, -166, 20, 1, 0.4, "beaconGlow")
+	for _, q in { { -110, 110 }, { 110, 110 }, { -110, -110 } } do
+		add(l, "turrets", q[1], 51.5, q[2])
+	end
+	point(l, "roofEnd", 110, 51.5, -110)
+	point(l, "boss", 0, 0.5, -120)
+end
+
+-- The Line (Act 2 mission 2, missions lane 2026-11-20): Crane's plant at the Docks. A factory hall (no roof, so
+-- flyers come and go) with the copier line down the middle, the alarm boxes on its walls, the copier core at the
+-- line's end, the half-built Skylance on its stand and the big screen Crane speaks from. Boxes are PLACEHOLDER ART
+function BUILD.factory(l: Layout)
+	local w, d, h = 220, 300, 40
+	-- the hall's walls (an open front for the party to walk in)
+	box(l, "building", -w / 2, h / 2, -20, 4, h, d, "brick")
+	box(l, "building", w / 2, h / 2, -20, 4, h, d, "brick")
+	box(l, "building", 0, h / 2, -20 - d / 2, w, h, 4, "brick")
+	box(l, "plaza", 0, 0.1, -20, w - 4, 0.2, d, "concrete")
+	-- the copier line: a long belt with moulds and presses along it
+	box(l, "prop", 0, 2, -40, 10, 4, 200, "steel")
+	box(l, "glow", 0, 4.2, -40, 2, 0.4, 196, "foundryGlow")
+	for i = 0, 4 do
+		local z = 40 - i * 40
+		box(l, "prop", -10, 7, z, 8, 14, 10, "slate")
+		box(l, "prop", 10, 5, z - 18, 6, 10, 6, "steel")
+	end
+	for _, q in { { -14, 20 }, { 14, -40 }, { -14, -100 } } do
+		add(l, "film", q[1], 0.5, q[2])
+	end
+	-- the charges' places on the line (the hero's branch)
+	for _, q in { { 6, 20 }, { -6, -60 }, { 6, -120 } } do
+		add(l, "charges", q[1], 0.5, q[2])
+	end
+	-- the alarm boxes on the walls
+	for _, q in { { -w / 2 + 4, 40 }, { w / 2 - 4, -40 }, { -w / 2 + 4, -120 } } do
+		add(l, "alarms", q[1], 0.5, q[2])
+		box(l, "prop", q[1], 6, q[2], 2, 4, 4, "steel")
+		box(l, "glow", q[1], 8.6, q[2], 2.2, 1, 2.2, "beaconGlow")
+	end
+	-- the copier core at the line's end, and Skylance's stand beside it
+	point(l, "core", 0, 0.5, -150)
+	box(l, "glow", 0, 4, -156, 6, 6, 6, "foundryGlow")
+	point(l, "boss", -50, 0.5, -110)
+	box(l, "prop", -50, 1, -120, 14, 2, 14, "steel")
+	-- the big screen on the back wall
+	point(l, "screen", 0, 0.5, -140)
+	box(l, "glow", 0, 24, -20 - d / 2 + 3, 60, 30, 1, "beaconGlow")
+	-- crates and cover by the doors
+	for _, q in { { -60, 100 }, { 60, 90 }, { -70, 20 }, { 70, -10 } } do
+		box(l, "prop", q[1], 3, q[2], 8, 6, 8, "concrete")
 	end
 end
 

@@ -680,6 +680,300 @@ local LIVE_STAGEHAND = {
 	},
 }
 
+-- Act 2, The Past (nate's lore, approved 2026-11-19; nate 2026-11-20: build missions 1-2 first, he plays them
+-- before the other four). DRAFT lines for nate to edit.
+-- Most Wanted: the registration law is in force and Crane's hunter squads sweep the city. The hideout moves.
+local WANTED_OPEN = {
+	kind = "scene",
+	seconds = 16,
+	focus = "spawn",
+	lines = {
+		{
+			at = 0.5,
+			who = "crane",
+			text = "Registration is the law now. Every Spark registers, or is brought in.",
+		},
+		{
+			at = 5.5,
+			who = "crane",
+			text = "And to the rookie who attacked Bulwark: every hunter in the city knows your face.",
+		},
+		{
+			at = 11,
+			who = "patch",
+			hero = "Hunter squads on every street. Old Star says the safehouse is blown. We're moving everyone.",
+			villain = "Hunter squads on every street. The Chairman has a job for you. A big one.",
+		},
+	},
+}
+local WANTED_FAMILY = {
+	kind = "talk",
+	at = "family",
+	who = "parent",
+	text = "Talk to the Spark family hiding in the alley",
+	lines = {
+		{ who = "parent", text = "They took our neighbour this morning. A scanner van, then hunters. Gone." },
+		{ who = "parent", text = "My kids both have the Spark. Please. Get us somewhere safe." },
+		{
+			who = "patch",
+			text = "The new safehouse is across town. Get them to the truck. I'll keep the line open.",
+		},
+	},
+}
+local WANTED_TIPOFF = {
+	kind = "talk",
+	at = "lookout",
+	who = "lookout",
+	text = "Meet the lookout at the corner",
+	lines = {
+		{ who = "lookout", text = "A prison van full of registered Sparks rolls through here in a minute." },
+		{ who = "lookout", text = "Chairman wants it opened. Every Spark in it owes us after tonight." },
+		{
+			who = "chairman",
+			text = "Crane collects Sparks. So do we. The difference is, ours say thank you.",
+		},
+	},
+}
+local WANTED_HUNTER = {
+	kind = "boss",
+	enemy = "Captain", -- the hunter squad's captain
+	hpMult = 4,
+	adds = { "Interceptor", 2 },
+	text = "Beat the hunter captain",
+	villainText = "Smash the hunter captain",
+	radio = {
+		{
+			who = "patch",
+			hero = "Hunter captain! It has the families' scan on file. Break it before it calls more!",
+			villain = "Hunter captain! It scanned your Sparks. Break it before it reports in!",
+		},
+	},
+}
+local WANTED_AFTER = {
+	kind = "scene",
+	seconds = 14,
+	focus = "spawn",
+	lines = {
+		{
+			at = 0.5,
+			who = "patch",
+			side = "hero",
+			when = { 7, 1 },
+			text = "Through the tunnels, slow and quiet. Every family made it. Old Star's waiting at the new safehouse.",
+		},
+		{
+			at = 0.5,
+			who = "patch",
+			side = "hero",
+			when = { 7, 2 },
+			text = "Over the roofs, fast and loud. Everyone made it. Barely. My heart is still on that last roof.",
+		},
+		{
+			at = 0.5,
+			who = "chairman",
+			side = "villain",
+			when = { 7, 1 },
+			text = "New Sparks in the Syndicate. Feed them, train them, and keep them away from Crane.",
+		},
+		{
+			at = 0.5,
+			who = "chairman",
+			side = "villain",
+			when = { 7, 2 },
+			text = "Let go, owing you a favour. Generous. Make sure they remember whose favour it is.",
+		},
+		{
+			at = 6,
+			who = "lodestar",
+			hero = "We're safe here, for now. Crane's hunting harder than I've ever seen. Like it's personal.",
+			villain = "You freed Sparks tonight. Crook or not, thank you. Crane's hunting like it's personal.",
+		},
+		{
+			at = 10.5,
+			who = "patch",
+			text = "Personal? Funny. I found something on those hunters' parts. Serial numbers.",
+		},
+	},
+}
+
+-- The Line: Patch traces fake parts to a Crane plant at the Docks: the copier line where the fakes are built
+local LINE_OPEN = {
+	kind = "scene",
+	seconds = 13,
+	focus = "screen",
+	lines = {
+		{
+			at = 0.5,
+			who = "patch",
+			text = "Every fake part has a serial number. Every number leads here. A Crane plant.",
+		},
+		{
+			at = 5,
+			who = "patch",
+			hero = "Inside is the line where the fakes get built. Film it, and nobody can say they aren't Crane's.",
+			villain = "Inside is the line where the fakes get built. Its copier core is worth more than the plant.",
+		},
+		{
+			at = 9.5,
+			who = "patch",
+			text = "Alarm boxes on the walls. Cut those first, or the whole place locks down.",
+		},
+	},
+}
+local LINE_ALARMS = {
+	kind = "find",
+	list = "alarms",
+	points = 3,
+	seconds = 1.5,
+	verb = "Cut",
+	object = "Alarm box",
+	text = "Cut the plant's alarm boxes",
+	villainText = "Cut the alarms before you rob the place",
+	waves = { { "SparkDrone", 2 }, { "SneakBot", 2 } },
+	waveGap = 16,
+	clues = {
+		{ who = "patch", text = "One alarm down. The security bots are sniffing around. Quick." },
+		{ who = "patch", text = "Two down. One more and the plant is deaf." },
+		{ who = "patch", text = "That's all of them! Nobody's calling for help now. Not even Crane." },
+	},
+}
+local LINE_FILM = {
+	kind = "find",
+	list = "film",
+	points = 3,
+	seconds = 2.5,
+	verb = "Film",
+	object = "Copier line",
+	text = "Film the copier line",
+	waves = { { "BurglarBot", 2 }, { "Sniper", 1 } },
+	waveGap = 18,
+	clues = {
+		{ who = "patch", text = "Faces in jars. Real heroes' faces, copied. That's Radiant's mould. Gross." },
+		{
+			who = "patch",
+			text = "The power cells. Each one is labelled with a stolen Spark. This is the proof.",
+		},
+		{
+			who = "patch",
+			text = "Crane's logo on every crate. Got it all. Nobody can call this a trick now.",
+		},
+	},
+}
+local LINE_CASING = {
+	kind = "break",
+	at = "core",
+	points = 1,
+	hits = 24,
+	guards = { "ShieldBearer", 2 },
+	text = "Crack the copier core's casing",
+	radio = {
+		{
+			who = "patch",
+			text = "That glowing box is the copier core. Crack the casing. Carefully. It's worth millions.",
+		},
+	},
+}
+local LINE_SKYLANCE = {
+	kind = "fake",
+	enemy = "Skylance",
+	at = "boss",
+	hpMult = 0.9,
+	dmg = 0.7,
+	text = "Stop the half-built Skylance",
+	villainText = "Wreck the half-built Skylance",
+	radio = {
+		{
+			who = "patch",
+			hero = "That's Skylance! The one who chased you at the Ceremony! They're rebuilding it! Stop it!",
+			villain = "Skylance, half-built and angry. Wreck it before it wakes up properly!",
+		},
+	},
+}
+local LINE_SEND = {
+	kind = "find",
+	at = "screen",
+	points = 1,
+	seconds = 3,
+	verb = "Send",
+	object = "Footage",
+	text = "Send the footage to Patch",
+	clues = {
+		{
+			who = "patch",
+			text = "Got it! The whole copier line, on file. Crane can't wriggle out of this one.",
+		},
+	},
+}
+local LINE_CORE = {
+	kind = "find",
+	at = "core",
+	points = 1,
+	seconds = 4,
+	verb = "Pull out",
+	object = "Copier core",
+	text = "Pull out the copier core",
+	clues = { { who = "patch", text = "You've got the core! It's humming. That's... probably fine. Run!" } },
+}
+local LINE_SCREEN = {
+	kind = "scene",
+	seconds = 14,
+	focus = "screen",
+	lines = {
+		{
+			at = 0.5,
+			who = "crane",
+			text = "You found my little factory. Clever. Your mentor taught you well.",
+		},
+		{ at = 5, who = "crane", text = "Then ask your mentor what happened to my sister." },
+		{
+			at = 9.5,
+			who = "patch",
+			hero = "...His sister? Old Star never said anything about a sister. Old Star?",
+			villain = "His sister? Now that's a secret worth more than the core. Old Star knows something.",
+		},
+	},
+}
+local LINE_AFTER = {
+	kind = "scene",
+	seconds = 10,
+	focus = "screen",
+	lines = {
+		{
+			at = 0.5,
+			who = "patch",
+			side = "hero",
+			when = { 8, 1 },
+			text = "The line is scrap. No new fakes from this plant. Crane is going to be furious.",
+		},
+		{
+			at = 0.5,
+			who = "patch",
+			side = "hero",
+			when = { 8, 2 },
+			text = "The line keeps running, and every fake it builds now carries my tracker. Sneaky. I love it.",
+		},
+		{
+			at = 0.5,
+			who = "chairman",
+			side = "villain",
+			when = { 8, 1 },
+			text = "The copier core. Good. With this, the Syndicate builds its own faces now.",
+		},
+		{
+			at = 0.5,
+			who = "patch",
+			side = "villain",
+			when = { 8, 2 },
+			text = "Sold to the highest bidder. The Chairman will hear about it. Hope it was worth it.",
+		},
+		{
+			at = 5.5,
+			who = "lodestar",
+			text = "...Come back to the safehouse. There's something I should have told you.",
+		},
+	},
+}
+
 return {
 	-- The Ceremony prologue (nate's lore, build plan step 3; mission 1): about 4 minutes, right after the creator.
 	-- Silas Crane hands out medals at Crane's Hero Hall in the Downtown plaza; his scanner finds the new hero's
@@ -1065,7 +1359,7 @@ return {
 	-- 2 and 3: their story is nate's to decide (drafts only under "Proposals (NOT decided)" in the notes).
 	acts = {
 		{ num = 1 },
-		{ num = 2, soon = true },
+		{ num = 2 }, -- missions lane (nate 2026-11-20): Most Wanted and The Line are out; 3 to 6 next
 		{ num = 3, soon = true },
 	},
 	-- the only words a coming-soon act shows (its tab and its locked row)
@@ -1435,6 +1729,158 @@ return {
 				LIVE_AFTER,
 			},
 		},
+		-- Act 2, The Past (nate's lore; DRAFT lines): missions 1 and 2 first (nate 2026-11-20)
+		{
+			num = 7,
+			act = 2,
+			id = "MostWanted",
+			name = "Most Wanted",
+			minLevel = 9,
+			layout = "station",
+			minutes = 10,
+			loot = "story",
+			blurb = "The registration law is in force. Hunter squads sweep the city for Sparks.",
+			hero = {
+				WANTED_OPEN,
+				WANTED_FAMILY,
+				{
+					kind = "carry",
+					list = "people",
+					points = 3,
+					to = "truck",
+					waves = { { "Interceptor", 2 }, { "Grappler", 1 } },
+					waveGap = 18,
+					text = "Get the family to the truck",
+					radio = {
+						{
+							who = "patch",
+							text = "Carry them to the truck one at a time. Hunters are closing in. Hurry!",
+						},
+					},
+				},
+				{ kind = "choice", choice = 7, text = "The tunnels or the roofs?" },
+				{ kind = "branch", choice = 7 },
+				WANTED_HUNTER,
+				WANTED_AFTER,
+			},
+			villain = {
+				WANTED_OPEN,
+				WANTED_TIPOFF,
+				{
+					kind = "break",
+					at = "van",
+					points = 1,
+					hits = 30,
+					guards = { "ShieldBearer", 2 },
+					text = "Break open the prison van",
+					radio = {
+						{
+							who = "patch",
+							text = "Prison van, armoured and guarded. Crack it open before it gets away!",
+						},
+					},
+				},
+				{
+					kind = "find",
+					list = "cuffs",
+					points = 3,
+					seconds = 1.5,
+					verb = "Break",
+					object = "Spark cuffs",
+					text = "Break the Sparks' cuffs",
+					clues = {
+						{ who = "freed", text = "You're not Vigil. Who ARE you? ...Never mind. Thank you." },
+						{ who = "freed", text = "These cuffs drain your Spark. I could barely stand." },
+						{ who = "freed", text = "Everyone's out. What happens to us now?" },
+					},
+				},
+				{ kind = "choice", choice = 7, text = "The freed Sparks" },
+				WANTED_HUNTER,
+				WANTED_AFTER,
+			},
+			branches = {
+				hero = {
+					{
+						kind = "defeat",
+						squads = { { "SneakBot", 3 }, { "Grappler", 1 } },
+						at = "tunnel",
+						text = "Clear the hunters out of the tunnels",
+						radio = {
+							{
+								who = "patch",
+								text = "Slow and safe. Clear the tunnel and the families walk right through.",
+							},
+						},
+					},
+					{
+						kind = "reach",
+						at = "roofEnd",
+						turrets = 3,
+						text = "Lead the way over the roofs",
+						radio = {
+							{
+								who = "patch",
+								text = "Fast and risky! Scanner turrets on the roofs. Keep moving and they'll follow you!",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			num = 8,
+			act = 2,
+			id = "TheLine",
+			name = "The Line",
+			minLevel = 10,
+			layout = "factory",
+			minutes = 11,
+			loot = "story",
+			renown = 800,
+			blurb = "Patch traces fake parts to a Crane plant at the Docks.",
+			hero = {
+				LINE_OPEN,
+				LINE_ALARMS,
+				LINE_FILM,
+				LINE_SKYLANCE,
+				LINE_SEND,
+				LINE_SCREEN,
+				{ kind = "choice", choice = 8, text = "The copier line" },
+				{ kind = "branch", choice = 8 },
+				LINE_AFTER,
+			},
+			villain = {
+				LINE_OPEN,
+				LINE_ALARMS,
+				LINE_CASING,
+				LINE_SKYLANCE,
+				LINE_CORE,
+				LINE_SCREEN,
+				{ kind = "choice", choice = 8, text = "The copier core" },
+				{ kind = "branch", choice = 8 },
+				LINE_AFTER,
+			},
+			branches = {
+				hero = {
+					{
+						kind = "find",
+						list = "charges",
+						points = 3,
+						seconds = 1.5,
+						verb = "Plant",
+						object = "Charge",
+						text = "Plant charges on the copier line",
+						clues = {
+							{ who = "patch", text = "One charge on the line. Two more." },
+							{ who = "patch", text = "Two. Don't stand too close to that one." },
+							{ who = "patch", text = "Three! Get clear. Three, two, one..." },
+						},
+					},
+					{ kind = "none" }, -- leave it running: Patch tracks every fake it builds
+				},
+				villain = { { kind = "none" }, { kind = "none" } },
+			},
+		},
 	},
 
 	-- Choices (nate's lore: one per side in every Act 1 mission; Framed, The Signal and The Copy first, then The
@@ -1606,6 +2052,35 @@ return {
 					rep = { "city", 50 }, -- the buyer airs it: the city sees Bulwark fall again
 					reward = { credits = 400 },
 				},
+			},
+		},
+		-- Act 2 (nate's lore "Story choices draft", rows 2-1 and 2-2; DRAFT rewards: reputation only)
+		{
+			num = 7,
+			act = 2,
+			mission = 7,
+			skillPoints = 1,
+			hero = {
+				{ label = "Through the Tunnels", flag = "tunnelsTaken", rep = { "side", 100 } },
+				{ label = "Across the Roofs", flag = "roofsTaken", rep = { "city", 100 } },
+			},
+			villain = {
+				{ label = "Recruit Them", flag = "sparksRecruited", rep = { "side", 100 } },
+				{ label = "Let Them Go, Owing You", flag = "sparksOwe", rep = { "city", 100 } },
+			},
+		},
+		{
+			num = 8,
+			act = 2,
+			mission = 8,
+			skillPoints = 1,
+			hero = {
+				{ label = "Blow Up the Line", flag = "lineBlown", rep = { "city", 100 } },
+				{ label = "Leave It Running", flag = "lineTracked", rep = { "side", 100 } },
+			},
+			villain = {
+				{ label = "Hand It to the Chairman", flag = "coreToChairman", rep = { "side", 100 } },
+				{ label = "Sell It Yourself", flag = "coreSold", rep = { "city", 100 } },
 			},
 		},
 	},
@@ -1866,6 +2341,33 @@ return {
 					skin = { 226, 180, 146 },
 					hair = { 90, 60, 40 },
 					shape = "hood",
+					extras = {},
+				},
+			},
+			-- Act 2 (missions lane, DRAFT names): Most Wanted's people
+			parent = {
+				name = "SPARK PARENT",
+				color = { 255, 200, 150 },
+				style = "person",
+				blip = "guideInsider",
+				portrait = {
+					bg = { 60, 40, 50 },
+					skin = { 140, 96, 70 },
+					hair = { 30, 22, 18 },
+					shape = "messy",
+					extras = {},
+				},
+			},
+			freed = {
+				name = "FREED SPARK",
+				color = { 160, 255, 200 },
+				style = "person",
+				blip = "guideInsider",
+				portrait = {
+					bg = { 20, 60, 50 },
+					skin = { 230, 190, 150 },
+					hair = { 200, 90, 40 },
+					shape = "messy",
 					extras = {},
 				},
 			},
