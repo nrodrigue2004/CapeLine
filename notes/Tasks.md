@@ -2204,3 +2204,9 @@ Proved headless (tests/bosses3_test.luau, ONLY="bosses-3"; plus the Boss counter
 3. A skill (Z, a power's cone or slash) at a wall opens two to four panels; a charged one more; a super a big hole. Robots in front of a wall still take the hit first.
 4. A shot that misses a robot breaks the wall it hits (not a point inside the building).
 
+## Studio list: swing trails and the weapon emblem (2026-11-20, list-combat)
+1. Hold a sword (key 2) and M1: each swing leaves a thin white-to-steel slash along the blade, gone in a moment; walking with it held shows none.
+2. Fists, gauntlets and the whip: the slash shows across the knuckles; a Round Shield bash trails along its face; blasters show none.
+3. Creator WEAPON look: SWING TRAIL cycles only earned trails and names the next one's Mastery level; at Mastery 90 Frost shows the sparkle strip in blue; another player sees your trail.
+4. EMBLEM on: your symbol shows on the blade's flat (both sides) or the shield's face and hides when the weapon is put away.
+

@@ -128,6 +128,71 @@ return {
 	},
 	glowLevels = 3, -- glow strength 0 (off) to 3
 	trails = { "None", "Streak", "Ember", "Frost", "Spark", "Shadow" }, -- swing trails (index 1 = none)
+	-- Swing trails (list-combat 2026-11-20; creator plan: "swing trails per weapon, earned"): a Trail along the
+	-- weapon's outer blade (or across the fists) lit while a weapon move plays (Fx.SwingTrailFx), built with the
+	-- weapon by WeaponKit. `base` is every melee weapon's own thin slash in its look's colour (look trail 0, so
+	-- every swing reads); the five picks are earned with that weapon's Mastery level (`level`), each in its own
+	-- colours and the flight trails' strips (Config.Creator.trailFx kits). Ranged weapons draw none. Robux trails
+	-- wait on nate's product ids (notes/Launch Checklist.md).
+	swingTrail = {
+		families = { fists = true, one = true, two = true, dual = true, shield = true, exotic = true },
+		window = { 0.08, 0.9 }, -- the part of a move's clip the trail is lit (from its start, as a share)
+		near = 160, -- studs from the camera
+		max = 10, -- heroes at once on a device
+		base = { life = 0.13, alpha = 0.45, light = 0.7, c0 = "white", c1 = "look", width = 1 },
+		looks = {
+			{
+				level = 5,
+				kit = "streak",
+				life = 0.22,
+				alpha = 0.1,
+				light = 1,
+				c0 = "white",
+				c1 = "a",
+				width = 1.15,
+			},
+			{
+				level = 40,
+				kit = "comet",
+				life = 0.28,
+				alpha = 0.05,
+				light = 1,
+				c0 = { 255, 236, 150 },
+				c1 = { 255, 90, 30 },
+				width = 1.2,
+			},
+			{
+				level = 90,
+				kit = "sparkle",
+				life = 0.3,
+				alpha = 0.1,
+				light = 0.9,
+				c0 = { 235, 252, 255 },
+				c1 = { 110, 190, 255 },
+				width = 1.2,
+			},
+			{
+				level = 150,
+				kit = "storm",
+				life = 0.26,
+				alpha = 0,
+				light = 1,
+				c0 = { 255, 255, 215 },
+				c1 = { 255, 205, 50 },
+				width = 1.25,
+			},
+			{
+				level = 220,
+				kit = "smoke",
+				life = 0.34,
+				alpha = 0.15,
+				light = 0,
+				c0 = { 170, 120, 235 },
+				c1 = { 30, 16, 50 },
+				width = 1.3,
+			},
+		},
+	},
 
 	-- The playable weapons' moves (plan step 4): M1 (a 4-hit combo for melee, quick shots for ranged), then
 	-- Z X C V. Rows use the same shapes and fields as Config.Abilities and join its list and byNum (never its

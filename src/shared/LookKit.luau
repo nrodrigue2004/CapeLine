@@ -1100,38 +1100,17 @@ local function paintBody(
 	end
 end
 
-local function emblem(char: Model, folder: Instance, kit: string, colors: Colors)
-	local torso, offset = bodyPart(char, "torso")
-	if not torso then
-		return
-	end
+-- The emblem's picture on a SurfaceGui: the drawn set (Config.Creator.emblemArt) once its images are uploaded, else
+-- the glyph on its backing
+local function emblemGui(gui: SurfaceGui, kit: string, colors: Colors)
 	local bits = string.split(kit, ":")
 	local glyph = C.shapes[bits[1]] or "★"
 	local backing = bits[2] or "none"
-	-- the drawn set (Config.Creator.emblemArt), once its images are uploaded; else the glyph
 	local EA = C.emblemArt
 	local markId = if EA and EA.on == true then EA.shapes[bits[1]] or 0 else 0
 	local backArt = if EA and backing ~= "none" then EA.backings[backing] else nil
 	local drawn = markId ~= 0
 		and (backing == "none" or (backArt ~= nil and backArt.face ~= 0 and backArt.rim ~= 0))
-	local plate = Instance.new("Part")
-	plate.Name = "Emblem"
-	plate.Size = Vector3.new(0.9, 0.9, 0.05)
-	plate.Transparency = 1
-	plate.Massless = true
-	plate.CanCollide = false
-	plate.CanTouch = false
-	plate.CanQuery = false
-	plate.CFrame = torso.CFrame * offset * CFrame.new(0, 0.25, -torso.Size.Z / 2 - 0.06)
-	local weld = Instance.new("WeldConstraint")
-	weld.Part0 = torso
-	weld.Part1 = plate
-	weld.Parent = plate
-	local gui = Instance.new("SurfaceGui")
-	gui.Face = Enum.NormalId.Front
-	gui.CanvasSize = Vector2.new(100, 100)
-	gui.LightInfluence = 0.6
-	gui.Parent = plate
 	if drawn then
 		local function img(id: number, color: Color3, scale: number, z: number, dy: number?)
 			local l = Instance.new("ImageLabel")
@@ -1151,7 +1130,6 @@ local function emblem(char: Model, folder: Instance, kit: string, colors: Colors
 		else
 			img(markId, colors.a, 1, 1)
 		end
-		plate.Parent = folder
 		return
 	end
 	if backing ~= "none" then
@@ -1181,7 +1159,67 @@ local function emblem(char: Model, folder: Instance, kit: string, colors: Colors
 	label.TextColor3 = colors.a
 	label.TextStrokeTransparency = 0.4
 	label.Parent = gui
+end
+
+local function emblem(char: Model, folder: Instance, kit: string, colors: Colors)
+	local torso, offset = bodyPart(char, "torso")
+	if not torso then
+		return
+	end
+	local plate = Instance.new("Part")
+	plate.Name = "Emblem"
+	plate.Size = Vector3.new(0.9, 0.9, 0.05)
+	plate.Transparency = 1
+	plate.Massless = true
+	plate.CanCollide = false
+	plate.CanTouch = false
+	plate.CanQuery = false
+	plate.CFrame = torso.CFrame * offset * CFrame.new(0, 0.25, -torso.Size.Z / 2 - 0.06)
+	local weld = Instance.new("WeldConstraint")
+	weld.Part0 = torso
+	weld.Part1 = plate
+	weld.Parent = plate
+	local gui = Instance.new("SurfaceGui")
+	gui.Face = Enum.NormalId.Front
+	gui.CanvasSize = Vector2.new(100, 100)
+	gui.LightInfluence = 0.6
+	gui.Parent = plate
+	emblemGui(gui, kit, colors)
 	plate.Parent = folder
+end
+
+-- The hero's emblem on the weapon (list-combat 2026-11-20; creator plan "your emblem on the blade, shield or grip"):
+-- on WeaponKit.emblemPiece's piece, a see-through plate through the piece's thinnest side with the emblem on both
+-- faces, sized to the piece's face, welded to it (LookKit.showWeapon hides it with the weapon)
+local function weaponEmblem(wf: Instance, kit: string, colors: Colors)
+	local piece, cf, size = WeaponKit.emblemPiece(wf)
+	if not (piece and cf and size) then
+		return
+	end
+	local plate = Instance.new("Part")
+	plate.Name = "WeaponEmblem"
+	plate.Size = size
+	plate.Transparency = 1
+	plate.Massless = true
+	plate.CanCollide = false
+	plate.CanTouch = false
+	plate.CanQuery = false
+	plate.CastShadow = false
+	plate.CFrame = cf
+	local weld = Instance.new("WeldConstraint")
+	weld.Part0 = piece
+	weld.Part1 = plate
+	weld.Parent = plate
+	for _, face in { Enum.NormalId.Front, Enum.NormalId.Back } do
+		local gui = Instance.new("SurfaceGui")
+		gui.Face = face
+		gui.CanvasSize = Vector2.new(100, 100)
+		gui.LightInfluence = 0.6
+		gui.Parent = plate
+		emblemGui(gui, kit, colors)
+	end
+	plate:SetAttribute("Alpha", 1)
+	plate.Parent = wf
 end
 
 -- (defined with the worn meshes below; the eyes wear their glow meshes through it too)
@@ -1576,7 +1614,7 @@ function LookKit.clear(char: Model)
 	end
 	local old = char:FindFirstChild("HeroLook")
 	if old then
-		for _, ref in old:GetChildren() do
+		for _, ref in old:GetDescendants() do -- (the weapon's fist trails keep theirs in its folder)
 			if ref:IsA("ObjectValue") and ref.Value then
 				local v = ref.Value
 				-- a trail on the body part goes with its attachments
@@ -2106,6 +2144,9 @@ function LookKit.build(char: Model, look: any, weapon: any?): Folder
 		wf.Name = "Weapon"
 		wf.Parent = folder
 		WeaponKit.build(char, wf, weapon, colors, make, bodyPart)
+		if weapon.emblem and e then
+			weaponEmblem(wf, e, (slotColors(colors, look, "emblem")))
+		end
 	end
 	folder.Parent = char
 	return folder
@@ -2126,6 +2167,11 @@ function LookKit.showWeapon(char: Model, on: boolean)
 				p:SetAttribute("Alpha", base)
 			end
 			p.Transparency = if on then base :: number else 1
+			for _, g in p:GetChildren() do
+				if g:IsA("SurfaceGui") then
+					g.Enabled = on -- the weapon's emblem goes with it
+				end
+			end
 		end
 	end
 end

@@ -244,6 +244,15 @@ function WeaponRules.skillOpen(Config: any, points: number, key: string): boolea
 	return need ~= nil and WeaponRules.masteryLevel(Config, points) >= need
 end
 
+-- Is swing trail `trail` (0 none, 1 to 5 Config.Weapons.swingTrail.looks) earned at this many mastery points?
+function WeaponRules.trailOpen(Config: any, points: number, trail: number): boolean
+	if trail == 0 then
+		return true
+	end
+	local row = Config.Weapons.swingTrail.looks[trail]
+	return row ~= nil and WeaponRules.masteryLevel(Config, points) >= row.level
+end
+
 -- Add mastery points to a weapon; returns the new level and the skill keys that just opened
 function WeaponRules.addMastery(Config: any, profile: any, id: number, points: number): (number, { string })
 	local st = WeaponRules.state(profile, id)

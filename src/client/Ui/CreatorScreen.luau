@@ -795,6 +795,28 @@ local function drawWeaponLook()
 		wl.glowLevel = math.clamp(wl.glowLevel + d, 0, W.glowLevels)
 		refresh()
 	end)
+	-- the swing trail (list-combat 2026-11-20): only the ones this weapon's Mastery has earned; the next to earn
+	-- shows its level
+	local fam = W.list[wl.id] and W.list[wl.id][2]
+	if W.swingTrail.families[fam] then
+		local points = WeaponRules.state(profileView(), wl.id).mastery or 0
+		local open = {}
+		for i = 0, #W.swingTrail.looks do
+			if WeaponRules.trailOpen(Config, points, i) then
+				table.insert(open, i)
+			end
+		end
+		local nextRow = W.swingTrail.looks[#open]
+		local name = W.trails[(wl.trail or 0) + 1] or "None"
+		if nextRow then
+			name ..= "  (next: Mastery " .. nextRow.level .. ")"
+		end
+		cycler("SWING TRAIL", name, function(d)
+			local at = table.find(open, wl.trail or 0) or 1
+			wl.trail = open[wrapIndex(at + d, #open)]
+			refresh()
+		end)
+	end
 	tile("EMBLEM", if wl.emblem then "on" else "off", wl.emblem, false, function()
 		wl.emblem = not wl.emblem
 		refresh()

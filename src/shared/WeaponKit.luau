@@ -20,6 +20,7 @@ local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local WeaponMesh = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("WeaponMesh"))
 local BodyFit = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("BodyFit"))
 local MeshFix = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("MeshFix"))
+local TetherMath = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("TetherMath"))
 
 local WeaponKit = {}
 
@@ -424,6 +425,9 @@ local function buildMeshes(
 		end
 		m.Name = "Weapon"
 		m:SetAttribute("Piece", p.mesh) -- which mesh it is (TetherFx swings the line weapons' lines and tips)
+		if p.emblem then
+			m:SetAttribute("Emblem", true) -- the hero's symbol shows here (LookKit, WeaponKit.emblemPiece)
+		end
 		m.Size = V(p.size[1], p.size[2], p.size[3]) * f
 		m.Color = color
 		m.Material = if neon then Enum.Material.Neon else mat
@@ -446,6 +450,172 @@ local function buildMeshes(
 	return true
 end
 
+-- Swing trails (list-combat 2026-11-20; Config.Weapons.swingTrail): on each hand (and foot) that holds a piece, a
+-- Trail between two Attachments along the outer part of the piece reaching farthest from that body part (the
+-- blade's last two thirds; across the knuckles or the boot when nothing reaches past the fist), named SwingTrail,
+-- off until Fx.SwingTrailFx lights it during a weapon move. Its look is the weapon look's trail (0: the thin base
+-- slash in the look's colour). Ranged families draw none; the line weapons trail from the grip (their tips are
+-- drawn by Fx.TetherFx). Returns the trails made.
+local TRAIL_ROOTS = { RightHand = true, LeftHand = true, RightFoot = true, LeftFoot = true }
+local AXES = { Vector3.xAxis, Vector3.yAxis, Vector3.zAxis }
+
+local function trailColor(c: any, colors: { [string]: Color3 }, lookColor: Color3): Color3
+	if type(c) == "table" then
+		return Color3.fromRGB(c[1], c[2], c[3])
+	elseif c == "white" then
+		return Color3.fromRGB(250, 250, 255)
+	elseif c == "look" then
+		return lookColor
+	end
+	return colors[c] or colors.a
+end
+
+function WeaponKit.trails(_char: Model, folder: Instance, look: any, colors: { [string]: Color3 }): { Trail }
+	local W = Config.Weapons
+	local ST = W.swingTrail
+	local w = W.list[look.id]
+	local made: { Trail } = {}
+	if not (ST and w and ST.families[w[2]]) then
+		return made
+	end
+	local row = if (look.trail or 0) > 0 then ST.looks[look.trail] else nil
+	local t = row or ST.base
+	local wl = Config.Fx.weaponLooks
+	local lookName = wl and ((wl.weapon and wl.weapon[look.id]) or (wl.family and wl.family[w[2]]))
+	local lc = lookName and wl.looks[lookName] and wl.looks[lookName].color
+	local lookColor = if lc then Color3.fromRGB(lc[1], lc[2], lc[3]) else colors.a
+	local tether = TetherMath.SPECS[look.id] ~= nil
+	-- the farthest-reaching piece on each root: (body part, piece, tip and base in the piece's frame)
+	local best: { [BasePart]: { piece: BasePart, reach: number, tip: Vector3, base: Vector3, long: number } } =
+		{}
+	for _, p in folder:GetChildren() do
+		local weld = p:FindFirstChildOfClass("WeldConstraint")
+		local root = weld and weld.Part0
+		if
+			p:IsA("BasePart")
+			and root
+			and (TRAIL_ROOTS[root.Name] or (w[2] == "shield" and root.Name == "LeftLowerArm"))
+			and p.Material ~= Enum.Material.Neon
+		then
+			local size = p.Size
+			local k = if size.X >= size.Y and size.X >= size.Z then 1 elseif size.Y >= size.Z then 2 else 3
+			local half = AXES[k] * (({ size.X, size.Y, size.Z })[k] / 2)
+			local a, b = p.CFrame:PointToWorldSpace(half), p.CFrame:PointToWorldSpace(-half)
+			local rp = root.CFrame.Position
+			local ra, rb = (a - rp).Magnitude, (b - rp).Magnitude
+			local tipL = if ra >= rb then half else -half
+			local reach = math.max(ra, rb)
+			local cur = best[root.Name]
+			local long = ({ size.X, size.Y, size.Z })[k]
+			-- small studs and caps never win over a real blade or face
+			local score = if long >= 0.6 then reach else reach - 100
+			if not cur or score > cur.score then
+				best[root.Name] =
+					{ root = root, piece = p, reach = reach, score = score, tip = tipL, base = -tipL * 0.33 }
+			end
+		end
+	end
+	for _, b in best do
+		local root = b.root
+		local holder: BasePart, p0: Vector3, p1: Vector3
+		if (b.reach < 1.6 or tether) and TRAIL_ROOTS[root.Name] then
+			-- nothing past the fist: across the knuckles (or the boot's toe), a short wide slash
+			holder = root
+			local s = root.Size
+			local fwd = if string.find(root.Name, "Foot")
+				then Vector3.new(0, 0, -s.Z * 0.45)
+				else Vector3.new(0, -s.Y * 0.5, 0)
+			p0, p1 = fwd + Vector3.new(s.X * 0.45, 0, 0), fwd - Vector3.new(s.X * 0.45, 0, 0)
+		else
+			holder, p0, p1 = b.piece, b.base, b.tip
+		end
+		local a0 = Instance.new("Attachment")
+		a0.Name = "SwingTrailA"
+		a0.Position = p0
+		a0.Parent = holder
+		local a1 = Instance.new("Attachment")
+		a1.Name = "SwingTrailB"
+		a1.Position = p1
+		a1.Parent = holder
+		local tr = Instance.new("Trail")
+		tr.Name = "SwingTrail"
+		tr.Attachment0 = a0
+		tr.Attachment1 = a1
+		tr.Enabled = false
+		tr.FaceCamera = false
+		tr.Lifetime = t.life
+		tr.MinLength = 0.05
+		tr.LightEmission = t.light
+		tr.LightInfluence = 1 - t.light
+		tr.WidthScale = NumberSequence.new(t.width or 1, 0.2)
+		tr.Transparency = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, t.alpha),
+			NumberSequenceKeypoint.new(0.6, math.min(1, t.alpha + 0.35)),
+			NumberSequenceKeypoint.new(1, 1),
+		})
+		tr.Color = ColorSequence.new(trailColor(t.c0, colors, lookColor), trailColor(t.c1, colors, lookColor))
+		local tf = Config.Creator.trailFx
+		local tex = row and tf and tf.on == true and tf.kits[row.kit]
+		if tex and tex.id ~= 0 then
+			tr.Texture = "rbxassetid://" .. tostring(tex.id)
+			tr.TextureMode = if tex.mode == "Wrap" then Enum.TextureMode.Wrap else Enum.TextureMode.Stretch
+			tr.TextureLength = tex.length or 1
+		end
+		tr:SetAttribute("Trail", look.trail or 0)
+		tr.Parent = holder
+		-- a trail on the body (fists) is cleared with the weapon: the folder keeps a reference
+		if holder == root then
+			for _, inst in { a0, a1, tr } do
+				local ref = Instance.new("ObjectValue")
+				ref.Name = "TrailRef"
+				ref.Value = inst
+				ref.Parent = folder
+			end
+		end
+		table.insert(made, tr)
+	end
+	return made
+end
+
+-- Where the hero's emblem goes on a built weapon (list-combat 2026-11-20): the piece the art marks (emblem), else the
+-- broadest solid piece (a blade's flat, a shield's face, a gauntlet's back). Returns the piece, the plate's CFrame
+-- (its z through the piece's thinnest side) and the plate's size (a square on the face, thickness just past it).
+function WeaponKit.emblemPiece(folder: Instance): (BasePart?, CFrame?, Vector3?)
+	local pick: BasePart? = nil
+	local score = -1
+	for _, p in folder:GetChildren() do
+		if
+			p:IsA("BasePart")
+			and p.Name == "Weapon"
+			and p.Material ~= Enum.Material.Neon
+			and p.Transparency < 0.5
+		then
+			local s = p.Size
+			local dims = { s.X, s.Y, s.Z }
+			table.sort(dims)
+			local area = dims[2] * dims[3]
+			local sc = (if p:GetAttribute("Emblem") == true then 1000 else 0) + area
+			if dims[2] >= 0.3 and sc > score then
+				pick, score = p, sc
+			end
+		end
+	end
+	if not pick then
+		return nil, nil, nil
+	end
+	local s = pick.Size
+	local k = if s.X <= s.Y and s.X <= s.Z then 1 elseif s.Y <= s.Z then 2 else 3
+	local thin = ({ s.X, s.Y, s.Z })[k]
+	local a, b = ({ s.Y, s.X, s.X })[k], ({ s.Z, s.Z, s.Y })[k]
+	local side = math.clamp(math.min(a, b) * 0.62, 0.25, 1.4)
+	-- turn the plate so its z is the thin axis
+	local turn = if k == 1
+		then CFrame.Angles(0, math.rad(90), 0)
+		elseif k == 2 then CFrame.Angles(math.rad(90), 0, 0)
+		else CFrame.identity
+	return pick, pick.CFrame * turn, Vector3.new(side, side, thin + 0.04)
+end
+
 -- Build the weapon: from its meshes once imported (buildMeshes), else its specs as parts with LookKit's maker:
 -- make(char, folder, name, spec, colors, mat). Either way the folder carries the weapon's id (WeaponId: the
 -- stance HeroAnimator poses the arms in) and whether meshes drew it (Meshed).
@@ -466,7 +636,9 @@ function WeaponKit.build(
 	folder:SetAttribute("WeaponId", look.id)
 	local meshed = bodyPart ~= nil and buildMeshes(char, folder, look, colors, bodyPart :: any)
 	folder:SetAttribute("Meshed", meshed)
+	folder:SetAttribute("Trail", look.trail or 0)
 	if meshed then
+		WeaponKit.trails(char, folder, look, colors)
 		return
 	end
 	for _, raw in WeaponKit.specs(look.id, look.style or 1) do
@@ -488,6 +660,7 @@ function WeaponKit.build(
 		end
 		make(char, folder, "Weapon", spec, colors, if s.blade and not spec.neon then finishMat else nil)
 	end
+	WeaponKit.trails(char, folder, look, colors)
 end
 
 return WeaponKit

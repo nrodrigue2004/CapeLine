@@ -204,6 +204,12 @@ local function onCreate(
 			result(player, false, whyLook)
 			return
 		end
+		-- a swing trail is earned with that weapon's Mastery (list-combat 2026-11-20)
+		local points = WeaponRules.state(profile, weaponLook.id).mastery or 0
+		if not WeaponRules.trailOpen(Config, points, weaponLook.trail) then
+			result(player, false, "trail")
+			return
+		end
 		if not WeaponRules.owned(Config, profile, weaponLook.id) then
 			if (mode == "create" or mode == "first") and WeaponRules.freePickOk(Config, weaponLook.id) then
 				freeWeapon = true
