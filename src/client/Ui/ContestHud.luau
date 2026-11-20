@@ -14,6 +14,7 @@ local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Shared = ReplicatedStorage:WaitForChild("Shared")
+local MeshFix = require(Shared:WaitForChild("MeshFix"))
 local Net = require(Shared:WaitForChild("Net"))
 
 local Juice = require(script.Parent.Parent.Fx.Juice)
@@ -38,6 +39,52 @@ local state: { [string]: any } = {}
 local clockOffset = 0 -- server os.time minus this device's
 local myVotes: { [number]: number } = {}
 local light: SpotLight? = nil
+local cone: BasePart? = nil -- the spotlight's visible beam from a can on the arch (Art.Stage SpotCone)
+
+-- The beam from the nearer spotlight can on the stage's arch down to the contestant (Everything Left 337): the
+-- SpotCone mesh stretched from the can (its narrow end) to a wide pool at their feet; none until Art.Stage is in
+local function beamTo(head: BasePart)
+	local A = Config.StageArt
+	local st = state.stage
+	local art = ReplicatedStorage:FindFirstChild("Art")
+	local set = art and art:FindFirstChild("Stage")
+	local src = set and set:FindFirstChild("SpotCone", true)
+	if not (A and st and src and src:IsA("MeshPart")) then
+		return
+	end
+	local cans = A.StageCans
+	local feet = head.Position - Vector3.new(0, 4.5, 0)
+	local side = if feet.X < st[1] then -1 else 1
+	local can =
+		Vector3.new(st[1] + side * (cans.size[1] / 2 - 1), st[2] + cans.offset[2], st[3] + cans.offset[3])
+	local axis = can - feet
+	local len = axis.Magnitude
+	if len < 1 then
+		return
+	end
+	local up = axis.Unit
+	local right = up:Cross(Vector3.zAxis)
+	if right.Magnitude < 0.05 then
+		right = Vector3.xAxis
+	end
+	right = right.Unit
+	local p = MeshFix.clone(src)
+	for _, c in p:GetChildren() do
+		c:Destroy()
+	end
+	p.Anchored = true
+	p.CanCollide = false
+	p.CanQuery = false
+	p.CanTouch = false
+	p.CastShadow = false
+	p.Material = Enum.Material.Neon
+	p.Color = Color3.fromRGB(255, 244, 210)
+	p.Transparency = A.SpotCone.alpha or 0.8
+	p.Size = Vector3.new(7, len, 7)
+	p.CFrame = CFrame.fromMatrix((can + feet) / 2, right, up) * MeshFix.turn("Stage")
+	p.Parent = Workspace
+	cone = p
+end
 local spinning = false
 -- pt-ui (2026-11-19, nate: "contest skipped stays on my screen"): the results and skipped banner close on this
 -- device after Config.Contest.results s (or its X), whatever the server says next
@@ -95,6 +142,10 @@ local function spotlightOn(userId: number?)
 		light:Destroy()
 		light = nil
 	end
+	if cone then
+		cone:Destroy()
+		cone = nil
+	end
 	local p = userId and Players:GetPlayerByUserId(userId)
 	local head = p and p.Character and p.Character:FindFirstChild("Head")
 	if head and head:IsA("BasePart") then
@@ -106,6 +157,7 @@ local function spotlightOn(userId: number?)
 		l.Color = Color3.fromRGB(255, 240, 200)
 		l.Parent = head
 		light = l
+		beamTo(head)
 	end
 	-- the contestant's own camera turns slowly round them for the spotlight
 	if userId == me.UserId and not spinning then

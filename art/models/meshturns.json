@@ -59,8 +59,8 @@
  "Bosses": {
   "asDrawn": 20,
   "either": 20,
-  "meshes": 85,
-  "turned": 85,
+  "meshes": 87,
+  "turned": 87,
   "verdict": "rotY180"
  },
  "Bosses2": {
@@ -117,6 +117,13 @@
   "either": 2,
   "meshes": 13,
   "turned": 13,
+  "verdict": "rotY180"
+ },
+ "Finds": {
+  "asDrawn": 7,
+  "either": 7,
+  "meshes": 19,
+  "turned": 19,
   "verdict": "rotY180"
  },
  "Foes": {
@@ -278,6 +285,13 @@
   "either": 10,
   "meshes": 92,
   "turned": 92,
+  "verdict": "rotY180"
+ },
+ "Stage": {
+  "asDrawn": 6,
+  "either": 6,
+  "meshes": 11,
+  "turned": 11,
   "verdict": "rotY180"
  },
  "Story": {

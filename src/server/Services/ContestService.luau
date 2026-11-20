@@ -8,7 +8,10 @@
 -- * results: the top 3 on the podium with confetti; pay by place, a Contest Ribbon, the badges' counters.
 -- Fewer than 3 contestants or 5 voters skips it with a small pay for those who stepped on. A player wins at
 -- most once an hour. Nothing here changes stats.
--- PLACEHOLDER ART: the stage, pads, podium, beam and spotlight are simple parts until the Blender pass.
+-- The stage is drawn from its Blender meshes (art/blender/contest.py, ReplicatedStorage.Art.Stage, Config.StageArt;
+-- Everything Left 337): a rounded deck with a gold lip and stars, a truss arch with a marquee board lettered COSTUME
+-- CONTEST and two spotlight cans, star pads and podium blocks with star plates; the parts stay as invisible colliders.
+-- PLACEHOLDER ART: the plain parts show only while Art.Stage is not imported.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -18,7 +21,9 @@ local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local CollectPlan = require(Shared:WaitForChild("CollectPlan"))
 local ContestRules = require(Shared:WaitForChild("ContestRules"))
+local MeshFix = require(Shared:WaitForChild("MeshFix"))
 local Net = require(Shared:WaitForChild("Net"))
+local SignKit = require(Shared:WaitForChild("SignKit"))
 local Signal = require(Shared:WaitForChild("Util"):WaitForChild("Signal"))
 
 local Analytics = require(script.Parent.Analytics)
@@ -68,6 +73,100 @@ local function part(size: Vector3, cf: CFrame, color: Color3, material: Enum.Mat
 	return p
 end
 
+-- The stage's meshes, when every one is imported (else nil: the plain parts show)
+local function stageMeshes(): { [string]: MeshPart }?
+	local art = ReplicatedStorage:FindFirstChild("Art")
+	local set = art and art:FindFirstChild("Stage")
+	if not set then
+		return nil
+	end
+	local out = {}
+	for name in Config.StageArt do
+		local m = set:FindFirstChild(name, true)
+		if not (m and m:IsA("MeshPart")) then
+			return nil
+		end
+		out[name] = m
+	end
+	return out
+end
+
+-- One placed mesh: `at` is where its centre goes (the import turn added here), no collision (the parts collide)
+local function meshAt(src: MeshPart, name: string, at: CFrame, size: Vector3?, color: Color3?): MeshPart
+	local row = Config.StageArt[name]
+	local p = MeshFix.clone(src)
+	for _, c in p:GetChildren() do
+		c:Destroy()
+	end
+	p.Name = name
+	p.Anchored = true
+	p.CanCollide = false
+	p.CanQuery = false
+	p.CanTouch = false
+	p.Size = size or Vector3.new(row.size[1], row.size[2], row.size[3])
+	p.CFrame = at * MeshFix.turn("Stage")
+	p.Color = color or Color3.fromRGB(row.color[1], row.color[2], row.color[3])
+	local ok, mat = pcall(function()
+		return (Enum.Material :: any)[row.mat]
+	end)
+	p.Material = if ok and mat then mat else Enum.Material.SmoothPlastic
+	p.Transparency = row.alpha or 0
+	p.CastShadow = row.mat ~= "Neon"
+	p.Parent = model
+	return p
+end
+
+-- Dress the stage in its meshes: the deck's top centre at `at`; the parts go invisible but keep colliding
+local function dress(
+	meshes: { [string]: MeshPart },
+	at: CFrame,
+	deck: BasePart,
+	pads: { BasePart },
+	steps: { BasePart }
+)
+	for name, row in Config.StageArt do
+		if row.look == "Stage" then
+			local p = meshAt(meshes[name], name, at * CFrame.new(row.offset[1], row.offset[2], row.offset[3]))
+			if name == "StageBoard" then
+				-- the marquee's words on a thin face in front of the board (fixed text, never a player's)
+				local face = Instance.new("Part")
+				face.Name = "StageSign"
+				face.Anchored = true
+				face.CanCollide = false
+				face.CanQuery = false
+				face.CanTouch = false
+				face.Transparency = 1
+				face.Size = Vector3.new(row.size[1] - 1, row.size[2] - 0.6, 0.05)
+				face.CFrame = at
+					* CFrame.new(row.offset[1], row.offset[2], row.offset[3] - row.size[3] / 2 - 0.05)
+				face.Parent = p
+				SignKit.letter(
+					face,
+					"COSTUME CONTEST",
+					Color3.fromRGB(255, 220, 90),
+					{ pixels = 30, stroke = 3 }
+				)
+			end
+		end
+	end
+	deck.Transparency = 1
+	for _, pad in pads do
+		pad.Transparency = 1
+		meshAt(meshes.StagePad, "StagePad", pad.CFrame * CFrame.new(0, 0.05, 0))
+	end
+	for _, step in steps do
+		step.Transparency = 1
+		meshAt(meshes.PodiumStep, "PodiumStep", step.CFrame, step.Size, step.Color)
+		meshAt(
+			meshes.PodiumStar,
+			"PodiumStar",
+			step.CFrame * CFrame.new(0, step.Size.Y * 0.05, -step.Size.Z / 2 - 0.05),
+			nil,
+			if step.Name == "Podium1" then Color3.fromRGB(255, 225, 90) else Color3.fromRGB(255, 245, 225)
+		)
+	end
+end
+
 -- The stage at the plaza corner: a platform, 8 pads, the 3-step podium, the call beam
 local function build()
 	local world = CityBuilder.world
@@ -81,11 +180,12 @@ local function build()
 	model = Instance.new("Model")
 	local m = model :: Model
 	m.Name = "ContestStage"
-	part(
+	local deck = part(
 		Vector3.new(st.size, st.height, st.size),
 		CFrame.new(sx, gy + st.height / 2, sz),
 		Color3.fromRGB(70, 60, 110)
 	)
+	local pads, steps = {}, {}
 	local top = gy + st.height
 	for i = 1, K.maxEntries do
 		local ox, oz = ContestRules.pad(K, i)
@@ -96,14 +196,21 @@ local function build()
 			Enum.Material.Neon
 		)
 		pad.Name = "Pad" .. i
+		table.insert(pads, pad)
 	end
 	for i, h in st.podium do
 		local ox = (({ 0, -5, 5 }) :: { number })[i]
-		part(
+		local step = part(
 			Vector3.new(4.5, h, 4.5),
 			CFrame.new(sx + ox, top + h / 2, sz + st.size / 2 - 4),
 			({ Color3.fromRGB(255, 205, 60), Color3.fromRGB(200, 205, 215), Color3.fromRGB(205, 130, 70) })[i]
 		)
+		step.Name = "Podium" .. i
+		table.insert(steps, step)
+	end
+	local meshes = stageMeshes()
+	if meshes then
+		dress(meshes, CFrame.new(sx, top, sz), deck, pads, steps)
 	end
 	local b = part(
 		Vector3.new(3, 400, 3),

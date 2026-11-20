@@ -2,15 +2,21 @@
 -- every find spot (CollectState) and picks them up; here, the ones you are missing sparkle with a soft chime
 -- once you are within Config.Collect.sparkle studs, and with the HQ Scanner a marker over the nearest find
 -- you are missing near you shows where to look. A pickup (CollectFound) pops the find's juice.
--- PLACEHOLDER ART: a glowing gem part with engine sparkles until the Blender pass.
+-- A find is its set's Blender figure (art/blender/finds.py, ReplicatedStorage.Art.Finds, Config.FindArt: a comic book,
+-- a tin rocket, a ship's bell, a diving helmet, a pigeon, the Star Charm) bobbing and turning over a soft glow, with
+-- the set's sparkles and light (Everything Left 335). PLACEHOLDER ART: a set whose meshes are not imported keeps the
+-- glowing ball.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local CollectPlan = require(Shared:WaitForChild("CollectPlan"))
+local FrameProf = require(Shared:WaitForChild("FrameProf"))
+local MeshFix = require(Shared:WaitForChild("MeshFix"))
 local Net = require(Shared:WaitForChild("Net"))
 
 local Juice = require(script.Parent.Parent.Fx.Juice)
@@ -25,6 +31,11 @@ local spots: { { bit: number, x: number, y: number, z: number } } = {}
 local found: { [number]: boolean } = {}
 local scanner = false
 local shown: { [number]: BasePart } = {}
+-- the figures in the world: their glow part (the anchor that carries the sparkles) and their meshes, posed from it
+local figures: { [BasePart]: { home: CFrame, phase: number, meshes: { { part: BasePart, at: CFrame } } } } =
+	{}
+local ART = Config.FindArt
+local BOB, SPIN = 0.35, 1.2 -- studs up and down, turns a second (radians)
 local folder: Folder? = nil
 local marker: BasePart? = nil
 
@@ -82,7 +93,74 @@ local function gem(s: { bit: number, x: number, y: number, z: number }): BasePar
 	light.Brightness = 1.5
 	light.Parent = p
 	p.Parent = holder()
+	-- the set's own figure: the glow shrinks to a soft halo under it
+	local fit = set and ART[set.id]
+	local lib = ReplicatedStorage:FindFirstChild("Art")
+	lib = lib and lib:FindFirstChild("Finds")
+	if fit and lib then
+		local meshes: { { src: MeshPart, row: any } } = {}
+		local ready = true
+		for name, row in fit do
+			local src = lib:FindFirstChild(name, true)
+			if not (src and src:IsA("MeshPart")) then
+				ready = false
+				break
+			end
+			table.insert(meshes, { src = src :: MeshPart, row = row })
+		end
+		if ready then
+			local fig = { home = p.CFrame, phase = s.bit * 0.7, meshes = {} }
+			for _, m in meshes do
+				local row = m.row
+				local mp = MeshFix.clone(m.src)
+				for _, c in mp:GetChildren() do
+					c:Destroy()
+				end
+				mp.Name = m.src.Name
+				mp.Anchored = true
+				mp.CanCollide = false
+				mp.CanQuery = false
+				mp.CanTouch = false
+				mp.CastShadow = false
+				mp.Size = Vector3.new(row.size[1], row.size[2], row.size[3])
+				mp.Color = Color3.fromRGB(row.color[1], row.color[2], row.color[3])
+				local ok, mat = pcall(function()
+					return (Enum.Material :: any)[row.mat]
+				end)
+				mp.Material = if ok and mat then mat else Enum.Material.SmoothPlastic
+				local at = CFrame.new(row.offset[1], row.offset[2], row.offset[3]) * MeshFix.turn("Finds")
+				mp.CFrame = p.CFrame * at
+				mp.Parent = p
+				table.insert(fig.meshes, { part = mp, at = at })
+			end
+			p.Shape = Enum.PartType.Cylinder
+			p.Size = Vector3.new(0.15, 2.6, 2.6)
+			p.CFrame = CFrame.new(s.x, s.y - 1.1, s.z) * CFrame.Angles(0, 0, math.rad(90))
+			p.Transparency = 0.55
+			figures[p] = fig
+		end
+	end
 	return p
+end
+
+-- the figures bob and turn (only the few near you exist)
+local function animate()
+	if next(figures) == nil then
+		return
+	end
+	local t = os.clock()
+	for glow, fig in figures do
+		if not glow.Parent then
+			figures[glow] = nil
+			continue
+		end
+		local pose = fig.home
+			* CFrame.new(0, math.sin(t * 2 + fig.phase) * BOB, 0)
+			* CFrame.Angles(0, t * SPIN + fig.phase, 0)
+		for _, m in fig.meshes do
+			m.part.CFrame = pose * m.at
+		end
+	end
 end
 
 local function makeMarker(): BasePart
@@ -153,6 +231,9 @@ local function step()
 	end
 end
 
+-- one look round for finds near you (the init loop runs it 4 times a second; tests call it directly)
+CollectClient.step = step
+
 function CollectClient.hasScanner(): boolean
 	return scanner
 end
@@ -194,6 +275,7 @@ function CollectClient.init()
 			step()
 		end
 	end)
+	RunService.RenderStepped:Connect(FrameProf.wrap("CollectFinds", animate))
 end
 
 return CollectClient
