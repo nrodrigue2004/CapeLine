@@ -358,4 +358,89 @@ return function(T: any)
 			end
 		end
 	)
+
+	test("First 30: level 5's new power slot and move training get Patch's POWERS line", function()
+		local GuidePlan = require("../src/shared/GuidePlan")
+		check(GuidePlan.powerAt(Config, 5) == "powerBoth", "level 5 opens the third slot and rank 1")
+		check(GuidePlan.powerAt(Config, 10) == "powerSlot", "level 10 the fourth slot")
+		check(GuidePlan.powerAt(Config, Config.Move.ranks.levels[2]) == "powerRank", "rank 2's level")
+		check(GuidePlan.powerAt(Config, 4) == nil, "level 4 opens neither")
+		for _, k in { "powerBoth", "powerSlot", "powerRank" } do
+			for _, side in { "hero", "villain" } do
+				local l = GuidePlan.worldLine(Config, k, side)
+				check(
+					l ~= nil and string.find(l.text, "POWERS", 1, true) ~= nil,
+					k .. " names POWERS for " .. side
+				)
+			end
+		end
+		if not T.placePath then
+			return
+		end
+		local sim = newSim()
+		local StoryClient = sim:require("Client.Controllers.StoryClient")
+		local GuideHud = sim:require("Client.Ui.GuideHud")
+		local GuideClient = sim:require("Client.Controllers.GuideClient")
+		sim:run("StoryClient", StoryClient.init)
+		sim:run("GuideHud", GuideHud.init)
+		sim:run("GuideClient", GuideClient.init)
+		local State = sim:require("Client.State")
+		local story = require("../src/shared/ProfileSchema").newCharacter().story
+		require("../src/shared/StoryPlan").clear(story, 1)
+		require("../src/shared/StoryPlan").clear(story, 2)
+		require("../src/shared/StoryPlan").clear(story, 3)
+		StoryClient.journal = { missions = story.missions, choices = story.choices, pinned = 0 }
+		State.hero.level = 5
+		local function texts(): string
+			local out = {}
+			for _, c in sim.playerGui:GetDescendants() do
+				if (c:IsA("TextLabel") or c:IsA("TextButton")) and c.Text ~= "" then
+					table.insert(out, c.Text)
+				end
+			end
+			return table.concat(out, " | ")
+		end
+		sim:run("level up", function()
+			State.Toast:Fire({ id = "levelUp", level = 5 })
+		end)
+		local function frames(n: number)
+			for _ = 1, n do
+				sim:run("frame", function()
+					sim.service("RunService").RenderStepped:Fire(1 / 30)
+					sim.service("RunService").Heartbeat:Fire(1 / 30)
+				end)
+			end
+		end
+		frames(3)
+		local copy = GuidePlan.worldLine(Config, "unlock", "hero", 4)
+		check(
+			copy ~= nil and string.find(texts(), copy.text, 1, true) ~= nil,
+			"Patch says The Copy is open first"
+		)
+		local want = GuidePlan.worldLine(Config, "powerBoth", "hero")
+		-- inside the radio's gap the POWERS line waits (a second's tick on the Heartbeat)
+		sim:run("tick", function()
+			sim.service("RunService").Heartbeat:Fire(1.1)
+		end)
+		check(want ~= nil and GuideClient.radio.once["power5"] == nil, "it waits out the gap")
+		-- the gap passes (the rate state's last line moves back past it)
+		GuideClient.radio.last -= Config.Story.guides.radio.gap + 1
+		sim:run("tick", function()
+			sim.service("RunService").Heartbeat:Fire(1.1)
+		end)
+		check(GuideClient.radio.once["power5"] == true, "then the POWERS line goes out")
+		-- the Copy line is still up (it plays its reading time): skip it, and the POWERS line is next
+		sim:run("skip", GuideHud.skip)
+		local heard = false
+		for _ = 1, 30 do
+			frames(1)
+			heard = want ~= nil and string.find(texts(), want.text, 1, true) ~= nil
+			if heard then
+				break
+			end
+			sim:advance(1 / 30)
+		end
+		check(heard, "then Patch says the POWERS line: " .. texts())
+		check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
+	end)
 end

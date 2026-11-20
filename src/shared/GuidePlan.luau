@@ -365,7 +365,9 @@ function GuidePlan.radioOk(
 	if now - R.last < cfg.gap and not GuidePlan.URGENT[key] then
 		return false
 	end
-	if (ONCE[key] or string.sub(key, 1, 6) == "unlock") and R.once[key] then
+	if
+		(ONCE[key] or string.sub(key, 1, 6) == "unlock" or string.sub(key, 1, 5) == "power") and R.once[key]
+	then
 		return false
 	end
 	if string.sub(key, 1, 4) == "idle" and now - R.idleAt < cfg.idleRepeat then
@@ -405,6 +407,22 @@ function GuidePlan.unlockAt(Config: any, story: any, level: number): number?
 		end
 	end
 	return nil
+end
+
+-- first-30 (2026-11-20): the POWERS line a level-up earns: "powerBoth" when the level opens a skill slot and a
+-- mobility training rank (level 5: the third slot and rank 1), "powerSlot" or "powerRank" for one of them, else nil
+function GuidePlan.powerAt(Config: any, level: number): string?
+	local slot = false
+	for i, L in Config.Abilities.slotLevels do
+		if L == level and i > 1 and Config.Abilities.slotLevels[i - 1] < level then
+			slot = true
+		end
+	end
+	local rank = table.find(Config.Move.ranks.levels, level) ~= nil
+	if slot and rank then
+		return "powerBoth"
+	end
+	return if slot then "powerSlot" elseif rank then "powerRank" else nil
 end
 
 -- The story mission the Journal pins (no side quest pinned) when it is open to play, or nil

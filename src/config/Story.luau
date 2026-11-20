@@ -1904,6 +1904,7 @@ return {
 			idleMove = 8, -- studs: moving less than this counts as standing still
 			afterAct = 3,
 			stageLate = 8,
+			powerWait = 120, -- first-30: a level-up's POWERS line waits this long for the radio to be free
 			lines = {
 				firstIncident = {
 					who = "patch",
@@ -1968,6 +1969,24 @@ return {
 						hero = "Bulwark's show is tonight. Live is pinned in your Journal. Let's go!",
 						villain = "Bulwark's show is tonight. Live is in your Journal. Bring a crowbar.",
 					},
+				},
+				-- first-30 (2026-11-20): a level-up that opens a skill slot or a move training rank (GuidePlan.powerAt);
+				-- nothing else told a new hero about the third slot and rank 1 at level 5. Once a session per level;
+				-- waits out the gap (after a mission unlock line on the same level) for up to `powerWait` s.
+				powerBoth = {
+					who = "patch",
+					hero = "Level up! A new power slot AND move training just opened. Tap POWERS!",
+					villain = "Level up. New power slot, new move training. Tap POWERS and get scarier.",
+				},
+				powerSlot = {
+					who = "patch",
+					hero = "Level up! You've got room for another power. Tap POWERS!",
+					villain = "Level up. Room for one more power. Tap POWERS.",
+				},
+				powerRank = {
+					who = "patch",
+					hero = "Level up! New move training is open in POWERS. Go faster, hero!",
+					villain = "Level up. New move training in POWERS. Faster getaways!",
 				},
 				-- lore step 9: the rare Your double world event starts on this hero (it skips the gap; GuidePlan.URGENT)
 				double = {
