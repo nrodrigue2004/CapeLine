@@ -435,6 +435,10 @@ local Remotes: { [string]: RemoteDef } = {
 	DailyClaim = { dir = "C2S", schema = {}, rate = 1, burst = 2 },
 	DailyState = { dir = "S2C" },
 	DailyProgress = { dir = "S2C" },
+	-- retention pass (alive-world 2026-11-20): the WELCOME BACK card (Shared.ReturnPlan, Ui.ReturnHud). ReturnOpen:
+	-- ask for it (the MENU drawer's TO DO); ReturnCard: the card's rows, `show` when it pops by itself on a join
+	ReturnOpen = { dir = "C2S", schema = {}, rate = 0.5, burst = 2 },
+	ReturnCard = { dir = "S2C" },
 	-- WP10: the group piece and creator codes (Settings > REWARDS). PromoOpen: ask for the rows' state;
 	-- PromoRedeem: one code from the box (upper-case letters and digits; the server matches it against the
 	-- fixed list in Config.Promo only, and never sends it anywhere); PromoGroup: CHECK the group again.

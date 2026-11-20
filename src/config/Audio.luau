@@ -82,6 +82,7 @@ local Audio = {
 		{ id = "boardReward", visual = "BoardHud" }, -- fanfare ping; the TOP 10 card with the week's title (WP2)
 		{ id = "dailyClaim", visual = "JuiceFx" }, -- coin chime; the DAY N! stamp and confetti, more on day 7 (WP1)
 		{ id = "dailyQuest", visual = "JuiceFx" }, -- bright ping; the DAILY! stamp with the quest's line (WP1)
+		{ id = "welcomeBack", visual = "ReturnHud" }, -- page flip; the WELCOME BACK card slides in, its rows tick in (alive-world)
 		-- side quest chains (the juice pass, 2026-11-18): every moment of all 16 chains (sideQuest below)
 		{ id = "questAccept", visual = "JuiceFx" }, -- page swoosh; the NEW QUEST! stamp with the chain's name
 		{ id = "questStep", visual = "JuiceFx" }, -- bright chime; the step's word stamp (CAUGHT!, HELD!...), the pay pop
@@ -218,6 +219,7 @@ local Audio = {
 		boardReward = s("electronicpingshort.wav", 0.8, 1.3), -- WP2: a weekly board title
 		dailyClaim = s("electronicpingshort.wav", 0.8, 1.6),
 		dailyQuest = s("electronicpingshort.wav", 0.7, 1.15),
+		welcomeBack = s("swoosh.wav", 0.6, 1.25, { clip = "episodeIntro" }), -- the WELCOME BACK card (alive-world 2026-11-20)
 		-- side quest chains (the juice pass)
 		questAccept = s("swoosh.wav", 0.6, 1.3),
 		questStep = s("electronicpingshort.wav", 0.75, 1.25),

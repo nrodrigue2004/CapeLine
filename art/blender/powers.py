@@ -734,6 +734,29 @@ for ob in petal:
     ob.data.update()
 mesh("Petal", tint("PetalLeaf"), petal, (255, 200, 230), "SmoothPlastic", shade=True)
 
+# ================================================================ Juggernaut's Siege Mode anchors (CombatFx SUPER.siege, list-combat 2026-11-20)
+# Siege (anchor: the anchor's middle; upright, 6 tall, its long side along z): a hex steel stake ending in a driven
+# point (takes the path colour), a dark steel housing on top with a collar and two side braces, and a glowing band.
+def _taper(t, x, z):
+    k = 0.08 + 0.92 * t
+    return x * k, z * k
+
+
+stake = [extrude_up(hexpoly(0.55, math.pi / 6), -1.4, 2.0),
+         extrude_up(hexpoly(0.55, math.pi / 6), -3.0, -1.4, fn=_taper, steps=3)]
+for yb in (-0.9, 0.0, 0.9):  # grip ridges round the shaft
+    stake.append(extrude_up(hexpoly(0.66, math.pi / 6), yb - 0.09, yb + 0.09))
+for a in range(4):  # four driving fins above the point
+    ang = a * math.pi / 2 + math.pi / 4
+    fin = B(0.12, 1.3, 0.55, 0, -1.2, 0.62)
+    turn(fin, "up", math.degrees(ang))
+    stake.append(fin)
+mesh("Siege", tint("SiegeStake"), stake, (230, 120, 60), "Metal", shade=False)
+mesh("Siege", "SiegeHousing", [B(1.3, 1.1, 2.3, 0, 2.45, 0, bev=0.12), C(0.62, 0.35, 0, 1.85, 0, segs=12),
+                               B(0.22, 1.7, 0.9, 0.55, 1.1, 0, bev=0.05), B(0.22, 1.7, 0.9, -0.55, 1.1, 0, bev=0.05),
+                               B(0.9, 0.18, 2.5, 0, 3.0, 0, bev=0.05)], (52, 54, 60), "Metal")
+mesh("Siege", "SiegeBand", [TOR(0.68, 0.08, 0, 1.6, 0, axis="up", segs=16, csegs=5)], (255, 200, 90), "Neon")
+
 # ================================================================ the fit table and the export
 def bounds(ob):
     vs = [ob.matrix_world @ v.co for v in ob.data.vertices]
@@ -797,7 +820,7 @@ if "--preview" in sys.argv:
              "Bullet": (-4, -14, 2), "Sun": (6, -16, 4), "BlackHole": (13, -16, 3), "KiRing": (19, -16, 3),
              "EmberRim": (-12, -16, 0.2), "HaloRim": (-18, -16, 0.2), "VoltRim": (-38, -16, 0.2),
              "Slash": (-26, -16, 2), "Shock": (-32, -16, 1), "Heads": (26, -16, 2), "Girder": (31, 6, 11.5), "Wing": (-28, 6, 3), "Net": (-34, 6, 2),
-             "Claw": (-31, -6, 1), "Plate": (-35, -6, 1), "Flake": (-38, -6, 1), "Gem": (-41, -6, 1), "Scrap": (-44, -6, 1), "Petal": (-47, -6, 1), "Grenade": (-50, -6, 1)}
+             "Claw": (-31, -6, 1), "Plate": (-35, -6, 1), "Flake": (-38, -6, 1), "Gem": (-41, -6, 1), "Scrap": (-44, -6, 1), "Petal": (-47, -6, 1), "Grenade": (-50, -6, 1), "Siege": (-53, -6, 3)}
     close = "--close" in sys.argv  # the 2026-11-20 effect looks only, near the camera (art/preview/powers_fx.png)
     if close:
         spots = {"Sun": (-9, 0, 3), "BlackHole": (-3.5, 0, 2.5), "KiRing": (1, 0, 2.5), "EmberRim": (5.5, 0, 0.2),

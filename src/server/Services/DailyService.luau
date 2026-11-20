@@ -15,6 +15,9 @@
 --   Config.Daily.pvp is on (those quests also count a non-PvP way). Each quest pays once when it finishes, the all-done bonus once.
 -- * Analytics: daily_login, daily_claim, daily_quest, daily_all_done (fields from DailyRules).
 -- * Studio (DevService "daily"): a day passes, skip a day (the grace), finish today's quests, start over.
+-- * The WELCOME BACK card (retention pass, alive-world 2026-11-20; Shared.ReturnPlan, Ui.ReturnHud): a returning
+--   hero's join, once the daily card is offered, also gets what changed since they left and what to do now (the
+--   facts from the save, the boss, the nemesis and friends here); ReturnOpen (the MENU drawer's TO DO) sends it again.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -39,11 +42,17 @@ local ThrowService = require(script.Parent.ThrowService)
 local BadgeService = require(script.Parent.BadgeService)
 local CityBuilder = require(script.Parent.CityBuilder)
 local BossMath = require(Shared:WaitForChild("BossMath"))
+local ReturnPlan = require(Shared:WaitForChild("ReturnPlan"))
 
 local DailyService = {}
 
 local D = Config.Daily
 local shown: { [Player]: boolean } = {} -- the card was shown for the reward owed now (once per owed day)
+-- the WELCOME BACK card: this session's streak visit and the last day counted before it, whether the hero was
+-- already made and past its prologue when the save loaded (a returning hero), and whether its card popped
+local visits: { [Player]: { kind: string, lastDay: number } } = {}
+local returning: { [Player]: boolean } = {}
+local welcomed: { [Player]: boolean } = {}
 
 local function level(player: Player, profile: any): number
 	local hero = HeroService.get(player)
@@ -120,7 +129,11 @@ local function roll(player: Player): boolean
 	local today = DailyRules.day(Config, os.time())
 	local lvl = level(player, profile)
 	local counted = false
+	local lastDay = d.last
 	local v = DailyRules.visit(Config, d, today)
+	if v and not visits[player] then
+		visits[player] = { kind = v.kind, lastDay = lastDay }
+	end
 	if v then
 		counted = true
 		shown[player] = nil
@@ -154,6 +167,38 @@ local function free(player: Player): boolean
 	return c.created == 1 and c.story.opening == 1
 end
 
+-- The WELCOME BACK card's rows for this player now (Shared.ReturnPlan); newWeek: this join's first visit of a week
+local function sendWelcome(player: Player, show: boolean, newWeek: boolean?)
+	local profile = DataService.get(player)
+	if not profile or not D.welcome.on then
+		return
+	end
+	local ok, card = pcall(function()
+		local Services = script.Parent
+		local NemesisService = require(Services.NemesisService) :: any -- (at call time: no require loop)
+		local StoryService = require(Services.StoryService) :: any
+		local phase, left, bossId = BossService.upcoming()
+		local v = visits[player]
+		local facts = ReturnPlan.facts(Config, profile, {
+			now = os.time(),
+			level = level(player, profile),
+			week = CityBuilder.seed(),
+			lastDay = v and v.lastDay,
+			visit = v and v.kind,
+			newWeek = newWeek,
+			boss = { phase = phase, left = left, id = bossId },
+			friends = #EconomyService.friendsHere(player),
+			nemesis = NemesisService.state(player),
+			devOn = StoryService.devChains(),
+		})
+		return ReturnPlan.card(Config, facts)
+	end)
+	if ok and card then
+		card.show = show
+		Net.fire("ReturnCard", player, card)
+	end
+end
+
 -- Show the claim card once the hero is free (once per owed day)
 local function offerCard(player: Player)
 	task.spawn(function()
@@ -178,14 +223,22 @@ local function offerCard(player: Player)
 			-- "this week's city" (list-combat 2026-11-20, nate: a recurring player base): a returning hero's first
 			-- visit of a new week hears what changed: the outskirts rebuilt by the weekly seed, the bounty boss
 			local week = CityBuilder.seed()
+			local newWeek = false
 			if profile.stats.newsWeek ~= week then
-				local returning = profile.stats.newsWeek ~= 0
+				local wasHere = profile.stats.newsWeek ~= 0
 				profile.stats.newsWeek = week
 				DataService.changed(player)
-				if returning then
+				if wasHere then
+					newWeek = true
 					local b = Config.Boss.bosses[BossMath.bounty(Config, week)]
 					Net.fire("Toast", player, { id = "weekNews", num = b and b.num or 0 })
 				end
+			end
+			-- a returning hero's WELCOME BACK card, once a session (it waits behind the daily card on the device)
+			-- (a new hero gets it unshown: the MENU drawer's TO DO button knows when a reward waits)
+			if not welcomed[player] then
+				welcomed[player] = true
+				sendWelcome(player, returning[player] == true, newWeek)
 			end
 		end
 	end)
@@ -299,7 +352,16 @@ function DailyService.init()
 		send(player)
 	end)
 	Net.on("DailyClaim", claim)
-	DataService.Loaded:Connect(function(player: Player)
+	Net.on("ReturnOpen", function(player: Player)
+		sendWelcome(player, false)
+	end)
+	DataService.Loaded:Connect(function(player: Player, loaded: any)
+		-- a returning hero: already made and past its prologue when the save loaded (WELCOME BACK)
+		local c0 = loaded and ProfileSchema.active(loaded)
+		returning[player] = c0 ~= nil
+			and c0.created == 1
+			and type(c0.story) == "table"
+			and c0.story.opening == 1
 		task.spawn(function()
 			-- the day counts once the hero is loaded (a late reward's Renown goes on the hero)
 			local waited = 0
@@ -321,6 +383,7 @@ function DailyService.init()
 	end)
 	Players.PlayerRemoving:Connect(function(player: Player)
 		shown[player] = nil
+		visits[player], returning[player], welcomed[player] = nil, nil, nil
 	end)
 	-- the signals players already make
 	IncidentService.Cleared:Connect(function(inc: any)

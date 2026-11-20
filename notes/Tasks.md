@@ -258,6 +258,28 @@ on it. Play at the default volumes (Music 2, Sound effects 5). Needs Studio:
 508. Walk or fly into the park: the city bed crossfades to birdsong and a breeze; leaving the park brings the
    district's bed back.
 
+### Alive world part 4: retention, the WELCOME BACK card and TO DO (2026-11-20, alive-world)
+A walk through day 2, day 7 and a level 10-20 hero found every return feature already there (the DAILY card, three
+NEW WEEK toasts, boss and bounty toasts, nemesis, Journal GOALS, the friend boost, the Hero Pass) but nothing that
+puts them in one place on rejoin, no tap to act on a toast, and nothing pointing past Act 1 (level 8) when the day's
+chores are done. Fix: the WELCOME BACK card (Shared.ReturnPlan, Ui.ReturnHud, sent by DailyService after the daily
+card) with GO buttons, and TO DO in the MENU drawer. Lune proves the rows, order, limits and wiring (ONLY="Alive4").
+PLACEHOLDER ART: Kit frames and text. Needs Studio:
+509. A returning hero (a save made and past the prologue; rejoin the next UTC day, or DevService "daily" a day
+   passes then rejoin): the DAILY claim card comes first; after it closes, the WELCOME BACK card slides in with a
+   page-flip sound and its rows tick in one by one: the DAY N STREAK line, then TO DO with the owed claim first
+   (gold, GO). Each GO closes the card and opens its screen: DAILY, Hero Pass (PASS or the episode tab), the MAP
+   (boss, bounty, contracts), WANTED (nemesis), the Journal (story, quests, goals). X, Backspace and 30 s close it.
+510. A brand new hero: no WELCOME BACK card on the first session (the prologue and the DAILY card only), but MENU
+   holds TO DO, and it opens the card with the hero's real rows.
+511. TO DO reads "TO DO !" (and MENU "MENU !") while a reward is waiting (the daily claim, a Hero Pass tier to claim,
+   a boss fight live, a Showdown open); opening the card clears the "!".
+512. A new week (a save whose last visit was last week): the card's NEW WEEK news names this week's BOUNTY boss,
+   matching the NEW WEEK toasts; a met nemesis with full Intel adds "<NAME> IS WAITING" and a Showdown row.
+513. A level 10-20 hero with Act 1 done: the card still lists at least three things (DOUBLE contracts with today's
+   count, side quests to start with their giver, the bounty boss or the boss timer, the episode, the closest goal,
+   the Hero Pass) and none is a dead end; on a phone (Device emulator, iPhone SE) it fits with its X reachable.
+
 ### Living world: meshes over the plain shapes and the ambient life (2026-11-19, living-world)
 Lune proves the looks, picks, shop and vending layout, lanes, lights, brakes, corners, manholes, flags, reactions and budgets (ONLY="Living world"; art/preview/life.png, life_street.png, life_textures.png, lorebooks.png, city_audit.txt). These need Studio:
 1. Outskirts: trees have real crowns (round, tall, pine; some autumn and blossom), trunks, crop and corn rows, round hay bales, silo bodies and domes, panelled house doors with knobs, all facing right (no backwards pieces) and colliding like before (walk into a tree trunk, stand on a hay bale). Break a farm building: its door and silo meshes go with it.
@@ -2379,6 +2401,12 @@ Storyboard (the game's own camera on the test seed, stand-in figures): art/previ
 50. Rides (Art.Powers FlameJets, LightRail, PsiSlab, Wave): use each travel power: Flame Jets puts two steel thrusters with glowing throats under your feet with flame pouring out of them; Light Rail a glowing spine on faint hard-light ties running ahead of you; Psi Platform a torn street slab (asphalt, a yellow lane stripe, bent rebar, a faint ring under it) with the crate and barrel on its corners; Wave Surf a small breaking wave just behind and under you (if it looks backwards or buries you, its offset is in CombatFx.ride). Each turns with your heading and fades at the end. The other summons and rides look as before (the Powers model was re-uploaded).
 51. Travel styles (Config.TravelStyles.art, Fx.TravelStyleFx): wear one style of each burst kind (Dev: grant styles): the sparks styles trail a sparkle strip and throw spinning star-sparks, puff styles a smoke roll and soft smoke clouds, ring styles a neon strip and a flat shock ring on take-off and landing, petals a ribbon and leaves, ink a dark streak and ink splats, prism a twin strip and stars in rainbow colours; none shows grey squares. A second player sees the same.
 52. Rooftop row (Art.Roof): play the prologue's rooftop chase or fly along Downtown's rooftop row: the water tanks are wooden barrels with steel hoops, a ladder and a cone roof on a steel stand (standing on the stand, not sunk or floating); the hatches are concrete housings with a green door; the skylights are pitched glass with dark frames; the washing hangs on its line between two poles (a red shirt, a white sheet, a blue striped towel) and you pass through it. Landing spots in the middle of each roof are still clear; the tanks and hatches block as before.
+207. Siege Mode anchors (SUPER.siege; Art.Powers Siege): cast Juggernaut's Siege Mode: four anchors drop from high up and slam in round you, one after another, point first: each a finned, ridged steel stake in your path colour under a dark housing with side braces and a glowing band in the accent colour; dust, steam and the hit bars on each slam; no plain boxes.
+
+206. Eclipse (SUPER.eclipse; Art.Powers Sun; Config.Fx.eclipse): cast Shadow's Eclipse in Comic and Anime: high over the zone a black sun pops in with a corona of flame spikes burning in your Shadow colour (white in Anime) round it, slowly turning, the dark beams fall, your screen dims and the kunai rain; no flat neon disc.
+
+205. Sniper lock on a friend (CombatClient AIM; Config.Fx.robots.aim.ally): with a second player, let a Sniper aim at them while you stand within about 90 studs: when its laser locks (thickens and blinks), you hear the lock ping from them, quieter and lower than the ping you get when it locks on you; from far away you hear nothing; a stun that breaks the aim first stops the ping.
+
 204. Blocks (CombatFx.blocked; Config.Fx.block): hold Block (or parry) as a Grunt shoots you: each stopped pellet flashes pale blue on you, a glow and sparks glance back toward the robot and a metal clank plays, with no red edge or shake; a robot's shield stopping your hit flashes and clanks the same way.
 
 203. Bomber's grenade (Art.Powers Grenade, CombatFx.lob; Config.Fx.robots.lob.mesh): let a Bomber lob at you: the grenade is a round olive body with three raised bands and a seam, a steel cap with its lever, and a red light on top that blinks faster as it falls; it tumbles on its arc, about a stud across, over the red landing mark, and is gone in the blast; nothing pops in at the world's middle for a frame.
