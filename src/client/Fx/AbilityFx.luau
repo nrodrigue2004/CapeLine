@@ -20,6 +20,7 @@ local FxPlan = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Fx
 local QualityController = require(script.Parent.Parent.Controllers.QualityController)
 local FxLib = require(script.Parent.FxLib)
 local PowerMeshes = require(script.Parent.PowerMeshes)
+local MeshFix = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("MeshFix"))
 
 local AbilityFx = {}
 
@@ -304,8 +305,24 @@ HIT.cage = function(pos, x) -- bars rise around the target
 	for i = 1, x.n do
 		local a = i / x.n * math.pi * 2
 		local at = g + Vector3.new(math.cos(a), 0, math.sin(a)) * 2.5 * x.s
-		local b = K.part(Vector3.new(0.25, 0.5, 0.25) * x.s, CFrame.new(at), tone(x, i))
 		local h = 6 * x.s
+		-- a bar of light: the Blender light lance stood on end (Art.Powers HeadLance, 2026-11-20), else a part
+		local lance = if PowerMeshes.ready("Heads") then PowerMeshes.part("HeadLance") else nil
+		if lance then
+			local up = CFrame.Angles(-math.pi / 2, 0, 0) * MeshFix.turn("Powers") -- its long z stood up
+			lance.Color = tone(x, i)
+			lance.Material = Enum.Material.Neon
+			lance.Size = Vector3.new(0.5 * x.s, 0.5 * x.s, 0.4)
+			lance.CFrame = CFrame.new(at) * up
+			lance.Parent = K.folder
+			TweenService:Create(lance, TweenInfo.new(0.12), {
+				Size = Vector3.new(0.5 * x.s, 0.5 * x.s, h),
+				CFrame = CFrame.new(at + Vector3.new(0, h / 2, 0)) * up,
+			}):Play()
+			K.fade(lance, 0.4, nil, 0.4)
+			continue
+		end
+		local b = K.part(Vector3.new(0.25, 0.5, 0.25) * x.s, CFrame.new(at), tone(x, i))
 		TweenService:Create(b, TweenInfo.new(0.12), {
 			Size = Vector3.new(0.25 * x.s, h, 0.25 * x.s),
 			CFrame = CFrame.new(at + Vector3.new(0, h / 2, 0)),

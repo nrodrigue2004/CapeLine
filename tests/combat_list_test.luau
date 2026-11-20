@@ -3718,7 +3718,7 @@ return function(T: any)
 	end)
 
 	test(
-		"List combat: halo and spin flourishes are hollow Blender hoops, shatters glass stones, wings Blender wings",
+		"List combat: halo and spin flourishes are hollow Blender hoops, shatters glass stones, wings Blender wings, cages lances",
 		function()
 			local roblox = require("@lune/roblox")
 			if not T.placePath then
@@ -3778,6 +3778,27 @@ return function(T: any)
 				string.find(src, "-0.35 * open * sgn", 1, true) ~= nil,
 				"both wings sweep back (mirrored yaw)"
 			)
+			-- Static Field's cage: bars of light are Blender lances stood on end round the target
+			sim:run("cage", function()
+				AbilityFx.hit(
+					Config.Abilities.list.StaticField,
+					"Comic",
+					V(-60, 5, 0),
+					roblox.Color3.fromRGB(120, 200, 255),
+					roblox.Color3.new(1, 1, 1),
+					true,
+					nil,
+					1
+				)
+			end)
+			local bars = 0
+			for _, d in sim.service("Workspace"):GetDescendants() do
+				if d:IsA("MeshPart") and d.Name == "HeadLance" and d.CFrame.Position.X < -50 then
+					bars += 1
+					check(math.abs(d.CFrame.LookVector.Y) > 0.95, "standing upright")
+				end
+			end
+			check(bars >= 4, "the cage's bars are lances (" .. bars .. ")")
 			-- Glacier Armor's hit shatters chipped glass stones (the Blender rock), not cubes
 			local rocks0 = 0
 			for _, d in sim.service("Workspace"):GetDescendants() do
