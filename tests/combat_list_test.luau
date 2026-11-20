@@ -3861,6 +3861,14 @@ return function(T: any)
 			)
 			local cam = sim.service("Workspace").CurrentCamera
 			cam.CFrame = roblox.CFrame.new(0, 5, 10) -- looking down -Z
+			local char = UiSim.newInstance("Model")
+			local root = UiSim.newInstance("Part")
+			root.Name = "HumanoidRootPart"
+			root.CFrame = roblox.CFrame.new(0, 3, 0)
+			root.Position = roblox.Vector3.new(0, 3, 0)
+			root.Parent = char
+			char.Parent = sim.workspace
+			sim.player.Character = char
 			local FxLib = sim:require("Client.Fx.FxLib")
 			local CombatFx = sim:require("Client.Fx.CombatFx")
 			sim:run("CombatFx", CombatFx.init)
@@ -3928,6 +3936,33 @@ return function(T: any)
 			require("@lune/task").wait(0.1) -- the thud's gap runs on the real clock
 			hit(5, nil :: any, nil :: any, nil :: any)
 			check(#sounds == n + 1, "a hit with no robot spot still thuds")
+			-- a robot's punch (SWING) near you: a hot streak, a fist flash and a whoosh; far off, nothing
+			local Enemy = sim:require("Client.Controllers.EnemyRenderer")
+			local realFacing = Enemy.facing
+			Enemy.facing = function()
+				return roblox.Vector3.new(0, 0, -1)
+			end
+			local function parts(): number
+				local c = 0
+				for _, d in sim.service("Workspace"):GetDescendants() do
+					if d:IsA("BasePart") then
+						c += 1
+					end
+				end
+				return c
+			end
+			local p0, s0 = parts(), #sounds
+			sim:run("swing", function()
+				remotes:WaitForChild("CombatEvents").OnClientEvent:Fire({ { 6, 41, 4, 3, 0 } })
+			end)
+			check(parts() > p0 + 3, "a robot's punch draws its streak and flash (" .. (parts() - p0) .. ")")
+			check(#sounds == s0 + 1 and sounds[#sounds] == SimConfig.Audio.impact.whoosh, "and whooshes")
+			p0, s0 = parts(), #sounds
+			sim:run("far swing", function()
+				remotes:WaitForChild("CombatEvents").OnClientEvent:Fire({ { 6, 42, 4000, 3, 0 } })
+			end)
+			check(parts() == p0 and #sounds == s0, "a punch far away draws nothing")
+			Enemy.facing = realFacing
 			FxLib.emit, Audio.playSpec, Camera.shake = realEmit, realPlay, realShake
 			check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
 		end

@@ -505,6 +505,8 @@ end
 local IMPACT = Config.Audio.impact
 local lastThud = 0
 local HURT = Config.Fx.hurt
+local SWING_FX = Config.Fx.robots.swing
+local SWING_COLOR = Color3.fromRGB(SWING_FX.color[1], SWING_FX.color[2], SWING_FX.color[3])
 local lastHurt = 0
 
 local function drawHits(r: any, row: any, style: string, mine: boolean)
@@ -892,6 +894,12 @@ local function onEvents(list: { any })
 			if set and f then
 				-- an evil twin's strike: its path's cut or blow in front of it
 				CombatFx.arc(Vector3.new(ev[3], ev[4], ev[5]), f, 7, 110, style, color, 1, true, false, set)
+			elseif f and near(Vector3.new(ev[3], ev[4], ev[5]), SWING_FX.near) then
+				-- any robot's blow (list-combat 2026-11-20): a quick hot streak and a fist flash where it lands,
+				-- and a whoosh, so a punch reads as a punch (Config.Fx.robots.swing)
+				local at = Vector3.new(ev[3], ev[4], ev[5])
+				CombatFx.arc(at, f, SWING_FX.range, SWING_FX.cone, style, SWING_COLOR, 1, false)
+				AudioController.playSpec(IMPACT.whoosh, at)
 			end
 		elseif kind == BLOCKED then
 			CombatFx.blocked(Vector3.new(ev[3], ev[4], ev[5]))
