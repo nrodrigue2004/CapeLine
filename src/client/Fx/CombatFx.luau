@@ -4290,6 +4290,23 @@ function CombatFx.mend(from: () -> Vector3?, to: () -> Vector3?, time: number, o
 	local core = part(Vector3.new(md.width, md.width, 1), CFrame.new(), WHITE:Lerp(color, 0.5))
 	local glow = part(Vector3.new(md.width * 4, md.width * 4, 1), CFrame.new(), color)
 	glow.Transparency = 0.6
+	-- the flowing energy strip over it (2026-11-20; Config.Fx.energyBeam), its glow part kept clear
+	local EB = F.energyBeam
+	local strip: Beam?, s0: Attachment?, s1: Attachment? = nil, nil, nil
+	if EB and (EB.texture or 0) ~= 0 then
+		local p0, p1 = from(), to()
+		strip, s0, s1 = stripBeam(
+			"MendBeam",
+			EB.texture,
+			p0 or Vector3.zero,
+			p1 or Vector3.zero,
+			md.width * 5,
+			color,
+			EB.tile,
+			EB.speed
+		)
+		glow.Transparency = 1
+	end
 	local packets: { { p: Part, t0: number } } = {}
 	local t, nextPacket = 0, 0
 	local conn: RBXScriptConnection
@@ -4300,6 +4317,11 @@ function CombatFx.mend(from: () -> Vector3?, to: () -> Vector3?, time: number, o
 			conn:Disconnect()
 			fade(core, 0.15)
 			fade(glow, 0.2)
+			for _, inst in { strip, s0, s1 } :: { Instance? } do
+				if inst then
+					inst:Destroy()
+				end
+			end
 			for _, pk in packets do
 				pk.p:Destroy()
 			end
@@ -4313,6 +4335,11 @@ function CombatFx.mend(from: () -> Vector3?, to: () -> Vector3?, time: number, o
 		core.CFrame = cf
 		glow.Size = Vector3.new(md.width * 4 * wobble, md.width * 4 * wobble, len)
 		glow.CFrame = cf
+		if strip and s0 and s1 then
+			s0.Position, s1.Position = a, b
+			strip.Width0 = md.width * 5 * wobble
+			strip.Width1 = md.width * 5 * wobble
+		end
 		if t >= nextPacket then
 			nextPacket = t + md.packet
 			table.insert(

@@ -3479,58 +3479,86 @@ return function(T: any)
 		end
 	)
 
-	test("List combat: robot shots leave a glowing streak you can see coming", function()
-		local roblox = require("@lune/roblox")
-		check(Config.Fx.shot.trail > 0 and Config.Fx.shot.life > 0, "the streak is tuned")
-		if not T.placePath then
-			return
-		end
-		local UiSim = require("./uisim")
-		local sim = UiSim.new(
-			UiSim.load(roblox.deserializePlace(fs.readFile(T.placePath))),
-			{ name = "PC", w = 1280, h = 720, top = 36, left = 0, right = 0, bottom = 0, touch = false }
-		)
-		local CombatFx = sim:require("Client.Fx.CombatFx")
-		sim:run("CombatFx", CombatFx.init)
-		local V = roblox.Vector3.new
-		local function trails()
-			local n, textured = 0, true
-			for _, d in sim.service("Workspace"):GetDescendants() do
-				if d:IsA("Trail") and d.Name == "ShotTrail" then
-					n += 1
-					textured = textured
-						and d.Texture == "rbxassetid://" .. Config.Fx.energyBeam.texture
-						and d.FaceCamera
-						and d.Attachment0 ~= nil
-						and d.Attachment1 ~= nil
-						and d.Attachment0.Parent == d.Parent
-				end
+	test(
+		"List combat: robot shots leave a glowing streak you can see coming, Medics a flowing beam",
+		function()
+			local roblox = require("@lune/roblox")
+			check(Config.Fx.shot.trail > 0 and Config.Fx.shot.life > 0, "the streak is tuned")
+			if not T.placePath then
+				return
 			end
-			return n, textured
-		end
-		sim:run("pellet", function()
-			CombatFx.enemyShot(V(0, 5, 0), V(0, 0, -60), nil)
-		end)
-		local n, ok = trails()
-		check(n == 1 and ok, "a pellet trails an energy streak (" .. n .. ")")
-		sim:run("sniper", function()
-			CombatFx.enemyShot(V(10, 5, 0), V(0, 0, -200), 1)
-		end)
-		n, ok = trails()
-		check(n == 2 and ok, "a Sniper round too (" .. n .. ")")
-		sim:run("fake", function()
-			CombatFx.pathShot(
-				V(20, 5, 0),
-				V(0, 0, -60),
-				"Light",
-				"Comic",
-				roblox.Color3.fromRGB(255, 230, 120)
+			local UiSim = require("./uisim")
+			local sim = UiSim.new(
+				UiSim.load(roblox.deserializePlace(fs.readFile(T.placePath))),
+				{ name = "PC", w = 1280, h = 720, top = 36, left = 0, right = 0, bottom = 0, touch = false }
 			)
-		end)
-		n, ok = trails()
-		check(n == 3 and ok, "and a famous fake's shot (" .. n .. ")")
-		check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
-	end)
+			local CombatFx = sim:require("Client.Fx.CombatFx")
+			sim:run("CombatFx", CombatFx.init)
+			local V = roblox.Vector3.new
+			local function trails()
+				local n, textured = 0, true
+				for _, d in sim.service("Workspace"):GetDescendants() do
+					if d:IsA("Trail") and d.Name == "ShotTrail" then
+						n += 1
+						textured = textured
+							and d.Texture == "rbxassetid://" .. Config.Fx.energyBeam.texture
+							and d.FaceCamera
+							and d.Attachment0 ~= nil
+							and d.Attachment1 ~= nil
+							and d.Attachment0.Parent == d.Parent
+					end
+				end
+				return n, textured
+			end
+			sim:run("pellet", function()
+				CombatFx.enemyShot(V(0, 5, 0), V(0, 0, -60), nil)
+			end)
+			local n, ok = trails()
+			check(n == 1 and ok, "a pellet trails an energy streak (" .. n .. ")")
+			sim:run("sniper", function()
+				CombatFx.enemyShot(V(10, 5, 0), V(0, 0, -200), 1)
+			end)
+			n, ok = trails()
+			check(n == 2 and ok, "a Sniper round too (" .. n .. ")")
+			sim:run("fake", function()
+				CombatFx.pathShot(
+					V(20, 5, 0),
+					V(0, 0, -60),
+					"Light",
+					"Comic",
+					roblox.Color3.fromRGB(255, 230, 120)
+				)
+			end)
+			n, ok = trails()
+			check(n == 3 and ok, "and a famous fake's shot (" .. n .. ")")
+			-- a Medic Unit's repair beam: the flowing energy strip between the Medic and its patient, gone after
+			local ma, mb = V(0, 5, 0), V(12, 5, 0)
+			sim:run("mend", function()
+				CombatFx.mend(function()
+					return ma
+				end, function()
+					return mb
+				end, 0.5)
+			end)
+			sim:run("frame", function()
+				sim.service("RunService").RenderStepped:Fire(1 / 60)
+			end)
+			local mend = sim.service("Workspace"):FindFirstChild("MendBeam", true)
+			check(mend ~= nil and mend:IsA("Beam"), "the repair beam is an energy strip")
+			if mend then
+				check(mend.Attachment1.Position == mb, "reaching the patient")
+			end
+			require("@lune/task").wait(0.55)
+			sim:run("frame", function()
+				sim.service("RunService").RenderStepped:Fire(0.6)
+			end)
+			check(
+				sim.service("Workspace"):FindFirstChild("MendBeam", true) == nil,
+				"and it goes when the mend ends"
+			)
+			check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
+		end
+	)
 
 	test("List combat: standing and ground rings are the Blender shockwave ring", function()
 		local roblox = require("@lune/roblox")
