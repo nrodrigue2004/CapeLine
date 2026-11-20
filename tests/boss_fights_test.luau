@@ -4,7 +4,9 @@
 --   the fight Downed (BossMath.newHeroHit caps one boss hit on a hero far below it), and there is never a quiet
 --   stretch (the longest gap between warnings and strikes);
 -- * every attack shape has its telegraph, every boss its name card title and news portrait;
--- * hits read on the boss (a pale flash, chunks breaking off every few % of its hp) and a phase hits the arena.
+-- * hits read on the boss (a pale flash, chunks breaking off every few % of its hp) and a phase hits the arena;
+-- * pass 2: the MVP spotlight everyone near sees, the loot fly-in before the result card, and the way to a first boss
+--   (the marker's distance from anywhere, the MAP tap's fast travel for heroes who cannot fly, the alerts' route line).
 -- Called from tests/run.luau. ONLY="Boss fights" runs just these.
 
 return function(T: any)
@@ -238,5 +240,66 @@ return function(T: any)
 			has("src/client/Fx/FinisherFx.luau", '"bossDead" else "bossPhase"'),
 			"the phase and the kill slow time"
 		)
+	end)
+
+	test("Boss fights: the MVP spotlight, the loot fly-in and the way to a first boss", function()
+		local Travel = require("../src/shared/Travel")
+		local FB = Config.Fx.boss
+		-- the spotlight: the server names the top heroes once it falls, every client near lights them up
+		check(
+			has("src/server/Services/BossService.luau", 'k = "mvp",'),
+			"the server sends the MVPs on a kill"
+		)
+		check(
+			has("src/server/Services/BossService.luau", "B.contribution.mvp, #ranked"),
+			"the top MVP count of them"
+		)
+		local wfx = "src/client/Fx/WorldFx.luau"
+		check(has(wfx, 'elseif ev.k == "mvp" then'), "the client takes the MVP event")
+		check(has(wfx, "task.delay(FB.mvp.delay"), "after the boss's collapse")
+		check(
+			has(wfx, 'hl.Name = "MvpGlow"') and has(wfx, 'tag.Name = "MvpTag"'),
+			"a glow and a tag on each MVP"
+		)
+		check(has(wfx, 'CombatFx.banner("MVP: "'), "and a banner naming them")
+		check(
+			FB.mvp.delay >= 2 and FB.mvp.time >= 5 and FB.mvp.range >= 500,
+			"seen long enough and far enough"
+		)
+		-- the loot fly-in, then the result card
+		local L = FB.loot
+		check(
+			L.coins[1] >= 1 and L.coins[2] >= L.coins[1] and L.coins[2] <= 20,
+			"a handful of coins, never a flood"
+		)
+		check(
+			L.fly > 0.5 and L.fly < 2 and L.gap * (L.coins[2] + L.orbs) < 3,
+			"the whole rain lands inside 3 s"
+		)
+		check(has("src/client/Fx/JuiceFx.luau", "function JuiceFx.bossLoot("), "JuiceFx rains the loot")
+		check(
+			has("src/client/Ui/WorldHud.luau", "task.delay(JuiceFx.bossLoot(at, r), show)"),
+			"the result card waits for the loot to land"
+		)
+		check(has("src/client/Ui/WorldHud.luau", "Enum.EasingStyle.Back"), "the card's rows pop in")
+		-- the way there: the marker from anywhere with its distance, the MAP tap, the alerts
+		check(
+			has("src/client/Ui/WorldHud.luau", 'string.format("%s  %dm", string.upper(def.name), d)'),
+			"the boss marker shows how far"
+		)
+		check(
+			has("src/client/Ui/MapScreen.luau", '"the world boss", true)'),
+			"the MAP's boss diamond can travel"
+		)
+		check(has("src/client/Ui/Toasts.luau", "push(BOSS_ROUTE"), "the alerts say how to get there")
+		check(has("src/client/Ui/NewsHud.luau", "text = text, boss = true"), "and so does the news flash")
+		local beacons = { { id = 1, x = 0, z = 0 }, { id = 2, x = 1000, z = 0 }, { id = 3, x = 2000, z = 0 } }
+		local b, d = Travel.nearestFound(beacons, Travel.add(Travel.add(0, 1), 2), 1900, 0, -500, 0, 600)
+		check(b ~= nil and b.id == 2 and d == 900, "the found beacon nearest the boss, not an unfound one")
+		check(
+			Travel.nearestFound(beacons, Travel.add(0, 1), 300, 0, 500, 0, 600) == nil,
+			"none when it saves little"
+		)
+		check(Travel.nearestFound(beacons, 0, 1900, 0, -500, 0, 600) == nil, "none with no beacon found")
 	end)
 end

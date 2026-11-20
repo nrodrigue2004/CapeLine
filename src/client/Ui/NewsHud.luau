@@ -420,7 +420,7 @@ local function onFacts(data: any)
 					if NewsPlan.flash(Config, fact) then
 						tvShow("flash", "BREAKING NEWS", text, N.tv.seconds)
 						if NewsPlan.KINDS[fact.k] == "boss" then
-							Toasts.show({ id = "newsFlash", text = text })
+							Toasts.show({ id = "newsFlash", text = text, boss = true })
 						end
 					elseif quiet() then
 						tvShow("fact", N.channel, text, N.tv.fact)
