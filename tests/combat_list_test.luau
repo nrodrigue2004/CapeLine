@@ -2522,6 +2522,69 @@ return function(T: any)
 		end
 	end)
 
+	test("List combat: travel styles draw the uploaded sheets and strips (Everything Left 143)", function()
+		local roblox = require("@lune/roblox")
+		local TS = Config.TravelStyles
+		for _, list in TS.byMobility do
+			for _, st in list do
+				local a = TS.art[st.burst]
+				check(a ~= nil, st.name .. ": its burst kind has art")
+				check(Config.Fx.lib.textures[a.mote].id > 0, st.name .. ": the mote sheet is uploaded")
+				check(Config.Creator.trailFx.kits[a.trail].id > 0, st.name .. ": the trail strip is uploaded")
+			end
+		end
+		check(
+			not string.find(fs.readFile("src/client/Fx/TravelStyleFx.luau"), "PLACEHOLDER ART", 1, true),
+			"TravelStyleFx is no longer placeholder art"
+		)
+		if not T.placePath then
+			return
+		end
+		local UiSim = require("./uisim")
+		local sim = UiSim.new(
+			UiSim.load(roblox.deserializePlace(fs.readFile(T.placePath))),
+			{ name = "PC", w = 1280, h = 720, top = 36, left = 0, right = 0, bottom = 0, touch = false }
+		)
+		local char = UiSim.newInstance("Model")
+		local root = UiSim.newInstance("Part")
+		root.Name = "HumanoidRootPart"
+		root.Parent = char
+		char.Parent = sim.workspace
+		sim.player.Character = char
+		local TravelStyleFx = sim:require("Client.Fx.TravelStyleFx")
+		sim:run("init", TravelStyleFx.init)
+		local TravelStyleRules = require("../src/shared/TravelStyleRules")
+		local seen = {}
+		for id = 1, 30 do
+			local st = TravelStyleRules.byId(Config, id)
+			if st and not seen[st.burst] then
+				seen[st.burst] = true
+				sim:run("style", function()
+					sim.player:SetAttribute("TravelStyle", id)
+				end)
+				local tr, mo
+				for _, c in root:GetChildren() do
+					if c.ClassName == "Trail" then
+						tr = c
+					elseif c.ClassName == "ParticleEmitter" then
+						mo = c
+					end
+				end
+				local a = Config.TravelStyles.art[st.burst]
+				check(
+					tr ~= nil
+						and tr.Texture
+							== "rbxassetid://" .. tostring(Config.Creator.trailFx.kits[a.trail].id),
+					st.burst .. ": the trail strip"
+				)
+				check(
+					mo ~= nil and mo.Texture == "rbxassetid://" .. tostring(Config.Fx.lib.textures[a.mote].id),
+					st.burst .. ": the mote sheet"
+				)
+			end
+		end
+	end)
+
 	test("List combat: Photo Mode backdrops are printed overlays (Everything Left 354)", function()
 		local ids = Config.Ui.photoBackdrops
 		for _, name in { "COMIC", "SPEED", "SUNSET", "NOIR", "NEON" } do

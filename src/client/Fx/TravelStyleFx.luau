@@ -3,7 +3,8 @@
 -- they move fast, a take-off burst when they speed up or leap, and a landing effect when a fast fall ends;
 -- your own swing line takes the style's colour (MoveController.lineColor). Looks only: it reads velocities,
 -- never sets one. Juice "styleBurst" plays the whoosh with the burst.
--- PLACEHOLDER ART: engine Trails and ParticleEmitters with default textures until the effects pass.
+-- Art (Everything Left 143, 2026-11-20): the bursts and motes draw the effects library's uploaded sheets and the
+-- trails the uploaded flight trail strips, picked by the style's burst kind (Config.TravelStyles.art).
 
 local Debris = game:GetService("Debris")
 local Players = game:GetService("Players")
@@ -40,6 +41,35 @@ local function rgb(t: { number }): Color3
 	return Color3.fromRGB(t[1], t[2], t[3])
 end
 
+-- the burst kind's mote sheet (a flipbook where the sheet is one) and trail strip; Roblox's image for an id of 0
+local function moteTex(e: ParticleEmitter, style: any)
+	local a = TS.art and TS.art[style.burst]
+	local t = a and Config.Fx.lib.textures[a.mote]
+	if not t or not t.id or t.id <= 0 then
+		return
+	end
+	e.Texture = "rbxassetid://" .. tostring(t.id)
+	if t.flip == 4 then
+		e.FlipbookLayout = Enum.ParticleFlipbookLayout.Grid4x4
+		e.FlipbookMode = Enum.ParticleFlipbookMode.OneShot
+	end
+end
+
+local function trailTex(tr: Trail, style: any)
+	local a = TS.art and TS.art[style.burst]
+	local k = a and Config.Creator.trailFx and Config.Creator.trailFx.kits[a.trail]
+	if not k or not k.id or k.id <= 0 then
+		return
+	end
+	tr.Texture = "rbxassetid://" .. tostring(k.id)
+	tr.TextureMode = if k.mode == "Wrap" then Enum.TextureMode.Wrap else Enum.TextureMode.Stretch
+	if k.length then
+		tr.TextureLength = k.length
+	end
+end
+TravelStyleFx._moteTex = moteTex
+TravelStyleFx._trailTex = trailTex
+
 local function strip(char: Model)
 	for _, d in char:GetDescendants() do
 		if d.Name == TAG then
@@ -60,6 +90,7 @@ local function burst(style: any, at: Vector3, big: boolean)
 	p.Size = Vector3.new(0.2, 0.2, 0.2)
 	p.CFrame = CFrame.new(at)
 	local e = Instance.new("ParticleEmitter")
+	moteTex(e, style)
 	e.Color = ColorSequence.new(rgb(style.c1), rgb(style.c2))
 	e.LightEmission = style.glow
 	e.Rate = 0
@@ -123,6 +154,7 @@ local function dress(player: Player)
 	t.LightEmission = style.glow
 	t.FaceCamera = true
 	t.Enabled = false
+	trailTex(t, style)
 	t.Parent = root
 	local m = Instance.new("ParticleEmitter")
 	m.Name = TAG
@@ -133,6 +165,7 @@ local function dress(player: Player)
 	m.Speed = NumberRange.new(0.5, 2)
 	m.SpreadAngle = Vector2.new(180, 180)
 	m.Size = NumberSequence.new(if style.burst == "puff" then 0.9 else 0.3, 0)
+	moteTex(m, style)
 	m.Parent = root
 	rigs[player] = { style = style, root = root, trail = t, motes = m, fast = false, fall = 0, air = false }
 	if player == me then

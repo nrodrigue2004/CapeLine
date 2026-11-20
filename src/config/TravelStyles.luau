@@ -12,7 +12,8 @@
 -- look: c1, c2 = colours; trail = width and life (s); burst = the take-off and landing effect kind:
 --   "ring" (a flat ring), "sparks" (bright bits), "puff" (soft clouds), "petals" (flat petals), "ink" (dark
 --   splats), "prism" (rainbow shards); glow = the trail glows (LightEmission).
--- PLACEHOLDER ART: engine Trails and ParticleEmitters with default textures until the effects pass.
+-- art (Everything Left 143, 2026-11-20): each burst kind's textures, uploaded: `mote` a Config.Fx.lib.textures sheet
+-- for the burst and the moving motes, `trail` a Config.Creator.trailFx strip for the trail (TravelStyleFx).
 local function st(
 	name: string,
 	source: string,
@@ -46,6 +47,14 @@ return {
 	showAt = 30,
 	burstAt = 55,
 	landFall = 40, -- a fall this fast ends in the landing effect
+	art = {
+		ring = { mote = "shock", trail = "neon" },
+		sparks = { mote = "spark", trail = "sparkle" },
+		puff = { mote = "smoke", trail = "smoke" },
+		petals = { mote = "leaf", trail = "ribbon" },
+		ink = { mote = "ink", trail = "streak" },
+		prism = { mote = "star", trail = "twin" },
+	},
 	byMobility = {
 		flight = {
 			st(
