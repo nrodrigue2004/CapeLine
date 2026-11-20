@@ -4254,6 +4254,19 @@ function CombatFx.zone(center: Vector3, radius: number, time: number)
 	disc.Transparency = 0.45
 	local inner = part(Vector3.new(0.12, radius * 1.3, radius * 1.3), rot, core, Enum.PartType.Cylinder)
 	inner.Transparency = 0.55
+	-- a ring of flame tongues round the patch (Ember Ring's Blender rim, Art.Powers EmberRim; 2026-11-20), turning
+	local rim: MeshPart? = nil
+	if PowerMeshes.ready("EmberRim") then
+		local m = Config.PowerArt.EmberRim.EmberFlames
+		local k = radius * 0.95
+		rim = powerMesh(
+			"EmberFlames",
+			Vector3.new(m.size[1] * k, m.size[2] * math.clamp(k, 3, 6), m.size[3] * k),
+			color,
+			m.alpha
+		)
+	end
+	local rimTurn = MeshFix.turn("Powers")
 	local each = if QualityController.name == "low" then 1 else 2
 	local t, tick = 0, 0
 	local conn: RBXScriptConnection
@@ -4263,9 +4276,17 @@ function CombatFx.zone(center: Vector3, radius: number, time: number)
 			conn:Disconnect()
 			fade(disc, 0.4)
 			fade(inner, 0.3)
+			if rim then
+				fade(rim, 0.3)
+			end
 			return
 		end
 		inner.Transparency = 0.45 + 0.2 * math.sin(t * 11) * math.sin(t * 7.3)
+		if rim then
+			rim.CFrame = CFrame.new(floor + Vector3.new(0, rim.Size.Y / 2, 0))
+				* CFrame.Angles(0, t * 0.5, 0)
+				* rimTurn
+		end
 		tick += dt
 		if tick >= zn.every then
 			tick = 0

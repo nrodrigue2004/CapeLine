@@ -3480,7 +3480,7 @@ return function(T: any)
 	)
 
 	test(
-		"List combat: robot shots leave a glowing streak you can see coming, Medics a flowing beam",
+		"List combat: robot shots leave a glowing streak you can see coming, Medics a flowing beam, burning patches a flame ring",
 		function()
 			local roblox = require("@lune/roblox")
 			check(Config.Fx.shot.trail > 0 and Config.Fx.shot.life > 0, "the streak is tuned")
@@ -3556,6 +3556,26 @@ return function(T: any)
 				sim.service("Workspace"):FindFirstChild("MendBeam", true) == nil,
 				"and it goes when the mend ends"
 			)
+			-- a Bomber's burning patch: Ember Ring's flame tongues round it
+			sim:run("zone", function()
+				CombatFx.zone(V(-30, 0, 0), 6, 1)
+			end)
+			sim:run("tick", function()
+				sim.service("RunService").Heartbeat:Fire(1 / 60)
+			end)
+			local flames = nil
+			for _, d in sim.service("Workspace"):GetDescendants() do
+				if d:IsA("MeshPart") and d.Name == "EmberFlames" and d.CFrame.Position.X < -20 then
+					flames = d
+				end
+			end
+			check(flames ~= nil, "the burning patch has a ring of flame tongues")
+			if flames then
+				check(
+					math.abs(flames.Size.X - Config.PowerArt.EmberRim.EmberFlames.size[1] * 6 * 0.95) < 0.05,
+					"round the patch"
+				)
+			end
 			check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
 		end
 	)
