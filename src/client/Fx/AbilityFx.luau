@@ -19,6 +19,7 @@ local FxPlan = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Fx
 
 local QualityController = require(script.Parent.Parent.Controllers.QualityController)
 local FxLib = require(script.Parent.FxLib)
+local PowerMeshes = require(script.Parent.PowerMeshes)
 
 local AbilityFx = {}
 
@@ -414,6 +415,28 @@ FLAIR.wings = function(o, _feet, d, x) -- two wings of light open behind
 	local f = Vector3.new(d.X, 0, d.Z)
 	f = if f.Magnitude > 1e-3 then f.Unit else Vector3.new(0, 0, -1)
 	local base = CFrame.lookAt(o - f * 0.8, o - f * 0.8 + f)
+	if PowerMeshes.ready("Wing") then
+		-- the Blender wings of light (Art.Powers Wing, 2026-11-20): each opens from folded against the back to
+		-- spread wide and swept back; the left is the right wing turned about up (so one turn mirrors both)
+		local k = 1.1 * x.s
+		for i, sgn in { -1, 1 } do
+			local function root(open: number): CFrame
+				return base
+					* CFrame.new(sgn * 0.4 * x.s, 0.5, 0.4)
+					* CFrame.Angles(0, if sgn < 0 then math.pi else 0, 0)
+					* CFrame.Angles(0, -0.35 * open * sgn, -1.1 + 1.25 * open) -- swept back on both sides
+			end
+			local closed = PowerMeshes.pieces("Wing", root(0), tone(x, i), k)
+			local spread = PowerMeshes.pieces("Wing", root(1), tone(x, i), k)
+			for j, pc in closed do
+				local w = PowerMeshes.make(pc, K.folder)
+				if w then
+					K.fade(w, 0.5, { CFrame = spread[j][2] })
+				end
+			end
+		end
+		return
+	end
 	for k, sgn in { -1, 1 } do
 		local w = K.part(
 			Vector3.new(3.5 * x.s, 0.15, 1.6 * x.s),

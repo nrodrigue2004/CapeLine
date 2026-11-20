@@ -988,8 +988,8 @@ return function(T: any)
 			end
 		end
 		check(
-			n == 70,
-			"70 meshes in 27 looks (178 the held girder; 382 added the jets, the rail and the slab; 173 the bullet; 169, 177, 180 and 183 the sun, ki ring, black hole and field rims; 172 the slash; 381 the shock ring and cone fan, then the flying heads; 167 Static Field's arcs): "
+			n == 72,
+			"72 meshes in 28 looks (the wings flourish; 178 the held girder; 382 added the jets, the rail and the slab; 173 the bullet; 169, 177, 180 and 183 the sun, ki ring, black hole and field rims; 172 the slash; 381 the shock ring and cone fan, then the flying heads; 167 Static Field's arcs): "
 				.. n
 		)
 		for _, look in
@@ -3678,87 +3678,124 @@ return function(T: any)
 		check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
 	end)
 
-	test("List combat: halo and spin flourishes are hollow Blender hoops, shatters glass stones", function()
-		local roblox = require("@lune/roblox")
-		if not T.placePath then
-			return
-		end
-		local UiSim = require("./uisim")
-		local sim = UiSim.new(
-			UiSim.load(roblox.deserializePlace(fs.readFile(T.placePath))),
-			{ name = "PC", w = 1280, h = 720, top = 36, left = 0, right = 0, bottom = 0, touch = false }
-		)
-		local CombatFx = sim:require("Client.Fx.CombatFx")
-		local AbilityFx = sim:require("Client.Fx.AbilityFx")
-		sim:run("CombatFx", CombatFx.init)
-		local V = roblox.Vector3.new
-		local function count()
-			local hoops, discs = 0, 0
-			for _, d in sim.service("Workspace"):GetDescendants() do
-				if d:IsA("MeshPart") and d.Name == "ShockRing" then
-					hoops += 1
-				elseif d:IsA("Part") and d.Shape == roblox.Enum.PartType.Cylinder then
-					discs += 1
-				end
+	test(
+		"List combat: halo and spin flourishes are hollow Blender hoops, shatters glass stones, wings Blender wings",
+		function()
+			local roblox = require("@lune/roblox")
+			if not T.placePath then
+				return
 			end
-			return hoops, discs
-		end
-		-- Glacier Armor's hit shatters chipped glass stones (the Blender rock), not cubes
-		local rocks0 = 0
-		for _, d in sim.service("Workspace"):GetDescendants() do
-			if d:IsA("MeshPart") and d.Name == "HeadRock" then
-				rocks0 += 1
-			end
-		end
-		sim:run("shatter", function()
-			AbilityFx.hit(
-				Config.Abilities.list.GlacierArmor,
-				"Comic",
-				V(30, 5, 0),
-				roblox.Color3.fromRGB(150, 220, 255),
-				roblox.Color3.new(1, 1, 1),
-				true,
-				nil,
-				1
+			local UiSim = require("./uisim")
+			local sim = UiSim.new(
+				UiSim.load(roblox.deserializePlace(fs.readFile(T.placePath))),
+				{ name = "PC", w = 1280, h = 720, top = 36, left = 0, right = 0, bottom = 0, touch = false }
 			)
-		end)
-		local rocks, cubes = 0, 0
-		for _, d in sim.service("Workspace"):GetDescendants() do
-			if d:IsA("MeshPart") and d.Name == "HeadRock" then
-				rocks += 1
-				check(d.Material == roblox.Enum.Material.Glass, "in glass")
-			elseif
-				d:IsA("Part")
-				and d.Material == roblox.Enum.Material.Glass
-				and d.Shape == roblox.Enum.PartType.Block
-			then
-				cubes += 1
+			local CombatFx = sim:require("Client.Fx.CombatFx")
+			local AbilityFx = sim:require("Client.Fx.AbilityFx")
+			sim:run("CombatFx", CombatFx.init)
+			local V = roblox.Vector3.new
+			local function count()
+				local hoops, discs = 0, 0
+				for _, d in sim.service("Workspace"):GetDescendants() do
+					if d:IsA("MeshPart") and d.Name == "ShockRing" then
+						hoops += 1
+					elseif d:IsA("Part") and d.Shape == roblox.Enum.PartType.Cylinder then
+						discs += 1
+					end
+				end
+				return hoops, discs
 			end
-		end
-		check(rocks - rocks0 >= 3, "the shatter throws glass stones (" .. (rocks - rocks0) .. ")")
-		check(cubes == 0, "no glass cubes (" .. cubes .. ")")
-		for _, id in { "ThunderDrop", "Overcharge" } do
-			local row = Config.Abilities.list[id]
-			check(row ~= nil, id .. " exists")
-			local h0, d0 = count()
-			sim:run(id, function()
+			-- Phoenix Dive's wings: the Blender wings of light, one either side (only spacing is checked here: Lune's
+			-- CFrame.lookAt mirrors its frame, so which side is the hero's right is a Studio check, Tasks Studio 82)
+			sim:run("wings", function()
 				AbilityFx.flair(
-					row,
+					Config.Abilities.list.PhoenixDive,
 					"Comic",
-					V(0, 5, 0),
-					V(0, 0, -1),
-					roblox.Color3.fromRGB(255, 220, 90),
-					roblox.Color3.fromRGB(255, 255, 255),
+					V(60, 5, 0),
+					V(0.3, 0, -1),
+					roblox.Color3.fromRGB(255, 140, 60),
+					roblox.Color3.fromRGB(255, 230, 150),
 					nil
 				)
 			end)
-			local h1, d1 = count()
-			local want = if id == "Overcharge" then 2 else 1
-			check(h1 - h0 == want, id .. "'s rings are hoops (" .. (h1 - h0) .. ")")
-			check(d1 == d0, id .. " makes no filled discs")
+			local wings, edges = {}, 0
+			for _, d in sim.service("Workspace"):GetDescendants() do
+				if d:IsA("MeshPart") and d.Name == "WingFeathers" then
+					table.insert(wings, d.CFrame.Position)
+				elseif d:IsA("MeshPart") and d.Name == "WingEdge" then
+					edges += 1
+				end
+			end
+			check(
+				#wings == 2 and edges == 2,
+				"two Blender wings with their bright edges (" .. #wings .. ", " .. edges .. ")"
+			)
+			if #wings == 2 then
+				check((wings[1] - wings[2]).Magnitude > 2.5, "spread apart either side")
+				check(wings[1].Y > 5.5 and wings[2].Y > 5.5, "raised up over the shoulders")
+			end
+			local src = fs.readFile("src/client/Fx/AbilityFx.luau")
+			check(
+				string.find(src, "-0.35 * open * sgn", 1, true) ~= nil,
+				"both wings sweep back (mirrored yaw)"
+			)
+			-- Glacier Armor's hit shatters chipped glass stones (the Blender rock), not cubes
+			local rocks0 = 0
+			for _, d in sim.service("Workspace"):GetDescendants() do
+				if d:IsA("MeshPart") and d.Name == "HeadRock" then
+					rocks0 += 1
+				end
+			end
+			sim:run("shatter", function()
+				AbilityFx.hit(
+					Config.Abilities.list.GlacierArmor,
+					"Comic",
+					V(30, 5, 0),
+					roblox.Color3.fromRGB(150, 220, 255),
+					roblox.Color3.new(1, 1, 1),
+					true,
+					nil,
+					1
+				)
+			end)
+			local rocks, cubes = 0, 0
+			for _, d in sim.service("Workspace"):GetDescendants() do
+				if d:IsA("MeshPart") and d.Name == "HeadRock" then
+					rocks += 1
+					check(d.Material == roblox.Enum.Material.Glass, "in glass")
+				elseif
+					d:IsA("Part")
+					and d.Material == roblox.Enum.Material.Glass
+					and d.Shape == roblox.Enum.PartType.Block
+				then
+					cubes += 1
+				end
+			end
+			check(rocks - rocks0 >= 3, "the shatter throws glass stones (" .. (rocks - rocks0) .. ")")
+			check(cubes == 0, "no glass cubes (" .. cubes .. ")")
+			for _, id in { "ThunderDrop", "Overcharge" } do
+				local row = Config.Abilities.list[id]
+				check(row ~= nil, id .. " exists")
+				local h0, d0 = count()
+				sim:run(id, function()
+					AbilityFx.flair(
+						row,
+						"Comic",
+						V(0, 5, 0),
+						V(0, 0, -1),
+						roblox.Color3.fromRGB(255, 220, 90),
+						roblox.Color3.fromRGB(255, 255, 255),
+						nil
+					)
+				end)
+				local h1, d1 = count()
+				local want = if id == "Overcharge" then 2 else 1
+				check(h1 - h0 == want, id .. "'s rings are hoops (" .. (h1 - h0) .. ")")
+				check(d1 == d0, id .. " makes no filled discs")
+			end
+			check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
 		end
-		check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
-	end)
+	)
 
 	test("List combat: repair drones shine a textured energy beam and weld sparks", function()
 		local roblox = require("@lune/roblox")

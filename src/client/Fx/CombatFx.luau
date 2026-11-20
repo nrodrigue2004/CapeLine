@@ -4795,6 +4795,7 @@ function CombatFx.init()
 	gui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
 	-- every ability's own look (Fx/AbilityFx) draws with this file's kit
 	AbilityFx.init({
+		folder = folder,
 		part = part,
 		fade = fade,
 		beam = beam,

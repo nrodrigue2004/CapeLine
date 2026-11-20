@@ -583,6 +583,32 @@ for side in (-1, 1):
 rivets.append(B(0.95, 0.12, 1.08, 0, 0.51, 0))  # the end plate at the grip
 mesh("Girder", "GirderRivets", rivets, (120, 48, 30), "Metal")
 
+# ================================================================ the wings flourish (AbilityFx FLAIR.wings, 2026-11-20): a right wing of light
+# (anchor: its root at the shoulder blade; it spreads out to +x and up, flat in x-up, thin along z): seven tapered
+# feathers fanning from the root under a curved leading edge. The left wing is the same mesh turned about up.
+def feather(ang, length, w, z=0.0):
+    a = math.radians(ang)
+    tip = (math.cos(a) * length, math.sin(a) * length, z)
+    mid = (math.cos(a) * length * 0.55 - math.sin(a) * w * 0.4, math.sin(a) * length * 0.55 + math.cos(a) * w * 0.4, z)
+    ob = T([(0.05, 0.0, z), mid, tip], [w * 0.35, w, 0.01], segs=8)
+    kit.apply_all(ob)
+    for v in ob.data.vertices:
+        v.co.y = z * -1 + (v.co.y + z) * 0.18  # Blender y is Roblox -z: flatten the tube to a vane
+    ob.data.update()
+    return ob
+
+
+feathers = []
+for i in range(7):
+    t = i / 6
+    ang = 58 - t * 110  # the top feather sweeps up and out, the last hangs down
+    length = 3.5 - 1.9 * t  # the long primaries on top, short coverts below
+    feathers.append(feather(ang, length, 0.3 + 0.08 * (1 - t), z=0.02 * (i % 2)))
+mesh("Wing", tint("WingFeathers"), feathers, (255, 230, 150), "Neon", alpha=0.25)
+_e = [(math.cos(math.radians(g)) * r, math.sin(math.radians(g)) * r, -0.04)
+      for g, r in ((40, 0.1), (52, 1.0), (57, 2.0), (58, 3.4))]  # the leading edge along the top feather
+mesh("Wing", "WingEdge", [T(_e, [0.1, 0.08, 0.05, 0.01], segs=6)], WHITE, "Neon")
+
 # ================================================================ the fit table and the export
 def bounds(ob):
     vs = [ob.matrix_world @ v.co for v in ob.data.vertices]
@@ -645,7 +671,7 @@ if "--preview" in sys.argv:
              "FlameJets": (-21, -6, 5.2), "LightRail": (25, 6, 4), "PsiSlab": (24, -8, 5.2),
              "Bullet": (-4, -14, 2), "Sun": (6, -16, 4), "BlackHole": (13, -16, 3), "KiRing": (19, -16, 3),
              "EmberRim": (-12, -16, 0.2), "HaloRim": (-18, -16, 0.2), "VoltRim": (-38, -16, 0.2),
-             "Slash": (-26, -16, 2), "Shock": (-32, -16, 1), "Heads": (26, -16, 2), "Girder": (31, 6, 11.5)}
+             "Slash": (-26, -16, 2), "Shock": (-32, -16, 1), "Heads": (26, -16, 2), "Girder": (31, 6, 11.5), "Wing": (-28, 6, 3)}
     close = "--close" in sys.argv  # the 2026-11-20 effect looks only, near the camera (art/preview/powers_fx.png)
     if close:
         spots = {"Sun": (-9, 0, 3), "BlackHole": (-3.5, 0, 2.5), "KiRing": (1, 0, 2.5), "EmberRim": (5.5, 0, 0.2),
