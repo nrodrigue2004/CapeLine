@@ -107,6 +107,7 @@ type Body = {
 	loco: NpcLoco.Loco?,
 	locoTried: boolean,
 	animated: boolean, -- the clips play on it this frame
+	bag: BasePart?, -- the shopping bag in its right hand (Everything Left 275)
 }
 
 local snapshots: { { t: number, rows: { [number]: CitizenBuffer.Row } } } = {}
@@ -191,7 +192,57 @@ local function unanimate(body: Body)
 	end
 end
 
+-- A shopping bag in the right hand (a citizen out of a shop, Everything Left 275): a paper bag in one of the
+-- shops' colours with a folded top and two rope handles, hanging under the hand; nil takes it away
+local function setBag(body: Body, id: number?)
+	if body.bag then
+		body.bag:Destroy()
+		body.bag = nil
+	end
+	local hand = body.rig.parts and body.rig.parts.RightHand
+	if not id or not hand then
+		return
+	end
+	local cols = Config.Life.citizens.bagColors
+	local c = cols[Rng.hash(id, 7717) % #cols + 1]
+	local function piece(name: string, size: Vector3, off: CFrame, color: Color3, parent: Instance): Part
+		local p = Instance.new("Part")
+		p.Name = name
+		p.Size = size
+		p.Color = color
+		p.Material = Enum.Material.SmoothPlastic
+		p.CanCollide = false
+		p.CanQuery = false
+		p.CanTouch = false
+		p.CastShadow = false
+		p.Massless = true
+		p.Anchored = false
+		p.CFrame = hand.CFrame * off
+		local w = Instance.new("WeldConstraint")
+		w.Part0 = hand
+		w.Part1 = p
+		w.Parent = p
+		p.Parent = parent
+		return p
+	end
+	local bag = piece("ShopBag", Vector3.new(1.0, 1.1, 0.45), CFrame.new(0, -1.05, 0), rgb(c), body.model)
+	local fold = rgb(c):Lerp(Color3.new(1, 1, 1), 0.35)
+	piece("Fold", Vector3.new(1.02, 0.14, 0.47), CFrame.new(0, -0.55, 0), fold, bag)
+	local rope = Color3.fromRGB(240, 236, 226)
+	for _, x in { -0.22, 0.22 } do
+		piece(
+			"Handle",
+			Vector3.new(0.06, 0.4, 0.06),
+			CFrame.new(x, -0.3, 0) * CFrame.Angles(0, 0, x * -1.2),
+			rope,
+			bag
+		)
+	end
+	body.bag = bag
+end
+
 local function release(body: Body)
+	setBag(body, nil)
 	unanimate(body)
 	body.model.Parent = nil
 	pool[body.key] = pool[body.key] or {}
@@ -609,6 +660,9 @@ local function render()
 			then lerpAngle(body.yaw, chatYaw, math.min(1, dt * 4))
 			else lerpAngle(body.yaw, rbb.yaw, math.min(1, dt * 10))
 		body.state = rb.state
+		if (rb.bag == true) ~= (body.bag ~= nil) then
+			setBag(body, if rb.bag then id else nil)
+		end
 		local dist = (pos - cam).Magnitude
 		if body.clothes then
 			local level = ClothesMap.level(dist, Q.clothesNear or 25, Q.clothesFar or 80, body.shown)

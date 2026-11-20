@@ -2,7 +2,7 @@
 -- CitizenBuffer: the Citizen.Delta packet (4 Hz, unreliable; not in the spec's remote list, see
 -- Decisions.md). Each player gets the visible citizens within Destruction.citizens.relevance.
 -- Header 6 bytes: u32 sequence, u16 count. Then 9 bytes a citizen: id u8, packed u8 = state (2 bits) +
--- colour set (3 bits), x/y/z signed 16-bit in 0.1 stud steps, yaw u8. Hidden citizens are not sent.
+-- colour set (3 bits) + carries a shopping bag (1 bit, Everything Left 275), x/y/z signed 16-bit in 0.1 stud steps, yaw u8. Hidden citizens are not sent.
 
 local CitizenBuffer = {}
 
@@ -34,7 +34,7 @@ function CitizenBuffer.encodeFor(
 	local o = HEADER
 	for _, c in picked do
 		buffer.writeu8(b, o, c.id % 256)
-		buffer.writeu8(b, o + 1, (c.state % 4) + ((c.color - 1) % 8) * 4)
+		buffer.writeu8(b, o + 1, (c.state % 4) + ((c.color - 1) % 8) * 4 + (if c.bag then 32 else 0))
 		buffer.writei16(b, o + 2, i16(c.x))
 		buffer.writei16(b, o + 4, i16(c.y))
 		buffer.writei16(b, o + 6, i16(c.z))
@@ -45,7 +45,16 @@ function CitizenBuffer.encodeFor(
 	return b
 end
 
-export type Row = { id: number, state: number, color: number, x: number, y: number, z: number, yaw: number }
+export type Row = {
+	id: number,
+	state: number,
+	color: number,
+	x: number,
+	y: number,
+	z: number,
+	yaw: number,
+	bag: boolean?,
+}
 
 function CitizenBuffer.decode(b: buffer): (number, { Row })
 	if buffer.len(b) < HEADER then
@@ -64,6 +73,7 @@ function CitizenBuffer.decode(b: buffer): (number, { Row })
 			id = buffer.readu8(b, o),
 			state = packed % 4,
 			color = math.floor(packed / 4) % 8 + 1,
+			bag = math.floor(packed / 32) % 2 == 1,
 			x = buffer.readi16(b, o + 2) / 10,
 			y = buffer.readi16(b, o + 4) / 10,
 			z = buffer.readi16(b, o + 6) / 10,

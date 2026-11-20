@@ -19,7 +19,7 @@ local CitizenSim = {}
 
 CitizenSim.WALK, CitizenSim.PAUSE, CitizenSim.FLEE, CitizenSim.HIDDEN = 0, 1, 2, 3
 
-export type Node = { x: number, y: number, z: number, links: { number } }
+export type Node = { x: number, y: number, z: number, links: { number }, cx: number?, cz: number? } -- cx, cz: its block's centre
 export type Shelter = { x: number, y: number, z: number, node: number }
 export type Citizen = {
 	id: number,
@@ -35,6 +35,11 @@ export type Citizen = {
 	goal: Shelter?, -- the shelter it runs to
 	untilT: number,
 	chatAfter: number?, -- no new chat before this (Config.Destruction.citizens.chat.cooldown)
+	shopAfter: number?, -- no new window shopping before this (citizens.shop.cooldown)
+	buy: boolean?, -- this window shopper goes in to buy when the look is over
+	inside: boolean?, -- hidden in a shop (comes back out where it went in, with a bag)
+	bagUntil: number?, -- carries a shopping bag until then
+	bag: boolean?, -- carries one now (sent in the packet)
 }
 
 export type Sim = {
@@ -75,6 +80,8 @@ local function gridNodes(
 						y = y,
 						z = z0 + (if cz == 0 then inset else block - inset),
 						links = {},
+						cx = x0 + block / 2,
+						cz = z0 + block / 2,
 					})
 					index[key(bx, bz, cx, cz)] = #nodes
 				end
@@ -418,6 +425,7 @@ function CitizenSim.danger(sim: Sim, x: number, z: number, r: number, duration: 
 					break
 				end
 			end
+			c.buy = nil
 			if best and path then
 				c.state = CitizenSim.FLEE
 				c.goal = best
@@ -456,13 +464,30 @@ function CitizenSim.step(sim: Sim, dt: number, now: number)
 	local cfg = sim.cfg
 	local rng = sim.rng
 	for _, c in sim.citizens do
+		c.bag = c.bagUntil ~= nil and now < c.bagUntil
 		if c.state == CitizenSim.HIDDEN then
 			if now >= c.untilT then
-				spawnAt(sim, c)
+				if c.inside then
+					-- out of the shop where it went in, carrying what it bought
+					c.inside = nil
+					c.state = CitizenSim.WALK
+					c.bagUntil = now + cfg.shop.bag
+					c.bag = true
+				else
+					spawnAt(sim, c)
+				end
 			end
 		elseif c.state == CitizenSim.PAUSE then
 			if now >= c.untilT then
-				c.state = CitizenSim.WALK
+				if c.buy then
+					-- the window shopper goes in to buy (hidden a while, Everything Left 275)
+					c.buy = nil
+					c.inside = true
+					c.state = CitizenSim.HIDDEN
+					c.untilT = now + rng:range(cfg.shop.inside[1], cfg.shop.inside[2])
+				else
+					c.state = CitizenSim.WALK
+				end
 			end
 		elseif c.state == CitizenSim.FLEE then
 			local nextNode = c.path[1]
@@ -514,6 +539,29 @@ function CitizenSim.step(sim: Sim, dt: number, now: number)
 				end
 			end
 			local nextNode = c.path[1]
+			-- window shopping (Everything Left 275): along a block's side (both corners on the same block) a walker
+			-- now and then stops, turns to the shop fronts and looks a while; some go in to buy
+			local shop = cfg.shop
+			if shop and nextNode and now >= (c.shopAfter or 0) then
+				local here, there = sim.nodes[c.node], sim.nodes[nextNode]
+				if
+					here.cx
+					and here.cx == there.cx
+					and here.cz == there.cz
+					and rng:chance(shop.chance * dt)
+				then
+					c.shopAfter = now + shop.cooldown
+					local px, pz = -c.fz, c.fx
+					if px * ((here.cx :: number) - c.x) + pz * ((here.cz :: number) - c.z) < 0 then
+						px, pz = -px, -pz
+					end
+					c.fx, c.fz = px, pz
+					c.state = CitizenSim.PAUSE
+					c.untilT = now + rng:range(shop.time[1], shop.time[2])
+					c.buy = rng:chance(shop.buy)
+					continue
+				end
+			end
 			if nextNode then
 				local n = sim.nodes[nextNode]
 				if moveToward(c, n.x, n.z, cfg.walk, dt) then

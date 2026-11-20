@@ -150,6 +150,10 @@ return {
 		-- a walker passing someone stopped between near and reach studs stops to chat this often (once a cooldown,
 		-- seconds), both stay time seconds (Shared.CitizenSim; the devices turn them to face each other)
 		chat = { reach = 4.5, near = 1.5, chance = 0.5, time = { 4, 9 }, cooldown = 25 },
+		-- window shopping (Everything Left 275): along a block's side a walker stops to look at the shop fronts this
+		-- often a second, for time seconds (once a cooldown); buy of them go in for inside seconds and come back
+		-- out carrying a shopping bag for bag seconds (CitizenRenderer draws it)
+		shop = { chance = 0.02, time = { 3, 7 }, buy = 0.25, inside = { 6, 14 }, bag = 30, cooldown = 60 },
 		step = 0.1, -- sim step (10 Hz)
 		sendRate = 4,
 		relevance = 250, -- players see citizens this close

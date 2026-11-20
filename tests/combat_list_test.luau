@@ -3068,6 +3068,100 @@ return function(T: any)
 		check(walking >= #live.citizens * 0.4, "most of the crowd keeps walking")
 	end)
 
+	test("List combat: citizens window shop and come out with bags (Everything Left 275)", function()
+		local CitizenSim = require("../src/shared/CitizenSim")
+		local CitizenBuffer = require("../src/shared/CitizenBuffer")
+		local shop = Config.Destruction.citizens.shop
+		check(shop ~= nil and shop.chance > 0 and shop.buy > 0, "window shopping is tuned")
+		-- every sidewalk corner knows its block's centre
+		local sim = CitizenSim.new(Config, {}, 5)
+		for _, n in sim.nodes do
+			check(n.cx ~= nil and n.cz ~= nil, "a corner knows its block")
+		end
+		CitizenSim.populate(sim)
+		-- force one: a walker heading along a block's side stops, faces the block, goes in, comes out with a bag
+		local cfg = table.clone(sim.cfg)
+		cfg.shop = table.clone(cfg.shop)
+		cfg.shop.chance, cfg.shop.buy = 1000, 1
+		cfg.chat = nil
+		sim.cfg = cfg
+		local c = sim.citizens[1]
+		local here = sim.nodes[c.node]
+		local side
+		for _, l in here.links do
+			if sim.nodes[l].cx == here.cx and sim.nodes[l].cz == here.cz then
+				side = l
+			end
+		end
+		check(side ~= nil, "the corner has a block side")
+		c.state, c.path, c.shopAfter = CitizenSim.WALK, { side }, nil
+		local n = sim.nodes[side]
+		local dx, dz = n.x - c.x, n.z - c.z
+		local d = math.sqrt(dx * dx + dz * dz)
+		c.fx, c.fz = dx / d, dz / d
+		CitizenSim.step(sim, 0.1, 1)
+		check(c.state == CitizenSim.PAUSE, "it stops to look in the windows")
+		local tx, tz = (here.cx :: number) - c.x, (here.cz :: number) - c.z
+		check(c.fx * tx + c.fz * tz > 0, "facing the shops, not the street")
+		check(math.abs(c.fx * dx / d + c.fz * dz / d) < 0.01, "side on to the sidewalk")
+		local x0, z0 = c.x, c.z
+		CitizenSim.step(sim, 0.1, 1 + shop.time[2] + 0.1)
+		check(c.state == CitizenSim.HIDDEN and c.inside == true, "then it goes in to buy")
+		CitizenSim.step(sim, 0.1, 1 + shop.time[2] + shop.inside[2] + 0.3)
+		check(c.state == CitizenSim.WALK and c.bag == true, "and comes back out with a bag")
+		check(c.x == x0 and c.z == z0, "where it went in")
+		local b = CitizenBuffer.encodeFor(1, { c }, c.x, c.z, 50)
+		local _, rows = CitizenBuffer.decode(b)
+		check(
+			rows[1] and rows[1].bag == true and rows[1].color == c.color,
+			"the bag rides the packet beside the colour"
+		)
+		CitizenSim.step(sim, 0.1, 1 + shop.time[2] + shop.inside[2] + shop.bag + 1)
+		check(c.bag == false, "the bag goes after a while")
+		local _, rows2 = CitizenBuffer.decode(CitizenBuffer.encodeFor(2, { c }, c.x, c.z, 50))
+		check(rows2[1] and rows2[1].bag == false, "no bag in the packet then")
+		-- a scare while looking: no shopping trip, it runs
+		local o = sim.citizens[2]
+		o.state, o.buy = CitizenSim.PAUSE, true
+		CitizenSim.danger(sim, o.x, o.z, 30, 10)
+		check(o.buy == nil and o.state ~= CitizenSim.PAUSE, "danger cancels the trip")
+		-- the real tuning over five minutes: some shop, some carry bags, most of the crowd still walks
+		local live = CitizenSim.new(Config, {}, 11)
+		CitizenSim.populate(live)
+		local looked, bags = 0, 0
+		for k = 1, 3000 do
+			CitizenSim.step(live, 0.1, k * 0.1)
+			if k % 50 == 0 then
+				for _, x in live.citizens do
+					if x.bag then
+						bags += 1
+					end
+				end
+			end
+		end
+		for _, x in live.citizens do
+			if x.shopAfter then
+				looked += 1
+			end
+		end
+		print(string.format("  citizens: %d window shopped in 5 minutes, %d bag sightings", looked, bags))
+		check(looked >= 5, "window shopping happens (" .. looked .. ")")
+		check(bags >= 3, "bags are carried (" .. bags .. ")")
+		local walking = 0
+		for _, x in live.citizens do
+			if x.state == CitizenSim.WALK then
+				walking += 1
+			end
+		end
+		check(walking >= #live.citizens * 0.4, "most of the crowd keeps walking (" .. walking .. ")")
+		local src = fs.readFile("src/client/Controllers/CitizenRenderer.luau")
+		check(
+			string.find(src, "setBag(body, if rb.bag then id else nil)", 1, true) ~= nil,
+			"the devices draw the bag"
+		)
+		check(string.find(src, "setBag(body, nil)", 1, true) ~= nil, "and take it off a pooled body")
+	end)
+
 	test("List combat: vehicle lettering sits on the bodies' sides (Everything Left 271)", function()
 		local VehicleKit = require("../src/shared/VehicleKit")
 		local art = Config.VehicleArt

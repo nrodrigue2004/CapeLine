@@ -3380,12 +3380,25 @@ test(
 		for _, o in fled do
 			check(o.state == CitizenSim.HIDDEN, "every runner made it inside")
 		end
-		check(CitizenSim.visible(sim) == 60 - #fled, "hidden citizens are not drawn")
+		-- (shoppers inside a shop are hidden too: list-combat 2026-11-20, Everything Left 275)
+		local function shopping(): number
+			local n = 0
+			for _, o in sim.citizens do
+				if o.inside then
+					n += 1
+				end
+			end
+			return n
+		end
+		check(CitizenSim.visible(sim) == 60 - #fled - shopping(), "hidden citizens are not drawn")
 		for _ = 1, 420 do
 			t += 0.1
 			CitizenSim.step(sim, 0.1, t)
 		end
-		check(CitizenSim.visible(sim) == 60, "after 20 to 40 s they come back out")
+		check(CitizenSim.visible(sim) == 60 - shopping(), "after 20 to 40 s they come back out")
+		for _, o in fled do
+			check(o.state ~= CitizenSim.HIDDEN or o.inside == true, "every runner is back out")
+		end
 		for _, o in sim.citizens do
 			check(o.health == nil and o.hp == nil, "citizens have no health: nothing can hurt them")
 		end

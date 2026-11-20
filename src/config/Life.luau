@@ -223,7 +223,23 @@ return {
 	-- near, cheer after a big hit they did not run from
 	-- chat (list-combat 2026-11-20, Everything Left 275): two citizens stopped this close turn to face each other
 	-- and talk (their idle gestures play as the chat)
-	citizens = { point = 70, photo = 26, cheer = 60, cheerFor = 4, flashEvery = 2.2, chat = 6 },
+	-- bagColors: the shopping bags citizens carry out of the shops (Everything Left 275, CitizenRenderer)
+	citizens = {
+		point = 70,
+		photo = 26,
+		cheer = 60,
+		cheerFor = 4,
+		flashEvery = 2.2,
+		chat = 6,
+		bagColors = {
+			{ 214, 170, 120 },
+			{ 236, 84, 120 },
+			{ 70, 150, 230 },
+			{ 250, 210, 70 },
+			{ 120, 200, 120 },
+			{ 245, 245, 240 },
+		},
+	},
 	sounds = {
 		honk = s("electronicpingshort.wav", 0.35, 0.42, { clip = "honk", range = 120, vary = 0.08 }),
 		flutter = s("swoosh.wav", 0.4, 1.9, { clip = "flutter", range = 70, vary = 0.15 }),
