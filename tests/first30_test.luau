@@ -1218,15 +1218,9 @@ return function(T: any)
 				plates = Kit.screen("Plates", 1)
 				stay = Kit.screen("GuideHud", 1)
 			end)
-			local RS = sim.game:GetService("RunService")
 			local function frames(n: number)
 				for _ = 1, n do
-					sim:advance(1 / 60)
-					for _, h in table.clone(RS.RenderStepped.handlers) do
-						sim:run("RenderStepped", function()
-							h(1 / 60)
-						end)
-					end
+					sim:renderFrame(1 / 60)
 				end
 			end
 			plates.Enabled = false -- hidden before the scene: stays hidden after it
@@ -1243,11 +1237,34 @@ return function(T: any)
 			check(CameraController.fovOverride == Config.Cinema.camera.fov, "the scene holds its own FOV")
 			check(toasts.Enabled == false, "the toasts step aside")
 			check(stay.Enabled == true, "the subtitles' screen stays")
+			local focus = sim.game:GetService("Lighting"):FindFirstChild("CinemaFocus")
+			check(
+				focus ~= nil and focus.Enabled and focus.FarIntensity > 0,
+				"a soft depth of field on the shots"
+			)
 			sim:run("stop", function()
 				CinemaClient.stop("mission")
 			end)
 			frames(5)
 			check(CameraController.fovOverride == nil, "the FOV is the game's again")
+			frames(40)
+			check(focus ~= nil and not focus.Enabled, "the depth of field eases off after the scene")
+			local NpcAnim = require("../src/shared/NpcAnim")
+			check(
+				NpcAnim.CLIPS[NpcAnim.crowd.waiting].loop == true,
+				"the stage's waiting clip loops (no statues)"
+			)
+			check(NpcAnim.CLIPS.talk.loop == true, "Lodestar's talk clip loops")
+			local fx = fs.readFile("src/client/Fx/PrologueFx.luau")
+			check(
+				string.find(fx, "NpcAnim.crowd.waiting", 1, true) ~= nil,
+				"the stage keeps posing after the Ceremony"
+			)
+			local sfx = fs.readFile("src/client/Fx/StoryFx.luau")
+			check(
+				string.find(sfx, 'then "talk" else NpcAnim.crowd.waiting', 1, true) ~= nil,
+				"Lodestar talks in a beat"
+			)
 			check(toasts.Enabled == true, "the toasts come back")
 			check(plates.Enabled == false, "a screen hidden before the scene stays hidden")
 			check(Config.Cinema.camera.blendOut > 0, "the end eases back to the follow camera")
@@ -1406,4 +1423,77 @@ return function(T: any)
 		CameraController.reduceMotion = false
 		check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
 	end)
+	test(
+		"First 30 polish: a cutscene's subtitles, bars and SKIP never overlap, on a phone and a PC",
+		function()
+			local UiSim = require("./uisim")
+			local trees = UiSim.load(roblox.deserializePlace(fs.readFile(T.placePath)))
+			for _, d in
+				{
+					{
+						name = "PC",
+						w = 1280,
+						h = 720,
+						top = 36,
+						left = 0,
+						right = 0,
+						bottom = 0,
+						touch = false,
+					},
+					{
+						name = "Phone",
+						w = 844,
+						h = 390,
+						top = 0,
+						left = 47,
+						right = 47,
+						bottom = 21,
+						touch = true,
+					},
+				}
+			do
+				local sim = UiSim.new(trees, d)
+				sim.fakeClock = true
+				sim:run("InputController", sim:require("Client.Controllers.InputController").init)
+				local CinemaClient = sim:require("Client.Controllers.CinemaClient")
+				local CinemaHud = sim:require("Client.Ui.CinemaHud")
+				local GuideHud = sim:require("Client.Ui.GuideHud")
+				sim:run("CinemaClient", CinemaClient.init)
+				sim:run("GuideHud", GuideHud.init)
+				sim:run("CinemaHud", CinemaHud.init)
+				local CinemaPlan = require("../src/shared/CinemaPlan")
+				local def = Config.Cinema.scenes.cityWatch
+				sim:run("play", function()
+					CinemaClient.play({
+						owner = "client",
+						key = "t",
+						bit = def.bit,
+						shots = CinemaPlan.around(def.shots, 0, 10, 0),
+						seconds = 12,
+						lines = def.lines,
+					})
+				end)
+				-- a seen scene: SKIP shows after its delay
+				for _ = 1, 150 do
+					sim:renderFrame(1 / 30)
+				end
+				local shown = {}
+				for _, b in sim:boxes() do
+					if b.screen.Name == "GuideHud" or b.screen.Name == "CinemaHud" then
+						shown[b.screen.Name] = true
+					end
+				end
+				check(shown.GuideHud and shown.CinemaHud, d.name .. ": the bars and a subtitle are up")
+				local issues = sim:issues({ only = { CinemaHud = true, GuideHud = true } })
+				local bad = {}
+				for _, i in issues do
+					if string.find(i, "overlap", 1, true) or string.find(i, "off", 1, true) then
+						table.insert(bad, i)
+					end
+				end
+				check(#bad == 0, d.name .. ": " .. table.concat(bad, " | "))
+				check(#sim.errors == 0, d.name .. " no errors: " .. table.concat(sim.errors, " | "))
+			end
+		end
+	)
 end

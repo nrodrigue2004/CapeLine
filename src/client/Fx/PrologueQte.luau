@@ -169,6 +169,7 @@ local function shotSeg(): PrologueCine.Seg?
 end
 
 -- The directed camera (CinemaClient's follow): the segment's shot, cut in hard or eased over
+local pullDist: number? = nil -- the camera's eased distance from the hero when a wall pulls it in
 local function follow(dt: number): (Vector3, Vector3)
 	local f = feet()
 	local seg = shotSeg()
@@ -192,9 +193,14 @@ local function follow(dt: number): (Vector3, Vector3)
 		local char = player.Character
 		rayParams.FilterDescendantsInstances = if char then { char } else {}
 		local hit = Workspace:Raycast(wantLook, gap, rayParams)
-		if hit then
-			wantCam = hit.Position - gap.Unit * 1.5
-		end
+		-- (first-30 polish round 2) the pull-in is eased on its own: in fast when a wall comes between, out slowly
+		-- once it is gone, so a wall's edge flickering in and out of the ray never pumps the camera
+		local want = if hit then math.max(1, hit.Distance - 1.5) else gap.Magnitude
+		local d = pullDist or want
+		local rate = if want < d then 24 else 2.5
+		d += (want - d) * (1 - math.exp(-rate * math.max(dt, 1 / 240)))
+		pullDist = math.min(d, gap.Magnitude)
+		wantCam = wantLook + gap.Unit * (pullDist :: number)
 	end
 	if seg ~= camSeg then
 		if seg.cut or not camAt then
@@ -215,7 +221,7 @@ local function cameraOn(on: boolean)
 		if cur and cur.owner == "prologue" then
 			return -- PrologueFx's own camera beat (the Ceremony's choice) has the camera
 		end
-		camAt, lookAt, camSeg = nil, nil, nil
+		camAt, lookAt, camSeg, pullDist = nil, nil, nil, nil
 		CinemaClient.play({
 			owner = "qte",
 			key = "directed",

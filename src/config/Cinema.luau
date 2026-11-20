@@ -1070,6 +1070,13 @@ return {
 		-- shot to the follow camera instead of snapping behind the hero
 		fov = 70,
 		blendOut = 0.6,
+		-- (round 2) every shot drifts a little: `push` of the way to its subject over the shot, a `sway` (studs)
+		-- breathing at `rate` Hz; a jump cut (the next shot starting within `dist` studs and `angle` degrees of
+		-- the last frame) eases across in `ease` s instead of cutting
+		drift = { push = 0.05, sway = 0.08, rate = 0.22, jumpCut = { dist = 10, angle = 30, ease = 0.4 } },
+		-- (round 2) a scene's shots get a soft depth of field: sharp within `radius` of the subject's distance, the
+		-- far city blurred by `far`, eased over `ease` s; never on the low preset
+		dof = { on = true, radius = 0.45, far = 0.35, ease = 0.4 },
 	},
 
 	finisher = {
