@@ -364,6 +364,29 @@ for i in range(8):
     blades.append(tube)
 mesh("HaloRim", tint("HaloBlades"), blades, (255, 240, 170), "Neon", alpha=0.1)
 
+# ================================================================ the Swordsman's slash (Everything Left 172, 2026-11-20): an anime sword crescent
+# with a white-hot cutting edge (anchor: the swing's centre; the arc lies flat in the x-z plane, radius 1, 140 degrees
+# round the front -z). CombatFx tilts it per combo step and stands it up for Heaven Splitter.
+def crescent(r, half, w0, h0, n=25, edge=False):
+    pts, radii = [], []
+    for j in range(n):
+        t = j / (n - 1)
+        a = math.radians(-half + 2 * half * t)
+        bulge = math.sin(t * math.pi)
+        rr = r - (0.0 if edge else w0 * 0.5 * bulge)
+        pts.append((math.sin(a) * rr, 0, -math.cos(a) * rr))
+        radii.append(max(0.004, (w0 if not edge else h0) * (0.08 + 0.92 * bulge ** 0.7)))
+    ob = T(pts, radii, segs=10)
+    kit.apply_all(ob)
+    for v in ob.data.vertices:
+        v.co.z *= h0 / max(radii)  # Blender z is Roblox up: flatten the tube to a blade
+    ob.data.update()
+    return ob
+
+
+mesh("Slash", tint("SlashCrescent"), [crescent(1.0, 70, 0.16, 0.05)], (120, 200, 255), "Neon", alpha=0.15)
+mesh("Slash", "SlashEdge", [crescent(1.04, 66, 0.03, 0.03, edge=True)], WHITE, "Neon")
+
 # ================================================================ the nemesis's armour (NemesisFx, Everything Left 218): each piece drawn to fill
 # the box of the part it replaces on the Brute Bot (centred on it), so NemesisFx sizes it to that same box.
 # shoulders: 5 x 1 x 3 (times the build's width)
@@ -476,11 +499,12 @@ if "--preview" in sys.argv:
              "StonePillar": (9, -6, 5), "ThornVine": (13, -6, 5), "Wave": (19, -6, 5), "Nemesis": (-22, 8, 4),
              "FlameJets": (-21, -6, 5.2), "LightRail": (25, 6, 4), "PsiSlab": (24, -8, 5.2),
              "Bullet": (-4, -14, 2), "Sun": (6, -16, 4), "BlackHole": (13, -16, 3), "KiRing": (19, -16, 3),
-             "EmberRim": (-12, -16, 0.2), "HaloRim": (-18, -16, 0.2)}
+             "EmberRim": (-12, -16, 0.2), "HaloRim": (-18, -16, 0.2),
+             "Slash": (-26, -16, 2)}
     close = "--close" in sys.argv  # the 2026-11-20 effect looks only, near the camera (art/preview/powers_fx.png)
     if close:
         spots = {"Sun": (-9, 0, 3), "BlackHole": (-3.5, 0, 2.5), "KiRing": (1, 0, 2.5), "EmberRim": (5.5, 0, 0.2),
-                 "HaloRim": (10, 0, 0.2)}
+                 "HaloRim": (10, 0, 0.2), "Slash": (4, -5, 4.5)}
     for look, meshes in LOOKS.items():
         if look not in spots:
             for ob in meshes.values():
@@ -498,9 +522,11 @@ if "--preview" in sys.argv:
             ob.rotation_euler = (0, 0, math.radians({"SpiritBeast": 100, "Wave": 235, "Guardian": 215}.get(look, 35)))
             if close:
                 ob.scale = {"Sun": (1.6,) * 3, "BlackHole": (2.2,) * 3, "KiRing": (1.4,) * 3, "EmberRim": (2,) * 3,
-                            "HaloRim": (2,) * 3}[look]
+                            "HaloRim": (2,) * 3, "Slash": (3,) * 3}[look]
                 if look == "BlackHole":
                     ob.rotation_euler = (math.radians(25), 0, 0)
+                if look == "Slash":
+                    ob.rotation_euler = (math.radians(40), math.radians(20), 0)
     ground = kit.box("ground", 120, 60, 0.2, at=(2, 0, -0.1))
     ground.data.materials.append(kit.material("g", (70, 74, 84)))
     if close:

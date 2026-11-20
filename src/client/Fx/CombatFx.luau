@@ -461,6 +461,40 @@ function CombatFx.cone(
 	sig.cone(set, origin, f, range, coneDeg, style, color)
 end
 
+-- The Swordsman's crescent (Art.Powers Slash): drawn round `base` (its front -z) with radius `reach` over +-half,
+-- sweeping a little through the swing. False before the look is imported.
+local function slashMesh(base: CFrame, reach: number, half: number, style: string, color: Color3): boolean
+	if not PowerMeshes.ready("Slash") then
+		return false
+	end
+	local S = Config.PowerArt.Slash
+	local turnP = MeshFix.turn("Powers")
+	local xk = reach * math.clamp(math.sin(half) / math.sin(math.rad(70)), 0.6, 1.3)
+	local blade = if style == "Anime" then WHITE else color
+	local edgeCol = if style == "Anime" then color else WHITE
+	for _, name in { "SlashCrescent", "SlashEdge" } do
+		local m = S[name]
+		local thick = if name == "SlashCrescent" then 4 else 3
+		local mp = powerMesh(
+			name,
+			Vector3.new(m.size[1] * xk, m.size[2] * thick, m.size[3] * reach),
+			if name == "SlashCrescent" then blade else edgeCol,
+			if name == "SlashCrescent" then 0.15 else 0
+		)
+		if mp then
+			local off = CFrame.new(m.offset[1] * xk, m.offset[2], m.offset[3] * reach)
+			mp.CFrame = base * CFrame.Angles(0, 0.45, 0) * off * turnP
+			TweenService:Create(
+				mp,
+				TweenInfo.new(0.12, Enum.EasingStyle.Quad),
+				{ CFrame = base * CFrame.Angles(0, -0.15, 0) * off * turnP }
+			):Play()
+			fade(mp, 0.16, nil, 0.08)
+		end
+	end
+	return true
+end
+
 -- A crescent slash or a punch in front (Punch Combo, Blade Slash, Rising Blade, Haymaker)
 function CombatFx.arc(
 	origin: Vector3,
@@ -484,6 +518,12 @@ function CombatFx.arc(
 	local reach = range * 0.8
 	local prev: Vector3? = nil
 	local width = if style == "Anime" then 0.18 else (if sword then 0.7 else 1.2)
+	-- a sword's cut as the Blender crescent (Art.Powers Slash, Everything Left 172): a glowing blade of light with a
+	-- white-hot edge that sweeps through the swing and fades; the beam segments before it is imported
+	if sword and slashMesh(base, reach, half, style, color) then
+		sig.swing(set, origin + f * reach, f, style, color, st == 3)
+		return
+	end
 	for i = 0, segs do
 		local a = -half + i / segs * half * 2
 		local local3 = Vector3.new(math.sin(a) * reach, 0, -math.cos(a) * reach)
@@ -2469,6 +2509,34 @@ SUPER.splitter = function(x) -- Blade Heaven Splitter: a giant vertical crescent
 	local start = CFrame.lookAt(from, from + f)
 	local segs = 9
 	local rad = 12
+	-- the giant crescent in its Blender look (Art.Powers Slash, Everything Left 172), stood up and flown down the
+	-- line; the part segments before it is imported
+	if PowerMeshes.ready("Slash") then
+		local S = Config.PowerArt.Slash
+		local turnP = MeshFix.turn("Powers")
+		local stand = CFrame.Angles(0, 0, math.rad(90))
+		for _, name in { "SlashCrescent", "SlashEdge" } do
+			local m = S[name]
+			local k = Vector3.new(rad, if name == "SlashCrescent" then 14 else 8, rad * 0.35)
+			local mp = powerMesh(
+				name,
+				Vector3.new(m.size[1], m.size[2], m.size[3]) * k,
+				if (name == "SlashEdge") ~= anime(x.style) then WHITE else x.color,
+				if name == "SlashCrescent" then 0.1 else 0
+			)
+			if mp then
+				local off = CFrame.new(Vector3.new(m.offset[1], m.offset[2], m.offset[3]) * k)
+				mp.CFrame = start * stand * off * turnP
+				TweenService:Create(
+					mp,
+					TweenInfo.new(0.35, Enum.EasingStyle.Quad),
+					{ CFrame = CFrame.lookAt(to, to + f) * stand * off * turnP }
+				):Play()
+				fade(mp, 0.2, nil, 0.35)
+			end
+		end
+		segs = 0
+	end
 	for i = 0, segs - 1 do
 		local a0 = math.rad(-70 + i / segs * 140)
 		local a1 = math.rad(-70 + (i + 1) / segs * 140)

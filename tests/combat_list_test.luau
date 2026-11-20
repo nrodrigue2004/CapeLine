@@ -974,8 +974,8 @@ return function(T: any)
 			end
 		end
 		check(
-			n == 55,
-			"55 meshes in 22 looks (382 added the jets, the rail and the slab; 173 the bullet; 169, 177, 180 and 183 the sun, ki ring, black hole and field rims): "
+			n == 57,
+			"57 meshes in 23 looks (382 added the jets, the rail and the slab; 173 the bullet; 169, 177, 180 and 183 the sun, ki ring, black hole and field rims; 172 the slash): "
 				.. n
 		)
 		for _, look in
@@ -2776,6 +2776,70 @@ return function(T: any)
 			check(string.find(src, "PowerMeshes.ready(rimLook)", 1, true) ~= nil, "the rims too")
 		end
 	)
+
+	test("List combat: the Swordsman's cuts are Blender crescents (Everything Left 172)", function()
+		local roblox = require("@lune/roblox")
+		local S = Config.PowerArt.Slash
+		check(S ~= nil and S.SlashCrescent ~= nil and S.SlashEdge ~= nil, "the Slash look")
+		check(S.SlashCrescent.tint == true, "the crescent takes the path colour")
+		if not T.placePath then
+			return
+		end
+		local UiSim = require("./uisim")
+		local sim = UiSim.new(
+			UiSim.load(roblox.deserializePlace(fs.readFile(T.placePath))),
+			{ name = "PC", w = 1280, h = 720, top = 36, left = 0, right = 0, bottom = 0, touch = false }
+		)
+		local CombatFx = sim:require("Client.Fx.CombatFx")
+		sim:run("CombatFx", CombatFx.init)
+		local V = roblox.Vector3.new
+		local red = roblox.Color3.fromRGB(255, 70, 90)
+		local function count(name: string): number
+			local n = 0
+			for _, d in sim.service("Workspace"):GetDescendants() do
+				if d:IsA("MeshPart") and d.Name == name then
+					n += 1
+				end
+			end
+			return n
+		end
+		local beamsBefore = #sim.service("Workspace"):GetDescendants()
+		sim:run("slash", function()
+			CombatFx.arc(V(0, 5, 0), V(0, 0, -1), 8, 120, "Comic", red, 1, true, false, "Blade")
+		end)
+		check(
+			count("SlashCrescent") == 1 and count("SlashEdge") == 1,
+			"a sword cut is one crescent and its edge"
+		)
+		check(
+			#sim.service("Workspace"):GetDescendants() - beamsBefore < 12,
+			"no row of beam segments under it ("
+				.. (#sim.service("Workspace"):GetDescendants() - beamsBefore)
+				.. ")"
+		)
+		local punchBefore = count("SlashCrescent")
+		sim:run("punch", function()
+			CombatFx.arc(V(0, 5, 0), V(0, 0, -1), 6, 90, "Comic", red, 1, false, false, "Martial")
+		end)
+		check(count("SlashCrescent") == punchBefore, "a punch keeps its own look")
+		sim:run("splitter", function()
+			CombatFx.superMoment(
+				Config.Abilities.list.HeavenSplitter,
+				"Anime",
+				{ o = V(0, 5, 0), d = V(0, 0, -1), e = V(0, 5, -60) }
+			)
+		end)
+		check(count("SlashCrescent") >= 2, "Heaven Splitter flies the giant crescent")
+		local big = 0
+		for _, d in sim.service("Workspace"):GetDescendants() do
+			if d:IsA("MeshPart") and d.Name == "SlashCrescent" then
+				big = math.max(big, d.Size.X)
+			end
+		end
+		check(big > 15, "the splitter's crescent is giant (" .. big .. ")")
+		sim:advance(1)
+		check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
+	end)
 
 	test("List combat: the STYLES tab shows a picture per style (Everything Left 362)", function()
 		local GearMath = require("../src/shared/GearMath")
