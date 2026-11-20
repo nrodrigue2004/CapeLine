@@ -691,7 +691,7 @@ local function rollDust(rec: Rec, carrier: BasePart, seconds: number)
 		e.Acceleration = Vector3.new(0, 1.2, 0)
 		e.Drag = 0.8
 		e.RotSpeed = NumberRange.new(-20, 20)
-		e.Rate = C.rollRate or 9
+		e.Rate = (C.rollRate or 9) * ((QualityController.preset.collapse or {}).dust or 1)
 		e.Parent = att
 		TweenService:Create(
 			att,
@@ -730,7 +730,8 @@ local function dustCloud(rec: Rec, seconds: number): BasePart?
 	e.Lifetime = NumberRange.new(2.5, 4)
 	e.Speed = NumberRange.new(6, 14)
 	e.SpreadAngle = Vector2.new(60, 60)
-	e.Rate = 24
+	-- round 4: the preset's collapse.dust scales it (Low half: three clouds stay inside its particle budget)
+	e.Rate = ((D.collapseFx or {}).cloudRate or 24) * ((QualityController.preset.collapse or {}).dust or 1)
 	e.Drag = 1.5
 	e.RotSpeed = NumberRange.new(-30, 30)
 	e.Parent = p
@@ -1926,7 +1927,7 @@ local function confirm(data: any)
 	for _, id in data.r or {} do
 		pending[id] = nil
 	end
-	local c = data.c or {}
+	local c = BuildingState.removedList(data.c)
 	for i = 1, #c - 2, 3 do
 		local p = pending[c[i]]
 		if p and type(c[i + 1]) == "number" then

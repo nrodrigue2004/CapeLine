@@ -19,7 +19,12 @@ return {
 	-- destroy-all (2026-11-20): how far a collapse's dust fronts roll along the ground (x the building's width, within
 	-- min..max studs, stopped by the next wall) and how thick (particles a second a front; fronts per preset:
 	-- Presets collapse.roll)
-	collapseFx = { rollMult = 1.6, rollMin = 40, rollMax = 130, rollRate = 9 },
+	collapseFx = { rollMult = 1.6, rollMin = 40, rollMax = 130, rollRate = 9, cloudRate = 24 },
+	-- destroy-all round 4 (2026-11-20): the worst case held by tests (30 heroes, a boss and 3 collapses at once):
+	-- the server's building work in ms a frame (of the spec's 8 ms of scripts), the 2 Hz loop's own frame, BuildingDiff bytes a player in the
+	-- worst second, the join snapshot's bytes, and a Low device's collapse dust particles a second (3 clouds and their
+	-- fronts; half the Low effects budget, Config.Fx.lib.budget.low)
+	load = { serverMs = 1, loopMs = 4, diffBytes = 8192, snapshotBytes = 49152, lowDust = 110 },
 	street = {
 		respawn = 45,
 		radiusMult = 1.2,

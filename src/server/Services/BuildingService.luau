@@ -385,7 +385,13 @@ flush = function()
 	if #diffs == 0 and #droneJobs == 0 and #removed == 0 and #fixed == 0 then
 		return
 	end
-	Net.fireAll("BuildingDiff", { r = fixed, d = diffs, dr = droneJobs, c = removed })
+	-- c packed 5 bytes a piece (destroy-all round 4: the worst case stays inside Destruction.load.diffBytes)
+	Net.fireAll("BuildingDiff", {
+		r = fixed,
+		d = diffs,
+		dr = droneJobs,
+		c = if #removed > 0 then BuildingState.packRemoved(removed) else nil,
+	})
 	droneJobs = {}
 end
 

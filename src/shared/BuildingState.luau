@@ -637,6 +637,34 @@ function BuildingState.takeRemoved(book: Book): { number }
 	return list
 end
 
+-- The removed pieces packed for BuildingDiff's c (destroy-all round 4, 2026-11-20): 5 bytes a piece (u16 id, u16
+-- piece, u8 cause) instead of a table of three numbers (about 27 bytes), so 30 heroes, a boss and 3 collapses at once
+-- stay a few KB a second a player (Config.Destruction.load.diffBytes)
+function BuildingState.packRemoved(list: { number }): buffer
+	local n = #list // 3
+	local b = buffer.create(n * 5)
+	for k = 0, n - 1 do
+		buffer.writeu16(b, k * 5, math.clamp(list[k * 3 + 1], 0, 65535))
+		buffer.writeu16(b, k * 5 + 2, math.clamp(list[k * 3 + 2], 0, 65535))
+		buffer.writeu8(b, k * 5 + 4, math.clamp(list[k * 3 + 3], 0, 255))
+	end
+	return b
+end
+
+-- BuildingDiff's c back to { id, piece, cause, ... }: the packed buffer, or the old flat list as it is
+function BuildingState.removedList(c: any): { any }
+	if type(c) == "buffer" then
+		local out = {}
+		for k = 0, buffer.len(c) // 5 - 1 do
+			table.insert(out, buffer.readu16(c, k * 5))
+			table.insert(out, buffer.readu16(c, k * 5 + 2))
+			table.insert(out, buffer.readu8(c, k * 5 + 4))
+		end
+		return out
+	end
+	return if type(c) == "table" then c else {}
+end
+
 -- Run the drones: finish jobs that are done, then give idle drones the quietest eligible building in their
 -- district. Returns the ids repaired this step and the drones that started a job.
 function BuildingState.stepDrones(cfg: any, book: Book, now: number): ({ number }, { Drone })
@@ -793,7 +821,7 @@ function BuildingState.applyDiff(
 			reset[id] = true
 		end
 	end
-	local c = data.c or {}
+	local c = BuildingState.removedList(data.c)
 	for i = 1, #c - 2, 3 do
 		local id, piece, cause = c[i], c[i + 1], c[i + 2]
 		if known(id) and type(piece) == "number" then

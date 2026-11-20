@@ -882,4 +882,269 @@ return function(T: any)
 			"MoveController gates the same building by distance from the last hole"
 		)
 	end)
+
+	-- destroy-all round 4 (2026-11-20): the worst case all at once: 30 heroes wrecking Downtown (a super every 2 s,
+	-- a skill every 0.5 s, rams flat out inside the impact caps), a boss's strikes wrecking down a street, and 3
+	-- buildings coming down together. The server's pure building work per frame, the BuildingDiff bytes a second
+	-- (the 2 Hz batch plus the rams' own flushes), the join snapshot at its biggest, and the Low device's dust.
+	test("Destroy all: worst case load: 30 heroes, a boss and 3 collapses at once stay in budget", function()
+		local BuildingState = require("../src/shared/BuildingState")
+		local ImpactRules = require("../src/shared/ImpactRules")
+		local D = Config.Destruction
+		local I = Config.Combat.impact
+		local R = I.ram
+		local W = D.bossWreck
+		local LB = D.load
+		check(LB ~= nil, "Destruction.load holds the budgets")
+		local book = BuildingState.new(D, world.buildings)
+		local ledger = ImpactRules.ledger()
+		local downtown = {}
+		for _, b in world.buildings do
+			if
+				b.district == "Downtown"
+				and not BuildingState.pinned(book, b.id)
+				and b.x > -700
+				and b.x < -100
+				and b.z > -350
+				and b.z < 350
+			then
+				table.insert(downtown, b)
+			end
+		end
+		check(#downtown >= 60, "Downtown's blocks (" .. #downtown .. ")")
+		-- Roblox remote sizes, on the heavy side: a number 9 bytes, a table 3 plus its keys, a buffer its length + 3
+		local function bytes(v: any): number
+			local t = type(v)
+			if t == "number" then
+				return 9
+			elseif t == "buffer" then
+				return buffer.len(v) + 3
+			elseif t == "string" then
+				return #v + 2
+			elseif t == "table" then
+				local n = 3
+				for k, x in v do
+					n += (if type(k) == "string" then #k + 2 else 0) + bytes(x)
+				end
+				return n
+			end
+			return 1
+		end
+		local roundTrip = true
+		local function batch(): (number, number)
+			local fixed = BuildingState.takeFixed(book)
+			local diffs = BuildingState.takeDiffs(book)
+			local removed = BuildingState.takeRemoved(book)
+			if #diffs == 0 and #removed == 0 and #fixed == 0 then
+				return 0, 0
+			end
+			local packed = BuildingState.packRemoved(removed)
+			local back = BuildingState.removedList(packed)
+			for i = 1, #removed do
+				if back[i] ~= removed[i] then
+					roundTrip = false
+				end
+			end
+			return 1, bytes({ r = fixed, d = diffs, dr = {}, c = if #removed > 0 then packed else nil })
+		end
+		local seed = 11
+		local function rnd(): number
+			seed = (seed * 1103515245 + 12345) % 2147483648
+			return seed / 2147483648
+		end
+		-- 3 at once: three blocks knocked down at their feet
+		local collapses = 0
+		for k = 1, 3 do
+			local b = downtown[k * 17]
+			for _ = 1, 30 do
+				local r = BuildingState.blast(
+					D,
+					book,
+					b.id,
+					b.x + (rnd() - 0.5) * b.sx,
+					b.base + 2,
+					b.z + (rnd() - 0.5) * b.sz,
+					14,
+					D.superStruct,
+					0
+				)
+				if r.changed and r.state == BuildingState.COLLAPSED then
+					collapses += 1
+					break
+				end
+			end
+		end
+		local secs, dt = 30, 0.5
+		local cpu, worstTick, sends, sent, worstSecond, worstLoop = 0, 0, 0, 0, 0, 0
+		local second, secondBytes = 0, 0
+		local rams, ramsOk, hits = 0, 0, 0
+		local t = 0
+		while t < secs do
+			t += dt
+			local t0 = os.clock()
+			local tickBytes = 0
+			for hero = 1, 30 do
+				local b = downtown[1 + ((hero * 7 + math.floor(t / 8) * 3) % #downtown)]
+				local x = b.x + (rnd() - 0.5) * b.sx
+				local z = b.z + (if rnd() < 0.5 then -1 else 1) * b.sz / 2
+				local y = b.base + 2 + rnd() * 20
+				local dmg = if hero % 4 == math.floor(t / dt) % 4 then D.superStruct else D.slotStruct.skill
+				for _, id in BuildingState.near(book, x, z, 12) do
+					local bb = world.buildings[id]
+					if bb and BuildingState.touches(bb, x, y, z, 12) then
+						hits += 1
+						BuildingState.blast(D, book, id, x, BuildingState.blastY(bb, y), z, 12, dmg, t)
+					end
+				end
+				-- rams flat out (4 a second asked): each one the server allows knocks a hole and flushes at once
+				for k = 0, 1 do
+					rams += 1
+					if ImpactRules.allow(I, ledger, hero, t + k * 0.25) then
+						ramsOk += 1
+						local r = BuildingState.blast(
+							D,
+							book,
+							b.id,
+							x,
+							BuildingState.blastY(b, y),
+							z,
+							R.radius,
+							ImpactRules.ramDamage(R, 110),
+							t
+						)
+						if #r.hit > 0 then
+							local n, by = batch()
+							sends += n
+							tickBytes += by
+						end
+					end
+				end
+			end
+			-- the boss: a strike every 2 s down a street through the blocks (6 spots of bossWreck.dmg)
+			if math.floor(t / dt) % 4 == 0 then
+				local b = downtown[1 + (math.floor(t) % #downtown)]
+				local ev = {
+					shape = "lines",
+					x = b.x - 60,
+					y = b.base,
+					z = b.z,
+					length = 220,
+					width = 10,
+					points = { { 1, 0 }, { 0.7, 0.7 }, { 0.7, -0.7 } },
+				}
+				for _, w in ImpactRules.bossWreck(W, ev) do
+					for _, id in BuildingState.near(book, w[1], w[3], w[4]) do
+						local bb = world.buildings[id]
+						if bb and BuildingState.touches(bb, w[1], w[2], w[3], w[4]) then
+							BuildingState.blast(
+								D,
+								book,
+								id,
+								w[1],
+								BuildingState.blastY(bb, w[2]),
+								w[3],
+								w[4],
+								W.dmg,
+								t
+							)
+						end
+					end
+				end
+			end
+			local s0 = os.clock()
+			for _, h in BuildingState.stepHeld(D, book, t) do
+				local _ = h
+				collapses += 1
+			end
+			if math.floor(t) ~= math.floor(t - dt) then
+				BuildingState.stepDrones(D, book, t)
+			end
+			local n, by = batch() -- the 2 Hz batch
+			worstLoop = math.max(worstLoop, (os.clock() - s0) * 1000)
+			sends += n
+			tickBytes += by
+			local spent = (os.clock() - t0) * 1000
+			cpu += spent
+			worstTick = math.max(worstTick, spent)
+			sent += tickBytes
+			if math.floor(t) ~= second then
+				worstSecond = math.max(worstSecond, secondBytes)
+				second, secondBytes = math.floor(t), 0
+			end
+			secondBytes += tickBytes
+		end
+		worstSecond = math.max(worstSecond, secondBytes)
+		local perFrame = cpu / (secs * 60)
+		local snap = bytes({
+			s = BuildingState.pack(book),
+			n = book.n,
+			dr = {},
+			g = BuildingState.packGone(D, book),
+		})
+		local damaged = 0
+		for _ in book.open do
+			damaged += 1
+		end
+		print(
+			string.format(
+				"  [destroy all] load: %d hits, %d/%d rams, %d collapses, %d Damaged; %.3f ms a frame (worst 0.5 s of hits %.1f ms, worst 2 Hz loop frame %.2f ms); %d sends, %.1f KB/s a player (worst second %.1f KB); snapshot %.1f KB",
+				hits,
+				ramsOk,
+				rams,
+				collapses,
+				damaged,
+				perFrame,
+				worstTick,
+				worstLoop,
+				sends,
+				sent / secs / 1024,
+				worstSecond / 1024,
+				snap / 1024
+			)
+		)
+		check(collapses >= 3, "three buildings came down")
+		check(roundTrip, "the packed pieces read back the same (id, piece, cause)")
+		check(
+			perFrame <= LB.serverMs,
+			string.format("server building work %.3f ms a frame (budget %s)", perFrame, LB.serverMs)
+		)
+		check(
+			worstSecond <= LB.diffBytes,
+			string.format("BuildingDiff %d bytes in the worst second (budget %d)", worstSecond, LB.diffBytes)
+		)
+		check(
+			snap <= LB.snapshotBytes,
+			string.format("the join snapshot %d bytes (budget %d)", snap, LB.snapshotBytes)
+		)
+		check(
+			sends / secs <= 2 + I.serverPerSecond,
+			"diff sends a second: the 2 Hz batch plus the rams the server allows"
+		)
+
+		-- the Low device with three collapses in view: the dust clouds (emitters cap) and their rolling fronts
+		local low = Config.Presets.low
+		local C = D.collapseFx
+		local clouds = math.min(3, low.emitters)
+		local scale = low.collapse.dust or 1
+		local perSec = clouds * (C.cloudRate + low.collapse.roll * C.rollRate) * scale
+		local fxShare = Config.Fx.lib.budget.low
+		print(
+			string.format(
+				"  [destroy all] Low device, 3 collapses: %d dust clouds, %.0f dust particles a second (effects budget %s a second)",
+				clouds,
+				perSec,
+				tostring(fxShare)
+			)
+		)
+		check(
+			perSec <= LB.lowDust,
+			string.format("Low collapse dust %.0f a second (budget %d)", perSec, LB.lowDust)
+		)
+		local fx = fs.readFile("src/client/Fx/BuildingFx.luau")
+		check(
+			string.find(fx, ").cloudRate or 24)", 1, true) ~= nil
+				and string.find(fx, "or {}).dust or 1)", 1, true) ~= nil,
+			"BuildingFx's dust clouds and fronts scale by the preset"
+		)
+	end)
 end
