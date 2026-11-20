@@ -58,7 +58,14 @@ local function cloud(i: number, n: number, t: number): (number, number, number)
 end
 
 -- A ball of drones (a fist) round a centre
-local function ball(i: number, cx: number, cy: number, cz: number, r: number, t: number): (number, number, number)
+local function ball(
+	i: number,
+	cx: number,
+	cy: number,
+	cz: number,
+	r: number,
+	t: number
+): (number, number, number)
 	local u, v, w = hash(i, 2), hash(i, 3), hash(i, 4)
 	local a = u * math.pi * 2 + t * 1.6
 	local cosT = v * 2 - 1

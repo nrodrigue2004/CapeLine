@@ -22,6 +22,7 @@
         "BodyTorsos": { "$path": "art/models/BodyTorsos.rbxm" },
         "Boots": { "$path": "art/models/Boots.rbxm" },
         "Bosses": { "$path": "art/models/Bosses.rbxm" },
+        "Bosses2": { "$path": "art/models/Bosses2.rbxm" },
         "Bramblebeast": { "$path": "art/models/Bramblebeast.rbxm" },
         "Capes": { "$path": "art/models/Capes.rbxm" },
         "Coats": { "$path": "art/models/Coats.rbxm" },

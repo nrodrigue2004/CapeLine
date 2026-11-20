@@ -349,8 +349,8 @@ return {
 			bit = 4,
 			gold = 12,
 			colors = { { 36, 60, 116 }, { 250, 196, 40 }, { 150, 230, 255 } },
-			where = "World boss: the Beacon Tower",
-			blurb = "A Crane weather machine gone rogue. Ride the lightning rods up!",
+			where = "World boss: over the plaza",
+			blurb = "A weather machine gone rogue. Ride the lightning rods up!",
 		},
 		{
 			boss = "SwarmQueen",
@@ -358,7 +358,7 @@ return {
 			gold = 13,
 			colors = { { 54, 58, 72 }, { 250, 196, 40 }, { 255, 170, 60 } },
 			where = "World boss: the Docks",
-			blurb = "A cloud of Crane drones round one hive core. Break its formations!",
+			blurb = "A cloud of drones round one hive core. Break its formations!",
 		},
 		{
 			boss = "QuarryTitan",
@@ -438,17 +438,17 @@ return {
 			RustjawPrime = 111466227995542,
 			LumenMaw = 71627981738721,
 			LeviathanEngine = 131709143418717,
-			StormColossus = 0, -- bosses-3: 0 until its card is uploaded
-			SwarmQueen = 0,
-			QuarryTitan = 0,
+			StormColossus = 132968893117258, -- bosses-3 (2026-11-20, DRAFT looks)
+			SwarmQueen = 86709755006155,
+			QuarryTitan = 70560735313072,
 		},
 		gold = {
 			RustjawPrime = 133221914344474,
 			LumenMaw = 136009565718609,
 			LeviathanEngine = 132119263546967,
-			StormColossus = 0,
-			SwarmQueen = 0,
-			QuarryTitan = 0,
+			StormColossus = 85879266068007,
+			SwarmQueen = 104157954337276,
+			QuarryTitan = 133382348338219,
 		},
 	},
 	firstBit = { robots = 16, fakes = 48, villains = 64, bosses = 1, gold = 9, milestones = 120 },

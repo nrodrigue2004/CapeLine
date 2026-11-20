@@ -13,7 +13,8 @@ return {
 		{ file = "icons_3.png", id = 91837930494256 },
 		{ file = "icons_4.png", id = 114564216412502 },
 		{ file = "icons_5.png", id = 129510062390276 },
-		{ file = "icons_6.png", id = 136990881248235 },
+		{ file = "icons_6.png", id = 109444681852120 },
+		{ file = "icons_7.png", id = 136418899105863 },
 	},
 	-- every power (Config.Abilities.list), by ability id
 	ability = {
@@ -331,6 +332,9 @@ return {
 		help = { 6, 8 },
 		here = { 6, 9 },
 		danger = { 6, 10 },
+		StormColossus = { 6, 62 },
+		SwarmQueen = { 6, 63 },
+		QuarryTitan = { 7, 0 },
 	},
 	-- the Badge Book's groups (Config.Badges.groups), discs
 	badgeGroup = {

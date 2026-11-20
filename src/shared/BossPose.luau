@@ -1090,59 +1090,115 @@ local storm: Set = {
 		}, true),
 		flinch = clip(0.55, {
 			K(0, BossPose.NONE),
-			K(0.12, { Root = V(8, 0, 4, 0, 0, 2), Head = V(10, 8), ArmL = V(-10, 0, -16), ArmR = V(-6, 0, 18) }, "out"),
+			K(
+				0.12,
+				{ Root = V(8, 0, 4, 0, 0, 2), Head = V(10, 8), ArmL = V(-10, 0, -16), ArmR = V(-6, 0, 18) },
+				"out"
+			),
 			K(0.55, BossPose.NONE),
 		}),
 		-- it sags, sparking: the fan sputters and it lists to one side (its core and dynamo in reach)
 		weak = clip(2.4, {
 			K(0, BossPose.NONE),
-			K(0.4, { Root = V(10, 0, 8, 0, -4), Head = V(18, 10), ArmL = V(30, 0, -20), ArmR = V(20, 0, 30) }, "out"),
+			K(
+				0.4,
+				{ Root = V(10, 0, 8, 0, -4), Head = V(18, 10), ArmL = V(30, 0, -20), ArmR = V(20, 0, 30) },
+				"out"
+			),
 			K(1.8, { Root = V(8, 0, 6, 0, -3), Head = V(14, 6), ArmL = V(26, 0, -18), ArmR = V(18, 0, 26) }),
 			K(2.4, BossPose.NONE),
 		}),
 		stagger = clip(1.6, {
 			K(0, BossPose.NONE),
-			K(0.25, { Root = V(-10, 0, -8, 0, -2), Head = V(-14, -10), ArmL = V(-20, 0, -40), ArmR = V(-20, 0, 40) }, "out"),
+			K(0.25, {
+				Root = V(-10, 0, -8, 0, -2),
+				Head = V(-14, -10),
+				ArmL = V(-20, 0, -40),
+				ArmR = V(-20, 0, 40),
+			}, "out"),
 			K(0.8, { Root = V(6, 0, 4), Head = V(8, 6), ArmL = V(10, 0, -10), ArmR = V(10, 0, 10) }),
 			K(1.6, BossPose.NONE),
 		}),
 		-- it throws its arms wide and crackles: the storm builds
 		enrage = clip(2.2, {
 			K(0, BossPose.NONE),
-			K(0.5, { Root = V(-6, 0, 0, 0, 2), Head = V(-20), ArmL = V(-40, 0, -60), ArmR = V(-40, 0, 60), ForeL = V(30), ForeR = V(30) }, "out"),
-			K(1.6, { Root = V(-6, 0, 0, 0, 2), Head = V(-22), ArmL = V(-44, 0, -64), ArmR = V(-44, 0, 64), ForeL = V(34), ForeR = V(34) }),
+			K(0.5, {
+				Root = V(-6, 0, 0, 0, 2),
+				Head = V(-20),
+				ArmL = V(-40, 0, -60),
+				ArmR = V(-40, 0, 60),
+				ForeL = V(30),
+				ForeR = V(30),
+			}, "out"),
+			K(1.6, {
+				Root = V(-6, 0, 0, 0, 2),
+				Head = V(-22),
+				ArmL = V(-44, 0, -64),
+				ArmR = V(-44, 0, 64),
+				ForeL = V(34),
+				ForeR = V(34),
+			}),
 			K(2.2, BossPose.NONE),
 		}),
 		-- the fan dies: it tips over and drops (it holds the last pose; WorldFx sinks it)
 		defeat = clip(3, {
 			K(0, BossPose.NONE),
-			K(0.5, { Root = V(10, 0, 10), Head = V(20, 14), ArmL = V(20, 0, -30), ArmR = V(10, 0, 40) }, "out"),
-			K(3, { Root = V(12, 0, 14, 0, -26), Body = V(10, 20), Head = V(26, 20), ArmL = V(40, 0, -40), ArmR = V(30, 0, 50), ForeL = V(40), ForeR = V(40) }, "in"),
+			K(
+				0.5,
+				{ Root = V(10, 0, 10), Head = V(20, 14), ArmL = V(20, 0, -30), ArmR = V(10, 0, 40) },
+				"out"
+			),
+			K(3, {
+				Root = V(12, 0, 14, 0, -26),
+				Body = V(10, 20),
+				Head = V(26, 20),
+				ArmL = V(40, 0, -40),
+				ArmR = V(30, 0, 50),
+				ForeL = V(40),
+				ForeR = V(40),
+			}, "in"),
 		}),
 		land = clip(2, {
 			K(0, { Root = V(0, 0, 0, 0, 12), ArmL = V(-30, 0, -50), ArmR = V(-30, 0, 50) }),
-			K(1.2, { Root = V(-4, 0, 0, 0, -2), ArmL = V(10, 0, -30), ArmR = V(10, 0, 30), Head = V(-10) }, "out"),
+			K(
+				1.2,
+				{ Root = V(-4, 0, 0, 0, -2), ArmL = V(10, 0, -30), ArmR = V(10, 0, 30), Head = V(-10) },
+				"out"
+			),
 			K(2, BossPose.NONE),
 		}),
-		shot = clip(0.4, { K(0, BossPose.NONE), K(0.08, { Body = V(0, 0, 0, 0, 0, 0.6) }, "out"), K(0.4, BossPose.NONE) }),
+		shot = clip(
+			0.4,
+			{ K(0, BossPose.NONE), K(0.08, { Body = V(0, 0, 0, 0, 0, 0.6) }, "out"), K(0.4, BossPose.NONE) }
+		),
 	},
 	attacks = {
 		-- both coil hands rise: the clouds answer with bolts
-		Lightning = attack(0.75, { ArmL = V(-60, 0, -30), ArmR = V(-60, 0, 30), ForeL = V(30), ForeR = V(30), Head = V(-16) }, {
-			ArmL = V(-100, 0, -24),
-			ArmR = V(-100, 0, 24),
-			ForeL = V(10),
-			ForeR = V(10),
-			Head = V(-24),
-			Root = V(0, 0, 0, 0, 1),
-		}, 0.9),
+		Lightning = attack(
+			0.75,
+			{ ArmL = V(-60, 0, -30), ArmR = V(-60, 0, 30), ForeL = V(30), ForeR = V(30), Head = V(-16) },
+			{
+				ArmL = V(-100, 0, -24),
+				ArmR = V(-100, 0, 24),
+				ForeL = V(10),
+				ForeR = V(10),
+				Head = V(-24),
+				Root = V(0, 0, 0, 0, 1),
+			},
+			0.9
+		),
 		-- it winds back and swings both arms forward: the fan roars and the wind blasts out
-		Gust = attack(0.7, { Root = V(-8, 0, 0, 0, 0, 2), ArmL = V(-30, 0, -50), ArmR = V(-30, 0, 50), Body = V(-6) }, {
-			Root = V(10, 0, 0, 0, 0, -2),
-			ArmL = V(70, 0, -20),
-			ArmR = V(70, 0, 20),
-			Body = V(8),
-		}, 0.9),
+		Gust = attack(
+			0.7,
+			{ Root = V(-8, 0, 0, 0, 0, 2), ArmL = V(-30, 0, -50), ArmR = V(-30, 0, 50), Body = V(-6) },
+			{
+				Root = V(10, 0, 0, 0, 0, -2),
+				ArmL = V(70, 0, -20),
+				ArmR = V(70, 0, 20),
+				Body = V(8),
+			},
+			0.9
+		),
 		-- it rises and spreads its arms: the clouds gather
 		StormCloud = attack(0.7, { Root = V(0, 0, 0, 0, -2), ArmL = V(10, 0, -10), ArmR = V(10, 0, 10) }, {
 			Root = V(0, 0, 0, 0, 3),
@@ -1151,12 +1207,17 @@ local storm: Set = {
 			Head = V(-20),
 		}, 1),
 		-- a whip of both arms across the ground
-		StormLash = attack(0.75, { Body = V(0, 30), ArmR = V(-20, 0, 50), ArmL = V(10, 0, -30), Head = V(0, 16) }, {
-			Body = V(0, -30),
-			ArmR = V(60, 0, 10),
-			ArmL = V(40, 0, -40),
-			Head = V(0, -16),
-		}, 1),
+		StormLash = attack(
+			0.75,
+			{ Body = V(0, 30), ArmR = V(-20, 0, 50), ArmL = V(10, 0, -30), Head = V(0, 16) },
+			{
+				Body = V(0, -30),
+				ArmR = V(60, 0, 10),
+				ArmL = V(40, 0, -40),
+				Head = V(0, -16),
+			},
+			1
+		),
 		BallLightning = attack(0.75, { ArmL = V(20, 0, -20), ArmR = V(20, 0, 20), Head = V(10) }, {
 			ArmL = V(-120, 0, -20),
 			ArmR = V(-120, 0, 20),
@@ -1164,12 +1225,17 @@ local storm: Set = {
 			Root = V(0, 0, 0, 0, 1),
 		}, 0.9),
 		-- a ring of thunder round its body: it curls up, then flings everything out
-		Thunderhead = attack(0.7, { Root = V(10), ArmL = V(40, 0, 20), ArmR = V(40, 0, -20), Head = V(16) }, {
-			Root = V(-6),
-			ArmL = V(-20, 0, -80),
-			ArmR = V(-20, 0, 80),
-			Head = V(-20),
-		}, 0.9),
+		Thunderhead = attack(
+			0.7,
+			{ Root = V(10), ArmL = V(40, 0, 20), ArmR = V(40, 0, -20), Head = V(16) },
+			{
+				Root = V(-6),
+				ArmL = V(-20, 0, -80),
+				ArmR = V(-20, 0, 80),
+				Head = V(-20),
+			},
+			0.9
+		),
 		-- one arm reaches for the kiter and twists: the vortex pulls
 		Vortex = attack(0.75, { ArmR = V(-20, 0, 40), ForeR = V(30), Body = V(0, -20) }, {
 			ArmR = V(80, 0, 10),
@@ -1186,43 +1252,72 @@ local swarm: Set = {
 	clips = {
 		idle = clip(3.2, {
 			K(0, BossPose.NONE),
-			K(1.6, { Root = V(0, 0, 0, 0, 2), Body = V(3, 8), Crown = V(-4, -10), ShellL = V(0, 0, -4), ShellR = V(0, 0, 4) }),
+			K(1.6, {
+				Root = V(0, 0, 0, 0, 2),
+				Body = V(3, 8),
+				Crown = V(-4, -10),
+				ShellL = V(0, 0, -4),
+				ShellR = V(0, 0, 4),
+			}),
 			K(3.2, BossPose.NONE),
 		}, true),
 		flinch = clip(0.5, {
 			K(0, BossPose.NONE),
-			K(0.1, { Root = V(6, 0, 0, 0, 0, 2), ShellL = V(0, 0, -10), ShellR = V(0, 0, 10), Crown = V(10) }, "out"),
+			K(
+				0.1,
+				{ Root = V(6, 0, 0, 0, 0, 2), ShellL = V(0, 0, -10), ShellR = V(0, 0, 10), Crown = V(10) },
+				"out"
+			),
 			K(0.5, BossPose.NONE),
 		}),
 		-- its formations are broken: the shells swing wide open and the core hangs bare
 		weak = clip(2.4, {
 			K(0, BossPose.NONE),
-			K(0.35, { ShellL = V(0, 0, -50), ShellR = V(0, 0, 50), Crown = V(-10), Root = V(6, 0, 0, 0, -2) }, "out"),
+			K(
+				0.35,
+				{ ShellL = V(0, 0, -50), ShellR = V(0, 0, 50), Crown = V(-10), Root = V(6, 0, 0, 0, -2) },
+				"out"
+			),
 			K(1.9, { ShellL = V(0, 0, -46), ShellR = V(0, 0, 46), Crown = V(-8), Root = V(4, 0, 0, 0, -2) }),
 			K(2.4, BossPose.NONE),
 		}),
 		stagger = clip(1.5, {
 			K(0, BossPose.NONE),
-			K(0.25, { Root = V(-8, 0, 6), ShellL = V(0, 0, -20), ShellR = V(0, 0, 20), Crown = V(-14) }, "out"),
+			K(
+				0.25,
+				{ Root = V(-8, 0, 6), ShellL = V(0, 0, -20), ShellR = V(0, 0, 20), Crown = V(-14) },
+				"out"
+			),
 			K(1.5, BossPose.NONE),
 		}),
 		enrage = clip(2, {
 			K(0, BossPose.NONE),
-			K(0.4, { Root = V(0, 0, 0, 0, 3), ShellL = V(0, 0, -24), ShellR = V(0, 0, 24), Crown = V(-16) }, "out"),
+			K(
+				0.4,
+				{ Root = V(0, 0, 0, 0, 3), ShellL = V(0, 0, -24), ShellR = V(0, 0, 24), Crown = V(-16) },
+				"out"
+			),
 			K(1.5, { Root = V(0, 0, 0, 0, 3), ShellL = V(0, 0, -26), ShellR = V(0, 0, 26), Crown = V(-18) }),
 			K(2, BossPose.NONE),
 		}),
 		defeat = clip(3, {
 			K(0, BossPose.NONE),
 			K(0.6, { ShellL = V(0, 0, -40), ShellR = V(0, 0, 40), Root = V(8, 0, 6) }, "out"),
-			K(3, { ShellL = V(0, 0, -58), ShellR = V(0, 0, 58), Crown = V(18, 20), Root = V(9, 0, 9, 0, -24) }, "in"),
+			K(
+				3,
+				{ ShellL = V(0, 0, -58), ShellR = V(0, 0, 58), Crown = V(18, 20), Root = V(9, 0, 9, 0, -24) },
+				"in"
+			),
 		}),
 		land = clip(2, {
 			K(0, { Root = V(0, 0, 0, 0, 10), ShellL = V(0, 0, -30), ShellR = V(0, 0, 30) }),
 			K(1.2, { Root = V(0, 0, 0, 0, -2) }, "out"),
 			K(2, BossPose.NONE),
 		}),
-		shot = clip(0.4, { K(0, BossPose.NONE), K(0.08, { Body = V(0, 0, 0, 0, 0, 0.5) }, "out"), K(0.4, BossPose.NONE) }),
+		shot = clip(
+			0.4,
+			{ K(0, BossPose.NONE), K(0.08, { Body = V(0, 0, 0, 0, 0, 0.5) }, "out"), K(0.4, BossPose.NONE) }
+		),
 	},
 	attacks = {
 		DroneFist = attack(0.75, { Body = V(-10), Crown = V(-10), Root = V(0, 0, 0, 0, 2) }, {
@@ -1230,7 +1325,12 @@ local swarm: Set = {
 			Crown = V(12),
 			Root = V(0, 0, 0, 0, -2),
 		}, 0.9),
-		FistSweep = attack(0.75, { Body = V(0, 30), Crown = V(0, 16) }, { Body = V(0, -30), Crown = V(0, -16) }, 0.9),
+		FistSweep = attack(
+			0.75,
+			{ Body = V(0, 30), Crown = V(0, 16) },
+			{ Body = V(0, -30), Crown = V(0, -16) },
+			0.9
+		),
 		DroneRain = attack(0.7, { ShellL = V(0, 0, -16), ShellR = V(0, 0, 16), Crown = V(-12) }, {
 			ShellL = V(0, 0, -30),
 			ShellR = V(0, 0, 30),
@@ -1247,7 +1347,12 @@ local swarm: Set = {
 			ShellL = V(0, 0, -12),
 			ShellR = V(0, 0, 12),
 		}, 1),
-		Stingers = attack(0.75, { Crown = V(10), Body = V(6) }, { Crown = V(-24), Body = V(-10), Root = V(0, 0, 0, 0, 1) }, 0.9),
+		Stingers = attack(
+			0.75,
+			{ Crown = V(10), Body = V(6) },
+			{ Crown = V(-24), Body = V(-10), Root = V(0, 0, 0, 0, 1) },
+			0.9
+		),
 		HiveCrush = attack(0.7, { ShellL = V(0, 0, -30), ShellR = V(0, 0, 30) }, {
 			ShellL = V(0, 0, 4),
 			ShellR = V(0, 0, -4),
@@ -1262,7 +1367,19 @@ local swarm: Set = {
 }
 
 local titan: Set = {
-	segments = { "Root", "Body", "ThighL", "ShinL", "ThighR", "ShinR", "Head", "ArmL", "ForeL", "ArmR", "ForeR" },
+	segments = {
+		"Root",
+		"Body",
+		"ThighL",
+		"ShinL",
+		"ThighR",
+		"ShinR",
+		"Head",
+		"ArmL",
+		"ForeL",
+		"ArmR",
+		"ForeR",
+	},
 	clips = without(rust.clips, { Jaw = true }),
 	attacks = {
 		-- both boulder fists come up over its head, then down into the ground
@@ -1308,12 +1425,17 @@ local titan: Set = {
 			Head = V(-4, -14),
 		}, 0.9),
 		-- it beats its chest and the floor cracks open into lava
-		LavaFloor = attack(0.75, { ArmL = V(-40, 0, -40), ArmR = V(-40, 0, 40), Body = V(-10), Head = V(-14) }, {
-			ArmL = V(30, 0, -10),
-			ArmR = V(30, 0, 10),
-			Body = V(12),
-			Head = V(10),
-		}, 1),
+		LavaFloor = attack(
+			0.75,
+			{ ArmL = V(-40, 0, -40), ArmR = V(-40, 0, 40), Body = V(-10), Head = V(-14) },
+			{
+				ArmL = V(30, 0, -10),
+				ArmR = V(30, 0, 10),
+				Body = V(12),
+				Head = V(10),
+			},
+			1
+		),
 		-- a full-body roar: lava bursts up all round it
 		Eruption = attack(0.85, {
 			Body = V(16),
@@ -1332,12 +1454,17 @@ local titan: Set = {
 			ArmR = V(-60, 0, 60),
 			Root = V(0, 0, 0, 0, 1),
 		}, 1.1),
-		LavaBombs = attack(0.75, { ArmL = V(-20, 0, -30), ArmR = V(-20, 0, 30), Body = V(8), Head = V(14) }, {
-			ArmL = V(110, 0, -20),
-			ArmR = V(110, 0, 20),
-			Body = V(-6),
-			Head = V(24),
-		}, 0.9),
+		LavaBombs = attack(
+			0.75,
+			{ ArmL = V(-20, 0, -30), ArmR = V(-20, 0, 30), Body = V(8), Head = V(14) },
+			{
+				ArmL = V(110, 0, -20),
+				ArmR = V(110, 0, 20),
+				Body = V(-6),
+				Head = V(24),
+			},
+			0.9
+		),
 		MagmaGeyser = attack(0.75, { ArmR = V(-30, 0, 50), ForeR = V(30), Body = V(0, -20) }, {
 			ArmR = V(125, 0, 10),
 			ForeR = V(10),
@@ -1396,22 +1523,28 @@ local TITAN = {
 BossPose.LIMITS = {
 	RustjawPrime = TITAN,
 	NullWarFrame = TITAN,
-	QuarryTitan = TITAN,
+	-- bosses-3: the golem's eruption throws its arms a little wider than Rustjaw ever does
+	QuarryTitan = (function()
+		local t = table.clone(TITAN)
+		t.ArmL = L(135, 12, 66, 0)
+		t.ArmR = L(135, 12, 66, 0)
+		return t
+	end)(),
 	StormColossus = {
-		Root = L(16, 4, 18, 30),
-		Body = L(14, 40, 4, 0),
-		Head = L(32, 30, 0, 0),
-		ArmL = L(135, 4, 82, 0),
-		ArmR = L(135, 4, 82, 0),
-		ForeL = L(50, 0, 0, 0),
-		ForeR = L(50, 0, 0, 0),
+		Root = L(16, 4, 20, 30),
+		Body = L(14, 40, 4, 1),
+		Head = L(32, 32, 0, 0),
+		ArmL = L(135, 4, 92, 0),
+		ArmR = L(135, 4, 92, 0),
+		ForeL = L(54, 0, 0, 0),
+		ForeR = L(54, 0, 0, 0),
 	},
 	SwarmQueen = {
 		Root = L(12, 4, 12, 28),
-		Body = L(18, 34, 4, 0),
-		Crown = L(24, 34, 4, 0),
-		ShellL = L(4, 4, 62, 0),
-		ShellR = L(4, 4, 62, 0),
+		Body = L(20, 44, 4, 1),
+		Crown = L(32, 34, 4, 0),
+		ShellL = L(4, 4, 66, 0),
+		ShellR = L(4, 4, 66, 0),
 	},
 	LumenMaw = {
 		Root = L(4, 4, 4, 20),

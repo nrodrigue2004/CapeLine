@@ -474,7 +474,13 @@ local function drawLifts(sh: Shown, list: { { number } })
 		else
 			table.insert(
 				parts,
-				part(folder, Vector3.new(1.2, 26, 1.2), CFrame.new(at + Vector3.new(0, 13, 0)), ROD, Enum.Material.Metal)
+				part(
+					folder,
+					Vector3.new(1.2, 26, 1.2),
+					CFrame.new(at + Vector3.new(0, 13, 0)),
+					ROD,
+					Enum.Material.Metal
+				)
 			)
 			table.insert(
 				parts,
@@ -669,13 +675,29 @@ local function lookFx(sh: Shown)
 				-- bosses-3: arcs crackle off its coils and crown, storm cloud puffs drift off its top
 				local reach = fx.reach or 20
 				local to = pos
-					+ Vector3.new(math.random(-reach, reach), math.random(-reach, reach) * 0.5, math.random(-reach, reach))
+					+ Vector3.new(
+						math.random(-reach, reach),
+						math.random(-reach, reach) * 0.5,
+						math.random(-reach, reach)
+					)
 				CombatFx.bolt(pos, to, State.hero.fxStyle, glow)
-				FxLib.emit("smoke", Color3.fromRGB(70, 76, 96), pivot * Vector3.new(0, 80, 0), 1, Vector3.new(0, 1, 0))
+				FxLib.emit(
+					"smoke",
+					Color3.fromRGB(70, 76, 96),
+					pivot * Vector3.new(0, 80, 0),
+					1,
+					Vector3.new(0, 1, 0)
+				)
 			elseif fx.kind == "magma" then
 				-- bosses-3: embers rise off the Titan's cracks, a little smoke off its shoulders
 				FxLib.emit("spark", glow, pos, 3, Vector3.new(0, 1, 0))
-				FxLib.emit("smoke", Color3.fromRGB(60, 50, 48), pos + Vector3.new(0, 6, 0), 1, Vector3.new(0, 1, 0))
+				FxLib.emit(
+					"smoke",
+					Color3.fromRGB(60, 50, 48),
+					pos + Vector3.new(0, 6, 0),
+					1,
+					Vector3.new(0, 1, 0)
+				)
 			end
 		end
 		if fx.dim then
@@ -863,10 +885,13 @@ local function warn(ev: { [string]: any })
 				Enum.PartType.Ball
 			)
 			rock.CastShadow = true
-			table.insert(
-				rocks,
-				{ part = rock, from = hand, to = Vector3.new(p[1], ev.y + 2, p[2]), start = os.clock(), dur = t }
-			)
+			table.insert(rocks, {
+				part = rock,
+				from = hand,
+				to = Vector3.new(p[1], ev.y + 2, p[2]),
+				start = os.clock(),
+				dur = t,
+			})
 		end
 	end
 	if bs and bs.swarm and ev.src == "boss" and ev.a then
@@ -944,7 +969,14 @@ local function strike(ev: { [string]: any })
 			local a = yaw + math.rad(((k - 0.5) / 10 - 0.5) * (ev.arc or 80))
 			local dir = Vector3.new(-math.sin(a), 0, -math.cos(a))
 			local h = (math.random() - 0.4) * 60
-			CombatFx.line(base + Vector3.new(0, h, 0), base + dir * ev.r + Vector3.new(0, h, 0), 2, style, Color3.fromRGB(230, 245, 255), false)
+			CombatFx.line(
+				base + Vector3.new(0, h, 0),
+				base + dir * ev.r + Vector3.new(0, h, 0),
+				2,
+				style,
+				Color3.fromRGB(230, 245, 255),
+				false
+			)
 		end
 		FxLib.dust(c, 30)
 	elseif ev.shape == "zone" then
@@ -963,7 +995,13 @@ local function strike(ev: { [string]: any })
 				)
 				pool.Transparency = 0.15
 				table.insert(parts, pool)
-				FxLib.emit("spark", Color3.fromRGB(255, 160, 60), Vector3.new(p[1], ev.y + 1, p[2]), 8, Vector3.new(0, 1, 0))
+				FxLib.emit(
+					"spark",
+					Color3.fromRGB(255, 160, 60),
+					Vector3.new(p[1], ev.y + 1, p[2]),
+					8,
+					Vector3.new(0, 1, 0)
+				)
 			else
 				local cy = ev.y + math.max(ev.lo or 24, (ev.alt or 0) + 20)
 				for j = 1, 3 do
@@ -971,7 +1009,11 @@ local function strike(ev: { [string]: any })
 					local puff = part(
 						folder,
 						Vector3.one * ev.r * (0.9 + j * 0.15),
-						CFrame.new(p[1] + math.cos(a) * ev.r * 0.5, cy + j * 3, p[2] + math.sin(a) * ev.r * 0.5),
+						CFrame.new(
+							p[1] + math.cos(a) * ev.r * 0.5,
+							cy + j * 3,
+							p[2] + math.sin(a) * ev.r * 0.5
+						),
 						Color3.fromRGB(64, 70, 90),
 						Enum.Material.SmoothPlastic,
 						Enum.PartType.Ball
@@ -1017,7 +1059,8 @@ local function strike(ev: { [string]: any })
 	elseif ev.shape == "homing" or ev.shape == "tether" then
 		-- the counters' shots (2026-11-19): from high on the boss to where each one caught up
 		local s = shown
-		local from = Vector3.new(ev.x, (if s then s.y + s.alt + B.bosses[s.id].height * 0.75 else ev.y + 40), ev.z)
+		local from =
+			Vector3.new(ev.x, (if s then s.y + s.alt + B.bosses[s.id].height * 0.75 else ev.y + 40), ev.z)
 		for _, p in ev.points or {} do
 			local to = Vector3.new(p[1], p[2], p[3])
 			CombatFx.bolt(from, to, style, lookColor(ev.num))

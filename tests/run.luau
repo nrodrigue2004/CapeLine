@@ -6362,6 +6362,7 @@ if placePath then
 			Vehicles = "VehicleArt",
 			Hq = "HqArt",
 			Bosses = "BossArt",
+			Bosses2 = "BossArt", -- bosses-3: the rows whose set is Bosses2
 			Trooper = "TrooperArt",
 			Bramblebeast = "FinaleArt",
 			Voidhound = "FinaleArt",
@@ -6395,7 +6396,7 @@ if placePath then
 				end
 			elseif cfgName == "BossArt" then
 				for id, row in cfg do
-					if type(row) == "table" and row.pieces then
+					if type(row) == "table" and row.pieces and (row.set or "Bosses") == name then
 						for _, group in { row.pieces, row.objective or {} } do
 							for piece in group do
 								meshIn(set, id .. "_" .. piece, name)
@@ -8126,8 +8127,8 @@ test("Remade bosses: every boss has its meshes, weak points inside their hit sph
 		check(bodies == 1 and lamps == 1, id .. " has one objective body and one lamp")
 	end
 	check(
-		n == 4,
-		"all four bosses (Rustjaw Prime, the Lumen Maw, the Leviathan Engine, the War-Frame) are remade"
+		n == 7,
+		"all seven bosses (Rustjaw Prime, the Lumen Maw, the Leviathan Engine, the War-Frame and bosses-3's three) are remade"
 	)
 	-- only the look changes: the bosses' hit spheres and numbers are the ones the fight was tuned with
 	check(Config.Boss.bosses.RustjawPrime.targets[5].id == "core", "Rustjaw's core target is unchanged")
@@ -23116,6 +23117,7 @@ end
 (require :: any)("./anim_pass_test")({ test = test, check = check, Config = Config });
 -- the boss pass (2026-11-19, own file): boss animation, telegraphs, the surge wave and the Blackout; ONLY="Boss anim"
 (require :: any)("./boss_anim_test")({ test = test, check = check, Config = Config });
+(require :: any)("./bosses3_test")({ test = test, check = check, Config = Config, world = world });
 -- pt-anims (nate's playtest 2026-11-19, own file): the upper-body layer, two-handed holds, robot and people clips;
 -- ONLY="PT anims" runs just these
 (require :: any)("./anims_pt_test")({ test = test, check = check, Config = Config });

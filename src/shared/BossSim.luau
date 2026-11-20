@@ -268,10 +268,14 @@ function BossSim.targets(sim: Sim): { Target }
 	end
 	for _, t in sim.cfg.targets do
 		local dx, dy, dz = BossMath.worldOffset(sim.yaw, t.at[1], t.at[2], t.at[3])
-		table.insert(
-			out,
-			{ key = t.id, x = sim.x + dx, y = sim.y + sim.alt + dy, z = sim.z + dz, r = t.r, weak = t.weak == true }
-		)
+		table.insert(out, {
+			key = t.id,
+			x = sim.x + dx,
+			y = sim.y + sim.alt + dy,
+			z = sim.z + dz,
+			r = t.r,
+			weak = t.weak == true,
+		})
 	end
 	for _, ob in sim.objectives do
 		if ob.alive then
@@ -588,7 +592,8 @@ local function reactive(sim: Sim, now: number, heroes: { Hero }): (any?, Hero?)
 	end
 	if ready(by.hover) then
 		for _, h in heroes do
-			if h.alive and inColumn(sim, by.hover, h) then
+			-- a hero a lift just carried up (bosses-3) is fighting, not hovering out of reach: it never draws the swat
+			if h.alive and inColumn(sim, by.hover, h) and now >= (sim.liftAt[h.id] or 0) then
 				return by.hover, nil
 			end
 		end
@@ -1184,10 +1189,17 @@ function BossSim.liftStep(sim: Sim, now: number, heroes: { Hero })
 			for i, l in sim.lifts do
 				if (h.x - l.x) ^ 2 + (h.z - l.z) ^ 2 <= l.r * l.r and math.abs(h.y - l.y) <= 10 then
 					sim.liftAt[h.id] = now + lf.every
-					table.insert(
-						sim.events,
-						{ k = "lift", id = h.id, lift = i, x = l.x, y = l.y, z = l.z, to = to, bx = sim.x, bz = sim.z }
-					)
+					table.insert(sim.events, {
+						k = "lift",
+						id = h.id,
+						lift = i,
+						x = l.x,
+						y = l.y,
+						z = l.z,
+						to = to,
+						bx = sim.x,
+						bz = sim.z,
+					})
 					break
 				end
 			end

@@ -148,7 +148,10 @@ function SwarmFx.attack(sw: Swarm, attackId: string, warn: number, points: { Vec
 	if attackId == "DroneFist" then
 		-- each fist takes one landing spot
 		for k, p in points do
-			table.insert(sw.strikes, { group = (k - 1) % 2 + 1, start = os.clock(), warn = warn, points = { p } })
+			table.insert(
+				sw.strikes,
+				{ group = (k - 1) % 2 + 1, start = os.clock(), warn = warn, points = { p } }
+			)
 		end
 		return
 	end

@@ -459,10 +459,10 @@ return {
 			turn = 40,
 			-- it hovers `high` up (its fan's bottom); every `every` s, and at each phase, it comes down to `low` for
 			-- lowFor s (its body's bottom 12 up: a ground hero's jump reaches it)
-			hover = { high = 110, low = 4, rate = 30, every = 40, lowFor = 14 },
+			hover = { high = 110, low = 4, rate = 36, every = 24, lowFor = 16 },
 			-- lightning rods on the ground (`rods` round it at ring x arenaRadius) and pads on up to `roofs` roofs near
 			-- it: standing on one (r studs) rides a hero up an updraft to its body's middle (+above), once every `every` s
-			lifts = { rods = 4, ring = 0.3, r = 10, above = 6, every = 3, roofs = 4 },
+			lifts = { rods = 4, ring = 0.3, r = 10, above = 6, every = 2, roofs = 4 },
 			counters = {
 				meleeR = 60,
 				air = 14,
@@ -484,7 +484,8 @@ return {
 			objectives = {
 				kind = "cannon",
 				hits = 30,
-				list = { { at = { -22, 52, 8 } }, { at = { 22, 52, 8 } }, { at = { 0, 46, 22 } } },
+				-- the vanes' lamps (their collars stand 8.4 lower, on the shoulder pads and the back)
+				list = { { at = { -22, 57.6, 8 } }, { at = { 22, 57.6, 8 } }, { at = { 0, 51.6, 22 } } },
 				fire = { every = 5.5, r = 9, warn = 1.5, coeff = 1.0, tall = true },
 			},
 			attacks = {
@@ -593,7 +594,7 @@ return {
 			speed = 0,
 			turn = 55,
 			hover = { high = 6, low = -12, rate = 26 }, -- it only comes down (crashes, half sunk) when its core is exposed
-			guard = { key = "core", guarded = 0.35, exposed = 3, reform = 15 },
+			guard = { key = "core", guarded = 0.45, exposed = 3, reform = 15 },
 			forms = { "fists", "wall", "giant" },
 			-- the swarm each device draws (Fx.SwarmFx, Shared.SwarmShapes): drone meshes by preset, a haze of far specks a
 			-- second (each lives hazeLife s) so it reads as thousands, and how often a second the drones move
@@ -614,7 +615,7 @@ return {
 			gap = { 3.2, 2.8, 2.4 },
 			targets = {
 				{ id = "swarm", at = { 0, 30, 0 }, r = 26 },
-				{ id = "core", at = { 0, 30, -8 }, r = 7, weak = true }, -- 36 up; 18 when it crashes (exposed)
+				{ id = "core", at = { 0, 30, 0 }, r = 8, weak = true }, -- 36 up; 18 when it crashes (exposed)
 			},
 			-- objectives: the formation relay nodes the drones form round; they spit drone darts until broken and
 			-- re-form after the core's exposed window

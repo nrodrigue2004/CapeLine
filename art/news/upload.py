@@ -20,7 +20,7 @@ FBX = os.path.join(REPO, "art", "export", "News.fbx")
 IDS = os.path.join(OUT, "ids.json")
 MODELS = os.path.join(OUT, "models.json")
 API = "https://apis.roblox.com/assets/v1"
-IMAGES = ("NewsCards.png", "NamePlate.png", "TvCase.png", "NewsIdent.png")
+IMAGES = ("NewsCards.png", "NewsCards2.png", "NamePlate.png", "TvCase.png", "NewsIdent.png")
 
 
 def curl(*args):

@@ -147,13 +147,16 @@ def storm():
         k.turn(pad, s * 48, "Y")
         k.move(pad, (s * 24, 0, 44.5))
         b.add("Plates3", pad)
-    # the storm vane (one; the game sets one at each Config.Boss objective; its anchor at the origin): a steel mast on
-    # a yellow collar, an arrow fin and a red lamp ball on top
-    v = [k.cy("Paint2", 2.6, 2.2, 2.4, (0, 0, 1.2), "Z", 10), k.cy("Metal", 0.8, 0.6, 10, (0, 0, 6.6), "Z", 8),
-         k.bx("Paint", -0.4, 0.4, -4.4, 3.2, 7.2, 9.4, 0.15, 1, taper=(1, 0.5)), k.ring("Accent", 1.6, 0.5, (0, 0, 4), "Z", 10, 4)]
+    # the storm vane (one; the game sets one at each Config.Boss objective): a steel mast on a yellow collar, an arrow
+    # fin and a red lamp ball on top. Its anchor (the objective's hit sphere) is 4 under the lamp, so the collar
+    # stands 8.4 below it (Config.Boss puts the anchors 8.4 over the shoulders)
+    V = -8.4
+    v = [k.cy("Paint2", 2.6, 2.2, 2.4, (0, 0, 1.2 + V), "Z", 10), k.cy("Metal", 0.8, 0.6, 10, (0, 0, 6.6 + V), "Z", 8),
+         k.bx("Paint", -0.4, 0.4, -4.4, 3.2, 7.2 + V, 9.4 + V, 0.15, 1, taper=(1, 0.5)),
+         k.ring("Accent", 1.6, 0.5, (0, 0, 4 + V), "Z", 10, 4)]
     b.add("Vane", v)
-    b.add("VaneGlow", k.ball("Lamp", 1.8, (0, 0, 12.4)))
-    b.objective_lamp = Vector((0, 0, 12.4))
+    b.add("VaneGlow", k.ball("Lamp", 1.8, (0, 0, 12.4 + V)))
+    b.objective_lamp = Vector((0, 0, 12.4 + V))
     # its look in motion: sparks arcing off the coils and the crown (Fx.WorldFx "storm": arcs and storm clouds)
     b.fx = {"kind": "storm", "every": 0.18, "at": [(0, 71, 0), (-35, 6, -17), (35, 6, -17), (0, 30, -22)], "reach": 26}
     # the part-built look until the meshes are imported (PLACEHOLDER ART)
@@ -170,8 +173,8 @@ def storm():
         b.parts.append(P("body", "Block", (7, 7, 22), (s * 30, 32, -3), rot=(30, 0, 0), color=CRANE_Y))
         b.parts.append(P("glow", "Ball", (5, 5, 5), (s * 35, 6, -17)))
     b.objective_parts = [
-        P("objective", "Cylinder", (10, 1.6, 1.6), (0, 5, 0), rot=(0, 0, 90), color=STEEL, mat="Metal"),
-        P("objectiveGlow", "Ball", (3.6, 3.6, 3.6), (0, 12.4, 0)),
+        P("objective", "Cylinder", (10, 1.6, 1.6), (0, -3.4, 0), rot=(0, 0, 90), color=STEEL, mat="Metal"),
+        P("objectiveGlow", "Ball", (3.6, 3.6, 3.6), (0, 4, 0)),
     ]
     return b
 
@@ -444,7 +447,7 @@ RIGS = {"StormColossus": (storm_seg, STORM_RIG), "SwarmQueen": (swarm_seg, SWARM
         "QuarryTitan": (titan_seg, TITAN_RIG)}
 # where the objectives sit on the body (Config.Boss objectives `at`, Roblox x, up, z); None: round the arena
 ANCHORS = {
-    "StormColossus": [(-22, 52, 8), (22, 52, 8), (0, 46, 22)],
+    "StormColossus": [(-22, 57.6, 8), (22, 57.6, 8), (0, 51.6, 22)],
     "SwarmQueen": [(-34, 4, -12), (34, 4, -12), (0, 2, 34)],
     "QuarryTitan": None,
 }

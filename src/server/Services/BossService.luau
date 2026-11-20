@@ -488,7 +488,11 @@ local function handleEvents(f: Fight)
 			-- bosses-3: the Quarry Titan breaks the ground (a crater at the slam, or at every rock)
 			if ev.points and ev.shape == "circles" then
 				for _, p in ev.points do
-					CraterService.blast(Vector3.new(p[1], ev.y, p[2]), ev.crater, Config.Destruction.bossStruct)
+					CraterService.blast(
+						Vector3.new(p[1], ev.y, p[2]),
+						ev.crater,
+						Config.Destruction.bossStruct
+					)
 				end
 			else
 				CraterService.blast(Vector3.new(ev.x, ev.y, ev.z), ev.crater, Config.Destruction.bossStruct)
@@ -510,10 +514,15 @@ local function handleEvents(f: Fight)
 			local pos = hero and hero.player and hero.alive and not hero.downed and HeroService.position(hero)
 			if hero and pos then
 				local flat = Vector3.new(ev.bx - pos.X, 0, ev.bz - pos.Z)
-				local move = if flat.Magnitude > 40 then flat.Unit * (flat.Magnitude - 36) else Vector3.zero
+				-- in to 30 studs from its middle: its body (22 round) is in a melee hero's reach at the top
+				local move = if flat.Magnitude > 34 then flat.Unit * (flat.Magnitude - 30) else Vector3.zero
 				local rise = ev.to - pos.Y
 				MoveGuard.grant(hero, move.Magnitude + rise + 20)
-				Net.fire("HeroKnock", hero.player, { x = move.X, y = 12, z = move.Z, time = 1.1, drop = rise })
+				Net.fire(
+					"HeroKnock",
+					hero.player,
+					{ x = move.X, y = 12, z = move.Z, time = 1.1, drop = rise }
+				)
 			end
 		end
 		if ev.k == "smash" then
@@ -591,7 +600,10 @@ function BossService.liftList(s: BossSim.Sim): { { number } }?
 	end
 	local out = {}
 	for _, l in s.lifts do
-		table.insert(out, { math.floor(l.x), math.floor(l.y), math.floor(l.z), if l.kind == "pad" then 1 else 0 })
+		table.insert(
+			out,
+			{ math.floor(l.x), math.floor(l.y), math.floor(l.z), if l.kind == "pad" then 1 else 0 }
+		)
 	end
 	return out
 end
