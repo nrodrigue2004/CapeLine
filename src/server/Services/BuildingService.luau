@@ -398,12 +398,8 @@ flush = function()
 		return
 	end
 	-- c packed 5 bytes a piece (destroy-all round 4: the worst case stays inside Destruction.load.diffBytes)
-	Net.fireAll("BuildingDiff", {
-		r = fixed,
-		d = diffs,
-		dr = droneJobs,
-		c = if #removed > 0 then BuildingState.packRemoved(removed) else nil,
-	})
+	local c = if #removed > 0 then BuildingState.packRemoved(removed) else nil
+	Net.fireAll("BuildingDiff", { r = fixed, d = diffs, dr = droneJobs, c = c })
 	droneJobs = {}
 end
 
