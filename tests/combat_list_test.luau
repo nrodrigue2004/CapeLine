@@ -2215,6 +2215,90 @@ return function(T: any)
 		check(motes ~= nil and motes.Enabled == false, "the motes stop with Awakening")
 	end)
 
+	test("List combat: a charging hero gathers the path's textured motes (Everything Left 388)", function()
+		local roblox = require("@lune/roblox")
+		local m = Config.Combat.charge.motes
+		check(m ~= nil and m.fast < m.slow and m.first > 0, "Config.Combat.charge.motes")
+		check(
+			not string.find(fs.readFile("src/client/Fx/ChargeFx.luau"), "PLACEHOLDER ART", 1, true),
+			"ChargeFx is no longer placeholder art"
+		)
+		if not T.placePath then
+			return
+		end
+		local UiSim = require("./uisim")
+		local sim = UiSim.new(
+			UiSim.load(roblox.deserializePlace(fs.readFile(T.placePath))),
+			{ name = "PC", w = 1280, h = 720, top = 36, left = 0, right = 0, bottom = 0, touch = false }
+		)
+		local char = UiSim.newInstance("Model")
+		local root = UiSim.newInstance("Part")
+		root.Name = "HumanoidRootPart"
+		root.CFrame = roblox.CFrame.new(10, 3, 10)
+		root.Parent = char
+		char.Parent = sim.workspace
+		sim.player.Character = char
+		local num
+		for n, row in Config.Abilities.byNum do
+			if row.charge then
+				num = n
+				break
+			end
+		end
+		check(num ~= nil, "a charge-up power")
+		-- another hero charging (your own motes orbit your hand in AimPreview)
+		local other = UiSim.newInstance("Player")
+		other.Name = "Other"
+		other.Parent = sim.service("Players")
+		other.Character = char
+		sim.player.Character = nil
+		local me = sim.player
+		sim.service("Players")._props.GetPlayers = function()
+			return { me, other }
+		end
+		local ChargeFx = sim:require("Client.Fx.ChargeFx")
+		sim:run("ChargeFx", ChargeFx.init)
+		local function frame()
+			sim:run("frame", function()
+				sim.service("RunService").RenderStepped:Fire(1 / 60)
+			end)
+		end
+		sim:run("charge", function()
+			other:SetAttribute("Charging", num)
+		end)
+		frame()
+		check(char:FindFirstChildOfClass("Highlight") ~= nil, "the outline cue")
+		local host = sim.workspace:FindFirstChild("FxEmitters")
+		check(host ~= nil, "the effects library drew the gather")
+		local function textured(): (number, number)
+			local n, t = 0, 0
+			for _, d in host:GetDescendants() do
+				if d:IsA("ParticleEmitter") then
+					n += 1
+					if string.find(d.Texture, "rbxassetid://", 1, true) then
+						t += 1
+					end
+				end
+			end
+			return n, t
+		end
+		local n0, t0 = textured()
+		check(n0 > 0 and t0 == n0, "every gather emitter wears an uploaded sheet")
+		local t = os.clock()
+		local spins = 0
+		while os.clock() - t < m.first + 0.05 do
+			spins += 1 -- wait past the first mote (os.clock is real time in the sim)
+		end
+		frame()
+		local n1 = textured()
+		check(n1 > n0, "the path's charge motes follow")
+		sim:run("stop", function()
+			other:SetAttribute("Charging", nil)
+		end)
+		frame()
+		check(char:FindFirstChildOfClass("Highlight") == nil, "the glow ends with the charge")
+	end)
+
 	test("List combat: Photo Mode backdrops are printed overlays (Everything Left 354)", function()
 		local ids = Config.Ui.photoBackdrops
 		for _, name in { "COMIC", "SPEED", "SUNSET", "NOIR", "NEON" } do

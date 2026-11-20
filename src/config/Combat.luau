@@ -43,6 +43,9 @@ return {
 		maxHold = 4,
 		leeway = 0.15,
 		powerSlow = 0.6,
+		-- the charge look (Fx.ChargeFx, 2026-11-20): the path's motes every `slow` s at the start down to every
+		-- `fast` s when full (the first after `first` s), and the full charge's shock ring radius
+		motes = { first = 0.12, slow = 0.32, fast = 0.1, ring = 5 },
 	},
 	-- H2 charge-up powers (spec: Hero MMO features): rows in Config.Abilities with charge = { max, mult, grow }
 	-- charge further (1x to 2.2x, up to 1.5x size, a full charge breaks a block) and slow the hero to
