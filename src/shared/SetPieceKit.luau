@@ -78,7 +78,12 @@ function SetPieceKit.fit(Config: any, look: string): { [string]: any }?
 		return c
 	end
 	local d = Config.HideoutArt and Config.HideoutArt[look]
-	return if type(d) == "table" then d else nil
+	if type(d) == "table" then
+		return d
+	end
+	-- the nemesis heads' other pieces (art/blender/nemparts.py, list-combat 2026-11-20)
+	local e = Config.NemPartArt and Config.NemPartArt[look]
+	return if type(e) == "table" then e else nil
 end
 
 -- Add a placement to a list; returns its index (the boxes it stands in for take it as `art`)

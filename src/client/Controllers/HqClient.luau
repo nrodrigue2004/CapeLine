@@ -682,10 +682,12 @@ local function dressing(f: Folder)
 end
 
 -- WP9 (gap G5, spec H5): the WANTED poster and the nemesis heads on the east wall (Shared.WantedRules,
--- Config.Hq.wanted). PLACEHOLDER ART: a paper part with a SurfaceGui (the nemesis's bust in a ViewportFrame,
--- built from the same pieces NemesisFx puts on its body), wooden plaques and part-built heads, until Art.Hq is
--- imported; then the board, mounts and plates are meshes and the heads' and bust's pieces are shaped
--- (HqArtKit.SHAPES), each in its own colours (the paper and its SurfaceGui stay a part).
+-- Config.Hq.wanted): a SurfaceGui on the paper part (the nemesis's bust in a ViewportFrame, built from the same
+-- pieces NemesisFx puts on its body) over the printed bill (Config.Hq.wanted.paper, art/ui/wanted_paper.py: torn
+-- edges, so the part itself goes clear), on the board; the board, mounts and plates are Art.Hq meshes and every
+-- head and bust piece is shaped (HqArtKit.SHAPES: Art.Hq's skull, face, jaw, horns, spikes, visor, chest,
+-- shoulders and cape, and Art.NemParts' eyes, dome, cyclops eye, neck, plates, cannon, heal drone and antenna;
+-- list-combat 2026-11-20, Everything Left 397), each in its own colours. Parts stand in for anything not imported.
 local W = H.wanted
 local PAPER = Color3.fromRGB(236, 220, 180)
 local INK = Color3.fromRGB(40, 30, 24)
@@ -807,11 +809,24 @@ local function wantedPoster(f: Folder)
 	back.BackgroundColor3 = PAPER
 	back.BorderSizePixel = 0
 	back.Parent = g
-	local stroke = Instance.new("UIStroke")
-	stroke.Color = INK
-	stroke.Thickness = 6
-	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-	stroke.Parent = back
+	if W.paper then
+		-- the printed bill: its torn edge shows the board, so the part and the plain card go clear
+		back.BackgroundTransparency = 1
+		paper.Transparency = 1
+		local bill = Instance.new("ImageLabel")
+		bill.Name = "Paper"
+		bill.BackgroundTransparency = 1
+		bill.Image = "rbxassetid://" .. W.paper
+		bill.Size = UDim2.fromScale(1, 1)
+		bill.ZIndex = 0
+		bill.Parent = back
+	else
+		local stroke = Instance.new("UIStroke")
+		stroke.Color = INK
+		stroke.Thickness = 6
+		stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		stroke.Parent = back
+	end
 	words(back, "WANTED", 8, h * 0.15, WANTED_RED)
 	-- its bust (a black silhouette while it is locked or on its way)
 	local vp = Instance.new("ViewportFrame")
@@ -822,6 +837,9 @@ local function wantedPoster(f: Folder)
 	vp.Ambient = Color3.fromRGB(150, 150, 160)
 	vp.LightColor = Color3.fromRGB(255, 245, 230)
 	vp.LightDirection = Vector3.new(-0.4, -1, 0.6)
+	if W.paper then
+		vp.BackgroundTransparency = 0.45 -- the paper shows through behind the bust
+	end
 	vp.Parent = back
 	local cam = Instance.new("Camera")
 	cam.FieldOfView = 30

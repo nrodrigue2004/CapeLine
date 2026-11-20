@@ -224,6 +224,13 @@
   "turned": 27,
   "verdict": "rotY180"
  },
+ "NemParts": {
+  "asDrawn": 5,
+  "either": 5,
+  "meshes": 11,
+  "turned": 11,
+  "verdict": "rotY180"
+ },
  "News": {
   "asDrawn": 5,
   "either": 5,

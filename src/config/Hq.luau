@@ -114,6 +114,9 @@ return {
 		wall = { x = 59, z = 36, nx = -1, nz = 0 },
 		poster = { u = 0, y = 6.3, w = 7, h = 8, board = 0.4 }, -- board: the wooden backing's margin
 		pixels = 50, -- the poster's SurfaceGui pixels per stud (7 x 8 studs = 350 x 400)
+		-- the printed bill under the words (art/ui/wanted_paper.py: aged, torn, folded, an inked border, the bust's
+		-- frame; list-combat 2026-11-20, Everything Left 397)
+		paper = 95684161485953,
 		heads = { y = 12.6, step = 3.8, mount = { 3, 2.6 }, plate = { 3.4, 0.7 } },
 		prompt = { object = "Wanted Poster", action = "Read" },
 	},

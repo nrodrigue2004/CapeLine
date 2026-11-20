@@ -1865,6 +1865,81 @@ return function(T: any)
 		end
 	)
 
+	test(
+		"List combat: every nemesis head and bust piece is shaped; the WANTED bill is printed (Everything Left 397)",
+		function()
+			local roblox = require("@lune/roblox")
+			local WantedRules = require("../src/shared/WantedRules")
+			local HqArtKit = require("../src/shared/HqArtKit")
+			local N = Config.Nemesis
+			local model = roblox.deserializeModel(fs.readFile("art/models/NemParts.rbxm"))[1]
+			for name in Config.NemPartArt.HqNemParts do
+				local mp = model:FindFirstChild(name, true)
+				check(mp ~= nil and mp:IsA("MeshPart"), name .. " is imported")
+			end
+			-- every head kind, build and trait: each piece the bust and heads put up has its shape
+			local allTraits = 0
+			for i in N.traits do
+				allTraits += 2 ^ (i - 1)
+			end
+			for _, head in N.heads do
+				for _, build in N.builds do
+					local look = {
+						head = head,
+						build = build,
+						colors = 1,
+						cape = true,
+						traits = allTraits,
+						rank = 3,
+						name = "X",
+					}
+					for _, p in WantedRules.bust(N, look :: any) do
+						local sh = HqArtKit.SHAPES[p.name]
+						check(sh ~= nil, head .. "/" .. build .. ": " .. p.name .. " has a shape")
+						if sh then
+							check(
+								#HqArtKit.fill(Config, p.name, { p.sx, p.sy, p.sz }) == #sh.meshes,
+								p.name .. " fills its part"
+							)
+						end
+					end
+				end
+			end
+			check(type(Config.Hq.wanted.paper) == "number", "the WANTED bill has its uploaded picture")
+			check(fs.isFile("art/export/ui/wanted/Paper.png"), "drawn by art/ui/wanted_paper.py")
+			local hq = fs.readFile("src/client/Controllers/HqClient.luau")
+			check(string.find(hq, "W.paper", 1, true) ~= nil, "HqClient lays the bill under the words")
+			if not T.placePath then
+				return
+			end
+			-- the place has Art.NemParts, and HqMeshes covers a cannon part with its meshes
+			local UiSim = require("./uisim")
+			local sim = UiSim.new(
+				UiSim.load(roblox.deserializePlace(fs.readFile(T.placePath))),
+				{ name = "PC", w = 1280, h = 720, top = 36, left = 0, right = 0, bottom = 0, touch = false }
+			)
+			local HqMeshes = sim:require("Client.Fx.HqMeshes")
+			local holder = UiSim.newInstance("Folder")
+			holder.Parent = sim.workspace
+			local covered = {}
+			sim:run("cover", function()
+				for _, shape in
+					{ "cannon", "dome", "cyclopsEye", "healDrone", "antenna", "eye", "neck", "plates" }
+				do
+					local part = UiSim.newInstance("Part")
+					part.Size = roblox.Vector3.new(2, 1, 1)
+					part.Anchored = true
+					part.Parent = holder
+					covered[shape] = HqMeshes.cover(part, shape)
+				end
+			end)
+			for shape, ok in covered do
+				check(ok == true, shape .. " is covered by its meshes in the built place")
+			end
+			check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, "; "))
+		end
+	)
+
 	test("List combat: Photo Mode backdrops are printed overlays (Everything Left 354)", function()
 		local ids = Config.Ui.photoBackdrops
 		for _, name in { "COMIC", "SPEED", "SUNSET", "NOIR", "NEON" } do

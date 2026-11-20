@@ -387,6 +387,15 @@ HqArtKit.SHAPES = {
 	chest = { look = "HqNemesis", meshes = { "HqNemChest" } },
 	shoulders = { look = "HqNemesis", meshes = { "HqNemShoulders" } },
 	cape = { look = "HqNemesis", meshes = { "HqNemCape" } },
+	-- the rest of a head's and bust's pieces (art/blender/nemparts.py, Art.NemParts; list-combat 2026-11-20)
+	eye = { look = "HqNemParts", meshes = { "NemEye" } },
+	dome = { look = "HqNemParts", meshes = { "NemDome", "NemDomeRibs" } },
+	cyclopsEye = { look = "HqNemParts", meshes = { "NemCyclops", "NemCyclopsHood" } },
+	neck = { look = "HqNemParts", meshes = { "NemNeck" } },
+	plates = { look = "HqNemParts", meshes = { "NemPlates" } },
+	cannon = { look = "HqNemParts", meshes = { "NemCannon" } },
+	healDrone = { look = "HqNemParts", meshes = { "NemDrone", "NemDroneFrame" } },
+	antenna = { look = "HqNemParts", meshes = { "NemAntenna" } },
 } :: { [string]: Shape }
 
 -- The meshes that fill a part of `size` for a shape, sized and offset from the part's middle in its own frame

@@ -26,7 +26,8 @@ return function(T: any)
 		check(type(FIT) == "table", "Config.HqArt is indexed")
 		local used = HqArtKit.looks(Config)
 		for look in used do
-			check(FIT[look] ~= nil, look .. " is in the fit table")
+			-- (the nemesis heads' other pieces have their own table, Config.NemPartArt)
+			check(FIT[look] ~= nil or (Config.NemPartArt or {})[look] ~= nil, look .. " is in the fit table")
 		end
 		local looks, meshes, total = 0, 0, 0
 		local names: { [string]: string } = {}
@@ -180,7 +181,7 @@ return function(T: any)
 		"HQ art: the filled shapes stretch over their parts; the dummy's body is the 15 R15 parts",
 		function()
 			for shape, sh in HqArtKit.SHAPES do
-				check(FIT[sh.look] ~= nil, shape .. "'s look is in the fit table")
+				check(SetPieceKit.fit(Config, sh.look) ~= nil, shape .. "'s look is in the fit table")
 				local list = HqArtKit.fill(Config, shape, { 2, 4, 6 })
 				check(#list == #sh.meshes, shape .. " fills with all its meshes")
 				local lo, hi = { math.huge, math.huge, math.huge }, { -math.huge, -math.huge, -math.huge }

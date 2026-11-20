@@ -20,7 +20,7 @@ local HqMeshes = {}
 
 local found: { [string]: MeshPart } = {}
 -- the stations, props and dressing (art/blender/hq.py) and the room shells (the hideout art pass: Art.Hideout)
-local ROOTS = { "Hq", "Hideout" }
+local ROOTS = { "Hq", "Hideout", "NemParts" } -- NemParts: the nemesis heads' other pieces (art/blender/nemparts.py)
 
 -- The source MeshPart named `name` in Art.Hq (looked up each time until there, so a later import counts)
 local function source(name: string): MeshPart?
