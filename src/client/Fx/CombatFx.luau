@@ -1691,6 +1691,7 @@ local function facing(pos: Vector3): CFrame
 end
 
 -- a ring facing `normal` (flat on the ground when normal is up) that grows to radius and fades
+local STAND = CFrame.Angles(math.pi / 2, 0, 0) -- a ring's up (its axis) onto a lookAt frame's look
 local function disc(
 	pos: Vector3,
 	normal: Vector3,
@@ -1699,6 +1700,24 @@ local function disc(
 	time: number,
 	thick: number?
 )
+	-- the Blender shockwave ring (Art.Powers Shock) stood across `normal` when imported (2026-11-20: the wakes,
+	-- hit rings and standing rings were flat neon discs); the disc stays the fallback
+	if PowerMeshes.ready("Shock") then
+		local h = math.max(0.3, (thick or 0.2) * 1.6)
+		local mp = PowerMeshes.part("ShockRing", Vector3.new(2, h, 2))
+		if mp then
+			local turn = if math.abs(normal.Unit.Y) > 0.98
+				then CFrame.new(pos)
+				else CFrame.lookAt(pos, pos + normal) * STAND -- its axis along normal
+			mp.Color = color
+			mp.Material = Enum.Material.Neon
+			mp.Transparency = 0.1
+			mp.CFrame = turn * MeshFix.turn("Powers")
+			mp.Parent = folder
+			fade(mp, time, { Size = Vector3.new(radius * 2, h * 0.5, radius * 2) })
+			return mp
+		end
+	end
 	local cf = if math.abs(normal.Unit.Y) > 0.98
 		then CFrame.new(pos) * CFrame.Angles(0, 0, math.rad(90))
 		else CFrame.lookAt(pos, pos + normal) * CFrame.Angles(0, math.rad(90), 0)

@@ -6,8 +6,9 @@
 -- impacts, novas and areas, super moments) and hands over its drawing kit at init; nothing here runs per frame
 -- (tweens and Debris only), and every piece and particle comes out of FxLib's budgets per device preset.
 -- Weapon moves have no recipe and are never drawn here.
--- PLACEHOLDER ART: part-built shapes over the library's particle sheets until the VFX pass; the rune and scorch
--- sheets use built-in images until nate uploads them (Config.Fx.lib.textures).
+-- The rune and scorch sheets are uploaded (art/fx/textures.py --moves, Config.Fx.lib.textures); rings (K.disc)
+-- are the Blender shockwave ring since 2026-11-20. PLACEHOLDER ART: the other part-built shapes over the library's
+-- particle sheets until the VFX pass.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")

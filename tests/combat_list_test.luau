@@ -3532,6 +3532,59 @@ return function(T: any)
 		check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
 	end)
 
+	test("List combat: standing and ground rings are the Blender shockwave ring", function()
+		local roblox = require("@lune/roblox")
+		if not T.placePath then
+			return
+		end
+		local UiSim = require("./uisim")
+		local sim = UiSim.new(
+			UiSim.load(roblox.deserializePlace(fs.readFile(T.placePath))),
+			{ name = "PC", w = 1280, h = 720, top = 36, left = 0, right = 0, bottom = 0, touch = false }
+		)
+		local CombatFx = sim:require("Client.Fx.CombatFx")
+		sim:run("CombatFx", CombatFx.init)
+		local cam = sim.service("Workspace").CurrentCamera
+		cam.CFrame = roblox.CFrame.new(0, 5, 30)
+		local function rings()
+			local out = {}
+			for _, d in sim.service("Workspace"):GetDescendants() do
+				if d:IsA("MeshPart") and d.Name == "ShockRing" then
+					table.insert(out, d)
+				end
+			end
+			return out
+		end
+		local before = #rings()
+		-- Martial's ki ring bursts flat toward the camera: two rings standing across the view
+		sim:run("ki", function()
+			CombatFx.impact(
+				roblox.Vector3.new(0, 5, 0),
+				false,
+				"Comic",
+				true,
+				roblox.Color3.fromRGB(255, 160, 60),
+				"Martial"
+			)
+		end)
+		local all = rings()
+		check(#all - before >= 2, "the ki ring is the shockwave mesh (" .. (#all - before) .. ")")
+		local facing = 0
+		for i = before + 1, #all do
+			-- its axis (up) points at the camera (+z here)
+			if all[i].CFrame.UpVector.Z > 0.95 then
+				facing += 1
+			end
+		end
+		check(facing >= 2, "stood up facing the camera (" .. facing .. ")")
+		local src = fs.readFile("src/client/Fx/CombatFx.luau")
+		check(
+			string.find(src, "CFrame.lookAt(pos, pos + normal) * STAND", 1, true) ~= nil,
+			"disc stands the ring across its normal"
+		)
+		check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
+	end)
+
 	test("List combat: the Swordsman's cuts are Blender crescents (Everything Left 172)", function()
 		local roblox = require("@lune/roblox")
 		local S = Config.PowerArt.Slash
