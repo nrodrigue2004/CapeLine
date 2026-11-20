@@ -332,6 +332,16 @@ local function structOf(eff: any): number
 	return BuildingState.abilityStruct(DS, eff)
 end
 
+-- Where a move meets a wall (list-combat 2026-11-20, nate: "weapons/powers aren't really causing any sort of
+-- destruction"): a slash, cone or missed shot used to blast at its full reach, which for a hero at a wall is
+-- inside the building, past the wall pieces (only floors and pillars were in range, often nothing). The blast now
+-- lands on the first wall along the move (a little short of reach slack past it), just in front of the face.
+local function wallPoint(origin: Vector3, at: Vector3): Vector3
+	local x, y, z = BuildingState.wallPoint(DS, origin.X, origin.Y, origin.Z, at.X, at.Y, at.Z, world.rayDist)
+	return Vector3.new(x, y, z)
+end
+CombatService.wallPoint = wallPoint
+
 local function structural(eff: any, center: Vector3, radius: number, kind: number)
 	local dmg = structOf(eff)
 	if not eff.structDmg and eff.slot == "basic" then
@@ -1052,6 +1062,9 @@ local function resolve(
 			then Vector3.new(plan.cx, plan.cy, plan.cz)
 			elseif plan.ex then Vector3.new(plan.ex, plan.ey, plan.ez)
 			else origin + dir * math.min(eff.range or 20, 60)
+		if not plan.cx then
+			at = wallPoint(origin, at)
+		end
 		structural(eff, at, plan.radius or eff.radius or 12, if plan.shape == "nova" then 1 else 2)
 	end
 	-- Epic set 4-piece changes on novas: Rimeguard ally shields, Ironclad shockwave field

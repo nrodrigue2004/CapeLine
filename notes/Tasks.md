@@ -2197,3 +2197,10 @@ Proved headless (tests/bosses3_test.luau, ONLY="bosses-3"; plus the Boss counter
 - [ ] Quarry Titan in the Old Quarry pit (never at the same time as the Maw): it walks and smashes, ground slams, the eruption and the boulder leap dig real craters (CraterService) with rock chunks and light, never blood; thrown rocks arc over during the warning and land on the circles; the lava floor (phase 2) glows on the ground and burns only heroes standing in it; embers rise off its cracks.
 - [ ] Rewards on a win: Credits, gear through the boss loot rolls, its boss look in the drop (chest Hive Harness, legs Magma Greaves, feet Storm Jets, and their shiny), its Rogues File page (and gold page on a hard win) with its card, its badge (Storm Breaker, Hive Buster, Titan Toppler).
 - [ ] A full rotation: after a boss, the next in the six-boss order comes 20 to 30 minutes later.
+
+## Studio list: quieter defaults and powers that break walls (2026-11-20, list-combat)
+1. New hero (or a save on the old 7/8 volumes): Settings shows Music 2 and Sound effects 5; the city sounds calmer. A save where you set other volumes keeps them.
+2. Stand against a building and punch or slash it (M1): every hit puffs dust and chips off the wall; the finisher or the second hit knocks a panel out with a crunch.
+3. A skill (Z, a power's cone or slash) at a wall opens two to four panels; a charged one more; a super a big hole. Robots in front of a wall still take the hit first.
+4. A shot that misses a robot breaks the wall it hits (not a point inside the building).
+

@@ -27,6 +27,14 @@ return {
 	-- hit adds up (2 knock a piece out since fix-destroy), a skill knocks out at least one piece. Basics only reach 5 studs.
 	slotStruct = { basic = 200, skill = 700 },
 	basicStructRadius = 5,
+	-- list-combat (2026-11-20): the slot default above is a floor; a move breaks structPerCoeff x its damage
+	-- coefficient (a 1.0 combo finisher knocks a piece out, a 1.6 skill two to three, a charged one more), a charge
+	-- adds chargeStruct x its level to a row's own structDmg and supers, and a slash or missed shot blasts the first
+	-- wall within its reach plus wallReach studs (CombatService.wallPoint)
+	structPerCoeff = { basic = 480, skill = 650 },
+	chargeStruct = 0.6,
+	wallReach = 3,
+	chipRate = 10, -- chip notices (a hit that breaks nothing yet) per second per server: dust and a chip mark
 	bossStruct = 2000, -- boss attacks (M6)
 	maxCollapses = 3, -- collapses at once per server; a fourth is cut to Damaged
 	collapseTime = 6, -- the collapse animation on the client; "at once" means started within this window

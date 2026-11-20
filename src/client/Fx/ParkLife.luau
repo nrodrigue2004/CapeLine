@@ -912,6 +912,15 @@ function ParkLife.init()
 		snd.PlaybackSpeed = S.pitch
 		snd.Looped = true
 		snd.RollOffMaxDistance = L.busk.range
+		-- in the Effects mix (list-combat 2026-11-20): every sound sits under a group, so the Sound effects
+		-- setting turns it down like the rest
+		local fx = game:GetService("SoundService"):FindFirstChild("Effects")
+		local amb = fx and fx:FindFirstChild("Ambience")
+		if amb and amb:IsA("SoundGroup") then
+			snd.SoundGroup = amb
+		elseif fx and fx:IsA("SoundGroup") then
+			snd.SoundGroup = fx
+		end
 		buskSound = snd
 		for _, p in CollectionService:GetTagged("ParkSpin") do
 			addSpin(p)

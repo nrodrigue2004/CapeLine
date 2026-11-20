@@ -49,6 +49,7 @@ local CameraController = require(script.Parent.Parent.Controllers.CameraControll
 local CityProps = require(script.Parent.Parent.Controllers.CityProps)
 local MoveController = require(script.Parent.Parent.Controllers.MoveController)
 local Juice = require(script.Parent.Juice)
+local AudioController = require(script.Parent.Parent.Controllers.AudioController)
 local DebrisBudget = require(script.Parent.DebrisBudget)
 local FxLib = require(script.Parent.FxLib)
 
@@ -483,6 +484,7 @@ local function apply(id: number, live: boolean, fresh: { [number]: number }?)
 		local dropping: { { part: BasePart, piece: Structure.Piece } } = {}
 		local own: Model? = nil
 		local knocked = 0
+		local knockAt: Vector3? = nil
 		for i, cause in fresh or {} do
 			local part = parts[i]
 			parts[i] = nil
@@ -490,6 +492,7 @@ local function apply(id: number, live: boolean, fresh: { [number]: number }?)
 				if not live then
 					part:Destroy()
 				elseif cause == 1 then
+					knockAt = knockAt or part.Position
 					knockOut(rec, part)
 					knocked += 1
 				else
@@ -511,6 +514,10 @@ local function apply(id: number, live: boolean, fresh: { [number]: number }?)
 			end
 		elseif live and knocked > 0 and nearMe(rec.x, rec.z, 120) then
 			CameraController.shake(0.15, 0.25)
+		end
+		if live and knocked > 0 and #dropping == 0 and knockAt then
+			-- the wall's own crunch where the pieces burst out, louder the more went (list-combat 2026-11-20)
+			AudioController.play("wallSmash", knockAt, { volume = math.min(1, 0.45 + 0.12 * knocked) })
 		end
 		-- a skyscraper keeps its crown up while every piece of the shaft's top storey stands
 		local topStands = true
@@ -740,6 +747,29 @@ local function crackAt(hit: RaycastResult, size: number)
 	addMark(m)
 end
 
+-- A chip (BuildingImpact kind 4): a basic hit on a wall that has not knocked a piece out yet still shows: dust and
+-- chips burst off the face in the wall's own colour, a small crack mark where it landed and a soft crunch
+local function chipAt(center: Vector3, radius: number)
+	local params = rayParams()
+	local best: RaycastResult? = nil
+	for k = 0, 7 do
+		local a = k / 8 * math.pi * 2
+		local hit = Workspace:Raycast(center, Vector3.new(math.cos(a), 0, math.sin(a)) * (radius + 3), params)
+		if hit and math.abs(hit.Normal.Y) < 0.5 and (not best or hit.Distance < best.Distance) then
+			best = hit
+		end
+	end
+	local at = if best then best.Position else center
+	local normal = if best then best.Normal else Vector3.yAxis
+	local color = if best then best.Instance.Color else Color3.fromRGB(150, 146, 138)
+	FxLib.emit("dust", color, at + normal * 0.4, 6, normal)
+	FxLib.emit("chip", color, at + normal * 0.3, 5, normal)
+	if best then
+		crackAt(best, 1.6)
+	end
+	AudioController.play("wallSmash", at, { volume = 0.35, pitch = 1.5 })
+end
+
 local function cracks(center: Vector3, radius: number)
 	local params = rayParams()
 	local found = 0
@@ -955,6 +985,10 @@ local function impact(center: Vector3, radius: number, kind: number)
 	end
 	if kind == 3 then
 		smashStreet(center, radius) -- a hero went through a street thing (ImpactProp)
+		return
+	end
+	if kind == 4 then
+		chipAt(center, radius) -- a hit on a wall that breaks nothing yet (list-combat 2026-11-20)
 		return
 	end
 	if kind == 1 and not GROUND_CRATERS then

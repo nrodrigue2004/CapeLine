@@ -369,7 +369,7 @@ return function(T: any)
 				"the HQ redraws"
 			)
 			check(
-				ProfileSchema.VERSION == 14,
+				ProfileSchema.VERSION >= 14,
 				"no save version bump (14: side-content's lore pages and mobility ranks)"
 			)
 			local mmo = ProfileSchema.newCharacter("hero", "Powerhouse").mmo

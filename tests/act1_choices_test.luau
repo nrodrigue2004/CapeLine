@@ -192,7 +192,7 @@ return function(T: any)
 			"no new flag from an old save"
 		)
 		check(
-			ProfileSchema.VERSION == 14,
+			ProfileSchema.VERSION >= 14,
 			"no save version bump from the choices (the slots had room; 14 is side-content's lore and mobility ranks)"
 		)
 		check(#S.choices <= S.saveRoom.choices, "inside the save's 12 slots")

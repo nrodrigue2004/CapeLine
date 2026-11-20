@@ -127,7 +127,7 @@ local Remotes: { [string]: RemoteDef } = {
 	BuildingSync = { dir = "C2S", schema = {}, rate = 0.2, burst = 2 },
 	BuildingSnapshot = { dir = "S2C" }, -- { s = packed 2-bit states, n, dr = drone jobs }
 	BuildingDiff = { dir = "S2C" }, -- { r = repaired ids, d = { id, state, ... }, c = { id, piece, cause, ... }, dr = { { drone, building, seconds } } }
-	BuildingImpact = { dir = "S2C" }, -- center, radius, kind (1 crater, 2 cracks, 3 the street only)
+	BuildingImpact = { dir = "S2C" }, -- center, radius, kind (1 crater, 2 cracks, 3 the street only, 4 a chip)
 	-- Momentum and impact (2026-11-19): the device saw its hero ram a wall fast: the contact point, the travel
 	-- direction and the speed it claims (ImpactService checks all three against its own history)
 	ImpactRam = {

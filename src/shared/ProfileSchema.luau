@@ -20,7 +20,7 @@ local ProfileSchema = {}
 -- 40 cap is already in range, so raising the cap needs no migration.
 ProfileSchema.LEVEL_CAP = Config.Stats.levelCap
 
-ProfileSchema.VERSION = 14
+ProfileSchema.VERSION = 15
 ProfileSchema.BOSSES = 6 -- #Config.Boss.order (a test checks they match; 6 since bosses-3, 2026-11-20)
 ProfileSchema.SLOTS = 8
 ProfileSchema.STYLE_WORDS = 16 -- 512 bits
@@ -481,6 +481,20 @@ local MIGRATIONS: { [number]: (any) -> () } = {
 				if type(c) == "table" then
 					c.mobRanks = { 0, 0, 0, 0, 0 }
 				end
+			end
+		end
+	end,
+	[15] = function(p)
+		-- list-combat (nate 2026-11-20: "a lot of noises going on plus the music. maybe start the music off at
+		-- like a 2 and sound effects at like a 5"): saves still on the old defaults (music 7, effects 8) take the
+		-- new ones; a volume a player picked is kept
+		local st = p.settings
+		if type(st) == "table" then
+			if st.music == 7 then
+				st.music = 2
+			end
+			if st.sfx == 8 then
+				st.sfx = 5
 			end
 		end
 	end,

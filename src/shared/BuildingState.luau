@@ -561,14 +561,50 @@ end
 -- An ability's structure damage (CombatService): its own structDmg, else supers cfg.superStruct, else a
 -- default by slot for anything that deals damage (nate 2026-11-16: every damaging ability breaks buildings)
 function BuildingState.abilityStruct(cfg: any, eff: any): number
+	-- list-combat (2026-11-20, nate: "weapons/powers aren't really causing any sort of destruction"): the slot
+	-- default grows with the move's damage (its coefficient, which a charge already raised), and a charge adds to a
+	-- row's own number too, so harder hits break more
+	local charge = 1 + (cfg.chargeStruct or 0) * (eff.chargeLevel or 0)
 	if eff.structDmg then
-		return eff.structDmg
+		return math.floor(eff.structDmg * charge)
 	elseif eff.slot == "super" then
-		return cfg.superStruct
+		return math.floor(cfg.superStruct * charge)
 	elseif (eff.coeff or 0) > 0 and not eff.allyHeal then
-		return cfg.slotStruct[eff.slot] or 0
+		local base = cfg.slotStruct[eff.slot] or 0
+		local per = cfg.structPerCoeff and cfg.structPerCoeff[eff.slot]
+		return if per then math.max(base, math.floor(per * eff.coeff)) else base
 	end
 	return 0
+end
+
+-- Where a move from (ox, oy, oz) toward its reach point (ax, ay, az) meets a wall (list-combat 2026-11-20): the first
+-- hit along the line within the reach plus cfg.wallReach, 0.3 studs in front of the face; else the reach point.
+-- rayDist(ox, oy, oz, dx, dy, dz, max) is the distance to the first wall (the server's: the Workspace and the
+-- Structure grid; tests: BuildingState.ray). Before this a slash or missed shot blasted at its full reach, inside
+-- a building it stood against, where only floors and pillars were in range.
+function BuildingState.wallPoint(
+	cfg: any,
+	ox: number,
+	oy: number,
+	oz: number,
+	ax: number,
+	ay: number,
+	az: number,
+	rayDist: (number, number, number, number, number, number, number) -> number
+): (number, number, number)
+	local dx, dy, dz = ax - ox, ay - oy, az - oz
+	local len = math.sqrt(dx * dx + dy * dy + dz * dz)
+	if len < 0.5 then
+		return ax, ay, az
+	end
+	dx, dy, dz = dx / len, dy / len, dz / len
+	local reach = len + (cfg.wallReach or 0)
+	local hit = rayDist(ox, oy, oz, dx, dy, dz, reach)
+	if hit < reach - 0.01 then
+		local d = math.max(0, hit - 0.3)
+		return ox + dx * d, oy + dy * d, oz + dz * d
+	end
+	return ax, ay, az
 end
 
 -- Shapes whose cast hits buildings where it lands (leaps and throws hit when they land, CombatService). The

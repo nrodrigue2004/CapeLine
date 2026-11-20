@@ -244,7 +244,7 @@ return function(T: any)
 			"six choice slots (act1-choices)"
 		)
 		check(
-			ProfileSchema.VERSION == 14,
+			ProfileSchema.VERSION >= 14,
 			"no save version bump from the acts (14: side-content's lore pages and mobility ranks)"
 		)
 		-- today's saves load the same

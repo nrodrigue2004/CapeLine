@@ -109,6 +109,30 @@ local function impact(center: Vector3, radius: number, kind: number)
 	end
 end
 
+-- A chip on a wall (BuildingImpact kind 4: dust, chips and a small mark on the devices near), on its own rate so
+-- a flurry of basics never takes the big hits' notices
+local chipTimes: { number } = {}
+local function chip(center: Vector3, radius: number)
+	local now = os.clock()
+	for i = #chipTimes, 1, -1 do
+		if now - chipTimes[i] > 1 then
+			table.remove(chipTimes, i)
+		end
+	end
+	if #chipTimes >= (D.chipRate or 10) then
+		return
+	end
+	table.insert(chipTimes, now)
+	local r2 = (D.impactRadius * 0.5) ^ 2
+	for _, player in Players:GetPlayers() do
+		local hero = HeroService.get(player)
+		local pos = hero and HeroService.position(hero)
+		if pos and (pos - center).Magnitude ^ 2 <= r2 then
+			Net.fire("BuildingImpact", player, center, radius, 4)
+		end
+	end
+end
+
 -- What a blast did to building id: citizens run, a fallen storey lowers its height, a collapse wrecks it
 local function settle(id: number, r: BuildingState.Blast)
 	local b = records[id]
@@ -160,6 +184,8 @@ function BuildingService.hit(center: Vector3, radius: number, dmg: number, kind:
 		end
 		-- citizens near any big hit run too, wreckable building or not
 		BuildingService.Danger:Fire(center.X, center.Z, radius + 20, 4)
+	elseif n > 0 then
+		chip(center, radius) -- a basic hit on a wall that breaks nothing yet still shows (list-combat 2026-11-20)
 	end
 	PerfMonitor.add("buildings", (os.clock() - t0) * 1000)
 	return n

@@ -33,8 +33,8 @@ return {
 		{ id = "oneHand", name = "One-hand flight (right thumb, auto-turn)", kind = "toggle", default = 0 },
 		{ id = "tapToFly", name = "Tap a map marker to fly there", kind = "toggle", default = 1 },
 		{ id = "autoAim", name = "Auto-aim on touch", kind = "toggle", default = 1 },
-		{ id = "music", name = "Music", kind = "range", lo = 0, hi = 10, step = 1, default = 7 },
-		{ id = "sfx", name = "Sound effects", kind = "range", lo = 0, hi = 10, step = 1, default = 8 },
+		{ id = "music", name = "Music", kind = "range", lo = 0, hi = 10, step = 1, default = 2 }, -- nate 2026-11-20 (was 7)
+		{ id = "sfx", name = "Sound effects", kind = "range", lo = 0, hi = 10, step = 1, default = 5 }, -- nate 2026-11-20 (was 8)
 		{ id = "damageNumbers", name = "Damage numbers", kind = "toggle", default = 1 },
 		-- phone pass (2026-11-17): the touch buttons' size on top of the fit to the screen (new keys go last:
 		-- the index is the Settings.Set key number)

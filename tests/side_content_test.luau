@@ -175,9 +175,9 @@ return function(T: any)
 	---------------------------------------------------------------------------
 
 	test("SideContent save: version 14 adds the lore pages and the mobility ranks", function()
-		check(ProfileSchema.VERSION == 14, "save version 14")
+		check(ProfileSchema.VERSION >= 14, "save version 14 or later")
 		local p = ProfileSchema.load({ version = 13, characters = { { level = 8 } } })
-		check(p.version == 14, "a v13 save loads at 14")
+		check(p.version == ProfileSchema.VERSION, "a v13 save loads at the current version")
 		check(type(p.lore) == "table" and #p.lore == 2 and p.lore[1] == 0, "with no pages read")
 		local c = p.characters[1]
 		check(type(c.mobRanks) == "table" and #c.mobRanks == 5, "and five untrained ranks")
