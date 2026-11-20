@@ -387,6 +387,49 @@ for i in range(12):
                   [0.016, 0.01, 0.001], segs=4))
 mesh("VoltRim", tint("StaticArcs"), arcs, (150, 220, 255), "Neon", alpha=0.1)
 
+# ================================================================ the flying heads (Everything Left 381, 2026-11-20): what a bolt throws, in place of
+# boxes and balls (CombatFx PIECE): an ice crystal, a chipped stone, a kunai, a fireball and a water glob. Each flies
+# nose first along -z (anchor: its centre); CombatFx stretches each to the piece's old box so sizes stay the same
+# a long hexagonal ice crystal, faceted, with two smaller crystals growing off its flank
+def crystal(r, nose, tail, x=0.0, y=0.0, z=0.0, tilt=0.0, yaw=0.0):
+    def hexr(k, zz):
+        return [(x + r * k * math.cos(math.pi / 3 * i + 0.3), y + r * k * math.sin(math.pi / 3 * i + 0.3), zz) for i in range(6)]
+    ob = rings_mesh([hexr(0.02, z - nose), hexr(1.0, z - nose * 0.55), hexr(0.92, z + tail * 0.6), hexr(0.02, z + tail)])
+    return ob
+spike = [crystal(0.22, 0.7, 0.55)]
+mesh("Heads", tint("HeadSpike"), spike, (170, 230, 255), "Glass", alpha=0.15)
+rock = B(1.0, 0.8, 0.9, 0, 0, 0)
+kit.bevel(rock, 0.12, 1)
+kit.apply_all(rock)
+rr = random.Random(381)
+for _ in range(5):  # knock its corners off
+    n = Vector((rr.uniform(-1, 1), rr.uniform(-1, 1), rr.uniform(-1, 1))).normalized()
+    shift(rock, tuple(-n * 0.42))
+    kit.cut(rock, n, keep_positive=False)
+    shift(rock, tuple(n * 0.42))
+mesh("Heads", tint("HeadRock"), [rock], (150, 120, 90), "Slate")
+# a kunai: a diamond blade, a wrapped grip and a ring at the back
+blade = rings_mesh([[(0.002, 0, -0.8), (0, 0.001, -0.8), (-0.002, 0, -0.8), (0, -0.001, -0.8)],
+                    [(0.11, 0, -0.25), (0, 0.025, -0.25), (-0.11, 0, -0.25), (0, -0.025, -0.25)],
+                    [(0.04, 0, 0.0), (0, 0.02, 0.0), (-0.04, 0, 0.0), (0, -0.02, 0.0)]])
+grip = C(0.035, 0.42, 0, 0, 0.21, segs=8, axis="z")
+ring = TOR(0.07, 0.018, 0, 0, 0.5, axis="x", segs=14, csegs=5)
+mesh("Heads", tint("HeadKunai"), [blade, grip, ring], (60, 60, 72), "Metal")
+# a fireball: a round head that trails off into flame tongues behind it
+fire = [S(0.5, 0, 0, -0.05, sc=(1, 1, 1), segs=14, rings=10)]
+for i in range(6):
+    a = 2 * math.pi * i / 6
+    c, sn = math.cos(a), math.sin(a)
+    fire.append(T([(c * 0.32, sn * 0.32, 0.0), (c * 0.46 + sn * 0.1, sn * 0.46 - c * 0.1, 0.45), (c * 0.34 + sn * 0.16, sn * 0.34 - c * 0.16, 0.95)],
+                  [0.22, 0.14, 0.01], segs=7))
+fire.append(T([(0, 0, 0.1), (0, 0.05, 0.6), (0, 0, 1.15)], [0.3, 0.18, 0.01], segs=8))
+mesh("Heads", tint("HeadFlame"), fire, (255, 140, 40), "Neon", alpha=0.15)
+# a water glob: a teardrop, round in front, pulled out behind
+mesh("Heads", tint("HeadDrop"), [loft_z([(-0.5, 0.01, -0.01, 0.01), (-0.42, 0.28, -0.28, 0.28), (-0.2, 0.42, -0.42, 0.42),
+                                        (0.05, 0.4, -0.4, 0.4), (0.3, 0.26, -0.26, 0.26), (0.6, 0.09, -0.09, 0.09),
+                                        (0.8, 0.01, -0.01, 0.01)], segs=14, power=2.0)],
+     (80, 170, 255), "Glass", alpha=0.2)
+
 # ================================================================ the Swordsman's slash (Everything Left 172, 2026-11-20): an anime sword crescent
 # with a white-hot cutting edge (anchor: the swing's centre; the arc lies flat in the x-z plane, radius 1, 140 degrees
 # round the front -z). CombatFx tilts it per combo step and stands it up for Heaven Splitter.
@@ -557,7 +600,7 @@ if "--preview" in sys.argv:
              "FlameJets": (-21, -6, 5.2), "LightRail": (25, 6, 4), "PsiSlab": (24, -8, 5.2),
              "Bullet": (-4, -14, 2), "Sun": (6, -16, 4), "BlackHole": (13, -16, 3), "KiRing": (19, -16, 3),
              "EmberRim": (-12, -16, 0.2), "HaloRim": (-18, -16, 0.2), "VoltRim": (-38, -16, 0.2),
-             "Slash": (-26, -16, 2), "Shock": (-32, -16, 1)}
+             "Slash": (-26, -16, 2), "Shock": (-32, -16, 1), "Heads": (26, -16, 2)}
     close = "--close" in sys.argv  # the 2026-11-20 effect looks only, near the camera (art/preview/powers_fx.png)
     if close:
         spots = {"Sun": (-9, 0, 3), "BlackHole": (-3.5, 0, 2.5), "KiRing": (1, 0, 2.5), "EmberRim": (5.5, 0, 0.2),
@@ -577,7 +620,9 @@ if "--preview" in sys.argv:
                 m.node_tree.nodes["Principled BSDF"].inputs["Alpha"].default_value = 1 - alpha
             ob.data.materials.append(m)
             ob.location = (x, yb, y)
-            ob.rotation_euler = (0, 0, math.radians({"SpiritBeast": 100, "Wave": 235, "Guardian": 215}.get(look, 35)))
+            if look == "Heads":  # the five heads side by side, flying left to right
+                ob.location = (x + sorted(meshes).index(name) * (2.2 if close else 1.4), yb, y)
+            ob.rotation_euler = (0, 0, math.radians({"SpiritBeast": 100, "Wave": 235, "Guardian": 215, "Heads": 70}.get(look, 35)))
             if close:
                 ob.scale = {"Sun": (1.6,) * 3, "BlackHole": (2.2,) * 3, "KiRing": (1.4,) * 3, "EmberRim": (2,) * 3,
                             "HaloRim": (2,) * 3, "Slash": (3,) * 3,

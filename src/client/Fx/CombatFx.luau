@@ -1601,6 +1601,27 @@ local function disc(
 	return p
 end
 
+-- A flying head's Blender look (Art.Powers Heads, Everything Left 381, 2026-11-20): the mesh at its own proportions,
+-- its longest side `longest` studs, in the path colour and its own material; nil before the import (the part stays).
+-- Its centre offset and import turn ride on headTwist, which fly() puts under every CFrame it sets.
+local headTwist: { [BasePart]: CFrame } = setmetatable({}, { __mode = "k" }) :: any
+local function headMesh(name: string, longest: number, c: Color3): MeshPart?
+	if not PowerMeshes.ready("Heads") then
+		return nil
+	end
+	local m = Config.PowerArt.Heads[name]
+	local k = longest / math.max(m.size[1], m.size[2], m.size[3])
+	local mp = powerMesh(name, Vector3.new(m.size[1], m.size[2], m.size[3]) * k, c, m.alpha)
+	if not mp then
+		return nil
+	end
+	mp.Material = (Enum.Material :: any)[m.mat] or Enum.Material.Neon
+	local twist = CFrame.new(-Vector3.new(m.offset[1], m.offset[2], m.offset[3]) * k) * MeshFix.turn("Powers")
+	headTwist[mp] = twist
+	mp.CFrame = twist
+	return mp
+end
+
 -- one part-built piece of a path (Config.Fx.paths piece names; FxPlan.PIECES), size s, placed by the caller
 local PIECE = {}
 PIECE.ball = function(s: number, c: Color3): Part
@@ -1614,32 +1635,56 @@ PIECE.flake = function(s: number, c: Color3): Part -- Frost: a flat snowflake ch
 	p.Transparency = 0.1
 	return p
 end
-PIECE.flame = function(s: number, c: Color3): Part
+-- a soft glowing ball (a puff, a ki orb's shell, a spirit fire: the shapes that grow, glow or stay round)
+PIECE.glow = function(s: number, c: Color3): Part
 	local p = part(Vector3.one * s, CFrame.new(), c, Enum.PartType.Ball)
 	p.Transparency = 0.25
 	return p
 end
-PIECE.drop = function(s: number, c: Color3): Part
+PIECE.flame = function(s: number, c: Color3): BasePart
+	local mesh = headMesh("HeadFlame", s * 1.4, c)
+	if mesh then
+		return mesh -- a fireball trailing flame tongues
+	end
+	return PIECE.glow(s, c)
+end
+PIECE.drop = function(s: number, c: Color3): BasePart
+	local mesh = headMesh("HeadDrop", s * 1.1, c)
+	if mesh then
+		return mesh -- a teardrop glob
+	end
 	local p = part(Vector3.one * s * 0.8, CFrame.new(), c, Enum.PartType.Ball)
 	p.Material = Enum.Material.Glass
 	p.Transparency = 0.2
 	return p
 end
-PIECE.spike = function(s: number, c: Color3): Part
-	return part(Vector3.new(s * 0.3, s * 0.3, s * 2.2), CFrame.new(), c)
+PIECE.spike = function(s: number, c: Color3): BasePart
+	return headMesh("HeadSpike", s * 2.2, c) or part(Vector3.new(s * 0.3, s * 0.3, s * 2.2), CFrame.new(), c)
 end
-PIECE.shard = function(s: number, c: Color3): Part
+PIECE.shard = function(s: number, c: Color3): BasePart
+	local mesh = headMesh("HeadSpike", s * 1.2, c)
+	if mesh then
+		return mesh -- a faceted ice crystal
+	end
 	local p = part(Vector3.new(s * 0.45, s * 0.45, s * 1.2), CFrame.new(), c)
 	p.Material = Enum.Material.Glass
 	p.Transparency = 0.15
 	return p
 end
-PIECE.rock = function(s: number, c: Color3): Part
+PIECE.rock = function(s: number, c: Color3): BasePart
+	local mesh = headMesh("HeadRock", s, c)
+	if mesh then
+		return mesh -- a chipped stone
+	end
 	local p = part(Vector3.new(s, s * 0.8, s * 0.9), CFrame.new(), c)
 	p.Material = Enum.Material.Slate
 	return p
 end
-PIECE.kunai = function(s: number, c: Color3): Part
+PIECE.kunai = function(s: number, c: Color3): BasePart
+	local mesh = headMesh("HeadKunai", s * 1.6, c)
+	if mesh then
+		return mesh -- a kunai, ring and all
+	end
 	local p = part(Vector3.new(s * 0.22, s * 0.22, s * 1.6), CFrame.new(), c)
 	p.Material = Enum.Material.Metal
 	return p
@@ -1656,7 +1701,7 @@ PIECE.ring = function(s: number, c: Color3): Part
 	return p
 end
 
-local function piece(kind: string, s: number, c: Color3): Part?
+local function piece(kind: string, s: number, c: Color3): BasePart?
 	local make = PIECE[kind]
 	return if make then make(s, c) else nil
 end
@@ -1711,7 +1756,7 @@ local function fly(
 )
 	local d = to - from
 	local look = if d.Magnitude > 1e-3 then d.Unit else UP
-	local tw = twist or CFrame.identity
+	local tw = (twist or CFrame.identity) * (headTwist[p] or CFrame.identity)
 	p.CFrame = CFrame.lookAt(from, from + look) * tw
 	TweenService:Create(
 		p,
@@ -1841,7 +1886,7 @@ HEAD.kunai = function(from, to, style, color, accent, s) -- Shadow: a dark blade
 end
 HEAD.kiorb = function(from, to, style, color, accent, s) -- Martial: a ki sphere with a white core and a halo
 	local t = flightTime(from, to, 170)
-	local outer = PIECE.flame(2.4 * s, color)
+	local outer = PIECE.glow(2.4 * s, color)
 	outer.Material = Enum.Material.ForceField
 	outer.Transparency = 0
 	local core = PIECE.ball(1.3 * s, accent)
@@ -1924,7 +1969,7 @@ end
 MARK.puff = function(pos, style, color, accent, s) -- Fire: a fireball puff with a smoky rim
 	local core = PIECE.ball(1.5 * s, if anime(style) then WHITE else accent)
 	fade(core, 0.18, { Size = Vector3.one * 4.5 * s })
-	local outer = PIECE.flame(2 * s, color)
+	local outer = PIECE.glow(2 * s, color)
 	fade(outer, 0.3, { Size = Vector3.one * 6.5 * s })
 	if not anime(style) then
 		disc(pos, UP, 4 * s, Color3.fromRGB(70, 60, 55), 0.4, 0.5)
@@ -3069,7 +3114,7 @@ end
 SUPER.ascend = function(x) -- Spirit Ascended Guardian: a spirit column, spirit fires ring the hero
 	column(x.o, 9, x.color, x.style, 0.9)
 	groundRing(x.o - Vector3.new(0, 3, 0), 6, 6, function(i)
-		local f = PIECE.flame(2, if i % 2 == 0 then x.accent else x.color)
+		local f = PIECE.glow(2, if i % 2 == 0 then x.accent else x.color)
 		f.Shape = Enum.PartType.Block
 		return f
 	end, 5, 0.8, 0)

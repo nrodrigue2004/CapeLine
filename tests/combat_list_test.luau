@@ -974,8 +974,8 @@ return function(T: any)
 			end
 		end
 		check(
-			n == 61,
-			"61 meshes in 25 looks (382 added the jets, the rail and the slab; 173 the bullet; 169, 177, 180 and 183 the sun, ki ring, black hole and field rims; 172 the slash; 381 the shock ring and cone fan; 167 Static Field's arcs): "
+			n == 66,
+			"66 meshes in 26 looks (382 added the jets, the rail and the slab; 173 the bullet; 169, 177, 180 and 183 the sun, ki ring, black hole and field rims; 172 the slash; 381 the shock ring and cone fan, then the flying heads; 167 Static Field's arcs): "
 				.. n
 		)
 		for _, look in
@@ -3012,6 +3012,83 @@ return function(T: any)
 		check(left == 0, "no attachments left (" .. left .. ")")
 		check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
 	end)
+
+	test(
+		"List combat: bolts throw Blender heads: ice crystals, fireballs, stones, kunai, globs (Everything Left 381)",
+		function()
+			local roblox = require("@lune/roblox")
+			local H = Config.PowerArt.Heads
+			for _, name in { "HeadSpike", "HeadFlame", "HeadRock", "HeadKunai", "HeadDrop" } do
+				check(
+					H ~= nil and H[name] ~= nil and H[name].tint == true,
+					name .. " in PowerArt, in the path colour"
+				)
+			end
+			if not T.placePath then
+				return
+			end
+			local UiSim = require("./uisim")
+			local sim = UiSim.new(
+				UiSim.load(roblox.deserializePlace(fs.readFile(T.placePath))),
+				{ name = "PC", w = 1280, h = 720, top = 36, left = 0, right = 0, bottom = 0, touch = false }
+			)
+			local CombatFx = sim:require("Client.Fx.CombatFx")
+			sim:run("CombatFx", CombatFx.init)
+			local V = roblox.Vector3.new
+			local want = {
+				Frost = "HeadSpike",
+				Fire = "HeadFlame",
+				Earth = "HeadRock",
+				Shadow = "HeadKunai",
+				Tide = "HeadDrop",
+			}
+			for set, name in want do
+				sim:run(set, function()
+					CombatFx.bolt(
+						V(0, 5, 0),
+						V(0, 5, -40),
+						"Comic",
+						roblox.Color3.fromRGB(200, 120, 255),
+						set
+					)
+				end)
+				local found = nil
+				for _, d in sim.service("Workspace"):GetDescendants() do
+					if d:IsA("MeshPart") and d.Name == name then
+						found = d
+					end
+				end
+				check(found ~= nil, set .. " throws its " .. name)
+				if found then
+					-- nose first along the flight (-z): the mesh's long side lies along the bolt
+					local look = found.CFrame.LookVector
+					check(
+						name == "HeadRock" or found.Size.Z >= math.max(found.Size.X, found.Size.Y) - 1e-3,
+						name .. " is longest along its flight"
+					)
+					check(
+						math.abs(look.Y) < 0.2,
+						name .. " flies level (" .. string.format("%.2f", look.Y) .. ")"
+					)
+					check(
+						name == "HeadKunai" or found.Color == roblox.Color3.fromRGB(200, 120, 255),
+						name .. " in the path colour (the kunai in its dark accent)"
+					)
+				end
+			end
+			-- the round glows stay balls (a puff grows, a ki orb's shell, the spirit fires)
+			local src = fs.readFile("src/client/Fx/CombatFx.luau")
+			check(
+				string.find(src, "local outer = PIECE.glow(2.4 * s, color)", 1, true) ~= nil,
+				"the ki orb stays round"
+			)
+			check(
+				string.find(src, "* (headTwist[p] or CFrame.identity)", 1, true) ~= nil,
+				"fly() keeps the import turn"
+			)
+			check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
+		end
+	)
 
 	test("List combat: the Swordsman's cuts are Blender crescents (Everything Left 172)", function()
 		local roblox = require("@lune/roblox")
