@@ -26,6 +26,8 @@ local WorldClient = require(script.Parent.Parent.Controllers.WorldClient)
 local QualityController = require(script.Parent.Parent.Controllers.QualityController)
 local CombatFx = require(script.Parent.CombatFx)
 local FxLib = require(script.Parent.FxLib)
+local PowerMeshes = require(script.Parent.PowerMeshes)
+local MeshFix = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("MeshFix"))
 
 local EventFx = {}
 
@@ -98,7 +100,7 @@ end
 -- The Tidal surge
 ---------------------------------------------------------------------------
 
-type Wave = { rollers: { Part }, foam: { Part }, offset: number }
+type Wave = { rollers: { BasePart }, foam: { BasePart }, offset: number, meshed: boolean }
 local water: Part? = nil
 local waves: { Wave } = {}
 local nextSpray = 0
@@ -123,9 +125,24 @@ end
 
 local function buildWaves()
 	local n = SURGE.segments[QualityController.name] or SURGE.segments.medium
+	-- each roller a breaking wave with its foam crest in the Blender look (Art.Powers Wave, the Tsunami's;
+	-- Everything Left 248) once it is imported; cylinders before that
+	local meshed = PowerMeshes.ready("Wave")
 	for k = 1, SURGE.waves do
-		local w: Wave = { rollers = {}, foam = {}, offset = (k - 1) / SURGE.waves }
+		local w: Wave = { rollers = {}, foam = {}, offset = (k - 1) / SURGE.waves, meshed = meshed }
 		for _ = 1, n do
+			if meshed then
+				local r = PowerMeshes.part("WaveWater")
+				local f = PowerMeshes.part("WaveFoam")
+				if r and f then
+					r.Color, r.Material, r.Transparency = SEA, Enum.Material.Glass, 0.3
+					f.Color, f.Material, f.Transparency = FOAM, Enum.Material.SmoothPlastic, 0.1
+					r.Parent, f.Parent = folder, folder
+					table.insert(w.rollers, r)
+					table.insert(w.foam, f)
+					continue
+				end
+			end
 			local r =
 				part(Vector3.one, CFrame.identity, SEA, Enum.Material.SmoothPlastic, Enum.PartType.Cylinder)
 			r.Transparency = 0.3
@@ -209,6 +226,32 @@ local function surgeStep(ev: { [string]: any }, now: number)
 			end
 			-- a cylinder's axis is its X: lay it along the front
 			local frame = CFrame.fromMatrix(mid, along, UP)
+			if w.meshed then
+				-- the breaking wave: its curl (-z) toward the way it rolls, its foam riding the crest
+				local A = Config.PowerArt.Wave
+				local WW, WF = A.WaveWater, A.WaveFoam
+				local kx, ky, kz = len / WW.size[1], waveH * 2 / WW.size[2], waveH * 1.4 / WW.size[3]
+				local face = if along:Cross(UP):Dot(fwd) > 0
+					then CFrame.Angles(0, math.pi, 0)
+					else CFrame.identity
+				local base = frame * face
+				local turn = MeshFix.turn("Powers")
+				r.Size = Vector3.new(WW.size[1] * kx, WW.size[2] * ky, WW.size[3] * kz)
+				table.insert(bulkParts, r)
+				table.insert(bulkCFs, base * CFrame.new(0, waveH * 0.75, WW.offset[3] * kz) * turn)
+				r.Transparency = 1 - (0.7 * fade)
+				local fo = w.foam[i]
+				fo.Size = Vector3.new(WF.size[1] * kx, WF.size[2] * ky, WF.size[3] * kz)
+				table.insert(bulkParts, fo)
+				table.insert(
+					bulkCFs,
+					base
+						* CFrame.new(WF.offset[1] * kx, waveH * 0.75 + WF.offset[2] * ky, WF.offset[3] * kz)
+						* turn
+				)
+				fo.Transparency = 1 - (0.9 * fade)
+				continue
+			end
 			r.Size = Vector3.new(len, waveH * 2, waveH * 2)
 			table.insert(bulkParts, r)
 			table.insert(bulkCFs, frame + UP * (waveH * 0.15))

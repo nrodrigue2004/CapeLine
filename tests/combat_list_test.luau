@@ -2890,6 +2890,58 @@ return function(T: any)
 		check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
 	end)
 
+	test("List combat: the Tidal surge rolls in Blender breaking waves (Everything Left 248)", function()
+		local roblox = require("@lune/roblox")
+		if not T.placePath then
+			return
+		end
+		local UiSim = require("./uisim")
+		local sim = UiSim.new(
+			UiSim.load(roblox.deserializePlace(fs.readFile(T.placePath))),
+			{ name = "PC", w = 1280, h = 720, top = 36, left = 0, right = 0, bottom = 0, touch = false }
+		)
+		local WorldClient = sim:require("Client.Controllers.WorldClient")
+		local EventFx = sim:require("Client.Fx.EventFx")
+		local ws = sim.service("Workspace")
+		local holder = UiSim.newInstance("Folder")
+		holder.Parent = ws
+		sim:run("EventFx", function()
+			EventFx.init(holder)
+		end)
+		local d = Config.City.districts.Docks
+		local cx, cz = (d.minX + d.maxX) / 2, (d.minZ + d.maxZ) / 2
+		local cam = ws.CurrentCamera
+		if cam then
+			cam.CFrame = roblox.CFrame.new(cx, 60, cz + 80)
+		end
+		table.insert(
+			WorldClient.events,
+			{ id = "TidalSurge", state = 0, ends = os.clock() + 60, need = 4, have = 1 }
+		)
+		local rs = sim.service("RunService")
+		for _ = 1, 3 do
+			sim:run("frame", function()
+				rs.RenderStepped:Fire(1 / 30)
+			end)
+		end
+		local water, foam, cyl = 0, 0, 0
+		for _, x in holder:GetDescendants() do
+			if x:IsA("MeshPart") and x.Name == "WaveWater" then
+				water += 1
+			elseif x:IsA("MeshPart") and x.Name == "WaveFoam" then
+				foam += 1
+			elseif x:IsA("Part") and x.Shape == roblox.Enum.PartType.Cylinder then
+				cyl += 1
+			end
+		end
+		check(
+			water >= 4 and water == foam,
+			string.format("breaking waves with foam crests (%d, %d)", water, foam)
+		)
+		check(cyl == 0, "no cylinder rollers left (" .. cyl .. ")")
+		check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
+	end)
+
 	test("List combat: the STYLES tab shows a picture per style (Everything Left 362)", function()
 		local GearMath = require("../src/shared/GearMath")
 		local tiles = Config.StyleTiles
