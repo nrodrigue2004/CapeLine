@@ -757,6 +757,95 @@ mesh("Siege", "SiegeHousing", [B(1.3, 1.1, 2.3, 0, 2.45, 0, bev=0.12), C(0.62, 0
                                B(0.9, 0.18, 2.5, 0, 3.0, 0, bev=0.05)], (52, 54, 60), "Metal")
 mesh("Siege", "SiegeBand", [TOR(0.68, 0.08, 0, 1.6, 0, axis="up", segs=16, csegs=5)], (255, 200, 90), "Neon")
 
+# ================================================================ the supers' own looks (list-combat 2026-11-20, the supers round)
+# Sigil (Mind's Psychic Storm; anchor: its centre, flat on the ground, 2 across; an original sigil): SigilOuter, a
+# double ring with twelve rune ticks and three diamond runes between, turns one way; SigilInner, a triangle of bars
+# with a ring at each corner round an eye at the heart, turns the other.
+outer = [TOR(1.0, 0.045, 0, 0, 0, axis="up", segs=48, csegs=4), TOR(0.84, 0.025, 0, 0, 0, axis="up", segs=40, csegs=4)]
+for i in range(12):
+    tick = B(0.16, 0.05, 0.05, 0.92, 0, 0)
+    turn(tick, "up", i * 30)
+    outer.append(tick)
+for i in range(3):
+    rune = star(0.09, 0.04, 0.05, 0.92, 0, 0, points=2, axis="up")
+    turn(rune, "up", i * 120 + 15)
+    outer.append(rune)
+mesh("Sigil", tint("SigilOuter"), outer, (200, 120, 255), "Neon", shade=False)
+inner = []
+corners = [(math.cos(math.radians(90 + 120 * k)) * 0.7, math.sin(math.radians(90 + 120 * k)) * 0.7) for k in range(3)]
+for k in range(3):
+    (x0, z0), (x1, z1) = corners[k], corners[(k + 1) % 3]
+    ln = math.hypot(x1 - x0, z1 - z0)
+    bar = B(ln, 0.05, 0.07)
+    turn(bar, "up", -math.degrees(math.atan2(z1 - z0, x1 - x0)))
+    shift(bar, rb((x0 + x1) / 2, 0, (z0 + z1) / 2))
+    inner.append(bar)
+    inner.append(TOR(0.13, 0.025, x0, 0, z0, axis="up", segs=16, csegs=4))
+inner.append(TOR(0.24, 0.03, 0, 0, 0, axis="up", segs=24, csegs=4))
+inner.append(S(0.2, 0, 0.02, 0, sc=(1, 0.15, 0.5), segs=14, rings=6))  # the eye's lens
+mesh("Sigil", tint("SigilInner"), inner, (255, 220, 255), "Neon", shade=False)
+
+# Dawn (Light's Dawnburst; anchor: the burst's centre on the ground, 2 across): DawnBurst, a flat sunburst of twelve
+# long and twelve short rays round a disc; DawnCrown, twelve light blades standing round the edge and leaning out
+# like a sunrise, 1 tall.
+burst = [star(1.0, 0.2, 0.04, axis="up", points=12), C(0.26, 0.06, 0, 0, 0, segs=20)]
+short = star(0.66, 0.18, 0.03, axis="up", points=12)
+turn(short, "up", 15)
+burst.append(short)
+mesh("Dawn", tint("DawnBurst"), burst, (255, 230, 150), "Neon", shade=False)
+crown = []
+for i in range(12):
+    a = math.radians(i * 30)
+    h = 1.0 if i % 2 == 0 else 0.62
+    crown.append(T([(math.cos(a) * 0.72, 0, math.sin(a) * 0.72), (math.cos(a) * 0.95, h, math.sin(a) * 0.95)],
+                   [0.07, 0.006], segs=6))
+mesh("Dawn", "DawnCrown", crown, (255, 250, 220), "Neon")
+
+# Pillar (every super's light column; anchor: its centre, 1 across, 2 tall): a double helix of light ribbons that
+# CombatFx winds round the column and turns.
+helix = []
+for s0 in (0.0, math.pi):
+    pts = []
+    for i in range(33):
+        t = i / 32
+        a = s0 + t * math.pi * 4
+        pts.append((math.cos(a) * 0.5, -1 + 2 * t, math.sin(a) * 0.5))
+    helix.append(T(pts, [0.035] * len(pts), segs=5))
+mesh("Pillar", tint("PillarHelix"), helix, (255, 240, 200), "Neon", shade=False)
+
+# Crater (Meteor Leap's landing; anchor: the crater's centre on the ground, 2 across): CraterBowl, a shallow dark
+# dish with raised cracks; CraterRim, a ring of broken rock slabs leaning out.
+crr = random.Random(208)
+bowl = [S(1.0, 0, -0.05, 0, sc=(1, 0.1, 1), segs=20, rings=6)]
+for i in range(7):
+    ang = i / 7 * 360 + crr.uniform(-15, 15)
+    crack = B(crr.uniform(0.45, 0.75), 0.03, 0.05, 0.45, 0.03, 0)
+    turn(crack, "up", ang)
+    bowl.append(crack)
+mesh("Crater", "CraterBowl", bowl, (58, 48, 44), "Slate")
+rim = []
+for i in range(14):
+    ang = i / 14 * 360 + crr.uniform(-6, 6)
+    w, h, t = crr.uniform(0.28, 0.42), crr.uniform(0.3, 0.55), crr.uniform(0.08, 0.14)
+    slab = B(t, h, w)
+    lumpy(slab, 0.35, seed=300 + i)  # a broken slab, not a brick
+    shift(slab, rb(0, h / 2, 0))
+    lean = crr.uniform(35, 60)
+    turn(slab, "z", -lean)
+    turn(slab, "x", crr.uniform(-15, 15))
+    shift(slab, rb(0.82, 0, 0))
+    turn(slab, "up", ang)
+    rim.append(slab)
+for i in range(8):  # loose chunks thrown just outside
+    ang = crr.uniform(0, 360)
+    k = crr.uniform(0.07, 0.13)
+    chunk = B(k * 1.4, k, k * 1.2)
+    lumpy(chunk, 0.3, seed=400 + i)
+    shift(chunk, rb(crr.uniform(1.05, 1.3), k / 2, 0))
+    turn(chunk, "up", ang)
+    rim.append(chunk)
+mesh("Crater", "CraterRim", rim, (128, 112, 98), "Slate")
+
 # ================================================================ the fit table and the export
 def bounds(ob):
     vs = [ob.matrix_world @ v.co for v in ob.data.vertices]
@@ -820,7 +909,7 @@ if "--preview" in sys.argv:
              "Bullet": (-4, -14, 2), "Sun": (6, -16, 4), "BlackHole": (13, -16, 3), "KiRing": (19, -16, 3),
              "EmberRim": (-12, -16, 0.2), "HaloRim": (-18, -16, 0.2), "VoltRim": (-38, -16, 0.2),
              "Slash": (-26, -16, 2), "Shock": (-32, -16, 1), "Heads": (26, -16, 2), "Girder": (31, 6, 11.5), "Wing": (-28, 6, 3), "Net": (-34, 6, 2),
-             "Claw": (-31, -6, 1), "Plate": (-35, -6, 1), "Flake": (-38, -6, 1), "Gem": (-41, -6, 1), "Scrap": (-44, -6, 1), "Petal": (-47, -6, 1), "Grenade": (-50, -6, 1), "Siege": (-53, -6, 3)}
+             "Claw": (-31, -6, 1), "Plate": (-35, -6, 1), "Flake": (-38, -6, 1), "Gem": (-41, -6, 1), "Scrap": (-44, -6, 1), "Petal": (-47, -6, 1), "Grenade": (-50, -6, 1), "Siege": (-53, -6, 3), "Sigil": (-56, -6, 0.1), "Dawn": (-59, -6, 0.1), "Pillar": (-62, -6, 2), "Crater": (-65, -6, 0.1)}
     close = "--close" in sys.argv  # the 2026-11-20 effect looks only, near the camera (art/preview/powers_fx.png)
     if close:
         spots = {"Sun": (-9, 0, 3), "BlackHole": (-3.5, 0, 2.5), "KiRing": (1, 0, 2.5), "EmberRim": (5.5, 0, 0.2),
