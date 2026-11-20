@@ -115,7 +115,15 @@ return {
 	-- screen and freezes your hero for `unmaskPause` seconds (a hit-stop), with a camera punch
 	fakes = { unmaskNear = 60, unmaskPause = 0.12 },
 	robots = {
-		aim = { color = { 255, 40, 40 }, width = 0.1, lockWidth = 0.3, blink = 14, dot = 0.6 },
+		-- ally: (list-combat 2026-11-20) a lock on another hero within `near` studs pings from them, quieter and lower
+		aim = {
+			color = { 255, 40, 40 },
+			width = 0.1,
+			lockWidth = 0.3,
+			blink = 14,
+			dot = 0.6,
+			ally = { near = 90, volume = 0.35, pitch = 2.2 },
+		},
 		tracer = { color = { 255, 240, 210 }, glow = { 255, 80, 60 }, length = 14, width = 0.22 },
 		net = { color = { 190, 235, 255 }, size = 4.5, spin = 8 },
 		-- (list-combat 2026-11-20) the claw bites: biteSparks off a caught hero, wallSparks and a scorch on a wall;

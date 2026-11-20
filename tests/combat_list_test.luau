@@ -3969,6 +3969,49 @@ return function(T: any)
 			end)
 			check(parts() == p0 and #sounds == s0, "a punch far away draws nothing")
 			Enemy.facing = realFacing
+			-- a Sniper locks onto a hero near you: the lock pings from them, quieter and lower; far off, silent
+			local Aim = SimConfig.Fx.robots.aim.ally
+			local allyChar = UiSim.newInstance("Model")
+			local allyRoot = UiSim.newInstance("Part")
+			allyRoot.Name = "HumanoidRootPart"
+			allyRoot.CFrame = roblox.CFrame.new(20, 3, 0)
+			allyRoot.Position = roblox.Vector3.new(20, 3, 0)
+			allyRoot.Parent = allyChar
+			allyChar.Parent = sim.workspace
+			local ally = { Character = allyChar, UserId = 555 }
+			local players = sim.service("Players")
+			local realGet = players._props.GetPlayerByUserId
+			players._props.GetPlayerByUserId = function(_, id)
+				return if id == 555 then ally else realGet(_, id)
+			end
+			local opts: any = nil
+			local realAudioPlay = Audio.play
+			Audio.play = function(id, at, o)
+				if id == "aimLock" then
+					opts = { at = at, o = o }
+				end
+				return realAudioPlay(id, at, o)
+			end
+			sim:run("aim", function()
+				remotes
+					:WaitForChild("CombatEvents").OnClientEvent
+					:Fire({ { 8, 43, 60, 3, 0, 555, 0.25, 0.1 } })
+			end)
+			check(opts == nil, "no ping before the lock")
+			sim:advance(0.2)
+			check(opts ~= nil and opts.o and opts.o.volume == Aim.volume, "a quieter lock ping for the ally")
+			check(opts and (opts.at - roblox.Vector3.new(20, 4.5, 0)).Magnitude < 0.01, "from the ally")
+			opts = nil
+			allyRoot.Position = roblox.Vector3.new(2000, 3, 0)
+			sim:run("far aim", function()
+				remotes
+					:WaitForChild("CombatEvents").OnClientEvent
+					:Fire({ { 8, 44, 1960, 3, 0, 555, 0.25, 0.1 } })
+			end)
+			sim:advance(0.2)
+			check(opts == nil, "a lock on a far hero stays silent")
+			Audio.play = realAudioPlay
+			players._props.GetPlayerByUserId = realGet
 			FxLib.emit, Audio.playSpec, Camera.shake = realEmit, realPlay, realShake
 			check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
 		end

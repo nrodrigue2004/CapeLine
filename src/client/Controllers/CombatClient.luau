@@ -505,6 +505,7 @@ end
 local IMPACT = Config.Audio.impact
 local lastThud = 0
 local HURT = Config.Fx.hurt
+local AIM_ALLY = Config.Fx.robots.aim.ally
 local SWING_FX = Config.Fx.robots.swing
 local SWING_COLOR = Color3.fromRGB(SWING_FX.color[1], SWING_FX.color[2], SWING_FX.color[3])
 local lastHurt = 0
@@ -923,6 +924,19 @@ local function onEvents(list: { any })
 				task.delay(math.max(0, ev[7] - ev[8]), function()
 					if aiming() then -- no lock sound for an aim a stun already broke
 						Juice.fire("aimLock", nil, { mine = true })
+					end
+				end)
+			elseif to() and near(to() :: Vector3, AIM_ALLY.near) then
+				-- a Sniper locking onto a hero near you (list-combat 2026-11-20): the same ping, quieter and lower,
+				-- from them, so you can shout or shield them (Config.Fx.robots.aim.ally)
+				task.delay(math.max(0, ev[7] - ev[8]), function()
+					local at = to()
+					if at and aiming() then
+						AudioController.play(
+							"aimLock",
+							at,
+							{ volume = AIM_ALLY.volume, pitch = AIM_ALLY.pitch }
+						)
 					end
 				end)
 			end
