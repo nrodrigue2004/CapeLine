@@ -241,6 +241,9 @@ Looks only: where the screens hang, what they show, the card's timing and the TV
 6. The boss name cards (each of the four) show the boss's comic portrait popping out of the card's left over a comic navy plate; the name and title sit right of it, the slash bar sweeps in the boss's colour; the plate's ink and gold rule stay crisp at PC and phone sizes.
 7. Your double's card (and the three side-vs-side event cards) show the event's comic icon; the Crater's card and the side quest finales' cards are words on the plate.
 
+### Playtest gaps14: start here (2026-11-20, build playtest-gaps14)
+Everything in gaps13 plus 10 more checklist commits: project files capeline/Capeline-playtest-gaps14-2026-11-20.rbxl (Output "playtest-gaps14 (2026-11-20)"). It replaces every older playtest place. Run "Playtest gaps13: start here" first if not done, then "Studio list: two-hand grips, the guard shield, throwables" items 54-62 (style picture cards, Legs art, power effect meshes, Swordsman crescents, citizens shopping and sitting, shock rings and cone fans, the Tidal surge waves, Static Field arcs). Line status: capeline/notes/checklist-progress.md.
+
 ### Playtest gaps13: start here (2026-11-20, build playtest-gaps13)
 Everything in gaps12 plus 36 overnight checklist commits: project files capeline/Capeline-playtest-gaps13-2026-11-20.rbxl (Output "playtest-gaps13 (2026-11-20)"). It replaces every older playtest place. Run "Playtest gaps12: start here" first if not done, then "Studio list: two-hand grips, the guard shield, throwables" items 18-53 (weapon textures and styles, power summons/rides/forms, rubble, nemesis armour, rooftop ads and clutter, effects rings and shields, auras and charge glow, aim preview, prologue crowd, side crests, travel styles, Gunslinger bullet). Line status: capeline/notes/checklist-progress.md.
 
