@@ -105,9 +105,10 @@ local function show(hero: any, num: number, at: Vector3, dir: Vector3, extra: nu
 end
 
 -- A decoy robots chase for `life` s (Afterimage, Shadow Flip): the gadget's own decoy
-local function decoy(at: Vector3, life: number, taunt: number)
-	local id = HeroService.addDecoy(at, life)
-	for _, c in EnemyService.candidates() do
+-- (hero: whose decoy; only robots it may meet chase it, a private mission run's own: PhaseService)
+local function decoy(hero: any, at: Vector3, life: number, taunt: number)
+	local id = HeroService.addDecoy(at, life, EnemyService.soloKey(hero))
+	for _, c in EnemyService.candidatesFor(hero) do
 		if (Vector3.new(c.x, c.y, c.z) - at).Magnitude <= taunt then
 			EnemyService.applyStatus(c.id, "taunt", life, { src = id })
 		end
@@ -205,7 +206,7 @@ ACTS.afterimage = function(hero, num, at, dir)
 	if not take(hero, "afterimage", m.cooldown) then
 		return false
 	end
-	decoy(at, m.life, m.taunt)
+	decoy(hero, at, m.life, m.taunt)
 	show(hero, num, at, dir, m.life)
 	return true
 end
@@ -314,7 +315,7 @@ ACTS.shadowFlip = function(hero, num, at, dir)
 	if not take(hero, "shadowFlip", m.cooldown) then
 		return false
 	end
-	decoy(at, m.life, m.taunt)
+	decoy(hero, at, m.life, m.taunt)
 	show(hero, num, at, dir, m.life)
 	return true
 end

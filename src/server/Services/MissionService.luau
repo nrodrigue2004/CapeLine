@@ -70,6 +70,7 @@ local BeaconService = require(script.Parent.BeaconService)
 local BossService = require(script.Parent.BossService)
 local BlockService = require(script.Parent.BlockService)
 local SiteKit = require(script.Parent.SiteKit)
+local PhaseService = require(script.Parent.PhaseService) -- (missions lane: each run is private, see "Phasing")
 local SetPieceMeshes = require(script.Parent.SetPieceMeshes)
 local PocketArt = require(script.Parent.PocketArt)
 local StoryService = require(script.Parent.StoryService)
@@ -146,6 +147,7 @@ type Run = {
 	legAt: number?,
 	away: { [number]: number }?, -- H4: user id -> when they left (rejoin within Config.TaskForce.rejoin)
 	panel: boolean?, -- H4: the comic panel between task force legs is up (no stage starts, nothing is paid)
+	phase: number?, -- the run's private phase (PhaseService; see "Phasing" below)
 }
 
 local busy: { [number]: Run } = {} -- pocket index -> its run
@@ -248,6 +250,7 @@ local function spawn(
 ): number?
 	local id = EnemyService.spawnAt(kind, pos, run.level, TAG - run.pocket, opts and opts.scripted)
 	if id then
+		EnemyService.setPhase(id, run.phase) -- (Phasing: the run's own from its first frame)
 		track.enemies[id] = true
 		local hpMult = (opts and opts.hpMult or 1) * run.partyHp -- H4: more health per player
 		if hpMult ~= 1 or (opts and opts.dmg) then
@@ -276,6 +279,36 @@ local function dropKept(run: Run)
 		EnemyService.remove(id)
 	end
 	table.clear(run.kept)
+end
+
+---------------------------------------------------------------------------
+-- Phasing (missions lane, 2026-11-20; nate: "other players shouldn't be able to interrupt ur story"): every run has
+-- a private phase (PhaseService, Shared.PhaseRules). Its members join it at the start (and on a rejoin) and leave
+-- it on the way out; the run closes it. Its robots, its SiteKit pieces (rings, break objects, the train) and the
+-- War-Frame's targets are put in it, so only the party sees, touches, hits or is hit by them, and the party is out
+-- of the open world's (Controllers.PhaseClient hides the pieces on other devices). phaseTrack is the one sweep:
+-- whatever a step made that is not in the phase yet goes in, in the same frame it was made.
+---------------------------------------------------------------------------
+
+local function phaseTrack(run: Run, track: Track)
+	local phase = run.phase
+	if not phase then
+		return
+	end
+	for id in track.enemies do
+		if EnemyService.alive(id) and EnemyService.phaseOf(id) ~= phase then
+			EnemyService.setPhase(id, phase)
+		end
+	end
+	for _, t in track.things do
+		local tagged = if typeof(t) == "Instance"
+			then t:GetAttribute("Phase") == phase
+			elseif type(t) == "table" then t.phase == phase
+			else EnemyService.phaseOf(t) == phase or not EnemyService.alive(t)
+		if not tagged then
+			SiteKit.inPhase(t, phase)
+		end
+	end
 end
 
 ---------------------------------------------------------------------------
@@ -804,6 +837,7 @@ startStage = function(run: Run)
 		dropKept(run)
 		run.tracks.both = newTrack("both", run.player, run.m.steps[run.stage])
 		startStep(run, run.tracks.both)
+		phaseTrack(run, run.tracks.both)
 		return
 	end
 	local present = {}
@@ -835,6 +869,7 @@ startStage = function(run: Run)
 	end
 	for _, t in run.tracks do
 		startStep(run, t)
+		phaseTrack(run, t)
 	end
 end
 
@@ -893,7 +928,7 @@ local function tickWarframe(run: Run, track: Track, now: number)
 	BossSim.step(sim, now, heroes)
 	BossService.linkTargets(sim, wf.targets, function(heroId)
 		wf.lastBy = heroId or wf.lastBy -- lore step 7: who landed the blow that ends a phase (the finisher)
-	end)
+	end, run.phase)
 	for _, ev in BossSim.drain(sim) do
 		if ev.k == "strike" then
 			for _, hit in ev.hits do
@@ -922,7 +957,7 @@ end
 local function holdStep(run: Run, track: Track, st: any, dt: number, now: number)
 	local have = 0
 	for i, p in track.points do
-		if track.held[i] < st.seconds and #SiteKit.heroesIn(v3(p), st.radius) > 0 then
+		if track.held[i] < st.seconds and #SiteKit.heroesIn(v3(p), st.radius, run.phase) > 0 then
 			track.held[i] = math.min(st.seconds, track.held[i] + dt)
 		end
 		have += track.held[i]
@@ -1065,6 +1100,7 @@ local function tick(run: Run, dt: number, now: number)
 	end
 	for _, t in run.tracks do
 		tickTrack(run, t, dt, now)
+		phaseTrack(run, t)
 	end
 	if run.done then
 		return
@@ -1289,6 +1325,7 @@ local function releaseMember(run: Run, player: Player)
 	if hero then
 		hero.scene = nil
 		MissionService.setRaise(hero, nil) -- H4: the raise never leaves the pocket
+		PhaseService.leave(hero) -- (Phasing: back to the open world)
 	end
 	local side = run.sides[player]
 	run.sides[player] = nil
@@ -1315,6 +1352,8 @@ local function release(run: Run)
 	for _, p in table.clone(run.members) do
 		releaseMember(run, p)
 	end
+	PhaseService.close(run.phase) -- (Phasing)
+	run.phase = nil
 end
 
 local function pay(run: Run, player: Player): { [string]: any }
@@ -1508,12 +1547,14 @@ local function begin(
 		leg = if tf then 1 else nil,
 		legAt = os.clock(),
 		away = if tf then {} else nil,
+		phase = PhaseService.open(), -- (Phasing)
 	}
 	busy[pocket] = run
 	EnemyService.usePocket(pocket, run.layout) -- its walls and ceilings stop robots (and their fliers)
 	for i, p in members do
 		runs[p] = run
 		heroes[p].scene = "mission"
+		PhaseService.join(run.phase, heroes[p]) -- (Phasing)
 		p:SetAttribute("Mission", num)
 		Net.fire("BossState", p, { state = BossService.STATE.idle, at = 0 })
 		local raise = SidekickRules.raised(Config.Sidekick, heroes[p].level, level)
@@ -1647,6 +1688,7 @@ function MissionService.rejoin(player: Player): boolean
 			run.levels[player] = run.levels[player] or hero.level
 			runs[player] = run
 			hero.scene = "mission"
+			PhaseService.join(run.phase, hero) -- (Phasing)
 			player:SetAttribute("Mission", run.num)
 			local raise = SidekickRules.raised(Config.Sidekick, hero.level, run.level)
 			MissionService.setRaise(hero, if raise > hero.level then raise else nil)

@@ -135,7 +135,8 @@ export type Enemy = {
 	tag: number?, -- the incident, contract site or event that spawned it
 	-- the prologue (nate's playtest 2026-11-18: kid-proof, nothing from the live world): a solo robot belongs to
 	-- one hero's story scene; it targets only heroes with the same solo key, and ordinary robots never target
-	-- a solo hero (EnemySim.step hands each robot only the heroes it may see)
+	-- a solo hero (EnemySim.step hands each robot only the heroes it may see). A phased mission robot's key is its
+	-- phase's (Shared.PhaseRules.key: negative), so the same rule keeps a private run's robots to its own party.
 	solo: number?,
 	-- a room it may never leave, { x0, x1, z0, z1, yMax? } (the prologue's subway chamber: no dashing or flying
 	-- through its walls); clamped after every think
@@ -210,9 +211,12 @@ export type Shot = {
 	ccTime: number?,
 	ccValue: number?,
 	pull: { x: number, y: number, z: number, reel: number, time: number }?, -- a Grappler's hook
+	solo: number?, -- its robot's solo key (the prologue's, or a phase's: Shared.PhaseRules): it hits only heroes with it
 }
 
-export type Blocker = { x: number, y: number, z: number, r: number, untilT: number }
+-- solo: whose wall it is (its hero's key): it stops only shots with the same key (a private run's shots go
+-- through an outsider's ice wall, and the other way round)
+export type Blocker = { x: number, y: number, z: number, r: number, untilT: number, solo: number? }
 
 -- A Bomber's grenade in the air (lands at `at`) and the burning patch it leaves
 export type Bomb = {
@@ -225,6 +229,7 @@ export type Bomb = {
 	enemyId: number,
 	zone: any?,
 	zoneDamage: number,
+	solo: number?, -- its robot's key: it hurts only heroes with it
 }
 export type Zone = {
 	x: number,
@@ -236,6 +241,7 @@ export type Zone = {
 	tick: number,
 	damage: number,
 	enemyId: number,
+	solo: number?,
 }
 
 export type Sim = {
@@ -598,7 +604,7 @@ local function coverFor(sim: Sim, e: Enemy, fromX: number, fromZ: number): Enemy
 	ax, az = ax / al, az / al
 	for _, b in sim.enemies do
 		local cover = b.cfg.cover
-		if cover and b ~= e and b.alive and guardUp(sim, b) then
+		if cover and b ~= e and b.alive and b.solo == e.solo and guardUp(sim, b) then
 			local bx, bz = b.x - e.x, b.z - e.z
 			local along = bx * ax + bz * az
 			local across = math.abs(bx * az - bz * ax)
@@ -1032,8 +1038,16 @@ function EnemySim.hold(sim: Sim, id: number, heroId: number?)
 end
 
 -- Snow Wall pieces stop enemy shots
-function EnemySim.addBlocker(sim: Sim, x: number, y: number, z: number, r: number, untilT: number)
-	table.insert(sim.blockers, { x = x, y = y, z = z, r = r, untilT = untilT })
+function EnemySim.addBlocker(
+	sim: Sim,
+	x: number,
+	y: number,
+	z: number,
+	r: number,
+	untilT: number,
+	solo: number?
+)
+	table.insert(sim.blockers, { x = x, y = y, z = z, r = r, untilT = untilT, solo = solo })
 end
 
 local function findHero(heroes: { Hero }, id: number?): Hero?
@@ -1112,7 +1126,8 @@ local function separate(sim: Sim, e: Enemy)
 		return
 	end
 	for _, o in sim.enemies do
-		if o ~= e and o.alive then
+		-- (robots of different runs never push each other: neither one is there for the other's players)
+		if o ~= e and o.alive and o.solo == e.solo then
 			local dx, dy, dz = e.x - o.x, if flyer then e.y - o.y else 0, e.z - o.z
 			local d2 = dx * dx + dy * dy + dz * dz
 			local min = (e.cfg.radius or 2.5) + (o.cfg.radius or 2.5)
@@ -1191,6 +1206,7 @@ local function shoot(
 		ccTime = sp.ccTime,
 		ccValue = sp.ccValue,
 		pull = sp.pull,
+		solo = e.solo,
 	}
 	table.insert(sim.shots, shot)
 	table.insert(sim.events, {
@@ -1975,7 +1991,7 @@ local function thinkCaptain(sim: Sim, e: Enemy, target: Hero?, speed: number, ca
 		if now >= e.windupUntil then
 			e.windupUntil = 0
 			for _, o in sim.enemies do
-				if o.alive and dist3(e.x, e.y, e.z, o.x, o.y, o.z) <= r.radius then
+				if o.alive and o.solo == e.solo and dist3(e.x, e.y, e.z, o.x, o.y, o.z) <= r.radius then
 					o.rallyUntil = now + r.time
 					o.rallyBy = e.id
 				end
@@ -2138,6 +2154,7 @@ local function thinkBomber(sim: Sim, e: Enemy, target: Hero?, speed: number, can
 			enemyId = e.id,
 			zone = cfg.zone,
 			zoneDamage = if cfg.zone then base * cfg.zone.coeff else 0,
+			solo = e.solo,
 		})
 		table.insert(
 			sim.events,
@@ -2154,7 +2171,14 @@ local function patientFor(sim: Sim, e: Enemy): Enemy?
 	local m = e.cfg.mend
 	local best, bestF = nil, m.below
 	for _, o in sim.enemies do
-		if o ~= e and o.alive and o.ai ~= "medic" and not o.disguised and not o.hitLife then
+		if
+			o ~= e
+			and o.alive
+			and o.solo == e.solo
+			and o.ai ~= "medic"
+			and not o.disguised
+			and not o.hitLife
+		then
 			local f = o.health / o.maxHealth
 			if f < bestF and dist3(e.x, e.y, e.z, o.x, o.y, o.z) <= m.range * 1.5 then
 				best, bestF = o, f
@@ -2657,7 +2681,12 @@ local function stepBombs(sim: Sim, heroes: { Hero })
 		local b = sim.bombs[i]
 		if now >= b.at then
 			for _, h in heroes do
-				if h.alive and dist2(b.x, b.z, h.x, h.z) <= b.r and math.abs(h.y - b.y) <= b.r then
+				if
+					h.alive
+					and h.solo == b.solo
+					and dist2(b.x, b.z, h.x, h.z) <= b.r
+					and math.abs(h.y - b.y) <= b.r
+				then
 					table.insert(sim.events, { k = "hit", hero = h.id, damage = b.damage, e = b.enemyId })
 				end
 			end
@@ -2674,6 +2703,7 @@ local function stepBombs(sim: Sim, heroes: { Hero })
 					tick = zc.tick,
 					damage = b.zoneDamage,
 					enemyId = b.enemyId,
+					solo = b.solo,
 				})
 				table.insert(
 					sim.events,
@@ -2692,7 +2722,12 @@ local function stepBombs(sim: Sim, heroes: { Hero })
 		elseif now >= z.nextTick then
 			z.nextTick += z.tick
 			for _, h in heroes do
-				if h.alive and dist2(z.x, z.z, h.x, h.z) <= z.r and math.abs(h.y - z.y) <= 6 then
+				if
+					h.alive
+					and h.solo == z.solo
+					and dist2(z.x, z.z, h.x, h.z) <= z.r
+					and math.abs(h.y - z.y) <= 6
+				then
 					table.insert(sim.events, { k = "hit", hero = h.id, damage = z.damage, e = z.enemyId })
 				end
 			end
@@ -2738,16 +2773,21 @@ local function stepShots(sim: Sim, heroes: { Hero }, dt: number)
 		end
 		if not done then
 			for _, b in sim.blockers do
-				if dist3(s.x, s.y, s.z, b.x, b.y, b.z) <= b.r + s.radius * 0.5 then
-					table.insert(sim.events, { k = "blocked", x = s.x, y = s.y, z = s.z })
+				if b.solo == s.solo and dist3(s.x, s.y, s.z, b.x, b.y, b.z) <= b.r + s.radius * 0.5 then
+					table.insert(sim.events, { k = "blocked", x = s.x, y = s.y, z = s.z, solo = s.solo })
 					done = true
 					break
 				end
 			end
 		end
 		if not done then
+			-- (a shot passes through heroes its robot may not see: an outsider never soaks a private run's shots)
 			for _, h in heroes do
-				if h.alive and segDist(h.x, h.y + 1.5, h.z, ox, oy, oz, s.x, s.y, s.z) <= s.radius then
+				if
+					h.alive
+					and h.solo == s.solo
+					and segDist(h.x, h.y + 1.5, h.z, ox, oy, oz, s.x, s.y, s.z) <= s.radius
+				then
 					table.insert(sim.events, {
 						k = "hit",
 						hero = h.id,
@@ -2799,7 +2839,8 @@ function EnemySim.keepIn(e: Enemy)
 	end
 end
 
--- May this robot see (target, hit) this hero? (the prologue's solo rule; nil keys match nil keys)
+-- May this robot see (target, hit) this hero? (the prologue's solo rule; nil keys match nil keys. A private
+-- mission run's phase rides on the same key, negative: Shared.PhaseRules)
 function EnemySim.sees(e: { solo: number? }?, h: { solo: number? }): boolean
 	return (if e then e.solo else nil) == h.solo
 end
@@ -2811,17 +2852,25 @@ function EnemySim.step(sim: Sim, now: number, heroes: { Hero }, maxTicks: number
 	stepShots(sim, heroes, dt)
 	stepBombs(sim, heroes)
 	stepLaunches(sim, dt)
-	-- who each robot may see: a solo hero (the prologue) only by its own story's robots, and those robots only
-	-- by it (no new tables unless some hero or robot is solo)
+	-- who each robot may see: a solo hero (the prologue, a private mission run's party) only by its own story's
+	-- robots, and those robots only by it. The lists are the sim's own, kept from step to step and cleared in place
+	-- (a run is on most of the time now: no new tables a frame; a key's list goes once nobody has that key)
 	local open = heroes
 	local soloOf: { [number]: { Hero } }? = nil
 	for _, h in heroes do
 		if h.solo then
-			open, soloOf = {}, {}
+			local o = sim :: any
+			o.openList = o.openList or {}
+			o.soloLists = o.soloLists or {}
+			open, soloOf = o.openList, o.soloLists
 			break
 		end
 	end
 	if soloOf then
+		table.clear(open)
+		for _, list in soloOf do
+			table.clear(list)
+		end
 		for _, h in heroes do
 			local key = h.solo
 			if key then
@@ -2833,6 +2882,11 @@ function EnemySim.step(sim: Sim, now: number, heroes: { Hero }, maxTicks: number
 				table.insert(list, h)
 			else
 				table.insert(open, h)
+			end
+		end
+		for key, list in soloOf do
+			if #list == 0 then
+				soloOf[key] = nil
 			end
 		end
 	end

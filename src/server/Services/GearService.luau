@@ -222,7 +222,7 @@ local function useGadget(player: Player, aim: Vector3)
 		target = hit.Position + hit.Normal * 3
 		MoveGuard.grant(hero, (target :: Vector3 - pos).Magnitude + 12)
 	elseif kind == "SmokeBomb" then
-		for _, c in EnemyService.candidates() do
+		for _, c in EnemyService.candidatesFor(hero) do
 			if (Vector3.new(c.x, c.y, c.z) - pos).Magnitude <= row.radius then
 				EnemyService.applyStatus(c.id, "blind", row.blind)
 				EnemyService.forget(c.id, hero.id)
@@ -233,8 +233,8 @@ local function useGadget(player: Player, aim: Vector3)
 		HeroService.buff(hero, "shield", math.floor(hero.maxHealth * row.shield + 0.5), row.duration)
 		target = pos
 	elseif kind == "Decoy" then
-		local decoy = HeroService.addDecoy(pos, row.duration)
-		for _, c in EnemyService.candidates() do
+		local decoy = HeroService.addDecoy(pos, row.duration, EnemyService.soloKey(hero))
+		for _, c in EnemyService.candidatesFor(hero) do
 			if (Vector3.new(c.x, c.y, c.z) - pos).Magnitude <= row.radius then
 				EnemyService.applyStatus(c.id, "taunt", row.duration, { src = decoy })
 			end

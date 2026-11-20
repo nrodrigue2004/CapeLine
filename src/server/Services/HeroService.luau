@@ -21,6 +21,7 @@ local SidekickRules = require(Shared:WaitForChild("SidekickRules"))
 local Cooldowns = require(Shared:WaitForChild("Cooldowns"))
 local Signal = require(Shared:WaitForChild("Util"):WaitForChild("Signal"))
 local Status = require(Shared:WaitForChild("Status"))
+local PhaseRules = require(Shared:WaitForChild("PhaseRules"))
 local Awakening = require(Shared:WaitForChild("Awakening"))
 local AbilityRules = require(Shared:WaitForChild("AbilityRules"))
 local MoveRanks = require(Shared:WaitForChild("MoveRanks"))
@@ -92,6 +93,7 @@ export type Hero = {
 	secondWindAt: number, -- Second Wind ready again (os.clock)
 	floor: number?, -- lore step 3: the prologue's fight never takes health below this share
 	scene: string?, -- "opening" or "mission": in a story scene (no incidents, contracts or world events)
+	phase: number?, -- a private mission run's phase (PhaseService; Shared.PhaseRules): its robots, targets and pieces only
 	downed: boolean?, -- M8: Downed (PvE health hit 0): crawling, waiting for a revive
 	pvpSlot: number, -- M8: combat id PVP_BASE + slot when flagged heroes are targets
 }
@@ -913,9 +915,11 @@ end
 -- Decoys (the Decoy gadget, Holo Decoy, Tide Mirror, Spirit Swap): fake heroes robots chase for a few seconds. Ids are negative.
 local decoys: { { id: number, pos: Vector3, untilT: number } } = {}
 local nextDecoy = 0
-function HeroService.addDecoy(pos: Vector3, duration: number): number
+-- key: its hero's solo key (EnemyService.soloKey): only that key's robots chase it (a private run's decoy fools only
+-- its own run's robots)
+function HeroService.addDecoy(pos: Vector3, duration: number, key: number?): number
 	nextDecoy -= 1
-	table.insert(decoys, { id = nextDecoy, pos = pos, untilT = os.clock() + duration })
+	table.insert(decoys, { id = nextDecoy, pos = pos, untilT = os.clock() + duration, solo = key })
 	return nextDecoy
 end
 
@@ -960,8 +964,9 @@ function HeroService.simHeroes(): { any }
 			e.alive = hero.alive and not hero.traveling and not Status.has(hero.status, "hidden", now)
 			e.lx, e.lz = lx, lz
 			e.scene = hero.scene -- the opening or a mission: no ambient robots spawn around them
-			-- the prologue: alone with its own story's robots (EnemySim's solo rule)
-			e.solo = if hero.scene == "opening" then hero.id else nil
+			-- the prologue: alone with its own story's robots (EnemySim's solo rule); a private mission run's hero with
+			-- its own run's (its phase's key, Shared.PhaseRules)
+			e.solo = PhaseRules.heroKey(hero)
 		end
 	end
 	for i = #decoys, 1, -1 do
@@ -972,6 +977,7 @@ function HeroService.simHeroes(): { any }
 			local e = entryFor(d.id)
 			e.x, e.y, e.z = d.pos.X, d.pos.Y, d.pos.Z
 			e.alive, e.lx, e.lz = true, 0, -1
+			e.solo = d.solo
 		end
 	end
 	for id, mark in simMark do

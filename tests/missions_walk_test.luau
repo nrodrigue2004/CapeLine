@@ -189,6 +189,17 @@ return function(T: any)
 		Enemy.usePocket = function() end
 		Enemy.setPocketHeight = function() end
 		Enemy.target = function() end
+		-- (the phasing layer: a run's robots carry its phase, PhaseService)
+		function Enemy.setPhase(id, phase)
+			local e = W.enemies[id]
+			if e then
+				e.phase = phase
+			end
+		end
+		function Enemy.phaseOf(id)
+			local e = W.enemies[id]
+			return e and e.phase
+		end
 		stubs.EnemyService = Enemy
 		stubs.SiteKit = {
 			part = function(parent, size)
@@ -208,6 +219,12 @@ return function(T: any)
 			end,
 			moveObject = function(h, pos)
 				h.pos = pos
+			end,
+			inPhase = function(thing, phase)
+				if type(thing) == "table" then
+					thing.phase = phase
+				end
+				return thing
 			end,
 			clear = function(things)
 				for _, t in things do

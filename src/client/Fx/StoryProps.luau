@@ -18,6 +18,7 @@ local StoryArtKit = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChil
 local MeshFix = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("MeshFix"))
 
 local QualityController = require(script.Parent.Parent.Controllers.QualityController)
+local PhaseClient = require(script.Parent.Parent.Controllers.PhaseClient)
 local AudioController = require(script.Parent.Parent.Controllers.AudioController)
 
 local StoryProps = {}
@@ -207,9 +208,11 @@ local function undress(m: Model)
 	if d.broken then
 		return -- what is left of a broken target stays hidden until the server clears it
 	end
+	-- (a model another phase's on this device stays hidden: PhaseClient)
+	local keepHidden = PhaseClient.hidden(m)
 	for _, p in d.hidden do
 		if p.Parent then
-			p.LocalTransparencyModifier = 0
+			p.LocalTransparencyModifier = if keepHidden then 1 else 0
 		end
 	end
 end
@@ -286,7 +289,8 @@ function StoryProps.step()
 	local at = cam.CFrame.Position
 	local cands = {}
 	for _, m in if sites then sites:GetChildren() else {} do
-		local look = m:IsA("Model") and m:GetAttribute("StoryLook")
+		-- (never another phase's: PhaseClient hides it on this device)
+		local look = m:IsA("Model") and not PhaseClient.hidden(m) and m:GetAttribute("StoryLook")
 		local root = if look then m:FindFirstChild("Root") else nil
 		local hp = if look then m:GetAttribute("Hp") else nil
 		if type(hp) == "number" and hp <= 0 and not STAYS[look :: any] then

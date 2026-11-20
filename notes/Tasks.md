@@ -2585,3 +2585,26 @@ Headless proof: ONLY="Missions walk" plays Act 1 missions 2-6 on the real Missio
 414. Live: backstage on the stage, the producer (Vigil) or the stagehand (Syndicate) to talk to before the cameras or the screens. In a mixed party each side sees its own person and goal at once.
 415. Every talk person faces the way you came in, stands on the floor (not floating, not sunk), and the Talk prompt works on phone and gamepad. Nobody outside the party can use a prompt.
 
+
+## Studio list: private missions on the map (missions lane, 2026-11-20)
+Headless proof: ONLY="Phase:" (PhaseRules, EnemySim, EnemyBuffer, and the real EnemyService and PhaseService from src with the world stubbed). Today every mission run is phased in its pocket, so these checks run on today's missions; the map ones need the later step that puts a run on the map.
+420. Play any Act 1 mission solo: robots, rings, break targets, the runaway train and the War-Frame all work exactly as before (they are now in the run's phase). Holds fill, crates break, twins and fakes fight and crack, the boss bar and BossAttack telegraphs show.
+421. Same mission with 2-4 squadmates: everyone sees and fights the same robots and targets, heals and buffs land on each other, revives work.
+422. During a run, check the server console for errors from PhaseService, EnemyService, SiteKit or MissionService (none). Leave mid-run with LEAVE: back in the city you see the city's robots and incidents again at once (the Player's Phase attribute is gone: check in Explorer).
+423. A task force: leave and rejoin within 3 minutes: the rejoined player sees and hits the run's robots again (Phase attribute back on the Player).
+424. Two players: A in a mission, B in the city next to A's pocket entry point or flying up to the pocket: B never sees A's robots, rings or crates (no Enemy.Delta for them), and A never sees B's incident robots.
+425. Once a run is on the map (the later step; today: Studio test server with 2 players, A in a mission, then on the server move B's character into A's pocket next to a ring or crate): B sees no ring, crate or robot, walks through where they are, gets no prompt, and A's robots never shoot or chase B. (Not from the command bar: it has its own copy of every module.)
+426. On B's device in Explorer: the ring's and crate's parts are still under Workspace.Sites with LocalTransparencyModifier 1 and CanCollide/CanQuery/CanTouch false; a shard's PointLight is off; a citizen's ProximityPrompt is off at MaxActivationDistance 0.
+427. When A's run ends (or A leaves), A's devices drop the run's pieces and robots and show the city's again within a moment; a squadmate who joins A's run sees them appear.
+428. A phased citizen: an outsider cannot pick it up even by firing the prompt with an exploit (the server ignores it); a member carries it to the run's pad and the drop counts; it never counts at an incident's pad.
+429. Outsider and member side by side near a phased robot: the robot's shots fly past the outsider (no hit, no hurt arrow, no sparks on the outsider's screen) and hit the member; the outsider's screen shows no shot tracers, telegraphs, damage numbers or death burst of that robot.
+430. An outsider's ice wall between a phased robot and a member does not stop the robot's shots; the member's own wall does.
+431. An outsider casts AoE, beams and gadgets (Smoke Bomb, Decoy) through a phased robot: nothing hits, blinds or taunts it, no numbers show. The member's do.
+432. A member's casts and damage numbers on run robots do not show on an outsider's screen; an outsider's casts do not show on the member's.
+433. A phased robot and a city robot in the same spot: they do not push each other apart, a phased Medic never heals the city robot, a Captain's rally stays in its own run.
+434. World boss up near a phased run (on the map): its strikes never hurt a member; the member's screen shows no world boss bar (the Mission attribute) and no world boss hits.
+435. PvP: a flagged outsider cannot target or hit a member; a member's support powers do not heal or buff an outsider and the other way round; an outsider cannot revive a Downed member.
+436. Incidents and events near a phased run: a member standing in an incident's ring or an event's ring does not count for it, and a member's kills of run robots never count for any incident, contract or event.
+437. StoryProps/ActivityProps: with Art.Story imported, a member sees the run's crates and train in their Blender looks; an outsider sees nothing of them at all (no mesh, no plain parts), also after the member breaks one (no shatter on the outsider's screen).
+438. Phone preset: a run on the map with 20 robots and an outsider nearby: FrameProf shows PhaseClient near zero (it only runs on Sites changes) and EnemyService no slower than before.
+439. The prologue (opening) still plays exactly as before: its robots only for its own hero, the subway fight, the rooftop Skylance; decoys now work on its robots too.

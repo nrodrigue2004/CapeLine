@@ -352,7 +352,8 @@ local function signature(e: Enc, sig: string, nem: any)
 			return
 		end
 		for _, h in HeroService.all() do
-			local pos = h.alive and HeroService.position(h)
+			-- (only heroes this robot may meet: never one in a private mission run, PhaseService)
+			local pos = h.alive and EnemyService.reaches(id, h) and HeroService.position(h)
 			if pos and math.abs(pos.Y - tp.Y) < 12 then
 				for _, a in areas do
 					if NemesisMath.inArea(a, pos.X, pos.Z) then
