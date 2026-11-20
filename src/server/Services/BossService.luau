@@ -450,6 +450,30 @@ local function finish(f: Fight, defeated: boolean)
 			warn("[BossService] reward for hero " .. tostring(heroId) .. " failed: " .. tostring(err))
 		end
 	end
+	-- (boss fights pass 2, 2026-11-20) the MVP spotlight: everyone near the fight sees the top heroes lit up where
+	-- they stand once it falls (WorldFx), not only the fighters' own result cards
+	if defeated then
+		local users, names = {}, {}
+		for i = 1, math.min(B.contribution.mvp, #ranked) do
+			local hero = HeroService.byId(ranked[i])
+			if hero and hero.player then
+				table.insert(users, hero.player.UserId)
+				table.insert(names, nameOf(ranked[i]))
+			end
+		end
+		if #users > 0 then
+			local sim = f.sim
+			toWorld("BossAttack", {
+				k = "mvp",
+				num = sim.cfg.num,
+				x = sim.x,
+				y = sim.y,
+				z = sim.z,
+				users = users,
+				names = names,
+			})
+		end
+	end
 	phase = "result"
 	resultUntil = os.clock() + SCHED.resultTime
 	BossService.Ended:Fire(f.id, defeated, ranked[1])

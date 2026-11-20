@@ -32,6 +32,7 @@ local Dismiss = require(script.Parent.Dismiss) -- fix-hud
 local Shapes = require(script.Parent.Shapes)
 local State = require(script.Parent.Parent.State)
 local WorldClient = require(script.Parent.Parent.Controllers.WorldClient)
+local JuiceFx = require(script.Parent.Parent.Fx.JuiceFx)
 
 local WorldHud = {}
 WorldHud.bossMode = "none" -- fix-hud: "bar" near the fight, "corner" (radar timer and marker only), "none"
@@ -53,6 +54,10 @@ local resultCard: Frame? = nil
 
 local MAX_ROWS = 6
 local shownRows = MAX_ROWS -- the rows that fit this screen (Kit.hudBoxes)
+-- the boss's world marker shows this far away (the whole city)
+local BOSS_MARKER_RANGE = 100000
+-- the gap between the result card's rows popping in
+local RESULT_STAGGER = 0.14
 local TIER_NAME =
 	{ mvp = "MVP", contributor = "Contributor", participant = "Participant", floor = "Took part" }
 
@@ -424,12 +429,16 @@ local function refreshMarkers()
 	if (s.state == 1 or s.state == 2 or s.state == 3) and s.id then
 		keep.boss = true
 		local def = Config.Boss.bosses[s.id]
+		local at = Vector3.new(s.x, s.y, s.z)
+		-- boss fights pass 2: the boss shows from anywhere in the city with how far it is, so a new hero can head
+		-- straight for their first one (it was the name only, hidden past 5,000 studs)
+		local d = if pos then math.floor((at - pos).Magnitude) else 0
 		local b = marker(
 			"boss",
-			Vector3.new(s.x, s.y, s.z),
-			string.upper(def.name),
+			at,
+			string.format("%s  %dm", string.upper(def.name), d),
 			Color3.fromRGB(255, 90, 60),
-			5000,
+			BOSS_MARKER_RANGE,
 			"diamond",
 			"marker",
 			if Kit.iconCell("marker", s.id) then s.id else "boss"
@@ -613,9 +622,16 @@ local function showResultNow(r: { [string]: any })
 	if not r.defeated then
 		table.insert(lines, { "It got away: a small Credits consolation only", Kit.color.muted, 15 })
 	end
+	-- an MVP's tier row is gold and stamped bigger
+	if r.defeated and r.tier == "mvp" then
+		lines[2][1] = string.format("MVP!   #%d", r.rank or 0)
+		lines[2][2] = Kit.color.gold
+		lines[2][3] = 28
+	end
 	local y = 14
 	local finish: (() -> boolean)? = nil
-	for _, row in lines do
+	local reduce = JuiceFx.reduce
+	for i, row in lines do
 		local l = Kit.label({
 			Text = row[1],
 			Size = UDim2.new(1, -24, 0, row[3] + 6),
@@ -624,6 +640,26 @@ local function showResultNow(r: { [string]: any })
 			maxText = row[3],
 		})
 		l.Parent = card
+		-- boss fights pass 2: the rows pop in one after another (the tier row overshoots like a stamp); the pay
+		-- row counts up once it is in
+		local pop = Instance.new("UIScale")
+		pop.Scale = if reduce then 1 else 0
+		pop.Parent = l
+		local wait = (i - 1) * RESULT_STAGGER
+		if not reduce then
+			TweenService:Create(
+				pop,
+				TweenInfo.new(
+					if i == 2 then 0.45 else 0.25,
+					Enum.EasingStyle.Back,
+					Enum.EasingDirection.Out,
+					0,
+					false,
+					wait
+				),
+				{ Scale = 1 }
+			):Play()
+		end
 		if row[4] then
 			finish = Kit.countUp(l, 1.5, function(k)
 				return Kit.payLine(r.credits or 0, r.renown or 0, k)
@@ -682,12 +718,25 @@ local function showResult(r: { [string]: any })
 			Kit.payLine(r.credits or 0, r.renown or 0, 1)
 		)
 	end)
-	Popups.show("bossResult", function()
-		showResultNow(r)
-		return resultCard
-	end, function()
-		return resultCard ~= nil
-	end, closeResult)
+	local function show()
+		Popups.show("bossResult", function()
+			showResultNow(r)
+			return resultCard
+		end, function()
+			return resultCard ~= nil
+		end, closeResult)
+	end
+	-- boss fights pass 2: a win rains the loot onto this hero first (after the boss's collapse), then the card
+	local b = WorldClient.boss
+	if r.defeated and b and b.num == r.num and b.x then
+		local at = Vector3.new(b.x, b.y, b.z)
+		local L = Config.Fx.boss.loot
+		task.delay(L.delay, function()
+			task.delay(JuiceFx.bossLoot(at, r), show)
+		end)
+	else
+		show()
+	end
 end
 
 ---------------------------------------------------------------------------

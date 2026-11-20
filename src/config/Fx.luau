@@ -134,6 +134,22 @@ return {
 		up = 34,
 		life = 5,
 		range = 600,
+		-- the MVP spotlight once it falls (boss fights pass 2): `delay` s after the kill (its collapse plays first), for
+		-- `time` s, seen within `range` studs; a gold light column `column` tall and `width` across over each MVP
+		mvp = { delay = 3, time = 8, range = 700, column = 70, width = 5 },
+		-- the loot fly-in onto a fighter once it falls: Credit coins (one per `perCoin` Credits, `coins` min and max) and
+		-- one orb per gear drop (at most `orbs`) leave it `gap` s apart and land after `fly` s on an arc `up` studs high;
+		-- skipped beyond `range` studs; the result card follows the last one
+		loot = {
+			delay = 2.5,
+			coins = { 6, 16 },
+			perCoin = 150,
+			orbs = 5,
+			gap = 0.08,
+			fly = 1.1,
+			up = 30,
+			range = 900,
+		},
 	},
 	robots = {
 		-- ally: (list-combat 2026-11-20) a lock on another hero within `near` studs pings from them, quieter and lower

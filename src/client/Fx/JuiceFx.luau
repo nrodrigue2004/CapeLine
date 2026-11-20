@@ -24,6 +24,7 @@ local Progress = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("
 local Kit = require(script.Parent.Parent.Ui.Kit)
 local Popups = require(script.Parent.Parent.Ui.Popups) -- pt-ui: one line for every popup
 local State = require(script.Parent.Parent.State)
+local AudioController = require(script.Parent.Parent.Controllers.AudioController)
 
 local JuiceFx = {}
 
@@ -510,6 +511,71 @@ function JuiceFx.bossDefeated(at: Vector3?)
 		end
 	end
 	confetti(40)
+end
+
+-- The boss loot fly-in (boss fights pass 2, 2026-11-20): Credit coins and one orb a gear drop arc out of the fallen
+-- boss and rain onto this hero, each landing with a tick that climbs in pitch, the last one with the gear chime and a
+-- gold ring at the feet. Returns how long it runs (WorldHud shows the result card after it); 0 when this hero or the
+-- boss is too far away to see it.
+local LOOT_ORB = Color3.fromRGB(120, 230, 255)
+function JuiceFx.bossLoot(from: Vector3, data: { [string]: any }?): number
+	local L = Config.Fx.boss.loot
+	local root = myRoot()
+	if not root or (root.Position - from).Magnitude > L.range then
+		return 0
+	end
+	local d = data or {}
+	local coins = math.clamp(math.floor((d.credits or 0) / L.perCoin), L.coins[1], L.coins[2])
+	local orbs = math.min(d.drops or 0, L.orbs)
+	local total = coins + orbs
+	local last = (total - 1) * L.gap + L.fly
+	local landed = 0
+	local function one(i: number, orb: boolean)
+		task.delay((i - 1) * L.gap, function()
+			local a = math.random() * math.pi * 2
+			local start = from + Vector3.new(math.cos(a) * 6, 4, math.sin(a) * 6)
+			local p: BasePart
+			if orb then
+				p = bit(Vector3.one * 1.6, CFrame.new(start), LOOT_ORB, Enum.PartType.Ball)
+				p.Material = Enum.Material.Neon
+			else
+				p = meshBit("Juice", "JuiceCoin", Vector3.new(0.3, 1.1, 1.1), CFrame.new(start), GOLD)
+					or bit(Vector3.new(0.3, 1.1, 1.1), CFrame.new(start), GOLD, Enum.PartType.Cylinder)
+				p.Material = Enum.Material.Foil
+			end
+			local t, spin = 0, if JuiceFx.reduce then 0 else 10
+			local conn: RBXScriptConnection
+			conn = RunService.RenderStepped:Connect(function(dt)
+				t += dt
+				local k = math.min(t / L.fly, 1)
+				local me = myRoot()
+				local to = if me then me.Position else start
+				-- a high arc: the bend point over the midpoint, `up` studs above the higher end
+				local mid = (start + to) / 2 + Vector3.new(0, L.up + math.abs(start.Y - to.Y) * 0.3, 0)
+				local pos = start:Lerp(mid, k):Lerp(mid:Lerp(to, k), k)
+				p.CFrame = CFrame.new(pos) * CFrame.Angles(0, a + t * spin, t * spin * 0.5)
+				if k >= 1 then
+					conn:Disconnect()
+					p:Destroy()
+					landed += 1
+					if orb then
+						AudioController.play("gearDrop", nil, { volume = 0.6, pitch = 1.6 })
+					else
+						AudioController.play("skillRank", nil, { volume = 0.35, pitch = 1.4 + landed * 0.05 })
+					end
+					if landed == total then
+						ring(to - Vector3.new(0, 2.5, 0), 6, if orbs > 0 then LOOT_ORB else GOLD, 0.9)
+					end
+				end
+			end)
+			Debris:AddItem(p, L.fly + 1)
+		end)
+	end
+	for i = 1, total do
+		-- the gear orbs come last, after the coins
+		one(i, i > coins)
+	end
+	return last
 end
 
 -- Purchase: the NEW badge

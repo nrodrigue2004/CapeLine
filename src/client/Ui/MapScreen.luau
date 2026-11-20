@@ -499,19 +499,71 @@ end
 -- Incidents, events and the boss: redrawn every second while the map is open
 local worldMarks: { GuiObject } = {}
 -- Tap-to-fly on a world marker
-local function flyable(d: TextButton, at: Vector3, name: string)
+-- boss fights pass 2 (2026-11-20): a hero who cannot fly (most new heroes at their first boss) gets there another way:
+-- `travel` targets fast travel to the found beacon nearest them when that saves BOSS_TRAVEL_GAIN studs, else the tap
+-- says how far it is and to follow the marker
+local BOSS_TRAVEL_GAIN = 600
+local function myFlat(): Vector3?
+	local char = Players.LocalPlayer.Character
+	local root = char and char:FindFirstChild("HumanoidRootPart") :: BasePart?
+	return root and root.Position
+end
+local function getThere(at: Vector3, name: string): boolean
+	local me = myFlat()
+	if not me or not info then
+		return false
+	end
+	local profile = State.profile
+	local b, d = Travel.nearestFound(
+		info.beacons,
+		profile and profile.beacons or 0,
+		at.X,
+		at.Z,
+		me.X,
+		me.Z,
+		BOSS_TRAVEL_GAIN
+	)
+	local far = math.floor(((at - me) * Vector3.new(1, 0, 1)).Magnitude)
+	if b and d then
+		MapScreen.say(
+			string.format(
+				"Fast travel to %s, %dm from %s",
+				(b :: any).name or "a beacon",
+				math.floor(d),
+				name
+			)
+		)
+		Net.send("MoveFastTravel", b.id)
+		task.delay(0.6, MapScreen.close)
+	elseif Travel.count(profile and profile.beacons or 0) == 0 then
+		MapScreen.say(
+			string.format(
+				"%s is %dm away: follow the red marker (touch beacons to unlock fast travel)",
+				name,
+				far
+			)
+		)
+	else
+		MapScreen.say(string.format("%s is %dm away: follow the red marker", name, far))
+	end
+	return true
+end
+
+local function flyable(d: TextButton, at: Vector3, name: string, travel: boolean?)
 	d.Activated:Connect(function()
 		if dragMoved > 8 then
 			return -- the end of a pan, not a tap
 		end
 		if not SettingsClient.on("tapToFly") then
-			MapScreen.say(name)
+			if not (travel and getThere(at, name)) then
+				MapScreen.say(name)
+			end
 			return
 		end
 		if MoveController.flyTo(at) then
 			MapScreen.say("Flying to " .. name .. ": move to take over")
 			task.delay(0.6, MapScreen.close)
-		else
+		elseif not (travel and getThere(at, name)) then
 			MapScreen.say("Unlock flight to fly there")
 		end
 	end)
@@ -672,7 +724,7 @@ local function drawWorld()
 		if corner then
 			corner.CornerRadius = UDim.new(0, 3)
 		end
-		flyable(d, Vector3.new(b.x, b.y or Config.City.ground.y, b.z), "the world boss")
+		flyable(d, Vector3.new(b.x, b.y or Config.City.ground.y, b.z), "the world boss", true)
 		local l = Kit.label({
 			Name = "BossText",
 			Text = "BOSS",

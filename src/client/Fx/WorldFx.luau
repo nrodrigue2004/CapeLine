@@ -1198,6 +1198,98 @@ local function strike(ev: { [string]: any })
 	end
 end
 
+-- The MVP spotlight (boss fights pass 2, 2026-11-20): once a boss falls, everyone near sees its top heroes lit up
+-- where they stand: a gold column of light over each, a gold outline, a crown tag with MVP and the name over the head,
+-- a burst and a ring at their feet, and a banner naming them, for Config.Fx.boss.mvp.time s
+local MVP_GOLD = Color3.fromRGB(255, 205, 70)
+local function mvpSpotlight(ev: { [string]: any })
+	local M = FB.mvp
+	local cam = Workspace.CurrentCamera
+	local eye = if cam then cam.CFrame.Position else nil
+	local here = Vector3.new(ev.x or 0, ev.y or 0, ev.z or 0)
+	if not eye or (eye - here).Magnitude > M.range then
+		return
+	end
+	local names = {}
+	for i, uid in ev.users or {} do
+		local name = (ev.names or {})[i]
+		if type(name) == "string" then
+			table.insert(names, name)
+		end
+		local pl = if type(uid) == "number" then Players:GetPlayerByUserId(uid) else nil
+		local char = pl and pl.Character
+		local root = char and char:FindFirstChild("HumanoidRootPart") :: BasePart?
+		local head = char and char:FindFirstChild("Head") :: BasePart?
+		if not char or not root or (root.Position - here).Magnitude > M.range then
+			continue
+		end
+		local hl = Instance.new("Highlight")
+		hl.Name = "MvpGlow"
+		hl.FillColor = MVP_GOLD
+		hl.FillTransparency = 0.75
+		hl.OutlineColor = MVP_GOLD
+		hl.DepthMode = Enum.HighlightDepthMode.Occluded
+		hl.Parent = char
+		Debris:AddItem(hl, M.time)
+		local tag = Instance.new("BillboardGui")
+		tag.Name = "MvpTag"
+		tag.Size = UDim2.fromOffset(170, 54)
+		tag.StudsOffsetWorldSpace = Vector3.new(0, 4.5, 0)
+		tag.AlwaysOnTop = true
+		tag.LightInfluence = 0
+		tag.MaxDistance = M.range
+		local crown = Instance.new("TextLabel")
+		crown.BackgroundTransparency = 1
+		crown.Size = UDim2.new(1, 0, 0.55, 0)
+		crown.Font = Enum.Font.FredokaOne
+		crown.TextScaled = true
+		crown.Text = string.format("MVP #%d", i)
+		crown.TextColor3 = MVP_GOLD
+		crown.TextStrokeTransparency = 0
+		crown.Parent = tag
+		local nm = crown:Clone()
+		nm.Position = UDim2.fromScale(0, 0.55)
+		nm.Size = UDim2.new(1, 0, 0.45, 0)
+		nm.Text = name or ""
+		nm.TextColor3 = Color3.new(1, 1, 1)
+		nm.Parent = tag
+		tag.Adornee = head or root
+		tag.Parent = char
+		Debris:AddItem(tag, M.time)
+		local beam = part(
+			folder,
+			Vector3.new(M.column, M.width, M.width),
+			CFrame.new(root.Position + Vector3.new(0, M.column / 2 - 3, 0))
+				* CFrame.Angles(0, 0, math.rad(90)),
+			MVP_GOLD,
+			Enum.Material.Neon,
+			Enum.PartType.Cylinder
+		)
+		beam.Transparency = 0.55
+		beam.CastShadow = false
+		-- the column stays over the hero while it moves (a weld to the root, massless, never colliding)
+		beam.Anchored = false
+		beam.Massless = true
+		beam.CanCollide = false
+		local weld = Instance.new("WeldConstraint")
+		weld.Part0 = root
+		weld.Part1 = beam
+		weld.Parent = beam
+		TweenService:Create(
+			beam,
+			TweenInfo.new(1, Enum.EasingStyle.Quad, Enum.EasingDirection.In, 0, false, M.time - 1),
+			{ Transparency = 1 }
+		):Play()
+		Debris:AddItem(beam, M.time)
+		FxLib.burst(root.Position, 6, nil, MVP_GOLD, true)
+		FxLib.shock(root.Position - Vector3.new(0, 2.6, 0), 10, MVP_GOLD)
+	end
+	if #names > 0 then
+		CombatFx.banner("MVP: " .. table.concat(names, ", "), MVP_GOLD, State.hero.fxStyle)
+		AudioController.play("bossDefeated", here, { volume = 0.7, pitch = 1.3 })
+	end
+end
+
 local function bigMoment(ev: { [string]: any })
 	local s = shown
 	local style = State.hero.fxStyle
@@ -1242,6 +1334,10 @@ local function bigMoment(ev: { [string]: any })
 			-- the plates break: it staggers, then roars into the new phase
 			BossAnim.phase(s.anim, ev.phase or 2)
 		end
+	elseif ev.k == "mvp" then
+		task.delay(FB.mvp.delay, function()
+			mvpSpotlight(ev)
+		end)
 	elseif ev.k == "enrage" then
 		-- nobody has come close for a while (2026-11-19): it attacks faster and harder until someone does
 		if ev.on then

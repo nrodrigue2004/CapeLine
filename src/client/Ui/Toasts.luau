@@ -20,6 +20,9 @@ local State = require(script.Parent.Parent.State)
 local GearScreen = require(script.Parent.GearScreen)
 local ContractBoard = require(script.Parent.ContractBoard)
 local Popups = require(script.Parent.Popups)
+-- boss fights pass 2 (2026-11-20): every "a boss is coming" alert says how to get there (the MAP's red diamond flies
+-- a flier there and fast travels anyone else to the nearest found beacon; the red marker shows from anywhere)
+local BOSS_ROUTE = "Open the MAP and tap the red diamond to get there"
 
 local Toasts = {}
 
@@ -427,9 +430,14 @@ function Toasts.show(data: { [string]: any })
 			if data.bounty then
 				push("This week's BOUNTY boss: double reward and Dust once a week", Kit.color.gold, false, 5)
 			end
+			push(BOSS_ROUTE, Kit.color.paper, false, 6)
 		else
 			push(
-				string.format("%s is fighting %s! Fly there from the MAP", data.name or "Your friend", bname),
+				string.format(
+					"%s is fighting %s! Tap the red diamond on the MAP",
+					data.name or "Your friend",
+					bname
+				),
 				Kit.color.gold,
 				true,
 				6
@@ -691,6 +699,9 @@ function Toasts.show(data: { [string]: any })
 		-- lore step 7: a server-wide news flash (NewsHud builds the line from NewsPlan's fixed templates)
 		if type(data.text) == "string" then
 			push(data.text, Color3.fromRGB(255, 90, 90), true, 5)
+			if data.boss then
+				push(BOSS_ROUTE, Kit.color.paper, false, 6)
+			end
 		end
 	elseif id == "choiceKept" then
 		push("Your first choice stands on a replay", Kit.color.paper)

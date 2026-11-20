@@ -57,6 +57,34 @@ function Travel.canTravel(worldCfg: any, s: TravelState, beaconId: number): (boo
 	return Travel.canGo(s)
 end
 
+-- The discovered beacon to fast travel to for a far target (boss fights pass 2, 2026-11-20: a new hero who cannot fly
+-- taps the boss on the MAP): the found beacon nearest the target, only when it saves at least `minGain` studs over
+-- where the hero stands (flat distances). Returns the beacon and its distance to the target, or nil.
+function Travel.nearestFound(
+	beacons: { { id: number, x: number, z: number } },
+	mask: number,
+	tx: number,
+	tz: number,
+	hx: number,
+	hz: number,
+	minGain: number
+): ({ id: number, x: number, z: number }?, number?)
+	local best, bestD = nil, math.huge
+	for _, b in beacons do
+		if Travel.has(mask, b.id) then
+			local d = math.sqrt((b.x - tx) ^ 2 + (b.z - tz) ^ 2)
+			if d < bestD then
+				best, bestD = b, d
+			end
+		end
+	end
+	local mine = math.sqrt((hx - tx) ^ 2 + (hz - tz) ^ 2)
+	if best and bestD + minGain <= mine then
+		return best, bestD
+	end
+	return nil, nil
+end
+
 -- The rules every fast travel shares, a beacon's or a spot's (the costume contest's stage, fix-flow 2026-11-19):
 -- not mid-flight, not in a scene (the HQ, a visit, a pocket, the prologue), not fighting, and the cooldown over
 function Travel.canGo(s: TravelState): (boolean, string?)
