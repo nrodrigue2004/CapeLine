@@ -3098,6 +3098,40 @@ return function(T: any)
 		end
 	)
 
+	test("List combat: travelling lines ride Blender crescents and crystal spikes", function()
+		local roblox = require("@lune/roblox")
+		if not T.placePath then
+			return
+		end
+		local UiSim = require("./uisim")
+		local sim = UiSim.new(
+			UiSim.load(roblox.deserializePlace(fs.readFile(T.placePath))),
+			{ name = "PC", w = 1280, h = 720, top = 36, left = 0, right = 0, bottom = 0, touch = false }
+		)
+		local CombatFx = sim:require("Client.Fx.CombatFx")
+		sim:run("CombatFx", CombatFx.init)
+		local V = roblox.Vector3.new
+		local col = roblox.Color3.fromRGB(120, 200, 255)
+		sim:run("lines", function()
+			CombatFx.line(V(0, 3, 0), V(0, 3, -36), 4, "Comic", col, false, true, "Martial") -- Crescent Wave
+			CombatFx.line(V(20, 3, 0), V(20, 3, -36), 4, "Comic", col, true, false, "Volt") -- Ground Spark
+		end)
+		local crescents, spikes, upright = 0, 0, true
+		for _, d in sim.service("Workspace"):GetDescendants() do
+			if d:IsA("MeshPart") and d.Name == "SlashCrescent" and d.CFrame.Position.X < 10 then
+				crescents += 1
+			elseif d:IsA("MeshPart") and d.Name == "HeadSpike" and d.CFrame.Position.X > 10 then
+				spikes += 1
+				-- nose up: the crystal's long (z) side stands vertical
+				upright = upright and math.abs(d.CFrame.LookVector.Y) > 0.95
+			end
+		end
+		check(crescents >= 3, "the blade line rides crescents (" .. crescents .. ")")
+		check(spikes >= 3, "the ground line juts crystal spikes (" .. spikes .. ")")
+		check(upright, "standing up")
+		check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
+	end)
+
 	test("List combat: the Swordsman's cuts are Blender crescents (Everything Left 172)", function()
 		local roblox = require("@lune/roblox")
 		local S = Config.PowerArt.Slash

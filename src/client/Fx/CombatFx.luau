@@ -133,6 +133,27 @@ local function powerMesh(name: string, size: Vector3, color: Color3, alpha: numb
 	return mp
 end
 
+-- A flying head's Blender look (Art.Powers Heads, Everything Left 381, 2026-11-20): the mesh at its own proportions,
+-- its longest side `longest` studs, in the path colour and its own material; nil before the import (the part stays).
+-- Its centre offset and import turn ride on headTwist, which fly() puts under every CFrame it sets.
+local headTwist: { [BasePart]: CFrame } = setmetatable({}, { __mode = "k" }) :: any
+local function headMesh(name: string, longest: number, c: Color3): MeshPart?
+	if not PowerMeshes.ready("Heads") then
+		return nil
+	end
+	local m = Config.PowerArt.Heads[name]
+	local k = longest / math.max(m.size[1], m.size[2], m.size[3])
+	local mp = powerMesh(name, Vector3.new(m.size[1], m.size[2], m.size[3]) * k, c, m.alpha)
+	if not mp then
+		return nil
+	end
+	mp.Material = (Enum.Material :: any)[m.mat] or Enum.Material.Neon
+	local twist = CFrame.new(-Vector3.new(m.offset[1], m.offset[2], m.offset[3]) * k) * MeshFix.turn("Powers")
+	headTwist[mp] = twist
+	mp.CFrame = twist
+	return mp
+end
+
 local function beam(from: Vector3, to: Vector3, width: number, color: Color3, life: number): Part?
 	local d = to - from
 	local len = d.Magnitude
@@ -765,13 +786,19 @@ function CombatFx.line(
 		local p = from:Lerp(to, t)
 		local delay = t * 0.18
 		if blade then
-			-- a crescent riding the line
+			-- a crescent riding the line: the Swordsman's Blender crescent (Art.Powers Slash, 2026-11-20) bulging
+			-- forward along the line, else a flat bar
 			local look = CFrame.lookAt(p, p + d.Unit)
-			local w = part(
-				Vector3.new(width, 0.3, 1.2),
-				look * CFrame.Angles(0, 0, math.rad(if style == "Anime" then 0 else 15)),
-				if style == "Anime" then WHITE else color
-			)
+			local tilt = look * CFrame.Angles(0, 0, math.rad(if style == "Anime" then 0 else 15))
+			local col = if style == "Anime" then WHITE else color
+			local SC = PowerMeshes.ready("Slash") and Config.PowerArt.Slash.SlashCrescent
+			local k = width * 1.3 / (if SC then SC.size[1] else 1)
+			local w: BasePart = SC
+					and powerMesh("SlashCrescent", Vector3.new(SC.size[1] * k, 0.3, SC.size[3] * k), col, 0.1)
+				or part(Vector3.new(width, 0.3, 1.2), tilt, col)
+			if w:IsA("MeshPart") then
+				w.CFrame = tilt * MeshFix.turn("Powers")
+			end
 			w.Transparency = 1
 			TweenService:Create(
 				w,
@@ -781,11 +808,25 @@ function CombatFx.line(
 			fade(w, 0.25, { Size = Vector3.new(width * 1.2, 0.1, 0.4) }, delay + 0.02)
 		else
 			local h = if ground then 0.6 else 1.5
-			local spike = part(
-				Vector3.new(width * 0.4, h * 3, width * 0.4),
-				CFrame.new(p + Vector3.new(0, h, 0)),
-				if style == "Anime" then WHITE else color
-			)
+			local col = if style == "Anime" then WHITE else color
+			-- a crystal spike jutting up (the flying ice crystal's Blender look, nose up), else a bar
+			local crystal = headMesh("HeadSpike", h * 3, col)
+			if crystal then
+				local up = CFrame.lookAt(p + Vector3.new(0, h, 0), p + Vector3.new(0, h + 1, 0), d.Unit)
+				crystal.Size = Vector3.new(width * 0.4, width * 0.4, h * 3)
+				crystal.CFrame = up * (headTwist[crystal] or CFrame.identity)
+				crystal.Material = Enum.Material.Neon
+				crystal.Transparency = 1
+				TweenService:Create(
+					crystal,
+					TweenInfo.new(0.01, Enum.EasingStyle.Linear, Enum.EasingDirection.Out, 0, false, delay),
+					{ Transparency = 0.1 }
+				):Play()
+				fade(crystal, 0.25, { Size = Vector3.new(0.1, 0.1, h * 5) }, delay + 0.02)
+				continue
+			end
+			local spike =
+				part(Vector3.new(width * 0.4, h * 3, width * 0.4), CFrame.new(p + Vector3.new(0, h, 0)), col)
 			spike.Transparency = 1
 			TweenService:Create(
 				spike,
@@ -1599,27 +1640,6 @@ local function disc(
 	p.Transparency = 0.1
 	fade(p, time, { Size = Vector3.new(0.05, radius * 2, radius * 2) })
 	return p
-end
-
--- A flying head's Blender look (Art.Powers Heads, Everything Left 381, 2026-11-20): the mesh at its own proportions,
--- its longest side `longest` studs, in the path colour and its own material; nil before the import (the part stays).
--- Its centre offset and import turn ride on headTwist, which fly() puts under every CFrame it sets.
-local headTwist: { [BasePart]: CFrame } = setmetatable({}, { __mode = "k" }) :: any
-local function headMesh(name: string, longest: number, c: Color3): MeshPart?
-	if not PowerMeshes.ready("Heads") then
-		return nil
-	end
-	local m = Config.PowerArt.Heads[name]
-	local k = longest / math.max(m.size[1], m.size[2], m.size[3])
-	local mp = powerMesh(name, Vector3.new(m.size[1], m.size[2], m.size[3]) * k, c, m.alpha)
-	if not mp then
-		return nil
-	end
-	mp.Material = (Enum.Material :: any)[m.mat] or Enum.Material.Neon
-	local twist = CFrame.new(-Vector3.new(m.offset[1], m.offset[2], m.offset[3]) * k) * MeshFix.turn("Powers")
-	headTwist[mp] = twist
-	mp.CFrame = twist
-	return mp
 end
 
 -- one part-built piece of a path (Config.Fx.paths piece names; FxPlan.PIECES), size s, placed by the caller
