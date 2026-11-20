@@ -458,7 +458,7 @@ FLAIR.dust = function() end -- particles only (dust and pebbles kick up)
 ---------------------------------------------------------------------------
 
 local S = M.kit.screen
-local SCREEN: { [string]: (Color3, string) -> () } = {}
+local SCREEN: { [string]: (Color3, string, number?) -> () } = {}
 SCREEN.none = function() end
 SCREEN.flash = function(tint) -- a bright flash in the path's tint
 	K.flashScreen(tint, 0.35, 0.5)
@@ -519,6 +519,47 @@ SCREEN.invert = function(tint) -- the light goes out, then comes back in the pat
 	K.flashScreen(Color3.new(0, 0, 0), 0.25, 0.65)
 	task.delay(0.2, function()
 		K.flashScreen(tint, 0.3, 0.4)
+	end)
+end
+-- item 173: Bullet Time's own screen (a skill, the caster only) for its whole field: the world drains to a warm
+-- sepia with a hard edge, the edges hold the path's tint, a quick white flash on the way in, back on the way out
+local slowCC: ColorCorrectionEffect? = nil
+local slowUntil = 0
+SCREEN.slowmo = function(tint, _style, hold)
+	local h = hold or 2
+	slowUntil = os.clock() + h
+	local cc = slowCC
+	if not cc then
+		local made = Instance.new("ColorCorrectionEffect")
+		made.Name = "BulletTimeScreen"
+		made.Enabled = true
+		made.Parent = game:GetService("Lighting")
+		slowCC = made
+		cc = made
+	end
+	local c = cc :: ColorCorrectionEffect
+	K.flashScreen(Color3.new(1, 1, 1), 0.12, 0.45)
+	TweenService:Create(c, TweenInfo.new(0.15), {
+		Saturation = -0.65,
+		Contrast = 0.2,
+		TintColor = Color3.fromRGB(255, 232, 196),
+	}):Play()
+	for _, e in edges do
+		e.BackgroundColor3 = tint
+		TweenService:Create(e, TweenInfo.new(0.15), { BackgroundTransparency = 0.45 }):Play()
+	end
+	task.delay(h, function()
+		if os.clock() < slowUntil - 0.05 then
+			return -- cast again meanwhile: the later one ends it
+		end
+		TweenService:Create(c, TweenInfo.new(0.3), {
+			Saturation = 0,
+			Contrast = 0,
+			TintColor = Color3.new(1, 1, 1),
+		}):Play()
+		for _, e in edges do
+			TweenService:Create(e, TweenInfo.new(0.3), { BackgroundTransparency = 1 }):Play()
+		end
 	end)
 end
 SCREEN.pulse = function(tint) -- three quick pulses
@@ -662,13 +703,13 @@ function AbilityFx.hit(
 	emitAll(M.kit.hit[name].fx, x, pos, dir, 6 * x.s)
 end
 
--- a super's screen moment (the caster only)
+-- a super's screen moment (the caster only; a skill with its own screen, Bullet Time, too: CombatFx.castFlourish)
 function AbilityFx.screen(row: any, style: string, tint: Color3)
 	local rec = AbilityFx.recipe(row)
 	if not K or not rec or not gui then
 		return
 	end
-	SCREEN[rec.screen or "none"](tint, style)
+	SCREEN[rec.screen or "none"](tint, style, row.duration)
 end
 
 -- the head this move throws instead of its path's (nil keeps the path's)

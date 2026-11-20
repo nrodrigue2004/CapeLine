@@ -341,7 +341,9 @@ FxPlan.FLAIRS = {
 	"rune",
 	"dust",
 }
-FxPlan.SCREENS = { "none", "flash", "bars", "vignette", "lines", "slash", "invert", "pulse" }
+FxPlan.SCREENS = { "none", "flash", "bars", "vignette", "lines", "slash", "invert", "pulse", "slowmo" }
+-- the skills with a screen of their own (the rest are supers'): Bullet Time's slow world (item 173)
+FxPlan.SKILL_SCREENS = { BulletTime = "slowmo" }
 -- screen moments that flash the whole screen (skipped with Reduce flashing on)
 FxPlan.FLASHY_SCREENS = { flash = true, invert = true, pulse = true }
 -- the shapes where something flies, so the move has a trail

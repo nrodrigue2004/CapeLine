@@ -5,7 +5,7 @@
 --   hit     what lands on every hit and at the move's area (a nova's heart, a landing): a shockwave ring, a
 --           crater, sparks, shards, a splash, a pillar of light...
 --   trail   what streams behind what flies (bolts, chain hops, lines, dashes, leaps)
---   screen  supers only: the caster's screen moment (letterbox bars, speed lines, a slash across the screen...)
+--   screen  supers (and Bullet Time, FxPlan.SKILL_SCREENS): the caster's screen moment (letterbox bars, speed lines, a slash across the screen...)
 --   head, mark, cast (optional) swap the path's own head, hit mark or cast flourish for this move only, using
 --           any path's drawing (FxPlan.HEADS, MARKS, CASTS) in this path's colours
 --   size    how big its head, hit and flair draw (1 = the path's size)
@@ -142,7 +142,7 @@ return {
 		RecoilJump = { flair = "dust", hit = "ring" },
 		Ricochet = { flair = "lines", hit = "starburst", trail = "zigzag" },
 		TrickShot = { flair = "fan", hit = "cross", trail = "ribbon", head = "lance", size = 1.2 },
-		BulletTime = { flair = "sigil", hit = "spiral" },
+		BulletTime = { flair = "sigil", hit = "spiral", screen = "slowmo" },
 		GrenadeRoll = { flair = "vent", hit = "crater", trail = "smoke" },
 		DeadeyeMark = { flair = "rune", hit = "bloom" },
 		HighNoon = { flair = "burst", hit = "rays", screen = "bars", size = 1.4 },

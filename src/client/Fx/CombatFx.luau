@@ -32,6 +32,7 @@ local AbilityFx = require(script.Parent.AbilityFx)
 local DebrisBudget = require(script.Parent.DebrisBudget)
 local FxLib = require(script.Parent.FxLib)
 local DeepMeshes = require(script.Parent.DeepMeshes)
+local CityProps = require(script.Parent.Parent.Controllers.CityProps)
 
 local CombatFx = {}
 CombatFx.reduceFlashing = false
@@ -990,6 +991,16 @@ local function crateModel(at: CFrame): Model
 		p.Material = Enum.Material.Wood
 		p.Parent = m
 	end
+	-- item 176: the street kit's Crate mesh (Art.Street) in the air once imported; the planks stay hidden
+	-- inside it and are what burst apart on landing
+	if CityProps.dress("Crate", body, body.Size.Y) > 0 then
+		for _, d in m:GetChildren() do
+			if d:IsA("BasePart") and string.sub(d.Name, 1, 6) ~= "Dress_" then
+				d.Transparency = 1
+			end
+		end
+		m:SetAttribute("Meshed", true)
+	end
 	m.Parent = folder
 	return m
 end
@@ -1026,7 +1037,15 @@ function CombatFx.throwArc(
 			conn:Disconnect()
 			if box then
 				-- it breaks on landing: the planks fly and fade, with a puff of wood dust
+				local meshed = box:GetAttribute("Meshed") == true
 				for _, d in box:GetChildren() do
+					if meshed and d:IsA("BasePart") then
+						if string.sub(d.Name, 1, 6) == "Dress_" then
+							d:Destroy() -- the whole crate gives way to its planks
+							continue
+						end
+						d.Transparency = 0
+					end
 					if d:IsA("BasePart") then
 						local out = (d.Position - pos)
 						local push = if out.Magnitude > 0.1 then out.Unit else Vector3.yAxis
@@ -2584,6 +2603,49 @@ sig.motes = motes
 sig.placeMotes = placeMotes
 sig.dropMotes = dropMotes
 
+-- item 178: Girder Swing's girder in the caster's right hand for the swing: a steel I-beam (web and two flanges,
+-- with a darker end plate) along the hand's grip line, welded to the hand so the clip swings it, then gone with
+-- a shrink. PLACEHOLDER ART: Roblox parts until a girder mesh. Looks only; the hit is the server's arc.
+local GIRDER =
+	{ length = 11, color = Color3.fromRGB(204, 84, 52), dark = Color3.fromRGB(120, 48, 30), hold = 0.95 }
+function CombatFx.heldGirder(userId: number?)
+	local p = if userId then Players:GetPlayerByUserId(userId) else nil
+	local hand = p and p.Character and p.Character:FindFirstChild("RightHand")
+	if not (hand and hand:IsA("BasePart")) then
+		return
+	end
+	local L = GIRDER.length
+	local m = Instance.new("Model")
+	m.Name = "HeldGirder"
+	local grip = hand.CFrame * CFrame.new(0, -0.15 - L / 2 + 0.6, 0)
+	local pieces = {
+		{ Vector3.new(0.22, L, 0.9), CFrame.identity, GIRDER.color }, -- web
+		{ Vector3.new(0.9, L, 0.16), CFrame.new(0, 0, 0.45), GIRDER.color }, -- flanges
+		{ Vector3.new(0.9, L, 0.16), CFrame.new(0, 0, -0.45), GIRDER.color },
+		{ Vector3.new(0.95, 0.12, 1.06), CFrame.new(0, -L / 2, 0), GIRDER.dark }, -- the far end's plate
+	}
+	for _, pc in pieces do
+		local b = part(pc[1], grip * pc[2], pc[3])
+		b.Material = Enum.Material.Metal
+		b.Anchored = false
+		b.Massless = true
+		local weld = Instance.new("WeldConstraint")
+		weld.Part0 = hand
+		weld.Part1 = b
+		weld.Parent = b
+		b.Parent = m
+	end
+	m.Parent = folder
+	task.delay(GIRDER.hold, function()
+		for _, b in m:GetChildren() do
+			if b:IsA("BasePart") then
+				fade(b, 0.15, { Size = b.Size * 0.2 })
+			end
+		end
+		Debris:AddItem(m, 0.2)
+	end)
+end
+
 -- the caster's flourish: the path's for a skill or super (not basics), then the move's own (every slot,
 -- Config.FxMoves flair). Mine from CombatClient.fire, others' from cast()
 function CombatFx.castFlourish(row: any, style: string, o: Vector3, d: Vector3, userId: number?)
@@ -2604,6 +2666,12 @@ function CombatFx.castFlourish(row: any, style: string, o: Vector3, d: Vector3, 
 		)
 	end
 	AbilityFx.flair(row, style, o, dir, color, ACCENT[row.set], userId)
+	if row.id == "GirderSwing" then
+		CombatFx.heldGirder(userId)
+	end
+	if row.slot == "skill" and userId == Players.LocalPlayer.UserId then
+		AbilityFx.screen(row, style, TINT[row.set] or color) -- a skill's own screen (Bullet Time); most have none
+	end
 end
 
 -- the super's big moment. data as for CombatFx.cast; landing supers (AT_LANDING) come from CombatFx.area.

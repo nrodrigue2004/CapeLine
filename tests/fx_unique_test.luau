@@ -69,6 +69,8 @@ return function(T: any)
 						has(FxPlan.SCREENS, r.screen) and r.screen ~= "none",
 						row.id .. " super has a screen moment"
 					)
+				elseif FxPlan.SKILL_SCREENS[row.id] then
+					check(r.screen == FxPlan.SKILL_SCREENS[row.id], row.id .. " has its own screen")
 				else
 					check(r.screen == nil, row.id .. " only supers have screen moments")
 				end

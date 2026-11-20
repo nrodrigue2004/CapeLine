@@ -366,4 +366,26 @@ return function(T: any)
 			end
 		end
 	end)
+
+	test("List combat: powers' props and Bullet Time's screen", function()
+		local cf = fs.readFile("src/client/Fx/CombatFx.luau")
+		-- 176: the thrown crate wears the street kit's Crate mesh, its planks burst on landing
+		check(
+			string.find(cf, 'CityProps.dress("Crate", body, body.Size.Y)', 1, true) ~= nil,
+			"the crate mesh"
+		)
+		check(Config.City.kit.props.Crate ~= nil and Config.StreetArt.Crate ~= nil, "Crate is a kit prop")
+		-- 178: Girder Swing swings a girder in the right hand
+		check(string.find(cf, 'if row.id == "GirderSwing" then', 1, true) ~= nil, "the held girder")
+		check(Config.Abilities.list.GirderSwing ~= nil, "Girder Swing exists")
+		-- 173: Bullet Time's own screen for its whole field, on the caster's screen only
+		check(Config.FxMoves.moves.BulletTime.screen == "slowmo", "Bullet Time has its screen")
+		check(Config.Abilities.list.BulletTime.duration > 0, "it lasts the field's time")
+		local af = fs.readFile("src/client/Fx/AbilityFx.luau")
+		check(string.find(af, "SCREEN.slowmo = function", 1, true) ~= nil, "slowmo is drawn")
+		check(
+			string.find(cf, 'row.slot == "skill" and userId == Players.LocalPlayer.UserId', 1, true) ~= nil,
+			"skills' screens play for the caster"
+		)
+	end)
 end
