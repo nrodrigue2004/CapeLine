@@ -1435,10 +1435,20 @@ end
 -- Talking, the Journal and the Dev panel
 ---------------------------------------------------------------------------
 
+-- fix-respawn (nate's playtest 2026-11-19: "unresponsive buttons when trying to talk to npcs or start side
+-- quests"): every press of a giver's Talk gets an answer: the giver's line, or why not (still loading, too far,
+-- what the giver's next chain waits for). Never a silent return.
+local function refuse(player: Player, why: string, giverId: string?, n: any?)
+	Net.fire("Toast", player, { id = "sqLocked", why = why, n = n })
+	Net.fire("SideQuestTalk", player, { bit = 0, kind = "refused", giver = giverId, why = why })
+end
+SideQuestService._refuse = refuse
+
 local function talk(player: Player, giverId: string)
 	local hero = HeroService.get(player)
 	local c = StoryService.char(player)
 	if not hero or not c or not hero.loaded then
+		refuse(player, "loading", giverId)
 		return
 	end
 	-- a talk step aimed at this giver counts first
@@ -1453,6 +1463,8 @@ local function talk(player: Player, giverId: string)
 		and (goal.st.giver or g.chain.giver) == giverId
 	then
 		setHave(g, goal, 1)
+		-- (the step's own lines follow from setHave; this only tells the device its press was heard)
+		Net.fire("SideQuestTalk", player, { bit = g.chain.bit, kind = "heard", giver = giverId })
 		return
 	end
 	local chain, kind =
@@ -1467,14 +1479,28 @@ local function talk(player: Player, giverId: string)
 			DataService.saveSoon(player)
 		end
 	end
-	Net.fire("SideQuestTalk", player, { bit = if chain then chain.bit else 0, kind = kind, giver = giverId })
+	local why, n = nil, nil
+	if not chain then
+		-- nothing to offer: say what the giver's next chain waits for (a level, a mission, another chain)
+		why, n = SideQuestPlan.giverWhy(Config, c, giverId, hero.level, StoryService.side(player), devOn())
+	end
+	Net.fire(
+		"SideQuestTalk",
+		player,
+		{ bit = if chain then chain.bit else 0, kind = kind, giver = giverId, why = why, n = n }
+	)
 end
 
 local function act(player: Player, what: number, bit: number)
 	local hero = HeroService.get(player)
 	local c = StoryService.char(player)
 	local chain = SideQuestPlan.byBit(Config, bit)
-	if not hero or not c or not chain or not SideQuestPlan.visible(chain, devOn()) then
+	if not hero or not c or not hero.loaded then
+		Net.fire("Toast", player, { id = "sqLocked", why = "loading", bit = bit })
+		return
+	end
+	if not chain or not SideQuestPlan.visible(chain, devOn()) then
+		Net.fire("Toast", player, { id = "sqLocked", why = "gone", bit = bit })
 		return
 	end
 	if what == 1 then
@@ -1491,8 +1517,12 @@ local function act(player: Player, what: number, bit: number)
 				Net.fire("Toast", player, { id = "sqLocked", why = why, bit = chain.bit })
 			end
 		end
-	elseif what == 2 and SideQuestPlan.abandon(c, chain) then
-		Net.fire("Toast", player, { id = "sqHold", bit = chain.bit })
+	elseif what == 2 then
+		if SideQuestPlan.abandon(c, chain) then
+			Net.fire("Toast", player, { id = "sqHold", bit = chain.bit })
+		else
+			Net.fire("Toast", player, { id = "sqLocked", why = "notActive", bit = chain.bit })
+		end
 		StoryService.changed(player)
 	end
 end
@@ -1714,17 +1744,20 @@ local function placeGivers()
 			local prompt = Instance.new("ProximityPrompt")
 			prompt.ActionText = "Talk"
 			prompt.ObjectText = gv.name
-			prompt.HoldDuration = 0.2
+			prompt.HoldDuration = 0 -- a tap talks (fix-respawn: a 0.2 s hold dropped every quick click or tap)
 			prompt.MaxActivationDistance = SQ.range
 			prompt.RequiresLineOfSight = false
 			prompt.KeyboardKeyCode = Enum.KeyCode.B
 			prompt.GamepadKeyCode = Enum.KeyCode.ButtonX
+			prompt:SetAttribute("Giver", id) -- the device answers the press at once (StoryHud)
 			prompt.Parent = body
 			prompt.Triggered:Connect(function(player)
 				local hero = HeroService.get(player)
 				local p = hero and HeroService.position(hero)
 				if p and (p - body.Position).Magnitude <= SQ.range + 4 then
 					talk(player, id)
+				else
+					refuse(player, "far", id)
 				end
 			end)
 			givers[id] = { pos = pos }

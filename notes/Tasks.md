@@ -2097,3 +2097,10 @@ Proved headless (tests/side_content_test.luau, ONLY=SideContent): the pages' dat
 - [ ] Switching pick at a safehouse moves with that pick's own ranks; a level 4 hero sees rank 1 locked (LEVEL 5).
 - [ ] Sides: a Vigil and a Syndicate hero side by side: each sees only incidents spawned for its own side (markers, trackers, beat toasts); helping the other side's robots pays nothing; events show each side's own name and goal; Duchess Vanta is invisible with no talk prompt for the Vigil hero and stands at the Opal Room for the villain.
 - [ ] For nate to OK: the draft lore pages (Plaza, Gala, Bank, Gantry in Config.Lore) and every new villain line (Config.Incidents, Config.Contracts, Config.Events lines marked side-content).
+
+## Studio test list: respawn size, clothes on every body, creator NEXT, giver talk (fix-respawn, 2026-11-20)
+Proved headless (tests/fix_respawn_test.luau, ONLY="Fix respawn"): a shape reset is seen and rebuilt, NPCs are not shaped twice, every creator piece fits all 40 bodies, NEXT on PC, 1280x650 and phone is never covered and fires on every press with 0 hero builds, the giver's reasons. Render: art/preview/fit_bodies_clothes.png, fit_bodies_seta.png, fit_bodies_setb.png (before: fit_bodies_before_clothes.png).
+- [ ] Make a Titan (and a Short Small) hero, die, respawn: the size stays, gear and the weapon sit on the body; others in the server see the same size.
+- [ ] Classic Shirt and Pants on each Female, Small, Large and Titan body: the front design on the chest, the belt line at the waist, nothing scrambled (Art.BodyTorsos re-uploaded with Roblox's torso UVs, Model 138196936019402).
+- [ ] Creator NEXT: one click moves a step every time on PC and a phone. Open the Dev panel: "taps" presses and fired stay equal; if Output shows "[Kit] a press on ... was taken by", send nate's coordinator that name.
+- [ ] Talk to a side quest giver with one tap: "..." at once, then the giver's line; walk away and tap: "too far"; a locked quest names its level.

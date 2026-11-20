@@ -1,14 +1,14 @@
 {
- "FemaleLarge_LowerTorso": 135193392241558,
- "FemaleLarge_UpperTorso": 104689496388650,
- "FemaleMedium_LowerTorso": 135800727351115,
- "FemaleMedium_UpperTorso": 99620966887992,
- "FemaleSmall_LowerTorso": 135800727351115,
- "FemaleSmall_UpperTorso": 121224073184671,
- "FemaleTitan_LowerTorso": 119254823622770,
- "FemaleTitan_UpperTorso": 116309397392948,
- "MaleLarge_UpperTorso": 76235652442502,
- "MaleSmall_UpperTorso": 101878927458165,
- "MaleTitan_LowerTorso": 110433806198826,
- "MaleTitan_UpperTorso": 99843279266379
+ "FemaleLarge_LowerTorso": 98431066308354,
+ "FemaleLarge_UpperTorso": 140711761407926,
+ "FemaleMedium_LowerTorso": 124833559725879,
+ "FemaleMedium_UpperTorso": 118829603713157,
+ "FemaleSmall_LowerTorso": 124833559725879,
+ "FemaleSmall_UpperTorso": 132006608475300,
+ "FemaleTitan_LowerTorso": 128976467274240,
+ "FemaleTitan_UpperTorso": 81112897844556,
+ "MaleLarge_UpperTorso": 116635973511691,
+ "MaleSmall_UpperTorso": 126332021604165,
+ "MaleTitan_LowerTorso": 96127329595555,
+ "MaleTitan_UpperTorso": 110992380217000
 }

@@ -17,6 +17,7 @@ import sys
 sys.path.insert(0, os.path.dirname(__file__))
 import kit  # noqa: E402
 import template_uv  # noqa: E402
+import robloxuv  # noqa: E402
 import bpy  # noqa: E402
 from mathutils import Matrix, Vector  # noqa: E402
 
@@ -175,7 +176,9 @@ if "--no-export" not in sys.argv:
 # 180 degrees about y in its box (art/upload/meshcheck.py, art/models/meshturns.json); a placed MeshPart can be
 # turned back (Shared.MeshFix), but LookKit.wearBodySet puts these on the live torsos with MeshPart:ApplyMesh,
 # which cannot turn, so these copies are drawn turned and the import's turn faces them forward again. The UVs ride
-# with the vertices, so classic Shirt and Pants still land front on front.
+# with the vertices, so classic Shirt and Pants still land front on front. fix-respawn (2026-11-19): their UVs are
+# Roblox's own torso's (robloxuv.py; needs build/robloxbody from art/fit/robloxbody.py), not the classic template's:
+# Roblox composites the template into its own R15 layout before a MeshPart samples it.
 if "--torsos" in sys.argv:
     torsos = []
     for cp in exported:
@@ -183,6 +186,9 @@ if "--torsos" in sys.argv:
             t = cp.copy()
             t.data = cp.data.copy()
             bpy.context.scene.collection.objects.link(t)
+            # fix-respawn: Roblox's own torso UVs (robloxuv.py), so classic Shirt and Pants land as on Roblox's body
+            worst = robloxuv.transfer(t, "UpperTorso" if cp.name.endswith("_UpperTorso") else "LowerTorso")
+            print("  %s: Roblox torso UVs (worst match %.3f studs)" % (cp.name, worst))
             for v in t.data.vertices:
                 v.co.x, v.co.y = -v.co.x, -v.co.y  # Blender x and y (Roblox x and z): 180 degrees about up
             t.data.update()
