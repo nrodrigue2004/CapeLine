@@ -1047,3 +1047,4 @@ Drafts for nate only (WP11, 2026-11-18). None of these is in code or config; the
 - 2026-11-20 (alive-world, retention): TO DO joins the MENU drawer (order 17.5, after DAILY) and reads "TO DO !" while a reward waits; the three NEW WEEK toasts stay as they were (the card repeats the week's bounty, it does not replace them); an unmet nemesis is never named on the card (its first ambush stays a surprise).
 - 2026-11-20 (nate 22:02Z): planet travel keeps the spec's 3 places (Ironmere the second city, the orbit zone, the moon Calder) and adds one alien planet; its name and look are nate's to shape later. Not scheduled yet (Phase 2-3).
 - 2026-11-20 (nate on the card 22:03Z): the new-hero boss hit cap stays (Config.Boss.newHero: 8+ levels below the boss, at most 30% max health per boss hit).
+- 2026-11-20 (nate on the card 22:03Z): build the first two Act 2 missions (Most Wanted, The Line) from the lore doc, then nate plays them before the other four.
