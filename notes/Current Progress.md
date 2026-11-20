@@ -1,5 +1,6 @@
 # Current Progress
 
+- 2026-11-20 playtest-gaps24: gaps23 + missions lane (Safehouse soft-lock, Warden/Bulwark HP, story beats in missions 2-6, Act 2 Most Wanted and The Line, private phased runs). Studio 407-415, 420-441. Next: missions on real map sites.
 - 2026-11-20 playtest-gaps23: gaps22 + cutscene polish round 2 (camera drift, jump cuts, depth of field, chase wall pull-in, stage and Lodestar animated). Studio 312-313.
 - 2026-11-20 playtest-gaps22: gaps21 + boss fights passes 1-2, first-30 rounds 2-4 (untimed prologue prompts, cutscene polish, context music, impact frames), WELCOME BACK card, supers' Blender looks.
 - 2026-11-20 first-30 round 4: untimed prologue prompts (307); cutscene polish: steady FOV, ease back to play, side HUD hidden, Skylance gap dash (308-309); context music, six new loops + MusicPlan (310); black and white impact frames on crits, supers and finishers (311). Next: more cutscene polish once nate says what looked worst (card).

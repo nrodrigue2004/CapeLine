@@ -326,6 +326,9 @@ Looks only: where the screens hang, what they show, the card's timing and the TV
 6. The boss name cards (each of the four) show the boss's comic portrait popping out of the card's left over a comic navy plate; the name and title sit right of it, the slash bar sweeps in the boss's colour; the plate's ink and gold rule stay crisp at PC and phone sizes.
 7. Your double's card (and the three side-vs-side event cards) show the event's comic icon; the Crater's card and the side quest finales' cards are words on the plate.
 
+### Playtest gaps24: start here (2026-11-20, build playtest-gaps24)
+Everything in gaps23 plus the missions lane: the Safehouse soft-lock fixed (LEAVE and the folded MISSION/LEAVE bar work even with the choice card up), the Warden and Bulwark's big phase about half as tanky, real story beats in Act 1 missions 2-6 (people to talk to, things to find and carry, goals that fit each side), Act 2 open with Most Wanted and The Line (DRAFT lines), and private runs (only you and your squad see and hit your mission's robots). Missions still play in their pockets; moving them onto the map is next. Start with Studio list "missions" 407-415, then 440-441 (Act 2) and the private-run checks 420-439.
+
 ### Playtest gaps23: start here (2026-11-20, build playtest-gaps23)
 Everything in gaps22 plus cutscene polish round 2 (nate's card: Mix): shots drift like a real camera, jump cuts ease across, soft depth of field, the chase camera's smooth wall pull-in, Crane and his heroes keep moving on stage, Lodestar talks in mission scenes: project files capeline/Capeline-playtest-gaps23-2026-11-20.rbxl (Output "playtest-gaps23 (2026-11-20)"). It replaces every older playtest place. Run "Playtest gaps22: start here" first if not done, then Studio items 312-313.
 
