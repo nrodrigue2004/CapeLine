@@ -3933,6 +3933,117 @@ return function(T: any)
 		end
 	)
 	test(
+		"List combat: a Grappler's claw bites a hero with sparks, a clank and a taut cable, and sparks on a wall",
+		function()
+			local roblox = require("@lune/roblox")
+			local hk = Config.Fx.robots.hook
+			check(hk.biteSparks > 0 and hk.wallSparks > 0 and hk.taut > 1, "the bite is tuned")
+			if not T.placePath then
+				return
+			end
+			local UiSim = require("./uisim")
+			local sim = UiSim.new(
+				UiSim.load(roblox.deserializePlace(fs.readFile(T.placePath))),
+				{ name = "PC", w = 1280, h = 720, top = 36, left = 0, right = 0, bottom = 0, touch = false }
+			)
+			local V = roblox.Vector3.new
+			local char = UiSim.newInstance("Model")
+			local root = UiSim.newInstance("Part")
+			root.Name = "HumanoidRootPart"
+			root.CFrame = roblox.CFrame.new(0, 5, 60)
+			root.Position = V(0, 5, 60)
+			root.Parent = char
+			char.Parent = sim.workspace
+			sim.player.Character = char
+			local FxLib = sim:require("Client.Fx.FxLib")
+			local CombatFx = sim:require("Client.Fx.CombatFx")
+			sim:run("CombatFx", CombatFx.init)
+			local emits: { [string]: number } = {}
+			local real = FxLib.emit
+			FxLib.emit = function(kind: string, ...)
+				emits[kind] = (emits[kind] or 0) + 1
+				return real(kind, ...)
+			end
+			local bites = {}
+			local function frames(n: number)
+				for _ = 1, n do
+					sim:run("frame", function()
+						sim.service("RunService").RenderStepped:Fire(1 / 30)
+					end)
+				end
+			end
+			local function cable(): any
+				local best = nil
+				for _, d in sim.service("Workspace"):GetDescendants() do
+					if d:IsA("BasePart") and d.Material == roblox.Enum.Material.Metal and d.Size.Z > 3 then
+						best = d
+					end
+				end
+				return best
+			end
+			-- a claw shot at you from 20 studs
+			sim:run("hook", function()
+				CombatFx.hook(
+					function()
+						return V(0, 5, 80)
+					end,
+					V(0, 5, 80),
+					V(0, 0, -60),
+					function()
+						return true
+					end,
+					function(what, at, who)
+						table.insert(bites, { what, at, who })
+					end
+				)
+			end)
+			frames(12)
+			check(#bites == 1 and bites[1][1] == "hero" and bites[1][3] == sim.player, "it bites you, once")
+			check((emits.hitspark or 0) == 1, "sparks where it bites")
+			local c = cable()
+			check(c ~= nil and math.abs(c.Size.X - hk.cable * hk.taut) < 1e-3, "the cable goes taut")
+			-- a claw into a wall 15 studs off
+			root.Position = V(500, 5, 0)
+			root.CFrame = roblox.CFrame.new(500, 5, 0)
+			sim.service("Workspace")._props.Raycast = function(_, origin, dir)
+				if origin.X < -5 and dir.Z < 0 and origin.Z + dir.Z <= 65 then
+					return {
+						Position = V(origin.X, origin.Y, 65),
+						Normal = V(0, 0, 1),
+						Instance = root,
+						Distance = 1,
+					}
+				end
+				return nil
+			end
+			sim:run("hook 2", function()
+				CombatFx.hook(
+					function()
+						return V(-10, 5, 80)
+					end,
+					V(-10, 5, 80),
+					V(0, 0, -60),
+					function()
+						return true
+					end,
+					function(what, at, who)
+						table.insert(bites, { what, at, who })
+					end
+				)
+			end)
+			frames(12)
+			check(#bites == 2 and bites[2][1] == "wall" and bites[2][3] == nil, "it bites the wall")
+			check((emits.hitspark or 0) == 2 and (emits.scorch or 0) == 1, "sparks and a scorch on the wall")
+			local client = fs.readFile("src/client/Controllers/CombatClient.luau")
+			check(
+				string.find(client, 'if what == "hero" then IMPACT.heavy else IMPACT.clank', 1, true) ~= nil,
+				"the client clanks each bite"
+			)
+			FxLib.emit = real
+			check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
+		end
+	)
+	test(
 		"List combat: robot shots leave a glowing streak you can see coming, Medics a flowing beam, burning patches a flame ring, nets and claws Blender meshes",
 		function()
 			local roblox = require("@lune/roblox")

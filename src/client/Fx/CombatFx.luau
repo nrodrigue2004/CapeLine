@@ -4096,7 +4096,13 @@ end
 
 -- when the robot is gone). It flies until it catches a hero (then holds on while `out()` says the hook is
 -- still out, the robot's `hooked` bit), sticks where it hits the world, or runs out; then it reels back in.
-function CombatFx.hook(from: () -> Vector3?, pos: Vector3, vel: Vector3, out: () -> boolean)
+function CombatFx.hook(
+	from: () -> Vector3?,
+	pos: Vector3,
+	vel: Vector3,
+	out: () -> boolean,
+	onBite: ((kind: string, at: Vector3, who: Player?) -> ())?
+)
 	local speed = vel.Magnitude
 	if speed < 1 then
 		return
@@ -4169,6 +4175,12 @@ function CombatFx.hook(from: () -> Vector3?, pos: Vector3, vel: Vector3, out: ()
 					held = root
 					phase = "held"
 					t = 0
+					-- the claw bites: sparks back along the cable, a snap ring, the clank (onBite)
+					FxLib.emit("hitspark", clawColor, root.Position, hk.biteSparks, -vel.Unit)
+					ring(root.Position, 3, clawColor, 0.25)
+					if onBite then
+						onBite("hero", root.Position, p)
+					end
 					break
 				end
 			end
@@ -4177,6 +4189,12 @@ function CombatFx.hook(from: () -> Vector3?, pos: Vector3, vel: Vector3, out: ()
 				local cut = t >= 0.3 and not out() -- the cable was cut (the Grappler was stunned)
 				if hit and not cut then
 					tip, phase, stuckT = hit.Position, "stuck", 0.15
+					-- it bites into the wall: sparks off the face and a small scorch
+					FxLib.emit("hitspark", clawColor, tip + hit.Normal * 0.2, hk.wallSparks, hit.Normal)
+					FxLib.emit("scorch", SCORCH, tip + hit.Normal * 0.1, 1, hit.Normal)
+					if onBite then
+						onBite("wall", tip, nil)
+					end
 				elseif cut or t >= life then
 					tip, phase = nextTip, "reel"
 					reelFrom, reelT = tip, 0
@@ -4207,7 +4225,8 @@ function CombatFx.hook(from: () -> Vector3?, pos: Vector3, vel: Vector3, out: ()
 		local d = tip - a
 		local len = math.max(0.2, d.Magnitude)
 		local dir = if d.Magnitude > 1e-3 then d.Unit else vel.Unit
-		cable.Size = Vector3.new(hk.cable, hk.cable, len)
+		local thick = if phase == "held" then hk.cable * hk.taut else hk.cable -- taut on a catch
+		cable.Size = Vector3.new(thick, thick, len)
 		cable.CFrame = CFrame.lookAt(a + d / 2, tip)
 		local cf = CFrame.lookAt(tip, tip + dir)
 		local spread = if phase == "fly" then 30 else 10 -- the prongs close on what they catch

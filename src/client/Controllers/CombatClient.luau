@@ -816,6 +816,12 @@ local function onEvents(list: { any })
 				local e = ev[2]
 				CombatFx.hook(robotAt(e, "Claw", Vector3.new(0, 1, 0)), pos, vel, function()
 					return bit32.band(EnemyRenderer.extra(e), HOOKED) ~= 0
+				end, function(what: string, at: Vector3, who: Player?)
+					-- the claw's bite: a clank (a heavy one on a hero) and a jolt when it is you
+					AudioController.playSpec(if what == "hero" then IMPACT.heavy else IMPACT.clank, at)
+					if who == player then
+						CameraController.shake(HURT.shakeHeavy[1], HURT.shakeHeavy[2])
+					end
 				end)
 			else
 				CombatFx.enemyShot(pos, vel, ev[11])

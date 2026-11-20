@@ -115,7 +115,18 @@ return {
 		aim = { color = { 255, 40, 40 }, width = 0.1, lockWidth = 0.3, blink = 14, dot = 0.6 },
 		tracer = { color = { 255, 240, 210 }, glow = { 255, 80, 60 }, length = 14, width = 0.22 },
 		net = { color = { 190, 235, 255 }, size = 4.5, spin = 8 },
-		hook = { cable = 0.16, color = { 60, 60, 66 }, claw = { 200, 120, 50 }, hold = 1.6, reel = 0.2 },
+		-- (list-combat 2026-11-20) the claw bites: biteSparks off a caught hero, wallSparks and a scorch on a wall;
+		-- the cable is `taut` times thicker while it holds
+		hook = {
+			cable = 0.16,
+			color = { 60, 60, 66 },
+			claw = { 200, 120, 50 },
+			hold = 1.6,
+			reel = 0.2,
+			biteSparks = 6,
+			wallSparks = 4,
+			taut = 1.5,
+		},
 		lob = { gravity = 80, size = 0.7, blink = { 4, 16 } },
 		zone = { color = { 255, 110, 30 }, core = { 255, 200, 70 }, every = 0.2 },
 		mend = { color = { 80, 240, 140 }, width = 0.25, packet = 0.3 },
