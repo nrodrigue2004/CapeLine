@@ -85,6 +85,7 @@ local NemesisFx = require(Fx.NemesisFx)
 local MentorHud = require(Ui.MentorHud) -- H6: the mentor card, picker and panels
 local MentorFx = require(Fx.MentorFx)
 local BadgeHud = require(Ui.BadgeHud) -- H7: the Badge Book, collections and titles
+local HelpHud = require(Ui.HelpHud) -- HOW TO PLAY (Everything Left 86)
 local ContestHud = require(Ui.ContestHud) -- H7: costume contests
 local CollectClient = require(Controllers.CollectClient) -- H7: collection sparkles and the scanner marker
 local LoreClient = require(Controllers.LoreClient) -- side-content: the lore pages' books and caption cards
@@ -185,6 +186,7 @@ NemesisFx.init()
 MentorHud.init()
 MentorFx.init()
 BadgeHud.init()
+HelpHud.init()
 ContestHud.init()
 CollectClient.init()
 LoreClient.init()

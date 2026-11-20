@@ -45,6 +45,64 @@ return {
 		-- round buttons (touch and gamepad keep the buttons; the opening's verb buttons still show)
 		keyLine = { "Leap", "Fly", "Boost", "Down" },
 	},
+	-- HOW TO PLAY (Everything Left 86): a page per deeper system, opened from the MENU drawer (Ui.HelpHud). Fixed
+	-- text, DRAFT wording until nate reads it; each line true to today's controls and rules.
+	help = {
+		{
+			title = "MOVE",
+			lines = {
+				"Space: Leap. Hold Leap after the top of a jump to glide.",
+				"F: Fly. Left Shift: Boost while it has stamina. Left Ctrl: Down.",
+				"Gamepad: A Leap, Y Fly, LT Boost, B Down.",
+				"Touch a beacon to find it, then fly across the city from the MAP.",
+			},
+		},
+		{
+			title = "FIGHT",
+			lines = {
+				"Click: your basic attack. Z X C V: the four skills of what you hold.",
+				"1 holds your power, 2 your weapon. G: your Super.",
+				"Fill the Awakening meter in a fight, then press Y to let it loose.",
+				"Middle mouse locks on to a target; Tab moves the lock to the next one.",
+			},
+		},
+		{
+			title = "BLOCK",
+			lines = {
+				"Hold Q (LB on a gamepad) to block. You move at half speed and cannot cast.",
+				"Block just as a hit lands for a PERFECT block.",
+				"Heavy hits, full charges and grabs are breakers: they shatter a block.",
+				"A light hit, a stun or a knock interrupts a heavy wind-up or a charge.",
+			},
+		},
+		{
+			title = "POWERS",
+			lines = {
+				"POWERS (L): pick your skills and spend skill points on their ranks.",
+				"Rank 3 unlocks a mod pick; the top rank unlocks a capstone.",
+				"From level 15 you can borrow up to 5 skills from other paths of your archetype.",
+				"Respec for free at your HQ or a safehouse (once every 10 minutes).",
+			},
+		},
+		{
+			title = "GEAR",
+			lines = {
+				"GEAR (I): gear drops from fights, bosses and rewards. It is never sold.",
+				"Upgrade a piece up to +10 with Lumen Dust; salvage what you do not need for Dust.",
+				"Styles change how gear looks, never its stats.",
+				"Bank your Credits at a safehouse so a PvP defeat cannot take them.",
+			},
+		},
+		{
+			title = "HERO PASS",
+			lines = {
+				"PASS: a season of 40 tiers. Everything you do earns Pass XP.",
+				"The free track has a reward on every tier.",
+				"Every reward is shown before you buy, and nothing on it changes stats.",
+				"A world boss wakes every 20 to 30 minutes: everyone who helps is rewarded.",
+			},
+		},
+	},
 	-- the drawn CAPELINE logo (art/ui/logo.py; DRAFT until nate OKs it), the main menu's title; LoadingCard.LOGO
 	-- holds the same id (ReplicatedFirst cannot wait for Config). 0 keeps the typed title.
 	logo = 138065040749947,

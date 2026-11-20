@@ -541,4 +541,104 @@ return function(T: any)
 		check(string.find(menu, '"rbxassetid://" .. Config.Ui.logo', 1, true) ~= nil, "the menu draws it")
 		check(fs.isFile("art/ui/logo.py") and fs.isFile("art/preview/logo.png"), "its source and preview")
 	end)
+
+	test("List combat: HOW TO PLAY covers the deeper systems", function()
+		local pages = Config.Ui.help
+		local want =
+			{ MOVE = true, FIGHT = true, BLOCK = true, POWERS = true, GEAR = true, ["HERO PASS"] = true }
+		for _, p in pages do
+			want[p.title] = nil
+			check(#p.lines >= 3 and #p.lines <= 4, p.title .. " has 3 or 4 lines (they fit the page)")
+			for _, l in p.lines do
+				check(#l <= 90, p.title .. ": a line fits two rows: " .. l)
+			end
+		end
+		check(next(want) == nil, "every topic has a page")
+		-- the lines say what the game does
+		check(
+			Config.Abilities.borrowLevel == 15 and Config.Abilities.borrowMax == 5,
+			"borrowing: level 15, 5 skills"
+		)
+		check(Config.Abilities.respecCooldown == 600, "respec every 10 minutes")
+		check(Config.Gear.upgrade.max == 10, "upgrade to +10")
+		check(Config.Guard.block.moveMult == 0.5, "half speed while blocking")
+		local input = fs.readFile("src/client/Controllers/InputController.luau")
+		for _, k in { '[Enum.KeyCode.Q] = "Block"', '[Enum.KeyCode.F] = "Fly"', '[Enum.KeyCode.G] = "Super"' } do
+			check(string.find(input, k, 1, true) ~= nil, "the keys: " .. k)
+		end
+		local init = fs.readFile("src/client/init.client.luau")
+		check(string.find(init, "HelpHud.init()", 1, true) ~= nil, "HelpHud runs")
+		local hud = fs.readFile("src/client/Ui/HelpHud.luau")
+		check(string.find(hud, 'Kit.dock(open, "Help", 19)', 1, true) ~= nil, "it is in the MENU drawer")
+	end)
+
+	test("List combat: HOW TO PLAY opens and turns pages in the place's client", function()
+		if not T.placePath then
+			return
+		end
+		local roblox = require("@lune/roblox")
+		local UiSim = require("./uisim")
+		local trees = UiSim.load(roblox.deserializePlace(fs.readFile(T.placePath)))
+		for _, device in
+			{
+				{ name = "PC", w = 1280, h = 720, top = 36, left = 0, right = 0, bottom = 0, touch = false },
+				{
+					name = "Phone",
+					w = 812,
+					h = 375,
+					top = 0,
+					left = 44,
+					right = 44,
+					bottom = 21,
+					touch = true,
+				},
+			}
+		do
+			local sim = UiSim.new(trees, device)
+			sim:run("InputController", sim:require("Client.Controllers.InputController").init)
+			sim:run("Hud", sim:require("Client.Ui.Hud").init)
+			sim:run("HelpHud", sim:require("Client.Ui.HelpHud").init)
+			local gui = sim.playerGui:FindFirstChild("HelpHud")
+			local function find(name: string): any
+				for _, d in (gui and gui:GetDescendants() or {}) do
+					if d.Name == name then
+						return d
+					end
+				end
+				return nil
+			end
+			local open = sim.playerGui:FindFirstChild("HelpButton", true)
+			check(open ~= nil, device.name .. ": the HOW TO PLAY button is made")
+			sim:run("open", function()
+				sim:require("Client.Ui.HelpHud").open()
+			end)
+			local page = find("Page")
+			local panel = page and page.Parent
+			check(panel ~= nil and panel.Visible, device.name .. ": the panel shows")
+			local function texts(): { string }
+				local out = {}
+				for _, c in (page and page:GetChildren() or {}) do
+					if c:IsA("TextLabel") then
+						table.insert(out, c.Text)
+					end
+				end
+				return out
+			end
+			local first = texts()
+			check(#first == 1 + #Config.Ui.help[1].lines, device.name .. ": the first page's title and lines")
+			-- tap the GEAR tab
+			local gearTab = nil
+			for _, d in panel and panel:GetChildren() or {} do
+				if d:IsA("TextButton") and d.Text == "GEAR" then
+					gearTab = d
+				end
+			end
+			check(gearTab ~= nil, device.name .. ": a GEAR tab")
+			if gearTab then
+				sim:tap(gearTab)
+			end
+			check(table.find(texts(), "GEAR") ~= nil, device.name .. ": the GEAR page shows")
+			check(#sim.errors == 0, device.name .. ": no errors: " .. table.concat(sim.errors, "; "))
+		end
+	end)
 end
