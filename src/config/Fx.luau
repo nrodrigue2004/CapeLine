@@ -100,6 +100,9 @@ return {
 	-- (list-combat 2026-11-20) a blocked hit: a pale flash `flash` studs across, a glow and `sparks` glancing back
 	-- at the robot, with Config.Audio.impact.clank
 	block = { color = { 200, 235, 255 }, flash = 4, sparks = 6 },
+	-- (list-combat 2026-11-20) Shadow's Eclipse in the Blender sun: the corona and black core's sizes in studs and the
+	-- corona's turn (radians) over its 1.4 s
+	eclipse = { corona = 22, core = 14, turn = 0.8 },
 	hurt = {
 		heavy = 0.12,
 		gap = 0.08,

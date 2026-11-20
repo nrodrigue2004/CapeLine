@@ -1656,7 +1656,9 @@ end
 -- its charge motes, and each super has its own big moment. Volt (the slice nate OKed) and weapon moves have
 -- nothing here that draws, so they keep their look. Comic: chunky pieces in the path colour, solid and bold;
 -- Anime: thinner, white-cored pieces with a colour afterimage, speed lines and quicker motion. Every piece
--- comes out of FxLib's part budget for the device preset (phones draw fewer). PLACEHOLDER ART: part-built.
+-- comes out of FxLib's part budget for the device preset (phones draw fewer). The pieces, heads, rims and most
+-- supers are Blender meshes (Art.Powers) once imported; their part builds before then, the round glows and
+-- embers (balls by design), Meteor Leap's crater flash and Siege Mode's anchors are PLACEHOLDER ART: part-built.
 ---------------------------------------------------------------------------
 
 local P = F.paths
@@ -3042,21 +3044,41 @@ end
 SUPER.eclipse = function(x) -- Shadow Eclipse: a black sun with a burning rim, the light goes out
 	local sky = x.c + Vector3.new(0, 22, 0)
 	local cf = facing(sky)
-	local rim = part(
-		Vector3.new(0.4, 2, 2),
-		cf * CFrame.Angles(0, math.rad(90), 0),
-		if anime(x.style) then WHITE else x.color,
-		Enum.PartType.Cylinder
-	)
-	rim.Transparency = 0.1
-	TweenService:Create(rim, TweenInfo.new(0.3, Enum.EasingStyle.Back), { Size = Vector3.new(0.4, 17, 17) })
-		:Play()
-	fade(rim, 0.4, nil, 1)
-	local sun = PIECE.ball(2, x.accent)
-	sun.Material = Enum.Material.SmoothPlastic
-	sun.CFrame = CFrame.new(sky)
-	TweenService:Create(sun, TweenInfo.new(0.3, Enum.EasingStyle.Back), { Size = Vector3.one * 15 }):Play()
-	fade(sun, 0.4, nil, 1)
+	local rimCol = if anime(x.style) then WHITE else x.color
+	local pop = TweenInfo.new(0.3, Enum.EasingStyle.Back)
+	if PowerMeshes.ready("Sun") then
+		-- (list-combat 2026-11-20) the Blender sun turned dark: Sunfall's corona of flame spikes burning in the
+		-- path's colour round a black core, slowly turning (Art.Powers Sun; was a flat neon disc and a ball)
+		local turnP = MeshFix.turn("Powers")
+		local E = F.eclipse
+		local corona =
+			powerMesh("SunCorona", Vector3.one * 3, rimCol, Config.PowerArt.Sun.SunCorona.alpha) :: BasePart
+		local core = powerMesh("SunCore", Vector3.one * 2, x.accent) :: BasePart
+		core.Material = Enum.Material.SmoothPlastic
+		corona.CFrame, core.CFrame = CFrame.new(sky) * turnP, CFrame.new(sky) * turnP
+		TweenService:Create(corona, pop, { Size = Vector3.one * E.corona }):Play()
+		TweenService:Create(core, pop, { Size = Vector3.one * E.core }):Play()
+		TweenService:Create(corona, TweenInfo.new(1.4, Enum.EasingStyle.Linear), {
+			CFrame = CFrame.new(sky) * CFrame.Angles(0, 0, E.turn) * turnP,
+		}):Play()
+		fade(corona, 0.4, nil, 1)
+		fade(core, 0.4, nil, 1)
+	else
+		local rim = part(
+			Vector3.new(0.4, 2, 2),
+			cf * CFrame.Angles(0, math.rad(90), 0),
+			rimCol,
+			Enum.PartType.Cylinder
+		)
+		rim.Transparency = 0.1
+		TweenService:Create(rim, pop, { Size = Vector3.new(0.4, 17, 17) }):Play()
+		fade(rim, 0.4, nil, 1)
+		local sun = PIECE.ball(2, x.accent)
+		sun.Material = Enum.Material.SmoothPlastic
+		sun.CFrame = CFrame.new(sky)
+		TweenService:Create(sun, pop, { Size = Vector3.one * 15 }):Play()
+		fade(sun, 0.4, nil, 1)
+	end
 	for _ = 1, 6 do
 		local d = Vector3.new(math.random() - 0.5, -1, math.random() - 0.5).Unit
 		beam(sky, sky + d * 30, if anime(x.style) then 0.1 else 0.4, x.color, 0.5)

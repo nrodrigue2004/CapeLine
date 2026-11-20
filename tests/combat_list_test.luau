@@ -3841,6 +3841,58 @@ return function(T: any)
 		end
 	)
 	test(
+		"List combat: Shadow's Eclipse is the Blender sun gone dark: a burning corona round a black core",
+		function()
+			local roblox = require("@lune/roblox")
+			local E = Config.Fx.eclipse
+			check(E and E.corona > E.core and E.core > 0, "the eclipse is tuned")
+			if not T.placePath then
+				return
+			end
+			local UiSim = require("./uisim")
+			local sim = UiSim.new(
+				UiSim.load(roblox.deserializePlace(fs.readFile(T.placePath))),
+				{ name = "PC", w = 1280, h = 720, top = 36, left = 0, right = 0, bottom = 0, touch = false }
+			)
+			local CombatFx = sim:require("Client.Fx.CombatFx")
+			sim:run("CombatFx", CombatFx.init)
+			local V = roblox.Vector3.new
+			sim:run("Eclipse", function()
+				CombatFx.superMoment(
+					Config.Abilities.list.Eclipse,
+					"Comic",
+					{ o = V(0, 5, 0), d = V(0, 0, -1), c = V(0, 3, -20), r = 14 } :: any
+				)
+			end)
+			local core, corona, discs = nil, nil, 0
+			for _, d in sim.service("Workspace"):GetDescendants() do
+				if d:IsA("MeshPart") and d.Name == "SunCore" then
+					core = d
+				elseif d:IsA("MeshPart") and d.Name == "SunCorona" then
+					corona = d
+				elseif d:IsA("Part") and d.Shape == roblox.Enum.PartType.Cylinder and d.Position.Y > 20 then
+					discs += 1
+				end
+			end
+			check(core ~= nil and corona ~= nil, "the core and corona are drawn")
+			if core and corona then
+				check(
+					core.Material == roblox.Enum.Material.SmoothPlastic,
+					"the core is a flat black, not a glow"
+				)
+				local accent = Config.Fx.paths.Shadow.accent
+				check(
+					math.abs(core.Color.R * 255 - accent[1]) < 1
+						and math.abs(core.Color.B * 255 - accent[3]) < 1,
+					"in Shadow's dark accent"
+				)
+				check(corona.CFrame.Position.Y > 20, "high over the zone")
+			end
+			check(discs == 0, "no flat neon disc rim")
+			check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
+		end
+	)
+	test(
 		"List combat: taking a hit sparks off the hero, a red arrow points at the robot, a thud and a shake",
 		function()
 			local roblox = require("@lune/roblox")
