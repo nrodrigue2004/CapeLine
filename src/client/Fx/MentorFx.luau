@@ -5,8 +5,10 @@
 -- * The ally in a task force's final fight: a bright beam from the mentor to the robot they hit.
 -- * The reward moment: a burst of the new look and a chime.
 -- * H7: the accolade aura a player wears (AccoladeAura, from a finished badge group): soft motes round them.
--- PLACEHOLDER ART: engine Trails, ParticleEmitters and a PointLight with default textures until the effects
--- pass (FxLib textures); the beam is a neon part.
+-- Art (Everything Left 387, 2026-11-20): the trails draw the uploaded flight trail strips (Config.Creator.trailFx:
+-- the gold comet, the smoke roll) and the motes the effects library's sheets (Config.Fx.lib.textures: spark, glow),
+-- each look's `tex` in Config.Mentors; Roblox's built-in image only while an id is 0. The ally's beam is a neon part
+-- (a quick flash, kept).
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -27,6 +29,40 @@ for _, m in M.list do
 	looks[m.look.id] = m.look
 end
 local TAG = "MentorLookFx"
+
+-- a mote texture (Config.Fx.lib.textures name): the uploaded sheet, its flipbook grid, or the built-in image
+local function moteTex(e: ParticleEmitter, name: string?)
+	local t = name and Config.Fx.lib.textures[name]
+	if not t then
+		return
+	end
+	if t.id and t.id > 0 then
+		e.Texture = "rbxassetid://" .. tostring(t.id)
+		if t.flip == 4 then
+			e.FlipbookLayout = Enum.ParticleFlipbookLayout.Grid4x4
+			e.FlipbookMode = Enum.ParticleFlipbookMode.OneShot
+		end
+	else
+		e.Texture = t.builtin
+	end
+end
+
+-- a trail strip (Config.Creator.trailFx.kits name): its texture, mode and wrap length
+local function trailTex(t: Trail, name: string?)
+	local fx = Config.Creator.trailFx
+	local k = name and fx and fx.on and fx.kits[name]
+	if not k or not k.id or k.id <= 0 then
+		return
+	end
+	t.Texture = "rbxassetid://" .. tostring(k.id)
+	t.TextureMode = if k.mode == "Wrap" then Enum.TextureMode.Wrap else Enum.TextureMode.Stretch
+	if k.length then
+		t.TextureLength = k.length
+	end
+	t.FaceCamera = true
+end
+MentorFx._moteTex = moteTex
+MentorFx._trailTex = trailTex
 
 local function rgb(t: { number }): Color3
 	return Color3.fromRGB(t[1], t[2], t[3])
@@ -70,13 +106,17 @@ local function dress(player: Player)
 		t.MinLength = 0.2
 		t.LightEmission = if look.id == "violetSmoke" then 0.1 else 0.8
 		t.WidthScale = NumberSequence.new(1, if look.id == "violetSmoke" then 2.2 else 0.3)
+		trailTex(t, look.tex)
 		t.Parent = torso
 	else
 		local e = Instance.new("ParticleEmitter")
 		e.Name = TAG
 		e.Color = ColorSequence.new(c)
 		e.LightEmission = 0.8
+		moteTex(e, look.tex)
 		if look.id == "sparkCrackle" then
+			e.Rotation = NumberRange.new(0, 360)
+			e.RotSpeed = NumberRange.new(-240, 240)
 			e.Rate = 14
 			e.Lifetime = NumberRange.new(0.15, 0.3)
 			e.Speed = NumberRange.new(6, 10)
@@ -129,6 +169,7 @@ local function dressAura(player: Player)
 	e.Name = AURA_TAG
 	e.Color = ColorSequence.new(c)
 	e.LightEmission = 0.7
+	moteTex(e, M.accoladeTex)
 	e.Rate = 8
 	e.Lifetime = NumberRange.new(0.8, 1.2)
 	e.Speed = NumberRange.new(0.6, 1.4)
@@ -194,6 +235,24 @@ local function burst(player: Player, mentor: number)
 	TweenService:Create(p, TweenInfo.new(0.6), { Size = Vector3.one * 16, Transparency = 1 }):Play()
 	task.delay(0.65, function()
 		p:Destroy()
+	end)
+	-- a shower of the new look's own motes
+	local e = Instance.new("ParticleEmitter")
+	e.Name = "MentorRewardMotes"
+	moteTex(e, if m.look.tex == "spark" or m.look.tex == "glow" then m.look.tex else "spark")
+	e.Enabled = false
+	e.Color = ColorSequence.new(rgb(m.look.color), Color3.new(1, 1, 1))
+	e.LightEmission = 0.9
+	e.Lifetime = NumberRange.new(0.6, 1.2)
+	e.Speed = NumberRange.new(10, 22)
+	e.SpreadAngle = Vector2.new(180, 180)
+	e.Drag = 3
+	e.Size = NumberSequence.new(0.7, 0)
+	e.Rotation = NumberRange.new(0, 360)
+	e.Parent = root
+	e:Emit(36)
+	task.delay(1.5, function()
+		e:Destroy()
 	end)
 	Juice.fire("mentorReward", root.Position, { mine = true })
 end

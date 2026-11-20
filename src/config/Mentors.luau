@@ -12,6 +12,8 @@
 -- PLACEHOLDER CONTENT: lore thread to fill (each mentor's voice in the panel lines and quest part names)
 -- PLACEHOLDER ART: each mentor is the blocky R15 body in their two colours until the Blender pass.
 return {
+	-- the motes texture of an accolade aura (Config.Badges, MentorFx): a Config.Fx.lib.textures name
+	accoladeTex = "glow",
 	list = {
 		{
 			id = "CaptainMeridian",
@@ -27,6 +29,7 @@ return {
 				id = "meridianGold",
 				name = "Gold Flight Trail",
 				color = { 255, 210, 80 },
+				tex = "comet", -- Config.Creator.trailFx.kits (MentorFx)
 			},
 			emote = 12, -- Config.Shop.emotes (Salute style)
 		},
@@ -38,7 +41,13 @@ return {
 			group = "City",
 			blurb = "The HQ drill coach, an old street hero who trusts people more than rules.",
 			colors = { { 90, 110, 80 }, { 255, 190, 90 } },
-			look = { kind = "aura", id = "lantern", name = "Lantern Glow", color = { 255, 190, 90 } },
+			look = {
+				kind = "aura",
+				id = "lantern",
+				name = "Lantern Glow",
+				color = { 255, 190, 90 },
+				tex = "glow",
+			},
 			emote = 13,
 		},
 		{
@@ -55,6 +64,7 @@ return {
 				id = "violetSmoke",
 				name = "Violet Smoke Trail",
 				color = { 170, 110, 230 },
+				tex = "smoke",
 			},
 			emote = 14,
 		},
@@ -66,7 +76,13 @@ return {
 			group = "Independent",
 			blurb = "A cat burglar who answers to no one, Old Beacon's villain twin from the drills.",
 			colors = { { 120, 30, 60 }, { 120, 230, 255 } },
-			look = { kind = "aura", id = "sparkCrackle", name = "Spark Crackle", color = { 120, 230, 255 } },
+			look = {
+				kind = "aura",
+				id = "sparkCrackle",
+				name = "Spark Crackle",
+				color = { 120, 230, 255 },
+				tex = "spark",
+			},
 			emote = 15,
 		},
 	},

@@ -2108,6 +2108,113 @@ return function(T: any)
 		check(string.find(spm, 'p:SetAttribute("WheelR", w.r)', 1, true) ~= nil, "the wheel attribute")
 	end)
 
+	test("List combat: auras and mentor trails draw the uploaded textures (Everything Left 387)", function()
+		local roblox = require("@lune/roblox")
+		for _, m in Config.Mentors.list do
+			local tex = m.look.tex
+			if m.look.kind == "trail" then
+				local k = Config.Creator.trailFx.kits[tex]
+				check(k ~= nil and k.id > 0, m.id .. "'s trail strip is uploaded")
+			else
+				local t = Config.Fx.lib.textures[tex]
+				check(t ~= nil and t.id > 0, m.id .. "'s motes sheet is uploaded")
+			end
+		end
+		check(Config.Fx.lib.textures[Config.Mentors.accoladeTex] ~= nil, "the accolade motes texture")
+		for _, f in { "src/client/Fx/MentorFx.luau", "src/client/Fx/AuraFx.luau" } do
+			check(
+				not string.find(fs.readFile(f), "PLACEHOLDER ART", 1, true),
+				f .. " is no longer placeholder art"
+			)
+		end
+		if not T.placePath then
+			return
+		end
+		local UiSim = require("./uisim")
+		local sim = UiSim.new(
+			UiSim.load(roblox.deserializePlace(fs.readFile(T.placePath))),
+			{ name = "PC", w = 1280, h = 720, top = 36, left = 0, right = 0, bottom = 0, touch = false }
+		)
+		local char = UiSim.newInstance("Model")
+		local root = UiSim.newInstance("Part")
+		root.Name = "HumanoidRootPart"
+		root.CFrame = roblox.CFrame.new(10, 3, 10)
+		root.Parent = char
+		local torso = UiSim.newInstance("Part")
+		torso.Name = "UpperTorso"
+		torso.Parent = char
+		char.Parent = sim.workspace
+		sim.player.Character = char
+		local MentorFx = sim:require("Client.Fx.MentorFx")
+		sim:run("MentorFx", MentorFx.init)
+		local function find(parent: any, cls: string, name: string?): any
+			for _, c in parent:GetChildren() do
+				if c.ClassName == cls and (name == nil or c.Name == name) then
+					return c
+				end
+			end
+			return nil
+		end
+		for _, m in Config.Mentors.list do
+			sim:run("look", function()
+				sim.player:SetAttribute("MentorLook", m.look.id)
+			end)
+			if m.look.kind == "trail" then
+				local t = find(torso, "Trail")
+				local k = Config.Creator.trailFx.kits[m.look.tex]
+				check(
+					t ~= nil and t.Texture == "rbxassetid://" .. tostring(k.id),
+					m.id .. ": the trail wears its strip"
+				)
+			else
+				local e = find(torso, "ParticleEmitter")
+				local tx = Config.Fx.lib.textures[m.look.tex]
+				check(
+					e ~= nil and e.Texture == "rbxassetid://" .. tostring(tx.id),
+					m.id .. ": the motes wear the sheet"
+				)
+			end
+		end
+		-- accolade aura
+		local aura
+		for _, g in Config.Badges.groups do
+			if g.accolade and g.accolade.kind == "aura" then
+				aura = g.accolade.id
+				break
+			end
+		end
+		sim:run("aura", function()
+			sim.player:SetAttribute("AccoladeAura", aura)
+		end)
+		local ae = find(root, "ParticleEmitter", "AccoladeAuraFx")
+		check(
+			ae ~= nil and string.find(ae.Texture, "rbxassetid://", 1, true) ~= nil,
+			"the accolade motes are textured"
+		)
+		-- AuraFx: shield bubble mesh and Awakened motes
+		local AuraFx = sim:require("Client.Fx.AuraFx")
+		sim:run("AuraFx", AuraFx.init)
+		sim:run("awake", function()
+			sim.player:SetAttribute("Aura", 1)
+			sim.player:SetAttribute("Awakened", true)
+			sim.service("RunService").Heartbeat:Fire(0.2)
+		end)
+		local bubble = char:FindFirstChild("ShieldBubble")
+		check(bubble ~= nil and bubble:IsA("MeshPart"), "the shield bubble is the geodesic mesh")
+		check(bubble ~= nil and bubble.Transparency < 1, "the shield shows")
+		local motes = find(root, "ParticleEmitter", "AwakenMotes")
+		check(motes ~= nil and motes.Enabled == true, "the Awakened motes are on")
+		check(
+			motes ~= nil and motes.Texture == "rbxassetid://" .. tostring(Config.Fx.lib.textures.spark.id),
+			"spark sheet"
+		)
+		sim:run("calm", function()
+			sim.player:SetAttribute("Awakened", false)
+			sim.service("RunService").Heartbeat:Fire(0.2)
+		end)
+		check(motes ~= nil and motes.Enabled == false, "the motes stop with Awakening")
+	end)
+
 	test("List combat: Photo Mode backdrops are printed overlays (Everything Left 354)", function()
 		local ids = Config.Ui.photoBackdrops
 		for _, name in { "COMIC", "SPEED", "SUNSET", "NOIR", "NEON" } do
