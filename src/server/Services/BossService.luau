@@ -481,13 +481,18 @@ local function wireEvent(f: Fight, ev: any): any
 	return out
 end
 
+-- A boss hit on a hero far below its level, capped (BossMath.newHeroHit: a new hero's first bosses)
+local function newHeroHit(f: Fight, hero: any, amount: number): number
+	return BossMath.newHeroHit(Config, amount, HeroService.statLevel(hero), f.level, hero.maxHealth or 0)
+end
+
 local function handleEvents(f: Fight)
 	for _, ev in BossSim.drain(f.sim) do
 		if ev.k == "strike" then
 			for _, hit in ev.hits do
 				local hero = HeroService.byId(hit[1])
 				if hero then
-					HeroService.damage(hero, hit[2], { boss = true })
+					HeroService.damage(hero, newHeroHit(f, hero, hit[2]), { boss = true })
 					if BossService.strikeHero(hero, ev, f.sim) then
 						continue
 					end
@@ -537,7 +542,7 @@ local function handleEvents(f: Fight)
 			for _, hit in ev.hits do
 				local hero = HeroService.byId(hit[1])
 				if hero then
-					HeroService.damage(hero, hit[2], { boss = true })
+					HeroService.damage(hero, newHeroHit(f, hero, hit[2]), { boss = true })
 				end
 			end
 			continue

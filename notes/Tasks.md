@@ -2488,3 +2488,10 @@ Audit and decisions: Decisions.md 2026-11-20 (destroy-all). Headless proof: ONLY
 20. Round 4: knock a robot into a shop wall with a knockback skill: the wall bursts out of the far side with a crunch and a shake, glass if it had windows, and the robot tumbles on through the hole. Knock one into a safehouse or beacon building: a dent and chips, it stops there.
 21. Round 4: grab a bench and throw it at a wall: a piece of the wall goes with a crunch; a dumpster knocks a bigger hole, a car a hole you can fly through. Throw a dumpster into a group of robots: they are launched and tumble, and the ones that meet a wall go through it.
 22. Round 4, phone (Low preset): with 30 players (load bots), a boss fight and three buildings collapsing in view, the frame holds and the collapse dust still reads as a cloud rolling down the street. Server Dev panel: buildings time stays under 1 ms.
+
+## Studio list: world boss fights (destroy-all lane, 2026-11-20)
+Audit and decisions: Decisions.md 2026-11-20 (boss fights pass). Headless proof: ONLY="Boss fights" (a level 6 hero beside four level 35s on all 6 bosses: takes part, Downed at most a quarter of the fight, never more than 6 s without a warning or a strike; every attack shape has its telegraph, every boss its name card).
+400. Fight Rustjaw Prime with a few heroes: every time its bar drops a few percent, chunks in its rusty colour break off the body with a clank and bounce on the street, and each hit makes it flash pale for a moment. Settings > Reduce flashing on: no flash, the chunks still fly. Phone preset: 2 chunks a break, frame time holds.
+401. Take a boss into phase 2 and 3: the slow-mo finisher, the PHASE banner, the plates falling off, plus a shockwave in the phase colour running out over the ground from its feet and a heavy shake for everyone near.
+402. A fresh level 5 to 8 hero (Dev panel: set level) at a boss whose bar shows LV 30+: one boss hit takes at most about a third of its health, it keeps fighting, and the result card shows Participant or better with its pay.
+
