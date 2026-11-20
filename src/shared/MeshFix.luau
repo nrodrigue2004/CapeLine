@@ -49,6 +49,7 @@ for _, set in
 		"Throwables", -- list-combat: the mailbox, sign, dumpster, slab and rubble, 14 of 14 (2026-11-20)
 		"Gadget", -- list-combat: the Shield Drone body and rotor, 2 of 2 (2026-11-20)
 		"Tether", -- list-combat: the rope and chain links, 2 of 2 (2026-11-20)
+		"SideGear", -- list-combat: the side styles' crests, 16 of 16 (2026-11-20)
 		"SiteProps", -- list-combat: the giver's mark, the relay giver and the cat, 8 of 8 (2026-11-20)
 		"Stage", -- list-combat: the costume contest's stage, 11 of 11 (2026-11-20)
 		"Foes", -- list-combat: the robots' gear and the foes' props, 28 of 28 (2026-11-20)

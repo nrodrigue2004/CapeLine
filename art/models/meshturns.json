@@ -322,6 +322,13 @@
   "turned": 92,
   "verdict": "rotY180"
  },
+ "SideGear": {
+  "asDrawn": 8,
+  "either": 8,
+  "meshes": 16,
+  "turned": 16,
+  "verdict": "rotY180"
+ },
  "SiteProps": {
   "asDrawn": 3,
   "either": 3,

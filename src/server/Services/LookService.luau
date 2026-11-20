@@ -428,6 +428,60 @@ local function hideHair(char: Model)
 	end)
 end
 
+-- A side style's crest (Everything Left 398: Config.SideGearArt, art/blender/sidegear.py, Art.SideGear): the Vigil's
+-- gold shield and star or the Syndicate's steel crowned diamond and fangs over the slot's shape, the mark glowing in
+-- the style's colour. All-or-nothing (every crest mesh and body part there), scaled with the body part like the
+-- shape; nothing when the set is not imported (the shape alone, as before).
+local SG = (Config :: any).SideGearArt
+local function sideCrest(char: Model, folder: Folder, slot: string, row: any, trim: Color3): boolean
+	local side = row.rep and row.rep[1]
+	local looks = SG and SG.looks[GearMath.lookKey(slot, row)]
+	local fit = looks and side and looks[side]
+	local art = ReplicatedStorage:FindFirstChild("Art")
+	local lib = art and art:FindFirstChild("SideGear")
+	if not (fit and lib) then
+		return false
+	end
+	local srcs: { MeshPart } = {}
+	local parts: { BasePart } = {}
+	for i, piece in fit do
+		local found = lib:FindFirstChild(piece.mesh, true)
+		local part = char:FindFirstChild(ATTACH[piece.at][1])
+		if not (found and found:IsA("MeshPart") and part and part:IsA("BasePart")) then
+			return false
+		end
+		srcs[i] = found
+		parts[i] = part
+	end
+	for i, piece in fit do
+		local part = parts[i]
+		local frame, f = meshFrame(part, piece.at)
+		local p = MeshFix.clone(srcs[i])
+		for _, c in p:GetChildren() do
+			c:Destroy()
+		end
+		p.Name = slot .. "Crest"
+		p.Size = Vector3.new(piece.size[1], piece.size[2], piece.size[3]) * f
+		p.Color = if piece.role == "glow" then trim elseif piece.role == "gold" then GOLD else STEEL
+		p.Material = if piece.role == "glow" then Enum.Material.Neon else Enum.Material.Metal
+		p.Anchored = false
+		p.Massless = true
+		p.CanCollide = false
+		p.CanTouch = false
+		p.CanQuery = false
+		p.CastShadow = false
+		local o = piece.offset
+		p.CFrame = part.CFrame * frame * CFrame.new(Vector3.new(o[1], o[2], o[3]) * f) * MeshFix.of(p)
+		local weld = Instance.new("WeldConstraint")
+		weld.Part0 = part
+		weld.Part1 = p
+		weld.Parent = p
+		p.Parent = folder
+	end
+	return true
+end
+LookService._sideCrest = sideCrest
+
 -- Wear the style's meshes (Config.GearArt). Nothing is made unless every mesh and body part is there; returns
 -- true when the meshes stand in for the parts.
 local function buildMeshes(char: Model, folder: Folder, slot: string, row: any): boolean
@@ -488,6 +542,9 @@ local function buildMeshes(char: Model, folder: Folder, slot: string, row: any):
 	end
 	if fit.hair == false then
 		hideHair(char)
+	end
+	if row.rep then
+		sideCrest(char, folder, slot, row, trim)
 	end
 	return true
 end
