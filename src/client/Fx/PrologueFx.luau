@@ -32,6 +32,7 @@ local Workspace = game:GetService("Workspace")
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local FrameProf = require(Shared:WaitForChild("FrameProf"))
+local MeshFix = require(Shared:WaitForChild("MeshFix"))
 local OpeningPlan = require(Shared:WaitForChild("OpeningPlan"))
 local FakeRules = require(Shared:WaitForChild("FakeRules"))
 local AbilityRules = require(Shared:WaitForChild("AbilityRules"))
@@ -55,6 +56,7 @@ local CombatClient = require(script.Parent.Parent.Controllers.CombatClient)
 local CitizenRenderer = require(script.Parent.Parent.Controllers.CitizenRenderer)
 local FxLib = require(script.Parent.FxLib)
 local PrologueMeshes = require(script.Parent.PrologueMeshes)
+local PowerMeshes = require(script.Parent.PowerMeshes)
 local PrologueArtKit = require(Shared:WaitForChild("PrologueArtKit"))
 
 local PrologueFx = {}
@@ -1136,8 +1138,63 @@ end
 -- The directed beats' moments (prologue-cine, 2026-11-20; Shared.PrologueCine, Fx.PrologueQte): what each prompt
 -- shows as it comes up ("show"), when it is answered ("hit") and what a miss looks like ("miss": a near miss,
 -- never damage). Everything here is on this device only and goes when the prologue ends.
--- PLACEHOLDER ART: the run's knocked-over barrier and the tunnel's beam are plain parts until their art pass.
+-- The tunnel's falling roof chunks are Art.Rubble's broken blocks and the beam that pins the hero is the Blender
+-- steel girder (Art.Powers Girder) since 2026-11-20, welded over their plain parts (which hide); before the meshes
+-- are imported the parts show. PLACEHOLDER ART: the run's knocked-over barrier is still plain parts.
 ---------------------------------------------------------------------------
+
+-- A mesh welded over a plain part so it follows the part's tweens; the part hides
+local function weldOver(p: BasePart, m: BasePart)
+	m.Anchored = false
+	m.CanCollide = false
+	m.CanQuery = false
+	m.CanTouch = false
+	m.Massless = true
+	local w = Instance.new("WeldConstraint")
+	w.Part0 = p
+	w.Part1 = m
+	w.Parent = m
+	m.Parent = p
+end
+
+-- A falling roof chunk as one of Art.Rubble's broken blocks (Chunk1-3), stretched to the part's box
+local function coverChunk(c: BasePart, k: number)
+	local art = ReplicatedStorage:FindFirstChild("Art")
+	local set = art and art:FindFirstChild("Rubble")
+	local src = set and set:FindFirstChild("Chunk" .. k, true)
+	if not (src and src:IsA("MeshPart")) then
+		return
+	end
+	local m = MeshFix.clone(src)
+	m:ClearAllChildren()
+	m.Size = c.Size
+	m.CFrame = c.CFrame * MeshFix.of(m)
+	m.Color = c.Color
+	m.Material = c.Material
+	m.CastShadow = true
+	weldOver(c, m)
+	PrologueMeshes.hide(c)
+end
+
+-- The pinning beam as the Blender girder (riveted, torn at one end), its length along the part's x
+local function coverGirder(b: BasePart)
+	if not PowerMeshes.ready("Girder") then
+		return
+	end
+	local G = Config.PowerArt.Girder.GirderBeam
+	local k = Vector3.new(b.Size.Y / G.size[1], b.Size.X / G.size[2], b.Size.Z / G.size[3])
+	local anchor = b.CFrame
+		* CFrame.Angles(0, 0, math.rad(90))
+		* CFrame.new(-Vector3.new(G.offset[1], G.offset[2], G.offset[3]) * k)
+	for _, pc in PowerMeshes.pieces("Girder", anchor, nil, k) do
+		local m = PowerMeshes.make(pc, nil)
+		if m then
+			m.CastShadow = true
+			weldOver(b, m)
+		end
+	end
+	PrologueMeshes.hide(b)
+end
 
 local function feetOf(p: { number }?): Vector3?
 	return if p then Vector3.new(p[1], p[2], p[3]) else nil
@@ -1171,6 +1228,7 @@ local function chunk(at: Vector3)
 		Color3.fromRGB(110, 100, 92),
 		Enum.Material.Slate
 	)
+	coverChunk(c, math.floor(math.abs(at.X + at.Z)) % 3 + 1)
 	TweenService:Create(c, TweenInfo.new(0.28, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
 		CFrame = CFrame.new(at + Vector3.new(0, 1.5, 0)) * CFrame.Angles(0.3, 0.6, 0.2),
 	}):Play()
@@ -1302,6 +1360,7 @@ function PrologueFx.moment(kind: string?, seg: { [string]: any }, phase: string)
 				Color3.fromRGB(120, 80, 50),
 				Enum.Material.Wood
 			)
+			coverGirder(b)
 			TweenService:Create(b, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
 				CFrame = CFrame.new(top) * CFrame.Angles(0, 0, 0.2),
 			}):Play()
@@ -1320,6 +1379,12 @@ function PrologueFx.moment(kind: string?, seg: { [string]: any }, phase: string)
 				CFrame = b.CFrame * CFrame.new(0, 9, 14) * CFrame.Angles(2.5, 0.4, 1.4),
 				Transparency = 1,
 			}):Play()
+			for _, m in b:GetChildren() do
+				if m:IsA("BasePart") then
+					TweenService:Create(m, TweenInfo.new(0.6, Enum.EasingStyle.Quad), { Transparency = 1 })
+						:Play()
+				end
+			end
 			task.delay(0.65, function()
 				b:Destroy()
 			end)

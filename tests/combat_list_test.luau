@@ -3392,6 +3392,66 @@ return function(T: any)
 		)
 	end)
 
+	test("List combat: the prologue tunnel's roof chunks and pinning beam wear Blender meshes", function()
+		local roblox = require("@lune/roblox")
+		if not T.placePath then
+			return
+		end
+		local UiSim = require("./uisim")
+		local sim = UiSim.new(
+			UiSim.load(roblox.deserializePlace(fs.readFile(T.placePath))),
+			{ name = "PC", w = 1280, h = 720, top = 36, left = 0, right = 0, bottom = 0, touch = false }
+		)
+		local PrologueFx = sim:require("Client.Fx.PrologueFx")
+		local char = UiSim.newInstance("Model")
+		local hrp = UiSim.newInstance("Part")
+		hrp.Name = "HumanoidRootPart"
+		hrp.Size = roblox.Vector3.new(2, 2, 1)
+		hrp.CFrame = roblox.CFrame.new(0, 3, 0)
+		hrp.Parent = char
+		char.Parent = sim.service("Workspace")
+		sim.service("Players").LocalPlayer.Character = char
+		sim:run("beam", function()
+			PrologueFx.moment("beam", { at = { 0, 0, 0 } }, "show")
+		end)
+		sim:run("slab", function()
+			PrologueFx.moment("slab", { at = { 6, 0, 2 } }, "hit")
+		end)
+		local folder = sim.service("Workspace"):FindFirstChild("Prologue")
+		check(folder ~= nil, "the prologue's folder")
+		local beam, rivets, chunk = nil, nil, nil
+		for _, d in (if folder then folder:GetDescendants() else {}) do
+			if d.Name == "GirderBeam" then
+				beam = d
+			elseif d.Name == "GirderRivets" then
+				rivets = d
+			elseif d:IsA("MeshPart") and string.match(d.Name, "^Chunk%d$") then
+				chunk = d
+			end
+		end
+		check(beam ~= nil and rivets ~= nil, "the beam is the Blender girder")
+		if beam then
+			local host = beam.Parent
+			check(host:IsA("BasePart") and host.Transparency == 1, "over its hidden part")
+			-- lying across the shoulders: the girder's length (its y) runs along the part's x, about 14 long
+			check(math.abs(beam.Size.Y - 14) < 1.5, string.format("14 studs long (%.2f)", beam.Size.Y))
+			check(
+				math.abs(beam.CFrame.UpVector:Dot(host.CFrame.RightVector)) > 0.95,
+				"its length runs along the beam part"
+			)
+			local w = beam:FindFirstChildWhichIsA("WeldConstraint")
+			check(w ~= nil and w.Part0 == host and not beam.Anchored, "welded so it falls with the part")
+		end
+		check(chunk ~= nil, "the falling roof chunk is a broken block")
+		if chunk then
+			check(
+				chunk.Parent.Transparency == 1 and math.abs(chunk.Size.X - 5) < 1e-3,
+				"stretched over its part"
+			)
+		end
+		check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
+	end)
+
 	test("List combat: the Swordsman's cuts are Blender crescents (Everything Left 172)", function()
 		local roblox = require("@lune/roblox")
 		local S = Config.PowerArt.Slash
