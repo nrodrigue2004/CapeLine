@@ -1,5 +1,6 @@
 # Current Progress
 
+- 2026-11-20 playtest-gaps11: gaps10 + living world round 2 (plain boxes 7,626 -> 354, lit windows, Uptown palette, pools), three new world bosses (DRAFT), Brightwood Park (PLACEHOLDER NAME) between Downtown and Uptown.
 - 2026-11-20 park: a Central-Park-style city park between Downtown and Uptown (Uptown moved 300 north; Brightwood Park, PLACEHOLDER NAME): Terrain lake, reservoir and pond, lawns, woods, rocks, Art.Park structures (bandshell, carousel, boathouse, fountains, bridges, rink, gates, wall), city props, and each device's park life (Fx.ParkLife). Studio list Tasks.md "the city park".
 - 2026-11-20 bosses-3: three new DRAFT world bosses (Storm Colossus, Swarm Queen, Quarry Titan), six in the rotation; meshes uploaded (Art.Bosses2), cards, icons and portraits up; headless fights vs every mobility pass; Studio list in Tasks.
 - 2026-11-20 playtest-gaps10: gaps9 + creator NEXT stall fixed, respawn size and clothes fit, giver talk, smash rule, Hulk climb, Acrobat crawl and flips, swing anywhere, Shift sprint, faster stamina, the sounds pass, the directed prologue. Running: shapes-2, bosses-3, park.

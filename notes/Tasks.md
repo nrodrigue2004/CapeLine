@@ -239,6 +239,12 @@ Looks only: where the screens hang, what they show, the card's timing and the TV
 6. The boss name cards (each of the four) show the boss's comic portrait popping out of the card's left over a comic navy plate; the name and title sit right of it, the slash bar sweeps in the boss's colour; the plate's ink and gold rule stay crisp at PC and phone sizes.
 7. Your double's card (and the three side-vs-side event cards) show the event's comic icon; the Crater's card and the side quest finales' cards are words on the plate.
 
+### Playtest gaps11: start here (2026-11-20, build playtest-gaps11)
+Everything in gaps10 plus: project files capeline/Capeline-playtest-gaps11-2026-11-20.rbxl (Output "playtest-gaps11 (2026-11-20)"). It replaces every older playtest place. Run "Playtest gaps10: start here" below first if not done, then these lists:
+1. "Studio list: living world round 2" (Uptown's calm palette, pools and ponds with ripples, rocks, benches, cars, landmarks, roof edges, lit windows at night, road crossings).
+2. "Studio test list: three new world bosses" (Storm Colossus, Swarm Queen, Quarry Titan; DRAFT names and looks; the six-boss rotation).
+3. "Studio list: the city park" (Brightwood Park, PLACEHOLDER NAME: Terrain, lake, bandshell, carousel, fountains, life; Uptown now 300 studs further north).
+
 ### Playtest gaps10: start here (2026-11-20, build playtest-gaps10)
 Everything in gaps9 plus nate's 2026-11-19 20:42Z playtest fixes: project files capeline/Capeline-playtest-gaps10-2026-11-20.rbxl (Output "playtest-gaps10 (2026-11-20)"). It replaces every older playtest place. Run "Playtest gaps9: start here" below first if not done, then these lists:
 1. The fix-respawn list (creator NEXT on one click, the Dev panel "taps" line, size kept after respawn, clothes on every body, talking to a giver on one tap).
