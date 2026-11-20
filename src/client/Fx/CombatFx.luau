@@ -1690,6 +1690,35 @@ local function facing(pos: Vector3): CFrame
 	return if cam then CFrame.lookAt(pos, cam.CFrame.Position) else CFrame.new(pos)
 end
 
+-- A hollow hoop with its axis along cf's up (2026-11-20, AbilityFx's halo and spin rings were filled neon discs):
+-- the Blender shockwave ring when Art.Powers is imported, else the neon cylinder disc. Returns the part and its
+-- placer, place(cf, diameter, thick) -> (CFrame, Size), for tweens that turn or grow it.
+local function hoop(
+	cf: CFrame,
+	diameter: number,
+	thick: number,
+	color: Color3
+): (BasePart, (CFrame, number, number) -> (CFrame, Vector3))
+	local mp = if PowerMeshes.ready("Shock") then PowerMeshes.part("ShockRing") else nil
+	if mp then
+		local turn = MeshFix.turn("Powers")
+		local function place(at: CFrame, d: number, t: number): (CFrame, Vector3)
+			return at * turn, Vector3.new(d, math.max(0.25, t * 2), d)
+		end
+		mp.CFrame, mp.Size = place(cf, diameter, thick)
+		mp.Color = color
+		mp.Material = Enum.Material.Neon
+		mp.Parent = folder
+		return mp, place
+	end
+	local side = CFrame.Angles(0, 0, math.rad(90)) -- a cylinder's axis is its x
+	local function place(at: CFrame, d: number, t: number): (CFrame, Vector3)
+		return at * side, Vector3.new(t, d, d)
+	end
+	local c0, s0 = place(cf, diameter, thick)
+	return part(s0, c0, color, Enum.PartType.Cylinder), place
+end
+
 -- a ring facing `normal` (flat on the ground when normal is up) that grows to radius and fades
 local STAND = CFrame.Angles(math.pi / 2, 0, 0) -- a ring's up (its axis) onto a lookAt frame's look
 local function disc(
@@ -4722,6 +4751,7 @@ function CombatFx.init()
 		fade = fade,
 		beam = beam,
 		disc = disc,
+		hoop = hoop,
 		crossBars = crossBars,
 		facing = facing,
 		fly = fly,

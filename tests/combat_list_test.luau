@@ -3630,6 +3630,54 @@ return function(T: any)
 		check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
 	end)
 
+	test("List combat: halo and spin flourishes are hollow Blender hoops", function()
+		local roblox = require("@lune/roblox")
+		if not T.placePath then
+			return
+		end
+		local UiSim = require("./uisim")
+		local sim = UiSim.new(
+			UiSim.load(roblox.deserializePlace(fs.readFile(T.placePath))),
+			{ name = "PC", w = 1280, h = 720, top = 36, left = 0, right = 0, bottom = 0, touch = false }
+		)
+		local CombatFx = sim:require("Client.Fx.CombatFx")
+		local AbilityFx = sim:require("Client.Fx.AbilityFx")
+		sim:run("CombatFx", CombatFx.init)
+		local V = roblox.Vector3.new
+		local function count()
+			local hoops, discs = 0, 0
+			for _, d in sim.service("Workspace"):GetDescendants() do
+				if d:IsA("MeshPart") and d.Name == "ShockRing" then
+					hoops += 1
+				elseif d:IsA("Part") and d.Shape == roblox.Enum.PartType.Cylinder then
+					discs += 1
+				end
+			end
+			return hoops, discs
+		end
+		for _, id in { "ThunderDrop", "Overcharge" } do
+			local row = Config.Abilities.list[id]
+			check(row ~= nil, id .. " exists")
+			local h0, d0 = count()
+			sim:run(id, function()
+				AbilityFx.flair(
+					row,
+					"Comic",
+					V(0, 5, 0),
+					V(0, 0, -1),
+					roblox.Color3.fromRGB(255, 220, 90),
+					roblox.Color3.fromRGB(255, 255, 255),
+					nil
+				)
+			end)
+			local h1, d1 = count()
+			local want = if id == "Overcharge" then 2 else 1
+			check(h1 - h0 == want, id .. "'s rings are hoops (" .. (h1 - h0) .. ")")
+			check(d1 == d0, id .. " makes no filled discs")
+		end
+		check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
+	end)
+
 	test("List combat: the Swordsman's cuts are Blender crescents (Everything Left 172)", function()
 		local roblox = require("@lune/roblox")
 		local S = Config.PowerArt.Slash

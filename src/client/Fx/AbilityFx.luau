@@ -348,18 +348,17 @@ FLAIR.burst = function(o, _feet, _d, x) -- an aura burst at the chest
 end
 FLAIR.spin = function(o, _feet, _d, x) -- two rings spin around the body
 	for k, tilt in { 0.35, -0.35 } do
-		local r = K.part(
-			Vector3.new(0.12, 5 * x.s, 5 * x.s),
-			CFrame.new(o) * CFrame.Angles(tilt, 0, math.rad(90)),
-			tone(x, k),
-			Enum.PartType.Cylinder
-		)
+		-- hoops round the body, tipped forward and back, turning opposite ways as they widen
+		local r, place = K.hoop(CFrame.new(o) * CFrame.Angles(tilt, 0, 0), 5 * x.s, 0.12, tone(x, k))
 		r.Transparency = 0.2
-		K.fade(r, 0.45, {
-			CFrame = CFrame.new(o)
-				* CFrame.Angles(tilt, math.rad(170) * (if k == 1 then 1 else -1), math.rad(90)),
-			Size = Vector3.new(0.05, 6.5 * x.s, 6.5 * x.s),
-		})
+		local cf, size = place(
+			CFrame.new(o)
+				* CFrame.Angles(0, math.rad(170) * (if k == 1 then 1 else -1), 0)
+				* CFrame.Angles(tilt, 0, 0),
+			6.5 * x.s,
+			0.05
+		)
+		K.fade(r, 0.45, { CFrame = cf, Size = size })
 	end
 end
 FLAIR.pillar = function(_o, feet, _d, x) -- a column of light up the body
@@ -395,17 +394,11 @@ end
 FLAIR.vent = function() end -- particles only (smoke and dust at the feet)
 FLAIR.halo = function(o, _feet, _d, x) -- a halo over the head that widens and turns
 	local top = o + Vector3.new(0, 3, 0)
-	local h = K.part(
-		Vector3.new(0.15, 2.6 * x.s, 2.6 * x.s),
-		CFrame.new(top) * CFrame.Angles(0, 0, math.rad(90)),
-		x.accent,
-		Enum.PartType.Cylinder
-	)
+	local h, place = K.hoop(CFrame.new(top), 2.6 * x.s, 0.15, x.accent)
 	h.Transparency = 0.1
-	K.fade(h, 0.55, {
-		Size = Vector3.new(0.05, 4 * x.s, 4 * x.s),
-		CFrame = CFrame.new(top + Vector3.new(0, 0.8, 0)) * CFrame.Angles(0, 0, math.rad(90)),
-	})
+	local cf, size =
+		place(CFrame.new(top + Vector3.new(0, 0.8, 0)) * CFrame.Angles(0, math.rad(60), 0), 4 * x.s, 0.05)
+	K.fade(h, 0.55, { Size = size, CFrame = cf })
 end
 FLAIR.flash = function(o, _feet, d, x) -- a quick flash at the hand
 	local b = K.part(
