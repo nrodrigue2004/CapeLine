@@ -1855,7 +1855,18 @@ PIECE.tri = function(s: number, c: Color3): BasePart
 	end
 	return part(Vector3.new(s * 0.12, s * 0.7, s * 0.7), CFrame.new(), c)
 end
-PIECE.ring = function(s: number, c: Color3): Part
+PIECE.ring = function(s: number, c: Color3): BasePart
+	-- Pulse's ring: the hollow Blender shockwave ring (Art.Powers ShockRing, 2026-11-20); its axis is up where the
+	-- old cylinder's was x, so fly() lays it the same way through headTwist
+	if PowerMeshes.ready("Shock") then
+		local mp = powerMesh("ShockRing", Vector3.new(s, math.max(0.2, s * 0.15), s), c, 0.2)
+		if mp then
+			local twist = CFrame.Angles(0, 0, -math.pi / 2) * MeshFix.turn("Powers")
+			headTwist[mp] = twist
+			mp.CFrame = twist
+			return mp
+		end
+	end
 	local p = part(Vector3.new(s * 0.12, s, s), CFrame.new(), c, Enum.PartType.Cylinder)
 	p.Transparency = 0.3
 	return p

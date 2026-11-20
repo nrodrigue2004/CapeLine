@@ -3718,7 +3718,7 @@ return function(T: any)
 	end)
 
 	test(
-		"List combat: halo and spin flourishes are hollow Blender hoops, shatters glass stones, wings Blender wings, cages lances, plates hex plates, flakes snowflakes, tris psi gems",
+		"List combat: halo and spin flourishes are hollow Blender hoops, shatters glass stones, wings Blender wings, cages lances, plates hex plates, flakes snowflakes, tris psi gems, rings hoops",
 		function()
 			local roblox = require("@lune/roblox")
 			if not T.placePath then
@@ -3836,6 +3836,44 @@ return function(T: any)
 					sim.service("RunService").RenderStepped:Fire(1 / 60)
 				end)
 			end
+			-- Gunslinger's field pops rings (the ring piece): hollow shockwave rings, not filled discs; counted
+			-- against the same field with no path (its own rim draws rings too)
+			local function ringsAfter(set, x)
+				local before = 0
+				for _, d in sim.service("Workspace"):GetDescendants() do
+					if d:IsA("MeshPart") and d.Name == "ShockRing" then
+						before += 1
+					end
+				end
+				sim:run("field " .. tostring(set), function()
+					CombatFx.field(
+						V(x, 0, 0),
+						8,
+						1,
+						"Comic",
+						roblox.Color3.fromRGB(120, 240, 255),
+						false,
+						nil,
+						false,
+						set
+					)
+				end)
+				for _ = 1, 3 do
+					sim:run("frame", function()
+						sim.service("RunService").RenderStepped:Fire(1 / 60)
+					end)
+				end
+				local after = 0
+				for _, d in sim.service("Workspace"):GetDescendants() do
+					if d:IsA("MeshPart") and d.Name == "ShockRing" then
+						after += 1
+					end
+				end
+				return after - before
+			end
+			local plain = ringsAfter(nil, -180)
+			local gun = ringsAfter("Gunslinger", -210)
+			check(gun > plain, "Gunslinger's field pieces are rings (" .. gun .. " vs " .. plain .. ")")
 			local gems = 0
 			for _, d in sim.service("Workspace"):GetDescendants() do
 				if d:IsA("MeshPart") and d.Name == "PsiGem" then
