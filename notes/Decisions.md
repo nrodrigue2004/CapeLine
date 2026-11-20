@@ -1014,3 +1014,4 @@ Drafts for nate only (WP11, 2026-11-18). None of these is in code or config; the
 - 2026-11-20 (list-combat, combat effects polish): an Interceptor's net and a famous fake's path shot also stop where they meet the world, in the same splash (the path shot in its own colour); the net stays pinned flat on the wall for Config.Fx.shot.splash.netHold (0.5 s) before it goes.
 - 2026-11-20 (nate on the card 19:10Z): cruise flight breaks shops and normal blocks; the biggest towers (e.g. the 132-stud Uptown tower) need Boost. Combat.impact.ram.dmg stays 1600 at cruise.
 - 2026-11-20 (nate on the card 19:15Z): Flight R5's fire-trail ram keeps the name Blazing Ram (Comet is an old-lore name).
+- 2026-11-20 (nate on the card 19:15Z): Swing R3 Yank lets any Swing hero pull in, hold and throw a car whatever their class (earned move, as built).
