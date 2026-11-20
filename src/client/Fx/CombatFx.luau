@@ -1658,7 +1658,7 @@ end
 -- Anime: thinner, white-cored pieces with a colour afterimage, speed lines and quicker motion. Every piece
 -- comes out of FxLib's part budget for the device preset (phones draw fewer). The pieces, heads, rims and most
 -- supers are Blender meshes (Art.Powers) once imported; their part builds before then, the round glows and
--- embers (balls by design), Meteor Leap's crater flash and Siege Mode's anchors are PLACEHOLDER ART: part-built.
+-- embers (balls by design), and Meteor Leap's crater flash are PLACEHOLDER ART: part-built.
 ---------------------------------------------------------------------------
 
 local P = F.paths
@@ -3152,20 +3152,33 @@ SUPER.siege = function(x) -- Juggernaut Siege Mode: four anchors slam into the g
 		local a = math.rad(45 + 90 * k)
 		local out = Vector3.new(math.cos(a), 0, math.sin(a))
 		local spot = at + out * 5
-		local anchor = part(
-			Vector3.new(1.4, 6, 2.4),
-			CFrame.new(spot + Vector3.new(0, 14, 0)) * CFrame.Angles(0, -a, 0.35),
-			x.color
-		)
-		anchor.Material = Enum.Material.Metal
-		TweenService:Create(
-			anchor,
-			TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In, 0, false, k * 0.06),
-			{
-				CFrame = CFrame.new(spot + Vector3.new(0, 1.5, 0)) * CFrame.Angles(0, -a, 0.35),
-			}
-		):Play()
-		fade(anchor, 0.4, nil, 1.4)
+		local top = CFrame.new(spot + Vector3.new(0, 14, 0)) * CFrame.Angles(0, -a, 0.35)
+		local driven = CFrame.new(spot + Vector3.new(0, 1.5, 0)) * CFrame.Angles(0, -a, 0.35)
+		local slam = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In, 0, false, k * 0.06)
+		-- the Blender anchor (Art.Powers Siege, list-combat 2026-11-20): a finned, ridged stake in the path colour
+		-- driven point first, a dark steel housing with braces and a glowing band; the box before the import
+		local made = false
+		if PowerMeshes.ready("Siege") then
+			for _, pc in PowerMeshes.pieces("Siege", CFrame.identity, x.color) do
+				local mp = PowerMeshes.make(pc, folder)
+				if mp then
+					made = true
+					local off = pc[2]
+					if pc[7] == "SiegeBand" then
+						mp.Color = x.accent
+					end
+					mp.CFrame = top * off
+					TweenService:Create(mp, slam, { CFrame = driven * off }):Play()
+					fade(mp, 0.4, nil, 1.4)
+				end
+			end
+		end
+		if not made then
+			local anchor = part(Vector3.new(1.4, 6, 2.4), top, x.color)
+			anchor.Material = Enum.Material.Metal
+			TweenService:Create(anchor, slam, { CFrame = driven }):Play()
+			fade(anchor, 0.4, nil, 1.4)
+		end
 		task.delay(0.2 + k * 0.06, function()
 			FxLib.dust(spot, 3, nil)
 			FxLib.emit("smoke", Color3.fromRGB(235, 235, 240), spot + Vector3.new(0, 3, 0), 3, UP)

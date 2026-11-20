@@ -988,8 +988,8 @@ return function(T: any)
 			end
 		end
 		check(
-			n == 86,
-			"86 meshes in 36 looks (the Bomber's grenade; the petal; a robot's scrap; the psi gem; the snowflake; the hex plate; the robots' net and claw; the wings flourish; 178 the held girder; 382 added the jets, the rail and the slab; 173 the bullet; 169, 177, 180 and 183 the sun, ki ring, black hole and field rims; 172 the slash; 381 the shock ring and cone fan, then the flying heads; 167 Static Field's arcs): "
+			n == 89,
+			"89 meshes in 37 looks (Siege Mode's anchors; the Bomber's grenade; the petal; a robot's scrap; the psi gem; the snowflake; the hex plate; the robots' net and claw; the wings flourish; 178 the held girder; 382 added the jets, the rail and the slab; 173 the bullet; 169, 177, 180 and 183 the sun, ki ring, black hole and field rims; 172 the slash; 381 the shock ring and cone fan, then the flying heads; 167 Static Field's arcs): "
 				.. n
 		)
 		for _, look in
@@ -3841,7 +3841,7 @@ return function(T: any)
 		end
 	)
 	test(
-		"List combat: Shadow's Eclipse is the Blender sun gone dark: a burning corona round a black core",
+		"List combat: Shadow's Eclipse is the Blender sun gone dark, Siege Mode drives Blender anchors",
 		function()
 			local roblox = require("@lune/roblox")
 			local E = Config.Fx.eclipse
@@ -3889,6 +3889,45 @@ return function(T: any)
 				check(corona.CFrame.Position.Y > 20, "high over the zone")
 			end
 			check(discs == 0, "no flat neon disc rim")
+			-- Juggernaut's Siege Mode: four Blender anchors driven point first round the hero, each a stake, a housing
+			-- and a glowing band, slamming down
+			sim:run("Siege", function()
+				CombatFx.superMoment(
+					Config.Abilities.list.SiegeMode,
+					"Comic",
+					{ o = V(100, 5, 0), d = V(0, 0, -1), r = 14 } :: any
+				)
+			end)
+			local stakes, housings, bands, highest = 0, 0, 0, -math.huge
+			for _, d in sim.service("Workspace"):GetDescendants() do
+				if d:IsA("MeshPart") and d.Name == "SiegeStake" then
+					stakes += 1
+					highest = math.max(highest, d.CFrame.Position.Y)
+				elseif d:IsA("MeshPart") and d.Name == "SiegeHousing" then
+					housings += 1
+				elseif d:IsA("MeshPart") and d.Name == "SiegeBand" then
+					bands += 1
+				end
+			end
+			check(
+				stakes == 4 and housings == 4 and bands == 4,
+				"four anchors (" .. stakes .. ", " .. housings .. ", " .. bands .. ")"
+			)
+			check(
+				highest > 0 and highest < 6,
+				"they slam down into the ground round the hero (" .. highest .. ")"
+			)
+			local boxes = 0
+			for _, d in sim.service("Workspace"):GetDescendants() do
+				if
+					d:IsA("Part")
+					and d.Material == roblox.Enum.Material.Metal
+					and math.abs(d.Size.Y - 6) < 0.01
+				then
+					boxes += 1
+				end
+			end
+			check(boxes == 0, "no plain anchor boxes")
 			check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
 		end
 	)
