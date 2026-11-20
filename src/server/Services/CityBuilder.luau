@@ -101,6 +101,7 @@ local function color(key: string): Color3
 	return c
 end
 
+local ALIVE_TAGS = (Config.Life.alive and Config.Life.alive.tags or {}) :: { [string]: string }
 local function makePart(b: any): BasePart -- also CityBuilder.part (mission pockets)
 	local p: BasePart
 	if b.shape == "wedge" then
@@ -237,6 +238,10 @@ local function makePart(b: any): BasePart -- also CityBuilder.part (mission pock
 	end
 	if b.crown then
 		p:SetAttribute("Crown", true) -- a skyscraper's top: BuildingFx keeps it up while the shaft's top storey stands
+	end
+	local lifeTag = b.look and ALIVE_TAGS[b.look]
+	if lifeTag then
+		CollectionService:AddTag(p, lifeTag) -- the devices' life there (Fx.CityLife: chimney smoke, harbour gulls)
 	end
 	return p
 end
@@ -392,9 +397,10 @@ local function lifeMesh(name: string, set: string?): MeshPart?
 	end
 	return if hit then hit else nil
 end
--- a look's meshes are in one set: round 2's (Config.ShapeArt, Art.Shapes) or the living world's (Art.Life)
+-- a look's meshes are in one set: round 2's (Config.ShapeArt, Art.Shapes), round 3's (Config.AliveArt, Art.Alive)
+-- or the living world's (Art.Life)
 local function lifeHasIn(look: string): (string) -> boolean
-	local set = if Config.ShapeArt[look] then Config.Life.shapes.set else nil
+	local set = LifeKit.setOf(Config, look)
 	return function(name: string): boolean
 		return lifeMesh(name, set) ~= nil
 	end
@@ -490,7 +496,15 @@ local function buildHub(world: any, folder: Folder)
 		end
 		local meshes = if b.art then streetArt(b) elseif b.look then lifeParts(b) else nil
 		if meshes and b.look and LifeKit.keeps(Config, b) then
-			makePart(b).Parent = parent -- a roof's cap stays under its moulding (shapes-2)
+			-- a roof's cap stays under its moulding (shapes-2); round 3's boxes stay under their looks, some hidden
+			-- (a terminal keeps its prompt, a crane its collisions: alive-world)
+			local kept = makePart(b)
+			if LifeKit.hides(Config, b) then
+				kept.Transparency = 1
+				kept.CastShadow = false
+				kept:SetAttribute("Dressed", true)
+			end
+			kept.Parent = parent
 			skipped -= 1
 		end
 		if meshes then

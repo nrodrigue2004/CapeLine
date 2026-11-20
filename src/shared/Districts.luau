@@ -321,9 +321,13 @@ function Districts.docks(cityCfg: any, clear: { BoxKit.Circle }): District
 		local cx = cr.minX + (k - 1) * (cr.maxX - cr.minX) / math.max(1, cr.count - 1)
 		local height = cr.height + (k - 1) * 6
 		box(boxes, "prop", cx - cr.span / 2, top + height / 2, cr.z, 4, height, 4, "containerC")
+		boxes[#boxes].look = "CraneLeg" -- (alive-world: Art.Alive's lattice over the box, Config.Life.alive)
 		box(boxes, "prop", cx + cr.span / 2, top + height / 2, cr.z, 4, height, 4, "containerC")
+		boxes[#boxes].look = "CraneLeg"
 		box(boxes, "prop", cx, top + height + 2, cr.z, cr.span + 6, 6, 6, "containerC")
+		boxes[#boxes].look = "CraneBeam"
 		box(boxes, "prop", cx, top + height - 4, cr.z + cr.boom / 2, 4, 4, cr.boom, "containerC")
+		boxes[#boxes].look = "CraneBoom"
 		if k == 1 then
 			spots.crane = { x = cx, y = top + height + 5, z = cr.z }
 		end
@@ -354,6 +358,7 @@ function Districts.docks(cityCfg: any, clear: { BoxKit.Circle }): District
 			"foundry",
 			{ shape = "cylinder" }
 		)
+		boxes[#boxes].look = "FoundryChimney" -- (alive-world: sooty brick, bands and a ladder; its smoke: Fx.CityLife)
 		box(
 			boxes,
 			"glow",
