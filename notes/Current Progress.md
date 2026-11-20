@@ -1,5 +1,6 @@
 # Current Progress
 
+- 2026-11-20 playtest-gaps15: gaps14 + textured lightning, energy beams, broken-block rubble, meshed bolt heads, comic hit stars, held girder, crater rims, glowing hero copies, prologue tunnel rubble and girder.
 - 2026-11-20 playtest-gaps14: gaps13 + style cards, Legs art, power effect meshes, Swordsman crescents, citizens shop and sit, shock rings and cone fans, Tidal surge waves, Static Field arcs. The rest of the checklist is mostly NEEDS NATE.
 - 2026-11-20 playtest-gaps13: gaps12 + 36 checklist commits (weapon textures/styles, power summons/rides/forms, rubble, nemesis armour, rooftop art, effects meshes and textures, preload, save rollback, crash analytics).
 - 2026-11-20 playtest-gaps12: gaps11 + volume defaults, powers/weapons break walls, intro film + cold open, fast early levels, retention (alerts, bounty, news, nemesis scars, GOALS, friend invite), weather, guard shield, swing trails, two-hand grips, set pieces move, key rebinds, HOW TO PLAY, logo (DRAFT).
