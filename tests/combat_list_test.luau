@@ -3630,7 +3630,7 @@ return function(T: any)
 		check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
 	end)
 
-	test("List combat: halo and spin flourishes are hollow Blender hoops", function()
+	test("List combat: halo and spin flourishes are hollow Blender hoops, shatters glass stones", function()
 		local roblox = require("@lune/roblox")
 		if not T.placePath then
 			return
@@ -3655,6 +3655,40 @@ return function(T: any)
 			end
 			return hoops, discs
 		end
+		-- Glacier Armor's hit shatters chipped glass stones (the Blender rock), not cubes
+		local rocks0 = 0
+		for _, d in sim.service("Workspace"):GetDescendants() do
+			if d:IsA("MeshPart") and d.Name == "HeadRock" then
+				rocks0 += 1
+			end
+		end
+		sim:run("shatter", function()
+			AbilityFx.hit(
+				Config.Abilities.list.GlacierArmor,
+				"Comic",
+				V(30, 5, 0),
+				roblox.Color3.fromRGB(150, 220, 255),
+				roblox.Color3.new(1, 1, 1),
+				true,
+				nil,
+				1
+			)
+		end)
+		local rocks, cubes = 0, 0
+		for _, d in sim.service("Workspace"):GetDescendants() do
+			if d:IsA("MeshPart") and d.Name == "HeadRock" then
+				rocks += 1
+				check(d.Material == roblox.Enum.Material.Glass, "in glass")
+			elseif
+				d:IsA("Part")
+				and d.Material == roblox.Enum.Material.Glass
+				and d.Shape == roblox.Enum.PartType.Block
+			then
+				cubes += 1
+			end
+		end
+		check(rocks - rocks0 >= 3, "the shatter throws glass stones (" .. (rocks - rocks0) .. ")")
+		check(cubes == 0, "no glass cubes (" .. cubes .. ")")
 		for _, id in { "ThunderDrop", "Overcharge" } do
 			local row = Config.Abilities.list[id]
 			check(row ~= nil, id .. " exists")

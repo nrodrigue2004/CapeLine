@@ -269,9 +269,10 @@ HIT.bloom = function(pos, x) -- a sphere blooms and fades
 	b.Transparency = 0.4
 	K.fade(b, 0.3, { Size = Vector3.one * 6 * x.s })
 end
-HIT.shatter = function(pos, x) -- cubes shatter and fall
+HIT.shatter = function(pos, x) -- chipped glassy chunks shatter and fall (the Blender stone in glass, 2026-11-20)
 	for i = 1, x.n do
-		local c = K.part(Vector3.one * 0.6 * x.s, CFrame.new(pos), tone(x, i))
+		local c = K.PIECE.rock(0.7 * x.s, tone(x, i))
+		c.CFrame = CFrame.new(pos) * CFrame.Angles(math.random() * 6, math.random() * 6, 0)
 		c.Material = Enum.Material.Glass
 		c.Transparency = 0.2
 		local out = Vector3.new(math.random() - 0.5, 0, math.random() - 0.5) * 6 * x.s
