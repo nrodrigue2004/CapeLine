@@ -15,8 +15,15 @@
 --            is the running jump (`hopping`). (Its slide is gone: nate's playtest 2026-11-19, "rid of slide".)
 --   leap     bigger charged leaps that keep the run's speed, a firmer air steer, Leap near a wall in the air to
 --            bounce off it, Down in the air to `pound` (the server's MovePound burst hits around the landing)
---   acrobat  Leap in the air to double jump, walk or jump into a wall to `wall` climb, jump at one glancingly to
---            run along it (`wallrun`, while the stick is held; Leap kicks off and chains), a faster glide
+--   acrobat  Leap in the air to double jump, walk or jump into any wall (or rise into a ceiling) to `crawl` over
+--            it (round corners, onto roofs; Boost scurries), jump at one glancingly to run along it (`wallrun`,
+--            while the stick is held; Leap kicks off and chains), Down to `flip` (a dodge: the server's MoveFlip
+--            makes attacks miss for its i-frames), the best air control, a faster glide (nate 2026-11-19 20:42Z)
+--   leap/speed smash rule (nate on the card, 2026-11-19 20:45Z): Super-speed holding Boost and a fast leap
+--            (ClimbMath.leapSmash) go straight through a wall (the flight ram); otherwise Super-speed runs up or
+--            along it and Leaping grabs it: the Hulk `climb` (hang), Leap `bound`s up the face to the next grab,
+--            a vault over the top onto the roof, Leap with the stick away kicks off (Shared.ClimbMath)
+--   everyone sprints on Boost on the ground (Config.Move.sprint; nate 20:46Z), Super-speed far faster
 --   swing    Spider-Man swinging (nate's playtest 2026-11-19; Shared.SwingMath): hold Fly in the air to shoot a line
 --            at a real building face or roof corner ahead and above along the camera (never the sky: a miss shows
 --            the cue), `swing` through the pendulum, let go to fling forward and up (hold Fly to catch the next
@@ -47,6 +54,7 @@ local SwingMath = require(Shared:WaitForChild("SwingMath"))
 local Signal = require(Shared:WaitForChild("Util"):WaitForChild("Signal"))
 local FrameProf = require(Shared:WaitForChild("FrameProf"))
 local MoveRanks = require(Shared:WaitForChild("MoveRanks"))
+local ClimbMath = require(Shared:WaitForChild("ClimbMath"))
 
 local InputController = require(script.Parent.InputController)
 local State = require(script.Parent.Parent.State)
@@ -70,6 +78,13 @@ MoveController.Pounded = Signal.new() -- (position) a Leaping ground pound lande
 MoveController.Dropped = Signal.new() -- (position, fall speed) a drop from high up smashed onto a roof (MoveFx)
 MoveController.Bounced = Signal.new() -- (position, up speed) an awning sprang the hero up (pt-city)
 MoveController.Rammed = Signal.new() -- (contact, wall normal, speed, building id) a fast hero hit a wall (ImpactFx)
+-- the climbs (MoveFx): the Hulk grab (where the hands bite, the wall's normal), a bound up the face, the vault over
+-- the top; the Acrobat's crawl taking a face (contact, normal) and its flip (position)
+MoveController.Grabbed = Signal.new()
+MoveController.Bounded = Signal.new()
+MoveController.Vaulted = Signal.new()
+MoveController.Crawled = Signal.new()
+MoveController.Flipped = Signal.new()
 -- the swing (SwingFx, CameraController, HeroAnimator): a line shot (anchor, edge), let go (velocity, sweet), a
 -- line with nothing real to hang from (from, look), a zip begun (target)
 MoveController.SwingShot = Signal.new()
@@ -134,6 +149,21 @@ local zipping = false -- the dash arc now is a zip (it pops at its end)
 local zipDir = Vector3.zero
 local swingDrive: Vector3? = nil -- this frame's body velocity on the rope (the swing's own plus the rope's pull)
 local chargeRun = Vector3.zero -- the flat run speed when a Leaping charge began (carried into the leap)
+local baseRun = M.run.speed -- everyone's run on the ground: eased up to Config.Move.sprint.speed on Boost
+-- the Hulk climb (Leaping): the vertical speed of a bound, when the grab began, the last bite sent
+local boundVy = 0
+local gripAt = 0
+local biteAt = -math.huge
+-- the wall crawl (Acrobat): the face's normal and the body's heading along it
+local crawlN = Vector3.zero
+local crawlHead = Vector3.yAxis
+local crawlAt = -math.huge -- when the last crawl ended (no re-stick at once)
+-- the flip (Acrobat): when the last one began and when this one ends, and its burst
+local flipAt = -math.huge
+local flipUntil = 0
+local swingSky = false -- the line hangs from the sky (SwingMath.skyAnchor): the weaker swing
+local drainAt = -math.huge -- when stamina last went down (regen waits Config.Move.stamina.regenDelay after it)
+local lastStamina = M.stamina.max
 local ride: { kind: string, speed: number, untilT: number, dir: Vector3 }? = nil
 local waterParams = RaycastParams.new()
 waterParams.FilterType = Enum.RaycastFilterType.Exclude
@@ -225,12 +255,12 @@ local function runSpeed(): number
 	local bonus = if class and class.moveSpeed then class.moveSpeed else 0
 	local slow = State.status.cc.slow
 	local slowMult = if slow and os.clock() < slow.untilT then slow.value else 1
-	local base = M.run.speed
+	local base = baseRun -- everyone's run, up to the sprint on Boost (Config.Move.sprint)
 	local pick = mobility()
 	if pick == "speed" then
 		base = sprint -- Super-speed: the sprint (20 walking, up to 100 holding Boost)
 	elseif pick == "acrobat" then
-		base = M.mobility.acrobat.run
+		base = M.mobility.acrobat.run + (baseRun - M.run.speed)
 	end
 	local speed = base * (1 + bonus) * (1 + State.buff("speed")) * slowMult * scaleNow()
 	if hum and hum:GetState() == Enum.HumanoidStateType.Swimming then
@@ -501,6 +531,10 @@ local function kickAlong(up: number, out: number)
 	setMode("air")
 end
 
+-- set below the ram (they need its building lookup): the smash rule's wall check and the crawl's start
+local isSmashable: (RaycastResult) -> boolean
+local enterCrawl: (Vector3, Vector3) -> ()
+
 -- In the air beside or at a wall (Acrobat and Super-speed): grab it to climb or run up it (head-on) or run
 -- along it (glancing) at the speed the hero came in with. Returns whether it grabbed.
 local function airWallGrab(flat: Vector3, now: number): boolean
@@ -535,9 +569,20 @@ local function airWallGrab(flat: Vector3, now: number): boolean
 	-- the way the hero goes (slow, falling beside a wall: the way the stick points)
 	local going = if fv.Magnitude >= M.mobility.acrobat.wallRunMin then fv.Unit else dir
 	local stickIn = flat.Magnitude > 0.3 and flat.Unit:Dot(-n) > 0.5
+	if
+		pick == "speed"
+		and ClimbMath.speedSmash(M, InputController.isDown("Boost"), fv.Magnitude)
+		and isSmashable(hit)
+	then
+		return false -- the smash rule: Boost held, the ram goes through it instead
+	end
 	local kind, speed = MoveMath.wallGrab(M, pick, fv.Magnitude, going:Dot(-n), stickIn)
 	if not kind then
 		return false
+	end
+	if pick == "acrobat" and kind == "wall" then
+		enterCrawl(hit.Position, hit.Normal) -- head-on: stick to it and crawl
+		return true
 	end
 	if pick == "speed" and MoveController.stamina <= M.mobility.speed.wallDrain * 0.5 then
 		return false
@@ -594,19 +639,41 @@ local function travelVel(): Vector3
 	return vel
 end
 
-local function swingAim(): (Vector3?, Vector3, boolean)
+-- swing anywhere (nate's playtest 2026-11-19 20:42Z): SwingMath's wide fan catches trees, poles, rocks and cliffs
+-- outside the city; with nothing at all in reach the weaker sky line (SwingMath.skyAnchor) hangs from the air
+local function swingAim(): (Vector3?, Vector3, boolean, boolean)
 	if not root then
-		return nil, Vector3.zero, false
+		return nil, Vector3.zero, false, false
 	end
 	local p = root.Position
 	local look = Workspace.CurrentCamera.CFrame.LookVector
 	local v = travelVel()
-	local a =
-		SwingMath.findAnchor(M, p.X, p.Y, p.Z, look.X, look.Y, look.Z, v.X, v.Z, swingRange(), worldCast)
+	local a = SwingMath.findAnchor(
+		M,
+		p.X,
+		p.Y,
+		p.Z,
+		look.X,
+		look.Y,
+		look.Z,
+		v.X,
+		v.Z,
+		swingRange(),
+		worldCast,
+		not SwingMath.inCity(Config.City.districts, p.X, p.Z)
+	)
 	if not a then
-		return nil, Vector3.zero, false
+		a = SwingMath.skyAnchor(M, p.X, p.Y, p.Z, look.X, look.Z, v.X, v.Z, worldCast)
 	end
-	return Vector3.new(a.x, a.y, a.z), Vector3.new(a.nx, a.ny, a.nz), a.edge
+	if not a then
+		return nil, Vector3.zero, false, false
+	end
+	return Vector3.new(a.x, a.y, a.z), Vector3.new(a.nx, a.ny, a.nz), a.edge, a.sky == true
+end
+
+-- the swing's numbers for the line out now (a sky line's are weaker: SwingMath.skyConfig)
+local function swingCfg(): any
+	return if swingSky then SwingMath.skyConfig(M) else M
 end
 
 -- cue: show the miss (a pressed Fly; a held one retrying while falling stays quiet)
@@ -614,7 +681,7 @@ local function startSwing(cue: boolean): boolean
 	if not root then
 		return false
 	end
-	local anchor, normal, edge = swingAim()
+	local anchor, normal, edge, sky = swingAim()
 	local p = root.Position
 	if not anchor then
 		missedAt = os.clock()
@@ -627,7 +694,8 @@ local function startSwing(cue: boolean): boolean
 	local to = anchor - p
 	local seen = Workspace:Raycast(p, to.Unit * (to.Magnitude + 2), rayParams)
 	swingAnchor = anchor
-	swingPart = if seen then seen.Instance else nil
+	swingSky = sky
+	swingPart = if seen and not sky then seen.Instance else nil
 	swingNormal = normal
 	swingEdge = edge
 	-- the swing runs along the travel (or the camera's look from a standstill), under the anchor's height
@@ -663,7 +731,7 @@ local function releaseSwing(now: number)
 		phase = SwingMath.phase(p.X, p.Y, p.Z, a.X, a.Y, a.Z, vel.Y)
 	end
 	dropLine()
-	local vx, vy, vz, sweet = SwingMath.release(M, vel.X, vel.Y, vel.Z, phase)
+	local vx, vy, vz, sweet = SwingMath.release(swingCfg(), vel.X, vel.Y, vel.Z, phase)
 	vel = Vector3.new(vx, vy, vz)
 	airSince = now
 	releasedAt = now
@@ -802,6 +870,16 @@ function MoveController.labels(): { leap: string, fly: string?, boost: string?, 
 	if mode == "air" or mode == "glide" then
 		out.leap = "GLIDE"
 	end
+	if not air then
+		out.boost = "SPRINT" -- everyone's sprint (Super-speed's below)
+	end
+	if mode == "climb" or mode == "bound" then
+		out.leap, out.down, out.boost = "CLIMB", "LET GO", nil
+		return out
+	elseif mode == "crawl" then
+		out.leap, out.down, out.boost = "JUMP", "LET GO", "SCURRY"
+		return out
+	end
 	if pick == "speed" then
 		out.boost = "SPRINT"
 	elseif pick == "leap" then
@@ -810,6 +888,7 @@ function MoveController.labels(): { leap: string, fly: string?, boost: string?, 
 			out.leap = "BOUNCE"
 		end
 	elseif pick == "acrobat" then
+		out.down = "FLIP"
 		if
 			air
 			and airJumps
@@ -873,9 +952,17 @@ local function orientation(mode: string, dt: number): CFrame
 		tilt = math.clamp(-(90 - p), -170, 0) * (fl.pitchMax / 90) * frac
 	elseif mode == "glide" then
 		tilt = -35
-	elseif mode == "wall" and wallNormal.Magnitude > 0 then
-		-- face the wall while running or climbing up it
+	elseif (mode == "wall" or mode == "climb" or mode == "bound") and wallNormal.Magnitude > 0 then
+		-- face the wall while running or climbing up it (and hanging on it, the Hulk climb)
 		return CFrame.lookAt(Vector3.zero, -wallNormal)
+	elseif mode == "crawl" and crawlN.Magnitude > 0 then
+		-- flat on the face: the front into it, the head along the crawl (up a wall; the camera's way on a ceiling)
+		local up = crawlHead - crawlN * crawlHead:Dot(crawlN)
+		if up.Magnitude < 1e-3 then
+			up = if math.abs(crawlN.Y) < 0.9 then Vector3.yAxis - crawlN * crawlN.Y else Vector3.zAxis
+		end
+		up = up.Unit
+		return CFrame.fromMatrix(Vector3.zero, up:Cross(crawlN), up, crawlN)
 	end
 	return CFrame.fromOrientation(0, yaw, 0)
 		* CFrame.Angles(0, 0, math.rad(roll))
@@ -923,12 +1010,24 @@ local function ramStep(mode: string, v: Vector3, pos: Vector3, now: number, dt: 
 		return carry -- on through, a little slower
 	end
 	local speed = v.Magnitude
-	if speed < RAM.minSpeed or now < ramNext or not (RAM_MODES[mode] or (mode == "air" and hopping)) then
+	-- the smash rule in the air (nate on the card, 2026-11-19 20:45Z): Super-speed holding Boost, or a Leaping hero
+	-- whose leap meets the wall fast (ClimbMath.leapSmash, checked once the wall is found); a slower one climbs
+	local pick = mobility()
+	local airSmash = mode == "air"
+		and ((pick == "speed" and InputController.isDown("Boost")) or pick == "leap")
+	if speed < RAM.minSpeed or now < ramNext or not (RAM_MODES[mode] or airSmash) then
 		return v
 	end
 	local hit = Workspace:Raycast(pos, v.Unit * (speed * dt + RAM.reach), rayParams)
 	if not hit or v.Unit:Dot(-hit.Normal) < RAM.facing then
 		return v
+	end
+	if
+		mode == "air"
+		and pick == "leap"
+		and not ClimbMath.leapSmash(M, v.X, v.Z, hit.Normal.X, hit.Normal.Z)
+	then
+		return v -- too slow into it: the Hulk grab takes it (leapGrab)
 	end
 	local id = buildingOf(hit.Instance)
 	if not id then
@@ -949,6 +1048,313 @@ local function ramStep(mode: string, v: Vector3, pos: Vector3, now: number, dt: 
 	ramCarry = v * (1 - RAM.loss)
 	MoveController.Rammed:Fire(hit.Position, hit.Normal, speed, id)
 	return v * RAM.holdKeep
+end
+
+-- The smash rule on the ground (Super-speed holding Boost): a building's wall ahead is rammed like a flight ram
+-- (ImpactFx tells the server and opens the hole here at once; the run holds a short hit-stop and goes on through).
+-- True when it rammed, or when this is the building it is going through right now (so no wall run starts in the
+-- hole); false for anything that never breaks (the hero runs up it instead).
+local function groundRam(hit: RaycastResult, speed: number, now: number): boolean
+	local id = buildingOf(hit.Instance)
+	if not id then
+		return false
+	end
+	if id == ramLast.id and now - ramLast.at < RAM.sameWall * 2 then
+		return true
+	end
+	if now < ramNext or speed < RAM.minSpeed then
+		return now < ramNext
+	end
+	ramLast.id, ramLast.at = id, now
+	ramNext = now + RAM.cooldown
+	ramHold = now + RAM.hitStop
+	MoveController.Rammed:Fire(hit.Position, hit.Normal, speed, id)
+	return true
+end
+
+-- Would a ram go through this wall (a wreckable building's)? The smash rule's air check
+local function smashable(hit: RaycastResult): boolean
+	return buildingOf(hit.Instance) ~= nil
+end
+
+isSmashable = smashable
+
+---------------------------------------------------------------------------
+-- Leaping: the Hulk wall climb (nate's playtest 2026-11-19 20:42Z; Config.Move.mobility.leap.climb, ClimbMath)
+---------------------------------------------------------------------------
+
+MoveController.vaultUntil = 0 -- HeroAnimator shows the vault clip until then (the air mode after a climb's top)
+
+-- Grab the wall: the hands dig in where `at` is (a crack and dust, MoveFx; the server's MoveGrab chips the
+-- building), the body hangs on it
+local function enterClimb(at: Vector3, normal: Vector3, now: number)
+	local n = Vector3.new(normal.X, 0, normal.Z)
+	if n.Magnitude < 1e-3 then
+		return
+	end
+	wallNormal = n.Unit
+	if MoveController.mode == "ground" or MoveController.mode == "charge" then
+		enterAir(Vector3.zero)
+	end
+	vel = -wallNormal * M.mobility.leap.climb.press
+	gripAt = now
+	boundVy = 0
+	setMode("climb")
+	local hands = at + Vector3.new(0, 1.2, 0)
+	MoveController.Grabbed:Fire(hands, wallNormal)
+	if now - biteAt >= M.mobility.leap.climb.bite.every then
+		biteAt = now
+		Net.send("MoveGrab", hands)
+	end
+end
+
+-- Up the face: a big vertical bound to the next grab
+local function bound()
+	boundVy = ClimbMath.boundUp(M)
+	setMode("bound")
+	if root then
+		MoveController.Bounded:Fire(root.Position)
+	end
+end
+
+-- Off the wall with momentum (the stick pulled away from it)
+local function climbKick(flat: Vector3, now: number)
+	local vx, vy, vz = ClimbMath.kick(M, wallNormal.X, wallNormal.Z, flat.X, flat.Z)
+	vel = Vector3.new(vx, vy, vz)
+	airSince = now
+	wallLeft = now
+	setMode("air")
+	if root then
+		MoveController.Leaped:Fire(root.Position)
+	end
+end
+
+-- Over the top: the vault onto the roof
+local function vault(now: number)
+	local vx, vy, vz = ClimbMath.vault(M, wallNormal.X, wallNormal.Z)
+	vel = Vector3.new(vx, vy, vz)
+	airSince = now
+	wallLeft = now
+	MoveController.vaultUntil = now + M.mobility.leap.climb.vault.time
+	setMode("air")
+	if root then
+		MoveController.Vaulted:Fire(root.Position)
+	end
+end
+
+-- In the air (Leaping): a wall the hero moves or pushes into is grabbed, unless the leap is fast enough to smash
+-- through it (the smash rule; the ram takes that one). Returns whether it grabbed.
+local function leapGrab(flat: Vector3, now: number): boolean
+	if mobility() ~= "leap" or held() or not root then
+		return false
+	end
+	if now - wallLeft < M.wall.regrab then
+		return false
+	end
+	local fv = Vector3.new(vel.X, 0, vel.Z)
+	local dir = if flat.Magnitude > 0.3 then flat.Unit elseif fv.Magnitude > 1 then fv.Unit else nil
+	if not dir then
+		return false
+	end
+	local hit = wallAlong(dir, M.mobility.leap.climb.reach)
+	if not hit then
+		return false
+	end
+	local n = Vector3.new(hit.Normal.X, 0, hit.Normal.Z)
+	if n.Magnitude < 1e-3 then
+		return false
+	end
+	n = n.Unit
+	local into = -fv:Dot(n)
+	local pushes = flat.Magnitude > 0.3 and flat.Unit:Dot(-n) > 0.5
+	if into < 2 and not pushes then
+		return false -- going past it, not into it
+	end
+	if ClimbMath.leapSmash(M, fv.X, fv.Z, n.X, n.Z) and smashable(hit) then
+		return false -- the smash rule: straight through (ramStep)
+	end
+	enterClimb(hit.Position, n, now)
+	return true
+end
+
+-- On the ground (Leaping): Leap at a wall right in front grabs it and bounds straight up (the Hulk climb)
+local function groundClimb(): boolean
+	if not root then
+		return false
+	end
+	local flat = wishDirs()
+	local lk = root.CFrame.LookVector
+	local look = Vector3.new(lk.X, 0, lk.Z)
+	local dir = if flat.Magnitude > 0.3 then flat.Unit elseif look.Magnitude > 1e-3 then look.Unit else nil
+	local wall = dir and wallAlong(dir, M.mobility.leap.climb.reach + 0.5)
+	if not wall then
+		return false
+	end
+	local now = os.clock()
+	lastLeap = now
+	enterClimb(wall.Position, wall.Normal, now)
+	if MoveController.mode == "climb" then
+		bound()
+	end
+	return true
+end
+
+---------------------------------------------------------------------------
+-- Acrobat: the wall crawl and the flip (Config.Move.mobility.acrobat, ClimbMath)
+---------------------------------------------------------------------------
+
+local crawlMove = Vector3.zero -- the crawl's way over the face last frame (unit, or zero when still)
+
+enterCrawl = function(at: Vector3, normal: Vector3)
+	if not root or normal.Magnitude < 1e-3 then
+		return
+	end
+	local n = normal.Unit
+	if ClimbMath.crawlKind(n.Y) == "floor" then
+		return
+	end
+	crawlN = n
+	if MoveController.mode == "ground" or MoveController.mode == "charge" then
+		enterAir(Vector3.zero)
+	end
+	vel = Vector3.zero
+	crawlMove = Vector3.zero
+	local up = Vector3.yAxis - n * n.Y
+	crawlHead = if up.Magnitude > 0.2
+		then up.Unit
+		else Vector3.new(root.CFrame.LookVector.X, 0, root.CFrame.LookVector.Z)
+	airJumps = 0
+	setMode("crawl")
+	MoveController.Crawled:Fire(at, n)
+end
+
+local function leaveCrawl(v: Vector3, now: number)
+	vel = v
+	airSince = now
+	crawlAt = now
+	wallLeft = now
+	setMode("air")
+end
+
+-- Rising under a ceiling (Acrobat in the air): stick to it
+local function ceilingGrab(now: number): boolean
+	if mobility() ~= "acrobat" or held() or not root or now - crawlAt < 0.35 or vel.Y < -4 then
+		return false
+	end
+	local hit =
+		Workspace:Raycast(root.Position, Vector3.new(0, M.mobility.acrobat.ceilingReach + 1.5, 0), rayParams)
+	if hit and ClimbMath.crawlKind(hit.Normal.Y) == "ceiling" then
+		enterCrawl(hit.Position, hit.Normal)
+		return true
+	end
+	return false
+end
+
+-- One frame on the face: follow it round outside and inside corners, stand up on a floor, fall off an end
+local function crawlStep(dt: number, now: number)
+	local r = root :: BasePart
+	local pos = r.Position
+	local a = M.mobility.acrobat
+	local cam = Workspace.CurrentCamera.CFrame
+	local mv = InputController.moveVector()
+	-- the face under the hands
+	local hit = Workspace:Raycast(pos, -crawlN * a.crawlReach, rayParams)
+	local dist: number? = nil
+	if hit then
+		local n = hit.Normal
+		if ClimbMath.crawlKind(n.Y) == "floor" then
+			toGround(0) -- crawled down onto the street (or a floor)
+			return
+		end
+		crawlN = crawlN:Lerp(n, math.min(1, dt * 20)).Unit
+		dist = (pos - hit.Position):Dot(crawlN)
+	elseif crawlMove.Magnitude > 0.1 then
+		-- past an outside corner: the face round it (a roof at a wall's top: up onto it)
+		local round = Workspace:Raycast(pos - crawlN * (a.crawlGap + 1.4), -crawlMove * 3, rayParams)
+		if round and ClimbMath.crawlKind(round.Normal.Y) == "floor" then
+			leaveCrawl(-crawlN * 12 + Vector3.new(0, 22, 0), now) -- over the top onto the roof
+			return
+		elseif round then
+			crawlN = round.Normal.Unit
+		else
+			leaveCrawl(crawlN * 6, now)
+			return
+		end
+	else
+		leaveCrawl(crawlN * 6, now) -- the face is gone (a piece broke off)
+		return
+	end
+	if held() then
+		leaveCrawl(crawlN * 6, now)
+		return
+	end
+	local fx, fy, fz, rx, ry, rz = ClimbMath.crawlBasis(
+		crawlN.X,
+		crawlN.Y,
+		crawlN.Z,
+		cam.LookVector.X,
+		cam.LookVector.Y,
+		cam.LookVector.Z,
+		cam.RightVector.X,
+		cam.RightVector.Y,
+		cam.RightVector.Z
+	)
+	-- Boost scurries on stamina
+	local burst = InputController.isDown("Boost") and MoveController.stamina > 0 and mv.Magnitude > 0.2
+	if burst then
+		MoveController.stamina = math.max(0, MoveController.stamina - a.crawlDrain * dt)
+	else
+		MoveController.stamina =
+			MoveMath.staminaStep(M, MoveController.stamina, false, false, dt, os.clock() - drainAt)
+	end
+	local vx, vy, vz =
+		ClimbMath.crawlVel(M, crawlN.X, crawlN.Y, crawlN.Z, fx, fy, fz, rx, ry, rz, mv.X, mv.Z, burst, dist)
+	local along = Vector3.new(vx, vy, vz) - crawlN * Vector3.new(vx, vy, vz):Dot(crawlN)
+	crawlMove = if along.Magnitude > 1 then along.Unit else Vector3.zero
+	-- the head turns toward the crawl's way (kept when still), so it creeps round rather than snapping
+	if crawlMove.Magnitude > 0 then
+		local h = crawlHead:Lerp(crawlMove, math.min(1, dt * 6))
+		crawlHead = if h.Magnitude > 1e-3 then h.Unit else crawlMove
+	elseif (crawlHead - crawlN * crawlHead:Dot(crawlN)).Magnitude < 0.2 then
+		crawlHead = Vector3.new(fx, fy, fz)
+	end
+	-- an inside corner ahead: take the face it meets (a floor: stand up on it)
+	if crawlMove.Magnitude > 0 then
+		local ahead = Workspace:Raycast(pos, crawlMove * 2.2, rayParams)
+		if ahead and ahead.Normal:Dot(crawlN) < 0.8 then
+			if ClimbMath.crawlKind(ahead.Normal.Y) == "floor" then
+				toGround(0)
+				return
+			end
+			crawlN = ahead.Normal.Unit
+		end
+	end
+	vel = Vector3.new(vx, vy, vz)
+end
+
+-- The flip (Down): a quick flip along the stick that dodges for its i-frames (the server's own clock)
+local function startFlip(now: number): boolean
+	if not root then
+		return false
+	end
+	local ok = ClimbMath.flipOk(M, flipAt, now)
+	if not ok then
+		return false
+	end
+	local flat = wishDirs()
+	local look = root.CFrame.LookVector
+	local vx, vy, vz = ClimbMath.flipVel(M, flat.X, flat.Z, -look.X, -look.Z)
+	if MoveController.mode == "ground" or MoveController.mode == "charge" then
+		enterAir(Vector3.zero)
+	end
+	vel = Vector3.new(vx, vy, vz)
+	flipAt = now
+	flipUntil = now + M.mobility.acrobat.flip.time
+	airSince = now
+	setMode("flip")
+	Net.send("MoveFlip")
+	MoveController.Flipped:Fire(root.Position)
+	return true
 end
 
 -- Fast travel (TravelClient; gap polish 2026-11-19: the hero used to stand still under a camera sweep): the body
@@ -1024,7 +1430,19 @@ local function travelStep(
 	MoveController.velocity = vel
 end
 
-local function step(dt: number)
+local step: (number) -> ()
+
+-- every frame: the move, then a note of any stamina drain (boost, wall runs, the scurry) for the regen delay
+local function stepAll(dt: number)
+	step(dt)
+	local st = MoveController.stamina
+	if st < lastStamina - 1e-6 then
+		drainAt = os.clock()
+	end
+	lastStamina = st
+end
+
+step = function(dt: number)
 	if not root or not hum or not lv or not ao or hum.Health <= 0 then
 		return
 	end
@@ -1041,21 +1459,56 @@ local function step(dt: number)
 
 	if mode == "ground" then
 		setBoost(false)
-		MoveController.stamina = MoveMath.staminaStep(M, MoveController.stamina, true, false, dt)
+		MoveController.stamina =
+			MoveMath.staminaStep(M, MoveController.stamina, true, false, dt, os.clock() - drainAt)
 		local pick = mobility()
 		local flatWish = wishDirs()
 		local moving = flatWish.Magnitude > 0.3 and not held() and not downed()
+		-- everyone's sprint (nate 2026-11-19 20:46Z): Boost held (or the touch stick at its edge) eases the run up to
+		-- Config.Move.sprint.speed; Super-speed has its own far faster sprint below
+		if pick ~= "speed" then
+			local on = moving
+				and scaleNow() >= 1
+				and ClimbMath.sprinting(
+					M,
+					InputController.isDown("Boost"),
+					InputController.device == "touch",
+					InputController.moveVector().Magnitude
+				)
+			local was = baseRun
+			baseRun = ClimbMath.sprintStep(M, baseRun, on, dt)
+			if baseRun ~= was then
+				hum.WalkSpeed = runSpeed()
+			end
+		end
+		if now < ramHold then
+			hum.WalkSpeed = runSpeed() * RAM.holdKeep -- the ram's hit-stop on the ground
+		elseif ramHold > 0 then
+			ramHold = 0
+			hum.WalkSpeed = runSpeed()
+		end
 		if pick == "speed" then
 			-- Super-speed: hold Boost to build up to the sprint; let go and it bleeds off
-			sprint = MoveMath.sprintStep(M, sprint, moving and InputController.isDown("Boost"), dt)
-			hum.WalkSpeed = runSpeed()
+			local boostHeld = InputController.isDown("Boost")
+			sprint = MoveMath.sprintStep(M, sprint, moving and boostHeld, dt)
+			if now >= ramHold then
+				hum.WalkSpeed = runSpeed()
+			end
 			local m = M.mobility.speed
-			if moving and sprint >= m.waterRun then
-				local wall = wallAlong(flatWish, 3)
-				if wall and MoveController.stamina > m.wallDrain * 0.5 then
+			local wall = if moving then wallAlong(flatWish, 3 + sprint * dt) else nil
+			if wall and ClimbMath.speedSmash(M, boostHeld, sprint) and groundRam(wall, sprint, now) then
+				-- the smash rule: Boost held, a building ahead: straight through it (the flight ram)
+				MoveController.velocity = root.AssemblyLinearVelocity
+				return
+			end
+			if wall and flatWish.Unit:Dot(-wall.Normal) >= 0.7 then
+				-- no Boost (or nothing that breaks): run up it at any speed, while stamina lasts
+				if MoveController.stamina > m.wallDrain * 0.5 then
 					enterWall(wall.Normal, m.wallRun, m.wallDrain, "wall")
 					return
 				end
+			end
+			if moving and sprint >= m.waterRun then
 				local surface = waterBelow(hum.HipHeight + root.Size.Y / 2 + 4)
 				if surface then
 					enterAir(flatWish * sprint)
@@ -1063,10 +1516,11 @@ local function step(dt: number)
 					return
 				end
 			end
-		elseif pick == "acrobat" and moving then
+		elseif pick == "acrobat" and moving and now - crawlAt > 0.35 then
+			-- walk into any wall: stick to it and crawl
 			local wall = wallAlong(flatWish, 2.5)
-			if wall then
-				enterWall(wall.Normal, M.mobility.acrobat.climb, 0, "wall")
+			if wall and flatWish.Unit:Dot(-wall.Normal) >= 0.6 then
+				enterCrawl(wall.Position, wall.Normal)
 				return
 			end
 		end
@@ -1183,6 +1637,14 @@ local function step(dt: number)
 			elseif InputController.isDown("Leap") and vel.Y <= 0 then
 				setMode("glide")
 			end
+		elseif mobility() == "acrobat" then
+			-- Acrobat: the best air control of any pick (never slows a jump, only turns and builds it)
+			local A = M.mobility.acrobat.air
+			local sx, sz = MoveMath.airSteer(vel.X, vel.Z, flat.X, flat.Z, A.accel, A.max, dt)
+			vel = Vector3.new(sx, vel.Y, sz)
+			if InputController.isDown("Leap") and vel.Y <= 0 then
+				setMode("glide")
+			end
 		else
 			-- light air control so a leap can be nudged
 			vel += flat * 30 * dt
@@ -1190,9 +1652,11 @@ local function step(dt: number)
 				setMode("glide")
 			end
 		end
-		MoveController.stamina = MoveMath.staminaStep(M, MoveController.stamina, false, false, dt)
-		-- Acrobat and Super-speed: jump at a wall to climb or run up it, or glance off one to run along it
-		if airWallGrab(flat, now) then
+		MoveController.stamina =
+			MoveMath.staminaStep(M, MoveController.stamina, false, false, dt, os.clock() - drainAt)
+		-- Acrobat and Super-speed: jump at a wall to climb or run up it, or glance off one to run along it;
+		-- Leaping: grab it (the Hulk climb); Acrobat: rise into a ceiling and stick to it
+		if leapGrab(flat, now) or ceilingGrab(now) or airWallGrab(flat, now) then
 			mode = MoveController.mode
 		end
 	elseif mode == "glide" then
@@ -1201,7 +1665,55 @@ local function step(dt: number)
 		if not InputController.isDown("Leap") then
 			setMode("air")
 		end
-		MoveController.stamina = MoveMath.staminaStep(M, MoveController.stamina, false, false, dt)
+		MoveController.stamina =
+			MoveMath.staminaStep(M, MoveController.stamina, false, false, dt, os.clock() - drainAt)
+		if leapGrab(flat, now) then -- a glide into a wall grabs it (Leaping)
+			mode = MoveController.mode
+		end
+	elseif mode == "climb" then
+		-- hanging on the wall (Leaping): Leap bounds up (held: again after the grip), Leap with the stick away kicks off
+		local C = M.mobility.leap.climb
+		vel = -wallNormal * C.press
+		if not wallAlong(-wallNormal, C.reach + 0.6) or held() then
+			jumpOff(0, 6) -- the piece it held broke off
+		elseif InputController.isDown("Leap") and now - gripAt >= C.grip then
+			if ClimbMath.pullsAway(flat.X, flat.Z, wallNormal.X, wallNormal.Z) then
+				climbKick(flat, now)
+			else
+				bound()
+			end
+		end
+		mode = MoveController.mode
+	elseif mode == "bound" then
+		-- a bound up the face: over the top it vaults onto the roof; at its height it grabs again
+		local C = M.mobility.leap.climb
+		local right = Vector3.new(-wallNormal.Z, 0, wallNormal.X)
+		local side = if flat.Magnitude > 0.3 then flat:Dot(right) else 0
+		local vx, vy, vz, topped = ClimbMath.boundStep(M, boundVy, wallNormal.X, wallNormal.Z, side, dt)
+		boundVy = vy
+		vel = Vector3.new(vx, vy, vz)
+		local face = wallAlong(-wallNormal, C.reach + 0.8)
+		local roof = Workspace:Raycast(pos, Vector3.new(0, 3.2, 0), rayParams)
+		if held() then
+			jumpOff(0, 6)
+		elseif not face then
+			vault(now) -- up past the top: onto the roof
+		elseif topped or roof then
+			enterClimb(face.Position, face.Normal, now) -- the next grab
+		end
+		mode = MoveController.mode
+	elseif mode == "crawl" then
+		crawlStep(dt, now)
+		if MoveController.mode == "ground" then
+			return -- stood up on a floor (toGround ran)
+		end
+		mode = MoveController.mode
+	elseif mode == "flip" then
+		vel = Vector3.new(MoveMath.airStep(M, vel.X, vel.Y, vel.Z, dt))
+		if now >= flipUntil then
+			setMode("air")
+			mode = "air"
+		end
 	elseif mode == "fly" then
 		local vertical = (if InputController.isDown("Leap") then 1 else 0)
 			- (if InputController.isDown("Down") then 1 else 0)
@@ -1236,14 +1748,26 @@ local function step(dt: number)
 			setBoost(false)
 			setMode("air") -- Weightless ran out: gravity takes the hero back
 		end
-		MoveController.stamina =
-			MoveMath.staminaStep(M, MoveController.stamina, false, boosting and not free, dt)
+		MoveController.stamina = MoveMath.staminaStep(
+			M,
+			MoveController.stamina,
+			false,
+			boosting and not free,
+			dt,
+			os.clock() - drainAt
+		)
 	elseif mode == "wall" then
 		-- running (Super-speed) or climbing (Acrobat) up a wall
 		local stillWall = wallAlong(-wallNormal, 3.2)
 		MoveController.stamina = math.max(0, MoveController.stamina - wallDrain * dt)
+		-- Super-speed keeps running up while Boost or Leap is held or the stick pushes into the wall (the smash
+		-- rule: a wall run needs no Boost now), while stamina lasts
 		local keepGoing = if mobility() == "speed"
-			then (InputController.isDown("Boost") or InputController.isDown("Leap")) and MoveController.stamina > 0
+			then (
+				InputController.isDown("Boost")
+				or InputController.isDown("Leap")
+				or (flat.Magnitude > 0.3 and flat.Unit:Dot(-wallNormal) > 0.3)
+			) and MoveController.stamina > 0
 			else flat.Magnitude > 0.3
 		if not stillWall then
 			-- over the top: a hop onto the roof
@@ -1337,7 +1861,7 @@ local function step(dt: number)
 		else
 			local sw = M.mobility.swing
 			local nx, ny, nz, vx, vy, vz, len = SwingMath.step(
-				M,
+				swingCfg(),
 				pos.X,
 				pos.Y,
 				pos.Z,
@@ -1436,6 +1960,10 @@ local function step(dt: number)
 	-- landing
 	local selfManaged = mode == "dash"
 		or mode == "wall"
+		or mode == "climb"
+		or mode == "bound"
+		or mode == "crawl"
+		or (mode == "flip" and vel.Y > 0)
 		or mode == "wallrun"
 		or mode == "water"
 		or mode == "pound"
@@ -1445,7 +1973,7 @@ local function step(dt: number)
 		if mode == "swing" then
 			dropLine()
 		end
-		local landing = (mode == "air" or mode == "glide" or mode == "swing") and vel.Y <= 0
+		local landing = (mode == "air" or mode == "glide" or mode == "swing" or mode == "flip") and vel.Y <= 0
 			or (mode == "fly" and (vel.Y < -2 or InputController.isDown("Down")) and pos.Y - groundY < 4.5)
 		local spring = if landing and (mode == "air" or mode == "glide") then awningUp(vel.Y) else nil
 		if spring then
@@ -1511,13 +2039,28 @@ local function onPressed(action: string)
 			if root then
 				MoveController.Leaped:Fire(root.Position)
 			end
+		elseif mode == "ground" and pick == "leap" and groundClimb() then
+			return -- a jump at a wall right in front: grabbed it and bounding up
 		elseif mode == "ground" and MoveController.leapReady() >= 1 then
 			chargeStart = os.clock()
 			chargeRun = runFlat -- Leaping keeps some of the run in the leap
 			hum.WalkSpeed = 6 -- the crouch
 			setMode("charge")
 		elseif mode == "swing" then
-			zipLine() -- up the line and over the top
+			if swingSky then
+				releaseSwing(os.clock()) -- a sky line has nothing to zip up to: let go
+			else
+				zipLine() -- up the line and over the top
+			end
+		elseif mode == "crawl" then
+			-- jump off the face (an air jump back), along the stick
+			local flat = wishDirs()
+			local vx, vy, vz = ClimbMath.crawlJump(M, crawlN.X, crawlN.Y, crawlN.Z, flat.X, flat.Z)
+			airJumps = 0
+			leaveCrawl(Vector3.new(vx, vy, vz), os.clock())
+			if root then
+				MoveController.Leaped:Fire(root.Position)
+			end
 		elseif mode == "wall" or mode == "wallrun" then
 			-- kick off the wall (Acrobat gets an air jump back)
 			-- a kick off a wall run keeps the speed along the wall, so the next wall can be grabbed (chains)
@@ -1599,6 +2142,19 @@ local function onPressed(action: string)
 			setMode("fly")
 		end
 	elseif action == "Down" then
+		if mode == "climb" or mode == "bound" then
+			jumpOff(0, 6) -- let go of the wall
+			return
+		elseif mode == "crawl" then
+			leaveCrawl(crawlN * 8, os.clock()) -- let go of the face
+			return
+		elseif
+			pick == "acrobat"
+			and (mode == "ground" or mode == "air" or mode == "glide" or mode == "wallrun" or mode == "wall")
+		then
+			startFlip(os.clock()) -- the dodge
+			return
+		end
 		if pick == "leap" and (mode == "air" or mode == "glide") and root then
 			local hit = Workspace:Raycast(root.Position, Vector3.new(0, -400, 0), rayParams)
 			local height = if hit then root.Position.Y - hit.Position.Y else 400
@@ -1740,7 +2296,7 @@ function MoveController.init()
 			hum.WalkSpeed = runSpeed()
 		end
 	end)
-	RunService.PreSimulation:Connect(FrameProf.wrap("MoveController", step))
+	RunService.PreSimulation:Connect(FrameProf.wrap("MoveController", stepAll))
 end
 
 return MoveController

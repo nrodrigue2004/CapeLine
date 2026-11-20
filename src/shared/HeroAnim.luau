@@ -39,6 +39,13 @@ HeroAnim.MODES = {
 	-- arc is MoveController's dash; swimming is the ground mode in the water)
 	"arc",
 	"swim",
+	-- appended by move-2 (2026-11-19): the Hulk climb (climb, bound, climbVault), the Acrobat's crawl and flip
+	-- (Shared.ClimbAnim.MODES, in this order)
+	"climb",
+	"bound",
+	"crawl",
+	"flip",
+	"climbVault",
 }
 HeroAnim.modeIndex = {} :: { [string]: number }
 for i, m in HeroAnim.MODES do
@@ -938,6 +945,14 @@ for name, clip in HeroMoves.CLIPS do
 	assert(C[name] == nil, "HeroMoves clip " .. name .. " is already a HeroAnim clip")
 	C[name] = clip
 end
+-- move-2 (2026-11-19): the climbing, crawling, flipping and sprinting clips (Shared.ClimbAnim)
+local ClimbAnim = if script
+	then require((script :: any).Parent.ClimbAnim)
+	else (require :: any)("./ClimbAnim")
+for name, clip in ClimbAnim.CLIPS do
+	assert(C[name] == nil, "ClimbAnim clip " .. name .. " is already a HeroAnim clip")
+	C[name] = clip
+end
 for name, clip in HeroMoves.UPGRADES do
 	assert(C[name] ~= nil, "HeroMoves upgrade " .. name .. " is not a HeroAnim clip")
 	C[name] = clip
@@ -956,6 +971,7 @@ HeroAnim.CLIPS = C
 -- hero gave up), ride (the hero's power path, for its travel power's own ride pose).
 export type ModeCtx = { vy: number?, giveUp: boolean?, ride: string? }
 HeroAnim.sprintSpeed = 44 -- running faster than this (Super-speed) leans into the sprint
+HeroAnim.runFastSpeed = ClimbAnim.runFastSpeed -- everyone's sprint stride past this (move-2)
 HeroAnim.flyFastSpeed = 95 -- flying faster than this (a boost) locks into the boost pose
 HeroAnim.diveShare = 0.75 -- falling faster than this share of the flight speed (and over 40) dives
 
@@ -986,7 +1002,12 @@ function HeroAnim.modeClip(
 	end
 	if mode == nil or mode == "ground" then
 		local fast = if current == "sprint" then HeroAnim.sprintSpeed - 6 else HeroAnim.sprintSpeed
-		return if speed > fast then "sprint" else nil
+		if speed > fast then
+			return "sprint"
+		end
+		-- everyone's sprint on Boost (move-2): the harder stride (ClimbAnim.runFast)
+		local jog = if current == "runFast" then HeroAnim.runFastSpeed - 2 else HeroAnim.runFastSpeed
+		return if speed > jog then "runFast" else nil
 	end
 	if mode == "fly" then
 		local vy = ctx and ctx.vy or 0
@@ -1018,7 +1039,18 @@ end
 HeroAnim.landSpeed = 22 -- a landing faster than this bends the knees
 HeroAnim.landHardSpeed = 70 -- and this fast is the superhero landing (EmoteFx's big landing too)
 HeroAnim.rollSpeed = 40 -- landing this fast on the move rolls through it
-local AIRBORNE = { air = true, glide = true, fly = true, swing = true, dash = true, arc = true, ride = true }
+local AIRBORNE = {
+	air = true,
+	glide = true,
+	fly = true,
+	swing = true,
+	dash = true,
+	arc = true,
+	ride = true,
+	flip = true,
+	climbVault = true,
+	bound = true,
+}
 function HeroAnim.transition(from: string?, to: string?, fall: number, flat: number): string?
 	from, to = from or "ground", to or "ground"
 	if from == to then
@@ -1034,13 +1066,23 @@ function HeroAnim.transition(from: string?, to: string?, fall: number, flat: num
 		return "dashStart"
 	elseif to == "wall" or to == "wallrun" then
 		return "wallGrab"
+	elseif to == "climb" then
+		return if from == "bound" then "leapRegrab" else "leapGrab" -- the Hulk grab (move-2)
+	elseif to == "crawl" then
+		return "crawlLand"
 	end
 	if to == "air" then
 		if from == "charge" then
 			return "leapOff"
 		elseif from == "fly" then
 			return "flyStop"
-		elseif from == "wall" or from == "wallrun" then
+		elseif
+			from == "wall"
+			or from == "wallrun"
+			or from == "climb"
+			or from == "bound"
+			or from == "crawl"
+		then
 			return "wallKick"
 		elseif from == "swing" then
 			return "swingRelease"

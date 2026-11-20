@@ -64,7 +64,13 @@ local Remotes: { [string]: RemoteDef } = {
 	-- pt-city (2026-11-19): an awning sprang the hero up (the server checks one is there and grants the climb)
 	CityBounce = { dir = "C2S", schema = {}, rate = 2, burst = 3 },
 	-- your movement mode (Shared.HeroAnim.MODES index) so other devices pose you; the server sets the Move attribute
-	MoveMode = { dir = "C2S", schema = { n(1, 15) }, rate = 10, burst = 10 },
+	MoveMode = { dir = "C2S", schema = { n(1, 20) }, rate = 10, burst = 10 },
+	-- move-2 (2026-11-19): a Leaping hero's hands bit into a wall (the Hulk climb; ImpactService chips the building
+	-- there, a small hit, checked and rate-held); an Acrobat flipped (MoveGuard sets its dodge window on the
+	-- server's own clock, HeroService.damage misses it); MoveDodged tells the device an attack missed it
+	MoveGrab = { dir = "C2S", schema = { V3 }, rate = 6, burst = 6 },
+	MoveFlip = { dir = "C2S", schema = {}, rate = 3, burst = 3 },
+	MoveDodged = { dir = "S2C" },
 	-- the Swing's line (2026-11-19): where your line hangs (zero: none) so other devices draw it; looks only, the
 	-- server checks the reach and sets the SwingAt attribute
 	MoveLine = { dir = "C2S", schema = { V3 }, rate = 8, burst = 8 },

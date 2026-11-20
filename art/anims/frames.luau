@@ -161,5 +161,23 @@ cellsOf({
 }, p4)
 table.insert(pages, p4)
 
+-- 5 (move-2, 2026-11-19): the Hulk climb, the Acrobat's crawl and flip, everyone's sprint
+local p5 = {}
+cellsOf({
+	{ "leapGrab", { 0.25, 1 } },
+	{ "climb", { 0, 0.5 } },
+	{ "bound", { 0, 0.5 } },
+	{ "leapRegrab", { 0.3 } },
+	{ "climbVault", { 0, 0.33, 0.8 } },
+	{ "crawlLand", { 0.3 } },
+	{ "crawl", { 0, 0.25, 0.5, 0.75 } },
+	{ "flip", { 0, 0.25, 0.5, 0.75 } },
+	{ "runFast", { 0, 0.25, 0.5, 0.75 } },
+}, p5)
+for _, c in p5 do
+	c.air = true -- every one of these is off the ground (the sprint's ring marks the stride too)
+end
+table.insert(pages, p5)
+
 fs.writeFile("art/anims/frames.json", serde.encode("json", { pages = pages }, false))
-print("pages", #pages, #p1, #p2, #p3, #p4)
+print("pages", #pages, #p1, #p2, #p3, #p4, #p5)

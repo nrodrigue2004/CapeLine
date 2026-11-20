@@ -205,6 +205,9 @@ local function displayMode(): string
 	if mode == "dash" and MoveController.arcing() then
 		return "arc"
 	end
+	if mode == "air" and os.clock() < MoveController.vaultUntil then
+		return "climbVault" -- over the top of a Hulk climb (move-2)
+	end
 	if mode == "ground" then
 		local r = rigs[player]
 		local hum = r and r.hum

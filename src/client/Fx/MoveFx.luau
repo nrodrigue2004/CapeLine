@@ -3,6 +3,9 @@
 -- The crack (gap polish 2026-11-19) is one of three comic crack decals (art/fx/textures.py --cracks, uploaded;
 -- Config.Fx.crack.decals), picked and turned by the landing spot (PolishPlan.crackPick), fading out over its
 -- last seconds; a variant whose id is 0 falls back to the old dark flat disc.
+-- move-2 (2026-11-19): the climbs' juice: the Hulk grab (a comic crack on the wall where the hands bite, chips and
+-- dust in the wall's colour, a thud and a small shake), each bound's push-off puff, the vault; the Acrobat's crawl
+-- taking a face (a dust puff), the flip's whoosh and ring, and DODGE! when the server says a hit missed it.
 
 local Debris = game:GetService("Debris")
 local Players = game:GetService("Players")
@@ -21,6 +24,9 @@ local HeroAnimator = require(script.Parent.Parent.Controllers.HeroAnimator)
 local QualityController = require(script.Parent.Parent.Controllers.QualityController)
 local State = require(script.Parent.Parent.State)
 local Juice = require(script.Parent.Juice)
+local FxLib = require(script.Parent.FxLib)
+local CameraController = require(script.Parent.Parent.Controllers.CameraController)
+local Net = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Net"))
 
 local MoveFx = {}
 
@@ -116,6 +122,100 @@ local function crack(pos: Vector3, size: number)
 	end)
 end
 
+-- The comic crack on a wall (the Hulk grab): the same decals as a landing's, on a thin slab whose top faces out
+-- of the wall, turned by the spot; shares the landing cracks' budget (QualityController.preset.craters)
+local function wallCrack(pos: Vector3, normal: Vector3, size: number)
+	local C = F.crack
+	local n = if normal.Magnitude > 1e-3 then normal.Unit else Vector3.zAxis
+	local pick, turn = PolishPlan.crackPick(#C.decals, pos.X + pos.Y, pos.Z - pos.Y)
+	local id = C.decals[pick] or 0
+	local side = Vector3.yAxis:Cross(n)
+	if side.Magnitude < 1e-3 then
+		side = Vector3.xAxis
+	end
+	local p = Instance.new("Part")
+	p.Anchored = true
+	p.CanCollide = false
+	p.CanQuery = false
+	p.CanTouch = false
+	p.CastShadow = false
+	p.Transparency = 1
+	p.Size = Vector3.new(size, 0.05, size)
+	p.CFrame = CFrame.fromMatrix(pos + n * 0.06, side.Unit, n) * CFrame.Angles(0, math.rad(turn), 0)
+	if id ~= 0 then
+		local d = Instance.new("Decal")
+		d.Face = Enum.NormalId.Top
+		d.Texture = "rbxassetid://" .. tostring(id)
+		d.Parent = p
+		TweenService:Create(
+			d,
+			TweenInfo.new(C.fade, Enum.EasingStyle.Linear, Enum.EasingDirection.In, 0, false, C.life - C.fade),
+			{ Transparency = 1 }
+		):Play()
+	end
+	p.Parent = folder
+	table.insert(cracks, p)
+	while #cracks > QualityController.preset.craters do
+		local old = table.remove(cracks, 1)
+		if old then
+			old:Destroy()
+		end
+	end
+	task.delay(C.life, function()
+		local i = table.find(cracks, p)
+		if i then
+			table.remove(cracks, i)
+		end
+		p:Destroy()
+	end)
+end
+
+-- the colour of the face at `at` (chips and dust in the wall's own colour)
+local function faceColor(at: Vector3, normal: Vector3): Color3
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	params.FilterDescendantsInstances = { player.Character, folder }
+	local hit = Workspace:Raycast(at + normal * 1.5, -normal * 3, params)
+	return if hit and hit.Instance:IsA("BasePart") then hit.Instance.Color else Color3.fromRGB(170, 162, 150)
+end
+
+-- DODGE! over the hero (fixed word, Config.Move.mobility.acrobat.flip.word)
+local function dodgeWord(pos: Vector3)
+	local anchor = Instance.new("Part")
+	anchor.Anchored = true
+	anchor.CanCollide = false
+	anchor.CanQuery = false
+	anchor.Transparency = 1
+	anchor.Size = Vector3.one * 0.1
+	anchor.CFrame = CFrame.new(pos)
+	anchor.Parent = folder
+	local gui = Instance.new("BillboardGui")
+	gui.Size = UDim2.fromOffset(150, 54)
+	gui.AlwaysOnTop = true
+	gui.LightInfluence = 0
+	gui.Adornee = anchor
+	local label = Instance.new("TextLabel")
+	label.BackgroundTransparency = 1
+	label.Size = UDim2.fromScale(1, 1)
+	label.Text = Config.Move.mobility.acrobat.flip.word
+	label.TextScaled = true
+	label.Font = Enum.Font.Bangers
+	label.TextColor3 = Color3.fromRGB(120, 255, 200)
+	label.TextStrokeTransparency = 0
+	label.Rotation = (math.random() - 0.5) * 14
+	label.Parent = gui
+	gui.Parent = anchor
+	TweenService:Create(anchor, TweenInfo.new(0.7, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		CFrame = CFrame.new(pos + Vector3.new(0, 3, 0)),
+	}):Play()
+	TweenService:Create(
+		label,
+		TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In, 0, false, 0.45),
+		{ TextTransparency = 1, TextStrokeTransparency = 1 }
+	):Play()
+	Debris:AddItem(anchor, 0.8)
+end
+
 local function heroColor(): Color3
 	local c = Config.Ui.colors.volt
 	return Color3.fromRGB(c[1], c[2], c[3])
@@ -204,6 +304,41 @@ function MoveFx.init()
 		crack(pos, math.clamp(r * 1.4, 10, 20))
 		Juice.fire("land", pos, { mine = true })
 		HeroAnimator.play(Players.LocalPlayer, "poundLandHeavy")
+	end)
+
+	-- the Hulk grab: fingers dig in (a crack, chips and dust where the hands bite, a thud and a small shake)
+	MoveController.Grabbed:Connect(function(hands: Vector3, normal: Vector3)
+		local color = faceColor(hands, normal)
+		wallCrack(hands - normal * 0.4, normal, 4.5)
+		FxLib.throwMoment("grab", hands, color, normal, 2)
+		FxLib.emit("chip", color, hands + normal * 0.5, 5, normal)
+		Juice.fire("land", hands, { mine = true })
+		CameraController.shake(0.12, 0.3)
+	end)
+	-- each bound: the push-off puff off the face under the feet, the leap's whoosh
+	MoveController.Bounded:Connect(function(pos: Vector3)
+		Juice.fire("leap", pos)
+		local look = player.Character and player.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
+		local n = if look then -look.CFrame.LookVector else Vector3.yAxis
+		FxLib.throwMoment("grab", pos - Vector3.new(0, 2.5, 0), Color3.fromRGB(210, 204, 192), n, 2)
+	end)
+	MoveController.Vaulted:Connect(function(pos: Vector3)
+		Juice.fire("leap", pos)
+	end)
+	-- the Acrobat sticks to a face: a small puff
+	MoveController.Crawled:Connect(function(at: Vector3, normal: Vector3)
+		FxLib.throwMoment("grab", at, faceColor(at, normal), normal, 1.5)
+	end)
+	-- the flip: a whoosh and a ring round it
+	MoveController.Flipped:Connect(function(pos: Vector3)
+		Juice.fire("boost", pos, { mine = true })
+		ring(pos, heroColor(), 9)
+	end)
+	Net.listen("MoveDodged", function()
+		local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
+		if root then
+			dodgeWord(root.Position + Vector3.new(0, 3.5, 0))
+		end
 	end)
 
 	local phase = 0

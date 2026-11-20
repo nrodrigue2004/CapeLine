@@ -132,6 +132,7 @@ end
 function MoveRanks.speeds(cfg: any, pick: string): { [string]: number }
 	local m = cfg.mobility[pick]
 	local out: { [string]: number } = {}
+	out.runSprint = if cfg.sprint then cfg.sprint.speed else 0 -- everyone's sprint (move-2)
 	if pick == "flight" then
 		out.cruise = cfg.flight.cruise
 		out.boost = math.max(cfg.flight.boost, m.up.boost)
@@ -142,11 +143,22 @@ function MoveRanks.speeds(cfg: any, pick: string): { [string]: number }
 	elseif pick == "leap" then
 		out.leap = MoveMath.superLeapSpeed(cfg)
 		out.bounce = math.sqrt(m.bounce.up * m.bounce.up + m.bounce.out * m.bounce.out)
+		if m.climb then -- move-2: the Hulk climb's bound, vault and kick
+			local c = m.climb
+			out.bound = math.sqrt(2 * c.gravity * c.bound) + c.press + c.side
+			out.vault = math.sqrt(c.vault.up * c.vault.up + c.vault.forward * c.vault.forward)
+			out.kick = math.sqrt(c.kick.up * c.kick.up + c.kick.out * c.kick.out)
+		end
 	elseif pick == "acrobat" then
 		out.jump = math.sqrt(m.jump * m.jump + m.jumpForward * m.jumpForward)
 		out.glide = m.glideForward
 		out.wallRun = m.wallRun
 		out.climb = m.climb
+		if m.flip then -- move-2: the scurry and the flip
+			out.crawlBurst = m.crawlBurst + 12 -- plus the hold onto the face
+			out.flip = math.sqrt(m.flip.speed * m.flip.speed + m.flip.up * m.flip.up)
+			out.sprint = m.run + cfg.sprint.speed - cfg.run.speed
+		end
 	elseif pick == "swing" then
 		out.swing = m.maxSpeed
 		out.release = m.release.cap

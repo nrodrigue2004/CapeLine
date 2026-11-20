@@ -164,7 +164,7 @@ return function(T: any)
 		end
 		check(pullBacks(path, swCap) == 0, "a swing and its release pass the speed check")
 		check(has(mc, "swingAim()") and has(mc, "SwingMath.rope(M"), "the controller aims and sizes the rope")
-		check(has(mc, "SwingMath.release(M, vel.X, vel.Y, vel.Z, phase)"), "and flings on release")
+		check(has(mc, "SwingMath.release(swingCfg(), vel.X, vel.Y, vel.Z, phase)"), "and flings on release")
 		check(has(mc, "part and not part.Parent"), "a broken anchor drops the line")
 		check(has(mc, "swung into a wall: let go and push off it"), "swinging into a wall never sticks")
 	end)

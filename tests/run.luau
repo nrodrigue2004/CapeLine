@@ -217,9 +217,13 @@ local function flyFor(
 	local cvx, cvy, cvz = vx or 0, vy or 0, vz or 0
 	local boosting = false
 	local dt = 1 / 60
-	for _ = 1, math.floor(seconds * 60) do
+	local drainAt = -math.huge -- the regen waits regenDelay after a drain (as MoveController does)
+	for i = 1, math.floor(seconds * 60) do
 		cvx, cvy, cvz, boosting = MoveMath.flightStep(M, cvx, cvy, cvz, hy, s, input, dt)
-		s = MoveMath.staminaStep(M, s, false, boosting, dt)
+		s = MoveMath.staminaStep(M, s, false, boosting, dt, i * dt - drainAt)
+		if boosting then
+			drainAt = i * dt
+		end
 		x += cvx * dt
 		hy += cvy * dt
 		z += cvz * dt
@@ -270,9 +274,13 @@ test("M1: the ceiling pushes back above the soft line and never lets a hero past
 	check(y > M.ceiling.soft - 20, string.format("climbs up to the soft ceiling (y = %.1f)", y))
 end)
 
-test("M1: stamina regenerates 15/s on the ground and 8/s in the air", function()
-	near(MoveMath.staminaStep(M, 50, true, false, 1), 65, 1e-6, "ground regen")
-	near(MoveMath.staminaStep(M, 50, false, false, 1), 58, 1e-6, "air regen")
+test("M1: stamina regenerates 40/s on the ground and 20/s in the air after a 0.6 s pause", function()
+	near(MoveMath.staminaStep(M, 50, true, false, 1), 50 + M.stamina.regenGround, 1e-6, "ground regen")
+	near(MoveMath.staminaStep(M, 50, false, false, 1), 50 + M.stamina.regenAir, 1e-6, "air regen")
+	check(M.stamina.regenGround == 40 and M.stamina.regenAir == 20, "nate 2026-11-20: refills quicker")
+	check(MoveMath.staminaStep(M, 50, true, false, 0.1, 0.3) == 50, "no regen right after a drain")
+	near(MoveMath.staminaStep(M, 50, true, false, 0.1, 0.7), 54, 1e-6, "regen once the pause is over")
+	check(M.stamina.max / M.stamina.regenGround <= 5.01, "a full refill in about 5 s on the ground")
 	check(
 		MoveMath.staminaStep(M, M.stamina.max - 1, true, false, 1) == M.stamina.max,
 		"caps at the pool's max"
@@ -23188,6 +23196,9 @@ do
 		placePath = placePath,
 	})
 end
+-- move-2 (2026-11-19, own file): the smash rule, the Hulk climb, the Acrobat's crawl and flips, swing anywhere and
+-- everyone's sprint; ONLY="Climb"
+(require :: any)("./climb_test")({ test = test, check = check, Config = Config, placePath = placePath })
 print(string.format("\n%d passed, %d failed", passed, failed))
 if failed > 0 then
 	process.exit(1)

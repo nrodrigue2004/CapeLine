@@ -324,7 +324,7 @@ function MoveMath.ceilingOn(cfg: any, y: number): boolean
 end
 
 ---------------------------------------------------------------------------
--- Stamina: Config.Move.stamina.max (200 since nate 2026-11-19, was 100). Boost drains 14/s; regen 15/s on the ground and 8/s gliding or cruising
+-- Stamina: Config.Move.stamina.max (200 since nate 2026-11-19, was 100). Boost drains 14/s; regen 40/s on the ground and 20/s gliding or cruising (nate 2026-11-20), after regenDelay s
 ---------------------------------------------------------------------------
 
 function MoveMath.staminaStep(
@@ -332,11 +332,16 @@ function MoveMath.staminaStep(
 	stamina: number,
 	grounded: boolean,
 	boosting: boolean,
-	dt: number
+	dt: number,
+	idle: number?
 ): number
 	local s = cfg.stamina
 	if boosting then
 		return math.max(0, stamina - s.boostDrain * dt)
+	end
+	-- idle: seconds since the last drain (boost, wall run, scurry); no regen until regenDelay has passed
+	if idle and idle < (s.regenDelay or 0) then
+		return stamina
 	end
 	local regen = if grounded then s.regenGround else s.regenAir
 	return math.min(s.max, stamina + regen * dt)
@@ -473,7 +478,7 @@ end
 
 -- Does a wall run go on? elapsed: seconds on this wall; stick: the flat stick (world); nx, nz: the wall's
 -- normal; held: Super-speed's Boost or Leap is down. An Acrobat runs while the stick is pushed (not away from
--- the wall) up to wallRunTime; Super-speed while it holds Boost or Leap and has stamina.
+-- the wall) up to wallRunTime; Super-speed while it holds Boost or Leap (or the stick, not away) and has stamina.
 function MoveMath.wallRunKeep(
 	cfg: any,
 	pick: string,
@@ -486,7 +491,11 @@ function MoveMath.wallRunKeep(
 	stamina: number
 ): boolean
 	if pick == "speed" then
-		return held and stamina > 0
+		-- Boost or Leap held, or (the smash rule, 2026-11-19: no Boost needed to wall run) the stick held and not
+		-- pulling away from the wall; while stamina lasts
+		local sl = len2(stickX, stickZ)
+		local stick = sl >= 0.3 and (stickX * nx + stickZ * nz) / sl < 0.5
+		return (held or stick) and stamina > 0
 	end
 	local a = cfg.mobility.acrobat
 	if elapsed >= a.wallRunTime or len2(stickX, stickZ) < 0.3 then

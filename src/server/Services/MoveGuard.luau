@@ -19,6 +19,7 @@ local MoveMath = require(Shared:WaitForChild("MoveMath"))
 local MoveCheck = require(Shared:WaitForChild("MoveCheck"))
 local PosHistory = require(Shared:WaitForChild("PosHistory"))
 local Travel = require(Shared:WaitForChild("Travel"))
+local ClimbMath = require(Shared:WaitForChild("ClimbMath"))
 
 local HeroService = require(script.Parent.HeroService)
 local PerfMonitor = require(script.Parent.PerfMonitor)
@@ -33,6 +34,7 @@ type Track = {
 	graceUntil: number,
 	corrections: number,
 	freeUntil: number?,
+	drainAt: number, -- when the boost last drained (regen waits Config.Move.stamina.regenDelay after it)
 }
 
 local tracks: { [number]: Track } = {}
@@ -45,6 +47,7 @@ local function newTrack(pos: Vector3, now: number): Track
 		stamina = Config.Move.stamina.max,
 		graceUntil = now + 1,
 		corrections = 0,
+		drainAt = -math.huge,
 	}
 end
 
@@ -201,6 +204,36 @@ function MoveGuard.init()
 				<= HeroService.moveConfig(hero).mobility.swing.up.range * 1.5
 		player:SetAttribute("SwingAt", if ok then at else nil)
 	end)
+	-- move-2: an Acrobat's flip dodges for its i-frames, timed on the server's own clock (the cooldown with 15% slack
+	-- for lag); a stunned, Downed or other-pick hero gets nothing. The flip's burst sits inside the Acrobat's cap,
+	-- and the grant covers a late packet so it never pulls back
+	Net.on("MoveFlip", function(player)
+		local hero = HeroService.get(player)
+		if
+			not hero
+			or not hero.alive
+			or hero.downed
+			or hero.mobility ~= "acrobat"
+			or HeroService.disabled(hero)
+		then
+			return
+		end
+		local cfg = HeroService.moveConfig(hero)
+		local now = os.clock()
+		local ok, untilT = ClimbMath.flipOk(cfg, hero.flipAt or -math.huge, now, 0.85)
+		if not ok then
+			return
+		end
+		hero.flipAt = now
+		hero.dodgeUntil = untilT
+		local f = cfg.mobility.acrobat.flip
+		MoveGuard.grant(hero, f.speed * f.time + 4)
+	end)
+	HeroService.Dodged:Connect(function(hero)
+		if hero.player then
+			Net.fire("MoveDodged", hero.player)
+		end
+	end)
 	Net.on("MoveBoost", function(player, on: boolean)
 		local hero = HeroService.get(player)
 		if hero then
@@ -252,7 +285,11 @@ function MoveGuard.init()
 					local moveCfg = HeroService.moveConfig(hero)
 					-- server stamina mirror
 					local free = t.freeUntil ~= nil and now < (t.freeUntil :: number)
-					t.stamina = MoveMath.staminaStep(moveCfg, t.stamina, true, t.boosting and not free, step)
+					local drain = t.boosting and not free
+					t.stamina = MoveMath.staminaStep(moveCfg, t.stamina, true, drain, step, now - t.drainAt)
+					if drain then
+						t.drainAt = now
+					end
 					if t.stamina <= 0 then
 						t.boosting = false
 					end

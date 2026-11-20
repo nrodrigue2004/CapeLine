@@ -306,12 +306,12 @@ return function(T: any)
 	test("Swing: the device side shoots, swings, lets go, zips and feels it", function()
 		local mc = fs.readFile("src/client/Controllers/MoveController.luau")
 		check(
-			has(mc, "SwingMath.findAnchor(M, p.X, p.Y, p.Z, look.X, look.Y, look.Z"),
+			has(mc, "SwingMath.findAnchor(") and has(mc, "look.X,\n\t\tlook.Y,"),
 			"the line aims with SwingMath"
 		)
 		check(has(mc, "SwingMath.pivot(M,"), "and swings in the plane of travel")
 		check(has(mc, "SwingMath.step("), "the pendulum is SwingMath's")
-		check(has(mc, "SwingMath.release(M, vel.X, vel.Y, vel.Z, phase)"), "letting go flings")
+		check(has(mc, "SwingMath.release(swingCfg(), vel.X, vel.Y, vel.Z, phase)"), "letting go flings")
 		check(
 			has(mc, "SwingMath.zipPlan(M,") and has(mc, "zipLine() -- up the line"),
 			"Leap while swinging zips up the line"
