@@ -108,6 +108,7 @@ type Body = {
 	locoTried: boolean,
 	animated: boolean, -- the clips play on it this frame
 	bag: BasePart?, -- the shopping bag in its right hand (Everything Left 275)
+	sit: boolean, -- sits on a street bench (Everything Left 275)
 }
 
 local snapshots: { { t: number, rows: { [number]: CitizenBuffer.Row } } } = {}
@@ -167,6 +168,7 @@ local function newBody(color: number, bodyIndex: number, group: number): Body
 		loco = nil,
 		locoTried = false,
 		animated = false,
+		sit = false,
 	}
 end
 
@@ -512,6 +514,30 @@ local function pose(
 	joints: boolean,
 	animated: boolean
 )
+	if body.sit then
+		-- on a street bench (Everything Left 275): hips on the seat, knees bent, hands in the lap; the code pose
+		-- even near the camera (Roblox's clips would stand it up)
+		local L = body.rig.layout
+		table.insert(roots, body.rig.root)
+		table.insert(
+			cframes,
+			CFrame.new(body.pos + Vector3.new(0, LC.seat + L.ground * LC.sitDrop, 0))
+				* CFrame.Angles(0, body.yaw, 0)
+		)
+		if joints then
+			local rig = body.rig
+			local breathe = math.sin(os.clock() * 1.2 + body.key) * 0.04
+			NpcRig.turn(rig, "Waist", CFrame.Angles(math.rad(4) + breathe, 0, 0))
+			for _, side in SIDES do
+				local name, sign = side[1], side[2]
+				NpcRig.turn(rig, name .. "Hip", CFrame.Angles(math.rad(88), 0, -sign * 0.1))
+				NpcRig.turn(rig, name .. "Knee", CFrame.Angles(math.rad(-85), 0, 0))
+				NpcRig.turn(rig, name .. "Shoulder", CFrame.Angles(math.rad(25) - breathe, 0, -sign * 0.12))
+				NpcRig.turn(rig, name .. "Elbow", CFrame.Angles(math.rad(45), 0, 0))
+			end
+		end
+		return
+	end
 	local moving = body.speed > 0.8
 	local fleeing = body.state == FLEE
 	local react = if joints or animated then reactionAt(body.pos, fleeing, body.key) else nil
@@ -615,7 +641,7 @@ local function render()
 	-- chat partners (Everything Left 275): stopped citizens pair with the nearest other stopped one in reach
 	local stopped = {}
 	for id, rb in drawn do
-		if rb.state == PAUSE then
+		if rb.state == PAUSE and not rb.sit then
 			table.insert(stopped, { id = id, x = rb.x, z = rb.z })
 		end
 	end
@@ -660,6 +686,13 @@ local function render()
 			then lerpAngle(body.yaw, chatYaw, math.min(1, dt * 4))
 			else lerpAngle(body.yaw, rbb.yaw, math.min(1, dt * 10))
 		body.state = rb.state
+		if rb.sit ~= body.sit then
+			body.sit = rb.sit == true
+			NpcRig.rest(body.rig)
+			if body.sit then
+				body.yaw = rbb.yaw -- straight onto the bench, no swing round
+			end
+		end
 		if (rb.bag == true) ~= (body.bag ~= nil) then
 			setBag(body, if rb.bag then id else nil)
 		end
@@ -672,7 +705,7 @@ local function render()
 			end
 		end
 		local animated = false
-		if anim[id] then
+		if anim[id] and not body.sit then
 			if not body.loco and not body.locoTried then
 				body.locoTried = true
 				local pick, rate, offset = LocoMath.idlePick(Rng.hash(id, 3301), LOCO.idles, LOCO.idleRate)

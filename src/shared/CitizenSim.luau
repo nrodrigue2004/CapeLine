@@ -40,7 +40,12 @@ export type Citizen = {
 	inside: boolean?, -- hidden in a shop (comes back out where it went in, with a bag)
 	bagUntil: number?, -- carries a shopping bag until then
 	bag: boolean?, -- carries one now (sent in the packet)
+	sitAfter: number?, -- no new sit on a bench before this (citizens.sit.cooldown)
+	seat: number?, -- the bench seat it walks to or sits on (sim.seats)
+	sit: boolean?, -- sits on it now (sent in the packet)
 }
+-- A place on a street bench (two a bench): where the hips go and the way the sitter faces
+export type Seat = { x: number, y: number, z: number, fx: number, fz: number, taken: boolean }
 
 export type Sim = {
 	cfg: any,
@@ -50,6 +55,8 @@ export type Sim = {
 	rng: Rng.Rng,
 	now: number,
 	dangers: { { x: number, z: number, r: number, untilT: number } },
+	seats: { Seat },
+	seatCells: { [number]: { number } },
 }
 
 -- Corners of a grid of blocks: origin (minX, minZ), block size, street width, count each way, inset
@@ -284,11 +291,43 @@ end
 
 -- shelters: points { x, z } (safehouses and HQ doors in Downtown and Old Town). blocked (optional): the
 -- world's parts (CitizenSim.blocker); without it the whole grid is used (tests of the walking rules).
+-- The street benches' seats (list-combat 2026-11-20, Everything Left 275): every Bench prop (CityKit, Art.Street:
+-- its front faces -z at ry 0, the seat a little behind the foot point) gives two seats, citizens.sit.spread
+-- either side of its middle, facing out of the bench
+function CitizenSim.seats(cfg: any, props: { any }): { Seat }
+	local out: { Seat } = {}
+	local sit = cfg.sit
+	if not sit then
+		return out
+	end
+	for _, p in props do
+		if p.name == "Bench" then
+			local a = math.rad(p.ry or 0)
+			local c, sn = math.cos(a), math.sin(a)
+			for _, side in { -1, 1 } do
+				local lx, lz = side * sit.spread, sit.back
+				table.insert(out, {
+					x = p.x + lx * c + lz * sn,
+					y = p.y,
+					z = p.z - lx * sn + lz * c,
+					fx = -sn,
+					fz = -c,
+					taken = false,
+				})
+			end
+		end
+	end
+	return out
+end
+
+local SEAT_CELL = 16
+
 function CitizenSim.new(
 	Config: any,
 	shelters: { { x: number, z: number } },
 	seed: number,
-	blocked: ((number, number, number) -> boolean)?
+	blocked: ((number, number, number) -> boolean)?,
+	benches: { any }? -- the street props (World.props): its benches become seats
 ): Sim
 	local nodes = CitizenSim.graph(Config)
 	if blocked then
@@ -311,14 +350,24 @@ function CitizenSim.new(
 			table.insert(list, { x = s.x, y = nodes[node].y, z = s.z, node = node })
 		end
 	end
+	local cfg = Config.Destruction.citizens
+	local seats = CitizenSim.seats(cfg, benches or {})
+	local cells: { [number]: { number } } = {}
+	for i, st in seats do
+		local k = math.floor(st.x / SEAT_CELL) * 100000 + math.floor(st.z / SEAT_CELL)
+		cells[k] = cells[k] or {}
+		table.insert(cells[k], i)
+	end
 	return {
-		cfg = Config.Destruction.citizens,
+		cfg = cfg,
 		nodes = nodes,
 		shelters = list,
 		citizens = {},
 		rng = Rng.new(seed),
 		now = 0,
 		dangers = {},
+		seats = seats,
+		seatCells = cells,
 	}
 end
 
@@ -331,7 +380,38 @@ local function inDanger(sim: Sim, x: number, z: number): boolean
 	return false
 end
 
+-- Off its bench seat (stood up, or running)
+local function leaveSeat(sim: Sim, c: Citizen)
+	if c.seat then
+		sim.seats[c.seat].taken = false
+		c.seat = nil
+	end
+	c.sit = nil
+end
+
+-- The nearest free seat within reach of (x, z), if any
+local function freeSeat(sim: Sim, x: number, z: number, reach: number): number?
+	local best, bestD = nil, reach * reach
+	local gx, gz = math.floor(x / SEAT_CELL), math.floor(z / SEAT_CELL)
+	for cx = gx - 1, gx + 1 do
+		for cz = gz - 1, gz + 1 do
+			local list = sim.seatCells[cx * 100000 + cz]
+			if list then
+				for _, i in list do
+					local st = sim.seats[i]
+					local d = (st.x - x) ^ 2 + (st.z - z) ^ 2
+					if not st.taken and d < bestD then
+						best, bestD = i, d
+					end
+				end
+			end
+		end
+	end
+	return best
+end
+
 local function spawnAt(sim: Sim, c: Citizen)
+	leaveSeat(sim, c)
 	local n: number
 	local tries = 0
 	repeat
@@ -426,6 +506,7 @@ function CitizenSim.danger(sim: Sim, x: number, z: number, r: number, duration: 
 				end
 			end
 			c.buy = nil
+			leaveSeat(sim, c)
 			if best and path then
 				c.state = CitizenSim.FLEE
 				c.goal = best
@@ -479,7 +560,12 @@ function CitizenSim.step(sim: Sim, dt: number, now: number)
 			end
 		elseif c.state == CitizenSim.PAUSE then
 			if now >= c.untilT then
-				if c.buy then
+				if c.sit then
+					-- up off the bench and back to the corner it came from
+					leaveSeat(sim, c)
+					c.state = CitizenSim.WALK
+					c.path = { c.node }
+				elseif c.buy then
 					-- the window shopper goes in to buy (hidden a while, Everything Left 275)
 					c.buy = nil
 					c.inside = true
@@ -535,6 +621,27 @@ function CitizenSim.step(sim: Sim, dt: number, now: number)
 					end
 				end
 				if c.state == CitizenSim.PAUSE then
+					continue
+				end
+			end
+			-- a bench (Everything Left 275): passing a free seat, a walker now and then goes over and sits a while
+			local sit = cfg.sit
+			if c.seat then
+				local st = sim.seats[c.seat]
+				if moveToward(c, st.x, st.z, cfg.walk * 0.7, dt) then
+					c.x, c.z = st.x, st.z
+					c.fx, c.fz = st.fx, st.fz
+					c.sit = true
+					c.state = CitizenSim.PAUSE
+					c.untilT = now + rng:range(sit.time[1], sit.time[2])
+				end
+				continue
+			elseif sit and now >= (c.sitAfter or 0) and #sim.seats > 0 then
+				local i = freeSeat(sim, c.x, c.z, sit.reach)
+				if i and rng:chance(sit.chance * dt) then
+					c.sitAfter = now + sit.cooldown
+					c.seat = i
+					sim.seats[i].taken = true
 					continue
 				end
 			end

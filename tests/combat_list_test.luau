@@ -3263,6 +3263,148 @@ return function(T: any)
 		check(string.find(src, "setBag(body, nil)", 1, true) ~= nil, "and take it off a pooled body")
 	end)
 
+	test("List combat: citizens sit on the street benches (Everything Left 275)", function()
+		local CitizenSim = require("../src/shared/CitizenSim")
+		local CitizenBuffer = require("../src/shared/CitizenBuffer")
+		local WorldMap = require("../src/shared/WorldMap")
+		local sit = Config.Destruction.citizens.sit
+		check(sit ~= nil and sit.chance > 0 and sit.reach > 0, "bench sitting is tuned")
+		local world = WorldMap.build(Config, 7, { props = true })
+		local benches = {}
+		for _, p in world.props do
+			if p.name == "Bench" and (p.d == "Downtown" or p.d == "OldTown") then
+				table.insert(benches, p)
+			end
+		end
+		check(#benches >= 20, "Downtown and Old Town have benches (" .. #benches .. ")")
+		local sim = CitizenSim.new(Config, {}, 5, nil, benches)
+		check(#sim.seats == #benches * 2, "two seats a bench")
+		-- every seat is a step off a sidewalk the citizens walk (within reach of a link between two corners)
+		local near = 0
+		for _, st in sim.seats do
+			local best = math.huge
+			for _, n in sim.nodes do
+				for _, l in n.links do
+					local m = sim.nodes[l]
+					local ax, az, bx, bz = n.x, n.z, m.x, m.z
+					local vx, vz = bx - ax, bz - az
+					local t = math.clamp(((st.x - ax) * vx + (st.z - az) * vz) / (vx * vx + vz * vz), 0, 1)
+					best = math.min(best, math.sqrt((ax + vx * t - st.x) ^ 2 + (az + vz * t - st.z) ^ 2))
+				end
+			end
+			if best <= sit.reach then
+				near += 1
+			end
+		end
+		check(
+			near >= #sim.seats * 0.8,
+			string.format("seats beside the sidewalks (%d of %d)", near, #sim.seats)
+		)
+		-- the seat sits on the bench: behind its foot point, facing out of its front (-z at ry 0)
+		local b = benches[1]
+		local st = sim.seats[1]
+		local a = math.rad(b.ry)
+		check(
+			math.abs(st.fx + math.sin(a)) < 1e-6 and math.abs(st.fz + math.cos(a)) < 1e-6,
+			"facing out of the bench"
+		)
+		local back = (st.x - b.x) * -st.fx + (st.z - b.z) * -st.fz
+		check(math.abs(back - sit.back) < 1e-6, "on the seat, behind the foot point")
+		-- force one: a walker beside a free seat walks over, sits facing out, stands up and walks on
+		CitizenSim.populate(sim)
+		local cfg = table.clone(sim.cfg)
+		cfg.sit = table.clone(cfg.sit)
+		cfg.sit.chance = 1000
+		cfg.chat, cfg.shop = nil, nil
+		sim.cfg = cfg
+		local c = sim.citizens[1]
+		for _, o in sim.citizens do
+			o.sitAfter = math.huge
+		end
+		c.sitAfter = nil
+		c.state, c.path = CitizenSim.WALK, {}
+		c.x, c.z = st.x - st.fx * 3, st.z - st.fz * 3
+		CitizenSim.step(sim, 0.1, 1)
+		check(c.seat ~= nil and sim.seats[c.seat :: number].taken, "it picks the seat")
+		local s = sim.seats[c.seat :: number]
+		local t = 1
+		while not c.sit and t < 5 do
+			t += 0.1
+			CitizenSim.step(sim, 0.1, t)
+		end
+		check(c.sit == true and c.state == CitizenSim.PAUSE, "and sits down")
+		check(c.x == s.x and c.z == s.z and c.fx == s.fx and c.fz == s.fz, "on the seat, facing out")
+		local _, rows = CitizenBuffer.decode(CitizenBuffer.encodeFor(1, { c }, c.x, c.z, 50))
+		check(rows[1] and rows[1].sit == true and rows[1].color == c.color, "sitting rides the packet")
+		CitizenSim.step(sim, 0.1, t + sit.time[2] + 0.1)
+		check(
+			not c.sit and c.seat == nil and not s.taken and c.state == CitizenSim.WALK,
+			"then stands and walks on"
+		)
+		local _, rows2 = CitizenBuffer.decode(CitizenBuffer.encodeFor(2, { c }, c.x, c.z, 50))
+		check(rows2[1] and rows2[1].sit == false, "standing in the packet")
+		-- a scare on the bench: up and running, the seat freed
+		c.sitAfter = nil
+		c.state, c.path = CitizenSim.WALK, {}
+		c.x, c.z = s.x - s.fx * 2, s.z - s.fz * 2
+		t += sit.time[2] + 1
+		for _ = 1, 30 do
+			t += 0.1
+			CitizenSim.step(sim, 0.1, t)
+		end
+		check(c.sit == true, "sat again")
+		CitizenSim.danger(sim, c.x, c.z, 30, 10)
+		check(
+			not c.sit and c.seat == nil and not s.taken and c.state ~= CitizenSim.PAUSE,
+			"danger stands it up"
+		)
+		-- the real tuning over five minutes: some sit, never two on one seat, most still walk
+		local live = CitizenSim.new(Config, {}, 11, nil, benches)
+		CitizenSim.populate(live)
+		local sat, sightings, clash = 0, 0, 0
+		for k = 1, 3000 do
+			CitizenSim.step(live, 0.1, k * 0.1)
+			if k % 50 == 0 then
+				local on = {}
+				for _, x in live.citizens do
+					if x.sit then
+						sightings += 1
+						if on[x.seat] then
+							clash += 1
+						end
+						on[x.seat :: number] = true
+					end
+				end
+			end
+		end
+		for _, x in live.citizens do
+			if x.sitAfter then
+				sat += 1
+			end
+		end
+		print(string.format("  citizens: %d sat on a bench in 5 minutes, %d sightings", sat, sightings))
+		check(sat >= 5, "bench sitting happens (" .. sat .. ")")
+		check(clash == 0, "one sitter a seat")
+		local walking = 0
+		for _, x in live.citizens do
+			if x.state == CitizenSim.WALK then
+				walking += 1
+			end
+		end
+		check(walking >= #live.citizens * 0.4, "most of the crowd keeps walking (" .. walking .. ")")
+		local src = fs.readFile("src/client/Controllers/CitizenRenderer.luau")
+		check(
+			string.find(src, "if anim[id] and not body.sit then", 1, true) ~= nil,
+			"sitters keep the code pose"
+		)
+		check(string.find(src, "LC.seat + L.ground * LC.sitDrop", 1, true) ~= nil, "lifted onto the seat")
+		local svc = fs.readFile("src/server/Services/CitizenService.luau")
+		check(
+			string.find(svc, "CitizenSim.blocker(world, Config), benches)", 1, true) ~= nil,
+			"the server seats them"
+		)
+	end)
+
 	test("List combat: vehicle lettering sits on the bodies' sides (Everything Left 271)", function()
 		local VehicleKit = require("../src/shared/VehicleKit")
 		local art = Config.VehicleArt

@@ -188,9 +188,11 @@ end
 local function sit(rig: any, wave: number)
 	for _, side in SIDES do
 		local name, sign = side[1], side[2]
-		NpcRig.turn(rig, name .. "Hip", CFrame.Angles(math.rad(-88), 0, sign * 0.12))
-		NpcRig.turn(rig, name .. "Knee", CFrame.Angles(math.rad(80), 0, 0))
-		NpcRig.turn(rig, name .. "Shoulder", CFrame.Angles(math.rad(-25 + wave * sign * 8), 0, sign * 0.1))
+		-- thighs forward (a joint's +x turn swings the limb forward: Shared.EmotePoses, StoryFx's sitter), shins
+		-- down, hands toward the lap (list-combat 2026-11-20: they bent backward before)
+		NpcRig.turn(rig, name .. "Hip", CFrame.Angles(math.rad(88), 0, -sign * 0.12))
+		NpcRig.turn(rig, name .. "Knee", CFrame.Angles(math.rad(-80), 0, 0))
+		NpcRig.turn(rig, name .. "Shoulder", CFrame.Angles(math.rad(25 + wave * sign * 8), 0, -sign * 0.1))
 		NpcRig.turn(rig, name .. "Elbow", CFrame.Angles(math.rad(35), 0, 0))
 	end
 	NpcRig.turn(rig, "Waist", CFrame.Angles(math.rad(6), 0, 0))

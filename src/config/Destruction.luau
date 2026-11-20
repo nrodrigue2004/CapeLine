@@ -154,6 +154,10 @@ return {
 		-- often a second, for time seconds (once a cooldown); buy of them go in for inside seconds and come back
 		-- out carrying a shopping bag for bag seconds (CitizenRenderer draws it)
 		shop = { chance = 0.02, time = { 3, 7 }, buy = 0.25, inside = { 6, 14 }, bag = 30, cooldown = 60 },
+		-- benches (list-combat 2026-11-20, Everything Left 275): a walker within reach studs of a free street bench
+		-- seat goes over and sits this often a second (once a cooldown), time seconds; each bench seats two,
+		-- spread studs either side of its middle and back studs behind its foot point (Art.Street Bench's seat)
+		sit = { chance = 0.12, reach = 6, time = { 8, 20 }, cooldown = 90, spread = 1.2, back = 0.45 },
 		step = 0.1, -- sim step (10 Hz)
 		sendRate = 4,
 		relevance = 250, -- players see citizens this close

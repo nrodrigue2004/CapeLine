@@ -224,6 +224,8 @@ return {
 	-- chat (list-combat 2026-11-20, Everything Left 275): two citizens stopped this close turn to face each other
 	-- and talk (their idle gestures play as the chat)
 	-- bagColors: the shopping bags citizens carry out of the shops (Everything Left 275, CitizenRenderer)
+	-- seat: a bench sitter's seat top above its feet (Art.Street Bench's slats); sitDrop: the share of its standing
+	-- root height left when its hips bend to sit (ParkLife's picnic sit)
 	citizens = {
 		point = 70,
 		photo = 26,
@@ -231,6 +233,8 @@ return {
 		cheerFor = 4,
 		flashEvery = 2.2,
 		chat = 6,
+		seat = 1.55,
+		sitDrop = 0.52,
 		bagColors = {
 			{ 214, 170, 120 },
 			{ 236, 84, 120 },

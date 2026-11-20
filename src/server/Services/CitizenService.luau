@@ -41,7 +41,14 @@ function CitizenService.init()
 	local bt = world.downtown.beacon
 	table.insert(shelters, { x = bt.x, z = bt.z + 30 })
 	-- the sidewalk graph leaves out every corner and link inside a part (the Clock Tower in Clock Square)
-	local sim = CitizenSim.new(Config, shelters, world.seed, CitizenSim.blocker(world, Config))
+	-- and the street benches in Downtown and Old Town are seats (Everything Left 275)
+	local benches = {}
+	for _, p in world.props or {} do
+		if p.name == "Bench" and (p.d == "Downtown" or p.d == "OldTown") then
+			table.insert(benches, p)
+		end
+	end
+	local sim = CitizenSim.new(Config, shelters, world.seed, CitizenSim.blocker(world, Config), benches)
 	CitizenService.sim = sim
 	CitizenSim.populate(sim)
 	BuildingService.Danger:Connect(CitizenService.danger)
