@@ -2743,6 +2743,47 @@ local function spinner(specs: { any }, center: Vector3, duration: number, rate: 
 	end))
 end
 
+-- One of the supers' own Blender meshes (Art.Powers Sigil, Dawn, Pillar, Crater; list-combat 2026-11-20), its
+-- drawn size times k (a number or per axis), in `color`; nil before the import
+local function superMesh(
+	look: string,
+	name: string,
+	k: number | Vector3,
+	color: Color3,
+	alpha: number?
+): MeshPart?
+	if not PowerMeshes.ready(look) then
+		return nil
+	end
+	local m = Config.PowerArt[look][name]
+	local kv: Vector3 = if typeof(k) == "Vector3" then k else Vector3.one * (k :: number)
+	local mp = powerMesh(name, Vector3.new(m.size[1], m.size[2], m.size[3]) * kv, color, alpha or m.alpha)
+	if mp and m.mat ~= "Neon" then
+		mp.Material = (Enum.Material :: any)[m.mat] or Enum.Material.SmoothPlastic
+	end
+	return mp
+end
+
+-- a mesh turning about the up axis at `rate` rad/s for `time` s round `at` (offset `off` under each turn), then fading
+local function turning(mp: BasePart, at: CFrame, rate: number, time: number, off: CFrame?)
+	local start = os.clock()
+	local base = off or CFrame.identity
+	local turnP = MeshFix.turn("Powers")
+	mp.CFrame = at * base * turnP
+	local conn: RBXScriptConnection
+	conn = RunService.RenderStepped:Connect(FrameProf.wrap("CombatFx", function()
+		local t = os.clock() - start
+		if t >= time or not mp.Parent then
+			conn:Disconnect()
+			if mp.Parent then
+				fade(mp, 0.3)
+			end
+			return
+		end
+		mp.CFrame = at * CFrame.Angles(0, t * rate, 0) * base * turnP
+	end))
+end
+
 -- a light column from the sky onto a point
 local function column(at: Vector3, width: number, color: Color3, style: string, time: number?)
 	local h = 70
@@ -2754,6 +2795,17 @@ local function column(at: Vector3, width: number, color: Color3, style: string, 
 	)
 	p.Transparency = 0.25
 	fade(p, time or 0.7, { Size = Vector3.new(h * 1.2, width * 0.15, width * 0.15) })
+	-- the Blender helix of light ribbons wound round it, turning (Art.Powers Pillar, list-combat 2026-11-20)
+	local helix = superMesh(
+		"Pillar",
+		"PillarHelix",
+		Vector3.new(width * F.supers.helix, h / 2, width * F.supers.helix),
+		if anime(style) then color else color:Lerp(WHITE, 0.4),
+		0.1
+	)
+	if helix then
+		turning(helix, CFrame.new(at + Vector3.new(0, h / 2 - 2, 0)), 5, (time or 0.7) * 0.8)
+	end
 	if anime(style) then
 		local glow = part(Vector3.new(h, width * 2.2, width * 2.2), p.CFrame, color, Enum.PartType.Cylinder)
 		glow.Transparency = 0.6
@@ -3107,15 +3159,37 @@ SUPER.eclipse = function(x) -- Shadow Eclipse: a black sun with a burning rim, t
 end
 SUPER.meteor = function(x) -- Titan Meteor Leap: the landing craters, stones fly, a fire column
 	local floor = x.c - Vector3.new(0, 1.2, 0)
-	local crater = part(
-		Vector3.new(0.3, 4, 4),
-		CFrame.new(floor) * CFrame.Angles(0, 0, math.rad(90)),
-		Color3.fromRGB(55, 45, 40),
-		Enum.PartType.Cylinder
-	)
-	crater.Material = Enum.Material.SmoothPlastic
-	TweenService:Create(crater, TweenInfo.new(0.15), { Size = Vector3.new(0.3, x.r * 1.2, x.r * 1.2) }):Play()
-	fade(crater, 0.6, nil, 1.2)
+	-- the Blender crater (Art.Powers Crater, list-combat 2026-11-20): a dark cracked dish and a rim of broken slabs
+	-- that bursts up and out, leaning away; the dark disc before the import
+	local k = x.r * F.supers.crater
+	local bowl = superMesh("Crater", "CraterBowl", k * 0.3, Color3.fromRGB(58, 48, 44))
+	local rim = superMesh("Crater", "CraterRim", k * 0.3, Color3.fromRGB(128, 112, 98))
+	if bowl and rim then
+		local turnP = MeshFix.turn("Powers")
+		local spin = CFrame.Angles(0, math.random() * math.pi * 2, 0)
+		local C = Config.PowerArt.Crater
+		for _, pc in { { bowl, C.CraterBowl }, { rim, C.CraterRim } } do
+			local mp, m = pc[1], pc[2]
+			local off = Vector3.new(m.offset[1], m.offset[2], m.offset[3]) * k
+			mp.CFrame = CFrame.new(floor - Vector3.new(0, 0.6, 0)) * spin * CFrame.new(off) * turnP
+			TweenService:Create(mp, TweenInfo.new(0.15, Enum.EasingStyle.Back), {
+				Size = Vector3.new(m.size[1], m.size[2], m.size[3]) * k,
+				CFrame = CFrame.new(floor) * spin * CFrame.new(off) * turnP,
+			}):Play()
+			fade(mp, 0.6, nil, F.supers.craterHold)
+		end
+	else
+		local crater = part(
+			Vector3.new(0.3, 4, 4),
+			CFrame.new(floor) * CFrame.Angles(0, 0, math.rad(90)),
+			Color3.fromRGB(55, 45, 40),
+			Enum.PartType.Cylinder
+		)
+		crater.Material = Enum.Material.SmoothPlastic
+		TweenService:Create(crater, TweenInfo.new(0.15), { Size = Vector3.new(0.3, x.r * 1.2, x.r * 1.2) })
+			:Play()
+		fade(crater, 0.6, nil, 1.2)
+	end
 	bits(x.c, "rock", 10, 1.6, 26, Color3.fromRGB(130, 115, 100), x.style, 1.4, nil, 0.6)
 	column(x.c, 8, x.color, x.style, 0.5)
 	disc(floor, UP, x.r, x.accent, 0.5, 0.6)
@@ -3338,7 +3412,17 @@ SUPER.psistorm = function(x) -- Mind Psychic Storm: a huge sigil turns on the gr
 		Enum.PartType.Cylinder,
 		0.2,
 	})
-	spinner(specs, at, 2.2, 0.8)
+	-- the Blender sigil (Art.Powers Sigil, list-combat 2026-11-20): its outer runed ring and inner triangle and eye
+	-- turning against each other; the bars and discs before the import
+	local outer = superMesh("Sigil", "SigilOuter", r, col, 0.1)
+	local inner = superMesh("Sigil", "SigilInner", r, x.accent:Lerp(WHITE, 0.3), 0.05)
+	if outer and inner then
+		turning(outer, CFrame.new(at + Vector3.new(0, 0.2, 0)), 0.8, 2.2)
+		turning(inner, CFrame.new(at + Vector3.new(0, 0.3, 0)), -1.4, 2.2)
+		FxLib.emit("glyph", x.color, at + Vector3.new(0, 0.5, 0), 1)
+	else
+		spinner(specs, at, 2.2, 0.8)
+	end
 	for _ = 1, FxLib.pieces(8) do
 		local a, rr = math.random() * math.pi * 2, math.sqrt(math.random()) * x.r
 		local spot = at + Vector3.new(math.cos(a) * rr, 0.5, math.sin(a) * rr)
@@ -3363,6 +3447,33 @@ SUPER.ascend = function(x) -- Spirit Ascended Guardian: a spirit column, spirit 
 end
 SUPER.dawn = function(x) -- Light Dawnburst: a sunrise: a flat flash across the ground, rays, a column
 	local floor = x.c - Vector3.new(0, 2.6, 0)
+	-- the Blender sunrise (Art.Powers Dawn, list-combat 2026-11-20): a sunburst of rays flashing out across the
+	-- ground and a crown of light blades rising round its edge; the discs and beams before the import
+	local burst = superMesh("Dawn", "DawnBurst", 0.3, x.accent, 0.05)
+	local crown = superMesh("Dawn", "DawnCrown", Vector3.new(0.3, 0.3, 0.3), x.color:Lerp(WHITE, 0.5), 0.1)
+	if burst and crown then
+		local turnP = MeshFix.turn("Powers")
+		local D = Config.PowerArt.Dawn
+		local k = x.r * F.supers.dawn
+		burst.CFrame = CFrame.new(floor + Vector3.new(0, 0.15, 0)) * turnP
+		crown.CFrame = CFrame.new(floor + Vector3.new(0, 0.2, 0)) * turnP
+		local out = TweenInfo.new(0.25, Enum.EasingStyle.Quad)
+		local bs, cs = D.DawnBurst.size, D.DawnCrown.size
+		TweenService:Create(burst, out, { Size = Vector3.new(bs[1], bs[2], bs[3]) * k }):Play()
+		TweenService:Create(crown, TweenInfo.new(0.35, Enum.EasingStyle.Back), {
+			Size = Vector3.new(cs[1] * k, cs[2] * k * 0.6, cs[3] * k),
+			CFrame = CFrame.new(floor + Vector3.new(0, cs[2] * k * 0.3, 0))
+				* CFrame.Angles(0, 0.4, 0)
+				* turnP,
+		}):Play()
+		fade(burst, 0.5, nil, 0.4)
+		fade(crown, 0.5, nil, 0.5)
+		column(x.c, 14, x.accent, x.style, 0.7)
+		if x.mine then
+			flashScreen(x.accent, 0.5, 0.5)
+		end
+		return
+	end
 	disc(floor, UP, x.r, x.accent, 0.6, 0.4)
 	disc(floor + Vector3.new(0, 0.2, 0), UP, x.r * 0.7, x.color, 0.8, 0.8)
 	for k = 0, 11 do
