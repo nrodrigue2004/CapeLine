@@ -31,6 +31,26 @@ return {
 		count = 16,
 		max = 85,
 	},
+	-- item 215 and 216: set pieces that move (Fx.SetMotion; each device moves the server's anchored meshes locally,
+	-- and lets go of one the server moves itself, like the chandelier falling). By mesh name (Config.SetPieceArt):
+	-- spin (radians a second about up), bob (studs, `rate` cycles a second), sway (degrees about a hinge `hinge`
+	-- studs above the look's foot, `period` seconds), cheer (a fan's hop: studs, cycles a second, phased by spot).
+	-- cat: the crane cat's tail swish and head look-round while it waits (SiteKit's "Cat" model, not carried).
+	-- Only within `reach` studs of the camera, at most `max` meshes a frame.
+	setMotion = {
+		reach = 260,
+		max = 160,
+		meshes = {
+			TrainCars = { spin = 0.45 },
+			MusicBoxDancer = { spin = 1.6, bob = 0.18, rate = 0.5 },
+			ChandelierFrame = { sway = 2.2, hinge = 6.3, period = 4.2 },
+			ChandelierGems = { sway = 2.2, hinge = 6.3, period = 4.2 },
+			FanLegs = { cheer = 0.45, rate = 1.6 },
+			FanShirt = { cheer = 0.45, rate = 1.6 },
+			FanSkin = { cheer = 0.45, rate = 1.6 },
+		},
+		cat = { tail = 28, tailRate = 0.9, head = 22, headEvery = 3.5, breathe = 0.04 },
+	},
 	fov = { base = 70, leap = 1.06, boost = 1.17, blend = 6 },
 	landShake = { time = 0.1, amount = 0.35, minFall = 25 },
 	-- the landing crack (gap polish 2026-11-19): a comic crack decal drawn by art/fx/textures.py --cracks

@@ -877,4 +877,79 @@ return function(T: any)
 			check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, "; "))
 		end
 	end)
+
+	test("List combat: set pieces move (train, music box, chandelier, Pit fans, the crane cat)", function()
+		local M = Config.Fx.setMotion
+		local art = Config.SetPieceArt
+		local function has(name: string): boolean
+			for _, look in art do
+				if type(look) == "table" and type(look[name]) == "table" then
+					return true
+				end
+			end
+			return false
+		end
+		for name in M.meshes do
+			check(has(name), name .. " is a real set piece mesh")
+		end
+		local site = fs.readFile("src/server/Services/SiteKit.luau")
+		check(
+			string.find(site, 'SiteKit.model(if cat then "Cat"', 1, true) ~= nil,
+			"the cat model is named Cat"
+		)
+		for _, size in
+			{
+				"Vector3.new(1.4, 1, 2.2)",
+				"Vector3.new(1.1, 1, 1)",
+				"Vector3.new(0.3, 0.5, 0.2)",
+				"Vector3.new(0.25, 0.25, 1.6)",
+			}
+		do
+			check(string.find(site, size, 1, true) ~= nil, "the cat's pieces keep their sizes: " .. size)
+		end
+		local init = fs.readFile("src/client/init.client.luau")
+		check(string.find(init, "SetMotion.init()", 1, true) ~= nil, "SetMotion runs")
+		local fx = fs.readFile("src/client/Fx/SetMotion.luau")
+		check(string.find(fx, 'FrameProf.wrap("SetMotion"', 1, true) ~= nil, "FrameProf on the loop")
+		if T.placePath then
+			local roblox = require("@lune/roblox")
+			local UiSim = require("./uisim")
+			local sim = UiSim.new(
+				UiSim.load(roblox.deserializePlace(fs.readFile(T.placePath))),
+				{ name = "PC", w = 1280, h = 720, top = 36, left = 0, right = 0, bottom = 0, touch = false }
+			)
+			local SetMotion = sim:require("Client.Fx.SetMotion")
+			sim:run("SetMotion", SetMotion.init)
+			local CF, V3 = roblox.CFrame, roblox.Vector3
+			local base = CF.new(10, 20, 30)
+			-- the train turns in place
+			local spun = SetMotion.pose(M.meshes.TrainCars, base, 2, 0, 0)
+			check((spun.Position - base.Position).Magnitude < 1e-6, "the train ring turns about its centre")
+			check(
+				math.abs(spun.LookVector:Dot(base.LookVector) - math.cos(0.9)) < 1e-4,
+				"0.45 radians a second"
+			)
+			-- the chandelier swings about its hook, a little
+			local ch = M.meshes.ChandelierFrame
+			local hinge = ch.hinge - 3.7
+			local hook = base.Position + V3.new(0, hinge, 0)
+			local most = 0
+			for i = 0, 40 do
+				local cf = SetMotion.pose(ch, base, i * 0.1, 0.3, hinge)
+				local h = cf:PointToWorldSpace(base:PointToObjectSpace(hook))
+				check((h - hook).Magnitude < 1e-4, "the hook stays put")
+				most = math.max(most, (cf.Position - base.Position).Magnitude)
+			end
+			check(most > 0.03 and most < 0.25, "a gentle sway, not a swing: " .. most)
+			-- fans hop up from where they stand, never through the bench
+			for i = 0, 20 do
+				local cf = SetMotion.pose(M.meshes.FanShirt, base, i * 0.07, 0.2, 0)
+				check(
+					cf.Position.Y >= base.Position.Y - 1e-6 and cf.Position.Y <= base.Position.Y + 0.46,
+					"a hop"
+				)
+			end
+			check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, "; "))
+		end
+	end)
 end
