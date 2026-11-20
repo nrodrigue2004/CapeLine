@@ -3178,6 +3178,11 @@ return function(T: any)
 			end
 		end
 		check(sparks ~= nil, "the spark spray is particles")
+		local src = fs.readFile("src/client/Fx/CombatFx.luau")
+		check(
+			string.find(src, 'FxLib.emit("hitstar", color:Lerp(WHITE, 0.35), center, 1', 1, true) ~= nil,
+			"a Comic nova pops a big hit star too"
+		)
 		check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
 	end)
 

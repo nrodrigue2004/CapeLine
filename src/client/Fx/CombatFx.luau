@@ -745,14 +745,8 @@ function CombatFx.nova(
 		local dome = part(Vector3.one * 2, CFrame.new(center), color, Enum.PartType.Ball)
 		dome.Transparency = 0.4
 		fade(dome, 0.3, { Size = Vector3.one * radius * 1.6 })
-		for k = 0, 3 do
-			local star = part(
-				Vector3.new(0.5, 0.5, radius * 0.6),
-				CFrame.new(center) * CFrame.Angles(0, math.rad(45 * k), math.rad(20)),
-				WHITE
-			)
-			fade(star, 0.2, { Size = Vector3.new(0.2, 0.2, radius * 1.2) })
-		end
+		-- the comic burst: a big inked hit star over the dome (Config.Fx.lib hitstar, 2026-11-20; was 4 white bars)
+		FxLib.emit("hitstar", color:Lerp(WHITE, 0.35), center, 1, nil, radius * (if big then 1.3 else 1))
 		if big then
 			flashScreen(color, 0.15, 0.3)
 		end
