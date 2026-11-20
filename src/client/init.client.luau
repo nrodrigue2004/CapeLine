@@ -86,6 +86,7 @@ local MentorHud = require(Ui.MentorHud) -- H6: the mentor card, picker and panel
 local MentorFx = require(Fx.MentorFx)
 local BadgeHud = require(Ui.BadgeHud) -- H7: the Badge Book, collections and titles
 local HelpHud = require(Ui.HelpHud) -- HOW TO PLAY (Everything Left 86)
+local InviteHud = require(Ui.InviteHud) -- INVITE FRIENDS (Everything Left 350)
 local ContestHud = require(Ui.ContestHud) -- H7: costume contests
 local CollectClient = require(Controllers.CollectClient) -- H7: collection sparkles and the scanner marker
 local LoreClient = require(Controllers.LoreClient) -- side-content: the lore pages' books and caption cards
@@ -187,6 +188,7 @@ MentorHud.init()
 MentorFx.init()
 BadgeHud.init()
 HelpHud.init()
+InviteHud.init()
 ContestHud.init()
 CollectClient.init()
 LoreClient.init()

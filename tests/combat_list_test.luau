@@ -710,4 +710,28 @@ return function(T: any)
 			"applied"
 		)
 	end)
+
+	test("List combat: INVITE FRIENDS opens Roblox's invite prompt", function()
+		local src = fs.readFile("src/client/Ui/InviteHud.luau")
+		check(
+			string.find(src, "SocialService:CanSendGameInviteAsync(player)", 1, true) ~= nil,
+			"asks Roblox first"
+		)
+		check(string.find(src, "SocialService:PromptGameInvite(player)", 1, true) ~= nil, "the prompt")
+		check(string.find(src, 'Kit.dock(open, "Invite", 12)', 1, true) ~= nil, "in the MENU drawer")
+		local init = fs.readFile("src/client/init.client.luau")
+		check(string.find(init, "InviteHud.init()", 1, true) ~= nil, "InviteHud runs")
+		if T.placePath then
+			local roblox = require("@lune/roblox")
+			local UiSim = require("./uisim")
+			local sim = UiSim.new(
+				UiSim.load(roblox.deserializePlace(fs.readFile(T.placePath))),
+				{ name = "PC", w = 1280, h = 720, top = 36, left = 0, right = 0, bottom = 0, touch = false }
+			)
+			sim:run("Hud", sim:require("Client.Ui.Hud").init)
+			sim:run("InviteHud", sim:require("Client.Ui.InviteHud").init)
+			check(sim.playerGui:FindFirstChild("InviteButton", true) ~= nil, "the button is made")
+			check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, "; "))
+		end
+	end)
 end
