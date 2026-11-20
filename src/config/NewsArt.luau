@@ -4,8 +4,8 @@
 return {
 	-- each world boss's name card portrait: 512 px cells, 4 to a sheet, { column, row (0-based), sheet }
 	cards = {
-		sheet = 77209635321441,
-		sheets = { 77209635321441, 73150305782054 },
+		sheet = 103820509142461,
+		sheets = { 103820509142461, 73150305782054 },
 		cell = 512,
 		at = {
 			RustjawPrime = { 0, 0, 1 },

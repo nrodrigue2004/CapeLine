@@ -26,8 +26,8 @@
 --   wind streaks, storm clouds and lava pools linger for their time, the Titan's rocks arc over during the warning.
 --   The Swarm Queen's drones are Fx.SwarmFx's (fists, walls, a giant; they drop when its formations break).
 -- Config.BossArt (parts: the same silhouette in at most the old part count; accents still take the phase colour
--- and the weak points pulse gold). Bulwark's battle form (NullWarFrame) keeps its plain parts below (Tasks.md
--- "Lore step 8: world bosses").
+-- and the weak points pulse gold). Bulwark's battle form (NullWarFrame) is in Art.Bosses too, in Bulwark's own look
+-- (2026-11-20); its parts fallback below wears the same colours (Tasks.md "Lore step 8: world bosses").
 
 local Lighting = game:GetService("Lighting")
 local Players = game:GetService("Players")
@@ -122,16 +122,34 @@ end
 -- The boss models (built around the origin: feet at y 0, facing -z)
 ---------------------------------------------------------------------------
 
--- The War-Frame (mission 6): a tall humanoid war machine with 2 shoulder cannons, a glowing back
--- core (the phase 2 shield's weak point) and knee joints. PLACEHOLDER ART: parts until the mesh pass.
+-- The War-Frame (mission 6, Bulwark's battle form): a tall humanoid war machine with 2 shoulder cannons, a glowing
+-- back core (the phase 2 shield's weak point) and knee joints, in Bulwark's blue, silver and electric yellow with his
+-- tower shield on the left arm (Everything Left 252). PLACEHOLDER ART: parts only until Art.Bosses is imported (the
+-- meshes, art/blender/bosses.py, are the real look).
 local function warframe(m: Model): { BasePart }
-	local plate = Color3.fromRGB(48, 50, 62)
-	local trim = Color3.fromRGB(150, 60, 200)
+	local plate = Color3.fromRGB(40, 110, 220)
+	local trim = Color3.fromRGB(255, 236, 80)
+	local silver = Color3.fromRGB(178, 184, 196)
+	-- the tower shield on the left forearm, with a yellow band
+	part(
+		m,
+		Vector3.new(1.6, 30, 15),
+		CFrame.new(-29, 26, -3) * CFrame.Angles(0, math.rad(16), 0),
+		silver,
+		Enum.Material.Metal
+	)
+	part(
+		m,
+		Vector3.new(0.4, 1.6, 13),
+		CFrame.new(-29.9, 31, -3.3) * CFrame.Angles(0, math.rad(16), 0),
+		trim,
+		Enum.Material.Neon
+	)
 	for _, s in { -1, 1 } do
-		part(m, Vector3.new(9, 4, 14), CFrame.new(s * 9, 2, -1), STEEL, Enum.Material.Metal) -- feet
+		part(m, Vector3.new(9, 4, 14), CFrame.new(s * 9, 2, -1), silver, Enum.Material.Metal) -- feet
 		part(m, Vector3.new(7, 12, 7), CFrame.new(s * 9, 9, 0), plate, Enum.Material.Metal) -- shins
 		part(m, Vector3.new(4, 4, 4), CFrame.new(s * 9, 14, -4), trim, Enum.Material.Neon, Enum.PartType.Ball)
-		part(m, Vector3.new(8, 12, 8), CFrame.new(s * 9, 21, 0), STEEL, Enum.Material.Metal) -- thighs
+		part(m, Vector3.new(8, 12, 8), CFrame.new(s * 9, 21, 0), silver, Enum.Material.Metal) -- thighs
 		-- arms
 		part(
 			m,
@@ -140,10 +158,10 @@ local function warframe(m: Model): { BasePart }
 			plate,
 			Enum.Material.Metal
 		)
-		part(m, Vector3.new(9, 9, 9), CFrame.new(s * 23, 23, -1), STEEL, Enum.Material.Metal) -- fists
+		part(m, Vector3.new(9, 9, 9), CFrame.new(s * 23, 23, -1), silver, Enum.Material.Metal) -- fists
 	end
 	part(m, Vector3.new(22, 10, 14), CFrame.new(0, 29, 0), plate, Enum.Material.Metal) -- hips
-	part(m, Vector3.new(30, 20, 18), CFrame.new(0, 42, 0), STEEL, Enum.Material.Metal) -- chest
+	part(m, Vector3.new(30, 20, 18), CFrame.new(0, 42, 0), silver, Enum.Material.Metal) -- chest
 	part(m, Vector3.new(10, 6, 2), CFrame.new(0, 44, -9.2), trim, Enum.Material.Neon) -- chest light
 	part(m, Vector3.new(11, 9, 11), CFrame.new(0, 56, -3), plate, Enum.Material.Metal) -- head
 	part(m, Vector3.new(8, 2, 1), CFrame.new(0, 57, -8.6), Color3.fromRGB(255, 80, 80), Enum.Material.Neon) -- visor

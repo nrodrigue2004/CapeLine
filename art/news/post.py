@@ -2,7 +2,7 @@
 # cinematic layer that were plain frames, and inks the boss portraits rendered by art/blender/boss_cards.py:
 # * NewsCards.png (1024 x 1024, 512 px cells, 2 to a row): each world boss's name card portrait: the boss (the game's
 #   own meshes posed, build/news/raw/boss_<Boss>.png) in a bold ink outline over a sunburst and halftone dots in its
-#   card colour (Config.BossArt theme; the battle form's red), in an ink frame with a white rule (the comic pass of
+#   card colour (Config.BossArt theme), in an ink frame with a white rule (the comic pass of
 #   art/panels/post.py, whose backdrop and outline it reuses)
 # * NamePlate.png (1024 x 288): the name card's comic plate: navy with speed lines, an ink border, a gold rule and a
 #   clipped corner; the UI shows it 9-sliced (Config.NewsArt.plate.slice, SliceScale by the card's height) so it fits
@@ -35,13 +35,13 @@ _spec.loader.exec_module(panels)
 INK = panels.INK
 
 CELL = 512
-# the card portraits, in sheet order, with their backdrop colour (Config.BossArt theme; the battle form's red is
-# the card's own default; tests/news_art_test.luau checks these against BossArt)
+# the card portraits, in sheet order, with their backdrop colour (Config.BossArt theme; tests/news_art_test.luau
+# checks these against BossArt)
 BOSSES = [
     ("RustjawPrime", (255, 170, 60)),
     ("LumenMaw", (90, 240, 230)),
     ("LeviathanEngine", (80, 230, 255)),
-    ("NullWarFrame", (235, 70, 70)),
+    ("NullWarFrame", (255, 236, 80)),  # Bulwark's electric yellow (2026-11-20)
     # bosses-3 (2026-11-20, DRAFT looks): a second sheet, NewsCards2.png (a sheet holds 4 cells: Roblox's 1024 px cap)
     ("StormColossus", (150, 230, 255)),
     ("SwarmQueen", (255, 170, 60)),

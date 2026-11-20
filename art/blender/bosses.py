@@ -8,7 +8,8 @@
 # that pulls light in); Leviathan Engine, the Deep Machine (an ancient barnacled brass-and-stone sea machine with
 # gears, portholes and a tide-turbine heart). Bright cartoon, comic heroic, never gory: machines shed sparks and
 # plates, the Maw bursts into light. Original designs only. Bulwark's battle form (NullWarFrame, a mission fight)
-# keeps the neutral mech look (grey and steel, hazard stripes) until its own pass. The ids are Config.Boss's.
+# wears Bulwark's own look (2026-11-20, Everything Left 252): his blue, silver and electric yellow, the Hex Badge,
+# the Great Pauldrons and his tower shield on the left forearm. The ids are Config.Boss's.
 # PLACEHOLDER ART until nate imports the FBX (Tasks.md "Lore step 8: world bosses"); until then the game draws each
 # world boss from the part-built look written here too (BossArt parts, previews boss_<Boss>_parts.png).
 # * Each boss is a few meshes by role (src/config/BossArt.luau, generated here):
@@ -957,14 +958,20 @@ def leviathan():
 
 # ================================================================ NullWarFrame: an angular mech (mission 6)
 def warframe():
+    # Bulwark's own look (list-combat 2026-11-20, Everything Left 252): the fake hero's colours on the mech (Config.Enemies
+    # Bulwark: blue, silver, electric yellow), his Hex Badge on the chest, his Great Pauldrons and his tower shield on
+    # the left forearm. "The Unbreakable", built as one.
     b = Boss("NullWarFrame", {
-        "Paint": ((126, 130, 138), 0.5, 0.1),    # steel grey
-        "Paint2": ((64, 66, 74), 0.55, 0.1),     # graphite armour
-        "Metal": ((150, 156, 170), 0.32, 1.0),
-        "Dark": ((22, 22, 28), 0.6, 0.2),
-        "Hazard": ((250, 200, 40), 0.5, 0.0),
-        "Accent": ((184, 188, 194), 0.45, 0.0),  # light trim
+        "Paint": ((40, 110, 220), 0.4, 0.15),    # Bulwark blue
+        "Paint2": ((26, 54, 124), 0.45, 0.15),   # deep navy armour
+        "Metal": ((178, 184, 196), 0.28, 1.0),   # silver
+        "Dark": ((22, 26, 40), 0.6, 0.2),
+        "Hazard": ((255, 232, 70), 0.5, 0.0),
+        "Accent": ((255, 236, 80), 0.4, 0.0),    # electric yellow trim
     }, PHASES, ("Cannon", "CannonGlow"))
+    b.look = "Bulwark's battle form: the fake hero's war machine in his blue, silver and electric yellow, tower shield up"
+    b.theme = (255, 236, 80)
+    b.debris = (40, 110, 220)
     H = "Hull"
     for s in (-1, 1):
         # feet: split clawed sabatons with a heel spur
@@ -1001,9 +1008,13 @@ def warframe():
         shear(pec, lambda v, s=s: Vector((v.x, v.y, v.z - (14.5 - abs(v.x)) * 0.16 + 1.2)))
         b.add(H, pec)
         b.add("Plates2", beam("Paint2", (s * 15.5, -4, 35), (s * 17.6, 4, 47), 2.4, 5, 0.5, 1))  # rib plates
-    b.add("Glow", cy("Lamp", 2.6, 2.6, 0.8, (0, 10.4, 39.2), "Y", 20))
-    b.add(H, ring("Metal", 3.4, 0.6, (0, 10.4, 39.2), "Y", 20, 5))
-    b.add(H, cy("Dark", 4.2, 4.2, 1.2, (0, 9.8, 39.2), "Y", 20))
+    # the Hex Badge: a six-sided lamp in a yellow hex frame on a silver plate
+    b.add("Glow", cy("Lamp", 2.8, 2.8, 0.8, (0, 10.5, 39.2), "Y", 6))
+    b.add(H, ring("Accent", 3.6, 0.65, (0, 10.5, 39.2), "Y", 6, 5))
+    b.add(H, cy("Metal", 4.9, 4.9, 1.0, (0, 10.0, 39.2), "Y", 6))
+    b.add(H, cy("Dark", 4.2, 4.2, 1.2, (0, 9.6, 39.2), "Y", 6))
+    for s in (-1, 1):  # yellow chevrons up the chest from the badge
+        b.add(H, beam("Accent", (s * 4.6, 10.0, 42.6), (s * 11.4, 10.6, 47.4), 1.1, 0.8, 0.25, 1))
     # the back reactor (the shield's weak point) in a vented pack with two thrusters
     b.add(H, bx("Paint2", -9, 9, -12.2, -6, 33, 48, 1.2, 2))
     b.add(H, cy("Metal", 5.4, 5.0, 2.2, (0, -12.6, 40), "Y", 20))
@@ -1025,14 +1036,23 @@ def warframe():
     for s in (-1, 1):
         b.add(H, tube("Accent", [(s * 5.2, 2, 58), (s * 8.4, 0, 61), (s * 9.8, -3.6, 64.5)], [1.4, 0.9, 0.0], 6))
         b.add("Plates3", bx("Paint", min(s * 5.8, s * 7.2), max(s * 5.8, s * 7.2), -1, 6, 51.6, 56, 0.4))  # cheek guards
-    # shoulders: big angular pauldrons (the cannons sit on top)
+    # shoulders: Bulwark's Great Pauldrons, wide layered plates (the cannons sit on top)
     for s in (-1, 1):
         x = s * 19
         b.add(H, ball("Dark", 4.6, (x * 0.94, 0, 46)))
-        pd = bx("Paint", x - 6.5, x + 6.5, -6.5, 6.5, 44, 48.5, 1.0, 2, taper=(0.78, 0.8))
-        shear(pd, lambda v, x=x: Vector((v.x, v.y, v.z - abs(v.x - x) * 0.18 + (1.2 if (v.x - x) * s < 0 else 0))))
+        pd = bx("Paint", x - 8.2, x + 8.2, -7.6, 7.6, 44, 48.6, 1.0, 2, taper=(0.8, 0.82))
+        shear(pd, lambda v, x=x: Vector((v.x, v.y, v.z - abs(v.x - x) * 0.16 + (1.2 if (v.x - x) * s < 0 else 0))))
         b.add(H, pd)
-        b.add(H, bx("Accent", x - 6.6, x + 6.6, 5.6, 6.8, 43.6, 44.8, 0.2))
+        b.add(H, bx("Accent", x - 8.3, x + 8.3, 6.6, 7.9, 43.6, 44.9, 0.2))
+        b.add(H, bx("Metal", min(x, x + s * 8.4), max(x, x + s * 8.4), -6.8, 6.8, 46.2, 47.3, 0.3))  # a silver ridge
+        # two lames below the pauldron, stepping out over the upper arm (they break off in phase 3)
+        for k in range(2):
+            lame = bx("Paint2" if k == 0 else "Paint", x + s * (3.4 + k * 1.4) - 3.6, x + s * (3.4 + k * 1.4) + 3.6,
+                      -6.6 + k * 0.6, 6.6 - k * 0.6, 40.4 - k * 3.4, 43.8 - k * 3.4, 0.5, 1)
+            shear(lame, lambda v, s=s, x=x: Vector((v.x + s * (44 - v.z) * 0.12, v.y, v.z)))
+            b.add("Plates3", lame)
+            b.add("Plates3", bx("Accent", x + s * (6.2 + k * 1.4) - 0.5, x + s * (6.2 + k * 1.4) + 0.5,
+                                -6.4 + k * 0.6, 6.4 - k * 0.6, 40.2 - k * 3.4, 41.0 - k * 3.4, 0.15))
         # arms: upper arm, elbow, forearm, a fist (left) or a forearm blade (right)
         el = (s * 22.5, -0.5, 34)
         fi = (s * 23.5, 1, 23.5)
@@ -1043,6 +1063,23 @@ def warframe():
         b.add(H, bx("Metal", fi[0] - 3.6, fi[0] + 3.6, fi[1] - 3.4, fi[1] + 3.6, 18.4, 23.6, 1.0, 2))
     blade = beam("Accent", (25.4, 3.5, 30.5), (26.4, 9, 13), 0.8, 3.4, 0.2, 1, 0.3)
     b.add(H, blade)
+    # the tower shield on the left forearm (it swings with the forearm): a silver frame, a blue face with a yellow
+    # bands and Bulwark's hex between them, turned a little to the front
+    sc = Vector((-29.0, 3.2, 26.0))
+    sh = [
+        bx("Metal", sc.x - 0.8, sc.x + 0.8, sc.y - 8.0, sc.y + 8.0, sc.z - 15.5, sc.z + 15.5, 0.6, 2, taper=(1, 0.86)),
+        bx("Paint", sc.x - 1.4, sc.x - 0.4, sc.y - 6.9, sc.y + 6.9, sc.z - 14.2, sc.z + 14.2, 0.4, 1, taper=(1, 0.85)),
+        bx("Accent", sc.x - 1.65, sc.x - 1.2, sc.y - 6.4, sc.y + 6.4, sc.z + 5.4, sc.z + 7.0, 0.15),
+        bx("Accent", sc.x - 1.65, sc.x - 1.2, sc.y - 6.2, sc.y + 6.2, sc.z - 11.2, sc.z - 9.8, 0.15),
+        cy("Metal", 4.0, 4.0, 0.9, (sc.x - 1.6, sc.y, sc.z - 2), "X", 6),
+        cy("Accent", 3.0, 3.0, 0.5, (sc.x - 2.2, sc.y, sc.z - 2), "X", 6),
+        cy("Dark", 1.6, 1.6, 0.5, (sc.x - 2.5, sc.y, sc.z - 2), "X", 6),
+        bx("Dark", sc.x + 0.6, sc.x + 2.6, sc.y - 1.6, sc.y + 1.6, sc.z - 4, sc.z + 4, 0.4),  # the arm clamp
+    ]
+    for o in sh:
+        turn(o, -16, "Z", tuple(sc))
+        o["seg"] = "ForeL"
+    b.add(H, sh)
     # the shoulder cannon (one; the game sets one on each shoulder; anchor at the origin)
     c = []
     c.append(bx("Paint2", -3.6, 3.6, -3.6, 3.6, -4.2, -0.2, 0.7, 2))
@@ -1500,7 +1537,7 @@ if ONLY is None and not QUICK:
         "-- GENERATED by art/blender/bosses.py: do not edit by hand.",
         "-- PLACEHOLDER ART until nate imports art/export/Bosses.fbx. The world bosses wear nate's lore looks (2026-11-17,",
         "-- build plan step 8: Rustjaw Prime the junkyard titan, Lumen Maw the light eater, Leviathan Engine the deep",
-        "-- machine); Bulwark's battle form (NullWarFrame) keeps the neutral machine look until its own pass.",
+        "-- machine); Bulwark's battle form (NullWarFrame) in Bulwark's own colours, Hex Badge, pauldrons and tower shield.",
         "-- The remade bosses (ReplicatedStorage.Art.Bosses, meshes named \"<Boss>_<Piece>\"): each piece's size and its",
         "-- centre from the boss's feet, in studs (x, up, back; a boss faces -z). Roles: hull (textured body), shed2 and",
         "-- shed3 (textured plates that break off at phases 2 and 3), glow (Neon, the phase colour), weak (Neon, the",

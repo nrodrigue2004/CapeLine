@@ -12815,10 +12815,21 @@ test(
 			-- the phase hooks are the same: accents per phase, plates that break off at 66% and 33%
 			check(#art.glow == 3, id .. " accent colours for 3 phases")
 		end
-		-- the battle form keeps its look and its plain parts (its own pass)
+		-- the battle form wears Bulwark's own look (Everything Left 252): his electric yellow theme, his tower shield
+		-- on the left forearm (a wide, tall piece on that segment), no parts look (its fallback is WorldFx's)
+		local wf = A.NullWarFrame
 		check(
-			A.NullWarFrame.parts == nil and A.NullWarFrame.look == nil,
-			"the battle form's look is unchanged"
+			wf.parts == nil
+				and type(wf.look) == "string"
+				and string.find(wf.look, "Bulwark") ~= nil
+				and wf.theme[1] == 255
+				and wf.theme[2] == 236,
+			"the battle form is in Bulwark's look"
+		)
+		local fore = wf.pieces.ForeL_Hull
+		check(
+			fore ~= nil and fore.seg == "ForeL" and fore.size[2] >= 28 and fore.size[3] >= 12,
+			"Bulwark's tower shield rides the left forearm"
 		)
 		-- the fights are unchanged: the same hit spheres, objectives and attacks
 		check(
