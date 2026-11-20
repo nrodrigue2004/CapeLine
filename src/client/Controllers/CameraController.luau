@@ -21,6 +21,9 @@ local MoveController = require(script.Parent.MoveController)
 local InputController = require(script.Parent.InputController)
 
 local CameraController = {}
+-- (first-30 polish, 2026-11-20) a cutscene owns the field of view: CinemaClient sets this while its camera plays,
+-- so the gameplay FOV (the leap and boost widening) never pumps the zoom mid-shot; kicks and pushes still land
+CameraController.fovOverride = nil :: number?
 CameraController.reduceMotion = false -- Settings: Reduce flashing (no shakes, punches or hit-pause)
 CameraController.motionOption = 0 -- Settings: Camera motion (0 Full, 1 Reduced, 2 Off)
 CameraController.motion = CinemaPlan.motion(Config, 0, false) -- the scales in use (CinemaPlan.Motion)
@@ -36,6 +39,9 @@ local orbitTotal, orbitLeft = 0, 0
 -- the swing's speed, both scaled by Camera motion (Off: none)
 local SWING = Config.Move.mobility.swing.feel
 local swingPull = 0
+-- the blend back from a cutscene's last shot to the follow camera (CameraController.blendFrom)
+local blendCf: CFrame? = nil
+local blendTime, blendLeft = 0, 0
 local pullParams = RaycastParams.new()
 pullParams.FilterType = Enum.RaycastFilterType.Exclude
 
@@ -101,6 +107,15 @@ function CameraController.orbit(sign: number?)
 	end
 	orbitTotal = CC.orbit.super * m * (if (sign or 1) < 0 then -1 else 1)
 	orbitLeft = CC.orbit.time
+end
+
+-- A cutscene ended (CinemaClient): ease the camera from its last shot to the follow camera over `seconds`
+-- instead of snapping behind the hero (first-30 polish: nate found the cutscenes' ends jumpy)
+function CameraController.blendFrom(cf: CFrame, seconds: number)
+	if seconds <= 0 then
+		return
+	end
+	blendCf, blendTime, blendLeft = cf, seconds, seconds
 end
 
 function CameraController.init()
@@ -174,8 +189,27 @@ function CameraController.init()
 			leapGlow = math.max(0, leapGlow - dt)
 			fovKick = math.max(0, fovKick - dt * 0.6)
 			pushKick = math.max(0, pushKick - dt * (CC.push.heavy / CC.push.time))
-			local want = target * (1 + fovKick - pushKick)
-			cam.FieldOfView += (want - cam.FieldOfView) * math.min(1, dt * F.blend)
+			local scripted = cam.CameraType == Enum.CameraType.Scriptable
+			local over = CameraController.fovOverride
+			if over then
+				-- a cutscene's own FOV (the kicks and pushes still land on it)
+				local want = over * (1 + fovKick - pushKick)
+				cam.FieldOfView += (want - cam.FieldOfView) * math.min(1, dt * F.blend * 2)
+			elseif not scripted then
+				-- (a Scriptable camera that is no cutscene, the HQ's or a preview's, keeps the FOV it set)
+				local want = target * (1 + fovKick - pushKick)
+				cam.FieldOfView += (want - cam.FieldOfView) * math.min(1, dt * F.blend)
+			end
+			-- the blend back from a cutscene's last shot: eased in from where the shot left the camera
+			if blendLeft > 0 and blendCf then
+				if scripted then
+					blendLeft = 0
+				else
+					blendLeft = math.max(0, blendLeft - dt)
+					local k = CinemaPlan.ease(1 - blendLeft / blendTime)
+					cam.CFrame = (blendCf :: CFrame):Lerp(cam.CFrame, k)
+				end
+			end
 			-- the dash lean: rolls in fast, settles back slower (not while a cutscene owns the camera)
 			local wantLean = if os.clock() < leanUntil then leanWant else 0
 			local rate = if math.abs(wantLean) > math.abs(lean) then CC.lean.rise else CC.lean.fall

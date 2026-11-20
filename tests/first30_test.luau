@@ -1199,4 +1199,59 @@ return function(T: any)
 			check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
 		end
 	)
+	test(
+		"First 30 polish: a letterboxed cutscene owns the FOV, clears the side HUD and eases back after",
+		function()
+			local sim = newSim()
+			sim.fakeClock = true
+			sim:run("InputController", sim:require("Client.Controllers.InputController").init)
+			local Kit = sim:require("Client.Ui.Kit")
+			local CameraController = sim:require("Client.Controllers.CameraController")
+			local CinemaClient = sim:require("Client.Controllers.CinemaClient")
+			local CinemaHud = sim:require("Client.Ui.CinemaHud")
+			local CinemaPlan = require("../src/shared/CinemaPlan")
+			sim:run("CinemaClient", CinemaClient.init)
+			sim:run("CinemaHud", CinemaHud.init)
+			local toasts, plates, stay
+			sim:run("screens", function()
+				toasts = Kit.screen("Toasts", 1)
+				plates = Kit.screen("Plates", 1)
+				stay = Kit.screen("GuideHud", 1)
+			end)
+			local RS = sim.game:GetService("RunService")
+			local function frames(n: number)
+				for _ = 1, n do
+					sim:advance(1 / 60)
+					for _, h in table.clone(RS.RenderStepped.handlers) do
+						sim:run("RenderStepped", function()
+							h(1 / 60)
+						end)
+					end
+				end
+			end
+			plates.Enabled = false -- hidden before the scene: stays hidden after it
+			local def = Config.Cinema.scenes.cityWatch
+			local shots = CinemaPlan.around(def.shots, 0, 10, 0)
+			local ok
+			sim:run("play", function()
+				ok =
+					CinemaClient.play({ owner = "mission", key = 1, beat = true, shots = shots, seconds = 6 })
+			end)
+			check(ok == true, "the scene plays")
+			frames(5)
+			check(CinemaClient.letterboxed(), "letterboxed")
+			check(CameraController.fovOverride == Config.Cinema.camera.fov, "the scene holds its own FOV")
+			check(toasts.Enabled == false, "the toasts step aside")
+			check(stay.Enabled == true, "the subtitles' screen stays")
+			sim:run("stop", function()
+				CinemaClient.stop("mission")
+			end)
+			frames(5)
+			check(CameraController.fovOverride == nil, "the FOV is the game's again")
+			check(toasts.Enabled == true, "the toasts come back")
+			check(plates.Enabled == false, "a screen hidden before the scene stays hidden")
+			check(Config.Cinema.camera.blendOut > 0, "the end eases back to the follow camera")
+			check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
+		end
+	)
 end

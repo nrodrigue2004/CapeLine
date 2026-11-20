@@ -28,6 +28,7 @@ local PvpClient = require(script.Parent.Parent.Controllers.PvpClient)
 local SquadClient = require(script.Parent.Parent.Controllers.SquadClient)
 local InputController = require(script.Parent.Parent.Controllers.InputController)
 local StoryClient = require(script.Parent.Parent.Controllers.StoryClient)
+local CinemaClient = require(script.Parent.Parent.Controllers.CinemaClient)
 
 local Radar = {}
 
@@ -103,7 +104,8 @@ end
 
 local function draw()
 	-- the opening shows only its verb buttons (spec: first 30 seconds)
-	gui.Enabled = not StoryClient.inOpening()
+	-- (first-30 polish) and no radar over a letterboxed cutscene
+	gui.Enabled = not StoryClient.inOpening() and not CinemaClient.letterboxed()
 	local origin = myPos()
 	local n = 0
 	if origin and not StoryClient.inMission() then

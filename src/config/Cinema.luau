@@ -20,6 +20,27 @@
 -- * comic: comic-panel flashback pages (PLACEHOLDER ART: panels drawn from frames until the art pass).
 return {
 	length = { min = 5, max = 20 }, -- seconds a scene may run
+	-- (first-30 polish 2026-11-20) the side HUD screens a letterboxed scene hides while its bars are up (each comes
+	-- back as it was); never the subtitles (GuideHud, StoryHud), the prompts (Qte), the finisher or news screens
+	hideScreens = {
+		"Plates",
+		"Toasts",
+		"NemesisHud",
+		"BadgeHud",
+		"MentorHud",
+		"TaskForceHud",
+		"PvpHud",
+		"Squad",
+		"Daily",
+		"DailyTracker",
+		"BoardHud",
+		"ContestHud",
+		"HelpHud",
+		"MoveTutor",
+		"PassHud",
+		"WeaponRack",
+		"LoreCard",
+	},
 	skipDelay = 0.8, -- the SKIP button shows this long after a seen scene starts (no accidental taps)
 	letterbox = { size = 0.1, tween = 0.35 }, -- bar height (share of the screen) and slide time
 
@@ -1044,6 +1065,11 @@ return {
 		lean = { max = 0.06, rise = 9, fall = 4 }, -- radians of roll into a dash; blend in and out per second
 		push = { heavy = 0.05, finisher = 0.1, time = 0.28 }, -- FOV narrowed by this share (a gentle push in)
 		orbit = { super = 0.32, time = 0.9 }, -- radians a super swings the camera round the hero
+		-- (first-30 polish 2026-11-20) a cutscene's field of view, held for the whole scene (the gameplay FOV's
+		-- leap and boost widening no longer pumps the zoom mid-shot), and the seconds its end eases from the last
+		-- shot to the follow camera instead of snapping behind the hero
+		fov = 70,
+		blendOut = 0.6,
 	},
 
 	finisher = {

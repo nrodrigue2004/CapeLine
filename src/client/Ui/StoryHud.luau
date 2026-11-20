@@ -849,10 +849,12 @@ local function refreshOpening()
 	local inOpening = StoryClient.inOpening()
 	local pg = player:FindFirstChildOfClass("PlayerGui")
 	if pg then
+		-- (first-30 polish) the world markers and the boss bar also step aside for a letterboxed cutscene
+		local off = inOpening or CinemaClient.letterboxed()
 		for _, name in HIDE_IN_OPENING do
 			local g = pg:FindFirstChild(name) :: ScreenGui?
 			if g then
-				g.Enabled = not inOpening
+				g.Enabled = not off
 			end
 		end
 	end

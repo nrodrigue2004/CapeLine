@@ -25,6 +25,7 @@ local Signal = require(Shared:WaitForChild("Util"):WaitForChild("Signal"))
 local CinemaPlan = require(Shared:WaitForChild("CinemaPlan"))
 
 local State = require(script.Parent.Parent.State)
+local CameraController = require(script.Parent.CameraController)
 
 local CinemaClient = {}
 
@@ -82,7 +83,9 @@ local function setCamera(on: boolean, free: boolean?)
 		return
 	end
 	camOn = on
+	local CCam = Config.Cinema.camera
 	if on then
+		CameraController.fovOverride = CCam.fov
 		cam.CameraType = Enum.CameraType.Scriptable
 		local r = root()
 		if r and not free then
@@ -90,10 +93,14 @@ local function setCamera(on: boolean, free: boolean?)
 			anchored = r
 		end
 	else
+		CameraController.fovOverride = nil
+		local last = cam.CFrame
 		cam.CameraType = Enum.CameraType.Custom
 		local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
 		if hum then
 			cam.CameraSubject = hum
+			-- first-30 polish: ease from the last shot to the follow camera, no snap behind the hero
+			CameraController.blendFrom(last, CCam.blendOut)
 		end
 		if anchored then
 			anchored.Anchored = false
