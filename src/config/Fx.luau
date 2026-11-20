@@ -93,6 +93,17 @@ return {
 		-- a net pins flat on the wall for netHold s; a famous fake's path shot splashes in its own colour
 		splash = { sparks = 5, tracerSparks = 9, scorch = 1, muzzle = 2, netHold = 0.5 },
 	},
+	-- (list-combat 2026-11-20, combat effects polish: weak hit feedback) taking a hit: sparks spray off the hero's
+	-- chest away from the robot; on your own hero a red arrow on the screen points at who hit you (`arrow`: life s,
+	-- up to `pool` at once, its ring's share of the screen height), a thud (at most every `gap` s) and a shake;
+	-- a melee blow or a hit of `heavy` of your max health or more is heavy: more sparks, a harder shake and thud
+	hurt = {
+		heavy = 0.12,
+		gap = 0.08,
+		arrow = { life = 0.7, pool = 4, ring = 0.62, width = 0.3, color = { 255, 40, 40 } },
+		shake = { 0.12, 0.25 },
+		shakeHeavy = { 0.22, 0.6 },
+	},
 	-- the newer robots' effects (CombatFx): the Sniper's aim laser (it thickens and blinks for the locked last
 	-- part) and its tracer round, the Interceptor's net, the Grappler's hook on its cable, the Bomber's grenade
 	-- (its light blinks faster as it falls), its burning patch and blast, the Medic Unit's repair beam, the

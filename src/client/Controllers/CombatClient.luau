@@ -504,6 +504,8 @@ end
 
 local IMPACT = Config.Audio.impact
 local lastThud = 0
+local HURT = Config.Fx.hurt
+local lastHurt = 0
 
 local function drawHits(r: any, row: any, style: string, mine: boolean)
 	local hits = r.h or {}
@@ -819,14 +821,29 @@ local function onEvents(list: { any })
 				CombatFx.enemyShot(pos, vel, ev[11])
 			end
 		elseif kind == HERO_HIT then
-			if ev[6] and ev[6] > 0 then
+			-- {2, userId, x,y,z, dmg, [rx,ry,rz, melee]}: the robot's spot when it is still there (list-combat)
+			local dmg = ev[6] or 0
+			local from = if ev[9] then Vector3.new(ev[7], ev[8], ev[9]) else nil
+			local mineHit = ev[2] == player.UserId
+			local heavy = ev[10] == 1 or (mineHit and dmg >= (State.hero.maxHealth or 400) * HURT.heavy)
+			if dmg > 0 then
 				HeroAnimator.hit(HeroAnimator.byUserId(ev[2]))
+				CombatFx.heroHit(Vector3.new(ev[3], ev[4], ev[5]) + CHEST, from, heavy)
 			end
-			if ev[2] == player.UserId then
-				if ev[6] and ev[6] > 0 then
+			if mineHit then
+				if dmg > 0 then
 					CinemaClient.hurt()
-					CombatFx.hurt()
-					CameraController.shake(0.12, 0.25)
+					CombatFx.hurt(from, heavy)
+					local sh = if heavy then HURT.shakeHeavy else HURT.shake
+					CameraController.shake(sh[1], sh[2])
+					local now = os.clock()
+					if now - lastHurt >= HURT.gap then
+						lastHurt = now
+						AudioController.playSpec(
+							if heavy then IMPACT.heavy else IMPACT.hit,
+							Vector3.new(ev[3], ev[4], ev[5])
+						)
+					end
 				else
 					local p = myChest()
 					if p then

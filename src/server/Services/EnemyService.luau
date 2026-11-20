@@ -477,7 +477,17 @@ local function handleEvents()
 				local pos = HeroService.position(hero)
 				local dmg = math.floor(taken + 0.5)
 				if pos then
-					table.insert(out, { EnemyService.HERO_HIT, ev.hero, pos.X, pos.Y, pos.Z, dmg })
+					local row = { EnemyService.HERO_HIT, ev.hero, pos.X, pos.Y, pos.Z, dmg }
+					local from = sim.byId[ev.e]
+					if from then
+						-- where the hit came from (list-combat 2026-11-20): the hurt arrow and the sparks' spray, and
+						-- 1 for a melee blow (the heavy thud)
+						table.insert(row, from.x)
+						table.insert(row, from.y)
+						table.insert(row, from.z)
+						table.insert(row, if ev.melee then 1 else 0)
+					end
+					table.insert(out, row)
 				end
 				if hero.alive and not hero.downed then
 					-- a heavy punch throws the hero back, through a wall if one is in the way (ImpactService, 2026-11-19)

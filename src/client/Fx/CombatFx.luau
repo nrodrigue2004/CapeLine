@@ -4651,14 +4651,42 @@ function CombatFx.burst(pos: Vector3, style: string, metal: Color3?)
 	CombatFx.impact(pos, true, style, false)
 end
 
--- The local hero got hit: a red edge on screen
+-- The local hero got hit: a red edge on screen, deeper on a heavy hit, and (when `from`, the robot, is known) a
+-- red arrow on a ring round the screen's middle pointing at it (Config.Fx.hurt.arrow), so you know where to turn
 local hurtFrame: Frame? = nil
-function CombatFx.hurt()
+local hurtArrows: { Frame } = {}
+local nextArrow = 0
+function CombatFx.hurt(from: Vector3?, heavy: boolean?)
 	if hurtFrame then
 		local f = hurtFrame :: Frame
-		f.BackgroundTransparency = 0.7
-		TweenService:Create(f, TweenInfo.new(0.35), { BackgroundTransparency = 1 }):Play()
+		f.BackgroundTransparency = if heavy then 0.5 else 0.7
+		TweenService:Create(f, TweenInfo.new(if heavy then 0.5 else 0.35), { BackgroundTransparency = 1 })
+			:Play()
 	end
+	local cam = Workspace.CurrentCamera
+	if not from or not cam or #hurtArrows == 0 then
+		return
+	end
+	local rel = cam.CFrame:PointToObjectSpace(from)
+	if rel.X * rel.X + rel.Z * rel.Z < 1e-4 then
+		return
+	end
+	nextArrow = nextArrow % #hurtArrows + 1
+	local holder = hurtArrows[nextArrow]
+	holder.Rotation = math.deg(math.atan2(rel.X, -rel.Z)) -- 0 = ahead (the top of the screen), 90 = right
+	local bar = holder:FindFirstChild("Bar") :: Frame
+	local A = F.hurt.arrow
+	bar.BackgroundTransparency = if heavy then 0 else 0.2
+	bar.Size = UDim2.fromScale(A.width * (if heavy then 1.3 else 1), 0.045)
+	TweenService:Create(bar, TweenInfo.new(A.life, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+		BackgroundTransparency = 1,
+	}):Play()
+end
+
+-- A hero took a robot's hit: sparks spray off the chest away from where it came from (bigger on a heavy hit)
+function CombatFx.heroHit(chest: Vector3, from: Vector3?, heavy: boolean)
+	local dir = if from then chest - from else UP
+	CombatFx.hitSparks(chest, dir, ENEMY, heavy)
 end
 
 ---------------------------------------------------------------------------
@@ -4917,6 +4945,38 @@ function CombatFx.init()
 	grad.Parent = hurt
 	hurt.Parent = gui
 	hurtFrame = hurt
+	-- the hurt arrows: a square ring round the middle, turned toward the robot, with a red bar at its top
+	local A = F.hurt.arrow
+	for i = 1, A.pool do
+		local holder = Instance.new("Frame")
+		holder.Name = "HurtArrow" .. i
+		holder.AnchorPoint = Vector2.new(0.5, 0.5)
+		holder.Position = UDim2.fromScale(0.5, 0.5)
+		holder.Size = UDim2.fromScale(A.ring, A.ring)
+		holder.SizeConstraint = Enum.SizeConstraint.RelativeYY
+		holder.BackgroundTransparency = 1
+		local bar = Instance.new("Frame")
+		bar.Name = "Bar"
+		bar.AnchorPoint = Vector2.new(0.5, 0)
+		bar.Position = UDim2.fromScale(0.5, 0)
+		bar.Size = UDim2.fromScale(A.width, 0.045)
+		bar.BackgroundColor3 = rgb(A.color)
+		bar.BackgroundTransparency = 1
+		bar.BorderSizePixel = 0
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(1, 0)
+		corner.Parent = bar
+		local bg = Instance.new("UIGradient")
+		bg.Transparency = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 1),
+			NumberSequenceKeypoint.new(0.5, 0),
+			NumberSequenceKeypoint.new(1, 1),
+		})
+		bg.Parent = bar
+		bar.Parent = holder
+		holder.Parent = gui
+		table.insert(hurtArrows, holder)
+	end
 	-- the Sniper warning: a red edge on all four sides (two frames, side and top-and-bottom)
 	for _, rotation in { 0, 90 } do
 		local edge = Instance.new("Frame")

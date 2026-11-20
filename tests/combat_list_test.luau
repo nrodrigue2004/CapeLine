@@ -3841,6 +3841,98 @@ return function(T: any)
 		end
 	)
 	test(
+		"List combat: taking a hit sparks off the hero, a red arrow points at the robot, a thud and a shake",
+		function()
+			local roblox = require("@lune/roblox")
+			local H = Config.Fx.hurt
+			check(H and H.heavy > 0 and H.arrow.pool >= 1 and H.arrow.life > 0, "the hurt feedback is tuned")
+			local enemy = fs.readFile("src/server/Services/EnemyService.luau")
+			check(
+				string.find(enemy, "table.insert(row, if ev.melee then 1 else 0)", 1, true) ~= nil,
+				"the server sends the robot's spot and the melee bit with each hero hit"
+			)
+			if not T.placePath then
+				return
+			end
+			local UiSim = require("./uisim")
+			local sim = UiSim.new(
+				UiSim.load(roblox.deserializePlace(fs.readFile(T.placePath))),
+				{ name = "PC", w = 1280, h = 720, top = 36, left = 0, right = 0, bottom = 0, touch = false }
+			)
+			local cam = sim.service("Workspace").CurrentCamera
+			cam.CFrame = roblox.CFrame.new(0, 5, 10) -- looking down -Z
+			local FxLib = sim:require("Client.Fx.FxLib")
+			local CombatFx = sim:require("Client.Fx.CombatFx")
+			sim:run("CombatFx", CombatFx.init)
+			local Combat = sim:require("Client.Controllers.CombatClient")
+			sim:run("CombatClient", Combat.init)
+			local SimConfig = sim:require("Config")
+			local Audio = sim:require("Client.Controllers.AudioController")
+			local Camera = sim:require("Client.Controllers.CameraController")
+			local sparks, sounds, shakes = 0, {}, {}
+			local realEmit, realPlay, realShake = FxLib.emit, Audio.playSpec, Camera.shake
+			FxLib.emit = function(kind: string, ...)
+				if kind == "hitspark" then
+					sparks += 1
+				end
+				return realEmit(kind, ...)
+			end
+			Audio.playSpec = function(spec, ...)
+				table.insert(sounds, spec)
+				return realPlay(spec, ...)
+			end
+			Camera.shake = function(t, a)
+				table.insert(shakes, a)
+				return realShake(t, a)
+			end
+			local gui = sim.player:WaitForChild("PlayerGui")
+			local function arrow(i: number): any
+				return gui:FindFirstChild("HurtArrow" .. i, true)
+			end
+			check(arrow(1) ~= nil, "the hurt arrows are made")
+			local remotes = sim.service("ReplicatedStorage"):WaitForChild("Remotes")
+			local function hit(dmg: number, rx: number, rz: number, melee: number)
+				sim:run("hero hit", function()
+					remotes:WaitForChild("CombatEvents").OnClientEvent:Fire({
+						{ 2, sim.player.UserId, 0, 3, 0, dmg, rx, 3, rz, melee },
+					})
+				end)
+			end
+			-- a pellet from a robot on the right
+			hit(5, 40, 10, 0)
+			check(sparks == 1, "sparks off the hero's chest (" .. sparks .. ")")
+			local a1 = arrow(1)
+			check(
+				a1 and math.abs(a1.Rotation - 90) < 1,
+				"the arrow points right (" .. tostring(a1 and a1.Rotation) .. ")"
+			)
+			check(#sounds == 1 and sounds[1] == SimConfig.Audio.impact.hit, "a thud")
+			check(#shakes >= 1 and shakes[#shakes] == H.shake[2], "a light shake")
+			-- a punch from behind a moment later: heavy
+			require("@lune/task").wait(0.1) -- the thud's gap runs on the real clock
+			hit(4, 0, 40, 1)
+			local a2 = arrow(2)
+			check(a2 and math.abs(math.abs(a2.Rotation) - 180) < 1, "the second arrow points behind")
+			check(a1 and a2 and a2.Bar.Size.X.Scale > a1.Bar.Size.X.Scale, "a heavy hit's arrow is wider")
+			check(sounds[#sounds] == SimConfig.Audio.impact.heavy, "a heavy thud on a melee blow")
+			check(shakes[#shakes] == H.shakeHeavy[2], "a harder shake")
+			-- a big hit on another hero nearby: sparks only
+			local n = #sounds
+			sim:run("other", function()
+				remotes
+					:WaitForChild("CombatEvents").OnClientEvent
+					:Fire({ { 2, 999, 20, 3, 0, 60, 30, 3, 0, 0 } })
+			end)
+			check(sparks == 3 and #sounds == n, "another hero's hit sparks, with no thud for you")
+			-- an old event with no robot spot still works
+			require("@lune/task").wait(0.1) -- the thud's gap runs on the real clock
+			hit(5, nil :: any, nil :: any, nil :: any)
+			check(#sounds == n + 1, "a hit with no robot spot still thuds")
+			FxLib.emit, Audio.playSpec, Camera.shake = realEmit, realPlay, realShake
+			check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
+		end
+	)
+	test(
 		"List combat: robot shots leave a glowing streak you can see coming, Medics a flowing beam, burning patches a flame ring, nets and claws Blender meshes",
 		function()
 			local roblox = require("@lune/roblox")
