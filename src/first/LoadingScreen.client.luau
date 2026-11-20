@@ -1,7 +1,9 @@
 -- LoadingScreen (ReplicatedFirst): the Capeline comic splash over loading. Removed once the game, the body and
 -- the saved hero are loaded (the server's HeroLoaded attribute: a new player's creator opens about a second
 -- later, so there is no wait on a bare HUD in between), or after 12 s. A fixed status line under the spark
--- says what is loading (onboarding check 2026-11-18).
+-- says what is loading (onboarding check 2026-11-18). Once the game is in it preloads the art the first minutes
+-- show (Config.Ui.preload: the hero's body, the robots, the street kit, the prologue, powers, capes and the icon
+-- sheets; Everything Left 420) and waits for it at most a few seconds past the hero, inside the same 12 s cap.
 -- The card itself is LoadingCard (gap polish 2026-11-19: the PURE COMIC look with the logo, a sunburst,
 -- halftone dots and a TIP panel whose tip changes every 4 s); it requires nothing, so this stays light.
 
@@ -94,8 +96,44 @@ end
 while not player.Character and os.clock() - start < 12 do
 	task.wait(0.1)
 end
+-- the art the first minutes show, preloaded while the hero loads (ContentProvider fetches each mesh, texture map
+-- and image once; whatever is not done when the card goes keeps streaming as before)
+local preloaded = false
+local grace = 3 -- Config.Ui.preload.grace once the config is in
+task.spawn(function()
+	pcall(function()
+		local ReplicatedStorage = game:GetService("ReplicatedStorage")
+		local Config = require(ReplicatedStorage:WaitForChild("Config", 5) :: ModuleScript) :: any
+		local P = Config.Ui.preload
+		grace = P.grace or grace
+		local list: { any } = {}
+		local art = ReplicatedStorage:FindFirstChild("Art")
+		for _, name in P.sets do
+			local set = art and art:FindFirstChild(name)
+			if set then
+				table.insert(list, set)
+			end
+		end
+		if P.icons and Config.Icons then
+			for _, sh in Config.Icons.sheets do
+				if (sh.id or 0) > 0 then
+					table.insert(list, "rbxassetid://" .. sh.id)
+				end
+			end
+		end
+		game:GetService("ContentProvider"):PreloadAsync(list)
+	end)
+	preloaded = true
+end)
 status.Text = "LOADING YOUR HERO"
 while player:GetAttribute("HeroLoaded") ~= true and os.clock() - start < 12 do
+	task.wait(0.1)
+end
+local heroAt = os.clock()
+if not preloaded then
+	status.Text = "LOADING THE CITY"
+end
+while not preloaded and os.clock() - heroAt < grace and os.clock() - start < 12 do
 	task.wait(0.1)
 end
 -- Studio only: if the server hit an error, show it in a red box (tap to close) instead of an empty sky

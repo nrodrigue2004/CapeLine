@@ -15,6 +15,14 @@ return {
 	-- a press that starts and ends on a kit button counts as a tap even if the engine sends no Activated
 	-- (nate's playtest 2026-11-19, "buttons are extremely unreliable"): it may move this many pixels, and
 	-- counts this many seconds after the release when no Activated came (Kit.tapGuard)
+	-- the loading screen preloads the art the first minutes show (Everything Left 420), so it does not pop in: these
+	-- ReplicatedStorage.Art sets (meshes and their texture maps) and the comic icon sheets (Config.Icons). It waits
+	-- at most `grace` seconds past the hero being ready for them (the 12 s cap stays), then lets the rest stream.
+	preload = {
+		sets = { "Hero", "Bodies", "Trooper", "Robots", "Street", "Prologue", "Powers", "Capes", "Life" },
+		icons = true,
+		grace = 3,
+	},
 	tap = { slop = 14, wait = 0.12 },
 	corner = 4, -- the comic look (2026-11-18): small square-ish corners; round buttons stay round
 	-- the comic ink (nate picked the bold comic mockup, 2026-11-18): Kit gives every drawn panel and button a

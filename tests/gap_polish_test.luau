@@ -252,9 +252,15 @@ return function(T: any)
 		for _ in string.gmatch(ls, "require%(") do
 			n += 1
 		end
+		-- (list-combat 2026-11-20, Everything Left 420: plus Config, read once the game is in, inside the preload
+		-- task, for the art list and the icon sheets; the card still shows before anything else loads)
+		local cfg = string.find(ls, 'require(ReplicatedStorage:WaitForChild("Config", 5)', 1, true)
 		check(
-			n == 1 and string.find(ls, 'require(script.Parent:WaitForChild("LoadingCard"))', 1, true) ~= nil,
-			"LoadingScreen requires only the card"
+			n == 2
+				and string.find(ls, 'require(script.Parent:WaitForChild("LoadingCard"))', 1, true) ~= nil
+				and cfg ~= nil
+				and cfg > (string.find(ls, "game.Loaded:Wait()", 1, true) or math.huge),
+			"LoadingScreen requires only the card (and Config once the game is in)"
 		)
 		check(
 			#string.split(card, "\n") > 50 and string.find(card, "TIPS = {", 1, true) ~= nil,

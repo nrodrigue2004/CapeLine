@@ -410,6 +410,20 @@ return function(T: any)
 		check(string.find(ls, 'GetAttribute("HeroLoaded")', 1, true) ~= nil, "it waits for the hero")
 		check(string.find(ls, "os.clock() - start < 12", 1, true) ~= nil, "never past 12 s")
 		check(string.find(ls, '"LOADING YOUR HERO"', 1, true) ~= nil, "it says what it is loading")
+		-- (Everything Left 420) it preloads the first minutes' art and waits for it at most `grace` past the hero
+		local P = Config.Ui.preload
+		check(
+			P ~= nil and #P.sets >= 5 and P.grace > 0 and P.grace <= 4,
+			"the preload list and its short grace"
+		)
+		for _, name in P.sets do
+			check(fs.isFile("art/models/" .. name .. ".rbxm"), name .. " is an imported art set")
+		end
+		check(string.find(ls, "PreloadAsync(list)", 1, true) ~= nil, "it preloads them")
+		check(
+			string.find(ls, "os.clock() - heroAt < grace and os.clock() - start < 12", 1, true) ~= nil,
+			"a short wait, inside the cap"
+		)
 		check(
 			has("src/server/Services/HeroService.luau", 'SetAttribute("HeroLoaded", true)'),
 			"HeroService sets it once the save is on the hero"
