@@ -377,6 +377,16 @@ return function(T: any)
 		check(Config.City.kit.props.Crate ~= nil and Config.StreetArt.Crate ~= nil, "Crate is a kit prop")
 		-- 178: Girder Swing swings a girder in the right hand
 		check(string.find(cf, 'if row.id == "GirderSwing" then', 1, true) ~= nil, "the held girder")
+		-- 181: Psi Platform's slab carries a crate and a barrel (kit meshes), faded with the ride
+		check(
+			string.find(cf, 'for i, name in { [3] = "Crate", [4] = "Barrel" } do', 1, true) ~= nil,
+			"psi junk"
+		)
+		check(
+			string.find(cf, "CityProps.dress(name, holder, holder.Size.Y, dressed)", 1, true) ~= nil,
+			"dressed"
+		)
+		check(Config.City.kit.props.Barrel ~= nil and Config.StreetArt.Barrel ~= nil, "Barrel is a kit prop")
 		check(Config.Abilities.list.GirderSwing ~= nil, "Girder Swing exists")
 		-- 173: Bullet Time's own screen for its whole field, on the caster's screen only
 		check(Config.FxMoves.moves.BulletTime.screen == "slowmo", "Bullet Time has its screen")
@@ -387,5 +397,30 @@ return function(T: any)
 			string.find(cf, 'row.slot == "skill" and userId == Players.LocalPlayer.UserId', 1, true) ~= nil,
 			"skills' screens play for the caster"
 		)
+	end)
+
+	test("List combat: a giant looks and walks like one", function()
+		local G = Config.Fx.giant
+		local A = Config.Abilities.list
+		check(G.forms.giant == A.Grow.scale and A.Grow.form == "giant", "Grow's scale")
+		check(G.forms.titan == A.TitanForm.scale and A.TitanForm.form == "titan", "Titan Form's scale")
+		check(G.crushAt > G.forms.giant and G.crushAt <= G.forms.titan, "only the titan crushes underfoot")
+		check(G.shake.range > 0 and G.stride > 2, "steps and shake")
+		local src = fs.readFile("src/client/Fx/FormFx.luau")
+		for _, needle in
+			{
+				'p:GetAttribute("Form")',
+				'Instance.new("Highlight")',
+				"FormFx.stride(g.form)",
+				"BuildingFx.smashAt(at, 3 * scale)",
+				'FrameProf.wrap("FormFx", step)',
+			}
+		do
+			check(string.find(src, needle, 1, true) ~= nil, "FormFx: " .. needle)
+		end
+		local init = fs.readFile("src/client/init.client.luau")
+		check(string.find(init, "FormFx.init()", 1, true) ~= nil, "FormFx runs")
+		local hs = fs.readFile("src/server/Services/HeroService.luau")
+		check(string.find(hs, 'player:SetAttribute("Form", form)', 1, true) ~= nil, "the server sets Form")
 	end)
 end

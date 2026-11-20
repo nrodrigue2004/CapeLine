@@ -156,8 +156,8 @@ end
 -- A throwable's look (item 154, ThrowFx): the street prop `name`'s meshes welded onto `body` (the server's
 -- plain box), scaled as one so the prop stands `height` studs tall with its foot at the box's bottom. Loose,
 -- massless, no collision or queries: the box keeps the hits and the carry. Returns the parts made (0 until the
--- art is imported; the box then shows as today).
-function CityProps.dress(name: string, body: BasePart, height: number): number
+-- art is imported; the box then shows as today). `out` collects the parts, for a caller that fades them.
+function CityProps.dress(name: string, body: BasePart, height: number, out: { BasePart }?): number
 	if not street then
 		local art = ReplicatedStorage:FindFirstChild("Art")
 		street = art and art:FindFirstChild("Street")
@@ -197,6 +197,9 @@ function CityProps.dress(name: string, body: BasePart, height: number): number
 		weld.Part1 = p
 		weld.Parent = p
 		p.Parent = body.Parent
+		if out then
+			table.insert(out, p)
+		end
 	end
 	return #list
 end

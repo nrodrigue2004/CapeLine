@@ -1,5 +1,19 @@
 -- Juice numbers for the M1 actions (spec: Audio, VFX, juice and accessibility). Client only. (tune)
 return {
+	-- item 179: a giant's look (FormFx, the Form attribute "giant" from Grow and "titan" from Titan Form): a lit
+	-- outline in the hero's path colour, a burst as the form starts, and footfalls every `stride` studs (times the
+	-- form's scale) walked on the ground: dust, a low thud, and a shake for cameras within `shakeRange`
+	-- (strength by distance). A titan's footfalls (scale crushAt and up) knock the street's small things loose.
+	giant = {
+		forms = { giant = 2, titan = 4 }, -- the form's scale (Config.Abilities Grow / TitanForm)
+		stride = 3.2,
+		dust = 2.2,
+		shake = { time = 0.12, amount = 0.25, range = 70 },
+		outline = 0.15,
+		fill = 0.88,
+		pitch = 0.7,
+		crushAt = 4,
+	},
 	fov = { base = 70, leap = 1.06, boost = 1.17, blend = 6 },
 	landShake = { time = 0.1, amount = 0.35, minFall = 25 },
 	-- the landing crack (gap polish 2026-11-19): a comic crack decal drawn by art/fx/textures.py --cracks

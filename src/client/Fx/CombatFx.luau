@@ -800,9 +800,19 @@ function CombatFx.ride(set: string, at: () -> Vector3?, duration: number, style:
 			{ Vector3.new(2.8, 0.15, 7.2), feet * CFrame.new(0, -0.3, 0), color },
 		}
 	elseif set == "Mind" then
+		-- item 181: a slab of street held up by the mind, with a crate and a barrel riding its corners (the
+		-- street kit's meshes once imported, on two hidden holders; the slab alone until then)
 		pieces = {
 			{ Vector3.new(6, 1.4, 6), feet, Color3.fromRGB(110, 110, 115), nil, 0, Enum.Material.Concrete },
 			{ Vector3.new(6.4, 0.2, 6.4), feet * CFrame.new(0, -0.8, 0), color, nil, 0.3 },
+			{
+				Vector3.new(1.4, 1.6, 1.4),
+				feet * CFrame.new(2.1, 1.5, 2.1) * CFrame.Angles(0, 0.4, 0),
+				color,
+				nil,
+				1,
+			},
+			{ Vector3.new(1.4, 1.8, 1.4), feet * CFrame.new(-2.2, 1.6, 1.9), color, nil, 1 },
 		}
 	elseif set == "Spirit" then
 		pieces = {
@@ -828,6 +838,14 @@ function CombatFx.ride(set: string, at: () -> Vector3?, duration: number, style:
 		end
 		table.insert(parts, p)
 	end
+	local dressed: { BasePart } = {}
+	if set == "Mind" then
+		for i, name in { [3] = "Crate", [4] = "Barrel" } do
+			local holder = parts[i]
+			holder.CFrame = pieces[i][2] -- in the rig's frame while welding; the loop moves it from here on
+			CityProps.dress(name, holder, holder.Size.Y, dressed) -- faded with the rest at the end
+		end
+	end
 	local last: Vector3? = at()
 	local heading = CFrame.new()
 	local conn
@@ -837,6 +855,9 @@ function CombatFx.ride(set: string, at: () -> Vector3?, duration: number, style:
 		if t >= duration or not now then
 			conn:Disconnect()
 			for _, p in parts do
+				fade(p, 0.3)
+			end
+			for _, p in dressed do
 				fade(p, 0.3)
 			end
 			return

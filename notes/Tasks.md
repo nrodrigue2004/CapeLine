@@ -2239,3 +2239,6 @@ Storyboard (the game's own camera on the test seed, stand-in figures): art/previ
 4. Juggernaut: cast Girder Swing: a red steel I-beam appears in the right hand, swings with the arm through the arc, and shrinks away after about a second; others see it on your hero too.
 5. Brawler: Lift and Throw with nothing to lift: the thrown crate is the street kit's wooden crate mesh in the air, and on landing it gives way to flying planks and wood dust.
 6. Gunslinger: cast Bullet Time: a quick white flash, then your screen goes warm sepia with tinted edges for the field's 2 seconds and comes back; nobody else's screen changes; casting again inside it keeps it until the later one ends.
+7. Colossus: cast Grow, then Titan Form: your hero gets a lit outline in its path colour and bursts out with dust and a thud; walking, every footfall puffs dust with a low thud and shakes nearby cameras (stronger close by); as a titan, benches, bins and lamps underfoot go flying. Others see the same on you. The outline goes when the form ends.
+8. Mind: ride Psi Platform: a concrete slab under your feet with a wooden crate and a blue barrel riding two corners (the street kit's meshes); all of it fades when the ride ends, nothing is left floating or falling.
+
