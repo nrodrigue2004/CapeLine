@@ -1,5 +1,6 @@
 # Current Progress
 
+- 2026-11-20 playtest-gaps10: gaps9 + creator NEXT stall fixed, respawn size and clothes fit, giver talk, smash rule, Hulk climb, Acrobat crawl and flips, swing anywhere, Shift sprint, faster stamina, the sounds pass, the directed prologue. Running: shapes-2, bosses-3, park.
 - 2026-11-19/20 move-2: the smash rule (Boost or a fast leap smashes through, else Super-speed wall runs and Leap does the Hulk climb), Acrobat as the agility pick (wall and ceiling crawl, dodge flips, best air control, new ranks), swing anywhere (wide fan outside the city, sky line), everyone sprints on Shift, faster stamina refill. Studio list Tasks.md "smash rule, Hulk climb...".
 - 2026-11-20 prologue-cine: the prologue to the subway fight is a directed cinematic with prompts (Shared.PrologueCine, Fx.PrologueQte): authored runs, vaults, hops, the slow-mo leap, a ledge GRAB, the suit HOLD, the tunnel chase with a mash; no markers, no free control, FIGHT! hands control back. Studio list "the directed prologue".
 - 2026-11-19 playtest-gaps9: gaps8 + Act 1 choices in every mission (Chairman, Lodestar hints), 21 lore pages, mobility ranks, side-only radiant content, living world (Art.Life meshes, shop fronts, traffic, pigeons, steam, flags, drones, citizen reactions).

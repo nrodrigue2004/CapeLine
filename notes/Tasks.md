@@ -237,6 +237,13 @@ Looks only: where the screens hang, what they show, the card's timing and the TV
 6. The boss name cards (each of the four) show the boss's comic portrait popping out of the card's left over a comic navy plate; the name and title sit right of it, the slash bar sweeps in the boss's colour; the plate's ink and gold rule stay crisp at PC and phone sizes.
 7. Your double's card (and the three side-vs-side event cards) show the event's comic icon; the Crater's card and the side quest finales' cards are words on the plate.
 
+### Playtest gaps10: start here (2026-11-20, build playtest-gaps10)
+Everything in gaps9 plus nate's 2026-11-19 20:42Z playtest fixes: project files capeline/Capeline-playtest-gaps10-2026-11-20.rbxl (Output "playtest-gaps10 (2026-11-20)"). It replaces every older playtest place. Run "Playtest gaps9: start here" below first if not done, then these lists:
+1. The fix-respawn list (creator NEXT on one click, the Dev panel "taps" line, size kept after respawn, clothes on every body, talking to a giver on one tap).
+2. "Studio list: smash rule, Hulk climb, Acrobat crawl and flips, swing anywhere, sprint, stamina" (move-2).
+3. "Sound audit" Studio list (listen: hits, breaks, flight, leap, swing, each power path, music, city ambience).
+4. "Studio list: the directed prologue" (no gold markers, prompts to the subway, FIGHT! hand-off).
+
 ### Playtest gaps9: start here (2026-11-19, build playtest-gaps9)
 Everything in gaps8 plus: project files capeline/Capeline-playtest-gaps9-2026-11-19.rbxl (Output "playtest-gaps9 (2026-11-19)"). It replaces every older playtest place. Run "Playtest gaps8: start here" below first if not done, then these lists:
 1. "Act 1 choices: one in every mission" (the Ceremony pick inside the spark beat, Safehouse and Live picks per side, the Chairman, the torn photo).
