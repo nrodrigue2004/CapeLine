@@ -224,6 +224,24 @@ local function looks(body: Body, id: number)
 	NpcRig.showHair(body.rig, body.group * 131, h // 1171)
 end
 
+-- The park's people (2026-11-20, Fx.ParkLife): a pooled citizen body for a jogger, a walker, a picnic or a busker,
+-- dressed from its id like any citizen (catalog face and hair, the uploaded clothes); giveBack returns it to the pool.
+-- The park poses and places it itself (this module's render never touches a borrowed body).
+function CitizenRenderer.borrow(id: number): Body
+	local h = Rng.hash(id, 4243)
+	local color = h % #C.colors + 1
+	local bodyIndex = (h // 7) % #C.bodies + 1
+	local group = (h // 61) % HAIR_GROUPS
+	local body = acquire(color, bodyIndex, group)
+	dress(body, id)
+	looks(body, id)
+	return body
+end
+
+function CitizenRenderer.giveBack(body: Body)
+	release(body)
+end
+
 local function lerpAngle(a: number, b: number, t: number): number
 	local d = (b - a + math.pi) % (2 * math.pi) - math.pi
 	return a + d * t

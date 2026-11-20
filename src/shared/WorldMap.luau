@@ -15,6 +15,7 @@ local HeightMap = if script then require(script.Parent.HeightMap) else (require 
 local BoxKit = if script then require(script.Parent.BoxKit) else (require :: any)("./BoxKit")
 local Rng = if script then require(script.Parent.Rng) else (require :: any)("./Rng")
 local CityKit = if script then require(script.Parent.CityKit) else (require :: any)("./CityKit")
+local ParkLayout = if script then require(script.Parent.ParkLayout) else (require :: any)("./ParkLayout")
 
 local WorldMap = {}
 
@@ -74,6 +75,7 @@ export type World = {
 	heights: HeightMap.HeightMap,
 	parts: { hub: number, base: number, outskirts: number, landmarks: number, total: number },
 	props: { CityKit.Prop }, -- the city kit's street props, each with its district (d)
+	park: any?, -- the city park between Downtown and Uptown (Shared.ParkLayout; 2026-11-20), nil without Config.Park
 }
 
 local function append(into: { Box }, from: { Box })
@@ -213,6 +215,7 @@ function WorldMap.build(Config: any, seed: number, opts: { props: boolean? }?): 
 	local docks = Districts.docks(city, clear)
 	local oldTown = Districts.oldTown(city, clear)
 	local uptown = CityLayout.uptown(city)
+	local park = if Config.Park then ParkLayout.build(Config) else nil
 
 	local buildings = WorldMap.pickBuildings(Config, downtown, docks, oldTown, uptown)
 	if Config.Destruction.everywhere then
@@ -235,6 +238,9 @@ function WorldMap.build(Config: any, seed: number, opts: { props: boolean? }?): 
 	append(hubBoxes, docks.boxes)
 	append(hubBoxes, oldTown.boxes)
 	append(hubBoxes, uptown.boxes)
+	if park then
+		append(hubBoxes, park.boxes) -- its avenue, sidewalk, paths, paved rounds and trees (2026-11-20)
+	end
 
 	-- the street props, by district (Config.City.kit)
 	local props: { CityKit.Prop } = {}
@@ -251,6 +257,12 @@ function WorldMap.build(Config: any, seed: number, opts: { props: boolean? }?): 
 		addProps(docks.props, 1, "Docks")
 		addProps(oldTown.props, 1, "OldTown")
 		addProps(uptown.props, 1, "Uptown")
+		if park then
+			for _, p in park.props do
+				p.d = "Park"
+				table.insert(props, table.clone(p))
+			end
+		end
 	end
 
 	-- the outskirts
@@ -282,7 +294,7 @@ function WorldMap.build(Config: any, seed: number, opts: { props: boolean? }?): 
 		landmarks[i] = lm
 		landmarkParts += #lm.boxes
 	end
-	local baseBoxes = WorldGen.base(city, w, tiles, Config.Deep)
+	local baseBoxes = WorldGen.base(city, w, tiles, Config.Deep, ParkLayout.holes(Config))
 
 	-- safehouses and beacons
 	local safehouses: { [number]: Safehouse } = {}
@@ -365,6 +377,27 @@ function WorldMap.build(Config: any, seed: number, opts: { props: boolean? }?): 
 				HeightMap.stamp(heights, b)
 			end
 		end
+		if park then
+			-- the park's structures (their hidden collision boxes) and its rock outcrops (cones of their height)
+			for _, b in park.solid do
+				HeightMap.stamp(heights, b)
+			end
+			for _, r in park.rocks do
+				for k = 1, 3 do
+					local s = r.r * (1.15 - k * 0.3)
+					HeightMap.stamp(heights, {
+						kind = "rock",
+						cx = r.x,
+						cy = gy + r.h * (k / 3) / 2,
+						cz = r.z,
+						sx = s * 1.6,
+						sy = r.h * (0.5 + k / 6),
+						sz = s * 1.6,
+						color = "rock",
+					})
+				end
+			end
+		end
 	end
 
 	local hubParts = #hubBoxes
@@ -393,6 +426,7 @@ function WorldMap.build(Config: any, seed: number, opts: { props: boolean? }?): 
 			total = hubParts + #baseBoxes + outskirtsParts + landmarkParts,
 		},
 		props = props,
+		park = park,
 	}
 end
 
@@ -455,6 +489,14 @@ function WorldMap.propsStep(job: PropsJob, tiles: number?): boolean
 		tagged(job.props, Districts.oldTown(city, job.clear).props, 1, "OldTown")
 	elseif stage == 4 then
 		tagged(job.props, CityLayout.uptown(city).props, 1, "Uptown")
+		if Config.Park then
+			-- the city park's props (2026-11-20), right after Uptown's as in build()
+			for _, p in ParkLayout.props(Config) do
+				local c = table.clone(p)
+				c.d = "Park"
+				table.insert(job.props, c)
+			end
+		end
 	elseif stage == 5 then
 		job.tiles = WorldGen.tiles(city, w, job.seed)
 	elseif stage == 6 then

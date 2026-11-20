@@ -49,7 +49,9 @@ local function street(
 		local a = rng:range(0, math.pi * 2)
 		local r = rng:range(minD, maxD)
 		local px, pz = x + math.cos(a) * r, z + math.sin(a) * r
-		if inMap(Config, px, pz) and ground(world, px, pz) <= GROUND then
+		-- (the park's lake, pond and reservoir are low ground too: never a street spot; 2026-11-20)
+		local wet = world.park and world.park.wet(px, pz, 8)
+		if inMap(Config, px, pz) and not wet and ground(world, px, pz) <= GROUND then
 			-- room around it for the robots and the ring
 			local open = true
 			for k = 0, 3 do

@@ -105,30 +105,36 @@ PALETTE = {"road": (58, 60, 66), "sidewalk": (190, 186, 178), "wood": (104, 74, 
 KITS = {"Flagstone": (168, 160, 148), "Asphalt": (82, 84, 88), "Paving": (186, 180, 168)}
 
 
+def cam(loc, target, lens):
+    c = kit.camera(loc, target, lens=lens)
+    c.data.clip_end = 20000  # the park and the skylines round it are far past Blender's default 1,000
+    return c
+
+
 def scene(which):
     cols = colours()
     path = os.path.join(ROOT, "park", "layout.json")
     data = json.load(open(path))
-    # meshes from the export (the same file the game imports)
-    bpy.ops.import_scene.fbx(filepath=os.path.join(ROOT, "export", "Park.fbx"))
-    src = {}
-    for ob in list(bpy.context.scene.objects):
-        if ob.type == "MESH":
-            src[ob.name] = ob
-            ob.hide_render = True
-            ob.hide_viewport = True
-    street = {}
-    bpy.ops.import_scene.fbx(filepath=os.path.join(ROOT, "export", "Street.fbx"))
-    life = {}
-    for ob in list(bpy.context.scene.objects):
-        if ob.type == "MESH" and ob.name not in src:
-            street[ob.name] = ob
-            ob.hide_render = True
-    bpy.ops.import_scene.fbx(filepath=os.path.join(ROOT, "export", "Life.fbx"))
-    for ob in list(bpy.context.scene.objects):
-        if ob.type == "MESH" and ob.name not in src and ob.name not in street:
-            life[ob.name] = ob
-            ob.hide_render = True
+    # meshes from the exports (the same files the game imports), transforms applied and centred on their boxes
+    def load(path, skip):
+        before = set(o.name for o in bpy.context.scene.objects)
+        bpy.ops.import_scene.fbx(filepath=path)
+        got = {}
+        for ob in list(bpy.context.scene.objects):
+            if ob.type == "MESH" and ob.name not in before and ob.name not in skip:
+                bpy.ops.object.select_all(action="DESELECT")
+                ob.select_set(True)
+                bpy.context.view_layer.objects.active = ob
+                bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+                kit.centre(ob)
+                ob.hide_render = True
+                ob.hide_viewport = True
+                got[ob.name.split(".")[0]] = ob
+        return got
+
+    src = load(os.path.join(ROOT, "export", "Park.fbx"), {})
+    street = load(os.path.join(ROOT, "export", "Street.fbx"), src)
+    life = load(os.path.join(ROOT, "export", "Life.fbx"), {})
     coll = bpy.data.collections.new("Park")
     bpy.context.scene.collection.children.link(coll)
 
@@ -141,7 +147,9 @@ def scene(which):
         ob.hide_viewport = False
         ob.rotation_mode = "XYZ"
         ob.rotation_euler = (0, 0, math.radians(ry))
-        dims = srcob.dimensions
+        vs = [v.co for v in srcob.data.vertices]
+        dims = Vector((max(v.x for v in vs) - min(v.x for v in vs), max(v.y for v in vs) - min(v.y for v in vs),
+                       max(v.z for v in vs) - min(v.z for v in vs)))
         ob.scale = (size[0] / max(dims.x, 1e-3), size[2] / max(dims.y, 1e-3), size[1] / max(dims.z, 1e-3))
         ob.location = (cx, -cz, cy)
         ob.data.materials.clear()
@@ -213,7 +221,13 @@ def scene(which):
     # the city round it, as plain blocks (buildings and roads of Downtown's north edge and Uptown's south edge)
     for b in data["city"]:
         cube(b["cx"], b["cy"], b["cz"], b["sx"], b["sy"], b["sz"], b.get("ry", 0), tuple(b["rgb"]))
-    ground(2600, rgb=(96, 150, 70), at=(-540, 795, -0.4))
+    # the city's ground plates round the park (the green inside the wall is the Terrain above)
+    g = data["green"]
+    for x0, z0, x1, z1 in ((-1900, -2000, 900, g["z0"]), (-1900, g["z1"], 900, 900), (-1900, g["z0"], g["x0"], g["z1"]), (g["x1"], g["z0"], 900, g["z1"])):
+        gp = kit.box("plate", x1 - x0, z1 - z0, 4, at=((x0 + x1) / 2, -(z0 + z1) / 2, -2))
+        bpy.context.scene.collection.objects.unlink(gp)
+        coll.objects.link(gp)
+        gp.data.materials.append(kit.material("plate", (96, 150, 70), rough=0.9))
 
     bnd = data["bounds"]
     cx, cz = (bnd["minX"] + bnd["maxX"]) / 2, (bnd["minZ"] + bnd["maxZ"]) / 2
@@ -221,12 +235,20 @@ def scene(which):
     sun = bpy.data.objects.get("Key")
     if sun:
         sun.rotation_euler = (0.7, 0.3, 0.9)
+    if which in ("top", "all"):
+        c = cam((cx, -cz, 1200), (cx, -cz + 0.01, 0), 50)
+        c.data.type = "ORTHO"
+        c.data.ortho_scale = (bnd["maxX"] - bnd["minX"]) + 40
+        bpy.context.scene.render.resolution_x, bpy.context.scene.render.resolution_y = 2000, 1300
+        kit.render(os.path.join(ROOT, "preview", "park_top.png"))
+        bpy.context.scene.render.resolution_x, bpy.context.scene.render.resolution_y = 1800, 1200
     if which in ("overhead", "all"):
-        kit.camera((cx, -cz + 520, 900), (cx, -cz - 30, 0), lens=30)
+        # from high over Downtown's north edge, looking north across the park to Uptown
+        cam((cx - 60, -(bnd["maxZ"] + 330), 520), (cx, -cz - 60, 0), 26)
         kit.render(os.path.join(ROOT, "preview", "park_overhead.png"))
     if which in ("street", "all"):
-        for name, (cam, target) in data["views"].items():
-            kit.camera((cam[0], -cam[2], cam[1]), (target[0], -target[2], target[1]), lens=28)
+        for name, (at, target) in data["views"].items():
+            cam((at[0], -at[2], at[1]), (target[0], -target[2], target[1]), 28)
             kit.render(os.path.join(ROOT, "preview", "park_street_%s.png" % name))
 
 

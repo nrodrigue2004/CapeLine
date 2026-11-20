@@ -43,6 +43,7 @@ local AuraFx = require(Fx.AuraFx)
 local TetherFx = require(Fx.TetherFx)
 local BuildingFx = require(Fx.BuildingFx)
 local CityLife = require(Fx.CityLife)
+local ParkLife = require(Fx.ParkLife)
 local ImpactFx = require(Fx.ImpactFx) -- 2026-11-19: rams and throws through walls
 local GroundFx = require(Fx.GroundFx) -- fix-destroy: ground craters
 local VehicleFx = require(Fx.VehicleFx)
@@ -136,6 +137,7 @@ IceFx.init()
 AuraFx.init()
 BuildingFx.init()
 CityLife.init() -- the living world: traffic, pigeons, steam, flags, news drones, shop lights, prop bursts
+ParkLife.init() -- the city park: joggers, dogs, picnics, buskers, ducks, rowboats, the carousel, fountains, splashes
 ImpactFx.init()
 GroundFx.init()
 VehicleFx.init()

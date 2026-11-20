@@ -57,7 +57,13 @@ return {
 		level = -2.4,
 		bed = -12,
 		shore = { material = "slate", width = 4 },
-		blobs = { { -610, -975, 52 }, { -540, -975, 68 }, { -470, -975, 72 }, { -400, -975, 68 }, { -330, -975, 52 } },
+		blobs = {
+			{ -610, -975, 52 },
+			{ -540, -975, 68 },
+			{ -470, -975, 72 },
+			{ -400, -975, 68 },
+			{ -330, -975, 52 },
+		},
 		rail = { every = 12, inset = 2 }, -- iron rail lengths round the stone rim
 	},
 	pond = { -- the little pond by the rink, the stone bridge over its waist
@@ -82,8 +88,8 @@ return {
 		{ id = "Hallett", x = -470, z = -560, rx = 60, rz = 35 },
 	},
 	trees = {
-		woods = 260, -- studs of ground a tree in the woods
-		open = 2600, -- elsewhere
+		woods = 110, -- studs of ground a tree in the woods
+		open = 1400, -- elsewhere
 		size = { 12, 19 }, -- BoxKit.tree sizes (the Art.Life trunk and crown over its boxes)
 		clear = { water = 7, path = 5, place = 6, meadow = 0.92 }, -- keep this far (meadow: inside this much of it)
 		mall = { every = 16, out = 12, size = 16 }, -- the Mall's elm rows
@@ -104,7 +110,7 @@ return {
 	places = {
 		Bandshell = { x = -655, z = -565, ry = -90 }, -- facing east onto the Mall
 		Carousel = { x = -820, z = -592, ry = 0 },
-		Boathouse = { x = -440, z = -752, ry = -90 }, -- its deck out over the lake to the west
+		Boathouse = { x = -454, z = -752, ry = 90 }, -- its deck out over the lake to the west
 		Terrace = { x = -590, z = -640, ry = 0 }, -- the big fountain on its terrace by the lake
 		BowBridge = { x = -640, z = -729, ry = 0, length = 72 }, -- over the lake's neck, along z
 		StoneBridge = { x = -258, z = -608, ry = 0, length = 62 }, -- over the pond's waist
@@ -263,7 +269,10 @@ return {
 		},
 		ParkRail = { RailIron = { { 48, 54, 52 }, "Metal" } },
 		Reeds = { Reeds = { { 108, 140, 70 }, "Grass" }, ReedHeads = { { 120, 84, 52 }, "Fabric" } },
-		LilyPads = { LilyPads = { { 70, 140, 70 }, "Grass" }, LilyFlowers = { { 246, 206, 222 }, "SmoothPlastic" } },
+		LilyPads = {
+			LilyPads = { { 70, 140, 70 }, "Grass" },
+			LilyFlowers = { { 246, 206, 222 }, "SmoothPlastic" },
+		},
 		-- the device's living things (Fx.ParkLife; never on the server)
 		Rowboat = {
 			RowHull = { { 196, 78, 60 }, "Wood" },
@@ -300,9 +309,42 @@ return {
 	-- the park's life on each device (Fx.ParkLife), by preset; radius: how far from the camera it lives
 	life = {
 		budget = {
-			low = { radius = 220, joggers = 3, walkers = 2, dogs = 1, picnics = 3, buskers = 1, ducks = 6, boats = 3, jets = 2, spin = true },
-			medium = { radius = 360, joggers = 6, walkers = 5, dogs = 3, picnics = 6, buskers = 2, ducks = 12, boats = 5, jets = 4, spin = true },
-			high = { radius = 520, joggers = 10, walkers = 8, dogs = 5, picnics = 10, buskers = 3, ducks = 20, boats = 7, jets = 6, spin = true },
+			low = {
+				radius = 220,
+				joggers = 3,
+				walkers = 2,
+				dogs = 1,
+				picnics = 3,
+				buskers = 1,
+				ducks = 6,
+				boats = 3,
+				jets = 2,
+				spin = true,
+			},
+			medium = {
+				radius = 360,
+				joggers = 6,
+				walkers = 5,
+				dogs = 3,
+				picnics = 6,
+				buskers = 2,
+				ducks = 12,
+				boats = 5,
+				jets = 4,
+				spin = true,
+			},
+			high = {
+				radius = 520,
+				joggers = 10,
+				walkers = 8,
+				dogs = 5,
+				picnics = 10,
+				buskers = 3,
+				ducks = 20,
+				boats = 7,
+				jets = 6,
+				spin = true,
+			},
 		},
 		jog = { speed = 13, bob = 0.25 }, -- studs a second along the track and the drives
 		walk = { speed = 5 },
@@ -317,7 +359,12 @@ return {
 		people = 900000, -- the id space park people take their looks from (CitizenRenderer.borrow)
 	},
 	sounds = {
-		busk = { asset = 0, fallback = "rbxasset://sounds/electronicpingshort.wav", volume = 0.2, pitch = 0.6 }, -- PLACEHOLDER SOUND
+		busk = {
+			asset = 0,
+			fallback = "rbxasset://sounds/electronicpingshort.wav",
+			volume = 0.2,
+			pitch = 0.6,
+		}, -- PLACEHOLDER SOUND
 		splash = { asset = 0, fallback = "rbxasset://sounds/action_falling.mp3", volume = 0.5, pitch = 0.7 },
 		burst = { asset = 0, fallback = "rbxasset://sounds/action_falling.mp3", volume = 0.6, pitch = 1.2 },
 		quack = { asset = 0, fallback = "rbxasset://sounds/swoosh.wav", volume = 0.3, pitch = 2.2 }, -- PLACEHOLDER SOUND

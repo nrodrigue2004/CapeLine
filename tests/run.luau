@@ -2783,7 +2783,9 @@ test("M4: zones: hub 16 to 31, suburbs then farmland, a 2-tile coast, 3 landmark
 				return true
 			end
 		end
-		return false
+		-- the city park between Downtown and Uptown (2026-11-20) is hub ground too
+		local p = Config.City.park
+		return p ~= nil and x0 < p.maxX and x0 + s > p.minX and z0 < p.maxZ and z0 + s > p.minZ
 	end
 	for tz = 0, W.tiles - 1 do
 		for tx = 0, W.tiles - 1 do
@@ -2811,7 +2813,7 @@ test("M4: zones: hub 16 to 31, suburbs then farmland, a 2-tile coast, 3 landmark
 			then
 				ringsOk = false
 			end
-			if ring >= 9 and ring <= 14 and t.zone ~= Z.farmland and t.zone ~= Z.landmark then
+			if ring >= 9 and ring <= 14 and t.zone ~= Z.farmland and t.zone ~= Z.landmark and not inDistrict(tx, tz) then
 				ringsOk = false
 			end
 			if (t.zone == Z.suburbs or t.zone == Z.farmland) and t.variant ~= W.special then
@@ -23178,6 +23180,8 @@ end
 -- nate's playtest 2026-11-19 (pt-city, own file): Downtown and Uptown 1.5x bigger, the street and roof pieces
 -- heroes use or break; ONLY="City play"
 (require :: any)("./city_play_test")({ test = test, check = check, Config = Config, world = world });
+-- the city park between Downtown and Uptown (park, 2026-11-20, own file); ONLY="Park"
+(require :: any)("./park_test")({ test = test, check = check, Config = Config, world = world });
 
 -- fix-carry (2026-11-19, own file): picked-up things held in the hands, telekinesis floats; ONLY="Carry"
 (require :: any)("./carry_test")({ test = test, check = check, Config = Config, placePath = placePath })

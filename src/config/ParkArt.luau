@@ -63,7 +63,7 @@ return {
 	},
 	LilyPads = {
 		LilyFlowers = { size = { 2.659, 0.395, 1.704 }, offset = { -0.068, 0.229, 0.574 } }, -- 144 tris
-		LilyPads = { size = { 3.460, 0.050, 3.217 }, offset = { 0.058, 0.025, 0.212 } }, -- 420 tris
+		LilyPads = { size = { 3.460, 0.100, 3.217 }, offset = { 0.058, 0.050, 0.212 } }, -- 420 tris
 	},
 	ParkRail = {
 		RailIron = { size = { 12.195, 3.960, 0.495 }, offset = { 0.000, 1.980, -0.000 } }, -- 536 tris

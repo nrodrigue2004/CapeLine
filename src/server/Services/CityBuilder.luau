@@ -733,6 +733,8 @@ function CityBuilder.build()
 	CityBuilder.deep = DeepLayout.build(Config)
 	task.spawn(buildDeep, folder)
 	task.spawn(buildOutskirts, world, folder)
+	-- the city park between Downtown and Uptown (2026-11-20): its Terrain, structures and wall
+	task.spawn(require(script.Parent.ParkBuilder).build, world, folder, makePart)
 end
 
 -- What the client needs (ReplicatedStorage.WorldInfo, JSON): safehouses, beacons, landmarks, HQs and the

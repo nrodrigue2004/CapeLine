@@ -486,8 +486,8 @@ pads, flowers = [], []
 for k in range(7):
     a, r = rng.uniform(0, 2 * math.pi), rng.uniform(0, 1.6)
     s = rng.uniform(0.5, 0.85)
-    pts = [(s * math.cos(t), s * math.sin(t)) for t in [math.radians(20 + 340 * j / 14) for j in range(15)]] + [(0, 0)]
-    pd = prism("pad", pts, 0, 0.05)
+    pts = [(s * math.cos(t), s * math.sin(t)) for t in [math.radians(20 + 340 * j / 14) for j in range(15)]] + [(s * 0.12, 0)]
+    pd = prism("pad", pts, 0, 0.1)
     rot_z(pd, rng.uniform(0, 360))
     kit.shift(pd, (r * math.cos(a), r * math.sin(a), 0))
     pads.append(pd)

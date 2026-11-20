@@ -51,6 +51,7 @@ for _, set in
 		"LoreBook", -- living-world: the lore book and shelf, 15 of 15 (2026-11-19)
 		"Necks",
 		"News",
+		"Park", -- the city park: 67 of 67 match it (2026-11-20)
 		"PocketProps",
 		"PocketProps2",
 		"Prologue",

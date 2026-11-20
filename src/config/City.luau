@@ -35,6 +35,8 @@ return {
 		},
 		Docks = { minX = 0, maxX = 800, minZ = 300, maxZ = 800 }, -- 800 x 500 (M4)
 		OldTown = { minX = 100, maxX = 700, minZ = -700, maxZ = -100 }, -- 600 x 600 (M4)
+		-- (the park, 2026-11-20: Config.Park.bounds, between Downtown and Uptown, is not a district: its tiles are kept
+		-- clear through `park` below, and it stays out of every district rule: zones, events, swing, sounds)
 		Uptown = { -- 750 x 750 (600 x 600 until 2026-11-19), the second business district, in the first suburb rings
 			minX = UPTOWN.minX,
 			maxX = UPTOWN.maxX,
@@ -42,6 +44,9 @@ return {
 			maxZ = UPTOWN.maxZ,
 		},
 	},
+	-- the city park between Downtown and Uptown (2026-11-20; Config.Park, Shared.ParkLayout): its whole rectangle, so
+	-- WorldGen leaves its tiles empty like a district's. Must equal Config.Park.bounds (tests "Park").
+	park = { minX = -1030, maxX = -50, minZ = -1100, maxZ = -490 },
 	-- Downtown greybox grid: blocks of buildings split by streets
 	downtown = {
 		block = DOWNTOWN_BLOCK,

@@ -196,6 +196,13 @@
   "turned": 14,
   "verdict": "rotY180"
  },
+ "Park": {
+  "asDrawn": 38,
+  "either": 38,
+  "meshes": 67,
+  "turned": 67,
+  "verdict": "rotY180"
+ },
  "PocketProps": {
   "asDrawn": 9,
   "either": 9,

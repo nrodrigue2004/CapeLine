@@ -198,6 +198,13 @@ function MapPlan.cityImages(cityCfg: any): { [string]: CityImage }
 			hub.x1, hub.z1 = math.max(hub.x1, d.maxX), math.max(hub.z1, d.maxZ)
 		end
 	end
+	-- the city park between Downtown and Uptown (2026-11-20) is drawn on the hub's picture
+	local pk = cityCfg.park
+	if pk then
+		table.insert(hub.own, { x0 = pk.minX, z0 = pk.minZ, x1 = pk.maxX, z1 = pk.maxZ })
+		hub.x0, hub.z0 = math.min(hub.x0, pk.minX), math.min(hub.z0, pk.minZ)
+		hub.x1, hub.z1 = math.max(hub.x1, pk.maxX), math.max(hub.z1, pk.maxZ)
+	end
 	local up = cityCfg.districts.Uptown
 	local upRect = { x0 = up.minX, z0 = up.minZ, x1 = up.maxX, z1 = up.maxZ }
 	return {
@@ -316,6 +323,31 @@ function MapPlan.cityBoxes(cityCfg: any, w: any, world: any): { any }
 	add(world.hubBoxes, "hub")
 	for _, lm in world.landmarks do
 		add(lm.boxes, "landmark")
+	end
+	-- the park's Terrain as flat shapes: its lawn under the paths, and each water body's circles
+	local park = world.park
+	if park then
+		local g, gy = park.green, cityCfg.ground.y
+		local function flat(kind: string, color: string, cx: number, cz: number, sx: number, sz: number, top: number)
+			table.insert(out, {
+				layer = "hub",
+				kind = kind,
+				color = color,
+				cx = cx,
+				cz = cz,
+				sx = sx,
+				sz = sz,
+				ry = 0,
+				top = top,
+				bottom = top - 0.1,
+			})
+		end
+		flat("ground", "grass", (g.x0 + g.x1) / 2, (g.z0 + g.z1) / 2, g.x1 - g.x0, g.z1 - g.z0, gy - 0.05)
+		for _, wt in park.waters do
+			for _, c in wt.blobs do
+				flat("water", "water", c[1], c[2], c[3] * 2, c[3] * 2, gy + 0.05)
+			end
+		end
 	end
 	return out
 end

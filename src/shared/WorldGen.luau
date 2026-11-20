@@ -156,7 +156,9 @@ local function touchesDistrict(cityCfg: any, tx: number, tz: number): boolean
 			return true
 		end
 	end
-	return false
+	-- the city park (2026-11-20; Shared.ParkLayout builds it): its tiles stay empty like a district's
+	local p = cityCfg.park
+	return p ~= nil and x0 < p.maxX and x1 > p.minX and z0 < p.maxZ and z1 > p.minZ
 end
 
 -- The whole map as a packed tile array for this seed
@@ -1004,8 +1006,9 @@ local function strip(
 end
 
 -- `deep` (Config.Deep, optional): cut the harbour basin out of the ground and leave the swimmable ring and
--- the Trench (Terrain water, DeepLayout) free of sea parts
-function WorldGen.base(cityCfg: any, w: any, tiles: buffer, deep: any?): { Box }
+-- the Trench (Terrain water, DeepLayout) free of sea parts. `holes` (optional): more rectangles the ground plates
+-- leave open (the park's Terrain inside its wall, ParkLayout.holes)
+function WorldGen.base(cityCfg: any, w: any, tiles: buffer, deep: any?, holes: { BoxKit.Rect }?): { Box }
 	local list: { Box } = {}
 	local half = cityCfg.mapSize / 2
 	local gy = cityCfg.ground.y
@@ -1022,6 +1025,15 @@ function WorldGen.base(cityCfg: any, w: any, tiles: buffer, deep: any?): { Box }
 			local rects = if basinHole
 				then BoxKit.around(x0, z0, x0 + third, z0 + third, basinHole)
 				else { { x0 = x0, z0 = z0, x1 = x0 + third, z1 = z0 + third } }
+			for _, hole in holes or {} do
+				local cut = {}
+				for _, r in rects do
+					for _, q in BoxKit.around(r.x0, r.z0, r.x1, r.z1, hole) do
+						table.insert(cut, q)
+					end
+				end
+				rects = cut
+			end
 			for _, r in rects do
 				strip(list, "ground", r.x0, r.z0, r.x1, r.z1, gy - th / 2, th, "grass")
 			end
