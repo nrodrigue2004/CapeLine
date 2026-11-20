@@ -246,10 +246,10 @@ HIT.starburst = function(pos, x) -- spikes burst out in a star, face-on
 		})
 	end
 end
-HIT.petals = function(pos, x) -- flat petals spin outward
+HIT.petals = function(pos, x) -- petals spin outward (the Blender petal since 2026-11-20, list-combat; was a hex plate)
 	for i = 1, x.n do
 		local a = i / x.n * math.pi * 2
-		local pl = K.PIECE.plate(1.1 * x.s, tone(x, i))
+		local pl = K.PIECE.petal(1.6 * x.s, tone(x, i))
 		pl.CFrame = CFrame.new(pos) * CFrame.Angles(0, a, 0)
 		local to = pos + Vector3.new(math.cos(a), 0.3, math.sin(a)) * 5 * x.s
 		K.fade(pl, 0.45, { CFrame = CFrame.new(to) * CFrame.Angles(0.6, a + 2.5, 0.4), Size = pl.Size * 0.5 })

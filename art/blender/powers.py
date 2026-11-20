@@ -692,6 +692,34 @@ mesh("Scrap", "ScrapBracket", bracket, (150, 156, 168), "Metal", shade=False)
 bolt = [extrude_up(hexpoly(0.22), 0.3, 0.45), C(0.1, 0.76, 0, -0.07, 0, segs=8)]
 mesh("Scrap", "ScrapBolt", bolt, (150, 156, 168), "Metal", shade=False)
 
+# ================================================================ the petal piece (CombatFx PIECE.petal, 2026-11-20): the petals hit (Ice Slide,
+# Ember Ring, Sandstorm, Healing Rain, Spirit Focus, Weightless, Radiant Heal): a teardrop petal 2 long in z (its
+# tip at +z) and 1.1 across x, cupped across and curled up at both ends, with a raised midrib; the import's half
+# turn only swaps tip and base, which a spinning petal never shows.
+def petal_width(z):
+    t = math.acos(max(-1.0, min(1.0, -z)))
+    return max(0.03, 0.55 * math.sin(t) * ((1 + math.cos(t)) / 2) ** 0.35)
+
+
+def petal_ring(z, n=8):
+    w = petal_width(z)
+    top = [(-w + 2 * w * i / n, 0.03, z) for i in range(n + 1)]
+    bot = [(w - 2 * w * i / n, -0.03, z) for i in range(1, n)]
+    return top + bot
+
+
+petal = [rings_mesh([petal_ring(-0.99 * math.cos(math.pi * k / 20)) for k in range(21)]),
+         T([(0, 0.03, -0.85), (0, 0.03, 0.0), (0, 0.03, 0.8)], [0.05, 0.045, 0.02], segs=6)]
+for ob in petal:
+    kit.apply_all(ob)
+    for v in ob.data.vertices:  # Blender (x, -z, up): cup across x, curl up toward both ends
+        x, z = v.co.x, -v.co.y
+        if v.co.z > 0.03:
+            v.co.z = 0.03 + (v.co.z - 0.03) * 0.5  # the midrib a low ridge
+        v.co.z += 0.32 * x * x + 0.18 * z * z
+    ob.data.update()
+mesh("Petal", tint("PetalLeaf"), petal, (255, 200, 230), "SmoothPlastic", shade=True)
+
 # ================================================================ the fit table and the export
 def bounds(ob):
     vs = [ob.matrix_world @ v.co for v in ob.data.vertices]
@@ -755,7 +783,7 @@ if "--preview" in sys.argv:
              "Bullet": (-4, -14, 2), "Sun": (6, -16, 4), "BlackHole": (13, -16, 3), "KiRing": (19, -16, 3),
              "EmberRim": (-12, -16, 0.2), "HaloRim": (-18, -16, 0.2), "VoltRim": (-38, -16, 0.2),
              "Slash": (-26, -16, 2), "Shock": (-32, -16, 1), "Heads": (26, -16, 2), "Girder": (31, 6, 11.5), "Wing": (-28, 6, 3), "Net": (-34, 6, 2),
-             "Claw": (-31, -6, 1), "Plate": (-35, -6, 1), "Flake": (-38, -6, 1), "Gem": (-41, -6, 1), "Scrap": (-44, -6, 1)}
+             "Claw": (-31, -6, 1), "Plate": (-35, -6, 1), "Flake": (-38, -6, 1), "Gem": (-41, -6, 1), "Scrap": (-44, -6, 1), "Petal": (-47, -6, 1)}
     close = "--close" in sys.argv  # the 2026-11-20 effect looks only, near the camera (art/preview/powers_fx.png)
     if close:
         spots = {"Sun": (-9, 0, 3), "BlackHole": (-3.5, 0, 2.5), "KiRing": (1, 0, 2.5), "EmberRim": (5.5, 0, 0.2),

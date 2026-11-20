@@ -988,8 +988,8 @@ return function(T: any)
 			end
 		end
 		check(
-			n == 82,
-			"82 meshes in 34 looks (a robot's scrap; the psi gem; the snowflake; the hex plate; the robots' net and claw; the wings flourish; 178 the held girder; 382 added the jets, the rail and the slab; 173 the bullet; 169, 177, 180 and 183 the sun, ki ring, black hole and field rims; 172 the slash; 381 the shock ring and cone fan, then the flying heads; 167 Static Field's arcs): "
+			n == 83,
+			"83 meshes in 35 looks (the petal; a robot's scrap; the psi gem; the snowflake; the hex plate; the robots' net and claw; the wings flourish; 178 the held girder; 382 added the jets, the rail and the slab; 173 the bullet; 169, 177, 180 and 183 the sun, ki ring, black hole and field rims; 172 the slash; 381 the shock ring and cone fan, then the flying heads; 167 Static Field's arcs): "
 				.. n
 		)
 		for _, look in
@@ -3793,11 +3793,11 @@ return function(T: any)
 			end)
 			local plates = 0
 			for _, d in sim.service("Workspace"):GetDescendants() do
-				if d:IsA("MeshPart") and d.Name == "PlateHex" and d.CFrame.Position.X < -80 then
+				if d:IsA("MeshPart") and d.Name == "PetalLeaf" and d.CFrame.Position.X < -80 then
 					plates += 1
 				end
 			end
-			check(plates >= 4, "the petals are hex plates (" .. plates .. ")")
+			check(plates >= 4, "the petals are Blender petals (" .. plates .. ")")
 			-- Frost's flake piece: the Blender six-armed snowflake
 			sim:run("frost field", function()
 				CombatFx.field(
@@ -4136,6 +4136,41 @@ return function(T: any)
 			check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
 		end
 	)
+
+	test("List combat: the petals hit throws Blender petals, not hex plates", function()
+		local roblox = require("@lune/roblox")
+		local P = Config.PowerArt.Petal
+		check(
+			P ~= nil and P.PetalLeaf ~= nil and P.PetalLeaf.tint == true,
+			"the Petal look takes the path colour"
+		)
+		if not T.placePath then
+			return
+		end
+		local UiSim = require("./uisim")
+		local sim = UiSim.new(
+			UiSim.load(roblox.deserializePlace(fs.readFile(T.placePath))),
+			{ name = "PC", w = 1280, h = 720, top = 36, left = 0, right = 0, bottom = 0, touch = false }
+		)
+		local CombatFx = sim:require("Client.Fx.CombatFx")
+		sim:run("CombatFx", CombatFx.init)
+		local pink = roblox.Color3.fromRGB(255, 150, 200)
+		local made
+		sim:run("petal", function()
+			made = CombatFx.piece("petal", 2, pink)
+		end)
+		check(
+			made ~= nil and made:IsA("MeshPart") and made.Name == "PetalLeaf",
+			"a petal piece is the Blender petal"
+		)
+		if made then
+			check(made.Size.Z > made.Size.X * 1.8 and made.Size.Y < made.Size.X, "long, narrow and thin")
+			check(made.Color == pink, "in the path colour")
+		end
+		local fx = fs.readFile("src/client/Fx/AbilityFx.luau")
+		check(string.find(fx, "K.PIECE.petal(", 1, true) ~= nil, "HIT.petals throws petals")
+		check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
+	end)
 
 	test("List combat: the Swordsman's cuts are Blender crescents (Everything Left 172)", function()
 		local roblox = require("@lune/roblox")

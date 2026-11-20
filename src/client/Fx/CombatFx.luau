@@ -1845,6 +1845,17 @@ PIECE.plate = function(s: number, c: Color3): BasePart
 	end
 	return part(Vector3.new(s, s * 0.15, s), CFrame.new(), c)
 end
+PIECE.petal = function(s: number, c: Color3): BasePart
+	-- the petals hit's petal (Art.Powers Petal, 2026-11-20; was the hex plate): a cupped teardrop with a midrib, s long
+	if PowerMeshes.ready("Petal") then
+		local mp = powerMesh("PetalLeaf", Vector3.new(s * 0.46, s * 0.12, s), c)
+		if mp then
+			mp.Material = Enum.Material.SmoothPlastic
+			return mp
+		end
+	end
+	return PIECE.plate(s * 0.7, c) -- the old hex plate, at its old size
+end
 PIECE.tri = function(s: number, c: Color3): BasePart
 	-- Mind's psi gem: the Blender faceted crystal (Art.Powers Gem, 2026-11-20; symmetric under the import's half turn)
 	if PowerMeshes.ready("Gem") then
