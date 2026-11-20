@@ -54,6 +54,9 @@ AnalyticsSchema.EVENTS = {
 	anti_exploit_flag = { "kind", "result" }, -- result: strike or kick
 	purchase = { "item", "kind" }, -- value: Robux
 	perf_sample = { "device", "preset", "fps_p5" }, -- value: median fps (sampled 10%)
+	-- Everything Left 480 (list-combat 2026-11-20): client script errors and crash-free sessions
+	client_error = { "module", "device" }, -- value: errors on the device in the last minute (the first module named)
+	session_errors = { "device", "clean" }, -- value: client errors over the session; clean "yes" when none
 	-- M10 and M11 extras the KPIs need (squads, photos, friend boost, settings)
 	squad_join = { "size" },
 	photo = { "backdrop" },
@@ -262,6 +265,16 @@ function AnalyticsSchema.pace(
 	return true
 end
 
+-- A script's name as a number from 1 to 999 (Everything Left 480): the client reports which module errored
+-- without sending text; the server maps it back from the same names (its copy of the client's scripts)
+function AnalyticsSchema.nameHash(name: string): number
+	local h = 5381
+	for i = 1, #name do
+		h = (h * 33 + string.byte(name, i)) % 1000003
+	end
+	return h % 999 + 1
+end
+
 -- Low-cardinality fields (Roblox keeps a limited number of distinct field values per event; Audit
 -- 2026-11-18): fps to a multiple of 5 from 0 to 240 (49 values; perf_sample's fps_p5 was the raw number a
 -- device sends, up to 1,000)
@@ -356,6 +369,8 @@ AnalyticsSchema.NOSAVE = {
 	session_device = true,
 	balance_live = true,
 	perf_sample = true,
+	client_error = true,
+	session_errors = true,
 	idle_wait = true,
 	anti_exploit_flag = true,
 	report_player = true,

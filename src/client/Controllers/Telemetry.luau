@@ -4,8 +4,11 @@
 -- * perf_sample: 10% of devices (Config.Analytics.perfSample) send the minute's median fps, its 5th
 --   percentile, the device class and the quality preset every 60 s.
 -- * note("shop") / note("item") / note("photo", backdrop): the Purchase funnel's first two steps and photos.
+-- * client errors (Everything Left 480): every script error on this device (ScriptContext.Error) is counted and
+--   sent at most once a minute: the count and the first errored script's name as a number (no text travels).
 
 local GuiService = game:GetService("GuiService")
+local ScriptContext = game:GetService("ScriptContext")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local FrameProf =
@@ -15,6 +18,7 @@ local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Net = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Net"))
+local AnalyticsSchema = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("AnalyticsSchema"))
 
 local QualityController = require(script.Parent.QualityController)
 
@@ -24,7 +28,7 @@ Telemetry.sampled = false -- this device sends perf samples (Dev panel)
 Telemetry.lastMedian = 0
 Telemetry.lastP5 = 0
 
-local KIND = { perf = 1, shop = 2, item = 3, photo = 4, hello = 5 }
+local KIND = { perf = 1, shop = 2, item = 3, photo = 4, hello = 5, errors = 6 }
 local lastItem = 0
 
 -- 1 phone, 2 tablet, 3 pc, 4 console
@@ -71,9 +75,44 @@ function Telemetry.note(what: string, a: number?)
 	Net.send("Telemetry", kind, 0, a or 0, 0)
 end
 
+-- Client errors waiting to be reported: the count since the last report and the first script's hash
+Telemetry.errors = 0
+Telemetry.errorModule = 0
+local errorSentAt = -math.huge
+
+function Telemetry.flushErrors(now: number)
+	if Telemetry.errors <= 0 or now - errorSentAt < Config.Analytics.errorEvery then
+		return
+	end
+	errorSentAt = now
+	Net.send(
+		"Telemetry",
+		KIND.errors,
+		math.min(Telemetry.errors, 1000),
+		Telemetry.errorModule,
+		Telemetry.device()
+	)
+	Telemetry.errors, Telemetry.errorModule = 0, 0
+end
+
+function Telemetry.onError(_message: string, _trace: string, origin: Instance?)
+	Telemetry.errors += 1
+	if Telemetry.errorModule == 0 then
+		Telemetry.errorModule = if origin then AnalyticsSchema.nameHash(origin.Name) else 0
+	end
+	Telemetry.flushErrors(os.clock())
+end
+
 function Telemetry.init()
 	local A = Config.Analytics
 	Net.send("Telemetry", KIND.hello, 0, Telemetry.device(), 0)
+	ScriptContext.Error:Connect(Telemetry.onError)
+	task.spawn(function()
+		while true do
+			task.wait(A.errorEvery)
+			Telemetry.flushErrors(os.clock())
+		end
+	end)
 	Telemetry.sampled = math.random() < A.perfSample or RunService:IsStudio()
 	if not Telemetry.sampled then
 		return

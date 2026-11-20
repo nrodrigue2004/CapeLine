@@ -44,6 +44,29 @@ local paced: { [Player]: { [number]: number } } = {} -- the last device fact kep
 local joinedAt: { [Player]: number } = {}
 local starting: { [Player]: { kind: string, side: (Player) -> string } } = {} -- waiting for the device hello
 local devices: { [Player]: string } = {}
+local clientErrors: { [Player]: number } = {} -- client script errors this session (Telemetry kind 6)
+local moduleNames: { [number]: string }? = nil -- AnalyticsSchema.nameHash -> the client script's name
+
+-- The client's script names by their hash (the server holds the same copy of StarterPlayerScripts and Shared)
+local function moduleName(hash: number): string
+	if not moduleNames then
+		local map = {}
+		local roots = {
+			game:GetService("StarterPlayer"):FindFirstChild("StarterPlayerScripts"),
+			game:GetService("ReplicatedStorage"):FindFirstChild("Shared"),
+			game:GetService("ReplicatedFirst"),
+		}
+		for _, r in roots do
+			for _, d in (if r then r:GetDescendants() else {}) do
+				if d:IsA("LuaSourceContainer") then
+					map[AnalyticsSchema.nameHash(d.Name)] = d.Name
+				end
+			end
+		end
+		moduleNames = map
+	end
+	return (moduleNames :: { [number]: string })[hash] or "other"
+end
 -- rare events the budget had no room for, waiting for flush(): { name, value, clean fields } (review 2026-11-18)
 local held: { [Player]: { { any } } } = {}
 
@@ -393,6 +416,18 @@ local function onTelemetry(player: Player, kind: number, value: number, a: numbe
 			Analytics.event(player, "photo", 1, { BACKDROPS[a] or "none" })
 		end
 		Analytics.Photo:Fire(player) -- the Photo recon contract counts every shot
+	elseif kind == 6 then
+		-- client script errors (Everything Left 480): every report adds to the session's count; the event is paced
+		local n = math.clamp(math.floor(value), 0, 1000)
+		clientErrors[player] = (clientErrors[player] or 0) + n
+		if keep and n > 0 then
+			Analytics.event(
+				player,
+				"client_error",
+				n,
+				{ moduleName(a), devices[player] or DEVICES[b] or "pc" }
+			)
+		end
 	elseif kind == 5 then
 		-- the hello: which kind of device (once a session)
 		if not devices[player] then
@@ -411,7 +446,16 @@ function Analytics.init()
 		joinedAt[p] = joinedAt[p] or os.clock()
 	end
 	Players.PlayerRemoving:Connect(function(p)
+		-- crash-free sessions (Everything Left 480): how many client errors this session had
+		local errs = clientErrors[p] or 0
+		Analytics.event(
+			p,
+			"session_errors",
+			errs,
+			{ devices[p] or "unknown", if errs == 0 then "yes" else "no" }
+		)
 		task.defer(function()
+			clientErrors[p] = nil
 			sessions[p] = nil
 			joinedAt[p] = nil
 			starting[p] = nil

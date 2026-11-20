@@ -274,10 +274,11 @@ local Remotes: { [string]: RemoteDef } = {
 	},
 	HqCollect = { dir = "C2S", schema = {}, rate = 1, burst = 2 }, -- M11: bank the offline drones' haul
 	IdleReport = { dir = "C2S", schema = { n(0, 600), n(1, 4) }, rate = 0.5, burst = 3 }, -- M11 wait gate
-	-- M12: what only the device knows for analytics: kind (1 perf, 2 shop open, 3 item view, 4 photo, 5 hello), value, a, b
+	-- M12: what only the device knows for analytics: kind (1 perf, 2 shop open, 3 item view, 4 photo, 5 hello,
+	-- 6 client errors: value the count, a the module's AnalyticsSchema.nameHash, b the device), value, a, b
 	Telemetry = {
 		dir = "C2S",
-		schema = { n(1, 5), n(0, 1000000), n(0, 1000), n(0, 1000) },
+		schema = { n(1, 6), n(0, 1000000), n(0, 1000), n(0, 1000) },
 		rate = 1,
 		burst = 6,
 	},

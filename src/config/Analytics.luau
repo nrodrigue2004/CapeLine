@@ -13,7 +13,10 @@ return {
 	-- Audit 2026-11-18: the fewest seconds between two device facts the server logs, per player and kind
 	-- (Telemetry kinds: 1 perf_sample, 2 shop_open, 3 shop_view_item, 4 photo; Shared.AnalyticsSchema.pace).
 	-- The remote alone allows 1 a second, so 30 devices could spend 1,800 slots a minute.
-	devicePace = { [1] = 50, [2] = 5, [3] = 1, [4] = 2 },
+	devicePace = { [1] = 50, [2] = 5, [3] = 1, [4] = 2, [6] = 55 },
+	-- kind 6 (Everything Left 480): a device sends its client errors at most once a minute (the count since the last
+	-- report and the first module that errored); the server sums them for the session's session_errors
+	errorEvery = 60,
 	helloWait = 20, -- session_device waits this long for the device's hello (platform), then logs "unknown"
 	-- the favorite prompt (WP4, gap G7): once per account after the first world boss win, a plain ask with no
 	-- reward (Roblox's rules). The device waits `wait` s (the result card), then for `calm` s with no hit

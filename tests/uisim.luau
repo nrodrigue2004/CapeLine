@@ -232,7 +232,7 @@ for _, n in
 			.. "RenderStepped Heartbeat Stepped PreSimulation PostSimulation PreRender PreAnimation "
 			.. "CharacterAdded CharacterRemoving CharacterAppearanceLoaded PlayerAdded PlayerRemoving Died "
 			.. "HealthChanged StateChanged Running LastInputTypeChanged WindowFocused WindowFocusReleased "
-			.. "JumpRequest GamepadConnected GamepadDisconnected MenuOpened MenuClosed "
+			.. "JumpRequest GamepadConnected GamepadDisconnected MenuOpened MenuClosed Error "
 			.. "PromptProductPurchaseFinished PromptGamePassPurchaseFinished PromptPurchaseFinished "
 			.. "MessageReceived SendingMessage TextChannelAdded SelectionGained SelectionLost "
 			.. "ReturnPressedFromOnScreenKeyboard KeyframeReached",
