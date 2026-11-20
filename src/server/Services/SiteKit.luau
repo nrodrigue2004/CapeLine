@@ -589,6 +589,8 @@ function SiteKit.object(
 			-- perHit: a story object that takes a set number of hits (the shard crates, the runaway train)
 			local dealt = math.min(h.hp, if h.perHit then 1 else amount)
 			h.hp -= dealt
+			-- what is left, for the devices' hit punch and break (StoryProps; list-combat 2026-11-20)
+			m:SetAttribute("Hp", math.max(0, h.hp / h.maxHp))
 			if onHit then
 				onHit(heroId, dealt)
 			end

@@ -10,6 +10,7 @@
 -- budget or out of range, today's parts show. clone() is StoryFx's too (the trap, the beacon, the Echo Drone).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
@@ -17,6 +18,7 @@ local StoryArtKit = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChil
 local MeshFix = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("MeshFix"))
 
 local QualityController = require(script.Parent.Parent.Controllers.QualityController)
+local AudioController = require(script.Parent.Parent.Controllers.AudioController)
 
 local StoryProps = {}
 
@@ -108,9 +110,17 @@ function StoryProps.weld(
 	return out
 end
 
-type Dressed = { meshes: { BasePart }, hidden: { BasePart }, conns: { RBXScriptConnection } }
+type Dressed = {
+	meshes: { BasePart },
+	hidden: { BasePart },
+	conns: { RBXScriptConnection },
+	hp: number, -- the target's share of hits left (its Hp attribute, SiteKit.object)
+	rest: { [Weld]: CFrame }, -- each mesh weld's resting C0, for the hit punch
+	broken: boolean?, -- burst apart: its meshes are gone and its parts stay hidden
+}
 
 local dressed: { [Model]: Dressed } = {}
+local gone: { [Model]: boolean } = setmetatable({}, { __mode = "k" }) :: any -- broken targets hidden here
 local folder: Folder? = nil
 
 local function holder(): Folder
@@ -123,6 +133,64 @@ local function holder(): Folder
 	return folder :: Folder
 end
 
+-- A hit lands on a break target (list-combat 2026-11-20: they took their hits without a twitch): the look jolts off
+-- its rest and springs back, with a clank where it was hit
+local PUNCH = 0.6 -- studs of jolt at full; less on a big look
+local function punch(d: Dressed, at: Vector3)
+	local n = 0
+	for w, rest in d.rest do
+		n += 1
+		local kick = Vector3.new(math.random() - 0.5, math.random() * 0.4, math.random() - 0.5) * PUNCH
+		w.C0 = rest * CFrame.new(kick) * CFrame.Angles(kick.Z * 0.12, 0, -kick.X * 0.12)
+		TweenService:Create(w, TweenInfo.new(0.22, Enum.EasingStyle.Elastic, Enum.EasingDirection.Out), {
+			C0 = rest,
+		}):Play()
+	end
+	if n > 0 then
+		AudioController.play("clank", at, { volume = 0.6 })
+	end
+end
+
+-- The last hit: the look's meshes burst apart and tumble (loose, never colliding), fading out in about a second and
+-- a half, instead of the look just vanishing with the target
+local function shatter(d: Dressed, at: Vector3)
+	for _, p in d.meshes do
+		if p.Parent then
+			for _, w in p:GetChildren() do
+				if w:IsA("Weld") then
+					w:Destroy()
+				end
+			end
+			local out = p.Position - at
+			out = if out.Magnitude > 0.1 then out.Unit else Vector3.yAxis
+			p.Anchored = false
+			p.AssemblyLinearVelocity = out * (14 + math.random() * 10)
+				+ Vector3.new(0, 14 + math.random() * 8, 0)
+			p.AssemblyAngularVelocity = Vector3.new(
+				math.random() - 0.5,
+				math.random() - 0.5,
+				math.random() - 0.5
+			) * 8
+			TweenService
+				:Create(
+					p,
+					TweenInfo.new(0.6, Enum.EasingStyle.Quad, Enum.EasingDirection.In, 0, false, 0.9),
+					{
+						Transparency = 1,
+					}
+				)
+				:Play()
+			task.delay(1.6, function()
+				p:Destroy()
+			end)
+		end
+	end
+	AudioController.play("shatter", at, { volume = 0.8 })
+end
+
+-- the vehicles stay whole when beaten (the runaway train stops, the cash van is cracked open by the story)
+local STAYS = { StoryTrain = true, StoryVan = true }
+
 local function undress(m: Model)
 	local d = dressed[m]
 	if not d then
@@ -134,6 +202,9 @@ local function undress(m: Model)
 	end
 	for _, p in d.meshes do
 		p:Destroy()
+	end
+	if d.broken then
+		return -- what is left of a broken target stays hidden until the server clears it
 	end
 	for _, p in d.hidden do
 		if p.Parent then
@@ -155,10 +226,34 @@ local function dress(m: Model, look: string, root: BasePart)
 	if not meshes then
 		return
 	end
-	local d: Dressed = { meshes = {}, hidden = {}, conns = {} }
+	local hp = m:GetAttribute("Hp")
+	local d: Dressed =
+		{ meshes = {}, hidden = {}, conns = {}, hp = if type(hp) == "number" then hp else 1, rest = {} }
 	for _, p in meshes do
 		table.insert(d.meshes, p)
+		local w = p:FindFirstChildOfClass("Weld")
+		if w then
+			d.rest[w] = w.C0
+		end
 	end
+	table.insert(
+		d.conns,
+		m:GetAttributeChangedSignal("Hp"):Connect(function()
+			local now = m:GetAttribute("Hp")
+			if type(now) == "number" and now < d.hp and (now > 0 or STAYS[look]) then
+				punch(d, root.Position)
+			elseif type(now) == "number" and now <= 0 and not d.broken then
+				-- the last hit: the look bursts apart at once (the server keeps the broken target until the step ends)
+				d.broken = true
+				shatter(d, root.Position)
+				d.meshes = {}
+				d.rest = {}
+			end
+			if type(now) == "number" then
+				d.hp = now
+			end
+		end)
+	)
 	for _, p in m:GetDescendants() do
 		hide(d, p)
 	end
@@ -192,6 +287,19 @@ function StoryProps.step()
 	for _, m in if sites then sites:GetChildren() else {} do
 		local look = m:IsA("Model") and m:GetAttribute("StoryLook")
 		local root = if look then m:FindFirstChild("Root") else nil
+		local hp = if look then m:GetAttribute("Hp") else nil
+		if type(hp) == "number" and hp <= 0 and not STAYS[look :: any] then
+			-- broken: gone from view on this device (a dressed one burst apart; plain parts just go)
+			if not dressed[m :: Model] and not gone[m :: Model] then
+				gone[m :: Model] = true
+				for _, p in m:GetDescendants() do
+					if p:IsA("BasePart") then
+						p.LocalTransparencyModifier = 1
+					end
+				end
+			end
+			continue
+		end
 		if type(look) == "string" and root and root:IsA("BasePart") and StoryProps.ready(look) then
 			-- a dressed prop holds its place a little farther out, so it does not flicker at the edge
 			local dist = (root.Position - at).Magnitude * (if dressed[m :: Model] then 0.87 else 1)

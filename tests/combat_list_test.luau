@@ -2592,6 +2592,154 @@ return function(T: any)
 		end
 	)
 
+	test("List combat: the prologue's title card shows the drawn CAPELINE logo", function()
+		local roblox = require("@lune/roblox")
+		check((Config.Ui.logo or 0) ~= 0, "the logo is uploaded")
+		check(
+			not string.find(
+				fs.readFile("src/client/Ui/StoryHud.luau"),
+				"the title card is the plain Kit title",
+				1,
+				true
+			),
+			"no longer the plain title"
+		)
+		if not T.placePath then
+			return
+		end
+		local UiSim = require("./uisim")
+		local sim = UiSim.new(
+			UiSim.load(roblox.deserializePlace(fs.readFile(T.placePath))),
+			{ name = "PC", w = 1280, h = 720, top = 36, left = 0, right = 0, bottom = 0, touch = false }
+		)
+		sim:run("InputController", sim:require("Client.Controllers.InputController").init)
+		sim:run("StoryHud", sim:require("Client.Ui.StoryHud").init)
+		local card = sim.playerGui and sim.playerGui:FindFirstChild("TitleCard", true)
+			or sim.service("Players").LocalPlayer:FindFirstChild("TitleCard", true)
+		check(card ~= nil, "the title card")
+		local logo = card and card:FindFirstChild("Logo")
+		check(logo ~= nil and logo.ClassName == "ImageLabel", "with the drawn logo")
+		if logo then
+			check(logo.Image == "rbxassetid://" .. Config.Ui.logo, "the uploaded logo")
+			check(logo:FindFirstChildOfClass("UIScale") ~= nil, "it can slam in")
+		end
+		check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
+	end)
+
+	test("List combat: story break targets jolt on each hit and burst apart on the last", function()
+		local roblox = require("@lune/roblox")
+		check(
+			string.find(
+				fs.readFile("src/server/Services/SiteKit.luau"),
+				'm:SetAttribute("Hp", math.max(0, h.hp / h.maxHp))',
+				1,
+				true
+			) ~= nil,
+			"the server sends what is left on every hit"
+		)
+		if not T.placePath then
+			return
+		end
+		local UiSim = require("./uisim")
+		local sim = UiSim.new(
+			UiSim.load(roblox.deserializePlace(fs.readFile(T.placePath))),
+			{ name = "PC", w = 1280, h = 720, top = 36, left = 0, right = 0, bottom = 0, touch = false }
+		)
+		local StoryProps = sim:require("Client.Fx.StoryProps")
+		check(StoryProps.ready("StoryCrate"), "the crate look is imported")
+		local ws = sim.service("Workspace")
+		local cam = ws.CurrentCamera
+		if cam then
+			cam.CFrame = roblox.CFrame.new(0, 10, 30)
+		end
+		local sites = UiSim.newInstance("Folder")
+		sites.Name = "Sites"
+		sites.Parent = ws
+		local function crate(x: number, look: string)
+			local m = UiSim.newInstance("Model")
+			m.Name = "StoryCrate"
+			m:SetAttribute("StoryLook", look)
+			m:SetAttribute("Hp", 1)
+			local root = UiSim.newInstance("Part")
+			root.Name = "Root"
+			root.Anchored = true
+			root.Size = roblox.Vector3.new(1, 1, 1)
+			root.CFrame = roblox.CFrame.new(x, 0, 0)
+			root.Parent = m
+			local box = UiSim.newInstance("Part")
+			box.Name = "Box"
+			box.Size = roblox.Vector3.new(5, 4, 5)
+			box.CFrame = roblox.CFrame.new(x, 2, 0)
+			box.Parent = m
+			m.Parent = sites
+			return m, box
+		end
+		local m, box = crate(0, "StoryCrate")
+		sim:run("step", StoryProps.step)
+		local art = ws:FindFirstChild("StoryArt")
+		local meshes = if art then art:GetChildren() else {}
+		check(#meshes > 0, "the crate is dressed")
+		check(box.LocalTransparencyModifier == 1, "its plain box hidden")
+		local function moved(): number
+			local most = 0
+			for _, p in meshes do
+				local w = p:FindFirstChildOfClass("Weld")
+				if w then
+					most = math.max(most, w.C0.Position.Magnitude)
+				end
+			end
+			return most
+		end
+		-- the sim jumps every tween to its end: count the springs back to rest instead
+		local ts = sim.service("TweenService")
+		local create = ts._props.Create
+		local springs = 0
+		ts._props.Create = function(self, inst, info, goals)
+			if inst.ClassName == "Weld" and goals.C0 then
+				springs += 1
+			end
+			return create(self, inst, info, goals)
+		end
+		local before = moved()
+		sim:run("hit", function()
+			m:SetAttribute("Hp", 0.5)
+		end)
+		check(springs == #meshes, string.format("a hit jolts every mesh and springs it back (%d)", springs))
+		check(math.abs(moved() - before) < 1e-3, "back at rest")
+		sim:run("break", function()
+			m:SetAttribute("Hp", 0)
+		end)
+		local loose, welded = 0, 0
+		for _, p in meshes do
+			if p:FindFirstChildOfClass("Weld") then
+				welded += 1
+			elseif p.Anchored == false and p.AssemblyLinearVelocity.Magnitude > 5 then
+				loose += 1
+			end
+		end
+		check(
+			welded == 0 and loose == #meshes,
+			string.format("the last hit bursts it apart (%d loose)", loose)
+		)
+		sim:run("step", StoryProps.step)
+		check(box.LocalTransparencyModifier == 1, "the broken crate's box stays hidden")
+		-- a never-dressed broken target (plain parts) just goes too; the train stays whole
+		local train, tbox = crate(4, "StoryTrain")
+		sim:run("break", function()
+			train:SetAttribute("Hp", 0)
+		end)
+		sim:run("step", StoryProps.step)
+		local _, gone = crate(-4, "StoryCrate")
+		gone.Parent:SetAttribute("Hp", 0)
+		sim:run("step", StoryProps.step)
+		check(gone.LocalTransparencyModifier == 1, "a broken plain crate goes")
+		check(
+			tbox.LocalTransparencyModifier == 1 and train.Parent ~= nil,
+			"the beaten train is still drawn in its look"
+		)
+		check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
+	end)
+
 	test("List combat: side styles wear their side's crest over the shape (Everything Left 398)", function()
 		local roblox = require("@lune/roblox")
 		local SG = Config.SideGearArt

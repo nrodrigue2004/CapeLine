@@ -19,7 +19,7 @@
 --   accept (NEW QUEST!), each step done (its word stamp and pay), the finale's name card sting, the encore, the
 --   finale won (fireworks and VICTORY!), the chain done (the result card with its title and cosmetic, confetti
 --   and the victory sting) and the finale lost (TRY AGAIN! when Downed while the villain stands).
--- PLACEHOLDER ART: the title card is the plain Kit title until the art pass.
+-- The title card shows the drawn CAPELINE logo (Config.Ui.logo; DRAFT until nate OKs it), the typed title before it loads.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -73,6 +73,8 @@ local questFill: Frame
 local detected: TextLabel
 local hintLabel: TextLabel -- the prologue's one plain instruction (kid-proof, nate's playtest 2026-11-18)
 local titleCard: Frame
+local titleLogo: ImageLabel? = nil -- the drawn logo on the title card (Config.Ui.logo)
+local titleScale: UIScale? = nil
 local markerPart: Part
 local markerGui: BillboardGui
 local markerText: TextLabel
@@ -139,6 +141,34 @@ local function buildPrologue()
 		ZIndex = 46,
 	})
 	title.Parent = titleCard
+	if (Config.Ui.logo or 0) ~= 0 then
+		-- the drawn CAPELINE logo (art/ui/logo.py, the main menu's) over the typed title once it has loaded, slammed
+		-- in from big like a comic cover (list-combat 2026-11-20; the card was the plain Kit title)
+		local drawn = Instance.new("ImageLabel")
+		drawn.Name = "Logo"
+		drawn.BackgroundTransparency = 1
+		drawn.AnchorPoint = Vector2.new(0.5, 0.5)
+		drawn.Position = UDim2.fromScale(0.5, 0.46)
+		drawn.Size = UDim2.fromScale(0.8, 0.34)
+		drawn.ScaleType = Enum.ScaleType.Fit
+		drawn.Image = "rbxassetid://" .. Config.Ui.logo
+		drawn.ImageTransparency = 1
+		drawn.ZIndex = 47
+		local scale = Instance.new("UIScale")
+		scale.Parent = drawn
+		drawn.Parent = titleCard
+		titleLogo, titleScale = drawn, scale
+		task.spawn(function()
+			pcall(function()
+				game:GetService("ContentProvider"):PreloadAsync({ drawn })
+			end)
+			if drawn.IsLoaded and drawn.Parent then
+				drawn.ImageTransparency = 0
+				title.TextTransparency = 1
+				title.TextStrokeTransparency = 1
+			end
+		end)
+	end
 end
 
 local function cut()
@@ -968,6 +998,15 @@ local function frame()
 	if showTitle and not titleCard.Visible then
 		titleCard.BackgroundTransparency = 1
 		TweenService:Create(titleCard, TweenInfo.new(0.8), { BackgroundTransparency = 0 }):Play()
+		if titleLogo and titleScale then
+			-- the logo slams in: big, then settles with a little overshoot
+			titleScale.Scale = 1.6
+			TweenService:Create(
+				titleScale,
+				TweenInfo.new(0.45, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+				{ Scale = 1 }
+			):Play()
+		end
 	end
 	titleCard.Visible = showTitle
 end
