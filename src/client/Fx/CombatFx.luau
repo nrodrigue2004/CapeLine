@@ -3464,14 +3464,10 @@ function CombatFx.impact(
 			Enum.PartType.Cylinder
 		)
 		fade(r, 0.25, { Size = Vector3.new(0.1, 7 * scale, 7 * scale) })
-		for k = 0, 1 do
-			local star = part(
-				Vector3.new(0.4, 0.4, 3 * scale),
-				CFrame.new(pos) * CFrame.Angles(0, math.rad(45 + 90 * k), math.rad(30)),
-				WHITE
-			)
-			fade(star, 0.15, { Size = Vector3.new(0.15, 0.15, 5 * scale) })
-		end
+		-- the comic hit star (Config.Fx.lib hitstar, 2026-11-20): an inked starburst popping in the hit colour,
+		-- bigger on your own hits and crits, in place of the two crossed white bars (not a flash: it stays with
+		-- Reduce Flashing on)
+		FxLib.emit("hitstar", if crit then CRIT else c, pos, 1, nil, (if mine then 4.5 else 3.2) * scale)
 	end
 end
 

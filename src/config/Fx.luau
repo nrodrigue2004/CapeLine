@@ -266,11 +266,32 @@ return {
 				id = 133274880401189,
 				file = "chip.png",
 			},
+			-- the comic hit star (list-combat 2026-11-20, art/fx/hitstar.py; uploaded from the cloud as an Image asset): a
+			-- jagged starburst in a black ink rim that pops on every Comic hit, tinted in the hit colour
+			hitstar = {
+				builtin = "rbxasset://textures/particles/sparkles_main.dds",
+				id = 102945056980891,
+				file = "hitstar.png",
+			},
 		},
 		-- each particle kind: size from and to (studs), life (s, min max), speed (min max), spread (deg),
 		-- drag, rise (upward acceleration, negative falls), light (emission), alpha (start transparency),
 		-- spin (deg a second), face: "camera" (default), "streak" (along its velocity) or "flat" (lies flat)
 		kinds = {
+			-- one comic hit star a Comic hit (CombatFx.impact): pops from a fifth of its size to full and fades, a
+			-- little turn; light 0 so its ink rim stays black
+			hitstar = {
+				tex = "hitstar",
+				size = { 1, 4 },
+				life = { 0.14, 0.18 },
+				speed = { 0, 0 },
+				spread = 0,
+				drag = 0,
+				rise = 0,
+				light = 0,
+				alpha = 0,
+				spin = 60,
+			},
 			spark = {
 				tex = "spark",
 				size = { 0.5, 0 },

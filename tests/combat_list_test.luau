@@ -3132,6 +3132,44 @@ return function(T: any)
 		check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
 	end)
 
+	test("List combat: a Comic hit pops an inked hit star", function()
+		local roblox = require("@lune/roblox")
+		local L = Config.Fx.lib
+		check(L.textures.hitstar ~= nil and L.textures.hitstar.id > 0, "the hit star is uploaded")
+		check(fs.isFile("art/export/fx/hitstar.png"), "drawn by art/fx/hitstar.py")
+		check(L.kinds.hitstar ~= nil and L.kinds.hitstar.light == 0, "unlit, so its ink rim stays black")
+		if not T.placePath then
+			return
+		end
+		local UiSim = require("./uisim")
+		local sim = UiSim.new(
+			UiSim.load(roblox.deserializePlace(fs.readFile(T.placePath))),
+			{ name = "PC", w = 1280, h = 720, top = 36, left = 0, right = 0, bottom = 0, touch = false }
+		)
+		local CombatFx = sim:require("Client.Fx.CombatFx")
+		sim:run("CombatFx", CombatFx.init)
+		sim:run("hit", function()
+			CombatFx.impact(
+				roblox.Vector3.new(0, 5, 0),
+				false,
+				"Comic",
+				true,
+				roblox.Color3.fromRGB(255, 200, 60),
+				"Fire"
+			)
+		end)
+		local star = nil
+		for _, d in sim.service("Workspace"):GetDescendants() do
+			if
+				d:IsA("ParticleEmitter") and string.find(d.Texture, tostring(L.textures.hitstar.id), 1, true)
+			then
+				star = d
+			end
+		end
+		check(star ~= nil, "the hit star's emitter is made")
+		check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
+	end)
+
 	test("List combat: the Swordsman's cuts are Blender crescents (Everything Left 172)", function()
 		local roblox = require("@lune/roblox")
 		local S = Config.PowerArt.Slash
