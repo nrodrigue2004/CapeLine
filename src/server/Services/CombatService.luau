@@ -214,9 +214,17 @@ local function rollDamage(
 	return dmg, crit
 end
 
+-- Each pending result's caster key (EnemyService.soloKey; not sent): a private run's casts and numbers go only to
+-- its own party's devices, and the open world's never reach them (missions lane, 2026-11-20)
+local resultKey: { [any]: number } = {}
+
 local function record(hero: any, num: number, seq: number, kind: number, origin: Vector3, dir: Vector3): any
 	local r = { a = hero.id, n = num, s = seq, k = kind, o = origin, d = dir, h = {} }
 	table.insert(pending, r)
+	local key = EnemyService.soloKey(hero)
+	if key then
+		resultKey[r] = key
+	end
 	return r
 end
 
@@ -779,7 +787,7 @@ local function makeWall(hero: any, eff: any, num: number, pieces: { { number } }
 			false,
 			"wall"
 		)
-		EnemyService.addBlocker(pos, 4.2, now + eff.duration)
+		EnemyService.addBlocker(pos, 4.2, now + eff.duration, EnemyService.soloKey(hero))
 		if eff.touchCoeff then
 			addField(
 				hero,
@@ -891,7 +899,7 @@ local function applyBuff(hero: any, eff: any, r: any)
 	end
 	if eff.taunt then
 		-- Brace: machines within the taunt radius attack this hero
-		for _, c in CastPlan.area(pos.X, pos.Y, pos.Z, eff.taunt, EnemyService.candidates(), nil) do
+		for _, c in CastPlan.area(pos.X, pos.Y, pos.Z, eff.taunt, EnemyService.candidatesFor(hero), nil) do
 			EnemyService.applyStatus(c.id, "taunt", eff.duration, { src = hero.id })
 		end
 	end
@@ -1286,8 +1294,10 @@ local function resolve(
 			elseif eff.decoyAt == "origin" then origin
 			elseif plan.ex then Vector3.new(plan.ex, plan.ey, plan.ez)
 			else origin + dir * 10
-		local id = HeroService.addDecoy(at, eff.decoy)
-		for _, c in CastPlan.area(at.X, at.Y, at.Z, eff.decoyRadius or 40, EnemyService.candidates(), nil) do
+		local id = HeroService.addDecoy(at, eff.decoy, EnemyService.soloKey(hero))
+		for _, c in
+			CastPlan.area(at.X, at.Y, at.Z, eff.decoyRadius or 40, EnemyService.candidatesFor(hero), nil)
+		do
 			EnemyService.applyStatus(c.id, "taunt", eff.decoy, { src = id })
 		end
 		r.c, r.dur = at, eff.decoy
@@ -1757,13 +1767,19 @@ local function flush()
 	end
 	local batch = pending
 	pending = {}
+	local keys = resultKey
+	resultKey = {}
 	local r2 = C.resultRadius * C.resultRadius
 	for _, player in Players:GetPlayers() do
 		local char = player.Character
 		local root = char and char:FindFirstChild("HumanoidRootPart") :: BasePart?
 		if root then
 			local mine = {}
+			local myKey = EnemyService.soloKey(HeroService.get(player))
 			for _, r in batch do
+				if keys[r] ~= myKey then
+					continue
+				end
 				-- ticks with no hits are only for the caster's own numbers; skip them for others
 				if r.k == K.TICK and #r.h == 0 then
 					continue

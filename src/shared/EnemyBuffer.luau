@@ -58,7 +58,8 @@ local function nearestFirst(n: number)
 end
 
 -- enemies: EnemySim list. Only those within `radius` of (px, py, pz), nearest first, at most maxCount (and
--- never more than MAX).
+-- never more than MAX). key: the player's hero's solo key (EnemySim.sees; a private mission run's phase,
+-- Shared.PhaseRules): only robots with the same key are sent (nil, the open world, gets only open-world robots).
 function EnemyBuffer.encodeFor(
 	sequence: number,
 	time: number,
@@ -67,13 +68,14 @@ function EnemyBuffer.encodeFor(
 	py: number,
 	pz: number,
 	radius: number,
-	maxCount: number
+	maxCount: number,
+	key: number?
 ): buffer
 	local r2 = radius * radius
 	local n = 0
 	table.clear(order)
 	for _, e in enemies do
-		if e.alive then
+		if e.alive and e.solo == key then
 			local dx, dy, dz = e.x - px, e.y - py, e.z - pz
 			local d2 = dx * dx + dy * dy + dz * dz
 			if d2 <= r2 then

@@ -11,6 +11,11 @@
 --   target.
 -- * pickup: a shard to touch.
 -- Everything a site builds lives under Workspace.Sites and is removed with clear().
+-- * inPhase: a private mission run's piece (PhaseService; missions lane 2026-11-20): its model carries the Phase
+--   attribute (Controllers.PhaseClient hides it on every device outside that phase: no look, no collision, no
+--   prompt), only that phase's heroes stand in its rings, pick up its citizens and shards, drop at its pads and hit
+--   its objects, and its robots are in the phase too. The open world's pieces are, the same way, out of reach of a
+--   hero in a phase (heroesIn and the prompts are strict both ways, Shared.PhaseRules.sees).
 -- * look: tags a prop's model with its Blender look (Shared.ActivityKit kind); the device draws it over the parts
 --   (Fx.ActivityProps) once Art.Activity is imported and hides them there. The parts here stay as they are.
 -- PLACEHOLDER ART: the cat, pads, rings, shards and objects are plain parts; stranded citizens are R15 people
@@ -30,6 +35,8 @@ local RigMath = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("R
 local NpcRig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("NpcRig"))
 local EnemyVariety = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("EnemyVariety"))
 local MeshFix = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("MeshFix"))
+
+local PhaseRules = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("PhaseRules"))
 
 local HeroService = require(script.Parent.HeroService)
 local EnemyService = require(script.Parent.EnemyService)
@@ -133,11 +140,12 @@ function SiteKit.model(name: string): Model
 	return m
 end
 
--- Heroes standing within r of pos (players and bots)
-function SiteKit.heroesIn(pos: Vector3, r: number): { any }
+-- Heroes standing within r of pos (players and bots). phase: a private mission run's (only its heroes count); nil
+-- counts only heroes out in the open world (a hero in a run never stands in an incident's, event's or contract's ring)
+function SiteKit.heroesIn(pos: Vector3, r: number, phase: number?): { any }
 	local out = {}
 	for _, h in HeroService.all() do
-		local p = h.alive and HeroService.position(h)
+		local p = h.alive and PhaseRules.sees(phase, h.phase) and HeroService.position(h)
 		if p and (p - pos).Magnitude <= r then
 			table.insert(out, h)
 		end
@@ -206,6 +214,7 @@ export type Citizen = {
 	pads: { any }?, -- where it may be dropped; nil = any pad
 	anySafehouse: boolean?,
 	cat: boolean?,
+	phase: number?, -- a private mission run's citizen (SiteKit.inPhase)
 }
 
 local carried: { [number]: Citizen } = {} -- hero id -> the citizen they carry
@@ -381,6 +390,10 @@ function SiteKit.citizen(
 		if opts.who and not opts.who(hero) then
 			return
 		end
+		-- a private run's citizen is its own party's to carry (and an open-world one never a run's hero's)
+		if not PhaseRules.sees(c.phase, hero.phase) then
+			return
+		end
 		if (hrp.Position - body.Position).Magnitude > IC.rescueRange + 4 then
 			return
 		end
@@ -506,14 +519,15 @@ local function carryStep()
 			local dropped: any = nil
 			for _, pad in (c.pads or pads) do
 				if
-					(Vector3.new(pad.pos.X, pos.Y, pad.pos.Z) - pos).Magnitude <= IC.dropRadius
+					PhaseRules.sees(pad.phase, c.phase)
+					and (Vector3.new(pad.pos.X, pos.Y, pad.pos.Z) - pos).Magnitude <= IC.dropRadius
 					and math.abs(pos.Y - pad.pos.Y) < 30
 				then
 					dropped = pad
 					break
 				end
 			end
-			if not dropped and c.anySafehouse then
+			if not dropped and c.anySafehouse and not c.phase then
 				for i, s in SiteKit.safehouses do
 					if
 						(Vector3.new(s.x, pos.Y, s.z) - pos).Magnitude <= Config.World.safehouse.safeRadius
@@ -689,7 +703,7 @@ local function pickupStep()
 	for i = #pickups, 1, -1 do
 		local h = pickups[i]
 		if not h.taken and now >= h.readyAt then
-			local list = SiteKit.heroesIn(h.pos + Vector3.new(0, 2, 0), h.range)
+			local list = SiteKit.heroesIn(h.pos + Vector3.new(0, 2, 0), h.range, h.phase)
 			for _, hero in list do
 				if not h.who or h.who(hero) then
 					table.remove(pickups, i)
@@ -701,6 +715,37 @@ local function pickupStep()
 			end
 		end
 	end
+end
+
+-- Put a site thing in a private mission run's phase (PhaseService; nil leaves it in the open world): a model, a
+-- citizen, a pad, an object, a pickup, a robot id or a list of robot ids (a squad). Call it in the same frame the
+-- thing is made, so every device gets the Phase attribute with the model itself. Returns the thing.
+function SiteKit.inPhase<T>(thing: T, phase: number?): T
+	if not phase then
+		return thing
+	end
+	local t: any = thing
+	if type(t) == "number" then
+		EnemyService.setPhase(t, phase)
+	elseif typeof(t) == "Instance" then
+		t:SetAttribute("Phase", phase)
+	elseif type(t) == "table" then
+		if type(t[1]) == "number" then
+			for _, id in t do
+				EnemyService.setPhase(id, phase)
+			end
+			return thing
+		end
+		t.phase = phase
+		if typeof(t.model) == "Instance" then
+			t.model:SetAttribute("Phase", phase)
+		end
+		local target = type(t.target) == "number" and EnemyService.target(t.target)
+		if target then
+			target.phase = phase
+		end
+	end
+	return thing
 end
 
 -- Destroy a list of site things (models, citizens, pads, objects, pickups, robot ids)

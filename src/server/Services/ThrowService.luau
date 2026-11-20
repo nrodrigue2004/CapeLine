@@ -636,7 +636,8 @@ local function grabRobot(hero: any, id: number, yanked: boolean?)
 	end
 	local root = HeroService.rootPart(hero)
 	local e = EnemyService.get(id)
-	if not root or not e or not e.alive or e.held then
+	-- (never a robot of another run: a private mission run's are its party's alone, PhaseService)
+	if not root or not e or not e.alive or e.held or not EnemyService.reaches(id, hero) then
 		return
 	end
 	local now = EnemyService.now()
@@ -700,7 +701,13 @@ function ThrowService.yank(
 	local p = root.Position
 	if kind == 1 then
 		local e = EnemyService.get(id)
-		if not e or not e.alive or e.held or not ThrowMath.canHoldRobot(T, e.cfg, stun) then
+		if
+			not e
+			or not e.alive
+			or e.held
+			or not EnemyService.reaches(id, hero)
+			or not ThrowMath.canHoldRobot(T, e.cfg, stun)
+		then
 			return false
 		end
 		local d = (Vector3.new(e.x, e.y, e.z) - p).Magnitude

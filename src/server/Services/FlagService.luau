@@ -57,9 +57,10 @@ function FlagService.flagged(hero: any): boolean
 	return hero.player ~= nil and PvpRules.flagged(Config, FlagService.flag(hero), hero.level)
 end
 
--- HQ, a safehouse's radius, a mission pocket, a story scene or a fast-travel flight
+-- HQ, a safehouse's radius, a mission pocket, a story scene, a private mission run on the map (its phase,
+-- PhaseService) or a fast-travel flight
 function FlagService.safe(hero: any): boolean
-	if hero.scene or hero.traveling then
+	if hero.scene or hero.phase or hero.traveling then
 		return true
 	end
 	local pos = HeroService.position(hero)
@@ -92,6 +93,9 @@ function FlagService.canHit(a: any, b: any): boolean
 end
 
 function FlagService.canSupport(giver: any, target: any): boolean
+	if giver ~= target and giver.phase ~= target.phase then
+		return false -- a private mission run's party and the open world never heal or buff each other (PhaseService)
+	end
 	if giver == target or not giver.player or not target.player then
 		return true
 	end

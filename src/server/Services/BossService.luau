@@ -176,7 +176,8 @@ end
 function BossService.linkTargets(
 	sim: BossSim.Sim,
 	targets: { [string]: number },
-	onHit: (number?, number, number, any) -> ()
+	onHit: (number?, number, number, any) -> (),
+	phase: number? -- a private mission run's boss (PhaseService): only that run's heroes hit its targets
 )
 	local live = {}
 	for _, t in BossSim.targets(sim) do
@@ -192,6 +193,7 @@ function BossService.linkTargets(
 				y = t.y,
 				z = t.z,
 				r = t.r,
+				phase = phase,
 				hit = function(amount: number, heroId: number?)
 					local bossDealt, objDealt, broke = BossSim.damage(sim, key, amount)
 					onHit(heroId, bossDealt, objDealt, broke)
@@ -486,7 +488,8 @@ end
 local function heroList(): { BossSim.Hero }
 	local out = {}
 	for _, h in HeroService.all() do
-		local p = HeroService.position(h)
+		-- (never a hero in a story scene of its own: the prologue, a private mission run on the map; PhaseService)
+		local p = EnemyService.soloKey(h) == nil and HeroService.position(h)
 		if p then
 			table.insert(out, { id = h.id, x = p.X, y = p.Y, z = p.Z, alive = h.alive and not h.traveling })
 		end

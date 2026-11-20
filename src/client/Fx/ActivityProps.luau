@@ -19,6 +19,7 @@ local ActivityKit = require(Shared:WaitForChild("ActivityKit"))
 local MeshFix = require(Shared:WaitForChild("MeshFix"))
 
 local QualityController = require(script.Parent.Parent.Controllers.QualityController)
+local PhaseClient = require(script.Parent.Parent.Controllers.PhaseClient)
 local StoryProps = require(script.Parent.StoryProps)
 
 local ActivityProps = {}
@@ -114,9 +115,11 @@ local function undress(m: Model)
 	for _, p in d.meshes do
 		p:Destroy()
 	end
+	-- (a model another phase's on this device stays hidden: PhaseClient)
+	local keepHidden = PhaseClient.hidden(m)
 	for _, p in d.hidden do
 		if p.Parent then
-			p.LocalTransparencyModifier = 0
+			p.LocalTransparencyModifier = if keepHidden then 1 else 0
 		end
 	end
 end
@@ -213,7 +216,7 @@ local function scan()
 	local cands = {}
 	local info: { [Model]: { kind: ActivityKit.Kind, anchor: BasePart } } = {}
 	for _, m in if sites then sites:GetChildren() else {} do
-		if m:IsA("Model") then
+		if m:IsA("Model") and not PhaseClient.hidden(m) then -- (never another phase's: PhaseClient)
 			local kind = ActivityKit.kind(m:GetAttribute("Look"))
 			local anchor = kind and m:FindFirstChild(kind.on or "Root")
 			if kind and anchor and anchor:IsA("BasePart") and ActivityProps.ready(kind.look) then

@@ -24,6 +24,7 @@ local LookCodec = require(Shared:WaitForChild("LookCodec"))
 local ProfileSchema = require(Shared:WaitForChild("ProfileSchema"))
 local FakeRules = require(Shared:WaitForChild("FakeRules"))
 local QualityRules = require(Shared:WaitForChild("QualityRules"))
+local PhaseRules = require(Shared:WaitForChild("PhaseRules"))
 
 local HeroService = require(script.Parent.HeroService)
 local DataService = require(script.Parent.DataService)
@@ -47,6 +48,9 @@ export type Target = {
 	z: number,
 	r: number,
 	hit: (amount: number, heroId: number?, from: Vector3?) -> (number, boolean), -- dealt, finished
+	-- a private mission run's target (PhaseService; missions lane 2026-11-20): only that phase's heroes aim at it
+	-- or hurt it (nil: the open world's, as before)
+	phase: number?,
 }
 local TARGET_BASE = 50000
 EnemyService.TARGET_BASE = TARGET_BASE
@@ -71,11 +75,16 @@ EnemyService.LUNGE = 17
 -- Evil twins alive now and who they copy (EnemyIdentity: the look, path, name and title every device draws)
 local idents: { [number]: { [string]: any } } = {}
 
--- The prologue's solo key for a hero (nate's playtest 2026-11-18): a hero in the prologue is alone with its
--- own story's robots (EnemySim's solo rule), nil for everyone else
+-- The solo key for a hero (EnemySim's solo rule): the prologue's (nate's playtest 2026-11-18: a hero in the
+-- prologue is alone with its own story's robots: its own id), a private mission run's (its phase's key,
+-- Shared.PhaseRules; missions lane 2026-11-20), nil for everyone else
 function EnemyService.soloKey(hero: any): number?
-	return if hero and hero.scene == "opening" then hero.id else nil
+	return PhaseRules.heroKey(hero)
 end
+
+-- Each robot id's solo key, kept past its death (a dead robot's last events and shots still go only to its own
+-- players) until the id is used again
+local keyOf: { [number]: number? } = {}
 
 -- Make a robot one hero's alone (the prologue's): it sees only that hero and only that hero can hurt it.
 -- bounds: a room it never leaves, { x0, x1, z0, z1, yMax? } (nil: anywhere)
@@ -83,16 +92,62 @@ function EnemyService.solo(id: number, heroId: number?, bounds: { number }?)
 	local e = sim.byId[id]
 	if e then
 		e.solo = heroId
+		keyOf[id] = heroId
 		e.bounds = bounds
 		e.target = nil
 		EnemySim.keepIn(e)
 	end
 end
 
+-- Put a robot in a private mission run's phase (PhaseService; nil: back to the open world): it sees, chases, shoots
+-- and hurts only that phase's heroes, only they can hurt it, and only their devices are sent it (Enemy.Delta,
+-- CombatEvents). World systems never count it (their robots carry their own tags).
+function EnemyService.setPhase(id: number, phase: number?)
+	local e = sim.byId[id]
+	if e then
+		local key = PhaseRules.key(phase)
+		e.solo = key
+		keyOf[id] = key
+		e.target = nil
+	end
+end
+
+-- The phase a robot is in (nil: the open world, or the prologue's)
+function EnemyService.phaseOf(id: number): number?
+	local e = sim.byId[id]
+	return PhaseRules.phaseOf(e and e.solo)
+end
+
+-- May this robot (or registered target) and this hero meet: see, hit, grab, taunt? (same solo key)
+function EnemyService.reaches(id: number, hero: any): boolean
+	local t = targets[id]
+	if t then
+		return PhaseRules.key(t.phase) == EnemyService.soloKey(hero)
+	end
+	return EnemySim.sees(sim.byId[id], { solo = EnemyService.soloKey(hero) })
+end
+
 function EnemyService.candidates(): { any }
 	local list = EnemySim.candidates(sim)
 	for id, t in targets do
-		table.insert(list, { id = id, x = t.x, y = t.y, z = t.z, r = t.r, flags = 0 })
+		table.insert(
+			list,
+			{ id = id, x = t.x, y = t.y, z = t.z, r = t.r, flags = 0, solo = PhaseRules.key(t.phase) }
+		)
+	end
+	return list
+end
+
+-- The candidates this hero may touch (its own solo key's: a private run's hero only its run's robots and targets,
+-- an open-world hero only the open world's): gadgets, taunts and decoys use this
+function EnemyService.candidatesFor(hero: any): { any }
+	local list = EnemyService.candidates()
+	local key = EnemyService.soloKey(hero)
+	for i = #list, 1, -1 do
+		if list[i].solo ~= key then
+			list[i] = list[#list]
+			list[#list] = nil
+		end
 	end
 	return list
 end
@@ -127,6 +182,7 @@ function EnemyService.spawnAt(
 	if not e then
 		return nil
 	end
+	keyOf[e.id] = nil
 	e.tag = tag
 	e.scripted = scripted
 	return e.id
@@ -146,10 +202,12 @@ function EnemyService.spawnGroup(
 	if not e then
 		return ids
 	end
+	keyOf[e.id] = nil
 	e.tag = tag
 	table.insert(ids, e.id)
 	if e.cfg.pack or (escort and e.cfg.escort) then
 		for _, o in EnemySim.company(sim, e, escort == true) do
+			keyOf[o.id] = nil
 			table.insert(ids, o.id)
 		end
 	end
@@ -209,6 +267,7 @@ function EnemyService.spawnTwin(player: Player, pos: Vector3, level: number, tag
 	if not e then
 		return nil
 	end
+	keyOf[e.id] = nil
 	e.tag = tag
 	local name = player:GetAttribute("HeroName")
 	local title = player:GetAttribute("OriginTitle")
@@ -282,6 +341,11 @@ function EnemyService.damage(
 ): (boolean, any, number, number)
 	local t = targets[id]
 	if t then
+		-- a private run's target takes hits only from its own phase's heroes (and an open-world one never from theirs)
+		local by = attackerId and HeroService.byId(attackerId)
+		if by and PhaseRules.key(t.phase) ~= EnemyService.soloKey(by) then
+			return false, nil, 0, EnemySim.HIT
+		end
 		local dealt, finished = t.hit(amount, attackerId, from)
 		if dealt > 0 then
 			EnemyService.Hit:Fire(id, attackerId, dealt, true)
@@ -344,8 +408,9 @@ function EnemyService.hold(id: number, heroId: number?)
 	EnemySim.hold(sim, id, heroId)
 end
 
-function EnemyService.addBlocker(pos: Vector3, radius: number, untilT: number)
-	EnemySim.addBlocker(sim, pos.X, pos.Y, pos.Z, radius, untilT)
+-- key: the wall's hero's solo key (EnemyService.soloKey): it stops only that key's robots' shots
+function EnemyService.addBlocker(pos: Vector3, radius: number, untilT: number, key: number?)
+	EnemySim.addBlocker(sim, pos.X, pos.Y, pos.Z, radius, untilT, key)
 end
 
 function EnemyService.now(): number
@@ -412,6 +477,12 @@ local function playerPositions(): { [Player]: Vector3 }
 	return out
 end
 
+-- A blocked shot's row has no robot id: its key rides here (from the shot) until the batch is sent
+local rowKey: { [any]: number } = {}
+
+-- Each player's hero's solo key this batch (a private run's players get only their run's events)
+local playerKey: { [Player]: number } = {}
+
 local function broadcast(events: { any })
 	if #events == 0 then
 		return
@@ -419,9 +490,24 @@ local function broadcast(events: { any })
 	local positions = playerPositions()
 	local per: { [Player]: { any } } = {}
 	local r2 = EVENT_RANGE * EVENT_RANGE
+	table.clear(playerKey)
+	for player in positions do
+		local k = EnemyService.soloKey(HeroService.get(player))
+		if k then
+			playerKey[player] = k
+		end
+	end
 	for _, ev in events do
 		local ex, ey, ez = ev[3], ev[4], ev[5]
+		-- whose event: its robot's key (kept past its death), a blocked shot's own (PhaseRules: strict both ways)
+		local key = if ev[1] == EnemyService.BLOCKED
+			then rowKey[ev]
+			elseif ev[1] == EnemyService.HERO_HIT then rowKey[ev]
+			else keyOf[ev[2]]
 		for player, pos in positions do
+			if playerKey[player] ~= key then
+				continue
+			end
 			local include = false
 			if ev[1] == EnemyService.HERO_HIT then
 				include = ev[2] == player.UserId -- your own hits always; others' only nearby
@@ -446,6 +532,7 @@ local function broadcast(events: { any })
 	for player, list in per do
 		Net.fire("CombatEvents", player, list)
 	end
+	table.clear(rowKey)
 end
 
 local function handleEvents()
@@ -464,8 +551,9 @@ local function handleEvents()
 		elseif ev.k == "hit" then
 			local hero = HeroService.byId(ev.hero)
 			-- the prologue's solo rule: a stray shot or blast from the live world never reaches a hero in their own
-			-- story scene, and the story's robots never hurt anyone else
-			if hero and not EnemySim.sees(sim.byId[ev.e], { solo = EnemyService.soloKey(hero) }) then
+			-- story scene, and the story's robots never hurt anyone else (a private run's phase too: its key is kept
+			-- past the robot's death, so a dead robot's last shot still counts for its own run only)
+			if hero and keyOf[ev.e] ~= EnemyService.soloKey(hero) then
 				hero = nil
 			end
 			if hero then
@@ -478,6 +566,7 @@ local function handleEvents()
 				local dmg = math.floor(taken + 0.5)
 				if pos then
 					local row = { EnemyService.HERO_HIT, ev.hero, pos.X, pos.Y, pos.Z, dmg }
+					rowKey[row] = keyOf[ev.e]
 					local from = sim.byId[ev.e]
 					if from then
 						-- where the hit came from (list-combat 2026-11-20): the hurt arrow and the sparks' spray, and
@@ -535,7 +624,9 @@ local function handleEvents()
 				table.insert(out, { EnemyService.SWING, ev.e, e.x, e.y, e.z, if ev.back then 1 else 0 })
 			end
 		elseif ev.k == "blocked" then
-			table.insert(out, { EnemyService.BLOCKED, 0, ev.x, ev.y, ev.z })
+			local row = { EnemyService.BLOCKED, 0, ev.x, ev.y, ev.z }
+			rowKey[row] = ev.solo
+			table.insert(out, row)
 		elseif ev.k == "aim" then
 			table.insert(out, { EnemyService.AIM, ev.e, ev.x, ev.y, ev.z, ev.hero, ev.t, ev.lock })
 		elseif ev.k == "rally" then
@@ -581,7 +672,10 @@ local function sendDeltas()
 	local now = Workspace:GetServerTimeNow()
 	local radius = Config.Net.enemyRelevance
 	for player, pos in playerPositions() do
-		local b = EnemyBuffer.encodeFor(seq, now, sim.enemies, pos.X, pos.Y, pos.Z, radius, drawnFor(player))
+		-- (only the robots of this player's own key: a private run's to its party, the open world's to the rest)
+		local key = EnemyService.soloKey(HeroService.get(player))
+		local b =
+			EnemyBuffer.encodeFor(seq, now, sim.enemies, pos.X, pos.Y, pos.Z, radius, drawnFor(player), key)
 		Net.fire("EnemyDelta", player, b)
 	end
 end
@@ -688,10 +782,10 @@ function EnemyService.init(heightAt: (number, number) -> number)
 				-- the city's ambient robots never spawn around heroes in a story scene (the opening, a pocket)
 				local city = heroes
 				for _, h in heroes do
-					if h.scene or h.y >= POCKET_Y then
+					if h.scene or h.solo or h.y >= POCKET_Y then
 						city = {}
 						for _, h2 in heroes do
-							if not h2.scene and h2.y < POCKET_Y then
+							if not h2.scene and not h2.solo and h2.y < POCKET_Y then
 								table.insert(city, h2)
 							end
 						end
