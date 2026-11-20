@@ -315,6 +315,27 @@ return function(T: any)
 				end
 			end
 			check(ok, "every awning and perch on its own face, every roof piece on its own roof")
+			-- the billboards' printed ads (Everything Left 269): every board carries one, spread over all of them
+			local ads: { [number]: number } = {}
+			local boards = 0
+			for _, b in world.hubBoxes do
+				if b.art and b.art.name == "RoofBillboard" then
+					boards += 1
+					local i = b.art.ad
+					check(
+						i ~= nil and K.play.billboard.ads[i] ~= nil and K.play.billboard.ads[i] > 0,
+						"a billboard has an uploaded ad"
+					)
+					if i then
+						ads[i] = (ads[i] or 0) + 1
+					end
+				end
+			end
+			local kinds = 0
+			for _ in ads do
+				kinds += 1
+			end
+			check(boards == 0 or kinds >= math.min(6, boards), "the ads vary across the city: " .. kinds)
 			-- each building's art pieces stay few (Skyscrapers keeps its boxes at 32 at most)
 			local perB: { [string]: number } = {}
 			local most = 0

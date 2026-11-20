@@ -383,14 +383,17 @@ end
 -- The rooftop row's dressing on one roof, in its own frame: u along the row, v across it (v < 0 is the street
 -- side of the strip). The middle of every roof stays clear for landing; what stands is solid and low (AC
 -- units, tanks, skylights, a hatch, the posts) and what is only decoration is walk-through (the billboard's
--- face, the washing line). PLACEHOLDER ART: plain boxes in the city palette until the kit gets rooftop meshes.
+-- face, the washing line). The AC units are the street kit's RoofAC meshes and the billboard's face carries a
+-- printed ad (list-combat 2026-11-20, Everything Left 268, 269); the tanks, hatch, skylights and washing line are
+-- PLACEHOLDER ART: plain boxes in the city palette until the kit gets rooftop meshes for them.
 local ROW_DRESS: { [string]: { { any } } } = {
 	-- { kind, u, u studs, v, du, dy, dv, y (its foot above the roof), color, shape?, ghost? }: u and v are -1
 	-- to 1 across the roof's free half width and half depth (u plus a stud offset); sizes in studs, and a
-	-- negative du is the roof's width less that much
+	-- negative du is the roof's width less that much; then art (an Art.Street prop drawn in the box's place, turned
+	-- ry degrees) and ad (the face carries a printed ad)
 	ac = {
-		{ "prop", -1, 0, 1, 4, 3, 5, 0, "steel" },
-		{ "prop", -1, 5, 1, 4, 3, 5, 0, "steel" },
+		{ "prop", -1, 0, 1, 4, 3, 5, 0, "steel", nil, nil, "RoofAC", 90 },
+		{ "prop", -1, 5, 1, 4, 3, 5, 0, "steel", nil, nil, "RoofAC", 90 },
 	},
 	hatch = { { "prop", 1, 0, -1, 4, 2.5, 4, 0, "roof" } },
 	tank = {
@@ -400,7 +403,7 @@ local ROW_DRESS: { [string]: { { any } } } = {
 	billboard = {
 		{ "prop", -1, 3, -1, 1, 15, 1, 0, "steel" },
 		{ "prop", 1, -3, -1, 1, 15, 1, 0, "steel" },
-		{ "prop", 0, 0, -1, -2, 9, 0.6, 5.5, "white", nil, true },
+		{ "prop", 0, 0, -1, -2, 9, 0.6, 5.5, "white", nil, true, nil, nil, true },
 	},
 	skylights = {
 		{ "prop", -0.5, 0, 0.5, 6, 1.2, 8, 0, "glass" },
@@ -452,7 +455,15 @@ local function rooftopRow(c: Ctx, k: number, minX: number, minZ: number)
 				local u = d[2] * (r.w / 2 - du / 2 - 1) + d[3]
 				local v = d[4] * (r.d / 2 - dv / 2 - 1)
 				box(boxes, d[1], x + u, top + d[8] + d[6] / 2, z + v, du, d[6], dv, d[9], d[10])
-				boxes[#boxes].ghost = if d[11] then true else nil
+				local b = boxes[#boxes]
+				b.ghost = if d[11] then true else nil
+				if d[12] and kit then
+					b.art = { name = d[12], x = x + u, y = top + d[8], z = z + v, ry = d[13] or 0 }
+				end
+				local ads = kit and kit.play and kit.play.billboard and kit.play.billboard.ads
+				if d[14] and ads and #ads > 0 then
+					b.ad = 1 + (i - 1) % #ads -- each row billboard its own ad, in running order
+				end
 			end
 		end
 		local grp = c.prefix .. (#c.buildings + 1)

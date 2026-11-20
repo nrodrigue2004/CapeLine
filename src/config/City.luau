@@ -327,7 +327,26 @@ return {
 			tints = { "awRed", "awGreen", "awBlue", "awYellow", "awTeal", "awPink", "awOrange" },
 			ac = { chance = 0.6, salt = 32 }, -- on a flat roof's free quarter
 			vent = { chance = 0.45, salt = 33 },
-			billboard = { chance = 0.32, minHeight = 36, maxHeight = 200, minWidth = 26, salt = 34 },
+			-- ads: the printed ads on the board's art panel (art/city/ads.py, list-combat 2026-11-20, Everything Left
+			-- 269: Zap! Cola, Crane News Network, Brightharbor Bank, Mega Donuts, Harbor Ferry, Radio Hill 99.1,
+			-- Turbo Kicks, Cosmo Pizza); one picked per board by hash, 0 = the bare starburst panel
+			billboard = {
+				chance = 0.32,
+				minHeight = 36,
+				maxHeight = 200,
+				minWidth = 26,
+				salt = 34,
+				ads = {
+					77732676299037,
+					101091718139106,
+					102458465671478,
+					117877114313356,
+					130157060288217,
+					126086166932183,
+					76930349157355,
+					70760347213711,
+				},
+			},
 			-- perches on a tower's faces (h 200 and up): every `every` studs from `from`, one face a level in turn
 			perch = { minHeight = 200, from = 90, every = 110, top = 40, salt = 35 },
 			newsBox = { chance = 0.35, salt = 36 }, -- by a corner hydrant's other end

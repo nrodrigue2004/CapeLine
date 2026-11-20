@@ -270,6 +270,28 @@ local function streetMesh(piece: string): MeshPart?
 	end
 	return if hit then hit else nil
 end
+-- a billboard's printed ad (Config.City.kit.play.billboard.ads[i], Everything Left 269) on one face of a board
+local function adOn(p: BasePart, i: number, face: Enum.NormalId)
+	local id = KIT.play.billboard.ads[i]
+	if not id or id == 0 then
+		return
+	end
+	local gui = Instance.new("SurfaceGui")
+	gui.Name = "Ad"
+	gui.Face = face
+	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	gui.PixelsPerStud = 40
+	gui.LightInfluence = 0.6
+	gui.MaxDistance = 600
+	local img = Instance.new("ImageLabel")
+	img.BackgroundTransparency = 1
+	img.Size = UDim2.fromScale(1, 1)
+	img.Image = "rbxassetid://" .. id
+	img.ScaleType = Enum.ScaleType.Stretch
+	img.Parent = gui
+	gui.Parent = p
+end
+
 local function streetArt(b: any): { BasePart }?
 	local a = b.art
 	local def = a and KIT.props[a.name]
@@ -319,6 +341,15 @@ local function streetArt(b: any): { BasePart }?
 		end
 		if b.crown then
 			p:SetAttribute("Crown", true)
+		end
+		-- a rooftop billboard's printed ad (Everything Left 269) on its art panel's street face (the import turn
+		-- swaps the face); a SurfaceGui, so it hides and falls with the board like the shop signs' words
+		if a.ad and piece == "BoardArt" then
+			adOn(
+				p,
+				a.ad,
+				if MeshFix.of(p) ~= CFrame.identity then Enum.NormalId.Back else Enum.NormalId.Front
+			)
 		end
 		-- the living world: a shop's sign lettered with its word (fixed text; the face toward the street, the import
 		-- turn swaps it), its back lit at night and a roof vent's steam on the devices (Fx.CityLife)
@@ -466,6 +497,9 @@ local function buildHub(world: any, folder: Folder)
 			local p = makePart(b)
 			if b.tag == "Awning" then
 				p:SetAttribute("Bounce", true) -- the box stands in for the awning until its meshes are in
+			end
+			if b.ad then
+				adOn(p, b.ad, Enum.NormalId.Front) -- the rooftop row's board faces the street (-z)
 			end
 			p.Parent = parent
 		end

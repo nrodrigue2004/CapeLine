@@ -181,18 +181,18 @@ function CityPlay.dress(boxes: { any }, kit: any, lot: Lot): number
 			local fz = street[2]
 			local bz = z + fz * (sz / 2 - 3.5)
 			local tint = CityKit.pick(kit, P.tints, x, bz, B.salt + 200)
-			add(
-				boxes,
-				"prop",
-				x,
-				top + 11.5,
-				bz,
-				22,
-				9,
-				0.6,
-				tint,
-				{ name = "RoofBillboard", x = x, y = top, z = bz, ry = facing(0, fz), tint = tint }
-			)
+			add(boxes, "prop", x, top + 11.5, bz, 22, 9, 0.6, tint, {
+				name = "RoofBillboard",
+				x = x,
+				y = top,
+				z = bz,
+				ry = facing(0, fz),
+				tint = tint,
+				-- which printed ad it carries (Config.City.kit.play.billboard.ads, by hash)
+				ad = if B.ads and #B.ads > 0
+					then 1 + math.floor(CityKit.roll(kit, x, bz, B.salt + 300) * #B.ads) % #B.ads
+					else nil,
+			})
 			billboard = true
 		end
 		if not billboard and sx >= 20 and sz >= 20 then
