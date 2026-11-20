@@ -2362,8 +2362,6 @@ Storyboard (the game's own camera on the test seed, stand-in figures): art/previ
 
 95. Crowd run (PrologueFx poseRun, IntroFilm sprint): when the Ceremony's crowd scatters (and when the intro film's citizens run), each runner pumps its fists and lifts its knees on the heroes' sprint stride with a bob, its feet keeping pace with the ground (no skating), not a stiff hip swing.
 
-95. Crowd run (PrologueFx poseRun, IntroFilm sprint): when the Ceremony's crowd scatters (and when the intro film's citizens run), each runner pumps its fists and lifts its knees on the heroes' sprint stride with a bob, its feet keeping pace with the ground (no skating), not a stiff hip swing.
-
 121. Next mission card (StoryHud NextMission, first-30): finish the prologue as a new hero; once the daily card and the mentor picker are gone, "NEXT: MISSION 2: SAFEHOUSE" with its blurb and a gold START sits at the top (on a phone a one-line pill under the top row, right of the status panel, clear of BLOCK and the action buttons); START enters Safehouse; after Safehouse at level 3 it reads "Reach level 4 to start" with no START (phone: "MISSION 3 AT LEVEL 4"); it hides in a mission, under a card, with a side quest tracked, and its X folds it until the next mission. Check on a real phone that it never covers a button.
 
 120. Level 5 radio (GuideClient powerStep, first-30): reach level 5; Patch says The Copy is open, then within about a minute "Level up! A new power slot AND move training just opened. Tap POWERS!" (villain: its own line); never inside a mission.
