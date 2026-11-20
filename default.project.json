@@ -52,6 +52,7 @@
         "Park": { "$path": "art/models/Park.rbxm" },
         "Shapes": { "$path": "art/models/Shapes.rbxm" },
         "LoreBook": { "$path": "art/models/LoreBook.rbxm" },
+        "Powers": { "$path": "art/models/Powers.rbxm" },
         "Trooper": { "$path": "art/models/Trooper.rbxm" },
         "Vehicles": { "$path": "art/models/Vehicles.rbxm" },
         "Voidhound": { "$path": "art/models/Voidhound.rbxm" },

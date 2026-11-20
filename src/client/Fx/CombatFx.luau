@@ -33,6 +33,7 @@ local DebrisBudget = require(script.Parent.DebrisBudget)
 local FxLib = require(script.Parent.FxLib)
 local DeepMeshes = require(script.Parent.DeepMeshes)
 local CityProps = require(script.Parent.Parent.Controllers.CityProps)
+local PowerMeshes = require(script.Parent.PowerMeshes)
 
 local CombatFx = {}
 CombatFx.reduceFlashing = false
@@ -643,10 +644,11 @@ local function rig(
 	duration: number,
 	spin: number?,
 	bob: number?
-): { Part }
-	local parts = {}
+): { BasePart }
+	local parts: { BasePart } = {}
 	for _, pc in pieces do
-		local p = part(pc[1], CFrame.new(), pc[3], pc[4])
+		local mesh = PowerMeshes.make(pc, folder) -- the Blender look when imported (Fx.PowerMeshes)
+		local p: BasePart = mesh or part(pc[1], CFrame.new(), pc[3], pc[4])
 		p.Transparency = pc[5] or 0
 		if pc[6] then
 			p.Material = pc[6]
@@ -689,6 +691,38 @@ function CombatFx.summon(
 	local glass = if style == "Anime" then 0.55 else 0.4
 	local pieces: { any }
 	local spin, bob = nil, nil
+	-- the Blender looks (art/blender/powers.py) when imported; the part builds below stay as the fallback
+	local LOOK =
+		{ turret = "Turret", drone = "Drone", totem = "Totem", guardian = "Guardian", mines = "Mine" }
+	local look = LOOK[kind]
+	if look and PowerMeshes.ready(look) then
+		if kind == "mines" then
+			pieces = {}
+			local r = (radius or 12) * 0.6
+			for i = 1, 6 do
+				local a = i / 6 * math.pi * 2
+				for _, pc in
+					PowerMeshes.pieces("Mine", CFrame.new(math.cos(a) * r, -2.6, math.sin(a) * r), color)
+				do
+					table.insert(pieces, pc)
+				end
+			end
+		elseif kind == "drone" then
+			pieces = PowerMeshes.pieces("Drone", CFrame.new(3, 4, 0), color)
+			spin, bob = 2, 0.6
+		elseif kind == "guardian" then
+			pieces = PowerMeshes.pieces("Guardian", CFrame.new(0, -0.5, 4), color)
+			bob = 0.5
+		else
+			pieces = PowerMeshes.pieces(look, CFrame.identity, color)
+		end
+		rig(pieces, at, duration, spin, bob)
+		local p0 = at()
+		if p0 then
+			CombatFx.buffPop(p0, style, color)
+		end
+		return
+	end
 	if kind == "turret" then
 		pieces = {
 			{
@@ -786,7 +820,10 @@ end
 function CombatFx.ride(set: string, at: () -> Vector3?, duration: number, style: string, color: Color3)
 	local feet = CFrame.new(0, -3.4, 0)
 	local pieces: { any }
-	if set == "Earth" then
+	local RIDE = { Earth = "RockSlab", Gadgeteer = "Hoverboard", Spirit = "SpiritBeast" }
+	if RIDE[set] and PowerMeshes.ready(RIDE[set]) then
+		pieces = PowerMeshes.pieces(RIDE[set], CFrame.identity, color) -- the Blender look (Fx.PowerMeshes)
+	elseif set == "Earth" then
 		pieces =
 			{ { Vector3.new(6, 1.2, 8), feet, Color3.fromRGB(120, 105, 90), nil, 0, Enum.Material.Slate } }
 	elseif set == "Tide" then
@@ -829,9 +866,9 @@ function CombatFx.ride(set: string, at: () -> Vector3?, duration: number, style:
 	end
 	-- turn the rig with the hero: rebuild the frame from the hero's heading each frame
 	local start = os.clock()
-	local parts = {}
+	local parts: { BasePart } = {}
 	for _, pc in pieces do
-		local p = part(pc[1], CFrame.new(), pc[3], pc[4])
+		local p: BasePart = PowerMeshes.make(pc, folder) or part(pc[1], CFrame.new(), pc[3], pc[4])
 		p.Transparency = pc[5] or 0
 		if pc[6] then
 			p.Material = pc[6]
@@ -901,11 +938,24 @@ function CombatFx.launch(row: any, from: Vector3, style: string, color: Color3)
 		-- Stone Pillar: a column shoots up under the hero, then sinks
 		local h = row.up or 40
 		local base = from - Vector3.new(0, 3, 0)
-		local p = part(Vector3.new(5, 1, 5), CFrame.new(base), Color3.fromRGB(120, 105, 90))
+		local turn = CFrame.identity
+		local p: BasePart
+		local cols = PowerMeshes.ready("StonePillar")
+			and PowerMeshes.part("PillarStone", Vector3.new(5, 1, 5))
+		if cols then
+			-- the basalt column cluster (art/blender/powers.py), stretched up like the block was
+			turn = MeshFix.turn("Powers")
+			cols.CFrame = CFrame.new(base) * turn
+			cols.Parent = folder
+			p = cols
+		else
+			p = part(Vector3.new(5, 1, 5), CFrame.new(base), Color3.fromRGB(120, 105, 90))
+		end
+		p.Color = Color3.fromRGB(120, 105, 90)
 		p.Material = Enum.Material.Slate
 		TweenService:Create(p, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {
 			Size = Vector3.new(5, h * 0.6, 5),
-			CFrame = CFrame.new(base + Vector3.new(0, h * 0.3, 0)),
+			CFrame = CFrame.new(base + Vector3.new(0, h * 0.3, 0)) * turn,
 		}):Play()
 		fade(p, 0.6, nil, 1.2)
 	elseif row.set == "Martial" then
@@ -2121,11 +2171,44 @@ SUPER.sunfall = function(x) -- Fire Sunfall: a small sun forms over the zone and
 end
 SUPER.overgrowth = function(x) -- Earth Overgrowth: vines burst up across the zone
 	local vine = Color3.fromRGB(70, 140, 60):Lerp(x.accent, 0.4)
+	local meshed = PowerMeshes.ready("ThornVine")
 	for _ = 1, FxLib.pieces(10) do
 		local a, r = math.random() * math.pi * 2, math.sqrt(math.random()) * x.r
 		local at = x.c + Vector3.new(math.cos(a) * r, -1, math.sin(a) * r)
 		local h = 8 + math.random() * 8
 		local tilt = CFrame.Angles(math.random() * 0.5 - 0.25, math.random() * 6, math.random() * 0.5 - 0.25)
+		if meshed then
+			-- a thorny vine with a bloom at its tip (art/blender/powers.py) grows up out of the ground
+			local turn = MeshFix.turn("Powers")
+			local art = Config.PowerArt.ThornVine
+			local k = h / art.VineStem.size[2]
+			local stem =
+				PowerMeshes.part("VineStem", Vector3.new(art.VineStem.size[1], 0.5, art.VineStem.size[3]))
+			local bloom = PowerMeshes.part("VineBloom", Vector3.new(table.unpack(art.VineBloom.size)) * 1.6)
+			if stem and bloom then
+				stem.Color, stem.Material = vine, Enum.Material.Grass
+				stem.CFrame = CFrame.new(at) * tilt * turn
+				stem.Parent = folder
+				TweenService:Create(stem, TweenInfo.new(0.3, Enum.EasingStyle.Back), {
+					Size = Vector3.new(art.VineStem.size[1], h, art.VineStem.size[3]),
+					CFrame = CFrame.new(at) * tilt * CFrame.new(0, h / 2, 0) * turn,
+				}):Play()
+				fade(stem, 0.4, nil, 1.6)
+				bloom.Color = if anime(x.style) then WHITE else x.accent
+				bloom.Material = Enum.Material.SmoothPlastic
+				local tip = art.VineBloom.offset
+				bloom.CFrame = CFrame.new(at) * tilt * CFrame.new(tip[1] * k, h, tip[3] * k) * turn
+				bloom.Transparency = 1
+				bloom.Parent = folder
+				TweenService:Create(
+					bloom,
+					TweenInfo.new(0.12, Enum.EasingStyle.Back, Enum.EasingDirection.Out, 0, false, 0.28),
+					{ Transparency = 0 }
+				):Play()
+				fade(bloom, 0.4, nil, 1.6)
+				continue
+			end
+		end
 		local v = part(
 			Vector3.new(h, 1.2, 1.2),
 			CFrame.new(at) * tilt * CFrame.Angles(0, 0, math.rad(90)),
@@ -2154,19 +2237,36 @@ SUPER.tsunami = function(x) -- Tide Tsunami: a wall of water with a foam crest r
 	local from, to = x.o - Vector3.new(0, 2, 0), x.e - Vector3.new(0, 2, 0)
 	local f = flatLook(to - from)
 	local w = x.width
-	local wall = part(Vector3.new(w, 10, 4), CFrame.lookAt(from, from + f) * CFrame.new(0, 4, 0), x.color)
-	wall.Material = if anime(x.style) then Enum.Material.Neon else Enum.Material.Glass
-	wall.Transparency = if anime(x.style) then 0.55 else 0.3
-	local crest = part(
-		Vector3.new(w * 1.05, 1.4, 2.4),
-		CFrame.lookAt(from, from + f) * CFrame.new(0, 9.5, -1),
-		x.accent
-	)
+	local list: { BasePart }
+	if PowerMeshes.ready("Wave") then
+		-- a breaking wave with a foam lip (art/blender/powers.py), stretched to the line's width, curl first
+		list = {}
+		local look = CFrame.lookAt(from, from + f) * CFrame.new(0, 4, 0)
+		for _, pc in PowerMeshes.pieces("Wave", look, x.color, Vector3.new(w / 8, 1, 1)) do
+			local p = PowerMeshes.make(pc, folder)
+			if p then
+				if pc[7] == "WaveWater" then
+					p.Material = if anime(x.style) then Enum.Material.Neon else Enum.Material.Glass
+					p.Transparency = if anime(x.style) then 0.55 else 0.3
+				end
+				table.insert(list, p)
+			end
+		end
+	else
+		local wall = part(Vector3.new(w, 10, 4), CFrame.lookAt(from, from + f) * CFrame.new(0, 4, 0), x.color)
+		wall.Material = if anime(x.style) then Enum.Material.Neon else Enum.Material.Glass
+		wall.Transparency = if anime(x.style) then 0.55 else 0.3
+		local crest = part(
+			Vector3.new(w * 1.05, 1.4, 2.4),
+			CFrame.lookAt(from, from + f) * CFrame.new(0, 9.5, -1),
+			x.accent
+		)
+		list = { wall, crest }
+	end
 	local time = 0.9
-	for _, p in { wall, crest } do
-		local offset = p.Position - from
+	for _, p in list do
 		TweenService:Create(p, TweenInfo.new(time, Enum.EasingStyle.Linear), {
-			CFrame = CFrame.lookAt(to + offset, to + offset + f),
+			CFrame = p.CFrame + (to - from), -- rolls down the line, keeping its own turn (a mesh's import turn too)
 		}):Play()
 		fade(p, 0.3, nil, time)
 	end

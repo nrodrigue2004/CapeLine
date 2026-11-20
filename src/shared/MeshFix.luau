@@ -55,6 +55,7 @@ for _, set in
 		"Park", -- the city park: 67 of 67 match it (2026-11-20)
 		"PocketProps",
 		"PocketProps2",
+		"Powers", -- list-combat: the power summons, rides and forms, 30 of 30 (2026-11-20)
 		"Prologue",
 		"Robots",
 		"SetPieces",

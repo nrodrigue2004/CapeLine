@@ -52,6 +52,7 @@ local Juice = require(script.Parent.Juice)
 local AudioController = require(script.Parent.Parent.Controllers.AudioController)
 local DebrisBudget = require(script.Parent.DebrisBudget)
 local FxLib = require(script.Parent.FxLib)
+local PowerMeshes = require(script.Parent.PowerMeshes)
 
 local BuildingFx = {}
 -- set by Fx.CityLife (the living world, 2026-11-19): every impact this device hears (center, radius, kind; kind 9
@@ -1010,6 +1011,25 @@ end
 local function droneModel(): Model
 	local m = Instance.new("Model")
 	m.Name = "RepairDrone"
+	if PowerMeshes.ready("Drone") then
+		-- item 290: the Fix-It Drone's Blender look (art/blender/powers.py) in the repair crews' colours
+		for _, pc in PowerMeshes.pieces("Drone", CFrame.identity, DRONE_LIGHT, 1.3) do
+			local p = PowerMeshes.make(pc, m)
+			if p and pc[7] == "DroneBody" then
+				p.Color = DRONE_COLOR
+				p.Name = "Body"
+				m.PrimaryPart = p
+			end
+		end
+		local beam = newPart(Vector3.new(0.4, 1, 0.4), CFrame.new(0, -1, 0), DRONE_LIGHT, Enum.Material.Neon)
+		beam.Name = "Beam"
+		beam.Transparency = 0.5
+		beam.Parent = m
+		if m.PrimaryPart then
+			return m
+		end
+		m:ClearAllChildren()
+	end
 	local body = newPart(Vector3.new(2.4, 1.2, 2.4), CFrame.new(), DRONE_COLOR, Enum.Material.SmoothPlastic)
 	body.Name = "Body"
 	body.Parent = m

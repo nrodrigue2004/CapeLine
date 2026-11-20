@@ -224,6 +224,13 @@
   "turned": 27,
   "verdict": "rotY180"
  },
+ "Powers": {
+  "asDrawn": 10,
+  "either": 10,
+  "meshes": 30,
+  "turned": 30,
+  "verdict": "rotY180"
+ },
  "Prologue": {
   "asDrawn": 5,
   "either": 5,
