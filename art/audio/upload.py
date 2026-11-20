@@ -17,7 +17,7 @@ REPO = os.path.dirname(os.path.dirname(HERE))
 IDS = os.path.join(HERE, "ids.json")
 API = "https://apis.roblox.com/assets/v1"
 AUD = os.path.join(REPO, "art", "export", "audio")
-ORDER = ["Hits", "World", "Ui", "Loops", "Music"]
+ORDER = ["Hits", "World", "Ui", "Loops", "Music", "Ambient"]
 
 
 def curl(*args):

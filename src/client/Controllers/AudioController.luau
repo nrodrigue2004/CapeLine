@@ -87,7 +87,7 @@ local function group(name: string, parent: Instance?): SoundGroup
 end
 
 -- The group a row plays in: Ui rows by id, else by its atlas (Hits -> Combat, World -> World, Ui -> Ui)
-local ATLAS_GROUP = { Hits = "Combat", World = "World", Ui = "Ui", Loops = "World" }
+local ATLAS_GROUP = { Hits = "Combat", World = "World", Ui = "Ui", Loops = "World", Ambient = "World" }
 local function groupFor(_spec: { [string]: any }, id: string?, pick: SoundPick.Pick?): SoundGroup
 	local name = if id and uiSet[id] then "Ui" elseif pick then ATLAS_GROUP[pick.atlas] or "World" else nil
 	if not name then
@@ -496,7 +496,10 @@ function AudioController.bedAt(p: Vector3): (string?, number)
 	if DeepLayout.underwater(Config, p.X, p.Y, p.Z) then
 		return nil, 0
 	end
-	local d = BEDS[LifePlan.districtAt(Config, p.X, p.Z)] or "Outskirts"
+	-- the park is no district (Config.City.districts): its own bed of birdsong (alive-world 2026-11-20)
+	local pb = Config.Park and Config.Park.bounds
+	local inPark = pb and p.X >= pb.minX and p.X <= pb.maxX and p.Z >= pb.minZ and p.Z <= pb.maxZ
+	local d = if inPark then "Park" else BEDS[LifePlan.districtAt(Config, p.X, p.Z)] or "Outskirts"
 	local roof = math.clamp((p.Y - Bd.roofLow) / (Bd.roofHigh - Bd.roofLow), 0, 1)
 	return d, roof
 end

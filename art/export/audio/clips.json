@@ -1261,5 +1261,62 @@
    22.8,
    true
   ]
+ },
+ "Ambient": {
+  "crowdCheer": [
+   0.05,
+   16.7,
+   true
+  ],
+  "crowdGasp_1": [
+   17.0,
+   1.3352,
+   false
+  ],
+  "crowdGasp_2": [
+   18.5852,
+   1.3444,
+   false
+  ],
+  "scanHum": [
+   20.1797,
+   7.5,
+   true
+  ],
+  "patchRadio": [
+   27.9297,
+   0.24,
+   false
+  ],
+  "gull_1": [
+   28.4197,
+   1.3797,
+   false
+  ],
+  "gull_2": [
+   30.0493,
+   1.8224,
+   false
+  ],
+  "gull_3": [
+   32.1217,
+   2.2393,
+   false
+  ],
+  "winch": [
+   34.611,
+   11.5343,
+   false
+  ],
+  "bedPark": [
+   46.3953,
+   30.5,
+   true
+  ],
+  "rain": [
+   77.1453,
+   13.0,
+   true
+  ]
  }
 }

@@ -7,6 +7,7 @@
 
 return {
 	atlases = {
+		Ambient = 87961900044653,
 		Hits = 123409640659064,
 		Loops = 113838487045023,
 		Music = 100160094926729,
@@ -14,6 +15,17 @@ return {
 		World = 131543281971555,
 	},
 	clips = {
+		crowdCheer = { "Ambient", 0.05, 16.7, true },
+		crowdGasp_1 = { "Ambient", 17.0, 1.3352 },
+		crowdGasp_2 = { "Ambient", 18.5852, 1.3444 },
+		scanHum = { "Ambient", 20.1797, 7.5, true },
+		patchRadio = { "Ambient", 27.9297, 0.24 },
+		gull_1 = { "Ambient", 28.4197, 1.3797 },
+		gull_2 = { "Ambient", 30.0493, 1.8224 },
+		gull_3 = { "Ambient", 32.1217, 2.2393 },
+		winch = { "Ambient", 34.611, 11.5343 },
+		bedPark = { "Ambient", 46.3953, 30.5, true },
+		rain = { "Ambient", 77.1453, 13.0, true },
 		hit_1 = { "Hits", 0.05, 0.3041 },
 		hit_2 = { "Hits", 0.6041, 0.2768 },
 		hit_3 = { "Hits", 1.131, 0.349 },

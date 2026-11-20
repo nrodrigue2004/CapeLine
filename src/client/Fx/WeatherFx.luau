@@ -225,6 +225,9 @@ local function step(dt: number)
 	local rp, re = rainPart :: Part, rainEmitter :: ParticleEmitter
 	rp.CFrame = CFrame.new(cam + lead + Vector3.new(0, R.above, 0))
 	re.Rate = rate
+	-- the rain bed follows the rain (alive-world 2026-11-20); none underwater
+	local wet = if under then 0 else look.rain
+	AudioController.loop("rain", wet > 0.02, (R.sound or 0) * wet)
 
 	-- splashes on the ground under the camera (its height probed a few times a second)
 	probeAcc += dt
