@@ -133,6 +133,13 @@
   "turned": 28,
   "verdict": "rotY180"
  },
+ "Gadget": {
+  "asDrawn": 1,
+  "either": 1,
+  "meshes": 2,
+  "turned": 2,
+  "verdict": "rotY180"
+ },
  "Gear": {
   "asDrawn": 119,
   "either": 119,

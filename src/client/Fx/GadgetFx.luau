@@ -7,8 +7,10 @@
 --   use: their LookKit look with its catalog face and hair as the hero wears them, nothing of ours), frozen in
 --   the pose they had, flickering (PolishPlan.flicker) with a blue glow on medium and high, then a pop of
 --   sparks when it ends. No copy can be made (the owner is gone or streamed out): the old field disc.
--- * Shield Drone: a small drone (a body, a spinning rotor ring and a lamp; low draws the body only) circling
---   the owner (PolishPlan.droneAt) with a shield bubble round them while the shield lasts, then a pop.
+-- * Shield Drone: a small drone (a body, a spinning rotor and a lamp; low draws the body only) circling
+--   the owner (PolishPlan.droneAt) with a shield bubble round them while the shield lasts, then a pop. The body and
+--   rotor are Blender meshes (art/blender/gadget.py, Art.Gadget) and the bubble Art.Guard's geodesic bubble
+--   (list-combat 2026-11-20, Everything Left 383); plain parts while those sets are not imported.
 -- One Heartbeat loop moves the decoys and drones while any is out (FrameProf "GadgetFx"); nothing else runs.
 -- Budgets per device preset: Config.Fx.polish.presets. Looks only: the server's gadget rules are untouched.
 
@@ -18,6 +20,7 @@ local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Shared = ReplicatedStorage:WaitForChild("Shared")
+local MeshFix = require(Shared:WaitForChild("MeshFix"))
 local FrameProf = require(Shared:WaitForChild("FrameProf"))
 local PolishPlan = require(Shared:WaitForChild("PolishPlan"))
 
@@ -81,6 +84,7 @@ type Live = {
 	body: BasePart?,
 	rotor: BasePart?,
 	bubble: BasePart?,
+	turns: { [string]: CFrame }?, -- a drone's meshes' import turns (body, rotor, bubble); nil for the parts
 	at: Vector3,
 	done: boolean,
 }
@@ -140,9 +144,15 @@ local function update()
 				l.at = here
 				local spot = here + Vector3.new(x, y, z)
 				local body = l.body :: BasePart
+				local turns = l.turns
 				body.CFrame = CFrame.lookAt(spot, here + Vector3.new(0, D.height, 0))
+					* (if turns then turns.body else CFrame.identity)
 				local rotor = l.rotor
-				if rotor then
+				if rotor and turns then
+					rotor.CFrame = CFrame.new(spot + Vector3.new(0, 0.55, 0))
+						* CFrame.Angles(0, t * 20, 0)
+						* turns.rotor
+				elseif rotor then
 					rotor.CFrame = CFrame.new(spot + Vector3.new(0, 0.55, 0))
 						* CFrame.Angles(0, t * 20, math.rad(90))
 				end
@@ -151,6 +161,7 @@ local function update()
 					local pulse = 1 + 0.03 * math.sin(t * 6)
 					local fade = math.clamp((l.dur - t) / 0.5, 0, 1)
 					bubble.CFrame = CFrame.new(here)
+						* (if turns then CFrame.Angles(0, t * 0.8, 0) * turns.bubble else CFrame.identity)
 					bubble.Size = Vector3.one * D.bubble * 2 * pulse * math.min(1, t * 5)
 					bubble.Transparency = 1 - 0.45 * fade
 				end
@@ -257,6 +268,28 @@ function GadgetFx.decoy(owner: Player?, at: Vector3, dur: number): boolean
 	return true
 end
 
+-- One of an Art set's meshes as a loose anchored piece (nil while the set is not imported)
+local function artMesh(set: string, name: string, color: Color3, material: Enum.Material): MeshPart?
+	local art = ReplicatedStorage:FindFirstChild("Art")
+	local root = art and art:FindFirstChild(set)
+	local src = root and root:FindFirstChild(name, true)
+	if not (src and src:IsA("MeshPart")) then
+		return nil
+	end
+	local p = MeshFix.clone(src)
+	for _, c in p:GetChildren() do
+		c:Destroy()
+	end
+	p.Anchored = true
+	p.CanCollide = false
+	p.CanQuery = false
+	p.CanTouch = false
+	p.CastShadow = false
+	p.Color = color
+	p.Material = material
+	return p
+end
+
 -- Shield Drone: a little drone circling owner and a bubble round them for the shield's time
 function GadgetFx.drone(owner: Player?, dur: number): boolean
 	local root = rootOf(owner)
@@ -267,7 +300,32 @@ function GadgetFx.drone(owner: Player?, dur: number): boolean
 	local color = rgb(D.color)
 	local model = Instance.new("Model")
 	model.Name = "ShieldDrone"
-	local body = bit(Vector3.new(1.1, 0.8, 1.1), Color3.fromRGB(235, 240, 248), Enum.Material.SmoothPlastic)
+	local A = Config.GadgetArt
+	local white = Color3.fromRGB(235, 240, 248)
+	local meshBody = artMesh("Gadget", "GadgetDroneBody", white, Enum.Material.SmoothPlastic)
+	local meshRotor = meshBody
+		and artMesh("Gadget", "GadgetRotor", Color3.fromRGB(60, 70, 90), Enum.Material.Metal)
+	local turns: { [string]: CFrame }? = nil
+	local body: BasePart
+	if meshBody and meshRotor and A then
+		local fit = A.GadgetDroneBody.size
+		meshBody.Size = Vector3.new(fit[1], fit[2], fit[3])
+		local rf = A.GadgetRotor.size
+		meshRotor.Size = Vector3.new(rf[1], rf[2], rf[3])
+		turns =
+			{ body = MeshFix.turn("Gadget"), rotor = MeshFix.turn("Gadget"), bubble = MeshFix.turn("Guard") }
+		meshBody.CFrame = MeshFix.turn("Gadget") -- the lamp's weld below is taken in the drawn frame
+		body = meshBody
+	else
+		if meshBody then
+			meshBody:Destroy()
+		end
+		if meshRotor then
+			meshRotor:Destroy()
+		end
+		meshRotor = nil
+		body = bit(Vector3.new(1.1, 0.8, 1.1), white, Enum.Material.SmoothPlastic)
+	end
 	body.Name = "Body"
 	body.Parent = model
 	local lamp = bit(Vector3.new(0.5, 0.3, 0.2), color, Enum.Material.Neon)
@@ -275,25 +333,40 @@ function GadgetFx.drone(owner: Player?, dur: number): boolean
 	-- the lamp rides on the body (welded to it, so moving the body moves it)
 	local rotor: BasePart? = nil
 	if budget().droneBits then
-		local r = bit(
-			Vector3.new(0.12, 2.2, 2.2),
-			Color3.fromRGB(60, 70, 90),
-			Enum.Material.Metal,
-			Enum.PartType.Cylinder
-		)
+		local r = meshRotor
+			or bit(
+				Vector3.new(0.12, 2.2, 2.2),
+				Color3.fromRGB(60, 70, 90),
+				Enum.Material.Metal,
+				Enum.PartType.Cylinder
+			)
 		r.Name = "Rotor"
-		r.Transparency = 0.35
+		r.Transparency = if meshRotor then 0.1 else 0.35
 		r.Parent = model
 		rotor = r
 		lamp.Anchored = false
 		local w = Instance.new("WeldConstraint")
-		lamp.CFrame = body.CFrame * CFrame.new(0, 0, -0.55)
+		if turns then
+			-- the lamp glows in the pod's lens (the body is still in its drawn frame here)
+			lamp.Shape = Enum.PartType.Ball
+			lamp.Size = Vector3.one * 0.36
+			lamp.CFrame = CFrame.new(0, 0, -0.5)
+		else
+			lamp.CFrame = body.CFrame * CFrame.new(0, 0, -0.55)
+		end
 		w.Part0 = body
 		w.Part1 = lamp
 		w.Parent = lamp
 		lamp.Parent = model
+	elseif meshRotor then
+		meshRotor:Destroy() -- low: the body only
 	end
-	local bubble = bit(Vector3.one, color, Enum.Material.ForceField, Enum.PartType.Ball)
+	local bubble: BasePart = (
+		if turns then artMesh("Guard", "GuardBubble", color, Enum.Material.ForceField) else nil
+	) or bit(Vector3.one, color, Enum.Material.ForceField, Enum.PartType.Ball)
+	if turns and not bubble:IsA("MeshPart") then
+		turns.bubble = CFrame.identity
+	end
 	bubble.Name = "Bubble"
 	bubble.Transparency = 1
 	bubble.Parent = model
@@ -308,6 +381,7 @@ function GadgetFx.drone(owner: Player?, dur: number): boolean
 		body = body,
 		rotor = rotor,
 		bubble = bubble,
+		turns = turns,
 		at = root.Position,
 		done = false,
 	})

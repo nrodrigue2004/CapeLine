@@ -2018,6 +2018,51 @@ return function(T: any)
 		check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, "; "))
 	end)
 
+	test(
+		"List combat: the Shield Drone is a Blender drone in the geodesic bubble (Everything Left 383)",
+		function()
+			local roblox = require("@lune/roblox")
+			local model = roblox.deserializeModel(fs.readFile("art/models/Gadget.rbxm"))[1]
+			for name in Config.GadgetArt do
+				local mp = model:FindFirstChild(name, true)
+				check(mp ~= nil and mp:IsA("MeshPart"), name .. " is imported")
+			end
+			if not T.placePath then
+				return
+			end
+			local UiSim = require("./uisim")
+			local sim = UiSim.new(
+				UiSim.load(roblox.deserializePlace(fs.readFile(T.placePath))),
+				{ name = "PC", w = 1280, h = 720, top = 36, left = 0, right = 0, bottom = 0, touch = false }
+			)
+			local char = UiSim.newInstance("Model")
+			local root = UiSim.newInstance("Part")
+			root.Name = "HumanoidRootPart"
+			root.Parent = char
+			char.Parent = sim.workspace
+			sim.player.Character = char
+			local GadgetFx = sim:require("Client.Fx.GadgetFx")
+			local ok = false
+			sim:run("drone", function()
+				ok = GadgetFx.drone(sim.player, 5)
+			end)
+			check(ok, "the drone flies")
+			local drone = sim.workspace:FindFirstChild("ShieldDrone", true)
+			check(drone ~= nil, "its model is out")
+			if drone then
+				local body, bubble = drone:FindFirstChild("Body"), drone:FindFirstChild("Bubble")
+				check(body ~= nil and body:IsA("MeshPart"), "its body is the Blender pod")
+				check(bubble ~= nil and bubble:IsA("MeshPart"), "its shield is the geodesic bubble")
+				local rotor = drone:FindFirstChild("Rotor")
+				check(
+					rotor == nil or rotor:IsA("MeshPart"),
+					"its rotor (when the preset draws it) is the Blender rotor"
+				)
+			end
+			check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, "; "))
+		end
+	)
+
 	test("List combat: Photo Mode backdrops are printed overlays (Everything Left 354)", function()
 		local ids = Config.Ui.photoBackdrops
 		for _, name in { "COMIC", "SPEED", "SUNSET", "NOIR", "NEON" } do

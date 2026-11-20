@@ -47,6 +47,7 @@ for _, set in
 		"Juice", -- list-combat: the coin, dazed star, glow ring, tier beam and firework burst, 5 of 5 (2026-11-20)
 		"NemParts", -- list-combat: the nemesis eyes, dome, cyclops eye, neck, plates, cannon, drone, antenna, 11 of 11 (2026-11-20)
 		"Throwables", -- list-combat: the mailbox, sign, dumpster, slab and rubble, 14 of 14 (2026-11-20)
+		"Gadget", -- list-combat: the Shield Drone body and rotor, 2 of 2 (2026-11-20)
 		"SiteProps", -- list-combat: the giver's mark, the relay giver and the cat, 8 of 8 (2026-11-20)
 		"Stage", -- list-combat: the costume contest's stage, 11 of 11 (2026-11-20)
 		"Foes", -- list-combat: the robots' gear and the foes' props, 28 of 28 (2026-11-20)
