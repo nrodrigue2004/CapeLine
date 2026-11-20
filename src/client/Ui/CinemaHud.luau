@@ -1109,7 +1109,8 @@ function CinemaHud.nameCard(bossId: string, ownName: string?, ownTitle: string?)
 	)
 end
 
--- The picture on the card's left: a boss's or a side quest villain's portrait, an event's icon, or none (false)
+-- The picture on the card's left: a boss's or a side quest villain's portrait, a place's picture, an event's icon,
+-- or none (false)
 local function cardPicture(pic: { kind: string, id: string }?): boolean
 	if cardIcon then
 		cardIcon:Destroy()
@@ -1121,6 +1122,15 @@ local function cardPicture(pic: { kind: string, id: string }?): boolean
 	end
 	if pic.kind == "boss" then
 		local cell = NewsArtKit.portrait(Config, pic.id)
+		if cell then
+			cardPic.Image = cell.image
+			cardPic.ImageRectOffset = Vector2.new(cell.offset[1], cell.offset[2])
+			cardPic.ImageRectSize = Vector2.new(cell.size[1], cell.size[2])
+			return true
+		end
+	elseif pic.kind == "place" then
+		-- a place's staged shot (the Crater's broken lab and the old heroes' relics)
+		local cell = NewsArtKit.place(Config, pic.id)
 		if cell then
 			cardPic.Image = cell.image
 			cardPic.ImageRectOffset = Vector2.new(cell.offset[1], cell.offset[2])

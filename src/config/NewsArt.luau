@@ -5,7 +5,7 @@ return {
 	-- each world boss's name card portrait: 512 px cells, 4 to a sheet, { column, row (0-based), sheet }
 	cards = {
 		sheet = 103820509142461,
-		sheets = { 103820509142461, 73150305782054 },
+		sheets = { 103820509142461, 86361612958243 },
 		cell = 512,
 		at = {
 			RustjawPrime = { 0, 0, 1 },
@@ -15,6 +15,10 @@ return {
 			StormColossus = { 0, 0, 2 },
 			SwarmQueen = { 1, 0, 2 },
 			QuarryTitan = { 0, 1, 2 },
+		},
+		-- the places' cards (Config.Cinema.nameCard.places), in the same sheets
+		places = {
+			crater = { 1, 1, 2 },
 		},
 	},
 	-- the name card's plate, shown 9-sliced: its size and the margins kept whole { left, top, right, bottom }

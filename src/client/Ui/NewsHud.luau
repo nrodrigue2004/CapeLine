@@ -464,8 +464,13 @@ end
 local function showCard(group: string, id: string)
 	local name, title, color = CinemaPlan.card(Config, group, id)
 	if name and title then
-		-- an event's card shows its comic icon (Config.Icons.event) when the sheet is uploaded
-		CinemaHud.card(name, title, color, if group == "events" then { kind = "event", id = id } else nil)
+		-- an event's card shows its comic icon (Config.Icons.event) when the sheet is uploaded; a place's card its
+		-- staged picture (Config.NewsArt.cards.places)
+		local pic = if group == "events"
+			then { kind = "event", id = id }
+			elseif group == "places" then { kind = "place", id = id }
+			else nil
+		CinemaHud.card(name, title, color, pic)
 	end
 end
 

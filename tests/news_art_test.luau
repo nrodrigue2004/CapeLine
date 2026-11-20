@@ -102,6 +102,22 @@ return function(T: any)
 		)
 		local cell = NewsArtKit.portrait(Config, "LumenMaw")
 		check(cell ~= nil and cell.size[1] == A.cards.cell, "a portrait's cell")
+		-- every place card has its picture (list-combat, Everything Left 403), in a cell no boss uses
+		for id in Config.Cinema.nameCard.places do
+			local pc = NewsArtKit.place(Config, id)
+			check(pc ~= nil and pc.size[1] == A.cards.cell, id .. " has its place picture")
+			local at = A.cards.places[id]
+			for bid, bat in A.cards.at do
+				check(
+					not (at and bat[1] == at[1] and bat[2] == at[2] and (bat[3] or 1) == (at[3] or 1)),
+					id .. " does not share " .. bid .. "'s cell"
+				)
+			end
+		end
+		check(
+			string.find(src("src/client/Ui/NewsHud.luau"), '{ kind = "place", id = id }', 1, true) ~= nil,
+			"a place's card asks for its picture"
+		)
 		local img, size, win = NewsArtKit.tv(Config)
 		check(img ~= nil and size ~= nil and win ~= nil, "the TV case")
 		if win then

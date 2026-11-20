@@ -47,6 +47,11 @@ BOSSES = [
     ("SwarmQueen", (255, 170, 60)),
     ("QuarryTitan", (255, 130, 40)),
 ]
+# the places' cards (Config.Cinema.nameCard.places; list-combat 2026-11-20, Everything Left 403): the staged shot
+# from art/blender/place_cards.py (build/news/raw/place_<id>.png), inked the same way, in the sheets' free cells
+PLACES = [
+    ("crater", (110, 200, 225)),  # the Crater card's slash colour
+]
 SHEETS = ("NewsCards.png", "NewsCards2.png")
 PLATE = (1024, 288)
 PLATE_SLICE = (48, 44, 72, 44)  # left, top, right, bottom margins kept unstretched
@@ -64,8 +69,8 @@ def ss(size, k=2):
 
 
 # ------------------------------------------------------------------ the boss portraits
-def portrait(bid, rgb):
-    raw = os.path.join(RAW, "boss_%s.png" % bid)
+def portrait(bid, rgb, raw_name=None):
+    raw = os.path.join(RAW, raw_name or ("boss_%s.png" % bid))
     if not os.path.isfile(raw):
         return None
     fig = Image.open(raw).convert("RGBA")
@@ -93,9 +98,11 @@ def cards_sheet():
         path = os.path.join(OUT, name)
         old = Image.open(path).convert("RGB") if os.path.isfile(path) else None
         sheet = Image.new("RGB", (CELL * 2, CELL * 2), INK)
-        for i, (bid, rgb) in enumerate(BOSSES[s * 4:s * 4 + 4]):
+        entries = BOSSES + [("place:" + pid, rgb) for (pid, rgb) in PLACES]
+        for i, (bid, rgb) in enumerate(entries[s * 4:s * 4 + 4]):
             c, r = i % 2, i // 2
-            img = portrait(bid, rgb)
+            raw = "place_%s.png" % bid[6:] if bid.startswith("place:") else None
+            img = portrait(bid, rgb, raw)
             if img is None:
                 if old is None:
                     raise SystemExit("post.py: no render and no old sheet for " + bid)
@@ -271,6 +278,14 @@ def write_config(at, ids):
     ]
     for bid, _ in BOSSES:
         lines.append("\t\t\t%s = { %d, %d, %d }," % (bid, at[bid][0], at[bid][1], at[bid][2]))
+    lines += [
+        "\t\t},",
+        "\t\t-- the places' cards (Config.Cinema.nameCard.places), in the same sheets",
+        "\t\tplaces = {",
+    ]
+    for pid, _ in PLACES:
+        k = "place:" + pid
+        lines.append("\t\t\t%s = { %d, %d, %d }," % (pid, at[k][0], at[k][1], at[k][2]))
     lines += [
         "\t\t},",
         "\t},",

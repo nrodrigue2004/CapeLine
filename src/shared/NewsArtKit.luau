@@ -185,6 +185,20 @@ function NewsArtKit.portrait(Config: any, bossId: string): Cell?
 	return { image = image, offset = { at[1] * c, at[2] * c }, size = { c, c } }
 end
 
+-- A place's name card picture (Config.NewsArt.cards.places, art/blender/place_cards.py: the Crater's staged shot;
+-- list-combat 2026-11-20, Everything Left 403) in the same sheets as the boss portraits, or nil
+function NewsArtKit.place(Config: any, placeId: string): Cell?
+	local A = Config.NewsArt
+	local at = A and A.cards.places and A.cards.places[placeId]
+	local sheet = if at and A.cards.sheets then A.cards.sheets[at[3] or 1] else nil
+	local image = sheet and asset(sheet)
+	if not at or not image then
+		return nil
+	end
+	local c = A.cards.cell
+	return { image = image, offset = { at[1] * c, at[2] * c }, size = { c, c } }
+end
+
 -- The name card's plate: image, its size and the 9-slice margins { left, top, right, bottom }, or nil
 function NewsArtKit.plate(Config: any): (string?, { number }?, { number }?)
 	local P = Config.NewsArt and Config.NewsArt.plate
