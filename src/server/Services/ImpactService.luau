@@ -348,10 +348,12 @@ local function onProp(player: Player, at: Vector3)
 	if not pos or (at - pos).Magnitude > R.near + MoveGuard.speed(hero) * R.lag + 6 then
 		return
 	end
-	BuildingService.street(at, 4)
-	-- destroy-all (2026-11-20): a car, truck or tram the hero rammed flips away, when the server's own history has
-	-- the hero at ram speed (the device lets the hero through its body meanwhile); VehicleService caps a district
-	if mayBreak(hero) and MoveGuard.peakSpeed(hero, R.window) >= R.minSpeed then
+	-- destroy-all (2026-11-20): a car, truck or tram the hero rammed flips away, and a big park look goes down, when
+	-- the server's own history has the hero at ram speed (the device lets the hero through meanwhile); VehicleService
+	-- caps a district
+	local fast = mayBreak(hero) and MoveGuard.peakSpeed(hero, R.window) >= R.minSpeed
+	BuildingService.street(at, 4, fast)
+	if fast then
 		VehicleService.hit(at, Config.Destruction.street.vehicleRadius)
 	end
 end

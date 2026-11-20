@@ -35,6 +35,9 @@ local StreetBreak = require(Shared:WaitForChild("StreetBreak"))
 local Signal = require(Shared:WaitForChild("Util"):WaitForChild("Signal"))
 
 local CityBuilder = {}
+local function parkHeight(x: number, z: number): number?
+	return require(script.Parent.ParkBuilder).heightAt(x, z)
+end
 CityBuilder.world = nil :: any
 CityBuilder.layout = nil :: any -- the Downtown layout (M1 callers)
 CityBuilder.folder = nil :: Folder?
@@ -896,6 +899,10 @@ end
 
 -- Roof or ground height anywhere; a collapsed building counts as its rubble heap
 function CityBuilder.heightAt(x: number, z: number): number
+	local park = parkHeight(x, z) -- a broken park look (destroy-all): robots walk where it stood
+	if park then
+		return park
+	end
 	for _, b in CityBuilder.collapsed do
 		if math.abs(x - b.x) <= b.sx / 2 and math.abs(z - b.z) <= b.sz / 2 then
 			return b.base + math.min(Config.Destruction.rubble.height, (b.top - b.base) * 0.3) * 0.6

@@ -16,6 +16,10 @@ return {
 	-- impact nearby: each device knocks them loose as debris (its preset's `smash` count and debris budget) and
 	-- puts them back after `respawn` seconds. They are dressing, so the server keeps no state for them.
 	-- segment: a long fence or wall breaks in lengths this long (Shared.StreetBreak; fix-destroy 2026-11-19)
+	-- destroy-all (2026-11-20): how far a collapse's dust fronts roll along the ground (x the building's width, within
+	-- min..max studs, stopped by the next wall) and how thick (particles a second a front; fronts per preset:
+	-- Presets collapse.roll)
+	collapseFx = { rollMult = 1.6, rollMin = 40, rollMax = 130, rollRate = 9 },
 	street = {
 		respawn = 45,
 		radiusMult = 1.2,
@@ -28,6 +32,10 @@ return {
 		-- bigRadius+ studs or a ram. A flung piece wider than collideMax flies through things (no shove on heroes).
 		bigRadius = 9,
 		collideMax = 16,
+		perHit = 4, -- park looks one knock takes down on the server (ParkBuilder.breakAt)
+		-- a street lamp or traffic light past `from` x the knock's reach bends over (angle degrees, a time-s spring)
+		-- instead of flying (CityProps.smash)
+		bend = { from = 0.45, angle = { 24, 42 }, time = 0.18 },
 		-- a ram through a dressed look or a vehicle: the hit-stop (s, MoveController.propStop) and the smash's strength
 		propStop = 0.035,
 		bigStop = 0.06,

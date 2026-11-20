@@ -488,9 +488,13 @@ local ramThrow = 1 -- how hard they fly (Blazing Ram blows the wall outward)
 
 -- Throw one loose piece off the building (out from the hit, or ahead of a ramming hero), fading out after
 -- debrisLife; a bit (a torn-off chunk off a wall) flies a little faster and spins harder
+-- debris that bounces a little and settles (destroy-all): heavy, grippy, a touch springy
+local DEBRIS_PHYS = PhysicalProperties.new(2.4, 0.8, 0.32, 1, 1)
+
 local function throwPiece(rec: Rec, part: BasePart, from: Vector3?, bit: boolean)
 	part.Anchored = false
 	part.CanQuery = false
+	part.CustomPhysicalProperties = DEBRIS_PHYS
 	local out = part.Position - (from or Vector3.new(rec.x, part.Position.Y, rec.z))
 	out = if out.Magnitude > 0.1 then out.Unit else Vector3.new(1, 0, 0)
 	local push = ramPush
@@ -609,6 +613,94 @@ local function knockOut(rec: Rec, part: BasePart, from: Vector3?)
 		throwPiece(rec, piece, from, i > 1)
 	end
 end
+local function nearMe(x: number, z: number, r: number): boolean
+	local char = Players.LocalPlayer.Character
+	local root = char and char:FindFirstChild("HumanoidRootPart") :: BasePart?
+	return root ~= nil and (Vector3.new(x, root.Position.Y, z) - root.Position).Magnitude < r
+end
+
+-- A camera shake that falls off with distance (destroy-all, 2026-11-20: a collapse next to you rocks the screen, one
+-- across the block rumbles, one far off is a tremor): full within a tenth of `range`, then (1 - d / range)^2
+local function shakeAt(at: Vector3, time: number, amount: number, range: number)
+	local cam = Workspace.CurrentCamera
+	if not cam then
+		return
+	end
+	local d = (cam.CFrame.Position - at).Magnitude
+	local k = math.clamp(1 - math.max(d - range * 0.1, 0) / (range * 0.9), 0, 1)
+	k *= k
+	if k > 0.03 then
+		CameraController.shake(time * (0.5 + 0.5 * k), amount * k)
+	end
+end
+
+-- Dust rolling out of a collapse along the ground (destroy-all, 2026-11-20): from each side of the building a low,
+-- wide front of the smoke sheet runs out until it meets the next wall or its reach, so it pours down the streets.
+-- The preset's collapse.roll fronts (one ray each, once), inside the same dust slot as the cloud.
+local function rollDust(rec: Rec, carrier: BasePart, seconds: number)
+	local n = (QualityController.preset.collapse or { roll = 0 }).roll or 0
+	if n <= 0 then
+		return
+	end
+	local C = D.collapseFx or {}
+	local reach =
+		math.clamp(math.max(rec.sx, rec.sz) * (C.rollMult or 1.6), C.rollMin or 40, C.rollMax or 130)
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	local skip: { Instance } = { folder }
+	if models[rec.id] then
+		table.insert(skip, models[rec.id])
+	end
+	local char = Players.LocalPlayer.Character
+	if char then
+		table.insert(skip, char)
+	end
+	params.FilterDescendantsInstances = skip
+	local y = rec.base + 2.5
+	for i = 0, n - 1 do
+		local a = (i + 0.5) / n * math.pi * 2
+		local dir = Vector3.new(math.cos(a), 0, math.sin(a))
+		-- from the building's edge along dir
+		local ex = math.min(
+			rec.sx / 2 / math.max(math.abs(dir.X), 1e-3),
+			rec.sz / 2 / math.max(math.abs(dir.Z), 1e-3)
+		)
+		local from = Vector3.new(rec.x, y, rec.z) + dir * (ex + 1)
+		local hit = Workspace:Raycast(from, dir * reach, params)
+		local run = if hit then math.max(hit.Distance - 3, 4) else reach
+		local att = Instance.new("Attachment")
+		att.WorldPosition = from
+		att.Parent = carrier
+		local e = Instance.new("ParticleEmitter")
+		e.Texture = DUST_TEXTURE
+		if DUST_FLIP == 4 then
+			e.FlipbookLayout = Enum.ParticleFlipbookLayout.Grid4x4
+			e.FlipbookMode = Enum.ParticleFlipbookMode.OneShot
+		end
+		e.Color = ColorSequence.new(Color3.fromRGB(190, 180, 166))
+		e.Transparency = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 0.55),
+			NumberSequenceKeypoint.new(0.4, 0.4),
+			NumberSequenceKeypoint.new(1, 1),
+		})
+		e.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 7), NumberSequenceKeypoint.new(1, 20) })
+		e.Lifetime = NumberRange.new(2.5, 4)
+		e.Speed = NumberRange.new(2, 5)
+		e.SpreadAngle = Vector2.new(70, 20)
+		e.EmissionDirection = Enum.NormalId.Top
+		e.Acceleration = Vector3.new(0, 1.2, 0)
+		e.Drag = 0.8
+		e.RotSpeed = NumberRange.new(-20, 20)
+		e.Rate = C.rollRate or 9
+		e.Parent = att
+		TweenService:Create(
+			att,
+			TweenInfo.new(seconds * 0.8, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+			{ WorldPosition = from + dir * run }
+		):Play()
+	end
+end
+
 local function dustCloud(rec: Rec, seconds: number): BasePart?
 	if liveDust >= QualityController.preset.emitters then
 		return nil
@@ -643,8 +735,15 @@ local function dustCloud(rec: Rec, seconds: number): BasePart?
 	e.RotSpeed = NumberRange.new(-30, 30)
 	e.Parent = p
 	p.Parent = folder
+	rollDust(rec, p, seconds)
 	task.delay(seconds, function()
 		e.Enabled = false
+		for _, a in p:GetChildren() do
+			local re = a:FindFirstChildOfClass("ParticleEmitter")
+			if re then
+				re.Enabled = false
+			end
+		end
 	end)
 	task.delay(seconds + 4, function()
 		liveDust -= 1
@@ -653,10 +752,19 @@ local function dustCloud(rec: Rec, seconds: number): BasePart?
 	return p
 end
 
-local function nearMe(x: number, z: number, r: number): boolean
-	local char = Players.LocalPlayer.Character
-	local root = char and char:FindFirstChild("HumanoidRootPart") :: BasePart?
-	return root ~= nil and (Vector3.new(x, root.Position.Y, z) - root.Position).Magnitude < r
+-- A wall panel's windows shatter as it goes (destroy-all, 2026-11-20): pale glass shards (the effects library's shard
+-- sheet) spray out of the face and the glass crunch plays; the preset's collapse.glass shards a pane, at most 3 panes'
+-- worth a batch, inside the particle budget
+local GLASS = Color3.fromRGB(196, 228, 244)
+local function glass(rec: Rec, at: Vector3, panes: number)
+	local per = (QualityController.preset.collapse or { glass = 0 }).glass or 0
+	if per <= 0 then
+		return
+	end
+	local out = Vector3.new(at.X - rec.x, 0, at.Z - rec.z)
+	out = if out.Magnitude > 0.1 then out.Unit else Vector3.yAxis
+	FxLib.emit("shard", GLASS, at + out, per * math.min(panes, 3), (out + Vector3.new(0, 0.5, 0)).Unit)
+	AudioController.play("shatter", at, { volume = math.min(0.8, 0.35 + 0.1 * panes), pitch = 1.1 })
 end
 
 -- A pancake fall: the pieces shake, then drop storey by storey (lowest first) into dust. own: the model
@@ -766,6 +874,7 @@ local function apply(id: number, live: boolean, fresh: { [number]: number }?)
 		local dropping: { { part: BasePart, piece: Structure.Piece } } = {}
 		local own: Model? = nil
 		local knocked = 0
+		local panes = 0 -- wall panels among them (their windows shatter)
 		local knockAt: Vector3? = nil
 		for i, cause in fresh or {} do
 			local part = parts[i]
@@ -775,6 +884,9 @@ local function apply(id: number, live: boolean, fresh: { [number]: number }?)
 					part:Destroy()
 				elseif cause == 1 then
 					knockAt = knockAt or part.Position
+					if pieceKind[part] == "wall" then
+						panes += 1
+					end
 					knockOut(rec, part)
 					knocked += 1
 				else
@@ -791,15 +903,16 @@ local function apply(id: number, live: boolean, fresh: { [number]: number }?)
 		if live and #dropping > 0 then
 			pancake(rec, dropping, own)
 			Juice.fire("collapse", Vector3.new(rec.x, rec.base, rec.z), { mine = nearMe(rec.x, rec.z, 80) })
-			if nearMe(rec.x, rec.z, 250) then
-				CameraController.shake(1.6, 0.5)
-			end
-		elseif live and knocked > 0 and nearMe(rec.x, rec.z, 120) then
-			CameraController.shake(0.15, 0.25)
+			shakeAt(Vector3.new(rec.x, rec.base, rec.z), 1.6, 0.5, 320)
+		elseif live and knocked > 0 then
+			shakeAt(knockAt or Vector3.new(rec.x, rec.base, rec.z), 0.15, 0.25, 140)
 		end
 		if live and knocked > 0 and #dropping == 0 and knockAt then
 			-- the wall's own crunch where the pieces burst out, louder the more went (list-combat 2026-11-20)
 			AudioController.play("wallSmash", knockAt, { volume = math.min(1, 0.45 + 0.12 * knocked) })
+		end
+		if live and panes > 0 and knockAt then
+			glass(rec, knockAt, panes)
 		end
 		tear(rec, d :: Drawn, g)
 		-- a skyscraper keeps its crown up while every piece of the shaft's top storey stands
@@ -845,8 +958,46 @@ local function apply(id: number, live: boolean, fresh: { [number]: number }?)
 	if hook then
 		task.spawn(hook, Vector3.new(rec.x, rec.base, rec.z), math.max(rec.sx, rec.sz), 9)
 	end
-	if nearMe(rec.x, rec.z, 250) then
-		CameraController.shake(D.collapseTime * 0.5, 0.6)
+	-- a taller building shakes harder and wider (destroy-all)
+	local tall = math.clamp((rec.top - rec.base) / 80, 0.6, 1.5)
+	shakeAt(Vector3.new(rec.x, rec.base, rec.z), D.collapseTime * 0.5, 0.6 * tall, 300 + 160 * tall)
+end
+
+-- The end of a fall (destroy-all, 2026-11-20): the thud as it lands (a ground dust ring and a shake by distance) and
+-- a few of its pieces tumble out loose onto the street, bounce and settle (the preset's collapse.spill, inside the
+-- debris budget) before the rubble heap takes the rest
+local function landed(f: Fall)
+	local rec = records[f.id]
+	if not rec then
+		return
+	end
+	local base = Vector3.new(rec.x, rec.base + 0.5, rec.z)
+	local size = math.max(rec.sx, rec.sz)
+	FxLib.throwMoment("land", base, Color3.fromRGB(176, 166, 152), Vector3.yAxis, size * 0.9)
+	shakeAt(base, 0.5, if f.own then 0.3 else 0.45, 260)
+	local want = (QualityController.preset.collapse or { spill = 0 }).spill or 0
+	if f.own then
+		want = math.ceil(want * 0.5) -- a storey giving way spills less than a whole building
+	end
+	local n = DebrisBudget.lease(math.min(want, #f.parts), D.structure.debrisLife)
+	if n <= 0 then
+		return
+	end
+	-- the pieces farthest out from the middle go (they would fall off the heap's edge)
+	local order = table.clone(f.parts)
+	table.sort(order, function(a, b)
+		local pa, pb = a.part.Position, b.part.Position
+		return (pa.X - rec.x) ^ 2 + (pa.Z - rec.z) ^ 2 > (pb.X - rec.x) ^ 2 + (pb.Z - rec.z) ^ 2
+	end)
+	for k = 1, n do
+		local c = order[k]
+		if c and c.part.Parent then
+			local part = c.part
+			part.Parent = folder -- out of the model the heap replaces
+			part.CanCollide = true
+			throwPiece(rec, part, Vector3.new(rec.x, part.Position.Y - 4, rec.z), false)
+			part.AssemblyLinearVelocity *= 0.55 -- a tumble off the heap, not a blast
+		end
 	end
 end
 
@@ -875,6 +1026,9 @@ local function stepFalls()
 		if f.done or t >= length then
 			table.remove(falls, i)
 			liveFall = math.max(0, liveFall - #f.parts)
+			if not f.done then
+				landed(f)
+			end
 			if f.own then
 				f.own:Destroy()
 			elseif not f.done then
@@ -1133,8 +1287,43 @@ end
 -- hit: it is drawn as short stand-in lengths on this device and the ones in reach fly off.
 local streetDown: { [BasePart]: { collide: boolean, query: boolean, segs: Model? } } = {}
 
+local dressHeld: (p: BasePart) -> boolean = function()
+	return false
+end
+
+-- Stand a street thing up again (its look, collision and words as they were)
+local function standStreet(p: BasePart)
+	local f = streetDown[p]
+	streetDown[p] = nil
+	if not f then
+		return
+	end
+	if f.segs then
+		f.segs:Destroy()
+	end
+	if p.Parent then
+		p.LocalTransparencyModifier = 0
+		p.CanCollide = f.collide
+		p.CanQuery = f.query
+		for _, ch in p:GetChildren() do
+			if ch:IsA("Decal") or ch:IsA("Texture") then
+				ch.LocalTransparencyModifier = 0
+			elseif ch:IsA("SurfaceGui") and ch:GetAttribute("StreetOff") then
+				ch.Enabled = true
+				ch:SetAttribute("StreetOff", nil)
+			end
+		end
+	end
+end
+
 local function hideStreet(p: BasePart, segs: Model?)
-	streetDown[p] = { collide = p.CanCollide, query = p.CanQuery, segs = segs }
+	-- a park look's box the server took down (DressDown) keeps its own say: it stood colliding before
+	local held = p:GetAttribute("DressDown") == true
+	streetDown[p] = {
+		collide = if held then true else p.CanCollide,
+		query = if held then true else p.CanQuery,
+		segs = segs,
+	}
 	p.LocalTransparencyModifier = 1
 	p.CanCollide = false
 	p.CanQuery = false
@@ -1147,25 +1336,8 @@ local function hideStreet(p: BasePart, segs: Model?)
 		end
 	end
 	task.delay(D.street.respawn, function()
-		local f = streetDown[p]
-		streetDown[p] = nil
-		if f then
-			if f.segs then
-				f.segs:Destroy()
-			end
-			if p.Parent then
-				p.LocalTransparencyModifier = 0
-				p.CanCollide = f.collide
-				p.CanQuery = f.query
-				for _, ch in p:GetChildren() do
-					if ch:IsA("Decal") or ch:IsA("Texture") then
-						ch.LocalTransparencyModifier = 0
-					elseif ch:IsA("SurfaceGui") and ch:GetAttribute("StreetOff") then
-						ch.Enabled = true
-						ch:SetAttribute("StreetOff", nil)
-					end
-				end
-			end
+		if streetDown[p] and not dressHeld(p) then
+			standStreet(p) -- (a look the server still holds down stands when it lets go: watchDress)
 		end
 	end)
 end
@@ -1176,53 +1348,121 @@ end
 -- again after the street's respawn. Index: key -> parts under the look's folder (the Park, the Deep), kept as chunks
 -- stream in (a part streamed out is dropped; it comes back whole).
 local dressIndex: { [Instance]: { [string]: { BasePart } } } = {}
+local breakDress: (p: BasePart, key: string, center: Vector3, heavy: boolean, quiet: boolean?) -> boolean
+local standDress: (key: string, root: Instance) -> ()
+
+-- Index a look folder (the Park, the Deep) once: its Dress parts by key as they stream in, and each box's DressDown
+-- (the server took the look down: break it here too, quietly when far; the server let it go: stand it now)
+local function indexRoot(root: Instance): { [string]: { BasePart } }
+	local have = dressIndex[root]
+	if have then
+		return have
+	end
+	local made: { [string]: { BasePart } } = {}
+	dressIndex[root] = made
+	local function far(at: Vector3): boolean
+		local cam = Workspace.CurrentCamera
+		return cam == nil or (cam.CFrame.Position - at).Magnitude > 260
+	end
+	local function add(d: Instance)
+		if not d:IsA("BasePart") then
+			return
+		end
+		local k = d:GetAttribute("Dress")
+		if type(k) ~= "string" then
+			return
+		end
+		local list = made[k]
+		if not list then
+			list = {}
+			made[k] = list
+		end
+		table.insert(list, d)
+		d:GetAttributeChangedSignal("DressDown"):Connect(function()
+			if d:GetAttribute("DressDown") == true then
+				if not streetDown[d] then
+					breakDress(d, k, d.Position, true, far(d.Position))
+				end
+			else
+				standDress(k, root)
+			end
+		end)
+		if d:GetAttribute("DressDown") == true then
+			task.defer(function()
+				if d.Parent and not streetDown[d] then
+					breakDress(d, k, d.Position, true, true) -- (streamed in while down)
+				end
+			end)
+		end
+	end
+	for _, d in root:GetDescendants() do
+		add(d)
+	end
+	root.DescendantAdded:Connect(add)
+	return made
+end
+
+local function partsOf(idx: { [string]: { BasePart } }, key: string): { BasePart }
+	local out: { BasePart } = {}
+	local list = idx[key] or {}
+	for i = #list, 1, -1 do
+		local q = list[i]
+		if q.Parent == nil then
+			table.remove(list, i) -- streamed out (its chunk comes back as new parts)
+		else
+			table.insert(out, q)
+		end
+	end
+	return out
+end
+
 local function dressParts(p: BasePart, key: string): { BasePart }
 	local chunk = p.Parent
 	local root = chunk and chunk.Parent
 	if not root then
 		return { p }
 	end
-	local idx = dressIndex[root]
-	if not idx then
-		local made: { [string]: { BasePart } } = {}
-		idx = made
-		dressIndex[root] = made
-		local function add(d: Instance)
-			if d:IsA("BasePart") then
-				local k = d:GetAttribute("Dress")
-				if type(k) == "string" then
-					local list = made[k]
-					if not list then
-						list = {}
-						made[k] = list
-					end
-					table.insert(list, d)
-				end
-			end
-		end
-		for _, d in root:GetDescendants() do
-			add(d)
-		end
-		root.DescendantAdded:Connect(add)
-	end
-	local out: { BasePart } = {}
-	local list = (idx :: any)[key] or {}
-	for i = #list, 1, -1 do
-		local q = list[i]
-		if q.Parent == nil then
-			table.remove(list, i)
-		else
-			table.insert(out, q)
-		end
-	end
+	local out = partsOf(indexRoot(root), key)
 	if #out == 0 then
 		table.insert(out, p)
 	end
 	return out
 end
 
+-- Does the server still hold this part's look down?
+dressHeld = function(p: BasePart): boolean
+	local key = p:GetAttribute("Dress")
+	if type(key) ~= "string" then
+		return false
+	end
+	for _, q in dressParts(p, key) do
+		if q:GetAttribute("DressDown") == true then
+			return true
+		end
+	end
+	return false
+end
+
+standDress = function(key: string, root: Instance)
+	local idx = dressIndex[root]
+	if not idx then
+		return
+	end
+	local parts = partsOf(idx, key)
+	for _, q in parts do
+		if q:GetAttribute("DressDown") == true then
+			return -- another box of it is still down
+		end
+	end
+	for _, q in parts do
+		if streetDown[q] then
+			standStreet(q)
+		end
+	end
+end
+
 BuildingFx.lastBig = false -- the last dressed look this device broke was a big one (MoveController's hit-stop)
-local function breakDress(p: BasePart, key: string, center: Vector3, heavy: boolean): boolean
+breakDress = function(p: BasePart, key: string, center: Vector3, heavy: boolean, quiet: boolean?): boolean
 	local big = p:GetAttribute("DressBig") == true
 	if big and not heavy then
 		return false -- a bandshell or a bridge takes a heavy hit or a ram
@@ -1234,7 +1474,9 @@ local function breakDress(p: BasePart, key: string, center: Vector3, heavy: bool
 		if not streetDown[q] then
 			if q.Transparency < 1 and q.LocalTransparencyModifier < 1 then
 				color = q.Color
-				fling(q, center)
+				if not quiet then
+					fling(q, center)
+				end
 			end
 			hideStreet(q, nil)
 			mid += q.Position
@@ -1245,6 +1487,9 @@ local function breakDress(p: BasePart, key: string, center: Vector3, heavy: bool
 		return false
 	end
 	mid /= n
+	if quiet then
+		return true
+	end
 	BuildingFx.lastBig = big
 	-- the weight of it: chips and dust in its colour (the effects library), a crunch for a big one
 	FxLib.throwMoment("smash", mid, color, Vector3.yAxis, if big then 6 else 2)
@@ -1805,6 +2050,16 @@ function BuildingFx.init()
 	folder = Instance.new("Folder")
 	folder.Name = "CityFx"
 	folder.Parent = Workspace
+	-- the park's and the Deep's looks: indexed as they arrive, so a look the server takes down breaks here too
+	for _, name in { "Park", "Deep" } do
+		task.spawn(function()
+			local city = Workspace:WaitForChild("City", 300)
+			local root = city and city:WaitForChild(name, 600)
+			if root then
+				indexRoot(root)
+			end
+		end)
+	end
 	local view = { state = state, gone = gone } -- this device's copy of the server's record (BuildingState)
 	local function pieceCount(id: number): number?
 		local rec = records[id]

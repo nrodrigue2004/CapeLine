@@ -12,6 +12,7 @@
 local HttpService = game:GetService("HttpService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
@@ -43,6 +44,7 @@ type Prop = {
 	model: Model?, -- built on this device now
 	parts: number?,
 	brokenUntil: number?, -- knocked loose by an impact: not built again before this
+	bent: boolean?, -- bent over by a knock at its edge (destroy-all): straightened when its time is up
 }
 type Cell = { key: number, x: number, z: number, props: { Prop }, model: Model?, parts: number }
 
@@ -328,6 +330,61 @@ end
 
 -- Knock up to `max` built props within `radius` of center loose: fling(part, center) makes each piece's debris,
 -- then the prop goes until its respawn time. Returns how many props it knocked loose.
+-- destroy-all (2026-11-20): a street lamp or traffic light at the edge of a knock bends instead of flying: it leans
+-- away from the hit about its foot (Config.Destruction.street.bend), its lamp goes dark, and it stands straight again
+-- (built anew) after the street's respawn. Nearer the hit it flies off as before.
+local BEND = { StreetLamp = true, TrafficLight = true }
+local function bend(pr: Prop, m: Model, center: Vector3, c: Cell, respawn: number)
+	local B = Config.Destruction.street.bend or { from = 0.45, angle = { 24, 42 }, time = 0.18 }
+	local foot = Vector3.new(pr.x, pr.y, pr.z)
+	local away = Vector3.new(pr.x - center.X, 0, pr.z - center.Z)
+	away = if away.Magnitude > 0.1 then away.Unit else Vector3.xAxis
+	local axis = Vector3.yAxis:Cross(away) -- tip over away from the hit
+	local deg = B.angle[1] + math.random() * (B.angle[2] - B.angle[1])
+	local start = m:GetPivot()
+	local rel = CFrame.new(foot):Inverse() * start -- the model's pivot from its foot
+	local t = Instance.new("NumberValue")
+	t.Changed:Connect(function(k: number)
+		if m.Parent then
+			m:PivotTo(CFrame.new(foot) * CFrame.fromAxisAngle(axis, math.rad(deg) * k) * rel)
+		end
+	end)
+	local tw = TweenService:Create(
+		t,
+		TweenInfo.new(B.time, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+		{ Value = 1 }
+	)
+	tw.Completed:Connect(function()
+		t:Destroy()
+	end)
+	tw:Play()
+	for _, d in m:GetDescendants() do
+		if d:IsA("BasePart") and d.Material == Enum.Material.Neon then
+			d.Material = Enum.Material.SmoothPlastic -- the lamp goes out
+			d.Color = d.Color:Lerp(Color3.new(0.2, 0.2, 0.22), 0.6)
+		elseif d:IsA("Light") then
+			d.Enabled = false
+		end
+	end
+	pr.bent = true
+	pr.brokenUntil = os.clock() + respawn
+	task.delay(respawn, function()
+		if pr.model == m then
+			m:Destroy()
+			pr.model = nil
+			pr.bent = nil
+			c.parts -= pr.parts or 0
+			CityProps.built -= pr.parts or 0
+			local cm = c.model
+			if cm then
+				local made = makeProp(pr, cm)
+				c.parts += made
+				CityProps.built += made
+			end
+		end
+	end)
+end
+
 function CityProps.smash(
 	center: Vector3,
 	radius: number,
@@ -347,11 +404,24 @@ function CityProps.smash(
 			if c and c.model then
 				for _, pr in c.props do
 					local m = pr.model
+					local d2 = (pr.x - center.X) ^ 2 + (pr.z - center.Z) ^ 2
+					local B = Config.Destruction.street.bend
 					if
 						m
-						and (pr.x - center.X) ^ 2 + (pr.z - center.Z) ^ 2 <= r2
+						and not pr.bent
+						and BEND[pr.name]
+						and B
+						and d2 <= r2
+						and d2 > r2 * B.from * B.from
 						and math.abs(pr.y - center.Y) <= radius + 6
 					then
+						bend(pr, m, center, c, respawn)
+						n += 1
+						if n >= max then
+							return n
+						end
+					elseif m and d2 <= r2 and math.abs(pr.y - center.Y) <= radius + 6 then
+						pr.bent = nil -- (a bent lamp hit again close by flies off)
 						for _, p in m:GetChildren() do
 							if p:IsA("BasePart") then
 								fling(p, center)

@@ -72,6 +72,7 @@ export type Dress = {
 	mesh: { [number]: string }, -- mesh (park) or placement (Deep) index -> group key
 	big: { [string]: boolean }, -- a group only a heavy hit or a ram breaks
 	count: number,
+	bounds: { [string]: { number } }?, -- (park) a group's box: minX, minY, minZ, maxX, maxY, maxZ
 }
 
 -- half extents in x and z of a box sx x sz turned ry degrees about y
@@ -122,6 +123,7 @@ function StreetBreak.parkDress(park: any): Dress
 			grow(bounds, key, m.x, m.y, m.z, hx, m.size[2] / 2, hz)
 		end
 	end
+	out.bounds = bounds
 	for key, b in bounds do
 		out.count += 1
 		if StreetBreak.groupKind(b[4] - b[1], b[5] - b[2], b[6] - b[3]) == "big" then
@@ -171,6 +173,19 @@ function StreetBreak.deepDress(boxes: { any }, places: { any }, ready: { [string
 		end
 	end
 	return out
+end
+
+-- Does a hit at (x, y, z) reaching r studs touch a group's box (bounds as parkDress gives)?
+function StreetBreak.touches(b: { number }, x: number, y: number, z: number, r: number): boolean
+	local dx = math.max(b[1] - x, 0, x - b[4])
+	local dy = math.max(b[2] - y, 0, y - b[5])
+	local dz = math.max(b[3] - z, 0, z - b[6])
+	return dx * dx + dy * dy + dz * dz <= r * r
+end
+
+-- The reach of a street knock of `radius` (BuildingFx.smashStreet's: Config.Destruction.street)
+function StreetBreak.reach(street: any, radius: number): number
+	return math.max(street.minRadius, radius * street.radiusMult)
 end
 
 return StreetBreak
