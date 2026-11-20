@@ -41,6 +41,24 @@ local QualityController = require(script.Parent.Parent.Controllers.QualityContro
 local StoryArtKit =
 	require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("StoryArtKit"))
 local RigMath = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("RigMath"))
+local NpcAnim = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("NpcAnim"))
+local HeroAnim = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("HeroAnim"))
+local Juice = require(script.Parent.Juice) -- first-30: a person freed at a ring is a rescue (cheer, chime, SAVED!)
+
+-- (first-30) a clip's joint angles (degrees, an optional lift) as a joint turn, every joint the clip leaves out at rest
+local function poseClip(rig: any, angles: { [string]: { number } })
+	for joint in rig.motors do
+		local a = angles[joint]
+		local cf = CFrame.identity
+		if a then
+			cf = CFrame.Angles(math.rad(a[1]), math.rad(a[2]), math.rad(a[3]))
+			if (a[4] or 0) ~= 0 then
+				cf = CFrame.new(0, a[4], 0) * cf
+			end
+		end
+		NpcRig.turn(rig, joint, cf)
+	end
+end
 
 local StoryFx = {}
 
@@ -384,6 +402,9 @@ local function trapStep(now: number)
 		if share >= 1 and not t.freedAt then
 			t.freedAt = now
 			NpcRig.rest(t.person)
+			-- (first-30) the hold's payoff is heard and seen: the rescue juice over the freed person
+			local root = t.person.model.PrimaryPart
+			Juice.fire("rescue", if root then root.Position else t.foot.Position, { mine = true })
 		end
 		local lift = StoryArtKit.lift(share)
 		local tip, fade = 0, 0
@@ -405,15 +426,11 @@ local function trapStep(now: number)
 			local run = math.max(0, s - 1.2)
 			local away = math.min(run * 9, 16)
 			NpcRig.place(rig, t.foot * CFrame.new(at[1], at[2], at[3] - away)) -- out from under, the way they face
-			local swing = math.sin(s * 12) * 0.6
+			-- (first-30) the cheer and the run are the Ceremony crowd's clips (NpcAnim cheer, HeroAnim runFast at 9 studs/s)
 			if run > 0 then
-				NpcRig.turn(rig, "LeftHip", CFrame.Angles(swing, 0, 0))
-				NpcRig.turn(rig, "RightHip", CFrame.Angles(-swing, 0, 0))
-				NpcRig.turn(rig, "LeftShoulder", CFrame.Angles(-swing, 0, 0))
-				NpcRig.turn(rig, "RightShoulder", CFrame.Angles(swing, 0, 0))
+				poseClip(rig, HeroAnim.sample("runFast", run * 9 / HeroAnim.runFastSpeed))
 			else
-				NpcRig.turn(rig, "LeftShoulder", CFrame.Angles(math.rad(165) + swing * 0.3, 0, math.rad(-20)))
-				NpcRig.turn(rig, "RightShoulder", CFrame.Angles(math.rad(165) - swing * 0.3, 0, math.rad(20)))
+				poseClip(rig, NpcAnim.sample("cheer", s))
 			end
 			if s > 3.4 then
 				t.gone = true

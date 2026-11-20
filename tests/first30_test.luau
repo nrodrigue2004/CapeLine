@@ -809,4 +809,59 @@ return function(T: any)
 		check(heard, "the line names " .. chain.name .. " and the MAP")
 		check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
 	end)
+
+	test(
+		"First 30: a person freed at Framed's ring is a rescue (cheer and chime, SAVED!) and cheers on the clip",
+		function()
+			if not T.placePath then
+				return
+			end
+			local sim = newSim()
+			local AudioController = sim:require("Client.Controllers.AudioController")
+			local played = {}
+			AudioController.play = function(id: string)
+				table.insert(played, id)
+			end
+			local StoryClient = sim:require("Client.Controllers.StoryClient")
+			local StoryFx = sim:require("Client.Fx.StoryFx")
+			sim:run("StoryFx", StoryFx.init)
+			local function frame()
+				sim:run("frame", function()
+					sim.service("RunService").RenderStepped:Fire(1 / 30)
+				end)
+			end
+			StoryClient.mission = {
+				num = 3,
+				step = 2,
+				kind = "hold",
+				people = true,
+				points = { { 0, 20, 0 } },
+				held = { 2 },
+				seconds = 10,
+			}
+			frame()
+			check(not table.find(played, "rescue"), "no rescue while the ring is held")
+			StoryClient.mission.held = { 10 }
+			frame()
+			check(
+				table.find(played, "rescue") ~= nil,
+				"the ring done plays the rescue: " .. table.concat(played, ",")
+			)
+			local stop = os.clock() + 0.3
+			repeat
+				frame()
+			until os.clock() >= stop
+			local elbow = nil
+			for _, d in sim.workspace:GetDescendants() do
+				if d:IsA("Motor6D") and d.Name == "RightKnee" and d.Transform then
+					elbow = math.deg((d.Transform:ToEulerAnglesXYZ()))
+				end
+			end
+			check(
+				elbow ~= nil and math.abs(elbow) > 2,
+				"the freed person cheers with bent knees (" .. tostring(elbow) .. ")"
+			)
+			check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
+		end
+	)
 end
