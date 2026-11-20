@@ -88,7 +88,10 @@ local function setWrecked(id: number, wrecked: boolean, open: boolean?)
 	end
 end
 
-local function impact(center: Vector3, radius: number, kind: number)
+local ParkBuilder = require(script.Parent.ParkBuilder)
+local function impact(center: Vector3, radius: number, kind: number, heavy: boolean?)
+	-- the park's looks in reach go down on the server too (destroy-all: robots and rays stop meeting their boxes)
+	ParkBuilder.breakAt(center, radius, heavy == true)
 	local now = os.clock()
 	for i = #impactTimes, 1, -1 do
 		if now - impactTimes[i] > 1 then
@@ -323,8 +326,8 @@ end
 
 -- A street thing knocked loose by a hero going through it (ImpactProp): the players near knock the same things
 -- loose on their devices (kind 3: the street only, no cracks or crater), inside the impact rate
-function BuildingService.street(at: Vector3, radius: number)
-	impact(at, radius, 3)
+function BuildingService.street(at: Vector3, radius: number, heavy: boolean?)
+	impact(at, radius, 3, heavy)
 end
 
 -- Send what changed now instead of with the next 2 Hz batch (a hole a thrown hero is about to fly through)

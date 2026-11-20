@@ -53,6 +53,7 @@ return {
 		pockets = { tier = 1, parts = 180, lights = 4, props = 64 }, -- a pocket's dressing (Shared.PocketDress; the server's tier 1 counts); props: prop meshes a pocket (Shared.PocketPropKit, gap-props2; 40 -> 64 in gap-props3 so phones get the second set's layout props: shared mesh assets, one draw per mesh and material)
 		ruins = { bits = 0 }, -- the Crater's loose lab debris this device scatters (Shared.CraterArtKit.bits; gap-wrecks)
 		smash = 3, -- street things (lamps, benches, trees, fences) knocked loose a big impact nearby (BuildingFx, 2026-11-19)
+		collapse = { roll = 4, spill = 4, glass = 4 }, -- destroy-all: dust fronts rolling out a collapse, pieces that tumble out loose, glass shards a broken window (BuildingFx)
 		sites = { radius = 240, looks = 6, parts = 30 }, -- activity props in their Blender looks (Fx.ActivityProps)
 		story = { radius = 240, looks = 6, drones = 2, beacon = true, rings = false }, -- story props and Echo Drones (Fx.StoryProps)
 	},
@@ -88,6 +89,7 @@ return {
 		pockets = { tier = 2, parts = 480, lights = 10, props = 110 },
 		ruins = { bits = 16 }, -- the Crater's loose lab debris this device scatters (Shared.CraterArtKit.bits; gap-wrecks)
 		smash = 6, -- street things (lamps, benches, trees, fences) knocked loose a big impact nearby (BuildingFx, 2026-11-19)
+		collapse = { roll = 6, spill = 8, glass = 8 }, -- destroy-all: dust fronts rolling out a collapse, pieces that tumble out loose, glass shards a broken window (BuildingFx)
 		sites = { radius = 420, looks = 14, parts = 70 }, -- activity props in their Blender looks (Fx.ActivityProps)
 		story = { radius = 420, looks = 12, drones = 6, beacon = true, rings = true }, -- story props and Echo Drones (Fx.StoryProps)
 	},
@@ -123,6 +125,7 @@ return {
 		pockets = { tier = 3, parts = 900, lights = 18, props = 220 },
 		ruins = { bits = 36 }, -- the Crater's loose lab debris this device scatters (Shared.CraterArtKit.bits; gap-wrecks)
 		smash = 10, -- street things knocked loose a big impact nearby (BuildingFx, 2026-11-19)
+		collapse = { roll = 8, spill = 14, glass = 12 }, -- destroy-all: dust fronts rolling out a collapse, pieces that tumble out loose, glass shards a broken window (BuildingFx)
 		sites = { radius = 640, looks = 30, parts = 150 }, -- activity props in their Blender looks (Fx.ActivityProps)
 		story = { radius = 640, looks = 24, drones = 12, beacon = true, rings = true }, -- story props and Echo Drones (Fx.StoryProps)
 	},

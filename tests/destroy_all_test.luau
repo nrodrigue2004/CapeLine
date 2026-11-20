@@ -277,7 +277,7 @@ return function(T: any)
 		)
 		local is = "src/server/Services/ImpactService.luau"
 		check(
-			has(is, "if mayBreak(hero) and MoveGuard.peakSpeed(hero, R.window) >= R.minSpeed then"),
+			has(is, "local fast = mayBreak(hero) and MoveGuard.peakSpeed(hero, R.window) >= R.minSpeed"),
 			"the server checks the rammer's own speed"
 		)
 		check(has(is, "VehicleService.hit(at, Config.Destruction.street.vehicleRadius)"), "rams flip cars")
@@ -307,6 +307,72 @@ return function(T: any)
 		check(has(is, "local function mayBreak(hero: any): boolean"), "mayBreak stays")
 		check(has(is, "return not FlagService.safe(hero)"), "safe areas never break")
 	end)
+
+	test(
+		"Destroy all: heavier collapses, glass, bending lamps, the park's server say (source and budgets)",
+		function()
+			local fx = "src/client/Fx/BuildingFx.luau"
+			check(has(fx, "rollDust(rec, p, seconds)"), "a collapse's dust rolls out along the ground")
+			check(
+				has(fx, "local hit = Workspace:Raycast(from, dir * reach, params)"),
+				"and stops at the next wall"
+			)
+			check(
+				has(fx, "shakeAt(Vector3.new(rec.x, rec.base, rec.z), D.collapseTime * 0.5, 0.6 * tall"),
+				"shake by distance and height"
+			)
+			check(not has(fx, "if nearMe(rec.x, rec.z, 250) then"), "no flat 250-stud shake left")
+			check(
+				has(fx, "landed(f)") and has(fx, "part.CustomPhysicalProperties = DEBRIS_PHYS"),
+				"pieces spill, bounce and settle"
+			)
+			check(
+				has(fx, "glass(rec, knockAt, panes)") and has(fx, 'AudioController.play("shatter", at'),
+				"windows shatter"
+			)
+			check(
+				has(fx, 'd:GetAttributeChangedSignal("DressDown")'),
+				"a look the server takes down breaks on every device"
+			)
+			check(
+				has("src/client/Controllers/CityProps.luau", "bend(pr, m, center, c, respawn)"),
+				"lamps bend at the edge"
+			)
+			check(
+				has(
+					"src/server/Services/BuildingService.luau",
+					"ParkBuilder.breakAt(center, radius, heavy == true)"
+				),
+				"every knock reaches the park on the server"
+			)
+			check(
+				has("src/server/Services/CityBuilder.luau", "local park = parkHeight(x, z)"),
+				"robots walk where a look fell"
+			)
+			check(
+				has("src/server/Services/ImpactService.luau", "BuildingService.street(at, 4, fast)"),
+				"only a real ram is heavy"
+			)
+			-- phone budgets: the new counts grow with the preset and stay small on low
+			local P = Config.Presets
+			for _, name in { "low", "medium", "high" } do
+				local c = P[name] and P[name].collapse
+				check(c ~= nil, name .. " has collapse counts")
+			end
+			check(
+				P.low.collapse.roll <= P.medium.collapse.roll
+					and P.medium.collapse.roll <= P.high.collapse.roll,
+				"dust fronts grow with the preset"
+			)
+			check(P.low.collapse.spill <= 4 and P.low.collapse.glass <= 4, "a phone spills and shards little")
+			check(
+				P.low.collapse.spill <= P.low.debris and P.high.collapse.spill <= P.high.debris,
+				"spill inside the debris budget"
+			)
+			local B = Config.Destruction.street.bend
+			check(B and B.from > 0 and B.from < 1 and B.angle[1] < B.angle[2], "the bend's numbers")
+		end
+	)
 
 	test("Destroy all: the place's ParkBuilder dresses every structure (headless)", function()
 		if not placePath then
@@ -343,6 +409,7 @@ return function(T: any)
 			env.__tag = function() end
 			local src = string.gsub(mod.Source, ":WaitForChild%(", ":FindFirstChild(")
 			src = string.gsub(src, "CollectionService:AddTag%(", "__tag(")
+			src = string.gsub(src, "Players:GetPlayers%(%)", "{}") -- (no players in the sim)
 			local out = luau.load(src, { debugName = key, environment = env })()
 			cache[key] = out
 			return out
@@ -418,6 +485,76 @@ return function(T: any)
 				big,
 				unkeyed
 			)
+		)
+
+		-- the server's say on a broken look (ParkBuilder.breakAt from BuildingService.impact): robots stop meeting it
+		local bandshell = world.park.places.Bandshell
+		local ST = Config.Destruction.street
+		local function groupOf(look: string): any
+			for _, m in world.park.meshes do
+				if m.look == look then
+					local g = ParkBuilder.groups["P" .. m.group]
+					if g and not g.big then
+						return g
+					end
+				end
+			end
+			return nil
+		end
+		check(bandshell ~= nil, "the bandshell is placed")
+		if not bandshell then
+			return
+		end
+		local at = roblox.Vector3.new(bandshell.x, 4, bandshell.z)
+		check(
+			ParkBuilder.breakAt(at, 4, false) == 0,
+			"a light knock leaves the bandshell standing on the server"
+		)
+		local before = ParkBuilder.heightAt(bandshell.x, bandshell.z)
+		check(before == nil, "nothing is down yet")
+		local n = ParkBuilder.breakAt(at, 12, false)
+		check(n >= 1 and n <= ST.perHit, "a heavy hit takes it down (" .. n .. " looks)")
+		local downBoxes, collide = 0, 0
+		for _, g in ParkBuilder.down do
+			for _, p in g.boxes do
+				downBoxes += 1
+				if p.CanCollide or p.CanQuery or p:GetAttribute("DressDown") ~= true then
+					collide += 1
+				end
+			end
+		end
+		check(
+			downBoxes > 0 and collide == 0,
+			"its boxes stop colliding and taking queries, marked DressDown for devices"
+		)
+		local h = ParkBuilder.heightAt(bandshell.x, bandshell.z)
+		check(h ~= nil and h < 3, "robots walk the ground where it stood (" .. tostring(h) .. ")")
+		check(ParkBuilder.breakAt(at, 12, true) == 0, "a look already down is not taken twice")
+		check(ParkBuilder.step(0) == 0, "it stays down until its time is up")
+		local back = ParkBuilder.step(math.huge)
+		check(back == n and next(ParkBuilder.down) == nil, "then stands again")
+		local stood = 0
+		for _, g in ParkBuilder.groups do
+			for _, p in g.boxes do
+				if p.CanCollide and p.CanQuery and p:GetAttribute("DressDown") == nil then
+					stood += 1
+				end
+			end
+		end
+		check(stood == dressedSolids, "every box collides again (" .. stood .. ")")
+		check(ParkBuilder.heightAt(bandshell.x, bandshell.z) == nil, "and the height is the look's again")
+		local pillar = groupOf("GatePillar")
+		check(pillar ~= nil, "a gate pillar group")
+		if pillar then
+			local b = pillar.bounds
+			local c = roblox.Vector3.new((b[1] + b[4]) / 2, (b[2] + b[5]) / 2, (b[3] + b[6]) / 2)
+			local m = ParkBuilder.breakAt(c, 4, false)
+			check(m >= 1, "a light knock takes a small look down")
+			ParkBuilder.step(math.huge)
+		end
+		check(
+			ParkBuilder.breakAt(roblox.Vector3.new(5000, 0, 5000), 30, true) == 0,
+			"nothing outside the park"
 		)
 	end)
 end

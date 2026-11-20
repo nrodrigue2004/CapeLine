@@ -14,6 +14,7 @@
 -- Tags for each device's Fx.ParkLife: ParkSpin (the carousel's turning pieces), ParkJet (a fountain's water).
 
 local CollectionService = game:GetService("CollectionService")
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
@@ -25,6 +26,11 @@ local SignKit = require(Shared:WaitForChild("SignKit"))
 local StreetBreak = require(Shared:WaitForChild("StreetBreak"))
 
 local ParkBuilder = {}
+-- destroy-all (2026-11-20): the server's say on a broken look (robots and server rays stop meeting its boxes)
+type Group = { key: string, boxes: { BasePart }, bounds: { number }, big: boolean, downUntil: number }
+ParkBuilder.groups = {} :: { [string]: Group }
+ParkBuilder.down = {} :: { [string]: Group } -- the looks broken now (CityBuilder.heightAt drops to the ground there)
+ParkBuilder.park = nil :: any
 ParkBuilder.voxels = 0 -- Terrain voxels written (the Dev panel and the tests' log)
 ParkBuilder.parts = 0
 ParkBuilder.done = false
@@ -167,9 +173,25 @@ function ParkBuilder.build(world: any, folder: Instance, makePart: (any) -> Base
 		end
 	end
 
+	local bounds = dress.bounds or {}
 	for i, b in park.solid do
 		local p = makePart(b)
 		dressUp(p, dress.box[i])
+		local key = dress.box[i]
+		if key and bounds[key] then
+			local g = ParkBuilder.groups[key]
+			if not g then
+				g = {
+					key = key,
+					boxes = {},
+					bounds = bounds[key],
+					big = dress.big[key] == true,
+					downUntil = 0,
+				}
+				ParkBuilder.groups[key] = g
+			end
+			table.insert(g.boxes, p)
+		end
 		p.Name = "parkSolid"
 		p.Transparency = if anyReady then 1 else 0 -- PLACEHOLDER ART until Art.Park is imported
 		p.CastShadow = not anyReady
@@ -244,6 +266,8 @@ function ParkBuilder.build(world: any, folder: Instance, makePart: (any) -> Base
 		ParkBuilder.parts += 1
 	end
 	root:SetAttribute("Ready", anyReady)
+	ParkBuilder.park = park
+	task.spawn(ParkBuilder.watch)
 	buildTerrain(park)
 	ParkBuilder.done = true
 	print(
@@ -256,6 +280,101 @@ function ParkBuilder.build(world: any, folder: Instance, makePart: (any) -> Base
 			if anyReady then "in" else "missing"
 		)
 	)
+end
+
+-- A knock at center (BuildingService.impact): the park's looks it reaches go down on the server too: their boxes
+-- stop colliding and taking queries and carry DressDown (each device breaks the look it has not broken yet and stands
+-- it again when the attribute goes). A big look only from a heavy hit. At most `perHit` a knock. Returns how many.
+function ParkBuilder.breakAt(center: Vector3, radius: number, heavy: boolean): number
+	local park = ParkBuilder.park
+	local b = park and park.bounds
+	local ST = Config.Destruction.street
+	local r = StreetBreak.reach(ST, radius)
+	if
+		not b
+		or center.X < b.minX - r
+		or center.X > b.maxX + r
+		or center.Z < b.minZ - r
+		or center.Z > b.maxZ + r
+	then
+		return 0
+	end
+	heavy = heavy or radius >= (ST.bigRadius or math.huge)
+	local n, now = 0, os.clock()
+	for key, g in ParkBuilder.groups do
+		if n >= (ST.perHit or 4) then
+			break
+		end
+		if
+			not ParkBuilder.down[key]
+			and (heavy or not g.big)
+			and StreetBreak.touches(g.bounds, center.X, center.Y, center.Z, r)
+		then
+			n += 1
+			g.downUntil = now + ST.respawn
+			ParkBuilder.down[key] = g
+			for _, p in g.boxes do
+				p.CanCollide = false
+				p.CanQuery = false
+				p:SetAttribute("DressDown", true)
+			end
+		end
+	end
+	return n
+end
+
+-- Is a hero standing where a look would come back?
+local function occupied(g: Group): boolean
+	for _, player in Players:GetPlayers() do
+		local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
+		if root and StreetBreak.touches(g.bounds, root.Position.X, root.Position.Y, root.Position.Z, 3) then
+			return true
+		end
+	end
+	return false
+end
+
+-- Stand the looks again whose time is up and that nobody stands inside (watch: once a second). Returns how many.
+function ParkBuilder.step(now: number): number
+	local n = 0
+	for key, g in ParkBuilder.down do
+		if now >= g.downUntil then
+			if occupied(g) then
+				g.downUntil = now + 2
+			else
+				ParkBuilder.down[key] = nil
+				n += 1
+				for _, p in g.boxes do
+					p.CanCollide = true
+					p.CanQuery = true
+					p:SetAttribute("DressDown", nil)
+				end
+			end
+		end
+	end
+	return n
+end
+
+function ParkBuilder.watch()
+	while true do
+		task.wait(1)
+		ParkBuilder.step(os.clock())
+	end
+end
+
+-- The ground under a broken look (nil: no broken look there), for CityBuilder.heightAt
+function ParkBuilder.heightAt(x: number, z: number): number?
+	if next(ParkBuilder.down) == nil then
+		return nil
+	end
+	for _, g in ParkBuilder.down do
+		local b = g.bounds
+		if x >= b[1] and x <= b[4] and z >= b[3] and z <= b[6] then
+			local top = ParkLayout.column(ParkBuilder.park, x, z)
+			return top
+		end
+	end
+	return nil
 end
 
 return ParkBuilder
