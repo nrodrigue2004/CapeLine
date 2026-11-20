@@ -114,6 +114,7 @@ return {
 			width = 14,
 			ally = 1.3,
 			refill = 35,
+			hold = 0.6, -- the wake's lift lasts this long after the ally leaves it (the server checks 5 times a second)
 		},
 		-- Flight rank 5
 		phase = {
@@ -124,6 +125,7 @@ return {
 			time = 1.2,
 			drain = 18,
 			cooldown = 3,
+			clear = 3, -- the flicker holds on (up to 2 x time) while a building is within this many studs
 		},
 		-- (nate's sheet called it Comet; Comet is an old-lore name the text checks refuse, so it shows as Blazing Ram)
 		blazeRam = {
@@ -198,6 +200,8 @@ return {
 			stun = 1.2,
 			coeff = 0.4,
 			crater = 70,
+			craterDmg = 1500,
+			cooldown = 2,
 		},
 		wallCrusher = {
 			name = "Wall Crusher",
@@ -206,6 +210,7 @@ return {
 			bite = 2.5,
 			kick = 1200,
 			kickRadius = 6,
+			cooldown = 1,
 		},
 		-- Leaping rank 5
 		meteorStrike = {
@@ -288,6 +293,8 @@ return {
 			-- `time` s; then it is carried and thrown like a picked-up prop (ImpactService throws)
 			range = 70,
 			time = 0.4,
+			cone = 18, -- degrees off the camera's aim a target may be
+			stun = 1.5, -- a yanked robot is dazed this long (so it can be held)
 			cooldown = 5,
 		},
 		-- Swing rank 5
@@ -301,6 +308,7 @@ return {
 			radius = 8,
 			knock = 35,
 			coeff = 0.5,
+			cooldown = 1.5,
 		},
 		skyHook = {
 			name = "Sky Hook",

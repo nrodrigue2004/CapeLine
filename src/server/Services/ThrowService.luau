@@ -483,7 +483,7 @@ local function canGrab(hero: any): boolean
 		and not BlockService.blocking(hero)
 end
 
-local function grab(hero: any, id: number)
+local function grab(hero: any, id: number, yanked: boolean?)
 	if id == 0 then
 		if hero.carry then
 			setDown(hero)
@@ -501,12 +501,14 @@ local function grab(hero: any, id: number)
 	if not it or not root or busy(it) or not canGrab(hero) then
 		return
 	end
-	if not ThrowMath.canLift(T, it.kind, hero.classId, HeroService.awakened(hero)) then
+	-- (Yank, the Swing's earned rank 3 move: whatever it pulls in, it holds; it never comes from Robux)
+	if not yanked and not ThrowMath.canLift(T, it.kind, hero.classId, HeroService.awakened(hero)) then
 		return
 	end
 	local p = root.Position
 	local d = Vector3.new(it.x - p.X, 0, it.z - p.Z).Magnitude
-	if d > T.reach + 3 or math.abs(it.y - p.Y) > T.reach + 3 then -- a little slack for lag
+	local reach = T.reach + (if yanked then 12 else 3) -- a little slack for lag (a yank: for the pull's end)
+	if d > reach or math.abs(it.y - p.Y) > reach then
 		return
 	end
 	if it.vehicle and not VehicleService.take(it.vehicle) then
@@ -615,7 +617,7 @@ local S = T.swing
 local swinging: { [any]: { start: number, yaw: number } } = {} -- hero -> the swing being drawn (a live robot's whirl)
 
 -- Grab a live robot that is stunned (or flying from a hit): it is held overhead and thinks no more
-local function grabRobot(hero: any, id: number)
+local function grabRobot(hero: any, id: number, yanked: boolean?)
 	if hero.carry or not canGrab(hero) then
 		return
 	end
@@ -634,7 +636,7 @@ local function grabRobot(hero: any, id: number)
 		return
 	end
 	local p = root.Position
-	if (Vector3.new(e.x, e.y, e.z) - p).Magnitude > S.robot.reach + 4 then -- a little slack for lag
+	if (Vector3.new(e.x, e.y, e.z) - p).Magnitude > S.robot.reach + (if yanked then 12 else 4) then -- lag slack
 		return
 	end
 	EnemyService.hold(id, hero.id)
@@ -664,6 +666,70 @@ local function grabRobot(hero: any, id: number)
 	HeroService.applyWalkSpeed(hero)
 	sendState(hero)
 	ThrowService.Grabbed:Fire(hero, "robot")
+end
+
+-- Yank (the Swing's rank 3 move, nate 2026-11-20; MoveActService checks the move, cooldown and aim first): pull a
+-- robot (kind 1) or a liftable thing (kind 2) to the hero over `time` s, then it is held like any grab, so Basic
+-- swings it and a throw throws it. A robot is pulled (its pull status) and dazed `stun` s, then held; a prop flies in
+-- on the shared arc (ThrowFly) and lands in the hands; a car comes straight to the hands. True when it began.
+function ThrowService.yank(
+	hero: any,
+	kind: number,
+	id: number,
+	range: number,
+	time: number,
+	stun: number
+): boolean
+	local root = HeroService.rootPart(hero)
+	if not root or hero.carry or not canGrab(hero) then
+		return false
+	end
+	local p = root.Position
+	if kind == 1 then
+		local e = EnemyService.get(id)
+		if not e or not e.alive or e.held or not ThrowMath.canHoldRobot(T, e.cfg, stun) then
+			return false
+		end
+		local d = (Vector3.new(e.x, e.y, e.z) - p).Magnitude
+		if d > range + 6 then
+			return false
+		end
+		EnemyService.applyStatus(id, "pull", time, {
+			x = p.X,
+			y = p.Y,
+			z = p.Z,
+			speed = math.max(Config.Abilities.status.pullSpeed, d / time),
+			src = hero.id,
+		})
+		CombatService.after(time, function()
+			if hero.alive and not hero.carry then
+				EnemyService.applyStatus(id, "stun", stun, { src = hero.id })
+				grabRobot(hero, id, true)
+			end
+		end)
+		return true
+	elseif kind == 2 then
+		local it = items[id]
+		if not it or busy(it) then
+			return false
+		end
+		local at = Vector3.new(it.x, it.y, it.z)
+		if (at - p).Magnitude > range + 6 then
+			return false
+		end
+		if it.vehicle then
+			grab(hero, id, true)
+			return hero.carry ~= nil
+		end
+		local look = root.CFrame.LookVector
+		fly(it, at, p + Vector3.new(look.X, 0, look.Z) * 3, time, 4, hero, function()
+			if hero.alive and not hero.carry then
+				grab(hero, id, true)
+			end
+		end)
+		return true
+	end
+	return false
 end
 
 -- One swing of what the hero holds toward the aim: hits and throws the robots in the arc, breaks the wall in reach

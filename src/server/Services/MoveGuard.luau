@@ -172,6 +172,28 @@ function MoveGuard.stamina(hero: any): number
 	return if t then t.stamina else Config.Move.stamina.max
 end
 
+-- Is the hero boosting now (the server's own mirror of it)?
+function MoveGuard.boosting(hero: any): boolean
+	local t = tracks[hero.id]
+	return t ~= nil and t.boosting
+end
+
+-- The mobility moves (MoveActService): a cost taken off the stamina mirror (Phase, Blazing Ram) or a refill
+-- (Slipstream); the device does the same sum on its own copy
+function MoveGuard.spend(hero: any, amount: number)
+	local t = tracks[hero.id]
+	if t then
+		local cap = HeroService.moveConfig(hero).stamina.max
+		t.stamina = math.clamp(t.stamina - amount, 0, cap)
+		if amount > 0 then
+			t.drainAt = os.clock()
+		end
+		if t.stamina <= 0 then
+			t.boosting = false
+		end
+	end
+end
+
 local function correct(hero: any, t: Track)
 	local player = hero.player
 	local root = HeroService.rootPart(hero)
@@ -320,6 +342,7 @@ function MoveGuard.init()
 							zeroG = Status.has(hero.status, "zeroG", now),
 							speedBuff = Status.value(hero.status, "speed", now, 0),
 							classSpeed = class and class.moveSpeed or 0,
+							slip = Status.value(hero.status, "slip", now, 0), -- Slipstream (MoveActService)
 						})
 						local ok, strike, wait =
 							MoveCheck.sample(t.check, pos.X, pos.Y, pos.Z, now, cap, moveCfg, Config.Safety)

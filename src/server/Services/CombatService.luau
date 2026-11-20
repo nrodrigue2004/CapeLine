@@ -650,6 +650,30 @@ function CombatService.burst(hero: any, center: Vector3, radius: number, coeff: 
 	end
 end
 
+-- A mobility move's hit (Shared.MoveActs, MoveActService): an area hit of the hero's basic look that carries a
+-- crowd control (stun, knockup, knockback with `knock` studs). Robots take it as any ability's status; a flagged
+-- hero takes it through pvpHit, so damage and control follow PvpRules compression and the PvP knock caps.
+-- Returns how many it hit.
+function CombatService.moveHit(
+	hero: any,
+	center: Vector3,
+	radius: number,
+	coeff: number,
+	status: string?,
+	statusDur: number?,
+	knock: number?
+): number
+	local basic = A.list[hero.loadout.basic or "ZapBolt"]
+	local eff = { set = basic.set, perk = true, status = status, statusDur = statusDur, knock = knock }
+	local r = record(hero, basic.num, 0, K.END, center, Vector3.new(0, -1, 0))
+	r.c, r.r = center, radius
+	local n = hitArea(hero, eff, r, center, radius, coeff)
+	if #r.h == 0 then
+		table.remove(pending, table.find(pending, r) :: number)
+	end
+	return n
+end
+
 -- A Mystic's heals and shields on allies are stronger (Classes.Mystic.supportBonus)
 supportMult = function(hero: any): number
 	return 1 + (Config.Classes[hero.classId].supportBonus or 0)

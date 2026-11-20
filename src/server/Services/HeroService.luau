@@ -409,6 +409,7 @@ local AURA = {
 	hidden = 512, -- Smoke Bomb, Shadow Step: robots lose the hero
 	ironhide = 1024, -- Iron Hide: damage taken turns into shield
 	form = 2048, -- a transformation (Grow, Mech Suit, Titan Form, Siege Mode): value = scale
+	slip = 4096, -- Slipstream: in a flying ally's wake, value = the cruise multiplier (MoveActService)
 }
 HeroService.AURA = AURA
 

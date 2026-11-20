@@ -48,6 +48,7 @@ local ParkLife = require(Fx.ParkLife)
 local LitWindows = require(Fx.LitWindows)
 local WaterSurface = require(Fx.WaterSurface)
 local ImpactFx = require(Fx.ImpactFx) -- 2026-11-19: rams and throws through walls
+local MoveActClient = require(Controllers.MoveActClient) -- the 20 mobility moves (nate 2026-11-20)
 local GroundFx = require(Fx.GroundFx) -- fix-destroy: ground craters
 local VehicleFx = require(Fx.VehicleFx)
 local VehicleRig = require(Fx.VehicleRig) -- gap-vehicles: wheels roll and steer, bodies sway
@@ -151,6 +152,7 @@ ParkLife.init() -- the city park: joggers, dogs, picnics, buskers, ducks, rowboa
 LitWindows.init() -- shapes-2: the kit fronts' windows light up after dusk
 WaterSurface.init() -- shapes-2: pools, ponds and fountains ripple
 ImpactFx.init()
+MoveActClient.init()
 GroundFx.init()
 VehicleFx.init()
 VehicleRig.init()

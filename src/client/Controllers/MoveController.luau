@@ -29,6 +29,12 @@
 --            the cue), `swing` through the pendulum, let go to fling forward and up (hold Fly to catch the next
 --            line as the hero falls), Leap while swinging zips up the line and pops over the top; Fly on the
 --            ground zips to the spot aimed at. SwingFx draws the line, CameraController the speed feel
+-- The 20 mobility moves (nate's mobility upgrade rework, 2026-11-20; Config.Move.moves, Shared.MoveActs): the ones
+-- that change how the hero moves live here (Phase, Blink's dash, Meteor Strike's aimed pound, Moon Jump, Kick
+-- Chain, Ceiling Drop, Slingshot, Double Zip, Yank's aim, Wrecking Kick's wall kick, Sky Hook, Slipstream's
+-- cruise); MoveController.act tells the server (MoveAct) and Acted tells MoveActClient to draw it. The rest
+-- (Sonic Boom Dive, Tornado Run, Afterimage, Sonic Wake, Impact Landing, Wall Crusher, Shadow Flip, Blazing Ram)
+-- go off in MoveActClient from the signals below.
 -- Travel powers (CombatClient): `ride` for `duration` at a server-allowed speed (air, surf or rail), and
 -- `launch` arcs. A Weightless (zeroG) buff lets any hero fly while it lasts. Underwater the Humanoid swims at
 -- the mobility's swim speed.
@@ -55,6 +61,7 @@ local Signal = require(Shared:WaitForChild("Util"):WaitForChild("Signal"))
 local FrameProf = require(Shared:WaitForChild("FrameProf"))
 local MoveRanks = require(Shared:WaitForChild("MoveRanks"))
 local ClimbMath = require(Shared:WaitForChild("ClimbMath"))
+local MoveActs = require(Shared:WaitForChild("MoveActs"))
 
 local InputController = require(script.Parent.InputController)
 local State = require(script.Parent.Parent.State)
@@ -91,6 +98,11 @@ MoveController.SwingShot = Signal.new()
 MoveController.SwingReleased = Signal.new()
 MoveController.SwingMissed = Signal.new()
 MoveController.Zipped = Signal.new()
+-- the mobility moves: one went off on this device (id, where, direction, extra), a wall kick-off (contact, wall
+-- normal, "climb" or "acrobat", the Kick Chain count), Phase starting or ending (on)
+MoveController.Acted = Signal.new()
+MoveController.Kicked = Signal.new()
+MoveController.Phased = Signal.new()
 -- the swing's pose state, updated in place every frame (no new tables): state "none", "shoot" (the line flying
 -- out), "swing", "release" (just let go) or "zip"; phase: SwingMath.phase (-1 high behind, 0 bottom, +1 level
 -- ahead); speed: share of the swing's top speed; anchor: where the line hangs (nil: none); shotAt: os.clock() of
@@ -165,6 +177,21 @@ local swingSky = false -- the line hangs from the sky (SwingMath.skyAnchor): the
 local drainAt = -math.huge -- when stamina last went down (regen waits Config.Move.stamina.regenDelay after it)
 local lastStamina = M.stamina.max
 local ride: { kind: string, speed: number, untilT: number, dir: Vector3 }? = nil
+-- the mobility moves' state: Phase's flicker, Moon Jump's one extra leap, Kick Chain's count, Slingshot's crouch,
+-- Meteor Strike's aimed pound
+local phasing = false
+local phaseStart = -math.huge
+local phaseEnded = -math.huge
+local phaseGroups: { [BasePart]: string } = {}
+local PHASE_GROUP = "TravelFlight" -- BeaconService.GROUP: collides with nothing (the street is held below)
+local overlap = OverlapParams.new()
+overlap.FilterType = Enum.RaycastFilterType.Exclude
+local moonUsed = false
+local kickChain = 0
+local kickAt = -math.huge
+local slingAt: number? = nil
+local meteorVel: Vector3? = nil
+local meteorUntil = 0
 local waterParams = RaycastParams.new()
 waterParams.FilterType = Enum.RaycastFilterType.Exclude
 waterParams.IgnoreWater = false
@@ -195,14 +222,22 @@ FLIGHT_UP.flight.boost = M.mobility.flight.up.boost
 
 -- side-content: swap in the trained copy (and the two derived tables) when the pick or its rank changes
 local tunedKey = ""
+local activeMoves: { [string]: boolean } = {} -- the mobility moves this hero picked (MoveRanks.active)
 local function retune()
 	local pick = mobility()
 	local rank = MoveRanks.rankOf(Config.Move, State.hero.mobRanks, pick)
-	local key = pick .. "#" .. rank
+	local active = MoveRanks.active(Config.Move, State.hero.mobRanks, State.hero.mobMoves, pick)
+	local names = {}
+	for id in active do
+		table.insert(names, id)
+	end
+	table.sort(names)
+	local key = pick .. "#" .. rank .. "#" .. table.concat(names, ",")
 	if key == tunedKey then
 		return
 	end
 	tunedKey = key
+	activeMoves = active
 	M = MoveRanks.config(Config.Move, pick, rank)
 	ACRO_CFG = table.clone(M)
 	ACRO_CFG.glide = table.clone(M.glide)
@@ -216,6 +251,46 @@ MoveController.retune = retune
 -- the hero's movement numbers as the device moves with them (the POWERS screen's MOBILITY tab, FX)
 function MoveController.config(): any
 	return M
+end
+
+-- the mobility moves (Config.Move.moves): does this hero have one, is it off its cooldown here, start it
+local MOVES = Config.Move.moves
+MoveController.moveBook = {} :: { [string]: number }
+function MoveController.has(id: string): boolean
+	return activeMoves[id] == true
+end
+local function canUse(id: string): boolean
+	return activeMoves[id] == true and MoveActs.ready(MoveController.moveBook, id, os.clock())
+end
+MoveController.canUse = canUse
+-- tell the server (MoveAct) and MoveActClient (Acted); cd: the cooldown to start here (nil: none)
+function MoveController.act(
+	id: string,
+	at: Vector3,
+	dir: Vector3,
+	cd: number?,
+	target: number?,
+	step: number?,
+	extra: any?
+)
+	if cd then
+		MoveActs.start(MoveController.moveBook, id, os.clock(), cd)
+	end
+	local num = MoveActs.num(Config.Move, id)
+	if num then
+		Net.send("MoveAct", num, at, dir, target or 0, step or 0)
+	end
+	MoveController.Acted:Fire(id, at, dir, if extra ~= nil then extra else step)
+end
+-- set by MoveActClient: the robots near a point ({ id, x, y, z }), and Yank's target along the aim
+MoveController.robotsNear = nil :: ((Vector3, number) -> { MoveActs.Cand })?
+MoveController.yankPick = nil :: ((Vector3, Vector3) -> (Vector3?, number, number))?
+-- the highest the hero has been since it last stood (Sonic Boom Dive and Impact Landing read the drop)
+local topY = 0
+function MoveController.dropHeight(): number
+	local char = player.Character
+	local r = root or (char and char:FindFirstChild("HumanoidRootPart")) :: BasePart?
+	return if r then math.max(0, topY - r.Position.Y) else 0
 end
 
 local function ccLeft(kind: string): boolean
@@ -344,6 +419,7 @@ local function toGround(fallSpeed: number, keepRun: boolean?)
 	airJumps, bounces = 0, 0
 	spentWall = nil
 	ride = nil
+	moonUsed, kickChain, meteorVel = false, 0, nil
 	setBoost(false)
 	setMode("ground")
 	MoveController.Landed:Fire(root.Position, fallSpeed)
@@ -683,6 +759,11 @@ local function startSwing(cue: boolean): boolean
 	end
 	local anchor, normal, edge, sky = swingAim()
 	local p = root.Position
+	if anchor and sky and canUse("skyHook") then
+		-- Sky Hook (Swing rank 5): the line from the sky swings at full strength, every cooldown s
+		sky = false
+		MoveController.act("skyHook", anchor, p, MOVES.skyHook.cooldown)
+	end
 	if not anchor then
 		missedAt = os.clock()
 		if cue then
@@ -907,6 +988,23 @@ function MoveController.labels(): { leap: string, fly: string?, boost: string?, 
 	return out
 end
 
+-- Slipstream (Flight rank 3, on a flying ally): in a boosting leader's wake (the "slip" buff the server gives) the
+-- cruise goes up to the buff's multiplier, never past the hero's own boost; MoveGuard's cap reads the same buff
+local slipCache: { cfg: any?, base: any?, value: number } = { cfg = nil, base = nil, value = 0 }
+local function slipCfg(cfg: any): any
+	local k = State.buff("slip")
+	if k <= 0 then
+		return cfg
+	end
+	if slipCache.base ~= cfg or slipCache.value ~= k then
+		local c = table.clone(cfg)
+		c.flight = table.clone(cfg.flight)
+		c.flight.cruise = MoveActs.wakeCruise({ ally = k }, cfg.flight.cruise, cfg.flight.boost)
+		slipCache.cfg, slipCache.base, slipCache.value = c, cfg, k
+	end
+	return slipCache.cfg
+end
+
 local function orientation(mode: string, dt: number): CFrame
 	local cam = Workspace.CurrentCamera.CFrame
 	local camFlat = Vector3.new(cam.LookVector.X, 0, cam.LookVector.Z)
@@ -1000,6 +1098,83 @@ local function buildingOf(part: Instance): number?
 	return nil
 end
 
+-- Phase (Flight rank 5): boosting into a wreckable wall passes through it as a flicker, breaking nothing. The body
+-- goes in the collide-nothing group while it lasts (up to Config.Move.moves.phase.time, twice that while still
+-- inside a building) and the street is held under it. MoveGuard checks speed only, so the boost is allowed as ever.
+local function setPhase(on: boolean)
+	if on then
+		local char = player.Character
+		for _, d in (if char then char:GetDescendants() else {}) do
+			if d:IsA("BasePart") and phaseGroups[d] == nil then
+				phaseGroups[d] = d.CollisionGroup
+				pcall(function()
+					d.CollisionGroup = PHASE_GROUP
+				end)
+			end
+		end
+	else
+		for part, g in phaseGroups do
+			if part.Parent and part.CollisionGroup == PHASE_GROUP then
+				part.CollisionGroup = g
+			end
+		end
+		table.clear(phaseGroups)
+	end
+end
+
+local function endPhase(now: number)
+	if phasing then
+		phasing = false
+		phaseEnded = now
+		setPhase(false)
+		MoveController.Phased:Fire(false)
+	end
+end
+MoveController.endPhase = function()
+	endPhase(os.clock())
+end
+function MoveController.phasing(): boolean
+	return phasing
+end
+
+local function startPhase(now: number, pos: Vector3, v: Vector3)
+	phasing = true
+	phaseStart = now
+	setPhase(true)
+	MoveController.Phased:Fire(true)
+	MoveController.act("phase", pos, v, nil)
+end
+
+local function phaseStep(pos: Vector3, now: number, dt: number)
+	local m = MOVES.phase
+	if MoveController.mode ~= "fly" then
+		endPhase(now)
+		return
+	end
+	MoveController.stamina = math.max(0, MoveController.stamina - m.drain * dt)
+	overlap.FilterDescendantsInstances = rayParams.FilterDescendantsInstances
+	local inside = false
+	for _, part in Workspace:GetPartBoundsInRadius(pos, m.clear, overlap) do
+		if buildingOf(part) then
+			inside = true
+			break
+		end
+	end
+	if
+		not MoveActs.phaseHolds(m, phaseStart, now, inside) or (not inside and not MoveController.boosting)
+	then
+		endPhase(now)
+		return
+	end
+	-- never down through the street or the ground: only buildings are passed through
+	if vel.Y < 0 then
+		local below = Workspace:Raycast(pos, Vector3.new(0, -4, 0), rayParams)
+		if below and not buildingOf(below.Instance) then
+			vel = Vector3.new(vel.X, 0, vel.Z)
+		end
+	end
+end
+
 local function ramStep(mode: string, v: Vector3, pos: Vector3, now: number, dt: number): Vector3
 	if now < ramHold then
 		return v * RAM.holdKeep -- the hit-stop
@@ -1015,11 +1190,25 @@ local function ramStep(mode: string, v: Vector3, pos: Vector3, now: number, dt: 
 	local pick = mobility()
 	local airSmash = mode == "air"
 		and ((pick == "speed" and InputController.isDown("Boost")) or pick == "leap")
-	if speed < RAM.minSpeed or now < ramNext or not (RAM_MODES[mode] or airSmash) then
+	-- Wrecking Kick (Swing rank 5): a fast swing into a wall kicks it out like a ram
+	local swingKick = mode == "swing"
+		and activeMoves.wreckingKick
+		and MoveActs.wallKick(MOVES.wreckingKick, speed)
+	if phasing or speed < RAM.minSpeed or now < ramNext or not (RAM_MODES[mode] or airSmash or swingKick) then
 		return v
 	end
 	local hit = Workspace:Raycast(pos, v.Unit * (speed * dt + RAM.reach), rayParams)
 	if not hit or v.Unit:Dot(-hit.Normal) < RAM.facing then
+		return v
+	end
+	if
+		mode == "fly"
+		and MoveController.boosting
+		and activeMoves.phase
+		and buildingOf(hit.Instance)
+		and MoveActs.phaseOn(MOVES.phase, phaseEnded, now, MoveController.stamina)
+	then
+		startPhase(now, pos, v) -- Phase: through it as a flicker, nothing breaks
 		return v
 	end
 	if
@@ -1119,6 +1308,9 @@ end
 
 -- Off the wall with momentum (the stick pulled away from it)
 local function climbKick(flat: Vector3, now: number)
+	if root then
+		MoveController.Kicked:Fire(root.Position - wallNormal * 1.5, wallNormal, "climb", 0) -- Wall Crusher
+	end
 	local vx, vy, vz = ClimbMath.kick(M, wallNormal.X, wallNormal.Z, flat.X, flat.Z)
 	vel = Vector3.new(vx, vy, vz)
 	airSince = now
@@ -1371,6 +1563,7 @@ function MoveController.travel(at: (number) -> Vector3, time: number, upright: b
 	if MoveController.mode == "swing" then
 		dropLine()
 	end
+	endPhase(os.clock()) -- (TravelClient puts the body in the same group for the trip)
 	enterAir(Vector3.zero)
 	arc, ride = nil, nil
 	MoveController.autoTarget = nil
@@ -1451,6 +1644,10 @@ local step: (number) -> ()
 -- every frame: the move, then a note of any stamina drain (boost, wall runs, the scurry) for the regen delay
 local function stepAll(dt: number)
 	step(dt)
+	if root then
+		local y = root.Position.Y
+		topY = if MoveController.mode == "ground" then y else math.max(topY, y)
+	end
 	local st = MoveController.stamina
 	if st < lastStamina - 1e-6 then
 		drainAt = os.clock()
@@ -1738,7 +1935,9 @@ step = function(dt: number)
 			wantBoost = false
 		end
 		local vx, vy, vz, boosting = MoveMath.flightStep(
-			if mobility() == "flight" and level() >= M.mobility.flight.up.boostLevel then FLIGHT_UP else M,
+			slipCfg(
+				if mobility() == "flight" and level() >= M.mobility.flight.up.boostLevel then FLIGHT_UP else M
+			),
 			vel.X,
 			vel.Y,
 			vel.Z,
@@ -1849,9 +2048,16 @@ step = function(dt: number)
 		local targetY = surface + hum.HipHeight + root.Size.Y / 2
 		vel = dir * sprint + Vector3.new(0, (targetY - pos.Y) * 10, 0)
 	elseif mode == "pound" then
-		vel = Vector3.new(0, -M.mobility.leap.pound.speed, 0)
+		if meteorVel and now > meteorUntil then
+			meteorVel = nil -- Meteor Strike's aim ran out: a plain pound straight down
+		end
+		vel = meteorVel or Vector3.new(0, -M.mobility.leap.pound.speed, 0)
 		if onGround then
-			Net.send("MovePound")
+			if meteorVel then
+				MoveController.act("meteorStrike", pos, Vector3.zero, nil, 0, 2) -- the aimed pound lands
+			else
+				Net.send("MovePound")
+			end
 			MoveController.Pounded:Fire(pos)
 			toGround(M.mobility.leap.pound.speed)
 			return
@@ -1861,6 +2067,14 @@ step = function(dt: number)
 		local part = swingPart
 		local ahead = Vector3.new(vel.X, 0, vel.Z)
 		local bump = if ahead.Magnitude > 5 then wallAlong(ahead, 3) else nil
+		if
+			bump
+			and activeMoves.wreckingKick
+			and MoveActs.wallKick(MOVES.wreckingKick, vel.Magnitude)
+			and buildingOf(bump.Instance)
+		then
+			bump = nil -- Wrecking Kick: no push-off, the kick goes through it (ramStep)
+		end
 		if bump then
 			-- swung into a wall: let go and push off it, never stuck pressed against the building; the speed along
 			-- the wall carries on (so the next line chains)
@@ -2021,11 +2235,167 @@ step = function(dt: number)
 		end
 	end
 
+	if phasing then
+		phaseStep(pos, now, dt)
+	end
 	vel = ramStep(MoveController.mode, vel, pos, now, dt)
 	lv.VectorVelocity = if swingDrive and MoveController.mode == "swing" then swingDrive else vel
 	swingDrive = nil
 	ao.CFrame = orientation(MoveController.mode, dt)
 	MoveController.velocity = vel
+end
+
+-- Kick Chain (Acrobat rank 3): each wall kick-off soon after the last is faster, up to `most` in a row; never over
+-- the Acrobat's cap. Returns the multiplier for this kick (1 without the move).
+local function chainKick(now: number): number
+	if not activeMoves.kickChain then
+		return 1
+	end
+	local m = MOVES.kickChain
+	kickChain = MoveActs.chainStep(m, kickChain, now - kickAt)
+	kickAt = now
+	return MoveActs.kickMult(m, kickChain)
+end
+local function capTo(cap: number)
+	if vel.Magnitude > cap then
+		vel = vel.Unit * cap
+	end
+end
+local function kicked(normal: Vector3)
+	if root then
+		MoveController.Kicked:Fire(root.Position - normal * 1.5, normal, "acrobat", kickChain)
+	end
+end
+
+-- Letting go of a wall or ceiling (Acrobat): Ceiling Drop (rank 3) drops onto a robot below, else a plain let-go
+local function letGo(now: number)
+	local near = MoveController.robotsNear
+	if canUse("ceilingDrop") and root and near then
+		local m = MOVES.ceilingDrop
+		local p = root.Position
+		local c = MoveActs.dropPick(m, p.X, p.Y, p.Z, near(p, m.reach))
+		if c then
+			local to = Vector3.new(c.x, c.y + 2.5, c.z)
+			local d = (to - p).Magnitude
+			leaveCrawl(Vector3.zero, now)
+			MoveController.dash(to - p, d, d / (M.mobility.acrobat.cap * 0.95))
+			MoveController.act("ceilingDrop", to, p, m.cooldown, c.id)
+			return
+		end
+	end
+	leaveCrawl(crawlN * 8, now)
+end
+
+-- Slingshot (Acrobat rank 5): Down held on a wall for `charge` s, let go: launched away along the camera's look
+local function slingshot(now: number): boolean
+	if not root or not canUse("slingshot") then
+		return false
+	end
+	local m = MOVES.slingshot
+	local look = Workspace.CurrentCamera.CFrame.LookVector
+	local dx, dz, time, up = MoveActs.slingPlan(m, crawlN.X, crawlN.Z, look.X, look.Z)
+	local p = root.Position
+	local way = Vector3.new(dx, 0, dz)
+	local hit = Workspace:Raycast(p + Vector3.new(crawlN.X, 0, crawlN.Z) * 2, way, rayParams)
+	local to = if hit then hit.Position + hit.Normal * 3 else p + way
+	to = Vector3.new(to.X, p.Y, to.Z)
+	leaveCrawl(Vector3.zero, now)
+	MoveController.arcTo(to, time * (to - p).Magnitude / m.range, up)
+	MoveController.act("slingshot", to, p, m.cooldown)
+	return true
+end
+
+-- Double Zip (Swing rank 3): Leap while swinging fires a second line and shoots forward between the two
+local function doubleZip(): boolean
+	if not root or not canUse("doubleZip") then
+		return false
+	end
+	local m = MOVES.doubleZip
+	local p = root.Position
+	local look = Workspace.CurrentCamera.CFrame.LookVector
+	local fwd = Vector3.new(look.X, math.max(look.Y, 0.05), look.Z).Unit
+	local hit = Workspace:Raycast(p, fwd * m.range, rayParams)
+	local to = if hit then hit.Position - fwd * 4 else p + fwd * m.range
+	local d = (to - p).Magnitude
+	if d < 15 then
+		return false
+	end
+	local sx, sz = MoveActs.secondLine(m, look.X, look.Z, 1)
+	local first = swingAnchor or (p + fwd * 30)
+	dropLine()
+	MoveController.arcTo(to, MoveActs.dashTime(m, M.mobility.swing.zip, d), math.min(8, d * 0.08))
+	zipping = true
+	zipDir = to - p
+	MoveController.Zipped:Fire(to)
+	MoveController.act(
+		"doubleZip",
+		to,
+		p,
+		m.cooldown,
+		nil,
+		nil,
+		{ first = first, second = p + Vector3.new(sx, 0.7, sz).Unit * 40 }
+	)
+	return true
+end
+
+-- Yank (Swing rank 3): Fly on the ground at a robot, car or loose thing along the aim pulls it in to be held
+local function yank(): boolean
+	local pickFn = MoveController.yankPick
+	if not pickFn or not root or not canUse("yank") then
+		return false
+	end
+	local at, id, kind = pickFn(root.Position, Workspace.CurrentCamera.CFrame.LookVector)
+	if not at then
+		return false
+	end
+	MoveController.act("yank", at, root.Position, MOVES.yank.cooldown, id, kind)
+	return true
+end
+
+-- Blink (Super-speed rank 5): Boost tapped again while already running fast: a 30-stud dash along the stick
+local function blink(): boolean
+	if not root or not canUse("blink") then
+		return false
+	end
+	local m = MOVES.blink
+	local run = root.AssemblyLinearVelocity
+	local flatRun = Vector3.new(run.X, 0, run.Z)
+	if flatRun.Magnitude < M.mobility.speed.hop.from then
+		return false
+	end
+	local wish = wishDirs()
+	local dir = if wish.Magnitude > 0.3 then wish.Unit else flatRun.Unit
+	local wall = Workspace:Raycast(root.Position, dir * (m.range + 2), rayParams)
+	local reach = MoveActs.blinkReach(m, if wall then wall.Distance else nil)
+	if reach < 6 then
+		return false
+	end
+	MoveController.act("blink", root.Position, dir * reach, m.cooldown)
+	MoveController.dash(dir, reach, m.time)
+	return true
+end
+
+-- Meteor Strike (Leaping rank 5): Down near the top of a leap aims the pound at what the camera looks at
+local function meteor(): boolean
+	if not root or not canUse("meteorStrike") or not MoveActs.apex(MOVES.meteorStrike, vel.Y) then
+		return false
+	end
+	local m = MOVES.meteorStrike
+	local cam = Workspace.CurrentCamera.CFrame
+	local hit = Workspace:Raycast(cam.Position, cam.LookVector * (m.range + 60), rayParams)
+	local aim = if hit then hit.Position else cam.Position + cam.LookVector * (m.range + 60)
+	local p = root.Position
+	local tx, ty, tz, time = MoveActs.meteorAim(m, p.X, p.Y, p.Z, aim.X, aim.Y, aim.Z)
+	local target = Vector3.new(tx, ty, tz)
+	if target.Y > p.Y - 6 then
+		return false -- it must come down
+	end
+	meteorVel = (target - p).Unit * m.speed
+	meteorUntil = os.clock() + time + 0.6
+	MoveController.act("meteorStrike", target, p, m.cooldown, 0, 1)
+	setMode("pound")
+	return true
 end
 
 local function onPressed(action: string)
@@ -2063,7 +2433,9 @@ local function onPressed(action: string)
 			hum.WalkSpeed = 6 -- the crouch
 			setMode("charge")
 		elseif mode == "swing" then
-			if swingSky then
+			if doubleZip() then
+				return -- Double Zip: two lines, forward between them
+			elseif swingSky then
 				releaseSwing(os.clock()) -- a sky line has nothing to zip up to: let go
 			else
 				zipLine() -- up the line and over the top
@@ -2073,7 +2445,11 @@ local function onPressed(action: string)
 			local flat = wishDirs()
 			local vx, vy, vz = ClimbMath.crawlJump(M, crawlN.X, crawlN.Y, crawlN.Z, flat.X, flat.Z)
 			airJumps = 0
-			leaveCrawl(Vector3.new(vx, vy, vz), os.clock())
+			slingAt = nil
+			local k = chainKick(os.clock())
+			leaveCrawl(Vector3.new(vx, vy, vz) * k, os.clock())
+			capTo(M.mobility.acrobat.cap)
+			kicked(crawlN)
 			if root then
 				MoveController.Leaped:Fire(root.Position)
 			end
@@ -2084,11 +2460,15 @@ local function onPressed(action: string)
 			local along = mode == "wallrun"
 			if pick == "acrobat" then
 				airJumps = math.max(0, airJumps - 1)
+				local k = chainKick(os.clock())
+				local n = wallNormal
 				if along then
-					kickAlong(M.mobility.acrobat.jump, M.mobility.acrobat.jumpForward)
+					kickAlong(M.mobility.acrobat.jump * k, M.mobility.acrobat.jumpForward * k)
 				else
-					jumpOff(M.mobility.acrobat.jump, M.mobility.acrobat.jumpForward)
+					jumpOff(M.mobility.acrobat.jump * k, M.mobility.acrobat.jumpForward * k)
 				end
+				capTo(M.mobility.acrobat.cap)
+				kicked(n)
 			elseif along then
 				kickAlong(40, 30)
 			else
@@ -2097,6 +2477,7 @@ local function onPressed(action: string)
 		elseif (mode == "air" or mode == "glide") and pick == "leap" then
 			-- Leaping: bounce off a wall within reach
 			local b = M.mobility.leap.bounce
+			local bounced = false
 			if bounces < b.max and root then
 				for _, d in
 					{
@@ -2116,9 +2497,21 @@ local function onPressed(action: string)
 						jumpOff(b.up, b.out)
 						vel += along * b.keep
 						MoveController.Leaped:Fire(root.Position)
+						bounced = true
 						break
 					end
 				end
+			end
+			if not bounced and not moonUsed and activeMoves.moonJump and root then
+				-- Moon Jump (Leaping rank 5): one extra leap in mid-air, from where the hero is
+				moonUsed = true
+				local flat = wishDirs()
+				local vx, vy, vz = MoveActs.moonLeap(M, MoveMath.superLeapLaunch, flat.X, flat.Z)
+				vel = Vector3.new(vx, vy, vz)
+				airSince = os.clock()
+				setMode("air")
+				MoveController.Leaped:Fire(root.Position)
+				MoveController.Acted:Fire("moonJump", root.Position, vel, nil)
 			end
 		elseif (mode == "air" or mode == "glide") and pick == "acrobat" then
 			-- Acrobat: jump again in the air
@@ -2137,6 +2530,10 @@ local function onPressed(action: string)
 		if pick == "swing" and not canFly() then
 			if mode == "swing" then
 				return -- releasing the button lets go
+			end
+			-- Yank: a robot or thing along the aim comes to the hero (on the ground)
+			if not air and yank() then
+				return
 			end
 			-- on the ground a zip to the spot aimed at; in the air (or with nothing to zip to) a swing line
 			if air or not zip() then
@@ -2157,18 +2554,33 @@ local function onPressed(action: string)
 			end
 			setMode("fly")
 		end
+	elseif action == "Boost" then
+		if pick == "speed" and mode == "ground" then
+			blink()
+		end
 	elseif action == "Down" then
 		if mode == "climb" or mode == "bound" then
 			jumpOff(0, 6) -- let go of the wall
 			return
 		elseif mode == "crawl" then
-			leaveCrawl(crawlN * 8, os.clock()) -- let go of the face
+			if activeMoves.slingshot and math.abs(crawlN.Y) < 0.5 then
+				-- Slingshot: crouch on the wall; letting Down go launches (or lets go, held too short)
+				slingAt = os.clock()
+				if root then
+					MoveController.Acted:Fire("slingshotCharge", root.Position, crawlN, nil)
+				end
+				return
+			end
+			letGo(os.clock()) -- let go of the face (Ceiling Drop: onto a robot below)
 			return
 		elseif
 			pick == "acrobat"
 			and (mode == "ground" or mode == "air" or mode == "glide" or mode == "wallrun" or mode == "wall")
 		then
 			startFlip(os.clock()) -- the dodge
+			return
+		end
+		if pick == "leap" and (mode == "air" or mode == "glide") and meteor() then
 			return
 		end
 		if pick == "leap" and (mode == "air" or mode == "glide") and root then
@@ -2199,6 +2611,14 @@ end
 local function onReleased(action: string)
 	if action == "Leap" and MoveController.mode == "charge" then
 		launch(math.clamp((os.clock() - chargeStart) / chargeTime(), 0, 1))
+	elseif action == "Down" and slingAt then
+		local since = os.clock() - slingAt
+		slingAt = nil
+		if MoveController.mode == "crawl" and not held() then
+			if since < MOVES.slingshot.charge or not slingshot(os.clock()) then
+				letGo(os.clock())
+			end
+		end
 	end
 end
 
@@ -2239,6 +2659,7 @@ local function bind(character: Model)
 		setBoost(false)
 		dropLine()
 		ride = nil
+		endPhase(os.clock())
 	end)
 end
 
