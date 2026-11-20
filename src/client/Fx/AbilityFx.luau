@@ -170,15 +170,8 @@ HIT.ring = function(pos, x) -- a flat shockwave ring
 end
 HIT.crater = function(pos, x) -- a scorched crater with chips thrown up
 	local g = K.groundBelow(pos, 10)
-	local c = K.part(
-		Vector3.new(0.2, 1, 1),
-		CFrame.new(g + Vector3.new(0, 0.05, 0)) * CFrame.Angles(0, 0, math.rad(90)),
-		DARK,
-		Enum.PartType.Cylinder
-	)
-	c.Material = Enum.Material.Slate
-	grow(c, Vector3.new(0.2, 6 * x.s, 6 * x.s), 0.12)
-	K.fade(c, 1.2, nil, 0.6)
+	-- the scorch: the uploaded scorch sheet lying flat (2026-11-20; was a dark slate disc)
+	FxLib.emit("scorch", DARK, g + Vector3.new(0, 0.15, 0), 1, UP, 6 * x.s)
 	for i = 2, x.n do
 		local a = i / x.n * math.pi * 2
 		local out = Vector3.new(math.cos(a), 0, math.sin(a))

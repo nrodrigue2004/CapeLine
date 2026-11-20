@@ -3585,6 +3585,51 @@ return function(T: any)
 		check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
 	end)
 
+	test("List combat: a crater hit lays the scorch sheet, not a slate disc", function()
+		local roblox = require("@lune/roblox")
+		if not T.placePath then
+			return
+		end
+		local row = Config.Abilities.list.StonePillar
+		check(
+			row ~= nil and Config.FxMoves.moves.StonePillar.hit == "crater",
+			"Stone Pillar's hit is a crater"
+		)
+		local UiSim = require("./uisim")
+		local sim = UiSim.new(
+			UiSim.load(roblox.deserializePlace(fs.readFile(T.placePath))),
+			{ name = "PC", w = 1280, h = 720, top = 36, left = 0, right = 0, bottom = 0, touch = false }
+		)
+		local CombatFx = sim:require("Client.Fx.CombatFx")
+		sim:run("CombatFx", CombatFx.init)
+		sim:run("hit", function()
+			CombatFx.impact(
+				roblox.Vector3.new(0, 5, 0),
+				false,
+				"Comic",
+				true,
+				roblox.Color3.fromRGB(160, 120, 80),
+				row.set,
+				"StonePillar"
+			)
+		end)
+		local scorch, slate = false, 0
+		for _, d in sim.service("Workspace"):GetDescendants() do
+			if d:IsA("ParticleEmitter") and string.find(d.Parent.Name, "^scorch:") then
+				scorch = true
+			elseif
+				d:IsA("Part")
+				and d.Shape == roblox.Enum.PartType.Cylinder
+				and d.Material == roblox.Enum.Material.Slate
+			then
+				slate += 1
+			end
+		end
+		check(scorch, "the scorch sheet is laid")
+		check(slate == 0, "no slate disc (" .. slate .. ")")
+		check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
+	end)
+
 	test("List combat: the Swordsman's cuts are Blender crescents (Everything Left 172)", function()
 		local roblox = require("@lune/roblox")
 		local S = Config.PowerArt.Slash
