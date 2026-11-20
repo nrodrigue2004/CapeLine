@@ -422,18 +422,27 @@ return {
 	-- texts reads by the side picked in the creator. OpeningPlan.STEPS is the beat order.
 	opening = {
 		clockTime = 14.5, -- a bright afternoon on the client while it runs (bright world, serious story)
-		timeout = 330, -- a stuck prologue finishes itself (straight to the title and the rewards) after this
+		-- a stuck prologue finishes itself (straight to the title and the rewards) after this (prologue-cine,
+		-- 2026-11-20: 330 -> 480, so a player who misses every prompt to the 3rd-miss help still gets the fight;
+		-- tests/cine_test.luau sums that worst case)
+		timeout = 480,
 		reach = 14, -- studs from a target that count as there (missions use it too)
 		-- timed beats (seconds); the skip button shows on them only on a replay or for a returning account
 		-- (onboarding check 2026-11-18: ceremony 30 -> 22 and scan 8 -> 7.5 with the same lines re-timed to their
 		-- reading time, so the first control comes at 29.5 s, not 38; rescue 9 -> 13 so its three lines can be read)
-		beats = { ceremony = 22, scan = 7.5, suit = 3.5, rescue = 13, title = 10 },
+		-- (prologue-cine, 2026-11-20: the suit is a HOLD prompt now, so it moved to the stuck timers: the device
+		-- says when the suit has snapped on, OpeningAct 7)
+		beats = { ceremony = 22, scan = 7.5, rescue = 13, title = 10 },
 		-- a beat the hero has not finished in this long moves on by itself (the hero is placed at the next one)
+		-- (prologue-cine, 2026-11-20: every beat to the subway fight is a directed cinematic with prompts; each
+		-- timer is longer than that beat's worst case, every prompt missed to the 3rd-miss help, which
+		-- tests/cine_test.luau checks: spark 12 -> 30, chase 90 -> 130)
 		stuck = {
 			run = 45,
-			spark = 12,
+			spark = 30,
 			leap = 45,
-			chase = 90, -- six roofs (five Leaps): long enough to run, and a hero who stands still is moved on
+			chase = 130,
+			suit = 24,
 			descend = 50,
 			tunnel = 75,
 			fight = 100,
@@ -457,7 +466,8 @@ return {
 		},
 		run = { minD = 60, maxD = 110 }, -- the spark point: open ground this far from the start, away from the stage
 		-- fires on Basic (or by itself); the shove flies 70; the beat then holds for the Ceremony's choice (`pick`)
-		spark = { reach = 18, auto = 6, blast = 70 },
+		-- (prologue-cine: the Spark is a prompt now, so `auto` 6 -> 16 waits out its worst case before firing)
+		spark = { reach = 18, auto = 16, blast = 70 },
 		-- the chase: the first `count` roofs of the rooftop row (Config.City.downtown.row, nate 2026-11-17); if
 		-- the row is missing, a chain of `fallback` ordinary Downtown roofs near the spark point
 		roofs = {
@@ -484,8 +494,27 @@ return {
 		-- `retry` s later; after `assist` misses in a row the hop happens by itself, so nobody is stuck. Skylance
 		-- cannot be hurt, stunned, knocked or grabbed until the fight (EnemyService.tune untouchable).
 		qte = {
-			beats = { leap = true, chase = true, descend = true },
-			camera = { leap = true, chase = true, suit = true, descend = true }, -- the chase camera's beats
+			-- the beats with prompts, played as directed cinematics with the runner's camera (prologue-cine,
+			-- 2026-11-20: every beat from the ceremony to the subway fight; the ceremony, the scan and the Ceremony's
+			-- choice keep their own camera shots, OpeningPlan.CUT and PrologueFx)
+			beats = {
+				run = true,
+				spark = true,
+				leap = true,
+				chase = true,
+				suit = true,
+				descend = true,
+				tunnel = true,
+			},
+			camera = {
+				run = true,
+				spark = true,
+				leap = true,
+				chase = true,
+				suit = true,
+				descend = true,
+				tunnel = true,
+			},
 			lead = 0.6,
 			window = 2.4,
 			ease = 1.5,
@@ -497,7 +526,46 @@ return {
 			camUp = 11,
 			camBack = 10,
 			camEase = 5, -- how fast the camera follows (per second)
-			words = { Leap = "JUMP!", Block = "DODGE!", drop = "DROP!" }, -- the prompt's verb (UI words)
+			-- the prompt's verb (UI words; prologue-cine adds GRAB, the Spark's SHIELD and SMASH, the mash and the suit)
+			words = {
+				Leap = "JUMP!",
+				Block = "DODGE!",
+				drop = "DROP!",
+				Catch = "GRAB!",
+				shield = "SHIELD!",
+				smash = "SMASH!",
+				mash = "BREAK FREE!",
+				suit = "SUIT UP!",
+			},
+			-- prologue-cine (nate, 2026-11-20: "dont have the player run to the gold marker. whole prologue needs to
+			-- be cutscene with qtes until subway"): every beat from the ceremony to the subway fight is directed
+			-- (Shared.PrologueCine: the hero's authored path, clips and camera shots; Fx.PrologueQte runs it). The
+			-- prompt kinds: a press (JUMP, DODGE, GRAB, SHIELD or SMASH), a mash (SMASH! `mash.count` presses
+			-- inside `mash.window` s) and a hold (SUIT UP: the key held `hold.seconds`, inside `hold.window` s).
+			-- A prompt shows `lead` s before the move in front of it ends, so a quick player never stops.
+			mash = { count = 6, window = 3.4 },
+			hold = { seconds = 1.0, window = 4 },
+			grab = 5, -- the chase hop (route roof number) that falls short: GRAB the ledge, then climb
+			-- the authored motion: studs a second on the runs (the server grants the travel, MoveGuard), the arcs'
+			-- heights, the slow-mo leap's length and the drop's
+			speed = { run = 30, tunnel = 34, roll = 16 },
+			arc = { vault = 6, roll = 1.5, climb = 4, leap = 26, leapTime = 1.9 },
+			-- the camera shots (PrologueCine.camera): studs out, up and ahead for each kind
+			shot = {
+				track = { back = 13, up = 6, ahead = 10 },
+				front = { ahead = 13, up = 4, side = 3 },
+				low = { side = 10, up = 1.2, back = 4 },
+				wide = { side = 0.3, up = 16, rise = 0.1 }, -- to the side of the arc, near its peak, close on the hero
+				top = { up = 16, back = 7 }, -- above and behind the hero, riding the drop down
+				ledge = { back = 10, side = 5, up = 3 }, -- out from the wall the hero hangs on, a little above
+				over = { back = 8, side = 6, up = 5 },
+				orbit = { radius = 11, up = 3, turn = 100 },
+			},
+			grantRate = 140, -- studs a second of travel the server grants on the directed beats (the drop falls fast)
+			suitMin = 1.0, -- the suit beat's least seconds before the device's "suit snapped" counts
+			startReach = 30, -- a directed move waits until the body is this near its start (a cut's placing arrived)
+			slowMo = 0.35, -- the hero's clips run this slow on the device while a prompt waits (and on the big leap)
+			fightWord = "FIGHT!", -- the handoff banner as the subway fight starts (control and the HUD come back)
 		},
 		-- The exposition before the creator (fix-flow, nate's playtest 2026-11-19: "The game should open with some
 		-- sort of exposition that tells the player whats going on. get to the customization, then prologue"): a

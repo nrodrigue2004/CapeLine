@@ -8456,6 +8456,7 @@ end); -- Hero MMO features (H1 to H8) live in their own file so this one merges 
 (require :: any)("./hairfit_test")({ test = test, check = check, Config = Config }); -- the hair fit pass: explicit catalog picks
 (require :: any)("./fit_test")({ test = test, check = check, Config = Config }); -- pt-fit: pieces and weapons on Roblox's own body
 (require :: any)("./flow_test")({ test = test, check = check, Config = Config, place = process.args[1] }); -- fix-flow
+(require :: any)("./cine_test")({ test = test, check = check, Config = Config, place = process.args[1] }); -- prologue-cine
 -- WP10: the group-join piece and creator codes (own file, merges easily)
 (require :: any)("./promo_test")({ test = test, check = check, Config = Config, placePath = process.args[1] }); -- WP11: story acts (Act 1 today, Acts 2 and 3 coming soon), own file
 (require :: any)("./acts_test")({ test = test, check = check, Config = Config, placePath = process.args[1] }); -- act1-choices: a choice in every Act 1 mission (own file, merges easily)
