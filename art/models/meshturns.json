@@ -231,6 +231,13 @@
   "turned": 155,
   "verdict": "rotY180"
  },
+ "Shapes": {
+  "asDrawn": 17,
+  "either": 17,
+  "meshes": 59,
+  "turned": 59,
+  "verdict": "rotY180"
+ },
  "Shoulders": {
   "asDrawn": 10,
   "either": 10,

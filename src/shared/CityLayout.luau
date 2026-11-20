@@ -192,6 +192,7 @@ local function dashes(
 				"mark"
 			)
 			boxes[#boxes].dress = true
+			boxes[#boxes].decal = if kit.crossing then "Dash" else nil -- worn paint (shapes-2)
 		end
 		if east then
 			box(
@@ -206,6 +207,57 @@ local function dashes(
 				"mark"
 			)
 			boxes[#boxes].dress = true
+			boxes[#boxes].decal = if kit.crossing then "Dash" else nil -- worn paint (shapes-2)
+		end
+	end
+	-- shapes-2 (2026-11-19): a zebra crossing at each end of the street and a storm drain by each kerb, as picture
+	-- strips on the tarmac (Config.Life.shapes.decals: the strip is hidden under its picture; none until uploaded).
+	-- Every crossing's own x runs across its street (the picture's bars run along the traffic).
+	local cw, gw = kit.crossing, t.street - 2
+	if cw then
+		local function strip(
+			x: number,
+			z: number,
+			sx: number,
+			sz: number,
+			ry: number,
+			color: string,
+			decal: string
+		)
+			box(boxes, "mark", x, gy + 0.23, z, sx, 0.04, sz, color, { ry = ry })
+			boxes[#boxes].dress = true
+			boxes[#boxes].decal = decal
+		end
+		local edge = b / 2 - cw.inset
+		if south then
+			local z = minZ + b + t.street / 2
+			for _, k in { -1, 1 } do
+				strip(cx + k * edge, z, gw, cw.depth, 90, "zebra", "Zebra")
+				strip(
+					cx + k * b / 4,
+					z + k * (t.street / 2 - 1.2),
+					cw.drain[1],
+					cw.drain[2],
+					0,
+					"drain",
+					"Drain"
+				)
+			end
+		end
+		if east then
+			local x = minX + b + t.street / 2
+			for _, k in { -1, 1 } do
+				strip(x, cz + k * edge, gw, cw.depth, 0, "zebra", "Zebra")
+				strip(
+					x + k * (t.street / 2 - 1.2),
+					cz + k * b / 4,
+					cw.drain[1],
+					cw.drain[2],
+					90,
+					"drain",
+					"Drain"
+				)
+			end
 		end
 	end
 end

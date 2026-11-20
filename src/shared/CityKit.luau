@@ -229,6 +229,7 @@ function CityKit.kerbs(boxes: { any }, minX: number, minZ: number, size: number,
 			sy = 0.9,
 			sz = sz,
 			color = "kerb",
+			kit = "Concrete", -- shapes-2: a cast kerb, not a plain strip
 			dress = true,
 		})
 	end

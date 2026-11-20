@@ -48,6 +48,7 @@
         "Shoulders": { "$path": "art/models/Shoulders.rbxm" },
         "Street": { "$path": "art/models/Street.rbxm" },
         "Life": { "$path": "art/models/Life.rbxm" },
+        "Shapes": { "$path": "art/models/Shapes.rbxm" },
         "LoreBook": { "$path": "art/models/LoreBook.rbxm" },
         "Trooper": { "$path": "art/models/Trooper.rbxm" },
         "Vehicles": { "$path": "art/models/Vehicles.rbxm" },

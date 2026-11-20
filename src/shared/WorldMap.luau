@@ -15,6 +15,7 @@ local HeightMap = if script then require(script.Parent.HeightMap) else (require 
 local BoxKit = if script then require(script.Parent.BoxKit) else (require :: any)("./BoxKit")
 local Rng = if script then require(script.Parent.Rng) else (require :: any)("./Rng")
 local CityKit = if script then require(script.Parent.CityKit) else (require :: any)("./CityKit")
+local LifeKit = if script then require(script.Parent.LifeKit) else (require :: any)("./LifeKit")
 
 local WorldMap = {}
 
@@ -274,6 +275,11 @@ function WorldMap.build(Config: any, seed: number, opts: { props: boolean? }?): 
 	end
 	if Config.Destruction.everywhere then
 		WorldMap.outskirtsBuildings(Config, buildings, tilePlans) -- 2026-11-19: every outskirts building body
+	end
+	-- round 2 of the living world (shapes-2): the roofs' parapets, cornices and caps take their mouldings
+	LifeKit.roofs(Config, hubBoxes)
+	for _, plan in tilePlans do
+		LifeKit.roofs(Config, plan.boxes)
 	end
 	local landmarks = {}
 	local landmarkParts = 0

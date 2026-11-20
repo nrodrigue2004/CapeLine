@@ -55,6 +55,68 @@ return {
 		SiloBody = { SiloBody = { color = { 196, 200, 204 }, mat = "Metal" } },
 		SiloDome = { SiloDome = { color = { 206, 210, 214 }, mat = "Metal" } },
 	},
+	-- round 2 (shapes-2, 2026-11-19, nate: "you still use way too many simple shapes"): Art.Shapes looks
+	-- (art/blender/shapes.py, Config.ShapeArt) over the boxes the first pass left plain. Prop looks take the box's
+	-- place (collide like it, break like it: StreetBreak); `ring` looks (roof mouldings) run along the four edges of
+	-- a box that stays (visual only). Shared.LifeKit places them; CityBuilder builds them.
+	shapes = {
+		set = "Shapes", -- ReplicatedStorage.Art.Shapes (art/models/Shapes.rbxm; MeshFix.turn("Shapes"))
+		rocks = { "RockA", "RockB", "RockC" }, -- a `Rock` box's shape, by hash
+		turns = { Rock = true, RockBase = true, UmbrellaTop = true }, -- turned every way by hash
+		-- pieces that never collide even on a solid box (thin details)
+		soft = {
+			HoopNet = true,
+			TowelStripe = true,
+			CorniceDentils = true,
+			LanternLamp = true,
+			UmbrellaTrim = true,
+			RoofEdgeBand = true,
+			PondReeds = true,
+			PondPads = true,
+			PoolLadder = true,
+		},
+		keep = { PondRim = true }, -- prop looks that dress a box which stays (the pond's water)
+		-- the water's surface (nate: "pools need to look better as well"): a ripple picture tiled on every pool,
+		-- pond and fountain's top (art/shapes/decals.py, uploaded), drifting on the devices near it (Fx.WaterSurface)
+		water = { image = 74012329694187, studs = 10, drift = 0.6, radius = 260, transparency = 0.2 },
+		ring = { out = 0.5 }, -- a run's face sits this far in from its depth past the box's edge
+		roofKit = "Concrete", -- a flat roof's cap under its moulding wears this kit texture
+		-- road pictures (art/shapes/decals.py, uploaded): CityLayout's crossing, drain and lane dash strips (each strip
+		-- hidden under its picture); 0 = not built
+		decals = { Zebra = 72425385136303, Drain = 116604205472367, Dash = 79628484169672 },
+	},
+	-- lit windows after dusk (shapes-2; Fx.LitWindows, Shared.LitPlan): each kit front's lit picture
+	-- (art/city/litwindows.py, uploaded) over the building faces near the camera in an unlit SurfaceGui; images 0
+	-- are not drawn. Budgets per preset: how far and how many faces.
+	lit = {
+		images = {
+			Brick = 137063544064516,
+			Curtain = 139610505527078,
+			Deco = 123684102732819,
+			DockBrick = 112466381364654,
+			Office = 100055992717480,
+			OldBrick = 98558163175432,
+			Panel = 115802676369115,
+			Plaster = 100336179747947,
+			Ribbon = 90387260414752,
+			Siding = 123205851847368,
+			Stone = 136381403359715,
+			Timber = 136566113405920,
+			Warehouse = 126791743241004,
+		},
+		block = 48, -- studs a picture covers (4 x 4 storey bays)
+		pps = 6, -- canvas pixels a stud
+		brightness = 1.8,
+		from = 18.2, -- clock hours: on after dusk ...
+		to = 6.1, -- ... off at dawn
+		minFace = 10, -- faces narrower than this stay dark
+		every = 0.75, -- seconds between passes
+		budget = {
+			low = { radius = 260, faces = 16 },
+			medium = { radius = 420, faces = 48 },
+			high = { radius = 700, faces = 120 },
+		},
+	},
 	-- leaf colours by hash: mostly greens, a few autumn and blossom trees for variety (outskirts and parks)
 	leaves = {
 		{ 88, 150, 64 },

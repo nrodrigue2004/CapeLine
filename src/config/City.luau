@@ -90,8 +90,8 @@ return {
 			},
 		},
 	},
-	-- Uptown (PLACEHOLDER NAME): the second Downtown-style district, its own grid, heights and palette (sunset
-	-- coral, teal, amber and violet fronts over warm terrazzo, flower tubs and bushes instead of trees), so it
+	-- Uptown (PLACEHOLDER NAME): the second Downtown-style district, its own grid, heights and palette (muted
+	-- terracotta, slate teal, champagne stone and steel fronts since shapes-2, over warm terrazzo, flower tubs and bushes instead of trees), so it
 	-- does not read as a copy of Downtown. Built like Downtown's grown blocks (CityLayout.uptown).
 	uptown = {
 		seed = 20261121,
@@ -137,14 +137,17 @@ return {
 			},
 			Docks = { steel = { "Warehouse" }, brick = { "DockBrick" }, foundry = { "Warehouse" } },
 			-- Uptown: ribbon windows and prism glass tinted in the district's sunset colours, white panels
+			-- shapes-2 (2026-11-19, nate: "uptown buildings look weird with crazy colors and textures"): an upscale
+			-- business district, not a candy box: mostly neutral glass curtain walls and stone, ribbon windows in
+			-- muted tints; the diamond Prism glass read as a chain-link fence over a whole tower, so Uptown no longer uses it
 			Uptown = {
-				upCoral = { "Ribbon", "Ribbon", "Panel" },
-				upTeal = { "Prism", "Ribbon" },
-				upAmber = { "Ribbon", "Prism" },
-				upViolet = { "Prism", "Ribbon" },
-				upCream = { "Panel", "Ribbon" },
-				upSky = { "Prism", "Panel" },
-				tower = { "Prism", "Prism", "Ribbon" },
+				upCoral = { "Ribbon", "Deco", "Panel" },
+				upTeal = { "Curtain", "Ribbon" },
+				upAmber = { "Deco", "Ribbon" },
+				upViolet = { "Curtain", "Ribbon" },
+				upCream = { "Panel", "Deco" },
+				upSky = { "Curtain", "Panel" },
+				tower = { "Curtain", "Curtain", "Ribbon" },
 			},
 			OldTown = {
 				brick = { "OldBrick" },
@@ -180,8 +183,8 @@ return {
 			Plaster = { "plYellow", "plPeach", "plMint", "plSky", "plRose", "plCream" },
 			Timber = { "plCream", "plYellow", "plRose" },
 			Siding = { "sdBlue", "sdYellow", "sdMint", "sdCream", "sdRose", "sdWhite" },
-			Ribbon = { "upCoral", "upTeal", "upAmber", "upViolet", "upMint" },
-			Prism = { "upTeal", "upViolet", "upAmber", "upSky" },
+			Ribbon = { "upCoral", "upTeal", "upAmber", "upViolet", "upMint" }, -- (muted since shapes-2)
+			Prism = { "upTeal", "upSky" },
 			Container = false,
 			RoofTile = false,
 			-- the pockets' kit (2026-11-19, art/city/pocket_materials.py; Config.PocketKit): drawn light, the part's colour shows
@@ -308,6 +311,9 @@ return {
 		-- front texture never shows on top
 		lampEvery = 26, -- street lamps along each side (studs apart), planted trees between them
 		dash = { length = 6, gap = 6, width = 0.5 }, -- the lane dashes down the middle of Downtown's streets
+		-- shapes-2 (2026-11-19): zebra crossings (this deep, this far in from the block's corner) and storm drains
+		-- (x, z) on every dashed street (Config.Life.shapes.decals)
+		crossing = { depth = 5, inset = 4, drain = { 3, 1.4 } },
 		-- pt-city (2026-11-19): the street-level and rooftop pieces heroes use or break in Downtown and Uptown
 		-- (CityLayout; Shared.CityPlay). Picks are hashes of each spot (salts below), never a layout draw, so no
 		-- building moves. Chances are per building face or roof; heights in studs over the sidewalk.
@@ -724,6 +730,8 @@ return {
 		kerb = { 186, 184, 178 },
 		cornice = { 132, 134, 138 }, -- the kit's roof caps (mid grey, so roofs read under the light fronts)
 		mark = { 236, 234, 226 },
+		zebra = { 236, 234, 226 }, -- a crossing's strip (shapes-2: hidden under its zebra picture)
+		drain = { 54, 56, 60 }, -- a storm drain's strip (hidden under its grate picture)
 		sidewalk = { 120, 120, 118 },
 		grass = { 92, 130, 78 },
 		roof = { 74, 76, 82 },
@@ -779,13 +787,15 @@ return {
 		plRose = { 250, 188, 196 },
 		plCream = { 255, 240, 214 },
 		-- Uptown (2026-11-17): sunset fronts, plain bodies until the kit is in, and their kit tints
-		upCoral = { 236, 128, 104 },
-		upTeal = { 64, 170, 168 },
-		upAmber = { 240, 178, 84 },
-		upViolet = { 150, 118, 196 },
-		upCream = { 244, 230, 206 },
-		upSky = { 120, 182, 226 },
-		upMint = { 136, 214, 176 },
+		-- Uptown's palette, muted to warm stone, slate and steel (shapes-2, 2026-11-19; was candy coral, teal,
+		-- amber, violet, sky and mint): the same keys, so no layout draw changes
+		upCoral = { 190, 140, 120 },
+		upTeal = { 96, 132, 138 },
+		upAmber = { 206, 182, 142 },
+		upViolet = { 118, 118, 138 },
+		upCream = { 236, 228, 212 },
+		upSky = { 150, 172, 192 },
+		upMint = { 150, 176, 160 },
 		upRoof = { 196, 190, 180 },
 		-- awnings, billboard faces, news boxes and food carts (pt-city, 2026-11-19): bright cartoon colours
 		awRed = { 222, 70, 62 },

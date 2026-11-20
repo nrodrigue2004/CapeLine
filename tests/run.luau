@@ -23188,6 +23188,9 @@ do
 		placePath = placePath,
 	})
 end
+-- the living world's round 2 (shapes-2, 2026-11-19, own file): Art.Shapes, roofs, road pictures, water, lit
+-- windows, Uptown's palette; ONLY="Shapes"
+(require :: any)("./shapes_test")({ test = test, check = check, Config = Config, world = world })
 print(string.format("\n%d passed, %d failed", passed, failed))
 if failed > 0 then
 	process.exit(1)
