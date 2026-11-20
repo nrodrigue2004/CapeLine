@@ -1823,7 +1823,15 @@ PIECE.kunai = function(s: number, c: Color3): BasePart
 	p.Material = Enum.Material.Metal
 	return p
 end
-PIECE.plate = function(s: number, c: Color3): Part
+PIECE.plate = function(s: number, c: Color3): BasePart
+	-- a bolted hex plate (Art.Powers Plate, 2026-11-20; regular, so the import's half turn changes nothing)
+	if PowerMeshes.ready("Plate") then
+		local mp = powerMesh("PlateHex", Vector3.new(s, s * 0.15, s * 0.866), c)
+		if mp then
+			mp.Material = Enum.Material.SmoothPlastic
+			return mp
+		end
+	end
 	return part(Vector3.new(s, s * 0.15, s), CFrame.new(), c)
 end
 PIECE.tri = function(s: number, c: Color3): Part

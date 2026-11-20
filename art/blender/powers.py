@@ -629,6 +629,18 @@ mesh("Claw", "ClawHub", [C(0.3, 0.55, 0, 0, 0.0, segs=10, axis="z"), TOR(0.14, 0
 mesh("Claw", "ClawProng", [T([(0, 0.25, 0.1), (0, 0.55, -0.4), (0, 0.5, -0.9), (0, 0.26, -1.15), (0, 0.12, -1.05)],
                             [0.1, 0.09, 0.07, 0.04, 0.015], segs=7)], (200, 120, 50), "Metal")
 
+# ================================================================ the plate piece (CombatFx PIECE.plate, 2026-11-20): Gadgeteer's hex plates and
+# Juggernaut's armour plates, the petals hit and the Mech Suit's drop: a flat hexagon 2 across (corner to corner, in
+# x-z, 0.15 thick) with a raised inner hexagon, a groove between and a bolt in the middle; regular, so the import's
+# half turn leaves it as drawn.
+def hexpoly(r, rot=0.0):
+    return [(r * math.cos(rot + i * math.pi / 3), r * math.sin(rot + i * math.pi / 3)) for i in range(6)]
+
+
+plate = [extrude_up(hexpoly(1.0), -0.075, 0.075), extrude_up(hexpoly(0.92), 0.075, 0.095),
+         extrude_up(hexpoly(0.62), 0.095, 0.13), C(0.11, 0.06, 0, 0.13, 0, segs=8)]
+mesh("Plate", tint("PlateHex"), plate, (220, 255, 240), "SmoothPlastic", shade=False)
+
 # ================================================================ the fit table and the export
 def bounds(ob):
     vs = [ob.matrix_world @ v.co for v in ob.data.vertices]
@@ -692,7 +704,7 @@ if "--preview" in sys.argv:
              "Bullet": (-4, -14, 2), "Sun": (6, -16, 4), "BlackHole": (13, -16, 3), "KiRing": (19, -16, 3),
              "EmberRim": (-12, -16, 0.2), "HaloRim": (-18, -16, 0.2), "VoltRim": (-38, -16, 0.2),
              "Slash": (-26, -16, 2), "Shock": (-32, -16, 1), "Heads": (26, -16, 2), "Girder": (31, 6, 11.5), "Wing": (-28, 6, 3), "Net": (-34, 6, 2),
-             "Claw": (-31, -6, 1)}
+             "Claw": (-31, -6, 1), "Plate": (-35, -6, 1)}
     close = "--close" in sys.argv  # the 2026-11-20 effect looks only, near the camera (art/preview/powers_fx.png)
     if close:
         spots = {"Sun": (-9, 0, 3), "BlackHole": (-3.5, 0, 2.5), "KiRing": (1, 0, 2.5), "EmberRim": (5.5, 0, 0.2),

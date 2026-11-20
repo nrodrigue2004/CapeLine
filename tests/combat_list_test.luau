@@ -988,8 +988,8 @@ return function(T: any)
 			end
 		end
 		check(
-			n == 76,
-			"76 meshes in 30 looks (the robots' net and claw; the wings flourish; 178 the held girder; 382 added the jets, the rail and the slab; 173 the bullet; 169, 177, 180 and 183 the sun, ki ring, black hole and field rims; 172 the slash; 381 the shock ring and cone fan, then the flying heads; 167 Static Field's arcs): "
+			n == 77,
+			"77 meshes in 31 looks (the hex plate; the robots' net and claw; the wings flourish; 178 the held girder; 382 added the jets, the rail and the slab; 173 the bullet; 169, 177, 180 and 183 the sun, ki ring, black hole and field rims; 172 the slash; 381 the shock ring and cone fan, then the flying heads; 167 Static Field's arcs): "
 				.. n
 		)
 		for _, look in
@@ -3718,7 +3718,7 @@ return function(T: any)
 	end)
 
 	test(
-		"List combat: halo and spin flourishes are hollow Blender hoops, shatters glass stones, wings Blender wings, cages lances",
+		"List combat: halo and spin flourishes are hollow Blender hoops, shatters glass stones, wings Blender wings, cages lances, plates hex plates",
 		function()
 			local roblox = require("@lune/roblox")
 			if not T.placePath then
@@ -3778,6 +3778,26 @@ return function(T: any)
 				string.find(src, "-0.35 * open * sgn", 1, true) ~= nil,
 				"both wings sweep back (mirrored yaw)"
 			)
+			-- Ember Ring's petals (the plate piece): bolted Blender hex plates, not boxes
+			sim:run("petals", function()
+				AbilityFx.hit(
+					Config.Abilities.list.EmberRing,
+					"Comic",
+					V(-90, 5, 0),
+					roblox.Color3.fromRGB(255, 120, 40),
+					roblox.Color3.new(1, 1, 1),
+					true,
+					nil,
+					1
+				)
+			end)
+			local plates = 0
+			for _, d in sim.service("Workspace"):GetDescendants() do
+				if d:IsA("MeshPart") and d.Name == "PlateHex" and d.CFrame.Position.X < -80 then
+					plates += 1
+				end
+			end
+			check(plates >= 4, "the petals are hex plates (" .. plates .. ")")
 			-- Static Field's cage: bars of light are Blender lances stood on end round the target
 			sim:run("cage", function()
 				AbilityFx.hit(
