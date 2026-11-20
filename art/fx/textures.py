@@ -16,7 +16,7 @@ Until then the game uses Roblox's built-in particle images.
     art/preview/fx_cracks.png; --destruction: only crater.png and crack.png, Config.Destruction.decals; --wrecks: only
     bolt.png, the downed robots' nut, preview art/preview/fx_bolt.png; --chips: only chip.png, the throw and smash
     chip, preview art/preview/fx_chip.png; --scars: only the Crater's burn scars scar_1..3.png, preview
-    art/preview/fx_scars.png)
+    art/preview/fx_scars.png; --rain: only the weather's rain.png and splash.png, preview art/preview/fx_rain.png)
 """
 
 import math
@@ -1010,10 +1010,44 @@ def scars_main():
     print("wrote", len(made), "burn scars to", OUT)
 
 
+def rain_main():
+    """The weather's rain (list-combat 2026-11-20, Everything Left 273): rain.png, a soft thin streak (64 x 256,
+    white on transparent, brightest in its middle third) for the falling rain, and splash.png, a small crown of
+    droplets for where it lands. Preview art/preview/fx_rain.png on a dusk-blue city colour."""
+    os.makedirs(OUT, exist_ok=True)
+    w, h = 64, 256
+    y, x = np.mgrid[0:h, 0:w].astype(np.float32)
+    across = np.exp(-((x - (w - 1) / 2) / 3.2) ** 2)
+    t = y / (h - 1)
+    along = np.clip(np.sin(t * math.pi), 0, 1) ** 0.6 * (0.55 + 0.45 * t)
+    streak = to_image(across * along * 0.9)
+    streak.save(os.path.join(OUT, "rain.png"))
+    size = 128
+    gx, gy = grid(size)
+    r = np.sqrt(gx ** 2 + gy ** 2)
+    ring = np.exp(-((r - 0.62) / 0.07) ** 2) * (gy > -0.15)
+    drops = np.zeros_like(r)
+    for i in range(7):
+        a = math.pi * (0.15 + 0.7 * i / 6)
+        cx, cy = math.cos(a) * 0.75, -math.sin(a) * 0.75 - 0.1
+        drops += np.exp(-(((gx - cx) ** 2 + (gy - cy) ** 2) / 0.006))
+    splash = to_image(np.clip(ring * 0.8 + drops, 0, 1))
+    splash.save(os.path.join(OUT, "splash.png"))
+    pv = Image.new("RGBA", (420, 300), (46, 58, 86, 255))
+    for i in range(14):
+        pv.alpha_composite(streak.resize((16, 64)), (12 + i * 28, 20 + (i * 37) % 80))
+    pv.alpha_composite(streak, (20, 30))
+    pv.alpha_composite(splash, (250, 150))
+    pv.save(os.path.join(ROOT, "art", "preview", "fx_rain.png"))
+    print("wrote rain.png and splash.png to", OUT)
+
+
 if __name__ == "__main__":
     import sys
 
-    if "--cracks" in sys.argv:  # only the landing crack decals (Config.Fx.crack.decals)
+    if "--rain" in sys.argv:  # only the weather's rain streak and splash (Config.Fx.weather)
+        rain_main()
+    elif "--cracks" in sys.argv:  # only the landing crack decals (Config.Fx.crack.decals)
         cracks_main()
     elif "--trails" in sys.argv:  # only the creator's trail strips (the library sheets above stay as uploaded)
         os.makedirs(OUT, exist_ok=True)

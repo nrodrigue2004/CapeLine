@@ -734,4 +734,147 @@ return function(T: any)
 			check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, "; "))
 		end
 	end)
+
+	test("List combat: weather, the same sky for everyone (rain, storms, fog banks)", function()
+		local WeatherPlan = require("../src/shared/WeatherPlan")
+		local W = Config.Weather
+		check(W ~= nil and W.on, "Config.Weather is on")
+		local counts = {}
+		for _, name in W.order do
+			check(W.kinds[name] ~= nil and W.kinds[name].weight > 0, name .. " has a weight")
+			counts[name] = 0
+		end
+		local N = 3000
+		local fails, follows, storms = 0, 0, 0
+		for s = 1, N do
+			local prev, cur = WeatherPlan.run(W, s)
+			counts[cur] += 1
+			if cur == prev and cur ~= "clear" then
+				fails += 1
+			end
+			if cur == "storm" then
+				storms += 1
+				if prev ~= "rain" then
+					fails += 1
+				end
+			end
+			local _, before = WeatherPlan.run(W, s - 1)
+			if before == prev then
+				follows += 1
+			end
+		end
+		check(fails == 0, "no weather twice in a row and a storm always follows rain: " .. fails)
+		check(follows >= N * 0.97, "a slot's 'before' is the slot before it: " .. follows .. "/" .. N)
+		check(counts.clear >= N * 0.3, "clear most of the time: " .. counts.clear)
+		check(
+			counts.rain > 0 and storms > 0 and counts.fog > 0 and counts.overcast > 0,
+			"every kind comes up"
+		)
+		-- the blend: none at a slot's start, all of it after the fade
+		local _, _, k0 = WeatherPlan.at(W, 10 * W.slot)
+		local _, _, k1 = WeatherPlan.at(W, 10 * W.slot + W.fade + 1)
+		check(k0 == 0 and k1 == 1, "the fade runs over the slot's first seconds")
+		local b = {
+			air = {
+				Density = 0.3,
+				Offset = 0.15,
+				Haze = 1.2,
+				Glare = 0.2,
+				Color = { 235, 199, 168 },
+				Decay = { 140, 128, 179 },
+			},
+			clouds = { cover = 0.55, density = 0.6 },
+		}
+		local clear = WeatherPlan.mix(W, "clear", "clear", 1, b)
+		check(clear.air.Density == 0.3 and clear.air.Color[1] == 235, "clear keeps the place's own sky")
+		check(
+			clear.rain == 0 and not clear.lightning and clear.grade.brightness == 0,
+			"clear: no rain, no grade"
+		)
+		local rain = WeatherPlan.mix(W, "clear", "rain", 1, b)
+		check(
+			rain.rain == 1 and rain.air.Density > 0.3 and rain.clouds.cover > 0.55,
+			"rain: drops, haze, clouds"
+		)
+		local half = WeatherPlan.mix(W, "clear", "rain", 0.5, b)
+		check(half.rain == 0.5, "half way in, half the rain")
+		check(WeatherPlan.mix(W, "rain", "storm", 1, b).lightning, "a storm has lightning")
+		-- lightning: flashes inside their window with the thunder after them, the same numbers every time
+		local flashes = 0
+		for w = 1, 200 do
+			local at, thunder = WeatherPlan.strike(W, w)
+			if at then
+				flashes += 1
+				check(at >= w * W.lightning.gap and thunder < (w + 1) * W.lightning.gap, "inside its window")
+				check(thunder - at >= W.lightning.thunder[1] - 1e-6, "the thunder comes after the flash")
+				check(WeatherPlan.flash(W, at + 0.01) > 0.9, "the flash is bright at once")
+				check(WeatherPlan.flash(W, at + W.lightning.flash + 0.01) == 0, "and gone after")
+				local pts = WeatherPlan.bolt(W, w, 650, 470)
+				local top, bottom = pts[1], pts[#pts]
+				check(top[2] == 470 and bottom[2] == 0, "the bolt runs from the clouds to the ground")
+				check(math.abs(math.sqrt(top[1] ^ 2 + top[3] ^ 2) - 650) < 1, "650 studs away")
+			end
+			local again = WeatherPlan.strike(W, w)
+			check(again == at, "seeded: every device sees the same flash")
+		end
+		check(flashes > 100 and flashes < 180, "about 7 in 10 windows flash: " .. flashes)
+		check(W.rain.texture > 0 and W.rain.splash > 0, "rain and splash textures uploaded")
+		check(
+			fs.isFile("art/export/fx/rain.png") and fs.isFile("art/export/fx/splash.png"),
+			"the drawn textures"
+		)
+		local init = fs.readFile("src/client/init.client.luau")
+		check(string.find(init, "WeatherFx.init()", 1, true) ~= nil, "WeatherFx runs")
+		local fx = fs.readFile("src/client/Fx/WeatherFx.luau")
+		check(string.find(fx, 'FrameProf.wrap("WeatherFx"', 1, true) ~= nil, "FrameProf on the loop")
+		check(
+			string.find(fx, "if under then", 1, true) ~= nil,
+			"leaves the Atmosphere to DeepClient underwater"
+		)
+		if T.placePath then
+			local roblox = require("@lune/roblox")
+			local UiSim = require("./uisim")
+			local sim = UiSim.new(UiSim.load(roblox.deserializePlace(fs.readFile(T.placePath))), {
+				name = "Phone",
+				w = 844,
+				h = 390,
+				top = 0,
+				left = 44,
+				right = 44,
+				bottom = 21,
+				touch = true,
+			})
+			local ws = sim.service("Workspace")
+			local lighting = sim.service("Lighting")
+			local d0 = lighting:FindFirstChildOfClass("Atmosphere").Density
+			sim:run("WeatherFx", sim:require("Client.Fx.WeatherFx").init)
+			local function frames(n: number)
+				for _ = 1, n do
+					sim:run("frame", function()
+						sim.service("RunService").Heartbeat:Fire(0.12)
+					end)
+					sim:advance(0.12)
+				end
+			end
+			ws:SetAttribute("WeatherForce", "storm")
+			frames(30)
+			local cam = ws.CurrentCamera
+			local rainPart = cam:FindFirstChild("WeatherRain")
+			local drops = rainPart and rainPart:FindFirstChild("Rain")
+			check(drops ~= nil and drops.Rate > 0, "storm: rain falls on the camera's box")
+			check(
+				string.find(tostring(drops and drops.Texture), "rbxassetid://", 1, true) ~= nil,
+				"textured drops"
+			)
+			local grade = lighting:FindFirstChild("WeatherGrade")
+			check(grade ~= nil and grade.Saturation < -0.1, "storm: the picture greys")
+			local air = lighting:FindFirstChildOfClass("Atmosphere")
+			check(air ~= nil and air.Density > d0 + 0.05, "storm: the sky thickens")
+			ws:SetAttribute("WeatherForce", "clear")
+			frames(60)
+			check(drops.Rate == 0, "clear: the rain stops")
+			check(math.abs(air.Density - d0) < 0.02, "clear: the place's own sky comes back")
+			check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, "; "))
+		end
+	end)
 end

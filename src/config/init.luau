@@ -27,6 +27,7 @@ local NAMES = {
 	"Economy",
 	"Data",
 	"World",
+	"Weather", -- the city's weather (Shared.WeatherPlan, Fx.WeatherFx; list-combat 2026-11-20)
 	"Destruction",
 	"Incidents",
 	"Contracts",
