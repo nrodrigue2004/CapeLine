@@ -34,6 +34,7 @@ local FxLib = require(script.Parent.FxLib)
 local DeepMeshes = require(script.Parent.DeepMeshes)
 local CityProps = require(script.Parent.Parent.Controllers.CityProps)
 local PowerMeshes = require(script.Parent.PowerMeshes)
+local PhaseClient = require(script.Parent.Parent.Controllers.PhaseClient) -- "Hide you fully" (nate, 2026-11-20)
 
 local CombatFx = {}
 CombatFx.reduceFlashing = false
@@ -4326,7 +4327,7 @@ function CombatFx.hook(
 			for _, p in Players:GetPlayers() do
 				local char = p.Character
 				local root = char and char:FindFirstChild("HumanoidRootPart") :: BasePart?
-				if root and (root.Position - nextTip).Magnitude < reach then
+				if root and PhaseClient.seesPlayer(p) and (root.Position - nextTip).Magnitude < reach then
 					held = root
 					phase = "held"
 					t = 0

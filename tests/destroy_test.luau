@@ -46,6 +46,12 @@ return function(T: any)
 				return -- light, marks and window bands: no body
 			end
 			local key = b.kind .. ":" .. tostring(b.color)
+			if b.site then
+				-- a story mission's permanent piece (Shared.MapSites, missions lane 2026-11-20) stays whole on purpose:
+				-- its run's points stand on it
+				kept += 1
+				return
+			end
 			if b.bid then
 				wreck += 1
 				byKind["wreck " .. b.kind .. (if b.shape then "/" .. b.shape else "")] = (

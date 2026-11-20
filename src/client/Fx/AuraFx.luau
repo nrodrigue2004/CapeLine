@@ -16,6 +16,7 @@ local MeshFix = require(Shared:WaitForChild("MeshFix"))
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
 
 local CombatFx = require(script.Parent.CombatFx)
+local PhaseClient = require(script.Parent.Parent.Controllers.PhaseClient) -- "Hide you fully" (nate, 2026-11-20)
 
 local AuraFx = {}
 
@@ -168,7 +169,7 @@ local function update(player: Player, now: number)
 		end
 		h.OutlineColor = color or Color3.new(1, 1, 1)
 		h.OutlineTransparency = if color then 0.1 else 1
-		rig.motes.Enabled = awake
+		rig.motes.Enabled = awake and PhaseClient.seesPlayer(player) -- (none for a hero in another phase)
 		if awake then
 			local mc = if style == "Anime" then Color3.new(1, 1, 1) else GOLD
 			rig.motes.Color = ColorSequence.new(mc, GOLD)

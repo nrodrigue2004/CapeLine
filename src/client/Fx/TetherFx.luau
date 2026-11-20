@@ -23,6 +23,7 @@ local FrameProf = require(Shared:WaitForChild("FrameProf"))
 local MeshFix = require(Shared:WaitForChild("MeshFix"))
 
 local HeroAnimator = require(script.Parent.Parent.Controllers.HeroAnimator)
+local PhaseClient = require(script.Parent.Parent.Controllers.PhaseClient) -- "Hide you fully" (nate, 2026-11-20)
 
 local TetherFx = {}
 
@@ -252,7 +253,13 @@ local function step(dt: number)
 		local near = root ~= nil
 			and root:IsA("BasePart")
 			and (root.Position - eye).Magnitude <= HeroAnim.nearRange
-		if char and near and live < MAX and p:GetAttribute("Held") == "weapon" then
+		if
+			char
+			and near
+			and live < MAX
+			and p:GetAttribute("Held") == "weapon"
+			and PhaseClient.seesPlayer(p)
+		then
 			wf, id = weaponOf(char)
 		end
 		if r and (r.char ~= char or r.folder ~= wf or r.weaponId ~= id or not r.hand.Parent) then

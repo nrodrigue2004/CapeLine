@@ -30,6 +30,9 @@
 -- * Pockets have no PvP and no world scheduler: heroes in a mission are in a scene (no incidents, events
 --   or world boss packets) and robots stand on the pocket's own boxes (EnemyService.setPocketHeight).
 -- PLACEHOLDER ART: pockets are greybox parts (PocketLayout).
+-- * On the map (missions lane 2026-11-20, nate's "Mix"): a layout on in Config.MapSites plays at its real site
+--   (Shared.MapSites gives the same point names in world studs), its set pieces a Sites model in the run's phase;
+--   the Safehouse's tunnels and the side quest pockets stay pockets (see buildSite).
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -48,6 +51,7 @@ local NpcRig = require(Shared:WaitForChild("NpcRig"))
 local RigMath = require(Shared:WaitForChild("RigMath"))
 local PeopleLooks = require(Shared:WaitForChild("PeopleLooks"))
 local PocketLayout = require(Shared:WaitForChild("PocketLayout"))
+local MapSites = require(Shared:WaitForChild("MapSites"))
 local SetPieceKit = require(Shared:WaitForChild("SetPieceKit"))
 local StoryArtKit = require(Shared:WaitForChild("StoryArtKit"))
 local BossSim = require(Shared:WaitForChild("BossSim"))
@@ -188,7 +192,33 @@ end
 -- Pockets
 ---------------------------------------------------------------------------
 
-local function buildPocket(index: number, layout: string): (PocketLayout.Layout, Model)
+-- A layout on the real map (Config.MapSites.on, missions lane 2026-11-20, nate's "Mix"): Shared.MapSites gives the
+-- same point and list names at its site in world studs; the run's own set pieces (its `keep` boxes) are a Sites
+-- model in the run's phase, so only the party sees and touches them. The permanent pieces (Harbour Bridge, Crane
+-- Tower, Crane's plant) are the city's own (WorldMap), nothing to build. nil: the layout plays in its pocket.
+local function buildSite(index: number, layout: string, phase: number?): (PocketLayout.Layout?, Model?)
+	local world = CityBuilder.world
+	if not world or not MapSites.on(Config, layout) then
+		return nil, nil
+	end
+	local l = MapSites.layout(Config, world, layout)
+	if not l then
+		return nil, nil
+	end
+	local m = SiteKit.model("MissionSite" .. index)
+	SiteKit.inPhase(m, phase) -- the same frame it is made (PhaseClient hides it from everyone else)
+	for _, b in l.boxes do
+		CityBuilder.part(b).Parent = m
+	end
+	EnemyService.useSite(index, l) -- robots stand on its set pieces
+	return l, m
+end
+
+local function buildPocket(index: number, layout: string, phase: number?): (PocketLayout.Layout, Model)
+	local sl, sm = buildSite(index, layout, phase)
+	if sl and sm then
+		return sl, sm
+	end
 	local l = PocketLayout.build(Config, index, layout)
 	PocketLayout.heights(l)
 	local dress = PocketArt.dress(l, layout) -- the kit looks (2026-11-19): textures and tints only, no geometry
@@ -1347,6 +1377,7 @@ local function release(run: Run)
 	if busy[run.pocket] == run then
 		busy[run.pocket] = nil
 		EnemyService.usePocket(run.pocket, nil)
+		EnemyService.useSite(run.pocket, nil)
 	end
 	run.model:Destroy()
 	for _, p in table.clone(run.members) do
@@ -1512,7 +1543,8 @@ local function begin(
 	num: number,
 	tf: number?
 ): Run
-	local layout, model = buildPocket(pocket, m.layout)
+	local phase = PhaseService.open() -- (Phasing; first, so an on-map site is in the phase the frame it is made)
+	local layout, model = buildPocket(pocket, m.layout, phase)
 	local levels: { [Player]: number } = {}
 	local list = {}
 	for _, p in members do
@@ -1547,10 +1579,12 @@ local function begin(
 		leg = if tf then 1 else nil,
 		legAt = os.clock(),
 		away = if tf then {} else nil,
-		phase = PhaseService.open(), -- (Phasing)
+		phase = phase, -- (Phasing)
 	}
 	busy[pocket] = run
-	EnemyService.usePocket(pocket, run.layout) -- its walls and ceilings stop robots (and their fliers)
+	if not (run.layout :: any).onMap then
+		EnemyService.usePocket(pocket, run.layout) -- its walls and ceilings stop robots (and their fliers)
+	end
 	for i, p in members do
 		runs[p] = run
 		heroes[p].scene = "mission"
@@ -1605,7 +1639,12 @@ nextLeg = function(run: Run)
 			return
 		end
 		run.model:Destroy()
-		run.layout, run.model = buildPocket(run.pocket, leg.layout)
+		EnemyService.usePocket(run.pocket, nil)
+		EnemyService.useSite(run.pocket, nil)
+		run.layout, run.model = buildPocket(run.pocket, leg.layout, run.phase)
+		if not (run.layout :: any).onMap then
+			EnemyService.usePocket(run.pocket, run.layout)
+		end
 		run.m = leg
 		run.stage = 1
 		run.stages = #leg.steps

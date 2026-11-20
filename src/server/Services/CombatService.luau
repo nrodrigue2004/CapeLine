@@ -550,8 +550,11 @@ local function applyHit(
 	local heavy = coeff >= C.heavyCoeff
 	if heavy and primary then
 		-- Collision freeze (spec: Clash moments): another hero's heavy hit lands here at the same moment
-		local other =
-			ClashRules.note(C.clash, clashes, { hero = hero.id, x = e.x, y = e.y, z = e.z, t = os.clock() })
+		local other = ClashRules.note(
+			C.clash,
+			clashes,
+			{ hero = hero.id, x = e.x, y = e.y, z = e.z, t = os.clock(), phase = hero.phase }
+		)
 		if other then
 			local mid = (Vector3.new(e.x, e.y, e.z) + Vector3.new(other.x, other.y, other.z)) / 2
 			local c = record(hero, r.n, r.s, K.CLASH, mid, Vector3.new(0, 1, 0))

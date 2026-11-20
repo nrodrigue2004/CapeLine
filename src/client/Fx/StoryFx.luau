@@ -262,18 +262,28 @@ local function rgb(t: { number }): Color3
 	return Color3.fromRGB(t[1], t[2], t[3])
 end
 
--- The ground under a point in a pocket (the pocket's own boxes), else the point less the ring's half stud
+-- The ground under a point: a pocket's own boxes, or on the map (Config.MapSites) the city, its permanent pieces
+-- and this run's own phased set pieces (never a hero, a robot or an effect); else the point less the ring's half stud
+local groundParams: RaycastParams? = nil
 local function ground(p: { number }): Vector3
 	local at = Vector3.new(p[1], p[2], p[3])
-	local pockets = Workspace:FindFirstChild("Pockets")
-	if pockets then
-		local params = RaycastParams.new()
-		params.FilterType = Enum.RaycastFilterType.Include
-		params.FilterDescendantsInstances = { pockets }
-		local hit = Workspace:Raycast(at + Vector3.new(0, 4, 0), Vector3.new(0, -12, 0), params)
-		if hit then
-			return hit.Position
+	local params = groundParams
+	if not params then
+		params = RaycastParams.new()
+		params.RespectCanCollide = true
+		groundParams = params
+	end
+	local skip = {}
+	for _, pl in Players:GetPlayers() do
+		if pl.Character then
+			table.insert(skip, pl.Character)
 		end
+	end
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	params.FilterDescendantsInstances = skip
+	local hit = Workspace:Raycast(at + Vector3.new(0, 4, 0), Vector3.new(0, -12, 0), params)
+	if hit then
+		return hit.Position
 	end
 	return at - Vector3.new(0, 0.5, 0)
 end
@@ -511,12 +521,25 @@ local function arenaStep(now: number)
 		return
 	end
 	sparkAt = now + 0.7
-	local pockets = Workspace:FindFirstChild("Pockets")
+	-- the run's model: its pocket, or on the map its phased Sites model (MissionService "MissionSite"..i)
 	local list = {}
-	for _, p in (if pockets then pockets:GetDescendants() else {}) do
-		if p:IsA("BasePart") and p.Shape == Enum.PartType.Cylinder then
-			table.insert(list, p)
+	local mine = Players.LocalPlayer:GetAttribute("Phase")
+	local function scan(folder: Instance?, onMap: boolean)
+		for _, m in (if folder then folder:GetChildren() else {}) do
+			if
+				not onMap or (string.sub(m.Name, 1, 11) == "MissionSite" and m:GetAttribute("Phase") == mine)
+			then
+				for _, p in m:GetDescendants() do
+					if p:IsA("BasePart") and p.Shape == Enum.PartType.Cylinder then
+						table.insert(list, p)
+					end
+				end
+			end
 		end
+	end
+	scan(Workspace:FindFirstChild("Pockets"), false)
+	if mine ~= nil then
+		scan(Workspace:FindFirstChild("Sites"), true)
 	end
 	if #list > 0 then
 		local p = list[math.random(1, #list)]

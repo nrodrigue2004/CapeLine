@@ -17,6 +17,7 @@ local Rng = if script then require(script.Parent.Rng) else (require :: any)("./R
 local CityKit = if script then require(script.Parent.CityKit) else (require :: any)("./CityKit")
 local ParkLayout = if script then require(script.Parent.ParkLayout) else (require :: any)("./ParkLayout")
 local LifeKit = if script then require(script.Parent.LifeKit) else (require :: any)("./LifeKit")
+local MapSites = if script then require(script.Parent.MapSites) else (require :: any)("./MapSites")
 
 local WorldMap = {}
 
@@ -232,6 +233,12 @@ function WorldMap.build(Config: any, seed: number, opts: { props: boolean? }?): 
 	-- the hub: Downtown first (its reserved lots decide where its safehouses stand)
 	local downtown = CityLayout.downtown(city, w)
 	local safeSpots, clear = safehouseSpots(city, w, downtown)
+	-- the story's permanent pieces (Shared.MapSites: Harbour Bridge, Crane Tower, Crane's plant): their ground is kept
+	-- clear of lots, filler buildings and warehouses like a safehouse pad's
+	local sites = MapSites.permanent(Config)
+	for _, c in sites.clear do
+		table.insert(clear, c)
+	end
 	local docks = Districts.docks(city, clear)
 	local oldTown = Districts.oldTown(city, clear)
 	local uptown = CityLayout.uptown(city)
@@ -260,6 +267,10 @@ function WorldMap.build(Config: any, seed: number, opts: { props: boolean? }?): 
 	append(hubBoxes, uptown.boxes)
 	if park then
 		append(hubBoxes, park.boxes) -- its avenue, sidewalk, paths, paved rounds and trees (2026-11-20)
+	end
+	-- the story's permanent pieces (missions lane, 2026-11-20): copies, as the city marks its boxes (bid)
+	for _, b in sites.boxes do
+		table.insert(hubBoxes, table.clone(b))
 	end
 
 	-- the street props, by district (Config.City.kit)
@@ -506,6 +517,9 @@ function WorldMap.propsStep(job: PropsJob, tiles: number?): boolean
 	if stage == 1 then
 		local downtown = CityLayout.downtown(city, w)
 		local _, clear = safehouseSpots(city, w, downtown)
+		for _, c in MapSites.permanent(Config).clear do
+			table.insert(clear, c) -- (the same clear circles as build(): the story's permanent pieces)
+		end
 		job.clear = clear
 		tagged(job.props, downtown.props, 1, "Downtown")
 	elseif stage == 2 then
@@ -677,6 +691,11 @@ function WorldMap.moreHub(Config: any, list: { Building }, hubBoxes: { any })
 			rec.round = if round then true else nil
 			if b.color == "foundry" and not round then
 				rec.fixed = true
+			end
+			if (b :: any).site then
+				-- a story mission's permanent piece (Shared.MapSites) never breaks: its run's points stand on it
+				rec.fixed = true;
+				(rec :: any).site = (b :: any).site
 			end
 			b.bid = rec.id
 		end

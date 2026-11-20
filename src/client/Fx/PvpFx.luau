@@ -24,6 +24,7 @@ local State = require(script.Parent.Parent.State)
 local PvpClient = require(script.Parent.Parent.Controllers.PvpClient)
 local CombatFx = require(script.Parent.CombatFx)
 local Kit = require(script.Parent.Parent.Ui.Kit)
+local PhaseClient = require(script.Parent.Parent.Controllers.PhaseClient) -- "Hide you fully" (nate, 2026-11-20)
 
 local PvpFx = {}
 
@@ -109,7 +110,7 @@ end
 local function step(now: number)
 	for _, p in Players:GetPlayers() do
 		local root = rootOf(p)
-		local want = p:GetAttribute("Pvp") == true and root ~= nil
+		local want = p:GetAttribute("Pvp") == true and root ~= nil and PhaseClient.seesPlayer(p)
 		local r = rings[p]
 		-- colorblind-safe: Vigil rings are round, Syndicate rings are square (spec: Accessibility)
 		local square = p:GetAttribute("PvpSide") == "villain"

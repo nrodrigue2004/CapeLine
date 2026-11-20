@@ -26,6 +26,7 @@ local CameraController = require(script.Parent.Parent.Controllers.CameraControll
 local HeroAnimator = require(script.Parent.Parent.Controllers.HeroAnimator)
 local BlockClient = require(script.Parent.Parent.Controllers.BlockClient)
 local Juice = require(script.Parent.Juice)
+local PhaseClient = require(script.Parent.Parent.Controllers.PhaseClient) -- "Hide you fully" (nate, 2026-11-20)
 
 local GuardFx = {}
 
@@ -355,7 +356,7 @@ local function step()
 		end
 	end
 	for _, p in Players:GetPlayers() do
-		local on = p:GetAttribute("Blocking") == true
+		local on = p:GetAttribute("Blocking") == true and PhaseClient.seesPlayer(p)
 		local char = p.Character
 		local root = char and char:FindFirstChild("HumanoidRootPart") :: BasePart?
 		local shield = heroShields[p]

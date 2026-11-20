@@ -30,6 +30,7 @@ local PvpClient = require(script.Parent.Parent.Controllers.PvpClient)
 local Juice = require(script.Parent.Parent.Fx.Juice)
 local LoadoutScreen = require(script.Parent.LoadoutScreen)
 local StoryClient = require(script.Parent.Parent.Controllers.StoryClient)
+local PhaseClient = require(script.Parent.Parent.Controllers.PhaseClient) -- "Hide you fully" (nate, 2026-11-20)
 
 local PvpHud = {}
 
@@ -593,7 +594,7 @@ local function findDowned(): Player?
 	end
 	local best, bestD = nil, D.reviveRange
 	for _, p in Players:GetPlayers() do
-		if p ~= player and p:GetAttribute("Downed") then
+		if p ~= player and p:GetAttribute("Downed") and PhaseClient.seesPlayer(p) then
 			local c = p.Character
 			local r = c and c:FindFirstChild("HumanoidRootPart") :: BasePart?
 			local dist = r and (r.Position - root.Position).Magnitude

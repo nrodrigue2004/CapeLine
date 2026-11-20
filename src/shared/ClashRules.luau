@@ -7,7 +7,7 @@
 
 local ClashRules = {}
 
-export type Hit = { hero: number, x: number, y: number, z: number, t: number }
+export type Hit = { hero: number, x: number, y: number, z: number, t: number, phase: number? } -- phase: the hero's mission run (nil: the open world)
 export type Book = { recent: { Hit }, pairs: { [string]: number } }
 
 function ClashRules.book(): Book
@@ -28,7 +28,8 @@ function ClashRules.note(cfg: any, book: Book, hit: Hit): Hit?
 		end
 	end
 	for k, other in book.recent do
-		if other.hero ~= hit.hero then
+		-- (never across phases: a private mission run's heroes and the open world's never clash, 2026-11-20)
+		if other.hero ~= hit.hero and other.phase == hit.phase then
 			local dx, dy, dz = other.x - hit.x, other.y - hit.y, other.z - hit.z
 			if dx * dx + dy * dy + dz * dz <= cfg.reach * cfg.reach then
 				local key = pairKey(hit.hero, other.hero)

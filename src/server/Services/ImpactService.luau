@@ -385,7 +385,8 @@ end
 -- A hero went through a street thing (ImpactProp, fix-destroy): near where the server has it, the knock goes out
 local function onProp(player: Player, at: Vector3)
 	local hero = HeroService.get(player)
-	if not hero or not hero.alive then
+	-- (a hero in a private mission run never knocks the open world's street things: "Hide you fully", 2026-11-20)
+	if not hero or not hero.alive or hero.phase then
 		return
 	end
 	local pos = HeroService.position(hero)

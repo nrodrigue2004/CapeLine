@@ -26,6 +26,7 @@ local SquadHud = require(script.Parent.SquadHud)
 local WorldClient = require(script.Parent.Parent.Controllers.WorldClient)
 local PvpClient = require(script.Parent.Parent.Controllers.PvpClient)
 local SquadClient = require(script.Parent.Parent.Controllers.SquadClient)
+local PhaseClient = require(script.Parent.Parent.Controllers.PhaseClient) -- "Hide you fully" (nate, 2026-11-20)
 local InputController = require(script.Parent.Parent.Controllers.InputController)
 local StoryClient = require(script.Parent.Parent.Controllers.StoryClient)
 
@@ -157,7 +158,8 @@ local function draw()
 			if not pos and far then
 				pos = Vector3.new(far.X, 0, far.Y)
 			end
-			if pos and p ~= me then
+			-- (a mate in another phase, a private mission run's or the open world's, is not on this radar)
+			if pos and p ~= me and PhaseClient.seesPlayer(p) then
 				n += 1
 				place(n, pos, origin, -yaw, "square", SquadHud.slotColor(m.slot), 16, "marker", "squad")
 			end

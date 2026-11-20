@@ -21,6 +21,7 @@ local SquadRules = require(Shared:WaitForChild("SquadRules"))
 local CreatorRules = require(Shared:WaitForChild("CreatorRules"))
 local LookCodec = require(Shared:WaitForChild("LookCodec"))
 local ProfileSchema = require(Shared:WaitForChild("ProfileSchema"))
+local PhaseRules = require(Shared:WaitForChild("PhaseRules")) -- "Hide you fully" (nate, 2026-11-20)
 
 local DataService = require(script.Parent.DataService)
 local HeroService = require(script.Parent.HeroService)
@@ -102,7 +103,26 @@ local function send(squadId: number?, withPositions: boolean?)
 			p:SetAttribute("Squad", squad.id)
 			p:SetAttribute("SquadSlot", slot)
 		end
-		Net.fire("SquadState", p, packet)
+		-- "Hide you fully" (nate, 2026-11-20): a mate in a private mission run the receiver is not in (or the other
+		-- way round) has no position on its map
+		local mine = HeroService.get(p)
+		local out = packet
+		if withPositions then
+			for i, m in list do
+				local q = Players:GetPlayerByUserId(m.userId)
+				local h = q and HeroService.get(q)
+				if m.x and not PhaseRules.sees(mine and mine.phase, h and h.phase) then
+					if out == packet then
+						out = table.clone(packet)
+						out.members = table.clone(list)
+					end
+					local c = table.clone(m)
+					c.x, c.z = nil, nil
+					out.members[i] = c
+				end
+			end
+		end
+		Net.fire("SquadState", p, out)
 	end
 end
 

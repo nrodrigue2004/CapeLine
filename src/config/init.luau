@@ -137,6 +137,7 @@ local NAMES = {
 	"Daily", -- WP1: the daily login streak and daily quests
 	"Promo", -- WP10: the group-join piece and creator codes
 	"Balance", -- WP8: live tuning (the Balance_v<N> whitelist; BalanceService)
+	"MapSites", -- missions lane: where story missions play on the real map (Shared.MapSites)
 }
 
 local Config: { [string]: any } = {}
