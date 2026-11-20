@@ -641,6 +641,26 @@ plate = [extrude_up(hexpoly(1.0), -0.075, 0.075), extrude_up(hexpoly(0.92), 0.07
          extrude_up(hexpoly(0.62), 0.095, 0.13), C(0.11, 0.06, 0, 0.13, 0, segs=8)]
 mesh("Plate", tint("PlateHex"), plate, (220, 255, 240), "SmoothPlastic", shade=False)
 
+# ================================================================ the flake piece (CombatFx PIECE.flake, 2026-11-20): Frost's tumbling snowflake chip,
+# a flat six-armed crystal 2 across in x-z (0.1 thick) with two pairs of side branches on each arm and a hex heart;
+# six-fold, so the import's half turn leaves it as drawn.
+flake = [extrude_up(hexpoly(0.22), -0.05, 0.05)]
+for i in range(6):
+    a = i * math.pi / 3
+    c, sn = math.cos(a), math.sin(a)
+    flake.append(T([(c * 0.15, 0, sn * 0.15), (c * 1.0, 0, sn * 1.0)], [0.07, 0.035], segs=5))
+    for d, ln in ((0.45, 0.32), (0.72, 0.22)):
+        for side in (-1, 1):
+            b = a + side * math.radians(55)
+            px, pz = c * d, sn * d
+            flake.append(T([(px, 0, pz), (px + math.cos(b) * ln, 0, pz + math.sin(b) * ln)], [0.045, 0.02], segs=4))
+for ob in flake:
+    kit.apply_all(ob)
+    for v in ob.data.vertices:
+        v.co.z = max(-0.05, min(0.05, v.co.z))  # Blender z is Roblox up: flatten the tubes to the chip's thickness
+    ob.data.update()
+mesh("Flake", tint("FlakeChip"), flake, (200, 235, 255), "Glass", alpha=0.1, shade=False)
+
 # ================================================================ the fit table and the export
 def bounds(ob):
     vs = [ob.matrix_world @ v.co for v in ob.data.vertices]
@@ -704,7 +724,7 @@ if "--preview" in sys.argv:
              "Bullet": (-4, -14, 2), "Sun": (6, -16, 4), "BlackHole": (13, -16, 3), "KiRing": (19, -16, 3),
              "EmberRim": (-12, -16, 0.2), "HaloRim": (-18, -16, 0.2), "VoltRim": (-38, -16, 0.2),
              "Slash": (-26, -16, 2), "Shock": (-32, -16, 1), "Heads": (26, -16, 2), "Girder": (31, 6, 11.5), "Wing": (-28, 6, 3), "Net": (-34, 6, 2),
-             "Claw": (-31, -6, 1), "Plate": (-35, -6, 1)}
+             "Claw": (-31, -6, 1), "Plate": (-35, -6, 1), "Flake": (-38, -6, 1)}
     close = "--close" in sys.argv  # the 2026-11-20 effect looks only, near the camera (art/preview/powers_fx.png)
     if close:
         spots = {"Sun": (-9, 0, 3), "BlackHole": (-3.5, 0, 2.5), "KiRing": (1, 0, 2.5), "EmberRim": (5.5, 0, 0.2),

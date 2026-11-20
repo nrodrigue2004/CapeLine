@@ -1764,7 +1764,18 @@ end
 PIECE.ember = function(s: number, c: Color3): Part
 	return part(Vector3.one * s * 0.6, CFrame.new(), c, Enum.PartType.Ball)
 end
-PIECE.flake = function(s: number, c: Color3): Part -- Frost: a flat snowflake chip that tumbles as it falls
+PIECE.flake = function(
+	s: number,
+	c: Color3
+): BasePart -- Frost: a flat snowflake chip that tumbles as it falls
+	-- the Blender six-armed crystal (Art.Powers Flake, 2026-11-20; six-fold, so the import's half turn changes nothing)
+	if PowerMeshes.ready("Flake") then
+		local mp = powerMesh("FlakeChip", Vector3.new(s * 0.75, s * 0.05, s * 0.65), c:Lerp(WHITE, 0.5), 0.1)
+		if mp then
+			mp.Material = Enum.Material.Glass
+			return mp
+		end
+	end
 	local p = part(Vector3.new(s * 0.6, s * 0.06, s * 0.6), CFrame.new(), c:Lerp(WHITE, 0.5))
 	p.Transparency = 0.1
 	return p

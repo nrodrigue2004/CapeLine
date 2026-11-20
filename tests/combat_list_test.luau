@@ -988,8 +988,8 @@ return function(T: any)
 			end
 		end
 		check(
-			n == 77,
-			"77 meshes in 31 looks (the hex plate; the robots' net and claw; the wings flourish; 178 the held girder; 382 added the jets, the rail and the slab; 173 the bullet; 169, 177, 180 and 183 the sun, ki ring, black hole and field rims; 172 the slash; 381 the shock ring and cone fan, then the flying heads; 167 Static Field's arcs): "
+			n == 78,
+			"78 meshes in 32 looks (the snowflake; the hex plate; the robots' net and claw; the wings flourish; 178 the held girder; 382 added the jets, the rail and the slab; 173 the bullet; 169, 177, 180 and 183 the sun, ki ring, black hole and field rims; 172 the slash; 381 the shock ring and cone fan, then the flying heads; 167 Static Field's arcs): "
 				.. n
 		)
 		for _, look in
@@ -3718,7 +3718,7 @@ return function(T: any)
 	end)
 
 	test(
-		"List combat: halo and spin flourishes are hollow Blender hoops, shatters glass stones, wings Blender wings, cages lances, plates hex plates",
+		"List combat: halo and spin flourishes are hollow Blender hoops, shatters glass stones, wings Blender wings, cages lances, plates hex plates, flakes snowflakes",
 		function()
 			local roblox = require("@lune/roblox")
 			if not T.placePath then
@@ -3798,6 +3798,32 @@ return function(T: any)
 				end
 			end
 			check(plates >= 4, "the petals are hex plates (" .. plates .. ")")
+			-- Frost's flake piece: the Blender six-armed snowflake
+			sim:run("frost field", function()
+				CombatFx.field(
+					V(-120, 0, 0),
+					8,
+					1,
+					"Comic",
+					roblox.Color3.fromRGB(150, 220, 255),
+					false,
+					nil,
+					false,
+					"Frost"
+				)
+			end)
+			for _ = 1, 3 do
+				sim:run("frame", function()
+					sim.service("RunService").RenderStepped:Fire(1 / 60)
+				end)
+			end
+			local flakes = 0
+			for _, d in sim.service("Workspace"):GetDescendants() do
+				if d:IsA("MeshPart") and d.Name == "FlakeChip" then
+					flakes += 1
+				end
+			end
+			check(flakes >= 1, "Frost's falling chips are snowflakes (" .. flakes .. ")")
 			-- Static Field's cage: bars of light are Blender lances stood on end round the target
 			sim:run("cage", function()
 				AbilityFx.hit(

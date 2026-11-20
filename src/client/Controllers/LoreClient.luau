@@ -6,7 +6,7 @@
 --   LORE n / N, the DISTRICT READ! stamp) and the page's comic caption card (Ui.LoreCard).
 -- * The Journal's LORE tab draws from here (request, Changed, drawInto): each district's pages read of all, the
 --   titles of the read ones (tap to read the card again) and ??? for the rest.
--- PLACEHOLDER ART: the book is parts until a sculpted Blender book mesh is uploaded (Tasks.md).
+-- The book wears its sculpted Blender meshes (Fx.LoreBooks, Art.LoreBook) once imported; parts before that.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
