@@ -279,6 +279,91 @@ slug = [C(0.1, 0.26, 0, 0, 0.02, segs=12, axis="z"), S(0.1, 0, 0, -0.11, sc=(1, 
 mesh("Bullet", "BulletSlug", slug, (205, 120, 60), "Metal")
 mesh("Bullet", tint("BulletStreak"), [C(0.16, 4.0, 0, 0, 2.2, segs=10, r2=0.0, axis="z")], PATH, "Neon", alpha=0.2)
 
+# ================================================================ Sunfall's sun (Everything Left 169, 2026-11-20): a lumpy glowing core and a
+# corona of flame spikes all round it (anchor: the sun's centre). CombatFx sizes the core and the corona apart.
+core = S(1.0, 0, 0, 0, segs=24, rings=16)
+lumpy(core, 0.05, seed=3)
+mesh("Sun", "SunCore", [core], (255, 236, 160), "Neon")
+spikes = []
+N = 26
+for i in range(N):  # a fibonacci sphere of directions, long and short spikes in turn
+    yv = 1 - 2 * (i + 0.5) / N
+    rr = math.sqrt(1 - yv * yv)
+    a = i * math.pi * (3 - math.sqrt(5))
+    d = Vector((math.cos(a) * rr, yv, math.sin(a) * rr))
+    ln = 1.0 if i % 2 == 0 else 0.6
+    side = d.cross(Vector((0, 1, 0)) if abs(yv) < 0.9 else Vector((1, 0, 0))).normalized() * 0.12
+    pts = [d * 0.85, d * (1.0 + ln * 0.5) + side, d * (1.0 + ln)]
+    spikes.append(T([tuple(v) for v in pts], [0.3, 0.16, 0.01], segs=8))
+spikes.append(S(1.05, 0, 0, 0, segs=20, rings=12))
+mesh("Sun", tint("SunCorona"), spikes, (255, 140, 40), "Neon", alpha=0.3)
+
+# ================================================================ Singularity's black hole (Everything Left 180): a flat accretion disc with three
+# spiral arms and a bright photon ring round the dark centre (anchor: the hole's centre; the disc in the x-z plane,
+# 2 across). CombatFx spins it and keeps its dark ball in the middle.
+disc = TOR(0.66, 0.3, 0, 0, 0, segs=48, csegs=10)
+kit.apply_all(disc)
+for v in disc.data.vertices:
+    v.co.z *= 0.12  # Blender z is Roblox up: flatten to a disc
+disc.data.update()
+arms = []
+for k in range(3):
+    pts, radii = [], []
+    for j in range(13):
+        t = j / 12
+        a = k * 2 * math.pi / 3 + t * 2.6
+        r = 0.32 + 0.72 * t
+        pts.append((math.cos(a) * r, 0.05 * (1 - t), math.sin(a) * r))
+        radii.append(0.1 * (1 - t) + 0.015)
+    arms.append(T(pts, radii, segs=6))
+mesh("BlackHole", tint("HoleDisc"), [disc] + arms, PATH, "Neon", alpha=0.35)
+mesh("BlackHole", "HoleRing", [TOR(0.34, 0.04, 0, 0, 0, segs=36, csegs=6),
+                               TOR(0.3, 0.025, 0, 0, 0, axis="x", segs=32, csegs=5)], WHITE, "Neon")
+
+# ================================================================ Heavenfall's ki rings and the Ki Blast's halo (Everything Left 177): a ring of
+# ki with flame tongues trailing back along +z (anchor: the ring's centre; the ring faces z, 2 across)
+tongues = [TOR(1.0, 0.09, 0, 0, 0, axis="z", segs=40, csegs=6)]
+for i in range(14):
+    a = 2 * math.pi * i / 14
+    c, sn = math.cos(a), math.sin(a)
+    ln = 0.9 if i % 2 == 0 else 0.55
+    tongues.append(T([(c * 1.0, sn * 1.0, 0.0), (c * 1.14, sn * 1.14, ln * 0.45), (c * 1.06 + sn * 0.08,
+                      sn * 1.06 - c * 0.08, ln)], [0.16, 0.09, 0.01], segs=6))
+mesh("KiRing", tint("KiRingBand"), tongues, (255, 210, 90), "Neon", alpha=0.2)
+
+# ================================================================ the fields' rims (Everything Left 169, 183): Ember Ring's ring of flame tongues
+# and Halo Blades' circle of light blades (anchor: the field's centre on the ground; radius 1, CombatFx scales it
+# to the field's radius)
+flames = [TOR(1.0, 0.035, 0, 0.02, 0, segs=48, csegs=5)]
+for i in range(20):
+    a = 2 * math.pi * i / 20
+    c, sn = math.cos(a), math.sin(a)
+    h = 0.32 if i % 2 == 0 else 0.2
+    flames.append(T([(c, 0.0, sn), (c * 1.02 - sn * 0.03, h * 0.5, sn * 1.02 + c * 0.03), (c * 0.98 + sn * 0.04, h, sn * 0.98 - c * 0.04)],
+                    [0.07, 0.045, 0.004], segs=6))
+mesh("EmberRim", tint("EmberFlames"), flames, (255, 120, 40), "Neon", alpha=0.15)
+blades = [TOR(1.0, 0.02, 0, 0.02, 0, segs=48, csegs=4)]
+for i in range(8):
+    a = 2 * math.pi * i / 8
+    c, sn = math.cos(a), math.sin(a)
+    # a curved blade standing on the ring, leaning along it like a turning sawtooth
+    pts = []
+    for j in range(7):
+        t = j / 6
+        b = a + t * 0.32
+        pts.append((math.cos(b) * (1.0 + 0.04 * t), 0.06 + 0.36 * math.sin(t * math.pi * 0.5), math.sin(b) * (1.0 + 0.04 * t)))
+    tube = T(pts, [0.055, 0.06, 0.055, 0.045, 0.03, 0.015, 0.002], segs=6)
+    kit.apply_all(tube)
+    for v in tube.data.vertices:  # flatten each blade across the ring (thin, like a blade's edge)
+        r = math.hypot(v.co.x, v.co.y)
+        if r > 1e-6:
+            k = 1.0 + (r - 1.02) * -0.65
+            v.co.x *= k
+            v.co.y *= k
+    tube.data.update()
+    blades.append(tube)
+mesh("HaloRim", tint("HaloBlades"), blades, (255, 240, 170), "Neon", alpha=0.1)
+
 # ================================================================ the nemesis's armour (NemesisFx, Everything Left 218): each piece drawn to fill
 # the box of the part it replaces on the Brute Bot (centred on it), so NemesisFx sizes it to that same box.
 # shoulders: 5 x 1 x 3 (times the build's width)
@@ -390,8 +475,17 @@ if "--preview" in sys.argv:
              "Guardian": (15, 8, 0), "SpiritBeast": (-15, -6, 7.8), "Hoverboard": (-6, -6, 3.7), "RockSlab": (2, -6, 4.6),
              "StonePillar": (9, -6, 5), "ThornVine": (13, -6, 5), "Wave": (19, -6, 5), "Nemesis": (-22, 8, 4),
              "FlameJets": (-21, -6, 5.2), "LightRail": (25, 6, 4), "PsiSlab": (24, -8, 5.2),
-             "Bullet": (-4, -14, 2)}
+             "Bullet": (-4, -14, 2), "Sun": (6, -16, 4), "BlackHole": (13, -16, 3), "KiRing": (19, -16, 3),
+             "EmberRim": (-12, -16, 0.2), "HaloRim": (-18, -16, 0.2)}
+    close = "--close" in sys.argv  # the 2026-11-20 effect looks only, near the camera (art/preview/powers_fx.png)
+    if close:
+        spots = {"Sun": (-9, 0, 3), "BlackHole": (-3.5, 0, 2.5), "KiRing": (1, 0, 2.5), "EmberRim": (5.5, 0, 0.2),
+                 "HaloRim": (10, 0, 0.2)}
     for look, meshes in LOOKS.items():
+        if look not in spots:
+            for ob in meshes.values():
+                ob.hide_render = True
+            continue
         x, yb, y = spots[look]
         for name, ob in meshes.items():
             rgb, mat, alpha = INFO[name]
@@ -402,10 +496,19 @@ if "--preview" in sys.argv:
             ob.data.materials.append(m)
             ob.location = (x, yb, y)
             ob.rotation_euler = (0, 0, math.radians({"SpiritBeast": 100, "Wave": 235, "Guardian": 215}.get(look, 35)))
+            if close:
+                ob.scale = {"Sun": (1.6,) * 3, "BlackHole": (2.2,) * 3, "KiRing": (1.4,) * 3, "EmberRim": (2,) * 3,
+                            "HaloRim": (2,) * 3}[look]
+                if look == "BlackHole":
+                    ob.rotation_euler = (math.radians(25), 0, 0)
     ground = kit.box("ground", 120, 60, 0.2, at=(2, 0, -0.1))
     ground.data.materials.append(kit.material("g", (70, 74, 84)))
-    kit.camera((2, -48, 22), (2, 0, 3), lens=30)
-    kit.render(os.path.join(kit.ROOT, "preview", "powers.png"))
+    if close:
+        kit.camera((0.5, -20, 9), (0.5, 0, 1.6), lens=36)
+        kit.render(os.path.join(kit.ROOT, "preview", "powers_fx.png"))
+    else:
+        kit.camera((2, -48, 22), (2, 0, 3), lens=30)
+        kit.render(os.path.join(kit.ROOT, "preview", "powers.png"))
 
 # ================================================================ --nemesis: the armour on a stand-in Brute Bot body, at NemesisFx's offsets and
 # boxes (front: -z), seen from the front and three-quarters

@@ -119,6 +119,20 @@ local function fade(p: BasePart, time: number, props: { [string]: any }?, delay:
 	Debris:AddItem(p, time + (delay or 0) + 0.05)
 end
 
+-- One Art.Powers mesh (art/blender/powers.py) sized and coloured for an effect, or nil before it is imported (the
+-- caller keeps its part build then). Its import turn goes on the caller's CFrame (MeshFix.turn("Powers")).
+local function powerMesh(name: string, size: Vector3, color: Color3, alpha: number?): MeshPart?
+	local mp = PowerMeshes.part(name, size)
+	if not mp then
+		return nil
+	end
+	mp.Color = color
+	mp.Material = Enum.Material.Neon
+	mp.Transparency = alpha or 0
+	mp.Parent = folder
+	return mp
+end
+
 local function beam(from: Vector3, to: Vector3, width: number, color: Color3, life: number): Part?
 	local d = to - from
 	local len = d.Magnitude
@@ -642,6 +656,27 @@ function CombatFx.field(
 		Enum.PartType.Cylinder
 	)
 	edge.Transparency = 0.7
+	-- Ember Ring's ring of flame tongues and Halo Blades' circle of light blades (Art.Powers EmberRim and HaloRim,
+	-- Everything Left 169 and 183): a Fire or Light field's rim in its Blender look, turning slowly
+	local rimLook = if set == "Fire" then "EmberRim" elseif set == "Light" then "HaloRim" else nil
+	local rim: MeshPart? = nil
+	local rimSpin = if set == "Light" then 1.6 else 0.35
+	if rimLook and PowerMeshes.ready(rimLook) then
+		local name = if rimLook == "EmberRim" then "EmberFlames" else "HaloBlades"
+		local m = Config.PowerArt[rimLook][name]
+		local k = radius + 0.3
+		rim = powerMesh(
+			name,
+			Vector3.new(m.size[1] * k, m.size[2] * math.clamp(k, 4, 10), m.size[3] * k),
+			if style == "Anime" then WHITE else color,
+			m.alpha
+		)
+		if rim then
+			edge.Transparency = 0.9
+		end
+	end
+	local rimTurn = MeshFix.turn("Powers")
+	local rimUp = if rim then rim.Size.Y / 2 else 0
 	local start = os.clock()
 	local nextPulse = start
 	local conn
@@ -652,6 +687,9 @@ function CombatFx.field(
 			conn:Disconnect()
 			fade(disc, 0.3)
 			fade(edge, 0.3)
+			if rim then
+				fade(rim, 0.3)
+			end
 			if shell then
 				fade(shell, 0.3)
 			end
@@ -661,6 +699,9 @@ function CombatFx.field(
 		local base = CFrame.new(at - (if follow then Vector3.new(0, 2.6, 0) else Vector3.zero))
 		disc.CFrame = base * CFrame.Angles(0, if swirl then t * 4 else 0, math.rad(90))
 		edge.CFrame = disc.CFrame
+		if rim then
+			rim.CFrame = base * CFrame.new(0, rimUp, 0) * CFrame.Angles(0, t * rimSpin, 0) * rimTurn
+		end
 		if shell then
 			shell.CFrame = CFrame.new(at)
 		end
@@ -1580,7 +1621,15 @@ HEAD.kiorb = function(from, to, style, color, accent, s) -- Martial: a ki sphere
 	local core = PIECE.ball(1.3 * s, accent)
 	fly(outer, from, to, t)
 	fly(core, from, to, t)
-	local halo = PIECE.ring(3.2 * s, if anime(style) then WHITE else color)
+	-- the halo as the Blender ki ring (Art.Powers KiRing, Everything Left 177), its flames trailing the orb
+	local haloCol = if anime(style) then WHITE else color
+	local ki = PowerMeshes.ready("KiRing")
+		and powerMesh("KiRingBand", Vector3.new(3.2, 3.2, 1.4) * s, haloCol, 0.15)
+	if ki then
+		fly(ki, from, to, t, 8, nil, MeshFix.turn("Powers"))
+		return
+	end
+	local halo = PIECE.ring(3.2 * s, haloCol)
 	fly(halo, from, to, t, 0, nil, ACROSS)
 end
 HEAD.lens = function(from, to, style, color, accent, s) -- Pulse: a warped sphere with a void core
@@ -2273,15 +2322,26 @@ SUPER.icecrown = function(x) -- Frost Blizzard Dome: a crown of ice spikes aroun
 end
 SUPER.sunfall = function(x) -- Fire Sunfall: a small sun forms over the zone and drops onto it
 	local sky = x.c + Vector3.new(0, 40, 0)
-	local corona = PIECE.flame(4, x.color)
-	local sun = PIECE.ball(3, if anime(x.style) then WHITE else x.accent)
-	corona.CFrame, sun.CFrame = CFrame.new(sky), CFrame.new(sky)
+	local sunCol = if anime(x.style) then WHITE else x.accent
+	-- the Blender sun (Art.Powers Sun, Everything Left 169): a lumpy glowing core in a corona of flame spikes,
+	-- turning as it forms and falls; the flame and ball parts before it is imported
+	local meshed = PowerMeshes.ready("Sun")
+	local turnP = if meshed then MeshFix.turn("Powers") else CFrame.identity
+	local corona: BasePart = if meshed
+		then powerMesh("SunCorona", Vector3.one * 4, x.color, Config.PowerArt.Sun.SunCorona.alpha) :: any
+		else PIECE.flame(4, x.color)
+	local sun: BasePart = if meshed
+		then powerMesh("SunCore", Vector3.one * 3, sunCol) :: any
+		else PIECE.ball(3, sunCol)
+	corona.CFrame, sun.CFrame = CFrame.new(sky) * turnP, CFrame.new(sky) * turnP
 	local grow = TweenInfo.new(0.5, Enum.EasingStyle.Quad)
-	TweenService:Create(corona, grow, { Size = Vector3.one * 22 }):Play()
-	TweenService:Create(sun, grow, { Size = Vector3.one * 14 }):Play()
+	TweenService:Create(corona, grow, { Size = Vector3.one * (if meshed then 24 else 22) }):Play()
+	TweenService:Create(sun, grow, { Size = Vector3.one * (if meshed then 12 else 14) }):Play()
 	local drop = TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.In, 0, false, 0.55)
-	TweenService:Create(corona, drop, { CFrame = CFrame.new(x.c) }):Play()
-	TweenService:Create(sun, drop, { CFrame = CFrame.new(x.c) }):Play()
+	TweenService:Create(corona, drop, { CFrame = CFrame.new(x.c) * CFrame.Angles(0, math.pi, 0.4) * turnP })
+		:Play()
+	TweenService:Create(sun, drop, { CFrame = CFrame.new(x.c) * CFrame.Angles(0, -math.pi, 0) * turnP })
+		:Play()
 	fade(corona, 0.25, nil, 0.9)
 	fade(sun, 0.2, nil, 0.9)
 	-- the sun sheds embers and flame as it forms and falls (Everything Left 169)
@@ -2547,16 +2607,27 @@ SUPER.heavenfall = function(x) -- Martial Heavenfall Beam: a thick ki beam wound
 	local glow = part(Vector3.new(w, w, len), cf, x.color)
 	glow.Transparency = 0.45
 	fade(glow, 0.7, { Size = Vector3.new(w * 1.4, w * 1.4, len) })
+	-- the rings in their Blender look (Art.Powers KiRing, Everything Left 177): ki with flame tongues trailing back
+	local kiRing = PowerMeshes.ready("KiRing")
+	local turnP = MeshFix.turn("Powers")
 	for k = 1, FxLib.pieces(5) do
 		local at = from + d * (k / 6)
-		local r = part(
-			Vector3.new(0.3, w * 1.6, w * 1.6),
-			CFrame.lookAt(at, to) * CFrame.Angles(0, math.rad(90), 0),
-			x.accent,
-			Enum.PartType.Cylinder
-		)
-		r.Transparency = 0.2
-		fade(r, 0.4, { Size = Vector3.new(0.1, w * 2.6, w * 2.6) }, k * 0.04)
+		local r: BasePart? = if kiRing
+			then powerMesh("KiRingBand", Vector3.new(w * 1.6, w * 1.6, w * 0.7), x.accent, 0.15)
+			else nil
+		if r then
+			r.CFrame = CFrame.lookAt(at, to) * CFrame.Angles(0, 0, k) * turnP
+			fade(r, 0.4, { Size = Vector3.new(w * 2.6, w * 2.6, w * 1.2) }, k * 0.04)
+		else
+			local c = part(
+				Vector3.new(0.3, w * 1.6, w * 1.6),
+				CFrame.lookAt(at, to) * CFrame.Angles(0, math.rad(90), 0),
+				x.accent,
+				Enum.PartType.Cylinder
+			)
+			c.Transparency = 0.2
+			fade(c, 0.4, { Size = Vector3.new(0.1, w * 2.6, w * 2.6) }, k * 0.04)
+		end
 	end
 	-- ki along the beam and a heavy hit where it lands (Everything Left 177)
 	FxLib.trail(from, to, "Martial", x.color)
@@ -2600,27 +2671,70 @@ SUPER.titanrise = function(x) -- Colossus Titan Form: a red column, stone pillar
 end
 SUPER.singularity = function(x) -- Pulse Singularity: a black hole with a spinning disc, matter streaks in
 	local at = x.c + Vector3.new(0, 7, 0)
-	local hole = PIECE.ball(1, x.accent)
+	local meshed = PowerMeshes.ready("BlackHole")
+	-- a dark heart once the Blender disc and photon ring circle it (Art.Powers BlackHole, Everything Left 180)
+	local hole = PIECE.ball(1, if meshed then Color3.fromRGB(14, 10, 22) else x.accent)
 	hole.Material = Enum.Material.SmoothPlastic
 	hole.CFrame = CFrame.new(at)
 	TweenService:Create(hole, TweenInfo.new(0.3, Enum.EasingStyle.Back), { Size = Vector3.one * 7 }):Play()
 	fade(hole, 0.3, { Size = Vector3.one * 0.5 }, 2.2)
-	spinner({
-		{
-			Vector3.new(0.2, 16, 16),
-			CFrame.Angles(0.35, 0, math.rad(90)),
+	local B = Config.PowerArt.BlackHole
+	local discP = meshed
+		and powerMesh(
+			"HoleDisc",
+			Vector3.new(B.HoleDisc.size[1], B.HoleDisc.size[2], B.HoleDisc.size[3]) * 0.6,
 			x.color,
-			Enum.PartType.Cylinder,
-			0.35,
-		},
-		{
-			Vector3.new(0.25, 11, 11),
-			CFrame.Angles(0.35, 0, math.rad(90)),
-			if anime(x.style) then WHITE else x.color,
-			Enum.PartType.Cylinder,
-			0.15,
-		},
-	}, at, 2.4, 3)
+			B.HoleDisc.alpha
+		)
+	local ringP = meshed
+		and powerMesh(
+			"HoleRing",
+			Vector3.new(B.HoleRing.size[1], B.HoleRing.size[2], B.HoleRing.size[3]) * 0.6,
+			if anime(x.style) then WHITE else x.accent
+		)
+	if discP and ringP then
+		local turnP = MeshFix.turn("Powers")
+		local tilt = CFrame.Angles(0.35, 0, 0)
+		local grow = TweenInfo.new(0.35, Enum.EasingStyle.Back)
+		TweenService:Create(discP, grow, { Size = discP.Size / 0.6 * 9 }):Play()
+		TweenService:Create(ringP, grow, { Size = ringP.Size / 0.6 * 9 }):Play()
+		local start = os.clock()
+		local conn
+		conn = RunService.RenderStepped:Connect(FrameProf.wrap("CombatFx", function()
+			local t = os.clock() - start
+			if t >= 2.4 then
+				conn:Disconnect()
+				fade(discP, 0.3, { Size = discP.Size * 0.2 })
+				fade(ringP, 0.3, { Size = ringP.Size * 0.2 })
+				return
+			end
+			discP.CFrame = CFrame.new(at) * tilt * CFrame.Angles(0, t * 3, 0) * turnP
+			ringP.CFrame = CFrame.new(at) * tilt * CFrame.Angles(0, -t * 1.2, 0) * turnP
+		end))
+	else
+		if discP then
+			discP:Destroy()
+		end
+		if ringP then
+			ringP:Destroy()
+		end
+		spinner({
+			{
+				Vector3.new(0.2, 16, 16),
+				CFrame.Angles(0.35, 0, math.rad(90)),
+				x.color,
+				Enum.PartType.Cylinder,
+				0.35,
+			},
+			{
+				Vector3.new(0.25, 11, 11),
+				CFrame.Angles(0.35, 0, math.rad(90)),
+				if anime(x.style) then WHITE else x.color,
+				Enum.PartType.Cylinder,
+				0.15,
+			},
+		}, at, 2.4, 3)
+	end
 	for k = 1, FxLib.pieces(10) do
 		task.delay(k * 0.15, function()
 			local a = math.random() * math.pi * 2

@@ -974,8 +974,9 @@ return function(T: any)
 			end
 		end
 		check(
-			n == 48,
-			"48 meshes in 17 looks (382 added the jets, the rail and the slab; 173 the bullet): " .. n
+			n == 55,
+			"55 meshes in 22 looks (382 added the jets, the rail and the slab; 173 the bullet; 169, 177, 180 and 183 the sun, ki ring, black hole and field rims): "
+				.. n
 		)
 		for _, look in
 			{
@@ -2683,6 +2684,98 @@ return function(T: any)
 			string.format("the bullet flies (%d slugs, %d streaks)", slug, streak)
 		)
 	end)
+
+	test(
+		"List combat: Sunfall, Singularity, Heavenfall, Ki Blast and the Fire and Light fields in Blender looks (Everything Left 169, 177, 180, 183)",
+		function()
+			local roblox = require("@lune/roblox")
+			local P = Config.PowerArt
+			for look, names in
+				{
+					Sun = { "SunCore", "SunCorona" },
+					BlackHole = { "HoleDisc", "HoleRing" },
+					KiRing = { "KiRingBand" },
+					EmberRim = { "EmberFlames" },
+					HaloRim = { "HaloBlades" },
+				}
+			do
+				for _, name in names do
+					check(P[look] ~= nil and P[look][name] ~= nil, look .. "." .. name .. " is in PowerArt")
+				end
+			end
+			check(
+				P.Sun.SunCorona.tint and P.BlackHole.HoleDisc.tint and P.KiRing.KiRingBand.tint,
+				"they take the path colour"
+			)
+			if not T.placePath then
+				return
+			end
+			local UiSim = require("./uisim")
+			local sim = UiSim.new(
+				UiSim.load(roblox.deserializePlace(fs.readFile(T.placePath))),
+				{ name = "PC", w = 1280, h = 720, top = 36, left = 0, right = 0, bottom = 0, touch = false }
+			)
+			local CombatFx = sim:require("Client.Fx.CombatFx")
+			sim:run("CombatFx", CombatFx.init)
+			local A = Config.Abilities.list
+			local V = roblox.Vector3.new
+			local function data(): any
+				return { o = V(0, 5, 0), d = V(0, 0, -1), e = V(0, 5, -40), c = V(0, 3, -20), r = 14, dur = 2 }
+			end
+			sim:run("Sunfall", function()
+				CombatFx.superMoment(A.Sunfall, "Comic", data())
+			end)
+			sim:run("Singularity", function()
+				CombatFx.superMoment(A.Singularity, "Anime", data())
+			end)
+			sim:run("Heavenfall", function()
+				CombatFx.superMoment(A.HeavenfallBeam, "Comic", data())
+			end)
+			sim:run("Ki Blast", function()
+				CombatFx.bolt(
+					V(0, 5, 0),
+					V(0, 5, -50),
+					"Comic",
+					roblox.Color3.fromRGB(255, 200, 80),
+					"Martial"
+				)
+			end)
+			sim:run("Ember Ring", function()
+				CombatFx.cast(A.EmberRing, "Comic", data())
+			end)
+			sim:run("Halo Blades", function()
+				CombatFx.cast(A.HaloBlades, "Comic", data())
+			end)
+			local rs = sim.service("RunService")
+			for _ = 1, 10 do
+				sim:run("frame", function()
+					rs.RenderStepped:Fire(1 / 60)
+				end)
+				sim:advance(1 / 60)
+			end
+			check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
+			local seen = {}
+			for _, d in sim.service("Workspace"):GetDescendants() do
+				if d:IsA("MeshPart") then
+					seen[d.Name] = (seen[d.Name] or 0) + 1
+				end
+			end
+			for _, name in
+				{ "SunCore", "SunCorona", "HoleDisc", "HoleRing", "KiRingBand", "EmberFlames", "HaloBlades" }
+			do
+				check((seen[name] or 0) >= 1, name .. " is drawn (" .. tostring(seen[name]) .. ")")
+			end
+			check((seen.KiRingBand or 0) >= 3, "Heavenfall's rings and the Ki Blast's halo are ki rings")
+			local src = fs.readFile("src/client/Fx/CombatFx.luau")
+			for _, look in { "Sun", "BlackHole", "KiRing" } do
+				check(
+					string.find(src, 'PowerMeshes.ready("' .. look .. '")', 1, true) ~= nil,
+					look .. " keeps its part build until imported"
+				)
+			end
+			check(string.find(src, "PowerMeshes.ready(rimLook)", 1, true) ~= nil, "the rims too")
+		end
+	)
 
 	test("List combat: the STYLES tab shows a picture per style (Everything Left 362)", function()
 		local GearMath = require("../src/shared/GearMath")
