@@ -3865,7 +3865,9 @@ function CombatFx.blocked(pos: Vector3)
 end
 
 ---------------------------------------------------------------------------
--- The newer robots (Config.Enemies typeIds 10 to 18; numbers in Config.Fx.robots). PLACEHOLDER ART.
+-- The newer robots (Config.Enemies typeIds 10 to 18; numbers in Config.Fx.robots). The net, the claw, the grenade
+-- and the burning patch's flames are Blender meshes (Art.Powers); their part builds, used only before the import,
+-- are PLACEHOLDER ART. Shots, lasers and beams are light effects (FxLib particles and Trails), not models.
 ---------------------------------------------------------------------------
 
 local R = F.robots
@@ -4368,9 +4370,33 @@ end
 -- blinking faster as it falls, and a red ring where it will land (the grenade's blast radius)
 function CombatFx.lob(from: Vector3, to: Vector3, flight: number)
 	local lb = R.lob
-	local ball = part(Vector3.one * lb.size, CFrame.new(from), Color3.fromRGB(70, 85, 45), Enum.PartType.Ball)
-	ball.Material = Enum.Material.Metal
-	local blink = part(Vector3.one * lb.size * 0.4, CFrame.new(from), WARN, Enum.PartType.Ball)
+	-- the Blender grenade (Art.Powers Grenade: a banded olive body, a steel cap and lever, a red light on top,
+	-- list-combat 2026-11-20) when imported, `mesh` x its 1-stud body; else a ball with a blinking bead
+	local pieces: { { p: BasePart, off: CFrame } } = {}
+	local ball: BasePart
+	local blink: BasePart
+	if PowerMeshes.ready("Grenade") then
+		local G = Config.PowerArt.Grenade
+		local k = lb.size * lb.mesh
+		local turn = MeshFix.turn("Powers")
+		for _, name in { "GrenadeBody", "GrenadeCap", "GrenadeLight" } do
+			local m = G[name]
+			local mp = powerMesh(
+				name,
+				Vector3.new(m.size[1], m.size[2], m.size[3]) * k,
+				if name == "GrenadeLight" then WARN else rgb(m.color)
+			) :: MeshPart
+			mp.Material = if name == "GrenadeLight" then Enum.Material.Neon else Enum.Material.Metal
+			local off = CFrame.new(Vector3.new(m.offset[1], m.offset[2], m.offset[3]) * k) * turn
+			mp.CFrame = CFrame.new(from) * off
+			table.insert(pieces, { p = mp, off = off })
+		end
+		ball, blink = pieces[1].p, pieces[3].p
+	else
+		ball = part(Vector3.one * lb.size, CFrame.new(from), Color3.fromRGB(70, 85, 45), Enum.PartType.Ball)
+		ball.Material = Enum.Material.Metal
+		blink = part(Vector3.one * lb.size * 0.4, CFrame.new(from), WARN, Enum.PartType.Ball)
+	end
 	local bomber = Config.Enemies.Bomber
 	local radius = if bomber and bomber.grenade then bomber.grenade.radius else 6
 	local landing = groundBelow(to, 10) + Vector3.new(0, 0.15, 0)
@@ -4390,8 +4416,14 @@ function CombatFx.lob(from: Vector3, to: Vector3, flight: number)
 		local k = math.clamp(t / math.max(flight, 0.05), 0, 1)
 		local at = from:Lerp(to, k) + Vector3.new(0, lift * k * (1 - k), 0)
 		local spin = CFrame.new(at) * CFrame.Angles(t * 12, t * 7, 0)
-		ball.CFrame = spin
-		blink.CFrame = spin * CFrame.new(0, lb.size * 0.45, 0)
+		if #pieces > 0 then
+			for _, pc in pieces do
+				pc.p.CFrame = spin * pc.off
+			end
+		else
+			ball.CFrame = spin
+			blink.CFrame = spin * CFrame.new(0, lb.size * 0.45, 0)
+		end
 		ph += dt * (lb.blink[1] + (lb.blink[2] - lb.blink[1]) * k)
 		blink.Transparency = if ph % 1 < 0.5 then 0 else 0.9
 		mark.Transparency = 0.45 + 0.25 * math.sin(t * 14)
@@ -4402,8 +4434,13 @@ function CombatFx.lob(from: Vector3, to: Vector3, flight: number)
 		end
 		if k >= 1 then
 			conn:Disconnect()
-			ball:Destroy()
-			blink:Destroy()
+			for _, pc in pieces do
+				pc.p:Destroy()
+			end
+			if #pieces == 0 then
+				ball:Destroy()
+				blink:Destroy()
+			end
 			fade(mark, 0.15)
 		end
 	end))

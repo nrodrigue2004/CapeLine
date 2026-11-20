@@ -130,7 +130,7 @@ return {
 		-- (list-combat 2026-11-20) any robot's melee blow: a hot streak `range` studs over `cone` degrees and a fist
 		-- flash, drawn within `near` studs of you, with Config.Audio.impact.whoosh
 		swing = { color = { 255, 150, 110 }, range = 5.5, cone = 100, near = 150 },
-		lob = { gravity = 80, size = 0.7, blink = { 4, 16 } },
+		lob = { gravity = 80, size = 0.7, blink = { 4, 16 }, mesh = 1.5 }, -- mesh: the Blender grenade's scale on size
 		zone = { color = { 255, 110, 30 }, core = { 255, 200, 70 }, every = 0.2 },
 		mend = { color = { 80, 240, 140 }, width = 0.25, packet = 0.3 },
 		rally = { color = { 255, 205, 70 }, life = 0.7 },

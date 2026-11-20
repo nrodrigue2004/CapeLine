@@ -988,8 +988,8 @@ return function(T: any)
 			end
 		end
 		check(
-			n == 83,
-			"83 meshes in 35 looks (the petal; a robot's scrap; the psi gem; the snowflake; the hex plate; the robots' net and claw; the wings flourish; 178 the held girder; 382 added the jets, the rail and the slab; 173 the bullet; 169, 177, 180 and 183 the sun, ki ring, black hole and field rims; 172 the slash; 381 the shock ring and cone fan, then the flying heads; 167 Static Field's arcs): "
+			n == 86,
+			"86 meshes in 36 looks (the Bomber's grenade; the petal; a robot's scrap; the psi gem; the snowflake; the hex plate; the robots' net and claw; the wings flourish; 178 the held girder; 382 added the jets, the rail and the slab; 173 the bullet; 169, 177, 180 and 183 the sun, ki ring, black hole and field rims; 172 the slash; 381 the shock ring and cone fan, then the flying heads; 167 Static Field's arcs): "
 				.. n
 		)
 		for _, look in
@@ -4194,6 +4194,33 @@ return function(T: any)
 				hubs == 1 and prongs == 3,
 				"the claw: a hub and three prongs (" .. hubs .. ", " .. prongs .. ")"
 			)
+			-- a Bomber's grenade: the banded Blender body, cap and blinking light, spinning on its arc, gone on landing
+			sim:run("lob", function()
+				CombatFx.lob(V(60, 5, 0), V(60, 0, -20), 0.6)
+			end)
+			sim:run("frame", function()
+				sim.service("RunService").RenderStepped:Fire(0.2)
+			end)
+			local gp = {}
+			for _, d in sim.service("Workspace"):GetDescendants() do
+				if d:IsA("MeshPart") and string.sub(d.Name, 1, 7) == "Grenade" then
+					gp[d.Name] = d
+				end
+			end
+			check(gp.GrenadeBody and gp.GrenadeCap and gp.GrenadeLight, "the grenade is the Blender grenade")
+			if gp.GrenadeBody then
+				local want = Config.PowerArt.Grenade.GrenadeBody.size[1]
+					* Config.Fx.robots.lob.size
+					* Config.Fx.robots.lob.mesh
+				check(math.abs(gp.GrenadeBody.Size.X - want) < 0.02, "at its size")
+				local at = gp.GrenadeBody.CFrame.Position
+				check(at.X > 55 and at.Y > 4, "on its arc")
+				check((gp.GrenadeLight.CFrame.Position - at).Magnitude < 1.2, "the light rides the cap")
+			end
+			sim:run("frame", function()
+				sim.service("RunService").RenderStepped:Fire(0.5)
+			end)
+			check(gp.GrenadeBody == nil or gp.GrenadeBody.Parent == nil, "gone when it lands")
 			-- a Bomber's burning patch: Ember Ring's flame tongues round it
 			sim:run("zone", function()
 				CombatFx.zone(V(-30, 0, 0), 6, 1)

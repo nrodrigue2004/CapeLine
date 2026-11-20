@@ -629,6 +629,20 @@ mesh("Claw", "ClawHub", [C(0.3, 0.55, 0, 0, 0.0, segs=10, axis="z"), TOR(0.14, 0
 mesh("Claw", "ClawProng", [T([(0, 0.25, 0.1), (0, 0.55, -0.4), (0, 0.5, -0.9), (0, 0.26, -1.15), (0, 0.12, -1.05)],
                             [0.1, 0.09, 0.07, 0.04, 0.015], segs=7)], (200, 120, 50), "Metal")
 
+# ================================================================ the Bomber's grenade (CombatFx lob, list-combat 2026-11-20)
+# Grenade (anchor: the body's centre, 1 across; CombatFx scales it to Config.Fx.robots.lob.size and spins it): a round
+# olive body with three raised bands and a seam, a steel cap with its lever down one side, and a red light on top that
+# blinks faster as it falls.
+gbody = [S(0.5, 0, -0.02, 0, sc=(1, 1.08, 1), segs=14, rings=10)]
+for yb, rr in ((-0.28, 0.43), (0.0, 0.52), (0.28, 0.43)):
+    gbody.append(TOR(rr, 0.045, 0, yb, 0, axis="up", segs=14, csegs=5))
+gbody.append(TOR(0.505, 0.025, 0, 0, 0, axis="x", segs=16, csegs=4))
+mesh("Grenade", "GrenadeBody", gbody, (70, 85, 45), "Metal")
+mesh("Grenade", "GrenadeCap", [C(0.2, 0.22, 0, 0.46, 0, segs=12), C(0.13, 0.12, 0, 0.62, 0, segs=10),
+                               T([(0.16, 0.62, 0.0), (0.3, 0.6, 0.0), (0.4, 0.3, 0.0), (0.38, -0.05, 0.0)],
+                                 [0.05, 0.05, 0.045, 0.04], segs=6)], (60, 60, 66), "Metal")
+mesh("Grenade", "GrenadeLight", [S(0.1, 0, 0.74, 0, segs=10, rings=6)], (255, 60, 50), "Neon")
+
 # ================================================================ the plate piece (CombatFx PIECE.plate, 2026-11-20): Gadgeteer's hex plates and
 # Juggernaut's armour plates, the petals hit and the Mech Suit's drop: a flat hexagon 2 across (corner to corner, in
 # x-z, 0.15 thick) with a raised inner hexagon, a groove between and a bolt in the middle; regular, so the import's
@@ -783,7 +797,7 @@ if "--preview" in sys.argv:
              "Bullet": (-4, -14, 2), "Sun": (6, -16, 4), "BlackHole": (13, -16, 3), "KiRing": (19, -16, 3),
              "EmberRim": (-12, -16, 0.2), "HaloRim": (-18, -16, 0.2), "VoltRim": (-38, -16, 0.2),
              "Slash": (-26, -16, 2), "Shock": (-32, -16, 1), "Heads": (26, -16, 2), "Girder": (31, 6, 11.5), "Wing": (-28, 6, 3), "Net": (-34, 6, 2),
-             "Claw": (-31, -6, 1), "Plate": (-35, -6, 1), "Flake": (-38, -6, 1), "Gem": (-41, -6, 1), "Scrap": (-44, -6, 1), "Petal": (-47, -6, 1)}
+             "Claw": (-31, -6, 1), "Plate": (-35, -6, 1), "Flake": (-38, -6, 1), "Gem": (-41, -6, 1), "Scrap": (-44, -6, 1), "Petal": (-47, -6, 1), "Grenade": (-50, -6, 1)}
     close = "--close" in sys.argv  # the 2026-11-20 effect looks only, near the camera (art/preview/powers_fx.png)
     if close:
         spots = {"Sun": (-9, 0, 3), "BlackHole": (-3.5, 0, 2.5), "KiRing": (1, 0, 2.5), "EmberRim": (5.5, 0, 0.2),
