@@ -66,6 +66,13 @@ local OUTFIT = {
 	TheMargrave = { shirt = "Blazer", shirtTint = { 50, 30, 70 }, pants = "Slacks", pantsTint = { 30, 24, 40 } },
 	TheVelvetPaw = { suit = { { 120, 30, 60 }, { 40, 30, 40 }, { 40, 30, 40 } } },
 	copy = { suit = { { 150, 152, 162 }, { 120, 122, 132 }, { 90, 92, 100 } } },
+	-- missions lane (2026-11-20): Act 1's mission talks
+	driver = { shirt = "ButtonShirt", shirtTint = { 70, 110, 160 }, pants = "Slacks", pantsTint = { 40, 46, 60 } },
+	lookout = { shirt = "LeatherJacket", shirtTint = { 40, 36, 44 }, pants = "Jeans", pantsTint = { 50, 60, 90 } },
+	grocer = { shirt = "Polo", shirtTint = { 200, 170, 90 }, pants = "Chinos", pantsTint = { 110, 90, 60 } },
+	fence = { shirt = "Bomber", shirtTint = { 90, 50, 120 }, pants = "Cargo", pantsTint = { 40, 40, 46 } },
+	producer = { shirt = "Turtleneck", shirtTint = { 30, 32, 40 }, pants = "Slacks", pantsTint = { 30, 30, 36 } },
+	stagehand = { shirt = "Hoodie", shirtTint = { 34, 34, 40 }, pants = "Cargo", pantsTint = { 46, 46, 52 } },
 }
 -- speakers whose clothes, look or face come from another config row (Shared.PeopleLooks.SPEAKERS)
 local PEOPLE = PeopleLooks.SPEAKERS
@@ -139,8 +146,9 @@ end
 local portraits = {}
 local keys = {}
 -- speakers added after the first sheets were packed go last, in this order, so every older portrait keeps its
--- sheet cell (post.py cuts a kept portrait from its old cell): act1-choices (2026-11-19) the Chairman
-local LATE = { "chairman" }
+-- sheet cell (post.py cuts a kept portrait from its old cell): act1-choices (2026-11-19) the Chairman; the
+-- missions lane (2026-11-20) the people Act 1's missions talk to
+local LATE = { "chairman", "driver", "lookout", "grocer", "fence", "producer", "stagehand" }
 local late = {}
 for _, k in LATE do
 	late[k] = true
