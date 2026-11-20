@@ -196,6 +196,13 @@
   "turned": 289,
   "verdict": "rotY180"
  },
+ "Juice": {
+  "asDrawn": 3,
+  "either": 3,
+  "meshes": 5,
+  "turned": 5,
+  "verdict": "rotY180"
+ },
  "Life": {
   "asDrawn": 14,
   "either": 14,

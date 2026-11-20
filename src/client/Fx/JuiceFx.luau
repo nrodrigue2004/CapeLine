@@ -3,7 +3,10 @@
 -- incident clear, the gold ring on a revive, the level badge with the next unlock, the tier colour beam on a
 -- gear drop, boss fireworks, the NEW badge on a purchase, the 5 s shield ring on a respawn, the contract
 -- stamp, and dazed stars when you are stunned. Reduce flashing softens the flashes and stops the spins.
--- Built-in parts and UI only (no emitters past the budget). PLACEHOLDER ART until the art pass.
+-- No emitters past the budget. The world pieces are Blender meshes (art/blender/juice.py, Art.Juice: the Credit coin,
+-- the dazed star, the glow ring, the tier beam, the firework burst; the respawn shield wears Art.Guard's bubble) and
+-- the stamp's frame, the level badge and the confetti are pictures (art/ui/juice_ui.py, Config.Ui.juiceArt)
+-- (list-combat 2026-11-20, Everything Left 386). While a set is not imported the old parts stand in.
 
 local Debris = game:GetService("Debris")
 local Players = game:GetService("Players")
@@ -15,6 +18,7 @@ local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
+local MeshFix = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("MeshFix"))
 local Progress = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Progress"))
 
 local Kit = require(script.Parent.Parent.Ui.Kit)
@@ -28,7 +32,8 @@ JuiceFx.reduce = false -- Settings: reduce flashing (no spins, softer flashes)
 local player = Players.LocalPlayer
 local folder: Folder
 local gui: ScreenGui
-local stars: BillboardGui? = nil
+local stars: Instance? = nil -- the dazed stars (a folder of star meshes, or the old text billboard)
+local ART = Config.Ui.juiceArt
 
 local GOLD = Color3.fromRGB(255, 200, 60)
 local MEDAL = {
@@ -57,6 +62,32 @@ local function bit(size: Vector3, cf: CFrame, color: Color3, shape: Enum.PartTyp
 	return p
 end
 
+-- One of an Art set's meshes placed like bit (nil while the set is not imported); its CFrame needs the set's turn
+local function meshBit(set: string, name: string, size: Vector3, cf: CFrame, color: Color3): MeshPart?
+	local art = ReplicatedStorage:FindFirstChild("Art")
+	local folderSet = art and art:FindFirstChild(set)
+	local src = folderSet and folderSet:FindFirstChild(name, true)
+	if not (src and src:IsA("MeshPart")) then
+		return nil
+	end
+	local p = MeshFix.clone(src)
+	for _, c in p:GetChildren() do
+		c:Destroy()
+	end
+	p.Anchored = true
+	p.CanCollide = false
+	p.CanQuery = false
+	p.CanTouch = false
+	p.CastShadow = false
+	p.Material = Enum.Material.Neon
+	p.Color = color
+	p.Size = size
+	p.CFrame = cf * MeshFix.turn(set)
+	p.Parent = folder
+	return p
+end
+local JTURN = MeshFix.turn("Juice")
+
 local function fadeOut(p: BasePart, time: number, props: { [string]: any }?)
 	local goal = props or {}
 	goal.Transparency = 1
@@ -65,6 +96,17 @@ local function fadeOut(p: BasePart, time: number, props: { [string]: any }?)
 end
 
 local function ring(at: Vector3, radius: number, color: Color3, time: number)
+	-- the glow ring lies flat and turns a little as it spreads
+	local m = meshBit("Juice", "JuiceRing", Vector3.new(1, 0.3, 1), CFrame.new(at), color)
+	if m then
+		m.Transparency = 0.2
+		local spin = if JuiceFx.reduce then 0 else 0.6
+		fadeOut(m, time, {
+			Size = Vector3.new(radius * 2, 0.3, radius * 2),
+			CFrame = CFrame.new(at) * CFrame.Angles(0, spin, 0) * JTURN,
+		})
+		return
+	end
 	local p = bit(
 		Vector3.new(0.4, 1, 1),
 		CFrame.new(at) * CFrame.Angles(0, 0, math.rad(90)),
@@ -113,6 +155,26 @@ local function stampNow(text: string, color: Color3, sub: string?): Frame
 		BackgroundTransparency = 0.15,
 	})
 	Kit.stroke(f, color, 4)
+	if ART and ART.stamp then
+		-- the rubber stamp's worn double frame, inked in the stamp's colour, a little past the card's edge
+		local ink = Instance.new("ImageLabel")
+		ink.Name = "StampArt"
+		ink.BackgroundTransparency = 1
+		ink.Image = "rbxassetid://" .. ART.stamp
+		ink.ImageColor3 = color
+		ink.ScaleType = Enum.ScaleType.Slice
+		ink.SliceCenter = Rect.new(48, 48, 472, 172)
+		ink.AnchorPoint = Vector2.new(0.5, 0.5)
+		ink.Position = UDim2.fromScale(0.5, 0.5)
+		ink.Size = UDim2.new(1, 18, 1, 18)
+		ink.ZIndex = 0 -- under the word (a child still draws over the card)
+		ink.Parent = f
+		for _, c in f:GetChildren() do
+			if c:IsA("UIStroke") then
+				c.Enabled = false -- the inked picture is the frame now
+			end
+		end
+	end
 	local l = Kit.label({
 		Text = text,
 		Size = UDim2.new(1, -16, 0, 60),
@@ -150,6 +212,8 @@ local function stampNow(text: string, color: Color3, sub: string?): Frame
 				TweenService
 					:Create(d, TweenInfo.new(0.25), { TextTransparency = 1, TextStrokeTransparency = 1 })
 					:Play()
+			elseif d:IsA("ImageLabel") then
+				TweenService:Create(d, TweenInfo.new(0.25), { ImageTransparency = 1 }):Play()
 			elseif d:IsA("UIStroke") then
 				TweenService:Create(d, TweenInfo.new(0.25), { Transparency = 1 }):Play()
 			end
@@ -180,13 +244,28 @@ local function confetti(n: number)
 		return
 	end
 	for _ = 1, n do
-		local p = Kit.frame({
-			Position = UDim2.new(math.random(), 0, -0.05, 0),
-			Size = UDim2.fromOffset(8, 14),
-			BackgroundColor3 = Color3.fromHSV(math.random(), 0.75, 1),
-			round = false,
-			Rotation = math.random(0, 360),
-		})
+		local p: GuiObject
+		if ART and ART.confetti then
+			-- paper shapes (a curl, a star, a dot, a triangle), each its own colour
+			local img = Instance.new("ImageLabel")
+			img.BackgroundTransparency = 1
+			img.Image = "rbxassetid://" .. ART.confetti
+			img.ImageRectSize = Vector2.new(64, 64)
+			img.ImageRectOffset = Vector2.new(64 * math.random(0, 3), 0)
+			img.ImageColor3 = Color3.fromHSV(math.random(), 0.75, 1)
+			img.Size = UDim2.fromOffset(16, 16)
+			img.Position = UDim2.new(math.random(), 0, -0.05, 0)
+			img.Rotation = math.random(0, 360)
+			p = img
+		else
+			p = Kit.frame({
+				Position = UDim2.new(math.random(), 0, -0.05, 0),
+				Size = UDim2.fromOffset(8, 14),
+				BackgroundColor3 = Color3.fromHSV(math.random(), 0.75, 1),
+				round = false,
+				Rotation = math.random(0, 360),
+			})
+		end
 		p.Parent = gui
 		local t = 1.6 + math.random() * 1.2
 		TweenService:Create(p, TweenInfo.new(t, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
@@ -208,17 +287,35 @@ function JuiceFx.defeat(at: Vector3?)
 	end
 	for i = 1, 6 do
 		local a = i / 6 * math.pi * 2
-		local c = bit(
-			Vector3.new(0.3, 1.1, 1.1),
-			CFrame.new(at) * CFrame.Angles(0, a, math.rad(90)),
-			GOLD,
-			Enum.PartType.Cylinder
-		)
-		c.Material = Enum.Material.SmoothPlastic
 		local out = at + Vector3.new(math.cos(a) * 4, 3 + (i % 3), math.sin(a) * 4)
-		TweenService:Create(c, TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-			Position = out,
-		}):Play()
+		-- the struck Credit coin, flipping as it flies (the old flat cylinder while Art.Juice is not imported)
+		local m = meshBit(
+			"Juice",
+			"JuiceCoin",
+			Vector3.new(0.3, 1.1, 1.1),
+			CFrame.new(at) * CFrame.Angles(0, a, 0),
+			GOLD
+		)
+		local c: BasePart
+		if m then
+			m.Material = Enum.Material.Foil
+			c = m
+			local flips = if JuiceFx.reduce then 0 else 2.5
+			TweenService:Create(c, TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+				CFrame = CFrame.new(out) * CFrame.Angles(0, a + flips, flips * 0.5) * JTURN,
+			}):Play()
+		else
+			c = bit(
+				Vector3.new(0.3, 1.1, 1.1),
+				CFrame.new(at) * CFrame.Angles(0, a, math.rad(90)),
+				GOLD,
+				Enum.PartType.Cylinder
+			)
+			c.Material = Enum.Material.SmoothPlastic
+			TweenService:Create(c, TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+				Position = out,
+			}):Play()
+		end
 		task.delay(0.35, function()
 			fadeOut(c, 0.5, { Position = out - Vector3.new(0, 3, 0) })
 		end)
@@ -261,6 +358,33 @@ local function levelBadge(_at: Vector3?, data: { [string]: any }?): Frame
 	})
 	Kit.round(badge, 75)
 	Kit.stroke(badge, Kit.color.ink, 5)
+	if ART and ART.badge then
+		-- the gold scalloped medallion with its ribbons (the number and LEVEL stay labels on top)
+		badge.BackgroundTransparency = 1
+		for _, c in badge:GetChildren() do
+			if c:IsA("UIStroke") then
+				c.Enabled = false
+			end
+		end
+		local medal = Instance.new("ImageLabel")
+		medal.Name = "BadgeArt"
+		medal.BackgroundTransparency = 1
+		medal.Image = "rbxassetid://" .. ART.badge
+		medal.AnchorPoint = Vector2.new(0.5, 0.5)
+		medal.Position = UDim2.fromScale(0.5, 0.56)
+		medal.Size = UDim2.fromScale(1.45, 1.45)
+		medal.ZIndex = 0 -- under the number and LEVEL
+		medal.Parent = badge
+		TweenService
+			:Create(
+				medal,
+				TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In, 0, false, 2.2),
+				{
+					ImageTransparency = 1,
+				}
+			)
+			:Play()
+	end
 	local n = Kit.label({
 		Text = tostring(lvl),
 		Size = UDim2.fromScale(1, 0.7),
@@ -342,7 +466,20 @@ function JuiceFx.gearDrop(at: Vector3?, data: { [string]: any }?)
 	if not where then
 		return
 	end
-	local beam = bit(Vector3.new(1.2, 60, 1.2), CFrame.new(where + Vector3.new(0, 28, 0)), color)
+	local top = where + Vector3.new(0, 28, 0)
+	local m = meshBit("Juice", "JuiceBeam", Vector3.new(2.4, 60, 2.4), CFrame.new(top), color)
+	if m then
+		-- the twisting light column turns as it thins, over a ground ring in the tier's colour
+		m.Transparency = 0.25
+		local spin = if JuiceFx.reduce then 0 else 3
+		fadeOut(m, 2.5, {
+			Size = Vector3.new(0.4, 60, 0.4),
+			CFrame = CFrame.new(top) * CFrame.Angles(0, spin, 0) * JTURN,
+		})
+		ring(where - Vector3.new(0, 2.5, 0), 5, color, 1.2)
+		return
+	end
+	local beam = bit(Vector3.new(1.2, 60, 1.2), CFrame.new(top), color)
 	beam.Transparency = 0.35
 	fadeOut(beam, 2.5, { Size = Vector3.new(0.2, 60, 0.2) })
 end
@@ -357,8 +494,17 @@ function JuiceFx.bossDefeated(at: Vector3?)
 					+ Vector3.new(math.random(-40, 40), 60 + math.random(0, 30), math.random(-40, 40))
 				local c = Color3.fromHSV(math.random(), 0.7, 1)
 				ring(sky, 14, c, 0.9)
-				local core = bit(Vector3.one * 3, CFrame.new(sky), c, Enum.PartType.Ball)
-				fadeOut(core, 0.8, { Size = Vector3.one * 10 })
+				local twist = CFrame.Angles(math.random() * 6, math.random() * 6, 0)
+				local spiky = meshBit("Juice", "JuiceBurst", Vector3.one * 3, CFrame.new(sky) * twist, c)
+				if spiky then
+					fadeOut(spiky, 0.8, {
+						Size = Vector3.one * 13,
+						CFrame = CFrame.new(sky) * twist * CFrame.Angles(0, 0.8, 0) * JTURN,
+					})
+				else
+					local core = bit(Vector3.one * 3, CFrame.new(sky), c, Enum.PartType.Ball)
+					fadeOut(core, 0.8, { Size = Vector3.one * 10 })
+				end
 			end)
 		end
 	end
@@ -376,14 +522,19 @@ function JuiceFx.respawn()
 	if not root then
 		return
 	end
-	local shell = bit(Vector3.one * 9, root.CFrame, Kit.color.volt, Enum.PartType.Ball)
+	-- the geodesic shield bubble from the block's set (Art.Guard), turning slowly; else a ForceField ball
+	local bubble = meshBit("Guard", "GuardBubble", Vector3.one * 9, root.CFrame, Kit.color.volt)
+	local shell: BasePart = bubble or bit(Vector3.one * 9, root.CFrame, Kit.color.volt, Enum.PartType.Ball)
+	local turn = if bubble then MeshFix.turn("Guard") else CFrame.identity
 	shell.Material = Enum.Material.ForceField
 	shell.Transparency = 0.2
 	local alive = true
+	local born = os.clock()
 	local conn = RunService.RenderStepped:Connect(FrameProf.wrap("JuiceFx", function()
 		local r = myRoot()
 		if alive and r then
-			shell.CFrame = r.CFrame
+			local spin = if JuiceFx.reduce then 0 else (os.clock() - born) * 0.6
+			shell.CFrame = CFrame.new(r.Position) * CFrame.Angles(0, spin, 0) * turn
 		end
 	end))
 	task.delay(Config.Pvp.spawnProtect, function()
@@ -660,6 +811,39 @@ function JuiceFx.dazed(on: boolean)
 	local char = player.Character
 	local head = char and char:FindFirstChild("Head") :: BasePart?
 	if stars or not head then
+		return
+	end
+	-- three puffy stars circling the head (Art.Juice), each spinning on its own
+	local first = meshBit("Juice", "JuiceStar", Vector3.new(0.8, 0.8, 0.3), head.CFrame, GOLD)
+	if first then
+		local ring3 = Instance.new("Folder")
+		ring3.Name = "Dazed"
+		ring3.Parent = folder
+		local list = { first }
+		for _ = 2, 3 do
+			table.insert(
+				list,
+				meshBit("Juice", "JuiceStar", Vector3.new(0.8, 0.8, 0.3), head.CFrame, GOLD) :: MeshPart
+			)
+		end
+		for _, st in list do
+			st.Parent = ring3
+		end
+		stars = ring3
+		task.spawn(function()
+			local t = 0
+			while stars == ring3 and head.Parent do
+				t += RunService.RenderStepped:Wait()
+				local centre = head.Position + Vector3.new(0, 1.6, 0)
+				local speed = if JuiceFx.reduce then 0.6 else 3
+				for k, st in list do
+					local a = t * speed + (k - 1) * 2 * math.pi / 3
+					local at = centre
+						+ Vector3.new(math.cos(a) * 1.3, math.sin(a * 2) * 0.15, math.sin(a) * 1.3)
+					st.CFrame = CFrame.new(at) * CFrame.Angles(0, -a + t * 2, 0) * JTURN
+				end
+			end
+		end)
 		return
 	end
 	local b = Instance.new("BillboardGui")

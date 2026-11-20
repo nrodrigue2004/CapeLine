@@ -60,6 +60,7 @@
         "SiteProps": { "$path": "art/models/SiteProps.rbxm" },
         "Rings": { "$path": "art/models/Rings.rbxm" },
         "Guard": { "$path": "art/models/Guard.rbxm" },
+        "Juice": { "$path": "art/models/Juice.rbxm" },
         "Trooper": { "$path": "art/models/Trooper.rbxm" },
         "Vehicles": { "$path": "art/models/Vehicles.rbxm" },
         "Voidhound": { "$path": "art/models/Voidhound.rbxm" },

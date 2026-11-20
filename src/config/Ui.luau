@@ -4,6 +4,9 @@ return {
 	touchTarget = 56, -- at least 48 px
 	-- Photo Mode's backdrop overlays (art/ui/photo_backdrops.py, list-combat 2026-11-20, Everything Left 354): a
 	-- see-through picture over the whole screen per LOOK (0: the drawn frame or lines alone)
+	-- the juice table's screen pictures (art/ui/juice_ui.py, Fx.JuiceFx; list-combat 2026-11-20): the stamp's worn
+	-- double frame (white, tinted), the level badge's gold medallion, and four confetti shapes in 64 x 64 cells
+	juiceArt = { stamp = 130467031750054, badge = 138482713675163, confetti = 79631498004206 },
 	photoBackdrops = {
 		COMIC = 135372080682696,
 		SPEED = 100206540963520,
