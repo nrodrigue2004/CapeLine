@@ -241,6 +241,9 @@ Looks only: where the screens hang, what they show, the card's timing and the TV
 6. The boss name cards (each of the four) show the boss's comic portrait popping out of the card's left over a comic navy plate; the name and title sit right of it, the slash bar sweeps in the boss's colour; the plate's ink and gold rule stay crisp at PC and phone sizes.
 7. Your double's card (and the three side-vs-side event cards) show the event's comic icon; the Crater's card and the side quest finales' cards are words on the plate.
 
+### Playtest gaps17: start here (2026-11-20, build playtest-gaps17)
+Everything in gaps16 plus 8 more checklist commits: project files capeline/Capeline-playtest-gaps17-2026-11-20.rbxl (Output "playtest-gaps17 (2026-11-20)"). It replaces every older playtest place. Run "Playtest gaps16: start here" first if not done, then Studio list items 82-89 (wings of light (check each wing opens on its own side), Interceptor net and Grappler claw, cage lances, hex plates, snowflakes, psi gems, ring pieces, robot scrap). Line status: capeline/notes/checklist-progress.md.
+
 ### Playtest gaps16: start here (2026-11-20, build playtest-gaps16)
 Everything in gaps15 plus 9 more checklist commits: project files capeline/Capeline-playtest-gaps16-2026-11-20.rbxl (Output "playtest-gaps16 (2026-11-20)"). It replaces every older playtest place. Run "Playtest gaps15: start here" first if not done, then Studio list items 73-81 (prologue barrier, robot shot streaks, standing and ground rings, crater scorch, halo and spin hoops, glassy shatter stones, repair drone and Medic beams, Bomber burning patch). Line status: capeline/notes/checklist-progress.md.
 
