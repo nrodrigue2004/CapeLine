@@ -167,7 +167,7 @@ function Progress.unlockAt(config: any, level: number): string?
 	end
 	for _, m in (config.Story and config.Story.missions) or {} do
 		if not m.opening and m.minLevel == level and (m.act or 1) == 1 then
-			table.insert(out, "Mission: " .. m.name)
+			table.insert(out, m.name)
 		end
 	end
 	return if #out > 0 then table.concat(out, ", ") else nil

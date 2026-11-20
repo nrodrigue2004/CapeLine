@@ -2319,7 +2319,7 @@ Storyboard (the game's own camera on the test seed, stand-in figures): art/previ
 
 99. Level 5 radio (GuideClient powerStep, first-30): reach level 5; Patch says The Copy is open, then within about a minute "Level up! A new power slot AND move training just opened. Tap POWERS!" (villain: its own line); never inside a mission.
 
-98. Level-up banner (Toasts, JuiceFx, Hud NEXT LV, first-30): at the prologue's level 3 the banner says "Unlocked: Mission: Safehouse" (never Flight); the Renown bar reads "NEXT LV 4: Contract Board, Mission: Framed" and fits on a phone; at 5 "Skill slot 3, Move training, Mission: The Copy".
+98. Level-up banner (Toasts, JuiceFx, Hud NEXT LV, first-30): at the prologue's level 3 the banner says "Unlocked: Safehouse" (never Flight); the Renown bar reads "NEXT LV 4: Contract Board" (the first of the level's unlocks) and fits on a phone; at 5 the banner says "Skill slot 3, Move training, The Copy".
 
 97. Ceremony crowd (PrologueFx poseClip, NpcAnim cheer/cheerPump/clap/stageWave/present/gasp, first-30): in the Ceremony the crowd hops and pumps fists, punches the air or claps (a mix, not in step); the three fakes wave big overhead, Crane sweeps an open hand toward them; when the scan stops on you the crowd turns and gasps, hands to the chest, then scatters on the sprint stride; no pops between poses; you hear the lock-on beep as the red scan locks.
 

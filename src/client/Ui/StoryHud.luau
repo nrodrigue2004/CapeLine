@@ -1137,26 +1137,26 @@ function StoryHud.init()
 	-- action buttons (Config.Ui.nextMission.pill), the blurb left out
 	local function nextLayout()
 		local NM = U.nextMission
+		-- START (64 px) in the right corner, the X just left of it (Dismiss inset 66), the words clear of both
+		nextTitle.Position = UDim2.fromOffset(8, 4)
 		if Kit.compact() then
 			local pill = NM.pill
 			nextPanel.AnchorPoint = Vector2.new(0, 0)
 			nextPanel.Position = UDim2.fromOffset(pill.x, pill.y)
 			nextPanel.Size = UDim2.fromOffset(pill.w, pill.h)
-			nextTitle.Size = UDim2.new(1, -86, 1, -8)
-			nextTitle.Position = UDim2.fromOffset(8, 4)
-			nextText.Visible = false
-			nextStart.Size = UDim2.fromOffset(70, pill.h)
+			nextTitle.Size = UDim2.new(1, -118, 1, -8)
+			nextText.Parent = nil -- no room for the blurb on a phone's pill
+			nextStart.Size = UDim2.fromOffset(64, pill.h)
 			nextStart.Position = UDim2.new(1, 0, 0.5, 0)
 		else
 			nextPanel.AnchorPoint = Vector2.new(0.5, 0)
 			nextPanel.Position = UDim2.new(0.5, 0, 0, NM.y)
 			nextPanel.Size = UDim2.new(0.6, 0, 0, 64)
-			nextTitle.Size = UDim2.new(1, -110, 0, 22)
-			nextTitle.Position = UDim2.fromOffset(8, 4)
-			nextText.Size = UDim2.new(1, -110, 0, 34)
-			nextText.Visible = true
-			nextStart.Size = UDim2.fromOffset(90, 44)
-			nextStart.Position = UDim2.new(1, -6, 0.5, 0)
+			nextTitle.Size = UDim2.new(1, -118, 0, 22)
+			nextText.Size = UDim2.new(1, -118, 0, 34)
+			nextText.Parent = nextPanel
+			nextStart.Size = UDim2.fromOffset(64, 44)
+			nextStart.Position = UDim2.new(1, -2, 0.5, 0)
 		end
 	end
 	nextLayout()
@@ -1166,7 +1166,7 @@ function StoryHud.init()
 		local n = StoryHud.nextMission()
 		hiddenNext = n
 		nextPanel.Visible = false
-	end, { thin = true, tap = false, inset = 96 })
+	end, { thin = true, tap = false, inset = 66 })
 	-- the guide line box keeps clear of the trackers and the choice card (lore step 6)
 	GuideHud.keepClear(tracker)
 	GuideHud.keepClear(questPanel)
