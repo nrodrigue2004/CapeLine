@@ -3,7 +3,7 @@
 -- POWERS > MOBILITY) went off from movement alone, with nothing on screen saying how.
 -- * A move picked this session: a NEW MOVE card in the popup line (Ui.Popups "moveNew": its life, an X, a tap and
 --   Backspace close it) with the move's name, what it does (its Config.Move text) and how to do it on this device
---   (Config.Ui.moveTutor.how, {Action} turned into the key, the controller button or the HUD button).
+--   (Config.Move.moves[id].how through MoveActs.howTo, list-combat's words on the MOBILITY cards).
 -- * Using a move: its name stamped big (JuiceFx.stamp) the first `named` times a session, so a move that fires
 --   by itself (a dive, a hard stop, a landing) is never a mystery.
 -- * Once a session, `remind` s after joining, a move this hero has but has not used yet gets the card again.
@@ -15,6 +15,7 @@ local RunService = game:GetService("RunService")
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local MoveRanks = require(Shared:WaitForChild("MoveRanks"))
+local MoveActs = require(Shared:WaitForChild("MoveActs"))
 local FrameProf = require(Shared:WaitForChild("FrameProf"))
 
 local Kit = require(script.Parent.Kit)
@@ -41,25 +42,15 @@ local used: { [string]: number } = {} -- this session's uses by move
 local startedAt = os.clock()
 local reminded = false
 
--- {Action} the way this device shows it (StoryHud's prologue hints read the same way)
-function MoveTutor.keyOf(action: string): string
-	local dev = InputController.device
-	if dev == "touch" then
-		return string.upper(action)
-	end
-	local k = if dev == "gamepad" then InputController.padHints[action] else InputController.hints[action]
-	return if k then string.upper(k) else string.upper(action)
-end
-
--- How to do a move on this device, or nil
+-- How to do a move on this device, or nil: the move's own words (Config.Move.moves[id].how through
+-- MoveActs.howTo, the same as its MOBILITY card), the buttons named for this device
 function MoveTutor.how(id: string): string?
-	local h = T.how[id]
-	if not h then
+	local m = MOVES[id]
+	if not m or not m.how then
 		return nil
 	end
-	return (string.gsub(h, "{(%a+)}", function(a)
-		return MoveTutor.keyOf(a)
-	end))
+	local dev = InputController.device
+	return MoveActs.howTo(Config.Move, id, if dev == "touch" or dev == "gamepad" then dev else "mouse")
 end
 
 -- The moves this hero has now

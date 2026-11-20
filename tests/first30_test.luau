@@ -491,7 +491,7 @@ return function(T: any)
 			local MoveRanks = require("../src/shared/MoveRanks")
 			local MT = Config.Ui.moveTutor
 			for id in Config.Move.moves do
-				check(MT.how[id] ~= nil, id .. " says how to do it")
+				check(Config.Move.moves[id].how ~= nil, id .. " says how to do it")
 			end
 			check(Config.Ui.popups.cards.moveNew ~= nil, "the card waits in the popup line")
 			if not T.placePath then
