@@ -16,6 +16,12 @@
 --   fight: Skylance in the chamber; the fight ends when its face cracks to metal (Lore 4's unmasking)
 --   swarm: a squad of Crane Troopers; the hero is overwhelmed (never defeated: hero.floor)
 --   rescue: Lodestar crashes in, a line, he grabs the hero
+--   (prologue-cine, nate 2026-11-20: "dont have the player run to the gold marker. whole prologue needs to be
+--   cutscene with qtes until subway"): from the run to the tunnel every beat is a directed cinematic on the device
+--   (Shared.PrologueCine, Fx.PrologueQte): the device drives the hero's body along the authored paths and the
+--   player only answers prompts. This server still judges every beat: the body really moves (the travel is
+--   granted here each tick), so its position checks below move the story on; the suit's HOLD is the one beat the
+--   device reports (OpeningAct 7); every beat keeps its stuck timer, and the fight hands control back.
 --   title: the Crane Industries billboard and the CAPELINE title card; the rewards land at its start and the
 --     hero is back in the plaza, in the normal game. OpeningService.Finished is the hook for mission 2.
 -- Safety: a beat that does not finish moves on by itself (Config.Story.opening.stuck) and the whole prologue
@@ -48,6 +54,7 @@ local ProfileSchema = require(Shared:WaitForChild("ProfileSchema"))
 local MissionRules = require(Shared:WaitForChild("MissionRules"))
 local PrologueRow = require(Shared:WaitForChild("PrologueRow"))
 local FlowPlan = require(Shared:WaitForChild("FlowPlan"))
+local PrologueCine = require(Shared:WaitForChild("PrologueCine"))
 
 local BuildingService = require(script.Parent.BuildingService)
 local CityBuilder = require(script.Parent.CityBuilder)
@@ -243,6 +250,8 @@ local function send(r: Run)
 		spark = route.spark,
 		kid = route.kid,
 		roofs = route.roofs,
+		roofHalf = route.roofHalf, -- prologue-cine: the long hop's ledge
+		runPath = route.runPath, -- prologue-cine: the directed run off the plaza
 		entrance = route.entrance,
 		billboard = route.billboard,
 		lane = r.lane,
@@ -716,6 +725,11 @@ local function step(r: Run, now: number, dt: number)
 		return
 	end
 	local route = r.route
+	if PrologueCine.directed(Config, s) then
+		-- prologue-cine: the device drives the hero along the authored paths (runs, vaults, the leap, the hops, the
+		-- drop); the travel is granted as it goes (this hero's alone in its story, and only on these beats)
+		MoveGuard.grant(hero, O.qte.grantRate * dt)
+	end
 	if s == "leap" or s == "chase" or s == "suit" or s == "descend" then
 		moveFake(r, pos, dt)
 	end
@@ -866,6 +880,9 @@ local function onAct(player: Player, act: number)
 		else
 			OpeningService.finish(player)
 		end
+	elseif act == 7 and r.step == "suit" and os.clock() - r.stepAt >= O.qte.suitMin then
+		-- prologue-cine: the suit's HOLD has snapped it on (the device's cue; the stuck timer still holds the beat)
+		setStep(r, "descend")
 	elseif act == 3 and r.hold then
 		-- Create First (a returning account): straight to the city with the rewards
 		OpeningService.finish(player)

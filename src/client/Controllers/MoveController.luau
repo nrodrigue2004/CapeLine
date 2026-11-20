@@ -123,7 +123,7 @@ rayParams.FilterType = Enum.RaycastFilterType.Exclude
 
 local arc: { from: Vector3, to: Vector3, start: number, time: number, height: number }? = nil
 -- a fast-travel flight (TravelClient, gap polish 2026-11-19): the body follows at(f) for `time` seconds
-local trip: { at: (number) -> Vector3, start: number, time: number, hold: boolean }? = nil
+local trip: { at: (number) -> Vector3, start: number, time: number, hold: boolean, upright: boolean? }? = nil
 
 -- mobility state
 local sprint = M.run.speed -- Super-speed's current run speed
@@ -1362,7 +1362,9 @@ end
 -- everything (TravelClient's collision group), with no input, landing check or ram. The server sets the hero
 -- down at the end; endTravel then drops it out of the flight diving at `dive`, so it lands with the landing's
 -- juice and pose. hold(): stop following (a skip, or the server put the body somewhere else).
-function MoveController.travel(at: (number) -> Vector3, time: number)
+-- upright (prologue-cine, 2026-11-20: the prologue's directed runs, vaults and hops): the body stays upright facing
+-- its travel instead of the flight's tilt (HeroAnimator.cineMode poses the limbs)
+function MoveController.travel(at: (number) -> Vector3, time: number, upright: boolean?)
 	if not root or not hum or hum.Health <= 0 then
 		return
 	end
@@ -1373,7 +1375,7 @@ function MoveController.travel(at: (number) -> Vector3, time: number)
 	arc, ride = nil, nil
 	MoveController.autoTarget = nil
 	setBoost(false)
-	trip = { at = at, start = os.clock(), time = math.max(0.1, time), hold = false }
+	trip = { at = at, start = os.clock(), time = math.max(0.1, time), hold = false, upright = upright }
 	setMode("fly")
 end
 
@@ -1402,7 +1404,13 @@ end
 -- one frame of the flight: steer onto the arc point a frame ahead (a feed-forward with the error folded in,
 -- capped so a teleport never flings the body back across the map)
 local function travelStep(
-	t0: { at: (number) -> Vector3, start: number, time: number, hold: boolean },
+	t0: {
+		at: (number) -> Vector3,
+		start: number,
+		time: number,
+		hold: boolean,
+		upright: boolean?,
+	},
 	dt: number
 )
 	local r, v, o, h = root :: BasePart, lv :: LinearVelocity, ao :: AlignOrientation, hum :: Humanoid
@@ -1426,7 +1434,15 @@ local function travelStep(
 	v.Enabled = true
 	o.Enabled = true
 	v.VectorVelocity = vel
-	o.CFrame = orientation("fly", dt)
+	if t0.upright then
+		local flat = Vector3.new(ahead.X - here.X, 0, ahead.Z - here.Z)
+		if flat.Magnitude > 1e-3 then
+			lastYaw = math.atan2(-flat.X, -flat.Z)
+		end
+		o.CFrame = CFrame.fromOrientation(0, lastYaw, 0)
+	else
+		o.CFrame = orientation("fly", dt)
+	end
 	MoveController.velocity = vel
 end
 
