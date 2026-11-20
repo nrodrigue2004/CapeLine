@@ -18,6 +18,11 @@
 --   (BuildingState.boxesNear) so it smashes through buildings (BossSim smash events -> BuildingService.smash, inside
 --   the collapse caps) and slides round pinned ones; tether hits yank the hero in and column swats knock it down
 --   (strikeHero, shared with the War-Frame in MissionService).
+-- * bosses-3 (2026-11-20): six bosses take turns (BossMath.nextInOrder). The Storm Colossus hovers by the Beacon Tower
+--   (its lightning rods plus pads on the nearest roofs ride heroes up: lift events -> HeroKnock up), gusts push heroes
+--   away, storm clouds and lava pools tick (tick events); the Quarry Titan's slams and rocks dig craters
+--   (CraterService.blast); the Swarm Queen's formations guard it and re-form (exposed events). Boss.State carries the
+--   hover height, the lowered and exposed flags and the lifts.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -52,6 +57,7 @@ local CitizenService = require(script.Parent.CitizenService)
 local IncidentService = require(script.Parent.IncidentService)
 local PerfMonitor = require(script.Parent.PerfMonitor)
 local MoveGuard = require(script.Parent.MoveGuard)
+local CraterService = require(script.Parent.CraterService)
 
 local Bits = ProfileSchema.Bits
 
@@ -99,7 +105,7 @@ local function toWorld(name: string, data: any)
 end
 
 local function nextBoss(): string
-	return B.order[turn % #B.order + 1]
+	return BossMath.nextInOrder(Config, turn)
 end
 
 local function arenaOf(bossId: string): Vector3
@@ -123,6 +129,13 @@ local function findArenas()
 	-- the Leviathan Engine surfaces over the Trench (Config.Deep)
 	local ta = Config.Deep.trench.arena
 	arenas.LeviathanEngine = Vector3.new(ta.x, Config.World.coast.waterY, ta.z)
+	-- bosses-3: the Storm Colossus by the Beacon Tower, the Swarm Queen at the Docks, the Quarry Titan in the quarry
+	for _, id in B.order do
+		local ax, ay, az = WorldMap.bossArena(Config, world, id)
+		if ax and ay and az then
+			arenas[id] = Vector3.new(ax, ay, az)
+		end
+	end
 end
 
 local function ledgerOf(f: Fight, heroId: number): { damage: number, support: number, objectives: number }
@@ -219,7 +232,7 @@ function BossService.strikeHero(hero: any, ev: any, sim: BossSim.Sim): boolean
 		return false
 	end
 	local pos = HeroService.position(hero)
-	if not pos or not (ev.yank or ev.drop) then
+	if not pos or not (ev.yank or ev.drop or ev.push) then
 		return false
 	end
 	local flat = Vector3.new(sim.x - pos.X, 0, sim.z - pos.Z)
@@ -239,6 +252,13 @@ function BossService.strikeHero(hero: any, ev: any, sim: BossSim.Sim): boolean
 		return true
 	end
 	local away = if flat.Magnitude > 0.1 then -flat.Unit else Vector3.new(1, 0, 0)
+	if ev.push then
+		-- bosses-3: a gust blows the hero away from the boss (fliers tumble back across the sky)
+		local push = away * ev.push
+		MoveGuard.grant(hero, ev.push + 10)
+		Net.fire("HeroKnock", hero.player, { x = push.X, y = 6, z = push.Z, time = 0.7 })
+		return true
+	end
 	local move = away * 24
 	MoveGuard.grant(hero, 34)
 	Net.fire("HeroKnock", hero.player, {
@@ -280,6 +300,9 @@ local function begin()
 			return BuildingState.boxesNear(book, x, z, r)
 		end
 	end
+	if book and sim.cfg.lifts then
+		BossSim.addRoofPads(sim, BuildingState.boxesNear(book, at.X, at.Z, sim.cfg.arenaRadius))
+	end
 	local f: Fight = {
 		id = bossId,
 		sim = sim,
@@ -294,7 +317,7 @@ local function begin()
 	IncidentService.prep = false
 	prepCleared = 0
 	CitizenService.danger(at.X, at.Z, f.sim.cfg.arenaRadius + 60, SCHED.lifespan + SCHED.landing)
-	toWorld("BossAttack", { k = "land", num = f.sim.cfg.num, x = at.X, y = at.Y, z = at.Z })
+	toWorld("BossAttack", { k = "land", num = f.sim.cfg.num, x = at.X, y = at.Y, z = at.Z, alt = sim.alt })
 	BossService.Arrived:Fire(bossId)
 end
 
@@ -461,6 +484,38 @@ local function handleEvents(f: Fight)
 				)
 			end
 		end
+		if ev.k == "strike" and ev.crater then
+			-- bosses-3: the Quarry Titan breaks the ground (a crater at the slam, or at every rock)
+			if ev.points and ev.shape == "circles" then
+				for _, p in ev.points do
+					CraterService.blast(Vector3.new(p[1], ev.y, p[2]), ev.crater, Config.Destruction.bossStruct)
+				end
+			else
+				CraterService.blast(Vector3.new(ev.x, ev.y, ev.z), ev.crater, Config.Destruction.bossStruct)
+			end
+		end
+		if ev.k == "tick" then
+			-- a storm cloud or a lava pool: damage only (no knock); nothing to draw that the strike did not start
+			for _, hit in ev.hits do
+				local hero = HeroService.byId(hit[1])
+				if hero then
+					HeroService.damage(hero, hit[2], { boss = true })
+				end
+			end
+			continue
+		end
+		if ev.k == "lift" then
+			-- a lightning rod or roof pad: the hero rides an updraft up beside the boss (MoveGuard grants the move)
+			local hero = HeroService.byId(ev.id)
+			local pos = hero and hero.player and hero.alive and not hero.downed and HeroService.position(hero)
+			if hero and pos then
+				local flat = Vector3.new(ev.bx - pos.X, 0, ev.bz - pos.Z)
+				local move = if flat.Magnitude > 40 then flat.Unit * (flat.Magnitude - 36) else Vector3.zero
+				local rise = ev.to - pos.Y
+				MoveGuard.grant(hero, move.Magnitude + rise + 20)
+				Net.fire("HeroKnock", hero.player, { x = move.X, y = 12, z = move.Z, time = 1.1, drop = rise })
+			end
+		end
 		if ev.k == "smash" then
 			-- it walked into a building: knock its pieces out where the body meets it (the diffs show the hole)
 			BuildingService.smash(ev.id, Vector3.new(ev.x, ev.y, ev.z), ev.dmg, ev.r)
@@ -521,7 +576,24 @@ local function statePacket(now: number): { [string]: any }
 		at = math.max(0, math.ceil((if s.state == "landing" then s.fightAt else s.endsAt) - now)),
 		objectives = objectives,
 		level = f.level,
+		-- bosses-3: how high it floats, whether it is down low or its core exposed, and the lifts that ride heroes up
+		alt = if s.alt ~= 0 then s.alt else nil,
+		low = if s.isLow then true else nil,
+		exposed = if s.exposed then true else nil,
+		lifts = BossService.liftList(s),
 	}
+end
+
+-- The lifts on the wire: { x, y, z, 1 for a roof pad }
+function BossService.liftList(s: BossSim.Sim): { { number } }?
+	if #s.lifts == 0 then
+		return nil
+	end
+	local out = {}
+	for _, l in s.lifts do
+		table.insert(out, { math.floor(l.x), math.floor(l.y), math.floor(l.z), if l.kind == "pad" then 1 else 0 })
+	end
+	return out
 end
 
 local function sendContribution(f: Fight)

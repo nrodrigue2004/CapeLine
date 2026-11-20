@@ -19,8 +19,17 @@
 -- Attack shapes: ring (around the boss; `up` how high it reaches, 12 by default), cone (in front), circles (at heroes),
 -- lines (at heroes), pull, and the counters (2026-11-19): homing (3D shots at airborne heroes), column (a cylinder by its
 -- body from lo to hi up), tether (a homing shot that yanks its target in). `react` marks a reactive attack (BossSim).
+-- bosses-3 (2026-11-20) adds: gust (a cone of wind that pushes heroes between lo and hi up away by `push` studs),
+-- zone (lingering circles at heroes for `dur` s that hurt every `tick` s between lo and hi up: storm clouds in the sky,
+-- lava on the floor), `tall` circles (a lightning bolt from the clouds: it reaches any height up to the boss's top),
+-- `crater` (the hit digs a crater that wide: CraterService), and per boss `hover` (it floats `high` up and comes down to
+-- `low` every `every` s for `lowFor` s, and at each phase), `lifts` (lightning rods round the arena and pads on nearby
+-- roofs that ride a hero up to it), `guard` (its formations shield it; break them all and the core is exposed for
+-- `reform` s, then they re-form) and `forms` (the swarm's shape in each phase).
 return {
-	order = { "RustjawPrime", "LumenMaw", "LeviathanEngine" },
+	-- bosses-3 (nate 2026-11-20, "more bosses", Mix picked): six world bosses take turns, still one every 20 to 30
+	-- minutes (the schedule below is unchanged). The last three are DRAFTS (names and looks) until nate OKs them.
+	order = { "RustjawPrime", "LumenMaw", "LeviathanEngine", "StormColossus", "SwarmQueen", "QuarryTitan" },
 	schedule = {
 		every = { 1200, 1800 },
 		firstClamp = 360, -- spec: a new account's first boss within 6 minutes of them joining
@@ -425,6 +434,427 @@ return {
 					yank = 30,
 					warn = 1.6,
 					coeff = 1.2,
+					cooldown = 12,
+					phases = { 1, 2, 3 },
+				},
+			},
+		},
+		-- bosses-3 (nate 2026-11-20: "more bosses", Mix picked). NAMES AND LOOKS ARE DRAFTS until nate OKs them (draft =
+		-- true; Decisions.md). Each: 3 phases, the 3 counters and the enrage like the others, its own reward (Gear style,
+		-- badge title, creator pieces, Rogues page), its arena (WorldMap.bossArena) and its look (art/blender/bosses2.py,
+		-- Config.BossArt via BossArt2, ReplicatedStorage.Art.Bosses2).
+		-- The Storm Colossus: a Crane Industries weather machine hovering by the Beacon Tower. Lightning with telegraphs
+		-- (bolts from the clouds that reach any height), wind gusts that push fliers away, storm clouds that linger in the
+		-- sky. Fair to every mobility: lightning rods round the plaza and pads on nearby roofs ride any hero up to it (lifts),
+		-- and it comes down to rooftop height every 40 s and at each phase (hover). Its storm vanes shoot bolts until broken.
+		StormColossus = {
+			num = 5,
+			name = "Storm Colossus",
+			draft = true,
+			rogues = 4,
+			arena = "beacon", -- over the Beacon Tower's plaza (WorldMap.bossArena)
+			arenaRadius = 200,
+			height = 74,
+			speed = 0, -- it hovers in place and turns to the crowd
+			turn = 40,
+			-- it hovers `high` up (its fan's bottom); every `every` s, and at each phase, it comes down to `low` for
+			-- lowFor s (its body's bottom 12 up: a ground hero's jump reaches it)
+			hover = { high = 110, low = 4, rate = 30, every = 40, lowFor = 14 },
+			-- lightning rods on the ground (`rods` round it at ring x arenaRadius) and pads on up to `roofs` roofs near
+			-- it: standing on one (r studs) rides a hero up an updraft to its body's middle (+above), once every `every` s
+			lifts = { rods = 4, ring = 0.3, r = 10, above = 6, every = 3, roofs = 4 },
+			counters = {
+				meleeR = 60,
+				air = 14,
+				kiteRange = 130,
+				kiteAfter = 10,
+				enrage = { after = 25, gap = 0.7, dmg = 1.25 },
+			},
+			gap = { 3.4, 3.0, 2.6 },
+			-- offsets from its hover base (the bottom of its lift fan)
+			targets = {
+				{ id = "body", at = { 0, 30, 0 }, r = 22 },
+				{ id = "head", at = { 0, 57, 0 }, r = 12 },
+				{ id = "armL", at = { -33, 24, -6 }, r = 8 },
+				{ id = "armR", at = { 33, 24, -6 }, r = 8 },
+				{ id = "core", at = { 0, 30, -22 }, r = 6, weak = true },
+				{ id = "dynamo", at = { 0, 71, 0 }, r = 4, weak = true },
+			},
+			-- objectives: three storm vanes (shoulders and back) that call bolts down on the crowd until broken
+			objectives = {
+				kind = "cannon",
+				hits = 30,
+				list = { { at = { -22, 52, 8 } }, { at = { 22, 52, 8 } }, { at = { 0, 46, 22 } } },
+				fire = { every = 5.5, r = 9, warn = 1.5, coeff = 1.0, tall = true },
+			},
+			attacks = {
+				{
+					id = "Lightning",
+					shape = "circles",
+					tall = true,
+					r = 10,
+					count = 5,
+					warn = 1.6,
+					coeff = 1.3,
+					phases = { 1, 2, 3 },
+				},
+				{
+					id = "Gust",
+					shape = "gust",
+					r = 150,
+					arc = 80,
+					lo = 14,
+					hi = 400,
+					push = 60,
+					warn = 1.4,
+					coeff = 0.5,
+					phases = { 1, 2, 3 },
+				},
+				{
+					id = "StormCloud",
+					shape = "zone",
+					r = 24,
+					count = 3,
+					lo = 24,
+					hi = 400,
+					dur = 10,
+					tick = 1,
+					warn = 1.8,
+					coeff = 0.3,
+					phases = { 2 },
+					hazard = true,
+				},
+				{
+					id = "StormLash",
+					shape = "lines",
+					width = 12,
+					length = 260,
+					count = 3,
+					warn = 1.5,
+					coeff = 1.8,
+					phases = { 3 },
+					hazard = true,
+				},
+				-- counters (react): ball lightning that homes on fliers, a thunderhead round its body, a vortex that
+				-- yanks a kiter in
+				{
+					id = "BallLightning",
+					shape = "homing",
+					react = "air",
+					r = 10,
+					count = 3,
+					track = 0.6,
+					maxTrack = 40,
+					warn = 1.6,
+					coeff = 1.3,
+					cooldown = 6,
+					phases = { 1, 2, 3 },
+				},
+				{
+					id = "Thunderhead",
+					shape = "column",
+					react = "hover",
+					r = 60,
+					lo = 20,
+					hi = 260,
+					drop = 30,
+					warn = 1.2,
+					coeff = 1.8,
+					cooldown = 7,
+					phases = { 1, 2, 3 },
+				},
+				{
+					id = "Vortex",
+					shape = "tether",
+					react = "kite",
+					r = 10,
+					track = 0.6,
+					maxTrack = 40,
+					yank = 40,
+					warn = 1.6,
+					coeff = 1.2,
+					cooldown = 12,
+					phases = { 1, 2, 3 },
+				},
+			},
+		},
+		-- The Swarm Queen: thousands of Crane drones round one hive core at the Docks (the server runs one body: the core
+		-- and its three formation nodes; every device draws the swarm, Fx.SwarmFx within its preset's budget). Phase 1 the
+		-- drones make fists, phase 2 walls, phase 3 a giant body (forms). While any formation stands the swarm shrugs off
+		-- most damage (guard); break all three and the core crashes down, exposed, for 15 s, then they re-form.
+		SwarmQueen = {
+			num = 6,
+			name = "Swarm Queen",
+			draft = true,
+			rogues = 5,
+			arena = "docks", -- the container yard by the harbour (WorldMap.bossArena)
+			arenaRadius = 170,
+			height = 60,
+			speed = 0,
+			turn = 55,
+			hover = { high = 6, low = -12, rate = 26 }, -- it only comes down (crashes, half sunk) when its core is exposed
+			guard = { key = "core", guarded = 0.35, exposed = 3, reform = 15 },
+			forms = { "fists", "wall", "giant" },
+			-- the swarm each device draws (Fx.SwarmFx, Shared.SwarmShapes): drone meshes by preset, a haze of far specks a
+			-- second (each lives hazeLife s) so it reads as thousands, and how often a second the drones move
+			swarm = {
+				drones = { low = 90, medium = 180, high = 320 },
+				haze = { low = 150, medium = 400, high = 600 },
+				hazeLife = 3,
+				rate = { low = 20, medium = 30, high = 60 },
+				far = 900, -- past this from the camera the drones hold still (the haze keeps going)
+			},
+			counters = {
+				meleeR = 55,
+				air = 14,
+				kiteRange = 120,
+				kiteAfter = 10,
+				enrage = { after = 25, gap = 0.7, dmg = 1.25 },
+			},
+			gap = { 3.2, 2.8, 2.4 },
+			targets = {
+				{ id = "swarm", at = { 0, 30, 0 }, r = 26 },
+				{ id = "core", at = { 0, 30, -8 }, r = 7, weak = true }, -- 36 up; 18 when it crashes (exposed)
+			},
+			-- objectives: the formation relay nodes the drones form round; they spit drone darts until broken and
+			-- re-form after the core's exposed window
+			objectives = {
+				kind = "formation",
+				hits = 24,
+				-- the two fists rest their knuckles on the ground; the third node is the hive's root behind it (every
+				-- mobility reaches them from the ground)
+				list = { { at = { -34, 4, -12 } }, { at = { 34, 4, -12 } }, { at = { 0, 2, 34 } } },
+				fire = { every = 6, r = 8, warn = 1.4, coeff = 0.9 },
+			},
+			attacks = {
+				{
+					id = "DroneFist",
+					shape = "circles",
+					r = 14,
+					count = 2,
+					warn = 1.5,
+					coeff = 1.9,
+					phases = { 1, 3 },
+				},
+				{
+					id = "FistSweep",
+					shape = "cone",
+					r = 70,
+					arc = 120,
+					warn = 1.3,
+					coeff = 1.5,
+					phases = { 1, 2, 3 },
+				},
+				{
+					id = "DroneRain",
+					shape = "circles",
+					r = 9,
+					count = 8,
+					warn = 1.6,
+					coeff = 1.2,
+					phases = { 2, 3 },
+				},
+				{
+					id = "DroneWall",
+					shape = "lines",
+					width = 26,
+					length = 200,
+					count = 1,
+					warn = 1.8,
+					coeff = 1.6,
+					phases = { 2 },
+					hazard = true,
+				},
+				{
+					id = "GiantStomp",
+					shape = "ring",
+					r = 55,
+					warn = 1.7,
+					coeff = 2.0,
+					struct = true,
+					phases = { 3 },
+					hazard = true,
+				},
+				-- counters (react): stinger drones that home on fliers, the hive crushing in round its body, a drone
+				-- chain that yanks a kiter in
+				{
+					id = "Stingers",
+					shape = "homing",
+					react = "air",
+					r = 10,
+					count = 3,
+					track = 0.6,
+					maxTrack = 40,
+					warn = 1.6,
+					coeff = 1.3,
+					cooldown = 6,
+					phases = { 1, 2, 3 },
+				},
+				{
+					id = "HiveCrush",
+					shape = "column",
+					react = "hover",
+					r = 55,
+					lo = 14,
+					hi = 160,
+					drop = 30,
+					warn = 1.2,
+					coeff = 1.8,
+					cooldown = 7,
+					phases = { 1, 2, 3 },
+				},
+				{
+					id = "DroneChain",
+					shape = "tether",
+					react = "kite",
+					r = 10,
+					track = 0.6,
+					maxTrack = 40,
+					yank = 30,
+					warn = 1.6,
+					coeff = 1.2,
+					cooldown = 12,
+					phases = { 1, 2, 3 },
+				},
+			},
+		},
+		-- The Quarry Titan: a cartoon magma golem that climbs out of the Old Quarry (it bursts into light and rock
+		-- chunks, never blood). Ground slams and the eruption break the ground into craters (crater: CraterService), rock
+		-- throws dig small ones, lava pools linger on the floor in phase 2 (zone). It plods after the crowd and smashes
+		-- what it walks into, like Rustjaw. Its magma vents round the pit feed it while they stand.
+		QuarryTitan = {
+			num = 7,
+			name = "Quarry Titan",
+			draft = true,
+			rogues = 6,
+			arena = "OldQuarry", -- the quarry pit (shared with the Lumen Maw; they never come at once)
+			arenaRadius = 220, -- the pit is 4 tiles wide: room for its leap to land on a kiter
+			height = 92,
+			speed = 4,
+			turn = 40,
+			bodyR = 15,
+			smash = { every = 0.5, dmg = 2400, slow = 0.6, reach = 1, at = 8 },
+			unstick = { after = 4 },
+			chase = { beyond = 110, mult = 2 },
+			counters = {
+				meleeR = 60,
+				air = 14,
+				kiteRange = 120,
+				kiteAfter = 10,
+				enrage = { after = 25, gap = 0.7, dmg = 1.25 },
+			},
+			gap = { 3.6, 3.1, 2.6 },
+			targets = {
+				{ id = "body", at = { 0, 54, 0 }, r = 22 },
+				{ id = "head", at = { 0, 82, -6 }, r = 11 },
+				{ id = "legL", at = { -14, 20, 0 }, r = 10 },
+				{ id = "legR", at = { 14, 20, 0 }, r = 10 },
+				{ id = "core", at = { 0, 54, -20 }, r = 6, weak = true },
+				{ id = "kneeL", at = { -14, 26, -8 }, r = 5, weak = true },
+				{ id = "kneeR", at = { 14, 26, -8 }, r = 5, weak = true },
+			},
+			-- objectives: magma vents round the pit that heal it while they stand
+			objectives = {
+				kind = "generator",
+				hits = 28,
+				list = { { ring = 60 }, { ring = 180 }, { ring = 300 } },
+				heal = 0.003,
+			},
+			attacks = {
+				{
+					id = "GroundSlam",
+					shape = "ring",
+					r = 48,
+					warn = 1.7,
+					coeff = 2.0,
+					struct = true,
+					crater = 18,
+					phases = { 1, 2, 3 },
+				},
+				{
+					id = "RockThrow",
+					shape = "circles",
+					r = 12,
+					count = 4,
+					warn = 1.8,
+					coeff = 1.5,
+					crater = 9,
+					phases = { 1, 2, 3 },
+				},
+				{
+					id = "MagmaSweep",
+					shape = "cone",
+					r = 65,
+					arc = 110,
+					warn = 1.3,
+					coeff = 1.6,
+					phases = { 1, 3 },
+				},
+				{
+					id = "LavaFloor",
+					shape = "zone",
+					r = 26,
+					count = 3,
+					lo = -4,
+					hi = 8,
+					dur = 9,
+					tick = 1,
+					warn = 1.8,
+					coeff = 0.35,
+					phases = { 2 },
+					hazard = true,
+				},
+				{
+					id = "Eruption",
+					shape = "ring",
+					r = 85,
+					up = 20,
+					warn = 2.0,
+					coeff = 1.9,
+					struct = true,
+					crater = 26,
+					phases = { 3 },
+					hazard = true,
+				},
+				-- counters (react): lava bombs that home on fliers, a magma geyser round its body, a boulder leap onto a
+				-- kiter (also its unstick)
+				{
+					id = "LavaBombs",
+					shape = "homing",
+					react = "air",
+					r = 10,
+					count = 3,
+					track = 0.6,
+					maxTrack = 40,
+					warn = 1.6,
+					coeff = 1.3,
+					cooldown = 6,
+					phases = { 1, 2, 3 },
+				},
+				{
+					id = "MagmaGeyser",
+					shape = "column",
+					react = "hover",
+					r = 55,
+					lo = 22,
+					hi = 140,
+					drop = 30,
+					warn = 1.2,
+					coeff = 1.8,
+					cooldown = 7,
+					phases = { 1, 2, 3 },
+				},
+				{
+					id = "BoulderLeap",
+					shape = "ring",
+					react = "kite",
+					leap = true,
+					r = 36,
+					up = 40,
+					warn = 1.8,
+					coeff = 1.8,
+					struct = true,
+					crater = 20,
 					cooldown = 12,
 					phases = { 1, 2, 3 },
 				},

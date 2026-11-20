@@ -91,6 +91,10 @@ return {
 				b("leviathan", "Engine Stopper", "boss:LeviathanEngine", 1, "Defeat the Leviathan Engine"),
 				-- WP5: the Suspicious Hero incident (draft name: nate to OK)
 				b("fakes10", "Fake Spotter", "fakes", 10, "Unmask 10 fake heroes in the street"),
+				-- bosses-3 (2026-11-20; DRAFT names until nate OKs them): each new world boss's title, after the group's older badges so no save bit moves
+				b("stormcolossus", "Storm Breaker", "boss:StormColossus", 1, "Defeat the Storm Colossus"),
+				b("swarmqueen", "Hive Buster", "boss:SwarmQueen", 1, "Defeat the Swarm Queen"),
+				b("quarrytitan", "Titan Toppler", "boss:QuarryTitan", 1, "Defeat the Quarry Titan"),
 			},
 		},
 		{
