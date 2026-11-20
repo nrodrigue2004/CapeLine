@@ -282,7 +282,9 @@ local SIGNAL_INSIDER = {
 local SIGNAL_WARDEN = {
 	kind = "boss",
 	enemy = "NullSentinel", -- the Warden
-	hpMult = 8,
+	-- missions lane (nate 2026-11-20: "Warden in mission is way too tanky"): 8 -> 4.5, about 60-90 s solo at
+	-- level 6 (Decisions.md)
+	hpMult = 4.5,
 	adds = { "SparkDrone", 3 },
 	text = "Beat the tower's Warden",
 	radio = {
@@ -2071,11 +2073,13 @@ return {
 		mission = 50,
 	},
 
-	-- Bulwark's battle form (Live, mission 6; the old mission 6 fight reused): 36,000 HP at level 20, scaled by
+	-- Bulwark's battle form (Live, mission 6; the old mission 6 fight reused): 13,500 HP at level 20, scaled by
 	-- the party's median level. A BossSim boss with a back shield in phase 2 and pillars that block its laser in
 	-- phase 3. (The key stays "warframe" so saves and data stay put.)
 	warframe = {
-		hp = 36000,
+		-- missions lane (nate 2026-11-20: "Bulwark big phase too tanky"): 36,000 -> 13,500, about 7,900 HP for
+		-- a level 8 solo hero (60-90 s of hitting plus the shield and pillar phases; Decisions.md)
+		hp = 13500,
 		atLevel = 20,
 		summon = { "SparkDrone", 6 }, -- when phase 2 starts
 		shieldHits = 3, -- hits on the back weak point that break the phase 2 shield

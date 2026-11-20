@@ -4627,8 +4627,8 @@ end)
 test(
 	"M7: the War-Frame: cannons, a phase 2 shield broken by 3 back hits, drones, pillars block the laser",
 	function()
-		check(BossMath.warframeHp(Config, 20) == 36000, "36,000 HP at level 20")
-		check(BossMath.warframeHp(Config, 10) < 36000, "scaled by the party's level")
+		check(BossMath.warframeHp(Config, 20) == Config.Story.warframe.hp, "the battle form's HP at level 20")
+		check(BossMath.warframeHp(Config, 10) < Config.Story.warframe.hp, "scaled by the party's level")
 		local sim = BossSim.new(Config, "NullWarFrame", 0, 0, 0, 36000, 20, 0, Rng.new(5))
 		BossSim.step(sim, 6, {})
 		check(#sim.objectives == 2, "2 shoulder cannons")
