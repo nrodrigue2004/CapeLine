@@ -735,12 +735,19 @@ function CombatFx.field(
 	)
 	edge.Transparency = 0.7
 	-- Ember Ring's ring of flame tongues and Halo Blades' circle of light blades (Art.Powers EmberRim and HaloRim,
-	-- Everything Left 169 and 183): a Fire or Light field's rim in its Blender look, turning slowly
-	local rimLook = if set == "Fire" then "EmberRim" elseif set == "Light" then "HaloRim" else nil
+	-- Everything Left 169 and 183): a Fire or Light field's rim in its Blender look, turning slowly; Static Field's
+	-- crackling ring of lightning arcs (Art.Powers VoltRim, Everything Left 167) jumps and flickers instead
+	local RIMS = {
+		Fire = { "EmberRim", "EmberFlames" },
+		Light = { "HaloRim", "HaloBlades" },
+		Volt = { "VoltRim", "StaticArcs" },
+	}
+	local rimRow = if set then RIMS[set] else nil
+	local rimLook = if rimRow then rimRow[1] else nil
 	local rim: MeshPart? = nil
 	local rimSpin = if set == "Light" then 1.6 else 0.35
 	if rimLook and PowerMeshes.ready(rimLook) then
-		local name = if rimLook == "EmberRim" then "EmberFlames" else "HaloBlades"
+		local name = (rimRow :: { string })[2]
 		local m = Config.PowerArt[rimLook][name]
 		local k = radius + 0.3
 		rim = powerMesh(
@@ -755,6 +762,8 @@ function CombatFx.field(
 	end
 	local rimTurn = MeshFix.turn("Powers")
 	local rimUp = if rim then rim.Size.Y / 2 else 0
+	local crackle = set == "Volt"
+	local rimYaw, nextJump, rimAlpha = 0, 0, if rim then rim.Transparency else 0
 	local start = os.clock()
 	local nextPulse = start
 	local conn
@@ -778,7 +787,17 @@ function CombatFx.field(
 		disc.CFrame = base * CFrame.Angles(0, if swirl then t * 4 else 0, math.rad(90))
 		edge.CFrame = disc.CFrame
 		if rim then
-			rim.CFrame = base * CFrame.new(0, rimUp, 0) * CFrame.Angles(0, t * rimSpin, 0) * rimTurn
+			if crackle then
+				-- the arcs jump to a new spot and flicker a few times a second, like live current
+				if now >= nextJump then
+					nextJump = now + 0.07 + math.random() * 0.08
+					rimYaw = math.random() * math.pi * 2
+					rim.Transparency = rimAlpha + math.random() * 0.35
+				end
+			else
+				rimYaw = t * rimSpin
+			end
+			rim.CFrame = base * CFrame.new(0, rimUp, 0) * CFrame.Angles(0, rimYaw, 0) * rimTurn
 		end
 		if shell then
 			shell.CFrame = CFrame.new(at)

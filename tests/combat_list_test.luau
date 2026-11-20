@@ -974,8 +974,8 @@ return function(T: any)
 			end
 		end
 		check(
-			n == 60,
-			"60 meshes in 24 looks (382 added the jets, the rail and the slab; 173 the bullet; 169, 177, 180 and 183 the sun, ki ring, black hole and field rims; 172 the slash; 381 the shock ring and cone fan): "
+			n == 61,
+			"61 meshes in 25 looks (382 added the jets, the rail and the slab; 173 the bullet; 169, 177, 180 and 183 the sun, ki ring, black hole and field rims; 172 the slash; 381 the shock ring and cone fan; 167 Static Field's arcs): "
 				.. n
 		)
 		for _, look in
@@ -2774,6 +2774,66 @@ return function(T: any)
 				)
 			end
 			check(string.find(src, "PowerMeshes.ready(rimLook)", 1, true) ~= nil, "the rims too")
+		end
+	)
+
+	test(
+		"List combat: Static Field crackles with a ring of Blender lightning arcs (Everything Left 167)",
+		function()
+			local roblox = require("@lune/roblox")
+			local m = Config.PowerArt.VoltRim and Config.PowerArt.VoltRim.StaticArcs
+			check(m ~= nil and m.tint == true, "VoltRim.StaticArcs is in PowerArt and takes the path colour")
+			if not T.placePath then
+				return
+			end
+			local UiSim = require("./uisim")
+			local sim = UiSim.new(
+				UiSim.load(roblox.deserializePlace(fs.readFile(T.placePath))),
+				{ name = "PC", w = 1280, h = 720, top = 36, left = 0, right = 0, bottom = 0, touch = false }
+			)
+			local CombatFx = sim:require("Client.Fx.CombatFx")
+			sim:run("CombatFx", CombatFx.init)
+			local V = roblox.Vector3.new
+			sim:run("Static Field", function()
+				CombatFx.cast(
+					Config.Abilities.list.StaticField,
+					"Comic",
+					{ o = V(0, 5, 0), d = V(0, 0, -1), e = V(0, 5, -40), c = V(0, 3, -20), r = 14, dur = 2 }
+				)
+			end)
+			local rs = sim.service("RunService")
+			local yaws = {}
+			local task = require("@lune/task")
+			for _ = 1, 8 do
+				task.wait(0.06) -- the crackle jumps on the device's clock
+				sim:run("frame", function()
+					rs.RenderStepped:Fire(1 / 60)
+				end)
+				sim:advance(1 / 60)
+				for _, d in sim.service("Workspace"):GetDescendants() do
+					if d:IsA("MeshPart") and d.Name == "StaticArcs" then
+						local _, y = d.CFrame:ToEulerAnglesYXZ()
+						yaws[string.format("%.3f", y)] = true
+					end
+				end
+			end
+			check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
+			local arcs, n = nil, 0
+			for _, d in sim.service("Workspace"):GetDescendants() do
+				if d:IsA("MeshPart") and d.Name == "StaticArcs" then
+					arcs = d
+				end
+			end
+			for _ in yaws do
+				n += 1
+			end
+			check(arcs ~= nil, "the arcs ring the field")
+			check(arcs ~= nil and arcs.Material == roblox.Enum.Material.Neon, "glowing")
+			check(
+				arcs ~= nil and arcs.Size.X > 20,
+				"out to the field's edge (" .. tostring(arcs and arcs.Size.X) .. ")"
+			)
+			check(n >= 2, "jumping as it crackles (" .. n .. " spots)")
 		end
 	)
 

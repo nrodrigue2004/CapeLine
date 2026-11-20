@@ -363,6 +363,29 @@ for i in range(8):
     tube.data.update()
     blades.append(tube)
 mesh("HaloRim", tint("HaloBlades"), blades, (255, 240, 170), "Neon", alpha=0.1)
+# Static Field's rim (Everything Left 167, 2026-11-20): a crackling ring with jagged lightning arcs leaping up off it,
+# each a zigzag that forks near its top (radius 1 like the others)
+arcs = [TOR(1.0, 0.025, 0, 0.02, 0, segs=48, csegs=4)]
+rnd = __import__("random").Random(167)
+for i in range(12):
+    a = 2 * math.pi * (i + rnd.uniform(-0.2, 0.2)) / 12
+    c, sn = math.cos(a), math.sin(a)
+    tx, tz = -sn, c  # along the ring
+    h = rnd.uniform(0.26, 0.42)
+    pts = []
+    for j in range(6):
+        t = j / 5
+        off = 0.0 if j in (0, 5) else (0.05 if j % 2 else -0.05) + rnd.uniform(-0.02, 0.02)
+        r = 1.0 + rnd.uniform(-0.015, 0.015) * (j > 0)
+        pts.append((c * r + tx * off, h * t, sn * r + tz * off))
+    arcs.append(T(pts, [0.03, 0.026, 0.022, 0.018, 0.012, 0.002], segs=5))
+    # a fork off the upper half, out to the side
+    f0 = pts[3]
+    side = 1 if i % 2 else -1
+    arcs.append(T([f0, (f0[0] + tx * 0.07 * side, f0[1] + h * 0.15, f0[2] + tz * 0.07 * side),
+                   (f0[0] + tx * 0.05 * side + c * 0.03, f0[1] + h * 0.28, f0[2] + tz * 0.05 * side + sn * 0.03)],
+                  [0.016, 0.01, 0.001], segs=4))
+mesh("VoltRim", tint("StaticArcs"), arcs, (150, 220, 255), "Neon", alpha=0.1)
 
 # ================================================================ the Swordsman's slash (Everything Left 172, 2026-11-20): an anime sword crescent
 # with a white-hot cutting edge (anchor: the swing's centre; the arc lies flat in the x-z plane, radius 1, 140 degrees
@@ -533,13 +556,13 @@ if "--preview" in sys.argv:
              "StonePillar": (9, -6, 5), "ThornVine": (13, -6, 5), "Wave": (19, -6, 5), "Nemesis": (-22, 8, 4),
              "FlameJets": (-21, -6, 5.2), "LightRail": (25, 6, 4), "PsiSlab": (24, -8, 5.2),
              "Bullet": (-4, -14, 2), "Sun": (6, -16, 4), "BlackHole": (13, -16, 3), "KiRing": (19, -16, 3),
-             "EmberRim": (-12, -16, 0.2), "HaloRim": (-18, -16, 0.2),
+             "EmberRim": (-12, -16, 0.2), "HaloRim": (-18, -16, 0.2), "VoltRim": (-38, -16, 0.2),
              "Slash": (-26, -16, 2), "Shock": (-32, -16, 1)}
     close = "--close" in sys.argv  # the 2026-11-20 effect looks only, near the camera (art/preview/powers_fx.png)
     if close:
         spots = {"Sun": (-9, 0, 3), "BlackHole": (-3.5, 0, 2.5), "KiRing": (1, 0, 2.5), "EmberRim": (5.5, 0, 0.2),
                  "HaloRim": (10, 0, 0.2), "Slash": (4, -5, 4.5),
-                 "Shock": (-6, -6, 1.2)}
+                 "Shock": (-6, -6, 1.2), "VoltRim": (-1, -5.5, 0.2)}
     for look, meshes in LOOKS.items():
         if look not in spots:
             for ob in meshes.values():
@@ -558,7 +581,7 @@ if "--preview" in sys.argv:
             if close:
                 ob.scale = {"Sun": (1.6,) * 3, "BlackHole": (2.2,) * 3, "KiRing": (1.4,) * 3, "EmberRim": (2,) * 3,
                             "HaloRim": (2,) * 3, "Slash": (3,) * 3,
-                            "Shock": (2.4,) * 3}[look]
+                            "Shock": (2.4,) * 3, "VoltRim": (2.4,) * 3}[look]
                 if look == "BlackHole":
                     ob.rotation_euler = (math.radians(25), 0, 0)
                 if look == "Slash":
