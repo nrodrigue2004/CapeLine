@@ -197,7 +197,7 @@ What nate does:
 ## first-30: NEEDS NATE (2026-11-20)
 - Sounds (none uploaded fits; the atlases in Config.AudioClips have no crowd): a crowd cheer and applause loop for the Ceremony (the crowd is silent while it hops and claps), a crowd gasp for the scan's lock, a scanner drone hum. CC0 picks go through art/audio/build.py into the World atlas.
 - Wording: the level-up banner now names the real unlocks (Decisions 2026-11-20, first-30); the old spec Levels table text (Flight at 3, Frost at 6, Super Speed at 8, Super Leap at 12, Grapple Acrobat at 16) no longer matched the game. OK the new lines or give the words you want.
-- Round 2 DRAFT wording: Patch's side quest line ("New side quest: %s! Look for the gold ! on your MAP." / "New job going: %s. Find the ! on your MAP."), the creator's "Pick how your Spark woke to go on" and "Pick an archetype and a path to go on", MoveTutor's NEW MOVE and TRY THIS MOVE tags, the intro film's THUD!, FWOOSH! and SHHRAK!.
+- Round 2 DRAFT wording: Patch's side quest line ("A new side quest just opened! Look for the gold mark on your MAP." / "A new job just opened. Find the gold mark on your MAP."; guide lines are fixed text, so it cannot name the chain), the creator's "Pick how your Spark woke to go on" and "Pick an archetype and a path to go on", MoveTutor's NEW MOVE and TRY THIS MOVE tags, the intro film's THUD!, FWOOSH! and SHHRAK!.
 - Sounds: the intro film's arrivals reuse dash and land; a cape swish and a shadow-smoke hiss would fit the Vigil and the Syndicate better.
 - Hit feedback in Safehouse and Framed beyond the bridge rescue (robots, turrets) was not audited this round.
 - The next-mission card's words ("NEXT: MISSION 2: SAFEHOUSE", START, "Reach level 4 to start. Help out around the city!") and Patch's three POWERS lines are DRAFT wording.
@@ -2399,7 +2399,7 @@ Storyboard (the game's own camera on the test seed, stand-in figures): art/previ
 
 303. Bridge rescue (StoryFx trapStep, first-30): in Framed's "Get the people off the bridge", stand in a ring until its person is free: a cheer and chime, a green ring and SAVED! at the person, who then runs off on the sprint stride and cheers on the crowd's clip (hops, bent knees), never the old stiff arm swing.
 
-302. Side quest radio (GuideClient sqStep, GuidePlan.newSideQuest, first-30): as a new hero with no side quest started, after the prologue Patch says "New side quest: <name>! Look for the gold ! on your MAP." (villain: its own line) once; later, when a level opens a new chain, Patch names that one; never inside a mission, never twice a session for the same chain.
+302. Side quest radio (GuideClient sqStep, GuidePlan.newSideQuest, first-30): as a new hero with no side quest started, after the prologue Patch says "A new side quest just opened! Look for the gold mark on your MAP." (villain: its own line) once; later, when a level opens a new chain, Patch says it again for that one; never inside a mission, never twice a session for the same chain.
 
 301. Creator NEXT (CreatorScreen stepWhy, first-30): make a hero tapping only NEXT: on ORIGIN and POWERS, NEXT looks muted and the status line says what to pick ("Pick how your Spark woke to go on", "Pick an archetype and a path to go on"); tapping it shakes the button and stays put; once picked, NEXT goes on; PLAY never bounces back to ORIGIN. Time it: under 2 minutes for a first hero, on a phone too.
 

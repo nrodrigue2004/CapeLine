@@ -27,7 +27,7 @@ local Net = require(Shared:WaitForChild("Net"))
 local NewsPlan = require(Shared:WaitForChild("NewsPlan"))
 local CreatorRules = require(Shared:WaitForChild("CreatorRules"))
 local RepTiers = require(Shared:WaitForChild("RepTiers")) -- lore step 12: Patch names high-tier heroes
-local SideQuestPlan = require(Shared:WaitForChild("SideQuestPlan")) -- first-30: a new chain's name
+local SideQuestPlan = require(Shared:WaitForChild("SideQuestPlan")) -- first-30: a new chain is a real chain
 
 local State = require(script.Parent.Parent.State)
 local StoryClient = require(script.Parent.StoryClient)
@@ -289,7 +289,7 @@ function GuideClient.spawnLodestar()
 	end)
 end
 
--- first-30: a side quest chain opened: Patch names it and points at the MAP's "!" (once a session per chain; waits
+-- first-30: a side quest chain opened: Patch says so (a fixed line) and points at the MAP's gold mark (once a session per chain; waits
 -- for the radio like the POWERS line)
 local sqSeen: { [number]: boolean }? = nil
 local sqLine: { key: string, text: string, till: number }? = nil
@@ -304,8 +304,7 @@ local function onJournal()
 	local row = G.radio.lines.sqOpen
 	local t = row and GuidePlan.lineText(row, side())
 	if chain and t then
-		sqLine =
-			{ key = "sq" .. bit, text = string.format(t, chain.name), till = os.clock() + G.radio.powerWait }
+		sqLine = { key = "sq" .. bit, text = t, till = os.clock() + G.radio.powerWait }
 	end
 end
 local function sqStep(now: number)

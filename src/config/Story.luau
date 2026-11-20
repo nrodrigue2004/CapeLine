@@ -1976,8 +1976,8 @@ return {
 				-- first-30: a side quest chain opened (GuidePlan.newSideQuest): %s is the chain's name (fixed text)
 				sqOpen = {
 					who = "patch",
-					hero = "New side quest: %s! Look for the gold ! on your MAP.",
-					villain = "New job going: %s. Find the ! on your MAP.",
+					hero = "A new side quest just opened! Look for the gold mark on your MAP.",
+					villain = "A new job just opened. Find the gold mark on your MAP.",
 				},
 				powerBoth = {
 					who = "patch",

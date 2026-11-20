@@ -735,7 +735,7 @@ return function(T: any)
 		end
 	)
 
-	test("First 30: Patch names a side quest chain when it opens and points at the MAP", function()
+	test("First 30: Patch says when a side quest chain opens and points at the MAP", function()
 		local GuidePlan = require("../src/shared/GuidePlan")
 		local SideQuestPlan = require("../src/shared/SideQuestPlan")
 		-- the first non-dev chain after Safehouse
@@ -799,14 +799,14 @@ return function(T: any)
 			for _, c in sim.playerGui:GetDescendants() do
 				if
 					c:IsA("TextLabel")
-					and string.find(c.Text, chain.name, 1, true)
+					and string.find(c.Text, "side quest", 1, true)
 					and string.find(c.Text, "MAP", 1, true)
 				then
 					heard = true
 				end
 			end
 		end
-		check(heard, "the line names " .. chain.name .. " and the MAP")
+		check(heard, "the line says a side quest opened (" .. chain.name .. ") and points at the MAP")
 		check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
 	end)
 
