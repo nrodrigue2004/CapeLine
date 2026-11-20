@@ -460,18 +460,28 @@ local function land(hero: any, it: It, from: Vector3, to: Vector3, titan: boolea
 end
 
 -- Where a throw from `from` toward `aim` comes down: the weight's range, stopped by a wall, on the ground
-local function landing(it: It, from: Vector3, aim: Vector3, rangeMult: number?): (Vector3, number, number)
+-- (and where it met a wall in flight, if it did: destroy-all round 4, ImpactService.throwWall breaks it there)
+local function landing(
+	it: It,
+	from: Vector3,
+	aim: Vector3,
+	rangeMult: number?
+): (Vector3, number, number, Vector3?)
 	local tx, ty, tz = ThrowMath.arc(T, it.weight, from.X, from.Y, from.Z, aim.X, aim.Y, aim.Z, rangeMult)
 	local to = Vector3.new(tx, ty, tz)
 	rayParams.FilterDescendantsInstances = skip()
 	local wall = Workspace:Raycast(from, to - from, rayParams)
+	local wallAt: Vector3? = nil
 	if wall then
 		to = wall.Position + wall.Normal * 1.5
+		if math.abs(wall.Normal.Y) < 0.5 then
+			wallAt = wall.Position
+		end
 	end
 	local gy = ground(to.X, to.Y + 2, to.Z, 300)
 	to = Vector3.new(to.X, gy or Config.City.ground.y, to.Z)
 	local _, _, _, time, peak = ThrowMath.arc(T, it.weight, from.X, from.Y, from.Z, to.X, to.Y, to.Z, 10)
-	return to, time, peak
+	return to, time, peak, wallAt
 end
 
 local function canGrab(hero: any): boolean
@@ -577,8 +587,11 @@ local function throw(hero: any, aim: Vector3)
 	HeroService.applyWalkSpeed(hero)
 	sendState(hero)
 	hero.lastCast = os.clock()
-	local to, time, peak = landing(it, from, aim)
+	local to, time, peak, wallAt = landing(it, from, aim)
 	fly(it, from, to, time, peak, hero, function()
+		if wallAt then
+			ImpactService.throwWall(hero, it.weight, wallAt, wallAt - from) -- it smashes into the wall it met
+		end
 		land(hero, it, from, to)
 	end)
 end

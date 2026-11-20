@@ -1816,6 +1816,7 @@ function CombatService.thrown(hero: any, land: Vector3, from: Vector3, hit: any)
 		breaker = hit.breaker or nil,
 		structDmg = hit.structDmg,
 		thrownObject = true,
+		knockKind = hit.knockKind,
 	}
 	local r = record(hero, row.num, 0, K.LAND, from, flatDir(land - from))
 	r.c, r.r = land, hit.radius

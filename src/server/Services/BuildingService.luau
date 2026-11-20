@@ -89,7 +89,7 @@ local function setWrecked(id: number, wrecked: boolean, open: boolean?)
 end
 
 local ParkBuilder = require(script.Parent.ParkBuilder)
-local function impact(center: Vector3, radius: number, kind: number, heavy: boolean?)
+local function impact(center: Vector3, radius: number, kind: number, heavy: boolean?, dir: Vector3?)
 	-- the park's looks in reach go down on the server too (destroy-all: robots and rays stop meeting their boxes)
 	ParkBuilder.breakAt(center, radius, heavy == true)
 	local now = os.clock()
@@ -107,7 +107,7 @@ local function impact(center: Vector3, radius: number, kind: number, heavy: bool
 		local hero = HeroService.get(player)
 		local pos = hero and HeroService.position(hero)
 		if pos and (pos - center).Magnitude ^ 2 <= r2 then
-			Net.fire("BuildingImpact", player, center, radius, kind)
+			Net.fire("BuildingImpact", player, center, radius, kind, dir)
 		end
 	end
 end
@@ -301,8 +301,10 @@ local flush: () -> ()
 
 -- Knock pieces out of building id round `at` (a ram, a throw, a robot into a wall): `dmg` structure damage
 -- within `radius`. The pieces go out now, and nearby devices get an impact (cracks, the street knocked loose).
--- Returns how many pieces it knocked out (0: pinned, collapsed, or nothing there).
-function BuildingService.smash(id: number, at: Vector3, dmg: number, radius: number): number
+-- Returns how many pieces it knocked out (0: pinned, collapsed, or nothing there). dir (destroy-all round 4): a
+-- body thrown through it (a robot, a hero) going this way: the devices near play the body-through-a-wall moment
+-- (BuildingImpact kind 6: a burst out of the far side, the crunch, a shake by distance) instead of plain cracks.
+function BuildingService.smash(id: number, at: Vector3, dmg: number, radius: number, dir: Vector3?): number
 	local book = BuildingService.book
 	if not book or dmg <= 0 or not breakable(id) then
 		return 0
@@ -316,12 +318,22 @@ function BuildingService.smash(id: number, at: Vector3, dmg: number, radius: num
 	settle(id, r)
 	local n = #r.hit + (if r.changed and r.state == BuildingState.COLLAPSED then 1 else 0)
 	if n > 0 then
-		impact(Vector3.new(px, py, pz), radius, 2)
+		if dir and dir.Magnitude > 0.1 then
+			impact(Vector3.new(px, py, pz), radius, 6, false, dir.Unit)
+		else
+			impact(Vector3.new(px, py, pz), radius, 2)
+		end
 		BuildingService.Danger:Fire(px, pz, radius + 20, 4)
 		flush()
 	end
 	PerfMonitor.add("buildings", (os.clock() - t0) * 1000)
 	return n
+end
+
+-- A body slammed into a wall that held (destroy-all round 4: a robot knocked into it short of breaking it, or past
+-- the caps): a dent there on the devices near (BuildingImpact kind 4: chips, dust and a mark), on the chips' rate
+function BuildingService.dent(at: Vector3, radius: number)
+	chip(at, radius)
 end
 
 -- A street thing knocked loose by a hero going through it (ImpactProp): the players near knock the same things

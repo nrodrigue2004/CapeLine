@@ -1618,7 +1618,28 @@ local function splash(center: Vector3, radius: number)
 	AudioController.play("splash", center, { volume = math.clamp(0.5 + radius / 20, 0.5, 1), pitch = 0.8 })
 end
 
-local function impact(center: Vector3, radius: number, kind: number)
+-- A body thrown through a wall (BuildingImpact kind 6, destroy-all round 4: a robot knocked or launched through
+-- it, a robot swung into it, a hero thrown through it): the wall's own chips and dust burst out of the far side along
+-- the flight with a heavy crash, a puff blown back out of the entry hole, cracks round the hole, and a shake that
+-- falls off with distance (the pieces themselves come with the diff right behind: holes, glass, bits)
+local function bodyThrough(center: Vector3, radius: number, dir: Vector3)
+	local params = rayParams()
+	local hit = Workspace:Raycast(center - dir * 6, dir * 12, params)
+	local color = if hit and hit.Instance:IsA("BasePart")
+		then hit.Instance.Color
+		else Color3.fromRGB(150, 146, 138)
+	local at = if hit then hit.Position else center
+	local size = math.clamp(radius * 0.6, 3, 8)
+	FxLib.throwMoment("smash", at + dir * 2, color, dir, size)
+	FxLib.emit("dust", color, at - dir * 0.6, 6, -dir)
+	if hit and math.abs(hit.Normal.Y) < 0.5 then
+		crackAt(hit, math.clamp(radius * 0.45, 3, 8))
+	end
+	AudioController.play("clash", at, { volume = 0.9, pitch = 0.75 })
+	shakeAt(at, 0.22, 0.45, 160)
+end
+
+local function impact(center: Vector3, radius: number, kind: number, dir: Vector3?)
 	if typeof(center) ~= "Vector3" or type(radius) ~= "number" then
 		return
 	end
@@ -1636,6 +1657,14 @@ local function impact(center: Vector3, radius: number, kind: number)
 	end
 	if kind == 4 then
 		chipAt(center, radius) -- a hit on a wall that breaks nothing yet (list-combat 2026-11-20)
+		return
+	end
+	if kind == 6 then
+		if typeof(dir) == "Vector3" and dir.Magnitude > 0.1 then
+			bodyThrough(center, radius, dir.Unit) -- a body through the wall (destroy-all round 4)
+		end
+		cracks(center, radius)
+		smashStreet(center, radius)
 		return
 	end
 	if kind == 1 and not GROUND_CRATERS then

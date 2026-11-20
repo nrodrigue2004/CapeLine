@@ -33,7 +33,22 @@ return {
 	-- the three weights: thrown hit coefficient, knock (studs), landing radius, structure damage (kind 2 is a
 	-- blast, kind 1 a crater), range, flight speed (studs a second) and arc height (a share of the distance)
 	weights = {
-		light = { coeff = 0.8, knock = 6, radius = 6, struct = 0, range = 70, speed = 90, arc = 0.22 },
+		-- destroy-all round 4 (2026-11-20): wall: the structure damage a throw does where it meets a wall in flight
+		-- (ImpactService.throwWall: a light thing knocks a piece out, a heavy one a hole; inside the impact caps, else
+		-- a dent), wallRadius its reach; knockKind: how a robot it hits is thrown (Config.Combat.knock.kinds: a medium
+		-- throw launches it like a smash, a heavy one like a charged skill, so it tumbles off and through walls)
+		light = {
+			coeff = 0.8,
+			knock = 6,
+			radius = 6,
+			struct = 0,
+			range = 70,
+			speed = 90,
+			arc = 0.22,
+			wall = 400,
+			wallRadius = 6,
+			knockKind = "strike",
+		},
 		medium = {
 			coeff = 1.6,
 			knock = 10,
@@ -43,6 +58,9 @@ return {
 			range = 55,
 			speed = 75,
 			arc = 0.25,
+			wall = 1000,
+			wallRadius = 8,
+			knockKind = "heavy",
 		},
 		heavy = {
 			coeff = 3.0,
@@ -54,6 +72,9 @@ return {
 			speed = 60,
 			arc = 0.3,
 			breaker = true,
+			wall = 2400,
+			wallRadius = 10,
+			knockKind = "charged",
 		},
 	},
 	-- what each liftable kind is (props are built by ThrowService; vehicles come from VehicleService).

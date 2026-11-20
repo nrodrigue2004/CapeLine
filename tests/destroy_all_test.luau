@@ -1147,4 +1147,91 @@ return function(T: any)
 			"BuildingFx's dust clouds and fronts scale by the preset"
 		)
 	end)
+
+	-- destroy-all round 4: a body thrown into a wall reads: a hole and the body-through moment, else a dent; a robot
+	-- knocked through flies on, tumbling; a thrown thing smashes the wall it meets and launches the robots it hits
+	test("Destroy all: bodies and throws into walls read heavy (holes, dents, tumbles)", function()
+		local ThrowMath = require("../src/shared/ThrowMath")
+		local KnockRules = require("../src/shared/KnockRules")
+		local imp = fs.readFile("src/server/Services/ImpactService.luau")
+		local bs = fs.readFile("src/server/Services/BuildingService.luau")
+		local fx = fs.readFile("src/client/Fx/BuildingFx.luau")
+		local throw = fs.readFile("src/server/Services/ThrowService.luau")
+		local function count(src: string, needle: string): number
+			local n, at = 0, 1
+			while true do
+				local i = string.find(src, needle, at, true)
+				if not i then
+					return n
+				end
+				n += 1
+				at = i + #needle
+			end
+		end
+		check(
+			string.find(bs, "impact(Vector3.new(px, py, pz), radius, 6, false, dir.Unit)", 1, true) ~= nil
+				and string.find(
+						bs,
+						'Net.fire("BuildingImpact", player, center, radius, kind, dir)',
+						1,
+						true
+					)
+					~= nil,
+			"a smash with a direction sends the body-through moment (kind 6, its direction)"
+		)
+		check(
+			string.find(fx, "if kind == 6 then", 1, true) ~= nil
+				and string.find(fx, "bodyThrough(center, radius, dir.Unit)", 1, true) ~= nil
+				and string.find(fx, 'FxLib.throwMoment("smash", at + dir * 2, color, dir, size)', 1, true) ~= nil
+				and string.find(fx, "shakeAt(at, 0.22, 0.45, 160)", 1, true) ~= nil,
+			"devices burst the wall out of the far side, crash and shake by distance"
+		)
+		check(
+			count(imp, "I.ram.radius, flat) > 0") == 2 and count(imp, "BuildingService.dent(") >= 6,
+			"robots knocked or launched into walls break them along their flight, or dent a wall that holds"
+		)
+		check(
+			string.find(
+				imp,
+				"EnemyService.launch(enemyId, flat.Unit, T.carry, T.lift, T.speed, hero.id)",
+				1,
+				true
+			) ~= nil,
+			"a robot knocked through a wall flies on through the hole, tumbling"
+		)
+		local TR = Config.Combat.impact.robot.through
+		check(TR ~= nil and TR.carry >= 8 and TR.speed > 0, "impact.robot.through is tuned")
+		check(
+			string.find(throw, "ImpactService.throwWall(hero, it.weight, wallAt, wallAt - from)", 1, true)
+				~= nil,
+			"a throw that meets a wall in flight smashes it there"
+		)
+		local T = Config.Throw
+		local K = Config.Combat.knock
+		local last = 0
+		local order: { [string]: number } = {}
+		for i, k in K.order do
+			order[k] = i
+		end
+		for _, w in { "light", "medium", "heavy" } do
+			local W = T.weights[w]
+			check(
+				W.wall and W.wall > last,
+				w .. " throws hit walls harder than the lighter ones (" .. W.wall .. ")"
+			)
+			last = W.wall
+			local hit = ThrowMath.hit(T, w)
+			local kind = KnockRules.kind(K, { knockKind = hit.knockKind, coeff = hit.coeff, slot = "skill" })
+			check(kind == W.knockKind, w .. " throws knock robots as " .. tostring(W.knockKind))
+		end
+		check(
+			T.weights.light.wall >= Config.Destruction.structure.chunkCost,
+			"even a light throw knocks a piece out"
+		)
+		check(
+			order[T.weights.medium.knockKind] >= order.heavy
+				and order[T.weights.heavy.knockKind] > order.heavy,
+			"medium and heavy throws launch robots at least like a smash"
+		)
+	end)
 end

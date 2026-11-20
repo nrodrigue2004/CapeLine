@@ -201,7 +201,15 @@ return {
 			stopShort = 2, -- studs short of a wall that held (pinned or too slow)
 		},
 		-- robots knocked into a wall (EnemySim.knock says it hit one) break it too
-		robot = { minKnock = 8, dmg = { 600, 1800 }, fullKnock = 30, reach = 4 },
+		-- through (destroy-all round 4): a robot a knockback drove through a wall it broke flies on through the hole on
+		-- a launch arc (tumbling as it goes, EnemyRenderer), `carry` studs, `lift` up, at `speed`
+		robot = {
+			minKnock = 8,
+			dmg = { 600, 1800 },
+			fullKnock = 30,
+			reach = 4,
+			through = { carry = 12, lift = 3, speed = 45 },
+		},
 		pound = 1800, -- a Leaping ground pound's structure damage where it lands (it broke nothing before)
 		serverPerSecond = 20, -- impact breaks a second on the whole server, on top of the per-hero cap (was 12)
 	},

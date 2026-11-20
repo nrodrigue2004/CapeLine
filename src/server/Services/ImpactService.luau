@@ -80,11 +80,14 @@ function ImpactService.knockHero(hero: any, move: Vector3, time: number, lift: n
 			and BuildingService.breakable(id)
 			and ImpactRules.allow(I, ledger, hero.id, os.clock())
 		then
-			broke = BuildingService.smash(id, at, dmg, I.ram.radius) > 0
+			broke = BuildingService.smash(id, at, dmg, I.ram.radius, dir) > 0
 			if broke then
 				ImpactService.breaks += 1
 				wall = { x = at.X, y = at.Y, z = at.Z, t = t }
 			end
+		end
+		if not broke then
+			BuildingService.dent(at, 3) -- thrown into a wall that held: a dent where the body met it
 		end
 		length = ImpactRules.throwLength(K, total, t, broke)
 	end
@@ -149,15 +152,25 @@ function ImpactService.robotWall(hero: any, enemyId: number, dir: Vector3, dista
 	end
 	local from = Vector3.new(e.x, e.y, e.z)
 	local id, _, at = BuildingService.wallOnPath(from, flat.Unit * (I.robot.reach + 3))
-	if not id or not at or not BuildingService.breakable(id) then
+	if not id or not at then
 		return false
 	end
-	if not ImpactRules.allow(I, ledger, hero.id, os.clock()) then
+	-- destroy-all round 4: it reads as a body through the wall (BuildingImpact kind 6 along its flight), or as a dent
+	-- where it hit when the wall holds (never breaks, or the caps)
+	if not BuildingService.breakable(id) or not ImpactRules.allow(I, ledger, hero.id, os.clock()) then
+		BuildingService.dent(at, 3)
 		return false
 	end
-	local broke = BuildingService.smash(id, at, dmg, I.ram.radius) > 0
+	local broke = BuildingService.smash(id, at, dmg, I.ram.radius, flat) > 0
 	if broke then
 		ImpactService.breaks += 1
+		-- on through the hole it made, tumbling, instead of stopping dead in it (its far wall asks launchWall)
+		local T = I.robot.through
+		if T then
+			EnemyService.launch(enemyId, flat.Unit, T.carry, T.lift, T.speed, hero.id)
+		end
+	else
+		BuildingService.dent(at, 3)
 	end
 	return broke
 end
@@ -192,15 +205,18 @@ local function launchWall(
 		id = BuildingService.buildingAt(at, 3)
 		hitAt = at
 	end
-	if not id or not hitAt or not BuildingService.breakable(id) then
+	if not id or not hitAt then
 		return false
 	end
-	if not ImpactRules.allow(I, ledger, hero.id, os.clock()) then
+	if not BuildingService.breakable(id) or not ImpactRules.allow(I, ledger, hero.id, os.clock()) then
+		BuildingService.dent(hitAt, 3) -- (destroy-all round 4) a launched robot into a wall that holds: a dent
 		return false
 	end
-	local broke = BuildingService.smash(id, hitAt, dmg, I.ram.radius) > 0
+	local broke = BuildingService.smash(id, hitAt, dmg, I.ram.radius, flat) > 0
 	if broke then
 		ImpactService.breaks += 1
+	else
+		BuildingService.dent(hitAt, 3)
 	end
 	return broke
 end
@@ -218,9 +234,38 @@ function ImpactService.swingWall(hero: any, from: Vector3, dir: Vector3, reach: 
 	if not ImpactRules.allow(I, ledger, hero.id, os.clock()) then
 		return false
 	end
-	local broke = BuildingService.smash(id, at, dmg, I.ram.radius) > 0
+	local broke = BuildingService.smash(id, at, dmg, I.ram.radius, dir) > 0
 	if broke then
 		ImpactService.breaks += 1
+	end
+	return broke
+end
+
+-- A thrown thing met a wall in flight (ThrowService; destroy-all round 4): it smashes the wall there by its weight
+-- (Config.Throw.weights[].wall within wallRadius; a body-through-a-wall moment on the devices near, BuildingImpact
+-- kind 6), inside the impact caps; a wall that never breaks, or past the caps, takes a dent
+function ImpactService.throwWall(hero: any, weight: string, at: Vector3, dir: Vector3): boolean
+	local W = Config.Throw.weights[weight]
+	local id = BuildingService.buildingAt(at, 3)
+	if not W or not id then
+		return false
+	end
+	local flat = Vector3.new(dir.X, 0, dir.Z)
+	if
+		(W.wall or 0) <= 0
+		or flat.Magnitude < 0.1
+		or not mayBreak(hero)
+		or not BuildingService.breakable(id)
+		or not ImpactRules.allow(I, ledger, hero.id, os.clock())
+	then
+		BuildingService.dent(at, 3)
+		return false
+	end
+	local broke = BuildingService.smash(id, at, W.wall, W.wallRadius or 6, flat) > 0
+	if broke then
+		ImpactService.breaks += 1
+	else
+		BuildingService.dent(at, 3)
 	end
 	return broke
 end

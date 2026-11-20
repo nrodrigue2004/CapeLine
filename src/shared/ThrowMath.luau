@@ -174,6 +174,7 @@ function ThrowMath.hit(T: any, weight: string, titan: boolean?): any
 		breaker = W.breaker == true,
 		status = "knockback",
 		statusDur = 0.4,
+		knockKind = W.knockKind, -- (destroy-all round 4: a medium or heavy throw launches the robots it hits)
 	}
 end
 
