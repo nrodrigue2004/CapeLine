@@ -18,4 +18,13 @@ return {
 	maxCharacters = 4,
 	receiptsKept = 50,
 	reviewStore = "CapelineReview_v1", -- M8: the manual review queue (kicks, reports, PvP trades); never bans
+	-- the save admin tools (list-combat 2026-11-20, Everything Left 464, 465; Services.SaveAdmin, notes/Launch
+	-- Checklist.md "Player data requests"): erasing a player's data for a right-to-erasure request looks at the
+	-- weekly boards from firstWeek (a week before the first playtest) and these review row kinds; a rollback puts a
+	-- profile back to its last version before a time (Roblox keeps 30 days of versions)
+	admin = {
+		firstWeek = 2965,
+		reviewKinds = { "kicks", "reports", "trade" },
+		listPage = 50, -- keys a ListKeysAsync page asks for
+	},
 }

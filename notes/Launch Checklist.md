@@ -53,3 +53,14 @@ Both ship off. Set them in `src/config/Promo.luau`, then run Tasks.md "WP10: gro
 - [ ] Add promo_claim to the custom events checked against Roblox's AnalyticsService limits (Shared.AnalyticsSchema).
 ## Live tuning (Balance_v, WP8, 2026-11-18)
 - [ ] To change a tuned number without a new build: open the DataStore named Balance_v<N> (N is Config.Version.balance, 1 now) with a DataStore editor plugin or the Creator Dashboard's Data Stores page, and write the key "live" as JSON shaped like Config, for example `{"_rev": 1, "_note": "softer first weeks", "Economy": {"scale": {"credits": 1.5}}, "Boss": {"hp": {"base": 50000}}, "Enemies.BruteBot.hp": 500}`. Raise "_rev" each edit. Only the numbers in Config.Balance.keys change, each inside its range; anything else is refused and logged. New servers pick it up at boot (running servers keep their numbers until they restart). Check the "[Balance]" line in a test server's Output, or the balance_live event in the Creator Dashboard. Delete the key to go back to the bundled numbers. When a build changes bundled numbers, bump Config.Version.balance: the store moves to Balance_v<N+1> and the old key stops applying.
+
+## Player data requests (list-combat, 2026-11-20; Everything Left 464, 465)
+Roblox sends right-to-erasure requests to the account's email/messages. For each one:
+1. Open the published place in Studio (Game Settings > Security > Enable Studio Access to API Services) and play a server (or use a live server's console as the owner).
+2. In the server's command bar: `require(game.ServerScriptService.Server.Services.SaveAdmin).erase(<userId>)`. It kicks that player if they are in this server, then removes their profile (CapelineProfile_v1 P_<id>), their rows on every weekly board and their review queue rows. The Output line says how many keys went, were not there or failed; run it again if any failed.
+3. Reply to Roblox that the data is erased, and keep a one-line note (date, user id, result) somewhere private. Never keep the request's personal details in the repo.
+If a bad build breaks saves (rollback):
+1. Pull the build first (republish the last good version), so no new saves go wrong.
+2. Pick the time just before the bad build went live (Unix seconds).
+3. For each affected player, once they are out of the game: `require(game.ServerScriptService.Server.Services.SaveAdmin).rollback(<userId>, <unixTime>)`. It puts back their newest save from before that time (Roblox keeps 30 days of versions) and refuses while a server holds their profile.
+4. Repair on load (ProfileSchema migrations) still runs on their next join.

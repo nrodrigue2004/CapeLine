@@ -390,6 +390,17 @@ local function onPlayerRemoving(player: Player, reason: Enum.PlayerExitReason?)
 end
 
 -- Studio: start over as a first-time player
+-- Stop saving a player's profile for the rest of the session (SaveAdmin: an erased or rolled-back save must not be
+-- written over by the session on its way out). True when a session was holding it.
+function DataService.stopSaving(player: Player): boolean
+	local session = sessions[player]
+	if not session then
+		return false
+	end
+	session.canSave = false
+	return true
+end
+
 function DataService.resetProfile(player: Player): { [string]: any }?
 	local session = sessions[player]
 	if not session then
