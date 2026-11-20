@@ -112,6 +112,11 @@ type Run = {
 	askAt: number?,
 	pickDone: number?,
 	paused: number,
+	-- first-30: a prologue prompt waiting for its press on the device (OpeningAct 8 / 9) holds the beat's stuck
+	-- clock, the Spark's own backstop and the whole prologue's timeout, up to Config's qte.waitMax s in all
+	qteUp: boolean?,
+	qteWaited: number?,
+	qteStep: number?, -- the seconds held in this beat (the suit's least time counts real time)
 }
 
 local runs: { [Player]: Run } = {}
@@ -524,6 +529,7 @@ setStep = function(r: Run, step: string)
 	end
 	r.step = step
 	r.stepAt = os.clock()
+	r.qteUp, r.qteStep = false, 0
 	holdRow(r, PrologueRow.holds(Config, step))
 	enter(r, step)
 	if runs[r.player] == r and r.step == step then
@@ -706,6 +712,13 @@ local function step(r: Run, now: number, dt: number)
 			OpeningService.finish(r.player)
 		end
 		return
+	end
+	if r.qteUp and (r.qteWaited or 0) < O.qte.waitMax then
+		-- first-30: a prompt is waiting for its press: every clock of the prologue holds still
+		r.qteWaited = (r.qteWaited or 0) + dt
+		r.qteStep = (r.qteStep or 0) + dt
+		r.stepAt += dt
+		r.startedAt += dt
 	end
 	if now - r.startedAt > O.timeout and CODE[s] < CODE.title then
 		setStep(r, "title")
@@ -897,7 +910,10 @@ local function onAct(player: Player, act: number)
 		else
 			OpeningService.finish(player)
 		end
-	elseif act == 7 and r.step == "suit" and os.clock() - r.stepAt >= O.qte.suitMin then
+	elseif act == 8 or act == 9 then
+		-- first-30: a prompt went up on the device (8) or was answered (9); only on the prompt beats
+		r.qteUp = act == 8 and PrologueCine.directed(Config, r.step) and not r.hold
+	elseif act == 7 and r.step == "suit" and os.clock() - r.stepAt + (r.qteStep or 0) >= O.qte.suitMin then
 		-- prologue-cine: the suit's HOLD has snapped it on (the device's cue; the stuck timer still holds the beat)
 		setStep(r, "descend")
 	elseif act == 3 and r.hold then
