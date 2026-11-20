@@ -196,6 +196,10 @@ function NpcRig.build(
 	local meshes = (look and NpcRig.meshes(set, look)) or NpcRig.meshes(set)
 	local model = Instance.new("Model")
 	model.Name = name
+	-- the layout already holds this body's gender, build and height (RigMath.layout's factors): LookKit.build
+	-- must not shape it again (fix-respawn, 2026-11-19: a Titan giver or fake was scaled twice once the Body step
+	-- came back, and its pieces sat on the doubled body)
+	model:SetAttribute("LaidOut", true)
 	local root = Instance.new("Part")
 	root.Name = "HumanoidRootPart"
 	root.Size = v3(layout.root.size)

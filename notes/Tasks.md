@@ -2129,3 +2129,9 @@ Studio list (only ears and Studio can judge):
 - [ ] Music: patrol day by day, night music at night, the boss theme near a live boss, the victory sting after a boss or a side quest chain, then back to patrol. Loops wrap without a click. Settings Music 0 silences it; Effects 0 silences every effect, bed and voice.
 - [ ] UI: button taps vary slightly; level up, gear drop (higher by tier, Legendary twice), purchase, daily claim and quest steps chime in tune.
 - [ ] Mix: a big fight with 5 heroes: loud but not distorted (the Effects compressor), no buzz from many hits at once; FrameProf AudioController and MoveAudio under 0.1 ms on a phone.
+## Studio test list: respawn size, clothes on every body, creator NEXT, giver talk (fix-respawn, 2026-11-20)
+Proved headless (tests/fix_respawn_test.luau, ONLY="Fix respawn"): a shape reset is seen and rebuilt, NPCs are not shaped twice, every creator piece fits all 40 bodies, NEXT on PC, 1280x650 and phone is never covered and fires on every press with 0 hero builds, the giver's reasons. Render: art/preview/fit_bodies_clothes.png, fit_bodies_seta.png, fit_bodies_setb.png (before: fit_bodies_before_clothes.png).
+- [ ] Make a Titan (and a Short Small) hero, die, respawn: the size stays, gear and the weapon sit on the body; others in the server see the same size.
+- [ ] Classic Shirt and Pants on each Female, Small, Large and Titan body: the front design on the chest, the belt line at the waist, nothing scrambled (Art.BodyTorsos re-uploaded with Roblox's torso UVs, Model 138196936019402).
+- [ ] Creator NEXT: one click moves a step every time on PC and a phone. Open the Dev panel: "taps" presses and fired stay equal; if Output shows "[Kit] a press on ... was taken by", send nate's coordinator that name.
+- [ ] Talk to a side quest giver with one tap: "..." at once, then the giver's line; walk away and tap: "too far"; a locked quest names its level.

@@ -108,6 +108,13 @@ local SQ_LOCKED = {
 	after = "Finish the chain before this one first",
 	npc = "Talk to its giver to take that one",
 	done = "You already finished that side quest",
+	-- fix-respawn (2026-11-19): every refused Talk or Journal press says why
+	side = "That side quest is for the other side",
+	origin = "That side quest is for another origin",
+	loading = "Still loading: try again in a moment",
+	far = "Get a little closer to talk",
+	gone = "That side quest is not here right now",
+	notActive = "That side quest is not running",
 }
 
 local function draw(text: string, color: Color3, big: boolean?, life: number?): TextLabel
@@ -191,6 +198,8 @@ local URGENT = {
 	rematchRefused = true,
 	reviveBlocked = true,
 	sqLocked = true,
+	sqStart = true, -- fix-respawn: the answer to your own Talk or ACCEPT (never held back or left out)
+	sqHold = true, -- the answer to HOLD
 	reported = true,
 	reportedAlready = true,
 	contestWait = true,
@@ -654,7 +663,11 @@ function Toasts.show(data: { [string]: any })
 		elseif id == "sqWait" then
 			push("Your part is done. Help the others finish theirs", Kit.color.paper)
 		elseif id == "sqLocked" then
-			push(SQ_LOCKED[data.why or ""] or "You cannot take that side quest yet", Kit.color.paper)
+			if data.why == "level" and type(data.n) == "number" then
+				push(string.format("That side quest opens at level %d", data.n), Kit.color.paper)
+			else
+				push(SQ_LOCKED[data.why or ""] or "You cannot take that side quest yet", Kit.color.paper)
+			end
 		elseif id == "sqTest" then
 			push("Kind test done", Kit.color.paper)
 		elseif id == "sqRetired" then

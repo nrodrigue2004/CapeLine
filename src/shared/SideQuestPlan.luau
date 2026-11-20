@@ -460,6 +460,38 @@ function SideQuestPlan.talkPick(
 	return nil, "none"
 end
 
+-- Why a giver has nothing to offer (fix-respawn, 2026-11-19: a Talk always answers): the first of the giver's
+-- visible chains that is locked, as SideQuestPlan.state's reason and value ("level", 12), or "done" when every
+-- chain is finished, or nil when the giver has no chain for this hero at all
+function SideQuestPlan.giverWhy(
+	Config: any,
+	c: any,
+	giver: string,
+	level: number,
+	side: string,
+	devOn: boolean
+): (string?, any)
+	local done, any = true, false
+	for _, chain in SideQuestPlan.byGiver(Config, giver) do
+		if SideQuestPlan.visible(chain, devOn) then
+			local st, why, n = SideQuestPlan.state(Config, c, chain, level, side)
+			if st == "locked" and why ~= "side" and why ~= "origin" then
+				return why, n
+			end
+			if st ~= "locked" then
+				any = true
+			end
+			if st ~= "done" then
+				done = false
+			end
+		end
+	end
+	if any and done then
+		return "done", nil
+	end
+	return nil, nil
+end
+
 ---------------------------------------------------------------------------
 -- Pay
 ---------------------------------------------------------------------------

@@ -207,7 +207,9 @@ local Remotes: { [string]: RemoteDef } = {
 	SideQuestAct = { dir = "C2S", schema = { n(1, 2), n(1, 127) }, rate = 1, burst = 3 },
 	-- the tracked chain's step, 2 Hz: { bit, step, steps, have, need, wait, left, target, area, scene, card }
 	SideQuestState = { dir = "S2C" },
-	SideQuestTalk = { dir = "S2C" }, -- { bit, kind, step }: fixed giver and step lines through GuideHud
+	SideQuestTalk = { dir = "S2C" }, -- { bit, kind, step, why?, n? }: fixed giver and step lines through GuideHud
+	-- (kind "heard": a talk step counted; "refused": the press was turned down, why names the reason; "none": no
+	-- chain to offer, why and n say what it waits on)
 
 	-- PvP, death and safety (M8; spec: Flag.Set {on} 1/5s, Flag.State, Revive.Start {targetUserId} 2/s,
 	-- Down.GiveUp 1/s, Respawn.Choose {safehouseId}, Ping.Place {kind, position} 2/s, Report.Player

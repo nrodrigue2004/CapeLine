@@ -5,6 +5,7 @@
 
 local GuiService = game:GetService("GuiService")
 local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
@@ -1103,7 +1104,7 @@ function Kit.button(props: { [string]: any }, onClick: (() -> ())?): TextButton
 	b.AutoButtonColor = true
 	b.Size = UDim2.fromOffset(Config.Ui.touchTarget * 2, Config.Ui.touchTarget)
 	for k, v in props do
-		if k ~= "maxText" and k ~= "pending" and k ~= "ink" and k ~= "inkText" then
+		if k ~= "maxText" and k ~= "pending" and k ~= "ink" and k ~= "inkText" and k ~= "onDown" then
 			(b :: any)[k] = v
 		end
 	end
@@ -1123,8 +1124,11 @@ function Kit.button(props: { [string]: any }, onClick: (() -> ())?): TextButton
 		local waits = props.pending == true
 		local function fire()
 			if waits and b:GetAttribute("Pending") then
-				return -- one request at a time
+				Kit.TAPS.refused += 1
+				Kit.bounce(b) -- one request at a time: the "..." answers the press
+				return
 			end
+			Kit.TAPS.fires += 1
 			Kit.bounce(b)
 			Kit.Clicked:Fire()
 			if waits then
@@ -1132,7 +1136,7 @@ function Kit.button(props: { [string]: any }, onClick: (() -> ())?): TextButton
 			end
 			onClick()
 		end
-		Kit.tapGuard(b, fire)
+		Kit.tapGuard(b, fire, { onDown = props.onDown == true })
 	end
 	return b
 end
@@ -1147,14 +1151,126 @@ local function isPress(input: InputObject): boolean
 	return input.UserInputType == Enum.UserInputType.MouseButton1
 		or input.UserInputType == Enum.UserInputType.Touch
 end
-Kit.TAPS = { fallback = 0 } -- how many taps the fallback saved (the Dev panel, tests)
+-- the Dev panel's tap counters (fix-respawn, 2026-11-19): presses begun on a guarded button, presses that fired,
+-- how many the fallback saved, and presses refused (a request still pending)
+-- missed: presses that began inside a guarded button's box but never reached it (something drew over it and
+-- took the press); rescued: those of them whose taker was invisible (a clear button or frame), fired anyway;
+-- lastBlocker: the full name of the last taker (the Dev panel shows it)
+Kit.TAPS = { fallback = 0, presses = 0, fires = 0, refused = 0, missed = 0, rescued = 0, lastBlocker = "" }
 
-function Kit.tapGuard(b: GuiButton, fire: () -> ())
+-- Every guarded button and its last press (for the miss check below)
+type Guard = { fire: () -> (), began: number }
+local guards: { [GuiButton]: Guard } = setmetatable({}, { __mode = "k" }) :: any
+
+-- Is this object drawn as nothing (a clear button or frame: no fill, no text, no image)?
+local function invisible(o: GuiObject): boolean
+	if o.BackgroundTransparency < 0.99 then
+		return false
+	end
+	if
+		(o:IsA("TextButton") or o:IsA("TextLabel"))
+		and (o :: any).Text ~= ""
+		and (o :: any).TextTransparency < 0.99
+	then
+		return false
+	end
+	if
+		(o:IsA("ImageButton") or o:IsA("ImageLabel"))
+		and (o :: any).Image ~= ""
+		and (o :: any).ImageTransparency < 0.99
+	then
+		return false
+	end
+	return true
+end
+
+local function inside(b: GuiObject, x: number, y: number): boolean
+	local p, z = b.AbsolutePosition, b.AbsoluteSize
+	return x >= p.X and x <= p.X + z.X and y >= p.Y and y <= p.Y + z.Y
+end
+
+-- fix-respawn (nate, 2026-11-19: "Next button in character creator is still super unresponsive ... i just have to
+-- keep spamming until it works"): a press that lands inside a shown guarded button but never reaches it was taken
+-- by something drawn over it. Each one is counted and named (Kit.TAPS, a warning naming the taker once each);
+-- when the taker draws nothing (an invisible button or frame eating clicks), the press fires the button anyway.
+local watching = false
+local warned: { [string]: boolean } = {}
+local function watchMisses()
+	if watching then
+		return
+	end
+	watching = true
+	UserInputService.InputBegan:Connect(function(input)
+		if not isPress(input) or input.UserInputState ~= Enum.UserInputState.Begin then
+			return
+		end
+		local at = os.clock()
+		local x, y = input.Position.X, input.Position.Y
+		-- (a few frames later: the button's own InputBegan, deferred or not, has run by then)
+		task.delay(0.06, function()
+			for b, g in guards do
+				if
+					g.began < at - 0.02
+					and b.Parent
+					and shown(b)
+					and b.Active
+					and b.Interactable
+					and inside(b, x, y)
+				then
+					-- the engine's own list of what is at the point, top first (the same coordinates as the press)
+					local ok, objs = pcall(function()
+						local pg = Players.LocalPlayer:FindFirstChildOfClass("PlayerGui")
+						return if pg then pg:GetGuiObjectsAtPosition(x, y) else {}
+					end)
+					local list: { GuiObject } = if ok and type(objs) == "table" then objs else {}
+					if not table.find(list, b) then
+						continue -- not under the point by the engine's reckoning
+					end
+					local top: GuiObject? = nil
+					for _, o in list do
+						if o:IsA("GuiButton") or o:IsA("TextBox") or (o :: any).Active == true then
+							top = o
+							break
+						end
+					end
+					if top == nil or top == b or top:IsDescendantOf(b) then
+						continue -- it reached the button (or will): nothing to rescue
+					end
+					Kit.TAPS.missed += 1
+					local name = top:GetFullName()
+					Kit.TAPS.lastBlocker = name
+					if not warned[name] then
+						warned[name] = true
+						warn("[Kit] a press on " .. b:GetFullName() .. " was taken by " .. name)
+					end
+					if invisible(top) then
+						Kit.TAPS.rescued += 1
+						g.fire()
+					end
+				end
+			end
+		end)
+	end)
+end
+
+-- opts.onDown: fire on the press itself (mouse or finger down) rather than its release, for buttons that never
+-- scroll or drag (the creator's NEXT, BACK and step tabs): nothing that happens before the release can lose it
+function Kit.tapGuard(b: GuiButton, fire: () -> (), opts: { [string]: any }?)
 	local TAP = Config.Ui.tap
+	local onDown = opts ~= nil and opts.onDown == true
 	local press: { input: InputObject, at: Vector3, from: Vector2, done: boolean }? = nil
+	local g: Guard = { fire = fire, began = 0 }
+	guards[b] = g
+	watchMisses()
 	b.InputBegan:Connect(function(input)
 		if isPress(input) then
+			Kit.TAPS.presses += 1
+			g.began = os.clock()
 			press = { input = input, at = input.Position, from = b.AbsolutePosition, done = false }
+			if onDown then
+				press.done = true
+				fire()
+			end
 		end
 	end)
 	b.Activated:Connect(function()

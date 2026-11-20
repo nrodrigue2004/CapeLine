@@ -23194,7 +23194,10 @@ do
 end
 -- move-2 (2026-11-19, own file): the smash rule, the Hulk climb, the Acrobat's crawl and flips, swing anywhere and
 -- everyone's sprint; ONLY="Climb"
-(require :: any)("./climb_test")({ test = test, check = check, Config = Config, placePath = placePath })
+(require :: any)("./climb_test")({ test = test, check = check, Config = Config, placePath = placePath });
+-- fix-respawn (nate's playtest 2026-11-19, own file): the body shape on respawn, the 40 bodies' fit, creator NEXT
+-- through the real client, the side quest givers' answers; ONLY="Fix respawn"
+(require :: any)("./fix_respawn_test")({ test = test, check = check, Config = Config, placePath = placePath })
 print(string.format("\n%d passed, %d failed", passed, failed))
 if failed > 0 then
 	process.exit(1)

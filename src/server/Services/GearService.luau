@@ -268,12 +268,41 @@ function GearService.init()
 			HeroService.writeBack(hero, ProfileSchema.active(profile))
 		end
 	end)
-	-- a new body gets the look again, and again once the player's avatar is on it (AvatarService)
-	HeroService.Spawned:Connect(function(hero)
-		if hero.player and DataService.get(hero.player) then
-			local profile = DataService.get(hero.player) :: any
-			GearService.showLook(hero.player, profile, ProfileSchema.active(profile))
+	-- a new body gets the look again, and again once the player's avatar is on it (AvatarService).
+	-- fix-respawn (nate, 2026-11-19: "i died and respawn ... my size reset"): Spawned runs from CharacterAdded,
+	-- before Roblox puts the character in Workspace and runs its own spawn steps, which could undo the body's
+	-- shape under the gear; so the look is built again once the character is in Workspace and a frame has passed,
+	-- and LookService.guardShape rebuilds it if anything resizes the shaped body later.
+	local function lookAgain(player: Player, char: Model?)
+		local profile = DataService.get(player)
+		if profile and player.Parent and (char == nil or player.Character == char) then
+			GearService.showLook(player, profile, ProfileSchema.active(profile))
 		end
+	end
+	LookService.onShapeLost = function(player: Player, char: Model)
+		lookAgain(player, char)
+	end
+	HeroService.Spawned:Connect(function(hero)
+		local player = hero.player
+		if not player then
+			return
+		end
+		local char = player.Character
+		lookAgain(player, char)
+		if not char then
+			return
+		end
+		task.spawn(function()
+			-- (the character has no parent yet when CharacterAdded fires: wait until it is in Workspace)
+			local t0 = os.clock()
+			while player.Character == char and not char:IsDescendantOf(Workspace) and os.clock() - t0 < 10 do
+				task.wait()
+			end
+			task.wait() -- one frame more: Roblox's spawn steps run first
+			if char:IsDescendantOf(Workspace) and player.Character == char then
+				lookAgain(player, char)
+			end
+		end)
 	end)
 	AvatarService.Ready:Connect(function(player: Player)
 		local profile = DataService.get(player)

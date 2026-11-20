@@ -602,7 +602,7 @@ function DevPanel.init()
 		end
 		table.sort(parts)
 		stats.Text = string.format(
-			"server frame %.1f ms (worst %.1f)\nscripts ms avg/worst: %s\nenemies %s  ai %s  bots %s  players %d\nsend %.0f kbps  mem %.0f MB\nclient %.0f fps  preset %s\nidle waits >5 s: server %s\nanalytics events %s  perf sample %s (%d/%d fps)\nserver script errors %s",
+			"server frame %.1f ms (worst %.1f)\nscripts ms avg/worst: %s\nenemies %s  ai %s  bots %s  players %d\nsend %.0f kbps  mem %.0f MB\nclient %.0f fps  preset %s\nidle waits >5 s: server %s\nanalytics events %s  perf sample %s (%d/%d fps)\nserver script errors %s\ntaps: presses %d  fired %d  saved by fallback %d  refused %d\ntaken by a cover %d  rescued %d  last cover %s",
 			r.frameMs,
 			r.frameWorstMs,
 			table.concat(parts, ", "),
@@ -619,7 +619,14 @@ function DevPanel.init()
 			if Telemetry.sampled then "on" else "off",
 			Telemetry.lastMedian,
 			Telemetry.lastP5,
-			tostring(r.extra.errors)
+			tostring(r.extra.errors),
+			Kit.TAPS.presses,
+			Kit.TAPS.fires,
+			Kit.TAPS.fallback,
+			Kit.TAPS.refused,
+			Kit.TAPS.missed,
+			Kit.TAPS.rescued,
+			if Kit.TAPS.lastBlocker ~= "" then Kit.TAPS.lastBlocker else "none"
 		)
 	end)
 end
