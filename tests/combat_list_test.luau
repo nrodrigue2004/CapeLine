@@ -1211,6 +1211,49 @@ return function(T: any)
 		)
 	end)
 
+	test("List combat: citizens stop to chat (Everything Left 275)", function()
+		local CitizenSim = require("../src/shared/CitizenSim")
+		local sim = CitizenSim.new(Config, {}, 3)
+		CitizenSim.populate(sim)
+		local cfg = table.clone(sim.cfg)
+		cfg.chat = table.clone(cfg.chat)
+		cfg.chat.chance = 1
+		sim.cfg = cfg
+		local a, b = sim.citizens[1], sim.citizens[2]
+		b.state = CitizenSim.PAUSE
+		b.untilT = 2
+		a.state = CitizenSim.WALK
+		a.x, a.z = b.x + 3, b.z
+		a.chatAfter = nil
+		CitizenSim.step(sim, 0.1, 1)
+		check(a.state == CitizenSim.PAUSE, "the walker stops by the stopped one")
+		check(a.fx < -0.9, "and faces them")
+		check(b.untilT >= a.untilT - 1e-6 and a.untilT >= 1 + cfg.chat.time[1], "both stay to talk")
+		-- not twice in a row: after the chat the cooldown holds
+		a.state = CitizenSim.WALK
+		b.state = CitizenSim.PAUSE
+		b.untilT = 100
+		CitizenSim.step(sim, 0.1, 1.2)
+		check(a.state == CitizenSim.WALK, "the cooldown keeps it walking")
+		-- the real tuning over two minutes of a city: some chats happen, most of the crowd keeps walking
+		local live = CitizenSim.new(Config, {}, 7)
+		CitizenSim.populate(live)
+		local chats, walking = 0, 0
+		for k = 1, 1200 do
+			CitizenSim.step(live, 0.1, k * 0.1)
+		end
+		for _, c in live.citizens do
+			if c.chatAfter then
+				chats += 1
+			end
+			if c.state == CitizenSim.WALK then
+				walking += 1
+			end
+		end
+		print(string.format("  citizens: %d tried a chat in 2 minutes, %d walking now", chats, walking))
+		check(walking >= #live.citizens * 0.4, "most of the crowd keeps walking")
+	end)
+
 	test("List combat: vehicle lettering sits on the bodies' sides (Everything Left 271)", function()
 		local VehicleKit = require("../src/shared/VehicleKit")
 		local art = Config.VehicleArt

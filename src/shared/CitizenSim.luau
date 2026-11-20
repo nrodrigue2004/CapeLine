@@ -34,6 +34,7 @@ export type Citizen = {
 	path: { number }, -- nodes still to walk (flee) or the next one (walk)
 	goal: Shelter?, -- the shelter it runs to
 	untilT: number,
+	chatAfter: number?, -- no new chat before this (Config.Destruction.citizens.chat.cooldown)
 }
 
 export type Sim = {
@@ -485,6 +486,31 @@ function CitizenSim.step(sim: Sim, dt: number, now: number)
 				local links = sim.nodes[c.node].links
 				if #links > 0 then
 					c.path = { links[rng:int(1, #links)] }
+				end
+			end
+			-- a chat (list-combat 2026-11-20, Everything Left 275): walking up to someone stopped close by, a
+			-- citizen now and then stops a few studs off and they talk a while (each at most once a cooldown)
+			local chat = cfg.chat
+			if chat and now >= (c.chatAfter or 0) then
+				for _, o in sim.citizens do
+					if o ~= c and o.state == CitizenSim.PAUSE then
+						local ox, oz = o.x - c.x, o.z - c.z
+						local d2 = ox * ox + oz * oz
+						if d2 <= chat.reach * chat.reach and d2 >= chat.near * chat.near then
+							c.chatAfter = now + chat.cooldown
+							if rng:chance(chat.chance) then
+								local t = rng:range(chat.time[1], chat.time[2])
+								c.state = CitizenSim.PAUSE
+								c.untilT = now + t
+								o.untilT = math.max(o.untilT, now + t)
+								c.fx, c.fz = ox / math.sqrt(d2), oz / math.sqrt(d2)
+							end
+							break
+						end
+					end
+				end
+				if c.state == CitizenSim.PAUSE then
+					continue
 				end
 			end
 			local nextNode = c.path[1]

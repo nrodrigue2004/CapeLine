@@ -221,7 +221,9 @@ return {
 	spill = { cans = { 6, 10 }, canLife = 7, spray = 9, sprayHeight = 34, paper = 16 },
 	-- citizens near a hero (CitizenRenderer): point at one flying or racing by, hold a phone up at one standing
 	-- near, cheer after a big hit they did not run from
-	citizens = { point = 70, photo = 26, cheer = 60, cheerFor = 4, flashEvery = 2.2 },
+	-- chat (list-combat 2026-11-20, Everything Left 275): two citizens stopped this close turn to face each other
+	-- and talk (their idle gestures play as the chat)
+	citizens = { point = 70, photo = 26, cheer = 60, cheerFor = 4, flashEvery = 2.2, chat = 6 },
 	sounds = {
 		honk = s("electronicpingshort.wav", 0.35, 0.42, { clip = "honk", range = 120, vary = 0.08 }),
 		flutter = s("swoosh.wav", 0.4, 1.9, { clip = "flutter", range = 70, vary = 0.15 }),

@@ -147,6 +147,9 @@ return {
 		hideFor = { 20, 40 }, -- seconds a citizen stays inside a shelter
 		pauseChance = 0.25,
 		pause = { 1, 4 },
+		-- a walker passing someone stopped between near and reach studs stops to chat this often (once a cooldown,
+		-- seconds), both stay time seconds (Shared.CitizenSim; the devices turn them to face each other)
+		chat = { reach = 4.5, near = 1.5, chance = 0.5, time = { 4, 9 }, cooldown = 25 },
 		step = 0.1, -- sim step (10 Hz)
 		sendRate = 4,
 		relevance = 250, -- players see citizens this close

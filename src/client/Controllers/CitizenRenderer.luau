@@ -540,6 +540,31 @@ local function render()
 		end
 	end
 	local anim = LocoMath.pickAnimated(rows, current, animNear, Q.citizenAnimMax or LOCO.max, LOCO.keep)
+	-- chat partners (Everything Left 275): stopped citizens pair with the nearest other stopped one in reach
+	local stopped = {}
+	for id, rb in drawn do
+		if rb.state == PAUSE then
+			table.insert(stopped, { id = id, x = rb.x, z = rb.z })
+		end
+	end
+	local partner: { [number]: number } = {}
+	local reach = (LC.chat or 0) * (LC.chat or 0)
+	for i, s0 in stopped do
+		local best, bestD = nil, reach
+		for j, s1 in stopped do
+			if i ~= j then
+				local dx, dz = s1.x - s0.x, s1.z - s0.z
+				local d = dx * dx + dz * dz
+				if d < bestD and d > 0.25 then
+					best, bestD = j, d
+				end
+			end
+		end
+		if best then
+			-- facing: the yaw whose look (-sin, -cos) points at the partner
+			partner[s0.id] = math.atan2(-(stopped[best].x - s0.x), -(stopped[best].z - s0.z))
+		end
+	end
 	for id, rb in drawn do
 		local ra = a.rows[id] or b.rows[id] or rb
 		local rbb = b.rows[id] or rb
@@ -558,7 +583,10 @@ local function render()
 		local moved = Vector3.new(pos.X - body.pos.X, 0, pos.Z - body.pos.Z)
 		body.speed += (moved.Magnitude / math.max(dt, 1e-3) - body.speed) * math.min(1, dt * 8)
 		body.pos = pos
-		body.yaw = lerpAngle(body.yaw, rbb.yaw, math.min(1, dt * 10))
+		local chatYaw = partner[id]
+		body.yaw = if chatYaw
+			then lerpAngle(body.yaw, chatYaw, math.min(1, dt * 4))
+			else lerpAngle(body.yaw, rbb.yaw, math.min(1, dt * 10))
 		body.state = rb.state
 		local dist = (pos - cam).Magnitude
 		if body.clothes then
