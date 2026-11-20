@@ -592,4 +592,146 @@ return function(T: any)
 			check(#sim.errors == 0, "no errors: " .. table.concat(sim.errors, " | "))
 		end
 	)
+
+	test(
+		"First 30: a new player can make a hero with NEXT alone and PLAY saves it (no step blocks)",
+		function()
+			if not T.placePath then
+				return
+			end
+			for _, d in
+				{
+					{
+						name = "iPhone SE",
+						w = 667,
+						h = 375,
+						top = 58,
+						left = 0,
+						right = 0,
+						bottom = 0,
+						touch = true,
+					},
+					{
+						name = "PC 1080p",
+						w = 1920,
+						h = 1080,
+						top = 58,
+						left = 0,
+						right = 0,
+						bottom = 0,
+						touch = false,
+					},
+				}
+			do
+				local UiSim = require("./uisim")
+				local sim = UiSim.new(UiSim.load(roblox.deserializePlace(fs.readFile(T.placePath))), d)
+				local sent = nil
+				sim:run("hook", function()
+					local r =
+						sim.service("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("HeroCreate")
+					r._props.FireServer = function(_, ...)
+						sent = table.pack(...)
+					end
+				end)
+				sim:run("InputController", sim:require("Client.Controllers.InputController").init)
+				local Creator = sim:require("Client.Ui.CreatorScreen")
+				sim:run("Creator", Creator.init)
+				sim:run("open", function()
+					Creator.open({ mode = "create" })
+				end)
+				sim:advance(0.2)
+				local gui = sim.playerGui:FindFirstChild("Creator")
+				local function button(text: string): any
+					for _, c in gui:GetDescendants() do
+						if c:IsA("TextButton") and c.Text == text and c.Visible and c.Name ~= "play" then -- not the PLAY tab
+							return c
+						end
+					end
+					return nil
+				end
+				local Kit = sim:require("Client.Ui.Kit")
+				local IDS =
+					{ body = true, side = true, origin = true, mobility = true, powers = true, weapon = true }
+				IDS.appearance, IDS.play = true, true
+				local function lit(): string?
+					for _, c in gui:GetDescendants() do
+						if c:IsA("TextButton") and IDS[c.Name] and c.BackgroundColor3 == Kit.color.gold then
+							return c.Name
+						end
+					end
+					return nil
+				end
+				-- the first choice row in the list that is not picked (a row: a blank button with its name label)
+				local function firstRow(): any
+					for _, c in gui:GetDescendants() do
+						if
+							c:IsA("TextButton")
+							and c.Text == ""
+							and c.Visible
+							and c.BackgroundColor3 == Kit.color.paper
+							and c:FindFirstChildWhichIsA("TextLabel")
+						then
+							return c
+						end
+					end
+					return nil
+				end
+				local taps, asked = 0, {}
+				while button("NEXT") and taps < 30 do
+					local at = lit()
+					sim:tap(button("NEXT"))
+					taps += 1
+					sim:advance(0.1)
+					if lit() == at then
+						-- NEXT stayed: this step needs a pick, and says so
+						local said = false
+						for _, c in gui:GetDescendants() do
+							if
+								c:IsA("TextLabel")
+								and c.Visible
+								and string.find(c.Text, "to go on", 1, true)
+							then
+								said = true
+							end
+						end
+						check(said, d.name .. ": NEXT on " .. tostring(at) .. " stays and says what to pick")
+						asked[tostring(at)] = true
+						local r = firstRow()
+						if r then
+							sim:tap(r)
+							taps += 1
+							sim:advance(0.1)
+						end
+					end
+				end
+				check(asked.origin == true, d.name .. ": the ORIGIN step asked for its pick")
+				local play = button("PLAY")
+				check(play ~= nil, d.name .. ": NEXT leads to PLAY (" .. taps .. " taps)")
+				-- NEXT x7, an origin, an archetype and a path, then PLAY: about a dozen taps, well inside 2 minutes
+				check(taps <= 14, d.name .. ": in at most 14 taps (" .. taps .. ")")
+				if play then
+					sim:tap(play)
+					sim:advance(0.1)
+				end
+				local said = {}
+				for _, c in gui:GetDescendants() do
+					if
+						(c:IsA("TextLabel") or c:IsA("TextButton"))
+						and c.Visible
+						and #c.Text > 3
+						and #said < 60
+					then
+						table.insert(said, c.Text)
+					end
+				end
+				check(
+					sent ~= nil,
+					d.name
+						.. ": PLAY sends the hero with the defaults (no step refused): "
+						.. table.concat(said, " | ")
+				)
+				check(#sim.errors == 0, d.name .. ": no errors: " .. table.concat(sim.errors, " | "))
+			end
+		end
+	)
 end
