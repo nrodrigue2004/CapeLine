@@ -363,7 +363,7 @@ local function pay(player: Player, hero: any, side: string)
 		local need = Progress.totalTo(Config, O.reward.level)
 			- (Progress.totalTo(Config, hero.level) + hero.xp)
 		if need > 0 then
-			EconomyService.addRenown(player, need)
+			EconomyService.addRenown(player, need, true)
 		end
 		StoryService.addSkillPoints(player, Config.Story.missions[1].skillPoints or O.reward.skillPoints)
 	end

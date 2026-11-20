@@ -66,12 +66,16 @@ function EconomyService.bonus(player: Player, opts: { [string]: any }?): Progres
 	}
 end
 
--- Add Renown to the active character; returns levels gained
-function EconomyService.addRenown(player: Player, amount: number): number
+-- Add Renown to the active character; returns levels gained. `exact`: a set amount that tops the hero up to a
+-- level (the prologue's reward), so the rookie boost leaves it alone
+function EconomyService.addRenown(player: Player, amount: number, exact: boolean?): number
 	local hero = HeroService.get(player)
 	local profile = DataService.get(player)
 	if not hero or not profile or not hero.loaded or amount <= 0 then
 		return 0
+	end
+	if not exact then
+		amount *= Progress.rookie(Config, hero.level) -- the rookie boost: the first levels come fast
 	end
 	local level, xp, gained = Progress.addRenown(Config, hero.level, hero.xp, amount)
 	HeroService.setProgress(hero, level, xp)

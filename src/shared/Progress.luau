@@ -26,6 +26,14 @@ function Progress.totalTo(config: any, level: number): number
 	return sum
 end
 
+-- The rookie boost (list-combat 2026-11-20, nate: the first 30 minutes matter most: level 5 and a new power by
+-- about 15 minutes, the first mobility rank by about 20): Renown counts this many times over while the hero is
+-- below the levels in Config.Economy.rookie.renown (1 from there on). Earned only, the same for everyone.
+function Progress.rookie(config: any, level: number): number
+	local R = config.Economy.rookie
+	return (R and R.renown[level]) or 1
+end
+
 -- Add Renown. Returns the new level, the Renown into that level, and how many levels were gained.
 -- At the level cap Renown stops adding up (Legacy, M9, is the next step).
 function Progress.addRenown(config: any, level: number, xp: number, amount: number): (number, number, number)

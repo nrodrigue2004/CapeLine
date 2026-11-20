@@ -112,6 +112,11 @@ function Sim.timeline(Config: any, side: string, opts: { carry: boolean? }?): { 
 	-- the screen goes once the hero is loaded; the creator opens CREATOR_DELAY after the profile loads
 	local wait = math.max(0, Sim.CREATOR_DELAY - Sim.FADE)
 	add({ name = "to creator", kind = "wait", dur = wait, goal = nil, gap = wait })
+	-- the intro film (list-combat 2026-11-20): a new account's first 45 s, before the creator (Shared.FlowPlan)
+	local film = Config.Story.opening.film
+	if film and film.on then
+		add({ name = "intro film", kind = "watch", dur = film.seconds, goal = "watch", gap = 0 })
+	end
 	add({ name = "creator", kind = "player", dur = Sim.CREATOR, goal = "create", gap = 0 })
 	local prologueAt = t
 	local firstControl, sparkAt = nil, nil
@@ -177,6 +182,7 @@ function Sim.timeline(Config: any, side: string, opts: { carry: boolean? }?): { 
 		incidentAt = t + 2, -- IncidentService: a hero out of a scene gets its first incident 2 s later
 		heard = heard,
 		total = t - prologueAt,
+		ends = t, -- seconds from joining to the prologue's end
 	}
 end
 

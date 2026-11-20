@@ -34,6 +34,10 @@ return {
 	-- Balance knobs over the earn formulas above (M9 economy sim): every Credit and Renown reward is
 	-- multiplied by these, contracts and bosses included
 	scale = { credits = 1.4, renown = 0.35 },
+	-- The rookie boost (list-combat 2026-11-20): Renown x renown[level] at hero levels 1 to 6, then 1, so
+	-- a new hero reaches level 5 and a new power in about 15 minutes (Progress.rookie, EconomyService.addRenown;
+	-- EconomySim.firstSession checks it with the onboarding timeline)
+	rookie = { renown = { 3, 3, 3.3, 1.5, 1.2, 1.1 } },
 	-- The 1,000-hero sim's play model (EconomySim): what a typical hero does in 30 minutes (a model to
 	-- check the numbers against, not a rule), a 2 hour session per day, skill factor, friends, 2x pass share
 	sim = {
@@ -46,6 +50,7 @@ return {
 		sessionHours = 2,
 		reserve = 1.25, -- keeps this much of a price in hand before buying HQ levels or styles
 		stylePrice = 1200, -- a mid Gizmo style
+		missionMinutes = 6, -- a story mission's length in the first-session model (EconomySim.firstSession)
 	},
 	-- Sinks
 	hqLevels = { 2000, 5000, 12000, 25000, 50000 }, -- HQ levels 2 to 6 (M9)

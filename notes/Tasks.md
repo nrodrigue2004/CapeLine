@@ -2218,3 +2218,7 @@ Storyboard (the game's own camera on the test seed, stand-in figures): art/previ
 - [ ] SKIP shows after 1.5 s and goes straight to the creator; the Journal's REPLAY plays the film again then the prologue.
 - [ ] The tower's hole heals after the film; no other player sees it. Phone: no long hitch when the cast is built (built a few a frame ahead of their shots).
 - [ ] Captions marked DRAFT (two lines) and the Syndicate crook's look: nate to OK or reword.
+
+## Studio list: fast early levels (2026-11-20, list-combat)
+- [ ] A new hero after the prologue (level 3) clears Safehouse and reaches level 5 (new skill slot, the level-up toast) in about 8 minutes of mission; the MOBILITY tab offers rank 1 at 150 Credits right then.
+- [ ] Renown toasts still show the base amount while the bar fills faster (the boost is applied on top): nate to say if the toast should show the boosted number.

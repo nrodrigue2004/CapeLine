@@ -239,4 +239,73 @@ function EconomySim.run(Config: any, heroes: number, hours: number, seed: number
 	}
 end
 
+-- The first session, minute by minute (list-combat 2026-11-20, nate: the first 30 minutes matter most: level 5 and
+-- a new power by about 15 minutes, the first mobility rank by about 20). The nominal new hero (skill 1, no friends,
+-- no pass) leaves the prologue `start` seconds after joining at its reward level, then plays
+-- the play model's mix at its expected rates (Config.Economy.sim.per30 / 30 a minute) and goes to each story
+-- mission as it opens (its `minutes` long, else Config.Economy.sim.missionMinutes; paid at the end). It buys the first mobility rank
+-- as soon as the level and the Credits allow (nothing else is bought first: the new power costs only a Skill
+-- Point). Returns seconds from joining: levelAt[L], powerAt (the third skill slot), mobilityAt (rank 1).
+function EconomySim.firstSession(Config: any, start: number, minutes: number?): { [string]: any }
+	local S = Config.Economy.sim
+	local O = Config.Story.opening
+	local level, xp, credits = 1, 0, 0
+	local levelAt: { [number]: number } = {}
+	local t = start
+	local function gain(c: number, r: number, exact: boolean?)
+		credits += c
+		local before = level
+		level, xp =
+			Progress.addRenown(Config, level, xp, if exact then r else r * Progress.rookie(Config, level))
+		for L = before + 1, level do
+			levelAt[L] = levelAt[L] or t
+		end
+	end
+	-- the prologue: its reward level (OpeningService tops the hero up to it exactly)
+	local reward = O.reward and O.reward.level or 1
+	gain(0, Progress.totalTo(Config, reward), true)
+	local missions = 1
+	local acc = { incident = 0, rescue = 0, contract = 0, boss = 0 }
+	local dayContracts = 0
+	local powerAt, mobilityAt = nil :: number?, nil :: number?
+	local M = Config.Move.ranks
+	local stop = start + (minutes or 40) * 60
+	while t < stop do
+		local nextMission = Config.Story.missions[missions + 1]
+		if nextMission and level >= nextMission.minLevel then
+			-- the clear pay, then the first clear's own Renown (MissionService)
+			t += (nextMission.minutes or S.missionMinutes) * 60
+			gain(Progress.earn(Config, "mission", math.max(level, nextMission.minLevel), {}))
+			gain(0, nextMission.renown or 0)
+			missions += 1
+		else
+			t += 60
+			local L = level
+			for kind, rate in S.per30 do
+				acc[kind] += rate / 30
+				while acc[kind] >= 1 do
+					acc[kind] -= 1
+					if kind == "contract" then
+						local c, r = ContractPlan.pay(Config, S.contractKinds[1], L, dayContracts)
+						dayContracts += 1
+						gain(c, r)
+					elseif kind == "boss" then
+						gain(Progress.earn(Config, "bossParticipant", L, {}))
+					else
+						gain(Progress.earn(Config, kind, L, {}))
+					end
+				end
+			end
+		end
+		if not powerAt and AbilityRules.skillSlots(Config, level) >= 3 then
+			powerAt = levelAt[Config.Abilities.slotLevels[3]] or t
+		end
+		if not mobilityAt and level >= M.levels[1] and credits >= M.costs[1] then
+			mobilityAt = t
+			credits -= M.costs[1]
+		end
+	end
+	return { levelAt = levelAt, powerAt = powerAt, mobilityAt = mobilityAt, level = level, credits = credits }
+end
+
 return EconomySim

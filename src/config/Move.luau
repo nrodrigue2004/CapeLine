@@ -81,7 +81,7 @@ return {
 	-- (each pick's `ranks` rows), trained in order from the POWERS screen's MOBILITY tab. Rank n opens at hero level
 	-- levels[n] and costs costs[n] Credits (earned in play; never sold for Robux, and no rank is in the shop). Ranks
 	-- are saved per hero and per pick (profile character mobRanks), so swapping picks keeps them. (tune)
-	ranks = { levels = { 5, 12, 20, 30, 40 }, costs = { 600, 1800, 4000, 8000, 14000 } },
+	ranks = { levels = { 5, 12, 20, 30, 40 }, costs = { 150, 1800, 4000, 8000, 14000 } },
 	mobility = {
 		flight = {
 			name = "Flight",
