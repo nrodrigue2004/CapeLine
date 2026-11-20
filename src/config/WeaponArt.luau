@@ -10,12 +10,12 @@
 -- strength; neon: always lit; emblem: carries the hero's symbol), its box against that part's centre in studs
 -- on the classic blocks of Config.HeroRig (x right, y up, z back; Shared.BodyFit puts it on Roblox's own body),
 -- triangles, and its Broad and Jagged meshes where
--- those styles change its shape. 36 weapons, 259 meshes, 30702 triangles (Classic).
+-- those styles change its shape. 36 weapons, 304 meshes, 30702 triangles (Classic).
 return {
 	[1] = {
 		name = "Bare Fists",
 		triangles = 352,
-		variantTriangles = 0,
+		variantTriangles = 848,
 		hold = {},
 		aim = { at = "rhand", dir = { 0.000, -1.000, 0.000 } },
 		grip = { at = "rhand", pos = { 0.000, -0.150, 0.000 } },
@@ -28,6 +28,18 @@ return {
 				offset = { 0.000, 0.000, -0.000 },
 				size = { 1.100, 0.340, 1.100 },
 				tris = 132,
+				broad = {
+					mesh = "W01_TapeR_B",
+					offset = { 0.000, 0.005, -0.005 },
+					size = { 1.140, 0.430, 1.110 },
+					tris = 220,
+				},
+				jag = {
+					mesh = "W01_TapeR_J",
+					offset = { 0.000, -0.125, -0.000 },
+					size = { 1.100, 0.590, 1.100 },
+					tris = 204,
+				},
 			},
 			{
 				mesh = "W01_TapeL",
@@ -37,6 +49,18 @@ return {
 				offset = { 0.000, 0.000, -0.000 },
 				size = { 1.100, 0.340, 1.100 },
 				tris = 132,
+				broad = {
+					mesh = "W01_TapeL_B",
+					offset = { 0.000, 0.005, -0.005 },
+					size = { 1.140, 0.430, 1.110 },
+					tris = 220,
+				},
+				jag = {
+					mesh = "W01_TapeL_J",
+					offset = { 0.000, -0.125, -0.000 },
+					size = { 1.100, 0.590, 1.100 },
+					tris = 204,
+				},
 			},
 			{
 				mesh = "W01_KnuckleR",
@@ -61,7 +85,7 @@ return {
 	[2] = {
 		name = "Martial Arts",
 		triangles = 960,
-		variantTriangles = 0,
+		variantTriangles = 900,
 		hold = {},
 		aim = { at = "rhand", dir = { 0.000, -1.000, 0.000 } },
 		grip = { at = "rhand", pos = { 0.000, -0.150, 0.000 } },
@@ -74,6 +98,12 @@ return {
 				offset = { 0.000, 0.000, -0.000 },
 				size = { 1.090, 0.330, 1.090 },
 				tris = 176,
+				jag = {
+					mesh = "W02_WrapR_J",
+					offset = { 0.000, -0.098, -0.000 },
+					size = { 1.090, 0.525, 1.090 },
+					tris = 230,
+				},
 			},
 			{
 				mesh = "W02_WrapL",
@@ -83,6 +113,12 @@ return {
 				offset = { 0.000, 0.000, -0.000 },
 				size = { 1.090, 0.330, 1.090 },
 				tris = 176,
+				jag = {
+					mesh = "W02_WrapL_J",
+					offset = { 0.000, -0.098, -0.000 },
+					size = { 1.090, 0.525, 1.090 },
+					tris = 230,
+				},
 			},
 			{
 				mesh = "W02_ArmWrapR",
@@ -92,6 +128,12 @@ return {
 				offset = { 0.000, -0.185, -0.000 },
 				size = { 1.065, 0.630, 1.070 },
 				tris = 176,
+				broad = {
+					mesh = "W02_ArmWrapR_B",
+					offset = { 0.000, -0.185, -0.017 },
+					size = { 1.140, 0.630, 1.105 },
+					tris = 220,
+				},
 			},
 			{
 				mesh = "W02_ArmWrapL",
@@ -101,6 +143,12 @@ return {
 				offset = { 0.000, -0.185, -0.000 },
 				size = { 1.065, 0.630, 1.070 },
 				tris = 176,
+				broad = {
+					mesh = "W02_ArmWrapL_B",
+					offset = { 0.000, -0.185, -0.017 },
+					size = { 1.140, 0.630, 1.105 },
+					tris = 220,
+				},
 			},
 			{
 				mesh = "W02_TailR",
@@ -143,7 +191,7 @@ return {
 	[3] = {
 		name = "Power Gauntlets",
 		triangles = 1056,
-		variantTriangles = 0,
+		variantTriangles = 1288,
 		hold = {},
 		aim = { at = "rhand", dir = { 0.000, -1.000, 0.000 } },
 		grip = { at = "rhand", pos = { 0.000, -0.150, 0.000 } },
@@ -157,6 +205,18 @@ return {
 				offset = { 0.000, -0.095, -0.065 },
 				size = { 1.300, 0.710, 1.430 },
 				tris = 264,
+				broad = {
+					mesh = "W03_FistR_B",
+					offset = { 0.000, -0.005, -0.065 },
+					size = { 1.380, 0.890, 1.430 },
+					tris = 308,
+				},
+				jag = {
+					mesh = "W03_FistR_J",
+					offset = { 0.000, -0.240, -0.065 },
+					size = { 1.300, 1.000, 1.430 },
+					tris = 336,
+				},
 			},
 			{
 				mesh = "W03_FistL",
@@ -167,6 +227,18 @@ return {
 				offset = { 0.000, -0.095, -0.065 },
 				size = { 1.300, 0.710, 1.430 },
 				tris = 264,
+				broad = {
+					mesh = "W03_FistL_B",
+					offset = { 0.000, -0.005, -0.065 },
+					size = { 1.380, 0.890, 1.430 },
+					tris = 308,
+				},
+				jag = {
+					mesh = "W03_FistL_J",
+					offset = { 0.000, -0.240, -0.065 },
+					size = { 1.300, 1.000, 1.430 },
+					tris = 336,
+				},
 			},
 			{
 				mesh = "W03_CuffR",
@@ -211,7 +283,7 @@ return {
 	[4] = {
 		name = "Strikers",
 		triangles = 592,
-		variantTriangles = 0,
+		variantTriangles = 492,
 		hold = {},
 		aim = { at = "rfoot", dir = { 0.000, 0.000, -1.000 } },
 		grip = { at = "rfoot", pos = { 0.000, 0.000, 0.000 } },
@@ -225,6 +297,12 @@ return {
 				offset = { 0.000, 0.065, -0.130 },
 				size = { 1.160, 0.470, 1.380 },
 				tris = 60,
+				jag = {
+					mesh = "W04_BootR_J",
+					offset = { 0.000, 0.065, -0.050 },
+					size = { 1.160, 0.470, 1.900 },
+					tris = 114,
+				},
 			},
 			{
 				mesh = "W04_BootL",
@@ -235,6 +313,12 @@ return {
 				offset = { 0.000, 0.065, -0.130 },
 				size = { 1.160, 0.470, 1.380 },
 				tris = 60,
+				jag = {
+					mesh = "W04_BootL_J",
+					offset = { 0.000, 0.065, -0.050 },
+					size = { 1.160, 0.470, 1.900 },
+					tris = 114,
+				},
 			},
 			{
 				mesh = "W04_FinR",
@@ -262,6 +346,12 @@ return {
 				offset = { 0.000, -0.125, -0.040 },
 				size = { 1.120, 0.670, 1.200 },
 				tris = 88,
+				broad = {
+					mesh = "W04_ShinR_B",
+					offset = { 0.000, 0.020, -0.070 },
+					size = { 1.120, 0.960, 1.260 },
+					tris = 132,
+				},
 			},
 			{
 				mesh = "W04_ShinL",
@@ -271,6 +361,12 @@ return {
 				offset = { 0.000, -0.125, -0.040 },
 				size = { 1.120, 0.670, 1.200 },
 				tris = 88,
+				broad = {
+					mesh = "W04_ShinL_B",
+					offset = { 0.000, 0.020, -0.070 },
+					size = { 1.120, 0.960, 1.260 },
+					tris = 132,
+				},
 			},
 			{
 				mesh = "W04_GlowR",
@@ -557,7 +653,7 @@ return {
 	[9] = {
 		name = "Baton",
 		triangles = 968,
-		variantTriangles = 0,
+		variantTriangles = 207,
 		hold = { rhand = { rx = -45, ry = 0, pivot = { 0.000, -0.150, 0.000 } } },
 		aim = { at = "rhand", dir = { 0.000, -0.707, -0.707 } },
 		grip = { at = "rhand", pos = { 0.000, -0.150, 0.000 } },
@@ -570,6 +666,18 @@ return {
 				offset = { 0.000, -1.064, -0.914 },
 				size = { 0.280, 1.490, 1.490 },
 				tris = 36,
+				broad = {
+					mesh = "W09_Shaft_B",
+					offset = { 0.000, -1.091, -0.941 },
+					size = { 0.420, 1.557, 1.557 },
+					tris = 36,
+				},
+				jag = {
+					mesh = "W09_Shaft_J",
+					offset = { 0.002, -1.064, -0.914 },
+					size = { 0.416, 1.490, 1.490 },
+					tris = 171,
+				},
 			},
 			{
 				mesh = "W09_Hilt",
@@ -1025,7 +1133,7 @@ return {
 	[16] = {
 		name = "Bo Staff",
 		triangles = 876,
-		variantTriangles = 0,
+		variantTriangles = 708,
 		hold = { rhand = { rx = -90, ry = 0, pivot = { 0.000, -0.150, 0.000 } } },
 		aim = { at = "rhand", dir = { 0.000, -1.000, -0.000 } },
 		grip = { at = "rhand", pos = { 0.000, -0.150, 0.000 } },
@@ -1039,6 +1147,12 @@ return {
 				offset = { 0.000, -1.950, 0.000 },
 				size = { 0.260, 6.500, 0.247 },
 				tris = 60,
+				broad = {
+					mesh = "W16_Staff_B",
+					offset = { 0.000, -1.950, 0.000 },
+					size = { 0.300, 6.500, 0.285 },
+					tris = 60,
+				},
 			},
 			{
 				mesh = "W16_Caps",
@@ -1048,6 +1162,18 @@ return {
 				offset = { 0.000, -1.950, 0.000 },
 				size = { 0.295, 6.640, 0.310 },
 				tris = 72,
+				broad = {
+					mesh = "W16_Caps_B",
+					offset = { 0.000, -1.950, 0.000 },
+					size = { 0.580, 6.740, 0.580 },
+					tris = 456,
+				},
+				jag = {
+					mesh = "W16_Caps_J",
+					offset = { 0.000, -1.950, -0.000 },
+					size = { 0.400, 7.400, 0.400 },
+					tris = 192,
+				},
 			},
 			{
 				mesh = "W16_Wraps",
@@ -1293,7 +1419,7 @@ return {
 	[19] = {
 		name = "Sai",
 		triangles = 1056,
-		variantTriangles = 308,
+		variantTriangles = 656,
 		hold = {
 			lhand = { rx = -45, ry = 0, pivot = { 0.000, -0.150, 0.000 } },
 			rhand = { rx = -45, ry = 0, pivot = { 0.000, -0.150, 0.000 } },
@@ -1309,6 +1435,12 @@ return {
 				offset = { 0.000, -0.838, -0.688 },
 				size = { 0.140, 1.382, 1.382 },
 				tris = 124,
+				broad = {
+					mesh = "W19_ProngR_B",
+					offset = { 0.000, -0.838, -0.688 },
+					size = { 0.140, 1.382, 1.382 },
+					tris = 174,
+				},
 				jag = {
 					mesh = "W19_ProngR_J",
 					offset = { 0.000, -0.838, -0.688 },
@@ -1324,6 +1456,12 @@ return {
 				offset = { 0.000, -0.838, -0.688 },
 				size = { 0.140, 1.382, 1.382 },
 				tris = 124,
+				broad = {
+					mesh = "W19_ProngL_B",
+					offset = { 0.000, -0.838, -0.688 },
+					size = { 0.140, 1.382, 1.382 },
+					tris = 174,
+				},
 				jag = {
 					mesh = "W19_ProngL_J",
 					offset = { 0.000, -0.838, -0.688 },
@@ -1370,7 +1508,7 @@ return {
 	[20] = {
 		name = "Tonfa",
 		triangles = 640,
-		variantTriangles = 0,
+		variantTriangles = 712,
 		hold = {},
 		aim = { at = "rhand", dir = { 0.000, 1.000, 0.000 } },
 		grip = { at = "rhand", pos = { 0.000, -0.150, 0.000 } },
@@ -1383,6 +1521,18 @@ return {
 				offset = { 0.000, 0.450, 0.620 },
 				size = { 0.324, 2.500, 0.360 },
 				tris = 124,
+				broad = {
+					mesh = "W20_ArmR_B",
+					offset = { 0.000, 0.581, 0.455 },
+					size = { 0.324, 2.761, 0.691 },
+					tris = 172,
+				},
+				jag = {
+					mesh = "W20_ArmR_J",
+					offset = { 0.000, 0.450, 0.720 },
+					size = { 0.324, 2.500, 0.560 },
+					tris = 184,
+				},
 			},
 			{
 				mesh = "W20_ArmL",
@@ -1392,6 +1542,18 @@ return {
 				offset = { -0.000, 0.450, 0.620 },
 				size = { 0.324, 2.500, 0.360 },
 				tris = 124,
+				broad = {
+					mesh = "W20_ArmL_B",
+					offset = { -0.000, 0.581, 0.455 },
+					size = { 0.324, 2.761, 0.691 },
+					tris = 172,
+				},
+				jag = {
+					mesh = "W20_ArmL_J",
+					offset = { -0.000, 0.450, 0.720 },
+					size = { 0.324, 2.500, 0.560 },
+					tris = 184,
+				},
 			},
 			{
 				mesh = "W20_PegR",
@@ -1432,7 +1594,7 @@ return {
 	[21] = {
 		name = "Nunchucks",
 		triangles = 1024,
-		variantTriangles = 0,
+		variantTriangles = 224,
 		hold = { rhand = { rx = -45, ry = 0, pivot = { 0.000, -0.150, 0.000 } } },
 		aim = { at = "rhand", dir = { 0.000, -0.707, -0.707 } },
 		grip = { at = "rhand", pos = { 0.000, -0.150, 0.000 } },
@@ -1445,6 +1607,18 @@ return {
 				offset = { 0.000, -0.430, 0.081 },
 				size = { 0.200, 1.295, 1.165 },
 				tris = 64,
+				broad = {
+					mesh = "W21_Sticks_B",
+					offset = { 0.000, -0.373, 0.138 },
+					size = { 0.260, 1.452, 1.323 },
+					tris = 124,
+				},
+				jag = {
+					mesh = "W21_Sticks_J",
+					offset = { 0.050, -0.430, 0.081 },
+					size = { 0.301, 1.295, 1.165 },
+					tris = 100,
+				},
 			},
 			{
 				mesh = "W21_Rings",
@@ -1541,7 +1715,7 @@ return {
 	[23] = {
 		name = "Tower Shield",
 		triangles = 720,
-		variantTriangles = 384,
+		variantTriangles = 452,
 		hold = { llarm = { rx = 0, ry = 90, pivot = { 0.000, 0.000, 0.000 } } },
 		aim = {
 			at = "llarm",
@@ -1584,6 +1758,12 @@ return {
 				offset = { -0.000, 0.250, 0.840 },
 				size = { 0.900, 0.900, 0.120 },
 				tris = 44,
+				broad = {
+					mesh = "W23_Crest_B",
+					offset = { -0.000, 0.250, 1.065 },
+					size = { 0.900, 0.900, 0.570 },
+					tris = 68,
+				},
 			},
 			{
 				mesh = "W23_Glow",
@@ -1724,7 +1904,7 @@ return {
 	[25] = {
 		name = "Blaster Pistol",
 		triangles = 600,
-		variantTriangles = 0,
+		variantTriangles = 392,
 		hold = { rhand = { rx = -90, ry = 0, pivot = { 0.000, -0.150, 0.000 } } },
 		aim = { at = "rhand", dir = { 0.000, -1.000, -0.000 } },
 		grip = { at = "rhand", pos = { 0.000, -0.150, 0.000 } },
@@ -1754,6 +1934,18 @@ return {
 				offset = { 0.000, -1.170, -0.310 },
 				size = { 0.260, 0.500, 0.247 },
 				tris = 276,
+				broad = {
+					mesh = "W25_Barrel_B",
+					offset = { 0.000, -1.050, -0.310 },
+					size = { 0.190, 0.220, 0.200 },
+					tris = 36,
+				},
+				jag = {
+					mesh = "W25_Barrel_J",
+					offset = { 0.000, -1.135, -0.310 },
+					size = { 0.300, 0.570, 0.260 },
+					tris = 320,
+				},
 			},
 			{
 				mesh = "W25_Muzzle",
@@ -1764,6 +1956,12 @@ return {
 				offset = { 0.000, -1.430, -0.310 },
 				size = { 0.133, 0.060, 0.140 },
 				tris = 36,
+				broad = {
+					mesh = "W25_Muzzle_B",
+					offset = { 0.000, -1.150, -0.310 },
+					size = { 0.133, 0.060, 0.140 },
+					tris = 36,
+				},
 			},
 			{
 				mesh = "W25_Glow",
@@ -1780,7 +1978,7 @@ return {
 	[26] = {
 		name = "Twin Blasters",
 		triangles = 1824,
-		variantTriangles = 0,
+		variantTriangles = 1568,
 		hold = {
 			lhand = { rx = -90, ry = 0, pivot = { 0.000, -0.150, 0.000 } },
 			rhand = { rx = -90, ry = 0, pivot = { 0.000, -0.150, 0.000 } },
@@ -1830,6 +2028,18 @@ return {
 				offset = { 0.000, -1.088, -0.288 },
 				size = { 0.202, 0.460, 0.358 },
 				tris = 552,
+				broad = {
+					mesh = "W26_BarrelR_B",
+					offset = { 0.000, -0.978, -0.288 },
+					size = { 0.140, 0.202, 0.313 },
+					tris = 72,
+				},
+				jag = {
+					mesh = "W26_BarrelR_J",
+					offset = { 0.000, -1.056, -0.288 },
+					size = { 0.221, 0.524, 0.358 },
+					tris = 640,
+				},
 			},
 			{
 				mesh = "W26_BarrelL",
@@ -1839,6 +2049,18 @@ return {
 				offset = { 0.000, -1.088, -0.288 },
 				size = { 0.202, 0.460, 0.358 },
 				tris = 552,
+				broad = {
+					mesh = "W26_BarrelL_B",
+					offset = { 0.000, -0.978, -0.288 },
+					size = { 0.140, 0.202, 0.313 },
+					tris = 72,
+				},
+				jag = {
+					mesh = "W26_BarrelL_J",
+					offset = { 0.000, -1.056, -0.288 },
+					size = { 0.221, 0.524, 0.358 },
+					tris = 640,
+				},
 			},
 			{
 				mesh = "W26_MuzzleR",
@@ -1849,6 +2071,12 @@ return {
 				offset = { 0.000, -1.328, -0.288 },
 				size = { 0.096, 0.055, 0.267 },
 				tris = 72,
+				broad = {
+					mesh = "W26_MuzzleR_B",
+					offset = { 0.000, -1.070, -0.288 },
+					size = { 0.096, 0.055, 0.267 },
+					tris = 72,
+				},
 			},
 			{
 				mesh = "W26_MuzzleL",
@@ -1859,6 +2087,12 @@ return {
 				offset = { 0.000, -1.328, -0.288 },
 				size = { 0.096, 0.055, 0.267 },
 				tris = 72,
+				broad = {
+					mesh = "W26_MuzzleL_B",
+					offset = { 0.000, -1.070, -0.288 },
+					size = { 0.096, 0.055, 0.267 },
+					tris = 72,
+				},
 			},
 			{
 				mesh = "W26_GlowR",
@@ -1885,7 +2119,7 @@ return {
 	[27] = {
 		name = "Blaster Rifle",
 		triangles = 796,
-		variantTriangles = 0,
+		variantTriangles = 392,
 		hold = { rhand = { rx = -90, ry = 0, pivot = { 0.000, -0.150, 0.000 } } },
 		aim = { at = "rhand", dir = { 0.000, -1.000, -0.000 } },
 		grip = { at = "rhand", pos = { 0.000, -0.150, 0.000 } },
@@ -1915,6 +2149,18 @@ return {
 				offset = { 0.000, -1.450, -0.520 },
 				size = { 0.285, 2.220, 0.600 },
 				tris = 152,
+				broad = {
+					mesh = "W27_Barrel_B",
+					offset = { 0.000, -1.415, -0.500 },
+					size = { 0.209, 1.530, 0.480 },
+					tris = 80,
+				},
+				jag = {
+					mesh = "W27_Barrel_J",
+					offset = { 0.000, -1.475, -0.295 },
+					size = { 0.360, 2.270, 1.050 },
+					tris = 240,
+				},
 			},
 			{
 				mesh = "W27_Muzzle",
@@ -1925,6 +2171,12 @@ return {
 				offset = { 0.000, -1.775, -0.535 },
 				size = { 0.190, 1.640, 0.530 },
 				tris = 72,
+				broad = {
+					mesh = "W27_Muzzle_B",
+					offset = { 0.000, -1.595, -0.535 },
+					size = { 0.190, 1.280, 0.530 },
+					tris = 72,
+				},
 			},
 			{
 				mesh = "W27_Cells",
@@ -2074,7 +2326,7 @@ return {
 	[30] = {
 		name = "Arm Cannon",
 		triangles = 968,
-		variantTriangles = 0,
+		variantTriangles = 1444,
 		hold = {},
 		aim = { at = "rlarm", dir = { 0.000, -1.000, 0.000 } },
 		grip = { at = "rlarm", pos = { 0.000, 0.000, 0.000 } },
@@ -2088,6 +2340,12 @@ return {
 				offset = { 0.000, -0.490, -0.000 },
 				size = { 1.360, 1.620, 1.360 },
 				tris = 96,
+				broad = {
+					mesh = "W30_Sleeve_B",
+					offset = { 0.000, -0.490, -0.000 },
+					size = { 1.170, 1.620, 1.170 },
+					tris = 96,
+				},
 			},
 			{
 				mesh = "W30_Fittings",
@@ -2097,6 +2355,18 @@ return {
 				offset = { 0.000, -0.537, -0.000 },
 				size = { 1.420, 1.807, 1.398 },
 				tris = 596,
+				broad = {
+					mesh = "W30_Fittings_B",
+					offset = { 0.000, -0.537, -0.000 },
+					size = { 1.420, 1.807, 1.398 },
+					tris = 508,
+				},
+				jag = {
+					mesh = "W30_Fittings_J",
+					offset = { 0.000, -0.537, -0.000 },
+					size = { 1.540, 1.807, 1.540 },
+					tris = 840,
+				},
 			},
 			{
 				mesh = "W30_Core",

@@ -63,7 +63,7 @@ from studs import B, C, S, T, TOR, rings_mesh, prism, star, turn, shift, mirror,
 
 PREVIEW = "--preview" in sys.argv
 THUMBS = "--thumbs" in sys.argv  # the creator thumbnails only (no fit, no FBX): art/thumbs/cells/weapons/<id>.png
-PREVIEW = PREVIEW or THUMBS
+PREVIEW = PREVIEW or THUMBS or "--styles" in sys.argv
 FAST = "--fast" in sys.argv
 ONLY = None
 if "--only" in sys.argv:
@@ -358,6 +358,10 @@ def w_fists(st):
     tape = join([box(1.06, 0.34, 1.06, 0, 0, 0, bev=0.08)] +
                 [box(1.1, 0.08, 1.1, 0, y, 0, bev=0.03) for y in (-0.1, 0.1)])
     knuck = box(0.96, 0.06, 0.08, 0, -0.17, -0.5, bev=0.02)
+    if st == "b":  # Plated: a riveted plate over the knuckles and the back of the hand
+        tape = join([tape, box(1.14, 0.14, 0.72, 0, -0.14, -0.2, bev=0.05), box(1.0, 0.1, 0.5, 0, 0.17, -0.1, bev=0.04)])
+    elif st == "j":  # Spiked: a stud on each knuckle
+        tape = join([tape] + [T([(x, -0.16, -0.42), (x, -0.42, -0.5)], [0.08, 0.0], segs=6) for x in (-0.36, -0.12, 0.12, 0.36)])
     return both([P("Tape", tape, "s", mat="Fabric"), P("Knuckle", knuck, "a", glow=True)])
 
 
@@ -374,6 +378,10 @@ def w_martial(st):
     tail = T([(0.36, -0.2, 0.52), (0.42, -0.42, 0.66), (0.4, -0.66, 0.74), (0.46, -0.86, 0.7)],
              [0.07, 0.07, 0.06, 0.03], segs=6)
     bead = ball(0.08, 0.36, -0.2, 0.55, segs=8, rings=6)
+    if st == "b":  # Plated: a lacquered bracer over the forearm wraps
+        arm.append(box(1.14, 0.42, 0.5, 0, -0.2, -0.32, bev=0.08))
+    elif st == "j":  # Spiked: studs along the knuckle wrap
+        wrap = join([wrap] + [T([(x, -0.16, -0.42), (x, -0.36, -0.48)], [0.065, 0.0], segs=6) for x in (-0.3, 0.0, 0.3)])
     return both([P("Wrap", wrap, "white", mat="Fabric"), P("ArmWrap", arm, "white", at="rlarm", mat="Fabric"),
                  P("Tail", tail, "p", at="rlarm", mat="Fabric"), P("Bead", bead, "a", at="rlarm", glow=True)])
 
@@ -385,6 +393,10 @@ def w_gauntlets(st):
     for k in range(4):
         fist.append(box(0.26, 0.22, 0.34, -0.45 + k * 0.3, -0.34, -0.3, bev=0.06))
     fist.append(box(0.5, 0.3, 0.2, 0.0, 0.05, -0.68, bev=0.06))
+    if st == "b":  # Plated: a thick armour plate over the back of the fist
+        fist.append(box(1.38, 0.24, 1.1, 0, 0.32, 0.02, bev=0.1))
+    elif st == "j":  # Spiked: a spike on each knuckle plate
+        fist += [T([(-0.45 + k * 0.3, -0.42, -0.36), (-0.45 + k * 0.3, -0.74, -0.44)], [0.1, 0.0], segs=6) for k in range(4)]
     cuff = [kit.cyl("c", 0.66, 0.6, 0.62, at=rb(0, -0.12, 0), segs=12)]
     cuff.append(box(0.3, 0.5, 0.2, 0.0, -0.1, 0.64, bev=0.05))
     glow = [box(1.12, 0.07, 0.07, 0, -0.33, -0.66, bev=0.02)]
@@ -403,6 +415,11 @@ def w_strikers(st):
     shell.append(toe)
     fin = plate([(0.4, 0.2), (0.78, 0.36), (0.66, 0.12), (0.42, -0.05)], 0, 0.12)
     shin = [box(0.4, 0.62, 0.16, 0, -0.1, -0.56, bev=0.05), box(1.12, 0.16, 1.12, 0, -0.38, 0, bev=0.05)]
+    if st == "b":  # Plated: a broad shin guard
+        shin.append(box(0.9, 0.9, 0.2, 0, 0.05, -0.6, bev=0.08))
+    elif st == "j":  # Spiked: a spike at the heel and two on the toe cap
+        shell += [T([(0, 0.0, 0.58), (0, 0.05, 0.9)], [0.1, 0.0], segs=6)]
+        shell += [T([(x, 0.12, -0.78), (x, 0.18, -1.0)], [0.07, 0.0], segs=6) for x in (-0.2, 0.2)]
     glow = [box(0.05, 0.06, 1.0, 0.6, -0.12, -0.04, bev=0.01), box(0.05, 0.06, 1.0, -0.6, -0.12, -0.04, bev=0.01),
             box(0.7, 0.06, 0.05, 0, -0.12, -0.84, bev=0.01)]
     return both([P("Boot", shell, "p", at="rfoot", blade=True, mat="Metal"),
@@ -496,7 +513,10 @@ def w_mace(st):
 # 9 Baton: a hex shock baton with metal bands and a glowing tip
 @weapon(9, "Baton", hold=BLADE45)
 def w_baton(st):
-    shaft = T([(0, G, -0.36), (0, G, -1.4), (0, G, -2.25)], [0.14, 0.12, 0.11], segs=6)
+    shaft = T([(0, G, -0.36), (0, G, -1.4), (0, G, -2.25)], [0.14, 0.12, 0.11] if st != "b" else [0.15, 0.19, 0.21], segs=6)
+    if st == "j":  # Jagged: rows of studs down the shaft
+        shaft = join([shaft] + [T([(0.11 * math.cos(a), G + 0.11 * math.sin(a), z), (0.24 * math.cos(a), G + 0.24 * math.sin(a), z)],
+                                  [0.05, 0.0], segs=5) for z in (-1.15, -1.7, -2.1) for a in (0.5, 2.6, 4.7)])
     hilt = [grip(0.32, -0.32, 0.13, ridges=4), C(0.2, 0.08, 0, G, -0.36, segs=12, axis="z"),
             ball(0.15, 0, G, 0.38, segs=8, rings=6)]
     bands = [TOR(0.13, 0.04, 0, G, z, axis="z", segs=10, csegs=4) for z in (-0.9, -1.45, -1.95)]
@@ -614,8 +634,15 @@ def w_scythe(st):
 # 16 Bo Staff: a long staff with metal caps, grip wraps and glowing rings
 @weapon(16, "Bo Staff", hold=ALONG)
 def w_staff(st):
-    staff = T([(0, G, 1.45), (0, G, -1.6), (0, G, -5.05)], [0.13, 0.12, 0.13], segs=10)
+    staff = T([(0, G, 1.45), (0, G, -1.6), (0, G, -5.05)], [0.13, 0.12, 0.13] if st != "b" else [0.15, 0.14, 0.15], segs=10)
     caps = [C(0.155, 0.34, 0, G, 1.35, segs=10, axis="z"), C(0.155, 0.34, 0, G, -4.95, segs=10, axis="z")]
+    if st == "b":  # Heavy: big iron end caps with rings
+        caps = [C(0.24, 0.6, 0, G, 1.2, segs=10, axis="z"), C(0.24, 0.6, 0, G, -4.8, segs=10, axis="z")]
+        caps += [TOR(0.24, 0.05, 0, G, z, axis="z", segs=12, csegs=4) for z in (0.88, 1.52, -4.48, -5.12)]
+    elif st == "j":  # Jagged: a crown of short blades at each end
+        for zc, d in ((1.5, 1), (-5.1, -1)):
+            caps += [T([(0.12 * math.cos(a), G + 0.12 * math.sin(a), zc), (0.2 * math.cos(a), G + 0.2 * math.sin(a), zc + d * 0.4)],
+                       [0.06, 0.0], segs=5) for a in (0.0, 1.57, 3.14, 4.71)]
     wraps = [grip(0.35, -0.35, 0.14, ridges=3), grip(-1.45, -1.95, 0.135, ridges=2)]
     glow = [TOR(0.145, 0.045, 0, G, z, axis="z", segs=12, csegs=4) for z in (1.05, -4.65)]
     return [P("Staff", staff, "p", blade=True), P("Caps", caps, "s", mat="Metal"), P("Wraps", wraps, "s"),
@@ -674,6 +701,9 @@ def w_sai(st):
                        [0.06, 0.055, 0.045, 0.0], segs=6))
         if st == "j":
             wings.append(T([(0, G + s_ * 0.06, -1.0), (0, G + s_ * 0.2, -1.12)], [0.04, 0.0], segs=5))
+        if st == "b":  # Hooked: each side prong curls back into a catching hook
+            wings.append(T([(0, G + s_ * 0.3, -0.85), (0, G + s_ * 0.18, -1.0), (0, G + s_ * 0.08, -0.9)],
+                           [0.045, 0.035, 0.0], segs=5))
     hilt = [grip(0.3, -0.28, 0.08, ridges=3)]
     knob = ball(0.11, 0, G, 0.36, segs=8, rings=6)
     return both([P("Prong", [prong, wings], "p", blade=True), P("Hilt", hilt, "s"), P("Knob", knob, "a", glow=True)])
@@ -684,6 +714,10 @@ def w_sai(st):
 def w_tonfa(st):
     arm = [box(0.32, 2.3, 0.34, 0, 0.55, 0.62, bev=0.1)]
     arm.append(ball(0.18, 0, -0.62, 0.62, sc=(0.9, 1, 1), segs=8, rings=6))
+    if st == "b":  # Hooked: the long end hooks forward
+        arm.append(T([(0, 1.6, 0.62), (0, 1.85, 0.4), (0, 1.8, 0.12)], [0.15, 0.12, 0.06], segs=8))
+    elif st == "j":  # Jagged: studs down the outer face
+        arm += [T([(0, y, 0.78), (0, y, 1.0)], [0.07, 0.0], segs=5) for y in (0.0, 0.5, 1.0, 1.5)]
     peg = [C(0.11, 0.95, 0, G + 0.05, 0.2, segs=8, axis="z"), ball(0.15, 0, G + 0.05, -0.3, segs=8, rings=6)]
     glow = box(0.06, 1.8, 0.06, 0.17, 0.62, 0.62, bev=0.015)
     glow2 = box(0.06, 1.8, 0.06, -0.17, 0.62, 0.62, bev=0.015)
@@ -693,8 +727,15 @@ def w_tonfa(st):
 # 21 Nunchucks: two ridged sticks on a short chain, folded together
 @weapon(21, "Nunchucks", hold=BLADE45)
 def w_nunchucks(st):
-    s1 = T([(0, G, 0.42), (0, G, -0.62)], [0.1, 0.09], segs=8)
-    s2 = T([(0, G - 0.5, -0.72), (0, G - 0.52, 0.32)], [0.09, 0.1], segs=8)
+    r1, r2 = (0.1, 0.09) if st != "b" else (0.13, 0.12)  # Hooked: chunkier sticks with hooked ends
+    s1 = T([(0, G, 0.42), (0, G, -0.62)], [r1, r2], segs=8)
+    s2 = T([(0, G - 0.5, -0.72), (0, G - 0.52, 0.32)], [r2, r1], segs=8)
+    if st == "b":
+        s1 = join([s1, T([(0, G, 0.42), (0, G + 0.14, 0.5), (0, G + 0.2, 0.38)], [0.08, 0.06, 0.0], segs=6)])
+        s2 = join([s2, T([(0, G - 0.52, 0.32), (0, G - 0.66, 0.4), (0, G - 0.72, 0.28)], [0.08, 0.06, 0.0], segs=6)])
+    elif st == "j":
+        s1 = join([s1] + [T([(0, G, z), (0.2 * math.cos(a), G + 0.2 * math.sin(a), z)], [0.04, 0.0], segs=4)
+                          for z in (0.32,) for a in (0.0, 2.1, 4.2)])
     rid = [TOR(0.1, 0.03, 0, G, z, axis="z", segs=10, csegs=4) for z in (0.2, -0.05, -0.3)]
     rid += [TOR(0.1, 0.03, 0, G - 0.51, z, axis="z", segs=10, csegs=4) for z in (0.1, -0.15, -0.4)]
     links = chain([(0, G, -0.66), (0, G - 0.08, -0.86), (0, G - 0.3, -0.92), (0, G - 0.47, -0.78)], link=0.13,
@@ -772,6 +813,8 @@ def w_tower(st):
                 rails.append(T([(-0.6, yc - 1.2 + k * 0.8, s_ * (W / 2 + 0.05)), (-0.6, yc - 1.2 + k * 0.8, s_ * (W / 2 + 0.3))],
                                [0.08, 0.0], segs=5))
     crest = box(0.12, 0.9, 0.9, -0.84, yc - 0.1, 0, bev=0.08)
+    if st == "b":  # Spiked: a heavy spiked boss on the crest plate
+        crest = join([crest, T([(-0.88, yc - 0.1, 0), (-1.35, yc - 0.1, 0)], [0.26, 0.0], segs=8)])
     band = box(0.1, 0.12, W * 0.92, -0.82, yc + 0.6, 0, bev=0.02)
     band2 = box(0.1, 0.12, W * 0.92, -0.82, yc - 0.8, 0, bev=0.02)
     straps = [box(0.5, 0.12, 1.08, -0.28, y, 0, bev=0.03) for y in (-0.25, 0.25)]
@@ -844,10 +887,16 @@ def pistol(st, scale=1.0, twin=False):
     coils = []
     ys = [yb + 0.02] if not twin else [yb + 0.1, yb - 0.08]
     for by in ys:
+        if st == "j":  # Heavy: a boxy shroud round a thicker barrel
+            barrels.append(box(0.3 if not twin else 0.24, 0.26 if not twin else 0.18, 0.5, 0, by, -0.95, bev=0.05))
+        if st == "b":  # Compact: a stub barrel
+            barrels.append(C(0.1 if not twin else 0.08, 0.22, 0, by, -0.9, segs=10, axis="z"))
+            continue
         barrels.append(C(0.09 if not twin else 0.07, 0.5, 0, by, -1.02, segs=10, axis="z"))
         for z in (-0.88, -1.02, -1.16):
             coils.append(TOR(0.1 if not twin else 0.08, 0.03, 0, by, z, axis="z", segs=10, csegs=4))
-    muzzle = [C(0.07 if not twin else 0.055, 0.06, 0, by, -1.28, segs=10, axis="z") for by in ys]
+    mz = -1.0 if st == "b" else -1.28
+    muzzle = [C(0.07 if not twin else 0.055, 0.06, 0, by, mz, segs=10, axis="z") for by in ys]
     side = box(0.04, 0.12, 0.62, 0.16, yb + 0.02, -0.3, bev=0.015)
     side2 = box(0.04, 0.12, 0.62, -0.16, yb + 0.02, -0.3, bev=0.015)
     parts = [P("Body", body, "p", blade=True), P("Grip", [grip_, guard], "s"),
@@ -885,6 +934,13 @@ def w_rifle(st):
     barrel = [C(0.1, 0.6, 0, yb, -2.0, segs=10, axis="z"), C(0.15, 0.22, 0, yb, -2.3, segs=10, axis="z")]
     scope = [C(0.09, 0.62, 0, yb + 0.36, -0.5, segs=10, axis="z"), box(0.1, 0.16, 0.12, 0, yb + 0.27, -0.5, bev=0.02)]
     muzzle = C(0.1, 0.05, 0, yb, -2.42, segs=10, axis="z")
+    if st == "b":  # Compact: a short barrel and a red-dot instead of the scope
+        barrel = [C(0.11, 0.3, 0, yb, -1.88, segs=10, axis="z")]
+        scope = [box(0.14, 0.14, 0.2, 0, yb + 0.3, -0.6, bev=0.03)]
+        muzzle = C(0.1, 0.05, 0, yb, -2.06, segs=10, axis="z")
+    elif st == "j":  # Heavy: a big muzzle brake and a power drum under the body
+        barrel.append(box(0.36, 0.3, 0.32, 0, yb, -2.3, bev=0.05))
+        barrel.append(C(0.22, 0.3, 0.0, yb - 0.38, -0.7, segs=12, axis="x"))
     cells = [box(0.05, 0.16, 0.18, s_ * 0.17, yb, -0.35 - k * 0.28, bev=0.02) for s_ in (-1, 1) for k in range(4)]
     lens = C(0.07, 0.03, 0, yb + 0.36, -0.82, segs=10, axis="z")
     return [P("Body", body, "p", blade=True), P("Stock", [stock, grip_, fore], "s"),
@@ -951,6 +1007,19 @@ def w_cannon(st):
         shift(f, rb(0.74, -0.45, 0))
         turn(f, "up", math.degrees(a), (0, 0, 0))
         fins.append(f)
+    if st == "b":  # Compact: a slimmer sleeve with half the fins
+        kit.apply_all(sleeve)
+        for v in sleeve.data.vertices:
+            v.co.x *= 0.86
+            v.co.y *= 0.86
+        fins = fins[::2]
+    elif st == "j":  # Heavy: a flared muzzle and four more fins
+        muzzle.append(C(0.62, 0.3, 0, -1.25, 0, segs=18, r2=0.5))
+        for k in range(4):
+            f = box(0.1, 0.6, 0.14, 0, 0, 0, bev=0.03)
+            shift(f, rb(0.72, 0.05, 0))
+            turn(f, "up", k * 90, (0, 0, 0))
+            fins.append(f)
     core = [C(0.36, 0.04, 0, -1.45, 0, segs=16), TOR(0.36, 0.04, 0, -1.43, 0, axis="up", segs=16, csegs=4)]
     vents = [box(0.06, 0.5, 0.12, 0.69 * math.cos(a), -0.3, 0.69 * math.sin(a), bev=0.015)
              for a in (0.0, PI)]
@@ -1543,6 +1612,44 @@ if THUMBS:
         kit.render(os.path.join(kit.ROOT, "thumbs", "cells", "weapons", "%d.png" % wid))
         clear_shown()
         bpy.data.objects.remove(cam, do_unlink=True)
+    sys.exit(0)
+
+if "--styles" in sys.argv:
+    # each weapon's Classic, Broad and Jagged meshes side by side (list-combat 2026-11-20, Everything Left 193: check
+    # every style changes the shape): one cell a style, art/export/weapons/styles/<id>_<c|b|j>.png, then
+    # `python3 art/weapons/styles_sheet.py` packs them into art/preview/weapon_styles.png
+    setup((240, 240), 16)
+    tlook = ((40, 110, 220), (235, 60, 60), (255, 210, 60))
+    view = Matrix.Rotation(math.radians(24), 4, "Y") @ Matrix.Rotation(math.radians(-18), 4, "Z")
+    outdir = os.path.join(kit.ROOT, "export", "weapons", "styles")
+    os.makedirs(outdir, exist_ok=True)
+    for wid in ids:
+        b = BUILT[wid]
+        rights = {p.name[:-1] for p in b["pieces"] if p.name.endswith("R")}
+        for st in ("c", "b", "j"):
+            placed = []
+            for p in b["pieces"]:
+                if p.name.endswith("L") and p.name[:-1] in rights:
+                    continue
+                ob = p.ob if st == "c" else b["variants"].get(p.name, {}).get(st, p).ob
+                placed.append((p, ob, Matrix.Translation(Vector(rb(*RIG[ROLE_PART[p.at]][1])))))
+            lo = Vector((1e9, 1e9, 1e9))
+            hi = -lo
+            for p, ob, M in placed:
+                for v in ob.data.vertices:
+                    w = view @ M @ v.co
+                    lo = Vector((min(lo.x, w.x), min(lo.y, w.y), min(lo.z, w.z)))
+                    hi = Vector((max(hi.x, w.x), max(hi.y, w.y), max(hi.z, w.z)))
+            ctr = (lo + hi) / 2
+            ext = hi - lo
+            for p, ob, M in placed:
+                kind, glow = piece_mat(p)
+                show_copy(ob, Matrix.Translation(-ctr) @ view @ M, colour(p.role, tlook), kind, glow, p.alpha)
+            cam = ortho_cam((40, 0, 0), (0, 0, 0), max(ext.y, ext.z, 0.8) * 1.12)
+            cam.rotation_euler = (math.radians(90), 0, math.radians(90))
+            kit.render(os.path.join(outdir, "%d_%s.png" % (wid, st)))
+            clear_shown()
+            bpy.data.objects.remove(cam, do_unlink=True)
     sys.exit(0)
 
 PX = int(sys.argv[sys.argv.index("--px") + 1]) if "--px" in sys.argv else (220 if FAST else 300)

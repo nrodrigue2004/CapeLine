@@ -309,11 +309,10 @@
   "verdict": "rotY180"
  },
  "Weapons": {
-  "asDrawn": 0,
-  "by": "fix-weapons",
-  "either": 0,
-  "meshes": 259,
-  "turned": 259,
+  "asDrawn": 65,
+  "either": 65,
+  "meshes": 304,
+  "turned": 304,
   "verdict": "rotY180"
  },
  "WindupGiant": {

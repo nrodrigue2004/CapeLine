@@ -1106,4 +1106,28 @@ return function(T: any)
 			"in the place"
 		)
 	end)
+
+	test("List combat: every weapon's 2nd and 3rd style changes its shape (Everything Left 193)", function()
+		local WeaponMesh = require("../src/shared/WeaponMesh")
+		local roblox = require("@lune/roblox")
+		local model = roblox.deserializeModel(fs.readFile("art/models/Weapons.rbxm"))[1]
+		for _, w in Config.Weapons.list do
+			local id = w[1]
+			local classic = WeaponMesh.pieces(Config, id, 1)
+			for st = 2, 3 do
+				local diff = 0
+				for i, p in WeaponMesh.pieces(Config, id, st) do
+					if p.mesh ~= classic[i].mesh then
+						diff += 1
+						check(model:FindFirstChild(p.mesh, true) ~= nil, p.mesh .. " is imported")
+					end
+				end
+				check(diff > 0, w[3] .. ": style " .. st .. " has its own mesh")
+			end
+		end
+		check(
+			#WeaponMesh.check(Config) == 0,
+			"the fit table is sound: " .. table.concat(WeaponMesh.check(Config), "; ")
+		)
+	end)
 end
