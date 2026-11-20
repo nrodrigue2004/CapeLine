@@ -12,6 +12,8 @@
 --   through with part of the rest; a wall that holds stops it just short. The throw goes to the hero's own
 --   device as HeroKnock (with where the wall broke, for its juice) and MoveGuard allows the distance.
 -- * Robots into walls (robotWall): a robot that a knockback drives into a wall (EnemySim.knock said so) breaks it.
+-- * Vehicles (destroy-all, 2026-11-20): a ram into a car (ImpactProp at ram speed) or a heavy landing next to one
+--   flips it (VehicleService.hit), like a heavy power hit does.
 -- * Never: in a story scene (the prologue) or a fast-travel flight, in a safe area (a safehouse, an HQ, a
 --   mission pocket: FlagService.safe), on a pinned building (beacon hosts, side quest roofs, the prologue's held
 --   row: BuildingState.pinned), landmarks or safehouses (never wreckable). Caps: perHero breaks a window per hero
@@ -34,6 +36,7 @@ local FlagService = require(script.Parent.FlagService)
 local EnemyService = require(script.Parent.EnemyService)
 local PerfMonitor = require(script.Parent.PerfMonitor)
 local CityBuilder = require(script.Parent.CityBuilder)
+local VehicleService = require(script.Parent.VehicleService)
 
 local ImpactService = {}
 
@@ -249,6 +252,7 @@ local function onDrop(player: Player, at: Vector3, fall: number)
 	if ImpactService.dropHit then
 		ImpactService.dropHit(hero, at, speed)
 	end
+	VehicleService.hit(at, radius) -- destroy-all: the cars round a heavy landing flip away (its own district caps)
 	local id = BuildingService.buildingAt(at + Vector3.new(0, -2, 0), 3)
 	if not id then
 		-- a landing on the ground craters it (fix-destroy, 2026-11-19: CraterService, inside its own caps)
@@ -339,6 +343,11 @@ local function onProp(player: Player, at: Vector3)
 		return
 	end
 	BuildingService.street(at, 4)
+	-- destroy-all (2026-11-20): a car, truck or tram the hero rammed flips away, when the server's own history has
+	-- the hero at ram speed (the device lets the hero through its body meanwhile); VehicleService caps a district
+	if mayBreak(hero) and MoveGuard.peakSpeed(hero, R.window) >= R.minSpeed then
+		VehicleService.hit(at, Config.Destruction.street.vehicleRadius)
+	end
 end
 
 -- A Leaping hero's hands bit into a wall (move-2, the Hulk climb; MoveGrab): a small chip on the building there

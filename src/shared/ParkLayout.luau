@@ -42,6 +42,7 @@ export type Mesh = {
 	collide: boolean,
 	breaks: boolean, -- named "prop": the street breaking knocks it loose (a wall or rail length)
 	tag: string?, -- ParkSpin (the carousel's turning pieces), ParkJet (a fountain's water), ParkSign
+	group: number, -- destroy-all (2026-11-20): one placed look; its collision boxes carry the same group (Shared.StreetBreak.parkDress)
 }
 export type Water = {
 	id: string,
@@ -299,6 +300,7 @@ function ParkLayout.build(Config: any): Park
 	local boxes: { Box } = {}
 	local solid: { Box } = {}
 	local meshes: { Mesh } = {}
+	local group = 0 -- the look placed last: the solidAt boxes after a place() belong to it (they break together)
 	local props: { CityKit.Prop } = {}
 	local kit = Config.City.kit
 	local rng = Rng.new(P.seed)
@@ -345,6 +347,9 @@ function ParkLayout.build(Config: any): Park
 		local fit = ART[look]
 		local colors = P.looks[look]
 		local out = {}
+		if not (opts and opts.join) then
+			group += 1 -- (join: the gate's sign goes with the pillar placed just before it)
+		end
 		if not (fit and colors) then
 			return out
 		end
@@ -376,6 +381,7 @@ function ParkLayout.build(Config: any): Park
 				collide = o.collide == true,
 				breaks = o.breaks == true,
 				tag = if o.tags then o.tags[name] else o.tag,
+				group = group,
 			}
 			table.insert(meshes, m)
 			table.insert(out, m)
@@ -403,7 +409,8 @@ function ParkLayout.build(Config: any): Park
 				shape = o.shape,
 				ry = (ry + (o.ry or 0)) % 360,
 			})
-		bx.tag = o.tag
+		bx.tag = o.tag;
+		(bx :: any).group = group
 		return bx
 	end
 
@@ -491,7 +498,7 @@ function ParkLayout.build(Config: any): Park
 			local gx = if s.alongX then gt.at else s.x
 			local gz = if s.alongX then s.z else gt.at
 			if gt.sign then
-				place("GateSign", gx, wallY, gz, ry, { tags = { SignBoard = "ParkSign" } })
+				place("GateSign", gx, wallY, gz, ry, { tags = { SignBoard = "ParkSign" }, join = true })
 			end
 			table.insert(park.spots.gates, { gx, gz, ry })
 		end

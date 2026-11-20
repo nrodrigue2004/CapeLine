@@ -23147,6 +23147,13 @@ end
 	world = world,
 	placePath = placePath,
 });
+(require :: any)("./destroy_all_test")({
+	test = test,
+	check = check,
+	Config = Config,
+	world = world,
+	place = process.args[1],
+}); -- destroy-all: the park, the Deep, vehicles, park craters, sea splashes
 (require :: any)("./boss_counter_test")({ test = test, check = check, Config = Config, world = world });
 -- list-combat (2026-11-20: quieter defaults, powers and weapons break walls); ONLY="List combat" runs these
 (require :: any)("./intro_film_test")({ test = test, check = check, Config = Config, world = world });

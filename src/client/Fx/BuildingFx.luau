@@ -1088,7 +1088,8 @@ local function fling(p: BasePart, center: Vector3)
 		end
 	end
 	c.Anchored = false
-	c.CanCollide = true
+	-- a big flung piece (a bandshell's shell, a bridge deck) flies through things: no shove on heroes (destroy-all)
+	c.CanCollide = math.max(c.Size.X, c.Size.Y, c.Size.Z) <= (ST.collideMax or math.huge)
 	c.CanQuery = false
 	c.CanTouch = false
 	c.LocalTransparencyModifier = 0
@@ -1139,6 +1140,9 @@ local function hideStreet(p: BasePart, segs: Model?)
 	for _, ch in p:GetChildren() do
 		if ch:IsA("Decal") or ch:IsA("Texture") then
 			ch.LocalTransparencyModifier = 1
+		elseif ch:IsA("SurfaceGui") and ch.Enabled then
+			ch.Enabled = false -- a park gate's name goes with its sign (destroy-all)
+			ch:SetAttribute("StreetOff", true)
 		end
 	end
 	task.delay(D.street.respawn, function()
@@ -1155,11 +1159,101 @@ local function hideStreet(p: BasePart, segs: Model?)
 				for _, ch in p:GetChildren() do
 					if ch:IsA("Decal") or ch:IsA("Texture") then
 						ch.LocalTransparencyModifier = 0
+					elseif ch:IsA("SurfaceGui") and ch:GetAttribute("StreetOff") then
+						ch.Enabled = true
+						ch:SetAttribute("StreetOff", nil)
 					end
 				end
 			end
 		end
 	end)
+end
+
+-- Dressed looks (destroy-all, 2026-11-20, nate: "destroy EVERYTHING"; Shared.StreetBreak.parkDress/deepDress): the
+-- park's structures and the Deep's coral are Blender meshes over hidden collision boxes, all carrying one Dress key a
+-- look. A knock on any of its boxes flings every visible piece and hides the whole group on this device; it stands
+-- again after the street's respawn. Index: key -> parts under the look's folder (the Park, the Deep), kept as chunks
+-- stream in (a part streamed out is dropped; it comes back whole).
+local dressIndex: { [Instance]: { [string]: { BasePart } } } = {}
+local function dressParts(p: BasePart, key: string): { BasePart }
+	local chunk = p.Parent
+	local root = chunk and chunk.Parent
+	if not root then
+		return { p }
+	end
+	local idx = dressIndex[root]
+	if not idx then
+		local made: { [string]: { BasePart } } = {}
+		idx = made
+		dressIndex[root] = made
+		local function add(d: Instance)
+			if d:IsA("BasePart") then
+				local k = d:GetAttribute("Dress")
+				if type(k) == "string" then
+					local list = made[k]
+					if not list then
+						list = {}
+						made[k] = list
+					end
+					table.insert(list, d)
+				end
+			end
+		end
+		for _, d in root:GetDescendants() do
+			add(d)
+		end
+		root.DescendantAdded:Connect(add)
+	end
+	local out: { BasePart } = {}
+	local list = (idx :: any)[key] or {}
+	for i = #list, 1, -1 do
+		local q = list[i]
+		if q.Parent == nil then
+			table.remove(list, i)
+		else
+			table.insert(out, q)
+		end
+	end
+	if #out == 0 then
+		table.insert(out, p)
+	end
+	return out
+end
+
+BuildingFx.lastBig = false -- the last dressed look this device broke was a big one (MoveController's hit-stop)
+local function breakDress(p: BasePart, key: string, center: Vector3, heavy: boolean): boolean
+	local big = p:GetAttribute("DressBig") == true
+	if big and not heavy then
+		return false -- a bandshell or a bridge takes a heavy hit or a ram
+	end
+	local parts = dressParts(p, key)
+	local mid, n = Vector3.zero, 0
+	local color = p.Color
+	for _, q in parts do
+		if not streetDown[q] then
+			if q.Transparency < 1 and q.LocalTransparencyModifier < 1 then
+				color = q.Color
+				fling(q, center)
+			end
+			hideStreet(q, nil)
+			mid += q.Position
+			n += 1
+		end
+	end
+	if n == 0 then
+		return false
+	end
+	mid /= n
+	BuildingFx.lastBig = big
+	-- the weight of it: chips and dust in its colour (the effects library), a crunch for a big one
+	FxLib.throwMoment("smash", mid, color, Vector3.yAxis, if big then 6 else 2)
+	if big then
+		AudioController.play("wallSmash", mid, { volume = 0.9, pitch = 0.8 })
+		if nearMe(mid.X, mid.Z, 70) then
+			CameraController.shake(0.25, 0.4)
+		end
+	end
+	return true
 end
 
 -- A long thin street part broken at `center`: short lengths stand in for it, the ones within r fly
@@ -1208,7 +1302,7 @@ local function breakLong(p: BasePart, center: Vector3, r: number): number
 	return flew
 end
 
-local function smashStreet(center: Vector3, radius: number, only: BasePart?): number
+local function smashStreet(center: Vector3, radius: number, only: BasePart?, heavyIn: boolean?): number
 	local ST = D.street
 	local r = math.max(ST.minRadius, radius * ST.radiusMult)
 	local max = QualityController.preset.smash or 3
@@ -1226,12 +1320,22 @@ local function smashStreet(center: Vector3, radius: number, only: BasePart?): nu
 	if only then
 		table.insert(list, 1, only)
 	end
+	local heavy = heavyIn == true or only ~= nil or radius >= (ST.bigRadius or math.huge)
 	for _, p in list do
 		if left <= 0 then
 			break
 		end
 		local parent = p.Parent
-		if
+		local dress = p:GetAttribute("Dress")
+		if type(dress) == "string" then
+			if
+				not streetDown[p]
+				and p.LocalTransparencyModifier < 1
+				and breakDress(p, dress, center, heavy)
+			then
+				left -= 1
+			end
+		elseif
 			p.Name == "prop"
 			and not streetDown[p]
 			and (p.Transparency < 1 or p:GetAttribute("Picket") == true) -- a picket fence's box is hidden behind its picture
@@ -1258,6 +1362,15 @@ function BuildingFx.smashAt(at: Vector3, radius: number, part: BasePart?): numbe
 	return smashStreet(at, radius, part)
 end
 
+-- A heavy hit on open water (BuildingImpact kind 5, destroy-all 2026-11-20): a crown of spray and a ring off the
+-- surface (the effects library's Tide burst, inside the particle budget) and the splash sound
+local function splash(center: Vector3, radius: number)
+	local size = math.clamp(radius, 4, 14)
+	FxLib.burst(center + Vector3.new(0, 0.5, 0), size, "Tide", Color3.fromRGB(205, 232, 250), radius >= 8)
+	FxLib.throwMoment("land", center, Color3.fromRGB(236, 246, 255), Vector3.yAxis, size * 1.4)
+	AudioController.play("splash", center, { volume = math.clamp(0.5 + radius / 20, 0.5, 1), pitch = 0.8 })
+end
+
 local function impact(center: Vector3, radius: number, kind: number)
 	if typeof(center) ~= "Vector3" or type(radius) ~= "number" then
 		return
@@ -1267,7 +1380,11 @@ local function impact(center: Vector3, radius: number, kind: number)
 		task.spawn(hook, center, radius, kind) -- the living world: pigeons, cars, manholes, news drones (Fx.CityLife)
 	end
 	if kind == 3 then
-		smashStreet(center, radius) -- a hero went through a street thing (ImpactProp)
+		smashStreet(center, radius, nil, true) -- a hero went through a street thing (ImpactProp): a ram, so heavy
+		return
+	end
+	if kind == 5 then
+		splash(center, radius) -- a heavy hit on the sea (CraterService, destroy-all)
 		return
 	end
 	if kind == 4 then
@@ -1598,11 +1715,73 @@ end
 -- Street things a ram goes through (MoveController.onPropHit): knocked loose on this device and told to the server,
 -- which passes the knock on to the players near (BuildingImpact), so everyone sees the tree go
 local propSent = 0
+-- set by ImpactFx: the smash's juice (crunch, shake, chips) when a ram goes through a vehicle or a dressed look
+BuildingFx.onPropSmash = nil :: ((Vector3, Color3, number) -> ())?
+
+-- The vehicle a part belongs to (VehicleService's models carry VehicleId)
+local function vehicleOf(part: Instance): Model?
+	local m = part.Parent
+	while m and m ~= Workspace do
+		if m:IsA("Model") and m:GetAttribute("VehicleId") ~= nil then
+			return m
+		end
+		m = m.Parent
+	end
+	return nil
+end
+
+-- destroy-all (2026-11-20): a ram into a car, truck or tram goes through it: the body stops colliding on this device
+-- for a moment (the hero keeps its line) and the server, which checks the hero's own speed, flips it (ImpactProp)
+local passing: { [Model]: boolean } = {}
+local function ramVehicle(car: Model, part: BasePart, at: Vector3): boolean
+	local ST = D.street
+	if not passing[car] then
+		passing[car] = true
+		local off: { BasePart } = {}
+		for _, q in car:GetDescendants() do
+			if q:IsA("BasePart") and q.CanCollide then
+				q.CanCollide = false
+				table.insert(off, q)
+			end
+		end
+		task.delay(ST.pass or 0.6, function()
+			passing[car] = nil
+			for _, q in off do
+				q.CanCollide = true
+			end
+		end)
+	end
+	if os.clock() - propSent > 0.25 then
+		propSent = os.clock()
+		Net.send("ImpactProp", at)
+	end
+	MoveController.propStop = ST.bigStop or 0
+	local hook = BuildingFx.onPropSmash
+	if hook then
+		hook(at, part.Color, 1)
+	end
+	return true
+end
+
 local function propHit(part: BasePart, at: Vector3, _speed: number): boolean
+	local car = vehicleOf(part)
+	if car then
+		return ramVehicle(car, part, at)
+	end
+	BuildingFx.lastBig = false
 	local n = BuildingFx.smashAt(at, 4, part)
 	if n > 0 and os.clock() - propSent > 0.25 then
 		propSent = os.clock()
 		Net.send("ImpactProp", at)
+	end
+	if n > 0 and part:GetAttribute("Dress") ~= nil then
+		-- a dressed look (a park structure, coral): a short hit-stop and the smash's juice, more for a big one
+		local ST = D.street
+		MoveController.propStop = if BuildingFx.lastBig then ST.bigStop or 0 else ST.propStop or 0
+		local hook = BuildingFx.onPropSmash
+		if hook then
+			hook(at, part.Color, if BuildingFx.lastBig then 1 else ST.propSmash or 0.4)
+		end
 	end
 	return n > 0
 end

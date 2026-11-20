@@ -6,6 +6,7 @@
 --   and punch, a burst of chips and a puff of dust off the wall in its own colour: textured particles through the
 --   effects library since gap-fx3, 2026-11-19 (FxLib.throwMoment "smash", Config.Fx.lib.throw, the uploaded
 --   chip.png; inside the preset's particle budget). MoveController holds the hit-stop.
+-- * A ram through a vehicle or a dressed look (BuildingFx.onPropSmash, destroy-all 2026-11-20): the same smash.
 -- * A throw that broke a wall (HeroKnock with `wall`): the same smash where you go through, timed to when you get
 --   there.
 
@@ -43,6 +44,12 @@ function ImpactFx.smash(at: Vector3, normal: Vector3, strength: number, color: C
 end
 
 function ImpactFx.init()
+	-- destroy-all (2026-11-20): a ram through a car or a park structure smashes like a wall, a little lighter
+	BuildingFx.onPropSmash = function(at: Vector3, color: Color3, strength: number)
+		local v = MoveController.velocity
+		local normal = if v.Magnitude > 1e-3 then -v.Unit else Vector3.yAxis
+		ImpactFx.smash(at, normal, strength, color)
+	end
 	MoveController.Rammed:Connect(function(at: Vector3, normal: Vector3, speed: number, id: number)
 		local dir = MoveController.velocity
 		if dir.Magnitude < 1e-3 then

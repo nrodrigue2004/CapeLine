@@ -58,6 +58,7 @@ local IncidentService = require(script.Parent.IncidentService)
 local PerfMonitor = require(script.Parent.PerfMonitor)
 local MoveGuard = require(script.Parent.MoveGuard)
 local CraterService = require(script.Parent.CraterService)
+local VehicleService = require(script.Parent.VehicleService)
 
 local Bits = ProfileSchema.Bits
 
@@ -502,6 +503,7 @@ local function handleEvents(f: Fight)
 					Config.Destruction.bossStruct,
 					1
 				)
+				VehicleService.hit(Vector3.new(ev.x, ev.y, ev.z), ev.struct) -- destroy-all: cars in the slam flip
 			end
 		end
 		if ev.k == "strike" and ev.crater then

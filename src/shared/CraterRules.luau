@@ -197,6 +197,38 @@ function CraterRules.carve(
 	return changed
 end
 
+-- The water line a terrain crater at (x, z) fills to (destroy-all, 2026-11-20): the sea's (seaY) everywhere but the
+-- park, whose Terrain lawns sit above the sea line (ParkBuilder): there a dug voxel turns to Water only by one of
+-- the park's own waters (within two voxels of its shore, at that water's level) and to Air anywhere else, so a
+-- crater in the lawn is a dry bowl and one on the lake's bank lets the lake in. park: Shared.ParkLayout's build
+-- (bounds, waters) or nil; inside: ParkLayout.inside (how far inside a water's shore a point is).
+function CraterRules.waterLevel(
+	cfg: any,
+	park: any?,
+	seaY: number,
+	x: number,
+	z: number,
+	inside: ((any, number, number) -> number)?
+): number
+	local b = park and park.bounds
+	if not b or not inside or x < b.minX or x > b.maxX or z < b.minZ or z > b.maxZ then
+		return seaY
+	end
+	local best = -math.huge
+	for _, w in park.waters or {} do
+		if inside(w, x, z) > -cfg.voxel * 2 and w.level > best then
+			best = w.level
+		end
+	end
+	return best
+end
+
+-- Is (x, z) inside the park (its water splashes are the park's own: Fx.ParkLife)?
+function CraterRules.inPark(park: any?, x: number, z: number): boolean
+	local b = park and park.bounds
+	return b ~= nil and x >= b.minX and x <= b.maxX and z >= b.minZ and z <= b.maxZ
+end
+
 -- A device's rim chunks for a part crater: n chunks round the rim, tilted outward, seeded by the crater's id so
 -- every device draws the same ring. { x, y, z, sx, sy, sz, ry, tilt } (degrees)
 function CraterRules.rim(c: Crater, n: number): { any }

@@ -6,6 +6,10 @@
 -- * The structures' collision boxes (hidden) and every Art.Park piece over them (visual only), the wall and the
 --   reservoir rail as breakable lengths (named "prop": BuildingFx knocks them loose and they stand again later),
 --   reeds and lily pads, the name on the signed gates. Each in its 140-stud chunk model (streams like the hub).
+-- * destroy-all (2026-11-20, nate: "destroy EVERYTHING"): each placed look and its collision boxes carry one Dress
+--   key (Shared.StreetBreak.parkDress; DressBig on a bandshell, bridge or carousel): a device's BuildingFx knocks the
+--   whole look loose as one (a big one only on a heavy hit or a ram) and stands it again after the street's respawn.
+--   The server's boxes never move (robots and the height map as before).
 -- * Until Art.Park is imported the collision boxes show (PLACEHOLDER ART) and the wall and rail are plain lengths.
 -- Tags for each device's Fx.ParkLife: ParkSpin (the carousel's turning pieces), ParkJet (a fountain's water).
 
@@ -18,6 +22,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local ParkLayout = require(Shared:WaitForChild("ParkLayout"))
 local MeshFix = require(Shared:WaitForChild("MeshFix"))
 local SignKit = require(Shared:WaitForChild("SignKit"))
+local StreetBreak = require(Shared:WaitForChild("StreetBreak"))
 
 local ParkBuilder = {}
 ParkBuilder.voxels = 0 -- Terrain voxels written (the Dev panel and the tests' log)
@@ -152,9 +157,19 @@ function ParkBuilder.build(world: any, folder: Instance, makePart: (any) -> Base
 		ready[look] = ok
 	end
 	local anyReady = next(ready) ~= nil and ready.Bandshell == true
+	local dress = StreetBreak.parkDress(park)
+	local function dressUp(p: BasePart, key: string?)
+		if key then
+			p:SetAttribute("Dress", key)
+			if dress.big[key] then
+				p:SetAttribute("DressBig", true)
+			end
+		end
+	end
 
-	for _, b in park.solid do
+	for i, b in park.solid do
 		local p = makePart(b)
+		dressUp(p, dress.box[i])
 		p.Name = "parkSolid"
 		p.Transparency = if anyReady then 1 else 0 -- PLACEHOLDER ART until Art.Park is imported
 		p.CastShadow = not anyReady
@@ -165,7 +180,7 @@ function ParkBuilder.build(world: any, folder: Instance, makePart: (any) -> Base
 		ParkBuilder.parts += 1
 	end
 	local ink = Color3.fromRGB(246, 232, 190)
-	for _, m in park.meshes do
+	for i, m in park.meshes do
 		local src = source(m.name)
 		local p: BasePart
 		if src and ready[m.look] then
@@ -200,6 +215,7 @@ function ParkBuilder.build(world: any, folder: Instance, makePart: (any) -> Base
 		p.CastShadow = m.mat ~= "Neon" and m.alpha == 0
 		p.Name = if m.breaks then "prop" else m.name
 		p:SetAttribute("ParkPiece", m.name)
+		dressUp(p, dress.mesh[i])
 		if m.tag then
 			CollectionService:AddTag(p, m.tag)
 		end

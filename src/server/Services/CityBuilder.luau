@@ -31,6 +31,7 @@ local LifeKit = require(Shared:WaitForChild("LifeKit"))
 local LifePlan = require(Shared:WaitForChild("LifePlan"))
 local Vehicles = require(Shared:WaitForChild("Vehicles"))
 local SignKit = require(Shared:WaitForChild("SignKit"))
+local StreetBreak = require(Shared:WaitForChild("StreetBreak"))
 local Signal = require(Shared:WaitForChild("Util"):WaitForChild("Signal"))
 
 local CityBuilder = {}
@@ -688,7 +689,7 @@ local TERRAIN = { water = Enum.Material.Water, sand = Enum.Material.Sand, rock =
 
 -- One placement's meshes (Shared.DeepArtKit) into its chunk model: visuals only (no collisions, queries or
 -- touches; the boxes they stand in for stay, hidden). Kelp is tagged DeepKelp for DeepClient's sway.
-local function deepLook(place: any, parent: Instance): number
+local function deepLook(place: any, parent: Instance, dress: string?): number
 	local n = 0
 	local at = CFrame.new(place.cx, place.cy, place.cz) * CFrame.Angles(0, math.rad(place.ry or 0), 0)
 	for _, m in DeepArtKit.meshes(Config, place) do
@@ -701,6 +702,9 @@ local function deepLook(place: any, parent: Instance): number
 			-- the sway turns the strand about its foot: the placement's bottom middle
 			p:SetAttribute("Foot", Vector3.new(place.cx, place.cy - place.sy / 2, place.cz))
 			CollectionService:AddTag(p, "DeepKelp")
+		end
+		if dress then
+			p:SetAttribute("Dress", dress)
 		end
 		p.Parent = parent
 		n += 1
@@ -740,7 +744,9 @@ local function buildDeep(folder: Folder)
 		return deepSource(name) ~= nil
 	end)
 	local chunks: { [string]: Model } = {}
-	for _, b in deep.boxes do
+	-- destroy-all (2026-11-20): a hidden coral or wreck prop and its look's meshes knock loose as one (StreetBreak)
+	local dress = StreetBreak.deepDress(deep.boxes, deep.art, ready)
+	for i, b in deep.boxes do
 		local key = chunkKey(b.cx, b.cz)
 		local m = chunks[key]
 		if not m then
@@ -755,10 +761,13 @@ local function buildDeep(folder: Folder)
 			p.Transparency = 1
 			p.CastShadow = false
 		end
+		if dress.box[i] then
+			p:SetAttribute("Dress", dress.box[i])
+		end
 		p.Parent = m
 	end
 	local meshes = 0
-	for _, place in deep.art do
+	for j, place in deep.art do
 		if ready[place.look] then
 			local key = chunkKey(place.cx, place.cz)
 			local m = chunks[key]
@@ -769,7 +778,7 @@ local function buildDeep(folder: Folder)
 				m.Parent = deepFolder
 				chunks[key] = m
 			end
-			meshes += deepLook(place, m)
+			meshes += deepLook(place, m, dress.mesh[j])
 		end
 	end
 	deepFolder.Parent = folder

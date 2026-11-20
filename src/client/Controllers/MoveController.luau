@@ -982,6 +982,8 @@ local RAM = Config.Combat.impact.ram
 local RAM_MODES = { fly = true, dash = true, pound = true, ride = true, glide = true }
 -- set by BuildingFx: knock the street things at `at` loose on this device; true when something went
 MoveController.onPropHit = nil :: ((part: BasePart, at: Vector3, speed: number) -> boolean)?
+-- set by onPropHit (destroy-all, 2026-11-20): a short hit-stop for a ram through a vehicle or a park structure
+MoveController.propStop = 0
 local ramHold = 0
 local ramNext = 0
 local ramCarry: Vector3? = nil
@@ -1035,6 +1037,13 @@ local function ramStep(mode: string, v: Vector3, pos: Vector3, now: number, dt: 
 		local onProp = MoveController.onPropHit
 		if onProp and hit.Instance:IsA("BasePart") and onProp(hit.Instance, hit.Position, speed) then
 			ramNext = now + RAM.cooldown * 0.5
+			local stop = MoveController.propStop
+			MoveController.propStop = 0
+			if stop > 0 then
+				ramHold = now + stop
+				ramCarry = v * (1 - RAM.loss * 0.5)
+				return v * RAM.holdKeep
+			end
 			return v * (1 - RAM.loss * 0.5)
 		end
 		return v
@@ -1057,6 +1066,21 @@ end
 local function groundRam(hit: RaycastResult, speed: number, now: number): boolean
 	local id = buildingOf(hit.Instance)
 	if not id then
+		-- destroy-all (2026-11-20): a car or a park structure in the run's way goes flying instead of being run up
+		local onProp = MoveController.onPropHit
+		if
+			onProp
+			and speed >= RAM.minSpeed
+			and now >= ramNext
+			and hit.Instance:IsA("BasePart")
+			and onProp(hit.Instance, hit.Position, speed)
+		then
+			ramNext = now + RAM.cooldown * 0.5
+			local stop = MoveController.propStop
+			MoveController.propStop = 0
+			ramHold = now + stop
+			return true
+		end
 		return false
 	end
 	if id == ramLast.id and now - ramLast.at < RAM.sameWall * 2 then

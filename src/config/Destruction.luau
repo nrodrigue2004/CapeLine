@@ -16,7 +16,27 @@ return {
 	-- impact nearby: each device knocks them loose as debris (its preset's `smash` count and debris budget) and
 	-- puts them back after `respawn` seconds. They are dressing, so the server keeps no state for them.
 	-- segment: a long fence or wall breaks in lengths this long (Shared.StreetBreak; fix-destroy 2026-11-19)
-	street = { respawn = 45, radiusMult = 1.2, minRadius = 8, fling = 40, life = 4, segment = 6 },
+	street = {
+		respawn = 45,
+		radiusMult = 1.2,
+		minRadius = 8,
+		fling = 40,
+		life = 4,
+		segment = 6,
+		-- destroy-all (2026-11-20, nate: "destroy EVERYTHING"): a dressed look (the park's structures, the Deep's
+		-- coral; Shared.StreetBreak) breaks as one group; a big one (a bandshell, a bridge) only from a hit of
+		-- bigRadius+ studs or a ram. A flung piece wider than collideMax flies through things (no shove on heroes).
+		bigRadius = 9,
+		collideMax = 16,
+		-- a ram through a dressed look or a vehicle: the hit-stop (s, MoveController.propStop) and the smash's strength
+		propStop = 0.035,
+		bigStop = 0.06,
+		propSmash = 0.45,
+		-- a vehicle a hero flies or runs into at ram speed flips away (ImpactProp; VehicleService.hit this wide round
+		-- the contact); the device lets the hero through its body for `pass` seconds while the server flips it
+		vehicleRadius = 5,
+		pass = 0.6,
+	},
 	hp = { small = 6000, medium = 10000, tower = 14000 }, -- structure HP by size
 	smallMax = 30, -- a building up to this tall (2 or so floors) is small
 	mediumMax = 150, -- up to this tall is medium, taller is a tower
@@ -109,6 +129,10 @@ return {
 		perCell = 2,
 		maxLive = 48,
 		near = 6, -- the hit must be this close above the ground to crater it
+		-- destroy-all (2026-11-20): a hit of splashMin+ on the open sea throws a splash (BuildingImpact kind 5) on the
+		-- devices near, at most splashRate a second on the server
+		splashMin = 400,
+		splashRate = 4,
 	},
 	-- comic ink decals for the crater and the facade crack (art/fx/textures.py --destruction, uploaded as Image
 	-- assets); id 0 keeps today's dark disc and thin bars (BuildingFx). crater: the decal spans this many crater

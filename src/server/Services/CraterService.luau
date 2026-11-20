@@ -8,6 +8,9 @@
 --   crater (GroundFx) from the list this service keeps, so everyone sees the same craters, healing back together.
 -- * Caps (Config.Destruction.ground): craters a second, live craters a 48-stud cell and in all, and terrain craters
 --   never overlap (each writes back only its own voxels).
+-- * destroy-all (2026-11-20): the park's Terrain lawns dig too, filling only from the park's own waters
+--   (CraterRules.waterLevel: a lawn crater is a dry bowl), and a heavy hit on the open sea throws a splash on the
+--   devices near (BuildingImpact kind 5, splashRate a second; the park's lake splashes through Fx.ParkLife).
 -- * Remotes: CraterSync (a device asks once), CraterState (the live list), CraterAdd, CraterGone.
 
 local Players = game:GetService("Players")
@@ -18,6 +21,7 @@ local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Net = require(Shared:WaitForChild("Net"))
 local CraterRules = require(Shared:WaitForChild("CraterRules"))
+local ParkLayout = require(Shared:WaitForChild("ParkLayout"))
 
 local PerfMonitor = require(script.Parent.PerfMonitor)
 
@@ -29,6 +33,8 @@ local book = CraterRules.new()
 local saved: { [number]: { region: Region3, mats: any, occ: any } } = {}
 CraterService.book = book
 CraterService.dug = 0 -- terrain craters dug since boot (PerfMonitor)
+CraterService.splashes = 0 -- sea splashes sent since boot (destroy-all)
+local splash: (Vector3, number) -> ()
 
 -- the city's part ground: what a crater may be drawn on (CityBuilder names each part by its kind)
 local GROUND = {
@@ -72,7 +78,7 @@ local function groundAt(at: Vector3): (string?, Vector3?)
 	end
 	if hit.Instance == Workspace.Terrain then
 		if hit.Material == Enum.Material.Water then
-			return nil, nil
+			return "water", hit.Position
 		end
 		return "terrain", hit.Position
 	end
@@ -93,6 +99,33 @@ local function groundAt(at: Vector3): (string?, Vector3?)
 		return "part", hit.Position
 	end
 	return nil, nil
+end
+
+-- A heavy hit on the open sea: a splash on the devices near (BuildingImpact kind 5), splashRate a second
+local splashTimes: { number } = {}
+splash = function(at: Vector3, radius: number)
+	local world = require(script.Parent.CityBuilder).world
+	if CraterRules.inPark(world and world.park, at.X, at.Z) then
+		return -- the park's waters splash on each device already (Fx.ParkLife)
+	end
+	local now = os.clock()
+	for i = #splashTimes, 1, -1 do
+		if now - splashTimes[i] > 1 then
+			table.remove(splashTimes, i)
+		end
+	end
+	if #splashTimes >= (G.splashRate or 4) then
+		return
+	end
+	table.insert(splashTimes, now)
+	local r2 = Config.Destruction.impactRadius ^ 2
+	for _, player in Players:GetPlayers() do
+		local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
+		if root and (root.Position - at).Magnitude ^ 2 <= r2 then
+			Net.fire("BuildingImpact", player, at, radius, 5)
+		end
+	end
+	CraterService.splashes += 1
 end
 
 -- Read, dig and write a terrain crater's voxels (the read is kept for the heal)
@@ -119,7 +152,9 @@ local function dig(c: CraterRules.Crater): boolean
 			end
 		end
 	end
-	if CraterRules.carve(G, c, lo, names, occs, WATER_Y) == 0 then
+	local world = require(script.Parent.CityBuilder).world -- (required here: the park is built after boot)
+	local waterY = CraterRules.waterLevel(G, world and world.park, WATER_Y, c.x, c.z, ParkLayout.inside)
+	if CraterRules.carve(G, c, lo, names, occs, waterY) == 0 then
 		return false
 	end
 	for i, plane in names do
@@ -141,13 +176,20 @@ end
 -- A heavy hit at `at` (dmg structure damage, radius its blast): a crater in the ground under it, if the ground is
 -- close under it and the caps allow. Returns the crater or nil.
 function CraterService.blast(at: Vector3, radius: number, dmg: number): CraterRules.Crater?
-	if not G.on or dmg < G.minDmg then
+	if not G.on or (dmg < G.minDmg and dmg < (G.splashMin or math.huge)) then
 		return nil
 	end
 	local t0 = os.clock()
 	local kind, surface = groundAt(at)
 	if not kind or not surface or at.Y - surface.Y > G.near + radius * 0.5 then
 		return nil
+	end
+	if kind == "water" then
+		splash(surface, radius)
+		return nil
+	end
+	if dmg < G.minDmg then
+		return nil -- (a lighter hit only splashes)
 	end
 	local c = CraterRules.add(G, book, surface.X, surface.Y, surface.Z, dmg, kind, os.clock())
 	if not c then
