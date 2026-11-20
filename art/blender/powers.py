@@ -229,6 +229,48 @@ leg = [C(0.62, 1.05, 0, 0.0, 0, segs=10, r2=0.7), B(0.9, 0.6, 0.35, 0, 0.2, -0.6
 mesh("Mech", "MechLeg", leg, (210, 216, 226), "Metal")
 
 
+# ================================================================ Flame Jets (Everything Left 382, 2026-11-20): two boot thrusters under the
+# hero's feet, flared nozzles with cooling rings and a glowing throat (anchor: the rider's root; the soles at 3.4 below)
+jet = []
+throat = []
+for sx in (-0.6, 0.6):
+    jet.append(C(0.42, 0.55, sx, Y0 - 0.35, 0, segs=14, r2=0.4))  # the collar under the sole
+    jet.append(C(0.38, 0.9, sx, Y0 - 1.05, 0, segs=14, r2=0.5))  # the flared bell
+    for k, y in enumerate((Y0 - 0.75, Y0 - 1.15)):
+        jet.append(TOR(0.42 + k * 0.05, 0.05, sx, y, 0, segs=16, csegs=4))
+    jet.append(B(0.14, 0.5, 0.5, sx + (0.42 if sx > 0 else -0.42), Y0 - 0.55, 0, bev=0.04))  # a fin out the side
+    throat.append(C(0.3, 0.08, sx, Y0 - 1.48, 0, segs=12))
+mesh("FlameJets", "JetNozzles", jet, STEEL, "Metal")
+mesh("FlameJets", tint("JetThroats"), throat, PATH, "Neon")
+
+# ================================================================ Light Rail (Everything Left 382): a glowing rail of light 14 long under the
+# feet, a bright spine on hard-light ties that fade out ahead and behind (anchor: the rider's root; the spine at
+# 3.4 below, running from 4 behind to 10 ahead)
+spine = [B(0.42, 0.22, 14, 0, Y0 - 0.05, -3)]
+spine += [B(0.12, 0.12, 14, sx * 0.45, Y0 - 0.05, -3) for sx in (-1, 1)]
+mesh("LightRail", tint("RailSpine"), spine, PATH, "Neon")
+ties = []
+for i in range(8):
+    z = 3.4 - i * 1.8
+    ties.append(B(1.6 - abs(i - 3.5) * 0.12, 0.12, 0.3, 0, Y0 - 0.25, z, bev=0.04))
+ties.append(prism([(-0.5, Y0 - 0.25), (0.5, Y0 - 0.25), (0, Y0 - 0.65)], 3.9, -9.9))
+mesh("LightRail", "RailTies", ties, WHITE, "Neon", alpha=0.35)
+
+# ================================================================ Psi Platform (Everything Left 382): a torn-up slab of street held by the
+# mind: asphalt over a broken concrete edge with a lane stripe and bent rebar (anchor: the rider's root; the top at
+# 3.4 below; the crate and barrel stay the street kit's props riding its corners)
+road = S(1.0, 0, 0, 0, sc=(3.1, 0.75, 3.1), segs=12, rings=8)
+lumpy(road, 0.12, seed=11)
+road = kit.cut(road, (0, 0, 1), keep_positive=False)
+shift(road, rb(0, Y0, 0))
+mesh("PsiSlab", "SlabRock", [road], (100, 98, 104), "Concrete", shade=False)
+mesh("PsiSlab", "SlabAsphalt", [B(5.6, 0.12, 5.6, 0, Y0 + 0.04, 0, bev=0.05)], (52, 54, 60), "Asphalt")
+mesh("PsiSlab", "SlabStripe", [B(0.35, 0.03, 1.4, 0, Y0 + 0.11, z) for z in (-2.0, 0.0, 2.0)], (245, 205, 60))
+rebar = [T([(x, Y0 - 0.6, 2.5), (x + 0.2, Y0 - 0.9, 3.4), (x + 0.6, Y0 - 1.0, 3.8)], [0.07, 0.06, 0.05], segs=5)
+         for x in (-1.2, 0.1, 1.3)]
+mesh("PsiSlab", "SlabRebar", rebar, (120, 80, 60), "Metal")
+mesh("PsiSlab", tint("SlabAura"), [TOR(3.3, 0.08, 0, Y0 - 1.3, 0, segs=36, csegs=5)], PATH, "Neon", alpha=0.3)
+
 # ================================================================ the nemesis's armour (NemesisFx, Everything Left 218): each piece drawn to fill
 # the box of the part it replaces on the Brute Bot (centred on it), so NemesisFx sizes it to that same box.
 # shoulders: 5 x 1 x 3 (times the build's width)
@@ -338,7 +380,8 @@ if "--preview" in sys.argv:
     kit.studio(res=(1600, 700), samples=24)
     spots = {"Turret": (-14, 6, 3), "Drone": (-8, 6, 4), "Totem": (-2, 6, 3), "Mine": (3, 6, 0.5), "Mech": (8, 6, 1.2),
              "Guardian": (15, 8, 0), "SpiritBeast": (-15, -6, 7.8), "Hoverboard": (-6, -6, 3.7), "RockSlab": (2, -6, 4.6),
-             "StonePillar": (9, -6, 5), "ThornVine": (13, -6, 5), "Wave": (19, -6, 5), "Nemesis": (-22, 8, 4)}
+             "StonePillar": (9, -6, 5), "ThornVine": (13, -6, 5), "Wave": (19, -6, 5), "Nemesis": (-22, 8, 4),
+             "FlameJets": (-21, -6, 5.2), "LightRail": (25, 6, 4), "PsiSlab": (24, -8, 5.2)}
     for look, meshes in LOOKS.items():
         x, yb, y = spots[look]
         for name, ob in meshes.items():

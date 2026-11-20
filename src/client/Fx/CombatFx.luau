@@ -872,13 +872,41 @@ end
 
 -- Travel powers: what the hero rides on, under their feet while the ride lasts (Rock Ride's slab, Wave
 -- Surf's wave, the Hoverboard, Psi Platform's debris, Spirit Ride's beast, Light Rail's rail, Flame Jets'
--- jets). PLACEHOLDER ART until the VFX pass.
+-- jets). Every ride wears its Blender look (art/blender/powers.py, Fx.PowerMeshes; Everything Left 382: the jets,
+-- the rail and the street slab since 2026-11-20; Wave Surf rides the Tsunami's wave, scaled down behind the feet);
+-- the part builds below only while a look is not imported.
 function CombatFx.ride(set: string, at: () -> Vector3?, duration: number, style: string, color: Color3)
 	local feet = CFrame.new(0, -3.4, 0)
 	local pieces: { any }
-	local RIDE = { Earth = "RockSlab", Gadgeteer = "Hoverboard", Spirit = "SpiritBeast" }
-	if RIDE[set] and PowerMeshes.ready(RIDE[set]) then
+	local RIDE = {
+		Earth = "RockSlab",
+		Gadgeteer = "Hoverboard",
+		Spirit = "SpiritBeast",
+		Fire = "FlameJets",
+		Light = "LightRail",
+		Mind = "PsiSlab",
+	}
+	local meshed = RIDE[set] ~= nil and PowerMeshes.ready(RIDE[set])
+	if meshed then
 		pieces = PowerMeshes.pieces(RIDE[set], CFrame.identity, color) -- the Blender look (Fx.PowerMeshes)
+		if set == "Mind" then
+			-- the street kit's crate and barrel still ride its corners, on hidden holders
+			table.insert(pieces, {
+				Vector3.new(1.4, 1.6, 1.4),
+				feet * CFrame.new(2.1, 1.0, 2.1) * CFrame.Angles(0, 0.4, 0),
+				color,
+				nil,
+				1,
+			})
+			table.insert(
+				pieces,
+				{ Vector3.new(1.4, 1.8, 1.4), feet * CFrame.new(-2.2, 1.1, 1.9), color, nil, 1 }
+			)
+		end
+	elseif set == "Tide" and PowerMeshes.ready("Wave") then
+		-- the Tsunami's wave, small, its curl breaking forward just behind and under the rider
+		pieces =
+			PowerMeshes.pieces("Wave", feet * CFrame.new(0, -0.6, 2.2), color, Vector3.new(0.8, 0.45, 0.7))
 	elseif set == "Earth" then
 		pieces =
 			{ { Vector3.new(6, 1.2, 8), feet, Color3.fromRGB(120, 105, 90), nil, 0, Enum.Material.Slate } }
@@ -933,7 +961,8 @@ function CombatFx.ride(set: string, at: () -> Vector3?, duration: number, style:
 	end
 	local dressed: { BasePart } = {}
 	if set == "Mind" then
-		for i, name in { [3] = "Crate", [4] = "Barrel" } do
+		local n = #pieces
+		for i, name in { [n - 1] = "Crate", [n] = "Barrel" } do
 			local holder = parts[i]
 			holder.CFrame = pieces[i][2] -- in the rig's frame while welding; the loop moves it from here on
 			CityProps.dress(name, holder, holder.Size.Y, dressed) -- faded with the rest at the end
@@ -976,7 +1005,7 @@ function CombatFx.ride(set: string, at: () -> Vector3?, duration: number, style:
 			local back = base * CFrame.new(0, -3.6, 3)
 			if set == "Fire" then
 				for _, x in { -0.6, 0.6 } do
-					local jet = (base * CFrame.new(x, -4.6, 0)).Position
+					local jet = (base * CFrame.new(x, -4.85, 0)).Position
 					FxLib.emit("flame", color, jet, 2, Vector3.new(0, -1, 0))
 					FxLib.emit("ember", color, jet, 1, Vector3.new(0, -1, 0))
 				end

@@ -6,8 +6,8 @@
 --   ring size); an effect moves the attachment and calls Emit, so nothing is created per hit.
 -- * Capped: a particles-a-second budget per device preset (FxPlan.take), and the preset's share of each count.
 -- * Reduce flashing skips the bright kinds (glow, core, crackle).
--- Textures are Roblox's built-in particle images until the generated sheets are uploaded (Config ids).
--- PLACEHOLDER ART until then.
+-- Textures: the generated sheets (art/fx/textures.py), all uploaded (Config.Fx.lib.textures ids, 2026-11-18);
+-- Roblox's built-in particle image only for an id of 0.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")

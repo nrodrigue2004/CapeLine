@@ -123,9 +123,8 @@ return {
 	slashSegments = 9, -- pieces in an arc slash
 	fieldPulse = 0.5, -- seconds between field pulses
 	-- The effects library (overhaul plan step 3; client Fx/FxLib, rules in Shared.FxPlan): textured particles
-	-- under the part-built shapes. Textures are Roblox's built-in particle images until nate uploads the
-	-- generated sheets (art/fx/textures.py -> art/export/fx; put the uploaded ids in `id`, flip = the sheet's
-	-- grid). PLACEHOLDER ART until then.
+	-- under the part-built shapes. Textures are the generated sheets (art/fx/textures.py -> art/export/fx), all
+	-- uploaded (`id`; flip = the sheet's grid); `builtin` is Roblox's particle image, used only for an id of 0.
 	lib = {
 		textures = {
 			spark = {

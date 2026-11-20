@@ -972,9 +972,24 @@ return function(T: any)
 				check(m.tris < 5000, name .. " stays light")
 			end
 		end
-		check(n == 37, "37 meshes in 13 looks: " .. n)
+		check(
+			n == 46,
+			"46 meshes in 16 looks (Everything Left 382 added the jets, the rail and the slab): " .. n
+		)
 		for _, look in
-			{ "Turret", "Drone", "Totem", "Mine", "Guardian", "SpiritBeast", "Hoverboard", "RockSlab" }
+			{
+				"Turret",
+				"Drone",
+				"Totem",
+				"Mine",
+				"Guardian",
+				"SpiritBeast",
+				"Hoverboard",
+				"RockSlab",
+				"FlameJets",
+				"LightRail",
+				"PsiSlab",
+			}
 		do
 			check(art[look] ~= nil, look .. " look")
 		end
@@ -984,7 +999,7 @@ return function(T: any)
 				'PowerMeshes.ready("StonePillar")',
 				'PowerMeshes.ready("ThornVine")',
 				'PowerMeshes.ready("Wave")',
-				"RIDE[set] and PowerMeshes.ready(RIDE[set])",
+				"RIDE[set] ~= nil and PowerMeshes.ready(RIDE[set])",
 				"look and PowerMeshes.ready(look)",
 			}
 		do
@@ -1016,7 +1031,7 @@ return function(T: any)
 						return at
 					end, 3, "Comic", color, 10)
 				end
-				for _, set in { "Earth", "Gadgeteer", "Spirit" } do
+				for _, set in { "Earth", "Gadgeteer", "Spirit", "Fire", "Light", "Mind", "Tide" } do
 					CombatFx.ride(set, function()
 						return at
 					end, 3, "Comic", color)
@@ -1038,6 +1053,13 @@ return function(T: any)
 					"RockBody",
 					"BoardDeck",
 					"BeastForm",
+					"JetNozzles",
+					"JetThroats",
+					"RailSpine",
+					"RailTies",
+					"SlabAsphalt",
+					"SlabRock",
+					"WaveWater",
 				}
 			do
 				check(names[name] ~= nil, name .. " drawn as a mesh")
